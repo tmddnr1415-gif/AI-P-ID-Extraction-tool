@@ -432,6 +432,36 @@ svg [data-tip]:hover rect.bar,svg [data-tip]:hover circle{opacity:.8}
 .memo .mb{max-height:380px;overflow:auto;font-size:13px}
 .memo .mf{display:flex;justify-content:flex-end;margin-top:8px}
 @media (max-width:900px){.homebottom{grid-template-columns:1fr}}
+
+/* ---------- 창 관리 (2026-10-24): 크기 조절 · 왼쪽/오른쪽 절반 · 최대화 · 최소화 ---------- */
+dialog .wmb{display:inline-flex;gap:2px;margin-left:auto;margin-right:8px;flex:none}
+dialog .wmb button{border:0;background:transparent;width:28px;height:26px;border-radius:7px;color:#5b6684;display:grid;place-items:center;padding:0}
+dialog .wmb button:hover{background:#eef1f8;color:var(--accent)}dialog .wmb button.on{background:var(--accent-l);color:var(--accent-d)}
+dialog .wmb svg{width:16px;height:16px;display:block}
+dialog .dh>span:first-child{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+dialog.wm-n{position:fixed;z-index:950;margin:0}
+dialog[open].wm-fill{display:flex;flex-direction:column}
+dialog.wm-fill>form{display:flex;flex-direction:column;flex:1;min-height:0}
+dialog.wm-fill .db{flex:1;max-height:none;min-height:0}
+dialog.wm-fill .vbody{flex:1;min-height:0}dialog.wm-fill .vprev{max-height:none}dialog.wm-fill .vright .grow textarea{min-height:0}
+dialog.wm-left,dialog.wm-right,dialog.wm-max{margin:0!important;max-width:none!important;max-height:none!important;top:6px!important;bottom:auto!important;right:auto!important;height:calc(100vh - 12px)!important}
+dialog.wm-left{left:6px!important;width:calc(50vw - 9px)!important}
+dialog.wm-right{left:calc(50vw + 3px)!important;width:calc(50vw - 9px)!important}
+dialog.wm-max{left:6px!important;width:calc(100vw - 12px)!important}
+dialog.wm-min{left:12px!important;top:auto!important;right:auto!important;bottom:calc(12px + var(--wmi,0) * 54px)!important;width:360px!important;height:auto!important;max-height:none!important;margin:0!important;overflow:hidden;box-shadow:0 8px 26px rgba(20,30,70,.4)}
+dialog.wm-min>:not(.dh):not(form),dialog.wm-min>form>:not(.dh){display:none!important}
+dialog.wm-min .dh{padding:9px 12px;font-size:13px;cursor:pointer;border-bottom:0;background:#f4f6fc}
+dialog.wm-min .wmb [data-wm="left"],dialog.wm-min .wmb [data-wm="right"],dialog.wm-min .wmb [data-wm="max"]{display:none}
+dialog.wm-max .wmb [data-wm="left"],dialog.wm-max .wmb [data-wm="right"]{opacity:.55}
+dialog[data-rz="n"],dialog[data-rz="n"] *,dialog[data-rz="s"],dialog[data-rz="s"] *{cursor:ns-resize!important}
+dialog[data-rz="e"],dialog[data-rz="e"] *,dialog[data-rz="w"],dialog[data-rz="w"] *{cursor:ew-resize!important}
+dialog[data-rz="ne"],dialog[data-rz="ne"] *,dialog[data-rz="sw"],dialog[data-rz="sw"] *{cursor:nesw-resize!important}
+dialog[data-rz="nw"],dialog[data-rz="nw"] *,dialog[data-rz="se"],dialog[data-rz="se"] *{cursor:nwse-resize!important}
+dialog.wm-rz{user-select:none}
+.wmhint{position:fixed;z-index:1990;pointer-events:none;background:rgba(64,93,230,.14);border:2px solid rgba(64,93,230,.55);border-radius:12px;transition:all .12s}
+/* 절반 배치 중엔 본문을 나머지 절반에 맞춰 보여 줌 (표를 옆에 두고 편집) */
+@media (min-width:901px){body.wm-split-r #main{padding-right:50vw!important}body.wm-split-l #main{margin-left:50vw!important}body.wm-split-l #side{visibility:hidden}}
+@media print{body.wm-split-r #main{padding-right:0!important}body.wm-split-l #main{margin-left:0!important}}
 /* 내 업무: 팝업 목록 + 오른쪽 툴바 */
 .titem{display:flex;gap:10px;align-items:center;width:100%;text-align:left;border:1px solid var(--line);background:#fff;border-radius:10px;padding:9px 12px;margin-top:8px}
 .titem:hover{border-color:var(--accent);background:var(--accent-l)}
@@ -780,7 +810,7 @@ dialog::backdrop{background:rgba(20,28,60,.45)}
 .chg pre{margin:0;white-space:pre-wrap;word-break:break-word;font-family:inherit;padding:4px 6px;border-radius:6px;max-height:140px;overflow:auto}
 .chg .b{background:var(--bad-l)}.chg .a{background:var(--ok-l)}
 .muted{color:var(--sub);font-size:12px}
-.toast{position:fixed;bottom:22px;right:22px;background:#1b2238;color:#fff;padding:10px 16px;border-radius:10px;opacity:0;transition:.25s;pointer-events:none;z-index:99;max-width:380px}
+.toast{position:fixed;bottom:22px;right:22px;background:#1b2238;color:#fff;padding:10px 16px;border-radius:10px;opacity:0;transition:.25s;pointer-events:none;z-index:2000;max-width:380px}
 .toast.show{opacity:1}.toast.err{background:var(--bad)}
 .welcome{max-width:560px;margin:60px auto;text-align:center}
 .welcome h2{font-size:20px}
@@ -1057,7 +1087,7 @@ function recLabel(key, f) {
  * ===================================================================== */
 let root = null;
 /* 서버 모드: http(s):// 로 접속하면 server.py 의 REST API 사용 (폴더 선택 불필요). file:// 로 열면 폴더 모드 */
-const APP_VERSION = '2026-10-23.3';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
+const APP_VERSION = '2026-10-24.1';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
 const SERVER_URL = 'http://localhost:8080';
 // 부서원 PC 사본(file://)이 접속을 시도할 서버 — 서버가 배포 파일을 만들 때 'PC 이름 주소, IP 주소' 순으로 자동 기록함
 const DEFAULT_SERVERS = ['http://ASEUNGWOOK-B01:8080', 'http://65.3.30.234:8080'];
@@ -1732,23 +1762,183 @@ async function importQueue(file) {
 
 const dlg = $('#dlg'), dlg2 = $('#dlg2');
 function openDlg(el, html, wide) {
-  el.className = wide ? 'wide' : ''; el.innerHTML = html;
-  if (!el.open) { el.removeAttribute('style'); el.showModal(); bdRaise(); }   // 새로 열 때는 가운데 위치로 · 생일 팝업이 떠 있으면 그 위로 다시
+  if (wmParked(el)) wmBusy(el);                              // 최소화 · 절반 배치해 둔 창(쓰던 글)이 있으면 덮어쓰지 않음
+  const keep = el.open ? [...el.classList].filter(c => c.startsWith('wm-')) : [];
+  el.className = wide ? 'wide' : ''; keep.forEach(c => el.classList.add(c)); el.innerHTML = html;
+  if (!el.open) { el.removeAttribute('style'); delete el.dataset.wm; el.showModal(); bdRaise(); wmRestore(el); }   // 새로 열 때는 가운데 위치로(또는 이 창 종류의 마지막 배치) · 생일 팝업이 떠 있으면 그 위로 다시
+  wmInject(el);
 }
 function bdRaise() { const d = document.getElementById('bdpop'); if (d?.open) { d.close(); d.showModal(); } }   // 생일 팝업을 맨 위로 (내 할 일·업데이트 안내보다 위)
-/* 팝업 위쪽(제목 줄)을 끌어서 이동 */
+/* =====================================================================
+ *  창 관리 (2026-10-24) — 편집 · VOC · 확인 등 모든 작업 창
+ *  - 제목 줄을 끌어 이동 · 가장자리/모서리를 끌어 크기 조절
+ *  - 제목 줄 단추: [왼쪽 절반] [오른쪽 절반] [최대화 ↔ 되돌리기] [최소화 ↔ 되살리기] · 제목 줄 두 번 누르기 = 최대화 ↔ 되돌리기
+ *  - 제목 줄을 화면 왼쪽/오른쪽 끝으로 끌어다 놓으면 절반, 위쪽 끝이면 최대화 (윈도우처럼) · 붙여 둔 창을 끌면 떼어 냄
+ *  - 왼쪽/오른쪽 절반 · 최소화 동안은 뒤 화면을 쓸 수 있는 창(non-modal)으로 바꿈 → 표를 보며 · 스크롤하며 · 복사하며 편집.
+ *    절반이면 본문이 나머지 절반에 맞춰 보임. 그동안 다른 [편집]을 누르면 쓰던 창을 되살리고 '먼저 저장하거나 닫으세요' (덮어쓰지 않음)
+ *  - 창 종류(편집 창 · VOC 창 …)마다 마지막 배치(절반 · 최대화 · 크기)를 이 PC 에 기억해 다음에 열 때 그대로 (dept-wm)
+ *  - 보통 창 ↔ 뒤 화면을 쓸 수 있는 창으로 바꿀 때는 닫았다 다시 여는데, 그때의 close 이벤트는 삼켜서(WM.quiet) 내용 · 입력값 · 닫기 처리가 그대로
+ * ===================================================================== */
+const WM_SKIP = new Set(['shotdlg']), WM_LS = 'dept-wm', WM_EDGE = 7;
+const WM = { quiet:new Map(), rz:null };
+class WmBusy extends Error {}
+addEventListener('unhandledrejection', e => { if (e.reason instanceof WmBusy) e.preventDefault(); });
+addEventListener('error', e => { if (e.error instanceof WmBusy) e.preventDefault(); });
+addEventListener('close', e => {                               // 창 모드 바꿀 때의 close = 삼킴 · 진짜 닫힘 = 배치 정리
+  const d = e.target; if (!(d instanceof HTMLDialogElement)) return;
+  const t = WM.quiet.get(d); if (t && Date.now() - t < 800) { WM.quiet.delete(d); e.stopImmediatePropagation(); return; }
+  WM.quiet.delete(d);
+  if (d.dataset.wm) { d.classList.remove('wm-left', 'wm-right', 'wm-max', 'wm-min', 'wm-n', 'wm-fill'); delete d.dataset.wm; d.removeAttribute('style'); wmLayout(); }
+}, true);
+const wmOn = d => d && !WM_SKIP.has(d.id) && !!d.querySelector('.dh');
+const wmParked = d => !!d && d.open && wmOn(d) && !d.matches(':modal');   // 최소화 · 절반으로 세워 둔 창 (쓰던 중)
+const dlgModalOpen = d => d.open && d.matches(':modal');
+function wmBusy(d) {
+  if (d.dataset.wm === 'min') wmSet(d, d._prev || 'free', false);
+  d.animate?.([{ boxShadow:'0 0 0 4px rgba(255,77,141,.8)' }, { boxShadow:'0 0 0 0 rgba(255,77,141,0)' }], { duration:900 });
+  toast('열어 둔 작업 창이 있습니다 — 먼저 저장하거나 닫으세요', true);
+  throw new WmBusy('busy');
+}
+const wmKey = d => { const f = d.querySelector('form[id]'); return f ? `${d.id}:${f.id}` : ''; };
+function wmSave(d, v) { const k = wmKey(d); if (!k) return; try { const a = JSON.parse(localStorage.getItem(WM_LS) || '{}'); a[k] = v; localStorage.setItem(WM_LS, JSON.stringify(a)); } catch (_) {} }
+function wmRestore(d) {                                       // 이 창 종류의 마지막 배치
+  const k = wmKey(d); if (!k) return; let v = null; try { v = JSON.parse(localStorage.getItem(WM_LS) || '{}')[k]; } catch (_) {}
+  if (!v) return;
+  if (v.w && v.h) { Object.assign(d.style, { width:Math.min(v.w, innerWidth - 12) + 'px', height:Math.min(v.h, innerHeight - 12) + 'px', maxWidth:'96vw', maxHeight:'96vh' }); d.classList.add('wm-fill'); }
+  if (['left', 'right', 'max'].includes(v.mode) && innerWidth > 700) wmSet(d, v.mode, false);
+}
+function wmModal(d, modal) {                                  // 보통 창 ↔ 뒤 화면을 쓸 수 있는 창 (내용 · 입력값 · 포커스 그대로)
+  if (!d.open || d.matches(':modal') === modal) return;
+  const st = d.getAttribute('style'), a = document.activeElement, sel = a && d.contains(a) && 'selectionStart' in a ? [a.selectionStart, a.selectionEnd] : null;
+  WM.quiet.set(d, Date.now()); d.close(); if (modal) d.showModal(); else d.show();
+  if (st != null) d.setAttribute('style', st);
+  d.classList.toggle('wm-n', !modal);
+  if (a && d.contains(a)) { try { a.focus({ preventScroll:true }); if (sel) a.setSelectionRange(...sel); } catch (_) {} }
+}
+function wmSet(d, mode, save = true) {                        // mode: free · left · right · max · min
+  const prev = d.dataset.wm || 'free';
+  if (mode === prev) return;
+  if (mode === 'max' || mode === 'min') { if (prev !== 'max' && prev !== 'min') d._prev = prev; }
+  d.classList.remove('wm-left', 'wm-right', 'wm-max', 'wm-min');
+  if (mode !== 'free') d.classList.add('wm-' + mode);
+  d.dataset.wm = mode;
+  d.classList.toggle('wm-fill', mode === 'left' || mode === 'right' || mode === 'max' || !!d.style.height);
+  wmModal(d, mode === 'free' || mode === 'max');            // 가운데 · 최대화 = 보통 창, 절반 · 최소화 = 뒤 화면을 쓸 수 있는 창
+  wmButtons(d); wmLayout();
+  if (save && mode !== 'min') wmSave(d, { mode, w:d.style.width ? parseFloat(d.style.width) : 0, h:d.style.height ? parseFloat(d.style.height) : 0 });
+}
+function wmLayout() {                                         // 최소화 창 쌓기 · 절반 배치면 본문을 나머지 절반에
+  const open = [...document.querySelectorAll('dialog[open]')];
+  open.filter(d => d.dataset.wm === 'min').forEach((d, i) => d.style.setProperty('--wmi', i));
+  document.body.classList.toggle('wm-split-r', open.some(d => d.dataset.wm === 'right'));
+  document.body.classList.toggle('wm-split-l', open.some(d => d.dataset.wm === 'left'));
+}
+const WM_SVG = {
+  left:'<svg viewBox="0 0 16 16"><rect x="1.5" y="2.5" width="13" height="11" rx="1.6" fill="none" stroke="currentColor" stroke-width="1.3"/><rect x="2.4" y="3.4" width="5.6" height="9.2" rx=".8" fill="currentColor"/></svg>',
+  right:'<svg viewBox="0 0 16 16"><rect x="1.5" y="2.5" width="13" height="11" rx="1.6" fill="none" stroke="currentColor" stroke-width="1.3"/><rect x="8" y="3.4" width="5.6" height="9.2" rx=".8" fill="currentColor"/></svg>',
+  max:'<svg viewBox="0 0 16 16"><rect x="2" y="2.5" width="12" height="11" rx="1.6" fill="none" stroke="currentColor" stroke-width="1.5"/><rect x="2" y="2.5" width="12" height="2.6" fill="currentColor"/></svg>',
+  unmax:'<svg viewBox="0 0 16 16"><rect x="4.5" y="1.8" width="9.5" height="8.5" rx="1.3" fill="none" stroke="currentColor" stroke-width="1.3"/><rect x="2" y="5.5" width="9.5" height="8.5" rx="1.3" fill="#fff" stroke="currentColor" stroke-width="1.3"/></svg>',
+  min:'<svg viewBox="0 0 16 16"><rect x="3" y="11.5" width="10" height="2" rx="1" fill="currentColor"/></svg>',
+  unmin:'<svg viewBox="0 0 16 16"><rect x="2" y="3" width="12" height="10" rx="1.6" fill="none" stroke="currentColor" stroke-width="1.4"/><path d="M5 9.5 8 6.5l3 3" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>' };
+function wmInject(d) {
+  if (!wmOn(d)) return; const h = d.querySelector('.dh'); if (h.querySelector('.wmb')) return wmButtons(d);
+  const g = document.createElement('span'); g.className = 'wmb';
+  g.innerHTML = '<button type="button" data-wm="left"></button><button type="button" data-wm="right"></button><button type="button" data-wm="max"></button><button type="button" data-wm="min"></button>';
+  const last = [...h.children].reverse().find(x => x.matches('button'));
+  if (last) h.insertBefore(g, last); else h.appendChild(g);
+  wmButtons(d);
+}
+function wmButtons(d) {
+  const g = d.querySelector('.dh .wmb'); if (!g) return; const m = d.dataset.wm || 'free';
+  const set = (k, svg, t, on) => { const b = g.querySelector(`[data-wm="${k}"]`); b.innerHTML = svg; b.title = t; b.setAttribute('aria-label', t); b.classList.toggle('on', !!on); };
+  set('left', WM_SVG.left, m === 'left' ? '가운데로 되돌리기' : '화면 왼쪽 절반에 놓기 (오른쪽 화면은 계속 쓸 수 있음)', m === 'left');
+  set('right', WM_SVG.right, m === 'right' ? '가운데로 되돌리기' : '화면 오른쪽 절반에 놓기 (왼쪽 화면은 계속 쓸 수 있음)', m === 'right');
+  set('max', m === 'max' ? WM_SVG.unmax : WM_SVG.max, m === 'max' ? '이전 크기로 (제목 줄 두 번 누르기)' : '최대화 (제목 줄 두 번 누르기)');
+  set('min', m === 'min' ? WM_SVG.unmin : WM_SVG.min, m === 'min' ? '되살리기' : '최소화 — 아래로 접어 두고 화면을 씀 (쓰던 글 그대로)');
+}
+function wmAct(d, k) {
+  const m = d.dataset.wm || 'free';
+  if (k === 'left' || k === 'right') wmSet(d, m === k ? 'free' : k);
+  else if (k === 'max') wmSet(d, m === 'max' ? (d._prev || 'free') : 'max');
+  else if (k === 'min') wmSet(d, m === 'min' ? (d._prev || 'free') : 'min');
+}
+document.addEventListener('click', e => {
+  const b = e.target.closest('dialog .wmb [data-wm]');
+  if (b) { e.preventDefault(); e.stopPropagation(); wmAct(b.closest('dialog'), b.dataset.wm); return; }
+  const h = e.target.closest('dialog.wm-min .dh');                    // 최소화된 창의 제목 줄 = 되살리기
+  if (h && !e.target.closest('button')) { e.stopPropagation(); wmAct(h.closest('dialog'), 'min'); }
+}, true);
+document.addEventListener('dblclick', e => {
+  const h = e.target.closest('dialog .dh'); if (!h || e.target.closest('button,input,select,textarea,a')) return;
+  const d = h.closest('dialog'); if (wmOn(d) && d.dataset.wm !== 'min') wmAct(d, 'max');
+});
+/* 가장자리 · 모서리 끌어 크기 조절 */
+function wmZone(d, x, y) {
+  const r = d.getBoundingClientRect(); if (x < r.left - 3 || x > r.right + 3 || y < r.top - 3 || y > r.bottom + 3) return '';
+  return (y - r.top < WM_EDGE ? 'n' : r.bottom - y < WM_EDGE ? 's' : '') + (x - r.left < WM_EDGE ? 'w' : r.right - x < WM_EDGE ? 'e' : '');
+}
+let wmHover = null;
+document.addEventListener('pointermove', e => {
+  if (WM.rz) return;
+  const d = e.target.closest?.('dialog');
+  const z = d && d.open && wmOn(d) && d.dataset.wm !== 'min' ? wmZone(d, e.clientX, e.clientY) : '';
+  if (wmHover && wmHover !== d) delete wmHover.dataset.rz;
+  if (d) { if (z) d.dataset.rz = z; else delete d.dataset.rz; }
+  wmHover = d;
+}, true);
+document.addEventListener('pointerdown', e => {
+  const d = e.target.closest?.('dialog'); if (!d || e.button !== 0 || !d.open || !wmOn(d) || d.dataset.wm === 'min') return;
+  const z = wmZone(d, e.clientX, e.clientY); if (!z) return;
+  e.preventDefault(); e.stopPropagation();
+  const r = d.getBoundingClientRect(), sx = e.clientX, sy = e.clientY;
+  if (d.dataset.wm && d.dataset.wm !== 'free') { d._prev = undefined; d.classList.remove('wm-left', 'wm-right', 'wm-max'); d.dataset.wm = 'free'; wmButtons(d); wmLayout(); }   // 붙여 둔 창을 늘리면 그 크기에서 자유 창으로
+  Object.assign(d.style, { margin:'0', left:r.left + 'px', top:r.top + 'px', width:r.width + 'px', height:r.height + 'px', maxWidth:'none', maxHeight:'none', right:'auto', bottom:'auto' });
+  d.classList.add('wm-fill', 'wm-rz'); d.dataset.rz = z; WM.rz = d;
+  const MW = Math.min(380, innerWidth - 12), MH = Math.min(220, innerHeight - 12);
+  const mv = ev => {
+    const dx = ev.clientX - sx, dy = ev.clientY - sy; let { left, top, width, height } = r;
+    if (z.includes('e')) width = Math.max(MW, Math.min(innerWidth - left - 2, r.width + dx));
+    if (z.includes('s')) height = Math.max(MH, Math.min(innerHeight - top - 2, r.height + dy));
+    if (z.includes('w')) { const nl = Math.max(2, Math.min(r.right - MW, r.left + dx)); width = r.right - nl; left = nl; }
+    if (z.includes('n')) { const nt = Math.max(2, Math.min(r.bottom - MH, r.top + dy)); height = r.bottom - nt; top = nt; }
+    Object.assign(d.style, { left:left + 'px', top:top + 'px', width:width + 'px', height:height + 'px' });
+  };
+  const up = () => { removeEventListener('pointermove', mv, true); removeEventListener('pointerup', up, true); d.classList.remove('wm-rz'); delete d.dataset.rz; WM.rz = null;
+    wmSave(d, { mode:'free', w:parseFloat(d.style.width), h:parseFloat(d.style.height) }); };
+  addEventListener('pointermove', mv, true); addEventListener('pointerup', up, true);
+}, true);
+/* 제목 줄을 끌어서 이동 — 화면 왼쪽/오른쪽 끝에 놓으면 절반, 위쪽 끝이면 최대화 · 붙여 둔 창을 끌면 떼어 냄 */
+let wmHint = null;
+const wmHintAt = z => { if (!z) { wmHint?.remove(); wmHint = null; return; } if (!wmHint) { wmHint = document.createElement('div'); wmHint.className = 'wmhint'; document.body.appendChild(wmHint); }
+  Object.assign(wmHint.style, z === 'left' ? { left:'6px', top:'6px', width:'calc(50vw - 9px)', height:'calc(100vh - 12px)' } : z === 'right' ? { left:'calc(50vw + 3px)', top:'6px', width:'calc(50vw - 9px)', height:'calc(100vh - 12px)' } : { left:'6px', top:'6px', width:'calc(100vw - 12px)', height:'calc(100vh - 12px)' }); };
+const wmEdgeOf = (x, y) => x <= 6 ? 'left' : x >= innerWidth - 7 ? 'right' : y <= 4 ? 'max' : '';
 document.addEventListener('pointerdown', e => {
   const h = e.target.closest('dialog .dh');
   if (!h || e.button !== 0 || e.target.closest('button,input,select,textarea,a')) return;
-  const d = h.closest('dialog'), r = d.getBoundingClientRect(), sx = e.clientX, sy = e.clientY;
-  Object.assign(d.style, { margin:'0', left:r.left + 'px', top:r.top + 'px', right:'auto', bottom:'auto' });
+  const d = h.closest('dialog'); if (d.dataset.wm === 'min' || (d.dataset.rz && wmOn(d))) return;
+  let r = d.getBoundingClientRect(), sx = e.clientX, sy = e.clientY, moved = false, edge = '';
   h.setPointerCapture(e.pointerId);
   h.onpointermove = ev => {
+    if (!moved) { if (Math.abs(ev.clientX - sx) + Math.abs(ev.clientY - sy) < 5) return; moved = true;
+      const m = d.dataset.wm || 'free';
+      if (m === 'left' || m === 'right' || m === 'max') {             // 붙여 둔 창 떼어 내기 — 마지막 자유 크기(없으면 980 폭)로, 잡은 곳이 손 밑에 오게
+        const w = Math.min(parseFloat(d.style.width) || 980, innerWidth - 40), k = (sx - r.left) / r.width;
+        d.classList.remove('wm-left', 'wm-right', 'wm-max'); d.dataset.wm = 'free'; wmButtons(d); wmLayout();
+        Object.assign(d.style, { width:w + 'px', maxWidth:'none' }); if (!d.style.height) d.classList.remove('wm-fill');
+        r = { left:sx - w * k, top:Math.max(0, sy - 20), width:w, height:d.getBoundingClientRect().height };
+      }
+      Object.assign(d.style, { margin:'0', left:r.left + 'px', top:r.top + 'px', right:'auto', bottom:'auto' });
+    }
     d.style.left = Math.min(innerWidth - 80, Math.max(80 - r.width, r.left + ev.clientX - sx)) + 'px';
     d.style.top = Math.min(innerHeight - 40, Math.max(0, r.top + ev.clientY - sy)) + 'px';
+    edge = wmOn(d) ? wmEdgeOf(ev.clientX, ev.clientY) : ''; wmHintAt(edge);
   };
-  h.onpointerup = h.onpointercancel = () => { h.onpointermove = h.onpointerup = h.onpointercancel = null; };
+  h.onpointerup = h.onpointercancel = ev => { h.onpointermove = h.onpointerup = h.onpointercancel = null; wmHintAt('');
+    if (moved && edge && ev.type === 'pointerup') wmSet(d, edge);
+  };
 });
+// 다른 창 내용이 통째로 바뀌어도(openDlg 를 거치지 않은 경우) 단추를 다시 붙임
+for (const d of [dlg, dlg2, document.getElementById('vocdlg')]) new MutationObserver(() => wmInject(d)).observe(d, { childList:true });
 function ask(title, body, buttons) {
   return new Promise(res => {
     openDlg(dlg2, `<div class="dh">${esc(title)}</div><div class="db">${body}</div><div class="df">${buttons.map(b => `<button class="btn ${b.cls || ''}" data-id="${b.id}">${esc(b.label)}</button>`).join('')}</div>`);
@@ -3125,7 +3315,7 @@ function openTaskPopup() {
 }
 function startTask(id) {
   const [k, rid, f] = id.split('|');
-  if (f === '__ts') { TB.shown = true; TB.active = id; if (dlg.open) dlg.close(); if (route !== 'alloc') location.hash = 'alloc'; setTimeout(() => openTsUpload(), 400); return renderTaskBar(); }
+  if (f === '__ts') { TB.shown = true; TB.active = id; if (dlg.open && !wmParked(dlg)) dlg.close(); if (route !== 'alloc') location.hash = 'alloc'; setTimeout(() => openTsUpload(), 400); return renderTaskBar(); }
   if (f === '__ack') { ackTask(id); TB.active = id; return jumpTo(k, rid, SHEET[k]?.title || '업무 내용', false); }   // 🔔 알림: 확인완료 + 그 업무 행으로 이동만 (편집 창은 열지 않음)
   TB.shown = true; TB.active = id;
   jumpTo(k, rid, f, !noEdit());                           // 해당 칸으로 이동 + 편집 창
@@ -3197,7 +3387,7 @@ function taskBarClick(e) {
 }
 let JUMP = null;
 function jumpTo(key, rid, f, edit) {
-  if (dlg.open) dlg.close();
+  if (dlg.open && !wmParked(dlg)) dlg.close();               // 세워 둔(최소화 · 절반) 작업 창은 닫지 않음
   FS[key] = null; fstate(key).year = '';                  // 필터·연도 때문에 안 보이는 일이 없도록 초기화
   JUMP = { key, rid, f, edit };
   SEL = { route:key, rid, f }; MSEL = new Set([mkey(rid, f)]); ANCHOR = SEL;
@@ -3756,7 +3946,7 @@ function copySel() {                                  // 예전 방식(보조) �
   return true;
 }
 document.addEventListener('copy', e => {
-  if (dlg.open || dlg2.open || route === 'home' || !SEL || !$('#tarea')) return;
+  if (dlgModalOpen(dlg) || dlgModalOpen(dlg2) || route === 'home' || !SEL || !$('#tarea')) return;
   if (/^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement?.tagName || '') || String(getSelection())) return;   // 글자를 직접 고른 경우는 브라우저 그대로
   const g = selGrid(); if (!g) return;
   e.clipboardData.setData('text/plain', g.text); e.clipboardData.setData('text/html', g.html); e.preventDefault();
@@ -5576,7 +5766,7 @@ $('#content').ondblclick = async e => {                        // 셀 더블클�
   if (td && !e.target.closest('.rz,.rh,button')) editAt(td);
 };
 document.addEventListener('keydown', e => {
-  if (dlg.open || dlg2.open || route === 'home' || !SEL) return;
+  if (dlgModalOpen(dlg) || dlgModalOpen(dlg2) || route === 'home' || !SEL) return;
   if (/^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement?.tagName || '')) return;
   const k = e.key;
   if (e.altKey && e.shiftKey && (k === 'ArrowUp' || k === 'ArrowDown') && TOP_NEW.has(route)) { e.preventDefault(); moveRow(k === 'ArrowUp' ? -1 : 1); }   // 행 위로/아래로
