@@ -244,14 +244,19 @@ svg text{font-family:var(--f-mono)}
       <h3><span class="num">1</span> 어디에 넣을지</h3>
       <div class="lh-row"><label>프로젝트</label><select id="hmProj"><option value="">(고르세요)</option></select><button id="hmNewBtn">새 프로젝트</button></div>
       <div class="lh-row" id="hmNewBox" hidden><input id="hmNewName" placeholder="새 프로젝트 이름"><button id="hmCreate" class="primary">만들기</button><button id="hmCancel">취소</button></div>
-      <div class="lh-row"><label>Room</label><input id="hmRoom" placeholder="예: CCR / Rack Room (선택)"></div>
-      <div class="lh-row"><label>Rev</label><input id="hmRev" placeholder="예: A (선택)"></div>
+      <div class="lh-row srvonly"><label>Room</label><select id="hmRoomSel"><option value="">(고르세요)</option></select><button id="hmRoomNew" title="이 프로젝트 안에 룸 만들기 (CCR · Rack Room · LER …)">새 룸</button></div>
+      <div class="lh-row" id="hmRoomBox" hidden><input id="hmRoomName" placeholder="새 룸 이름 (예: CCR / Rack Room)"><button id="hmRoomCreate" class="primary">만들기</button><button id="hmRoomCancel">취소</button></div>
+      <div class="lh-row srvonly"><label>Rev</label><select id="hmRevSel"><option value="">(고르세요)</option></select><button id="hmRevNew" title="이 룸에 Rev 만들기 (A · B · 0 · 1 …)">새 Rev</button></div>
+      <div class="lh-row" id="hmRevBox" hidden><input id="hmRevName" placeholder="새 Rev (예: B)" style="width:90px"><input id="hmRevNote" placeholder="메모 (예: 건축 1차 회신 반영)"><button id="hmRevCreate" class="primary">만들기</button><button id="hmRevCancel">취소</button></div>
+      <div class="lh-row nosrv" hidden><label>Room</label><input id="hmRoom" placeholder="예: CCR / Rack Room (선택)"></div>
+      <div class="lh-row nosrv" hidden><label>Rev</label><input id="hmRev" placeholder="예: A (선택)"></div>
+      <p class="lh-help" id="hmPath"></p>
       <p class="lh-help" id="hmSrvHelp">저장은 서버의 이 프로젝트에 <b>날짜별로</b> 쌓이고, 부서원 모두 저장 이력 · 노트를 봅니다.</p>
     </div>
     <div class="lh-card">
       <h3><span class="num">2</span> 어떻게 시작할지</h3>
       <ul class="lh-start" id="hmStart">
-        <li data-st="last"><b>이 프로젝트의 최근 저장본 이어서</b><small id="hmLastTxt">① 에서 프로젝트를 고르면 나옵니다</small></li>
+        <li data-st="last"><b id="hmLastHd">이 룸 · Rev 의 최근 저장본 이어서</b><small id="hmLastTxt">① 에서 프로젝트 · 룸 · Rev 를 고르면 나옵니다</small></li>
         <li data-st="cont"><b>이 PC 에서 하던 작업 이어서</b><small id="hmContTxt"></small></li>
         <li data-st="blank"><b>빈 실에서 새로 배치</b><small>지금 Panel Type 은 그대로, 판넬 · 노트 없이</small></li>
         <li data-st="sample"><b>예시 배치로 시작</b><small>System · Marshalling · Rack · PD · UPS 예시</small></li>
@@ -294,6 +299,7 @@ svg text{font-family:var(--f-mono)}
     <label class="chk" title="필요 영역 외곽에서 벽 이격(실 · 기둥 칸 입력)만큼 — 상 · 하 · 좌 · 우 끝 판넬마다 표시"><input type="checkbox" id="vMargin" checked>벽 이격</label>
     <label class="chk"><input type="checkbox" id="vDoor" checked>도어</label>
     <label class="chk"><input type="checkbox" id="vNote" checked>노트</label>
+    <label class="chk" title="프로젝트 · 룸 · Rev · 날짜 워터마크 (화면 · PNG · PDF · 3D)"><input type="checkbox" id="vWm" checked>워터마크</label>
     <label class="chk" title="3D 를 보는 자리(카메라) · 보는 방향 · 시야 · 사람 — 3D 를 돌리면 같이 움직임 (2D | 3D 나란히 · 3D 새 창)"><input type="checkbox" id="vCam" checked>3D 시점</label>
     <span class="sep"></span>
  <button id="bNeed2" class="primary" title="건축팀용 필요 사이즈 요약 + 2D 도면 PDF">📐 필요 사이즈</button>
@@ -639,7 +645,7 @@ function planSegs(g){
 function planDetail(g,ink){const S2=planSegs(g);return S2.lines.map(([p,q,w])=>`<line x1="${p[0]}" y1="${p[1]}" x2="${q[0]}" y2="${q[1]}" stroke="${ink}" stroke-width="${w}" vector-effect="non-scaling-stroke"/>`).join('')
   +S2.circles.map(([c,r])=>`<circle cx="${c[0]}" cy="${c[1]}" r="${r}" fill="none" stroke="${ink}" stroke-width="1.2" vector-effect="non-scaling-stroke"/>`).join('')}   // 도어 항목이 없는 예전 Type = 도어 없음
 function norm(d){(d.panels||[]).forEach(p=>{p.scope=String(p.scope??'').trim()});   // 공급 Scope (예전 파일 = 빈칸)
-  d.info=Object.assign({project:'',room:'',author:'',rev:''},d.info||{});d.room.spare=Math.max(0,+d.room.spare||0);d.room.spareDir=d.room.spareDir==='y'?'y':'x';d.room.gapP=Math.max(0,+d.room.gapP||0);d.room.gapD=Math.max(0,+d.room.gapD||0);d.room.touchOK=d.room.touchOK!==false;d.room.autoFit=d.room.autoFit!==false;Object.defineProperty(d,'_fresh',{value:true,writable:true,enumerable:false});d.room.enforce=d.room.enforce!==false;d.revs=Array.isArray(d.revs)?d.revs:[];(d.types||[]).forEach(fixDoor);d.srv=d.srv&&typeof d.srv==='object'&&/^[a-z0-9]{6,32}$/.test(d.srv.pid||'')?{pid:d.srv.pid,name:String(d.srv.name||''),sid:String(d.srv.sid||''),at:String(d.srv.at||''),by:String(d.srv.by||'')}:null;d.notes=Array.isArray(d.notes)?d.notes.filter(n=>n&&isFinite(n.x)&&isFinite(n.y)).map(n=>({id:n.id||uid(),x:+n.x,y:+n.y,text:String(n.text||''),by:String(n.by||''),at:String(n.at||'')})):[];d.cols=Array.isArray(d.cols)?d.cols.filter(c=>c&&isFinite(c.cx)&&isFinite(c.cy)&&c.w>0&&c.h>0).map(c=>({id:c.id||uid(),cx:+c.cx,cy:+c.cy,w:+c.w,h:+c.h})):null;return d}   // 3단계 항목이 없는 예전 파일도 열리게
+  d.info=Object.assign({project:'',room:'',author:'',rev:''},d.info||{});d.room.spare=Math.max(0,+d.room.spare||0);d.room.spareDir=d.room.spareDir==='y'?'y':'x';d.room.gapP=Math.max(0,+d.room.gapP||0);d.room.gapD=Math.max(0,+d.room.gapD||0);d.room.touchOK=d.room.touchOK!==false;d.room.autoFit=d.room.autoFit!==false;Object.defineProperty(d,'_fresh',{value:true,writable:true,enumerable:false});d.room.enforce=d.room.enforce!==false;d.revs=Array.isArray(d.revs)?d.revs:[];(d.types||[]).forEach(fixDoor);d.srv=d.srv&&typeof d.srv==='object'&&/^[a-z0-9]{6,32}$/.test(d.srv.pid||'')?{pid:d.srv.pid,name:String(d.srv.name||''),sid:String(d.srv.sid||''),at:String(d.srv.at||''),by:String(d.srv.by||''),rid:/^[a-z0-9]{6,32}$/.test(d.srv.rid||'')?d.srv.rid:'',rname:String(d.srv.rname||'')}:null;d.notes=Array.isArray(d.notes)?d.notes.filter(n=>n&&isFinite(n.x)&&isFinite(n.y)).map(n=>({id:n.id||uid(),x:+n.x,y:+n.y,text:String(n.text||''),by:String(n.by||''),at:String(n.at||'')})):[];d.cols=Array.isArray(d.cols)?d.cols.filter(c=>c&&isFinite(c.cx)&&isFinite(c.cy)&&c.w>0&&c.h>0).map(c=>({id:c.id||uid(),cx:+c.cx,cy:+c.cy,w:+c.w,h:+c.h})):null;return d}   // 3단계 항목이 없는 예전 파일도 열리게
 norm(S);S._fresh=false;
 let LOGIN=(Q.get('user')||'').trim();                      // 대시보드 로그인 이름 (자동값 — 저장하지 않음)
 // 서버 저장용 로그인 토큰: 대시보드 서버 화면이면 같은 주소의 localStorage, 부서원 file:// 사본이면 부모가 postMessage 로 줌
@@ -647,6 +653,8 @@ let AUTH_TOKEN='', AUTH_NAME='';
 try{const a=JSON.parse(localStorage.getItem('dept-auth')||'null');if(a){AUTH_TOKEN=a.token||'';AUTH_NAME=a.name||''}}catch(e){}
 const author=()=>S.info.author.trim()||LOGIN;
 const revOf=()=>S.info.rev.trim()||'-';
+/* 워터마크: 프로젝트 · 룸 · Rev (첫 화면에서 고른 값 = 프로젝트 정보 칸) + 상태 · 날짜. 2D 화면 · PNG · PDF · 3D 에 옅게 비스듬히 */
+function wmLines(){return [`${S.info.project||'프로젝트 미정'} · ${S.info.room||'Room 미정'} · Rev ${S.info.rev.trim()||'미정'}`,`PRELIMINARY · 공간확보 초안 · ${today()}`]}
 // 파일 이름: 프로젝트_Room_Rev_종류_날짜 (빈 칸은 빼고, 윈도 파일 이름에 못 쓰는 글자는 _)
 const fnPart=v=>String(v||'').trim().replace(/[\\/:*?"<>|\s]+/g,'_');
 function fname(kind,ext){const a=[fnPart(S.info.project),fnPart(S.info.room),S.info.rev.trim()?'Rev'+fnPart(S.info.rev):''].filter(Boolean);return `${a.length?a.join('_'):'ControlRoom'}_${kind}_${today()}.${ext}`}
@@ -654,7 +662,7 @@ let sel=new Set();
 let mode='select';           // select | box | place | col(기둥 편집)
 let selCol=null;              // 기둥 편집에서 고른 기둥 id
 let placeType=null, placeRot=0;
-const show={clr:true,dim:true,lbl:true,door:true,note:true,eq:true,margin:true,cam:true};
+const show={clr:true,dim:true,lbl:true,door:true,note:true,eq:true,margin:true,cam:true,wm:true};
 let selNote=null;             // 고른 도면 노트 id
 const V={s:0.04,ox:60,oy:60};
 let undo=[],redo=[];
@@ -1066,6 +1074,8 @@ function render(){v3sync();
   if(TICK&&sub===TICK&&st%TICK)st=Math.ceil(st/TICK)*TICK;   // 숫자 붙는 큰 눈금은 작은 눈금의 배수로
   for(let x=Math.floor(a.x/sub)*sub;x<=b.x;x+=sub){const sx=x*s+V.ox;if(sx<20)continue;const M=Math.abs(x%st)<1e-6;ru+=`<line x1="${sx}" y1="${M?6:Math.abs(x%(sub*2))<1e-6?11:15}" x2="${sx}" y2="20" stroke="${ink2}" stroke-width="1"/>`;if(M)ru+=`<text x="${sx+3}" y="12" font-size="10" fill="${ink2}">${fmt(x)}</text>`}
   for(let y=Math.floor(a.y/sub)*sub;y<=b.y;y+=sub){const sy=y*s+V.oy;if(sy<20)continue;const M=Math.abs(y%st)<1e-6;ru+=`<line x1="${M?6:Math.abs(y%(sub*2))<1e-6?11:15}" y1="${sy}" x2="20" y2="${sy}" stroke="${ink2}" stroke-width="1"/>`;if(M)ru+=`<text x="12" y="${sy+3}" font-size="10" fill="${ink2}" transform="rotate(-90 12 ${sy+3})">${fmt(y)}</text>`}
+  if(show.wm){const [l1,l2]=wmLines(),dx=560,dy=300;let w='';for(let y=120;y<vh+dy;y+=dy)for(let x=(y/dy%2)*dx/2-60;x<vw+dx;x+=dx)w+=`<text transform="translate(${x} ${y}) rotate(-22)" font-size="22" font-weight="700"><tspan x="0" y="0">${esc(l1)}</tspan><tspan x="0" y="28" font-size="16">${esc(l2)}</tspan></text>`;
+    ru=`<g fill="${ink}" opacity="${de_light()?.07:.06}" pointer-events="none" font-family="Malgun Gothic,맑은 고딕,sans-serif">${w}</g>`+ru}   // 워터마크 (자 아래 · 도면 위, 옅게)
   ru+=`<rect x="0" y="0" width="20" height="20" fill="${C('--sheet')}"/>`;
   {const c=show.cam&&cam3d();if(c){const sx=c.e[0]*s+V.ox,sy=c.e[1]*s+V.oy;   // 3D 카메라가 도면 화면 밖이면 가장자리에 표시 (그쪽에 있음)
     if(sx<24||sy<24||sx>vw-4||sy>vh-4){const cx=Math.min(vw-70,Math.max(80,sx)),cy=Math.min(vh-30,Math.max(36,sy)),an=Math.atan2(sy-cy,sx-cx)*180/Math.PI,ac=C('--snap');
@@ -1507,6 +1517,7 @@ $('#bUndo').onclick=doUndo; $('#bRedo').onclick=doRedo; $('#bFit').onclick=fit;
 $('#snap').onchange=e=>{S.snap=+e.target.value;commit()};
 $('#vClr').onchange=e=>{show.clr=e.target.checked;render()};
 $('#vCam').onchange=e=>{show.cam=e.target.checked;render()};
+$('#vWm').onchange=e=>{show.wm=e.target.checked;render();try{if(V3.on)v3req(false)}catch(_){}};
 $('#tick').value=String(TICK); $('#tick').onchange=e=>{TICK=+e.target.value;try{localStorage.setItem('crspace.tick',String(TICK))}catch(_){}render();toast(TICK?`2D 눈금 하나 = ${fmt(TICK)} mm`+(TICK*V.s<2.5?' — 지금 배율에서는 너무 촘촘해 굵게 보입니다. 확대(Ctrl+휠)하면 보입니다':''):'2D 눈금 = 자동 (확대 정도에 맞춤)')};
 $('#vMargin').onchange=e=>{show.margin=e.target.checked;render()};
 $('#vDoor').onchange=e=>{show.door=e.target.checked;render()};
@@ -1823,6 +1834,9 @@ function v3draw(){
   gl.disable(gl.DEPTH_TEST); put(Lt.ML,gl.LINES); gl.enable(gl.DEPTH_TEST);
   // Tag 글자 (2D 겹친 캔버스)
   const c2=tx.getContext('2d'); c2.setTransform(dpr,0,0,dpr,0,0); c2.clearRect(0,0,w,h);
+  if(show.wm){const [l1,l2]=wmLines();c2.save();c2.globalAlpha=.07;c2.fillStyle='#ffffff';c2.textAlign='left';c2.textBaseline='alphabetic';   // 워터마크
+    for(let y=110,r=0;y<h+300;y+=300,r++)for(let x=(r%2)*280-60;x<w+560;x+=560){c2.save();c2.translate(x,y);c2.rotate(-22*Math.PI/180);c2.font='700 22px "Malgun Gothic","맑은 고딕",sans-serif';c2.fillText(l1,0,0);c2.font='700 16px "Malgun Gothic","맑은 고딕",sans-serif';c2.fillText(l2,0,28);c2.restore()}
+    c2.restore()}
   if(V3.lbl){const cs=getComputedStyle(document.documentElement), ink=cs.getPropertyValue('--ink').trim(), sh=cs.getPropertyValue('--sheet').trim();
     const used=[]; c2.font='600 12px "Malgun Gothic","맑은 고딕",system-ui,sans-serif'; c2.textAlign='center'; c2.textBaseline='middle';
     S.panels.map(p=>{const g=geom(p),b=g.body,pt=[b.x+b.w/2,(+g.t.h||2100)+120,b.y+b.h/2];return {p,pt,q:v3proj(pt,w,h)}}).filter(o=>o.q&&!v3hidden(o.p,o.pt)).sort((a,b)=>a.q[2]-b.q[2]).forEach(({p,q})=>{   // 가까운 것부터, 겹치는 글자는 건너뜀 (확대하면 보임)
@@ -2150,11 +2164,11 @@ function needLines(){
   return L;
 }
 async function drawingImage(w,h){   // 지금 배치를 밝은 화면 · 실 맞춤으로 2D 를 그려 그림으로 (화면은 그대로 되돌림)
-  const de=document.documentElement, th=de.dataset.theme, keepV={...V}, keepSel=sel, keepCam=show.cam, keepMeas=measure, ss=svg.style.cssText;
-  de.dataset.theme='light'; sel=new Set(); show.cam=false; measure=null; svg.style.cssText+=`;width:${w}px;height:${h}px;flex:none`;
+  const de=document.documentElement, th=de.dataset.theme, keepV={...V}, keepSel=sel, keepCam=show.cam, keepWm=show.wm, keepMeas=measure, ss=svg.style.cssText;
+  de.dataset.theme='light'; sel=new Set(); show.cam=false; show.wm=false; measure=null; svg.style.cssText+=`;width:${w}px;height:${h}px;flex:none`;
   let txt; try{fit(); const c=svg.cloneNode(true); c.setAttribute('xmlns','http://www.w3.org/2000/svg'); c.setAttribute('width',w); c.setAttribute('height',h); c.setAttribute('style','font-family:"Malgun Gothic","맑은 고딕",Consolas,monospace');
     c.insertAdjacentHTML('afterbegin',`<rect width="${w}" height="${h}" fill="#ffffff"/>`); txt=new XMLSerializer().serializeToString(c); var tf={s:V.s,ox:V.ox,oy:V.oy}}
-  finally{if(th)de.dataset.theme=th;else delete de.dataset.theme; Object.assign(V,keepV); sel=keepSel; show.cam=keepCam; measure=keepMeas; svg.style.cssText=ss; render()}
+  finally{if(th)de.dataset.theme=th;else delete de.dataset.theme; Object.assign(V,keepV); sel=keepSel; show.cam=keepCam; show.wm=keepWm; measure=keepMeas; svg.style.cssText=ss; render()}
   const url=URL.createObjectURL(new Blob([txt],{type:'image/svg+xml;charset=utf-8'}));
   try{const im=new Image(); await new Promise((ok,no)=>{im.onload=ok;im.onerror=no;im.src=url}); im.tf=tf; return im} finally{setTimeout(()=>URL.revokeObjectURL(url),1000)}
 }
@@ -2179,7 +2193,10 @@ function pgFrame(g,page,total){   // 테두리 · 아래 띠(프로젝트 · Rev
   g.strokeStyle='#1b2238';g.lineWidth=4;g.strokeRect(40,40,PG.w-80,PG.h-80);
   g.fillStyle='#1b2238';g.font=FNT(26);g.textBaseline='alphabetic';
   g.fillText(`${S.info.project||'프로젝트 -'} · ${S.info.room||'Room -'} · Rev ${revOf()} · ${author()||'-'} · ${today()}`,70,PG.h-60);
-  g.textAlign='right';g.fillText(`계장 Control Room 필요 사이즈 — ${page} / ${total}`,PG.w-70,PG.h-60);g.textAlign='left'}
+  g.textAlign='right';g.fillText(`계장 Control Room 필요 사이즈 — ${page} / ${total}`,PG.w-70,PG.h-60);g.textAlign='left';
+  {const t=`Rev ${revOf()}  |  ${today()} 출력`;g.font=FNT(30,1);const tw=g.measureText(t).width+40;g.fillStyle='#1b2238';g.fillRect(PG.w-60-tw,PG.h-130,tw,52);g.fillStyle='#fff';g.fillText(t,PG.w-40-tw,PG.h-94)}   // Rev · 날짜 도장
+  if(show.wm){const [l1,l2]=wmLines();g.save();g.globalAlpha=.07;g.fillStyle='#1b2238';g.translate(PG.w/2,PG.h/2);g.rotate(-22*Math.PI/180);g.textAlign='center';
+    g.font=FNT(110,1);g.fillText(l1,0,0);g.font=FNT(70,1);g.fillText(l2,0,110);g.restore()}}   // 워터마크
 async function needPdf(){
   check(); const sm=summary(), ws=wallSides(), m=+S.room.margin||0, pages=[];
   // 1쪽: 2D 도면 + 오른쪽 핵심 숫자 칸
@@ -2224,6 +2241,7 @@ $('#bCsv').onclick=()=>{
   const rows=[['Tag','Type','Description','Scope','W','D','H','Front','Rear','Facing','X','Y','Door','Hinge']];
   const fd={0:'N',90:'E',180:'S',270:'W'};
   S.panels.slice().sort((a,b)=>a.tag.localeCompare(b.tag)).forEach(p=>{const t=typeOf(p),g=geom(p);rows.push([p.tag,t.name,p.desc,p.scope||'',t.w,t.d,t.h,t.front,t.rear,fd[g.r],p.x,p.y,t.door==='none'?'':{front:'Front',rear:'Rear',both:'Front+Rear'}[t.door],t.door==='none'?'':t.hinge])});
+  rows.unshift(['Project',S.info.project||'','Room',S.info.room||'','Rev',revOf(),'Date',today()],[]);   // 출력 날짜 · Rev
   const csv='﻿'+rows.map(r=>r.map(v=>{v=String(v??'');return /[",\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v}).join(',')).join('\r\n');
   openModal('판넬 List CSV','Excel에서 바로 열립니다. 좌표는 실 좌상단(0,0) 기준, Facing은 전면 방향(N=도면 위쪽).',csv,fname('Panel_List','csv'),'text/csv;charset=utf-8');
 };
@@ -2306,7 +2324,7 @@ async function sapi(method,path,body){
 }
 window.addEventListener('message',e=>{if(e.source!==window.parent||!e.data||e.data.kind!=='dept-auth')return;AUTH_TOKEN=e.data.token||'';AUTH_NAME=e.data.name||'';if(AUTH_NAME)LOGIN=AUTH_NAME;buildInfo();updSrv()});
 function updSrv(){
-  const sv=S.srv, st=$('#srvState'); $('#srvName').textContent=sv?sv.name:'없음';
+  const sv=S.srv, st=$('#srvState'); $('#srvName').textContent=sv?sv.name+(sv.rname?' › '+sv.rname:'')+(S.info.rev.trim()?' › Rev '+S.info.rev.trim():''):'없음';
   $('#bSrvSave').disabled=$('#bSrvOpen').disabled=$('#bSrvOpen2').disabled=!SRV_OK;
   st.className='st muted';
   if(!SRV_OK){st.textContent='— 파일로 연 상태라 서버 저장 없음 (대시보드 메뉴에서 여세요)';return}
@@ -2333,7 +2351,7 @@ async function loadProject(pid){
   try{HD=await sapi('GET','/'+pid);HPID=pid;
     document.querySelectorAll('#hProj li.pj').forEach(li=>li.classList.toggle('on',li.dataset.pid===pid));
     $('#hPjName').textContent='— '+HD.project.name;
-    $('#hSaves').innerHTML=HD.saves.length?HD.saves.map(m=>`<li class="${S.srv&&S.srv.sid===m.id?'on':''}"><div><b>${esc(lt(m.at))}</b> · ${esc(m.by)}${m.rev?` · Rev ${esc(m.rev)}`:''}</div>
+    $('#hSaves').innerHTML=HD.saves.length?HD.saves.map(m=>`<li class="${S.srv&&S.srv.sid===m.id?'on':''}"><div><b>${esc(lt(m.at))}</b> · ${esc(m.by)}${m.roomName?` · ${esc(m.roomName)}`:''}${m.rev?` · Rev ${esc(m.rev)}`:''}</div>
       ${m.memo?`<div class="tx">${esc(m.memo)}</div>`:''}<div class="m">판넬 ${m.panels} EA${m.sum&&m.sum.recW?` · 권장 실 ${fmt(m.sum.recW)}×${fmt(m.sum.recH)}`:''}${m.sum&&m.sum.envW?` · 필요 ${fmt(m.sum.envW)}×${fmt(m.sum.envH)}`:''}${m.sum&&m.sum.spare?` · Spare ${m.sum.spare}%`:''}</div>
       <div class="acts"><button data-open="${m.id}">이 저장본 열기</button></div></li>`).join(''):'<li class="muted">아직 저장 없음 — 위 [💾 지금 배치안 저장]</li>';
     $('#hNotes').innerHTML=HD.notes.length?HD.notes.map(n=>`<li><div class="m">${esc(lt(n.at))} · ${esc(n.by)}</div><div class="tx">${esc(n.text)}</div>${AUTH_TOKEN&&n.by===(AUTH_NAME||LOGIN)?`<div class="acts"><button data-ndel="${n.id}">지우기</button></div>`:''}</li>`).join(''):'<li class="muted">아직 노트 없음</li>';
@@ -2346,16 +2364,17 @@ $('#hSave').onclick=async()=>{
   if(!HPID||!HD)return herr('왼쪽에서 저장할 프로젝트를 고르거나 새로 만드세요.');
   if(!AUTH_TOKEN)return herr('로그인해야 저장할 수 있습니다 — 대시보드에서 로그인한 뒤 이 메뉴를 다시 여세요 (비회원은 보기만).');
   const sm=summary(), name=HD.project.name;
-  S.srv={pid:HPID,name,sid:S.srv?.sid||'',at:S.srv?.at||'',by:S.srv?.by||''}; if(!S.info.project)S.info.project=name;
-  try{const meta=await sapi('POST',`/${HPID}/saves`,{data:S,memo:$('#hMemo').value.trim(),sum:{envW:sm.env?.w,envH:sm.env?.h,recW:sm.rec?.w,recH:sm.rec?.h,spare:S.room.spare}});
-    S.srv={pid:HPID,name,sid:meta.id,at:meta.at,by:meta.by}; commit(); srvSnap=lastSnap; buildInfo(); updSrv(); $('#hMemo').value=''; herr('');
-    await loadProjects(); toast(`서버에 저장했습니다 — ${name} · ${lt(meta.at)} · ${meta.by}`);
+  const rid=S.srv&&S.srv.pid===HPID?S.srv.rid||'':'', rname=S.srv&&S.srv.pid===HPID?S.srv.rname||'':'';
+  S.srv={pid:HPID,name,sid:S.srv?.sid||'',at:S.srv?.at||'',by:S.srv?.by||'',rid,rname}; if(!S.info.project)S.info.project=name;
+  try{const meta=await sapi('POST',`/${HPID}/saves`,{data:S,room:rid,memo:$('#hMemo').value.trim(),sum:{envW:sm.env?.w,envH:sm.env?.h,recW:sm.rec?.w,recH:sm.rec?.h,spare:S.room.spare}});
+    S.srv={pid:HPID,name,sid:meta.id,at:meta.at,by:meta.by,rid,rname}; commit(); srvSnap=lastSnap; HM.det[HPID]=null; buildInfo(); updSrv(); $('#hMemo').value=''; herr('');
+    await loadProjects(); toast(`서버에 저장했습니다 — ${name}${rname?' › '+rname:''}${meta.rev?' › Rev '+meta.rev:''} · ${lt(meta.at)} · ${meta.by}`);
   }catch(e){herr(`저장하지 못했습니다: ${e.message}`)}
 };
 $('#hSaves').addEventListener('click',async e=>{const b=e.target.closest('[data-open]');if(!b)return;
   if(srvSnap!==null&&srvSnap!==lastSnap&&!confirm('지금 화면에 서버에 저장하지 않은 변경이 있습니다. 이 저장본을 열면 화면이 바뀝니다 (Ctrl+Z 로 되돌릴 수 있음). 계속할까요?'))return;
   try{const {meta,data}=await sapi('GET',`/${HPID}/saves/${b.dataset.open}`);
-    S=norm(data); S.srv={pid:HPID,name:HD.project.name,sid:meta.id,at:meta.at,by:meta.by}; sel.clear(); selNote=null; selCol=null;
+    S=norm(data); S.srv={pid:HPID,name:HD.project.name,sid:meta.id,at:meta.at,by:meta.by,rid:meta.room||'',rname:meta.roomName||''}; sel.clear(); selNote=null; selCol=null;
     commit(); buildRoom(); buildTypes(); fit(); srvSnap=lastSnap; updSrv(); $('#hdlg').hidden=true;
     toast(`${HD.project.name} · ${lt(meta.at)} ${meta.by} 저장본을 열었습니다${meta.memo?' — '+meta.memo:''}`);
   }catch(err){herr(`저장본을 못 열었습니다: ${err.message}`)}});
@@ -2380,14 +2399,15 @@ let HM={projects:[],recent:[],st:'',file:null};
 function showHome(){HM.st='';HM.file=null;HAD_LOCAL=HAD_LOCAL||S.panels.length>0;document.body.classList.add('home');setMode('select');hmRender();hmLoad()}
 function showEditor(){document.body.classList.remove('home');requestAnimationFrame(()=>{fit();render()})}
 async function hmLoad(){
+  document.querySelectorAll('#home .srvonly').forEach(x=>x.hidden=!SRV_OK);document.querySelectorAll('#home .nosrv').forEach(x=>x.hidden=SRV_OK);
   if(!SRV_OK){$('#hmProj').disabled=$('#hmNewBtn').disabled=true;$('#hmSrvHelp').textContent='파일로 직접 연 상태라 서버 프로젝트를 쓸 수 없습니다 — 대시보드의 [판넬 공간확보] 메뉴에서 여세요. 아래 ② 로는 시작할 수 있습니다.';
     $('#hmProjects').innerHTML='<p class="lh-help">서버 없음</p>';$('#hmRecent').innerHTML='<li class="empty">서버 없음</li>';return hmRender()}
   try{const [a,b]=await Promise.all([sapi('GET','/projects'),sapi('GET','/recent?n=60')]);HM.projects=a.projects;HM.recent=b.saves}
   catch(e){$('#hmProjects').innerHTML=`<p class="lh-help" style="color:var(--err)">프로젝트를 못 읽었습니다: ${esc(e.message)} — 대시보드 서버 연결을 확인하세요.</p>`;return}
   const sel=$('#hmProj'), cur=sel.value||S.srv?.pid||'';
   sel.innerHTML='<option value="">(고르세요)</option>'+HM.projects.map(p=>`<option value="${p.id}">${esc(p.name)}</option>`).join('');
-  sel.value=HM.projects.some(p=>p.id===cur)?cur:'';
-  const line=m=>`<li data-pid="${m.pid}" data-sid="${m.id}" title="이 저장본을 열어 이어서 작업"><div class="jn">${esc(m.memo||'(메모 없음)')}</div><div class="jm"><span>${esc(lt(m.at))}</span><span>${esc(m.by)}</span>${m.rev?`<span class="chip">Rev ${esc(m.rev)}</span>`:''}<span class="chip">판넬 ${m.panels}</span>${m.sum&&m.sum.recW?`<span class="chip">권장 실 ${fmt(m.sum.recW)}×${fmt(m.sum.recH)}</span>`:''}</div></li>`;
+  sel.value=HM.projects.some(p=>p.id===cur)?cur:''; if(sel.value)await hmDetail(sel.value,true);
+  const line=m=>`<li data-pid="${m.pid}" data-sid="${m.id}" title="이 저장본을 열어 이어서 작업"><div class="jn">${esc(m.memo||'(메모 없음)')}</div><div class="jm"><span>${esc(lt(m.at))}</span><span>${esc(m.by)}</span>${m.roomName?`<span class="chip">${esc(m.roomName)}</span>`:''}${m.rev?`<span class="chip">Rev ${esc(m.rev)}</span>`:''}<span class="chip">판넬 ${m.panels}</span>${m.sum&&m.sum.recW?`<span class="chip">권장 실 ${fmt(m.sum.recW)}×${fmt(m.sum.recH)}</span>`:''}</div></li>`;
   $('#hmProjects').innerHTML=HM.projects.length?HM.projects.map(p=>{const ss=HM.recent.filter(m=>m.pid===p.id).slice(0,3);
     return `<div class="pj"><div class="pjh" data-pick="${p.id}" title="① 에서 이 프로젝트 고르기"><span class="ic">${esc([...p.name.replace(/\s+/g,'')].slice(0,2).join('').toUpperCase())}</span><div><b>${esc(p.name)}</b><br><small>저장 ${p.saves} · 노트 ${p.notes} · 만듦 ${esc(lt(p.createdAt).slice(0,10))} ${esc(p.createdBy)}</small></div></div>
       <ul class="pjj">${ss.map(line).join('')||'<li class="empty">아직 저장 없음 — 위 ① 에서 이 프로젝트를 고르고 배치 시작 → 💾 서버에 저장</li>'}</ul></div>`}).join('')
@@ -2395,18 +2415,47 @@ async function hmLoad(){
   $('#hmRecent').innerHTML=HM.recent.slice(0,12).map(m=>line(m).replace('<div class="jn">',`<div class="jn">${esc(m.pname)} · `)).join('')||'<li class="empty">저장 이력이 없습니다.</li>';
   hmRender();
 }
-function hmLast(){const pid=$('#hmProj').value;return pid?HM.recent.find(m=>m.pid===pid)||null:null}
+/* 프로젝트 → 룸 → Rev: 프로젝트를 고르면 그 프로젝트(룸 · Rev · 저장)를 읽어 룸 · Rev 칸을 채움 */
+HM.det={};
+async function hmDetail(pid,force){if(!pid)return null;if(!HM.det[pid]||force){try{HM.det[pid]=await sapi('GET','/'+pid)}catch(e){toast('프로젝트를 못 읽었습니다: '+e.message,true);return null}}return HM.det[pid]}
+function hmFill(){   // 룸 · Rev 고르기 칸
+  const pid=$('#hmProj').value, d=HM.det[pid], rs=$('#hmRoomSel'), vs=$('#hmRevSel'), rc=HM.wRoom||rs.value||(S.srv&&S.srv.pid===pid?S.srv.rid:''), vc=HM.wRev||vs.value||(S.srv&&S.srv.pid===pid?S.info.rev:''); HM.wRoom=HM.wRev='';   // 방금 만든 룸 · Rev 는 옵션이 생기기 전이라 select.value 로 못 정함 → wRoom · wRev 로 넘김
+  const rooms=d?d.rooms||[]:[]; rs.innerHTML='<option value="">(고르세요)</option>'+rooms.map(r=>`<option value="${r.id}">${esc(r.name)} · Rev ${r.revs.length}</option>`).join('');
+  rs.value=rooms.some(r=>r.id===rc)?rc:(rooms.length===1?rooms[0].id:''); rs.disabled=$('#hmRoomNew').disabled=!pid;
+  const r=rooms.find(x=>x.id===rs.value), revs=r?r.revs||[]:[];
+  vs.innerHTML='<option value="">(고르세요)</option>'+revs.map(v=>`<option value="${esc(v.rev)}">Rev ${esc(v.rev)}${v.note?' · '+esc(v.note):''}</option>`).join('');
+  vs.value=revs.some(v=>v.rev===vc)?vc:(revs.length?revs[revs.length-1].rev:''); vs.disabled=$('#hmRevNew').disabled=!r;
+  $('#hmPath').innerHTML=pid?`<b>${esc((HM.projects.find(p=>p.id===pid)||{}).name||'')}</b> › ${r?`<b>${esc(r.name)}</b>`:'<span class="muted">룸 고르기</span>'} › ${vs.value?`<b>Rev ${esc(vs.value)}</b>`:'<span class="muted">Rev 고르기</span>'}`:'';
+}
+function hmSaves(){const pid=$('#hmProj').value,d=HM.det[pid];return d?d.saves||[]:[]}
+function hmLast(){   // 고른 룸 · Rev 의 최근 저장본 (없으면 같은 룸의 이전 Rev 최근 저장본)
+  const pid=$('#hmProj').value; if(!pid)return null; const rid=$('#hmRoomSel').value, rv=$('#hmRevSel').value, ss=hmSaves();
+  if(!rid)return HM.recent.find(m=>m.pid===pid)||null;
+  const m=ss.find(x=>x.room===rid&&x.rev===rv); if(m)return m;
+  const p=ss.find(x=>x.room===rid); return p?{...p,prev:true}:null}
 function hmRender(){
-  const pid=$('#hmProj').value, last=hmLast();
+  hmFill(); const pid=$('#hmProj').value, last=hmLast();
   const ok={last:!!last,cont:HAD_LOCAL,blank:true,sample:true,file:true};
   if(!HM.st||!ok[HM.st])HM.st=last?'last':HAD_LOCAL?'cont':'blank';
-  $('#hmLastTxt').textContent=last?`${lt(last.at)} · ${last.by}${last.memo?' · '+last.memo:''}`:pid?'이 프로젝트에는 아직 저장이 없습니다':'① 에서 프로젝트를 고르면 나옵니다';
+  $('#hmLastHd').textContent=last&&last.prev?`이전 Rev ${last.rev||'-'} 의 최근 저장본에서 시작`:'이 룸 · Rev 의 최근 저장본 이어서';
+  $('#hmLastTxt').textContent=last?`${lt(last.at)} · ${last.by}${last.roomName?' · '+last.roomName:''}${last.rev?' · Rev '+last.rev:''}${last.memo?' · '+last.memo:''}`:pid?'이 룸 · Rev 에는 아직 저장이 없습니다':'① 에서 프로젝트 · 룸 · Rev 를 고르면 나옵니다';
   $('#hmContTxt').textContent=HAD_LOCAL?`판넬 ${S.panels.length} EA${S.srv?` · ${S.srv.name}`:''}${S.info.project&&!S.srv?` · ${S.info.project}`:''}`:'이 PC 에 하던 작업이 없습니다';
   document.querySelectorAll('#hmStart li').forEach(li=>{li.classList.toggle('on',li.dataset.st===HM.st);li.classList.toggle('off',!ok[li.dataset.st])});
-  const why=SRV_OK&&!pid?'① 프로젝트를 먼저 고르세요':HM.st==='file'&&!HM.file?'② 불러올 배치안 파일을 고르세요':'';
+  const why=SRV_OK&&!pid?'① 프로젝트를 먼저 고르세요':SRV_OK&&!$('#hmRoomSel').value?'① 룸을 고르거나 [새 룸]':SRV_OK&&!$('#hmRevSel').value?'① Rev 를 고르거나 [새 Rev]':HM.st==='file'&&!HM.file?'② 불러올 배치안 파일을 고르세요':'';
   $('#hmWhy').textContent=why; $('#hmGo').disabled=!!why;
 }
-$('#hmProj').onchange=()=>{HM.st='';hmRender()};
+$('#hmProj').onchange=async()=>{HM.st='';$('#hmRoomSel').value='';$('#hmRevSel').value='';await hmDetail($('#hmProj').value);hmRender()};
+$('#hmRoomSel').onchange=()=>{HM.st='';$('#hmRevSel').value='';hmRender()}; $('#hmRevSel').onchange=()=>{HM.st='';hmRender()};
+$('#hmRoomNew').onclick=()=>{$('#hmRoomBox').hidden=false;$('#hmRoomName').focus()}; $('#hmRoomCancel').onclick=()=>{$('#hmRoomBox').hidden=true};
+$('#hmRevNew').onclick=()=>{const r=(HM.det[$('#hmProj').value]?.rooms||[]).find(x=>x.id===$('#hmRoomSel').value),vs=r?r.revs.map(v=>v.rev):[],l=vs[vs.length-1]||'';
+  $('#hmRevName').value=!l?'A':/^[A-Y]$/i.test(l)?String.fromCharCode(l.charCodeAt(0)+1):/^\d+$/.test(l)?String(+l+1):'';$('#hmRevBox').hidden=false;$('#hmRevName').focus()};   // 다음 Rev 를 미리 적어 둠
+$('#hmRevCancel').onclick=()=>{$('#hmRevBox').hidden=true};
+$('#hmRoomCreate').onclick=async()=>{const pid=$('#hmProj').value,name=$('#hmRoomName').value.trim();if(!name)return toast('새 룸 이름을 적으세요.',true);
+  if(!AUTH_TOKEN)return toast('로그인해야 룸을 만들 수 있습니다.',true);
+  try{const r=await sapi('POST',`/${pid}/rooms`,{name});$('#hmRoomName').value='';$('#hmRoomBox').hidden=true;await hmDetail(pid,true);HM.wRoom=r.id;HM.st='';hmRender();toast(`룸 ${r.name} 을(를) 만들었습니다 — 이어서 [새 Rev]`)}catch(e){toast(e.message,true)}};
+$('#hmRevCreate').onclick=async()=>{const pid=$('#hmProj').value,rid=$('#hmRoomSel').value,rev=$('#hmRevName').value.trim();if(!rev)return toast('새 Rev 를 적으세요 (예: A).',true);
+  if(!AUTH_TOKEN)return toast('로그인해야 Rev 를 만들 수 있습니다.',true);
+  try{await sapi('POST',`/${pid}/rooms/${rid}/revs`,{rev,note:$('#hmRevNote').value.trim()});$('#hmRevName').value='';$('#hmRevNote').value='';$('#hmRevBox').hidden=true;await hmDetail(pid,true);HM.wRoom=rid;HM.wRev=rev;HM.st='';hmRender();toast(`Rev ${rev} 을(를) 만들었습니다 — ② 를 고르고 [배치 시작]`)}catch(e){toast(e.message,true)}};
 $('#hmStart').addEventListener('click',e=>{const li=e.target.closest('[data-st]');if(!li||li.classList.contains('off'))return;HM.st=li.dataset.st;if(HM.st==='file'&&!HM.file)$('#hmFile').click();hmRender()});
 $('#hmFile').onchange=e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{try{const d=JSON.parse(r.result);if(!d.room||!Array.isArray(d.panels)||!Array.isArray(d.types))throw 0;HM.file={name:f.name,d};$('#hmFileTxt').innerHTML=`<span class="fn">${esc(f.name)}</span> · 판넬 ${d.panels.length} EA`}
   catch(err){HM.file=null;$('#hmFileTxt').textContent='[배치안 저장 (JSON)] 으로 만든 파일 — 눌러서 고르기';toast(`불러오기 실패: ${f.name} 은(는) 배치안 파일이 아닙니다 (room · types · panels 항목이 없음).`,true)}hmRender()};r.readAsText(f);e.target.value=''};
@@ -2414,27 +2463,28 @@ $('#hmNewBtn').onclick=()=>{$('#hmNewBox').hidden=false;$('#hmNewName').focus()}
 $('#hmCancel').onclick=()=>{$('#hmNewBox').hidden=true};
 $('#hmCreate').onclick=async()=>{const name=$('#hmNewName').value.trim();if(!name)return toast('새 프로젝트 이름을 적으세요.',true);
   if(!AUTH_TOKEN)return toast('로그인해야 프로젝트를 만들 수 있습니다 — 대시보드에서 로그인하세요 (비회원은 보기만).',true);
-  try{const p=await sapi('POST','/projects',{name});$('#hmNewName').value='';$('#hmNewBox').hidden=true;await hmLoad();$('#hmProj').value=p.id;HM.st='';hmRender();toast(`프로젝트 ${p.name} 을(를) 만들었습니다 — ② 를 고르고 [배치 시작]`)}catch(e){toast(e.message,true)}};
+  try{const p=await sapi('POST','/projects',{name});$('#hmNewName').value='';$('#hmNewBox').hidden=true;await hmLoad();$('#hmProj').value=p.id;await hmDetail(p.id,true);HM.st='';hmRender();toast(`프로젝트 ${p.name} 을(를) 만들었습니다 — 이어서 [새 룸]`)}catch(e){toast(e.message,true)}};
 $('#hmProjects').addEventListener('click',e=>{const pk=e.target.closest('[data-pick]');if(pk){$('#hmProj').value=pk.dataset.pick;HM.st='';hmRender();return}hmOpenLine(e)});
 $('#hmRecent').addEventListener('click',hmOpenLine);
 async function hmOpenLine(e){const li=e.target.closest('[data-sid]');if(!li)return;await hmOpen(li.dataset.pid,li.dataset.sid)}
 async function hmOpen(pid,sid){
   try{const {meta,data}=await sapi('GET',`/${pid}/saves/${sid}`), pj=HM.projects.find(p=>p.id===pid);
-    S=norm(data);S.srv={pid,name:pj?pj.name:(S.srv?.name||''),sid:meta.id,at:meta.at,by:meta.by};sel.clear();selNote=null;selCol=null;
+    S=norm(data);S.srv={pid,name:pj?pj.name:(S.srv?.name||''),sid:meta.id,at:meta.at,by:meta.by,rid:meta.room||'',rname:meta.roomName||''};if(meta.roomName)S.info.room=meta.roomName;sel.clear();selNote=null;selCol=null;
     commit();buildRoom();buildTypes();srvSnap=lastSnap;updSrv();showEditor();
     toast(`${S.srv.name} · ${lt(meta.at)} ${meta.by} 저장본을 열었습니다${meta.memo?' — '+meta.memo:''}`)}
   catch(err){toast(`저장본을 못 열었습니다: ${err.message}`,true)}
 }
 $('#hmGo').onclick=async()=>{
   const pid=$('#hmProj').value, pj=HM.projects.find(p=>p.id===pid), st=HM.st;
-  if(st==='last'){const m=hmLast();if(m)return hmOpen(m.pid,m.id)}
+  const rid=$('#hmRoomSel').value, rname=((HM.det[pid]?.rooms||[]).find(r=>r.id===rid)||{}).name||'', rvSel=$('#hmRevSel').value;
+  if(st==='last'){const m=hmLast();if(m){await hmOpen(pid,m.id);if(m.prev&&rvSel){S.info.rev=rvSel;S.srv.sid='';commit();buildInfo();srvSnap=null;updSrv();toast(`이전 Rev ${m.rev||'-'} 저장본에서 Rev ${rvSel} 를 시작합니다 — 저장하면 Rev ${rvSel} 로 쌓입니다`)}return}}
   if(st==='blank'){const d=sample();S=norm({room:{...d.room},snap:S.snap||100,types:S.types.length?S.types:d.types,panels:[],notes:[],revs:[],info:{}})}
   else if(st==='sample')S=norm(sample());
   else if(st==='file'&&HM.file)S=norm(HM.file.d);
-  if(pj){if(!S.srv||S.srv.pid!==pj.id)S.srv={pid:pj.id,name:pj.name,sid:'',at:'',by:''};if(!S.info.project)S.info.project=pj.name}
-  const rm=$('#hmRoom').value.trim(), rv=$('#hmRev').value.trim(); if(rm)S.info.room=rm; if(rv)S.info.rev=rv;
+  if(pj){if(!S.srv||S.srv.pid!==pj.id||S.srv.rid!==rid)S.srv={pid:pj.id,name:pj.name,sid:'',at:'',by:'',rid,rname};S.info.project=pj.name;if(rname)S.info.room=rname;if(rvSel)S.info.rev=rvSel}
+  else{const rm=$('#hmRoom').value.trim(), rv=$('#hmRev').value.trim(); if(rm)S.info.room=rm; if(rv)S.info.rev=rv}
   sel.clear();selNote=null;selCol=null;commit();buildRoom();buildTypes();if(st!=='cont')srvSnap=null;updSrv();showEditor();
-  toast(pj?`${pj.name} — 배치를 시작합니다. 저장은 ① 의 [💾 서버에 저장]`:'배치를 시작합니다');
+  toast(pj?`${pj.name} › ${rname||'-'} › Rev ${rvSel||'-'} — 배치를 시작합니다. 저장은 ① 의 [💾 서버에 저장]`:'배치를 시작합니다');
 };
 $('#bHome').onclick=showHome;
 
@@ -2469,6 +2519,7 @@ $('#v3gl').addEventListener('pointerdown',()=>{V3.kf=true},true); svg.addEventLi
 /* 3D 관찰자 시점을 2D 에: 카메라 자리 · 보는 방향 · 가로 시야(점선 부채꼴) · 보는 점 · 카메라 높이, 사람(자리 · 방향).
    같은 화면(나란히)은 3D 를 그릴 때마다, 3D 새 창은 BroadcastChannel {t:'cam'} 으로 받음 */
 var CAM3D=null;
+function de_light(){return document.documentElement.dataset.theme==='light'}
 function cam3d(){if(!CAM3D)return null;if(CAM3D.src==='win')return CAM3D;try{return V3.on&&V3.dock?CAM3D:null}catch(e){return null}}
 function camSvg(c,s){
   const ac=getComputedStyle(document.documentElement).getPropertyValue('--snap').trim()||'#ff7ad9', mo='#e8792b', [ex,ez]=c.e, [tx,tz]=c.t, r=9*ANN/s, fs=10*ANN/s;

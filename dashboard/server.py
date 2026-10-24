@@ -32,7 +32,7 @@ ID_RE = re.compile(r'^[A-Za-z0-9_\-]{1,80}$')
 WEEK_RE = re.compile(r'^\d{4}-W\d{2}$')
 MAX_BODY = 30 * 1024 * 1024
 
-SERVER_VERSION = '2026-10-22.4'
+SERVER_VERSION = '2026-10-24.1'
 ROOT = os.path.dirname(os.path.abspath(__file__))
 PORT = 8080
 ALLOW_NETS = []          # 사내망: 루프백·사설망 + 서버 IP 대역(/16, 유선·Wi-Fi 등 지금까지 쓴 대역 모두 기억) + --allow 로 추가한 대역
@@ -1371,7 +1371,8 @@ def api_profile_put(acc, b):
 
 
 # ---------------------------------------------------------------- 판넬 공간확보 (apps/space): 프로젝트별 · 날짜별 저장 + 프로젝트 노트
-# 운영 폴더 space/<프로젝트ID>/index.json = {project, saves:[메타 …], notes:[…]}, space/<프로젝트ID>/saves/<저장ID>.json = {meta, data}
+# 운영 폴더 space/<프로젝트ID>/index.json = {project, rooms:[{id,name,revs:[{rev,…}]}], saves:[메타 …], notes:[…]}, space/<프로젝트ID>/saves/<저장ID>.json = {meta, data}
+# 프로젝트 → 룸(Room) → Rev 단계. 저장 메타에 room(ID) · roomName · rev. 예전 프로젝트(rooms 없음)도 그대로 읽힘
 # 저장은 덮어쓰지 않고 매번 새 파일 → 누가 · 언제 · 어떤 메모로 저장했는지가 그대로 이력. 보기 = 누구나(사내망), 쓰기 = 로그인 + '판넬 공간확보' 권한
 SPACE_ID_RE = re.compile(r'^[a-z0-9]{6,32}$')
 SPACE_MAX = 5 * 1024 * 1024                 # 배치안 하나 최대 (판넬 수천 개도 1MB 안팎)
@@ -1409,7 +1410,8 @@ def api_space_projects():
             continue
         sv = d.get('saves') or []
         last = sv[-1] if sv else {}
-        out.append({**d['project'], 'saves': len(sv), 'notes': len(d.get('notes') or []), 'lastAt': last.get('at', ''), 'lastBy': last.get('by', '')})
+        out.append({**d['project'], 'saves': len(sv), 'notes': len(d.get('notes') or []), 'lastAt': last.get('at', ''), 'lastBy': last.get('by', ''),
+                    'rooms': [{'id': r['id'], 'name': r['name'], 'revs': [v['rev'] for v in r.get('revs') or []]} for r in d.get('rooms') or []]})
     out.sort(key=lambda x: x.get('lastAt') or x.get('createdAt') or '', reverse=True)
     return {'projects': out}
 
@@ -1444,7 +1446,46 @@ def api_space_project_new(acc, b):
 
 def api_space_get(pid):
     d = space_idx(pid)
-    return {'project': d['project'], 'saves': list(reversed(d.get('saves') or [])), 'notes': list(reversed(d.get('notes') or []))}
+    return {'project': d['project'], 'rooms': d.get('rooms') or [], 'saves': list(reversed(d.get('saves') or [])), 'notes': list(reversed(d.get('notes') or []))}
+
+
+def space_room(d, rid):
+    r = next((x for x in d.get('rooms') or [] if x.get('id') == rid), None)
+    if not r:
+        raise ApiError(404, '없는 룸입니다 (다른 사람이 지웠거나 목록이 오래됨 — 새로 고침)')
+    return r
+
+
+def space_rev_add(r, rev, acc, note=''):
+    if not any(v.get('rev') == rev for v in r.setdefault('revs', [])):
+        r['revs'].append({'rev': rev, 'createdAt': stamp(), 'createdBy': acc['name'], 'note': note})
+
+
+def api_space_room_new(acc, pid, b):
+    name = space_name(b.get('name'), '룸 이름', 60)
+    with LOCK:
+        d = space_idx(pid)
+        if any(x['name'].lower() == name.lower() for x in d.get('rooms') or []):
+            raise ApiError(409, f'이 프로젝트에 같은 이름의 룸이 이미 있습니다: {name} — 목록에서 고르세요')
+        r = {'id': space_id(), 'name': name, 'createdAt': stamp(), 'createdBy': acc['name'], 'revs': []}
+        d.setdefault('rooms', []).append(r)
+        write_json(space_idx_path(pid), d)
+    log.info('공간확보 룸 생성: %s / %s (%s)', d['project']['name'], name, acc['name'])
+    return r
+
+
+def api_space_rev_new(acc, pid, rid, b):
+    rev = space_name(b.get('rev'), 'Rev', 20)
+    note = re.sub(r'\s+', ' ', str(b.get('note') or '')).strip()[:200]
+    with LOCK:
+        d = space_idx(pid)
+        r = space_room(d, rid)
+        if any(v.get('rev') == rev for v in r.get('revs') or []):
+            raise ApiError(409, f'이 룸에 Rev {rev} 가 이미 있습니다 — 목록에서 고르세요')
+        space_rev_add(r, rev, acc, note)
+        write_json(space_idx_path(pid), d)
+    log.info('공간확보 Rev 생성: %s / %s / Rev %s (%s)', d['project']['name'], r['name'], rev, acc['name'])
+    return r
 
 
 def api_space_save_get(pid, sid):
@@ -1472,8 +1513,14 @@ def api_space_save(acc, pid, raw):
     with LOCK:
         d = space_idx(pid)
         sid = space_id()
+        rid = str(b.get('room') or '')
+        r = space_room(d, rid) if rid else None
+        rev = str((data.get('info') or {}).get('rev') or '').strip()[:20]
+        if r and rev:
+            space_rev_add(r, rev, acc)                               # 저장한 Rev 는 룸의 Rev 목록에도 (새 Rev 를 따로 안 만들었어도)
         meta = {'id': sid, 'at': stamp(), 'by': acc['name'], 'memo': re.sub(r'\s+', ' ', str(b.get('memo') or '')).strip()[:200],
-                'rev': str((data.get('info') or {}).get('rev') or '')[:20], 'panels': len(data['panels']),
+                'room': rid if r else '', 'roomName': r['name'] if r else str((data.get('info') or {}).get('room') or '')[:60],
+                'rev': rev, 'panels': len(data['panels']),
                 'sum': {k: num(sm.get(k)) for k in ('envW', 'envH', 'recW', 'recH', 'spare')}}
         write_json(P('space', pid, 'saves', sid + '.json'), {'meta': meta, 'data': data})
         d.setdefault('saves', []).append(meta)
@@ -2060,6 +2107,10 @@ class Handler(BaseHTTPRequestHandler):
                 return api_space_save(self.need_menu('space'), seg[1], self.raw_body())
             if m == 'POST' and len(seg) == 3 and seg[2] == 'notes':
                 return api_space_note_add(self.need_menu('space'), seg[1], self.json_body())
+            if m == 'POST' and len(seg) == 3 and seg[2] == 'rooms':
+                return api_space_room_new(self.need_menu('space'), seg[1], self.json_body())
+            if m == 'POST' and len(seg) == 5 and seg[2] == 'rooms' and seg[4] == 'revs':
+                return api_space_rev_new(self.need_menu('space'), seg[1], seg[3], self.json_body())
             if m == 'DELETE' and len(seg) == 4 and seg[2] == 'notes':
                 return api_space_note_del(self.need_menu('space'), seg[1], seg[3], self.is_super())
         if head == 'birthdays':                                     # 부서원 생일: 보기 = 누구나(비회원 화면에도 축하 팝업), 고치기·엑셀 = Management 권한
