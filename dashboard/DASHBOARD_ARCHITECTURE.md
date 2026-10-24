@@ -1089,3 +1089,13 @@ C:\Users\SAMSUNG\Desktop\Claude\                         ← 개발 폴더 (여�
 - 무엇을: `#bNeed` `#bNeed2` → `needExport()`: `needPdf()`(1쪽 `drawingImage()` = 밝은 화면 · 실 맞춤 2D 를 SVG→그림, 위에 필요 실 일점쇄선, 오른쪽 핵심 숫자 · 범례 / 2쪽~ `needLines()` 요약 + Equipment List) → `pdfBytes()` 직접 만든 PDF 1.4(쪽마다 JPEG, A3 가로) 내려받기 + 요약 글 창. 건축 전달 요약 TXT 는 `reqLines()` 로 떼어 냄(내용 같음).
 - 확인한 것: `node --check`, Chromium PDF 2쪽 · pdfinfo 정상 · 화면 원래대로, 이전 시험 통과.
 - 회사에서 확인할 것: Edge 에서 PDF 가 바로 내려받히는지, 맑은 고딕으로 글자가 나오는지.
+
+### 2026-10-24 (31) — 판넬 공간확보: 프로젝트 → 룸 → Rev · 워터마크 · 출력에 날짜 · Rev (SERVER_VERSION 2026-10-24.1 / APP_VERSION 그대로)
+> **서버 재시작 필요**(server.py 바뀜). 대시보드(dashboard.html) 교체는 필요 없음. 예전 프로젝트(rooms 없음)는 그대로 열리고, 첫 화면에서 [새 룸] → [새 Rev] 를 만들면 됨.
+- 무엇을 ① 서버: `space/<pid>/index.json` 에 `rooms:[{id,name,createdAt,createdBy,revs:[{rev,createdAt,createdBy,note}]}]`. API `POST /api/space/<pid>/rooms` {name} (같은 이름 409), `POST /api/space/<pid>/rooms/<rid>/revs` {rev,note} (같은 Rev 409). 저장(`api_space_save`) 본문 `room`(룸 ID) → 메타에 `room` · `roomName` · `rev`, 저장한 Rev 가 룸 목록에 없으면 자동 등록(`space_rev_add`). `api_space_projects` · `api_space_get` 이 `rooms` 를 돌려줌.
+- 무엇을 ② 첫 화면: ① 칸 = 프로젝트 → Room(`#hmRoomSel` + [새 룸]) → Rev(`#hmRevSel` + [새 Rev], 다음 Rev 를 미리 적음 A→B, 1→2) + 경로 `#hmPath`. 셋 다 골라야 [배치 시작]. ② '최근 저장본 이어서' 는 그 룸 · Rev 의 저장본, 없으면 **같은 룸 이전 Rev 의 최근 저장본에서 시작**(열고 Rev 만 새 Rev 로). `hmDetail` · `hmFill` · `hmLast`. 방금 만든 룸 · Rev 는 `HM.wRoom` · `HM.wRev` 로 골라 둠(옵션이 생기기 전이라 select.value 로는 못 정함).
+- 무엇을 ③ 워터마크: `wmLines()` = "프로젝트 · 룸 · Rev X" / "PRELIMINARY · 공간확보 초안 · 날짜". 2D 화면(비스듬히 반복), 3D 화면 덧칠 캔버스, 필요 사이즈 PDF 쪽마다. 도구줄 체크 [워터마크](`#vWm`, `show.wm`).
+- 무엇을 ④ 출력에 날짜 · Rev: PDF 쪽 오른쪽 아래 'Rev X │ 날짜 출력' 칸(`pgFrame`), CSV 첫 줄 `Project · Room · Rev · Date`, 이력 · 최근 저장 줄에 룸 · Rev 칩, 서버칸 "프로젝트 › 룸 › Rev". DXF 는 예전처럼 타이틀에 REV · DATE(워터마크 없음).
+- 바뀐 곳: server.py `api_space_projects` `api_space_get` `space_room` `space_rev_add` `api_space_room_new` `api_space_rev_new` `api_space_save` · 라우팅 / apps/space/index.html 첫 화면(`hmLoad` `hmDetail` `hmFill` `hmLast` `hmRender` `hmGo`), `wmLines` `render` `v3` 덧칠, `pgFrame` `drawingImage`, CSV, `updSrv`.
+- 확인한 것: `node --check`, curl(만들기 · 같은 이름 409 · 저장 시 Rev 자동 등록), Chromium: 새 프로젝트 → 룸 CCR · Rack Room → Rev A → 예시 배치 저장 → 첫 화면 → 새 Rev B(이전 Rev A 에서 시작) → 저장 = Rev B, CSV 첫 줄, PDF 2쪽 워터마크 · Rev/날짜 칸, 2D | 3D 워터마크. 이전 시험 다시 통과, 스크립트 오류 0.
+- 회사에서 확인할 것: 서버 재시작 후 사이드바 '서버 v2026-10-24.1'. 예전 서버 그대로면 [새 룸] 이 '없는 주소' 로 실패함.
