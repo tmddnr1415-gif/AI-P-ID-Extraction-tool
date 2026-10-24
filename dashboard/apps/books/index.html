@@ -175,30 +175,23 @@ body.vmode{overflow:hidden}
 #rhead{padding:8px 16px;background:var(--card);border-bottom:1px solid var(--line);display:flex;flex-direction:column;gap:6px;font-size:13px}
 .rsum .cpt{margin:1px 2px}
 .rrel{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
-.rbody{flex:1;overflow:auto;padding:12px 16px 30px}
-.rsec{margin-bottom:18px}
-.rst{display:flex;align-items:center;gap:8px;font-size:13.5px;font-weight:700;color:var(--navy);margin:4px 0 8px}
-.rst .seg .btn.on{background:var(--navy);color:#fff;border-color:var(--navy)}
-.rgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(500px,1fr));gap:12px}
-@media (max-width:1060px){.rgrid{grid-template-columns:1fr}}
-.rcard{background:var(--card);border-radius:12px;box-shadow:var(--shadow);overflow:hidden;display:flex;flex-direction:column;border:1px solid transparent}
-.rcard:hover{border-color:#ffb877}
-.rch{display:flex;align-items:center;gap:6px;padding:7px 10px;border-bottom:1px solid var(--line);font-size:12.5px;min-width:0}
-.rch .pg{font-family:var(--f-mono);font-weight:700;color:#c25e00}
-.rch .cnt{background:#ffeedd;color:#c25e00;border-radius:5px;padding:0 6px;font-size:11.5px;font-weight:700}
-.rch .bn{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
-.rmeta{padding:5px 10px 0;font-size:11.5px}
-.rthumb{padding:8px 10px 0}
-.rthumb:empty{display:none}
-.rxs{padding:6px 10px 8px;font-size:12.5px;line-height:1.6}
-.rxs .rx{padding:3px 0;border-bottom:1px dashed var(--line)}
-.rxs .rx:last-child{border-bottom:0}
-.rpage{height:430px;overflow:auto;background:#f6f7fb;border-radius:6px;position:relative}
-.rpage .canvas-wrap{position:relative;margin:0 auto;background:#fff}
-.rpage .hlb{position:absolute;background:rgba(255,214,0,.42);border-radius:2px;mix-blend-mode:multiply;pointer-events:none}
-.rpage .hlf{position:absolute;background:rgba(255,140,26,.45);border-radius:2px;mix-blend-mode:multiply;pointer-events:none;outline:1px solid #ff8c1a}
-.rcard.sm .rpage{height:300px}
-.rcard.fit .rpage{height:auto;max-height:560px}
+.rmain{flex:1;display:grid;grid-template-columns:minmax(380px,40%) 1fr;min-height:0}
+.rlist{overflow:auto;border-right:1px solid var(--line);background:var(--card);outline:0;padding-bottom:30px}
+.rlist:focus-visible{box-shadow:inset 0 0 0 2px #ffb877}
+.rgh{position:sticky;top:0;z-index:2;background:#f3f5fb;border-bottom:1px solid var(--line);padding:7px 12px;font-size:12.5px;color:var(--navy);display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.rgh.here{background:#fff3e6}
+.rgh b{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:60%}
+.rrow{display:grid;grid-template-columns:52px 1fr 30px;gap:6px;align-items:start;padding:6px 10px 6px 9px;border-bottom:1px solid #f0f2f8;font-size:12.5px;line-height:1.55;cursor:pointer;border-left:3px solid transparent}
+.rrow:hover{background:#fafbff}
+.rrow.on{background:#ffeedd;border-left-color:#ff8c1a}
+.rrow .pg{font-family:var(--f-mono);font-size:11.5px;color:#c25e00;font-weight:700;padding-top:1px}
+.rrow .rt{min-width:0;word-break:break-word}
+.rrow .no{font-family:var(--f-mono);font-size:10.5px;color:var(--sub);text-align:right;padding-top:2px}
+.rpv{display:flex;flex-direction:column;min-width:0;min-height:0;padding:8px 12px;gap:6px}
+.rpvh{display:flex;flex-wrap:wrap;gap:10px;align-items:baseline}
+.rpvh b{color:var(--navy);font-size:14px}
+.rpv .viewer{flex:1;display:flex;flex-direction:column;min-height:0;margin:0}
+.rpv .vbody{flex:1;max-height:none}
 #vwin{height:100%;display:flex;flex-direction:column;padding:10px 12px;gap:8px}
 #vwin .vwh{display:flex;flex-wrap:wrap;gap:10px;align-items:baseline}
 #vwin .vwh b{font-size:15px;color:var(--navy)}
@@ -1135,7 +1128,7 @@ async function pdfDoc(B, file) {
 }
 class Viewer {
   constructor(host, o) {
-    Object.assign(this, { B: o.B, re: o.re, q: o.q || '', hitPages: o.hitPages || [], page: Math.max(0, Math.min(o.B.nPages - 1, o.page || 0)), file: o.file || null, popup: !!o.popup });
+    Object.assign(this, { B: o.B, re: o.re, q: o.q || '', hitPages: o.hitPages || [], page: Math.max(0, Math.min(o.B.nPages - 1, o.page || 0)), file: o.file || null, popup: !!o.popup, noFind: !!o.noFind });
     this.mode = this.B.ext === 'pdf' && this.file && window.pdfjsLib ? 'page' : 'text';
     this.fre = null; this.fhits = []; this.fcur = -1; this.host = host; this.seq = 0;
     const B = this.B, pdf = B.ext === 'pdf', u = pdf ? 'p.' : '§';
@@ -1148,7 +1141,7 @@ class Viewer {
         <button class="btn sm" data-v="copyPage" title="이 쪽 글자 전체를 출처와 함께 복사">📋 쪽 복사</button>
         ${this.popup ? `<button class="btn sm" data-v="orig" ${this.file ? '' : 'disabled title="원래 화면에서 폴더가 연결되어 있어야 합니다"'}>원본 열기 ↗</button>` : `<button class="btn sm" data-v="pop" title="이 미리보기를 새 창으로 (지금 쪽 · 찾기 그대로)">⧉ 새 창</button>`}
       </div>
-      <div class="vfind">
+      <div class="vfind" ${this.noFind ? 'hidden' : ''}>
         <span class="fi"><span>🔎</span><input data-v="find" type="search" placeholder="이 책 안에서 찾기 (Enter = 다음, Shift+Enter = 이전)" aria-label="책 안에서 찾기"></span>
         <button class="btn sm" data-v="fPrev" title="이전 (Shift+Enter)">▲</button><button class="btn sm" data-v="fNext" title="다음 (Enter)">▼</button>
         <span class="muted fcount" data-v="fNo"></span>
@@ -1194,6 +1187,12 @@ class Viewer {
     this.renderFind();
     if (this.fcur >= 0 && (!live || this.fhits[this.fcur].p !== this.page)) this.go(this.fhits[this.fcur].p, true); else this.draw();
   }
+  useRegex(re, label) {   // 연관 검색 창: 목록과 같은 정규식으로 책 전체 일치를 세어 둠 (목록 k 번째 ↔ fhits)
+    this.fre = re; if (re) re._t = label;
+    this.fhits = []; this.fcur = -1;
+    if (re) for (let p = 0; p < this.B.nPages; p++) { re.lastIndex = 0; let m, k = 0; while ((m = re.exec(this.B.pages[p]))) { if (!m[0]) { re.lastIndex++; continue; } this.fhits.push({ p, k: k++, i: m.index, n: m[0].length }); } }
+  }
+  show(p, k) { const i = this.fhits.findIndex(h => h.p === p && h.k === k); this.fcur = i; this.go(p, true); }
   step(d) { if (!this.fhits.length) return; this.fcur = (this.fcur + d + this.fhits.length) % this.fhits.length; this.renderFind(); this.go(this.fhits[this.fcur].p, true); }
   renderFind() {
     const n = this.fhits.length, pages = new Set(this.fhits.map(h => h.p)).size, B = this.B, u = B.ext === 'pdf' ? 'p.' : '§';
@@ -1303,107 +1302,129 @@ async function initRelatedWindow() {
     if (i % 5 === 4) { W.innerHTML = `<div class="empty">이 PC 의 도서 색인 불러오는 중… ${i + 1}/${sigs.length}</div>`; await sleep(0); }
   }
   LIB.folder = lib?.folder || '';
-  const RS = { t: Q0.get('t') || '', sig, q0, sort: 'count', shown: 24, obs: null };
+  const RS = { t: Q0.get('t') || '', sig, q0, rows: [], sel: -1, viewer: null, vsig: null, timer: 0 };
   W.innerHTML = `
     <div class="rwh">
       <form class="rq" id="rform"><span>🔎</span><input id="rt" type="search" value="${esc(RS.t)}" aria-label="연관 검색어"><button class="btn sm pri">다시 찾기</button></form>
       <label class="muted"><input type="checkbox" id="rexp" checked> 같은 뜻 표현까지</label>
-      <span class="sp"></span><span class="muted">${q0 ? `메인 검색어 '${esc(q0)}' 는 노란색, 이 낱말은 주황색` : ''}</span>
+      <label class="muted"><input type="checkbox" id="roth" checked> 다른 도서도</label>
+      <span class="sp"></span><span class="muted">↑↓ 한 곳씩 · PgUp/PgDn 10곳씩 · Home/End · Enter = 미리보기 창</span>
     </div>
     <div id="rhead"></div>
-    <div class="rbody" id="rbody"></div>`;
-  $('#rform').addEventListener('submit', e => { e.preventDefault(); RS.t = $('#rt').value.trim(); RS.shown = 24; runRelated(RS); });
-  $('#rexp').addEventListener('change', () => runRelated(RS));
+    <div class="rmain"><div class="rlist" id="rlist" tabindex="0"></div><div class="rpv" id="rpv"></div></div>`;
+  $('#rform').addEventListener('submit', e => { e.preventDefault(); RS.t = $('#rt').value.trim(); runRelated(RS); $('#rlist').focus(); });
+  $('#rexp').addEventListener('change', () => runRelated(RS)); $('#roth').addEventListener('change', () => runRelated(RS));
   W.addEventListener('click', e => {
-    const a = e.target.closest('[data-act]'); if (!a) return;
-    const d = a.dataset;
-    if (d.act === 'retry') { $('#rt').value = d.t; RS.t = d.t; RS.shown = 24; runRelated(RS); }
-    else if (d.act === 'view') openViewerWindow({ B: LIB.bySig.get(d.sig), page: +d.p, q: RS.q0, fre: { _t: RS.t }, mode: 'page' });
-    else if (d.act === 'copy') { const B = LIB.bySig.get(d.sig); copyText((B.pages[+d.p] || '') + '\n\n' + cite(B, +d.p)); }
-    else if (d.act === 'sort') { RS.sort = d.v; runRelated(RS); }
-    else if (d.act === 'fit') { const c = a.closest('.rcard'); c.classList.toggle('fit'); a.textContent = c.classList.contains('fit') ? '🔍 확대' : '🔍 쪽 전체'; thumb(c, RS.reQ, RS.reT); }
-    else if (d.act === 'more') { RS.shown += 24; runRelated(RS, true); }
+    const c = e.target.closest('[data-act="retry"]'); if (c) { $('#rt').value = c.dataset.t; RS.t = c.dataset.t; runRelated(RS); $('#rlist').focus(); return; }
+    const r = e.target.closest('.rrow[data-i]'); if (r) { selectRow(RS, +r.dataset.i, true); $('#rlist').focus(); }
   });
-  document.addEventListener('keydown', e => { if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'f') { e.preventDefault(); $('#rt').focus(); $('#rt').select(); } });
+  $('#rlist').addEventListener('dblclick', e => { if (e.target.closest('.rrow[data-i]')) openRowWindow(RS); });
+  document.addEventListener('keydown', e => {
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'f') { e.preventDefault(); $('#rt').focus(); $('#rt').select(); return; }
+    const inText = e.target.tagName === 'INPUT' && e.target.type !== 'checkbox' && e.target.type !== 'radio';
+    if (inText && e.target.id !== 'rt') return;                 // 미리보기 쪽 번호 칸 등
+    if (inText && e.key !== 'ArrowDown') return;                 // 검색칸에서는 ↓ 만 목록으로
+    const n = RS.rows.length; if (!n) return;
+    const step = { ArrowDown: 1, ArrowUp: -1, PageDown: 10, PageUp: -10 }[e.key];
+    if (step !== undefined) { e.preventDefault(); if (inText) $('#rlist').focus(); selectRow(RS, nextRow(RS, RS.sel < 0 ? -1 : RS.sel, step)); }
+    else if (e.key === 'Home') { e.preventDefault(); selectRow(RS, nextRow(RS, -1, 1)); }
+    else if (e.key === 'End') { e.preventDefault(); selectRow(RS, nextRow(RS, n, -1)); }
+    else if (e.key === 'Enter' && !inText) { e.preventDefault(); openRowWindow(RS); }
+  });
   runRelated(RS);
+  $('#rlist').focus();
 }
-function runRelated(RS, keepScroll) {
-  const t = RS.t, B0 = LIB.bySig.get(RS.sig), expand = $('#rexp').checked, body = $('#rbody'), sy = body.scrollTop;
+// 목록에서 d 만큼 이동 (책 제목 줄은 건너뜀)
+function nextRow(RS, from, d) {
+  const n = RS.rows.length, dir = Math.sign(d) || 1; let i = from, left = Math.abs(d), last = from;
+  while (left > 0) { i += dir; if (i < 0 || i >= n) break; if (RS.rows[i].h) continue; last = i; left--; }
+  return last < 0 || last >= n ? RS.rows.findIndex(r => !r.h) : last;
+}
+function runRelated(RS) {
+  const t = RS.t, B0 = LIB.bySig.get(RS.sig), expand = $('#rexp').checked, withOthers = $('#roth').checked;
   document.title = `'${t}' 연관 검색 — 계장도서검토`;
-  if (!t || !B0) { $('#rhead').innerHTML = ''; body.innerHTML = '<div class="empty">찾을 낱말을 넣으세요.</div>'; return; }
+  const L = $('#rlist');
+  if (!t || !B0) { $('#rhead').innerHTML = ''; L.innerHTML = '<div class="empty">찾을 낱말을 넣으세요.</div>'; RS.rows = []; return; }
   const Q = buildQuery(t, expand), fre = findRegex(t);
-  // 이 낱말 그대로(주황) + 사전이 아는 같은 뜻 표현(주황 옅게) → 한 정규식으로 쪽마다 셈
-  const reT = expand ? (hlRegex({ qs: Q.mains }) || fre) : fre;
-  const reQ = RS.q0 ? hlRegex(buildQuery(RS.q0)) : null; RS.reQ = reQ; RS.reT = reT;
-  const pages = [];
-  for (let p = 0; p < B0.nPages; p++) { const tx = B0.pages[p]; if (!tx) continue; reT.lastIndex = 0; let n = 0, m; const at = []; while ((m = reT.exec(tx))) { if (!m[0]) { reT.lastIndex++; continue; } n++; if (at.length < 3) at.push([m.index, m[0].length]); } if (n) pages.push({ p, n, at }); }
-  if (RS.sort === 'count') pages.sort((a, b) => b.n - a.n || a.p - b.p); else pages.sort((a, b) => a.p - b.p);
-  const total = pages.reduce((a, x) => a + x.n, 0);
-  // 다른 도서: 메인 검색 엔진으로 (같은 뜻 표현 · 하위 개념 · 문맥 판단 그대로)
-  const SR = search(t, { expand }), others = SR.results.filter(R => R.B.sig !== B0.sig).slice(0, 12);
-  // 연관 주제: 사전의 rel · 상위/하위 개념 + 이 책에서 그 낱말 주변에 자주 나온 개념
+  const reT = (expand ? hlRegex({ qs: Q.mains }) : null) || fre;   // 이 낱말 + 사전이 아는 같은 뜻 표현
+  const reQ = RS.q0 ? hlRegex(buildQuery(RS.q0)) : null;
+  RS.reT = reT; RS.reQ = reQ;
+  // 한 줄 = 한 곳(일치 하나). 이 책 → 다른 도서(관련도 순) 차례로
+  const rows = [], perBook = (B, max, meta) => {
+    const out = []; let total = 0; const pages = new Set();
+    for (let p = 0; p < B.nPages; p++) {
+      const tx = B.pages[p]; if (!tx) continue; reT.lastIndex = 0; let m, k = 0;
+      while ((m = reT.exec(tx))) { if (!m[0]) { reT.lastIndex++; continue; } total++; pages.add(p); if (out.length < max) out.push({ sig: B.sig, p, k, i: m.index, n: m[0].length }); k++; }
+    }
+    if (!total) return 0;
+    rows.push({ h: true, B, total, pages: pages.size, meta, more: total - out.length }); rows.push(...out); return total;
+  };
+  const here = perBook(B0, 3000, null);
+  const SR = withOthers ? search(t, { expand }) : null, others = SR ? SR.results.filter(R => R.B.sig !== B0.sig).slice(0, 20) : [];
+  let otherN = 0;
+  for (const R of others) if (perBook(R.B, 60, explain(R, SR.Q))) otherN++;
+  RS.rows = rows;
+  // 연관 주제 칩: 사전의 관련 · 상위/하위 개념 + 이 책에서 그 낱말이 나온 쪽에 자주 함께 나온 개념
   const rel = new Map();
   for (const id of Q.found) { const c = TH[id]; for (const r of [...c.rel, ...(c.p || []), ...c.kids]) if (!Q.found.includes(r)) rel.set(r, (rel.get(r) || 0) + 1); }
-  if (pages.length) {
-    const txk = pages.slice(0, 30).map(x => B0.sq.slice(B0.sqStarts[x.p], x.p + 1 < B0.nPages ? B0.sqStarts[x.p + 1] : B0.sq.length)).join('');
-    const txt = pages.slice(0, 30).map(x => B0.low.slice(B0.starts[x.p], B0.starts[x.p] + B0.pages[x.p].length)).join(' ');
-    for (const c of THES) { if (Q.found.includes(c.id) || c.id === 'instrumentation') continue; let n = 0;
+  const hp = [...new Set(rows.filter(r => !r.h && r.sig === B0.sig).map(r => r.p))].slice(0, 30);
+  if (hp.length) {
+    const txk = hp.map(p => B0.sq.slice(B0.sqStarts[p], p + 1 < B0.nPages ? B0.sqStarts[p + 1] : B0.sq.length)).join('');
+    const txt = hp.map(p => B0.low.slice(B0.starts[p], B0.starts[p] + B0.pages[p].length)).join(' ');
+    for (const c of THES) {
+      if (Q.found.includes(c.id) || c.id === 'instrumentation') continue; let n = 0;
       for (const [w] of c.t) { const ko = isHangul(w), s = ko ? w.replace(/ /g, '') : w.toLowerCase(), T = ko ? txk : txt; if (s.length < 3) continue; let i = 0; while ((i = T.indexOf(s, i)) !== -1 && n < 999) { n++; i += s.length; } }
-      if (n >= 3) rel.set(c.id, (rel.get(c.id) || 0) + n / 10); }
+      if (n >= 3) rel.set(c.id, (rel.get(c.id) || 0) + n / 10);
+    }
   }
   const relTop = [...rel.entries()].sort((a, b) => b[1] - a[1]).slice(0, 10).map(([id]) => TH[id]);
   const variants = [...new Set(Q.qs.filter(q => q.main).flatMap(q => q.vs.map(v => v.label)))];
-  const u = B0.ext === 'pdf' ? 'p.' : '§';
   $('#rhead').innerHTML = `
-    <div class="rsum"><b>'${esc(t)}'</b> — 이 책 <b>${fmtN(total)}곳 · ${fmtN(pages.length)}쪽</b> · 다른 도서 <b>${fmtN(others.length)}권</b>
+    <div class="rsum"><b>'${esc(t)}'</b> — 이 책 <b>${fmtN(here)}곳</b>${withOthers ? ` · 다른 도서 <b>${fmtN(otherN)}권</b>` : ''}
       ${expand && variants.length > 1 ? `<span class="muted">· 같은 뜻으로 함께 찾은 표현: ${variants.slice(0, 10).map(x => `<span class="cpt part">${esc(x)}</span>`).join(' ')}${variants.length > 10 ? ` +${variants.length - 10}` : ''}</span>` : ''}</div>
     ${relTop.length ? `<div class="rrel"><span class="muted">함께 찾아볼 연관 주제:</span>${relTop.map(c => `<button class="chip" data-act="retry" data-t="${esc(c.n.replace(/\(.*?\)/g, '').trim())}">${esc(c.n)}</button>`).join('')}</div>` : ''}`;
-  if (RS.obs) RS.obs.disconnect();
-  const card = (B, x, big) => {
-    const tx = B.pages[x.p]; let ex = '';
-    for (const [i, n] of x.at) { const a = Math.max(0, i - 70), b = Math.min(tx.length, i + n + 110); ex += `<div class="rx">${a ? '…' : ''}${hl2(tx.slice(a, b).replace(/\n/g, ' '), reQ, reT, -1)}${b < tx.length ? '…' : ''}</div>`; }
-    return `<div class="rcard${big ? '' : ' sm'}" data-sig="${esc(B.sig)}" data-p="${x.p}">
-      <div class="rch"><span class="pg">${B.ext === 'pdf' ? 'p.' : '§'}${x.p + 1}</span><span class="cnt">${fmtN(x.n)}곳</span>${big ? '' : `<b class="bn" title="${esc(B.rel)}">${esc(B.base)}</b>`}<span class="sp"></span>
-        ${B.ext === 'pdf' ? `<button class="btn sm" data-act="fit" title="찾은 곳 확대 ↔ 쪽 전체">🔍 쪽 전체</button>` : ''}
-        <button class="btn sm" data-act="copy" data-sig="${esc(B.sig)}" data-p="${x.p}" title="이 쪽 글자 전체를 출처와 함께 복사">📋</button>
-        <button class="btn sm" data-act="view" data-sig="${esc(B.sig)}" data-p="${x.p}" title="이 쪽을 미리보기 창으로 (책 안에서 찾기 그대로)">⧉ 열기</button></div>
-      <div class="rthumb"></div><div class="rxs">${ex}</div></div>`;
-  };
-  body.innerHTML = `
-    <div class="rsec"><div class="rst">📖 이 책에서 — <b>${esc(B0.base)}</b> <span class="muted">${fmtN(pages.length)}쪽</span><span class="sp"></span>
-      <span class="seg"><button class="btn sm ${RS.sort === 'count' ? 'on' : ''}" data-act="sort" data-v="count">많이 나온 쪽 순</button><button class="btn sm ${RS.sort === 'page' ? 'on' : ''}" data-act="sort" data-v="page">쪽 순서</button></span></div>
-      ${pages.length ? `<div class="rgrid">${pages.slice(0, RS.shown).map(x => card(B0, x, true)).join('')}</div>${pages.length > RS.shown ? `<button class="btn more" data-act="more">더 보기 (${fmtN(pages.length - RS.shown)}쪽 더)</button>` : ''}`
-        : `<div class="empty">이 책에는 '${esc(t)}' 가 없습니다${expand ? '' : ' — [같은 뜻 표현까지] 를 켜 보세요'}.</div>`}</div>
-    <div class="rsec"><div class="rst">📚 다른 도서에서 <span class="muted">${fmtN(others.length)}권 — 관련도 순</span></div>
-      ${others.length ? `<div class="rgrid">${others.map(R => {
-        const ex = explain(R, SR.Q); const p = R.top[0]?.[0] ?? 0, tx = R.B.pages[p] || '';
-        reT.lastIndex = 0; const at = []; let m, n = 0; while ((m = reT.exec(tx))) { if (!m[0]) { reT.lastIndex++; continue; } n++; if (at.length < 2) at.push([m.index, m[0].length]); }
-        return card(R.B, { p, n, at }, false).replace('<div class="rthumb">', `<div class="rmeta"><span class="tier t${ex.tier}">${ex.tierName}</span> <span class="muted">${esc(ex.short)}</span></div><div class="rthumb">`);
-      }).join('')}</div>` : '<div class="empty">다른 도서에서는 찾지 못했습니다.</div>'}</div>`;
-  if (keepScroll) body.scrollTop = sy;
-  // 원본 PDF 쪽 미리보기: 화면에 들어온 카드부터 그림 (파일은 처음 창에서 빌림)
-  const io = new IntersectionObserver(ents => { for (const en of ents) if (en.isIntersecting) { io.unobserve(en.target); thumb(en.target, reQ, reT); } }, { root: body, rootMargin: '300px' });
-  body.querySelectorAll('.rcard').forEach(c => io.observe(c)); RS.obs = io;
+  if (!rows.length) { L.innerHTML = `<div class="empty">'${esc(t)}' 를 찾지 못했습니다${expand ? '' : ' — [같은 뜻 표현까지] 를 켜 보세요'}.</div>`; $('#rpv').innerHTML = ''; RS.viewer = null; RS.vsig = null; return; }
+  let n = 0;
+  L.innerHTML = rows.map((r, i) => {
+    if (r.h) {
+      n = 0; const isHere = r.B.sig === B0.sig;
+      return `<div class="rgh${isHere ? ' here' : ''}">${isHere ? '📖 이 책' : '📚'} <b title="${esc(r.B.rel)}">${esc(r.B.base)}</b> <span class="muted">${fmtN(r.total)}곳 · ${fmtN(r.pages)}쪽</span>${r.meta ? ` <span class="tier t${r.meta.tier}">${r.meta.tierName}</span>` : ''}${r.more > 0 ? ` <span class="muted">(앞 ${fmtN(r.total - r.more)}곳만)</span>` : ''}</div>`;
+    }
+    const B = LIB.bySig.get(r.sig), tx = B.pages[r.p], a = Math.max(0, r.i - 46), b = Math.min(tx.length, r.i + r.n + 70); n++;
+    return `<div class="rrow" data-i="${i}"><span class="pg">${B.ext === 'pdf' ? 'p.' : '§'}${r.p + 1}</span><span class="rt">${a ? '…' : ''}${hl(tx.slice(a, r.i).replace(/\n/g, ' '), reQ)}<mark class="f">${esc(tx.substr(r.i, r.n))}</mark>${hl(tx.slice(r.i + r.n, b).replace(/\n/g, ' '), reQ)}${b < tx.length ? '…' : ''}</span><span class="no">${n}</span></div>`;
+  }).join('');
+  RS.vsig = null; RS.sel = -1;
+  selectRow(RS, nextRow(RS, -1, 1), true);
 }
-const THUMBQ = []; let thumbBusy = false;
-function thumb(el, reQ, reT) { THUMBQ.push([el, reQ, reT]); if (!thumbBusy) pumpThumbs(); }
-async function pumpThumbs() {   // 한 번에 한 쪽씩 (메모리 · 속도)
-  thumbBusy = true;
-  while (THUMBQ.length) {
-    const [el, reQ, reT] = THUMBQ.shift(); if (!el.isConnected) continue;
-    const B = LIB.bySig.get(el.dataset.sig), p = +el.dataset.p; if (!B || B.ext !== 'pdf' || !window.pdfjsLib) continue;
-    const f = LIB.files.get(B.rel) || borrowFile(B.rel); if (!f) continue; LIB.files.set(B.rel, f);
-    try {
-      // 기본 = 찾은 곳 확대(카드 폭의 약 2배로 그려 그 자리로 스크롤) · [쪽 전체] = 카드 폭에 맞춤
-      const doc = await pdfDoc(B, f), host = el.querySelector('.rthumb'), cw = Math.max(240, host.clientWidth - 2), fit = el.classList.contains('fit');
-      const r = await paintPdfPage(doc, p, fit ? cw - 14 : Math.max(700, cw * 1.45), { re: reQ, fre: reT, curK: -1 }); if (!r || !el.isConnected) continue;
-      const box = document.createElement('div'); box.className = 'rpage'; box.appendChild(r.wrap);
-      host.innerHTML = ''; host.appendChild(box);
-      const y = r.ffirst ?? r.first, x = r.ffirst !== null ? r.fx : r.qx;
-      box.scrollTop = !fit && y !== null ? Math.max(0, y - 70) : 0; box.scrollLeft = fit || x === null ? 0 : x - r.minX < cw - 120 ? Math.max(0, r.minX - 30) : Math.max(0, x - cw * 0.35);   // 줄 첫머리부터 보이게, 멀면 찾은 곳 쪽으로
-    } catch (_) {}
+// 줄 고르기: 목록은 바로 움직이고(스크롤 따라감), 미리보기는 키를 누르고 있는 동안 잠깐 기다렸다 그림
+function selectRow(RS, i, now) {
+  const r = RS.rows[i]; if (!r || r.h) return;
+  const L = $('#rlist'); L.querySelector('.rrow.on')?.classList.remove('on');
+  const el = L.querySelector(`.rrow[data-i="${i}"]`); el?.classList.add('on'); RS.sel = i;
+  if (el) { const lr = L.getBoundingClientRect(), er = el.getBoundingClientRect(); if (er.top < lr.top + 34 || er.bottom > lr.bottom - 8) el.scrollIntoView({ block: 'center' }); }
+  clearTimeout(RS.timer);
+  RS.timer = setTimeout(() => showRow(RS), now ? 0 : 110);
+}
+function showRow(RS) {
+  const r = RS.rows[RS.sel]; if (!r) return;
+  const B = LIB.bySig.get(r.sig);
+  if (RS.vsig !== B.sig) {   // 다른 책이면 미리보기를 새로
+    const file = LIB.files.get(B.rel) || borrowFile(B.rel); if (file) LIB.files.set(B.rel, file);
+    $('#rpv').innerHTML = `<div class="rpvh"><b>${esc(B.base)}</b><span class="muted">${esc(B.rel)} · ${SUPPORTED[B.ext]} · ${fmtN(B.nPages)}${B.ext === 'pdf' ? '쪽' : '구간'}</span></div><div class="viewer" id="rviewer"></div>`;
+    const hitPages = [...new Set(RS.rows.filter(x => !x.h && x.sig === B.sig).map(x => x.p))];
+    RS.viewer = new Viewer($('#rviewer'), { B, re: RS.reQ, q: RS.q0, hitPages, page: r.p, file, popup: true, noFind: true });
+    RS.viewer.useRegex(RS.reT, RS.t); RS.vsig = B.sig;
+    RS.viewer.onPage = p => {   // 미리보기에서 쪽을 넘기면 목록도 그 쪽 첫 곳으로
+      const cur = RS.rows[RS.sel]; if (!cur || (cur.sig === B.sig && cur.p === p)) return;
+      const j = RS.rows.findIndex(x => !x.h && x.sig === B.sig && x.p === p); if (j < 0) return;
+      const L = $('#rlist'); L.querySelector('.rrow.on')?.classList.remove('on'); const el = L.querySelector(`.rrow[data-i="${j}"]`); el?.classList.add('on'); el?.scrollIntoView({ block: 'nearest' }); RS.sel = j;
+    };
   }
-  thumbBusy = false;
+  RS.viewer.show(r.p, r.k);
+}
+function openRowWindow(RS) {
+  const r = RS.rows[RS.sel]; if (!r || r.h) return;
+  openViewerWindow({ B: LIB.bySig.get(r.sig), page: r.p, q: RS.q0, fre: { _t: RS.t }, mode: RS.viewer?.mode || 'page' });
 }
 
 /* --- 폴더 고르기 */
