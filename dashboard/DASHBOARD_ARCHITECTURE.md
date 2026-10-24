@@ -1084,3 +1084,8 @@ C:\Users\SAMSUNG\Desktop\Claude\                         ← 개발 폴더 (여�
 > 배치안 JSON 판넬에 `scope`(글자) 가 늘었음 — 예전 파일은 빈칸.
 - 무엇을: 판넬 `scope` — 2D/3D 속성 칸 입력(`#pScope` `#v3pScope`, `datalist#scopeList`), 여러 개 고르면(박스선택 · Shift+끌기) `#gScope` + [n EA 에 적용], 2D 색 띠 · Tag 밑 글자(`scopeColor`), EQUIPMENT LIST SCOPE 열 · 찾기, 3D 팁 · DCS 태그 옆, CSV · DXF 표 · 요약 '공급 Scope' 줄(`scopeCount`).
 - 확인한 것: `node --check`, Chromium 범위 7 EA OWNER · EPC · 하나 VENDOR · 표 · CSV · 요약, DXF audit 0. 이전 시험 통과.
+
+### 2026-10-24 (30) — 판넬 공간확보: 📐 필요 사이즈 내보내기 — 건축 요약 + 2D PDF (apps/space/index.html 만)
+- 무엇을: `#bNeed` `#bNeed2` → `needExport()`: `needPdf()`(1쪽 `drawingImage()` = 밝은 화면 · 실 맞춤 2D 를 SVG→그림, 위에 필요 실 일점쇄선, 오른쪽 핵심 숫자 · 범례 / 2쪽~ `needLines()` 요약 + Equipment List) → `pdfBytes()` 직접 만든 PDF 1.4(쪽마다 JPEG, A3 가로) 내려받기 + 요약 글 창. 건축 전달 요약 TXT 는 `reqLines()` 로 떼어 냄(내용 같음).
+- 확인한 것: `node --check`, Chromium PDF 2쪽 · pdfinfo 정상 · 화면 원래대로, 이전 시험 통과.
+- 회사에서 확인할 것: Edge 에서 PDF 가 바로 내려받히는지, 맑은 고딕으로 글자가 나오는지.

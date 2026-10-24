@@ -296,6 +296,7 @@ svg text{font-family:var(--f-mono)}
     <label class="chk"><input type="checkbox" id="vNote" checked>노트</label>
     <label class="chk" title="3D 를 보는 자리(카메라) · 보는 방향 · 시야 · 사람 — 3D 를 돌리면 같이 움직임 (2D | 3D 나란히 · 3D 새 창)"><input type="checkbox" id="vCam" checked>3D 시점</label>
     <span class="sep"></span>
+ <button id="bNeed2" class="primary" title="건축팀용 필요 사이즈 요약 + 2D 도면 PDF">📐 필요 사이즈</button>
     <button id="bSrvOpen2" title="서버: 프로젝트별 · 날짜별 저장 이력과 프로젝트 노트 (부서원 모두 봄)">🗂 이력</button>
     <label class="chk"><input type="checkbox" id="vDim" checked>치수</label>
     <label class="chk"><input type="checkbox" id="vLbl" checked>Tag</label>
@@ -392,7 +393,8 @@ svg text{font-family:var(--f-mono)}
       <section class="sec">
         <h3><span class="t"><span class="step-n">5</span>출력</span></h3>
         <div class="row">
-          <button class="primary" id="bReq">건축 전달 요약 출력 (TXT)</button>
+          <button class="primary" id="bNeed" title="건축팀용: 필요 실 크기 · 벽 이격 · 산정 조건 요약 + 2D 도면 PDF (A3 가로)">📐 필요 사이즈 내보내기 (요약 + 2D PDF)</button>
+          <button id="bReq">건축 전달 요약 출력 (TXT)</button>
           <button id="bDxf">DXF 출력</button>
           <button id="bCsv">판넬 List 출력 (CSV)</button>
           <button id="bPng" title="지금 보이는 도면을 그림(PNG)으로 — 메일 · 회의록 · PPT 에 붙이기">도면 PNG 저장</button>
@@ -2066,6 +2068,9 @@ $('#bPng').onclick=async()=>{   // 지금 보이는 도면 → PNG (2배 해상�
 };
 $('#bReq').onclick=()=>{
   if(!preflight('출력'))return;
+  openModal('건축 전달 요약','메일·회의록에 붙여넣기용입니다. DXF와 함께 보내면 영역 확인이 빠릅니다.',reqLines().join('\n'),fname('공간요구','txt'),'text/plain;charset=utf-8');
+};
+function reqLines(){
   check(); const sm=summary(), e=issues.filter(i=>i.lv==='err').length, w=issues.filter(i=>i.lv==='warn').length, cols=columns();
   const L=[];
   L.push('[계장 Control Room 공간 요구사항 - 초안]');
@@ -2103,9 +2108,118 @@ $('#bReq').onclick=()=>{
   L.push('   - 상기 필요 영역 기준으로 Room 초안 도면(CAD) 회신 요청');
   L.push('   - 출입문 위치, 케이블 인입(Floor/Trench) 위치, Access Floor 여부 확인 요청');
   L.push('   - 상세 판넬 배치는 건축 CAD 수령 후 계장에서 확정 예정 (본 수치는 초기 공간확보용)');
-  openModal('건축 전달 요약','메일·회의록에 붙여넣기용입니다. DXF와 함께 보내면 영역 확인이 빠릅니다.',L.join('\n'),fname('공간요구','txt'),'text/plain;charset=utf-8');
-};
+  return L;
+}
+/* ---------- 📐 필요 사이즈 내보내기: 건축팀용 한 장 요약 + 2D 도면 PDF ----------
+   PDF 는 외부 라이브러리 없이 직접 만듦: 페이지마다 캔버스(2D 도면 · 요약 글)를 JPEG 로 넣은 A3 가로 PDF (글꼴 · 그림 모두 이 PC) */
+function needLines(){
+  check(); const sm=summary(), R=S.room, ws=wallSides(), cols=columns(), m=+R.margin||0, e=issues.filter(i=>i.lv==='err').length, w=issues.filter(i=>i.lv==='warn').length;
+  const mh=Math.max(0,...S.panels.map(p=>+typeOf(p).h||0)), L=[];
+  L.push('# 건축 전달 — 계장 Control Room 필요 사이즈');
+  L.push(`프로젝트 ${S.info.project||'-'} · Room ${S.info.room||'-'} · Rev ${revOf()} · 작성 ${author()||'-'} · ${today()} · 단위 mm`);
+  L.push('');
+  L.push('■ 필요 실 크기 (권장 내부 치수, 100 단위 올림)');
+  L.push(sm.rec?`   W ${fmt(sm.rec.w)} × L ${fmt(sm.rec.h)} = ${(sm.rec.w*sm.rec.h/1e6).toFixed(1)} m²`:'   - (판넬 없음)');
+  L.push(`   = 필요 영역 ${sm.env?fmt(sm.env.w)+' × '+fmt(sm.env.h):'-'}${sm.sp?` + ${spareTxt()}`:''} + 벽 이격 ${fmt(m)} × 양쪽`);
+  L.push('');
+  L.push('■ 벽과의 이격 (판넬 · 유지보수 공간 외곽 → 벽)');
+  L.push(`   위 · 아래 · 왼쪽 · 오른쪽 모두 ${fmt(m)} mm 이상`);
+  if(ws)L.push(`   지금 검토한 실(${fmt(R.w)} × ${fmt(R.l)}) 기준 실제: `+ws.sides.map(sd=>`${sd.name} ${fmt(sd.gap)}${sd.short?' (부족 '+fmt(m-sd.gap)+')':''}`).join(' / '));
+  L.push('');
+  L.push('■ 산정 조건');
+  L.push(`   1) 필요 영역 = 판넬 몸체 + 전면 · 후면 유지보수 공간 + 도어 회전 궤적의 외곽${sm.env?` (${fmt(sm.env.w)} × ${fmt(sm.env.h)} = ${(sm.env.w*sm.env.h/1e6).toFixed(1)} m²)`:''}`);
+  L.push(`   2) Spare: ${spareTxt()}`);
+  L.push(`   3) 벽 이격: ${fmt(m)} mm (사방)`);
+  L.push(`   4) 판넬 간 최소 이격 ${fmt(+R.gapP||0)} mm${R.touchOK?' (줄로 맞닿은 판넬은 예외)':''} · 도어 간 최소 이격 ${fmt(+R.gapD||0)} mm`);
+  const used=S.types.filter(t=>S.panels.some(p=>p.type===t.id));
+  L.push('   5) 유지보수 공간 · 도어 (Type 별)');
+  used.forEach(t=>{const n=S.panels.filter(p=>p.type===t.id).length,ds=doors(geom({x:0,y:0,rot:0},t)),r=ds.length?Math.max(...ds.map(d=>d.r)):0;
+    L.push(`      - ${t.name} ${n} EA: ${t.w}W × ${t.d}D × ${t.h}H, 전면 ${fmt(+t.front||0)} / 후면 ${fmt(+t.rear||0)}`+(t.kind&&t.kind!=='cabinet'?` (${KIND[t.kind]})`:t.door==='none'?', 도어 없음':`, 도어 ${DOOR_AT[t.door]} ${HINGE[t.hinge]} (회전 반경 ${fmt(r)})`))});
+  L.push(`   6) 기둥: ${!cols.length?'없음':Array.isArray(S.cols)?`${cols.length}개 (직접 배치)`:`${R.col} × ${R.col}, Span X ${R.spX} / Y ${R.spY}`} — 판넬 · 유지보수 공간과 겹치지 않게 배치`);
+  L.push(`   7) 판넬 최고 높이 ${fmt(mh)} — 천장 · 보 하단 높이, 상부 케이블 인입 여유는 건축 · 전기와 협의`);
+  L.push(`   8) 수량: 합계 ${S.panels.length} EA, 판넬 바닥면적 ${(sm.body/1e6).toFixed(1)} m² · 공급 Scope ${scopeCount().map(([k,v])=>`${k} ${v}`).join(' / ')}`);
+  L.push('');
+  L.push(`■ 배치 검토: 간섭 ${e}건 · 경고 ${w}건`+(e+w?'':' (위반 없음)'));
+  issues.slice(0,8).forEach(i=>L.push(`   - [${i.lv==='err'?'간섭':'경고'}] ${i.msg}`));
+  if(S.notes.length){L.push('');L.push('■ 도면 노트');S.notes.forEach((n,i)=>L.push(`   N${i+1}: ${n.text.replace(/\n/g,' / ')}`))}
+  L.push('');
+  L.push('■ 요청 사항');
+  L.push('   - 위 필요 실 크기 · 벽 이격 기준으로 Room 초안 도면(CAD) 회신');
+  L.push('   - 출입문 위치, 케이블 인입(Floor / Trench) 위치, Access Floor 여부 · 높이 확인');
+  L.push('   - 본 수치는 초기 공간확보용 — 상세 판넬 배치는 건축 CAD 수령 후 계장에서 확정');
+  return L;
+}
+async function drawingImage(w,h){   // 지금 배치를 밝은 화면 · 실 맞춤으로 2D 를 그려 그림으로 (화면은 그대로 되돌림)
+  const de=document.documentElement, th=de.dataset.theme, keepV={...V}, keepSel=sel, keepCam=show.cam, keepMeas=measure, ss=svg.style.cssText;
+  de.dataset.theme='light'; sel=new Set(); show.cam=false; measure=null; svg.style.cssText+=`;width:${w}px;height:${h}px;flex:none`;
+  let txt; try{fit(); const c=svg.cloneNode(true); c.setAttribute('xmlns','http://www.w3.org/2000/svg'); c.setAttribute('width',w); c.setAttribute('height',h); c.setAttribute('style','font-family:"Malgun Gothic","맑은 고딕",Consolas,monospace');
+    c.insertAdjacentHTML('afterbegin',`<rect width="${w}" height="${h}" fill="#ffffff"/>`); txt=new XMLSerializer().serializeToString(c); var tf={s:V.s,ox:V.ox,oy:V.oy}}
+  finally{if(th)de.dataset.theme=th;else delete de.dataset.theme; Object.assign(V,keepV); sel=keepSel; show.cam=keepCam; measure=keepMeas; svg.style.cssText=ss; render()}
+  const url=URL.createObjectURL(new Blob([txt],{type:'image/svg+xml;charset=utf-8'}));
+  try{const im=new Image(); await new Promise((ok,no)=>{im.onload=ok;im.onerror=no;im.src=url}); im.tf=tf; return im} finally{setTimeout(()=>URL.revokeObjectURL(url),1000)}
+}
+function pdfBytes(jpegs,pw,ph){   // jpegs: [{data:Uint8Array,w,h}] → PDF (페이지마다 그림 한 장, pw × ph pt)
+  const enc=new TextEncoder(), parts=[], off=[]; let len=0; const add=x=>{const b=typeof x==='string'?enc.encode(x):x;parts.push(b);len+=b.length};
+  const n=jpegs.length, kids=jpegs.map((_,i)=>`${3+i*3} 0 R`).join(' ');
+  add(new Uint8Array([37,80,68,70,45,49,46,52,10,37,226,227,207,211,10]));   // %PDF-1.4 + 이진 표시
+  off[1]=len; add(`1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n`);
+  off[2]=len; add(`2 0 obj\n<< /Type /Pages /Kids [${kids}] /Count ${n} >>\nendobj\n`);
+  jpegs.forEach((j,i)=>{const pid=3+i*3,iid=pid+1,cid=pid+2,c=`q ${pw} 0 0 ${ph} 0 0 cm /Im0 Do Q`;
+    off[pid]=len; add(`${pid} 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${pw} ${ph}] /Resources << /XObject << /Im0 ${iid} 0 R >> >> /Contents ${cid} 0 R >>\nendobj\n`);
+    off[iid]=len; add(`${iid} 0 obj\n<< /Type /XObject /Subtype /Image /Width ${j.w} /Height ${j.h} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${j.data.length} >>\nstream\n`); add(j.data); add(`\nendstream\nendobj\n`);
+    off[cid]=len; add(`${cid} 0 obj\n<< /Length ${c.length} >>\nstream\n${c}\nendstream\nendobj\n`)});
+  const N=3+n*3, xref=len; let x=`xref\n0 ${N}\n0000000000 65535 f \n`; for(let i=1;i<N;i++)x+=String(off[i]).padStart(10,'0')+' 00000 n \n';
+  add(x+`trailer\n<< /Size ${N} /Root 1 0 R /Info << /Title (Control Room Space Requirement) /Producer (CR Space Tool) >> >>\nstartxref\n${xref}\n%%EOF\n`);
+  return new Blob(parts,{type:'application/pdf'});
+}
+const PG={w:2976,h:2104,pw:1190.55,ph:841.89};   // A3 가로, 약 180 dpi
+function pgCanvas(){const c=document.createElement('canvas');c.width=PG.w;c.height=PG.h;const g=c.getContext('2d');g.fillStyle='#fff';g.fillRect(0,0,c.width,c.height);return [c,g]}
+const FNT=(px,b)=>`${b?'700 ':''}${px}px "Malgun Gothic","맑은 고딕",system-ui,sans-serif`;
+function pgFrame(g,page,total){   // 테두리 · 아래 띠(프로젝트 · Rev · 날짜 · 쪽)
+  g.strokeStyle='#1b2238';g.lineWidth=4;g.strokeRect(40,40,PG.w-80,PG.h-80);
+  g.fillStyle='#1b2238';g.font=FNT(26);g.textBaseline='alphabetic';
+  g.fillText(`${S.info.project||'프로젝트 -'} · ${S.info.room||'Room -'} · Rev ${revOf()} · ${author()||'-'} · ${today()}`,70,PG.h-60);
+  g.textAlign='right';g.fillText(`계장 Control Room 필요 사이즈 — ${page} / ${total}`,PG.w-70,PG.h-60);g.textAlign='left'}
+async function needPdf(){
+  check(); const sm=summary(), ws=wallSides(), m=+S.room.margin||0, pages=[];
+  // 1쪽: 2D 도면 + 오른쪽 핵심 숫자 칸
+  {const [c,g]=pgCanvas(), side=760, dw=PG.w-80-side-40, dh=PG.h-200, sc=1.45, im=await drawingImage(Math.round(dw/sc),Math.round(dh/sc));
+    g.drawImage(im,60,60,dw,dh);
+    if(ws&&sm.rec){const k=dw/Math.round(dw/sc),P=(x,y)=>[60+(x*im.tf.s+im.tf.ox)*k,60+(y*im.tf.s+im.tf.oy)*k],E=ws.E,[ax,ay]=P(E.x-m,E.y-m),[bx,by]=P(E.x+E.w+m,E.y+E.h+m);   // 도면 위 필요 실 표시
+      g.strokeStyle='#7c3aed';g.lineWidth=4;g.setLineDash([24,10,6,10]);g.strokeRect(ax,ay,bx-ax,by-ay);g.setLineDash([]);
+      g.font=FNT(30,1);const t=`필요 실 W ${fmt(sm.rec.w)} × L ${fmt(sm.rec.h)} (벽 이격 ${fmt(m)} 포함 · 100 올림)`,tw=g.measureText(t).width;g.fillStyle='rgba(255,255,255,.9)';g.fillRect(ax,by+8,tw+20,44);g.fillStyle='#7c3aed';g.fillText(t,ax+10,by+42)}
+    const x0=PG.w-side-60; let y=90; g.fillStyle='#f3f6fb';g.fillRect(x0,60,side,PG.h-200);g.strokeStyle='#c9d3e3';g.lineWidth=2;g.strokeRect(x0,60,side,PG.h-200);
+    const T=(t,px,b,col='#1b2238')=>{y+=px*.95;g.font=FNT(px,b);g.fillStyle=col;g.fillText(t,x0+30,y);y+=px*.5};   // 글자 높이만큼 내려 쓰고 줄 간격
+    T('건축 전달 — 필요 사이즈',40,1); y+=10;
+    T('필요 실 크기 (권장 내부 치수)',28,1,'#2d5bd8'); T(sm.rec?`W ${fmt(sm.rec.w)} × L ${fmt(sm.rec.h)}`:'-',52,1); T(sm.rec?`= ${(sm.rec.w*sm.rec.h/1e6).toFixed(1)} m²  (100 단위 올림)`:'',28); y+=16;
+    T('벽과의 이격 (사방)',28,1,'#2d5bd8'); T(`${fmt(m)} mm 이상`,48,1); if(ws)ws.sides.forEach(sd=>T(`${sd.name}: 지금 ${fmt(sd.gap)}${sd.short?'  ⚠ 부족':''}`,26,0,sd.short?'#d33':'#333')); y+=16;
+    T('필요 영역 (판넬 + 유지보수 + 도어)',28,1,'#2d5bd8'); T(sm.env?`${fmt(sm.env.w)} × ${fmt(sm.env.h)} = ${(sm.env.w*sm.env.h/1e6).toFixed(1)} m²`:'-',30); T(spareTxt(),26); y+=16;
+    T('검토한 실',28,1,'#2d5bd8'); T(`${fmt(S.room.w)} × ${fmt(S.room.l)}`,30); y+=16;
+    T('판넬',28,1,'#2d5bd8'); sm.by.slice(0,9).forEach(o=>T(`${o.t.name}  ${o.n} EA`,24)); T(`합계 ${S.panels.length} EA`,26,1); y+=16;
+    T('범례',28,1,'#2d5bd8'); ['굵은 선 = 판넬 전면','주황 빗금 = 유지보수 공간','파란 점선 = 필요 영역 외곽','보라 일점쇄선 · 띠 = 벽 이격선','청록 호 = 도어 회전 궤적','아래쪽 색 띠 = 공급 Scope'].forEach(t=>T('· '+t,23));
+    pages.push(c)}
+  // 2쪽 ~: 요약 글 (두 단) + Equipment List
+  {const lines=needLines(), colW=(PG.w-200)/2; let [c,g]=pgCanvas(), col=0, y=120; const flush=()=>{pages.push(c);[c,g]=pgCanvas();col=0;y=120};
+    const put=(t)=>{const h=t.startsWith('#')?54:t.startsWith('■')?36:28, px=t.startsWith('#')?42:t.startsWith('■')?30:25; g.font=FNT(px,t.startsWith('#')||t.startsWith('■'));
+      const words=t.replace(/^# /,'').split(/(\s+)/), out=[]; let cur=''; words.forEach(wd=>{if(g.measureText(cur+wd).width>colW-40&&cur.trim()){out.push(cur);cur='      '+wd.trimStart()}else cur+=wd}); out.push(cur);
+      out.forEach(o=>{if(y+h>PG.h-140){if(col===0){col=1;y=120}else flush()} g.font=FNT(px,t.startsWith('#')||t.startsWith('■'));g.fillStyle=t.startsWith('■')?'#2d5bd8':'#1b2238';g.fillText(o,80+col*(colW+40),y);y+=h})};
+    lines.forEach(put);
+    // Equipment List
+    put('');put('■ Equipment List');
+    eqRows().forEach(r=>put(`   ${String(r.no).padStart(2,' ')}  ${r.p.tag}  ${r.desc}  ${r.size.replace(/×/g,'x')}${r.scope?'  ['+r.scope+']':''}`));
+    pages.push(c)}
+  const total=pages.length, jp=[];
+  for(let i=0;i<total;i++){const g=pages[i].getContext('2d');pgFrame(g,i+1,total);const b=await new Promise(ok=>pages[i].toBlob(ok,'image/jpeg',0.9));jp.push({data:new Uint8Array(await b.arrayBuffer()),w:PG.w,h:PG.h})}
+  return pdfBytes(jp,PG.pw,PG.ph);
+}
+async function needExport(){
+  if(!preflight('필요 사이즈 내보내기'))return; toast('필요 사이즈 PDF 를 만드는 중…');
+  try{const pdf=await needPdf(),a=document.createElement('a');a.href=URL.createObjectURL(pdf);a.download=fname('필요사이즈','pdf');document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),8000);
+    openModal('📐 필요 사이즈 — 건축 전달',`PDF(1쪽 2D 도면 + 핵심 숫자, 2쪽~ 요약 · Equipment List, A3 가로) 를 내려받았습니다 (${Math.round(pdf.size/1024)} KB). 아래 글은 메일 본문용 — [복사] 또는 [파일로 저장].`,needLines().join('\n').replace(/^# /,''),fname('필요사이즈','txt'),'text/plain;charset=utf-8')}
+  catch(e){toast('PDF 를 만들지 못했습니다 — '+(e&&e.message||e)+'. [건축 전달 요약 (TXT)] 와 [도면 PNG 저장] 을 쓰세요.',true)}
+}
 
+$('#bNeed').onclick=needExport; $('#bNeed2').onclick=needExport;
 $('#bCsv').onclick=()=>{
   const rows=[['Tag','Type','Description','Scope','W','D','H','Front','Rear','Facing','X','Y','Door','Hinge']];
   const fd={0:'N',90:'E',180:'S',270:'W'};
