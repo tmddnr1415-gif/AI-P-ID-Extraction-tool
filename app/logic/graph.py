@@ -303,6 +303,38 @@ def build(prims: geom.Prims, lay=None) -> Sheet | None:
         glyphs += moved
         wires = [p for p in wires if not enclosed(p)]
 
+    # L52 — 한 path 에 신호선과 블록 테두리가 함께 든 꺾은선 (HRSG G043 의 AND: 입력 버스 → 상자 네 변 → 되돌아옴).
+    # 상자는 이미 블록으로 섰는데 테두리 토막이 선으로 남아 입력 선과 출력 선을 한 선으로 묶었다 (AND 의 R90 출력이
+    # 입력 L6 와 같은 선 → AND(x, NOT x) 로 영영 0).  블록 칸의 변 위에 **통째로** 놓인 축 토막은 테두리다 — 선은
+    # 변에서 끝나지 변을 따라 달리지 않는다.  나머지 토막은 그대로 선이다.
+    def _on_cell_edge(sg):
+        if not (sg.vert or sg.horiz):
+            return False
+        lo_x, hi_x = min(sg.x0, sg.x1), max(sg.x0, sg.x1)
+        lo_y, hi_y = min(sg.y0, sg.y1), max(sg.y0, sg.y1)
+        for b in blocks:
+            if b.kind != "RECT":
+                continue
+            for c in b.cells:
+                if sg.horiz and (abs(sg.y0 - c[1]) <= tol or abs(sg.y0 - c[3]) <= tol) and \
+                        lo_x >= c[0] - tol and hi_x <= c[2] + tol:
+                    return True
+                if sg.vert and (abs(sg.x0 - c[0]) <= tol or abs(sg.x0 - c[2]) <= tol) and \
+                        lo_y >= c[1] - tol and hi_y <= c[3] + tol:
+                    return True
+        return False
+    for p in list(wires):
+        if len(p.segs) < 2:
+            continue
+        keep = [sg for sg in p.segs if not _on_cell_edge(sg)]
+        if len(keep) == len(p.segs):
+            continue
+        wires.remove(p)
+        if keep:
+            nb = (min(min(s.x0, s.x1) for s in keep), min(min(s.y0, s.y1) for s in keep),
+                  max(max(s.x0, s.x1) for s in keep), max(max(s.y0, s.y1) for s in keep))
+            wires.append(geom.Poly(keep, nb, p.dashed, p.pid, getattr(p, "curved", False)))
+
     # ---- 빗금으로 칠한 상자(■) · 마름모(◆) = 선 위의 인터페이스 표시 (범례 G003) — 블록이 아니다
     markers = [m for m in prims.markers if inside(m) and max(m[2] - m[0], m[3] - m[1]) >= DOT_MAX * P]
 

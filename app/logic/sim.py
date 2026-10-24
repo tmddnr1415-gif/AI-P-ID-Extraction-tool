@@ -261,6 +261,64 @@ def _frame(t, val, depth, note, floating=()):
             "depth": depth, "note": note}
 
 
+_LOOP_KINDS = {"and", "or", "nand", "nor", "not", "vote", "pass", "connector"}
+
+
+def _loop_nets_of(s, ins, drivers, groups, B):
+    """게이트(범례 정의가 입력만으로 정하는 것 — 메모리 · 타이머는 상태를 들므로 끊는다)만 지나 자기에게 돌아오는 선.
+    OR(자기 출력, x) 자기유지가 그것이다.  L52 — 이 선들의 값은 호출 사이에 `state["loop"]` 로 이어진다."""
+    adj = {}
+    for n in s["nets"]:
+        up = []
+        for kind, x, role in drivers.get(n, []):
+            if kind != "block":
+                continue
+            b = B[x]
+            lg = b.get("logic")
+            if lg == "connector":
+                g = groups.get(b.get("group") or x, [x])
+                up += [m for gid in g for m, _, _ in ins[gid]]
+            elif lg in _LOOP_KINDS or _vote_of(b):
+                up += [m for m, _, _ in ins[x]]
+        adj[n] = up
+    # Tarjan — 크기 2 이상의 강한 연결 요소와 자기 고리
+    index, low, on, stack, out = {}, {}, set(), [], set()
+    counter = [0]
+
+    def strong(v):
+        index[v] = low[v] = counter[0]
+        counter[0] += 1
+        stack.append(v)
+        on.add(v)
+        for w in adj.get(v, ()):
+            if w not in adj:
+                continue
+            if w not in index:
+                strong(w)
+                low[v] = min(low[v], low[w])
+            elif w in on:
+                low[v] = min(low[v], index[w])
+        if low[v] == index[v]:
+            comp = []
+            while True:
+                w = stack.pop()
+                on.discard(w)
+                comp.append(w)
+                if w == v:
+                    break
+            if len(comp) > 1 or v in adj.get(v, ()):
+                out.update(comp)
+
+    import sys as _sys
+    lim = _sys.getrecursionlimit()
+    if lim < len(adj) + 100:
+        _sys.setrecursionlimit(len(adj) + 100)
+    for v in list(adj):
+        if v not in index:
+            strong(v)
+    return out
+
+
 def _simulate_once(s, forces=None, state=None, now=0.0, timers=None, soft=None, settled=(), extra=None, analog=None):
     """forces = {"net:<id>": 0|1, "row:<n>": 0|1, "block:<id>": 0|1}  ·  state = 이전 호출이 돌려준 것.
     soft = {n: 0|1} — L16 다른 시트에서 이어져 오는 입력 행 값.  사람이 준 값이 아니므로 거꾸로 맞추기가 다른 값을
@@ -274,6 +332,10 @@ def _simulate_once(s, forces=None, state=None, now=0.0, timers=None, soft=None, 
     st = {"mem": {}, "tim": {}, "sr": {}, "tog": {}, "t": now}
     short = set()                     # 입력을 다 읽지 못한 게이트 (L10)
     floating = set()                  # L46 — 몰이가 없는 선 (값은 0 · 화면 근거용으로 `unread` 에 남긴다)
+    # L52 — 되먹임 고리로만 서로를 모는 선(OR 자기유지)은 지난 호출의 값에서 이어 간다 — 메모리 블록이 없는
+    # 자기유지도 래치다.  씨앗을 둬도 settle 이 모든 선을 다시 세므로 고리 아닌 선은 같은 값에 이른다.
+    loop_seed = {n: v for n, v in ((state or {}).get("loop") or {}).items() if n in s["nets"] and v in (0, 1)}
+    loop_nets = set(loop_seed)
     if state:
         st["mem"].update(state.get("mem", {}))
         st["sr"].update(state.get("sr", {}))
@@ -283,6 +345,7 @@ def _simulate_once(s, forces=None, state=None, now=0.0, timers=None, soft=None, 
     ins, outs, drivers, sinks, groups = _index(s)
     B = s["blocks"]
     notes = set()
+    loop_nets |= _loop_nets_of(s, ins, drivers, groups, B)     # 구조로 찾은 고리 (값이 정해져 있어도 지난 값을 잇는다)
     # L26 — 아날로그 값(MED · 입력 행)과 감시 블록(HHH · HH …)의 설정값: 값과 설정값이 다 있으면 감시 출력이 1/0
     # L30 — 아날로그 연산자(Σ · ÷ · A · T · 수식 …)는 범례 식대로 계산하고(an_ops 에 근거), 1/0 을 내는 것(DEV)은
     # 디지털 출력으로 · 전환(T)의 조건이 1/0 이면 그 값이 바뀔 때마다 아날로그를 다시 센다 (settle 안에서)
@@ -414,6 +477,34 @@ def _simulate_once(s, forces=None, state=None, now=0.0, timers=None, soft=None, 
             notes.add("판정 못 한 블록은 출력을 내지 않습니다 (그 선을 직접 1 로 줄 수 있습니다)")
         return None
 
+    def _loop_unknown(val):
+        """모름(None)인 선 중 게이트(범례 정의가 입력만으로 정하는 것)만이 몰고 그 게이트의 모르는 입력이 전부 같은
+        무리 안에 있는 선 — 되먹임 고리.  그 밖의 모름(몰이 없음 · 판정 못 한 블록 · 아날로그 · 그것에 기대는 선)은 뺀다."""
+        unk = {n for n in s["nets"] if val.get(n) is None and n not in net_force}
+        while True:
+            drop = set()
+            for n in unk:
+                for kind, x, role in drivers.get(n, []):
+                    if kind != "block" or x in blk_force:
+                        drop.add(n)
+                        break
+                    b = B[x]
+                    lg = b.get("logic")
+                    if lg == "connector":
+                        g = groups.get(b.get("group") or x, [x])
+                        iv = [m for gid in g for m, _, _ in ins[gid]]
+                    elif lg in _LOOP_KINDS and not (b.get("logic") == "unknown") and not _vote_of(b) or lg == "vote":
+                        iv = [m for m, _, _ in ins[x]]
+                    else:
+                        drop.add(n)
+                        break
+                    if lg == "unknown" or any(val.get(m) is None and m not in unk for m in iv):
+                        drop.add(n)
+                        break
+            if not drop:
+                return unk
+            unk -= drop
+
     def settle(val_prev):
         val = dict(val_prev)
         depth = {}
@@ -488,6 +579,16 @@ def _simulate_once(s, forces=None, state=None, now=0.0, timers=None, soft=None, 
                 if depth.get(nid) != d:
                     depth[nid] = d
             if not changed:
+                # L52 — 되먹임 고리로만 서로를 모는 선(OR(자기 출력, x) 자기유지 · 서로 맞물린 게이트)은 처음 값이 없어
+                # '모름' 으로 남고 화면은 0 으로 보이되 `unread` 에 들었다 (1A5J Typical 0014 STEP ACTIVE).  전원이 들어온
+                # 순간 래치는 꺼져 있다 — 그런 선만 0 으로 두고 다시 가라앉힌다.  몰이 없는 선 · 판정 못 한 블록 ·
+                # 아날로그 때문에 모르는 선은 그대로 모름이다 (그 선에 기대는 고리도 모름).
+                zero = _loop_unknown(val)
+                if zero:
+                    loop_nets.update(zero)
+                    for n in zero:
+                        val[n] = 0
+                    continue
                 return val, depth
         notes.add("값이 안정되지 않았습니다 (되먹임 고리가 흔들림) — 마지막 값을 보입니다")
         return val, depth
@@ -579,7 +680,7 @@ def _simulate_once(s, forces=None, state=None, now=0.0, timers=None, soft=None, 
 
     frames = []
     t = st["t"]
-    val = {}
+    val = dict(loop_seed)
     for _ in range(20):
         val, depth = settle(val)
         if not timers_step(val, t):
@@ -607,6 +708,7 @@ def _simulate_once(s, forces=None, state=None, now=0.0, timers=None, soft=None, 
         fr["fired"] = fired
         frames.append(fr)
     st["t"] = t
+    st["loop"] = {n: val[n] for n in sorted(loop_nets) if val.get(n) in (0, 1)}
     # L16 — 목표로 둔 출력 중 게이트 조건이 끝내 맞지 않은 것 (어느 틀에서든 그 값이 되었으면 맞은 것 — 타이머 뒤)
     unmet = []
     for n, want in goals.items():
@@ -1764,6 +1866,7 @@ def scenario(s, target, value=1, limit=160, sheets=None, rows_only=False, rows_a
         net = target[4:]
     idx = _index(s)
     ctx = {"rows_only": rows_only, "rows_allowed": rows_allowed, "by_page": {x["page"]: x for x in (sheets or [])}}
+    fed_rows = {f"row:{r['n']}" for r in s["rows"] if r["side"] == "L" and (r.get("ref") or {}).get("page")} if sheets else set()
     tried = 0
     seen = set()
     pulse = None
@@ -1778,7 +1881,10 @@ def scenario(s, target, value=1, limit=160, sheets=None, rows_only=False, rows_a
                 continue
             seen.add(key)
             tried += 1
-            forces = {k: w for k, w in leaves.items() if not (w == 0 and not k.startswith("net:"))}
+            # 0 이어야 하는 입력 행은 가만히 두면 0 이다 — 단 다른 장에서 이어져 오는 행(FM)은 쉬는 값이 1 일 수 있어
+            # (입력 0 의 NOT 이 보내는 'NOT RUNNING' 같은 것 · L52 19VA HH10_G154) 0 을 그대로 준다
+            forces = {k: w for k, w in leaves.items()
+                      if not (w == 0 and not k.startswith("net:") and k not in fed_rows)}
             r, hit = _reached(s, forces, net, value, sheets, cache)
             if hit:
                 direct = sorted(k for k in forces if k.startswith("net:"))
