@@ -81,6 +81,33 @@ body.embed .brand{display:none}
 .sum b{color:var(--text)}
 .card{background:var(--card);border-radius:12px;box-shadow:var(--shadow);padding:14px 16px;margin-bottom:12px}
 .card h2{margin:0 0 8px;font-size:15px}
+.bno{display:inline-block;font-family:var(--f-mono);font-size:10.5px;font-weight:700;color:#5b4ba8;background:#efeaff;border-radius:5px;padding:0 5px;margin-right:5px;vertical-align:middle;white-space:nowrap}
+.bno.big{font-size:12px;padding:1px 6px;margin-right:8px}
+.ansbox{background:#fff;border:1px solid #cfd8ea;border-radius:12px;padding:8px 10px 6px;margin-bottom:12px;box-shadow:var(--shadow)}
+.ansh{font-weight:700;color:var(--navy);font-size:13.5px;margin-bottom:6px}
+.ansA,.ansB{border-radius:10px;padding:8px 10px;margin-bottom:8px}
+.ansA{background:#f3f8f4;border:1px solid #cfe3d7}
+.ansB{background:#f6f4fc;border:1px solid #d9d2f0}
+.anst{font-weight:700;font-size:13px;margin-bottom:6px;color:#1f3a2a}
+.ansB .anst{color:#3d2f7a}
+.anst .muted{font-weight:400;font-size:12px}
+.ansq{background:#fff;border:1px solid #d6e6dc;border-radius:8px;padding:6px 8px;margin-bottom:6px;cursor:pointer;position:relative}
+.ansq:hover{border-color:#11734c}
+.ansqh{display:flex;flex-wrap:wrap;gap:6px;align-items:center;font-size:12.5px;padding-right:30px}
+.ansqh .pg{font-family:var(--f-mono);font-size:11px;color:#11734c;font-weight:700}
+.ansqh .tier{font-size:10.5px}
+.ansq blockquote{margin:5px 0 0;padding:4px 8px;border-left:3px solid #11734c;font-size:12.5px;line-height:1.6;color:#1a1a1a;background:#fbfdfb}
+.ansq .cpq{position:absolute;right:6px;top:5px}
+.ansk{background:#fff;border:1px solid #e0daf2;border-radius:8px;padding:6px 8px;margin-bottom:6px}
+.ansk.sub{opacity:.9}
+.anskh{font-weight:700;font-size:12.5px;color:#3d2f7a;margin-bottom:3px}
+.ansk ul{margin:0;padding-left:18px;font-size:12.5px;line-height:1.6}
+.ansk li{margin-bottom:4px}
+.ansk .src{display:inline-block;font-size:11px;color:#5b4ba8;background:#efeaff;border-radius:5px;padding:0 6px;margin-left:4px}
+.ansk .infold{display:block;font-size:11.5px;color:#11734c;margin-top:1px}
+.ansk .infold a{cursor:pointer;text-decoration:underline dotted}
+.ansnone{font-size:12.5px;color:#555;padding:4px 2px}
+.ansfoot{font-size:11.5px;margin-top:2px}
 .recbox{background:#fff;border:1px solid #d9d2f0;border-radius:12px;padding:8px 10px 6px;margin-bottom:12px;box-shadow:var(--shadow)}
 .rech{font-weight:700;color:#4b3a9a;font-size:13px;margin-bottom:6px;line-height:1.5}
 .rech .muted{font-weight:400}
@@ -361,24 +388,24 @@ const THES = [
   { id:'sensor', n:'센서·변환기', d:1, g:1,
     t:[['sensor',1],['transducer',1],['sensing element',1],['primary element',.9],['센서',1],['변환기',.8],['검출기',.8],['검출부',.8]], rel:['transmitter'] },
   { id:'pressure', n:'압력 측정', d:1,
-    t:[['pressure measurement',1],['pressure gauge',1],['pressure sensor',1],['bourdon tube',1],['manometer',.9],['diaphragm seal',.9],['remote seal',.9],['압력 측정',1],['압력계',1],['압력 센서',1],['부르동관',1],['다이어프램 실',.9]],
+    t:[['pressure measurement',1],['pressure gauge',.6],['pressure sensor',1],['bourdon tube',1],['manometer',.9],['diaphragm seal',.9],['remote seal',.9],['압력 측정',1],['압력계',.6],['압력 센서',1],['부르동관',1],['다이어프램 실',.9]],
     rel:['pressure_tx','dp_tx'] },
   { id:'flow', n:'유량 측정(유량계)', d:1,
     t:[['flowmeter',1],['flow meter',1],['flow measurement',1],['orifice plate',1],['orifice',.8],['venturi',.9],['magnetic flowmeter',1],['magmeter',1],['coriolis',1],['vortex flowmeter',1],['vortex shedding',.9],['ultrasonic flowmeter',1],['turbine meter',1],['pitot tube',.9],['annubar',.9],['flow element',.9],
        ['유량계',1],['유량 측정',1],['오리피스',1],['벤투리',.9],['전자식 유량계',1],['전자 유량계',1],['코리올리',1],['와류 유량계',1],['초음파 유량계',1],['터빈 유량계',1],['피토관',.9]],
     rel:['flow_tx','dp_tx'] },
   { id:'level', n:'레벨(액위) 측정', d:1,
-    t:[['level measurement',1],['level gauge',1],['level sensor',1],['radar level',1],['guided wave radar',1],['displacer',.9],['level float',.9],['sight glass',.8],['bubbler',.8],['레벨 측정',1],['액위',1],['레벨계',1],['수위계',.9],['레벨 게이지',1],['액면계',1]],
+    t:[['level measurement',1],['level gauge',1],['level sensor',1],['radar level',1],['guided wave radar',1],['displacer',.6],['level float',.9],['sight glass',.8],['bubbler',.8],['레벨 측정',1],['액위',1],['레벨계',1],['수위계',.9],['레벨 게이지',1],['액면계',1]],
     rel:['level_tx','dp_tx'] },
   { id:'temperature', n:'온도 측정', d:1,
-    t:[['temperature measurement',1],['temperature sensor',1],['thermowell',1],['thermometer',.8],['pyrometer',.9],['온도 측정',1],['온도계',.9],['온도 센서',1],['써모웰',1],['보호관',.7]],
+    t:[['temperature measurement',1],['temperature sensor',1],['thermowell',.6],['thermometer',.8],['pyrometer',.9],['온도 측정',1],['온도계',.6],['온도 센서',1],['써모웰',.6]],
     rel:['thermocouple','rtd','temp_tx'] },
   { id:'thermocouple', n:'열전대', p:['temperature'], d:1,
     t:[['thermocouple',1],['seebeck',.9],['cold junction',1],['reference junction',.9],['type k',.8],['열전대',1],['열전쌍',1],['냉접점',1],['기준접점',.9]] },
   { id:'rtd', n:'측온저항체(RTD)', p:['temperature'], d:1,
     t:[['resistance temperature detector',1],['pt100',1],['platinum resistance',.9],['측온저항체',1],['측온 저항체',1]], ab:[['RTD',1]] },
   { id:'control_valve', n:'제어밸브', d:1, ab:[['Cv',1],['Kv',1],['FL',.6]],
-    t:[['control valve',1],['globe valve',.8],['valve trim',.9],['valve sizing',1],['flow coefficient',.8],['cavitation',.6],['조절밸브',1],['제어밸브',1],['조절 밸브',1],['제어 밸브',1],['컨트롤 밸브',1]],
+    t:[['control valve',1],['globe valve',.6],['valve trim',.9],['valve sizing',1],['flow coefficient',.8],['cavitation',.6],['조절밸브',1],['제어밸브',1],['조절 밸브',1],['제어 밸브',1],['컨트롤 밸브',1]],
     rel:['positioner','actuator'] },
   { id:'positioner', n:'포지셔너', p:['control_valve'], d:1,
     t:[['positioner',1],['valve positioner',1],['smart positioner',1],['digital valve controller',1],['i/p converter',.9],['i/p transducer',.9],['포지셔너',1],['밸브 포지셔너',1],['전공 변환기',.9]] },
@@ -770,7 +797,7 @@ async function loadSrvLib() {
     if (rec) books.push(makeBook(rec));
     if (++k % 3 === 0 || k === list.length) setProg(k / Math.max(1, list.length), `공용 도서관 불러오는 중 ${k}/${list.length} (처음 한 번만 받습니다)`);
   });
-  books.sort((a, b) => a.rel.localeCompare(b.rel, 'ko'));
+  books.sort((a, b) => a.rel.localeCompare(b.rel, 'ko')); books.forEach((B, i) => B.no = i + 1);
   LIB.books = books; LIB.bySig = new Map(books.map(B => [B.sig, B])); LIB.srvAt = man.at || ''; LIB.srvBy = man.by || ''; LIB.srvOld = old;
   setProg(null);
   DB.put('kv', { folder: LIB.folder, sigs: books.map(B => B.sig), at: Date.now() }, 'srvlib').catch(() => {});
@@ -1268,9 +1295,10 @@ function explain(R, Q) {
   if (covs.length && covs[0].n) short.push(`핵심 ${covs[0].n}/${covs[0].m}`);
   return (R.ex = { tier, tierName, lead, pts, short: short.join(' · '), co: coTxt, np, occ, best, covs });
 }
-function hlRegex(Q) {
+function hlRegex(Q, minW = 0) {   // minW: 이 가중치 이상의 표현만 (답변 인용은 개념의 핵심 표현만으로 찾음)
   const parts = [];
   for (const q of Q.qs) for (const v of q.vs) {
+    if (minW && (v.w || 0) < minW) continue;
     const E = x => x.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     const e = v.kind === 'ko' ? [...v.s].map(E).join('\\s?') : E(v.orig).replace(/ /g, '\\s+');
     parts.push(v.kind === 'ko' ? e : `(?<![A-Za-z0-9])${e}${v.sfx ? '[a-z]{0,' + v.sfx + '}' : '(?:e?s)?'}(?![A-Za-z0-9])`);
@@ -1341,9 +1369,9 @@ async function useFiles(list, folder) {
     }
     try { await DB.put('books', rec); } catch (e) { toast('이 PC 저장 공간이 부족해 보관하지 못했습니다: ' + it.rel, 4000); }
     const B = makeBook(rec); LIB.books.push(B); LIB.bySig.set(B.sig, B); done++;
-    if (done % 3 === 0 || done === total) { LIB.books.sort((a, b) => a.rel.localeCompare(b.rel, 'ko')); await saveLib(); refreshAfterIndex(); }
+    if (done % 3 === 0 || done === total) { LIB.books.sort((a, b) => a.rel.localeCompare(b.rel, 'ko')); numberBooks(); await saveLib(); refreshAfterIndex(); }
   }
-  LIB.books.sort((a, b) => a.rel.localeCompare(b.rel, 'ko'));
+  LIB.books.sort((a, b) => a.rel.localeCompare(b.rel, 'ko')); numberBooks();
   await saveLib(); await gc();
   RUN.busy = false; setProg(null);
   const sec = Math.round((Date.now() - t0) / 1000);
@@ -1353,6 +1381,7 @@ async function useFiles(list, folder) {
   renderAll(); if (STATE.q) doSearch(STATE.q, true);
 }
 let lastRefresh = 0;
+const numberBooks = () => LIB.books.forEach((B, i) => B.no = i + 1);   // 도서 번호 — 폴더 안 경로 순(가나다 · ABC)으로 1부터, 답변 · 인용에 '#번호' 로 씀 (책이 추가되면 번호가 바뀔 수 있으니 인용에는 파일명도 함께)
 function refreshAfterIndex() { const now = Date.now(); if (now - lastRefresh < 4000) return; lastRefresh = now; renderTop(); if (STATE.q) doSearch(STATE.q, true); else renderAll(); }
 async function saveLib() { await DB.put('kv', { folder: LIB.folder, sigs: LIB.books.map(B => B.sig), at: Date.now() }, 'lib').catch(() => {}); }
 async function gc() {   // 폴더에서 지워진 책의 보관본 정리
@@ -1368,7 +1397,7 @@ async function loadLib() {
   setProg(0, '이 PC 에 보관된 도서 색인 불러오는 중…');
   let k = 0;
   for (const sig of lib.sigs) { const rec = await DB.get('books', sig).catch(() => null); if (rec && rec.v === EXTRACT_VER) LIB.books.push(makeBook(rec)); if (++k % 5 === 0) { setProg(k / lib.sigs.length, `보관된 색인 불러오는 중 ${k}/${lib.sigs.length}`); await sleep(0); } }
-  LIB.bySig = new Map(LIB.books.map(B => [B.sig, B])); setProg(null);
+  LIB.bySig = new Map(LIB.books.map(B => [B.sig, B])); numberBooks(); setProg(null);
   return true;
 }
 
@@ -1436,7 +1465,7 @@ function renderLibrary() {   // 검색 전: 폴더 안 도서 목록
   const L = $('#list'), bs = LIB.books;
   L.innerHTML = `<div class="sum"><b>${fmtN(bs.length)}권</b> 색인됨${RUN.busy ? ' (읽는 중)' : ''} — 위에 검색어를 넣으세요</div>` +
     (bs.length ? bs.slice(0, 300).map((B, i) => `<div class="res" data-lib="${i}" style="cursor:default"><div class="rk"><span class="fmt">${SUPPORTED[B.ext]}</span></div>
-      <div class="t"><span class="nm">${esc(B.base)}</span></div><div class="path">${esc(B.dir || '(최상위)')} · ${fmtN(B.nPages)}${unitOf(B)[1]} · ${esc(KIND_KO[B.kind] || '')} · ${esc(domLabel(B))}${B.err === 'notext' ? ' · ⚠ 본문 글자 없음(스캔본?)' : B.err === 'legacy' ? ' · ⚠ 옛 형식 — 파일명으로만 찾음 (docx/xlsx/pptx 로 저장하면 본문도 읽힘)' : B.err ? ' · ⚠ 읽기 실패' : ''}</div></div>`).join('') : '<div class="empty">읽는 중입니다…</div>');
+      <div class="t"><span class="bno">#${B.no || "?"}</span><span class="nm">${esc(B.base)}</span></div><div class="path">${esc(B.dir || '(최상위)')} · ${fmtN(B.nPages)}${unitOf(B)[1]} · ${esc(KIND_KO[B.kind] || '')} · ${esc(domLabel(B))}${B.err === 'notext' ? ' · ⚠ 본문 글자 없음(스캔본?)' : B.err === 'legacy' ? ' · ⚠ 옛 형식 — 파일명으로만 찾음 (docx/xlsx/pptx 로 저장하면 본문도 읽힘)' : B.err ? ' · ⚠ 읽기 실패' : ''}</div></div>`).join('') : '<div class="empty">읽는 중입니다…</div>');
   $('#pv').innerHTML = `<div class="empty">🔍 검색하면 여기에 <b>왜 관련 있는지</b>와 <b>근거 쪽 미리보기</b>가 나옵니다.</div>`;
 }
 function curOpt() { return { expand: $('#optExpand').checked, fmt: $('#optFmt').value, dir: $('#optDir').value }; }
@@ -1462,6 +1491,74 @@ function renderInterp(Q) {
     const kind = q.aspect ? ' <small>(알고 싶은 내용)</small>' : q.main ? (q.soft ? ' <small>(보조어)</small>' : '') : q.c?.g ? ' <small>(넓은 말 · 보조)</small>' : ' <small>(상위 개념 · 일부 점수)</small>';
     return `<span class="cpt ${q.main && !q.soft ? '' : 'part'}${q.aspect ? ' asp' : ''}" title="${esc(tip)}">${q.aspect ? '🎯 ' : ''}${esc(q.free ? `'${q.label}'` : q.label)}${kind}${ex.length > 1 && !q.aspect ? ` <small>+${ex.length - 1}개 표현</small>` : ''}</span>`;
   }).join('') + Q.notes.map(n => `<span class="dym">✎ ${esc(n)}</span>`).join('');
+}
+
+/* ===================================================================================== 7-3) 💬 답변 — 폴더 도서의 원문(도서 번호 · 쪽)과 내장 학습 지식을 구분해 보여 줌
+ * 이 프로그램에는 AI 모델이 없으므로 "답" 은 ① 폴더 도서에서 질문과 가장 잘 맞는 원문 구절을 그대로 인용(사실 근거: #도서 번호 · 쪽)
+ * ② 사전 · 지식 베이스(kb.js notes)에 적어 둔 규격 · 문헌 요약(학습 지식) 두 가지를 따로 보여 주는 것. 섞이지 않게 상자를 나누고 출처를 붙인다 */
+const GENERIC_IDS = new Set(['design_doc', 'interlock', 'instrumentation', 'standards', 'proj', 'proj_phases', 'logic_doc', 'io_list', 'maint_ops', 'instrument_install', 'hookup', 'datasheet', 'loop', 'pnid', 'sensor']);
+function anchorsOf(Q) {   // 인용의 기준이 되는 '주제 개념': 질문의 첫 개념 + 기기 · 측정 개념 (설계 산출물 · 인터록 같은 보조 성격의 개념은 기준에서 뺌)
+  const m = Q.mains.filter(q => !q.free && q.c); if (!m.length) return Q.mains;
+  const dev = m.filter((q, i) => i === 0 || !GENERIC_IDS.has(q.c.id)); return dev.length ? dev : m.slice(0, 1);
+}
+function quoteAt(B, p, Q, strict) {   // 그 쪽에서 질문의 핵심 표현이 처음 나오는 문장(들)을 원문 그대로 — 최대 320자. strict 면 주제 개념의 핵심 표현(가중치 .9 이상)이 없을 때 null
+  const page = B.pages[p] || '', reS = hlRegex({ qs: anchorsOf(Q) }, 0.9), re = hlRegex({ qs: Q.mains }); let pos = -1;
+  if (reS) { reS.lastIndex = 0; const m = reS.exec(page); if (m) pos = m.index; }
+  if (pos < 0) { if (strict) return null; pos = 0; if (re) { re.lastIndex = 0; const m = re.exec(page); if (m) pos = m.index; } }
+  const isEnd = i => /[.!?。]/.test(page[i]) && (i + 1 >= page.length || /[\s"')\]]/.test(page[i + 1])) || page[i] === '\n' && page[i + 1] === '\n';
+  let a = pos, b = pos;
+  while (a > 0 && pos - a < 260 && !isEnd(a - 1)) a--;
+  while (b < page.length && b - pos < 300 && !isEnd(b)) b++;
+  if (b < page.length) b++;
+  let t = page.slice(a, b).replace(/\s*\n\s*/g, ' ').replace(/\s{2,}/g, ' ').trim();
+  if (t.length > 320) t = t.slice(0, 318).replace(/\s\S*$/, '') + '…';
+  return { t, cut: a > 0 };
+}
+const CODE_RE = /\b(?:API(?: RP| STD)?|ISA(?:-TR)?|IEC|ISO|ASME(?: PTC| B)?|NFPA|IEEE|EN|NAMUR NE|NE|NEMA|ASTM|FCI|KEPIC)\s?[-–]?\s?[A-Z]?\d[\d.\-/]*[A-Za-z]?\b/g;
+function codesOf(src) { return [...String(src).matchAll(CODE_RE)].map(m => m[0].replace(/\s|–/g, '-').replace(/-+/g, '-').toUpperCase()); }
+function booksWithCode(code) {   // 폴더 도서 제목에 그 규격 번호가 있으면 (예: 'API 670' ↔ 'API_670_5th.pdf')
+  const norm = x => String(x).toUpperCase().replace(/[\s_–\-]+/g, '-');
+  const c = norm(code), c2 = c.replace(/^(API|ISA|IEC|ISO|ASME|NFPA|IEEE|EN|NAMUR-NE|NE|NEMA|ASTM|FCI|KEPIC)-(RP-|STD-|PTC-|B-)?/, '');
+  return LIB.books.filter(B => { const t = norm(B.base + ' ' + (B.meta || '')); return t.includes(c) || (c2.length >= 3 && new RegExp('(^|[^0-9.])' + c2.replace(/[.\-]/g, '\\$&') + '([^0-9]|$)').test(t) && /API|ISA|IEC|ISO|ASME|NFPA|IEEE|NAMUR|NEMA|FCI|KEPIC|\bEN\b/.test(t)); });
+}
+function answerHtml(results, Q) {
+  if (!Q.qs.length) return '';
+  const subj = Q.mains.map(q => q.free ? `'${q.label}'` : q.label.replace(/\(.*?\)/g, '')).join(' · ');
+  // ① 폴더 도서 근거 — 상위 도서(핵심 · 깊게 · 일부)에서 가장 잘 맞는 쪽의 원문
+  const quotes = [];
+  for (let i = 0; i < Math.min(results.length, 12) && quotes.length < 5; i++) {
+    const R = results[i], ex = explain(R, Q); if (ex.tier < 1 || !R.top.length) continue;
+    let p = -1, q = null;   // 상위 쪽 셋 중 질문의 핵심 표현이 실제로 있는 쪽만 — 보조 표현(응답 시간 · 스위치 …)만 있는 쪽은 인용하지 않음
+    for (const [pp] of R.top.slice(0, 3)) { const qq = quoteAt(R.B, pp, Q, true); if (qq && qq.t.length >= 20) { p = pp; q = qq; break; } }
+    if (!q) continue;
+    quotes.push({ i, p, R, q, ex });
+  }
+  const libName = LIB.src === 'srv' ? `공용 도서관 '${esc(LIB.folder)}'` : `내 PC 폴더 '${esc(LIB.folder)}'`;
+  const reHL = hlRegex(Q);
+  let A = `<div class="ansA"><div class="anst">📂 폴더 도서 근거 <span class="muted">— ${LIB.books.length ? `${libName} ${fmtN(LIB.books.length)}권에서 찾은 <b>원문 그대로</b> · 사실 근거는 [#도서 번호 · 쪽] 로 표시 (누르면 그 쪽을 엽니다)` : '지정한 폴더가 없습니다'}</span></div>`;
+  if (!LIB.books.length) A += `<div class="ansnone">폴더를 지정하지 않아 도서 근거가 없습니다 — 아래 '🧠 학습 지식' 만 참고하세요. [📚 도서관] 에서 폴더를 지정하면 그 폴더의 원문을 근거로 보여 줍니다.</div>`;
+  else if (!quotes.length) A += `<div class="ansnone">폴더 도서 중 '${esc(STATE.q)}' 을(를) 본문에서 다루는 책이 없습니다 — 아래 학습 지식은 폴더와 무관한 내장 지식입니다.</div>`;
+  else A += quotes.map(({ i, p, R, q, ex }) => `<div class="ansq" data-si="${i}" data-sp="${p}"><div class="ansqh"><span class="bno">#${R.B.no || '?'}</span><b>${esc(R.B.base.slice(0, 60))}</b><span class="pg">${unitOf(R.B)[0]}${p + 1}</span><span class="tier t${ex.tier}">${ex.tierName}</span><span class="muted"> · ${esc(KIND_KO[R.B.kind] || '')}</span><button class="cp cpq" data-qi="${i}" data-qp="${p}" title="이 원문을 [#도서 번호 · 쪽] 출처와 함께 복사">📋</button></div><blockquote>${q.cut ? '…' : ''}${hl(q.t, reHL)}</blockquote></div>`).join('') +
+    `<div class="ansfoot muted">원문은 색인 때 뽑은 글자 그대로입니다(PDF 줄바꿈 · 띄어쓰기 차이 가능). 더 많은 근거 구절은 오른쪽 '📝 근거 구절' · 미리보기에서.</div>`;
+  A += '</div>';
+  // ② 학습 지식 — 질문 개념(및 상위 · 연관)의 노트
+  const NOTES = (window.KB && KB.notes) || {}, seen = new Set(), blocks = [];
+  const order = [];
+  for (const q of Q.mains) if (q.c && !q.free) order.push(q.c.id);
+  for (const q of Q.mains) if (q.c && !q.free) for (const r of [...(q.c.deep || []), ...(q.c.rel || [])]) order.push(r);
+  for (const id of order) {
+    if (seen.has(id) || !NOTES[id] || blocks.length >= 3) continue; seen.add(id);
+    const c = TH[id]; const main = Q.mains.some(q => q.c && q.c.id === id);
+    const items = NOTES[id].slice(0, main ? 8 : 3).map(([src, txt]) => {
+      const found = [...new Set(codesOf(src).flatMap(code => booksWithCode(code).map(B => B.no)))].slice(0, 3).map(no => LIB.books.find(B => B.no === no)).filter(Boolean);
+      return `<li>${esc(txt)} <span class="src">출처: ${esc(src)}</span>${found.length ? `<span class="infold">📂 폴더에 있음: ${found.map(B => `<a data-bookno="${B.no}">#${B.no} ${esc(B.base.slice(0, 40))}</a>`).join(' · ')}</span>` : ''}</li>`;
+    }).join('');
+    blocks.push(`<div class="ansk${main ? '' : ' sub'}"><div class="anskh">${esc(c ? c.n : id)}${main ? '' : ' <span class="muted">(연관 개념)</span>'}</div><ul>${items}</ul></div>`);
+  }
+  let Bk = `<div class="ansB"><div class="anst">🧠 학습 지식 <span class="muted">— 프로그램에 <b>내장된 지식 베이스</b>(규격 · 제작사 자료 요약) · 폴더 도서가 아님 · 출처 표시는 요약의 근거 문헌</span></div>`;
+  Bk += blocks.length ? blocks.join('') + `<div class="ansfoot muted">학습 지식은 2026-10 기준 요약입니다. 설계 근거로 인용할 때는 해당 규격의 적용판 원문 조항을 확인하세요 — 폴더에 그 규격이 있으면 '📂 폴더에 있음' 으로 이어 줍니다.</div>` : `<div class="ansnone">'${esc(subj)}' 에 대한 내장 학습 지식이 아직 없습니다 — <code>kb.js</code> 의 <code>notes</code> 에 [출처, 내용] 한 줄을 더하면 여기 나옵니다.</div>`;
+  Bk += '</div>';
+  return `<div class="ansbox"><div class="ansh">💬 '${esc(subj)}' — 답변 <span class="muted">— 폴더 기준(원문 인용)과 학습 기준(내장 지식)을 나눠서 보여 줍니다</span></div>${A}${Bk}</div>`;
 }
 // 📚 추천 읽기 순서 — 상위 결과를 종류별로 묶어 시니어가 권하듯: 먼저 볼 것(교재 · 강의) → 실무(매뉴얼 · 설계 문서 · 표) → 기준(규격 · 법규)
 function recommendHtml(results, Q) {
@@ -1490,7 +1587,7 @@ function renderResults() {
   const { Q, results, ms, total } = STATE.res; renderInterp(Q);
   const L = $('#list');
   if (!results.length) {
-    L.innerHTML = `<div class="empty">'${esc(STATE.q)}' 와(과) 관련된 도서를 찾지 못했습니다.<br>
+    L.innerHTML = answerHtml([], Q) + `<div class="empty">'${esc(STATE.q)}' 와(과) 관련된 도서를 찾지 못했습니다.<br>
       <span class="muted">· 다른 표현(영어/한글)으로 찾아 보세요 · [계장 용어 확장] 이 켜져 있는지 확인 · 형식/폴더 거르기를 '전체'로${RUN.busy ? '<br>· 아직 읽는 중인 책이 있습니다 — 다 읽은 뒤 결과가 늘 수 있습니다' : ''}</span></div>`;
     $('#pv').innerHTML = ''; return;
   }
@@ -1503,13 +1600,13 @@ function renderResults() {
   const per = {}, pick = []; for (const x of spots) { if ((per[x.i] = (per[x.i] || 0) + 1) > 2) continue; pick.push(x); if (pick.length >= 5) break; }
   const reHL = hlRegex(Q);
   const spotHtml = pick.length >= 2 ? `<div class="spots"><div class="sph">📍 바로 볼 곳 <span class="muted">— 질문과 가장 잘 맞는 쪽 (누르면 그 쪽을 엽니다)</span></div>${pick.map(x => { const R = results[x.i];
-    return `<div class="spot" data-si="${x.i}" data-sp="${x.p}"><span class="pg">${unitOf(R.B)[0]}${x.p + 1}</span><b>${esc(R.B.base.slice(0, 46))}</b><div class="sx">${hl(snippet(R.B, R, x.p, Q).slice(0, 170), reHL)}</div></div>`; }).join('')}</div>` : '';
-  const recHtml = recommendHtml(results, Q);
-  L.innerHTML = spotHtml + recHtml + `<div class="sum"><b>${fmtN(total)}권</b> 중 <b>${fmtN(results.length)}권</b> 관련 · ${(ms / 1000).toFixed(2)}초${RUN.busy ? ' · <span style="color:var(--warn)">읽는 중 — 결과가 늘 수 있음</span>' : ''}</div>` +
+    return `<div class="spot" data-si="${x.i}" data-sp="${x.p}"><span class="pg">${unitOf(R.B)[0]}${x.p + 1}</span><span class="bno">#${R.B.no || "?"}</span><b>${esc(R.B.base.slice(0, 46))}</b><div class="sx">${hl(snippet(R.B, R, x.p, Q).slice(0, 170), reHL)}</div></div>`; }).join('')}</div>` : '';
+  const recHtml = recommendHtml(results, Q), ansHtml = answerHtml(results, Q);
+  L.innerHTML = ansHtml + spotHtml + recHtml + `<div class="sum"><b>${fmtN(total)}권</b> 중 <b>${fmtN(results.length)}권</b> 관련 · ${(ms / 1000).toFixed(2)}초${RUN.busy ? ' · <span style="color:var(--warn)">읽는 중 — 결과가 늘 수 있음</span>' : ''}</div>` +
     shown.map((R, i) => {
       const ex = explain(R, Q), pct = Math.max(3, Math.round(100 * R.score / top));
       return `<div class="res ${i === STATE.sel ? 'on' : ''}" data-i="${i}" tabindex="0">
-        <div class="rk"><b>${i + 1}</b><span class="meter" title="관련도 ${pct} (1위 = 100)"><i style="height:${pct}%"></i></span></div>
+        <div class="rk"><b>${i + 1}</b><span class="bno" title="도서 번호 (폴더 안 순번)">#${R.B.no || "?"}</span><span class="meter" title="관련도 ${pct} (1위 = 100)"><i style="height:${pct}%"></i></span></div>
         <div class="t"><span class="tier t${ex.tier}">${ex.tierName}</span><span class="nm" title="${esc(R.B.name)}">${hl(R.B.base, hlRegex(Q))}</span><span class="fmt">${SUPPORTED[R.B.ext]}</span></div>
         <div class="path">${esc(R.B.dir || '(최상위)')} · ${fmtN(R.B.nPages)}${unitOf(R.B)[1]} · 관련도 ${pct} · <span class="kd">${esc(KIND_KO[R.B.kind] || '')}</span> · ${esc(domLabel(R.B))}</div>
         <div class="why"><span class="w">${esc(ex.short)}</span>${ex.co.length ? `<span class="w muted">함께: ${esc(ex.co.slice(0, 3).join(' · '))}</span>` : ''}</div></div>`;
@@ -1524,7 +1621,7 @@ function renderPreview(goPage) {
   const heads = [...new Map(Q.qs.flatMap((q, i) => q.main ? R.m[i].heads : []).map(h => [h.t + h.p, h])).values()].slice(0, 12);
   const file = fileFor(B);
   P.innerHTML = `
-    <div class="pvh"><div class="tt"><h2>${hl(B.base, re)}</h2><div class="path">${esc(LIB.folder)}/${esc(B.rel.split('/').slice(1).join('/'))}</div>
+    <div class="pvh"><div class="tt"><h2><span class="bno big" title="도서 번호 (폴더 안 순번)">#${B.no || "?"}</span>${hl(B.base, re)}</h2><div class="path">${esc(LIB.folder)}/${esc(B.rel.split('/').slice(1).join('/'))}</div>
       <div class="badges"><span class="badge">${SUPPORTED[B.ext]}</span><span class="badge">${fmtN(B.nPages)}${unitOf(B)[1]}</span><span class="badge">${fmtSize(B.size)}</span>${B.meta && B.meta !== B.base ? `<span class="badge" title="문서 정보의 제목">${esc(B.meta.slice(0, 60))}</span>` : ''}</div></div>
       <button class="btn sm" id="openOrig" ${file ? '' : 'disabled title="폴더를 다시 연결하면 열 수 있습니다"'}>원본 열기 ↗</button></div>
     <div class="whybox"><h3>왜 '${esc(STATE.q)}' 와(과) 관련 있나요? <span class="tier t${ex.tier}" style="margin-left:4px">${ex.tierName}</span></h3>
@@ -1550,7 +1647,7 @@ function copyText(text) {   // http(보안 아님) 주소 · iframe 안에서도
   };
   if (navigator.clipboard && window.isSecureContext) navigator.clipboard.writeText(text).then(ok, fallback); else fallback();
 }
-const cite = (B, p) => `— ${B.base}, ${unitOf(B)[0]}${p + 1}`;
+const cite = (B, p) => `— [#${B.no || '?'}] ${B.base}, ${unitOf(B)[0]}${p + 1}`;
 // 책 안에서 찾기: 한글은 글자 사이 띄어쓰기 무시, 영어는 대소문자 무시
 function findRegex(t) {
   t = normText(t).replace(/\n/g, ' ').trim(); if (!t) return null;
@@ -2208,7 +2305,11 @@ $('#list').addEventListener('click', e => {
     document.querySelectorAll('.res[data-i]').forEach(x => x.classList.toggle('on', +x.dataset.i === STATE.sel)); renderPreview();
     $(`.res[data-i="${STATE.sel}"]`)?.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); return;
   }
-  const sp = e.target.closest('.spot'); if (sp) {
+  const cq = e.target.closest('.cpq'); if (cq) { e.stopPropagation(); const R = STATE.res?.results[+cq.dataset.qi]; if (R) { const p = +cq.dataset.qp; copyText('“' + quoteAt(R.B, p, STATE.res.Q).t + '”\n' + cite(R.B, p)); } return; }
+  const bn = e.target.closest('a[data-bookno]'); if (bn) { e.stopPropagation(); const no = +bn.dataset.bookno, i = STATE.res ? STATE.res.results.findIndex(R => R.B.no === no) : -1;
+    if (i >= 0) { STATE.sel = i; if (STATE.sel >= STATE.shown) { STATE.shown = STATE.sel + 1; renderResults(); } document.querySelectorAll('.res[data-i]').forEach(x => x.classList.toggle('on', +x.dataset.i === STATE.sel)); renderPreview(); }
+    else { const B = LIB.books.find(B => B.no === no); if (B) { toast(`#${no} ${B.base} — 이번 검색 결과에는 없는 책입니다. 도서관 목록에서 열어 보세요.`); } } return; }
+  const sp = e.target.closest('.spot, .ansq[data-si]'); if (sp) {
     STATE.sel = +sp.dataset.si; if (STATE.sel >= STATE.shown) { STATE.shown = STATE.sel + 1; renderResults(); }
     document.querySelectorAll('.res[data-i]').forEach(x => x.classList.toggle('on', +x.dataset.i === STATE.sel));
     document.querySelectorAll('.spot').forEach(x => x.classList.toggle('on', x === sp));
