@@ -32,7 +32,7 @@ ID_RE = re.compile(r'^[A-Za-z0-9_\-]{1,80}$')
 WEEK_RE = re.compile(r'^\d{4}-W\d{2}$')
 MAX_BODY = 30 * 1024 * 1024
 
-SERVER_VERSION = '2026-10-23.1'
+SERVER_VERSION = '2026-10-24.1'
 ROOT = os.path.dirname(os.path.abspath(__file__))
 PORT = 8080
 ALLOW_NETS = []          # 사내망: 루프백·사설망 + 서버 IP 대역(/16, 유선·Wi-Fi 등 지금까지 쓴 대역 모두 기억) + --allow 로 추가한 대역
@@ -1767,12 +1767,40 @@ def server_urls():
     return [f'http://{socket.gethostname()}:{PORT}'] + [f'http://{ip}:{PORT}' for ip in lan_ips()]
 
 
-def html_bytes():
-    """dashboard.html 을 읽어 기본 서버 주소를 이 PC 기준으로 바꿔 제공 (부서원 배포본과 동일)"""
+def html_bytes(snap=False):
+    """dashboard.html 을 읽어 기본 서버 주소를 이 PC 기준으로 바꿔 제공 (부서원 배포본과 동일).
+    snap=True: 지금 데이터(비회원이 보는 범위)를 파일 안에 넣음 → 받은 파일은 서버가 꺼져 있어도 처음부터 오프라인으로 열림"""
     with open(P('dashboard.html'), encoding='utf-8') as f:
         s = f.read()
     s = re.sub(r"const DEFAULT_SERVERS = \[[^\]]*\];", 'const DEFAULT_SERVERS = ' + json.dumps(server_urls()) + ';', s, count=1)
+    if snap:
+        try:
+            s = embed_snap(s)
+        except Exception as e:
+            log.error('배포 파일에 데이터 넣기 실패: %s', e)
     return s.encode('utf-8')
+
+
+SNAP_RE = re.compile(r'<script id="deptSnap" type="application/json">[^<]*</script>\n?')
+
+
+def snap_data():
+    """브라우저 보관본(IndexedDB 'cache')과 같은 모양 — dashboard.html cacheSave 참고"""
+    d = api_all()
+    st, arcs = d['state'], d['archives']
+    bn = st.get('lastClosedWeek') if st.get('lastClosedWeek') in arcs else (arcs[0] if arcs else None)
+    base = (read_json(P('archive', bn + '.json')) or {}).get('sheets') if bn else None
+    return {'savedAt': stamp(), 'server': server_urls()[0], 'recs': d['recs'], 'cols': d['cols'], 'state': st,
+            'baseSheets': base, 'baseKey': f"{bn}|{st.get('lastClosedAt', '')}" if bn else '',
+            'board': api_board_list(), 'profiles': [], 'sheetCols': d['sheetCols'], 'from': 'server'}
+
+
+def embed_snap(s):
+    blk = ('<script id="deptSnap" type="application/json">' + json.dumps(snap_data(), ensure_ascii=False).replace('<', '\\u003c')
+           + '</script>\n')
+    s = SNAP_RE.sub('', s)
+    i = s.rfind('</body>')
+    return s + blk if i < 0 else s[:i] + blk + s[i:]
 
 
 _deploy_mtime = None
@@ -1787,25 +1815,29 @@ def build_deploy():
 def _build_deploy():
     """운영 폴더 deploy/ 에 부서원 배포용 dashboard.html 과 사용법 안내문 생성 (원본이 바뀌면 다시 생성)"""
     global _deploy_mtime
-    m = (os.path.getmtime(P('dashboard.html')), tuple(server_urls()))   # 화면 파일이 바뀌거나 서버 주소(IP)가 바뀌면 다시 만듦
+    m = (os.path.getmtime(P('dashboard.html')), tuple(server_urls()), int(time.time() // 1800))   # 화면 파일 · 서버 주소(IP)가 바뀌거나 30분마다(안의 데이터 갱신) 다시 만듦
     if m == _deploy_mtime and os.path.exists(P('deploy', 'dashboard.html')):
         return
+    fresh = _deploy_mtime is None or m[:2] != _deploy_mtime[:2]
     os.makedirs(P('deploy'), exist_ok=True)
     tmp = P('deploy', 'dashboard.html.tmp')
     with open(tmp, 'wb') as f:
-        f.write(html_bytes())
+        f.write(html_bytes(snap=True))
     os.replace(tmp, P('deploy', 'dashboard.html'))
+    _deploy_mtime = m
+    if not fresh:                                         # 데이터만 새로 넣은 것: 안내문 · 로그는 그대로
+        return
     urls = server_urls()
     guide = (f'[계장ENG그룹 Dashboard 사용법]  (화면 v{html_version()})\n'
              f'1. 이 폴더의 dashboard.html 을 내 PC(바탕화면 등)에 복사한 뒤 Edge로 엽니다.\n'
              f'2. 처음에 [계정 개설]로 ID·본명·비밀번호를 만들고 로그인합니다. (비회원은 보기만 가능, 수정 이력에는 본명이 기록됩니다)\n'
              f'3. 서버 {urls[0]} 에 자동 연결됩니다. 안 되면 왼쪽 아래 [서버 주소 설정]에 {urls[-1]} 을 입력하세요.\n'
              f'   (서버 PC 가 유선 LAN ↔ 사내 Wi-Fi 로 바뀌면 IP 가 바뀝니다. 한 번 연결된 주소는 내 PC 가 기억해 두고 차례로 시도합니다)\n'
-             f'4. 서버가 꺼져 있어도 입력은 내 PC에 보관되며, 서버가 켜지면 자동으로 올라갑니다.\n'
+             f'4. 서버가 꺼져 있어도 마지막 데이터로 열리고(이 파일 안에도 들어 있음), 입력은 내 PC에 보관되었다가 서버가 켜지면 자동으로 올라갑니다.\n'
+             f'   주소(http://…)로 들어가면 서버가 꺼졌을 때 열리지 않으니, 늘 이 파일로 여세요.\n'
              f'5. 화면 위에 "새 버전이 있습니다"가 뜨면 [다운로드]한 파일로 내 PC의 dashboard.html 을 바꾸세요.\n')
     with open(P('deploy', '부서원_사용법.txt'), 'w', encoding='utf-8-sig') as f:
         f.write(guide)
-    _deploy_mtime = m
     log.info('배포 파일 생성: deploy/dashboard.html (v%s), deploy/부서원_사용법.txt', html_version())
 
 
@@ -2000,7 +2032,7 @@ class Handler(BaseHTTPRequestHandler):
                 raise ApiError(403, '허용되지 않은 출처입니다')
             if method == 'GET' and path in ('/', '/dashboard.html'):
                 extra = {'Content-Disposition': "attachment; filename*=UTF-8''dashboard.html"} if 'download' in q else None
-                return self.send(200, html_bytes(), 'text/html; charset=utf-8', extra)
+                return self.send(200, html_bytes(snap='download' in q), 'text/html; charset=utf-8', extra)   # 내려받는 파일에는 지금 데이터도 넣음
             if method == 'GET' and path.startswith('/apps/'):   # 연결 프로그램 정적 파일 (운영 폴더 apps/)
                 return self.send_app_file(path[len('/apps/'):])
             if not path.startswith('/api/'):

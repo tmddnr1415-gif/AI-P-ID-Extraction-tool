@@ -1102,7 +1102,7 @@ function recLabel(key, f) {
  * ===================================================================== */
 let root = null;
 /* 서버 모드: http(s):// 로 접속하면 server.py 의 REST API 사용 (폴더 선택 불필요). file:// 로 열면 폴더 모드 */
-const APP_VERSION = '2026-10-24.3';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
+const APP_VERSION = '2026-10-24.4';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
 const SERVER_URL = 'http://localhost:8080';
 // 부서원 PC 사본(file://)이 접속을 시도할 서버 — 서버가 배포 파일을 만들 때 'PC 이름 주소, IP 주소' 순으로 자동 기록함
 const DEFAULT_SERVERS = ['http://ASEUNGWOOK-B01:8080', 'http://65.3.30.234:8080'];
@@ -1740,6 +1740,7 @@ async function replaceSelf(html) {
     if (!h) h = await window.showSaveFilePicker({ id:'dept-dashboard-self', suggestedName:fname, types:[{ description:'대시보드 (HTML)', accept:{ 'text/html':['.html', '.htm'] } }] });
     const w = await h.createWritable(); await w.write(new Blob([html], { type:'text/html' })); await w.close();
     try { await kv('readwrite', st => st.put(h, 'self')); } catch (_) {}
+    if (h.name === fname) try { localStorage.setItem('dept-embed-at', String(Date.now())); } catch (_) {}
     if (h.name === fname) { toast('새 버전으로 바꿨습니다. 다시 엽니다…'); setTimeout(() => location.reload(), 1200); }
     else toast(`새 버전을 '${h.name}' 으로 저장했습니다. 지금 연 파일(${fname}) 대신 그 파일을 여세요`, true);
   } catch (e) {
@@ -1752,9 +1753,46 @@ function copyTip() {
   if (!SERVER || OFFLINE || ADMIN || !root || location.protocol === 'file:' || FRAME_ROUTES(route)) return false;
   try { return !localStorage.getItem('dept-copy-at') && localStorage.getItem('dept-copy-hide') !== todayISO(); } catch (_) { return false; }
 }
-async function fileCopyUpdate() {                           // 파일 사본: 서버의 최신 파일 + 보관본으로 이 파일을 덮어씀
-  let html; try { html = await newHtml(); } catch (e) { return toast('서버에서 파일을 받지 못했습니다: ' + e.message, true); }
-  await replaceSelf(html);
+/* 파일 사본 자동 보관: 서버에 연결될 때 몇 시간마다 이 dashboard.html 파일 안의 보관본도 조용히 새로 씀
+   → 브라우저가 보관본을 지워도(닫을 때 지우기 · 다른 브라우저) 서버가 꺼졌을 때 이 파일로 열림.
+   한 번 [💾 자동 보관 켜기]로 이 파일 쓰기를 허락받으면(Edge: '방문할 때마다 허용') 다음부터 묻지 않음 */
+const EMBED_MS = 3 * 3600e3;
+let EMBED_ASK = false;
+const embedAt = () => { try { return +localStorage.getItem('dept-embed-at') || 0; } catch (_) { return 0; } };
+async function embedSelf(manual) {
+  if (location.protocol !== 'file:' || !SERVER || OFFLINE) return false;
+  if (NEWVER) { if (manual) askUpdate(true); return false; }   // 새 버전이 있으면 교체(그때 보관본도 같이 들어감)
+  if (!('showSaveFilePicker' in window)) { if (manual) saveCopy(); return false; }
+  const fname = selfName();
+  try {
+    let h = null;
+    try { h = await kv('readonly', st => st.get('self')); } catch (_) {}
+    if (h && h.name !== fname) h = null;
+    if (h) { let pm = await h.queryPermission({ mode:'readwrite' }); if (pm !== 'granted' && manual) pm = await h.requestPermission({ mode:'readwrite' }); if (pm !== 'granted') h = null; }
+    if (!h && !manual) {                                    // 허락이 없으면: 이 파일 안 보관본이 없거나 3일 넘었을 때만 배너로 물음
+      const sa = Date.parse(snapLoad()?.savedAt || '') || 0;
+      if (Date.now() - Math.max(sa, embedAt()) > 3 * 864e5) { EMBED_ASK = true; render(); }
+      return false;
+    }
+    if (!await cacheLoad()) await cacheSave();
+    const html = await withSnap(await newHtml());          // 서버의 같은 버전 파일 + 지금 보관본
+    if (!h) h = await window.showSaveFilePicker({ id:'dept-dashboard-self', suggestedName:fname, types:[{ description:'대시보드 (HTML)', accept:{ 'text/html':['.html', '.htm'] } }] });
+    if (h.name !== fname) { toast(`지금 연 파일(${fname})을 골라 주세요 — '${h.name}' 에는 쓰지 않았습니다`, true); return false; }
+    const w = await h.createWritable(); await w.write(new Blob([html], { type:'text/html' })); await w.close();
+    try { await kv('readwrite', st => st.put(h, 'self')); } catch (_) {}
+    try { localStorage.setItem('dept-embed-at', String(Date.now())); } catch (_) {}
+    if (EMBED_ASK || manual) { EMBED_ASK = false; render(); }
+    if (manual) toast('이 파일에 지금 데이터를 넣었습니다. 앞으로 서버에 연결될 때마다 자동으로 넣습니다 (서버가 꺼져도 이 파일로 열림)');
+    return true;
+  } catch (e) {
+    if (manual && e.name !== 'AbortError') toast('파일에 넣지 못했습니다: ' + e.message, true);
+    return false;
+  }
+}
+function autoEmbed() { if (Date.now() - embedAt() >= EMBED_MS) embedSelf(false); }
+function embedTip() {
+  if (!EMBED_ASK || !SERVER || OFFLINE || NEWVER || !root || FRAME_ROUTES(route)) return false;
+  try { return localStorage.getItem('dept-embed-hide') !== todayISO(); } catch (_) { return true; }
 }
 function checkVersion(info) { NEWVER = info.version && info.version !== APP_VERSION && location.protocol === 'file:' ? info.version : ''; }
 const serverLabel = () => `${(API_BASE || location.origin).replace(/^https?:\/\//, '')} (서버${ADMIN ? ' · 관리자' : SUPER ? ' · 그룹장 권한' : ''})`;
@@ -3135,6 +3173,8 @@ function render() {
       <span class="muted">서버 폴더의 <b>allow_firewall.bat</b> 를 마우스 오른쪽 → [관리자 권한으로 실행] (권한이 없으면 IT 에 'TCP ${esc(location.port || '8080')} 인바운드 허용' 요청)</span></div>`;
     if (NET.changedAt) banners += `<div class="banner">📡 서버 PC 의 IP 가 바뀌었습니다 (${fmtTime(NET.changedAt)} · 유선 LAN ↔ Wi-Fi 등) — 지금 주소 <b>${esc((NET.ips || []).join(', ') || '-')}</b>. 부서원 파일은 PC 이름과 예전에 연결됐던 주소를 차례로 시도합니다. 안 되면 부서원 화면 왼쪽 아래 [서버 주소 설정]에 <b>http://${esc((NET.ips || [])[0] || '')}:${esc(location.port || '8080')}</b></div>`;
   }
+  if (embedTip()) banners += `<div class="banner netbar">💾 <b>서버가 꺼져도 이 파일로 열리게</b> 이 dashboard.html 파일 안에도 데이터를 보관해 둘까요? (한 번만 허락 — 저장 창이 뜨면 지금 연 <b>${esc(selfName())}</b> 를 고르고 [저장] · Edge 가 물으면 '방문할 때마다 허용')
+      <span class="sp"></span><button class="btn sm pri" data-net="embed">💾 자동 보관 켜기</button><button class="btn sm" data-net="embedno">오늘은 그만</button></div>`;
   if (copyTip()) banners += `<div class="banner netbar">💡 지금은 주소(<b>${esc(location.host)}</b>)로 열었습니다 — <b>서버가 꺼지면 이 주소는 열리지 않습니다.</b> [📥 내 PC 사본 받기]로 받은 파일을 바탕화면에 두고 그 파일로 열면, 서버가 꺼져도 마지막 데이터로 볼 수 있습니다.
       <span class="sp"></span><button class="btn sm pri" data-net="copy">📥 내 PC 사본 받기</button><button class="btn sm" data-net="copyno">오늘은 그만</button></div>`;
   if (NEWVER) banners += `<div class="banner netbar">🆕 새 버전의 대시보드(${esc(NEWVER)})가 있습니다. 내 PC의 dashboard.html 을 새 파일로 바꿔 주세요.
@@ -5900,6 +5940,7 @@ $('#content').onclick = e => {
   const g = e.target.closest('[data-go]'); if (g) return go(g.dataset.go);
   const ba = e.target.closest('[data-bact]'); if (ba) return boardAction(ba);
   const nb = e.target.closest('[data-net]'); if (nb) return nb.dataset.net === 'sync' ? trySync(true) : nb.dataset.net === 'upd' ? askUpdate(true)
+    : nb.dataset.net === 'embed' ? embedSelf(true) : nb.dataset.net === 'embedno' ? (() => { try { localStorage.setItem('dept-embed-hide', todayISO()); } catch (_) {} render(); })()
     : nb.dataset.net === 'copy' ? saveCopy() : nb.dataset.net === 'copyno' ? (() => { try { localStorage.setItem('dept-copy-hide', todayISO()); } catch (_) {} render(); })() : openQueue();
   if (PID_ROUTES[route]) { if (e.target.closest('[data-pidretry]')) pidConnect(route); return; }
   if (MODULES[route] || APP_ROUTES[route]) return;
@@ -5987,7 +6028,7 @@ $('#btnFind').onclick = openFind;
 $('#btnFolder').onclick = pickFolder;
 $('#btnQueue').onclick = openQueue;
 $('#btnSrv').onclick = () => setServerUrl();
-$('#btnCopy').onclick = () => location.protocol === 'file:' ? fileCopyUpdate() : saveCopy();
+$('#btnCopy').onclick = () => location.protocol === 'file:' ? embedSelf(true) : saveCopy();
 async function setServerUrl() {
   const c = await ask('서버 주소 설정', `<p class="muted">이 PC의 dashboard.html 사본이 접속할 서버 주소입니다. 이 브라우저에 저장됩니다.<br>기본값: ${DEFAULT_SERVERS.map(esc).join(' → ')} 순서로 자동 시도</p>
     <input id="srvIn" style="width:100%;padding:9px;border:1px solid var(--line);border-radius:8px" value="${esc(serverUrl())}" placeholder="http://PC이름:8080">`,
@@ -6105,7 +6146,7 @@ setInterval(() => { if (SERVER && root && (OFFLINE || QUEUE.length) && !boardTyp
         <br>· 서버가 켜져 있을 때 <b>이 파일이 아니라 주소(http://…)로</b> 들어갔다 → 주소와 파일은 보관 장소가 따로입니다. 다음에는 이 파일로 여세요
         <br>· 이 파일로 열었지만 <b>로그인 화면에서 바로 닫았다</b> (예전 버전)
         <br>· 브라우저가 <b>닫을 때 사이트 데이터를 지우도록</b> 설정됨 · InPrivate/시크릿 창 · 다른 브라우저(Chrome↔Edge)로 열었다
-        <br>→ 서버가 켜져 있을 때 [📥 이 파일에 최신 데이터 넣기]를 한 번 누르면 파일 안에도 보관되어 이런 경우에도 열립니다</div>
+        <br>→ 서버가 켜지면 위쪽 [💾 자동 보관 켜기]를 한 번 누르세요. 파일 안에도 보관되어 이런 경우에도 열립니다. 서버 폴더 <b>deploy</b> 의 새 dashboard.html 은 처음부터 데이터가 들어 있습니다</div>
       <p style="margin-top:14px"><button class="btn pri" id="btnRetry">다시 시도</button> <button class="btn" id="btnSrv2">서버 주소 변경</button></p>
       <p class="muted" style="font-size:12px;margin-bottom:0">관리자용: <a href="#" id="btnLocalMode">서버 없이 공유 폴더를 직접 여는 폴더 모드</a></p></div>`;
     $('#btnRetry').onclick = () => location.reload();
@@ -6130,6 +6171,7 @@ async function startOnline() {
   presenceStart();
   if (QUEUE.length) await trySync(false);                   // 지난번에 못 올린 오프라인 수정이 있으면 '덮어쓸까요?' 후 업로드
   askUpdate();                                             // 새 버전이 있으면 '교체하세요'
+  setTimeout(autoEmbed, 4000); setInterval(autoEmbed, 30 * 60e3);   // 파일 사본: 몇 시간마다 파일 안 보관본도 갱신
 }
 async function initFolderMode() {
   render();
