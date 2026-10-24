@@ -1448,7 +1448,16 @@ function zoomSel(){   // 선택한 판넬(없으면 전체)로 줌
 function zoomMid(k){const {w,h}=vp();zoomAt(w/2,h/2,k)}
 document.addEventListener('wheel',e=>{if(e.ctrlKey&&!svg.contains(e.target)&&!e.target.closest('.modal')){e.preventDefault();zoomMid(Math.exp(-e.deltaY*0.0015))}},{passive:false});   // Ctrl+휠 = 도면 확대 · 축소 (브라우저 화면 확대 대신)
 $('#bZi').onclick=()=>zoomMid(1.25); $('#bZo').onclick=()=>zoomMid(0.8);
-svg.addEventListener('wheel',e=>{e.preventDefault();const sp=local(e),w=toW(sp.x,sp.y);const k=Math.exp(-e.deltaY*0.0015);V.s=Math.max(.004,Math.min(2,V.s*k));V.ox=sp.x-w.x*V.s;V.oy=sp.y-w.y*V.s;req()},{passive:false});
+/* 휠을 누른 채 돌리기 = 2D 눈금 바꾸기: 위로 = 작게(촘촘) · 아래로 = 크게 (도구줄 '눈금' 과 같은 값). 휠만 돌리면 지금처럼 확대 · 축소 */
+var midDown=false, tickT=0; const TICKS=[100,250,500,1000,2000];
+svg.addEventListener('mousedown',e=>{if(e.button===1){e.preventDefault();midDown=true}});   // 휠 누름 = 브라우저 자동 스크롤 막기
+window.addEventListener('mouseup',e=>{if(e.button===1)midDown=false}); window.addEventListener('blur',()=>{midDown=false});
+function stepTick(dir){const now=Date.now();if(now-tickT<120)return;tickT=now;   // 한 칸 돌림에 한 단계
+  let i=TICKS.indexOf(TICK);if(i<0)i=TICKS.indexOf(500);i=Math.max(0,Math.min(TICKS.length-1,i+dir));if(TICKS[i]===TICK)return;
+  TICK=TICKS[i];$('#tick').value=String(TICK);try{localStorage.setItem('crspace.tick',String(TICK))}catch(_){}render();
+  toast(`2D 눈금 하나 = ${fmt(TICK)} mm (휠 누르고 위 = 작게 · 아래 = 크게)`+(TICK*V.s<2.5?' — 지금 배율에선 촘촘해 굵게 보임, 확대하면 보입니다':''))}
+svg.addEventListener('wheel',e=>{if(midDown||(e.buttons&4)){e.preventDefault();if(e.deltaY)stepTick(e.deltaY<0?-1:1);return}
+  e.preventDefault();const sp=local(e),w=toW(sp.x,sp.y);const k=Math.exp(-e.deltaY*0.0015);V.s=Math.max(.004,Math.min(2,V.s*k));V.ox=sp.x-w.x*V.s;V.oy=sp.y-w.y*V.s;req()},{passive:false});
 
 /* ---------- keys & buttons ---------- */
 document.addEventListener('keydown',e=>{   // v3keys = 2D | 3D 나란히에서 3D 를 마지막에 눌렀으면 키는 3D 가
