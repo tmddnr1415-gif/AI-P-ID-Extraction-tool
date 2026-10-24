@@ -444,6 +444,23 @@ def _export(sh, pno, sheet_no, title, rows, timers):
             blks[b.id]["aop"] = b.aop                   # L48 — 단자 이름을 안에 인쇄한 연산 상자 (EQUAL · BIT_CNT · SPC)
         if b.id in timers:
             blks[b.id]["param"].update(timers[b.id])
+    # L53 — 입력 하나뿐인 AND/OR 가 **도면대로** 그려진 것인가.  범례는 여러 입력으로 그리지만 설계자는 입력 하나짜리
+    # AND 를 통과 상자로 쓴다 (HRSG G042 · G040 — STEP 의 CRIT 앞).  막대 둘레(행 간격 안)에 끊긴 선 끝 · 꼭지만 남은
+    # 화살이 하나도 없으면 읽기 빈틈이 아니라 그렇게 그린 것이다 → 시뮬레이터가 빠진 칸을 0 으로 채우지 않는다.
+    P_ = sh.layout.pitch
+    loose = [(d[0], d[1]) for d in sh.dangling] + [(a[0], a[1]) for a in sh.stray_arrows]
+    for b in sh.blocks.values():
+        lg = getattr(b, "logic", "")
+        if lg not in ("and", "or", "nand", "nor"):
+            continue
+        n_in = sum(1 for pt in sh.ports if pt.block == b.id and pt.dir == "in")
+        if n_in != 1:
+            continue
+        x0, y0, x1, y1 = b.bbox
+        for bs in getattr(b, "bus", []) or []:
+            x0, y0, x1, y1 = min(x0, bs[0], bs[2]), min(y0, bs[1], bs[3]), max(x1, bs[0], bs[2]), max(y1, bs[1], bs[3])
+        if not any(x0 - P_ <= x <= x1 + P_ and y0 - P_ <= y <= y1 + P_ for x, y in loose):
+            blks[b.id]["param"]["as_drawn"] = 1
     ports = []
     for pt in sh.ports:
         b = sh.blocks[pt.block]

@@ -154,7 +154,7 @@ def _static(sheets, items, tally, missing=None):
                 continue
             tally["gate"][1] += 1
             lg = b.get("logic")
-            short = lg in sim.MIN_INPUTS and len(ins.get(bid, ())) < sim.MIN_INPUTS[lg]
+            short = lg in sim.MIN_INPUTS and len(ins.get(bid, ())) < sim.min_inputs(b, lg)
             if b.get("func") == "UNKNOWN" or bid in flagged:
                 continue
             if short:

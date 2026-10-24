@@ -86,11 +86,36 @@ def _on_edge(p, cell, tol):
                for s in p.segs for x, y in s.ends()) and all(s.vert or s.horiz for s in p.segs)
 
 
-def _cell_chars(polys, cell):
+def _rim(p, cell, band):
+    """L53 — 획 전부가 칸 가장자리 띠(band) 안에 머물면 테두리 장식(겹테두리 · 깎은 모서리)이지 글자가 아니다.
+    HRSG 누름단추(AUTO · STOP · CLOSE · MAN.)는 겹상자를 깎은 모서리로 그리는데, 안쪽 테두리 선과 모서리 꺾은선이
+    글자와 한 덩이로 묶여 네 글자가 한 글자('8' · 'W')로 읽혔다."""
+    x0, y0, x1, y1 = cell
+    cnt = {}
+    for s in p.segs:
+        for x, y in s.ends():
+            if min(abs(x - x0), abs(x - x1)) > band and min(abs(y - y0), abs(y - y1)) > band:
+                return False
+            k = (round(x, 2), round(y, 2))
+            cnt[k] = cnt.get(k, 0) + 1
+    # 자유 끝(한 번만 나오는 끝점) 가운데 하나는 칸 **경계 위**에서 시작해야 한다 — 글자 획은 경계에서 시작하지 않는다
+    # (작은 AND 상자의 세로 쌓은 글자는 변에 가깝지만 변 위에 있지는 않다 · HRSG 10.8pt 상자 — 띠만 보면 그 글자가 지워진다)
+    free = [k for k, c in cnt.items() if c == 1]
+    tol = 0.3                                         # 모서리 장식은 변 **위**에서 시작한다 (칸 크기와 무관한 자)
+    return any(min(abs(x - x0), abs(x - x1)) <= tol or min(abs(y - y0), abs(y - y1)) <= tol for x, y in free)
+
+
+def _cell_chars(polys, cell, rim=True):
+    """rim=False — 원(램프 · 연결 기호)은 둘레 빗살이 곧 뜻이다 (범례 LIGHT) · 사각형 칸의 테두리 장식만 뺀다 (L53)."""
     w, h = cell[2] - cell[0], cell[3] - cell[1]
     tol = 0.04 * min(w, h)
+    band = min(0.2 * min(w, h), 2.0)               # 테두리 장식은 변에서 1~2pt — 큰 상자(STEP · 매크로)의 변 가까운 글자는 아니다
     ps = [p for p in polys if cell[0] <= (p.bbox[0] + p.bbox[2]) / 2 <= cell[2]
           and cell[1] <= (p.bbox[1] + p.bbox[3]) / 2 <= cell[3] and not _on_edge(p, cell, tol)]
+    # 칸 폭(높이) 대부분을 가로지르는 납작한 획 = 안쪽 테두리 선 · 가장자리 띠 안의 획 = 모서리 장식 — 글자와 묶기 전에 뺀다
+    ps = [p for p in ps if not ((p.bbox[3] - p.bbox[1] < 0.1 * (p.bbox[2] - p.bbox[0]) and p.bbox[2] - p.bbox[0] > 0.6 * w) or
+                                (p.bbox[2] - p.bbox[0] < 0.1 * (p.bbox[3] - p.bbox[1]) and p.bbox[3] - p.bbox[1] > 0.6 * h))
+          and not (rim and _rim(p, cell, band))]
     cs = glyphs.chars(ps)
     # 칸 폭 대부분을 가로지르는 납작한 획은 글자가 아니라 겹테두리 선이다
     cs = [c for c in cs if not ((c.h < 0.1 * c.w and c.w > 0.6 * w) or (c.w < 0.1 * c.h and c.h > 0.6 * h))]
@@ -228,7 +253,7 @@ def classify(sheet, D):
             b.logic = "unknown"
             b.label = b.read
         else:
-            cs, vert = _cell_chars(polys, b.bbox)
+            cs, vert = _cell_chars(polys, b.bbox, rim=False)
             b.read = _read_free(D, cs, vert)
             gate_words = [w for w in words if funcs[words[w]]["logic"] in ("or", "nor", "sink")]
             w, s, m = decode(D, cs, gate_words) if (len(cs) >= 2 and b.kind != "CONNECTOR") else (None, 0, 0)

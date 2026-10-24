@@ -143,10 +143,19 @@ def _vote3(vs, a, n, op="ge"):
     return None
 
 
-def gate3(lg, iv, fill=None):
+def min_inputs(b, lg):
+    """L53 — 범례가 요구하는 최소 입력 수.  분석이 '도면대로 입력 하나' (`param.as_drawn` — 막대 둘레에 끊긴 선 · 꼭지만 남은
+    화살이 없다) 라고 적은 AND/OR 는 그 하나가 전부다 (통과 상자 · HRSG G042)."""
+    if (b.get("param") or {}).get("as_drawn"):
+        return 1 if lg in MIN_INPUTS else 0
+    return MIN_INPUTS.get(lg, 0)
+
+
+def gate3(lg, iv, fill=None, need=None):
     """범례 정의 게이트 하나 — 읽힌 입력 수가 모자라면 모자란 칸을 `fill` 로 채운다.
     L46 — 시뮬레이션은 0 (연결 안 된 칸 = 비활성) 으로 채운다.  None(모름)으로 채우는 것은 '정해지는가' 를 물을 때뿐."""
-    iv = list(iv) + [fill] * max(0, MIN_INPUTS.get(lg, 0) - len(iv))
+    need = MIN_INPUTS.get(lg, 0) if need is None else need
+    iv = list(iv) + [fill] * max(0, need - len(iv))
     if lg == "and":
         return _and3(iv)
     if lg == "nand":
@@ -438,11 +447,12 @@ def _simulate_once(s, forces=None, state=None, now=0.0, timers=None, soft=None, 
         # L46 — 연결 안 된 입력 칸은 비활성(0) 이다 (사용자 지시 — "O_OPN 과 같이 연결되지 않은 것들은 모두 비활성으로
         # 인식하고 그 값에 따라 Gate 들이 동작하게").  L32 hold 는 그 칸을 모름으로 보아 출력이 정해지지 않을 때만 쓴다.
         if lg in MIN_INPUTS:
-            if len(iv) < MIN_INPUTS[lg]:
+            need = min_inputs(b, lg)
+            if len(iv) < need:
                 short.add(bid)
-                o = _held(bid, role, gate3(lg, iv))
-                return gate3(lg, iv, 0) if o is None else o
-            return gate3(lg, iv)
+                o = _held(bid, role, gate3(lg, iv, need=need))
+                return gate3(lg, iv, 0, need=need) if o is None else o
+            return gate3(lg, iv, need=need)
         vote = _vote_of(b)
         if vote:
             vop = _vote_op(b)
@@ -1686,7 +1696,7 @@ def _back_options(s, idx, goal, allow_net, ctx=None):
     iv = [n for n, _, _ in ins[x]]
     one = lambda nets, val: [({}, [("net", n, val)]) for n in nets]
     allg = lambda nets, val: [({}, [("net", n, val) for n in nets])]
-    short = len(iv) < MIN_INPUTS.get(lg, 0)
+    short = len(iv) < min_inputs(b, lg)
     if lg == "source":
         if v == 1 and not ins[x] and re.sub(r"[^0-9A-Z]", "", (b.get("label") or "").upper()) == "1":
             return [({}, [])]                          # ACTIVATION — 언제나 1

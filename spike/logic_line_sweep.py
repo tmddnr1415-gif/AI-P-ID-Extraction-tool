@@ -53,7 +53,7 @@ def gate_faults(s, frames, holds=()):
         if lg not in sim.MIN_INPUTS and not vote:
             continue
         iv_nets = [n for n, _, _ in ins[bid]]
-        need = vote[1] if vote else sim.MIN_INPUTS[lg]
+        need = vote[1] if vote else sim.min_inputs(b, lg)       # L53 — 도면대로 입력 하나인 AND/OR 는 빈틈이 아니다
         short = len(iv_nets) < need
         for on, role, _ in outs[bid]:
             if len(drivers.get(on, [])) != 1:
@@ -68,7 +68,7 @@ def gate_faults(s, frames, holds=()):
                 if vote:
                     want = sim._vote3(list(iv) + [0] * max(0, vote[1] - len(iv)), *vote, sim._vote_op(b))
                 else:
-                    want = sim.gate3(lg, iv, 0)
+                    want = sim.gate3(lg, iv, 0, need=need)
                 if want is not None and fr["values"][on] != want:
                     bad.append({"block": bid, "logic": lg or "vote", "short": short, "t": fr["t"], "in": iv,
                                 "out": fr["values"][on]})
