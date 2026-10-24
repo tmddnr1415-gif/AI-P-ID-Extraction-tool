@@ -55,6 +55,7 @@ body.embed .brand{display:none}
 .qbox input{flex:1;border:0;outline:0;font:inherit;font-size:16px;padding:10px 0;min-width:0;background:transparent}
 .qbox .ic{font-size:17px;color:var(--sub)}
 .qbox .x{border:0;background:none;color:var(--sub);font-size:16px;padding:2px 4px}
+.qbox input::-webkit-search-cancel-button{display:none}
 .qrow .btn.pri{font-size:14px;padding:0 20px;border-radius:12px}
 .opts{display:flex;flex-wrap:wrap;gap:6px 14px;align-items:center;margin-top:8px;font-size:12.5px;color:var(--sub)}
 .opts label{display:inline-flex;gap:5px;align-items:center;white-space:nowrap}
@@ -500,16 +501,23 @@ function makeBook(rec) {
   low = low.replace(/\n/g, ' ');
   const name = rec.rel.split('/').pop(), base = name.replace(/\.[^.]+$/, '');
   const heads = rec.heads || [];
-  const doc = (arr) => { const o = arr.join('\n'); const st = new Int32Array(arr.length); let k = 0; arr.forEach((s, i) => { st[i] = k; k += s.length + 1; }); return { orig: o, low: o.toLowerCase().replace(/\n/g, ' '), starts: st }; };
+  const doc = (arr) => { const o = arr.join('\n'); const st = new Int32Array(arr.length); let k = 0; arr.forEach((s, i) => { st[i] = k; k += s.length + 1; }); return addSq({ orig: o, low: o.toLowerCase().replace(/\n/g, ' '), starts: st }, arr.map(x => x.length)); };
   const dirs = rec.rel.split('/').slice(1, -1);   // 첫 칸 = 고른 폴더 자체
   const B = { sig: rec.sig, rel: rec.rel, name, base, ext: rec.ext, size: rec.size, mtime: rec.mtime, meta: rec.title || '', err: rec.err || '',
     pages, nPages: pages.length, starts, orig, low, chars: orig.length, heads,
     headDoc: doc(heads.map(h => h.t)), titleDoc: doc([base.replace(/_/g, ' '), rec.title || '']), dirDoc: doc([dirs.join(' / ')]), dir: dirs.join('/') };
+  addSq(B, pages.map(x => x.length));
   // 분야 점수: 계장 문맥어가 1만 자당 얼마나 나오나
   let hits = 0; const lim = Math.min(low.length, 3_000_000);
   for (const w of DOMAIN_CTX) { let i = 0; while ((i = low.indexOf(w, i)) !== -1 && i < lim) { hits++; i += w.length; } }
   B.domain = B.chars ? Math.min(1, (hits / (Math.min(B.chars, lim) / 10000)) / 25) : 0;
   return B;
+}
+// 한글 표현은 띄어쓰기를 무시하고 찾음 — PDF 양쪽 정렬에서 생기는 '차 압 전송기' 같은 끊김 · '압력전송기'/'압력 전송기' 차이
+function addSq(D, lens) {
+  const parts = []; const st = new Int32Array(lens.length); let k = 0;
+  for (let i = 0; i < lens.length; i++) { const t = D.low.slice(D.starts[i], D.starts[i] + lens[i]).replace(/ /g, ''); st[i] = k; k += t.length; parts.push(t); }
+  D.sq = parts.join(''); D.sqStarts = st; return D;
 }
 function pageOf(starts, pos) { let lo = 0, hi = starts.length - 1; while (lo < hi) { const m = (lo + hi + 1) >> 1; if (starts[m] <= pos) lo = m; else hi = m - 1; } return lo; }
 
@@ -517,14 +525,13 @@ function pageOf(starts, pos) { let lo = 0, hi = starts.length - 1; while (lo < h
 const W = c => (c >= 48 && c <= 57) || (c >= 97 && c <= 122);   // 영숫자(소문자 기준) — 단어 경계 판단
 function variant(s, w, kind, extra = {}) {
   s = normText(s);
-  return { s: kind === 'ab' ? s.toLowerCase() : s.toLowerCase(), orig: s, w, kind, label: s, ...extra };
+  return { s: kind === 'ko' ? s.toLowerCase().replace(/\s/g, '') : s.toLowerCase(), orig: s, w, kind, label: s, ...extra };
 }
 function conceptVariants(c, w0) {
   const out = [];
   for (const [s, w] of c.t) {
     const k = isHangul(s) ? 'ko' : 'en';
     out.push(variant(s, w * w0, k));
-    if (k === 'ko' && s.includes(' ')) out.push(variant(s.replace(/ /g, ''), w * w0, 'ko', { label: s }));
   }
   for (const [s, w] of c.ab) out.push(variant(s, w * w0, 'ab'));
   return out;
@@ -547,9 +554,14 @@ function buildQuery(raw, expand = true) {
   const found = [], notes = [];
   // ① 사전의 표현을 긴 것부터 찾아 개념으로 (붙여 쓴 한글도)
   const pairs = [];
-  for (const c of THES) for (const [t] of [...c.t, ...c.ab]) { const l = normText(t).toLowerCase(); pairs.push([l, c.id]); if (isHangul(l) && l.includes(' ')) pairs.push([l.replace(/ /g, ''), c.id]); }
+  for (const c of THES) for (const [t] of [...c.t, ...c.ab]) { const l = normText(t).toLowerCase(); pairs.push([isHangul(l) ? l.replace(/ /g, '') : l, c.id]); }
   pairs.sort((a, b) => b[0].length - a[0].length);
   for (const [t, id] of pairs) {
+    if (isHangul(t)) {
+      const re = new RegExp([...t].map(ch => ch.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join(' *'), 'g');
+      s = s.replace(re, m => { if (!found.includes(id)) found.push(id); return ' '.repeat(m.length); });
+      continue;
+    }
     let i = s.indexOf(t);
     while (i !== -1) {
       const ok = isHangul(t) || (!W(s.charCodeAt(i - 1)) && (!W(s.charCodeAt(i + t.length)) || (s[i + t.length] === 's' && !W(s.charCodeAt(i + t.length + 1)))));
@@ -594,7 +606,7 @@ function buildQuery(raw, expand = true) {
 
 /* ===================================================================================== 6) 찾기 · 점수 */
 function scan(D, v, out, qi, vi) {   // D = {low, orig}; out 에 [시작, 끝, 가중치, 표현 번호] 를 넣음
-  const s = v.s, low = D.low; if (!s) return;
+  const s = v.s, low = v.kind === 'ko' ? D.sq : D.low; if (!s) return;
   let i = low.indexOf(s);
   while (i !== -1) {
     let e = i + s.length, ok = true;
@@ -613,32 +625,35 @@ function scan(D, v, out, qi, vi) {   // D = {low, orig}; out 에 [시작, 끝, �
   }
 }
 function matchConcept(B, q) {
-  const raw = [];
-  q.vs.forEach((v, vi) => scan(B, v, raw, 0, vi));
-  for (const re of q.tags) { re.lastIndex = 0; let m, k = 0; while ((m = re.exec(B.orig)) && k < 20000) { raw.push(m.index, m.index + m[0].length, 0.3, -1); k++; } }
+  const rawL = [], rawK = [];   // 영어·약어·태그 = low 좌표, 한글 = sq(공백 뺀 글) 좌표
+  q.vs.forEach((v, vi) => scan(B, v, v.kind === 'ko' ? rawK : rawL, 0, vi));
+  for (const re of q.tags) { re.lastIndex = 0; let m, k = 0; while ((m = re.exec(B.orig)) && k < 20000) { rawL.push(m.index, m.index + m[0].length, 0.3, -1); k++; } }
   // 겹치는 일치(예: 'pressure transmitter' 와 'transmitter')는 한 번만, 가중치는 큰 쪽
-  const idx = []; for (let k = 0; k < raw.length; k += 4) idx.push(k);
-  idx.sort((a, b) => raw[a] - raw[b] || raw[b + 1] - raw[a + 1]);
-  const hits = []; let lastEnd = -1;
-  for (const k of idx) {
-    if (raw[k] < lastEnd) { const h = hits[hits.length - 1]; if (raw[k + 2] > h[2]) { h[2] = raw[k + 2]; h[3] = raw[k + 3]; } continue; }
-    hits.push([raw[k], raw[k + 1], raw[k + 2], raw[k + 3]]); lastEnd = raw[k + 1];
+  const hits = [];
+  for (const [raw, sq] of [[rawL, 0], [rawK, 1]]) {
+    const idx = []; for (let k = 0; k < raw.length; k += 4) idx.push(k);
+    idx.sort((a, b) => raw[a] - raw[b] || raw[b + 1] - raw[a + 1]);
+    let lastEnd = -1, last = null;
+    for (const k of idx) {
+      if (raw[k] < lastEnd) { if (raw[k + 2] > last[2]) { last[2] = raw[k + 2]; last[3] = raw[k + 3]; } continue; }
+      last = [raw[k], raw[k + 1], raw[k + 2], raw[k + 3], sq]; hits.push(last); lastEnd = raw[k + 1];
+    }
   }
   const pages = new Map(), vcount = new Map(); let tags = 0;
   for (const h of hits) {
-    const p = pageOf(B.starts, h[0]); pages.set(p, (pages.get(p) || 0) + h[2]);
+    const p = pageOf(h[4] ? B.sqStarts : B.starts, h[0]); pages.set(p, (pages.get(p) || 0) + h[2]);
     if (h[3] < 0) tags++; else { const lb = q.vs[h[3]].label; vcount.set(lb, (vcount.get(lb) || 0) + 1); }
   }
   const th = [], hh = [];
   q.vs.forEach((v, vi) => scan(B.titleDoc, v, th, 0, vi)); q.vs.forEach((v, vi) => scan(B.headDoc, v, hh, 0, vi));
-  const headHit = new Map(); for (let k = 0; k < hh.length; k += 4) headHit.set(pageOf(B.headDoc.starts, hh[k]), 1);
+  const headHit = new Map(); for (let k = 0; k < hh.length; k += 4) headHit.set(pageOf(q.vs[hh[k + 3]].kind === 'ko' ? B.headDoc.sqStarts : B.headDoc.starts, hh[k]), 1);
   const dh = []; q.vs.forEach((v, vi) => scan(B.dirDoc, v, dh, 0, vi));
   // 문맥으로 뜻 가리기: 일치 위치 주변(±160자)에 계장 문맥어가 있나, 다른 뜻을 가리키는 말(neg)이 있나
   let sense = 1;
   if (q.domain && hits.length) {
     const step = Math.max(1, Math.floor(hits.length / 40)); let sum = 0, n = 0;
     for (let k = 0; k < hits.length; k += step) {
-      const w = B.low.slice(Math.max(0, hits[k][0] - 160), hits[k][1] + 160);
+      const T = hits[k][4] ? B.sq : B.low, w = T.slice(Math.max(0, hits[k][0] - 160), hits[k][1] + 160);
       const dom = DOMAIN_CTX.some(x => w.includes(x)), neg = q.neg.some(x => w.includes(x));
       sum += neg && !dom ? 0.15 : neg ? 0.6 : dom ? 1 : 0.55; n++;
     }
@@ -715,9 +730,10 @@ function explain(R, Q) {
   const topPages = R.top.slice(0, 25).map(x => x[0]);
   if (topPages.length) {
     const txt = topPages.map(p => B.low.slice(B.starts[p], B.starts[p] + B.pages[p].length)).join(' ');
+    const txk = topPages.map(p => B.sq.slice(B.sqStarts[p], p + 1 < B.nPages ? B.sqStarts[p + 1] : B.sq.length)).join('');
     for (const c of THES) {
       if (qids.has(c.id) || (TH[Q.qs[0]?.id]?.kids || []).includes(c.id) || c.id === 'instrumentation') continue;
-      let n = 0; for (const [t] of c.t) { const s = t.toLowerCase(); if (s.length < 3) continue; let i = 0; while ((i = txt.indexOf(s, i)) !== -1) { n++; i += s.length; } }
+      let n = 0; for (const [t] of c.t) { const ko = isHangul(t), s = ko ? t.replace(/ /g, '') : t.toLowerCase(), T = ko ? txk : txt; if (s.length < (ko ? 2 : 3)) continue; let i = 0; while ((i = T.indexOf(s, i)) !== -1) { n++; i += s.length; } }
       for (const [t] of c.ab) { let i = 0; const T = topPages.map(p => B.pages[p]).join(' '); while ((i = T.indexOf(t, i)) !== -1) { if (!/[A-Za-z]/.test(T[i - 1] || ' ') && !/[A-Za-z]/.test(T[i + t.length] || ' ')) n++; i += t.length; } }
       if (n >= 3) co.push([c.n, n]);
     }
@@ -725,7 +741,8 @@ function explain(R, Q) {
   }
   const subj = Q.mains.map(q => q.free ? `'${q.label}'` : q.label.replace(/\(.*\)/, '')).join(' · ');
   const senseLow = mainIdx.some(i => Q.qs[i].domain && R.m[i].sense < 0.5);
-  const tier = senseLow ? -1 : titleHit || heads.length >= 2 || (frac >= 0.15 && np >= 3) ? 3 : (np >= 8 || frac >= 0.05 || heads.length) ? 2 : np >= 2 ? 1 : 0;
+  const dens = np ? occ / np : 0;   // 다룬 쪽당 등장 횟수
+  const tier = senseLow ? -1 : titleHit || heads.length >= 2 || (frac >= 0.5 && dens >= 8 && np >= 3) ? 3 : (heads.length || np >= 8 || (frac >= 0.15 && np >= 2)) ? 2 : (np >= 2 || frac >= 0.05) ? 1 : 0;
   const tierName = tier < 0 ? '다른 뜻?' : ['잠깐 언급', '일부 다룸', '깊게 다룸', '핵심 도서'][tier];
   const topV = [...vc.entries()].sort((a, b) => b[1] - a[1]).slice(0, 4);
   const coTxt = co.slice(0, 4).map(x => x[0]);
@@ -753,7 +770,8 @@ function explain(R, Q) {
 function hlRegex(Q) {
   const parts = [];
   for (const q of Q.qs) for (const v of q.vs) {
-    const e = v.orig.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/ /g, '\\s+');
+    const E = x => x.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const e = v.kind === 'ko' ? [...v.s].map(E).join('\\s?') : E(v.orig).replace(/ /g, '\\s+');
     parts.push(v.kind === 'ko' ? e : `(?<![A-Za-z0-9])${e}${v.sfx ? '[a-z]{0,' + v.sfx + '}' : '(?:e?s)?'}(?![A-Za-z0-9])`);
   }
   for (const q of Q.qs) for (const t of q.tags) parts.push(t.source);
@@ -764,9 +782,8 @@ function hlRegex(Q) {
 function hl(text, re) { if (!re) return esc(text); let out = '', last = 0; re.lastIndex = 0; let m; while ((m = re.exec(text))) { if (!m[0]) { re.lastIndex++; continue; } out += esc(text.slice(last, m.index)) + '<mark>' + esc(m[0]) + '</mark>'; last = m.index + m[0].length; } return out + esc(text.slice(last)); }
 function snippet(B, R, p, Q) {
   const s0 = B.starts[p], page = B.pages[p];
-  let pos = -1;
-  for (const i of Q.qs.map((q, i) => q.main ? i : -1).filter(i => i >= 0)) for (const h of R.m[i].hits) if (h[0] >= s0 && h[0] < s0 + page.length) { pos = h[0] - s0; break; }
-  if (pos < 0) pos = 0;
+  const re = hlRegex({ qs: Q.mains }); let pos = 0;
+  if (re) { re.lastIndex = 0; const m = re.exec(page); if (m) pos = m.index; }
   let a = Math.max(0, pos - 110), b = Math.min(page.length, pos + 230);
   if (a > 0) { const sp = page.indexOf(' ', a); if (sp > 0 && sp < pos) a = sp + 1; }
   return (a > 0 ? '…' : '') + page.slice(a, b).replace(/\n/g, ' ') + (b < page.length ? '…' : '');
@@ -979,6 +996,7 @@ function renderPreview(goPage) {
   STATE.view = { R, hitPages, page: goPage ?? (psgPages[0] ?? heads[0]?.p ?? 0), mode: B.ext === 'pdf' && file ? 'page' : 'text' };
   showPage();
 }
+const MEAS = document.createElement('canvas').getContext('2d');
 async function showPage() {
   const V = STATE.view; if (!V) return; const B = V.R.B, re = hlRegex(STATE.res.Q), body = $('#vbody');
   const k = V.hitPages.indexOf(V.page);
@@ -1009,7 +1027,8 @@ async function showPage() {
         while ((m = re.exec(normText(it.str)))) {
           if (!m[0]) { re.lastIndex++; continue; }
           const tx = pdfjsLib.Util.transform(vp.transform, it.transform), fh = Math.hypot(tx[2], tx[3]), L = it.str.length || 1, wd = it.width * scale;
-          const x = tx[4] + wd * (m.index / L), y = tx[5] - fh, ww = Math.max(4, wd * (m[0].length / L));
+          const mw = t => { MEAS.font = `${fh}px ${tc.styles[it.fontName]?.fontFamily || 'sans-serif'}`; return MEAS.measureText(t).width; }, full = mw(it.str) || 1;
+          const x = tx[4] + wd * (mw(it.str.slice(0, m.index)) / full), y = tx[5] - fh, ww = Math.max(4, wd * (mw(m[0]) / full));
           const b = document.createElement('div'); b.className = 'hlb'; Object.assign(b.style, { left: x + 'px', top: y + 'px', width: ww + 'px', height: fh * 1.15 + 'px' }); wrap.appendChild(b);
           if (!first || y < first) first = y;
         }
