@@ -773,7 +773,7 @@ async function srvDetect() {
 }
 class RemoteFile {   // 서버에 있는 원본 — 처음 쓸 때 한 번 받아 둠
   constructor(rel) { this.rel = rel; this.name = rel.split('/').pop(); this.url = `${SRV.base}/api/books/file?rel=${encodeURIComponent(rel)}`; this._b = null; }
-  async arrayBuffer() { if (!this._b) this._b = await (await srvFetch(`file?rel=${encodeURIComponent(this.rel)}`)).arrayBuffer(); return this._b; }
+  async arrayBuffer() { if (!this._b) this._b = await (await srvFetch(`file?rel=${encodeURIComponent(this.rel)}`)).arrayBuffer(); return this._b.slice(0); }   // 사본을 줌 — pdf.js 가 버퍼를 워커로 넘겨(transfer) 버리므로 같은 버퍼를 두 번 쓰면 'detached ArrayBuffer' 오류
 }
 function fileFor(B) {   // 미리보기 · 원본 열기용 파일: 내 PC 폴더(이 창 또는 처음 창) / 공용 도서관(서버)
   if (!B) return null;
@@ -1523,7 +1523,7 @@ function booksWithCode(code) {   // 폴더 도서 제목에 그 규격 번호가
 }
 function answerHtml(results, Q) {
   if (!Q.qs.length) return '';
-  const subj = Q.mains.map(q => q.free ? `'${q.label}'` : q.label.replace(/\(.*?\)/g, '')).join(' · ');
+  const subj = anchorsOf(Q).map(q => q.free ? `'${q.label}'` : q.label.replace(/\(.*?\)/g, '')).join(' · ') || Q.mains.map(q => q.label).join(' · ');
   // ① 폴더 도서 근거 — 상위 도서(핵심 · 깊게 · 일부)에서 가장 잘 맞는 쪽의 원문
   const quotes = [];
   for (let i = 0; i < Math.min(results.length, 12) && quotes.length < 5; i++) {
