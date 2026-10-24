@@ -1,0 +1,4 @@
+sentence-transformers>=2.7
+numpy
+pymupdf
+python-docx
