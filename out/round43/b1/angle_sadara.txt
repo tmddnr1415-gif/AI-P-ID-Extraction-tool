@@ -1,0 +1,1 @@
+SADARA 중공+칠 삼각형 꼭짓점 맞닿음: {('LEGEND', 'free'): 27, ('PID', 'free'): 32, ('PID', 'claimed'): 3} | 장별: [((2, 'LEGEND'), 13), ((3, 'LEGEND'), 9), ((4, 'LEGEND'), 5), ((7, 'PID'), 8), ((8, 'PID'), 8), ((9, 'PID'), 19)]

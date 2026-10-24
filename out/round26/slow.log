@@ -1,0 +1,69 @@
+............F..F                                                         [100%]
+=================================== FAILURES ===================================
+___________ test_no_asterisk_in_a_mark_position_is_silently_dropped ____________
+
+    @pytest.mark.slow
+    def test_no_asterisk_in_a_mark_position_is_silently_dropped():
+        """도면에 찍힌 별표가 조용히 사라지지 않는다 — 58장 전수.
+    
+        ⚠ 분석 대상 장에서만 묻는다 (`analysis_scope`).  범례·표지 장에는
+          버블처럼 생긴 것이 표 안에 있고 그 위의 글리프는 마크가 아니라 표의
+          항목이다 — 그 장들은 행을 내지도 않는다.
+        """
+        import detect_symbols as ds
+        lay = ds.LAYOUT
+        missed = {}
+        for pc in _pages():
+            if not pc.analysis_scope:
+                continue
+            m = audit_page(pc, lay)
+            if m:
+                missed[pc.page_no] = m
+>       assert not missed, (
+            "마크 자리에 별표가 있는데 마크로 안 세어졌다 — 페이지별 건수 "
+            + str({k: len(v) for k, v in missed.items()})
+            + f"  첫 건: {next(iter(missed.values()))[0] if missed else ''}")
+E       AssertionError: 마크 자리에 별표가 있는데 마크로 안 세어졌다 — 페이지별 건수 {10: 1, 11: 1, 20: 4, 27: 1, 33: 6, 35: 3, 55: 1}  첫 건: {'x': 887.4, 'y': 381.7, 'w': 4.02, 'h': 4.02, 'bubble': [811.0, 363.8, 878.9, 386.4]}
+E       assert not {10: [{'x': 887.4, 'y': 381.7, 'w': 4.02, 'h': 4.02, ...}], 11: [{'x': 914.4, 'y': 369.7, 'w': 4.02, 'h': 3.96, ...}],..., {'x': 739.6, 'y': 607.0, 'w': 3.96, 'h': 3.96, ...}], 27: [{'x': 855.1, 'y': 756.2, 'w': 5.16, 'h': 5.22, ...}], ...}
+
+tests/test_vendor_mark_audit.py:164: AssertionError
+___________ test_every_glyph_beside_a_bubble_is_claimed_or_explained ___________
+
+    @pytest.mark.slow
+    def test_every_glyph_beside_a_bubble_is_claimed_or_explained():
+        """버블 옆의 글리프가 **아무에게도 안 붙는** 일이 조용히 늘지 않는다.
+    
+        16·18회차는 이 자리에 "전수 0건" 을 적었다.  그 값은 판정 함수에게
+        되물어 나온 것이었고, 실제로는 기준선에서 **112건**이 붙지 않고 있었다.
+        지금 남은 것은 `UNCLAIMED_EXPLAINED` 뿐이고 그 한 건씩을 렌더로 확인했다 —
+        전부 밸브 · 액추에이터 · 옆 사각 심볼의 마크다.
+        """
+        import detect_symbols as ds
+        lay = ds.LAYOUT
+        got = {}
+        for pc in _pages():
+            if not pc.analysis_scope:
+                continue
+            m = unclaimed_glyph_detections(pc, lay)
+            if m:
+                got[pc.page_no] = len(m)
+>       assert got == UNCLAIMED_EXPLAINED, (
+            "붙지 않은 글리프의 내역이 달라졌다 — 실측 " + str(got)
+            + " · 렌더로 확인해 둔 것 " + str(UNCLAIMED_EXPLAINED))
+E       AssertionError: 붙지 않은 글리프의 내역이 달라졌다 — 실측 {7: 1, 33: 2, 35: 3, 53: 1, 54: 2, 55: 1} · 렌더로 확인해 둔 것 {3: 1, 7: 5, 33: 3, 35: 2, 37: 1, 46: 1, 47: 1, 49: 1}
+E       assert {7: 1, 33: 2,...3, 53: 1, ...} == {3: 1, 7: 5, ...3, 35: 2, ...}
+E         
+E         Differing items:
+E         {33: 2} != {33: 3}
+E         {35: 3} != {35: 2}
+E         {7: 1} != {7: 5}
+E         Left contains 3 more items:
+E         {53: 1, 54: 2, 55: 1}...
+E         
+E         ...Full output truncated (3 lines hidden), use '-vv' to show
+
+tests/test_vendor_mark_audit.py:304: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_vendor_mark_audit.py::test_no_asterisk_in_a_mark_position_is_silently_dropped
+FAILED tests/test_vendor_mark_audit.py::test_every_glyph_beside_a_bubble_is_claimed_or_explained
+2 failed, 14 passed, 247 deselected in 3050.70s (0:50:50)

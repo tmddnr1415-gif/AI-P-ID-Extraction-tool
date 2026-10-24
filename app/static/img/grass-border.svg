@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 60" width="240" height="60" preserveAspectRatio="none" role="img" aria-label="">
+  <g fill="none" stroke="#7f9268" stroke-width="2.2" stroke-linecap="round">
+    <path d="M0 52 H240" stroke="#9aa887" stroke-width="2.6"/>
+    <path d="M10 52 C10 42 14 38 16 34 M16 52 C16 44 20 40 24 36 M22 52 C22 44 20 40 18 38"/>
+    <path d="M48 52 C48 42 52 38 54 33 M54 52 C54 44 58 40 62 37 M60 52 C60 44 58 41 56 39"/>
+    <path d="M92 52 C92 43 96 39 98 35 M98 52 C98 45 102 41 106 38"/>
+    <path d="M134 52 C134 42 138 38 140 33 M140 52 C140 44 144 40 148 36 M146 52 C146 44 144 41 142 39"/>
+    <path d="M182 52 C182 43 186 39 188 35 M188 52 C188 45 192 41 196 38"/>
+    <path d="M218 52 C218 42 222 38 224 33 M224 52 C224 44 228 40 232 37"/>
+  </g>
+  <g fill="none" stroke="#c98f9a" stroke-width="2">
+    <path d="M72 52 C72 42 74 36 74 30"/>
+    <circle cx="74" cy="26" r="4.5" fill="#f2d0d6"/>
+    <path d="M166 52 C166 43 168 37 168 32"/>
+    <circle cx="168" cy="28" r="4" fill="#f2d0d6"/>
+  </g>
+  <g fill="none" stroke="#d4a75c" stroke-width="2">
+    <path d="M118 52 C118 43 120 37 120 31"/>
+    <circle cx="120" cy="27" r="4.5" fill="#f6e2b8"/>
+  </g>
+</svg>

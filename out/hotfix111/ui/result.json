@@ -1,0 +1,41 @@
+{
+ "errors": [],
+ "system": {
+  "page": "sys:D00P-10LBA10-M05",
+  "frames": 2,
+  "inst": 61,
+  "equip": 1,
+  "equipNames": [
+   "HRSG#12 HP BYPASS VALVE",
+   "HRSG#11 HP BYPASS VALVE"
+  ],
+  "links": 77,
+  "title": "10LBA10 — P&ID FOR HP STEAM SYSTEM GROUP 10 / P&ID FOR CRH STEAM SYSTEM GROUP 10",
+  "who": "시스템 한 장 (2장) — 식별 결과에서 만든 초안 — 계기 61(태그 32) · 밸브 19 · 기기 1 · 배관 76",
+  "vb": "0 0 6830 3078",
+  "size": [
+   6830,
+   3078
+  ],
+  "groups": [
+   "시스템 한 장 (같은 시스템의 장을 모아): 1",
+   "장 하나씩: 2"
+  ],
+  "legend": []
+ },
+ "after_frame_click": {
+  "page": "6",
+  "frames": 0,
+  "inst": 23
+ },
+ "after_save_who": "저장본 · 홍길동 2026-10-23 09:44:56",
+ "reload_who": "저장본 · 홍길동 2026-10-23 09:44:56",
+ "reload_has_tag": true,
+ "option_saved": "▣ 10LBA10 · P&ID FOR HP STEAM SYSTEM GROUP 10 / P&ID FOR CRH STEAM SYSTEM GROUP 10 · 2장 · 기기 1 · 계기 61 · 밸브 19 · 저장본",
+ "after_reset_has_tag": false,
+ "logic_page": "sys:D00P-10LBA10-M05",
+ "logic_on": [
+  "14LBA11CP001"
+ ],
+ "logic_frames": 2
+}

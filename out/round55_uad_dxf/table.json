@@ -1,0 +1,770 @@
+[
+ {
+  "page": 1,
+  "drawing_no": "1A5J-00GEN00-M05-0001",
+  "kind": "PID",
+  "tier": "빈 장",
+  "rows": 0,
+  "boxes": 0,
+  "legend_sum": 0,
+  "legend": [
+   "SCT 공급 범위 0",
+   "VENDOR 공급 (BM 당사) 0",
+   "판정 없음 0",
+   "사용자 추가 0",
+   "Typical 표식 (행 아님) 0"
+  ],
+  "natural": [
+   2523,
+   1782
+  ],
+  "page_size": [
+   841,
+   594
+  ]
+ },
+ {
+  "page": 2,
+  "drawing_no": "1A5J-00GEN00-M05-0002",
+  "kind": "LEGEND",
+  "tier": "-",
+  "rows": 0,
+  "boxes": 0,
+  "legend_sum": 0,
+  "legend": [
+   "SCT 공급 범위 0",
+   "VENDOR 공급 (BM 당사) 0",
+   "판정 없음 0",
+   "사용자 추가 0",
+   "Typical 표식 (행 아님) 0"
+  ],
+  "natural": [
+   2523,
+   1782
+  ],
+  "page_size": [
+   841,
+   594
+  ]
+ },
+ {
+  "page": 3,
+  "drawing_no": "1A5J-00GEN00-M05-0003",
+  "kind": "LEGEND",
+  "tier": "-",
+  "rows": 0,
+  "boxes": 0,
+  "legend_sum": 0,
+  "legend": [
+   "SCT 공급 범위 0",
+   "VENDOR 공급 (BM 당사) 0",
+   "판정 없음 0",
+   "사용자 추가 0",
+   "Typical 표식 (행 아님) 0"
+  ],
+  "natural": [
+   2523,
+   1782
+  ],
+  "page_size": [
+   841,
+   594
+  ]
+ },
+ {
+  "page": 4,
+  "drawing_no": "1A5J-00GEN00-M05-0004",
+  "kind": "LEGEND",
+  "tier": "-",
+  "rows": 0,
+  "boxes": 0,
+  "legend_sum": 0,
+  "legend": [
+   "SCT 공급 범위 0",
+   "VENDOR 공급 (BM 당사) 0",
+   "판정 없음 0",
+   "사용자 추가 0",
+   "Typical 표식 (행 아님) 0"
+  ],
+  "natural": [
+   2523,
+   1782
+  ],
+  "page_size": [
+   841,
+   594
+  ]
+ },
+ {
+  "page": 5,
+  "drawing_no": "1A5J-00GEN00-M05-0005",
+  "kind": "LEGEND",
+  "tier": "-",
+  "rows": 0,
+  "boxes": 0,
+  "legend_sum": 0,
+  "legend": [
+   "SCT 공급 범위 0",
+   "VENDOR 공급 (BM 당사) 0",
+   "판정 없음 0",
+   "사용자 추가 0",
+   "Typical 표식 (행 아님) 0"
+  ],
+  "natural": [
+   2523,
+   1782
+  ],
+  "page_size": [
+   841,
+   594
+  ]
+ },
+ {
+  "page": 6,
+  "drawing_no": "1A5J-00EKG00-M05-0001",
+  "kind": "PID",
+  "tier": "빈 장",
+  "rows": 1,
+  "boxes": 1,
+  "legend_sum": 1,
+  "legend": [
+   "SCT 공급 범위 1",
+   "VENDOR 공급 (BM 당사) 0",
+   "판정 없음 0",
+   "사용자 추가 0",
+   "Typical 표식 (행 아님) 0"
+  ],
+  "natural": [
+   2523,
+   1782
+  ],
+  "page_size": [
+   841,
+   594
+  ]
+ },
+ {
+  "page": 7,
+  "drawing_no": "1A5J-00EKG00-M05-0002",
+  "kind": "PID",
+  "tier": "빈 장",
+  "rows": 16,
+  "boxes": 1,
+  "legend_sum": 1,
+  "legend": [
+   "SCT 공급 범위 1",
+   "VENDOR 공급 (BM 당사) 0",
+   "판정 없음 0",
+   "사용자 추가 0",
+   "Typical 표식 (행 아님) 0"
+  ],
+  "natural": [
+   2523,
+   1782
+  ],
+  "page_size": [
+   841,
+   594
+  ]
+ },
+ {
+  "page": 8,
+  "drawing_no": "1A5J-00EKG00-M05-0003",
+  "kind": "PID",
+  "tier": "기하",
+  "rows": 5,
+  "boxes": 1,
+  "legend_sum": 1,
+  "legend": [
+   "SCT 공급 범위 1",
+   "VENDOR 공급 (BM 당사) 0",
+   "판정 없음 0",
+   "사용자 추가 0",
+   "Typical 표식 (행 아님) 0"
+  ],
+  "natural": [
+   2523,
+   1782
+  ],
+  "page_size": [
+   841,
+   594
+  ]
+ },
+ {
+  "page": 9,
+  "drawing_no": "1A5J-00EKG00-M05-0004",
+  "kind": "PID",
+  "tier": "기하",
+  "rows": 4,
+  "boxes": 1,
+  "legend_sum": 1,
+  "legend": [
+   "SCT 공급 범위 1",
+   "VENDOR 공급 (BM 당사) 0",
+   "판정 없음 0",
+   "사용자 추가 0",
+   "Typical 표식 (행 아님) 0"
+  ],
+  "natural": [
+   2523,
+   1782
+  ],
+  "page_size": [
+   841,
+   594
+  ]
+ },
+ {
+  "page": 10,
+  "drawing_no": "1A5J-00EKG00-M05-0005",
+  "kind": "PID",
+  "tier": "빈 장",
+  "rows": 4,
+  "boxes": 1,
+  "legend_sum": 1,
+  "legend": [
+   "SCT 공급 범위 1",
+   "VENDOR 공급 (BM 당사) 0",
+   "판정 없음 0",
+   "사용자 추가 0",
+   "Typical 표식 (행 아님) 0"
+  ],
+  "natural": [
+   2523,
+   1782
+  ],
+  "page_size": [
+   841,
+   594
+  ]
+ },
+ {
+  "page": 11,
+  "drawing_no": "1A5J-00EKD00-M05-0001",
+  "kind": "PID",
+  "tier": "1급",
+  "rows": 26,
+  "boxes": 1,
+  "legend_sum": 1,
+  "legend": [
+   "SCT 공급 범위 1",
+   "VENDOR 공급 (BM 당사) 0",
+   "판정 없음 0",
+   "사용자 추가 0",
+   "Typical 표식 (행 아님) 0"
+  ],
+  "natural": [
+   2523,
+   1782
+  ],
+  "page_size": [
+   841,
+   594
+  ]
+ },
+ {
+  "page": 12,
+  "drawing_no": "1A5J-00EKD00-M05-0002",
+  "kind": "PID",
+  "tier": "1급",
+  "rows": 17,
+  "boxes": 1,
+  "legend_sum": 1,
+  "legend": [
+   "SCT 공급 범위 1",
+   "VENDOR 공급 (BM 당사) 0",
+   "판정 없음 0",
+   "사용자 추가 0",
+   "Typical 표식 (행 아님) 0"
+  ],
+  "natural": [
+   2523,
+   1782
+  ],
+  "page_size": [
+   841,
+   594
+  ]
+ },
+ {
+  "page": 13,
+  "drawing_no": "1A5J-00EKD00-M05-0003",
+  "kind": "PID",
+  "tier": "1급",
+  "rows": 26,
+  "boxes": 1,
+  "legend_sum": 1,
+  "legend": [
+   "SCT 공급 범위 1",
+   "VENDOR 공급 (BM 당사) 0",
+   "판정 없음 0",
+   "사용자 추가 0",
+   "Typical 표식 (행 아님) 0"
+  ],
+  "natural": [
+   2523,
+   1782
+  ],
+  "page_size": [
+   841,
+   594
+  ]
+ },
+ {
+  "page": 14,
+  "drawing_no": "1A5J-00EKD00-M05-0004",
+  "kind": "PID",
+  "tier": "1급",
+  "rows": 28,
+  "boxes": 1,
+  "legend_sum": 1,
+  "legend": [
+   "SCT 공급 범위 1",
+   "VENDOR 공급 (BM 당사) 0",
+   "판정 없음 0",
+   "사용자 추가 0",
+   "Typical 표식 (행 아님) 0"
+  ],
+  "natural": [
+   2523,
+   1782
+  ],
+  "page_size": [
+   841,
+   594
+  ]
+ },
+ {
+  "page": 15,
+  "drawing_no": "1A5J-00EKD00-M05-0005",
+  "kind": "PID",
+  "tier": "기하",
+  "rows": 8,
+  "boxes": 1,
+  "legend_sum": 1,
+  "legend": [
+   "SCT 공급 범위 1",
+   "VENDOR 공급 (BM 당사) 0",
+   "판정 없음 0",
+   "사용자 추가 0",
+   "Typical 표식 (행 아님) 0"
+  ],
+  "natural": [
+   2523,
+   1782
+  ],
+  "page_size": [
+   841,
+   594
+  ]
+ },
+ {
+  "page": 16,
+  "drawing_no": "1A5J-00PGB10-M05-0001",
+  "kind": "PID",
+  "tier": "2급",
+  "rows": 44,
+  "boxes": 1,
+  "legend_sum": 1,
+  "legend": [
+   "SCT 공급 범위 1",
+   "VENDOR 공급 (BM 당사) 0",
+   "판정 없음 0",
+   "사용자 추가 0",
+   "Typical 표식 (행 아님) 0"
+  ],
+  "natural": [
+   2523,
+   1782
+  ],
+  "page_size": [
+   841,
+   594
+  ]
+ },
+ {
+  "page": 17,
+  "drawing_no": "1A5J-00PGB10-M05-0002",
+  "kind": "PID",
+  "tier": "2급",
+  "rows": 49,
+  "boxes": 1,
+  "legend_sum": 1,
+  "legend": [
+   "SCT 공급 범위 1",
+   "VENDOR 공급 (BM 당사) 0",
+   "판정 없음 0",
+   "사용자 추가 0",
+   "Typical 표식 (행 아님) 0"
+  ],
+  "natural": [
+   2523,
+   1782
+  ],
+  "page_size": [
+   841,
+   594
+  ]
+ },
+ {
+  "page": 18,
+  "drawing_no": "1A5J-00PGB10-M05-0003",
+  "kind": "PID",
+  "tier": "2급",
+  "rows": 50,
+  "boxes": 1,
+  "legend_sum": 1,
+  "legend": [
+   "SCT 공급 범위 1",
+   "VENDOR 공급 (BM 당사) 0",
+   "판정 없음 0",
+   "사용자 추가 0",
+   "Typical 표식 (행 아님) 0"
+  ],
+  "natural": [
+   2523,
+   1782
+  ],
+  "page_size": [
+   841,
+   594
+  ]
+ },
+ {
+  "page": 19,
+  "drawing_no": "1A5J-00GHB10-M05-0001",
+  "kind": "PID",
+  "tier": "2급",
+  "rows": 16,
+  "boxes": 1,
+  "legend_sum": 1,
+  "legend": [
+   "SCT 공급 범위 1",
+   "VENDOR 공급 (BM 당사) 0",
+   "판정 없음 0",
+   "사용자 추가 0",
+   "Typical 표식 (행 아님) 0"
+  ],
+  "natural": [
+   2523,
+   1782
+  ],
+  "page_size": [
+   841,
+   594
+  ]
+ },
+ {
+  "page": 20,
+  "drawing_no": "1A5J-00GHB10-M05-0002",
+  "kind": "PID",
+  "tier": "빈 장",
+  "rows": 0,
+  "boxes": 1,
+  "legend_sum": 1,
+  "legend": [
+   "SCT 공급 범위 1",
+   "VENDOR 공급 (BM 당사) 0",
+   "판정 없음 0",
+   "사용자 추가 0",
+   "Typical 표식 (행 아님) 0"
+  ],
+  "natural": [
+   2523,
+   1782
+  ],
+  "page_size": [
+   841,
+   594
+  ]
+ },
+ {
+  "page": 21,
+  "drawing_no": "1A5J-00GHC10-M05-0001",
+  "kind": "PID",
+  "tier": "2급",
+  "rows": 28,
+  "boxes": 1,
+  "legend_sum": 1,
+  "legend": [
+   "SCT 공급 범위 1",
+   "VENDOR 공급 (BM 당사) 0",
+   "판정 없음 0",
+   "사용자 추가 0",
+   "Typical 표식 (행 아님) 0"
+  ],
+  "natural": [
+   2523,
+   1782
+  ],
+  "page_size": [
+   841,
+   594
+  ]
+ },
+ {
+  "page": 22,
+  "drawing_no": "1A5J-00GHC10-M05-0002",
+  "kind": "PID",
+  "tier": "2급",
+  "rows": 1,
+  "boxes": 1,
+  "legend_sum": 1,
+  "legend": [
+   "SCT 공급 범위 1",
+   "VENDOR 공급 (BM 당사) 0",
+   "판정 없음 0",
+   "사용자 추가 0",
+   "Typical 표식 (행 아님) 0"
+  ],
+  "natural": [
+   2523,
+   1782
+  ],
+  "page_size": [
+   841,
+   594
+  ]
+ },
+ {
+  "page": 23,
+  "drawing_no": "1A5J-00GKB10-M05-0001",
+  "kind": "PID",
+  "tier": "1급",
+  "rows": 33,
+  "boxes": 1,
+  "legend_sum": 1,
+  "legend": [
+   "SCT 공급 범위 1",
+   "VENDOR 공급 (BM 당사) 0",
+   "판정 없음 0",
+   "사용자 추가 0",
+   "Typical 표식 (행 아님) 0"
+  ],
+  "natural": [
+   2523,
+   1782
+  ],
+  "page_size": [
+   841,
+   594
+  ]
+ },
+ {
+  "page": 24,
+  "drawing_no": "1A5J-00GKB10-M05-0002",
+  "kind": "PID",
+  "tier": "빈 장",
+  "rows": 0,
+  "boxes": 1,
+  "legend_sum": 1,
+  "legend": [
+   "SCT 공급 범위 1",
+   "VENDOR 공급 (BM 당사) 0",
+   "판정 없음 0",
+   "사용자 추가 0",
+   "Typical 표식 (행 아님) 0"
+  ],
+  "natural": [
+   2523,
+   1782
+  ],
+  "page_size": [
+   841,
+   594
+  ]
+ },
+ {
+  "page": 25,
+  "drawing_no": "1A5J-00QFA10-M05-0001",
+  "kind": "PID",
+  "tier": "1급",
+  "rows": 9,
+  "boxes": 1,
+  "legend_sum": 1,
+  "legend": [
+   "SCT 공급 범위 1",
+   "VENDOR 공급 (BM 당사) 0",
+   "판정 없음 0",
+   "사용자 추가 0",
+   "Typical 표식 (행 아님) 0"
+  ],
+  "natural": [
+   2523,
+   1782
+  ],
+  "page_size": [
+   841,
+   594
+  ]
+ },
+ {
+  "page": 26,
+  "drawing_no": "1A5J-00QFB10-M05-0001",
+  "kind": "PID",
+  "tier": "기하",
+  "rows": 12,
+  "boxes": 1,
+  "legend_sum": 1,
+  "legend": [
+   "SCT 공급 범위 1",
+   "VENDOR 공급 (BM 당사) 0",
+   "판정 없음 0",
+   "사용자 추가 0",
+   "Typical 표식 (행 아님) 0"
+  ],
+  "natural": [
+   2523,
+   1782
+  ],
+  "page_size": [
+   841,
+   594
+  ]
+ },
+ {
+  "page": 27,
+  "drawing_no": "1A5J-00QFB10-M05-0002",
+  "kind": "PID",
+  "tier": "기하",
+  "rows": 9,
+  "boxes": 1,
+  "legend_sum": 1,
+  "legend": [
+   "SCT 공급 범위 1",
+   "VENDOR 공급 (BM 당사) 0",
+   "판정 없음 0",
+   "사용자 추가 0",
+   "Typical 표식 (행 아님) 0"
+  ],
+  "natural": [
+   2523,
+   1782
+  ],
+  "page_size": [
+   841,
+   594
+  ]
+ },
+ {
+  "page": 28,
+  "drawing_no": "1A5J-00QJA10-M05-0001",
+  "kind": "PID",
+  "tier": "빈 장",
+  "rows": 0,
+  "boxes": 1,
+  "legend_sum": 1,
+  "legend": [
+   "SCT 공급 범위 1",
+   "VENDOR 공급 (BM 당사) 0",
+   "판정 없음 0",
+   "사용자 추가 0",
+   "Typical 표식 (행 아님) 0"
+  ],
+  "natural": [
+   2523,
+   1782
+  ],
+  "page_size": [
+   841,
+   594
+  ]
+ },
+ {
+  "page": 29,
+  "drawing_no": "1A5J-00GMB10-M05-0001",
+  "kind": "PID",
+  "tier": "1급",
+  "rows": 15,
+  "boxes": 1,
+  "legend_sum": 1,
+  "legend": [
+   "SCT 공급 범위 1",
+   "VENDOR 공급 (BM 당사) 0",
+   "판정 없음 0",
+   "사용자 추가 0",
+   "Typical 표식 (행 아님) 0"
+  ],
+  "natural": [
+   2523,
+   1782
+  ],
+  "page_size": [
+   841,
+   594
+  ]
+ },
+ {
+  "page": 30,
+  "drawing_no": "1A5J-00GMA10-M05-0001",
+  "kind": "PID",
+  "tier": "1급",
+  "rows": 36,
+  "boxes": 1,
+  "legend_sum": 1,
+  "legend": [
+   "SCT 공급 범위 1",
+   "VENDOR 공급 (BM 당사) 0",
+   "판정 없음 0",
+   "사용자 추가 0",
+   "Typical 표식 (행 아님) 0"
+  ],
+  "natural": [
+   2523,
+   1782
+  ],
+  "page_size": [
+   841,
+   594
+  ]
+ },
+ {
+  "page": 31,
+  "drawing_no": "1A5J-00GQA10-M05-0001",
+  "kind": "PID",
+  "tier": "1급",
+  "rows": 12,
+  "boxes": 1,
+  "legend_sum": 1,
+  "legend": [
+   "SCT 공급 범위 1",
+   "VENDOR 공급 (BM 당사) 0",
+   "판정 없음 0",
+   "사용자 추가 0",
+   "Typical 표식 (행 아님) 0"
+  ],
+  "natural": [
+   2523,
+   1782
+  ],
+  "page_size": [
+   841,
+   594
+  ]
+ },
+ {
+  "page": 32,
+  "drawing_no": "1A5J-00MBA10-M05-0001",
+  "kind": "PID",
+  "tier": "빈 장",
+  "rows": 0,
+  "boxes": 1,
+  "legend_sum": 1,
+  "legend": [
+   "SCT 공급 범위 1",
+   "VENDOR 공급 (BM 당사) 0",
+   "판정 없음 0",
+   "사용자 추가 0",
+   "Typical 표식 (행 아님) 0"
+  ],
+  "natural": [
+   2523,
+   1782
+  ],
+  "page_size": [
+   841,
+   594
+  ]
+ }
+]

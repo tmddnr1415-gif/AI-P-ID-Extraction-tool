@@ -1,0 +1,41 @@
+{
+ "rounds": [
+  {
+   "page": 15,
+   "cold_popup_ms": 84,
+   "cold_filled_ms": 96,
+   "version_during_prewarm_ms": 2802,
+   "warm_popup_ms": 64,
+   "warm_filled_ms": 70,
+   "propose_requests_ms": [
+    2819,
+    48,
+    44
+   ],
+   "errors": []
+  },
+  {
+   "page": 15,
+   "cold_popup_ms": 69,
+   "cold_filled_ms": 77,
+   "version_during_prewarm_ms": 2582,
+   "warm_popup_ms": 63,
+   "warm_filled_ms": 70,
+   "propose_requests_ms": [
+    2550,
+    41,
+    39
+   ],
+   "errors": []
+  }
+ ],
+ "job": "uidbdf07a7d2902c",
+ "root": "/tmp/claude-0/-home-user-AI-P-ID-Extraction-tool/bb9fc5fb-8dbb-5734-af54-510e6c1324fb/scratchpad/wt_before",
+ "median": {
+  "cold_popup_ms": 76.5,
+  "cold_filled_ms": 86.5,
+  "version_during_prewarm_ms": 2692.0,
+  "warm_popup_ms": 63.5,
+  "warm_filled_ms": 70.0
+ }
+}

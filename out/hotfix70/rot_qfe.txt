@@ -1,0 +1,1 @@
+QFE_260326.pdf p1-93 rotations {270: 9, 0: 84} · points 16104120 · rects 1139854 · mismatch 0 · old 181.3s new 59.4s · fast=True

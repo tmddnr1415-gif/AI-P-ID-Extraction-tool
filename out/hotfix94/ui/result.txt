@@ -1,0 +1,12 @@
+① Shift 띠 → 고른 4개
+② Shift + 클릭 → 판 True · '선택 4개 일괄 · 지금 SCT 4' · 묶음 유지 4
+③ VENDOR → 서버 ['VENDOR(CO2 ABSORBER SUPPLIER)', 'VENDOR(CO2 ABSORBER SUPPLIER)', 'VENDOR(CO2 ABSORBER SUPPLIER)', 'VENDOR(CO2 ABSORBER SUPPLIER)'] · 목록 칸 ['VENDOR(CO2 ABSORBER SUPPLIER)', 'VENDOR(CO2 ABSORBER SUPPLIER)', 'VENDOR(CO2 ABSORBER SUPPLIER)', 'VENDOR(CO2 ABSORBER SUPPLIER)']
+   고친 사람 {'홍길동'}
+④ SCT → 서버 ['SCT', 'SCT', 'SCT', 'SCT']
+⑤ Ctrl + 클릭 → 묶음 4 → 3 (뺀 것 없음 True)
+⑥ 둘 다 아님 → 서버 removed [True, True, True] · 뺀 것 False · 목록 class ['deleted userdel', 'deleted userdel', 'deleted userdel']
+⑦ 되돌리기 → removed [False, False, False]
+⑧ Shift + 묶음 밖 상자 → 더하기 2개 · 판 False
+페이지 오류 0 []
+
+실패 0

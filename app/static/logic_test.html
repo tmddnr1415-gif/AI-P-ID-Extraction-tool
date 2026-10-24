@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>블록 그룹 시험</title>
+<link rel="stylesheet" href="/static/logic_test.css">
+<script src="/static/offline.js" data-app="logic"></script>
+</head>
+<body>
+<header class="gt-head">
+  <a class="gt-back" id="back" href="/logic" title="LOGIC 검토 화면으로">← LOGIC 검토</a>
+  <div class="gt-titles">
+    <h1>블록 그룹 시험</h1>
+    <p id="sub">장비마다 원 버튼 시험</p>
+  </div>
+  <span id="link" class="gt-link"></span>
+  <select id="job" title="분석한 Logic 묶음"></select>
+  <label class="gt-who" title="시험 기록에 남는 이름 (대시보드 로그인 이름이 있으면 그것)">✎ <input id="who" placeholder="이름"></label>
+  <a id="xlsx" class="gt-btn ghost" href="#" title="표를 Excel 로 내려받습니다">⬇ Excel</a>
+  <button id="run-all" class="gt-btn pri" title="보이는 장비를 차례로 모두 시험합니다">▶ 모두 시험</button>
+</header>
+
+<main class="gt-main">
+  <section id="learn" class="gt-learn" hidden></section>
+
+  <section class="gt-kpis" id="kpis"></section>
+
+  <section class="gt-row2">
+    <div class="gt-card gt-bar-card">
+      <h3>시험 결과</h3>
+      <div id="bar" class="gt-bar"></div>
+      <div id="bar-leg" class="gt-leg"></div>
+      <div id="runline" class="gt-runline" hidden></div>
+    </div>
+    <div class="gt-card">
+      <h3>명령 성격</h3>
+      <div id="kinds" class="gt-kinds"></div>
+    </div>
+    <div class="gt-card">
+      <h3>공통 트립 · 정지</h3>
+      <ul id="blockers" class="gt-mini"></ul>
+    </div>
+  </section>
+
+  <section class="gt-card gt-table-card">
+    <div class="gt-tools">
+      <div id="chips" class="gt-chips"></div>
+      <input id="q" placeholder="검색" autocomplete="off">
+      <select id="sort" title="정렬">
+        <option value="status">결과순</option>
+        <option value="name">이름순</option>
+        <option value="sheet">시트순</option>
+      </select>
+    </div>
+    <table class="gt-table">
+      <thead><tr>
+        <th class="c-st">결과</th><th>장비</th><th>시트</th><th>동작</th>
+        <th title="자기유지 · 누르는 동안만 · 펄스">유지</th><th title="그 명령을 막는 신호 수">인터록</th>
+        <th title="같은 명령을 내는 다른 길 수">다른 길</th><th title="명령이 서면 함께 켜지는 다른 출력 수">함께 켜짐</th>
+        <th>항목</th><th>마지막</th><th></th>
+      </tr></thead>
+      <tbody id="rows"></tbody>
+    </table>
+    <div id="empty" class="gt-empty" hidden></div>
+  </section>
+</main>
+<div id="toast" class="gt-toast" hidden></div>
+<script src="/static/logic_test.js"></script>
+</body>
+</html>
