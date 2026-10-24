@@ -205,6 +205,35 @@ body.vmode{overflow:hidden}
 #vwin .viewer{flex:1;display:flex;flex-direction:column;min-height:0;margin:0}
 #vwin .vbody{flex:1;max-height:none}
 .vtext{white-space:pre-wrap;word-break:break-word;line-height:1.75;padding:14px 18px;font-size:13px;background:#fff;margin:0;font-family:var(--f-ui)}
+.vrow{display:block;position:relative}
+.tr-on .vrow{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr)}
+.tr-on .vrow .vbody{border-right:1px solid var(--line)}
+.trbox{display:flex;flex-direction:column;min-width:0;background:#fbfdfb;max-height:72vh}
+#vwin .trbox,.rpv .trbox{max-height:none}
+.trh{display:flex;gap:6px;align-items:center;padding:6px 8px;border-bottom:1px solid var(--line);background:#f3faf5;font-size:12.5px}
+.trh b{color:#11734c;white-space:nowrap}
+.trh select{font:inherit;font-size:12px;border:1px solid var(--line-2);border-radius:6px;padding:2px 4px;max-width:220px}
+.trnote{padding:4px 10px 0;font-size:11.5px}
+.trout{overflow:auto;flex:1}
+.trtext{white-space:pre-wrap;word-break:break-word;line-height:1.85;padding:10px 16px 18px;font-size:13.5px}
+.gk{font-size:.82em;color:#11734c;background:#e6f4ec;border-radius:3px;padding:0 3px;margin-left:2px;white-space:nowrap}
+.btn.on{background:#11734c;border-color:#11734c;color:#fff}
+.psg .cp.tr{right:34px}
+.psg{padding-right:64px!important}
+.psgtr{margin-top:6px;padding:6px 8px;background:#f3faf5;border-radius:6px;line-height:1.7}
+.selbtn{position:fixed;z-index:90;display:flex;gap:2px;background:var(--text);border-radius:8px;padding:3px;box-shadow:0 4px 14px rgba(0,0,0,.25)}
+.selbtn button{border:0;background:transparent;color:#fff;font-size:12.5px;padding:4px 9px;border-radius:6px}
+.selbtn button:hover{background:rgba(255,255,255,.18)}
+.trpop{position:fixed;z-index:91;width:min(560px,94vw);max-height:70vh;display:flex;flex-direction:column;background:#fff;border:1px solid var(--line-2);border-radius:12px;box-shadow:0 10px 30px rgba(20,30,70,.25)}
+.trpop .tph{display:flex;gap:8px;align-items:center;padding:8px 10px;border-bottom:1px solid var(--line)}
+.trpop .tph b{color:#11734c}
+.trpop .tph select{font:inherit;font-size:12px;border:1px solid var(--line-2);border-radius:6px;padding:2px 4px}
+.trpop .tph button{border:0;background:none;font-size:15px;color:var(--sub)}
+.trpop .tpsrc{padding:6px 12px;font-size:12px;color:var(--sub);border-bottom:1px dashed var(--line);max-height:90px;overflow:auto;white-space:pre-wrap}
+.trpop .tpout{padding:10px 12px;overflow:auto;white-space:pre-wrap;line-height:1.8;font-size:13.5px;flex:1}
+.trpop .tpf{display:flex;gap:8px;align-items:center;padding:6px 10px;border-top:1px solid var(--line);font-size:11.5px}
+.trcfg .row input#trKey{flex:1;min-width:220px;font:inherit;font-family:var(--f-mono);font-size:12.5px;border:1px solid var(--line-2);border-radius:8px;padding:5px 8px}
+.trcfg select{font:inherit;font-size:12.5px;border:1px solid var(--line-2);border-radius:6px;padding:3px 5px}
 .libsrc{display:flex;flex-direction:column;gap:6px}
 .srcopt{display:flex;gap:8px;align-items:flex-start;border:1px solid var(--line);border-radius:10px;padding:8px 10px;cursor:pointer;font-size:13px;line-height:1.6}
 .srcopt.on{border-color:var(--accent);background:var(--accent-l)}
@@ -1275,7 +1304,7 @@ function renderPreview(goPage) {
       <div class="lead">${esc(ex.lead)}</div><ul>${ex.pts.map(([i, t]) => `<li>${i} ${esc(t)}</li>`).join('')}</ul></div>
     ${heads.length ? `<div class="secttl">📑 목차에서 찾은 곳</div><div class="heads">${heads.map(h => `<button data-go="${h.p}">${hl(h.t.slice(0, 80), re)}<em>p.${h.p + 1}</em></button>`).join('')}</div>` : ''}
     ${psgPages.length ? `<div class="secttl">📝 근거 구절 <span class="muted" style="font-weight:400">— 누르면 아래에서 그 쪽을 봅니다</span></div>
-      ${psgPages.map(p => `<div class="psg" data-go="${p}"><button class="cp" data-cp="${p}" title="이 구절을 출처(책 · 쪽)와 함께 복사">📋</button><span class="pg">${B.ext === 'pdf' ? 'p.' : '§'}${p + 1}</span>${hl(snippet(B, R, p, Q), re)}</div>`).join('')}` : `<div class="warnline">본문에서는 찾지 못했고 파일명 · 목차로 관련이 있다고 봤습니다${B.err === 'notext' ? ' (본문 글자가 없는 스캔본으로 보입니다)' : ''}.</div>`}
+      ${psgPages.map(p => `<div class="psg" data-go="${p}"><button class="cp" data-cp="${p}" title="이 구절을 출처(책 · 쪽)와 함께 복사">📋</button><button class="cp tr" data-trp="${p}" title="이 구절을 한국어로 번역">🌐</button><span class="pg">${B.ext === 'pdf' ? 'p.' : '§'}${p + 1}</span>${hl(snippet(B, R, p, Q), re)}</div>`).join('')}` : `<div class="warnline">본문에서는 찾지 못했고 파일명 · 목차로 관련이 있다고 봤습니다${B.err === 'notext' ? ' (본문 글자가 없는 스캔본으로 보입니다)' : ''}.</div>`}
     <div class="secttl">👁 미리보기 <span class="muted" style="font-weight:400">— 글자를 끌어 선택해 복사(Ctrl+C) · 책 안에서 찾기 · ⧉ 새 창</span></div>
     <div class="viewer" id="viewerHost"></div>`;
   const hitPages = [...new Set(Q.qs.flatMap((q, i) => q.main ? [...R.m[i].pages.keys()] : []))].sort((a, b) => a - b);
@@ -1310,6 +1339,157 @@ function hl2(text, reQ, reF, curK) {
     out += hl(text.slice(last, m.index), reQ) + `<mark class="f${k === curK ? ' cur' : ''}" data-k="${k}">${esc(m[0])}</mark>`; last = m.index + m[0].length; k++;
   }
   return out + hl(text.slice(last), reQ);
+}
+
+/* ===================================================================================== 12) 번역
+ * 엔진 셋 — 자동이면 쓸 수 있는 것 중 위에서부터
+ *   ① Claude (대시보드 서버 경유) : 가장 정확 · 계장 용어집 적용. 운영자가 켜야 함 (고른 글이 Anthropic 으로 전송됨)
+ *   ② 브라우저 내장 번역 (Edge/Chrome 기기 안 번역 모델) : 무료 · 글이 PC 밖으로 나가지 않음 (처음 한 번 언어 모델 받기)
+ *   ③ 용어 풀이 : 항상 · 오프라인. 원문은 그대로 두고 계장 용어 옆에 한글 뜻 */
+const TR = { mem: new Map(), dev: {}, devState: null };
+const TR_ENGINES = { auto: '자동 (가장 좋은 것)', claude: 'Claude 번역 (서버 경유 · 가장 정확)', device: '브라우저 내장 번역 (PC 안에서)', gloss: '용어 풀이 (원문 + 한글 용어)' };
+const LANG_KO = { en: '영어', pt: '포르투갈어', es: '스페인어', ru: '러시아어', vi: '베트남어', de: '독일어', fr: '프랑스어', ja: '일본어', zh: '중국어', ko: '한국어' };
+function trPref() { try { return localStorage.getItem('gyejang-books-tr') || 'auto'; } catch (_) { return 'auto'; } }
+function setTrPref(v) { try { localStorage.setItem('gyejang-books-tr', v); } catch (_) {} }
+function detectLang(text) {
+  const s = String(text || '').slice(0, 4000), n = re => (s.match(re) || []).length;
+  const ko = n(/[가-힣]/g), lat = n(/[a-z]/gi), cyr = n(/[а-яё]/gi), ja = n(/[\u3040-\u30ff]/g), zh = n(/[\u4e00-\u9fff]/g);
+  if (ko > lat * 0.6) return 'ko'; if (cyr > lat) return 'ru'; if (ja > 20) return 'ja'; if (zh > lat) return 'zh';
+  if (n(/[ăđơưạảấầẩẫậắằẳẵặẹẻẽếềểễệỉịọỏốồổỗộớờởỡợụủứừửữựỳỵỷỹ]/gi) > 3) return 'vi';
+  const w = ' ' + s.toLowerCase().replace(/[^a-zà-ÿ]+/g, ' ') + ' ', c = ws => ws.reduce((a, x) => a + (w.split(' ' + x + ' ').length - 1), 0);
+  const sc = { en: c(['the', 'and', 'of', 'is', 'to', 'with']), pt: c(['não', 'uma', 'com', 'para', 'são', 'da', 'do', 'em']), es: c(['el', 'los', 'las', 'una', 'para', 'con', 'del', 'está']), de: c(['der', 'die', 'und', 'das', 'ist', 'mit']), fr: c(['le', 'les', 'des', 'est', 'une', 'avec', 'pour']) };
+  return Object.entries(sc).sort((a, b) => b[1] - a[1])[0][0];
+}
+// 용어 풀이용 영어 → 한글 표 — 낱말마다 고른 계장 · 공학 용어 (일반 낱말은 넣지 않아 원문이 어지럽지 않게)
+const GLOSS_TERMS_SRC = `
+transmitter=전송기|smart transmitter=스마트 전송기|pressure transmitter=압력 전송기|differential pressure transmitter=차압 전송기|dp transmitter=차압 전송기|temperature transmitter=온도 전송기|level transmitter=레벨 전송기|flow transmitter=유량 전송기
+transducer=변환기|sensor=센서|sensing element=검출 소자|primary element=1차 요소|primary variable=1차 변수(PV)|process variable=공정 변수(PV)|secondary variable=2차 변수|setpoint=설정값|set point=설정값|controller output=제어기 출력|manipulated variable=조작 변수
+thermocouple=열전대|cold junction=냉접점|reference junction=기준접점|cold junction compensation=냉접점 보상|resistance temperature detector=측온저항체|thermowell=써모웰(보호관)|thermistor=서미스터|pyrometer=고온계
+flowmeter=유량계|flow meter=유량계|orifice plate=오리피스 판|orifice=오리피스|venturi=벤투리|magnetic flowmeter=전자식 유량계|magmeter=전자식 유량계|coriolis=코리올리|vortex flowmeter=와류 유량계|ultrasonic flowmeter=초음파 유량계|turbine meter=터빈 유량계|pitot tube=피토관|flow element=유량 요소|square root extraction=제곱근 연산|low-flow cutoff=저유량 차단
+level gauge=레벨 게이지|sight glass=사이트 글라스(액면계)|displacer=디스플레이서|guided wave radar=유도파 레이더|radar level=레이더 레벨계|hydrostatic=정수압|float=플로트|bubbler=버블러
+pressure gauge=압력계|bourdon tube=부르동관|manometer=마노미터|diaphragm seal=다이어프램 실|remote seal=원격 실|absolute pressure=절대압|gauge pressure=게이지압|differential pressure=차압|vacuum=진공
+control valve=제어밸브|globe valve=글로브 밸브|butterfly valve=버터플라이 밸브|ball valve=볼 밸브|valve trim=밸브 트림|positioner=포지셔너|valve positioner=밸브 포지셔너|actuator=액추에이터(구동부)|pneumatic actuator=공압 액추에이터|diaphragm actuator=다이어프램 액추에이터|i/p converter=전공 변환기|fail open=고장 시 열림|fail closed=고장 시 닫힘|fail-safe=고장 안전|stroke=스트로크|valve travel=밸브 행정|cavitation=캐비테이션|flashing=플래싱|flow coefficient=유량 계수(Cv)|valve sizing=밸브 사이징|split range=분할 범위(Split range)|booster relay=부스터 릴레이|solenoid valve=솔레노이드 밸브|limit switch=리밋 스위치
+calibration=교정|calibrate=교정하다|zero=영점|span=스팬|zero and span=영점 및 스팬|as-found=교정 전(As-found)|as-left=교정 후(As-left)|range=측정 범위|lower range value=측정 범위 하한(LRV)|upper range value=측정 범위 상한(URV)|turndown=턴다운|accuracy=정확도|repeatability=반복성|hysteresis=히스테리시스|linearity=직선성|drift=드리프트|uncertainty=불확도|traceability=소급성|damping=댐핑|live zero=라이브 제로|reference standard=기준기|loop check=루프 점검
+current loop=전류 루프|loop current=루프 전류|loop diagram=루프도|loop=루프|multidrop=멀티드롭|burst mode=버스트 모드|handheld communicator=휴대용 통신기|device description=기기 기술 파일(DD)|fieldbus=필드버스|terminal=단자|junction box=정션 박스(단자함)|marshalling=마샬링|shield=차폐|grounding=접지|twisted pair=꼬임쌍선|cable schedule=케이블 일람표|power supply=전원 공급기|load resistor=부하 저항|barrier=배리어
+hook-up=계기 설치 상세도|impulse line=도압관(임펄스 라인)|impulse tubing=도압관|manifold=매니폴드|3-valve manifold=3밸브 매니폴드|5-valve manifold=5밸브 매니폴드|tap=탭(취출구)|condensate pot=응축 포트|seal pot=실 포트|heat tracing=히트 트레이싱|instrument air=계장 공기|mounting bracket=설치 브래킷
+interlock=인터록|trip=트립|alarm=경보|shutdown=정지|emergency shutdown=비상 정지|safety instrumented system=안전계장시스템|safety instrumented function=안전계장기능|safety integrity level=안전무결성등급|proof test=보증 시험|probability of failure on demand=요구 시 고장 확률(PFD)|voting=보팅|redundancy=이중화|bypass=바이패스|cause and effect=원인 결과표(C&E)|permissive=허가 조건|final element=최종 요소
+hazardous area=위험장소|intrinsically safe=본질안전|intrinsic safety=본질안전|explosion-proof=내압방폭|flameproof=내압방폭|zener barrier=제너 배리어|ingress protection=보호 등급(IP)
+controller=제어기|pid controller=PID 제어기|proportional band=비례대|integral time=적분 시간|derivative time=미분 시간|feedback=피드백|feedforward=피드포워드|cascade control=캐스케이드 제어|ratio control=비율 제어|loop tuning=루프 튜닝|dead time=불감 시간|time constant=시정수|overshoot=오버슈트|offset=편차
+distributed control system=분산제어시스템|programmable logic controller=PLC|ladder logic=래더 로직|function block=기능 블록|scan time=스캔 시간|analog input=아날로그 입력|analog output=아날로그 출력|digital input=디지털 입력|digital output=디지털 출력|input module=입력 모듈|operator station=운전원 스테이션|historian=히스토리안
+analyzer=분석계|gas chromatograph=가스 크로마토그래프|oxygen analyzer=산소 분석계|conductivity=전도도|dissolved oxygen=용존 산소|sample conditioning=시료 전처리|sample probe=시료 채취 프로브|zero gas=영점 가스|span gas=스팬 가스
+datasheet=데이터시트|instrument index=계기 목록|specification=사양|commissioning=시운전|start-up=기동|maintenance=유지보수|troubleshooting=고장 진단|diagnostics=진단|firmware=펌웨어|enclosure=외함|load cell=로드셀|strain gauge=스트레인 게이지
+`;
+let GLOSS_RE = null, GLOSS_KO = null;
+function glossTable() {
+  if (GLOSS_RE) return;
+  GLOSS_KO = new Map();
+  for (const part of GLOSS_TERMS_SRC.split(/[|\n]/)) { const m = part.trim().match(/^([^=]+)=(.+)$/); if (m) GLOSS_KO.set(m[1].trim().toLowerCase(), m[2].trim()); }
+  const keys = [...GLOSS_KO.keys()].sort((a, b) => b.length - a.length).map(k => k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/ /g, '\\s+'));
+  GLOSS_RE = new RegExp(`(?<![A-Za-z0-9])(?:${keys.join('|')})(?:e?s)?(?![A-Za-z0-9])`, 'gi');
+}
+function glossHtml(text, reQ) {   // 원문 그대로 + 아는 용어 뒤에 〔한글〕 (같은 용어는 한 쪽에 두 번까지)
+  glossTable(); const seen = new Map(); let out = '', last = 0, m; GLOSS_RE.lastIndex = 0;
+  while ((m = GLOSS_RE.exec(text))) {
+    const k = m[0].toLowerCase().replace(/\s+/g, ' '), ko = GLOSS_KO.get(k) || GLOSS_KO.get(k.replace(/e?s$/, '')) || GLOSS_KO.get(k.replace(/s$/, ''));
+    if (!ko) continue;
+    const c = (seen.get(ko) || 0) + 1; seen.set(ko, c);
+    out += hl(text.slice(last, m.index + m[0].length), reQ) + (c <= 2 ? `<span class="gk">${esc(ko)}</span>` : ''); last = m.index + m[0].length;
+  }
+  return out + hl(text.slice(last), reQ);
+}
+async function deviceState(src) {   // 'available' | 'downloadable' | 'downloading' | 'unavailable' | 'none'
+  if (!('Translator' in self)) return 'none';
+  try { return await Promise.race([self.Translator.availability({ sourceLanguage: src, targetLanguage: 'ko' }), new Promise(r => setTimeout(() => r('unknown'), 2500))]); } catch (_) { return 'unavailable'; }
+}
+async function deviceTranslate(text, src, onProg) {
+  let t = TR.dev[src];
+  if (!t) {
+    const st = await deviceState(src);
+    if (st === 'none') throw new Error('이 브라우저에는 내장 번역 기능이 없습니다 (최신 Edge/Chrome 필요)');
+    if (st === 'unavailable') throw new Error(`브라우저 내장 번역이 ${LANG_KO[src] || src} → 한국어를 지원하지 않습니다`);
+    t = TR.dev[src] = await self.Translator.create({ sourceLanguage: src, targetLanguage: 'ko',
+      monitor(m) { m.addEventListener('downloadprogress', e => onProg && onProg(`번역 모델 받는 중 ${Math.round((e.loaded || 0) * 100)}% (처음 한 번)`)); } });
+  }
+  const out = []; for (const line of text.split('\n')) out.push(line.trim() ? await t.translate(line) : '');   // 줄 단위 → 줄 구조 유지
+  return out.join('\n');
+}
+const fnv = s => { let h = 0x811c9dc5; for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); } return (h >>> 0).toString(36) + s.length.toString(36); };
+// 번역 하나: {engine, text|html, note} — 엔진 'auto' 면 Claude → 내장 → 용어 풀이 순으로 되는 것
+async function translateText(text, o = {}) {
+  text = String(text || '').trim(); if (!text) throw new Error('번역할 글이 없습니다');
+  const src = o.src || detectLang(text), want = o.engine || trPref();
+  if (src === 'ko') return { engine: 'none', text, note: '이미 한국어입니다' };
+  const order = want === 'auto' ? ['claude', 'device', 'gloss'] : [want];
+  let lastErr = null;
+  for (const eng of order) {
+    if (eng === 'claude' && !(SRV.on && SRV.info?.translate?.claude)) { lastErr ||= new Error('Claude 번역이 꺼져 있습니다 (운영자 설정)'); continue; }
+    if (eng === 'gloss') return { engine: 'gloss', html: glossHtml(text, o.re), note: src === 'en' ? '원문에 계장 용어 한글 뜻을 붙였습니다' : '용어 풀이는 영어 원문에서만 됩니다' };
+    const key = `${eng}|${src}|${fnv(text)}`;
+    let hit = TR.mem.get(key) || await DB.get('kv', 'tr:' + key).catch(() => null);
+    if (hit) return { ...hit, cached: true };
+    try {
+      let r;
+      if (eng === 'claude') { if (text.length > 12000) text = text.slice(0, 12000); const j = await srvJson('translate', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text, src, title: o.title || '' }) }); r = { engine: 'claude', text: j.text, note: `Claude (${j.model})${j.cached ? ' · 서버 보관본' : ''}` }; }
+      else { r = { engine: 'device', text: await deviceTranslate(text, src, o.onProg), note: `브라우저 내장 번역 (${LANG_KO[src] || src} → 한국어)` }; }
+      TR.mem.set(key, r); DB.put('kv', r, 'tr:' + key).catch(() => {});
+      return r;
+    } catch (e) { lastErr = e; if (want !== 'auto') throw e; }
+  }
+  throw lastErr || new Error('번역하지 못했습니다');
+}
+function trBody(r, reQ) {   // 번역 결과 → HTML (번역문 안의 검색어도 노랗게)
+  if (r.html) return r.html;
+  return hl(r.text, reQ);
+}
+async function trStatusLine() {
+  const dev = await deviceState('en');
+  return { claude: !!(SRV.on && SRV.info?.translate?.claude), device: dev, gloss: true };
+}
+
+// 글을 끌어 고르면 뜨는 작은 단추 → 번역 · 복사 (미리보기 · 근거 구절 · 연관 검색 창 · 새 창 어디서나)
+const SELBTN = document.createElement('div'); SELBTN.className = 'selbtn'; SELBTN.hidden = true;
+SELBTN.innerHTML = '<button data-s="tr">🌐 번역</button><button data-s="cp">📋 복사</button>';
+document.body.appendChild(SELBTN);
+const TRPOP = document.createElement('div'); TRPOP.className = 'trpop'; TRPOP.hidden = true; document.body.appendChild(TRPOP);
+let selText = '';
+document.addEventListener('mouseup', e => {
+  if (SELBTN.contains(e.target) || TRPOP.contains(e.target)) return;
+  setTimeout(() => {
+    const s = getSelection(), t = s && !s.isCollapsed ? s.toString().replace(/\s+\n/g, '\n').trim() : '';
+    const inDoc = s && s.rangeCount && s.anchorNode && (s.anchorNode.parentElement || s.anchorNode).closest?.('.vbody, .trbox, .psg, .rrow, .spot, .whybox, .rxs');
+    if (!t || t.length < 2 || !inDoc) { SELBTN.hidden = true; return; }
+    selText = t.slice(0, 6000);
+    const r = s.getRangeAt(0).getBoundingClientRect();
+    SELBTN.style.left = Math.min(window.innerWidth - 170, Math.max(4, r.left + r.width / 2 - 70)) + 'px';
+    SELBTN.style.top = Math.max(4, r.top - 40) + 'px'; SELBTN.hidden = false;
+  }, 10);
+});
+document.addEventListener('mousedown', e => { if (!SELBTN.contains(e.target) && !TRPOP.contains(e.target)) { SELBTN.hidden = true; } });
+document.addEventListener('keydown', e => { if (e.key === 'Escape') { TRPOP.hidden = true; SELBTN.hidden = true; } });
+SELBTN.addEventListener('click', async e => {
+  const k = e.target.closest('[data-s]')?.dataset.s; if (!k) return;
+  const B = STATE.viewer?.B, page = STATE.viewer?.page;
+  if (k === 'cp') { copyText(selText + (B ? '\n' + cite(B, page) : '')); SELBTN.hidden = true; return; }
+  const top = parseFloat(SELBTN.style.top) + 40, left = parseFloat(SELBTN.style.left);
+  SELBTN.hidden = true; showTrPop(selText, left, top, B);
+});
+async function showTrPop(text, left, top, B, engine) {
+  const eng = engine || trPref();
+  TRPOP.style.left = Math.max(8, Math.min(window.innerWidth - 480, left - 150)) + 'px';
+  TRPOP.style.top = Math.min(window.innerHeight - 160, top + 4) + 'px';
+  TRPOP.hidden = false;
+  TRPOP.innerHTML = `<div class="tph"><b>🌐 번역</b><select data-t="eng">${Object.entries(TR_ENGINES).map(([k, v]) => `<option value="${k}" ${k === eng ? 'selected' : ''}>${v}</option>`).join('')}</select><span class="sp"></span><button data-t="x" title="닫기 (Esc)">✕</button></div>
+    <div class="tpsrc">${esc(text.slice(0, 400))}${text.length > 400 ? '…' : ''}</div><div class="tpout"><span class="muted">번역 중…</span></div>
+    <div class="tpf"><span class="muted" data-t="note"></span><span class="sp"></span><button class="btn sm" data-t="cp" disabled>📋 번역 복사</button></div>`;
+  TRPOP.querySelector('[data-t="x"]').onclick = () => { TRPOP.hidden = true; };
+  TRPOP.querySelector('[data-t="eng"]').onchange = ev => { setTrPref(ev.target.value); showTrPop(text, left, top, B, ev.target.value); };
+  try {
+    const r = await translateText(text, { engine: eng, title: B?.base, onProg: m => { const o = TRPOP.querySelector('.tpout'); if (o) o.innerHTML = `<span class="muted">${esc(m)}</span>`; } });
+    TRPOP.querySelector('.tpout').innerHTML = trBody(r, null);
+    TRPOP.querySelector('[data-t="note"]').textContent = (r.note || '') + (r.cached ? ' · 저장된 번역' : '');
+    const cp = TRPOP.querySelector('[data-t="cp"]'); cp.disabled = false;
+    cp.onclick = () => copyText((r.text || TRPOP.querySelector('.tpout').innerText) + (B ? '\n' + cite(B, STATE.viewer?.page ?? 0) + ' (번역)' : ''));
+  } catch (er) { TRPOP.querySelector('.tpout').innerHTML = `<div class="warnline">${esc(er.message || er)}</div>`; }
 }
 
 /* ===================================================================================== 10) 미리보기 뷰어 (오른쪽 칸 · 새 창 공통)
@@ -1372,6 +1552,7 @@ class Viewer {
         <span class="grp"><button class="btn sm" data-v="prevHit" title="이전 근거 쪽">◀ 근거</button><span class="muted" data-v="hitNo"></span><button class="btn sm" data-v="nextHit" title="다음 근거 쪽">근거 ▶</button></span>
         <span class="sp"></span>
         ${pdf ? `<span class="grp seg"><label><input type="radio" name="vm${host.id}" value="page" ${this.mode === 'page' ? 'checked' : ''} ${this.file ? '' : 'disabled'}> 원본 쪽</label><label><input type="radio" name="vm${host.id}" value="text" ${this.mode === 'text' ? 'checked' : ''}> 글자</label></span>` : ''}
+        <button class="btn sm" data-v="tr" title="이 쪽을 한국어로 번역해 원문 옆에 나란히 (글을 끌어 고르면 그 부분만 번역할 수도 있음)">🌐 번역</button>
         <button class="btn sm" data-v="copyPage" title="이 쪽 글자 전체를 출처와 함께 복사">📋 쪽 복사</button>
         ${this.popup ? `<button class="btn sm" data-v="orig" ${this.file ? '' : 'disabled title="원래 화면에서 폴더가 연결되어 있어야 합니다"'}>원본 열기 ↗</button>` : `<button class="btn sm" data-v="pop" title="이 미리보기를 새 창으로 (지금 쪽 · 찾기 그대로)">⧉ 새 창</button>`}
       </div>
@@ -1383,8 +1564,12 @@ class Viewer {
         <button class="btn sm" data-v="fList" hidden>목록 ▾</button>
       </div>
       <div class="flist" data-v="flist" hidden></div>
-      <div class="vbody"></div>`;
-    this.$ = k => host.querySelector(`[data-v="${k}"]`); this.body = host.querySelector('.vbody');
+      <div class="vrow"><div class="vbody"></div><div class="trbox" hidden>
+        <div class="trh"><b>🌐 한국어 번역</b><select data-v="treng" title="번역 엔진">${Object.entries(TR_ENGINES).map(([k, v]) => `<option value="${k}" ${k === trPref() ? 'selected' : ''}>${v}</option>`).join('')}</select>
+          <span class="sp"></span><button class="btn sm" data-v="trcp" disabled title="번역문을 출처와 함께 복사">📋</button><button class="btn sm" data-v="trx" title="번역 닫기">✕</button></div>
+        <div class="trnote muted" data-v="trnote"></div><div class="trout" data-v="trout"></div></div></div>`;
+    this.$ = k => host.querySelector(`[data-v="${k}"]`); this.body = host.querySelector('.vbody'); this.trOn = false; this.trSeq = 0;
+    host.addEventListener('change', e => { if (e.target.dataset.v === 'treng') { setTrPref(e.target.value); if (this.trOn) this.drawTr(); } });
     host.addEventListener('click', e => this.click(e));
     host.addEventListener('change', e => { if (e.target.name === 'vm' + host.id) { this.mode = e.target.value; this.draw(); } else if (e.target.dataset.v === 'pg') this.go((+e.target.value || 1) - 1); });
     this.$('find').addEventListener('keydown', e => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); if (e.target.value.trim()) openRelatedWindow(this, e.target.value); return; } if (e.key === 'Enter') { e.preventDefault(); if (this.fre?._t !== e.target.value) this.find(e.target.value); else this.step(e.shiftKey ? -1 : 1); } else if (e.key === 'Escape') { e.target.value = ''; this.find(''); } });
@@ -1401,6 +1586,11 @@ class Viewer {
     else if (v === 'fList') { const l = this.$('flist'); l.hidden = !l.hidden; this.$('fList').textContent = l.hidden ? '목록 ▾' : '목록 ▴'; }
     else if (v === 'copyPage') { const t = this.B.pages[P] || ''; t ? copyText(t + '\n\n' + cite(this.B, P)) : toast('이 쪽에는 글자가 없습니다'); }
     else if (v === 'pop') openViewerWindow(this);
+    else if (v === 'tr' || v === 'trx') {
+      this.trOn = v === 'tr' ? !this.trOn : false; this.host.classList.toggle('tr-on', this.trOn); this.$('tr').classList.toggle('on', this.trOn);
+      this.host.querySelector('.trbox').hidden = !this.trOn; if (this.trOn) { this.trPage = this.page; this.drawTr(); } if (this.mode === 'page') this.draw();   // 폭이 바뀌므로 다시 그림
+    }
+    else if (v === 'trcp') { const o = this.$('trout'); copyText((this.trText || o.innerText) + '\n\n' + cite(this.B, this.page) + ' (번역)'); }
     else if (v === 'rel') { const t = this.$('find').value.trim(); if (t) openRelatedWindow(this, t); }
     else if (v === 'orig') openOriginal(this.B, this.file, P);
   }
@@ -1437,8 +1627,21 @@ class Viewer {
       return `<div class="fh${i === this.fcur ? ' on' : ''}" data-fi="${i}"><span class="pg">${u}${h.p + 1}</span>${a ? '…' : ''}${esc(t.slice(a, h.i).replace(/\n/g, ' '))}<mark class="f">${esc(t.substr(h.i, h.n))}</mark>${esc(t.slice(h.i + h.n, b).replace(/\n/g, ' '))}…</div>`; }).join('') + (n > 300 ? `<div class="muted" style="padding:4px 8px">… ${fmtN(n - 300)}곳 더 (▲▼ 로 이동)</div>` : '');
     L.querySelector('.fh.on')?.scrollIntoView({ block: 'nearest' });
   }
+  async drawTr() {   // 지금 쪽 번역 (쪽을 넘기면 다시)
+    const seq = ++this.trSeq, P = this.page, txt = this.B.pages[P] || '', out = this.$('trout'), note = this.$('trnote');
+    this.$('trcp').disabled = true; this.trText = '';
+    if (!txt.trim()) { out.innerHTML = '<span class="muted">(이 쪽에는 글자가 없습니다)</span>'; note.textContent = ''; return; }
+    out.innerHTML = '<div class="empty" style="padding:20px">번역 중…</div>'; note.textContent = '';
+    try {
+      const r = await translateText(txt, { engine: this.$('treng').value, title: this.B.base, re: this.re, onProg: m => { if (seq === this.trSeq) out.innerHTML = `<div class="empty" style="padding:20px">${esc(m)}</div>`; } });
+      if (seq !== this.trSeq) return;
+      this.trText = r.text || ''; out.innerHTML = `<div class="trtext">${trBody(r, this.re)}</div>`;
+      note.textContent = `${r.note || ''}${r.cached ? ' · 저장된 번역' : ''} · ${this.B.ext === 'pdf' ? 'p.' : '§'}${P + 1}`; this.$('trcp').disabled = r.engine === 'gloss';
+    } catch (e) { if (seq === this.trSeq) { out.innerHTML = `<div class="warnline" style="margin:8px">${esc(e.message || e)}</div><div class="muted" style="padding:0 10px">위 엔진 고르기에서 '용어 풀이' 는 항상 쓸 수 있습니다.</div>`; } }
+  }
   async draw() {
     const B = this.B, P = this.page, seq = ++this.seq, body = this.body, hp = this.hitPages, k = hp.indexOf(P);
+    if (this.trOn && this.trPage !== P) { this.trPage = P; this.drawTr(); }
     this.$('pg').value = P + 1;
     this.$('hitNo').textContent = hp.length ? `${k >= 0 ? k + 1 : '–'}/${hp.length}` : '';
     this.$('prevHit').disabled = !hp.some(p => p < P); this.$('nextHit').disabled = !hp.some(p => p > P);
@@ -1527,6 +1730,16 @@ function showLibPanel(host) {
       <div class="muted" style="line-height:1.6">이 브라우저가 서버 폴더의 책을 받아 본문을 뽑아 서버에 올립니다 — 처음 한 번은 책 양에 따라 수 분~수십 분(이 창을 열어 두세요), 이후에는 새로 넣거나 바뀐 파일만 합니다. 끝나면 부서원 화면에 바로 반영됩니다.</div></div>`
       : `<div class="muted" style="margin-top:6px">공용 도서관 폴더 지정 · 색인은 운영자(서버 PC) · 그룹장이 합니다.${SRV.token ? '' : ' (대시보드에 로그인한 상태여야 권한이 확인됩니다)'}</div>`}`
       : `<div class="muted">대시보드 서버에 연결되어 있지 않아 '내 PC 폴더' 만 쓸 수 있습니다.</div>`}
+    <div class="mgr" id="trSet"><div class="secttl">🌐 번역</div><div class="muted" data-tr="status">확인 중…</div>
+      ${SRV.on && I.translateCfg ? `<div class="trcfg">
+        <label class="chk"><input type="checkbox" id="trOn" ${I.translateCfg.on ? 'checked' : ''}> <b>Claude 번역 사용</b> (가장 정확 · 계장 용어집 적용)</label>
+        <div class="warnline" style="margin:6px 0">켜면 부서원이 [🌐 번역] 을 누른 글(그 쪽 · 고른 글만)이 <b>Anthropic(외부) 서버로 전송</b>됩니다. 사내 보안 규정(외부 전송 금지)에 맞는지 확인한 뒤 켜세요. 책 전체를 보내지는 않으며, 같은 글은 서버에 보관해 다시 보내지 않습니다. 로그인한 부서원만 쓸 수 있습니다.</div>
+        <div class="row"><input id="trKey" type="password" autocomplete="off" placeholder="${I.translateCfg.keySet ? 'API 키 설정됨 — 바꿀 때만 입력' : 'Anthropic API 키 (sk-ant-…)'}">
+          <select id="trModel">${['claude-opus-5-5', 'claude-sonnet-5-5', 'claude-haiku-5-5'].map(x => `<option ${x === I.translateCfg.model ? 'selected' : ''}>${x}</option>`).join('')}</select>
+          <select id="trEffort" title="생각 깊이 (번역은 low 로 충분)">${['low', 'medium', 'high'].map(x => `<option ${x === I.translateCfg.effort ? 'selected' : ''}>${x}</option>`).join('')}</select>
+          <button class="btn sm pri" id="trSave">번역 설정 저장</button></div>
+        <div class="muted">설정 · 키는 서버 PC 의 books/config.json 에만 저장되고 화면에 다시 나오지 않습니다 (운영자만 바꿀 수 있음).</div></div>` : ''}
+    </div>
     <div class="mgr"><div class="secttl">💻 내 PC 폴더</div><div class="row"><button class="btn" id="libPick">📁 폴더 선택</button><span class="muted">${!srv && LIB.folder ? `지금: '${esc(LIB.folder)}' · ${fmtN(LIB.books.length)}권` : '고르면 검색 대상이 내 PC 폴더로 바뀝니다'}</span></div></div>
     ${nt.length || bad.length ? `<div class="mgr"><div class="secttl">⚠ 본문을 읽지 못한 파일 ${nt.length + bad.length}개 <span class="muted" style="font-weight:400">— 파일명 · 목차로만 찾습니다</span></div><ul class="probs">${[...nt.map(B => [B, '글자 없음 (스캔본으로 보임)']), ...bad.map(B => [B, '읽기 실패: ' + B.err.slice(5)])].slice(0, 60).map(([B, w]) => `<li><b>${esc(B.base)}</b> <span class="muted">${esc(B.dir || '')} — ${esc(w)}</span></li>`).join('')}</ul></div>` : ''}
   </div>`;
@@ -1541,6 +1754,22 @@ document.addEventListener('click', async e => {
   else if (id === 'libPick') pickFolder();
 });
 document.addEventListener('change', e => { if (e.target.name === 'libsrc') useSource(e.target.value); });
+document.addEventListener('click', async e => {
+  if (e.target.id !== 'trSave') return;
+  try {
+    const r = await srvPut('translate-config', JSON.stringify({ enabled: $('#trOn').checked, apiKey: $('#trKey').value.trim(), model: $('#trModel').value, effort: $('#trEffort').value }));
+    toast(r.on && !r.keySet ? '켰지만 API 키가 없습니다 — 키를 넣어 주세요' : r.on ? 'Claude 번역을 켰습니다' : 'Claude 번역을 껐습니다', 4000);
+    await srvInfo(); showLibPanel(e.target.closest('#libHost') || undefined);
+  } catch (er) { toast(er.message, 5000); }
+});
+// 도서관 화면이 그려질 때 번역 엔진 상태 채우기
+new MutationObserver(async () => {
+  const el = document.querySelector('#trSet [data-tr="status"]'); if (!el || el.dataset.done) return; el.dataset.done = '1';
+  const st = await trStatusLine();
+  const dev = { available: '사용 가능', downloadable: '사용 가능 (처음 한 번 언어 모델 받기)', downloading: '언어 모델 받는 중', unavailable: '이 브라우저에서 영어 → 한국어 미지원', none: '이 브라우저에는 없음 (최신 Edge/Chrome 필요)', unknown: '확인 안 됨 (처음 번역할 때 확인)' }[st.device] || st.device;
+  el.innerHTML = `<div>① Claude 번역 (서버 경유): <b>${st.claude ? '켜짐' : '꺼짐'}</b>${st.claude ? '' : ' — 운영자가 켤 수 있음'}</div><div>② 브라우저 내장 번역 (PC 안에서, 외부 전송 없음): <b>${esc(dev)}</b></div><div>③ 용어 풀이 (원문 + 계장 용어 한글 뜻): <b>항상 사용 가능</b></div>
+    <div style="margin-top:4px">미리보기 [🌐 번역] = 그 쪽을 원문 옆에 나란히 · 글을 끌어 고르면 [🌐 번역] 단추 · 근거 구절 옆 🌐 — 엔진 '자동' 은 ① → ② → ③ 순으로 되는 것을 씁니다.</div>`;
+}).observe(document.body, { childList: true, subtree: true });
 function showDict() {
   const P = $('#pv'); $('#main').hidden = false; $('#intro').hidden = true;
   P.innerHTML = `<div class="card"><h2>📖 계장 용어 사전 <span class="muted">— [계장 용어 확장]이 켜져 있으면 아래 표현을 함께 찾습니다</span></h2>
@@ -1755,6 +1984,15 @@ $('#list').addEventListener('click', e => {
   STATE.sel = +r.dataset.i; document.querySelectorAll('.res[data-i]').forEach(x => x.classList.toggle('on', x === r)); renderPreview();
 });
 $('#pv').addEventListener('click', e => {
+  const tb = e.target.closest('[data-trp]'); if (tb) {
+    e.stopPropagation(); const R = STATE.res?.results[STATE.sel]; if (!R) return; const box = tb.closest('.psg');
+    let o = box.querySelector('.psgtr'); if (o) { o.remove(); return; }
+    o = document.createElement('div'); o.className = 'psgtr'; o.innerHTML = '<span class="muted">번역 중…</span>'; box.appendChild(o);
+    translateText(snippet(R.B, R, +tb.dataset.trp, STATE.res.Q).replace(/^…|…$/g, ''), { title: R.B.base, re: hlRegex(STATE.res.Q) })
+      .then(r => { o.innerHTML = `🌐 ${trBody(r, hlRegex(STATE.res.Q))} <span class="muted">— ${esc(r.note || '')}</span>`; })
+      .catch(er => { o.innerHTML = `<span class="muted">${esc(er.message || er)}</span>`; });
+    return;
+  }
   const c = e.target.closest('[data-cp]'); if (c) { e.stopPropagation(); const R = STATE.res?.results[STATE.sel]; if (R) copyText(snippet(R.B, R, +c.dataset.cp, STATE.res.Q).replace(/^…|…$/g, '') + '\n' + cite(R.B, +c.dataset.cp)); return; }
   const g = e.target.closest('[data-go]'); if (g && STATE.viewer) { STATE.viewer.go(+g.dataset.go); $('#viewerHost').scrollIntoView({ block: 'nearest', behavior: 'smooth' }); return; }
   if (e.target.id === 'openOrig') openOriginal();
@@ -1791,7 +2029,7 @@ let rsz; window.addEventListener('resize', () => { clearTimeout(rsz); rsz = setT
 })();
 
 // 시험·자동화용 (화면에는 영향 없음)
-window.BOOKS = { CFG, LIB, RUN, search, explain, buildQuery, THES, useFiles, STATE, doSearch, VERSION, Viewer, SRV, srvIndex, useSource };
+window.BOOKS = { translateText, detectLang, glossHtml, CFG, LIB, RUN, search, explain, buildQuery, THES, useFiles, STATE, doSearch, VERSION, Viewer, SRV, srvIndex, useSource };
 </script>
 </body>
 </html>

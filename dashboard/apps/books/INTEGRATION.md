@@ -56,10 +56,22 @@ const ROUTES = [ … 'space', 'books', 'mgmt', … ];
 | 항목 | 내용 |
 |---|---|
 | 권한 | 폴더 지정 · 색인 = 운영자(서버 PC) · 그룹장(`SUPER_NAMES`) · `books/config.json` 의 `managers`(본명 목록). 보기 · 검색 · 원본 = 다른 GET 처럼 사내망 누구나 |
-| 저장 | 운영 폴더 `books/config.json`(경로 · 관리자) · `books/index/<id>.json.gz`(책 1권 색인) · `books/index/manifest.json`(목록) |
+| 저장 | 운영 폴더 `books/config.json`(경로 · 관리자 · 번역 설정) · `books/index/<id>.json.gz`(책 1권 색인) · `books/index/manifest.json`(목록) · `books/tcache/`(번역 보관) |
 | 백업 | `books/` 는 지금 `make_backup` 목록에 없음 — 색인은 [전체 다시 색인]으로 다시 만들 수 있어 넣지 않아도 됨 (넣으려면 `'books'` 추가) |
 | 보안 | 원본은 지정 폴더 **안**의 지원 형식(pdf · epub · docx · hwpx · txt · md)만, `..` 경로 · 폴더 밖 경로 거부 (시험함) |
-| API | `GET books/info · files · file?rel= · manifest · book/<id>` / `PUT books/root · book · manifest` |
+| API | `GET books/info · files · file?rel= · manifest · book/<id>` / `PUT books/root · book · manifest · translate-config` / `POST books/translate` |
+
+### 번역 (엔진 셋 — '자동' 은 ① → ② → ③ 순으로 되는 것)
+| 엔진 | 품질 | 외부 전송 | 조건 |
+|---|---|---|---|
+| ① Claude (서버 경유) | 가장 정확 · 계장 용어집 적용 · 영/포/스/러/베트남어 → 한국어 | **고른 글(그 쪽 · 고른 부분)이 Anthropic 으로** | **운영자가 켜야 함 (기본 꺼짐)** · API 키 · 로그인한 부서원만 |
+| ② 브라우저 내장 번역 | 일반 기계번역 | 없음 (PC 안 모델) | 최신 Edge/Chrome 의 Translator API — 처음 한 번 언어 모델 받기 (폐쇄망이면 안 될 수 있음) |
+| ③ 용어 풀이 | 원문 그대로 + 계장 용어 206개 한글 뜻 | 없음 | 항상 |
+
+- 켜기: 서버 PC(localhost)에서 [📚 도서관] → 🌐 번역 → 'Claude 번역 사용' + API 키 → 저장 (`PUT books/translate-config`, 운영자만). 키는 `books/config.json` 에만 있고 화면 · `info` 에 나오지 않음. 서버 환경 변수 `ANTHROPIC_API_KEY` 로도 줄 수 있음.
+- 서버 PC 에서 `api.anthropic.com` 으로 나가는 길이 막혀 있으면 "번역 API 에 연결하지 못했습니다" 로 안내되고 ② · ③ 으로 넘어감.
+- 요청: Messages API (`claude-opus-5-5` 기본, effort `low`, 고정 지시 · 용어집은 프롬프트 캐시, 정책상 거절 시 `fallbacks: "default"`). 같은 글은 `books/tcache/` 에 보관해 다시 보내지 않음 (부서원끼리 공유). 한 번에 12,000자까지, 동시에 3건.
+- 화면: 미리보기 [🌐 번역] = 그 쪽을 원문 옆에 나란히(쪽을 넘기면 따라 번역) · 글을 끌어 고르면 [🌐 번역 · 📋 복사] 단추 · 근거 구절 옆 🌐. 번역 결과는 그 PC 에도 보관.
 
 ### 내 PC 폴더 (개인용, 서버 없이도)
 [📚 도서관] → [💻 내 PC 폴더] → [📁 폴더 선택]. 파일은 서버로 가지 않고 그 PC 브라우저 안에서만 읽음.
