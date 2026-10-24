@@ -142,6 +142,36 @@ mark{background:var(--hl);color:inherit;border-radius:2px;padding:0 1px}
 .vbody .canvas-wrap{position:relative;margin:10px auto;box-shadow:0 1px 6px rgba(0,0,0,.18);background:#fff}
 .vbody canvas{display:block}
 .vbody .hlb{position:absolute;background:rgba(255,214,0,.42);border-radius:2px;mix-blend-mode:multiply;pointer-events:none}
+.vbar .grp{display:inline-flex;align-items:center;gap:4px}
+.vbar .seg{border:1px solid var(--line);border-radius:6px;padding:2px 8px;gap:10px;font-size:12px;color:var(--sub)}
+.pgin{width:56px;font:inherit;font-family:var(--f-mono);font-size:12px;border:1px solid var(--line-2);border-radius:5px;padding:1px 4px;text-align:right}
+.vfind{display:flex;flex-wrap:wrap;gap:6px;align-items:center;padding:6px 8px;border-bottom:1px solid var(--line);background:#fff}
+.vfind .fi{flex:1;min-width:200px;display:flex;align-items:center;gap:6px;border:1px solid var(--line-2);border-radius:8px;padding:0 8px}
+.vfind .fi:focus-within{border-color:#ff8c1a;box-shadow:0 0 0 2px #ffe3c7}
+.vfind input{flex:1;border:0;outline:0;font:inherit;font-size:13px;padding:5px 0;min-width:0;background:transparent}
+.vfind input::-webkit-search-cancel-button{display:none}
+.fcount{font-family:var(--f-mono);min-width:70px}
+.flist{max-height:190px;overflow:auto;border-bottom:1px solid var(--line);background:#fffaf4;font-size:12px;line-height:1.55}
+.flist .fh{padding:4px 10px;cursor:pointer;border-bottom:1px solid #f6ead9}
+.flist .fh:hover,.flist .fh.on{background:#ffeedd}
+.flist .pg{font-family:var(--f-mono);font-size:11px;color:#c25e00;font-weight:700;margin-right:6px}
+mark.f{background:#ffc98f}
+mark.f.cur{background:#ff8c1a;color:#fff;box-shadow:0 0 0 2px #ff8c1a}
+.vbody .hlf{position:absolute;background:rgba(255,140,26,.38);border-radius:2px;mix-blend-mode:multiply;pointer-events:none}
+.vbody .hlf.cur{background:rgba(255,120,0,.55);outline:2px solid #ff6a00}
+.tlayer{position:absolute;inset:0;line-height:1;overflow:hidden}
+.tlayer span{position:absolute;white-space:pre;color:transparent;transform-origin:0 0;cursor:text}
+.tlayer span::selection{background:rgba(43,68,201,.32);color:transparent}
+.tlayer br::selection{background:transparent}
+.psg{position:relative;padding-right:34px!important}
+.psg .cp{position:absolute;right:6px;top:6px;border:1px solid var(--line);background:#fff;border-radius:5px;font-size:11px;padding:1px 4px;opacity:.55}
+.psg:hover .cp{opacity:1}
+body.vmode{overflow:hidden}
+#vwin{height:100%;display:flex;flex-direction:column;padding:10px 12px;gap:8px}
+#vwin .vwh{display:flex;flex-wrap:wrap;gap:10px;align-items:baseline}
+#vwin .vwh b{font-size:15px;color:var(--navy)}
+#vwin .viewer{flex:1;display:flex;flex-direction:column;min-height:0;margin:0}
+#vwin .vbody{flex:1;max-height:none}
 .vtext{white-space:pre-wrap;word-break:break-word;line-height:1.75;padding:14px 18px;font-size:13px;background:#fff;margin:0;font-family:var(--f-ui)}
 .toast{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);background:var(--text);color:#fff;padding:9px 16px;border-radius:10px;font-size:13px;z-index:80;box-shadow:var(--shadow);max-width:90vw}
 .warnline{background:var(--warn-l);border:1px solid #f0d58a;border-radius:8px;padding:7px 10px;font-size:12.5px;margin-bottom:10px}
@@ -191,6 +221,7 @@ mark{background:var(--hl);color:inherit;border-radius:2px;padding:0 1px}
   </div>
   <div id="intro" class="intro" hidden></div>
 </div>
+<div id="vwin" hidden></div>
 <input type="file" id="dirInput" webkitdirectory directory multiple hidden>
 
 <script src="vendor/pdf.min.js"></script>
@@ -972,85 +1003,227 @@ function renderResults() {
 }
 function renderPreview(goPage) {
   const R = STATE.res?.results[STATE.sel]; const P = $('#pv');
-  if (!R) { P.innerHTML = ''; return; }
+  if (!R) { P.innerHTML = ''; STATE.viewer = null; return; }
   const B = R.B, Q = STATE.res.Q, ex = explain(R, Q), re = hlRegex(Q);
   const psgPages = R.top.slice(0, 6).map(x => x[0]);
   const heads = [...new Map(Q.qs.flatMap((q, i) => q.main ? R.m[i].heads : []).map(h => [h.t + h.p, h])).values()].slice(0, 12);
   const file = LIB.files.get(B.rel);
   P.innerHTML = `
     <div class="pvh"><div class="tt"><h2>${hl(B.base, re)}</h2><div class="path">${esc(LIB.folder)}/${esc(B.rel.split('/').slice(1).join('/'))}</div>
-      <div class="badges"><span class="badge">${SUPPORTED[B.ext]}</span><span class="badge">${fmtN(B.nPages)}${B.ext === 'pdf' ? '쪽' : '구간'}</span><span class="badge">${B.size >= 1048576 ? (B.size / 1048576).toFixed(1) + ' MB' : Math.max(1, Math.round(B.size / 1024)) + ' KB'}</span>${B.meta && B.meta !== B.base ? `<span class="badge" title="문서 정보의 제목">${esc(B.meta.slice(0, 60))}</span>` : ''}</div></div>
+      <div class="badges"><span class="badge">${SUPPORTED[B.ext]}</span><span class="badge">${fmtN(B.nPages)}${B.ext === 'pdf' ? '쪽' : '구간'}</span><span class="badge">${fmtSize(B.size)}</span>${B.meta && B.meta !== B.base ? `<span class="badge" title="문서 정보의 제목">${esc(B.meta.slice(0, 60))}</span>` : ''}</div></div>
       <button class="btn sm" id="openOrig" ${file ? '' : 'disabled title="폴더를 다시 연결하면 열 수 있습니다"'}>원본 열기 ↗</button></div>
     <div class="whybox"><h3>왜 '${esc(STATE.q)}' 와(과) 관련 있나요? <span class="tier t${ex.tier}" style="margin-left:4px">${ex.tierName}</span></h3>
       <div class="lead">${esc(ex.lead)}</div><ul>${ex.pts.map(([i, t]) => `<li>${i} ${esc(t)}</li>`).join('')}</ul></div>
     ${heads.length ? `<div class="secttl">📑 목차에서 찾은 곳</div><div class="heads">${heads.map(h => `<button data-go="${h.p}">${hl(h.t.slice(0, 80), re)}<em>p.${h.p + 1}</em></button>`).join('')}</div>` : ''}
     ${psgPages.length ? `<div class="secttl">📝 근거 구절 <span class="muted" style="font-weight:400">— 누르면 아래에서 그 쪽을 봅니다</span></div>
-      ${psgPages.map(p => `<div class="psg" data-go="${p}"><span class="pg">${B.ext === 'pdf' ? 'p.' : '§'}${p + 1}</span>${hl(snippet(B, R, p, Q), re)}</div>`).join('')}` : `<div class="warnline">본문에서는 찾지 못했고 파일명 · 목차로 관련이 있다고 봤습니다${B.err === 'notext' ? ' (본문 글자가 없는 스캔본으로 보입니다)' : ''}.</div>`}
-    <div class="secttl">👁 미리보기</div>
-    <div class="viewer"><div class="vbar">
-      <button class="btn sm" id="vPrev" title="이전 근거 쪽">◀ 이전 근거</button><span class="pgno" id="vNo"></span><button class="btn sm" id="vNext" title="다음 근거 쪽">다음 근거 ▶</button>
-      <span class="sp"></span>
-      ${B.ext === 'pdf' ? `<label class="muted"><input type="radio" name="vm" value="page" ${file ? 'checked' : 'disabled'}> 원본 쪽</label><label class="muted"><input type="radio" name="vm" value="text" ${file ? '' : 'checked'}> 글자</label>` : ''}
-    </div><div class="vbody" id="vbody"></div></div>`;
+      ${psgPages.map(p => `<div class="psg" data-go="${p}"><button class="cp" data-cp="${p}" title="이 구절을 출처(책 · 쪽)와 함께 복사">📋</button><span class="pg">${B.ext === 'pdf' ? 'p.' : '§'}${p + 1}</span>${hl(snippet(B, R, p, Q), re)}</div>`).join('')}` : `<div class="warnline">본문에서는 찾지 못했고 파일명 · 목차로 관련이 있다고 봤습니다${B.err === 'notext' ? ' (본문 글자가 없는 스캔본으로 보입니다)' : ''}.</div>`}
+    <div class="secttl">👁 미리보기 <span class="muted" style="font-weight:400">— 글자를 끌어 선택해 복사(Ctrl+C) · 책 안에서 찾기 · ⧉ 새 창</span></div>
+    <div class="viewer" id="viewerHost"></div>`;
   const hitPages = [...new Set(Q.qs.flatMap((q, i) => q.main ? [...R.m[i].pages.keys()] : []))].sort((a, b) => a - b);
-  STATE.view = { R, hitPages, page: goPage ?? (psgPages[0] ?? heads[0]?.p ?? 0), mode: B.ext === 'pdf' && file ? 'page' : 'text' };
-  showPage();
+  STATE.viewer = new Viewer($('#viewerHost'), { B, re, q: STATE.q, hitPages, page: goPage ?? (psgPages[0] ?? heads[0]?.p ?? 0), file });
+  STATE.viewer.onPage = p => document.querySelectorAll('.psg').forEach(e => e.classList.toggle('on', +e.dataset.go === p));
+  STATE.viewer.draw();
 }
-const MEAS = document.createElement('canvas').getContext('2d');
-async function showPage() {
-  const V = STATE.view; if (!V) return; const B = V.R.B, re = hlRegex(STATE.res.Q), body = $('#vbody');
-  const k = V.hitPages.indexOf(V.page);
-  $('#vNo').textContent = `${B.ext === 'pdf' ? 'p.' : '§'}${V.page + 1} / ${B.nPages}${V.hitPages.length ? `  ·  근거 ${k >= 0 ? k + 1 : '-'}/${V.hitPages.length}` : ''}`;
-  $('#vPrev').disabled = !V.hitPages.some(p => p < V.page); $('#vNext').disabled = !V.hitPages.some(p => p > V.page);
-  document.querySelectorAll('.psg').forEach(e => e.classList.toggle('on', +e.dataset.go === V.page));
-  const file = LIB.files.get(B.rel);
-  if (V.mode === 'page' && file && window.pdfjsLib) {
-    body.innerHTML = '<div class="empty">쪽 그리는 중…</div>';
-    try {
-      const want = V.page, sig = B.sig;
-      if (!STATE.pdfCache || STATE.pdfCache.sig !== sig) {
-        if (STATE.pdfCache) try { STATE.pdfCache.doc.destroy(); } catch (_) {}
-        STATE.pdfCache = { sig, doc: await pdfjsLib.getDocument({ data: new Uint8Array(await file.arrayBuffer()), isEvalSupported: false }).promise };
-      }
-      if (STATE.view !== V || V.page !== want) return;
-      const pg = await STATE.pdfCache.doc.getPage(want + 1);
-      const w = Math.max(320, body.clientWidth - 24), vp0 = pg.getViewport({ scale: 1 }), scale = w / vp0.width, vp = pg.getViewport({ scale });
-      const dpr = window.devicePixelRatio || 1, cv = document.createElement('canvas');
-      cv.width = Math.floor(vp.width * dpr); cv.height = Math.floor(vp.height * dpr); cv.style.width = vp.width + 'px'; cv.style.height = vp.height + 'px';
-      const wrap = document.createElement('div'); wrap.className = 'canvas-wrap'; wrap.style.width = vp.width + 'px'; wrap.appendChild(cv);
-      await pg.render({ canvasContext: cv.getContext('2d'), viewport: vp, transform: dpr !== 1 ? [dpr, 0, 0, dpr, 0, 0] : null }).promise;
-      if (STATE.view !== V || V.page !== want) return;
-      // 검색어 위치에 노란 표시: 글자 조각(item)의 위치 × 그 안에서의 글자 비율
-      const tc = await pg.getTextContent(); let first = null;
-      if (re) for (const it of tc.items) {
-        if (!it.str) continue; re.lastIndex = 0; let m;
-        while ((m = re.exec(normText(it.str)))) {
-          if (!m[0]) { re.lastIndex++; continue; }
-          const tx = pdfjsLib.Util.transform(vp.transform, it.transform), fh = Math.hypot(tx[2], tx[3]), L = it.str.length || 1, wd = it.width * scale;
-          const mw = t => { MEAS.font = `${fh}px ${tc.styles[it.fontName]?.fontFamily || 'sans-serif'}`; return MEAS.measureText(t).width; }, full = mw(it.str) || 1;
-          const x = tx[4] + wd * (mw(it.str.slice(0, m.index)) / full), y = tx[5] - fh, ww = Math.max(4, wd * (mw(m[0]) / full));
-          const b = document.createElement('div'); b.className = 'hlb'; Object.assign(b.style, { left: x + 'px', top: y + 'px', width: ww + 'px', height: fh * 1.15 + 'px' }); wrap.appendChild(b);
-          if (!first || y < first) first = y;
-        }
-      }
-      body.innerHTML = ''; body.appendChild(wrap);
-      if (first !== null) body.scrollTop = Math.max(0, first - 120);
-      pg.cleanup();
-      return;
-    } catch (e) { body.innerHTML = `<div class="warnline">원본 쪽을 그리지 못해 글자로 보여 줍니다 (${esc(e.message || e)})</div>`; }
+const fmtSize = n => n >= 1048576 ? (n / 1048576).toFixed(1) + ' MB' : Math.max(1, Math.round(n / 1024)) + ' KB';
+function copyText(text) {   // http(보안 아님) 주소 · iframe 안에서도 되도록 execCommand 로 한 번 더
+  const ok = () => toast('복사했습니다 — 붙여넣기(Ctrl+V) 하세요', 1800);
+  const fallback = () => {
+    const ta = document.createElement('textarea'); ta.value = text; ta.style.cssText = 'position:fixed;left:-9999px;top:0'; document.body.appendChild(ta); ta.select();
+    let done = false; try { done = document.execCommand('copy'); } catch (_) {} ta.remove();
+    done ? ok() : toast('복사하지 못했습니다 — 글자를 끌어 선택한 뒤 Ctrl+C 를 누르세요', 3500);
+  };
+  if (navigator.clipboard && window.isSecureContext) navigator.clipboard.writeText(text).then(ok, fallback); else fallback();
+}
+const cite = (B, p) => `— ${B.base}, ${B.ext === 'pdf' ? 'p.' : '§'}${p + 1}`;
+// 책 안에서 찾기: 한글은 글자 사이 띄어쓰기 무시, 영어는 대소문자 무시
+function findRegex(t) {
+  t = normText(t).replace(/\n/g, ' ').trim(); if (!t) return null;
+  const E = x => x.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const src = [...t].map(ch => ch === ' ' ? '\\s*' : E(ch)).join('').replace(/(\\s\*)+/g, '\\s*');
+  const ko = isHangul(t); return new RegExp(ko ? [...t.replace(/ /g, '')].map(E).join('\\s?') : src, 'gi');
+}
+// 두 가지 표시를 한 번에: 찾기 일치(주황, k 번째 = 지금 위치) · 검색어(노랑)
+function hl2(text, reQ, reF, curK) {
+  if (!reF) return hl(text, reQ);
+  let out = '', last = 0, k = 0; reF.lastIndex = 0; let m;
+  while ((m = reF.exec(text))) {
+    if (!m[0]) { reF.lastIndex++; continue; }
+    out += hl(text.slice(last, m.index), reQ) + `<mark class="f${k === curK ? ' cur' : ''}" data-k="${k}">${esc(m[0])}</mark>`; last = m.index + m[0].length; k++;
   }
-  const txt = B.pages[V.page] || '';
-  const pre = document.createElement('pre'); pre.className = 'vtext'; pre.innerHTML = txt ? hl(txt, re) : '<span class="muted">(이 쪽에는 글자가 없습니다)</span>';
-  if (body.firstChild?.className !== 'warnline') body.innerHTML = ''; body.appendChild(pre);
-  const mk = pre.querySelector('mark'); body.scrollTop = mk ? Math.max(0, mk.offsetTop - 100) : 0;
-  if (V.mode === 'page' && !file) body.insertAdjacentHTML('afterbegin', '<div class="warnline" style="margin:8px">원본 쪽 그림은 [폴더 다시 연결] 후 볼 수 있습니다.</div>');
+  return out + hl(text.slice(last), reQ);
 }
-function openOriginal() {
-  const R = STATE.res?.results[STATE.sel]; if (!R) return; const f = LIB.files.get(R.B.rel); if (!f) return;
-  const url = URL.createObjectURL(f), pg = STATE.view?.page ?? 0;
-  const w = window.open(R.B.ext === 'pdf' ? `${url}#page=${pg + 1}` : url, '_blank');
-  if (!w) { const a = document.createElement('a'); a.href = url; a.download = R.B.name; a.click(); }
+
+/* ===================================================================================== 10) 미리보기 뷰어 (오른쪽 칸 · 새 창 공통)
+ * 원본 쪽(PDF 그림 + 투명 글자층 → 끌어 선택 · 복사) / 글자 보기 · 쪽 이동 · 근거 쪽 이동 · 책 안에서 찾기(목록) · 쪽 복사 · 새 창 */
+const MEAS = document.createElement('canvas').getContext('2d');
+let PDFDOC = null;   // { sig, doc } — 같은 책을 다시 열 때 재사용
+async function pdfDoc(B, file) {
+  if (PDFDOC && PDFDOC.sig === B.sig) return PDFDOC.doc;
+  if (PDFDOC) try { PDFDOC.doc.destroy(); } catch (_) {}
+  const doc = await pdfjsLib.getDocument({ data: new Uint8Array(await file.arrayBuffer()), isEvalSupported: false }).promise;
+  PDFDOC = { sig: B.sig, doc }; return doc;
+}
+class Viewer {
+  constructor(host, o) {
+    Object.assign(this, { B: o.B, re: o.re, q: o.q || '', hitPages: o.hitPages || [], page: Math.max(0, Math.min(o.B.nPages - 1, o.page || 0)), file: o.file || null, popup: !!o.popup });
+    this.mode = this.B.ext === 'pdf' && this.file && window.pdfjsLib ? 'page' : 'text';
+    this.fre = null; this.fhits = []; this.fcur = -1; this.host = host; this.seq = 0;
+    const B = this.B, pdf = B.ext === 'pdf', u = pdf ? 'p.' : '§';
+    host.innerHTML = `
+      <div class="vbar">
+        <span class="grp"><button class="btn sm" data-v="prevPage" title="앞 쪽 (←)">‹</button><span class="pgno">${u}<input class="pgin" data-v="pg" type="number" min="1" max="${B.nPages}" value="${this.page + 1}"> / ${fmtN(B.nPages)}</span><button class="btn sm" data-v="nextPage" title="다음 쪽 (→)">›</button></span>
+        <span class="grp"><button class="btn sm" data-v="prevHit" title="이전 근거 쪽">◀ 근거</button><span class="muted" data-v="hitNo"></span><button class="btn sm" data-v="nextHit" title="다음 근거 쪽">근거 ▶</button></span>
+        <span class="sp"></span>
+        ${pdf ? `<span class="grp seg"><label><input type="radio" name="vm${host.id}" value="page" ${this.mode === 'page' ? 'checked' : ''} ${this.file ? '' : 'disabled'}> 원본 쪽</label><label><input type="radio" name="vm${host.id}" value="text" ${this.mode === 'text' ? 'checked' : ''}> 글자</label></span>` : ''}
+        <button class="btn sm" data-v="copyPage" title="이 쪽 글자 전체를 출처와 함께 복사">📋 쪽 복사</button>
+        ${this.popup ? `<button class="btn sm" data-v="orig" ${this.file ? '' : 'disabled title="원래 화면에서 폴더가 연결되어 있어야 합니다"'}>원본 열기 ↗</button>` : `<button class="btn sm" data-v="pop" title="이 미리보기를 새 창으로 (지금 쪽 · 찾기 그대로)">⧉ 새 창</button>`}
+      </div>
+      <div class="vfind">
+        <span class="fi"><span>🔎</span><input data-v="find" type="search" placeholder="이 책 안에서 찾기 (Enter = 다음, Shift+Enter = 이전)" aria-label="책 안에서 찾기"></span>
+        <button class="btn sm" data-v="fPrev" title="이전 (Shift+Enter)">▲</button><button class="btn sm" data-v="fNext" title="다음 (Enter)">▼</button>
+        <span class="muted fcount" data-v="fNo"></span>
+        <button class="btn sm" data-v="fList" hidden>목록 ▾</button>
+      </div>
+      <div class="flist" data-v="flist" hidden></div>
+      <div class="vbody"></div>`;
+    this.$ = k => host.querySelector(`[data-v="${k}"]`); this.body = host.querySelector('.vbody');
+    host.addEventListener('click', e => this.click(e));
+    host.addEventListener('change', e => { if (e.target.name === 'vm' + host.id) { this.mode = e.target.value; this.draw(); } else if (e.target.dataset.v === 'pg') this.go((+e.target.value || 1) - 1); });
+    this.$('find').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); if (this.fre?._t !== e.target.value) this.find(e.target.value); else this.step(e.shiftKey ? -1 : 1); } else if (e.key === 'Escape') { e.target.value = ''; this.find(''); } });
+    let ft; this.$('find').addEventListener('input', e => { clearTimeout(ft); ft = setTimeout(() => this.find(e.target.value, true), 350); });
+    this.$('pg').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); this.go((+e.target.value || 1) - 1); } });
+  }
+  click(e) {
+    const v = e.target.closest('[data-v]')?.dataset.v; if (!v) { const fh = e.target.closest('[data-fi]'); if (fh) { this.fcur = +fh.dataset.fi; this.go(this.fhits[this.fcur].p, true); } return; }
+    const hp = this.hitPages, P = this.page;
+    if (v === 'prevPage') this.go(P - 1); else if (v === 'nextPage') this.go(P + 1);
+    else if (v === 'prevHit') { const n = [...hp].reverse().find(p => p < P); if (n !== undefined) this.go(n); }
+    else if (v === 'nextHit') { const n = hp.find(p => p > P); if (n !== undefined) this.go(n); }
+    else if (v === 'fPrev') this.step(-1); else if (v === 'fNext') this.step(1);
+    else if (v === 'fList') { const l = this.$('flist'); l.hidden = !l.hidden; this.$('fList').textContent = l.hidden ? '목록 ▾' : '목록 ▴'; }
+    else if (v === 'copyPage') { const t = this.B.pages[P] || ''; t ? copyText(t + '\n\n' + cite(this.B, P)) : toast('이 쪽에는 글자가 없습니다'); }
+    else if (v === 'pop') openViewerWindow(this);
+    else if (v === 'orig') openOriginal(this.B, this.file, P);
+  }
+  go(p, keepFind) {
+    p = Math.max(0, Math.min(this.B.nPages - 1, p)); if (p === this.page && !keepFind) return;
+    this.page = p;
+    if (!keepFind && this.fhits.length) { const k = this.fhits.findIndex(h => h.p >= p); this.fcur = k >= 0 && this.fhits[k].p === p ? k : -1; }
+    this.draw();
+  }
+  find(t, live) {   // 책 전체에서 찾기 → 일치 목록
+    this.fre = findRegex(t); if (this.fre) this.fre._t = t;
+    this.fhits = []; this.fcur = -1;
+    if (this.fre) {
+      const B = this.B;
+      for (let p = 0; p < B.nPages && this.fhits.length < 5000; p++) { const re = this.fre; re.lastIndex = 0; let m, k = 0; while ((m = re.exec(B.pages[p]))) { if (!m[0]) { re.lastIndex++; continue; } this.fhits.push({ p, k: k++, i: m.index, n: m[0].length }); } }
+      const k = this.fhits.findIndex(h => h.p >= this.page); this.fcur = this.fhits.length ? (k >= 0 ? k : 0) : -1;
+    }
+    this.renderFind();
+    if (this.fcur >= 0 && (!live || this.fhits[this.fcur].p !== this.page)) this.go(this.fhits[this.fcur].p, true); else this.draw();
+  }
+  step(d) { if (!this.fhits.length) return; this.fcur = (this.fcur + d + this.fhits.length) % this.fhits.length; this.renderFind(); this.go(this.fhits[this.fcur].p, true); }
+  renderFind() {
+    const n = this.fhits.length, pages = new Set(this.fhits.map(h => h.p)).size, B = this.B, u = B.ext === 'pdf' ? 'p.' : '§';
+    this.$('fNo').textContent = !this.fre ? '' : n ? `${this.fcur + 1} / ${fmtN(n)}${n >= 5000 ? '+' : ''} (${fmtN(pages)}쪽)` : '없음';
+    this.$('fList').hidden = !n;
+    const L = this.$('flist'); if (!n) { L.hidden = true; this.$('fList').textContent = '목록 ▾'; L.innerHTML = ''; return; }
+    L.innerHTML = this.fhits.slice(0, 300).map((h, i) => { const t = B.pages[h.p]; const a = Math.max(0, h.i - 40), b = Math.min(t.length, h.i + h.n + 60);
+      return `<div class="fh${i === this.fcur ? ' on' : ''}" data-fi="${i}"><span class="pg">${u}${h.p + 1}</span>${a ? '…' : ''}${esc(t.slice(a, h.i).replace(/\n/g, ' '))}<mark class="f">${esc(t.substr(h.i, h.n))}</mark>${esc(t.slice(h.i + h.n, b).replace(/\n/g, ' '))}…</div>`; }).join('') + (n > 300 ? `<div class="muted" style="padding:4px 8px">… ${fmtN(n - 300)}곳 더 (▲▼ 로 이동)</div>` : '');
+    L.querySelector('.fh.on')?.scrollIntoView({ block: 'nearest' });
+  }
+  async draw() {
+    const B = this.B, P = this.page, seq = ++this.seq, body = this.body, hp = this.hitPages, k = hp.indexOf(P);
+    this.$('pg').value = P + 1;
+    this.$('hitNo').textContent = hp.length ? `${k >= 0 ? k + 1 : '–'}/${hp.length}` : '';
+    this.$('prevHit').disabled = !hp.some(p => p < P); this.$('nextHit').disabled = !hp.some(p => p > P);
+    this.$('prevPage').disabled = P <= 0; this.$('nextPage').disabled = P >= B.nPages - 1;
+    this.host.querySelectorAll('.fh').forEach(e => e.classList.toggle('on', +e.dataset.fi === this.fcur));
+    if (this.onPage) this.onPage(P);
+    const curK = this.fcur >= 0 && this.fhits[this.fcur].p === P ? this.fhits[this.fcur].k : -1;
+    if (this.mode === 'page' && this.file && window.pdfjsLib) {
+      if (!body.querySelector('.canvas-wrap')) body.innerHTML = '<div class="empty">쪽 그리는 중…</div>';
+      try {
+        const doc = await pdfDoc(B, this.file); if (seq !== this.seq) return;
+        const pg = await doc.getPage(P + 1);
+        const w = Math.max(320, body.clientWidth - 24), vp0 = pg.getViewport({ scale: 1 }), scale = w / vp0.width, vp = pg.getViewport({ scale });
+        const dpr = window.devicePixelRatio || 1, cv = document.createElement('canvas');
+        cv.width = Math.floor(vp.width * dpr); cv.height = Math.floor(vp.height * dpr); cv.style.width = vp.width + 'px'; cv.style.height = vp.height + 'px';
+        const wrap = document.createElement('div'); wrap.className = 'canvas-wrap'; wrap.style.width = vp.width + 'px'; wrap.style.height = vp.height + 'px'; wrap.appendChild(cv);
+        await pg.render({ canvasContext: cv.getContext('2d'), viewport: vp, transform: dpr !== 1 ? [dpr, 0, 0, dpr, 0, 0] : null }).promise;
+        if (seq !== this.seq) return;
+        // 투명 글자층(끌어 선택 → 복사) + 검색어(노랑) · 찾기(주황) 표시. 위치 = 글자 조각 위치 × 그 안의 글자 폭 비율
+        const tc = await pg.getTextContent(), layer = document.createElement('div'); layer.className = 'tlayer';
+        let first = null, cur = null, fk = 0;
+        for (const it of tc.items) {
+          if (!it.str) { if (it.hasEOL) layer.appendChild(document.createElement('br')); continue; }
+          const tx = pdfjsLib.Util.transform(vp.transform, it.transform), fh = Math.hypot(tx[2], tx[3]), wd = it.width * scale;
+          if (fh < 1) continue;
+          const fam = tc.styles[it.fontName]?.fontFamily || 'sans-serif';
+          MEAS.font = `${fh}px ${fam}`; const mw = t => MEAS.measureText(t).width, full = mw(it.str) || 1;
+          const sp = document.createElement('span'); sp.textContent = it.str;
+          Object.assign(sp.style, { left: tx[4] + 'px', top: (tx[5] - fh) + 'px', fontSize: fh + 'px', fontFamily: fam, transform: `scaleX(${wd / full})` });
+          layer.appendChild(sp); if (it.hasEOL) layer.appendChild(document.createElement('br')); else layer.appendChild(document.createTextNode(' '));
+          const box = (m, cls) => { const x = tx[4] + wd * (mw(it.str.slice(0, m.index)) / full), y = tx[5] - fh, b = document.createElement('div');
+            b.className = cls; Object.assign(b.style, { left: x + 'px', top: y + 'px', width: Math.max(4, wd * (mw(m[0]) / full)) + 'px', height: fh * 1.15 + 'px' }); wrap.appendChild(b); return y; };
+          for (const [re, cls] of [[this.re, 'hlb'], [this.fre, 'hlf']]) {
+            if (!re) continue; re.lastIndex = 0; let m;
+            while ((m = re.exec(it.str))) {
+              if (!m[0]) { re.lastIndex++; continue; }
+              const isCur = cls === 'hlf' && fk === curK, y = box(m, cls + (isCur ? ' cur' : ''));
+              if (cls === 'hlf') { if (isCur) cur = y; fk++; } else if (first === null || y < first) first = y;
+            }
+          }
+        }
+        wrap.appendChild(layer);
+        body.innerHTML = ''; body.appendChild(wrap);
+        const y = cur ?? (this.fre ? null : first); body.scrollTop = y !== null ? Math.max(0, y - 140) : 0;
+        pg.cleanup(); return;
+      } catch (e) { if (seq !== this.seq) return; body.innerHTML = `<div class="warnline" style="margin:8px">원본 쪽을 그리지 못해 글자로 보여 줍니다 (${esc(e.message || e)})</div>`; }
+    }
+    const txt = B.pages[P] || '';
+    const pre = document.createElement('pre'); pre.className = 'vtext'; pre.innerHTML = txt ? hl2(txt, this.re, this.fre, curK) : '<span class="muted">(이 쪽에는 글자가 없습니다)</span>';
+    if (body.firstChild?.className !== 'warnline') body.innerHTML = ''; body.appendChild(pre);
+    if (this.mode === 'page' && !this.file && B.ext === 'pdf') body.insertAdjacentHTML('afterbegin', '<div class="warnline" style="margin:8px">원본 쪽 그림은 [폴더 다시 연결] 후 볼 수 있습니다.</div>');
+    const mk = pre.querySelector('mark.f.cur') || (!this.fre && pre.querySelector('mark'));
+    body.scrollTop = mk ? Math.max(0, mk.offsetTop - 120) : 0;
+  }
+}
+// 새 창: 같은 앱 주소에 viewer=1 — 본문은 이 PC 의 색인(IndexedDB), 원본 PDF 는 원래 창(opener)의 파일을 빌려 씀
+function openViewerWindow(v) {
+  const u = new URL(location.href); u.search = '';
+  const P = new URLSearchParams({ viewer: '1', sig: v.B.sig, p: String(v.page + 1), q: v.q || '', f: v.fre?._t || '', m: v.mode });
+  const w = window.open(`${u.pathname}?${P}`, '_blank', 'popup=yes,width=1100,height=920');
+  if (!w) toast('새 창이 막혔습니다 — 브라우저 주소창 오른쪽의 팝업 차단 표시에서 허용해 주세요', 4000);
+}
+function openOriginal(B, f, pg) {
+  if (!B) { const R = STATE.res?.results[STATE.sel]; if (!R) return; B = R.B; f = LIB.files.get(B.rel); pg = STATE.viewer?.page ?? 0; }
+  if (!f) return;
+  const url = URL.createObjectURL(f);
+  const w = window.open(B.ext === 'pdf' ? `${url}#page=${(pg || 0) + 1}` : url, '_blank');
+  if (!w) { const a = document.createElement('a'); a.href = url; a.download = B.name; a.click(); }
   setTimeout(() => URL.revokeObjectURL(url), 120000);
+}
+async function initViewerWindow() {   // ?viewer=1 로 열린 새 창
+  document.body.classList.add('vmode'); $('#app').hidden = true;
+  const W = $('#vwin'); W.hidden = false;
+  const sig = Q0.get('sig'), rec = await DB.get('books', sig).catch(() => null);
+  if (!rec) { W.innerHTML = '<div class="empty">이 책의 색인을 찾지 못했습니다. 원래 화면에서 다시 열어 주세요.</div>'; return; }
+  const B = makeBook(rec); let file = null;
+  try { file = window.opener?.BOOKS?.LIB.files.get(B.rel) || null; } catch (_) {}
+  const q = Q0.get('q') || '', Q = q ? buildQuery(q) : null;
+  const hitPages = Q ? [...new Set(Q.mains.flatMap(qq => [...matchConcept(B, qq).pages.keys()]))].sort((a, b) => a - b) : [];
+  document.title = `${B.base} — 계장도서검토`;
+  W.innerHTML = `<div class="vwh"><b>📖 ${esc(B.base)}</b><span class="muted">${esc(B.rel)} · ${SUPPORTED[B.ext]} · ${fmtN(B.nPages)}${B.ext === 'pdf' ? '쪽' : '구간'}${q ? ` · 검색어 '${esc(q)}' 노란 표시` : ''}</span></div><div class="viewer" id="viewerWin"></div>`;
+  const v = new Viewer($('#viewerWin'), { B, re: Q ? hlRegex(Q) : null, q, hitPages, page: (+Q0.get('p') || 1) - 1, file, popup: true });
+  if (Q0.get('m') === 'text') v.mode = 'text';
+  STATE.viewer = v;
+  const f = Q0.get('f'); if (f) { v.$('find').value = f; v.find(f); } else v.draw();
+  document.addEventListener('keydown', e => {
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'f') { e.preventDefault(); v.$('find').focus(); v.$('find').select(); return; }
+    if (e.target.tagName === 'INPUT') return;
+    if (e.key === 'ArrowLeft' || e.key === 'PageUp') v.go(v.page - 1); else if (e.key === 'ArrowRight' || e.key === 'PageDown') v.go(v.page + 1);
+  });
 }
 function showDict() {
   const P = $('#pv'); $('#main').hidden = false; $('#intro').hidden = true;
@@ -1113,13 +1286,12 @@ $('#list').addEventListener('click', e => {
   STATE.sel = +r.dataset.i; document.querySelectorAll('.res[data-i]').forEach(x => x.classList.toggle('on', x === r)); renderPreview();
 });
 $('#pv').addEventListener('click', e => {
-  const g = e.target.closest('[data-go]'); if (g && STATE.view) { STATE.view.page = +g.dataset.go; showPage(); $('#vbody').scrollIntoView({ block: 'nearest', behavior: 'smooth' }); return; }
-  if (e.target.id === 'vPrev' || e.target.id === 'vNext') { const V = STATE.view, hp = V.hitPages; const n = e.target.id === 'vNext' ? hp.find(p => p > V.page) : [...hp].reverse().find(p => p < V.page); if (n !== undefined) { V.page = n; showPage(); } return; }
+  const c = e.target.closest('[data-cp]'); if (c) { e.stopPropagation(); const R = STATE.res?.results[STATE.sel]; if (R) copyText(snippet(R.B, R, +c.dataset.cp, STATE.res.Q).replace(/^…|…$/g, '') + '\n' + cite(R.B, +c.dataset.cp)); return; }
+  const g = e.target.closest('[data-go]'); if (g && STATE.viewer) { STATE.viewer.go(+g.dataset.go); $('#viewerHost').scrollIntoView({ block: 'nearest', behavior: 'smooth' }); return; }
   if (e.target.id === 'openOrig') openOriginal();
 });
-$('#pv').addEventListener('change', e => { if (e.target.name === 'vm' && STATE.view) { STATE.view.mode = e.target.value; showPage(); } });
 document.addEventListener('keydown', e => {
-  if (!STATE.res || !STATE.res.results.length || e.target.tagName === 'INPUT' && e.target.id !== 'q') return;
+  if (document.body.classList.contains('vmode') || !STATE.res || !STATE.res.results.length || e.target.tagName === 'INPUT' && e.target.id !== 'q') return;
   if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
     if (e.target.id === 'q' && e.key === 'ArrowUp') return;
     e.preventDefault(); STATE.sel = Math.max(0, Math.min(Math.min(STATE.shown, STATE.res.results.length) - 1, STATE.sel + (e.key === 'ArrowDown' ? 1 : -1)));
@@ -1127,10 +1299,11 @@ document.addEventListener('keydown', e => {
     $(`.res[data-i="${STATE.sel}"]`)?.scrollIntoView({ block: 'nearest' }); renderPreview();
   }
 });
-let rsz; window.addEventListener('resize', () => { clearTimeout(rsz); rsz = setTimeout(() => { if (STATE.view?.mode === 'page') showPage(); }, 250); });
+let rsz; window.addEventListener('resize', () => { clearTimeout(rsz); rsz = setTimeout(() => { if (STATE.viewer?.mode === 'page') STATE.viewer.draw(); }, 250); });
 
 /* --- 시작: 보관된 색인이 있으면 바로 검색 가능 (폴더 연결은 원본 미리보기 · 새 파일 반영 때만 필요) */
 (async () => {
+  if (Q0.get('viewer') === '1') return initViewerWindow();
   renderTop();
   if (!window.indexedDB) { toast('이 브라우저는 색인 보관(IndexedDB)을 쓸 수 없습니다 — Edge 또는 Chrome 으로 여세요', 6000); }
   const had = await loadLib().catch(() => false);
@@ -1144,7 +1317,7 @@ let rsz; window.addEventListener('resize', () => { clearTimeout(rsz); rsz = setT
 })();
 
 // 시험·자동화용 (화면에는 영향 없음)
-window.BOOKS = { LIB, RUN, search, explain, buildQuery, THES, useFiles, STATE, doSearch, VERSION };
+window.BOOKS = { LIB, RUN, search, explain, buildQuery, THES, useFiles, STATE, doSearch, VERSION, Viewer };
 </script>
 </body>
 </html>
