@@ -22,7 +22,7 @@ from __future__ import annotations
 import math
 import re
 
-VERSION = 1
+VERSION = 2  # hotfix114: 회전 기기(펌프) — 옛 기억은 다시 읽는다
 
 # 기기 명사 (scene.NOUN_SYM 의 낱말 + 범례 EQUIPMENT 에 흔한 것) — 이름을 고르는 데만 쓴다
 NOUNS = ("COMPRESSOR", "PUMP", "TURBINE", "FAN", "BLOWER", "COOLER", "EXCHANGER", "HEATER", "CONDENSER",
@@ -250,6 +250,7 @@ def read_page(page, hints: dict) -> dict:
     phr = phrases(ws)
     # 1) 장비 — 기기 명사가 든 글줄에서 채워 막힌 영역 (그 글줄이 외곽선 안에 인쇄돼 있을 때)
     shapes = _shapes(st, area, bub, phr, avoid)
+    shapes += _rotating(page, area, bub, phr, avoid, shapes, ws)
     # 2) 배관 — 장비 영역 밖의 곧은 가로 · 세로 선
     lmin = bub * 0.9                           # 이보다 짧은 곧은 토막은 배관이 아니다 (쇄선 긴 획 · 글자 획 · 밸브 몸체)
     ax = 0.25
@@ -409,7 +410,7 @@ def _shapes(st: list, area: list, bub: float, phr: list, avoid: list) -> list:
       · 짧은 글(`A` · `B` · `1`)이 든 상자 — 이름은 그 글, 기기 명사는 가까이(버블 8개 안) 인쇄된 명사 글줄에서
         (`FEEDWATER PUMP … (A/B)` 상자 둘).  명사 글줄이 없으면 이름만 · 모양은 장면이 일반 상자로.
     안 막혔으면(글이 외곽선 밖에 인쇄됨) 장비 모양을 지어내지 않는다 — 장면이 이름 자리 규칙으로 돌아간다."""
-    named = [p for p in phr if _noun_of(p[4]) and not CONN_RE.match(p[4].strip())]
+    named = [p for p in label_blocks(phr) if _noun_of(p[4]) and not CONN_RE.match(p[4].strip())]
     shorts = [p for p in phr if SHORT_RE.match(p[4].strip()) and not any(_inside((p[0] + p[2]) / 2, (p[1] + p[3]) / 2, q, 1) for q in avoid)]
     if not named and not shorts:
         return []
@@ -503,6 +504,142 @@ def _shapes(st: list, area: list, bub: float, phr: list, avoid: list) -> list:
     return final
 
 
+ROTATING_NOUNS = ("PUMP", "FAN", "BLOWER", "COMPRESSOR", "MOTOR", "TURBINE")
+
+
+def round_bodies(page, area: list, bub: float, avoid: list) -> list:
+    """곡선으로 그린 둥근 몸통(펌프 · 팬 · 압축기의 원) — 곡선이 둘 이상인 잉크 path 중 버블 0.7~5배 크기 · 납작하지 않은 것.
+    겹치거나 맞닿은 path 는 한 몸통 (펌프 원 + 토출구 + 받침).  계기 버블 · 밸브 안 · 안에 글자가 든 원(`M` 전동기 표시)은 뺀다."""
+    T = _xf(tuple(page.rotation_matrix))
+    get = getattr(page, "get_cdrawings", None) or page.get_drawings
+    parts = []
+    for d in get():
+        if not _is_ink(d.get("color")):
+            continue
+        items = d.get("items") or []
+        nc = sum(1 for it in items if it[0] == "c")
+        if nc < 2:
+            continue
+        r = d.get("rect")
+        x0, y0, x1, y1 = (r.x0, r.y0, r.x1, r.y1) if hasattr(r, "x0") else tuple(r)
+        a, b = T(x0, y0), T(x1, y1)
+        bb = [min(a[0], b[0]), min(a[1], b[1]), max(a[0], b[0]), max(a[1], b[1])]
+        w, h = bb[2] - bb[0], bb[3] - bb[1]
+        if not (bub * 0.7 <= max(w, h) <= bub * 5) or max(w, h) > 1.7 * max(1.0, min(w, h)):
+            continue
+        if not _inside((bb[0] + bb[2]) / 2, (bb[1] + bb[3]) / 2, area):
+            continue
+        if any(bb[0] >= q[0] - 2 and bb[2] <= q[2] + 2 and bb[1] >= q[1] - 2 and bb[3] <= q[3] + 2 for q in avoid):
+            continue
+        parts.append({"bb": bb, "sig": (nc, sum(1 for it in items if it[0] == "l"))})
+    bodies = []
+    for pt in sorted(parts, key=lambda q: -(q["bb"][2] - q["bb"][0]) * (q["bb"][3] - q["bb"][1])):
+        hit = next((b for b in bodies if b["bb"][0] - 1 <= pt["bb"][2] and pt["bb"][0] <= b["bb"][2] + 1
+                    and b["bb"][1] - 1 <= pt["bb"][3] and pt["bb"][1] <= b["bb"][3] + 1), None)
+        if hit is None:
+            bodies.append({"bb": list(pt["bb"]), "sig": [pt["sig"]]})
+        else:
+            hit["bb"] = [min(hit["bb"][0], pt["bb"][0]), min(hit["bb"][1], pt["bb"][1]),
+                         max(hit["bb"][2], pt["bb"][2]), max(hit["bb"][3], pt["bb"][3])]
+            hit["sig"].append(pt["sig"])
+    for b in bodies:
+        b["sig"] = tuple(sorted(b["sig"]))
+    return bodies
+
+
+def label_blocks(phr: list) -> list:
+    """위아래로 붙어 쓴 글줄을 한 이름표로 (`FUEL OIL / UNLOADING / PUMP A`) — 가운데가 겹치고 줄 사이가 글자 높이 1.2배 안
+    (글줄 상자는 위아래 여백까지라 줄끼리 조금 겹칠 수 있다)."""
+    lines = sorted([p for p in phr if p[3] - p[1] < (p[2] - p[0]) * 3], key=lambda p: (p[1], p[0]))
+    upright = [p for p in phr if not (p[3] - p[1] < (p[2] - p[0]) * 3)]     # 세로 글은 묶지 않고 그대로
+    blocks = []
+    for p in lines:
+        h = max(1.0, p[3] - p[1])
+        cx = (p[0] + p[2]) / 2
+        hit = next((b for b in blocks if -h * 0.35 <= p[1] - b["r"][3] <= h * 1.2 and abs(cx - (b["last"][0] + b["last"][2]) / 2) <= max(p[2] - p[0], b["last"][2] - b["last"][0]) / 2
+                    and abs((p[3] - p[1]) - (b["last"][3] - b["last"][1])) <= h * 0.3), None)
+        if hit is None:
+            blocks.append({"r": list(p[:4]), "t": [p[4]], "last": p})
+        else:
+            hit["r"] = [min(hit["r"][0], p[0]), hit["r"][1], max(hit["r"][2], p[2]), p[3]]
+            hit["t"].append(p[4]); hit["last"] = p
+    return [(*b["r"], " ".join(b["t"])) for b in blocks] + upright
+
+
+def _rotating(page, area: list, bub: float, phr: list, avoid: list, shapes: list, ws: list) -> list:
+    """펌프 · 팬 · 압축기 — 이름이 몸통 **밖**(대개 바로 아래)에 인쇄돼 채움으로는 못 잡는 회전기기.
+    이름표(위아래로 붙은 글줄 묶음)에 회전기기 명사가 있으면, 그 위(또는 아래) 몸통 높이 3배 안 · 가로로 겹치는 둥근 몸통 중
+    가장 가까운 것.  같은 이름표가 둘 이상의 같은 몸통을 가리키는 그림(`CLEAN DRAIN PUMP (2X100%)` 아래 펌프 둘)은
+    **path 구성까지 같은** 몸통이 버블 10개 안에 있을 때만 형제로 잇는다 — 지어내지 않는다."""
+    bodies = round_bodies(page, area, bub, avoid)
+    if not bodies:
+        return []
+    taken = [s["rect"] for s in shapes]
+    bodies = [b for b in bodies if not any(_inside((b["bb"][0] + b["bb"][2]) / 2, (b["bb"][1] + b["bb"][3]) / 2, r, 1) for r in taken)]
+    # 안에 글자가 든 원은 전동기 표시(`M`) · 계기 — 몸통이 아니다
+    bodies = [b for b in bodies if not any(_inside((w[0] + w[2]) / 2, (w[1] + w[3]) / 2, b["bb"]) for w in ws)]
+    used_names = {s["name"] for s in shapes}
+    out, used = [], set()
+    for blk in label_blocks(phr):
+        text = blk[4]
+        noun = next((n for n in ROTATING_NOUNS if re.search(r"\b" + n + r"S?\b", text.upper())), "")
+        if not noun or CONN_RE.match(text.strip()) or text in used_names:
+            continue
+        best = None
+        for k, b in enumerate(bodies):
+            if k in used:
+                continue
+            bb = b["bb"]
+            bw, bh = bb[2] - bb[0], bb[3] - bb[1]
+            if bb[2] < blk[0] - bw or bb[0] > blk[2] + bw:
+                continue
+            below = blk[1] - bb[3]                 # 이름이 몸통 아래
+            above = bb[1] - blk[3]                 # 이름이 몸통 위
+            gap = min([g for g in (below, above) if -bh * 0.3 <= g <= bh * 3] or [None]) if any(
+                -bh * 0.3 <= g <= bh * 3 for g in (below, above)) else None
+            if gap is None:
+                continue
+            dx = abs((bb[0] + bb[2]) / 2 - (blk[0] + blk[2]) / 2)
+            d = max(gap, 0) + dx * 0.5
+            if best is None or d < best[0]:
+                best = (d, k)
+        if best is None:
+            continue
+        used.add(best[1])
+        b = bodies[best[1]]
+        out.append({"rect": [round(v, 1) for v in b["bb"]], "name": text, "noun": noun, "label_rect": [round(v, 1) for v in blk[:4]],
+                    "segs": [], "n": 0, "by": "round_body", "_k": best[1]})
+    # 형제 — 이름표가 다 제 몸통을 고른 **뒤에** 남은 몸통만 (그래야 `WATER PUMP B` 가 제 이름을 잃지 않는다).
+    # path 구성 · 크기가 같은 몸통을 가장 가까운 무리부터 하나씩 잇는다 (무리 안 아무 몸통에서 버블 10개 안).
+    groups = []
+    for o in out:
+        k = o.pop("_k")
+        groups.append({"o": o, "sig": bodies[k]["sig"], "members": [bodies[k]["bb"]]})
+    while True:
+        best = None
+        for k, s2 in enumerate(bodies):
+            if k in used:
+                continue
+            w2, h2 = s2["bb"][2] - s2["bb"][0], s2["bb"][3] - s2["bb"][1]
+            for gi, g in enumerate(groups):
+                if s2["sig"] != g["sig"]:
+                    continue
+                m0 = g["members"][0]
+                if abs((m0[2] - m0[0]) - w2) > w2 * 0.05 or abs((m0[3] - m0[1]) - h2) > h2 * 0.05:
+                    continue
+                d = min(max(abs(s2["bb"][0] - m[0]), abs(s2["bb"][1] - m[1])) for m in g["members"])
+                if d <= bub * 10 and (best is None or d < best[0]):
+                    best = (d, k, gi)
+        if best is None:
+            break
+        _, k, gi = best
+        used.add(k)
+        g = groups[gi]
+        g["members"].append(bodies[k]["bb"])
+        out.append(dict(g["o"], rect=[round(v, 1) for v in bodies[k]["bb"]], sibling=True))
+    return out
+
+
 def _twin(pipes: list, tol: float) -> list:
     out = []
     used = [False] * len(pipes)
@@ -533,10 +670,18 @@ def _on_border(p, area, tol) -> bool:
 
 
 def _noun_of(text: str) -> str:
+    """이름의 머리 명사 — `FOR` 앞에서 가장 뒤에 나오는 기기 명사 (`SLOP OIL TANK FOR … PUMP AREA` 는 TANK ·
+    `COGENERATION FEEDWATER PUMP A MOTOR` 는 MOTOR)."""
     up = text.upper()
-    for n in NOUNS:
-        if re.search(r"\b" + n + r"\b", up):
-            return n
+    head = re.split(r"\bFOR\b", up)[0] or up
+    best = ("", -1)
+    for part in (head, up):
+        for n in NOUNS:
+            for m in re.finditer(r"\b" + n + r"S?\b", part):
+                if m.start() > best[1]:
+                    best = (n, m.start())
+        if best[0]:
+            return best[0]
     return ""
 
 

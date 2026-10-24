@@ -289,6 +289,16 @@ def from_model(model: dict, ov: dict | None = None, scale: float | None = None, 
         sym = drawn_sym(sh.get("noun") or "")
         ex0, ey0 = P(r[0], r[1])
         ex1, ey1 = P(r[2], r[3])
+        # 회전기기(펌프 · 팬 · 전동기)는 도면 몸통이 버블만 해서 실제 크기로는 점처럼 보인다 — 몸통 가운데에 두고 버블 2.4배까지 키운다
+        # (예시 Overview 의 펌프 크기).  자리는 도면 그대로이고 더 큰 장비(탱크 · 터빈)는 도면 크기 그대로다.
+        if sym in ROTATING:
+            m = BUBBLE * 2.4
+            cx_, cy_ = (ex0 + ex1) / 2, (ey0 + ey1) / 2
+            if ex1 - ex0 < m:
+                ex0, ex1 = cx_ - m / 2, cx_ + m / 2
+            if ey1 - ey0 < m:
+                ey0, ey1 = cy_ - m / 2, cy_ + m / 2
+            ex0, ey0, ex1, ey1 = round(ex0, 1), round(ey0, 1), round(ex1, 1), round(ey1, 1)
         eid = f"{prefix}EQS-{n + 1:02d}"
         name = names_ov.get(sh["name"]) or sh["name"]
         eq = {"id": eid, "sym": sym, "x": ex0, "y": ey0, "w": round(ex1 - ex0, 1), "h": round(ey1 - ey0, 1),
@@ -304,7 +314,10 @@ def from_model(model: dict, ov: dict | None = None, scale: float | None = None, 
         """이름 자리 기기가 도면 외곽으로 이미 섰는가 (같은 이름 · 이름 자리가 외곽 안)."""
         r = e["rect"]
         cx, cy = (r[0] + r[2]) / 2, (r[1] + r[3]) / 2
-        return any(sh["name"] == e["name"] or (sh["rect"][0] - 4 <= cx <= sh["rect"][2] + 4 and sh["rect"][1] - 4 <= cy <= sh["rect"][3] + 4)
+        def on(q, pad=4):
+            return q[0] - pad <= cx <= q[2] + pad and q[1] - pad <= cy <= q[3] + pad
+        # 같은 이름 · 이름 자리가 외곽 안 · 이름 자리가 그 외곽의 이름표(펌프처럼 몸통 밖에 인쇄된 이름) 위
+        return any(sh["name"] == e["name"] or on(sh["rect"]) or (sh.get("label_rect") and on(sh["label_rect"], 2))
                    for sh in shapes)
     for n, e in enumerate(model.get("equipment") or []):
         r = e["rect"]

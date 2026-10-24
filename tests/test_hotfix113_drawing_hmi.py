@@ -186,3 +186,41 @@ def test_geom_cache_is_outside_the_analysis(tmp_path, monkeypatch):
     assert "attach_geom(job_id, [s])" in src and "attach_geom(job_id, models)" in src
     h = dcs.geom_hints({"instruments": [{"rect": [0, 0, 40, 20]}], "valves": [{"rect": [50, 0, 60, 10], "tag_rect": [70, 0, 90, 10]}]}, [1, 2, 3, 4])
     assert h["bubble"] == 20 and h["area"] == [1, 2, 3, 4] and len(h["avoid"]) == 3 and h["bubbles"] == [[0, 0, 40, 20]]
+
+
+def _pump_page():
+    """펌프 둘 (원 + 받침 · path 구성 같음) · 그 아래 두 줄 이름표 하나 · 옆에 `M` 이 든 원(전동기 표시)."""
+    doc = pymupdf.open()
+    pg = doc.new_page(width=1200, height=840)
+    for cy in (300, 420):
+        sh = pg.new_shape()
+        sh.draw_circle((600, cy), 18)
+        sh.draw_line((585, cy + 18), (615, cy + 18))
+        sh.finish(color=(0, 0, 0), width=0.5)
+        sh.commit()
+    sh = pg.new_shape()
+    sh.draw_circle((800, 300), 18)
+    sh.finish(color=(0, 0, 0), width=0.5)
+    sh.commit()
+    sh = pg.new_shape()
+    sh.draw_line((300, 300), (582, 300))
+    sh.draw_line((300, 420), (582, 420))
+    sh.finish(color=(0, 0, 0), width=0.5)
+    sh.commit()
+    pg.insert_text((560, 462), "CLEAN DRAIN", fontsize=9)
+    pg.insert_text((572, 474), "PUMP", fontsize=9)
+    pg.insert_text((796, 304), "M", fontsize=9)
+    return doc, pg
+
+
+def test_pumps_named_below_their_round_body():
+    doc, pg = _pump_page()
+    g = pidgeom.read_page(pg, {"area": AREA, "bubble": BUB, "avoid": [], "bubbles": []})
+    pumps = [s for s in g["shapes"] if s["noun"] == "PUMP"]
+    assert len(pumps) == 2 and {s["name"] for s in pumps} == {"CLEAN DRAIN PUMP"}          # 두 줄 이름표 · 같은 꼴 형제
+    assert sorted(round(s["rect"][1]) for s in pumps) == [282, 402]
+    assert not any(s["rect"][0] > 700 for s in g["shapes"])                                # `M` 이 든 원은 펌프가 아니다
+    assert pidgeom._noun_of("SLOP OIL TANK FOR TRANSFER PUMP AREA") == "TANK"
+    assert pidgeom._noun_of("COGENERATION FEEDWATER PUMP A MOTOR") == "MOTOR"
+    blocks = [b[4] for b in pidgeom.label_blocks(pidgeom.phrases(pidgeom.words(pg)))]
+    assert "CLEAN DRAIN PUMP" in blocks
