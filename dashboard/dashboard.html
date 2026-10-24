@@ -952,6 +952,7 @@ table.hkt td{white-space:nowrap}table.hkt td.lvds{white-space:normal}table.hkt t
     <div id="whoLine">사용자: <b id="whoName">-</b></div>
     <button id="btnWho">이름 변경</button>
     <button id="btnFolder">데이터 폴더 선택</button>
+    <button id="btnCopy" hidden></button>
     <button id="btnSrv" title="이 PC의 dashboard.html 사본이 접속할 서버 주소">서버 주소 설정</button>
     <div id="netState"></div>
     <div id="folderName" style="word-break:break-all"></div>
@@ -1101,7 +1102,7 @@ function recLabel(key, f) {
  * ===================================================================== */
 let root = null;
 /* 서버 모드: http(s):// 로 접속하면 server.py 의 REST API 사용 (폴더 선택 불필요). file:// 로 열면 폴더 모드 */
-const APP_VERSION = '2026-10-24.2';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
+const APP_VERSION = '2026-10-24.3';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
 const SERVER_URL = 'http://localhost:8080';
 // 부서원 PC 사본(file://)이 접속을 시도할 서버 — 서버가 배포 파일을 만들 때 'PC 이름 주소, IP 주소' 순으로 자동 기록함
 const DEFAULT_SERVERS = ['http://ASEUNGWOOK-B01:8080', 'http://65.3.30.234:8080'];
@@ -1289,10 +1290,10 @@ function isUpdated(rec) {
 /* =====================================================================
  *  데이터 로드
  * ===================================================================== */
-async function loadAll() {
+async function loadAll(o = {}) {
   if (!root) return;
   if (OFFLINE) {                                           // 오프라인: 보관본 + 내 대기열을 겹쳐서 표시
-    const c = await cacheLoad();
+    const c = await cacheLoad() || snapLoad();               // 브라우저 보관본을 못 쓰면 파일 안의 보관본
     if (!c) throw new Error('보관된 데이터가 없습니다');
     const cp = structuredClone(c);
     SHEETS.forEach(s => DB.recs[s.key] = (cp.recs?.[s.key] || []).sort(byOrder));
@@ -1315,7 +1316,7 @@ async function loadAll() {
     if (readOnly()) await loadArchiveView(view.week);
     await loadBoard();
     await loadProfiles();
-    await loadBirthdays(); bdayCheck();                    // 부서원 생일 명단 갱신 (팝업은 이 화면에서 아직 안 띄웠을 때만)
+    if (!o.warm) { await loadBirthdays(); bdayCheck(); }   // 부서원 생일 명단 갱신 (팝업은 이 화면에서 아직 안 띄웠을 때만) · warm = 로그인 전 보관본만 미리 만듦
     await cacheSave();                                     // 받은 데이터 전체를 이 PC(IndexedDB)에 최신본으로 보관
     QUEUE.forEach(applyOp);                                // 아직 올리지 못한 내 오프라인 수정은 화면에 겹쳐 표시
     return;
@@ -1540,7 +1541,26 @@ async function cacheSave() {
     await kv('readwrite', s => s.put({ savedAt:stamp(), server:API_BASE || location.origin, recs:DB.recs, cols:DB.cols, state:DB.state,
       baseSheets:DB.baseSheets || null, baseKey:DB.baseKey || '', board:DB.board || [], profiles:DB.profiles || [], sheetCols:DB.sheetCols || {} }, 'cache'));
     OFFLINE_AT = stamp();
+    if (!PERSIST_ASKED) { PERSIST_ASKED = true; navigator.storage?.persist?.().catch(() => {}); }   // 브라우저가 보관본을 임의로 지우지 않게 요청
   } catch (_) {}
+}
+let PERSIST_ASKED = false;
+/* 사본 파일 안에 보관본을 같이 넣음: 브라우저 보관본이 없어도(주소로만 접속했던 PC · 닫을 때 지우는 브라우저) 서버가 꺼졌을 때 그 파일로 열림 */
+const SNAP_TAG = ['<scr' + 'ipt id="deptSnap" type="application/json">', '</scr' + 'ipt>'];
+async function withSnap(html) {
+  const c = await cacheLoad(); if (!c) return html;
+  html = html.replace(new RegExp(SNAP_TAG[0] + '[^<]*' + SNAP_TAG[1].replace('/', '\\/') + '\\n?', 'g'), '');
+  const blk = SNAP_TAG[0] + JSON.stringify(c).replace(/</g, '\\u003c') + SNAP_TAG[1] + '\n', i = html.lastIndexOf('</body>');
+  return i < 0 ? html + blk : html.slice(0, i) + blk + html.slice(i);
+}
+function snapLoad() { try { const t = document.getElementById('deptSnap')?.textContent; return t ? JSON.parse(t) : null; } catch (_) { return null; } }
+async function saveCopy() {                                 // [내 PC 사본 받기]: 서버의 최신 파일 + 지금 보관본 → dashboard.html 내려받기
+  let html; try { html = await withSnap(await newHtml()); } catch (e) { return toast('사본을 만들지 못했습니다: ' + e.message, true); }
+  const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([html], { type:'text/html' })); a.download = 'dashboard.html';
+  document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+  try { localStorage.setItem('dept-copy-at', todayISO()); } catch (_) {}
+  toast('dashboard.html 을 받았습니다 → 바탕화면 등에 두고 앞으로는 그 파일을 더블클릭해 여세요 (서버가 꺼져도 열림)');
+  render();
 }
 async function cacheLoad() { try { return await kv('readonly', s => s.get('cache')); } catch (_) { return null; } }
 async function queueLoad() { try { QUEUE = (await kv('readonly', s => s.get('queue'))) || []; } catch (_) { QUEUE = []; } }
@@ -1710,7 +1730,8 @@ async function askUpdate(manual) {
 }
 async function replaceSelf(html) {
   const fname = selfName();
-  if (!('showSaveFilePicker' in window)) { location.href = API_BASE + '/dashboard.html?download=1'; return toast('새 파일을 내려받았습니다. 지금 쓰는 dashboard.html 을 그 파일로 바꿔 주세요'); }
+  if (!('showSaveFilePicker' in window)) return saveCopy();
+  html = await withSnap(html);                             // 새 파일에도 지금 보관본을 넣어 둠 (서버 꺼졌을 때 그 파일로 열림)
   try {
     let h = null;
     try { h = await kv('readonly', st => st.get('self')); } catch (_) {}
@@ -1725,6 +1746,15 @@ async function replaceSelf(html) {
     if (e.name === 'AbortError') return toast('교체를 취소했습니다. 위 배너의 [지금 교체]로 다시 할 수 있습니다', true);
     toast(`교체하지 못했습니다 (${e.message}) — 배너의 [새 버전 다운로드]로 받아 직접 바꿔 주세요`, true);
   }
+}
+// 주소(http)로 연 부서원에게 하루 한 번: 서버가 꺼지면 열리지 않으니 사본 파일을 받아 쓰라는 안내 (한 번 받았으면 안 보임)
+function copyTip() {
+  if (!SERVER || OFFLINE || ADMIN || !root || location.protocol === 'file:' || FRAME_ROUTES(route)) return false;
+  try { return !localStorage.getItem('dept-copy-at') && localStorage.getItem('dept-copy-hide') !== todayISO(); } catch (_) { return false; }
+}
+async function fileCopyUpdate() {                           // 파일 사본: 서버의 최신 파일 + 보관본으로 이 파일을 덮어씀
+  let html; try { html = await newHtml(); } catch (e) { return toast('서버에서 파일을 받지 못했습니다: ' + e.message, true); }
+  await replaceSelf(html);
 }
 function checkVersion(info) { NEWVER = info.version && info.version !== APP_VERSION && location.protocol === 'file:' ? info.version : ''; }
 const serverLabel = () => `${(API_BASE || location.origin).replace(/^https?:\/\//, '')} (서버${ADMIN ? ' · 관리자' : SUPER ? ' · 그룹장 권한' : ''})`;
@@ -1990,11 +2020,12 @@ function authExpired() {                                 // 서버가 토큰을 
   setTimeout(async () => { await authDialog('login'); authExpiring = false; afterAuth(); }, 300);
 }
 // 저장된 토큰 확인 → 유효하면 그대로, 아니면 로그인 창. 서버 연결 중일 때만 호출
-async function authStart() {
+async function authStart(beforeDialog) {
   if (AUTH?.token) {
     try { const me = await api('GET', 'auth/me'); authSave(AUTH.token, me); return; }
     catch (e) { if (e.offline) { user = AUTH.name; return; } authClear(); }
   }
+  beforeDialog?.();
   await authDialog();
 }
 async function refreshPerms() { try { const i = await api('GET', 'info'); if (setPerms(i.perms, i.super)) render(); } catch (_) {} }   // 로그인·로그아웃 후 그 계정의 메뉴 권한
@@ -3104,6 +3135,8 @@ function render() {
       <span class="muted">서버 폴더의 <b>allow_firewall.bat</b> 를 마우스 오른쪽 → [관리자 권한으로 실행] (권한이 없으면 IT 에 'TCP ${esc(location.port || '8080')} 인바운드 허용' 요청)</span></div>`;
     if (NET.changedAt) banners += `<div class="banner">📡 서버 PC 의 IP 가 바뀌었습니다 (${fmtTime(NET.changedAt)} · 유선 LAN ↔ Wi-Fi 등) — 지금 주소 <b>${esc((NET.ips || []).join(', ') || '-')}</b>. 부서원 파일은 PC 이름과 예전에 연결됐던 주소를 차례로 시도합니다. 안 되면 부서원 화면 왼쪽 아래 [서버 주소 설정]에 <b>http://${esc((NET.ips || [])[0] || '')}:${esc(location.port || '8080')}</b></div>`;
   }
+  if (copyTip()) banners += `<div class="banner netbar">💡 지금은 주소(<b>${esc(location.host)}</b>)로 열었습니다 — <b>서버가 꺼지면 이 주소는 열리지 않습니다.</b> [📥 내 PC 사본 받기]로 받은 파일을 바탕화면에 두고 그 파일로 열면, 서버가 꺼져도 마지막 데이터로 볼 수 있습니다.
+      <span class="sp"></span><button class="btn sm pri" data-net="copy">📥 내 PC 사본 받기</button><button class="btn sm" data-net="copyno">오늘은 그만</button></div>`;
   if (NEWVER) banners += `<div class="banner netbar">🆕 새 버전의 대시보드(${esc(NEWVER)})가 있습니다. 내 PC의 dashboard.html 을 새 파일로 바꿔 주세요.
       <span class="sp"></span><button class="btn sm pri" data-net="upd">지금 교체</button><a class="btn sm" href="${esc(API_BASE)}/dashboard.html?download=1">새 버전 다운로드</a></div>`;
   if (readOnly() && !FRAME_ROUTES(route)) banners += `<div class="banner">📌 <b>${esc(weekLabel(view.week))}</b> 마감본(읽기 전용) — ${view.arch?.auto ? `<b>수요일 오전 11:59 기준</b> 데이터` : `마감 시각 ${fmtTime(view.arch?.closedAt)} 기준 데이터`} · ${esc(view.arch?.closedBy || '')}</div>`;
@@ -3191,6 +3224,11 @@ function renderHeader() {
   $('#btnClose').style.display = MGR() ? '' : 'none';     // 금주 마감: 관리자(서버 PC) · 그룹장
   $('#btnFolder').style.display = SERVER ? 'none' : '';
   $('#btnSrv').style.display = location.protocol === 'file:' ? '' : 'none';
+  const bc = $('#btnCopy'), isFile = location.protocol === 'file:';
+  bc.hidden = !SERVER || OFFLINE || !root || (ADMIN && !isFile);
+  bc.textContent = isFile ? '📥 이 파일에 최신 데이터 넣기' : '📥 내 PC 사본 받기';
+  bc.title = isFile ? '지금 서버 데이터를 이 dashboard.html 파일 안에도 넣어 둡니다 → 서버가 꺼지고 브라우저 보관본이 지워져도 이 파일로 열림'
+    : '서버가 꺼져도 열리는 dashboard.html 파일을 받습니다 (지금 데이터가 들어 있음) → 바탕화면에 두고 앞으로 그 파일로 여세요';
   const bq = $('#btnQueue'); bq.style.display = SERVER ? '' : 'none';
   bq.textContent = QUEUE.length ? `대기열 (${QUEUE.length})` : '대기열'; bq.classList.toggle('pri', QUEUE.length > 0);
   $('#netState').innerHTML = (!SERVER ? '' : OFFLINE ? '<span class="net off">● 오프라인</span>' : '<span class="net on">● 서버 연결됨</span>')
@@ -5861,7 +5899,8 @@ $('#content').onclick = e => {
   const pp = e.target.closest('[data-pop]'); if (pp) return openPop(pp.dataset.pop);
   const g = e.target.closest('[data-go]'); if (g) return go(g.dataset.go);
   const ba = e.target.closest('[data-bact]'); if (ba) return boardAction(ba);
-  const nb = e.target.closest('[data-net]'); if (nb) return nb.dataset.net === 'sync' ? trySync(true) : nb.dataset.net === 'upd' ? askUpdate(true) : openQueue();
+  const nb = e.target.closest('[data-net]'); if (nb) return nb.dataset.net === 'sync' ? trySync(true) : nb.dataset.net === 'upd' ? askUpdate(true)
+    : nb.dataset.net === 'copy' ? saveCopy() : nb.dataset.net === 'copyno' ? (() => { try { localStorage.setItem('dept-copy-hide', todayISO()); } catch (_) {} render(); })() : openQueue();
   if (PID_ROUTES[route]) { if (e.target.closest('[data-pidretry]')) pidConnect(route); return; }
   if (MODULES[route] || APP_ROUTES[route]) return;
   if (route === 'board') return;
@@ -5948,6 +5987,7 @@ $('#btnFind').onclick = openFind;
 $('#btnFolder').onclick = pickFolder;
 $('#btnQueue').onclick = openQueue;
 $('#btnSrv').onclick = () => setServerUrl();
+$('#btnCopy').onclick = () => location.protocol === 'file:' ? fileCopyUpdate() : saveCopy();
 async function setServerUrl() {
   const c = await ask('서버 주소 설정', `<p class="muted">이 PC의 dashboard.html 사본이 접속할 서버 주소입니다. 이 브라우저에 저장됩니다.<br>기본값: ${DEFAULT_SERVERS.map(esc).join(' → ')} 순서로 자동 시도</p>
     <input id="srvIn" style="width:100%;padding:9px;border:1px solid var(--line);border-radius:8px" value="${esc(serverUrl())}" placeholder="http://PC이름:8080">`,
@@ -6043,8 +6083,13 @@ setInterval(() => { if (SERVER && root && (OFFLINE || QUEUE.length) && !boardTyp
     API_BASE = normUrl(DEFAULT_SERVERS[0] || '');
     info = await findServer();                               // 설정한 주소 → 기본 주소(PC 이름 · IP) → 예전에 연결됐던 주소 모두 동시에
     if (info && info.mode === 'server') { ADMIN = !!info.admin; SERVER_INFO = info; setPerms(info.perms, info.super); checkVersion(info); root = { name:serverLabel() }; await startOnline(); return; }
-    API_BASE = (await cacheLoad())?.server || API_BASE;     // 오프라인: 마지막으로 연결됐던 서버로 재연결 시도
-    const c = await cacheLoad();
+    let c = await cacheLoad(); const sn = snapLoad();
+    if (sn && (!c || String(sn.savedAt || '') > String(c.savedAt || ''))) {   // 파일 안에 넣어 둔 보관본이 더 새것이거나 브라우저 보관본이 없으면 그것으로
+      try { await kv('readwrite', s => s.put(sn, 'cache')); } catch (_) {}
+      if (!c) setTimeout(() => toast(`이 파일에 들어 있는 ${fmtTime(sn.savedAt) || ''} 기준 데이터로 열었습니다 (서버가 켜지면 자동으로 최신으로)`), 600);
+      c = sn;
+    }
+    API_BASE = c?.server || API_BASE;                       // 오프라인: 마지막으로 연결됐던 서버로 재연결 시도
     if (c) {
       OFFLINE = true; root = { name:'오프라인 (이 PC 보관본)' };
       if (AUTH) user = AUTH.name; else { user = ''; GUEST = true; }   // 오프라인: 마지막 로그인 계정으로 (서버 연결 시 토큰 재확인), 없으면 보기 전용
@@ -6052,13 +6097,20 @@ setInterval(() => { if (SERVER && root && (OFFLINE || QUEUE.length) && !boardTyp
       render(); showMyTodo(); bdayCheck(); if (BLOCKED) toast(BLOCKED, true); return;   // 오프라인으로 연 파일: 보관 명단으로 생일 팝업
     }
     SERVER = false; API_BASE = ''; ADMIN = true; renderMenu(); renderHeader();
-    $('#content').innerHTML = `<div class="card welcome"><h2>서버에 연결할 수 없습니다</h2>
-      <p>서버 <b>${esc(serverUrl())}</b> 에 연결하지 못했고, 이 PC에 보관된 데이터도 아직 없습니다.</p>${BLOCKED ? `<p class="banner bad" style="display:block">⛔ ${esc(BLOCKED)}</p>` : ''}
-      <p class="muted">서버에 한 번이라도 연결되면 그 데이터를 이 PC에 보관해 두었다가, 다음부터는 서버가 꺼져 있어도 오프라인으로 열 수 있습니다.</p>
-      <button class="btn pri" id="btnRetry">다시 시도</button> <button class="btn" id="btnSrv2">서버 주소 변경</button> <button class="btn" id="btnLocalMode">폴더 모드로 열기</button></div>`;
+    $('#btnFolder').style.display = 'none'; $('#btnWho').hidden = true; $('#whoLine').hidden = true;   // 부서원이 '데이터 폴더 선택'을 누르지 않게 (폴더 모드는 아래 작은 글씨로만)
+    $('#content').innerHTML = `<div class="card welcome"><h2>서버가 꺼져 있어 열 수 없습니다</h2>
+      <p>서버 <b>${esc(serverUrl())}</b> 에 연결하지 못했고, 이 PC(이 브라우저)에 보관된 데이터도 없습니다.</p>${BLOCKED ? `<p class="banner bad" style="display:block">⛔ ${esc(BLOCKED)}</p>` : ''}
+      <p><b>서버가 켜지면 [다시 시도]</b>를 누르세요. 한 번 열리면 그때부터는 서버가 꺼져도 이 파일로 마지막 데이터를 볼 수 있습니다.</p>
+      <div class="muted" style="font-size:13px;line-height:1.7;text-align:left;background:var(--bg,#f4f6fb);border-radius:8px;padding:10px 14px">보관된 데이터가 없는 흔한 이유
+        <br>· 서버가 켜져 있을 때 <b>이 파일이 아니라 주소(http://…)로</b> 들어갔다 → 주소와 파일은 보관 장소가 따로입니다. 다음에는 이 파일로 여세요
+        <br>· 이 파일로 열었지만 <b>로그인 화면에서 바로 닫았다</b> (예전 버전)
+        <br>· 브라우저가 <b>닫을 때 사이트 데이터를 지우도록</b> 설정됨 · InPrivate/시크릿 창 · 다른 브라우저(Chrome↔Edge)로 열었다
+        <br>→ 서버가 켜져 있을 때 [📥 이 파일에 최신 데이터 넣기]를 한 번 누르면 파일 안에도 보관되어 이런 경우에도 열립니다</div>
+      <p style="margin-top:14px"><button class="btn pri" id="btnRetry">다시 시도</button> <button class="btn" id="btnSrv2">서버 주소 변경</button></p>
+      <p class="muted" style="font-size:12px;margin-bottom:0">관리자용: <a href="#" id="btnLocalMode">서버 없이 공유 폴더를 직접 여는 폴더 모드</a></p></div>`;
     $('#btnRetry').onclick = () => location.reload();
     $('#btnSrv2').onclick = () => setServerUrl();
-    $('#btnLocalMode').onclick = () => initFolderMode();
+    $('#btnLocalMode').onclick = e => { e.preventDefault(); initFolderMode(); };
     return;
   }
   await initFolderMode();
@@ -6066,9 +6118,11 @@ setInterval(() => { if (SERVER && root && (OFFLINE || QUEUE.length) && !boardTyp
 async function startOnline() {
   const bdp = loadBirthdays();                               // 생일 명단: 기다리지 않고 미리 받음
   if (AUTH) bdp.then(bdayCheck);                            // 저장된 로그인으로 들어오면 바로 팝업
-  user = ''; await authStart();
+  user = ''; let warm = null;                               // 로그인 화면이 뜨면 그 뒤에서 보관본을 먼저 만듦 → 로그인 안 하고 닫아도 다음에 오프라인으로 열림
+  await authStart(() => { warm = loadAll({ warm:true }).catch(() => {}); });
   bdp.then(bdayCheck);                                      // 로그인 화면에서 로그인(또는 비회원 보기)한 뒤 팝업 — 그 사용자에게 아직 안 보였으면                             // 서버 모드: 로그인 / 계정 개설 / 비회원
   await refreshPerms();
+  if (warm) await warm;                                    // 두 번 불러오기가 겹치지 않게
   try { await loadAll(); } catch (e) { toast('불러오기 실패: ' + e.message, true); }
   render();
   await tsDueCheck();                                      // 매달 첫째 주: 직전 달 시수 올리기 할 일
