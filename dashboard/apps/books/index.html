@@ -1,0 +1,1131 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>계장도서검토</title>
+<style>
+/* 계장도서검토 — 내 PC 도서 폴더를 '본문 내용'으로 찾는 검색기 (대시보드 메뉴 '계장도서검토', /apps/books/)
+   폐쇄망: 외부 글꼴·CDN 없음. PDF 는 같은 폴더 vendor/pdf.js(3.11, 파일 동봉)로 읽는다.
+   도서 파일은 이 PC 브라우저 안에서만 읽고, 뽑은 본문은 이 PC 의 IndexedDB 에만 보관한다 (서버로 보내지 않음).
+   색 = dashboard.html :root 토큰과 같은 값 (navy #1e2a5a · accent #2b44c9 …) */
+:root{
+  --navy:#1e2a5a; --navy-2:#2a3870; --accent:#2b44c9; --accent-d:#1f33a3; --accent-l:#e8ecfc;
+  --bg:#eef1f8; --card:#fff; --line:#e1e6f2; --line-2:#d5dcea; --text:#1b2238; --sub:#667089;
+  --bad:#d63a2f; --bad-l:#fde8e6; --ok:#168a5c; --ok-l:#dff4ea; --warn:#c77700; --warn-l:#fff6dc; --hl:#fff176;
+  --shadow:0 2px 10px rgba(30,42,90,.08);
+  --f-ui:"Malgun Gothic","맑은 고딕","Apple SD Gothic Neo",system-ui,sans-serif; --f-mono:Consolas,monospace;
+  color-scheme:light;
+}
+html,body{height:100%}
+body{margin:0;background:var(--bg);color:var(--text);font-family:var(--f-ui);font-size:13.5px}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+button{font:inherit;cursor:pointer}
+.btn{font-size:12.5px;color:var(--text);background:#fff;border:1px solid var(--line-2);border-radius:8px;padding:6px 12px;white-space:nowrap}
+.btn:hover{background:#f4f6fd}
+.btn.pri{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:600}
+.btn.pri:hover{background:var(--accent-d)}
+.btn.sm{padding:3px 9px;font-size:12px;border-radius:6px}
+.btn:disabled{opacity:.45;cursor:default}
+.btn:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+.muted{color:var(--sub);font-size:12px}
+.app{display:grid;grid-template-rows:auto auto 1fr;height:100%}
+
+/* 위 띠 */
+.bar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;padding:8px 16px;background:var(--card);border-bottom:1px solid var(--line)}
+.brand{font-weight:700;font-size:14.5px;color:var(--navy);margin-right:4px;white-space:nowrap}
+body.embed .brand{display:none}
+.folder{display:inline-flex;align-items:center;gap:6px;background:var(--bg);border:1px solid var(--line);border-radius:999px;padding:3px 10px 3px 8px;font-size:12.5px;max-width:520px;min-width:0}
+.folder b{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.folder .dot{width:8px;height:8px;border-radius:50%;background:var(--sub);flex:none}
+.folder.live .dot{background:var(--ok)}
+.folder.cache .dot{background:var(--warn)}
+.sp{flex:1}
+.prog{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--sub);min-width:0;max-width:520px}
+.prog .pb{width:140px;height:6px;border-radius:3px;background:var(--line);overflow:hidden;flex:none}
+.prog .pb i{display:block;height:100%;background:var(--accent);width:0;transition:width .2s}
+.prog span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+/* 검색 영역 */
+.sz{padding:14px 16px 10px;background:var(--card);border-bottom:1px solid var(--line)}
+.qrow{display:flex;gap:8px;max-width:1100px}
+.qbox{flex:1;display:flex;align-items:center;gap:8px;border:2px solid var(--line-2);border-radius:12px;padding:0 12px;background:#fff}
+.qbox:focus-within{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-l)}
+.qbox input{flex:1;border:0;outline:0;font:inherit;font-size:16px;padding:10px 0;min-width:0;background:transparent}
+.qbox .ic{font-size:17px;color:var(--sub)}
+.qbox .x{border:0;background:none;color:var(--sub);font-size:16px;padding:2px 4px}
+.qrow .btn.pri{font-size:14px;padding:0 20px;border-radius:12px}
+.opts{display:flex;flex-wrap:wrap;gap:6px 14px;align-items:center;margin-top:8px;font-size:12.5px;color:var(--sub)}
+.opts label{display:inline-flex;gap:5px;align-items:center;white-space:nowrap}
+.opts select{font:inherit;font-size:12.5px;border:1px solid var(--line-2);border-radius:6px;padding:2px 4px;background:#fff;color:var(--text);max-width:220px}
+.chips{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-top:8px}
+.chips .lbl{font-size:12px;color:var(--sub);margin-right:2px}
+.chip{border:1px solid var(--line-2);background:#fff;border-radius:999px;padding:3px 10px;font-size:12px;color:var(--text)}
+.chip:hover{border-color:var(--accent);color:var(--accent)}
+.chip.rec{background:var(--bg)}
+.interp{margin-top:8px;font-size:12.5px;display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.interp .k{color:var(--sub)}
+.cpt{display:inline-flex;align-items:center;gap:4px;background:var(--accent-l);color:var(--navy);border-radius:6px;padding:2px 8px;font-weight:600;font-size:12px}
+.cpt.part{background:var(--bg);color:var(--sub);font-weight:500}
+.cpt small{font-weight:400;color:var(--sub)}
+.dym{color:var(--warn)}
+
+/* 본문: 결과 목록 | 미리보기 */
+.main{display:grid;grid-template-columns:minmax(360px,44%) 1fr;min-height:0}
+.list{overflow:auto;padding:12px 12px 24px 16px;border-right:1px solid var(--line)}
+.pv{overflow:auto;padding:12px 16px 24px;min-width:0}
+.sum{font-size:12.5px;color:var(--sub);margin:2px 2px 10px;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.sum b{color:var(--text)}
+.card{background:var(--card);border-radius:12px;box-shadow:var(--shadow);padding:14px 16px;margin-bottom:12px}
+.card h2{margin:0 0 8px;font-size:15px}
+.res{display:grid;grid-template-columns:34px 1fr;gap:4px 10px;background:var(--card);border:1px solid transparent;border-radius:12px;box-shadow:var(--shadow);padding:11px 12px;margin-bottom:8px;cursor:pointer}
+.res:hover{border-color:var(--line-2)}
+.res.on{border-color:var(--accent);box-shadow:0 0 0 2px var(--accent-l),var(--shadow)}
+.res .rk{grid-row:1/4;display:flex;flex-direction:column;align-items:center;gap:4px;padding-top:2px}
+.res .rk b{font-size:15px;color:var(--navy)}
+.meter{width:6px;height:44px;border-radius:3px;background:var(--line);position:relative;overflow:hidden}
+.meter i{position:absolute;left:0;right:0;bottom:0;background:var(--accent);border-radius:3px}
+.res .t{display:flex;gap:6px;align-items:baseline;min-width:0}
+.res .t .nm{font-weight:700;font-size:13.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.res .path{font-size:11.5px;color:var(--sub);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.res .why{font-size:12.3px;line-height:1.55;color:var(--text)}
+.res .why .w{display:block}
+.tier{flex:none;font-size:11px;font-weight:700;border-radius:5px;padding:1px 6px;white-space:nowrap}
+.tier.t3{background:var(--accent);color:#fff}
+.tier.t2{background:var(--accent-l);color:var(--accent-d)}
+.tier.t1{background:var(--bg);color:var(--sub)}
+.tier.t0{background:#fff;color:var(--sub);border:1px solid var(--line)}
+.tier.t-1{background:var(--warn-l);color:var(--warn);border:1px solid #f0d58a}
+.fmt{flex:none;font-family:var(--f-mono);font-size:10.5px;color:var(--sub);border:1px solid var(--line);border-radius:4px;padding:0 4px}
+mark{background:var(--hl);color:inherit;border-radius:2px;padding:0 1px}
+.more{display:block;margin:6px auto 0}
+.empty{text-align:center;color:var(--sub);padding:40px 10px;line-height:1.7}
+
+/* 첫 화면 (P&ID · LOGIC · 판넬 공간확보 첫 화면의 ① ② 와 같은 모양) */
+.intro{max-width:880px;margin:24px auto;padding:0 16px}
+.steps{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin:14px 0}
+.step{background:var(--card);border-radius:12px;box-shadow:var(--shadow);padding:14px 16px}
+.step h3{margin:0 0 6px;font-size:13.5px;display:flex;gap:8px;align-items:center}
+.step p{margin:0;color:var(--sub);font-size:12.5px;line-height:1.6}
+.step-n{display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:50%;background:var(--accent);color:#fff;font-size:12px;font-weight:700;flex:none}
+.drop{border:2px dashed var(--line-2);border-radius:14px;background:var(--card);padding:28px 16px;text-align:center;color:var(--sub);transition:.15s}
+.drop.over,.app.over .drop{border-color:var(--accent);background:var(--accent-l);color:var(--accent-d)}
+.drop .big{font-size:15px;color:var(--text);margin:6px 0 12px}
+.note{font-size:12px;color:var(--sub);line-height:1.6;margin-top:10px}
+.app.over::after{content:'여기에 도서 폴더를 놓으세요';position:fixed;inset:10px;border:3px dashed var(--accent);border-radius:16px;background:rgba(232,236,252,.85);display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:700;color:var(--accent-d);pointer-events:none;z-index:50}
+
+/* 미리보기 */
+.pvh{display:flex;gap:10px;align-items:flex-start}
+.pvh .tt{flex:1;min-width:0}
+.pvh h2{margin:0;font-size:16px;word-break:break-all}
+.pvh .path{font-size:12px;color:var(--sub);word-break:break-all;margin-top:2px}
+.badges{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
+.badge{font-size:11.5px;background:var(--bg);border-radius:5px;padding:1px 7px;color:var(--sub)}
+.whybox{background:var(--accent-l);border-radius:10px;padding:10px 12px;margin-top:10px}
+.whybox h3{margin:0 0 4px;font-size:13px;color:var(--navy)}
+.whybox .lead{font-weight:600;margin-bottom:6px;line-height:1.5}
+.whybox ul{margin:0;padding-left:18px;line-height:1.65;font-size:12.5px}
+.secttl{font-size:12.5px;font-weight:700;color:var(--navy);margin:14px 0 6px;display:flex;align-items:center;gap:6px}
+.heads{display:flex;flex-wrap:wrap;gap:6px}
+.heads button{border:1px solid var(--line-2);background:#fff;border-radius:6px;padding:3px 8px;font-size:12px;text-align:left;max-width:100%}
+.heads button:hover{border-color:var(--accent)}
+.heads button em{font-style:normal;color:var(--sub);margin-left:4px;font-family:var(--f-mono);font-size:11px}
+.psg{border:1px solid var(--line);border-radius:8px;padding:7px 10px;margin-bottom:6px;background:#fff;cursor:pointer;font-size:12.5px;line-height:1.6}
+.psg:hover,.psg.on{border-color:var(--accent)}
+.psg .pg{font-family:var(--f-mono);font-size:11px;color:var(--accent-d);font-weight:700;margin-right:6px}
+.viewer{border:1px solid var(--line);border-radius:10px;background:#fff;margin-top:8px;overflow:hidden}
+.vbar{display:flex;flex-wrap:wrap;gap:6px;align-items:center;padding:6px 8px;border-bottom:1px solid var(--line);background:#fafbfe;font-size:12.5px}
+.vbar .pgno{font-family:var(--f-mono)}
+.vbody{max-height:72vh;overflow:auto;position:relative;background:#f6f7fb}
+.vbody .canvas-wrap{position:relative;margin:10px auto;box-shadow:0 1px 6px rgba(0,0,0,.18);background:#fff}
+.vbody canvas{display:block}
+.vbody .hlb{position:absolute;background:rgba(255,214,0,.42);border-radius:2px;mix-blend-mode:multiply;pointer-events:none}
+.vtext{white-space:pre-wrap;word-break:break-word;line-height:1.75;padding:14px 18px;font-size:13px;background:#fff;margin:0;font-family:var(--f-ui)}
+.toast{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);background:var(--text);color:#fff;padding:9px 16px;border-radius:10px;font-size:13px;z-index:80;box-shadow:var(--shadow);max-width:90vw}
+.warnline{background:var(--warn-l);border:1px solid #f0d58a;border-radius:8px;padding:7px 10px;font-size:12.5px;margin-bottom:10px}
+
+@media (max-width:860px){
+  .main{grid-template-columns:1fr;grid-template-rows:auto auto}
+  .list{border-right:0;border-bottom:1px solid var(--line);max-height:none}
+  .steps{grid-template-columns:1fr}
+  .app{height:auto;min-height:100%}
+}
+</style>
+</head>
+<body>
+<div class="app" id="app">
+  <div class="bar">
+    <span class="brand">📚 계장도서검토</span>
+    <span class="folder" id="folderChip" title="검색 대상 폴더"><span class="dot"></span><b id="folderName">폴더 없음</b><span class="muted" id="folderStat"></span></span>
+    <button class="btn sm" id="btnPick" title="검색할 도서 폴더 고르기 (하위 폴더 포함)">📁 폴더 선택</button>
+    <button class="btn sm" id="btnReconnect" hidden>🔗 폴더 다시 연결</button>
+    <button class="btn sm" id="btnRescan" hidden title="폴더에 새로 넣은 · 바뀐 · 지운 파일만 반영">🔄 새 파일 반영</button>
+    <span class="sp"></span>
+    <span class="prog" id="prog" hidden><span class="pb"><i id="progBar"></i></span><span id="progText"></span><button class="btn sm" id="btnStop">중지</button></span>
+    <button class="btn sm" id="btnDict" title="검색어를 넓혀 주는 계장 용어 사전 보기">📖 용어 사전</button>
+  </div>
+
+  <div class="sz">
+    <form class="qrow" id="qform" autocomplete="off">
+      <div class="qbox"><span class="ic">🔍</span>
+        <input id="q" type="search" placeholder="예) Transmitter 관련 도서 · 압력 전송기 설치 · HART 통신 · 제어밸브 포지셔너" aria-label="검색어">
+        <button type="button" class="x" id="qclear" title="지우기" hidden>✕</button>
+      </div>
+      <button class="btn pri" type="submit">검색</button>
+    </form>
+    <div class="opts">
+      <label title="Transmitter → 전송기·트랜스미터·압력 전송기·PT-101 같은 표현까지 함께 찾음"><input type="checkbox" id="optExpand" checked> 계장 용어 확장</label>
+      <label>형식 <select id="optFmt"><option value="">전체</option></select></label>
+      <label>폴더 <select id="optDir"><option value="">전체</option></select></label>
+      <label>정렬 <select id="optSort"><option value="score">관련도순</option><option value="name">이름순</option></select></label>
+    </div>
+    <div class="chips" id="chips"></div>
+    <div class="interp" id="interp" hidden></div>
+  </div>
+
+  <div class="main" id="main" hidden>
+    <div class="list" id="list"></div>
+    <div class="pv" id="pv"></div>
+  </div>
+  <div id="intro" class="intro" hidden></div>
+</div>
+<input type="file" id="dirInput" webkitdirectory directory multiple hidden>
+
+<script src="vendor/pdf.min.js"></script>
+<script>
+'use strict';
+/* =====================================================================================
+ * 계장도서검토 — 구조
+ *   1) 용어 사전(THES): 계장 개념 → 한/영 표현 · 약어 · 하위 개념 · 계기 태그 패턴 · 다른 뜻(배제어)
+ *   2) 본문 추출: PDF(pdf.js, 쪽 단위 · 목차) / EPUB / DOCX / HWPX / TXT / MD  → '쪽' 배열
+ *   3) 보관: IndexedDB 'gyejang-books' (파일 경로+크기+수정시각이 같으면 다시 읽지 않음)
+ *   4) 검색: 질의 해석(개념 인식·조사/불용어 제거·오타 교정) → 쪽 단위 BM25 → 책 점수
+ *            = 깊이(가장 관련 높은 쪽들) + 폭(다룬 쪽 비율) + 목차·제목 일치 + 분야 문맥(다른 뜻 배제)
+ *   5) 설명: 왜 관련 있는지(제목/목차/본문 분량/집중 구간/함께 다룬 주제) + 근거 구절 + 원본 쪽 미리보기
+ * ===================================================================================== */
+const VERSION = '2026-10-24.1';
+const EXTRACT_VER = 1;                 // 본문 추출 방식이 바뀌면 올림 → 다시 읽음
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
+const fmtN = n => Number(n || 0).toLocaleString('ko-KR');
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+const Q0 = new URLSearchParams(location.search);
+if (Q0.get('embed') === '1') document.body.classList.add('embed');
+if (window.pdfjsLib) pdfjsLib.GlobalWorkerOptions.workerSrc = 'vendor/pdf.worker.min.js';
+const SUPPORTED = { pdf:'PDF', epub:'EPUB', docx:'DOCX', hwpx:'HWPX', txt:'TXT', md:'MD' };
+function toast(msg, ms = 2600) {
+  const t = document.createElement('div'); t.className = 'toast'; t.textContent = msg; document.body.appendChild(t);
+  setTimeout(() => t.remove(), ms);
+}
+
+/* ===================================================================================== 1) 용어 사전
+ * t: [표현, 가중치]  — 영어는 단어 경계 + 복수형(s/es) 허용, 한글은 붙여 쓴 형태도 자동으로 함께 찾음
+ * ab: 대소문자를 지키는 약어 (HART, DCS …)   tag: 계기 태그 패턴 (PT-101, FIT 2001A …)
+ * p: 상위 개념 (압력 전송기 → Transmitter)   rel: 함께 나오면 '관련 주제'로 보여 줄 개념
+ * neg: 이 말이 주변에 많으면 다른 뜻(방송 송신기 · 신경전달물질 …)으로 보고 점수를 낮춤 */
+const THES = [
+  { id:'transmitter', n:'Transmitter(전송기)', d:1,
+    t:[['transmitter',1],['xmtr',.9],['xmitter',.9],['smart transmitter',1],['field transmitter',1],['트랜스미터',1],['전송기',1],['발신기',.8],['변환 전송기',.9]],
+    tag:/\b(?:PD|DP|P|T|TD|F|L|A|W)I?T[- ]?\d{2,5}[A-Z]?\b/g,
+    rel:['hart','signal420','calibration','hookup','sensor','pressure','flow','level','temperature'],
+    neg:['radio','antenna','broadcast','amplitude modulation','frequency modulation','wireless telegraph','morse','rf power','방송','안테나','무선 송신','neurotransmitter','synapse'] },
+  { id:'pressure_tx', n:'압력 전송기', p:['transmitter','pressure'], d:1,
+    t:[['pressure transmitter',1],['gauge pressure transmitter',1],['absolute pressure transmitter',1],['압력 전송기',1],['압력 트랜스미터',1],['압력 발신기',.9]],
+    tag:/\bP(?:I)?T[- ]?\d{2,5}[A-Z]?\b/g },
+  { id:'dp_tx', n:'차압 전송기', p:['transmitter','pressure'], d:1,
+    t:[['differential pressure transmitter',1],['dp transmitter',1],['d/p transmitter',1],['dp cell',.9],['d/p cell',.9],['차압 전송기',1],['차압 트랜스미터',1],['차압 발신기',.9]],
+    tag:/\b(?:PD|DP)(?:I)?T[- ]?\d{2,5}[A-Z]?\b/g },
+  { id:'temp_tx', n:'온도 전송기', p:['transmitter','temperature'], d:1,
+    t:[['temperature transmitter',1],['온도 전송기',1],['온도 트랜스미터',1]], tag:/\bT(?:I)?T[- ]?\d{2,5}[A-Z]?\b/g },
+  { id:'flow_tx', n:'유량 전송기', p:['transmitter','flow'], d:1,
+    t:[['flow transmitter',1],['유량 전송기',1],['유량 트랜스미터',1]], tag:/\bF(?:I)?T[- ]?\d{2,5}[A-Z]?\b/g },
+  { id:'level_tx', n:'레벨 전송기', p:['transmitter','level'], d:1,
+    t:[['level transmitter',1],['레벨 전송기',1],['액위 전송기',1],['레벨 트랜스미터',1]], tag:/\bL(?:I)?T[- ]?\d{2,5}[A-Z]?\b/g },
+  { id:'sensor', n:'센서·변환기', d:1,
+    t:[['sensor',1],['transducer',1],['sensing element',1],['primary element',.9],['센서',1],['변환기',.8],['검출기',.8],['검출부',.8]], rel:['transmitter'] },
+  { id:'pressure', n:'압력 측정', d:1,
+    t:[['pressure measurement',1],['pressure gauge',1],['pressure sensor',1],['bourdon tube',1],['manometer',.9],['diaphragm seal',.9],['remote seal',.9],['압력 측정',1],['압력계',1],['압력 센서',1],['부르동관',1],['다이어프램 실',.9]],
+    rel:['pressure_tx','dp_tx'] },
+  { id:'flow', n:'유량 측정(유량계)', d:1,
+    t:[['flowmeter',1],['flow meter',1],['flow measurement',1],['orifice plate',1],['orifice',.8],['venturi',.9],['magnetic flowmeter',1],['magmeter',1],['coriolis',1],['vortex flowmeter',1],['vortex shedding',.9],['ultrasonic flowmeter',1],['turbine meter',1],['pitot tube',.9],['annubar',.9],['flow element',.9],
+       ['유량계',1],['유량 측정',1],['오리피스',1],['벤투리',.9],['전자식 유량계',1],['전자 유량계',1],['코리올리',1],['와류 유량계',1],['초음파 유량계',1],['터빈 유량계',1],['피토관',.9]],
+    rel:['flow_tx','dp_tx'] },
+  { id:'level', n:'레벨(액위) 측정', d:1,
+    t:[['level measurement',1],['level gauge',1],['level sensor',1],['radar level',1],['guided wave radar',1],['displacer',.9],['level float',.9],['sight glass',.8],['bubbler',.8],['레벨 측정',1],['액위',1],['레벨계',1],['수위계',.9],['레벨 게이지',1],['액면계',1]],
+    rel:['level_tx','dp_tx'] },
+  { id:'temperature', n:'온도 측정', d:1,
+    t:[['temperature measurement',1],['temperature sensor',1],['thermowell',1],['thermometer',.8],['pyrometer',.9],['온도 측정',1],['온도계',.9],['온도 센서',1],['써모웰',1],['보호관',.7]],
+    rel:['thermocouple','rtd','temp_tx'] },
+  { id:'thermocouple', n:'열전대', p:['temperature'], d:1,
+    t:[['thermocouple',1],['seebeck',.9],['cold junction',1],['reference junction',.9],['type k',.8],['열전대',1],['열전쌍',1],['냉접점',1],['기준접점',.9]] },
+  { id:'rtd', n:'측온저항체(RTD)', p:['temperature'], d:1,
+    t:[['resistance temperature detector',1],['pt100',1],['platinum resistance',.9],['측온저항체',1],['측온 저항체',1]], ab:[['RTD',1]] },
+  { id:'control_valve', n:'제어밸브', d:1,
+    t:[['control valve',1],['globe valve',.8],['valve trim',.9],['valve sizing',1],['flow coefficient',.8],['cavitation',.6],['조절밸브',1],['제어밸브',1],['조절 밸브',1],['제어 밸브',1],['컨트롤 밸브',1]],
+    rel:['positioner','actuator'] },
+  { id:'positioner', n:'포지셔너', p:['control_valve'], d:1,
+    t:[['positioner',1],['valve positioner',1],['smart positioner',1],['digital valve controller',1],['i/p converter',.9],['i/p transducer',.9],['포지셔너',1],['밸브 포지셔너',1],['전공 변환기',.9]] },
+  { id:'actuator', n:'액추에이터(구동부)', p:['control_valve'], d:1,
+    t:[['actuator',1],['pneumatic actuator',1],['diaphragm actuator',1],['piston actuator',1],['액추에이터',1],['액츄에이터',1],['구동기',.9],['구동부',.8],['작동기',.8]] },
+  { id:'hart', n:'HART 통신', d:1,
+    t:[['hart protocol',1],['hart communication',1],['hart communicator',1],['highway addressable remote transducer',1],['하트 통신',1]], ab:[['HART',1]],
+    rel:['transmitter','signal420','fieldbus'] },
+  { id:'signal420', n:'4-20 mA 신호', d:1,
+    t:[['4-20 ma',1],['4-20ma',1],['4 - 20 ma',1],['4~20 ma',1],['4~20ma',1],['4 to 20 ma',1],['4 to 20 milliamp',1],['current loop',.9],['live zero',.8],['전류 루프',.9],['전류 신호',.7]],
+    rel:['transmitter','hart'] },
+  { id:'fieldbus', n:'필드버스·산업통신', d:1,
+    t:[['fieldbus',1],['foundation fieldbus',1],['profibus',1],['profinet',1],['modbus',1],['devicenet',1],['ethernet/ip',.9],['wirelesshart',1],['필드버스',1],['모드버스',1]] },
+  { id:'dcs', n:'DCS(분산제어시스템)', d:1,
+    t:[['distributed control system',1],['분산제어시스템',1],['분산 제어 시스템',1],['분산제어',.9]], ab:[['DCS',1]] },
+  { id:'plc', n:'PLC', d:1,
+    t:[['programmable logic controller',1],['ladder logic',1],['ladder diagram',1],['function block diagram',.9],['structured text',.8],['iec 61131',1],['래더',1],['피엘씨',1]], ab:[['PLC',1]] },
+  { id:'scada', n:'SCADA·HMI', d:1,
+    t:[['scada',1],['human machine interface',1],['human-machine interface',1],['operator interface',.8],['원격감시',.9],['감시제어',.9]], ab:[['HMI',1]] },
+  { id:'pid_control', n:'PID 제어·루프 튜닝', d:1,
+    t:[['pid control',1],['pid controller',1],['pid tuning',1],['loop tuning',1],['proportional integral derivative',1],['proportional band',.9],['integral action',.9],['derivative action',.9],['cascade control',1],['feedforward',.9],['feedback control',.9],['setpoint',.7],['pid 제어',1],['비례 적분 미분',1],['비례적분미분',1],['캐스케이드',1],['피드백 제어',.9],['피드포워드',.9],['설정값',.6]],
+    rel:['control_valve','transmitter'] },
+  { id:'sis', n:'SIS·SIL 안전계장', d:1,
+    t:[['safety instrumented system',1],['safety instrumented function',1],['safety integrity level',1],['functional safety',1],['iec 61511',1],['iec 61508',1],['probability of failure on demand',1],['emergency shutdown',.9],['안전계장',1],['안전 계장',1],['안전계장시스템',1],['안전무결성',1],['안전 무결성',1],['기능안전',1],['기능 안전',1]],
+    ab:[['SIS',1],['SIL',1],['SIF',1],['PFD',.7],['ESD',.7]], rel:['interlock'] },
+  { id:'interlock', n:'인터록·경보', d:1,
+    t:[['interlock',1],['alarm management',1],['shutdown system',.9],['trip setpoint',.9],['cause and effect',1],['인터록',1],['인터락',1],['경보 관리',1],['트립',.8],['코즈 앤 이펙트',.9]] },
+  { id:'calibration', n:'교정(Calibration)', d:1,
+    t:[['calibration',1],['calibrate',1],['calibrated',1],['calibrating',1],['zero and span',1],['as-found',.9],['as found',.8],['as-left',.9],['traceability',.7],['교정',.9],['검교정',1],['캘리브레이션',1],['영점 조정',1],['스팬 조정',1]] },
+  { id:'pnid', n:'P&ID·계장 심볼', d:1,
+    t:[['p&id',1],['p & id',1],['piping and instrumentation diagram',1],['piping & instrumentation diagram',1],['process and instrumentation diagram',1],['isa-5.1',1],['isa 5.1',1],['isa s5.1',1],['instrument symbol',1],['tag number',.8],['배관계장도',1],['배관 계장도',1],['계장 심볼',1],['계장 기호',1],['계기 심볼',1]] },
+  { id:'loop', n:'루프 다이어그램', d:1,
+    t:[['loop diagram',1],['loop sheet',1],['loop drawing',1],['loop check',1],['루프 다이어그램',1],['루프도',1],['루프 체크',1]] },
+  { id:'hookup', n:'계기 설치(Hook-up)', d:1,
+    t:[['hook-up',1],['hookup',1],['instrument installation',1],['impulse line',1],['impulse tubing',1],['impulse piping',1],['valve manifold',.9],['3-valve manifold',1],['5-valve manifold',1],['계기 설치',1],['설치 상세도',1],['임펄스 라인',1],['도압관',1],['매니폴드',.9]] },
+  { id:'hazardous', n:'방폭·위험장소', d:1,
+    t:[['hazardous area',1],['hazardous location',1],['intrinsic safety',1],['intrinsically safe',1],['explosion proof',1],['explosion-proof',1],['flameproof',1],['atex',1],['iecex',1],['zener barrier',1],['방폭',1],['본질안전',1],['본질 안전',1],['내압방폭',1],['위험장소',1],['폭발위험',1]] },
+  { id:'analyzer', n:'분석계(Analyzer)', d:1,
+    t:[['analyzer',1],['analyser',1],['gas chromatograph',1],['ph measurement',1],['ph meter',1],['conductivity',.7],['dissolved oxygen',.9],['oxygen analyzer',1],['분석계',1],['분석기',.9],['가스 크로마토그래프',1]] },
+  { id:'cable', n:'계장 케이블·배선', d:1,
+    t:[['instrument cable',1],['junction box',1],['marshalling',1],['cable schedule',1],['shielded cable',.9],['twisted pair',.8],['grounding',.6],['계장 케이블',1],['정션 박스',1],['단자함',1],['마샬링',1],['차폐',.7],['접지',.6]] },
+  { id:'datasheet', n:'계기 데이터시트·목록', d:1,
+    t:[['instrument datasheet',1],['instrument data sheet',1],['specification sheet',.9],['instrument index',1],['instrument list',1],['계기 데이터시트',1],['데이터시트',.9],['계기 목록',1],['계기 사양',1]] },
+  { id:'ot_security', n:'OT·제어시스템 보안',
+    t:[['cybersecurity',1],['cyber security',1],['iec 62443',1],['ot security',1],['ics security',1],['industrial control system security',1],['malware',.7],['firewall',.7],['사이버 보안',1],['사이버보안',1],['정보보안',1],['제어시스템 보안',1],['보안',.6]] },
+  { id:'power', n:'전력·전기설비',
+    t:[['transformer',1],['switchgear',1],['circuit breaker',1],['motor control center',1],['busbar',.9],['power system',.9],['변압기',1],['차단기',1],['배전반',1],['전동기',.9],['수배전',1]], ab:[['MCC',.8]] },
+  { id:'instrumentation', n:'계장·계측 일반', d:1,
+    t:[['instrumentation',1],['process control',1],['measurement and control',1],['instrument engineer',1],['field instrument',1],['계장',1],['계측제어',1],['계측 제어',1],['계측기',.9],['계측',.8],['계기',.7]] },
+];
+const TH = Object.fromEntries(THES.map(c => [c.id, c]));
+for (const c of THES) { c.kids = THES.filter(k => (k.p || []).includes(c.id)).map(k => k.id); c.ab ||= []; c.rel ||= []; c.neg ||= []; }
+// 이 말들이 주변에 있으면 '계장 분야' 문맥으로 본다 (다른 뜻 배제 · 도서 분야 점수)
+const DOMAIN_CTX = ['instrument','process','calibrat','4-20','hart','valve','loop','plant','pressure','flow','level','temperature','signal','setpoint','controller','dcs','plc','p&id',
+  '계장','계측','계기','공정','밸브','압력','유량','레벨','온도','신호','교정','제어','플랜트','설치'];
+// 질문에서 뺄 말 (검색 의도와 무관)
+const STOP = new Set(['관련','관련된','관련한','관한','관해','관하여','대한','대해','대해서','도서','책','자료','문서','서적','교재','찾아줘','찾아','찾기','알려줘','보여줘','있는','나온','나오는','나와있는','설명','설명된','설명한','설명하는','다룬','다루는','내용','관련도서','주제','좀','등','및','어떤','무엇','방법',
+  'book','books','about','related','regarding','on','the','a','an','of','for','and','or','in','to','with','document','documents','find','me','show','please']);
+const JOSA = ['으로부터','에서부터','으로서','으로써','에게서','이라는','이라고','에서의','에서는','으로는','하는법','하는','하기','하고','되는','라는','라고','에서','에게','으로','까지','부터','처럼','보다','이나','에는','과','와','은','는','이','가','을','를','에','의','도','만','로','된','한'];
+const stripJosa = w => { for (const j of JOSA) if (w.endsWith(j) && w.length - j.length >= 2) return w.slice(0, -j.length); return w; };
+const isHangul = s => /[가-힣]/.test(s);
+
+/* ===================================================================================== 2) 본문 추출 */
+function normText(t) {
+  return String(t || '').normalize('NFKC')
+    .replace(/\r\n?/g, '\n').replace(/\u00ad/g, '').replace(/[\u2010-\u2015\u2212]/g, '-')
+    .replace(/[\u00a0\u2000-\u200b\u3000\ufeff]/g, ' ')
+    .replace(/([A-Za-z])-\n([a-z])/g, '$1$2')            // 줄 끝 하이픈으로 끊긴 영어 단어 잇기
+    .replace(/[ \t\f\v]+/g, ' ').replace(/ ?\n[ \n]*/g, '\n').trim();
+}
+// 긴 글을 약 2,500자 '쪽'으로 (문단 경계에서 자름). heads: [{t, at(글자 위치)}] → 쪽 번호로 바꿔 돌려줌
+function paginate(text, heads = [], size = 2500) {
+  const pages = [], starts = []; let i = 0; text = normText(text);
+  while (i < text.length) {
+    let e = Math.min(text.length, i + size);
+    if (e < text.length) { const nl = text.lastIndexOf('\n', e); if (nl > i + size * 0.5) e = nl + 1; }
+    starts.push(i); pages.push(text.slice(i, e).trim()); i = e;
+  }
+  const hp = heads.map(h => { let p = 0; while (p + 1 < starts.length && starts[p + 1] <= h.at) p++; return { t: h.t, p }; });
+  return { pages: pages.length ? pages : [''], heads: hp };
+}
+const HEAD_RE = /^(?:(?:chapter|part|section|unit|module|lesson)\s+\d+[\s.:-]|제\s*\d+\s*[장편부절]\b|\d{1,2}\.\s+[A-Z가-힣])/i;
+function guessHeads(pages) {   // 목차 정보가 없는 PDF: 'Chapter 3 …', '제3장 …' 같은 줄을 장 제목으로
+  const out = [];
+  pages.forEach((pg, p) => { for (const ln of pg.split('\n').slice(0, 6)) { const s = ln.trim(); if (s.length > 4 && s.length < 90 && HEAD_RE.test(s)) out.push({ t: s, p }); } });
+  return out.slice(0, 400);
+}
+
+async function extractPdf(buf, onPage, stopFlag) {
+  const doc = await pdfjsLib.getDocument({ data: new Uint8Array(buf), isEvalSupported: false, disableFontFace: true }).promise;
+  try {
+    const pages = [];
+    for (let i = 1; i <= doc.numPages; i++) {
+      if (stopFlag && stopFlag()) throw new Error('중지됨');
+      let s = '';
+      try {
+        const pg = await doc.getPage(i), tc = await pg.getTextContent();
+        for (const it of tc.items) { if (it.str !== undefined) { s += it.str; if (it.hasEOL) s += '\n'; else if (it.str && !/\s$/.test(it.str)) s += ''; } }
+        pg.cleanup();
+      } catch (_) {}
+      pages.push(normText(s));
+      if (onPage && (i % 10 === 0 || i === doc.numPages)) onPage(i, doc.numPages);
+    }
+    let heads = [];
+    try {   // PDF 책갈피(목차) → 장 제목 + 쪽
+      const ol = await doc.getOutline();
+      const walk = async (items, lv) => {
+        for (const it of items || []) {
+          if (heads.length >= 400) return;
+          let p = -1;
+          try { let d = it.dest; if (typeof d === 'string') d = await doc.getDestination(d); if (Array.isArray(d) && d[0]) p = typeof d[0] === 'number' ? d[0] : await doc.getPageIndex(d[0]); } catch (_) {}
+          if (it.title && p >= 0) heads.push({ t: normText(it.title).replace(/\n/g, ' '), p });
+          if (lv < 2) await walk(it.items, lv + 1);
+        }
+      };
+      await walk(ol, 0);
+    } catch (_) {}
+    if (!heads.length) heads = guessHeads(pages);
+    let title = '';
+    try { const m = await doc.getMetadata(); title = (m?.info?.Title || '').trim(); } catch (_) {}
+    return { pages, heads, title };
+  } finally { try { doc.destroy(); } catch (_) {} }
+}
+
+/* --- ZIP (EPUB · DOCX · HWPX): 브라우저 내장 DecompressionStream 으로 풂 (라이브러리 없음) */
+async function unzip(buf, want) {
+  const dv = new DataView(buf), u8 = new Uint8Array(buf); let eocd = -1;
+  for (let i = buf.byteLength - 22; i >= Math.max(0, buf.byteLength - 65557); i--) if (dv.getUint32(i, true) === 0x06054b50) { eocd = i; break; }
+  if (eocd < 0) throw new Error('ZIP 형식이 아님');
+  const n = dv.getUint16(eocd + 10, true); let p = dv.getUint32(eocd + 16, true); const out = {};
+  const dec = new TextDecoder('utf-8');
+  for (let k = 0; k < n; k++) {
+    if (dv.getUint32(p, true) !== 0x02014b50) break;
+    const method = dv.getUint16(p + 10, true), csize = dv.getUint32(p + 20, true);
+    const nl = dv.getUint16(p + 28, true), xl = dv.getUint16(p + 30, true), cl = dv.getUint16(p + 32, true), lh = dv.getUint32(p + 42, true);
+    const name = dec.decode(u8.subarray(p + 46, p + 46 + nl)); p += 46 + nl + xl + cl;
+    if (!want(name)) continue;
+    const ds = lh + 30 + dv.getUint16(lh + 26, true) + dv.getUint16(lh + 28, true), raw = u8.subarray(ds, ds + csize);
+    if (method === 0) out[name] = raw.slice();
+    else if (method === 8) out[name] = new Uint8Array(await new Response(new Blob([raw]).stream().pipeThrough(new DecompressionStream('deflate-raw'))).arrayBuffer());
+  }
+  return out;
+}
+const xmlText = s => s.replace(/<[^>]+>/g, '').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&apos;/g, "'").replace(/&#(\d+);/g, (_, d) => String.fromCodePoint(+d)).replace(/&#x([0-9a-f]+);/gi, (_, h) => String.fromCodePoint(parseInt(h, 16))).replace(/&amp;/g, '&');
+function htmlToText(html, heads, base) {   // 블록 태그를 줄바꿈으로 → 글자만, h1~h3 은 장 제목으로
+  html = html.replace(/<(script|style|head)[\s\S]*?<\/\1>/gi, ' ');
+  let text = '', last = 0; const re = /<h([1-3])[^>]*>([\s\S]*?)<\/h\1>/gi; let m;
+  const conv = s => xmlText(s.replace(/<br\s*\/?>/gi, '\n').replace(/<\/(p|div|li|tr|h\d|section|blockquote|pre|table|dd|dt)>/gi, '\n'));
+  while ((m = re.exec(html))) { text += conv(html.slice(last, m.index)); const h = normText(xmlText(m[2])).replace(/\n/g, ' '); if (h) { heads.push({ t: h, at: base + normText(text).length + 1 }); } text += '\n' + h + '\n'; last = re.lastIndex; }
+  text += conv(html.slice(last));
+  return normText(text);
+}
+async function extractEpub(buf) {
+  const files = await unzip(buf, n => /\.(x?html?|opf|xml|ncx)$/i.test(n));
+  const dec = new TextDecoder('utf-8'), get = n => files[n] ? dec.decode(files[n]) : '';
+  let order = [];
+  const cont = get('META-INF/container.xml'), opfPath = (cont.match(/full-path="([^"]+)"/) || [])[1];
+  if (opfPath && files[opfPath]) {
+    const opf = get(opfPath), dir = opfPath.includes('/') ? opfPath.slice(0, opfPath.lastIndexOf('/') + 1) : '', man = {};
+    for (const m of opf.matchAll(/<item\b[^>]*>/g)) { const id = (m[0].match(/\bid="([^"]+)"/) || [])[1], href = (m[0].match(/\bhref="([^"]+)"/) || [])[1]; if (id && href) man[id] = dir + decodeURIComponent(href); }
+    for (const m of opf.matchAll(/<itemref\b[^>]*idref="([^"]+)"/g)) if (man[m[1]]) order.push(man[m[1]]);
+    var title = xmlText((opf.match(/<dc:title[^>]*>([\s\S]*?)<\/dc:title>/) || [])[1] || '').trim();
+  }
+  if (!order.length) order = Object.keys(files).filter(n => /\.x?html?$/i.test(n)).sort();
+  let all = '', heads = [];
+  for (const n of order) { if (!files[n]) continue; const t = htmlToText(get(n), heads, all.length); all += t + '\n\n'; }
+  return { ...paginate(all, heads), title: title || '' };
+}
+async function extractDocx(buf) {
+  const f = await unzip(buf, n => n === 'word/document.xml' || n === 'docProps/core.xml');
+  const xml = new TextDecoder('utf-8').decode(f['word/document.xml'] || new Uint8Array());
+  let all = ''; const heads = [];
+  for (const m of xml.matchAll(/<w:p[ >][\s\S]*?<\/w:p>/g)) {
+    const p = m[0], t = xmlText(p.replace(/<w:tab\/>/g, '\t').replace(/<w:br[^>]*\/>/g, '\n').replace(/<w:t(?: [^>]*)?>([\s\S]*?)<\/w:t>/g, '\u0001$1\u0002').replace(/[^\u0001\u0002]*?\u0001([\s\S]*?)\u0002/g, '$1').replace(/\u0001|\u0002/g, '').replace(/<[^>]+>/g, ''));
+    const st = (p.match(/<w:pStyle w:val="([^"]+)"/) || [])[1] || '';
+    if (/heading|제목|^title/i.test(st) && t.trim()) heads.push({ t: t.trim().slice(0, 120), at: normText(all).length + 1 });
+    all += t + '\n';
+  }
+  const core = f['docProps/core.xml'] ? new TextDecoder().decode(f['docProps/core.xml']) : '';
+  return { ...paginate(all, heads), title: xmlText((core.match(/<dc:title>([\s\S]*?)<\/dc:title>/) || [])[1] || '').trim() };
+}
+async function extractHwpx(buf) {
+  const f = await unzip(buf, n => /^Contents\/section\d+\.xml$/i.test(n));
+  const names = Object.keys(f).sort((a, b) => (+a.match(/\d+/)[0]) - (+b.match(/\d+/)[0]));
+  let all = '';
+  for (const n of names) { const xml = new TextDecoder('utf-8').decode(f[n]); for (const m of xml.matchAll(/<hp:p[ >][\s\S]*?<\/hp:p>/g)) all += [...m[0].matchAll(/<hp:t(?: [^>]*)?>([\s\S]*?)<\/hp:t>/g)].map(x => xmlText(x[1])).join('') + '\n'; }
+  return { ...paginate(all, []), title: '' };
+}
+function decodeText(buf) {
+  const u8 = new Uint8Array(buf);
+  if (u8[0] === 0xff && u8[1] === 0xfe) return new TextDecoder('utf-16le').decode(u8);
+  if (u8[0] === 0xfe && u8[1] === 0xff) return new TextDecoder('utf-16be').decode(u8);
+  try { return new TextDecoder('utf-8', { fatal: true }).decode(u8); } catch (_) { return new TextDecoder('euc-kr').decode(u8); }   // euc-kr = 브라우저에서 CP949 전체
+}
+function extractTxt(buf, md) {
+  const text = decodeText(buf), heads = [];
+  if (md) { let pos = 0; for (const ln of text.split('\n')) { const m = ln.match(/^#{1,3}\s+(.+)/); if (m) heads.push({ t: m[1].trim(), at: normText(text.slice(0, pos)).length }); pos += ln.length + 1; } }
+  return { ...paginate(text, heads), title: '' };
+}
+async function extractFile(file, ext, onPage, stopFlag) {
+  const buf = await file.arrayBuffer();
+  if (ext === 'pdf') return extractPdf(buf, onPage, stopFlag);
+  if (ext === 'epub') return extractEpub(buf);
+  if (ext === 'docx') return extractDocx(buf);
+  if (ext === 'hwpx') return extractHwpx(buf);
+  return extractTxt(buf, ext === 'md');
+}
+
+/* ===================================================================================== 3) 보관 (IndexedDB) */
+const DB = (() => {
+  let dbp;
+  const open = () => dbp ||= new Promise((res, rej) => {
+    const r = indexedDB.open('gyejang-books', 1);
+    r.onupgradeneeded = () => { const d = r.result; d.createObjectStore('books', { keyPath: 'sig' }); d.createObjectStore('kv'); };
+    r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error);
+  });
+  const tx = async (store, mode, fn) => { const d = await open(); return new Promise((res, rej) => { const t = d.transaction(store, mode), s = t.objectStore(store); const rq = fn(s); t.oncomplete = () => res(rq?.result); t.onerror = () => rej(t.error); t.onabort = () => rej(t.error); }); };
+  return {
+    get: (st, k) => tx(st, 'readonly', s => s.get(k)),
+    put: (st, v, k) => tx(st, 'readwrite', s => k === undefined ? s.put(v) : s.put(v, k)),
+    del: (st, k) => tx(st, 'readwrite', s => s.delete(k)),
+    keys: st => tx(st, 'readonly', s => s.getAllKeys()),
+  };
+})();
+
+/* ===================================================================================== 4) 도서관(메모리) */
+const LIB = { folder: '', books: [], bySig: new Map(), files: new Map(), live: false, dirHandle: null };
+function makeBook(rec) {
+  const pages = rec.pages || [''];
+  const starts = new Int32Array(pages.length); let off = 0;
+  pages.forEach((p, i) => { starts[i] = off; off += p.length + 1; });
+  const orig = pages.join('\n').replace(/\u0130/g, 'I');
+  let low = orig.toLowerCase();
+  if (low.length !== orig.length) low = Array.from(orig, ch => { const l = ch.toLowerCase(); return l.length === ch.length ? l : ch; }).join('');
+  low = low.replace(/\n/g, ' ');
+  const name = rec.rel.split('/').pop(), base = name.replace(/\.[^.]+$/, '');
+  const heads = rec.heads || [];
+  const doc = (arr) => { const o = arr.join('\n'); const st = new Int32Array(arr.length); let k = 0; arr.forEach((s, i) => { st[i] = k; k += s.length + 1; }); return { orig: o, low: o.toLowerCase().replace(/\n/g, ' '), starts: st }; };
+  const dirs = rec.rel.split('/').slice(1, -1);   // 첫 칸 = 고른 폴더 자체
+  const B = { sig: rec.sig, rel: rec.rel, name, base, ext: rec.ext, size: rec.size, mtime: rec.mtime, meta: rec.title || '', err: rec.err || '',
+    pages, nPages: pages.length, starts, orig, low, chars: orig.length, heads,
+    headDoc: doc(heads.map(h => h.t)), titleDoc: doc([base.replace(/_/g, ' '), rec.title || '']), dirDoc: doc([dirs.join(' / ')]), dir: dirs.join('/') };
+  // 분야 점수: 계장 문맥어가 1만 자당 얼마나 나오나
+  let hits = 0; const lim = Math.min(low.length, 3_000_000);
+  for (const w of DOMAIN_CTX) { let i = 0; while ((i = low.indexOf(w, i)) !== -1 && i < lim) { hits++; i += w.length; } }
+  B.domain = B.chars ? Math.min(1, (hits / (Math.min(B.chars, lim) / 10000)) / 25) : 0;
+  return B;
+}
+function pageOf(starts, pos) { let lo = 0, hi = starts.length - 1; while (lo < hi) { const m = (lo + hi + 1) >> 1; if (starts[m] <= pos) lo = m; else hi = m - 1; } return lo; }
+
+/* ===================================================================================== 5) 질의 해석 */
+const W = c => (c >= 48 && c <= 57) || (c >= 97 && c <= 122);   // 영숫자(소문자 기준) — 단어 경계 판단
+function variant(s, w, kind, extra = {}) {
+  s = normText(s);
+  return { s: kind === 'ab' ? s.toLowerCase() : s.toLowerCase(), orig: s, w, kind, label: s, ...extra };
+}
+function conceptVariants(c, w0) {
+  const out = [];
+  for (const [s, w] of c.t) {
+    const k = isHangul(s) ? 'ko' : 'en';
+    out.push(variant(s, w * w0, k));
+    if (k === 'ko' && s.includes(' ')) out.push(variant(s.replace(/ /g, ''), w * w0, 'ko', { label: s }));
+  }
+  for (const [s, w] of c.ab) out.push(variant(s, w * w0, 'ab'));
+  return out;
+}
+let VOCAB = null;   // 오타 교정용: 사전에 있는 모든 영어 표현
+function vocab() {
+  if (VOCAB) return VOCAB; VOCAB = [];
+  for (const c of THES) for (const [s] of [...c.t, ...c.ab]) if (!isHangul(s) && s.length >= 4 && !s.includes(' ')) VOCAB.push([s.toLowerCase(), c.id]);
+  return VOCAB;
+}
+function edit1(a, b) {   // 편집 거리 ≤ 1 (또는 인접 글자 바뀜)
+  if (a === b) return true; const la = a.length, lb = b.length; if (Math.abs(la - lb) > 1) return false;
+  let i = 0; while (i < la && i < lb && a[i] === b[i]) i++;
+  if (la === lb) return a.slice(i + 1) === b.slice(i + 1) || (a[i] === b[i + 1] && a[i + 1] === b[i] && a.slice(i + 2) === b.slice(i + 2));
+  return la > lb ? a.slice(i + 1) === b.slice(i) : a.slice(i) === b.slice(i + 1);
+}
+function buildQuery(raw, expand = true) {
+  const text = normText(raw).replace(/\n/g, ' ');
+  let s = ' ' + text.toLowerCase() + ' ';
+  const found = [], notes = [];
+  // ① 사전의 표현을 긴 것부터 찾아 개념으로 (붙여 쓴 한글도)
+  const pairs = [];
+  for (const c of THES) for (const [t] of [...c.t, ...c.ab]) { const l = normText(t).toLowerCase(); pairs.push([l, c.id]); if (isHangul(l) && l.includes(' ')) pairs.push([l.replace(/ /g, ''), c.id]); }
+  pairs.sort((a, b) => b[0].length - a[0].length);
+  for (const [t, id] of pairs) {
+    let i = s.indexOf(t);
+    while (i !== -1) {
+      const ok = isHangul(t) || (!W(s.charCodeAt(i - 1)) && (!W(s.charCodeAt(i + t.length)) || (s[i + t.length] === 's' && !W(s.charCodeAt(i + t.length + 1)))));
+      if (ok) { if (!found.includes(id)) found.push(id); s = s.slice(0, i) + ' '.repeat(t.length) + s.slice(i + t.length); }
+      i = s.indexOf(t, i + 1);
+    }
+  }
+  // ② 남은 낱말: 불용어·조사 제거 → 오타면 사전 표현으로, 아니면 그 낱말 그대로 찾기
+  const free = [];
+  for (let w of s.split(/[^0-9a-z가-힣&/.+#-]+/)) {
+    w = w.replace(/^[-./]+|[-./]+$/g, ''); if (!w) continue;
+    if (isHangul(w)) w = stripJosa(w);
+    if (STOP.has(w) || w.length < 2) continue;
+    if (found.some(id => [...TH[id].t, ...TH[id].ab].some(([t]) => t.toLowerCase().includes(w)))) continue;
+    if (!isHangul(w) && w.length >= 5) {
+      const hit = vocab().find(([v]) => edit1(w, v) || edit1(w.replace(/s$/, ''), v));
+      if (hit) { if (!found.includes(hit[1])) found.push(hit[1]); notes.push(`'${w}' → '${hit[0]}' 로 고쳐 찾았습니다`); continue; }
+    }
+    if (!free.includes(w)) free.push(w);
+  }
+  // ③ 검색 개념 목록: 주 개념(질문에 나온 것) + 하위 개념 표현(같이 찾음) + 상위 개념(부분 점수)
+  const qs = [];
+  for (const id of found) {
+    const c = TH[id];
+    let vs = expand ? conceptVariants(c, 1) : conceptVariants({ t: c.t.filter(([t]) => text.toLowerCase().replace(/ /g, '').includes(t.toLowerCase().replace(/ /g, ''))), ab: c.ab.filter(([t]) => text.includes(t)) }, 1);
+    if (!vs.length) vs = conceptVariants(c, 1);
+    let tags = c.tag ? [c.tag] : [];
+    if (expand) for (const kid of c.kids) { vs.push(...conceptVariants(TH[kid], 0.95)); if (TH[kid].tag) tags.push(TH[kid].tag); }
+    qs.push({ id, label: c.n, main: true, W: 1, vs, tags: expand ? tags : [], domain: !!c.d, neg: c.neg, c });
+  }
+  if (expand) for (const id of found) for (const pid of TH[id].p || []) {
+    if (found.includes(pid) || qs.some(q => q.id === pid)) continue;
+    qs.push({ id: pid, label: TH[pid].n, main: false, W: 0.3, vs: conceptVariants(TH[pid], 1), tags: [], domain: !!TH[pid].d, neg: TH[pid].neg, c: TH[pid] });
+  }
+  for (const w of free) {
+    const en = !isHangul(w), sfx = en && w.length >= 6 ? 4 : 0;
+    const stem = en && sfx ? w.replace(/(ations?|ings?|ed|es|s)$/, '') : w;
+    qs.push({ id: 'free:' + w, label: w, main: true, W: 1, free: true, vs: [variant(stem.length >= 4 ? stem : w, 1, en ? 'en' : 'ko', { sfx: stem !== w ? sfx + (w.length - stem.length) : 0, label: w })], tags: [], domain: false, neg: [] });
+  }
+  return { raw, text, qs, mains: qs.filter(q => q.main), notes, found };
+}
+
+/* ===================================================================================== 6) 찾기 · 점수 */
+function scan(D, v, out, qi, vi) {   // D = {low, orig}; out 에 [시작, 끝, 가중치, 표현 번호] 를 넣음
+  const s = v.s, low = D.low; if (!s) return;
+  let i = low.indexOf(s);
+  while (i !== -1) {
+    let e = i + s.length, ok = true;
+    if (v.kind !== 'ko') {
+      if (W(low.charCodeAt(i - 1)) && W(s.charCodeAt(0))) ok = false;
+      if (ok) {
+        if (v.sfx) { let k = 0; while (k < v.sfx && W(low.charCodeAt(e)) && low.charCodeAt(e) > 57) { e++; k++; } }
+        else if (low[e] === 's' && !W(low.charCodeAt(e + 1))) e++;
+        else if (low[e] === 'e' && low[e + 1] === 's' && !W(low.charCodeAt(e + 2))) e += 2;
+        if (W(low.charCodeAt(e)) && W(s.charCodeAt(s.length - 1))) ok = false;
+      }
+      if (ok && v.kind === 'ab' && D.orig.substr(i, s.length) !== v.orig) ok = false;   // 약어는 대문자 그대로일 때만
+    }
+    if (ok) out.push(i, e, v.w, vi);
+    i = low.indexOf(s, i + s.length);
+  }
+}
+function matchConcept(B, q) {
+  const raw = [];
+  q.vs.forEach((v, vi) => scan(B, v, raw, 0, vi));
+  for (const re of q.tags) { re.lastIndex = 0; let m, k = 0; while ((m = re.exec(B.orig)) && k < 20000) { raw.push(m.index, m.index + m[0].length, 0.3, -1); k++; } }
+  // 겹치는 일치(예: 'pressure transmitter' 와 'transmitter')는 한 번만, 가중치는 큰 쪽
+  const idx = []; for (let k = 0; k < raw.length; k += 4) idx.push(k);
+  idx.sort((a, b) => raw[a] - raw[b] || raw[b + 1] - raw[a + 1]);
+  const hits = []; let lastEnd = -1;
+  for (const k of idx) {
+    if (raw[k] < lastEnd) { const h = hits[hits.length - 1]; if (raw[k + 2] > h[2]) { h[2] = raw[k + 2]; h[3] = raw[k + 3]; } continue; }
+    hits.push([raw[k], raw[k + 1], raw[k + 2], raw[k + 3]]); lastEnd = raw[k + 1];
+  }
+  const pages = new Map(), vcount = new Map(); let tags = 0;
+  for (const h of hits) {
+    const p = pageOf(B.starts, h[0]); pages.set(p, (pages.get(p) || 0) + h[2]);
+    if (h[3] < 0) tags++; else { const lb = q.vs[h[3]].label; vcount.set(lb, (vcount.get(lb) || 0) + 1); }
+  }
+  const th = [], hh = [];
+  q.vs.forEach((v, vi) => scan(B.titleDoc, v, th, 0, vi)); q.vs.forEach((v, vi) => scan(B.headDoc, v, hh, 0, vi));
+  const headHit = new Map(); for (let k = 0; k < hh.length; k += 4) headHit.set(pageOf(B.headDoc.starts, hh[k]), 1);
+  const dh = []; q.vs.forEach((v, vi) => scan(B.dirDoc, v, dh, 0, vi));
+  // 문맥으로 뜻 가리기: 일치 위치 주변(±160자)에 계장 문맥어가 있나, 다른 뜻을 가리키는 말(neg)이 있나
+  let sense = 1;
+  if (q.domain && hits.length) {
+    const step = Math.max(1, Math.floor(hits.length / 40)); let sum = 0, n = 0;
+    for (let k = 0; k < hits.length; k += step) {
+      const w = B.low.slice(Math.max(0, hits[k][0] - 160), hits[k][1] + 160);
+      const dom = DOMAIN_CTX.some(x => w.includes(x)), neg = q.neg.some(x => w.includes(x));
+      sum += neg && !dom ? 0.15 : neg ? 0.6 : dom ? 1 : 0.55; n++;
+    }
+    sense = sum / n;
+  }
+  return { hits, pages, vcount, tags, title: th.length > 0, heads: [...headHit.keys()].map(i => B.heads[i]).filter(Boolean), dirHit: dh.length > 0, sense };
+}
+const K1 = 1.2, BB = 0.5;
+function search(raw, opt = {}) {
+  const t0 = performance.now();
+  const Q = buildQuery(raw, opt.expand !== false);
+  const books = LIB.books.filter(B => (!opt.fmt || B.ext === opt.fmt) && (!opt.dir || B.dir === opt.dir || B.dir.startsWith(opt.dir + '/')));
+  if (!Q.qs.length || !books.length) return { Q, results: [], ms: performance.now() - t0, total: books.length };
+  let N = 0, chars = 0; for (const B of books) { N += B.nPages; chars += B.chars; }
+  const avgLen = Math.max(200, chars / Math.max(1, N));
+  const M = books.map(B => Q.qs.map(q => matchConcept(B, q)));
+  const idf = Q.qs.map((q, qi) => { let df = 0; for (const m of M) df += m[qi].pages.size; return Math.log(1 + (N - df + 0.5) / (df + 0.5)); });
+  const nMain = Q.mains.length, results = [];
+  books.forEach((B, bi) => {
+    const m = M[bi];
+    if (!Q.qs.some((q, qi) => q.main && (m[qi].pages.size || m[qi].title || m[qi].heads.length))) return;   // 주 개념이 하나도 없으면 제외
+    // 쪽 점수 (BM25) — 주 개념 여럿이 같은 쪽에 함께 나오면 가산
+    const pscore = new Map(), pcover = new Map();
+    Q.qs.forEach((q, qi) => {
+      for (const [p, tf] of m[qi].pages) {
+        const len = B.pages[p].length || 1, sat = tf * (K1 + 1) / (tf + K1 * (1 - BB + BB * len / avgLen));
+        pscore.set(p, (pscore.get(p) || 0) + q.W * idf[qi] * sat);
+        if (q.main) pcover.set(p, (pcover.get(p) || 0) + 1);
+      }
+    });
+    if (nMain > 1) for (const [p, s] of pscore) pscore.set(p, s * (1 + 0.6 * ((pcover.get(p) || 1) - 1) / (nMain - 1)));
+    const top = [...pscore.entries()].sort((a, b) => b[1] - a[1]);
+    let depth = 0; for (let i = 0; i < Math.min(5, top.length); i++) depth += top[i][1] / (i + 1);
+    let breadth = 0, head = 0, title = 0, factor = 1, missing = 0;
+    Q.qs.forEach((q, qi) => {
+      const r = m[qi], np = r.pages.size, f = idf[qi] * q.W;
+      breadth += f * (0.55 * Math.log2(1 + np) + 3 * Math.sqrt(np / B.nPages));
+      head += f * 1.6 * Math.log2(1 + r.heads.length);
+      title += f * (r.title ? 3.2 : 0) + f * (r.dirHit ? 0.8 : 0);
+      if (q.main && q.domain) factor *= (0.55 + 0.45 * B.domain) * (0.35 + 0.65 * r.sense);
+      if (q.main && !np && !r.title && !r.heads.length) missing++;
+    });
+    if (nMain > 1 && missing) factor *= Math.pow(0.45, missing);
+    const score = (depth + breadth + head + title) * factor;
+    if (score <= 0) return;
+    results.push({ B, m, score, top, depth, breadth, head, title, factor });
+  });
+  results.sort((a, b) => b.score - a.score);
+  return { Q, results, idf, ms: performance.now() - t0, total: books.length };
+}
+
+/* ===================================================================================== 7) 설명 (왜 관련 있나) */
+function explain(R, Q) {
+  if (R.ex) return R.ex;
+  const B = R.B, mainIdx = Q.qs.map((q, i) => q.main ? i : -1).filter(i => i >= 0);
+  const pagesAll = new Set(); let occ = 0; const vc = new Map(); let tags = 0, titleHit = false; const heads = [];
+  for (const i of mainIdx) {
+    const r = R.m[i];
+    for (const p of r.pages.keys()) pagesAll.add(p);
+    occ += r.hits.length; tags += r.tags; titleHit ||= r.title;
+    for (const [k, v] of r.vcount) vc.set(k, (vc.get(k) || 0) + v);
+    for (const h of r.heads) if (!heads.includes(h)) heads.push(h);
+  }
+  const np = pagesAll.size, frac = np / B.nPages;
+  // 집중 구간: 일치한 쪽들을 2쪽 이내 간격으로 묶어 가장 많이 나온 묶음
+  const ps = [...pagesAll].sort((a, b) => a - b); let best = null, cur = null;
+  for (const p of ps) {
+    const w = mainIdx.reduce((a, i) => a + (R.m[i].pages.get(p) || 0), 0);
+    if (cur && p - cur.e <= 2) { cur.e = p; cur.w += w; cur.n++; } else { cur = { s: p, e: p, w, n: 1 }; }
+    if (!best || cur.w > best.w) best = { ...cur };
+  }
+  // 함께 다룬 주제: 가장 관련 높은 쪽들에 나오는 다른 계장 개념
+  const qids = new Set(Q.qs.map(q => q.id)), co = [];
+  const topPages = R.top.slice(0, 25).map(x => x[0]);
+  if (topPages.length) {
+    const txt = topPages.map(p => B.low.slice(B.starts[p], B.starts[p] + B.pages[p].length)).join(' ');
+    for (const c of THES) {
+      if (qids.has(c.id) || (TH[Q.qs[0]?.id]?.kids || []).includes(c.id) || c.id === 'instrumentation') continue;
+      let n = 0; for (const [t] of c.t) { const s = t.toLowerCase(); if (s.length < 3) continue; let i = 0; while ((i = txt.indexOf(s, i)) !== -1) { n++; i += s.length; } }
+      for (const [t] of c.ab) { let i = 0; const T = topPages.map(p => B.pages[p]).join(' '); while ((i = T.indexOf(t, i)) !== -1) { if (!/[A-Za-z]/.test(T[i - 1] || ' ') && !/[A-Za-z]/.test(T[i + t.length] || ' ')) n++; i += t.length; } }
+      if (n >= 3) co.push([c.n, n]);
+    }
+    co.sort((a, b) => b[1] - a[1]);
+  }
+  const subj = Q.mains.map(q => q.free ? `'${q.label}'` : q.label.replace(/\(.*\)/, '')).join(' · ');
+  const senseLow = mainIdx.some(i => Q.qs[i].domain && R.m[i].sense < 0.5);
+  const tier = senseLow ? -1 : titleHit || heads.length >= 2 || (frac >= 0.15 && np >= 3) ? 3 : (np >= 8 || frac >= 0.05 || heads.length) ? 2 : np >= 2 ? 1 : 0;
+  const tierName = tier < 0 ? '다른 뜻?' : ['잠깐 언급', '일부 다룸', '깊게 다룸', '핵심 도서'][tier];
+  const topV = [...vc.entries()].sort((a, b) => b[1] - a[1]).slice(0, 4);
+  const coTxt = co.slice(0, 4).map(x => x[0]);
+  let lead;
+  if (tier < 0) lead = `검색어는 나오지만 계장 분야와 다른 뜻으로 쓰인 것으로 보입니다`;
+  else if (tier === 3) lead = `${subj}을(를) 주제로 다루는 도서입니다`;
+  else if (tier === 2) lead = `${subj}을(를) 여러 곳에서 상당히 자세히 다룹니다`;
+  else if (tier === 1) lead = `${subj}이(가) 일부 단원에서 나옵니다`;
+  else lead = `${subj}이(가) 짧게 언급됩니다`;
+  if (coTxt.length) lead += ` — 함께 다룬 내용: ${coTxt.join(', ')}`;
+  const pts = [];
+  if (titleHit) pts.push(['📕', `파일명·제목에 검색 주제가 들어 있음`]);
+  if (heads.length) pts.push(['📑', `목차·장 제목 ${heads.length}곳: ${heads.slice(0, 3).map(h => `‘${h.t.slice(0, 50)}’ (p.${h.p + 1})`).join(', ')}${heads.length > 3 ? ' …' : ''}`]);
+  if (np) pts.push(['📄', `본문 ${fmtN(np)}쪽 / 전체 ${fmtN(B.nPages)}쪽 (${(frac * 100).toFixed(frac < 0.01 ? 1 : 0)}%)에서 ${fmtN(occ)}회 — ${topV.map(([k, v]) => `${k} ${fmtN(v)}`).join(' · ')}${tags ? ` · 계기 태그(PT-101 등) ${fmtN(tags)}` : ''}`]);
+  if (best && best.n >= 2) pts.push(['📍', `가장 많이 다룬 구간: p.${best.s + 1}–${best.e + 1}`]);
+  if (coTxt.length) pts.push(['🔗', `함께 나온 주제: ${co.slice(0, 5).map(([n, k]) => `${n}(${fmtN(k)})`).join(' · ')}`]);
+  if (senseLow) pts.push(['⚠', `주변 문맥이 계장 분야와 달라 보여 순위를 낮췄습니다 (예: 방송 송신기 등 다른 뜻)`]);
+  const short = [];
+  if (titleHit) short.push('제목 일치');
+  if (heads.length) short.push(`목차 ${heads.length}곳`);
+  if (np) short.push(`본문 ${fmtN(np)}쪽(${(frac * 100).toFixed(frac < 0.01 ? 1 : 0)}%)·${fmtN(occ)}회`);
+  if (best && best.n >= 3) short.push(`집중 p.${best.s + 1}–${best.e + 1}`);
+  return (R.ex = { tier, tierName, lead, pts, short: short.join(' · '), co: coTxt, np, occ, best });
+}
+function hlRegex(Q) {
+  const parts = [];
+  for (const q of Q.qs) for (const v of q.vs) {
+    const e = v.orig.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/ /g, '\\s+');
+    parts.push(v.kind === 'ko' ? e : `(?<![A-Za-z0-9])${e}${v.sfx ? '[a-z]{0,' + v.sfx + '}' : '(?:e?s)?'}(?![A-Za-z0-9])`);
+  }
+  for (const q of Q.qs) for (const t of q.tags) parts.push(t.source);
+  if (!parts.length) return null;
+  parts.sort((a, b) => b.length - a.length);
+  try { return new RegExp(parts.join('|'), 'gi'); } catch (_) { return null; }
+}
+function hl(text, re) { if (!re) return esc(text); let out = '', last = 0; re.lastIndex = 0; let m; while ((m = re.exec(text))) { if (!m[0]) { re.lastIndex++; continue; } out += esc(text.slice(last, m.index)) + '<mark>' + esc(m[0]) + '</mark>'; last = m.index + m[0].length; } return out + esc(text.slice(last)); }
+function snippet(B, R, p, Q) {
+  const s0 = B.starts[p], page = B.pages[p];
+  let pos = -1;
+  for (const i of Q.qs.map((q, i) => q.main ? i : -1).filter(i => i >= 0)) for (const h of R.m[i].hits) if (h[0] >= s0 && h[0] < s0 + page.length) { pos = h[0] - s0; break; }
+  if (pos < 0) pos = 0;
+  let a = Math.max(0, pos - 110), b = Math.min(page.length, pos + 230);
+  if (a > 0) { const sp = page.indexOf(' ', a); if (sp > 0 && sp < pos) a = sp + 1; }
+  return (a > 0 ? '…' : '') + page.slice(a, b).replace(/\n/g, ' ') + (b < page.length ? '…' : '');
+}
+
+/* ===================================================================================== 8) 폴더 읽기 · 인덱싱 */
+const RUN = { busy: false, stop: false };
+const relOk = rel => { const parts = rel.split('/'); const nm = parts[parts.length - 1]; const ext = (nm.match(/\.([^.]+)$/) || [])[1]?.toLowerCase(); return ext && SUPPORTED[ext] && !nm.startsWith('~$') && !parts.some(x => x.startsWith('.')) ? ext : null; };
+async function walkHandle(dir, prefix, out) {
+  for await (const [name, h] of dir.entries()) {
+    if (name.startsWith('.')) continue;
+    if (h.kind === 'directory') await walkHandle(h, prefix + name + '/', out);
+    else if (relOk(prefix + name)) out.push({ rel: prefix + name, getFile: () => h.getFile() });
+  }
+}
+async function walkEntry(entry, prefix, out) {   // 끌어다 놓기(webkitGetAsEntry)
+  if (entry.isFile) { if (relOk(prefix + entry.name)) out.push({ rel: prefix + entry.name, getFile: () => new Promise((r, j) => entry.file(r, j)) }); return; }
+  if (entry.name.startsWith('.')) return;
+  const rd = entry.createReader(); let batch;
+  do { batch = await new Promise((r, j) => rd.readEntries(r, j)); for (const e of batch) await walkEntry(e, prefix + entry.name + '/', out); } while (batch.length);
+}
+async function useFiles(list, folder) {
+  if (RUN.busy) { toast('지금 읽는 중입니다. 끝나거나 [중지] 후 다시 하세요'); return; }
+  if (!list.length) { toast('이 폴더에 읽을 수 있는 도서 파일(PDF · EPUB · DOCX · HWPX · TXT · MD)이 없습니다', 4000); }
+  RUN.busy = true; RUN.stop = false;
+  LIB.folder = folder; LIB.live = true; LIB.files = new Map();
+  const items = [];
+  for (const it of list) { const f = await it.getFile(); const ext = relOk(it.rel); LIB.files.set(it.rel, f); items.push({ rel: it.rel, ext, f, sig: `${it.rel}|${f.size}|${f.lastModified}` }); }
+  items.sort((a, b) => a.rel.localeCompare(b.rel, 'ko'));
+  // 이미 읽은 책은 보관본 그대로, 새 책 · 바뀐 책만 읽음
+  const keep = new Map(LIB.books.map(B => [B.sig, B])), next = [], todo = [];
+  for (const it of items) {
+    let B = keep.get(it.sig);
+    if (!B) { const rec = await DB.get('books', it.sig).catch(() => null); if (rec && rec.v === EXTRACT_VER) B = makeBook(rec); }
+    if (B) next.push(B); else todo.push(it);
+  }
+  LIB.books = next; LIB.bySig = new Map(next.map(B => [B.sig, B]));
+  await saveLib(); renderAll();
+  let done = 0, failed = 0; const total = todo.length, t0 = Date.now();
+  for (const it of todo) {
+    if (RUN.stop) break;
+    const label = it.rel.split('/').pop();
+    setProg(done / Math.max(1, total), `읽는 중 ${done + 1}/${total} — ${label}`);
+    let rec;
+    try {
+      const r = await extractFile(it.f, it.ext, (i, n) => setProg((done + i / n) / total, `읽는 중 ${done + 1}/${total} — ${label} (${i}/${n}쪽)`), () => RUN.stop);
+      const chars = r.pages.reduce((a, p) => a + p.length, 0);
+      rec = { sig: it.sig, v: EXTRACT_VER, rel: it.rel, ext: it.ext, size: it.f.size, mtime: it.f.lastModified, title: r.title || '', pages: r.pages, heads: r.heads, err: chars < 20 ? 'notext' : '' };
+    } catch (e) {
+      if (RUN.stop) break;
+      failed++; rec = { sig: it.sig, v: EXTRACT_VER, rel: it.rel, ext: it.ext, size: it.f.size, mtime: it.f.lastModified, title: '', pages: [''], heads: [], err: 'read:' + (e && e.message || e) };
+    }
+    try { await DB.put('books', rec); } catch (e) { toast('이 PC 저장 공간이 부족해 보관하지 못했습니다: ' + it.rel, 4000); }
+    const B = makeBook(rec); LIB.books.push(B); LIB.bySig.set(B.sig, B); done++;
+    if (done % 3 === 0 || done === total) { LIB.books.sort((a, b) => a.rel.localeCompare(b.rel, 'ko')); await saveLib(); refreshAfterIndex(); }
+  }
+  LIB.books.sort((a, b) => a.rel.localeCompare(b.rel, 'ko'));
+  await saveLib(); await gc();
+  RUN.busy = false; setProg(null);
+  const sec = Math.round((Date.now() - t0) / 1000);
+  if (RUN.stop) toast(`중지했습니다 — ${done}권 읽음. [새 파일 반영]으로 이어서 읽을 수 있습니다`, 4000);
+  else if (total) toast(`새로 ${done}권 읽음 (${sec}초)${failed ? ` · 읽기 실패 ${failed}권` : ''} — 다음부터는 바뀐 파일만 읽습니다`, 4000);
+  else toast(`${LIB.books.length}권 — 바뀐 파일이 없습니다`);
+  renderAll(); if (STATE.q) doSearch(STATE.q, true);
+}
+let lastRefresh = 0;
+function refreshAfterIndex() { const now = Date.now(); if (now - lastRefresh < 4000) return; lastRefresh = now; renderTop(); if (STATE.q) doSearch(STATE.q, true); else renderAll(); }
+async function saveLib() { await DB.put('kv', { folder: LIB.folder, sigs: LIB.books.map(B => B.sig), at: Date.now() }, 'lib').catch(() => {}); }
+async function gc() {   // 폴더에서 지워진 책의 보관본 정리
+  try { const keys = await DB.keys('books'); const live = new Set(LIB.books.map(B => B.sig)); for (const k of keys) if (!live.has(k)) await DB.del('books', k); } catch (_) {}
+}
+async function loadLib() {
+  const lib = await DB.get('kv', 'lib').catch(() => null);
+  if (!lib || !lib.sigs?.length) return false;
+  LIB.folder = lib.folder; LIB.books = []; LIB.live = false;
+  setProg(0, '이 PC 에 보관된 도서 색인 불러오는 중…');
+  let k = 0;
+  for (const sig of lib.sigs) { const rec = await DB.get('books', sig).catch(() => null); if (rec && rec.v === EXTRACT_VER) LIB.books.push(makeBook(rec)); if (++k % 5 === 0) { setProg(k / lib.sigs.length, `보관된 색인 불러오는 중 ${k}/${lib.sigs.length}`); await sleep(0); } }
+  LIB.bySig = new Map(LIB.books.map(B => [B.sig, B])); setProg(null);
+  return true;
+}
+
+/* ===================================================================================== 9) 화면 */
+const STATE = { q: '', res: null, sel: 0, shown: 30, view: null, pdfCache: null };
+const EXAMPLES = ['Transmitter 관련 도서', '압력 전송기 설치', 'HART 통신', '제어밸브 포지셔너', 'SIS SIL 안전계장', '유량계 측정 원리', '열전대 온도 측정', 'P&ID 심볼'];
+function recent() { try { return JSON.parse(localStorage.getItem('gyejang-books-recent') || '[]'); } catch (_) { return []; } }
+function pushRecent(q) { try { const r = [q, ...recent().filter(x => x !== q)].slice(0, 8); localStorage.setItem('gyejang-books-recent', JSON.stringify(r)); } catch (_) {} }
+function setProg(f, text) {
+  const el = $('#prog'); if (f === null) { el.hidden = true; return; }
+  el.hidden = false; $('#progBar').style.width = Math.round(Math.max(0, Math.min(1, f)) * 100) + '%'; $('#progText').textContent = text || '';
+  $('#btnStop').hidden = !RUN.busy;
+}
+function renderTop() {
+  const chip = $('#folderChip'); chip.classList.toggle('live', LIB.live); chip.classList.toggle('cache', !LIB.live && LIB.books.length > 0);
+  $('#folderName').textContent = LIB.folder || '폴더 없음';
+  const nt = LIB.books.filter(B => B.err === 'notext').length, bad = LIB.books.filter(B => B.err.startsWith('read:')).length;
+  $('#folderStat').textContent = LIB.books.length ? `· ${fmtN(LIB.books.length)}권 · ${fmtN(LIB.books.reduce((a, B) => a + B.nPages, 0))}쪽${nt ? ` · 글자 없음 ${nt}` : ''}${bad ? ` · 실패 ${bad}` : ''}${LIB.live ? '' : ' · 보관본'}` : '';
+  chip.title = LIB.live ? '폴더 연결됨 — 미리보기에서 원본 쪽 그림까지 볼 수 있습니다' : LIB.books.length ? '이 PC 에 보관된 색인으로 검색합니다. 원본 쪽 그림 · 새 파일 반영은 [폴더 다시 연결] 후' : '';
+  $('#btnRescan').hidden = !LIB.books.length; $('#btnReconnect').hidden = LIB.live || !LIB.books.length;
+  $('#btnPick').textContent = LIB.books.length ? '📁 다른 폴더' : '📁 폴더 선택';
+  // 형식 · 폴더 고르기
+  const fmts = [...new Set(LIB.books.map(B => B.ext))].sort(), dirs = [...new Set(LIB.books.map(B => B.dir.split('/')[0]).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'ko'));
+  const fs = $('#optFmt'), ds = $('#optDir'), fv = fs.value, dv = ds.value;
+  fs.innerHTML = '<option value="">전체</option>' + fmts.map(f => `<option value="${f}">${SUPPORTED[f]} (${LIB.books.filter(B => B.ext === f).length})</option>`).join(''); fs.value = fmts.includes(fv) ? fv : '';
+  ds.innerHTML = '<option value="">전체</option>' + dirs.map(d => `<option value="${esc(d)}">${esc(d)}</option>`).join(''); ds.value = dirs.includes(dv) ? dv : '';
+  const rc = recent();
+  $('#chips').innerHTML = (rc.length ? `<span class="lbl">최근</span>${rc.slice(0, 5).map(q => `<button class="chip rec" data-q="${esc(q)}">${esc(q)}</button>`).join('')}<span class="lbl" style="margin-left:6px">예시</span>` : '<span class="lbl">예시</span>')
+    + EXAMPLES.filter(e => !rc.includes(e)).slice(0, rc.length ? 5 : 8).map(q => `<button class="chip" data-q="${esc(q)}">${esc(q)}</button>`).join('');
+}
+function renderIntro() {
+  $('#main').hidden = true; const el = $('#intro'); el.hidden = false;
+  const fsapi = !!window.showDirectoryPicker;
+  el.innerHTML = `
+    <div class="card" style="margin-bottom:0"><h2>내 PC 의 계장 도서를 <u>본문 내용</u>으로 찾습니다</h2>
+      <div class="muted" style="font-size:13px;line-height:1.7">"Transmitter 관련 도서" 라고 찾으면 제목에 그 말이 없어도 본문에서 전송기 · 트랜스미터 · 압력 전송기 · PT-101 처럼 다룬 책을 찾아
+      <b>관련도 높은 순</b>으로 보여 주고, <b>왜 관련 있는지</b>(목차 · 다룬 쪽 수 · 집중 구간 · 함께 다룬 주제)와 <b>근거 쪽 미리보기</b>를 함께 보여 줍니다.</div></div>
+    <div class="steps">
+      <div class="step"><h3><span class="step-n">1</span>도서 폴더 고르기</h3><p>책(PDF · EPUB · DOCX · HWPX · TXT · MD)이 모인 폴더를 고르세요. 하위 폴더까지 모두 봅니다.</p></div>
+      <div class="step"><h3><span class="step-n">2</span>본문 읽기 (처음 한 번)</h3><p>책마다 본문을 읽어 이 PC 에 색인을 만듭니다. 다음부터는 새로 넣거나 바뀐 파일만 읽습니다. 읽는 중에도 검색할 수 있습니다.</p></div>
+      <div class="step"><h3><span class="step-n">3</span>말하듯 검색</h3><p>"Transmitter 관련 도서", "압력 전송기 설치", "HART 통신" 처럼 쓰면 됩니다. 계장 용어 사전이 비슷한 표현을 함께 찾습니다.</p></div>
+    </div>
+    <div class="drop" id="drop"><div style="font-size:30px">📁</div><div class="big">도서 폴더를 여기로 끌어다 놓거나</div>
+      <button class="btn pri" id="btnPick2" style="font-size:14px;padding:9px 22px">폴더 선택</button></div>
+    <div class="note">🔒 파일은 서버로 올라가지 않습니다 — 이 PC 의 브라우저 안에서만 읽고, 색인도 이 PC 에만 보관됩니다.
+      ${fsapi ? '' : `<br>폴더를 고르면 Edge 가 "이 사이트에 파일 N개를 업로드할까요?" 라고 묻는데, 실제로는 업로드하지 않고 이 화면에서만 읽습니다 → [업로드] 를 누르세요.`}
+      <br>스캔(그림)만 있는 PDF 는 본문 글자가 없어 파일명으로만 찾습니다.</div>`;
+  $('#btnPick2').onclick = pickFolder;
+}
+function renderAll() {
+  renderTop();
+  if (!LIB.books.length && !RUN.busy) return renderIntro();
+  $('#intro').hidden = true; $('#main').hidden = false;
+  if (!STATE.res) renderLibrary(); else renderResults();
+}
+function renderLibrary() {   // 검색 전: 폴더 안 도서 목록
+  $('#interp').hidden = true;
+  const L = $('#list'), bs = LIB.books;
+  L.innerHTML = `<div class="sum"><b>${fmtN(bs.length)}권</b> 색인됨${RUN.busy ? ' (읽는 중)' : ''} — 위에 검색어를 넣으세요</div>` +
+    (bs.length ? bs.slice(0, 300).map((B, i) => `<div class="res" data-lib="${i}" style="cursor:default"><div class="rk"><span class="fmt">${SUPPORTED[B.ext]}</span></div>
+      <div class="t"><span class="nm">${esc(B.base)}</span></div><div class="path">${esc(B.dir || '(최상위)')} · ${fmtN(B.nPages)}${B.ext === 'pdf' ? '쪽' : '구간'}${B.err === 'notext' ? ' · ⚠ 본문 글자 없음(스캔본?)' : B.err ? ' · ⚠ 읽기 실패' : ''}</div></div>`).join('') : '<div class="empty">읽는 중입니다…</div>');
+  $('#pv').innerHTML = `<div class="empty">🔍 검색하면 여기에 <b>왜 관련 있는지</b>와 <b>근거 쪽 미리보기</b>가 나옵니다.</div>`;
+}
+function curOpt() { return { expand: $('#optExpand').checked, fmt: $('#optFmt').value, dir: $('#optDir').value }; }
+function doSearch(q, keepSel) {
+  q = (q || '').trim(); STATE.q = q; $('#qclear').hidden = !q;
+  if (!q) { STATE.res = null; renderAll(); return; }
+  if (!LIB.books.length) { toast('먼저 도서 폴더를 고르세요'); return; }
+  const prevSig = keepSel && STATE.res?.results[STATE.sel]?.B.sig;
+  STATE.res = search(q, curOpt());
+  if ($('#optSort').value === 'name') STATE.res.results.sort((a, b) => a.B.base.localeCompare(b.B.base, 'ko'));
+  STATE.shown = 30;
+  const k = prevSig ? STATE.res.results.findIndex(R => R.B.sig === prevSig) : -1;
+  STATE.sel = k >= 0 ? k : 0;
+  if (!keepSel) pushRecent(q);
+  renderAll();
+}
+function renderInterp(Q) {
+  const el = $('#interp');
+  if (!Q.qs.length) { el.hidden = false; el.innerHTML = '<span class="k">검색할 말이 없습니다 — 주제어를 넣어 주세요 (예: transmitter, 압력 전송기)</span>'; return; }
+  el.hidden = false;
+  el.innerHTML = '<span class="k">이렇게 찾았습니다:</span>' + Q.qs.map(q => {
+    const ex = [...new Set(q.vs.map(v => v.label))]; const tip = ex.join(', ') + (q.tags.length ? ', 계기 태그(PT-101 …)' : '');
+    return `<span class="cpt ${q.main ? '' : 'part'}" title="${esc(tip)}">${esc(q.free ? `'${q.label}'` : q.label)}${q.main ? '' : ' <small>(상위 개념 · 일부 점수)</small>'}${ex.length > 1 ? ` <small>+${ex.length - 1}개 표현</small>` : ''}</span>`;
+  }).join('') + Q.notes.map(n => `<span class="dym">✎ ${esc(n)}</span>`).join('');
+}
+function renderResults() {
+  const { Q, results, ms, total } = STATE.res; renderInterp(Q);
+  const L = $('#list');
+  if (!results.length) {
+    L.innerHTML = `<div class="empty">'${esc(STATE.q)}' 와(과) 관련된 도서를 찾지 못했습니다.<br>
+      <span class="muted">· 다른 표현(영어/한글)으로 찾아 보세요 · [계장 용어 확장] 이 켜져 있는지 확인 · 형식/폴더 거르기를 '전체'로${RUN.busy ? '<br>· 아직 읽는 중인 책이 있습니다 — 다 읽은 뒤 결과가 늘 수 있습니다' : ''}</span></div>`;
+    $('#pv').innerHTML = ''; return;
+  }
+  const top = results[0].score;
+  const shown = results.slice(0, STATE.shown);
+  L.innerHTML = `<div class="sum"><b>${fmtN(total)}권</b> 중 <b>${fmtN(results.length)}권</b> 관련 · ${(ms / 1000).toFixed(2)}초${RUN.busy ? ' · <span style="color:var(--warn)">읽는 중 — 결과가 늘 수 있음</span>' : ''}</div>` +
+    shown.map((R, i) => {
+      const ex = explain(R, Q), pct = Math.max(3, Math.round(100 * R.score / top));
+      return `<div class="res ${i === STATE.sel ? 'on' : ''}" data-i="${i}" tabindex="0">
+        <div class="rk"><b>${i + 1}</b><span class="meter" title="관련도 ${pct} (1위 = 100)"><i style="height:${pct}%"></i></span></div>
+        <div class="t"><span class="tier t${ex.tier}">${ex.tierName}</span><span class="nm" title="${esc(R.B.name)}">${hl(R.B.base, hlRegex(Q))}</span><span class="fmt">${SUPPORTED[R.B.ext]}</span></div>
+        <div class="path">${esc(R.B.dir || '(최상위)')} · ${fmtN(R.B.nPages)}${R.B.ext === 'pdf' ? '쪽' : '구간'} · 관련도 ${pct}</div>
+        <div class="why"><span class="w">${esc(ex.short)}</span>${ex.co.length ? `<span class="w muted">함께: ${esc(ex.co.slice(0, 3).join(' · '))}</span>` : ''}</div></div>`;
+    }).join('') + (results.length > STATE.shown ? `<button class="btn more" id="more">더 보기 (${fmtN(results.length - STATE.shown)}권 더)</button>` : '');
+  renderPreview();
+}
+function renderPreview(goPage) {
+  const R = STATE.res?.results[STATE.sel]; const P = $('#pv');
+  if (!R) { P.innerHTML = ''; return; }
+  const B = R.B, Q = STATE.res.Q, ex = explain(R, Q), re = hlRegex(Q);
+  const psgPages = R.top.slice(0, 6).map(x => x[0]);
+  const heads = [...new Map(Q.qs.flatMap((q, i) => q.main ? R.m[i].heads : []).map(h => [h.t + h.p, h])).values()].slice(0, 12);
+  const file = LIB.files.get(B.rel);
+  P.innerHTML = `
+    <div class="pvh"><div class="tt"><h2>${hl(B.base, re)}</h2><div class="path">${esc(LIB.folder)}/${esc(B.rel.split('/').slice(1).join('/'))}</div>
+      <div class="badges"><span class="badge">${SUPPORTED[B.ext]}</span><span class="badge">${fmtN(B.nPages)}${B.ext === 'pdf' ? '쪽' : '구간'}</span><span class="badge">${B.size >= 1048576 ? (B.size / 1048576).toFixed(1) + ' MB' : Math.max(1, Math.round(B.size / 1024)) + ' KB'}</span>${B.meta && B.meta !== B.base ? `<span class="badge" title="문서 정보의 제목">${esc(B.meta.slice(0, 60))}</span>` : ''}</div></div>
+      <button class="btn sm" id="openOrig" ${file ? '' : 'disabled title="폴더를 다시 연결하면 열 수 있습니다"'}>원본 열기 ↗</button></div>
+    <div class="whybox"><h3>왜 '${esc(STATE.q)}' 와(과) 관련 있나요? <span class="tier t${ex.tier}" style="margin-left:4px">${ex.tierName}</span></h3>
+      <div class="lead">${esc(ex.lead)}</div><ul>${ex.pts.map(([i, t]) => `<li>${i} ${esc(t)}</li>`).join('')}</ul></div>
+    ${heads.length ? `<div class="secttl">📑 목차에서 찾은 곳</div><div class="heads">${heads.map(h => `<button data-go="${h.p}">${hl(h.t.slice(0, 80), re)}<em>p.${h.p + 1}</em></button>`).join('')}</div>` : ''}
+    ${psgPages.length ? `<div class="secttl">📝 근거 구절 <span class="muted" style="font-weight:400">— 누르면 아래에서 그 쪽을 봅니다</span></div>
+      ${psgPages.map(p => `<div class="psg" data-go="${p}"><span class="pg">${B.ext === 'pdf' ? 'p.' : '§'}${p + 1}</span>${hl(snippet(B, R, p, Q), re)}</div>`).join('')}` : `<div class="warnline">본문에서는 찾지 못했고 파일명 · 목차로 관련이 있다고 봤습니다${B.err === 'notext' ? ' (본문 글자가 없는 스캔본으로 보입니다)' : ''}.</div>`}
+    <div class="secttl">👁 미리보기</div>
+    <div class="viewer"><div class="vbar">
+      <button class="btn sm" id="vPrev" title="이전 근거 쪽">◀ 이전 근거</button><span class="pgno" id="vNo"></span><button class="btn sm" id="vNext" title="다음 근거 쪽">다음 근거 ▶</button>
+      <span class="sp"></span>
+      ${B.ext === 'pdf' ? `<label class="muted"><input type="radio" name="vm" value="page" ${file ? 'checked' : 'disabled'}> 원본 쪽</label><label class="muted"><input type="radio" name="vm" value="text" ${file ? '' : 'checked'}> 글자</label>` : ''}
+    </div><div class="vbody" id="vbody"></div></div>`;
+  const hitPages = [...new Set(Q.qs.flatMap((q, i) => q.main ? [...R.m[i].pages.keys()] : []))].sort((a, b) => a - b);
+  STATE.view = { R, hitPages, page: goPage ?? (psgPages[0] ?? heads[0]?.p ?? 0), mode: B.ext === 'pdf' && file ? 'page' : 'text' };
+  showPage();
+}
+async function showPage() {
+  const V = STATE.view; if (!V) return; const B = V.R.B, re = hlRegex(STATE.res.Q), body = $('#vbody');
+  const k = V.hitPages.indexOf(V.page);
+  $('#vNo').textContent = `${B.ext === 'pdf' ? 'p.' : '§'}${V.page + 1} / ${B.nPages}${V.hitPages.length ? `  ·  근거 ${k >= 0 ? k + 1 : '-'}/${V.hitPages.length}` : ''}`;
+  $('#vPrev').disabled = !V.hitPages.some(p => p < V.page); $('#vNext').disabled = !V.hitPages.some(p => p > V.page);
+  document.querySelectorAll('.psg').forEach(e => e.classList.toggle('on', +e.dataset.go === V.page));
+  const file = LIB.files.get(B.rel);
+  if (V.mode === 'page' && file && window.pdfjsLib) {
+    body.innerHTML = '<div class="empty">쪽 그리는 중…</div>';
+    try {
+      const want = V.page, sig = B.sig;
+      if (!STATE.pdfCache || STATE.pdfCache.sig !== sig) {
+        if (STATE.pdfCache) try { STATE.pdfCache.doc.destroy(); } catch (_) {}
+        STATE.pdfCache = { sig, doc: await pdfjsLib.getDocument({ data: new Uint8Array(await file.arrayBuffer()), isEvalSupported: false }).promise };
+      }
+      if (STATE.view !== V || V.page !== want) return;
+      const pg = await STATE.pdfCache.doc.getPage(want + 1);
+      const w = Math.max(320, body.clientWidth - 24), vp0 = pg.getViewport({ scale: 1 }), scale = w / vp0.width, vp = pg.getViewport({ scale });
+      const dpr = window.devicePixelRatio || 1, cv = document.createElement('canvas');
+      cv.width = Math.floor(vp.width * dpr); cv.height = Math.floor(vp.height * dpr); cv.style.width = vp.width + 'px'; cv.style.height = vp.height + 'px';
+      const wrap = document.createElement('div'); wrap.className = 'canvas-wrap'; wrap.style.width = vp.width + 'px'; wrap.appendChild(cv);
+      await pg.render({ canvasContext: cv.getContext('2d'), viewport: vp, transform: dpr !== 1 ? [dpr, 0, 0, dpr, 0, 0] : null }).promise;
+      if (STATE.view !== V || V.page !== want) return;
+      // 검색어 위치에 노란 표시: 글자 조각(item)의 위치 × 그 안에서의 글자 비율
+      const tc = await pg.getTextContent(); let first = null;
+      if (re) for (const it of tc.items) {
+        if (!it.str) continue; re.lastIndex = 0; let m;
+        while ((m = re.exec(normText(it.str)))) {
+          if (!m[0]) { re.lastIndex++; continue; }
+          const tx = pdfjsLib.Util.transform(vp.transform, it.transform), fh = Math.hypot(tx[2], tx[3]), L = it.str.length || 1, wd = it.width * scale;
+          const x = tx[4] + wd * (m.index / L), y = tx[5] - fh, ww = Math.max(4, wd * (m[0].length / L));
+          const b = document.createElement('div'); b.className = 'hlb'; Object.assign(b.style, { left: x + 'px', top: y + 'px', width: ww + 'px', height: fh * 1.15 + 'px' }); wrap.appendChild(b);
+          if (!first || y < first) first = y;
+        }
+      }
+      body.innerHTML = ''; body.appendChild(wrap);
+      if (first !== null) body.scrollTop = Math.max(0, first - 120);
+      pg.cleanup();
+      return;
+    } catch (e) { body.innerHTML = `<div class="warnline">원본 쪽을 그리지 못해 글자로 보여 줍니다 (${esc(e.message || e)})</div>`; }
+  }
+  const txt = B.pages[V.page] || '';
+  const pre = document.createElement('pre'); pre.className = 'vtext'; pre.innerHTML = txt ? hl(txt, re) : '<span class="muted">(이 쪽에는 글자가 없습니다)</span>';
+  if (body.firstChild?.className !== 'warnline') body.innerHTML = ''; body.appendChild(pre);
+  const mk = pre.querySelector('mark'); body.scrollTop = mk ? Math.max(0, mk.offsetTop - 100) : 0;
+  if (V.mode === 'page' && !file) body.insertAdjacentHTML('afterbegin', '<div class="warnline" style="margin:8px">원본 쪽 그림은 [폴더 다시 연결] 후 볼 수 있습니다.</div>');
+}
+function openOriginal() {
+  const R = STATE.res?.results[STATE.sel]; if (!R) return; const f = LIB.files.get(R.B.rel); if (!f) return;
+  const url = URL.createObjectURL(f), pg = STATE.view?.page ?? 0;
+  const w = window.open(R.B.ext === 'pdf' ? `${url}#page=${pg + 1}` : url, '_blank');
+  if (!w) { const a = document.createElement('a'); a.href = url; a.download = R.B.name; a.click(); }
+  setTimeout(() => URL.revokeObjectURL(url), 120000);
+}
+function showDict() {
+  const P = $('#pv'); $('#main').hidden = false; $('#intro').hidden = true;
+  P.innerHTML = `<div class="card"><h2>📖 계장 용어 사전 <span class="muted">— [계장 용어 확장]이 켜져 있으면 아래 표현을 함께 찾습니다</span></h2>
+    <div class="muted" style="margin-bottom:8px">질문에 개념 이름 · 표현 중 하나만 들어 있으면 됩니다. 하위 개념(예: Transmitter → 압력 전송기 · 차압 전송기)도 함께 찾고, 계기 태그(PT-101 · FIT-2001A)는 약한 근거로 셉니다.</div>
+    ${THES.map(c => `<div style="padding:7px 0;border-top:1px solid var(--line)"><b>${esc(c.n)}</b>${c.p ? ` <span class="muted">⊂ ${esc(c.p.map(x => TH[x].n).join(', '))}</span>` : ''}
+      <div class="muted" style="line-height:1.6">${esc([...c.t.map(x => x[0]), ...c.ab.map(x => x[0])].join(' · '))}${c.tag ? ' · 계기 태그' : ''}</div></div>`).join('')}</div>`;
+}
+
+/* --- 폴더 고르기 */
+async function pickFolder() {
+  if (RUN.busy) { toast('지금 읽는 중입니다. 끝나거나 [중지] 후 다시 하세요'); return; }
+  if (window.showDirectoryPicker) {   // https · localhost: 폴더 권한을 기억해 다음에 한 번에 다시 연결
+    try {
+      const h = await window.showDirectoryPicker({ id: 'gyejang-books', mode: 'read' });
+      LIB.dirHandle = h; DB.put('kv', h, 'dir').catch(() => {});
+      const out = []; setProg(0, '폴더 훑는 중…'); await walkHandle(h, h.name + '/', out); setProg(null);
+      return useFiles(out, h.name);
+    } catch (e) { if (e && e.name === 'AbortError') return; }
+  }
+  $('#dirInput').value = ''; $('#dirInput').click();
+}
+$('#dirInput').addEventListener('change', e => {
+  const fl = [...e.target.files]; if (!fl.length) return;
+  const folder = (fl[0].webkitRelativePath || fl[0].name).split('/')[0];
+  useFiles(fl.filter(f => relOk(f.webkitRelativePath || f.name)).map(f => ({ rel: f.webkitRelativePath || f.name, getFile: async () => f })), folder);
+});
+async function reconnect() {
+  const h = LIB.dirHandle || await DB.get('kv', 'dir').catch(() => null);
+  if (h && h.requestPermission) {
+    try { if ((await h.requestPermission({ mode: 'read' })) === 'granted') { LIB.dirHandle = h; const out = []; setProg(0, '폴더 훑는 중…'); await walkHandle(h, h.name + '/', out); setProg(null); return useFiles(out, h.name); } } catch (_) {}
+  }
+  toast(`'${LIB.folder}' 폴더를 다시 골라 주세요`); $('#dirInput').value = ''; $('#dirInput').click();
+}
+// 끌어다 놓기
+const app = $('#app'); let dragN = 0;
+app.addEventListener('dragenter', e => { if ([...(e.dataTransfer?.types || [])].includes('Files')) { e.preventDefault(); dragN++; app.classList.add('over'); } });
+app.addEventListener('dragover', e => { if ([...(e.dataTransfer?.types || [])].includes('Files')) e.preventDefault(); });
+app.addEventListener('dragleave', () => { if (--dragN <= 0) { dragN = 0; app.classList.remove('over'); } });
+app.addEventListener('drop', async e => {
+  e.preventDefault(); dragN = 0; app.classList.remove('over');
+  const its = [...(e.dataTransfer?.items || [])].map(i => i.webkitGetAsEntry && i.webkitGetAsEntry()).filter(Boolean);
+  const dirs = its.filter(x => x.isDirectory); if (!dirs.length) { toast('파일이 아니라 폴더를 놓아 주세요'); return; }
+  const out = []; setProg(0, '폴더 훑는 중…'); for (const d of dirs) await walkEntry(d, '', out); setProg(null);
+  useFiles(out, dirs.length === 1 ? dirs[0].name : dirs.map(d => d.name).join(' + '));
+});
+
+/* --- 이벤트 */
+$('#qform').addEventListener('submit', e => { e.preventDefault(); doSearch($('#q').value); });
+$('#q').addEventListener('input', () => { $('#qclear').hidden = !$('#q').value; });
+$('#qclear').onclick = () => { $('#q').value = ''; doSearch(''); $('#q').focus(); };
+$('#chips').addEventListener('click', e => { const b = e.target.closest('[data-q]'); if (b) { $('#q').value = b.dataset.q; doSearch(b.dataset.q); } });
+['#optExpand', '#optFmt', '#optDir', '#optSort'].forEach(s => $(s).addEventListener('change', () => { if (STATE.q) doSearch(STATE.q, true); }));
+$('#btnPick').onclick = pickFolder; $('#btnReconnect').onclick = reconnect; $('#btnRescan').onclick = reconnect;
+$('#btnStop').onclick = () => { RUN.stop = true; };
+$('#btnDict').onclick = showDict;
+$('#list').addEventListener('click', e => {
+  if (e.target.id === 'more') { STATE.shown += 30; renderResults(); return; }
+  const r = e.target.closest('.res[data-i]'); if (!r) return;
+  STATE.sel = +r.dataset.i; document.querySelectorAll('.res[data-i]').forEach(x => x.classList.toggle('on', x === r)); renderPreview();
+});
+$('#pv').addEventListener('click', e => {
+  const g = e.target.closest('[data-go]'); if (g && STATE.view) { STATE.view.page = +g.dataset.go; showPage(); $('#vbody').scrollIntoView({ block: 'nearest', behavior: 'smooth' }); return; }
+  if (e.target.id === 'vPrev' || e.target.id === 'vNext') { const V = STATE.view, hp = V.hitPages; const n = e.target.id === 'vNext' ? hp.find(p => p > V.page) : [...hp].reverse().find(p => p < V.page); if (n !== undefined) { V.page = n; showPage(); } return; }
+  if (e.target.id === 'openOrig') openOriginal();
+});
+$('#pv').addEventListener('change', e => { if (e.target.name === 'vm' && STATE.view) { STATE.view.mode = e.target.value; showPage(); } });
+document.addEventListener('keydown', e => {
+  if (!STATE.res || !STATE.res.results.length || e.target.tagName === 'INPUT' && e.target.id !== 'q') return;
+  if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+    if (e.target.id === 'q' && e.key === 'ArrowUp') return;
+    e.preventDefault(); STATE.sel = Math.max(0, Math.min(Math.min(STATE.shown, STATE.res.results.length) - 1, STATE.sel + (e.key === 'ArrowDown' ? 1 : -1)));
+    document.querySelectorAll('.res[data-i]').forEach(x => x.classList.toggle('on', +x.dataset.i === STATE.sel));
+    $(`.res[data-i="${STATE.sel}"]`)?.scrollIntoView({ block: 'nearest' }); renderPreview();
+  }
+});
+let rsz; window.addEventListener('resize', () => { clearTimeout(rsz); rsz = setTimeout(() => { if (STATE.view?.mode === 'page') showPage(); }, 250); });
+
+/* --- 시작: 보관된 색인이 있으면 바로 검색 가능 (폴더 연결은 원본 미리보기 · 새 파일 반영 때만 필요) */
+(async () => {
+  renderTop();
+  if (!window.indexedDB) { toast('이 브라우저는 색인 보관(IndexedDB)을 쓸 수 없습니다 — Edge 또는 Chrome 으로 여세요', 6000); }
+  const had = await loadLib().catch(() => false);
+  if (had) {
+    const h = await DB.get('kv', 'dir').catch(() => null);
+    if (h && h.queryPermission && (await h.queryPermission({ mode: 'read' }).catch(() => '')) === 'granted') { LIB.dirHandle = h; reconnect(); }
+  }
+  renderAll();
+  const q = Q0.get('q'); if (q) { $('#q').value = q; doSearch(q); }
+  $('#q').focus();
+})();
+
+// 시험·자동화용 (화면에는 영향 없음)
+window.BOOKS = { LIB, RUN, search, explain, buildQuery, THES, useFiles, STATE, doSearch, VERSION };
+</script>
+</body>
+</html>
