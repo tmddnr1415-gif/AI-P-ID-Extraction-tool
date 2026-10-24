@@ -8,6 +8,7 @@
 | 저장소 | 운영 폴더 | 내용 |
 |---|---|---|
 | `dashboard/apps/books/index.html` | `apps\books\index.html` | 화면 + 검색 엔진 + 계장 용어 사전 · 한영 용어집 (한 파일) |
+| `dashboard/apps/books/kb.js` | `apps\books\kb.js` | 발전 · 플랜트 계장 지식 베이스 (터빈 · HRSG · DCS · PLC · 펌프 · 설계 산출물 … 개념 42개 + 분야 15개) — index.html 이 `<script src="kb.js">` 로 읽음, 없으면 기본 사전만으로 동작 |
 | `dashboard/apps/books/vendor/pdf.min.js`, `pdf.worker.min.js` | `apps\books\vendor\` | pdf.js 3.11.174 (Apache-2.0) — P&ID 도구와 같은 파일 |
 | `dashboard/books_api.py` | `books_api.py` (server.py 옆) | 공용 도서관 API — 표준 라이브러리만 |
 
@@ -87,7 +88,9 @@ const ROUTES = [ … 'space', 'books', 'mgmt', … ];
 
 ## 5. 지원 형식 · 한계
 
-- PDF(글자 있는 것) · EPUB · DOCX · HWPX · TXT(UTF-8/CP949/UTF-16) · MD.
+- PDF(글자 있는 것) · EPUB · DOCX · **XLSX/XLSM**(시트 = 쪽, 행은 `|` 로 이어 붙임) · **PPTX**(슬라이드 = 쪽, 제목은 목차로) · HWPX · TXT(UTF-8/CP949/UTF-16) · MD · CSV.
+- 옛 형식 **DOC · XLS · PPT · HWP(5.0)** 는 본문을 읽지 않고 **파일명으로만** 찾음 ([📚 도서관] '본문을 읽지 못한 파일' 에 '옛 형식' 으로 표시 — 새 형식으로 저장하면 본문도 읽힘). `books_api.py` 의 `SUPPORTED` 에도 같은 확장자가 있어야 서버가 목록 · 원본을 내려 준다.
+- 글꼴 인코딩이 깨진 PDF(글자가 다른 글자로 뽑히는 것)는 '본문 깨짐' 으로 표시 — 다시 받거나 OCR 후 저장.
 - 스캔(그림)만 있는 PDF 는 파일명 · 책갈피로만 찾음 ([📚 도서관] 의 '본문을 읽지 못한 파일' 목록).
-- 옛 HWP(5.0 바이너리)는 읽지 않음 — HWPX 로 저장해 넣기.
-- AI 모델 없이(사내 정책) 찾음: 계장 용어 사전(개념 39개 · 표현 약 600개) + 관점 11개 + 한영 일반 기술 용어집(약 250개) + BM25. 사전 · 용어집에 없는 다른 말(동의어)은 넓히지 못함 → `index.html` 의 `THES` · `THES_ADD` · `GLOSS_SRC` 에 한 줄 추가. 품질 시험 방법은 `tools/books_sim/SIMULATION.md`.
+- AI 모델 없이(사내 정책) 찾음: 계장 용어 사전(개념 50개 · 표현 약 700개) + 발전 · 플랜트 지식 베이스 `kb.js`(개념 42개 · 표현 약 1,300개 · 핵심 하위 항목) + 관점 11개 + 한영 일반 기술 용어집(약 250개) + BM25. 사전 · 용어집에 없는 다른 말(동의어)은 넓히지 못함 → `kb.js` 에 개념 한 줄, 또는 `index.html` 의 `THES_ADD` · `GLOSS_SRC` 에 표현 한 줄 추가. 품질 시험 방법은 `tools/books_sim/SIMULATION.md`.
+- 시니어 관점 설명: 책마다 **종류**(교재 · 매뉴얼 · 규격 · 설계 문서 · 목록 · 법규 · 강의 · 노트 · 보고서 · 일반 도서)와 **분야**를 본문 특징으로 자동 판단하고, '왜 관련 있나' 에 🧭 핵심 항목 n/m · 🔗 연관 주제 · 📚 종류 · 분야 · 💡 한 줄 조언을 붙인다. 결과 위에 **📚 추천 읽기 순서**(① 원리 · 개요 → ② 실무 → ③ 규격 · 법규)를 보여 준다. 판단이 틀린 책이 있으면 `profileBook()` 의 제목 · 본문 규칙에 한 줄 추가.

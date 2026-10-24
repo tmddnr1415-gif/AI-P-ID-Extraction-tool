@@ -1,0 +1,17 @@
+{
+ "HRSG 드럼 수위 3요소 제어": {"HRSG 계기 목록": 3, "Process_Control_C3": 1, "PLC BOOK": 1},
+ "터빈 감시계기 TSI 진동 축위치": {"TSI 교육자료": 3, "BFP 진동 트렌드": 1, "Mechatronics": 1},
+ "급수펌프 최소유량 재순환": {"급수펌프 최소유량 계산": 3, "HRSG 계기 목록": 1},
+ "API 670 machinery protection": {"TSI 교육자료": 3},
+ "계기 목록 instrument index 작성": {"HRSG 계기 목록": 3, "IPD Studio": 1},
+ "증기터빈 과속 트립 보호 로직": {"TSI 교육자료": 3, "sis-interlock-demo": 1},
+ "DCS 이중화 구성 마샬링 캐비닛": {"NIST.SP.800-82": 1, "Industrial Control Protocols": 1, "PLC BOOK": 1},
+ "pump cavitation NPSH": {"Basic Fluid Mechanics": 3, "Refrigeration": 1, "BFP 진동 트렌드": 1},
+ "boiler combustion control burner management": {"Process_Control_C1": 1, "PLC BOOK": 1},
+ "제어밸브 Cv 사이징 캐비테이션": {"FY301": 2, "Process_Control_C3": 2, "Basic Fluid Mechanics": 1},
+ "열전대 써모웰 설계": {"필드엔지니어": 2, "PR5335": 1, "Heat Transfer": 1},
+ "SIL 검증 PFD 계산": {"sis-interlock-demo": 3, "NIST.SP.800-82": 1},
+ "케이블 스케줄 정션박스 설계": {"HRSG 계기 목록": 1, "NIST.SP.800-82": 1},
+ "변압기 보호 차동 계전기": {"32 Transformer": 3, "42 Distribution Automation": 2, "Hughes": 2},
+ "수처리 전도도 실리카 분석계": {"Analyzer troubleshooting": 2, "PR5335": 1}
+}

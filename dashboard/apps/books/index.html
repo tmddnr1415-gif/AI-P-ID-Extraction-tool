@@ -81,6 +81,17 @@ body.embed .brand{display:none}
 .sum b{color:var(--text)}
 .card{background:var(--card);border-radius:12px;box-shadow:var(--shadow);padding:14px 16px;margin-bottom:12px}
 .card h2{margin:0 0 8px;font-size:15px}
+.recbox{background:#fff;border:1px solid #d9d2f0;border-radius:12px;padding:8px 10px 6px;margin-bottom:12px;box-shadow:var(--shadow)}
+.rech{font-weight:700;color:#4b3a9a;font-size:13px;margin-bottom:6px;line-height:1.5}
+.rech .muted{font-weight:400}
+.rcg{margin:4px 0 8px}
+.rct{font-size:12.5px;font-weight:700;color:var(--navy);margin:4px 0 3px}
+.rct .muted{font-weight:400}
+.rci{padding:4px 8px;border-radius:7px;cursor:pointer;font-size:12.5px;line-height:1.5;display:flex;flex-wrap:wrap;gap:6px;align-items:baseline}
+.rci:hover{background:#f3f0fb}
+.rci .tier{font-size:10.5px}
+.rcw{flex-basis:100%;font-size:11.5px;padding-left:2px}
+.kd{color:#4b3a9a;font-weight:600}
 .spots{background:#fff;border:1px solid #cfe3d7;border-radius:12px;padding:8px 10px;margin-bottom:12px;box-shadow:var(--shadow)}
 .sph{font-weight:700;color:#11734c;font-size:13px;margin-bottom:4px}
 .spot{padding:6px 8px;border-radius:8px;cursor:pointer;font-size:12.5px;line-height:1.5;border:1px solid transparent}
@@ -296,6 +307,7 @@ body.vmode{overflow:hidden}
 <input type="file" id="dirInput" webkitdirectory directory multiple hidden>
 
 <script src="vendor/pdf.min.js"></script>
+<script src="kb.js"></script>
 <script>
 'use strict';
 /* =====================================================================================
@@ -316,7 +328,8 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
 const Q0 = new URLSearchParams(location.search);
 if (Q0.get('embed') === '1') document.body.classList.add('embed');
 if (window.pdfjsLib) pdfjsLib.GlobalWorkerOptions.workerSrc = 'vendor/pdf.worker.min.js';
-const SUPPORTED = { pdf:'PDF', epub:'EPUB', docx:'DOCX', hwpx:'HWPX', txt:'TXT', md:'MD' };
+const SUPPORTED = { pdf:'PDF', epub:'EPUB', docx:'DOCX', xlsx:'XLSX', xlsm:'XLSM', pptx:'PPTX', hwpx:'HWPX', txt:'TXT', md:'MD', csv:'CSV', doc:'DOC', xls:'XLS', ppt:'PPT', hwp:'HWP' };
+const LEGACY = { doc:1, xls:1, ppt:1, hwp:1 };   // 옛 이진 형식: 본문을 읽지 못함 → 파일명 · 폴더로만 찾고 목록에 표시 (docx/xlsx/pptx/hwpx 로 저장하면 읽힘)
 function toast(msg, ms = 2600) {
   const t = document.createElement('div'); t.className = 'toast'; t.textContent = msg; document.body.appendChild(t);
   setTimeout(() => t.remove(), ms);
@@ -364,7 +377,7 @@ const THES = [
     t:[['thermocouple',1],['seebeck',.9],['cold junction',1],['reference junction',.9],['type k',.8],['열전대',1],['열전쌍',1],['냉접점',1],['기준접점',.9]] },
   { id:'rtd', n:'측온저항체(RTD)', p:['temperature'], d:1,
     t:[['resistance temperature detector',1],['pt100',1],['platinum resistance',.9],['측온저항체',1],['측온 저항체',1]], ab:[['RTD',1]] },
-  { id:'control_valve', n:'제어밸브', d:1,
+  { id:'control_valve', n:'제어밸브', d:1, ab:[['Cv',1],['Kv',1],['FL',.6]],
     t:[['control valve',1],['globe valve',.8],['valve trim',.9],['valve sizing',1],['flow coefficient',.8],['cavitation',.6],['조절밸브',1],['제어밸브',1],['조절 밸브',1],['제어 밸브',1],['컨트롤 밸브',1]],
     rel:['positioner','actuator'] },
   { id:'positioner', n:'포지셔너', p:['control_valve'], d:1,
@@ -409,7 +422,7 @@ const THES = [
     t:[['instrument cable',1],['junction box',1],['marshalling',1],['cable schedule',1],['shielded cable',.9],['twisted pair',.8],['grounding',.6],['계장 케이블',1],['정션 박스',1],['단자함',1],['마샬링',1],['차폐',.7],['접지',.6]] },
   { id:'datasheet', n:'계기 데이터시트·목록', d:1,
     t:[['instrument datasheet',1],['instrument data sheet',1],['specification sheet',.9],['instrument index',1],['instrument list',1],['계기 데이터시트',1],['데이터시트',.9],['계기 목록',1],['계기 사양',1]] },
-  { id:'ot_security', n:'OT·제어시스템 보안',
+  { id:'ot_security', n:'OT·제어시스템 보안', ab:[['OT',.95]],
     t:[['cybersecurity',1],['cyber security',1],['iec 62443',1],['ot security',1],['ics security',1],['industrial control system security',1],['malware',.7],['firewall',.7],['사이버 보안',1],['사이버보안',1],['정보보안',1],['제어시스템 보안',1],['보안',.6]] },
   { id:'power', n:'전력·전기설비',
     t:[['transformer',1],['switchgear',1],['circuit breaker',1],['motor control center',1],['busbar',.9],['power system',.9],['변압기',1],['차단기',1],['배전반',1],['전동기',.9],['수배전',1]], ab:[['MCC',.8]] },
@@ -442,16 +455,22 @@ const THES_ADD = {
   pnid: [['계장 도면',1],['도면 기호',1],['계장 기호',1],['심볼',.6],['instrument tag',1],['계기 태그',1],['태그 번호',1],['loop number',.8],['isa symbol',1],['instrument symbols',1]],
   interlock: [['인터록 로직',1],['interlock logic',1],['shutdown logic',1],['trip logic',1]],
   sis: [['비상정지',.9],['비상 정지',.9],['긴급 차단',.9],['sil 등급',1],['sil 결정',1],['sil determination',1],['sil assessment',1],['sil rating',1],['lopa',1],['layer of protection',1],['risk graph',1],['2oo3',1],['1oo2',1],['2oo2',1],['voting',.6],['보팅',.8]],
-  ot_security: [['해킹',1],['사이버 공격',1],['사이버공격',1],['침해',.8],['악성코드',1],['랜섬웨어',1],['hacking',1],['cyber attack',1],['cyberattack',1],['intrusion',.8],['incident response',.8],['보안 사고',1]],
+  ot_security: [['보안',.9],['ot 보안',1],['ot security',1],['해킹',1],['사이버 공격',1],['사이버공격',1],['침해',.8],['악성코드',1],['랜섬웨어',1],['hacking',1],['cyber attack',1],['cyberattack',1],['intrusion',.8],['incident response',.8],['보안 사고',1]],
   calibration: [['영점',1],['스팬',.9],['zero span',1],['zero & span',1],['zero/span',1],['zero adjustment',1],['span adjustment',1],['zero calibration',1]],
   flow: [['flow rate',.7],['flowrate',.7],['차압식 유량계',1],['orifice meter',1],['flow element',.9]],
-  control_valve: [['밸브 개도',1],['개도',.7],['valve opening',.8],['valve position',.8],['valve travel',.8]],
+  control_valve: [['캐비테이션',1],['밸브 개도',1],['개도',.7],['valve opening',.8],['valve position',.8],['valve travel',.8],['사이징',.7],['sizing',.7],['밸브 사이징',1],['유량 계수',.9],['flashing',.6],['choked flow',.9],['초킹',.8],['valve noise',.9],['밸브 소음',.9],['rangeability',.9],['레인지어빌리티',.9],['inherent characteristic',1],['고유 특성',.8],['equal percentage',1],['등비',.6],['quick opening',.9],['linear characteristic',.9]],
   hart: [['primary variable',.6],['hart command',1],['하트',.8]],
   plc: [['plc programming',1],['plc 프로그래밍',1],['래더 로직',1],['래더 다이어그램',1]],
   fieldbus: [['opc ua',1],['opc',.8]],
   instrumentation: [['measuring instrument',1],['measuring instruments',1],['electrical instruments',.9],['test equipment',.7]],
 };
 for (const [id, add] of Object.entries(THES_ADD)) THES.find(c => c.id === id).t.push(...add);
+// 발전 · 플랜트 지식 베이스(kb.js) 합치기 — 개념 추가, 기존 개념에 분야 · 핵심 하위 항목 보강
+if (window.KB) {
+  for (const c of KB.concepts) if (!THES.some(x => x.id === c.id)) THES.push({ d: 1, ...c, t: c.t.filter(([, w]) => w >= 0.4), ab: (c.ab || []).filter(([, w]) => w >= 0.5) });
+  for (const [id, pt] of Object.entries(KB.patch)) { const c = THES.find(x => x.id === id); if (c) Object.assign(c, pt); }
+}
+const DOMAINS = window.KB ? KB.domains : {};
 // 일반 기술 용어 한↔영 (사전에 없는 낱말을 다른 말로도 찾기 — 한글 질문으로 영어 책, 영어 질문으로 한글 책). '한글=영어,영어' 한 줄에 여럿
 const GLOSS_SRC = `
 열전달=heat transfer|전도=conduction|대류=convection|복사열=thermal radiation|열교환기=heat exchanger|열교환=heat exchange|냉동=refrigeration,refrigerating|냉동기=refrigerator,chiller|냉매=refrigerant|공조=air conditioning,hvac|공기조화=air conditioning|냉방=cooling,air conditioning|난방=heating|냉각=cooling|가열=heating|단열=insulation|열역학=thermodynamics|엔탈피=enthalpy|엔트로피=entropy|증발기=evaporator|응축기=condenser|압축기=compressor|사이클=cycle|증기=steam,vapor|보일러=boiler|터빈=turbine|발전기=generator|발전소=power plant,power station|발전=power generation
@@ -468,6 +487,8 @@ const TH = Object.fromEntries(THES.map(c => [c.id, c]));
 for (const c of THES) { c.kids = THES.filter(k => (k.p || []).includes(c.id)).map(k => k.id); c.ab ||= []; c.rel ||= []; c.neg ||= []; }
 // 이 말들이 주변에 있으면 '계장 분야' 문맥으로 본다 (다른 뜻 배제 · 도서 분야 점수)
 const DOMAIN_CTX = ['instrument','process','calibrat','4-20','hart','valve','loop','plant','pressure','flow','level','temperature','signal','setpoint','controller','dcs','plc','p&id',
+  'sensor','transmitter','measur','meter','gauge','alarm','trip','pump','turbine','boiler','cable','panel','relay','actuator','interlock','tag',
+  '센서','전송기','측정','계측','경보','펌프','터빈','보일러','케이블','판넬','릴레이','밸브','트립','인터록','태그',
   '계장','계측','계기','공정','밸브','압력','유량','레벨','온도','신호','교정','제어','플랜트','설치'];
 // 질문에서 뺄 말 (검색 의도와 무관)
 const STOP = new Set(['관련','관련된','관련한','관한','관해','관하여','대한','대해','대해서','대해서는','도서','책','자료','문서','서적','파일','찾아줘','찾아','찾기','찾고','알려줘','알려','보여줘','해줘','줘','있는','있어','있나','있나요','있는지','있을까','있을까요','있어요','나온','나오는','나와있는','나와','설명','설명된','설명한','설명하는','설명해줘','다룬','다루는','내용','관련도서','주제','좀','혹시','등','및','또는','그리고','어떤','어떻게','어떻게해','어떻게하나','무엇','무엇인지','뭐야','뭔지','뭐','어디','싶어','싶다','싶은데','배우고','공부','하는','되는','정리','정리된','읽는','보는','쓰는','재는','내는','하려면','할때','때','것','거','수','중','각','위한','위해','필요한','의미','뜻','법','어디에','에서','으로','에게','랑','이랑','하고','이고','는','은','이','가',
@@ -602,6 +623,55 @@ async function extractDocx(buf) {
   const core = f['docProps/core.xml'] ? new TextDecoder().decode(f['docProps/core.xml']) : '';
   return { ...paginate(all, heads), title: xmlText((core.match(/<dc:title>([\s\S]*?)<\/dc:title>/) || [])[1] || '').trim() };
 }
+// XLSX: 공유 문자열 + 각 시트의 셀 값 → 시트 하나 = 쪽 하나 (행 단위 줄, 시트 이름 = 목차)
+async function extractXlsx(buf) {
+  const f = await unzip(buf, n => n === 'xl/sharedStrings.xml' || n === 'xl/workbook.xml' || /^xl\/worksheets\/sheet\d+\.xml$/.test(n) || n === 'xl/_rels/workbook.xml.rels' || n === 'docProps/core.xml');
+  const dec = new TextDecoder('utf-8'), get = n => f[n] ? dec.decode(f[n]) : '';
+  const sst = []; for (const m of get('xl/sharedStrings.xml').matchAll(/<si>([\s\S]*?)<\/si>/g)) sst.push(xmlText([...m[1].matchAll(/<t(?: [^>]*)?>([\s\S]*?)<\/t>/g)].map(x => x[1]).join('')));
+  const names = {}; for (const m of get('xl/workbook.xml').matchAll(/<sheet\b[^>]*>/g)) { const nm = (m[0].match(/\bname="([^"]*)"/) || [])[1], rid = (m[0].match(/\br:id="([^"]*)"/) || [])[1]; if (rid) names[rid] = xmlText(nm || ''); }
+  const rels = {}; for (const m of get('xl/_rels/workbook.xml.rels').matchAll(/<Relationship\b[^>]*>/g)) { const id = (m[0].match(/\bId="([^"]*)"/) || [])[1], t = (m[0].match(/\bTarget="([^"]*)"/) || [])[1]; if (id && t) rels[id] = t.replace(/^\/?xl\//, '').replace(/^\//, ''); }
+  const sheets = Object.keys(f).filter(n => /^xl\/worksheets\/sheet\d+\.xml$/.test(n)).sort((a, b) => (+a.match(/\d+/)[0]) - (+b.match(/\d+/)[0]));
+  const pages = [], heads = [];
+  for (const n of sheets) {
+    const rid = Object.keys(rels).find(k => 'xl/' + rels[k] === n), title = names[rid] || n.replace(/.*\//, '');
+    const rows = [];
+    for (const r of get(n).matchAll(/<row\b[^>]*>([\s\S]*?)<\/row>/g)) {
+      const cells = [];
+      for (const c of r[1].matchAll(/<c\b([^>]*)>([\s\S]*?)<\/c>/g)) {
+        const t = (c[1].match(/\bt="([^"]*)"/) || [])[1], v = (c[2].match(/<v>([\s\S]*?)<\/v>/) || [])[1];
+        if (t === 's' && v !== undefined) cells.push(sst[+v] || ''); else if (t === 'inlineStr') cells.push(xmlText([...c[2].matchAll(/<t(?: [^>]*)?>([\s\S]*?)<\/t>/g)].map(x => x[1]).join(''))); else if (v !== undefined) cells.push(xmlText(v));
+      }
+      const line = cells.map(x => x.trim()).filter(Boolean).join(' | '); if (line) rows.push(line);
+    }
+    const text = (title ? '[' + title + ']\n' : '') + rows.join('\n');
+    if (!text.trim()) continue;
+    const pg = paginate(text, [], 4000);                 // 큰 시트는 여러 쪽으로
+    pg.pages.forEach((t, i) => { if (i === 0) heads.push({ t: '시트 ' + title, p: pages.length }); pages.push(t); });
+  }
+  const core = get('docProps/core.xml');
+  return { pages: pages.length ? pages : [''], heads, title: xmlText((core.match(/<dc:title>([\s\S]*?)<\/dc:title>/) || [])[1] || '').trim() };
+}
+// PPTX: 슬라이드 하나 = 쪽 하나, 첫 줄(제목 자리) = 목차
+async function extractPptx(buf) {
+  const f = await unzip(buf, n => /^ppt\/slides\/slide\d+\.xml$/.test(n) || /^ppt\/notesSlides\/notesSlide\d+\.xml$/.test(n) || n === 'docProps/core.xml');
+  const dec = new TextDecoder('utf-8'), get = n => f[n] ? dec.decode(f[n]) : '';
+  const slides = Object.keys(f).filter(n => /^ppt\/slides\/slide\d+\.xml$/.test(n)).sort((a, b) => (+a.match(/\d+/)[0]) - (+b.match(/\d+/)[0]));
+  const pages = [], heads = [];
+  slides.forEach((n, i) => {
+    const xml = get(n), paras = [];
+    for (const sp of xml.matchAll(/<p:sp>([\s\S]*?)<\/p:sp>/g)) {
+      const isTitle = /<p:ph\b[^>]*type="(?:title|ctrTitle)"/.test(sp[1]);
+      for (const p of sp[1].matchAll(/<a:p>([\s\S]*?)<\/a:p>/g)) { const t = xmlText([...p[1].matchAll(/<a:t>([\s\S]*?)<\/a:t>/g)].map(x => x[1]).join('')).trim(); if (t) paras.push(isTitle ? { t, title: true } : { t }); }
+    }
+    for (const tb of xml.matchAll(/<a:tbl>([\s\S]*?)<\/a:tbl>/g)) for (const tr of tb[1].matchAll(/<a:tr\b[^>]*>([\s\S]*?)<\/a:tr>/g)) { const cells = [...tr[1].matchAll(/<a:tc\b[^>]*>([\s\S]*?)<\/a:tc>/g)].map(c => xmlText([...c[1].matchAll(/<a:t>([\s\S]*?)<\/a:t>/g)].map(x => x[1]).join(' ')).trim()).filter(Boolean); if (cells.length) paras.push({ t: cells.join(' | ') }); }
+    const notes = get('ppt/notesSlides/notesSlide' + (i + 1) + '.xml'); const nt = notes ? xmlText([...notes.matchAll(/<a:t>([\s\S]*?)<\/a:t>/g)].map(x => x[1]).join(' ')).trim() : '';
+    const ttl = paras.find(x => x.title)?.t || paras[0]?.t || '';
+    if (ttl) heads.push({ t: ttl.slice(0, 120), p: pages.length });
+    pages.push(normText(paras.map(x => x.t).join('\n') + (nt && !/^\d+$/.test(nt) ? '\n[노트] ' + nt : '')));
+  });
+  const core = get('docProps/core.xml');
+  return { pages: pages.length ? pages : [''], heads, title: xmlText((core.match(/<dc:title>([\s\S]*?)<\/dc:title>/) || [])[1] || '').trim() };
+}
 async function extractHwpx(buf) {
   const f = await unzip(buf, n => /^Contents\/section\d+\.xml$/i.test(n));
   const names = Object.keys(f).sort((a, b) => (+a.match(/\d+/)[0]) - (+b.match(/\d+/)[0]));
@@ -626,6 +696,9 @@ async function extractFile(file, ext, onPage, stopFlag) {
   if (ext === 'epub') return extractEpub(buf);
   if (ext === 'docx') return extractDocx(buf);
   if (ext === 'hwpx') return extractHwpx(buf);
+  if (ext === 'xlsx' || ext === 'xlsm') return extractXlsx(buf);
+  if (ext === 'pptx') return extractPptx(buf);
+  if (LEGACY[ext]) return { pages: [''], heads: [], title: '', legacy: true };
   return extractTxt(buf, ext === 'md');
 }
 
@@ -726,7 +799,7 @@ async function srvIndex(full) {
     try {
       const r = await extractFile(new RemoteFile(it.rel), it.ext, (i, k) => setProg((n + i / k) / todo.length, `공용 색인 ${n + 1}/${todo.length} — ${label} (${i}/${k}쪽)`), () => RUN.stop);
       const chars = r.pages.reduce((a, p) => a + p.length, 0);
-      rec = { sig: it.sig, v: EXTRACT_VER, rel: it.rel, ext: it.ext, size: it.size, mtime: it.mtime, title: r.title || '', pages: r.pages, heads: r.heads, err: chars < 20 ? 'notext' : '' };
+      rec = { sig: it.sig, v: EXTRACT_VER, rel: it.rel, ext: it.ext, size: it.size, mtime: it.mtime, title: r.title || '', pages: r.pages, heads: r.heads, err: r.legacy ? 'legacy' : chars < 20 ? 'notext' : '' };
     } catch (e) {
       if (RUN.stop) break;
       failed++; rec = { sig: it.sig, v: EXTRACT_VER, rel: it.rel, ext: it.ext, size: it.size, mtime: it.mtime, title: '', pages: [''], heads: [], err: 'read:' + (e && e.message || e) };
@@ -775,14 +848,87 @@ function makeBook(rec) {
   const dirs = rec.rel.split('/').slice(1, -1);   // 첫 칸 = 고른 폴더 자체
   const B = { sig: rec.sig, rel: rec.rel, name, base, ext: rec.ext, size: rec.size, mtime: rec.mtime, meta: rec.title || '', err: rec.err || '',
     pages, nPages: pages.length, starts, orig, low, chars: orig.length, heads,
-    headDoc: doc(heads.map(h => h.t)), titleDoc: doc([base.replace(/_/g, ' '), rec.title || '']), dirDoc: doc([dirs.join(' / ')]), dir: dirs.join('/') };
+    headDoc: doc(heads.map(h => h.t)), titleDoc: doc([base.replace(/_/g, ' '), rec.title || '']), dirDoc: doc([dirs.join(' / ')]), dir: dirs.join('/'),
+    titleWords: (base + ' ' + (rec.title || '')).split(/[^가-힣]+/).filter(Boolean) };
   addSq(B, pages.map(x => x.length));
   // 분야 점수: 계장 문맥어가 1만 자당 얼마나 나오나
   let hits = 0; const lim = Math.min(low.length, 3_000_000);
   for (const w of DOMAIN_CTX) { let i = 0; while ((i = low.indexOf(w, i)) !== -1 && i < lim) { hits++; i += w.length; } }
   B.domain = B.chars >= 1500 ? Math.min(1, (hits / (Math.min(B.chars, lim) / 10000)) / 25) : 0.6;   // 글자가 거의 없는 스캔본은 중립
+  return profileBook(B);
+}
+/* ===================================================================================== 4-2) 도서 프로필 — 종류 · 분야 (색인한 본문으로 자동 판단, 추천 · 설명에 씀)
+ * kind: textbook(교재) · lecture(강의·발표) · manual(매뉴얼) · standard(규격) · spec(설계 문서·사양) · list(목록·표) · law(법규) · notes(정리 노트) · paper(논문·보고서) · literature(일반 도서) */
+const KIND_KO = { unknown: '본문 없음(파일명만)', garbled: '본문 깨짐(글자 추출 불량)', textbook: '교재', lecture: '강의·발표 자료', manual: '매뉴얼', standard: '규격·표준', spec: '설계 문서·사양서', list: '목록·표(데이터)', law: '법규', notes: '정리 노트', paper: '보고서·논문', literature: '일반 도서' };
+const KIND_ROLE = { unknown: '파일 이름으로만 찾음', garbled: '글자가 깨져 본문 검색이 안 됨 — 다시 받거나 OCR 필요', textbook: '원리부터 차근차근 — 처음 공부할 때', lecture: '핵심만 빠르게 훑을 때', manual: '실제 기기 · 설정값 · 절차 확인', standard: '설계 · 검토의 근거(기준)', spec: '프로젝트 실무 양식 · 사례', list: '태그 · 설정값 · 수량 확인', law: '법적 요구 사항 확인', notes: '현장 경험 · 요점 정리', paper: '사례 · 분석 결과', literature: '참고' };
+function profileBook(B) {
+  const low = B.low, title = (B.base + ' ' + (B.meta || '')).toLowerCase(), n = B.nPages || 1;
+  if (B.chars < 300) { B.kind = 'unknown'; B.kindScore = 0; B.doms = ['gen']; return B; }   // 옛 형식 · 스캔본: 본문이 없어 종류 · 분야를 판단하지 않음
+  const mid = Math.floor(low.length / 3), smp = low.slice(mid, mid + 30000).replace(/\s/g, ''), good = (smp.match(/[\p{L}\p{N}]/gu) || []).length / Math.max(1, smp.length);   // 책 가운데 부분(목차의 점선 · 표지 제외)에서 글자 비율
+  const smp2 = low.slice(mid, mid + 30000), latin = (smp2.match(/[a-z]/g) || []).length / Math.max(1, (smp2.match(/\p{L}/gu) || []).length);
+  const stop = (smp2.match(/\b(?:the|and|of|to|in|is|for|that|with|de|la|el|en|que|los|und|der|die|das|et|le|les|des|и|в|на|не|với|của|và|là)\b/g) || []).length / Math.max(1, smp2.length / 1000);   // 1000자당 흔한 낱말 수 — 글꼴이 어긋나 글자가 다른 글자로 바뀐 PDF 는 0 에 가까움
+  if (good < 0.5 || (B.ext === 'pdf' && latin >= 0.6 && stop < 3)) { B.kind = 'garbled'; B.kindScore = 0; B.doms = ['gen']; return B; }   // 글꼴 인코딩이 깨진 PDF: 기호 · 숫자만 뽑히거나 글자가 뒤바뀜 (낱말 검사는 PDF 만 — 표(xlsx · csv)는 원래 흔한 낱말이 없음)
+  const cnt = (re, cap = 2000) => { let k = 0, m; re.lastIndex = 0; while ((m = re.exec(low)) && k < cap) k++; return k / n; };   // 쪽당 빈도
+  const has = re => re.test(title);
+  const sc = { textbook: 0, lecture: 0, manual: 0, standard: 0, spec: 0, list: 0, law: 0, notes: 0, paper: 0, literature: 0 };
+  if (B.ext === 'pptx') sc.lecture += 3;
+  if (B.ext === 'xlsx' || B.ext === 'xlsm' || B.ext === 'csv') sc.list += 3;
+  if (has(/manual|매뉴얼|설명서|instruction|user guide|operating|operation|maintenance|service guide|installation guide|quick start/)) sc.manual += 2;
+  if (has(/textbook|handbook|핸드북|교재|개론|입문|기초|fundamentals|principles|introduction to|basics|이론/)) sc.textbook += 2;
+  if (has(/engineering|metrology|measurements?|instrumentation|technology|mechanics|thermodynamics|electrical|electronics?|\d+(?:st|nd|rd|th) ed|edition|공학|기술/)) sc.textbook += 1;
+  if (has(/lecture|강의|발표|slide|ppt|powerpoint|presentation|세미나|seminar|교육|training|course|chapter \d|lab manual|실습/)) sc.lecture += 1.5;
+  if (has(/\b(iec|isa|api|asme|iso|nfpa|ieee|en|bs|din|kepic|ks)\s?[-\s]?\d|standard|규격|표준|recommended practice|technical report|\btr\s?\d/)) sc.standard += 2.5;
+  if (has(/법률|법령|시행령|시행규칙|\bact\b|regulation|[가-힣]법(?=[\s_(.]|$)/)) sc.law += 3;   // '민법' · '…관리법 법령집' 은 법규, '사는 법' 은 아님
+  if (has(/spec|사양|specification|data ?sheet|데이터시트|design basis|설계 기준|philosophy|narrative|서술서|procedure|절차|기준서|rev\.?\s?[a-z0-9]|프로젝트|project/)) sc.spec += 2;
+  if (has(/\b[a-z]{2,4}-?\d{3,}[a-z]?\b/)) sc.spec += 1;   // 제품 모델 번호(XTR116, PR5335 …) 가 제목에 있으면 기기 문서(사양 · 매뉴얼)
+  if (has(/list|목록|index|schedule|일람|리스트|스케줄|bom|take-?off/)) sc.list += 2;
+  if (has(/note|노트|정리|요약|summary|tips|faq|troubleshooting|q&a|qna|경험/)) sc.notes += 2;
+  if (has(/report|보고서|paper|논문|thesis|study|분석|evaluation|평가|internship|인턴/)) sc.paper += 2;
+  if (has(/novel|소설|history|역사|cookery|요리|poem|시집|essay|tale|adventures|pride|psychology|심리|wealth of nations|tutorial|command line|javascript|python/)) sc.literature += 2;
+  // 본문 특징
+  sc.textbook += 2 * Math.min(1, cnt(/\b(?:chapter|exercise|problems?|example \d|figure \d|fig\. \d|table \d|summary|review questions|제\s?\d+\s?장|연습 ?문제|예제|그림 \d|표 \d)\b/g) / 1.5);
+  sc.manual += 2 * Math.min(1, cnt(/\b(?:warning|caution|note:|step \d|menu|parameter|setting|wiring|dimension|specification|part number|order(?:ing)? code|주의|경고|설정|단계 \d|파라미터|메뉴|배선|치수|사양)\b/g) / 3);
+  sc.standard += 2 * Math.min(1, cnt(/\b(?:shall|should not|normative|informative|annex|clause|scope|terms and definitions|this (?:standard|part|document)|requirements?|하여야 한다|해야 한다|적용 범위|용어 정의|부속서)\b/g) / 4);
+  const jo = cnt(/제\s?\d+\s?조/g);   // 조문 밀도 — 법규는 쪽마다 '제n조' 가 나옴
+  const jo2 = cnt(/시행령|시행규칙|과태료|벌금|징역|대통령령|고시|부칙/g), joh = cnt(/제\s?\d+\s?조\s?\(/g);   // 법령 원문은 '제1조(목적)' 꼴 표제가 쪽마다 있음 — 책이 '제3조' 를 인용만 한 것과 구분
+  sc.law += joh >= 0.5 ? 2 + Math.min(1, jo2 / 2) : jo >= 0.8 ? 0.7 : 0;
+  sc.spec += 1.5 * Math.min(1, cnt(/\b(?:rev\.?|revision|issued for|ifc|ifa|afc|vendor shall|contractor shall|owner|client|project no|doc(?:ument)? no|tag no|p&id|datasheet|hold|tbd|tba|발주처|시공사|계약|도서 번호|문서 번호|개정|승인용|공사용)\b/g) / 2);
+  sc.list += 2 * Math.min(1, cnt(/\|/g) / 20) + 1.5 * Math.min(1, cnt(/\b[A-Z]{1,4}[- ]?\d{3,5}[A-Z]?\b/g) / 15);   // 표 구분자 · 태그 번호 밀도
+  sc.paper += 1.5 * Math.min(1, cnt(/\b(?:abstract|references|conclusion|methodology|results|discussion|et al|doi|introduction|초록|참고 ?문헌|결론|서론|연구|실험 결과)\b/g) / 1.2);
+  sc.notes += 1 * Math.min(1, cnt(/^#{1,3} |\n[-*•] |\btip\b|\bfaq\b|\bq:|\ba:|문:|답:/gm) / 6);
+  sc.literature += (B.domain < 0.1 ? 3 : B.domain < 0.2 ? 1.5 : 0) + 1.5 * Math.min(1, cnt(/\b(?:said|replied|asked|looked|her|his|she|he|chapter [ivxlc]+|그는|그녀는|말했다|물었다|대답했다)\b/g) / 25);
+  let kind = Object.entries(sc).sort((a, b) => b[1] - a[1])[0];
+  if (kind[1] < 0.8) kind = [B.domain >= 0.25 ? 'textbook' : 'literature', kind[1]];   // 뚜렷한 특징이 없으면: 계장 문맥이 있으면 교재(참고서), 아니면 일반 도서
+  // 분야: 개념 표현 밀도(쪽당) — 사전 · 지식 베이스의 모든 개념
+  const dsum = {}; const sq = B.sq;
+  for (const c of THES) {
+    if (c.a || c.g) continue; const dom = c.dom || 'inst'; let k = 0;
+    for (const [t, w] of c.t) { const ko = isHangul(t), s = ko ? t.replace(/ /g, '') : t.toLowerCase(), T = ko ? sq : low; if (s.length < (ko ? 2 : 4) || w < 0.7) continue; let i = 0, m = 0; while ((i = T.indexOf(s, i)) !== -1 && m < 400) { m++; i += s.length; } k += m; }
+    for (const [t, w] of c.ab || []) { if (w < 0.8 || t.length < 3) continue; let i = 0, m = 0; while ((i = B.orig.indexOf(t, i)) !== -1 && m < 400) { if (!/[A-Za-z0-9]/.test(B.orig[i - 1] || ' ') && !/[A-Za-z0-9]/.test(B.orig[i + t.length] || ' ')) m++; i += t.length; } k += m; }
+    dsum[dom] = (dsum[dom] || 0) + k;
+  }
+  // 분야는 밀도(쪽당 1.5 이상)와 계장 문맥(B.domain)이 함께 있을 때만 — 소설의 '전기(傳記)' 한두 번으로 전기 분야가 되지 않게
+  const doms = Object.entries(dsum).map(([d, k]) => [d, k / n]).filter(x => x[1] >= 1.5 && B.domain >= 0.2).sort((a, b) => b[1] - a[1]);
+  B.kind = kind[0]; B.kindScore = kind[1]; B.doms = doms.slice(0, 3).map(x => x[0]);
+  if (!doms.length) B.doms = [B.domain >= 0.3 ? 'inst' : 'gen'];
+  if (B.kind !== 'literature' && B.doms[0] === 'gen' && B.domain < 0.1 && !['law'].includes(B.kind)) B.kind = 'literature';
+  if (B.kind === 'literature' && B.domain < 0.5) B.doms = ['gen'];   // 일반 도서(프로그래밍 · 심리학 등)에 우연히 섞인 제어 · 계측 낱말로 분야를 매기지 않음
   return B;
 }
+const domLabel = B => (B.doms || []).map(d => DOMAINS[d] || d).join(' · ') || '일반';
+// 핵심 하위 항목 가림: sub 항목의 키워드(영어 4자 이상, 한글 2자 이상)가 본문에 있으면 다룬 것으로
+function subCoverage(B, c) {
+  if (!c.sub || !c.sub.length) return null;
+  const low = B.low, sq = B.sq, out = [];
+  for (const item of c.sub) {
+    const keys = item.toLowerCase().split(/[\/,()&:→;]+| vs | or | and /).map(x => x.trim()).filter(x => x.length >= 3);
+    let hitKeys = 0, mainHits = 0;   // 첫 키워드(항목의 본 표현)가 2번 이상이거나, 서로 다른 키워드가 2개 이상 나와야 '다룬다' 로 봄 — 'shrink' 한 낱말만으로는 아님
+    keys.forEach((k, ki) => { const ko = isHangul(k); const s = ko ? k.replace(/ /g, '') : k; if (s.length < (ko ? 2 : 4)) return; const T = ko ? sq : low; let i = 0, m = 0; while ((i = T.indexOf(s, i)) !== -1 && m < 3) { m++; i += s.length; } if (m) hitKeys++; if (ki === 0) mainHits = m; });
+    out.push([item, mainHits >= 2 || hitKeys >= 2]);
+  }
+  return out;
+}
+
 // 한글 표현은 띄어쓰기를 무시하고 찾음 — PDF 양쪽 정렬에서 생기는 '차 압 전송기' 같은 끊김 · '압력전송기'/'압력 전송기' 차이
 function addSq(D, lens) {
   const parts = []; const st = new Int32Array(lens.length); let k = 0;
@@ -824,24 +970,45 @@ function buildQuery(raw, expand = true) {
   const found = [], notes = [];
   // ① 사전의 표현을 긴 것부터 찾아 개념으로 (붙여 쓴 한글도)
   const pairs = [];
-  for (const c of THES) for (const [t] of [...c.t, ...c.ab]) { const l = normText(t).toLowerCase(); pairs.push([isHangul(l) ? l.replace(/ /g, '') : l, c.id]); }
+  // 질문에서 개념을 알아볼 표현: 관점(a)은 전부, 그 외는 또렷한 것만 — 가중치 ≥ .85 거나 (≥ .7 이고 영어 4자 · 한글 3자 이상). 약어는 ≥ .8 (DC · HP 같은 짧은 약어 제외)
+  for (const c of THES) {
+    for (const [t, w] of c.t) { const l = normText(t).toLowerCase(), ko = isHangul(l); if (!c.a && !(ko ? w >= 0.8 : (w >= 0.85 || (w >= 0.7 && l.length >= 4)))) continue; pairs.push([ko ? l.replace(/ /g, '') : l, c.id, w]); }
+    for (const [t, w] of c.ab) { if (w < 0.8 || (t.length < 3 && w < 0.95)) continue; pairs.push([t.toLowerCase(), c.id, w]); }
+  }
   pairs.sort((a, b) => b[0].length - a[0].length);
   // 겹치는 표현도 모두 개념으로 ('제어밸브 포지셔너' = 제어밸브 + 포지셔너), 찾은 자리는 남은 낱말 고를 때만 지움
-  const s0 = s, blank = [];
+  const s0 = s, blank = [], trig = {}, spans = [];   // trig[id] = 그 개념을 켠 표현들 · spans = [시작, 끝, 개념, 표현]
   for (const [t, id] of pairs) {
     if (isHangul(t)) {
+      // 2글자 한글 표현('펌프' · '서지')은 낱말 경계에서만: 앞은 한글이 아니고, 뒤는 한글이 아니거나 조사 ('메시지' 안의 '서지', '시스템' 안의 '시스' 는 아님)
       const re = new RegExp([...t].map(ch => ch.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join(' *'), 'g'); let m;
-      while ((m = re.exec(s0))) { if (!found.includes(id)) found.push(id); blank.push([m.index, m.index + m[0].length]); }
+      while ((m = re.exec(s0))) {
+        if (t.length <= 2) { const b = s0[m.index - 1] || ' ', a = s0[m.index + m[0].length] || ' '; if (/[가-힣]/.test(b) || (/[가-힣]/.test(a) && !/[은는이가을를에의도와과로만랑]/.test(a))) continue; }
+        spans.push([m.index, m.index + m[0].length, id, t]);
+      }
       continue;
     }
     let i = s0.indexOf(t);
     while (i !== -1) {
-      const ok = !W(s0.charCodeAt(i - 1)) && (!W(s0.charCodeAt(i + t.length)) || (s0[i + t.length] === 's' && !W(s0.charCodeAt(i + t.length + 1))));
-      if (ok) { if (!found.includes(id)) found.push(id); blank.push([i, i + t.length + (s0[i + t.length] === 's' ? 1 : 0)]); }
+      const plural = t.length >= 4 && s0[i + t.length] === 's' && !W(s0.charCodeAt(i + t.length + 1));
+      if (!W(s0.charCodeAt(i - 1)) && (!W(s0.charCodeAt(i + t.length)) || plural)) spans.push([i, i + t.length + (plural ? 1 : 0), id, t]);
       i = s0.indexOf(t, i + 1);
     }
   }
+  // 다른 개념의 더 긴 표현 안에서만 찾힌 개념은 켜지 않음 ('안전계장' 안의 '계장' · '압력 전송기' 안의 '전송기' 는 사전 관계(p)로 따로 처리)
+  for (const sp of spans) {
+    const inside = spans.some(o => o !== sp && o[2] !== sp[2] && o[0] <= sp[0] && o[1] >= sp[1] && (o[1] - o[0]) > (sp[1] - sp[0]));
+    if (inside) continue;
+    if (!found.includes(sp[2])) found.push(sp[2]); (trig[sp[2]] ||= new Set()).add(sp[3]); blank.push([sp[0], sp[1]]);
+  }
   for (const [a, b] of blank) s = s.slice(0, a) + ' '.repeat(b - a) + s.slice(b);
+  // 같은 표현이 여러 개념을 켰을 때('cavitation' = 펌프 · 제어밸브): 자기만의 표현으로 켜진 개념이 있으면, 공유 표현으로만 켜진 개념은 뺌
+  {
+    const owners = {}; for (const id of found) for (const t of trig[id]) (owners[t] ||= []).push(id);
+    const excl = id => [...trig[id]].some(t => owners[t].length === 1);
+    const keep = found.filter(id => TH[id].a || excl(id) || !found.some(o => o !== id && !TH[o].a && excl(o) && [...trig[id]].every(t => owners[t].includes(o))));
+    if (keep.length) found.splice(0, found.length, ...keep);
+  }
   // 넓은 표현 안에 든 좁은 개념만 찾힌 경우는 그대로 둠 (예: '압력 전송기' → 압력 전송기 + 압력 측정 상위 개념은 사전 관계로 처리)
   // ② 남은 낱말: 불용어·조사·어미 제거 → 오타면 사전 표현으로, 아니면 그 낱말 그대로 찾기
   const free = [], dropped = [];
@@ -870,7 +1037,7 @@ function buildQuery(raw, expand = true) {
     const otherSense = (c.neg || []).some(x => s0.includes(x));
     qs.push({ id, label: c.n, main: !aspect && !generic, aspect, W: aspect ? C.aspW : generic ? C.genW : 1, vs, tags: expand && !aspect ? tags : [], domain: !!c.d && !aspect && !otherSense, neg: otherSense ? [] : c.neg, c });
   }
-  if (expand) for (const id of found) for (const pid of TH[id].p || []) {
+  if (expand) for (const id of found) for (const pid of [...(TH[id].p || []), ...(TH[id].deep || [])]) {
     if (found.includes(pid) || qs.some(q => q.id === pid)) continue;
     qs.push({ id: pid, label: TH[pid].n, main: false, W: C.parentW, vs: conceptVariants(TH[pid], 1), tags: [], domain: !!TH[pid].d, neg: TH[pid].neg, c: TH[pid] });
   }
@@ -951,7 +1118,10 @@ function matchConcept0(B, q) {
     }
     sense = sum / n;
   }
-  return { hits, pages, vcount, tags, title: th.length > 0, heads: [...headHit.keys()].map(i => B.heads[i]).filter(Boolean), dirHit: dh.length > 0, sense };
+  // 제목 엄격 일치: 영어는 보통대로, 한글은 제목의 낱말과 같거나 낱말이 그 표현으로 시작할 때 ('최소유량계산' 안의 '유량계' 는 아님)
+  let titleStrict = false;
+  for (let k = 0; k < th.length && !titleStrict; k += 4) { const v = q.vs[th[k + 3]]; titleStrict = v.kind !== 'ko' || B.titleWords.some(w => w === v.s || w.startsWith(v.s)); }
+  return { hits, pages, vcount, tags, title: th.length > 0, titleStrict, heads: [...headHit.keys()].map(i => B.heads[i]).filter(Boolean), dirHit: dh.length > 0, sense };
 }
 // 순위 가중치 — 인터넷 도서 63권으로 시뮬레이션해 고른 값 (SIMULATION.md)
 //   조정용 대화체 질문 48개로 300가지를 시험해 고르고, 조정에 쓰지 않은 질문 20개로 나빠지지 않음을 확인
@@ -969,6 +1139,7 @@ function search(raw, opt = {}) {
   const idf = Q.qs.map((q, qi) => { let df = 0; for (const m of M) df += m[qi].pages.size; return Math.log(1 + (N - df + 0.5) / (df + 0.5)); });
   const gate = Q.qs.filter(q => q.main && !q.soft), nMain = gate.length || Q.mains.length, results = [];
   const domainQ = Q.qs.some(q => q.main && q.domain);
+  const rawToks = String(raw).toLowerCase().split(/[\s,·/()]+/).map(t => t.replace(/(은|는|이|가|을|를|의|에|로|으로|와|과|도)$/, '')).filter(t => t.length >= 2);   // 질문 낱말(조사 뗀 것) — 파일명 덮임 비율에 씀
   books.forEach((B, bi) => {
     const m = M[bi];
     if (!Q.qs.some((q, qi) => q.main && (m[qi].pages.size || m[qi].title || m[qi].heads.length))) return;   // 주 개념이 하나도 없으면 제외
@@ -984,17 +1155,19 @@ function search(raw, opt = {}) {
     if (nMain > 1) for (const [p, s] of pscore) pscore.set(p, s * (1 + C.cover * ((pcover.get(p) || 1) - 1) / (nMain - 1)));
     const top = [...pscore.entries()].sort((a, b) => b[1] - a[1]);
     let depth = 0; for (let i = 0; i < Math.min(C.top, top.length); i++) depth += top[i][1] / (i + 1);
-    let breadth = 0, head = 0, title = 0, factor = 1, missing = 0;
+    let breadth = 0, head = 0, title = 0, factor = 1, missing = 0, allTitle = gate.length > 0;
     Q.qs.forEach((q, qi) => {
       const r = m[qi], np = r.pages.size, f = idf[qi] * q.W;
-      breadth += f * (C.wLog * Math.log2(1 + np) + C.wFrac * Math.sqrt(np / B.nPages));
+      breadth += f * (C.wLog * Math.log2(1 + np) + C.wFrac * Math.sqrt(np / Math.max(B.nPages, 8)));
       head += f * C.wHead * Math.log2(1 + r.heads.length);
       title += f * (r.title ? C.wTitle : 0) + f * (r.dirHit ? C.wDir : 0);
+      if (q.main && !q.soft && !r.titleStrict) allTitle = false;
       if (q.main && q.domain) factor *= C.senseA + (1 - C.senseA) * r.sense;
       if (q.main && !q.soft && !np && !r.title && !r.heads.length) missing++;
     });
     if (domainQ) factor *= C.domA + (1 - C.domA) * B.domain;
     if (nMain > 1 && missing) factor *= Math.pow(C.miss, missing);
+    if (allTitle && B.chars < 1500) { const tb = B.base.toLowerCase().replace(/\s/g, ''), cov = rawToks.length ? rawToks.filter(t => tb.includes(t)).length / rawToks.length : 0; title *= 2 + 2 * cov; }   // 파일명으로만 찾는 문서(옛 형식 · 스캔본): 본문 점수가 없으니 제목 점수를 크게, 질문 낱말이 파일명에 많이 들어 있을수록 더
     const score = (C.wDepth * depth + breadth + head + title) * factor;
     if (score <= 0) return;
     results.push({ B, m, score, top, depth, breadth, head, title, factor });
@@ -1057,13 +1230,43 @@ function explain(R, Q) {
   if (np) pts.push(['📄', `본문 ${fmtN(np)}쪽 / 전체 ${fmtN(B.nPages)}쪽 (${(frac * 100).toFixed(frac < 0.01 ? 1 : 0)}%)에서 ${fmtN(occ)}회 — ${topV.map(([k, v]) => `${k} ${fmtN(v)}`).join(' · ')}${tags ? ` · 계기 태그(PT-101 등) ${fmtN(tags)}` : ''}`]);
   if (best && best.n >= 2) pts.push(['📍', `가장 많이 다룬 구간: p.${best.s + 1}–${best.e + 1}`]);
   if (coTxt.length) pts.push(['🔗', `함께 나온 주제: ${co.slice(0, 5).map(([n, k]) => `${n}(${fmtN(k)})`).join(' · ')}`]);
+  // ── 시니어 관점 설명: 핵심 하위 항목 가림 · 연관 개념(지식 베이스 rel) · 도서 종류 · 분야
+  const covs = [];
+  for (const q of Q.mains) { if (!q.c || q.free) continue; const cv = subCoverage(B, q.c); if (cv) covs.push({ c: q.c, cv, n: cv.filter(x => x[1]).length, m: cv.length }); }
+  for (const x of covs) {
+    const done = x.cv.filter(y => y[1]).map(y => y[0]), miss = x.cv.filter(y => !y[1]).map(y => y[0]);
+    if (x.n) pts.push(['🧭', `${x.c.n.replace(/\(.*?\)/g, '')} 핵심 항목 ${x.n}/${x.m} 다룸: ${done.slice(0, 5).join(' · ')}${done.length > 5 ? ' …' : ''}${miss.length && miss.length <= 3 ? ` (빠짐: ${miss.join(' · ')})` : miss.length ? ` (빠짐 ${miss.length}개)` : ''}`]);
+  }
+  const relHits = [];
+  for (const q of Q.mains) for (const rid of (q.c?.rel || [])) {
+    const rc = TH[rid]; if (!rc || qids.has(rid) || relHits.some(x => x[0] === rc.n)) continue;
+    let k = 0; for (const [t, w] of rc.t) { if (w < 0.8) continue; const ko = isHangul(t), s = ko ? t.replace(/ /g, '') : t.toLowerCase(), T = ko ? B.sq : B.low; if (s.length < (ko ? 2 : 4)) continue; let i = 0; while ((i = T.indexOf(s, i)) !== -1 && k < 60) { k++; i += s.length; } }
+    if (k >= 4) relHits.push([rc.n, k]);
+  }
+  relHits.sort((a, b) => b[1] - a[1]);
+  if (relHits.length) pts.push(['🔗', `연관 주제도 함께: ${relHits.slice(0, 5).map(([n, k]) => `${n}(${fmtN(k)})`).join(' · ')} — 한 책에서 이어서 볼 수 있음`]);
+  const kindTxt = KIND_KO[B.kind] || B.kind, role = KIND_ROLE[B.kind] || '';
+  pts.push(['📚', `종류: ${kindTxt} · 분야: ${domLabel(B)}${role ? ` — ${role}` : ''}`]);
+  // 시니어 한 줄 조언
+  let advice = '';
+  const covTop = covs.sort((a, b) => b.n / b.m - a.n / a.m)[0];
+  if (tier >= 2 && B.kind === 'standard') advice = '설계 · 검토의 근거로 인용할 수 있는 규격입니다. 적용판(개정 연도)을 확인하세요.';
+  else if (tier >= 2 && B.kind === 'manual') advice = '제작사 매뉴얼 — 실제 설정값 · 배선 · 절차는 여기서 확인하고, 원리는 교재로 보완하세요.';
+  else if (tier >= 2 && (B.kind === 'spec' || B.kind === 'list')) advice = '프로젝트 실무 문서 — 태그 · 설정값 · 범위 같은 실제 값이 있어 비슷한 설계의 참고 사례로 좋습니다.';
+  else if (tier >= 2 && B.kind === 'textbook') advice = covTop && covTop.n >= Math.ceil(covTop.m * 0.6) ? '핵심 항목을 두루 다루는 교재 — 이 주제를 처음 익히는 사람에게 먼저 권할 책입니다.' : '교재지만 이 주제는 일부만 다룹니다 — 해당 장만 골라 보세요.';
+  else if (tier >= 2 && B.kind === 'lecture') advice = '강의 · 발표 자료 — 요점이 정리돼 있어 빠르게 훑기 좋고, 깊은 내용은 교재 · 규격으로 이어 보세요.';
+  else if (tier >= 2 && B.kind === 'law') advice = '법규 — 의무 사항(주기 · 자격 · 신고)을 확인할 때 보세요.';
+  else if (tier === 1) advice = '이 주제는 일부 단원에만 있습니다 — 근거 구절의 쪽만 보면 됩니다.';
+  else if (tier === 0) advice = '지나가며 언급된 정도라 이 주제의 참고서로는 부족합니다.';
+  if (advice) pts.push(['💡', advice]);
   if (senseLow) pts.push(['⚠', `주변 문맥이 계장 분야와 달라 보여 순위를 낮췄습니다 (예: 방송 송신기 등 다른 뜻)`]);
   const short = [];
   if (titleHit) short.push('제목 일치');
   if (heads.length) short.push(`목차 ${heads.length}곳`);
   if (np) short.push(`본문 ${fmtN(np)}쪽(${(frac * 100).toFixed(frac < 0.01 ? 1 : 0)}%)·${fmtN(occ)}회`);
   if (best && best.n >= 3) short.push(`집중 p.${best.s + 1}–${best.e + 1}`);
-  return (R.ex = { tier, tierName, lead, pts, short: short.join(' · '), co: coTxt, np, occ, best });
+  if (covs.length && covs[0].n) short.push(`핵심 ${covs[0].n}/${covs[0].m}`);
+  return (R.ex = { tier, tierName, lead, pts, short: short.join(' · '), co: coTxt, np, occ, best, covs });
 }
 function hlRegex(Q) {
   const parts = [];
@@ -1131,7 +1334,7 @@ async function useFiles(list, folder) {
     try {
       const r = await extractFile(it.f, it.ext, (i, n) => setProg((done + i / n) / total, `읽는 중 ${done + 1}/${total} — ${label} (${i}/${n}쪽)`), () => RUN.stop);
       const chars = r.pages.reduce((a, p) => a + p.length, 0);
-      rec = { sig: it.sig, v: EXTRACT_VER, rel: it.rel, ext: it.ext, size: it.f.size, mtime: it.f.lastModified, title: r.title || '', pages: r.pages, heads: r.heads, err: chars < 20 ? 'notext' : '' };
+      rec = { sig: it.sig, v: EXTRACT_VER, rel: it.rel, ext: it.ext, size: it.f.size, mtime: it.f.lastModified, title: r.title || '', pages: r.pages, heads: r.heads, err: r.legacy ? 'legacy' : chars < 20 ? 'notext' : '' };
     } catch (e) {
       if (RUN.stop) break;
       failed++; rec = { sig: it.sig, v: EXTRACT_VER, rel: it.rel, ext: it.ext, size: it.f.size, mtime: it.f.lastModified, title: '', pages: [''], heads: [], err: 'read:' + (e && e.message || e) };
@@ -1182,8 +1385,8 @@ function setProg(f, text) {
 function renderTop() {
   const chip = $('#folderChip'); chip.classList.toggle('live', LIB.live); chip.classList.toggle('cache', !LIB.live && LIB.books.length > 0);
   $('#folderName').textContent = (LIB.src === 'srv' ? '📚 공용 · ' : LIB.folder ? '💻 ' : '') + (LIB.folder || '폴더 없음');
-  const nt = LIB.books.filter(B => B.err === 'notext').length, bad = LIB.books.filter(B => B.err.startsWith('read:')).length;
-  $('#folderStat').textContent = LIB.books.length ? `· ${fmtN(LIB.books.length)}권 · ${fmtN(LIB.books.reduce((a, B) => a + B.nPages, 0))}쪽${nt ? ` · 글자 없음 ${nt}` : ''}${bad ? ` · 실패 ${bad}` : ''}${LIB.live ? '' : ' · 보관본'}` : '';
+  const nt = LIB.books.filter(B => B.err === 'notext').length, bad = LIB.books.filter(B => B.err.startsWith('read:')).length, lg = LIB.books.filter(B => B.err === 'legacy').length;
+  $('#folderStat').textContent = LIB.books.length ? `· ${fmtN(LIB.books.length)}권 · ${fmtN(LIB.books.reduce((a, B) => a + B.nPages, 0))}쪽${nt ? ` · 글자 없음 ${nt}` : ''}${lg ? ` · 옛 형식 ${lg}` : ''}${bad ? ` · 실패 ${bad}` : ''}${LIB.live ? '' : ' · 보관본'}` : '';
   chip.title = LIB.src === 'srv' ? `공용 도서관 (대시보드 서버)${LIB.srvAt ? ` — ${LIB.srvAt.replace('T', ' ').slice(0, 16)} ${LIB.srvBy} 색인` : ''} · 누르면 도서관 설정` : LIB.live ? '폴더 연결됨 — 미리보기에서 원본 쪽 그림까지 볼 수 있습니다' : LIB.books.length ? '이 PC 에 보관된 색인으로 검색합니다. 원본 쪽 그림 · 새 파일 반영은 [폴더 다시 연결] 후' : '';
   const srv = LIB.src === 'srv';
   $('#btnRescan').hidden = srv || !LIB.books.length; $('#btnReconnect').hidden = srv || LIB.live || !LIB.books.length; $('#btnPick').hidden = srv;
@@ -1233,7 +1436,7 @@ function renderLibrary() {   // 검색 전: 폴더 안 도서 목록
   const L = $('#list'), bs = LIB.books;
   L.innerHTML = `<div class="sum"><b>${fmtN(bs.length)}권</b> 색인됨${RUN.busy ? ' (읽는 중)' : ''} — 위에 검색어를 넣으세요</div>` +
     (bs.length ? bs.slice(0, 300).map((B, i) => `<div class="res" data-lib="${i}" style="cursor:default"><div class="rk"><span class="fmt">${SUPPORTED[B.ext]}</span></div>
-      <div class="t"><span class="nm">${esc(B.base)}</span></div><div class="path">${esc(B.dir || '(최상위)')} · ${fmtN(B.nPages)}${B.ext === 'pdf' ? '쪽' : '구간'}${B.err === 'notext' ? ' · ⚠ 본문 글자 없음(스캔본?)' : B.err ? ' · ⚠ 읽기 실패' : ''}</div></div>`).join('') : '<div class="empty">읽는 중입니다…</div>');
+      <div class="t"><span class="nm">${esc(B.base)}</span></div><div class="path">${esc(B.dir || '(최상위)')} · ${fmtN(B.nPages)}${unitOf(B)[1]} · ${esc(KIND_KO[B.kind] || '')} · ${esc(domLabel(B))}${B.err === 'notext' ? ' · ⚠ 본문 글자 없음(스캔본?)' : B.err === 'legacy' ? ' · ⚠ 옛 형식 — 파일명으로만 찾음 (docx/xlsx/pptx 로 저장하면 본문도 읽힘)' : B.err ? ' · ⚠ 읽기 실패' : ''}</div></div>`).join('') : '<div class="empty">읽는 중입니다…</div>');
   $('#pv').innerHTML = `<div class="empty">🔍 검색하면 여기에 <b>왜 관련 있는지</b>와 <b>근거 쪽 미리보기</b>가 나옵니다.</div>`;
 }
 function curOpt() { return { expand: $('#optExpand').checked, fmt: $('#optFmt').value, dir: $('#optDir').value }; }
@@ -1260,6 +1463,29 @@ function renderInterp(Q) {
     return `<span class="cpt ${q.main && !q.soft ? '' : 'part'}${q.aspect ? ' asp' : ''}" title="${esc(tip)}">${q.aspect ? '🎯 ' : ''}${esc(q.free ? `'${q.label}'` : q.label)}${kind}${ex.length > 1 && !q.aspect ? ` <small>+${ex.length - 1}개 표현</small>` : ''}</span>`;
   }).join('') + Q.notes.map(n => `<span class="dym">✎ ${esc(n)}</span>`).join('');
 }
+// 📚 추천 읽기 순서 — 상위 결과를 종류별로 묶어 시니어가 권하듯: 먼저 볼 것(교재 · 강의) → 실무(매뉴얼 · 설계 문서 · 표) → 기준(규격 · 법규)
+function recommendHtml(results, Q) {
+  const top = results.slice(0, 20).map(R => ({ R, ex: explain(R, Q) })).filter(x => x.ex.tier >= 1);
+  if (top.length < 2) return '';
+  const groups = [
+    ['① 먼저 볼 것 — 원리 · 개요', ['textbook', 'lecture', 'notes'], '개념을 잡는 책 · 자료'],
+    ['② 실무 — 실제 기기 · 설계 사례', ['manual', 'spec', 'list', 'paper'], '설정값 · 절차 · 양식'],
+    ['③ 기준 — 규격 · 법규', ['standard', 'law'], '설계 · 검토의 근거'],
+  ];
+  let html = '', shown = 0;
+  for (const [title, kinds, sub] of groups) {
+    const pick = top.filter(x => kinds.includes(x.R.B.kind)).sort((a, b) => b.ex.tier - a.ex.tier || b.R.score - a.R.score).slice(0, 3);
+    if (!pick.length) continue;
+    html += `<div class="rcg"><div class="rct">${title} <span class="muted">${sub}</span></div>${pick.map(x => { const i = results.indexOf(x.R), B = x.R.B; const cov = (x.ex.pts.find(p => p[0] === '🧭') || [])[1] || '';
+      return `<div class="rci" data-ri="${i}"><span class="tier t${x.ex.tier}">${x.ex.tierName}</span><b>${esc(B.base.slice(0, 44))}</b><span class="muted"> · ${esc(KIND_KO[B.kind] || '')} · ${esc(domLabel(B))}</span>${cov ? `<div class="rcw muted">${esc(cov.replace(/^.*?다룸: /, '핵심 항목: ').slice(0, 110))}</div>` : ''}</div>`; }).join('')}</div>`;
+    shown += pick.length;
+  }
+  if (!shown) return '';
+  const subj = Q.mains.map(q => q.free ? q.label : q.label.replace(/\(.*?\)/g, '')).join(' · ');
+  const hasStd = top.some(x => x.R.B.kind === 'standard'), hasMan = top.some(x => x.R.B.kind === 'manual'), hasTxt = top.some(x => ['textbook', 'lecture'].includes(x.R.B.kind));
+  const tip = `${hasTxt ? '개념은 ①에서 잡고, ' : ''}${hasMan ? '실제 값 · 절차는 ②의 매뉴얼에서 확인하고, ' : hasStd ? '' : ''}${hasStd ? '검토 근거는 ③의 규격을 인용하세요.' : '규격 · 법규 문서가 폴더에 없습니다 — 근거가 필요하면 관련 표준(ISA · IEC · API)을 보강하세요.'}`;
+  return `<div class="recbox"><div class="rech">📚 '${esc(subj)}' 추천 읽기 순서 <span class="muted">— 시니어 관점: ${esc(tip)}</span></div>${html}</div>`;
+}
 function renderResults() {
   const { Q, results, ms, total } = STATE.res; renderInterp(Q);
   const L = $('#list');
@@ -1277,14 +1503,15 @@ function renderResults() {
   const per = {}, pick = []; for (const x of spots) { if ((per[x.i] = (per[x.i] || 0) + 1) > 2) continue; pick.push(x); if (pick.length >= 5) break; }
   const reHL = hlRegex(Q);
   const spotHtml = pick.length >= 2 ? `<div class="spots"><div class="sph">📍 바로 볼 곳 <span class="muted">— 질문과 가장 잘 맞는 쪽 (누르면 그 쪽을 엽니다)</span></div>${pick.map(x => { const R = results[x.i];
-    return `<div class="spot" data-si="${x.i}" data-sp="${x.p}"><span class="pg">${R.B.ext === 'pdf' ? 'p.' : '§'}${x.p + 1}</span><b>${esc(R.B.base.slice(0, 46))}</b><div class="sx">${hl(snippet(R.B, R, x.p, Q).slice(0, 170), reHL)}</div></div>`; }).join('')}</div>` : '';
-  L.innerHTML = spotHtml + `<div class="sum"><b>${fmtN(total)}권</b> 중 <b>${fmtN(results.length)}권</b> 관련 · ${(ms / 1000).toFixed(2)}초${RUN.busy ? ' · <span style="color:var(--warn)">읽는 중 — 결과가 늘 수 있음</span>' : ''}</div>` +
+    return `<div class="spot" data-si="${x.i}" data-sp="${x.p}"><span class="pg">${unitOf(R.B)[0]}${x.p + 1}</span><b>${esc(R.B.base.slice(0, 46))}</b><div class="sx">${hl(snippet(R.B, R, x.p, Q).slice(0, 170), reHL)}</div></div>`; }).join('')}</div>` : '';
+  const recHtml = recommendHtml(results, Q);
+  L.innerHTML = spotHtml + recHtml + `<div class="sum"><b>${fmtN(total)}권</b> 중 <b>${fmtN(results.length)}권</b> 관련 · ${(ms / 1000).toFixed(2)}초${RUN.busy ? ' · <span style="color:var(--warn)">읽는 중 — 결과가 늘 수 있음</span>' : ''}</div>` +
     shown.map((R, i) => {
       const ex = explain(R, Q), pct = Math.max(3, Math.round(100 * R.score / top));
       return `<div class="res ${i === STATE.sel ? 'on' : ''}" data-i="${i}" tabindex="0">
         <div class="rk"><b>${i + 1}</b><span class="meter" title="관련도 ${pct} (1위 = 100)"><i style="height:${pct}%"></i></span></div>
         <div class="t"><span class="tier t${ex.tier}">${ex.tierName}</span><span class="nm" title="${esc(R.B.name)}">${hl(R.B.base, hlRegex(Q))}</span><span class="fmt">${SUPPORTED[R.B.ext]}</span></div>
-        <div class="path">${esc(R.B.dir || '(최상위)')} · ${fmtN(R.B.nPages)}${R.B.ext === 'pdf' ? '쪽' : '구간'} · 관련도 ${pct}</div>
+        <div class="path">${esc(R.B.dir || '(최상위)')} · ${fmtN(R.B.nPages)}${unitOf(R.B)[1]} · 관련도 ${pct} · <span class="kd">${esc(KIND_KO[R.B.kind] || '')}</span> · ${esc(domLabel(R.B))}</div>
         <div class="why"><span class="w">${esc(ex.short)}</span>${ex.co.length ? `<span class="w muted">함께: ${esc(ex.co.slice(0, 3).join(' · '))}</span>` : ''}</div></div>`;
     }).join('') + (results.length > STATE.shown ? `<button class="btn more" id="more">더 보기 (${fmtN(results.length - STATE.shown)}권 더)</button>` : '');
   renderPreview();
@@ -1298,13 +1525,13 @@ function renderPreview(goPage) {
   const file = fileFor(B);
   P.innerHTML = `
     <div class="pvh"><div class="tt"><h2>${hl(B.base, re)}</h2><div class="path">${esc(LIB.folder)}/${esc(B.rel.split('/').slice(1).join('/'))}</div>
-      <div class="badges"><span class="badge">${SUPPORTED[B.ext]}</span><span class="badge">${fmtN(B.nPages)}${B.ext === 'pdf' ? '쪽' : '구간'}</span><span class="badge">${fmtSize(B.size)}</span>${B.meta && B.meta !== B.base ? `<span class="badge" title="문서 정보의 제목">${esc(B.meta.slice(0, 60))}</span>` : ''}</div></div>
+      <div class="badges"><span class="badge">${SUPPORTED[B.ext]}</span><span class="badge">${fmtN(B.nPages)}${unitOf(B)[1]}</span><span class="badge">${fmtSize(B.size)}</span>${B.meta && B.meta !== B.base ? `<span class="badge" title="문서 정보의 제목">${esc(B.meta.slice(0, 60))}</span>` : ''}</div></div>
       <button class="btn sm" id="openOrig" ${file ? '' : 'disabled title="폴더를 다시 연결하면 열 수 있습니다"'}>원본 열기 ↗</button></div>
     <div class="whybox"><h3>왜 '${esc(STATE.q)}' 와(과) 관련 있나요? <span class="tier t${ex.tier}" style="margin-left:4px">${ex.tierName}</span></h3>
       <div class="lead">${esc(ex.lead)}</div><ul>${ex.pts.map(([i, t]) => `<li>${i} ${esc(t)}</li>`).join('')}</ul></div>
     ${heads.length ? `<div class="secttl">📑 목차에서 찾은 곳</div><div class="heads">${heads.map(h => `<button data-go="${h.p}">${hl(h.t.slice(0, 80), re)}<em>p.${h.p + 1}</em></button>`).join('')}</div>` : ''}
     ${psgPages.length ? `<div class="secttl">📝 근거 구절 <span class="muted" style="font-weight:400">— 누르면 아래에서 그 쪽을 봅니다</span></div>
-      ${psgPages.map(p => `<div class="psg" data-go="${p}"><button class="cp" data-cp="${p}" title="이 구절을 출처(책 · 쪽)와 함께 복사">📋</button><button class="cp tr" data-trp="${p}" title="이 구절을 한국어로 번역">🌐</button><span class="pg">${B.ext === 'pdf' ? 'p.' : '§'}${p + 1}</span>${hl(snippet(B, R, p, Q), re)}</div>`).join('')}` : `<div class="warnline">본문에서는 찾지 못했고 파일명 · 목차로 관련이 있다고 봤습니다${B.err === 'notext' ? ' (본문 글자가 없는 스캔본으로 보입니다)' : ''}.</div>`}
+      ${psgPages.map(p => `<div class="psg" data-go="${p}"><button class="cp" data-cp="${p}" title="이 구절을 출처(책 · 쪽)와 함께 복사">📋</button><button class="cp tr" data-trp="${p}" title="이 구절을 한국어로 번역">🌐</button><span class="pg">${unitOf(B)[0]}${p + 1}</span>${hl(snippet(B, R, p, Q), re)}</div>`).join('')}` : `<div class="warnline">본문에서는 찾지 못했고 파일명 · 목차로 관련이 있다고 봤습니다${B.err === 'notext' ? ' (본문 글자가 없는 스캔본으로 보입니다)' : ''}.</div>`}
     <div class="secttl">👁 미리보기 <span class="muted" style="font-weight:400">— 글자를 끌어 선택해 복사(Ctrl+C) · 책 안에서 찾기 · ⧉ 새 창</span></div>
     <div class="viewer" id="viewerHost"></div>`;
   const hitPages = [...new Set(Q.qs.flatMap((q, i) => q.main ? [...R.m[i].pages.keys()] : []))].sort((a, b) => a - b);
@@ -1312,6 +1539,7 @@ function renderPreview(goPage) {
   STATE.viewer.onPage = p => document.querySelectorAll('.psg').forEach(e => e.classList.toggle('on', +e.dataset.go === p));
   STATE.viewer.draw();
 }
+const unitOf = B => B.ext === 'pdf' ? ['p.', '쪽'] : B.ext === 'pptx' ? ['슬라이드 ', '슬라이드'] : (B.ext === 'xlsx' || B.ext === 'xlsm') ? ['시트 ', '시트'] : ['§', '구간'];
 const fmtSize = n => n >= 1048576 ? (n / 1048576).toFixed(1) + ' MB' : Math.max(1, Math.round(n / 1024)) + ' KB';
 function copyText(text) {   // http(보안 아님) 주소 · iframe 안에서도 되도록 execCommand 로 한 번 더
   const ok = () => toast('복사했습니다 — 붙여넣기(Ctrl+V) 하세요', 1800);
@@ -1322,7 +1550,7 @@ function copyText(text) {   // http(보안 아님) 주소 · iframe 안에서도
   };
   if (navigator.clipboard && window.isSecureContext) navigator.clipboard.writeText(text).then(ok, fallback); else fallback();
 }
-const cite = (B, p) => `— ${B.base}, ${B.ext === 'pdf' ? 'p.' : '§'}${p + 1}`;
+const cite = (B, p) => `— ${B.base}, ${unitOf(B)[0]}${p + 1}`;
 // 책 안에서 찾기: 한글은 글자 사이 띄어쓰기 무시, 영어는 대소문자 무시
 function findRegex(t) {
   t = normText(t).replace(/\n/g, ' ').trim(); if (!t) return null;
@@ -1545,7 +1773,7 @@ class Viewer {
     Object.assign(this, { B: o.B, re: o.re, q: o.q || '', hitPages: o.hitPages || [], page: Math.max(0, Math.min(o.B.nPages - 1, o.page || 0)), file: o.file || null, popup: !!o.popup, noFind: !!o.noFind });
     this.mode = this.B.ext === 'pdf' && this.file && window.pdfjsLib ? 'page' : 'text';
     this.fre = null; this.fhits = []; this.fcur = -1; this.host = host; this.seq = 0;
-    const B = this.B, pdf = B.ext === 'pdf', u = pdf ? 'p.' : '§';
+    const B = this.B, pdf = B.ext === 'pdf', u = unitOf(B)[0];
     host.innerHTML = `
       <div class="vbar">
         <span class="grp"><button class="btn sm" data-v="prevPage" title="앞 쪽 (←)">‹</button><span class="pgno">${u}<input class="pgin" data-v="pg" type="number" min="1" max="${B.nPages}" value="${this.page + 1}"> / ${fmtN(B.nPages)}</span><button class="btn sm" data-v="nextPage" title="다음 쪽 (→)">›</button></span>
@@ -1619,7 +1847,7 @@ class Viewer {
   show(p, k) { const i = this.fhits.findIndex(h => h.p === p && h.k === k); this.fcur = i; this.go(p, true); }
   step(d) { if (!this.fhits.length) return; this.fcur = (this.fcur + d + this.fhits.length) % this.fhits.length; this.renderFind(); this.go(this.fhits[this.fcur].p, true); }
   renderFind() {
-    const n = this.fhits.length, pages = new Set(this.fhits.map(h => h.p)).size, B = this.B, u = B.ext === 'pdf' ? 'p.' : '§';
+    const n = this.fhits.length, pages = new Set(this.fhits.map(h => h.p)).size, B = this.B, u = unitOf(B)[0];
     this.$('fNo').textContent = !this.fre ? '' : n ? `${this.fcur + 1} / ${fmtN(n)}${n >= 5000 ? '+' : ''} (${fmtN(pages)}쪽)` : '없음';
     this.$('fList').hidden = !n;
     const L = this.$('flist'); if (!n) { L.hidden = true; this.$('fList').textContent = '목록 ▾'; L.innerHTML = ''; return; }
@@ -1636,7 +1864,7 @@ class Viewer {
       const r = await translateText(txt, { engine: this.$('treng').value, title: this.B.base, re: this.re, onProg: m => { if (seq === this.trSeq) out.innerHTML = `<div class="empty" style="padding:20px">${esc(m)}</div>`; } });
       if (seq !== this.trSeq) return;
       this.trText = r.text || ''; out.innerHTML = `<div class="trtext">${trBody(r, this.re)}</div>`;
-      note.textContent = `${r.note || ''}${r.cached ? ' · 저장된 번역' : ''} · ${this.B.ext === 'pdf' ? 'p.' : '§'}${P + 1}`; this.$('trcp').disabled = r.engine === 'gloss';
+      note.textContent = `${r.note || ''}${r.cached ? ' · 저장된 번역' : ''} · ${unitOf(this.B)[0]}${P + 1}`; this.$('trcp').disabled = r.engine === 'gloss';
     } catch (e) { if (seq === this.trSeq) { out.innerHTML = `<div class="warnline" style="margin:8px">${esc(e.message || e)}</div><div class="muted" style="padding:0 10px">위 엔진 고르기에서 '용어 풀이' 는 항상 쓸 수 있습니다.</div>`; } }
   }
   async draw() {
@@ -1702,7 +1930,7 @@ async function initViewerWindow() {   // ?viewer=1 로 열린 새 창
   const q = Q0.get('q') || '', Q = q ? buildQuery(q) : null;
   const hitPages = Q ? [...new Set(Q.mains.flatMap(qq => [...matchConcept(B, qq).pages.keys()]))].sort((a, b) => a - b) : [];
   document.title = `${B.base} — 계장도서검토`;
-  W.innerHTML = `<div class="vwh"><b>📖 ${esc(B.base)}</b><span class="muted">${esc(B.rel)} · ${SUPPORTED[B.ext]} · ${fmtN(B.nPages)}${B.ext === 'pdf' ? '쪽' : '구간'}${q ? ` · 검색어 '${esc(q)}' 노란 표시` : ''}</span></div><div class="viewer" id="viewerWin"></div>`;
+  W.innerHTML = `<div class="vwh"><b>📖 ${esc(B.base)}</b><span class="muted">${esc(B.rel)} · ${SUPPORTED[B.ext]} · ${fmtN(B.nPages)}${unitOf(B)[1]}${q ? ` · 검색어 '${esc(q)}' 노란 표시` : ''}</span></div><div class="viewer" id="viewerWin"></div>`;
   const v = new Viewer($('#viewerWin'), { B, re: Q ? hlRegex(Q) : null, q, hitPages, page: (+Q0.get('p') || 1) - 1, file, popup: true });
   if (Q0.get('m') === 'text') v.mode = 'text';
   STATE.viewer = v;
@@ -1716,7 +1944,8 @@ async function initViewerWindow() {   // ?viewer=1 로 열린 새 창
 function showLibPanel(host) {
   if (!host) { $('#intro').hidden = true; $('#main').hidden = false; host = $('#pv'); }
   const I = SRV.info || {}, srv = LIB.src === 'srv';
-  const nt = LIB.books.filter(B => B.err === 'notext'), bad = LIB.books.filter(B => B.err.startsWith('read:'));
+  const nt = LIB.books.filter(B => B.err === 'notext'), bad = LIB.books.filter(B => B.err.startsWith('read:')), lg = LIB.books.filter(B => B.err === 'legacy');
+  const gb = LIB.books.filter(B => B.kind === 'garbled');   // 글꼴 인코딩이 깨져 기호만 뽑힌 PDF
   const at = I.at ? `${I.at.replace('T', ' ').slice(0, 16)} · ${I.by}` : '';
   host.innerHTML = `<div class="card" id="libPanel"><h2>📚 도서관</h2>
     ${SRV.on ? `<div class="secttl">무엇을 검색할까요</div><div class="libsrc">
@@ -1741,7 +1970,7 @@ function showLibPanel(host) {
         <div class="muted">설정 · 키는 서버 PC 의 books/config.json 에만 저장되고 화면에 다시 나오지 않습니다 (운영자만 바꿀 수 있음).</div></div>` : ''}
     </div>
     <div class="mgr"><div class="secttl">💻 내 PC 폴더</div><div class="row"><button class="btn" id="libPick">📁 폴더 선택</button><span class="muted">${!srv && LIB.folder ? `지금: '${esc(LIB.folder)}' · ${fmtN(LIB.books.length)}권` : '고르면 검색 대상이 내 PC 폴더로 바뀝니다'}</span></div></div>
-    ${nt.length || bad.length ? `<div class="mgr"><div class="secttl">⚠ 본문을 읽지 못한 파일 ${nt.length + bad.length}개 <span class="muted" style="font-weight:400">— 파일명 · 목차로만 찾습니다</span></div><ul class="probs">${[...nt.map(B => [B, '글자 없음 (스캔본으로 보임)']), ...bad.map(B => [B, '읽기 실패: ' + B.err.slice(5)])].slice(0, 60).map(([B, w]) => `<li><b>${esc(B.base)}</b> <span class="muted">${esc(B.dir || '')} — ${esc(w)}</span></li>`).join('')}</ul></div>` : ''}
+    ${nt.length || bad.length || lg.length || gb.length ? `<div class="mgr"><div class="secttl">⚠ 본문을 읽지 못한 파일 ${nt.length + bad.length + lg.length + gb.length}개 <span class="muted" style="font-weight:400">— 파일명 · 목차로만 찾습니다</span></div><ul class="probs">${[...lg.map(B => [B, '옛 형식(' + B.ext.toUpperCase() + ') — 새 형식(' + B.ext + 'x)으로 다시 저장하면 본문을 읽습니다']), ...nt.map(B => [B, '글자 없음 (스캔본으로 보임)']), ...gb.map(B => [B, '글자 깨짐 (PDF 글꼴 문제 — 다시 받거나 OCR 후 저장)']), ...bad.map(B => [B, '읽기 실패: ' + B.err.slice(5)])].slice(0, 60).map(([B, w]) => `<li><b>${esc(B.base)}</b> <span class="muted">${esc(B.dir || '')} — ${esc(w)}</span></li>`).join('')}</ul></div>` : ''}
   </div>`;
 }
 document.addEventListener('click', async e => {
@@ -1889,7 +2118,7 @@ function runRelated(RS) {
       return `<div class="rgh${isHere ? ' here' : ''}">${isHere ? '📖 이 책' : '📚'} <b title="${esc(r.B.rel)}">${esc(r.B.base)}</b> <span class="muted">${fmtN(r.total)}곳 · ${fmtN(r.pages)}쪽</span>${r.meta ? ` <span class="tier t${r.meta.tier}">${r.meta.tierName}</span>` : ''}${r.more > 0 ? ` <span class="muted">(앞 ${fmtN(r.total - r.more)}곳만)</span>` : ''}</div>`;
     }
     const B = LIB.bySig.get(r.sig), tx = B.pages[r.p], a = Math.max(0, r.i - 46), b = Math.min(tx.length, r.i + r.n + 70); n++;
-    return `<div class="rrow" data-i="${i}"><span class="pg">${B.ext === 'pdf' ? 'p.' : '§'}${r.p + 1}</span><span class="rt">${a ? '…' : ''}${hl(tx.slice(a, r.i).replace(/\n/g, ' '), reQ)}<mark class="f">${esc(tx.substr(r.i, r.n))}</mark>${hl(tx.slice(r.i + r.n, b).replace(/\n/g, ' '), reQ)}${b < tx.length ? '…' : ''}</span><span class="no">${n}</span></div>`;
+    return `<div class="rrow" data-i="${i}"><span class="pg">${unitOf(B)[0]}${r.p + 1}</span><span class="rt">${a ? '…' : ''}${hl(tx.slice(a, r.i).replace(/\n/g, ' '), reQ)}<mark class="f">${esc(tx.substr(r.i, r.n))}</mark>${hl(tx.slice(r.i + r.n, b).replace(/\n/g, ' '), reQ)}${b < tx.length ? '…' : ''}</span><span class="no">${n}</span></div>`;
   }).join('');
   RS.vsig = null; RS.sel = -1;
   selectRow(RS, nextRow(RS, -1, 1), true);
@@ -1908,7 +2137,7 @@ function showRow(RS) {
   const B = LIB.bySig.get(r.sig);
   if (RS.vsig !== B.sig) {   // 다른 책이면 미리보기를 새로
     const file = fileFor(B);
-    $('#rpv').innerHTML = `<div class="rpvh"><b>${esc(B.base)}</b><span class="muted">${esc(B.rel)} · ${SUPPORTED[B.ext]} · ${fmtN(B.nPages)}${B.ext === 'pdf' ? '쪽' : '구간'}</span></div><div class="viewer" id="rviewer"></div>`;
+    $('#rpv').innerHTML = `<div class="rpvh"><b>${esc(B.base)}</b><span class="muted">${esc(B.rel)} · ${SUPPORTED[B.ext]} · ${fmtN(B.nPages)}${unitOf(B)[1]}</span></div><div class="viewer" id="rviewer"></div>`;
     const hitPages = [...new Set(RS.rows.filter(x => !x.h && x.sig === B.sig).map(x => x.p))];
     RS.viewer = new Viewer($('#rviewer'), { B, re: RS.reQ, q: RS.q0, hitPages, page: r.p, file, popup: true, noFind: true });
     RS.viewer.useRegex(RS.reT, RS.t); RS.vsig = B.sig;
@@ -1974,6 +2203,11 @@ $('#btnStop').onclick = () => { RUN.stop = true; };
 $('#btnDict').onclick = showDict; $('#btnLib').onclick = () => showLibPanel(); $('#folderChip').onclick = () => showLibPanel();
 $('#list').addEventListener('click', e => {
   if (e.target.id === 'more') { STATE.shown += 30; renderResults(); return; }
+  const rc = e.target.closest('.rci[data-ri]'); if (rc) {
+    STATE.sel = +rc.dataset.ri; if (STATE.sel >= STATE.shown) { STATE.shown = STATE.sel + 1; renderResults(); }
+    document.querySelectorAll('.res[data-i]').forEach(x => x.classList.toggle('on', +x.dataset.i === STATE.sel)); renderPreview();
+    $(`.res[data-i="${STATE.sel}"]`)?.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); return;
+  }
   const sp = e.target.closest('.spot'); if (sp) {
     STATE.sel = +sp.dataset.si; if (STATE.sel >= STATE.shown) { STATE.shown = STATE.sel + 1; renderResults(); }
     document.querySelectorAll('.res[data-i]').forEach(x => x.classList.toggle('on', +x.dataset.i === STATE.sel));

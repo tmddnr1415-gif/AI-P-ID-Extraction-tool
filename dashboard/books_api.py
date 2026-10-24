@@ -27,7 +27,10 @@ from urllib.parse import quote
 
 SUPPORTED = {'.pdf': 'application/pdf', '.epub': 'application/epub+zip',
              '.docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-             '.hwpx': 'application/octet-stream', '.txt': 'text/plain; charset=utf-8', '.md': 'text/plain; charset=utf-8'}
+             '.xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', '.xlsm': 'application/vnd.ms-excel.sheet.macroEnabled.12',
+             '.pptx': 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+             '.doc': 'application/msword', '.xls': 'application/vnd.ms-excel', '.ppt': 'application/vnd.ms-powerpoint', '.hwp': 'application/x-hwp',
+             '.hwpx': 'application/octet-stream', '.txt': 'text/plain; charset=utf-8', '.md': 'text/plain; charset=utf-8', '.csv': 'text/csv; charset=utf-8'}
 ID_RE = re.compile(r'^[0-9a-f]{24}$')
 MAX_FILES = 20000
 MAX_BOOK_JSON = 400 * 1024 * 1024        # 풀었을 때 크기 상한 (3,000쪽 책도 수십 MB)

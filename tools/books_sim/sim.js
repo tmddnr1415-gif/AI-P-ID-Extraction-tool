@@ -7,6 +7,7 @@
 //   node sim.js index          서버 폴더를 색인 (운영자 = localhost 로 접속)
 //   node sim.js dev            조정용 질문(queries_dev.json, 라벨 = corpus_manifest.json) 채점
 //   node sim.js test           따로 둔 질문(queries_test.json, 라벨 = 파일 이름 일부) 채점
+//   node sim.js pp             발전 · 플랜트 계장 질문(queries_pp.json) 채점
 //   node sim.js tune [N]       CFG 가중치 N 가지 시험 → 상위 결과 (조정 후 test 로 나빠지지 않았는지 확인할 것)
 //   CFG='{"wFrac":5}' node sim.js dev     가중치를 바꿔 채점
 // 주소: BOOKS_URL (기본 http://127.0.0.1:8790/apps/books/index.html?embed=1)
@@ -31,8 +32,8 @@ function items(kind) {
     const man = JSON.parse(fs.readFileSync(here('corpus_manifest.json'), 'utf8')).files, Q = JSON.parse(fs.readFileSync(here('queries_dev.json'), 'utf8'));
     return Object.entries(Q).flatMap(([base, qs]) => qs.map(q => ({ q, base, rules: man.map(e => [e.path, e.labels[base] || 0, e.category || '']).filter(x => x[1] || x[2].startsWith('distractor')), exact: true })));
   }
-  const T = JSON.parse(fs.readFileSync(here('queries_test.json'), 'utf8'));
-  return Object.entries(T).map(([q, lab]) => ({ q, base: q, rules: Object.entries(lab).map(([k, v]) => [k, v, '']), exact: false }));
+  const T = JSON.parse(fs.readFileSync(here(kind === 'pp' ? 'queries_pp.json' : 'queries_test.json'), 'utf8'));   // pp = 발전 · 플랜트 질문 (파일 이름 일부 → 등급)
+  return Object.entries(T).map(([q, lab]) => ({ q, base: q, rules: Object.entries(lab).map(([k, v]) => [k, v, '']), exact: false, pp: kind === 'pp' }));
 }
 // 브라우저 안에서 채점 (CFG 만 바꿔 여러 번 돌려도 일치 결과는 앱이 보관해 빠름)
 const SCORE = ({ its, cfgs }) => {
@@ -43,7 +44,7 @@ const SCORE = ({ its, cfgs }) => {
       const grade = rel => { for (const [k, v] of it.rules) if (it.exact ? rel.endsWith('/' + k) : rel.includes(k)) return v; return 0; };
       const isDis = rel => it.rules.some(([k, v, c]) => c.startsWith('distractor') && !v && rel.endsWith('/' + k));
       const ideal = it.rules.map(r => r[1]).filter(Boolean).sort((a, b) => b - a), idcg = ideal.slice(0, 10).reduce((a, g, i) => a + (2 ** g - 1) / Math.log2(i + 2), 0);
-      const s = BK.search(it.q, {}), top = s.results.slice(0, 10).map(R => R.B.rel), g = top.map(grade);
+      const s = BK.search(it.q, {}), top = s.results.filter(R => it.pp || !/\/설계문서\//.test(R.B.rel)).slice(0, 10).map(R => R.B.rel), g = top.map(grade);   // 조정 · 시험 묶음에는 라벨이 없는 설계문서 폴더(xlsx · pptx 시험 파일)를 빼고 채점
       const dcg = g.reduce((a, x, i) => a + (2 ** x - 1) / Math.log2(i + 2), 0), f = g.findIndex(x => x >= Math.min(2, ideal[0] || 0));
       nd += idcg ? dcg / idcg : 0; mrr += f >= 0 ? 1 / (f + 1) : 0; dis += top.slice(0, 5).filter(isDis).length;
       per.push({ q: it.q, nd: idcg ? +(dcg / idcg).toFixed(2) : 0, interp: s.Q.qs.map(x => (x.main ? '' : '~') + x.label), top3: top.slice(0, 3).map((x, i) => g[i] + '|' + x.split('/').pop().slice(0, 34)) });
@@ -80,7 +81,7 @@ const fmt = x => `nDCG@10 ${x.nd.toFixed(3)} · MRR ${x.mrr.toFixed(3)} · 상�
   } else {
     const r = (await p.evaluate(SCORE, { its: items(mode), cfgs: [CFG] }))[0];
     if (process.env.V) r.per.forEach(x => console.log(x.nd.toFixed(2), x.q.padEnd(28), JSON.stringify(x.interp), x.top3.join(' / ')));
-    console.log(`${mode === 'dev' ? '조정용' : '시험용'} 질문 ${r.per.length}개 — ${fmt(r)}`);
+    console.log(`${mode === 'dev' ? '조정용' : mode === 'pp' ? '발전 · 플랜트' : '시험용'} 질문 ${r.per.length}개 — ${fmt(r)}`);
   }
   await b.close();
 })();
