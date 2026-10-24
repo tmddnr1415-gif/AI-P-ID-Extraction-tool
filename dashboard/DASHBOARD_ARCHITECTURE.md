@@ -1157,3 +1157,15 @@ C:\Users\SAMSUNG\Desktop\Claude\                         ← 개발 폴더 (여�
 - 바뀐 곳: server.py `SERVER_VERSION` · `html_bytes(snap)` · 새 `SNAP_RE` `snap_data`(dashboard.html `cacheSave` 와 같은 모양, savedAt = `stamp()`) `embed_snap` · `_build_deploy`(30분 · 데이터만 갱신) · GET `/dashboard.html?download=1`. dashboard.html `APP_VERSION` · 새 `EMBED_MS` `EMBED_ASK` `embedAt` `embedSelf` `autoEmbed` `embedTip` · 배너 data-net embed/embedno · `startOnline`(4초 뒤 + 30분마다 autoEmbed) · `replaceSelf`(dept-embed-at 기록) · #btnCopy · 보관본 없음 화면 문구. (27)의 `fileCopyUpdate` 없앰.
 - 확인한 것: 문법(JS · Python). 임시 서버: deploy 파일 · ?download=1 에 데이터 들어감, 그냥 화면 파일엔 없음. **서버가 만든 deploy 파일 → 서버 끔 → 새 브라우저(보관본 없음)에서 오프라인으로 열림 ✅**. 보관본 없는 파일로 로그인 → 배너 → [자동 보관 켜기](저장 창은 시험용 가짜) → 파일에 데이터가 써짐 · 배너 사라짐 → 그 파일을 서버 끔 + 새 브라우저로 열기 → 오프라인 ✅. (27) 경우(로그인 화면에서 닫음 → 오프라인) 그대로 ✅. 아무 데이터도 없는 파일 + 새 브라우저 → 안내 화면.
 - 회사에서 확인할 것: 서버 재시작 뒤 `deploy\dashboard.html` 크기가 데이터만큼 커졌는지(30분마다 시각 갱신). Edge 에서 [💾 자동 보관 켜기] → 저장 창 → '방문할 때마다 허용' 이 뜨는지 · 다음날 다시 묻지 않는지(묻는다면 그 PC 정책상 허락이 세션마다 끝나는 것 — 3일에 한 번만 배너). 서버 PC 공유 폴더 deploy 를 부서원이 볼 수 있는 곳이면 안의 데이터도 같이 보임(비회원 보기 범위와 같음).
+
+### 2026-10-24 (29) — 오른쪽 위 '오프라인 보관' 초록/빨강 표시 · 메뉴 이름 ROOM SIZE 계산 (APP_VERSION 2026-10-24.5 / SERVER_VERSION 2026-10-24.2)
+> server.py 는 메뉴 이름 한 줄만 바뀜 → 서버 재시작하면 '메뉴 권한' 창 이름도 바뀜(안 해도 동작엔 문제 없음). 부서원 사본은 새 버전 배너로 교체.
+- 무엇을:
+  1. 요청 "서버에 접속되면 서버 꺼지기 전 데이터를 저장했다고 오른쪽 위에 심볼로 — 녹색 = 저장됨, 빨강 = 안 됨, 빨강일 때 부서원이 강제로 저장". 머리줄 [🔍 찾기] 왼쪽에 **● 오프라인 보관됨(초록) / ● 오프라인 보관 안 됨(빨강, 깜빡임)**. 좁은 화면(1200px 아래)은 점만.
+     - 파일로 연 경우 초록 = 이번 접속에서 브라우저 보관본 저장 + **이 파일 안 보관본이 하루 안**(브라우저가 지워도 파일로 열림). 주소로 연 경우 초록 = 하루 안에 [내 PC 사본 받기] 함(주소는 서버 꺼지면 안 열리므로).
+     - **빨강 누르기 = 바로 강제 저장**: 파일 → 이 파일 안에 지금 데이터 쓰기(`embedSelf(true)`, 처음엔 저장 창) · 주소 → 사본 파일 내려받기. 초록 누르기 = 자세히(브라우저 보관 시각 · 파일 안 보관 시각) + [지금 다시 저장].
+     - 서버 PC(관리자 · 주소) · 오프라인 중 · 폴더 모드에는 안 보임(오프라인 중엔 위 빨간 배너가 있음).
+  2. 요청 "판넬 공간확보 가 아니라 ROOM SIZE 계산 으로": 대시보드에 보이는 이름만 바꿈 — 왼쪽 메뉴 · 화면 제목 · VOC 메뉴 이름 · 메뉴 권한 목록 · 광장 상태('ROOM SIZE 계산 중...') · server.py `MENUS`. 메뉴 키(`space`) · 주소(#space · /apps/space/) · 권한 · 저장 자료는 그대로. **도구 안쪽 화면(apps/space)의 제목은 그 도구를 만드는 쪽에서 바꿀 것.**
+- 바뀐 곳: dashboard.html `APP_VERSION` · 새 단추 `#btnSafe` · CSS `.safebtn` · 새 `CACHE_OK` `SAFE_MS` `SNAP_AT` `safeState` `renderSafe` `safeClick` · `cacheSave`(CACHE_OK) · `saveCopy`(dept-copy-at = 시각) · `embedSelf`(조용히 쓴 뒤 표시 갱신) · `renderHeader`(renderSafe) · `VOC_MENU` `APP_ROUTES` 메뉴 · 권한 목록 · `PZ_STATUS`. server.py `SERVER_VERSION` · `MENUS`.
+- 확인한 것: 문법(JS · Python). 임시 서버: 보관본 없는 파일로 로그인 → 빨강 → 누름(저장 창은 시험용 가짜) → 파일에 써짐 → 초록 → 누르면 자세히 창. 서버가 만든 deploy 파일 → 처음부터 초록. 주소(보안 아닌 192.0.2.2)로 → 빨강 → 누름 → dashboard.html 내려받음 → 초록. 서버 PC 주소 → 안 보임. 메뉴 · #space 제목 'ROOM SIZE 계산'. 콘솔 오류 없음.
+- 회사에서 확인할 것: Edge 에서 빨강 → 저장 창 → 지금 연 dashboard.html 선택 → [저장] → 초록. 다음날 빨강으로 바뀌면(허락이 세션마다 끝나는 PC) 한 번 눌러 주면 됨.

@@ -704,6 +704,15 @@ dialog.shotov::backdrop{background:transparent}
 .shotbar button{border:0;border-radius:99px;padding:4px 12px;background:#fff;color:#1b2238;cursor:pointer}.shotbar button[data-all]{background:#ff4d8d;color:#fff}
 @media print{.shotbtn,.findbtn{display:none}}
 .findbtn{margin-right:8px}
+/* 오프라인 보관 표시 (오른쪽 위): 초록 = 서버가 꺼져도 이 파일로 최근 데이터가 열림 · 빨강 = 아직 안 됨 → 누르면 바로 저장 */
+.safebtn{margin-right:8px;white-space:nowrap;font-weight:700;display:inline-flex;align-items:center;gap:6px}
+.safebtn[hidden]{display:none}
+.safebtn i{width:11px;height:11px;border-radius:50%;flex:none}
+.safebtn.ok{background:#eefaf1;border-color:#9fd9b0;color:#17703a}.safebtn.ok i{background:#1fa64a;box-shadow:0 0 0 3px #1fa64a33}
+.safebtn.bad{background:#fff1f1;border-color:#f2aaaa;color:#b3261e}.safebtn.bad i{background:#e0322b;box-shadow:0 0 0 3px #e0322b33;animation:safeblink 1.6s infinite}
+@keyframes safeblink{50%{opacity:.35}}
+@media (max-width:1200px){.safebtn span{display:none}}
+@media print{.safebtn{display:none}}
 /* 2026-10-23 빠른 찾기 (Ctrl+K): 메뉴 · 시트 행 · 게시글 */
 .qf input{width:100%;font-size:16px;padding:11px 14px;border:1px solid var(--line);border-radius:10px}
 .qf .qres{max-height:52vh;overflow:auto;margin-top:10px}
@@ -964,6 +973,7 @@ table.hkt td{white-space:nowrap}table.hkt td.lvds{white-space:normal}table.hkt t
   <header class="top">
     <button id="burger" title="메뉴 접기/펼치기" aria-label="메뉴">☰</button>
     <div class="ttl"><h1>계장ENG그룹 Dashboard</h1><p id="subtitle"></p></div>
+    <button class="btn safebtn" id="btnSafe" hidden><i></i><span></span></button>
     <button class="btn findbtn" id="btnFind" title="메뉴 · PJT · 업무 · 게시글을 한 번에 찾아 바로 이동 (Ctrl+K)">🔍 찾기</button>
     <button class="btn shotbtn" id="btnShot" title="화면을 캡처해 범위를 고르고, 그 자리에서 바로 VOC 쓰기 (지금 화면 · 열린 창은 그대로) · 단축키 F8 · 초록 점 = 빠른 캡처 켜짐(다시 묻지 않음)">📷 스크린 → VOC</button>
     <div class="actions">
@@ -1102,7 +1112,7 @@ function recLabel(key, f) {
  * ===================================================================== */
 let root = null;
 /* 서버 모드: http(s):// 로 접속하면 server.py 의 REST API 사용 (폴더 선택 불필요). file:// 로 열면 폴더 모드 */
-const APP_VERSION = '2026-10-24.4';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
+const APP_VERSION = '2026-10-24.5';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
 const SERVER_URL = 'http://localhost:8080';
 // 부서원 PC 사본(file://)이 접속을 시도할 서버 — 서버가 배포 파일을 만들 때 'PC 이름 주소, IP 주소' 순으로 자동 기록함
 const DEFAULT_SERVERS = ['http://ASEUNGWOOK-B01:8080', 'http://65.3.30.234:8080'];
@@ -1541,10 +1551,11 @@ async function cacheSave() {
     await kv('readwrite', s => s.put({ savedAt:stamp(), server:API_BASE || location.origin, recs:DB.recs, cols:DB.cols, state:DB.state,
       baseSheets:DB.baseSheets || null, baseKey:DB.baseKey || '', board:DB.board || [], profiles:DB.profiles || [], sheetCols:DB.sheetCols || {} }, 'cache'));
     OFFLINE_AT = stamp();
+    CACHE_OK = true;
     if (!PERSIST_ASKED) { PERSIST_ASKED = true; navigator.storage?.persist?.().catch(() => {}); }   // 브라우저가 보관본을 임의로 지우지 않게 요청
   } catch (_) {}
 }
-let PERSIST_ASKED = false;
+let PERSIST_ASKED = false, CACHE_OK = false;            // CACHE_OK: 이번 접속에서 브라우저 보관본을 저장했음
 /* 사본 파일 안에 보관본을 같이 넣음: 브라우저 보관본이 없어도(주소로만 접속했던 PC · 닫을 때 지우는 브라우저) 서버가 꺼졌을 때 그 파일로 열림 */
 const SNAP_TAG = ['<scr' + 'ipt id="deptSnap" type="application/json">', '</scr' + 'ipt>'];
 async function withSnap(html) {
@@ -1558,7 +1569,7 @@ async function saveCopy() {                                 // [내 PC 사본 �
   let html; try { html = await withSnap(await newHtml()); } catch (e) { return toast('사본을 만들지 못했습니다: ' + e.message, true); }
   const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([html], { type:'text/html' })); a.download = 'dashboard.html';
   document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 5000);
-  try { localStorage.setItem('dept-copy-at', todayISO()); } catch (_) {}
+  try { localStorage.setItem('dept-copy-at', stamp()); } catch (_) {}
   toast('dashboard.html 을 받았습니다 → 바탕화면 등에 두고 앞으로는 그 파일을 더블클릭해 여세요 (서버가 꺼져도 열림)');
   render();
 }
@@ -1781,7 +1792,7 @@ async function embedSelf(manual) {
     const w = await h.createWritable(); await w.write(new Blob([html], { type:'text/html' })); await w.close();
     try { await kv('readwrite', st => st.put(h, 'self')); } catch (_) {}
     try { localStorage.setItem('dept-embed-at', String(Date.now())); } catch (_) {}
-    if (EMBED_ASK || manual) { EMBED_ASK = false; render(); }
+    if (EMBED_ASK || manual) { EMBED_ASK = false; render(); } else renderSafe();
     if (manual) toast('이 파일에 지금 데이터를 넣었습니다. 앞으로 서버에 연결될 때마다 자동으로 넣습니다 (서버가 꺼져도 이 파일로 열림)');
     return true;
   } catch (e) {
@@ -1790,6 +1801,46 @@ async function embedSelf(manual) {
   }
 }
 function autoEmbed() { if (Date.now() - embedAt() >= EMBED_MS) embedSelf(false); }
+/* 오프라인 보관 상태 (오른쪽 위 초록/빨강 표시)
+   파일로 연 경우: 이번 접속에서 브라우저 보관본 저장 + 이 파일 안 보관본이 하루 안 → 초록 (브라우저 보관본이 지워져도 파일로 열림)
+   주소로 연 경우: 서버가 꺼지면 주소는 안 열림 → 하루 안에 [내 PC 사본 받기] 했으면 초록 */
+const SAFE_MS = 864e5;
+let SNAP_AT = null;
+function safeState() {
+  if (!SERVER || OFFLINE || !root) return null;
+  const isFile = location.protocol === 'file:';
+  if (!isFile && ADMIN) return null;                        // 서버 PC 자신
+  if (isFile) {
+    if (SNAP_AT === null) SNAP_AT = Date.parse(snapLoad()?.savedAt || '') || 0;   // 파일 안 보관본 시각 (한 번만 읽음)
+    const fileAt = Math.max(SNAP_AT, embedAt());
+    return { isFile, cacheOk:CACHE_OK, at:fileAt, ok:CACHE_OK && Date.now() - fileAt < SAFE_MS };
+  }
+  let at = 0; try { at = Date.parse(localStorage.getItem('dept-copy-at') || '') || 0; } catch (_) {}
+  return { isFile, at, ok:Date.now() - at < SAFE_MS };
+}
+function renderSafe() {
+  const b = $('#btnSafe'), st = safeState();
+  b.hidden = !st; if (!st) return;
+  b.className = 'btn safebtn ' + (st.ok ? 'ok' : 'bad');
+  b.querySelector('span').textContent = st.ok ? '오프라인 보관됨' : '오프라인 보관 안 됨';
+  b.title = st.ok ? `서버가 꺼져도 ${st.isFile ? '이 파일' : '받은 사본 파일'}로 ${fmtTime(new Date(st.at).toISOString())} 기준 데이터가 열립니다 (누르면 자세히)`
+    : st.isFile ? '서버가 꺼지면 최근 데이터로 열리지 않을 수 있습니다 — 누르면 지금 이 파일 안에 저장합니다'
+    : '이 주소는 서버가 꺼지면 열리지 않습니다 — 누르면 지금 데이터가 든 사본 파일(dashboard.html)을 받습니다';
+}
+async function safeClick() {
+  const st = safeState(); if (!st) return;
+  const save = () => st.isFile ? (CACHE_OK ? Promise.resolve() : cacheSave()).then(() => embedSelf(true)) : saveCopy();
+  if (!st.ok) return save();                                // 빨강: 바로 강제 저장
+  const t = st.at ? fmtTime(new Date(st.at).toISOString()) : '-';
+  const c = await ask('🟢 오프라인 보관됨', st.isFile
+    ? `<p style="margin-top:0">서버가 꺼져도 <b>이 파일(${esc(selfName())})</b>로 열면 마지막 데이터로 볼 수 있습니다.</p>
+       <p>· 브라우저 보관본: <b>${fmtTime(OFFLINE_AT) || '-'}</b> (서버에서 불러올 때마다 자동)<br>· 파일 안 보관본: <b>${t}</b> (3시간마다 자동)</p>
+       <p class="muted" style="margin-bottom:0">하루 넘게 파일에 못 넣으면 빨강으로 바뀝니다 → 누르면 바로 저장.</p>`
+    : `<p style="margin-top:0">${t} 에 받은 사본 파일이 있습니다. 서버가 꺼지면 <b>그 파일</b>로 여세요 (이 주소는 열리지 않음).</p>
+       <p class="muted" style="margin-bottom:0">사본 안의 데이터는 받은 때의 것입니다. 앞으로는 그 파일로 열면 자동으로 최신을 보관합니다.</p>`,
+    [{ id:'save', label:'지금 다시 저장', cls:'pri' }, { id:'no', label:'닫기' }]);
+  if (c === 'save') save();
+}
 function embedTip() {
   if (!EMBED_ASK || !SERVER || OFFLINE || NEWVER || !root || FRAME_ROUTES(route)) return false;
   try { return localStorage.getItem('dept-embed-hide') !== todayISO(); } catch (_) { return true; }
@@ -2739,7 +2790,7 @@ function openPost(p) {
 /* ---------- VOC (2026-10-22): 메뉴별 VOC · 실명만 · 왼쪽 = 그림(캡처 · 파일 · 붙여넣기) 미리보기, 오른쪽 = 작성 ----------
  * 📷 스크린(위쪽 단추 · 어느 화면에서나): 화면을 캡처해 범위를 고르면 그 자리에서 VOC 창 → 등록해도 지금 화면 그대로(화면 전환 없음)
  * 캡처 = 브라우저 화면 공유(getDisplayMedia, '이 탭' 선택). http://PC이름 주소처럼 보안 연결이 아니면 브라우저가 막음 → Win+Shift+S 후 Ctrl+V 안내 */
-const VOC_MENU = { weekly:'주간업무보고', pid:'P&ID 분석', logic:'LOGIC 분석', space:'판넬 공간확보', bidpjt:'입찰 프로젝트', runpjt:'실행 프로젝트', board:'익명게시판', mgmt:'Management', plaza:'계장 광장', etc:'기타' };
+const VOC_MENU = { weekly:'주간업무보고', pid:'P&ID 분석', logic:'LOGIC 분석', space:'ROOM SIZE 계산', bidpjt:'입찰 프로젝트', runpjt:'실행 프로젝트', board:'익명게시판', mgmt:'Management', plaza:'계장 광장', etc:'기타' };
 const VOC_IMG_MAX = 6;
 const imgUrl = id => `${API_BASE}/api/board/img/${enc(id)}`;
 function vocImgsHtml(ids) {                    // 글 카드의 그림 — 첫 장 크게 · 나머지 작게 · 누르면 새 창 원본
@@ -3121,10 +3172,10 @@ async function pidConnect(key) {
          <p class="muted">${esc(base)}</p><button class="btn pri" data-pidretry>다시 시도</button></div>`;
 }
 
-/* ---------- 판넬 공간확보 등: 대시보드 서버(/apps/)의 연결 앱을 P&ID 와 같은 화면 틀(본문 전체 iframe)로 ----------
+/* ---------- ROOM SIZE 계산(옛 판넬 공간확보) 등: 대시보드 서버(/apps/)의 연결 앱을 P&ID 와 같은 화면 틀(본문 전체 iframe)로 ----------
  * MODULES(카드 안 iframe)와 달리 1분 자동 갱신에도 iframe 을 다시 만들지 않는다 (편집 중인 배치가 날아가지 않게).
  * 주소 뒤 값: embed=1(앱 자체 제목줄 숨김) · user=로그인 본명(작성자 기본값) */
-const APP_ROUTES = { space:{ title:'판넬 공간확보', src:'/apps/space/index.html' } };
+const APP_ROUTES = { space:{ title:'ROOM SIZE 계산', src:'/apps/space/index.html' } };
 const FRAME_ROUTES = k => PID_ROUTES[k] || APP_ROUTES[k];   // 본문 전체를 iframe 으로 채우는 메뉴
 function appUrl(key) {
   return `${API_BASE}${APP_ROUTES[key].src}?embed=1&user=${encodeURIComponent(user || '')}`;
@@ -3156,7 +3207,7 @@ function render() {
   renderMenu(); renderHeader();
   if (root) plazaOn();                                     // 계장 광장: 어느 메뉴에 있든 접속 유지 (홈에서만 보임) · P&ID/LOGIC 이면 '분석 중' 표시
   const c = $('#content');
-  document.body.classList.toggle('pid-mode', !!FRAME_ROUTES(route) && !!root);   // P&ID · 판넬 공간확보: 본문 전체를 iframe 으로 채움 (바깥 스크롤 없음)
+  document.body.classList.toggle('pid-mode', !!FRAME_ROUTES(route) && !!root);   // P&ID · ROOM SIZE 계산: 본문 전체를 iframe 으로 채움 (바깥 스크롤 없음)
   if (TB.shown || presenceOn()) renderTaskBar();           // 저장·자동 갱신 때마다 '내 업무' 완료 상태·접속자 갱신
   if (!root) return renderWelcome(c);
   const sy = window.scrollY, tw = $('.tw'), tx = tw ? [tw.scrollLeft, tw.scrollTop] : null;   // 자동 갱신 시 스크롤 위치 유지
@@ -3237,7 +3288,7 @@ function renderMenu() {
     (can('weekly') ? group('weekly', { k:'home', l:'📋 주간업무보고', n:'', c:NAV_OPEN.weekly ? 0 : subNew, t:'하위 메뉴의 수정·변경된 행' }, sub, inWeekly) : '') +
     (can('pid') ? btn({ k:'pid', l:'📐 P&ID 분석', n:'', c:0 }, 'top') : '') +
     (can('logic') ? btn({ k:'logic', l:'🔀 LOGIC 분석', n:'', c:0 }, 'top') : '') +
-    (can('space') ? btn({ k:'space', l:'🗄 판넬 공간확보', n:'', c:0 }, 'top') : '') +
+    (can('space') ? btn({ k:'space', l:'🗄 ROOM SIZE 계산', n:'', c:0 }, 'top') : '') +
     (can('bidpjt') ? btn({ k:'bidpjt', l:'📈 입찰 프로젝트', n:'', c:0 }, 'top') : '') +
     (can('runpjt') ? btn({ k:'runpjt', l:'🏗 실행 프로젝트', n:'', c:0 }, 'top') : '') +
     (can('board') ? btn({ k:'board', l:'💬 익명게시판', n:root && DB.board ? DB.board.length : '', c:root ? boardNewCount() : 0, t:'마지막 확인 이후 새 글·댓글' }, 'top') : '') +
@@ -3264,6 +3315,7 @@ function renderHeader() {
   $('#btnClose').style.display = MGR() ? '' : 'none';     // 금주 마감: 관리자(서버 PC) · 그룹장
   $('#btnFolder').style.display = SERVER ? 'none' : '';
   $('#btnSrv').style.display = location.protocol === 'file:' ? '' : 'none';
+  renderSafe();
   const bc = $('#btnCopy'), isFile = location.protocol === 'file:';
   bc.hidden = !SERVER || OFFLINE || !root || (ADMIN && !isFile);
   bc.textContent = isFile ? '📥 이 파일에 최신 데이터 넣기' : '📥 내 PC 사본 받기';
@@ -3395,7 +3447,7 @@ function ddayChip() {
 }
 /* 2026-10-23 빠른 찾기 (Ctrl+K · 🔍 찾기): 메뉴 이름 · 모든 시트의 행(제목·내용·담당자) · 게시글 제목을 한 번에 → 누르면 그 자리로 이동 */
 const QF_MENUS = () => [['home', '📋 주간업무보고 홈'], ...SHEETS.filter(s => !s.merged).map(s => [s.key, s.label]), ['alloc', 'R&R · 투입 분석'], ['task', '통합 업무'],
-  ['pid', 'P&ID 분석'], ['logic', 'LOGIC 분석'], ['space', '판넬 공간확보'], ['bidpjt', '입찰 프로젝트'], ['runpjt', '실행 프로젝트'], ['board', '익명게시판'],
+  ['pid', 'P&ID 분석'], ['logic', 'LOGIC 분석'], ['space', 'ROOM SIZE 계산'], ['bidpjt', '입찰 프로젝트'], ['runpjt', '실행 프로젝트'], ['board', '익명게시판'],
   ['mgalloc', 'Management · R&R 투입 분석'], ['mghours', 'Management · 근무시간'], ['mgwork', 'Management · 근로시간 관리'], ['mgbday', 'Management · 부서원 생일']]
   .filter(([k]) => can(SHEET[k] || k === 'home' || k === 'alloc' || k === 'task' ? 'weekly' : k.startsWith('mg') ? 'mgmt' : k));
 function qfSearch(q) {
@@ -3678,7 +3730,7 @@ function fitRecent() { const el = $('#recent'); if (!el) return; el.style.maxHei
  *  - 비회원 · 오프라인은 안내 한 줄. 메뉴 항목은 만들지 않음. 로그아웃 · 다른 사람 로그인 → 광장에서 나감(plazaOff). 광장 화면 규칙은 plaza/README_인계.md §5
  * ===================================================================== */
 const PZ = { url:'', state:'', sent:null };
-const PZ_STATUS = { pid:'P&ID 분석 중...', logic:'LOGIC 분석 중...', space:'판넬 공간확보 중...' };
+const PZ_STATUS = { pid:'P&ID 분석 중...', logic:'LOGIC 분석 중...', space:'ROOM SIZE 계산 중...' };
 const plazaPort = () => SERVER_INFO?.plazaPort || 8100;
 function plazaBase() { return pidBase().replace(/:\d+$/, ':' + plazaPort()); }
 function plazaHost() {
@@ -6028,6 +6080,7 @@ $('#btnFind').onclick = openFind;
 $('#btnFolder').onclick = pickFolder;
 $('#btnQueue').onclick = openQueue;
 $('#btnSrv').onclick = () => setServerUrl();
+$('#btnSafe').onclick = () => safeClick();
 $('#btnCopy').onclick = () => location.protocol === 'file:' ? embedSelf(true) : saveCopy();
 async function setServerUrl() {
   const c = await ask('서버 주소 설정', `<p class="muted">이 PC의 dashboard.html 사본이 접속할 서버 주소입니다. 이 브라우저에 저장됩니다.<br>기본값: ${DEFAULT_SERVERS.map(esc).join(' → ')} 순서로 자동 시도</p>
