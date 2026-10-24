@@ -1099,3 +1099,11 @@ C:\Users\SAMSUNG\Desktop\Claude\                         ← 개발 폴더 (여�
 - 바뀐 곳: server.py `api_space_projects` `api_space_get` `space_room` `space_rev_add` `api_space_room_new` `api_space_rev_new` `api_space_save` · 라우팅 / apps/space/index.html 첫 화면(`hmLoad` `hmDetail` `hmFill` `hmLast` `hmRender` `hmGo`), `wmLines` `render` `v3` 덧칠, `pgFrame` `drawingImage`, CSV, `updSrv`.
 - 확인한 것: `node --check`, curl(만들기 · 같은 이름 409 · 저장 시 Rev 자동 등록), Chromium: 새 프로젝트 → 룸 CCR · Rack Room → Rev A → 예시 배치 저장 → 첫 화면 → 새 Rev B(이전 Rev A 에서 시작) → 저장 = Rev B, CSV 첫 줄, PDF 2쪽 워터마크 · Rev/날짜 칸, 2D | 3D 워터마크. 이전 시험 다시 통과, 스크립트 오류 0.
 - 회사에서 확인할 것: 서버 재시작 후 사이드바 '서버 v2026-10-24.1'. 예전 서버 그대로면 [새 룸] 이 '없는 주소' 로 실패함.
+
+### 2026-10-24 (32) — 판넬 공간확보: 프로젝트 · 룸 · Rev 지우기 (SERVER_VERSION 2026-10-24.2 / APP_VERSION 그대로)
+> **서버 재시작 필요**(server.py 바뀜). 지운 것은 `space/_trash/` 로 옮겨질 뿐 없어지지 않음.
+- 무엇을 ① 서버: `DELETE /api/space/<pid>` (폴더째 `space/_trash/<pid>_<시각>_project/`), `DELETE /api/space/<pid>/rooms/<rid>`, `DELETE /api/space/<pid>/rooms/<rid>/revs?rev=` (Rev 에 / 가 있어도 되게 쿼리로). 룸 · Rev 는 해당 저장본 파일을 `space/_trash/<pid>/<시각>_room|rev/saves/` 로 옮기고 `deleted.json`(지운 사람 · 시각 · 룸/Rev · 저장 메타) 을 남김. 노트는 그대로.
+- 권한: 만든 사람(프로젝트 → 프로젝트 만든 사람, 룸 → 룸 · 프로젝트 만든 사람, Rev → Rev · 룸 · 프로젝트 만든 사람) 또는 운영자(`is_super`). 아니면 403 "만든 사람(…) 이나 운영자만 지울 수 있습니다". `space_can_del` · `space_trash_saves`.
+- 무엇을 ② 첫 화면: 프로젝트 · Room · Rev 줄 끝 🗑(`#hmProjDel` `#hmRoomDel` `#hmRevDel`, 고른 것이 없으면 꺼짐) → `hmDel()`. 룸 · Rev = 확인 창(같이 지워지는 저장본 수), 프로젝트 = 이름을 그대로 적어야 지움. 지금 화면이 지운 곳의 저장본이면 서버 연결(`S.srv`)만 끊고 화면 배치는 그대로.
+- 되살리기(운영자): 프로젝트는 `space/_trash/<pid>_…_project` 폴더를 `space/<pid>` 로 이름 바꿔 되돌림. 룸 · Rev 는 `deleted.json` 의 room/rev 를 index.json 에, saves 메타를 `saves` 에 되넣고 파일을 `space/<pid>/saves/` 로 옮김.
+- 확인한 것: curl(지우기 3종 · / 들어간 Rev · 없는 Rev 404 · 다른 사람 LAN 403 · 자기가 만든 Rev 는 됨 · 운영자 됨 · 휴지통 파일), Chromium: Rev B(열린 저장본) → 룸 → 프로젝트 틀린 이름 거절 · 맞는 이름 지움, 이전 첫 화면 시험 통과, 스크립트 오류 0.
