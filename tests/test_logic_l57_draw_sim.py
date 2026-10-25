@@ -202,22 +202,29 @@ def _preset_doc(text, n_in=1):
     if text == "STEP":
         wires = [W([(320, ry(1)), (400, b["y"] + 18.0)]), W([(320, ry(2)), (400, b["y"] + 29.3)]), W([(440, b["y"] + 18.0), (870, ry(N + 2))])]
         left = {"1": {"desc": "STEP IN", "fm": "", "kks": ""}, "2": {"desc": "CRIT", "fm": "", "kks": ""}}
-    elif text not in ("1", "0", "A", "SIG"):
+    elif text not in ("1", "0", "A", "SIG") and not pr.get("src"):
         for i in range(n_in):
             yy = ry(2) + (i - (n_in - 1) / 2) * 3.0
             wires.append(W([(320, ry(1 + i)), (360, ry(1 + i)), (360, yy), (400, yy)]))
             left[str(1 + i)] = {"desc": f"IN{i + 1}", "fm": "", "kks": ""}
-    if text == "RUN":
+    if text == "RUN" or pr.get("sink"):            # 받기만 하는 것 — 들어오는 선 하나 · 나가는 선 없음
         wires = [W([(320, ry(2)), (400, ry(2))])]
         left = {"2": {"desc": "RUNIN", "fm": "", "kks": ""}}
+    if pr.get("kind") == "TEXT":                     # 글(주석)은 선이 안 닿는다
+        wires, left = [], {}
+        b["kind"] = "TEXT"
     notes = [pr["note"]] if pr.get("note") else []
     return _doc("S1", blocks=[b], wires=wires, left=left, right={str(N + 2): {"desc": "OUT", "kks": "", "to": ""}}, notes=notes)
 
 
 @pytest.mark.parametrize("text", [p["text"] for p in D.BOX_PRESETS])
 def test_every_box_preset_has_a_meaning_in_the_simulator(text):
-    doc = _preset_doc(text, n_in=2 if text in ("Σ", "△", "×", "÷", "DEV", "EQUAL", "MED") else 1)
+    pr = next(p for p in D.BOX_PRESETS if p["text"] == text)
+    doc = _preset_doc(text, n_in=2 if text in ("Σ", "△", "×", "÷", "DEV", "EQUAL", "MED", "|△|", "AVG", ">", "<", "BIT_CNT", "COUNTER") else 1)
     sh = DS.sheets_of([doc])[0]
+    if pr.get("kind") == "TEXT":                     # 주석 — 판정 대상이 아니다
+        assert "b" not in sh["blocks"] or sh["blocks"]["b"]["logic"] in ("", "unknown")
+        return
     b = sh["blocks"]["b"]
     assert not (b["func"] == "UNKNOWN" and b["logic"] == "unknown" and not b.get("aop")), (text, b["func"], b["logic"])
     assert any(p["block"] == "b" for p in sh["ports"])

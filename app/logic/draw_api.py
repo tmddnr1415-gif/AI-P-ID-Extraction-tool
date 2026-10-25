@@ -282,7 +282,8 @@ def simulate_drawing(did: str, body: dict = Body(default={})):
         return v if isinstance(v, dict) else {}
     try:
         out = draw_sim.simulate(docs, did, forces=_d(body.get("forces")), state=_d(body.get("state")), timers=_d(body.get("timers")),
-                                analog=_d(body.get("analog")), cache=cache)
+                                analog=_d(body.get("analog")), cache=cache,
+                                inner=body.get("inner") if isinstance(body.get("inner"), list) else None)
     except Exception as e:                       # 그림이 아직 덜 그려져 있어도 화면이 멈추지 않는다 — 사유를 말한다
         return {"error": f"시뮬레이션하지 못했습니다 — {type(e).__name__}: {e}"[:300]}
     out["sig"] = sig[:12]

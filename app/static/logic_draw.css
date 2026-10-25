@@ -97,6 +97,7 @@ input, select { font: inherit; border: 1px solid var(--line); border-radius: 5px
 .port { fill: #fff; stroke: #8a93a8; stroke-width: .6; }
 .port.hot { fill: var(--active); stroke: var(--blue); r: 3; }
 .wipline { fill: none; stroke: var(--blue); stroke-width: .9; stroke-dasharray: 2 2; pointer-events: none; }
+.wipalt { fill: none; stroke: var(--blue); stroke-width: .5; stroke-dasharray: 1 2; opacity: .35; pointer-events: none; }
 .marquee { fill: rgba(47, 91, 216, .08); stroke: var(--blue); stroke-width: .6; stroke-dasharray: 2 2; pointer-events: none; }
 .title text { font-family: Helvetica, Arial, sans-serif; fill: #222; }
 .title line, .title rect { stroke: #333; stroke-width: .72; fill: none; }

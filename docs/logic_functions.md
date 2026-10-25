@@ -54,9 +54,10 @@
 | 아날로그 신호 발생 (상수) (`const`) | M = A (도면 'A : 5%' · 운전원이 바꿀 수 있다) | ANALOG SIGNAL GENERATOR · CONSTANT |
 | 바이어스 (BIAS) (`bias`) | M = X ± b | BIAS |
 | 전환 (TRANSFER) (`transfer`) | M = IN1 (조건 C = 1) · IN2 (C = 0) | TRANSFER · SWITCH · SELECTOR SWITCH |
-| PID 제어기 (`pid`) | 출력 = 제어기 계산 — 시뮬레이션에서는 수동 출력값 또는 추종(Tr) 값 | PID · CONTROLLER · PID CONTROLLER |
+| PID 제어기 (`pid`) | 출력 = 제어기 계산 — 시뮬레이션에서는 수동 출력값 또는 추종(Tr) 값 | PID · CONTROLLER · PID CONTROLLER · CONTROL STATION |
 | 신호 변환 (CONVERTER) (`convert`) | M = X (신호 종류만 바뀐다) | CONVERTER |
 | 수식 블록 (`formula`) | OUT = 도면에 인쇄된 식 |  |
 | 참 입력 수 (BIT COUNTER) (`count`) | M = 1 인 디지털 입력의 수 (정수) | BIT COUNTER · BIT COUNT |
+| 카운터 (COUNTER) (`counter`) | OUT = IN 오르는 변의 수 (EN 동안 · RESET 으로 0) · UL = OUT ≥ SV | COUNTER · UP COUNTER · PULSE COUNTER |
 | 편차 감시 (DEVIATION) (`dev`) | |X1 − X2| > D 이면 1 | DEVIATION |
 | 같음 비교 (EQUAL) (`equal`) | IN1 = IN2 이면 1 | EQUAL · EQUALITY |

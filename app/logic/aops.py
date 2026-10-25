@@ -491,6 +491,8 @@ def compute(op, b, ins, net_v, dig=None):
         return 0.0, "값이 멈춰 있으면 미분은 0 입니다"
     if op in ("integral", "ft"):
         return None, "시간에 따라 쌓이는 값이라 정해지지 않습니다 — 눌러서 출력값을 넣어 주세요"
+    if op == "counter":                                  # L59 — 범례 SPECIAL COUNTER: 오르는 변을 세는 셈이라 멈춘 값으로는 정해지지 않는다
+        return None, "오르는 변을 세는 카운터라 멈춘 값으로는 정해지지 않습니다 — 눌러서 출력값(셈)을 넣어 주세요"
     if op == "transfer":
         cond = _cond(ins)
         cands = [(n, pn) for n, pn in ins if (pn or {}).get("name") in ("IN1", "IN2")]

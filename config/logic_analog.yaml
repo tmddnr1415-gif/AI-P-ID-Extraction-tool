@@ -32,12 +32,15 @@ ops:
   const:    {ko: "아날로그 신호 발생 (상수)",  eq: "M = A (도면 'A : 5%' · 운전원이 바꿀 수 있다)", names: [ANALOG SIGNAL GENERATOR, CONSTANT], labels: ["A"]}
   bias:     {ko: "바이어스 (BIAS)",           eq: "M = X ± b", names: [BIAS], labels: ["+", "-", "±", "+-", "-+"]}
   transfer: {ko: "전환 (TRANSFER)",           eq: "M = IN1 (조건 C = 1) · IN2 (C = 0)", names: [TRANSFER, SWITCH, SELECTOR SWITCH], labels: ["T", "TR", "SW"]}
-  pid:      {ko: "PID 제어기",               eq: "출력 = 제어기 계산 — 시뮬레이션에서는 수동 출력값 또는 추종(Tr) 값", names: [PID, CONTROLLER, PID CONTROLLER], labels: ["PID", "PI", "SPC"]}
+  pid:      {ko: "PID 제어기",               eq: "출력 = 제어기 계산 — 시뮬레이션에서는 수동 출력값 또는 추종(Tr) 값", names: [PID, CONTROLLER, PID CONTROLLER, CONTROL STATION], labels: ["PID", "PI", "SPC", "A/T"]}
   convert:  {ko: "신호 변환 (CONVERTER)",     eq: "M = X (신호 종류만 바뀐다)", names: [CONVERTER], labels: ["I/P", "E/P", "P/I", "A/D", "D/A", "I/E", "E/I"]}
   formula:  {ko: "수식 블록",                 eq: "OUT = 도면에 인쇄된 식", names: [], labels: []}
   # L48 — 단자 이름을 상자 안에 인쇄한 연산 상자 (19VA BIT_CNT · 범례 'BIT COUNTER': COUNTS THE NUMBER OF BOOLEAN INPUTS
   # THAT ARE CURRENTLY SET TO 1 · THE RESULTING COUNT IS PLACED IN THE INTEGER OUTPUT)
   count:    {ko: "참 입력 수 (BIT COUNTER)",  eq: "M = 1 인 디지털 입력의 수 (정수)", names: [BIT COUNTER, BIT COUNT], labels: ["BIT_CNT", "BITCNT", "BIT CNT"]}
+  # L59 — 범례 SPECIAL 'COUNTER' (EN · IN · RESET · SV → OUT · UL): IN 의 오르는 변을 세어 OUT 에 두고 셈이 SV 에 닿으면 UL.
+  # 시간이 흐르는 셈이라 멈춘 값으로는 정해지지 않는다 — 사람이 출력값을 넣는다 (적분과 같은 자리).
+  counter:  {ko: "카운터 (COUNTER)",           eq: "OUT = IN 오르는 변의 수 (EN 동안 · RESET 으로 0) · UL = OUT ≥ SV", names: [COUNTER, UP COUNTER, PULSE COUNTER], labels: ["COUNTER", "CNT", "CTR"]}
 # 출력이 1/0 인 아날로그 비교 — 값이 문턱을 넘으면 1
 digital_ops:
   dev:      {ko: "편차 감시 (DEVIATION)",     eq: "|X1 − X2| > D 이면 1", names: [DEVIATION], labels: ["DEV"]}

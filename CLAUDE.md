@@ -6760,3 +6760,27 @@ SHX 글꼴은 **획으로 플롯**되고 원문은 `AutoCAD SHX Text` 주석에 
   접합점은 "끝이 다른 선분 둘 이상에 닿으면" (반올림으로 1pt 비킨 T 도) · 원 안 글자 하나의 DISPLAY 는 램프.
 * 남은 것: Typical 장의 표 양식(원본 NO.|SERVICE|ABV 두 열 · 작도는 FROM|NO.|TAG|SERVICE 고정) · 개정 구름 · 원본의 ON DELAY D 모양(작도는 GT 상자).
 * 시험 `tests/test_logic_l58_aldhafra.py` 7건 · 빠른 시험 1479 통과 (hotfix75 파일은 따로 13 통과) · 화면 자기검증 `spike/ui_audit_a5j.py` 페이지 오류 0.
+
+### L59회차 — 작도: 삼성 범례 기호 전부 · 선 자동 경로 · 매크로 새 창 (2026-10-25)
+
+* 사용자 지시: *똑같이 만들면서 부족한 게 있으면 개선 · 시뮬레이션하며 제대로 연결되는지 매크로도 새 창으로 켜 보고 · 선을 그을 땐 최적의
+  꺾인 경로를 자동 추천하고 누르면 반영 · 알다프라 Symbol & Legend 의 것은 모두 그릴 수 있게.*  `out/l59/` (화면 · 왕복 로그) ·
+  시험 `tests/test_logic_l59_macro_window.py` 2건 + L57 보기 시험이 새 보기 전부를 돈다 (52).  **판정(sim · 분석기) 0줄** — 어휘 셋만 더했다.
+* **범례 기호 전부** — 1A5J PDF 에는 범례 장이 없고(J09-0001 별권) 19VA 가 같은 삼성 표준 'SIGNAL PROCESSING SYMBOLS' 라 그 표로 셌다.
+  `draw.BOX_PRESETS` 24 → **52**: ACTIVATION `ON` · 주기 펄스 `FL` · 지시 `I` · 기록 `S` · 감시 `HHH/ H/ /LL /LLL` · `AVG |△| ABS -K ± ∫ D/DT Xⁿ F(T) > <
+  HL LL V> LAG I/P A/T BIT_CNT COUNTER` · 특수 요구 문장(TEXT).  뜻은 **이미 있는 어휘**가 읽는다 — `logic_analog.yaml` labels · `logic_symbols.yaml`
+  legend_functions · `analog._MON`.  더한 어휘 셋: `FL: pulse`(펄스 하나로 근사) · `counter` 연산(오르는 변을 세는 셈이라 멈춘 값은 사람이 넣는다 ·
+  `aops.compute`) · `A/T` 는 PID 와 같은 수동 조작기.  보기에 `kind`(TEXT) · `sink` · `src` 깃발 — 화면 `addPreset` 이 그 종류로 놓고 L57 시험이 그 꼴로 돈다.
+  **나머지 범례 기호는 기호 사전에 이미 있다** (AND·OR·NOT·GT/DT·PD·메모리·자격 OR(VOTE 의 부호)·PB·ALM·SOE·연결 기호·표시등·매크로).
+* **선 자동 경로** (`logic_draw.js` `routeCandidates` · `routeScore` · `routePick` — 화면 전용 · 상수는 행 간격 배율).  다음 점까지 ㄱ 둘 · ㄹ(가운데 x·y
+  반 행마다) · 한 직선이 막히면 한두 행 비켜 도는 ㄷ 을 후보로 만들고, **블록 상자를 지나면 60 · 다른 선과 겹치는 길이 · 교차 · 꺾임 · 길이**로 점수를
+  매겨 가장 낮은 것을 점선 미리보기로 (다른 후보는 옅게).  단자 · 행 자리에는 가로로 들어가는 것을 우대.  **누르면 그 경로가 그대로 선이 된다** ·
+  **Tab** 으로 다음 후보.  출발·도착 단자의 블록은 장애물이 아니다.  실측(FG_G-201 에 AND 를 놓고 양쪽에서 선): 후보 5 · 점 6 · 블록 안 지남 · Tab 바뀜.
+* **매크로 새 창** (검토 화면 L44/L45 와 같은 방법 · `draw_sim.simulate(inner=)` → `sim.simulate_bundle` 의 `macro_inner` 를 그림 id 로 · 매크로 블록에
+  `macro.did`).  시뮬레이션에서 매크로를 누르면 `↗ 내부 동작 보기 (새 창)` → `/logic/draw#d=<Typical>&mparent=<그림>:<상자>`.  새 창은 **따로 돌리지 않는다** —
+  `dmacro-ask` 로 부모에게 묻고 부모가 묶음을 돌릴 때마다(`inner` 열쇠) 펼쳐 같이 돈 Typical 안 값(틀마다)과 Typical 행 ↔ 부모 행·블록 연결을 `dmacro-inputs` 로
+  보내 그대로 그린다.  새 창에서 행·선·블록을 누르면 부모 장의 펼친 이름(`<상자>/<선>` · 단자 선은 부모 선 이름)으로 `dmacro-set` → 부모가 다시 돌린다.
+  실측 FG_G-201 B3 → 0012: 띠 `부모 시트 FG_G-201 의 매크로 B3 값으로` · 부모 단자 EN_STRT=1 → 새 창 값 바뀜 · 연결 8 · 새 창 선 강제 → 부모 강제 열쇠 · 오류 0.
+* **알다프라 재검증** — 왕복 그대로 100% (행 143/148 은 개정 삼각형 · 블록 100/100 · 단자 257/257 · 그물 176/176 · 매크로 2/2) · L58 화면 자기검증 그대로 통과.
+* 남은 것: a5j 양식의 ON/OFF DELAY 를 D 모양 상자로 (지금은 GT 글자 상자 · 되읽기는 같다) · 범례 장 자체(J09-0001)가 오면 그 표로 보기를 다시 센다 ·
+  카운터·적분처럼 시간이 흐르는 연산은 멈춘 값을 사람이 넣는다.

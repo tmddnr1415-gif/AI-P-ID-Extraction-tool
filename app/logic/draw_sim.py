@@ -460,8 +460,10 @@ def sheets_of(docs: list) -> list:
     return sheets
 
 
-def simulate(docs: list, focus_did: str, forces=None, state=None, timers=None, analog=None, cache=None) -> dict:
-    """묶음째 시뮬레이션 — 열쇠는 그림 id (화면이 아는 것).  → sim.simulate_bundle 결과 + focus 장의 그물 ↔ 선 id 지도."""
+def simulate(docs: list, focus_did: str, forces=None, state=None, timers=None, analog=None, cache=None, inner=None) -> dict:
+    """묶음째 시뮬레이션 — 열쇠는 그림 id (화면이 아는 것).  → sim.simulate_bundle 결과 + focus 장의 그물 ↔ 선 id 지도.
+    inner = ["<그림 id>:<매크로 상자 id>", …] — 열린 매크로 새 창마다, 부모 장에 펼쳐 같이 돈 Typical 안의 값(틀마다 · Typical 선 이름)을
+    `macro_inner` 로 낸다 (L59 · 검토 화면 L44 와 같은 값 — sim.simulate_bundle 의 macro_inner 그대로, 쪽 번호만 그림 id 로)."""
     from . import sim
     sheets = (cache or {}).get("sheets") if cache is not None else None
     if sheets is None:
@@ -481,13 +483,23 @@ def simulate(docs: list, focus_did: str, forces=None, state=None, timers=None, a
     res = sim.simulate_bundle(sheets, forces=conv(forces), state=st, focus=focus, timers=conv(timers), analog=conv(analog),
                               cache=cache)
     s = sheets[focus - 1]
-    out = {"focus": res.get("focus"), "notes": res.get("notes", []), "pulled": res.get("pulled", []),
+    mi = {}
+    for key in (inner or []) if isinstance(inner, list) else []:
+        did, _, bid = str(key).partition(":")
+        pg = page_of.get(did)
+        v = ((res.get("macro_inner") or {}).get(pg) or {}).get(bid) if pg else None
+        if v is None:
+            continue
+        mb = (sheets[pg - 1]["blocks"].get(bid) or {}).get("macro") or {}
+        mi[f"{did}:{bid}"] = {**v, "typ_did": did_of.get(mb.get("page")), "parent_did": did}
+    out = {"focus": res.get("focus"), "macro_inner": mi, "notes": res.get("notes", []), "pulled": res.get("pulled", []),
            "design_errors": res.get("design_errors", []), "linked": {did_of.get(k, k): v for k, v in (res.get("linked") or {}).items()},
            "state": {did_of.get(k, k): v for k, v in (res.get("state") or {}).items()},
            "pages": [{**p, "did": did_of.get(p.get("page"))} for p in (res.get("pages") or [])],
            "sheet": {"nets": {k: {"wires": v["wires"]} for k, v in s["nets"].items()},
                      "blocks": {k: {"func": b["func"], "logic": b["logic"], "label": b.get("label", ""), "aop": b.get("aop"),
                                     "macro": {"page": (b.get("macro") or {}).get("page"), "sheet": (b.get("macro") or {}).get("sheet"),
+                                              "did": did_of.get((b.get("macro") or {}).get("page")),
                                               "why": (b.get("macro") or {}).get("why")} if b.get("macro") else None,
                                     "param": b.get("param", {})} for k, b in s["blocks"].items()},
                      "ports": s["ports"],

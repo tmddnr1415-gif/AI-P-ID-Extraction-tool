@@ -334,7 +334,7 @@ function buildPalette() {
 }
 function addPreset(pr, cx, cy) {
   if (!S.doc) return;
-  addBlock("BOX", cx, cy);
+  addBlock(pr.kind || "BOX", cx, cy);
   const b = S.doc.blocks[S.doc.blocks.length - 1];
   b.text = pr.text; if (pr.w) b.w = pr.w; if (pr.h) b.h = pr.h; b.param = b.param || {};
   if (pr.time) b.param.t = 5;
@@ -492,7 +492,11 @@ function overlay() { return $("#overlay"); }
 function drawGhost() {
   const ov = overlay(); if (!ov) return; ov.innerHTML = "";
   if (S.wip && S.wip.pts.length) {
-    const pts = S.wip.pts.concat(S.wip.cur ? orth(S.wip.pts[S.wip.pts.length - 1], S.wip.cur) : []);
+    const last = S.wip.pts[S.wip.pts.length - 1];
+    const route = S.wip.cur ? routePick(last, S.wip.cur) : [];
+    // L59 — 다른 경로 후보는 옅게, 고른 경로는 진하게 (Tab 으로 바꾼다 · 누르면 그 경로가 선이 된다)
+    for (const alt of (S.wip.routes || []).slice(0, 4)) if (alt !== S.wip.routes[S.wip.ri || 0]) el("polyline", { points: [last].concat(alt.slice(1)).map(p => p.join(",")).join(" "), class: "wipalt" }, ov);
+    const pts = S.wip.pts.concat(route);
     el("polyline", { points: pts.map(p => p.join(",")).join(" "), class: "wipline" }, ov);
     if (S.wip.hot) el("circle", { cx: S.wip.hot[0], cy: S.wip.hot[1], r: 2.6, class: "port hot" }, ov);
   }
@@ -512,6 +516,97 @@ function arrowOf(w) {
   const dx = back[0] - tip[0], dy = back[1] - tip[1], n = Math.hypot(dx, dy) || 1, ux = dx / n, uy = dy / n;
   const bx = tip[0] + ux * AL, by = tip[1] + uy * AL, hx = -uy * AL * 0.5, hy = ux * AL * 0.5;
   return [[tip[0], tip[1]], [bx + hx, by + hy], [bx - hx, by - hy]];
+}
+/* ───────── L59 — 선 자동 경로 ─────────
+   한 점에서 다음 점까지 직각으로 꺾인 경로 후보(ㄱ 둘 · ㄹ 여럿)를 만들고, 블록 상자를 지나지 않고 · 다른 선과 겹치지 않고 ·
+   꺾임이 적고 · 단자·행 자리에는 가로로 들어가는 것을 고른다.  고른 경로는 미리보기(점선)로 보이고, 누르면 그대로 선이 된다.
+   Tab 이 다음 후보로.  상수는 없다 — 간격은 행 간격(PITCH)의 배율. */
+function routeObstacles(a, b) {
+  const L = layout(), pad = 0.35 * L.PITCH, out = [];
+  for (const blk of S.doc.blocks) {
+    if (S.sym[blk.kind].note) continue;
+    const bb = bboxOf(blk), box = [bb[0] - pad, bb[1] - pad, bb[2] + pad, bb[3] + pad];
+    const touches = q => q[0] >= bb[0] - 1.2 * L.PITCH && q[0] <= bb[2] + 1.2 * L.PITCH && q[1] >= bb[1] - pad && q[1] <= bb[3] + pad;
+    if (touches(a) || touches(b)) continue;                        // 그 끝이 닿는 블록(출발 · 도착 단자)은 장애물이 아니다
+    out.push(box);
+  }
+  return out;
+}
+function segHitsBox(p, q, box) {
+  const x0 = Math.min(p[0], q[0]), x1 = Math.max(p[0], q[0]), y0 = Math.min(p[1], q[1]), y1 = Math.max(p[1], q[1]);
+  return x1 > box[0] && x0 < box[2] && y1 > box[1] && y0 < box[3];
+}
+function segOverlapsWires(p, q) {
+  // 같은 직선 위에서 다른 선과 겹치는 길이 (겹쳐 그리면 분석기가 한 선으로 읽는다)
+  let ov = 0;
+  const hz = Math.abs(p[1] - q[1]) < 0.2, vt = Math.abs(p[0] - q[0]) < 0.2;
+  for (const w of S.doc.wires) for (let i = 1; i < w.pts.length; i++) {
+    const c = w.pts[i - 1], d = w.pts[i];
+    if (hz && Math.abs(c[1] - d[1]) < 0.2 && Math.abs(c[1] - p[1]) < 0.6) ov += Math.max(0, Math.min(Math.max(p[0], q[0]), Math.max(c[0], d[0])) - Math.max(Math.min(p[0], q[0]), Math.min(c[0], d[0])));
+    if (vt && Math.abs(c[0] - d[0]) < 0.2 && Math.abs(c[0] - p[0]) < 0.6) ov += Math.max(0, Math.min(Math.max(p[1], q[1]), Math.max(c[1], d[1])) - Math.max(Math.min(p[1], q[1]), Math.min(c[1], d[1])));
+  }
+  return ov;
+}
+function routeScore(path, boxes, endKind) {
+  let len = 0, hits = 0, ov = 0, cross = 0;
+  for (let i = 1; i < path.length; i++) {
+    const p = path[i - 1], q = path[i];
+    len += Math.abs(q[0] - p[0]) + Math.abs(q[1] - p[1]);
+    for (const bx of boxes) if (segHitsBox(p, q, bx)) hits++;
+    ov += segOverlapsWires(p, q);
+    for (const w of S.doc.wires) for (let j = 1; j < w.pts.length; j++) if (segsCross(p, q, w.pts[j - 1], w.pts[j])) cross++;
+  }
+  const bends = Math.max(0, path.length - 2);
+  const lastHz = path.length >= 2 && Math.abs(path[path.length - 1][1] - path[path.length - 2][1]) < 0.2;
+  const firstHz = path.length >= 2 && Math.abs(path[0][1] - path[1][1]) < 0.2;
+  let sc = bends * 3 + len * 0.02 + hits * 60 + ov * 4 + cross * 1.5;
+  if ((endKind === "row" || endKind === "port") && !lastHz) sc += 6;     // 단자 · 행 자리에는 가로로 들어간다
+  if (S.wip && S.wip.startKind && S.wip.startKind !== "grid" && S.wip.pts.length === 1 && !firstHz) sc += 6;
+  return sc;
+}
+function segsCross(p, q, c, d) {
+  const hz1 = Math.abs(p[1] - q[1]) < 0.2, hz2 = Math.abs(c[1] - d[1]) < 0.2;
+  if (hz1 === hz2) return false;
+  const [h0, h1, v0, v1] = hz1 ? [p, q, c, d] : [c, d, p, q];
+  const x = v0[0], y = h0[1];
+  return Math.min(h0[0], h1[0]) + 0.3 < x && x < Math.max(h0[0], h1[0]) - 0.3 && Math.min(v0[1], v1[1]) + 0.3 < y && y < Math.max(v0[1], v1[1]) - 0.3;
+}
+function routeCandidates(a, b) {
+  const L = layout(), P = L.PITCH, out = [];
+  const same = (u, v) => Math.abs(u[0] - v[0]) < 0.01 && Math.abs(u[1] - v[1]) < 0.01;
+  const clean = path => path.filter((p, i) => i === 0 || !same(p, path[i - 1]));
+  if (Math.abs(a[0] - b[0]) < 0.01 || Math.abs(a[1] - b[1]) < 0.01) {
+    // 한 직선 — 그대로가 첫 후보 · 사이에 블록이 있으면 한두 행 비켜 돌아가는 ㄷ 길도 후보
+    out.push([a, b]);
+    const hz = Math.abs(a[1] - b[1]) < 0.01, sgn = hz ? Math.sign(b[0] - a[0]) : Math.sign(b[1] - a[1]), gap = P / 2 * sgn;
+    for (const off of [P, -P, 2 * P, -2 * P]) {
+      if (hz) out.push(clean([a, [a[0] + gap, a[1]], [a[0] + gap, a[1] + off], [b[0] - gap, a[1] + off], [b[0] - gap, b[1]], b]));
+      else out.push(clean([a, [a[0], a[1] + gap], [a[0] + off, a[1] + gap], [a[0] + off, b[1] - gap], [b[0], b[1] - gap], b]));
+    }
+    return out;
+  }
+  out.push(clean([a, [b[0], a[1]], b]), clean([a, [a[0], b[1]], b]));
+  const x0 = Math.min(a[0], b[0]), x1 = Math.max(a[0], b[0]), y0 = Math.min(a[1], b[1]), y1 = Math.max(a[1], b[1]);
+  const seen = new Set();
+  const addX = mx => { const k = "x" + mx.toFixed(1); if (seen.has(k)) return; seen.add(k); out.push(clean([a, [mx, a[1]], [mx, b[1]], b])); };
+  const addY = my => { const k = "y" + my.toFixed(1); if (seen.has(k)) return; seen.add(k); out.push(clean([a, [a[0], my], [b[0], my], b])); };
+  addX((a[0] + b[0]) / 2); addY((a[1] + b[1]) / 2);
+  for (let mx = Math.ceil(x0 / (P / 2)) * (P / 2); mx <= x1; mx += P / 2) if (mx > x0 + 0.5 && mx < x1 - 0.5) addX(mx);
+  for (let my = Math.ceil((y0 - L.TOP) / (P / 2)) * (P / 2) + L.TOP; my <= y1; my += P / 2) if (my > y0 + 0.5 && my < y1 - 0.5) addY(my);
+  // 두 점을 지나는 띠 밖으로 한 행 돌아가는 길 (사이가 전부 막혔을 때)
+  for (const dy of [-P, P, -2 * P, 2 * P]) addY((a[1] < b[1] ? y0 : y1) + dy);
+  return out;
+}
+function routePick(a, b) {
+  const sp = S.wip && S.wip.cur ? S.wip.hot : null;
+  const endKind = sp ? sp[2] : "grid";
+  const boxes = routeObstacles(a, b);
+  const cands = routeCandidates(a, b).map(path => ({ path, sc: routeScore(path, boxes, endKind) })).sort((u, v) => u.sc - v.sc);
+  const key = a.join(",") + ">" + b.join(",");
+  if (!S.wip.routeKey || S.wip.routeKey !== key) { S.wip.routeKey = key; S.wip.ri = 0; }
+  S.wip.routes = cands.map(c => c.path);
+  const pick = S.wip.routes[Math.min(S.wip.ri || 0, S.wip.routes.length - 1)] || [a, b];
+  return pick.slice(1);
 }
 function orth(a, b) {
   // 직각 꺾임 — 가로 먼저 · 두 좌표가 다 다르면 꺾이는 점을 하나 넣는다 (완전히 가로·세로면 그대로)
@@ -553,10 +648,12 @@ function bindStage() {
     if (simOn() && S.tool === "select" && !e.shiftKey && simClick(e, p, t)) return;   // L57 — 시뮬레이션: 행 자리 · 신호원 · 게이트 · 선을 눌러 1/0
     if (S.tool === "wire" || S.tool === "dash") {
       const sp = snapPt(p);
-      if (!S.wip) S.wip = { pts: [[sp[0], sp[1]]], cur: null };
+      if (!S.wip) { S.wip = { pts: [[sp[0], sp[1]]], cur: null, startKind: sp[2] }; status("선 — 다음 점을 누르면 추천 경로(점선)가 그대로 선이 됩니다 · Tab 다른 경로 · 단자/행 자리에 닿으면 끝"); }
       else {
         const last = S.wip.pts[S.wip.pts.length - 1];
-        for (const q of orth(last, [sp[0], sp[1]])) S.wip.pts.push(q);
+        S.wip.cur = [sp[0], sp[1]]; S.wip.hot = (sp[2] === "row" || sp[2] === "port") ? sp : null;
+        for (const q of routePick(last, [sp[0], sp[1]])) S.wip.pts.push(q);          // L59 — 추천 경로가 그대로 선이 된다
+        S.wip.routes = null; S.wip.routeKey = null; S.wip.ri = 0;
         if (sp[2] === "row" || sp[2] === "port") { finishWire(); return; }
       }
       drawGhost(); return;
@@ -642,6 +739,7 @@ function bindStage() {
     if (e.key === "Escape" && !$("#simmenu").hidden) { simMenuClose(); return; }
     if (e.key === "Escape") { if (S.wip) { S.wip = null; render(); } else { S.sel = new Set(); S.selWire = null; render(); } }
     else if (e.key === "Enter" && S.wip) { finishWire(); }
+    else if (e.key === "Tab" && S.wip && S.wip.routes && S.wip.routes.length > 1) { e.preventDefault(); S.wip.ri = ((S.wip.ri || 0) + 1) % S.wip.routes.length; drawGhost(); status(`경로 ${S.wip.ri + 1}/${S.wip.routes.length}`); }
     else if (e.key === "Delete" || e.key === "Backspace") { e.preventDefault(); deleteSel(); }
     else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "z") { e.preventDefault(); e.shiftKey ? redo() : undo(); }
     else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "y") { e.preventDefault(); redo(); }
@@ -846,7 +944,8 @@ async function openDoc(id) {
   if (S.gotoRow) { const n = S.gotoRow; S.gotoRow = null; flashRow(n); }
   if (simOn()) runSim(true);                                      // L57 — 묶음 안에서 장을 옮겨도 준 신호는 남아 그 장의 값이 선다
   status(`${S.doc.name} · 블록 ${S.doc.blocks.length} · 선 ${S.doc.wires.length} · 저장 ${S.doc.saves || 0}번`);
-  location.hash = "d=" + id;
+  location.hash = "d=" + id + (S.mparent ? `&mparent=${S.mparent.did}:${S.mparent.bid}` : "");
+  if (S.mparent && !simOn()) { toggleSim(); askParent(); }        // L59 — 새 창은 바로 시뮬레이션으로 열고 부모에게 값을 묻는다
 }
 async function loadList(keep) {
   const r = await api("/logic/api/drawings");
@@ -1099,7 +1198,7 @@ function simSoon() { if (!simOn()) return; clearTimeout(S.sim._t); S.sim._t = se
 async function runSim(animate) {
   if (!simOn() || !S.doc) return;
   const s = S.sim, did = S.id, seq = (s.seq = (s.seq || 0) + 1);
-  const body = { doc: docOut(), forces: s.forces, state: s.states, timers: s.timers, analog: s.analog };
+  const body = { doc: docOut(), forces: s.forces, state: s.states, timers: s.timers, analog: s.analog, inner: macroWinKeys() };
   let r;
   try { r = await post(`/logic/api/drawings/${did}/simulate`, body); } catch (e) { status("시뮬레이션 실패 — " + e.message); return; }
   if (!simOn() || seq !== s.seq || did !== S.id) return;         // 기다리는 동안 다른 그림으로 옮겼거나 또 눌렀다
@@ -1109,8 +1208,91 @@ async function runSim(animate) {
   const fr = (r.focus && r.focus.frames) || [];
   s.frames = fr; s.values = fr.length ? fr[fr.length - 1].values : {};
   simStop();
+  if (S.mparent && S.mparent.inner) { applyParentInner(S.mparent.inner, S.mparent.forces, false); return; }   // L59 — 새 창: 값은 부모 장이 정한다
   if (animate && fr.length > 1) simPlay(fr); else simPaint(s.values, fr.length ? fr[fr.length - 1] : null);
   renderSimCard();
+  sendMacroInner(r);
+}
+/* ───────── L59 — 매크로 내부 동작을 새 창으로 (검토 화면 L44/L45 와 같은 방법) ─────────
+   새 창은 그 Typical 그림을 열고 **따로 돌리지 않는다** — 부모 장에 펼쳐 같이 돈 값(틀마다)을 부모가 보내 주면 그대로 그린다.
+   새 창에서 행 · 선 · 블록을 누르면 부모 장의 펼친 이름(<상자>/<선>)으로 부모에게 주고, 부모가 묶음을 다시 돌려 되보낸다. */
+function macroWinKeys() {
+  const w = (S.sim && S.sim.wins) || {}; const out = [];
+  for (const [k, c] of Object.entries(w)) { if (!c.win || c.win.closed) { delete w[k]; continue; } out.push(k); }
+  return out;
+}
+function openMacroWin(bid, typDid) {
+  if (!S.id) return;
+  const key = `${S.id}:${bid}`;
+  const url = `/logic/draw#d=${typDid}&mparent=${key}`;
+  const w = window.open(url, `dmacro-${key}`, "width=1500,height=950");
+  if (!w) { status("새 창을 열지 못했습니다 — 브라우저의 팝업 차단을 풀어 주세요"); return; }
+  S.sim.wins = S.sim.wins || {}; S.sim.wins[key] = { win: w, bid, did: S.id };
+  status(`매크로 ${bid} 의 내부 동작을 새 창에서 — 부모 장의 값으로 돕니다`);
+}
+function sendMacroInner(r) {
+  const wins = (S.sim && S.sim.wins) || {}, mi = (r && r.macro_inner) || {};
+  for (const [key, c] of Object.entries(wins)) {
+    if (!c.win || c.win.closed) { delete wins[key]; continue; }
+    const inner = mi[key]; if (!inner) continue;
+    const F = (S.sim.forces[c.did] || {}), forces = {};
+    const back = {}; for (const [tn, nm] of Object.entries(inner.alias || {})) back[nm] = tn;
+    for (const [k, v] of Object.entries(F)) {
+      const i = k.indexOf(":"), kind = k.slice(0, i), id = k.slice(i + 1);
+      if (id.startsWith(c.bid + "/")) forces[`${kind}:${id.slice(c.bid.length + 1)}`] = v;
+      else if (kind === "net" && back[id] !== undefined) forces["net:" + back[id]] = v;
+    }
+    try { c.win.postMessage({ type: "dmacro-inputs", key, inner, forces }, location.origin); } catch (e) {}
+  }
+}
+function macroParentKey(key) {
+  // 새 창의 강제 열쇠 → 부모 장에 펼친 이름 (단자 선은 부모 선 이름 그대로)
+  const bid = S.mparent.bid, al = (S.mparent.inner && S.mparent.inner.alias) || {};
+  const netKey = n => "net:" + (al[String(n)] || `${bid}/${n}`);
+  const i = key.indexOf(":"), kind = key.slice(0, i), id = key.slice(i + 1);
+  if (kind === "net") return netKey(id);
+  if (kind === "block") return `block:${bid}/${id}`;
+  if (kind === "row") { const sh = S.sim.res && S.sim.res.sheet; const r = sh && sh.rows.find(x => x.n === +id && x.net != null); return r ? netKey(r.net) : null; }
+  return null;
+}
+function applyParentInner(inner, forces, animate) {
+  const s = S.sim; if (!s || !s.on || !s.res || !s.res.sheet) return;
+  const sh = s.res.sheet, all = new Set(Object.keys(sh.nets || {}));
+  for (const p of sh.ports) all.add(String(p.net));
+  for (const r of sh.rows) if (r.net != null) all.add(String(r.net));
+  const frames = (inner.frames || []).map(fr => { const v = {}; for (const n of all) v[n] = 0; Object.assign(v, fr.values || {}); return { ...fr, values: v, depth: fr.depth || {} }; });
+  if (!frames.length) return;
+  s.forces[S.id] = { ...(forces || {}) };
+  if (s.res.focus) s.res.focus.unmet = [];
+  s.frames = frames; s.values = frames[frames.length - 1].values;
+  simStop();
+  if (animate && frames.length > 1) simPlay(frames); else simPaint(s.values, frames[frames.length - 1]);
+  renderSimCard();
+}
+window.addEventListener("message", e => {
+  if (e.origin !== location.origin || !e.data) return;
+  const d = e.data;
+  if (d.type === "dmacro-ask") {                                   // 새 창 → 부모: 값을 달라
+    if (!S.sim || !S.sim.on || !S.id) return;
+    S.sim.wins = S.sim.wins || {}; S.sim.wins[d.key] = { win: e.source, bid: d.key.split(":")[1], did: d.key.split(":")[0] };
+    runSim(false); return;
+  }
+  if (d.type === "dmacro-set") {                                   // 새 창 → 부모: 매크로 안의 이 선/블록을 이 값으로
+    if (!S.sim || !S.sim.on) return;
+    const F = S.sim.forces[d.did] || (S.sim.forces[d.did] = {});
+    if (d.value == null) delete F[d.key]; else F[d.key] = d.value;
+    status(`매크로 새 창에서 ${d.key} 을 ${d.value == null ? "풀기" : d.value}`);
+    runSim(true); return;
+  }
+  if (d.type === "dmacro-inputs" && S.mparent && d.key === `${S.mparent.did}:${S.mparent.bid}`) {   // 부모 → 새 창
+    const changed = JSON.stringify((d.inner.frames || []).slice(-1)) !== JSON.stringify(((S.mparent.inner || {}).frames || []).slice(-1));
+    S.mparent.inner = d.inner; S.mparent.forces = d.forces || {};
+    if (S.sim && S.sim.on && S.sim.res) applyParentInner(d.inner, d.forces, changed);
+  }
+});
+function askParent() {
+  if (!S.mparent || !window.opener || window.opener.closed) return false;
+  try { window.opener.postMessage({ type: "dmacro-ask", key: `${S.mparent.did}:${S.mparent.bid}` }, location.origin); return true; } catch (e) { return false; }
 }
 function simStop() { if (S.sim && S.sim._anim) { clearTimeout(S.sim._anim); S.sim._anim = null; } }
 function simPlay(frames) {
@@ -1217,6 +1399,7 @@ function simClick(e, p, t) {
       if (sb.aop || ["unknown"].includes(sb.logic)) items.push({ t: "∿ 출력값 넣기 (공학값)", ana: "block:" + b.id });
       if (S.sym[b.kind].time) items.push({ t: `⏱ 시간 ${(b.param || {}).t || 5}초 — 속성에서 바꿉니다`, info: true });
       if (sb.macro && !sb.macro.page) items.push({ t: "⚠ " + (sb.macro.why || "Typical 시트가 없습니다"), info: true });
+      if (sb.macro && sb.macro.did) items.push({ t: `↗ 내부 동작 보기 (새 창) — ${sb.macro.sheet || ""}`, act: () => openMacroWin(b.id, sb.macro.did) });   // L59
       simMenu(e, `${sb.func}${sb.aop ? " · " + sb.aop : ""} ${b.text || ""}`, items, () => "block:" + b.id, cur);
       return true;
     }
@@ -1249,6 +1432,7 @@ function simMenu(e, title, items, keyOf, cur) {
     }
     const b = document.createElement("button"); b.type = "button"; b.textContent = it.t; b.className = (it.cls || "") + (it.v !== undefined && it.v === cur ? " cur" : "");
     if (it.info) { b.disabled = true; b.style.opacity = ".7"; }
+    else if (it.act) b.onclick = () => { simMenuClose(); it.act(); };
     else b.onclick = () => { setForce(S.id, keyOf(), it.v); simMenuClose(); };
     m.appendChild(b);
   }
@@ -1258,6 +1442,12 @@ function simMenu(e, title, items, keyOf, cur) {
 }
 function simMenuClose() { const m = $("#simmenu"); if (m) m.hidden = true; }
 function setForce(did, key, v) {
+  if (S.mparent && did === S.id) {                                 // L59 — 새 창: 부모 장에 펼친 이름으로 준다
+    const pk = macroParentKey(key);
+    if (!pk) { status("이 항목은 부모 시트에서 주세요"); return; }
+    if (!window.opener || window.opener.closed) { status("부모 창이 닫혔습니다 — 이 창은 Typical 만 따로 돕니다"); S.mparent = null; }
+    else { window.opener.postMessage({ type: "dmacro-set", did: S.mparent.did, key: pk, value: v }, location.origin); status(`${v == null ? "풀기" : v + " 로 줌"} — 부모 시트의 매크로 안에서 계산합니다`); return; }
+  }
   const F = S.sim.forces[did] || (S.sim.forces[did] = {});
   if (v == null) delete F[key]; else { F[key] = v; const A = S.sim.analog[did]; if (A) delete A[key]; }
   runSim(true);
@@ -1278,6 +1468,11 @@ function renderSimCard() {
     const b = key.startsWith("block:") && S.doc.blocks.find(b => b.id === key.slice(6)); return b ? " " + (b.label || b.text || b.kind) : "";
   };
   let h = "";
+  if (S.mparent) {                                                  // L59 — 새 창: 부모 장의 매크로 값으로 돈다
+    const ln = S.mparent.inner, links = (ln && ln.links) || [];
+    h += `<div class="grp" style="background:#eef4ff"><b>↗ 부모 시트 ${esc((ln && ln.sheet_no) || S.mparent.did.slice(0, 6))} 의 매크로 ${esc(S.mparent.bid)} 값으로 돕니다</b>` +
+      (ln ? links.filter(x => x.side === "L").map(x => `<div class="row">${x.row}행 ${esc(x.pin || "")} ← ${esc((x.rows || []).map(r => `${r.n}행 ${r.desc || ""}`).join(", ") || x.src || "단자")}</div>`).join("") : `<div class="dw-hint">부모 창의 값을 기다리는 중…</div>`) + `</div>`;
+  }
   const given = [];
   for (const [did, F] of Object.entries(s.forces)) for (const [k, v] of Object.entries(F)) given.push({ did, k, v });
   for (const [did, A] of Object.entries(s.analog)) for (const [k, v] of Object.entries(A)) given.push({ did, k, v, ana: true });
@@ -1329,7 +1524,8 @@ async function init() {
   window.addEventListener("beforeunload", e => { if (S.dirty) { e.preventDefault(); e.returnValue = ""; } });
   await loadProjects();
   const items = await loadList();
-  const m = location.hash.match(/d=([0-9a-f]{12})/), ms = location.hash.match(/set=([0-9a-f]{12})/);
+  const m = location.hash.match(/d=([0-9a-f]{12})/), ms = location.hash.match(/set=([0-9a-f]{12})/), mp = location.hash.match(/mparent=([0-9a-f]{12}):([^&]+)/);
+  if (mp) { S.mparent = { did: mp[1], bid: decodeURIComponent(mp[2]), inner: null, forces: {} }; document.title = "LOGIC 작도 — 매크로 내부 동작"; }
   if (m && items.some(i => i.id === m[1])) openDoc(m[1]);
   else if (ms) { const first = items.filter(i => i.set === ms[1]).sort((a, b) => (a.order || 0) - (b.order || 0))[0]; if (first) openDoc(first.id); else { render(); await loadSet(); } }
   else { render(); await loadSet(); }
