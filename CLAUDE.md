@@ -21,6 +21,8 @@
 
 ## 이 작업 줄기가 맡는 것 (2026-10-22 사용자 지시)
 
+- 사용자가 부르는 세션 이름 (2026-10-26): **1. DASHBOARD 코드 = 여기** · 2. PID 코드 · 3. LOGIC 검토 코드 · 4. PANEL 코드(ROOM SIZE 계산) · 5. 도서 검토. **2~5 에서 개발한 것은 모두 '2. PID 코드' 가 한 꾸러미 zip 으로 낸다.** 여기서는 대시보드 zip 만 낸다.
+
 - 여기서는 **대시보드(`dashboard.html` · `server.py` · bat)와 계장 광장(`dashboard/plaza/`)만** 고친다.
 - **P&ID 분석 · LOGIC 분석(LOGIC 작성 포함) · ROOM SIZE 계산(옛 판넬 공간확보, `dashboard/apps/space/`) · 도서검토(`dashboard/apps/books/` · `dashboard/books_api.py`)** 는 다른 곳(다른 세션 · 브랜치, 예: `ccr-d82d97fa-bb3ty3` · `claude/logic-review-design-pd2z75` · `claude/titleblock-parsing-c5st4x` · 도서검토 `claude/new-session-v23o67`)에서 만들고 zip 도 거기서 낸다. 여기서는 그 내용을 고치지 않는다. (2026-10-25 사용자 지시: 대시보드 zip 에는 대시보드만)
   - **ROOM SIZE 계산** 업데이트 파일(zip)은 P&ID 와 같이 **'2. PID 코드' 세션**에서 만든다 (2026-10-25 사용자 지시). 여기서는 메뉴 이름 · 연결만.
