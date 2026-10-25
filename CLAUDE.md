@@ -5065,6 +5065,24 @@ hotfix111 의 시스템 한 장 장면이 [절전 대비 보관] 목록에 없�
    시험 `tests/test_hotfix115_books.py` 4건 · 띄워서 색인 → 검색 → 미리보기 확인(페이지 오류 0).
    ⚠ 대시보드에서 이미 만든 색인은 옮기지 않는다 — 이 서버에서 한 번 [색인 갱신].
 
+**그 다음 — 판넬 공간확보를 최신판으로 다시 들여옴 (hotfix116 · 판정 0줄)**
+
+사용자: *"'4. PANEL 코드' 수정된 사항이 zip 파일에 반영 안 된 것 같다 — 재검토해서 zip 다시."*  hotfix106 이 판넬 화면을 대시보드 브랜치
+`ccr-d82d97fa-bb3ty3` 의 **10-22 오전 판(`941e091`)** 으로 들여온 뒤 그 브랜치에 판넬 커밋이 **서른 개 남짓**(3D 보기 · 2D|3D 나란히 · 3D 새 창 ·
+판넬 공급 Scope · 운전실 가구 · 필요 사이즈 PDF · 프로젝트 → 룸 → Rev · 워터마크 · 지우기) 더 쌓였는데 hotfix115 까지 아무도 다시 들여오지 않았다.
+시험 `tests/test_hotfix116_space_rooms.py` 3건 · 화면 자기검증 `spike/ui_audit_space116.py` → `out/hotfix116/ui/` (10항목 · 페이지 오류 0).
+
+1. **화면은 세 갈래 합치기** — 바탕 `941e091` · 우리 판(hotfix106 `/space/api` · `X-Author` · 화면 안 확인창 · 대시보드 자료 가져오기 · hotfix108 절전모드) ·
+   그쪽 최신 `c6d1402`.  충돌 셋(첫 화면 표시 · 프로젝트 만들기 · 부팅)을 손으로 합쳤다.  새 판에서 늘어난 `AUTH_TOKEN` 검사 셋 → `canWrite()` ·
+   `confirm`/`prompt` 셋(출력 전 간섭 검사 · Rev/룸/프로젝트 지우기) → 화면 안 `askYes`/`askText` (대시보드 iframe 은 막는다 — L25c) ·
+   3D 새 창 주소가 `?embed&user=` 를 지운 것 → 지금 질의에 `view=3d` 를 더한다.  절전모드 합성 응답에 룸 · Rev 만들기를 더했다.
+2. **서버(`app/space.py`)에 대시보드 `api_space_*` 의 새 몫** — 룸 만들기 · Rev 만들기 · 저장 메타 `room`·`roomName` · 저장한 Rev 는 룸 목록에도 ·
+   목록에 `rooms` · 지우기 셋(프로젝트 · 룸 · Rev → `{data}/space/_trash/` 로 옮김 · 만든 사람 또는 운영자 = 서버 PC) · 노트 지우기도 운영자 ·
+   대시보드 자료 가져오기가 룸 · Rev 도 합친다.  절전모드는 지우기를 보관하지 않는다(그대로).
+3. **계장도서검토는 최신 그대로였다** (`books_api.py` · `kb.js` 같음 · 화면은 hotfix115 의 두 줄만 다름).
+4. **⚠ 다음부터** — 판넬 · 도서 화면은 다른 브랜치가 원본이다.  꾸러미를 만들기 전에 `git log origin/ccr-d82d97fa-bb3ty3 -- dashboard/apps/space` 와
+   `origin/claude/new-session-v23o67 -- dashboard/apps/books` 의 마지막 커밋을 이 저장소에 들여온 판과 맞대 본다.
+
 ## 4. 미해결 과제 (다음 단계 후보) — 우선순위 순
 
 1. **순번은 "안 붙인 것"이 최대 원인입니다** (오답 203건: 발주처는 붙였는데 우리는
@@ -5604,6 +5622,7 @@ python3 spike/regression_3p.py --reuse    # 이미 있는 결과로 채점만 (2
 | `pidcache.teach_blind("titleblock")` · `spike/ui_audit_dxf_guide.py` | **hotfix85 마무리** — 타이틀블록도 스스로 못 찾게 하는 시뮬레이션 눈가림 · DXF 안내창 화면 시험 (전부 / `partial`) |
 | `pipeline.apply_policy` · `control_function_reason` · `_resuffix` · `_drop_from_layers` · config `policy` · `result["policy_excluded"]` | **hotfix83** — 사용자가 정한 '식별하지 않는 것' (PSV · 제어실 기능 버블).  **마지막 거름**이다 (`_fold_readouts` 뒤) — 앞에서 빼면 접힘·거리 문턱이 달라진다.  제어실 판정은 그 도면 ISA 표 (CONTROLLER · 가운데 선 + 물리 기기 글자 없음) |
 | `pipeline._supplier_name` · `detect_symbols.read_mark_dictionary` 의 `col`/`CONTINUE_AT_TEXT_COLUMN` | **hotfix83** — 노트가 특정한 공급자 이름 (`BY` 밖 꼴 · 공급자 명사구) · 별표가 글 왼쪽에 따로 그려진 정의줄은 같은 열의 다음 줄까지 잇는다 |
+| `app/space.py` · `app/static/space/index.html` | **hotfix106/116** — 판넬 공간확보.  화면 원본은 `ccr-d82d97fa-bb3ty3` `dashboard/apps/space/` (지금 `c6d1402`) — 세 갈래로 합쳐 들여오고 `/space/api` · `canWrite` · `askYes/askText` 를 되살린다.  서버는 대시보드 `api_space_*` 와 같은 꼴 (룸 · Rev · 휴지통) |
 | `app/static/dcs.html` · `app/static/hmi/{hmi.js,hmi_symbols.js,hmi.css}` | **hotfix110** — DCS HMI 화면 (LOGIC 브랜치 H1회차 화면 그대로 + 확대/이동 · LOGIC 태그 연동 · 내려받기).  심볼 사전 하나가 그림 · 범례 · 라이브러리를 먹인다 — 새 심볼 · 배관 종류는 `hmi_symbols.js` 에 한 줄 |
 | `app/hmi/scene.py` (`from_model` · `place_faces` · `service_of`) · `app/hmi/store.py` · `/dcs/api/jobs/{id}/scene/{page}` | **hotfix110** — 식별된 장(`dcs.build_sheet`) → 장면 JSON (같은 배율 · 탭한 런 · 지어내지 않음) · 사람이 다듬은 장면 저장 (작성자 필수) |
 | `scene.system_of` · `group_systems` · `from_system` · `name_only` · `/dcs/api/jobs/{id}/system/{key}/scene` · `result["equipment_labels"]` | **hotfix111** — 시스템(도면번호 − 일련번호) 한 장 · 공통 배율 격자 · 장 사이 선은 커넥터 글이 말할 때만 · 기기 이름 전부(지문 밖 · 다시 분석해야) |

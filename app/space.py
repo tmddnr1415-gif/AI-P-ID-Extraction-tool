@@ -1,11 +1,13 @@
 """판넬 공간확보 — P&ID · LOGIC 과 같은 서버(8000)의 /space 화면 · /space/api/* (hotfix106).
 
 판넬 화면(`app/static/space/index.html`)은 대시보드 브랜치 `ccr-d82d97fa-bb3ty3` 의
-`dashboard/apps/space/index.html` 을 들여온 것이고, 저장 API 는 그 대시보드 `server.py` 의
+`dashboard/apps/space/index.html` 을 들여온 것이고 (hotfix116 에 2026-10-24 판 `c6d1402` 로 다시 들여옴 —
+판넬 화면을 바꾸면 그 브랜치의 최신판과 이 파일을 세 갈래로 합치고 `/space/api` 고침을 되살린다), 저장 API 는 그 대시보드 `server.py` 의
 `api_space_*` 를 같은 꼴(같은 경로 · 같은 응답 · 같은 파일 구조)로 옮겼다:
 
-  {data}/space/<프로젝트ID>/index.json        = {project, saves:[메타 …], notes:[…]}
+  {data}/space/<프로젝트ID>/index.json        = {project, rooms:[{id,name,revs:[…]}], saves:[메타 …], notes:[…]}
   {data}/space/<프로젝트ID>/saves/<저장ID>.json = {meta, data}
+  지우기(프로젝트 · 룸 · Rev) = {data}/space/_trash/ 로 옮김 — 폴더를 되돌려 놓으면 복구 (hotfix116)
 
 저장은 덮어쓰지 않고 매번 새 파일 — 누가 · 언제 · 어떤 메모로 저장했는지가 그대로 이력이다.
 보기는 누구나(사내망 문지기 안), 쓰기는 **이름이 있을 때만** — P&ID · LOGIC 과 같은 방식으로
@@ -134,7 +136,9 @@ def projects() -> dict:
         sv = d.get("saves") or []
         last = sv[-1] if sv else {}
         out.append({**d["project"], "saves": len(sv), "notes": len(d.get("notes") or []),
-                    "lastAt": last.get("at", ""), "lastBy": last.get("by", "")})
+                    "lastAt": last.get("at", ""), "lastBy": last.get("by", ""),
+                    "rooms": [{"id": r.get("id"), "name": r.get("name"), "revs": [v.get("rev") for v in r.get("revs") or []]}
+                              for r in d.get("rooms") or [] if isinstance(r, dict)]})
     out.sort(key=lambda x: x.get("lastAt") or x.get("createdAt") or "", reverse=True)
     return {"projects": out}
 
@@ -173,8 +177,53 @@ def project_new(author: str, body: dict) -> dict:
 
 def project_get(pid: str) -> dict:
     d = _idx(pid)
-    return {"project": d["project"], "saves": list(reversed(d.get("saves") or [])),
+    return {"project": d["project"], "rooms": d.get("rooms") or [], "saves": list(reversed(d.get("saves") or [])),
             "notes": list(reversed(d.get("notes") or []))}
+
+
+def _room(d: dict, rid: str) -> dict:
+    r = next((x for x in d.get("rooms") or [] if isinstance(x, dict) and x.get("id") == rid), None)
+    if not r:
+        raise _Err(404, "없는 룸입니다 (다른 사람이 지웠거나 목록이 오래됨 — 새로 고침)")
+    return r
+
+
+def _rev_add(r: dict, rev: str, author: str, note: str = "") -> None:
+    if not any(v.get("rev") == rev for v in r.setdefault("revs", [])):
+        r["revs"].append({"rev": rev, "createdAt": _stamp(), "createdBy": author, "note": note})
+
+
+def room_new(author: str, pid: str, body: dict) -> dict:
+    name = _name(body.get("name"), "룸 이름", 60)
+    want = _client_id(body)
+    with _LOCK:
+        d = _idx(pid)
+        for x in d.get("rooms") or []:
+            if want and x.get("id") == want:
+                return x
+            if str(x.get("name", "")).lower() == name.lower():
+                if body.get("replay"):
+                    return x
+                raise _Err(409, f"이 프로젝트에 같은 이름의 룸이 이미 있습니다: {name} — 목록에서 고르세요")
+        r = {"id": want or _new_id(), "name": name, "createdAt": _stamp(), "createdBy": author, "revs": []}
+        d.setdefault("rooms", []).append(r)
+        jsonstore.write(_idx_path(pid), d, sort_keys=False)
+    return r
+
+
+def rev_new(author: str, pid: str, rid: str, body: dict) -> dict:
+    rev = _name(body.get("rev"), "Rev", 20)
+    note = re.sub(r"\s+", " ", str(body.get("note") or "")).strip()[:200]
+    with _LOCK:
+        d = _idx(pid)
+        r = _room(d, rid)
+        if any(v.get("rev") == rev for v in r.get("revs") or []):
+            if body.get("replay"):
+                return r
+            raise _Err(409, f"이 룸에 Rev {rev} 가 이미 있습니다 — 목록에서 고르세요")
+        _rev_add(r, rev, author, note)
+        jsonstore.write(_idx_path(pid), d, sort_keys=False)
+    return r
 
 
 def save_get(pid: str, sid: str) -> dict:
@@ -210,9 +259,15 @@ def save_new(author: str, pid: str, raw: bytes) -> dict:
         sid = _client_id(b, "sid") or _new_id()
         if any(m.get("id") == sid for m in d.get("saves") or []):
             return next(m for m in d["saves"] if m.get("id") == sid)   # 같은 보관본을 두 번 보냈다
+        rid = str(b.get("room") or "")
+        r = _room(d, rid) if rid else None
+        rev = str(info.get("rev") or "").strip()[:20]
+        if r and rev:
+            _rev_add(r, rev, author)                           # 저장한 Rev 는 룸의 Rev 목록에도 (대시보드와 같다)
         meta = {"id": sid, "at": _stamp(), "by": author,
                 "memo": re.sub(r"\s+", " ", str(b.get("memo") or "")).strip()[:200],
-                "rev": str(info.get("rev") or "")[:20], "panels": len(data["panels"]),
+                "room": rid if r else "", "roomName": r["name"] if r else str(info.get("room") or "")[:60],
+                "rev": rev, "panels": len(data["panels"]),
                 "sum": {k: _num(sm.get(k)) for k in ("envW", "envH", "recW", "recH", "spare")}}
         jsonstore.write(_root() / pid / "saves" / f"{sid}.json", {"meta": meta, "data": data},
                         indent=None, sort_keys=False)
@@ -237,17 +292,77 @@ def note_add(author: str, pid: str, body: dict) -> dict:
     return n
 
 
-def note_del(author: str, pid: str, nid: str) -> dict:
+def note_del(author: str, pid: str, nid: str, sup: bool = False) -> dict:
     with _LOCK:
         d = _idx(pid)
         n = next((x for x in d.get("notes") or [] if x.get("id") == nid), None)
         if not n:
             raise _Err(404, "없는 노트입니다")
-        if n.get("by") != author:
+        if n.get("by") != author and not sup:
             raise _Err(403, "자기가 쓴 노트만 지울 수 있습니다")
         d["notes"] = [x for x in d["notes"] if x is not n]
         jsonstore.write(_idx_path(pid), d, sort_keys=False)
     return {"status": "ok"}
+
+
+# 지우기 = 휴지통으로 옮김 ({data}/space/_trash/… — 운영자가 폴더를 되돌려 놓으면 복구).
+# 지울 수 있는 사람 = 만든 사람(프로젝트 · 룸 · Rev) 또는 운영자(서버 PC) — 대시보드와 같다.
+
+def _can_del(author: str, sup: bool, *who) -> None:
+    if not sup and author not in [w for w in who if w]:
+        raise _Err(403, "만든 사람(" + " · ".join(dict.fromkeys(w for w in who if w)) + ") 이나 운영자만 지울 수 있습니다")
+
+
+def _trash_saves(d: dict, pid: str, what: str, author: str, pick, extra: dict) -> int:
+    gone = [m for m in d.get("saves") or [] if pick(m)]
+    tdir = _root() / "_trash" / pid / f"{_new_id()}_{what}"
+    (tdir / "saves").mkdir(parents=True, exist_ok=True)
+    for m in gone:
+        src = _root() / pid / "saves" / f"{m.get('id')}.json"
+        if src.is_file():
+            os.replace(src, tdir / "saves" / src.name)
+    jsonstore.write(tdir / "deleted.json", {**extra, "what": what, "project": d["project"], "deletedBy": author,
+                                            "deletedAt": _stamp(), "saves": gone}, sort_keys=False)
+    d["saves"] = [m for m in d.get("saves") or [] if not pick(m)]
+    return len(gone)
+
+
+def project_del(author: str, pid: str, sup: bool = False) -> dict:
+    with _LOCK:
+        d = _idx(pid)
+        _can_del(author, sup, d["project"].get("createdBy"))
+        dst = _root() / "_trash" / f"{pid}_{_new_id()}_project"
+        dst.parent.mkdir(parents=True, exist_ok=True)
+        os.replace(_root() / pid, dst)
+        jsonstore.write(dst / "deleted.json", {"what": "project", "project": d["project"], "deletedBy": author,
+                                               "deletedAt": _stamp(), "saves": len(d.get("saves") or [])}, sort_keys=False)
+    return {"status": "ok", "saves": len(d.get("saves") or [])}
+
+
+def room_del(author: str, pid: str, rid: str, sup: bool = False) -> dict:
+    with _LOCK:
+        d = _idx(pid)
+        r = _room(d, rid)
+        _can_del(author, sup, r.get("createdBy"), d["project"].get("createdBy"))
+        n = _trash_saves(d, pid, "room", author, lambda m: m.get("room") == rid, {"room": r})
+        d["rooms"] = [x for x in d["rooms"] if x is not r]
+        jsonstore.write(_idx_path(pid), d, sort_keys=False)
+    return {"status": "ok", "saves": n}
+
+
+def rev_del(author: str, pid: str, rid: str, rev: str, sup: bool = False) -> dict:
+    with _LOCK:
+        d = _idx(pid)
+        r = _room(d, rid)
+        v = next((x for x in r.get("revs") or [] if x.get("rev") == rev), None)
+        if not v:
+            raise _Err(404, f"이 룸에 Rev {rev} 가 없습니다 (다른 사람이 지웠거나 목록이 오래됨 — 새로 고침)")
+        _can_del(author, sup, v.get("createdBy"), r.get("createdBy"), d["project"].get("createdBy"))
+        n = _trash_saves(d, pid, "rev", author, lambda m: m.get("room") == rid and m.get("rev") == rev,
+                         {"room": {k: r.get(k) for k in ("id", "name")}, "rev": v})
+        r["revs"] = [x for x in r["revs"] if x is not v]
+        jsonstore.write(_idx_path(pid), d, sort_keys=False)
+    return {"status": "ok", "saves": n}
 
 
 # ---------------------------------------------------------------- 대시보드 서버에서 가져오기
@@ -325,6 +440,18 @@ def import_dashboard(author: str, url: str = "", fetch=None) -> dict:
                 have.add(sid)
                 got["saves_new"] += 1
             cur["saves"].sort(key=lambda m: m.get("at") or "")
+            rooms = cur.setdefault("rooms", [])                # 룸 · Rev (대시보드 2026-10-24 부터) — 같은 ID 는 Rev 만 합친다
+            for rr in remote.get("rooms") or []:
+                if not isinstance(rr, dict) or not SPACE_ID_RE.match(str(rr.get("id") or "")):
+                    continue
+                mine = next((x for x in rooms if x.get("id") == rr["id"]), None)
+                if not mine:
+                    rooms.append(rr)
+                    got["rooms_new"] = got.get("rooms_new", 0) + 1
+                    continue
+                for v in rr.get("revs") or []:
+                    if isinstance(v, dict) and not any(x.get("rev") == v.get("rev") for x in mine.setdefault("revs", [])):
+                        mine["revs"].append(v)
             nhave = {n.get("id") for n in cur.get("notes") or []}
             for n in reversed(remote.get("notes") or []):
                 if n.get("id") and n.get("id") not in nhave:
@@ -399,7 +526,42 @@ async def api_note_add(pid: str, request: Request):
 
 @router.delete("/space/api/{pid}/notes/{nid}")
 def api_note_del(pid: str, nid: str, request: Request):
-    return _guard(lambda: note_del(_author(request), pid, nid))
+    return _guard(lambda: note_del(_author(request), pid, nid, _sup(request)))
+
+
+@router.post("/space/api/{pid}/rooms")
+async def api_room_new(pid: str, request: Request):
+    body = await _json(request)
+    body["replay"] = bool(request.headers.get("x-offline-replay"))
+    return _guard(lambda: room_new(_author(request, body), pid, body))
+
+
+@router.post("/space/api/{pid}/rooms/{rid}/revs")
+async def api_rev_new(pid: str, rid: str, request: Request):
+    body = await _json(request)
+    body["replay"] = bool(request.headers.get("x-offline-replay"))
+    return _guard(lambda: rev_new(_author(request, body), pid, rid, body))
+
+
+@router.delete("/space/api/{pid}")
+def api_project_del(pid: str, request: Request):
+    return _guard(lambda: project_del(_author(request), pid, _sup(request)))
+
+
+@router.delete("/space/api/{pid}/rooms/{rid}")
+def api_room_del(pid: str, rid: str, request: Request):
+    return _guard(lambda: room_del(_author(request), pid, rid, _sup(request)))
+
+
+@router.delete("/space/api/{pid}/rooms/{rid}/revs")
+def api_rev_del(pid: str, rid: str, request: Request, rev: str = ""):
+    return _guard(lambda: rev_del(_author(request), pid, rid, rev, _sup(request)))
+
+
+def _sup(request: Request) -> bool:
+    """운영자 = 서버 PC 에서 연 화면 (도서 검토 · 대시보드와 같은 뜻)."""
+    host = (request.client.host if request.client else "") or ""
+    return host in ("127.0.0.1", "::1", "localhost")
 
 
 async def _json(request: Request) -> dict:
