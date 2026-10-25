@@ -19,6 +19,10 @@
 import argparse, datetime, hashlib, hmac, io, ipaddress, json, logging, mimetypes, os, re, socket, sys, threading, time, webbrowser, zipfile, urllib.request
 from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 import xml.etree.ElementTree as ET
+try:
+    import books_api                                      # 도서검토 공용 도서관 (apps/books · books_api.py 는 다른 작업 줄기에서 만듦). 없으면 메뉴만 있고 API 는 404
+except ImportError:
+    books_api = None
 from urllib.parse import urlsplit, parse_qs, unquote, quote
 
 SHEETS = ['perform', 'bid', 'issue', 'rnr', 'general', 'unit', 'techshare', 'todo', 'staffing', 'notice', 'task']   # task = 통합 업무
@@ -32,7 +36,7 @@ ID_RE = re.compile(r'^[A-Za-z0-9_\-]{1,80}$')
 WEEK_RE = re.compile(r'^\d{4}-W\d{2}$')
 MAX_BODY = 30 * 1024 * 1024
 
-SERVER_VERSION = '2026-10-24.2'
+SERVER_VERSION = '2026-10-25.1'
 ROOT = os.path.dirname(os.path.abspath(__file__))
 PORT = 8080
 ALLOW_NETS = []          # 사내망: 루프백·사설망 + 서버 IP 대역(/16, 유선·Wi-Fi 등 지금까지 쓴 대역 모두 기억) + --allow 로 추가한 대역
@@ -527,7 +531,7 @@ def board_kind(b):
 
 
 # ---- VOC (2026-10-22): 메뉴별 VOC · 실명만 · 화면 캡처/사진 첨부 (board/img/{이미지ID}.{png|jpg|gif|webp}) ----
-VOC_MENUS = ('weekly', 'pid', 'logic', 'space', 'bidpjt', 'runpjt', 'board', 'mgmt', 'plaza', 'etc')
+VOC_MENUS = ('weekly', 'pid', 'logic', 'space', 'books', 'bidpjt', 'runpjt', 'board', 'mgmt', 'plaza', 'etc')
 IMG_ID_RE = re.compile(r'^i[0-9a-f]{8,40}$')
 IMG_MAX = 8 * 1024 * 1024
 IMG_TYPES = {'.png': 'image/png', '.jpg': 'image/jpeg', '.gif': 'image/gif', '.webp': 'image/webp'}
@@ -1595,7 +1599,7 @@ def api_space_note_del(acc, pid, nid, sup):
 
 
 # ---------------------------------------------------------------- 메뉴 권한 (accounts/_perms.json) — 운영자(서버 PC)만 변경
-MENUS = [('weekly', '주간업무보고'), ('pid', 'P&ID 분석'), ('logic', 'LOGIC 분석'), ('space', 'ROOM SIZE 계산'), ('bidpjt', '입찰 프로젝트'), ('runpjt', '실행 프로젝트'),
+MENUS = [('weekly', '주간업무보고'), ('pid', 'P&ID 분석'), ('logic', 'LOGIC 분석'), ('space', 'ROOM SIZE 계산'), ('books', '도서검토'), ('bidpjt', '입찰 프로젝트'), ('runpjt', '실행 프로젝트'),
          ('board', '익명게시판'), ('mgmt', 'Management')]
 MENU_KEYS = [k for k, _ in MENUS]
 DEFAULT_PERMS = {k: k != 'mgmt' for k in MENU_KEYS}
@@ -2164,6 +2168,10 @@ class Handler(BaseHTTPRequestHandler):
                 return api_ts_delete(acc, can_all, seg[1], seg[2])
         if head == 'order' and m == 'PUT' and len(seg) == 2:          # 행 순서 바꾸기 (선택한 행 위로/아래로)
             return api_reorder(sheet(1), self.json_body(), self.need_menu('weekly')['name'])
+        if head == 'books':                                         # 도서검토 공용 도서관 (books_api.py 가 없으면 404)
+            if not books_api:
+                raise ApiError(404, '도서검토 서버 부분(books_api.py)이 설치되지 않았습니다')
+            return books_api.handle(self, m, seg[1:], q)
         if head == 'space':                                         # 판넬 공간확보: 보기 = 누구나 · 쓰기 = 로그인 + 메뉴 권한
             if m == 'GET' and seg[1:] == ['projects']:
                 return api_space_projects()
@@ -2486,6 +2494,8 @@ def main():
     PLAZA['port'] = a.plaza_port
 
     ROOT, PORT = os.path.abspath(a.root), a.port
+    if books_api:                                         # 도서검토: 운영 폴더 books/ 를 쓰게 연결
+        books_api.setup(P=P, LOCK=LOCK, ApiError=ApiError, read_json=read_json, write_json=write_json)
     # 사내망 = 루프백·사설망 + 이 서버 IP 가 속한 /16 대역 + --allow 대역
     EXTRA_NETS[:] = [ipaddress.ip_network(n, strict=False) for n in a.allow]
     handlers = [logging.FileHandler(os.path.join(ROOT, a.log), encoding='utf-8')] if a.log else [logging.StreamHandler(sys.stdout)]

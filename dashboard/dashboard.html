@@ -1112,7 +1112,7 @@ function recLabel(key, f) {
  * ===================================================================== */
 let root = null;
 /* 서버 모드: http(s):// 로 접속하면 server.py 의 REST API 사용 (폴더 선택 불필요). file:// 로 열면 폴더 모드 */
-const APP_VERSION = '2026-10-25.1';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
+const APP_VERSION = '2026-10-25.2';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
 const SERVER_URL = 'http://localhost:8080';
 // 부서원 PC 사본(file://)이 접속을 시도할 서버 — 서버가 배포 파일을 만들 때 'PC 이름 주소, IP 주소' 순으로 자동 기록함
 const DEFAULT_SERVERS = ['http://ASEUNGWOOK-B01:8080', 'http://65.3.30.234:8080'];
@@ -2790,7 +2790,7 @@ function openPost(p) {
 /* ---------- VOC (2026-10-22): 메뉴별 VOC · 실명만 · 왼쪽 = 그림(캡처 · 파일 · 붙여넣기) 미리보기, 오른쪽 = 작성 ----------
  * 📷 스크린(위쪽 단추 · 어느 화면에서나): 화면을 캡처해 범위를 고르면 그 자리에서 VOC 창 → 등록해도 지금 화면 그대로(화면 전환 없음)
  * 캡처 = 브라우저 화면 공유(getDisplayMedia, '이 탭' 선택). http://PC이름 주소처럼 보안 연결이 아니면 브라우저가 막음 → Win+Shift+S 후 Ctrl+V 안내 */
-const VOC_MENU = { weekly:'주간업무보고', pid:'P&ID 분석', logic:'LOGIC 분석', space:'ROOM SIZE 계산', bidpjt:'입찰 프로젝트', runpjt:'실행 프로젝트', board:'익명게시판', mgmt:'Management', plaza:'계장 광장', etc:'기타' };
+const VOC_MENU = { weekly:'주간업무보고', pid:'P&ID 분석', logic:'LOGIC 분석', space:'ROOM SIZE 계산', books:'도서검토', bidpjt:'입찰 프로젝트', runpjt:'실행 프로젝트', board:'익명게시판', mgmt:'Management', plaza:'계장 광장', etc:'기타' };
 const VOC_IMG_MAX = 6;
 const imgUrl = id => `${API_BASE}/api/board/img/${enc(id)}`;
 function vocImgsHtml(ids) {                    // 글 카드의 그림 — 첫 장 크게 · 나머지 작게 · 누르면 새 창 원본
@@ -3176,7 +3176,8 @@ async function pidConnect(key) {
 /* ---------- ROOM SIZE 계산(옛 판넬 공간확보) 등: 대시보드 서버(/apps/)의 연결 앱을 P&ID 와 같은 화면 틀(본문 전체 iframe)로 ----------
  * MODULES(카드 안 iframe)와 달리 1분 자동 갱신에도 iframe 을 다시 만들지 않는다 (편집 중인 배치가 날아가지 않게).
  * 주소 뒤 값: embed=1(앱 자체 제목줄 숨김) · user=로그인 본명(작성자 기본값) */
-const APP_ROUTES = { space:{ title:'ROOM SIZE 계산', src:'/apps/space/index.html' } };
+const APP_ROUTES = { space:{ title:'ROOM SIZE 계산', src:'/apps/space/index.html' },
+  books:{ title:'도서검토', src:'/apps/books/index.html' } };   // 도서검토: 다른 작업 줄기에서 만든 앱 — 여기서는 메뉴 연결만
 const FRAME_ROUTES = k => PID_ROUTES[k] || APP_ROUTES[k];   // 본문 전체를 iframe 으로 채우는 메뉴
 function appUrl(key) {
   return `${API_BASE}${APP_ROUTES[key].src}?embed=1&user=${encodeURIComponent(user || '')}`;
@@ -3192,7 +3193,12 @@ function renderApp(c, key) {
   c.insertAdjacentHTML('beforeend', `<div id="pidwrap" class="pidwrap" data-route="${esc(key)}">
     <div class="pidbar"><b>${T}</b> · <a href="${esc(url.replace('embed=1&', ''))}" target="_blank" rel="noopener">새 창으로 열기 ↗</a></div>
     <div class="pidbody"><iframe class="pidframe" src="${esc(url)}" title="${T}"></iframe></div></div>`);
-  $('#pidwrap iframe.pidframe').addEventListener('load', appAuth);
+  const f = $('#pidwrap iframe.pidframe');
+  f.addEventListener('load', appAuth);
+  fetch(new URL(A.src, API_BASE || location.origin), { method:'GET', cache:'no-store' }).then(r => {   // 앱 파일이 서버에 없으면(아직 안 넣음) 오류 글 대신 안내
+    if (r.status !== 404 || !f.isConnected) return;
+    f.closest('.pidbody').innerHTML = `<div class="pidmsg"><p>${T} 화면 파일이 서버에 아직 없습니다.</p><p class="muted">서버 PC 의 운영 폴더에 <b>${esc(A.src.replace(/^\//, '').replace(/\/index\.html$/, '').replace(/\//g, '\\'))}</b> 폴더가 필요합니다 — ${T} 업데이트 zip 을 적용하세요.</p></div>`;
+  }).catch(() => {});
 }
 // 연결 앱에 로그인 토큰 전달 (서버 저장 · 노트의 작성자 확인용). file:// 사본은 앱 주소와 저장소가 달라 직접 못 읽으므로
 // postMessage 로, 받는 쪽을 앱 주소(= 대시보드 서버)로 한정해서 보낸다
@@ -3264,7 +3270,7 @@ function render() {
   if (route === 'home') placePlaza();
 }
 /* 메뉴 구성: 주간업무보고(홈 대시보드 + 하위 시트 9개) / P&ID 분석 / 입찰 프로젝트 / 실행 프로젝트 / 익명게시판 */
-const ROUTES = ['home', 'work', 'alloc', 'board', 'bidpjt', 'runpjt', 'pid', 'logic', 'logicdraw', 'space', 'mgmt', 'mgalloc', 'mghours', 'mgwork', 'mgbday'];   // mgwork = 근로시간 관리(근태 시스템 엑셀 · 52h) · mgbday = 부서원 생일
+const ROUTES = ['home', 'work', 'alloc', 'board', 'bidpjt', 'runpjt', 'pid', 'logic', 'logicdraw', 'space', 'books', 'mgmt', 'mgalloc', 'mghours', 'mgwork', 'mgbday'];   // mgwork = 근로시간 관리(근태 시스템 엑셀 · 52h) · mgbday = 부서원 생일
 const MG_ROUTES = ['mgmt', 'mgalloc', 'mghours', 'mgwork', 'mgbday'];   // logic = LOGIC 분석 (P&ID 와 같은 방식)   // mgmt = Management 머리(→ mgalloc) · mgalloc = R&R·투입 분석(시간 병기) · mghours = 근무시간(월·주·일)   // work = 예전 통합 업무 주소 → #task 로 바꿈 · alloc = R&R·투입 분석 · bidpjt/runpjt/mgmt = MODULES(준비 중), pid = P&ID 분석
 const menuOf = r => (r === 'home' || r === 'work' || r === 'alloc' || SHEET[r]) ? 'weekly' : MG_ROUTES.includes(r) ? 'mgmt' : r === 'logicdraw' ? 'logic' : r;   // 화면(route) → 권한 메뉴 키
 const validRoute = k => ROUTES.includes(k) || !!SHEET[k];
@@ -3290,6 +3296,7 @@ function renderMenu() {
     (can('pid') ? btn({ k:'pid', l:'📐 P&ID 분석', n:'', c:0 }, 'top') : '') +
     (can('logic') ? group('logic', { k:'logic', l:'🔀 LOGIC 분석', n:'', c:0 }, [{ k:'logicdraw', l:'LOGIC 작성', n:'', c:0 }], route === 'logic' || route === 'logicdraw') : '') +
     (can('space') ? btn({ k:'space', l:'🗄 ROOM SIZE 계산', n:'', c:0 }, 'top') : '') +
+    (can('books') ? btn({ k:'books', l:'🌪️ 도서검토', n:'', c:0 }, 'top') : '') +
     (can('bidpjt') ? btn({ k:'bidpjt', l:'📈 입찰 프로젝트', n:'', c:0 }, 'top') : '') +
     (can('runpjt') ? btn({ k:'runpjt', l:'🏗 실행 프로젝트', n:'', c:0 }, 'top') : '') +
     (can('board') ? btn({ k:'board', l:'💬 익명게시판', n:root && DB.board ? DB.board.length : '', c:root ? boardNewCount() : 0, t:'마지막 확인 이후 새 글·댓글' }, 'top') : '') +
@@ -3448,7 +3455,7 @@ function ddayChip() {
 }
 /* 2026-10-23 빠른 찾기 (Ctrl+K · 🔍 찾기): 메뉴 이름 · 모든 시트의 행(제목·내용·담당자) · 게시글 제목을 한 번에 → 누르면 그 자리로 이동 */
 const QF_MENUS = () => [['home', '📋 주간업무보고 홈'], ...SHEETS.filter(s => !s.merged).map(s => [s.key, s.label]), ['alloc', 'R&R · 투입 분석'], ['task', '통합 업무'],
-  ['pid', 'P&ID 분석'], ['logic', 'LOGIC 분석'], ['logicdraw', 'LOGIC 분석 · LOGIC 작성'], ['space', 'ROOM SIZE 계산'], ['bidpjt', '입찰 프로젝트'], ['runpjt', '실행 프로젝트'], ['board', '익명게시판'],
+  ['pid', 'P&ID 분석'], ['logic', 'LOGIC 분석'], ['logicdraw', 'LOGIC 분석 · LOGIC 작성'], ['space', 'ROOM SIZE 계산'], ['books', '도서검토'], ['bidpjt', '입찰 프로젝트'], ['runpjt', '실행 프로젝트'], ['board', '익명게시판'],
   ['mgalloc', 'Management · R&R 투입 분석'], ['mghours', 'Management · 근무시간'], ['mgwork', 'Management · 근로시간 관리'], ['mgbday', 'Management · 부서원 생일']]
   .filter(([k]) => can(SHEET[k] || k === 'home' || k === 'alloc' || k === 'task' ? 'weekly' : k.startsWith('mg') ? 'mgmt' : menuOf(k)));
 function qfSearch(q) {
@@ -3731,7 +3738,7 @@ function fitRecent() { const el = $('#recent'); if (!el) return; el.style.maxHei
  *  - 비회원 · 오프라인은 안내 한 줄. 메뉴 항목은 만들지 않음. 로그아웃 · 다른 사람 로그인 → 광장에서 나감(plazaOff). 광장 화면 규칙은 plaza/README_인계.md §5
  * ===================================================================== */
 const PZ = { url:'', state:'', sent:null };
-const PZ_STATUS = { pid:'P&ID 분석 중...', logic:'LOGIC 분석 중...', logicdraw:'LOGIC 작성 중...', space:'ROOM SIZE 계산 중...' };
+const PZ_STATUS = { pid:'P&ID 분석 중...', logic:'LOGIC 분석 중...', logicdraw:'LOGIC 작성 중...', space:'ROOM SIZE 계산 중...', books:'도서검토 중...' };
 const plazaPort = () => SERVER_INFO?.plazaPort || 8100;
 function plazaBase() { return pidBase().replace(/:\d+$/, ':' + plazaPort()); }
 function plazaHost() {

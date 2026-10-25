@@ -1177,3 +1177,13 @@ C:\Users\SAMSUNG\Desktop\Claude\                         ← 개발 폴더 (여�
 - 바뀐 곳: dashboard.html `APP_VERSION` · `PID_ROUTES.logicdraw` · `ROUTES` · `menuOf`(logicdraw → logic) · `NAV_LS` · `renderMenu`(LOGIC 묶음) · `QF_MENUS`(권한은 menuOf) · `PZ_STATUS`.
 - 확인한 것: JS 문법. 임시 서버: 메뉴에 LOGIC 분석 ▾ › LOGIC 작성, 누르면 #logicdraw · 주소 `http://…:8000/logic/draw?user=본명` · 제목 'LOGIC 작성', 다시 LOGIC 분석 → `/logic`. (시험 PC 엔 P&ID 서버가 없어 '서버가 꺼져 있습니다' 안내까지 확인.) 콘솔 오류 없음.
 - 회사에서 확인할 것: 회사 P&ID 서버에 LOGIC 작도(`/logic/draw`)가 들어 있는 판이어야 화면이 뜸 — 없으면 iframe 안에 Not Found. 그 판은 LOGIC 쪽 zip 으로 적용.
+
+### 2026-10-25 (31) — 메뉴 '🌪️ 도서검토' 연결 (APP_VERSION 2026-10-25.2 / SERVER_VERSION 2026-10-25.1)
+> **server.py 바뀜 → 서버 재시작 필요.** 부서원 사본은 새 버전 배너로 교체.
+- 무엇을: 사용자 "🌪️ 도서검토도 다른 브랜치에서 업데이트한다". 도서검토 앱(`apps/books/` · `books_api.py`)은 다른 작업 줄기(`claude/new-session-v23o67`, 그쪽 `apps/books/INTEGRATION.md`)에서 만들고 zip 도 거기서 냄 → 여기서는 ROOM SIZE 계산과 같은 방식(`APP_ROUTES`)으로 **메뉴 연결만**. 이 zip 에 도서검토 파일은 없음.
+  - 왼쪽 메뉴 ROOM SIZE 계산 아래 **🌪️ 도서검토** → `/apps/books/index.html` 를 본문 전체 iframe 으로. 메뉴 권한 키 `books`(기본 허용) · VOC 메뉴 '도서검토' · 빠른 찾기 · 광장 상태 '도서검토 중...'.
+  - server.py: `books_api` 를 **있으면** 불러옴(`try: import books_api`), `main()` 에서 ROOT 정한 뒤 `books_api.setup(...)`, `/api/books/…` → `books_api.handle`. **books_api.py 가 없어도 서버는 정상**(그 API 만 404 '설치되지 않았습니다').
+  - 연결 앱 화면 파일이 서버에 없으면(도서검토 zip 을 아직 안 넣음) iframe 에 서버 오류 글 대신 '화면 파일이 서버에 아직 없습니다 — apps\books 폴더 필요, 업데이트 zip 을 적용하세요' 안내(`renderApp`, ROOM SIZE 계산도 같음).
+- 바뀐 곳: dashboard.html `APP_VERSION` · `APP_ROUTES.books` · `ROUTES` · `renderMenu` · `VOC_MENU` · `QF_MENUS` · `PZ_STATUS` · `renderApp`(404 안내). server.py `SERVER_VERSION` · `books_api` 선택 import · `main`(setup) · `Handler.api`(head 'books') · `MENUS` · `VOC_MENUS`.
+- 확인한 것: 문법(JS · Python). 임시 서버: books_api.py · apps/books 없음 → 서버 정상 기동 · `/api/books/info` 404 안내 · 메뉴 → '화면 파일이 아직 없습니다'. 시험 폴더에만 그쪽 브랜치 파일을 넣고 재기동 → `/api/books/info` 정상 · 메뉴 → 도서검토 화면(제목 '계장도서검토') iframe 으로 뜸. 콘솔 오류 없음.
+- 회사에서 확인할 것: 이 zip 적용 + 서버 재시작 → 메뉴에 🌪️ 도서검토. 화면은 도서검토 쪽 zip(apps\books\ · books_api.py)을 넣고 **서버 재시작**해야 뜸. 메뉴 권한 창에 '도서검토' 줄이 생김.
