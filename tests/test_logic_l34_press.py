@@ -99,6 +99,6 @@ def test_press_api_and_screen_wiring():
     assert '"/logic/api/jobs/{job}/sheet/{page}/press"' in api
     js = (ROOT / "app/static/logic.js").read_text(encoding="utf-8")
     # 누름단추는 따라가기 모드에서도 1/0 메뉴 (입력 행 동그라미와 같다)
-    i, j = js.index('else if (!hasIn && b.logic === "source") forceMenu'), js.index('else if (L.mode === "trace") traceFrom("block:"')
+    i, j = js.index('else if (!hasIn && b.logic === "source") forceMenu'), js.index('else if (L.mode === "trace" && e.shiftKey) traceFrom("block:"')
     assert i < j
     assert "pressReport(" in js and "/press`" in js and "renderPressCard" in js

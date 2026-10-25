@@ -73,6 +73,8 @@ legend_functions:
   # DT = delay of termination (꺼짐 지연) · PO = pulse output.  범례 표에 이 이름 행이 있으면 범례가 이긴다.
   DI: delay_on
   PO: pulse
+  # L59 — 삼성 범례 SPECIAL 의 FL (FLICKER · 입력이 1 인 동안 주기 펄스).  시뮬레이터는 펄스 하나로 근사한다 (기능 책 pulse 참조).
+  FL: pulse
 # 기능 칸이 여러 행을 묶은 경우(SPECIAL) — 정의 문장에 이 구절이 있으면 그 동작
 legend_definitions:
   pulse: ["FOR TIME T WHEN INPUT TRANSIT"]

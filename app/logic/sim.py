@@ -41,7 +41,14 @@ def _index(s):
     sinks = defaultdict(list)        # net → [block]
     for p in s["ports"]:
         if p["dir"] == "in":
-            ins[p["block"]].append((p["net"], p.get("role", ""), p.get("cell", 0)))
+            role = p.get("role", "")
+            lg = (s["blocks"].get(p["block"]) or {}).get("logic")
+            if lg in TIMER_KINDS and not role:
+                # L51 — 범례 G003: 타이머의 왼쪽이 입력 I, 아래쪽이 선택 입력 R(리셋).  1A5J · 19VA 는 위쪽에 시간 값 행
+                # (`WAITING TIME` · `DISCREPANCY TIME DELAY`)을 잇는다 — 논리 입력이 아니라 시간 매개변수다 (OR 하면 틀린다)
+                side = p.get("side")
+                role = "reset" if side == "B" else "t" if side == "T" else ""
+            ins[p["block"]].append((p["net"], role, p.get("cell", 0)))
             sinks[p["net"]].append(p["block"])
         else:
             outs[p["block"]].append((p["net"], p.get("role", ""), p.get("cell", 0)))
@@ -96,7 +103,16 @@ def _b(v):
 MIN_INPUTS = {"and": 2, "nand": 2, "or": 2, "nor": 2, "not": 1}
 # L16 — 이 블록이 모는 선은 사람이 직접 켜지 않는다 (목표로 두고 게이트가 판정한다)
 GATE_LOGIC = {"and", "or", "nand", "nor", "not", "vote", "memory", "delay_on", "delay_off", "pulse", "step"}
+TIMER_KINDS = ("delay_on", "delay_off", "pulse")
 _VOTE = re.compile(r"^\s*(\d+)\s*/\s*(\d+)\s*$")       # 범례 'A/B' — A 개 이상 입력이 있을 때만 출력
+# L51 — 자격 OR (QUALIFIED OR · 범례 G003 "( * ) 'n'" · 19VA "In > N …"): 참인 입력 수를 n 과 맞대는 부호
+VOTE_OPS = {"ge": lambda k, n: k >= n, "gt": lambda k, n: k > n, "le": lambda k, n: k <= n, "lt": lambda k, n: k < n,
+            "eq": lambda k, n: k == n, "ne": lambda k, n: k != n}
+
+
+def _vote_op(b):
+    op = (b.get("param") or {}).get("op") or "ge"
+    return op if op in VOTE_OPS else "ge"
 
 
 def _vote_of(b):
@@ -114,19 +130,32 @@ def _vote_of(b):
     return (a, n) if 0 < a <= n else None
 
 
-def _vote3(vs, a, n):
+def _vote3(vs, a, n, op="ge"):
+    """참인 입력이 a 개 '이상'(ge · 기본 A/B) 일 때 1.  다른 부호(gt · le · lt · eq · ne)는 범례 QUALIFIED OR 의 '( * ) n'.
+    모르는 입력(None)이 결과를 뒤집을 수 있으면 None."""
     vs = list(vs) + [None] * max(0, n - len(vs))
     ones = sum(1 for v in vs if v == 1)
     unk = sum(1 for v in vs if v is None)
-    if ones >= a:
-        return 1
-    return 0 if ones + unk < a else None
+    f = VOTE_OPS.get(op, VOTE_OPS["ge"])
+    lo, hi = f(ones, a), f(ones + unk, a)
+    if unk == 0 or (lo == hi and all(f(k, a) == lo for k in range(ones, ones + unk + 1))):
+        return 1 if lo else 0
+    return None
 
 
-def gate3(lg, iv, fill=None):
+def min_inputs(b, lg):
+    """L53 — 범례가 요구하는 최소 입력 수.  분석이 '도면대로 입력 하나' (`param.as_drawn` — 막대 둘레에 끊긴 선 · 꼭지만 남은
+    화살이 없다) 라고 적은 AND/OR 는 그 하나가 전부다 (통과 상자 · HRSG G042)."""
+    if (b.get("param") or {}).get("as_drawn"):
+        return 1 if lg in MIN_INPUTS else 0
+    return MIN_INPUTS.get(lg, 0)
+
+
+def gate3(lg, iv, fill=None, need=None):
     """범례 정의 게이트 하나 — 읽힌 입력 수가 모자라면 모자란 칸을 `fill` 로 채운다.
     L46 — 시뮬레이션은 0 (연결 안 된 칸 = 비활성) 으로 채운다.  None(모름)으로 채우는 것은 '정해지는가' 를 물을 때뿐."""
-    iv = list(iv) + [fill] * max(0, MIN_INPUTS.get(lg, 0) - len(iv))
+    need = MIN_INPUTS.get(lg, 0) if need is None else need
+    iv = list(iv) + [fill] * max(0, need - len(iv))
     if lg == "and":
         return _and3(iv)
     if lg == "nand":
@@ -187,8 +216,10 @@ def _back_propagate(B, ins, drivers, groups, net_force, user):
                 back(iv[0], 1, depth + 1)
             elif lg == "not" and iv:
                 back(iv[0], 1 - v, depth + 1)
-            elif lg in ("delay_on", "delay_off", "pulse") and v == 1 and len(iv) == 1:
-                back(iv[0], 1, depth + 1)
+            elif lg in TIMER_KINDS and v == 1 and len([n for n, r_, _ in ins[x] if r_ not in ("t", "reset")]) == 1:
+                back([n for n, r_, _ in ins[x] if r_ not in ("t", "reset")][0], 1, depth + 1)
+            elif lg == "toggle" and v == 1 and len(iv) == 1:
+                back(iv[0], 1, depth + 1)              # L48 — 꺼진 토글을 켜려면 입력이 한 번 참이 되면 된다
             elif lg == "memory":
                 # L16 — Q=1(또는 반대 출력 D=0) 이 나오려면 SET 이 1 이어야 하고 (SET 입력이 하나일 때만 정해진다),
                 # SET 우선이 아니면 RESET 은 0 이어야 한다.  Q=0 은 '한 번도 SET 안 됨' 일 수도 있어 정해지지 않는다.
@@ -239,6 +270,64 @@ def _frame(t, val, depth, note, floating=()):
             "depth": depth, "note": note}
 
 
+_LOOP_KINDS = {"and", "or", "nand", "nor", "not", "vote", "pass", "connector"}
+
+
+def _loop_nets_of(s, ins, drivers, groups, B):
+    """게이트(범례 정의가 입력만으로 정하는 것 — 메모리 · 타이머는 상태를 들므로 끊는다)만 지나 자기에게 돌아오는 선.
+    OR(자기 출력, x) 자기유지가 그것이다.  L52 — 이 선들의 값은 호출 사이에 `state["loop"]` 로 이어진다."""
+    adj = {}
+    for n in s["nets"]:
+        up = []
+        for kind, x, role in drivers.get(n, []):
+            if kind != "block":
+                continue
+            b = B[x]
+            lg = b.get("logic")
+            if lg == "connector":
+                g = groups.get(b.get("group") or x, [x])
+                up += [m for gid in g for m, _, _ in ins[gid]]
+            elif lg in _LOOP_KINDS or _vote_of(b):
+                up += [m for m, _, _ in ins[x]]
+        adj[n] = up
+    # Tarjan — 크기 2 이상의 강한 연결 요소와 자기 고리
+    index, low, on, stack, out = {}, {}, set(), [], set()
+    counter = [0]
+
+    def strong(v):
+        index[v] = low[v] = counter[0]
+        counter[0] += 1
+        stack.append(v)
+        on.add(v)
+        for w in adj.get(v, ()):
+            if w not in adj:
+                continue
+            if w not in index:
+                strong(w)
+                low[v] = min(low[v], low[w])
+            elif w in on:
+                low[v] = min(low[v], index[w])
+        if low[v] == index[v]:
+            comp = []
+            while True:
+                w = stack.pop()
+                on.discard(w)
+                comp.append(w)
+                if w == v:
+                    break
+            if len(comp) > 1 or v in adj.get(v, ()):
+                out.update(comp)
+
+    import sys as _sys
+    lim = _sys.getrecursionlimit()
+    if lim < len(adj) + 100:
+        _sys.setrecursionlimit(len(adj) + 100)
+    for v in list(adj):
+        if v not in index:
+            strong(v)
+    return out
+
+
 def _simulate_once(s, forces=None, state=None, now=0.0, timers=None, soft=None, settled=(), extra=None, analog=None):
     """forces = {"net:<id>": 0|1, "row:<n>": 0|1, "block:<id>": 0|1}  ·  state = 이전 호출이 돌려준 것.
     soft = {n: 0|1} — L16 다른 시트에서 이어져 오는 입력 행 값.  사람이 준 값이 아니므로 거꾸로 맞추기가 다른 값을
@@ -249,17 +338,23 @@ def _simulate_once(s, forces=None, state=None, now=0.0, timers=None, soft=None, 
     """
     forces = dict(forces or {})
     tset = {str(k): float(v) for k, v in (timers or {}).items() if _secs(v) is not None}
-    st = {"mem": {}, "tim": {}, "sr": {}, "t": now}
+    st = {"mem": {}, "tim": {}, "sr": {}, "tog": {}, "t": now}
     short = set()                     # 입력을 다 읽지 못한 게이트 (L10)
     floating = set()                  # L46 — 몰이가 없는 선 (값은 0 · 화면 근거용으로 `unread` 에 남긴다)
+    # L52 — 되먹임 고리로만 서로를 모는 선(OR 자기유지)은 지난 호출의 값에서 이어 간다 — 메모리 블록이 없는
+    # 자기유지도 래치다.  씨앗을 둬도 settle 이 모든 선을 다시 세므로 고리 아닌 선은 같은 값에 이른다.
+    loop_seed = {n: v for n, v in ((state or {}).get("loop") or {}).items() if n in s["nets"] and v in (0, 1)}
+    loop_nets = set(loop_seed)
     if state:
         st["mem"].update(state.get("mem", {}))
         st["sr"].update(state.get("sr", {}))
+        st["tog"].update({k: dict(v) for k, v in state.get("tog", {}).items()})
         st["tim"].update({k: dict(v) for k, v in state.get("tim", {}).items()})
         st["t"] = max(now, state.get("t", 0.0))
     ins, outs, drivers, sinks, groups = _index(s)
     B = s["blocks"]
     notes = set()
+    loop_nets |= _loop_nets_of(s, ins, drivers, groups, B)     # 구조로 찾은 고리 (값이 정해져 있어도 지난 값을 잇는다)
     # L26 — 아날로그 값(MED · 입력 행)과 감시 블록(HHH · HH …)의 설정값: 값과 설정값이 다 있으면 감시 출력이 1/0
     # L30 — 아날로그 연산자(Σ · ÷ · A · T · 수식 …)는 범례 식대로 계산하고(an_ops 에 근거), 1/0 을 내는 것(DEV)은
     # 디지털 출력으로 · 전환(T)의 조건이 1/0 이면 그 값이 바뀔 때마다 아날로그를 다시 센다 (settle 안에서)
@@ -267,7 +362,8 @@ def _simulate_once(s, forces=None, state=None, now=0.0, timers=None, soft=None, 
     an_net, an_blk, an_keys = A.nets(s, analog, (ins, outs, drivers, sinks), None, an_ops)
     mons = {m["block"]: m for m in A.monitors(s, an_net, (ins, outs, drivers, sinks))}
     an_dig = {bid: d["dig"] for bid, d in an_ops.items() if d.get("dig") is not None}
-    tr_conds = sorted({d["cond"] for d in an_ops.values() if d.get("cond") is not None}, key=str)
+    tr_conds = sorted({d["cond"] for d in an_ops.values() if d.get("cond") is not None} |
+                      {c for d in an_ops.values() for c in (d.get("conds") or [])}, key=str)
     an_last = {"dig": None}
 
     def analog_refresh(val):
@@ -351,21 +447,25 @@ def _simulate_once(s, forces=None, state=None, now=0.0, timers=None, soft=None, 
         # L46 — 연결 안 된 입력 칸은 비활성(0) 이다 (사용자 지시 — "O_OPN 과 같이 연결되지 않은 것들은 모두 비활성으로
         # 인식하고 그 값에 따라 Gate 들이 동작하게").  L32 hold 는 그 칸을 모름으로 보아 출력이 정해지지 않을 때만 쓴다.
         if lg in MIN_INPUTS:
-            if len(iv) < MIN_INPUTS[lg]:
+            need = min_inputs(b, lg)
+            if len(iv) < need:
                 short.add(bid)
-                o = _held(bid, role, gate3(lg, iv))
-                return gate3(lg, iv, 0) if o is None else o
-            return gate3(lg, iv)
+                o = _held(bid, role, gate3(lg, iv, need=need))
+                return gate3(lg, iv, 0, need=need) if o is None else o
+            return gate3(lg, iv, need=need)
         vote = _vote_of(b)
         if vote:
+            vop = _vote_op(b)
             if len(iv) < vote[1]:
                 short.add(bid)
-                o = _held(bid, role, _vote3(iv, *vote))
-                return _vote3(list(iv) + [0] * (vote[1] - len(iv)), *vote) if o is None else o
-            return _vote3(iv, *vote)
+                o = _held(bid, role, _vote3(iv, *vote, vop))
+                return _vote3(list(iv) + [0] * (vote[1] - len(iv)), *vote, vop) if o is None else o
+            return _vote3(iv, *vote, vop)
         if lg == "memory":
             q = st["mem"].get(bid, 0)
             return q if role != "qn" else _not(q)
+        if lg == "toggle":                             # L48 — NOTE 가 정의한 토글 (SRST): 상태가 곧 출력
+            return st["tog"].get(bid, {}).get("q", 0)
         if lg in ("delay_on", "delay_off", "pulse"):
             return st["tim"].get(bid, {}).get("out", 0)
         if lg == "step":
@@ -386,6 +486,34 @@ def _simulate_once(s, forces=None, state=None, now=0.0, timers=None, soft=None, 
         if ins[bid] and not b.get("aop"):
             notes.add("판정 못 한 블록은 출력을 내지 않습니다 (그 선을 직접 1 로 줄 수 있습니다)")
         return None
+
+    def _loop_unknown(val):
+        """모름(None)인 선 중 게이트(범례 정의가 입력만으로 정하는 것)만이 몰고 그 게이트의 모르는 입력이 전부 같은
+        무리 안에 있는 선 — 되먹임 고리.  그 밖의 모름(몰이 없음 · 판정 못 한 블록 · 아날로그 · 그것에 기대는 선)은 뺀다."""
+        unk = {n for n in s["nets"] if val.get(n) is None and n not in net_force}
+        while True:
+            drop = set()
+            for n in unk:
+                for kind, x, role in drivers.get(n, []):
+                    if kind != "block" or x in blk_force:
+                        drop.add(n)
+                        break
+                    b = B[x]
+                    lg = b.get("logic")
+                    if lg == "connector":
+                        g = groups.get(b.get("group") or x, [x])
+                        iv = [m for gid in g for m, _, _ in ins[gid]]
+                    elif lg in _LOOP_KINDS and not (b.get("logic") == "unknown") and not _vote_of(b) or lg == "vote":
+                        iv = [m for m, _, _ in ins[x]]
+                    else:
+                        drop.add(n)
+                        break
+                    if lg == "unknown" or any(val.get(m) is None and m not in unk for m in iv):
+                        drop.add(n)
+                        break
+            if not drop:
+                return unk
+            unk -= drop
 
     def settle(val_prev):
         val = dict(val_prev)
@@ -420,6 +548,20 @@ def _simulate_once(s, forces=None, state=None, now=0.0, timers=None, soft=None, 
                 if nq != q:
                     st["mem"][bid] = nq
                     changed = True
+            # L48 — 토글: 입력(OR)이 0 → 1 로 바뀌는 순간 출력이 뒤집힌다.  자기 출력 선이 되돌아 들어온 것은 입력이 아니다
+            for bid, b in B.items():
+                if b["logic"] != "toggle" or bid in blk_force:
+                    continue
+                own_out = {n for n, _, _ in outs[bid]}
+                iv_n = [n for n, _, _ in ins[bid] if n not in own_out]
+                if any(n not in val and n in s["nets"] for n in iv_n):
+                    continue
+                inp = _b(_or3([val.get(n) for n in iv_n])) if iv_n else 0
+                ts = st["tog"].setdefault(bid, {"q": 0, "inp": 0})
+                if inp == 1 and ts["inp"] != 1:
+                    ts["q"] = _not(ts["q"])
+                    changed = True
+                ts["inp"] = inp
             for nid in s["nets"]:
                 if nid in net_force:
                     v = net_force[nid]
@@ -447,6 +589,16 @@ def _simulate_once(s, forces=None, state=None, now=0.0, timers=None, soft=None, 
                 if depth.get(nid) != d:
                     depth[nid] = d
             if not changed:
+                # L52 — 되먹임 고리로만 서로를 모는 선(OR(자기 출력, x) 자기유지 · 서로 맞물린 게이트)은 처음 값이 없어
+                # '모름' 으로 남고 화면은 0 으로 보이되 `unread` 에 들었다 (1A5J Typical 0014 STEP ACTIVE).  전원이 들어온
+                # 순간 래치는 꺼져 있다 — 그런 선만 0 으로 두고 다시 가라앉힌다.  몰이 없는 선 · 판정 못 한 블록 ·
+                # 아날로그 때문에 모르는 선은 그대로 모름이다 (그 선에 기대는 고리도 모름).
+                zero = _loop_unknown(val)
+                if zero:
+                    loop_nets.update(zero)
+                    for n in zero:
+                        val[n] = 0
+                    continue
                 return val, depth
         notes.add("값이 안정되지 않았습니다 (되먹임 고리가 흔들림) — 마지막 값을 보입니다")
         return val, depth
@@ -459,7 +611,17 @@ def _simulate_once(s, forces=None, state=None, now=0.0, timers=None, soft=None, 
             if lg not in ("delay_on", "delay_off", "pulse"):
                 continue
             ts = st["tim"].setdefault(bid, {"out": 0, "inp": 0, "due": None, "to": None})
-            inp = _b(_or3([val.get(n) for n, _, _ in ins[bid]]))
+            inp = _b(_or3([val.get(n) for n, r_, _ in ins[bid] if r_ not in ("t", "reset")]))
+            rst = _b(_or3([val.get(n) for n, r_, _ in ins[bid] if r_ == "reset"]))
+            if any(r_ == "t" for _, r_, _ in ins[bid]):
+                notes.add("타이머 시간을 입력 행이 줍니다 (위쪽 단자) — 값은 도면 글자 · 사람이 바꾼 값 · 기본으로 봅니다")
+            if rst == 1:
+                # 범례 G003 GT: OUTPUT REMAINS 1 UNTIL INPUT CHANGES TO 0 OR OPTIONAL RESET [R] CHANGES TO 1
+                if ts["out"] != 0:
+                    ts["out"] = 0
+                    changed = True
+                ts["due"], ts["inp"] = None, inp
+                continue
             T = timer_seconds(b, tset.get(bid))
             if bid not in tset and not b.get("param", {}).get("t"):
                 notes.add(f"타이머 시간을 읽지 못한 블록은 {DEFAULT_T:g}초로 보았습니다 (블록을 눌러 바꿀 수 있습니다)")
@@ -528,7 +690,7 @@ def _simulate_once(s, forces=None, state=None, now=0.0, timers=None, soft=None, 
 
     frames = []
     t = st["t"]
-    val = {}
+    val = dict(loop_seed)
     for _ in range(20):
         val, depth = settle(val)
         if not timers_step(val, t):
@@ -556,6 +718,7 @@ def _simulate_once(s, forces=None, state=None, now=0.0, timers=None, soft=None, 
         fr["fired"] = fired
         frames.append(fr)
     st["t"] = t
+    st["loop"] = {n: val[n] for n in sorted(loop_nets) if val.get(n) in (0, 1)}
     # L16 — 목표로 둔 출력 중 게이트 조건이 끝내 맞지 않은 것 (어느 틀에서든 그 값이 되었으면 맞은 것 — 타이머 뒤)
     unmet = []
     for n, want in goals.items():
@@ -725,7 +888,8 @@ def simulate_bundle(sheets, forces=None, state=None, focus=None, timers=None, an
     → {"focus": 그 장의 simulate 결과, "linked": {page: {row: 값}}, "pages": [...], "state": {page: st}, "notes"}
     """
     forces = {int(k): v for k, v in (forces or {}).items()}
-    state = {int(k): v for k, v in (state or {}).items()}
+    if not isinstance(state, _LazyState):            # L47 — light 호출이 돌려받은 상태는 풀지 않고 그대로 넘긴다
+        state = {int(k): v for k, v in (state or {}).items()}
     timers = {int(k): v for k, v in (timers or {}).items() if str(k).isdigit() and isinstance(v, dict)}
     analog = {int(k): v for k, v in (analog or {}).items() if str(k).isdigit() and isinstance(v, dict)}
     # L28 — 경량화: cache(부르는 쪽이 그 결과마다 하나 들고 있는 dict)가 있으면 묶음의 연결(feeds · 매크로 · 펼친 장)을
@@ -766,7 +930,7 @@ def simulate_bundle(sheets, forces=None, state=None, focus=None, timers=None, an
                 macros[s0["page"]].append((bid, m))
     inline = {}                       # page → (매크로를 펼친 한 장, {bid: (m, 펼친 Typical)})
     if cache is not None:
-        for k in ("topo", "analog", "idx", "run_of", "fp", "an_nets"):
+        for k in ("topo", "analog", "idx", "run_of", "fp", "an_nets", "ref_in", "quiet", "fed_by"):
             cache.pop(k, None)
         cache["topo"] = (by_page, by_no, feeds, macros, inline)
         cache["n_sheets"] = len(sheets)
@@ -805,6 +969,7 @@ def _bundle_run(sheets, forces, state, focus, timers, analog, cache, by_page, by
         page_memo = cache.setdefault("pages", {})
         if len(page_memo) > BUNDLE_MEMO_MAX:
             page_memo.clear()
+            cache.pop("quiet", None)
     else:
         an_given = _analog_bundle(by_page, feeds, analog)
         page_memo = None
@@ -962,6 +1127,19 @@ def _bundle_run(sheets, forces, state, focus, timers, analog, cache, by_page, by
     notes = set()
     chain = {}                        # L16 — 줄줄이 켜기가 보내는 시트에 준 목표 {page: {row:n: v}} (사람 값 아님)
     pulls = []
+    # L47 — 아무 입력도 안 받은 장(사람 값 · 줄줄이 · 상태 · 타이머 없음)의 기억 열쇠는 들어오는 값(lin)만 다르다 —
+    # 같은 lin 이면 지난 열쇠를 그대로 쓴다 (827장마다 json 열쇠를 다시 만들던 것 · 열쇠가 같으면 답도 같다)
+    quiet = cache.setdefault("quiet", {}).setdefault(ak, {}) if cache is not None else None
+    fed_by = cache.get("fed_by") if cache is not None else None
+    if fed_by is None:
+        fed_by = {}
+        for p, fd in feeds.items():
+            for _, sp, _ in fd:
+                fed_by.setdefault(sp, set()).add(p)
+        if cache is not None:
+            cache["fed_by"] = fed_by
+    lazy_state = isinstance(state, _LazyState)
+    no_timers = not timers
     for _ in range(MAX_PASSES):
         if not todo:
             break
@@ -974,29 +1152,41 @@ def _bundle_run(sheets, forces, state, focus, timers, analog, cache, by_page, by
             user = forces.get(page, {})
             f = {k: v for k, v in chain.get(page, {}).items() if k not in user}
             f.update(user)                            # 사람이 준 값이 이긴다
-            soft = {n: v for n, v in lin.items() if f"row:{n}" not in f}
-            tm = dict(timers.get(page) or {})
-            for bid, m in items.items():
-                for k, v in (timers.get(m["page"]) or {}).items():
-                    tm[f"{bid}/{k}"] = v
-                for pg in (m.get("parts") or []):
-                    if pg != m["page"]:
-                        for k, v in (timers.get(pg) or {}).items():
-                            tm[f"{bid}/P{pg}.{k}"] = v
-            asked = {n for n, sp, sr in feeds.get(page, ()) if f"row:{sr}" in chain.get(sp, {})}
-            mk = hit = None
-            if page_memo is not None:
-                try:
-                    mk = _memo_key(_sheet_fp(cache, page, s_run), page, f, state.get(page), tm, soft, sorted(asked),
-                                   an_given.get(page))
+            st_raw = state.raw(page) if lazy_state else state.get(page)
+            is_quiet = quiet is not None and not f and st_raw is None and no_timers and not chain
+            if is_quiet:
+                q = quiet.get(page)
+                if q is not None and q[0] == lin:
+                    mk, soft, tm, asked = q[1], lin, {}, set()
                     hit = page_memo.get(mk)
-                except (TypeError, ValueError):
+                else:
                     mk = None
+            if not is_quiet or mk is None:
+                soft = {n: v for n, v in lin.items() if f"row:{n}" not in f}
+                tm = dict(timers.get(page) or {})
+                for bid, m in items.items():
+                    for k, v in (timers.get(m["page"]) or {}).items():
+                        tm[f"{bid}/{k}"] = v
+                    for pg in (m.get("parts") or []):
+                        if pg != m["page"]:
+                            for k, v in (timers.get(pg) or {}).items():
+                                tm[f"{bid}/P{pg}.{k}"] = v
+                asked = {n for n, sp, sr in feeds.get(page, ()) if f"row:{sr}" in chain.get(sp, {})}
+                mk = hit = None
+                if page_memo is not None:
+                    try:
+                        mk = _memo_key(_sheet_fp(cache, page, s_run), page, f, st_raw, tm, soft, sorted(asked),
+                                       an_given.get(page))
+                        hit = page_memo.get(mk)
+                    except (TypeError, ValueError):
+                        mk = None
+                if is_quiet and mk is not None:
+                    quiet[page] = (lin, mk)
             hit_rv = None
-            if mk is not None and hit is not None and not items:
+            if mk is not None and hit is not None and (light or not items):
                 res, mv, hit_rv = _LazyRes(hit[0], hit[2]), None, hit[1]
             elif mk is not None and hit is not None:
-                res, mv = _fresh(hit[0])
+                res, mv, hit_rv = _LazyRes(hit[0], hit[2]), pickle.loads(hit[4]), hit[1]
             else:
                 res = simulate(s_run, f, state.get(page), timers=tm, soft=soft, settled=asked, analog=an_given.get(page))
                 mv = None
@@ -1018,24 +1208,26 @@ def _bundle_run(sheets, forces, state, focus, timers, analog, cache, by_page, by
                     redo.add(sp)
                     redo.add(page)
             if items:
-                if mv is None:
+                if mv is None and hit_rv is None:
                     mv = macro_views(page, items, res["frames"][-1]["values"])
                     inner = macro_inner(page, items, res["frames"])
                     for bid, v in mv.items():
                         if bid in inner:
                             v["_inner"] = inner[bid]
                     strip(res)
-                macro_view[page] = mv
+                if mv is not None:
+                    macro_view[page] = mv             # light 면 기억에서 꺼낸 장의 매크로 보기는 만들지 않는다 (부르는 쪽이 안 읽는다)
             rv = hit_rv if hit_rv is not None else _row_values(s, res["frames"][-1]["values"])
             if mk is not None and hit is None:
-                page_memo[mk] = (_pack((res, mv)), rv, _pack(res.get("state")), dict(res.get("pulled") or {}))
+                # 결과 · 매크로 보기 · 상태를 따로 담는다 — 꺼낼 때 필요한 것만 푼다 (L47)
+                page_memo[mk] = (_pack(res), rv, _pack(res.get("state")), dict(res.get("pulled") or {}), _pack(mv))
             results[page] = res
             link_in[page] = lin
             if rv != out_rows.get(page):
                 out_rows[page] = rv
                 changed_out.add(page)
-        todo = {p for p, fd in feeds.items() if any(sp in changed_out for _, sp, _ in fd)
-                and inputs_of(p) != link_in.get(p)} | redo
+        # L47 — 바뀐 장이 먹이는 장만 본다 (feeds 전체를 매 번 훑던 것 · 같은 답)
+        todo = {p for sp in changed_out for p in fed_by.get(sp, ()) if inputs_of(p) != link_in.get(p)} | redo
     else:
         if todo:
             notes.add(f"시트 사이 되먹임이 {MAX_PASSES}번 안에 가라앉지 않았습니다 — 마지막 상태를 보입니다")
@@ -1081,7 +1273,11 @@ def _bundle_run(sheets, forces, state, focus, timers, analog, cache, by_page, by
     run_of = cache.get("run_of") if cache is not None else None
     if cache is not None and run_of is None:
         run_of = cache["run_of"] = {x["page"]: _to_runs(x) for x in sheets}
-    design = [] if light else [e for e in _design_errors(sheets, by_page, by_no, out_rows, results, run_of=run_of, only=set(hop))
+    ref_in = cache.get("ref_in") if cache is not None else None
+    if cache is not None and ref_in is None:
+        ref_in = cache["ref_in"] = _ref_index(sheets, by_page)
+    design = [] if light else [e for e in _design_errors(sheets, by_page, by_no, out_rows, results, run_of=run_of, only=set(hop),
+                                                         ref_in=ref_in)
                                if e["page"] in hop]
     for page, view in macro_view.items():
         for bid, v in view.items():
@@ -1111,7 +1307,8 @@ def _bundle_run(sheets, forces, state, focus, timers, analog, cache, by_page, by
             "chain_forces": {p: v for p, v in chain.items() if v},
             "analog_given": an_given,
             "pulled": pulls,
-            "state": {p: results.state_of(p) for p in results},
+            "state": (_LazyState({p: results.state_raw(p) for p in results}) if light
+                      else {p: results.state_of(p) for p in results}),
             "notes": sorted(notes)}
 
 
@@ -1153,6 +1350,38 @@ class _LazyResults(dict):
             return pickle.loads(v.st) if v.obj is None else v.obj["state"]
         return v["state"]
 
+    def state_raw(self, k):
+        """상태를 풀지 않고 — 기억에서 꺼낸 장은 바이트 그대로, 새로 센 장은 객체."""
+        v = dict.__getitem__(self, k)
+        if isinstance(v, _LazyRes):
+            return v.st if v.obj is None else v.obj["state"]
+        return v["state"]
+
+
+class _LazyState(dict):
+    """L47 — light 호출이 돌려주는 묶음 상태 {page: 상태}.  값은 바이트(기억에서) 또는 객체이고 꺼낼 때 푼다.
+    그대로 다음 simulate_bundle 에 넘기면 장마다 풀지 않고 바이트를 열쇠에 쓴다 — 같은 열쇠면 같은 답.
+    (화면에 보내는 보통 호출은 예전처럼 보통 dict 를 받는다 — JSON 이 dict 하위 클래스의 바이트를 못 적는다.)"""
+
+    def raw(self, k):
+        return dict.get(self, k)
+
+    def __getitem__(self, k):
+        v = dict.__getitem__(self, k)
+        if isinstance(v, bytes):
+            v = pickle.loads(v)
+            dict.__setitem__(self, k, v)
+        return v
+
+    def get(self, k, d=None):
+        return self[k] if k in self else d
+
+    def items(self):
+        return [(k, self[k]) for k in list(self.keys())]
+
+    def values(self):
+        return [self[k] for k in list(self.keys())]
+
 
 def _pack(x):
     """기억에 넣을 때는 바이트로 — 꺼낼 때마다 새 객체라 부르는 쪽(응답 · 다음 장 계산)이 고쳐도 기억이 안 바뀐다
@@ -1161,8 +1390,7 @@ def _pack(x):
 
 
 def _fresh(packed):
-    res, mv = pickle.loads(packed)
-    return res, mv
+    return pickle.loads(packed), None
 
 
 def _analog_bundle(by_page, feeds, analog, idx_cache=None, nets_memo=None):
@@ -1277,7 +1505,46 @@ def _norm_desc(t):
     return re.sub(r"[^A-Z0-9]", "", (t or "").upper())
 
 
-def _design_errors(sheets, by_page, by_no, out_rows, results=None, run_of=None, only=None):
+_BUNDLES = {}
+
+
+def _bundle_of(by_no):
+    """refs.Bundle 은 시트 이름 모음에서만 나온다 — 같은 모음이면 한 번만 만든다 (학습은 한 명령에 수십 번 부른다)."""
+    k = frozenset(by_no)
+    b = _BUNDLES.get(k)
+    if b is None:
+        if len(_BUNDLES) > 8:
+            _BUNDLES.clear()
+        b = _BUNDLES[k] = _RF.Bundle(by_no)
+    return b
+
+
+def _fed_rows(sheets, by_page, only, ref_in):
+    """FM 으로 다른 장을 받는 왼쪽 행 — `only` 가 있으면 보내는 장이 그 안인 행만.  ref_in 은 보내는 장 → [(시트, 행)] (cache)."""
+    if only is None:
+        for s in sheets:
+            for r in s["rows"]:
+                if r["side"] == "L" and (r.get("ref") or {}).get("page") in by_page:
+                    yield s, r
+        return
+    if ref_in is None:
+        ref_in = _ref_index(sheets, by_page)
+    for sp in sorted(only):
+        for s, r in ref_in.get(sp, ()):
+            yield s, r
+
+
+def _ref_index(sheets, by_page):
+    idx = {}
+    for s in sheets:
+        for r in s["rows"]:
+            ref = r.get("ref") or {}
+            if r["side"] == "L" and ref.get("page") in by_page:
+                idx.setdefault(ref["page"], []).append((s, r))
+    return idx
+
+
+def _design_errors(sheets, by_page, by_no, out_rows, results=None, run_of=None, only=None, ref_in=None):
     """**활성(1)인 신호**가 TO · FM 을 따라 이동하는 자리에서 도면끼리 어긋난 곳 (사용자 지시 L11).
 
     보내는 쪽: 1 인 출력 행(주인 행)과 그 아래로 이어지는 TO 줄들의 TO 마다 —
@@ -1288,7 +1555,7 @@ def _design_errors(sheets, by_page, by_no, out_rows, results=None, run_of=None, 
     받는 쪽: FM 으로 1 을 받은 입력 행 — 보내는 행의 TO 목록에 이 장-행이 없으면(TO 가 다른 곳만 적음) 설계 오류.
     판정은 읽은 글자 그대로이고(fromto 와 같은 규칙) 고치지 않는다.
     """
-    bundle = _RF.Bundle(by_no)
+    bundle = _bundle_of(by_no)
     out = []
     seen = set()
 
@@ -1353,15 +1620,12 @@ def _design_errors(sheets, by_page, by_no, out_rows, results=None, run_of=None, 
                         add({**base, "kind": "warn",
                              "why": f"TO {sh}-{rn} — 연결은 맞고 설명이 다릅니다: '{od}' ↔ '{tr.get('desc')}'"})
     # 받는 쪽 — FM 으로 1 을 받았는데 보내는 행의 TO 목록에 이 장-행이 없다
-    for s in sheets:
+    # L47 — 보내는 장이 `only`(신호가 닿은 장) 안인 받는 행만 본다 (예전에는 매번 827장 · 10만 행을 다 훑었다 · 답은 같다)
+    for s, r in _fed_rows(sheets, by_page, only, ref_in):
         page, me = s["page"], s.get("sheet_no") or ""
-        for r in s["rows"]:
+        if True:
             ref = r.get("ref") or {}
-            if r["side"] != "L" or ref.get("page") not in by_page:
-                continue
             sp, own = ref["page"], ref.get("src_row", ref.get("row"))
-            if only is not None and sp not in only:
-                continue
             if out_rows.get(sp, {}).get(own) != 1:
                 continue
             tos = [(a, int(b)) for _, text in run_of[sp].get(own, [])
@@ -1374,7 +1638,10 @@ def _design_errors(sheets, by_page, by_no, out_rows, results=None, run_of=None, 
                      "why": f"{me}-{r['n']} 의 FM 은 {r.get('fm')} 인데 {src}-{own} 의 TO 는 "
                             f"{', '.join(f'{a}-{b}' for a, b in tos)} 만 적습니다 (잘못 연결)"})
     # 1 이 된 입력 행 — 그 행의 FM 이 from-to 대조(L5)에서 일치하지 않으면 (사람이 직접 준 입력 포함, 사용자 규칙 2)
+    # L47 — `only` 밖의 장은 부르는 쪽이 어차피 버린다 — 그 장의 결과를 기억에서 풀지 않는다 (827장을 매번 풀던 것)
     for s in sheets:
+        if only is not None and s["page"] not in only:
+            continue
         res = (results or {}).get(s["page"])
         if not res:
             continue
@@ -1429,7 +1696,7 @@ def _back_options(s, idx, goal, allow_net, ctx=None):
     iv = [n for n, _, _ in ins[x]]
     one = lambda nets, val: [({}, [("net", n, val)]) for n in nets]
     allg = lambda nets, val: [({}, [("net", n, val) for n in nets])]
-    short = len(iv) < MIN_INPUTS.get(lg, 0)
+    short = len(iv) < min_inputs(b, lg)
     if lg == "source":
         if v == 1 and not ins[x] and re.sub(r"[^0-9A-Z]", "", (b.get("label") or "").upper()) == "1":
             return [({}, [])]                          # ACTIVATION — 언제나 1
@@ -1487,12 +1754,25 @@ def _back_options(s, idx, goal, allow_net, ctx=None):
     vote = _vote_of(b)
     if vote:
         a, n = vote
-        if v == 0:
-            return allg(iv, 0)
-        if len(iv) < a:
-            return []
+        op = _vote_op(b)
         from itertools import combinations
-        return [({}, [("net", m, 1) for m in c]) for c in list(combinations(iv, a))[:6]]
+        if op in ("ge", "gt", "eq"):
+            k = a if op != "gt" else a + 1                      # 참이 k 개면 선다 (eq 는 정확히 k — 나머지는 0)
+            if v == 0:
+                return allg(iv, 0) if op != "eq" or a > 0 else []
+            if len(iv) < k:
+                return []
+            rest = (lambda c: [("net", m, 0) for m in iv if m not in c]) if op == "eq" else (lambda c: [])
+            return [({}, [("net", m, 1) for m in c] + rest(c)) for c in list(combinations(iv, k))[:6]]
+        if op in ("le", "lt", "ne"):
+            # 적을수록 1 — 전부 0 이면 선다 (ne: n 이 0 이 아닐 때) · 0 을 바라면 n 개(이상)를 1 로
+            if v == 1:
+                return [({}, [("net", m, 0) for m in iv])] if (op != "ne" or a > 0) else []
+            k = a + 1 if op == "le" else a
+            if len(iv) < k:
+                return []
+            return [({}, [("net", m, 1) for m in c]) for c in list(combinations(iv, k))[:6]]
+        return []
     if lg == "memory":
         want = v if role != "qn" else 1 - v
         S = [n for n, r, _ in ins[x] if r == "set"]
@@ -1502,8 +1782,13 @@ def _back_options(s, idx, goal, allow_net, ctx=None):
         # Q=0 — SET 이 모두 0 이면 (한 번도 SET 안 된 상태에서) 0 이다.  이미 SET 된 래치는 RESET 하나가 1 이어야 한다
         # (SET 우선이면 SET 도 모두 0 이어야 한다 — 그래서 어느 갈래든 SET 은 0).
         return [({}, [("net", n, 0) for n in S])] + [({}, [("net", r, 1)] + [("net", n, 0) for n in S]) for r in R]
-    if lg in ("delay_on", "delay_off", "pulse"):
-        return one(iv, 1) if v == 1 else allg(iv, 0)
+    if lg in TIMER_KINDS:
+        tv = [n for n, r_, _ in ins[x] if r_ not in ("t", "reset")]      # L51 — 시간 값 · 리셋 단자는 논리 입력이 아니다
+        return one(tv, 1) if v == 1 else allg(tv, 0)
+    if lg == "toggle":                               # L48 — NOTE 가 정의한 토글: 꺼진 상태에서 입력이 한 번 참이 되면 켜진다
+        own = {n for n, _, _ in outs.get(x, [])}
+        tv = [n for n in iv if n not in own]
+        return one(tv, 1) if v == 1 else allg(tv, 0)
     if lg == "step":
         si = [n for n, r, _ in ins[x] if r == "step_in"]
         cr = [n for n, r, _ in ins[x] if r == "crit"]
@@ -1564,19 +1849,23 @@ def _solutions(s, idx, goals, allow_net, strict0=False, ctx=None, max_steps=None
         stack.extend(reversed(branch))               # 앞 갈래를 먼저 본다
 
 
-def _reached(s, forces, net, value, sheets=None):
+def _reached(s, forces, net, value, sheets=None, cache=None):
     """그 조합만 넣고 앞으로 돌려 그 선이 value 가 되는 틀이 있는가 (펄스처럼 잠깐 서는 것도 선 것이다).
     매크로 블록이 있는 장은 묶음째 돌린다 (매크로 출력은 Typical 시트가 낸다)."""
     if sheets:
         # 화면과 같은 길 — 묶음째 돌린다 (다른 장에서 연결로 들어오는 입력 · 매크로 출력이 화면과 같다)
-        r = simulate_bundle(sheets, {s["page"]: forces}, focus=s["page"])["focus"]
+        if cache is not None:
+            # L50 — 묶음 기억을 들고 돌린다 (827장 묶음에서 한 번 1초 → 0.07초 · 바뀐 장만 다시 센다)
+            r = simulate_bundle(sheets, {s["page"]: forces}, focus=s["page"], cache=cache, light=True)["focus"]
+        else:
+            r = simulate_bundle(sheets, {s["page"]: forces}, focus=s["page"])["focus"]
     else:
         r = simulate(s, forces)
     hit = [fr["t"] for fr in r["frames"] if fr["values"].get(net) == value]
     return r, hit
 
 
-def scenario(s, target, value=1, limit=160, sheets=None, rows_only=False, rows_allowed=None):
+def scenario(s, target, value=1, limit=160, sheets=None, rows_only=False, rows_allowed=None, cache=None):
     """target = "row:<n>"(오른쪽 행) | "net:<id>".  → {"ok", "forces", "net", "frames", "why", "direct_nets"}"""
     if target.startswith("row:"):
         n = int(target[4:])
@@ -1587,6 +1876,7 @@ def scenario(s, target, value=1, limit=160, sheets=None, rows_only=False, rows_a
         net = target[4:]
     idx = _index(s)
     ctx = {"rows_only": rows_only, "rows_allowed": rows_allowed, "by_page": {x["page"]: x for x in (sheets or [])}}
+    fed_rows = {f"row:{r['n']}" for r in s["rows"] if r["side"] == "L" and (r.get("ref") or {}).get("page")} if sheets else set()
     tried = 0
     seen = set()
     pulse = None
@@ -1601,8 +1891,11 @@ def scenario(s, target, value=1, limit=160, sheets=None, rows_only=False, rows_a
                 continue
             seen.add(key)
             tried += 1
-            forces = {k: w for k, w in leaves.items() if not (w == 0 and not k.startswith("net:"))}
-            r, hit = _reached(s, forces, net, value, sheets)
+            # 0 이어야 하는 입력 행은 가만히 두면 0 이다 — 단 다른 장에서 이어져 오는 행(FM)은 쉬는 값이 1 일 수 있어
+            # (입력 0 의 NOT 이 보내는 'NOT RUNNING' 같은 것 · L52 19VA HH10_G154) 0 을 그대로 준다
+            forces = {k: w for k, w in leaves.items()
+                      if not (w == 0 and not k.startswith("net:") and k not in fed_rows)}
+            r, hit = _reached(s, forces, net, value, sheets, cache)
             if hit:
                 direct = sorted(k for k in forces if k.startswith("net:"))
                 ans = {"ok": True, "net": net, "forces": forces, "at": hit[0],

@@ -2308,3 +2308,8 @@ img.tb-ex-big { max-width: min(90vw, 1000px); width: 100%; height: auto; display
 /* hotfix91 — 마크업 판이 제안값을 기다리는 동안의 표시 (칸은 바로 쓸 수 있다) */
 .mk-reading { color: var(--ink-soft); font-style: italic; }
 .mk-form label .src.mk-reading { color: var(--ink-soft); }
+
+/* L54 — LOGIC 하위 메뉴 */
+.nav-item.nav-sub { padding-left: 26px; font-size: 12.5px; }
+.nav-item.nav-sub .nav-ico { color: #8c9ac4; }
+body.nav-collapsed .nav-item.nav-sub { padding-left: 4px; }

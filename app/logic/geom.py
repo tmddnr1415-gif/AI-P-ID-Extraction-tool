@@ -100,6 +100,7 @@ class Prims:
     rects: list = field(default_factory=list)
     words: list = field(default_factory=list)
     markers: list = field(default_factory=list)   # 칠한 ◆ ■ (선 위의 신호 인터페이스 표시)
+    marker_kind: dict = field(default_factory=dict)   # L58 — bbox(반올림) → "diamond" | "square" (작도 재현이 같은 모양으로 그린다)
     blobs: list = field(default_factory=list)     # 칠한 작은 조각의 bbox (연결점을 조각으로 칠한 양식)
     rings: list = field(default_factory=list)     # 호 조각들이 닫힌 원 후보 [(Circle, {pid})] (L21)
     frame: tuple | None = None                     # 도면 테두리 (굵게 칠한 큰 사각 띠) — 그 밖은 격자 번호
@@ -289,6 +290,15 @@ def read(page, pno: int) -> Prims:
             # 칠한 도형.  화살촉(삼각형) · 굵게 칠한 고리(원) · 마커(◆ ■) 만 쓴다.
             # 연결점 안의 칠 조각 · 굵은 테두리 · 굵은 글자는 버린다.
             pts = _vertices(items, m)
+            if not pts and len(items) == 1 and items[0][0] == "re":
+                # L58 — 칠한 작은 정사각형 항목(■ · PDF 라이브러리가 네 변 path 를 `re` 로 접는다)도 인터페이스 표시다.
+                # 다섯 묶음 실측: 3pt 이상의 칠한 `re` 는 어느 문서에도 없다 (있는 것은 0.7~1.6pt 글자 조각) — 그 아래는 그대로 버린다
+                rr = items[0][1]
+                corners = [_pt(rr.tl, m), _pt(rr.tr, m), _pt(rr.br, m), _pt(rr.bl, m)]
+                cb = _bbox(corners)
+                cw, ch = cb[2] - cb[0], cb[3] - cb[1]
+                if 3.0 <= min(cw, ch) and max(cw, ch) <= 12.0 and 0.8 < ch / cw < 1.25:
+                    pts = corners
             if pts:
                 fb = _bbox(pts)
                 if fb[2] - fb[0] > 0.8 * out.width and fb[3] - fb[1] > 0.8 * out.height:
@@ -296,7 +306,9 @@ def read(page, pno: int) -> Prims:
                     continue
             if pts and len(pts) != 3:
                 out.blobs.append(_bbox(pts))
-            if kinds == ["l", "l", "l"] and len(pts) == 3:
+            # L53 — 삼각형을 한 path 에 두 번 그린 화살촉(선 6개 · 꼭짓점 3)도 화살촉이다 (HRSG G053 AND 입력 막대의
+            # 위쪽 화살 — 못 읽어 그 행이 막대에 안 붙고 AND 가 입력 하나로 섰다)
+            if kinds and all(k == "l" for k in kinds) and len(pts) == 3:
                 out.arrows.append(_arrow(pts))
                 tris.append(pts)
             elif len(pts) >= 12:
@@ -322,6 +334,8 @@ def read(page, pno: int) -> Prims:
                     out.polys.append(Poly([sg], (sg.x0, sg.y0, sg.x1, sg.y1), pid=pid))
                 else:
                     out.markers.append(bb)
+                    out.marker_kind[tuple(round(v, 2) for v in bb)] = "square" if all(
+                        min(abs(x - bb[0]), abs(x - bb[2])) < 0.05 and min(abs(y - bb[1]), abs(y - bb[3])) < 0.05 for x, y in pts) else "diamond"
             continue
         pid += 1
         if all(k == "c" for k in kinds) and len(kinds) < 4 and not ("f" in typ):
@@ -368,6 +382,7 @@ def read(page, pno: int) -> Prims:
                     out.rects.append(Rect(*bb))
                 else:
                     out.markers.append(bb)        # 마름모 ◆ — 선 위의 신호 인터페이스 표시
+                    out.marker_kind[tuple(round(v, 2) for v in bb)] = "diamond"
         if not segs:
             continue
         rr = _closed_rect(segs)
@@ -396,7 +411,57 @@ def read(page, pno: int) -> Prims:
         out.polys.append(pl)
     _gather_arcs(out, arcs)
     _drop_fans(out, tris)
+    _diamonds(out, tris)
     return out
+
+
+def _diamonds(out, tris):
+    """L53 — 칠한 삼각형 둘이 **같은 밑변을 공유**하고 셋째 꼭짓점이 밑변의 양쪽에 있으면 그 둘은 화살촉이 아니라
+    칠한 마름모 ◆(선 위의 신호 인터페이스 표시)다.  HRSG G067 은 행마다 ◆ 를 위아래 반쪽 삼각형으로 그리고, 네 행의
+    ◆ 가 꼭짓점끼리 0.36pt 로 맞닿아 그 둘레 획이 선이 되자 네 행이 한 그물이 되었다."""
+    if len(tris) < 2:
+        return
+    key = lambda q: (round(q[0], 2), round(q[1], 2))
+    by_edge = {}
+    for t in tris:
+        pts = [key(q) for q in t]
+        for i in range(3):
+            a, b = pts[i], pts[(i + 1) % 3]
+            by_edge.setdefault(tuple(sorted((a, b))), []).append((t, pts[(i + 2) % 3]))
+    found = []
+    for (a, b), lst in by_edge.items():
+        if len(lst) != 2:
+            continue
+        (t1, c1), (t2, c2) = lst
+        if t1 is t2:
+            continue
+        # 셋째 꼭짓점이 밑변 ab 의 서로 다른 쪽
+        vx, vy = b[0] - a[0], b[1] - a[1]
+        s1 = vx * (c1[1] - a[1]) - vy * (c1[0] - a[0])
+        s2 = vx * (c2[1] - a[1]) - vy * (c2[0] - a[0])
+        if s1 * s2 >= 0:
+            continue
+        L = math.hypot(vx, vy)
+        if L <= 0:
+            continue
+        # 마름모 — 두 꼭짓점이 밑변 가운데쯤에서 밑변과 비슷한 높이로 (화살촉 둘이 밑변을 맞댄 것이 아니다)
+        ok = True
+        for c in (c1, c2):
+            t = ((c[0] - a[0]) * vx + (c[1] - a[1]) * vy) / (L * L)
+            h = abs(s1 if c is c1 else s2) / L
+            if not (0.3 <= t <= 0.7 and 0.3 * L <= h <= 0.8 * L):
+                ok = False
+        if ok:
+            found.append((t1, t2, _bbox(t1 + t2)))
+    if not found:
+        return
+    drop = {id(t) for t1, t2, _ in found for t in (t1, t2)}
+    same = lambda a, bb: all(abs(u - v) < 1e-6 for u, v in zip(a, bb))
+    dropped_bb = [_bbox(t) for t1, t2, _ in found for t in (t1, t2)]
+    out.arrows = [ar for ar in out.arrows if not any(same(ar.bbox, bb) for bb in dropped_bb)]
+    for _, _, bb in found:
+        out.markers.append(bb)
+        out.marker_kind[tuple(round(v, 2) for v in bb)] = "diamond"
 
 
 def _drop_fans(out, tris):

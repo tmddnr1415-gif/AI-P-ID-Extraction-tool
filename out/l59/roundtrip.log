@@ -1,0 +1,17 @@
+## ALDHAFRA5 (a5j) — 시트 6/6 이름 같음 · 그림 6장 · 0초
+- 표 행 글 같음 143/148 (96.6%)
+- 블록 종류 같음 100/100 (100.0%)
+- 블록 입출력 단자 같음 257/257 (100.0%)
+- 그물 176/176 · 매달린 선 끝 0/0 · FROM/TO 불일치 22/22
+- 매크로 → Typical 연결 같음 2/2 (100.0%)
+- 못 읽은 블록 종류 (원래 → 되읽기 없음): []
+- 이름을 잃은 시트: [] · 새 이름: []
+  - FG_G-201: 행 22/25 · 블록 24/24 (되읽기 24) · 단자 60/60 · 매크로 1/1 · 빠짐 [] · 더 읽힘 []
+  - FG_G-202: 행 20/21 · 블록 10/10 (되읽기 10) · 단자 10/10 · 매크로 0/0 · 빠짐 [] · 더 읽힘 []
+  - FG_G-207: 행 28/29 · 블록 4/4 (되읽기 4) · 단자 12/12 · 매크로 0/0 · 빠짐 [] · 더 읽힘 []
+{'sheet': 'FG_G-101', 'rows': (40, 40), 'blocks': (36, 36, 36), 'io': (110, 110, 110), 'nets': (75, 75), 'dangling': (0, 0), 'macro': (0, 0), 'ft_mismatch': (9, 9), 'missing_funcs': [], 'extra_funcs': []}
+{'sheet': 'FG_G-102', 'rows': (17, 17), 'blocks': (9, 9, 9), 'io': (17, 17, 17), 'nets': (9, 9), 'dangling': (0, 0), 'macro': (1, 1), 'ft_mismatch': (13, 13), 'missing_funcs': [], 'extra_funcs': []}
+{'sheet': 'FG_G-201', 'rows': (22, 25), 'blocks': (24, 24, 24), 'io': (60, 60, 60), 'nets': (35, 35), 'dangling': (0, 0), 'macro': (1, 1), 'ft_mismatch': (0, 0), 'missing_funcs': [], 'extra_funcs': []}
+{'sheet': 'FG_G-202', 'rows': (20, 21), 'blocks': (10, 10, 10), 'io': (10, 10, 10), 'nets': (10, 10), 'dangling': (0, 0), 'macro': (0, 0), 'ft_mismatch': (0, 0), 'missing_funcs': [], 'extra_funcs': []}
+{'sheet': 'FG_G-207', 'rows': (28, 29), 'blocks': (4, 4, 4), 'io': (12, 12, 12), 'nets': (20, 20), 'dangling': (0, 0), 'macro': (0, 0), 'ft_mismatch': (0, 0), 'missing_funcs': [], 'extra_funcs': []}
+{'sheet': '0012', 'rows': (16, 16), 'blocks': (17, 17, 17), 'io': (48, 48, 48), 'nets': (27, 27), 'dangling': (0, 0), 'macro': (0, 0), 'ft_mismatch': (0, 0), 'missing_funcs': [], 'extra_funcs': []}

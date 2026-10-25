@@ -289,6 +289,8 @@ def nets(s, given, idx, dig=None, detail=None):
             net_v[x] = eng
     ops, io = tp["ops"], tp["io"]
     dig_out = {}
+    default_nets = {r["net"] for r in s["rows"] if r["side"] == "L" and r.get("net") is not None
+                    and keys.get(f"row:{r['n']}", {}).get("src") == "default"}     # L48 — 기본 8 mA 만 받은 입력 행의 선
 
     user_nets = {str(k)[4:] for k in given if str(k).startswith("net:")}
 
@@ -313,7 +315,7 @@ def nets(s, given, idx, dig=None, detail=None):
             if not how and op and not (op == "fx" and not aops.params(b).get("table")):
                 ii = io[bid][0]
                 if aops.is_digital(op):
-                    d = _dev(b, ii, net_v)
+                    d = _digital(op, b, ii, net_v, dig, default_nets)
                     if d is not None:
                         dig_out[bid] = d
                         moved = True
@@ -346,7 +348,7 @@ def nets(s, given, idx, dig=None, detail=None):
             b = B[bid]
             ii = io[bid][0]
             if aops.is_digital(op):
-                why = "" if bid in dig_out else ("입력 둘의 값과 편차 D 를 알아야 합니다" if aops.params(b).get("d") is None
+                why = "" if bid in dig_out else ("입력 둘의 값과 편차 D 를 알아야 합니다" if op == "dev" and aops.params(b).get("d") is None
                                                   else "입력 둘의 값을 다 알아야 합니다")
             elif bid in blk_v:
                 why = aops.compute(op, b, ii, net_v, dig)[1] if not selector_of(b) else ""
@@ -362,7 +364,9 @@ def nets(s, given, idx, dig=None, detail=None):
                                        "value": net_v.get(n)} for n, pn in ii],
                            "outputs": [str(n) for n in io[bid][1]],
                            "out": blk_v.get(bid), "dig": dig_out.get(bid), "why": why,
-                           "params": aops.params(b), "cond": aops._cond(ii) if op == "transfer" else None}
+                           "params": aops.params(b), "cond": aops._cond(ii) if op == "transfer" else None,
+                           # L48 — 디지털 값을 읽는 연산(BIT_CNT · EQUAL): 그 입력선이 바뀌면 시뮬레이터가 아날로그를 다시 센다
+                           "conds": [n for n, _ in ii] if op in ("count", "equal") else None}
     return net_v, blk_v, keys
 
 
@@ -374,6 +378,30 @@ def _dev(b, ii, net_v):
     if len(vals) < 2 or any(v is None for v in vals[:2]) or d is None:
         return None
     return 1 if abs(vals[0] - vals[1]) > float(d) else 0
+
+
+def _equal(ii, net_v, dig, defaults=()):
+    """L48 — EQUAL (IN1 · IN2 → OUT): 두 입력이 같으면 1.  **사람이 넣었거나 계산된** 아날로그 값 둘이 다 있으면 그 값으로,
+    아니면(기본 8 mA 만 있거나 값이 없으면) 디지털 값 둘로.  둘 다 모르면 None (출력 없음) — 기본값끼리 같다고 1 을 내지 않는다."""
+    nets = [n for n, _ in ii][:2]
+    if len(nets) < 2:
+        return None
+    a, b = net_v.get(nets[0]), net_v.get(nets[1])
+    if a is not None and b is not None and nets[0] not in defaults and nets[1] not in defaults:
+        return 1 if abs(a - b) <= 1e-6 * max(1.0, abs(a), abs(b)) else 0
+    da, db = (dig or {}).get(nets[0]), (dig or {}).get(nets[1])
+    if da is None or db is None:
+        return None
+    return 1 if da == db else 0
+
+
+def _digital(op, b, ii, net_v, dig, defaults=()):
+    """1/0 을 내는 연산자 하나의 출력 — DEV · EQUAL."""
+    if op == "dev":
+        return _dev(b, ii, net_v)
+    if op == "equal":
+        return _equal(ii, net_v, dig, defaults)
+    return None
 
 
 def monitors(s, net_v, idx, nr=None):

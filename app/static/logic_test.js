@@ -75,7 +75,7 @@ async function refresh() {
   // hotfix101 — 배우는 중이거나 낡아 다시 배우기 시작했으면 끝날 때까지 다시 묻는다 (예전에는 'stale' 에서 멈췄다)
   if (["running", "none", "stale"].includes(d.state)) setTimeout(() => { if (G.job === id && !G.running) refresh(); }, 3000);
 }
-const PHASE_KO = { prepare: "분석 마무리 (장 그림 · 학습 사전)", start: "학습 시작", learn: "명령마다 켜고 꺼 보는 중", review: "정합성 검토 정리" };
+const PHASE_KO = { quiet: "고치는 중이 끝나기를 기다림", prepare: "분석 마무리 (장 그림 · 학습 사전)", start: "학습 시작", learn: "명령마다 켜고 꺼 보는 중", review: "정합성 검토 정리" };
 function renderLearn() {
   const d = G.data, box = $("#learn");
   if (d.state === "done") { box.hidden = true; return; }

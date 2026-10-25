@@ -843,3 +843,61 @@ body.pane-review .rv-scroll { max-height: calc(100vh - 330px); }
 /* hotfix109 — DCS 그래픽 창이 열려 있는 동안 */
 #dcs-btn.on { background: #0b1626; color: #9ad7ff; border-color: #0b1626; }
 #dcs-btn b { font-weight: 500; }
+
+/* L49 — 이 출력이 켜지려면 (게이트 · 매크로) */
+.lg-needs .sp-h { background: #4a3b8f; }
+.lg-needs .nd-intro { padding: 8px 10px 4px; color: #3b4252; line-height: 1.45; }
+.lg-needs .nd-out { margin: 4px 8px; border: 1px solid #cfd6e4; border-radius: 8px; background: #fbfcff; }
+.lg-needs .nd-oh { padding: 6px 10px; cursor: pointer; display: flex; gap: 6px; align-items: baseline; flex-wrap: wrap; }
+.lg-needs .nd-oh:hover { background: #f1f6ff; }
+.lg-needs .nd-oh small { color: #6b7385; }
+.lg-needs .nd-gapn { color: #a3352e; }
+.lg-needs .nd-acts { display: flex; gap: 5px; padding: 0 10px 4px; flex-wrap: wrap; }
+.lg-needs .nd-acts button { border: 1px solid #b6bdcc; background: #fff; border-radius: 6px; padding: 3px 9px; cursor: pointer; font-size: 12.5px; }
+.lg-needs .nd-acts button.pri { background: #4a3b8f; border-color: #4a3b8f; color: #fff; font-weight: 700; }
+.lg-needs ul, .lg-needs ol { list-style: none; margin: 0; padding: 0; }
+.lg-needs .nd-tree { padding: 2px 8px 8px; }
+.lg-needs li { display: block; border: 0; cursor: default; padding: 0; }
+.lg-needs li:hover { background: transparent; }
+.lg-needs .nd-node { margin: 3px 0; }
+.lg-needs .nd-node .nd-all, .lg-needs .nd-node .nd-any { margin-left: 12px; border-left: 2px solid #e1e5ef; padding-left: 8px; }
+.lg-needs .nd-gate { font-weight: 700; color: #2a3a62; padding: 2px 0; }
+.lg-needs .nd-gate[data-go] { cursor: pointer; }
+.lg-needs .nd-gate[data-go]:hover { color: #4a3b8f; }
+.lg-needs .nd-gk { display: inline-block; font-size: 10.5px; padding: 0 5px; border-radius: 3px; background: #e9edf5; color: #2a3a62; margin-right: 3px; }
+.lg-needs .nd-allh, .lg-needs .nd-anyh { font-size: 11px; color: #6b7385; padding: 1px 0 1px 12px; }
+.lg-needs .nd-anyh b { color: #a3352e; }
+.lg-needs .nd-alt { margin: 3px 0; padding: 3px 6px; border: 1px dashed #cfd6e4; border-radius: 6px; }
+.lg-needs .nd-alt.rec { border-style: solid; border-color: #4a3b8f; background: #f4f1fb; }
+.lg-needs .nd-alt-h { font-size: 11px; color: #4a3b8f; font-weight: 700; }
+.lg-needs .nd-leaf { padding: 2px 0; line-height: 1.4; }
+.lg-needs .nd-leaf.nd-gap { color: #8c2a20; }
+.lg-needs .nd-leaf.nd-auto { color: #8a93a6; }
+.lg-needs .nd-k { display: inline-block; font-size: 10.5px; padding: 0 5px; border-radius: 3px; background: #eef0f5; color: #3b4252; margin: 0 2px; }
+.lg-needs .nd-k.gap { background: #fff1f0; color: #8c2a20; }
+.lg-needs .nd-zero { padding: 3px 6px; border-radius: 6px; background: #fff8e6; }
+.lg-needs .nd-zero ul { margin-left: 8px; }
+.lg-needs .nd-loc { display: inline-block; font-size: 11px; padding: 0 6px; border-radius: 9px; background: #e9edf5; color: #2a3a62; cursor: pointer; }
+.lg-needs .nd-loc:hover { background: #4a3b8f; color: #fff; }
+.lg-needs .nd-ref { display: inline-block; font-size: 11px; padding: 0 6px; border-radius: 9px; border: 1px solid #6b5bd2; color: #6b5bd2; cursor: pointer; }
+.lg-needs .nd-ref.other { border-style: dashed; cursor: default; }
+.lg-needs .nd-ft { color: #c0392b; font-size: 11px; }
+.lg-needs small { color: #6b7385; }
+.lg-needs .nd-sum { padding: 2px 10px 4px; }
+.lg-needs .nd-sh { font-weight: 700; color: #2a3a62; margin: 6px 0 2px; }
+.lg-needs .nd-sh.gap { color: #8c2a20; }
+.lg-needs .nd-sh small { font-weight: 400; color: #6b7385; margin-left: 4px; }
+.lg-needs .nd-sum li { padding: 2px 0 2px 4px; line-height: 1.45; }
+.lg-needs .nd-none { color: #8a93a6; padding: 2px 4px; }
+.lg-needs .nd-th { margin: 6px 10px 2px; padding: 3px 6px; border-top: 1px dashed #cfd6e4; color: #4a3b8f; cursor: pointer; font-size: 12px; }
+.lg-needs .nd-th small { color: #8a93a6; }
+
+/* L50 — 기본 상태 값 · 이미 그 값 */
+.lg-needs .nd-now{color:#6b6b80}
+.lg-needs .nd-now.on{color:#0b7a4b;font-weight:600}
+.lg-needs .nd-none.gap{color:#9a4b00;background:#fff4e8;border-radius:6px;padding:4px 8px;margin:4px 0}
+#needs .sp-h b{white-space:nowrap}
+#needs-sum{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:48%;display:inline-block;vertical-align:bottom}
+
+/* L54 — 작도 하위 메뉴 */
+.lg-head .lg-draw { text-decoration: none; font-size: 13px; padding: 4px 10px; border-radius: 6px; }

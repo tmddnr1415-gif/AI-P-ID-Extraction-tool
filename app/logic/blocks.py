@@ -86,11 +86,36 @@ def _on_edge(p, cell, tol):
                for s in p.segs for x, y in s.ends()) and all(s.vert or s.horiz for s in p.segs)
 
 
-def _cell_chars(polys, cell):
+def _rim(p, cell, band):
+    """L53 — 획 전부가 칸 가장자리 띠(band) 안에 머물면 테두리 장식(겹테두리 · 깎은 모서리)이지 글자가 아니다.
+    HRSG 누름단추(AUTO · STOP · CLOSE · MAN.)는 겹상자를 깎은 모서리로 그리는데, 안쪽 테두리 선과 모서리 꺾은선이
+    글자와 한 덩이로 묶여 네 글자가 한 글자('8' · 'W')로 읽혔다."""
+    x0, y0, x1, y1 = cell
+    cnt = {}
+    for s in p.segs:
+        for x, y in s.ends():
+            if min(abs(x - x0), abs(x - x1)) > band and min(abs(y - y0), abs(y - y1)) > band:
+                return False
+            k = (round(x, 2), round(y, 2))
+            cnt[k] = cnt.get(k, 0) + 1
+    # 자유 끝(한 번만 나오는 끝점) 가운데 하나는 칸 **경계 위**에서 시작해야 한다 — 글자 획은 경계에서 시작하지 않는다
+    # (작은 AND 상자의 세로 쌓은 글자는 변에 가깝지만 변 위에 있지는 않다 · HRSG 10.8pt 상자 — 띠만 보면 그 글자가 지워진다)
+    free = [k for k, c in cnt.items() if c == 1]
+    tol = 0.3                                         # 모서리 장식은 변 **위**에서 시작한다 (칸 크기와 무관한 자)
+    return any(min(abs(x - x0), abs(x - x1)) <= tol or min(abs(y - y0), abs(y - y1)) <= tol for x, y in free)
+
+
+def _cell_chars(polys, cell, rim=True):
+    """rim=False — 원(램프 · 연결 기호)은 둘레 빗살이 곧 뜻이다 (범례 LIGHT) · 사각형 칸의 테두리 장식만 뺀다 (L53)."""
     w, h = cell[2] - cell[0], cell[3] - cell[1]
     tol = 0.04 * min(w, h)
+    band = min(0.2 * min(w, h), 2.0)               # 테두리 장식은 변에서 1~2pt — 큰 상자(STEP · 매크로)의 변 가까운 글자는 아니다
     ps = [p for p in polys if cell[0] <= (p.bbox[0] + p.bbox[2]) / 2 <= cell[2]
           and cell[1] <= (p.bbox[1] + p.bbox[3]) / 2 <= cell[3] and not _on_edge(p, cell, tol)]
+    # 칸 폭(높이) 대부분을 가로지르는 납작한 획 = 안쪽 테두리 선 · 가장자리 띠 안의 획 = 모서리 장식 — 글자와 묶기 전에 뺀다
+    ps = [p for p in ps if not ((p.bbox[3] - p.bbox[1] < 0.1 * (p.bbox[2] - p.bbox[0]) and p.bbox[2] - p.bbox[0] > 0.6 * w) or
+                                (p.bbox[2] - p.bbox[0] < 0.1 * (p.bbox[3] - p.bbox[1]) and p.bbox[3] - p.bbox[1] > 0.6 * h))
+          and not (rim and _rim(p, cell, band))]
     cs = glyphs.chars(ps)
     # 칸 폭 대부분을 가로지르는 납작한 획은 글자가 아니라 겹테두리 선이다
     cs = [c for c in cs if not ((c.h < 0.1 * c.w and c.w > 0.6 * w) or (c.w < 0.1 * c.h and c.h > 0.6 * h))]
@@ -211,6 +236,7 @@ def classify(sheet, D):
                                 seg = []
                             seg.append(c)
                         b.lines.append(_seg_line(D, seg, vert))
+                    _op_box(b)
                     continue
             # 맞닿아 그린 같은 게이트 둘 (GT 위·아래 · G021) — 칸마다 같은 기능 낱말 한 줄이면 칸마다 블록 하나
             if len(cells) >= 2 and all(abs(c[0] - cells[0][0]) < 1 and abs(c[2] - cells[0][2]) < 1 for c in cells):
@@ -227,7 +253,7 @@ def classify(sheet, D):
             b.logic = "unknown"
             b.label = b.read
         else:
-            cs, vert = _cell_chars(polys, b.bbox)
+            cs, vert = _cell_chars(polys, b.bbox, rim=False)
             b.read = _read_free(D, cs, vert)
             gate_words = [w for w in words if funcs[words[w]]["logic"] in ("or", "nor", "sink")]
             w, s, m = decode(D, cs, gate_words) if (len(cs) >= 2 and b.kind != "CONNECTOR") else (None, 0, 0)
@@ -265,6 +291,12 @@ def classify(sheet, D):
                 b.func = "CONNECTOR"
                 b.logic = "connector"
                 b.label = ch if (cs and s >= MIN_SCORE) else "?"
+                if b.label == "?" and not cs:
+                    # L54 — 글자를 진짜 글자로 인쇄한 양식(작도기 · 19VA): 원 안의 짧은 낱말 하나가 연결 기호의 글자
+                    from . import legend as LG
+                    tx = [x.replace(" ", "") for x in LG.block_text(b, sheet.words) if x and x.strip()]
+                    if len(tx) == 1 and 1 <= len(tx[0]) <= 2 and tx[0].isalnum():
+                        b.label = tx[0]
                 b.score = round(s, 3)
                 b.raster = cs[0].raster if cs else None
                 continue
@@ -296,6 +328,8 @@ def classify(sheet, D):
         elif b.id in has_in and b.id not in has_out and len(re.sub(r"[^A-Z]", "", rd.upper())) >= 3:
             b.func, b.logic, b.label = "DISPLAY", "sink", rd
     _pass_points(sheet)
+    _lamp_fallback(sheet)
+    _note_defined(sheet)
     _shape_fallback(sheet, leg)
     _connector_groups(sheet)
     _step_roles(sheet, D)
@@ -313,6 +347,8 @@ def _drawn(b, sheet, leg, mem_set, mem_reset):
     블록 안에 진짜 글자도 모양도 없으면 False (예전 길 — 선 글자 사전).
     """
     from . import legend as LG
+    if b.kind == "CONNECTOR":
+        return False                  # L54 — 꼭지 삼각형이 붙은 원은 모양으로 이미 연결 기호다 · 범례 열쇠(`|A` = 아날로그 발생기)에 맞대지 않는다
     if _ansi(b, sheet):
         return True
     if not leg:
@@ -398,19 +434,32 @@ def _drawn(b, sheet, leg, mem_set, mem_reset):
         _set_from_legend(b, hit, "")
         b.legend = {"name": hit["name"], "page": None, "basis": "블록 안 글자 = 기능 이름"}
         return True
-    mv = re.fullmatch(r"(\d+)\s*(?:/|≥|>=|>|=)\s*(\d+)", whole.replace("_", " ").strip())     # `2/3` · `2≥3` · '≥' 의 밑줄을 획으로 그려 `2=3` (1A5J)
-    if mv and 0 < int(mv.group(1)) <= int(mv.group(2)):
+    mv = re.fullmatch(r"(\d+)\s*(/|≥|>=|≤|<=|≠|!=|>|<|=)\s*(\d+)", whole.replace("_", " ").strip())   # `2/3` · `2≥3` · '≥' 의 밑줄을 획으로 그려 `2=3` (1A5J)
+    if mv and 0 < int(mv.group(1)) <= int(mv.group(3)):
         # 범례 A/B (B 개 중 A 개 이상일 때만 출력) — 상자 안에 그 글자만 인쇄한 투표 블록 (1A1Y `2/3` · L23)
+        # L51 — 자격 OR 의 부호 (범례 G003 '( * ) n' · 19VA 'In > N'): > · < · ≤ · ≠ 도 받는다.  `=` 는 선 글자에서 '≥' 의
+        # 밑줄이 획으로 읽힌 것(1A5J 실측)이라 '이상' 으로 둔다 — 정확히 n 개는 범례 글자 `=` 를 진짜 글자로 찍는 양식에서만
         b.func, b.logic, b.label = "VOTE", "vote", whole.replace(" ", "")
-        b.param = {"a": int(mv.group(1)), "b": int(mv.group(2))}
+        op = {"/": "ge", "≥": "ge", ">=": "ge", "=": "ge", ">": "gt", "≤": "le", "<=": "le", "<": "lt", "≠": "ne", "!=": "ne"}[mv.group(2)]
+        if "_" in whole and op in ("gt", "lt"):
+            op = "ge" if op == "gt" else "le"      # 선 글자의 밑줄(`_2>3`) 은 '≥' 의 밑줄이다 (1A5J 실측) — '이상'
+        b.param = {"a": int(mv.group(1)), "b": int(mv.group(3)), "op": op}
         b.score = 1.0
         return True
     ws = [w for w in sheet.words if b.bbox[0] <= (w[0] + w[2]) / 2 <= b.bbox[2] and b.bbox[1] <= (w[1] + w[3]) / 2 <= b.bbox[3]]
     rows = {round((w[1] + w[3]) / 2) for w in ws}
     if b.kind == "RECT" and len(rows) >= 3 and len(ws) >= 3:
+        lines_ = [(w[1], w[3], w[0], w[2], w[4].upper()) for w in ws]
+        if ws and ws[0][4].upper().startswith("STEP"):
+            # 진짜 글자로 인쇄한 STEP 상자 — 선 글자 갈래(위 `"STEP" in joined`)와 같은 규칙 (L56 · 작도 PDF 가 진짜 글자다)
+            b.func, b.logic = "STEP", "step"
+            b.label = ws[0][4].upper() if ws else "STEP"
+            b.lines = lines_
+            return True
         b.func, b.logic = "MACRO", "macro"
         b.label = whole
-        b.lines = [(w[1], w[3], w[0], w[2], w[4].upper()) for w in ws]
+        b.lines = lines_
+        _op_box(b)
         return True
     if lib_only:
         return False                  # 사전에 없는 글자 상자 — 예전 길에 맡긴다 (지어내지 않는다)
@@ -561,6 +610,56 @@ def _stretch(pts):
     return sorted({(round((x - x0) * sx), round((y - y0) * sy)) for x, y in pts})
 
 
+def _lamp_fallback(sheet):
+    """L48 — 원 안에 표시등 글자 하나(G · R · W …)뿐이고 **나가는 선이 없는** 원은 표시등이다 (받기만).
+    19VA P 시트의 램프는 파선으로 들어오는 선이 안 읽혀 들어오는 선도 없는 채 '판정 못 한 블록' 으로 남았다."""
+    try:
+        from . import aops, legend as LG
+        lamps = {str(x).upper() for x in (aops.vocab().get("lamp_labels") or [])}
+    except Exception:
+        return
+    outs = {pt.block for pt in sheet.ports if pt.dir == "out"}
+    for b in sheet.blocks.values():
+        if b.kind != "CIRCLE" or getattr(b, "func", "") != "UNKNOWN" or b.id in outs:
+            continue
+        tx = [t.replace(" ", "").upper() for t in LG.block_text(b, sheet.words) if t and t.strip()]
+        if len(tx) == 1 and tx[0] in lamps:
+            b.func, b.logic, b.label, b.score = "LIGHT", "sink", tx[0], 1.0
+
+
+_NOTE_INVERT = re.compile(r"INVERT")
+
+
+def _note_defined(sheet):
+    """L48 — 상자 안 글자 하나뿐인 판정 못 한 상자를 **그 장의 NOTE 가 정의**하면 그 정의를 따른다.
+    19VA Typical 0009·0013·0015·0017 의 `SRST` — NOTE.1: *OUTPUT STATE IS INVERTED BY EACH MOMENTARY TRUE SIGNAL ON "SRST"*
+    → 토글(입력이 0 → 1 로 바뀔 때마다 출력이 뒤집힌다).  낱말 SRST 는 코드에 없다 — NOTE 문장이 그 낱말을 따옴표로
+    부르고 INVERT 를 말할 때만."""
+    from . import legend as LG
+    unk = []
+    for b in sheet.blocks.values():
+        if b.kind != "RECT" or getattr(b, "func", "") != "UNKNOWN":
+            continue
+        lab = (getattr(b, "label", "") or "").strip()
+        if not lab:                                   # 범례 없는 묶음은 글자 상자에 이름을 안 붙여 둔다 (lib_only) — 상자 글자로
+            tx = [t.strip() for t in LG.block_text(b, sheet.words) if t and t.strip()]
+            lab = tx[0] if len(tx) == 1 else ""
+        if re.fullmatch(r"[A-Z][A-Z0-9_]{1,11}", lab.upper()):
+            unk.append((b, lab.upper()))
+    if not unk:
+        return
+    ws = sorted(sheet.words, key=lambda w: (round(w[1] / 4), w[0]))
+    text = " ".join(str(w[4]) for w in ws).upper()
+    for b, lab in unk:
+        for m in re.finditer("[\\'\"\u201c\u201d]" + re.escape(lab) + "[\\'\"\u201c\u201d]", text):
+            win = text[max(0, m.start() - 160): m.end() + 160]
+            if _NOTE_INVERT.search(win):
+                b.func, b.logic, b.score, b.label = "TOGGLE", "toggle", 1.0, lab
+                b.param = dict(getattr(b, "param", {}) or {})
+                b.param["note"] = "NOTE — 입력이 참으로 바뀔 때마다 출력이 뒤집힌다"
+                break
+
+
 def _pass_points(sheet):
     """선 위의 속 빈 작은 원 — 글자도 획도 없고 들어오는 선 하나 · 나가는 선이 있는 원은 기능이 아니라 이음점이다
     (1A5J 매크로 틀을 신호가 지나는 자리 · L23).  블록으로 두면 판정 못 한 블록이 되어 신호가 거기서 멈춘다 →
@@ -578,6 +677,33 @@ def _pass_points(sheet):
                 continue
         ins = [pt for pt in sheet.ports if pt.block == b.id and pt.dir == "in"]
         outs = [pt for pt in sheet.ports if pt.block == b.id and pt.dir == "out"]
+        if not buffer and len({pt.net for pt in ins}) == 2 and len({pt.net for pt in outs}) == 2:
+            # L48 — 선 둘이 **교차하며 지나는** 속 빈 원 (19VA Typical 의 행 선이 매크로 틀을 가로지르는 자리:
+            # 가로선 하나 · 세로 틀선 하나).  들어오는 끝과 마주 보는(가장 먼) 나가는 끝이 한 선이다.
+            pairs = []
+            left = list(outs)
+            for pi in sorted(ins, key=lambda pt: pt.at):
+                po = max(left, key=lambda pt: (pt.at[0] - pi.at[0]) ** 2 + (pt.at[1] - pi.at[1]) ** 2)
+                left.remove(po)
+                pairs.append((pi.net, po.net))
+            for keep, g in pairs:
+                if g == keep:
+                    continue
+                for pt in sheet.ports:
+                    if pt.net == g:
+                        pt.net = keep
+                for r in sheet.rows:
+                    if r.get("net") == g:
+                        r["net"] = keep
+                n = sheet.nets.setdefault(keep, {"segs": [], "dashed": False})
+                o = sheet.nets.pop(g, None)
+                if o:
+                    n["segs"].extend(o.get("segs", []))
+                    n["dashed"] = n.get("dashed") or o.get("dashed")
+                sheet.dangling = [(x, y, keep if net == g else net) for x, y, net in sheet.dangling]
+            sheet.ports = [pt for pt in sheet.ports if pt.block != b.id]
+            del sheet.blocks[b.id]
+            continue
         if len({pt.net for pt in ins}) != 1 or not outs:
             continue
         keep = ins[0].net
@@ -729,12 +855,16 @@ def _split_stacked(sheet, split, funcs, words):
 
 def _connector_groups(sheet):
     """같은 장의 연결 기호를 **그림이 같은 것끼리** 묶는다 (글자를 몰라도 같은 글자인지는 안다)."""
-    cons = [b for b in sheet.blocks.values() if b.func == "CONNECTOR" and getattr(b, "raster", None)]
+    cons = [b for b in sheet.blocks.values() if b.func == "CONNECTOR" and (getattr(b, "raster", None) is not None or b.label != "?")]
     groups = []
     for b in cons:
         for g in groups:
-            same = (b.label == g[0].label) if (b.label != "?" and g[0].label != "?") else \
-                glyphs.score(b.raster, g[0].raster) >= 0.75
+            if b.label != "?" and g[0].label != "?":
+                same = b.label == g[0].label
+            elif getattr(b, "raster", None) is None or getattr(g[0], "raster", None) is None:
+                same = False                  # L54 — 글자로만 읽은 연결 기호는 그림이 없어 글자가 같을 때만 묶인다
+            else:
+                same = glyphs.score(b.raster, g[0].raster) >= 0.75
             if same:
                 g.append(b)
                 break
@@ -752,14 +882,42 @@ def _seg_line(D, cs, vert):
             max(c.bbox[2] for c in cs), _read_free(D, cs, vert).replace(" ", "").upper())
 
 
+def _op_box(b):
+    """L48 — 단자 이름을 상자 안에 인쇄한 **연산 상자** (19VA `EQUAL IN1 IN2 OUT` · `BIT_CNT IN1…IN6 OUT` · `SPC IN SP AT …`).
+    글줄이 셋 이상이라 매크로로 읽혔지만, 상자 **안쪽 가운데**(양 변에서 폭의 1/5 넘게 떨어진 자리)에 인쇄된 이름이
+    아날로그 연산 어휘(config/logic_analog.yaml 의 labels · names)에 있으면 Typical 시트가 아니라 그 연산이다.
+    단자 이름은 매크로처럼 읽어 둔다 (`pinbox`).  어휘에 없으면 매크로 그대로."""
+    try:
+        from . import aops
+        v = aops.vocab()
+    except Exception:
+        return
+    x0, _, x1, _ = b.bbox
+    w = x1 - x0
+    for y0, y1, lx0, lx1, t in getattr(b, "lines", []):
+        if lx0 - x0 <= 0.2 * w or x1 - lx1 <= 0.2 * w:
+            continue                                   # 변에 붙은 글 = 단자 이름
+        lab = aops._lab(t).strip("_")
+        op = v["_by_label"].get(lab) or v["_by_name"].get(aops._key(t.replace("_", " ")))
+        if not op:
+            continue
+        names = (aops.info(op).get("names") or [])
+        b.func, b.logic, b.aop = (names[0] if names else op.upper()), "unknown", op
+        b.label = t.strip()
+        b.pinbox = True
+        return
+
+
 def _macro_pins(sheet):
     """매크로 블록의 단자 → 그 단자 높이·그 변 쪽에 인쇄된 상자 안 글줄 (단자 이름).  단자가 없는 상자는 매크로가 아니다."""
     P = sheet.layout.pitch
     for b in sheet.blocks.values():
-        if getattr(b, "func", "") != "MACRO":
+        if getattr(b, "func", "") != "MACRO" and not getattr(b, "pinbox", False):
             continue
         pts = [pt for pt in sheet.ports if pt.block == b.id]
-        if not any(pt.dir == "in" for pt in pts):
+        if getattr(b, "pinbox", False):
+            b.pins = {}
+        elif not any(pt.dir == "in" for pt in pts):
             b.func, b.logic = "SIGNAL", "source"       # 들어오는 단자가 없는 상자 = 이름 붙은 신호 상자 (예전 규칙)
             continue
         b.pins = {}
@@ -767,22 +925,53 @@ def _macro_pins(sheet):
         for pt in pts:
             y = pt.at[1]
             side = []
+            cap = (b.label or "").strip() if getattr(b, "pinbox", False) else None
             for y0, y1, x0, x1, t in getattr(b, "lines", []):
                 on_side = (x0 - b.bbox[0] < half) if pt.side == "L" else (b.bbox[2] - x1 < half)
-                if on_side and t.strip("-_"):         # 밑줄 획만 있는 조각(EN_CLOSE 의 '_')은 이름이 아니다
-                    side.append((y0, y1, x0, t))
+                if cap and t.strip() == cap:
+                    continue                           # L48 — 연산 상자의 이름(EQUAL · SPC)은 단자 이름이 아니다
+                if on_side and t.strip():
+                    side.append((y0, y1, x0, x1, t))   # 밑줄 획만 있는 조각(EN_CLOSE 의 '_')은 잇는 다리일 뿐 이름이 아니다
             best = None
-            for y0, y1, x0, t in side:
+            for y0, y1, x0, x1, t in side:
+                if not t.strip("-_"):
+                    continue
                 d = 0 if y0 <= y <= y1 else min(abs(y - y0), abs(y - y1))
                 if d <= 0.8 * P and (best is None or d < best[0]):
                     best = (d, y0, y1)
             if best is None:
                 b.pins[f"{pt.at[0]},{pt.at[1]}"] = ""
                 continue
-            # 같은 높이의 조각을 x 순으로 잇는다 — 밑줄(_)에서 글줄이 갈린다 (EN · CLOSE → ENCLOSE)
+            # 같은 높이의 조각을 x 순으로 잇는다 — 밑줄(_)에서 글줄이 갈린다 (EN · CLOSE → ENCLOSE).
+            # L48 — 그 변에서 시작해 **글자 높이 0.6배 안**으로 이어지는 조각만 (가운데 인쇄된 상자 이름 EQUAL · SPC 가
+            # 같은 높이의 단자 이름에 붙어 `IN1EQUAL` · `TR_VSPC` 가 되던 것)
             _, by0, by1 = best
-            parts = sorted((x0, t) for y0, y1, x0, t in side if y0 <= by1 and y1 >= by0)
-            b.pins[f"{pt.at[0]},{pt.at[1]}"] = "".join(t for _, t in parts)
+            tol = 0.5 * (by1 - by0)                    # 밑줄은 글자 바닥 아래 기준선에 그려진다 — 띠 밖이어도 다리로 센다
+            parts = sorted((x0, x1, t, by1 - by0 if not t.strip("-_") else y1 - y0) for y0, y1, x0, x1, t in side
+                           if (y0 <= by1 and y1 >= by0) or (not t.strip("-_") and y0 >= by0 - tol and y1 <= by1 + tol))
+            while parts and not parts[0][2].strip("-_"):
+                parts.pop(0)                           # 변 쪽 끝의 밑줄은 다리가 아니다
+            while parts and not parts[-1][2].strip("-_"):
+                parts.pop()
+            if not parts:
+                b.pins[f"{pt.at[0]},{pt.at[1]}"] = ""
+                continue
+
+            def gap_ok(a, c):                        # 낱말 사이 빈 칸(0.2~0.3h)은 잇고 다른 글(≥1h)은 안 잇는다 — 작은 글자 기준
+                return c[0] - a[1] <= 0.6 * max(min(a[3], c[3]), 0.1)
+            if pt.side == "L":
+                chain = [parts[0]]
+                for q in parts[1:]:
+                    if not gap_ok(chain[-1], q):
+                        break
+                    chain.append(q)
+            else:
+                chain = [parts[-1]]
+                for q in reversed(parts[:-1]):
+                    if not gap_ok(q, chain[0]):
+                        break
+                    chain.insert(0, q)
+            b.pins[f"{pt.at[0]},{pt.at[1]}"] = "".join(t for _, _, t, _ in chain if t.strip("-_"))
 
 
 def _inner_buttons(sheet):

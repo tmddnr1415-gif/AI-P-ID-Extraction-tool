@@ -382,7 +382,15 @@ def _timer_params(sh, D):
         near = sorted((w for w in sh.words if w[2] > x0 - h and w[0] < x1 + h and
                        ((y1 - 0.5 <= w[1] < y1 + 1.3 * h) or (y0 - 1.3 * h < w[3] <= y0 + 0.5))),
                       key=lambda w: (round(w[1]), w[0]))
-        m = re.search(r"(\d+(?:\.\d+)?)\s*(SEC|S|MIN|M)\b", " ".join(w[4] for w in near).upper())
+        # L54 — 글줄이 둘 이상 들면(두 행 간격으로 쌓인 타이머의 아래 글이 다음 타이머의 위 창에 든다) **블록에 가장 가까운 줄**부터
+        lines = {}
+        for w in near:
+            lines.setdefault(round(w[1]), []).append(w)
+        m = None
+        for _, ws in sorted(lines.items(), key=lambda kv: min(abs(kv[1][0][1] - y1), abs(y0 - kv[1][0][3]))):
+            m = re.search(r"(\d+(?:\.\d+)?)\s*(SEC|S|MIN|M)\b", " ".join(w[4] for w in ws).upper())
+            if m:
+                break
         if m:
             v = float(m.group(1)) * (60 if m.group(2).startswith("M") else 1)
             out[b.id] = {"t": int(v) if v == int(v) else v, "text": f"t={m.group(1)}{m.group(2).lower()}"}
@@ -437,11 +445,30 @@ def _export(sh, pno, sheet_no, title, rows, timers):
                     blks[b.id]["shape"] = b.shape
         if getattr(b, "learned", ""):
             blks[b.id]["learned"] = b.learned
-        if getattr(b, "func", "") == "MACRO":
+        if getattr(b, "func", "") == "MACRO" or getattr(b, "pinbox", False):
             blks[b.id]["pins"] = dict(getattr(b, "pins", {}))
             blks[b.id]["lines"] = [list(ln) for ln in getattr(b, "lines", [])]
+        if getattr(b, "aop", ""):
+            blks[b.id]["aop"] = b.aop                   # L48 — 단자 이름을 안에 인쇄한 연산 상자 (EQUAL · BIT_CNT · SPC)
         if b.id in timers:
             blks[b.id]["param"].update(timers[b.id])
+    # L53 — 입력 하나뿐인 AND/OR 가 **도면대로** 그려진 것인가.  범례는 여러 입력으로 그리지만 설계자는 입력 하나짜리
+    # AND 를 통과 상자로 쓴다 (HRSG G042 · G040 — STEP 의 CRIT 앞).  막대 둘레(행 간격 안)에 끊긴 선 끝 · 꼭지만 남은
+    # 화살이 하나도 없으면 읽기 빈틈이 아니라 그렇게 그린 것이다 → 시뮬레이터가 빠진 칸을 0 으로 채우지 않는다.
+    P_ = sh.layout.pitch
+    loose = [(d[0], d[1]) for d in sh.dangling] + [(a[0], a[1]) for a in sh.stray_arrows]
+    for b in sh.blocks.values():
+        lg = getattr(b, "logic", "")
+        if lg not in ("and", "or", "nand", "nor"):
+            continue
+        n_in = sum(1 for pt in sh.ports if pt.block == b.id and pt.dir == "in")
+        if n_in != 1:
+            continue
+        x0, y0, x1, y1 = b.bbox
+        for bs in getattr(b, "bus", []) or []:
+            x0, y0, x1, y1 = min(x0, bs[0], bs[2]), min(y0, bs[1], bs[3]), max(x1, bs[0], bs[2]), max(y1, bs[1], bs[3])
+        if not any(x0 - P_ <= x <= x1 + P_ and y0 - P_ <= y <= y1 + P_ for x, y in loose):
+            blks[b.id]["param"]["as_drawn"] = 1
     ports = []
     for pt in sh.ports:
         b = sh.blocks[pt.block]
@@ -457,7 +484,7 @@ def _export(sh, pno, sheet_no, title, rows, timers):
             d = "in"                                    # 램프 · 경보 · 기록은 받기만 한다 (범례 G003)
         pd = {"block": pt.block, "net": str(pt.net), "dir": d, "at": list(pt.at),
               "side": pt.side, "cell": pt.cell, "role": role}
-        if getattr(b, "func", "") == "MACRO":
+        if getattr(b, "func", "") == "MACRO" or getattr(b, "pinbox", False):
             pd["pin"] = b.pins.get(f"{pt.at[0]},{pt.at[1]}", "")
         ports.append(pd)
     rmap = {(r["side"], r["n"]): r for r in rows}
@@ -475,6 +502,7 @@ def _export(sh, pno, sheet_no, title, rows, timers):
         "frame": [round(v, 2) for v in sh.frame] if sh.frame else None,
         "nets": nets, "blocks": blks, "ports": ports, "rows": srows, "table": rows,
         "dangling": [list(d) for d in sh.dangling], "stray_arrows": [list(d) for d in sh.stray_arrows],
+        "markers": [[round(v, 2) for v in bb] + [kind] for bb, kind in (getattr(sh, "markers", None) or [])],   # L58 ◆ ■ (재현용)
     }
     out["order"] = _net_order(out)
     return out

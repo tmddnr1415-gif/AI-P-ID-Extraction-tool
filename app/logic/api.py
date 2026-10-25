@@ -487,6 +487,8 @@ def _lib_png(job, page):
     s = _sheet(job, page)
     png = (s.get("library") or {}).get("png")
     f = library.typ_dir() / png if png else None
+    if (not f or not f.is_file()) and (s.get("library") or {}).get("id"):
+        f = library.ensure_png(s["library"]["id"])       # L63 — 씨앗 Typical 은 그림을 싣지 않는다 → 처음 볼 때 그 그림을 그린다
     if not f or not f.is_file():
         raise HTTPException(404, "학습 사전에 그 Typical 시트의 그림이 없습니다.")
     return f
@@ -845,7 +847,27 @@ def sequence_plan(job: str, body: dict = Body(default={})):
     except (TypeError, ValueError):
         raise HTTPException(400, "page · row 가 필요합니다.")
     value = 0 if body.get("value") in (0, "0") else 1
-    return _memo(res, "sequence", lambda: sequence.plan(_all_sheets(res), page, row, value), page, row, value)
+    cache = _bundle_cache(job, res)
+    with cache.setdefault("_lock", threading.Lock()):   # L50 — 권하는 갈래를 시뮬레이터로 시험한다 (묶음 기억 공유 · 한 번에 하나)
+        return _memo(res, "sequence", lambda: sequence.plan(_all_sheets(res), page, row, value, cache=cache), page, row, value)
+
+
+@router.post("/logic/api/jobs/{job}/needs")
+def needs(job: str, body: dict = Body(default={})):
+    """L49 — 게이트 · 매크로 · 선을 누르면: 그 출력이 켜지려면 앞쪽 어떤 신호가 켜져야 하는지 (출력마다 조건 나무 · 판정 0줄)."""
+    res = _result(job)
+    from . import sequence
+    try:
+        page = int(body.get("page"))
+    except (TypeError, ValueError):
+        raise HTTPException(400, "page 가 필요합니다.")
+    target = str(body.get("target") or "")
+    if not (target.startswith("block:") or target.startswith("net:")):
+        raise HTTPException(400, "target 은 block:<id> · net:<id> 입니다.")
+    value = 0 if body.get("value") in (0, "0") else 1
+    cache = _bundle_cache(job, res)
+    with cache.setdefault("_lock", threading.Lock()):
+        return _memo(res, "needs", lambda: sequence.needs(_all_sheets(res), page, target, value, cache=cache), page, target, value)
 
 
 @router.delete("/logic/api/jobs/{job}")
@@ -962,7 +984,7 @@ def _start_learning(job, d):
         _LEARNING[job] = None
         return
     if paths.frozen():
-        th = threading.Thread(target=behavior.learn_dir, args=(d,), daemon=True)
+        th = threading.Thread(target=lambda: (behavior.wait_quiet(d), behavior.learn_dir(d)), daemon=True)
         th.start()
         _LEARNING[job] = type("T", (), {"poll": lambda self: None if th.is_alive() else 0})()
         return
@@ -1005,7 +1027,7 @@ def sequence_try(job: str, body: dict = Body(default={})):
         for p, v in _clean_forces(o).items():
             f.setdefault(p, {}).update(v)
         with cache.setdefault("_lock", __import__("threading").Lock()):
-            r = sim.simulate_bundle(sheets, f, None, page, timers=timers, cache=cache)["focus"] or {"frames": []}
+            r = sim.simulate_bundle(sheets, f, None, page, timers=timers, cache=cache, light=True)["focus"] or {"frames": []}
         vals = [fr["values"].get(net) for fr in r["frames"]]
         out.append({"reached": want in vals, "steady": bool(vals) and vals[-1] == want})
     return {"options": out}
@@ -1425,6 +1447,13 @@ def aops_vocab():
             "needs": aops.NEEDS}
 
 
+@router.get("/logic/api/functions")
+def functions_get():
+    """기능 책 — 기능마다 범례가 정한 동작 한 줄 (화면 '동작 (범례)' 줄이 읽는다)."""
+    from app.logic import functions
+    return functions.book()
+
+
 @router.get("/logic/api/library")
 def library_get():
     """학습 사전 — 모양 열쇠 → 기능 · Typical 시트 (어느 묶음 · 누가 가르쳤는지)."""
@@ -1570,3 +1599,7 @@ def teach_crop(job: str, page: int, x0: float, y0: float, x1: float, y1: float):
         return Response(pix.tobytes("png"), media_type="image/png", headers={"Cache-Control": "max-age=3600"})
     except (IndexError, RuntimeError, ValueError):
         raise HTTPException(404, "그 장을 그리지 못했습니다.")
+
+
+from . import draw_api as _draw_api          # L54 — LOGIC 작도 (/logic/draw · /logic/api/drawings/*)
+router.include_router(_draw_api.router)

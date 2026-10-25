@@ -136,6 +136,7 @@ class Sheet:
     glyph_polys: list = field(default_factory=list)
     all_glyphs: list = field(default_factory=list)   # 장 전체의 글자 크기 획 (표 칸 글자 포함)
     words: list = field(default_factory=list)
+    markers: list = field(default_factory=list)      # L58 — 선 위의 인터페이스 표시 [(bbox, "diamond"|"square")] (재현용 · 판정에 안 쓴다)
 
 
 # ------------------------------------------------------------------ 만들기
@@ -159,7 +160,32 @@ def build(prims: geom.Prims, lay=None) -> Sheet | None:
         # LOGIC 영역 테두리 자체(표의 괘선)는 신호선이 아니다
         return all((s.vert and (abs(s.x0 - LX0) <= tol or abs(s.x0 - LX1) <= tol)) or
                    (s.horiz and (abs(s.y0 - LY0) <= tol or abs(s.y0 - LY1) <= tol)) for s in p.segs)
-    polys = [p for p in prims.polys if inside(p.bbox) and not on_border(p)]
+    def clip_logic(p):
+        """L48 — LOGIC 영역 바깥으로 **조금**(1P 안) 삐져나간 꺾은선은 버리지 않고 영역 안 토막만 남긴다.
+        19VA Typical 0015 의 M_SEL · LOCK · RESET 행 선이 표 경계 1.5pt 안쪽(x=253.84)에서 시작해 path 전체가
+        '영역 밖' 으로 버려졌고, MTS 매크로 56개가 그 입력을 잃었다.  남긴 토막의 끝은 경계 x 에 둔다 (행 붙이기 규칙 그대로)."""
+        bb = p.bbox
+        if inside(bb):
+            return p
+        if bb[1] < LY0 - tol or bb[3] > LY1 + tol or bb[0] < LX0 - P or bb[2] > LX1 + P:
+            return None
+        segs = []
+        for s in p.segs:
+            if s.horiz:
+                lo, hi = min(s.x0, s.x1), max(s.x0, s.x1)
+                lo, hi = max(lo, LX0), min(hi, LX1)
+                if hi - lo <= 0.01:
+                    continue
+                segs.append(geom.Seg(lo if s.x0 <= s.x1 else hi, s.y0, hi if s.x0 <= s.x1 else lo, s.y1))
+            elif min(s.x0, s.x1) >= LX0 - tol and max(s.x0, s.x1) <= LX1 + tol:
+                segs.append(s)
+        if not segs:
+            return None
+        nb = (min(min(s.x0, s.x1) for s in segs), min(min(s.y0, s.y1) for s in segs),
+              max(max(s.x0, s.x1) for s in segs), max(max(s.y0, s.y1) for s in segs))
+        q = geom.Poly(segs, nb, p.dashed, p.pid, getattr(p, "curved", False))
+        return q
+    polys = [q for q in (clip_logic(p) for p in prims.polys) if q is not None and not on_border(q)]
     wires, glyphs = [], []
     for p in polys:
         (glyphs if p.size < GLYPH_MAX * P else wires).append(p)
@@ -278,11 +304,43 @@ def build(prims: geom.Prims, lay=None) -> Sheet | None:
         glyphs += moved
         wires = [p for p in wires if not enclosed(p)]
 
+    # L52 — 한 path 에 신호선과 블록 테두리가 함께 든 꺾은선 (HRSG G043 의 AND: 입력 버스 → 상자 네 변 → 되돌아옴).
+    # 상자는 이미 블록으로 섰는데 테두리 토막이 선으로 남아 입력 선과 출력 선을 한 선으로 묶었다 (AND 의 R90 출력이
+    # 입력 L6 와 같은 선 → AND(x, NOT x) 로 영영 0).  블록 칸의 변 위에 **통째로** 놓인 축 토막은 테두리다 — 선은
+    # 변에서 끝나지 변을 따라 달리지 않는다.  나머지 토막은 그대로 선이다.
+    def _on_cell_edge(sg):
+        if not (sg.vert or sg.horiz):
+            return False
+        lo_x, hi_x = min(sg.x0, sg.x1), max(sg.x0, sg.x1)
+        lo_y, hi_y = min(sg.y0, sg.y1), max(sg.y0, sg.y1)
+        for b in blocks:
+            if b.kind != "RECT":
+                continue
+            for c in b.cells:
+                if sg.horiz and (abs(sg.y0 - c[1]) <= tol or abs(sg.y0 - c[3]) <= tol) and \
+                        lo_x >= c[0] - tol and hi_x <= c[2] + tol:
+                    return True
+                if sg.vert and (abs(sg.x0 - c[0]) <= tol or abs(sg.x0 - c[2]) <= tol) and \
+                        lo_y >= c[1] - tol and hi_y <= c[3] + tol:
+                    return True
+        return False
+    for p in list(wires):
+        if len(p.segs) < 2:
+            continue
+        keep = [sg for sg in p.segs if not _on_cell_edge(sg)]
+        if len(keep) == len(p.segs):
+            continue
+        wires.remove(p)
+        if keep:
+            nb = (min(min(s.x0, s.x1) for s in keep), min(min(s.y0, s.y1) for s in keep),
+                  max(max(s.x0, s.x1) for s in keep), max(max(s.y0, s.y1) for s in keep))
+            wires.append(geom.Poly(keep, nb, p.dashed, p.pid, getattr(p, "curved", False)))
+
     # ---- 빗금으로 칠한 상자(■) · 마름모(◆) = 선 위의 인터페이스 표시 (범례 G003) — 블록이 아니다
     markers = [m for m in prims.markers if inside(m) and max(m[2] - m[0], m[3] - m[1]) >= DOT_MAX * P]
 
-    def hatch_in(bb):
-        hs = [p for p in glyphs + wires if len(p.segs) == 1 and p.bbox[0] >= bb[0] - tol and p.bbox[2] <= bb[2] + tol
+    def hatch_in(bb, any_segs=False):
+        hs = [p for p in glyphs + wires if (any_segs or len(p.segs) == 1) and p.bbox[0] >= bb[0] - tol and p.bbox[2] <= bb[2] + tol
               and p.bbox[1] >= bb[1] - tol and p.bbox[3] <= bb[3] + tol]
         return hs
     for b in list(blocks):
@@ -301,7 +359,7 @@ def build(prims: geom.Prims, lay=None) -> Sheet | None:
                 blocks.remove(b)
                 markers.append(b.bbox)
     for m in markers:
-        hs = set(id(p) for p in hatch_in(m))
+        hs = set(id(p) for p in hatch_in(m, any_segs=True))     # L53 — 표시의 둘레 획(꺾은선)도 선이 아니다
         glyphs = [p for p in glyphs if id(p) not in hs]
         wires = [p for p in wires if id(p) not in hs]
 
@@ -403,6 +461,15 @@ def build(prims: geom.Prims, lay=None) -> Sheet | None:
                p.bbox[1] >= bl.bbox[1] - tol and p.bbox[3] <= bl.bbox[3] + tol for bl in blocks):
             continue                    # 블록 안의 글자 획
         if anchored(a) and anchored(b):
+            # L53 — 두 끝을 **같은 선분 하나**가 받치면 그 선 옆에 나란히 놓인 글자 획이다 (HRSG G008 `ST/BY-A` 의
+            # A 가로획이 선 끝 0.6pt 옆에 놓여 선이 되고, 그 선의 끝을 '닿은 끝' 으로 만들어 단추 출력 단자가 안 섰다).
+            # 블록 사이를 잇는 토막은 두 끝이 서로 다른 것에 닿는다.
+            wa = [id(w) for w in wix.near(a) if _on_seg(a, w, tol)[0]]
+            wb = [id(w) for w in wix.near(b) if _on_seg(b, w, tol)[0]]
+            others = (any(_block_edge(a, bl, tol) for bl in bix.near(a)) or any(_in_rect(a, ar.bbox, tol) for ar in aix.near(a)),
+                      any(_block_edge(b, bl, tol) for bl in bix.near(b)) or any(_in_rect(b, ar.bbox, tol) for ar in aix.near(b)))
+            if set(wa) & set(wb) and not (others[0] and others[1]):
+                continue
             glyphs.remove(p)
             wires.append(p)
 
@@ -428,6 +495,10 @@ def build(prims: geom.Prims, lay=None) -> Sheet | None:
                 b.bus.append((s.x0, s.y0, s.x1, s.y1))
                 b.bar = True
             continue
+        # L53 — LOGIC 경계(표의 행)에 닿는 선은 막대가 아니라 행 신호선이다.  HRSG G067: 출력 행 선 위에 연결 기호 원이
+        # 앉고 그 원으로 가는 토막에 화살이 있어, 493pt 행 선이 그 원의 '입력 막대' 로 먹혀 두 행이 통째로 사라졌다.
+        if min(s.x0, s.x1) <= LX0 + tol * 3 or max(s.x0, s.x1) >= LX1 - tol * 3:
+            continue
         b = _block_touching_bus(s, blocks, tol)
         if b is not None:
             bus_of[id(p)] = b
@@ -449,8 +520,19 @@ def build(prims: geom.Prims, lay=None) -> Sheet | None:
     segs = []                           # (seg, poly)
     seen_seg = set()
     flick_tips = []
+    # L53 — 화살촉 **안**에 통째로 든 짧은 축 토막은 화살촉의 꼬리다 (파선의 마지막 토막이 칠한 화살촉 밑에 깔린 1A1Y HR_P007).
+    # 선으로 두면 그 토막만의 그물이 행에 한 번 더 붙어 '몰이 없는 선' 으로 센다.
+    tip_ix = _rect_index([(a, a.bbox) for a in tip_arrows], tol)
+
+    def arrow_tail(s):
+        if not (s.vert or s.horiz):
+            return False                     # 길이는 화살촉 사각형이 가른다 (두 끝이 다 그 안)
+        e0, e1 = s.ends()
+        return any(_in_rect(e0, a.bbox, tol) and _in_rect(e1, a.bbox, tol) for a in tip_ix.near(e0))
     for p in wires:
         for s in p.segs:
+            if arrow_tail(s):
+                continue
             # L13 — 선 끝의 '열린 화살촉' 획: 같은 path 의 축 선분 끝에 붙은 짧은 사선 (글자 크기보다 작다).
             # 획을 선으로 치면 그 끝이 '닿은 끝' 이 되어 받는 게이트의 단자가 서지 않는다 (G012 OR 입력 막대 실측).
             if not (s.vert or s.horiz) and s.length < GLYPH_MAX * P and _flick(s, p, tol, GLYPH_MAX * P):
@@ -558,9 +640,17 @@ def build(prims: geom.Prims, lay=None) -> Sheet | None:
                     return True
         return False
 
+    # L53 — 블록 변(원 둘레)에 닿는 끝은 단자다.  그 자리에 다른 선이 **지나가도**(연결 기호 원이 행 선 바로 위에 앉은
+    # HRSG G067 — 원 바닥과 행 선이 0.4pt) 그 선에 잇지 않는다: 이으면 두 행 선이 한 그물이 되고 단자도 안 선다.
+    bix2 = _block_index(blocks, tol)
+
+    def at_block(e):
+        return any(_block_edge(e, bl, tol) for bl in bix2.near(e))
     for i, (s, p) in enumerate(segs):
         for e in s.ends():
             if not joinable(e, p):
+                continue
+            if at_block(e):
                 continue
             for j in near(e):
                 if j == i or segs[j][1] is p:
@@ -731,7 +821,10 @@ def build(prims: geom.Prims, lay=None) -> Sheet | None:
             q = (e[0] + ux * t, e[1] + uy * t)
             ar = next((a for a in arrows if _in_rect(q, a.bbox, tol)), None)
             if ar is not None:
-                hit = ar.base if _d(ar.base, e) <= R + tol else q       # 화살촉이면 그 밑동까지 (화살 선이 끝나는 자리)
+                if _d(ar.base, e) <= R + tol:                             # 화살촉이면 그 밑동까지 (화살 선이 끝나는 자리)
+                    hit = (ar.base[0], e[1]) if abs(ux) > abs(uy) else (e[0], ar.base[1])   # L53 — 축 위로 (기운 선분은 획으로 버려진다)
+                else:
+                    hit = q
                 break
             if any(_block_edge(q, b, tol) for b in blocks) or \
                     any(_on_seg(q, geom.Seg(*bs), tol)[0] for b in blocks for bs in getattr(b, "bus", ()) or ()):
@@ -815,7 +908,7 @@ def build(prims: geom.Prims, lay=None) -> Sheet | None:
             for j in near(e):
                 if (round(e[0], 2), round(e[1], 2)) in forced:
                     break
-                if j != i and (segs[j][1] is p or joinable(e, p)) and _on_seg(e, segs[j][0], tol)[0]:
+                if j != i and (segs[j][1] is p or joinable(e, p)) and _on_seg(e, segs[j][0], tol)[0] and not at_block(e):
                     touched = True
                     break
             if not touched:
@@ -889,6 +982,35 @@ def build(prims: geom.Prims, lay=None) -> Sheet | None:
     for r in sh.rows:
         if r["side"] == "L":
             drivers[r["net"]] += 1
+    # L48 — 단자 방향을 '확실한 것부터' 정한다.  ① 들어오는 단자(입력 막대 · 화살)를 이미 가진 블록의 **하나 남은** 미정 단자는
+    # 출력이다 (OR 의 오른쪽 변).  순서대로 풀면 그 선 위의 다른 블록(세로 선 위의 NOT)이 먼저 '나가는 쪽' 을 차지해 OR 출력이
+    # 들어오는 쪽이 되고 NOT 은 입력 없는 게이트가 됐다 (19VA Typical 0009 — 펌프 그룹 STOP 명령이 전부 그 NOT 에서 막혔다).
+    # ② 위·아래 변 단자만 둘인 작은 상자(세로 선 위의 NOT · 타이머): 한쪽 선만 확실한 받는 쪽(다른 블록의 들어오는 단자 ·
+    # 오른쪽 행)에 닿으면 닿는 쪽이 출력, 다른 쪽이 입력.
+    by_block = defaultdict(list)
+    for pt in sh.ports:
+        by_block[pt.block].append(pt)
+    for pts in by_block.values():
+        q = [pt for pt in pts if pt.dir == "?"]
+        if len(q) == 1 and any(pt.dir == "in" for pt in pts) and not any(pt.dir == "out" for pt in pts):
+            q[0].dir = "out"
+            drivers[q[0].net] += 1
+    consumers = defaultdict(int)
+    for pt in sh.ports:
+        if pt.dir == "in":
+            consumers[pt.net] += 1
+    for r in sh.rows:
+        if r["side"] == "R":
+            consumers[r["net"]] += 1
+    for pts in by_block.values():
+        if len(pts) != 2 or any(pt.dir != "?" for pt in pts) or pts[0].net == pts[1].net:
+            continue
+        a, b = pts
+        ca, cb = consumers[a.net] > 0, consumers[b.net] > 0
+        if ca != cb and not drivers[a.net] and not drivers[b.net]:
+            out_pt, in_pt = (a, b) if ca else (b, a)
+            out_pt.dir, in_pt.dir = "out", "in"
+            drivers[out_pt.net] += 1
     for pt in sh.ports:
         if pt.dir == "?":
             pt.dir = "in" if drivers[pt.net] else "out"
@@ -912,6 +1034,7 @@ def build(prims: geom.Prims, lay=None) -> Sheet | None:
     sh.all_glyphs = [p for p in prims.polys if p.size < P and
                      (fr is None or (p.bbox[0] >= fr[0] and p.bbox[2] <= fr[2] and p.bbox[1] >= fr[1] and p.bbox[3] <= fr[3]))]          # 표 칸 글자는 한 행 안에 든다
     sh.words = prims.words
+    sh.markers = [(tuple(m), (prims.marker_kind.get(tuple(round(v, 2) for v in m)) or "square")) for m in markers]
     return sh
 
 
@@ -1238,6 +1361,8 @@ def _block_touching_bus(s, blocks, tol):
                 lo, hi = sorted((s.x0, s.x1))
                 if min(hi, x1) - max(lo, x0) > 0:
                     return b
+        elif b.kind == "CONNECTOR":
+            continue                    # L53 — 연결 기호(원 + 꼭지)는 범례에 입력 막대가 없다
         else:
             c = b.circle
             # 막대가 원에 닿는다 (접선)
@@ -1262,7 +1387,11 @@ def _flick(s, p, tol, wire_min):
     """사선 s 의 한 끝이 같은 path 의 **선 길이** 축 선분(글자 획보다 긴 것) 끝과 맞닿는가 — 열린 화살촉의 한 획.
     큰 글자(제목)의 사선 획은 짧은 획끼리 붙어 있어 걸리지 않는다."""
     for t in p.segs:
-        if t is s or not (t.vert or t.horiz) or t.length <= s.length or t.length < wire_min:
+        # L53 — 0.1pt 남짓 기운 긴 선(1A5J FG_G-101: 207pt 에 0.09pt)도 축 선분이다.  엄격히 보면 그 선 끝의 열린 화살촉
+        # 획이 남아 끝이 '닿은 끝' 이 되고 입력 막대 단자가 서지 않았다 (같은 장의 곧은 선은 섰다).
+        dx, dy = abs(t.x1 - t.x0), abs(t.y1 - t.y0)
+        near_axial = t.vert or t.horiz or (dx <= max(0.15, 0.004 * dy) and dy > dx) or (dy <= max(0.15, 0.004 * dx) and dx > dy)
+        if t is s or not near_axial or t.length <= s.length or t.length < wire_min:
             continue
         for a in s.ends():
             for b in t.ends():
@@ -1596,15 +1725,24 @@ def _dash_chains(glyphs, wires, blocks, arrows, dots, P, tol, bounds=None):
             continue
         # 파선이 화살촉 앞에서 틈 하나를 두고 끝나면 그 틈도 잇는다 (토막 길이 1.5배 안 · 같은 직선)
         Lmed = sorted(lens)[len(lens) // 2]
+        to_base = set()
         for q in free:
             for a in arrows:
+                if _in_rect(q, a.bbox, tol):
+                    break                           # L53 — 끝이 이미 화살촉 안(꼭지 위)이다: 밑동으로 되돌아가는 다리를 긋지 않는다
                 if _d(q, a.base) <= 1.5 * Lmed and (abs(q[0] - a.base[0]) < tol or abs(q[1] - a.base[1]) < tol):
-                    segs.append(geom.Seg(q[0], q[1], a.base[0], a.base[1]))
+                    # L53 — 다리는 파선의 축 위에 긋는다.  밑동 좌표 그대로 이으면 0.06pt 기운 선분이 되어
+                    # 화살촉 획(`_flick`)으로 버려지고 끝이 단자에 안 붙었다 (1A1Y HR_P001 AND 입력 둘)
+                    bx, by = (a.base[0], q[1]) if abs(q[1] - a.base[1]) < tol else (q[0], a.base[1])
+                    segs.append(geom.Seg(q[0], q[1], bx, by))
+                    to_base.add((round(q[0], 2), round(q[1], 2)))
                     break
         # 파선이 블록 · 막대 · 실선 앞에서 틈 하나를 두고 끝나면 그 틈을 잇는다 (19VA — 마지막 토막이 기호에 안 닿는다 · L21)
         if long_run:
             reach = 1.2 * max(gaps_ + [Lmed])        # 틈 하나 또는 토막 하나 길이까지
             for q0 in free:
+                if (round(q0[0], 2), round(q0[1], 2)) in to_base:
+                    continue                          # L53 — 화살촉 밑동까지 이미 이었다 (짧은 토막을 또 두면 그 끝이 '닿은 끝' 이 된다)
                 q = q0
                 for _ in range(2):                    # 끝 → (화살촉 토막) → 그 끝에서 한 번 더
                     if touches(q) or (bounds and min(abs(q[0] - bounds[0]), abs(q[0] - bounds[1])) <= tol):

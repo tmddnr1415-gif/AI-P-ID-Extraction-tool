@@ -395,6 +395,13 @@ def compute(op, b, ins, net_v, dig=None):
     if pr.get("out") is not None and op not in ("const",):
         return float(pr["out"]), "사람이 정한 출력값"
     lab = (b.get("label") or b.get("read") or "")
+    if op == "count":
+        # L48 — BIT COUNTER: 입력은 디지털(1/0) 선이고 출력은 1 인 입력의 수 (범례: COUNTS THE NUMBER OF BOOLEAN INPUTS
+        # THAT ARE CURRENTLY SET TO 1).  하나라도 모르면 세지 않는다.
+        dv = [(dig or {}).get(n) for n, _ in ins]
+        if not dv or any(v is None for v in dv):
+            return None, "디지털 입력 값을 다 알아야 셉니다"
+        return float(sum(1 for v in dv if v == 1)), ""
     analog_ins = [(n, pn) for n, pn in ins if not (pn and pn["name"] in ("FLAG", "C", "COND", "TR", "TRK"))]
     vals = [net_v.get(n) for n, _ in analog_ins]
     coefs = []
@@ -403,6 +410,8 @@ def compute(op, b, ins, net_v, dig=None):
         c = user_coef.get(str(n))
         if c is None:
             c = (pn or {}).get("coef")
+        if c is None and (pn or {}).get("name") in ("+", "-", "−"):
+            c = 1.0 if pn["name"] == "+" else -1.0    # L51 — 범례: INPUTS MAY BE LABELED WITH POSITIVE OR NEGATIVE SIGNS
         coefs.append(1.0 if c is None else float(c))
     known = [v for v in vals if v is not None]
     full = vals and len(known) == len(vals)
@@ -482,6 +491,8 @@ def compute(op, b, ins, net_v, dig=None):
         return 0.0, "값이 멈춰 있으면 미분은 0 입니다"
     if op in ("integral", "ft"):
         return None, "시간에 따라 쌓이는 값이라 정해지지 않습니다 — 눌러서 출력값을 넣어 주세요"
+    if op == "counter":                                  # L59 — 범례 SPECIAL COUNTER: 오르는 변을 세는 셈이라 멈춘 값으로는 정해지지 않는다
+        return None, "오르는 변을 세는 카운터라 멈춘 값으로는 정해지지 않습니다 — 눌러서 출력값(셈)을 넣어 주세요"
     if op == "transfer":
         cond = _cond(ins)
         cands = [(n, pn) for n, pn in ins if (pn or {}).get("name") in ("IN1", "IN2")]

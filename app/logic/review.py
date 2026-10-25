@@ -154,7 +154,7 @@ def _static(sheets, items, tally, missing=None):
                 continue
             tally["gate"][1] += 1
             lg = b.get("logic")
-            short = lg in sim.MIN_INPUTS and len(ins.get(bid, ())) < sim.MIN_INPUTS[lg]
+            short = lg in sim.MIN_INPUTS and len(ins.get(bid, ())) < sim.min_inputs(b, lg)
             if b.get("func") == "UNKNOWN" or bid in flagged:
                 continue
             if short:
@@ -283,7 +283,7 @@ def _behavior(sheets, learned, items, tally, cache, budget):
 
 def _cancel(sheets, A, B, cache):
     F = {int(p): dict(v) for p, v in (A.get("forces") or {}).items()}
-    r = sim.simulate_bundle(sheets, F, None, A["page"], cache=cache)
+    r = sim.simulate_bundle(sheets, F, None, A["page"], cache=cache, light=True)
     fr = (r["focus"] or {}).get("frames") or []
     if not fr or fr[-1]["values"].get(A["net"]) != 1:
         return None
@@ -291,7 +291,7 @@ def _cancel(sheets, A, B, cache):
     H = {p: d for p, d in H.items() if d}
     for p, d in (B.get("forces") or {}).items():
         H.setdefault(int(p), {}).update(d)
-    r2 = sim.simulate_bundle(sheets, H, r.get("state") or {}, A["page"], cache=cache)
+    r2 = sim.simulate_bundle(sheets, H, r.get("state") or {}, A["page"], cache=cache, light=True)
     f2 = (r2["focus"] or {}).get("frames") or []
     return bool(f2) and f2[-1]["values"].get(A["net"]) == 1
 
@@ -506,9 +506,16 @@ def pdf_dir(d, review_out=None, include_info=False, author=""):
     if meta and out.exists() and all(meta.get(k) == v for k, v in want.items()):
         return out
     name = store.read_status(d).get("name") or d.name
-    tmp = out.with_suffix(".tmp.pdf")
-    info = markup_pdf.build(d / "source.pdf", rv, str(tmp), name=name, include_info=include_info, author=author)
-    store._replace(tmp, out)
+    import os
+    tmp = out.with_suffix(f".tmp{os.getpid()}.pdf")   # L47 — 두 프로세스가 같이 만들어도 서로의 임시 파일을 안 밟는다
+    try:
+        info = markup_pdf.build(d / "source.pdf", rv, str(tmp), name=name, include_info=include_info, author=author)
+        store._replace(tmp, out)
+    finally:
+        try:
+            tmp.unlink()
+        except OSError:
+            pass
     store._atomic(d / PDF_META, json.dumps({**want, **info}, ensure_ascii=False))
     return out
 
