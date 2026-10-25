@@ -403,6 +403,11 @@ function shapeGeom(g, b) {               // L58 — 서버 draw.shape_geometry �
   g = { ...g, texts: g.texts.filter(t => t[1] !== y + h / 2) };
   if (b.kind === "OR") { const r = Math.min(w, h) / 2; g.circle = [x + r, y + h / 2, r]; g.box = null; g.pointer = null; if (w > 2 * r + 0.5) g.lines = [[x + 2 * r, y + h / 2, x + w, y + h / 2]]; }
   else if (b.kind === "NOT") g.lines = [[x, y, x + w, y + h], [x, y + h, x + w, y]];
+  if (b.kind === "AND" || b.kind === "OR") {        // L67 — 서버 draw.shape_geometry 와 같은 자리 · 크기
+    const cx = b.kind === "OR" ? g.circle[0] : x + w / 2;
+    const fs = Math.min(h * 0.42, b.kind === "OR" ? 2 * g.circle[2] * 0.42 : w * 0.3);
+    g.texts = g.texts.concat([[cx, y + h / 2, b.kind, Math.round(fs * 100) / 100]]);
+  }
   return g;
 }
 /* L66 — 화면에서만 기호마다 색과 입체감 (PDF · DXF 는 흑백 그대로 — 서버가 따로 그린다).

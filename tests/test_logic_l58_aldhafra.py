@@ -87,11 +87,13 @@ def test_a5j_form_shape_gates_round_trip_through_the_analyser():
 
 
 def test_shape_geometry_and_pb_cell_have_no_centre_text():
+    # L67 — AND / OR 모양 게이트에는 가운데 글자를 단다 (사용자: 게이트에 AND · OR 표기) · 되읽기는 위 시험이 같은 종류로 확인한다
     doc = _a5j_doc()
     by = {b["id"]: b for b in doc["blocks"]}
     g = draw.shape_geometry(draw.block_geometry(by["AND1"]), by["AND1"])
-    assert g["bar"] and g["box"] and not [t for t in g["texts"] if t[2] == "AND"]
+    assert g["bar"] and g["box"] and [t for t in g["texts"] if t[2] == "AND"]
     g = draw.shape_geometry(draw.block_geometry(by["OR1"]), by["OR1"])
+    assert [t for t in g["texts"] if t[2] == "OR"]
     assert g["circle"] and g["box"] is None and abs(g["circle"][0] - g["circle"][2] - by["OR1"]["x"]) < 1e-6   # 원 왼쪽 = 막대 x
     g = draw.shape_geometry(draw.block_geometry(by["NOT1"]), by["NOT1"])
     assert len(g["lines"]) == 2

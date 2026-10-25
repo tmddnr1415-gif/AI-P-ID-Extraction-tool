@@ -1119,7 +1119,14 @@ def shape_geometry(g: dict, b: dict) -> dict:
             g["lines"] = [[x + 2 * r, y + h / 2, x + w, y + h / 2]]
     elif k == "NOT":
         g["lines"] = [[x, y, x + w, y + h], [x, y + h, x + w, y]]
+    if SHAPE_LABELS and k in ("AND", "OR"):           # L67 — 모양 게이트에도 AND / OR 글자 (사용자: 게이트에 표기되어야 한다)
+        if k == "OR":
+            cx, d = g["circle"][0], 2 * g["circle"][2]
+        else:
+            cx, d = x + w / 2, min(w, h)
+        g["texts"] = list(g["texts"]) + [[cx, y + h / 2, k, round(min(h * 0.42, d * 0.42 if k == "OR" else w * 0.3), 2)]]
     return g
+SHAPE_LABELS = True
 NOTES_COL = 170.0
 NOTES_PER_COL = 6
 
