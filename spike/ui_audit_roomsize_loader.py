@@ -79,6 +79,14 @@ def main():
             f.locator("#hClose").click(); pg.wait_for_timeout(300)
             f.locator("#b3d").click(); pg.wait_for_timeout(1500)
             pg.screenshot(path=str(OUT / "5_3d.png"))
+            # ⑤ 도서검토 메뉴 (hotfix118) — apps/books/index.html → :8000/books/
+            pg.goto("http://localhost:8080/apps/frame_books.html"); pg.wait_for_timeout(3500)
+            fb = pg.frame(url=lambda u: ":8000/books/" in u)
+            res.append(("도서검토 → P&ID 서버 /books/", bool(fb) and "user=" in fb.url))
+            res.append(("도서검토 화면 (검색 칸 · 도서관 단추)", bool(fb) and fb.locator("#q").count() == 1 and fb.locator("#btnLib").count() == 1))
+            info = _get("http://127.0.0.1:8000/api/books/info")
+            res.append(("도서 API 응답", "enabled" in info))
+            pg.screenshot(path=str(OUT / "6_books.png"))
         finally:
             srv.terminate()
         b.close()

@@ -24,7 +24,7 @@
 > **"계장ENG 주간업무 Dashboard 코드"** 쪽에서 만든다 — 여기서는 대시보드·광장 zip 을 만들지 않는다.
 > 판넬 공간확보의 화면 코드(`apps/space/`)는 여기서 묶고, 대시보드에 메뉴를 거는 줄과 서버 저장 API 는
 > 대시보드 쪽 몫이다 (판넬 화면 원본은 `origin/ccr-d82d97fa-bb3ty3` 의 `dashboard/apps/space/` — hotfix116 에 10-24 판을 들여왔다.
-> **대시보드 메뉴 'ROOM SIZE 계산' 은 대시보드 폴더의 `apps/space/index.html` 을 연다 → 그 자리에 넣는 '넘겨 주는 파일' zip 도 여기서 만든다 (hotfix117 · `spike/pack_roomsize.py`)**).
+> **대시보드 메뉴 'ROOM SIZE 계산' 은 대시보드 폴더의 `apps/space/index.html` 을 연다 → 그 자리에 넣는 '넘겨 주는 파일' zip 도 여기서 만든다 — 도서검토 `apps/books` 도 같다 (hotfix117/118 · `spike/pack_dashboard_apps.py`)**).
 
 ## 1. 지금 어디까지 와 있나
 
@@ -5103,6 +5103,19 @@ zip 은 '2. PID 코드' 세션(여기)에서 만든다 · 대시보드 zip 에�
 5. **꾸러미 둘** — `out/PID_dev+ops_hotfix117_*.zip`(P&ID 서버 · 이름 바꾼 화면) + `out/ROOMSIZE_dashboard_apps_hotfix117_*.zip`(`spike/pack_roomsize.py` ·
    대시보드 운영 폴더에 그대로 풂 · `apps/space/index.html` 하나).  ⚠ 도서검토 메뉴도 같은 꼴(`/apps/books/` · 대시보드 서버의 books_api)이지만 그쪽은
    대시보드 서버에서 그대로 돈다 — 손대지 않았다.
+
+**그 다음 — 도서검토 메뉴도 같은 길로 (hotfix118 · 판정 0줄)**
+
+현장: *"도서 검토도 메뉴에서 실행 안 된다."*  사용자 확정: *"ROOM SIZE 계산은 2. PID 코드에서 반영 · DASHBOARD 코드는 P&ID 분석 · LOGIC 과 같이
+불러오기 인터페이스만."*  대시보드 v16.43 업데이트 zip(사용자 첨부)을 열어 보니 `apps/` 가 아예 없다 — 메뉴 둘(`APP_ROUTES.space` · `.books`)이
+여는 대시보드 폴더의 `apps/space` · `apps/books` 는 그 zip 이 채우지 않는다.  그래서 ROOM SIZE 는 예전 사본, 도서검토는 빈 자리였다.
+
+1. `dashboard_apps/books/index.html` — hotfix117 넘겨 주는 파일과 같은 꼴로 `:8000/books/` + 주소 뒤 값.  화면 · 공용 도서관 API 는 hotfix115 의 `/books`.
+2. 꾸러미 `out/DASHBOARD_apps_hotfix118_*.zip` (`spike/pack_dashboard_apps.py` — `pack_roomsize.py` 를 넓힘) — 대시보드 운영 폴더에 풀면 `apps/space` ·
+   `apps/books` 의 `index.html` 두 파일.  P&ID 서버 쪽은 hotfix117 그대로 (바뀐 파일 없음).
+3. 실측 (`spike/ui_audit_roomsize_loader.py` → `out/hotfix118/loader/` · 회사 대시보드 v16.43 를 8080 에 띄움): ROOM SIZE 8항목 그대로 +
+   도서검토 → `:8000/books/?embed=1&user=…` · 검색 칸 · 도서관 단추 · `/api/books/info` 응답 · 페이지 오류 0.  서버 PC(localhost)로 열면 도서관 관리가 보인다.
+4. **앞으로** — 대시보드 메뉴에서 여는 다른 앱도 화면은 이 저장소(P&ID 서버)가 맡고, 대시보드 폴더 `apps/<이름>/index.html` 에는 넘겨 주는 파일만 둔다.
 
 ## 4. 미해결 과제 (다음 단계 후보) — 우선순위 순
 

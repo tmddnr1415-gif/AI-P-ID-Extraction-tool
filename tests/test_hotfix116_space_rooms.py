@@ -83,3 +83,10 @@ def test_dashboard_loader_forwards_to_pid_server():
     assert "PID_PORT = 8000" in h and "'/space' + location.search" in h and "/version" in h and "location.replace(target)" in h
     for bad in ("confirm(", "prompt(", "alert("):
         assert bad not in h
+
+
+def test_dashboard_books_loader_forwards_to_pid_server():
+    """hotfix118 — 대시보드 폴더의 apps/books/index.html 은 P&ID 서버(8000)의 /books/ 로 넘긴다."""
+    h = (ROOT / "dashboard_apps" / "books" / "index.html").read_text(encoding="utf-8")
+    assert "PID_PORT = 8000" in h and "'/books/' + location.search" in h and "location.replace(target)" in h
+    assert "/space" not in h
