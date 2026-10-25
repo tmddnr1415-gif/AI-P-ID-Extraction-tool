@@ -147,38 +147,84 @@ function snapPt(p, opts) {
 /* ───────── 그리기 ───────── */
 function el(tag, attrs, parent) { const e = document.createElementNS(NS, tag); for (const k in attrs || {}) if (attrs[k] != null) e.setAttribute(k, attrs[k]); if (parent) parent.appendChild(e); return e; }
 function txt(parent, x, y, t, fs, anchor) { const e = el("text", { x, y, "font-size": fs, "text-anchor": anchor || "start" }, parent); e.textContent = t; return e; }
+/* L65 — 가볍게: 표 · 모눈 · 타이틀은 바뀔 때만 다시 그리고(staticSig), 선 · 기호는 떨어진 무리에 다 지은 뒤 한 번에 붙인다.
+   끌기는 프레임에 한 번(renderSoon) · 움직인 기호 · 선만 다시 그린다(redrawBlocks · redrawWire). */
+function staticSig() {
+  const d = S.doc, i = S.inst;
+  return JSON.stringify([d.N, d.form, d.sheet_no, d.title, d.doc_no, d.project_name, d.rev, d.notes, d.left, d.right,
+    S.guide.grid, S.setStamp || 0, i ? [i.project, i.version, i.n] : 0, simOn()]);
+}
 function render() {
-  const svg = $("#svg"); svg.innerHTML = "";
-  if (!S.doc) { $("#empty").hidden = false; return; }
+  const svg = $("#svg");
+  if (S._raf) { cancelAnimationFrame(S._raf); S._raf = 0; }
+  if (!S.doc) { svg.textContent = ""; S._static = null; $("#empty").hidden = false; return; }
   $("#empty").hidden = true;
   const L = layout();
   svg.setAttribute("viewBox", `0 0 ${L.W} ${L.H}`);
   svg.setAttribute("width", L.W * S.zoom); svg.setAttribute("height", L.H * S.zoom);
-  el("rect", { x: 0, y: 0, width: L.W, height: L.H, fill: "#fff", id: "paper" }, svg);
-  renderGrid(svg, L);
-  renderTable(svg, L);
-  renderTitle(svg, L);
-  renderNotes(svg, L);
-  const wg = el("g", { id: "wires" }, svg);
-  for (const w of S.doc.wires) {
-    const pts = w.pts.map(p => p.join(",")).join(" ");
-    el("polyline", { points: pts, class: "wirehit", "data-id": w.id }, wg);
-    el("polyline", { points: pts, class: "wire" + (w.dashed ? " dashed" : "") + (S.selWire === w.id ? " sel" : ""), "data-id": w.id }, wg);
-    for (const [dx, dy] of w.dots || []) el("circle", { cx: dx, cy: dy, r: 0.12 * layout().PITCH, class: "dot", "data-id": w.id }, wg);
-    for (const [mx, my, kind] of w.marks || []) el("polygon", { points: markPolygon(mx, my, kind).map(q => q.join(",")).join(" "), class: "mark", "data-id": w.id }, wg);
-    const tri = arrowOf(w); if (tri) el("polygon", { points: tri.map(q => q.join(",")).join(" "), class: "arrow", "data-id": w.id }, wg);
-    if (w.label) { const [lx, ly] = wireLabelPos(w); const e = txt(wg, lx, ly, w.label, 4.5, "middle"); e.setAttribute("class", "wlabel"); e.dataset.id = w.id; }
-    if (S.selWire === w.id) w.pts.forEach((p, i) => el("circle", { cx: p[0], cy: p[1], r: 1.8, class: "vtx", "data-id": w.id, "data-i": i }, wg));
+  const sig = staticSig();
+  let stat = S._static && S._staticSig === sig && S._staticDoc === S.id ? S._static : null;
+  if (stat && stat.parentNode === svg) {                          // 표 · 타이틀은 붙은 채로 두고 그 뒤(선 · 기호 · 덧그림)만 갈아 끼운다
+    while (stat.nextSibling) stat.nextSibling.remove();
+  } else {
+    svg.textContent = "";
+    el("rect", { x: 0, y: 0, width: L.W, height: L.H, fill: "#fff", id: "paper" }, svg);
+    if (!stat) {
+      stat = document.createElementNS(NS, "g"); stat.id = "static";
+      renderGrid(stat, L); renderTable(stat, L); renderTitle(stat, L); renderNotes(stat, L);
+      S._static = stat; S._staticSig = sig; S._staticDoc = S.id;
+    }
+    svg.appendChild(stat);
   }
-  const bg = el("g", { id: "blocks" }, svg);
+  const wg = document.createElementNS(NS, "g"); wg.id = "wires";
+  S._wireEls = {};
+  for (const w of S.doc.wires) renderWire(wg, w);
+  svg.appendChild(wg);
+  const bg = document.createElementNS(NS, "g"); bg.id = "blocks";
   const bad = new Set((S.verify && S.verify.blocks || []).filter(b => !b.ok).map(b => b.id));
-  for (const b of S.doc.blocks) renderBlock(bg, b, bad.has(b.id));
+  for (const b of S.doc.blocks) renderBlockWrap(bg, b, bad.has(b.id));
+  svg.appendChild(bg);
   el("g", { id: "overlay" }, svg);
   drawGhost();
   renderProps();
-  drawRulers();
+  rulersSoon();
   if (simOn()) simPaint(S.sim.values || {}, S.sim.frames && S.sim.frames.length ? S.sim.frames[S.sim.frames.length - 1] : null);   // L57
 }
+function renderWire(wg, w) {
+  const g = el("g", { "data-w": w.id }, wg), P = layout().PITCH;
+  const pts = w.pts.map(p => p.join(",")).join(" ");
+  el("polyline", { points: pts, class: "wirehit", "data-id": w.id }, g);
+  const ln = el("polyline", { points: pts, class: "wire" + (w.dashed ? " dashed" : "") + (S.selWire === w.id ? " sel" : ""), "data-id": w.id }, g);
+  (S._wireEls || (S._wireEls = {}))[w.id] = ln;
+  for (const [dx, dy] of w.dots || []) el("circle", { cx: dx, cy: dy, r: 0.12 * P, class: "dot", "data-id": w.id }, g);
+  for (const [mx, my, kind] of w.marks || []) el("polygon", { points: markPolygon(mx, my, kind).map(q => q.join(",")).join(" "), class: "mark", "data-id": w.id }, g);
+  const tri = arrowOf(w); if (tri) el("polygon", { points: tri.map(q => q.join(",")).join(" "), class: "arrow", "data-id": w.id }, g);
+  if (w.label) { const [lx, ly] = wireLabelPos(w); const e = txt(g, lx, ly, w.label, 4.5, "middle"); e.setAttribute("class", "wlabel"); e.dataset.id = w.id; }
+  if (S.selWire === w.id) w.pts.forEach((p, i) => el("circle", { cx: p[0], cy: p[1], r: 1.8, class: "vtx", "data-id": w.id, "data-i": i }, g));
+  return g;
+}
+function renderBlockWrap(parent, b, bad) { const g = el("g", { "data-bw": b.id }, parent); renderBlock(g, b, bad); return g; }
+function redrawBlocks(ids) {                                       // 움직인 기호만 — 나머지 화면은 그대로
+  const bg = $("#blocks"); if (!bg) { render(); return; }
+  for (const id of ids) {
+    const old = bg.querySelector(`g[data-bw="${id}"]`), b = S.doc.blocks.find(x => x.id === id);
+    if (!old || !b) { render(); return; }
+    const tmp = document.createElementNS(NS, "g"); renderBlockWrap(tmp, b, false);
+    old.replaceWith(tmp.firstChild);
+  }
+  drawGhost();
+}
+function redrawWire(id) {
+  const wg = $("#wires"), w = S.doc.wires.find(x => x.id === id), old = wg && wg.querySelector(`g[data-w="${id}"]`);
+  if (!old || !w) { render(); return; }
+  const tmp = document.createElementNS(NS, "g"); renderWire(tmp, w); old.replaceWith(tmp.firstChild);
+}
+function renderSoon(fn) {                                          // 포인터가 프레임보다 자주 와도 그리기는 프레임에 한 번
+  S._rafFn = fn;
+  if (S._raf) return;
+  S._raf = requestAnimationFrame(() => { S._raf = 0; const f = S._rafFn; S._rafFn = null; f(); });
+}
+
 function renderTable(svg, L) {
   const g = el("g", { class: "tbl" }, svg);
   const cols = L.LCOLS.concat(L.RCOLS);
@@ -719,11 +765,11 @@ function bindStage() {
   window.addEventListener("pointermove", e => {
     if (!S.doc) return;
     const p = svgPt(e);
-    S.hover = p; if (S.guide.ruler) drawRulers();
+    S.hover = p; if (S.guide.ruler) rulersSoon();
     if (S.wip) { const sp = snapPt(p); S.wip.cur = [sp[0], sp[1]]; S.wip.hot = (sp[2] === "row" || sp[2] === "port") ? sp : null; drawGhost(); return; }
     if (!S.drag) { if (S.guide.cross) drawGhost(); return; }
     if (S.drag.pan) { $("#scroll").scrollLeft = S.drag.sl - (e.clientX - S.drag.x); $("#scroll").scrollTop = S.drag.st - (e.clientY - S.drag.y); return; }
-    if (S.drag.vtx) { const w = S.doc.wires.find(w => w.id === S.drag.id); if (!w) return; const sp = snapPt(p); w.pts[S.drag.i] = [+sp[0].toFixed(2), +sp[1].toFixed(2)]; S.dirty = true; render(); return; }
+    if (S.drag.vtx) { const w = S.doc.wires.find(w => w.id === S.drag.id); if (!w) return; const sp = snapPt(p); w.pts[S.drag.i] = [+sp[0].toFixed(2), +sp[1].toFixed(2)]; S.dirty = true; const id = w.id; renderSoon(() => redrawWire(id)); return; }
     if (S.drag.move) {
       const strong = !!e.shiftKey;                                     // L60 — Shift 를 누른 채 끌면 이웃 기호 · 선에 맞춘다 (격자보다 정렬이 먼저)
       const L = layout(), g = (S.snap && !strong) ? L.PITCH / 2 : 0.01;
@@ -735,7 +781,7 @@ function bindStage() {
       if (!S.drag.moved && raw) { S.drag.moved = true; pushUndo(); }
       if (!S.drag.moved) return;
       for (const [id, x0, y0] of S.drag.orig) { const b = S.doc.blocks.find(b => b.id === id); if (b) { b.x = +(x0 + dx).toFixed(2); b.y = +(y0 + dy).toFixed(2); } }
-      S.dirty = true; render(); return;
+      S.dirty = true; const ids = S.drag.orig.map(o => o[0]); renderSoon(() => redrawBlocks(ids)); return;
     }
     if (S.drag.marquee) { S.drag.marquee[2] = p[0]; S.drag.marquee[3] = p[1]; drawGhost(); }
   });
@@ -747,7 +793,7 @@ function bindStage() {
       S.drag = null; render(); return;
     }
     if (S.drag.vtx) { const w = S.doc.wires.find(w => w.id === S.drag.id); if (w) { w.pts = orthoPts(w.pts); render(); } }   // L64 — 꺾임점을 끌어도 사선이 남지 않게
-    if ((S.drag.move && S.drag.moved) || S.drag.vtx) markDirty();
+    if ((S.drag.move && S.drag.moved) || S.drag.vtx) { markDirty(); if (S.drag.move) render(); }
     S.drag = null; S.alignLines = null; drawGhost(); $("#stage").style.cursor = S.tool === "pan" ? "grab" : S.tool === "select" ? "default" : "crosshair";
   });
   svg.addEventListener("dblclick", e => {
@@ -833,6 +879,7 @@ function renderGrid(svg, L) {
 
 /* ───────── 눈금자 (화면 위에 고정 · 스크롤·확대를 따라간다) ─────────
    위: pt (10pt 눈금 · 50pt 숫자) · 왼쪽: 행 번호 (행마다 눈금 · 5행마다 숫자) + 표 밖은 pt.  마우스 자리는 붉은 표식. */
+function rulersSoon() { if (S._rr) return; S._rr = requestAnimationFrame(() => { S._rr = 0; drawRulers(); }); }   // L65 — 프레임에 한 번
 function drawRulers() {
   const top = $("#ruler-x"), left = $("#ruler-y"), on = !!(S.doc && S.guide.ruler);
   top.hidden = left.hidden = !on; $("#ruler-corner").hidden = !on; $("#stage").classList.toggle("rulers", on);
@@ -1263,7 +1310,7 @@ async function openDoc(id) {
   try { S.doc = await api(`/logic/api/drawings/${id}`); } catch (e) { toast(e.message); return; }
   S.id = id; S.dirty = false; S.sel = new Set(); S.selWire = null; S.undo = []; S.redo = []; S.verify = null; $("#verify-card").hidden = true;
   $("#pick").value = id; $("#save").disabled = true;
-  fillForm(); await loadSet(); await loadInst(); render(); fitZoom(); render(); instWarn();
+  fillForm(); await loadSet(true); await loadInst(); fitZoom(); render(); instWarn();
   if (S.doc.set === TYP_SET && !S.typList) { try { S.typList = (await api("/logic/api/drawings/typicals")).items; } catch (e) {} }
   renderTypCard();
   if (S.gotoRow) { const n = S.gotoRow; S.gotoRow = null; flashRow(n); }
@@ -1449,11 +1496,14 @@ function renderTypCard() {
 }
 
 /* ───────── 묶음 (L56) ───────── */
-async function loadSet() {
+async function loadSet(reuse) {
   // L57 — 시뮬레이션 카드가 묶음의 장 이름을 쓴다 (S.setInfo)
-  S.setInfo = null; const card = $("#set-card"); const mc = $("#macro-card");
+  // L65 — 같은 묶음 안에서 장만 옮기면 묶음 정보(연결 판정)를 다시 받지 않는다 (저장 · 장 더하기는 새로 받는다)
+  if (reuse && S.setInfo && S.doc && S.doc.set && S.setInfo.id === S.doc.set) { $("#set-card").hidden = false; renderSetCard(); renderMacroCard(); return; }
+  S.setInfo = null; S.setStamp = (S.setStamp || 0) + 1; const card = $("#set-card"); const mc = $("#macro-card");
   if (!S.doc || !S.doc.set) { card.hidden = false; renderSetCard(); renderMacroCard(); return; }
   try { S.setInfo = await api(`/logic/api/drawings/sets/${S.doc.set}`); } catch (e) { S.setInfo = null; }
+  S.setStamp = (S.setStamp || 0) + 1;
   card.hidden = false; renderSetCard(); renderMacroCard();
 }
 function refOf(text) {
@@ -1805,7 +1855,7 @@ function simPaint(values, frame) {
   // 선
   for (const [k, n] of Object.entries(sh.nets)) {
     const v = values[k], forced = F["net:" + k] != null;
-    for (const wid of n.wires) for (const e of svg.querySelectorAll(`.wire[data-id="${wid}"]`)) { e.classList.toggle("on", v === 1); e.classList.toggle("forced", forced); e.classList.toggle("unk", unread.has(k) && v !== 1); }
+    for (const wid of n.wires) { const e = (S._wireEls || {})[wid]; if (e) { e.classList.toggle("on", v === 1); e.classList.toggle("forced", forced); e.classList.toggle("unk", unread.has(k) && v !== 1); } }
   }
   // 행 자리
   const linked = (S.sim.res.linked || {})[S.id] || {};

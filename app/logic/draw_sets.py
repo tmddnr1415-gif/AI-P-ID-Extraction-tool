@@ -52,7 +52,7 @@ def set_docs(sid: str) -> list:
         p = d / "drawing.json"
         if not d.is_dir() or not p.exists():
             continue
-        doc = draw.jsonstore.read(p, None, expect=dict)
+        doc = draw.read_doc(p)
         if doc and doc.get("set") == sid:
             out.append(doc)
     out.sort(key=lambda x: (x.get("order") or 0, x.get("sheet_no") or "", x.get("created") or 0))

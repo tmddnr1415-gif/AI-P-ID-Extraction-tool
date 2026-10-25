@@ -435,6 +435,17 @@ def _anchors(blocks: list):
             bx0, by0, bx1, by1 = bar_of(b)
             edges.append(("v", bx0, min(by0, by1), max(by0, by1)))
     e = 0.6
+    cell, idx = 24.0, {}                                 # L65 — 변 상자 색인 (점 근처의 변만 본다 · 답은 같다)
+    for i, (k, c, lo, hi) in enumerate(edges):
+        if k == "p":
+            bx = (lo[0], lo[1], hi[0], hi[1])
+        elif k == "h":
+            bx = (lo, c, hi, c)
+        else:
+            bx = (c, lo, c, hi)
+        for cx in range(int((bx[0] - e) // cell), int((bx[2] + e) // cell) + 1):
+            for cy in range(int((bx[1] - e) // cell), int((bx[3] + e) // cell) + 1):
+                idx.setdefault((cx, cy), []).append(i)
 
     def anchored(p):
         """(x 를 지켜야 하나, y 를 지켜야 하나) — 세로 변(행 자리 · 상자 왼쪽/오른쪽 · 막대)에 닿은 끝은 그 변을 따라 미끄러져도
@@ -442,7 +453,8 @@ def _anchors(blocks: list):
         if abs(p[0] - LX0) < e or abs(p[0] - LX1) < e:
             return True, True, True                   # 행 자리 — 행 가운데를 떠나면 다른 행이 된다
         fx = fy = False
-        for k, c, lo, hi in edges:
+        for i in idx.get((int(p[0] // cell), int(p[1] // cell)), ()):
+            k, c, lo, hi = edges[i]
             if k == "p":
                 if lo[0] - e <= p[0] <= hi[0] + e and lo[1] - e <= p[1] <= hi[1] + e:
                     return True, True, True
@@ -577,11 +589,32 @@ def _path(did: str) -> Path:
     return _dir(did) / "drawing.json"
 
 
+_DOC_CACHE: dict = {}          # L65 — 경로 → ((mtime_ns, 크기), pickle) · 바뀌지 않은 그림은 다시 파싱하지 않는다 (받을 때마다 새 사본)
+
+
+def read_doc(p: Path, what=None) -> dict | None:
+    import pickle
+    try:
+        st = p.stat()
+    except OSError:
+        return None
+    key = (st.st_mtime_ns, st.st_size, st.st_ino)
+    hit = _DOC_CACHE.get(str(p))
+    if hit and hit[0] == key:
+        return pickle.loads(hit[1])
+    doc = jsonstore.read(p, what, expect=dict)
+    if doc:
+        if len(_DOC_CACHE) > 4000:
+            _DOC_CACHE.clear()
+        _DOC_CACHE[str(p)] = (key, pickle.dumps(doc, protocol=pickle.HIGHEST_PROTOCOL))
+    return doc
+
+
 def load(did: str) -> dict:
     p = _path(did)
     if not p.exists():
         raise KeyError(did)
-    return jsonstore.read(p, what="LOGIC 작도", expect=dict)
+    return read_doc(p, "LOGIC 작도")
 
 
 def save_new(doc: dict) -> dict:
@@ -638,7 +671,7 @@ def listing() -> list:
         p = d / "drawing.json"
         if not d.is_dir() or not p.exists():
             continue
-        doc = jsonstore.read(p, None, expect=dict)
+        doc = read_doc(p)
         if not doc:
             continue
         out.append({k: doc.get(k) for k in ("id", "name", "project", "sheet_no", "title", "author", "created", "updated", "saves",

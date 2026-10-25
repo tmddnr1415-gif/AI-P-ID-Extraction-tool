@@ -116,10 +116,29 @@ def _set(sid: str) -> list:
 
 @router.get("/logic/api/drawings/sets/{sid}")
 def get_set(sid: str):
-    docs = _set(sid)
+    return _set_info(sid, _set(sid))
+
+
+_SET_CACHE: dict = {}
+
+
+def _set_links(sid: str, docs: list) -> dict:
+    """L65 — 묶음이 그대로면(장마다 저장 횟수 · 때) FROM/TO 연결 판정을 다시 하지 않는다."""
+    key = tuple((d["id"], d.get("updated"), d.get("saves")) for d in docs)
+    hit = _SET_CACHE.get(sid)
+    if hit and hit[0] == key:
+        return hit[1]
+    out = draw_sets.links(docs)
+    if len(_SET_CACHE) > 16:
+        _SET_CACHE.clear()
+    _SET_CACHE[sid] = (key, out)
+    return out
+
+
+def _set_info(sid: str, docs: list) -> dict:
     return {"id": sid, "name": docs[0].get("set_name") or "", "project": docs[0].get("project") or "",
             "sheets": [{k: d.get(k) for k in ("id", "sheet_no", "title", "typical", "order")} | {"blocks": len(d["blocks"]), "wires": len(d["wires"])} for d in docs],
-            "links": draw_sets.links(docs), "macros": draw_sets.macro_types(docs)}
+            "links": _set_links(sid, docs), "macros": draw_sets.macro_types(docs)}
 
 
 @router.post("/logic/api/drawings/sets/{sid}/sheet")
@@ -404,12 +423,21 @@ def verify_drawing(did: str, body: dict = Body(default={})):
 _SIM_CACHE: dict = {}          # L57 — 묶음 지문 → sim 캐시 (그림이 바뀌면 지문이 바뀐다 · 한 개만 든다)
 
 
+_LIVE_CLEAN: dict = {}
+
+
 def _sim_docs(did: str, live: dict | None) -> list:
     """시뮬레이션에 넣을 그림들 — 그 그림이 묶음에 들면 묶음 전체 · 아니면 그 그림 하나.  live(저장 전 화면 그림)가 있으면 그것으로 바꿔 넣는다."""
     saved = _load(did)
     docs = draw_sets.set_docs(saved["set"]) if saved.get("set") else [saved]
     if live is not None:
-        cur = {**saved, **draw.clean(live), "sheet_no": str(live.get("sheet_no") or saved.get("sheet_no") or "")[:40],
+        lk = json.dumps(live, sort_keys=True, default=str)          # L65 — 같은 화면 그림이면 다듬은 결과를 다시 쓴다 (신호만 바꿀 때)
+        hit = _LIVE_CLEAN.get(did)
+        if hit and hit[0] == lk:
+            cl = hit[1]
+        else:
+            cl = draw.clean(live); _LIVE_CLEAN.clear(); _LIVE_CLEAN[did] = (lk, cl)
+        cur = {**saved, **cl, "sheet_no": str(live.get("sheet_no") or saved.get("sheet_no") or "")[:40],
                "title": str(live.get("title") or saved.get("title") or "")[:120], "typical": bool(live.get("typical", saved.get("typical")))}
         docs = [cur if d["id"] == did else d for d in docs]
         if not any(d["id"] == did for d in docs):

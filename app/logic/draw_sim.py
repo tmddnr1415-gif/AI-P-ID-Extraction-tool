@@ -68,38 +68,61 @@ class _UF:
             self.p[rb] = ra
 
 
-def _nets_of(wires):
-    """선 → 그물 번호 (0..) · 그물마다 선 목록."""
+CELL = 24.0                # L65 — 선 상자 색인 칸 (pt).  답은 그대로 · 맞대는 짝만 줄인다
+
+
+class _Grid:
+    """선마다 상자(여유 pad)를 칸에 넣어 둔다 — 점·상자 근처의 선만 꺼낸다 (같은 순서: 선 번호 순)."""
+    def __init__(self, wires, pad):
+        self.cells = defaultdict(list)
+        self.box = []
+        for i, w in enumerate(wires):
+            xs = [p[0] for p in w["pts"]] + [d[0] for d in w.get("dots") or []]
+            ys = [p[1] for p in w["pts"]] + [d[1] for d in w.get("dots") or []]
+            b = (min(xs) - pad, min(ys) - pad, max(xs) + pad, max(ys) + pad)
+            self.box.append(b)
+            for cx in range(int(b[0] // CELL), int(b[2] // CELL) + 1):
+                for cy in range(int(b[1] // CELL), int(b[3] // CELL) + 1):
+                    self.cells[(cx, cy)].append(i)
+
+    def near(self, b):
+        out = set()
+        for cx in range(int(b[0] // CELL), int(b[2] // CELL) + 1):
+            for cy in range(int(b[1] // CELL), int(b[3] // CELL) + 1):
+                for j in self.cells.get((cx, cy), ()):
+                    q = self.box[j]
+                    if q[0] <= b[2] and b[0] <= q[2] and q[1] <= b[3] and b[1] <= q[3]:
+                        out.add(j)
+        return sorted(out)
+
+
+def _pair_joined(i, j, wires, ends, segs):
+    for a in ends[i]:
+        if any(abs(a[0] - b[0]) + abs(a[1] - b[1]) <= JOIN for b in ends[j]) or any(_on_body(a[0], a[1], sg) for sg in segs[j]):
+            return True
+    for b in ends[j]:
+        if any(_on_body(b[0], b[1], sg) for sg in segs[i]):
+            return True
+    for dx, dy in (wires[i].get("dots") or []):
+        if any(_on_body(dx, dy, sg, 1.0) for sg in segs[j]) or any(abs(dx - b[0]) + abs(dy - b[1]) <= 1.0 for b in ends[j]):
+            return True
+    for dx, dy in (wires[j].get("dots") or []):
+        if any(_on_body(dx, dy, sg, 1.0) for sg in segs[i]) or any(abs(dx - b[0]) + abs(dy - b[1]) <= 1.0 for b in ends[i]):
+            return True
+    return False
+
+
+def _nets_of(wires, grid=None):
+    """선 → 그물 번호 (0..) · 그물마다 선 목록.  L65 — 상자가 겹치는 짝만 맞댄다 (예전엔 모든 짝 · 3343선 장 한 장에 50초)."""
     n = len(wires)
     uf = _UF(n)
-    ends = []
-    for i, w in enumerate(wires):
-        pts = w["pts"]
-        ends.append([(pts[0][0], pts[0][1]), (pts[-1][0], pts[-1][1])])
+    ends = [[(w["pts"][0][0], w["pts"][0][1]), (w["pts"][-1][0], w["pts"][-1][1])] for w in wires]
     segs = [_segs(w) for w in wires]
+    pad = max(JOIN, 1.0)
+    g = grid or _Grid(wires, pad)
     for i in range(n):
-        for j in range(i + 1, n):
-            joined = False
-            for a in ends[i]:
-                if any(abs(a[0] - b[0]) + abs(a[1] - b[1]) <= JOIN for b in ends[j]) or any(_on_body(a[0], a[1], sg) for sg in segs[j]):
-                    joined = True
-                    break
-            if not joined:
-                for b in ends[j]:
-                    if any(_on_body(b[0], b[1], sg) for sg in segs[i]):
-                        joined = True
-                        break
-            if not joined:
-                for dx, dy in (wires[i].get("dots") or []):
-                    if any(_on_body(dx, dy, sg, 1.0) for sg in segs[j]) or any(abs(dx - b[0]) + abs(dy - b[1]) <= 1.0 for b in ends[j]):
-                        joined = True
-                        break
-                else:
-                    for dx, dy in (wires[j].get("dots") or []):
-                        if any(_on_body(dx, dy, sg, 1.0) for sg in segs[i]) or any(abs(dx - b[0]) + abs(dy - b[1]) <= 1.0 for b in ends[i]):
-                            joined = True
-                            break
-            if joined:
+        for j in g.near(g.box[i]):
+            if j > i and _pair_joined(i, j, wires, ends, segs):
                 uf.union(i, j)
     roots = {}
     net_of = []
@@ -114,18 +137,20 @@ def _nets_of(wires):
     return net_of, members
 
 
-def _touch(px, py, wires, segs, net_of):
+def _touch(px, py, wires, segs, net_of, grid=None):
     """점(단자 · 행 자리)에 닿는 그물 — 선 끝 TOL 안이 먼저 · 없으면 몸통 위."""
+    cand = grid.near((px - TOL, py - TOL, px + TOL, py + TOL)) if grid is not None else range(len(wires))
     best, bd = None, TOL + 1e-9
-    for i, w in enumerate(wires):
+    for i in cand:
+        w = wires[i]
         for q in (w["pts"][0], w["pts"][-1]):
             d = abs(q[0] - px) + abs(q[1] - py)
             if d < bd:
                 best, bd = net_of[i], d
     if best is not None:
         return best
-    for i, sg_list in enumerate(segs):
-        if any(_on_body(px, py, sg, TOL) for sg in sg_list):
+    for i in cand:
+        if any(_on_body(px, py, sg, TOL) for sg in segs[i]):
             return net_of[i]
     return None
 
@@ -244,7 +269,8 @@ def to_sheet(doc: dict, page: int, typ_pages: dict | None = None) -> dict:
     """그림 하나 → 분석 결과 시트 꼴.  typ_pages = {Typical 시트 이름: 그 그림의 page} (매크로 잇기)."""
     N = int(doc.get("N") or D.N_DEFAULT)
     wires = [w for w in (doc.get("wires") or []) if len(w.get("pts") or []) >= 2]
-    net_of, members = _nets_of(wires)
+    grid = _Grid(wires, max(JOIN, 1.0))
+    net_of, members = _nets_of(wires, grid)
     segs = [_segs(w) for w in wires]
     nets = {}
     for k, idxs in members.items():
@@ -264,7 +290,7 @@ def to_sheet(doc: dict, page: int, typ_pages: dict | None = None) -> dict:
         seen = set()
 
         def add(x, y, dr, role, cell=0, pin=None):
-            net = _touch(x, y, wires, segs, net_of)
+            net = _touch(x, y, wires, segs, net_of, grid)
             if net is None or (net, dr, role, pin) in seen:
                 return
             seen.add((net, dr, role, pin))
@@ -331,7 +357,7 @@ def to_sheet(doc: dict, page: int, typ_pages: dict | None = None) -> dict:
         for n in rng:
             v = cells.get(str(n)) or {}
             y = D.ry(n, N)
-            net = _touch(x_, y, wires, segs, net_of)
+            net = _touch(x_, y, wires, segs, net_of, grid)
             t = {"side": side, "n": n, "kks": v.get("kks", ""), "desc": v.get("desc", ""), "y0": round(y - D.PITCH / 2, 2), "y1": round(y + D.PITCH / 2, 2)}
             if side == "L":
                 t["fm"] = v.get("fm", "")
