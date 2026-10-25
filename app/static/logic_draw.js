@@ -954,8 +954,9 @@ function editCell(rect) {
   inp.style.height = Math.max(16, L.PITCH / L.H * r.height) + "px";
   inp.value = ((S.doc[side][n] || {})[f]) || "";
   inp.focus(); inp.select();
+  const ac = (f === "fm" || f === "to") ? refAC(inp, side, f, () => done(true)) : null;   // L61 — 시트 · 행 자동완성
   const done = commit => {
-    inp.hidden = true; inp.onblur = inp.onkeydown = null;
+    inp.hidden = true; inp.onblur = inp.onkeydown = inp.oninput = null; if (ac) ac.close();
     if (!commit) return;
     const v = inp.value.trim().slice(0, 60);
     const row = S.doc[side][n] || {};
@@ -967,8 +968,90 @@ function editCell(rect) {
   inp.onblur = () => done(true);
   inp.onkeydown = e => {
     if (e.isComposing) return;
+    if (ac && ac.key(e)) return;
     if (e.key === "Enter" || e.key === "Tab") { e.preventDefault(); const next = e.key === "Tab" ? nextCell(side, n, f, e.shiftKey) : nextCell(side, String(+n + 1), f, false, true); done(true); if (next) editCell(next); }
     else if (e.key === "Escape") done(false);
+  };
+}
+/* L61 — FROM/TO 칸 자동완성: 글자를 치면 이 묶음(과 다른 그림)의 시트 이름이 주르륵 · 시트를 고르면 그 장의 행 */
+function refSheets() {
+  const out = [], seen = new Set();
+  for (const sh of (S.setInfo && S.setInfo.sheets) || []) if (sh.sheet_no && !seen.has(sh.sheet_no)) { seen.add(sh.sheet_no); out.push({ sheet: sh.sheet_no, id: sh.id, title: sh.title || "", typical: sh.typical, here: sh.id === S.id }); }
+  for (const it of S.allItems || []) if (it.sheet_no && !seen.has(it.sheet_no)) { seen.add(it.sheet_no); out.push({ sheet: it.sheet_no, id: it.id, title: it.name || "", typical: it.typical, other: true, here: it.id === S.id }); }
+  return out;
+}
+const refNorm = t => String(t || "").toUpperCase().replace(/[^A-Z0-9]/g, "");
+function refSep() {
+  // 이 묶음이 이미 쓴 구분자 (FG_G-101-13 · 0016/72) — 아직 없으면 '-'
+  const names = refSheets().map(s => s.sheet.toUpperCase()).sort((a, b) => b.length - a.length), cnt = {};
+  const docs = [S.doc].concat(Object.values(S.refDone || {}));
+  for (const d of docs) for (const side of ["left", "right"]) for (const r of Object.values((d && d[side]) || {})) {
+    const v = String(r.fm || r.to || "").toUpperCase(); const k = names.find(n => v.startsWith(n));
+    const c = k && v.charAt(k.length); if (c && "-/:#".includes(c)) cnt[c] = (cnt[c] || 0) + 1;
+  }
+  return Object.keys(cnt).sort((a, b) => cnt[b] - cnt[a])[0] || "-";
+}
+function refMatch(text) {
+  const q = refNorm(text); const all = refSheets();
+  if (!q) return all.slice(0, 14);
+  const pre = [], mid = [];
+  for (const s of all) { const k = refNorm(s.sheet); if (k.startsWith(q)) pre.push(s); else if (k.includes(q)) mid.push(s); }
+  return pre.concat(mid).slice(0, 14);
+}
+async function refDoc(id) {
+  S.refDocs = S.refDocs || {};
+  if (!S.refDocs[id]) S.refDocs[id] = api(`/logic/api/drawings/${id}`).then(d => { (S.refDone = S.refDone || {})[id] = d; return d; }).catch(() => null);
+  return S.refDocs[id];
+}
+function refAC(inp, side, f, commit) {
+  const box = $("#cellac"); let items = [], hi = -1, seq = 0;
+  const place = () => { box.style.left = inp.style.left; box.style.top = (parseFloat(inp.style.top) + inp.offsetHeight + 1) + "px"; box.style.minWidth = Math.max(220, inp.offsetWidth) + "px"; };
+  const paint = (head) => {
+    if (!items.length) { box.hidden = true; return; }
+    place(); box.hidden = false;
+    box.innerHTML = (head ? `<div class="ac-head">${esc(head)}</div>` : "") + items.map((it, i) => `<div class="ac-it${i === hi ? " on" : ""}" data-i="${i}">${it.html}</div>`).join("");
+    const on = box.querySelector(".ac-it.on"); if (on) on.scrollIntoView({ block: "nearest" });
+  };
+  const update = async () => {
+    const my = ++seq, v = inp.value.trim(), up = v.toUpperCase();
+    // 시트를 다 적고 구분자까지 쳤으면 그 장의 행을 보인다 (FM = 상대 장의 출력 행 · TO = 상대 장의 입력 행)
+    const sh = refSheets().find(s => { const k = s.sheet.toUpperCase(); return up.startsWith(k) && /^[-\/:#]/.test(up.slice(k.length)); });
+    if (sh) {
+      const digits = up.slice(sh.sheet.length + 1).trim();
+      const d = await refDoc(sh.id); if (my !== seq) return;
+      const rows = d ? d[f === "fm" ? "right" : "left"] || {} : {};
+      const sep = up.charAt(sh.sheet.length);
+      items = Object.keys(rows).map(Number).sort((a, b) => a - b).filter(n => (rows[n] || {}).desc && String(n).startsWith(digits)).slice(0, 40)
+        .map(n => ({ value: sh.sheet + sep + n, final: true, html: `<b>${esc(sh.sheet)}${esc(sep)}${n}</b> <span>${esc(rows[n].desc)}</span>` }));
+      hi = items.length ? 0 : -1;
+      paint(items.length ? `${sh.sheet} — ${f === "fm" ? "출력" : "입력"} 행` : "");
+      return;
+    }
+    const sep = refSep();
+    items = refMatch(v).map(s => ({ value: s.sheet + sep, final: false,
+      html: `<b>${esc(s.sheet)}</b>${s.typical ? ' <i>Typical</i>' : ""}${s.here ? ' <i>이 장</i>' : ""}${s.other ? ' <i>다른 묶음</i>' : ""} <span>${esc(s.title)}</span>` }));
+    hi = v && items.length ? 0 : -1;
+    paint(items.length ? (v ? "시트" : "시트 — 글자를 치면 좁혀집니다") : "");
+  };
+  const pick = i => {
+    const it = items[i]; if (!it) return;
+    inp.value = it.value;
+    if (it.final) { box.hidden = true; commit(); }
+    else { inp.focus(); update(); }
+  };
+  box.onmousedown = e => { e.preventDefault(); const d = e.target.closest(".ac-it"); if (d) pick(+d.dataset.i); };
+  inp.oninput = update;
+  update();
+  return {
+    close() { seq++; box.hidden = true; box.onmousedown = null; },
+    key(e) {
+      if (box.hidden || !items.length) return false;
+      if (e.key === "ArrowDown") { hi = (hi + 1) % items.length; paint(box.querySelector(".ac-head") ? box.querySelector(".ac-head").textContent : ""); e.preventDefault(); return true; }
+      if (e.key === "ArrowUp") { hi = (hi - 1 + items.length) % items.length; paint(box.querySelector(".ac-head") ? box.querySelector(".ac-head").textContent : ""); e.preventDefault(); return true; }
+      if ((e.key === "Enter" || e.key === "Tab") && hi >= 0) { e.preventDefault(); pick(hi); return true; }
+      if (e.key === "Escape") { box.hidden = true; e.preventDefault(); return true; }
+      return false;
+    },
   };
 }
 function nextCell(side, n, f, back, sameCol) {
@@ -1029,6 +1112,7 @@ async function loadList(keep) {
   const r = await api("/logic/api/drawings");
   const sel = $("#pick"); sel.innerHTML = `<option value="">(그림을 고르세요)</option>` + r.items.map(i => `<option value="${i.id}">${i.set_name ? "[" + esc(i.set_name) + "] " : ""}${esc(i.name)}${i.sheet_no ? " · " + esc(i.sheet_no) : ""}${i.typical ? " (Typical)" : ""} — 블록 ${i.blocks} · 선 ${i.wires}</option>`).join("");
   if (keep) sel.value = keep;
+  S.allItems = r.items; S.refDocs = {}; S.refDone = {};                          // L61 — 자동완성이 다른 그림의 시트 이름도 쓴다
   return r.items;
 }
 async function loadProjects() {
