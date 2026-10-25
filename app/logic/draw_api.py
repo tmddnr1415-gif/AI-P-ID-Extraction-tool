@@ -205,6 +205,120 @@ def analyse_set(sid: str, body: dict = Body(default={})):
     return {"id": job}
 
 
+# ─────────────────────────── 공통 Typical 사전 (L63) ───────────────────────────
+# Typical 은 모든 프로젝트가 같다 — 씨앗(config/logic_typicals.json.gz)으로 처음부터 들고 있고, 사람이 작도 화면에서 고친다.
+# 고칠 때는 그 Typical 을 '공통 Typical 사전' 묶음의 그림으로 꺼내고, 저장(사전에 저장)하면 모든 프로젝트가 다음 분석부터 그것을 쓴다.
+
+TYP_SET = "7e7e00000063"
+TYP_SET_NAME = "공통 Typical 사전"
+
+
+def _typ_docs() -> dict:
+    return {((d.get("source") or {}).get("typlib")): d for d in draw_sets.set_docs(TYP_SET) if (d.get("source") or {}).get("typlib")}
+
+
+def _typ_public(tid, ty, docs):
+    st = ty.get("sheet") or {}
+    tb = st.get("table") or []
+    return {"id": tid, "sheet_no": ty.get("sheet_no", ""), "title": ty.get("title", ""), "from": ty.get("from", ""),
+            "origin": ty.get("origin", ""), "edited": ty.get("edited"), "history": (ty.get("history") or [])[-5:],
+            "pins_in": sum(1 for r in tb if r.get("side") == "L" and r.get("desc")),
+            "pins_out": sum(1 for r in tb if r.get("side") == "R" and r.get("desc")),
+            "blocks": len(st.get("blocks") or {}), "did": (docs.get(tid) or {}).get("id")}
+
+
+@router.get("/logic/api/drawings/typicals")
+def list_typicals():
+    from . import library
+    docs = _typ_docs()
+    items = [_typ_public(k, v, docs) for k, v in library.typicals().items()]
+    items.sort(key=lambda x: (x["title"] or "", x["sheet_no"] or ""))
+    return {"items": items, "set": TYP_SET, "seed": len(library.seed_typicals())}
+
+
+def _typ_doc_of(tid, ty, author):
+    from . import library
+    base = ty.get("doc")
+    if base:
+        doc = draw.new_doc(base.get("name") or ty.get("sheet_no") or tid, author, "", int(base.get("N") or draw.N_DEFAULT))
+        keep = {k: v for k, v in base.items() if k not in ("id", "history", "author", "created", "updated", "saves", "set", "set_name", "order", "source")}
+        doc.update(keep)
+    else:
+        doc = draw.from_sheet(ty["sheet"], ty.get("sheet_no") or tid, author, "")
+    doc.update({"set": TYP_SET, "set_name": TYP_SET_NAME, "typical": True, "sheet_no": ty.get("sheet_no") or doc.get("sheet_no"),
+                "title": ty.get("title") or doc.get("title"), "source": {"typlib": tid, "from": ty.get("from", "")}})
+    return doc
+
+
+@router.post("/logic/api/drawings/typicals/{tid}/open")
+def open_typical(tid: str, body: dict = Body(default={})):
+    """그 Typical 을 고치려고 꺼낸다 — 이미 꺼낸 그림이 있으면 그것을 (사람이 고치던 것을 버리지 않는다)."""
+    from . import library
+    author = _author(body.get("author"))
+    ty = library.typicals().get(tid)
+    if not ty or not (ty.get("sheet") or ty.get("doc")):
+        raise HTTPException(404, "공통 Typical 사전에 그 Typical 이 없습니다.")
+    have = _typ_docs().get(tid)
+    if have:
+        return have
+    doc = _typ_doc_of(tid, ty, author)
+    doc["order"] = len(_typ_docs()) + 1
+    draw.save_new(doc)
+    return doc
+
+
+@router.post("/logic/api/drawings/typicals")
+def save_typical(body: dict = Body(default={})):
+    """그림 하나를 공통 Typical 사전에 저장 — '공통 Typical 사전' 묶음에서 꺼낸 그림이면 그 Typical 을 고친 것,
+    다른 묶음의 Typical 시트면 새 Typical 로 더한다.  분석기로 되읽어 단자(행)를 확인한 뒤 적는다."""
+    from . import library
+    author = _author(body.get("author"))
+    doc = _load(str(body.get("did") or ""))
+    if not doc.get("sheet_no"):
+        raise HTTPException(400, "시트 이름이 있어야 Typical 로 저장합니다.")
+    tid = (doc.get("source") or {}).get("typlib") if doc.get("set") == TYP_SET else None
+    try:
+        r = library.save_typical(tid, doc, author, str(body.get("note") or ""))
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    if not tid and doc.get("set") != TYP_SET:
+        # 다른 묶음의 장은 그대로 두고, 사전 묶음에 그 Typical 의 그림을 하나 만든다
+        ty = library.typicals().get(r["id"])
+        nd = _typ_doc_of(r["id"], ty, author)
+        nd["order"] = len(_typ_docs()) + 1
+        draw.save_new(nd)
+        r["did"] = nd["id"]
+    elif not tid:
+        src = dict(doc.get("source") or {}); src["typlib"] = r["id"]
+        doc["source"] = src
+        draw.save(doc["id"], doc, author)
+    return r
+
+
+@router.post("/logic/api/drawings/typicals/{tid}/revert")
+def revert_typical(tid: str, body: dict = Body(default={})):
+    """사람이 고친 것을 거두고 원래(씨앗 · 분석에서 배운 것)로.  꺼낸 그림도 원래 그림으로 다시 쓴다."""
+    from . import library
+    author = _author(body.get("author"))
+    try:
+        library.revert_typical(tid, author)
+    except KeyError:
+        raise HTTPException(404, "그 Typical 은 사람이 고친 적이 없습니다.")
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    have = _typ_docs().get(tid)
+    ty = library.typicals().get(tid)
+    if have:
+        if ty:
+            nd = _typ_doc_of(tid, ty, author)
+            nd = {k: v for k, v in nd.items() if k not in ("id", "created", "history", "saves")}
+            draw.save(have["id"], nd, author)
+        else:
+            draw.delete(have["id"], author)
+            return {"id": tid, "removed": True}
+    return {"id": tid, "did": (have or {}).get("id")}
+
+
 @router.get("/logic/api/drawings/{did}")
 def get_drawing(did: str):
     return _load(did)

@@ -487,6 +487,8 @@ def _lib_png(job, page):
     s = _sheet(job, page)
     png = (s.get("library") or {}).get("png")
     f = library.typ_dir() / png if png else None
+    if (not f or not f.is_file()) and (s.get("library") or {}).get("id"):
+        f = library.ensure_png(s["library"]["id"])       # L63 — 씨앗 Typical 은 그림을 싣지 않는다 → 처음 볼 때 그 그림을 그린다
     if not f or not f.is_file():
         raise HTTPException(404, "학습 사전에 그 Typical 시트의 그림이 없습니다.")
     return f

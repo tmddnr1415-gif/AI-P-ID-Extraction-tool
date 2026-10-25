@@ -229,3 +229,15 @@ body.sim .blk.on1 > rect, body.sim .blk.on1 > circle { fill: rgba(0, 180, 255, .
 .dw-miss button { font-size: 11px; padding: 2px 7px; border: 1px solid #e0a040; background: #fff8ea; border-radius: 3px; cursor: pointer; }
 .dw-miss button.here { border-color: #e08a00; background: #ffe9c2; font-weight: 600; }
 .dw-miss button.more { border-style: dashed; background: #fff; color: #667; }
+
+/* L63 — 공통 Typical 사전 */
+.dw-typcard { border-left: 3px solid #6a4fd0; background: #f7f4ff; }
+.dw-typcard .pri { background: #6a4fd0; color: #fff; border-color: #6a4fd0; }
+.dw-typq { width: 100%; margin: 6px 0; padding: 4px 6px; }
+.dw-typtable { max-height: 60vh; overflow: auto; }
+.dw-typtable table { border-collapse: collapse; width: 100%; font-size: 12px; }
+.dw-typtable th, .dw-typtable td { border-bottom: 1px solid #eee; padding: 3px 6px; text-align: left; white-space: nowrap; }
+.dw-typtable td:nth-child(2) { white-space: normal; min-width: 220px; }
+.dw-typtable th { position: sticky; top: 0; background: #f3f6fb; }
+.t-seed { color: #667; } .t-learn { color: #0f8f80; } .t-user { color: #6a4fd0; font-weight: 600; }
+.dw-modal-box:has(.dw-typtable) { max-width: 980px; width: 92vw; }

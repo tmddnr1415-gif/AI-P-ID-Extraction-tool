@@ -300,17 +300,23 @@ def macro_types(docs: list) -> list:
                  "row": r["n"]} for r in st.get("table", []) if r["side"] == "R" and r.get("desc")]
         if ins and outs:
             out.append({"typ": f"lib:{tid}", "did": None, "title": ty.get("title") or ty.get("sheet_no") or tid,
-                        "pins_in": ins[:draw.MAX_PINS], "pins_out": outs[:draw.MAX_PINS], "from": f"학습 사전 · {ty.get('from', '')}",
-                        "sheet": st})
+                        "pins_in": ins[:draw.MAX_PINS], "pins_out": outs[:draw.MAX_PINS],
+                        "from": f"공통 Typical 사전 · {ty.get('from', '')}{' · 고침' if ty.get('origin') == 'user' else ''}",
+                        "sheet": {"sheet_no": st.get("sheet_no") or ty.get("sheet_no", "")}})   # L63 — 시트 통째는 보내지 않는다 (24개면 2MB)
     return out
 
 
 def typical_doc_from_library(tid: str, name: str, author: str, project: str, sid: str, order: int) -> dict | None:
     """사전 Typical 시트를 이 묶음의 그림으로 들여온다 (매크로를 놓으면 그 내부 동작이 묶음 안에 있어야 분석기가 잇는다)."""
     ty = (library.load().get("typicals") or {}).get(tid)
-    if not ty or not ty.get("sheet"):
+    if not ty or not (ty.get("sheet") or ty.get("doc")):
         return None
-    doc = draw.from_sheet(ty["sheet"], name or ty.get("sheet_no") or tid, author, project)
+    if ty.get("doc"):                                 # L63 — 사람이 고친(또는 씨앗의) 작도 그림을 그대로
+        base = ty["doc"]
+        doc = draw.new_doc(name or ty.get("sheet_no") or tid, author, project, int(base.get("N") or draw.N_DEFAULT))
+        doc.update({k: v for k, v in base.items() if k not in ("id", "name", "history", "author", "created", "updated", "saves", "set", "set_name", "order", "source", "project")})
+    else:
+        doc = draw.from_sheet(ty["sheet"], name or ty.get("sheet_no") or tid, author, project)
     doc.update({"set": sid, "order": order, "typical": True, "sheet_no": ty.get("sheet_no") or doc.get("sheet_no"),
                 "title": ty.get("title") or doc.get("title"), "source": {"library": tid, "from": ty.get("from", "")}})
     draw.save_new(doc)

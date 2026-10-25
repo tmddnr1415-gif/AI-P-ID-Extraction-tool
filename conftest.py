@@ -61,6 +61,7 @@ os.environ.setdefault("PID_PAGE_WARM", "0")
 os.environ.setdefault("PID_RENDER_POOL", "0")      # 장 그림 일꾼도 시험에서는 안 띄운다 (서버 안에서 그린다)
 os.environ.setdefault("PID_LOGIC_WARM", "0")       # L28 — LOGIC 시뮬레이션 미리 계산도 시험에서는 끈다
 os.environ.setdefault("PID_ROWS_WARM", "0")        # hotfix80 — 최근 결과 목록 미리 데우기도 시험에서는 끈다 (메모 상태를 맞대는 시험)
+os.environ.setdefault("PID_TYPICAL_SEED", "0")     # L63 — 공통 Typical 씨앗: 옛 시험은 빈 사전을 가정한다 (씨앗 시험은 켠다)
 _OWNED_TMP = None
 if not os.environ.get("PID_DATA_DIR"):
     _OWNED_TMP = tempfile.mkdtemp(prefix="pid-test-data-")

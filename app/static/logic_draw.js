@@ -1106,6 +1106,8 @@ async function openDoc(id) {
   S.id = id; S.dirty = false; S.sel = new Set(); S.selWire = null; S.undo = []; S.redo = []; S.verify = null; $("#verify-card").hidden = true;
   $("#pick").value = id; $("#save").disabled = true;
   fillForm(); await loadSet(); render(); fitZoom(); render();
+  if (S.doc.set === TYP_SET && !S.typList) { try { S.typList = (await api("/logic/api/drawings/typicals")).items; } catch (e) {} }
+  renderTypCard();
   if (S.gotoRow) { const n = S.gotoRow; S.gotoRow = null; flashRow(n); }
   if (simOn()) runSim(true);                                      // L57 — 묶음 안에서 장을 옮겨도 준 신호는 남아 그 장의 값이 선다
   status(`${S.doc.name} · 블록 ${S.doc.blocks.length} · 선 ${S.doc.wires.length} · 저장 ${S.doc.saves || 0}번`);
@@ -1222,6 +1224,63 @@ async function delDoc() {
   catch (e) { toast(e.message); }
 }
 
+
+/* ───────── 공통 Typical 사전 (L63) — 모든 프로젝트가 같은 Typical 을 쓴다 · 처음부터 들고 있고 사람이 고친다 ───────── */
+const TYP_SET = "7e7e00000063";
+async function showTypicals() {
+  let r; try { r = await api("/logic/api/drawings/typicals"); } catch (e) { toast(e.message); return; }
+  S.typList = r.items;
+  const st = it => it.origin === "user" ? `<span class="t-user">고침 · ${esc((it.edited || {}).author || "")} ${esc(((it.edited || {}).at || "").slice(0, 10))}</span>` : it.origin === "seed" ? `<span class="t-seed">기본</span>` : `<span class="t-learn">분석에서 배움</span>`;
+  const body = `<p class="dw-hint">모든 프로젝트가 함께 씁니다 — 기본 ${r.seed}개는 처음부터 들어 있고, 고치면 다음 분석부터 모든 프로젝트에 반영됩니다.</p>
+    <input id="typ-q" placeholder="찾기 (MOV · SOV · GROUP …)" class="dw-typq">
+    <div class="dw-typtable"><table><thead><tr><th>시트</th><th>제목</th><th>출처</th><th>입력→출력</th><th>상태</th><th></th></tr></thead><tbody>${r.items.map((it, i) =>
+      `<tr data-i="${i}"><td>${esc(it.sheet_no)}</td><td>${esc(it.title)}</td><td>${esc(it.from)}</td><td>${it.pins_in}→${it.pins_out}</td><td>${st(it)}</td>
+       <td><button type="button" class="t-open" data-i="${i}">${it.did ? "열기" : "고치기"}</button>${it.origin === "user" ? ` <button type="button" class="t-rev" data-i="${i}">원래대로</button>` : ""}</td></tr>`).join("")}</tbody></table></div>`;
+  const p = modal(`공통 Typical 사전 — ${r.items.length}개`, body, null);
+  $("#m-ok").textContent = "닫기"; $("#m-cancel").hidden = true;
+  $("#typ-q").oninput = () => { const q = $("#typ-q").value.trim().toUpperCase(); $$(".dw-typtable tbody tr").forEach(tr => { tr.hidden = q && !tr.textContent.toUpperCase().includes(q); }); };
+  $$(".dw-typtable .t-open").forEach(b => b.onclick = () => openTypical(S.typList[+b.dataset.i]));
+  $$(".dw-typtable .t-rev").forEach(b => b.onclick = () => revertTypical(S.typList[+b.dataset.i].id));
+  await p; $("#m-ok").textContent = "확인"; $("#m-cancel").hidden = false;
+}
+async function openTypical(it) {
+  const who = author(); if (!who) { toast("이름을 적어 주세요 (머리줄 ✎)."); $("#who").focus(); return; }
+  try { const d = await post(`/logic/api/drawings/typicals/${it.id}/open`, { author: who }); $("#modal").hidden = true; await loadList(d.id); await openDoc(d.id); }
+  catch (e) { toast(e.message); }
+}
+async function saveTypical() {
+  const who = author(); if (!who) { toast("이름을 적어 주세요 (머리줄 ✎)."); $("#who").focus(); return; }
+  if (S.dirty) await save();
+  if (S.dirty) return;
+  status("사전에 저장 중 — 분석기로 되읽어 단자(행)를 확인합니다 …");
+  try { const r = await post(`/logic/api/drawings/typicals`, { did: S.id, author: who });
+    toast(`공통 Typical 사전에 저장했습니다 — ${r.sheet_no} ${r.title || ""} · 모든 프로젝트가 다음 분석부터 이것을 씁니다`);
+    if (r.did && r.did !== S.id) { await loadList(S.id); }
+    S.doc = await api(`/logic/api/drawings/${S.id}`); try { S.typList = (await api("/logic/api/drawings/typicals")).items; } catch (e) {}
+    renderTypCard(); status("사전에 저장됨"); }
+  catch (e) { toast("사전에 저장 실패 — " + e.message); status(""); }
+}
+async function revertTypical(tid) {
+  const who = author(); if (!who) { toast("이름을 적어 주세요 (머리줄 ✎)."); $("#who").focus(); return; }
+  try { const r = await post(`/logic/api/drawings/typicals/${tid}/revert`, { author: who });
+    toast(r.removed ? "사람이 새로 더한 Typical 을 사전에서 뺐습니다" : "원래 Typical 로 되돌렸습니다");
+    if (!$("#modal").hidden) { $("#modal").hidden = true; }
+    if (r.removed) { if (S.doc && (S.doc.source || {}).typlib === tid) { S.doc = null; S.id = null; } await loadList(); render(); return; }
+    if (S.doc && (S.doc.source || {}).typlib === tid) { S.dirty = false; await openDoc(S.id); } }
+  catch (e) { toast(e.message); }
+}
+function renderTypCard() {
+  const c = $("#typ-card"); if (!c) return;
+  const d = S.doc, inLib = d && d.set === TYP_SET, canAdd = d && !inLib && d.typical && d.sheet_no;
+  c.hidden = !(inLib || canAdd);
+  if (c.hidden) return;
+  const tid = (d.source || {}).typlib, it = (S.typList || []).find(x => x.id === tid);
+  $("#typ-say").innerHTML = inLib ? `이 그림은 <b>공통 Typical</b> ${esc(d.sheet_no)} 입니다.  고친 뒤 <b>사전에 저장</b>하면 모든 프로젝트가 다음 분석부터 이것을 씁니다.${it && it.origin === "user" ? `<br>마지막 고침 — ${esc(it.edited.author)} · ${esc(it.edited.at)}` : ""}`
+    : `이 장은 이 묶음의 Typical 시트입니다.  <b>공통 사전에 더하면</b> 다른 프로젝트도 이 Typical 을 씁니다.`;
+  $("#typ-save").textContent = inLib ? "사전에 저장" : "공통 사전에 더하기";
+  $("#typ-revert").hidden = !(inLib && it && it.origin === "user");
+}
+
 /* ───────── 묶음 (L56) ───────── */
 async function loadSet() {
   // L57 — 시뮬레이션 카드가 묶음의 장 이름을 쓴다 (S.setInfo)
@@ -1294,7 +1353,7 @@ function renderSetCard() {
 function renderMacroCard() {
   const box = $("#macro-list"), ms = (S.setInfo && S.setInfo.macros) || [];
   if (!ms.length) { box.innerHTML = `<p class="dw-hint">매크로 타입이 없습니다 — 묶음의 장에 <b>Typical 시트</b> 표시를 하거나(시트 카드) 학습 사전의 Typical 이 쓰입니다.</p>`; return; }
-  box.innerHTML = ms.map((m, i) => `<button type="button" data-i="${i}" title="${esc(m.from)} · 입력 ${m.pins_in.length} · 출력 ${m.pins_out.length}">▣ ${esc(m.title)}<span class="dw-hint">${esc(m.typ)} · ${m.pins_in.length}→${m.pins_out.length}</span></button>`).join("");
+  box.innerHTML = ms.map((m, i) => `<button type="button" data-i="${i}" title="${esc(m.from)} · 입력 ${m.pins_in.length} · 출력 ${m.pins_out.length}">▣ ${esc(m.title)}<span class="dw-hint">${esc(m.typ.startsWith("lib:") ? ((m.sheet || {}).sheet_no || "") + " · " + m.from.replace("공통 Typical 사전 · ", "공통 · ") : m.typ)} · ${m.pins_in.length}→${m.pins_out.length}</span></button>`).join("");
   $$("#macro-list button").forEach(b => b.onclick = () => addMacro(ms[+b.dataset.i]));
 }
 async function addMacro(m) {
@@ -1716,6 +1775,8 @@ async function init() {
   $$(".dw-arrange button").forEach(b => b.onclick = () => arrangeSel(b.dataset.op));      // L60
   for (const k of ["grid", "ruler", "align", "cross"]) $("#g-" + k).onchange = e => { S.guide[k] = e.target.checked; saveGuide(); render(); };
   $("#new").onclick = newDoc; $("#import").onclick = importSheet; $("#save").onclick = save; $("#verify").onclick = verify;
+  $("#typlib").onclick = showTypicals; $("#typ-list").onclick = showTypicals; $("#typ-save").onclick = saveTypical;
+  $("#typ-revert").onclick = () => { const t = (S.doc && S.doc.source || {}).typlib; if (t) revertTypical(t); };
   $("#set-import").onclick = importBundle; $("#set-add").onclick = addSheet; $("#set-verify").onclick = verifySet; $("#set-analyse").onclick = sendSetToAnalyse;
   $("#set-pdf").onclick = () => { if (S.doc && S.doc.set) location.href = `/logic/api/drawings/sets/${S.doc.set}/export.pdf`; };
   $("#f-typical").onchange = () => { if (!S.doc) return; S.doc.typical = $("#f-typical").checked; markDirty(); };

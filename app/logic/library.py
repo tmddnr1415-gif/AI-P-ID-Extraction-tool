@@ -36,6 +36,64 @@ def seed_path() -> Path:
     return paths.resource("config", "logic_library.json")
 
 
+def seed_typ_path() -> Path:
+    """L63 — 공통 Typical 사전 씨앗 (저장소에 싣는다 · 네 묶음 19VA · 1A5J · 1A1Y · HRSG 의 Typical 시트).
+    사용자 지시: *"Typical 은 모든 프로젝트 동일하니 기존에 학습되어 있어야 한다 · 사용자가 수정할 수 있도록."*"""
+    return paths.resource("config", "logic_typicals.json.gz")
+
+
+_SEED_TYP = {"mt": None, "d": {}}
+
+
+def seed_typicals() -> dict:
+    import gzip
+    import os
+    if os.environ.get("PID_TYPICAL_SEED", "1") == "0":
+        return {}
+    p = seed_typ_path()
+    try:
+        mt = p.stat().st_mtime_ns
+    except OSError:
+        return {}
+    if _SEED_TYP["mt"] != mt:
+        try:
+            d = json.loads(gzip.decompress(p.read_bytes()).decode("utf-8"))
+            _SEED_TYP["d"] = d.get("typicals") if isinstance(d.get("typicals"), dict) else {}
+        except Exception:
+            _SEED_TYP["d"] = {}
+        _SEED_TYP["mt"] = mt
+    return _SEED_TYP["d"]
+
+
+def _title_key(ty: dict) -> str:
+    import re
+    return re.sub(r"[^A-Z0-9]", "", ((ty.get("title") or "") + "|" + (ty.get("sheet_no") or "")).upper())
+
+
+def typicals() -> dict:
+    """씨앗 + 이 서버가 배운 것 + 사람이 고친 것.  사람이 고친 것이 이기고, 되돌리면 씨앗으로 돌아간다.
+    분석에서 배운 것 중 씨앗과 제목 · 시트 이름이 같은 것은 씨앗 하나로 본다."""
+    seed = seed_typicals()
+    mine = _read(data_path())["typicals"]
+    out = {k: {**v, "origin": "seed"} for k, v in seed.items()}
+    seen = {_title_key(v) for v in seed.values()}
+    for k, v in mine.items():
+        if not isinstance(v, dict):
+            continue
+        if v.get("removed"):
+            out.pop(k, None)
+            continue
+        if v.get("reverted"):
+            continue
+        if v.get("edited"):
+            out[k] = {**(out.get(k) or {}), **v, "origin": "user"}
+            continue
+        if k in out or _title_key(v) in seen:
+            continue
+        out[k] = {**v, "origin": "learned"}
+    return out
+
+
 def data_path() -> Path:
     return store.root() / "library.json"
 
@@ -92,7 +150,7 @@ def load() -> dict:
     for k in bad:
         sym.pop(k, None)
     figs = [f for f in seed["figures"] + mine["figures"] if isinstance(f, dict) and f.get("fig")]
-    return {"symbols": sym, "figures": figs, "typicals": mine["typicals"], "learned_jobs": mine["learned_jobs"],
+    return {"symbols": sym, "figures": figs, "typicals": typicals(), "learned_jobs": mine["learned_jobs"],
             "conflicts": sorted(bad), "taught": [r for r in mine["taught"] if isinstance(r, dict)]}
 
 
@@ -224,7 +282,7 @@ def learn_from_result(res: dict, job_dir: Path, bundle: str, job: str = "") -> d
         for page, cap in used.items():
             s = by_page[page]
             tid = _tid(bundle, s)
-            if tid in d["typicals"]:
+            if tid in d["typicals"] or tid in seed_typicals():
                 continue
             png = None
             src = job_dir / "pages" / f"p{page}_z{store.ZOOM}.png"
@@ -285,8 +343,99 @@ def summary() -> dict:
             "items": [{"key": k, "name": v.get("name"), "logic": v.get("logic"),
                        "from": sorted({s.get("from") or "" for s in v.get("sources", [])} or {v.get("origin", "")})}
                       for k, v in sorted(lib["symbols"].items())],
-            "typical_list": [{"id": k, "sheet_no": v.get("sheet_no"), "title": v.get("title"), "from": v.get("from")}
+            "typical_list": [{"id": k, "sheet_no": v.get("sheet_no"), "title": v.get("title"), "from": v.get("from"),
+                              "origin": v.get("origin"), "edited": v.get("edited")}
                              for k, v in lib["typicals"].items()]}
+
+
+# ─────────────────────────── 공통 Typical 사전 — 사람이 고친다 (L63) ───────────────────────────
+
+def _sheet_from_doc(doc: dict) -> dict:
+    """작도 그림 → 분석기 시트 꼴.  그림을 PDF 로 내보내 **분석기 그대로** 읽힌다 (되읽기 검증과 같은 길) —
+    그래서 고친 Typical 도 다른 묶음의 매크로와 단자 이름으로 맞대진다."""
+    import tempfile
+    from . import analyse, draw
+    with tempfile.TemporaryDirectory() as td:
+        p = Path(td) / "typ.pdf"
+        p.write_bytes(draw.to_pdf(doc))
+        res = analyse.analyse(str(p))
+    if not res.get("sheets"):
+        raise ValueError("그림을 분석기가 Logic 시트로 읽지 못했습니다 — 표 · 시트 이름을 확인하세요.")
+    return _typical_copy(res["sheets"][0])
+
+
+def render_png(tid: str, doc: dict) -> str | None:
+    """사전 Typical 의 그림 (검토 화면 새 창이 쓴다) — 작도 그림을 그대로 그린다."""
+    import pymupdf
+    from . import draw
+    try:
+        pdf = pymupdf.open(stream=draw.to_pdf(doc), filetype="pdf")
+        pix = pdf[0].get_pixmap(matrix=pymupdf.Matrix(store.ZOOM, store.ZOOM), alpha=False)
+        name = f"typ_{tid}.png"
+        pix.save(str(typ_dir() / name))
+        return name
+    except Exception:
+        return None
+
+
+def ensure_png(tid: str) -> Path | None:
+    ty = typicals().get(tid) or {}
+    if ty.get("png") and (typ_dir() / ty["png"]).is_file():
+        return typ_dir() / ty["png"]
+    doc = ty.get("doc")
+    if not doc and ty.get("sheet"):
+        from . import draw
+        doc = draw.from_sheet(ty["sheet"], ty.get("sheet_no") or tid, "사전", "")
+    name = render_png(tid, doc) if doc else None
+    return typ_dir() / name if name else None
+
+
+def save_typical(tid: str | None, doc: dict, author: str, note: str = "") -> dict:
+    """사람이 고친 Typical 을 사전에 — 모든 프로젝트가 다음 분석부터 이것을 쓴다.  tid 가 없으면 새 Typical."""
+    if not author:
+        raise ValueError("작성자 이름이 필요합니다.")
+    sheet = _sheet_from_doc(doc)
+    tid = tid or hashlib.sha1(f"user|{doc.get('sheet_no')}|{doc.get('title')}|{time.time()}".encode("utf-8")).hexdigest()[:12]
+    with _LOCK:
+        d = _read(data_path())
+        prev = d["typicals"].get(tid) or {}
+        hist = list(prev.get("history") or [])
+        hist.append({"author": author, "at": time.strftime("%Y-%m-%d %H:%M:%S"), "note": note[:200], "action": "save"})
+        base = seed_typicals().get(tid) or prev.get("orig") or (prev if prev.get("sheet") and not prev.get("edited") else {})
+        orig = prev.get("orig") or (prev if prev.get("sheet") and not prev.get("edited") and tid not in seed_typicals() else None)
+        d["typicals"][tid] = {"orig": orig} if orig else {}
+        d["typicals"][tid] |= {"sheet_no": doc.get("sheet_no") or base.get("sheet_no", ""), "title": doc.get("title") or base.get("title", ""),
+                              "caption": base.get("caption", ""), "from": base.get("from") or "사용자", "zoom": store.ZOOM,
+                              "sheet": sheet, "doc": {k: v for k, v in doc.items() if k not in ("history",)},
+                              "edited": {"author": author, "at": hist[-1]["at"]}, "history": hist[-50:], "png": None}
+        _save(d)
+    png = render_png(tid, doc)
+    with _LOCK:
+        d = _read(data_path())
+        if tid in d["typicals"]:
+            d["typicals"][tid]["png"] = png
+            _save(d)
+    return {"id": tid, "sheet_no": doc.get("sheet_no"), "title": doc.get("title")}
+
+
+def revert_typical(tid: str, author: str) -> dict:
+    """사람이 고친 것을 거두고 씨앗(또는 배운 것)으로 — 이력은 남는다.  사람이 새로 만든 Typical 이면 사전에서 뺀다."""
+    if not author:
+        raise ValueError("작성자 이름이 필요합니다.")
+    with _LOCK:
+        d = _read(data_path())
+        prev = d["typicals"].get(tid)
+        if not prev:
+            raise KeyError(tid)
+        hist = list(prev.get("history") or []) + [{"author": author, "at": time.strftime("%Y-%m-%d %H:%M:%S"), "action": "revert"}]
+        if tid in seed_typicals():
+            d["typicals"][tid] = {"reverted": True, "history": hist[-50:]}
+        elif prev.get("orig"):
+            d["typicals"][tid] = {**prev["orig"], "history": hist[-50:]}
+        else:
+            d["typicals"][tid] = {"removed": True, "history": hist[-50:]}
+        _save(d)
+    return {"id": tid}
 
 
 _BACKFILL = {"started": False}

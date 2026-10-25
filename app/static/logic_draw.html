@@ -13,6 +13,7 @@
   <select id="pick" title="저장된 그림"><option value="">(그림을 고르세요)</option></select>
   <button id="new" class="dw-btn" title="빈 양식으로 새 그림">＋ 새 그림</button>
   <button id="import" class="dw-btn" title="분석한 Logic 시트를 이 양식으로 가져와 고친다">⇩ 분석 시트에서</button>
+  <button id="typlib" class="dw-btn" title="모든 프로젝트가 함께 쓰는 Typical(매크로 내부 동작) — 보고 고친다">📚 Typical</button>
   <span class="dw-sep"></span>
   <input id="name" class="dw-name" placeholder="그림 이름" disabled>
   <label class="dw-who" title="저장에 남는 이름 (대시보드 로그인 이름이 있으면 그것)">✎ <input id="who" placeholder="이름"></label>
@@ -52,6 +53,15 @@
         <label><input type="checkbox" id="g-ruler" checked> 눈금자 <kbd>R</kbd></label>
         <label><input type="checkbox" id="g-align" checked> 정렬 안내선</label>
         <label><input type="checkbox" id="g-cross" checked> 십자선</label>
+      </div>
+    </section>
+    <section class="dw-card dw-typcard" id="typ-card" hidden>
+      <h3>공통 Typical 사전</h3>
+      <p id="typ-say" class="dw-hint"></p>
+      <div class="dw-settools">
+        <button id="typ-save" type="button" class="pri" title="분석기로 되읽어 단자(행)를 확인한 뒤 사전에 적는다 — 모든 프로젝트가 다음 분석부터 이것을 쓴다">사전에 저장</button>
+        <button id="typ-revert" type="button" title="사람이 고친 것을 거두고 원래 Typical 로">원래대로</button>
+        <button id="typ-list" type="button">목록</button>
       </div>
     </section>
     <section class="dw-card" id="set-card">

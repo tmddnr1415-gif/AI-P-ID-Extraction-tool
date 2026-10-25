@@ -1,0 +1,9 @@
+빈 서버 — Typical 사전 24개 (처음부터 들어 있음)
+찾기 'MOV BLOCK (OPEN' → ['MOV BLOCK (OPEN-CLOSE) (TYPE-III-1)']
+꺼냄 → G012 MOV BLOCK (OPEN-CLOSE) (TYPE-III-1) · 블록 93 · 카드 보임 True
+사전에 저장 → 카드: '이 그림은 공통 Typical G012 입니다. 고친 뒤 사전에 저장하면 모든 프로젝트가 다음 분석부터 이것을 씁니다.\n마지막 고침 — 홍길동 · 2026-10-25 10:03:24'
+목록에 고침 표시 → ['MOV BLOCK (OPEN-CLOSE) (TYPE-III-1) · 고침 · 홍길동 2026-10-25']
+새 묶음의 매크로 카드 → 24개 (예: ['▣ SWGR/MCC0009 · 공통 · 19VA · 19→19', '▣ SOV0013 · 공통 · 19VA · 16→14', '▣ MTS0015 · 공통 · 19VA · 19→17'])
+그 매크로를 놓음 → Typical G012 · 입력 단자 ['L', 'AMC', 'AO', 'AC', 'OPC', 'CPC', 'OO', 'OC', 'OS', 'CFC', 'CS', 'RP']
+원래대로 → 고친 Typical 0개
+페이지 오류 0 []
