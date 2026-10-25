@@ -75,3 +75,11 @@ def test_screen_is_the_latest_dashboard_version():
     r = subprocess.run(["node", "-e", "new Function(require('fs').readFileSync(0,'utf8'))"], input=js,
                        capture_output=True, text=True)
     assert r.returncode == 0, r.stderr
+
+
+def test_dashboard_loader_forwards_to_pid_server():
+    """대시보드 폴더의 apps/space/index.html 은 P&ID 서버(8000)의 /space 로 넘긴다 (주소 뒤 값 그대로)."""
+    h = (ROOT / "dashboard_apps" / "space" / "index.html").read_text(encoding="utf-8")
+    assert "PID_PORT = 8000" in h and "'/space' + location.search" in h and "/version" in h and "location.replace(target)" in h
+    for bad in ("confirm(", "prompt(", "alert("):
+        assert bad not in h

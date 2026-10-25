@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>판넬 공간확보</title>
+<title>ROOM SIZE 계산</title>
 <style>
 /* 판넬 공간확보 — 계장 Control Room 판넬 초기 공간확보 (대시보드 메뉴 '판넬 공간확보', /apps/space/)
    폐쇄망: 외부 글꼴·CDN 없음. 기본 = 어두운 CAD 화면 (AutoCAD 모델 공간처럼 짙은 회색 바탕 · 밝은 선),
@@ -242,7 +242,7 @@ svg text{font-family:var(--f-mono)}
 </head>
 <body>
 <section id="home" aria-label="판넬 공간확보 첫 화면">
-  <div class="lh-title"><h2>판넬 공간확보</h2>
+  <div class="lh-title"><h2>ROOM SIZE 계산</h2>
     <p>계장 판넬 Type 을 만들어 배치하고 <b>필요 면적 · 권장 실 크기</b>를 건축에 전달합니다. 프로젝트를 고르고 <b>배치 시작</b>을 누르세요.</p></div>
   <div class="lh-intake">
     <div class="lh-card">
@@ -280,7 +280,7 @@ svg text{font-family:var(--f-mono)}
 <div class="app">
   <div class="bar">
     <button id="bHome" title="프로젝트 고르기 · 저장 이력 첫 화면으로 (작업은 그대로 남습니다)">⌂ 첫 화면</button>
-    <div class="brand">판넬 공간확보<small>Control Room · 건축 전달용</small></div>
+    <div class="brand">ROOM SIZE 계산<small>Control Room · 건축 전달용</small></div>
     <button id="bSel" class="on" title="선택 (Esc)">선택</button>
     <button id="bBox" title="박스 선택 모드 (PC는 Shift+Drag)">박스선택</button>
     <button id="bMeas" title="거리 재기: 두 점을 차례로 클릭 (Snap) — 거리 · X · Y 차이 (Esc = 끝)">📏 거리</button>
@@ -2361,7 +2361,7 @@ function updSrv(){
 }
 const herr=m=>{$('#hErr').textContent=m||''};
 async function openHist(focusMemo){
-  if(!SRV_OK)return toast('파일로 직접 연 상태라 서버를 쓸 수 없습니다 — 대시보드의 [판넬 공간확보] 메뉴에서 여세요.',true);
+  if(!SRV_OK)return toast('파일로 직접 연 상태라 서버를 쓸 수 없습니다 — 대시보드의 [ROOM SIZE 계산] 메뉴에서 여세요.',true);
   herr('');$('#hWho').textContent=canWrite()?`${ON_PID?writer():(AUTH_NAME||LOGIN)} 로 저장`:'로그인하지 않음 — 보기만 (저장 · 노트는 대시보드에서 로그인)';
   $('#hdlg').hidden=false; HPID=HPID||S.srv?.pid||null;
   await loadProjects(); if(focusMemo)$('#hMemo').focus();
@@ -2437,7 +2437,7 @@ async function hmImport(){
 async function hmLoad(){
   document.querySelectorAll('#home .srvonly').forEach(x=>x.hidden=!SRV_OK);document.querySelectorAll('#home .nosrv').forEach(x=>x.hidden=SRV_OK);
   if(ON_PID&&SRV_OK){$('#hmImportRow').hidden=false;$('#hmImport').onclick=hmImport}
-  if(!SRV_OK){$('#hmProj').disabled=$('#hmNewBtn').disabled=true;$('#hmSrvHelp').textContent='파일로 직접 연 상태라 서버 프로젝트를 쓸 수 없습니다 — 대시보드의 [판넬 공간확보] 메뉴에서 여세요. 아래 ② 로는 시작할 수 있습니다.';
+  if(!SRV_OK){$('#hmProj').disabled=$('#hmNewBtn').disabled=true;$('#hmSrvHelp').textContent='파일로 직접 연 상태라 서버 프로젝트를 쓸 수 없습니다 — 대시보드의 [ROOM SIZE 계산] 메뉴에서 여세요. 아래 ② 로는 시작할 수 있습니다.';
     $('#hmProjects').innerHTML='<p class="lh-help">서버 없음</p>';$('#hmRecent').innerHTML='<li class="empty">서버 없음</li>';return hmRender()}
   try{const [a,b]=await Promise.all([sapi('GET','/projects'),sapi('GET','/recent?n=60')]);HM.projects=a.projects;HM.recent=b.saves}
   catch(e){$('#hmProjects').innerHTML=`<p class="lh-help" style="color:var(--err)">프로젝트를 못 읽었습니다: ${esc(e.message)} — ${SRV_WHAT} 연결을 확인하세요.</p>`;return}
@@ -2601,7 +2601,7 @@ if(ONLY3D)window.addEventListener('pagehide',()=>{try{BC&&BC.postMessage({t:'cam
 buildRoom(); buildTypes(); check(); buildSummary(); buildRevs(); buildNotes(); buildEq(); updSrv(); buildProps();
 new ResizeObserver(()=>{if(!fit._d){fit._d=1;fit()}else render()}).observe(svg);
 $('#bUndo').disabled=true;$('#bRedo').disabled=true;
-if(ONLY3D){document.body.classList.add('only3d');document.title='3D — 판넬 공간확보';showEditor();open3d()}   // 3D 새 창: 첫 화면 없이 바로 3D
+if(ONLY3D){document.body.classList.add('only3d');document.title='3D — ROOM SIZE 계산';showEditor();open3d()}   // 3D 새 창: 첫 화면 없이 바로 3D
 else showHome();                                           // 메뉴에 들어오면 첫 화면부터 (P&ID · LOGIC 과 같음)
 /* hotfix108 — 절전모드 (공용 offline.js).  서버가 꺼져 있어도 배치는 이 브라우저(localStorage)에 그대로 있고, 서버 저장 ·
  * 프로젝트 만들기 · 노트는 보관했다가 서버가 켜지면 되보낸다.  id 는 화면이 미리 정해 되보내도 같은 저장본이 되게 한다. */

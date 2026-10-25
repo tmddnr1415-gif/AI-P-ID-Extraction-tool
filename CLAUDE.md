@@ -23,8 +23,8 @@
 > **Dashboard(대시보드 본체 · `dashboard.html` · `server.py`) 와 계장 광장** 의 zip 은
 > **"계장ENG 주간업무 Dashboard 코드"** 쪽에서 만든다 — 여기서는 대시보드·광장 zip 을 만들지 않는다.
 > 판넬 공간확보의 화면 코드(`apps/space/`)는 여기서 묶고, 대시보드에 메뉴를 거는 줄과 서버 저장 API 는
-> 대시보드 쪽 몫이다 (지금 판넬 소스는 `origin/ccr-d82d97fa-bb3ty3` 의 `dashboard/apps/space/` 에 있다 —
-> 다음 판넬 zip 때 이 저장소로 들여온다).
+> 대시보드 쪽 몫이다 (판넬 화면 원본은 `origin/ccr-d82d97fa-bb3ty3` 의 `dashboard/apps/space/` — hotfix116 에 10-24 판을 들여왔다.
+> **대시보드 메뉴 'ROOM SIZE 계산' 은 대시보드 폴더의 `apps/space/index.html` 을 연다 → 그 자리에 넣는 '넘겨 주는 파일' zip 도 여기서 만든다 (hotfix117 · `spike/pack_roomsize.py`)**).
 
 ## 1. 지금 어디까지 와 있나
 
@@ -5082,6 +5082,27 @@ hotfix111 의 시스템 한 장 장면이 [절전 대비 보관] 목록에 없�
 3. **계장도서검토는 최신 그대로였다** (`books_api.py` · `kb.js` 같음 · 화면은 hotfix115 의 두 줄만 다름).
 4. **⚠ 다음부터** — 판넬 · 도서 화면은 다른 브랜치가 원본이다.  꾸러미를 만들기 전에 `git log origin/ccr-d82d97fa-bb3ty3 -- dashboard/apps/space` 와
    `origin/claude/new-session-v23o67 -- dashboard/apps/books` 의 마지막 커밋을 이 저장소에 들여온 판과 맞대 본다.
+
+**그 다음 — 대시보드 메뉴가 옛 판넬 사본을 열고 있었다 · ROOM SIZE 계산 꾸러미 (hotfix117 · 판정 0줄)**
+
+현장(회사 PC 사진 · `localhost:8080/#space` · 메뉴 'ROOM SIZE 계산'): *"업데이트하고 실행했는데 반영 안 되어 있다. DASHBOARD 코드에서 겹쳐서 그런가?"*
+— **맞다.**  대시보드(v16.43 · 브랜치 `ccr-248a5c4d-3dji7g`)의 그 메뉴는 `APP_ROUTES.space.src = '/apps/space/index.html'` — **대시보드 서버(8080)가 주는
+대시보드 폴더 안의 사본**을 열고 그 서버의 `/api/space` 에 저장한다.  hotfix116 이 고친 것은 P&ID 서버(8000)의 `/space` 라 그 메뉴에 닿을 길이 없었다.
+그 사본은 10-22 판이고 회사 대시보드 server.py 에는 룸 · Rev · 지우기 API 도 없다.  대시보드 쪽 CLAUDE.md(`738ccaa` · `f5e4cd9`)가 *"ROOM SIZE 계산
+zip 은 '2. PID 코드' 세션(여기)에서 만든다 · 대시보드 zip 에서 apps/ 는 뺀다"* 로 정해 두었다.
+
+1. **`dashboard_apps/space/index.html` — 넘겨 주는 파일** (대시보드 폴더의 `apps/space/index.html` 자리).  같은 호스트의 `:8000/version` 을 3초 안에
+   확인하고 `:8000/space` + 주소 뒤 값(`embed` · `user` · `view`) 으로 `location.replace`.  꺼져 있으면 *"P&ID 서버가 꺼져 있습니다 — run_lan_service.bat"* + [다시 시도].
+   대시보드 코드(`dashboard.html` · `server.py`)는 한 줄도 안 바꾼다 — 그 저장소의 몫이다.  `/version` 은 hotfix50 부터 다른 출처에 열려 있다.
+2. **예전 자료** — 대시보드 서버에 저장된 판넬 프로젝트는 `/space` 첫 화면 [대시보드 자료 가져오기](hotfix106 · 같은 ID · 여러 번 눌러도 한 벌)로 들어온다.
+   넘어온 페이지의 `document.referrer` 가 8080 이라 가져올 서버를 그대로 안다.  브라우저에만 있던 미저장 작업은 출처(포트)가 달라 옮겨지지 않는다.
+3. **화면 이름 `ROOM SIZE 계산`** — 대시보드 메뉴 이름에 맞춰 제목 · 머리 · 3D 새 창 제목 · 안내 문장을 바꿨다 (`aria-label` 은 그대로).
+4. **실측** (`spike/ui_audit_roomsize_loader.py` → `out/hotfix116/loader/` · 회사 대시보드 v16.43 코드를 실제로 8080 에 띄우고 대시보드처럼 iframe 으로):
+   P&ID 서버 꺼짐 안내 → 켜고 다시 시도 → `:8000/space?embed=1&user=…` · 최신 화면(룸 · Rev · 3D) · 예전 대시보드 프로젝트 가져옴 → 룸 · Rev 만들고 저장 →
+   작성자 = 대시보드 로그인 이름 · 페이지 오류 0.
+5. **꾸러미 둘** — `out/PID_dev+ops_hotfix117_*.zip`(P&ID 서버 · 이름 바꾼 화면) + `out/ROOMSIZE_dashboard_apps_hotfix117_*.zip`(`spike/pack_roomsize.py` ·
+   대시보드 운영 폴더에 그대로 풂 · `apps/space/index.html` 하나).  ⚠ 도서검토 메뉴도 같은 꼴(`/apps/books/` · 대시보드 서버의 books_api)이지만 그쪽은
+   대시보드 서버에서 그대로 돈다 — 손대지 않았다.
 
 ## 4. 미해결 과제 (다음 단계 후보) — 우선순위 순
 
