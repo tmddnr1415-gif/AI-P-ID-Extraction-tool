@@ -20,6 +20,7 @@
   <button id="verify" class="dw-btn" disabled title="그린 것을 PDF 로 내보내 분석기에 다시 넣어 같은 블록 · 선 · 행이 읽히는지 확인한다">✔ 되읽기 검증</button>
   <a id="pdf" class="dw-btn ghost" href="#" hidden title="같은 양식의 PDF 로 내려받기">PDF</a>
   <a id="dxf" class="dw-btn ghost" href="#" hidden title="CAD 로 가져갈 DXF 로 내려받기">DXF</a>
+  <button id="simtoggle" class="dw-btn ghost" disabled title="그린 로직을 바로 시뮬레이션한다 — 입력 행 · 누름단추를 눌러 1/0 을 주면 활성 선이 파랗게 · 게이트는 범례대로 · 묶음이면 FROM/TO 와 매크로를 넘어간다 (그리면서 고치면 바로 다시 돈다)">▶ 시뮬레이션</button>
   <button id="analyse" class="dw-btn ghost" disabled title="PDF 로 내보내 LOGIC 검토 묶음으로 올린다 — 시뮬레이션 · 정합성 검토를 그대로 쓴다">▶ 검토로 보내기</button>
   <button id="del" class="dw-btn danger" disabled title="이 그림을 지운다 (기록은 남는다)">지우기</button>
   <span id="status" class="dw-status"></span>
@@ -79,6 +80,15 @@
       </div>
       <p class="dw-hint">왼쪽 표 FROM 칸에 <b>시트-행</b>(G031-81 · 0016/72)을 적으면 분석기가 그 시트의 그 행과 잇습니다.  표 칸은 두 번 누르면 고칩니다.  제목은 문서 번호(숫자-숫자 꼴)가 있어야 분석기가 읽습니다.</p>
     </section>
+    <section class="dw-card" id="sim-card" hidden>
+      <h3>시뮬레이션 <span id="sim-sum" class="dw-hint"></span></h3>
+      <div class="dw-simtools">
+        <button id="sim-step" type="button" title="타이머가 흐른 뒤의 값 — 한 번 누를 때마다 시간을 한 틀 더 흘린다">⏭ 시간 흐르기</button>
+        <button id="sim-reset" type="button" title="준 신호 · 상태 · 아날로그 값을 전부 지운다 (타이머 시간은 그림의 속성이라 남는다)">⟲ 리셋</button>
+        <label title="시뮬레이션 중 게이트 단자마다 1/0 을 적는다"><input type="checkbox" id="sim-pins" checked> 단자 1/0</label>
+      </div>
+      <div id="sim-out" class="dw-sim"></div>
+    </section>
     <section class="dw-card" id="props-card" hidden>
       <h3>속성 <span id="props-kind" class="dw-hint"></span></h3>
       <div id="props" class="dw-form"></div>
@@ -96,6 +106,7 @@
         <li><b>Ctrl+휠</b> 확대 · 표 칸 두 번 누름 = 글 고치기</li>
         <li><b>G</b> 모눈 · <b>R</b> 눈금자 — 화면에만 보이고 내보내기에는 없습니다</li>
         <li>FM/TO 칸의 <b>↗</b> = 그 시트 그 행으로 · 붉은 칸 = 연결 불일치 · 저장하면 상대 장의 칸을 저절로 채웁니다</li>
+        <li><b>▶ 시뮬레이션</b> — 왼쪽 행 자리 · 누름단추 · 선을 눌러 1/0 · 게이트를 누르면 출력 목표 · 그리면서 고치면 바로 다시 돕니다 (묶음이면 FROM/TO · 매크로를 넘어갑니다)</li>
       </ul>
     </section>
   </aside>
@@ -119,6 +130,7 @@
     <div class="dw-modal-foot"><button id="m-cancel" class="dw-btn ghost">취소</button><button id="m-ok" class="dw-btn pri">확인</button></div>
   </div>
 </div>
+<div id="simmenu" class="dw-simmenu" hidden></div>
 <div id="toast" class="dw-toast" hidden></div>
 <script src="/static/logic_draw.js"></script>
 </body>

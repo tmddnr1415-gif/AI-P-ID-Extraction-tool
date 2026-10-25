@@ -75,6 +75,39 @@ SYMBOLS = {
     # (분석기 macro.link 가 단자 이름 ↔ Typical 행(TAG NO. 칸의 약어 · 설명)으로 맞댄다).  단자 자리는 param.pins_in/pins_out 의 dy.
     "MACRO":  {"name": "매크로 블록",      "text": "",     "bar": False, "w": 90, "h": 60, "logic": "macro",     "macro": True},
 }
+# L57 — 글자 상자 보기 (팔레트 둘째 묶음).  **뜻은 상자 안 글자가 정한다** — 분석기(blocks.isa_word · aops · analog)와 작도
+# 시뮬레이터(draw_sim._box_meaning)가 같은 글자를 같은 뜻으로 읽는다.  식별한 로직에 나온 종류를 전부 그릴 수 있게 둔다.
+# note = 그 장 NOTES 에 있어야 뜻이 서는 것 (토글 — NOTE 문장이 그 낱말을 따옴표로 부르고 INVERT 를 말한다).
+BOX_PRESETS = [
+    {"text": "1",     "name": "상수 1 (FORCED INPUT)", "hint": "언제나 1 — 들어오는 선 없이 나가는 선만", "w": 10, "h": 9},
+    {"text": "0",     "name": "상수 0",                "hint": "언제나 0", "w": 10, "h": 9},
+    {"text": "DI",    "name": "DI (켜짐 지연 · ISA)",   "hint": "ISA 약어 — 켜짐 지연 (시간은 속성)", "time": True},
+    {"text": "PO",    "name": "PO (펄스 · ISA)",        "hint": "ISA 약어 — 펄스 출력", "time": True},
+    {"text": "PASS",  "name": "이음점 (그대로 넘김)",    "hint": "입력 하나 = 출력 — 선을 잇기만", "w": 10, "h": 9},
+    {"text": "SRST",  "name": "토글 (NOTE 정의)",        "hint": "입력이 참으로 바뀔 때마다 출력이 뒤집힌다 — 장 NOTE 가 정의한다",
+     "note": 'OUTPUT STATE IS INVERTED BY EACH MOMENTARY TRUE SIGNAL ON "SRST"'},
+    {"text": "STEP",  "name": "STEP 상자",              "hint": "순서 제어 단계 — STEP IN · CRIT → STEP OUT · C-STEP CMD (근사 모델)", "w": 40, "h": 48,
+     "lines": [[2.0, 6.8, "STEP", 5.0], [2.0, 18.0, "STEP IN", 3.6], [2.0, 29.3, "CRIT", 3.6], [16.0, 18.0, "STEP OUT", 3.6], [12.0, 40.6, "C-STEP CMD", 3.6]]},
+    {"text": "HH/",   "name": "감시 HH (높음)",          "hint": "값이 설정값을 넘으면 1 — 설정값은 '블록 위 글' (예: 191 barg)", "above": "191 barg"},
+    {"text": "/L",    "name": "감시 L (낮음)",           "hint": "값이 설정값에 못 미치면 1", "above": "14 %"},
+    {"text": "MED",   "name": "중간값 선택 (MED)",       "hint": "아날로그 — 입력의 중간값"},
+    {"text": "Σ",     "name": "합 (Σ)",                 "hint": "아날로그 — 입력의 합 (계수는 선 글)"},
+    {"text": "△",     "name": "차 (△)",                 "hint": "아날로그 — X1 − X2"},
+    {"text": "×",     "name": "곱 (×)",                 "hint": "아날로그 — X1 × X2"},
+    {"text": "÷",     "name": "나눗셈 (÷)",             "hint": "아날로그 — X1 ÷ X2"},
+    {"text": "√",     "name": "제곱근 (√)",             "hint": "아날로그 — √X"},
+    {"text": "K",     "name": "비례 (K)",               "hint": "아날로그 — K·X (K 는 블록 위 글 'K : 2')", "above": "K : 1"},
+    {"text": "T",     "name": "전환 (T)",               "hint": "아날로그 — 조건 1 이면 IN1 · 0 이면 IN2"},
+    {"text": "F(X)",  "name": "함수 F(X)",              "hint": "아날로그 — 꺾은선 표 (표가 없으면 그대로 넘김)"},
+    {"text": "PID",   "name": "PID 제어기",             "hint": "아날로그 — 시뮬레이션에서는 수동 출력값"},
+    {"text": "A",     "name": "아날로그 상수 (A)",       "hint": "들어오는 선 없이 값 하나 — 블록 위 글 'A : 5%'", "above": "A : 5"},
+    {"text": "DEV",   "name": "편차 감시 (DEV)",         "hint": "|X1 − X2| > D 이면 1 (D 는 블록 위 글)", "above": "D : 10"},
+    {"text": "EQUAL", "name": "같음 비교 (EQUAL)",       "hint": "IN1 = IN2 이면 1", "w": 22},
+    {"text": "SIG",   "name": "신호 상자 (이름)",        "hint": "들어오는 선 없이 이름 붙은 신호 — 글자를 그 신호 이름으로", "w": 24},
+    {"text": "RUN",   "name": "상태 표시 (받기만)",      "hint": "들어오는 선만 — 글자 셋 이하", "w": 16},
+]
+
+
 BAR_EXTRA = 2.0 * PITCH
 MACRO_TOP = 1.6 * PITCH          # 매크로 상자 머리(이름 글줄) 높이 — 첫 단자는 그 아래 (분석기 _top_line 이 첫 단자 위 글을 이름으로 읽는다)
 MACRO_PIN_FS = 4.2

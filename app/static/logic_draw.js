@@ -168,6 +168,7 @@ function render() {
   drawGhost();
   renderProps();
   drawRulers();
+  if (simOn()) simPaint(S.sim.values || {}, S.sim.frames && S.sim.frames.length ? S.sim.frames[S.sim.frames.length - 1] : null);   // L57
 }
 function renderTable(svg, L) {
   const g = el("g", { class: "tbl" }, svg);
@@ -274,6 +275,31 @@ function buildPalette() {
     btn.onclick = () => { if (!S.doc) return; const L = layout(); addBlock(kind, (L.LX0 + L.LX1) / 2, L.TOP + L.PITCH * 6); };
     pal.appendChild(btn);
   }
+  // L57 — 글자 상자 보기: 뜻은 글자가 정한다 (상수 · ISA 약어 · 이음점 · 토글 · STEP · 감시 · 아날로그 연산 …)
+  if (S.presets && S.presets.length) {
+    const h = document.createElement("div"); h.className = "dw-palhead"; h.textContent = "글자 상자 — 뜻은 글자가 정합니다"; pal.appendChild(h);
+    for (const pr of S.presets) {
+      const btn = document.createElement("button");
+      btn.title = `${pr.name} — ${pr.hint}${pr.note ? " · 장 NOTE 에 정의 문장을 더합니다" : ""}`;
+      const ic = document.createElement("span"); ic.className = "dw-preicon"; ic.textContent = pr.text; btn.appendChild(ic);
+      const sp = document.createElement("span"); sp.textContent = pr.name; btn.appendChild(sp);
+      btn.draggable = true;
+      btn.ondragstart = e => { e.dataTransfer.setData("text/kind", "BOX"); e.dataTransfer.setData("text/preset", pr.text); };
+      btn.onclick = () => { if (!S.doc) return; const L = layout(); addPreset(pr, (L.LX0 + L.LX1) / 2, L.TOP + L.PITCH * 6); };
+      pal.appendChild(btn);
+    }
+  }
+}
+function addPreset(pr, cx, cy) {
+  if (!S.doc) return;
+  addBlock("BOX", cx, cy);
+  const b = S.doc.blocks[S.doc.blocks.length - 1];
+  b.text = pr.text; if (pr.w) b.w = pr.w; if (pr.h) b.h = pr.h; b.param = b.param || {};
+  if (pr.time) b.param.t = 5;
+  if (pr.lines) b.param.lines = pr.lines.map(x => x.slice());
+  if (pr.above) b.param.above = pr.above;
+  if (pr.note) { const notes = notesFromForm(); if (!notes.includes(pr.note)) { notes.push(pr.note); $("#f-notes").value = notes.join("\n"); S.doc.notes = notes; } }
+  markDirty(); render();
 }
 function newId(prefix) { let i = 1; const ids = new Set([...S.doc.blocks.map(b => b.id), ...S.doc.wires.map(w => w.id)]); while (ids.has(prefix + i)) i++; return prefix + i; }
 function addBlock(kind, cx, cy) {
@@ -367,7 +393,7 @@ function pushUndo() { S.undo.push(snapshot()); if (S.undo.length > 200) S.undo.s
 function restore(js) { const d = JSON.parse(js); Object.assign(S.doc, d); S.sel = new Set(); S.selWire = null; markDirty(); render(); }
 function undo() { if (!S.undo.length) return; S.redo.push(snapshot()); restore(S.undo.pop()); }
 function redo() { if (!S.redo.length) return; S.undo.push(snapshot()); restore(S.redo.pop()); }
-function markDirty() { S.dirty = true; $("#save").disabled = false; status("저장하지 않은 변경이 있습니다"); }
+function markDirty() { S.dirty = true; $("#save").disabled = false; status("저장하지 않은 변경이 있습니다"); simSoon(); }
 function deleteSel() {
   if (!S.sel.size && !S.selWire) return;
   pushUndo();
@@ -464,13 +490,14 @@ function finishWire() {
 function bindStage() {
   const stage = $("#stage"), svg = $("#svg");
   stage.addEventListener("dragover", e => e.preventDefault());
-  stage.addEventListener("drop", e => { const k = e.dataTransfer.getData("text/kind"); if (k && S.doc) { e.preventDefault(); const p = svgPt(e); addBlock(k, p[0], p[1]); } });
+  stage.addEventListener("drop", e => { const k = e.dataTransfer.getData("text/kind"); if (k && S.doc) { e.preventDefault(); const p = svgPt(e); const pt = e.dataTransfer.getData("text/preset"); const pr = pt && (S.presets || []).find(x => x.text === pt); if (pr) addPreset(pr, p[0], p[1]); else addBlock(k, p[0], p[1]); } });
   svg.addEventListener("pointerdown", e => {
     if (!S.doc) return;
     stage.focus();
     const p = svgPt(e), t = e.target;
     if (e.button === 1 || S.tool === "pan" || S.space) { S.drag = { pan: true, x: e.clientX, y: e.clientY, sl: $("#scroll").scrollLeft, st: $("#scroll").scrollTop }; e.preventDefault(); return; }
     if (e.button !== 0) return;
+    if (simOn() && S.tool === "select" && !e.shiftKey && simClick(e, p, t)) return;   // L57 — 시뮬레이션: 행 자리 · 신호원 · 게이트 · 선을 눌러 1/0
     if (S.tool === "wire" || S.tool === "dash") {
       const sp = snapPt(p);
       if (!S.wip) S.wip = { pts: [[sp[0], sp[1]]], cur: null };
@@ -559,6 +586,7 @@ function bindStage() {
     if (inInput) return;
     if (!$("#modal").hidden) return;
     const L = layout();
+    if (e.key === "Escape" && !$("#simmenu").hidden) { simMenuClose(); return; }
     if (e.key === "Escape") { if (S.wip) { S.wip = null; render(); } else { S.sel = new Set(); S.selWire = null; render(); } }
     else if (e.key === "Enter" && S.wip) { finishWire(); }
     else if (e.key === "Delete" || e.key === "Backspace") { e.preventDefault(); deleteSel(); }
@@ -750,7 +778,7 @@ function fillForm() {
   $("#f-project").value = d.project || "";
   $("#f-typical").checked = !!d.typical;
   $("#f-notes").value = (d.notes || []).join("\n");
-  for (const id of ["verify", "analyse", "del"]) $(id === "del" ? "#del" : "#" + id).disabled = false;
+  for (const id of ["verify", "analyse", "del", "simtoggle"]) $(id === "del" ? "#del" : "#" + id).disabled = false;
   $("#pdf").hidden = false; $("#dxf").hidden = false;
   $("#pdf").href = `/logic/api/drawings/${S.id}/export.pdf`; $("#dxf").href = `/logic/api/drawings/${S.id}/export.dxf`;
 }
@@ -761,6 +789,7 @@ async function openDoc(id) {
   $("#pick").value = id; $("#save").disabled = true;
   fillForm(); await loadSet(); render(); fitZoom(); render();
   if (S.gotoRow) { const n = S.gotoRow; S.gotoRow = null; flashRow(n); }
+  if (simOn()) runSim(true);                                      // L57 — 묶음 안에서 장을 옮겨도 준 신호는 남아 그 장의 값이 선다
   status(`${S.doc.name} · 블록 ${S.doc.blocks.length} · 선 ${S.doc.wires.length} · 저장 ${S.doc.saves || 0}번`);
   location.hash = "d=" + id;
 }
@@ -875,6 +904,7 @@ async function delDoc() {
 
 /* ───────── 묶음 (L56) ───────── */
 async function loadSet() {
+  // L57 — 시뮬레이션 카드가 묶음의 장 이름을 쓴다 (S.setInfo)
   S.setInfo = null; const card = $("#set-card"); const mc = $("#macro-card");
   if (!S.doc || !S.doc.set) { card.hidden = false; renderSetCard(); renderMacroCard(); return; }
   try { S.setInfo = await api(`/logic/api/drawings/sets/${S.doc.set}`); } catch (e) { S.setInfo = null; }
@@ -997,9 +1027,230 @@ async function sendSetToAnalyse() {
 }
 
 /* ───────── 시작 ───────── */
+/* ───────── L57 — 실시간 시뮬레이션 (그린 그대로 · PDF 를 거치지 않는다 · 판정은 서버 sim 이 한다) ───────── */
+const GATE_LOGIC = new Set(["and", "or", "nand", "nor", "not", "vote", "memory", "delay_on", "delay_off", "pulse", "step", "macro", "pass"]);
+function simOn() { return !!(S.sim && S.sim.on); }
+function simF() { const s = S.sim; return s.forces[S.id] || (s.forces[S.id] = {}); }
+function toggleSim() {
+  if (!S.doc) return;
+  if (simOn()) { S.sim.on = false; simStop(); document.body.classList.remove("sim"); $("#sim-card").hidden = true; simMenuClose(); render(); status("시뮬레이션을 끝냈습니다 — 준 신호는 다시 켤 때까지 남습니다"); return; }
+  S.sim = S.sim || { forces: {}, states: {}, timers: {}, analog: {}, res: null, values: {}, sig: null, pins: true };
+  S.sim.on = true; document.body.classList.add("sim"); $("#sim-card").hidden = false;
+  setTool("select");
+  status("시뮬레이션 — 왼쪽 행 자리 · 누름단추 · 선을 눌러 1/0 을 주세요.  고치면 바로 다시 돕니다.");
+  runSim(true);
+}
+function simSoon() { if (!simOn()) return; clearTimeout(S.sim._t); S.sim._t = setTimeout(() => runSim(false), 160); }
+async function runSim(animate) {
+  if (!simOn() || !S.doc) return;
+  const s = S.sim, did = S.id, seq = (s.seq = (s.seq || 0) + 1);
+  const body = { doc: docOut(), forces: s.forces, state: s.states, timers: s.timers, analog: s.analog };
+  let r;
+  try { r = await post(`/logic/api/drawings/${did}/simulate`, body); } catch (e) { status("시뮬레이션 실패 — " + e.message); return; }
+  if (!simOn() || seq !== s.seq || did !== S.id) return;         // 기다리는 동안 다른 그림으로 옮겼거나 또 눌렀다
+  if (r.error) { status(r.error); s.res = null; renderSimCard(); return; }
+  if (s.sig && r.sig !== s.sig) { s.states = {}; }               // 그림의 구조가 바뀌었다 — 묵은 상태(타이머 · 래치)는 버린다
+  s.sig = r.sig; s.res = r; s.states = r.state || {};
+  const fr = (r.focus && r.focus.frames) || [];
+  s.frames = fr; s.values = fr.length ? fr[fr.length - 1].values : {};
+  simStop();
+  if (animate && fr.length > 1) simPlay(fr); else simPaint(s.values, fr.length ? fr[fr.length - 1] : null);
+  renderSimCard();
+}
+function simStop() { if (S.sim && S.sim._anim) { clearTimeout(S.sim._anim); S.sim._anim = null; } }
+function simPlay(frames) {
+  // 틀 사이를 실제 시간만큼(상한 6초) 기다리며 그린다 — 타이머의 카운트다운이 보인다
+  let i = 0;
+  const step = () => {
+    if (!simOn()) return;
+    const f = frames[i]; simPaint(f.values, f);
+    i++; if (i >= frames.length) { S.sim._anim = null; return; }
+    const wait = Math.min(6, Math.max(0.25, frames[i].t - f.t));
+    S.sim._anim = setTimeout(step, wait * 1000);
+  };
+  step();
+}
+function simPaint(values, frame) {
+  if (!simOn() || !S.sim.res || !S.sim.res.sheet) return;
+  const sh = S.sim.res.sheet, F = simF(), svg = $("#svg");
+  let ov = svg.querySelector("#simov"); if (ov) ov.remove();
+  ov = el("g", { id: "simov" }, svg);
+  const unread = new Set((frame && frame.unread) || []);
+  // 선
+  for (const [k, n] of Object.entries(sh.nets)) {
+    const v = values[k], forced = F["net:" + k] != null;
+    for (const wid of n.wires) for (const e of svg.querySelectorAll(`.wire[data-id="${wid}"]`)) { e.classList.toggle("on", v === 1); e.classList.toggle("forced", forced); e.classList.toggle("unk", unread.has(k) && v !== 1); }
+  }
+  // 행 자리
+  const linked = (S.sim.res.linked || {})[S.id] || {};
+  for (const r of sh.rows) {
+    const e = svg.querySelector(`.rowstub[data-n="${r.n}"]`); if (!e) continue;
+    const v = r.net != null ? values[r.net] : (F["row:" + r.n] != null ? F["row:" + r.n] : 0);
+    e.classList.toggle("v1", v === 1); e.classList.toggle("forced", F["row:" + r.n] != null); e.classList.toggle("linked", linked[r.n] != null && F["row:" + r.n] == null);
+    const tt = e.querySelector("title") || el("title", {}, e);
+    tt.textContent = `${r.side === "L" ? "입력" : "출력"} ${r.n}행 = ${v == null ? "?" : v}` + (F["row:" + r.n] != null ? " (내가 줌)" : linked[r.n] != null ? " (다른 장에서)" : "") + " — 누르면 1/0";
+  }
+  // 블록 — 출력 선이 1 이면 활성 · 신호원은 누를 수 있다 · 단자 1/0
+  const outs = {}, ins = {};
+  for (const p of sh.ports) (p.dir === "out" ? outs : ins)[p.block] = (p.dir === "out" ? outs : ins)[p.block] || [], (p.dir === "out" ? outs : ins)[p.block].push(p);
+  const unmet = new Set(((S.sim.res.focus || {}).unmet || []).map(u => u.block).filter(Boolean));
+  const showPins = $("#sim-pins").checked;
+  for (const b of S.doc.blocks) {
+    const g = svg.querySelector(`.blk[data-id="${b.id}"]`); if (!g) continue;
+    const sb = sh.blocks[b.id] || {};
+    const on = (outs[b.id] || []).some(p => values[p.net] === 1);
+    g.classList.toggle("act", on); g.classList.toggle("src", sb.logic === "source"); g.classList.toggle("unmet", unmet.has(b.id));
+    g.classList.toggle("on1", sb.logic === "source" && F["block:" + b.id] === 1);
+    if (showPins && (GATE_LOGIC.has(sb.logic) || sb.aop)) {
+      for (const p of [...(ins[b.id] || []), ...(outs[b.id] || [])]) {
+        const d = p.side === "L" ? [-3.2, 0] : p.side === "R" ? [3.2, 0] : p.side === "T" ? [0, -3.2] : [0, 3.2];
+        const v = values[p.net], x = p.at[0] + d[0], y = p.at[1] + d[1];
+        el("rect", { x: x - 2.1, y: y - 1.9, width: 4.2, height: 3.8, class: "simbox" + (v === 1 ? " v1" : "") }, ov);
+        txt(ov, x, y, v == null ? "?" : String(v), 3.4, "middle").setAttribute("class", "simval" + (v === 1 ? " v1" : ""));
+      }
+    }
+    if (S.sym[b.kind].time || sb.logic === "delay_on" || sb.logic === "delay_off" || sb.logic === "pulse") {
+      const run = ((frame && frame.running) || []).find(x => x.block === b.id);
+      if (run) txt(ov, b.x + b.w / 2, b.y - 2, `⏱ ${Math.max(0, run.left).toFixed(1)}s`, 4.2, "middle").setAttribute("class", "simtimer");
+    }
+  }
+  // 아날로그 값 (MED · 감시 블록 설정값과 비교한 결과)
+  const an = (S.sim.res.focus || {}).analog || {};
+  for (const [k, info] of Object.entries(an.keys || {})) {
+    if (!k.startsWith("block:") || info.eng == null) continue;
+    const b = S.doc.blocks.find(x => x.id === k.slice(6)); if (!b) continue;
+    txt(ov, b.x + b.w / 2, b.y + b.h + 4.5, `= ${(+info.eng).toFixed(2)}${info.range && info.range.unit ? " " + info.range.unit : ""}`, 4, "middle").setAttribute("class", "simtimer");
+  }
+  if (frame && frame.t != null) { const e = txt(ov, layout().LX1 - 4, layout().TOP - 2 * layout().PITCH - 3, `t = ${(+frame.t).toFixed(1)} s`, 5, "end"); e.setAttribute("class", "simtimer"); }
+}
+function flashNeed(nets) {
+  const svg = $("#svg"), sh = S.sim && S.sim.res && S.sim.res.sheet; if (!sh) return;
+  const ov = svg.querySelector("#simov") || el("g", { id: "simov" }, svg);
+  for (const k of nets) for (const wid of (sh.nets[k] || { wires: [] }).wires) { const w = S.doc.wires.find(w => w.id === wid); if (w) el("polyline", { points: w.pts.map(p => p.join(",")).join(" "), class: "simneed" }, ov); }
+  setTimeout(() => { for (const e of svg.querySelectorAll(".simneed")) e.remove(); }, 1800);
+}
+/* 누르기 — 행 자리 · 신호원 블록 · 게이트 · 선 */
+function simClick(e, p, t) {
+  const sh = S.sim.res && S.sim.res.sheet;
+  const F = simF();
+  if (t.classList.contains("rowstub")) {
+    const n = +t.dataset.n, L = layout(), side = n <= L.N ? "L" : "R";
+    const r = sh && sh.rows.find(r => r.n === n);
+    const cur = F["row:" + n];
+    const items = [];
+    if (side === "L") {
+      items.push({ t: "1 활성", v: 1, cls: "v1" }, { t: "0 비활성", v: 0, cls: "v0" });
+      items.push({ t: "∿ 아날로그 값 (mA)", ana: "row:" + n });
+    } else items.push({ t: "1 — 이 출력이 나가게 (조건을 채운다)", v: 1, cls: "v1" }, { t: "0 — 이 출력이 나가지 않게", v: 0, cls: "v0" });
+    if (cur != null || (S.sim.analog[S.id] || {})["row:" + n] != null) items.push({ t: "강제 풀기", v: null });
+    simMenu(e, `${side === "L" ? "입력" : "출력"} ${n}행 ${r && r.net != null ? "" : "(선이 안 닿았습니다)"}`, items, key => "row:" + n, cur);
+    return true;
+  }
+  const blk = t.closest(".blk");
+  if (blk) {
+    const b = S.doc.blocks.find(b => b.id === blk.dataset.id); const sb = sh && sh.blocks[b.id];
+    if (!sb) return false;
+    if (sb.logic === "source") {
+      const cur = F["block:" + b.id];
+      simMenu(e, `${sb.func} ${b.label || b.text || ""}`, [{ t: "1 누름 · 활성", v: 1, cls: "v1" }, { t: "0 비활성", v: 0, cls: "v0" }, ...(cur != null ? [{ t: "강제 풀기", v: null }] : [])], () => "block:" + b.id, cur);
+      return true;
+    }
+    if (GATE_LOGIC.has(sb.logic) || sb.aop) {
+      const cur = F["block:" + b.id];
+      const items = [{ t: "출력 1 — 조건을 채워 켠다 (게이트가 판정)", v: 1, cls: "v1" }, { t: "출력 0 — 조건을 깨서 끈다", v: 0, cls: "v0" }];
+      if (cur != null) items.push({ t: "목표 풀기", v: null });
+      if (sb.aop || ["unknown"].includes(sb.logic)) items.push({ t: "∿ 출력값 넣기 (공학값)", ana: "block:" + b.id });
+      if (S.sym[b.kind].time) items.push({ t: `⏱ 시간 ${(b.param || {}).t || 5}초 — 속성에서 바꿉니다`, info: true });
+      if (sb.macro && !sb.macro.page) items.push({ t: "⚠ " + (sb.macro.why || "Typical 시트가 없습니다"), info: true });
+      simMenu(e, `${sb.func}${sb.aop ? " · " + sb.aop : ""} ${b.text || ""}`, items, () => "block:" + b.id, cur);
+      return true;
+    }
+    return false;                                                    // 램프 · 경보 · 글 — 평소처럼 고른다
+  }
+  if (t.classList.contains("wire") || t.classList.contains("wirehit")) {
+    // 선이 행 자리에서 시작하면 그 자리를 누른 것은 선이 아니라 행이다 (선이 행 자리 위에 그려진다)
+    const L = layout(), rn = rowAt(p[1]);
+    if (rn && Math.abs(p[1] - ry(rn)) <= 3) {
+      for (const [x, n] of [[L.LX0, rn], [L.LX1, rn + L.N]]) if (Math.abs(p[0] - x) <= 3.5) { const st = $(`#svg .rowstub[data-n="${n}"]`); if (st) return simClick(e, p, st); }
+    }
+    const wid = t.dataset.id; const k = sh && Object.keys(sh.nets).find(k => sh.nets[k].wires.includes(wid));
+    if (k == null) return false;
+    const cur = F["net:" + k];
+    simMenu(e, `선 (그물 ${k}) = ${S.sim.values[k] == null ? "?" : S.sim.values[k]}`, [{ t: "1 활성", v: 1, cls: "v1" }, { t: "0 비활성", v: 0, cls: "v0" }, ...(cur != null ? [{ t: "강제 풀기", v: null }] : [])], () => "net:" + k, cur);
+    return true;
+  }
+  return false;
+}
+function simMenu(e, title, items, keyOf, cur) {
+  const m = $("#simmenu"); m.innerHTML = `<h4>${esc(title)}</h4>`;
+  for (const it of items) {
+    if (it.ana) {
+      const key = it.ana, a = (S.sim.analog[S.id] || {})[key];
+      const row = document.createElement("div"); row.className = "ana";
+      row.innerHTML = `<span>${esc(it.t)}</span><input type="number" step="0.1" min="${key.startsWith("row:") ? 4 : -1e9}" max="${key.startsWith("row:") ? 20 : 1e9}" value="${a != null ? a : (key.startsWith("row:") ? 8 : "")}"><button type="button">넣기</button>`;
+      row.querySelector("button").onclick = () => { const v = parseFloat(row.querySelector("input").value); if (!isFinite(v)) return; setAnalog(S.id, key, v); simMenuClose(); };
+      row.querySelector("input").onkeydown = ev => { if (ev.key === "Enter") row.querySelector("button").click(); };
+      m.appendChild(row); continue;
+    }
+    const b = document.createElement("button"); b.type = "button"; b.textContent = it.t; b.className = (it.cls || "") + (it.v !== undefined && it.v === cur ? " cur" : "");
+    if (it.info) { b.disabled = true; b.style.opacity = ".7"; }
+    else b.onclick = () => { setForce(S.id, keyOf(), it.v); simMenuClose(); };
+    m.appendChild(b);
+  }
+  m.hidden = false;
+  const x = Math.min(e.clientX + 6, window.innerWidth - m.offsetWidth - 8), y = Math.min(e.clientY + 6, window.innerHeight - m.offsetHeight - 8);
+  m.style.left = x + "px"; m.style.top = y + "px";
+}
+function simMenuClose() { const m = $("#simmenu"); if (m) m.hidden = true; }
+function setForce(did, key, v) {
+  const F = S.sim.forces[did] || (S.sim.forces[did] = {});
+  if (v == null) delete F[key]; else { F[key] = v; const A = S.sim.analog[did]; if (A) delete A[key]; }
+  runSim(true);
+}
+function setAnalog(did, key, ma) {
+  const A = S.sim.analog[did] || (S.sim.analog[did] = {});
+  A[key] = ma; const F = S.sim.forces[did]; if (F) delete F[key];
+  runSim(true);
+}
+function simReset() { if (!S.sim) return; S.sim.forces = {}; S.sim.states = {}; S.sim.analog = {}; runSim(true); }
+function renderSimCard() {
+  const out = $("#sim-out"), s = S.sim; if (!s || !s.on) return;
+  const r = s.res; if (!r) { out.innerHTML = `<div class="grp bad">결과가 없습니다</div>`; return; }
+  const sh = r.sheet, f = r.focus || {}, name = d => { const it = (S.setInfo && S.setInfo.sheets || []).find(x => x.id === d); return it ? (it.sheet_no || it.title || d.slice(0, 6)) : (d === S.id ? (S.doc.sheet_no || "이 장") : d.slice(0, 6)); };
+  const rowDesc = (did, key) => {
+    if (did !== S.id) return "";
+    const m = key.match(/^row:(\d+)$/); if (m) { const n = +m[1]; const L = layout(); const c = n <= L.N ? S.doc.left[String(n)] : S.doc.right[String(n)]; return c && c.desc ? " " + c.desc : ""; }
+    const b = key.startsWith("block:") && S.doc.blocks.find(b => b.id === key.slice(6)); return b ? " " + (b.label || b.text || b.kind) : "";
+  };
+  let h = "";
+  const given = [];
+  for (const [did, F] of Object.entries(s.forces)) for (const [k, v] of Object.entries(F)) given.push({ did, k, v });
+  for (const [did, A] of Object.entries(s.analog)) for (const [k, v] of Object.entries(A)) given.push({ did, k, v, ana: true });
+  h += `<div class="grp"><b>내가 준 신호 ${given.length}</b>` + (given.length ? given.map(g => `<div class="row" data-did="${g.did}"><span>${esc(name(g.did))} · ${esc(g.k.replace("row:", "행 ").replace("block:", "블록 ").replace("net:", "선 "))}${esc(rowDesc(g.did, g.k))}</span><span><span class="v ${g.ana ? "ana" : "v" + g.v}">${g.ana ? g.v + " mA" : g.v}</span> <button type="button" data-off="${g.did}|${g.k}|${g.ana ? "a" : "f"}">끄기</button></span></div>`).join("") : `<div class="dw-hint">행 자리 · 누름단추 · 선을 눌러 주세요</div>`) + `</div>`;
+  const outs = (sh.rows || []).filter(r => r.side === "R").map(r => ({ ...r, v: r.net != null ? s.values[r.net] : null }));
+  const on = outs.filter(r => r.v === 1), off = outs.filter(r => r.v !== 1 && r.net != null);
+  const rdesc = n => { const c = S.doc.right[String(n)]; return c && c.desc ? c.desc : ""; }, rto = n => { const c = S.doc.right[String(n)]; return c && c.to ? " → " + c.to : ""; };
+  h += `<div class="grp"><b>나간 출력 ${on.length} / ${outs.filter(r => r.net != null).length}</b>` + on.map(r => `<div class="row" data-row="${r.n}"><span>${r.n}행 ${esc(rdesc(r.n))}${esc(rto(r.n))}</span><span class="v v1">1</span></div>`).join("") + `</div>`;
+  const unmet = f.unmet || [];
+  if (unmet.length) h += `<div class="grp warn"><b>목표를 못 채운 출력 ${unmet.length}</b>` + unmet.map(u => `<div class="row">${esc(u.why || u.reason || JSON.stringify(u).slice(0, 80))}</div>`).join("") + `</div>`;
+  const macroWhy = Object.entries(sh.blocks || {}).filter(([, b]) => b.macro && !b.macro.page).map(([k, b]) => `${esc(b.label || k)} — ${esc(b.macro.why || "")}`);
+  if (macroWhy.length) h += `<div class="grp warn"><b>Typical 을 못 찾은 매크로</b>${macroWhy.map(t => `<div class="row">${t}</div>`).join("")}</div>`;
+  const chain = (r.pages || []).filter(p => p.did !== S.id && ((p.outputs || []).length || (p.inputs || []).length));
+  if (chain.length) h += `<div class="grp"><b>다른 장으로 넘어간 신호</b>` + chain.map(p => `<div class="row" data-open="${p.did}"><span>${esc(name(p.did))}</span><span>${(p.inputs || []).length ? "입력 " + (p.inputs || []).length : ""} ${(p.outputs || []).length ? "출력 " + (p.outputs || []).length : ""} ↗</span></div>`).join("") + `</div>`;
+  const de = r.design_errors || [];
+  if (de.length) h += `<div class="grp bad"><b>설계 오류 ${de.length}</b>` + de.slice(0, 6).map(x => `<div class="row">${esc(x.why || x.reason || "")}</div>`).join("") + `</div>`;
+  const notes = [...(f.notes || []), ...(r.notes || [])];
+  if (notes.length) h += `<div class="grp"><b>메모</b>${notes.slice(0, 6).map(t => `<div class="row">${esc(t)}</div>`).join("")}</div>`;
+  out.innerHTML = h;
+  $("#sim-sum").textContent = `t=${s.frames && s.frames.length ? (+s.frames[s.frames.length - 1].t).toFixed(1) : 0}s · 선 ${Object.keys(sh.nets || {}).length} · 1 인 선 ${Object.values(s.values).filter(v => v === 1).length}`;
+  for (const b of out.querySelectorAll("button[data-off]")) b.onclick = ev => { ev.stopPropagation(); const [did, k, kind] = b.dataset.off.split("|"); if (kind === "a") { const A = S.sim.analog[did]; if (A) delete A[k]; } else { const F = S.sim.forces[did]; if (F) delete F[k]; } runSim(true); };
+  for (const r of out.querySelectorAll(".row[data-row]")) r.onclick = () => flashRow(+r.dataset.row);
+  for (const r of out.querySelectorAll(".row[data-open]")) r.onclick = () => openDoc(r.dataset.open);
+}
+
 async function init() {
   const r = await api("/logic/api/drawings/symbols");
-  S.sym = r.symbols; S.lay = r.layout;
+  S.sym = r.symbols; S.lay = r.layout; S.presets = r.presets || [];
   const w = author(); if (w) $("#who").value = w;
   $("#who").onchange = () => { try { localStorage.setItem("pid.author", $("#who").value.trim()); } catch (e) {} };
   buildPalette(); bindStage();
@@ -1013,6 +1264,9 @@ async function init() {
   $("#set-pdf").onclick = () => { if (S.doc && S.doc.set) location.href = `/logic/api/drawings/sets/${S.doc.set}/export.pdf`; };
   $("#f-typical").onchange = () => { if (!S.doc) return; S.doc.typical = $("#f-typical").checked; markDirty(); };
   $("#analyse").onclick = sendToAnalyse; $("#del").onclick = delDoc;
+  $("#simtoggle").onclick = toggleSim; $("#sim-step").onclick = () => runSim(true); $("#sim-reset").onclick = simReset;
+  $("#sim-pins").onchange = () => render();
+  document.addEventListener("pointerdown", e => { const m = $("#simmenu"); if (!m.hidden && !m.contains(e.target)) simMenuClose(); }, true);
   $("#pick").onchange = e => { if (e.target.value) openDoc(e.target.value); };
   for (const id of ["#name", "#f-sheet", "#f-title", "#f-doc", "#f-project"]) $(id).oninput = () => { if (!S.doc) return; S.doc.sheet_no = $("#f-sheet").value.trim(); S.doc.title = $("#f-title").value.trim(); S.doc.doc_no = $("#f-doc").value.trim(); markDirty(); render(); };
   $("#f-rows").onchange = () => { if (!S.doc) return; const n = Math.max(45, Math.min(62, +$("#f-rows").value || 50)); $("#f-rows").value = n; pushUndo(); S.doc.N = n; markDirty(); render(); };

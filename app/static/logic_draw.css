@@ -148,3 +148,47 @@ input, select { font: inherit; border: 1px solid var(--line); border-radius: 5px
 #svg g.notes rect { fill: none; stroke: #222; stroke-width: 0.7; }
 #svg g.notes text { fill: #222; }
 #f-notes { width: 100%; font: inherit; font-size: 12px; resize: vertical; }
+
+/* ───────── L57 — 작도 화면 시뮬레이션 ───────── */
+body.sim .dw-head .dw-btn#simtoggle { background: var(--active, #00b4ff); border-color: var(--active, #00b4ff); color: #04304a; font-weight: 600; }
+body.sim .wire.on { stroke: var(--active, #00b4ff); stroke-width: 1.8; filter: drop-shadow(0 0 1.4px rgba(0, 200, 255, .75)); }
+body.sim .wire.on.forced { stroke-width: 2.3; }
+body.sim .wire.unk { stroke-dasharray: 1.2 1.2; stroke: #b8860b; }
+body.sim .rowstub { cursor: pointer; r: 2.2; }
+body.sim .rowstub.v1 { fill: var(--active, #00b4ff); stroke: #0078b0; }
+body.sim .rowstub.forced { stroke: #000; stroke-width: 1.2; }
+body.sim .rowstub.linked { stroke-dasharray: 1.2 .8; stroke: #003a5c; fill: var(--active, #00b4ff); }
+body.sim .blk.act > rect, body.sim .blk.act > circle { fill: rgba(0, 180, 255, .16); stroke: #0078b0; }
+body.sim .blk.src { cursor: pointer; }
+body.sim .blk.unmet > rect { stroke: #d08a14; stroke-width: 1.6; stroke-dasharray: 2 1.2; }
+body.sim .blk.on1 > rect, body.sim .blk.on1 > circle { fill: rgba(0, 180, 255, .3); }
+.simval { font-family: Helvetica, Arial, sans-serif; font-size: 3.4px; text-anchor: middle; dominant-baseline: central; pointer-events: none; }
+.simval.v1 { fill: #fff; }
+.simbox { fill: #fff; stroke: #0078b0; stroke-width: .35; rx: .6; pointer-events: none; }
+.simbox.v1 { fill: var(--active, #00b4ff); }
+.simtimer { font-family: Helvetica, Arial, sans-serif; font-size: 4.2px; fill: #0078b0; text-anchor: middle; pointer-events: none; font-weight: 600; }
+.simneed { fill: none; stroke: #ff8a00; stroke-width: 1.6; stroke-dasharray: 2 1.5; animation: needflash .55s linear 3; }
+@keyframes needflash { 0%, 100% { opacity: 1; } 50% { opacity: .15; } }
+.dw-simmenu { position: fixed; z-index: 60; background: #fff; border: 1px solid var(--line); border-radius: 8px; box-shadow: 0 6px 24px rgba(0, 0, 0, .18); padding: 6px; min-width: 190px; font-size: 12px; }
+.dw-simmenu h4 { margin: 2px 4px 6px; font-size: 11px; color: #555e6e; font-weight: 600; }
+.dw-simmenu button { display: block; width: 100%; text-align: left; margin: 2px 0; padding: 5px 8px; border-radius: 6px; }
+.dw-simmenu button.v1 { background: var(--active, #00b4ff); color: #fff; border-color: #0078b0; }
+.dw-simmenu button.v0 { background: #59616f; color: #fff; border-color: #444; }
+.dw-simmenu button.cur { outline: 2px solid var(--sel); }
+.dw-simmenu .ana { display: flex; gap: 4px; align-items: center; margin: 4px 0; }
+.dw-simmenu .ana input { width: 64px; padding: 3px 5px; border: 1px solid var(--line); border-radius: 5px; font: inherit; }
+.dw-simtools { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; margin-bottom: 6px; font-size: 12px; }
+.dw-sim { font-size: 12px; display: flex; flex-direction: column; gap: 6px; }
+.dw-sim .grp { border-left: 3px solid var(--active, #00b4ff); padding: 3px 6px; background: #f3fbff; border-radius: 4px; }
+.dw-sim .grp.warn { border-color: #d08a14; background: #fff7e6; }
+.dw-sim .grp.bad { border-color: var(--red); background: #fff0ef; }
+.dw-sim .grp b { display: block; font-size: 11px; color: #555e6e; margin-bottom: 2px; }
+.dw-sim .row { display: flex; justify-content: space-between; gap: 6px; align-items: center; padding: 1px 0; cursor: pointer; }
+.dw-sim .row:hover { background: rgba(47, 91, 216, .06); }
+.dw-sim .row .v { display: inline-block; min-width: 14px; text-align: center; border-radius: 3px; font-weight: 600; padding: 0 3px; }
+.dw-sim .row .v.v1 { background: var(--active, #00b4ff); color: #fff; }
+.dw-sim .row .v.v0 { background: #59616f; color: #fff; }
+.dw-sim .row .v.ana { background: #7b4dff; color: #fff; }
+.dw-sim .row button { padding: 0 6px; font-size: 11px; }
+.dw-palhead { grid-column: 1 / -1; font-size: 11px; color: #555e6e; margin: 6px 0 0; border-top: 1px dashed var(--line); padding-top: 6px; }
+.dw-preicon { display: block; font-size: 15px; font-weight: 600; line-height: 1.1; min-height: 20px; }

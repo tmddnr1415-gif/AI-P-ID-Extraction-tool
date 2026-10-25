@@ -7,6 +7,7 @@ from __future__ import annotations
 import shutil
 from urllib.parse import quote
 
+import json
 from fastapi import APIRouter, Body, HTTPException
 from fastapi.responses import FileResponse, JSONResponse, Response
 
@@ -43,7 +44,7 @@ def _author(v) -> str:
 @router.get("/logic/api/drawings/symbols")
 def symbols():
     """팔레트 — 서버의 기호 사전 그대로 (화면이 따로 외우지 않는다)."""
-    return {"symbols": draw.SYMBOLS, "layout": draw.layout(draw.N_DEFAULT), "style": draw.load_style()}
+    return {"symbols": draw.SYMBOLS, "layout": draw.layout(draw.N_DEFAULT), "style": draw.load_style(), "presets": draw.BOX_PRESETS}
 
 
 @router.get("/logic/api/drawings")
@@ -244,6 +245,57 @@ def verify_drawing(did: str, body: dict = Body(default={})):
     saved = _load(did)
     doc = body.get("doc") if isinstance(body.get("doc"), dict) else saved
     return draw.verify({**saved, **draw.clean(doc), "sheet_no": str(doc.get("sheet_no") or "")[:40]})
+
+
+_SIM_CACHE: dict = {}          # L57 — 묶음 지문 → sim 캐시 (그림이 바뀌면 지문이 바뀐다 · 한 개만 든다)
+
+
+def _sim_docs(did: str, live: dict | None) -> list:
+    """시뮬레이션에 넣을 그림들 — 그 그림이 묶음에 들면 묶음 전체 · 아니면 그 그림 하나.  live(저장 전 화면 그림)가 있으면 그것으로 바꿔 넣는다."""
+    saved = _load(did)
+    docs = draw_sets.set_docs(saved["set"]) if saved.get("set") else [saved]
+    if live is not None:
+        cur = {**saved, **draw.clean(live), "sheet_no": str(live.get("sheet_no") or saved.get("sheet_no") or "")[:40],
+               "title": str(live.get("title") or saved.get("title") or "")[:120], "typical": bool(live.get("typical", saved.get("typical")))}
+        docs = [cur if d["id"] == did else d for d in docs]
+        if not any(d["id"] == did for d in docs):
+            docs.append(cur)
+    return docs
+
+
+@router.post("/logic/api/drawings/{did}/simulate")
+def simulate_drawing(did: str, body: dict = Body(default={})):
+    """L57 — 그린 로직을 **PDF 로 내보내지 않고** 바로 시뮬레이션한다 (draw_sim.to_sheet → sim.simulate_bundle).
+    body: doc(저장 전 그림 · 선택) · forces {그림 id: {row:n|net:k|block:id: 0|1}} · state · timers {그림 id: {블록: 초}} · analog.
+    묶음에 든 그림이면 묶음 전체가 함께 돈다 (FROM/TO · 매크로 ↔ Typical)."""
+    from . import draw_sim
+    import hashlib
+    live = body.get("doc") if isinstance(body.get("doc"), dict) else None
+    docs = _sim_docs(did, live)
+    sig = hashlib.sha1(json.dumps([{k: d.get(k) for k in ("id", "N", "sheet_no", "typical", "left", "right", "blocks", "wires")} for d in docs],
+                                  sort_keys=True, default=str).encode()).hexdigest()
+    cache = _SIM_CACHE.get(sig)
+    if cache is None:
+        _SIM_CACHE.clear()
+        cache = _SIM_CACHE[sig] = {}
+    def _d(v):
+        return v if isinstance(v, dict) else {}
+    try:
+        out = draw_sim.simulate(docs, did, forces=_d(body.get("forces")), state=_d(body.get("state")), timers=_d(body.get("timers")),
+                                analog=_d(body.get("analog")), cache=cache)
+    except Exception as e:                       # 그림이 아직 덜 그려져 있어도 화면이 멈추지 않는다 — 사유를 말한다
+        return {"error": f"시뮬레이션하지 못했습니다 — {type(e).__name__}: {e}"[:300]}
+    out["sig"] = sig[:12]
+    return out
+
+
+@router.get("/logic/api/drawings/{did}/sheet")
+def drawing_sheet(did: str):
+    """그림을 분석 결과 시트 꼴로 (판정 없이 꼴만 — 시험 · 점검용)."""
+    from . import draw_sim
+    docs = _sim_docs(did, None)
+    sheets = draw_sim.sheets_of(docs)
+    return next((s for s in sheets if s.get("did") == did), sheets[0] if sheets else {})
 
 
 @router.post("/logic/api/drawings/{did}/analyse")
