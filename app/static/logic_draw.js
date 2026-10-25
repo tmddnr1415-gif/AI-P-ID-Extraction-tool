@@ -638,7 +638,7 @@ function finishWire() {
 function bindStage() {
   const stage = $("#stage"), svg = $("#svg");
   stage.addEventListener("dragover", e => e.preventDefault());
-  stage.addEventListener("drop", e => { const k = e.dataTransfer.getData("text/kind"); if (k && S.doc) { e.preventDefault(); const p = svgPt(e); const pt = e.dataTransfer.getData("text/preset"); const pr = pt && (S.presets || []).find(x => x.text === pt); if (pr) addPreset(pr, p[0], p[1]); else addBlock(k, p[0], p[1]); } });
+  stage.addEventListener("drop", e => { const k = e.dataTransfer.getData("text/kind"); if (k && S.doc) { e.preventDefault(); const p = svgPt(e); const pt = e.dataTransfer.getData("text/preset"); const pr = pt && (S.presets || []).find(x => x.text === pt); if (pr) addPreset(pr, p[0], p[1]); else addBlock(k, p[0], p[1]); if (e.shiftKey) { const nb = S.doc.blocks[S.doc.blocks.length - 1]; alignBlockNow(nb); render(); } } });
   svg.addEventListener("pointerdown", e => {
     if (!S.doc) return;
     stage.focus();
@@ -687,11 +687,13 @@ function bindStage() {
     if (S.drag.pan) { $("#scroll").scrollLeft = S.drag.sl - (e.clientX - S.drag.x); $("#scroll").scrollTop = S.drag.st - (e.clientY - S.drag.y); return; }
     if (S.drag.vtx) { const w = S.doc.wires.find(w => w.id === S.drag.id); if (!w) return; const sp = snapPt(p); w.pts[S.drag.i] = [+sp[0].toFixed(2), +sp[1].toFixed(2)]; S.dirty = true; render(); return; }
     if (S.drag.move) {
-      const L = layout(), g = S.snap ? L.PITCH / 2 : 0.01;
+      const strong = !!e.shiftKey;                                     // L60 — Shift 를 누른 채 끌면 이웃 기호 · 선에 맞춘다 (격자보다 정렬이 먼저)
+      const L = layout(), g = (S.snap && !strong) ? L.PITCH / 2 : 0.01;
       let dx = p[0] - S.drag.start[0], dy = p[1] - S.drag.start[1];
       dx = Math.round(dx / g) * g; dy = Math.round(dy / g) * g;
       const raw = Math.abs(dx) > 0.01 || Math.abs(dy) > 0.01;          // 정렬 자석이 되돌려도 '움직였다' 는 사실은 남는다
-      [dx, dy] = alignMove([...S.sel], dx, dy);
+      [dx, dy] = alignMove([...S.sel], dx, dy, strong);
+      if (strong && !S.drag.hinted) { S.drag.hinted = true; status("Shift — 이웃 기호 · 선에 맞춰 옮깁니다 (안내선)"); }
       if (!S.drag.moved && raw) { S.drag.moved = true; pushUndo(); }
       if (!S.drag.moved) return;
       for (const [id, x0, y0] of S.drag.orig) { const b = S.doc.blocks.find(b => b.id === id); if (b) { b.x = +(x0 + dx).toFixed(2); b.y = +(y0 + dy).toFixed(2); } }
@@ -746,6 +748,12 @@ function bindStage() {
     else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "d") { e.preventDefault(); duplicateSel(); }
     else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "c" && S.sel.size) { e.preventDefault(); copySel(); }
     else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "v" && S.clip) { e.preventDefault(); pasteClip(); }
+    else if (e.altKey && e.key.toLowerCase() === "h") { e.preventDefault(); arrangeSel("disth"); }          // L60
+    else if (e.altKey && e.key.toLowerCase() === "v") { e.preventDefault(); arrangeSel("distv"); }
+    else if (e.altKey && e.key === "ArrowLeft") { e.preventDefault(); arrangeSel("left"); }
+    else if (e.altKey && e.key === "ArrowRight") { e.preventDefault(); arrangeSel("right"); }
+    else if (e.altKey && e.key === "ArrowUp") { e.preventDefault(); arrangeSel("top"); }
+    else if (e.altKey && e.key === "ArrowDown") { e.preventDefault(); arrangeSel("bottom"); }
     else if (e.key === "ArrowLeft") { e.preventDefault(); moveSel(-(e.shiftKey ? L.PITCH : L.PITCH / 2), 0); }
     else if (e.key === "ArrowRight") { e.preventDefault(); moveSel(e.shiftKey ? L.PITCH : L.PITCH / 2, 0); }
     else if (e.key === "ArrowUp") { e.preventDefault(); moveSel(0, -(e.shiftKey ? L.PITCH : L.PITCH / 2)); }
@@ -837,29 +845,99 @@ function drawAlign(ov) {
   if (!S.alignLines) return;
   const L = layout();
   for (const a of S.alignLines) {
-    if (a.axis === "x") el("line", { x1: a.v, y1: Math.min(a.y0, L.TOP), x2: a.v, y2: Math.max(a.y1, L.bottom), class: "align" }, ov);
-    else el("line", { x1: Math.min(a.x0, L.LX0), y1: a.v, x2: Math.max(a.x1, L.LX1), y2: a.v, class: "align" + (a.row ? " row" : "") }, ov);
+    const k = a.row ? " row" : a.kind === "wire" ? " wire" : a.kind === "port" ? " port" : "";
+    if (a.axis === "x") el("line", { x1: a.v, y1: Math.min(a.y0, L.TOP), x2: a.v, y2: Math.max(a.y1, L.bottom), class: "align" + k }, ov);
+    else el("line", { x1: Math.min(a.x0, L.LX0), y1: a.v, x2: Math.max(a.x1, L.LX1), y2: a.v, class: "align" + k }, ov);
   }
 }
-/* 옮기는 블록의 변·가운데를 다른 블록의 변·가운데 · 행 가운데에 맞춘다.  tol 안이면 그 값으로 끌어당기고 안내선을 적는다. */
-function alignMove(ids, dx, dy) {
-  S.alignLines = null;
-  if (!S.guide.align) return [dx, dy];
-  const L = layout(), tol = 2.2, moving = new Set(ids);
-  const bbs = ids.map(id => { const o = S.drag.orig.find(o => o[0] === id); const b = S.doc.blocks.find(b => b.id === id); return bboxOf({ ...b, x: o[1] + dx, y: o[2] + dy }); });
+/* 옮기는 블록의 변·가운데를 다른 블록의 변·가운데 · 행 가운데에 맞춘다.  tol 안이면 그 값으로 끌어당기고 안내선을 적는다.
+   L60 — Shift 를 누른 채 끌면(strong) 더 넓은 허용치로 이웃 기호의 변 · 가운데 · 단자 높이 · 선의 가로/세로 토막에도 맞춘다
+   (위 게이트 바로 아래로 옮기면 같은 x 에 서고, 입력 단자가 옆 선의 높이에 선다).  '정렬 안내선' 을 꺼 두어도 Shift 는 듣는다. */
+function alignTargets(moving, strong) {
+  const L = layout(), tx = [], ty = [];
+  for (const b of S.doc.blocks) {
+    if (moving.has(b.id)) continue;
+    const bb = bboxOf(b);
+    tx.push([bb[0], bb, "blk"], [(bb[0] + bb[2]) / 2, bb, "blk"], [bb[2], bb, "blk"]);
+    ty.push([bb[1], bb, "blk"], [(bb[1] + bb[3]) / 2, bb, "blk"], [bb[3], bb, "blk"]);
+    if (strong) for (const pt of ports(b)) { tx.push([pt[0], bb, "port"]); ty.push([pt[1], bb, "port"]); }
+  }
+  for (let n = 1; n <= L.N; n++) ty.push([ry(n), [L.LX0, 0, L.LX1, 0], "row"]);     // 행 가운데 — 선이 행에서 바로 나온다
+  if (strong) for (const w of S.doc.wires || []) for (let i = 1; i < w.pts.length; i++) {   // 선의 곧은 토막
+    const a = w.pts[i - 1], b = w.pts[i], bb = [Math.min(a[0], b[0]), Math.min(a[1], b[1]), Math.max(a[0], b[0]), Math.max(a[1], b[1])];
+    if (Math.abs(a[0] - b[0]) < 0.05) tx.push([a[0], bb, "wire"]);
+    else if (Math.abs(a[1] - b[1]) < 0.05) ty.push([a[1], bb, "wire"]);
+  }
+  return [tx, ty];
+}
+/* bbs: 옮긴 뒤의 사각형들 · pys: 옮긴 뒤의 단자 높이들.  돌려주는 것은 [x 보정, y 보정, 안내선]. */
+function alignFit(bbs, pys, moving, strong) {
+  const L = layout(), tol = strong ? L.PITCH * 0.6 : 2.2;
+  const [tx, ty] = alignTargets(moving, strong);
   const xs = [], ys = [];
-  for (const bb of bbs) { xs.push(bb[0], (bb[0] + bb[2]) / 2, bb[2]); ys.push(bb[1], (bb[1] + bb[3]) / 2, bb[3]); }
-  const tx = [], ty = [];
-  for (const b of S.doc.blocks) { if (moving.has(b.id)) continue; const bb = bboxOf(b); tx.push([bb[0], bb], [(bb[0] + bb[2]) / 2, bb], [bb[2], bb]); ty.push([bb[1], bb, false], [(bb[1] + bb[3]) / 2, bb, false], [bb[3], bb, false]); }
-  for (let n = 1; n <= L.N; n++) ty.push([ry(n), [L.LX0, 0, L.LX1, 0], true]);   // 행 가운데 — 선이 행에서 바로 나온다
+  for (const bb of bbs) { xs.push([bb[0], 1], [(bb[0] + bb[2]) / 2, 0], [bb[2], 1]); ys.push([bb[1], 1], [(bb[1] + bb[3]) / 2, 0], [bb[3], 1]); }
+  if (strong) for (const y of pys) ys.push([y, 0]);
   let bx = null, by = null;
-  for (const x of xs) for (const [v, bb] of tx) { const d = Math.abs(v - x); if (d < tol && (!bx || d < bx.d)) bx = { d, shift: v - x, v, bb }; }
-  for (const y of ys) for (const [v, bb, row] of ty) { const d = Math.abs(v - y); if (d < tol && (!by || d < by.d)) by = { d, shift: v - y, v, bb, row }; }
+  for (const [x] of xs) for (const [v, bb, kind] of tx) { const d = Math.abs(v - x); if (d < tol && (!bx || d < bx.d)) bx = { d, shift: v - x, v, bb, kind }; }
+  for (const [y, edge] of ys) for (const [v, bb, kind] of ty) {
+    if (strong && edge && (kind === "row" || kind === "wire" || kind === "port")) continue;   // 행 · 선 · 단자에는 변이 아니라 가운데 · 단자가 선다
+    const d = Math.abs(v - y); if (d < tol && (!by || d < by.d)) by = { d, shift: v - y, v, bb, kind };
+  }
   const lines = [];
-  if (bx) { dx += bx.shift; const y0 = Math.min(bx.bb[1], ...bbs.map(b => b[1])), y1 = Math.max(bx.bb[3], ...bbs.map(b => b[3])); lines.push({ axis: "x", v: bx.v, y0, y1 }); }
-  if (by) { dy += by.shift; const x0 = Math.min(by.bb[0], ...bbs.map(b => b[0])), x1 = Math.max(by.bb[2], ...bbs.map(b => b[2])); lines.push({ axis: "y", v: by.v, x0, x1, row: by.row }); }
+  if (bx) { const y0 = Math.min(bx.bb[1], ...bbs.map(b => b[1])), y1 = Math.max(bx.bb[3], ...bbs.map(b => b[3])); lines.push({ axis: "x", v: bx.v, y0, y1, kind: bx.kind }); }
+  if (by) { const x0 = Math.min(by.bb[0], ...bbs.map(b => b[0])), x1 = Math.max(by.bb[2], ...bbs.map(b => b[2])); lines.push({ axis: "y", v: by.v, x0, x1, row: by.kind === "row", kind: by.kind }); }
+  return [bx ? bx.shift : 0, by ? by.shift : 0, lines];
+}
+function alignMove(ids, dx, dy, strong) {
+  S.alignLines = null;
+  if (!strong && !S.guide.align) return [dx, dy];
+  const moving = new Set(ids), bbs = [], pys = [];
+  for (const id of ids) {
+    const o = S.drag.orig.find(o => o[0] === id), b = S.doc.blocks.find(b => b.id === id), nb = { ...b, x: o[1] + dx, y: o[2] + dy };
+    bbs.push(bboxOf(nb)); if (strong) for (const pt of ports(nb)) pys.push(pt[1]);
+  }
+  const [sx, sy, lines] = alignFit(bbs, pys, moving, strong);
   if (lines.length) S.alignLines = lines;
-  return [dx, dy];
+  return [dx + sx, dy + sy];
+}
+/* 팔레트에서 Shift 를 누른 채 놓은 기호를 이웃에 맞춘다 (L60). */
+function alignBlockNow(b) {
+  const [sx, sy, lines] = alignFit([bboxOf(b)], ports(b).map(pt => pt[1]), new Set([b.id]), true);
+  b.x = +(b.x + sx).toFixed(2); b.y = +(b.y + sy).toFixed(2);
+  S.alignLines = lines.length ? lines : null; drawGhost();
+  if (lines.length) setTimeout(() => { S.alignLines = null; drawGhost(); }, 900);
+}
+
+/* ───────── 정렬 · 균등 간격 (L60) ─────────
+   고른 기호 둘 이상: 왼쪽 · 가운데 · 오른쪽 · 위 · 중간 · 아래 맞춤.  셋 이상: 가로/세로 균등 간격 (양 끝은 그대로 · 사이 틈이 같게).
+   자석이 켜져 있으면 세로 틈은 반 행의 배수로 맞춘다 — 단자가 행 자리에 남는다 (양 끝 중 끝 것이 움직일 수 있다). */
+function arrangeSel(op) {
+  if (!S.doc) return;
+  const bs = [...S.sel].map(id => S.doc.blocks.find(b => b.id === id)).filter(Boolean);
+  const need = /^dist/.test(op) ? 3 : 2;
+  if (bs.length < need) { status(need === 3 ? "균등 간격 — 기호를 셋 이상 고르세요 (Shift+누름 · 끌어 묶기)" : "정렬 — 기호를 둘 이상 고르세요"); return; }
+  const L = layout(), items = bs.map(b => ({ b, bb: bboxOf(b) }));
+  pushUndo();
+  const setX = (it, left) => { it.b.x = +(it.b.x + left - it.bb[0]).toFixed(2); };
+  const setY = (it, top) => { it.b.y = +(it.b.y + top - it.bb[1]).toFixed(2); };
+  if (op === "left") { const v = Math.min(...items.map(i => i.bb[0])); items.forEach(i => setX(i, v)); }
+  else if (op === "right") { const v = Math.max(...items.map(i => i.bb[2])); items.forEach(i => setX(i, v - (i.bb[2] - i.bb[0]))); }
+  else if (op === "hcenter") { const v = items.reduce((s, i) => s + (i.bb[0] + i.bb[2]) / 2, 0) / items.length; items.forEach(i => setX(i, v - (i.bb[2] - i.bb[0]) / 2)); }
+  else if (op === "top") { const v = Math.min(...items.map(i => i.bb[1])); items.forEach(i => setY(i, v)); }
+  else if (op === "bottom") { const v = Math.max(...items.map(i => i.bb[3])); items.forEach(i => setY(i, v - (i.bb[3] - i.bb[1]))); }
+  else if (op === "vcenter") { const v = items.reduce((s, i) => s + (i.bb[1] + i.bb[3]) / 2, 0) / items.length; items.forEach(i => setY(i, v - (i.bb[3] - i.bb[1]) / 2)); }
+  else if (op === "disth" || op === "distv") {
+    const a = op === "disth" ? 0 : 1, sz = it => it.bb[a + 2] - it.bb[a];
+    items.sort((p, q) => (p.bb[a] + p.bb[a + 2]) - (q.bb[a] + q.bb[a + 2]));
+    const first = items[0], last = items[items.length - 1];
+    const inner = items.slice(1, -1).reduce((s, i) => s + sz(i), 0);
+    let gap = (last.bb[a] - first.bb[a + 2] - inner) / (items.length - 1);
+    if (S.snap) { const g = L.PITCH / 2; gap = Math.max(0, Math.round(gap / g) * g); }   // 틈을 반 행의 배수로 — 단자가 행 자리에 남는다
+    let pos = first.bb[a + 2];
+    for (const it of items.slice(1)) { pos += gap; (a ? setY : setX)(it, pos); pos += sz(it); }
+  }
+  markDirty(); render();
+  status({ left: "왼쪽 맞춤", right: "오른쪽 맞춤", hcenter: "가로 가운데 맞춤", top: "위 맞춤", bottom: "아래 맞춤", vcenter: "세로 중간 맞춤", disth: "가로 균등 간격", distv: "세로 균등 간격" }[op] + ` — ${bs.length}개`);
 }
 function saveGuide() { try { localStorage.setItem("logic.draw.guide", JSON.stringify(S.guide)); } catch (e) {} }
 function loadGuide() { try { const g = JSON.parse(localStorage.getItem("logic.draw.guide") || "null"); if (g) Object.assign(S.guide, g); } catch (e) {} for (const k in S.guide) { const c = $("#g-" + k); if (c) c.checked = S.guide[k]; } }
@@ -1508,6 +1586,7 @@ async function init() {
   $("#zin").onclick = () => setZoom(S.zoom * 1.2); $("#zout").onclick = () => setZoom(S.zoom / 1.2); $("#zfit").onclick = () => fitZoom();
   $("#snap").onchange = e => { S.snap = e.target.checked; };
   loadGuide();
+  $$(".dw-arrange button").forEach(b => b.onclick = () => arrangeSel(b.dataset.op));      // L60
   for (const k of ["grid", "ruler", "align", "cross"]) $("#g-" + k).onchange = e => { S.guide[k] = e.target.checked; saveGuide(); render(); };
   $("#new").onclick = newDoc; $("#import").onclick = importSheet; $("#save").onclick = save; $("#verify").onclick = verify;
   $("#set-import").onclick = importBundle; $("#set-add").onclick = addSheet; $("#set-verify").onclick = verifySet; $("#set-analyse").onclick = sendSetToAnalyse;
