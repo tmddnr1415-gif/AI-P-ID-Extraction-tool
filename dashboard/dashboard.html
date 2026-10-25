@@ -1112,7 +1112,7 @@ function recLabel(key, f) {
  * ===================================================================== */
 let root = null;
 /* 서버 모드: http(s):// 로 접속하면 server.py 의 REST API 사용 (폴더 선택 불필요). file:// 로 열면 폴더 모드 */
-const APP_VERSION = '2026-10-25.2';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
+const APP_VERSION = '2026-10-26.1';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
 const SERVER_URL = 'http://localhost:8080';
 // 부서원 PC 사본(file://)이 접속을 시도할 서버 — 서버가 배포 파일을 만들 때 'PC 이름 주소, IP 주소' 순으로 자동 기록함
 const DEFAULT_SERVERS = ['http://ASEUNGWOOK-B01:8080', 'http://65.3.30.234:8080'];
@@ -3136,8 +3136,10 @@ const PID_PORT = 8000;                                   // P&ID 추출 도구 �
 // q = 주소 뒤 값 (user 는 둘 다 같은 로그인 이름 — LOGIC 은 메모 작성자로 씀), off = 서버가 꺼졌을 때 안내 (둘 다 같은 P&ID 서버)
 const PID_ROUTES = { pid:{ title:'P&ID 분석', port:PID_PORT, path:'/', q:'embed=1&' },
   logic:{ title:'LOGIC 분석', port:PID_PORT, path:'/logic', q:'' },
-  logicdraw:{ title:'LOGIC 작성', port:PID_PORT, path:'/logic/draw', q:'' } };   // LOGIC 분석의 하위 메뉴 (같은 서버 · 같은 권한 'logic')
-const PID_OFF = 'P&ID 서버가 꺼져 있습니다 — 부서장 PC 의 run_lan_service.bat 을 확인하세요';
+  logicdraw:{ title:'LOGIC 작성', port:PID_PORT, path:'/logic/draw', q:'' },   // LOGIC 분석의 하위 메뉴 (같은 서버 · 같은 권한 'logic')
+  space:{ title:'ROOM SIZE 계산', port:PID_PORT, path:'/space', q:'embed=1&' },   // P&ID 서버(run_lan_service.bat · hotfix106~)의 /space
+  books:{ title:'도서검토', port:PID_PORT, path:'/books/', q:'embed=1&' } };       // P&ID 서버(hotfix115~)의 /books/
+const PID_OFF = 'P&ID 서버가 꺼져 있습니다 — 부서장 PC 의 run_lan_service.bat 을 확인하세요 (켜지면 자동으로 다시 연결합니다)';
 // 호스트 = 지금 연결된 대시보드 서버의 호스트 (서버 모드: 이 페이지 주소, file://: 실제 접속에 성공한 서버 주소), 포트만 PID_PORT
 function pidBase(key = 'pid') {
   let host = 'localhost';
@@ -3162,7 +3164,7 @@ async function pidConnect(key) {
   const wrap = $('#pidwrap'); if (!wrap || wrap.dataset.route !== key) return;
   const body = $('.pidbody', wrap), base = pidBase(key), url = pidUrl(key), R = PID_ROUTES[key], T = esc(R.title);
   body.innerHTML = `<div class="pidmsg muted">${T} 서버 연결 확인 중…</div>`;
-  const ctl = new AbortController(), timer = setTimeout(() => ctl.abort(), 3000);
+  const ctl = new AbortController(), timer = setTimeout(() => ctl.abort(), 6000);   // 분석 중이면 응답이 늦을 수 있어 넉넉히
   let ok = false;
   try { const r = await fetch(base + '/version', { signal:ctl.signal, cache:'no-store' }); if (r.ok) { await r.json(); ok = true; } }
   catch (_) {} finally { clearTimeout(timer); }
@@ -3171,13 +3173,13 @@ async function pidConnect(key) {
     ? `<iframe class="pidframe" src="${esc(url)}" title="${T}"></iframe>`
     : `<div class="pidmsg"><p>${esc(PID_OFF)}</p>
          <p class="muted">${esc(base)}</p><button class="btn pri" data-pidretry>다시 시도</button></div>`;
+  if (!ok) setTimeout(() => { if ($('#pidwrap') === wrap && $('[data-pidretry]', wrap)) pidConnect(key); }, 5000);   // 그 화면에 있는 동안 5초마다 다시 확인
 }
 
 /* ---------- ROOM SIZE 계산(옛 판넬 공간확보) 등: 대시보드 서버(/apps/)의 연결 앱을 P&ID 와 같은 화면 틀(본문 전체 iframe)로 ----------
  * MODULES(카드 안 iframe)와 달리 1분 자동 갱신에도 iframe 을 다시 만들지 않는다 (편집 중인 배치가 날아가지 않게).
  * 주소 뒤 값: embed=1(앱 자체 제목줄 숨김) · user=로그인 본명(작성자 기본값) */
-const APP_ROUTES = { space:{ title:'ROOM SIZE 계산', src:'/apps/space/index.html' },
-  books:{ title:'도서검토', src:'/apps/books/index.html' } };   // 도서검토: 다른 작업 줄기에서 만든 앱 — 여기서는 메뉴 연결만
+const APP_ROUTES = {};   // 대시보드 서버(/apps/)에서 띄우는 연결 앱 — 지금은 없음 (ROOM SIZE 계산 · 도서검토는 2026-10-26 부터 P&ID 서버, PID_ROUTES)
 const FRAME_ROUTES = k => PID_ROUTES[k] || APP_ROUTES[k];   // 본문 전체를 iframe 으로 채우는 메뉴
 function appUrl(key) {
   return `${API_BASE}${APP_ROUTES[key].src}?embed=1&user=${encodeURIComponent(user || '')}`;

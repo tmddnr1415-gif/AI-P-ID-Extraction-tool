@@ -1187,3 +1187,13 @@ C:\Users\SAMSUNG\Desktop\Claude\                         ← 개발 폴더 (여�
 - 바뀐 곳: dashboard.html `APP_VERSION` · `APP_ROUTES.books` · `ROUTES` · `renderMenu` · `VOC_MENU` · `QF_MENUS` · `PZ_STATUS` · `renderApp`(404 안내). server.py `SERVER_VERSION` · `books_api` 선택 import · `main`(setup) · `Handler.api`(head 'books') · `MENUS` · `VOC_MENUS`.
 - 확인한 것: 문법(JS · Python). 임시 서버: books_api.py · apps/books 없음 → 서버 정상 기동 · `/api/books/info` 404 안내 · 메뉴 → '화면 파일이 아직 없습니다'. 시험 폴더에만 그쪽 브랜치 파일을 넣고 재기동 → `/api/books/info` 정상 · 메뉴 → 도서검토 화면(제목 '계장도서검토') iframe 으로 뜸. 콘솔 오류 없음.
 - 회사에서 확인할 것: 이 zip 적용 + 서버 재시작 → 메뉴에 🌪️ 도서검토. 화면은 도서검토 쪽 zip(apps\books\ · books_api.py)을 넣고 **서버 재시작**해야 뜸. 메뉴 권한 창에 '도서검토' 줄이 생김.
+
+### 2026-10-26 (32) — ROOM SIZE 계산 · 도서검토를 P&ID 서버(run_lan_service.bat)로 연결 (APP_VERSION 2026-10-26.1 / SERVER 그대로)
+> server.py 안 바뀜 → 서버 재시작 필요 없음. 부서원 사본은 새 버전 배너로 교체.
+- 무엇을: 사용자 "ROOM SIZE 계산은 LOGIC 분석, PID 분석과 같이 run_lan_service.bat 에서 동작해야 한다" (현장 사진: 대시보드 서버 `/apps/space/` 의 옛 판넬 화면이 뜨고 있었음). P&ID 쪽 꾸러미(`claude/titleblock-parsing-c5st4x` hotfix106~116)가 같은 P&ID 서버(8000)에 `/space`(ROOM SIZE 계산, 저장 `{data}/space/`)와 `/books/`(도서검토, hotfix115~)를 이미 넣어 둠 → 대시보드 메뉴를 그쪽으로.
+  - `PID_ROUTES.space` = `:8000/space?embed=1&user=본명`, `PID_ROUTES.books` = `:8000/books/?embed=1&user=본명` (P&ID · LOGIC 과 같은 `pidBase` · `/version` 확인 · 새 창으로 열기). `APP_ROUTES` 는 비움(틀만 남김).
+  - P&ID 서버 확인 넉넉히(3 → 6초, 분석 중엔 늦을 수 있음) · '꺼져 있습니다' 화면에 있는 동안 **5초마다 자동 재연결**(켜지면 저절로 화면이 뜸). LOGIC 작성이 '꺼져 있습니다'로 남던 현장 사진 대응.
+  - 대시보드 서버의 `/api/space/*` · `books_api` 연결은 그대로 둠(옛 자료 · P&ID 쪽 '대시보드 자료 가져오기'가 `/api/space` 를 읽음).
+- 바뀐 곳: dashboard.html `APP_VERSION` · `PID_ROUTES`(space · books) · `APP_ROUTES`(빈 것) · `PID_OFF` · `pidConnect`(6초 · 5초 자동 재시도).
+- 확인한 것: JS 문법. 임시 대시보드 서버 + 가짜 P&ID 서버(8000, `/version` · 페이지): P&ID 서버 꺼짐 → ROOM SIZE 계산 '꺼져 있습니다' → 가짜 서버 켬 → 자동으로 `:8000/space?embed=1&user=박부서` iframe. 도서검토 → `:8000/books/?embed=1&user=…`, LOGIC 작성 → `:8000/logic/draw?user=…`. 콘솔 오류 없음.
+- 회사에서 확인할 것: P&ID 서버에 hotfix116 이상(판넬 `/space` · 도서 `/books`)이 깔려 있어야 함. 예전에 대시보드 서버에 저장한 판넬 자료는 ROOM SIZE 계산 첫 화면 ① 카드의 [대시보드 자료 가져오기]로 P&ID 서버에 들임(P&ID 쪽 기능). 도서 색인은 P&ID 서버에서 한 번 [색인 갱신].
