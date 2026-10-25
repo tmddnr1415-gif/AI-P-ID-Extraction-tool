@@ -6671,3 +6671,16 @@ SHX 글꼴은 **획으로 플롯**되고 원문은 `AutoCAD SHX Text` 주석에 
   SVG 안내선 class `ghost` 가 머리줄 `.dw-btn.ghost` 와 겹쳐 **단추가 pointer-events:none** (→ `wipline`) · 가져오기 대화상자가 `await modal()` 뒤에 목록을 채워 영영 비어 있음.
 * DXF 는 ezdxf R2010 · 층 TABLE/TEXT/SYMBOL/WIRE/DASHED/TITLE · y 뒤집기 한 곳 · 다시 열어 선 수 = 그린 선 수 (시험).  LOGIC 시험 285 · 빠른 시험 1426 통과 (hotfix75 교착 시험 제외).
 * **못 한 것**: 매크로 상자 팔레트(Typical 시트 그리기가 먼저) · 여러 장을 한 PDF 로 합치기 · 작도 화면의 시뮬레이션(검토로 보내기가 그 길).
+
+### L55회차 — LOGIC 작도: 눈금자 · 모눈종이 · 정렬 안내선 (2026-10-25 · 화면 전용)
+
+* 사용자 지시: *눈금자 · 모눈종이처럼 논리게이트와 선을 배치하기 좋게 가이드해 주는 기능 · 학습된 로직과 같은 양식으로.*  `out/l55/1_보고서.md`.
+* **전부 화면에서만 그린다** (`logic_draw.js` `renderGrid` · `drawRulers` · `drawCross` · `alignMove`/`drawAlign`) — PDF · DXF 는 `draw.py` 가 문서 JSON 에서
+  그리므로 양식이 L54 와 같다.  `tests/test_logic_l55_guides.py` 3건이 그것을 못박는다 (`draw.py` 에 안내 낱말 없음 · 빈 문서 PDF 선 수 < 400).
+  - 모눈: LOGIC 영역 안 반 행 가는 선 · 행 중간 선 · 5행 굵은 선 · 세로 같은 간격 · 5행마다 행 번호.  `G`.
+  - 눈금자: 위 pt(확대에 따라 5/10/20pt) · 왼쪽 행 번호(+표 밖 pt) · LOGIC 띠 · 마우스 표식 · 모서리 `x, y · n행`.  캔버스 둘이 `#scroll` 위에 고정, 스크롤·확대·창 크기에 다시 그린다.  `R`.
+  - 십자선: 마우스 행의 좌우 행 자리에 붉은 ○.  정렬 안내선: 끌 때 다른 블록 변·가운데(자홍) · 행 가운데(파랑)에 2.2pt 자석 + 점선.
+  - 선택은 `localStorage` `logic.draw.guide`.  `격자` 스위치는 `자석` 으로 이름만.
+* ⚠ 정렬 자석이 끈 거리를 되돌리면 `moved` 가 안 서 안내선이 안 그려졌다 → 되돌리기 전 거리로 판정 (자기검증이 잡았다).
+  자기검증에 모눈·눈금자·십자선·정렬·G/R 단계를 더했다 (`spike/ui_audit_draw.py`) · LOGIC 검토 화면에서 작도로 돌아올 때 끊긴 요청(ERR_ABORTED)은 오류로 세지 않는다.
+* 판정 · 서버 0줄 · 네 묶음 무관.  LOGIC 시험 118 통과.

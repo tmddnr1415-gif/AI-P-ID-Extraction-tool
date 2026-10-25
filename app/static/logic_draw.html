@@ -38,7 +38,13 @@
       <div class="dw-zoom">
         <button id="zout" title="축소">−</button><span id="zval">100%</span><button id="zin" title="확대">＋</button>
         <button id="zfit" title="화면에 맞춤">맞춤</button>
-        <label title="그릴 때 자리를 반 행 격자에 맞춘다"><input type="checkbox" id="snap" checked> 격자</label>
+        <label title="그릴 때 자리를 반 행 격자에 맞춘다"><input type="checkbox" id="snap" checked> 자석</label>
+      </div>
+      <div class="dw-guides" title="화면에서만 보이는 안내 — PDF · DXF 에는 나가지 않습니다">
+        <label><input type="checkbox" id="g-grid" checked> 모눈 <kbd>G</kbd></label>
+        <label><input type="checkbox" id="g-ruler" checked> 눈금자 <kbd>R</kbd></label>
+        <label><input type="checkbox" id="g-align" checked> 정렬 안내선</label>
+        <label><input type="checkbox" id="g-cross" checked> 십자선</label>
       </div>
     </section>
     <section class="dw-card">
@@ -71,11 +77,15 @@
         <li><b>Delete</b> 지우기 · <b>Ctrl+D</b> 복사 · 화살표 옮기기 (Shift 한 행)</li>
         <li><b>Ctrl+Z / Y</b> 되돌리기 · 다시 · <b>Ctrl+S</b> 저장</li>
         <li><b>Ctrl+휠</b> 확대 · 표 칸 두 번 누름 = 글 고치기</li>
+        <li><b>G</b> 모눈 · <b>R</b> 눈금자 — 화면에만 보이고 내보내기에는 없습니다</li>
       </ul>
     </section>
   </aside>
 
   <section id="stage" class="dw-stage" tabindex="0">
+    <div id="ruler-corner" class="dw-ruler-corner" hidden>pt</div>
+    <canvas id="ruler-x" class="dw-ruler dw-ruler-x" hidden></canvas>
+    <canvas id="ruler-y" class="dw-ruler dw-ruler-y" hidden></canvas>
     <div id="scroll" class="dw-scroll">
       <svg id="svg" xmlns="http://www.w3.org/2000/svg"></svg>
       <input id="cellin" class="dw-cellin" hidden>

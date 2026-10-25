@@ -63,7 +63,24 @@ input, select { font: inherit; border: 1px solid var(--line); border-radius: 5px
 .cell:hover { fill: rgba(47, 91, 216, .08); }
 .rowstub { fill: #fff; stroke: #8a93a8; stroke-width: .6; cursor: crosshair; }
 .rowstub:hover, .rowstub.hot { fill: var(--active); stroke: var(--blue); }
-.grid line { stroke: #eef0f5; stroke-width: .4; }
+/* L55 모눈종이 · 눈금자 · 안내선 — 화면 전용 */
+.grid line.gh { stroke: #e6ebf3; stroke-width: .3; }
+.grid line.g1 { stroke: #d3dbea; stroke-width: .45; }
+.grid line.g5 { stroke: #b4c0d8; stroke-width: .65; }
+.grid rect.gframe { fill: none; stroke: #b7c2d8; stroke-width: .5; stroke-dasharray: 2 2; }
+.grid text.gnum { fill: #a9b4c9; font-family: Helvetica, Arial, sans-serif; pointer-events: none; }
+.cross { stroke: rgba(194, 69, 63, .45); stroke-width: .5; stroke-dasharray: 1.5 1.5; pointer-events: none; }
+.cross-row { fill: rgba(194, 69, 63, .25); stroke: #c2453f; stroke-width: .5; pointer-events: none; }
+.align { stroke: #d33ac2; stroke-width: .7; stroke-dasharray: 3 2; pointer-events: none; }
+.align.row { stroke: #2f5bd8; }
+.dw-guides { display: flex; flex-wrap: wrap; gap: 4px 10px; margin-top: 6px; font-size: 12px; color: var(--soft); }
+.dw-guides label { display: inline-flex; align-items: center; gap: 4px; cursor: pointer; }
+.dw-guides kbd { font-size: 10px; border: 1px solid #c9c4b6; border-radius: 3px; padding: 0 3px; background: #fff; }
+.dw-ruler { position: absolute; z-index: 3; pointer-events: none; }
+.dw-ruler-x { top: 0; left: 22px; right: 0; height: 22px; }
+.dw-ruler-y { top: 22px; left: 0; width: 22px; bottom: 0; }
+.dw-ruler-corner { position: absolute; z-index: 4; top: 0; left: 0; min-width: 22px; height: 22px; padding: 0 4px; font-size: 9px; line-height: 22px; white-space: nowrap; color: #4a5366; background: #f6f4ec; border-right: 1px solid #c9c4b6; border-bottom: 1px solid #c9c4b6; pointer-events: none; }
+.dw-stage.rulers .dw-scroll { top: 22px; left: 22px; }
 .blk { cursor: move; }
 .blk rect, .blk circle, .blk line { stroke: #111; stroke-width: .8; fill: #fff; }
 .blk line { fill: none; }

@@ -28,6 +28,8 @@ const S = {
   tool: "select", zoom: 1, sel: new Set(), selWire: null, undo: [], redo: [],
   wip: null,            // 그리는 중인 선 {pts, dashed}
   drag: null, verify: null, snap: true,
+  guide: { grid: true, ruler: true, align: true, cross: true },   // L55 — 화면 전용 안내 (PDF · DXF 에 안 나간다)
+  hover: null, alignLines: null,
 };
 
 /* ───────── 기하 (서버 draw.block_geometry 와 같은 규칙) ───────── */
@@ -100,9 +102,7 @@ function render() {
   svg.setAttribute("viewBox", `0 0 ${L.W} ${L.H}`);
   svg.setAttribute("width", L.W * S.zoom); svg.setAttribute("height", L.H * S.zoom);
   el("rect", { x: 0, y: 0, width: L.W, height: L.H, fill: "#fff", id: "paper" }, svg);
-  // 격자 (LOGIC 영역 · 반 행)
-  const grid = el("g", { class: "grid" }, svg);
-  for (let yy = L.TOP; yy <= L.bottom + 0.01; yy += L.PITCH / 2) el("line", { x1: L.LX0, y1: yy, x2: L.LX1, y2: yy }, grid);
+  renderGrid(svg, L);
   renderTable(svg, L);
   renderTitle(svg, L);
   const wg = el("g", { id: "wires" }, svg);
@@ -116,7 +116,9 @@ function render() {
   const bad = new Set((S.verify && S.verify.blocks || []).filter(b => !b.ok).map(b => b.id));
   for (const b of S.doc.blocks) renderBlock(bg, b, bad.has(b.id));
   el("g", { id: "overlay" }, svg);
+  drawGhost();
   renderProps();
+  drawRulers();
 }
 function renderTable(svg, L) {
   const g = el("g", { class: "tbl" }, svg);
@@ -318,6 +320,7 @@ function drawGhost() {
     if (S.wip.hot) el("circle", { cx: S.wip.hot[0], cy: S.wip.hot[1], r: 2.6, class: "port hot" }, ov);
   }
   if (S.drag && S.drag.marquee) { const m = S.drag.marquee; el("rect", { x: Math.min(m[0], m[2]), y: Math.min(m[1], m[3]), width: Math.abs(m[2] - m[0]), height: Math.abs(m[3] - m[1]), class: "marquee" }, ov); }
+  drawAlign(ov); drawCross(ov);
 }
 function orth(a, b) {
   // 직각 꺾임 — 가로 먼저 · 두 좌표가 다 다르면 꺾이는 점을 하나 넣는다 (완전히 가로·세로면 그대로)
@@ -370,15 +373,18 @@ function bindStage() {
   window.addEventListener("pointermove", e => {
     if (!S.doc) return;
     const p = svgPt(e);
+    S.hover = p; if (S.guide.ruler) drawRulers();
     if (S.wip) { const sp = snapPt(p); S.wip.cur = [sp[0], sp[1]]; S.wip.hot = (sp[2] === "row" || sp[2] === "port") ? sp : null; drawGhost(); return; }
-    if (!S.drag) return;
+    if (!S.drag) { if (S.guide.cross) drawGhost(); return; }
     if (S.drag.pan) { $("#scroll").scrollLeft = S.drag.sl - (e.clientX - S.drag.x); $("#scroll").scrollTop = S.drag.st - (e.clientY - S.drag.y); return; }
     if (S.drag.vtx) { const w = S.doc.wires.find(w => w.id === S.drag.id); if (!w) return; const sp = snapPt(p); w.pts[S.drag.i] = [+sp[0].toFixed(2), +sp[1].toFixed(2)]; S.dirty = true; render(); return; }
     if (S.drag.move) {
       const L = layout(), g = S.snap ? L.PITCH / 2 : 0.01;
       let dx = p[0] - S.drag.start[0], dy = p[1] - S.drag.start[1];
       dx = Math.round(dx / g) * g; dy = Math.round(dy / g) * g;
-      if (!S.drag.moved && (Math.abs(dx) > 0.01 || Math.abs(dy) > 0.01)) { S.drag.moved = true; pushUndo(); }
+      const raw = Math.abs(dx) > 0.01 || Math.abs(dy) > 0.01;          // 정렬 자석이 되돌려도 '움직였다' 는 사실은 남는다
+      [dx, dy] = alignMove([...S.sel], dx, dy);
+      if (!S.drag.moved && raw) { S.drag.moved = true; pushUndo(); }
       if (!S.drag.moved) return;
       for (const [id, x0, y0] of S.drag.orig) { const b = S.doc.blocks.find(b => b.id === id); if (b) { b.x = +(x0 + dx).toFixed(2); b.y = +(y0 + dy).toFixed(2); } }
       S.dirty = true; render(); return;
@@ -393,7 +399,7 @@ function bindStage() {
       S.drag = null; render(); return;
     }
     if ((S.drag.move && S.drag.moved) || S.drag.vtx) markDirty();
-    S.drag = null; $("#stage").style.cursor = S.tool === "pan" ? "grab" : S.tool === "select" ? "default" : "crosshair";
+    S.drag = null; S.alignLines = null; drawGhost(); $("#stage").style.cursor = S.tool === "pan" ? "grab" : S.tool === "select" ? "default" : "crosshair";
   });
   svg.addEventListener("dblclick", e => {
     if (!S.doc) return;
@@ -403,6 +409,9 @@ function bindStage() {
     const blk = t.closest(".blk");
     if (blk) { const b = S.doc.blocks.find(b => b.id === blk.dataset.id); const sp = S.sym[b.kind]; const inp = $(sp.label ? "#p-label" : (sp.circle || sp.note) ? "#p-text" : sp.time ? "#p-t" : null); if (inp) { inp.focus(); inp.select(); } }
   });
+  svg.addEventListener("pointerleave", () => { S.hover = null; drawGhost(); if (S.guide.ruler) drawRulers(); });
+  $("#scroll").addEventListener("scroll", () => { if (S.guide.ruler) drawRulers(); });
+  window.addEventListener("resize", () => { if (S.guide.ruler) drawRulers(); });
   svg.addEventListener("contextmenu", e => { if (S.wip) { e.preventDefault(); finishWire(); } });
   stage.addEventListener("wheel", e => {
     if (!e.ctrlKey) return;
@@ -433,13 +442,115 @@ function bindStage() {
     else if (e.key === "w" || e.key === "W") setTool("wire");
     else if (e.key === "d" || e.key === "D") setTool("dash");
     else if (e.key === "h" || e.key === "H") setTool("pan");
+    else if (e.key === "g" || e.key === "G") { S.guide.grid = !S.guide.grid; $("#g-grid").checked = S.guide.grid; saveGuide(); render(); }
+    else if (e.key === "r" || e.key === "R") { S.guide.ruler = !S.guide.ruler; $("#g-ruler").checked = S.guide.ruler; saveGuide(); drawRulers(); }
     else if (e.key === " ") { S.space = true; }
   });
   document.addEventListener("keyup", e => { if (e.key === " ") S.space = false; });
   document.addEventListener("keydown", e => { if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "s") { e.preventDefault(); if (S.doc) save(); } });
 }
-function setZoom(z) { S.zoom = Math.max(0.3, Math.min(6, z)); $("#zval").textContent = Math.round(S.zoom * 100) + "%"; const L = layout(); const svg = $("#svg"); svg.setAttribute("width", L.W * S.zoom); svg.setAttribute("height", L.H * S.zoom); }
+function setZoom(z) { S.zoom = Math.max(0.3, Math.min(6, z)); $("#zval").textContent = Math.round(S.zoom * 100) + "%"; const L = layout(); const svg = $("#svg"); svg.setAttribute("width", L.W * S.zoom); svg.setAttribute("height", L.H * S.zoom); drawRulers(); }
 function fitZoom() { const sc = $("#scroll"); const L = layout(); setZoom(Math.min((sc.clientWidth - 30) / L.W, (sc.clientHeight - 30) / L.H)); }
+
+
+/* ───────── 모눈종이 (L55 · 화면 전용 — 내보내기에는 없다) ─────────
+   가로: 반 행마다 가는 선 · 행마다 중간 선 · 5행마다 굵은 선 (행 번호를 LOGIC 영역 왼쪽 안에 작게)
+   세로: 같은 간격(반 행 = 5.65pt)으로 가는 선 · 5행 폭마다 굵은 선.  전부 LOGIC 영역 안에만 그린다. */
+function renderGrid(svg, L) {
+  if (!S.guide.grid) return;
+  const g = el("g", { class: "grid" }, svg), half = L.PITCH / 2;
+  for (let k = 0; k <= 2 * L.N; k++) {
+    const yy = L.TOP + k * half, row = k % 2 === 0 && (k / 2) % 5 === 0, major = k % 2 === 0;
+    el("line", { x1: L.LX0, y1: yy, x2: L.LX1, y2: yy, class: row ? "g5" : major ? "g1" : "gh" }, g);
+    if (row && k > 0 && k / 2 < L.N) txt(g, L.LX0 + 1.5, yy - 1, String(k / 2 + 1), 3.6).setAttribute("class", "gnum");
+  }
+  const nx = Math.floor((L.LX1 - L.LX0) / half);
+  for (let k = 0; k <= nx; k++) {
+    const xx = L.LX0 + k * half;
+    el("line", { x1: xx, y1: L.TOP, x2: xx, y2: L.bottom, class: k % 10 === 0 ? "g5" : k % 2 === 0 ? "g1" : "gh" }, g);
+  }
+  el("rect", { x: L.LX0, y: L.TOP, width: L.LX1 - L.LX0, height: L.bottom - L.TOP, class: "gframe" }, g);
+}
+
+/* ───────── 눈금자 (화면 위에 고정 · 스크롤·확대를 따라간다) ─────────
+   위: pt (10pt 눈금 · 50pt 숫자) · 왼쪽: 행 번호 (행마다 눈금 · 5행마다 숫자) + 표 밖은 pt.  마우스 자리는 붉은 표식. */
+function drawRulers() {
+  const top = $("#ruler-x"), left = $("#ruler-y"), on = !!(S.doc && S.guide.ruler);
+  top.hidden = left.hidden = !on; $("#ruler-corner").hidden = !on; $("#stage").classList.toggle("rulers", on);
+  if (!on) return;
+  const sc = $("#scroll"), L = layout(), z = S.zoom, M = 12;        // #svg 의 margin 12px
+  const dpr = window.devicePixelRatio || 1;
+  const fit = (c, w, h) => { if (c.width !== Math.round(w * dpr) || c.height !== Math.round(h * dpr)) { c.width = Math.round(w * dpr); c.height = Math.round(h * dpr); } c.style.width = w + "px"; c.style.height = h + "px"; const x = c.getContext("2d"); x.setTransform(dpr, 0, 0, dpr, 0, 0); return x; };
+  const W = sc.clientWidth, H = sc.clientHeight, RS = 22;
+  const toX = v => M + v * z - sc.scrollLeft, toY = v => M + v * z - sc.scrollTop;
+  // 위
+  let ctx = fit(top, W, RS); ctx.clearRect(0, 0, W, RS); ctx.fillStyle = "#f6f4ec"; ctx.fillRect(0, 0, W, RS);
+  ctx.strokeStyle = "#8a93a8"; ctx.fillStyle = "#4a5366"; ctx.font = "9px Helvetica, Arial, sans-serif"; ctx.textAlign = "center"; ctx.lineWidth = 1;
+  const step = z >= 2 ? 5 : z >= 0.9 ? 10 : 20, lab = step * 5;
+  ctx.beginPath();
+  for (let v = 0; v <= L.W; v += step) { const x = Math.round(toX(v)) + 0.5; if (x < 0 || x > W) continue; const big = v % lab === 0; ctx.moveTo(x, RS); ctx.lineTo(x, RS - (big ? 9 : v % (step * 2) === 0 ? 6 : 3)); if (big) ctx.fillText(String(v), x, 9); }
+  ctx.stroke();
+  // LOGIC 영역 띠
+  ctx.fillStyle = "rgba(47,91,216,.10)"; ctx.fillRect(toX(L.LX0), RS - 4, (L.LX1 - L.LX0) * z, 4);
+  // 왼쪽
+  ctx = fit(left, RS, H); ctx.clearRect(0, 0, RS, H); ctx.fillStyle = "#f6f4ec"; ctx.fillRect(0, 0, RS, H);
+  ctx.strokeStyle = "#8a93a8"; ctx.fillStyle = "#4a5366"; ctx.font = "9px Helvetica, Arial, sans-serif"; ctx.textAlign = "right"; ctx.lineWidth = 1;
+  ctx.beginPath();
+  for (let n = 1; n <= L.N; n++) { const y = Math.round(toY(ry(n))) + 0.5; if (y < 0 || y > H) continue; const big = n % 5 === 0 || n === 1; ctx.moveTo(RS, y); ctx.lineTo(RS - (big ? 9 : 4), y); if (big && z * L.PITCH >= 6) ctx.fillText(String(n), RS - 10, y + 3); }
+  for (let v = 0; v <= L.H; v += 50) { if (v >= L.TOP && v <= L.bottom) continue; const y = Math.round(toY(v)) + 0.5; if (y < 0 || y > H) continue; ctx.moveTo(RS, y); ctx.lineTo(RS - 6, y); ctx.fillText(String(v), RS - 8, y + 3); }
+  ctx.stroke();
+  ctx.fillStyle = "rgba(47,91,216,.10)"; ctx.fillRect(RS - 4, toY(L.TOP), 4, (L.bottom - L.TOP) * z);
+  // 마우스 자리
+  if (S.hover) {
+    const x = toX(S.hover[0]), y = toY(S.hover[1]);
+    ctx.fillStyle = "#c2453f"; ctx.fillRect(RS - 12, y - 0.5, 12, 1.2);
+    const t = fit(top, W, RS); // 같은 캔버스 다시 — 표식만 얹는다
+    const ctx2 = top.getContext("2d"); ctx2.fillStyle = "#c2453f"; ctx2.fillRect(x - 0.5, RS - 12, 1.2, 12);
+  }
+  const rn = S.hover ? rowAt(S.hover[1]) : null;
+  $("#ruler-corner").textContent = S.hover ? `${Math.round(S.hover[0])}, ${Math.round(S.hover[1])}` + (rn ? ` · ${rn}행` : "") : "pt";
+}
+function rowAt(y) { const L = layout(); if (y < L.TOP || y > L.bottom) return null; return Math.min(L.N, Math.floor((y - L.TOP) / L.PITCH) + 1); }
+
+/* ───────── 십자 안내선 · 정렬 안내선 (overlay 에 그린다) ───────── */
+function drawCross(ov) {
+  if (!S.guide.cross || !S.hover || S.drag || S.wip) return;
+  const L = layout(), [x, y] = S.hover;
+  if (x < L.LX0 - 1 || x > L.LX1 + 1 || y < L.TOP - 1 || y > L.bottom + 1) return;
+  el("line", { x1: L.LX0, y1: y, x2: L.LX1, y2: y, class: "cross" }, ov);
+  el("line", { x1: x, y1: L.TOP, x2: x, y2: L.bottom, class: "cross" }, ov);
+  const n = rowAt(y); if (n) { el("circle", { cx: L.LX0, cy: ry(n), r: 2.4, class: "cross-row" }, ov); el("circle", { cx: L.LX1, cy: ry(n), r: 2.4, class: "cross-row" }, ov); }
+}
+function drawAlign(ov) {
+  if (!S.alignLines) return;
+  const L = layout();
+  for (const a of S.alignLines) {
+    if (a.axis === "x") el("line", { x1: a.v, y1: Math.min(a.y0, L.TOP), x2: a.v, y2: Math.max(a.y1, L.bottom), class: "align" }, ov);
+    else el("line", { x1: Math.min(a.x0, L.LX0), y1: a.v, x2: Math.max(a.x1, L.LX1), y2: a.v, class: "align" + (a.row ? " row" : "") }, ov);
+  }
+}
+/* 옮기는 블록의 변·가운데를 다른 블록의 변·가운데 · 행 가운데에 맞춘다.  tol 안이면 그 값으로 끌어당기고 안내선을 적는다. */
+function alignMove(ids, dx, dy) {
+  S.alignLines = null;
+  if (!S.guide.align) return [dx, dy];
+  const L = layout(), tol = 2.2, moving = new Set(ids);
+  const bbs = ids.map(id => { const o = S.drag.orig.find(o => o[0] === id); const b = S.doc.blocks.find(b => b.id === id); return bboxOf({ ...b, x: o[1] + dx, y: o[2] + dy }); });
+  const xs = [], ys = [];
+  for (const bb of bbs) { xs.push(bb[0], (bb[0] + bb[2]) / 2, bb[2]); ys.push(bb[1], (bb[1] + bb[3]) / 2, bb[3]); }
+  const tx = [], ty = [];
+  for (const b of S.doc.blocks) { if (moving.has(b.id)) continue; const bb = bboxOf(b); tx.push([bb[0], bb], [(bb[0] + bb[2]) / 2, bb], [bb[2], bb]); ty.push([bb[1], bb, false], [(bb[1] + bb[3]) / 2, bb, false], [bb[3], bb, false]); }
+  for (let n = 1; n <= L.N; n++) ty.push([ry(n), [L.LX0, 0, L.LX1, 0], true]);   // 행 가운데 — 선이 행에서 바로 나온다
+  let bx = null, by = null;
+  for (const x of xs) for (const [v, bb] of tx) { const d = Math.abs(v - x); if (d < tol && (!bx || d < bx.d)) bx = { d, shift: v - x, v, bb }; }
+  for (const y of ys) for (const [v, bb, row] of ty) { const d = Math.abs(v - y); if (d < tol && (!by || d < by.d)) by = { d, shift: v - y, v, bb, row }; }
+  const lines = [];
+  if (bx) { dx += bx.shift; const y0 = Math.min(bx.bb[1], ...bbs.map(b => b[1])), y1 = Math.max(bx.bb[3], ...bbs.map(b => b[3])); lines.push({ axis: "x", v: bx.v, y0, y1 }); }
+  if (by) { dy += by.shift; const x0 = Math.min(by.bb[0], ...bbs.map(b => b[0])), x1 = Math.max(by.bb[2], ...bbs.map(b => b[2])); lines.push({ axis: "y", v: by.v, x0, x1, row: by.row }); }
+  if (lines.length) S.alignLines = lines;
+  return [dx, dy];
+}
+function saveGuide() { try { localStorage.setItem("logic.draw.guide", JSON.stringify(S.guide)); } catch (e) {} }
+function loadGuide() { try { const g = JSON.parse(localStorage.getItem("logic.draw.guide") || "null"); if (g) Object.assign(S.guide, g); } catch (e) {} for (const k in S.guide) { const c = $("#g-" + k); if (c) c.checked = S.guide[k]; } }
 
 /* ───────── 표 칸 ───────── */
 function editCell(rect) {
@@ -630,6 +741,8 @@ async function init() {
   $$(".dw-tools button").forEach(b => b.onclick = () => setTool(b.dataset.tool));
   $("#zin").onclick = () => setZoom(S.zoom * 1.2); $("#zout").onclick = () => setZoom(S.zoom / 1.2); $("#zfit").onclick = () => fitZoom();
   $("#snap").onchange = e => { S.snap = e.target.checked; };
+  loadGuide();
+  for (const k of ["grid", "ruler", "align", "cross"]) $("#g-" + k).onchange = e => { S.guide[k] = e.target.checked; saveGuide(); render(); };
   $("#new").onclick = newDoc; $("#import").onclick = importSheet; $("#save").onclick = save; $("#verify").onclick = verify;
   $("#analyse").onclick = sendToAnalyse; $("#del").onclick = delDoc;
   $("#pick").onchange = e => { if (e.target.value) openDoc(e.target.value); };
