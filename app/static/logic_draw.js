@@ -38,17 +38,48 @@ function layout() {
   return { ...L, N, bottom: L.TOP + N * L.PITCH };
 }
 function ry(n) { const L = layout(); return L.TOP + ((n - 1) % L.N) * L.PITCH + L.PITCH / 2; }
-function geom(b) {
-  const spec = S.sym[b.kind], L = S.lay, x = b.x, y = b.y, w = b.w, h = b.h;
+const CHAR_W = 0.56;                     // helv 평균 글자 폭 / 글자 크기 (서버 fit_fs 와 같은 어림)
+function fitFs(text, width, fs) { const tw = String(text || "").length * fs * CHAR_W; if (tw <= width || tw <= 0) return +fs.toFixed(2); return +Math.max(2.5, fs * width / tw).toFixed(2); }
+function tipRatio(b) { const v = +((b.param || {}).tipr || 1.75); return Math.max(1.3, Math.min(2.2, isFinite(v) ? v : 1.75)); }
+function barOf(b) {
+  const p = b.param || {}, L = S.lay;
+  if (Array.isArray(p.bar) && p.bar.length === 2) return [b.x, b.y + +p.bar[0], b.x, b.y + +p.bar[1]];
+  const Lb = b.h + L.bar_extra, cy = b.y + b.h / 2; return [b.x, cy - Lb / 2, b.x, cy + Lb / 2];
+}
+function wrapText(t, n) { const words = String(t || "").split(/\s+/).filter(Boolean), out = []; let cur = ""; for (const w of words) { if (cur && cur.length + 1 + w.length > n) { out.push(cur); cur = w; } else cur = (cur + " " + w).trim(); } if (cur) out.push(cur); return out.length ? out : [""]; }
+function geom(b) {                       // L56 — param.above (블록 위 글) 는 어느 종류든 한 줄 더 (서버 block_geometry 와 같은 자리)
+  const g = geomCore(b), ab = (b.param || {}).above;
+  if (ab) g.texts.push([b.x + b.w / 2, b.y - 0.5 * layout().PITCH, ab, 4.6]);
+  return g;
+}
+function wireLabelPos(w) {               // 서버 wire_label_pos 와 같은 수 — 첫 가로 토막 가운데 · 0.8P 아래
+  const P = layout().PITCH, pts = w.pts;
+  for (let i = 0; i + 1 < pts.length; i++) { const a = pts[i], b = pts[i + 1]; if (Math.abs(a[1] - b[1]) < 0.2 && Math.abs(b[0] - a[0]) >= 6) return [(a[0] + b[0]) / 2, a[1] + 0.8 * P]; }
+  const a = pts[0], b = pts[1]; return [(a[0] + b[0]) / 2, Math.max(a[1], b[1]) + 0.8 * P];
+}
+function geomCore(b) {
+  const spec = S.sym[b.kind], L = S.lay, x = b.x, y = b.y, w = b.w, h = b.h, P = L.PITCH;
   const g = { box: [x, y, x + w, y + h], cells: [], bar: null, circle: null, pointer: null, texts: [] };
+  if (spec.circle && spec.lamp) {
+    const r = Math.min(w, h) / 2, cx = x + w / 2, cy = y + h / 2;
+    g.circle = [cx, cy, r]; g.texts.push([cx, cy, (b.text || "G").slice(0, 2), Math.min(h * 0.7, 7)]);
+    return g;
+  }
   if (spec.circle) {
-    const r = Math.min(w, h) / 2, cx = x + w / 2, cy = y + h / 2, a = 0.6;
+    const r = Math.min(w, h) / 2, cx = x + w / 2, cy = y + h / 2, a = 0.6, tr = tipRatio(b);
+    const ca = r * Math.cos(a), sa = r * Math.sin(a), pt = (b.param || {}).point || "R";
     g.circle = [cx, cy, r];
-    g.pointer = [[cx + r * Math.cos(a), cy - r * Math.sin(a)], [cx + r * Math.cos(a), cy + r * Math.sin(a)], [cx + r * 2.2, cy]];
+    g.pointer = ({ R: [[cx + ca, cy - sa], [cx + ca, cy + sa], [cx + r * tr, cy]], L: [[cx - ca, cy - sa], [cx - ca, cy + sa], [cx - r * tr, cy]],
+      T: [[cx - sa, cy - ca], [cx + sa, cy - ca], [cx, cy - r * tr]], B: [[cx - sa, cy + ca], [cx + sa, cy + ca], [cx, cy + r * tr]] })[pt] ||
+      [[cx + ca, cy - sa], [cx + ca, cy + sa], [cx + r * tr, cy]];
     g.texts.push([cx, cy, b.text, Math.min(h * 0.7, 7)]);
     return g;
   }
-  if (spec.bar) { const Lb = h + L.bar_extra, cy = y + h / 2; g.bar = [x, cy - Lb / 2, x, cy + Lb / 2]; }
+  if (spec.box && (b.param || {}).lines && b.param.lines.length) {
+    for (const [dx, dy, t, fs] of b.param.lines) g.texts.push([x + dx, y + dy, t, fs, "start"]);
+    return g;
+  }
+  if (spec.bar) g.bar = barOf(b);
   if (spec.cells === 2) {
     g.cells = [[x, y, x + w, y + h / 2], [x, y + h / 2, x + w, y + h]];
     const d = (b.param || {}).dominant;
@@ -57,26 +88,40 @@ function geom(b) {
     return g;
   }
   if (spec.note) { g.box = null; g.texts.push([x + w / 2, y + h / 2, b.text, Math.min(h * 0.8, 8)]); return g; }
-  g.texts.push([x + w / 2, y + h / 2, b.text, Math.min(h * 0.6, 7)]);
+  if (spec.macro) {
+    const p = b.param || {}, title = p.title || b.text || "";
+    wrapText(title, Math.max(8, Math.floor(w / 2.6))).slice(0, 2).forEach((ln, i) => g.texts.push([x + w / 2, y + 0.5 * P + i * 0.6 * P, ln, 4.6]));
+    for (const q of p.pins_in || []) g.texts.push([x + 1.5, y + q.dy, q.name, 4.2, "start"]);
+    for (const q of p.pins_out || []) g.texts.push([x + w - 1.5, y + q.dy, q.name, 4.2, "end"]);
+    return g;
+  }
+  g.texts.push([x + w / 2, y + h / 2, b.text, fitFs(b.text, w - 1.6, Math.min(h * 0.6, 7))]);
   if (spec.time) g.texts.push([x + w / 2, y + h + 6, `${+((b.param || {}).t ?? 5)} sec`, 5]);
   if (spec.label && b.label) g.texts.push([x + w / 2, y + h + 6, b.label, 5]);
   return g;
 }
 function ports(b) {
   const spec = S.sym[b.kind], L = S.lay, x = b.x, y = b.y, w = b.w, h = b.h;
-  if (spec.circle) { const r = Math.min(w, h) / 2; return [[x + w / 2 - r, y + h / 2, "in"], [x + w / 2 + r * 2.2, y + h / 2, "out"]]; }
+  if (spec.macro) { const p = b.param || {}; return [...(p.pins_in || []).map(q => [x, y + q.dy, "in", q.name]), ...(p.pins_out || []).map(q => [x + w, y + q.dy, "out", q.name])]; }
+  if (spec.circle && spec.lamp) { const r = Math.min(w, h) / 2; return [[x + w / 2 - r, y + h / 2, "in"], [x + w / 2, y + h / 2 - r, "in"], [x + w / 2, y + h / 2 + r, "in"], [x + w / 2 + r, y + h / 2, "in"]]; }
+  if (spec.circle) {
+    const r = Math.min(w, h) / 2, cx = x + w / 2, cy = y + h / 2, tr = tipRatio(b), pt = (b.param || {}).point || "R";
+    const tip = ({ R: [cx + r * tr, cy], L: [cx - r * tr, cy], T: [cx, cy - r * tr], B: [cx, cy + r * tr] })[pt] || [cx + r * tr, cy];
+    const edge = ({ R: [cx - r, cy], L: [cx + r, cy], T: [cx, cy + r], B: [cx, cy - r] })[pt] || [cx - r, cy];
+    return [[edge[0], edge[1], "in"], [tip[0], tip[1], "out"]];
+  }
   if (spec.cells === 2) return [[x, y + h / 4, "in"], [x, y + 3 * h / 4, "in"], [x + w, y + h / 4, "out"], [x + w, y + 3 * h / 4, "out"]];
   if (spec.note) return [];
   const out = [[x + w, y + h / 2, "out"]];
   if (spec.logic === "source") return out;
   if (spec.bar) {
-    const Lb = h + L.bar_extra, cy = y + h / 2, k = Math.floor(Lb / L.PITCH);
+    const [, b0, , b1] = barOf(b), Lb = b1 - b0, cy = (b0 + b1) / 2, k = Math.max(1, Math.floor(Lb / L.PITCH));
     const ys = []; for (let i = 0; i < k; i++) ys.push(cy + (i - (k - 1) / 2) * L.PITCH);
     return ys.map(yy => [x, yy, "in"]).concat(out);
   }
   return [[x, y + h / 2, "in"]].concat(out);
 }
-function bboxOf(b) { const g = geom(b); if (g.circle) { const [cx, cy, r] = g.circle; return [cx - r, cy - r, cx + r * 2.2, cy + r]; } return g.box || [b.x, b.y, b.x + b.w, b.y + b.h]; }
+function bboxOf(b) { const g = geom(b); if (g.circle) { const [cx, cy, r] = g.circle; let bb = [cx - r, cy - r, cx + r, cy + r]; for (const q of g.pointer || []) bb = [Math.min(bb[0], q[0]), Math.min(bb[1], q[1]), Math.max(bb[2], q[0]), Math.max(bb[3], q[1])]; return bb; } return g.box || [b.x, b.y, b.x + b.w, b.y + b.h]; }
 
 /* ───────── 자석 ───────── */
 function snapPt(p, opts) {
@@ -105,11 +150,15 @@ function render() {
   renderGrid(svg, L);
   renderTable(svg, L);
   renderTitle(svg, L);
+  renderNotes(svg, L);
   const wg = el("g", { id: "wires" }, svg);
   for (const w of S.doc.wires) {
     const pts = w.pts.map(p => p.join(",")).join(" ");
     el("polyline", { points: pts, class: "wirehit", "data-id": w.id }, wg);
     el("polyline", { points: pts, class: "wire" + (w.dashed ? " dashed" : "") + (S.selWire === w.id ? " sel" : ""), "data-id": w.id }, wg);
+    for (const [dx, dy] of w.dots || []) el("circle", { cx: dx, cy: dy, r: 0.12 * layout().PITCH, class: "dot", "data-id": w.id }, wg);
+    const tri = arrowOf(w); if (tri) el("polygon", { points: tri.map(q => q.join(",")).join(" "), class: "arrow", "data-id": w.id }, wg);
+    if (w.label) { const [lx, ly] = wireLabelPos(w); const e = txt(wg, lx, ly, w.label, 4.5, "middle"); e.setAttribute("class", "wlabel"); e.dataset.id = w.id; }
     if (S.selWire === w.id) w.pts.forEach((p, i) => el("circle", { cx: p[0], cy: p[1], r: 1.8, class: "vtx", "data-id": w.id, "data-i": i }, wg));
   }
   const bg = el("g", { id: "blocks" }, svg);
@@ -139,18 +188,31 @@ function renderTable(svg, L) {
     txt(g, (L.LCOLS[1] + L.LCOLS[2]) / 2, yc, String(k + 1), 5, "middle");
     txt(g, (L.RCOLS[2] + L.RCOLS[3]) / 2, yc, String(L.N + k + 1), 5, "middle");
     const lrow = S.doc.left[String(k + 1)] || {}, rrow = S.doc.right[String(L.N + k + 1)] || {};
+    const li = linkInfo("left", k + 1), ri = linkInfo("right", L.N + k + 1);
     for (const [f, a, b] of fields.left) {
-      el("rect", { x: L.LCOLS[a], y, width: L.LCOLS[b] - L.LCOLS[a], height: L.PITCH, class: "cell", "data-side": "left", "data-n": k + 1, "data-f": f }, g);
+      const cls = "cell" + (f === "fm" && li && li.ref ? " linked" : "") + (f === "fm" && li && li.ft && li.ft.ok === false ? " ftbad" : "") + (f === "fm" && li && li.ft && li.ft.warn && li.ft.warn.length ? " ftwarn" : "");
+      el("rect", { x: L.LCOLS[a], y, width: L.LCOLS[b] - L.LCOLS[a], height: L.PITCH, class: cls, "data-side": "left", "data-n": k + 1, "data-f": f }, g);
       if (lrow[f]) txt(g, L.LCOLS[a] + 2, yc, lrow[f], 5);
+      if (f === "fm" && li && li.ref && !li.ref.other) { const e = txt(g, L.LCOLS[b] - 2, yc, li.ref.did ? "↗" : "?", 5.5, "end"); e.setAttribute("class", "golink" + (li.ref.did ? "" : " missing")); e.dataset.side = "left"; e.dataset.n = k + 1; const tt = el("title", {}, e); tt.textContent = li.ref.did ? `${li.ref.sheet} 시트 ${li.ref.src_row || li.ref.row}행 (출력) 으로 — ${li.ft && li.ft.ok === false ? "일치하지 않습니다: " + (li.ft.why || []).join(" · ") : "연결 맞음"}` : `이 묶음에 ${li.ref.sheet} 장이 없습니다`; }
     }
     for (const [f, a, b] of fields.right) {
-      el("rect", { x: L.RCOLS[a], y, width: L.RCOLS[b] - L.RCOLS[a], height: L.PITCH, class: "cell", "data-side": "right", "data-n": L.N + k + 1, "data-f": f }, g);
+      const cls = "cell" + (f === "to" && ri && ri.targets && ri.targets.length ? " linked" : "") + (f === "to" && ri && ri.ft && ri.ft.ok === false ? " ftbad" : "");
+      el("rect", { x: L.RCOLS[a], y, width: L.RCOLS[b] - L.RCOLS[a], height: L.PITCH, class: cls, "data-side": "right", "data-n": L.N + k + 1, "data-f": f }, g);
       if (rrow[f]) txt(g, L.RCOLS[a] + 2, yc, rrow[f], 5);
+      if (f === "to" && ri && ri.targets && ri.targets.length) { const t0 = ri.targets.find(t => t.did) || ri.targets[0]; const e = txt(g, L.RCOLS[b] - 2, yc, t0.did ? "↗" : "?", 5.5, "end"); e.setAttribute("class", "golink" + (t0.did ? "" : " missing")); e.dataset.side = "right"; e.dataset.n = L.N + k + 1; const tt = el("title", {}, e); tt.textContent = t0.did ? `${t0.sheet} 시트 ${t0.row}행 (입력) 으로 — ${ri.ft && ri.ft.ok === false ? "일치하지 않습니다: " + (ri.ft.why || []).join(" · ") : "연결 맞음"}` : `이 묶음에 ${t0.sheet} 장이 없습니다`; }
+      if (f === "desc" && ri && ri.refs_in && ri.refs_in.length) { const e = txt(g, L.RCOLS[b] - 2, yc, "←" + ri.refs_in.length, 4.5, "end"); e.setAttribute("class", "refin"); const tt = el("title", {}, e); tt.textContent = "이 신호를 받는 곳: " + ri.refs_in.map(r => `${r.sheet}-${r.row}`).join(", "); }
     }
     // 행 자리 (선을 여기서 시작하거나 끝낸다)
     el("circle", { cx: L.LX0, cy: y + L.PITCH / 2, r: 1.6, class: "rowstub", "data-n": k + 1 }, g);
     el("circle", { cx: L.LX1, cy: y + L.PITCH / 2, r: 1.6, class: "rowstub", "data-n": L.N + k + 1 }, g);
   }
+}
+function renderNotes(svg, L) {           // L56 — 장 노트 상자 (서버 NOTES_BOX · notes_layout 과 같은 자리)
+  const notes = (S.doc.notes || []).filter(Boolean); if (!notes.length) return;
+  const g = el("g", { class: "notes" }, svg);
+  el("rect", { x: 30, y: 780, width: 510, height: 50 }, g);
+  txt(g, 34, 787, "NOTES", 5.5);
+  notes.slice(0, 20).forEach((t, i) => { const c = Math.floor(i / 6), r = i % 6; txt(g, 34 + c * 170, 794 + r * 6.2, `${i + 1}. ${t}`, 4.5); });
 }
 function renderTitle(svg, L) {
   const g = el("g", { class: "title" }, svg);
@@ -169,7 +231,7 @@ function renderBlock(parent, b, bad) {
   el("rect", { x: bb[0] - 2, y: bb[1] - 2, width: bb[2] - bb[0] + 4, height: bb[3] - bb[1] + 4, class: "hit" }, grp);
   if (g.circle) {
     el("circle", { cx: g.circle[0], cy: g.circle[1], r: g.circle[2] }, grp);
-    el("polygon", { points: g.pointer.map(p => p.join(",")).join(" ") }, grp);
+    if (g.pointer) el("polygon", { points: g.pointer.map(p => p.join(",")).join(" ") }, grp);
   } else if (g.cells.length) {
     for (const c of g.cells) el("rect", { x: c[0], y: c[1], width: c[2] - c[0], height: c[3] - c[1] }, grp);
   } else if (g.box) {
@@ -178,7 +240,8 @@ function renderBlock(parent, b, bad) {
     el("rect", { x: b.x, y: b.y, width: b.w, height: b.h, fill: "none", stroke: S.sel.has(b.id) ? "#2f5bd8" : "none", "stroke-dasharray": "1 1" }, grp);
   }
   if (g.bar) el("line", { x1: g.bar[0], y1: g.bar[1], x2: g.bar[2], y2: g.bar[3] }, grp);
-  for (const [cx, cy, t, fs] of g.texts) if (t) { const e = el("text", { x: cx, y: cy, "font-size": fs }, grp); e.textContent = t; }
+  for (const [cx, cy, t, fs, anc] of g.texts) if (t) { const e = el("text", { x: cx, y: cy, "font-size": fs, "text-anchor": anc === "start" ? "start" : anc === "end" ? "end" : "middle", class: anc ? "pin" : null }, grp); e.textContent = t; }
+  if (S.sym[b.kind].macro) grp.classList.add("macro");
   if (S.tool === "wire" || S.tool === "dash" || S.sel.has(b.id)) for (const p of ports(b)) el("circle", { cx: p[0], cy: p[1], r: 1.4, class: "port" }, grp);
 }
 
@@ -191,7 +254,7 @@ function paletteIcon(kind) {
   svg.setAttribute("viewBox", `0 ${spec.cells === 2 ? -4 : -8} 44 ${spec.cells === 2 ? 34 : 40}`);
   const g = el("g", { class: "blk" }, svg);
   const gg = geom(b);
-  if (gg.circle) { el("circle", { cx: gg.circle[0], cy: gg.circle[1], r: gg.circle[2] }, g); el("polygon", { points: gg.pointer.map(p => p.join(",")).join(" ") }, g); }
+  if (gg.circle) { el("circle", { cx: gg.circle[0], cy: gg.circle[1], r: gg.circle[2] }, g); if (gg.pointer) el("polygon", { points: gg.pointer.map(p => p.join(",")).join(" ") }, g); }
   else if (gg.cells.length) for (const c of gg.cells) el("rect", { x: c[0], y: c[1], width: c[2] - c[0], height: c[3] - c[1] }, g);
   else if (gg.box) el("rect", { x: gg.box[0], y: gg.box[1], width: gg.box[2] - gg.box[0], height: gg.box[3] - gg.box[1] }, g);
   if (gg.bar) el("line", { x1: gg.bar[0], y1: gg.bar[1], x2: gg.bar[2], y2: gg.bar[3] }, g);
@@ -201,8 +264,9 @@ function paletteIcon(kind) {
 function buildPalette() {
   const pal = $("#palette"); pal.innerHTML = "";
   for (const kind in S.sym) {
+    if (S.sym[kind].macro) continue;                    // 매크로는 Typical 타입마다 — 아래 '매크로' 카드
     const btn = document.createElement("button");
-    btn.title = `${S.sym[kind].name} — 누르면 가운데에 놓입니다`;
+    btn.title = `${S.sym[kind].name} — 누르면 가운데에 놓입니다${S.sym[kind].learned ? ` · 크기는 분석한 로직 ${S.sym[kind].learned}개에서 배운 값` : ""}`;
     btn.appendChild(paletteIcon(kind));
     const sp = document.createElement("span"); sp.textContent = S.sym[kind].name; btn.appendChild(sp);
     btn.draggable = true;
@@ -237,8 +301,15 @@ function renderProps() {
     if (!w) { card.hidden = true; return; }
     $("#props-kind").textContent = "신호선";
     box.innerHTML = `<label>파선 <input type="checkbox" id="p-dashed" ${w.dashed ? "checked" : ""}></label>
-      <p class="dw-hint">점 ${w.pts.length}개 — 점을 끌어 옮기고, Delete 로 지웁니다.</p>`;
+      <label>화살촉 <select id="p-arrow"><option value="" ${!w.arrow ? "selected" : ""}>없음</option><option value="end" ${w.arrow === "end" ? "selected" : ""}>끝에 (받는 쪽)</option><option value="start" ${w.arrow === "start" ? "selected" : ""}>처음에</option></select></label>
+      <label>선 아래 글 <input id="p-wlabel" value="${esc(w.label || "")}" placeholder="0~250 barg · 신호 이름"></label>
+      <label>연결점 <span><button id="p-dot" type="button">끝에 점 찍기</button> ${(w.dots || []).length ? `<button id="p-dot-clear" type="button">점 지우기 (${w.dots.length})</button>` : ""}</span></label>
+      <p class="dw-hint">점 ${w.pts.length}개 — 점을 끌어 옮기고, Delete 로 지웁니다.  다른 선의 몸통에 닿는 끝에는 연결점을 찍어야 분석기가 잇습니다 (범례 DOT).</p>`;
     $("#p-dashed").onchange = e => { pushUndo(); w.dashed = e.target.checked; markDirty(); render(); };
+    $("#p-wlabel").onchange = e => { pushUndo(); const v = e.target.value.trim().slice(0, 40); if (v) w.label = v; else delete w.label; markDirty(); render(); };
+    $("#p-arrow").onchange = e => { pushUndo(); if (e.target.value) w.arrow = e.target.value; else delete w.arrow; markDirty(); render(); };
+    $("#p-dot").onclick = () => { pushUndo(); w.dots = (w.dots || []).concat([w.pts[w.pts.length - 1].slice()]); markDirty(); render(); };
+    if ($("#p-dot-clear")) $("#p-dot-clear").onclick = () => { pushUndo(); delete w.dots; markDirty(); render(); };
     return;
   }
   const b = S.doc.blocks.find(b => b.id === ids[0]); if (!b) { card.hidden = true; return; }
@@ -249,8 +320,20 @@ function renderProps() {
   if (spec.ab) h += `<label>A / B <span><input id="p-a" type="number" min="1" max="9" value="${b.param.a || 2}" style="width:56px"> / <input id="p-b" type="number" min="1" max="9" value="${b.param.b || 3}" style="width:56px"></span></label>`;
   if (spec.cells === 2) h += `<label>우선 칸 <select id="p-dom"><option value="" ${!b.param.dominant ? "selected" : ""}>기본 (S·R 함께면 바뀜)</option><option value="set" ${b.param.dominant === "set" ? "selected" : ""}>SET 우선 (SO)</option><option value="reset" ${b.param.dominant === "reset" ? "selected" : ""}>RESET 우선 (RO)</option></select></label>`;
   if (spec.label) h += `<label>이름 <input id="p-label" value="${esc(b.label)}" placeholder="START"></label>`;
-  if (spec.circle) h += `<label>글자 <input id="p-text" value="${esc(b.text)}" maxlength="2"></label><p class="dw-hint">같은 글자의 연결 기호는 한 신호 — 왼쪽에 닿은 선이 들어가고 꼭지에서 나갑니다.</p>`;
-  if (spec.note) h += `<label>글 <input id="p-text" value="${esc(b.text)}"></label>`;
+  if (spec.circle && !spec.lamp) h += `<label>글자 <input id="p-text" value="${esc(b.text)}" maxlength="2"></label>
+    <label>꼭지 방향 <select id="p-point">${[["R", "오른쪽 →"], ["L", "왼쪽 ←"], ["T", "위 ↑"], ["B", "아래 ↓"]].map(([k, n]) => `<option value="${k}" ${(b.param.point || "R") === k ? "selected" : ""}>${n}</option>`).join("")}</select></label>
+    <p class="dw-hint">같은 글자의 연결 기호는 한 신호 — 원 몸통에 닿은 선이 들어가고 꼭지에서 나갑니다.</p>`;
+  if (spec.lamp) h += `<label>글자 <input id="p-text" value="${esc(b.text)}" maxlength="2" placeholder="G"></label><p class="dw-hint">표시등 — 들어오는 선만 (G · R · W · Y …).</p>`;
+  if (spec.note || spec.box) h += `<label>글 <input id="p-text" value="${esc(b.text)}"></label>${spec.box ? `<p class="dw-hint">분석기는 상자 안 글자로 뜻을 읽습니다 — 신호 이름(OPEN · REMOTE) · DI · 연산 이름(∑ · T …).</p>` : ""}`;
+  if (spec.macro) {
+    const p = b.param, ms = (S.setInfo && S.setInfo.macros) || [];
+    h += `<label>이름 <input id="p-mtitle" value="${esc(p.title || "")}"></label>
+      <label>Typical <select id="p-mtyp"><option value="">(없음)</option>${ms.map(m => `<option value="${esc(m.typ)}" ${m.typ === p.typ ? "selected" : ""}>${esc(m.title)} · ${esc(m.typ)}</option>`).join("")}</select></label>
+      <p class="dw-hint">입력 ${(p.pins_in || []).length} · 출력 ${(p.pins_out || []).length} — 단자 이름은 Typical 시트의 TAG NO. 칸(약어)과 같아야 분석기가 잇습니다.</p>
+      <div class="dw-pins">${(p.pins_in || []).map((q, i) => `<span class="in"><input data-pin="in:${i}" value="${esc(q.name)}"></span>`).join("")}${(p.pins_out || []).map((q, i) => `<span class="out"><input data-pin="out:${i}" value="${esc(q.name)}"></span>`).join("")}</div>
+      ${p.typ && !p.typ.startsWith("lib:") ? `<button id="p-open-typ" type="button">Typical 시트 열기</button>` : ""}`;
+  }
+  if (!spec.note) h += `<label>위 글 <input id="p-above" value="${esc(b.param.above || "")}" placeholder="설정값 202.4 barg · HH : 191 · 주석"></label><p class="dw-hint">블록 바로 위에 인쇄 — 감시 블록이면 분석기가 설정값으로 읽고 시뮬레이션의 초기값이 됩니다.</p>`;
   h += `<label>크기 <span><input id="p-w" type="number" min="4" step="1" value="${b.w}" style="width:56px"> × <input id="p-h" type="number" min="4" step="1" value="${b.h}" style="width:56px"></span></label>
         <label>자리 <span><input id="p-x" type="number" step="1" value="${b.x}" style="width:56px"> , <input id="p-y" type="number" step="1" value="${b.y}" style="width:56px"></span></label>
         <div style="display:flex;gap:6px;margin-top:6px"><button id="p-dup">복사</button><button id="p-del">지우기</button></div>`;
@@ -264,6 +347,12 @@ function renderProps() {
   on("#p-dom", t => { b.param.dominant = t.value; });
   on("#p-label", t => { b.label = t.value.trim().slice(0, 60); });
   on("#p-text", t => { b.text = t.value.trim().slice(0, spec.circle ? 2 : 40) || spec.text; });
+  on("#p-point", t => { b.param.point = t.value; });
+  on("#p-above", t => { const v = t.value.trim().slice(0, 40); if (v) b.param.above = v; else delete b.param.above; });
+  on("#p-mtitle", t => { b.param.title = t.value.trim().slice(0, 120); });
+  on("#p-mtyp", t => { b.param.typ = t.value; const m = ((S.setInfo && S.setInfo.macros) || []).find(m => m.typ === t.value); if (m) { b.param.title = m.title; const L2 = layout(); b.param.pins_in = m.pins_in.map((q, i) => ({ name: q.name, row: q.row, dy: +(1.6 * L2.PITCH + (i + 0.5) * L2.PITCH).toFixed(2) })); b.param.pins_out = m.pins_out.map((q, i) => ({ name: q.name, row: q.row, dy: +(1.6 * L2.PITCH + (i + 0.5) * L2.PITCH).toFixed(2) })); b.h = +(1.6 * L2.PITCH + Math.max(m.pins_in.length, m.pins_out.length, 1) * L2.PITCH + 0.4 * L2.PITCH).toFixed(2); } });
+  $$("#props input[data-pin]").forEach(inp => inp.onchange = () => upd(() => { const [side, i] = inp.dataset.pin.split(":"); const arr = side === "in" ? b.param.pins_in : b.param.pins_out; if (arr && arr[+i]) arr[+i].name = inp.value.trim().slice(0, 40); }));
+  if ($("#p-open-typ")) $("#p-open-typ").onclick = () => { const sh = ((S.setInfo && S.setInfo.sheets) || []).find(x => x.sheet_no === b.param.typ); if (sh) openDoc(sh.id); else toast("이 묶음에 그 Typical 시트가 없습니다."); };
   on("#p-w", t => { b.w = Math.max(4, +t.value || spec.w); });
   on("#p-h", t => { b.h = Math.max(4, +t.value || spec.h); });
   on("#p-x", t => { b.x = +t.value || 0; });
@@ -285,6 +374,22 @@ function deleteSel() {
   S.doc.blocks = S.doc.blocks.filter(b => !S.sel.has(b.id));
   if (S.selWire) S.doc.wires = S.doc.wires.filter(w => w.id !== S.selWire);
   S.sel = new Set(); S.selWire = null; markDirty(); render();
+}
+function copySel() {                     // L56 — 고른 블록과 그 사이 선을 복사 (Ctrl+C) · 붙이면 한 행 아래 (Ctrl+V)
+  const ids = new Set(S.sel); if (!ids.size) return;
+  const blocks = S.doc.blocks.filter(b => ids.has(b.id)).map(b => JSON.parse(JSON.stringify(b)));
+  const inside = (p) => blocks.some(b => p[0] >= b.x - 1 && p[0] <= b.x + b.w + 1 && p[1] >= b.y - 1 && p[1] <= b.y + b.h + 1);
+  const wires = S.doc.wires.filter(w => inside(w.pts[0]) && inside(w.pts[w.pts.length - 1])).map(w => JSON.parse(JSON.stringify(w)));
+  S.clip = { blocks, wires }; status(`복사 — 블록 ${blocks.length} · 선 ${wires.length} (Ctrl+V 붙이기)`);
+}
+function pasteClip() {
+  if (!S.clip || !S.doc) return;
+  pushUndo();
+  const L = layout(), dy = 2 * L.PITCH, nsel = new Set();
+  for (const b of S.clip.blocks) { const nb = JSON.parse(JSON.stringify(b)); nb.id = newId("b"); nb.y += dy; S.doc.blocks.push(nb); nsel.add(nb.id); }
+  for (const w of S.clip.wires) { const nw = JSON.parse(JSON.stringify(w)); nw.id = newId("w"); nw.pts = nw.pts.map(p => [p[0], p[1] + dy]); if (nw.dots) nw.dots = nw.dots.map(p => [p[0], p[1] + dy]); S.doc.wires.push(nw); }
+  S.clip = { blocks: S.clip.blocks.map(b => ({ ...b, y: b.y + dy })), wires: S.clip.wires.map(w => ({ ...w, pts: w.pts.map(p => [p[0], p[1] + dy]), dots: (w.dots || []).map(p => [p[0], p[1] + dy]) })) };
+  S.sel = nsel; S.selWire = null; markDirty(); render();
 }
 function duplicateSel() {
   if (!S.sel.size) return;
@@ -322,16 +427,36 @@ function drawGhost() {
   if (S.drag && S.drag.marquee) { const m = S.drag.marquee; el("rect", { x: Math.min(m[0], m[2]), y: Math.min(m[1], m[3]), width: Math.abs(m[2] - m[0]), height: Math.abs(m[3] - m[1]), class: "marquee" }, ov); }
   drawAlign(ov); drawCross(ov);
 }
+function arrowOf(w) {
+  const a = w.arrow, pts = w.pts || []; if ((a !== "start" && a !== "end") || pts.length < 2) return null;
+  const AL = 0.22 * layout().PITCH, [tip, back] = a === "start" ? [pts[0], pts[1]] : [pts[pts.length - 1], pts[pts.length - 2]];
+  const dx = back[0] - tip[0], dy = back[1] - tip[1], n = Math.hypot(dx, dy) || 1, ux = dx / n, uy = dy / n;
+  const bx = tip[0] + ux * AL, by = tip[1] + uy * AL, hx = -uy * AL * 0.5, hy = ux * AL * 0.5;
+  return [[tip[0], tip[1]], [bx + hx, by + hy], [bx - hx, by - hy]];
+}
 function orth(a, b) {
   // 직각 꺾임 — 가로 먼저 · 두 좌표가 다 다르면 꺾이는 점을 하나 넣는다 (완전히 가로·세로면 그대로)
   if (Math.abs(a[0] - b[0]) < 0.01 || Math.abs(a[1] - b[1]) < 0.01) return [b];
   return [[b[0], a[1]], b];
 }
+function onWireBody(pt, skipId) {
+  for (const w of S.doc.wires) { if (w.id === skipId) continue; for (let i = 1; i < w.pts.length; i++) { const a = w.pts[i - 1], b = w.pts[i]; const hz = Math.abs(a[1] - b[1]) < 0.2, vt = Math.abs(a[0] - b[0]) < 0.2;
+    if (hz && Math.abs(pt[1] - a[1]) < 0.6 && Math.min(a[0], b[0]) + 0.8 < pt[0] && pt[0] < Math.max(a[0], b[0]) - 0.8) return [pt[0], a[1]];
+    if (vt && Math.abs(pt[0] - a[0]) < 0.6 && Math.min(a[1], b[1]) + 0.8 < pt[1] && pt[1] < Math.max(a[1], b[1]) - 0.8) return [a[0], pt[1]]; } }
+  return null;
+}
 function finishWire() {
   if (S.wip && S.wip.pts.length >= 2) {
     pushUndo();
     const pts = S.wip.pts.filter((p, i, a) => i === 0 || Math.hypot(p[0] - a[i - 1][0], p[1] - a[i - 1][1]) > 0.01).map(p => [+p[0].toFixed(2), +p[1].toFixed(2)]);
-    if (pts.length >= 2) S.doc.wires.push({ id: newId("w"), pts, dashed: S.tool === "dash" });
+    if (pts.length >= 2) {
+      const w = { id: newId("w"), pts, dashed: S.tool === "dash" };
+      // 끝이 다른 선의 몸통에 닿으면 연결점 (범례: 점이 연결 · 몸통 교차는 연결 아님) — 사람이 그리면 저절로
+      const dots = [];
+      for (const e of [pts[0], pts[pts.length - 1]]) { const d = onWireBody(e, null); if (d) dots.push(d); }
+      if (dots.length) w.dots = dots;
+      S.doc.wires.push(w);
+    }
     markDirty();
   }
   S.wip = null; render();
@@ -367,6 +492,12 @@ function bindStage() {
       return;
     }
     if (wire) { S.selWire = t.dataset.id; S.sel = new Set(); render(); return; }
+    if (t.classList.contains("golink")) {
+      const side = t.dataset.side, n = +t.dataset.n, li = linkInfo(side, n);
+      if (side === "left" && li && li.ref && li.ref.did) goRef({ did: li.ref.did, row: li.ref.src_row || li.ref.row });
+      else if (side === "right" && li && li.targets) { const t0 = li.targets.find(x => x.did); if (t0) goRef({ did: t0.did, row: t0.row }); }
+      return;
+    }
     if (t.classList.contains("cell") || t.classList.contains("rowstub")) return;
     S.sel = new Set(); S.selWire = null; S.drag = { marquee: [p[0], p[1], p[0], p[1]] }; render();
   });
@@ -434,6 +565,8 @@ function bindStage() {
     else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "z") { e.preventDefault(); e.shiftKey ? redo() : undo(); }
     else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "y") { e.preventDefault(); redo(); }
     else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "d") { e.preventDefault(); duplicateSel(); }
+    else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "c" && S.sel.size) { e.preventDefault(); copySel(); }
+    else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "v" && S.clip) { e.preventDefault(); pasteClip(); }
     else if (e.key === "ArrowLeft") { e.preventDefault(); moveSel(-(e.shiftKey ? L.PITCH : L.PITCH / 2), 0); }
     else if (e.key === "ArrowRight") { e.preventDefault(); moveSel(e.shiftKey ? L.PITCH : L.PITCH / 2, 0); }
     else if (e.key === "ArrowUp") { e.preventDefault(); moveSel(0, -(e.shiftKey ? L.PITCH : L.PITCH / 2)); }
@@ -592,8 +725,9 @@ function nextCell(side, n, f, back, sameCol) {
 function docOut() {
   const d = S.doc;
   return { name: $("#name").value.trim() || d.name, project: $("#f-project").value, sheet_no: $("#f-sheet").value.trim(), title: $("#f-title").value.trim(), doc_no: $("#f-doc").value.trim(),
-    N: +$("#f-rows").value || d.N, left: d.left, right: d.right, blocks: d.blocks, wires: d.wires };
+    N: +$("#f-rows").value || d.N, typical: $("#f-typical").checked, notes: notesFromForm(), left: d.left, right: d.right, blocks: d.blocks, wires: d.wires };
 }
+function notesFromForm() { return $("#f-notes").value.split("\n").map(t => t.trim()).filter(Boolean).slice(0, 20); }
 async function save() {
   if (!S.doc) return;
   const who = author(); if (!who) { toast("이름을 적어 주세요 (머리줄 ✎)."); $("#who").focus(); return; }
@@ -601,7 +735,12 @@ async function save() {
   try {
     const d = await put(`/logic/api/drawings/${S.id}`, { author: who, doc: docOut() });
     S.doc = d; S.dirty = false; $("#save").disabled = true; status(`저장됨 · ${new Date().toLocaleTimeString()} · ${who}`);
-    await loadList(S.id); fillForm(); render();
+    if (S.doc.set) {
+      // FROM/TO 자동 잇기 — 이 장이 가리키는 상대 장의 칸을 채운다 (비어 있는 칸만 · 서버가 둘 다 저장)
+      try { const r = await post(`/logic/api/drawings/sets/${S.doc.set}/autolink`, { did: S.id, author: who });
+        if (r.changed && r.changed.length) { toast(`FROM/TO ${r.changed.length}곳을 이었습니다 — ${r.changed.map(c => c.sheet + "-" + c.n).slice(0, 4).join(", ")}`); S.doc = await api(`/logic/api/drawings/${S.id}`); } } catch (e) {}
+    }
+    await loadList(S.id); fillForm(); await loadSet(); render();
   } catch (e) { toast("저장 실패 — " + e.message); }
 }
 function fillForm() {
@@ -609,6 +748,8 @@ function fillForm() {
   $("#name").value = d.name || ""; $("#name").disabled = false;
   $("#f-sheet").value = d.sheet_no || ""; $("#f-title").value = d.title || ""; $("#f-doc").value = d.doc_no || ""; $("#f-rows").value = d.N;
   $("#f-project").value = d.project || "";
+  $("#f-typical").checked = !!d.typical;
+  $("#f-notes").value = (d.notes || []).join("\n");
   for (const id of ["verify", "analyse", "del"]) $(id === "del" ? "#del" : "#" + id).disabled = false;
   $("#pdf").hidden = false; $("#dxf").hidden = false;
   $("#pdf").href = `/logic/api/drawings/${S.id}/export.pdf`; $("#dxf").href = `/logic/api/drawings/${S.id}/export.dxf`;
@@ -618,13 +759,14 @@ async function openDoc(id) {
   try { S.doc = await api(`/logic/api/drawings/${id}`); } catch (e) { toast(e.message); return; }
   S.id = id; S.dirty = false; S.sel = new Set(); S.selWire = null; S.undo = []; S.redo = []; S.verify = null; $("#verify-card").hidden = true;
   $("#pick").value = id; $("#save").disabled = true;
-  fillForm(); render(); fitZoom(); render();
+  fillForm(); await loadSet(); render(); fitZoom(); render();
+  if (S.gotoRow) { const n = S.gotoRow; S.gotoRow = null; flashRow(n); }
   status(`${S.doc.name} · 블록 ${S.doc.blocks.length} · 선 ${S.doc.wires.length} · 저장 ${S.doc.saves || 0}번`);
   location.hash = "d=" + id;
 }
 async function loadList(keep) {
   const r = await api("/logic/api/drawings");
-  const sel = $("#pick"); sel.innerHTML = `<option value="">(그림을 고르세요)</option>` + r.items.map(i => `<option value="${i.id}">${esc(i.name)}${i.sheet_no ? " · " + esc(i.sheet_no) : ""} — 블록 ${i.blocks} · 선 ${i.wires}</option>`).join("");
+  const sel = $("#pick"); sel.innerHTML = `<option value="">(그림을 고르세요)</option>` + r.items.map(i => `<option value="${i.id}">${i.set_name ? "[" + esc(i.set_name) + "] " : ""}${esc(i.name)}${i.sheet_no ? " · " + esc(i.sheet_no) : ""}${i.typical ? " (Typical)" : ""} — 블록 ${i.blocks} · 선 ${i.wires}</option>`).join("");
   if (keep) sel.value = keep;
   return r.items;
 }
@@ -731,6 +873,129 @@ async function delDoc() {
   catch (e) { toast(e.message); }
 }
 
+/* ───────── 묶음 (L56) ───────── */
+async function loadSet() {
+  S.setInfo = null; const card = $("#set-card"); const mc = $("#macro-card");
+  if (!S.doc || !S.doc.set) { card.hidden = false; renderSetCard(); renderMacroCard(); return; }
+  try { S.setInfo = await api(`/logic/api/drawings/sets/${S.doc.set}`); } catch (e) { S.setInfo = null; }
+  card.hidden = false; renderSetCard(); renderMacroCard();
+}
+function refOf(text) {
+  // FM/TO 칸의 참조 → 이 묶음의 장 (서버 links 가 이미 가른 것을 쓴다 · 없으면 간단한 꼴만)
+  const m = String(text || "").trim().toUpperCase().match(/^([A-Z0-9_\-.]+?)\s*[-\/:#]\s*0*(\d+)$/);
+  if (!m || !S.setInfo) return null;
+  const sh = (S.setInfo.sheets || []).find(x => (x.sheet_no || "").toUpperCase() === m[1]);
+  return sh ? { did: sh.id, sheet: sh.sheet_no, row: +m[2] } : null;
+}
+function linkInfo(side, n) {
+  const d = S.setInfo && S.setInfo.links && S.setInfo.links.docs[S.id];
+  if (!d) return null;
+  return side === "left" ? (d.left || {})[n] : (d.right || {})[n];
+}
+function renderSetCard() {
+  const box = $("#set-list"), info = S.setInfo;
+  if (!S.doc) { box.innerHTML = `<p class="dw-hint">그림을 열면 그 묶음의 장이 여기 보입니다.</p>`; $("#set-tools").hidden = true; return; }
+  $("#set-tools").hidden = false;
+  if (!info) { box.innerHTML = `<p class="dw-hint">이 그림은 묶음에 들어 있지 않습니다.  <button id="set-make" type="button">묶음으로 만들기</button></p>`;
+    $("#set-make").onclick = async () => { pushUndo(); const sid = crypto.randomUUID().replace(/-/g, "").slice(0, 12); S.doc.set = sid; S.doc.set_name = S.doc.name; await put(`/logic/api/drawings/${S.id}`, { author: author() || "?", doc: docOut(), set: sid, set_name: S.doc.name }); await loadList(S.id); S.doc = await api(`/logic/api/drawings/${S.id}`); await loadSet(); };
+    $$("#set-tools button").forEach(b => b.disabled = b.id !== "set-import"); return; }
+  $$("#set-tools button").forEach(b => b.disabled = false);
+  const bad = {}; for (const f of (info.links && info.links.findings) || []) if (f.code === "FT_MISMATCH") bad[f.did] = (bad[f.did] || 0) + 1;
+  box.innerHTML = `<div class="dw-setname">${esc(info.name)} <span class="dw-hint">${info.sheets.length}장</span></div>` +
+    `<ul class="dw-sheets">${info.sheets.map(sh => `<li class="${sh.id === S.id ? "on" : ""}" data-id="${sh.id}"><b>${esc(sh.sheet_no || "(이름 없음)")}</b>${sh.typical ? ' <span class="typ">Typical</span>' : ""} <span class="dw-hint">${esc(sh.title || "")}</span>${bad[sh.id] ? ` <span class="bad">✕${bad[sh.id]}</span>` : ""}</li>`).join("")}</ul>`;
+  $$("#set-list li[data-id]").forEach(li => li.onclick = () => { if (li.dataset.id !== S.id) openDoc(li.dataset.id); });
+}
+function renderMacroCard() {
+  const box = $("#macro-list"), ms = (S.setInfo && S.setInfo.macros) || [];
+  if (!ms.length) { box.innerHTML = `<p class="dw-hint">매크로 타입이 없습니다 — 묶음의 장에 <b>Typical 시트</b> 표시를 하거나(시트 카드) 학습 사전의 Typical 이 쓰입니다.</p>`; return; }
+  box.innerHTML = ms.map((m, i) => `<button type="button" data-i="${i}" title="${esc(m.from)} · 입력 ${m.pins_in.length} · 출력 ${m.pins_out.length}">▣ ${esc(m.title)}<span class="dw-hint">${esc(m.typ)} · ${m.pins_in.length}→${m.pins_out.length}</span></button>`).join("");
+  $$("#macro-list button").forEach(b => b.onclick = () => addMacro(ms[+b.dataset.i]));
+}
+async function addMacro(m) {
+  if (!S.doc) return;
+  let typ = m.typ;
+  if (typ.startsWith("lib:") && S.doc.set) {
+    // 사전 Typical — 내부 동작이 묶음 안에 있어야 분석기가 잇는다 → 그 Typical 시트를 묶음에 들여온다 (한 번만)
+    const have = (S.setInfo.sheets || []).find(x => x.sheet_no && m.sheet && x.sheet_no === m.sheet.sheet_no);
+    if (have) typ = have.sheet_no;
+    else { try { const d = await post(`/logic/api/drawings/sets/${S.doc.set}/sheet`, { library: typ.slice(4), author: author() || "?" }); typ = d.sheet_no; await loadSet(); toast(`Typical 시트 ${d.sheet_no} 를 묶음에 들여왔습니다.`); } catch (e) { toast(e.message); } }
+  }
+  const L = layout(), P = L.PITCH, n = Math.max(m.pins_in.length, m.pins_out.length, 1);
+  const b = { id: newId("b"), kind: "MACRO", w: S.sym.MACRO.w, h: +(1.6 * P + n * P + 0.4 * P).toFixed(2), text: "", label: "",
+    param: { typ, title: m.title, pins_in: m.pins_in.map((q, i) => ({ name: q.name, row: q.row, dy: +(1.6 * P + (i + 0.5) * P).toFixed(2) })),
+             pins_out: m.pins_out.map((q, i) => ({ name: q.name, row: q.row, dy: +(1.6 * P + (i + 0.5) * P).toFixed(2) })) } };
+  b.x = Math.round(((L.LX0 + L.LX1) / 2 - b.w / 2) / (P / 2)) * (P / 2); b.y = ry(4) - 1.6 * P - P / 2;
+  pushUndo(); S.doc.blocks.push(b); S.sel = new Set([b.id]); S.selWire = null; markDirty(); render();
+}
+function flashRow(n) {
+  const L = layout(); const y = ry(n);
+  const sc = $("#scroll"); sc.scrollTop = Math.max(0, y * S.zoom - sc.clientHeight / 2 + 12);
+  const ov = overlay(); if (!ov) return;
+  const side = n <= L.N ? "L" : "R";
+  const e = el("rect", { x: side === "L" ? L.LCOLS[0] : L.RCOLS[0], y: y - L.PITCH / 2, width: side === "L" ? L.LX0 - L.LCOLS[0] : L.RCOLS[4] - L.RCOLS[0], height: L.PITCH, class: "rowflash" }, ov);
+  setTimeout(() => e.remove(), 2600);
+}
+function goRef(ref) {
+  if (!ref) return;
+  if (ref.did === S.id) { flashRow(ref.row); return; }
+  S.gotoRow = ref.row; openDoc(ref.did);
+}
+async function importBundle() {
+  let jobs = [];
+  try { jobs = await api("/logic/api/jobs"); } catch (e) { toast(e.message); return; }
+  jobs = (Array.isArray(jobs) ? jobs : jobs.items || jobs.jobs || []).filter(j => (j.state || j.status || "done") === "done");
+  if (!jobs.length) { toast("분석을 끝낸 Logic 묶음이 없습니다."); return; }
+  const v = await modal("분석한 묶음을 통째로 들여오기", `<div class="dw-form">
+    <label>묶음 <select id="m-job">${jobs.map(j => `<option value="${j.id}">${esc(j.name || j.id)}${j.project ? " · " + esc(j.project) : ""} · ${j.total || j.sheets || ""}장</option>`).join("")}</select></label>
+    <label>그림 묶음 이름 <input id="m-name" placeholder="비우면 묶음 이름"></label>
+    <label>작성자 <input id="m-who" value="${esc(author())}"></label></div>
+    <p class="dw-hint">모든 Logic 시트가 이 양식의 그림이 되고, 매크로가 이어진 시트는 Typical 로 표시됩니다.  FROM/TO 는 그대로 옮겨집니다.</p>`,
+    () => { const w = $("#m-who").value.trim(); if (!w) { toast("작성자 이름이 필요합니다."); return false; } return { job: $("#m-job").value, name: $("#m-name").value.trim(), who: w }; });
+  if (!v) return;
+  status("묶음을 들여오는 중 …");
+  try {
+    try { localStorage.setItem("pid.author", v.who); $("#who").value = v.who; } catch (e) {}
+    const r = await post("/logic/api/drawings/sets/import", { job: v.job, name: v.name, author: v.who, project: $("#f-project").value });
+    toast(`${r.sheets}장을 들여왔습니다 (Typical ${r.typicals}장).`, 5000);
+    const items = await loadList();
+    const first = items.filter(i => i.set === r.id).sort((a, b) => (a.order || 0) - (b.order || 0))[0];
+    if (first) await openDoc(first.id);
+  } catch (e) { toast(e.message); status(""); }
+}
+async function addSheet() {
+  if (!S.doc || !S.doc.set) return;
+  const v = await modal("묶음에 장 더하기", `<div class="dw-form"><label>시트 이름 <input id="m-sheet" placeholder="예: G035"></label><label>그림 이름 <input id="m-name"></label>
+    <label>Typical 시트 <input type="checkbox" id="m-typ"></label><label>작성자 <input id="m-who" value="${esc(author())}"></label></div>`,
+    () => { const w = $("#m-who").value.trim(); if (!w) { toast("작성자 이름이 필요합니다."); return false; } return { sheet: $("#m-sheet").value.trim(), name: $("#m-name").value.trim(), typical: $("#m-typ").checked, who: w }; });
+  if (!v) return;
+  try { const d = await post(`/logic/api/drawings/sets/${S.doc.set}/sheet`, { sheet_no: v.sheet, name: v.name || v.sheet || "새 장", typical: v.typical, author: v.who, N: S.doc.N }); await loadList(d.id); await openDoc(d.id); }
+  catch (e) { toast(e.message); }
+}
+async function verifySet() {
+  if (!S.doc || !S.doc.set) return;
+  if (S.dirty) { toast("먼저 저장하세요."); return; }
+  status("묶음 되읽기 검증 중 — 모든 장을 한 PDF 로 내보내 분석기에 넣습니다 …"); $("#set-verify").disabled = true;
+  try {
+    const v = await post(`/logic/api/drawings/sets/${S.doc.set}/verify`, {});
+    const card = $("#verify-card"), out = $("#verify-out"); card.hidden = false;
+    $("#verify-sum").textContent = v.ok ? "묶음 전부 같게 읽혔습니다" : "다르게 읽힌 장이 있습니다"; $("#verify-sum").className = "dw-hint " + (v.ok ? "ok" : "bad");
+    if (v.why) out.innerHTML = `<p class="bad">${esc(v.why)}</p>`;
+    else out.innerHTML = `<p>장 ${v.read}/${v.drawn} 읽음 · FROM/TO 불일치 ${v.fromto_bad} · ${v.seconds || ""}초</p><ul>` +
+      v.sheets.map(sh => { const bl = sh.blocks || []; return `<li data-did="${sh.did}" class="${sh.ok ? "ok" : "bad"}">${sh.ok ? "✔" : "✕"} ${esc(sh.sheet_no && sh.sheet_no.drawn || sh.sheet_no || "")}${sh.why ? " — " + esc(sh.why) : ` · 블록 ${bl.filter(b => b.ok).length}/${bl.length} · 행 ${sh.rows ? sh.rows.read + "/" + sh.rows.drawn : ""} · 매달림 ${sh.dangling ?? ""}${bl.filter(b => b.kind === "MACRO").map(b => b.macro ? ` · 매크로→${esc(b.macro.sheet || "없음")}` : "").join("")}`}</li>`; }).join("") +
+      (v.fromto || []).map(f => `<li class="${f.code === "FT_MISMATCH" ? "bad" : "warn"}" data-did="${f.did}">${f.code === "FT_MISMATCH" ? "✕" : "△"} ${esc(f.text)}</li>`).join("") + `</ul>`;
+    $$("#verify-out li[data-did]").forEach(li => li.onclick = () => { if (li.dataset.did !== S.id) openDoc(li.dataset.did); });
+    status(v.ok ? "묶음 검증 — 같게 읽힙니다" : "묶음 검증 — 다른 장이 있습니다");
+  } catch (e) { toast("검증 실패 — " + e.message); status(""); }
+  $("#set-verify").disabled = false;
+}
+async function sendSetToAnalyse() {
+  if (!S.doc || !S.doc.set) return;
+  if (S.dirty) { toast("먼저 저장하세요."); return; }
+  if (!confirm("묶음 전체를 PDF 로 내보내 LOGIC 검토 묶음으로 올립니다.  계속할까요?")) return;
+  try { const r = await post(`/logic/api/drawings/sets/${S.doc.set}/analyse`, { author: author() }); toast("검토 묶음으로 올렸습니다."); setTimeout(() => { location.href = `/logic#job=${r.id}`; }, 900); }
+  catch (e) { toast(e.message); }
+}
+
 /* ───────── 시작 ───────── */
 async function init() {
   const r = await api("/logic/api/drawings/symbols");
@@ -744,15 +1009,19 @@ async function init() {
   loadGuide();
   for (const k of ["grid", "ruler", "align", "cross"]) $("#g-" + k).onchange = e => { S.guide[k] = e.target.checked; saveGuide(); render(); };
   $("#new").onclick = newDoc; $("#import").onclick = importSheet; $("#save").onclick = save; $("#verify").onclick = verify;
+  $("#set-import").onclick = importBundle; $("#set-add").onclick = addSheet; $("#set-verify").onclick = verifySet; $("#set-analyse").onclick = sendSetToAnalyse;
+  $("#set-pdf").onclick = () => { if (S.doc && S.doc.set) location.href = `/logic/api/drawings/sets/${S.doc.set}/export.pdf`; };
+  $("#f-typical").onchange = () => { if (!S.doc) return; S.doc.typical = $("#f-typical").checked; markDirty(); };
   $("#analyse").onclick = sendToAnalyse; $("#del").onclick = delDoc;
   $("#pick").onchange = e => { if (e.target.value) openDoc(e.target.value); };
   for (const id of ["#name", "#f-sheet", "#f-title", "#f-doc", "#f-project"]) $(id).oninput = () => { if (!S.doc) return; S.doc.sheet_no = $("#f-sheet").value.trim(); S.doc.title = $("#f-title").value.trim(); S.doc.doc_no = $("#f-doc").value.trim(); markDirty(); render(); };
-  $("#f-rows").onchange = () => { if (!S.doc) return; const n = Math.max(20, Math.min(64, +$("#f-rows").value || 50)); $("#f-rows").value = n; pushUndo(); S.doc.N = n; markDirty(); render(); };
+  $("#f-rows").onchange = () => { if (!S.doc) return; const n = Math.max(45, Math.min(62, +$("#f-rows").value || 50)); $("#f-rows").value = n; pushUndo(); S.doc.N = n; markDirty(); render(); };
   window.addEventListener("beforeunload", e => { if (S.dirty) { e.preventDefault(); e.returnValue = ""; } });
   await loadProjects();
   const items = await loadList();
-  const m = location.hash.match(/d=([0-9a-f]{12})/);
+  const m = location.hash.match(/d=([0-9a-f]{12})/), ms = location.hash.match(/set=([0-9a-f]{12})/);
   if (m && items.some(i => i.id === m[1])) openDoc(m[1]);
-  else render();
+  else if (ms) { const first = items.filter(i => i.set === ms[1]).sort((a, b) => (a.order || 0) - (b.order || 0))[0]; if (first) openDoc(first.id); else { render(); await loadSet(); } }
+  else { render(); await loadSet(); }
 }
 init().catch(e => { toast("화면을 열지 못했습니다 — " + e.message, 8000); console.error(e); });

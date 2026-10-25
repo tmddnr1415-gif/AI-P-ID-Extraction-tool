@@ -449,9 +449,16 @@ def _drawn(b, sheet, leg, mem_set, mem_reset):
     ws = [w for w in sheet.words if b.bbox[0] <= (w[0] + w[2]) / 2 <= b.bbox[2] and b.bbox[1] <= (w[1] + w[3]) / 2 <= b.bbox[3]]
     rows = {round((w[1] + w[3]) / 2) for w in ws}
     if b.kind == "RECT" and len(rows) >= 3 and len(ws) >= 3:
+        lines_ = [(w[1], w[3], w[0], w[2], w[4].upper()) for w in ws]
+        if ws and ws[0][4].upper().startswith("STEP"):
+            # 진짜 글자로 인쇄한 STEP 상자 — 선 글자 갈래(위 `"STEP" in joined`)와 같은 규칙 (L56 · 작도 PDF 가 진짜 글자다)
+            b.func, b.logic = "STEP", "step"
+            b.label = ws[0][4].upper() if ws else "STEP"
+            b.lines = lines_
+            return True
         b.func, b.logic = "MACRO", "macro"
         b.label = whole
-        b.lines = [(w[1], w[3], w[0], w[2], w[4].upper()) for w in ws]
+        b.lines = lines_
         _op_box(b)
         return True
     if lib_only:

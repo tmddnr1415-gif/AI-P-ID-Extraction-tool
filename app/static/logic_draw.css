@@ -113,3 +113,38 @@ input, select { font: inherit; border: 1px solid var(--line); border-radius: 5px
 .dw-modal tr.pick { cursor: pointer; }
 .dw-modal tr.pick:hover, .dw-modal tr.pick.on { background: #eef2ff; }
 .dw-toast { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); background: var(--navy); color: #fff; padding: 8px 14px; border-radius: 8px; z-index: 60; font-size: 13px; max-width: 70vw; }
+
+/* L56 — 묶음 · 매크로 · 연결 */
+.dw-settools { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
+.dw-settools button { font-size: 11px; padding: 3px 6px; }
+.dw-setname { font-weight: 600; margin-bottom: 4px; }
+.dw-sheets { list-style: none; margin: 0; padding: 0; max-height: 180px; overflow: auto; font-size: 12px; }
+.dw-sheets li { padding: 2px 4px; border-radius: 3px; cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.dw-sheets li:hover { background: #eef2fb; }
+.dw-sheets li.on { background: #dfe7fb; font-weight: 600; }
+.dw-sheets .typ { font-size: 10px; color: #0f8f80; border: 1px solid #0f8f80; border-radius: 3px; padding: 0 3px; }
+.dw-macros { display: flex; flex-direction: column; gap: 4px; }
+.dw-macros button { text-align: left; font-size: 12px; padding: 4px 6px; display: flex; justify-content: space-between; gap: 6px; }
+.dw-pins { display: flex; flex-wrap: wrap; gap: 3px; margin: 4px 0; }
+.dw-pins span input { width: 64px; font-size: 10px; }
+.dw-pins span.in input { border-left: 3px solid #2f5bd8; }
+.dw-pins span.out input { border-right: 3px solid #0f8f80; }
+.blk.macro rect { stroke-width: 1; }
+.blk text.pin { font-size: 4.2px; }
+.cell.linked { fill: rgba(15, 143, 128, .06); }
+.cell.ftwarn { fill: rgba(176, 118, 20, .12); }
+.cell.ftbad { fill: rgba(194, 69, 63, .18); }
+.golink { fill: #0f8f80; cursor: pointer; font-family: Helvetica, Arial, sans-serif; }
+.golink.missing { fill: #c2453f; }
+.refin { fill: #8a93a8; font-family: Helvetica, Arial, sans-serif; pointer-events: none; }
+.dot { fill: #111; stroke: none; }
+.arrow { fill: #111; stroke: none; }
+.rowflash { fill: rgba(255, 200, 0, .45); animation: rowflash 2.6s ease-out forwards; pointer-events: none; }
+@keyframes rowflash { 0%, 40% { opacity: 1; } 100% { opacity: 0; } }
+.dw-verify li.warn { color: #b07614; }
+
+/* L56 — 선 아래 글 · 장 노트 상자 */
+#svg text.wlabel { fill: #2a3a5a; pointer-events: none; }
+#svg g.notes rect { fill: none; stroke: #222; stroke-width: 0.7; }
+#svg g.notes text { fill: #222; }
+#f-notes { width: 100%; font: inherit; font-size: 12px; resize: vertical; }

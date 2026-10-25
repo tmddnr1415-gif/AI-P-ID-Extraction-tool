@@ -37,7 +37,8 @@ def _doc():
 
     def blk(kind, x, ymid, **kw):
         spec = draw.SYMBOLS[kind]
-        h, w = kw.pop("h", spec["h"]), kw.pop("w", spec["w"])
+        bw, bh = draw.BASE_SIZES[kind]                      # L56 — 학습 스타일(배율)과 무관한 기본 크기로 (아래 선 자리가 그 크기를 전제한다)
+        h, w = kw.pop("h", bh), kw.pop("w", bw)
         b = {"id": f"b{len(B) + 1}", "kind": kind, "x": x, "y": round(ymid - h / 2, 2), "w": w, "h": h, "text": spec["text"],
              "label": kw.pop("label", ""), "param": kw.pop("param", {})}
         B.append(b)
@@ -167,7 +168,7 @@ def test_api_create_save_list_export_delete(client, doc):
     r = client.post("/logic/api/drawings", json={"name": "API", "author": "홍길동", "N": 40})
     assert r.status_code == 200
     d = r.json()
-    assert d["N"] == 40 and d["author"] == "홍길동"
+    assert d["N"] == draw.N_MIN and d["author"] == "홍길동"            # L56 — 45 아래는 분석기가 표를 못 읽어 하한으로 맞춘다
     assert client.put(f"/logic/api/drawings/{d['id']}", json={"doc": doc}).status_code == 400      # 작성자 없음
     r = client.put(f"/logic/api/drawings/{d['id']}", json={"author": "홍길동", "doc": {**doc, "name": "API 2"}})
     assert r.status_code == 200 and r.json()["saves"] == 1 and r.json()["name"] == "API 2" and len(r.json()["blocks"]) == len(doc["blocks"])

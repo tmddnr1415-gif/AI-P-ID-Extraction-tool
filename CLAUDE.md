@@ -6684,3 +6684,25 @@ SHX 글꼴은 **획으로 플롯**되고 원문은 `AutoCAD SHX Text` 주석에 
 * ⚠ 정렬 자석이 끈 거리를 되돌리면 `moved` 가 안 서 안내선이 안 그려졌다 → 되돌리기 전 거리로 판정 (자기검증이 잡았다).
   자기검증에 모눈·눈금자·십자선·정렬·G/R 단계를 더했다 (`spike/ui_audit_draw.py`) · LOGIC 검토 화면에서 작도로 돌아올 때 끊긴 요청(ERR_ABORTED)은 오류로 세지 않는다.
 * 판정 · 서버 0줄 · 네 묶음 무관.  LOGIC 시험 118 통과.
+
+### L56회차 — LOGIC 작도: 묶음 · FROM/TO 잇기 · 매크로 타입 · 학습한 크기 · 입력 로직 재현 · 그릴 때 모든 설정 (2026-10-25)
+
+* 사용자 지시: *From-To 는 이어져야 · 매크로는 타입별로 · 크기·배치는 다른 로직을 참고 · 입력된 로직을 동일하게 만들 수 있는 작성 프로그램* ·
+  *쉽게 그리고 · 노트 · time delay 등 모든 설정을 그릴 때 · 이후 시뮬레이션의 모든 기능을.*  전문 `out/l56/1_보고서.md` · 자
+  `spike/draw_roundtrip.py`(분석 → `import_bundle` → PDF → 다시 분석 → logic 열쇠로 대조) · `spike/draw_style_learn.py` · 자기검증 `spike/ui_audit_draw_set.py`.
+* **묶음** (`app/logic/draw_sets.py` · `draw_api` 의 `/logic/api/drawings/sets/*` — `/{did}` 보다 **앞에** 둬야 한다): 그림마다 `set`·`set_name`·`order`·`typical`.
+  FROM/TO 는 표를 가짜 시트로 만들어 분석기 `fromto.check` **그대로** (`links`) · 저장 직후 `autolink` 가 상대 장의 빈 칸을 채운다 · `link_rows`.
+  ★ `put_drawing` 이 바깥 몸통의 `set/set_name/order` 를 doc 에 합친다 — 화면 `set-make` 가 그 꼴로 보내 저장되지 않던 것 (자기검증이 잡았다).
+* **매크로** — 묶음의 Typical 장(또는 학습 사전 Typical `lib:<id>` — 놓으면 그 Typical 을 묶음에 들여온다)이 팔레트 카드.  `draw.macro_pins`(행 → 단자 · TAG NO. 칸 약어) ·
+  `macro_block` · 단자 자리 `param.pins_in/out[].dy`.  분석기 `macro.link` 가 단자 이름 ↔ Typical 행으로 잇는다 (묶음 검증 `item["macro"]`).
+* **재현** (`draw.from_sheet` 다시 씀): 행 1 자리는 표(`table`)에서 · 오른쪽 행 번호 `rn()` 재대응 · 글자가 상자보다 넓으면 `fit_fs` · 그물은 `_mend`(모서리 틈 · 단자 다리) +
+  연결점(몸통 위 끝 · 차수 ≥3) + `snap` + 화살촉(위·아래·오른쪽 입력) · 대칭 막대 · 연결 기호 `point`/`tipr`(꼭지가 뒤 상자를 덮지 않게 1.75) · LAMP 원 · STEP/신호/표시/연산 →
+  글자 상자(`BOX` · `param.lines`) · 매크로 안 누름단추는 **안 그린다** · 긴 세로선(>0.58H)은 내보낼 때 둘로 나누고 점(표 괘선으로 읽히는 것) · N 하한 45(표 괘선 0.6H).
+  왕복(표 행 / 블록 종류 / 단자 / 매크로): HRSG 99.3 / 97.7 / 96.1 % / 16/17 · 1A5J 100 / 96.4 / 92.6 / 12/12 · 1A1Y 99.7 / 90.4 / 90.8 / 4/4 · **19VA 827장 100 / 88.7 / 89.1 / 166/167**.
+* **학습한 크기** `config/logic_draw_style.json`(hrsg·a5j·a1y 중앙값 · 행 간격 배율 · 19VA 는 글자 없는 모양 게이트라 뺌) → `draw.apply_style` 이 import 때 `SYMBOLS` 에 얹는다 ·
+  `BASE_SIZES` 는 얹기 전 값(L54 시험이 쓴다).  ⚠ 16×9 기본 AND 는 1·2행 사이에 놓으면 분석기가 입력을 못 읽었고 학습 크기(14.4)는 읽는다 — 시험은 학습 크기로.
+* **그릴 때 설정** — `param.above`(블록 위 0.5P · 어느 종류든 · 감시 블록이면 `analog._read_setpoint` 가 설정값으로 — 타이머 시간은 안 흔들린다 · 시험) ·
+  선 `label`(첫 가로 토막 0.8P 아래 · `_read_ranges` 자리) · 장 `notes`(NOTES 상자 30~540×780~830 · 6줄씩 열 · `notes_layout` — 화면 · PDF · DXF 같은 자리).
+  한글은 `_font` 가 `korea` 글꼴로 (helv 는 점으로 나온다).  Ctrl+C/V 복사·붙이기(선까지).  검토 화면 `#from-draw` = `/logic/draw#d=`·`#set=` (job status 의 `drawing`·`drawing_set`).
+* 시험 `tests/test_logic_l56_sets.py` 6 · LOGIC 294 · 빠른 1434 통과.  ⚠ 자기검증이 잡은 것: set 칸 미저장 · JS 여분 중괄호(팔레트가 안 섰다) ·
+  화면을 떠나며 끊긴 fetch 는 결함이 아니다(검사기에서 뺌).

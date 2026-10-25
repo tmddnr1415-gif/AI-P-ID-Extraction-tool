@@ -12,7 +12,7 @@ from fastapi.responses import FileResponse, JSONResponse, Response
 
 from app import paths
 
-from . import draw, store
+from . import draw, draw_sets, store
 
 router = APIRouter()
 
@@ -43,7 +43,7 @@ def _author(v) -> str:
 @router.get("/logic/api/drawings/symbols")
 def symbols():
     """팔레트 — 서버의 기호 사전 그대로 (화면이 따로 외우지 않는다)."""
-    return {"symbols": draw.SYMBOLS, "layout": draw.layout(draw.N_DEFAULT)}
+    return {"symbols": draw.SYMBOLS, "layout": draw.layout(draw.N_DEFAULT), "style": draw.load_style()}
 
 
 @router.get("/logic/api/drawings")
@@ -80,6 +80,124 @@ def create_drawing(body: dict = Body(default={})):
     return doc
 
 
+# ─────────────────────────── 묶음 (L56) ───────────────────────────
+
+@router.get("/logic/api/drawings/sets")
+def list_sets():
+    return {"items": draw_sets.sets_listing()}
+
+
+@router.post("/logic/api/drawings/sets/import")
+def import_set(body: dict = Body(default={})):
+    """분석한 묶음(job)의 모든 시트를 이 양식의 그림 묶음으로."""
+    from . import api as A
+    author = _author(body.get("author"))
+    job = str(body.get("job") or "").strip()
+    if not job:
+        raise HTTPException(400, "job 이 필요합니다.")
+    res = A._result(job)
+    st = store.read_status(store.root() / job) if (store.root() / job).exists() else {}
+    name = str(body.get("name") or st.get("name") or job).strip()[:80]
+    return draw_sets.import_bundle(res, name, author, str(body.get("project") or st.get("project") or "")[:80], job)
+
+
+def _set(sid: str) -> list:
+    if not draw.ID_RE.match(sid or ""):
+        raise HTTPException(404, "그런 묶음이 없습니다.")
+    docs = draw_sets.set_docs(sid)
+    if not docs:
+        raise HTTPException(404, "그런 묶음이 없습니다.")
+    return docs
+
+
+@router.get("/logic/api/drawings/sets/{sid}")
+def get_set(sid: str):
+    docs = _set(sid)
+    return {"id": sid, "name": docs[0].get("set_name") or "", "project": docs[0].get("project") or "",
+            "sheets": [{k: d.get(k) for k in ("id", "sheet_no", "title", "typical", "order")} | {"blocks": len(d["blocks"]), "wires": len(d["wires"])} for d in docs],
+            "links": draw_sets.links(docs), "macros": draw_sets.macro_types(docs)}
+
+
+@router.post("/logic/api/drawings/sets/{sid}/sheet")
+def add_sheet(sid: str, body: dict = Body(default={})):
+    """묶음에 빈 장 하나 (또는 사전 Typical 시트를 들여온다: `library`)."""
+    docs = _set(sid)
+    author = _author(body.get("author"))
+    order = max(d.get("order") or 0 for d in docs) + 1
+    if body.get("library"):
+        doc = draw_sets.typical_doc_from_library(str(body["library"]), str(body.get("name") or "")[:80], author,
+                                                 docs[0].get("project") or "", sid, order)
+        if doc is None:
+            raise HTTPException(404, "학습 사전에 그 Typical 이 없습니다.")
+        return doc
+    try:
+        n = int(body.get("N") or docs[0]["N"])
+    except (TypeError, ValueError):
+        n = docs[0]["N"]
+    doc = draw.new_doc(str(body.get("name") or "새 장")[:80], author, docs[0].get("project") or "", n)
+    doc.update({"set": sid, "set_name": docs[0].get("set_name") or "", "order": order, "typical": bool(body.get("typical")),
+                "sheet_no": str(body.get("sheet_no") or "")[:40]})
+    draw.save_new(doc)
+    return doc
+
+
+@router.get("/logic/api/drawings/sets/{sid}/links")
+def set_links(sid: str):
+    return draw_sets.links(_set(sid))
+
+
+@router.post("/logic/api/drawings/sets/{sid}/link")
+def set_link(sid: str, body: dict = Body(default={})):
+    """보내는 장의 오른쪽 행 ↔ 받는 장의 왼쪽 행을 서로 가리키게 적는다 (FROM/TO 자동 잇기)."""
+    docs = {d["id"]: d for d in _set(sid)}
+    author = _author(body.get("author"))
+    try:
+        f, t = docs[str(body.get("from_did"))], docs[str(body.get("to_did"))]
+        n_out, n_in = int(body.get("n_out")), int(body.get("n_in"))
+    except (KeyError, TypeError, ValueError):
+        raise HTTPException(400, "from_did · n_out · to_did · n_in 이 필요합니다.")
+    try:
+        return draw_sets.link_rows(f, n_out, t, n_in, author)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+
+
+@router.post("/logic/api/drawings/sets/{sid}/autolink")
+def set_autolink(sid: str, body: dict = Body(default={})):
+    """저장 직후 — 이 장의 FM/TO 참조가 가리키는 상대 장의 빈 칸을 채운다."""
+    docs = _set(sid)
+    return draw_sets.autolink(docs, str(body.get("did") or ""), _author(body.get("author")))
+
+
+@router.get("/logic/api/drawings/sets/{sid}/export.pdf")
+def export_set_pdf(sid: str):
+    docs = _set(sid)
+    name = quote(f"{docs[0].get('set_name') or sid}.pdf")
+    return Response(draw_sets.to_pdf_set(docs), media_type="application/pdf",
+                    headers={"Content-Disposition": f"attachment; filename*=UTF-8''{name}"})
+
+
+@router.post("/logic/api/drawings/sets/{sid}/verify")
+def verify_set(sid: str):
+    return draw_sets.verify_set(_set(sid))
+
+
+@router.post("/logic/api/drawings/sets/{sid}/analyse")
+def analyse_set(sid: str, body: dict = Body(default={})):
+    """묶음을 한 PDF 로 내보내 LOGIC 검토 묶음으로 올린다."""
+    from . import api as A
+    docs = _set(sid)
+    author = str(body.get("author") or docs[0].get("author") or "").strip()[:60]
+    name = f"{docs[0].get('set_name') or sid} (작도).pdf"
+    job, d = store.new_job(name)
+    (d / "source.pdf").write_bytes(draw_sets.to_pdf_set(docs))
+    st = store.read_status(d)
+    st.update({"project": docs[0].get("project") or "", "materials": {"logic": name}, "author": author, "drawing_set": sid})
+    store.write_status(d, st)
+    A._start(d)
+    return {"id": job}
+
+
 @router.get("/logic/api/drawings/{did}")
 def get_drawing(did: str):
     return _load(did)
@@ -90,6 +208,8 @@ def put_drawing(did: str, body: dict = Body(...)):
     _load(did)
     author = _author(body.get("author"))
     doc = body.get("doc") if isinstance(body.get("doc"), dict) else body
+    if doc is not body:                       # L56 — 묶음 칸은 바깥 몸통에 실려 올 수 있다 (화면 `set-make`)
+        doc = {**doc, **{k: body[k] for k in ("set", "set_name", "order") if k in body}}
     try:
         return draw.save(did, doc, author)
     except ValueError as e:
@@ -141,3 +261,4 @@ def analyse_drawing(did: str, body: dict = Body(default={})):
     store.write_status(d, st)
     A._start(d)
     return {"id": job}
+

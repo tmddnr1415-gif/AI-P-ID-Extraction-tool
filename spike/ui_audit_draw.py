@@ -167,6 +167,11 @@ try:
                 break
             time.sleep(1)
         note(f"검토로 보내기: 묶음 {job} · 상태 {st.get('state')} · 장 {st.get('total')}")
+        # L56 — 검토 화면이 그 그림으로 돌아가는 단추를 보인다 (분석이 끝난 뒤 화면을 다시 연다)
+        pg.goto(f"{base}/logic#job={job}")
+        pg.wait_for_function("document.querySelector('#from-draw') && !document.querySelector('#from-draw').hidden", timeout=60000)
+        note(f"검토 화면 '이 그림으로': {pg.get_attribute('#from-draw', 'href')}")
+        errors[:] = [e for e in errors if "Failed to fetch" not in e]      # 화면을 떠나며 끊긴 요청은 결함이 아니다 (ERR_ABORTED 와 같은 자리)
         pg.goto(base + "/logic/draw?user=%ED%99%8D%EA%B8%B8%EB%8F%99")
         pg.wait_for_selector("#palette button")
         # 가져오기 (묶음이 있을 때만)

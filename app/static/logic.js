@@ -421,6 +421,8 @@ async function openJob(id) {
   }
   const wasRunning = L.progJob === id;
   renderProgress(null);
+  { const fd = $("#from-draw");                                   // L56 — 작도에서 올린 묶음이면 그 그림(묶음)으로 돌아가는 길
+    if (fd) { if (st.drawing || st.drawing_set) { fd.hidden = false; fd.href = st.drawing ? `/logic/draw#d=${st.drawing}` : `/logic/draw#set=${st.drawing_set}`; } else fd.hidden = true; } }
   status(`분석 ${st.seconds}초 · ${st.sheets}장`);
   const opt = $("#job").querySelector(`option[value="${id}"]`);          // 분석 중에 그린 '분석 중 N%' 를 끝난 값으로
   if (opt && st.sheets != null) opt.textContent = `${st.name || ""} · ${st.sheets}장`;

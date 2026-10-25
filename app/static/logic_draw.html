@@ -47,9 +47,24 @@
         <label><input type="checkbox" id="g-cross" checked> 십자선</label>
       </div>
     </section>
+    <section class="dw-card" id="set-card">
+      <h3>묶음 <span class="dw-hint">여러 장 · FROM/TO 가 장 사이를 잇습니다</span></h3>
+      <div id="set-list"></div>
+      <div id="set-tools" class="dw-settools" hidden>
+        <button id="set-import" type="button" title="분석한 Logic 묶음의 모든 시트를 이 양식의 그림 묶음으로">⇩ 묶음 들여오기</button>
+        <button id="set-add" type="button" title="이 묶음에 빈 장 하나">＋ 장</button>
+        <button id="set-verify" type="button" title="묶음 전체를 한 PDF 로 내보내 분석기에 되읽혀 장마다 · FROM/TO 를 대조">✔ 묶음 검증</button>
+        <button id="set-pdf" type="button" title="묶음 전체 PDF">PDF</button>
+        <button id="set-analyse" type="button" title="묶음 전체를 LOGIC 검토 묶음으로 올린다">▶ 검토로</button>
+      </div>
+    </section>
     <section class="dw-card">
-      <h3>기호 <span class="dw-hint">누르면 LOGIC 영역 가운데에 놓입니다 · 끌어다 놓아도 됩니다</span></h3>
+      <h3>기호 <span class="dw-hint">누르면 LOGIC 영역 가운데에 놓입니다 · 끌어다 놓아도 됩니다 · 크기는 분석한 로직에서 배운 값</span></h3>
       <div id="palette" class="dw-palette"></div>
+    </section>
+    <section class="dw-card" id="macro-card">
+      <h3>매크로 <span class="dw-hint">타입(Typical 시트)마다 — 단자는 그 시트의 행</span></h3>
+      <div id="macro-list" class="dw-macros"></div>
     </section>
     <section class="dw-card">
       <h3>시트</h3>
@@ -57,8 +72,10 @@
         <label>시트 이름 <input id="f-sheet" placeholder="예: LD-001 · G034"></label>
         <label>제목 <input id="f-title" placeholder="예: FEED PUMP A START"></label>
         <label>문서 번호 <input id="f-doc" placeholder="예: 19VA-00GEN00-J09-0001"></label>
-        <label>행 수 (한쪽) <input id="f-rows" type="number" min="20" max="64" step="1"></label>
+        <label>행 수 (한쪽) <input id="f-rows" type="number" min="45" max="62" step="1"></label>
         <label>프로젝트 <select id="f-project"><option value="">(없음)</option></select></label>
+        <label>Typical 시트 <input type="checkbox" id="f-typical" title="매크로 블록의 내부 동작을 그린 장 — 매크로 카드에 타입으로 오릅니다"></label>
+        <label>노트 <textarea id="f-notes" rows="3" placeholder="한 줄에 하나 — 장 아래 NOTES 상자에 번호가 붙어 인쇄됩니다" title="장 노트 — 분석기가 NOTE 문장을 읽습니다 (예: OUTPUT STATE IS INVERTED BY EACH MOMENTARY TRUE SIGNAL ON &quot;SRST&quot;)"></textarea></label>
       </div>
       <p class="dw-hint">왼쪽 표 FROM 칸에 <b>시트-행</b>(G031-81 · 0016/72)을 적으면 분석기가 그 시트의 그 행과 잇습니다.  표 칸은 두 번 누르면 고칩니다.  제목은 문서 번호(숫자-숫자 꼴)가 있어야 분석기가 읽습니다.</p>
     </section>
@@ -74,10 +91,11 @@
       <h3>단축키</h3>
       <ul>
         <li><b>V</b> 선택 · <b>W</b> 선 · <b>D</b> 파선 · <b>H</b> 보기 · <b>Esc</b> 취소</li>
-        <li><b>Delete</b> 지우기 · <b>Ctrl+D</b> 복사 · 화살표 옮기기 (Shift 한 행)</li>
+        <li><b>Delete</b> 지우기 · <b>Ctrl+D</b> 복사 · <b>Ctrl+C / V</b> 복사 · 붙이기 (선까지) · 화살표 옮기기 (Shift 한 행)</li>
         <li><b>Ctrl+Z / Y</b> 되돌리기 · 다시 · <b>Ctrl+S</b> 저장</li>
         <li><b>Ctrl+휠</b> 확대 · 표 칸 두 번 누름 = 글 고치기</li>
         <li><b>G</b> 모눈 · <b>R</b> 눈금자 — 화면에만 보이고 내보내기에는 없습니다</li>
+        <li>FM/TO 칸의 <b>↗</b> = 그 시트 그 행으로 · 붉은 칸 = 연결 불일치 · 저장하면 상대 장의 칸을 저절로 채웁니다</li>
       </ul>
     </section>
   </aside>
