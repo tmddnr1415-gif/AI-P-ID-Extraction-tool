@@ -20,7 +20,7 @@ import argparse, datetime, os, py_compile, re, subprocess, sys, tempfile, zipfil
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 APP = 'dashboard'
 HERE = os.path.dirname(os.path.abspath(__file__))
-SKIP_PREFIX = ('deploy/',)
+SKIP_PREFIX = ('deploy/', 'apps/')   # apps/ (ROOM SIZE 계산 · 도서검토 등 연결 앱) 은 다른 작업 줄기에서 zip 을 냄 → 대시보드 zip 에서 뺌 (2026-10-25 사용자 지시)
 
 
 def git(*a, binary=False):
@@ -162,7 +162,7 @@ def main():
     for r in changed:
         print(f'  + {r}')
     for r in skipped:
-        print(f'  (제외, 서버 자동 생성) {r}')
+        print(f'  (제외: deploy/ = 서버 자동 생성 · apps/ = 다른 작업 줄기 zip) {r}')
     for r in deleted:
         print(f'  (삭제됨, 자동 처리 안 함) {r}')
     for w in warn:
