@@ -7,6 +7,7 @@ from __future__ import annotations
 import shutil
 from urllib.parse import quote
 
+import hashlib
 import json
 from fastapi import APIRouter, Body, File, Form, HTTPException, UploadFile
 from fastapi.responses import FileResponse, JSONResponse, Response
@@ -426,23 +427,26 @@ _SIM_CACHE: dict = {}          # L57 — 묶음 지문 → sim 캐시 (그림이
 _LIVE_CLEAN: dict = {}
 
 
-def _sim_docs(did: str, live: dict | None) -> list:
-    """시뮬레이션에 넣을 그림들 — 그 그림이 묶음에 들면 묶음 전체 · 아니면 그 그림 하나.  live(저장 전 화면 그림)가 있으면 그것으로 바꿔 넣는다."""
+def _sim_docs(did: str, live: dict | None):
+    """시뮬레이션에 넣을 그림들 — 그 그림이 묶음에 들면 묶음 전체 · 아니면 그 그림 하나.  live(저장 전 화면 그림)가 있으면 그것으로 바꿔 넣는다.
+    → (그림 목록, 그림마다 내용 열쇠).  L65 — 열쇠는 저장된 그림이면 (id · 고친 때 · 저장 횟수), 화면 그림이면 그 내용의 지문."""
     saved = _load(did)
-    docs = draw_sets.set_docs(saved["set"]) if saved.get("set") else [saved]
+    docs = list(draw_sets.set_docs(saved["set"], shared=True)) if saved.get("set") else [saved]
+    keys = {d["id"]: f'{d["id"]}:{d.get("updated")}:{d.get("saves")}' for d in docs}
     if live is not None:
         lk = json.dumps(live, sort_keys=True, default=str)          # L65 — 같은 화면 그림이면 다듬은 결과를 다시 쓴다 (신호만 바꿀 때)
         hit = _LIVE_CLEAN.get(did)
         if hit and hit[0] == lk:
-            cl = hit[1]
+            cur = hit[1]
         else:
-            cl = draw.clean(live); _LIVE_CLEAN.clear(); _LIVE_CLEAN[did] = (lk, cl)
-        cur = {**saved, **cl, "sheet_no": str(live.get("sheet_no") or saved.get("sheet_no") or "")[:40],
-               "title": str(live.get("title") or saved.get("title") or "")[:120], "typical": bool(live.get("typical", saved.get("typical")))}
+            cur = {**saved, **draw.clean(live), "sheet_no": str(live.get("sheet_no") or saved.get("sheet_no") or "")[:40],
+                   "title": str(live.get("title") or saved.get("title") or "")[:120], "typical": bool(live.get("typical", saved.get("typical")))}
+            _LIVE_CLEAN.clear(); _LIVE_CLEAN[did] = (lk, cur)
         docs = [cur if d["id"] == did else d for d in docs]
         if not any(d["id"] == did for d in docs):
             docs.append(cur)
-    return docs
+        keys[did] = "live:" + hashlib.sha1(lk.encode()).hexdigest() + ":" + keys.get(did, "")
+    return docs, keys
 
 
 @router.post("/logic/api/drawings/{did}/simulate")
@@ -453,17 +457,18 @@ def simulate_drawing(did: str, body: dict = Body(default={})):
     from . import draw_sim
     import hashlib
     live = body.get("doc") if isinstance(body.get("doc"), dict) else None
-    docs = _sim_docs(did, live)
-    sig = hashlib.sha1(json.dumps([{k: d.get(k) for k in ("id", "N", "sheet_no", "typical", "left", "right", "blocks", "wires")} for d in docs],
-                                  sort_keys=True, default=str).encode()).hexdigest()
+    docs, keys = _sim_docs(did, live)
+    sig = hashlib.sha1(json.dumps([keys[d["id"]] for d in docs]).encode()).hexdigest()
     cache = _SIM_CACHE.get(sig)
     if cache is None:
+        # L65 — 그림이 바뀌면 묶음 구조는 새로 짓되, 장마다의 계산(열쇠에 그 장의 지문이 든다)은 이어서 쓴다 — 고친 장만 다시 센다
+        keep = {"pages": next(iter(_SIM_CACHE.values())).get("pages", {})} if _SIM_CACHE else {}
         _SIM_CACHE.clear()
-        cache = _SIM_CACHE[sig] = {}
+        cache = _SIM_CACHE[sig] = keep
     def _d(v):
         return v if isinstance(v, dict) else {}
     try:
-        out = draw_sim.simulate(docs, did, forces=_d(body.get("forces")), state=_d(body.get("state")), timers=_d(body.get("timers")),
+        out = draw_sim.simulate(docs, did, keys=keys, forces=_d(body.get("forces")), state=_d(body.get("state")), timers=_d(body.get("timers")),
                                 analog=_d(body.get("analog")), cache=cache,
                                 inner=body.get("inner") if isinstance(body.get("inner"), list) else None)
     except Exception as e:                       # 그림이 아직 덜 그려져 있어도 화면이 멈추지 않는다 — 사유를 말한다
@@ -476,8 +481,8 @@ def simulate_drawing(did: str, body: dict = Body(default={})):
 def drawing_sheet(did: str):
     """그림을 분석 결과 시트 꼴로 (판정 없이 꼴만 — 시험 · 점검용)."""
     from . import draw_sim
-    docs = _sim_docs(did, None)
-    sheets = draw_sim.sheets_of(docs)
+    docs, keys = _sim_docs(did, None)
+    sheets = draw_sim.sheets_of(docs, keys)
     return next((s for s in sheets if s.get("did") == did), sheets[0] if sheets else {})
 
 

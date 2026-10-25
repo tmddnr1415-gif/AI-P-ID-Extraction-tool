@@ -79,6 +79,12 @@ try:
             pg.evaluate("() => { window._r = S.sim.res; }"); t = time.time()
             pg.evaluate(f"setForce(S.id, 'row:{r}', 1)"); pg.wait_for_function("() => S.sim.res !== window._r", timeout=60000); tf.append((time.time() - t) * 1000)
         R["sim_force_ms"] = med(tf)
+        te = []                                                        # 시뮬레이션 중에 그림을 고치면 (기호 하나 옮김) 다시 돌기까지
+        for k in range(4):
+            pg.evaluate("() => { window._r = S.sim.res; }"); t = time.time()
+            pg.evaluate("() => { const b = S.doc.blocks[0]; if (b) { b.x += 0.5; } markDirty(); render(); }")
+            pg.wait_for_function("() => S.sim.res !== window._r", timeout=60000); te.append((time.time() - t) * 1000)
+        R["sim_edit_ms"] = med(te)
         R["errors"] = errors[:3]
         br.close()
 finally:

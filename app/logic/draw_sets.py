@@ -46,7 +46,27 @@ def ref_sep(docs: list) -> str | None:
 
 # ─────────────────────────── 묶음 ───────────────────────────
 
-def set_docs(sid: str) -> list:
+_SET_DOCS: dict = {}           # L65 — 묶음 → (그림 파일들의 도장, 그림 목록).  shared=True 는 고치지 않는 쪽(시뮬레이션)만 쓴다
+
+
+def set_docs(sid: str, shared: bool = False) -> list:
+    if shared:
+        stamps = []
+        for d in sorted(draw.root().iterdir()):
+            try:
+                st = (d / "drawing.json").stat()
+            except OSError:
+                continue
+            stamps.append((d.name, st.st_mtime_ns, st.st_size, st.st_ino))
+        stamps = tuple(stamps)
+        hit = _SET_DOCS.get(sid)
+        if hit and hit[0] == stamps:
+            return hit[1]
+        docs = set_docs(sid)
+        if len(_SET_DOCS) > 16:
+            _SET_DOCS.clear()
+        _SET_DOCS[sid] = (stamps, docs)
+        return docs
     out = []
     for d in sorted(draw.root().iterdir()):
         p = d / "drawing.json"

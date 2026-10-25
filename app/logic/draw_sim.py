@@ -284,6 +284,16 @@ def to_sheet(doc: dict, page: int, typ_pages: dict | None = None) -> dict:
     for i, w in enumerate(wires):
         for q in (w["pts"][0], w["pts"][-1]):
             ends.append((q[0], q[1], net_of[i]))
+    end_cells = defaultdict(list)                         # L65 — 선 끝 색인 (블록마다 그 상자 근처 끝만 · 원래 순서)
+    for k, (ex, ey, _) in enumerate(ends):
+        end_cells[(int(ex // CELL), int(ey // CELL))].append(k)
+
+    def ends_near(x0, y0, x1, y1):
+        ks = []
+        for cx in range(int((x0 - TOL) // CELL), int((x1 + TOL) // CELL) + 1):
+            for cy in range(int((y0 - TOL) // CELL), int((y1 + TOL) // CELL) + 1):
+                ks.extend(end_cells.get((cx, cy), ()))
+        return [ends[k] for k in sorted(ks)]
     for bid, b in drawn.items():
         sb = _block(b, doc.get("notes") or ())
         blocks[bid] = sb
@@ -310,7 +320,8 @@ def to_sheet(doc: dict, page: int, typ_pages: dict | None = None) -> dict:
         # 상자 변 · 입력 막대에 닿은 선 끝은 전부 단자다 (분석기 graph: 막대에 닿은 선 = 입력 · 변에 닿은 선 = 그 변의 단자)
         x0, y0, x1, y1 = b["x"], b["y"], b["x"] + b["w"], b["y"] + b["h"]
         bar = D.bar_of(b) if spec.get("bar") else None
-        for ex, ey, _ in ends:
+        bx0, by0, bx1, by1 = min(x0, bar[0]) if bar else x0, min(y0, bar[1]) if bar else y0, max(x1, bar[2]) if bar else x1, max(y1, bar[3]) if bar else y1
+        for ex, ey, _ in ends_near(bx0, by0, bx1, by1):
             if bar and abs(ex - bar[0]) <= TOL and bar[1] - TOL <= ey <= bar[3] + TOL:
                 add(ex, ey, "in", "", 0)
             elif abs(ex - x0) <= TOL and y0 - TOL <= ey <= y1 + TOL:
@@ -467,14 +478,33 @@ def _apply_texts(doc, wires, segs, net_of, blocks, rows):
 
 # ───────────────────────────── 묶음 ─────────────────────────────
 
-def sheets_of(docs: list) -> list:
+_SHEET_MEMO: dict = {}         # L65 — 그림 내용 지문 → to_sheet 결과(pickle).  묶음에서 고친 장만 다시 바꾼다 (받을 때마다 새 사본 — 뒤에서 고쳐 쓴다)
+
+
+def _to_sheet_memo(doc: dict, page: int, typ_pages: dict, dkey: str | None = None) -> dict:
+    import hashlib, json, pickle
+    if dkey:                                             # 부르는 쪽이 그림 내용 열쇠를 안다 (저장 기록 · 화면 그림 지문)
+        key = json.dumps([dkey, page, sorted(typ_pages.items())])
+    else:
+        key = hashlib.sha1(json.dumps([doc, page, sorted(typ_pages.items())], sort_keys=True, default=str).encode()).hexdigest()
+    hit = _SHEET_MEMO.get(key)
+    if hit is not None:
+        return pickle.loads(hit)
+    sh = to_sheet(doc, page, typ_pages)
+    if len(_SHEET_MEMO) > 3000:
+        _SHEET_MEMO.clear()
+    _SHEET_MEMO[key] = pickle.dumps(sh, protocol=pickle.HIGHEST_PROTOCOL)
+    return sh
+
+
+def sheets_of(docs: list, keys: dict | None = None) -> list:
     """묶음의 그림들 → 시트 목록 (page = 1..) · FROM/TO 잇기 · 연산자 이름 · 매크로 ↔ Typical."""
     from . import fromto, aops
     typ_pages = {}
     for i, d in enumerate(docs):
         if d.get("typical") and (d.get("sheet_no") or "").strip():
             typ_pages[d["sheet_no"].strip()] = i + 1
-    sheets = [to_sheet(d, i + 1, typ_pages) for i, d in enumerate(docs)]
+    sheets = [_to_sheet_memo(d, i + 1, typ_pages, (keys or {}).get(d.get("id"))) for i, d in enumerate(docs)]
     try:
         fromto.check(sheets)
     except Exception:
@@ -486,14 +516,14 @@ def sheets_of(docs: list) -> list:
     return sheets
 
 
-def simulate(docs: list, focus_did: str, forces=None, state=None, timers=None, analog=None, cache=None, inner=None) -> dict:
+def simulate(docs: list, focus_did: str, forces=None, state=None, timers=None, analog=None, cache=None, inner=None, keys=None) -> dict:
     """묶음째 시뮬레이션 — 열쇠는 그림 id (화면이 아는 것).  → sim.simulate_bundle 결과 + focus 장의 그물 ↔ 선 id 지도.
     inner = ["<그림 id>:<매크로 상자 id>", …] — 열린 매크로 새 창마다, 부모 장에 펼쳐 같이 돈 Typical 안의 값(틀마다 · Typical 선 이름)을
     `macro_inner` 로 낸다 (L59 · 검토 화면 L44 와 같은 값 — sim.simulate_bundle 의 macro_inner 그대로, 쪽 번호만 그림 id 로)."""
     from . import sim
     sheets = (cache or {}).get("sheets") if cache is not None else None
     if sheets is None:
-        sheets = sheets_of(docs)
+        sheets = sheets_of(docs, keys)
         if cache is not None:
             cache["sheets"] = sheets
     page_of = {s["did"]: s["page"] for s in sheets}
