@@ -5549,6 +5549,8 @@ from app import dcs as _dcs                          # 간략화 DCS 그래픽 �
 app.include_router(_dcs.router)
 from app import space as _space                      # 판넬 공간확보 — /space (hotfix106 · P&ID · LOGIC 과 같은 서버)
 app.include_router(_space.router)
+from app import books as _books                      # 계장도서검토 — /books · /api/books (hotfix115 · 같은 서버 · 판정과 무관)
+app.include_router(_books.router)
 from app import plaza as _plaza                      # 가상 광장 — 대시보드 iframe 용 (판정과 무관 · 메모리만)
 app.include_router(_plaza.router)
 app.mount("/static", StaticFiles(directory=STATIC), name="static")

@@ -19,7 +19,7 @@
 > 밸브 모양 사전은 `python spike/shape_train.py --pdf … --verdicts out/verdicts/<이름>.json` 으로 만듭니다 (`docs/voc.md`).
 
 > **★ 업데이트 zip 은 어디서 만드나 (사용자 지시 2026-10-22)**
-> **P&ID · LOGIC · 판넬 공간확보** 의 zip 은 **이 저장소(이 브랜치)** 에서 만든다.
+> **P&ID · LOGIC · 판넬 공간확보 · 계장도서검토** 의 zip 은 **이 저장소(이 브랜치)** 에서 만든다 (도서 검토는 hotfix115 부터 `/books`).
 > **Dashboard(대시보드 본체 · `dashboard.html` · `server.py`) 와 계장 광장** 의 zip 은
 > **"계장ENG 주간업무 Dashboard 코드"** 쪽에서 만든다 — 여기서는 대시보드·광장 zip 을 만들지 않는다.
 > 판넬 공간확보의 화면 코드(`apps/space/`)는 여기서 묶고, 대시보드에 메뉴를 거는 줄과 서버 저장 API 는
@@ -5048,6 +5048,22 @@ hotfix111 의 시스템 한 장 장면이 [절전 대비 보관] 목록에 없�
    B 가 A 의 이름을 빼앗았다).  명사는 `FOR` 앞의 마지막 명사(`SLOP OIL TANK FOR … PUMP AREA` 는 탱크).  화면에서 회전 기기는 버블 2.4배
    이상으로 그린다 (점처럼 보이던 것).  실측 AL NOUF1 p14 2 · p20 2 · p32 4 · p33 6 · p35 2 · p46 3.  ⚠ 피트형 펌프(p26 · p52)는 모양이
    달라 아직 못 찾는다.  시험 +1 (`test_pumps_named_below_their_round_body`).
+
+**그 다음 — LOGIC L47~L67 병합 · 계장도서검토를 같은 서버로 (hotfix115 · 판정 0줄)**
+
+사용자: *"Logic분석 pid 분석 panel 도서 검토 업데이트 파일 만들어줘."*  한 꾸러미(`out/PID_dev+ops_hotfix115_*.zip`).
+
+1. **LOGIC 병합** — `claude/logic-review-design-pd2z75` 의 L47~L67 (작도 `/logic/draw` · 동작 학습 저우선순위 · 기능 책 ·
+   needs · 읽기 빈틈 …).  충돌 넷: HMI 파일은 **우리 /dcs 판**을 남기고 그쪽 H1 원본(`app/hmi/api.py` · `hmi.html` ·
+   `tests/test_hmi.py` — hotfix110 이 이미 들여와 고친 것)은 뺐다.  `behavior.learn_dir` 는 hotfix101(사유 파일 · 박동)과
+   L47(사람 값이 조용해진 뒤 · 열쇠가 바뀌면 `Stale` 로 멈춤)을 한 함수로 — `--behavior` 는 박동을 세운 채 `wait_quiet`.
+2. **계장도서검토 = `/books/` · `/api/books/*`** (`app/books.py`).  화면 `app/static/books/` 와 API `app/books_api.py` 는
+   `claude/new-session-v23o67` 의 `dashboard/apps/books/` · `dashboard/books_api.py` 를 **그대로** 들여왔다 — API 는 대시보드
+   Handler 를 받는 꼴이라 `_H` 어댑터가 흉내 낸다(고치지 않는다 · 다음에 바뀌면 파일만 바꿔 넣는다).  원본 파일만 FileResponse
+   로 (같은 `safe_join` 검사).  운영자 = 서버 PC(루프백) · 부서원 = `?user=` → 화면이 X-Author (화면에 두 줄 더함) ·
+   그룹장 명단은 이 서버에 없다(managers 만).  저장 `{data}/books/`.  왼쪽 메뉴에 판넬 · 도서 항목.
+   시험 `tests/test_hotfix115_books.py` 4건 · 띄워서 색인 → 검색 → 미리보기 확인(페이지 오류 0).
+   ⚠ 대시보드에서 이미 만든 색인은 옮기지 않는다 — 이 서버에서 한 번 [색인 갱신].
 
 ## 4. 미해결 과제 (다음 단계 후보) — 우선순위 순
 
