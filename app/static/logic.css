@@ -894,3 +894,6 @@ body.pane-review .rv-scroll { max-height: calc(100vh - 330px); }
 .lg-needs .nd-none.gap{color:#9a4b00;background:#fff4e8;border-radius:6px;padding:4px 8px;margin:4px 0}
 #needs .sp-h b{white-space:nowrap}
 #needs-sum{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:48%;display:inline-block;vertical-align:bottom}
+
+/* L54 — 작도 하위 메뉴 */
+.lg-head .lg-draw { text-decoration: none; font-size: 13px; padding: 4px 10px; border-radius: 6px; }

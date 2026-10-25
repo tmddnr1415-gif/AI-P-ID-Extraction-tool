@@ -6647,3 +6647,27 @@ SHX 글꼴은 **획으로 플롯**되고 원문은 `AutoCAD SHX Text` 주석에 
 * ⚠ 1A1Y 점검의 '1 이 된 선' 338 → 319 는 퇴보가 아니다 — 예전엔 DI·투표 블록이 '신호원' 으로 잘못 분류돼 점검이 그 출력을 입력처럼
   켰다.  이제 진짜 게이트라 켤 수 없고 그 뒤 선은 '신호원 0' 갈래(62)로 센다.
 * 남은 것: 1A5J 몰이 없는 선 100 · 판정 못 한 블록 56 (대부분 Σ·DEV 등 아날로그 — 결과를 읽을 때 식별) · 19VA P 시트 아날로그 선 끝.
+
+### L54회차 — LOGIC 작도: 같은 양식으로 그리는 하위 메뉴 (2026-10-25)
+
+* 사용자 지시: *저 로직을 캐드 환경에서 동일한 포맷으로 그릴 수 있는 툴 — LOGIC 분석 밑 하위 메뉴로.*  왼쪽 메뉴 `LOGIC 작도`(`#nav-logic-draw` · `/logic/draw`) ·
+  LOGIC 화면 머리줄 `✎ 작도`.  `app/logic/draw.py`(문서 · 기호 사전 `SYMBOLS` · `block_geometry`/`ports_of` · PDF `to_pdf` · DXF `to_dxf` · 되읽기 `verify` ·
+  분석 시트 → 그림 `from_sheet` · 저장 `{data}/logic/drawings/<id>/drawing.json` jsonstore · 작성자 필수 · 지우면 `deletion_log`) · `app/logic/draw_api.py`
+  (`/logic/api/drawings` · `/symbols` · `{id}` GET/PUT/DELETE · `export.pdf` · `export.dxf` · `verify` · `analyse` = PDF 로 내보내 LOGIC 묶음으로 올림) ·
+  `app/static/logic_draw.html/.js/.css` (SVG 작도기 · 좌표는 PDF 포인트 · 기호 기하는 서버와 같은 규칙 `geom()` · 선은 행 자리/단자 자석 + 직각 꺾임 ·
+  표 칸 두 번 누름 편집 · 되돌리기 · 속성 판 · 되읽기 검증 결과를 붉게).  **판정 코드를 부르지 않는다** — verify 만 `analyse.analyse` 를 그대로 부른다.
+* **★ 양식 = 분석기가 읽는 꼴이 곧 기호 정의다.**  `tests/test_logic_l23_generic.py` 의 합성 장과 같은 표(긴 괘선 · 진짜 글자 머리글 · SHEET NO. 캡션)에
+  글자 상자(AND · OR · NAND · NOR · NOT · GT · DT · PD · `2/3` · S/R 두 칸 · PB · ANN · SOE)와 꼭지 삼각형 붙은 원을 그린다 — `blocks.isa_word` · `_drawn` 이 그대로 읽는다.
+  되읽기 시험: 열네 기호 전부 같은 종류 · 입출력 수 · 행 글 · 시트 이름 · 시간/투표/우선 칸 그대로 (`tests/test_logic_l54_draw.py` 6건).
+  제목은 문서 번호(`\d+-\d+` · 오른쪽 반) **위** 글줄에서 읽히므로(`glyphs._title_lines`) 타이틀블록을 그렇게 그린다 — 문서 번호를 비우면 제목이 안 읽힌다.
+* **분석기 고침 둘** (작도 PDF 를 되읽다 드러남 · 네 묶음 HRSG · 1A5J · 1A1Y · 19VA 구조 전수 대조 **다른 칸 0**):
+  ① `blocks._drawn` — `CONNECTOR` 종류(꼭지 삼각형 붙은 원)는 범례 열쇠에 맞대지 않는다 (진짜 글자 `A` 가 19VA 사전의 `|A` 아날로그 신호 발생기로 읽혔다) ·
+  연결 기호 글자를 선 글자에서 못 읽으면 원 안 **진짜 글자 하나(1~2자)** 로 · `_connector_groups` 는 그림 없는 연결 기호를 글자가 같을 때만 묶는다.
+  ② `analyse._timer_params` — 창 안에 글줄이 둘 이상이면 **블록에 가장 가까운 줄**의 초 (두 행 간격으로 쌓인 타이머의 아래 글이 위 타이머 창에 든다).
+  바뀐 값 1A5J 0016 1곳(5→2 · OFF DELAY 가 위 ON 의 5SEC 를 가져갔다) · 19VA 9곳(10→5 · 3→1 …) — **전부 그림으로 확인 · 전부 교정**.  HRSG · 1A1Y 0.
+* **화면 자기검증** `spike/ui_audit_draw.py` (사본 데이터 · 크롬 · `out`… 아님 scratch): 새 그림 → 기호 셋(AND · GT 3초 · PB START) → 선 6 → 표 칸 9 → 저장 →
+  되읽기 "전부 같게 읽혔습니다"(블록 3/3 · 행 6/6 · 그물 6 · 매달림 0) → PDF/DXF → 검토로 보내기(묶음 done · 1장 · 식별률 1.0) → 가져오기(블록 3 · 선 12) · 페이지 오류 0.
+  잡은 결함 넷 — `[hidden]` 이 `.dw-modal` 의 `display:flex` 에 짐(H1 과 같음 → `!important`) · 자판이 `#stage` 에만 듣다 속성 칸에서 나오면 W/V 가 안 들음(문서 전체로) ·
+  SVG 안내선 class `ghost` 가 머리줄 `.dw-btn.ghost` 와 겹쳐 **단추가 pointer-events:none** (→ `wipline`) · 가져오기 대화상자가 `await modal()` 뒤에 목록을 채워 영영 비어 있음.
+* DXF 는 ezdxf R2010 · 층 TABLE/TEXT/SYMBOL/WIRE/DASHED/TITLE · y 뒤집기 한 곳 · 다시 열어 선 수 = 그린 선 수 (시험).  LOGIC 시험 285 · 빠른 시험 1426 통과 (hotfix75 교착 시험 제외).
+* **못 한 것**: 매크로 상자 팔레트(Typical 시트 그리기가 먼저) · 여러 장을 한 PDF 로 합치기 · 작도 화면의 시뮬레이션(검토로 보내기가 그 길).

@@ -382,7 +382,15 @@ def _timer_params(sh, D):
         near = sorted((w for w in sh.words if w[2] > x0 - h and w[0] < x1 + h and
                        ((y1 - 0.5 <= w[1] < y1 + 1.3 * h) or (y0 - 1.3 * h < w[3] <= y0 + 0.5))),
                       key=lambda w: (round(w[1]), w[0]))
-        m = re.search(r"(\d+(?:\.\d+)?)\s*(SEC|S|MIN|M)\b", " ".join(w[4] for w in near).upper())
+        # L54 — 글줄이 둘 이상 들면(두 행 간격으로 쌓인 타이머의 아래 글이 다음 타이머의 위 창에 든다) **블록에 가장 가까운 줄**부터
+        lines = {}
+        for w in near:
+            lines.setdefault(round(w[1]), []).append(w)
+        m = None
+        for _, ws in sorted(lines.items(), key=lambda kv: min(abs(kv[1][0][1] - y1), abs(y0 - kv[1][0][3]))):
+            m = re.search(r"(\d+(?:\.\d+)?)\s*(SEC|S|MIN|M)\b", " ".join(w[4] for w in ws).upper())
+            if m:
+                break
         if m:
             v = float(m.group(1)) * (60 if m.group(2).startswith("M") else 1)
             out[b.id] = {"t": int(v) if v == int(v) else v, "text": f"t={m.group(1)}{m.group(2).lower()}"}

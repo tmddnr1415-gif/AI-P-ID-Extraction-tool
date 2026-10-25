@@ -1554,3 +1554,7 @@ def teach_crop(job: str, page: int, x0: float, y0: float, x1: float, y1: float):
         return Response(pix.tobytes("png"), media_type="image/png", headers={"Cache-Control": "max-age=3600"})
     except (IndexError, RuntimeError, ValueError):
         raise HTTPException(404, "그 장을 그리지 못했습니다.")
+
+
+from . import draw_api as _draw_api          # L54 — LOGIC 작도 (/logic/draw · /logic/api/drawings/*)
+router.include_router(_draw_api.router)

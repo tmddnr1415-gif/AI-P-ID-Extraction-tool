@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LOGIC 작도</title>
+<link rel="stylesheet" href="/static/logic_draw.css">
+</head>
+<body>
+<header class="dw-head">
+  <a class="dw-back" href="/logic" title="LOGIC 검토 화면으로">← LOGIC 검토</a>
+  <h1>LOGIC 작도</h1>
+  <select id="pick" title="저장된 그림"><option value="">(그림을 고르세요)</option></select>
+  <button id="new" class="dw-btn" title="빈 양식으로 새 그림">＋ 새 그림</button>
+  <button id="import" class="dw-btn" title="분석한 Logic 시트를 이 양식으로 가져와 고친다">⇩ 분석 시트에서</button>
+  <span class="dw-sep"></span>
+  <input id="name" class="dw-name" placeholder="그림 이름" disabled>
+  <label class="dw-who" title="저장에 남는 이름 (대시보드 로그인 이름이 있으면 그것)">✎ <input id="who" placeholder="이름"></label>
+  <button id="save" class="dw-btn pri" disabled title="저장 (Ctrl+S)">저장</button>
+  <button id="verify" class="dw-btn" disabled title="그린 것을 PDF 로 내보내 분석기에 다시 넣어 같은 블록 · 선 · 행이 읽히는지 확인한다">✔ 되읽기 검증</button>
+  <a id="pdf" class="dw-btn ghost" href="#" hidden title="같은 양식의 PDF 로 내려받기">PDF</a>
+  <a id="dxf" class="dw-btn ghost" href="#" hidden title="CAD 로 가져갈 DXF 로 내려받기">DXF</a>
+  <button id="analyse" class="dw-btn ghost" disabled title="PDF 로 내보내 LOGIC 검토 묶음으로 올린다 — 시뮬레이션 · 정합성 검토를 그대로 쓴다">▶ 검토로 보내기</button>
+  <button id="del" class="dw-btn danger" disabled title="이 그림을 지운다 (기록은 남는다)">지우기</button>
+  <span id="status" class="dw-status"></span>
+</header>
+
+<main class="dw-main">
+  <aside class="dw-side">
+    <section class="dw-card">
+      <h3>도구</h3>
+      <div class="dw-tools">
+        <button data-tool="select" class="on" title="고르기 · 옮기기 (V)">↖ 선택</button>
+        <button data-tool="wire" title="신호선 — 자리를 차례로 누르고 두 번 누르거나 Enter 로 끝 (W)">╱ 선</button>
+        <button data-tool="dash" title="파선 신호선 (D)">╌ 파선</button>
+        <button data-tool="pan" title="끌어서 보기 (H · 가운데 단추 · Space+끌기)">✋ 보기</button>
+      </div>
+      <div class="dw-zoom">
+        <button id="zout" title="축소">−</button><span id="zval">100%</span><button id="zin" title="확대">＋</button>
+        <button id="zfit" title="화면에 맞춤">맞춤</button>
+        <label title="그릴 때 자리를 반 행 격자에 맞춘다"><input type="checkbox" id="snap" checked> 격자</label>
+      </div>
+    </section>
+    <section class="dw-card">
+      <h3>기호 <span class="dw-hint">누르면 LOGIC 영역 가운데에 놓입니다 · 끌어다 놓아도 됩니다</span></h3>
+      <div id="palette" class="dw-palette"></div>
+    </section>
+    <section class="dw-card">
+      <h3>시트</h3>
+      <div class="dw-form">
+        <label>시트 이름 <input id="f-sheet" placeholder="예: LD-001 · G034"></label>
+        <label>제목 <input id="f-title" placeholder="예: FEED PUMP A START"></label>
+        <label>문서 번호 <input id="f-doc" placeholder="예: 19VA-00GEN00-J09-0001"></label>
+        <label>행 수 (한쪽) <input id="f-rows" type="number" min="20" max="64" step="1"></label>
+        <label>프로젝트 <select id="f-project"><option value="">(없음)</option></select></label>
+      </div>
+      <p class="dw-hint">왼쪽 표 FROM 칸에 <b>시트-행</b>(G031-81 · 0016/72)을 적으면 분석기가 그 시트의 그 행과 잇습니다.  표 칸은 두 번 누르면 고칩니다.  제목은 문서 번호(숫자-숫자 꼴)가 있어야 분석기가 읽습니다.</p>
+    </section>
+    <section class="dw-card" id="props-card" hidden>
+      <h3>속성 <span id="props-kind" class="dw-hint"></span></h3>
+      <div id="props" class="dw-form"></div>
+    </section>
+    <section class="dw-card" id="verify-card" hidden>
+      <h3>되읽기 검증 <span id="verify-sum" class="dw-hint"></span></h3>
+      <div id="verify-out" class="dw-verify"></div>
+    </section>
+    <section class="dw-card dw-help">
+      <h3>단축키</h3>
+      <ul>
+        <li><b>V</b> 선택 · <b>W</b> 선 · <b>D</b> 파선 · <b>H</b> 보기 · <b>Esc</b> 취소</li>
+        <li><b>Delete</b> 지우기 · <b>Ctrl+D</b> 복사 · 화살표 옮기기 (Shift 한 행)</li>
+        <li><b>Ctrl+Z / Y</b> 되돌리기 · 다시 · <b>Ctrl+S</b> 저장</li>
+        <li><b>Ctrl+휠</b> 확대 · 표 칸 두 번 누름 = 글 고치기</li>
+      </ul>
+    </section>
+  </aside>
+
+  <section id="stage" class="dw-stage" tabindex="0">
+    <div id="scroll" class="dw-scroll">
+      <svg id="svg" xmlns="http://www.w3.org/2000/svg"></svg>
+      <input id="cellin" class="dw-cellin" hidden>
+    </div>
+    <div id="empty" class="dw-empty">왼쪽 위에서 그림을 고르거나 <b>＋ 새 그림</b> 을 누르세요.</div>
+  </section>
+</main>
+
+<div id="modal" class="dw-modal" hidden>
+  <div class="dw-modal-box">
+    <h3 id="m-title"></h3>
+    <div id="m-body"></div>
+    <div class="dw-modal-foot"><button id="m-cancel" class="dw-btn ghost">취소</button><button id="m-ok" class="dw-btn pri">확인</button></div>
+  </div>
+</div>
+<div id="toast" class="dw-toast" hidden></div>
+<script src="/static/logic_draw.js"></script>
+</body>
+</html>

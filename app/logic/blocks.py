@@ -291,6 +291,12 @@ def classify(sheet, D):
                 b.func = "CONNECTOR"
                 b.logic = "connector"
                 b.label = ch if (cs and s >= MIN_SCORE) else "?"
+                if b.label == "?" and not cs:
+                    # L54 — 글자를 진짜 글자로 인쇄한 양식(작도기 · 19VA): 원 안의 짧은 낱말 하나가 연결 기호의 글자
+                    from . import legend as LG
+                    tx = [x.replace(" ", "") for x in LG.block_text(b, sheet.words) if x and x.strip()]
+                    if len(tx) == 1 and 1 <= len(tx[0]) <= 2 and tx[0].isalnum():
+                        b.label = tx[0]
                 b.score = round(s, 3)
                 b.raster = cs[0].raster if cs else None
                 continue
@@ -341,6 +347,8 @@ def _drawn(b, sheet, leg, mem_set, mem_reset):
     블록 안에 진짜 글자도 모양도 없으면 False (예전 길 — 선 글자 사전).
     """
     from . import legend as LG
+    if b.kind == "CONNECTOR":
+        return False                  # L54 — 꼭지 삼각형이 붙은 원은 모양으로 이미 연결 기호다 · 범례 열쇠(`|A` = 아날로그 발생기)에 맞대지 않는다
     if _ansi(b, sheet):
         return True
     if not leg:
@@ -840,12 +848,16 @@ def _split_stacked(sheet, split, funcs, words):
 
 def _connector_groups(sheet):
     """같은 장의 연결 기호를 **그림이 같은 것끼리** 묶는다 (글자를 몰라도 같은 글자인지는 안다)."""
-    cons = [b for b in sheet.blocks.values() if b.func == "CONNECTOR" and getattr(b, "raster", None)]
+    cons = [b for b in sheet.blocks.values() if b.func == "CONNECTOR" and (getattr(b, "raster", None) is not None or b.label != "?")]
     groups = []
     for b in cons:
         for g in groups:
-            same = (b.label == g[0].label) if (b.label != "?" and g[0].label != "?") else \
-                glyphs.score(b.raster, g[0].raster) >= 0.75
+            if b.label != "?" and g[0].label != "?":
+                same = b.label == g[0].label
+            elif getattr(b, "raster", None) is None or getattr(g[0], "raster", None) is None:
+                same = False                  # L54 — 글자로만 읽은 연결 기호는 그림이 없어 글자가 같을 때만 묶인다
+            else:
+                same = glyphs.score(b.raster, g[0].raster) >= 0.75
             if same:
                 g.append(b)
                 break
