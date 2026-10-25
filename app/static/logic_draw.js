@@ -90,7 +90,9 @@ function geomCore(b) {
   if (spec.note) { g.box = null; g.texts.push([x + w / 2, y + h / 2, b.text, Math.min(h * 0.8, 8)]); return g; }
   if (spec.macro) {
     const p = b.param || {}, title = p.title || b.text || "";
-    wrapText(title, Math.max(8, Math.floor(w / 2.6))).slice(0, 2).forEach((ln, i) => g.texts.push([x + w / 2, y + 0.5 * P + i * 0.6 * P, ln, 4.6]));
+    const big = String(title).includes(" | ");            // L58 — 줄을 명시한 이름(`FG COMPR SYS | GRP`)은 첫 줄을 크게 (서버 _wrap 과 같은 구분자)
+    const lines = big ? String(title).split(" | ").map(t => t.trim()).filter(Boolean) : wrapText(title, Math.max(8, Math.floor(w / 2.6)));
+    lines.slice(0, 3).forEach((ln, i) => g.texts.push([x + w / 2, y + 0.5 * P + i * 0.6 * P + (big && i ? 0.15 * P : 0), ln, big && i === 0 ? 6.5 : 4.6]));
     for (const q of p.pins_in || []) g.texts.push([x + 1.5, y + q.dy, q.name, 4.2, "start"]);
     for (const q of p.pins_out || []) g.texts.push([x + w - 1.5, y + q.dy, q.name, 4.2, "end"]);
     return g;
@@ -157,6 +159,7 @@ function render() {
     el("polyline", { points: pts, class: "wirehit", "data-id": w.id }, wg);
     el("polyline", { points: pts, class: "wire" + (w.dashed ? " dashed" : "") + (S.selWire === w.id ? " sel" : ""), "data-id": w.id }, wg);
     for (const [dx, dy] of w.dots || []) el("circle", { cx: dx, cy: dy, r: 0.12 * layout().PITCH, class: "dot", "data-id": w.id }, wg);
+    for (const [mx, my, kind] of w.marks || []) el("polygon", { points: markPolygon(mx, my, kind).map(q => q.join(",")).join(" "), class: "mark", "data-id": w.id }, wg);
     const tri = arrowOf(w); if (tri) el("polygon", { points: tri.map(q => q.join(",")).join(" "), class: "arrow", "data-id": w.id }, wg);
     if (w.label) { const [lx, ly] = wireLabelPos(w); const e = txt(wg, lx, ly, w.label, 4.5, "middle"); e.setAttribute("class", "wlabel"); e.dataset.id = w.id; }
     if (S.selWire === w.id) w.pts.forEach((p, i) => el("circle", { cx: p[0], cy: p[1], r: 1.8, class: "vtx", "data-id": w.id, "data-i": i }, wg));
@@ -215,7 +218,29 @@ function renderNotes(svg, L) {           // L56 — 장 노트 상자 (서버 NO
   txt(g, 34, 787, "NOTES", 5.5);
   notes.slice(0, 20).forEach((t, i) => { const c = Math.floor(i / 6), r = i % 6; txt(g, 34 + c * 170, 794 + r * 6.2, `${i + 1}. ${t}`, 4.5); });
 }
+function renderTitleA5j(svg, L) {       // 서버 draw._a5j_frame 과 같은 자리 — LOGIC 머리글 · 테두리 · NOTE · 삼성 C&T 타이틀블록
+  const g = el("g", { class: "title" }, svg);
+  el("line", { x1: L.LX0, y1: L.TOP - 2 * L.PITCH, x2: L.LX1, y2: L.TOP - 2 * L.PITCH }, g);
+  txt(g, (L.LX0 + L.LX1) / 2, L.TOP - L.PITCH + 2.5, "LOGIC", 7, "middle");
+  el("rect", { x: 16, y: 16, width: 1175 - 16, height: 836 - 16 }, g);
+  el("rect", { x: 23, y: 23, width: 1175 - 30, height: 836 - 30 }, g);
+  txt(g, 34, 792, "NOTE :", 8);
+  const x0 = 900, y0 = 735, x1 = 1160, y1 = 830, rows = [y0, y0 + 18, y0 + 50, y0 + 78, y1];
+  el("rect", { x: x0, y: y0, width: x1 - x0, height: y1 - y0 }, g);
+  for (const yy of rows.slice(1, -1)) el("line", { x1: x0, y1: yy, x2: x1, y2: yy }, g);
+  el("line", { x1: x0 + 170, y1: rows[2], x2: x0 + 170, y2: rows[4] }, g); el("line", { x1: x0 + 215, y1: rows[2], x2: x0 + 215, y2: rows[4] }, g);
+  const cap = (x, y, t) => txt(g, x + 2, y + 5, t, 3.6);
+  cap(x0, rows[0], "PROJECT NAME"); txt(g, (x0 + x1) / 2 + 20, rows[0] + 15, S.doc.project_name || "", 8, "middle");
+  cap(x0, rows[1], "DRAWING TITLE"); txt(g, (x0 + x1) / 2 + 20, rows[1] + 11, "CONTROL LOGIC & LOOP DIAGRAM", 5.5, "middle"); txt(g, (x0 + x1) / 2 + 20, rows[1] + 19, S.doc.title || "", 6, "middle");
+  cap(x0, rows[2], "PROJECT DWG NO."); txt(g, x0 + 85, rows[2] + 12, S.doc.doc_no || "", 6.5, "middle");
+  cap(x0 + 170, rows[2], "SHEET"); txt(g, x0 + 185, rows[2] + 13, S.doc.sheet_no || "", 6.5, "middle");
+  cap(x0 + 215, rows[2], "REV."); txt(g, x0 + 237, rows[2] + 13, S.doc.rev || "", 6.5, "middle");
+  cap(x0, rows[3] + 7, "PROJECT NO."); txt(g, x0 + 85, rows[3] + 15, S.doc.project || "", 5, "middle");
+  cap(x0 + 170, rows[3] + 7, "SCALE"); txt(g, x0 + 205, rows[3] + 15, "NONE", 4.5, "middle");
+  cap(x0 + 215, rows[3] + 7, "REF. CODE"); txt(g, x0 + 250, rows[3] + 15, "-", 4.5, "middle");
+}
 function renderTitle(svg, L) {
+  if (S.doc && S.doc.form === "a5j") return renderTitleA5j(svg, L);
   const g = el("g", { class: "title" }, svg);
   el("rect", { x: 560, y: 780, width: 610, height: 50 }, g);
   el("line", { x1: 1060, y1: 780, x2: 1060, y2: 830 }, g);
@@ -225,8 +250,25 @@ function renderTitle(svg, L) {
   txt(g, 1070, 792, "SHEET NO.", 5);
   txt(g, 1068, 815, S.doc.sheet_no || "", 9);
 }
+const SHAPE_KINDS = ["AND", "OR", "NOT"];
+function shapeGeom(g, b) {               // L58 — 서버 draw.shape_geometry 와 같은 자 (알다프라 양식: 모양 게이트 · PB 칸 · ANN 타원)
+  const x = b.x, y = b.y, w = b.w, h = b.h;
+  if (b.kind === "PB") {
+    g = { ...g, texts: [[x + 2.2, y + h * 0.3, "P", 3.0], [x + 2.2, y + h * 0.72, "B", 3.0], [x + 5.0 + (w - 5.0) / 2, y + h / 2, b.label || "PB", Math.min(h * 0.6, 5.0)]], lines: [[x + 5.0, y, x + 5.0, y + h]] };
+    return g;
+  }
+  if (b.kind === "ANN") return { ...g, box: null, ellipse: [x, y, x + w, y + h] };
+  if (!SHAPE_KINDS.includes(b.kind)) return g;
+  g = { ...g, texts: g.texts.filter(t => t[1] !== y + h / 2) };
+  if (b.kind === "OR") { const r = Math.min(w, h) / 2; g.circle = [x + r, y + h / 2, r]; g.box = null; g.pointer = null; if (w > 2 * r + 0.5) g.lines = [[x + 2 * r, y + h / 2, x + w, y + h / 2]]; }
+  else if (b.kind === "NOT") g.lines = [[x, y, x + w, y + h], [x, y + h, x + w, y]];
+  return g;
+}
 function renderBlock(parent, b, bad) {
-  const g = geom(b);
+  let g = geom(b);
+  if (S.doc && S.doc.form === "a5j") g = shapeGeom(g, b);
+  for (const ln of g.lines || []) el("line", { x1: ln[0], y1: ln[1], x2: ln[2], y2: ln[3] }, parent);
+  if (g.ellipse) el("ellipse", { cx: (g.ellipse[0] + g.ellipse[2]) / 2, cy: (g.ellipse[1] + g.ellipse[3]) / 2, rx: (g.ellipse[2] - g.ellipse[0]) / 2, ry: (g.ellipse[3] - g.ellipse[1]) / 2, class: "blk" }, parent);
   const grp = el("g", { class: "blk" + (S.sel.has(b.id) ? " sel" : "") + (bad ? " bad" : ""), "data-id": b.id }, parent);
   const bb = bboxOf(b);
   el("rect", { x: bb[0] - 2, y: bb[1] - 2, width: bb[2] - bb[0] + 4, height: bb[3] - bb[1] + 4, class: "hit" }, grp);
@@ -330,12 +372,16 @@ function renderProps() {
       <label>화살촉 <select id="p-arrow"><option value="" ${!w.arrow ? "selected" : ""}>없음</option><option value="end" ${w.arrow === "end" ? "selected" : ""}>끝에 (받는 쪽)</option><option value="start" ${w.arrow === "start" ? "selected" : ""}>처음에</option></select></label>
       <label>선 아래 글 <input id="p-wlabel" value="${esc(w.label || "")}" placeholder="0~250 barg · 신호 이름"></label>
       <label>연결점 <span><button id="p-dot" type="button">끝에 점 찍기</button> ${(w.dots || []).length ? `<button id="p-dot-clear" type="button">점 지우기 (${w.dots.length})</button>` : ""}</span></label>
+      <label>인터페이스 표시 <span><button id="p-mark-d" type="button">◆ 처음에</button><button id="p-mark-s" type="button">■ 끝에</button> ${(w.marks || []).length ? `<button id="p-mark-clear" type="button">표시 지우기 (${w.marks.length})</button>` : ""}</span></label>
       <p class="dw-hint">점 ${w.pts.length}개 — 점을 끌어 옮기고, Delete 로 지웁니다.  다른 선의 몸통에 닿는 끝에는 연결점을 찍어야 분석기가 잇습니다 (범례 DOT).</p>`;
     $("#p-dashed").onchange = e => { pushUndo(); w.dashed = e.target.checked; markDirty(); render(); };
     $("#p-wlabel").onchange = e => { pushUndo(); const v = e.target.value.trim().slice(0, 40); if (v) w.label = v; else delete w.label; markDirty(); render(); };
     $("#p-arrow").onchange = e => { pushUndo(); if (e.target.value) w.arrow = e.target.value; else delete w.arrow; markDirty(); render(); };
     $("#p-dot").onclick = () => { pushUndo(); w.dots = (w.dots || []).concat([w.pts[w.pts.length - 1].slice()]); markDirty(); render(); };
     if ($("#p-dot-clear")) $("#p-dot-clear").onclick = () => { pushUndo(); delete w.dots; markDirty(); render(); };
+    $("#p-mark-d").onclick = () => { pushUndo(); const p0 = w.pts[0], p1 = w.pts[1] || p0; w.marks = (w.marks || []).concat([[p0[0] + Math.sign(p1[0] - p0[0]) * 0.5 * layout().PITCH, p0[1], "diamond"]]); markDirty(); render(); };
+    $("#p-mark-s").onclick = () => { pushUndo(); const n = w.pts.length, p0 = w.pts[n - 1], p1 = w.pts[n - 2] || p0; w.marks = (w.marks || []).concat([[p0[0] + Math.sign(p1[0] - p0[0]) * 0.5 * layout().PITCH, p0[1], "square"]]); markDirty(); render(); };
+    if ($("#p-mark-clear")) $("#p-mark-clear").onclick = () => { pushUndo(); delete w.marks; markDirty(); render(); };
     return;
   }
   const b = S.doc.blocks.find(b => b.id === ids[0]); if (!b) { card.hidden = true; return; }
@@ -453,6 +499,13 @@ function drawGhost() {
   if (S.drag && S.drag.marquee) { const m = S.drag.marquee; el("rect", { x: Math.min(m[0], m[2]), y: Math.min(m[1], m[3]), width: Math.abs(m[2] - m[0]), height: Math.abs(m[3] - m[1]), class: "marquee" }, ov); }
   drawAlign(ov); drawCross(ov);
 }
+function markPolygon(x, y, kind) {
+  // 서버 draw.mark_polygon 과 같은 자 — 반 폭 0.27P (◆) · 0.8 배 (■)
+  const r = 0.27 * layout().PITCH;
+  if (kind === "square") { const q = r * 0.8; return [[x - q, y - q], [x + q, y - q], [x + q, y + q], [x - q, y + q]]; }
+  return [[x, y - r], [x + r, y], [x, y + r], [x - r, y]];
+}
+
 function arrowOf(w) {
   const a = w.arrow, pts = w.pts || []; if ((a !== "start" && a !== "end") || pts.length < 2) return null;
   const AL = 0.22 * layout().PITCH, [tip, back] = a === "start" ? [pts[0], pts[1]] : [pts[pts.length - 1], pts[pts.length - 2]];
@@ -753,7 +806,8 @@ function nextCell(side, n, f, back, sameCol) {
 function docOut() {
   const d = S.doc;
   return { name: $("#name").value.trim() || d.name, project: $("#f-project").value, sheet_no: $("#f-sheet").value.trim(), title: $("#f-title").value.trim(), doc_no: $("#f-doc").value.trim(),
-    N: +$("#f-rows").value || d.N, typical: $("#f-typical").checked, notes: notesFromForm(), left: d.left, right: d.right, blocks: d.blocks, wires: d.wires };
+    N: +$("#f-rows").value || d.N, typical: $("#f-typical").checked, notes: notesFromForm(), left: d.left, right: d.right, blocks: d.blocks, wires: d.wires,
+    form: $("#f-form").value, project_name: $("#f-pname").value.trim(), rev: $("#f-rev").value.trim() };
 }
 function notesFromForm() { return $("#f-notes").value.split("\n").map(t => t.trim()).filter(Boolean).slice(0, 20); }
 async function save() {
@@ -776,6 +830,7 @@ function fillForm() {
   $("#name").value = d.name || ""; $("#name").disabled = false;
   $("#f-sheet").value = d.sheet_no || ""; $("#f-title").value = d.title || ""; $("#f-doc").value = d.doc_no || ""; $("#f-rows").value = d.N;
   $("#f-project").value = d.project || "";
+  $("#f-form").value = d.form || ""; $("#f-pname").value = d.project_name || ""; $("#f-rev").value = d.rev || "";
   $("#f-typical").checked = !!d.typical;
   $("#f-notes").value = (d.notes || []).join("\n");
   for (const id of ["verify", "analyse", "del", "simtoggle"]) $(id === "del" ? "#del" : "#" + id).disabled = false;
@@ -1268,7 +1323,8 @@ async function init() {
   $("#sim-pins").onchange = () => render();
   document.addEventListener("pointerdown", e => { const m = $("#simmenu"); if (!m.hidden && !m.contains(e.target)) simMenuClose(); }, true);
   $("#pick").onchange = e => { if (e.target.value) openDoc(e.target.value); };
-  for (const id of ["#name", "#f-sheet", "#f-title", "#f-doc", "#f-project"]) $(id).oninput = () => { if (!S.doc) return; S.doc.sheet_no = $("#f-sheet").value.trim(); S.doc.title = $("#f-title").value.trim(); S.doc.doc_no = $("#f-doc").value.trim(); markDirty(); render(); };
+  for (const id of ["#name", "#f-sheet", "#f-title", "#f-doc", "#f-project", "#f-pname", "#f-rev"]) $(id).oninput = () => { if (!S.doc) return; S.doc.sheet_no = $("#f-sheet").value.trim(); S.doc.title = $("#f-title").value.trim(); S.doc.doc_no = $("#f-doc").value.trim(); S.doc.project_name = $("#f-pname").value.trim(); S.doc.rev = $("#f-rev").value.trim(); markDirty(); render(); };
+  $("#f-form").onchange = () => { if (!S.doc) return; S.doc.form = $("#f-form").value; markDirty(); render(); };
   $("#f-rows").onchange = () => { if (!S.doc) return; const n = Math.max(45, Math.min(62, +$("#f-rows").value || 50)); $("#f-rows").value = n; pushUndo(); S.doc.N = n; markDirty(); render(); };
   window.addEventListener("beforeunload", e => { if (S.dirty) { e.preventDefault(); e.returnValue = ""; } });
   await loadProjects();

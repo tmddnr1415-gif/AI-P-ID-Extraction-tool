@@ -112,6 +112,17 @@ BAR_EXTRA = 2.0 * PITCH
 MACRO_TOP = 1.6 * PITCH          # 매크로 상자 머리(이름 글줄) 높이 — 첫 단자는 그 아래 (분석기 _top_line 이 첫 단자 위 글을 이름으로 읽는다)
 MACRO_PIN_FS = 4.2
 DOT_R = 0.12 * PITCH         # 연결점 반지름 — 지름 0.24P < 분석기 DOT_MAX 0.35P (geom)
+MARK_KINDS = ("diamond", "square")
+MARK_R = 0.27 * PITCH        # 인터페이스 표시 ◆ ■ 의 반 폭 — 변 0.54P ≥ 분석기 DOT_MAX 0.35P (연결점이 아니라 표시로 읽힌다)
+
+
+def mark_polygon(x: float, y: float, kind: str) -> list:
+    """◆ 는 네 꼭짓점 · ■ 는 네 모서리 — 칠한 다각형으로 그린다 (geom 이 칠한 4점 path 를 표시로 읽는다 · 사각형 항목은 안 된다)."""
+    r = MARK_R
+    if kind == "square":
+        q = r * 0.8
+        return [[x - q, y - q], [x + q, y - q], [x + q, y + q], [x - q, y + q]]
+    return [[x, y - r], [x + r, y], [x, y + r], [x - r, y]]
 MAX_PINS = 64
 
 
@@ -200,6 +211,8 @@ def clean(doc: dict) -> dict:
     N = max(N_MIN, min(N_MAX, int(_num(doc.get("N"), 1, 999, N_DEFAULT))))
     out = {"N": N, "sheet_no": _txt(doc.get("sheet_no"), 40), "title": _txt(doc.get("title"), 120),
            "doc_no": _txt(doc.get("doc_no"), 60), "typical": bool(doc.get("typical")),
+           "form": str(doc.get("form") or "") if str(doc.get("form") or "") in FORMS else "",
+           "project_name": _txt(doc.get("project_name"), 80), "rev": _txt(doc.get("rev"), 10),
            "left": {}, "right": {}, "blocks": [], "wires": [],
            "notes": [t for t in (_txt(x, 160) for x in (doc.get("notes") if isinstance(doc.get("notes"), list) else [])[:20]) if t]}
     for side, keys in (("left", ("fm", "kks", "desc")), ("right", ("desc", "kks", "to"))):
@@ -285,6 +298,10 @@ def clean(doc: dict) -> dict:
                     if isinstance(q, (list, tuple)) and len(q) == 2]
             if dots:
                 nw["dots"] = dots                       # 연결점 — 선이 다른 선의 몸통에 닿는 자리 (범례: DOT REPRESENTS LOGIC CONNECTION)
+            marks = [[_num(q[0], 0, W), _num(q[1], 0, H), q[2]] for q in (w.get("marks") if isinstance(w.get("marks"), list) else [])[:16]
+                     if isinstance(q, (list, tuple)) and len(q) == 3 and q[2] in MARK_KINDS]
+            if marks:
+                nw["marks"] = marks                     # L58 — 선 위의 인터페이스 표시 ◆ ■ (알다프라 양식 · 분석기는 선을 잇는 표시로 읽는다)
             if w.get("arrow") in ("start", "end"):
                 nw["arrow"] = w["arrow"]
             if _txt(w.get("label"), 40):
@@ -443,9 +460,11 @@ def _block_geometry(b: dict) -> dict:
     if spec.get("macro"):
         # 머리: 이름 (길면 두 줄 — 분석기 _caption/_top_line 이 첫 단자 위 글을 통째로 이름으로 읽는다)
         title = (b.get("param") or {}).get("title") or b.get("text") or ""
-        lines = _wrap(title, max(8, int(w / 2.6)))[:2]
+        lines = _wrap(title, max(8, int(w / 2.6)))[:3]
+        big = " | " in str(title)                      # 줄을 명시한 이름은 첫 줄을 크게 (원본 매크로 머리 `FG COMPR SYS` / `GRP`)
         for i, ln in enumerate(lines):
-            g["texts"].append([x + w / 2, y + 0.5 * PITCH + i * 0.6 * PITCH, ln, 4.6])
+            g["texts"].append([x + w / 2, y + 0.5 * PITCH + i * 0.6 * PITCH + (0.15 * PITCH if big and i else 0),
+                               ln, fit_fs(ln, w - 2, 6.5 if big and i == 0 else 4.6)])
         for q in (b.get("param") or {}).get("pins_in") or []:
             g["texts"].append([x + 1.5, y + q["dy"], q["name"], MACRO_PIN_FS, "start"])
         for q in (b.get("param") or {}).get("pins_out") or []:
@@ -515,6 +534,8 @@ def tip_ratio(b: dict) -> float:
 
 
 def _wrap(text: str, n: int) -> list:
+    if " | " in str(text or ""):                     # 줄을 명시한 이름 (`FG COMPR SYS | GRP` — _txt 가 줄바꿈을 지우므로 구분자로)
+        return [ln.strip() for ln in str(text).split(" | ") if ln.strip()] or [""]
     words, out, cur = str(text or "").split(), [], ""
     for wd in words:
         if cur and len(cur) + 1 + len(wd) > n:
@@ -642,6 +663,9 @@ def _table(page, doc):
         page.insert_text((RCOLS[0] + 2, yy), v.get("desc", ""), fontsize=5, fontname="helv")
         page.insert_text((RCOLS[1] + 2, yy), v.get("kks", ""), fontsize=5, fontname="helv")
         page.insert_text((RCOLS[3] + 2, yy), v.get("to", ""), fontsize=5, fontname="helv")
+    if (doc.get("form") or "") == "a5j":
+        _a5j_frame(page, doc)
+        return
     # 타이틀블록 — 문서 번호 · 제목 · 캡션 SHEET NO. 아래 시트 이름 (분석기는 캡션 아래 칸에서 시트 이름을 읽는다)
     lay = layout(N)["title"]
     _rect(page, (560, 780, 1170, 830))
@@ -654,9 +678,67 @@ def _table(page, doc):
     page.insert_text((lay["sheet"][0] - 30, lay["sheet"][1] + 15), doc.get("sheet_no") or "", fontsize=9, fontname="helv")
 
 
+def _a5j_frame(page, doc):
+    """알다프라 양식 — LOGIC 머리글 칸 · 도면 테두리 · NOTE 상자 · 삼성 C&T 타이틀블록.  글자 자리는 1A5J 원본 그대로:
+    SHEET 캡션 아래 시트 이름 · DRAWING TITLE 아래 제목(도면번호 위 글줄) · PROJECT DWG NO. 아래 도면번호."""
+    N = doc["N"]
+    _line(page, [(LX0, TOP - 2 * PITCH), (LX1, TOP - 2 * PITCH)])
+    _ctext(page, (LX0 + LX1) / 2, TOP - PITCH, "LOGIC", 7)
+    fx0, fy0, fx1, fy1 = A5J_FRAME
+    _rect(page, A5J_FRAME)
+    _rect(page, (fx0 + 7, fy0 + 7, fx1 - 7, fy1 - 7))
+    for i in range(8):                                 # 구역 번호 8..1 (위·아래) · 글자 H..A (좌·우) — 원본의 테두리 눈금
+        xx = fx0 + 7 + (fx1 - fx0 - 14) * (i + 0.5) / 8
+        _ctext(page, xx, fy0 + 3.5, str(8 - i), 4)
+        _ctext(page, xx, fy1 - 3.5, str(8 - i), 4)
+        yy = fy0 + 7 + (fy1 - fy0 - 14) * (i + 0.5) / 8
+        _ctext(page, fx0 + 3.5, yy, "HGFEDCBA"[i], 4)
+        _ctext(page, fx1 - 3.5, yy, "HGFEDCBA"[i], 4)
+    page.insert_text((NOTES_BOX[0] + 4, NOTES_BOX[1] + 12), "NOTE :", fontsize=8, fontname="helv")
+    # 타이틀블록
+    # 제목 줄은 SHEET 값보다 글자 높이 두 배 넘게 위에 — 분석기 glyphs._title_words 가 SHEET 값 높이 띠(±2h) 안의 글을 부제로 읽어
+    # 제목을 도면번호와 시트 이름 사이 조각(`GAS TEST`)으로 자른다 (원본도 제목 줄을 그 띠 밖에 둔다)
+    x0, y0, x1, y1 = 900.0, 735.0, 1160.0, 830.0
+    _rect(page, (x0, y0, x1, y1))
+    rows_ = (y0, y0 + 18, y0 + 50, y0 + 78, y1)       # PROJECT NAME | DRAWING TITLE | PROJECT DWG NO. · SHEET · REV | PROJECT NO. · SCALE · REF
+    # (SCALE 캡션은 SHEET 값의 높이 띠(±2h) 밖에 — 안에 들면 Typical 장(숫자 넷 시트 이름)의 부제로 읽힌다)
+    for yy in rows_[1:-1]:
+        _line(page, [(x0, yy), (x1, yy)])
+    cap = lambda x, y, t: page.insert_text((x + 2, y + 5), t, fontsize=3.6, fontname="helv")
+    cap(x0, rows_[0], "PROJECT NAME")
+    _ctext(page, (x0 + x1) / 2 + 20, rows_[0] + 12, doc.get("project_name") or "", 8)
+    cap(x0, rows_[1], "DRAWING TITLE")
+    _ctext(page, (x0 + x1) / 2 + 20, rows_[1] + 9, "CONTROL LOGIC & LOOP DIAGRAM", 5.5)
+    _ctext(page, (x0 + x1) / 2 + 20, rows_[1] + 17, doc.get("title") or "", 6)
+    _line(page, [(x0 + 170, rows_[2]), (x0 + 170, rows_[4])])
+    _line(page, [(x0 + 215, rows_[2]), (x0 + 215, rows_[4])])
+    cap(x0, rows_[2], "PROJECT DWG NO.")
+    _ctext(page, x0 + 85, rows_[2] + 10, doc.get("doc_no") or "", 6.5)
+    cap(x0 + 170, rows_[2], "SHEET")
+    _ctext(page, x0 + 185, rows_[2] + 13, doc.get("sheet_no") or "", 6.5)   # 캡션 SHEET 의 오른쪽 끝보다 왼쪽에서 시작 (캡션이 부제로 읽히지 않게 — 원본 자리)
+    cap(x0 + 215, rows_[2], "REV.")
+    _ctext(page, x0 + 237, rows_[2] + 13, doc.get("rev") or "", 6.5)
+    cap(x0, rows_[3] + 7, "PROJECT NO.")                # 맨 아랫줄 캡션은 칸 아래쪽에 (SHEET 값의 높이 띠 밖)
+    _ctext(page, x0 + 85, rows_[3] + 13, doc.get("project") or "", 5)
+    cap(x0 + 170, rows_[3] + 7, "SCALE")
+    _ctext(page, x0 + 205, rows_[3] + 13, "NONE", 4.5)
+    cap(x0 + 215, rows_[3] + 7, "REF. CODE")
+    _ctext(page, x0 + 250, rows_[3] + 13, "-", 4.5)
+
+
 def _blocks(page, doc):
+    form = doc.get("form") or ""
     for b in doc["blocks"]:
         g = block_geometry(b)
+        if form == "a5j":
+            g = shape_geometry(g, b)
+        for ln in g.get("lines") or []:
+            _line(page, [(ln[0], ln[1]), (ln[2], ln[3])])
+        if g.get("ellipse"):
+            sh = page.new_shape()
+            sh.draw_oval(pymupdf.Rect(*g["ellipse"]))
+            sh.finish(color=K, width=LW)
+            sh.commit()
         if g["circle"]:
             sh = page.new_shape()
             sh.draw_circle(pymupdf.Point(g["circle"][0], g["circle"][1]), g["circle"][2])
@@ -703,6 +785,7 @@ def export_wires(doc: dict) -> list:
             item = {"pts": part, "dashed": bool(w.get("dashed"))}
             if i == 0:
                 item["dots"] = dots
+                item["marks"] = [list(m) for m in (w.get("marks") or [])]
                 if w.get("arrow") == "start":
                     item["arrow"] = "start"
             if i == len(parts) - 1 and w.get("arrow") == "end":
@@ -712,6 +795,47 @@ def export_wires(doc: dict) -> list:
 
 
 NOTES_BOX = (30.0, 780.0, 540.0, 830.0)      # 장 노트 상자 — 표 아래 왼쪽 (타이틀블록 560~1170 의 왼쪽)
+
+# L58 — 양식.  "" = 기본(HRSG 결 · 글자 게이트 · SHEET NO. 캡션) · "a5j" = 알다프라(삼성 C&T) 결:
+#   게이트를 모양으로 (AND = 막대 + 빈 네모 · OR = 막대 + 원 · NOT = ⊠) · LOGIC 머리글 칸 · NOTE 상자 · 삼성 타이틀블록(PROJECT NAME ·
+#   DRAWING TITLE · PROJECT DWG NO. · SHEET · REV.) · 도면 테두리.  분석기는 모양 게이트를 학습 사전(19VA 범례 열쇠 BAR_BOX · BAR_CIRCLE ·
+#   CROSS_BOX)으로, 시트 이름은 SHEET 캡션 아래 칸에서, 제목은 도면번호 위 글줄에서 읽는다 — 1A5J 원본과 같은 자리.
+FORMS = ("", "a5j")
+SHAPE_KINDS = ("AND", "OR", "NOT")           # 모양으로 그리는 게이트 (그 밖은 글자 그대로 — 분석기가 글자로 읽는다)
+A5J_FRAME = (16.0, 16.0, 1175.0, 836.0)
+
+
+def shape_geometry(g: dict, b: dict) -> dict:
+    """a5j 양식의 모양 게이트 — block_geometry 결과를 고친다 (글자 없음 · OR 은 원 · NOT 은 ⊠).  `lines` 는 더 그을 선."""
+    k = b["kind"]
+    x, y, w, h = b["x"], b["y"], b["w"], b["h"]
+    if k == "PB":
+        g = dict(g)
+        g["texts"] = [t for t in g["texts"] if t[1] <= y + h]       # 아래 이름 글은 안 쓴다 (칸이 쌓이면 다음 단추와 겹친다)
+        g["texts"] = [[x + 2.2, y + h * 0.3, "P", 3.0], [x + 2.2, y + h * 0.72, "B", 3.0],
+                      [x + 5.0 + (w - 5.0) / 2, y + h / 2, b.get("label") or "PB", min(h * 0.6, 5.0)]]
+        g["lines"] = [[x + 5.0, y, x + 5.0, y + h]]
+        return g
+    if k == "ANN":
+        g = dict(g)
+        g["box"] = None
+        g["ellipse"] = [x, y, x + w, y + h]
+        return g
+    if k not in SHAPE_KINDS:
+        return g
+    g = dict(g)
+    g["texts"] = [t for t in g["texts"] if t[1] != b["y"] + b["h"] / 2]      # 상자 가운데 글자만 뺀다 (위 글 · 시간 글은 남긴다)
+    x, y, w, h = b["x"], b["y"], b["w"], b["h"]
+    if k == "OR":
+        r = min(w, h) / 2
+        g["circle"] = [x + r, y + h / 2, r]          # 왼쪽 변이 막대에 닿게 (분석기 _bar_gate: 막대 x = 원 왼쪽)
+        g["box"] = None
+        g["pointer"] = None
+        if w > 2 * r + 0.5:                          # 상자가 원보다 넓으면 원 오른쪽에서 출력 자리(x+w)까지 짧은 줄기 — 출력선이 매달리지 않게
+            g["lines"] = [[x + 2 * r, y + h / 2, x + w, y + h / 2]]
+    elif k == "NOT":
+        g["lines"] = [[x, y, x + w, y + h], [x, y + h, x + w, y]]
+    return g
 NOTES_COL = 170.0
 NOTES_PER_COL = 6
 
@@ -756,6 +880,11 @@ def draw_page(pdf, doc: dict):
             sh = page.new_shape()
             sh.draw_circle(pymupdf.Point(dx, dy), DOT_R)
             sh.finish(color=K, fill=K, width=0)
+            sh.commit()
+        for mx, my, kind in w.get("marks") or []:
+            sh = page.new_shape()
+            sh.draw_polyline([pymupdf.Point(*q) for q in mark_polygon(mx, my, kind)])
+            sh.finish(color=K, fill=K, width=0, closePath=True)
             sh.commit()
         tri = arrow_of(w)
         if tri:
@@ -844,10 +973,18 @@ def to_dxf(doc: dict) -> bytes:
     text(1070, 815, doc.get("sheet_no"), 8, "TITLE")
     for b in doc["blocks"]:
         g = block_geometry(b)
+        if (doc.get("form") or "") == "a5j":
+            g = shape_geometry(g, b)
+        for ln in g.get("lines") or []:
+            line((ln[0], ln[1]), (ln[2], ln[3]), "SYMBOL")
+        if g.get("ellipse"):
+            ex0, ey0, ex1, ey1 = g["ellipse"]
+            msp.add_ellipse(P((ex0 + ex1) / 2, (ey0 + ey1) / 2), major_axis=((ex1 - ex0) / 2, 0), ratio=(ey1 - ey0) / (ex1 - ex0), dxfattribs={"layer": "SYMBOL"})
         if g["circle"]:
             cx, cy, r = g["circle"]
             msp.add_circle(P(cx, cy), r, dxfattribs={"layer": "SYMBOL"})
-            hs = msp.add_solid([P(*p) for p in g["pointer"]], dxfattribs={"layer": "SYMBOL"})
+            if g.get("pointer"):
+                msp.add_solid([P(*p) for p in g["pointer"]], dxfattribs={"layer": "SYMBOL"})
         elif g["cells"]:
             for c in g["cells"]:
                 rect(c)
@@ -876,6 +1013,8 @@ def to_dxf(doc: dict) -> bytes:
         if tri:
             hp = msp.add_hatch(color=7, dxfattribs={"layer": "WIRE"})
             hp.paths.add_polyline_path([P(*q) for q in tri], is_closed=True)
+        for mx, my, kind in w.get("marks") or []:
+            msp.add_solid([P(*q) for q in mark_polygon(mx, my, kind)], dxfattribs={"layer": "WIRE"})
         for dx, dy in w.get("dots") or []:
             c = msp.add_circle(P(dx, dy), DOT_R, dxfattribs={"layer": "WIRE"})
             try:
@@ -1076,13 +1215,20 @@ def from_sheet(s: dict, name: str, author: str, project: str = "") -> dict:
     doc = new_doc(name, author, project, N)
     doc["sheet_no"] = s.get("sheet_no") or ""
     doc["title"] = s.get("title") or ""
+    doc["doc_no"] = _txt(s.get("doc_no"), 60)
+    doc["project_name"] = _txt(s.get("project_name"), 80)
+    doc["rev"] = _txt(s.get("rev"), 10)
 
     def rn(n):
         """원래 행 번호 → 이 그림의 행 번호 (오른쪽 행은 No 를 빼고 N 을 더한다 — 한쪽 행 수가 다를 때 자리가 밀리지 않게)."""
         return n if n <= No else n - No + N
+    def _rev_mark(r):
+        """개정 삼각형 안의 숫자(`2`)가 FM/TO 칸에 걸쳐 글로 읽힌 것 — 설명 · 태그 없이 한두 자리 수만 있는 칸은 신호가 아니다."""
+        v = (r.get("fm") or r.get("to") or "").strip()
+        return bool(v) and v.isdigit() and len(v) <= 2 and not (r.get("desc") or r.get("kks") or r.get("abv"))
     for r in table:
         n = r.get("n")
-        if not n:
+        if not n or _rev_mark(r):
             continue
         if r["side"] == "L" and 1 <= n <= N:
             doc["left"][str(n)] = {"fm": _txt(r.get("fm"), 60), "kks": _txt(r.get("kks") or r.get("abv"), 60), "desc": _txt(r.get("desc"), 60)}
@@ -1114,8 +1260,8 @@ def from_sheet(s: dict, name: str, author: str, project: str = "") -> dict:
         kind = _FUNC_KIND.get(func)
         if func != "MACRO" and any(mb[0] - 1 <= b["bbox"][0] and b["bbox"][2] <= mb[2] + 1 and mb[1] - 1 <= b["bbox"][1] and b["bbox"][3] <= mb[3] + 1 for mb in macro_boxes):
             continue                               # 매크로 상자 안에 붙여 그린 운전 버튼 칸 — 단자 이름으로 들어간다 (따로 그리면 상자가 틀이 된다)
-        if func == "LIGHT":
-            kind = "LAMP"
+        if func == "LIGHT" or (func in ("DISPLAY", "SIGNAL") and b.get("kind") == "CIRCLE" and len((b.get("read") or "").strip()) <= 2):
+            kind = "LAMP"                          # 원 안 글자 하나(R · G …)의 표시등 — 분석이 DISPLAY 로 둔 것도 그림은 램프다
         if not kind and func in ("MACRO", "STEP", "SIGNAL", "DISPLAY", "UNKNOWN", "LIGHT", "TOGGLE", "TRANSFER", "CONST"):
             kind = "MACRO" if func == "MACRO" else "BOX"
         if not kind:
@@ -1195,7 +1341,33 @@ def from_sheet(s: dict, name: str, author: str, project: str = "") -> dict:
                 name = _txt(item.get("pin") or pt.get("pin") or "", 40)
                 q = {"name": name or f"P{len(pins_in) + len(pins_out) + 1}", "row": item.get("row"), "dy": round(Y(pt["at"][1]) - Y(y0), 2)}
                 (pins_in if pt["dir"] == "in" else pins_out).append(q)
-            nb["param"] = {"typ": _txt(m.get("sheet"), 40), "title": _txt(m.get("title") or b.get("caption") or "", 120),
+            # 상자 안 글줄 — 첫 단자 위 줄은 원본 이름(`FG COMPR SYS` · `GRP`), 단자 높이의 줄은 **선이 안 닿은 단자**(A_MODE · S_AUTO)
+            # 같은 높이의 낱말은 한 줄 (분석은 낱말마다 한 항목) · 개정 삼각형의 `2` 는 뺀다
+            rows_ = {}
+            for ly0, ly1, lx0, lx1, t in (b.get("lines") or []):
+                t = str(t).strip()
+                if not t or t.isdigit():
+                    continue
+                rows_.setdefault(round((ly0 + ly1) / 2, 1), []).append((lx0, lx1, t))
+            named = {q["name"] for q in pins_in + pins_out}
+            pin_like = [ym for ym, ws in rows_.items() if any("_" in t or t in named for _, _, t in ws)]
+            first_pin_y = min(pin_like + [pt["at"][1] for pt in ports_by.get(bid, [])] + [y1b])
+            head, extra = [], []
+            cxm = (x0 + x1) / 2
+            for ym in sorted(rows_):
+                ws = sorted(rows_[ym])
+                if ym < first_pin_y - pitch * 0.6:
+                    head.append(" ".join(t for _, _, t in ws))
+                    continue
+                for lx0, lx1, t in ws:
+                    if t not in named and " " not in t:
+                        extra.append((ym, t, (lx0 + lx1) / 2 < cxm))
+            title_src = " | ".join(head[:3]) if head else (b.get("caption") or "")
+            for ymid, t, left in extra:
+                q = {"name": _txt(t, 40), "row": None, "dy": round(Y(ymid) - Y(y0), 2)}
+                (pins_in if left else pins_out).append(q)
+            pins_in.sort(key=lambda q: q["dy"]); pins_out.sort(key=lambda q: q["dy"])
+            nb["param"] = {"typ": _txt(m.get("sheet"), 40), "title": _txt(title_src or m.get("title") or "", 120),
                            "pins_in": pins_in, "pins_out": pins_out}
         if kind in ("GT", "DT", "PD"):
             nb["param"]["t"] = _num(p.get("t_user", p.get("t")), 0, 36000, 5)
@@ -1207,6 +1379,7 @@ def from_sheet(s: dict, name: str, author: str, project: str = "") -> dict:
         if kind == "PB":
             nb["label"] = _txt((b.get("label") or "").replace("PB", "", 1).strip(" |"), 60)
         doc["blocks"].append(nb)
+    marks_todo = [(X((m[0] + m[2]) / 2), Y((m[1] + m[3]) / 2), m[4]) for m in (s.get("markers") or []) if len(m) == 5 and m[4] in MARK_KINDS]
     # 선 — 그물의 선분 + 교차 홉(jumps · 끊어 그린 교차의 틈을 잇는 짧은 토막) · 같은 그물 안의 T 접합에는 연결점
     port_pts = [(pt[0], pt[1]) for b in doc["blocks"] for pt in ports_of(b)]
 
@@ -1230,6 +1403,7 @@ def from_sheet(s: dict, name: str, author: str, project: str = "") -> dict:
             nn = rn(r["n"])
             row_term.setdefault(str(r["net"]), []).append((LX0 if r["side"] == "L" else LX1, ry(nn, N)))
     port_term = {}
+    bar_by = {b["id"]: bar_of(b) for b in doc["blocks"] if SYMBOLS[b["kind"]].get("bar")}
     for b in doc["blocks"]:
         for pt in ports_of(b):
             port_term.setdefault(b["id"], []).append((pt[0], pt[1]))
@@ -1244,7 +1418,12 @@ def from_sheet(s: dict, name: str, author: str, project: str = "") -> dict:
         for pt in net_ports.get(nid, []):
             cands = port_term.get(pt["block"], [])
             tx, ty = X(pt["at"][0]), Y(pt["at"][1])
-            if cands:
+            bb_ = bar_by.get(pt["block"])
+            if bb_ and pt["dir"] == "in" and bb_[1] - 0.5 <= ty <= bb_[3] + 0.5:
+                # 막대 게이트의 입력은 **그 높이에서 막대에 닿는다** — 자석 자리(행 간격으로 고른 점)로 옮기면 반 행 다리가 막대 위에
+                # 겹쳐 그려지고, 분석기가 그 겹선을 선으로 읽어 막대가 그물이 된다 (1A5J FG_G-101 입력 29개 AND 가 신호원으로 읽혔다)
+                tx, ty = bb_[0], ty
+            elif cands:
                 tx, ty = min(cands, key=lambda q: abs(q[0] - tx) + abs(q[1] - ty))
             terms.append((tx, ty))
         segs = _mend(segs, terms)
@@ -1259,21 +1438,28 @@ def from_sheet(s: dict, name: str, author: str, project: str = "") -> dict:
                         dots.append([round(end[0], 2), round(og[1], 2)])
                     elif not hx and abs(og[0] - og[2]) < 0.2 and abs(end[0] - og[0]) < 0.6 and min(og[1], og[3]) + 0.8 < end[1] < max(og[1], og[3]) - 0.8:
                         dots.append([round(og[0], 2), round(end[1], 2)])
-        # 끝점 셋 이상이 한 점에 모이면(T · + 접합 — 분석기가 접합에서 선분을 끊어 두었다) 그 점도 연결점
-        deg = {}
-        for sg in segs:
+        # 끝점이 다른 선분 둘 이상(몸통이든 끝이든)에 닿으면 접합 (T · + — 분석기가 접합에서 선분을 끊어 두었고, 반올림으로
+        # 가로 행 선의 끝이 세로 모선의 조각 경계에서 1pt 안팎 비켜 선다 · 1A5J FG_G-102 출력 모선).  모서리(하나에만 닿음)는 아니다
+        for i_, sg in enumerate(segs):
             for end in ((sg[0], sg[1]), (sg[2], sg[3])):
-                key = (round(end[0] * 2) / 2, round(end[1] * 2) / 2)
-                deg.setdefault(key, []).append(end)
-        for key, ends in deg.items():
-            if len(ends) >= 3:
-                dots.append([round(sum(e[0] for e in ends) / len(ends), 2), round(sum(e[1] for e in ends) / len(ends), 2)])
+                near = 0
+                for j_, og in enumerate(segs):
+                    if i_ == j_:
+                        continue
+                    if _near_seg(end[0], end[1], og, 1.2):
+                        near += 1
+                if near >= 2:
+                    dots.append([round(end[0], 2), round(end[1], 2)])
         seen = set()
         dots = [d_ for d_ in dots if not (tuple(d_) in seen or seen.add(tuple(d_)))]
+        # 파선은 짧은 토막 여럿이다 — 교차 틈(홉)으로 끊긴 실선을 분석이 파선으로 적어 둔 것(1A5J FG_G-201 · 원본 PDF 에 파선 0)은 실선으로
+        raw_ = [sg for sg in (n.get("segs") or []) if abs(sg[0] - sg[2]) + abs(sg[1] - sg[3]) > 0.2]
+        lens_ = sorted(abs(sg[0] - sg[2]) + abs(sg[1] - sg[3]) for sg in raw_)
+        really_dashed = bool(n.get("dashed")) and len(lens_) >= 4 and lens_[len(lens_) // 2] < 1.2 * pitch and lens_[-1] < 3.0 * pitch
         arrow_at = [(X(pt["at"][0]), Y(pt["at"][1])) for pt in net_ports.get(nid, [])
                     if pt["dir"] == "in" and pt.get("side") in ("T", "B", "R")]
         for k_, sg in enumerate(segs):
-            w = {"id": f"n{nid}_{k_}", "pts": [snap(sg[0], sg[1]), snap(sg[2], sg[3])], "dashed": bool(n.get("dashed"))}
+            w = {"id": f"n{nid}_{k_}", "pts": [snap(sg[0], sg[1]), snap(sg[2], sg[3])], "dashed": really_dashed}
             if k_ == 0 and dots:
                 w["dots"] = dots
             for ax_, ay_ in arrow_at:
@@ -1282,5 +1468,19 @@ def from_sheet(s: dict, name: str, author: str, project: str = "") -> dict:
                 elif abs(w["pts"][1][0] - ax_) + abs(w["pts"][1][1] - ay_) <= 2.6:
                     w["arrow"] = "end"
             doc["wires"].append(w)
+    # 인터페이스 표시 ◆ ■ — 그 점을 지나는(또는 가장 가까운) 선에 단다
+    for mx, my, kind in marks_todo:
+        best, bd = None, 2.0 * PITCH
+        for w in doc["wires"]:
+            sg = [w["pts"][0][0], w["pts"][0][1], w["pts"][1][0], w["pts"][1][1]]
+            if _near_seg(mx, my, sg, 1.0):
+                best, bd = w, 0
+                break
+            for tol_ in (0.5 * PITCH, PITCH, 2.0 * PITCH):          # 선의 몸통에서 가까운 순 (끝점 거리가 아니라 수직 거리)
+                if tol_ < bd and _near_seg(mx, my, sg, tol_):
+                    best, bd = w, tol_
+                    break
+        if best is not None:
+            best.setdefault("marks", []).append([round(mx, 2), round(my, 2), kind])
     doc.update(clean(doc))
     return doc

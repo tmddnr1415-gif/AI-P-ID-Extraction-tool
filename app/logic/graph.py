@@ -136,6 +136,7 @@ class Sheet:
     glyph_polys: list = field(default_factory=list)
     all_glyphs: list = field(default_factory=list)   # 장 전체의 글자 크기 획 (표 칸 글자 포함)
     words: list = field(default_factory=list)
+    markers: list = field(default_factory=list)      # L58 — 선 위의 인터페이스 표시 [(bbox, "diamond"|"square")] (재현용 · 판정에 안 쓴다)
 
 
 # ------------------------------------------------------------------ 만들기
@@ -1033,6 +1034,7 @@ def build(prims: geom.Prims, lay=None) -> Sheet | None:
     sh.all_glyphs = [p for p in prims.polys if p.size < P and
                      (fr is None or (p.bbox[0] >= fr[0] and p.bbox[2] <= fr[2] and p.bbox[1] >= fr[1] and p.bbox[3] <= fr[3]))]          # 표 칸 글자는 한 행 안에 든다
     sh.words = prims.words
+    sh.markers = [(tuple(m), (prims.marker_kind.get(tuple(round(v, 2) for v in m)) or "square")) for m in markers]
     return sh
 
 

@@ -502,6 +502,7 @@ def _export(sh, pno, sheet_no, title, rows, timers):
         "frame": [round(v, 2) for v in sh.frame] if sh.frame else None,
         "nets": nets, "blocks": blks, "ports": ports, "rows": srows, "table": rows,
         "dangling": [list(d) for d in sh.dangling], "stray_arrows": [list(d) for d in sh.stray_arrows],
+        "markers": [[round(v, 2) for v in bb] + [kind] for bb, kind in (getattr(sh, "markers", None) or [])],   # L58 ◆ ■ (재현용)
     }
     out["order"] = _net_order(out)
     return out

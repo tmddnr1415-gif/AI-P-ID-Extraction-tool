@@ -192,3 +192,5 @@ body.sim .blk.on1 > rect, body.sim .blk.on1 > circle { fill: rgba(0, 180, 255, .
 .dw-sim .row button { padding: 0 6px; font-size: 11px; }
 .dw-palhead { grid-column: 1 / -1; font-size: 11px; color: #555e6e; margin: 6px 0 0; border-top: 1px dashed var(--line); padding-top: 6px; }
 .dw-preicon { display: block; font-size: 15px; font-weight: 600; line-height: 1.1; min-height: 20px; }
+
+.mark { fill: #111; stroke: none; pointer-events: none; }
