@@ -18,6 +18,7 @@
 """
 from __future__ import annotations
 
+import bisect
 import io
 import json
 import math
@@ -338,6 +339,220 @@ def clean(doc: dict) -> dict:
             if _txt(w.get("label"), 40):
                 nw["label"] = _txt(w.get("label"), 40)  # L56 — 선 아래 글 (아날로그 범위 `0~250 barg` · 신호 이름) — 분석기 analog._read_ranges 가 읽는 자리                # 화살촉 — 받는 쪽 끝 (상자 위·아래·오른쪽 변으로 들어가는 신호는 화살이 방향을 말한다)
             out["wires"].append(nw)
+    out["wires"] = orthogonal_wires(out["wires"], blocks=out["blocks"])      # L64 — 사선 금지 · 곧게 직각으로
+    return out
+
+
+ORTHO_TOL = 2.5      # L64 — 이만큼 안에서 어긋난 토막은 곧게 편다 (반 행 격자 ≈ 6pt 의 1/5 · 분석한 도면의 좌표 흔들림 실측 ≤ 1pt)
+
+
+def _corners(P: list) -> list:
+    """남은 사선 토막에 꺾임점을 넣는다 — 첫 토막은 끝점에서 가로로 나가고, 마지막 토막은 가로로 들어가며,
+    가운데는 앞 토막과 방향을 엇갈린다.  겹친 점 · 한 줄 위의 가운데 점은 뺀다.  logic_draw.js orthoPts 와 같다."""
+    n = len(P)
+    if n < 2:
+        return P
+    out = [list(P[0])]
+    for i in range(1, n):
+        a, b = out[-1], list(P[i])
+        if abs(b[0] - a[0]) > 1e-6 and abs(b[1] - a[1]) > 1e-6:
+            first, last = len(out) == 1, i == n - 1
+            if first and last:
+                mx = round((a[0] + b[0]) / 2, 2)
+                out += [[mx, a[1]], [mx, b[1]]]
+            elif first:
+                out.append([b[0], a[1]])
+            elif last:
+                out.append([a[0], b[1]])
+            else:
+                pa = out[-2]
+                out.append([a[0], b[1]] if abs(pa[1] - a[1]) < 1e-6 else [b[0], a[1]])
+        out.append(b)
+    res = [out[0]]
+    for q in out[1:]:
+        if abs(q[0] - res[-1][0]) < 1e-6 and abs(q[1] - res[-1][1]) < 1e-6:
+            continue
+        if len(res) >= 2:
+            a, b = res[-2], res[-1]
+            if (abs(a[0] - b[0]) < 1e-6 and abs(b[0] - q[0]) < 1e-6) or (abs(a[1] - b[1]) < 1e-6 and abs(b[1] - q[1]) < 1e-6):
+                res[-1] = q
+                continue
+        res.append(q)
+    return [[round(x, 2), round(y, 2)] for x, y in res]
+
+
+def orthogonal(pts: list) -> list:
+    """한 선만 — 사선 토막에 꺾임점을 넣는다 (곧게 펴기는 그림 전체에서 해야 맞닿은 자리가 지켜진다 — orthogonal_wires)."""
+    return _corners([[float(p[0]), float(p[1])] for p in pts])
+
+
+def _snap_axis(vals: list, fixed: list, tol: float) -> dict:
+    """좌표 값 → 맞출 값.  ① 끝점(단자 · 행 자리)의 값이 tol 안의 값들을 가져간다 (가장 가까운 끝점 값) — 끝점은 움직이지 않는다.
+    ② 남은 값은 작은 쪽부터 폭 tol 안의 무리로 묶어 가운데 값으로.  무리의 폭을 tol 로 막아 둔다 — 사이 값이 다리가 되어
+    따로 있던 두 선(예: 입력 둘 3pt 간격)이 한 높이로 합쳐지지 않게."""
+    out = {}
+    fx = sorted(set(fixed))
+    for v in fx:
+        out[v] = v
+    rest = []
+    for v in sorted(set(vals)):
+        if v in out:
+            continue
+        near = min(fx, key=lambda f: abs(f - v)) if fx else None
+        if near is not None and abs(near - v) < tol:
+            out[v] = near
+        else:
+            rest.append(v)
+    grp = []
+    for v in rest + [None]:
+        if grp and (v is None or v - grp[0] >= tol):
+            c = min(grp, key=lambda c: sum(abs(c - u) for u in grp))
+            for u in grp:
+                out[u] = c
+            grp = []
+        if v is not None:
+            grp.append(v)
+    return out
+
+
+def _anchors(blocks: list):
+    """끝점이 정말 붙어 있는 자리 — 표의 행 자리(LX0 · LX1) · 블록의 단자 · 블록 상자 · 입력 막대.  여기 닿은 끝은 움직이지 않는다."""
+    edges = []
+    for b in blocks or []:
+        try:
+            x, y, w, h = float(b["x"]), float(b["y"]), float(b["w"]), float(b["h"])
+        except (KeyError, TypeError, ValueError):
+            continue
+        sp = SYMBOLS.get(b.get("kind"), {})
+        if sp.get("circle") or sp.get("macro"):          # 원(램프 · 연결 기호)은 접점 · 매크로는 단자 행 — 미끄러지면 떨어진다 → 두 축 다
+            edges += [("p", None, (x, y), (x + w, y + h))]
+            continue
+        edges += [("h", y, x, x + w), ("h", y + h, x, x + w), ("v", x, y, y + h), ("v", x + w, y, y + h)]
+        if SYMBOLS.get(b.get("kind"), {}).get("bar"):
+            bx0, by0, bx1, by1 = bar_of(b)
+            edges.append(("v", bx0, min(by0, by1), max(by0, by1)))
+    e = 0.6
+
+    def anchored(p):
+        """(x 를 지켜야 하나, y 를 지켜야 하나) — 세로 변(행 자리 · 상자 왼쪽/오른쪽 · 막대)에 닿은 끝은 그 변을 따라 미끄러져도
+        닿아 있으니 x 만, 가로 변(상자 위/아래)에 닿은 끝은 y 만 지킨다."""
+        if abs(p[0] - LX0) < e or abs(p[0] - LX1) < e:
+            return True, True, True                   # 행 자리 — 행 가운데를 떠나면 다른 행이 된다
+        fx = fy = False
+        for k, c, lo, hi in edges:
+            if k == "p":
+                if lo[0] - e <= p[0] <= hi[0] + e and lo[1] - e <= p[1] <= hi[1] + e:
+                    return True, True, True
+                continue
+            if k == "h" and abs(p[1] - c) < e and lo - e <= p[0] <= hi + e:
+                fy = True
+            if k == "v" and abs(p[0] - c) < e and lo - e <= p[1] <= hi + e:
+                fx = True
+        return fx, fy, False
+    return anchored
+
+
+def orthogonal_wires(wires: list, tol: float = ORTHO_TOL, blocks: list | None = None) -> list:
+    """L64 — 선은 언제나 가로 · 세로로만 (사용자 지시: *"선은 곧게 직각으로 90도로 꺾여야 하며 사선이어서는 안 된다"*).
+    ① 그림 전체의 꺾임점 좌표를 tol 안에서 같은 값으로 모은다 — 같은 자리에 있던 점은 계속 같은 자리, 몸통 위의 T 끝도 몸통 위에 남는다.
+       끝점(단자 · 행 자리)은 움직이지 않는다.  ② 그래도 남은 사선 토막은 꺾임점을 넣어 ㄱ/ㄴ 으로."""
+    anchored = _anchors(blocks) if blocks is not None else (lambda p: (True, True, True))
+
+    def symbol_stroke(w):
+        """기호 외곽 획(◇ · 램프 원을 토막으로 그린 것) — 두 점 · 45° 근처 · 한 행 길이 안.  신호선이 아니라 그대로 둔다."""
+        pts = w["pts"]
+        if len(pts) != 2:
+            return False
+        dx, dy = abs(pts[1][0] - pts[0][0]), abs(pts[1][1] - pts[0][1])
+        return dx > tol and dy > tol and 0.5 <= dx / dy <= 2.0 and (dx * dx + dy * dy) ** 0.5 <= 1.2 * PITCH
+    keep = [symbol_stroke(w) for w in wires]
+    fixed = []
+    for w, k in zip(wires, keep):
+        pts = w["pts"]
+        if k:
+            fl = [(True, True)] * len(pts)
+        else:
+            fl = []
+            for i, p in enumerate(pts):
+                if i not in (0, len(pts) - 1):
+                    fl.append((False, False))
+                    continue
+                ax, ay, full = anchored(p)                  # full — 원 · 매크로 · 행 자리는 두 축 다
+                q = pts[1] if i == 0 else pts[-2]          # 끝점은 선의 길이 방향으로는 움직이지 않는다 (틈이 생긴다) — 수직 방향만 맞춘다
+                if abs(q[0] - p[0]) <= abs(q[1] - p[1]):     # 세로로 들어오는 끝 — y 는 지키고 x 는 (닿은 가로 변 위라면) 미끄러져도 된다
+                    fl.append((True, True) if full else (False, True))
+                else:                                       # 가로로 들어오는 끝 — x 는 지키고 y 는 세로 변 · 막대를 따라 미끄러져도 된다
+                    fl.append((True, True) if full else (True, False))
+        fixed.append(fl)
+    maps = []
+    for ax_ in (0, 1):                               # 0 = x (세로 토막) · 1 = y (가로 토막)
+        par = {}
+
+        def find(v):
+            while par.setdefault(v, v) != v:
+                par[v] = par[par[v]]
+                v = par[v]
+            return v
+
+        def union(a, b):
+            ra, rb = find(a), find(b)
+            if ra != rb:
+                par[ra] = rb
+        fixed_vals, cnt = set(), {}
+        for w, fl, k in zip(wires, fixed, keep):
+            if k:
+                continue
+            pts = w["pts"]
+            for p, f in zip(pts, fl):
+                find(p[ax_])
+                cnt[p[ax_]] = cnt.get(p[ax_], 0) + 1
+                if f[ax_]:
+                    fixed_vals.add(p[ax_])
+            for a, b in zip(pts, pts[1:]):           # ① 한 토막의 두 끝은 같은 값이어야 한다 (거의 곧은 토막)
+                d_ax, d_ot = abs(a[ax_] - b[ax_]), abs(a[1 - ax_] - b[1 - ax_])
+                if 0 < d_ax < tol and d_ot >= d_ax:
+                    union(a[ax_], b[ax_])
+        # ② 끝점 값 가까이(tol 안)의 토막은 그 끝점 값으로 — 단 그 끝점이 토막 곁(다른 축 범위 안)에 있을 때만.
+        #    (몸통 위 T 끝은 몸통을 잡아당기고, 3pt 떨어져 나란한 다른 입력은 끌려가지 않는다)
+        fpts = sorted((p[ax_], p[1 - ax_]) for w, fl, k in zip(wires, fixed, keep) if not k
+                      for p, f in zip(w["pts"], fl) if f[ax_])
+        fkeys = [f[0] for f in fpts]
+        for w, k in zip(wires, keep):
+            if k:
+                continue
+            for a, b in zip(w["pts"], w["pts"][1:]):
+                d_ax, d_ot = abs(a[ax_] - b[ax_]), abs(a[1 - ax_] - b[1 - ax_])
+                if not (d_ax < tol and d_ot >= d_ax):
+                    continue
+                lo, hi = min(a[1 - ax_], b[1 - ax_]) - tol, max(a[1 - ax_], b[1 - ax_]) + tol
+                for v in (a[ax_], b[ax_]):
+                    if v in fixed_vals:
+                        continue
+                    best = None
+                    for j in range(bisect.bisect_left(fkeys, v - tol), bisect.bisect_right(fkeys, v + tol)):
+                        fval, fo = fpts[j]
+                        if lo <= fo <= hi and (best is None or abs(fval - v) < abs(best - v)):
+                            best = fval
+                    if best is not None:
+                        union(v, best)
+        groups = {}
+        for v in par:
+            groups.setdefault(find(v), []).append(v)
+        m = {}
+        for g in groups.values():
+            fs = [v for v in g if v in fixed_vals]
+            rep = max(fs or g, key=lambda v: (cnt.get(v, 0), -abs(v - sorted(g)[len(g) // 2])))
+            for v in g:
+                m[v] = rep
+        maps.append(m)
+    mx, my = maps
+    out = []
+    for w, fl, k in zip(wires, fixed, keep):
+        if k:
+            out.append(w)
+            continue
+        P = [[p[0] if ax else mx.get(p[0], p[0]), p[1] if ay else my.get(p[1], p[1])] for p, (ax, ay) in zip(w["pts"], fl)]
+        out.append({**w, "pts": _corners(P)})
     return out
 
 
@@ -501,7 +716,7 @@ def _block_geometry(b: dict) -> dict:
         for q in (b.get("param") or {}).get("pins_out") or []:
             g["texts"].append([x + w - 1.5, y + q["dy"], q["name"], MACRO_PIN_FS, "end"])
         return g
-    g["texts"].append([x + w / 2, y + h / 2, b["text"], fit_fs(b["text"], w - 1.6, min(h * 0.6, 7))])
+    g["texts"].append([x + w / 2, y + h / 2, b["text"], fit_fs(b["text"], w - 2.2, min(h * 0.6, 7))])
     if spec.get("time"):
         g["texts"].append([x + w / 2, y + h + 6, f"{b['param'].get('t', 5):g} sec", 5])
     if spec.get("label") and b.get("label"):
@@ -520,7 +735,7 @@ def fit_fs(text: str, width: float, fs: float) -> float:
         tw = len(str(text or "")) * fs * _CHAR_W
     if tw <= width or tw <= 0:
         return round(fs, 2)
-    return round(max(2.5, fs * width / tw), 2)
+    return round(max(1.6, fs * width / tw * 0.97), 2)
 
 
 def bar_of(b: dict) -> list:
@@ -832,6 +1047,8 @@ NOTES_BOX = (30.0, 780.0, 540.0, 830.0)      # 장 노트 상자 — 표 아래 
 #   DRAWING TITLE · PROJECT DWG NO. · SHEET · REV.) · 도면 테두리.  분석기는 모양 게이트를 학습 사전(19VA 범례 열쇠 BAR_BOX · BAR_CIRCLE ·
 #   CROSS_BOX)으로, 시트 이름은 SHEET 캡션 아래 칸에서, 제목은 도면번호 위 글줄에서 읽는다 — 1A5J 원본과 같은 자리.
 FORMS = ("", "a5j")
+DEFAULT_FORM = "a5j"        # L64 — 새 그림은 학습한 프로젝트와 같은 양식(LOGIC 머리글 · 테두리 · NOTE · 아래 타이틀블록)으로 시작한다
+TITLE_KEYS = ("form", "project_name", "doc_no", "rev", "project")   # 묶음의 장끼리 같은 타이틀블록 값
 SHAPE_KINDS = ("AND", "OR", "NOT")           # 모양으로 그리는 게이트 (그 밖은 글자 그대로 — 분석기가 글자로 읽는다)
 A5J_FRAME = (16.0, 16.0, 1175.0, 836.0)
 

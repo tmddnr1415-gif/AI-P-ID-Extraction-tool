@@ -39,7 +39,13 @@ function layout() {
 }
 function ry(n) { const L = layout(); return L.TOP + ((n - 1) % L.N) * L.PITCH + L.PITCH / 2; }
 const CHAR_W = 0.56;                     // helv 평균 글자 폭 / 글자 크기 (서버 fit_fs 와 같은 어림)
-function fitFs(text, width, fs) { const tw = String(text || "").length * fs * CHAR_W; if (tw <= width || tw <= 0) return +fs.toFixed(2); return +Math.max(2.5, fs * width / tw).toFixed(2); }
+// L64 — 글자 폭은 어림(평균 0.56)이 아니라 실제 글꼴로 잰다 — 대문자 AND · OR 은 평균보다 넓어 상자 밖으로 나가 막대 · 변과 겹쳤다
+const _measure = (() => { let ctx = null; const memo = new Map(); return t => {
+  let v = memo.get(t); if (v !== undefined) return v;
+  try { ctx = ctx || document.createElement("canvas").getContext("2d"); ctx.font = "100px Helvetica, Arial, sans-serif"; v = ctx.measureText(t).width / 100; }
+  catch (e) { v = t.length * CHAR_W; }
+  if (memo.size > 4000) memo.clear(); memo.set(t, v); return v; }; })();
+function fitFs(text, width, fs) { const tw = _measure(String(text || "")) * fs; if (tw <= width || tw <= 0) return +fs.toFixed(2); return +Math.max(1.6, fs * width / tw * 0.97).toFixed(2); }
 function tipRatio(b) { const v = +((b.param || {}).tipr || 1.75); return Math.max(1.3, Math.min(2.2, isFinite(v) ? v : 1.75)); }
 function barOf(b) {
   const p = b.param || {}, L = S.lay;
@@ -92,12 +98,12 @@ function geomCore(b) {
     const p = b.param || {}, title = p.title || b.text || "";
     const big = String(title).includes(" | ");            // L58 — 줄을 명시한 이름(`FG COMPR SYS | GRP`)은 첫 줄을 크게 (서버 _wrap 과 같은 구분자)
     const lines = big ? String(title).split(" | ").map(t => t.trim()).filter(Boolean) : wrapText(title, Math.max(8, Math.floor(w / 2.6)));
-    lines.slice(0, 3).forEach((ln, i) => g.texts.push([x + w / 2, y + 0.5 * P + i * 0.6 * P + (big && i ? 0.15 * P : 0), ln, big && i === 0 ? 6.5 : 4.6]));
+    lines.slice(0, 3).forEach((ln, i) => g.texts.push([x + w / 2, y + 0.5 * P + i * 0.6 * P + (big && i ? 0.15 * P : 0), ln, fitFs(ln, w - 2, big && i === 0 ? 6.5 : 4.6)]));
     for (const q of p.pins_in || []) g.texts.push([x + 1.5, y + q.dy, q.name, 4.2, "start"]);
     for (const q of p.pins_out || []) g.texts.push([x + w - 1.5, y + q.dy, q.name, 4.2, "end"]);
     return g;
   }
-  g.texts.push([x + w / 2, y + h / 2, b.text, fitFs(b.text, w - 1.6, Math.min(h * 0.6, 7))]);
+  g.texts.push([x + w / 2, y + h / 2, b.text, fitFs(b.text, w - 2.2, Math.min(h * 0.6, 7))]);
   if (spec.time) g.texts.push([x + w / 2, y + h + 6, `${+((b.param || {}).t ?? 5)} sec`, 5]);
   if (spec.label && b.label) g.texts.push([x + w / 2, y + h + 6, b.label, 5]);
   return g;
@@ -621,10 +627,34 @@ function onWireBody(pt, skipId) {
     if (vt && Math.abs(pt[0] - a[0]) < 0.6 && Math.min(a[1], b[1]) + 0.8 < pt[1] && pt[1] < Math.max(a[1], b[1]) - 0.8) return [a[0], pt[1]]; } }
   return null;
 }
+/* L64 — 선은 언제나 가로 · 세로로만 (사선 금지).  서버 draw._corners 와 같은 규칙: 남은 사선 토막에 꺾임점 —
+   첫 토막은 끝점에서 가로로 나가고, 마지막 토막은 가로로 들어가며, 가운데는 앞 토막과 방향을 엇갈린다. */
+function orthoPts(P) {
+  if (!P || P.length < 2) return P;
+  const E = 1e-6, out = [[P[0][0], P[0][1]]];
+  for (let i = 1; i < P.length; i++) {
+    const a = out[out.length - 1], b = [P[i][0], P[i][1]];
+    if (Math.abs(b[0] - a[0]) > E && Math.abs(b[1] - a[1]) > E) {
+      const first = out.length === 1, last = i === P.length - 1;
+      if (first && last) { const mx = +((a[0] + b[0]) / 2).toFixed(2); out.push([mx, a[1]], [mx, b[1]]); }
+      else if (first) out.push([b[0], a[1]]);
+      else if (last) out.push([a[0], b[1]]);
+      else { const pa = out[out.length - 2]; out.push(Math.abs(pa[1] - a[1]) < E ? [a[0], b[1]] : [b[0], a[1]]); }
+    }
+    out.push(b);
+  }
+  const res = [out[0]];
+  for (const q of out.slice(1)) {
+    const l = res[res.length - 1]; if (Math.abs(q[0] - l[0]) < E && Math.abs(q[1] - l[1]) < E) continue;
+    if (res.length >= 2) { const a = res[res.length - 2]; if ((Math.abs(a[0] - l[0]) < E && Math.abs(l[0] - q[0]) < E) || (Math.abs(a[1] - l[1]) < E && Math.abs(l[1] - q[1]) < E)) { res[res.length - 1] = q; continue; } }
+    res.push(q);
+  }
+  return res.map(p => [+p[0].toFixed(2), +p[1].toFixed(2)]);
+}
 function finishWire() {
   if (S.wip && S.wip.pts.length >= 2) {
     pushUndo();
-    const pts = S.wip.pts.filter((p, i, a) => i === 0 || Math.hypot(p[0] - a[i - 1][0], p[1] - a[i - 1][1]) > 0.01).map(p => [+p[0].toFixed(2), +p[1].toFixed(2)]);
+    const pts = orthoPts(S.wip.pts.filter((p, i, a) => i === 0 || Math.hypot(p[0] - a[i - 1][0], p[1] - a[i - 1][1]) > 0.01).map(p => [+p[0].toFixed(2), +p[1].toFixed(2)]));
     if (pts.length >= 2) {
       const w = { id: newId("w"), pts, dashed: S.tool === "dash" };
       // 끝이 다른 선의 몸통에 닿으면 연결점 (범례: 점이 연결 · 몸통 교차는 연결 아님) — 사람이 그리면 저절로
@@ -674,9 +704,11 @@ function bindStage() {
     const gl = t.closest && t.closest(".golink");
     if (gl) {
       const side = gl.dataset.side, n = +gl.dataset.n, li = linkInfo(side, n), st = linkState(side, li);
-      if (st && st.st === "miss") { const name = side === "left" ? st.sheet : (li.targets.find(x => !x.did) || {}).sheet; addSheet(name); }
-      else if (side === "left" && li && li.ref && li.ref.did) goRef({ did: li.ref.did, row: li.ref.src_row || li.ref.row });
-      else if (side === "right" && li && li.targets) { const t0 = li.targets.find(x => x.did); if (t0) goRef({ did: t0.did, row: t0.row }); }
+      if (st && st.st === "miss") { const name = side === "left" ? st.sheet : (li.targets.find(x => !x.did) || {}).sheet; addSheet(name); return; }
+      const refs = [];
+      if (side === "left" && li && li.ref && li.ref.did) refs.push({ did: li.ref.did, row: li.ref.src_row || li.ref.row, sheet: li.ref.sheet });
+      if (side === "right" && li && li.targets) for (const t0 of li.targets) if (t0.did) refs.push({ did: t0.did, row: t0.row, sheet: t0.sheet });
+      if (refs.length) linkMenu(e, refs);
       return;
     }
     if (t.classList.contains("cell") || t.classList.contains("rowstub")) return;
@@ -712,6 +744,7 @@ function bindStage() {
       if (x1 - x0 > 2 && y1 - y0 > 2) { S.sel = new Set(S.doc.blocks.filter(b => { const bb = bboxOf(b); return bb[0] >= x0 && bb[2] <= x1 && bb[1] >= y0 && bb[3] <= y1; }).map(b => b.id)); }
       S.drag = null; render(); return;
     }
+    if (S.drag.vtx) { const w = S.doc.wires.find(w => w.id === S.drag.id); if (w) { w.pts = orthoPts(w.pts); render(); } }   // L64 — 꺾임점을 끌어도 사선이 남지 않게
     if ((S.drag.move && S.drag.moved) || S.drag.vtx) markDirty();
     S.drag = null; S.alignLines = null; drawGhost(); $("#stage").style.cursor = S.tool === "pan" ? "grab" : S.tool === "select" ? "default" : "crosshair";
   });
@@ -1101,7 +1134,7 @@ function fillForm() {
   $("#pdf").href = `/logic/api/drawings/${S.id}/export.pdf`; $("#dxf").href = `/logic/api/drawings/${S.id}/export.dxf`;
 }
 async function openDoc(id) {
-  if (S.dirty && !confirm("저장하지 않은 변경이 있습니다.  버리고 열까요?")) return;
+  if (S.dirty && !(await modal("저장하지 않은 변경", "<p>저장하지 않은 변경이 있습니다.  버리고 열까요?</p>"))) return;
   try { S.doc = await api(`/logic/api/drawings/${id}`); } catch (e) { toast(e.message); return; }
   S.id = id; S.dirty = false; S.sel = new Set(); S.selWire = null; S.undo = []; S.redo = []; S.verify = null; $("#verify-card").hidden = true;
   $("#pick").value = id; $("#save").disabled = true;
@@ -1111,7 +1144,8 @@ async function openDoc(id) {
   if (S.gotoRow) { const n = S.gotoRow; S.gotoRow = null; flashRow(n); }
   if (simOn()) runSim(true);                                      // L57 — 묶음 안에서 장을 옮겨도 준 신호는 남아 그 장의 값이 선다
   status(`${S.doc.name} · 블록 ${S.doc.blocks.length} · 선 ${S.doc.wires.length} · 저장 ${S.doc.saves || 0}번`);
-  location.hash = "d=" + id + (S.mparent ? `&mparent=${S.mparent.did}:${S.mparent.bid}` : "");
+  location.hash = "d=" + id + (S.mparent ? `&mparent=${S.mparent.did}:${S.mparent.bid}` : "") + (S.speer ? "&speer=1" : "");
+  if (isPeerChild() && !S.peerAsked) { S.peerAsked = true; peerUp({ type: "dsheet-ask" }); }   // L64 — 연 창에 지금 시뮬레이션 값을 묻는다
   if (S.mparent && !simOn()) { toggleSim(); askParent(); }        // L59 — 새 창은 바로 시뮬레이션으로 열고 부모에게 값을 묻는다
 }
 async function loadList(keep) {
@@ -1134,18 +1168,26 @@ function modal(title, bodyHtml, onOk) {
   });
 }
 async function newDoc() {
-  const who = author();
+  const who = author(), c = S.doc || {};
+  // L64 — 학습한 양식(삼성 · 아래 타이틀블록)으로 시작하고, 지금 연 그림의 타이틀블록 값을 이어받는다
   const v = await modal("새 그림", `<div class="dw-form">
     <label>이름 <input id="m-name" placeholder="예: 급수펌프 A 기동"></label>
-    <label>시트 이름 <input id="m-sheet" placeholder="예: LD-001"></label>
-    <label>행 수 (한쪽) <input id="m-rows" type="number" min="20" max="64" value="50"></label>
+    <label>시트 이름 <input id="m-sheet" placeholder="예: FG_G-301"></label>
+    <label>제목 <input id="m-title" placeholder="예: FG COMPR SYS #2"></label>
+    <label>양식 <select id="m-form"><option value="a5j">학습 양식 (삼성 · 아래 타이틀블록)</option><option value="">간단 양식</option></select></label>
+    <label>프로젝트 이름 <input id="m-pname" value="${esc(c.project_name || "")}"></label>
+    <label>도면 번호 <input id="m-docno" value="${esc(c.doc_no || "")}"></label>
+    <label>REV. <input id="m-rev" value="${esc(c.rev || "")}" style="max-width:60px"></label>
+    <label>행 수 (한쪽) <input id="m-rows" type="number" min="20" max="64" value="${c.N || 59}"></label>
     <label>작성자 <input id="m-who" value="${esc(who)}"></label></div>`,
-    () => { const w = $("#m-who").value.trim(); if (!w) { toast("작성자 이름이 필요합니다."); return false; } return { name: $("#m-name").value.trim(), sheet: $("#m-sheet").value.trim(), N: +$("#m-rows").value || 50, who: w }; });
+    () => { const w = $("#m-who").value.trim(); if (!w) { toast("작성자 이름이 필요합니다."); return false; }
+      return { name: $("#m-name").value.trim(), sheet: $("#m-sheet").value.trim(), title: $("#m-title").value.trim(), form: $("#m-form").value,
+               pname: $("#m-pname").value.trim(), docno: $("#m-docno").value.trim(), rev: $("#m-rev").value.trim(), N: +$("#m-rows").value || 59, who: w }; });
   if (!v) return;
   try { localStorage.setItem("pid.author", v.who); $("#who").value = v.who; } catch (e) {}
   try {
-    const d = await post("/logic/api/drawings", { name: v.name || "새 로직", author: v.who, N: v.N, project: $("#f-project").value });
-    if (v.sheet) { d.sheet_no = v.sheet; await put(`/logic/api/drawings/${d.id}`, { author: v.who, doc: d }); }
+    const d = await post("/logic/api/drawings", { name: v.name || v.sheet || "새 로직", author: v.who, N: v.N, project: $("#f-project").value || c.project || "",
+      sheet_no: v.sheet, title: v.title, form: v.form, project_name: v.pname, doc_no: v.docno, rev: v.rev });
     await loadList(d.id); await openDoc(d.id);
   } catch (e) { toast(e.message); }
 }
@@ -1210,7 +1252,7 @@ async function verify() {
 async function sendToAnalyse() {
   if (!S.doc) return;
   if (S.dirty) { toast("먼저 저장하세요."); return; }
-  if (!confirm("그린 것을 PDF 로 내보내 LOGIC 검토 묶음으로 올립니다.  계속할까요?")) return;
+  if (!(await modal("검토로 보내기", "<p>그린 것을 PDF 로 내보내 LOGIC 검토 묶음으로 올립니다.</p>"))) return;
   try { const r = await post(`/logic/api/drawings/${S.id}/analyse`, { author: author() }); toast("검토 묶음으로 올렸습니다 — LOGIC 검토 화면에서 열립니다."); setTimeout(() => { location.href = `/logic#job=${r.id}`; }, 900); }
   catch (e) { toast(e.message); }
 }
@@ -1385,6 +1427,41 @@ function goRef(ref) {
   if (ref.did === S.id) { flashRow(ref.row); return; }
   S.gotoRow = ref.row; openDoc(ref.did);
 }
+/* ───────── L64 — FROM/TO 값을 누르면 '이동' 또는 '새 창' · 새 창도 시뮬레이션 값은 같이 간다 ─────────
+   새 창은 같은 묶음 시뮬레이션을 **같은 입력(준 신호 · 아날로그 · 시간 · 직전 상태)** 으로 돌린다 — 판정은 서버 그대로라 두 창의 값이 같다.
+   새 창에서 준 신호는 연 창으로 올라가고, 연 창이 돌린 뒤 모든 새 창에 다시 내려보낸다 (한 곳이 정하므로 갈리지 않는다). */
+function refName(r) { const it = (S.allItems || []).find(i => i.id === r.did); return `${(it && it.sheet_no) || r.sheet || r.did.slice(0, 6)}${r.row ? "-" + r.row : ""}`; }
+function linkMenu(e, refs) {
+  const items = [];
+  for (const r of refs) {
+    if (refs.length > 1) items.push({ t: refName(r), info: true });
+    items.push({ t: "→ 이동", act: () => goRef(r) });
+    items.push({ t: "⧉ 새 창으로", act: () => openPeerWin(r) });
+  }
+  simMenu(e, refs.length > 1 ? "연결된 곳" : refName(refs[0]), items);
+}
+function isPeerChild() { return !!(S.speer && window.opener && !window.opener.closed); }
+function openPeerWin(ref) {
+  if (S.dirty) save().catch(() => {});                              // 새 창은 저장된 그림을 연다
+  const url = `/logic/draw#d=${ref.did}${ref.row ? "&row=" + ref.row : ""}&speer=1`;
+  const w = window.open(url, `dsheet-${ref.did}`, "width=1500,height=950");
+  if (!w) { status("새 창을 열지 못했습니다 — 브라우저의 팝업 차단을 풀어 주세요"); return; }
+  S.peers = S.peers || []; if (!S.peers.includes(w)) S.peers.push(w);
+  status(`${refName(ref)} 를 새 창으로 — 시뮬레이션 값은 이 창과 같이 갑니다`);
+}
+function sendPeers(msg) {
+  S.peers = (S.peers || []).filter(w => w && !w.closed);
+  for (const w of S.peers) { try { w.postMessage(msg, location.origin); } catch (e) {} }
+}
+function peerUp(msg) {                                               // 새 창 → 연 창 (연 창이 또 새 창이면 그 위로)
+  try { window.opener.postMessage(msg, location.origin); return true; } catch (e) { return false; }
+}
+function simInputs(state) { const s = S.sim; return { forces: s.forces, analog: s.analog, timers: s.timers, state }; }
+function simStart(quiet) {                                           // 시뮬레이션을 켜기만 (돌리지는 않는다)
+  S.sim = S.sim || { forces: {}, states: {}, timers: {}, analog: {}, res: null, values: {}, sig: null, pins: true };
+  S.sim.on = true; document.body.classList.add("sim"); $("#sim-card").hidden = false; setTool("select");
+  if (!quiet) status("시뮬레이션 — 왼쪽 행 자리 · 누름단추 · 선을 눌러 1/0 을 주세요.  고치면 바로 다시 돕니다.");
+}
 async function importBundle() {
   let jobs = [];
   try { jobs = await api("/logic/api/jobs"); } catch (e) { toast(e.message); return; }
@@ -1439,7 +1516,7 @@ async function verifySet() {
 async function sendSetToAnalyse() {
   if (!S.doc || !S.doc.set) return;
   if (S.dirty) { toast("먼저 저장하세요."); return; }
-  if (!confirm("묶음 전체를 PDF 로 내보내 LOGIC 검토 묶음으로 올립니다.  계속할까요?")) return;
+  if (!(await modal("검토로 보내기", "<p>묶음 전체를 PDF 로 내보내 LOGIC 검토 묶음으로 올립니다.</p>"))) return;
   try { const r = await post(`/logic/api/drawings/sets/${S.doc.set}/analyse`, { author: author() }); toast("검토 묶음으로 올렸습니다."); setTimeout(() => { location.href = `/logic#job=${r.id}`; }, 900); }
   catch (e) { toast(e.message); }
 }
@@ -1451,17 +1528,16 @@ function simOn() { return !!(S.sim && S.sim.on); }
 function simF() { const s = S.sim; return s.forces[S.id] || (s.forces[S.id] = {}); }
 function toggleSim() {
   if (!S.doc) return;
-  if (simOn()) { S.sim.on = false; simStop(); document.body.classList.remove("sim"); $("#sim-card").hidden = true; simMenuClose(); render(); status("시뮬레이션을 끝냈습니다 — 준 신호는 다시 켤 때까지 남습니다"); return; }
-  S.sim = S.sim || { forces: {}, states: {}, timers: {}, analog: {}, res: null, values: {}, sig: null, pins: true };
-  S.sim.on = true; document.body.classList.add("sim"); $("#sim-card").hidden = false;
-  setTool("select");
-  status("시뮬레이션 — 왼쪽 행 자리 · 누름단추 · 선을 눌러 1/0 을 주세요.  고치면 바로 다시 돕니다.");
+  if (isPeerChild()) { peerUp({ type: "dsheet-op", op: simOn() ? "off" : "on" }); return; }   // L64 — 새 창은 연 창과 함께 켜고 끈다
+  if (simOn()) { sendPeers({ type: "dsheet-sim", on: false }); S.sim.on = false; simStop(); document.body.classList.remove("sim"); $("#sim-card").hidden = true; simMenuClose(); render(); status("시뮬레이션을 끝냈습니다 — 준 신호는 다시 켤 때까지 남습니다"); return; }
+  simStart();
   runSim(true);
 }
 function simSoon() { if (!simOn()) return; clearTimeout(S.sim._t); S.sim._t = setTimeout(() => runSim(false), 160); }
 async function runSim(animate) {
   if (!simOn() || !S.doc) return;
   const s = S.sim, did = S.id, seq = (s.seq = (s.seq || 0) + 1);
+  const inState = s.states;                                        // L64 — 새 창은 이 입력으로 같은 값을 낸다
   const body = { doc: docOut(), forces: s.forces, state: s.states, timers: s.timers, analog: s.analog, inner: macroWinKeys() };
   let r;
   try { r = await post(`/logic/api/drawings/${did}/simulate`, body); } catch (e) { status("시뮬레이션 실패 — " + e.message); return; }
@@ -1469,6 +1545,8 @@ async function runSim(animate) {
   if (r.error) { status(r.error); s.res = null; renderSimCard(); return; }
   if (s.sig && r.sig !== s.sig) { s.states = {}; }               // 그림의 구조가 바뀌었다 — 묵은 상태(타이머 · 래치)는 버린다
   s.sig = r.sig; s.res = r; s.states = r.state || {};
+  s.lastIn = simInputs(inState);
+  sendPeers({ type: "dsheet-sim", on: true, animate: !!animate, ...s.lastIn });
   const fr = (r.focus && r.focus.frames) || [];
   s.frames = fr; s.values = fr.length ? fr[fr.length - 1].values : {};
   simStop();
@@ -1536,6 +1614,28 @@ function applyParentInner(inner, forces, animate) {
 window.addEventListener("message", e => {
   if (e.origin !== location.origin || !e.data) return;
   const d = e.data;
+  if (d.type === "dsheet-ask") {                                   // L64 — 새 창 → 연 창: 지금 값을 달라
+    S.peers = S.peers || []; if (!S.peers.includes(e.source)) S.peers.push(e.source);
+    if (simOn() && S.sim.lastIn) { try { e.source.postMessage({ type: "dsheet-sim", on: true, animate: false, ...S.sim.lastIn }, location.origin); } catch (er) {} }
+    return;
+  }
+  if (d.type === "dsheet-set") { if (!simOn()) simStart(true); setForce(d.did, d.key, d.value); return; }
+  if (d.type === "dsheet-analog") { if (!simOn()) simStart(true); if (d.ma == null) unAnalog(d.did, d.key); else setAnalog(d.did, d.key, d.ma); return; }
+  if (d.type === "dsheet-op") {
+    if (d.op === "on" && !simOn()) toggleSim();
+    else if (d.op === "off" && simOn()) toggleSim();
+    else if (d.op === "reset") simReset();
+    else if (d.op === "step") { if (isPeerChild()) peerUp(d); else if (simOn()) runSim(true); }
+    return;
+  }
+  if (d.type === "dsheet-sim" && e.source === window.opener) {     // 연 창 → 새 창: 같은 입력으로 돌린다
+    if (!d.on) { if (simOn()) { S.sim.on = false; simStop(); document.body.classList.remove("sim"); $("#sim-card").hidden = true; simMenuClose(); render(); } sendPeers(d); return; }
+    if (!S.doc) return;
+    if (!simOn()) simStart(true);
+    const s = S.sim; s.forces = d.forces || {}; s.analog = d.analog || {}; s.timers = d.timers || {}; s.states = d.state || {};
+    runSim(d.animate);                                             // 끝나면 이 창의 새 창에도 같은 입력을 내려보낸다
+    return;
+  }
   if (d.type === "dmacro-ask") {                                   // 새 창 → 부모: 값을 달라
     if (!S.sim || !S.sim.on || !S.id) return;
     S.sim.wins = S.sim.wins || {}; S.sim.wins[d.key] = { win: e.source, bid: d.key.split(":")[1], did: d.key.split(":")[0] };
@@ -1712,16 +1812,22 @@ function setForce(did, key, v) {
     if (!window.opener || window.opener.closed) { status("부모 창이 닫혔습니다 — 이 창은 Typical 만 따로 돕니다"); S.mparent = null; }
     else { window.opener.postMessage({ type: "dmacro-set", did: S.mparent.did, key: pk, value: v }, location.origin); status(`${v == null ? "풀기" : v + " 로 줌"} — 부모 시트의 매크로 안에서 계산합니다`); return; }
   }
+  if (isPeerChild()) { peerUp({ type: "dsheet-set", did, key, value: v }); return; }
   const F = S.sim.forces[did] || (S.sim.forces[did] = {});
   if (v == null) delete F[key]; else { F[key] = v; const A = S.sim.analog[did]; if (A) delete A[key]; }
   runSim(true);
 }
+function unAnalog(did, key) {
+  if (isPeerChild()) { peerUp({ type: "dsheet-analog", did, key, ma: null }); return; }
+  const A = S.sim.analog[did]; if (A) delete A[key]; runSim(true);
+}
 function setAnalog(did, key, ma) {
+  if (isPeerChild()) { peerUp({ type: "dsheet-analog", did, key, ma }); return; }
   const A = S.sim.analog[did] || (S.sim.analog[did] = {});
   A[key] = ma; const F = S.sim.forces[did]; if (F) delete F[key];
   runSim(true);
 }
-function simReset() { if (!S.sim) return; S.sim.forces = {}; S.sim.states = {}; S.sim.analog = {}; runSim(true); }
+function simReset() { if (!S.sim) return; if (isPeerChild()) { peerUp({ type: "dsheet-op", op: "reset" }); return; } S.sim.forces = {}; S.sim.states = {}; S.sim.analog = {}; runSim(true); }
 function renderSimCard() {
   const out = $("#sim-out"), s = S.sim; if (!s || !s.on) return;
   const r = s.res; if (!r) { out.innerHTML = `<div class="grp bad">결과가 없습니다</div>`; return; }
@@ -1757,7 +1863,7 @@ function renderSimCard() {
   if (notes.length) h += `<div class="grp"><b>메모</b>${notes.slice(0, 6).map(t => `<div class="row">${esc(t)}</div>`).join("")}</div>`;
   out.innerHTML = h;
   $("#sim-sum").textContent = `t=${s.frames && s.frames.length ? (+s.frames[s.frames.length - 1].t).toFixed(1) : 0}s · 선 ${Object.keys(sh.nets || {}).length} · 1 인 선 ${Object.values(s.values).filter(v => v === 1).length}`;
-  for (const b of out.querySelectorAll("button[data-off]")) b.onclick = ev => { ev.stopPropagation(); const [did, k, kind] = b.dataset.off.split("|"); if (kind === "a") { const A = S.sim.analog[did]; if (A) delete A[k]; } else { const F = S.sim.forces[did]; if (F) delete F[k]; } runSim(true); };
+  for (const b of out.querySelectorAll("button[data-off]")) b.onclick = ev => { ev.stopPropagation(); const [did, k, kind] = b.dataset.off.split("|"); if (kind === "a") unAnalog(did, k); else setForce(did, k, null); };
   for (const r of out.querySelectorAll(".row[data-row]")) r.onclick = () => flashRow(+r.dataset.row);
   for (const r of out.querySelectorAll(".row[data-open]")) r.onclick = () => openDoc(r.dataset.open);
 }
@@ -1781,7 +1887,7 @@ async function init() {
   $("#set-pdf").onclick = () => { if (S.doc && S.doc.set) location.href = `/logic/api/drawings/sets/${S.doc.set}/export.pdf`; };
   $("#f-typical").onchange = () => { if (!S.doc) return; S.doc.typical = $("#f-typical").checked; markDirty(); };
   $("#analyse").onclick = sendToAnalyse; $("#del").onclick = delDoc;
-  $("#simtoggle").onclick = toggleSim; $("#sim-step").onclick = () => runSim(true); $("#sim-reset").onclick = simReset;
+  $("#simtoggle").onclick = toggleSim; $("#sim-step").onclick = () => { if (isPeerChild()) peerUp({ type: "dsheet-op", op: "step" }); else runSim(true); }; $("#sim-reset").onclick = simReset;
   $("#sim-pins").onchange = () => render();
   document.addEventListener("pointerdown", e => { const m = $("#simmenu"); if (!m.hidden && !m.contains(e.target)) simMenuClose(); }, true);
   $("#pick").onchange = e => { if (e.target.value) openDoc(e.target.value); };
@@ -1792,6 +1898,8 @@ async function init() {
   await loadProjects();
   const items = await loadList();
   const m = location.hash.match(/d=([0-9a-f]{12})/), ms = location.hash.match(/set=([0-9a-f]{12})/), mp = location.hash.match(/mparent=([0-9a-f]{12}):([^&]+)/);
+  if (/speer=1/.test(location.hash) && window.opener) { S.speer = true; document.title = "LOGIC 작도 — 연결된 시트"; }
+  const mr = location.hash.match(/[#&]row=(\d+)/); if (mr) S.gotoRow = +mr[1];
   if (mp) { S.mparent = { did: mp[1], bid: decodeURIComponent(mp[2]), inner: null, forces: {} }; document.title = "LOGIC 작도 — 매크로 내부 동작"; }
   if (m && items.some(i => i.id === m[1])) openDoc(m[1]);
   else if (ms) { const first = items.filter(i => i.set === ms[1]).sort((a, b) => (a.order || 0) - (b.order || 0))[0]; if (first) openDoc(first.id); else { render(); await loadSet(); } }

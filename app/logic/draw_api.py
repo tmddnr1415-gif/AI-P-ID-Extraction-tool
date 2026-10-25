@@ -77,6 +77,9 @@ def create_drawing(body: dict = Body(default={})):
         except (TypeError, ValueError):
             n = draw.N_DEFAULT
         doc = draw.new_doc(name or "새 로직", author, project, n)
+        # L64 — 양식 · 타이틀블록 값은 화면이 준 것 (화면의 '새 그림' 은 학습 양식 draw.DEFAULT_FORM 이 기본 · API 기본은 예전 그대로)
+        c = draw.clean({**doc, **{k: body[k] for k in ("form", "project_name", "doc_no", "rev", "sheet_no", "title") if k in body}})
+        doc.update({k: c[k] for k in ("form", "project_name", "doc_no", "rev", "sheet_no", "title")})
     draw.save_new(doc)
     return doc
 
@@ -136,6 +139,11 @@ def add_sheet(sid: str, body: dict = Body(default={})):
     except (TypeError, ValueError):
         n = docs[0]["N"]
     doc = draw.new_doc(str(body.get("name") or "새 장")[:80], author, docs[0].get("project") or "", n)
+    # L64 — 같은 묶음의 장은 같은 양식 · 같은 타이틀블록 값 (가장 많이 쓴 값 — 장 하나가 다르게 적혀 있어도 흔들리지 않게)
+    from collections import Counter
+    for k in draw.TITLE_KEYS:
+        vals = Counter(d.get(k) or "" for d in docs if not d.get("typical") or k != "doc_no")
+        doc[k] = vals.most_common(1)[0][0] if vals else doc.get(k, "")
     doc.update({"set": sid, "set_name": docs[0].get("set_name") or "", "order": order, "typical": bool(body.get("typical")),
                 "sheet_no": str(body.get("sheet_no") or "")[:40]})
     draw.save_new(doc)
@@ -321,7 +329,13 @@ def revert_typical(tid: str, body: dict = Body(default={})):
 
 @router.get("/logic/api/drawings/{did}")
 def get_drawing(did: str):
-    return _load(did)
+    d = _load(did)
+    # L64 — 예전에 저장한 그림도 선을 곧게 (사선 금지) — 저장하면 그대로 남는다
+    try:
+        d["wires"] = draw.orthogonal_wires(d.get("wires") or [], blocks=d.get("blocks") or [])
+    except Exception:
+        pass
+    return d
 
 
 @router.put("/logic/api/drawings/{did}")
