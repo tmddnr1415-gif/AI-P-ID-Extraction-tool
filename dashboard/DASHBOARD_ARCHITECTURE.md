@@ -1169,3 +1169,11 @@ C:\Users\SAMSUNG\Desktop\Claude\                         ← 개발 폴더 (여�
 - 바뀐 곳: dashboard.html `APP_VERSION` · 새 단추 `#btnSafe` · CSS `.safebtn` · 새 `CACHE_OK` `SAFE_MS` `SNAP_AT` `safeState` `renderSafe` `safeClick` · `cacheSave`(CACHE_OK) · `saveCopy`(dept-copy-at = 시각) · `embedSelf`(조용히 쓴 뒤 표시 갱신) · `renderHeader`(renderSafe) · `VOC_MENU` `APP_ROUTES` 메뉴 · 권한 목록 · `PZ_STATUS`. server.py `SERVER_VERSION` · `MENUS`.
 - 확인한 것: 문법(JS · Python). 임시 서버: 보관본 없는 파일로 로그인 → 빨강 → 누름(저장 창은 시험용 가짜) → 파일에 써짐 → 초록 → 누르면 자세히 창. 서버가 만든 deploy 파일 → 처음부터 초록. 주소(보안 아닌 192.0.2.2)로 → 빨강 → 누름 → dashboard.html 내려받음 → 초록. 서버 PC 주소 → 안 보임. 메뉴 · #space 제목 'ROOM SIZE 계산'. 콘솔 오류 없음.
 - 회사에서 확인할 것: Edge 에서 빨강 → 저장 창 → 지금 연 dashboard.html 선택 → [저장] → 초록. 다음날 빨강으로 바뀌면(허락이 세션마다 끝나는 PC) 한 번 눌러 주면 됨.
+
+### 2026-10-25 (30) — LOGIC 분석 하위 메뉴 'LOGIC 작성' (APP_VERSION 2026-10-25.1 / SERVER 그대로)
+> server.py 안 바뀜 → 서버 재시작 필요 없음. 부서원 사본은 새 버전 배너로 교체.
+- 무엇을: 요청 "LOGIC 작성은 LOGIC 분석 메뉴의 하위 메뉴로". 왼쪽 메뉴 🔀 LOGIC 분석을 접기/펼치기 묶음으로 바꾸고 아래에 **LOGIC 작성**. 누르면 P&ID 서버(같은 포트 `PID_PORT`)의 `/logic/draw`(LOGIC 작도 화면, 다른 브랜치 `claude/logic-review-design-pd2z75` 에서 만듦)를 P&ID · LOGIC 분석과 같은 틀(본문 전체 iframe · 새 창으로 열기 · 서버 꺼짐 안내)로 띄움. 머리(🔀 LOGIC 분석)를 누르면 그대로 `/logic`.
+  - 권한은 'LOGIC 분석'과 같음(따로 권한 칸 없음). VOC 메뉴 = LOGIC 분석. 광장 상태 'LOGIC 작성 중...'. 빠른 찾기(Ctrl+K)에 'LOGIC 분석 · LOGIC 작성'. 접기 상태 기억 `dept-nav-logic-open`.
+- 바뀐 곳: dashboard.html `APP_VERSION` · `PID_ROUTES.logicdraw` · `ROUTES` · `menuOf`(logicdraw → logic) · `NAV_LS` · `renderMenu`(LOGIC 묶음) · `QF_MENUS`(권한은 menuOf) · `PZ_STATUS`.
+- 확인한 것: JS 문법. 임시 서버: 메뉴에 LOGIC 분석 ▾ › LOGIC 작성, 누르면 #logicdraw · 주소 `http://…:8000/logic/draw?user=본명` · 제목 'LOGIC 작성', 다시 LOGIC 분석 → `/logic`. (시험 PC 엔 P&ID 서버가 없어 '서버가 꺼져 있습니다' 안내까지 확인.) 콘솔 오류 없음.
+- 회사에서 확인할 것: 회사 P&ID 서버에 LOGIC 작도(`/logic/draw`)가 들어 있는 판이어야 화면이 뜸 — 없으면 iframe 안에 Not Found. 그 판은 LOGIC 쪽 zip 으로 적용.
