@@ -18,7 +18,7 @@ def test_shift_drag_aligns_to_neighbours_and_wires():
     assert 'alignMove([...S.sel], dx, dy, strong)' in JS
     assert 'if (strong) for (const w of S.doc.wires' in JS            # 선의 토막에도
     assert 'for (const pt of ports(b)) { tx.push' in JS               # 이웃 단자 높이에도
-    assert "if (!strong && !S.guide.align) return [dx, dy];" in JS   # 안내선을 꺼 두어도 Shift 는 듣는다
+    assert "if (!strong && !S.guide.align && !S.rg.v.length && !S.rg.h.length) return [dx, dy];" in JS   # 안내선을 꺼 두어도 Shift · 가이드선(L66)은 듣는다
     assert "if (e.shiftKey) { const nb = S.doc.blocks[S.doc.blocks.length - 1]; alignBlockNow(nb)" in JS   # 팔레트에서 놓을 때
 
 

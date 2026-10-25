@@ -97,11 +97,12 @@ class _Grid:
 
 
 def _pair_joined(i, j, wires, ends, segs):
+    # 끝이 저 선의 끝 · 꺾임점(L66 — 꺾임에서 세 갈래로 갈라짐) · 몸통에 닿으면 한 그물 (분석기 graph 도 맞닿은 토막 끝을 잇는다)
     for a in ends[i]:
-        if any(abs(a[0] - b[0]) + abs(a[1] - b[1]) <= JOIN for b in ends[j]) or any(_on_body(a[0], a[1], sg) for sg in segs[j]):
+        if any(abs(a[0] - b[0]) + abs(a[1] - b[1]) <= JOIN for b in wires[j]["pts"]) or any(_on_body(a[0], a[1], sg) for sg in segs[j]):
             return True
     for b in ends[j]:
-        if any(_on_body(b[0], b[1], sg) for sg in segs[i]):
+        if any(abs(b[0] - a[0]) + abs(b[1] - a[1]) <= JOIN for a in wires[i]["pts"]) or any(_on_body(b[0], b[1], sg) for sg in segs[i]):
             return True
     for dx, dy in (wires[i].get("dots") or []):
         if any(_on_body(dx, dy, sg, 1.0) for sg in segs[j]) or any(abs(dx - b[0]) + abs(dy - b[1]) <= 1.0 for b in ends[j]):

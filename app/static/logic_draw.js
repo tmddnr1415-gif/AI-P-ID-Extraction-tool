@@ -30,6 +30,7 @@ const S = {
   drag: null, verify: null, snap: true,
   guide: { grid: true, ruler: true, align: true, cross: true },   // L55 — 화면 전용 안내 (PDF · DXF 에 안 나간다)
   hover: null, alignLines: null,
+  rg: { v: [], h: [] },  // L66 — 눈금자를 눌러 세운 가이드선 (화면 전용 · 그림마다 브라우저에 기억)
 };
 
 /* ───────── 기하 (서버 draw.block_geometry 와 같은 규칙) ───────── */
@@ -129,6 +130,28 @@ function ports(b) {
   }
   return [[x, y + h / 2, "in"]].concat(out);
 }
+/* L66 — 겹친 기호: 막대까지 든 사각형이 서로 겹치면 (막대가 이웃 게이트 단자에 닿는 자리) */
+function clashes() {
+  const out = new Set(), items = S.doc.blocks.filter(b => !(S.sym[b.kind] || {}).note).map(b => [b.id, fullBox(b)]);
+  items.sort((u, v) => u[1][0] - v[1][0]);
+  for (let i = 0; i < items.length; i++) { const [ia, A] = items[i];
+    for (let j = i + 1; j < items.length && items[j][1][0] < A[2] - 0.3; j++) { const [ib, B] = items[j];
+      if (B[1] < A[3] - 0.3 && B[3] > A[1] + 0.3) { out.add(ia); out.add(ib); } } }
+  return out;
+}
+/* 놓은 기호가 이웃과 겹치면(막대 포함) 한 행씩 비켜 본다 — 위 · 아래로 세 행까지, 가까운 쪽부터.  비켰으면 그 수를 돌려준다. */
+function unclash(ids) {
+  const L = layout(), moving = new Set(ids), others = S.doc.blocks.filter(b => !moving.has(b.id) && !(S.sym[b.kind] || {}).note).map(fullBox);
+  const hit = bb => others.some(B => B[0] < bb[2] - 0.3 && B[2] > bb[0] + 0.3 && B[1] < bb[3] - 0.3 && B[3] > bb[1] + 0.3);
+  let moved = 0;
+  for (const id of ids) {
+    const b = S.doc.blocks.find(x => x.id === id); if (!b || (S.sym[b.kind] || {}).note || !hit(fullBox(b))) continue;
+    for (const k of [1, -1, 2, -2, 3, -3]) { const t = { ...b, y: b.y + k * L.PITCH }; const fb = fullBox(t); if (fb[1] >= L.TOP && fb[3] <= L.bottom && !hit(fb)) { b.y = +t.y.toFixed(2); moved++; break; } }
+  }
+  return moved;
+}
+/* 입력 막대까지 든 사각형 — 경로 · 겹침 검사용 (막대도 선이 지나가면 안 된다) */
+function fullBox(b) { const bb = bboxOf(b).slice(); if ((S.sym[b.kind] || {}).bar) { const br = barOf(b); bb[0] = Math.min(bb[0], br[0] - 0.6); bb[1] = Math.min(bb[1], br[1]); bb[3] = Math.max(bb[3], br[3]); } return bb; }
 function bboxOf(b) { const g = geom(b); if (g.circle) { const [cx, cy, r] = g.circle; let bb = [cx - r, cy - r, cx + r, cy + r]; for (const q of g.pointer || []) bb = [Math.min(bb[0], q[0]), Math.min(bb[1], q[1]), Math.max(bb[2], q[0]), Math.max(bb[3], q[1])]; return bb; } return g.box || [b.x, b.y, b.x + b.w, b.y + b.h]; }
 
 /* ───────── 자석 ───────── */
@@ -140,6 +163,12 @@ function snapPt(p, opts) {
   for (let n = 1; n <= L.N; n++) { const yy = ry(n); cand(L.LX0, yy, "row"); cand(L.LX1, yy, "row"); }
   for (const b of S.doc.blocks) if (!(opts && opts.exclude === b.id)) for (const pt of ports(b)) cand(pt[0], pt[1], "port");
   if (best) return [best.x, best.y, best.kind];
+  // L66 — 가이드선 가까이면 그 선 위로 (축마다 따로 · 나머지 축은 격자)
+  const gtol = Math.max(3, 0.4 * L.PITCH), gv = rgNear(S.rg.v, p[0], gtol), gh = rgNear(S.rg.h, p[1], gtol);
+  if (gv != null || gh != null) {
+    const g = L.PITCH / 2, gx = S.snap ? Math.round(p[0] / g) * g : p[0], gy = S.snap ? Math.round((p[1] - L.TOP) / g) * g + L.TOP : p[1];
+    return [gv != null ? gv : gx, gh != null ? gh : gy, "guide"];
+  }
   if (S.snap) { const g = L.PITCH / 2; return [Math.round(p[0] / g) * g, Math.round((p[1] - L.TOP) / g) * g + L.TOP, "grid"]; }
   return [p[0], p[1], ""];
 }
@@ -176,12 +205,14 @@ function render() {
     }
     svg.appendChild(stat);
   }
+  const rgg = document.createElementNS(NS, "g"); rgg.id = "rguides"; svg.appendChild(rgg); drawRGuides(rgg);
   const wg = document.createElementNS(NS, "g"); wg.id = "wires";
-  S._wireEls = {};
+  S._wireEls = {}; S._hopGen = (S._hopGen || 0) + 1;
   for (const w of S.doc.wires) renderWire(wg, w);
   svg.appendChild(wg);
   const bg = document.createElementNS(NS, "g"); bg.id = "blocks";
   const bad = new Set((S.verify && S.verify.blocks || []).filter(b => !b.ok).map(b => b.id));
+  S._clash = clashes();
   for (const b of S.doc.blocks) renderBlockWrap(bg, b, bad.has(b.id));
   svg.appendChild(bg);
   el("g", { id: "overlay" }, svg);
@@ -190,11 +221,64 @@ function render() {
   rulersSoon();
   if (simOn()) simPaint(S.sim.values || {}, S.sim.frames && S.sim.frames.length ? S.sim.frames[S.sim.frames.length - 1] : null);   // L57
 }
+/* L66 — 선 건너뛰기 (화면에서만): 가로 토막이 다른 선의 세로 토막을 (점 없이) 가로지르면 그 자리에서 위로 볼록하게 넘는다.
+   가로가 넘는다 · 연결점 · 끝 · 꺾임 가까이에서는 넘지 않는다 · 반지름 0.22 행.  PDF · DXF 는 학습한 양식 그대로 그냥 교차시킨다 —
+   (범례 G003: 몸통 교차는 연결이 아니다) · 반원을 PDF 에 넣어 보니 끊긴 토막이 분석기의 상자 · 막대 규칙에 걸려 교차를 잘못 읽는 자리가 남았다. */
+const HOP_R = 0.22, HOP_PIECE = 0.6;   // 행 간격 배율
+function hopIndex() {
+  if (S._hopIdx && S._hopIdx.doc === S.doc && S._hopIdx.n === S._hopGen) return S._hopIdx;
+  const vt = [], dots = new Set();   // 연결점 — 1pt 칸 열쇠 (선마다 전부 훑지 않는다)
+  for (const w of S.doc.wires) {
+    for (let i = 1; i < w.pts.length; i++) { const p = w.pts[i - 1], q = w.pts[i]; if (Math.abs(p[0] - q[0]) < 0.05 && Math.abs(p[1] - q[1]) > 0.05) vt.push([p[0], Math.min(p[1], q[1]), Math.max(p[1], q[1]), w.id]); }
+    for (const d of w.dots || []) dots.add(Math.round(d[0]) + "," + Math.round(d[1]));
+  }
+  vt.sort((u, v) => u[0] - v[0]);
+  S._hopIdx = { doc: S.doc, n: S._hopGen, vt, xs: vt.map(v => v[0]), dots };
+  return S._hopIdx;
+}
+function nearDot(dots, x, y) {
+  if (!dots.size) return false;
+  const cx = Math.round(x), cy = Math.round(y);
+  for (let i = -1; i <= 1; i++) for (let j = -1; j <= 1; j++) if (dots.has((cx + i) + "," + (cy + j))) return true;
+  return false;
+}
+function hopsOf(w) {
+  const P = layout().PITCH, r = HOP_R * P, piece = HOP_PIECE * P, idx = hopIndex(), out = [];
+  const lb = x => { let lo = 0, hi = idx.xs.length; while (lo < hi) { const m = (lo + hi) >> 1; if (idx.xs[m] < x) lo = m + 1; else hi = m; } return lo; };
+  for (let i = 1; i < w.pts.length; i++) {
+    const p = w.pts[i - 1], q = w.pts[i]; if (Math.abs(p[1] - q[1]) > 0.05 || Math.abs(p[0] - q[0]) < 3 * r) continue;
+    const y = p[1], lo = Math.min(p[0], q[0]) + r + piece, hi = Math.max(p[0], q[0]) - r - piece, xs = [];
+    for (let k = lb(lo); k < idx.vt.length && idx.vt[k][0] <= hi; k++) {
+      const [x, y0, y1] = idx.vt[k];
+      if (!(y > y0 + 0.3 && y < y1 - 0.3)) continue;
+      if (nearDot(idx.dots, x, y)) continue;
+      xs.push(x);
+    }
+    xs.sort((u, v) => u - v);
+    const keep = []; for (const x of xs) if (!keep.length || x - keep[keep.length - 1] >= 2 * r + piece) keep.push(x);
+    if (keep.length) out.push([i, keep]);
+  }
+  return out;
+}
+function hopPath(w, hops) {
+  const r = HOP_R * layout().PITCH, by = new Map(hops);
+  let d = `M${w.pts[0][0]},${w.pts[0][1]}`;
+  for (let i = 1; i < w.pts.length; i++) {
+    const p = w.pts[i - 1], q = w.pts[i], hx = by.get(i);
+    if (hx) {
+      const dir = q[0] > p[0] ? 1 : -1, list = dir > 0 ? hx : hx.slice().reverse(), sw = dir > 0 ? 1 : 0;
+      for (const x of list) d += ` L${x - dir * r},${p[1]} A${r},${r} 0 0 ${sw} ${x + dir * r},${p[1]}`;
+    }
+    d += ` L${q[0]},${q[1]}`;
+  }
+  return d;
+}
 function renderWire(wg, w) {
   const g = el("g", { "data-w": w.id }, wg), P = layout().PITCH;
   const pts = w.pts.map(p => p.join(",")).join(" ");
   el("polyline", { points: pts, class: "wirehit", "data-id": w.id }, g);
-  const ln = el("polyline", { points: pts, class: "wire" + (w.dashed ? " dashed" : "") + (S.selWire === w.id ? " sel" : ""), "data-id": w.id }, g);
+  const hops = hopsOf(w), cls = "wire" + (w.dashed ? " dashed" : "") + (S.selWire === w.id ? " sel" : "");
+  const ln = hops.length ? el("path", { d: hopPath(w, hops), class: cls, "data-id": w.id }, g) : el("polyline", { points: pts, class: cls, "data-id": w.id }, g);
   (S._wireEls || (S._wireEls = {}))[w.id] = ln;
   for (const [dx, dy] of w.dots || []) el("circle", { cx: dx, cy: dy, r: 0.12 * P, class: "dot", "data-id": w.id }, g);
   for (const [mx, my, kind] of w.marks || []) el("polygon", { points: markPolygon(mx, my, kind).map(q => q.join(",")).join(" "), class: "mark", "data-id": w.id }, g);
@@ -217,6 +301,7 @@ function redrawBlocks(ids) {                                       // 움직인 
 function redrawWire(id) {
   const wg = $("#wires"), w = S.doc.wires.find(x => x.id === id), old = wg && wg.querySelector(`g[data-w="${id}"]`);
   if (!old || !w) { render(); return; }
+  S._hopGen = (S._hopGen || 0) + 1;
   const tmp = document.createElementNS(NS, "g"); renderWire(tmp, w); old.replaceWith(tmp.firstChild);
 }
 function renderSoon(fn) {                                          // 포인터가 프레임보다 자주 와도 그리기는 프레임에 한 번
@@ -320,12 +405,27 @@ function shapeGeom(g, b) {               // L58 — 서버 draw.shape_geometry �
   else if (b.kind === "NOT") g.lines = [[x, y, x + w, y + h], [x, y + h, x + w, y]];
   return g;
 }
+/* L66 — 화면에서만 기호마다 색과 입체감 (PDF · DXF 는 흑백 그대로 — 서버가 따로 그린다).
+   분류는 기호 사전의 뜻(logic)에서: 논리 게이트 파랑 · 시간 초록 · 메모리 보라 · 누름단추 호박 · 경보/표시 빨강 · 연결 기호 회색 ·
+   글자 상자(연산 · 감시 · 상수) 주황 · 매크로 청록. */
+function blkCat(kind) {
+  const sp = S.sym[kind] || {}, lg = sp.logic || "";
+  if (sp.macro) return "macro";
+  if (sp.cells === 2 || lg === "memory") return "mem";
+  if (sp.time) return "time";
+  if (["and", "or", "nand", "nor", "not", "vote"].includes(lg)) return "gate";
+  if (lg === "source") return "src";
+  if (lg === "sink") return "sink";
+  if (lg === "connector") return "conn";
+  if (sp.note) return "note";
+  return "box";
+}
 function renderBlock(parent, b, bad) {
   let g = geom(b);
   if (S.doc && S.doc.form === "a5j") g = shapeGeom(g, b);
-  for (const ln of g.lines || []) el("line", { x1: ln[0], y1: ln[1], x2: ln[2], y2: ln[3] }, parent);
-  if (g.ellipse) el("ellipse", { cx: (g.ellipse[0] + g.ellipse[2]) / 2, cy: (g.ellipse[1] + g.ellipse[3]) / 2, rx: (g.ellipse[2] - g.ellipse[0]) / 2, ry: (g.ellipse[3] - g.ellipse[1]) / 2, class: "blk" }, parent);
-  const grp = el("g", { class: "blk" + (S.sel.has(b.id) ? " sel" : "") + (bad ? " bad" : ""), "data-id": b.id }, parent);
+  if (g.ellipse) el("ellipse", { cx: (g.ellipse[0] + g.ellipse[2]) / 2, cy: (g.ellipse[1] + g.ellipse[3]) / 2, rx: (g.ellipse[2] - g.ellipse[0]) / 2, ry: (g.ellipse[3] - g.ellipse[1]) / 2, class: "ell c-" + blkCat(b.kind) }, parent);
+  const grp = el("g", { class: "blk c-" + blkCat(b.kind) + (S.sel.has(b.id) ? " sel" : "") + (bad ? " bad" : "") + (S._clash && S._clash.has(b.id) ? " clash" : ""), "data-id": b.id }, parent);
+  if (S._clash && S._clash.has(b.id)) { const t = el("title", {}, grp); t.textContent = "이웃 기호(입력 막대 포함)와 겹칩니다 — 분석기가 선을 엉뚱한 기호에 붙일 수 있습니다.  띄우거나 입력 수를 줄이세요."; }
   const bb = bboxOf(b);
   el("rect", { x: bb[0] - 2, y: bb[1] - 2, width: bb[2] - bb[0] + 4, height: bb[3] - bb[1] + 4, class: "hit" }, grp);
   if (g.circle) {
@@ -339,6 +439,7 @@ function renderBlock(parent, b, bad) {
     el("rect", { x: b.x, y: b.y, width: b.w, height: b.h, fill: "none", stroke: S.sel.has(b.id) ? "#2f5bd8" : "none", "stroke-dasharray": "1 1" }, grp);
   }
   if (g.bar) el("line", { x1: g.bar[0], y1: g.bar[1], x2: g.bar[2], y2: g.bar[3] }, grp);
+  for (const ln of g.lines || []) el("line", { x1: ln[0], y1: ln[1], x2: ln[2], y2: ln[3] }, grp);   // L66 — 상자 안 선(⊠ · OR 줄기 · PB 칸막이)도 기호의 일부 — 밖에 두면 화면에 안 보였다
   for (const [cx, cy, t, fs, anc] of g.texts) if (t) { const e = el("text", { x: cx, y: cy, "font-size": fs, "text-anchor": anc === "start" ? "start" : anc === "end" ? "end" : "middle", class: anc ? "pin" : null }, grp); e.textContent = t; }
   if (S.sym[b.kind].macro) grp.classList.add("macro");
   if (S.tool === "wire" || S.tool === "dash" || S.sel.has(b.id)) for (const p of ports(b)) el("circle", { cx: p[0], cy: p[1], r: 1.4, class: "port" }, grp);
@@ -351,7 +452,7 @@ function paletteIcon(kind) {
   if (spec.cells === 2) { b.y = 2; }
   const svg = document.createElementNS(NS, "svg");
   svg.setAttribute("viewBox", `0 ${spec.cells === 2 ? -4 : -8} 44 ${spec.cells === 2 ? 34 : 40}`);
-  const g = el("g", { class: "blk" }, svg);
+  const g = el("g", { class: "blk c-" + blkCat(kind) }, svg);
   const gg = geom(b);
   if (gg.circle) { el("circle", { cx: gg.circle[0], cy: gg.circle[1], r: gg.circle[2] }, g); if (gg.pointer) el("polygon", { points: gg.pointer.map(p => p.join(",")).join(" ") }, g); }
   else if (gg.cells.length) for (const c of gg.cells) el("rect", { x: c[0], y: c[1], width: c[2] - c[0], height: c[3] - c[1] }, g);
@@ -400,6 +501,21 @@ function addPreset(pr, cx, cy) {
   markDirty(); render();
 }
 function newId(prefix) { let i = 1; const ids = new Set([...S.doc.blocks.map(b => b.id), ...S.doc.wires.map(w => w.id)]); while (ids.has(prefix + i)) i++; return prefix + i; }
+/* L66 — 입력 수: 막대를 k 행 길이로 (상자 가운데 기준) — 분석기는 막대 길이 / 행 간격 으로 입력 자리를 센다 (ports_of 와 같은 규칙) */
+function setInputs(b, k) {
+  const P = layout().PITCH, Lb = k * P + 0.4;
+  b.param = b.param || {};
+  b.param.bar = [+(b.h / 2 - Lb / 2).toFixed(2), +(b.h / 2 + Lb / 2).toFixed(2)];
+  alignPortsToRows(b);
+}
+/* 단자가 행 가운데에 서게 세로로 조금 옮긴다 (첫 입력 · 없으면 출력 기준) — 행에서 바로 곧은 선으로 들어온다 */
+function portRowShift(b) {
+  const L = layout(), ps = ports(b); if (!ps.length) return 0;
+  const p = ps.find(q => q[2] === "in") || ps[0];
+  const n = Math.round((p[1] - L.TOP - L.PITCH / 2) / L.PITCH);
+  return +((L.TOP + n * L.PITCH + L.PITCH / 2) - p[1]).toFixed(2);
+}
+function alignPortsToRows(b) { const d = portRowShift(b); if (Math.abs(d) > 0.01) b.y = +(b.y + d).toFixed(2); }
 function addBlock(kind, cx, cy) {
   const spec = S.sym[kind];
   const L = layout(), g = L.PITCH / 2;
@@ -411,7 +527,10 @@ function addBlock(kind, cx, cy) {
   // 가운데가 행 가운데에 오게 (상자 높이가 행과 어긋나므로 가운데 기준)
   const rowc = ry(Math.max(1, Math.min(L.N, Math.round((cy - L.TOP) / L.PITCH) + 1)));
   b.y = +(rowc - b.h / 2).toFixed(2);
-  pushUndo(); S.doc.blocks.push(b); S.sel = new Set([b.id]); S.selWire = null; markDirty(); render();
+  if (spec.bar && !spec.ab) setInputs(b, 2);
+  if (spec.cells === 2) b.h = +(2 * L.PITCH).toFixed(2);            // L66 — 메모리 두 칸 = 두 행 → S · R 단자가 둘 다 행 가운데에                       // L66 — 막대 게이트는 입력 둘로 시작 (긴 막대가 이웃 게이트 단자에 닿지 않게) · 속성에서 늘린다
+  if (!spec.note) alignPortsToRows(b);                             // L66 — 입력 둘(NAND · NOR)처럼 단자가 행 경계에 서는 것도 행 가운데로
+  pushUndo(); S.doc.blocks.push(b); unclash([b.id]); S.sel = new Set([b.id]); S.selWire = null; markDirty(); render();
 }
 
 /* ───────── 속성 ───────── */
@@ -445,6 +564,7 @@ function renderProps() {
   $("#props-kind").textContent = spec.name;
   let h = `<label>종류 <select id="p-kind">${Object.keys(S.sym).map(k => `<option value="${k}" ${k === b.kind ? "selected" : ""}>${esc(S.sym[k].name)}</option>`).join("")}</select></label>`;
   if (spec.time) h += `<label>시간 (초) <input id="p-t" type="number" min="0" step="0.5" value="${+(b.param.t ?? 5)}"></label>`;
+  if (spec.bar) { const k = ports(b).filter(p => p[2] === "in").length; h += `<label>입력 수 <input id="p-nin" type="number" min="1" max="24" value="${k}" style="width:56px"></label><p class="dw-hint">막대 길이가 행 간격 × 입력 수로 바뀌고 입력 단자가 행 가운데에 섭니다.</p>`; }
   if (spec.ab) h += `<label>A / B <span><input id="p-a" type="number" min="1" max="9" value="${b.param.a || 2}" style="width:56px"> / <input id="p-b" type="number" min="1" max="9" value="${b.param.b || 3}" style="width:56px"></span></label>`;
   if (spec.cells === 2) h += `<label>우선 칸 <select id="p-dom"><option value="" ${!b.param.dominant ? "selected" : ""}>기본 (S·R 함께면 바뀜)</option><option value="set" ${b.param.dominant === "set" ? "selected" : ""}>SET 우선 (SO)</option><option value="reset" ${b.param.dominant === "reset" ? "selected" : ""}>RESET 우선 (RO)</option></select></label>`;
   if (spec.label) h += `<label>이름 <input id="p-label" value="${esc(b.label)}" placeholder="START"></label>`;
@@ -470,6 +590,7 @@ function renderProps() {
   $("#p-kind").onchange = e => upd(() => { const k = e.target.value, sp = S.sym[k]; b.kind = k; b.text = sp.text; b.w = sp.w; b.h = sp.h; b.param = {}; if (sp.time) b.param.t = 5; if (sp.ab) { b.param.a = 2; b.param.b = 3; b.text = "2/3"; } if (sp.cells === 2) b.param.dominant = ""; });
   const on = (id, fn) => { const e = $(id); if (e) e.onchange = ev => upd(() => fn(ev.target)); };
   on("#p-t", t => { b.param.t = Math.max(0, +t.value || 0); });
+  on("#p-nin", t => { setInputs(b, Math.max(1, Math.min(24, Math.round(+t.value || 2)))); });
   on("#p-a", t => { b.param.a = Math.max(1, Math.min(9, +t.value || 2)); b.text = `${b.param.a}/${b.param.b}`; });
   on("#p-b", t => { b.param.b = Math.max(1, Math.min(9, +t.value || 3)); b.text = `${b.param.a}/${b.param.b}`; });
   on("#p-dom", t => { b.param.dominant = t.value; });
@@ -549,10 +670,11 @@ function drawGhost() {
   const ov = overlay(); if (!ov) return; ov.innerHTML = "";
   if (S.wip && S.wip.pts.length) {
     const last = S.wip.pts[S.wip.pts.length - 1];
-    const route = S.wip.cur ? routePick(last, S.wip.cur) : [];
+    const full = S.wip.cur ? routePick(last, S.wip.cur) : [last];
+    const route = full.slice(1), head = S.wip.pts.length === 1 ? [full[0]] : S.wip.pts;
     // L59 — 다른 경로 후보는 옅게, 고른 경로는 진하게 (Tab 으로 바꾼다 · 누르면 그 경로가 선이 된다)
     for (const alt of (S.wip.routes || []).slice(0, 4)) if (alt !== S.wip.routes[S.wip.ri || 0]) el("polyline", { points: [last].concat(alt.slice(1)).map(p => p.join(",")).join(" "), class: "wipalt" }, ov);
-    const pts = S.wip.pts.concat(route);
+    const pts = head.concat(route);
     el("polyline", { points: pts.map(p => p.join(",")).join(" "), class: "wipline" }, ov);
     if (S.wip.hot) el("circle", { cx: S.wip.hot[0], cy: S.wip.hot[1], r: 2.6, class: "port hot" }, ov);
   }
@@ -581,12 +703,19 @@ function routeObstacles(a, b) {
   const L = layout(), pad = 0.35 * L.PITCH, out = [];
   for (const blk of S.doc.blocks) {
     if (S.sym[blk.kind].note) continue;
-    const bb = bboxOf(blk), box = [bb[0] - pad, bb[1] - pad, bb[2] + pad, bb[3] + pad];
+    const bb = fullBox(blk), box = [bb[0] - pad, bb[1] - pad, bb[2] + pad, bb[3] + pad];
     const touches = q => q[0] >= bb[0] - 1.2 * L.PITCH && q[0] <= bb[2] + 1.2 * L.PITCH && q[1] >= bb[1] - pad && q[1] <= bb[3] + pad;
     if (touches(a) || touches(b)) continue;                        // 그 끝이 닿는 블록(출발 · 도착 단자)은 장애물이 아니다
     out.push(box);
   }
   return out;
+}
+/* 곧은 토막이 사각형 안을 0.5pt 넘게 지나는가 (변에 닿아 끝나는 것은 아니다 · 변을 따라가는 것은 그렇다 — 사각형을 조금 넓혀 쓴다) */
+function segInBox(p, q, box) {
+  const x0 = Math.min(p[0], q[0]), x1 = Math.max(p[0], q[0]), y0 = Math.min(p[1], q[1]), y1 = Math.max(p[1], q[1]);
+  if (Math.abs(p[1] - q[1]) < 0.05) return p[1] > box[1] && p[1] < box[3] && Math.min(x1, box[2]) - Math.max(x0, box[0]) > 0.5;
+  if (Math.abs(p[0] - q[0]) < 0.05) return p[0] > box[0] && p[0] < box[2] && Math.min(y1, box[3]) - Math.max(y0, box[1]) > 0.5;
+  return segHitsBox(p, q, box);
 }
 function segHitsBox(p, q, box) {
   const x0 = Math.min(p[0], q[0]), x1 = Math.max(p[0], q[0]), y0 = Math.min(p[1], q[1]), y1 = Math.max(p[1], q[1]);
@@ -609,13 +738,25 @@ function routeScore(path, boxes, endKind) {
     const p = path[i - 1], q = path[i];
     len += Math.abs(q[0] - p[0]) + Math.abs(q[1] - p[1]);
     for (const bx of boxes) if (segHitsBox(p, q, bx)) hits++;
+    for (const blk of S.doc.blocks) { if (S.sym[blk.kind].note) continue; const bb = bboxOf(blk); if (segInBox(p, q, [bb[0] - 0.3, bb[1] - 0.3, bb[2] + 0.3, bb[3] + 0.3])) hits++;
+      if (S.sym[blk.kind].bar && Math.abs(p[0] - q[0]) < 0.05) { const br = barOf(blk); if (Math.abs(p[0] - br[0]) < 0.4 && Math.min(Math.max(p[1], q[1]), br[3]) - Math.max(Math.min(p[1], q[1]), br[1]) > 0.3) hits++; } }
     ov += segOverlapsWires(p, q);
     for (const w of S.doc.wires) for (let j = 1; j < w.pts.length; j++) if (segsCross(p, q, w.pts[j - 1], w.pts[j])) cross++;
   }
+  // L66 — 다른 선의 끝 · 꺾임점이 이 길 위에 있거나, 이 길의 꺾임이 다른 선 몸통 위에 있으면 분석기가 잇는다 → 큰 값
+  const a0 = path[0], b0 = path[path.length - 1], same = (u, v) => Math.abs(u[0] - v[0]) < 0.6 && Math.abs(u[1] - v[1]) < 0.6;
+  let touch = 0;
+  for (const w of S.doc.wires) for (const t of w.pts) {
+    if (same(t, a0) || same(t, b0)) continue;
+    for (let i = 1; i < path.length; i++) { const p = path[i - 1], q = path[i];
+      if (Math.abs(p[1] - q[1]) < 0.2 ? (Math.abs(t[1] - p[1]) < 0.6 && t[0] > Math.min(p[0], q[0]) - 0.6 && t[0] < Math.max(p[0], q[0]) + 0.6) : (Math.abs(t[0] - p[0]) < 0.6 && t[1] > Math.min(p[1], q[1]) - 0.6 && t[1] < Math.max(p[1], q[1]) + 0.6)) { touch++; break; } }
+  }
+  for (const v of path.slice(1, -1)) if (onWireBody(v, null)) touch++;
+  { const L = layout(); for (let i = 1; i < path.length; i++) { const p = path[i - 1], q = path[i]; if (Math.abs(p[0] - q[0]) < 0.2 && Math.abs(p[1] - q[1]) > 0.2 && (p[0] <= L.LX0 + 0.3 || p[0] >= L.LX1 - 0.3)) touch += 2; } }   // 표 경계를 따라가는 세로 토막
   const bends = Math.max(0, path.length - 2);
   const lastHz = path.length >= 2 && Math.abs(path[path.length - 1][1] - path[path.length - 2][1]) < 0.2;
   const firstHz = path.length >= 2 && Math.abs(path[0][1] - path[1][1]) < 0.2;
-  let sc = bends * 3 + len * 0.02 + hits * 60 + ov * 4 + cross * 1.5;
+  let sc = bends * 3 + len * 0.02 + hits * 60 + ov * 4 + cross * 1.5 + touch * 40;
   if ((endKind === "row" || endKind === "port") && !lastHz) sc += 6;     // 단자 · 행 자리에는 가로로 들어간다
   if (S.wip && S.wip.startKind && S.wip.startKind !== "grid" && S.wip.pts.length === 1 && !firstHz) sc += 6;
   return sc;
@@ -626,6 +767,135 @@ function segsCross(p, q, c, d) {
   const [h0, h1, v0, v1] = hz1 ? [p, q, c, d] : [c, d, p, q];
   const x = v0[0], y = h0[1];
   return Math.min(h0[0], h1[0]) + 0.3 < x && x < Math.max(h0[0], h1[0]) - 0.3 && Math.min(v0[1], v1[1]) + 0.3 < y && y < Math.max(v0[1], v1[1]) - 0.3;
+}
+/* L66 — 점과 점 사이 최적 경로 (A*).  격자는 반 행 간격 + 두 끝 · 가이드선 · 장애물 변 바깥의 좌표.
+   블록 상자는 지나지 못하고, 다른 선과 같은 직선에 겹치는 길 · 다른 선의 끝 · 꺾임점을 지나는 길도 못 간다 (닿으면 분석기가 잇는다).
+   다른 선을 가로지르는 것은 허용하되 값을 매기고(건너뛰기 표시가 그려진다), 꺾임마다 값을 매긴다.  LOGIC 영역 안에서만.
+   돌려주는 것은 [a, …, b] — 못 찾으면 null. */
+function routeAStar(a, b, endKind, startKind) {
+  const L = layout(), P = L.PITCH, g = P / 2, pad = 0.35 * P, CL = 0.13 * P;   // CL — 다른 선과 띄울 거리 (분석기는 0.08P 안의 끝을 잇는다)
+  const boxes = routeObstacles(a, b);
+  // 두 끝이 닿은 블록은 장애물에서 빠지지만 그 안(속)은 지나지 못한다 — 출력에서 뒤로 돌아 상자를 가로지르지 않게
+  const inner = [];
+  const bars = [];
+  for (const blk of S.doc.blocks) { if (S.sym[blk.kind].note) continue; const fb = fullBox(blk), bb = bboxOf(blk), q = [bb[0] - 0.3, bb[1] - 0.3, bb[2] + 0.3, bb[3] + 0.3];
+    if (!boxes.some(x => x[0] <= fb[0] && x[2] >= fb[2] && x[1] <= fb[1] && x[3] >= fb[3])) { inner.push(q); if (S.sym[blk.kind].bar) bars.push(barOf(blk)); } }
+  const span = 7 * P;
+  const X0 = Math.max(L.LX0, Math.min(a[0], b[0]) - span), X1 = Math.min(L.LX1, Math.max(a[0], b[0]) + span);
+  const Y0 = Math.max(L.TOP, Math.min(a[1], b[1]) - span), Y1 = Math.min(L.bottom, Math.max(a[1], b[1]) + span);
+  const xsS = new Set([a[0], b[0]].map(v => +v.toFixed(2))), ysS = new Set([a[1], b[1]].map(v => +v.toFixed(2)));
+  for (let x = Math.ceil(X0 / g) * g; x <= X1 + 1e-6; x += g) xsS.add(+x.toFixed(2));
+  for (let y = Math.ceil((Y0 - L.TOP) / g) * g + L.TOP; y <= Y1 + 1e-6; y += g) ysS.add(+y.toFixed(2));
+  for (const k of [0.5, 1, 2, 3]) for (const sg of [-1, 1]) for (const c of [a, b]) {   // 단자 기준 칸 — 단자가 격자에 안 맞아도 반 행 떨어진 자리에서 꺾는다 (0.7pt 꺾임은 서버가 펴 버린다)
+    const x = +(c[0] + sg * k * g).toFixed(2), y = +(c[1] + sg * k * g).toFixed(2);
+    if (x > X0 && x < X1) xsS.add(x); if (y > Y0 && y < Y1) ysS.add(y); }
+  for (const v of S.rg.v) if (v >= X0 && v <= X1) xsS.add(+v.toFixed(2));
+  for (const v of S.rg.h) if (v >= Y0 && v <= Y1) ysS.add(+v.toFixed(2));
+  const xs = [...xsS].filter(v => v >= Math.min(X0, a[0], b[0]) - 0.01 && v <= Math.max(X1, a[0], b[0]) + 0.01).sort((p, q) => p - q);
+  const ys = [...ysS].filter(v => v >= Math.min(Y0, a[1], b[1]) - 0.01 && v <= Math.max(Y1, a[1], b[1]) + 0.01).sort((p, q) => p - q);
+  const nx = xs.length, ny = ys.length; if (nx * ny > 40000) return null;
+  // 다른 선: 가로 토막 · 세로 토막 · 끝과 꺾임점
+  const hz = [], vt = [], pts = [];
+  const near = (p, q) => Math.abs(p[0] - q[0]) < 0.6 && Math.abs(p[1] - q[1]) < 0.6;
+  // 같은 신호 — 출발점(또는 도착점)을 이미 쓰는 선: 그 선을 따라가다 갈라지는 것은 된다 (갈라진 자리에 연결점)
+  const own = new Set(S.doc.wires.filter(w => w.pts.some(q => near(q, a) || near(q, b))).map(w => w.id));
+  const ownSegs = [];
+  for (const w of S.doc.wires) {
+    const W = w.pts;
+    if (own.has(w.id)) { for (let i = 1; i < W.length; i++) ownSegs.push([W[i - 1], W[i]]); continue; }
+    for (let i = 0; i < W.length; i++) { if (!near(W[i], a) && !near(W[i], b)) pts.push(W[i]); }
+    for (let i = 1; i < W.length; i++) { const p = W[i - 1], q = W[i]; if (Math.abs(p[1] - q[1]) < 0.2) hz.push([Math.min(p[0], q[0]), Math.max(p[0], q[0]), p[1]]); else if (Math.abs(p[0] - q[0]) < 0.2) vt.push([Math.min(p[1], q[1]), Math.max(p[1], q[1]), p[0]]); }
+  }
+  for (const blk of S.doc.blocks) for (const pt of ports(blk)) if (!near(pt, a) && !near(pt, b)) pts.push(pt);
+  const ix = new Map(xs.map((v, i) => [v, i])), iy = new Map(ys.map((v, i) => [v, i]));
+  const sx = ix.get(+a[0].toFixed(2)), sy = iy.get(+a[1].toFixed(2)), tx = ix.get(+b[0].toFixed(2)), ty = iy.get(+b[1].toFixed(2));
+  if (sx == null || sy == null || tx == null || ty == null) return null;
+  const edgeMemo = new Map();
+  const rowEnd = endKind === "row" ? b : startKind === "row" ? a : null;
+  // 토막 (i,j)→(i2,j2) 의 값: 막히면 Infinity · 아니면 [길이 + 건너뛰기 값]
+  const segCost = (i, j, i2, j2) => {
+    const key = i < i2 || j < j2 ? `${i},${j},${i2},${j2}` : `${i2},${j2},${i},${j}`;
+    let c = edgeMemo.get(key); if (c !== undefined) return c;
+    const p = [xs[i], ys[j]], q = [xs[i2], ys[j2]], horiz = j === j2;
+    c = Math.abs(q[0] - p[0]) + Math.abs(q[1] - p[1]);
+    if (!horiz && (p[0] <= L.LX0 + 0.3 || p[0] >= L.LX1 - 0.3)) { edgeMemo.set(key, Infinity); return Infinity; }   // 표 경계를 따라가면 행 자리를 다 잇는다
+    // 행으로 가는 선은 그 행의 높이로 길게 간다 (남의 행 높이를 끝까지 타면 그 행의 들어갈 자리를 막는다)
+    if (horiz && rowEnd && Math.abs(p[1] - rowEnd[1]) > 0.3) c += 0.04 * Math.abs(q[0] - p[0]);
+    const lo = horiz ? Math.min(p[0], q[0]) : Math.min(p[1], q[1]), hi = horiz ? Math.max(p[0], q[0]) : Math.max(p[1], q[1]);
+    for (const bx of boxes) if (segHitsBox(p, q, bx)) { c = Infinity; break; }
+    if (c !== Infinity) for (const bx of inner) if (segInBox(p, q, bx)) { c = Infinity; break; }        // 변을 따라가는 것도 (테두리에 겹쳐 그리면 분석기가 기호의 일부로 읽는다)
+    if (c !== Infinity && !horiz) for (const br of bars) if (Math.abs(p[0] - br[0]) < 0.4 && Math.min(hi, br[3]) - Math.max(lo, br[1]) > 0.3) { c = Infinity; break; }   // 입력 막대 위를 타지 않는다
+    if (c !== Infinity) {
+      if (horiz) {
+        for (const [x0, x1, y] of hz) if (Math.abs(y - p[1]) < CL && Math.min(hi, x1) - Math.max(lo, x0) > -CL) { c = Infinity; break; }
+        if (c !== Infinity) for (const [y0, y1, x] of vt) { const inY = p[1] > y0 + 0.3 && p[1] < y1 - 0.3;
+          if (x > lo + 0.3 && x < hi - 0.3 && inY) c += 1.2 * P;
+          else if (inY && x >= lo - 0.3 && x <= hi + 0.3) c += 0.6 * P;              // 이 토막의 끝이 저 선 몸통 위 — 곧게 지나가면 교차 (노드 규칙이 꺾임을 막는다)
+          else if (x >= lo - CL && x <= hi + CL && p[1] >= y0 - CL && p[1] <= y1 + CL) { c = Infinity; break; } }   // 저 선의 끝이 이 토막에 닿음 = 잇게 된다
+      } else {
+        for (const [y0, y1, x] of vt) if (Math.abs(x - p[0]) < CL && Math.min(hi, y1) - Math.max(lo, y0) > -CL) { c = Infinity; break; }
+        if (c !== Infinity) for (const [x0, x1, y] of hz) { const inX = p[0] > x0 + 0.3 && p[0] < x1 - 0.3;
+          if (y > lo + 0.3 && y < hi - 0.3 && inX) c += 1.2 * P;
+          else if (inX && y >= lo - 0.3 && y <= hi + 0.3) c += 0.6 * P;
+          else if (y >= lo - CL && y <= hi + CL && p[0] >= x0 - CL && p[0] <= x1 + CL) { c = Infinity; break; } }
+      }
+    }
+    if (c !== Infinity) for (const t of pts) {
+      if (horiz ? (Math.abs(t[1] - p[1]) < CL && t[0] > lo - CL && t[0] < hi + CL) : (Math.abs(t[0] - p[0]) < CL && t[1] > lo - CL && t[1] < hi + CL)) { c = Infinity; break; }
+    }
+    edgeMemo.set(key, c); return c;
+  };
+  // 상태 = (노드, 들어온 방향 0 가로 · 1 세로 · 2 처음)
+  // 노드가 다른 선 몸통 위면 그 자리에서는 꺾지도 멈추지도 못한다 (꺾으면 분석기가 잇는다) — 곧게 지나가기만
+  const bodyMemo = new Map();
+  const onBody = (i, j) => { const k = j * nx + i; let v = bodyMemo.get(k); if (v !== undefined) return v; const x = xs[i], y = ys[j]; v = false;
+    for (const [x0, x1, yy] of hz) if (Math.abs(yy - y) < 0.3 && x > x0 + 0.3 && x < x1 - 0.3) { v = true; break; }
+    if (!v) for (const [y0, y1, xx] of vt) if (Math.abs(xx - x) < 0.3 && y > y0 + 0.3 && y < y1 - 0.3) { v = true; break; }
+    bodyMemo.set(k, v); return v; };
+  const N3 = nx * ny * 3, dist = new Float64Array(N3).fill(Infinity), prev = new Int32Array(N3).fill(-1);
+  const heap = [];
+  const push = (f, s) => { heap.push([f, s]); let k = heap.length - 1; while (k > 0) { const pk = (k - 1) >> 1; if (heap[pk][0] <= heap[k][0]) break; [heap[pk], heap[k]] = [heap[k], heap[pk]]; k = pk; } };
+  const pop = () => { const top = heap[0], last = heap.pop(); if (heap.length) { heap[0] = last; let k = 0; for (;;) { const l = 2 * k + 1, r = l + 1; let m = k; if (l < heap.length && heap[l][0] < heap[m][0]) m = l; if (r < heap.length && heap[r][0] < heap[m][0]) m = r; if (m === k) break; [heap[m], heap[k]] = [heap[k], heap[m]]; k = m; } } return top; };
+  const hcost = (i, j) => Math.abs(xs[i] - b[0]) + Math.abs(ys[j] - b[1]);
+  const s0 = (sy * nx + sx) * 3 + 2; dist[s0] = 0; push(hcost(sx, sy), s0);
+  const bend = 2 * P, wantHzStart = startKind === "row" || startKind === "port", wantHzEnd = endKind === "row" || endKind === "port";
+  let goal = -1, steps = 0;
+  while (heap.length) {
+    const [f, st] = pop(); const d = dist[st]; if (f - hcost(((st / 3) | 0) % nx, ((st / 3) / nx) | 0) > d + 1e-6) continue;
+    const node = (st / 3) | 0, dir = st % 3, i = node % nx, j = (node / nx) | 0;
+    if (i === tx && j === ty) { goal = st; break; }
+    if (++steps > 60000) break;
+    for (const [di, dj, nd] of [[1, 0, 0], [-1, 0, 0], [0, 1, 1], [0, -1, 1]]) {
+      const i2 = i + di, j2 = j + dj; if (i2 < 0 || j2 < 0 || i2 >= nx || j2 >= ny) continue;
+      let c = segCost(i, j, i2, j2); if (c === Infinity) continue;
+      if (dir !== 2 && dir !== nd) { if (onBody(i, j)) continue; c += bend; }
+      if (dir === 2 && wantHzStart && nd === 1) c += 2 * bend;
+      if (Math.abs(xs[i2] - xs[i]) + Math.abs(ys[j2] - ys[j]) < 0.4 * P) c += bend;   // 아주 짧은 토막 (곧게 펴면 사라지는 꺾임)
+      if (i2 === tx && j2 === ty && wantHzEnd && nd === 1) c += 2 * bend;
+      if (i2 === tx && j2 === ty && nd === 0 && dir === 1 && Math.abs(xs[i2] - xs[i]) < 0.4 * P) c += 1.5 * bend;   // 꺾자마자 짧게 들어가는 꼬리 (0.7pt 짜리 ㄴ) 는 보기 싫다
+      const s2 = ((j2 * nx) + i2) * 3 + nd, d2 = d + c;
+      if (d2 < dist[s2] - 1e-9) { dist[s2] = d2; prev[s2] = st; push(d2 + hcost(i2, j2), s2); }
+    }
+  }
+  if (goal < 0) return null;
+  const path = [];
+  for (let st = goal; st >= 0; st = prev[st]) { const node = (st / 3) | 0; path.push([xs[node % nx], ys[(node / nx) | 0]]); }
+  path.reverse();
+  const outp = [path[0]];
+  for (let k = 1; k < path.length; k++) {
+    const q = path[k];
+    if (outp.length >= 2) { const p0 = outp[outp.length - 2], p1 = outp[outp.length - 1]; if ((Math.abs(p0[0] - p1[0]) < 0.01 && Math.abs(p1[0] - q[0]) < 0.01) || (Math.abs(p0[1] - p1[1]) < 0.01 && Math.abs(p1[1] - q[1]) < 0.01)) { outp[outp.length - 1] = q; continue; } }
+    outp.push(q);
+  }
+  outp[0] = [a[0], a[1]]; outp[outp.length - 1] = [b[0], b[1]];
+  // 같은 신호 선 위를 따라간 앞(뒤) 토막은 잘라 낸다 — 새 선은 갈라지는 자리에서 시작한다 (그 자리는 저 선의 몸통 → 연결점)
+  const onOwn = (p, q) => ownSegs.some(([c, d]) => { const hz1 = Math.abs(p[1] - q[1]) < 0.05, hz2 = Math.abs(c[1] - d[1]) < 0.05;
+    if (hz1 !== hz2) return false;
+    if (hz1) return Math.abs(p[1] - c[1]) < 0.3 && Math.min(p[0], q[0]) >= Math.min(c[0], d[0]) - 0.3 && Math.max(p[0], q[0]) <= Math.max(c[0], d[0]) + 0.3;
+    return Math.abs(p[0] - c[0]) < 0.3 && Math.min(p[1], q[1]) >= Math.min(c[1], d[1]) - 0.3 && Math.max(p[1], q[1]) <= Math.max(c[1], d[1]) + 0.3; });
+  while (outp.length > 2 && onOwn(outp[0], outp[1])) outp.shift();
+  while (outp.length > 2 && onOwn(outp[outp.length - 2], outp[outp.length - 1])) outp.pop();
+  return outp;
 }
 function routeCandidates(a, b) {
   const L = layout(), P = L.PITCH, out = [];
@@ -647,6 +917,8 @@ function routeCandidates(a, b) {
   const addX = mx => { const k = "x" + mx.toFixed(1); if (seen.has(k)) return; seen.add(k); out.push(clean([a, [mx, a[1]], [mx, b[1]], b])); };
   const addY = my => { const k = "y" + my.toFixed(1); if (seen.has(k)) return; seen.add(k); out.push(clean([a, [a[0], my], [b[0], my], b])); };
   addX((a[0] + b[0]) / 2); addY((a[1] + b[1]) / 2);
+  for (const v of S.rg.v) if (v > x0 + 0.5 && v < x1 - 0.5) addX(v);          // L66 — 가이드선을 따라 가는 길
+  for (const v of S.rg.h) if (v > y0 + 0.5 && v < y1 - 0.5) addY(v);
   for (let mx = Math.ceil(x0 / (P / 2)) * (P / 2); mx <= x1; mx += P / 2) if (mx > x0 + 0.5 && mx < x1 - 0.5) addX(mx);
   for (let my = Math.ceil((y0 - L.TOP) / (P / 2)) * (P / 2) + L.TOP; my <= y1; my += P / 2) if (my > y0 + 0.5 && my < y1 - 0.5) addY(my);
   // 두 점을 지나는 띠 밖으로 한 행 돌아가는 길 (사이가 전부 막혔을 때)
@@ -657,17 +929,29 @@ function routePick(a, b) {
   const sp = S.wip && S.wip.cur ? S.wip.hot : null;
   const endKind = sp ? sp[2] : "grid";
   const boxes = routeObstacles(a, b);
-  const cands = routeCandidates(a, b).map(path => ({ path, sc: routeScore(path, boxes, endKind) })).sort((u, v) => u.sc - v.sc);
-  const key = a.join(",") + ">" + b.join(",");
-  if (!S.wip.routeKey || S.wip.routeKey !== key) { S.wip.routeKey = key; S.wip.ri = 0; }
-  S.wip.routes = cands.map(c => c.path);
+  const key = a.join(",") + ">" + b.join(",") + ">" + endKind;
+  if (!S.wip.routeKey || S.wip.routeKey !== key) {                // 같은 두 점이면 다시 찾지 않는다 (포인터가 움직일 때마다 부른다)
+    S.wip.routeKey = key; S.wip.ri = 0;
+    const list = routeCandidates(a, b);
+    const best = routeAStar(a, b, endKind, S.wip.pts.length === 1 ? S.wip.startKind : "");
+    if (best && best.length >= 2) list.unshift(best);
+    const seen = new Set();
+    const cands = list.map(path => ({ path, sc: routeScore(path, boxes, endKind) })).sort((u, v) => u.sc - v.sc)
+      .filter(c => { const k = c.path.map(p => p.map(v => v.toFixed(1)).join(",")).join(" "); if (seen.has(k)) return false; seen.add(k); return true; });
+    S.wip.routes = cands.map(c => c.path);
+  }
   const pick = S.wip.routes[Math.min(S.wip.ri || 0, S.wip.routes.length - 1)] || [a, b];
-  return pick.slice(1);
+  return pick;                                                     // L66 — 처음 점이 바뀔 수 있다 (같은 신호 선에서 갈라짐)
 }
 function orth(a, b) {
   // 직각 꺾임 — 가로 먼저 · 두 좌표가 다 다르면 꺾이는 점을 하나 넣는다 (완전히 가로·세로면 그대로)
   if (Math.abs(a[0] - b[0]) < 0.01 || Math.abs(a[1] - b[1]) < 0.01) return [b];
   return [[b[0], a[1]], b];
+}
+/* L66 — 다른 선의 꺾임점에서 갈라지면(세 갈래) 그것도 연결 — 점을 찍는다 (범례: 연결은 점으로만 표시) */
+function onWireCorner(pt) {
+  for (const w of S.doc.wires) for (let i = 1; i < w.pts.length - 1; i++) { const q = w.pts[i]; if (Math.abs(q[0] - pt[0]) < 0.3 && Math.abs(q[1] - pt[1]) < 0.3) return [q[0], q[1]]; }
+  return null;
 }
 function onWireBody(pt, skipId) {
   for (const w of S.doc.wires) { if (w.id === skipId) continue; for (let i = 1; i < w.pts.length; i++) { const a = w.pts[i - 1], b = w.pts[i]; const hz = Math.abs(a[1] - b[1]) < 0.2, vt = Math.abs(a[0] - b[0]) < 0.2;
@@ -707,7 +991,7 @@ function finishWire() {
       const w = { id: newId("w"), pts, dashed: S.tool === "dash" };
       // 끝이 다른 선의 몸통에 닿으면 연결점 (범례: 점이 연결 · 몸통 교차는 연결 아님) — 사람이 그리면 저절로
       const dots = [];
-      for (const e of [pts[0], pts[pts.length - 1]]) { const d = onWireBody(e, null); if (d) dots.push(d); }
+      for (const e of [pts[0], pts[pts.length - 1]]) { const d = onWireBody(e, null) || onWireCorner(e); if (d) dots.push(d); }
       if (dots.length) w.dots = dots;
       S.doc.wires.push(w);
     }
@@ -732,7 +1016,9 @@ function bindStage() {
       else {
         const last = S.wip.pts[S.wip.pts.length - 1];
         S.wip.cur = [sp[0], sp[1]]; S.wip.hot = (sp[2] === "row" || sp[2] === "port") ? sp : null;
-        for (const q of routePick(last, [sp[0], sp[1]])) S.wip.pts.push(q);          // L59 — 추천 경로가 그대로 선이 된다
+        const rt = routePick(last, [sp[0], sp[1]]);                                   // L59 — 추천 경로가 그대로 선이 된다
+        if (S.wip.pts.length === 1 && (Math.abs(rt[0][0] - last[0]) > 0.01 || Math.abs(rt[0][1] - last[1]) > 0.01)) S.wip.pts[0] = rt[0].slice();   // L66 — 같은 신호 선에서 갈라지는 자리부터
+        for (const q of rt.slice(1)) S.wip.pts.push(q);
         S.wip.routes = null; S.wip.routeKey = null; S.wip.ri = 0;
         if (sp[2] === "row" || sp[2] === "port") { finishWire(); return; }
       }
@@ -776,9 +1062,13 @@ function bindStage() {
       let dx = p[0] - S.drag.start[0], dy = p[1] - S.drag.start[1];
       dx = Math.round(dx / g) * g; dy = Math.round(dy / g) * g;
       const raw = Math.abs(dx) > 0.01 || Math.abs(dy) > 0.01;          // 정렬 자석이 되돌려도 '움직였다' 는 사실은 남는다
+      if (S.snap && !strong && S.drag.orig.length) {                  // L66 — 자석: 단자가 행 가운데에 서게 (상자 모서리가 아니라)
+        const [id0, x00, y00] = S.drag.orig[0], b0 = S.doc.blocks.find(b => b.id === id0);
+        if (b0 && !S.sym[b0.kind].note) { const t = { ...b0, x: x00 + dx, y: y00 + (p[1] - S.drag.start[1]) }; dy = +((t.y + portRowShift(t)) - y00).toFixed(2); }
+      }
       [dx, dy] = alignMove([...S.sel], dx, dy, strong);
       if (strong && !S.drag.hinted) { S.drag.hinted = true; status("Shift — 이웃 기호 · 선에 맞춰 옮깁니다 (안내선)"); }
-      if (!S.drag.moved && raw) { S.drag.moved = true; pushUndo(); }
+      if (!S.drag.moved && raw) { S.drag.moved = true; pushUndo(); document.body.classList.add("dw-dragging"); }
       if (!S.drag.moved) return;
       for (const [id, x0, y0] of S.drag.orig) { const b = S.doc.blocks.find(b => b.id === id); if (b) { b.x = +(x0 + dx).toFixed(2); b.y = +(y0 + dy).toFixed(2); } }
       S.dirty = true; const ids = S.drag.orig.map(o => o[0]); renderSoon(() => redrawBlocks(ids)); return;
@@ -793,8 +1083,9 @@ function bindStage() {
       S.drag = null; render(); return;
     }
     if (S.drag.vtx) { const w = S.doc.wires.find(w => w.id === S.drag.id); if (w) { w.pts = orthoPts(w.pts); render(); } }   // L64 — 꺾임점을 끌어도 사선이 남지 않게
+    if (S.drag.move && S.drag.moved) { const n = unclash(S.drag.orig.map(o => o[0])); if (n) status(`이웃 기호와 겹쳐서 ${n}개를 한 행 비켜 놓았습니다 (입력 막대가 이웃 단자에 닿으면 분석기가 선을 엉뚱한 기호에 붙입니다)`); }
     if ((S.drag.move && S.drag.moved) || S.drag.vtx) { markDirty(); if (S.drag.move) render(); }
-    S.drag = null; S.alignLines = null; drawGhost(); $("#stage").style.cursor = S.tool === "pan" ? "grab" : S.tool === "select" ? "default" : "crosshair";
+    S.drag = null; S.alignLines = null; document.body.classList.remove("dw-dragging"); drawGhost(); $("#stage").style.cursor = S.tool === "pan" ? "grab" : S.tool === "select" ? "default" : "crosshair";
   });
   svg.addEventListener("dblclick", e => {
     if (!S.doc) return;
@@ -913,6 +1204,12 @@ function drawRulers() {
     const t = fit(top, W, RS); // 같은 캔버스 다시 — 표식만 얹는다
     const ctx2 = top.getContext("2d"); ctx2.fillStyle = "#c2453f"; ctx2.fillRect(x - 0.5, RS - 12, 1.2, 12);
   }
+  // L66 — 가이드선 자리 (눈금자 위 작은 삼각형)
+  const cx = top.getContext("2d"), cy = left.getContext("2d");
+  cx.fillStyle = cy.fillStyle = "#0e9f8e";
+  for (const v of S.rg.v) { const x = toX(v); if (x < 0 || x > W) continue; cx.beginPath(); cx.moveTo(x - 4, RS - 7); cx.lineTo(x + 4, RS - 7); cx.lineTo(x, RS); cx.fill(); }
+  for (const v of S.rg.h) { const y = toY(v); if (y < 0 || y > H) continue; cy.beginPath(); cy.moveTo(RS - 7, y - 4); cy.lineTo(RS - 7, y + 4); cy.lineTo(RS, y); cy.fill(); }
+  if (S.rgDrag) { const v = S.rgDrag.v; $("#ruler-corner").textContent = S.rgDrag.axis === "v" ? `x ${v.toFixed(1)}` : `y ${v.toFixed(1)}` + (rowAt(v) ? ` · ${rowAt(v)}행` : ""); return; }
   const rn = S.hover ? rowAt(S.hover[1]) : null;
   $("#ruler-corner").textContent = S.hover ? `${Math.round(S.hover[0])}, ${Math.round(S.hover[1])}` + (rn ? ` · ${rn}행` : "") : "pt";
 }
@@ -931,7 +1228,7 @@ function drawAlign(ov) {
   if (!S.alignLines) return;
   const L = layout();
   for (const a of S.alignLines) {
-    const k = a.row ? " row" : a.kind === "wire" ? " wire" : a.kind === "port" ? " port" : "";
+    const k = a.row ? " row" : a.kind === "wire" ? " wire" : a.kind === "port" ? " port" : a.kind === "guide" ? " rgd" : "";
     if (a.axis === "x") el("line", { x1: a.v, y1: Math.min(a.y0, L.TOP), x2: a.v, y2: Math.max(a.y1, L.bottom), class: "align" + k }, ov);
     else el("line", { x1: Math.min(a.x0, L.LX0), y1: a.v, x2: Math.max(a.x1, L.LX1), y2: a.v, class: "align" + k }, ov);
   }
@@ -949,6 +1246,8 @@ function alignTargets(moving, strong) {
     if (strong) for (const pt of ports(b)) { tx.push([pt[0], bb, "port"]); ty.push([pt[1], bb, "port"]); }
   }
   for (let n = 1; n <= L.N; n++) ty.push([ry(n), [L.LX0, 0, L.LX1, 0], "row"]);     // 행 가운데 — 선이 행에서 바로 나온다
+  for (const v of S.rg.v) tx.push([v, [v, L.TOP, v, L.bottom], "guide"]);          // L66 — 눈금자 가이드선
+  for (const v of S.rg.h) ty.push([v, [L.LX0, v, L.LX1, v], "guide"]);
   if (strong) for (const w of S.doc.wires || []) for (let i = 1; i < w.pts.length; i++) {   // 선의 곧은 토막
     const a = w.pts[i - 1], b = w.pts[i], bb = [Math.min(a[0], b[0]), Math.min(a[1], b[1]), Math.max(a[0], b[0]), Math.max(a[1], b[1])];
     if (Math.abs(a[0] - b[0]) < 0.05) tx.push([a[0], bb, "wire"]);
@@ -958,16 +1257,22 @@ function alignTargets(moving, strong) {
 }
 /* bbs: 옮긴 뒤의 사각형들 · pys: 옮긴 뒤의 단자 높이들.  돌려주는 것은 [x 보정, y 보정, 안내선]. */
 function alignFit(bbs, pys, moving, strong) {
-  const L = layout(), tol = strong ? L.PITCH * 0.6 : 2.2;
+  const L = layout(), tol = strong ? L.PITCH * 0.6 : 2.2, gtol = Math.max(tol, 0.45 * L.PITCH);
+  const only = !strong && !S.guide.align;                         // 정렬 안내선을 꺼도 가이드선에는 붙는다
   const [tx, ty] = alignTargets(moving, strong);
   const xs = [], ys = [];
   for (const bb of bbs) { xs.push([bb[0], 1], [(bb[0] + bb[2]) / 2, 0], [bb[2], 1]); ys.push([bb[1], 1], [(bb[1] + bb[3]) / 2, 0], [bb[3], 1]); }
-  if (strong) for (const y of pys) ys.push([y, 0]);
+  for (const y of pys) ys.push(Array.isArray(y) ? [y[0], 0, y[1] === "out" ? 2 : 1] : [y, 0, 1]);   // 단자 높이 — Shift 또는 가이드선에만 (입력 단자가 먼저)
   let bx = null, by = null;
-  for (const [x] of xs) for (const [v, bb, kind] of tx) { const d = Math.abs(v - x); if (d < tol && (!bx || d < bx.d)) bx = { d, shift: v - x, v, bb, kind }; }
-  for (const [y, edge] of ys) for (const [v, bb, kind] of ty) {
+  for (const [x] of xs) for (const [v, bb, kind] of tx) { if (only && kind !== "guide") continue; const t = kind === "guide" ? gtol : tol; const d0 = Math.abs(v - x), d = (kind === "guide" ? 0 : 1000) + d0; if (d0 < t && (!bx || d < bx.d)) bx = { d, shift: v - x, v, bb, kind }; }   // L66 — 가이드선이 먼저
+  for (const [y, edge, port] of ys) for (const [v, bb, kind] of ty) {
+    if (only && kind !== "guide") continue;
+    if (port && !strong && kind !== "guide") continue;
+    if (!port && kind === "row" && pys.length) continue;             // L66 — 단자가 있는 기호는 상자 가운데가 아니라 단자가 행에 선다
     if (strong && edge && (kind === "row" || kind === "wire" || kind === "port")) continue;   // 행 · 선 · 단자에는 변이 아니라 가운데 · 단자가 선다
-    const d = Math.abs(v - y); if (d < tol && (!by || d < by.d)) by = { d, shift: v - y, v, bb, kind };
+    const t = kind === "guide" ? gtol : tol;
+    const d0 = Math.abs(v - y), d = (port && (kind === "row" || kind === "wire" || kind === "guide") ? (port === 1 ? 0 : 500) : 1000) + d0;   // L66 — 단자가 행 · 선 · 가이드선에 서는 것이 상자 변 맞춤보다 언제나 먼저
+    if (d0 < t && (!by || d < by.d)) by = { d, shift: v - y, v, bb, kind };
   }
   const lines = [];
   if (bx) { const y0 = Math.min(bx.bb[1], ...bbs.map(b => b[1])), y1 = Math.max(bx.bb[3], ...bbs.map(b => b[3])); lines.push({ axis: "x", v: bx.v, y0, y1, kind: bx.kind }); }
@@ -976,11 +1281,11 @@ function alignFit(bbs, pys, moving, strong) {
 }
 function alignMove(ids, dx, dy, strong) {
   S.alignLines = null;
-  if (!strong && !S.guide.align) return [dx, dy];
+  if (!strong && !S.guide.align && !S.rg.v.length && !S.rg.h.length) return [dx, dy];
   const moving = new Set(ids), bbs = [], pys = [];
   for (const id of ids) {
     const o = S.drag.orig.find(o => o[0] === id), b = S.doc.blocks.find(b => b.id === id), nb = { ...b, x: o[1] + dx, y: o[2] + dy };
-    bbs.push(bboxOf(nb)); if (strong) for (const pt of ports(nb)) pys.push(pt[1]);
+    bbs.push(bboxOf(nb)); for (const pt of ports(nb)) pys.push([pt[1], pt[2]]);
   }
   const [sx, sy, lines] = alignFit(bbs, pys, moving, strong);
   if (lines.length) S.alignLines = lines;
@@ -988,7 +1293,7 @@ function alignMove(ids, dx, dy, strong) {
 }
 /* 팔레트에서 Shift 를 누른 채 놓은 기호를 이웃에 맞춘다 (L60). */
 function alignBlockNow(b) {
-  const [sx, sy, lines] = alignFit([bboxOf(b)], ports(b).map(pt => pt[1]), new Set([b.id]), true);
+  const [sx, sy, lines] = alignFit([bboxOf(b)], ports(b).map(pt => [pt[1], pt[2]]), new Set([b.id]), true);
   b.x = +(b.x + sx).toFixed(2); b.y = +(b.y + sy).toFixed(2);
   S.alignLines = lines.length ? lines : null; drawGhost();
   if (lines.length) setTimeout(() => { S.alignLines = null; drawGhost(); }, 900);
@@ -1024,6 +1329,77 @@ function arrangeSel(op) {
   }
   markDirty(); render();
   status({ left: "왼쪽 맞춤", right: "오른쪽 맞춤", hcenter: "가로 가운데 맞춤", top: "위 맞춤", bottom: "아래 맞춤", vcenter: "세로 중간 맞춤", disth: "가로 균등 간격", distv: "세로 균등 간격" }[op] + ` — ${bs.length}개`);
+}
+/* ───────── L66 — 눈금자 가이드선 ─────────
+   눈금자를 누르면 그 자리에 가이드선이 선다 (위 눈금자 = 세로선 · 왼쪽 = 가로선) · 누른 채 끌면 따라 움직인다.
+   기호를 옮기거나 선의 점을 찍을 때 가이드선 가까이(0.45행)면 그 선에 붙는다 — 기호는 변 · 가운데 · 단자 높이가.
+   가이드선을 끌어 옮기고, 종이 밖이나 눈금자로 끌어내면 지워진다 (두 번 누르기 · 오른쪽 누르기로도).
+   화면에서만 — 그림 파일 · PDF · DXF 에는 없다.  그림마다 이 브라우저에 기억한다. */
+function rgKey() { return "logic.draw.rg." + (S.id || "_"); }
+function rgLoad() { S.rg = { v: [], h: [] }; try { const r = JSON.parse(localStorage.getItem(rgKey()) || "null"); if (r && Array.isArray(r.v) && Array.isArray(r.h)) S.rg = { v: r.v.filter(isFinite), h: r.h.filter(isFinite) }; } catch (e) {} rgCount(); }
+function rgSave() { try { if (S.rg.v.length || S.rg.h.length) localStorage.setItem(rgKey(), JSON.stringify(S.rg)); else localStorage.removeItem(rgKey()); } catch (e) {} rgCount(); }
+function rgCount() { const n = S.rg.v.length + S.rg.h.length, b = $("#rg-clear"); if (b) { b.hidden = !n; b.textContent = `가이드선 지우기 (${n})`; } }
+function rgNear(list, v, tol) { let best = null, bd = tol; for (const g of list) { const d = Math.abs(g - v); if (d < bd) { bd = d; best = g; } } return best; }
+function rgSnapVal(axis, v) {
+  // 가이드선 자체를 놓을 때: 기호 변 · 가운데 · 단자 · 행 가운데에 3pt 안이면 붙고, 아니면 반 행 격자
+  const L = layout(), cands = [];
+  for (const b of S.doc.blocks) { const bb = bboxOf(b); if (axis === "v") cands.push(bb[0], (bb[0] + bb[2]) / 2, bb[2]); else cands.push(bb[1], (bb[1] + bb[3]) / 2, bb[3]); for (const pt of ports(b)) cands.push(axis === "v" ? pt[0] : pt[1]); }
+  if (axis === "h") for (let n = 1; n <= L.N; n++) cands.push(ry(n));
+  else cands.push(L.LX0, L.LX1);
+  const hit = rgNear(cands, v, 3 / Math.max(0.5, S.zoom) + 0.6);
+  if (hit != null) return +hit.toFixed(2);
+  if (S.snap) { const g = L.PITCH / 4; return axis === "v" ? +(Math.round(v / g) * g).toFixed(2) : +(Math.round((v - L.TOP) / g) * g + L.TOP).toFixed(2); }
+  return +v.toFixed(2);
+}
+function drawRGuides(g) {
+  g = g || $("#rguides"); if (!g) return; g.textContent = "";
+  const L = layout();
+  S.rg.v.forEach((v, i) => { el("line", { x1: v, y1: 0, x2: v, y2: L.H, class: "rgline" + (S.rgDrag && S.rgDrag.axis === "v" && S.rgDrag.i === i ? " on" : "") }, g); el("line", { x1: v, y1: 0, x2: v, y2: L.H, class: "rghit", "data-rg": "v", "data-i": i }, g); });
+  S.rg.h.forEach((v, i) => { el("line", { x1: 0, y1: v, x2: L.W, y2: v, class: "rgline" + (S.rgDrag && S.rgDrag.axis === "h" && S.rgDrag.i === i ? " on" : "") }, g); el("line", { x1: 0, y1: v, x2: L.W, y2: v, class: "rghit", "data-rg": "h", "data-i": i }, g); });
+}
+function rgFromClient(axis, e) {
+  const r = $("#svg").getBoundingClientRect(), L = layout();
+  return axis === "v" ? (e.clientX - r.left) / r.width * L.W : (e.clientY - r.top) / r.height * L.H;
+}
+function rgStart(axis, i, e) {
+  S.rgDrag = { axis, i, v: S.rg[axis][i] };
+  const move = ev => {
+    const raw = rgFromClient(axis, ev), L = layout(), out = raw < 0 || raw > (axis === "v" ? L.W : L.H);
+    const v = out ? raw : rgSnapVal(axis, raw);
+    S.rg[axis][S.rgDrag.i] = v; S.rgDrag.v = v; S.rgDrag.out = out;
+    drawRGuides(); rulersSoon();
+  };
+  const up = () => {
+    window.removeEventListener("pointermove", move); window.removeEventListener("pointerup", up);
+    const d = S.rgDrag; S.rgDrag = null;
+    if (d && d.out) { S.rg[axis].splice(d.i, 1); status("가이드선을 지웠습니다"); }
+    else if (d) { const v = S.rg[axis][d.i]; if (S.rg[axis].some((u, j) => j !== d.i && Math.abs(u - v) < 0.05)) S.rg[axis].splice(d.i, 1); status(axis === "v" ? `세로 가이드선 x ${v.toFixed(1)} — 기호 · 선이 붙습니다 (종이 밖으로 끌면 지움)` : `가로 가이드선 y ${v.toFixed(1)}${rowAt(v) ? " · " + rowAt(v) + "행" : ""} — 기호 · 선이 붙습니다`); }
+    rgSave(); drawRGuides(); drawRulers();
+  };
+  window.addEventListener("pointermove", move); window.addEventListener("pointerup", up);
+  if (e) move(e);
+}
+function rgRemove(axis, i) { S.rg[axis].splice(i, 1); rgSave(); drawRGuides(); drawRulers(); status("가이드선을 지웠습니다"); }
+function bindRGuides() {
+  for (const [id, axis] of [["#ruler-x", "v"], ["#ruler-y", "h"]]) {
+    $(id).addEventListener("pointerdown", e => {
+      if (!S.doc || e.button !== 0) return;
+      e.preventDefault();
+      const v = rgSnapVal(axis, rgFromClient(axis, e));
+      const near = S.rg[axis].findIndex(u => Math.abs(u - v) < 1.5 / Math.max(0.5, S.zoom));
+      if (near >= 0) { rgStart(axis, near, null); return; }       // 눈금자의 표식을 누르면 그 선을 끈다
+      S.rg[axis].push(v); rgStart(axis, S.rg[axis].length - 1, e);
+    });
+    $(id).addEventListener("contextmenu", e => { e.preventDefault(); if (!S.doc) return; const v = rgFromClient(axis, e); const i = S.rg[axis].findIndex(u => Math.abs(u - v) < 3 / Math.max(0.5, S.zoom)); if (i >= 0) rgRemove(axis, i); });
+  }
+  const svg = $("#svg");
+  svg.addEventListener("pointerdown", e => {
+    const t = e.target; if (!t.classList || !t.classList.contains("rghit") || e.button !== 0 || S.wip || S.tool !== "select") return;
+    e.stopImmediatePropagation(); e.preventDefault(); rgStart(t.dataset.rg, +t.dataset.i, null);
+  }, true);
+  svg.addEventListener("dblclick", e => { const t = e.target; if (t.classList && t.classList.contains("rghit")) { e.stopImmediatePropagation(); rgRemove(t.dataset.rg, +t.dataset.i); } }, true);
+  svg.addEventListener("contextmenu", e => { const t = e.target; if (t.classList && t.classList.contains("rghit") && !S.wip) { e.preventDefault(); e.stopImmediatePropagation(); rgRemove(t.dataset.rg, +t.dataset.i); } }, true);
+  const b = $("#rg-clear"); if (b) b.onclick = () => { S.rg = { v: [], h: [] }; rgSave(); drawRGuides(); drawRulers(); status("가이드선을 모두 지웠습니다"); };
 }
 function saveGuide() { try { localStorage.setItem("logic.draw.guide", JSON.stringify(S.guide)); } catch (e) {} }
 function loadGuide() { try { const g = JSON.parse(localStorage.getItem("logic.draw.guide") || "null"); if (g) Object.assign(S.guide, g); } catch (e) {} for (const k in S.guide) { const c = $("#g-" + k); if (c) c.checked = S.guide[k]; } }
@@ -1309,6 +1685,7 @@ async function openDoc(id) {
   if (S.dirty && !(await modal("저장하지 않은 변경", "<p>저장하지 않은 변경이 있습니다.  버리고 열까요?</p>"))) return;
   try { S.doc = await api(`/logic/api/drawings/${id}`); } catch (e) { toast(e.message); return; }
   S.id = id; S.dirty = false; S.sel = new Set(); S.selWire = null; S.undo = []; S.redo = []; S.verify = null; $("#verify-card").hidden = true;
+  rgLoad();
   $("#pick").value = id; $("#save").disabled = true;
   fillForm(); await loadSet(true); await loadInst(); fitZoom(); render(); instWarn();
   if (S.doc.set === TYP_SET && !S.typList) { try { S.typList = (await api("/logic/api/drawings/typicals")).items; } catch (e) {} }
@@ -1345,7 +1722,7 @@ async function newDoc() {
   const v = await modal("새 그림", `<div class="dw-form">
     <label>이름 <input id="m-name" placeholder="예: 급수펌프 A 기동"></label>
     <label>시트 이름 <input id="m-sheet" placeholder="예: FG_G-301"></label>
-    <label>제목 <input id="m-title" placeholder="예: FG COMPR SYS #2"></label>
+    <label>제목 <input id="m-dtitle" placeholder="예: FG COMPR SYS #2"></label>
     <label>양식 <select id="m-form"><option value="a5j">학습 양식 (삼성 · 아래 타이틀블록)</option><option value="">간단 양식</option></select></label>
     <label>프로젝트 이름 <input id="m-pname" value="${esc(c.project_name || "")}"></label>
     <label>도면 번호 <input id="m-docno" value="${esc(c.doc_no || "")}"></label>
@@ -1353,7 +1730,7 @@ async function newDoc() {
     <label>행 수 (한쪽) <input id="m-rows" type="number" min="20" max="64" value="${c.N || 59}"></label>
     <label>작성자 <input id="m-who" value="${esc(who)}"></label></div>`,
     () => { const w = $("#m-who").value.trim(); if (!w) { toast("작성자 이름이 필요합니다."); return false; }
-      return { name: $("#m-name").value.trim(), sheet: $("#m-sheet").value.trim(), title: $("#m-title").value.trim(), form: $("#m-form").value,
+      return { name: $("#m-name").value.trim(), sheet: $("#m-sheet").value.trim(), title: $("#m-dtitle").value.trim(), form: $("#m-form").value,
                pname: $("#m-pname").value.trim(), docno: $("#m-docno").value.trim(), rev: $("#m-rev").value.trim(), N: +$("#m-rows").value || 59, who: w }; });
   if (!v) return;
   try { localStorage.setItem("pid.author", v.who); $("#who").value = v.who; } catch (e) {}
@@ -1587,7 +1964,7 @@ async function addMacro(m) {
     param: { typ, title: m.title, pins_in: m.pins_in.map((q, i) => ({ name: q.name, row: q.row, dy: +(1.6 * P + (i + 0.5) * P).toFixed(2) })),
              pins_out: m.pins_out.map((q, i) => ({ name: q.name, row: q.row, dy: +(1.6 * P + (i + 0.5) * P).toFixed(2) })) } };
   b.x = Math.round(((L.LX0 + L.LX1) / 2 - b.w / 2) / (P / 2)) * (P / 2); b.y = ry(4) - 1.6 * P - P / 2;
-  pushUndo(); S.doc.blocks.push(b); S.sel = new Set([b.id]); S.selWire = null; markDirty(); render();
+  pushUndo(); S.doc.blocks.push(b); unclash([b.id]); S.sel = new Set([b.id]); S.selWire = null; markDirty(); render();
 }
 function flashRow(n) {
   const L = layout(); const y = ry(n);
@@ -2048,7 +2425,7 @@ async function init() {
   S.sym = r.symbols; S.lay = r.layout; S.presets = r.presets || [];
   const w = author(); if (w) $("#who").value = w;
   $("#who").onchange = () => { try { localStorage.setItem("pid.author", $("#who").value.trim()); } catch (e) {} };
-  buildPalette(); bindStage();
+  buildPalette(); bindStage(); bindRGuides();
   $$(".dw-tools button").forEach(b => b.onclick = () => setTool(b.dataset.tool));
   $("#zin").onclick = () => setZoom(S.zoom * 1.2); $("#zout").onclick = () => setZoom(S.zoom / 1.2); $("#zfit").onclick = () => fitZoom();
   $("#snap").onchange = e => { S.snap = e.target.checked; };

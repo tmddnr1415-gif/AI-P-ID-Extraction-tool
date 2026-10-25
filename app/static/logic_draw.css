@@ -82,7 +82,7 @@ input, select { font: inherit; border: 1px solid var(--line); border-radius: 5px
 .dw-guides { display: flex; flex-wrap: wrap; gap: 4px 10px; margin-top: 6px; font-size: 12px; color: var(--soft); }
 .dw-guides label { display: inline-flex; align-items: center; gap: 4px; cursor: pointer; }
 .dw-guides kbd { font-size: 10px; border: 1px solid #c9c4b6; border-radius: 3px; padding: 0 3px; background: #fff; }
-.dw-ruler { position: absolute; z-index: 3; pointer-events: none; }
+.dw-ruler { position: absolute; z-index: 3; pointer-events: auto; cursor: copy; }
 .dw-ruler-x { top: 0; left: 22px; right: 0; height: 22px; }
 .dw-ruler-y { top: 22px; left: 0; width: 22px; bottom: 0; }
 .dw-ruler-corner { position: absolute; z-index: 4; top: 0; left: 0; min-width: 22px; height: 22px; padding: 0 4px; font-size: 9px; line-height: 22px; white-space: nowrap; color: #4a5366; background: #f6f4ec; border-right: 1px solid #c9c4b6; border-bottom: 1px solid #c9c4b6; pointer-events: none; }
@@ -255,3 +255,38 @@ body.sim .blk.on1 > rect, body.sim .blk.on1 > circle { fill: rgba(0, 180, 255, .
 #svg .cell.inst-chg { fill: rgba(255, 170, 0, .20); }
 #svg text.instmark { fill: #d0352b; font-weight: 700; }
 #svg text.instchg { fill: #9a5a00; font-weight: 700; }
+
+/* L66 — 눈금자 가이드선 (화면 전용) */
+#rguides .rgline { stroke: #0e9f8e; stroke-width: .5; stroke-dasharray: 3 2; vector-effect: non-scaling-stroke; pointer-events: none; }
+#rguides .rgline.on { stroke: #ff5a36; stroke-width: 1.2; }
+#rguides .rghit { stroke: transparent; stroke-width: 6; vector-effect: non-scaling-stroke; cursor: move; pointer-events: stroke; }
+.align.rgd { stroke: #0e9f8e; stroke-width: .7; }
+.dw-mini { font-size: 11px; padding: 1px 6px; border: 1px solid #c9c4b6; background: #fff; border-radius: 4px; cursor: pointer; }
+
+/* L66 — 기호 색 · 입체감 (화면만 · PDF 는 흑백) */
+.blk.c-gate rect:not(.hit), .blk.c-gate circle, .blk.c-gate ellipse { fill: url(#gd-gate); stroke: #2d5fae; }
+.blk.c-gate line { stroke: #2d5fae; }
+.blk.c-time rect:not(.hit), .blk.c-time circle, .blk.c-time ellipse { fill: url(#gd-time); stroke: #237a45; }
+.blk.c-time line { stroke: #237a45; }
+.blk.c-mem rect:not(.hit), .blk.c-mem circle, .blk.c-mem ellipse { fill: url(#gd-mem); stroke: #6a3fb0; }
+.blk.c-mem line { stroke: #6a3fb0; }
+.blk.c-src rect:not(.hit), .blk.c-src circle, .blk.c-src ellipse { fill: url(#gd-src); stroke: #a86b00; }
+.blk.c-src line { stroke: #a86b00; }
+.blk.c-sink rect:not(.hit), .blk.c-sink circle, .blk.c-sink ellipse { fill: url(#gd-sink); stroke: #b23a2e; }
+.blk.c-sink line { stroke: #b23a2e; }
+.blk.c-conn rect:not(.hit), .blk.c-conn circle, .blk.c-conn ellipse { fill: url(#gd-conn); stroke: #4f5866; }
+.blk.c-conn line { stroke: #4f5866; }
+.blk.c-box rect:not(.hit), .blk.c-box circle, .blk.c-box ellipse { fill: url(#gd-box); stroke: #b4621b; }
+.blk.c-box line { stroke: #b4621b; }
+.blk.c-macro rect:not(.hit), .blk.c-macro circle, .blk.c-macro ellipse { fill: url(#gd-macro); stroke: #157a6e; }
+.blk.c-macro line { stroke: #157a6e; }
+#blocks { filter: drop-shadow(.7px 1px .7px rgba(20, 30, 60, .28)); }
+body.dw-dragging #blocks { filter: none; }   /* 끄는 동안은 그림자를 빼 가볍게 */
+.blk.c-note rect:not(.hit) { fill: none; }
+.blk.sel rect:not(.hit), .blk.sel circle { stroke: var(--sel); stroke-width: 1.4; }
+.blk.bad rect:not(.hit), .blk.bad circle { stroke: var(--red); stroke-width: 1.4; stroke-dasharray: 2 1.5; }
+body.sim .blk.act > rect:not(.hit), body.sim .blk.act > circle { fill: rgba(0, 180, 255, .16); stroke: #0078b0; }
+body.sim .blk.on1 > rect:not(.hit), body.sim .blk.on1 > circle { fill: rgba(0, 180, 255, .3); }
+ellipse.ell { fill: url(#gd-sink); stroke: #b23a2e; stroke-width: .8; }
+.blk.clash rect:not(.hit), .blk.clash circle { stroke: #e8590c !important; stroke-width: 1.3; stroke-dasharray: 2.2 1.2; }
+.blk.clash line { stroke: #e8590c !important; }

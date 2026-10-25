@@ -27,6 +27,17 @@
   <span id="status" class="dw-status"></span>
 </header>
 
+<!-- L66 — 화면 기호 색 (입체감 · PDF 에는 안 나감) -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+    <linearGradient id="gd-gate" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffffff"/><stop offset=".18" stop-color="#eef4ff"/><stop offset="1" stop-color="#b9d0f7"/></linearGradient>
+    <linearGradient id="gd-time" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffffff"/><stop offset=".18" stop-color="#ecfaf0"/><stop offset="1" stop-color="#ade3be"/></linearGradient>
+    <linearGradient id="gd-mem" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffffff"/><stop offset=".18" stop-color="#f5effd"/><stop offset="1" stop-color="#cdb6f2"/></linearGradient>
+    <linearGradient id="gd-src" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffffff"/><stop offset=".18" stop-color="#fff7e6"/><stop offset="1" stop-color="#f6d48a"/></linearGradient>
+    <linearGradient id="gd-sink" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffffff"/><stop offset=".18" stop-color="#fff0ee"/><stop offset="1" stop-color="#f3b3ab"/></linearGradient>
+    <linearGradient id="gd-conn" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffffff"/><stop offset=".18" stop-color="#f7f8fa"/><stop offset="1" stop-color="#cfd4dc"/></linearGradient>
+    <linearGradient id="gd-box" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffffff"/><stop offset=".18" stop-color="#fff5ea"/><stop offset="1" stop-color="#f7cfa4"/></linearGradient>
+    <linearGradient id="gd-macro" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffffff"/><stop offset=".18" stop-color="#e9fbf8"/><stop offset="1" stop-color="#a9e4da"/></linearGradient>
+</defs></svg>
 <main class="dw-main">
   <aside class="dw-side">
     <section class="dw-card">
@@ -53,6 +64,8 @@
         <label><input type="checkbox" id="g-ruler" checked> 눈금자 <kbd>R</kbd></label>
         <label><input type="checkbox" id="g-align" checked> 정렬 안내선</label>
         <label><input type="checkbox" id="g-cross" checked> 십자선</label>
+        <span class="dw-hint">눈금자를 누르면 가이드선 — 기호 · 선이 붙습니다</span>
+        <button id="rg-clear" type="button" class="dw-mini" hidden>가이드선 지우기</button>
       </div>
     </section>
     <section class="dw-card" id="inst-card">
@@ -139,8 +152,8 @@
 
   <section id="stage" class="dw-stage" tabindex="0">
     <div id="ruler-corner" class="dw-ruler-corner" hidden>pt</div>
-    <canvas id="ruler-x" class="dw-ruler dw-ruler-x" hidden></canvas>
-    <canvas id="ruler-y" class="dw-ruler dw-ruler-y" hidden></canvas>
+    <canvas id="ruler-x" class="dw-ruler dw-ruler-x" hidden title="누르면 그 자리에 세로 가이드선 — 누른 채 끌면 옮긴다 · 표식을 눌러 끌거나 오른쪽 눌러 지운다"></canvas>
+    <canvas id="ruler-y" class="dw-ruler dw-ruler-y" hidden title="누르면 그 자리에 가로 가이드선 — 누른 채 끌면 옮긴다 · 표식을 눌러 끌거나 오른쪽 눌러 지운다"></canvas>
     <div id="scroll" class="dw-scroll">
       <svg id="svg" xmlns="http://www.w3.org/2000/svg"></svg>
       <input id="cellin" class="dw-cellin" hidden autocomplete="off">
