@@ -139,6 +139,12 @@ def add_sheet(sid: str, body: dict = Body(default={})):
     doc.update({"set": sid, "set_name": docs[0].get("set_name") or "", "order": order, "typical": bool(body.get("typical")),
                 "sheet_no": str(body.get("sheet_no") or "")[:40]})
     draw.save_new(doc)
+    # L62 — 다른 장이 이미 이 시트 이름을 가리키고 있으면(미작성이던 참조) 새 장의 칸을 바로 채운다
+    if doc["sheet_no"]:
+        r = draw_sets.autolink(docs + [doc], doc["id"], author)
+        if r["changed"]:
+            doc = _load(doc["id"])
+            doc["autolinked"] = r["changed"]
     return doc
 
 

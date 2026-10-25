@@ -20,9 +20,28 @@ from .draw import PITCH, _txt
 OLD_SHEET = re.compile(r"^[A-Z]+\d{3}[A-Z]?$")
 
 
-def ref_text(sheet_no: str, n: int) -> str:
-    """FM/TO 칸에 적는 참조 — 옛 꼴 시트 이름(G031)은 `G031-81`, 그 밖은 `LD-001/2` (분석기 refs 가 둘 다 읽는다)."""
+def ref_text(sheet_no: str, n: int, sep: str | None = None) -> str:
+    """FM/TO 칸에 적는 참조 — 옛 꼴 시트 이름(G031)은 `G031-81`, 그 밖은 `LD-001/2` (분석기 refs 가 둘 다 읽는다).
+    sep 를 주면 그 구분자 (L62 — 묶음이 이미 쓰는 꼴을 따른다: 알다프라는 `FG_G-201-61`)."""
+    if sep:
+        return f"{sheet_no}{sep}{n}"
     return f"{sheet_no}-{n}" if OLD_SHEET.match(sheet_no or "") else f"{sheet_no}/{n}"
+
+
+def ref_sep(docs: list) -> str | None:
+    """L62 — 묶음의 FM/TO 칸이 시트 이름 뒤에 쓰는 구분자 중 가장 많은 것 (없으면 None — ref_text 의 기본 꼴)."""
+    names = sorted({(d.get("sheet_no") or "").upper() for d in docs if d.get("sheet_no")}, key=len, reverse=True)
+    cnt: dict = {}
+    for d in docs:
+        for side, f in (("left", "fm"), ("right", "to")):
+            for r in (d.get(side) or {}).values():
+                for part in str(r.get(f) or "").upper().split(","):
+                    v = part.strip()
+                    k = next((nm for nm in names if v.startswith(nm)), None)
+                    c = v[len(k):len(k) + 1] if k else ""
+                    if c in ("-", "/"):
+                        cnt[c] = cnt.get(c, 0) + 1
+    return max(cnt, key=cnt.get) if cnt else None
 
 
 # ─────────────────────────── 묶음 ───────────────────────────
@@ -126,6 +145,7 @@ def links(docs: list) -> dict:
         out["docs"][s["did"]] = {"left": L, "right": R, "sheet_no": s["sheet_no"]}
         for f in s["findings"]:
             out["findings"].append({**f, "did": s["did"], "sheet_no": s["sheet_no"]})
+    out["missing"] = missing_sheets(out)
     return out
 
 
@@ -174,6 +194,7 @@ def autolink(docs: list, did: str, author: str) -> dict:
     if not my_no:
         return {"changed": []}
     N = me["N"]
+    sep = ref_sep(docs)
     # 왼쪽 FM → 보내는 장의 오른쪽 행 TO 에 나를 적는다
     for k, v in list((me.get("left") or {}).items()):
         ref = RF.full(v.get("fm"), by_no)
@@ -183,7 +204,7 @@ def autolink(docs: list, did: str, author: str) -> dict:
         if src["id"] == did:
             continue
         r_out = src.setdefault("right", {}).setdefault(str(ref[1]), {"desc": "", "kks": "", "to": ""})
-        want = ref_text(my_no, int(k))
+        want = ref_text(my_no, int(k), sep)
         if want.upper() not in (r_out.get("to") or "").upper():
             r_out["to"] = (r_out["to"] + ", " + want).strip(", ") if r_out.get("to") else want
             if not (r_out.get("desc") or "").strip() and (v.get("desc") or "").strip():
@@ -199,7 +220,7 @@ def autolink(docs: list, did: str, author: str) -> dict:
             if not (1 <= n <= dst["N"]):
                 continue
             r_in = dst.setdefault("left", {}).setdefault(str(n), {"fm": "", "kks": "", "desc": ""})
-            want = ref_text(my_no, int(k))
+            want = ref_text(my_no, int(k), sep)
             if (r_in.get("fm") or "").strip():
                 continue                                   # 이미 적힌 FM 은 덮지 않는다 (틀렸으면 검증이 붉게 말한다)
             r_in["fm"] = want
@@ -207,7 +228,56 @@ def autolink(docs: list, did: str, author: str) -> dict:
                 r_in["desc"] = v["desc"]
             draw.save(dst["id"], dst, author)
             changed.append({"sheet": sh, "n": n, "field": "fm"})
+    # L62 — 들어오는 쪽: 다른 장이 이미 이 장(이름)을 가리키고 있으면 이 장의 빈 칸을 채운다
+    #   (그 장을 나중에 만들었거나 이름을 붙였을 때 — 미작성이던 참조가 저절로 이어진다)
+    mine = False
+    for o in docs:
+        if o["id"] == did or not o.get("sheet_no"):
+            continue
+        ono = o["sheet_no"]
+        for k, v in (o.get("right") or {}).items():          # 그 장의 TO → 이 장의 입력 행 FM
+            for sh, n in RF.find(v.get("to"), wide=True, known=by_no):
+                if sh != my_no or not (1 <= n <= N):
+                    continue
+                r_in = me.setdefault("left", {}).setdefault(str(n), {"fm": "", "kks": "", "desc": ""})
+                if (r_in.get("fm") or "").strip():
+                    continue
+                r_in["fm"] = ref_text(ono, int(k), sep)
+                if not (r_in.get("desc") or "").strip() and (v.get("desc") or "").strip():
+                    r_in["desc"] = v["desc"]
+                mine = True
+                changed.append({"sheet": my_no, "n": n, "field": "fm", "from": ono})
+        for k, v in (o.get("left") or {}).items():           # 그 장의 FM → 이 장의 출력 행 TO
+            ref = RF.full(v.get("fm"), by_no)
+            if not ref or ref[0] != my_no or not (N < ref[1] <= 2 * N):
+                continue
+            r_out = me.setdefault("right", {}).setdefault(str(ref[1]), {"desc": "", "kks": "", "to": ""})
+            want = ref_text(ono, int(k), sep)
+            if want.upper() in (r_out.get("to") or "").upper():
+                continue
+            r_out["to"] = (r_out["to"] + ", " + want).strip(", ") if r_out.get("to") else want
+            if not (r_out.get("desc") or "").strip() and (v.get("desc") or "").strip():
+                r_out["desc"] = v["desc"]
+            mine = True
+            changed.append({"sheet": my_no, "n": ref[1], "field": "to", "from": ono})
+    if mine:
+        draw.save(did, me, author)
     return {"changed": changed}
+
+
+def missing_sheets(lk: dict) -> dict:
+    """L62 — 묶음에 아직 없는 시트를 가리키는 FM/TO (시트 이름 → 그 자리들).  links() 결과에서 센다."""
+    out = {}
+    for did, d in (lk.get("docs") or {}).items():
+        for n, v in (d.get("left") or {}).items():
+            ref = v.get("ref")
+            if ref and not ref.get("did") and ref.get("sheet"):
+                out.setdefault(ref["sheet"], []).append({"did": did, "sheet_no": d.get("sheet_no"), "side": "left", "n": n, "row": ref.get("row")})
+        for n, v in (d.get("right") or {}).items():
+            for t in v.get("targets") or []:
+                if not t.get("did") and t.get("sheet"):
+                    out.setdefault(t["sheet"], []).append({"did": did, "sheet_no": d.get("sheet_no"), "side": "right", "n": n, "row": t.get("row")})
+    return out
 
 
 # ─────────────────────────── 매크로 팔레트 ───────────────────────────

@@ -194,16 +194,18 @@ function renderTable(svg, L) {
     const lrow = S.doc.left[String(k + 1)] || {}, rrow = S.doc.right[String(L.N + k + 1)] || {};
     const li = linkInfo("left", k + 1), ri = linkInfo("right", L.N + k + 1);
     for (const [f, a, b] of fields.left) {
-      const cls = "cell" + (f === "fm" && li && li.ref ? " linked" : "") + (f === "fm" && li && li.ft && li.ft.ok === false ? " ftbad" : "") + (f === "fm" && li && li.ft && li.ft.warn && li.ft.warn.length ? " ftwarn" : "");
+      const lst = f === "fm" ? linkState("left", li) : null;
+      const cls = "cell" + (lst ? " st-" + lst.st : "") + (f === "fm" && li && li.ref ? " linked" : "") + (f === "fm" && li && li.ft && li.ft.ok === false ? " ftbad" : "") + (f === "fm" && li && li.ft && li.ft.warn && li.ft.warn.length ? " ftwarn" : "");
       el("rect", { x: L.LCOLS[a], y, width: L.LCOLS[b] - L.LCOLS[a], height: L.PITCH, class: cls, "data-side": "left", "data-n": k + 1, "data-f": f }, g);
       if (lrow[f]) txt(g, L.LCOLS[a] + 2, yc, lrow[f], 5);
-      if (f === "fm" && li && li.ref && !li.ref.other) { const e = txt(g, L.LCOLS[b] - 2, yc, li.ref.did ? "↗" : "?", 5.5, "end"); e.setAttribute("class", "golink" + (li.ref.did ? "" : " missing")); e.dataset.side = "left"; e.dataset.n = k + 1; const tt = el("title", {}, e); tt.textContent = li.ref.did ? `${li.ref.sheet} 시트 ${li.ref.src_row || li.ref.row}행 (출력) 으로 — ${li.ft && li.ft.ok === false ? "일치하지 않습니다: " + (li.ft.why || []).join(" · ") : "연결 맞음"}` : `이 묶음에 ${li.ref.sheet} 장이 없습니다`; }
+      if (f === "fm") linkBadge(g, "left", k + 1, L.LCOLS[b], y, L.PITCH, li);
     }
     for (const [f, a, b] of fields.right) {
-      const cls = "cell" + (f === "to" && ri && ri.targets && ri.targets.length ? " linked" : "") + (f === "to" && ri && ri.ft && ri.ft.ok === false ? " ftbad" : "");
+      const rst = f === "to" ? linkState("right", ri) : null;
+      const cls = "cell" + (rst ? " st-" + rst.st : "") + (f === "to" && ri && ri.targets && ri.targets.length ? " linked" : "") + (f === "to" && ri && ri.ft && ri.ft.ok === false ? " ftbad" : "");
       el("rect", { x: L.RCOLS[a], y, width: L.RCOLS[b] - L.RCOLS[a], height: L.PITCH, class: cls, "data-side": "right", "data-n": L.N + k + 1, "data-f": f }, g);
       if (rrow[f]) txt(g, L.RCOLS[a] + 2, yc, rrow[f], 5);
-      if (f === "to" && ri && ri.targets && ri.targets.length) { const t0 = ri.targets.find(t => t.did) || ri.targets[0]; const e = txt(g, L.RCOLS[b] - 2, yc, t0.did ? "↗" : "?", 5.5, "end"); e.setAttribute("class", "golink" + (t0.did ? "" : " missing")); e.dataset.side = "right"; e.dataset.n = L.N + k + 1; const tt = el("title", {}, e); tt.textContent = t0.did ? `${t0.sheet} 시트 ${t0.row}행 (입력) 으로 — ${ri.ft && ri.ft.ok === false ? "일치하지 않습니다: " + (ri.ft.why || []).join(" · ") : "연결 맞음"}` : `이 묶음에 ${t0.sheet} 장이 없습니다`; }
+      if (f === "to") linkBadge(g, "right", L.N + k + 1, L.RCOLS[b], y, L.PITCH, ri);
       if (f === "desc" && ri && ri.refs_in && ri.refs_in.length) { const e = txt(g, L.RCOLS[b] - 2, yc, "←" + ri.refs_in.length, 4.5, "end"); e.setAttribute("class", "refin"); const tt = el("title", {}, e); tt.textContent = "이 신호를 받는 곳: " + ri.refs_in.map(r => `${r.sheet}-${r.row}`).join(", "); }
     }
     // 행 자리 (선을 여기서 시작하거나 끝낸다)
@@ -669,9 +671,11 @@ function bindStage() {
       return;
     }
     if (wire) { S.selWire = t.dataset.id; S.sel = new Set(); render(); return; }
-    if (t.classList.contains("golink")) {
-      const side = t.dataset.side, n = +t.dataset.n, li = linkInfo(side, n);
-      if (side === "left" && li && li.ref && li.ref.did) goRef({ did: li.ref.did, row: li.ref.src_row || li.ref.row });
+    const gl = t.closest && t.closest(".golink");
+    if (gl) {
+      const side = gl.dataset.side, n = +gl.dataset.n, li = linkInfo(side, n), st = linkState(side, li);
+      if (st && st.st === "miss") { const name = side === "left" ? st.sheet : (li.targets.find(x => !x.did) || {}).sheet; addSheet(name); }
+      else if (side === "left" && li && li.ref && li.ref.did) goRef({ did: li.ref.did, row: li.ref.src_row || li.ref.row });
       else if (side === "right" && li && li.targets) { const t0 = li.targets.find(x => x.did); if (t0) goRef({ did: t0.did, row: t0.row }); }
       return;
     }
@@ -1079,7 +1083,7 @@ async function save() {
     if (S.doc.set) {
       // FROM/TO 자동 잇기 — 이 장이 가리키는 상대 장의 칸을 채운다 (비어 있는 칸만 · 서버가 둘 다 저장)
       try { const r = await post(`/logic/api/drawings/sets/${S.doc.set}/autolink`, { did: S.id, author: who });
-        if (r.changed && r.changed.length) { toast(`FROM/TO ${r.changed.length}곳을 이었습니다 — ${r.changed.map(c => c.sheet + "-" + c.n).slice(0, 4).join(", ")}`); S.doc = await api(`/logic/api/drawings/${S.id}`); } } catch (e) {}
+        if (r.changed && r.changed.length) { toast(`FROM/TO ${r.changed.length}곳을 이었습니다 — ${r.changed.map(c => (c.from ? c.from + " → " : "") + c.sheet + "-" + c.n).slice(0, 4).join(", ")}`); S.doc = await api(`/logic/api/drawings/${S.id}`); } } catch (e) {}
     }
     await loadList(S.id); fillForm(); await loadSet(); render();
   } catch (e) { toast("저장 실패 — " + e.message); }
@@ -1233,6 +1237,35 @@ function refOf(text) {
   const sh = (S.setInfo.sheets || []).find(x => (x.sheet_no || "").toUpperCase() === m[1]);
   return sh ? { did: sh.id, sheet: sh.sheet_no, row: +m[2] } : null;
 }
+/* L62 — FM/TO 칸의 연결 상태: 연결 · 미작성(그 시트가 묶음에 아직 없음) · 불일치 · 설명 다름.  판정은 서버 links (fromto.check) 그대로 */
+const LINK_ST = { ok: ["연결", "연결 맞음"], miss: ["미작성", "그 시트가 묶음에 아직 없습니다 — 만들면 저절로 이어집니다"], bad: ["불일치", "일치하지 않습니다"], warn: ["설명 다름", "연결은 맞고 설명이 다릅니다"] };
+function linkState(side, li) {
+  if (!li) return null;
+  if (side === "left") {
+    const r = li.ref; if (!r) return null;
+    if (!r.did) return { st: "miss", sheet: r.sheet, row: r.row };
+    if (li.ft && li.ft.ok === false) return { st: "bad", sheet: r.sheet, row: r.src_row || r.row, did: r.did, why: li.ft.why || [] };
+    if (li.ft && li.ft.warn && li.ft.warn.length) return { st: "warn", sheet: r.sheet, row: r.src_row || r.row, did: r.did, why: li.ft.warn };
+    return { st: "ok", sheet: r.sheet, row: r.src_row || r.row, did: r.did };
+  }
+  const ts = li.targets || []; if (!ts.length) return null;
+  const miss = ts.filter(t => !t.did), t0 = ts.find(t => t.did) || ts[0];
+  if (miss.length) return { st: "miss", sheet: miss.map(t => t.sheet).join(", "), row: miss[0].row, did: t0.did || null };
+  if (li.ft && li.ft.ok === false) return { st: "bad", sheet: t0.sheet, row: t0.row, did: t0.did, why: li.ft.why || [] };
+  if (li.ft && li.ft.warn && li.ft.warn.length) return { st: "warn", sheet: t0.sheet, row: t0.row, did: t0.did, why: li.ft.warn };
+  return { st: "ok", sheet: t0.sheet, row: t0.row, did: t0.did };
+}
+function linkBadge(g, side, n, xr, y, P, li) {
+  const st = linkState(side, li); if (!st) return;
+  const [word, says] = LINK_ST[st.st], fs = 4.2;
+  const w = st.st === "ok" ? 5.4 : word.length * fs * 0.98 + 2.6, h = P - 2.4, x = xr - w - 1, yy = y + 1.2;
+  const bg = el("g", { class: "lnkbadge st-" + st.st + " golink", "data-side": side, "data-n": n }, g);
+  el("rect", { x, y: yy, width: w, height: h, rx: 1.2 }, bg);
+  const t = el("text", { x: x + w / 2, y: yy + h / 2 + fs * 0.36, "font-size": fs, "text-anchor": "middle" }, bg);
+  t.textContent = st.st === "ok" ? "↗" : word;
+  const tt = el("title", {}, bg);
+  tt.textContent = `${st.sheet} ${st.row}행 (${side === "left" ? "출력" : "입력"}) — ${says}${st.why && st.why.length ? ": " + st.why.join(" · ") : ""}${st.st === "miss" ? " · 누르면 그 시트를 만듭니다" : st.did ? " · 누르면 그 자리로" : ""}`;
+}
 function linkInfo(side, n) {
   const d = S.setInfo && S.setInfo.links && S.setInfo.links.docs[S.id];
   if (!d) return null;
@@ -1249,7 +1282,14 @@ function renderSetCard() {
   const bad = {}; for (const f of (info.links && info.links.findings) || []) if (f.code === "FT_MISMATCH") bad[f.did] = (bad[f.did] || 0) + 1;
   box.innerHTML = `<div class="dw-setname">${esc(info.name)} <span class="dw-hint">${info.sheets.length}장</span></div>` +
     `<ul class="dw-sheets">${info.sheets.map(sh => `<li class="${sh.id === S.id ? "on" : ""}" data-id="${sh.id}"><b>${esc(sh.sheet_no || "(이름 없음)")}</b>${sh.typical ? ' <span class="typ">Typical</span>' : ""} <span class="dw-hint">${esc(sh.title || "")}</span>${bad[sh.id] ? ` <span class="bad">✕${bad[sh.id]}</span>` : ""}</li>`).join("")}</ul>`;
+  // 미작성 시트 — 이 장이 가리키는 것 먼저 · 많이 가리켜진 것 먼저 · 10개까지 (나머지는 펼침)
+  const miss = (info.links && info.links.missing) || {}, mine = k => miss[k].some(r => r.did === S.id) ? 0 : 1;
+  const mk = Object.keys(miss).sort((a, b) => mine(a) - mine(b) || miss[b].length - miss[a].length || a.localeCompare(b));
+  const btn = k => `<button type="button" data-sheet="${esc(k)}" class="${mine(k) ? "" : "here"}" title="${esc(miss[k].map(r => (r.sheet_no || "") + " " + r.n + "행").join(", "))}">＋ ${esc(k)} <span class="dw-hint">${miss[k].length}곳</span></button>`;
+  if (mk.length) box.innerHTML += `<div class="dw-miss"><b>미작성 시트 ${mk.length}</b> <span class="dw-hint">가리키는 칸은 있는데 아직 없는 장 — 누르면 만들고 저절로 잇습니다</span>` +
+    mk.slice(0, S.missAll ? mk.length : 10).map(btn).join("") + (mk.length > 10 ? `<button type="button" class="more">${S.missAll ? "접기" : `＋ ${mk.length - 10}개 더`}</button>` : "") + `</div>`;
   $$("#set-list li[data-id]").forEach(li => li.onclick = () => { if (li.dataset.id !== S.id) openDoc(li.dataset.id); });
+  $$("#set-list .dw-miss button").forEach(b => b.onclick = () => b.classList.contains("more") ? (S.missAll = !S.missAll, renderSetCard()) : addSheet(b.dataset.sheet));
 }
 function renderMacroCard() {
   const box = $("#macro-list"), ms = (S.setInfo && S.setInfo.macros) || [];
@@ -1308,13 +1348,16 @@ async function importBundle() {
     if (first) await openDoc(first.id);
   } catch (e) { toast(e.message); status(""); }
 }
-async function addSheet() {
+async function addSheet(preset) {
   if (!S.doc || !S.doc.set) return;
-  const v = await modal("묶음에 장 더하기", `<div class="dw-form"><label>시트 이름 <input id="m-sheet" placeholder="예: G035"></label><label>그림 이름 <input id="m-name"></label>
+  if (typeof preset !== "string") preset = "";
+  const refs = preset ? ((S.setInfo.links || {}).missing || {})[preset] || [] : [];
+  const v = await modal(preset ? `미작성 시트 ${preset} 만들기` : "묶음에 장 더하기", `${refs.length ? `<p class="dw-hint">이 시트를 가리키는 칸 ${refs.length}곳 — 만들면 그 칸들과 저절로 이어집니다.</p>` : ""}<div class="dw-form"><label>시트 이름 <input id="m-sheet" placeholder="예: G035" value="${esc(preset)}"></label><label>그림 이름 <input id="m-name"></label>
     <label>Typical 시트 <input type="checkbox" id="m-typ"></label><label>작성자 <input id="m-who" value="${esc(author())}"></label></div>`,
     () => { const w = $("#m-who").value.trim(); if (!w) { toast("작성자 이름이 필요합니다."); return false; } return { sheet: $("#m-sheet").value.trim(), name: $("#m-name").value.trim(), typical: $("#m-typ").checked, who: w }; });
   if (!v) return;
-  try { const d = await post(`/logic/api/drawings/sets/${S.doc.set}/sheet`, { sheet_no: v.sheet, name: v.name || v.sheet || "새 장", typical: v.typical, author: v.who, N: S.doc.N }); await loadList(d.id); await openDoc(d.id); }
+  try { const d = await post(`/logic/api/drawings/sets/${S.doc.set}/sheet`, { sheet_no: v.sheet, name: v.name || v.sheet || "새 장", typical: v.typical, author: v.who, N: S.doc.N }); await loadList(d.id); await openDoc(d.id);
+    if (d.autolinked && d.autolinked.length) toast(`미작성이던 참조 ${d.autolinked.length}곳을 이었습니다 — ${d.autolinked.map(c => c.from + " → " + c.n + "행").slice(0, 4).join(", ")}`); }
   catch (e) { toast(e.message); }
 }
 async function verifySet() {
