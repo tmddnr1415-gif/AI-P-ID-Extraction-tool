@@ -1,4 +1,4 @@
-"""대시보드 운영 폴더용 꾸러미 — 메뉴 'ROOM SIZE 계산' · '도서검토' 가 여는 apps/ 파일 (hotfix117 · hotfix118).
+"""대시보드 운영 폴더용 꾸러미 — 메뉴 'ROOM SIZE 계산' · '도서검토' 가 여는 apps/ 파일 (hotfix117 · hotfix118 · 적용 단추 hotfix119).
 
 대시보드(v16.43~)의 두 메뉴는 대시보드 폴더의 apps/space/index.html · apps/books/index.html 을 연다.  그 자리에
 dashboard_apps/*/index.html (P&ID 서버 :8000 의 /space · /books/ 로 넘겨 주는 파일)을 넣는 zip 을 만든다.
@@ -23,9 +23,13 @@ README = """대시보드 메뉴 연결 파일 ({name}) — 대시보드 운영 �
   화면과 저장은 전부 P&ID 서버가 하고, 대시보드는 불러오기만 합니다 (대시보드 코드는 바뀌지 않습니다).
 
 넣는 법
-  1. 이 zip 을 대시보드 운영 폴더(dashboard.html 이 있는 폴더)에 그대로 풉니다
-     — apps\\space\\index.html · apps\\books\\index.html 두 파일이 바뀝니다 (apps\\books 의 kb.js · vendor 는 있어도 쓰지 않습니다).
-  2. 대시보드에서 메뉴를 다시 누릅니다 (안 바뀌어 보이면 Ctrl+F5).
+  1. 이 zip 을 대시보드 운영 폴더(dashboard.html · start_server.bat 이 있는 폴더) 안에 풉니다.
+     (윈도우 '압축 풀기' 가 zip 이름의 새 폴더를 만들어도 괜찮습니다.)
+  2. 풀린 폴더의 apply_dashboard_apps.bat 을 더블클릭합니다.
+     — 대시보드 폴더를 스스로 찾아 apps\\space\\index.html · apps\\books\\index.html 을 바꾸고 'OK' 두 줄을 보여 줍니다.
+       못 찾으면 대시보드 폴더를 이 bat 위에 끌어다 놓거나 경로를 적으라고 묻습니다.  예전 파일은 index.html.before_hotfix119 로 남습니다.
+  3. 대시보드에서 Ctrl+F5 → [ROOM SIZE 계산].  위 도구줄에 🧊 3D · ◧ 2D | 3D · ↗ 3D 새 창 단추가 보이면 된 것입니다.
+     ([새 창으로 열기] 를 누르면 주소가 :8000/space 로 바뀝니다.)
   · P&ID 서버 꾸러미(PID_dev+ops_hotfix117 이상)가 운영 PID 에 적용돼 있어야 합니다.  P&ID 서버가 꺼져 있으면 화면이 그렇게 말합니다.
 
 ROOM SIZE 계산 — 예전 자료
@@ -46,6 +50,7 @@ def main():
     with zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED) as z:
         for app in APPS:
             z.write(ROOT / "dashboard_apps" / app / "index.html", f"apps/{app}/index.html")
+        z.write(ROOT / "dashboard_apps" / "apply_dashboard_apps.bat", "apply_dashboard_apps.bat")
         z.writestr("1_먼저읽기_대시보드_메뉴연결.txt", README.format(name=a.name).replace("\n", "\r\n").encode("utf-8-sig"))
     with zipfile.ZipFile(out) as z:
         for app in APPS:

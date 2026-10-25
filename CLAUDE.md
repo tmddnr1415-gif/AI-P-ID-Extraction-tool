@@ -5117,6 +5117,14 @@ zip 은 '2. PID 코드' 세션(여기)에서 만든다 · 대시보드 zip 에�
    도서검토 → `:8000/books/?embed=1&user=…` · 검색 칸 · 도서관 단추 · `/api/books/info` 응답 · 페이지 오류 0.  서버 PC(localhost)로 열면 도서관 관리가 보인다.
 4. **앞으로** — 대시보드 메뉴에서 여는 다른 앱도 화면은 이 저장소(P&ID 서버)가 맡고, 대시보드 폴더 `apps/<이름>/index.html` 에는 넘겨 주는 파일만 둔다.
 
+**그 다음 — 대시보드 폴더에 넣는 단추 (hotfix119 · 판정 0줄)**
+
+현장(사진 · `localhost:8080/#space`): *"3D 보기가 왜 안 되나?"* — 화면이 여전히 **대시보드 폴더의 옛 사본**이다 (도구줄에 🧊 3D 가 없다 · 새 판이면 iframe 이
+`:8000/space` 로 넘어간다).  대시보드 서버는 `/apps/` 를 `no-store` 로 주므로 캐시가 아니다 — hotfix118 zip 이 `apps\space` 에 안 들어갔다
+(윈도우 '압축 풀기' 가 zip 이름의 새 폴더를 만든다).  `dashboard_apps/apply_dashboard_apps.bat` (ASCII · CRLF): 끌어다 놓은 폴더 → bat 옆 → 한 단계 위에서
+`dashboard.html` 을 찾아 `apps\space` · `apps\books` 의 `index.html` 을 바꾸고(예전 것은 `.before_hotfix119`) 같은 파일이면 건너뛴다.  zip
+`out/DASHBOARD_apps_hotfix119_*.zip`.  ⚠ Windows 에서 못 돌렸다 (cmd 없음).
+
 ## 4. 미해결 과제 (다음 단계 후보) — 우선순위 순
 
 1. **순번은 "안 붙인 것"이 최대 원인입니다** (오답 203건: 발주처는 붙였는데 우리는
