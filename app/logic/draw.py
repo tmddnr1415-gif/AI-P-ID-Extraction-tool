@@ -259,6 +259,9 @@ def clean(doc: dict) -> dict:
                 continue
             cell = {kk: _txt(v.get(kk), 60) for kk in keys}
             if any(cell.values()):
+                ins = v.get("inst")             # L64c — 계기 리스트가 설명을 바꾼 표시 (앞 설명 · 때)
+                if isinstance(ins, dict) and cell.get("desc"):
+                    cell["inst"] = {"old": _txt(ins.get("old"), 60), "at": _num(ins.get("at"), 0, 1e11, 0)}
                 out[side][str(n)] = cell
     seen = set()
     for b in doc.get("blocks") if isinstance(doc.get("blocks"), list) else []:

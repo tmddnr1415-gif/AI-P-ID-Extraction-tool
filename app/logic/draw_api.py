@@ -8,12 +8,12 @@ import shutil
 from urllib.parse import quote
 
 import json
-from fastapi import APIRouter, Body, HTTPException
+from fastapi import APIRouter, Body, File, Form, HTTPException, UploadFile
 from fastapi.responses import FileResponse, JSONResponse, Response
 
 from app import paths
 
-from . import draw, draw_sets, store
+from . import draw, draw_sets, instruments, store
 
 router = APIRouter()
 
@@ -233,6 +233,26 @@ def _typ_public(tid, ty, docs):
             "pins_in": sum(1 for r in tb if r.get("side") == "L" and r.get("desc")),
             "pins_out": sum(1 for r in tb if r.get("side") == "R" and r.get("desc")),
             "blocks": len(st.get("blocks") or {}), "did": (docs.get(tid) or {}).get("id")}
+
+
+# ───────── L64c — 계기 리스트 (Instrument List Excel) · 프로젝트마다 하나 ─────────
+@router.get("/logic/api/drawings/instruments")
+def get_instruments(project: str = ""):
+    return JSONResponse(instruments.public(project))
+
+
+@router.post("/logic/api/drawings/instruments")
+async def upload_instruments(file: UploadFile = File(...), project: str = Form(""), author: str = Form("")):
+    data = await file.read()
+    if not data:
+        raise HTTPException(400, "빈 파일입니다.")
+    if len(data) > 60 * 1024 * 1024:
+        raise HTTPException(400, "파일이 너무 큽니다 (60MB 까지).")
+    try:
+        from starlette.concurrency import run_in_threadpool      # 그림을 고쳐 쓰는 동안 다른 요청을 막지 않는다
+        return await run_in_threadpool(instruments.upload, project.strip()[:80], data, file.filename or "", _author(author))
+    except ValueError as e:
+        raise HTTPException(400, str(e))
 
 
 @router.get("/logic/api/drawings/typicals")

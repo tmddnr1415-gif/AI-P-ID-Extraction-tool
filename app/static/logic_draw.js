@@ -202,15 +202,17 @@ function renderTable(svg, L) {
     for (const [f, a, b] of fields.left) {
       const lst = f === "fm" ? linkState("left", li) : null;
       const cls = "cell" + (lst ? " st-" + lst.st : "") + (f === "fm" && li && li.ref ? " linked" : "") + (f === "fm" && li && li.ft && li.ft.ok === false ? " ftbad" : "") + (f === "fm" && li && li.ft && li.ft.warn && li.ft.warn.length ? " ftwarn" : "");
-      el("rect", { x: L.LCOLS[a], y, width: L.LCOLS[b] - L.LCOLS[a], height: L.PITCH, class: cls, "data-side": "left", "data-n": k + 1, "data-f": f }, g);
+      el("rect", { x: L.LCOLS[a], y, width: L.LCOLS[b] - L.LCOLS[a], height: L.PITCH, class: cls + instCls(lrow, f), "data-side": "left", "data-n": k + 1, "data-f": f }, g);
       if (lrow[f]) txt(g, L.LCOLS[a] + 2, yc, lrow[f], 5);
+      instMark(g, lrow, f, L.LCOLS[b], yc);
       if (f === "fm") linkBadge(g, "left", k + 1, L.LCOLS[b], y, L.PITCH, li);
     }
     for (const [f, a, b] of fields.right) {
       const rst = f === "to" ? linkState("right", ri) : null;
       const cls = "cell" + (rst ? " st-" + rst.st : "") + (f === "to" && ri && ri.targets && ri.targets.length ? " linked" : "") + (f === "to" && ri && ri.ft && ri.ft.ok === false ? " ftbad" : "");
-      el("rect", { x: L.RCOLS[a], y, width: L.RCOLS[b] - L.RCOLS[a], height: L.PITCH, class: cls, "data-side": "right", "data-n": L.N + k + 1, "data-f": f }, g);
+      el("rect", { x: L.RCOLS[a], y, width: L.RCOLS[b] - L.RCOLS[a], height: L.PITCH, class: cls + instCls(rrow, f), "data-side": "right", "data-n": L.N + k + 1, "data-f": f }, g);
       if (rrow[f]) txt(g, L.RCOLS[a] + 2, yc, rrow[f], 5);
+      instMark(g, rrow, f, L.RCOLS[b], yc);
       if (f === "to") linkBadge(g, "right", L.N + k + 1, L.RCOLS[b], y, L.PITCH, ri);
       if (f === "desc" && ri && ri.refs_in && ri.refs_in.length) { const e = txt(g, L.RCOLS[b] - 2, yc, "←" + ri.refs_in.length, 4.5, "end"); e.setAttribute("class", "refin"); const tt = el("title", {}, e); tt.textContent = "이 신호를 받는 곳: " + ri.refs_in.map(r => `${r.sheet}-${r.row}`).join(", "); }
     }
@@ -991,16 +993,20 @@ function editCell(rect) {
   inp.style.height = Math.max(16, L.PITCH / L.H * r.height) + "px";
   inp.value = ((S.doc[side][n] || {})[f]) || "";
   inp.focus(); inp.select();
-  const ac = (f === "fm" || f === "to") ? refAC(inp, side, f, () => done(true)) : null;   // L61 — 시트 · 행 자동완성
+  const ac = (f === "fm" || f === "to") ? refAC(inp, side, f, () => done(true))         // L61 — 시트 · 행 자동완성
+    : (f === "kks" && instHas()) ? instAC(inp, () => done(true)) : null;                    // L64c — 계기 리스트 TAG 자동완성
   const done = commit => {
     inp.hidden = true; inp.onblur = inp.onkeydown = inp.oninput = null; if (ac) ac.close();
     if (!commit) return;
     const v = inp.value.trim().slice(0, 60);
     const row = S.doc[side][n] || {};
     if ((row[f] || "") === v) return;
-    pushUndo(); row[f] = v; S.doc[side][n] = row;
-    if (!Object.values(row).some(Boolean)) delete S.doc[side][n];
-    markDirty(); render();
+    pushUndo();
+    if (f === "kks") instFill(row, v); else row[f] = v;            // L64c — 리스트의 TAG 면 설명을 불러온다
+    if (f === "desc") delete row.inst;                             // 사람이 고친 설명 — 리스트가 바꾼 표시는 거둔다
+    S.doc[side][n] = row;
+    if (!Object.keys(row).some(k => k !== "inst" && row[k])) delete S.doc[side][n];
+    markDirty(); render(); if (f === "kks" || f === "desc") renderInstCard();
   };
   inp.onblur = () => done(true);
   inp.onkeydown = e => {
@@ -1091,6 +1097,123 @@ function refAC(inp, side, f, commit) {
     },
   };
 }
+/* ───────── L64c — 계기 리스트 (Instrument List Excel) ─────────
+   TAG NO. 칸을 치면 리스트의 TAG 가 주르륵 · 고르면 설명(SERVICE)이 저절로.  리스트에 없는 TAG 는 붉게 · 다시 올린 리스트가
+   설명을 바꾼 행은 주황 '변경' — 서버(instruments.py)가 그림의 설명을 바꾸고 앞 설명을 남긴다. */
+const instNorm = t => String(t || "").replace(/\s+/g, "").toUpperCase();
+function instProject() { return S.doc ? (S.doc.project || "") : $("#f-project").value; }   // 그림이 없으면 고른 프로젝트 — 그리기 전에 올린다
+function instHas() { return !!(S.inst && S.inst.n); }
+function instGet(tag) { return instHas() ? S.inst.tags[instNorm(tag)] || null : null; }
+function instCls(row, f) {
+  if (f === "kks" && row.kks && instHas() && !instGet(row.kks)) return " inst-miss";
+  if (f === "desc" && row.inst) return " inst-chg";
+  return "";
+}
+function instMark(g, row, f, xr, yc) {
+  if (f === "kks" && row.kks && instHas() && !instGet(row.kks)) {
+    const e = txt(g, xr - 1.5, yc, "!", 5.5, "end"); e.setAttribute("class", "instmark");
+    el("title", {}, e).textContent = `${row.kks} — 계기 리스트에서 식별되지 않습니다 (TAG 가 바뀌었거나 빠졌습니다)`;
+  }
+  if (f === "desc" && row.inst) {
+    const e = txt(g, xr - 1.5, yc, "변경", 4.2, "end"); e.setAttribute("class", "instchg");
+    el("title", {}, e).textContent = `계기 리스트가 설명을 바꿨습니다\n앞: ${row.inst.old || "(빈칸)"}\n지금: ${row.desc}`;
+  }
+}
+function instFill(row, v) {
+  const prev = instGet(row.kks), hit = instGet(v);
+  row.kks = hit ? hit[0] : v;
+  if (hit && hit[1] && (!row.desc || (prev && prev[1] === row.desc) || S.instPicked)) { row.desc = hit[1].slice(0, 60); delete row.inst; }
+  S.instPicked = false;
+}
+function instAC(inp, commit) {
+  const box = $("#cellac"); let items = [], hi = -1;
+  const keys = Object.keys(S.inst.tags);
+  const place = () => { box.style.left = inp.style.left; box.style.top = (parseFloat(inp.style.top) + inp.offsetHeight + 1) + "px"; box.style.minWidth = Math.max(280, inp.offsetWidth) + "px"; };
+  const paint = () => {
+    if (!items.length) { box.hidden = true; return; }
+    place(); box.hidden = false;
+    box.innerHTML = `<div class="ac-head">계기 리스트 ${S.inst.n}개</div>` + items.map((k, i) => { const t = S.inst.tags[k]; return `<div class="ac-it${i === hi ? " on" : ""}" data-i="${i}"><b>${esc(t[0])}</b> <span>${esc(t[1])}</span>${t[2] ? ` <i>${esc(t[2])}</i>` : ""}</div>`; }).join("");
+    const on = box.querySelector(".ac-it.on"); if (on) on.scrollIntoView({ block: "nearest" });
+  };
+  const update = () => {
+    const q = instNorm(inp.value); items = [];
+    if (q) {
+      for (const k of keys) { if (k.startsWith(q)) { items.push(k); if (items.length >= 14) break; } }
+      if (items.length < 14) for (const k of keys) { if (!k.startsWith(q) && k.includes(q)) { items.push(k); if (items.length >= 14) break; } }
+    }
+    hi = items.length ? 0 : -1; paint();
+  };
+  const pick = i => { const k = items[i]; if (!k) return; inp.value = S.inst.tags[k][0]; S.instPicked = true; box.hidden = true; commit(); };
+  box.onmousedown = e => { e.preventDefault(); const d = e.target.closest(".ac-it"); if (d) pick(+d.dataset.i); };
+  inp.oninput = update; update();
+  return {
+    close() { box.hidden = true; box.onmousedown = null; },
+    key(e) {
+      if (box.hidden || !items.length) return false;
+      if (e.key === "ArrowDown") { hi = (hi + 1) % items.length; paint(); e.preventDefault(); return true; }
+      if (e.key === "ArrowUp") { hi = (hi - 1 + items.length) % items.length; paint(); e.preventDefault(); return true; }
+      if ((e.key === "Enter" || e.key === "Tab") && hi >= 0 && instNorm(inp.value) !== items[hi]) { e.preventDefault(); pick(hi); return true; }
+      if (e.key === "Escape") { box.hidden = true; e.preventDefault(); return true; }
+      return false;
+    },
+  };
+}
+async function loadInst() {
+  const pj = instProject();
+  if (S.inst && S.inst.project === pj && S.inst._loaded) { renderInstCard(); return; }
+  try { S.inst = await api(`/logic/api/drawings/instruments?project=${encodeURIComponent(pj)}`); S.inst._loaded = true; } catch (e) { S.inst = null; }
+  renderInstCard();
+}
+function instIssues() {
+  const miss = [], chg = [];
+  if (!S.doc) return { miss, chg };
+  for (const side of ["left", "right"]) for (const [n, r] of Object.entries(S.doc[side] || {})) {
+    if (r.kks && instHas() && !instGet(r.kks)) miss.push({ n: +n, tag: r.kks });
+    if (r.inst) chg.push({ n: +n, old: r.inst.old, now: r.desc });
+  }
+  return { miss: miss.sort((a, b) => a.n - b.n), chg: chg.sort((a, b) => a.n - b.n) };
+}
+function renderInstCard() {
+  const out = $("#inst-say"); if (!out) return;
+  const pj = instProject();
+  let h = `<div>프로젝트 <b>${esc(pj || "(없음)")}</b></div>`;
+  if (!instHas()) h += `<div>계기 리스트가 없습니다 — Excel 을 올리면 TAG NO. 칸이 자동완성되고 설명이 저절로 채워집니다.</div>`;
+  else {
+    const at = S.inst.at ? new Date(S.inst.at * 1000).toLocaleString() : "";
+    h += `<div><b>${S.inst.n}</b>개 · ${esc(S.inst.file || "")} · ${esc(S.inst.author || "")} · ${esc(at)}${S.inst.version > 1 ? ` · ${S.inst.version}번째 판` : ""}</div>`;
+    const c = S.inst.changes || {};
+    if (S.inst.version > 1 && (c.changed || c.removed)) h += `<div class="chg">지난 판 대비 — 설명 바뀜 ${(c.changed || []).length} (그림 ${c.rows || 0}행 바꿈${c.kept ? ` · 사람이 고친 ${c.kept}행은 그대로` : ""}) · 없어진 TAG ${(c.removed || []).length} · 새 TAG ${c.added || 0}</div>`;
+    const { miss, chg } = instIssues();
+    if (!S.doc) { out.innerHTML = h + `<div>새 그림을 만들면 TAG NO. 칸에서 이 리스트로 자동완성됩니다.</div>`; return; }
+    if (miss.length) h += `<div class="warn">⚠ 이 장의 TAG ${miss.length}개가 리스트에서 식별되지 않습니다</div><ul>${miss.slice(0, 60).map(m => `<li class="warn" data-n="${m.n}">${m.n}행 ${esc(m.tag)}</li>`).join("")}</ul>`;
+    if (chg.length) h += `<div class="chg">설명이 바뀐 행 ${chg.length} <button type="button" id="inst-ack" title="확인했으면 '변경' 표시를 거둔다 (저장하면 남는다)">표시 지우기</button></div><ul>${chg.slice(0, 60).map(m => `<li class="chg" data-n="${m.n}" title="앞: ${esc(m.old)}">${m.n}행 ${esc(m.now)}</li>`).join("")}</ul>`;
+    if (!miss.length && !chg.length) h += `<div>이 장의 TAG 는 전부 리스트에 있습니다.</div>`;
+  }
+  out.innerHTML = h;
+  for (const li of out.querySelectorAll("li[data-n]")) li.onclick = () => flashRow(+li.dataset.n);
+  const ack = $("#inst-ack");
+  if (ack) ack.onclick = () => { pushUndo(); for (const side of ["left", "right"]) for (const r of Object.values(S.doc[side] || {})) delete r.inst; markDirty(); render(); renderInstCard(); };
+}
+async function uploadInst(file) {
+  const who = author(); if (!who) { toast("이름을 적어 주세요 (머리줄 ✎)."); $("#who").focus(); return; }
+  if (S.doc && S.dirty) await save();
+  const fd = new FormData(); fd.append("file", file); fd.append("project", instProject()); fd.append("author", who);
+  status("계기 리스트를 읽는 중 …");
+  let r;
+  try { r = await api("/logic/api/drawings/instruments", { method: "POST", body: fd }); } catch (e) { toast("계기 리스트를 못 읽었습니다 — " + e.message, 7000); status(""); return; }
+  S.inst = null;
+  const msg = [`계기 리스트 ${r.n}개를 읽었습니다`];
+  if ((r.changed || []).length) msg.push(`설명 바뀜 ${r.changed.length} → 그림 ${r.rows}행 바꿈`);
+  if ((r.removed || []).length) msg.push(`없어진 TAG ${r.removed.length}`);
+  toast(msg.join(" · "), 6000);
+  const cur = S.id;
+  if (S.doc && r.rows) { S.dirty = false; await openDoc(cur); } else { await loadInst(); render(); }
+  instWarn(true);
+}
+function instWarn(force) {
+  const { miss } = instIssues();
+  if (miss.length && (force || S.instWarned !== S.id)) { S.instWarned = S.id; toast(`⚠ 이 장의 TAG ${miss.length}개가 계기 리스트에서 식별되지 않습니다 (붉은 칸)`, 6000); }
+}
 function nextCell(side, n, f, back, sameCol) {
   const order = side === "left" ? ["fm", "kks", "desc"] : ["desc", "kks", "to"];
   let i = order.indexOf(f);
@@ -1125,7 +1248,9 @@ function fillForm() {
   const d = S.doc;
   $("#name").value = d.name || ""; $("#name").disabled = false;
   $("#f-sheet").value = d.sheet_no || ""; $("#f-title").value = d.title || ""; $("#f-doc").value = d.doc_no || ""; $("#f-rows").value = d.N;
-  $("#f-project").value = d.project || "";
+  const fp = $("#f-project");                                     // L64c — 목록에 없는 프로젝트 이름도 지킨다 (안 그러면 저장할 때 지워진다)
+  if (d.project && ![...fp.options].some(o => o.value === d.project)) { const o = document.createElement("option"); o.value = o.textContent = d.project; fp.appendChild(o); }
+  fp.value = d.project || "";
   $("#f-form").value = d.form || ""; $("#f-pname").value = d.project_name || ""; $("#f-rev").value = d.rev || "";
   $("#f-typical").checked = !!d.typical;
   $("#f-notes").value = (d.notes || []).join("\n");
@@ -1138,7 +1263,7 @@ async function openDoc(id) {
   try { S.doc = await api(`/logic/api/drawings/${id}`); } catch (e) { toast(e.message); return; }
   S.id = id; S.dirty = false; S.sel = new Set(); S.selWire = null; S.undo = []; S.redo = []; S.verify = null; $("#verify-card").hidden = true;
   $("#pick").value = id; $("#save").disabled = true;
-  fillForm(); await loadSet(); render(); fitZoom(); render();
+  fillForm(); await loadSet(); await loadInst(); render(); fitZoom(); render(); instWarn();
   if (S.doc.set === TYP_SET && !S.typList) { try { S.typList = (await api("/logic/api/drawings/typicals")).items; } catch (e) {} }
   renderTypCard();
   if (S.gotoRow) { const n = S.gotoRow; S.gotoRow = null; flashRow(n); }
@@ -1892,10 +2017,12 @@ async function init() {
   document.addEventListener("pointerdown", e => { const m = $("#simmenu"); if (!m.hidden && !m.contains(e.target)) simMenuClose(); }, true);
   $("#pick").onchange = e => { if (e.target.value) openDoc(e.target.value); };
   for (const id of ["#name", "#f-sheet", "#f-title", "#f-doc", "#f-project", "#f-pname", "#f-rev"]) $(id).oninput = () => { if (!S.doc) return; S.doc.sheet_no = $("#f-sheet").value.trim(); S.doc.title = $("#f-title").value.trim(); S.doc.doc_no = $("#f-doc").value.trim(); S.doc.project_name = $("#f-pname").value.trim(); S.doc.rev = $("#f-rev").value.trim(); markDirty(); render(); };
+  $("#f-project").onchange = () => { if (!S.doc) { loadInst(); return; } S.doc.project = $("#f-project").value; markDirty(); loadInst().then(render); };
+  $("#inst-file").onchange = e => { const f = e.target.files[0]; e.target.value = ""; if (f) uploadInst(f); };
   $("#f-form").onchange = () => { if (!S.doc) return; S.doc.form = $("#f-form").value; markDirty(); render(); };
   $("#f-rows").onchange = () => { if (!S.doc) return; const n = Math.max(45, Math.min(62, +$("#f-rows").value || 50)); $("#f-rows").value = n; pushUndo(); S.doc.N = n; markDirty(); render(); };
   window.addEventListener("beforeunload", e => { if (S.dirty) { e.preventDefault(); e.returnValue = ""; } });
-  await loadProjects();
+  await loadProjects(); loadInst();
   const items = await loadList();
   const m = location.hash.match(/d=([0-9a-f]{12})/), ms = location.hash.match(/set=([0-9a-f]{12})/), mp = location.hash.match(/mparent=([0-9a-f]{12}):([^&]+)/);
   if (/speer=1/.test(location.hash) && window.opener) { S.speer = true; document.title = "LOGIC 작도 — 연결된 시트"; }
