@@ -5125,6 +5125,16 @@ zip 은 '2. PID 코드' 세션(여기)에서 만든다 · 대시보드 zip 에�
 `dashboard.html` 을 찾아 `apps\space` · `apps\books` 의 `index.html` 을 바꾸고(예전 것은 `.before_hotfix119`) 같은 파일이면 건너뛴다.  zip
 `out/DASHBOARD_apps_hotfix119_*.zip`.  ⚠ Windows 에서 못 돌렸다 (cmd 없음).
 
+**그 다음 — 판넬 10-26 판: 3D 새 창 ↔ 2D 를 창끼리 직접 잇는다 (hotfix120 · 판정 0줄)**
+
+사용자: *"Panel 코드 변경되었다. 반영해서 업데이트 zip."*  판넬 브랜치 `ccr-d82d97fa-bb3ty3` 의 새 화면 커밋은 `3956bbd` 하나 —
+대시보드 안(다른 사이트 iframe)에서는 Edge 가 BroadcastChannel · localStorage 를 나눠 3D 새 창과 2D 가 서로 못 들었고, 창끼리 `postMessage`
+(2D → 연 창 · 3D 창 → opener · 번호로 한 번만 · 3D 창이 열리며 `hello` 로 지금 배치를 받음)를 더했다.  세 갈래 합치기 충돌은 3D 새 창 줄 하나
+(우리 판의 주소 뒤 값 유지 + 그쪽의 `PEERS.add(w)`).  자기검증 `spike/ui_audit_space120_sync.py` — file:// 페이지 안 iframe 으로 연 /space 에서
+3D 새 창이 2D 배치(23)를 받고 · 2D 복제(46) · 되돌리기가 3D 창에 반영 · 오류 0.  `spike/ui_audit_space116.py` 그대로 통과.
+★ 대시보드 v16.44(`b8b9100`)부터 메뉴 ROOM SIZE 계산 · 도서검토가 P&ID 서버 `/space` · `/books/` 를 **바로** 연다 (`APP_ROUTES = {}`) —
+hotfix117~119 의 넘겨 주는 파일 zip 은 v16.43 이하 대시보드에서만 필요하다.
+
 ## 4. 미해결 과제 (다음 단계 후보) — 우선순위 순
 
 1. **순번은 "안 붙인 것"이 최대 원인입니다** (오답 203건: 발주처는 붙였는데 우리는
@@ -5664,7 +5674,7 @@ python3 spike/regression_3p.py --reuse    # 이미 있는 결과로 채점만 (2
 | `pidcache.teach_blind("titleblock")` · `spike/ui_audit_dxf_guide.py` | **hotfix85 마무리** — 타이틀블록도 스스로 못 찾게 하는 시뮬레이션 눈가림 · DXF 안내창 화면 시험 (전부 / `partial`) |
 | `pipeline.apply_policy` · `control_function_reason` · `_resuffix` · `_drop_from_layers` · config `policy` · `result["policy_excluded"]` | **hotfix83** — 사용자가 정한 '식별하지 않는 것' (PSV · 제어실 기능 버블).  **마지막 거름**이다 (`_fold_readouts` 뒤) — 앞에서 빼면 접힘·거리 문턱이 달라진다.  제어실 판정은 그 도면 ISA 표 (CONTROLLER · 가운데 선 + 물리 기기 글자 없음) |
 | `pipeline._supplier_name` · `detect_symbols.read_mark_dictionary` 의 `col`/`CONTINUE_AT_TEXT_COLUMN` | **hotfix83** — 노트가 특정한 공급자 이름 (`BY` 밖 꼴 · 공급자 명사구) · 별표가 글 왼쪽에 따로 그려진 정의줄은 같은 열의 다음 줄까지 잇는다 |
-| `app/space.py` · `app/static/space/index.html` | **hotfix106/116** — 판넬 공간확보.  화면 원본은 `ccr-d82d97fa-bb3ty3` `dashboard/apps/space/` (지금 `c6d1402`) — 세 갈래로 합쳐 들여오고 `/space/api` · `canWrite` · `askYes/askText` 를 되살린다.  서버는 대시보드 `api_space_*` 와 같은 꼴 (룸 · Rev · 휴지통) |
+| `app/space.py` · `app/static/space/index.html` | **hotfix106/116** — 판넬 공간확보.  화면 원본은 `ccr-d82d97fa-bb3ty3` `dashboard/apps/space/` (지금 `3956bbd` · hotfix120) — 세 갈래로 합쳐 들여오고 `/space/api` · `canWrite` · `askYes/askText` 를 되살린다.  서버는 대시보드 `api_space_*` 와 같은 꼴 (룸 · Rev · 휴지통) |
 | `app/static/dcs.html` · `app/static/hmi/{hmi.js,hmi_symbols.js,hmi.css}` | **hotfix110** — DCS HMI 화면 (LOGIC 브랜치 H1회차 화면 그대로 + 확대/이동 · LOGIC 태그 연동 · 내려받기).  심볼 사전 하나가 그림 · 범례 · 라이브러리를 먹인다 — 새 심볼 · 배관 종류는 `hmi_symbols.js` 에 한 줄 |
 | `app/hmi/scene.py` (`from_model` · `place_faces` · `service_of`) · `app/hmi/store.py` · `/dcs/api/jobs/{id}/scene/{page}` | **hotfix110** — 식별된 장(`dcs.build_sheet`) → 장면 JSON (같은 배율 · 탭한 런 · 지어내지 않음) · 사람이 다듬은 장면 저장 (작성자 필수) |
 | `scene.system_of` · `group_systems` · `from_system` · `name_only` · `/dcs/api/jobs/{id}/system/{key}/scene` · `result["equipment_labels"]` | **hotfix111** — 시스템(도면번호 − 일련번호) 한 장 · 공통 배율 격자 · 장 사이 선은 커넥터 글이 말할 때만 · 기기 이름 전부(지문 밖 · 다시 분석해야) |

@@ -1,7 +1,7 @@
 """판넬 공간확보 — P&ID · LOGIC 과 같은 서버(8000)의 /space 화면 · /space/api/* (hotfix106).
 
 판넬 화면(`app/static/space/index.html`)은 대시보드 브랜치 `ccr-d82d97fa-bb3ty3` 의
-`dashboard/apps/space/index.html` 을 들여온 것이고 (hotfix116 에 2026-10-24 판 `c6d1402` 로 다시 들여옴 —
+`dashboard/apps/space/index.html` 을 들여온 것이고 (hotfix116 에 2026-10-24 판 `c6d1402` · hotfix120 에 10-26 판 `3956bbd` 로 다시 들여옴 —
 판넬 화면을 바꾸면 그 브랜치의 최신판과 이 파일을 세 갈래로 합치고 `/space/api` 고침을 되살린다), 저장 API 는 그 대시보드 `server.py` 의
 `api_space_*` 를 같은 꼴(같은 경로 · 같은 응답 · 같은 파일 구조)로 옮겼다:
 

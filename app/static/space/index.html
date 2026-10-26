@@ -1971,7 +1971,7 @@ function dock3d(on){const d=$('#dock3d'),box=$('#v3dlg .box')||$('#dock3d .box')
   else{$('#v3dlg').appendChild(box);d.hidden=true;main.classList.remove('dual');V3.dock=false;V3.on=false;V3.camK='';if(CAM3D&&CAM3D.src==='dock')CAM3D=null}
   $('#b3dDual').classList.toggle('primary',!!on);requestAnimationFrame(()=>{fit();if(V3.on){v3home();v3req()}})}
 $('#b3dDual').onclick=()=>dock3d(!V3.dock);
-$('#b3dWin').onclick=()=>{const w=window.open(location.pathname+'?'+(q=>{q.set('view','3d');return q.toString()})(new URLSearchParams(location.search)),'crspace3d','popup,width=1400,height=900');
+$('#b3dWin').onclick=()=>{const w=window.open(location.pathname+'?'+(q=>{q.set('view','3d');return q.toString()})(new URLSearchParams(location.search)),'crspace3d','popup,width=1400,height=900');if(w)PEERS.add(w);   // 같은 이름 창이 있으면 그 창을 다시 열어 이어짐
   if(!w)toast('새 창이 막혔습니다 — 브라우저 주소줄 오른쪽에서 팝업을 허용하세요',true);else toast('3D 새 창을 열었습니다 — 다른 모니터로 옮기세요. 어느 쪽에서 고쳐도 바로 서로 반영됩니다')};
 $('#v3Close').onclick=()=>{if(ONLY3D)return window.close();if(V3.dock)return dock3d(false);$('#v3dlg').hidden=true;V3.on=false};
 new MutationObserver(()=>{if(!$('#v3dlg').hidden||V3.dock)return;if(ONLY3D){$('#v3dlg').hidden=false;return}V3.on=false}).observe($('#v3dlg'),{attributes:true,attributeFilter:['hidden']});   // Esc 로 닫힘
@@ -2546,21 +2546,33 @@ $('#bHome').onclick=showHome;
 /* ---------- 2D · 3D 동기화 ----------
    같은 화면(2D | 3D 나란히): 같은 자료 S 를 그리므로 2D 를 그릴 때 3D 도 다시 그림 (v3sync — 판넬 자리 · 선택 · 기둥이 바뀐 때만).
    다른 창(3D 새 창 · 듀얼 모니터): BroadcastChannel 로 저장(commit)마다 배치안 전체, 끄는 중에는 판넬 · 기둥 자리만(한 화면에 한 번), 선택도 같이.
-   BroadcastChannel 이 안 되는 곳은 localStorage 'storage' 이벤트(저장 때만)로. 외부 연결 없음 — 같은 PC 의 창끼리만. */
+   BroadcastChannel 이 안 되는 곳은 localStorage 'storage' 이벤트(저장 때만)로. 외부 연결 없음 — 같은 PC 의 창끼리만.
+   대시보드를 파일(file://)이나 다른 주소로 열면 이 앱 iframe 은 '다른 사이트 안' 이라 Edge 가 BroadcastChannel · localStorage 를 나눠 버림(저장소 분할)
+   → 3D 새 창과 2D 가 서로 못 들음. 그래서 창끼리 직접(postMessage: 2D 는 연 창 W3D, 3D 새 창은 opener)도 보냄. 같은 말이 두 길로 오면 번호(n)로 한 번만. */
 var ONLY3D=new URLSearchParams(location.search).get('view')==='3d';
 var BC=(()=>{try{return new BroadcastChannel('crspace.sync')}catch(e){return null}})(), WID=uid();   // var: 위쪽 코드(persist · render)가 먼저 불러도 오류 없게
-var bcIn=false,bcLiveR=0,bcSelS='',liveGot=false;
-function bcSend(m){if(!BC||bcIn)return;try{BC.postMessage({...m,from:WID})}catch(e){}}
-function bcLive(){if(!BC||bcIn||bcLiveR)return;bcLiveR=requestAnimationFrame(()=>{bcLiveR=0;bcSend({t:'live',p:S.panels.map(p=>[p.id,p.x,p.y,p.rot]),cols:Array.isArray(S.cols)?S.cols:null})})}
+var bcIn=false,bcLiveR=0,bcSelS='',liveGot=false,bcN=0,bcSeen={},bcGot=false,PEERS=new Set();
+function bcPeers(){PEERS.forEach(w=>{try{if(w.closed)PEERS.delete(w)}catch(e){PEERS.delete(w)}});return PEERS.size}
+function bcOut(m){try{BC&&BC.postMessage(m)}catch(e){} PEERS.forEach(w=>{try{w.postMessage({...m,crs:1},location.origin)}catch(e){PEERS.delete(w)}})}
+function bcSend(m){if(bcIn||(!BC&&!bcPeers()))return;bcOut({...m,from:WID,n:++bcN})}
+function bcLive(){if(bcIn||bcLiveR||(!BC&&!bcPeers()))return;bcLiveR=requestAnimationFrame(()=>{bcLiveR=0;bcSend({t:'live',p:S.panels.map(p=>[p.id,p.x,p.y,p.rot]),cols:Array.isArray(S.cols)?S.cols:null})})}
 function applyRemote(snap){if(!snap||(snap===lastSnap&&!liveGot))return;liveGot=false;
   if(snap!==lastSnap){undo.push(lastSnap);if(undo.length>120)undo.shift();redo=[]}
   S=norm(JSON.parse(snap));S._fresh=false;lastSnap=snap;sel=new Set([...sel].filter(id=>S.panels.some(p=>p.id===id)));buildRoom();buildTypes();refresh()}
-if(BC)BC.onmessage=e=>{const m=e.data;if(!m||m.from===WID)return;bcIn=true;try{
-  if(m.t==='state')applyRemote(m.snap);
+function bcIn_(m){if(!m||m.from===WID)return; if(m.n){if(m.n<=(bcSeen[m.from]||0))return;bcSeen[m.from]=m.n}
+  bcIn=true;try{
+  if(m.t==='hello'){bcIn=false;bcSend({t:'state',snap:lastSnap});bcSend({t:'sel',ids:[...sel]});return}   // 3D 새 창이 열리며 지금 배치를 달라고 함
+  if(m.t==='state'){applyRemote(m.snap);if(ONLY3D&&!bcGot){bcGot=true;undo=[];redo=[]}}   // 3D 새 창 첫 배치: 이 창의 옛 배치로 되돌아가지 않게
   else if(m.t==='live'){const by=new Map(S.panels.map(p=>[p.id,p]));m.p.forEach(([id,x,y,r])=>{const p=by.get(id);if(p){p.x=x;p.y=y;p.rot=r}});if(m.cols)S.cols=m.cols;liveGot=true;check();render();buildProps();if(V3.on){v3side();v3req()}}
   else if(m.t==='cam'){CAM3D=m.c?{...m.c,src:'win'}:null;req()}
   else if(m.t==='sel'){sel=new Set((m.ids||[]).filter(id=>S.panels.some(p=>p.id===id)));bcSelS=[...sel].join();buildProps();buildEq();render();if(V3.on){v3side();v3req()}}
-}finally{bcIn=false}};
+}finally{bcIn=false}}
+if(BC)BC.onmessage=e=>bcIn_(e.data);
+window.addEventListener('message',e=>{const m=e.data;if(e.origin!==location.origin||!m||!m.crs)return;try{PEERS.add(e.source)}catch(_){}bcIn_(m)});   // 창끼리 직접 (대시보드가 보내는 dept-auth 등은 crs 없음)
+if(ONLY3D){try{if(window.opener)PEERS.add(window.opener)}catch(e){}
+  setTimeout(()=>bcSend({t:'hello'}),0);   // 열자마자 2D 의 지금 배치 · 선택을 받음 (저장소가 나뉘어 이 창의 localStorage 는 옛것일 수 있음)
+  let warned=false;setInterval(()=>{let gone=false;try{gone=!window.opener||window.opener.closed}catch(e){gone=true}
+    if(gone&&!warned){warned=true;toast('2D 화면이 닫혔거나 다시 열렸습니다 — 연동이 멈추면 2D 에서 [↗ 3D 새 창] 을 다시 누르세요 (이 창이 다시 이어짐)',true)}if(!gone)warned=false},2000)}
 window.addEventListener('storage',e=>{if(e.key==='crspace.v1'&&e.newValue&&e.newValue!==lastSnap){bcIn=true;try{applyRemote(e.newValue)}finally{bcIn=false}}});
 window.crspaceSpeed=()=>({build_ms:+(V3.tb||0).toFixed(2),draw_ms:+(V3.td||0).toFixed(2),panels:S.panels.length});   // 속도 확인용 (콘솔)
 function v3keys(){try{return V3.dock&&V3.kf}catch(e){return false}}
@@ -2595,7 +2607,7 @@ function v3camPub(){   // 3D 를 그린 뒤: 시점이 바뀌었으면 2D 에 �
   const c={e:[Math.round(V3.eye[0]),Math.round(V3.eye[2])],t:[Math.round(V3.T[0]),Math.round(V3.T[2])],h:Math.round(V3.eye[1]),hf:2*Math.atan(Math.tan(fov/2)*B.a),man:V3.manOn&&V3.man?{x:V3.man.x,z:V3.man.z,rot:V3.man.rot}:null};
   const k=JSON.stringify(c); if(k===V3.camK)return; V3.camK=k;
   if(ONLY3D)bcSend({t:'cam',c}); else if(V3.dock){CAM3D={...c,src:'dock'};req()}}
-if(ONLY3D)window.addEventListener('pagehide',()=>{try{BC&&BC.postMessage({t:'cam',c:null,from:WID})}catch(e){}});
+if(ONLY3D)window.addEventListener('pagehide',()=>bcOut({t:'cam',c:null,from:WID,n:++bcN}));
 
 /* ---------- boot ---------- */
 buildRoom(); buildTypes(); check(); buildSummary(); buildRevs(); buildNotes(); buildEq(); updSrv(); buildProps();
