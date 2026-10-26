@@ -441,7 +441,7 @@ def body(p, t):
 
 
 def learn(rooms):
-    S = {'cabFace': [], 'cabFR': [], 'cabWallEnd': [], 'deskScreen': [], 'deskFace': [], 'deskWall': [], 'groupGap': [], 'prnWall': [], 'rowMax': []}
+    S = {'deskRowN': [], 'cabFace': [], 'cabFR': [], 'cabWallEnd': [], 'deskScreen': [], 'deskFace': [], 'deskWall': [], 'groupGap': [], 'prnWall': [], 'rowMax': []}
     for r in rooms:
         d = r.data(); T = {t['id']: t for t in d['types']}; W, L = d['room']['w'], d['room']['l']
         ps = [(p, T[p['type']], body(p, T[p['type']])) for p in d['panels']]
@@ -468,6 +468,8 @@ def learn(rooms):
                 g = (b1[0] - (b0[0] + b0[2])) if hz else (b1[1] - (b0[1] + b0[3]))
                 if g > 150:
                     S['groupGap'].append(g)
+            if k == 'ows':
+                S['deskRowN'].append(len(items))
             if k in ('ows', 'prn'):
                 # 벽까지 (등 쪽)
                 b = a
@@ -522,7 +524,7 @@ def learn(rooms):
     for k, v in S.items():
         v = [x for x in v if x is not None and x >= 0]
         if v:
-            out[k] = {'n': len(v), 'min': round(min(v)), 'med': round(statistics.median(v)), 'max': round(max(v))}
+            v.sort(); out[k] = {'n': len(v), 'min': round(min(v)), 'med': round(statistics.median(v)), 'p75': round(v[min(len(v) - 1, int(len(v) * 0.75))]), 'max': round(max(v))}
     return out
 
 

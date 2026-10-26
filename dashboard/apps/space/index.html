@@ -2682,8 +2682,8 @@ $('#bRef').onclick=()=>refOpen(false);
    뒷줄 데스크 → 프린터는 아래 벽 따라 / 판넬은 두 줄씩 앞면끼리 마주 보고(앞 통로), 짝끼리는 뒤끼리(뒤 통로), 같은 계통끼리 한 줄 */
 const AK={cab:'판넬',desk:'데스크',prn:'프린터',ls:'대형 화면',skip:'빼기'};
 let AITEMS=[];
-const rmed=(k,def)=>{const v=REF.rules&&REF.rules[k];return v&&v.med?Math.round(v.med/50)*50:def};
-const rhint=k=>{const v=REF.rules&&REF.rules[k];return v?`Ref ${v.n}곳 · 중앙값 ${fmt(v.med)} (${fmt(v.min)}~${fmt(v.max)})`:'Ref 없음'};
+const rmed=(k,def)=>{const [key,q]=k.split(':'),v=REF.rules&&REF.rules[key],x=v&&v[q||'med'];return x?(key==='deskRowN'?x:Math.round(x/50)*50):def};   // 'rowMax:p75' = 위 25% 값 (최대값 칸)
+const rhint=k=>{const [key,q]=k.split(':'),v=REF.rules&&REF.rules[key];return v?`Ref ${v.n}곳 · 중앙값 ${fmt(v.med)}${q&&v[q]?` · 위 25% ${fmt(v[q])}`:''} (${fmt(v.min)}~${fmt(v.max)})`:'Ref 없음'};
 function aKind(desc,w,d,h){const u=desc.toUpperCase();
   if(/CLOCK|MIMIC|PUSH ?BUTTON|\bEPB\b|MICROPHONE|RDLI|WALL MOUNT|MODF|SPARE\b.*\(\d+\)$/.test(u)&&!(w&&d&&h&&h>1000))return 'skip';
   if(/LARGE SCREEN|\bLVS\b|\bLSD\b|VIDEO WALL|CCTV DISPLAY|\d{2,3}\s*("|″|INCH)/.test(u)&&!/CONTROLLER|WORKSTATION/.test(u))return 'ls';
@@ -2739,9 +2739,9 @@ const ACON=[   // [키, 이름, 시작값, Ref 통계 키, 설명]
   ['wall','벽 이격 — 판넬 줄 끝 · 화면 · 데스크 (mm)',1000,'cabWallEnd','Ref 판넬 줄 끝 ↔ 벽'],['cabRearWall','판넬 뒤 ↔ 벽 (mm)',800,null,'뒷문 · 뒤 배선 공간'],
   ['gapP','판넬 간 이격 (같은 줄, mm)',0,null,'0 = 맞붙임 (Ref 모두 맞붙임)'],['cabFace','판넬 앞면끼리 통로 (mm)',null,'cabFace','두 줄이 앞면끼리 마주 볼 때'],
   ['cabBack','판넬 뒤끼리 통로 (mm)',1000,null,'짝 줄 사이 (뒤 ↔ 뒤)'],['cabFront','판넬 전면 유지보수 (mm)',1000,null,'Type 의 전면 값'],
-  ['rowMax','판넬 한 줄 최대 길이 (mm)',null,'rowMax','넘으면 다음 줄 · 같은 계통은 안 쪼갬'],['grpGap','그룹 사이 띄움 (mm)',null,'groupGap','계통 · 그룹이 바뀔 때'],
+  ['rowMax','판넬 한 줄 최대 길이 (mm)',null,'rowMax:p75','넘으면 다음 줄 · 같은 계통은 안 쪼갬'],['grpGap','그룹 사이 띄움 (mm)',null,'groupGap','계통 · 그룹이 바뀔 때'],
   ['deskScreen','콘솔 ↔ 대형 화면 (mm)',null,'deskScreen','화면 앞 ↔ 콘솔 앞'],['deskOp','데스크 운전원 공간 (mm)',1500,null,'의자 · 뒤로 빠지는 자리 (전면 값)'],
-  ['deskRow','데스크 줄 ↔ 뒷줄 (mm)',2500,null,'운전원 공간 + 걷는 길'],['deskFace','마주 보는 데스크 줄 (화면 없는 룸, mm)',null,'deskFace','엔지니어링 룸: 위 · 아래 벽 데스크 사이'],['deskMax','콘솔 한 줄 최대 데스크 수',8,null,'넘으면 뒷줄'],
+  ['deskRow','데스크 줄 ↔ 뒷줄 (mm)',2500,null,'운전원 공간 + 걷는 길'],['deskFace','마주 보는 데스크 줄 (화면 없는 룸, mm)',null,'deskFace','엔지니어링 룸: 위 · 아래 벽 데스크 사이'],['deskMax','콘솔 한 줄 최대 데스크 수',null,'deskRowN:p75','넘으면 뒷줄'],
   ['prnWall','프린터 ↔ 벽 (mm)',null,'prnWall','Ref: 벽 따라 붙임']];
 function aConForm(){
   $('#aCon').innerHTML=`<div class="muted">② 제약조건 — 시작값은 Ref ${new Set(REF.refs.map(r=>r.project)).size}개 PJT 에서 잰 값(중앙값). 바꾸면 그대로 씁니다.</div>
@@ -2749,11 +2749,15 @@ function aConForm(){
    <fieldset><legend>판넬 · 캐비닛</legend><div class="g">${ACON.slice(2,10).map(aField).join('')}</div></fieldset>
    <fieldset><legend>데스크 · 대형 화면 · 프린터</legend><div class="g">${ACON.slice(10).map(aField).join('')}</div></fieldset>
    <fieldset><legend>판넬 줄 방향</legend><label><select id="ac_mode"><option value="face">두 줄씩 앞면끼리 마주 봄 (Ref: F3 · NT34 · Amiral · QFE · UAD)</option><option value="same">모두 같은 방향 (Ref: Tanajib ER · Metering)</option></select></label></fieldset>`}
-function aField([k,n,def,rk,hint]){const v=def===null?rmed(rk,1000):def;return `<label>${esc(n)}<input type="number" id="ac_${k}" min="0" step="50" value="${v}"><small>${esc(rk?rhint(rk):hint)}</small></label>`}
+function aField([k,n,def,rk,hint]){const v=def===null?rmed(rk,k==='deskMax'?9:1000):def;return `<label>${esc(n)}<input type="number" id="ac_${k}" min="0" step="${k==='deskMax'?1:50}" value="${v}"><small>${esc(rk?rhint(rk):hint)}</small></label>`}
 function aConVal(){const c={};ACON.forEach(([k])=>{const v=$('#ac_'+k).value.trim();c[k]=v===''?null:Math.max(0,+v||0)});c.mode=$('#ac_mode').value;return c}
 function autoOpen(){aConForm();aTable();$('#aErr').textContent='';$('#autodlg').hidden=false;setTimeout(()=>$('#aIn').focus(),50)}
 $('#bAuto').onclick=autoOpen; $('#aClose').onclick=()=>{$('#autodlg').hidden=true};
 function autoLayout(items,c){
+  if(!c._rot&&c.W>0&&c.L>0&&c.L>c.W*1.3){   // 적은 실이 세로로 길면: 가로로 놓고 계산한 뒤 90° 돌림 (줄이 긴 쪽을 따라감)
+    const r=autoLayout(items,{...c,W:c.L,L:c.W,_rot:true}), T=Object.fromEntries(r.types.map(t=>[t.id,t])), Lr=r.room.l;
+    r.panels.forEach(p=>{const t=T[p.type],w=t.kind==='screen'?fixDoor({...t}).w:t.w,bh=p.rot%180===0?t.d:w;const nx=Lr-(p.y+bh),ny=p.x;p.x=nx;p.y=ny;p.rot=(p.rot+90)%360});
+    r.room={...r.room,w:r.room.l,l:r.room.w};r.grew=r.room.w>c.W||r.room.l>c.L;return r}
   const types=[],T={},P=[],col={cab:'#2f6db5',net:'#7a59b0',pwr:'#b8642a',hv:'#2f8a6a',desk:'#4f6a8a',prn:'#6b7280',ls:'#34495e'};
   const typ=it=>{const key=[it.k,it.k==='cab'?it.fam:'',it.w,it.d,it.h,it.inch].join('|');if(T[key])return T[key];const id=uid();let t;
     if(it.k==='desk')t={name:`OWS / EWS Desk ${it.w}×${it.d}`,pre:'WS-',kind:'desk',w:it.w,d:it.d,top:Math.min(it.h||750,950),bays:1,mon:it.w>=1000?2:1,monIn:24,tiers:1,front:c.deskOp,rear:0,door:'none',hinge:'L',color:col.desk};
@@ -2763,12 +2767,14 @@ function autoLayout(items,c){
     let nm=t.name,k=2;while(types.some(x=>x.name===nm))nm=`${t.name} (${k++})`;t.name=nm;t.id=id;fixDoor(t);types.push(t);T[key]=id;return id};
   const fw=it=>it.k==='ls'?Math.round(it.inch*25.4*0.8716+80):it.w;
   const put=(it,x,y,rot)=>P.push({id:uid(),type:typ(it),tag:it.no,desc:it.desc,x:Math.round(x),y:Math.round(y),rot,scope:''});
-  const sortG=a=>a.slice().sort((p,q)=>p.grp.localeCompare(q.grp)||String(p.no).localeCompare(String(q.no),undefined,{numeric:true}));
+  const AUX=/\bFA\b|FIRE|CEMS|CCTV|HVAC|\bEDL\b|\bWT\b|WWT|\bPA\b|PAGA|SCANNER|MDAS|FAULT|SUBSTATION|SPARE|SUPERVISOR|SHIFT|MICROPHONE|CLOCK|PRINTER/;   // 보조 계통 데스크 = 뒷줄 (Ref: 주 운전 OWS 가 화면 앞 콘솔)
+  const pri=it=>it.k==='desk'&&AUX.test(it.desc.toUpperCase())?1:0;
+  const sortG=a=>a.slice().sort((p,q)=>pri(p)-pri(q)||p.grp.localeCompare(q.grp)||String(p.no).localeCompare(String(q.no),undefined,{numeric:true}));
   const lines=(arr,max,gap,maxN)=>{   // 줄 나누기: 최대 길이 · 최대 수까지 채운 줄 수를 정한 뒤, 그 수 안에서 줄 길이를 고르게. 다음 그룹이 남은 칸에 안 들어가면 그룹 경계에서 끊음
     const seq=sortG(arr), glen=seq.map((it,i)=>{let s=0;for(let j=i;j<seq.length&&seq[j].grp===it.grp;j++)s+=fw(seq[j]);return s});
     const flow=lim=>{const out=[];let cur=[],len=0;
       seq.forEach((it,i)=>{const ng=cur.length&&cur[cur.length-1].it.grp!==it.grp, add=fw(it)+(ng?gap:0);
-        if(cur.length&&(len+add>lim||(maxN&&cur.length>=maxN)||(ng&&len>=lim*0.6&&len+gap+glen[i]>lim))){out.push(cur);cur=[];len=0}
+        if(cur.length&&(len+add>lim||(maxN&&cur.length>=maxN)||(!c._loose&&ng&&len>=lim*0.6&&len+gap+glen[i]>lim))){out.push(cur);cur=[];len=0}
         const g=cur.length&&cur[cur.length-1].it.grp!==it.grp?gap:0;cur.push({it,gap:g});len+=fw(it)+g});
       if(cur.length)out.push(cur);return out.map(l=>({l,len:l.reduce((s,z)=>s+fw(z.it)+z.gap,0)}))};
     const G=flow(max), tot=G.reduce((s,r)=>s+r.len,0), big=Math.max(0,...seq.map(fw));
@@ -2776,7 +2782,7 @@ function autoLayout(items,c){
     return G};
   const by=k=>items.filter(it=>it.k===k), cabs=by('cab'), desks=by('desk'), prns=by('prn'), lss=by('ls'), wall=c.wall;
   const Wgiv=c.W&&c.W>0?c.W:null, rowMax=Wgiv?Math.max(2000,Wgiv-2*wall):(c.rowMax||6000);
-  const dl=lines(desks,Wgiv?Math.max(2000,Wgiv-2*wall):1e9,c.grpGap,c.deskMax), cl=lines(cabs,rowMax,c.grpGap,0);
+  const gg=c._loose?0:c.grpGap, dl=lines(desks,Wgiv?Math.max(2000,Wgiv-2*wall):1e9,gg,c.deskMax), cl=lines(cabs,rowMax,gg,0);   // 다시 짤 때(_loose)는 그룹 사이도 붙임 (Ref 처럼)
   const contentW=Math.max(0,...dl.map(r=>r.len),...cl.map(r=>r.len),lss.reduce((s,it)=>s+fw(it),0)+Math.max(0,lss.length-1)*1200,prns.length?Math.min(prns.length,10)*800:0);
   const W=Math.max(Wgiv||0,Math.ceil((contentW+2*wall)/100)*100), cx=l=>Math.round((W-l)/2);
   let y=0, deskZone=desks.length>0;
@@ -2787,7 +2793,7 @@ function autoLayout(items,c){
     else{y=Math.max(300,c.prnWall||0);   // 화면 없음(엔지니어링 룸 꼴): 두 줄씩 마주 봄 — 위 줄 앞면 ↓ · 아래 줄 앞면 ↑, 사이 deskFace
       dl.forEach((r,i)=>{let x=cx(r.len);const dm=Math.max(...r.l.map(z=>z.it.d)),rot=i%2===0?180:0;r.l.forEach(z=>{x+=z.gap;put(z.it,x,rot===180?y+dm-z.it.d:y,rot);x+=fw(z.it)});
         y+=dm+(i<dl.length-1?(i%2===0?Math.max(c.deskFace,2*c.deskOp):c.deskRow):0)});
-      y+=dl.length%2===1?c.deskOp:300}}
+      y+=dl.length%2===1?c.deskOp:(prns.length?1000:300)}}   // 마지막 줄이 앞면 ↑ 이면 뒤에 오는 프린터의 앞 공간을 비움
   else if(lss.length){y=300;let x=cx(lss.reduce((s,it)=>s+fw(it),0)+(lss.length-1)*1200);lss.forEach(it=>{put(it,x,y,180);x+=fw(it)+1200});y+=600+1500}
   if(cabs.length){
     y=Math.max(y+(deskZone?1000:0),c.cabRearWall);
@@ -2798,8 +2804,22 @@ function autoLayout(items,c){
     const lastRot=c.mode==='same'?0:((cl.length-1)%2===0?180:0); y+=lastRot===180?c.cabFront:c.cabRearWall}
   if(prns.length){y+= cabs.length?600:200; const pl=lines(prns,Math.max(2000,W-2*Math.max(wall,800)),0,0);
     pl.forEach((r,i)=>{y+=i?800+800:0;let x=cx(r.len);r.l.forEach(z=>{put(z.it,x,y,0);x+=fw(z.it)});y+=Math.max(...r.l.map(z=>z.it.d))});y+=c.prnWall||100}
-  const Lgiv=c.L&&c.L>0?c.L:null, L=Math.max(Lgiv||0,Math.ceil((y+(prns.length?0:wall*0))/100)*100);
-  return {room:{w:W,l:L,spX:'',spY:'',col:600,margin:wall,spare:0,spareDir:'x',gapP:c.gapP,gapD:0,touchOK:true,autoFit:true},types,panels:P,grew:(Wgiv&&W>Wgiv)||(Lgiv&&L>Lgiv)}}
+  // 마무리: 실 크기 = 판넬 · 데스크의 필요 영역(유지보수 · 도어 궤적) 바깥 + 벽 이격. 화면 · 프린터는 Ref 처럼 벽에 붙임(벽 이격 대상 아님)
+  const TT=Object.fromEntries(types.map(t=>[t.id,t])), wallIt=p=>{const t=TT[p.type];return t.kind==='screen'||(t.kind!=='desk'&&t.door==='none'&&(+t.h||0)<=1300)};
+  const ex=P.filter(p=>!wallIt(p)).map(p=>extOf(geom(p,TT[p.type]))), Lgiv=c.L&&c.L>0?c.L:null;
+  let Wf=W,L=Lgiv||0;
+  if(ex.length){const x0=Math.min(...ex.map(e=>e.x)),x1=Math.max(...ex.map(e=>e.x+e.w)),y0=Math.min(...ex.map(e=>e.y));
+    Wf=Math.max(Wgiv||0,W,Math.ceil((x1-x0+2*wall)/100)*100); const dx=Math.round((Wf-(x1-x0))/2-x0), dy=lss.length?Math.max(0,wall-y0):wall-y0;
+    P.forEach(p=>{p.x+=dx;p.y+=dy});
+    const y1=Math.max(...P.filter(p=>!wallIt(p)).map(p=>{const e=extOf(geom(p,TT[p.type]));return e.y+e.h}));
+    const pb=Math.max(0,...P.filter(p=>wallIt(p)&&TT[p.type].kind!=='screen').map(p=>{const g=geom(p,TT[p.type]);return g.body.y+g.body.h+(c.prnWall||100)}));
+    L=Math.max(L,Math.ceil(Math.max(y1+wall,pb)/100)*100);
+    P.filter(p=>wallIt(p)&&TT[p.type].kind!=='screen'&&p.rot===0).forEach(p=>{const t=TT[p.type],ny=L-(c.prnWall||100)-t.d;if(ny>p.y)p.y=ny})}   // 프린터는 아래 벽으로
+  else L=Math.max(L,Math.ceil(y/100)*100);
+  const W2=Wf;
+  if(!c._loose&&Lgiv&&L>Lgiv){const r2=autoLayout(items,{...c,_loose:true});if(r2.room.l<L)return r2}   // 적은 실 L 에 안 들어가면: 계열을 줄 경계에 안 맞추고 폭까지 채워 줄 수를 줄여 봄
+  return {room:{w:W2,l:L,spX:'',spY:'',col:600,margin:wall,spare:0,spareDir:'x',gapP:c.gapP,gapD:0,touchOK:true,autoFit:true},types,panels:P,grew:(Wgiv&&W2>Wgiv)||(Lgiv&&L>Lgiv)}}
+window.crspaceAuto={parse:aParse,layout:(t,c)=>autoLayout(aParse(t).filter(it=>it.k!=='skip'),{...aConVal(),...c})};   // 시험 · 콘솔용
 $('#aGo').onclick=()=>{
   const use=AITEMS.filter(it=>it.k!=='skip'&&(it.k==='ls'||it.w>0&&it.d>0)); if(!use.length){$('#aErr').textContent='배치할 물건이 없습니다 — ① 에 Equipment List 를 붙여 넣으세요.';return}
   const c=aConVal(), r=autoLayout(use,c), keep={info:{...S.info},srv:S.srv,revs:S.revs,notes:[],cols:null};
