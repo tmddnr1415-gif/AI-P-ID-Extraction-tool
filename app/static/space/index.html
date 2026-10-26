@@ -72,6 +72,28 @@ input[type=number]{font-family:var(--f-mono);font-variant-numeric:tabular-nums}
 .tile.add b{font-size:18px;line-height:1;color:var(--accent)}
 /* Type 만들기 · 고치기 창 */
 .modal.tdlg .box{width:min(780px,100%)}
+.modal.edlg .box{width:min(720px,100%)} .edlg .g{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:6px 12px;margin-top:6px} .edlg .sec{margin:10px 0}
+/* Option B · Ref. PJT Layout / Option A · Equipment List 자동 배치 */
+.modal.rdlg .box{width:min(1180px,100%);height:min(84vh,820px);max-height:none}
+.rgrid{display:grid;grid-template-columns:330px 1fr;gap:12px;flex:1;min-height:0}
+.rlist{overflow:auto;border:1px solid var(--line);border-radius:6px;padding:6px}
+.rlist h5{margin:8px 4px 4px;font-size:12px;color:var(--accent)}.rlist h5:first-child{margin-top:2px}
+.rlist button{display:block;width:100%;text-align:left;margin:2px 0;padding:5px 7px;font-size:12px}.rlist button small{display:block;color:var(--ink-2);font-size:11px}
+.rlist button.on{border-color:var(--accent);background:var(--accent-soft)}
+.rprev{display:flex;flex-direction:column;min-height:0;gap:6px}.rprev svg{flex:1;min-height:0;width:100%;background:var(--paper);border:1px solid var(--line);border-radius:6px}
+.modal.adlg .box{width:min(1240px,100%);height:min(90vh,900px);max-height:none}
+.agrid{display:grid;grid-template-columns:1.35fr 1fr;gap:12px;flex:1;min-height:0}
+.agrid textarea{width:100%;height:120px;font:12px Consolas,monospace;resize:vertical}
+.atbl{overflow:auto;border:1px solid var(--line);border-radius:6px;flex:1;min-height:0}
+.atbl table{width:100%;border-collapse:collapse;font-size:11.5px}.atbl th,.atbl td{border-bottom:1px solid var(--line);padding:2px 4px;text-align:left;white-space:nowrap}
+.atbl th{position:sticky;top:0;background:var(--sheet)}.atbl td input{width:62px;padding:1px 3px}.atbl td select{padding:1px 2px}.atbl tr.x td{opacity:.45}
+.acon{overflow:auto;display:flex;flex-direction:column;gap:6px}.acon .g{display:grid;grid-template-columns:1fr 1fr;gap:6px 10px}
+.acon label{display:flex;flex-direction:column;gap:2px;font-size:11.5px;color:var(--ink-2)}.acon label small{color:var(--ink-2);font-size:10.5px}
+.acon fieldset{border:1px solid var(--line);border-radius:6px;padding:6px 8px;margin:0}.acon legend{font-size:12px;font-weight:700;color:var(--ink)}
+.lh-start li.opt{border-color:var(--accent);background:var(--accent-soft)}
+.aprev{border:1px solid var(--line);border-radius:6px;padding:6px;display:flex;flex-direction:column;gap:4px}.aprev svg{width:100%;height:210px;background:var(--paper);border-radius:4px}
+.aprev .via{font-size:12px}.aprev .via b{color:var(--accent)}
+.arules{font-size:11.5px}.arules li{margin:2px 0}
 .tdlg .tform{display:grid;grid-template-columns:minmax(0,1fr) 290px;gap:14px}
 .tdlg .tf{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:7px 8px;align-content:start}
 .tdlg .tf label{display:flex;flex-direction:column;gap:2px;font-size:11px;color:var(--ink-2);min-width:0}
@@ -107,6 +129,8 @@ input[type=number]{font-family:var(--f-mono);font-variant-numeric:tabular-nums}
 body.only3d .modal.v3dlg{padding:0;background:var(--paper)}body.only3d .modal.v3dlg .box{width:100%;height:100%;max-height:none;border-radius:0}   /* 3D 새 창 */
 .v3side{width:286px;flex:none;border-left:1px solid var(--line);overflow:auto;padding:10px;font-size:12px;background:var(--panel-bg)}
 .v3side[hidden]{display:none}
+.v3side.pp{width:auto;border:0;padding:0;background:none;overflow:visible}
+.vt{width:100%;border-collapse:collapse;font-size:11px;margin-top:4px}.vt th,.vt td{border-bottom:1px solid var(--line);padding:2px 3px;text-align:left;white-space:nowrap}.vt tr.ok td:last-child{color:var(--ok)}.vt tr.warn td:last-child{color:var(--warn)}.vt tr.err td:last-child{color:var(--err)}   /* 2D 선택한 판넬 칸 안의 Type 값 칸 */
 .v3side h5{margin:0 0 6px;font-size:13px;display:flex;align-items:center;gap:6px}.v3side h5 i{width:10px;height:10px;border-radius:2px;display:inline-block}
 .v3side .g{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin:6px 0}.v3side .g2{grid-template-columns:1fr 1fr}
 .v3side label{display:flex;flex-direction:column;gap:2px;color:var(--ink-2);font-size:11px}.v3side label.full{grid-column:1/-1}
@@ -262,6 +286,8 @@ svg text{font-family:var(--f-mono)}
     <div class="lh-card">
       <h3><span class="num">2</span> 어떻게 시작할지</h3>
       <ul class="lh-start" id="hmStart">
+        <li data-st="auto" class="opt"><b>Option A · Equipment List 로 자동 배치</b><small>List 붙여넣기 → 제약조건(벽 · 판넬 간 이격 …) → Ref 학습값으로 배치 → 이어서 고침</small></li>
+        <li data-st="ref" class="opt"><b>Option B · Ref. PJT Room Layout 불러오기</b><small id="hmRefTxt">눌러서 Ref 고르기</small></li>
         <li data-st="last"><b id="hmLastHd">이 룸 · Rev 의 최근 저장본 이어서</b><small id="hmLastTxt">① 에서 프로젝트 · 룸 · Rev 를 고르면 나옵니다</small></li>
         <li data-st="cont"><b>이 PC 에서 하던 작업 이어서</b><small id="hmContTxt"></small></li>
         <li data-st="blank"><b>빈 실에서 새로 배치</b><small>지금 Panel Type 은 그대로, 판넬 · 노트 없이</small></li>
@@ -282,7 +308,7 @@ svg text{font-family:var(--f-mono)}
     <button id="bHome" title="프로젝트 고르기 · 저장 이력 첫 화면으로 (작업은 그대로 남습니다)">⌂ 첫 화면</button>
     <div class="brand">ROOM SIZE 계산<small>Control Room · 건축 전달용</small></div>
     <button id="bSel" class="on" title="선택 (Esc)">선택</button>
-    <button id="bBox" title="박스 선택 모드 (PC는 Shift+Drag)">박스선택</button>
+    <button id="bBox" title="박스 선택 모드 (PC는 Shift+Drag) — 끌어서 범위를 고르고, 고른 판넬을 누르고 끌면 묶음째 옮김 · 왼쪽 칸에서 일괄 속성 · 최소 이격">박스선택</button>
     <button id="bMeas" title="거리 재기: 두 점을 차례로 클릭 (Snap) — 거리 · X · Y 차이 (Esc = 끝)">📏 거리</button>
     <button id="bNote" title="도면 노트: 도면을 누른 자리에 메모 핀 (Esc = 끝) · 핀 Drag = 옮기기 · 두 번 누르기 = 고치기">📌 노트</button>
     <button id="bCol" title="기둥 편집: 빈 곳 클릭 = 기둥 추가 · 기둥 Drag = 이동 · Delete = 삭제 (Esc = 끝)">기둥 편집</button>
@@ -307,8 +333,11 @@ svg text{font-family:var(--f-mono)}
     <label class="chk"><input type="checkbox" id="vNote" checked>노트</label>
     <label class="chk" title="프로젝트 · 룸 · Rev · 날짜 워터마크 (화면 · PNG · PDF · 3D)"><input type="checkbox" id="vWm" checked>워터마크</label>
     <label class="chk" title="3D 를 보는 자리(카메라) · 보는 방향 · 시야 · 사람 — 3D 를 돌리면 같이 움직임 (2D | 3D 나란히 · 3D 새 창)"><input type="checkbox" id="vCam" checked>3D 시점</label>
+    <label class="chk" title="안전공학 · 인간공학: 앉은 운전원(데스크마다, 눈 1,240) · 선 사람(3D, 눈 1,640) 의 시야 — 정면 ±15° 최적 · ±30° 눈만 돌려 · ±60° 머리 돌려, 대형 화면 각. 데스크를 고르면 그 데스크만 자세히"><input type="checkbox" id="vView" checked>👁 시야</label>
+    <button id="bErgSet" title="시야 기준: 2D · 3D 켜고 끄기 · PDF 출력에 넣기/빼기 · 기준 값(눈 높이 · 시야 각) 고치기">👁 시야 기준</button>
     <span class="sep"></span>
  <button id="bNeed2" class="primary" title="건축팀용 필요 사이즈 요약 + 2D 도면 PDF">📐 필요 사이즈</button>
+    <button id="bAuto" title="Option A — Equipment List 를 붙여 넣으면 제약조건 · Ref 학습값으로 처음부터 자동 배치">⚡ 자동 배치</button><button id="bRef" title="Option B — Ref. PJT 의 Room Layout 을 불러와 시작">📚 Ref. PJT</button>
     <button id="bSrvOpen2" title="서버: 프로젝트별 · 날짜별 저장 이력과 프로젝트 노트 (부서원 모두 봄)">🗂 이력</button>
     <label class="chk"><input type="checkbox" id="vDim" checked>치수</label>
     <label class="chk"><input type="checkbox" id="vLbl" checked>Tag</label>
@@ -330,7 +359,7 @@ svg text{font-family:var(--f-mono)}
         <h3><span class="t"><span class="step-n">1</span>프로젝트 정보</span></h3>
         <div class="f">
           <label>프로젝트명<input type="text" id="iPj" placeholder="예: OO 프로젝트"></label>
-          <label>Room 명칭<input type="text" id="iRm" placeholder="예: CCR / Rack Room"></label>
+          <label>Room 명칭<input type="text" id="iRm" placeholder="예: CCR / Engineering Room"><small id="iRmHint" class="muted" style="font-size:10.5px"></small></label>
           <label>작성자<input type="text" id="iBy"></label>
           <label>Rev<input type="text" id="iRev" placeholder="A"></label>
         </div>
@@ -365,6 +394,7 @@ svg text{font-family:var(--f-mono)}
         </div>
         <p class="muted" style="margin:4px 0 0">항상 막는 것: 기둥과 겹침 · 판넬끼리 겹침 · 다른 판넬의 도어 회전 궤적과 간섭 · 도어 궤적끼리 겹침. Ctrl 을 누른 채 끌면 근처 판넬 · 벽 · 기둥에 맞춰 붙습니다(정렬 안내선).</p>
         <div class="row" id="colCustom" style="margin-top:6px;align-items:center" hidden><span class="muted" id="colCustomTxt"></span><button id="bColReset" title="직접 고친 기둥을 버리고 위 Span · 크기로 다시 만듭니다">격자로 다시 만들기</button></div>
+        <div class="row" id="reAutoRow" hidden style="margin-top:6px"><button id="bReAuto" class="primary" title="Option A 로 만든 배치: 지금 실 W · L 로 같은 List · 제약조건을 다시 배치 (Ref 와 실 크기가 비슷하면 그 Ref 처럼)">⚡ 이 실 크기로 다시 자동 배치</button></div>
         <p class="muted" style="margin:6px 0 0">기둥 Span을 비우면 기둥 없이 검토합니다. 기둥 하나씩 옮기기 · 추가 · 삭제는 도구줄 [기둥 편집]. 벽 이격 · Spare 는 권장 실 크기 계산에 쓰입니다 (벽 이격은 도면에 상 · 하 · 좌 · 우 끝 판넬부터 보라 빗금으로 표시되고, 실 벽이 그보다 가까우면 경고) (Spare = 필요 영역을 증설 방향으로 그 비율만큼 늘림).</p>
       </section>
 
@@ -406,6 +436,7 @@ svg text{font-family:var(--f-mono)}
         <h3><span class="t"><span class="step-n">5</span>출력</span></h3>
         <div class="row">
           <button class="primary" id="bNeed" title="건축팀용: 필요 실 크기 · 벽 이격 · 산정 조건 요약 + 2D 도면 PDF (A3 가로)">📐 필요 사이즈 내보내기 (요약 + 2D PDF)</button>
+          <button id="bErg" title="시야 검토에 적용한 인간공학 기준 (값 · 근거 표준 · 출처) + 운전원 × 대형 화면 결과 PDF (A3 가로)">👁 인간공학 기준 PDF</button>
           <button id="bReq">건축 전달 요약 출력 (TXT)</button>
           <button id="bDxf">DXF 출력</button>
           <button id="bCsv">판넬 List 출력 (CSV)</button>
@@ -470,6 +501,7 @@ svg text{font-family:var(--f-mono)}
         <label class="kd kd-screen">세로 장 수<input type="number" id="tdRows" step="1" min="1"></label>
         <label class="kd kd-screen">한 장 크기 (inch)<input type="number" id="tdTileIn" step="1" min="20"></label>
         <label class="kd kd-screen">바닥에서 화면 아래<input type="number" id="tdElev" step="50" min="0"></label>
+        <label class="kd kd-screen" title="대형 화면을 받치는 것 — 2D · 3D · DXF 에 표시">받침 (서포트)<select id="tdMount"><option value="stand">스탠드 — 기둥 + 받침발</option><option value="cabinet">받침장 (캐비닛)</option><option value="wall">벽걸이 (바닥 받침 없음)</option></select></label>
         <span class="gh">판넬 치수 (mm)</span>
         <label>W 폭<input type="number" id="tdW" step="50" min="0"></label>
         <label>D 깊이<input type="number" id="tdD" step="50" min="0"></label>
@@ -478,6 +510,7 @@ svg text{font-family:var(--f-mono)}
         <span class="gh">유지보수 공간 (mm)</span>
         <label class="w2">전면 F<input type="number" id="tdF" step="50" min="0"></label>
         <label class="w2">후면 R (없으면 0)<input type="number" id="tdR" step="50" min="0"></label>
+        <label class="w2" title="이 장비 둘레로 다른 장비와 떨어져야 할 최소 거리 — ② 배치 제약의 '판넬 간 최소 이격' 보다 크면 이 값으로 검토 (0 = 공통 값만)">최소 이격 (주위)<input type="number" id="tdG" step="50" min="0"></label>
         <span class="gh kd-door">도어</span>
         <label class="w2 kd-door">Door 위치<select id="tdDoor"></select></label>
         <label class="w2 kd-door" title="그 면 앞에 서서 판넬을 볼 때의 왼쪽(L) · 오른쪽(R) 힌지, 양개 = 폭 절반 문짝 둘">열림<select id="tdHinge"></select></label>
@@ -532,6 +565,9 @@ svg text{font-family:var(--f-mono)}
       <label class="chk"><input type="checkbox" id="v3Door" checked>도어</label>
       <label class="chk"><input type="checkbox" id="v3Lbl" checked>Tag</label>
       <label class="chk" title="키 175 cm · 80 kg 성인 남성 — 끌어서 옮기기 · R 돌리기 · 방향키 이동"><input type="checkbox" id="v3Man" checked>사람</label>
+      <label class="chk" title="운전 데스크마다 앉은 운전원 (좌판 450 · 눈높이 1,240 mm)"><input type="checkbox" id="v3Sit" checked>앉은 사람</label>
+      <label class="chk" title="안전공학 시야: 바닥에 정면 ±15° 최적(초록) · ±30° 눈만 돌려(노랑) · ±60° 머리 돌려(회색), 점선 = 정상 시선(수평 아래 15°, ISO 11064-4). 선 사람 + 고른 데스크의 운전원"><input type="checkbox" id="v3View" checked>시야</label>
+      <button id="v3ErgSet" title="시야 기준: 켜고 끄기 · PDF 반영 · 기준 값 고치기">👁 시야 기준</button>
       <label class="chk" title="판넬 사이 · 벽과 가까운 판넬 사이 몸체 모서리 간 거리 (edge to edge, &lt;───&gt;)"><input type="checkbox" id="v3EDim" checked>간격 치수</label>
       <label class="chk" title="사람 자리에서 앞뒤 · 좌우로 판넬 · 기둥 · 벽까지 통로 폭 (허리 높이)"><input type="checkbox" id="v3Gap" checked>통로 폭</label></div>
     <div class="v3wrap"><div class="v3view"><canvas id="v3gl"></canvas><canvas id="v3tx"></canvas><div class="v3tip" id="v3Tip" hidden></div></div>
@@ -559,6 +595,51 @@ svg text{font-family:var(--f-mono)}
     <div class="row"><button id="kClose" class="primary">닫기 (Esc)</button></div>
   </div>
 </div>
+<div class="modal edlg" id="ergdlg" hidden>
+  <div class="box">
+    <h4>👁 시야 기준 (안전공학 · 인간공학)</h4>
+    <div class="sec"><b>표시 켜고 끄기</b>
+      <div class="g"><label class="chk"><input type="checkbox" id="eg2d">2D 도면에 시야</label><label class="chk"><input type="checkbox" id="eg3d">3D 에 시야</label><label class="chk"><input type="checkbox" id="egSit">3D 앉은 사람</label></div></div>
+    <div class="sec"><b>PDF 출력 반영</b> <span class="muted">([📐 필요 사이즈 내보내기] 때)</span>
+      <div class="g"><label class="chk"><input type="checkbox" id="egPdf">인간공학 기준 PDF 를 따로 같이 출력</label><label class="chk"><input type="checkbox" id="egFans">필요 사이즈 도면(1쪽)에 시야 부채꼴 넣기</label></div></div>
+    <div class="sec"><b>기준 값 고치기</b> <span class="muted">(이 배치안에 저장 · 2D · 3D · 시야 검토 표 · PDF 에 같이 반영)</span>
+      <div class="g">
+        <label>앉은 눈 높이 mm<input type="number" id="egSitEye" min="800" max="1600" step="10"></label>
+        <label>선 눈 높이 mm<input type="number" id="egStandEye" min="1200" max="2000" step="10"></label>
+        <label>정상 시선 수평 아래 °<input type="number" id="egNlos" min="0" max="45" step="1"></label>
+        <label>최적 ± °<input type="number" id="egZ1" min="1" max="89" step="1"></label>
+        <label>눈만 돌려 ± °<input type="number" id="egZ2" min="1" max="89" step="1"></label>
+        <label>머리 돌려 ± °<input type="number" id="egZ3" min="1" max="120" step="1"></label>
+        <label>화면 비스듬히 경고 °<input type="number" id="egOff" min="10" max="89" step="1"></label>
+        <label>부채꼴 반경 mm<input type="number" id="egR" min="1000" max="30000" step="500"></label>
+      </div>
+      <div class="muted" id="egNote"></div></div>
+    <div class="row"><button id="egDef" style="margin-right:auto">기준 값 기본으로</button><button id="egOk" class="primary">적용</button><button id="egClose">닫기 (Esc)</button></div>
+  </div>
+</div>
+<div class="modal rdlg" id="refdlg" hidden>
+  <div class="box">
+    <h4>📚 Ref. PJT Room Layout — Option B</h4>
+    <div class="muted" id="refNote"></div>
+    <div class="rgrid"><div class="rlist" id="refList"></div><div class="rprev"><svg id="refSvg"></svg><div class="muted" id="refInfo"></div></div></div>
+    <div class="row"><span class="muted" style="margin-right:auto">불러온 뒤 판넬 · 크기 · 위치는 자유롭게 고칩니다 (Ctrl+Z 로 되돌림). 프로젝트 · 룸 · Rev 이름은 지금 것 그대로.</span><button id="refUse" class="primary">이 배치로 시작</button><button id="refClose">닫기</button></div>
+  </div>
+</div>
+<div class="modal adlg" id="autodlg" hidden>
+  <div class="box">
+    <h4>⚡ Equipment List 로 자동 배치 — Option A</h4>
+    <div class="agrid">
+      <div style="display:flex;flex-direction:column;gap:6px;min-height:0">
+        <div class="muted">① Equipment List 를 엑셀에서 <b>머리줄째 복사해 붙여 넣기</b> (또는 CSV · TXT 파일). NO · TAG · DESCRIPTION · SIZE(W×D×H) · QTY 열을 알아서 찾습니다. 크기가 없으면 이름으로 짐작(OWS 1200×1100 · 프린터 800×800 · 판넬 800×800×2200), 벽걸이 · 책상 위 물건(시계 · EPB · Mimic …)은 '빼기'.</div>
+        <textarea id="aIn" placeholder="NO	EQUIPMENT TAG NO.	DESCRIPTION	DIMENSION (W x D x H)	QTY&#10;1	00CJA00GH001	DCS SYSTEM CABINET #1	700 x 600 x 2285	1"></textarea>
+        <div class="row"><button id="aFile">CSV · TXT 파일…</button><input type="file" id="aFileIn" accept=".csv,.txt,.tsv,text/plain" hidden><button id="aSample">예시 넣기 (F3 CER + CCR 일부)</button><span class="muted" id="aCnt" style="margin-left:auto"></span></div>
+        <div class="atbl"><table><thead><tr><th>NO</th><th>TAG</th><th>DESCRIPTION</th><th>W</th><th>D</th><th>H</th><th>종류</th></tr></thead><tbody id="aTbl"></tbody></table></div>
+      </div>
+      <div class="acon" id="aCon"></div>
+    </div>
+    <div class="row"><span class="err" id="aErr" style="margin-right:auto;color:var(--err)"></span><button id="aGo" class="primary">③ 자동 배치</button><button id="aClose">닫기</button></div>
+  </div>
+</div>
 <div class="modal" id="libdlg" hidden>
   <div class="box">
     <h4>📚 이 PC 의 Panel Type 라이브러리</h4>
@@ -581,6 +662,7 @@ svg text{font-family:var(--f-mono)}
 </div>
 
 <script src="/static/offline.js" data-app="space"></script>
+<script src="/static/space/ref.js"></script>   <!-- Ref. PJT Room Layout (dashboard_tools/space_ref_build.py 가 만듦) — 없어도 앱은 돎 -->
 <script>
 (()=>{
 const $=s=>document.querySelector(s);
@@ -621,12 +703,13 @@ function fixDoor(t){if(!DOOR_AT[t.door])t.door='none';if(!HINGE[t.hinge])t.hinge
    kind: cabinet(판넬) · desk · screen · chair. 데스크 H = 모니터 꼭대기까지(자동), 대형 화면 W · H = 화면 장 수 · 크기에서(자동) */
 const KIND={cabinet:'판넬 · 캐비닛',desk:'Operation Desk (운전 데스크)',screen:'Large Screen (대형 화면)',chair:'Operator Chair (운전원 의자)'};
 const KIND_DEF={desk:{top:740,bays:2,mon:4,monIn:27,tiers:2},screen:{cols:3,rows:2,tileIn:55,elev:900},chair:{}};
+const MOUNT={stand:'스탠드 (기둥 + 받침발)',cabinet:'받침장',wall:'벽걸이'};   // 대형 화면 받침 (예전 Type = 스탠드)
 const monRaw=inch=>[inch*25.4*0.8716,inch*25.4*0.4903];   // 16:9 화면 가로 · 세로 (mm)
 function furnFix(t){
   t.kind=KIND[t.kind]?t.kind:'cabinet'; if(t.kind==='cabinet')return t;
   const d=KIND_DEF[t.kind]; Object.keys(d).forEach(k=>{if(!(+t[k]>0))t[k]=d[k]}); t.door='none';
   if(t.kind==='desk'){t.bays=Math.max(1,Math.round(+t.bays));t.mon=Math.max(0,Math.round(+t.mon));t.tiers=Math.min(3,Math.max(1,Math.round(+t.tiers)));const mh=monRaw(+t.monIn)[1]+30;t.h=Math.round(+t.top+120+t.tiers*(mh+30))}
-  if(t.kind==='screen'){t.cols=Math.max(1,Math.round(+t.cols));t.rows=Math.max(1,Math.round(+t.rows));const [tw,th]=monRaw(+t.tileIn);t.w=Math.round(t.cols*tw+80);t.h=Math.round(+t.elev+t.rows*th+60)}
+  if(t.kind==='screen'){if(!MOUNT[t.mount])t.mount='stand';t.cols=Math.max(1,Math.round(+t.cols));t.rows=Math.max(1,Math.round(+t.rows));const [tw,th]=monRaw(+t.tileIn);t.w=Math.round(t.cols*tw+80);t.h=Math.round(+t.elev+t.rows*th+60)}
   if(typeof t.name==='string'){   // 시작 이름 꼴이면 숫자를 따라 바꿈 (사용자가 바꾼 이름은 그대로)
     if(t.kind==='desk')t.name=t.name.replace(/\(운전원 \d+ · 모니터 \d+\)/,`(운전원 ${t.bays} · 모니터 ${t.mon})`);
     if(t.kind==='screen')t.name=t.name.replace(/\(\d+×\d+ · \d+"\)/,`(${t.cols}×${t.rows} · ${t.tileIn}")`)}
@@ -644,7 +727,12 @@ function planSegs(g){
     for(let i=0;i<t.bays;i++){const c=i*bw+bw/2,tw=per*mw+Math.max(0,per-1)*12,sc=tw>0?Math.min(1,(bw-40)/tw):1;
       for(let j=0;j<per;j++){const a0=c-tw*sc/2+j*(mw+12)*sc;out.lines.push([P(a0,-D+265),P(a0+mw*sc,-D+265),3])}   // 모니터
       out.lines.push([P(c-230,-380),P(c+230,-380),1],[P(c-230,-200),P(c+230,-200),1])}}      // 키보드 자리
-  if(k==='screen'){const tw=monRaw(t.tileIn)[0],x0=(L-t.cols*tw)/2;out.lines.push([P(x0,-80),P(x0+t.cols*tw,-80),4]);
+  if(k==='screen'){const tw=monRaw(t.tileIn)[0],x0=(L-t.cols*tw)/2,cx=L/2,D=+t.d||600,mo=t.mount||'stand';out.lines.push([P(x0,-80),P(x0+t.cols*tw,-80),4]);
+    if(mo==='stand'){const bw=Math.min(L*0.32,Math.max(300,t.cols*tw*0.3));   // 스탠드: 받침발 둘(앞 → 뒤) · 가로대 · 기둥(화면 뒤)
+      out.lines.push([P(cx-bw,-20),P(cx-bw,-D+20),2],[P(cx+bw,-20),P(cx+bw,-D+20),2],[P(cx-bw,-D*0.6),P(cx+bw,-D*0.6),2],
+        [P(cx-60,-190),P(cx+60,-190),2],[P(cx+60,-190),P(cx+60,-290),2],[P(cx+60,-290),P(cx-60,-290),2],[P(cx-60,-290),P(cx-60,-190),2]);
+      out.circles.push([P(cx-bw,-30),35],[P(cx-bw,-D+30),35],[P(cx+bw,-30),35],[P(cx+bw,-D+30),35])}
+    else if(mo==='cabinet')out.lines.push([P(20,-170),P(L-20,-170),1],[P(20,-D+20),P(L-20,-D+20),1]);
     for(let i=0;i<=t.cols;i++)out.lines.push([P(x0+i*tw,0),P(x0+i*tw,-160),1])}
   if(k==='chair'){const c=[b.x+b.w/2,b.y+b.h/2],r=Math.min(b.w,b.h)*0.42,bc=[c[0]-n[0]*r*.85,c[1]-n[1]*r*.85];out.circles.push([c,r]);
     out.lines.push([[bc[0]-u[0]*r*.75,bc[1]-u[1]*r*.75],[bc[0]+u[0]*r*.75,bc[1]+u[1]*r*.75],3])}
@@ -661,7 +749,28 @@ try{const a=JSON.parse(localStorage.getItem('dept-auth')||'null');if(a){AUTH_TOK
 const author=()=>S.info.author.trim()||LOGIN;
 const revOf=()=>S.info.rev.trim()||'-';
 /* 워터마크: 프로젝트 · 룸 · Rev (첫 화면에서 고른 값 = 프로젝트 정보 칸) + 상태 · 날짜. 2D 화면 · PNG · PDF · 3D 에 옅게 비스듬히 */
-function wmLines(){return [`${S.info.project||'프로젝트 미정'} · ${S.info.room||'Room 미정'} · Rev ${S.info.rev.trim()||'미정'}`,`PRELIMINARY · 공간확보 초안 · ${today()}`]}
+/* Room 명칭 식별: 철자 검사(표준 룸 낱말과 1~2 글자 차이면 고쳐 읽음 — 예: Enginnering → Engineering) · 약어 풀기(CCR · CER · LER …) · 어떤 룸인지(한글).
+   출력(PDF · 요약 · CSV · DXF · 워터마크)에는 고친 이름을 쓰고, 고쳤으면 원래 입력도 같이 적음 */
+const ROOM_WORDS=['CENTRAL','CONTROL','ROOM','ENGINEERING','ENGINEER','ELECTRONIC','ELECTRICAL','EQUIPMENT','CABINET','METERING','SERVER','COMPUTER','TELECOM','TELECOMMUNICATION','BATTERY','SHIFT','CHARGE','SUPERVISOR','MANAGER','TRAINING','SIMULATOR','INSTRUMENT','MARSHALLING','RELAY','OPERATOR','OPERATION','LOCAL','SWITCHGEAR','SUBSTATION','BUILDING','MEETING','PRINT','AREA','HVAC','ANALYZER','AUXILIARY','MAIN','SATELLITE','FIELD','REMOTE','INTERFACE'];
+const ROOM_ABBR={CCR:'Central Control Room',MCR:'Main Control Room',CER:'Central Electronic Room',LER:'Local Equipment Room',RIB:'Remote Instrument Building',FAR:'Field Auxiliary Room',SRR:'Satellite Rack Room',ECR:'Electrical Control Room'};
+const ROOM_KIND=[[/SHIFT|SUPERVISOR|MANAGER|근무/,'근무 책임자실 · Shift Room'],[/CONTROL ROOM|\bCCR\b|\bMCR\b|\bECR\b|제어실|조정실/,'중앙 제어실 · Control Room'],[/ENGINEER|엔지니어링/,'엔지니어링 룸 · Engineering Room'],[/^ER$/,'ER — Electronic Room(전자 기기실)인지 Electrical Room(전기실)인지 이름에 적어 주세요'],[/ELECTRONIC|\bCER\b|전자/,'전자 기기실 · Electronic Room'],
+  [/ELECTRICAL|SWITCHGEAR|SUBSTATION|전기실/,'전기실 · Electrical Room'],[/METERING/,'미터링 룸 · Metering Room'],[/RACK|\bSRR\b|\bLER\b|\bRIB\b|\bFAR\b|EQUIPMENT ROOM|판넬실|기기실|랙/,'랙 · 판넬 · 기기실 · Rack / Equipment Room'],
+  [/SERVER|COMPUTER/,'서버 · 컴퓨터실 · Server / Computer Room'],[/TELECOM/,'통신실 · Telecom Room'],[/\bUPS\b|BATTERY/,'UPS · 배터리실'],[/TRAINING|SIMULATOR/,'교육 · 시뮬레이터실'],[/RELAY|MARSHALLING/,'릴레이 · 마샬링실']];
+function lev(a,b){const d=Array.from({length:a.length+1},(_,i)=>[i]);for(let j=1;j<=b.length;j++)d[0][j]=j;   // 편집 거리 (앞뒤 바뀐 두 글자 = 1)
+  for(let i=1;i<=a.length;i++)for(let j=1;j<=b.length;j++){d[i][j]=Math.min(d[i-1][j]+1,d[i][j-1]+1,d[i-1][j-1]+(a[i-1]===b[j-1]?0:1));if(i>1&&j>1&&a[i-1]===b[j-2]&&a[i-2]===b[j-1])d[i][j]=Math.min(d[i][j],d[i-2][j-2]+1)}return d[a.length][b.length]}
+function roomId(raw){
+  raw=String(raw||'').trim(); if(!raw)return {raw:'',std:'',kind:'',fixes:[]};
+  const fixes=[];
+  const std=raw.replace(/[A-Za-z]+/g,w=>{const U=w.toUpperCase();if(U.length<5||ROOM_WORDS.includes(U))return w;
+    let best=null,bd=9;ROOM_WORDS.forEach(r=>{if(Math.abs(r.length-U.length)>2)return;const dd=lev(U,r);if(dd<bd){bd=dd;best=r}});
+    if(best&&bd<=(U.length>=8?2:1)){const out=w===U?best:w[0]===w[0].toUpperCase()&&w.slice(1)===w.slice(1).toLowerCase()?best[0]+best.slice(1).toLowerCase():best.toLowerCase();fixes.push([w,out]);return out}return w});
+  const U=std.toUpperCase(), ab=Object.keys(ROOM_ABBR).find(k=>new RegExp(`\\b${k}\\b`).test(U)), full=ab&&!/[A-Z]{4,}/.test(U.replace(new RegExp(`\\b${ab}\\b`),''))?`${std} (${ROOM_ABBR[ab]})`:std;
+  const k=ROOM_KIND.find(([re])=>re.test(U))||ROOM_KIND.find(([re])=>re.test((ab?ROOM_ABBR[ab]:'').toUpperCase()));
+  return {raw,std:full,kind:k?k[1]:'',fixes}}
+const roomStd=()=>roomId(S.info.room).std;
+function roomLines(){const r=roomId(S.info.room);if(!r.raw)return ['Room 명칭: (적지 않음) — ① 프로젝트 정보의 Room 명칭을 적으세요'];
+  return [`Room 명칭: ${r.std}${r.kind?`   → ${r.kind}`:''}`,...(r.fixes.length?[`   ※ 입력한 '${r.raw}' 의 철자를 고쳐 적음: ${r.fixes.map(([a,b])=>`${a} → ${b}`).join(', ')}`]:[])]}
+function wmLines(){return [`${S.info.project||'프로젝트 미정'} · ${roomStd()||'Room 미정'} · Rev ${S.info.rev.trim()||'미정'}`,`PRELIMINARY · 공간확보 초안 · ${today()}`]}
 // 파일 이름: 프로젝트_Room_Rev_종류_날짜 (빈 칸은 빼고, 윈도 파일 이름에 못 쓰는 글자는 _)
 const fnPart=v=>String(v||'').trim().replace(/[\\/:*?"<>|\s]+/g,'_');
 function fname(kind,ext){const a=[fnPart(S.info.project),fnPart(S.info.room),S.info.rev.trim()?'Rev'+fnPart(S.info.rev):''].filter(Boolean);return `${a.length?a.join('_'):'ControlRoom'}_${kind}_${today()}.${ext}`}
@@ -669,7 +778,7 @@ let sel=new Set();
 let mode='select';           // select | box | place | col(기둥 편집)
 let selCol=null;              // 기둥 편집에서 고른 기둥 id
 let placeType=null, placeRot=0;
-const show={clr:true,dim:true,lbl:true,door:true,note:true,eq:true,margin:true,cam:true,wm:true};
+const show={clr:true,dim:true,lbl:true,door:true,note:true,eq:true,margin:true,cam:true,wm:true,view:true};
 let selNote=null;             // 고른 도면 노트 id
 const V={s:0.04,ox:60,oy:60};
 let undo=[],redo=[];
@@ -744,10 +853,13 @@ function secDist(d1,d2,need){   // 두 도어 궤적 사이 거리 (겹치면 -1
 }
 function sameRow(a,b){const na=dirOf(a),nb=dirOf(b);if(na[0]!==nb[0]||na[1]!==nb[1])return false;return na[0]===0?Math.abs(a.h[1]-b.h[1])<1:Math.abs(a.h[0]-b.h[0])<1}   // 같은 줄 같은 면의 나란한 문
 function extOf(g){return unionR([g.body,g.fr,g.rr,...doors(g).map(d=>d.box)])}
+const maxTypeGap=()=>Math.max(0,...S.types.map(t=>+t.gap||0));
 function pairRule(p,g,q,h,gp,gd){   // 판넬 둘 사이 위반 문장 (없으면 null)
   const dd=rectDist(g.body,h.body);
   if(dd<0)return {msg:`${p.tag} 이(가) ${q.tag} 와 겹칩니다`,fix:'한쪽을 옮기세요.'};
   if(g.t.kind==='chair'||h.t.kind==='chair')return null;   // 의자는 겹침만 — 데스크 앞 운전 공간(유지보수 칸) 안에 놓는 것이 정상
+  const ga=+g.t.gap||0, gb=+h.t.gap||0, tg=Math.max(ga,gb);   // 장비별 최소 이격(Type 값) — 맞닿기 예외 없음
+  if(tg>0&&dd<tg-0.5)return {msg:`${p.tag} ↔ ${q.tag} 이격 ${fmt(dd)} mm — ${ga>=gb?p.tag:q.tag} 의 최소 이격 ${fmt(tg)} mm 보다 좁습니다`,fix:`${fmt(tg)} mm 이상 떼세요 (그 장비 속성 칸의 '최소 이격').`};
   if(gp>0&&dd<gp-0.5&&!(S.room.touchOK&&dd<0.5))return {msg:`${p.tag} ↔ ${q.tag} 이격 ${fmt(dd)} mm — 판넬 간 최소 이격 ${fmt(gp)} mm 보다 좁습니다`,fix:`${fmt(gp)} mm 이상 떼거나 맞닿게 붙이세요.`};
   const inClr=(A,B)=>[['전면',B.fr,B.t.front],['후면',B.rr,B.t.rear]].find(([,c])=>c.w>0&&c.h>0&&ov(A.body,c));
   let c1=inClr(g,h); if(c1)return {msg:`${p.tag} 이(가) ${q.tag} 의 ${c1[0]} 유지보수 공간 안에 들어갑니다`,fix:`${q.tag} ${c1[0]}의 ${fmt(c1[2])} mm 를 비우세요.`};
@@ -761,7 +873,7 @@ function pairRule(p,g,q,h,gp,gd){   // 판넬 둘 사이 위반 문장 (없으�
   return null;
 }
 function violation(movers,internal){   // 옮기거나 새로 놓을 판넬 묶음이 지금 자리에 놓일 수 있나 → 첫 위반 문장 / null (internal = 묶음끼리도 — Type 치수 바꿀 때)
-  const ids=new Set(movers.map(p=>p.id)), gp=+S.room.gapP||0, gd=+S.room.gapD||0, cols=columns(), far=Math.max(gp,gd)+1;
+  const ids=new Set(movers.map(p=>p.id)), gp=+S.room.gapP||0, gd=+S.room.gapD||0, cols=columns(), far=Math.max(gp,gd,maxTypeGap())+1;
   const F=S.panels.filter(p=>!ids.has(p.id)).map(p=>{const g=geom(p);return {p,g,e:extOf(g)}});
   for(const p of movers){const g=geom(p),e=extOf(g);
     const c=cols.find(c=>ov(g.body,c)); if(c)return `${p.tag} 이(가) 기둥(X ${fmt(c.cx)}, Y ${fmt(c.cy)})과 겹칩니다`;
@@ -842,7 +954,7 @@ function check(){
     });
     // 배치 제약 (놓을 때 막는 것과 같은 규칙) — 판넬 쌍마다 한 번, 겹침은 위에서 이미
     const gp=+R.gapP||0, gd=+R.gapD||0, e1=extOf(g);
-    G.forEach(({p:q,g:h},j)=>{if(j<=i||ov(g.body,h.body)||rectDist(e1,extOf(h))>Math.max(gp,gd)+1)return;
+    G.forEach(({p:q,g:h},j)=>{if(j<=i||ov(g.body,h.body)||rectDist(e1,extOf(h))>Math.max(gp,gd,maxTypeGap())+1)return;
       const v=pairRule(p,g,q,h,gp,gd);if(v){issues.push({lv:'err',ids:[p.id,q.id],msg:v.msg,fix:v.fix});mark(p.id,'err');mark(q.id,'err')}});
   });
   // 벽 이격 — 실 벽이 끝 판넬(유지보수 · 도어 · Spare 포함) 외곽에서 이격보다 가까우면 경고 (놓기는 막지 않음)
@@ -1074,6 +1186,7 @@ function render(){v3sync();
   // Ctrl 정렬 안내선
   if(guides.length){const sc=C('--snap');guides.forEach(l=>{g+=`<line x1="${l.x1}" y1="${l.y1}" x2="${l.x2}" y2="${l.y2}" stroke="${sc}" stroke-width="1.3" stroke-dasharray="6 4" vector-effect="non-scaling-stroke"/><text x="${(l.x1+l.x2)/2+6*ANN/s}" y="${(l.y1+l.y2)/2-6*ANN/s}" font-size="${11*ANN/s}" fill="${sc}" font-family="Malgun Gothic,sans-serif">${esc(l.lab)}</text>`})}
   if(marquee){const r=marquee;g+=`<rect x="${Math.min(r.x0,r.x1)}" y="${Math.min(r.y0,r.y1)}" width="${Math.abs(r.x1-r.x0)}" height="${Math.abs(r.y1-r.y0)}" fill="${C('--accent-soft')}" stroke="${acc}" stroke-dasharray="5 3" vector-effect="non-scaling-stroke"/>`}
+  if(show.view)g+=viewSvg(s);   // 운전원 시야 (안전공학)
   {const c=cam3d();if(show.cam&&c)g+=camSvg(c,s)}   // 3D 관찰자 시점
   // rulers (screen space)
   let ru=`<rect x="0" y="0" width="${vw}" height="20" fill="${C('--sheet')}"/><rect x="0" y="0" width="20" height="${vh}" fill="${C('--sheet')}"/><line x1="0" y1="20" x2="${vw}" y2="20" stroke="${C('--line')}"/><line x1="20" y1="0" x2="20" y2="${vh}" stroke="${C('--line')}"/>`;
@@ -1091,9 +1204,13 @@ function render(){v3sync();
 }
 
 /* ---------- side panels ---------- */
-function buildInfo(){$('#iPj').value=S.info.project;$('#iRm').value=S.info.room;$('#iBy').value=S.info.author;$('#iBy').placeholder=LOGIN||'이름';$('#iRev').value=S.info.rev}
+function buildInfo(){$('#iPj').value=S.info.project;$('#iRm').value=S.info.room;$('#iBy').value=S.info.author;$('#iBy').placeholder=LOGIN||'이름';$('#iRev').value=S.info.rev;rmHint()}
+function rmHint(){const r=roomId($('#iRm').value),h=$('#iRmHint');if(!h)return;   // Room 명칭 아래: 어떤 룸으로 읽었는지 · 철자 고침 제안
+  h.innerHTML=!r.raw?'':r.fixes.length?`→ <b>${esc(r.std)}</b> 로 읽음 (${r.fixes.map(([a,b])=>esc(a)+' → '+esc(b)).join(', ')}) <a href="#" id="iRmFix">고치기</a>`:r.kind?`→ ${esc(r.kind)}`:'';
+  const a=$('#iRmFix');if(a)a.onclick=e=>{e.preventDefault();S.info.room=r.std.replace(/ \([^)]*\)$/,'');commit();buildInfo();toast(`Room 명칭을 ${S.info.room} 로 고쳤습니다`)}}
+$('#iRm').addEventListener('input',rmHint);
 [['iPj','project'],['iRm','room'],['iBy','author'],['iRev','rev']].forEach(([id,k])=>$('#'+id).addEventListener('change',e=>{S.info[k]=e.target.value.trim();commit()}));
-function buildRoom(){buildInfo();$('#rW').value=S.room.w;$('#rL').value=S.room.l;$('#rSX').value=S.room.spX;$('#rSY').value=S.room.spY;$('#rC').value=S.room.col;$('#rM').value=S.room.margin;$('#rSp').value=S.room.spare;$('#rSd').value=S.room.spareDir;$('#rGp').value=S.room.gapP;$('#rGd').value=S.room.gapD;$('#rTouch').checked=S.room.touchOK;$('#rEnf').checked=S.room.enforce;$('#rFit').checked=S.room.autoFit!==false;$('#snap').value=String(S.snap);
+function buildRoom(){buildInfo();{const ra=$('#reAutoRow');if(ra)ra.hidden=!(S.autoFrom&&S.autoFrom.items)}$('#rW').value=S.room.w;$('#rL').value=S.room.l;$('#rSX').value=S.room.spX;$('#rSY').value=S.room.spY;$('#rC').value=S.room.col;$('#rM').value=S.room.margin;$('#rSp').value=S.room.spare;$('#rSd').value=S.room.spareDir;$('#rGp').value=S.room.gapP;$('#rGd').value=S.room.gapD;$('#rTouch').checked=S.room.touchOK;$('#rEnf').checked=S.room.enforce;$('#rFit').checked=S.room.autoFit!==false;$('#snap').value=String(S.snap);
   const cu=Array.isArray(S.cols);$('#colCustom').hidden=!cu;if(cu)$('#colCustomTxt').textContent=`기둥을 직접 고친 상태 (${S.cols.length}개) — Span · 크기는 격자로 다시 만들 때 씀`}
 $('#rTouch').onchange=e=>{S.room.touchOK=e.target.checked;commit()}; $('#rEnf').onchange=e=>{S.room.enforce=e.target.checked;commit()}; $('#rFit').onchange=e=>{S.room.autoFit=e.target.checked;commit()};
 ['rW','rL','rSX','rSY','rC','rM','rSp','rSd','rGp','rGd'].forEach(id=>$('#'+id).addEventListener('change',e=>{
@@ -1118,8 +1235,8 @@ $('#palette').addEventListener('click',e=>{
 });
 $('#palette').addEventListener('dblclick',e=>{const b=e.target.closest('[data-tid]');if(b){setMode('select');openTypeDlg(S.types.find(t=>t.id===b.dataset.tid))}});
 /* Panel Type 프리셋 — 프로젝트 사이에 Type(치수 · 유지보수 공간 · 색)을 다시 쓰기 위한 파일 */
-const TYPE_KEYS=['name','pre','w','d','h','front','rear','color','door','hinge','kind','top','bays','mon','monIn','tiers','cols','rows','tileIn','elev'];
-function cleanType(t){const o={};TYPE_KEYS.forEach(k=>o[k]=(k==='name'||k==='pre'||k==='color'||k==='door'||k==='hinge'||k==='kind')?String(t[k]??'').trim():Math.max(0,+t[k]||0));if(!/^#[0-9a-f]{6}$/i.test(o.color))o.color='#2f6db5';return fixDoor(o)}
+const TYPE_KEYS=['name','pre','mount','w','d','h','front','rear','gap','color','door','hinge','kind','top','bays','mon','monIn','tiers','cols','rows','tileIn','elev'];
+function cleanType(t){const o={};TYPE_KEYS.forEach(k=>o[k]=(k==='name'||k==='pre'||k==='mount'||k==='color'||k==='door'||k==='hinge'||k==='kind')?String(t[k]??'').trim():Math.max(0,+t[k]||0));if(!/^#[0-9a-f]{6}$/i.test(o.color))o.color='#2f6db5';return fixDoor(o)}
 $('#bPreSave').onclick=()=>openModal('Panel Type 프리셋 저장','다른 프로젝트에서 [프리셋 불러오기]로 같은 Type 을 씁니다. 불러올 때 이름이 같은 Type 은 치수 · 색을 덮어씁니다. '+dlNote,
   JSON.stringify({kind:'crspace-types',v:1,savedAt:today(),from:S.info.project||'',types:S.types.map(cleanType)},null,1),fname('PanelType_프리셋','json'),'application/json');
 $('#bPreLoad').onclick=()=>$('#fPreset').click();
@@ -1133,7 +1250,7 @@ $('#fPreset').onchange=e=>{const f=e.target.files[0];if(!f)return;const r=new Fi
   r.readAsText(f);e.target.value=''};
 /* ---------- Type 만들기 · 고치기 창 ---------- */
 let tEdit=null;                                            // 고치는 Type (새 Type 이면 null)
-const TDK={Name:'name',Pre:'pre',Color:'color',W:'w',D:'d',H:'h',F:'front',R:'rear',Door:'door',Hinge:'hinge',Kind:'kind',Top:'top',Bays:'bays',Mon:'mon',MonIn:'monIn',Tiers:'tiers',Cols:'cols',Rows:'rows',TileIn:'tileIn',Elev:'elev'};
+const TDK={Name:'name',Pre:'pre',Mount:'mount',Color:'color',W:'w',D:'d',H:'h',F:'front',R:'rear',G:'gap',Door:'door',Hinge:'hinge',Kind:'kind',Top:'top',Bays:'bays',Mon:'mon',MonIn:'monIn',Tiers:'tiers',Cols:'cols',Rows:'rows',TileIn:'tileIn',Elev:'elev'};
 const PAL=['#2f6db5','#2f8a6a','#7a59b0','#b8642a','#8a7a2a','#a33f6b'];
 $('#tdKind').innerHTML=Object.entries(KIND).map(([v,l])=>`<option value="${v}">${l}</option>`).join('');
 $('#tdDoor').innerHTML=Object.entries(DOOR_AT).map(([v,l])=>`<option value="${v}">${l}</option>`).join('');
@@ -1148,7 +1265,7 @@ function tdPreview(){
 }
 function openTypeDlg(t){
   tEdit=t||null;
-  const v={...KIND_DEF.desk,...KIND_DEF.screen,kind:'cabinet',...(t||{name:'',pre:'',w:800,d:800,h:2100,front:1000,rear:800,door:'front',hinge:'L',color:PAL[S.types.length%PAL.length]})};   // 새 Type 시작값 (예전 [+ Type 추가] 와 같음)
+  const v={...KIND_DEF.desk,...KIND_DEF.screen,kind:'cabinet',gap:0,mount:'stand',...(t||{name:'',pre:'',w:800,d:800,h:2100,front:1000,rear:800,door:'front',hinge:'L',color:PAL[S.types.length%PAL.length]})};   // 새 Type 시작값 (예전 [+ Type 추가] 와 같음)
   Object.entries(TDK).forEach(([k,f])=>$('#td'+k).value=v[f]);
   const n=t?S.panels.filter(p=>p.type===t.id).length:0;
   $('#tdTitle').textContent=t?`Panel Type 고치기 — ${t.name}`+(n?` (배치 ${n} EA 에 바로 반영)`:''):'새 Panel Type';
@@ -1233,7 +1350,9 @@ function buildProps(){
       <label>Y (좌상단)<input type="number" id="pY" step="${S.snap}" value="${p.y}"></label>
       <label>전면 방향<select id="pRot">${[[0,'↑ 위'],[90,'→ 오른쪽'],[180,'↓ 아래'],[270,'← 왼쪽']].map(([v,l])=>`<option value="${v}" ${v===g.r?'selected':''}>${l}</option>`).join('')}</select></label>
       <label>평면 치수<input value="${fmt(g.body.w)} × ${fmt(g.body.h)}" disabled></label>
-      <label class="chk full" style="flex-direction:row;gap:6px;color:var(--ink)"><input type="checkbox" id="pLock" ${p.lock?'checked':''}>🔒 잠금 — 옮기기 · 회전 · 삭제 막음 (L)</label></div>`;
+      <label class="chk full" style="flex-direction:row;gap:6px;color:var(--ink)"><input type="checkbox" id="pLock" ${p.lock?'checked':''}>🔒 잠금 — 옮기기 · 회전 · 삭제 막음 (L)</label></div>
+      <div class="v3side pp">${typeSecHtml(p,'pp')}${typeOf(p).kind==='desk'?viewHtml(p):''}</div>`;   // 크기 · 유지보수 · 도어 · 가구 칸 = Type 만들 때처럼 (3D 속성 칸과 같은 것)
+    $('#pptApply').onclick=()=>v3applyType(p,'pp');
     $('#pLock').onchange=()=>lockSel();
     const ch=(id,fn)=>$(id).addEventListener('change',e=>{fn(e.target.value);commit()});
     ch('#pTag',v=>{const dup=S.panels.some(q=>q!==p&&q.tag===v.trim());p.tag=dup?v.trim()+'*':v.trim()});
@@ -1250,7 +1369,9 @@ function buildProps(){
      <div class="muted" style="margin-top:2px">${(()=>{const m={};ps.forEach(p=>{const k=p.scope||'(미지정)';m[k]=(m[k]||0)+1});return Object.entries(m).map(([k,v])=>`${esc(k)} ${v}`).join(' · ')})()}</div>
      <div class="row" style="margin-top:6px;align-items:center"><span class="muted">맞춤</span><button data-al="l" title="왼쪽 모서리 맞춤">⇤ 왼쪽</button><button data-al="r" title="오른쪽 모서리 맞춤">오른쪽 ⇥</button><button data-al="t" title="위 모서리 맞춤">⤒ 위</button><button data-al="b" title="아래 모서리 맞춤">아래 ⤓</button></div>
      <div class="row" style="margin-top:6px;align-items:center"><span class="muted">균등 간격</span><input type="number" id="gGap" min="0" step="50" value="${S.room.touchOK?0:(+S.room.gapP||0)}" style="width:70px" title="판넬 사이 간격 (mm)"><button data-al="dx" title="왼쪽부터 같은 간격으로 가로 배치">가로 →</button><button data-al="dy" title="위부터 같은 간격으로 세로 배치">세로 ↓</button></div>
-     <p class="muted" style="margin:6px 0 0">그룹 회전은 선택 영역 중심 기준. 맞춤 · 균등은 잠긴 판넬을 두고 나머지를 움직입니다. Tag 재부여는 좌→우, 위→아래 순서로 Type별 번호를 다시 매깁니다.</p>`;
+     <p class="muted" style="margin:6px 0 0">그룹 회전은 선택 영역 중심 기준. 맞춤 · 균등은 잠긴 판넬을 두고 나머지를 움직입니다. Tag 재부여는 좌→우, 위→아래 순서로 Type별 번호를 다시 매깁니다.</p>
+     ${bulkHtml(ps)}`;
+    bulkBind(ps);
     {const ap=()=>{const v=$('#gScope').value.trim();ps.forEach(p=>{p.scope=v});commit();toast(v?`판넬 ${ps.length}개 공급 Scope = ${v}`:`판넬 ${ps.length}개 공급 Scope 를 지웠습니다`)};
       $('#gScopeSet').onclick=ap;$('#gScope').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();ap()}})}
     $('#gRL').onclick=()=>rotSel(-90); $('#gRR').onclick=()=>rotSel(90); $('#gLk').onclick=lockSel;
@@ -1259,6 +1380,50 @@ function buildProps(){
       S.panels.filter(p=>!sel.has(p.id)).forEach(p=>used[p.tag]=1);
       gs.forEach(p=>{const t=typeOf(p);let k=1;while(used[t.pre+String(k).padStart(2,'0')])k++;p.tag=t.pre+String(k).padStart(2,'0');used[p.tag]=1});commit()};
   }
+}
+
+/* 블록(여러 개) 고른 장비 일괄 고치기: 크기 · 유지보수 · 장비별 최소 이격 · 도어 · Type · Description + 공통 최소 이격(② 배치 제약)
+   빈칸 = 그대로. 고른 것만 = Type 마다 고른 판넬만 '(변형)' Type 으로(그 Type 판넬을 다 골랐으면 Type 을 그대로 고침) / Type 전체 = Type 을 고침 */
+function bulkHtml(ps){
+  const ts=[...new Set(ps.map(p=>p.type))].map(id=>S.types.find(t=>t.id===id)).filter(Boolean), one=k=>{const v=new Set(ts.map(t=>String(t[k]??'')));return v.size===1?[...v][0]:null};
+  const nI=(id,k,l,tip='')=>{const v=one(k);return `<label title="${tip}">${l}<input type="number" id="gb${id}" min="0" step="50" value="" placeholder="${v!==null?v:'여러 값'}"></label>`};
+  const allT=ts.every(t=>S.panels.filter(p=>p.type===t.id).every(p=>sel.has(p.id))), nT=S.panels.filter(p=>ts.some(t=>t.id===p.type)).length;
+  return `<div class="v3side pp"><div class="sec"><b>일괄 속성 · 최소 이격</b> <span class="muted">(고른 ${ps.length} EA · Type ${ts.length} · 빈칸 = 그대로)</span>
+    <div class="g">${nI('W','w','W 폭')}${nI('D','d','D 깊이')}${nI('H','h','H 높이')}
+     ${nI('F','front','전면 유지보수')}${nI('R','rear','후면 유지보수')}${nI('G','gap','최소 이격 (주위)','이 장비 둘레로 다른 장비와 떨어져야 할 최소 거리')}
+     <label>도어 위치<select id="gbDoor"><option value="">(그대로)</option>${Object.entries(DOOR_AT).map(([k,v])=>`<option value="${k}">${v}</option>`).join('')}</select></label>
+     <label style="grid-column:2/-1">도어 형식 · 열림<select id="gbKind"><option value="">(그대로)</option><option value="L">단문 — L 힌지</option><option value="R">단문 — R 힌지</option><option value="LR">양문 — L-R 양개</option></select></label>
+     <label class="full">Type 바꾸기<select id="gbType"><option value="">(그대로)</option>${S.types.map(t=>`<option value="${t.id}">${esc(t.name)}</option>`).join('')}</select></label>
+     <label class="full">Description<input id="gbDesc" placeholder="${new Set(ps.map(p=>p.desc||'')).size===1?esc(ps[0].desc||'(비어 있음)'):'여러 값 — 적으면 모두 이 값'}"></label></div>
+    <div class="sc"><label><input type="radio" name="gbsc" value="sel" checked>고른 ${ps.length} EA 만 ${allT?'(Type 의 판넬을 다 골랐으므로 Type 을 고침)':"(같은 값 Type 이 없으면 '(변형)' Type)"}</label><label><input type="radio" name="gbsc" value="type">고른 판넬의 Type 전체 ${nT} EA</label></div>
+    <div class="row"><button id="gbApply" class="primary">${ps.length} EA 에 적용</button><span class="muted">Ctrl+Z 로 되돌림</span></div><div class="err" id="gbErr"></div></div>
+   <div class="sec"><b>공통 최소 이격</b> <span class="muted">(② 배치 제약 — 모든 장비)</span>
+    <div class="g g2"><label>판넬 간 최소 이격<input type="number" id="gbGp" min="0" step="50" value="${+S.room.gapP||0}"></label><label>도어 간 최소 이격<input type="number" id="gbGd" min="0" step="50" value="${+S.room.gapD||0}"></label></div></div></div>`}
+function bulkBind(ps){
+  const num=id=>{const v=$('#gb'+id).value.trim();return v===''?null:Math.max(0,Math.round(+v||0))}, err=m=>{$('#gbErr').textContent=m};
+  $('#gbApply').onclick=()=>{
+    const ov={};[['W','w'],['D','d'],['H','h'],['F','front'],['R','rear'],['G','gap']].forEach(([id,k])=>{const v=num(id);if(v!==null)ov[k]=v});
+    if((ov.w===0)||(ov.d===0)||(ov.h===0))return err('W · D · H 는 0 보다 커야 합니다.');
+    const door=$('#gbDoor').value, kind=$('#gbKind').value, nt=$('#gbType').value, desc=$('#gbDesc').value.trim(), sc=(document.querySelector('input[name=gbsc]:checked')||{}).value||'sel';
+    if(door)ov.door=door; if(kind)ov.hinge=kind;
+    if(!Object.keys(ov).length&&!nt&&!desc)return err('바꿀 값을 적으세요 (빈칸은 그대로).');
+    const before=lastSnap, msg=[];
+    if(nt){ps.forEach(p=>p.type=nt);msg.push(`Type → ${S.types.find(t=>t.id===nt).name}`)}
+    if(desc){ps.forEach(p=>p.desc=desc);msg.push('Description')}
+    let touched=[...ps];
+    if(Object.keys(ov).length){
+      const by={};ps.forEach(p=>(by[p.type]=by[p.type]||[]).push(p));
+      Object.entries(by).forEach(([tid,sp])=>{const t=S.types.find(x=>x.id===tid);if(!t)return;
+        const v=fixDoor({...t,...ov}), all=S.panels.filter(p=>p.type===tid);
+        if(sc==='type'||all.length===sp.length){Object.assign(t,v);touched.push(...all);return}
+        const KS=['w','d','h','front','rear','gap','door','hinge','kind'], same=x=>x!==t&&x.kind===v.kind&&x.pre===v.pre&&x.color===v.color&&KS.every(k=>String(x[k]??'')===String(v[k]??''));
+        let x=S.types.find(same); if(!x){x={...v,id:uid()};let base=`${t.name} (변형)`,nm=base,k=2;while(S.types.some(y=>y.name===nm))nm=`${base} ${k++}`;x.name=nm;S.types.push(x)}
+        sp.forEach(p=>p.type=x.id)});
+      msg.push(Object.entries(ov).map(([k,v])=>({w:'W',d:'D',h:'H',front:'전면',rear:'후면',gap:'최소 이격',door:'도어',hinge:'열림'}[k]+' '+(typeof v==='number'?fmt(v):k==='door'?DOOR_AT[v]:HINGE[v]))).join(' · '))}
+    if(ENF()){const bad=violation([...new Set(touched)],true);if(bad){restore(before);buildProps();return err(`이 값이면 배치 규칙을 어깁니다 — ${bad}`)}}
+    S.types=S.types.filter(t=>S.panels.some(p=>p.type===t.id)||!/\(변형\)( \d+)?$/.test(t.name));   // 안 쓰게 된 '(변형)' Type 은 지움
+    commit();buildTypes();buildProps();toast(`고른 ${ps.length} EA — ${msg.join(' / ')}${sc==='type'?' (Type 전체)':''}`)};
+  [['#gbGp','gapP'],['#gbGd','gapD']].forEach(([id,k])=>$(id).addEventListener('change',e=>{S.room[k]=Math.max(0,+e.target.value||0);commit();buildRoom();toast(`공통 ${k==='gapP'?'판넬 간':'도어 간'} 최소 이격 = ${fmt(S.room[k])} mm — 지금 배치 검토에 반영`)}));
 }
 
 function buildRevs(){
@@ -1328,7 +1493,7 @@ function placeGhost(w,ctrl){   // 놓을 자리 미리보기: Ctrl = 정렬 스�
 }
 function makeGhost(w,raw){   // raw = 격자에 맞추지 않음 (Ctrl 정렬용)
   const t=S.types.find(x=>x.id===placeType); if(!t)return null;
-  const n=Math.max(1,Math.min(40,+$('#qty').value||1)), sw=placeRot%180===0, step=(sw?t.w:t.d)+(!S.room.touchOK&&+S.room.gapP>0?+S.room.gapP:0), out=[], tags=[];
+  const n=Math.max(1,Math.min(40,+$('#qty').value||1)), sw=placeRot%180===0, step=(sw?t.w:t.d)+Math.max(!S.room.touchOK&&+S.room.gapP>0?+S.room.gapP:0,+t.gap||0), out=[], tags=[];
   for(let i=0;i<n;i++){const tag=nextTag(t,tags);tags.push(tag);out.push({id:uid(),type:t.id,tag,desc:'',rot:placeRot,x:(raw?w.x:snapV(w.x))+(sw?i*step:0),y:(raw?w.y:snapV(w.y))+(sw?0:i*step)})}
   return out;
 }
@@ -1368,7 +1533,7 @@ function lockSel(){const ps=S.panels.filter(p=>sel.has(p.id));if(!ps.length)retu
 function dupSel(){
   const ps=S.panels.filter(p=>sel.has(p.id)); if(!ps.length)return;
   let x0=1e12,x1=-1e12;ps.forEach(p=>{const b=geom(p).body;x0=Math.min(x0,b.x);x1=Math.max(x1,b.x+b.w)});
-  const off=snapV(x1-x0+(!S.room.touchOK&&+S.room.gapP>0?+S.room.gapP:0))||S.snap, tags=[], nw=[];
+  const off=snapV(x1-x0+Math.max(!S.room.touchOK&&+S.room.gapP>0?+S.room.gapP:0,maxTypeGap()))||S.snap, tags=[], nw=[];
   ps.forEach(p=>{const t=typeOf(p),tag=nextTag(t,tags);tags.push(tag);nw.push({...p,id:uid(),tag,x:p.x+off,lock:false})});
   S.panels.push(...nw); sel=new Set(nw.map(p=>p.id)); guardCommit(new Set(nw.map(p=>p.id)));
 }
@@ -1377,7 +1542,7 @@ function setMode(m){
   mode=m; if(m!=='place'){ghost=null;block=null;guides=[];showBlock()} if(m!=='col')selCol=null; if(m!=='measure')measure=null;
   $('#bSel').classList.toggle('on',m==='select'); $('#bBox').classList.toggle('on',m==='box'); $('#bCol').classList.toggle('on',m==='col'); $('#bNote').classList.toggle('on',m==='note'); $('#bMeas').classList.toggle('on',m==='measure');
   const t=S.types.find(x=>x.id===placeType);
-  $('#stMode').textContent=m==='place'?`배치: ${t?t.name:''}`:m==='box'?'박스 선택':m==='col'?'기둥 편집':m==='note'?'📌 노트':m==='measure'?'📏 거리':'선택';
+  $('#stMode').textContent=m==='place'?`배치: ${t?t.name:''}`:m==='box'?'박스 선택 — 고른 판넬을 끌면 묶음째 이동':m==='col'?'기둥 편집':m==='note'?'📌 노트':m==='measure'?'📏 거리':'선택';
   $('#stHint').textContent=m==='measure'?'첫 점 클릭 → 둘째 점 클릭 = 거리 · X · Y 차이 (Snap) · 다시 클릭 = 새로 재기 · Esc = 끝':m==='place'?'클릭 = 배치 (좌상단 기준) · Ctrl = 정렬 스냅 · R = 회전 · 연속 EA 는 옆으로 · 빨간색 = 놓을 수 없는 자리 · Esc = 끝':m==='note'?'도면을 누른 자리에 노트 · 핀 Drag = 옮기기 · 두 번 누르기 = 고치기 · Esc = 끝':m==='col'?'빈 곳 클릭 = 기둥 추가 (크기 = 기둥 크기) · 기둥 Drag = 이동 · Delete = 삭제 · Shift+Drag = 화면 이동 · Esc = 끝':m==='place'?'클릭 = 배치 (좌상단 기준) · R = 회전 · 연속 EA는 옆으로 붙여 배치 · Esc = 종료':m==='box'?'Drag = 영역 안에 완전히 들어간 판넬 선택':'빈 곳 Drag = 화면 이동 · Ctrl+Drag = 정렬 스냅 · Shift+클릭/Drag = 선택 추가 · 휠 = 확대/축소 · R = 회전 · 방향키 = Snap 이동';
   buildTypes(); buildProps(); render();
 }
@@ -1421,7 +1586,7 @@ svg.addEventListener('pointerdown',e=>{
     S.cols.push(n); selCol=n.id; commit(); buildRoom(); return;
   }
   const p=hit(w);
-  if(p&&mode!=='box'){
+  if(p&&(mode!=='box'||(sel.has(p.id)&&!e.shiftKey))){   // [박스선택] 에서도 고른 판넬을 누르면 고른 묶음째 끌어 옮김
     if(e.shiftKey){sel.has(p.id)?sel.delete(p.id):sel.add(p.id);buildProps();render();if(!sel.has(p.id))return}   // Shift = 선택 넣고 빼기
     else if(e.ctrlKey){if(!sel.has(p.id)){sel.add(p.id);buildProps()}}                                            // Ctrl = 선택에 더하고 그대로 끌기(정렬 스냅)
     else if(!sel.has(p.id)){sel=new Set([p.id]);buildProps()}
@@ -1524,6 +1689,24 @@ $('#bUndo').onclick=doUndo; $('#bRedo').onclick=doRedo; $('#bFit').onclick=fit;
 $('#snap').onchange=e=>{S.snap=+e.target.value;commit()};
 $('#vClr').onchange=e=>{show.clr=e.target.checked;render()};
 $('#vCam').onchange=e=>{show.cam=e.target.checked;render()};
+$('#vView').onchange=e=>{show.view=e.target.checked;ergViewSave();render()};
+/* 시야 표시 켜고 끄기(이 PC 에 기억) · [👁 시야 기준] 창 */
+function ergViewSave(){try{localStorage.setItem('crspace.view',JSON.stringify({v2d:show.view,v3d:V3.viewOn!==false,sit:V3.sitOn!==false}))}catch(e){}}
+function ergViewLoad(){try{const o=JSON.parse(localStorage.getItem('crspace.view')||'null');if(o){show.view=o.v2d!==false;V3.viewOn=o.v3d!==false;V3.sitOn=o.sit!==false}}catch(e){}
+  $('#vView').checked=show.view;$('#v3View').checked=V3.viewOn!==false;$('#v3Sit').checked=V3.sitOn!==false}
+const EG_IN={sitEye:'egSitEye',standEye:'egStandEye',nlos:'egNlos',z1:'egZ1',z2:'egZ2',z3:'egZ3',off:'egOff',R:'egR'};
+function ergFill(e){Object.entries(EG_IN).forEach(([k,id])=>{$('#'+id).value=e[k]??ERG_DEF[k]})}
+function ergOpen(){const e=S.erg||{};$('#eg2d').checked=show.view;$('#eg3d').checked=V3.viewOn!==false;$('#egSit').checked=V3.sitOn!==false;
+  $('#egPdf').checked=e.pdfErg!==false;$('#egFans').checked=!!e.pdfFans;ergFill(e);
+  $('#egNote').textContent='기본: 앉은 눈 1,240 · 선 눈 1,640 (175 cm) · 정상 시선 15° · 최적 ±15° · 눈만 ±30° · 머리 ±60° · 비스듬히 45° (ISO 11064-4 · MIL-STD-1472 · 제어실 문헌). 고친 값은 인간공학 기준 PDF 에 ★ 로 표시. 3D 모형 크기는 그대로 — 시야 계산 · 표기만 바뀜.';
+  $('#ergdlg').hidden=false}
+$('#bErgSet').onclick=ergOpen; $('#v3ErgSet').onclick=ergOpen; $('#egClose').onclick=()=>{$('#ergdlg').hidden=true}; $('#egDef').onclick=()=>ergFill({});
+$('#egOk').onclick=()=>{const n={};for(const [k,id] of Object.entries(EG_IN)){const x=+$('#'+id).value;if(!Number.isFinite(x)||x<=0){toast('기준 값은 0 보다 큰 숫자로 넣으세요.',true);return}n[k]=x}
+  if(!(n.z1<n.z2&&n.z2<n.z3)){toast('시야 각은 최적 < 눈만 돌려 < 머리 돌려 순으로 커야 합니다.',true);return}
+  const e={pdfErg:$('#egPdf').checked,pdfFans:$('#egFans').checked};Object.keys(EG_IN).forEach(k=>{if(n[k]!==ERG_DEF[k])e[k]=n[k]});
+  show.view=$('#eg2d').checked;V3.viewOn=$('#eg3d').checked;V3.sitOn=$('#egSit').checked;$('#vView').checked=show.view;$('#v3View').checked=V3.viewOn;$('#v3Sit').checked=V3.sitOn;ergViewSave();
+  const same=JSON.stringify(e)===JSON.stringify(S.erg||{pdfErg:true,pdfFans:false});if(!same){S.erg=e;commit()} ergApply();
+  $('#ergdlg').hidden=true;render();try{v3req()}catch(_){};buildProps();toast(same?'시야 표시를 바꿨습니다.':'시야 기준을 바꿨습니다 (Ctrl+Z 로 되돌림).')};
 $('#vWm').onchange=e=>{show.wm=e.target.checked;render();try{if(V3.on)v3req(false)}catch(_){}};
 $('#tick').value=String(TICK); $('#tick').onchange=e=>{TICK=+e.target.value;try{localStorage.setItem('crspace.tick',String(TICK))}catch(_){}render();toast(TICK?`2D 눈금 하나 = ${fmt(TICK)} mm`+(TICK*V.s<2.5?' — 지금 배율에서는 너무 촘촘해 굵게 보입니다. 확대(Ctrl+휠)하면 보입니다':''):'2D 눈금 = 자동 (확대 정도에 맞춤)')};
 $('#vMargin').onchange=e=>{show.margin=e.target.checked;render()};
@@ -1658,8 +1841,13 @@ function v3build(){
             quad(T,[P(a0+15*sc,y0+15),P(a0+15*sc,y0+mh-15),P(a1-15*sc,y0+mh-15),P(a1-15*sc,y0+15)],hx((i+j+r)%2?'#1d4f7f':'#1f5f99'),1,null);   // 켜진 화면
             const pts=[.25,.55,.4,.7,.5,.8].map((v,k)=>Q(a0+(30+k*(mw-60)/5)*sc,y0+25+v*(mh-50)));for(let k=0;k<5;k++)seg(pts[k],pts[k+1],hx(k%2?'#2ecc71':'#f5b400'),.9)}}}}
     if(t.kind==='screen'){const el=+t.elev||900,[tw,th]=monRaw(t.tileIn),Wv=t.cols*tw,Hv=t.rows*th,x0=(W0-Wv)/2,fr=hx('#1b2028');
-      shadow(b,el);
-      obox(A,u,n,0,W0,-D0,0,0,el-20,mix(col,[0,0,0],.15));                                 // 받침장
+      shadow(b,el); const mo=t.mount||'stand', met=hx('#8a939e'), blk=hx('#2a3038');
+      if(mo==='cabinet')obox(A,u,n,0,W0,-D0,0,0,el-20,mix(col,[0,0,0],.15));                // 받침장
+      else if(mo==='stand'){const cx=W0/2,bw=Math.min(W0*0.32,Math.max(300,Wv*0.3));          // 스탠드: 받침발 둘 · 바퀴 · 가로대 · 기둥 · 화면 걸이
+        [cx-bw,cx+bw].forEach(x=>{obox(A,u,n,x-35,x+35,-D0+10,-10,40,95,blk);[-40,-D0+40].forEach(z=>obox(A,u,n,x-28,x+28,z-28,z+28,0,40,hx('#1d2128')))});
+        obox(A,u,n,cx-bw,cx+bw,-D0*0.6-30,-D0*0.6+30,95,140,met);
+        obox(A,u,n,cx-55,cx+55,-290,-190,95,el+Hv*0.75,met);
+        obox(A,u,n,cx-Math.min(Wv*0.35,500),cx+Math.min(Wv*0.35,500),-200,-180,el+Hv*0.3,el+Hv*0.7,blk)}
       obox(A,u,n,x0-40,x0+Wv+40,-180,0,el-20,el+Hv+40,fr);                                 // 화면 틀
       const PC=['#f5b400','#2d8cff','#1fbf9f','#b24cff'];
       for(let i=0;i<t.cols;i++)for(let j=0;j<t.rows;j++){const a0=x0+i*tw+4,a1=a0+tw-8,y0=el+j*th+4,y1=y0+th-8,P=face(A,u,0,2),Q=face(A,u,0,6),k=(i*3+j*5)%4,ww=a1-a0,hh=y1-y0;
@@ -1721,6 +1909,22 @@ function v3build(){
       for(let i=0;i<la;i++)for(let j=0;j<lo;j++){const a=P(i,j),b=P(i+1,j),cc=P(i+1,j+1),d=P(i,j+1),n=v3n([(a[0]+cc[0])/2-hx,(a[1]+cc[1])/2-hy,(a[2]+cc[2])/2-hz]);quad(T,[a,b,cc,d],skin,1,n)}}   // 머리 (정수리 1,750)
     rb(-16,100,16,135,1600,1650,skin);                                                    // 코 = 보는 방향
   }
+  // 앉은 운전원 (데스크마다, 의자 좌판 450 · 눈 1,240) — 시야 검토용. 로컬 +z = 보는 쪽(모니터)
+  if(V3.sitOn!==false)operators().forEach(v=>{const rot=Math.atan2(v.f[0],v.f[1]),c=Math.cos(rot),s=Math.sin(rot),W2=(lx,lz)=>[v.x+lx*c+lz*s,v.z-lx*s+lz*c],nr=(lx,lz)=>[lx*c+lz*s,0,-lx*s+lz*c];
+    const shirt=hexRGB('#2d8cff'),pants=hexRGB('#34405a'),skin=hexRGB('#e2b08a'),shoe=hexRGB('#1d2128');
+    const rb=(x0,z0,x1,z1,y0,y1,col)=>{const P=[[x0,z0],[x1,z0],[x1,z1],[x0,z1]].map(q=>W2(q[0],q[1])),N=[nr(0,-1),nr(1,0),nr(0,1),nr(-1,0)];
+      quad(T,P.map(q=>[q[0],y1,q[1]]),col,1,[0,1,0]);P.forEach((a,i)=>{const b=P[(i+1)%4];quad(T,[[a[0],y0,a[1]],[a[0],y1,a[1]],[b[0],y1,b[1]],[b[0],y0,b[1]]],col,1,N[i])})};
+    rb(-150,250,-40,420,0,60,shoe);rb(40,250,150,420,0,60,shoe);                          // 신발
+    rb(-145,280,-55,370,60,450,pants);rb(55,280,145,370,60,450,pants);                    // 종아리
+    rb(-160,-60,-25,400,440,580,pants);rb(25,-60,160,400,440,580,pants);                  // 허벅지 (좌판 450)
+    rb(-200,-150,200,90,560,1080,shirt);                                                   // 몸통
+    rb(-270,-90,-205,60,780,1060,shirt);rb(205,-90,270,60,780,1060,shirt);                // 위팔
+    rb(-265,40,-205,330,700,780,shirt);rb(205,40,265,330,700,780,shirt);                  // 아래팔 (작업면 쪽)
+    rb(-255,330,-210,420,700,760,skin);rb(210,330,255,420,700,760,skin);                  // 손
+    rb(-50,-40,50,50,1080,1140,skin);                                                      // 목
+    {const [hx,hz]=W2(0,10),hy=1250,R=108,la=7,lo=12,P=(i,j)=>{const t=i/la*Math.PI,f=j/lo*Math.PI*2;return [hx+R*Math.sin(t)*Math.cos(f),hy+R*Math.cos(t),hz+R*Math.sin(t)*Math.sin(f)]};
+      for(let i=0;i<la;i++)for(let j=0;j<lo;j++){const a=P(i,j),b=P(i+1,j),cc=P(i+1,j+1),d=P(i,j+1),n=v3n([(a[0]+cc[0])/2-hx,(a[1]+cc[1])/2-hy,(a[2]+cc[2])/2-hz]);quad(T,[a,b,cc,d],skin,1,n)}}   // 머리 (눈 1,240)
+    rb(-14,105,14,135,1215,1255,skin)});                                                   // 코 = 보는 방향
   V3.gd=V3.edim?gapDims():[];   // 글자에서 다시 씀
   V3.bx=S.panels.map(p=>{const g=geom(p),b=g.body;return {p,lo:[b.x,0,b.y],hi:[b.x+b.w,+g.t.h||2100,b.y+b.h]}});   // 판넬 상자 (가림 · 마우스 고르기에 매 화면 다시 씀)
   if(V3.edim){const ec=DCS?hexRGB('#9fd0ff'):C('--ink-2'),y=40,ar=Math.min(140,1e9);   // <───> 화살 치수 (바닥 위 40)
@@ -1876,6 +2080,16 @@ function v3draw(){
       lab([m[0]*.35+k[0]*.65,g.a[1],m[2]*.35+k[2]*.65],`${g.nm} ${fmt(g.len)}`,g.w,ac)});}
   if(V3.manOn&&V3.man){const q=v3proj([V3.man.x,1900,V3.man.z],w,h);if(q){c2.font='600 12px "Malgun Gothic","맑은 고딕",system-ui,sans-serif';c2.textAlign='center';c2.textBaseline='middle';
     const t=V3.manBad?'막힘 — 판넬 · 기둥 · 벽':'사람 175 cm · 80 kg',tw=c2.measureText(t).width+10;c2.fillStyle=V3.manBad?'#d64545':'#e8792b';c2.fillRect(q[0]-tw/2,q[1]-9,tw,18);c2.fillStyle='#fff';c2.fillText(t,q[0],q[1])}}
+  if(V3.viewOn!==false){   // 시야 (안전공학): 바닥에 ±15° 최적 · ±30° 눈만 · ±60° 머리 돌려 부채꼴 + 정상 시선(수평 아래 15°)이 바닥에 닿는 선
+    const ds=S.panels.filter(p=>sel.has(p.id)&&typeOf(p).kind==='desk'), VV=V3.sitOn!==false?operators(ds.length?new Set(ds.map(p=>p.id)):new Set()):[];
+    if(V3.manOn&&V3.man)VV.push({x:V3.man.x,z:V3.man.z,f:[Math.sin(V3.man.rot),Math.cos(V3.man.rot)],eye:ERG.standEye,kind:'stand'});
+    const R=7000, dir=(f,a)=>{const r=a*Math.PI/180;return [f[0]*Math.cos(r)-f[1]*Math.sin(r),f[0]*Math.sin(r)+f[1]*Math.cos(r)]};
+    VV.forEach(v=>{[...ERG.zones].reverse().forEach(([a,,col,al])=>{const pts=[[v.x,8,v.z]];for(let k=-a;k<=a+0.01;k+=5){const d=dir(v.f,k);pts.push([v.x+d[0]*R,8,v.z+d[1]*R])}
+        const q=pts.map(p=>v3proj(p,w,h));if(q.some(x=>!x))return;c2.beginPath();q.forEach((x,i)=>i?c2.lineTo(x[0],x[1]):c2.moveTo(x[0],x[1]));c2.closePath();
+        c2.fillStyle=col;c2.globalAlpha=al*1.3;c2.fill();c2.globalAlpha=.6;c2.strokeStyle=col;c2.lineWidth=1;c2.stroke();c2.globalAlpha=1});
+      const L1=v.eye/Math.tan(ERG.nlos*Math.PI/180),a=v3proj([v.x,v.eye,v.z],w,h),b=v3proj([v.x+v.f[0]*L1,0,v.z+v.f[1]*L1],w,h);
+      if(a&&b){c2.setLineDash([7,5]);c2.strokeStyle='#2ecc71';c2.lineWidth=2;c2.beginPath();c2.moveTo(a[0],a[1]);c2.lineTo(b[0],b[1]);c2.stroke();c2.setLineDash([])}
+      const q=v3proj([v.x,v.eye+(v.kind==='stand'?420:260),v.z],w,h);if(q&&v.kind==='sit'){c2.font='600 11px "Malgun Gothic","맑은 고딕",system-ui,sans-serif';c2.textAlign='center';c2.textBaseline='middle';const t='앉음 · 눈 '+fmt(ERG.sitEye),tw=c2.measureText(t).width+10;c2.fillStyle='#2d8cff';c2.fillRect(q[0]-tw/2,q[1]-8,tw,16);c2.fillStyle='#fff';c2.fillText(t,q[0],q[1])}})}
   V3.td=performance.now()-t0;   // 그리기 시간 (ms) — window.crspaceSpeed() 로 봄
   v3camPub();
   const mh=Math.max(0,...S.panels.map(p=>+typeOf(p).h||0));
@@ -1901,6 +2115,21 @@ function v3hidden(p,pt){   // 글자 자리가 다른 판넬 뒤에 가려지면
 function rayFloor(R){if(!R||R.d[1]>=-1e-6)return null;const t=-R.o[1]/R.d[1];return [R.o[0]+R.d[0]*t,R.o[2]+R.d[2]*t]}
 /* 3D 속성 칸: 판넬 하나를 고르면 Tag · Description · 크기 · 유지보수 · 도어(위치 · 단문/양문 · 힌지) · 방향 · 위치를 고침.
    크기 · 도어는 Type 값이라 '이 판넬만'(같은 값 Type 을 찾거나 새 Type 을 만듦) / '같은 Type 전체' 를 고름. 2D 와 같은 배치 규칙 */
+/* Type 값(크기 · 유지보수 · 도어 · 가구 칸) 고치는 칸 — 3D 속성 칸(pre='v3') · 2D 선택한 판넬 칸(pre='pp') 같이 씀.
+   이 판넬만 = 같은 값 Type 이 없으면 '(변형)' Type 을 만들어 이 판넬만 바꿈 / 같은 Type 전체 = Type 을 고침 */
+function typeSecHtml(p,pre){
+  const t=typeOf(p), n=S.panels.filter(q=>q.type===t.id).length, kind=t.door==='none'?'none':t.hinge==='LR'?'LR':t.hinge;
+  return `<div class="sec"><b>${t.kind==='cabinet'?'크기 · 도어':'크기 · '+(t.kind==='desk'?'운전원 · 모니터':t.kind==='screen'?'화면':'의자')}</b> <span class="muted">(${esc(KIND[t.kind]||'')} · Type '${esc(t.name)}' 값 · ${n} EA)</span>
+    ${t.kind==='desk'?`<div class="g"><label>작업면 높이<input type="number" id="${pre}kTop" step="10" value="${t.top}"></label><label>운전원 수<input type="number" id="${pre}kBays" min="1" step="1" value="${t.bays}"></label><label>모니터/운전원<input type="number" id="${pre}kMon" min="0" step="1" value="${t.mon}"></label>
+      <label>모니터 inch<input type="number" id="${pre}kMonIn" min="10" step="1" value="${t.monIn}"></label><label>모니터 단<input type="number" id="${pre}kTiers" min="1" max="3" step="1" value="${t.tiers}"></label></div>`:''}
+    ${t.kind==='screen'?`<div class="g"><label>가로 장<input type="number" id="${pre}kCols" min="1" step="1" value="${t.cols}"></label><label>세로 장<input type="number" id="${pre}kRows" min="1" step="1" value="${t.rows}"></label><label>한 장 inch<input type="number" id="${pre}kTileIn" min="20" step="1" value="${t.tileIn}"></label>
+      <label>바닥에서 화면 아래<input type="number" id="${pre}kElev" min="0" step="50" value="${t.elev}"></label><label style="grid-column:2/-1">받침 (서포트)<select id="${pre}kMount">${Object.entries(MOUNT).map(([k,v])=>`<option value="${k}" ${k===(t.mount||'stand')?'selected':''}>${v}</option>`).join('')}</select></label></div>`:''}
+    <div class="g"><label>W 폭<input type="number" id="${pre}tW" min="1" step="50" value="${t.w}" ${t.kind==='screen'?'disabled title="화면 장 수 · 크기에서 자동"':''}></label><label>D 깊이<input type="number" id="${pre}tD" min="1" step="50" value="${t.d}"></label><label>H 높이<input type="number" id="${pre}tH" min="1" step="50" value="${+t.h||2100}" ${t.kind==='desk'||t.kind==='screen'?'disabled title="자동 (모니터 · 화면 꼭대기)"':''}></label>
+     <label>전면 유지보수<input type="number" id="${pre}tF" min="0" step="50" value="${+t.front||0}"></label><label>후면 유지보수<input type="number" id="${pre}tR" min="0" step="50" value="${+t.rear||0}"></label><label title="이 장비 둘레로 다른 장비와 떨어져야 할 최소 거리 (② 판넬 간 최소 이격보다 크면 이 값)">최소 이격 (주위)<input type="number" id="${pre}tG" min="0" step="50" value="${+t.gap||0}"></label>
+     <label ${t.kind!=='cabinet'?'hidden':''}>도어 위치<select id="${pre}tDoor">${Object.entries(DOOR_AT).map(([k,v])=>`<option value="${k}" ${k===t.door?'selected':''}>${v}</option>`).join('')}</select></label>
+     <label class="full" style="grid-column:2/-1" ${t.kind!=='cabinet'?'hidden':''}>도어 형식 · 열림<select id="${pre}tKind"><option value="L" ${kind==='L'?'selected':''}>단문 — L 힌지 (왼쪽에 경첩)</option><option value="R" ${kind==='R'?'selected':''}>단문 — R 힌지 (오른쪽에 경첩)</option><option value="LR" ${kind==='LR'?'selected':''}>양문 — L-R 양개</option></select></label></div>
+    ${n>1?`<div class="sc"><label><input type="radio" name="${pre}sc" value="one" checked>이 판넬만 (같은 값 Type 이 없으면 '${esc(t.name)} (변형)' 을 만듦)</label><label><input type="radio" name="${pre}sc" value="all">같은 Type 전체 ${n} EA</label></div>`:''}
+    <div class="row"><button id="${pre}tApply" class="primary">${t.kind==='cabinet'?'크기 · 도어 적용':'적용'}</button><span class="muted">${t.kind==='cabinet'?'힌지 L/R 은 그 면 앞에 서서 볼 때':t.kind==='chair'?'의자는 데스크 앞 운전 공간 안에 놓을 수 있음':'H 는 자동'}</span></div><div class="err" id="${pre}tErr"></div></div>`}
 function v3side(){
   const box=$('#v3Side'), ps=S.panels.filter(p=>sel.has(p.id));
   if(ps.length!==1){box.innerHTML=ps.length?`<h5>판넬 ${ps.length}개 선택</h5><p class="muted">속성은 하나만 골랐을 때 고칩니다. 끌면 묶음째 옮겨집니다.</p>`:`<h5>속성</h5><p class="muted">판넬을 누르면 여기서 Tag · Description · 크기 · 도어 · 방향을 고칩니다.</p>`;return}
@@ -1909,17 +2138,7 @@ function v3side(){
    <div class="g g2"><label>Tag<input id="v3pTag" value="${esc(p.tag)}"></label><label>Type<select id="v3pType">${S.types.map(x=>`<option value="${x.id}" ${x.id===t.id?'selected':''}>${esc(x.name)}</option>`).join('')}</select></label>
     <label class="full">Description<input id="v3pDesc" value="${esc(p.desc)}" placeholder="예: DCS Controller Cabinet #1"></label>
     <label class="full">공급 Scope<input id="v3pScope" list="scopeList" value="${esc(p.scope||'')}" placeholder="예: EPC · OWNER · VENDOR"></label></div>
-   <div class="sec"><b>${t.kind==='cabinet'?'크기 · 도어':'크기 · '+(t.kind==='desk'?'운전원 · 모니터':t.kind==='screen'?'화면':'의자')}</b> <span class="muted">(${esc(KIND[t.kind]||'')} · Type '${esc(t.name)}' 값 · ${n} EA)</span>
-    ${t.kind==='desk'?`<div class="g"><label>작업면 높이<input type="number" id="v3kTop" step="10" value="${t.top}"></label><label>운전원 수<input type="number" id="v3kBays" min="1" step="1" value="${t.bays}"></label><label>모니터/운전원<input type="number" id="v3kMon" min="0" step="1" value="${t.mon}"></label>
-      <label>모니터 inch<input type="number" id="v3kMonIn" min="10" step="1" value="${t.monIn}"></label><label>모니터 단<input type="number" id="v3kTiers" min="1" max="3" step="1" value="${t.tiers}"></label></div>`:''}
-    ${t.kind==='screen'?`<div class="g"><label>가로 장<input type="number" id="v3kCols" min="1" step="1" value="${t.cols}"></label><label>세로 장<input type="number" id="v3kRows" min="1" step="1" value="${t.rows}"></label><label>한 장 inch<input type="number" id="v3kTileIn" min="20" step="1" value="${t.tileIn}"></label>
-      <label class="full">바닥에서 화면 아래<input type="number" id="v3kElev" min="0" step="50" value="${t.elev}"></label></div>`:''}
-    <div class="g"><label>W 폭<input type="number" id="v3tW" min="1" step="50" value="${t.w}" ${t.kind==='screen'?'disabled title="화면 장 수 · 크기에서 자동"':''}></label><label>D 깊이<input type="number" id="v3tD" min="1" step="50" value="${t.d}"></label><label>H 높이<input type="number" id="v3tH" min="1" step="50" value="${+t.h||2100}" ${t.kind==='desk'||t.kind==='screen'?'disabled title="자동 (모니터 · 화면 꼭대기)"':''}></label>
-     <label>전면 유지보수<input type="number" id="v3tF" min="0" step="50" value="${+t.front||0}"></label><label>후면 유지보수<input type="number" id="v3tR" min="0" step="50" value="${+t.rear||0}"></label><label>&nbsp;</label>
-     <label ${t.kind!=='cabinet'?'hidden':''}>도어 위치<select id="v3tDoor">${Object.entries(DOOR_AT).map(([k,v])=>`<option value="${k}" ${k===t.door?'selected':''}>${v}</option>`).join('')}</select></label>
-     <label class="full" style="grid-column:2/-1" ${t.kind!=='cabinet'?'hidden':''}>도어 형식 · 열림<select id="v3tKind"><option value="L" ${kind==='L'?'selected':''}>단문 — L 힌지 (왼쪽에 경첩)</option><option value="R" ${kind==='R'?'selected':''}>단문 — R 힌지 (오른쪽에 경첩)</option><option value="LR" ${kind==='LR'?'selected':''}>양문 — L-R 양개</option></select></label></div>
-    ${n>1?`<div class="sc"><label><input type="radio" name="v3sc" value="one" checked>이 판넬만 (같은 값 Type 이 없으면 '${esc(t.name)} (변형)' 을 만듦)</label><label><input type="radio" name="v3sc" value="all">같은 Type 전체 ${n} EA</label></div>`:''}
-    <div class="row"><button id="v3tApply" class="primary">${t.kind==='cabinet'?'크기 · 도어 적용':'적용'}</button><span class="muted">${t.kind==='cabinet'?'힌지 L/R 은 그 면 앞에 서서 볼 때':t.kind==='chair'?'의자는 데스크 앞 운전 공간 안에 놓을 수 있음':'H 는 자동'}</span></div><div class="err" id="v3tErr"></div></div>
+   ${typeSecHtml(p,'v3')}
    <div class="sec"><b>방향 · 위치</b>
     <div class="g"><label>전면 방향<select id="v3pRot">${[[0,'↑ 위'],[90,'→ 오른쪽'],[180,'↓ 아래'],[270,'← 왼쪽']].map(([v,l])=>`<option value="${v}" ${v===g.r?'selected':''}>${l}</option>`).join('')}</select></label>
      <label>X<input type="number" id="v3pX" step="${S.snap}" value="${p.x}"></label><label>Y<input type="number" id="v3pY" step="${S.snap}" value="${p.y}"></label></div>
@@ -1937,14 +2156,15 @@ function v3side(){
   $('#v3pLock').onchange=()=>lockSel();
   $('#v3tApply').onclick=()=>v3applyType(p);
 }
-function v3applyType(p){
-  const t=typeOf(p), err=m=>{$('#v3tErr').textContent=m}, num=id=>+$(id).value, kind=$('#v3tKind').value;
-  const v={w:num('#v3tW'),d:num('#v3tD'),h:num('#v3tH'),front:Math.max(0,num('#v3tF')||0),rear:Math.max(0,num('#v3tR')||0),door:$('#v3tDoor').value,hinge:kind,kind:t.kind||'cabinet'};
-  [['Top','top'],['Bays','bays'],['Mon','mon'],['MonIn','monIn'],['Tiers','tiers'],['Cols','cols'],['Rows','rows'],['TileIn','tileIn'],['Elev','elev']].forEach(([K,k])=>{const el=$('#v3k'+K);if(el)v[k]=+el.value});
+function v3applyType(p,pre='v3'){
+  const t=typeOf(p), err=m=>{$(`#${pre}tErr`).textContent=m}, num=id=>+$(`#${pre}${id}`).value, kind=$(`#${pre}tKind`).value;
+  const v={w:num('tW'),d:num('tD'),h:num('tH'),front:Math.max(0,num('tF')||0),rear:Math.max(0,num('tR')||0),gap:Math.max(0,num('tG')||0),door:$(`#${pre}tDoor`).value,hinge:kind,kind:t.kind||'cabinet'};
+  [['Top','top'],['Bays','bays'],['Mon','mon'],['MonIn','monIn'],['Tiers','tiers'],['Cols','cols'],['Rows','rows'],['TileIn','tileIn'],['Elev','elev']].forEach(([K,k])=>{const el=$(`#${pre}k${K}`);if(el)v[k]=+el.value});
+  {const mo=$(`#${pre}kMount`);if(mo)v.mount=mo.value}
   fixDoor(v);   // 가구: 도어 없음 · H(· 화면 W) 자동
   if(!(v.w>0&&v.d>0&&v.h>0))return err('W · D · H 는 0 보다 커야 합니다.');
-  const all=S.panels.filter(q=>q.type===t.id), sc=all.length>1?(document.querySelector('input[name=v3sc]:checked')||{}).value:'all';
-  const KS=['w','d','h','front','rear','door','hinge','kind',...(v.kind==='desk'?['top','bays','mon','monIn','tiers']:v.kind==='screen'?['cols','rows','tileIn','elev']:[])];
+  const all=S.panels.filter(q=>q.type===t.id), sc=all.length>1?(document.querySelector(`input[name=${pre}sc]:checked`)||{}).value:'all';
+  const KS=['w','d','h','front','rear','gap','door','hinge','kind',...(v.kind==='desk'?['top','bays','mon','monIn','tiers']:v.kind==='screen'?['cols','rows','tileIn','elev','mount']:[])];
   const same=x=>KS.every(k=>String(x[k]??'')===String(v[k]))&&x.pre===t.pre&&x.color===t.color;
   if(sc==='all'){const old={...t};Object.assign(t,v);fixDoor(t);
     if(ENF()){const bad=violation(all,true);if(bad){Object.assign(t,old);return err(`이 값이면 배치 규칙을 어깁니다 — ${bad}`)}}
@@ -1989,6 +2209,7 @@ $('#v3Col').onchange=e=>{V3.colOn=e.target.checked;v3req()};
 $('#v3EDim').onchange=e=>{V3.edim=e.target.checked;v3req()};
 $('#v3Style').onchange=e=>{V3.style=e.target.value==='cad'?'cad':'dcs';try{localStorage.setItem('crspace.v3style',V3.style)}catch(_){}[$('#v3dlg'),$('#dock3d')].forEach(x=>x.classList.toggle('dcs',V3.style==='dcs'));v3req()};
 $('#v3Man').onchange=e=>{V3.manOn=e.target.checked;if(!V3.manOn&&V3.pov){V3.pov=false;v3home()}v3req()};
+$('#v3Sit').onchange=e=>{V3.sitOn=e.target.checked;ergViewSave();v3req()};$('#v3View').onchange=e=>{V3.viewOn=e.target.checked;ergViewSave();v3req(false)};
 $('#v3ManRot').onclick=()=>{if(!V3.manOn)return;V3.man.rot+=Math.PI/4;V3.manBad=false;if(V3.pov)manPov();v3req()};
 $('#v3Pov').onclick=()=>{if(!V3.manOn){$('#v3Man').checked=V3.manOn=true}if(V3.pov){V3.pov=false;V3.yaw=v3view.iso[0];V3.pitch=v3view.iso[1];v3home();v3req(false)}else manPov()};
 document.addEventListener('keydown',e=>{   // 3D 창: 판넬 옮긴 것 되돌리기 · 다시 (Ctrl+Z · Ctrl+Y)
@@ -2094,8 +2315,9 @@ $('#bReq').onclick=async()=>{
 function reqLines(){
   check(); const sm=summary(), e=issues.filter(i=>i.lv==='err').length, w=issues.filter(i=>i.lv==='warn').length, cols=columns();
   const L=[];
-  L.push('[계장 Control Room 공간 요구사항 - 초안]');
-  L.push(`프로젝트: ${S.info.project||'-'}   Room: ${S.info.room||'-'}   Rev: ${revOf()}`);
+  L.push(`[${roomStd()||'계장 Control Room'} 공간 요구사항 - 초안]`);
+  L.push(`프로젝트: ${S.info.project||'-'}   Room: ${roomStd()||'-'}   Rev: ${revOf()}`);
+  roomLines().forEach(x=>L.push(x));
   L.push(`작성자: ${author()||'-'}   작성일: ${today()}   단위: mm`);
   L.push('');
   L.push('1. 계장 판넬 배치 필요 영역 (판넬 + 전/후면 유지보수 공간)');
@@ -2136,8 +2358,9 @@ function reqLines(){
 function needLines(){
   check(); const sm=summary(), R=S.room, ws=wallSides(), cols=columns(), m=+R.margin||0, e=issues.filter(i=>i.lv==='err').length, w=issues.filter(i=>i.lv==='warn').length;
   const mh=Math.max(0,...S.panels.map(p=>+typeOf(p).h||0)), L=[];
-  L.push('# 건축 전달 — 계장 Control Room 필요 사이즈');
-  L.push(`프로젝트 ${S.info.project||'-'} · Room ${S.info.room||'-'} · Rev ${revOf()} · 작성 ${author()||'-'} · ${today()} · 단위 mm`);
+  L.push(`# 건축 전달 — ${roomStd()||'계장 Control Room'} 필요 사이즈`);
+  roomLines().forEach(x=>L.push(x));
+  L.push(`프로젝트 ${S.info.project||'-'} · Room ${roomStd()||'-'} · Rev ${revOf()} · 작성 ${author()||'-'} · ${today()} · 단위 mm`);
   L.push('');
   L.push('■ 필요 실 크기 (권장 내부 치수, 100 단위 올림)');
   L.push(sm.rec?`   W ${fmt(sm.rec.w)} × L ${fmt(sm.rec.h)} = ${(sm.rec.w*sm.rec.h/1e6).toFixed(1)} m²`:'   - (판넬 없음)');
@@ -2155,7 +2378,7 @@ function needLines(){
   const used=S.types.filter(t=>S.panels.some(p=>p.type===t.id));
   L.push('   5) 유지보수 공간 · 도어 (Type 별)');
   used.forEach(t=>{const n=S.panels.filter(p=>p.type===t.id).length,ds=doors(geom({x:0,y:0,rot:0},t)),r=ds.length?Math.max(...ds.map(d=>d.r)):0;
-    L.push(`      - ${t.name} ${n} EA: ${t.w}W × ${t.d}D × ${t.h}H, 전면 ${fmt(+t.front||0)} / 후면 ${fmt(+t.rear||0)}`+(t.kind&&t.kind!=='cabinet'?` (${KIND[t.kind]})`:t.door==='none'?', 도어 없음':`, 도어 ${DOOR_AT[t.door]} ${HINGE[t.hinge]} (회전 반경 ${fmt(r)})`))});
+    L.push(`      - ${t.name} ${n} EA: ${t.w}W × ${t.d}D × ${t.h}H, 전면 ${fmt(+t.front||0)} / 후면 ${fmt(+t.rear||0)}${+t.gap>0?` / 주위 최소 이격 ${fmt(+t.gap)}`:''}`+(t.kind&&t.kind!=='cabinet'?` (${KIND[t.kind]})`:t.door==='none'?', 도어 없음':`, 도어 ${DOOR_AT[t.door]} ${HINGE[t.hinge]} (회전 반경 ${fmt(r)})`))});
   L.push(`   6) 기둥: ${!cols.length?'없음':Array.isArray(S.cols)?`${cols.length}개 (직접 배치)`:`${R.col} × ${R.col}, Span X ${R.spX} / Y ${R.spY}`} — 판넬 · 유지보수 공간과 겹치지 않게 배치`);
   L.push(`   7) 판넬 최고 높이 ${fmt(mh)} — 천장 · 보 하단 높이, 상부 케이블 인입 여유는 건축 · 전기와 협의`);
   L.push(`   8) 수량: 합계 ${S.panels.length} EA, 판넬 바닥면적 ${(sm.body/1e6).toFixed(1)} m² · 공급 Scope ${scopeCount().map(([k,v])=>`${k} ${v}`).join(' / ')}`);
@@ -2170,16 +2393,16 @@ function needLines(){
   L.push('   - 본 수치는 초기 공간확보용 — 상세 판넬 배치는 건축 CAD 수령 후 계장에서 확정');
   return L;
 }
-async function drawingImage(w,h){   // 지금 배치를 밝은 화면 · 실 맞춤으로 2D 를 그려 그림으로 (화면은 그대로 되돌림)
-  const de=document.documentElement, th=de.dataset.theme, keepV={...V}, keepSel=sel, keepCam=show.cam, keepWm=show.wm, keepMeas=measure, ss=svg.style.cssText;
-  de.dataset.theme='light'; sel=new Set(); show.cam=false; show.wm=false; measure=null; svg.style.cssText+=`;width:${w}px;height:${h}px;flex:none`;
+async function drawingImage(w,h,opt={}){   // 지금 배치를 밝은 화면 · 실 맞춤으로 2D 를 그려 그림으로 (화면은 그대로 되돌림)
+  const de=document.documentElement, th=de.dataset.theme, keepV={...V}, keepSel=sel, keepCam=show.cam, keepView=show.view, keepWm=show.wm, keepMeas=measure, ss=svg.style.cssText;
+  de.dataset.theme='light'; sel=new Set(); show.cam=false; show.view=!!opt.view; show.wm=false; measure=null; svg.style.cssText+=`;width:${w}px;height:${h}px;flex:none`;
   let txt; try{fit(); const c=svg.cloneNode(true); c.setAttribute('xmlns','http://www.w3.org/2000/svg'); c.setAttribute('width',w); c.setAttribute('height',h); c.setAttribute('style','font-family:"Malgun Gothic","맑은 고딕",Consolas,monospace');
     c.insertAdjacentHTML('afterbegin',`<rect width="${w}" height="${h}" fill="#ffffff"/>`); txt=new XMLSerializer().serializeToString(c); var tf={s:V.s,ox:V.ox,oy:V.oy}}
-  finally{if(th)de.dataset.theme=th;else delete de.dataset.theme; Object.assign(V,keepV); sel=keepSel; show.cam=keepCam; show.wm=keepWm; measure=keepMeas; svg.style.cssText=ss; render()}
+  finally{if(th)de.dataset.theme=th;else delete de.dataset.theme; Object.assign(V,keepV); sel=keepSel; show.cam=keepCam; show.view=keepView; show.wm=keepWm; measure=keepMeas; svg.style.cssText=ss; render()}
   const url=URL.createObjectURL(new Blob([txt],{type:'image/svg+xml;charset=utf-8'}));
   try{const im=new Image(); await new Promise((ok,no)=>{im.onload=ok;im.onerror=no;im.src=url}); im.tf=tf; return im} finally{setTimeout(()=>URL.revokeObjectURL(url),1000)}
 }
-function pdfBytes(jpegs,pw,ph){   // jpegs: [{data:Uint8Array,w,h}] → PDF (페이지마다 그림 한 장, pw × ph pt)
+function pdfBytes(jpegs,pw,ph,title='Space Requirement'){   // jpegs: [{data:Uint8Array,w,h}] → PDF (페이지마다 그림 한 장, pw × ph pt)
   const enc=new TextEncoder(), parts=[], off=[]; let len=0; const add=x=>{const b=typeof x==='string'?enc.encode(x):x;parts.push(b);len+=b.length};
   const n=jpegs.length, kids=jpegs.map((_,i)=>`${3+i*3} 0 R`).join(' ');
   add(new Uint8Array([37,80,68,70,45,49,46,52,10,37,226,227,207,211,10]));   // %PDF-1.4 + 이진 표시
@@ -2190,31 +2413,32 @@ function pdfBytes(jpegs,pw,ph){   // jpegs: [{data:Uint8Array,w,h}] → PDF (페
     off[iid]=len; add(`${iid} 0 obj\n<< /Type /XObject /Subtype /Image /Width ${j.w} /Height ${j.h} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${j.data.length} >>\nstream\n`); add(j.data); add(`\nendstream\nendobj\n`);
     off[cid]=len; add(`${cid} 0 obj\n<< /Length ${c.length} >>\nstream\n${c}\nendstream\nendobj\n`)});
   const N=3+n*3, xref=len; let x=`xref\n0 ${N}\n0000000000 65535 f \n`; for(let i=1;i<N;i++)x+=String(off[i]).padStart(10,'0')+' 00000 n \n';
-  add(x+`trailer\n<< /Size ${N} /Root 1 0 R /Info << /Title (Control Room Space Requirement) /Producer (CR Space Tool) >> >>\nstartxref\n${xref}\n%%EOF\n`);
+  add(x+`trailer\n<< /Size ${N} /Root 1 0 R /Info << /Title (${(roomStd().replace(/[^\x20-\x7e]/g,'').replace(/[()\\]/g,'').trim()||'Control Room')} ${title}) /Producer (CR Space Tool) >> >>\nstartxref\n${xref}\n%%EOF\n`);
   return new Blob(parts,{type:'application/pdf'});
 }
 const PG={w:2976,h:2104,pw:1190.55,ph:841.89};   // A3 가로, 약 180 dpi
 function pgCanvas(){const c=document.createElement('canvas');c.width=PG.w;c.height=PG.h;const g=c.getContext('2d');g.fillStyle='#fff';g.fillRect(0,0,c.width,c.height);return [c,g]}
 const FNT=(px,b)=>`${b?'700 ':''}${px}px "Malgun Gothic","맑은 고딕",system-ui,sans-serif`;
-function pgFrame(g,page,total){   // 테두리 · 아래 띠(프로젝트 · Rev · 날짜 · 쪽)
+function pgFrame(g,page,total,title='필요 사이즈'){   // 테두리 · 아래 띠(프로젝트 · Rev · 날짜 · 쪽)
   g.strokeStyle='#1b2238';g.lineWidth=4;g.strokeRect(40,40,PG.w-80,PG.h-80);
   g.fillStyle='#1b2238';g.font=FNT(26);g.textBaseline='alphabetic';
-  g.fillText(`${S.info.project||'프로젝트 -'} · ${S.info.room||'Room -'} · Rev ${revOf()} · ${author()||'-'} · ${today()}`,70,PG.h-60);
-  g.textAlign='right';g.fillText(`계장 Control Room 필요 사이즈 — ${page} / ${total}`,PG.w-70,PG.h-60);g.textAlign='left';
+  g.fillText(`${S.info.project||'프로젝트 -'} · ${roomStd()||'Room -'} · Rev ${revOf()} · ${author()||'-'} · ${today()}`,70,PG.h-60);
+  g.textAlign='right';g.fillText(`${roomStd()||'계장 Control Room'} ${title} — ${page} / ${total}`,PG.w-70,PG.h-60);g.textAlign='left';
   {const t=`Rev ${revOf()}  |  ${today()} 출력`;g.font=FNT(30,1);const tw=g.measureText(t).width+40;g.fillStyle='#1b2238';g.fillRect(PG.w-60-tw,PG.h-130,tw,52);g.fillStyle='#fff';g.fillText(t,PG.w-40-tw,PG.h-94)}   // Rev · 날짜 도장
   if(show.wm){const [l1,l2]=wmLines();g.save();g.globalAlpha=.07;g.fillStyle='#1b2238';g.translate(PG.w/2,PG.h/2);g.rotate(-22*Math.PI/180);g.textAlign='center';
     g.font=FNT(110,1);g.fillText(l1,0,0);g.font=FNT(70,1);g.fillText(l2,0,110);g.restore()}}   // 워터마크
 async function needPdf(){
   check(); const sm=summary(), ws=wallSides(), m=+S.room.margin||0, pages=[];
   // 1쪽: 2D 도면 + 오른쪽 핵심 숫자 칸
-  {const [c,g]=pgCanvas(), side=760, dw=PG.w-80-side-40, dh=PG.h-200, sc=1.45, im=await drawingImage(Math.round(dw/sc),Math.round(dh/sc));
+  {const [c,g]=pgCanvas(), side=760, dw=PG.w-80-side-40, dh=PG.h-200, sc=1.45, im=await drawingImage(Math.round(dw/sc),Math.round(dh/sc),{view:!!(S.erg&&S.erg.pdfFans)});
     g.drawImage(im,60,60,dw,dh);
     if(ws&&sm.rec){const k=dw/Math.round(dw/sc),P=(x,y)=>[60+(x*im.tf.s+im.tf.ox)*k,60+(y*im.tf.s+im.tf.oy)*k],E=ws.E,[ax,ay]=P(E.x-m,E.y-m),[bx,by]=P(E.x+E.w+m,E.y+E.h+m);   // 도면 위 필요 실 표시
       g.strokeStyle='#7c3aed';g.lineWidth=4;g.setLineDash([24,10,6,10]);g.strokeRect(ax,ay,bx-ax,by-ay);g.setLineDash([]);
       g.font=FNT(30,1);const t=`필요 실 W ${fmt(sm.rec.w)} × L ${fmt(sm.rec.h)} (벽 이격 ${fmt(m)} 포함 · 100 올림)`,tw=g.measureText(t).width;g.fillStyle='rgba(255,255,255,.9)';g.fillRect(ax,by+8,tw+20,44);g.fillStyle='#7c3aed';g.fillText(t,ax+10,by+42)}
     const x0=PG.w-side-60; let y=90; g.fillStyle='#f3f6fb';g.fillRect(x0,60,side,PG.h-200);g.strokeStyle='#c9d3e3';g.lineWidth=2;g.strokeRect(x0,60,side,PG.h-200);
     const T=(t,px,b,col='#1b2238')=>{y+=px*.95;g.font=FNT(px,b);g.fillStyle=col;g.fillText(t,x0+30,y);y+=px*.5};   // 글자 높이만큼 내려 쓰고 줄 간격
-    T('건축 전달 — 필요 사이즈',40,1); y+=10;
+    T('건축 전달 — 필요 사이즈',40,1);
+    {const r=roomId(S.info.room);T(r.std||'Room 명칭 없음',34,1,r.std?'#7c3aed':'#d63a2f');if(r.kind)T(r.kind,24,0,'#475569');if(r.fixes.length)T(`※ 입력 '${r.raw}' → 철자 고침`,20,0,'#b45309')} y+=10;
     T('필요 실 크기 (권장 내부 치수)',28,1,'#2d5bd8'); T(sm.rec?`W ${fmt(sm.rec.w)} × L ${fmt(sm.rec.h)}`:'-',52,1); T(sm.rec?`= ${(sm.rec.w*sm.rec.h/1e6).toFixed(1)} m²  (100 단위 올림)`:'',28); y+=16;
     T('벽과의 이격 (사방)',28,1,'#2d5bd8'); T(`${fmt(m)} mm 이상`,48,1); if(ws)ws.sides.forEach(sd=>T(`${sd.name}: 지금 ${fmt(sd.gap)}${sd.short?'  ⚠ 부족':''}`,26,0,sd.short?'#d33':'#333')); y+=16;
     T('필요 영역 (판넬 + 유지보수 + 도어)',28,1,'#2d5bd8'); T(sm.env?`${fmt(sm.env.w)} × ${fmt(sm.env.h)} = ${(sm.env.w*sm.env.h/1e6).toFixed(1)} m²`:'-',30); T(spareTxt(),26); y+=16;
@@ -2236,19 +2460,97 @@ async function needPdf(){
   for(let i=0;i<total;i++){const g=pages[i].getContext('2d');pgFrame(g,i+1,total);const b=await new Promise(ok=>pages[i].toBlob(ok,'image/jpeg',0.9));jp.push({data:new Uint8Array(await b.arrayBuffer()),w:PG.w,h:PG.h})}
   return pdfBytes(jp,PG.pw,PG.ph);
 }
+/* 인간공학 기준 PDF: 이 배치의 시야 검토에 쓴 기준(값 · 근거 표준 · 출처)과 운전원 × 대형 화면 결과를 따로 한 파일로.
+   [필요 사이즈 내보내기] 때 같이 내려받고, ⑤ 출력의 [👁 인간공학 기준 PDF] 로 따로도 */
+const ERG_CRIT=()=>{ergApply();const z=ERG.zones.map(x=>x[0]),M=(k,t)=>ergChanged(k)?`${t} — ★ 사용자 수정 (기본 ${ERG_DEF[k]})`:t;return [   // [항목, 이 도구에 쓴 값, 근거, 비고]
+  ['서 있는 사람 모형',M('standEye',`키 1,750 · 눈 높이 ${fmt(ERG.standEye)} mm`),'인체 치수 자료 (눈 높이 ≈ 키 × 0.94)','3D 사람 모형, 2D 에는 3D 를 연 때'],
+  ['앉은 운전원 모형',M('sitEye',`눈 높이 ${fmt(ERG.sitEye)} mm (바닥에서) · 의자 좌면 450`),'인체 치수 — 앉은 눈 높이 남 5~95% 약 1,176~1,336 mm','데스크 운전 자리마다 1명, 작업면 앞 450'],
+  ['정상 시선 (아래로)',M('nlos',`수평 아래 ${ERG.nlos}°`),'ISO 11064-4:2013 (앉은 자세 정상 시선 수평 ~ 15° 아래), MIL-STD-1472','도면 · 3D 의 초록 점선'],
+  ['최적 시야 (초록)',M('z1',`정면 ±${z[0]}°`),'MIL-STD-1472G/F (중요 표시 · 경보는 정상 시선 15° 안), NUREG-0700','주 정보 · 경보를 두는 곳'],
+  ['눈만 돌려 (노랑)',M('z2',`정면 ±${z[1]}°`),'제어실 설계 문헌 (눈 회전 약 ±30~35°), FAA 표시장치 HF 기준','머리를 돌리지 않고 봄'],
+  ['머리 돌려 (회색)',M('z3',`정면 ±${z[2]}°`),'제어실 설계 문헌 (머리 회전 약 ±45~60°)','자주 보는 정보는 두지 않음'],
+  ['시야 밖',`${z[2]}° 넘음`,'위 기준에서 벗어남','몸을 돌려야 봄 — 배치 · 화면 각도 검토'],
+  ['화면 비스듬히',M('off',`화면 법선에서 ${ERG.off}° 넘으면 표시`),'일반 권고값 (표시장치 시야각) — 원문 확인 필요','글자 · 색이 흐려질 수 있음'],
+  ['벽 대형 화면','모든 운전 자리에서 보여야','ISO 11064-4:2013 (작업 자리 밖 공용 표시)','결과 표에서 확인'],
+  ['최대 보는 거리','215 × 글자 높이','ISO 11064-4:2013','도구는 거리만 표시 — 글자 크기는 화면 설계에서'],
+  ['부채꼴 반경',M('R',`${fmt(ERG.R)} mm`),'표시용 (기준 아님)','']]};
+const ERG_SRC=[
+  ['ISO 11064-4:2013 Ergonomic design of control centres — Part 4: Layout and dimensions of workstations','https://standards.iteh.ai/catalog/standards/iso/801d2ad3-4e63-4e6a-9df0-0c269910cda0/iso-11064-4-2013'],
+  ['MIL-STD-1472G Human Engineering','https://govtribe.com/file/government-file/mil-std-1472g-human-factors-dot-pdf'],
+  ['MIL-STD-1472F Human Engineering','https://www.denix.osd.mil/soh/denix-files/sites/21/2016/03/02_MIL-STD-1472F-Human-Engineering.pdf'],
+  ['NUREG-0700 Human-System Interface Design Review Guidelines','https://www.nrc.gov/docs/ML0217/ML021700337.pdf'],
+  ['EN 894-2 Ergonomics requirements for the design of displays and control actuators — Displays','https://standards.iteh.ai/catalog/standards/sist/a7847a29-f7d0-4eb4-868b-d7ba25825f6e/sist-en-894-2-2000a1-2009'],
+  ['FAA Human Factors Criteria for Displays','https://hf.tc.faa.gov/publications/2007-human-factors-criteria-for-displays/full_text.pdf'],
+  ['Designing a Control Room (iands)','https://www.iands.design/industry-news/article/10179855/designing-a-control-room'],
+  ['Ergonomics and Design Reference Guide (Oregon State Univ.)','https://ehs.oregonstate.edu/sites/ehs.oregonstate.edu/files/pdf/ergo/ergonomicsanddesignreferenceguidewhitepaper.pdf'],
+  ['OSHA Computer Workstations — Monitors','https://www.osha.gov/etools/computer-workstations/components/monitors']];
+function ergRows(){   // 운전원 × 대형 화면 결과
+  const out=[];operators().forEach(v=>viewCheck(v).forEach(r=>out.push({v,r,j:r.back?'화면 뒤':(ERG.zones[r.z]||[0,'시야 밖'])[1],bad:r.back||r.z>=3,warn:r.z>=1})));return out}
+function pgWrap(g,t,w){   // 칸 폭에 맞춰 줄 나누기 (빈칸 · 글자 단위)
+  const out=[];String(t).split('\n').forEach(par=>{let cur='';for(const ch of par){if(g.measureText(cur+ch).width>w&&cur){const k=cur.lastIndexOf(' ');if(k>cur.length*.5&&ch!==' '){out.push(cur.slice(0,k));cur=cur.slice(k+1)+ch}else{out.push(cur);cur=ch===' '?'':ch}}else cur+=ch}out.push(cur)});return out}
+async function ergPdf(){
+  check(); const pages=[], rows=ergRows(), ops=operators(), scs=screensGeom(), TTL='인간공학 · 시야 기준';
+  const cnt=[0,0,0,0,0]; rows.forEach(o=>cnt[o.r.back?4:o.r.z]++);
+  // 1쪽: 2D 도면(운전원 시야 부채꼴) + 오른쪽 적용 기준 요약
+  {const [c,g]=pgCanvas(), side=820, dw=PG.w-80-side-40, dh=PG.h-200, sc=1.45, im=await drawingImage(Math.round(dw/sc),Math.round(dh/sc),{view:true});
+    g.drawImage(im,60,60,dw,dh);
+    const x0=PG.w-side-60; let y=90; g.fillStyle='#f3f6fb';g.fillRect(x0,60,side,PG.h-200);g.strokeStyle='#c9d3e3';g.lineWidth=2;g.strokeRect(x0,60,side,PG.h-200);
+    const T=(t,px,b,col='#1b2238')=>{g.font=FNT(px,b);pgWrap(g,t,side-60).forEach(l=>{y+=px*.95;g.fillStyle=col;g.fillText(l,x0+30,y);y+=px*.5})};
+    T('인간공학 · 시야 기준',40,1); T(`${roomStd()||'Room'} · Rev ${revOf()}`,28,1,'#7c3aed'); T('이 도면의 시야 검토에 적용한 기준',24,0,'#475569'); y+=14;
+    T('사람 모형',28,1,'#2d5bd8'); T(`● 앉은 운전원 — 눈 높이 ${fmt(ERG.sitEye)} mm · ${ops.length} 명`,26,0,'#2d8cff'); T(`● 서 있는 사람 — 키 1,750 · 눈 높이 ${fmt(ERG.standEye)} mm`,26,0,'#e8792b'); y+=14;
+    T('시야 구역 (바라보는 방향 기준, 수평)',28,1,'#2d5bd8');
+    [...ERG.zones.map(([a,n,col])=>[`±${a}°  ${n}`,col]),[`${ERG.zones[2][0]}° 넘음  시야 밖`,'#ff3b6b']].forEach(([t,col])=>{y+=8;g.fillStyle=col;g.globalAlpha=.6;g.fillRect(x0+30,y,44,30);g.globalAlpha=1;g.font=FNT(26);g.fillStyle='#1b2238';g.fillText(t,x0+90,y+26);y+=38});
+    T(`정상 시선: 수평 아래 ${ERG.nlos}° (초록 점선)`,26); y+=14;
+    T('결과 (운전원 × 대형 화면)',28,1,'#2d5bd8');
+    if(!scs.length)T('대형 화면 없음 — 검토할 것 없음',26,0,'#475569'); else if(!ops.length)T('데스크(운전원) 없음 — 검토할 것 없음',26,0,'#475569');
+    else{T(`대형 화면 ${scs.length} 면 · 운전원 ${ops.length} 명 · ${rows.length} 건`,26);
+      [[`최적 ±${ERG.zones[0][0]}°`,cnt[0],'#16a34a'],[`눈만 돌려 ±${ERG.zones[1][0]}°`,cnt[1],'#b58100'],[`머리 돌려 ±${ERG.zones[2][0]}°`,cnt[2],'#64748b'],['시야 밖',cnt[3],'#d33'],['화면 뒤',cnt[4],'#d33']].forEach(([t,n,col])=>{if(n)T(`· ${t}: ${n} 건`,26,n&&col==='#d33',col)})}
+    y+=14; T('도면 표기',28,1,'#2d5bd8'); ['파란 원 = 앉은 운전원 (흰 선 = 보는 방향)',`초록 · 노랑 부채꼴 = ±${ERG.zones[0][0]}° · ±${ERG.zones[1][0]}°`,'상세 각도 · 판정은 다음 쪽 표'].forEach(t=>T('· '+t,23));
+    if(Object.keys(ERG_DEF).some(ergChanged)){y+=14;T('★ 기준 값 일부를 사용자가 고침 — 2쪽 표 참고',24,1,'#d33')}
+    y+=14; T('※ 초기 공간확보 검토용. 설계 확정은 각 표준 본문과 발주처 · 프로젝트 인간공학(HF) 기준으로.',22,0,'#b45309');
+    pages.push(c)}
+  // 표 그리기 (쪽 넘김 포함)
+  let c,g,y; const newPg=()=>{[c,g]=pgCanvas();pages.push(c);y=110}, X0=80, TW=PG.w-160;
+  const H=(t,px=40)=>{if(y+px*2>PG.h-160)newPg();g.font=FNT(px,1);g.fillStyle='#1b2238';g.fillText(t,X0,y+px);y+=px*1.6};
+  const table=(cols,rows,hdr)=>{const px=24,lh=34,ws=cols.map(k=>k*TW),head=()=>{g.fillStyle='#1b2238';g.fillRect(X0,y,TW,lh+14);g.font=FNT(px,1);g.fillStyle='#fff';let x=X0;hdr.forEach((h,i)=>{g.fillText(h,x+12,y+lh);x+=ws[i]});y+=lh+14};
+    head(); rows.forEach((r,ri)=>{g.font=FNT(px);const cells=r.cells.map((t,i)=>pgWrap(g,t,ws[i]-24)),hh=Math.max(...cells.map(l=>l.length))*lh+14;
+      if(y+hh>PG.h-150){newPg();head()} g.fillStyle=r.bg||(ri%2?'#f6f8fc':'#fff');g.fillRect(X0,y,TW,hh);g.strokeStyle='#d5dbe6';g.lineWidth=1;g.strokeRect(X0,y,TW,hh);
+      let x=X0;cells.forEach((ls,i)=>{g.font=FNT(px,r.bold&&i===0);g.fillStyle=r.col&&r.col[i]||'#1b2238';ls.forEach((l,k)=>g.fillText(l,x+12,y+lh*(k+1)));x+=ws[i]});y+=hh})};
+  // 2쪽: 적용 기준 표 + 출처
+  newPg(); H('1. 적용한 인간공학 기준'); table([.17,.25,.36,.22],ERG_CRIT().map(r=>({cells:r,bold:1})),['항목','이 도구에 쓴 값','근거 (표준 · 문헌)','비고']);
+  y+=40; H('2. 출처 (Sources)',34); g.font=FNT(23);
+  ERG_SRC.forEach(([n,u],i)=>{const ls=[...pgWrap(g,`[${i+1}] ${n}`,TW),...pgWrap(g,'     '+u,TW)];if(y+ls.length*32>PG.h-150)newPg();ls.forEach((l,k)=>{g.font=FNT(23,k===0);g.fillStyle=k===0?'#1b2238':'#2d5bd8';g.fillText(l,X0,y+28);y+=32});y+=6});
+  y+=20; g.font=FNT(22);g.fillStyle='#b45309';pgWrap(g,'※ 일부 수치(눈 · 머리 회전 범위, 화면 비스듬히 45°)는 표준 원문이 아니라 해설 · 2차 문헌 값입니다. 발주처 HF 기준이 있으면 그 값이 우선이며, 도구의 값(ERG)도 그에 맞춰 바꿀 수 있습니다.',TW).forEach(l=>{g.fillText(l,X0,y+26);y+=32});
+  // 3쪽 ~: 결과 표
+  newPg(); H('3. 시야 검토 결과 — 앉은 운전원 × 대형 화면');
+  g.font=FNT(23);g.fillStyle='#475569';g.fillText(`수평 = 운전원 정면에서 화면 가운데까지 각 · 수직 = 눈(${fmt(ERG.sitEye)})에서 화면 가운데 · 위 · 아래 (+ 위 / − 아래) · 거리 = 눈 → 화면 가운데 (평면)`,X0,y+24);y+=50;
+  if(!rows.length){g.font=FNT(28);g.fillStyle='#1b2238';g.fillText(scs.length?'데스크(운전원)가 없어 검토할 것이 없습니다.':'대형 화면이 없어 검토할 것이 없습니다.',X0,y+30);y+=60}
+  else table([.12,.12,.1,.12,.24,.3],rows.map(o=>{const col=o.bad?'#d33':o.r.z===0?'#16a34a':o.r.z===1?'#b58100':'#64748b';
+    return {cells:[o.v.tag,o.r.s.p.tag,`${Math.round(Math.abs(o.r.ah))}°`,fmt(Math.round(o.r.d/10)*10),`${Math.round(o.r.vm)}° · ${Math.round(o.r.vt)}° · ${Math.round(o.r.vb)}°`,o.j+(!o.r.back&&o.r.off>ERG.off?` · 화면 비스듬히 ${Math.round(o.r.off)}°`:'')],col:[0,0,col,0,0,col],bg:o.bad?'#fdecec':null}}),['운전원 (데스크)','대형 화면','수평','거리 mm','수직 (가운데 · 위 · 아래)','판정']);
+  const total=pages.length, jp=[];
+  for(let i=0;i<total;i++){const g=pages[i].getContext('2d');pgFrame(g,i+1,total,TTL);const b=await new Promise(ok=>pages[i].toBlob(ok,'image/jpeg',0.9));jp.push({data:new Uint8Array(await b.arrayBuffer()),w:PG.w,h:PG.h})}
+  return pdfBytes(jp,PG.pw,PG.ph,'Human Factors Criteria');
+}
+function dlBlob(b,name){const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),8000)}
+async function ergExport(){
+  toast('인간공학 기준 PDF 를 만드는 중…');
+  try{const pdf=await ergPdf();dlBlob(pdf,fname('인간공학기준','pdf'));toast(`인간공학 기준 PDF 를 내려받았습니다 (${Math.round(pdf.size/1024)} KB)`)}
+  catch(e){toast('인간공학 기준 PDF 를 만들지 못했습니다 — '+(e&&e.message||e),true)}
+}
 async function needExport(){
   if(!(await preflight('필요 사이즈 내보내기')))return; toast('필요 사이즈 PDF 를 만드는 중…');
-  try{const pdf=await needPdf(),a=document.createElement('a');a.href=URL.createObjectURL(pdf);a.download=fname('필요사이즈','pdf');document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),8000);
-    openModal('📐 필요 사이즈 — 건축 전달',`PDF(1쪽 2D 도면 + 핵심 숫자, 2쪽~ 요약 · Equipment List, A3 가로) 를 내려받았습니다 (${Math.round(pdf.size/1024)} KB). 아래 글은 메일 본문용 — [복사] 또는 [파일로 저장].`,needLines().join('\n').replace(/^# /,''),fname('필요사이즈','txt'),'text/plain;charset=utf-8')}
+  try{const pdf=await needPdf();dlBlob(pdf,fname('필요사이즈','pdf'));
+    let ek=0;if(!S.erg||S.erg.pdfErg!==false)try{const e=await ergPdf();ek=Math.round(e.size/1024);setTimeout(()=>dlBlob(e,fname('인간공학기준','pdf')),600)}catch(e){}   // 적용한 인간공학 기준은 따로 한 파일
+    openModal('📐 필요 사이즈 — 건축 전달',`PDF(1쪽 2D 도면 + 핵심 숫자, 2쪽~ 요약 · Equipment List, A3 가로) 를 내려받았습니다 (${Math.round(pdf.size/1024)} KB)${ek?` + 인간공학 기준 PDF (적용 기준 · 출처 · 시야 검토 결과, ${ek} KB — 안 받아졌으면 ⑤ 출력의 [👁 인간공학 기준 PDF])`:''}. 아래 글은 메일 본문용 — [복사] 또는 [파일로 저장].`,needLines().join('\n').replace(/^# /,''),fname('필요사이즈','txt'),'text/plain;charset=utf-8')}
   catch(e){toast('PDF 를 만들지 못했습니다 — '+(e&&e.message||e)+'. [건축 전달 요약 (TXT)] 와 [도면 PNG 저장] 을 쓰세요.',true)}
 }
 
-$('#bNeed').onclick=needExport; $('#bNeed2').onclick=needExport;
+$('#bNeed').onclick=needExport; $('#bNeed2').onclick=needExport; $('#bErg').onclick=ergExport;
 $('#bCsv').onclick=()=>{
   const rows=[['Tag','Type','Description','Scope','W','D','H','Front','Rear','Facing','X','Y','Door','Hinge']];
   const fd={0:'N',90:'E',180:'S',270:'W'};
   S.panels.slice().sort((a,b)=>a.tag.localeCompare(b.tag)).forEach(p=>{const t=typeOf(p),g=geom(p);rows.push([p.tag,t.name,p.desc,p.scope||'',t.w,t.d,t.h,t.front,t.rear,fd[g.r],p.x,p.y,t.door==='none'?'':{front:'Front',rear:'Rear',both:'Front+Rear'}[t.door],t.door==='none'?'':t.hinge])});
-  rows.unshift(['Project',S.info.project||'','Room',S.info.room||'','Rev',revOf(),'Date',today()],[]);   // 출력 날짜 · Rev
+  rows.unshift(['Project',S.info.project||'','Room',roomStd()||'','Rev',revOf(),'Date',today()],[]);   // 출력 날짜 · Rev
   const csv='﻿'+rows.map(r=>r.map(v=>{v=String(v??'');return /[",\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v}).join(',')).join('\r\n');
   openModal('판넬 List CSV','Excel에서 바로 열립니다. 좌표는 실 좌상단(0,0) 기준, Facing은 전면 방향(N=도면 위쪽).',csv,fname('Panel_List','csv'),'text/csv;charset=utf-8');
 };
@@ -2299,7 +2601,7 @@ $('#bDxf').onclick=async()=>{
   const textL=(ly,x,y,h,s)=>P(0,'TEXT',8,ly,10,X(x),20,Y(y),30,0,40,h,1,dxfStr(s),7,'CR-KOR');   // 왼쪽 아래 기준
   const ty=Lr+1600, th=250;                                // 타이틀: 실 아래 (치수 글자 밑)
   const sm=summary();
-  [`PROJECT : ${S.info.project||'-'}`,`ROOM : ${S.info.room||'-'}`,`REV : ${revOf()}   DATE : ${today()}   BY : ${author()||'-'}`,(sm.env?`REQUIRED ${fmt(sm.env.w)} x ${fmt(sm.env.h)}   ${S.room.spare>0?`SPARE ${S.room.spare}% (${S.room.spareDir==='y'?'Y':'X'})`:'SPARE 0%'}   ->   RECOMMENDED ROOM ${fmt(sm.rec.w)} x ${fmt(sm.rec.h)}`:'NO PANEL'),'CONTROL ROOM PANEL SPACE - PRELIMINARY (UNIT: mm)']
+  [`PROJECT : ${S.info.project||'-'}`,`ROOM : ${roomStd()||'-'}`,`REV : ${revOf()}   DATE : ${today()}   BY : ${author()||'-'}`,(sm.env?`REQUIRED ${fmt(sm.env.w)} x ${fmt(sm.env.h)}   ${S.room.spare>0?`SPARE ${S.room.spare}% (${S.room.spareDir==='y'?'Y':'X'})`:'SPARE 0%'}   ->   RECOMMENDED ROOM ${fmt(sm.rec.w)} x ${fmt(sm.rec.h)}`:'NO PANEL'),'CONTROL ROOM PANEL SPACE - PRELIMINARY (UNIT: mm)']
     .forEach((t,i)=>textL('CR-TEXT',0,ty+i*th*1.6,th,t));
   // Equipment List: 판넬마다 번호 원(CR-LIST) + 실 오른쪽에 표 (NO. · EQUIPMENT TAG NO. · DESCRIPTION · DIMENSION) — 화면 목록과 같은 번호
   {const EQ=eqRows(); if(EQ.length){
@@ -2473,13 +2775,14 @@ function hmLast(){   // 고른 룸 · Rev 의 최근 저장본 (없으면 같은
   const p=ss.find(x=>x.room===rid); return p?{...p,prev:true}:null}
 function hmRender(){
   hmFill(); const pid=$('#hmProj').value, last=hmLast();
-  const ok={last:!!last,cont:HAD_LOCAL,blank:true,sample:true,file:true};
-  if(!HM.st||!ok[HM.st]){HM.st=last?'last':HAD_LOCAL?'cont':'blank';HM.auto=true}   // 자동으로 고른 것은 서버 내용을 다 읽은 뒤 다시 고름(hmLoad)
+  const ok={last:!!last,cont:HAD_LOCAL,blank:true,sample:true,file:true,auto:true,ref:REF.refs.length>0};
+  if(!HM.st||!ok[HM.st]){HM.st=last?'last':(SRV_OK&&$('#hmRevSel').value)||!HAD_LOCAL?'auto':'cont';HM.auto=true}   // 이 룸에 저장이 없으면(새 Room Layout) Option A 를 먼저   // 자동으로 고른 것은 서버 내용을 다 읽은 뒤 다시 고름(hmLoad)
   $('#hmLastHd').textContent=last&&last.prev?`이전 Rev ${last.rev||'-'} 의 최근 저장본에서 시작`:'이 룸 · Rev 의 최근 저장본 이어서';
   $('#hmLastTxt').textContent=last?`${lt(last.at)} · ${last.by}${last.roomName?' · '+last.roomName:''}${last.rev?' · Rev '+last.rev:''}${last.memo?' · '+last.memo:''}`:pid?'이 룸 · Rev 에는 아직 저장이 없습니다':'① 에서 프로젝트 · 룸 · Rev 를 고르면 나옵니다';
+  $('#hmRefTxt').textContent=HM.ref?`${HM.ref.project} · ${HM.ref.room} (${fmt(HM.ref.data.room.w)} × ${fmt(HM.ref.data.room.l)} · ${HM.ref.data.panels.length} EA) — 눌러서 바꾸기`:REF.refs.length?`${[...new Set(REF.refs.map(r=>r.project))].join(' · ')} — ${REF.refs.length}개 룸, 눌러서 고르기`:'Ref 자료(ref.js) 없음';
   $('#hmContTxt').textContent=HAD_LOCAL?`판넬 ${S.panels.length} EA${S.srv?` · ${S.srv.name}`:''}${S.info.project&&!S.srv?` · ${S.info.project}`:''}`:'이 PC 에 하던 작업이 없습니다';
   document.querySelectorAll('#hmStart li').forEach(li=>{li.classList.toggle('on',li.dataset.st===HM.st);li.classList.toggle('off',!ok[li.dataset.st])});
-  const why=SRV_OK&&!pid?'① 프로젝트를 먼저 고르세요':SRV_OK&&!$('#hmRoomSel').value?'① 룸을 고르거나 [새 룸]':SRV_OK&&!$('#hmRevSel').value?'① Rev 를 고르거나 [새 Rev]':HM.st==='file'&&!HM.file?'② 불러올 배치안 파일을 고르세요':'';
+  const why=SRV_OK&&!pid?'① 프로젝트를 먼저 고르세요':SRV_OK&&!$('#hmRoomSel').value?'① 룸을 고르거나 [새 룸]':SRV_OK&&!$('#hmRevSel').value?'① Rev 를 고르거나 [새 Rev]':HM.st==='file'&&!HM.file?'② 불러올 배치안 파일을 고르세요':HM.st==='ref'&&!HM.ref?'② Ref. PJT 룸을 고르세요':'';
   $('#hmWhy').textContent=why; $('#hmGo').disabled=!!why;
 }
 $('#hmProj').onchange=async()=>{HM.st='';$('#hmRoomSel').value='';$('#hmRevSel').value='';await hmDetail($('#hmProj').value);hmRender()};
@@ -2488,7 +2791,8 @@ $('#hmRoomNew').onclick=()=>{$('#hmRoomBox').hidden=false;$('#hmRoomName').focus
 $('#hmRevNew').onclick=()=>{const r=(HM.det[$('#hmProj').value]?.rooms||[]).find(x=>x.id===$('#hmRoomSel').value),vs=r?r.revs.map(v=>v.rev):[],l=vs[vs.length-1]||'';
   $('#hmRevName').value=!l?'A':/^[A-Y]$/i.test(l)?String.fromCharCode(l.charCodeAt(0)+1):/^\d+$/.test(l)?String(+l+1):'';$('#hmRevBox').hidden=false;$('#hmRevName').focus()};   // 다음 Rev 를 미리 적어 둠
 $('#hmRevCancel').onclick=()=>{$('#hmRevBox').hidden=true};
-$('#hmRoomCreate').onclick=async()=>{const pid=$('#hmProj').value,name=$('#hmRoomName').value.trim();if(!name)return toast('새 룸 이름을 적으세요.',true);
+$('#hmRoomCreate').onclick=async()=>{const pid=$('#hmProj').value;let name=$('#hmRoomName').value.trim();if(!name)return toast('새 룸 이름을 적으세요.',true);
+  {const r=roomId(name);if(r.fixes.length&&await askYes(`룸 이름 철자를 고칠까요?\n\n  ${name}\n→ ${r.std.replace(/ \([^)]*\)$/,'')}\n\n(${r.fixes.map(([a,b])=>a+' → '+b).join(', ')})\n취소 = 적은 그대로 만듦`))name=r.std.replace(/ \([^)]*\)$/,'')}
   if(!canWrite())return toast(NEED_NAME||'로그인해야 룸을 만들 수 있습니다.',true);
   try{const r=await sapi('POST',`/${pid}/rooms`,{name});$('#hmRoomName').value='';$('#hmRoomBox').hidden=true;await hmDetail(pid,true);HM.wRoom=r.id;HM.st='';hmRender();toast(`룸 ${r.name} 을(를) 만들었습니다 — 이어서 [새 Rev]`)}catch(e){toast(e.message,true)}};
 $('#hmRevCreate').onclick=async()=>{const pid=$('#hmProj').value,rid=$('#hmRoomSel').value,rev=$('#hmRevName').value.trim();if(!rev)return toast('새 Rev 를 적으세요 (예: A).',true);
@@ -2511,7 +2815,7 @@ async function hmDel(what){
     toast(what==='proj'?`프로젝트 ${pn} 을(를) 지웠습니다 (휴지통).`:what==='room'?`룸 ${r.name} 을(를) 지웠습니다 (휴지통).`:`Rev ${rv} 을(를) 지웠습니다 (휴지통).`);
   }catch(e){toast(e.message,true)}}
 $('#hmProjDel').onclick=()=>hmDel('proj'); $('#hmRoomDel').onclick=()=>hmDel('room'); $('#hmRevDel').onclick=()=>hmDel('rev');
-$('#hmStart').addEventListener('click',e=>{const li=e.target.closest('[data-st]');if(!li||li.classList.contains('off'))return;HM.st=li.dataset.st;HM.auto=false;if(HM.st==='file'&&!HM.file)$('#hmFile').click();hmRender()});
+$('#hmStart').addEventListener('click',e=>{const li=e.target.closest('[data-st]');if(!li||li.classList.contains('off'))return;HM.st=li.dataset.st;HM.auto=false;if(HM.st==='file'&&!HM.file)$('#hmFile').click();if(HM.st==='ref')refOpen(true);hmRender()});
 $('#hmFile').onchange=e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{try{const d=JSON.parse(r.result);if(!d.room||!Array.isArray(d.panels)||!Array.isArray(d.types))throw 0;HM.file={name:f.name,d};$('#hmFileTxt').innerHTML=`<span class="fn">${esc(f.name)}</span> · 판넬 ${d.panels.length} EA`}
   catch(err){HM.file=null;$('#hmFileTxt').textContent='[배치안 저장 (JSON)] 으로 만든 파일 — 눌러서 고르기';toast(`불러오기 실패: ${f.name} 은(는) 배치안 파일이 아닙니다 (room · types · panels 항목이 없음).`,true)}hmRender()};r.readAsText(f);e.target.value=''};
 $('#hmNewBtn').onclick=()=>{$('#hmNewBox').hidden=false;$('#hmNewName').focus()};
@@ -2533,15 +2837,308 @@ $('#hmGo').onclick=async()=>{
   const pid=$('#hmProj').value, pj=HM.projects.find(p=>p.id===pid), st=HM.st;
   const rid=$('#hmRoomSel').value, rname=((HM.det[pid]?.rooms||[]).find(r=>r.id===rid)||{}).name||'', rvSel=$('#hmRevSel').value;
   if(st==='last'){const m=hmLast();if(m){await hmOpen(pid,m.id);if(m.prev&&rvSel){S.info.rev=rvSel;S.srv.sid='';commit();buildInfo();srvSnap=null;updSrv();toast(`이전 Rev ${m.rev||'-'} 저장본에서 Rev ${rvSel} 를 시작합니다 — 저장하면 Rev ${rvSel} 로 쌓입니다`)}return}}
-  if(st==='blank'){const d=sample();S=norm({room:{...d.room},snap:S.snap||100,types:S.types.length?S.types:d.types,panels:[],notes:[],revs:[],info:{}})}
+  if(st==='blank'||st==='auto'||st==='ref'){const d=sample();S=norm({room:{...d.room},snap:S.snap||100,types:S.types.length?S.types:d.types,panels:[],notes:[],revs:[],info:{}})}
   else if(st==='sample')S=norm(sample());
   else if(st==='file'&&HM.file)S=norm(HM.file.d);
   if(pj){if(!S.srv||S.srv.pid!==pj.id||S.srv.rid!==rid)S.srv={pid:pj.id,name:pj.name,sid:'',at:'',by:'',rid,rname};S.info.project=pj.name;if(rname)S.info.room=rname;if(rvSel)S.info.rev=rvSel}
   else{const rm=$('#hmRoom').value.trim(), rv=$('#hmRev').value.trim(); if(rm)S.info.room=rm; if(rv)S.info.rev=rv}
   sel.clear();selNote=null;selCol=null;commit();buildRoom();buildTypes();if(st!=='cont')srvSnap=null;updSrv();showEditor();
   toast(pj?`${pj.name} › ${rname||'-'} › Rev ${rvSel||'-'} — 배치를 시작합니다. 저장은 ① 의 [💾 서버에 저장]`:'배치를 시작합니다');
+  if(st==='ref'&&HM.ref)refApply(HM.ref); else if(st==='auto')autoOpen();
 };
 $('#bHome').onclick=showHome;
+
+/* ---------- Option B · Ref. PJT Room Layout ----------
+   ref.js(window.CRSPACE_REF) = 도면 사진에서 옮긴 기준 배치(F3 · NT34 · Tanajib · Amiral · QFE · UAD …) + 그 배치에서 잰 거리 통계(rules).
+   불러오기 = 배치(실 · Type · 판넬)만 바꾸고 프로젝트 · 룸 · Rev · 서버 연결 · Rev 기록은 그대로 */
+const REF=(window.CRSPACE_REF&&Array.isArray(window.CRSPACE_REF.refs))?window.CRSPACE_REF:{refs:[],rules:{}};
+let refPick=null, refPickMode=false;
+function refThumb(d,svgSel='#refSvg'){   // 미리보기: 실 · 판넬 몸체(Type 색) · 앞면 굵은 선
+  const T={};d.types.forEach(t=>T[t.id]=fixDoor({...t}));const W=d.room.w,L=d.room.l,pad=Math.max(W,L)*0.03,ink=getComputedStyle(document.documentElement).getPropertyValue('--ink').trim()||'#ccc';
+  let o=`<rect x="0" y="0" width="${W}" height="${L}" fill="none" stroke="${ink}" stroke-width="2" vector-effect="non-scaling-stroke"/>`;
+  d.panels.forEach(p=>{const t=T[p.type];if(!t)return;const g=geom(p,t),b=g.body,f=g.fe;
+    o+=`<rect x="${b.x}" y="${b.y}" width="${b.w}" height="${b.h}" fill="${esc(t.color||'#888')}" fill-opacity=".55" stroke="${esc(t.color||'#888')}" vector-effect="non-scaling-stroke"/><line x1="${f[0]}" y1="${f[1]}" x2="${f[2]}" y2="${f[3]}" stroke="${ink}" stroke-width="2" vector-effect="non-scaling-stroke"/>`;
+    if(Math.min(b.w,b.h)>500)o+=`<text x="${b.x+b.w/2}" y="${b.y+b.h/2}" font-size="${Math.min(b.w,b.h)*0.42}" text-anchor="middle" dominant-baseline="central" fill="${ink}">${esc(p.tag)}</text>`});
+  $(svgSel).setAttribute('viewBox',`${-pad} ${-pad} ${W+pad*2} ${L+pad*2}`);$(svgSel).innerHTML=o}
+function refShow(r){refPick=r;$('#refList').querySelectorAll('button').forEach(b=>b.classList.toggle('on',b.dataset.ref===r.id));refThumb(r.data);
+  const by={};r.data.panels.forEach(p=>{const t=r.data.types.find(x=>x.id===p.type);const k=t?(t.kind==='desk'?'데스크':t.kind==='screen'?'대형 화면':t.door==='none'?'프린터':'판넬'):'?';by[k]=(by[k]||0)+1});
+  $('#refInfo').innerHTML=`<b>${esc(r.project)}</b> · ${esc(r.room)} · 실 ${fmt(r.data.room.w)} × ${fmt(r.data.room.l)} · ${Object.entries(by).map(([k,v])=>k+' '+v).join(' · ')}<br>${esc(r.note||'')}<br><span style="font-size:11px">도면 ${esc(r.doc)}</span>`;
+  $('#refUse').disabled=false}
+function refOpen(pick){refPickMode=!!pick;
+  if(!REF.refs.length){toast('Ref. PJT 자료(ref.js)가 없습니다 — apps/space/ref.js 를 함께 넣으세요.',true);return}
+  const pj=[...new Set(REF.refs.map(r=>r.project))];
+  $('#refNote').textContent=`${pj.length}개 PJT · ${REF.refs.length}개 룸 — 도면 사진에서 옮긴 배치(치수 = 도면 치수선 · Equipment List, 자리 = 근사 ±200~300 mm, 곡선 콘솔은 곧게 폄).`;
+  $('#refList').innerHTML=pj.map(n=>`<h5>${esc(n)}</h5>`+REF.refs.filter(r=>r.project===n).map(r=>`<button data-ref="${esc(r.id)}">${esc(r.room)}<small>${fmt(r.data.room.w)} × ${fmt(r.data.room.l)} · ${r.data.panels.length} EA</small></button>`).join('')).join('');
+  $('#refUse').textContent=pick?'이 Ref 로 정하기':'이 배치로 시작'; $('#refUse').disabled=true; $('#refSvg').innerHTML=''; $('#refInfo').textContent='왼쪽에서 룸을 고르세요.';
+  $('#refdlg').hidden=false; if(refPick)refShow(refPick)}
+function refApply(r){
+  const d=JSON.parse(JSON.stringify(r.data)), keep={info:{...S.info},srv:S.srv,revs:S.revs,notes:[],erg:S.erg};
+  d.panels.forEach(p=>p.id=uid()); S=norm({...d,...keep}); S.refFrom=`${r.project} · ${r.room}`;
+  sel.clear();selNote=null;selCol=null;commit();buildRoom();buildTypes();fit();
+  toast(`Ref. ${r.project} · ${r.room} 배치를 불러왔습니다 — 판넬 ${S.panels.length} EA. 판넬을 눌러 크기 · 속성을 고치세요.`)}
+$('#refList').addEventListener('click',e=>{const b=e.target.closest('[data-ref]');if(b)refShow(REF.refs.find(r=>r.id===b.dataset.ref))});
+$('#refList').addEventListener('dblclick',e=>{if(e.target.closest('[data-ref]'))$('#refUse').click()});
+$('#refUse').onclick=()=>{if(!refPick)return;$('#refdlg').hidden=true;if(refPickMode){HM.ref=refPick;HM.st='ref';hmRender();return}refApply(refPick)};
+$('#refClose').onclick=()=>{$('#refdlg').hidden=true};
+$('#bRef').onclick=()=>refOpen(false);
+
+/* ---------- Option A · Equipment List → 제약조건 → 자동 배치 ----------
+   종류: cab(판넬 · 캐비닛) · desk(OWS · EWS 데스크) · prn(프린터) · ls(대형 화면) · skip(벽걸이 · 책상 위 · 크기 모름)
+   배치(Ref 6개 PJT 에서 본 꼴): 대형 화면 위 벽 → 운전 콘솔 줄(운전원은 화면 반대쪽, 계통 · 그룹끼리 붙이고 그룹 사이 띄움) →
+   뒷줄 데스크 → 프린터는 아래 벽 따라 / 판넬은 두 줄씩 앞면끼리 마주 보고(앞 통로), 짝끼리는 뒤끼리(뒤 통로), 같은 계통끼리 한 줄 */
+const AK={cab:'판넬',desk:'데스크',prn:'프린터',ls:'대형 화면',skip:'빼기'};
+let AITEMS=[];
+const rmed=(k,def)=>{const [key,q]=k.split(':'),v=REF.rules&&REF.rules[key],x=v&&v[q||'med'];return x?(key==='deskRowN'?x:Math.round(x/50)*50):def};   // 'rowMax:p75' = 위 25% 값 (최대값 칸)
+const rhint=k=>{const [key,q]=k.split(':'),v=REF.rules&&REF.rules[key];return v?`Ref ${v.n}곳 · 중앙값 ${fmt(v.med)}${q&&v[q]?` · 위 25% ${fmt(v[q])}`:''} (${fmt(v.min)}~${fmt(v.max)})`:'Ref 없음'};
+function aKind(desc,w,d,h){const u=desc.toUpperCase();
+  if(/CLOCK|MIMIC|PUSH ?BUTTON|\bEPB\b|MICROPHONE|RDLI|WALL MOUNT|MODF|SPARE\b.*\(\d+\)$/.test(u)&&!(w&&d&&h&&h>1000))return 'skip';
+  if(/LARGE SCREEN|\bLVS\b|\bLSD\b|VIDEO WALL|CCTV DISPLAY|\d{2,3}\s*("|″|INCH)/.test(u)&&!/CONTROLLER|WORKSTATION/.test(u))return 'ls';
+  if(/PANEL|CABINET|CUBICLE|RACK/.test(u)&&!/OWS|EWS|WORKSTATION|CLIENT|DESK/.test(u))return 'cab';
+  if(/PRINTER|\bFAX\b/.test(u)||(/SCANNER/.test(u)&&!/CLIENT|WORKSTATION|OWS/.test(u))||(h&&h<=800&&w<=850&&d<=850))return 'prn';
+  if(h?(h<=1000||(h<=1300&&/OWS|EWS|WORKSTATION|DESK|CONSOLE|CLIENT|STATION/.test(u))):/OWS|EWS|WORKSTATION|DESK|CONSOLE|CLIENT|STATION|\bOIS\b|\bOPS\b|\bHMI\b/.test(u))return 'desk';
+  return 'cab'}
+function aFam(desc){const u=desc.toUpperCase();return /POWER|PDP|DIST/.test(u)?'pwr':/NETWORK|SERVER|RACK|OPC|SCADA|HISTORIAN|CYBER|TEL|LAN|PAGA|PABX|FDM|PCM/.test(u)?'net':/HVAC|FIRE|\bFA\b|FGC|SMOKE/.test(u)?'hv':'cab'}
+function aGroup(desc){const u=desc.toUpperCase();   // 같은 그룹끼리 붙임: GROUP #1 · BLOCK #10 · NT#3 · COMMON · 계통 이름
+  const m=u.match(/(GROUP|BLOCK|UNIT|TRAIN|NT)\s*#?\s*\d+/)||u.match(/\bCOMMON\b/)||u.match(/\b(DCS|GTG|STG|GT|ST|ECMS|SIS|PLC|MDAS|FGC|CEMS|CCTV|HVAC|FA|FIRE|OPC|NETWORK|SCADA|PWCS)\b/);return m?m[0].replace(/\s+/g,' '):'ZZ'}
+function aSize(cell){const s=String(cell||'').toUpperCase().replace(/,/g,'');let m=s.match(/(\d{2,5}(?:\.\d+)?)\s*[X×*]\s*(\d{2,5}(?:\.\d+)?)\s*[X×*]\s*(\d{2,5}(?:\.\d+)?)/);if(m)return [+m[1],+m[2],+m[3]].map(Math.round);
+  m=s.match(/W\s*(\d{2,5})\s*[X×*]?\s*D\s*(\d{2,5})\s*[X×*]?\s*H\s*(\d{2,5})/);if(m)return [+m[1],+m[2],+m[3]];
+  m=s.match(/(\d{2,3})\s*("|″|INCH)/);if(m)return [+m[1],0,0,'inch'];return null}
+function aParse(txt){
+  const lines=String(txt||'').replace(/\r/g,'').split('\n').filter(l=>l.trim()); if(!lines.length)return [];
+  const sep=lines.some(l=>l.includes('\t'))?'\t':lines.some(l=>l.includes(';'))?';':',';
+  const rows=lines.map(l=>l.split(sep).map(c=>c.trim().replace(/^"|"$/g,'')));
+  let hi=rows.findIndex(r=>r.some(c=>/DESC|EQUIPMENT NAME|^NAME$/i.test(c))), col={};
+  if(hi>=0){rows[hi].forEach((c,i)=>{const u=c.toUpperCase();
+    if(col.no===undefined&&/^NO\.?$|^ITEM/.test(u))col.no=i; else if(col.tag===undefined&&/TAG|EQUIPMENT NO|EQUIP\. NO/.test(u))col.tag=i;
+    else if(col.desc===undefined&&/DESC|NAME/.test(u))col.desc=i; else if(col.size===undefined&&/SIZE|DIMENSION|W\s*X\s*D/.test(u))col.size=i;
+    else if(/^W(IDTH)?$/.test(u))col.w=i; else if(/^D(EPTH)?$/.test(u))col.d=i; else if(/^H(EIGHT)?$/.test(u))col.h=i; else if(/Q'?TY|QUANTITY|수량/.test(u))col.qty=i})}
+  const body=rows.slice(hi+1);
+  if(col.desc===undefined){   // 머리줄 없음: 크기 칸 = 크기 꼴, 설명 = 가장 긴 글
+    const r0=body[0]||[];col.size=r0.findIndex(c=>aSize(c));col.desc=r0.reduce((b,c,i)=>c.length>(r0[b]||'').length&&!aSize(c)?i:b,0);col.no=0;if(r0.length>2)col.tag=1}
+  const out=[];
+  body.forEach(r=>{const desc=(r[col.desc]||'').trim();if(!desc||/^-+$/.test(desc))return;
+    let sz=col.size!==undefined&&col.size>=0?aSize(r[col.size]):null; if(!sz&&col.w!==undefined)sz=[+r[col.w]||0,+r[col.d]||0,+r[col.h]||0];
+    const qty=Math.max(1,Math.min(50,parseInt(r[col.qty]||'1',10)||1)), no=(r[col.no]||'').replace(/[^\w\-]/g,'')||String(out.length+1), tags=String(r[col.tag]||'').split(/\s+|\//).filter(x=>x&&x!=='TBD');
+    let [w,d,h]=sz&&!sz[3]?sz:[0,0,0]; let k=sz&&sz[3]?'ls':aKind(desc,w,d,h), inch=sz&&sz[3]?sz[0]:0;
+    if(k==='ls'&&!inch){const m=desc.match(/(\d{2,3})\s*("|″|INCH)/i);inch=m?+m[1]:75}
+    if(!w||!d){if(k==='desk'){w=w||1200;d=d||1100;h=h||750}else if(k==='prn'){w=800;d=800;h=h||750}else if(k==='cab'){w=w||800;d=d||800;h=h||2200}}
+    for(let i=0;i<qty;i++)out.push({no:qty>1?`${no}-${i+1}`:no,tag:tags[i]||tags[0]||'',desc,w,d,h:h||0,k,inch,grp:k==='cab'?aFam(desc):aGroup(desc),fam:aFam(desc)})});   // 판넬은 계열(시스템 · 네트워크 · 전원 · HVAC/화재)끼리 한 줄
+  return out}
+function aTable(){
+  $('#aTbl').innerHTML=AITEMS.map((it,i)=>`<tr class="${it.k==='skip'?'x':''}" data-i="${i}"><td>${esc(it.no)}</td><td>${esc(it.tag)}</td><td title="${esc(it.desc)}">${esc(it.desc.slice(0,42))}</td>
+    ${it.k==='ls'?`<td colspan="3">${it.inch}" 화면</td>`:`<td><input type="number" data-f="w" value="${it.w}"></td><td><input type="number" data-f="d" value="${it.d}"></td><td><input type="number" data-f="h" value="${it.h}"></td>`}
+    <td><select data-f="k">${Object.entries(AK).map(([k,v])=>`<option value="${k}" ${k===it.k?'selected':''}>${v}</option>`).join('')}</select></td></tr>`).join('')||'<tr><td colspan="7" class="muted">위에 붙여 넣으면 여기 나옵니다.</td></tr>';
+  const c={};AITEMS.forEach(it=>c[it.k]=(c[it.k]||0)+1);$('#aCnt').textContent=AITEMS.length?Object.entries(c).map(([k,v])=>`${AK[k]} ${v}`).join(' · '):''}
+$('#aTbl').addEventListener('change',e=>{const tr=e.target.closest('tr[data-i]');if(!tr)return;const it=AITEMS[+tr.dataset.i],f=e.target.dataset.f;
+  if(f==='k'){it.k=e.target.value;it.grp=it.k==='cab'?it.fam:aGroup(it.desc);if(it.k==='ls'&&!it.inch)it.inch=75;if(it.k!=='ls'&&(!it.w||!it.d)){it.w=it.k==='prn'?800:it.k==='desk'?1200:800;it.d=it.k==='desk'?1100:800;it.h=it.k==='cab'?2200:750}}else it[f]=Math.max(0,Math.round(+e.target.value||0));aTable()});
+$('#aIn').addEventListener('input',()=>{AITEMS=aParse($('#aIn').value);aTable()});
+$('#aFile').onclick=()=>$('#aFileIn').click();
+$('#aFileIn').onchange=e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{$('#aIn').value=r.result;AITEMS=aParse(r.result);aTable()};r.readAsText(f);e.target.value=''};
+$('#aSample').onclick=()=>{$('#aIn').value=['NO\tEQUIPMENT TAG NO.\tDESCRIPTION\tDIMENSION (W x D x H)\tQTY',
+  '1\t00CJA00GH001\tDCS SYSTEM CABINET #1\t700 x 600 x 2285\t1','2\t00CJA00GH002\tDCS SYSTEM CABINET #2\t700 x 600 x 2285\t1','3\t00CJA00GH003\tDCS RELAY CABINET #1\t700 x 600 x 2285\t1',
+  '4\t00CJA00GH007\tSIS CABINET\t1400 x 600 x 2285\t1','5\t00BJD00GH001\tDCS PDP #1\t700 x 600 x 2285\t3','8\t00CYT00GH001\tPWCS CABINET\t700 x 1000 x 2285\t1',
+  '9\t00CRS00GH001\tNETWORK CABINET\t700 x 600 x 2285\t3','12\t00CYA00GH001\tSCADA SERVER CABINET\t700 x 600 x 2285\t1','14\t00CYP00GH001\tOPC CABINET\t700 x 600 x 2285\t3',
+  '20\t00EKH01GH002\tFGC UNIT CONTROL PANEL\t1600 x 800 x 2285\t4','31\t10CJJ01GK003\tGROUP #1 ST OIS\t1200 x 1100 x 930\t1','32\t10CWA00GK002\tGROUP #1 DCS OWS\t1200 x 1100 x 930\t2',
+  '34\t00CWA00GK002\tCOMMON DCS OWS\t1200 x 1100 x 930\t2','36\t20CWA00GK002\tGROUP #2 DCS OWS\t1200 x 1100 x 930\t2','38\t00CWA01GK01\tLARGE SCREEN DISPLAY\t75"\t2',
+  '40\t00CWC00GK001\tCOMMON OWS PRINTER\t800 x 800 x 750\t2','42\t00CYF00GK001\tSLAVE CLOCK\t-\t1'].join('\n');AITEMS=aParse($('#aIn').value);aTable()};
+const ACON=[   // [키, 이름, 시작값, Ref 통계 키, 설명]
+  ['W','실 W (X, mm)','',null,'비우면 배치에 맞춰 정함'],['L','실 L (Y, mm)','',null,'비우면 배치에 맞춰 정함'],
+  ['wall','벽 이격 — 판넬 줄 끝 · 화면 · 데스크 (mm)',1000,'cabWallEnd','Ref 판넬 줄 끝 ↔ 벽'],['cabRearWall','판넬 뒤 ↔ 벽 (mm)',800,null,'뒷문 · 뒤 배선 공간'],
+  ['gapP','판넬 간 이격 (같은 줄, mm)',0,null,'0 = 맞붙임 (Ref 모두 맞붙임)'],['cabFace','판넬 앞면끼리 통로 (mm)',null,'cabFace','두 줄이 앞면끼리 마주 볼 때'],
+  ['cabBack','판넬 뒤끼리 통로 (mm)',1000,null,'짝 줄 사이 (뒤 ↔ 뒤)'],['cabFront','판넬 전면 유지보수 (mm)',1000,null,'Type 의 전면 값'],
+  ['rowMax','판넬 한 줄 최대 길이 (mm)',null,'rowMax:p75','넘으면 다음 줄 · 같은 계통은 안 쪼갬'],['grpGap','그룹 사이 띄움 (mm)',null,'groupGap','계통 · 그룹이 바뀔 때'],
+  ['deskScreen','콘솔 ↔ 대형 화면 (mm)',null,'deskScreen','화면 앞 ↔ 콘솔 앞'],['deskOp','데스크 운전원 공간 (mm)',1500,null,'의자 · 뒤로 빠지는 자리 (전면 값)'],
+  ['deskRow','데스크 줄 ↔ 뒷줄 (mm)',2500,null,'운전원 공간 + 걷는 길'],['deskFace','마주 보는 데스크 줄 (화면 없는 룸, mm)',null,'deskFace','엔지니어링 룸: 위 · 아래 벽 데스크 사이'],['deskMax','콘솔 한 줄 최대 데스크 수',null,'deskRowN:p75','넘으면 뒷줄'],
+  ['prnWall','프린터 ↔ 벽 (mm)',null,'prnWall','Ref: 벽 따라 붙임']];
+function aConForm(){
+  const pj=[...new Set(REF.refs.map(r=>r.project))];
+  $('#aCon').innerHTML=`<div class="aprev"><svg id="aPv"></svg><div class="via" id="aPvTxt">① 에 List 를 넣으면 미리보기가 나옵니다.</div></div>
+   <fieldset><legend>배치 방식</legend><label><select id="ac_method"><option value="auto">자동 — 실 크기 · 구성이 비슷한 Ref 가 있으면 그 Ref 처럼, 없으면 학습 규칙</option><option value="rules">학습 규칙만 (Ref 에서 찾은 규칙 · 거리)</option>
+     ${pj.map(n=>`<optgroup label="Ref 따라 — ${esc(n)}">${REF.refs.filter(r=>r.project===n).map(r=>`<option value="${esc(r.id)}">${esc(n)} · ${esc(r.room)}</option>`).join('')}</optgroup>`).join('')}</select>
+     <small>실 W · L 을 바꾸면 그 크기에 맞춰 다시 정함 — Ref 와 실 크기가 80% 이상 · 구성이 60% 이상 비슷하면 그 Ref 의 줄 배치를 따름</small></label></fieldset>
+   <div class="muted">② 제약조건 — 시작값은 Ref ${pj.length}개 PJT 에서 잰 값(중앙값 · 최대값 칸은 위 25%). 바꾸면 그대로 씁니다.</div>
+   <fieldset><legend>실</legend><div class="g">${ACON.slice(0,2).map(aField).join('')}</div></fieldset>
+   <fieldset><legend>판넬 · 캐비닛</legend><div class="g">${ACON.slice(2,10).map(aField).join('')}</div></fieldset>
+   <fieldset><legend>데스크 · 대형 화면 · 프린터</legend><div class="g">${ACON.slice(10).map(aField).join('')}</div></fieldset>
+   <fieldset><legend>판넬 줄 방향</legend><label><select id="ac_mode"><option value="face">두 줄씩 앞면끼리 마주 봄 (Ref: F3 · NT34 · Amiral · QFE · UAD)</option><option value="same">모두 같은 방향 (Ref: Tanajib ER · Metering)</option></select></label></fieldset>
+   <details class="arules"><summary>Ref 에서 찾은 배치 규칙 (${(REF.found||[]).length})</summary><ul>${(REF.found||[]).map(x=>`<li>${esc(x.text)}</li>`).join('')}
+     <li>판넬 앞면끼리 통로 ${rhint('cabFace')} · 앞 ↔ 다음 줄 뒤 ${rhint('cabFR')}</li><li>콘솔 ↔ 대형 화면 ${rhint('deskScreen')} · 마주 보는 데스크 줄 ${rhint('deskFace')}</li><li>콘솔 한 줄 데스크 수 ${rhint('deskRowN:p75')}</li></ul></details>`}
+function aField([k,n,def,rk,hint]){const v=def===null?rmed(rk,k==='deskMax'?9:1000):def;return `<label>${esc(n)}<input type="number" id="ac_${k}" min="0" step="${k==='deskMax'?1:50}" value="${v}"><small>${esc(rk?rhint(rk):hint)}</small></label>`}
+function aConVal(){const c={};ACON.forEach(([k])=>{const v=$('#ac_'+k).value.trim();c[k]=v===''?null:Math.max(0,+v||0)});c.mode=$('#ac_mode').value;c.method=$('#ac_method')?$('#ac_method').value:'auto';return c}
+function autoOpen(){aConForm();aTable();aPreview();$('#aErr').textContent='';$('#autodlg').hidden=false;setTimeout(()=>$('#aIn').focus(),50)}
+$('#bAuto').onclick=autoOpen; $('#aClose').onclick=()=>{$('#autodlg').hidden=true};
+function aTypeMaker(c){   // 자동 배치 Type 만들기 (같은 종류 · 크기 · 계열 = 한 Type)
+  const types=[],T={},col={cab:'#2f6db5',net:'#7a59b0',pwr:'#b8642a',hv:'#2f8a6a',desk:'#4f6a8a',prn:'#6b7280',ls:'#34495e'};
+  const typ=it=>{const key=[it.k,it.k==='cab'?it.fam:'',it.w,it.d,it.h,it.inch].join('|');if(T[key])return T[key];const id=uid();let t;
+    if(it.k==='desk')t={name:`OWS / EWS Desk ${it.w}×${it.d}`,pre:'WS-',kind:'desk',w:it.w,d:it.d,top:Math.min(it.h||750,950),bays:1,mon:it.w>=1000?2:1,monIn:24,tiers:1,front:c.deskOp,rear:0,door:'none',hinge:'L',color:col.desk};
+    else if(it.k==='ls')t={name:`Large Screen ${it.inch}"`,pre:'LS-',kind:'screen',w:0,d:600,cols:1,rows:1,tileIn:it.inch,elev:900,front:1000,rear:0,door:'none',hinge:'L',color:col.ls};
+    else if(it.k==='prn')t={name:`Printer ${it.w}×${it.d}`,pre:'PR-',kind:'cabinet',w:it.w,d:it.d,h:it.h||750,front:800,rear:0,door:'none',hinge:'L',color:col.prn};
+    else t={name:`${{pwr:'Power Dist. Panel',net:'Network / Server Cabinet',hv:'HVAC / Fire Panel',cab:'System Cabinet'}[it.fam]} ${it.w}×${it.d}×${it.h}`,pre:{pwr:'PD-',net:'NW-',hv:'HV-',cab:'SC-'}[it.fam],kind:'cabinet',w:it.w,d:it.d,h:it.h||2200,front:c.cabFront,rear:Math.min(600,c.cabBack/2,c.cabRearWall),door:'front',hinge:it.w>=800?'LR':'L',color:col[it.fam]};
+    let nm=t.name,k=2;while(types.some(x=>x.name===nm))nm=`${t.name} (${k++})`;t.name=nm;t.id=id;fixDoor(t);types.push(t);T[key]=id;return id};
+  return {types,typ}}
+const aFw=it=>it.k==='ls'?Math.round(it.inch*25.4*0.8716+80):it.w;
+const AUX=/\bFA\b|FIRE|CEMS|CCTV|HVAC|\bEDL\b|\bWT\b|WWT|\bPA\b|PAGA|SCANNER|MDAS|FAULT|SUBSTATION|SPARE|SUPERVISOR|SHIFT|MICROPHONE|CLOCK|PRINTER/;   // 보조 계통 데스크 = 뒷줄 (Ref: 주 운전 OWS 가 화면 앞 콘솔)
+const aPri=it=>it.k==='desk'&&AUX.test(it.desc.toUpperCase())?1:0;
+const aSortG=a=>a.slice().sort((p,q)=>aPri(p)-aPri(q)||p.grp.localeCompare(q.grp)||String(p.no).localeCompare(String(q.no),undefined,{numeric:true}));
+function autoRules(items,c){   // 학습 규칙 배치 (Ref 에서 찾은 규칙: 판넬 줄 · 콘솔은 실의 긴 쪽 · 화면은 긴 벽 · 엔지니어링 데스크는 긴 벽 마주 봄 · 프린터는 벽)
+  if(!c._rot&&c.W>0&&c.L>0&&c.L>c.W){   // 적은 실이 세로로 길면: 가로로 놓고 계산한 뒤 90° 돌림 (줄이 긴 쪽을 따라감)
+    const r=autoRules(items,{...c,W:c.L,L:c.W,_rot:true}), T=Object.fromEntries(r.types.map(t=>[t.id,t])), Lr=r.room.l;
+    r.panels.forEach(p=>{const t=T[p.type],w=t.kind==='screen'?fixDoor({...t}).w:t.w,bh=p.rot%180===0?t.d:w;const nx=Lr-(p.y+bh),ny=p.x;p.x=nx;p.y=ny;p.rot=(p.rot+90)%360});
+    r.room={...r.room,w:r.room.l,l:r.room.w};r.grew=r.room.w>c.W||r.room.l>c.L;return r}
+  const P=[], {types,typ}=aTypeMaker(c);
+  const fw=aFw;
+  const put=(it,x,y,rot)=>P.push({id:uid(),type:typ(it),tag:it.no,desc:it.desc,x:Math.round(x),y:Math.round(y),rot,scope:''});
+  const sortG=aSortG;
+  const lines=(arr,max,gap,maxN)=>{   // 줄 나누기: 최대 길이 · 최대 수까지 채운 줄 수를 정한 뒤, 그 수 안에서 줄 길이를 고르게. 다음 그룹이 남은 칸에 안 들어가면 그룹 경계에서 끊음
+    const seq=sortG(arr), glen=seq.map((it,i)=>{let s=0;for(let j=i;j<seq.length&&seq[j].grp===it.grp;j++)s+=fw(seq[j]);return s});
+    const flow=lim=>{const out=[];let cur=[],len=0;
+      seq.forEach((it,i)=>{const ng=cur.length&&cur[cur.length-1].it.grp!==it.grp, add=fw(it)+(ng?gap:0);
+        if(cur.length&&(len+add>lim||(maxN&&cur.length>=maxN)||(!c._loose&&ng&&len>=lim*0.6&&len+gap+glen[i]>lim))){out.push(cur);cur=[];len=0}
+        const g=cur.length&&cur[cur.length-1].it.grp!==it.grp?gap:0;cur.push({it,gap:g});len+=fw(it)+g});
+      if(cur.length)out.push(cur);return out.map(l=>({l,len:l.reduce((s,z)=>s+fw(z.it)+z.gap,0)}))};
+    const G=flow(max), tot=G.reduce((s,r)=>s+r.len,0), big=Math.max(0,...seq.map(fw));
+    for(const f of [1.05,1.12,1.2,1.3]){const B=flow(Math.min(max,Math.max(big,tot/G.length*f)));if(B.length<=G.length&&B.every(r=>r.len<=max+1&&(!maxN||r.l.length<=maxN)))return B}
+    return G};
+  const by=k=>items.filter(it=>it.k===k), cabs=by('cab'), desks=by('desk'), prns=by('prn'), lss=by('ls'), wall=c.wall;
+  const Wgiv=c.W&&c.W>0?c.W:null, rowMax=Wgiv?Math.max(2000,Wgiv-2*wall):(c.rowMax||6000);
+  const gg=c._loose?0:c.grpGap, dl=lines(desks,Wgiv?Math.max(2000,Wgiv-2*wall):1e9,gg,c.deskMax), cl=lines(cabs,rowMax,gg,0);   // 다시 짤 때(_loose)는 그룹 사이도 붙임 (Ref 처럼)
+  const contentW=Math.max(0,...dl.map(r=>r.len),...cl.map(r=>r.len),lss.reduce((s,it)=>s+fw(it),0)+Math.max(0,lss.length-1)*1200,prns.length?Math.min(prns.length,10)*800:0);
+  const W=Math.max(Wgiv||0,Math.ceil((contentW+2*wall)/100)*100), cx=l=>Math.round((W-l)/2);
+  let y=0, deskZone=desks.length>0;
+  if(deskZone){
+    if(lss.length){y=Math.max(300,c.prnWall||0);const tl=lss.reduce((s,it)=>s+fw(it),0)+(lss.length-1)*1200;let x=cx(tl);lss.forEach(it=>{put(it,x,y,180);x+=fw(it)+1200});y+=600+c.deskScreen}
+    else y=wall;
+    if(lss.length){dl.forEach((r,i)=>{let x=cx(r.len);const dm=Math.max(...r.l.map(z=>z.it.d));r.l.forEach(z=>{x+=z.gap;put(z.it,x,y+dm-z.it.d,180);x+=fw(z.it)});y+=dm+(i<dl.length-1?c.deskRow:0)});y+=c.deskOp}
+    else{y=Math.max(300,c.prnWall||0);   // 화면 없음(엔지니어링 룸 꼴): 두 줄씩 마주 봄 — 위 줄 앞면 ↓ · 아래 줄 앞면 ↑, 사이 deskFace
+      dl.forEach((r,i)=>{let x=cx(r.len);const dm=Math.max(...r.l.map(z=>z.it.d)),rot=i%2===0?180:0;r.l.forEach(z=>{x+=z.gap;put(z.it,x,rot===180?y+dm-z.it.d:y,rot);x+=fw(z.it)});
+        y+=dm+(i<dl.length-1?(i%2===0?Math.max(c.deskFace,2*c.deskOp):c.deskRow):0)});
+      y+=dl.length%2===1?c.deskOp:(prns.length?1000:300)}}   // 마지막 줄이 앞면 ↑ 이면 뒤에 오는 프린터의 앞 공간을 비움
+  else if(lss.length){y=300;let x=cx(lss.reduce((s,it)=>s+fw(it),0)+(lss.length-1)*1200);lss.forEach(it=>{put(it,x,y,180);x+=fw(it)+1200});y+=600+1500}
+  if(cabs.length){
+    y=Math.max(y+(deskZone?1000:0),c.cabRearWall);
+    cl.forEach((r,i)=>{const dm=Math.max(...r.l.map(z=>z.it.d));let rot;
+      if(c.mode==='same')rot=0; else rot=i%2===0?180:0;
+      let x=cx(r.len);r.l.forEach(z=>{x+=z.gap;const yy=rot===180?y+dm-z.it.d:y;put(z.it,x,yy,rot);x+=fw(z.it)});
+      y+=dm; if(i<cl.length-1)y+=c.mode==='same'?Math.max(c.cabFront+100,rmed('cabFR',1200)):(i%2===0?Math.max(c.cabFace,c.cabFront):c.cabBack)});
+    const lastRot=c.mode==='same'?0:((cl.length-1)%2===0?180:0); y+=lastRot===180?c.cabFront:c.cabRearWall}
+  if(prns.length){y+= cabs.length?600:200; const pl=lines(prns,Math.max(2000,W-2*Math.max(wall,800)),0,0);
+    pl.forEach((r,i)=>{y+=i?800+800:0;let x=cx(r.len);r.l.forEach(z=>{put(z.it,x,y,0);x+=fw(z.it)});y+=Math.max(...r.l.map(z=>z.it.d))});y+=c.prnWall||100}
+  // 마무리: 실 크기 = 판넬 · 데스크의 필요 영역(유지보수 · 도어 궤적) 바깥 + 벽 이격. 화면 · 프린터는 Ref 처럼 벽에 붙임(벽 이격 대상 아님)
+  const TT=Object.fromEntries(types.map(t=>[t.id,t])), wallIt=p=>{const t=TT[p.type];return t.kind==='screen'||(t.kind!=='desk'&&t.door==='none'&&(+t.h||0)<=1300)};
+  const ex=P.filter(p=>!wallIt(p)).map(p=>extOf(geom(p,TT[p.type]))), Lgiv=c.L&&c.L>0?c.L:null;
+  let Wf=W,L=Lgiv||0;
+  if(ex.length){const x0=Math.min(...ex.map(e=>e.x)),x1=Math.max(...ex.map(e=>e.x+e.w)),y0=Math.min(...ex.map(e=>e.y));
+    Wf=Math.max(Wgiv||0,W,Math.ceil((x1-x0+2*wall)/100)*100); const dx=Math.round((Wf-(x1-x0))/2-x0), dy=lss.length?Math.max(0,wall-y0):wall-y0;
+    P.forEach(p=>{p.x+=dx;p.y+=dy});
+    const y1=Math.max(...P.filter(p=>!wallIt(p)).map(p=>{const e=extOf(geom(p,TT[p.type]));return e.y+e.h}));
+    const pb=Math.max(0,...P.filter(p=>wallIt(p)&&TT[p.type].kind!=='screen').map(p=>{const g=geom(p,TT[p.type]);return g.body.y+g.body.h+(c.prnWall||100)}));
+    L=Math.max(L,Math.ceil(Math.max(y1+wall,pb)/100)*100);
+    P.filter(p=>wallIt(p)&&TT[p.type].kind!=='screen'&&p.rot===0).forEach(p=>{const t=TT[p.type],ny=L-(c.prnWall||100)-t.d;if(ny>p.y)p.y=ny})}   // 프린터는 아래 벽으로
+  else L=Math.max(L,Math.ceil(y/100)*100);
+  const W2=Wf;
+  if(!c._loose&&Lgiv&&L>Lgiv){const r2=autoRules(items,{...c,_loose:true});if(r2.room.l<L)return r2}   // 적은 실 L 에 안 들어가면: 계열을 줄 경계에 안 맞추고 폭까지 채워 줄 수를 줄여 봄
+  return {room:{w:W2,l:L,spX:'',spY:'',col:600,margin:wall,spare:0,spareDir:'x',gapP:c.gapP,gapD:0,touchOK:true,autoFit:true},types,panels:P,grew:(Wgiv&&W2>Wgiv)||(Lgiv&&L>Lgiv)}}
+/* ---------- Ref 를 따라 배치 (실 크기 · 구성이 비슷한 Ref 가 있으면) ----------
+   Ref 배치의 '줄'(같은 종류 · 같은 방향 · 같은 앞줄) 을 그대로 옮겨 사용자 장비로 채움:
+   줄 순서 = 콘솔은 화면에 가까운 줄부터, 나머지는 위 → 아래 · 왼쪽 → 오른쪽 / 줄 자리 = 실 크기 비율로 늘이거나(scale) 통로를 그대로 두고 가운데로(keep) /
+   벽에 붙은 줄은 그 벽 거리 그대로. 간섭 · 실 밖이 하나라도 있으면 쓰지 않고 학습 규칙 배치로 */
+const aKindT=t=>t.kind==='screen'?'ls':t.kind==='desk'?'desk':t.door==='none'&&(+t.h||0)<=1300?'prn':'cab';
+const aTW=t=>t.kind==='screen'?fixDoor({...t}).w:+t.w;
+function refRotData(d){   // Ref 배치를 90° 돌림 (가로 ↔ 세로)
+  const T=Object.fromEntries(d.types.map(t=>[t.id,t])), Lr=d.room.l;
+  return {...d,room:{...d.room,w:d.room.l,l:d.room.w},panels:d.panels.map(p=>{const t=T[p.type],bh=p.rot%180===0?t.d:aTW(t);return {...p,x:Lr-(p.y+bh),y:p.x,rot:(p.rot+90)%360}})}}
+function refLinesOf(d){
+  const T=Object.fromEntries(d.types.map(t=>[t.id,t])), L={};
+  d.panels.forEach(p=>{const t=T[p.type],g=geom(p,fixDoor({...t})),b=g.body,hz=p.rot%180===0,k=aKindT(t);
+    const f=p.rot===0?b.y:p.rot===180?b.y+b.h:p.rot===90?b.x+b.w:b.x, key=[k,p.rot,Math.round(f/100)].join('|');
+    b.sz=aTW(t)+'x'+t.d;(L[key]=L[key]||{k,rot:p.rot,hz,f,bs:[]}).bs.push(b)});
+  const runs=[];Object.values(L).forEach(l=>{const A=b=>l.hz?b.x:b.y,E=b=>l.hz?b.x+b.w:b.y+b.h;l.bs.sort((a,b)=>A(a)-A(b));let cur=null;   // 사이가 띄워진 곳(> 150) 에서 줄을 나눔 (화면 · RDLI · 화면 처럼)
+    l.bs.forEach(b=>{if(!cur||A(b)-E(cur.bs[cur.bs.length-1])>150){cur={...l,bs:[]};runs.push(cur)}cur.bs.push(b)})});
+  return runs.map(l=>{const a0=Math.min(...l.bs.map(b=>l.hz?b.x:b.y)),a1=Math.max(...l.bs.map(b=>l.hz?b.x+b.w:b.y+b.h)),c0=Math.min(...l.bs.map(b=>l.hz?b.y:b.x)),c1=Math.max(...l.bs.map(b=>l.hz?b.y+b.h:b.x+b.w));
+    return {k:l.k,rot:l.rot,hz:l.hz,f:l.f,a0,a1,len:a1-a0,c0,c1,n:l.bs.length,sz:l.bs.map(b=>b.sz)}})}
+const aCount=arr=>{const n={cab:0,desk:0,prn:0,ls:0};arr.forEach(k=>n[k]++);return n};
+function refScore(items,c,d){   // 구성(종류별 수) · 실 크기가 얼마나 비슷한지 0~1
+  const T=Object.fromEntries(d.types.map(t=>[t.id,t])), a=aCount(items.map(it=>it.k)), b=aCount(d.panels.map(p=>aKindT(T[p.type])));
+  const ks=Object.keys(a), den=ks.reduce((s,k)=>s+Math.max(a[k],b[k]),0), s2=den?1-ks.reduce((s,k)=>s+Math.abs(a[k]-b[k]),0)/den:0;
+  const s1=c.W>0&&c.L>0?Math.max(0,1-(Math.abs(c.W-d.room.w)/d.room.w+Math.abs(c.L-d.room.l)/d.room.l)/2):null;
+  return {s1,s2}}
+function refCands(items,c){   // 같은 종류(CCR · ER · 엔지니어링)의 Ref × 방향 2가지, 점수 높은 순
+  const kd=aRoomKind(items),out=[];REF.refs.filter(r=>!r.kind||r.kind===kd).forEach(r=>[0,1].forEach(o=>{const d=o?refRotData(r.data):r.data,sc=refScore(items,c,d);out.push({r,o,d,...sc,score:sc.s1===null?sc.s2:(sc.s1+sc.s2)/2})}));
+  return out.sort((a,b)=>b.score-a.score)}
+let aWhy='';
+function refTransfer(items,c,m){
+  const d=m.d, W=c.W>0?c.W:d.room.w, L=c.L>0?c.L:d.room.l, sx=W/d.room.w, sy=L/d.room.l, lines=refLinesOf(d), q={cab:aSortG(items.filter(i=>i.k==='cab')),desk:aSortG(items.filter(i=>i.k==='desk')),prn:items.filter(i=>i.k==='prn'),ls:items.filter(i=>i.k==='ls')};
+  const ctr=l=>[(l.hz?(l.a0+l.a1)/2:(l.c0+l.c1)/2),(l.hz?(l.c0+l.c1)/2:(l.a0+l.a1)/2)], scr=lines.filter(l=>l.k==='ls').map(ctr);
+  const ord=l=>{const [x,y]=ctr(l);return l.k==='desk'&&scr.length?Math.min(...scr.map(([a,b])=>Math.hypot(a-x,b-y))):y*1e5+x};
+  const plan={};
+  for(const k of ['ls','desk','cab','prn']){const ls=lines.filter(l=>l.k===k).sort((a,b)=>ord(a)-ord(b)),need=q[k].reduce((s,it)=>s+aFw(it),0);
+    if(!q[k].length){plan[k]=[];continue} if(!ls.length){aWhy+=(aWhy?' / ':'')+`Ref 에 ${k} 줄 없음`;return null}
+    const cap=ls.reduce((s,l)=>s+l.len*(l.hz?sx:sy),0);let ok=null;
+    for(let f=Math.max(1,need/cap);f<=1.35;f+=0.05){const rest=q[k].slice(),fill=ls.map(l=>{const lim=l.len*(l.hz?sx:sy)*f*1.04+1,its=[],want=l.sz.slice();let acc=0;
+        for(let i=0;i<rest.length&&want.length;){const z=aFw(rest[i])+'x'+(rest[i].k==='ls'?600:rest[i].d),wi=want.indexOf(z);   // 먼저 Ref 그 줄에 있던 크기와 같은 것
+          if(wi>=0&&(!its.length||acc+aFw(rest[i])<=lim)){want.splice(wi,1);acc+=aFw(rest[i]);its.push(...rest.splice(i,1))}else i++}
+        return {l,its,acc,lim}});
+      fill.forEach(z=>{while(rest.length&&(!z.its.length||z.acc+aFw(rest[0])<=z.lim)){z.acc+=aFw(rest[0]);z.its.push(rest.shift())}});   // 남은 것은 순서대로 빈 자리에
+      fill.forEach(z=>{z.its=aSortG(z.its);z.len=z.acc});
+      if(!rest.length){ok=fill;break}}
+    if(!ok){aWhy+=(aWhy?' / ':'')+`${k} 줄 자리 모자람 (필요 ${Math.round(need)} / 줄 ${Math.round(cap)})`;return null} plan[k]=ok.filter(z=>z.its.length)}
+  const near=(v,max)=>v<=700?'lo':max-v<=700?'hi':'';
+  for(const v of ['scale','keep']){
+    const {types,typ}=aTypeMaker(c), P=[];
+    Object.values(plan).flat().forEach(({l,its,len})=>{
+      const AX=l.hz?W:L, AR=l.hz?d.room.w:d.room.l, CX=l.hz?L:W, CR=l.hz?d.room.l:d.room.w, sa=l.hz?sx:sy, sc=l.hz?sy:sx;
+      let a=near(l.a0,AR)==='lo'?l.a0:near(l.a1,AR)==='hi'?AX-(AR-l.a1)-len:(v==='scale'?((l.a0+l.a1)/2)*sa:(l.a0+l.a1)/2+(AX-AR)/2)-len/2;
+      a=Math.max(100,Math.min(AX-100-len,a));
+      const wl=near(l.c0,CR), wh=near(l.c1,CR), df=wl==='lo'?0:wh==='hi'?CX-CR:(v==='scale'?l.f*(sc-1):(CX-CR)/2), f=l.f+df;
+      const li=P.length?P[P.length-1]._li+1:0;
+      its.forEach(it=>{const dd=it.k==='ls'?600:it.d,x=l.hz?a:(l.rot===90?f-dd:f),y=l.hz?(l.rot===0?f:f-dd):a;P.push({id:uid(),type:typ(it),tag:it.no,desc:it.desc,x:Math.round(x),y:Math.round(y),rot:l.rot,scope:'',_li:li,_hz:l.hz});a+=aFw(it)})});
+    const TT=Object.fromEntries(types.map(t=>[t.id,t]));
+    // 고치기: 두 줄이 규칙을 어기면 작은 줄을 줄 사이 방향으로 100 mm 씩 밀어 냄 (실 안에서만)
+    const viol=()=>{const G=P.map(p=>({p,g:geom(p,TT[p.type])}));for(let i=0;i<G.length;i++)for(let j=i+1;j<G.length;j++){if(rectDist(extOf(G[i].g),extOf(G[j].g))>Math.max(+c.gapP||0,maxTypeGap())+1)continue;const e=pairRule(G[i].p,G[i].g,G[j].p,G[j].g,+c.gapP||0,0);if(e)return {a:G[i],b:G[j],e}}return null};
+    const inRoom=()=>P.every(p=>{const b=geom(p,TT[p.type]).body;return b.x>=-1&&b.y>=-1&&b.x+b.w<=W+1&&b.y+b.h<=L+1});
+    for(let n=0;n<80;n++){const V=viol();if(!V)break;const la=V.a.p._li,lb=V.b.p._li;if(la===lb)break;
+      const na=P.filter(p=>p._li===la).length,nb=P.filter(p=>p._li===lb).length,mv=nb<=na?lb:la,st=mv===lb?V.b:V.a,ot=mv===lb?V.a:V.b,hz=st.p._hz;
+      const sg=hz?Math.sign((st.g.body.y+st.g.body.h/2)-(ot.g.body.y+ot.g.body.h/2))||1:Math.sign((st.g.body.x+st.g.body.w/2)-(ot.g.body.x+ot.g.body.w/2))||1;
+      P.filter(p=>p._li===mv).forEach(p=>{if(hz)p.y+=100*sg;else p.x+=100*sg});if(!inRoom())break}
+    const G=P.map(p=>({p,g:geom(p,TT[p.type])}));
+    {const o=G.find(({g})=>g.body.x<-1||g.body.y<-1||g.body.x+g.body.w>W+1||g.body.y+g.body.h>L+1);if(o){aWhy+=(aWhy?' / ':'')+`${v}: ${o.p.tag} 실 밖 (${Math.round(o.g.body.x)},${Math.round(o.g.body.y)} ${Math.round(o.g.body.w)}×${Math.round(o.g.body.h)} · 실 ${W}×${L})`;continue}}
+    let bad=false;for(let i=0;i<G.length&&!bad;i++)for(let j=i+1;j<G.length;j++){const e=pairRule(G[i].p,G[i].g,G[j].p,G[j].g,+c.gapP||0,0);if(e){aWhy+=(aWhy?' / ':'')+`${v}: ${e.msg}`;bad=true;break}}
+    if(bad)continue;
+    P.forEach(p=>{delete p._li;delete p._hz});
+    return {room:{w:W,l:L,spX:'',spY:'',col:600,margin:c.wall,spare:0,spareDir:'x',gapP:c.gapP,gapD:0,touchOK:true,autoFit:true},types,panels:P,grew:false,via:{ref:m.r,o:m.o,s1:m.s1,s2:m.s2,v}}}
+  return null}
+const aRoomKind=items=>items.some(i=>i.k==='ls')?'ccr':items.filter(i=>i.k==='desk').length>items.filter(i=>i.k==='cab').length?'eng':'er';
+function autoLayout(items,c){
+  // ① Ref 따라: 배치 방식이 Ref 지정이면 그 Ref, '자동' 이면 실 크기 80% · 구성 60% 이상 비슷한 Ref 중 가장 비슷한 것
+  aWhy='';
+  if(c.method&&c.method!=='rules'){
+    const cs=refCands(items,c).filter(m=>c.method==='auto'?m.s1!==null&&m.s1>=0.8&&m.s2>=0.6:m.r.id===c.method);
+    for(const m of cs.slice(0,c.method==='auto'?4:2)){const r=refTransfer(items,c,m);if(r)return r}
+    if(c.method!=='auto'){const r=autoRules(items,c);r.via={rules:true,why:'지정한 Ref 줄에 다 안 들어가거나 간섭 → 학습 규칙'};return r}}
+  // ② 학습 규칙. 실 크기를 안 적었으면 판넬 한 줄 길이를 바꿔 가며 실 비율이 그 룸 종류의 Ref 중앙값(긴 쪽/짧은 쪽)에 가까운 것
+  if(!(c.W>0)&&!(c.L>0)&&!c._nosearch){const kd=aRoomKind(items), tg=((REF.found||[]).find(x=>x.id===kd+'.aspect')||{}).v||1.6;let best=null;
+    for(let rm=3000;rm<=20000;rm+=500){const r=autoRules(items,{...c,rowMax:Math.min(rm,c.rowMax||rm),deskMax:c.deskMax}),A=r.room.w*r.room.l/1e6,ar=Math.max(r.room.w,r.room.l)/Math.min(r.room.w,r.room.l),sc=A*(1+0.6*Math.abs(ar-tg));
+      if(!best||sc<best.sc)best={r,sc,ar};if(rm>=(c.rowMax||9500))break}
+    best.r.via={rules:true,kind:kd,aspect:best.ar,target:tg};return best.r}
+  const r=autoRules(items,c);r.via={rules:true,kind:aRoomKind(items)};return r}
+window.crspaceAuto={why:()=>aWhy,parse:aParse,layout:(t,c)=>autoLayout(aParse(t).filter(it=>it.k!=='skip'),{...aConVal(),...c})};   // 시험 · 콘솔용
+function aViaTxt(r){const v=r.via||{},pc=x=>Math.round(x*100)+'%';
+  if(v.ref)return `<b>Ref ${esc(v.ref.project)} · ${esc(v.ref.room)} 처럼</b>${v.o?' (90° 돌려서)':''} — 실 크기 ${v.s1===null?'(안 적음)':pc(v.s1)} · 구성 ${pc(v.s2)} 비슷, 줄 자리 ${v.v==='scale'?'실 비율대로':'통로 그대로'}`;
+  return `<b>학습 규칙</b> (${{ccr:'CCR',eng:'엔지니어링 룸',er:'ER'}[v.kind]||''}${v.target?` · 실 비율 ${v.aspect.toFixed(2)} ≈ Ref 중앙 ${v.target}`:''})${v.why?' — '+esc(v.why):' — 비슷한 Ref 없음(실 크기 80% · 구성 60% 미만)'}`}
+const aUse=()=>AITEMS.filter(it=>it.k!=='skip'&&(it.k==='ls'||it.w>0&&it.d>0));
+let aPvT=0;function aPreview(){clearTimeout(aPvT);aPvT=setTimeout(()=>{const use=aUse(),sv=$('#aPv');if(!sv)return;if(!use.length){sv.innerHTML='';$('#aPvTxt').textContent='① 에 List 를 넣으면 미리보기가 나옵니다.';return}
+  const r=autoLayout(use,aConVal());refThumb({room:r.room,types:r.types,panels:r.panels},'#aPv');$('#aPvTxt').innerHTML=`미리보기: 실 ${fmt(r.room.w)} × ${fmt(r.room.l)} · ${use.length} EA — ${aViaTxt(r)}`},200)}
+$('#aCon').addEventListener('input',aPreview);$('#aCon').addEventListener('change',aPreview);$('#aIn').addEventListener('input',aPreview);$('#aTbl').addEventListener('change',aPreview);
+function autoApply(use,c,pre){
+  const r=autoLayout(use,c), keep={info:{...S.info},srv:S.srv,revs:S.revs,notes:[],cols:null,erg:S.erg};
+  S=norm({room:r.room,snap:S.snap||100,types:r.types,panels:r.panels,...keep}); S.autoFrom={at:today(),n:use.length,c,items:use};
+  sel.clear();selNote=null;selCol=null;commit();buildRoom();buildTypes();fit();return r}
+$('#bReAuto').onclick=()=>{const a=S.autoFrom;if(!a||!a.items)return;const r=autoApply(a.items,{...a.c,W:S.room.w,L:S.room.l});toast(`실 ${fmt(S.room.w)} × ${fmt(S.room.l)} 로 다시 자동 배치 — ${aViaTxt(r).replace(/<[^>]+>/g,'')}`)};
+$('#aGo').onclick=()=>{
+  const use=aUse(); if(!use.length){$('#aErr').textContent='배치할 물건이 없습니다 — ① 에 Equipment List 를 붙여 넣으세요.';return}
+  const r=autoApply(use,aConVal()); $('#autodlg').hidden=true;
+  const sk=AITEMS.filter(it=>it.k==='skip').map(it=>it.no);
+  toast(`자동 배치 ${use.length} EA — ${aViaTxt(r).replace(/<[^>]+>/g,'')} · 실 ${fmt(S.room.w)} × ${fmt(S.room.l)}${r.grew?' (적은 실보다 커서 넓힘)':''}${sk.length?` · 뺀 것 ${sk.length} (${sk.slice(0,6).join(', ')}${sk.length>6?' …':''})`:''}. 판넬을 눌러 고치세요.`)};
 
 /* ---------- 2D · 3D 동기화 ----------
    같은 화면(2D | 3D 나란히): 같은 자료 S 를 그리므로 2D 를 그릴 때 3D 도 다시 그림 (v3sync — 판넬 자리 · 선택 · 기둥이 바뀐 때만).
@@ -2583,6 +3180,54 @@ function v3sync(){   // render() 마다: 선택을 다른 창에 · 나란히 3D
   if(sg!==V3.sig){V3.sig=sg;v3req()}}
 $('#v3gl').addEventListener('pointerdown',()=>{V3.kf=true},true); svg.addEventListener('pointerdown',()=>{V3.kf=false},true);
 
+/* ---------- 안전공학 · 인간공학: 운전원 시야 ----------
+   근거(공개 자료에서 확인한 값): ISO 11064-4:2013 — 정상 시선(normal line of sight)은 수평으로 정면, 수직으로 수평 아래 약 15°(앉은 자세),
+   대형 화면 등 워크스테이션 밖 표시는 모든 운전 위치에서 '다' 보여야 함 / MIL-STD-1472G — 중요 표시는 정상 시선 15° 안 /
+   제어실 설계 문헌 — 주 정보는 30° 원뿔(±15°) 안, 눈만 돌려 약 ±30°(문헌 30~35°), 머리를 돌리면 약 ±45~60° /
+   인체 치수 — 앉은 눈높이(남 5~95%) 바닥에서 약 1,176~1,336 mm → 의자 450 기준 1,240, 선 눈높이 = 키 175 cm 에서 약 1,640 mm.
+   여기 값은 초기 검토용 — 설계 확정은 해당 표준 본문 · 프로젝트 인간공학 기준으로 */
+var ERG={standEye:1640,sitEye:1240,nlos:15,R:9000,off:45,
+  zones:[[15,'최적','#2ecc71',.18],[30,'눈만 돌려','#f5b400',.11],[60,'머리 돌려','#9aa6b2',.06]]};
+/* 시야 기준 값은 배치안 S.erg 에 (없으면 기본값) — [👁 시야 기준] 창에서 고침. pdfErg = 인간공학 기준 PDF 같이 출력(기본 켬), pdfFans = 필요 사이즈 도면에 부채꼴(기본 끔) */
+var ERG_DEF={sitEye:1240,standEye:1640,nlos:15,z1:15,z2:30,z3:60,off:45,R:9000};
+function ergApply(){const e=S.erg||{},v=k=>Number.isFinite(+e[k])&&e[k]!==''&&e[k]!=null?+e[k]:ERG_DEF[k];
+  ERG.sitEye=v('sitEye');ERG.standEye=v('standEye');ERG.nlos=v('nlos');ERG.off=v('off');ERG.R=v('R');ERG.zones[0][0]=v('z1');ERG.zones[1][0]=v('z2');ERG.zones[2][0]=v('z3')}
+const ergChanged=k=>(k[0]==='z'?ERG.zones[+k[1]-1][0]:ERG[k])!==ERG_DEF[k];   // 지금 값이 기본값과 다른가
+function operators(only){   // 데스크마다 앉은 운전원: 운전원 자리 가운데 · 작업면 앞 450 · 데스크(모니터) 쪽을 봄
+  ergApply();
+  const out=[];S.panels.forEach(p=>{const t=typeOf(p);if(t.kind!=='desk'||(only&&!only.has(p.id)))return;const g=geom(p),f=g.fe,n=FRONT_N[g.r],L=Math.hypot(f[2]-f[0],f[3]-f[1]),u=[(f[2]-f[0])/L,(f[3]-f[1])/L],nb=Math.max(1,+t.bays||1);
+    for(let i=0;i<nb;i++){const a=(i+.5)*L/nb;out.push({x:f[0]+u[0]*a+n[0]*450,z:f[1]+u[1]*a+n[1]*450,f:[-n[0],-n[1]],eye:ERG.sitEye,kind:'sit',tag:p.tag+(nb>1?'-'+(i+1):''),pid:p.id})}});return out}
+function screensGeom(){return S.panels.filter(p=>typeOf(p).kind==='screen').map(p=>{const g=geom(p),t=fixDoor({...typeOf(p)}),f=g.fe,[,th]=monRaw(t.tileIn),Hv=t.rows*th,el=+t.elev||900;
+  return {p,c:[(f[0]+f[2])/2,(f[1]+f[3])/2],n:FRONT_N[g.r],w:Math.hypot(f[2]-f[0],f[3]-f[1]),bot:el,top:el+Hv,mid:el+Hv/2}})}
+var zoneOf=a=>{a=Math.abs(a);const z=ERG.zones;return a<=z[0][0]?0:a<=z[1][0]?1:a<=z[2][0]?2:3};
+function viewCheck(v){   // 운전원 v 가 대형 화면을 어떻게 보나: 수평 각(정면 기준) · 거리 · 수직 각(눈 → 화면 가운데 · 위 · 아래) · 화면을 비스듬히 보는 각
+  return screensGeom().map(s=>{const dx=s.c[0]-v.x,dz=s.c[1]-v.z,d=Math.hypot(dx,dz)||1,ah=Math.atan2(v.f[0]*dz-v.f[1]*dx,v.f[0]*dx+v.f[1]*dz)*180/Math.PI;
+    const deg=h=>Math.atan((h-v.eye)/d)*180/Math.PI, off=Math.acos(Math.max(-1,Math.min(1,-(s.n[0]*dx+s.n[1]*dz)/d)))*180/Math.PI;
+    return {s,ah,z:zoneOf(ah),d,vm:deg(s.mid),vt:deg(s.top),vb:deg(s.bot),off,back:off>90}})}
+function viewers2D(){   // 2D 에 그릴 사람: 고른 데스크(없으면 모든 데스크)의 앉은 운전원 + 3D 의 선 사람(3D 를 열어 둔 때)
+  const ds=S.panels.filter(p=>sel.has(p.id)&&typeOf(p).kind==='desk'), V=operators(ds.length?new Set(ds.map(p=>p.id)):null), c=cam3d();
+  if(c&&c.man)V.push({x:c.man.x,z:c.man.z,f:[Math.sin(c.man.rot),Math.cos(c.man.rot)],eye:ERG.standEye,kind:'stand',tag:'선 사람'});
+  return {V,detail:ds.length>0||V.length<=2}}
+function viewSvg(s){
+  const {V,detail}=viewers2D(); if(!V.length)return ''; const R=ERG.R, fs=10*ANN/s, k=detail?1:.55, paper=getComputedStyle(document.documentElement).getPropertyValue('--paper').trim()||'#fff'; let o='';
+  const dir=(f,a)=>{const r=a*Math.PI/180,c=Math.cos(r),sn=Math.sin(r);return [f[0]*c-f[1]*sn,f[0]*sn+f[1]*c]};
+  V.forEach(v=>{[...ERG.zones].reverse().forEach(([a,,col,al])=>{if(!detail&&a>30)return;const p1=dir(v.f,-a),p2=dir(v.f,a);
+      o+=`<path d="M${v.x} ${v.z} L${v.x+p1[0]*R} ${v.z+p1[1]*R} A${R} ${R} 0 0 1 ${v.x+p2[0]*R} ${v.z+p2[1]*R} Z" fill="${col}" fill-opacity="${al*k}" stroke="${col}" stroke-opacity="${.5*k}" stroke-width="1" vector-effect="non-scaling-stroke"/>`});
+    o+=`<line x1="${v.x}" y1="${v.z}" x2="${v.x+v.f[0]*R}" y2="${v.z+v.f[1]*R}" stroke="#2ecc71" stroke-width="1.2" stroke-dasharray="8 5" vector-effect="non-scaling-stroke" opacity="${k}"/>`;
+    const st=v.kind==='stand', mc=st?'#e8792b':'#2d8cff';
+    o+=`<circle cx="${v.x}" cy="${v.z}" r="${st?200:230}" fill="${mc}" fill-opacity=".85" stroke="#fff" stroke-width="1.2" vector-effect="non-scaling-stroke"/><line x1="${v.x}" y1="${v.z}" x2="${v.x+v.f[0]*300}" y2="${v.z+v.f[1]*300}" stroke="#fff" stroke-width="2" vector-effect="non-scaling-stroke"/>`;
+    if(detail){o+=`<text x="${v.x}" y="${v.z-300}" font-size="${fs}" text-anchor="middle" fill="${mc}" font-weight="700" paint-order="stroke" stroke="${paper}" stroke-width="${3/s}">${st?'선 175 cm · 눈 '+fmt(ERG.standEye):'앉음 · 눈 '+fmt(ERG.sitEye)}</text>`;
+      viewCheck(v).forEach(r=>{const col=r.back?'#ff3b6b':ERG.zones[r.z]?ERG.zones[r.z][2]:'#ff3b6b',mx=v.x+(r.s.c[0]-v.x)*.62,mz=v.z+(r.s.c[1]-v.z)*.62;
+        o+=`<line x1="${v.x}" y1="${v.z}" x2="${r.s.c[0]}" y2="${r.s.c[1]}" stroke="${col}" stroke-width="1.5" vector-effect="non-scaling-stroke"/>`;
+        o+=`<text x="${mx}" y="${mz}" font-size="${fs}" text-anchor="middle" fill="${col}" font-weight="700" paint-order="stroke" stroke="${paper}" stroke-width="${3/s}">${r.s.p.tag} ${Math.round(Math.abs(r.ah))}° ${r.back?'화면 뒤':ERG.zones[r.z]?ERG.zones[r.z][1]:'시야 밖'}</text>`})}});
+  return o}
+function viewHtml(p){   // 데스크 하나 고르면: 그 데스크 운전원들이 대형 화면을 보는 각 · 거리 (표)
+  const ops=operators(new Set([p.id])), sc=screensGeom(); if(!sc.length)return `<div class="sec"><b>👁 시야 검토</b> <span class="muted">— 대형 화면이 없습니다</span></div>`;
+  const zc=['ok','warn','warn','err'];
+  return `<div class="sec"><b>👁 시야 검토</b> <span class="muted">(앉은 운전원 눈높이 ${fmt(ERG.sitEye)} · 정상 시선 수평 아래 ${ERG.nlos}° · ISO 11064-4)</span>
+    <table class="vt"><tr><th>운전원</th><th>화면</th><th>수평</th><th>거리</th><th>수직(가운데 · 위 · 아래)</th><th></th></tr>${ops.map(v=>viewCheck(v).map(r=>`<tr class="${r.back?'err':zc[r.z]}"><td>${esc(v.tag)}</td><td>${esc(r.s.p.tag)}</td><td>${Math.round(Math.abs(r.ah))}°</td><td>${fmt(Math.round(r.d/10)*10)}</td><td>${Math.round(r.vm)}° · ${Math.round(r.vt)}° · ${Math.round(r.vb)}°</td><td>${r.back?'화면 뒤':(ERG.zones[r.z]||[0,'시야 밖'])[1]}${!r.back&&r.off>ERG.off?' · 비스듬히 '+Math.round(r.off)+'°':''}</td></tr>`).join('')).join('')}</table>
+    <p class="muted" style="margin:4px 0 0">최적 = 정면 ±${ERG.zones[0][0]}° · 눈만 돌려 ±${ERG.zones[1][0]}° · 머리 돌려 ±${ERG.zones[2][0]}°. 수직 각은 눈에서 위(+) · 아래(−).</p></div>`}
+
 /* 3D 관찰자 시점을 2D 에: 카메라 자리 · 보는 방향 · 가로 시야(점선 부채꼴) · 보는 점 · 카메라 높이, 사람(자리 · 방향).
    같은 화면(나란히)은 3D 를 그릴 때마다, 3D 새 창은 BroadcastChannel {t:'cam'} 으로 받음 */
 var CAM3D=null;
@@ -2610,7 +3255,7 @@ function v3camPub(){   // 3D 를 그린 뒤: 시점이 바뀌었으면 2D 에 �
 if(ONLY3D)window.addEventListener('pagehide',()=>bcOut({t:'cam',c:null,from:WID,n:++bcN}));
 
 /* ---------- boot ---------- */
-buildRoom(); buildTypes(); check(); buildSummary(); buildRevs(); buildNotes(); buildEq(); updSrv(); buildProps();
+ergViewLoad(); buildRoom(); buildTypes(); check(); buildSummary(); buildRevs(); buildNotes(); buildEq(); updSrv(); buildProps();
 new ResizeObserver(()=>{if(!fit._d){fit._d=1;fit()}else render()}).observe(svg);
 $('#bUndo').disabled=true;$('#bRedo').disabled=true;
 if(ONLY3D){document.body.classList.add('only3d');document.title='3D — ROOM SIZE 계산';showEditor();open3d()}   // 3D 새 창: 첫 화면 없이 바로 3D

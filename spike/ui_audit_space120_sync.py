@@ -22,7 +22,9 @@ try:
         f.click("#hmNewBtn"); f.fill("#hmNewName","SYNC"); f.click("#hmCreate"); pg.wait_for_timeout(700)
         f.click("#hmRoomNew"); f.fill("#hmRoomName","R1"); f.click("#hmRoomCreate"); pg.wait_for_timeout(700)
         f.click("#hmRevNew"); f.fill("#hmRevName","A"); f.click("#hmRevCreate"); pg.wait_for_timeout(700)
+        f.click('#hmStart li[data-st="sample"]'); pg.wait_for_timeout(200)   # hotfix121 — 새 룸 기본은 Option A(빈 실) · 예시 배치로 시작
         f.click("#hmGo"); pg.wait_for_timeout(1500)
+        if f.is_visible("#autodlg"): f.click("#aClose"); pg.wait_for_timeout(300)   # hotfix121 — 새 룸은 Option A 창부터
         P="window.crspaceSpeed().panels"
         n=f.evaluate(P); res.append(("2D 판넬 수",n))
         with ctx.expect_page() as pi: f.click("#b3dWin")

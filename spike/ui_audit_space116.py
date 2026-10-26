@@ -51,6 +51,8 @@ def main():
             res.append(("Rev 선택 = A", pg.eval_on_selector("#hmRevSel", "s=>s.value")))
             res.append(("배치 시작 가능", not pg.is_disabled("#hmGo")))
             pg.click("#hmGo"); pg.wait_for_timeout(1200)
+            if pg.is_visible("#autodlg"):            # hotfix121 — 새 룸은 Option A(자동 배치) 창부터 연다
+                res.append(("새 룸 → Option A 창", True)); pg.click("#aClose"); pg.wait_for_timeout(300)
             pg.screenshot(path=str(OUT / "3_editor.png"))
             pg.click("#bSrvOpen2"); pg.wait_for_timeout(800)
             pg.fill("#hMemo", "첫 배치"); pg.click("#hSave"); pg.wait_for_timeout(1000)
