@@ -1176,3 +1176,10 @@ C:\Users\SAMSUNG\Desktop\Claude\                         ← 개발 폴더 (여�
 - 바뀐 곳: `ergPdf` · `ergExport` · `ergRows` · `pgWrap` · `dlBlob` 새로, `needExport`(같이 내려받기), `drawingImage(w,h,opt)`(`opt.view` 면 시야 부채꼴 넣음), `pdfBytes(…,title)` · `pgFrame(…,title)`(제목 인자, 기본값 그대로).
 - 확인한 것: Chromium — F3 CCR Ref: [필요 사이즈] → PDF 2개(필요 사이즈 2쪽 · 인간공학 3쪽, Title 'Human Factors Criteria'), [👁 인간공학 기준 PDF] 단독, 결과 32건(최적 3 · 눈만 5 · 머리 14 · 시야 밖 10), 화면 없는 실 = '검토할 것 없음'. need · space · home · erg · rules · p2d 통과, 스크립트 오류 0.
 - 회사에서 확인할 것: Edge 에서 두 파일이 다 받아지는지(처음엔 '여러 파일 다운로드 허용' 을 물을 수 있음).
+
+### 2026-10-26 (42) — 판넬 공간확보: 시야 기준 창 — 켜고 끄기 · PDF 반영 여부 · 기준 값 고치기 (apps/space/index.html 만)
+> 서버 재시작 · 대시보드 교체 필요 없음. 배치안 JSON 에 `erg`(없으면 기본값) — `{pdfErg, pdfFans, sitEye?, standEye?, nlos?, z1?, z2?, z3?, off?, R?}` (기본값과 다른 값만).
+- 무엇을 ① [👁 시야 기준] 창(`ergOpen` · `#ergdlg`, 2D 도구줄 `#bErgSet` · 3D 도구줄 `#v3ErgSet`): 2D 도면 시야 · 3D 시야 · 3D 앉은 사람 켜고 끄기 — 도구줄 체크와 같은 값, 이 PC 에 기억(`crspace.view`, `ergViewSave/Load`).
+- 무엇을 ② PDF 반영: '인간공학 기준 PDF 를 따로 같이 출력'(기본 켬, 끄면 [필요 사이즈] 는 한 파일만), '필요 사이즈 도면(1쪽)에 시야 부채꼴'(기본 끔, `needPdf` → `drawingImage(…,{view})`). [👁 인간공학 기준 PDF] 버튼은 언제나 됨.
+- 무엇을 ③ 기준 값 고치기: 앉은 · 선 눈 높이, 정상 시선 각, 최적 · 눈만 · 머리 각(커지는 순서 검사), 화면 비스듬히 경고 각, 부채꼴 반경 + [기준 값 기본으로]. `ERG_DEF` · `ergApply()`(`operators()` 처음에 불러 S.erg → ERG), `zoneOf` · 표 · 라벨 · PDF 문구가 값을 따라감. 인간공학 PDF 기준 표에 '★ 사용자 수정 (기본 …)', 1쪽에 '기준 값 일부를 사용자가 고침'. 3D 모형 크기는 그대로(시야 계산 · 표기만).
+- 확인한 것: Chromium — 최적 20° · 앉은 눈 1,200 → 데스크 표 '최적 ±20°', PDF 2쪽 ★ 2줄, 필요 사이즈 1쪽 부채꼴. PDF 켬 → 2 파일 · 끔 → 1 파일. 2D 끔 → 부채꼴 0. 3D 위에서 창 열기 · 3D 시야 끔. Ctrl+Z → 앞 설정. 다시 열어도 켜고 끈 상태 유지. 이전 시험(need · space · home · erg · ergpdf · rules · p2d · v3 · dual · side · nosrv · opt · bulk · furn) 통과, 스크립트 오류 0.
