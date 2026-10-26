@@ -72,6 +72,7 @@ input[type=number]{font-family:var(--f-mono);font-variant-numeric:tabular-nums}
 .tile.add b{font-size:18px;line-height:1;color:var(--accent)}
 /* Type 만들기 · 고치기 창 */
 .modal.tdlg .box{width:min(780px,100%)}
+.modal.edlg .box{width:min(720px,100%)} .edlg .g{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:6px 12px;margin-top:6px} .edlg .sec{margin:10px 0}
 /* Option B · Ref. PJT Layout / Option A · Equipment List 자동 배치 */
 .modal.rdlg .box{width:min(1180px,100%);height:min(84vh,820px);max-height:none}
 .rgrid{display:grid;grid-template-columns:330px 1fr;gap:12px;flex:1;min-height:0}
@@ -329,6 +330,7 @@ svg text{font-family:var(--f-mono)}
     <label class="chk" title="프로젝트 · 룸 · Rev · 날짜 워터마크 (화면 · PNG · PDF · 3D)"><input type="checkbox" id="vWm" checked>워터마크</label>
     <label class="chk" title="3D 를 보는 자리(카메라) · 보는 방향 · 시야 · 사람 — 3D 를 돌리면 같이 움직임 (2D | 3D 나란히 · 3D 새 창)"><input type="checkbox" id="vCam" checked>3D 시점</label>
     <label class="chk" title="안전공학 · 인간공학: 앉은 운전원(데스크마다, 눈 1,240) · 선 사람(3D, 눈 1,640) 의 시야 — 정면 ±15° 최적 · ±30° 눈만 돌려 · ±60° 머리 돌려, 대형 화면 각. 데스크를 고르면 그 데스크만 자세히"><input type="checkbox" id="vView" checked>👁 시야</label>
+    <button id="bErgSet" title="시야 기준: 2D · 3D 켜고 끄기 · PDF 출력에 넣기/빼기 · 기준 값(눈 높이 · 시야 각) 고치기">👁 시야 기준</button>
     <span class="sep"></span>
  <button id="bNeed2" class="primary" title="건축팀용 필요 사이즈 요약 + 2D 도면 PDF">📐 필요 사이즈</button>
     <button id="bAuto" title="Option A — Equipment List 를 붙여 넣으면 제약조건 · Ref 학습값으로 처음부터 자동 배치">⚡ 자동 배치</button><button id="bRef" title="Option B — Ref. PJT 의 Room Layout 을 불러와 시작">📚 Ref. PJT</button>
@@ -561,6 +563,7 @@ svg text{font-family:var(--f-mono)}
       <label class="chk" title="키 175 cm · 80 kg 성인 남성 — 끌어서 옮기기 · R 돌리기 · 방향키 이동"><input type="checkbox" id="v3Man" checked>사람</label>
       <label class="chk" title="운전 데스크마다 앉은 운전원 (좌판 450 · 눈높이 1,240 mm)"><input type="checkbox" id="v3Sit" checked>앉은 사람</label>
       <label class="chk" title="안전공학 시야: 바닥에 정면 ±15° 최적(초록) · ±30° 눈만 돌려(노랑) · ±60° 머리 돌려(회색), 점선 = 정상 시선(수평 아래 15°, ISO 11064-4). 선 사람 + 고른 데스크의 운전원"><input type="checkbox" id="v3View" checked>시야</label>
+      <button id="v3ErgSet" title="시야 기준: 켜고 끄기 · PDF 반영 · 기준 값 고치기">👁 시야 기준</button>
       <label class="chk" title="판넬 사이 · 벽과 가까운 판넬 사이 몸체 모서리 간 거리 (edge to edge, &lt;───&gt;)"><input type="checkbox" id="v3EDim" checked>간격 치수</label>
       <label class="chk" title="사람 자리에서 앞뒤 · 좌우로 판넬 · 기둥 · 벽까지 통로 폭 (허리 높이)"><input type="checkbox" id="v3Gap" checked>통로 폭</label></div>
     <div class="v3wrap"><div class="v3view"><canvas id="v3gl"></canvas><canvas id="v3tx"></canvas><div class="v3tip" id="v3Tip" hidden></div></div>
@@ -586,6 +589,28 @@ svg text{font-family:var(--f-mono)}
       <tr><td>?</td><td>이 도움말</td></tr>
     </tbody></table>
     <div class="row"><button id="kClose" class="primary">닫기 (Esc)</button></div>
+  </div>
+</div>
+<div class="modal edlg" id="ergdlg" hidden>
+  <div class="box">
+    <h4>👁 시야 기준 (안전공학 · 인간공학)</h4>
+    <div class="sec"><b>표시 켜고 끄기</b>
+      <div class="g"><label class="chk"><input type="checkbox" id="eg2d">2D 도면에 시야</label><label class="chk"><input type="checkbox" id="eg3d">3D 에 시야</label><label class="chk"><input type="checkbox" id="egSit">3D 앉은 사람</label></div></div>
+    <div class="sec"><b>PDF 출력 반영</b> <span class="muted">([📐 필요 사이즈 내보내기] 때)</span>
+      <div class="g"><label class="chk"><input type="checkbox" id="egPdf">인간공학 기준 PDF 를 따로 같이 출력</label><label class="chk"><input type="checkbox" id="egFans">필요 사이즈 도면(1쪽)에 시야 부채꼴 넣기</label></div></div>
+    <div class="sec"><b>기준 값 고치기</b> <span class="muted">(이 배치안에 저장 · 2D · 3D · 시야 검토 표 · PDF 에 같이 반영)</span>
+      <div class="g">
+        <label>앉은 눈 높이 mm<input type="number" id="egSitEye" min="800" max="1600" step="10"></label>
+        <label>선 눈 높이 mm<input type="number" id="egStandEye" min="1200" max="2000" step="10"></label>
+        <label>정상 시선 수평 아래 °<input type="number" id="egNlos" min="0" max="45" step="1"></label>
+        <label>최적 ± °<input type="number" id="egZ1" min="1" max="89" step="1"></label>
+        <label>눈만 돌려 ± °<input type="number" id="egZ2" min="1" max="89" step="1"></label>
+        <label>머리 돌려 ± °<input type="number" id="egZ3" min="1" max="120" step="1"></label>
+        <label>화면 비스듬히 경고 °<input type="number" id="egOff" min="10" max="89" step="1"></label>
+        <label>부채꼴 반경 mm<input type="number" id="egR" min="1000" max="30000" step="500"></label>
+      </div>
+      <div class="muted" id="egNote"></div></div>
+    <div class="row"><button id="egDef" style="margin-right:auto">기준 값 기본으로</button><button id="egOk" class="primary">적용</button><button id="egClose">닫기 (Esc)</button></div>
   </div>
 </div>
 <div class="modal rdlg" id="refdlg" hidden>
@@ -1659,7 +1684,24 @@ $('#bUndo').onclick=doUndo; $('#bRedo').onclick=doRedo; $('#bFit').onclick=fit;
 $('#snap').onchange=e=>{S.snap=+e.target.value;commit()};
 $('#vClr').onchange=e=>{show.clr=e.target.checked;render()};
 $('#vCam').onchange=e=>{show.cam=e.target.checked;render()};
-$('#vView').onchange=e=>{show.view=e.target.checked;render()};
+$('#vView').onchange=e=>{show.view=e.target.checked;ergViewSave();render()};
+/* 시야 표시 켜고 끄기(이 PC 에 기억) · [👁 시야 기준] 창 */
+function ergViewSave(){try{localStorage.setItem('crspace.view',JSON.stringify({v2d:show.view,v3d:V3.viewOn!==false,sit:V3.sitOn!==false}))}catch(e){}}
+function ergViewLoad(){try{const o=JSON.parse(localStorage.getItem('crspace.view')||'null');if(o){show.view=o.v2d!==false;V3.viewOn=o.v3d!==false;V3.sitOn=o.sit!==false}}catch(e){}
+  $('#vView').checked=show.view;$('#v3View').checked=V3.viewOn!==false;$('#v3Sit').checked=V3.sitOn!==false}
+const EG_IN={sitEye:'egSitEye',standEye:'egStandEye',nlos:'egNlos',z1:'egZ1',z2:'egZ2',z3:'egZ3',off:'egOff',R:'egR'};
+function ergFill(e){Object.entries(EG_IN).forEach(([k,id])=>{$('#'+id).value=e[k]??ERG_DEF[k]})}
+function ergOpen(){const e=S.erg||{};$('#eg2d').checked=show.view;$('#eg3d').checked=V3.viewOn!==false;$('#egSit').checked=V3.sitOn!==false;
+  $('#egPdf').checked=e.pdfErg!==false;$('#egFans').checked=!!e.pdfFans;ergFill(e);
+  $('#egNote').textContent='기본: 앉은 눈 1,240 · 선 눈 1,640 (175 cm) · 정상 시선 15° · 최적 ±15° · 눈만 ±30° · 머리 ±60° · 비스듬히 45° (ISO 11064-4 · MIL-STD-1472 · 제어실 문헌). 고친 값은 인간공학 기준 PDF 에 ★ 로 표시. 3D 모형 크기는 그대로 — 시야 계산 · 표기만 바뀜.';
+  $('#ergdlg').hidden=false}
+$('#bErgSet').onclick=ergOpen; $('#v3ErgSet').onclick=ergOpen; $('#egClose').onclick=()=>{$('#ergdlg').hidden=true}; $('#egDef').onclick=()=>ergFill({});
+$('#egOk').onclick=()=>{const n={};for(const [k,id] of Object.entries(EG_IN)){const x=+$('#'+id).value;if(!Number.isFinite(x)||x<=0){toast('기준 값은 0 보다 큰 숫자로 넣으세요.',true);return}n[k]=x}
+  if(!(n.z1<n.z2&&n.z2<n.z3)){toast('시야 각은 최적 < 눈만 돌려 < 머리 돌려 순으로 커야 합니다.',true);return}
+  const e={pdfErg:$('#egPdf').checked,pdfFans:$('#egFans').checked};Object.keys(EG_IN).forEach(k=>{if(n[k]!==ERG_DEF[k])e[k]=n[k]});
+  show.view=$('#eg2d').checked;V3.viewOn=$('#eg3d').checked;V3.sitOn=$('#egSit').checked;$('#vView').checked=show.view;$('#v3View').checked=V3.viewOn;$('#v3Sit').checked=V3.sitOn;ergViewSave();
+  const same=JSON.stringify(e)===JSON.stringify(S.erg||{pdfErg:true,pdfFans:false});if(!same){S.erg=e;commit()} ergApply();
+  $('#ergdlg').hidden=true;render();try{v3req()}catch(_){};buildProps();toast(same?'시야 표시를 바꿨습니다.':'시야 기준을 바꿨습니다 (Ctrl+Z 로 되돌림).')};
 $('#vWm').onchange=e=>{show.wm=e.target.checked;render();try{if(V3.on)v3req(false)}catch(_){}};
 $('#tick').value=String(TICK); $('#tick').onchange=e=>{TICK=+e.target.value;try{localStorage.setItem('crspace.tick',String(TICK))}catch(_){}render();toast(TICK?`2D 눈금 하나 = ${fmt(TICK)} mm`+(TICK*V.s<2.5?' — 지금 배율에서는 너무 촘촘해 굵게 보입니다. 확대(Ctrl+휠)하면 보입니다':''):'2D 눈금 = 자동 (확대 정도에 맞춤)')};
 $('#vMargin').onchange=e=>{show.margin=e.target.checked;render()};
@@ -2042,7 +2084,7 @@ function v3draw(){
         c2.fillStyle=col;c2.globalAlpha=al*1.3;c2.fill();c2.globalAlpha=.6;c2.strokeStyle=col;c2.lineWidth=1;c2.stroke();c2.globalAlpha=1});
       const L1=v.eye/Math.tan(ERG.nlos*Math.PI/180),a=v3proj([v.x,v.eye,v.z],w,h),b=v3proj([v.x+v.f[0]*L1,0,v.z+v.f[1]*L1],w,h);
       if(a&&b){c2.setLineDash([7,5]);c2.strokeStyle='#2ecc71';c2.lineWidth=2;c2.beginPath();c2.moveTo(a[0],a[1]);c2.lineTo(b[0],b[1]);c2.stroke();c2.setLineDash([])}
-      const q=v3proj([v.x,v.eye+(v.kind==='stand'?420:260),v.z],w,h);if(q&&v.kind==='sit'){c2.font='600 11px "Malgun Gothic","맑은 고딕",system-ui,sans-serif';c2.textAlign='center';c2.textBaseline='middle';const t='앉음 · 눈 1,240',tw=c2.measureText(t).width+10;c2.fillStyle='#2d8cff';c2.fillRect(q[0]-tw/2,q[1]-8,tw,16);c2.fillStyle='#fff';c2.fillText(t,q[0],q[1])}})}
+      const q=v3proj([v.x,v.eye+(v.kind==='stand'?420:260),v.z],w,h);if(q&&v.kind==='sit'){c2.font='600 11px "Malgun Gothic","맑은 고딕",system-ui,sans-serif';c2.textAlign='center';c2.textBaseline='middle';const t='앉음 · 눈 '+fmt(ERG.sitEye),tw=c2.measureText(t).width+10;c2.fillStyle='#2d8cff';c2.fillRect(q[0]-tw/2,q[1]-8,tw,16);c2.fillStyle='#fff';c2.fillText(t,q[0],q[1])}})}
   V3.td=performance.now()-t0;   // 그리기 시간 (ms) — window.crspaceSpeed() 로 봄
   v3camPub();
   const mh=Math.max(0,...S.panels.map(p=>+typeOf(p).h||0));
@@ -2162,7 +2204,7 @@ $('#v3Col').onchange=e=>{V3.colOn=e.target.checked;v3req()};
 $('#v3EDim').onchange=e=>{V3.edim=e.target.checked;v3req()};
 $('#v3Style').onchange=e=>{V3.style=e.target.value==='cad'?'cad':'dcs';try{localStorage.setItem('crspace.v3style',V3.style)}catch(_){}[$('#v3dlg'),$('#dock3d')].forEach(x=>x.classList.toggle('dcs',V3.style==='dcs'));v3req()};
 $('#v3Man').onchange=e=>{V3.manOn=e.target.checked;if(!V3.manOn&&V3.pov){V3.pov=false;v3home()}v3req()};
-$('#v3Sit').onchange=e=>{V3.sitOn=e.target.checked;v3req()};$('#v3View').onchange=e=>{V3.viewOn=e.target.checked;v3req(false)};
+$('#v3Sit').onchange=e=>{V3.sitOn=e.target.checked;ergViewSave();v3req()};$('#v3View').onchange=e=>{V3.viewOn=e.target.checked;ergViewSave();v3req(false)};
 $('#v3ManRot').onclick=()=>{if(!V3.manOn)return;V3.man.rot+=Math.PI/4;V3.manBad=false;if(V3.pov)manPov();v3req()};
 $('#v3Pov').onclick=()=>{if(!V3.manOn){$('#v3Man').checked=V3.manOn=true}if(V3.pov){V3.pov=false;V3.yaw=v3view.iso[0];V3.pitch=v3view.iso[1];v3home();v3req(false)}else manPov()};
 document.addEventListener('keydown',e=>{   // 3D 창: 판넬 옮긴 것 되돌리기 · 다시 (Ctrl+Z · Ctrl+Y)
@@ -2383,7 +2425,7 @@ function pgFrame(g,page,total,title='필요 사이즈'){   // 테두리 · 아�
 async function needPdf(){
   check(); const sm=summary(), ws=wallSides(), m=+S.room.margin||0, pages=[];
   // 1쪽: 2D 도면 + 오른쪽 핵심 숫자 칸
-  {const [c,g]=pgCanvas(), side=760, dw=PG.w-80-side-40, dh=PG.h-200, sc=1.45, im=await drawingImage(Math.round(dw/sc),Math.round(dh/sc));
+  {const [c,g]=pgCanvas(), side=760, dw=PG.w-80-side-40, dh=PG.h-200, sc=1.45, im=await drawingImage(Math.round(dw/sc),Math.round(dh/sc),{view:!!(S.erg&&S.erg.pdfFans)});
     g.drawImage(im,60,60,dw,dh);
     if(ws&&sm.rec){const k=dw/Math.round(dw/sc),P=(x,y)=>[60+(x*im.tf.s+im.tf.ox)*k,60+(y*im.tf.s+im.tf.oy)*k],E=ws.E,[ax,ay]=P(E.x-m,E.y-m),[bx,by]=P(E.x+E.w+m,E.y+E.h+m);   // 도면 위 필요 실 표시
       g.strokeStyle='#7c3aed';g.lineWidth=4;g.setLineDash([24,10,6,10]);g.strokeRect(ax,ay,bx-ax,by-ay);g.setLineDash([]);
@@ -2415,18 +2457,18 @@ async function needPdf(){
 }
 /* 인간공학 기준 PDF: 이 배치의 시야 검토에 쓴 기준(값 · 근거 표준 · 출처)과 운전원 × 대형 화면 결과를 따로 한 파일로.
    [필요 사이즈 내보내기] 때 같이 내려받고, ⑤ 출력의 [👁 인간공학 기준 PDF] 로 따로도 */
-const ERG_CRIT=()=>[   // [항목, 이 도구에 쓴 값, 근거, 비고]
-  ['서 있는 사람 모형','키 1,750 · 눈 높이 1,640 mm','인체 치수 자료 (눈 높이 ≈ 키 × 0.94)','3D 사람 모형, 2D 에는 3D 를 연 때'],
-  ['앉은 운전원 모형',`눈 높이 ${fmt(ERG.sitEye)} mm (바닥에서) · 의자 좌면 450`,'인체 치수 — 앉은 눈 높이 남 5~95% 약 1,176~1,336 mm','데스크 운전 자리마다 1명, 작업면 앞 450'],
-  ['정상 시선 (아래로)',`수평 아래 ${ERG.nlos}°`,'ISO 11064-4:2013 (앉은 자세 정상 시선 수평 ~ 15° 아래), MIL-STD-1472','도면 · 3D 의 초록 점선'],
-  ['최적 시야 (초록)','정면 ±15°','MIL-STD-1472G/F (중요 표시 · 경보는 정상 시선 15° 안), NUREG-0700','주 정보 · 경보를 두는 곳'],
-  ['눈만 돌려 (노랑)','정면 ±30°','제어실 설계 문헌 (눈 회전 약 ±30~35°), FAA 표시장치 HF 기준','머리를 돌리지 않고 봄'],
-  ['머리 돌려 (회색)','정면 ±60°','제어실 설계 문헌 (머리 회전 약 ±45~60°)','자주 보는 정보는 두지 않음'],
-  ['시야 밖','60° 넘음','위 기준에서 벗어남','몸을 돌려야 봄 — 배치 · 화면 각도 검토'],
-  ['화면 비스듬히','화면 법선에서 45° 넘으면 표시','일반 권고값 (표시장치 시야각) — 원문 확인 필요','글자 · 색이 흐려질 수 있음'],
+const ERG_CRIT=()=>{ergApply();const z=ERG.zones.map(x=>x[0]),M=(k,t)=>ergChanged(k)?`${t} — ★ 사용자 수정 (기본 ${ERG_DEF[k]})`:t;return [   // [항목, 이 도구에 쓴 값, 근거, 비고]
+  ['서 있는 사람 모형',M('standEye',`키 1,750 · 눈 높이 ${fmt(ERG.standEye)} mm`),'인체 치수 자료 (눈 높이 ≈ 키 × 0.94)','3D 사람 모형, 2D 에는 3D 를 연 때'],
+  ['앉은 운전원 모형',M('sitEye',`눈 높이 ${fmt(ERG.sitEye)} mm (바닥에서) · 의자 좌면 450`),'인체 치수 — 앉은 눈 높이 남 5~95% 약 1,176~1,336 mm','데스크 운전 자리마다 1명, 작업면 앞 450'],
+  ['정상 시선 (아래로)',M('nlos',`수평 아래 ${ERG.nlos}°`),'ISO 11064-4:2013 (앉은 자세 정상 시선 수평 ~ 15° 아래), MIL-STD-1472','도면 · 3D 의 초록 점선'],
+  ['최적 시야 (초록)',M('z1',`정면 ±${z[0]}°`),'MIL-STD-1472G/F (중요 표시 · 경보는 정상 시선 15° 안), NUREG-0700','주 정보 · 경보를 두는 곳'],
+  ['눈만 돌려 (노랑)',M('z2',`정면 ±${z[1]}°`),'제어실 설계 문헌 (눈 회전 약 ±30~35°), FAA 표시장치 HF 기준','머리를 돌리지 않고 봄'],
+  ['머리 돌려 (회색)',M('z3',`정면 ±${z[2]}°`),'제어실 설계 문헌 (머리 회전 약 ±45~60°)','자주 보는 정보는 두지 않음'],
+  ['시야 밖',`${z[2]}° 넘음`,'위 기준에서 벗어남','몸을 돌려야 봄 — 배치 · 화면 각도 검토'],
+  ['화면 비스듬히',M('off',`화면 법선에서 ${ERG.off}° 넘으면 표시`),'일반 권고값 (표시장치 시야각) — 원문 확인 필요','글자 · 색이 흐려질 수 있음'],
   ['벽 대형 화면','모든 운전 자리에서 보여야','ISO 11064-4:2013 (작업 자리 밖 공용 표시)','결과 표에서 확인'],
   ['최대 보는 거리','215 × 글자 높이','ISO 11064-4:2013','도구는 거리만 표시 — 글자 크기는 화면 설계에서'],
-  ['부채꼴 반경',`${fmt(ERG.R)} mm`,'표시용 (기준 아님)','']];
+  ['부채꼴 반경',M('R',`${fmt(ERG.R)} mm`),'표시용 (기준 아님)','']]};
 const ERG_SRC=[
   ['ISO 11064-4:2013 Ergonomic design of control centres — Part 4: Layout and dimensions of workstations','https://standards.iteh.ai/catalog/standards/iso/801d2ad3-4e63-4e6a-9df0-0c269910cda0/iso-11064-4-2013'],
   ['MIL-STD-1472G Human Engineering','https://govtribe.com/file/government-file/mil-std-1472g-human-factors-dot-pdf'],
@@ -2452,13 +2494,14 @@ async function ergPdf(){
     T('인간공학 · 시야 기준',40,1); T(`${roomStd()||'Room'} · Rev ${revOf()}`,28,1,'#7c3aed'); T('이 도면의 시야 검토에 적용한 기준',24,0,'#475569'); y+=14;
     T('사람 모형',28,1,'#2d5bd8'); T(`● 앉은 운전원 — 눈 높이 ${fmt(ERG.sitEye)} mm · ${ops.length} 명`,26,0,'#2d8cff'); T(`● 서 있는 사람 — 키 1,750 · 눈 높이 ${fmt(ERG.standEye)} mm`,26,0,'#e8792b'); y+=14;
     T('시야 구역 (바라보는 방향 기준, 수평)',28,1,'#2d5bd8');
-    [...ERG.zones.map(([a,n,col])=>[`±${a}°  ${n}`,col]),['60° 넘음  시야 밖','#ff3b6b']].forEach(([t,col])=>{y+=8;g.fillStyle=col;g.globalAlpha=.6;g.fillRect(x0+30,y,44,30);g.globalAlpha=1;g.font=FNT(26);g.fillStyle='#1b2238';g.fillText(t,x0+90,y+26);y+=38});
+    [...ERG.zones.map(([a,n,col])=>[`±${a}°  ${n}`,col]),[`${ERG.zones[2][0]}° 넘음  시야 밖`,'#ff3b6b']].forEach(([t,col])=>{y+=8;g.fillStyle=col;g.globalAlpha=.6;g.fillRect(x0+30,y,44,30);g.globalAlpha=1;g.font=FNT(26);g.fillStyle='#1b2238';g.fillText(t,x0+90,y+26);y+=38});
     T(`정상 시선: 수평 아래 ${ERG.nlos}° (초록 점선)`,26); y+=14;
     T('결과 (운전원 × 대형 화면)',28,1,'#2d5bd8');
     if(!scs.length)T('대형 화면 없음 — 검토할 것 없음',26,0,'#475569'); else if(!ops.length)T('데스크(운전원) 없음 — 검토할 것 없음',26,0,'#475569');
     else{T(`대형 화면 ${scs.length} 면 · 운전원 ${ops.length} 명 · ${rows.length} 건`,26);
-      [['최적 ±15°',cnt[0],'#16a34a'],['눈만 돌려 ±30°',cnt[1],'#b58100'],['머리 돌려 ±60°',cnt[2],'#64748b'],['시야 밖',cnt[3],'#d33'],['화면 뒤',cnt[4],'#d33']].forEach(([t,n,col])=>{if(n)T(`· ${t}: ${n} 건`,26,n&&col==='#d33',col)})}
-    y+=14; T('도면 표기',28,1,'#2d5bd8'); ['파란 원 = 앉은 운전원 (흰 선 = 보는 방향)','초록 · 노랑 부채꼴 = ±15° · ±30°','상세 각도 · 판정은 다음 쪽 표'].forEach(t=>T('· '+t,23));
+      [[`최적 ±${ERG.zones[0][0]}°`,cnt[0],'#16a34a'],[`눈만 돌려 ±${ERG.zones[1][0]}°`,cnt[1],'#b58100'],[`머리 돌려 ±${ERG.zones[2][0]}°`,cnt[2],'#64748b'],['시야 밖',cnt[3],'#d33'],['화면 뒤',cnt[4],'#d33']].forEach(([t,n,col])=>{if(n)T(`· ${t}: ${n} 건`,26,n&&col==='#d33',col)})}
+    y+=14; T('도면 표기',28,1,'#2d5bd8'); ['파란 원 = 앉은 운전원 (흰 선 = 보는 방향)',`초록 · 노랑 부채꼴 = ±${ERG.zones[0][0]}° · ±${ERG.zones[1][0]}°`,'상세 각도 · 판정은 다음 쪽 표'].forEach(t=>T('· '+t,23));
+    if(Object.keys(ERG_DEF).some(ergChanged)){y+=14;T('★ 기준 값 일부를 사용자가 고침 — 2쪽 표 참고',24,1,'#d33')}
     y+=14; T('※ 초기 공간확보 검토용. 설계 확정은 각 표준 본문과 발주처 · 프로젝트 인간공학(HF) 기준으로.',22,0,'#b45309');
     pages.push(c)}
   // 표 그리기 (쪽 넘김 포함)
@@ -2478,7 +2521,7 @@ async function ergPdf(){
   g.font=FNT(23);g.fillStyle='#475569';g.fillText(`수평 = 운전원 정면에서 화면 가운데까지 각 · 수직 = 눈(${fmt(ERG.sitEye)})에서 화면 가운데 · 위 · 아래 (+ 위 / − 아래) · 거리 = 눈 → 화면 가운데 (평면)`,X0,y+24);y+=50;
   if(!rows.length){g.font=FNT(28);g.fillStyle='#1b2238';g.fillText(scs.length?'데스크(운전원)가 없어 검토할 것이 없습니다.':'대형 화면이 없어 검토할 것이 없습니다.',X0,y+30);y+=60}
   else table([.12,.12,.1,.12,.24,.3],rows.map(o=>{const col=o.bad?'#d33':o.r.z===0?'#16a34a':o.r.z===1?'#b58100':'#64748b';
-    return {cells:[o.v.tag,o.r.s.p.tag,`${Math.round(Math.abs(o.r.ah))}°`,fmt(Math.round(o.r.d/10)*10),`${Math.round(o.r.vm)}° · ${Math.round(o.r.vt)}° · ${Math.round(o.r.vb)}°`,o.j+(!o.r.back&&o.r.off>45?` · 화면 비스듬히 ${Math.round(o.r.off)}°`:'')],col:[0,0,col,0,0,col],bg:o.bad?'#fdecec':null}}),['운전원 (데스크)','대형 화면','수평','거리 mm','수직 (가운데 · 위 · 아래)','판정']);
+    return {cells:[o.v.tag,o.r.s.p.tag,`${Math.round(Math.abs(o.r.ah))}°`,fmt(Math.round(o.r.d/10)*10),`${Math.round(o.r.vm)}° · ${Math.round(o.r.vt)}° · ${Math.round(o.r.vb)}°`,o.j+(!o.r.back&&o.r.off>ERG.off?` · 화면 비스듬히 ${Math.round(o.r.off)}°`:'')],col:[0,0,col,0,0,col],bg:o.bad?'#fdecec':null}}),['운전원 (데스크)','대형 화면','수평','거리 mm','수직 (가운데 · 위 · 아래)','판정']);
   const total=pages.length, jp=[];
   for(let i=0;i<total;i++){const g=pages[i].getContext('2d');pgFrame(g,i+1,total,TTL);const b=await new Promise(ok=>pages[i].toBlob(ok,'image/jpeg',0.9));jp.push({data:new Uint8Array(await b.arrayBuffer()),w:PG.w,h:PG.h})}
   return pdfBytes(jp,PG.pw,PG.ph,'Human Factors Criteria');
@@ -2492,7 +2535,7 @@ async function ergExport(){
 async function needExport(){
   if(!preflight('필요 사이즈 내보내기'))return; toast('필요 사이즈 PDF 를 만드는 중…');
   try{const pdf=await needPdf();dlBlob(pdf,fname('필요사이즈','pdf'));
-    let ek=0;try{const e=await ergPdf();ek=Math.round(e.size/1024);setTimeout(()=>dlBlob(e,fname('인간공학기준','pdf')),600)}catch(e){}   // 적용한 인간공학 기준은 따로 한 파일
+    let ek=0;if(!S.erg||S.erg.pdfErg!==false)try{const e=await ergPdf();ek=Math.round(e.size/1024);setTimeout(()=>dlBlob(e,fname('인간공학기준','pdf')),600)}catch(e){}   // 적용한 인간공학 기준은 따로 한 파일
     openModal('📐 필요 사이즈 — 건축 전달',`PDF(1쪽 2D 도면 + 핵심 숫자, 2쪽~ 요약 · Equipment List, A3 가로) 를 내려받았습니다 (${Math.round(pdf.size/1024)} KB)${ek?` + 인간공학 기준 PDF (적용 기준 · 출처 · 시야 검토 결과, ${ek} KB — 안 받아졌으면 ⑤ 출력의 [👁 인간공학 기준 PDF])`:''}. 아래 글은 메일 본문용 — [복사] 또는 [파일로 저장].`,needLines().join('\n').replace(/^# /,''),fname('필요사이즈','txt'),'text/plain;charset=utf-8')}
   catch(e){toast('PDF 를 만들지 못했습니다 — '+(e&&e.message||e)+'. [건축 전달 요약 (TXT)] 와 [도면 PNG 저장] 을 쓰세요.',true)}
 }
@@ -2794,7 +2837,7 @@ function refOpen(pick){refPickMode=!!pick;
   $('#refUse').textContent=pick?'이 Ref 로 정하기':'이 배치로 시작'; $('#refUse').disabled=true; $('#refSvg').innerHTML=''; $('#refInfo').textContent='왼쪽에서 룸을 고르세요.';
   $('#refdlg').hidden=false; if(refPick)refShow(refPick)}
 function refApply(r){
-  const d=JSON.parse(JSON.stringify(r.data)), keep={info:{...S.info},srv:S.srv,revs:S.revs,notes:[]};
+  const d=JSON.parse(JSON.stringify(r.data)), keep={info:{...S.info},srv:S.srv,revs:S.revs,notes:[],erg:S.erg};
   d.panels.forEach(p=>p.id=uid()); S=norm({...d,...keep}); S.refFrom=`${r.project} · ${r.room}`;
   sel.clear();selNote=null;selCol=null;commit();buildRoom();buildTypes();fit();
   toast(`Ref. ${r.project} · ${r.room} 배치를 불러왔습니다 — 판넬 ${S.panels.length} EA. 판넬을 눌러 크기 · 속성을 고치세요.`)}
@@ -3052,7 +3095,7 @@ let aPvT=0;function aPreview(){clearTimeout(aPvT);aPvT=setTimeout(()=>{const use
   const r=autoLayout(use,aConVal());refThumb({room:r.room,types:r.types,panels:r.panels},'#aPv');$('#aPvTxt').innerHTML=`미리보기: 실 ${fmt(r.room.w)} × ${fmt(r.room.l)} · ${use.length} EA — ${aViaTxt(r)}`},200)}
 $('#aCon').addEventListener('input',aPreview);$('#aCon').addEventListener('change',aPreview);$('#aIn').addEventListener('input',aPreview);$('#aTbl').addEventListener('change',aPreview);
 function autoApply(use,c,pre){
-  const r=autoLayout(use,c), keep={info:{...S.info},srv:S.srv,revs:S.revs,notes:[],cols:null};
+  const r=autoLayout(use,c), keep={info:{...S.info},srv:S.srv,revs:S.revs,notes:[],cols:null,erg:S.erg};
   S=norm({room:r.room,snap:S.snap||100,types:r.types,panels:r.panels,...keep}); S.autoFrom={at:today(),n:use.length,c,items:use};
   sel.clear();selNote=null;selCol=null;commit();buildRoom();buildTypes();fit();return r}
 $('#bReAuto').onclick=()=>{const a=S.autoFrom;if(!a||!a.items)return;const r=autoApply(a.items,{...a.c,W:S.room.w,L:S.room.l});toast(`실 ${fmt(S.room.w)} × ${fmt(S.room.l)} 로 다시 자동 배치 — ${aViaTxt(r).replace(/<[^>]+>/g,'')}`)};
@@ -3108,14 +3151,20 @@ $('#v3gl').addEventListener('pointerdown',()=>{V3.kf=true},true); svg.addEventLi
    제어실 설계 문헌 — 주 정보는 30° 원뿔(±15°) 안, 눈만 돌려 약 ±30°(문헌 30~35°), 머리를 돌리면 약 ±45~60° /
    인체 치수 — 앉은 눈높이(남 5~95%) 바닥에서 약 1,176~1,336 mm → 의자 450 기준 1,240, 선 눈높이 = 키 175 cm 에서 약 1,640 mm.
    여기 값은 초기 검토용 — 설계 확정은 해당 표준 본문 · 프로젝트 인간공학 기준으로 */
-var ERG={standEye:1640,sitEye:1240,nlos:15,R:9000,
+var ERG={standEye:1640,sitEye:1240,nlos:15,R:9000,off:45,
   zones:[[15,'최적','#2ecc71',.18],[30,'눈만 돌려','#f5b400',.11],[60,'머리 돌려','#9aa6b2',.06]]};
+/* 시야 기준 값은 배치안 S.erg 에 (없으면 기본값) — [👁 시야 기준] 창에서 고침. pdfErg = 인간공학 기준 PDF 같이 출력(기본 켬), pdfFans = 필요 사이즈 도면에 부채꼴(기본 끔) */
+var ERG_DEF={sitEye:1240,standEye:1640,nlos:15,z1:15,z2:30,z3:60,off:45,R:9000};
+function ergApply(){const e=S.erg||{},v=k=>Number.isFinite(+e[k])&&e[k]!==''&&e[k]!=null?+e[k]:ERG_DEF[k];
+  ERG.sitEye=v('sitEye');ERG.standEye=v('standEye');ERG.nlos=v('nlos');ERG.off=v('off');ERG.R=v('R');ERG.zones[0][0]=v('z1');ERG.zones[1][0]=v('z2');ERG.zones[2][0]=v('z3')}
+const ergChanged=k=>(k[0]==='z'?ERG.zones[+k[1]-1][0]:ERG[k])!==ERG_DEF[k];   // 지금 값이 기본값과 다른가
 function operators(only){   // 데스크마다 앉은 운전원: 운전원 자리 가운데 · 작업면 앞 450 · 데스크(모니터) 쪽을 봄
+  ergApply();
   const out=[];S.panels.forEach(p=>{const t=typeOf(p);if(t.kind!=='desk'||(only&&!only.has(p.id)))return;const g=geom(p),f=g.fe,n=FRONT_N[g.r],L=Math.hypot(f[2]-f[0],f[3]-f[1]),u=[(f[2]-f[0])/L,(f[3]-f[1])/L],nb=Math.max(1,+t.bays||1);
     for(let i=0;i<nb;i++){const a=(i+.5)*L/nb;out.push({x:f[0]+u[0]*a+n[0]*450,z:f[1]+u[1]*a+n[1]*450,f:[-n[0],-n[1]],eye:ERG.sitEye,kind:'sit',tag:p.tag+(nb>1?'-'+(i+1):''),pid:p.id})}});return out}
 function screensGeom(){return S.panels.filter(p=>typeOf(p).kind==='screen').map(p=>{const g=geom(p),t=fixDoor({...typeOf(p)}),f=g.fe,[,th]=monRaw(t.tileIn),Hv=t.rows*th,el=+t.elev||900;
   return {p,c:[(f[0]+f[2])/2,(f[1]+f[3])/2],n:FRONT_N[g.r],w:Math.hypot(f[2]-f[0],f[3]-f[1]),bot:el,top:el+Hv,mid:el+Hv/2}})}
-var zoneOf=a=>{a=Math.abs(a);return a<=15?0:a<=30?1:a<=60?2:3};
+var zoneOf=a=>{a=Math.abs(a);const z=ERG.zones;return a<=z[0][0]?0:a<=z[1][0]?1:a<=z[2][0]?2:3};
 function viewCheck(v){   // 운전원 v 가 대형 화면을 어떻게 보나: 수평 각(정면 기준) · 거리 · 수직 각(눈 → 화면 가운데 · 위 · 아래) · 화면을 비스듬히 보는 각
   return screensGeom().map(s=>{const dx=s.c[0]-v.x,dz=s.c[1]-v.z,d=Math.hypot(dx,dz)||1,ah=Math.atan2(v.f[0]*dz-v.f[1]*dx,v.f[0]*dx+v.f[1]*dz)*180/Math.PI;
     const deg=h=>Math.atan((h-v.eye)/d)*180/Math.PI, off=Math.acos(Math.max(-1,Math.min(1,-(s.n[0]*dx+s.n[1]*dz)/d)))*180/Math.PI;
@@ -3132,7 +3181,7 @@ function viewSvg(s){
     o+=`<line x1="${v.x}" y1="${v.z}" x2="${v.x+v.f[0]*R}" y2="${v.z+v.f[1]*R}" stroke="#2ecc71" stroke-width="1.2" stroke-dasharray="8 5" vector-effect="non-scaling-stroke" opacity="${k}"/>`;
     const st=v.kind==='stand', mc=st?'#e8792b':'#2d8cff';
     o+=`<circle cx="${v.x}" cy="${v.z}" r="${st?200:230}" fill="${mc}" fill-opacity=".85" stroke="#fff" stroke-width="1.2" vector-effect="non-scaling-stroke"/><line x1="${v.x}" y1="${v.z}" x2="${v.x+v.f[0]*300}" y2="${v.z+v.f[1]*300}" stroke="#fff" stroke-width="2" vector-effect="non-scaling-stroke"/>`;
-    if(detail){o+=`<text x="${v.x}" y="${v.z-300}" font-size="${fs}" text-anchor="middle" fill="${mc}" font-weight="700" paint-order="stroke" stroke="${paper}" stroke-width="${3/s}">${st?'선 175 cm · 눈 1,640':'앉음 · 눈 1,240'}</text>`;
+    if(detail){o+=`<text x="${v.x}" y="${v.z-300}" font-size="${fs}" text-anchor="middle" fill="${mc}" font-weight="700" paint-order="stroke" stroke="${paper}" stroke-width="${3/s}">${st?'선 175 cm · 눈 '+fmt(ERG.standEye):'앉음 · 눈 '+fmt(ERG.sitEye)}</text>`;
       viewCheck(v).forEach(r=>{const col=r.back?'#ff3b6b':ERG.zones[r.z]?ERG.zones[r.z][2]:'#ff3b6b',mx=v.x+(r.s.c[0]-v.x)*.62,mz=v.z+(r.s.c[1]-v.z)*.62;
         o+=`<line x1="${v.x}" y1="${v.z}" x2="${r.s.c[0]}" y2="${r.s.c[1]}" stroke="${col}" stroke-width="1.5" vector-effect="non-scaling-stroke"/>`;
         o+=`<text x="${mx}" y="${mz}" font-size="${fs}" text-anchor="middle" fill="${col}" font-weight="700" paint-order="stroke" stroke="${paper}" stroke-width="${3/s}">${r.s.p.tag} ${Math.round(Math.abs(r.ah))}° ${r.back?'화면 뒤':ERG.zones[r.z]?ERG.zones[r.z][1]:'시야 밖'}</text>`})}});
@@ -3141,8 +3190,8 @@ function viewHtml(p){   // 데스크 하나 고르면: 그 데스크 운전원�
   const ops=operators(new Set([p.id])), sc=screensGeom(); if(!sc.length)return `<div class="sec"><b>👁 시야 검토</b> <span class="muted">— 대형 화면이 없습니다</span></div>`;
   const zc=['ok','warn','warn','err'];
   return `<div class="sec"><b>👁 시야 검토</b> <span class="muted">(앉은 운전원 눈높이 ${fmt(ERG.sitEye)} · 정상 시선 수평 아래 ${ERG.nlos}° · ISO 11064-4)</span>
-    <table class="vt"><tr><th>운전원</th><th>화면</th><th>수평</th><th>거리</th><th>수직(가운데 · 위 · 아래)</th><th></th></tr>${ops.map(v=>viewCheck(v).map(r=>`<tr class="${r.back?'err':zc[r.z]}"><td>${esc(v.tag)}</td><td>${esc(r.s.p.tag)}</td><td>${Math.round(Math.abs(r.ah))}°</td><td>${fmt(Math.round(r.d/10)*10)}</td><td>${Math.round(r.vm)}° · ${Math.round(r.vt)}° · ${Math.round(r.vb)}°</td><td>${r.back?'화면 뒤':(ERG.zones[r.z]||[0,'시야 밖'])[1]}${!r.back&&r.off>45?' · 비스듬히 '+Math.round(r.off)+'°':''}</td></tr>`).join('')).join('')}</table>
-    <p class="muted" style="margin:4px 0 0">최적 = 정면 ±15° · 눈만 돌려 ±30° · 머리 돌려 ±60°. 수직 각은 눈에서 위(+) · 아래(−).</p></div>`}
+    <table class="vt"><tr><th>운전원</th><th>화면</th><th>수평</th><th>거리</th><th>수직(가운데 · 위 · 아래)</th><th></th></tr>${ops.map(v=>viewCheck(v).map(r=>`<tr class="${r.back?'err':zc[r.z]}"><td>${esc(v.tag)}</td><td>${esc(r.s.p.tag)}</td><td>${Math.round(Math.abs(r.ah))}°</td><td>${fmt(Math.round(r.d/10)*10)}</td><td>${Math.round(r.vm)}° · ${Math.round(r.vt)}° · ${Math.round(r.vb)}°</td><td>${r.back?'화면 뒤':(ERG.zones[r.z]||[0,'시야 밖'])[1]}${!r.back&&r.off>ERG.off?' · 비스듬히 '+Math.round(r.off)+'°':''}</td></tr>`).join('')).join('')}</table>
+    <p class="muted" style="margin:4px 0 0">최적 = 정면 ±${ERG.zones[0][0]}° · 눈만 돌려 ±${ERG.zones[1][0]}° · 머리 돌려 ±${ERG.zones[2][0]}°. 수직 각은 눈에서 위(+) · 아래(−).</p></div>`}
 
 /* 3D 관찰자 시점을 2D 에: 카메라 자리 · 보는 방향 · 가로 시야(점선 부채꼴) · 보는 점 · 카메라 높이, 사람(자리 · 방향).
    같은 화면(나란히)은 3D 를 그릴 때마다, 3D 새 창은 BroadcastChannel {t:'cam'} 으로 받음 */
@@ -3171,7 +3220,7 @@ function v3camPub(){   // 3D 를 그린 뒤: 시점이 바뀌었으면 2D 에 �
 if(ONLY3D)window.addEventListener('pagehide',()=>bcOut({t:'cam',c:null,from:WID,n:++bcN}));
 
 /* ---------- boot ---------- */
-buildRoom(); buildTypes(); check(); buildSummary(); buildRevs(); buildNotes(); buildEq(); updSrv(); buildProps();
+ergViewLoad(); buildRoom(); buildTypes(); check(); buildSummary(); buildRevs(); buildNotes(); buildEq(); updSrv(); buildProps();
 new ResizeObserver(()=>{if(!fit._d){fit._d=1;fit()}else render()}).observe(svg);
 $('#bUndo').disabled=true;$('#bRedo').disabled=true;
 if(ONLY3D){document.body.classList.add('only3d');document.title='3D — 판넬 공간확보';showEditor();open3d()}   // 3D 새 창: 첫 화면 없이 바로 3D
