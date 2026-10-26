@@ -226,11 +226,12 @@ button.primary:disabled{background:#b8c4e6;border-color:#b8c4e6;opacity:1}
 body.embed .bar .brand{display:none}   /* 대시보드 안(embed=1): 위쪽 띠에 메뉴 이름이 이미 있음 */
 .row{display:flex;gap:6px;flex-wrap:wrap}
 .muted{color:var(--ink-2);font-size:11.5px;line-height:1.5}
-.stage{position:relative;min-width:0;min-height:0;background:var(--paper);overflow:hidden}
-#cv{width:100%;height:100%;display:block;touch-action:none;user-select:none;-webkit-user-select:none}
+.stage{position:relative;min-width:0;min-height:0;background:var(--paper);overflow:hidden;contain:strict}   /* 도면 칸: 안이 바뀌어도 화면 전체 배치를 다시 계산하지 않게 (크기는 바깥 격자가 정함) */
+#cv{width:100%;height:100%;display:block;contain:strict;touch-action:none;user-select:none;-webkit-user-select:none}
 .status{display:flex;gap:16px;flex-wrap:wrap;padding:5px max(16px,env(safe-area-inset-left,0px));border-top:1px solid var(--line);background:var(--sheet);font-size:11.5px;color:var(--ink-2)}
 .status .mono,.mono{font-family:var(--f-mono)}
 .status .mode{color:var(--accent);font-weight:600}
+#stXY{display:inline-block;width:36ch;height:1.45em;line-height:1.45em;overflow:hidden;white-space:nowrap;contain:strict}   /* 좌표 글은 마우스마다 바뀜 — 크기를 정해 두어 화면 전체 배치를 다시 안 하게 */
 .legend{position:absolute;right:max(12px,env(safe-area-inset-right,0px));bottom:12px;background:var(--sheet);border:1px solid var(--line);border-radius:4px;padding:6px 9px;font-size:11px;color:var(--ink-2);display:flex;flex-direction:column;gap:3px;pointer-events:none}
 .main{grid-template-columns:320px 1fr auto}
 .eqside{width:380px;display:flex;flex-direction:column;min-height:0;border-left:1px solid var(--line);background:var(--sheet);font-size:11.5px;user-select:none}
@@ -1006,8 +1007,9 @@ const sgn=d=>d>0?'up':d<0?'dn':'';
 
 /* ---------- view ---------- */
 const svg=$('#cv');
-function vp(){return {w:svg.clientWidth||800,h:svg.clientHeight||600}}
-function fit(){
+let VPC=null;   // 도면 크기 기억 — 그릴 때마다 읽으면 브라우저가 화면 배치를 다시 계산함(무거움). 크기가 바뀌면(ResizeObserver) 다시 읽음
+function vp(){if(!VPC||!VPC.w){const w=svg.clientWidth,h=svg.clientHeight;VPC={w,h};return {w:w||800,h:h||600}}return VPC}
+function fit(){VPC=null;
   const {w,h}=vp(), W=S.room.w, L=S.room.l, pad=70;
   V.s=Math.min((w-pad*2)/W,(h-pad*2)/L); if(!(V.s>0))V.s=0.03;
   V.ox=(w-W*V.s)/2+10; V.oy=(h-L*V.s)/2+10; render();
@@ -1047,7 +1049,7 @@ let ANN=1.5;   // 도면 글자 · 표시 배율 (Tag · 치수 · 노트 · 번
 try{const v=+localStorage.getItem('crspace.ann');if(v>=1&&v<=2)ANN=v}catch(e){}
 let ghost=null, marquee=null, cursorW=null, block=null;   // block = 지금 끌거나 놓으려는 자리의 위반 문장
 function measStatus(){const m=measure;if(!m)return;const b=m.b||m.cur;if(!b)return;const dx=b.x-m.a.x,dy=b.y-m.a.y;$('#stXY').textContent=`📏 ${fmt(Math.hypot(dx,dy))} mm (X ${fmt(Math.abs(dx))} · Y ${fmt(Math.abs(dy))})`}
-function showBlock(){$('#stBlock').textContent=block?`⛔ 놓을 수 없음 — ${block}`:''}
+function showBlock(){const t=block?`⛔ 놓을 수 없음 — ${block}`:'',el=$('#stBlock');if(el.textContent!==t)el.textContent=t}   // 같은 글이면 안 건드림 (건드리면 화면 전체 배치를 다시 계산)
 function rect(r,cls,extra=''){return `<rect class="${cls}" x="${r.x}" y="${r.y}" width="${r.w}" height="${r.h}" ${extra}/>`}
 function dimH(x0,x1,y,txt,off,col){ // horizontal dimension at y with tick marks
   const s=V.s,t=4*ANN/s,fs=11*ANN/s;
@@ -1079,26 +1081,28 @@ function render(){v3sync();
   if(TICK&&TICK*s>=3){mi=TICK;ma=TICK*10}   // 격자도 고른 눈금 간격
   let pl=''; for(let k=0;k<ma;k+=mi){const isM=k===0;pl+=`<line x1="${k}" y1="0" x2="${k}" y2="${ma}" stroke="${isM?C('--grid-major'):C('--grid')}" stroke-width="${1/s}"/><line x1="0" y1="${k}" x2="${ma}" y2="${k}" stroke="${isM?C('--grid-major'):C('--grid')}" stroke-width="${1/s}"/>`}
   const hs=7/s;
-  let defs=`<defs><pattern id="gp" width="${ma}" height="${ma}" patternUnits="userSpaceOnUse">${pl}</pattern>
+  let defs=`<pattern id="gp" width="${ma}" height="${ma}" patternUnits="userSpaceOnUse">${pl}</pattern>
    <pattern id="hatch" width="${hs}" height="${hs}" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="${hs}" stroke="${clr}" stroke-width="${1/s}" opacity=".55"/></pattern>
    <pattern id="hatchE" width="${hs}" height="${hs}" patternUnits="userSpaceOnUse" patternTransform="rotate(-45)"><line x1="0" y1="0" x2="0" y2="${hs}" stroke="${err}" stroke-width="${1.2/s}" opacity=".7"/></pattern>
-   <pattern id="hatchM" width="${hs*1.4}" height="${hs*1.4}" patternUnits="userSpaceOnUse" patternTransform="rotate(-45)"><line x1="0" y1="0" x2="0" y2="${hs*1.4}" stroke="${C('--margin')}" stroke-width="${1/s}" opacity=".55"/></pattern></defs>`;
-  const a=toW(0,0), b=toW(vw,vh);
-  let g=`<rect x="${a.x}" y="${a.y}" width="${b.x-a.x}" height="${b.y-a.y}" fill="url(#gp)"/>`;
+   <pattern id="hatchM" width="${hs*1.4}" height="${hs*1.4}" patternUnits="userSpaceOnUse" patternTransform="rotate(-45)"><line x1="0" y1="0" x2="0" y2="${hs*1.4}" stroke="${C('--margin')}" stroke-width="${1/s}" opacity=".55"/></pattern>`;
+  const a=toW(0,0), b=toW(vw,vh), GQ=20000, gx=Math.floor(a.x/GQ)*GQ-GQ, gy=Math.floor(a.y/GQ)*GQ-GQ;   // 격자 바탕은 20 m 단위로 넉넉히 — 화면 이동(같은 배율)이면 도면 층을 다시 안 만듦
+  let g=`<rect x="${gx}" y="${gy}" width="${Math.ceil(b.x/GQ)*GQ+GQ-gx}" height="${Math.ceil(b.y/GQ)*GQ+GQ-gy}" fill="url(#gp)"/>`;
   g+=`<rect x="0" y="0" width="${W}" height="${L}" fill="${C('--sheet')}" fill-opacity=".35" stroke="${C('--wall')}" stroke-width="3" vector-effect="non-scaling-stroke"/>`;
   // columns
   const cols=columns(); cols.forEach(c=>{const on=c.id&&c.id===selCol;g+=`<rect x="${c.x}" y="${c.y}" width="${c.w}" height="${c.h}" fill="${C('--col')}"${on?` stroke="${acc}" stroke-width="2.5" vector-effect="non-scaling-stroke"`:mode==='col'?` stroke="${acc}" stroke-opacity=".5" stroke-dasharray="3 2" vector-effect="non-scaling-stroke"`:''}/>`});
   // clearances
   const G=S.panels.map(p=>({p,g:geom(p)}));
-  if(show.clr) G.forEach(({g:q})=>{[q.fr,q.rr].forEach(r=>{if(r.w>0&&r.h>0)g+=`<rect x="${r.x}" y="${r.y}" width="${r.w}" height="${r.h}" fill="url(#hatch)" stroke="${clr}" stroke-dasharray="4 3" stroke-width="1" vector-effect="non-scaling-stroke" opacity=".9"/>`})});
-  // doors: 문짝(90° 열린 위치, 실선) + 회전 궤적(점선 호)
-  if(show.door){const dc=C('--door');G.forEach(({g:q})=>doors(q).forEach(d=>{g+=doorSvg(d,dc)}))}
+  const gA=g; g='';   // 여기까지 = 격자 · 실 · 기둥 (판넬이 움직여도 그대로)
+  const dc=show.door?C('--door'):'';   // 판넬마다 한 묶음(유지보수 공간 · 도어) — 끄는 판넬 것만 다시 만듦
+  const KB=G.map(({p,g:q})=>{let h='';if(show.clr)[q.fr,q.rr].forEach(r=>{if(r.w>0&&r.h>0)h+=`<rect x="${r.x}" y="${r.y}" width="${r.w}" height="${r.h}" fill="url(#hatch)" stroke="${clr}" stroke-dasharray="4 3" stroke-width="1" vector-effect="non-scaling-stroke" opacity=".9"/>`});if(show.door)doors(q).forEach(d=>{h+=doorSvg(d,dc)});return {k:p.id,h}});
+  // doors: 문짝(90° 열린 위치, 실선) + 회전 궤적(점선 호) — 위 KB 에 같이
   // envelope
   const env=envelope();
   if(env){g+=`<rect x="${env.x}" y="${env.y}" width="${env.w}" height="${env.h}" fill="none" stroke="${acc}" stroke-width="1.5" stroke-dasharray="8 5" vector-effect="non-scaling-stroke"/>`}
   // bodies
+  const gC=g; g='';
   const fs=11*ANN/s;
-  G.forEach(({p,g:q})=>{
+  const KD=G.map(({p,g:q})=>{let g='';   // 판넬 몸체 · Tag · Scope (판넬마다 한 묶음)
     const b=q.body, st=status[p.id], isS=sel.has(p.id);
     const stroke=isS?acc:(st==='err'?err:ink);
     g+=`<rect x="${b.x}" y="${b.y}" width="${b.w}" height="${b.h}" fill="${C('--panel-bg')}" stroke="${stroke}" stroke-width="${isS?2:1}" vector-effect="non-scaling-stroke"/>`;
@@ -1114,11 +1118,11 @@ function render(){v3sync();
       if(p.scope&&!vert&&b.h*s>22*ANN)g+=`<text x="${cx}" y="${cy+fs*1.05}" font-size="${fs*.72}" fill="${scopeColor(p.scope)}" text-anchor="middle" dominant-baseline="middle" font-weight="700">${esc(p.scope)}</text>`;
     }
     if(p.scope){const sc=scopeColor(p.scope),hh=Math.min(b.h*.12,4*ANN/s);g+=`<rect x="${b.x}" y="${b.y+b.h-hh}" width="${b.w}" height="${hh}" fill="${sc}" opacity=".9"/>`}   // 공급 Scope 색 띠
-  });
+    return {k:p.id,h:g}});
   // Equipment List 번호 balloon (육각형 — 건축 CAD 장비 번호와 같은 모양)
-  if(show.eq){const nb=Object.fromEntries(eqRows().map(r=>[r.p.id,r.no])), yc=C('--note');
-    G.forEach(({p,g:q})=>{const b=q.body, R=Math.min(9*ANN/s,Math.min(b.w,b.h)*0.22); if(R*s<4)return; const cx=b.x+R*1.15, cy=b.y+b.h-R*1.15, pts=[0,1,2,3,4,5].map(k=>{const a=Math.PI/3*k;return `${cx+R*Math.cos(a)},${cy+R*Math.sin(a)}`}).join(' ');
-      g+=`<polygon points="${pts}" fill="${C('--sheet')}" fill-opacity=".9" stroke="${yc}" stroke-width="1.2" vector-effect="non-scaling-stroke"/><text x="${cx}" y="${cy}" font-size="${R*1.05}" fill="${yc}" font-weight="700" text-anchor="middle" dominant-baseline="central">${nb[p.id]}</text>`})}
+  let KE=[]; if(show.eq){const nb=Object.fromEntries(eqRows().map(r=>[r.p.id,r.no])), yc=C('--note');
+    KE=G.map(({p,g:q})=>{let g='';const b=q.body, R=Math.min(9*ANN/s,Math.min(b.w,b.h)*0.22); if(R*s<4)return {k:p.id,h:''}; const cx=b.x+R*1.15, cy=b.y+b.h-R*1.15, pts=[0,1,2,3,4,5].map(k=>{const a=Math.PI/3*k;return `${cx+R*Math.cos(a)},${cy+R*Math.sin(a)}`}).join(' ');
+      g+=`<polygon points="${pts}" fill="${C('--sheet')}" fill-opacity=".9" stroke="${yc}" stroke-width="1.2" vector-effect="non-scaling-stroke"/><text x="${cx}" y="${cy}" font-size="${R*1.05}" fill="${yc}" font-weight="700" text-anchor="middle" dominant-baseline="central">${nb[p.id]}</text>`;return {k:p.id,h:g}})}
   // dims
   const spr=spareRect(env);
   if(spr){g+=`<rect x="${spr.x}" y="${spr.y}" width="${spr.w}" height="${spr.h}" fill="${C('--accent-soft')}" stroke="${acc}" stroke-width="1.2" stroke-dasharray="3 4" vector-effect="non-scaling-stroke"/>`;
@@ -1186,22 +1190,32 @@ function render(){v3sync();
   // Ctrl 정렬 안내선
   if(guides.length){const sc=C('--snap');guides.forEach(l=>{g+=`<line x1="${l.x1}" y1="${l.y1}" x2="${l.x2}" y2="${l.y2}" stroke="${sc}" stroke-width="1.3" stroke-dasharray="6 4" vector-effect="non-scaling-stroke"/><text x="${(l.x1+l.x2)/2+6*ANN/s}" y="${(l.y1+l.y2)/2-6*ANN/s}" font-size="${11*ANN/s}" fill="${sc}" font-family="Malgun Gothic,sans-serif">${esc(l.lab)}</text>`})}
   if(marquee){const r=marquee;g+=`<rect x="${Math.min(r.x0,r.x1)}" y="${Math.min(r.y0,r.y1)}" width="${Math.abs(r.x1-r.x0)}" height="${Math.abs(r.y1-r.y0)}" fill="${C('--accent-soft')}" stroke="${acc}" stroke-dasharray="5 3" vector-effect="non-scaling-stroke"/>`}
-  if(show.view)g+=viewSvg(s);   // 운전원 시야 (안전공학)
-  {const c=cam3d();if(show.cam&&c)g+=camSvg(c,s)}   // 3D 관찰자 시점
+  const gv=show.view?viewSvg(s):'';   // 운전원 시야 (안전공학) — 따로 한 층
+  let gc='';{const c=cam3d();if(show.cam&&c)gc=camSvg(c,s)}   // 3D 관찰자 시점 (따로 한 층 — 3D 를 돌릴 때 이 층만 바뀜)
   // rulers (screen space)
   let ru=`<rect x="0" y="0" width="${vw}" height="20" fill="${C('--sheet')}"/><rect x="0" y="0" width="20" height="${vh}" fill="${C('--sheet')}"/><line x1="0" y1="20" x2="${vw}" y2="20" stroke="${C('--line')}"/><line x1="20" y1="0" x2="20" y2="${vh}" stroke="${C('--line')}"/>`;
   const steps=[100,200,500,1000,2000,5000,10000]; let st=steps.find(v=>v*s>=55)||10000, sub=TICK?(TICK*s>=2.5?TICK:st/5):st/5;   // 작은 눈금 = 사용자가 고른 값 (도구줄 '눈금', 너무 촘촘하면 굵게)
   if(TICK&&sub===TICK&&st%TICK)st=Math.ceil(st/TICK)*TICK;   // 숫자 붙는 큰 눈금은 작은 눈금의 배수로
   for(let x=Math.floor(a.x/sub)*sub;x<=b.x;x+=sub){const sx=x*s+V.ox;if(sx<20)continue;const M=Math.abs(x%st)<1e-6;ru+=`<line x1="${sx}" y1="${M?6:Math.abs(x%(sub*2))<1e-6?11:15}" x2="${sx}" y2="20" stroke="${ink2}" stroke-width="1"/>`;if(M)ru+=`<text x="${sx+3}" y="12" font-size="10" fill="${ink2}">${fmt(x)}</text>`}
   for(let y=Math.floor(a.y/sub)*sub;y<=b.y;y+=sub){const sy=y*s+V.oy;if(sy<20)continue;const M=Math.abs(y%st)<1e-6;ru+=`<line x1="${M?6:Math.abs(y%(sub*2))<1e-6?11:15}" y1="${sy}" x2="20" y2="${sy}" stroke="${ink2}" stroke-width="1"/>`;if(M)ru+=`<text x="12" y="${sy+3}" font-size="10" fill="${ink2}" transform="rotate(-90 12 ${sy+3})">${fmt(y)}</text>`}
-  if(show.wm){const [l1,l2]=wmLines(),dx=560,dy=300;let w='';for(let y=120;y<vh+dy;y+=dy)for(let x=(y/dy%2)*dx/2-60;x<vw+dx;x+=dx)w+=`<text transform="translate(${x} ${y}) rotate(-22)" font-size="22" font-weight="700"><tspan x="0" y="0">${esc(l1)}</tspan><tspan x="0" y="28" font-size="16">${esc(l2)}</tspan></text>`;
-    ru=`<g fill="${ink}" opacity="${de_light()?.07:.06}" pointer-events="none" font-family="Malgun Gothic,맑은 고딕,sans-serif">${w}</g>`+ru}   // 워터마크 (자 아래 · 도면 위, 옅게)
+  let wm='';if(show.wm){const [l1,l2]=wmLines(),dx=560,dy=300;let w='';for(let y=120;y<vh+dy;y+=dy)for(let x=(y/dy%2)*dx/2-60;x<vw+dx;x+=dx)w+=`<text transform="translate(${x} ${y}) rotate(-22)" font-size="22" font-weight="700"><tspan x="0" y="0">${esc(l1)}</tspan><tspan x="0" y="28" font-size="16">${esc(l2)}</tspan></text>`;
+    wm=`<g fill="${ink}" opacity="${de_light()?.07:.06}" pointer-events="none" font-family="Malgun Gothic,맑은 고딕,sans-serif">${w}</g>`}   // 워터마크 (자 아래 · 도면 위, 옅게)
   ru+=`<rect x="0" y="0" width="20" height="20" fill="${C('--sheet')}"/>`;
   {const c=show.cam&&cam3d();if(c){const sx=c.e[0]*s+V.ox,sy=c.e[1]*s+V.oy;   // 3D 카메라가 도면 화면 밖이면 가장자리에 표시 (그쪽에 있음)
     if(sx<24||sy<24||sx>vw-4||sy>vh-4){const cx=Math.min(vw-70,Math.max(80,sx)),cy=Math.min(vh-30,Math.max(36,sy)),an=Math.atan2(sy-cy,sx-cx)*180/Math.PI,ac=C('--snap');
       ru+=`<g transform="translate(${cx} ${cy})"><g transform="rotate(${an})"><path d="M14 0 L4 -7 L4 7 Z" fill="${ac}"/></g><rect x="-9" y="-6" width="12" height="12" rx="2" fill="${ac}"/><text x="0" y="20" font-size="11" fill="${ac}" text-anchor="middle" font-weight="700">3D 카메라 ${fmt(Math.hypot(c.e[0]-c.t[0],c.e[1]-c.t[1])/1000)} m</text></g>`}}}
-  svg.innerHTML=defs+`<g transform="translate(${V.ox} ${V.oy}) scale(${s})">${g}</g>`+ru;
+  svgLayers(defs,`translate(${V.ox} ${V.oy}) scale(${s})`,[gA,KB,gC,KD,KE,g,gv],gc,wm,ru);
 }
+/* 2D 도면은 층으로 나눠 바뀐 층만 다시 넣음: 무늬(defs) · 도면(판넬 …) · 3D 시점 · 워터마크 · 자.
+   판넬을 끌면 도면 층만, 화면 이동은 위치(transform)와 자만, 3D 를 돌리면 3D 시점 층만 — 전엔 매번 전부 다시 만들어 무거웠음 */
+function svgLayers(defs,tf,W,gc,wm,ru){   // W = 도면 층의 칸들: 글(그대로 넣음) 또는 [{k: 판넬 id, h}] (판넬마다 <g>, 바뀐 판넬만 다시 넣음)
+  let L=svg._L; if(!L||L.d.parentNode!==svg){svg.innerHTML='<defs></defs><g>'+W.map(()=>'<g></g>').join('')+'</g><g></g><g></g><g></g>';const c=svg.children;L=svg._L={d:c[0],w:c[1],ws:[...c[1].children],c:c[2],m:c[3],r:c[4]}}
+  const put=(el,h)=>{if(el._h!==h){el._h=h;el.innerHTML=h}}, tr=el=>{if(el._t!==tf){el._t=tf;el.setAttribute('transform',tf)}};
+  const keyed=(par,items)=>{const m=par._m||(par._m=new Map()),seen=new Set();let prev=null;
+    items.forEach(({k,h})=>{seen.add(k);let e=m.get(k);if(!e){e=document.createElementNS('http://www.w3.org/2000/svg','g');m.set(k,e)}put(e,h);
+      const want=prev?prev.nextSibling:par.firstChild;if(want!==e)par.insertBefore(e,want);prev=e});
+    m.forEach((e,k)=>{if(!seen.has(k)){e.remove();m.delete(k)}})};
+  put(L.d,defs); tr(L.w); W.forEach((x,i)=>typeof x==='string'?put(L.ws[i],x):keyed(L.ws[i],x)); tr(L.c); put(L.c,gc); put(L.m,wm); put(L.r,ru)}
 
 /* ---------- side panels ---------- */
 function buildInfo(){$('#iPj').value=S.info.project;$('#iRm').value=S.info.room;$('#iBy').value=S.info.author;$('#iBy').placeholder=LOGIN||'이름';$('#iRev').value=S.info.rev;rmHint()}
@@ -1601,11 +1615,13 @@ svg.addEventListener('pointerdown',e=>{
   if(e.shiftKey||mode==='box'){marquee={x0:w.x,y0:w.y,x1:w.x,y1:w.y,add:e.shiftKey&&mode!=='box'};drag={k:'box'};return}
   drag={k:'pan',sx:sp.x,sy:sp.y,ox:V.ox,oy:V.oy,moved:false};
 });
-let raf=0; const req=()=>{if(!raf)raf=requestAnimationFrame(()=>{raf=0;render()})};
+let raf=0; const req=()=>{if(!raf)raf=requestAnimationFrame(()=>{raf=0;dragChk();render()})};
+function dragChk(){if(drag&&drag.k==='move'&&drag.chk){drag.chk=false;drag.block=ENF()?violation(drag.orig.map(o=>o.q)):null;block=drag.block;showBlock();check()}}
+let stXYt='',stXYr=0; function stXY(t){stXYt=t;if(!stXYr)stXYr=requestAnimationFrame(()=>{stXYr=0;const el=$('#stXY');if(el.textContent!==stXYt)el.textContent=stXYt})}   // 상태줄 좌표도 한 프레임에 한 번
 svg.addEventListener('pointermove',e=>{
   const sp=local(e); if(ptrs.has(e.pointerId))ptrs.set(e.pointerId,sp);
   const w=toW(sp.x,sp.y); cursorW=w;
-  $('#stXY').textContent=`X ${fmt(snapV(w.x))} · Y ${fmt(snapV(w.y))}`;
+  stXY(`X ${fmt(snapV(w.x))} · Y ${fmt(snapV(w.y))}`);
   if(pinch&&ptrs.size===2){const [a,b]=[...ptrs.values()];const d=Math.hypot(a.x-b.x,a.y-b.y);const ns=Math.max(.004,Math.min(2,pinch.s*d/pinch.d));const mx=(a.x+b.x)/2,my=(a.y+b.y)/2;const wx=(pinch.mx-pinch.ox)/pinch.s,wy=(pinch.my-pinch.oy)/pinch.s;V.s=ns;V.ox=mx-wx*ns;V.oy=my-wy*ns;req();return}
   if(mode==='place'&&!drag){ghost=placeGhost(w,e.ctrlKey);req();return}
   if(mode==='measure'&&measure&&!measure.b){measure.cur={x:snapV(w.x),y:snapV(w.y)};measStatus();req();return}
@@ -1616,7 +1632,7 @@ svg.addEventListener('pointermove',e=>{
     if(e.ctrlKey){const rx=w.x-drag.w0.x, ry=w.y-drag.w0.y; drag.orig.forEach(o=>{o.q.x=o.x+rx;o.q.y=o.y+ry});
       const s=smartSnap(drag.orig.map(o=>o.q)); dx=s.dx!==null?Math.round(rx+s.dx):snapV(rx); dy=s.dy!==null?Math.round(ry+s.dy):snapV(ry); guides=s.guides}
     if(dx||dy)drag.moved=true; drag.orig.forEach(o=>{o.q.x=o.x+dx;o.q.y=o.y+dy});
-    drag.block=ENF()?violation(drag.orig.map(o=>o.q)):null; block=drag.block; showBlock(); check(); req(); bcLive()}
+    drag.chk=true; req(); bcLive()}   // 규칙 검사(violation · check)는 그릴 때 한 번 — 마우스 이벤트는 한 프레임에 여러 번 올 수 있음
   else if(drag.k==='box'){marquee.x1=w.x;marquee.y1=w.y;req()}
   else if(drag.k==='note'){const dx=w.x-drag.w0.x,dy=w.y-drag.w0.y;if(Math.abs(dx)+Math.abs(dy)>2/V.s)drag.moved=true;drag.n.x=Math.round(drag.ox+dx);drag.n.y=Math.round(drag.oy+dy);req()}
   else if(drag.k==='col'){const dx=snapV(w.x-drag.w0.x),dy=snapV(w.y-drag.w0.y);if(dx||dy)drag.moved=true;drag.o.cx=drag.ox+dx;drag.o.cy=drag.oy+dy;
@@ -1624,7 +1640,7 @@ svg.addEventListener('pointermove',e=>{
 });
 function endPtr(e){
   ptrs.delete(e.pointerId); if(ptrs.size<2)pinch=null;
-  if(!drag)return; const d=drag; drag=null;
+  if(!drag)return; dragChk(); const d=drag; drag=null;
   if(d.k==='move'){guides=[];block=null;showBlock();
     if(d.moved&&d.block){d.orig.forEach(o=>{o.q.x=o.x;o.q.y=o.y});check();render();refuse(d.block)}   // 놓을 수 없는 자리 → 원래 자리로
     else if(d.moved)commit();else render()}
@@ -1641,7 +1657,7 @@ svg.addEventListener('pointerup',endPtr); svg.addEventListener('pointercancel',e
 svg.addEventListener('pointerleave',()=>{if(mode==='place'&&!drag){ghost=null;render()}});
 function zoomAt(sx,sy,k){const w=toW(sx,sy);V.s=Math.max(.004,Math.min(2,V.s*k));V.ox=sx-w.x*V.s;V.oy=sy-w.y*V.s;req()}
 function zoomSel(){   // 선택한 판넬(없으면 전체)로 줌
-  const ps=S.panels.filter(p=>sel.has(p.id)); if(!ps.length)return fit();
+  VPC=null; const ps=S.panels.filter(p=>sel.has(p.id)); if(!ps.length)return fit();
   const eb=unionR(ps.map(p=>extOf(geom(p)))), {w,h}=vp(), pad=80;
   V.s=Math.max(.004,Math.min(2,Math.min((w-pad*2)/eb.w,(h-pad*2)/eb.h))); V.ox=(w-eb.w*V.s)/2-eb.x*V.s; V.oy=(h-eb.h*V.s)/2-eb.y*V.s; render();
 }
@@ -1749,7 +1765,7 @@ const mix=(a,b,k)=>a.map((v,i)=>v*(1-k)+b[i]*k);
 const v3sub=(a,b)=>[a[0]-b[0],a[1]-b[1],a[2]-b[2]], v3dot=(a,b)=>a[0]*b[0]+a[1]*b[1]+a[2]*b[2], v3crs=(a,b)=>[a[1]*b[2]-a[2]*b[1],a[2]*b[0]-a[0]*b[2],a[0]*b[1]-a[1]*b[0]], v3n=a=>{const l=Math.hypot(...a)||1;return a.map(v=>v/l)};
 function m4mul(a,b){const r=new Array(16);for(let c=0;c<4;c++)for(let i=0;i<4;i++){let s=0;for(let k=0;k<4;k++)s+=a[k*4+i]*b[c*4+k];r[c*4+i]=s}return r}
 function v3init(){
-  const cv=$('#v3gl'), gl=cv.getContext('webgl',{antialias:true,preserveDrawingBuffer:true,stencil:true}); if(!gl)return false;
+  const cv=$('#v3gl'), gl=cv.getContext('webgl',{antialias:true,preserveDrawingBuffer:false,stencil:true});   // 그린 버퍼를 매 장 복사해 두지 않음(가벼움) — 3D PNG 는 저장 직전에 다시 그려 바로 복사 if(!gl)return false;
   const sh=(t,src)=>{const s=gl.createShader(t);gl.shaderSource(s,src);gl.compileShader(s);return s};
   const pg=gl.createProgram();
   // 빛: 하늘/바닥 반구광 + 주광(그림자 방향과 같음) + 보조광 + 약한 반사광
@@ -2017,7 +2033,7 @@ function manMove(x,z){   // 지금 자리에서 목표까지 50 mm 씩 걸어가
 function manPov(){   // 사람 시점: 어깨 너머(뒤 1.8 m · 눈 조금 위)에서 사람이 보는 방향으로 — 사람과 앞 판넬 크기를 같이 봄
   const m=V3.man,f=[Math.sin(m.rot),Math.cos(m.rot)],A=1000;V3.T=[m.x+f[0]*A,1250,m.z+f[1]*A];V3.D=2850;V3.yaw=Math.atan2(-f[0],-f[1]);V3.pitch=0.17;V3.pov=true;v3req()}
 function v3draw(){
-  V3.raf=0; if(!V3.on)return; const t0=performance.now(), gl=V3.gl, cv=$('#v3gl'), tx=$('#v3tx'), dpr=window.devicePixelRatio||1;
+  V3.raf=0; if(!V3.on)return; const t0=performance.now(), gl=V3.gl, cv=$('#v3gl'), tx=$('#v3tx'), dpr=Math.min(1.5,window.devicePixelRatio||1);   // 고해상도 화면(배율 200% 등)에서 픽셀이 2~4배 — 1.5 까지만
   const w=Math.max(1,cv.clientWidth), h=Math.max(1,cv.clientHeight);
   if(cv.width!==Math.round(w*dpr)||cv.height!==Math.round(h*dpr)){cv.width=tx.width=Math.round(w*dpr);cv.height=tx.height=Math.round(h*dpr)}
   const M=v3matrix(w,h), bg=hexRGB(getComputedStyle(document.documentElement).getPropertyValue('--paper'));
@@ -2398,7 +2414,7 @@ async function drawingImage(w,h,opt={}){   // 지금 배치를 밝은 화면 · 
   de.dataset.theme='light'; sel=new Set(); show.cam=false; show.view=!!opt.view; show.wm=false; measure=null; svg.style.cssText+=`;width:${w}px;height:${h}px;flex:none`;
   let txt; try{fit(); const c=svg.cloneNode(true); c.setAttribute('xmlns','http://www.w3.org/2000/svg'); c.setAttribute('width',w); c.setAttribute('height',h); c.setAttribute('style','font-family:"Malgun Gothic","맑은 고딕",Consolas,monospace');
     c.insertAdjacentHTML('afterbegin',`<rect width="${w}" height="${h}" fill="#ffffff"/>`); txt=new XMLSerializer().serializeToString(c); var tf={s:V.s,ox:V.ox,oy:V.oy}}
-  finally{if(th)de.dataset.theme=th;else delete de.dataset.theme; Object.assign(V,keepV); sel=keepSel; show.cam=keepCam; show.view=keepView; show.wm=keepWm; measure=keepMeas; svg.style.cssText=ss; render()}
+  finally{if(th)de.dataset.theme=th;else delete de.dataset.theme; Object.assign(V,keepV); sel=keepSel; show.cam=keepCam; show.view=keepView; show.wm=keepWm; measure=keepMeas; svg.style.cssText=ss; VPC=null; render()}
   const url=URL.createObjectURL(new Blob([txt],{type:'image/svg+xml;charset=utf-8'}));
   try{const im=new Image(); await new Promise((ok,no)=>{im.onload=ok;im.onerror=no;im.src=url}); im.tf=tf; return im} finally{setTimeout(()=>URL.revokeObjectURL(url),1000)}
 }
@@ -3152,7 +3168,7 @@ var bcIn=false,bcLiveR=0,bcSelS='',liveGot=false,bcN=0,bcSeen={},bcGot=false,PEE
 function bcPeers(){PEERS.forEach(w=>{try{if(w.closed)PEERS.delete(w)}catch(e){PEERS.delete(w)}});return PEERS.size}
 function bcOut(m){try{BC&&BC.postMessage(m)}catch(e){} PEERS.forEach(w=>{try{w.postMessage({...m,crs:1},location.origin)}catch(e){PEERS.delete(w)}})}
 function bcSend(m){if(bcIn||(!BC&&!bcPeers()))return;bcOut({...m,from:WID,n:++bcN})}
-function bcLive(){if(bcIn||bcLiveR||(!BC&&!bcPeers()))return;bcLiveR=requestAnimationFrame(()=>{bcLiveR=0;bcSend({t:'live',p:S.panels.map(p=>[p.id,p.x,p.y,p.rot]),cols:Array.isArray(S.cols)?S.cols:null})})}
+function bcLive(){if(bcIn||bcLiveR||(!BC&&!bcPeers()))return;bcLiveR=setTimeout(()=>{bcLiveR=0;bcSend({t:'live',p:S.panels.map(p=>[p.id,p.x,p.y,p.rot]),cols:Array.isArray(S.cols)?S.cols:null})},100)}   // 끄는 중 3D 새 창으로 보내기: 0.1 초에 한 번 (받는 창이 매번 3D 를 다시 만듦)
 function applyRemote(snap){if(!snap||(snap===lastSnap&&!liveGot))return;liveGot=false;
   if(snap!==lastSnap){undo.push(lastSnap);if(undo.length>120)undo.shift();redo=[]}
   S=norm(JSON.parse(snap));S._fresh=false;lastSnap=snap;sel=new Set([...sel].filter(id=>S.panels.some(p=>p.id===id)));buildRoom();buildTypes();refresh()}
@@ -3177,7 +3193,9 @@ function v3sync(){   // render() 마다: 선택을 다른 창에 · 나란히 3D
   const ss=[...sel].join(); if(ss!==bcSelS){bcSelS=ss;bcSend({t:'sel',ids:[...sel]})}
   let on=false;try{on=V3.on}catch(e){return} if(!on)return;
   const sg=S.panels.map(p=>p.x+','+p.y+','+p.rot+p.type+(p.lock?'L':'')).join('|')+'#'+ss+'#'+(Array.isArray(S.cols)?S.cols.map(c=>c.cx+','+c.cy).join():'g')+'#'+S.room.w+'x'+S.room.l+'#'+lastSnap.length;
-  if(sg!==V3.sig){V3.sig=sg;v3req()}}
+  if(sg===V3.sig)return; clearTimeout(V3.syT);
+  const go=()=>{V3.sig=sg;V3.syAt=Date.now();v3req()};   // 2D 에서 끄는 중엔 3D 를 0.15 초에 한 번만 다시 만듦 (놓으면 바로)
+  if(drag&&drag.k==='move'&&Date.now()-(V3.syAt||0)<150)V3.syT=setTimeout(()=>{if(V3.sig!==sg)render()},160); else go()}
 $('#v3gl').addEventListener('pointerdown',()=>{V3.kf=true},true); svg.addEventListener('pointerdown',()=>{V3.kf=false},true);
 
 /* ---------- 안전공학 · 인간공학: 운전원 시야 ----------
@@ -3211,8 +3229,10 @@ function viewers2D(){   // 2D 에 그릴 사람: 고른 데스크(없으면 모�
 function viewSvg(s){
   const {V,detail}=viewers2D(); if(!V.length)return ''; const R=ERG.R, fs=10*ANN/s, k=detail?1:.55, paper=getComputedStyle(document.documentElement).getPropertyValue('--paper').trim()||'#fff'; let o='';
   const dir=(f,a)=>{const r=a*Math.PI/180,c=Math.cos(r),sn=Math.sin(r);return [f[0]*c-f[1]*sn,f[0]*sn+f[1]*c]};
-  V.forEach(v=>{[...ERG.zones].reverse().forEach(([a,,col,al])=>{if(!detail&&a>30)return;const p1=dir(v.f,-a),p2=dir(v.f,a);
-      o+=`<path d="M${v.x} ${v.z} L${v.x+p1[0]*R} ${v.z+p1[1]*R} A${R} ${R} 0 0 1 ${v.x+p2[0]*R} ${v.z+p2[1]*R} Z" fill="${col}" fill-opacity="${al*k}" stroke="${col}" stroke-opacity="${.5*k}" stroke-width="1" vector-effect="non-scaling-stroke"/>`});
+  [...ERG.zones].reverse().forEach(([a,,col,al],zi)=>{if(!detail&&zi===0)return;let d='',e='';V.forEach(v=>{const p1=dir(v.f,-a),p2=dir(v.f,a),x1=v.x+p1[0]*R,y1=v.z+p1[1]*R,x2=v.x+p2[0]*R,y2=v.z+p2[1]*R;d+=`M${v.x} ${v.z} L${x1} ${y1} A${R} ${R} 0 0 1 ${x2} ${y2} Z`;e+=`M${x1} ${y1} L${v.x} ${v.z} L${x2} ${y2}`});
+    // 구역마다 한 도형. 큰 호에 테두리 선을 그리면 브라우저가 매번 선 외곽을 계산해 무거움 → 호는 채우기만, 테두리는 곧은 선 두 개
+    o+=`<path d="${d}" fill="${col}" fill-opacity="${al*k}"/><path d="${e}" fill="none" stroke="${col}" stroke-opacity="${.5*k}" stroke-width="1" vector-effect="non-scaling-stroke"/>`});
+  V.forEach(v=>{
     o+=`<line x1="${v.x}" y1="${v.z}" x2="${v.x+v.f[0]*R}" y2="${v.z+v.f[1]*R}" stroke="#2ecc71" stroke-width="1.2" stroke-dasharray="8 5" vector-effect="non-scaling-stroke" opacity="${k}"/>`;
     const st=v.kind==='stand', mc=st?'#e8792b':'#2d8cff';
     o+=`<circle cx="${v.x}" cy="${v.z}" r="${st?200:230}" fill="${mc}" fill-opacity=".85" stroke="#fff" stroke-width="1.2" vector-effect="non-scaling-stroke"/><line x1="${v.x}" y1="${v.z}" x2="${v.x+v.f[0]*300}" y2="${v.z+v.f[1]*300}" stroke="#fff" stroke-width="2" vector-effect="non-scaling-stroke"/>`;
@@ -3256,7 +3276,7 @@ if(ONLY3D)window.addEventListener('pagehide',()=>bcOut({t:'cam',c:null,from:WID,
 
 /* ---------- boot ---------- */
 ergViewLoad(); buildRoom(); buildTypes(); check(); buildSummary(); buildRevs(); buildNotes(); buildEq(); updSrv(); buildProps();
-new ResizeObserver(()=>{if(!fit._d){fit._d=1;fit()}else render()}).observe(svg);
+new ResizeObserver(()=>{VPC=null;if(!fit._d){fit._d=1;fit()}else render()}).observe(svg);
 $('#bUndo').disabled=true;$('#bRedo').disabled=true;
 if(ONLY3D){document.body.classList.add('only3d');document.title='3D — ROOM SIZE 계산';showEditor();open3d()}   // 3D 새 창: 첫 화면 없이 바로 3D
 else showHome();                                           // 메뉴에 들어오면 첫 화면부터 (P&ID · LOGIC 과 같음)

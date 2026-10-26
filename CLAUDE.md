@@ -5145,6 +5145,13 @@ offline.js 줄 옆에 `ref.js` 줄 · 필요 사이즈 내보내기(`await prefl
 ★ 새 룸은 Option A(자동 배치) 창부터 연다 — 화면 자기검증 둘이 그 창을 닫고/예시 배치로 시작하게 고쳤다.  시험 `tests/test_hotfix121_space_ref.py` 2건 ·
 `ui_audit_space116`(11 · Option A 창 확인) · `ui_audit_space120_sync`(3D 창 연동) 전부 통과 · Ref 21룸 화면에 뜸 · 페이지 오류 0.
 
+**그 다음 — 판넬 10-26 셋째 판: 가볍게 (hotfix122 · 판정 0줄)**
+
+판넬 브랜치 `ccr-d82d97fa-bb3ty3` 의 `d890bb5..093c451` (화면 커밋 하나 — 2D 도면 층 나눠 바뀐 것만 다시 그림 `svgLayers` · 크기 기억 `VPC` ·
+끄는 중 검사 한 프레임에 한 번 `dragChk` · 3D 동기 0.15초 · 새 창 보내기 0.1초 · WebGL `preserveDrawingBuffer:false`)를 세 갈래로 합쳤다 — **충돌 0**.
+바뀐 파일은 `app/static/space/index.html` 하나 (`ref.js` 그대로).  시험 `tests/test_hotfix122_space_light.py` · `ui_audit_space116`(11) ·
+`ui_audit_space120_sync`(7) 전부 통과 · 페이지 오류 0.
+
 ## 4. 미해결 과제 (다음 단계 후보) — 우선순위 순
 
 1. **순번은 "안 붙인 것"이 최대 원인입니다** (오답 203건: 발주처는 붙였는데 우리는
