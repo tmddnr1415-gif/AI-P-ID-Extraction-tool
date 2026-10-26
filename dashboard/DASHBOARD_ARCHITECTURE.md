@@ -1197,3 +1197,12 @@ C:\Users\SAMSUNG\Desktop\Claude\                         ← 개발 폴더 (여�
 - 바뀐 곳: dashboard.html `APP_VERSION` · `PID_ROUTES`(space · books) · `APP_ROUTES`(빈 것) · `PID_OFF` · `pidConnect`(6초 · 5초 자동 재시도).
 - 확인한 것: JS 문법. 임시 대시보드 서버 + 가짜 P&ID 서버(8000, `/version` · 페이지): P&ID 서버 꺼짐 → ROOM SIZE 계산 '꺼져 있습니다' → 가짜 서버 켬 → 자동으로 `:8000/space?embed=1&user=박부서` iframe. 도서검토 → `:8000/books/?embed=1&user=…`, LOGIC 작성 → `:8000/logic/draw?user=…`. 콘솔 오류 없음.
 - 회사에서 확인할 것: P&ID 서버에 hotfix116 이상(판넬 `/space` · 도서 `/books`)이 깔려 있어야 함. 예전에 대시보드 서버에 저장한 판넬 자료는 ROOM SIZE 계산 첫 화면 ① 카드의 [대시보드 자료 가져오기]로 P&ID 서버에 들임(P&ID 쪽 기능). 도서 색인은 P&ID 서버에서 한 번 [색인 갱신].
+
+### 2026-10-26 (33) — 📷 스크린 → VOC 를 누르면 바로 '화면 캡처를 취소했습니다'만 뜨던 것 (APP_VERSION 2026-10-26.2 / SERVER 그대로)
+> server.py 안 바뀜 → 서버 재시작 필요 없음. 부서원 사본은 새 버전 배너로 교체.
+- 무엇을: 현장 사진(서버 PC `localhost:8080` · 수행 화면) — 단추를 누르자마자 '화면 캡처를 취소했습니다'. 고르는 창이 뜨기도 전에 브라우저가 화면 캡처(`getDisplayMedia`)를 거절한 것 = 사람이 취소한 게 아니라 **회사 Edge 정책(ScreenCaptureAllowed 등) · 보안 프로그램 · 브라우저 설정이 캡처를 막음**. 예전 코드는 어떤 실패든 '취소'로 보고 아무것도 안 했음.
+  - 거절이 0.8초 안에 오거나 NotAllowedError 가 아닌 오류면 '막힘'으로 봄 → **바로 VOC 창을 열고**(지금 화면 · 메뉴 자동 그대로) 'Win+Shift+S 로 캡처 → 왼쪽 그림 칸 Ctrl+V(그림 파일 끌어 놓기도 됨)' 안내 + 그림 칸에 포커스. 그날은 다시 묻지 않고 바로 VOC 창(`dept-shot-blocked` = 오늘 날짜). VOC 창 안 '화면 캡처 추가'도 같은 안내.
+  - 사람이 고르는 창에서 [취소] 한 것(0.8초 넘어서 거절)은 전과 같음(아무 일 없음).
+- 바뀐 곳: dashboard.html `APP_VERSION` · `shotStream`(오류 이름 · 걸린 시간 → `SHOT.err.blocked`) · `captureRegion`('blocked' 돌려줌) · 새 `shotBlocked` `vocPaste` · `shotToVoc` · VOC 창 `#vShot`.
+- 확인한 것: JS 문법. 임시 서버: 캡처 즉시 거절(정책 흉내) → VOC 창 열림 · 안내 · #perform 그대로 → 다시 누르면 묻지 않고 바로 VOC 창 · 창 안 '화면 캡처 추가' → 안내. 고르는 창에서 1.5초 뒤 취소 → '취소했습니다'만(전과 같음). 정상 캡처(탭 허락) → 범위 고르기 화면. 콘솔 오류 없음.
+- 회사에서 확인할 것: 서버 PC 에서 📷 → VOC 창 + 안내가 뜨는지. Win+Shift+S 도 막힌 PC 면 그림 파일을 끌어 놓기. 브라우저 캡처를 쓰고 싶으면 IT 에 Edge 정책 `ScreenCaptureAllowed`(또는 `ScreenCaptureAllowedByOrigins` 에 `http://localhost:8080` · `http://PC이름:8080`) 확인 요청(선택).

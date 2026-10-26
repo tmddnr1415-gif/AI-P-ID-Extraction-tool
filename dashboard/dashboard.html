@@ -1112,7 +1112,7 @@ function recLabel(key, f) {
  * ===================================================================== */
 let root = null;
 /* 서버 모드: http(s):// 로 접속하면 server.py 의 REST API 사용 (폴더 선택 불필요). file:// 로 열면 폴더 모드 */
-const APP_VERSION = '2026-10-26.1';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
+const APP_VERSION = '2026-10-26.2';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
 const SERVER_URL = 'http://localhost:8080';
 // 부서원 PC 사본(file://)이 접속을 시도할 서버 — 서버가 배포 파일을 만들 때 'PC 이름 주소, IP 주소' 순으로 자동 기록함
 const DEFAULT_SERVERS = ['http://ASEUNGWOOK-B01:8080', 'http://65.3.30.234:8080'];
@@ -2964,11 +2964,13 @@ function openVoc({ menu = '', images = [], post = null, keep = null, back = null
   $('#vFile').onchange = e => add([...e.target.files]);
   $('#vShot').onclick = async () => {        // 창을 잠깐 닫고 캡처 → 쓰던 내용 · 그림 그대로 다시 열기
     if (V.list.length >= VOC_IMG_MAX) return toast(`그림은 ${VOC_IMG_MAX}장까지입니다`, true);
+    if (shotBlocked()) { toast('이 PC 에서는 브라우저 화면 캡처가 막혀 있습니다 — Win+Shift+S 로 캡처한 뒤 왼쪽 그림 칸에서 Ctrl+V', true); return $('#vPrev')?.focus(); }
     MK?.destroy(); MK = null;
     const k = snap(), m = $('#vMenu').value;
     D.onclose = null; D.close();                              // 다시 열 것이므로 '임시 저장' 처리 없이
-    const b = await captureRegion();
-    openVoc({ post, menu:m, images:b ? [b] : [], keep:k, back:ret }); };
+    const r = await captureRegion(), b = r instanceof Blob ? r : null;
+    openVoc({ post, menu:m, images:b ? [b] : [], keep:k, back:ret });
+    if (r === 'blocked') { toast('이 PC 에서는 브라우저 화면 캡처가 막혀 있습니다 — Win+Shift+S 로 캡처한 뒤 왼쪽 그림 칸에서 Ctrl+V', true); setTimeout(() => $('#vPrev', vdlg())?.focus(), 50); } };
   const lft = $('.vleft');
   lft.addEventListener('dragover', e => { e.preventDefault(); lft.classList.add('drop'); });
   lft.addEventListener('dragleave', () => lft.classList.remove('drop'));
@@ -3010,8 +3012,13 @@ addEventListener('pagehide', shotStop);
 async function shotStream() {                  // 살아 있으면 그대로, 없으면 허락 받기
   if (SHOT.stream && SHOT.stream.getVideoTracks().some(t => t.readyState === 'live')) return true;
   shotStop();
+  const t0 = performance.now();
   let st; try { st = await navigator.mediaDevices.getDisplayMedia({ video:{ displaySurface:'browser', frameRate:{ ideal:10, max:15 } }, audio:false, preferCurrentTab:true, selfBrowserSurface:'include', surfaceSwitching:'exclude', systemAudio:'exclude' }); }
-  catch (_) { return false; }
+  catch (e) {
+    // 고르는 창이 뜨기도 전에(0.8초 안) 거절 = 사람이 취소한 게 아니라 회사 정책 · 보안 프로그램 · 브라우저 설정이 화면 캡처를 막은 것
+    SHOT.err = { name:e?.name || 'Error', msg:e?.message || '', blocked:performance.now() - t0 < 800 || e?.name !== 'NotAllowedError' };
+    return false;
+  }
   const v = document.createElement('video'); v.muted = true; v.playsInline = true; v.srcObject = st;
   try { await v.play(); } catch (_) {}
   if (!v.videoWidth) await new Promise(r => { v.onloadedmetadata = r; setTimeout(r, 1000); });
@@ -3032,7 +3039,11 @@ async function captureRegion() {
   if (!navigator.mediaDevices?.getDisplayMedia) return null;   // 보안 연결이 아닌 주소 — shotToVoc 가 붙여넣기 안내
   tipEl.style.display = 'none';
   const warm = !!SHOT.stream;
-  if (!(await shotStream())) { toast('화면 캡처를 취소했습니다'); return null; }
+  SHOT.err = null;
+  if (!(await shotStream())) {
+    if (SHOT.err?.blocked) { shotBlocked(true); return 'blocked'; }
+    toast('화면 캡처를 취소했습니다'); return null;
+  }
   try { const full = await shotFrame(); shotArm(); return await pickRegion(full, warm); }
   catch (e) { shotStop(); toast('캡처하지 못했습니다: ' + e.message, true); return null; }
 }
@@ -3065,6 +3076,13 @@ function pickRegion(full, warm) {             // 캡처한 그림 위에서 끌�
       else if (e.target.closest('[data-qoff]')) { shotStop(); e.target.closest('.qon').textContent = '빠른 캡처 꺼짐 (다음엔 다시 묻습니다)'; } };
   });
 }
+/* 이 PC 에서 브라우저 화면 캡처가 막혀 있음(회사 정책 등) → 오늘은 묻지 않고 바로 VOC 창 + Win+Shift+S 붙여넣기 */
+const shotBlocked = set => { const k = 'dept-shot-blocked'; try { if (set) localStorage.setItem(k, todayISO()); else return localStorage.getItem(k) === todayISO(); } catch (_) { return false; } };
+function vocPaste(from, back, why) {
+  openVoc({ menu:vocMenuOf(from), back });
+  toast(why + ' — Win+Shift+S 로 범위를 캡처한 뒤 왼쪽 그림 칸에서 Ctrl+V (그림 파일 끌어 놓기도 됨)', true);
+  setTimeout(() => $('#vPrev', vdlg())?.focus(), 50);
+}
 async function shotToVoc() {                   // 📷 스크린 단추 · F8 — 캡처 → 범위 → 그 자리에서 VOC 창 (화면 · 열린 편집 창 그대로)
   if (GUEST || !AUTH) return toast('VOC 는 실명으로만 씁니다 — 로그인하세요', true);
   if (!SERVER || OFFLINE) return toast('VOC 는 서버에 연결되어 있을 때만 쓸 수 있습니다', true);
@@ -3072,13 +3090,11 @@ async function shotToVoc() {                   // 📷 스크린 단추 · F8 �
   if (document.getElementById('shotdlg').open) return;
   if (vdlg().open) return $('#vShot', vdlg())?.click();           // VOC 창이 열려 있으면 그 창의 '화면 캡처 추가'
   const from = route, back = document.activeElement;
-  if (!navigator.mediaDevices?.getDisplayMedia) {                  // 보안 연결이 아닌 주소(http://PC이름) — 브라우저가 캡처를 막음 → 윈도우 캡처 + 붙여넣기
-    openVoc({ menu:vocMenuOf(from), back });
-    toast('이 주소에서는 브라우저가 화면 캡처를 막습니다 — Win+Shift+S 로 범위를 캡처한 뒤 왼쪽 그림 칸에서 Ctrl+V', true);
-    setTimeout(() => $('#vPrev', vdlg())?.focus(), 50);
-    return;
-  }
+  if (!navigator.mediaDevices?.getDisplayMedia)                    // 보안 연결이 아닌 주소(http://PC이름) — 브라우저가 캡처를 막음 → 윈도우 캡처 + 붙여넣기
+    return vocPaste(from, back, '이 주소에서는 브라우저가 화면 캡처를 막습니다');
+  if (shotBlocked()) return vocPaste(from, back, '이 PC 에서는 브라우저 화면 캡처가 막혀 있습니다(회사 정책 등)');
   const b = await captureRegion();
+  if (b === 'blocked') return vocPaste(from, back, `이 PC 에서는 브라우저 화면 캡처가 막혀 있습니다(${SHOT.err?.name || ''} · 회사 정책 등)`);
   if (!b && !VDRAFT) { try { back?.isConnected && back.focus({ preventScroll:true }); } catch (_) {} return; }   // 취소 = 아무 일도 없던 것처럼
   openVoc({ menu:vocMenuOf(from), images:b ? [b] : [], back });
 }
