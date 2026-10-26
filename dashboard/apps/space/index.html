@@ -107,6 +107,7 @@ input[type=number]{font-family:var(--f-mono);font-variant-numeric:tabular-nums}
 body.only3d .modal.v3dlg{padding:0;background:var(--paper)}body.only3d .modal.v3dlg .box{width:100%;height:100%;max-height:none;border-radius:0}   /* 3D 새 창 */
 .v3side{width:286px;flex:none;border-left:1px solid var(--line);overflow:auto;padding:10px;font-size:12px;background:var(--panel-bg)}
 .v3side[hidden]{display:none}
+.v3side.pp{width:auto;border:0;padding:0;background:none;overflow:visible}   /* 2D 선택한 판넬 칸 안의 Type 값 칸 */
 .v3side h5{margin:0 0 6px;font-size:13px;display:flex;align-items:center;gap:6px}.v3side h5 i{width:10px;height:10px;border-radius:2px;display:inline-block}
 .v3side .g{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin:6px 0}.v3side .g2{grid-template-columns:1fr 1fr}
 .v3side label{display:flex;flex-direction:column;gap:2px;color:var(--ink-2);font-size:11px}.v3side label.full{grid-column:1/-1}
@@ -1228,7 +1229,9 @@ function buildProps(){
       <label>Y (좌상단)<input type="number" id="pY" step="${S.snap}" value="${p.y}"></label>
       <label>전면 방향<select id="pRot">${[[0,'↑ 위'],[90,'→ 오른쪽'],[180,'↓ 아래'],[270,'← 왼쪽']].map(([v,l])=>`<option value="${v}" ${v===g.r?'selected':''}>${l}</option>`).join('')}</select></label>
       <label>평면 치수<input value="${fmt(g.body.w)} × ${fmt(g.body.h)}" disabled></label>
-      <label class="chk full" style="flex-direction:row;gap:6px;color:var(--ink)"><input type="checkbox" id="pLock" ${p.lock?'checked':''}>🔒 잠금 — 옮기기 · 회전 · 삭제 막음 (L)</label></div>`;
+      <label class="chk full" style="flex-direction:row;gap:6px;color:var(--ink)"><input type="checkbox" id="pLock" ${p.lock?'checked':''}>🔒 잠금 — 옮기기 · 회전 · 삭제 막음 (L)</label></div>
+      <div class="v3side pp">${typeSecHtml(p,'pp')}</div>`;   // 크기 · 유지보수 · 도어 · 가구 칸 = Type 만들 때처럼 (3D 속성 칸과 같은 것)
+    $('#pptApply').onclick=()=>v3applyType(p,'pp');
     $('#pLock').onchange=()=>lockSel();
     const ch=(id,fn)=>$(id).addEventListener('change',e=>{fn(e.target.value);commit()});
     ch('#pTag',v=>{const dup=S.panels.some(q=>q!==p&&q.tag===v.trim());p.tag=dup?v.trim()+'*':v.trim()});
@@ -1896,6 +1899,21 @@ function v3hidden(p,pt){   // 글자 자리가 다른 판넬 뒤에 가려지면
 function rayFloor(R){if(!R||R.d[1]>=-1e-6)return null;const t=-R.o[1]/R.d[1];return [R.o[0]+R.d[0]*t,R.o[2]+R.d[2]*t]}
 /* 3D 속성 칸: 판넬 하나를 고르면 Tag · Description · 크기 · 유지보수 · 도어(위치 · 단문/양문 · 힌지) · 방향 · 위치를 고침.
    크기 · 도어는 Type 값이라 '이 판넬만'(같은 값 Type 을 찾거나 새 Type 을 만듦) / '같은 Type 전체' 를 고름. 2D 와 같은 배치 규칙 */
+/* Type 값(크기 · 유지보수 · 도어 · 가구 칸) 고치는 칸 — 3D 속성 칸(pre='v3') · 2D 선택한 판넬 칸(pre='pp') 같이 씀.
+   이 판넬만 = 같은 값 Type 이 없으면 '(변형)' Type 을 만들어 이 판넬만 바꿈 / 같은 Type 전체 = Type 을 고침 */
+function typeSecHtml(p,pre){
+  const t=typeOf(p), n=S.panels.filter(q=>q.type===t.id).length, kind=t.door==='none'?'none':t.hinge==='LR'?'LR':t.hinge;
+  return `<div class="sec"><b>${t.kind==='cabinet'?'크기 · 도어':'크기 · '+(t.kind==='desk'?'운전원 · 모니터':t.kind==='screen'?'화면':'의자')}</b> <span class="muted">(${esc(KIND[t.kind]||'')} · Type '${esc(t.name)}' 값 · ${n} EA)</span>
+    ${t.kind==='desk'?`<div class="g"><label>작업면 높이<input type="number" id="${pre}kTop" step="10" value="${t.top}"></label><label>운전원 수<input type="number" id="${pre}kBays" min="1" step="1" value="${t.bays}"></label><label>모니터/운전원<input type="number" id="${pre}kMon" min="0" step="1" value="${t.mon}"></label>
+      <label>모니터 inch<input type="number" id="${pre}kMonIn" min="10" step="1" value="${t.monIn}"></label><label>모니터 단<input type="number" id="${pre}kTiers" min="1" max="3" step="1" value="${t.tiers}"></label></div>`:''}
+    ${t.kind==='screen'?`<div class="g"><label>가로 장<input type="number" id="${pre}kCols" min="1" step="1" value="${t.cols}"></label><label>세로 장<input type="number" id="${pre}kRows" min="1" step="1" value="${t.rows}"></label><label>한 장 inch<input type="number" id="${pre}kTileIn" min="20" step="1" value="${t.tileIn}"></label>
+      <label class="full">바닥에서 화면 아래<input type="number" id="${pre}kElev" min="0" step="50" value="${t.elev}"></label></div>`:''}
+    <div class="g"><label>W 폭<input type="number" id="${pre}tW" min="1" step="50" value="${t.w}" ${t.kind==='screen'?'disabled title="화면 장 수 · 크기에서 자동"':''}></label><label>D 깊이<input type="number" id="${pre}tD" min="1" step="50" value="${t.d}"></label><label>H 높이<input type="number" id="${pre}tH" min="1" step="50" value="${+t.h||2100}" ${t.kind==='desk'||t.kind==='screen'?'disabled title="자동 (모니터 · 화면 꼭대기)"':''}></label>
+     <label>전면 유지보수<input type="number" id="${pre}tF" min="0" step="50" value="${+t.front||0}"></label><label>후면 유지보수<input type="number" id="${pre}tR" min="0" step="50" value="${+t.rear||0}"></label><label>&nbsp;</label>
+     <label ${t.kind!=='cabinet'?'hidden':''}>도어 위치<select id="${pre}tDoor">${Object.entries(DOOR_AT).map(([k,v])=>`<option value="${k}" ${k===t.door?'selected':''}>${v}</option>`).join('')}</select></label>
+     <label class="full" style="grid-column:2/-1" ${t.kind!=='cabinet'?'hidden':''}>도어 형식 · 열림<select id="${pre}tKind"><option value="L" ${kind==='L'?'selected':''}>단문 — L 힌지 (왼쪽에 경첩)</option><option value="R" ${kind==='R'?'selected':''}>단문 — R 힌지 (오른쪽에 경첩)</option><option value="LR" ${kind==='LR'?'selected':''}>양문 — L-R 양개</option></select></label></div>
+    ${n>1?`<div class="sc"><label><input type="radio" name="${pre}sc" value="one" checked>이 판넬만 (같은 값 Type 이 없으면 '${esc(t.name)} (변형)' 을 만듦)</label><label><input type="radio" name="${pre}sc" value="all">같은 Type 전체 ${n} EA</label></div>`:''}
+    <div class="row"><button id="${pre}tApply" class="primary">${t.kind==='cabinet'?'크기 · 도어 적용':'적용'}</button><span class="muted">${t.kind==='cabinet'?'힌지 L/R 은 그 면 앞에 서서 볼 때':t.kind==='chair'?'의자는 데스크 앞 운전 공간 안에 놓을 수 있음':'H 는 자동'}</span></div><div class="err" id="${pre}tErr"></div></div>`}
 function v3side(){
   const box=$('#v3Side'), ps=S.panels.filter(p=>sel.has(p.id));
   if(ps.length!==1){box.innerHTML=ps.length?`<h5>판넬 ${ps.length}개 선택</h5><p class="muted">속성은 하나만 골랐을 때 고칩니다. 끌면 묶음째 옮겨집니다.</p>`:`<h5>속성</h5><p class="muted">판넬을 누르면 여기서 Tag · Description · 크기 · 도어 · 방향을 고칩니다.</p>`;return}
@@ -1904,17 +1922,7 @@ function v3side(){
    <div class="g g2"><label>Tag<input id="v3pTag" value="${esc(p.tag)}"></label><label>Type<select id="v3pType">${S.types.map(x=>`<option value="${x.id}" ${x.id===t.id?'selected':''}>${esc(x.name)}</option>`).join('')}</select></label>
     <label class="full">Description<input id="v3pDesc" value="${esc(p.desc)}" placeholder="예: DCS Controller Cabinet #1"></label>
     <label class="full">공급 Scope<input id="v3pScope" list="scopeList" value="${esc(p.scope||'')}" placeholder="예: EPC · OWNER · VENDOR"></label></div>
-   <div class="sec"><b>${t.kind==='cabinet'?'크기 · 도어':'크기 · '+(t.kind==='desk'?'운전원 · 모니터':t.kind==='screen'?'화면':'의자')}</b> <span class="muted">(${esc(KIND[t.kind]||'')} · Type '${esc(t.name)}' 값 · ${n} EA)</span>
-    ${t.kind==='desk'?`<div class="g"><label>작업면 높이<input type="number" id="v3kTop" step="10" value="${t.top}"></label><label>운전원 수<input type="number" id="v3kBays" min="1" step="1" value="${t.bays}"></label><label>모니터/운전원<input type="number" id="v3kMon" min="0" step="1" value="${t.mon}"></label>
-      <label>모니터 inch<input type="number" id="v3kMonIn" min="10" step="1" value="${t.monIn}"></label><label>모니터 단<input type="number" id="v3kTiers" min="1" max="3" step="1" value="${t.tiers}"></label></div>`:''}
-    ${t.kind==='screen'?`<div class="g"><label>가로 장<input type="number" id="v3kCols" min="1" step="1" value="${t.cols}"></label><label>세로 장<input type="number" id="v3kRows" min="1" step="1" value="${t.rows}"></label><label>한 장 inch<input type="number" id="v3kTileIn" min="20" step="1" value="${t.tileIn}"></label>
-      <label class="full">바닥에서 화면 아래<input type="number" id="v3kElev" min="0" step="50" value="${t.elev}"></label></div>`:''}
-    <div class="g"><label>W 폭<input type="number" id="v3tW" min="1" step="50" value="${t.w}" ${t.kind==='screen'?'disabled title="화면 장 수 · 크기에서 자동"':''}></label><label>D 깊이<input type="number" id="v3tD" min="1" step="50" value="${t.d}"></label><label>H 높이<input type="number" id="v3tH" min="1" step="50" value="${+t.h||2100}" ${t.kind==='desk'||t.kind==='screen'?'disabled title="자동 (모니터 · 화면 꼭대기)"':''}></label>
-     <label>전면 유지보수<input type="number" id="v3tF" min="0" step="50" value="${+t.front||0}"></label><label>후면 유지보수<input type="number" id="v3tR" min="0" step="50" value="${+t.rear||0}"></label><label>&nbsp;</label>
-     <label ${t.kind!=='cabinet'?'hidden':''}>도어 위치<select id="v3tDoor">${Object.entries(DOOR_AT).map(([k,v])=>`<option value="${k}" ${k===t.door?'selected':''}>${v}</option>`).join('')}</select></label>
-     <label class="full" style="grid-column:2/-1" ${t.kind!=='cabinet'?'hidden':''}>도어 형식 · 열림<select id="v3tKind"><option value="L" ${kind==='L'?'selected':''}>단문 — L 힌지 (왼쪽에 경첩)</option><option value="R" ${kind==='R'?'selected':''}>단문 — R 힌지 (오른쪽에 경첩)</option><option value="LR" ${kind==='LR'?'selected':''}>양문 — L-R 양개</option></select></label></div>
-    ${n>1?`<div class="sc"><label><input type="radio" name="v3sc" value="one" checked>이 판넬만 (같은 값 Type 이 없으면 '${esc(t.name)} (변형)' 을 만듦)</label><label><input type="radio" name="v3sc" value="all">같은 Type 전체 ${n} EA</label></div>`:''}
-    <div class="row"><button id="v3tApply" class="primary">${t.kind==='cabinet'?'크기 · 도어 적용':'적용'}</button><span class="muted">${t.kind==='cabinet'?'힌지 L/R 은 그 면 앞에 서서 볼 때':t.kind==='chair'?'의자는 데스크 앞 운전 공간 안에 놓을 수 있음':'H 는 자동'}</span></div><div class="err" id="v3tErr"></div></div>
+   ${typeSecHtml(p,'v3')}
    <div class="sec"><b>방향 · 위치</b>
     <div class="g"><label>전면 방향<select id="v3pRot">${[[0,'↑ 위'],[90,'→ 오른쪽'],[180,'↓ 아래'],[270,'← 왼쪽']].map(([v,l])=>`<option value="${v}" ${v===g.r?'selected':''}>${l}</option>`).join('')}</select></label>
      <label>X<input type="number" id="v3pX" step="${S.snap}" value="${p.x}"></label><label>Y<input type="number" id="v3pY" step="${S.snap}" value="${p.y}"></label></div>
@@ -1932,13 +1940,13 @@ function v3side(){
   $('#v3pLock').onchange=()=>lockSel();
   $('#v3tApply').onclick=()=>v3applyType(p);
 }
-function v3applyType(p){
-  const t=typeOf(p), err=m=>{$('#v3tErr').textContent=m}, num=id=>+$(id).value, kind=$('#v3tKind').value;
-  const v={w:num('#v3tW'),d:num('#v3tD'),h:num('#v3tH'),front:Math.max(0,num('#v3tF')||0),rear:Math.max(0,num('#v3tR')||0),door:$('#v3tDoor').value,hinge:kind,kind:t.kind||'cabinet'};
-  [['Top','top'],['Bays','bays'],['Mon','mon'],['MonIn','monIn'],['Tiers','tiers'],['Cols','cols'],['Rows','rows'],['TileIn','tileIn'],['Elev','elev']].forEach(([K,k])=>{const el=$('#v3k'+K);if(el)v[k]=+el.value});
+function v3applyType(p,pre='v3'){
+  const t=typeOf(p), err=m=>{$(`#${pre}tErr`).textContent=m}, num=id=>+$(`#${pre}${id}`).value, kind=$(`#${pre}tKind`).value;
+  const v={w:num('tW'),d:num('tD'),h:num('tH'),front:Math.max(0,num('tF')||0),rear:Math.max(0,num('tR')||0),door:$(`#${pre}tDoor`).value,hinge:kind,kind:t.kind||'cabinet'};
+  [['Top','top'],['Bays','bays'],['Mon','mon'],['MonIn','monIn'],['Tiers','tiers'],['Cols','cols'],['Rows','rows'],['TileIn','tileIn'],['Elev','elev']].forEach(([K,k])=>{const el=$(`#${pre}k${K}`);if(el)v[k]=+el.value});
   fixDoor(v);   // 가구: 도어 없음 · H(· 화면 W) 자동
   if(!(v.w>0&&v.d>0&&v.h>0))return err('W · D · H 는 0 보다 커야 합니다.');
-  const all=S.panels.filter(q=>q.type===t.id), sc=all.length>1?(document.querySelector('input[name=v3sc]:checked')||{}).value:'all';
+  const all=S.panels.filter(q=>q.type===t.id), sc=all.length>1?(document.querySelector(`input[name=${pre}sc]:checked`)||{}).value:'all';
   const KS=['w','d','h','front','rear','door','hinge','kind',...(v.kind==='desk'?['top','bays','mon','monIn','tiers']:v.kind==='screen'?['cols','rows','tileIn','elev']:[])];
   const same=x=>KS.every(k=>String(x[k]??'')===String(v[k]))&&x.pre===t.pre&&x.color===t.color;
   if(sc==='all'){const old={...t};Object.assign(t,v);fixDoor(t);
