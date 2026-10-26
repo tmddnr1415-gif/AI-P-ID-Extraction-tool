@@ -1183,3 +1183,18 @@ C:\Users\SAMSUNG\Desktop\Claude\                         ← 개발 폴더 (여�
 - 무엇을 ② PDF 반영: '인간공학 기준 PDF 를 따로 같이 출력'(기본 켬, 끄면 [필요 사이즈] 는 한 파일만), '필요 사이즈 도면(1쪽)에 시야 부채꼴'(기본 끔, `needPdf` → `drawingImage(…,{view})`). [👁 인간공학 기준 PDF] 버튼은 언제나 됨.
 - 무엇을 ③ 기준 값 고치기: 앉은 · 선 눈 높이, 정상 시선 각, 최적 · 눈만 · 머리 각(커지는 순서 검사), 화면 비스듬히 경고 각, 부채꼴 반경 + [기준 값 기본으로]. `ERG_DEF` · `ergApply()`(`operators()` 처음에 불러 S.erg → ERG), `zoneOf` · 표 · 라벨 · PDF 문구가 값을 따라감. 인간공학 PDF 기준 표에 '★ 사용자 수정 (기본 …)', 1쪽에 '기준 값 일부를 사용자가 고침'. 3D 모형 크기는 그대로(시야 계산 · 표기만).
 - 확인한 것: Chromium — 최적 20° · 앉은 눈 1,200 → 데스크 표 '최적 ±20°', PDF 2쪽 ★ 2줄, 필요 사이즈 1쪽 부채꼴. PDF 켬 → 2 파일 · 끔 → 1 파일. 2D 끔 → 부채꼴 0. 3D 위에서 창 열기 · 3D 시야 끔. Ctrl+Z → 앞 설정. 다시 열어도 켜고 끈 상태 유지. 이전 시험(need · space · home · erg · ergpdf · rules · p2d · v3 · dual · side · nosrv · opt · bulk · furn) 통과, 스크립트 오류 0.
+
+### 2026-10-26 (43) — 판넬 공간확보: 가볍게 (apps/space/index.html 만)
+> 서버 재시작 · 대시보드 교체 필요 없음. 배치안 · 화면 모양은 그대로.
+- 왜: 판넬 끌기 · 화면 이동 · 휠 · 3D 돌리기가 무거움. 재 보니 JS 는 회당 5 ms 안팎이고, 나머지는 브라우저가 2D 도면(SVG 500여 개)을 **매번 통째로** 다시 읽고 배치 · 칠하는 데 씀. 나란히 3D 를 돌리면 2D 도면도 매 장 통째로 다시 그림(3D 시점 표시 때문).
+- 바뀐 곳:
+  - `render` 끝 → `svgLayers(defs, transform, [격자·실·기둥, 판넬별 유지보수·도어, 필요 영역, 판넬별 몸체·Tag, 판넬별 번호, 치수·노트 등, 시야], 3D 시점, 워터마크, 자)`: 층마다 지난 글과 같으면 안 건드림, 판넬별 칸은 판넬 id 마다 `<g>`(바뀐 판넬만). 격자 바탕 사각형은 20 m 단위로 넉넉히(화면 이동에 안 바뀜). `#cv` 첫 `<g>` = 도면(transform) 은 그대로.
+  - `vp()` = 크기 기억(`VPC`, ResizeObserver · `fit` · `zoomSel` · `drawingImage` 에서 다시 읽음).
+  - `stXY()` · `showBlock()`: 상태줄 글은 바뀔 때만, `#stXY` 크기 고정(contain) · `.stage` · `#cv` contain.
+  - 끌기: pointermove 는 자리만 바꾸고 `dragChk()`(violation · check)는 `req` 의 그리기 직전에 한 번, 놓을 때도 한 번.
+  - `viewSvg`: 시야 부채꼴 구역마다 한 path(채우기) + 곧은 테두리, 시야는 따로 한 층.
+  - `v3sync`: 2D 에서 끄는 중엔 나란히 3D 를 0.15 초에 한 번, `bcLive`: 3D 새 창 보내기 0.1 초에 한 번.
+  - WebGL `preserveDrawingBuffer:false`(3D PNG 는 `v3draw()` 바로 뒤 복사 — 그대로 됨), 3D 픽셀 배율 최대 1.5.
+- 잰 것 (Chromium · 소프트웨어 GPU, F3 CCR Ref 30 EA, 한 번 하는 데 쓰는 메인 스레드 ms, 첫 번은 뺌): 판넬 끌기 31.0 → 13.7 · 화면 이동 24.9 → 13.9 · 휠 24.7 → 19.6 · 2D|3D 2D 끌기 29.0 → 16.8 · 2D|3D 3D 돌리기 45.6 → 31.5.
+- 확인한 것: 2D 화면 · 필요 사이즈 PDF · 인간공학 PDF · 3D PNG(색 618) 이전과 같음. 시험(rules · space · need · dual · side · v3 · opt · home · nosrv · bulk · p2d · furn · erg · ergpdf · ergset · stand · door · feat · margin · note · meas) 통과, 스크립트 오류 0.
+- 회사에서 확인할 것: 회사 PC 에서 판넬 끌기 · 3D 돌리기가 가벼워졌는지. 3D 는 그래픽 카드 몫이 커서, 그래도 무거우면 3D 를 닫고 2D 로만 고치거나 '2D | 3D 나란히' 대신 '3D 새 창' 을 쓰면 됨.
