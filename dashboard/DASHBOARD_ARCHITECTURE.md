@@ -1107,3 +1107,11 @@ C:\Users\SAMSUNG\Desktop\Claude\                         ← 개발 폴더 (여�
 - 무엇을 ② 첫 화면: 프로젝트 · Room · Rev 줄 끝 🗑(`#hmProjDel` `#hmRoomDel` `#hmRevDel`, 고른 것이 없으면 꺼짐) → `hmDel()`. 룸 · Rev = 확인 창(같이 지워지는 저장본 수), 프로젝트 = 이름을 그대로 적어야 지움. 지금 화면이 지운 곳의 저장본이면 서버 연결(`S.srv`)만 끊고 화면 배치는 그대로.
 - 되살리기(운영자): 프로젝트는 `space/_trash/<pid>_…_project` 폴더를 `space/<pid>` 로 이름 바꿔 되돌림. 룸 · Rev 는 `deleted.json` 의 room/rev 를 index.json 에, saves 메타를 `saves` 에 되넣고 파일을 `space/<pid>/saves/` 로 옮김.
 - 확인한 것: curl(지우기 3종 · / 들어간 Rev · 없는 Rev 404 · 다른 사람 LAN 403 · 자기가 만든 Rev 는 됨 · 운영자 됨 · 휴지통 파일), Chromium: Rev B(열린 저장본) → 룸 → 프로젝트 틀린 이름 거절 · 맞는 이름 지움, 이전 첫 화면 시험 통과, 스크립트 오류 0.
+
+### 2026-10-26 (33) — 판넬 공간확보: 3D 새 창 ↔ 2D 실시간 연동이 회사 PC 에서 안 되던 것 (apps/space/index.html 만)
+> 서버 재시작 · 대시보드 교체 필요 없음.
+- 증상(회사): [↗ 3D 새 창] 을 띄우면 2D 와 서로 반영이 안 됨.
+- 원인: 대시보드를 파일(file://)로 열거나 대시보드 주소와 앱 주소(API_BASE, http://IP:8080)가 다르면 앱 iframe 은 '다른 사이트 안' 이 됨. Edge(Chromium 115+)는 이때 iframe 의 BroadcastChannel · localStorage 를 따로 나눔(저장소 분할) → 맨 위 창인 3D 새 창과 채널 · 저장소가 달라 서로 못 들음. (시험 Chromium 은 분할이 꺼져 있어 지난번 시험에서 못 잡음 — 이번엔 `--enable-features=ThirdPartyStoragePartitioning` 로 켜고 재현.)
+- 고침: `bcOut` 이 BroadcastChannel 과 함께 창끼리 직접 `postMessage`(2D → 연 창 `PEERS`, 3D 새 창 → `window.opener`, 같은 origin 만, 표시 `crs:1`). 두 길로 같은 말이 오면 보낸 창 번호 `n` 으로 한 번만(`bcSeen`). 3D 새 창은 열리자마자 `{t:'hello'}` → 2D 가 지금 배치(state) · 선택(sel) 을 보내 줌(이 창 localStorage 는 옛것일 수 있음), 첫 배치는 되돌리기 목록에 안 남김(`bcGot`). 2D 가 닫히거나 다시 열리면 3D 새 창에 안내 → 2D 에서 [↗ 3D 새 창] 을 다시 누르면 같은 이름 창이 다시 열려 이어짐.
+- 확인한 것: `node --check`, Chromium 저장소 분할 켬 · 끔 × 대시보드 다른 사이트 · file:// · 같은 사이트: 열 때 배치(22 EA) · 2D 고침 → 3D · 지우기 → 3D · 3D 고침 → 2D · 3D Ctrl+Z → 2D · 3D 에서 끄는 중 2D 따라옴 · 2D 에 3D 시점. 이전 시험(dual · side · v3 · drag3 · home) 통과, 스크립트 오류 0.
+- 회사에서 확인할 것: 3D 새 창을 다른 모니터에 두고 2D 에서 판넬을 옮기면 바로 따라오는지. 대시보드를 새로 고친 뒤에는 [↗ 3D 새 창] 을 한 번 다시 누름.
