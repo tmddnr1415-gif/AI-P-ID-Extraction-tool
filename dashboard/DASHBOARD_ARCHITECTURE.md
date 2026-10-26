@@ -1115,3 +1115,23 @@ C:\Users\SAMSUNG\Desktop\Claude\                         ← 개발 폴더 (여�
 - 고침: `bcOut` 이 BroadcastChannel 과 함께 창끼리 직접 `postMessage`(2D → 연 창 `PEERS`, 3D 새 창 → `window.opener`, 같은 origin 만, 표시 `crs:1`). 두 길로 같은 말이 오면 보낸 창 번호 `n` 으로 한 번만(`bcSeen`). 3D 새 창은 열리자마자 `{t:'hello'}` → 2D 가 지금 배치(state) · 선택(sel) 을 보내 줌(이 창 localStorage 는 옛것일 수 있음), 첫 배치는 되돌리기 목록에 안 남김(`bcGot`). 2D 가 닫히거나 다시 열리면 3D 새 창에 안내 → 2D 에서 [↗ 3D 새 창] 을 다시 누르면 같은 이름 창이 다시 열려 이어짐.
 - 확인한 것: `node --check`, Chromium 저장소 분할 켬 · 끔 × 대시보드 다른 사이트 · file:// · 같은 사이트: 열 때 배치(22 EA) · 2D 고침 → 3D · 지우기 → 3D · 3D 고침 → 2D · 3D Ctrl+Z → 2D · 3D 에서 끄는 중 2D 따라옴 · 2D 에 3D 시점. 이전 시험(dual · side · v3 · drag3 · home) 통과, 스크립트 오류 0.
 - 회사에서 확인할 것: 3D 새 창을 다른 모니터에 두고 2D 에서 판넬을 옮기면 바로 따라오는지. 대시보드를 새로 고친 뒤에는 [↗ 3D 새 창] 을 한 번 다시 누름.
+
+### 2026-10-26 (34) — 판넬 공간확보: 2D 에서 판넬 · 가구 크기 · 속성 바로 고치기 (apps/space/index.html 만)
+- 무엇을: 2D 에서 판넬 · 데스크 · 화면을 누르면 '선택한 판넬' 칸 아래에 Type 만들 때와 같은 칸(W · D · H · 전면/후면 유지보수 · 도어 위치 · 단문 L/R · 양문, 데스크 = 작업면 높이 · 운전원 수 · 모니터, 화면 = 장 수 · inch) + [이 판넬만 / 같은 Type 전체]. 3D 속성 칸의 것을 `typeSecHtml(p,pre)` 로 떼어 같이 씀(2D `pre='pp'`, 3D `'v3'`), 적용 `v3applyType(p,pre)`. 규칙 위반이면 거절 문장.
+- 확인한 것: Chromium — 이 판넬만 D 700 · 양문 → '(변형)' Type, 같은 Type 전체 H 2,300 → 2 EA, 겹치는 W → 거절. 3D 속성 칸 · 가구 시험 통과.
+
+### 2026-10-26 (35) — 판넬 공간확보: Ref. PJT Room Layout 6개 PJT · 21개 룸 + 학습 통계 (apps/space/ref.js 새 파일, dashboard_tools/space_ref_build.py)
+> **새 파일 `apps/space/ref.js`** 를 `apps/space/` 에 같이 넣어야 함(없어도 앱은 돌고 Option B 목록만 빔). 서버 재시작 필요 없음.
+- 무엇을: 사용자가 보낸 'CCR and Electronic Room Arrangement' 도면 사진 — F3 PJT(19CN R0) · NT34(19HM R4) · Tanajib(19K9 RX0) · Amiral(19VA R3) · QFE(1A1Y R0) · UAD(1A5J R3) — 의 CCR · Electronic/Cabinet Room · Engineering Room · Metering Room 을 배치안 자료로 옮김. 크기 = Equipment List W×D×H, 자리 = 도면 치수선 + 사진 눈금(±200~300 mm), 곡선 · 비스듬한 콘솔은 곧게 폄, 벽걸이(시계 · Mimic) · 책상 위(EPB · RDLI)는 뺌, 크기 없는 것(NT34 · UAD ER)은 치수선 · 800×800×2200.
+- 학습: 같은 스크립트가 Ref 배치에서 거리를 재 `rules` 로 넣음 — 판넬 앞면끼리 통로 중앙 1,730 (1,300~2,360) · 앞 ↔ 다음 줄 뒤 1,240 · 판넬 한 줄 길이 5,700 · 콘솔 ↔ 대형 화면 2,000 (890~3,510) · 마주 보는 데스크 줄 3,100 · 그룹 사이 900 · 프린터 ↔ 벽 100. Option A 시작값.
+- 새 Ref 를 더하려면: `dashboard_tools/space_ref_build.py` 의 REFS 에 함수 하나(`Room(...)` + `r.row(x, y, rot, [C(No, desc, W, D, H) …])`) → `python3 dashboard_tools/space_ref_build.py`.
+- 확인한 것: 21개 룸을 앱에 하나씩 불러 검토 결과 간섭 0 (처음 옮길 때 난 겹침은 고침).
+
+### 2026-10-26 (36) — 판넬 공간확보: Option A (Equipment List → 제약조건 → 자동 배치) · Option B (Ref 불러오기) (apps/space/index.html)
+- 무엇을 ① 첫 화면 ② 맨 위에 **Option A · Equipment List 로 자동 배치** / **Option B · Ref. PJT Room Layout 불러오기**. 고른 룸에 저장이 없으면(새 Room Layout, 예: 새 Rev A) Option A 가 기본으로 골라짐. 편집 화면 도구줄 [⚡ 자동 배치] [📚 Ref. PJT].
+- 무엇을 ② Option B(`refOpen` · `refShow` · `refApply`): 왼쪽 PJT 별 룸 목록, 오른쪽 미리보기(실 · 판넬 · 앞면) · 크기 · 수량 · 배치 특징 · 도면 번호. [이 배치로 시작] = 실 · Type · 판넬만 바꾸고 프로젝트 · 룸 · Rev · 서버 연결 · Rev 기록은 그대로, Ctrl+Z 됨.
+- 무엇을 ③ Option A(`aParse` · `aKind` · `autoLayout`): 엑셀에서 머리줄째 복사 → 붙여넣기(또는 CSV · TXT). 머리줄(NO · TAG · DESCRIPTION/EQUIPMENT NAME · SIZE/DIMENSION · W/D/H · QTY) 자동 인식, `700 x 600 x 2285` · `W745xD75xH1030` · `75"` 꼴, QTY 만큼 펼침(태그가 여러 줄이면 하나씩). 종류 = 판넬 · 데스크(H ≤ 1,000 또는 OWS/EWS/WORKSTATION/CONSOLE) · 프린터 · 대형 화면 · 빼기(시계 · EPB · Mimic · RDLI …), 표에서 바꿀 수 있음. 크기 없으면 OWS 1200×1100×750 · 프린터 800×800×750 · 판넬 800×800×2200 · 화면 75".
+  제약조건(`ACON`): 실 W · L(비우면 맞춰 정함) · 벽 이격 · 판넬 뒤 ↔ 벽 · 판넬 간 이격 · 앞면끼리 통로 · 뒤끼리 통로 · 전면 유지보수 · 한 줄 최대 길이 · 그룹 사이 · 콘솔 ↔ 화면 · 운전원 공간 · 데스크 줄 간격 · 마주 보는 데스크 줄 · 콘솔 최대 수 · 프린터 ↔ 벽 · 판넬 줄 방향(앞면끼리 마주 봄 / 같은 방향). 칸마다 Ref 통계(곳 수 · 중앙값 · 범위).
+  배치: 대형 화면 위 벽(앞면 ↓) → 콘솔 줄(앞면 = 운전원 쪽 ↓, 모니터는 화면 쪽) → 뒷줄 / 화면이 없으면 위 · 아래 데스크 줄 마주 봄(엔지니어링 룸 꼴) → 판넬 줄(두 줄씩 앞면끼리, 짝끼리는 뒤끼리) → 프린터 아래 벽. 줄 나누기 = 최대 길이 · 최대 수로 줄 수를 정하고 줄마다 고르게, 같은 계열(시스템 · 네트워크 · 전원 · HVAC/화재) · 그룹(GROUP #1 · BLOCK #10 · COMMON …)끼리 붙이고 그룹 사이 띄움. 적은 실보다 크면 넓히고 알림.
+- 확인한 것: `node --check`, Chromium: 새 프로젝트 → 룸 → Rev A → 기본 Option A, Option B(F3 CCR) 시작 = 30 EA · 프로젝트/룸/Rev 그대로, Option A 예시(판넬 19 · 데스크 7 · 화면 2 · 프린터 2 · 빼기 1) → 간섭 0, 같은 방향 · 실 W 16,000, 화면 없는 엔지니어링 룸(크기 '-' 18대 · 시계 빼기), Ctrl+Z, 도구줄 Ref. 이전 시험(home · room · nosrv · rules · space · dual · side · v3 · scope · need · hist · note) 통과, 스크립트 오류 0.
+- 남은 것 · 회사에서 확인할 것: 자동 배치 결과에는 화면 · 프린터를 벽에 붙이므로(Ref 와 같게) '벽 이격 부족' **경고**가 남을 수 있음(간섭 아님). 곡선 콘솔 · 기둥은 자동 배치에 없음(기둥은 ② 에 Span 을 넣고 옮기면 됨). 회사 엑셀 Equipment List 머리줄이 다르면 표에서 종류 · 크기를 고치면 됨.
