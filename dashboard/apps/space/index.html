@@ -496,6 +496,7 @@ svg text{font-family:var(--f-mono)}
         <span class="gh">유지보수 공간 (mm)</span>
         <label class="w2">전면 F<input type="number" id="tdF" step="50" min="0"></label>
         <label class="w2">후면 R (없으면 0)<input type="number" id="tdR" step="50" min="0"></label>
+        <label class="w2" title="이 장비 둘레로 다른 장비와 떨어져야 할 최소 거리 — ② 배치 제약의 '판넬 간 최소 이격' 보다 크면 이 값으로 검토 (0 = 공통 값만)">최소 이격 (주위)<input type="number" id="tdG" step="50" min="0"></label>
         <span class="gh kd-door">도어</span>
         <label class="w2 kd-door">Door 위치<select id="tdDoor"></select></label>
         <label class="w2 kd-door" title="그 면 앞에 서서 판넬을 볼 때의 왼쪽(L) · 오른쪽(R) 힌지, 양개 = 폭 절반 문짝 둘">열림<select id="tdHinge"></select></label>
@@ -785,10 +786,13 @@ function secDist(d1,d2,need){   // 두 도어 궤적 사이 거리 (겹치면 -1
 }
 function sameRow(a,b){const na=dirOf(a),nb=dirOf(b);if(na[0]!==nb[0]||na[1]!==nb[1])return false;return na[0]===0?Math.abs(a.h[1]-b.h[1])<1:Math.abs(a.h[0]-b.h[0])<1}   // 같은 줄 같은 면의 나란한 문
 function extOf(g){return unionR([g.body,g.fr,g.rr,...doors(g).map(d=>d.box)])}
+const maxTypeGap=()=>Math.max(0,...S.types.map(t=>+t.gap||0));
 function pairRule(p,g,q,h,gp,gd){   // 판넬 둘 사이 위반 문장 (없으면 null)
   const dd=rectDist(g.body,h.body);
   if(dd<0)return {msg:`${p.tag} 이(가) ${q.tag} 와 겹칩니다`,fix:'한쪽을 옮기세요.'};
   if(g.t.kind==='chair'||h.t.kind==='chair')return null;   // 의자는 겹침만 — 데스크 앞 운전 공간(유지보수 칸) 안에 놓는 것이 정상
+  const ga=+g.t.gap||0, gb=+h.t.gap||0, tg=Math.max(ga,gb);   // 장비별 최소 이격(Type 값) — 맞닿기 예외 없음
+  if(tg>0&&dd<tg-0.5)return {msg:`${p.tag} ↔ ${q.tag} 이격 ${fmt(dd)} mm — ${ga>=gb?p.tag:q.tag} 의 최소 이격 ${fmt(tg)} mm 보다 좁습니다`,fix:`${fmt(tg)} mm 이상 떼세요 (그 장비 속성 칸의 '최소 이격').`};
   if(gp>0&&dd<gp-0.5&&!(S.room.touchOK&&dd<0.5))return {msg:`${p.tag} ↔ ${q.tag} 이격 ${fmt(dd)} mm — 판넬 간 최소 이격 ${fmt(gp)} mm 보다 좁습니다`,fix:`${fmt(gp)} mm 이상 떼거나 맞닿게 붙이세요.`};
   const inClr=(A,B)=>[['전면',B.fr,B.t.front],['후면',B.rr,B.t.rear]].find(([,c])=>c.w>0&&c.h>0&&ov(A.body,c));
   let c1=inClr(g,h); if(c1)return {msg:`${p.tag} 이(가) ${q.tag} 의 ${c1[0]} 유지보수 공간 안에 들어갑니다`,fix:`${q.tag} ${c1[0]}의 ${fmt(c1[2])} mm 를 비우세요.`};
@@ -802,7 +806,7 @@ function pairRule(p,g,q,h,gp,gd){   // 판넬 둘 사이 위반 문장 (없으�
   return null;
 }
 function violation(movers,internal){   // 옮기거나 새로 놓을 판넬 묶음이 지금 자리에 놓일 수 있나 → 첫 위반 문장 / null (internal = 묶음끼리도 — Type 치수 바꿀 때)
-  const ids=new Set(movers.map(p=>p.id)), gp=+S.room.gapP||0, gd=+S.room.gapD||0, cols=columns(), far=Math.max(gp,gd)+1;
+  const ids=new Set(movers.map(p=>p.id)), gp=+S.room.gapP||0, gd=+S.room.gapD||0, cols=columns(), far=Math.max(gp,gd,maxTypeGap())+1;
   const F=S.panels.filter(p=>!ids.has(p.id)).map(p=>{const g=geom(p);return {p,g,e:extOf(g)}});
   for(const p of movers){const g=geom(p),e=extOf(g);
     const c=cols.find(c=>ov(g.body,c)); if(c)return `${p.tag} 이(가) 기둥(X ${fmt(c.cx)}, Y ${fmt(c.cy)})과 겹칩니다`;
@@ -883,7 +887,7 @@ function check(){
     });
     // 배치 제약 (놓을 때 막는 것과 같은 규칙) — 판넬 쌍마다 한 번, 겹침은 위에서 이미
     const gp=+R.gapP||0, gd=+R.gapD||0, e1=extOf(g);
-    G.forEach(({p:q,g:h},j)=>{if(j<=i||ov(g.body,h.body)||rectDist(e1,extOf(h))>Math.max(gp,gd)+1)return;
+    G.forEach(({p:q,g:h},j)=>{if(j<=i||ov(g.body,h.body)||rectDist(e1,extOf(h))>Math.max(gp,gd,maxTypeGap())+1)return;
       const v=pairRule(p,g,q,h,gp,gd);if(v){issues.push({lv:'err',ids:[p.id,q.id],msg:v.msg,fix:v.fix});mark(p.id,'err');mark(q.id,'err')}});
   });
   // 벽 이격 — 실 벽이 끝 판넬(유지보수 · 도어 · Spare 포함) 외곽에서 이격보다 가까우면 경고 (놓기는 막지 않음)
@@ -1159,7 +1163,7 @@ $('#palette').addEventListener('click',e=>{
 });
 $('#palette').addEventListener('dblclick',e=>{const b=e.target.closest('[data-tid]');if(b){setMode('select');openTypeDlg(S.types.find(t=>t.id===b.dataset.tid))}});
 /* Panel Type 프리셋 — 프로젝트 사이에 Type(치수 · 유지보수 공간 · 색)을 다시 쓰기 위한 파일 */
-const TYPE_KEYS=['name','pre','w','d','h','front','rear','color','door','hinge','kind','top','bays','mon','monIn','tiers','cols','rows','tileIn','elev'];
+const TYPE_KEYS=['name','pre','w','d','h','front','rear','gap','color','door','hinge','kind','top','bays','mon','monIn','tiers','cols','rows','tileIn','elev'];
 function cleanType(t){const o={};TYPE_KEYS.forEach(k=>o[k]=(k==='name'||k==='pre'||k==='color'||k==='door'||k==='hinge'||k==='kind')?String(t[k]??'').trim():Math.max(0,+t[k]||0));if(!/^#[0-9a-f]{6}$/i.test(o.color))o.color='#2f6db5';return fixDoor(o)}
 $('#bPreSave').onclick=()=>openModal('Panel Type 프리셋 저장','다른 프로젝트에서 [프리셋 불러오기]로 같은 Type 을 씁니다. 불러올 때 이름이 같은 Type 은 치수 · 색을 덮어씁니다. '+dlNote,
   JSON.stringify({kind:'crspace-types',v:1,savedAt:today(),from:S.info.project||'',types:S.types.map(cleanType)},null,1),fname('PanelType_프리셋','json'),'application/json');
@@ -1174,7 +1178,7 @@ $('#fPreset').onchange=e=>{const f=e.target.files[0];if(!f)return;const r=new Fi
   r.readAsText(f);e.target.value=''};
 /* ---------- Type 만들기 · 고치기 창 ---------- */
 let tEdit=null;                                            // 고치는 Type (새 Type 이면 null)
-const TDK={Name:'name',Pre:'pre',Color:'color',W:'w',D:'d',H:'h',F:'front',R:'rear',Door:'door',Hinge:'hinge',Kind:'kind',Top:'top',Bays:'bays',Mon:'mon',MonIn:'monIn',Tiers:'tiers',Cols:'cols',Rows:'rows',TileIn:'tileIn',Elev:'elev'};
+const TDK={Name:'name',Pre:'pre',Color:'color',W:'w',D:'d',H:'h',F:'front',R:'rear',G:'gap',Door:'door',Hinge:'hinge',Kind:'kind',Top:'top',Bays:'bays',Mon:'mon',MonIn:'monIn',Tiers:'tiers',Cols:'cols',Rows:'rows',TileIn:'tileIn',Elev:'elev'};
 const PAL=['#2f6db5','#2f8a6a','#7a59b0','#b8642a','#8a7a2a','#a33f6b'];
 $('#tdKind').innerHTML=Object.entries(KIND).map(([v,l])=>`<option value="${v}">${l}</option>`).join('');
 $('#tdDoor').innerHTML=Object.entries(DOOR_AT).map(([v,l])=>`<option value="${v}">${l}</option>`).join('');
@@ -1189,7 +1193,7 @@ function tdPreview(){
 }
 function openTypeDlg(t){
   tEdit=t||null;
-  const v={...KIND_DEF.desk,...KIND_DEF.screen,kind:'cabinet',...(t||{name:'',pre:'',w:800,d:800,h:2100,front:1000,rear:800,door:'front',hinge:'L',color:PAL[S.types.length%PAL.length]})};   // 새 Type 시작값 (예전 [+ Type 추가] 와 같음)
+  const v={...KIND_DEF.desk,...KIND_DEF.screen,kind:'cabinet',gap:0,...(t||{name:'',pre:'',w:800,d:800,h:2100,front:1000,rear:800,door:'front',hinge:'L',color:PAL[S.types.length%PAL.length]})};   // 새 Type 시작값 (예전 [+ Type 추가] 와 같음)
   Object.entries(TDK).forEach(([k,f])=>$('#td'+k).value=v[f]);
   const n=t?S.panels.filter(p=>p.type===t.id).length:0;
   $('#tdTitle').textContent=t?`Panel Type 고치기 — ${t.name}`+(n?` (배치 ${n} EA 에 바로 반영)`:''):'새 Panel Type';
@@ -1293,7 +1297,9 @@ function buildProps(){
      <div class="muted" style="margin-top:2px">${(()=>{const m={};ps.forEach(p=>{const k=p.scope||'(미지정)';m[k]=(m[k]||0)+1});return Object.entries(m).map(([k,v])=>`${esc(k)} ${v}`).join(' · ')})()}</div>
      <div class="row" style="margin-top:6px;align-items:center"><span class="muted">맞춤</span><button data-al="l" title="왼쪽 모서리 맞춤">⇤ 왼쪽</button><button data-al="r" title="오른쪽 모서리 맞춤">오른쪽 ⇥</button><button data-al="t" title="위 모서리 맞춤">⤒ 위</button><button data-al="b" title="아래 모서리 맞춤">아래 ⤓</button></div>
      <div class="row" style="margin-top:6px;align-items:center"><span class="muted">균등 간격</span><input type="number" id="gGap" min="0" step="50" value="${S.room.touchOK?0:(+S.room.gapP||0)}" style="width:70px" title="판넬 사이 간격 (mm)"><button data-al="dx" title="왼쪽부터 같은 간격으로 가로 배치">가로 →</button><button data-al="dy" title="위부터 같은 간격으로 세로 배치">세로 ↓</button></div>
-     <p class="muted" style="margin:6px 0 0">그룹 회전은 선택 영역 중심 기준. 맞춤 · 균등은 잠긴 판넬을 두고 나머지를 움직입니다. Tag 재부여는 좌→우, 위→아래 순서로 Type별 번호를 다시 매깁니다.</p>`;
+     <p class="muted" style="margin:6px 0 0">그룹 회전은 선택 영역 중심 기준. 맞춤 · 균등은 잠긴 판넬을 두고 나머지를 움직입니다. Tag 재부여는 좌→우, 위→아래 순서로 Type별 번호를 다시 매깁니다.</p>
+     ${bulkHtml(ps)}`;
+    bulkBind(ps);
     {const ap=()=>{const v=$('#gScope').value.trim();ps.forEach(p=>{p.scope=v});commit();toast(v?`판넬 ${ps.length}개 공급 Scope = ${v}`:`판넬 ${ps.length}개 공급 Scope 를 지웠습니다`)};
       $('#gScopeSet').onclick=ap;$('#gScope').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();ap()}})}
     $('#gRL').onclick=()=>rotSel(-90); $('#gRR').onclick=()=>rotSel(90); $('#gLk').onclick=lockSel;
@@ -1302,6 +1308,50 @@ function buildProps(){
       S.panels.filter(p=>!sel.has(p.id)).forEach(p=>used[p.tag]=1);
       gs.forEach(p=>{const t=typeOf(p);let k=1;while(used[t.pre+String(k).padStart(2,'0')])k++;p.tag=t.pre+String(k).padStart(2,'0');used[p.tag]=1});commit()};
   }
+}
+
+/* 블록(여러 개) 고른 장비 일괄 고치기: 크기 · 유지보수 · 장비별 최소 이격 · 도어 · Type · Description + 공통 최소 이격(② 배치 제약)
+   빈칸 = 그대로. 고른 것만 = Type 마다 고른 판넬만 '(변형)' Type 으로(그 Type 판넬을 다 골랐으면 Type 을 그대로 고침) / Type 전체 = Type 을 고침 */
+function bulkHtml(ps){
+  const ts=[...new Set(ps.map(p=>p.type))].map(id=>S.types.find(t=>t.id===id)).filter(Boolean), one=k=>{const v=new Set(ts.map(t=>String(t[k]??'')));return v.size===1?[...v][0]:null};
+  const nI=(id,k,l,tip='')=>{const v=one(k);return `<label title="${tip}">${l}<input type="number" id="gb${id}" min="0" step="50" value="" placeholder="${v!==null?v:'여러 값'}"></label>`};
+  const allT=ts.every(t=>S.panels.filter(p=>p.type===t.id).every(p=>sel.has(p.id))), nT=S.panels.filter(p=>ts.some(t=>t.id===p.type)).length;
+  return `<div class="v3side pp"><div class="sec"><b>일괄 속성 · 최소 이격</b> <span class="muted">(고른 ${ps.length} EA · Type ${ts.length} · 빈칸 = 그대로)</span>
+    <div class="g">${nI('W','w','W 폭')}${nI('D','d','D 깊이')}${nI('H','h','H 높이')}
+     ${nI('F','front','전면 유지보수')}${nI('R','rear','후면 유지보수')}${nI('G','gap','최소 이격 (주위)','이 장비 둘레로 다른 장비와 떨어져야 할 최소 거리')}
+     <label>도어 위치<select id="gbDoor"><option value="">(그대로)</option>${Object.entries(DOOR_AT).map(([k,v])=>`<option value="${k}">${v}</option>`).join('')}</select></label>
+     <label style="grid-column:2/-1">도어 형식 · 열림<select id="gbKind"><option value="">(그대로)</option><option value="L">단문 — L 힌지</option><option value="R">단문 — R 힌지</option><option value="LR">양문 — L-R 양개</option></select></label>
+     <label class="full">Type 바꾸기<select id="gbType"><option value="">(그대로)</option>${S.types.map(t=>`<option value="${t.id}">${esc(t.name)}</option>`).join('')}</select></label>
+     <label class="full">Description<input id="gbDesc" placeholder="${new Set(ps.map(p=>p.desc||'')).size===1?esc(ps[0].desc||'(비어 있음)'):'여러 값 — 적으면 모두 이 값'}"></label></div>
+    <div class="sc"><label><input type="radio" name="gbsc" value="sel" checked>고른 ${ps.length} EA 만 ${allT?'(Type 의 판넬을 다 골랐으므로 Type 을 고침)':"(같은 값 Type 이 없으면 '(변형)' Type)"}</label><label><input type="radio" name="gbsc" value="type">고른 판넬의 Type 전체 ${nT} EA</label></div>
+    <div class="row"><button id="gbApply" class="primary">${ps.length} EA 에 적용</button><span class="muted">Ctrl+Z 로 되돌림</span></div><div class="err" id="gbErr"></div></div>
+   <div class="sec"><b>공통 최소 이격</b> <span class="muted">(② 배치 제약 — 모든 장비)</span>
+    <div class="g g2"><label>판넬 간 최소 이격<input type="number" id="gbGp" min="0" step="50" value="${+S.room.gapP||0}"></label><label>도어 간 최소 이격<input type="number" id="gbGd" min="0" step="50" value="${+S.room.gapD||0}"></label></div></div></div>`}
+function bulkBind(ps){
+  const num=id=>{const v=$('#gb'+id).value.trim();return v===''?null:Math.max(0,Math.round(+v||0))}, err=m=>{$('#gbErr').textContent=m};
+  $('#gbApply').onclick=()=>{
+    const ov={};[['W','w'],['D','d'],['H','h'],['F','front'],['R','rear'],['G','gap']].forEach(([id,k])=>{const v=num(id);if(v!==null)ov[k]=v});
+    if((ov.w===0)||(ov.d===0)||(ov.h===0))return err('W · D · H 는 0 보다 커야 합니다.');
+    const door=$('#gbDoor').value, kind=$('#gbKind').value, nt=$('#gbType').value, desc=$('#gbDesc').value.trim(), sc=(document.querySelector('input[name=gbsc]:checked')||{}).value||'sel';
+    if(door)ov.door=door; if(kind)ov.hinge=kind;
+    if(!Object.keys(ov).length&&!nt&&!desc)return err('바꿀 값을 적으세요 (빈칸은 그대로).');
+    const before=lastSnap, msg=[];
+    if(nt){ps.forEach(p=>p.type=nt);msg.push(`Type → ${S.types.find(t=>t.id===nt).name}`)}
+    if(desc){ps.forEach(p=>p.desc=desc);msg.push('Description')}
+    let touched=[...ps];
+    if(Object.keys(ov).length){
+      const by={};ps.forEach(p=>(by[p.type]=by[p.type]||[]).push(p));
+      Object.entries(by).forEach(([tid,sp])=>{const t=S.types.find(x=>x.id===tid);if(!t)return;
+        const v=fixDoor({...t,...ov}), all=S.panels.filter(p=>p.type===tid);
+        if(sc==='type'||all.length===sp.length){Object.assign(t,v);touched.push(...all);return}
+        const KS=['w','d','h','front','rear','gap','door','hinge','kind'], same=x=>x!==t&&x.kind===v.kind&&x.pre===v.pre&&x.color===v.color&&KS.every(k=>String(x[k]??'')===String(v[k]??''));
+        let x=S.types.find(same); if(!x){x={...v,id:uid()};let base=`${t.name} (변형)`,nm=base,k=2;while(S.types.some(y=>y.name===nm))nm=`${base} ${k++}`;x.name=nm;S.types.push(x)}
+        sp.forEach(p=>p.type=x.id)});
+      msg.push(Object.entries(ov).map(([k,v])=>({w:'W',d:'D',h:'H',front:'전면',rear:'후면',gap:'최소 이격',door:'도어',hinge:'열림'}[k]+' '+(typeof v==='number'?fmt(v):k==='door'?DOOR_AT[v]:HINGE[v]))).join(' · '))}
+    if(ENF()){const bad=violation([...new Set(touched)],true);if(bad){restore(before);buildProps();return err(`이 값이면 배치 규칙을 어깁니다 — ${bad}`)}}
+    S.types=S.types.filter(t=>S.panels.some(p=>p.type===t.id)||!/\(변형\)( \d+)?$/.test(t.name));   // 안 쓰게 된 '(변형)' Type 은 지움
+    commit();buildTypes();buildProps();toast(`고른 ${ps.length} EA — ${msg.join(' / ')}${sc==='type'?' (Type 전체)':''}`)};
+  [['#gbGp','gapP'],['#gbGd','gapD']].forEach(([id,k])=>$(id).addEventListener('change',e=>{S.room[k]=Math.max(0,+e.target.value||0);commit();buildRoom();toast(`공통 ${k==='gapP'?'판넬 간':'도어 간'} 최소 이격 = ${fmt(S.room[k])} mm — 지금 배치 검토에 반영`)}));
 }
 
 function buildRevs(){
@@ -1371,7 +1421,7 @@ function placeGhost(w,ctrl){   // 놓을 자리 미리보기: Ctrl = 정렬 스�
 }
 function makeGhost(w,raw){   // raw = 격자에 맞추지 않음 (Ctrl 정렬용)
   const t=S.types.find(x=>x.id===placeType); if(!t)return null;
-  const n=Math.max(1,Math.min(40,+$('#qty').value||1)), sw=placeRot%180===0, step=(sw?t.w:t.d)+(!S.room.touchOK&&+S.room.gapP>0?+S.room.gapP:0), out=[], tags=[];
+  const n=Math.max(1,Math.min(40,+$('#qty').value||1)), sw=placeRot%180===0, step=(sw?t.w:t.d)+Math.max(!S.room.touchOK&&+S.room.gapP>0?+S.room.gapP:0,+t.gap||0), out=[], tags=[];
   for(let i=0;i<n;i++){const tag=nextTag(t,tags);tags.push(tag);out.push({id:uid(),type:t.id,tag,desc:'',rot:placeRot,x:(raw?w.x:snapV(w.x))+(sw?i*step:0),y:(raw?w.y:snapV(w.y))+(sw?0:i*step)})}
   return out;
 }
@@ -1411,7 +1461,7 @@ function lockSel(){const ps=S.panels.filter(p=>sel.has(p.id));if(!ps.length)retu
 function dupSel(){
   const ps=S.panels.filter(p=>sel.has(p.id)); if(!ps.length)return;
   let x0=1e12,x1=-1e12;ps.forEach(p=>{const b=geom(p).body;x0=Math.min(x0,b.x);x1=Math.max(x1,b.x+b.w)});
-  const off=snapV(x1-x0+(!S.room.touchOK&&+S.room.gapP>0?+S.room.gapP:0))||S.snap, tags=[], nw=[];
+  const off=snapV(x1-x0+Math.max(!S.room.touchOK&&+S.room.gapP>0?+S.room.gapP:0,maxTypeGap()))||S.snap, tags=[], nw=[];
   ps.forEach(p=>{const t=typeOf(p),tag=nextTag(t,tags);tags.push(tag);nw.push({...p,id:uid(),tag,x:p.x+off,lock:false})});
   S.panels.push(...nw); sel=new Set(nw.map(p=>p.id)); guardCommit(new Set(nw.map(p=>p.id)));
 }
@@ -1954,7 +2004,7 @@ function typeSecHtml(p,pre){
     ${t.kind==='screen'?`<div class="g"><label>가로 장<input type="number" id="${pre}kCols" min="1" step="1" value="${t.cols}"></label><label>세로 장<input type="number" id="${pre}kRows" min="1" step="1" value="${t.rows}"></label><label>한 장 inch<input type="number" id="${pre}kTileIn" min="20" step="1" value="${t.tileIn}"></label>
       <label class="full">바닥에서 화면 아래<input type="number" id="${pre}kElev" min="0" step="50" value="${t.elev}"></label></div>`:''}
     <div class="g"><label>W 폭<input type="number" id="${pre}tW" min="1" step="50" value="${t.w}" ${t.kind==='screen'?'disabled title="화면 장 수 · 크기에서 자동"':''}></label><label>D 깊이<input type="number" id="${pre}tD" min="1" step="50" value="${t.d}"></label><label>H 높이<input type="number" id="${pre}tH" min="1" step="50" value="${+t.h||2100}" ${t.kind==='desk'||t.kind==='screen'?'disabled title="자동 (모니터 · 화면 꼭대기)"':''}></label>
-     <label>전면 유지보수<input type="number" id="${pre}tF" min="0" step="50" value="${+t.front||0}"></label><label>후면 유지보수<input type="number" id="${pre}tR" min="0" step="50" value="${+t.rear||0}"></label><label>&nbsp;</label>
+     <label>전면 유지보수<input type="number" id="${pre}tF" min="0" step="50" value="${+t.front||0}"></label><label>후면 유지보수<input type="number" id="${pre}tR" min="0" step="50" value="${+t.rear||0}"></label><label title="이 장비 둘레로 다른 장비와 떨어져야 할 최소 거리 (② 판넬 간 최소 이격보다 크면 이 값)">최소 이격 (주위)<input type="number" id="${pre}tG" min="0" step="50" value="${+t.gap||0}"></label>
      <label ${t.kind!=='cabinet'?'hidden':''}>도어 위치<select id="${pre}tDoor">${Object.entries(DOOR_AT).map(([k,v])=>`<option value="${k}" ${k===t.door?'selected':''}>${v}</option>`).join('')}</select></label>
      <label class="full" style="grid-column:2/-1" ${t.kind!=='cabinet'?'hidden':''}>도어 형식 · 열림<select id="${pre}tKind"><option value="L" ${kind==='L'?'selected':''}>단문 — L 힌지 (왼쪽에 경첩)</option><option value="R" ${kind==='R'?'selected':''}>단문 — R 힌지 (오른쪽에 경첩)</option><option value="LR" ${kind==='LR'?'selected':''}>양문 — L-R 양개</option></select></label></div>
     ${n>1?`<div class="sc"><label><input type="radio" name="${pre}sc" value="one" checked>이 판넬만 (같은 값 Type 이 없으면 '${esc(t.name)} (변형)' 을 만듦)</label><label><input type="radio" name="${pre}sc" value="all">같은 Type 전체 ${n} EA</label></div>`:''}
@@ -1987,12 +2037,12 @@ function v3side(){
 }
 function v3applyType(p,pre='v3'){
   const t=typeOf(p), err=m=>{$(`#${pre}tErr`).textContent=m}, num=id=>+$(`#${pre}${id}`).value, kind=$(`#${pre}tKind`).value;
-  const v={w:num('tW'),d:num('tD'),h:num('tH'),front:Math.max(0,num('tF')||0),rear:Math.max(0,num('tR')||0),door:$(`#${pre}tDoor`).value,hinge:kind,kind:t.kind||'cabinet'};
+  const v={w:num('tW'),d:num('tD'),h:num('tH'),front:Math.max(0,num('tF')||0),rear:Math.max(0,num('tR')||0),gap:Math.max(0,num('tG')||0),door:$(`#${pre}tDoor`).value,hinge:kind,kind:t.kind||'cabinet'};
   [['Top','top'],['Bays','bays'],['Mon','mon'],['MonIn','monIn'],['Tiers','tiers'],['Cols','cols'],['Rows','rows'],['TileIn','tileIn'],['Elev','elev']].forEach(([K,k])=>{const el=$(`#${pre}k${K}`);if(el)v[k]=+el.value});
   fixDoor(v);   // 가구: 도어 없음 · H(· 화면 W) 자동
   if(!(v.w>0&&v.d>0&&v.h>0))return err('W · D · H 는 0 보다 커야 합니다.');
   const all=S.panels.filter(q=>q.type===t.id), sc=all.length>1?(document.querySelector(`input[name=${pre}sc]:checked`)||{}).value:'all';
-  const KS=['w','d','h','front','rear','door','hinge','kind',...(v.kind==='desk'?['top','bays','mon','monIn','tiers']:v.kind==='screen'?['cols','rows','tileIn','elev']:[])];
+  const KS=['w','d','h','front','rear','gap','door','hinge','kind',...(v.kind==='desk'?['top','bays','mon','monIn','tiers']:v.kind==='screen'?['cols','rows','tileIn','elev']:[])];
   const same=x=>KS.every(k=>String(x[k]??'')===String(v[k]))&&x.pre===t.pre&&x.color===t.color;
   if(sc==='all'){const old={...t};Object.assign(t,v);fixDoor(t);
     if(ENF()){const bad=violation(all,true);if(bad){Object.assign(t,old);return err(`이 값이면 배치 규칙을 어깁니다 — ${bad}`)}}
@@ -2203,7 +2253,7 @@ function needLines(){
   const used=S.types.filter(t=>S.panels.some(p=>p.type===t.id));
   L.push('   5) 유지보수 공간 · 도어 (Type 별)');
   used.forEach(t=>{const n=S.panels.filter(p=>p.type===t.id).length,ds=doors(geom({x:0,y:0,rot:0},t)),r=ds.length?Math.max(...ds.map(d=>d.r)):0;
-    L.push(`      - ${t.name} ${n} EA: ${t.w}W × ${t.d}D × ${t.h}H, 전면 ${fmt(+t.front||0)} / 후면 ${fmt(+t.rear||0)}`+(t.kind&&t.kind!=='cabinet'?` (${KIND[t.kind]})`:t.door==='none'?', 도어 없음':`, 도어 ${DOOR_AT[t.door]} ${HINGE[t.hinge]} (회전 반경 ${fmt(r)})`))});
+    L.push(`      - ${t.name} ${n} EA: ${t.w}W × ${t.d}D × ${t.h}H, 전면 ${fmt(+t.front||0)} / 후면 ${fmt(+t.rear||0)}${+t.gap>0?` / 주위 최소 이격 ${fmt(+t.gap)}`:''}`+(t.kind&&t.kind!=='cabinet'?` (${KIND[t.kind]})`:t.door==='none'?', 도어 없음':`, 도어 ${DOOR_AT[t.door]} ${HINGE[t.hinge]} (회전 반경 ${fmt(r)})`))});
   L.push(`   6) 기둥: ${!cols.length?'없음':Array.isArray(S.cols)?`${cols.length}개 (직접 배치)`:`${R.col} × ${R.col}, Span X ${R.spX} / Y ${R.spY}`} — 판넬 · 유지보수 공간과 겹치지 않게 배치`);
   L.push(`   7) 판넬 최고 높이 ${fmt(mh)} — 천장 · 보 하단 높이, 상부 케이블 인입 여유는 건축 · 전기와 협의`);
   L.push(`   8) 수량: 합계 ${S.panels.length} EA, 판넬 바닥면적 ${(sm.body/1e6).toFixed(1)} m² · 공급 Scope ${scopeCount().map(([k,v])=>`${k} ${v}`).join(' / ')}`);
