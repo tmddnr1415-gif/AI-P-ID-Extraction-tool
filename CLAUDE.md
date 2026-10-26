@@ -18,6 +18,9 @@
 > `python spike/voc.py verdicts` 로 `out/verdicts/<프로젝트>.json` 정답지를 만들고, 회귀 하네스가 그것을 **참고축**으로 찍습니다.
 > 밸브 모양 사전은 `python spike/shape_train.py --pdf … --verdicts out/verdicts/<이름>.json` 으로 만듭니다 (`docs/voc.md`).
 
+> **★ 작업 브랜치 이관 (사용자 지시 2026-10-26)** — '2. PID 코드' 작업은 `claude/titleblock-parsing-c5st4x` 의 내용을 전부 이어받은
+> **`claude/pid-extractor-panel-update-zrl4qi`** 에서 이어 간다 (hotfix122 부터).  titleblock-parsing 의 커밋은 전부 이 브랜치에 들어 있다.
+
 > **★ 업데이트 zip 은 어디서 만드나 (사용자 지시 2026-10-22)**
 > **P&ID · LOGIC · 판넬 공간확보 · 계장도서검토** 의 zip 은 **이 저장소(이 브랜치)** 에서 만든다 (도서 검토는 hotfix115 부터 `/books`).
 > **Dashboard(대시보드 본체 · `dashboard.html` · `server.py`) 와 계장 광장** 의 zip 은
