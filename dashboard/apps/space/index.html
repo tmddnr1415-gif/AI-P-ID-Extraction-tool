@@ -128,7 +128,8 @@ input[type=number]{font-family:var(--f-mono);font-variant-numeric:tabular-nums}
 body.only3d .modal.v3dlg{padding:0;background:var(--paper)}body.only3d .modal.v3dlg .box{width:100%;height:100%;max-height:none;border-radius:0}   /* 3D 새 창 */
 .v3side{width:286px;flex:none;border-left:1px solid var(--line);overflow:auto;padding:10px;font-size:12px;background:var(--panel-bg)}
 .v3side[hidden]{display:none}
-.v3side.pp{width:auto;border:0;padding:0;background:none;overflow:visible}   /* 2D 선택한 판넬 칸 안의 Type 값 칸 */
+.v3side.pp{width:auto;border:0;padding:0;background:none;overflow:visible}
+.vt{width:100%;border-collapse:collapse;font-size:11px;margin-top:4px}.vt th,.vt td{border-bottom:1px solid var(--line);padding:2px 3px;text-align:left;white-space:nowrap}.vt tr.ok td:last-child{color:var(--ok)}.vt tr.warn td:last-child{color:var(--warn)}.vt tr.err td:last-child{color:var(--err)}   /* 2D 선택한 판넬 칸 안의 Type 값 칸 */
 .v3side h5{margin:0 0 6px;font-size:13px;display:flex;align-items:center;gap:6px}.v3side h5 i{width:10px;height:10px;border-radius:2px;display:inline-block}
 .v3side .g{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin:6px 0}.v3side .g2{grid-template-columns:1fr 1fr}
 .v3side label{display:flex;flex-direction:column;gap:2px;color:var(--ink-2);font-size:11px}.v3side label.full{grid-column:1/-1}
@@ -327,6 +328,7 @@ svg text{font-family:var(--f-mono)}
     <label class="chk"><input type="checkbox" id="vNote" checked>노트</label>
     <label class="chk" title="프로젝트 · 룸 · Rev · 날짜 워터마크 (화면 · PNG · PDF · 3D)"><input type="checkbox" id="vWm" checked>워터마크</label>
     <label class="chk" title="3D 를 보는 자리(카메라) · 보는 방향 · 시야 · 사람 — 3D 를 돌리면 같이 움직임 (2D | 3D 나란히 · 3D 새 창)"><input type="checkbox" id="vCam" checked>3D 시점</label>
+    <label class="chk" title="안전공학 · 인간공학: 앉은 운전원(데스크마다, 눈 1,240) · 선 사람(3D, 눈 1,640) 의 시야 — 정면 ±15° 최적 · ±30° 눈만 돌려 · ±60° 머리 돌려, 대형 화면 각. 데스크를 고르면 그 데스크만 자세히"><input type="checkbox" id="vView" checked>👁 시야</label>
     <span class="sep"></span>
  <button id="bNeed2" class="primary" title="건축팀용 필요 사이즈 요약 + 2D 도면 PDF">📐 필요 사이즈</button>
     <button id="bAuto" title="Option A — Equipment List 를 붙여 넣으면 제약조건 · Ref 학습값으로 처음부터 자동 배치">⚡ 자동 배치</button><button id="bRef" title="Option B — Ref. PJT 의 Room Layout 을 불러와 시작">📚 Ref. PJT</button>
@@ -492,6 +494,7 @@ svg text{font-family:var(--f-mono)}
         <label class="kd kd-screen">세로 장 수<input type="number" id="tdRows" step="1" min="1"></label>
         <label class="kd kd-screen">한 장 크기 (inch)<input type="number" id="tdTileIn" step="1" min="20"></label>
         <label class="kd kd-screen">바닥에서 화면 아래<input type="number" id="tdElev" step="50" min="0"></label>
+        <label class="kd kd-screen" title="대형 화면을 받치는 것 — 2D · 3D · DXF 에 표시">받침 (서포트)<select id="tdMount"><option value="stand">스탠드 — 기둥 + 받침발</option><option value="cabinet">받침장 (캐비닛)</option><option value="wall">벽걸이 (바닥 받침 없음)</option></select></label>
         <span class="gh">판넬 치수 (mm)</span>
         <label>W 폭<input type="number" id="tdW" step="50" min="0"></label>
         <label>D 깊이<input type="number" id="tdD" step="50" min="0"></label>
@@ -555,6 +558,8 @@ svg text{font-family:var(--f-mono)}
       <label class="chk"><input type="checkbox" id="v3Door" checked>도어</label>
       <label class="chk"><input type="checkbox" id="v3Lbl" checked>Tag</label>
       <label class="chk" title="키 175 cm · 80 kg 성인 남성 — 끌어서 옮기기 · R 돌리기 · 방향키 이동"><input type="checkbox" id="v3Man" checked>사람</label>
+      <label class="chk" title="운전 데스크마다 앉은 운전원 (좌판 450 · 눈높이 1,240 mm)"><input type="checkbox" id="v3Sit" checked>앉은 사람</label>
+      <label class="chk" title="안전공학 시야: 바닥에 정면 ±15° 최적(초록) · ±30° 눈만 돌려(노랑) · ±60° 머리 돌려(회색), 점선 = 정상 시선(수평 아래 15°, ISO 11064-4). 선 사람 + 고른 데스크의 운전원"><input type="checkbox" id="v3View" checked>시야</label>
       <label class="chk" title="판넬 사이 · 벽과 가까운 판넬 사이 몸체 모서리 간 거리 (edge to edge, &lt;───&gt;)"><input type="checkbox" id="v3EDim" checked>간격 치수</label>
       <label class="chk" title="사람 자리에서 앞뒤 · 좌우로 판넬 · 기둥 · 벽까지 통로 폭 (허리 높이)"><input type="checkbox" id="v3Gap" checked>통로 폭</label></div>
     <div class="v3wrap"><div class="v3view"><canvas id="v3gl"></canvas><canvas id="v3tx"></canvas><div class="v3tip" id="v3Tip" hidden></div></div>
@@ -667,12 +672,13 @@ function fixDoor(t){if(!DOOR_AT[t.door])t.door='none';if(!HINGE[t.hinge])t.hinge
    kind: cabinet(판넬) · desk · screen · chair. 데스크 H = 모니터 꼭대기까지(자동), 대형 화면 W · H = 화면 장 수 · 크기에서(자동) */
 const KIND={cabinet:'판넬 · 캐비닛',desk:'Operation Desk (운전 데스크)',screen:'Large Screen (대형 화면)',chair:'Operator Chair (운전원 의자)'};
 const KIND_DEF={desk:{top:740,bays:2,mon:4,monIn:27,tiers:2},screen:{cols:3,rows:2,tileIn:55,elev:900},chair:{}};
+const MOUNT={stand:'스탠드 (기둥 + 받침발)',cabinet:'받침장',wall:'벽걸이'};   // 대형 화면 받침 (예전 Type = 스탠드)
 const monRaw=inch=>[inch*25.4*0.8716,inch*25.4*0.4903];   // 16:9 화면 가로 · 세로 (mm)
 function furnFix(t){
   t.kind=KIND[t.kind]?t.kind:'cabinet'; if(t.kind==='cabinet')return t;
   const d=KIND_DEF[t.kind]; Object.keys(d).forEach(k=>{if(!(+t[k]>0))t[k]=d[k]}); t.door='none';
   if(t.kind==='desk'){t.bays=Math.max(1,Math.round(+t.bays));t.mon=Math.max(0,Math.round(+t.mon));t.tiers=Math.min(3,Math.max(1,Math.round(+t.tiers)));const mh=monRaw(+t.monIn)[1]+30;t.h=Math.round(+t.top+120+t.tiers*(mh+30))}
-  if(t.kind==='screen'){t.cols=Math.max(1,Math.round(+t.cols));t.rows=Math.max(1,Math.round(+t.rows));const [tw,th]=monRaw(+t.tileIn);t.w=Math.round(t.cols*tw+80);t.h=Math.round(+t.elev+t.rows*th+60)}
+  if(t.kind==='screen'){if(!MOUNT[t.mount])t.mount='stand';t.cols=Math.max(1,Math.round(+t.cols));t.rows=Math.max(1,Math.round(+t.rows));const [tw,th]=monRaw(+t.tileIn);t.w=Math.round(t.cols*tw+80);t.h=Math.round(+t.elev+t.rows*th+60)}
   if(typeof t.name==='string'){   // 시작 이름 꼴이면 숫자를 따라 바꿈 (사용자가 바꾼 이름은 그대로)
     if(t.kind==='desk')t.name=t.name.replace(/\(운전원 \d+ · 모니터 \d+\)/,`(운전원 ${t.bays} · 모니터 ${t.mon})`);
     if(t.kind==='screen')t.name=t.name.replace(/\(\d+×\d+ · \d+"\)/,`(${t.cols}×${t.rows} · ${t.tileIn}")`)}
@@ -690,7 +696,12 @@ function planSegs(g){
     for(let i=0;i<t.bays;i++){const c=i*bw+bw/2,tw=per*mw+Math.max(0,per-1)*12,sc=tw>0?Math.min(1,(bw-40)/tw):1;
       for(let j=0;j<per;j++){const a0=c-tw*sc/2+j*(mw+12)*sc;out.lines.push([P(a0,-D+265),P(a0+mw*sc,-D+265),3])}   // 모니터
       out.lines.push([P(c-230,-380),P(c+230,-380),1],[P(c-230,-200),P(c+230,-200),1])}}      // 키보드 자리
-  if(k==='screen'){const tw=monRaw(t.tileIn)[0],x0=(L-t.cols*tw)/2;out.lines.push([P(x0,-80),P(x0+t.cols*tw,-80),4]);
+  if(k==='screen'){const tw=monRaw(t.tileIn)[0],x0=(L-t.cols*tw)/2,cx=L/2,D=+t.d||600,mo=t.mount||'stand';out.lines.push([P(x0,-80),P(x0+t.cols*tw,-80),4]);
+    if(mo==='stand'){const bw=Math.min(L*0.32,Math.max(300,t.cols*tw*0.3));   // 스탠드: 받침발 둘(앞 → 뒤) · 가로대 · 기둥(화면 뒤)
+      out.lines.push([P(cx-bw,-20),P(cx-bw,-D+20),2],[P(cx+bw,-20),P(cx+bw,-D+20),2],[P(cx-bw,-D*0.6),P(cx+bw,-D*0.6),2],
+        [P(cx-60,-190),P(cx+60,-190),2],[P(cx+60,-190),P(cx+60,-290),2],[P(cx+60,-290),P(cx-60,-290),2],[P(cx-60,-290),P(cx-60,-190),2]);
+      out.circles.push([P(cx-bw,-30),35],[P(cx-bw,-D+30),35],[P(cx+bw,-30),35],[P(cx+bw,-D+30),35])}
+    else if(mo==='cabinet')out.lines.push([P(20,-170),P(L-20,-170),1],[P(20,-D+20),P(L-20,-D+20),1]);
     for(let i=0;i<=t.cols;i++)out.lines.push([P(x0+i*tw,0),P(x0+i*tw,-160),1])}
   if(k==='chair'){const c=[b.x+b.w/2,b.y+b.h/2],r=Math.min(b.w,b.h)*0.42,bc=[c[0]-n[0]*r*.85,c[1]-n[1]*r*.85];out.circles.push([c,r]);
     out.lines.push([[bc[0]-u[0]*r*.75,bc[1]-u[1]*r*.75],[bc[0]+u[0]*r*.75,bc[1]+u[1]*r*.75],3])}
@@ -736,7 +747,7 @@ let sel=new Set();
 let mode='select';           // select | box | place | col(기둥 편집)
 let selCol=null;              // 기둥 편집에서 고른 기둥 id
 let placeType=null, placeRot=0;
-const show={clr:true,dim:true,lbl:true,door:true,note:true,eq:true,margin:true,cam:true,wm:true};
+const show={clr:true,dim:true,lbl:true,door:true,note:true,eq:true,margin:true,cam:true,wm:true,view:true};
 let selNote=null;             // 고른 도면 노트 id
 const V={s:0.04,ox:60,oy:60};
 let undo=[],redo=[];
@@ -1144,6 +1155,7 @@ function render(){v3sync();
   // Ctrl 정렬 안내선
   if(guides.length){const sc=C('--snap');guides.forEach(l=>{g+=`<line x1="${l.x1}" y1="${l.y1}" x2="${l.x2}" y2="${l.y2}" stroke="${sc}" stroke-width="1.3" stroke-dasharray="6 4" vector-effect="non-scaling-stroke"/><text x="${(l.x1+l.x2)/2+6*ANN/s}" y="${(l.y1+l.y2)/2-6*ANN/s}" font-size="${11*ANN/s}" fill="${sc}" font-family="Malgun Gothic,sans-serif">${esc(l.lab)}</text>`})}
   if(marquee){const r=marquee;g+=`<rect x="${Math.min(r.x0,r.x1)}" y="${Math.min(r.y0,r.y1)}" width="${Math.abs(r.x1-r.x0)}" height="${Math.abs(r.y1-r.y0)}" fill="${C('--accent-soft')}" stroke="${acc}" stroke-dasharray="5 3" vector-effect="non-scaling-stroke"/>`}
+  if(show.view)g+=viewSvg(s);   // 운전원 시야 (안전공학)
   {const c=cam3d();if(show.cam&&c)g+=camSvg(c,s)}   // 3D 관찰자 시점
   // rulers (screen space)
   let ru=`<rect x="0" y="0" width="${vw}" height="20" fill="${C('--sheet')}"/><rect x="0" y="0" width="20" height="${vh}" fill="${C('--sheet')}"/><line x1="0" y1="20" x2="${vw}" y2="20" stroke="${C('--line')}"/><line x1="20" y1="0" x2="20" y2="${vh}" stroke="${C('--line')}"/>`;
@@ -1192,8 +1204,8 @@ $('#palette').addEventListener('click',e=>{
 });
 $('#palette').addEventListener('dblclick',e=>{const b=e.target.closest('[data-tid]');if(b){setMode('select');openTypeDlg(S.types.find(t=>t.id===b.dataset.tid))}});
 /* Panel Type 프리셋 — 프로젝트 사이에 Type(치수 · 유지보수 공간 · 색)을 다시 쓰기 위한 파일 */
-const TYPE_KEYS=['name','pre','w','d','h','front','rear','gap','color','door','hinge','kind','top','bays','mon','monIn','tiers','cols','rows','tileIn','elev'];
-function cleanType(t){const o={};TYPE_KEYS.forEach(k=>o[k]=(k==='name'||k==='pre'||k==='color'||k==='door'||k==='hinge'||k==='kind')?String(t[k]??'').trim():Math.max(0,+t[k]||0));if(!/^#[0-9a-f]{6}$/i.test(o.color))o.color='#2f6db5';return fixDoor(o)}
+const TYPE_KEYS=['name','pre','mount','w','d','h','front','rear','gap','color','door','hinge','kind','top','bays','mon','monIn','tiers','cols','rows','tileIn','elev'];
+function cleanType(t){const o={};TYPE_KEYS.forEach(k=>o[k]=(k==='name'||k==='pre'||k==='mount'||k==='color'||k==='door'||k==='hinge'||k==='kind')?String(t[k]??'').trim():Math.max(0,+t[k]||0));if(!/^#[0-9a-f]{6}$/i.test(o.color))o.color='#2f6db5';return fixDoor(o)}
 $('#bPreSave').onclick=()=>openModal('Panel Type 프리셋 저장','다른 프로젝트에서 [프리셋 불러오기]로 같은 Type 을 씁니다. 불러올 때 이름이 같은 Type 은 치수 · 색을 덮어씁니다. '+dlNote,
   JSON.stringify({kind:'crspace-types',v:1,savedAt:today(),from:S.info.project||'',types:S.types.map(cleanType)},null,1),fname('PanelType_프리셋','json'),'application/json');
 $('#bPreLoad').onclick=()=>$('#fPreset').click();
@@ -1207,7 +1219,7 @@ $('#fPreset').onchange=e=>{const f=e.target.files[0];if(!f)return;const r=new Fi
   r.readAsText(f);e.target.value=''};
 /* ---------- Type 만들기 · 고치기 창 ---------- */
 let tEdit=null;                                            // 고치는 Type (새 Type 이면 null)
-const TDK={Name:'name',Pre:'pre',Color:'color',W:'w',D:'d',H:'h',F:'front',R:'rear',G:'gap',Door:'door',Hinge:'hinge',Kind:'kind',Top:'top',Bays:'bays',Mon:'mon',MonIn:'monIn',Tiers:'tiers',Cols:'cols',Rows:'rows',TileIn:'tileIn',Elev:'elev'};
+const TDK={Name:'name',Pre:'pre',Mount:'mount',Color:'color',W:'w',D:'d',H:'h',F:'front',R:'rear',G:'gap',Door:'door',Hinge:'hinge',Kind:'kind',Top:'top',Bays:'bays',Mon:'mon',MonIn:'monIn',Tiers:'tiers',Cols:'cols',Rows:'rows',TileIn:'tileIn',Elev:'elev'};
 const PAL=['#2f6db5','#2f8a6a','#7a59b0','#b8642a','#8a7a2a','#a33f6b'];
 $('#tdKind').innerHTML=Object.entries(KIND).map(([v,l])=>`<option value="${v}">${l}</option>`).join('');
 $('#tdDoor').innerHTML=Object.entries(DOOR_AT).map(([v,l])=>`<option value="${v}">${l}</option>`).join('');
@@ -1222,7 +1234,7 @@ function tdPreview(){
 }
 function openTypeDlg(t){
   tEdit=t||null;
-  const v={...KIND_DEF.desk,...KIND_DEF.screen,kind:'cabinet',gap:0,...(t||{name:'',pre:'',w:800,d:800,h:2100,front:1000,rear:800,door:'front',hinge:'L',color:PAL[S.types.length%PAL.length]})};   // 새 Type 시작값 (예전 [+ Type 추가] 와 같음)
+  const v={...KIND_DEF.desk,...KIND_DEF.screen,kind:'cabinet',gap:0,mount:'stand',...(t||{name:'',pre:'',w:800,d:800,h:2100,front:1000,rear:800,door:'front',hinge:'L',color:PAL[S.types.length%PAL.length]})};   // 새 Type 시작값 (예전 [+ Type 추가] 와 같음)
   Object.entries(TDK).forEach(([k,f])=>$('#td'+k).value=v[f]);
   const n=t?S.panels.filter(p=>p.type===t.id).length:0;
   $('#tdTitle').textContent=t?`Panel Type 고치기 — ${t.name}`+(n?` (배치 ${n} EA 에 바로 반영)`:''):'새 Panel Type';
@@ -1308,7 +1320,7 @@ function buildProps(){
       <label>전면 방향<select id="pRot">${[[0,'↑ 위'],[90,'→ 오른쪽'],[180,'↓ 아래'],[270,'← 왼쪽']].map(([v,l])=>`<option value="${v}" ${v===g.r?'selected':''}>${l}</option>`).join('')}</select></label>
       <label>평면 치수<input value="${fmt(g.body.w)} × ${fmt(g.body.h)}" disabled></label>
       <label class="chk full" style="flex-direction:row;gap:6px;color:var(--ink)"><input type="checkbox" id="pLock" ${p.lock?'checked':''}>🔒 잠금 — 옮기기 · 회전 · 삭제 막음 (L)</label></div>
-      <div class="v3side pp">${typeSecHtml(p,'pp')}</div>`;   // 크기 · 유지보수 · 도어 · 가구 칸 = Type 만들 때처럼 (3D 속성 칸과 같은 것)
+      <div class="v3side pp">${typeSecHtml(p,'pp')}${typeOf(p).kind==='desk'?viewHtml(p):''}</div>`;   // 크기 · 유지보수 · 도어 · 가구 칸 = Type 만들 때처럼 (3D 속성 칸과 같은 것)
     $('#pptApply').onclick=()=>v3applyType(p,'pp');
     $('#pLock').onchange=()=>lockSel();
     const ch=(id,fn)=>$(id).addEventListener('change',e=>{fn(e.target.value);commit()});
@@ -1646,6 +1658,7 @@ $('#bUndo').onclick=doUndo; $('#bRedo').onclick=doRedo; $('#bFit').onclick=fit;
 $('#snap').onchange=e=>{S.snap=+e.target.value;commit()};
 $('#vClr').onchange=e=>{show.clr=e.target.checked;render()};
 $('#vCam').onchange=e=>{show.cam=e.target.checked;render()};
+$('#vView').onchange=e=>{show.view=e.target.checked;render()};
 $('#vWm').onchange=e=>{show.wm=e.target.checked;render();try{if(V3.on)v3req(false)}catch(_){}};
 $('#tick').value=String(TICK); $('#tick').onchange=e=>{TICK=+e.target.value;try{localStorage.setItem('crspace.tick',String(TICK))}catch(_){}render();toast(TICK?`2D 눈금 하나 = ${fmt(TICK)} mm`+(TICK*V.s<2.5?' — 지금 배율에서는 너무 촘촘해 굵게 보입니다. 확대(Ctrl+휠)하면 보입니다':''):'2D 눈금 = 자동 (확대 정도에 맞춤)')};
 $('#vMargin').onchange=e=>{show.margin=e.target.checked;render()};
@@ -1780,8 +1793,13 @@ function v3build(){
             quad(T,[P(a0+15*sc,y0+15),P(a0+15*sc,y0+mh-15),P(a1-15*sc,y0+mh-15),P(a1-15*sc,y0+15)],hx((i+j+r)%2?'#1d4f7f':'#1f5f99'),1,null);   // 켜진 화면
             const pts=[.25,.55,.4,.7,.5,.8].map((v,k)=>Q(a0+(30+k*(mw-60)/5)*sc,y0+25+v*(mh-50)));for(let k=0;k<5;k++)seg(pts[k],pts[k+1],hx(k%2?'#2ecc71':'#f5b400'),.9)}}}}
     if(t.kind==='screen'){const el=+t.elev||900,[tw,th]=monRaw(t.tileIn),Wv=t.cols*tw,Hv=t.rows*th,x0=(W0-Wv)/2,fr=hx('#1b2028');
-      shadow(b,el);
-      obox(A,u,n,0,W0,-D0,0,0,el-20,mix(col,[0,0,0],.15));                                 // 받침장
+      shadow(b,el); const mo=t.mount||'stand', met=hx('#8a939e'), blk=hx('#2a3038');
+      if(mo==='cabinet')obox(A,u,n,0,W0,-D0,0,0,el-20,mix(col,[0,0,0],.15));                // 받침장
+      else if(mo==='stand'){const cx=W0/2,bw=Math.min(W0*0.32,Math.max(300,Wv*0.3));          // 스탠드: 받침발 둘 · 바퀴 · 가로대 · 기둥 · 화면 걸이
+        [cx-bw,cx+bw].forEach(x=>{obox(A,u,n,x-35,x+35,-D0+10,-10,40,95,blk);[-40,-D0+40].forEach(z=>obox(A,u,n,x-28,x+28,z-28,z+28,0,40,hx('#1d2128')))});
+        obox(A,u,n,cx-bw,cx+bw,-D0*0.6-30,-D0*0.6+30,95,140,met);
+        obox(A,u,n,cx-55,cx+55,-290,-190,95,el+Hv*0.75,met);
+        obox(A,u,n,cx-Math.min(Wv*0.35,500),cx+Math.min(Wv*0.35,500),-200,-180,el+Hv*0.3,el+Hv*0.7,blk)}
       obox(A,u,n,x0-40,x0+Wv+40,-180,0,el-20,el+Hv+40,fr);                                 // 화면 틀
       const PC=['#f5b400','#2d8cff','#1fbf9f','#b24cff'];
       for(let i=0;i<t.cols;i++)for(let j=0;j<t.rows;j++){const a0=x0+i*tw+4,a1=a0+tw-8,y0=el+j*th+4,y1=y0+th-8,P=face(A,u,0,2),Q=face(A,u,0,6),k=(i*3+j*5)%4,ww=a1-a0,hh=y1-y0;
@@ -1843,6 +1861,22 @@ function v3build(){
       for(let i=0;i<la;i++)for(let j=0;j<lo;j++){const a=P(i,j),b=P(i+1,j),cc=P(i+1,j+1),d=P(i,j+1),n=v3n([(a[0]+cc[0])/2-hx,(a[1]+cc[1])/2-hy,(a[2]+cc[2])/2-hz]);quad(T,[a,b,cc,d],skin,1,n)}}   // 머리 (정수리 1,750)
     rb(-16,100,16,135,1600,1650,skin);                                                    // 코 = 보는 방향
   }
+  // 앉은 운전원 (데스크마다, 의자 좌판 450 · 눈 1,240) — 시야 검토용. 로컬 +z = 보는 쪽(모니터)
+  if(V3.sitOn!==false)operators().forEach(v=>{const rot=Math.atan2(v.f[0],v.f[1]),c=Math.cos(rot),s=Math.sin(rot),W2=(lx,lz)=>[v.x+lx*c+lz*s,v.z-lx*s+lz*c],nr=(lx,lz)=>[lx*c+lz*s,0,-lx*s+lz*c];
+    const shirt=hexRGB('#2d8cff'),pants=hexRGB('#34405a'),skin=hexRGB('#e2b08a'),shoe=hexRGB('#1d2128');
+    const rb=(x0,z0,x1,z1,y0,y1,col)=>{const P=[[x0,z0],[x1,z0],[x1,z1],[x0,z1]].map(q=>W2(q[0],q[1])),N=[nr(0,-1),nr(1,0),nr(0,1),nr(-1,0)];
+      quad(T,P.map(q=>[q[0],y1,q[1]]),col,1,[0,1,0]);P.forEach((a,i)=>{const b=P[(i+1)%4];quad(T,[[a[0],y0,a[1]],[a[0],y1,a[1]],[b[0],y1,b[1]],[b[0],y0,b[1]]],col,1,N[i])})};
+    rb(-150,250,-40,420,0,60,shoe);rb(40,250,150,420,0,60,shoe);                          // 신발
+    rb(-145,280,-55,370,60,450,pants);rb(55,280,145,370,60,450,pants);                    // 종아리
+    rb(-160,-60,-25,400,440,580,pants);rb(25,-60,160,400,440,580,pants);                  // 허벅지 (좌판 450)
+    rb(-200,-150,200,90,560,1080,shirt);                                                   // 몸통
+    rb(-270,-90,-205,60,780,1060,shirt);rb(205,-90,270,60,780,1060,shirt);                // 위팔
+    rb(-265,40,-205,330,700,780,shirt);rb(205,40,265,330,700,780,shirt);                  // 아래팔 (작업면 쪽)
+    rb(-255,330,-210,420,700,760,skin);rb(210,330,255,420,700,760,skin);                  // 손
+    rb(-50,-40,50,50,1080,1140,skin);                                                      // 목
+    {const [hx,hz]=W2(0,10),hy=1250,R=108,la=7,lo=12,P=(i,j)=>{const t=i/la*Math.PI,f=j/lo*Math.PI*2;return [hx+R*Math.sin(t)*Math.cos(f),hy+R*Math.cos(t),hz+R*Math.sin(t)*Math.sin(f)]};
+      for(let i=0;i<la;i++)for(let j=0;j<lo;j++){const a=P(i,j),b=P(i+1,j),cc=P(i+1,j+1),d=P(i,j+1),n=v3n([(a[0]+cc[0])/2-hx,(a[1]+cc[1])/2-hy,(a[2]+cc[2])/2-hz]);quad(T,[a,b,cc,d],skin,1,n)}}   // 머리 (눈 1,240)
+    rb(-14,105,14,135,1215,1255,skin)});                                                   // 코 = 보는 방향
   V3.gd=V3.edim?gapDims():[];   // 글자에서 다시 씀
   V3.bx=S.panels.map(p=>{const g=geom(p),b=g.body;return {p,lo:[b.x,0,b.y],hi:[b.x+b.w,+g.t.h||2100,b.y+b.h]}});   // 판넬 상자 (가림 · 마우스 고르기에 매 화면 다시 씀)
   if(V3.edim){const ec=DCS?hexRGB('#9fd0ff'):C('--ink-2'),y=40,ar=Math.min(140,1e9);   // <───> 화살 치수 (바닥 위 40)
@@ -1998,6 +2032,16 @@ function v3draw(){
       lab([m[0]*.35+k[0]*.65,g.a[1],m[2]*.35+k[2]*.65],`${g.nm} ${fmt(g.len)}`,g.w,ac)});}
   if(V3.manOn&&V3.man){const q=v3proj([V3.man.x,1900,V3.man.z],w,h);if(q){c2.font='600 12px "Malgun Gothic","맑은 고딕",system-ui,sans-serif';c2.textAlign='center';c2.textBaseline='middle';
     const t=V3.manBad?'막힘 — 판넬 · 기둥 · 벽':'사람 175 cm · 80 kg',tw=c2.measureText(t).width+10;c2.fillStyle=V3.manBad?'#d64545':'#e8792b';c2.fillRect(q[0]-tw/2,q[1]-9,tw,18);c2.fillStyle='#fff';c2.fillText(t,q[0],q[1])}}
+  if(V3.viewOn!==false){   // 시야 (안전공학): 바닥에 ±15° 최적 · ±30° 눈만 · ±60° 머리 돌려 부채꼴 + 정상 시선(수평 아래 15°)이 바닥에 닿는 선
+    const ds=S.panels.filter(p=>sel.has(p.id)&&typeOf(p).kind==='desk'), VV=V3.sitOn!==false?operators(ds.length?new Set(ds.map(p=>p.id)):new Set()):[];
+    if(V3.manOn&&V3.man)VV.push({x:V3.man.x,z:V3.man.z,f:[Math.sin(V3.man.rot),Math.cos(V3.man.rot)],eye:ERG.standEye,kind:'stand'});
+    const R=7000, dir=(f,a)=>{const r=a*Math.PI/180;return [f[0]*Math.cos(r)-f[1]*Math.sin(r),f[0]*Math.sin(r)+f[1]*Math.cos(r)]};
+    VV.forEach(v=>{[...ERG.zones].reverse().forEach(([a,,col,al])=>{const pts=[[v.x,8,v.z]];for(let k=-a;k<=a+0.01;k+=5){const d=dir(v.f,k);pts.push([v.x+d[0]*R,8,v.z+d[1]*R])}
+        const q=pts.map(p=>v3proj(p,w,h));if(q.some(x=>!x))return;c2.beginPath();q.forEach((x,i)=>i?c2.lineTo(x[0],x[1]):c2.moveTo(x[0],x[1]));c2.closePath();
+        c2.fillStyle=col;c2.globalAlpha=al*1.3;c2.fill();c2.globalAlpha=.6;c2.strokeStyle=col;c2.lineWidth=1;c2.stroke();c2.globalAlpha=1});
+      const L1=v.eye/Math.tan(ERG.nlos*Math.PI/180),a=v3proj([v.x,v.eye,v.z],w,h),b=v3proj([v.x+v.f[0]*L1,0,v.z+v.f[1]*L1],w,h);
+      if(a&&b){c2.setLineDash([7,5]);c2.strokeStyle='#2ecc71';c2.lineWidth=2;c2.beginPath();c2.moveTo(a[0],a[1]);c2.lineTo(b[0],b[1]);c2.stroke();c2.setLineDash([])}
+      const q=v3proj([v.x,v.eye+(v.kind==='stand'?420:260),v.z],w,h);if(q&&v.kind==='sit'){c2.font='600 11px "Malgun Gothic","맑은 고딕",system-ui,sans-serif';c2.textAlign='center';c2.textBaseline='middle';const t='앉음 · 눈 1,240',tw=c2.measureText(t).width+10;c2.fillStyle='#2d8cff';c2.fillRect(q[0]-tw/2,q[1]-8,tw,16);c2.fillStyle='#fff';c2.fillText(t,q[0],q[1])}})}
   V3.td=performance.now()-t0;   // 그리기 시간 (ms) — window.crspaceSpeed() 로 봄
   v3camPub();
   const mh=Math.max(0,...S.panels.map(p=>+typeOf(p).h||0));
@@ -2031,7 +2075,7 @@ function typeSecHtml(p,pre){
     ${t.kind==='desk'?`<div class="g"><label>작업면 높이<input type="number" id="${pre}kTop" step="10" value="${t.top}"></label><label>운전원 수<input type="number" id="${pre}kBays" min="1" step="1" value="${t.bays}"></label><label>모니터/운전원<input type="number" id="${pre}kMon" min="0" step="1" value="${t.mon}"></label>
       <label>모니터 inch<input type="number" id="${pre}kMonIn" min="10" step="1" value="${t.monIn}"></label><label>모니터 단<input type="number" id="${pre}kTiers" min="1" max="3" step="1" value="${t.tiers}"></label></div>`:''}
     ${t.kind==='screen'?`<div class="g"><label>가로 장<input type="number" id="${pre}kCols" min="1" step="1" value="${t.cols}"></label><label>세로 장<input type="number" id="${pre}kRows" min="1" step="1" value="${t.rows}"></label><label>한 장 inch<input type="number" id="${pre}kTileIn" min="20" step="1" value="${t.tileIn}"></label>
-      <label class="full">바닥에서 화면 아래<input type="number" id="${pre}kElev" min="0" step="50" value="${t.elev}"></label></div>`:''}
+      <label>바닥에서 화면 아래<input type="number" id="${pre}kElev" min="0" step="50" value="${t.elev}"></label><label style="grid-column:2/-1">받침 (서포트)<select id="${pre}kMount">${Object.entries(MOUNT).map(([k,v])=>`<option value="${k}" ${k===(t.mount||'stand')?'selected':''}>${v}</option>`).join('')}</select></label></div>`:''}
     <div class="g"><label>W 폭<input type="number" id="${pre}tW" min="1" step="50" value="${t.w}" ${t.kind==='screen'?'disabled title="화면 장 수 · 크기에서 자동"':''}></label><label>D 깊이<input type="number" id="${pre}tD" min="1" step="50" value="${t.d}"></label><label>H 높이<input type="number" id="${pre}tH" min="1" step="50" value="${+t.h||2100}" ${t.kind==='desk'||t.kind==='screen'?'disabled title="자동 (모니터 · 화면 꼭대기)"':''}></label>
      <label>전면 유지보수<input type="number" id="${pre}tF" min="0" step="50" value="${+t.front||0}"></label><label>후면 유지보수<input type="number" id="${pre}tR" min="0" step="50" value="${+t.rear||0}"></label><label title="이 장비 둘레로 다른 장비와 떨어져야 할 최소 거리 (② 판넬 간 최소 이격보다 크면 이 값)">최소 이격 (주위)<input type="number" id="${pre}tG" min="0" step="50" value="${+t.gap||0}"></label>
      <label ${t.kind!=='cabinet'?'hidden':''}>도어 위치<select id="${pre}tDoor">${Object.entries(DOOR_AT).map(([k,v])=>`<option value="${k}" ${k===t.door?'selected':''}>${v}</option>`).join('')}</select></label>
@@ -2068,10 +2112,11 @@ function v3applyType(p,pre='v3'){
   const t=typeOf(p), err=m=>{$(`#${pre}tErr`).textContent=m}, num=id=>+$(`#${pre}${id}`).value, kind=$(`#${pre}tKind`).value;
   const v={w:num('tW'),d:num('tD'),h:num('tH'),front:Math.max(0,num('tF')||0),rear:Math.max(0,num('tR')||0),gap:Math.max(0,num('tG')||0),door:$(`#${pre}tDoor`).value,hinge:kind,kind:t.kind||'cabinet'};
   [['Top','top'],['Bays','bays'],['Mon','mon'],['MonIn','monIn'],['Tiers','tiers'],['Cols','cols'],['Rows','rows'],['TileIn','tileIn'],['Elev','elev']].forEach(([K,k])=>{const el=$(`#${pre}k${K}`);if(el)v[k]=+el.value});
+  {const mo=$(`#${pre}kMount`);if(mo)v.mount=mo.value}
   fixDoor(v);   // 가구: 도어 없음 · H(· 화면 W) 자동
   if(!(v.w>0&&v.d>0&&v.h>0))return err('W · D · H 는 0 보다 커야 합니다.');
   const all=S.panels.filter(q=>q.type===t.id), sc=all.length>1?(document.querySelector(`input[name=${pre}sc]:checked`)||{}).value:'all';
-  const KS=['w','d','h','front','rear','gap','door','hinge','kind',...(v.kind==='desk'?['top','bays','mon','monIn','tiers']:v.kind==='screen'?['cols','rows','tileIn','elev']:[])];
+  const KS=['w','d','h','front','rear','gap','door','hinge','kind',...(v.kind==='desk'?['top','bays','mon','monIn','tiers']:v.kind==='screen'?['cols','rows','tileIn','elev','mount']:[])];
   const same=x=>KS.every(k=>String(x[k]??'')===String(v[k]))&&x.pre===t.pre&&x.color===t.color;
   if(sc==='all'){const old={...t};Object.assign(t,v);fixDoor(t);
     if(ENF()){const bad=violation(all,true);if(bad){Object.assign(t,old);return err(`이 값이면 배치 규칙을 어깁니다 — ${bad}`)}}
@@ -2116,6 +2161,7 @@ $('#v3Col').onchange=e=>{V3.colOn=e.target.checked;v3req()};
 $('#v3EDim').onchange=e=>{V3.edim=e.target.checked;v3req()};
 $('#v3Style').onchange=e=>{V3.style=e.target.value==='cad'?'cad':'dcs';try{localStorage.setItem('crspace.v3style',V3.style)}catch(_){}[$('#v3dlg'),$('#dock3d')].forEach(x=>x.classList.toggle('dcs',V3.style==='dcs'));v3req()};
 $('#v3Man').onchange=e=>{V3.manOn=e.target.checked;if(!V3.manOn&&V3.pov){V3.pov=false;v3home()}v3req()};
+$('#v3Sit').onchange=e=>{V3.sitOn=e.target.checked;v3req()};$('#v3View').onchange=e=>{V3.viewOn=e.target.checked;v3req(false)};
 $('#v3ManRot').onclick=()=>{if(!V3.manOn)return;V3.man.rot+=Math.PI/4;V3.manBad=false;if(V3.pov)manPov();v3req()};
 $('#v3Pov').onclick=()=>{if(!V3.manOn){$('#v3Man').checked=V3.manOn=true}if(V3.pov){V3.pov=false;V3.yaw=v3view.iso[0];V3.pitch=v3view.iso[1];v3home();v3req(false)}else manPov()};
 document.addEventListener('keydown',e=>{   // 3D 창: 판넬 옮긴 것 되돌리기 · 다시 (Ctrl+Z · Ctrl+Y)
@@ -2300,11 +2346,11 @@ function needLines(){
   return L;
 }
 async function drawingImage(w,h){   // 지금 배치를 밝은 화면 · 실 맞춤으로 2D 를 그려 그림으로 (화면은 그대로 되돌림)
-  const de=document.documentElement, th=de.dataset.theme, keepV={...V}, keepSel=sel, keepCam=show.cam, keepWm=show.wm, keepMeas=measure, ss=svg.style.cssText;
-  de.dataset.theme='light'; sel=new Set(); show.cam=false; show.wm=false; measure=null; svg.style.cssText+=`;width:${w}px;height:${h}px;flex:none`;
+  const de=document.documentElement, th=de.dataset.theme, keepV={...V}, keepSel=sel, keepCam=show.cam, keepView=show.view, keepWm=show.wm, keepMeas=measure, ss=svg.style.cssText;
+  de.dataset.theme='light'; sel=new Set(); show.cam=false; show.view=false; show.wm=false; measure=null; svg.style.cssText+=`;width:${w}px;height:${h}px;flex:none`;
   let txt; try{fit(); const c=svg.cloneNode(true); c.setAttribute('xmlns','http://www.w3.org/2000/svg'); c.setAttribute('width',w); c.setAttribute('height',h); c.setAttribute('style','font-family:"Malgun Gothic","맑은 고딕",Consolas,monospace');
     c.insertAdjacentHTML('afterbegin',`<rect width="${w}" height="${h}" fill="#ffffff"/>`); txt=new XMLSerializer().serializeToString(c); var tf={s:V.s,ox:V.ox,oy:V.oy}}
-  finally{if(th)de.dataset.theme=th;else delete de.dataset.theme; Object.assign(V,keepV); sel=keepSel; show.cam=keepCam; show.wm=keepWm; measure=keepMeas; svg.style.cssText=ss; render()}
+  finally{if(th)de.dataset.theme=th;else delete de.dataset.theme; Object.assign(V,keepV); sel=keepSel; show.cam=keepCam; show.view=keepView; show.wm=keepWm; measure=keepMeas; svg.style.cssText=ss; render()}
   const url=URL.createObjectURL(new Blob([txt],{type:'image/svg+xml;charset=utf-8'}));
   try{const im=new Image(); await new Promise((ok,no)=>{im.onload=ok;im.onerror=no;im.src=url}); im.tf=tf; return im} finally{setTimeout(()=>URL.revokeObjectURL(url),1000)}
 }
@@ -2977,6 +3023,48 @@ function v3sync(){   // render() 마다: 선택을 다른 창에 · 나란히 3D
   const sg=S.panels.map(p=>p.x+','+p.y+','+p.rot+p.type+(p.lock?'L':'')).join('|')+'#'+ss+'#'+(Array.isArray(S.cols)?S.cols.map(c=>c.cx+','+c.cy).join():'g')+'#'+S.room.w+'x'+S.room.l+'#'+lastSnap.length;
   if(sg!==V3.sig){V3.sig=sg;v3req()}}
 $('#v3gl').addEventListener('pointerdown',()=>{V3.kf=true},true); svg.addEventListener('pointerdown',()=>{V3.kf=false},true);
+
+/* ---------- 안전공학 · 인간공학: 운전원 시야 ----------
+   근거(공개 자료에서 확인한 값): ISO 11064-4:2013 — 정상 시선(normal line of sight)은 수평으로 정면, 수직으로 수평 아래 약 15°(앉은 자세),
+   대형 화면 등 워크스테이션 밖 표시는 모든 운전 위치에서 '다' 보여야 함 / MIL-STD-1472G — 중요 표시는 정상 시선 15° 안 /
+   제어실 설계 문헌 — 주 정보는 30° 원뿔(±15°) 안, 눈만 돌려 약 ±30°(문헌 30~35°), 머리를 돌리면 약 ±45~60° /
+   인체 치수 — 앉은 눈높이(남 5~95%) 바닥에서 약 1,176~1,336 mm → 의자 450 기준 1,240, 선 눈높이 = 키 175 cm 에서 약 1,640 mm.
+   여기 값은 초기 검토용 — 설계 확정은 해당 표준 본문 · 프로젝트 인간공학 기준으로 */
+var ERG={standEye:1640,sitEye:1240,nlos:15,R:9000,
+  zones:[[15,'최적','#2ecc71',.18],[30,'눈만 돌려','#f5b400',.11],[60,'머리 돌려','#9aa6b2',.06]]};
+function operators(only){   // 데스크마다 앉은 운전원: 운전원 자리 가운데 · 작업면 앞 450 · 데스크(모니터) 쪽을 봄
+  const out=[];S.panels.forEach(p=>{const t=typeOf(p);if(t.kind!=='desk'||(only&&!only.has(p.id)))return;const g=geom(p),f=g.fe,n=FRONT_N[g.r],L=Math.hypot(f[2]-f[0],f[3]-f[1]),u=[(f[2]-f[0])/L,(f[3]-f[1])/L],nb=Math.max(1,+t.bays||1);
+    for(let i=0;i<nb;i++){const a=(i+.5)*L/nb;out.push({x:f[0]+u[0]*a+n[0]*450,z:f[1]+u[1]*a+n[1]*450,f:[-n[0],-n[1]],eye:ERG.sitEye,kind:'sit',tag:p.tag+(nb>1?'-'+(i+1):''),pid:p.id})}});return out}
+function screensGeom(){return S.panels.filter(p=>typeOf(p).kind==='screen').map(p=>{const g=geom(p),t=fixDoor({...typeOf(p)}),f=g.fe,[,th]=monRaw(t.tileIn),Hv=t.rows*th,el=+t.elev||900;
+  return {p,c:[(f[0]+f[2])/2,(f[1]+f[3])/2],n:FRONT_N[g.r],w:Math.hypot(f[2]-f[0],f[3]-f[1]),bot:el,top:el+Hv,mid:el+Hv/2}})}
+var zoneOf=a=>{a=Math.abs(a);return a<=15?0:a<=30?1:a<=60?2:3};
+function viewCheck(v){   // 운전원 v 가 대형 화면을 어떻게 보나: 수평 각(정면 기준) · 거리 · 수직 각(눈 → 화면 가운데 · 위 · 아래) · 화면을 비스듬히 보는 각
+  return screensGeom().map(s=>{const dx=s.c[0]-v.x,dz=s.c[1]-v.z,d=Math.hypot(dx,dz)||1,ah=Math.atan2(v.f[0]*dz-v.f[1]*dx,v.f[0]*dx+v.f[1]*dz)*180/Math.PI;
+    const deg=h=>Math.atan((h-v.eye)/d)*180/Math.PI, off=Math.acos(Math.max(-1,Math.min(1,-(s.n[0]*dx+s.n[1]*dz)/d)))*180/Math.PI;
+    return {s,ah,z:zoneOf(ah),d,vm:deg(s.mid),vt:deg(s.top),vb:deg(s.bot),off,back:off>90}})}
+function viewers2D(){   // 2D 에 그릴 사람: 고른 데스크(없으면 모든 데스크)의 앉은 운전원 + 3D 의 선 사람(3D 를 열어 둔 때)
+  const ds=S.panels.filter(p=>sel.has(p.id)&&typeOf(p).kind==='desk'), V=operators(ds.length?new Set(ds.map(p=>p.id)):null), c=cam3d();
+  if(c&&c.man)V.push({x:c.man.x,z:c.man.z,f:[Math.sin(c.man.rot),Math.cos(c.man.rot)],eye:ERG.standEye,kind:'stand',tag:'선 사람'});
+  return {V,detail:ds.length>0||V.length<=2}}
+function viewSvg(s){
+  const {V,detail}=viewers2D(); if(!V.length)return ''; const R=ERG.R, fs=10*ANN/s, k=detail?1:.55, paper=getComputedStyle(document.documentElement).getPropertyValue('--paper').trim()||'#fff'; let o='';
+  const dir=(f,a)=>{const r=a*Math.PI/180,c=Math.cos(r),sn=Math.sin(r);return [f[0]*c-f[1]*sn,f[0]*sn+f[1]*c]};
+  V.forEach(v=>{[...ERG.zones].reverse().forEach(([a,,col,al])=>{if(!detail&&a>30)return;const p1=dir(v.f,-a),p2=dir(v.f,a);
+      o+=`<path d="M${v.x} ${v.z} L${v.x+p1[0]*R} ${v.z+p1[1]*R} A${R} ${R} 0 0 1 ${v.x+p2[0]*R} ${v.z+p2[1]*R} Z" fill="${col}" fill-opacity="${al*k}" stroke="${col}" stroke-opacity="${.5*k}" stroke-width="1" vector-effect="non-scaling-stroke"/>`});
+    o+=`<line x1="${v.x}" y1="${v.z}" x2="${v.x+v.f[0]*R}" y2="${v.z+v.f[1]*R}" stroke="#2ecc71" stroke-width="1.2" stroke-dasharray="8 5" vector-effect="non-scaling-stroke" opacity="${k}"/>`;
+    const st=v.kind==='stand', mc=st?'#e8792b':'#2d8cff';
+    o+=`<circle cx="${v.x}" cy="${v.z}" r="${st?200:230}" fill="${mc}" fill-opacity=".85" stroke="#fff" stroke-width="1.2" vector-effect="non-scaling-stroke"/><line x1="${v.x}" y1="${v.z}" x2="${v.x+v.f[0]*300}" y2="${v.z+v.f[1]*300}" stroke="#fff" stroke-width="2" vector-effect="non-scaling-stroke"/>`;
+    if(detail){o+=`<text x="${v.x}" y="${v.z-300}" font-size="${fs}" text-anchor="middle" fill="${mc}" font-weight="700" paint-order="stroke" stroke="${paper}" stroke-width="${3/s}">${st?'선 175 cm · 눈 1,640':'앉음 · 눈 1,240'}</text>`;
+      viewCheck(v).forEach(r=>{const col=r.back?'#ff3b6b':ERG.zones[r.z]?ERG.zones[r.z][2]:'#ff3b6b',mx=v.x+(r.s.c[0]-v.x)*.62,mz=v.z+(r.s.c[1]-v.z)*.62;
+        o+=`<line x1="${v.x}" y1="${v.z}" x2="${r.s.c[0]}" y2="${r.s.c[1]}" stroke="${col}" stroke-width="1.5" vector-effect="non-scaling-stroke"/>`;
+        o+=`<text x="${mx}" y="${mz}" font-size="${fs}" text-anchor="middle" fill="${col}" font-weight="700" paint-order="stroke" stroke="${paper}" stroke-width="${3/s}">${r.s.p.tag} ${Math.round(Math.abs(r.ah))}° ${r.back?'화면 뒤':ERG.zones[r.z]?ERG.zones[r.z][1]:'시야 밖'}</text>`})}});
+  return o}
+function viewHtml(p){   // 데스크 하나 고르면: 그 데스크 운전원들이 대형 화면을 보는 각 · 거리 (표)
+  const ops=operators(new Set([p.id])), sc=screensGeom(); if(!sc.length)return `<div class="sec"><b>👁 시야 검토</b> <span class="muted">— 대형 화면이 없습니다</span></div>`;
+  const zc=['ok','warn','warn','err'];
+  return `<div class="sec"><b>👁 시야 검토</b> <span class="muted">(앉은 운전원 눈높이 ${fmt(ERG.sitEye)} · 정상 시선 수평 아래 ${ERG.nlos}° · ISO 11064-4)</span>
+    <table class="vt"><tr><th>운전원</th><th>화면</th><th>수평</th><th>거리</th><th>수직(가운데 · 위 · 아래)</th><th></th></tr>${ops.map(v=>viewCheck(v).map(r=>`<tr class="${r.back?'err':zc[r.z]}"><td>${esc(v.tag)}</td><td>${esc(r.s.p.tag)}</td><td>${Math.round(Math.abs(r.ah))}°</td><td>${fmt(Math.round(r.d/10)*10)}</td><td>${Math.round(r.vm)}° · ${Math.round(r.vt)}° · ${Math.round(r.vb)}°</td><td>${r.back?'화면 뒤':(ERG.zones[r.z]||[0,'시야 밖'])[1]}${!r.back&&r.off>45?' · 비스듬히 '+Math.round(r.off)+'°':''}</td></tr>`).join('')).join('')}</table>
+    <p class="muted" style="margin:4px 0 0">최적 = 정면 ±15° · 눈만 돌려 ±30° · 머리 돌려 ±60°. 수직 각은 눈에서 위(+) · 아래(−).</p></div>`}
 
 /* 3D 관찰자 시점을 2D 에: 카메라 자리 · 보는 방향 · 가로 시야(점선 부채꼴) · 보는 점 · 카메라 높이, 사람(자리 · 방향).
    같은 화면(나란히)은 3D 를 그릴 때마다, 3D 새 창은 BroadcastChannel {t:'cam'} 으로 받음 */
