@@ -1,0 +1,218 @@
+{
+ "formats.revision": {
+  "members": [
+   "cfg.formats.revision"
+  ],
+  "ok": true,
+  "rows": 199,
+  "fingerprint": "0087c236",
+  "fp_full": "0087c23603f177e9cd8b9ace57d80b25cd4e785041cf825976d9da2a7269d744",
+  "qty": 398,
+  "seconds": 172.4,
+  "derived": 23,
+  "moved": 20
+ },
+ "anchors(25)": {
+  "members": [
+   "cfg.anchors.type_map.TT",
+   "cfg.anchors.type_map.PT",
+   "cfg.anchors.type_map.LT",
+   "cfg.anchors.type_map.PDT",
+   "cfg.anchors.type_map.DPIT",
+   "cfg.anchors.type_map.FT",
+   "cfg.anchors.type_map.LG",
+   "cfg.anchors.type_map.TI",
+   "cfg.anchors.type_map.PI",
+   "cfg.anchors.type_map.LI",
+   "cfg.anchors.type_map.FI",
+   "cfg.anchors.type_map.TIT",
+   "cfg.anchors.type_map.PIT",
+   "cfg.anchors.type_map.LIT",
+   "cfg.anchors.type_map.PDIT",
+   "cfg.anchors.type_map.FIT",
+   "cfg.anchors.type_map.LS",
+   "cfg.anchors.type_map.LSH",
+   "cfg.anchors.type_map.LSHH",
+   "cfg.anchors.type_map.LSL",
+   "cfg.anchors.type_map.FS",
+   "cfg.anchors.type_map.RO",
+   "cfg.anchors.type_map.FE",
+   "cfg.anchors.type_map.TW",
+   "cfg.anchors.not_field"
+  ],
+  "ok": true,
+  "rows": 199,
+  "fingerprint": "0087c236",
+  "fp_full": "0087c23603f177e9cd8b9ace57d80b25cd4e785041cf825976d9da2a7269d744",
+  "qty": 398,
+  "seconds": 161.4,
+  "derived": 23,
+  "moved": 20
+ },
+ "valves.legend_fallback(15)": {
+  "members": [
+   "cfg.valves.legend_fallback.butterfly.tick_length",
+   "cfg.valves.legend_fallback.butterfly.tick_reach_radii",
+   "cfg.valves.legend_fallback.butterfly.bar_reach_radii",
+   "cfg.valves.legend_fallback.butterfly.bar_min_radii",
+   "cfg.valves.legend_fallback.butterfly.circle_diameter",
+   "cfg.valves.legend_fallback.actuator_stem.stem_gap",
+   "cfg.valves.legend_fallback.actuator_stem.stem_offaxis",
+   "cfg.valves.legend_fallback.actuator_stem.stem_length",
+   "cfg.valves.legend_fallback.actuator_stem.centre_to_body",
+   "cfg.valves.legend_fallback.pneumatic.dome_flat",
+   "cfg.valves.legend_fallback.pneumatic.dome_depth",
+   "cfg.valves.legend_fallback.pneumatic.dome_aspect",
+   "cfg.valves.legend_fallback.pneumatic.cylinder_side",
+   "cfg.valves.legend_fallback.pneumatic.cylinder_aspect",
+   "cfg.valves.legend_fallback.pneumatic.cylinder_divider"
+  ],
+  "ok": true,
+  "rows": 199,
+  "fingerprint": "0087c236",
+  "fp_full": "0087c23603f177e9cd8b9ace57d80b25cd4e785041cf825976d9da2a7269d744",
+  "qty": 398,
+  "seconds": 170.5,
+  "derived": 23,
+  "moved": 20
+ },
+ "unit_multiplier_fallback(3)": {
+  "members": [
+   "cfg.unit_multiplier_fallback.00",
+   "cfg.unit_multiplier_fallback.10",
+   "cfg.unit_multiplier_fallback.11"
+  ],
+  "ok": true,
+  "rows": 199,
+  "fingerprint": "0087c236",
+  "fp_full": "0087c23603f177e9cd8b9ace57d80b25cd4e785041cf825976d9da2a7269d744",
+  "qty": 398,
+  "seconds": 165.7,
+  "derived": 23,
+  "moved": 20
+ },
+ "qty_note(3)": {
+  "members": [
+   "cfg.qty_note.same_words",
+   "cfg.qty_note.unit_words",
+   "cfg.qty_note.range_words"
+  ],
+  "ok": false,
+  "error_type": "MissingConstant",
+  "error": "cfg.qty_note.same_words",
+  "missing": "cfg.qty_note.same_words",
+  "missing_all": [
+   "cfg.qty_note.range_words",
+   "cfg.qty_note.same_words",
+   "cfg.qty_note.unit_words"
+  ],
+  "seconds": 106.9
+ },
+ "valves.actuator_reach/offaxis/tag_reach(3)": {
+  "members": [
+   "cfg.valves.actuator_reach",
+   "cfg.valves.actuator_offaxis",
+   "cfg.valves.tag_reach"
+  ],
+  "ok": false,
+  "error_type": "MissingConstant",
+  "error": "cfg.valves.tag_reach",
+  "missing": "cfg.valves.tag_reach",
+  "missing_all": [
+   "cfg.valves.tag_reach"
+  ],
+  "seconds": 148.4
+ },
+ "vendor_marks.glyph_sizes": {
+  "members": [
+   "cfg.vendor_marks.glyph_sizes"
+  ],
+  "ok": true,
+  "rows": 199,
+  "fingerprint": "0087c236",
+  "fp_full": "0087c23603f177e9cd8b9ace57d80b25cd4e785041cf825976d9da2a7269d744",
+  "qty": 398,
+  "seconds": 162.3,
+  "derived": 23,
+  "moved": 20
+ },
+ "vendor_marks.x_slack+note_row_tol": {
+  "members": [
+   "cfg.vendor_marks.x_slack",
+   "cfg.vendor_marks.note_row_tol"
+  ],
+  "ok": true,
+  "rows": 199,
+  "fingerprint": "0087c236",
+  "fp_full": "0087c23603f177e9cd8b9ace57d80b25cd4e785041cf825976d9da2a7269d744",
+  "qty": 398,
+  "seconds": 164.4,
+  "derived": 23,
+  "moved": 20
+ },
+ "dv dataclass(15)": {
+  "members": [
+   "dv.seg_span",
+   "dv.body_short",
+   "dv.arc_above",
+   "dv.tick_span",
+   "dv.tick_reach",
+   "dv.bar_reach",
+   "dv.bar_min",
+   "dv.act_box",
+   "dv.bar_axis_tol",
+   "dv.bar_cover",
+   "dv.centre_tol",
+   "dv.stem_slack",
+   "dv.act_reach",
+   "dv.act_offaxis",
+   "dv.tag_reach"
+  ],
+  "ok": false,
+  "error_type": "MissingConstant",
+  "error": "dv.seg_span",
+  "missing": "dv.seg_span",
+  "missing_all": [
+   "dv.seg_span"
+  ],
+  "seconds": 128.0
+ },
+ "ds dataclass 나머지": {
+  "members": [
+   "ds.side_tol",
+   "ds.mark_blob",
+   "ds.mark_glyph_span",
+   "ds.mark_cluster_gap",
+   "ds.box_mark_margin",
+   "ds.note_line_gap",
+   "ds.mark_above",
+   "ds.note_mark_row_tol",
+   "ds.brk_max_mark",
+   "ds.scope_text_tol",
+   "ds.drop_x_tol",
+   "ds.drop_end_tol",
+   "ds.scope_box_both_edges"
+  ],
+  "ok": true,
+  "rows": 199,
+  "fingerprint": "0087c236",
+  "fp_full": "0087c23603f177e9cd8b9ace57d80b25cd4e785041cf825976d9da2a7269d744",
+  "qty": 398,
+  "seconds": 170.8,
+  "derived": 23,
+  "moved": 20
+ },
+ "tb.title_line_tol": {
+  "members": [
+   "tb.title_line_tol"
+  ],
+  "ok": true,
+  "rows": 199,
+  "fingerprint": "0087c236",
+  "fp_full": "0087c23603f177e9cd8b9ace57d80b25cd4e785041cf825976d9da2a7269d744",
+  "qty": 398,
+  "seconds": 164.1,
+  "derived": 23,
+  "moved": 20
+ }
+}

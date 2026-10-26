@@ -1,0 +1,111 @@
+{
+ "project": "UAD",
+ "pages": [
+  6,
+  8,
+  19,
+  21,
+  23,
+  26,
+  29,
+  31
+ ],
+ "shots": [
+  {
+   "page": 6,
+   "drawing": "1A5J-00EKG00-M05-0001",
+   "grid_rows": 5,
+   "svg_nodes": 5,
+   "legend": [
+    "SCT 공급 범위 0",
+    "VENDOR 공급 (BM 당사) 0",
+    "판정 없음 0",
+    "검토 필요 5"
+   ]
+  },
+  {
+   "page": 8,
+   "drawing": "1A5J-00EKG00-M05-0003",
+   "grid_rows": 4,
+   "svg_nodes": 9,
+   "legend": [
+    "SCT 공급 범위 0",
+    "VENDOR 공급 (BM 당사) 0",
+    "판정 없음 0",
+    "검토 필요 4"
+   ]
+  },
+  {
+   "page": 19,
+   "drawing": "1A5J-00GHB10-M05-0001",
+   "grid_rows": 14,
+   "svg_nodes": 19,
+   "legend": [
+    "SCT 공급 범위 0",
+    "VENDOR 공급 (BM 당사) 0",
+    "판정 없음 0",
+    "검토 필요 14"
+   ]
+  },
+  {
+   "page": 21,
+   "drawing": "1A5J-00GHC10-M05-0001",
+   "grid_rows": 19,
+   "svg_nodes": 24,
+   "legend": [
+    "SCT 공급 범위 0",
+    "VENDOR 공급 (BM 당사) 0",
+    "판정 없음 0",
+    "검토 필요 19"
+   ]
+  },
+  {
+   "page": 23,
+   "drawing": "1A5J-00GKB10-M05-0001",
+   "grid_rows": 21,
+   "svg_nodes": 26,
+   "legend": [
+    "SCT 공급 범위 0",
+    "VENDOR 공급 (BM 당사) 0",
+    "판정 없음 0",
+    "검토 필요 21"
+   ]
+  },
+  {
+   "page": 26,
+   "drawing": "1A5J-00QFB10-M05-0001",
+   "grid_rows": 7,
+   "svg_nodes": 12,
+   "legend": [
+    "SCT 공급 범위 0",
+    "VENDOR 공급 (BM 당사) 0",
+    "판정 없음 0",
+    "검토 필요 7"
+   ]
+  },
+  {
+   "page": 29,
+   "drawing": "1A5J-00GMB10-M05-0001",
+   "grid_rows": 10,
+   "svg_nodes": 15,
+   "legend": [
+    "SCT 공급 범위 0",
+    "VENDOR 공급 (BM 당사) 0",
+    "판정 없음 0",
+    "검토 필요 10"
+   ]
+  },
+  {
+   "page": 31,
+   "drawing": "1A5J-00GQA10-M05-0001",
+   "grid_rows": 8,
+   "svg_nodes": 13,
+   "legend": [
+    "SCT 공급 범위 0",
+    "VENDOR 공급 (BM 당사) 0",
+    "판정 없음 0",
+    "검토 필요 8"
+   ]
+  }
+ ]
+}

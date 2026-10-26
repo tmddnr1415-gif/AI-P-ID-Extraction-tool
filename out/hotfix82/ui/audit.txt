@@ -1,0 +1,67 @@
+  ✔ 목록에 O/X 열이 있다
+  ✔ O/X 열은 Type 바로 앞 (['page_no', 'pid_no', 'origin', 'rev_state', 'verdict', 'type'])
+① 목록 칸의 O 단추
+  ✔ 서버 O · 행은 그대로 ('O', False)
+  ✔ O 단추 켜짐
+  ✔ 도구줄 수 'O 1 · X 0 · 미평가 1990'
+  ✔ VOC 한 건 늘었다
+② X 단추 → 출력에서 빠짐 → 다시 누르면 되살아남
+  ✔ 서버 X · removed ('X', True)
+  ✔ 행에 취소선(deleted)
+  ✔ X 단추 켜짐
+  ✔ 되돌리기 단추가 섰다
+  ✔ 켜진 X 를 다시 누르면 평가 지움 · 되살아남 ('', False)
+  ✔ 단추 둘 다 꺼짐
+③ 자판 — 칸 고르고 o · x · Backspace
+  ✔ O/X 칸이 골라짐 ['8d0ccadb93f7c380', 'verdict']
+  ✔ o 키 → O
+  ✔ 적은 뒤 아래 칸으로 ['c5472af5d446771f', 'verdict']
+  ✔ x 키 → X · 출력에서 빠짐 ('X', True)
+  ✔ 다시 아래 칸 ['df6edec4435d8a93', 'verdict']
+  ✔ Backspace → 지움 · 되살아남 ('', False)
+  ✔ O/X 칸은 편집이 열리지 않는다
+④ Shift+↓ 범위 뒤 x
+  ✔ 범위 3행
+  ✔ 범위 3행 전부 X
+  ✔ VOC 는 요청마다 한 건 — 지우기는 안 남긴다 (5건 기대 · 5건)
+⑤ 도구줄 O/X — 고른 행 · 묶음
+  ✔ 도구줄 O → 고른 행 O
+  ✔ 같은 단추 다시 → 지움
+  ✔ 묶음 2행
+  ✔ 묶음 판에 O/X 줄
+  ✔ 묶음 판 O → 둘 다 O · 되살아남
+  ✔ X 가 뺐던 행이 O 로 되살아났다
+⑥ Ctrl+Z / Ctrl+Y
+  ✔ Ctrl+Z → 묶음 O 가 X 로 돌아감 ('X', True) ('X', True)
+  ✔ Ctrl+Y → 다시 O
+⑦ VOC 함
+  ✔ 전부 VERDICT
+  ✔ verdicts 와 rows 가 행마다
+  ✔ 범위 3행 X 가 한 건에 셋
+  ✔ 단일 X 는 도면 조각을 남긴다 (2건)
+  ✔ 작성자 = 대시보드 로그인 이름 (묻지 않았다)
+  ✔ GET verdicts 집계 (O k0·k2·k4·k5 · X k3) {'O': 4, 'X': 1, 'open': 1986, 'rows': 1991, 'qty_O': 0, 'qty_X': 0}
+  ✔ spike/voc.py list 는 평가를 숨기고 안내만 (['반영할 VOC 가 없습니다.', 'O/X 평가 9건은 학습 자료입니다 — `python spike/voc.py verdicts` 로 모읍니다'])
+⑧ 근거 패널 · 열 필터
+  ✔ 근거 패널 O 켜짐
+  ✔ 근거 패널 X → 서버 X
+  ✔ O/X 열 필터 선택지 ['O', 'X', '\x00blank']
+⑨ 식별 VOC 탭 — 수량 O/X · 비고 · 누락 ＋행 · VOC Excel
+  ✔ 식별 VOC 탭이 열린다
+  ✔ VOC 탭 열 순서 ['page_no', 'pid_no', 'verdict', 'qty_verdict', 'type', 'tag_no', 'line_no', 'qty', 'scope', 'vx_who', 'vx_note', 'description']
+  ✔ VOC 탭은 전체 행을 보인다 (2097)
+  ✔ [VOC Excel] 단추가 보인다
+  ✔ 탭 배지 = 평가를 적은 행 수 (5)
+  ✔ 수량 O/X 칸이 골라짐 ['f7f3826043ce1ce2', 'qty_verdict']
+  ✔ 수량 X 는 식별 X 와 따로 ({'verdict': 'X', 'qty_verdict': 'X', 'author': '홍길동', 'note': '', 'at': 1791626847.0377748})
+  ✔ 수량 칸도 적으면 아래로 ['6c9e514d9dd98912', 'qty_verdict']
+  ✔ 수량 O 단추
+  ✔ 비고 칸 → 서버 note
+  ✔ 비고가 목록에 보인다
+  ✔ 사람이 더한 행이 VOC 탭 목록에 선다
+  ✔ 더한 행에 O
+  ✔ VOC Excel — 식별 VOC 1992행 · 누락 추가 1행
+  ✔ Excel 에 수량 O · 비고 (00EKG01CP002)
+  ✔ 페이지 오류 0 []
+
+결함 0

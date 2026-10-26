@@ -1,0 +1,37 @@
+[감사] 산출 대상 0행 / job 0개 · 사람이 도면 값을 덮어쓴 칸 0 · 도면 근거 없는 행 0
+[감사] 고아 업로드 0 · 고아 출력 0 · 고아 진단 0 · 고아 그림 캐시 0 · DB 0.1 MB 중 죽은 페이지 0.0 MB · 정리하면 되찾는 용량 0.0 MB
+DB 백업: /tmp/auditdxf-fzg7331f/backups/app.db.2026-10-11.bak
+INFO:     Started server process [14079]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://127.0.0.1:38327 (Press CTRL+C to quit)
+INFO:     127.0.0.1:55544 - "GET /home HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55552 - "POST /jobs HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55564 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55568 - "GET /static/app.js?v=987e4a16 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55564 - "GET /static/styles.css?v=95fbb583 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55564 - "GET /jobs/6644543881ed HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55568 - "GET /projects HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55592 - "GET /version HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55582 - "GET /version HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55582 - "GET /static/favicon.svg HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55582 - "GET /audit HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55568 - "GET /running HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55592 - "GET /home HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55568 - "GET /jobs/6644543881ed/events HTTP/1.1" 200 OK
+Traceback (most recent call last):
+  File "/home/user/AI-P-ID-Extraction-tool/app/main.py", line 502, in _worker
+    result = analysis_proc.run(Path(row["pdf_path"]), progress,
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/user/AI-P-ID-Extraction-tool/app/analysis_proc.py", line 173, in run
+    raise exc
+app.pipeline.NoTextLayer: 이 PDF 의 1장 어디에도 글자층이 없습니다 — 선은 있는데 글자가 전부 선(획)으로 그려져 있습니다. CAD 의 PDF 출력에서 글꼴을 텍스트로 내보내는 설정(TrueType 글꼴 · SHX 글꼴을 주석으로)을 켜고 다시 내보내 주세요. DXF 로 올리는 길도 있습니다.
+INFO:     127.0.0.1:55592 - "GET /jobs HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55592 - "GET /home HTTP/1.1" 200 OK
+INFO:     Shutting down
+INFO:     Waiting for background tasks to complete. (CTRL+C to force quit)
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [14079]
+/usr/lib/python3.11/multiprocessing/resource_tracker.py:254: UserWarning: resource_tracker: There appear to be 3 leaked semaphore objects to clean up at shutdown
+  warnings.warn('resource_tracker: There appear to be %d '

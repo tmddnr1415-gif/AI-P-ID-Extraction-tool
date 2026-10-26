@@ -1,0 +1,37 @@
+<!doctype html><html lang="ko"><head><meta charset="utf-8">
+<title>계장ENG그룹 주간업무 Dashboard (흉내)</title>
+<style>
+ body{margin:0;font-family:'Malgun Gothic',sans-serif;display:flex;height:100vh;background:#f4f6fb}
+ nav{width:220px;background:linear-gradient(#1f2a5c,#19214b);color:#e6e9f5;padding:18px 10px;box-sizing:border-box}
+ nav b{display:block;font-size:15px;margin:0 8px 18px}
+ nav a{display:block;color:#e6e9f5;text-decoration:none;padding:8px 10px;border-radius:8px;font-size:13px}
+ nav a.sub{padding-left:28px;font-size:12.5px}
+ nav a.on{background:#2348e0}
+ main{flex:1;display:flex;flex-direction:column;min-width:0}
+ .bar{padding:8px 14px;font-size:12px;color:#5b6475;background:#fff;border-bottom:1px solid #e3e7ef}
+ iframe{flex:1;border:0;width:100%}
+ .down{padding:40px;color:#b42318}
+</style></head><body>
+<nav><b>계장ENG그룹<br>주간업무 Dashboard</b>
+ <a href="#">📋 주간업무보고</a>
+ <a href="#">📈 입찰 프로젝트</a><a class="sub on" href="#">P&amp;ID 분석</a>
+ <a href="#">🏗 실행 프로젝트</a><a class="sub" href="#">P&amp;ID 분석</a>
+ <a href="#">💬 익명게시판</a></nav>
+<main><div class="bar" id="bar">P&amp;ID 분석 · 확인 중…</div><div id="slot" style="flex:1;display:flex"></div></main>
+<script>
+const URL_ = "http://192.0.2.2:35407/?embed=1&mode=bid&user=%ED%99%8D%EA%B8%B8%EB%8F%99", BASE = "http://192.0.2.2:35407";
+(async () => {
+  const bar = document.getElementById('bar');
+  try {
+    const ctl = new AbortController(); setTimeout(() => ctl.abort(), 3000);
+    const v = await (await fetch(BASE + '/version', {signal: ctl.signal})).json();
+    window.__ver = v;
+    bar.innerHTML = 'P&amp;ID 분석 · 서버 ' + (v.version || '?') + ' · <a href="' + URL_ + '" target="_blank">새 창으로 열기</a>';
+    const f = document.createElement('iframe'); f.src = URL_; f.id = 'pid';
+    document.getElementById('slot').appendChild(f);
+  } catch (e) {
+    window.__ver = 'ERR ' + e;
+    document.getElementById('slot').innerHTML = '<div class="down">P&amp;ID 분석 서버에 연결할 수 없습니다.</div>';
+  }
+})();
+</script></body></html>

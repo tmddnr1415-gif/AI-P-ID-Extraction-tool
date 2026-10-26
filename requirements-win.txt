@@ -1,0 +1,23 @@
+# Windows x86_64 / Python 3.11 - offline install (company PyPI blocked).
+# ASCII only on purpose: pip reads this file with the Windows locale codepage
+# (cp949) and stops on UTF-8 Korean comments (hotfix53).  Background in
+# docs/offline_setup_windows.md.
+#
+# Differs from requirements.txt in one way: uvicorn[standard] is spelled out
+# without uvloop (no win_amd64 wheel; uvicorn runs on the asyncio loop).
+# Versions are pinned to what was tested; the PC is offline.
+#
+#   py -3.11 -m venv .venv
+#   .venv\Scripts\python -m pip install --no-index --find-links wheels -r requirements-win.txt
+pymupdf==1.28.2
+numpy==2.4.6
+openpyxl==3.1.5
+PyYAML==6.0.1
+fastapi==0.141.1
+uvicorn==0.52.3
+python-multipart==0.0.32
+httptools==0.8.0
+websockets==17.0.1
+watchfiles==1.2.0
+python-dotenv==1.2.3
+anthropic==0.122.0

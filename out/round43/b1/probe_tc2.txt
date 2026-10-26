@@ -1,0 +1,19 @@
+TC2 후보 169 | 가족별(장 종류, 가족): {('LEGEND', 'small-X4'): 3, ('LEGEND', 'small-X2'): 1, ('LEGEND', 'small-X5'): 1, ('PID', 'small-X6'): 73, ('PID', 'small-X4'): 12, ('PID', 'small-X8'): 17, ('PID', 'X13'): 14, ('PID', 'small-X13'): 2, ('PID', 'X4'): 3, ('PID', 'small-X10'): 43}
+  액추에이터 있는 후보: 11 | 행이 될 것(deliverable≠EXCLUDED): 11 | 점(dot) 있는 후보: 126
+  장별: [((2, 'LEGEND'), 3), ((3, 'LEGEND'), 1), ((5, 'LEGEND'), 1), ((6, 'PID'), 4), ((7, 'PID'), 1), ((9, 'PID'), 1), ((10, 'PID'), 13), ((11, 'PID'), 3), ((12, 'PID'), 2), ((13, 'PID'), 1), ((15, 'PID'), 4), ((16, 'PID'), 4), ((17, 'PID'), 6), ((18, 'PID'), 15), ((21, 'PID'), 2), ((23, 'PID'), 18), ((24, 'PID'), 4), ((25, 'PID'), 9), ((26, 'PID'), 16), ((27, 'PID'), 8), ((28, 'PID'), 20), ((33, 'PID'), 2), ((34, 'PID'), 2), ((36, 'PID'), 5), ((38, 'PID'), 8), ((39, 'PID'), 10), ((40, 'PID'), 2), ((41, 'PID'), 4)]
+    2 LEGEND small-X4 [637.2, 415.2, 645.6, 420.1]   NONE  EXCLUDED
+    2 LEGEND small-X2 [450.4, 415.4, 458.9, 419.7] dot  NONE  EXCLUDED
+    2 LEGEND small-X4 [450.4, 684.0, 458.9, 688.9]   NONE  EXCLUDED
+    3 LEGEND small-X4 [452.6, 690.0, 460.8, 694.6]   NONE  EXCLUDED
+    5 LEGEND small-X5 [321.8, 753.7, 331.8, 758.6]   NONE  EXCLUDED
+    10 PID small-X4 [349.0, 502.2, 357.0, 506.8] dot ring PNEUMATIC XV XV
+    10 PID small-X4 [349.0, 279.9, 357.0, 284.6] dot ring PNEUMATIC TCV CV
+    10 PID small-X4 [348.7, 448.2, 356.8, 452.7] dot ring PNEUMATIC TCV CV
+    15 PID small-X4 [191.0, 142.6, 199.6, 147.6] dot ring PNEUMATIC  CV
+    15 PID small-X8 [238.2, 433.2, 246.1, 437.8] dot ring PNEUMATIC  CV
+    15 PID small-X8 [238.2, 489.1, 246.1, 493.8] dot ring PNEUMATIC  CV
+    17 PID small-X8 [214.9, 64.8, 222.8, 69.3] dot ring PNEUMATIC  CV
+    17 PID small-X4 [703.3, 180.6, 711.7, 185.5] dot ring PNEUMATIC PRV CV
+    17 PID small-X4 [741.7, 722.4, 750.2, 727.3] dot ring PNEUMATIC  CV
+    17 PID small-X8 [711.5, 528.2, 719.5, 532.8] dot ring PNEUMATIC  CV
+    18 PID small-X8 [759.1, 243.6, 767.0, 248.2] dot ring PNEUMATIC PCV CV

@@ -1,0 +1,12 @@
+· QFE 분석 …
+   행 2019 · 지문 906593dd · 축3 89.1점
+
+프로젝트      행         지문     Q'ty       초     RSS      축3
+QFE   2019   906593dd     3649    1276    6.4G   89.1
+
+축3 내역 (지표별 맞춘 수 / 분모)
+    도면번호         개정           태그→행         수량           심볼판정         파라미터       
+QFE 86/86        85/93        288/430      2019/2019    2019/2350    28/31      
+
+기준선을 저장했습니다: /home/user/AI-P-ID-Extraction-tool/spike/baselines_3p.json
+결과: /home/user/AI-P-ID-Extraction-tool/out/regression_3p.json

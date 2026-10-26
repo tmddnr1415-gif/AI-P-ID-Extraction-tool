@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>도서검토</title>
+<!--
+  hotfix118 — 대시보드 폴더의 apps/books/index.html (대시보드 메뉴 '도서검토' 가 여는 파일).
+  도서검토 화면과 공용 도서관 API 는 P&ID 서버(같은 PC · 포트 8000)의 /books/ 가 맡는다 (hotfix115) — P&ID · LOGIC · ROOM SIZE 계산과 같은 서버.
+  이 파일은 그 주소로 넘겨 주기만 한다 (주소 뒤 값 embed · user · view 는 그대로 넘긴다).
+  화면을 고치는 곳은 P&ID 저장소의 app/static/books/index.html 이고, 이 파일은 그 서버 주소만 안다 — 대시보드 코드는 안 바꾼다.
+-->
+<style>
+  :root{--bg:#f4f6fb;--ink:#1d2433;--muted:#5b6475;--accent:#2f5bd8;--bad:#c2453f}
+  body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.6 "Malgun Gothic","Apple SD Gothic Neo",system-ui,sans-serif}
+  .box{max-width:560px;margin:12vh auto;padding:22px 26px;background:#fff;border:1px solid #d8deea;border-radius:12px}
+  h1{font-size:18px;margin:0 0 8px;color:var(--accent)}
+  .muted{color:var(--muted);font-size:13px}
+  .bad{color:var(--bad)}
+  button{margin-top:10px;padding:6px 14px;border:1px solid var(--accent);background:var(--accent);color:#fff;border-radius:8px;cursor:pointer;font:inherit}
+  code{background:#eef1f7;padding:1px 5px;border-radius:4px}
+</style>
+</head>
+<body>
+<div class="box">
+  <h1>도서검토</h1>
+  <p id="msg" class="muted">P&amp;ID 서버에 연결하는 중…</p>
+  <p id="more" class="muted" hidden></p>
+  <button id="retry" hidden>다시 시도</button>
+</div>
+<script>
+(function () {
+  var PID_PORT = 8000;                                   // P&ID 서버 (대시보드의 PID_PORT 와 같은 값)
+  var host = /^https?:$/.test(location.protocol) ? location.hostname : 'localhost';
+  if (host.indexOf(':') >= 0 && host.charAt(0) !== '[') host = '[' + host + ']';   // IPv6
+  var base = 'http://' + host + ':' + PID_PORT;
+  var target = base + '/books/' + location.search + location.hash;
+  var msg = document.getElementById('msg'), more = document.getElementById('more'), retry = document.getElementById('retry');
+
+  function go() {
+    msg.className = 'muted'; msg.textContent = 'P&ID 서버에 연결하는 중…'; more.hidden = true; retry.hidden = true;
+    var done = false, timer = setTimeout(function () { fail('응답이 없습니다 (3초)'); }, 3000);
+    function fail(why) {
+      if (done) return; done = true; clearTimeout(timer);
+      msg.className = 'bad';
+      msg.textContent = 'P&ID 서버가 꺼져 있습니다 — 부서장 PC 의 run_lan_service.bat 을 확인하세요.';
+      more.hidden = false;
+      more.innerHTML = '도서검토는 P&amp;ID 서버(<code>' + base + '</code>)의 <code>/books/</code> 화면입니다. (' + why + ')';
+      retry.hidden = false;
+    }
+    fetch(base + '/version', { cache: 'no-store' }).then(function (r) {
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      return r.json();
+    }).then(function () {
+      if (done) return; done = true; clearTimeout(timer);
+      location.replace(target);
+    }).catch(function (e) { fail(e && e.message ? e.message : '연결 실패'); });
+  }
+  retry.onclick = go;
+  go();
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,61 @@
+{
+ "errors": [],
+ "demo": {
+  "inst": 6,
+  "valves": 3,
+  "equip": 3,
+  "pipes": 6,
+  "arrows": 6,
+  "legendRows": 16,
+  "libRows": 35,
+  "trendPts": 1,
+  "params": 5,
+  "chip": "Plant Normal"
+ },
+ "trip": {
+  "cls": "hmi-sym hmi-motor st-trip hmi-item hmi-sel",
+  "chip": "Alarm Active",
+  "fp": true
+ },
+ "trend_after_live": 5,
+ "demo_tag_edit": "PT-101A",
+ "pid": {
+  "title": "DCS Graphic – D00P-10LBA10-M05-0001",
+  "inst": 38,
+  "tagged": 31,
+  "valves": 8,
+  "equip": 0,
+  "pipes": 37,
+  "svc": [
+   "svc-steam"
+  ],
+  "legendRows": 16,
+  "params": 4,
+  "pretag": "14LBA16CP065"
+ },
+ "pid_tag_edit": {
+  "shown": "14LBA16CP042",
+  "msg": "태그 저장: 14LBA16CP042"
+ },
+ "server_hmi_tags": {
+  "0371833bbe306097": "14LBA16CP042"
+ },
+ "pid_painted": 8,
+ "trend_tag": "Trend\n(Flow Indicating Transmitter (14LBA11CP001))",
+ "pick_options": 29,
+ "server_hmi_params_trend": {
+  "params": {
+   "5": [
+    "14LBA11CP001",
+    "14LBA16CP006",
+    "14LBA11CP008",
+    "14LBA10CP007"
+   ]
+  },
+  "trend": {
+   "5": "14LBA11CP001"
+  }
+ },
+ "tag_persists": "14LBA16CP042",
+ "png_bytes": 521824
+}
