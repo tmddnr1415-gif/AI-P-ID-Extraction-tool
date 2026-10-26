@@ -90,6 +90,9 @@ input[type=number]{font-family:var(--f-mono);font-variant-numeric:tabular-nums}
 .acon label{display:flex;flex-direction:column;gap:2px;font-size:11.5px;color:var(--ink-2)}.acon label small{color:var(--ink-2);font-size:10.5px}
 .acon fieldset{border:1px solid var(--line);border-radius:6px;padding:6px 8px;margin:0}.acon legend{font-size:12px;font-weight:700;color:var(--ink)}
 .lh-start li.opt{border-color:var(--accent);background:var(--accent-soft)}
+.aprev{border:1px solid var(--line);border-radius:6px;padding:6px;display:flex;flex-direction:column;gap:4px}.aprev svg{width:100%;height:210px;background:var(--paper);border-radius:4px}
+.aprev .via{font-size:12px}.aprev .via b{color:var(--accent)}
+.arules{font-size:11.5px}.arules li{margin:2px 0}
 .tdlg .tform{display:grid;grid-template-columns:minmax(0,1fr) 290px;gap:14px}
 .tdlg .tf{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:7px 8px;align-content:start}
 .tdlg .tf label{display:flex;flex-direction:column;gap:2px;font-size:11px;color:var(--ink-2);min-width:0}
@@ -383,6 +386,7 @@ svg text{font-family:var(--f-mono)}
         </div>
         <p class="muted" style="margin:4px 0 0">항상 막는 것: 기둥과 겹침 · 판넬끼리 겹침 · 다른 판넬의 도어 회전 궤적과 간섭 · 도어 궤적끼리 겹침. Ctrl 을 누른 채 끌면 근처 판넬 · 벽 · 기둥에 맞춰 붙습니다(정렬 안내선).</p>
         <div class="row" id="colCustom" style="margin-top:6px;align-items:center" hidden><span class="muted" id="colCustomTxt"></span><button id="bColReset" title="직접 고친 기둥을 버리고 위 Span · 크기로 다시 만듭니다">격자로 다시 만들기</button></div>
+        <div class="row" id="reAutoRow" hidden style="margin-top:6px"><button id="bReAuto" class="primary" title="Option A 로 만든 배치: 지금 실 W · L 로 같은 List · 제약조건을 다시 배치 (Ref 와 실 크기가 비슷하면 그 Ref 처럼)">⚡ 이 실 크기로 다시 자동 배치</button></div>
         <p class="muted" style="margin:6px 0 0">기둥 Span을 비우면 기둥 없이 검토합니다. 기둥 하나씩 옮기기 · 추가 · 삭제는 도구줄 [기둥 편집]. 벽 이격 · Spare 는 권장 실 크기 계산에 쓰입니다 (벽 이격은 도면에 상 · 하 · 좌 · 우 끝 판넬부터 보라 빗금으로 표시되고, 실 벽이 그보다 가까우면 경고) (Spare = 필요 영역을 증설 방향으로 그 비율만큼 늘림).</p>
       </section>
 
@@ -1163,7 +1167,7 @@ function rmHint(){const r=roomId($('#iRm').value),h=$('#iRmHint');if(!h)return; 
   const a=$('#iRmFix');if(a)a.onclick=e=>{e.preventDefault();S.info.room=r.std.replace(/ \([^)]*\)$/,'');commit();buildInfo();toast(`Room 명칭을 ${S.info.room} 로 고쳤습니다`)}}
 $('#iRm').addEventListener('input',rmHint);
 [['iPj','project'],['iRm','room'],['iBy','author'],['iRev','rev']].forEach(([id,k])=>$('#'+id).addEventListener('change',e=>{S.info[k]=e.target.value.trim();commit()}));
-function buildRoom(){buildInfo();$('#rW').value=S.room.w;$('#rL').value=S.room.l;$('#rSX').value=S.room.spX;$('#rSY').value=S.room.spY;$('#rC').value=S.room.col;$('#rM').value=S.room.margin;$('#rSp').value=S.room.spare;$('#rSd').value=S.room.spareDir;$('#rGp').value=S.room.gapP;$('#rGd').value=S.room.gapD;$('#rTouch').checked=S.room.touchOK;$('#rEnf').checked=S.room.enforce;$('#rFit').checked=S.room.autoFit!==false;$('#snap').value=String(S.snap);
+function buildRoom(){buildInfo();{const ra=$('#reAutoRow');if(ra)ra.hidden=!(S.autoFrom&&S.autoFrom.items)}$('#rW').value=S.room.w;$('#rL').value=S.room.l;$('#rSX').value=S.room.spX;$('#rSY').value=S.room.spY;$('#rC').value=S.room.col;$('#rM').value=S.room.margin;$('#rSp').value=S.room.spare;$('#rSd').value=S.room.spareDir;$('#rGp').value=S.room.gapP;$('#rGd').value=S.room.gapD;$('#rTouch').checked=S.room.touchOK;$('#rEnf').checked=S.room.enforce;$('#rFit').checked=S.room.autoFit!==false;$('#snap').value=String(S.snap);
   const cu=Array.isArray(S.cols);$('#colCustom').hidden=!cu;if(cu)$('#colCustomTxt').textContent=`기둥을 직접 고친 상태 (${S.cols.length}개) — Span · 크기는 격자로 다시 만들 때 씀`}
 $('#rTouch').onchange=e=>{S.room.touchOK=e.target.checked;commit()}; $('#rEnf').onchange=e=>{S.room.enforce=e.target.checked;commit()}; $('#rFit').onchange=e=>{S.room.autoFit=e.target.checked;commit()};
 ['rW','rL','rSX','rSY','rC','rM','rSp','rSd','rGp','rGd'].forEach(id=>$('#'+id).addEventListener('change',e=>{
@@ -2647,13 +2651,13 @@ $('#bHome').onclick=showHome;
    불러오기 = 배치(실 · Type · 판넬)만 바꾸고 프로젝트 · 룸 · Rev · 서버 연결 · Rev 기록은 그대로 */
 const REF=(window.CRSPACE_REF&&Array.isArray(window.CRSPACE_REF.refs))?window.CRSPACE_REF:{refs:[],rules:{}};
 let refPick=null, refPickMode=false;
-function refThumb(d){   // 미리보기: 실 · 판넬 몸체(Type 색) · 앞면 굵은 선
+function refThumb(d,svgSel='#refSvg'){   // 미리보기: 실 · 판넬 몸체(Type 색) · 앞면 굵은 선
   const T={};d.types.forEach(t=>T[t.id]=fixDoor({...t}));const W=d.room.w,L=d.room.l,pad=Math.max(W,L)*0.03,ink=getComputedStyle(document.documentElement).getPropertyValue('--ink').trim()||'#ccc';
   let o=`<rect x="0" y="0" width="${W}" height="${L}" fill="none" stroke="${ink}" stroke-width="2" vector-effect="non-scaling-stroke"/>`;
   d.panels.forEach(p=>{const t=T[p.type];if(!t)return;const g=geom(p,t),b=g.body,f=g.fe;
     o+=`<rect x="${b.x}" y="${b.y}" width="${b.w}" height="${b.h}" fill="${esc(t.color||'#888')}" fill-opacity=".55" stroke="${esc(t.color||'#888')}" vector-effect="non-scaling-stroke"/><line x1="${f[0]}" y1="${f[1]}" x2="${f[2]}" y2="${f[3]}" stroke="${ink}" stroke-width="2" vector-effect="non-scaling-stroke"/>`;
     if(Math.min(b.w,b.h)>500)o+=`<text x="${b.x+b.w/2}" y="${b.y+b.h/2}" font-size="${Math.min(b.w,b.h)*0.42}" text-anchor="middle" dominant-baseline="central" fill="${ink}">${esc(p.tag)}</text>`});
-  $('#refSvg').setAttribute('viewBox',`${-pad} ${-pad} ${W+pad*2} ${L+pad*2}`);$('#refSvg').innerHTML=o}
+  $(svgSel).setAttribute('viewBox',`${-pad} ${-pad} ${W+pad*2} ${L+pad*2}`);$(svgSel).innerHTML=o}
 function refShow(r){refPick=r;$('#refList').querySelectorAll('button').forEach(b=>b.classList.toggle('on',b.dataset.ref===r.id));refThumb(r.data);
   const by={};r.data.panels.forEach(p=>{const t=r.data.types.find(x=>x.id===p.type);const k=t?(t.kind==='desk'?'데스크':t.kind==='screen'?'대형 화면':t.door==='none'?'프린터':'판넬'):'?';by[k]=(by[k]||0)+1});
   $('#refInfo').innerHTML=`<b>${esc(r.project)}</b> · ${esc(r.room)} · 실 ${fmt(r.data.room.w)} × ${fmt(r.data.room.l)} · ${Object.entries(by).map(([k,v])=>k+' '+v).join(' · ')}<br>${esc(r.note||'')}<br><span style="font-size:11px">도면 ${esc(r.doc)}</span>`;
@@ -2687,7 +2691,8 @@ const rhint=k=>{const [key,q]=k.split(':'),v=REF.rules&&REF.rules[key];return v?
 function aKind(desc,w,d,h){const u=desc.toUpperCase();
   if(/CLOCK|MIMIC|PUSH ?BUTTON|\bEPB\b|MICROPHONE|RDLI|WALL MOUNT|MODF|SPARE\b.*\(\d+\)$/.test(u)&&!(w&&d&&h&&h>1000))return 'skip';
   if(/LARGE SCREEN|\bLVS\b|\bLSD\b|VIDEO WALL|CCTV DISPLAY|\d{2,3}\s*("|″|INCH)/.test(u)&&!/CONTROLLER|WORKSTATION/.test(u))return 'ls';
-  if(/PRINTER|SCANNER|\bFAX\b/.test(u)||(h&&h<=800&&w<=850&&d<=850))return 'prn';
+  if(/PANEL|CABINET|CUBICLE|RACK/.test(u)&&!/OWS|EWS|WORKSTATION|CLIENT|DESK/.test(u))return 'cab';
+  if(/PRINTER|\bFAX\b/.test(u)||(/SCANNER/.test(u)&&!/CLIENT|WORKSTATION|OWS/.test(u))||(h&&h<=800&&w<=850&&d<=850))return 'prn';
   if(h?(h<=1000||(h<=1300&&/OWS|EWS|WORKSTATION|DESK|CONSOLE|CLIENT|STATION/.test(u))):/OWS|EWS|WORKSTATION|DESK|CONSOLE|CLIENT|STATION|\bOIS\b|\bOPS\b|\bHMI\b/.test(u))return 'desk';
   return 'cab'}
 function aFam(desc){const u=desc.toUpperCase();return /POWER|PDP|DIST/.test(u)?'pwr':/NETWORK|SERVER|RACK|OPC|SCADA|HISTORIAN|CYBER|TEL|LAN|PAGA|PABX|FDM|PCM/.test(u)?'net':/HVAC|FIRE|\bFA\b|FGC|SMOKE/.test(u)?'hv':'cab'}
@@ -2744,32 +2749,44 @@ const ACON=[   // [키, 이름, 시작값, Ref 통계 키, 설명]
   ['deskRow','데스크 줄 ↔ 뒷줄 (mm)',2500,null,'운전원 공간 + 걷는 길'],['deskFace','마주 보는 데스크 줄 (화면 없는 룸, mm)',null,'deskFace','엔지니어링 룸: 위 · 아래 벽 데스크 사이'],['deskMax','콘솔 한 줄 최대 데스크 수',null,'deskRowN:p75','넘으면 뒷줄'],
   ['prnWall','프린터 ↔ 벽 (mm)',null,'prnWall','Ref: 벽 따라 붙임']];
 function aConForm(){
-  $('#aCon').innerHTML=`<div class="muted">② 제약조건 — 시작값은 Ref ${new Set(REF.refs.map(r=>r.project)).size}개 PJT 에서 잰 값(중앙값). 바꾸면 그대로 씁니다.</div>
+  const pj=[...new Set(REF.refs.map(r=>r.project))];
+  $('#aCon').innerHTML=`<div class="aprev"><svg id="aPv"></svg><div class="via" id="aPvTxt">① 에 List 를 넣으면 미리보기가 나옵니다.</div></div>
+   <fieldset><legend>배치 방식</legend><label><select id="ac_method"><option value="auto">자동 — 실 크기 · 구성이 비슷한 Ref 가 있으면 그 Ref 처럼, 없으면 학습 규칙</option><option value="rules">학습 규칙만 (Ref 에서 찾은 규칙 · 거리)</option>
+     ${pj.map(n=>`<optgroup label="Ref 따라 — ${esc(n)}">${REF.refs.filter(r=>r.project===n).map(r=>`<option value="${esc(r.id)}">${esc(n)} · ${esc(r.room)}</option>`).join('')}</optgroup>`).join('')}</select>
+     <small>실 W · L 을 바꾸면 그 크기에 맞춰 다시 정함 — Ref 와 실 크기가 80% 이상 · 구성이 60% 이상 비슷하면 그 Ref 의 줄 배치를 따름</small></label></fieldset>
+   <div class="muted">② 제약조건 — 시작값은 Ref ${pj.length}개 PJT 에서 잰 값(중앙값 · 최대값 칸은 위 25%). 바꾸면 그대로 씁니다.</div>
    <fieldset><legend>실</legend><div class="g">${ACON.slice(0,2).map(aField).join('')}</div></fieldset>
    <fieldset><legend>판넬 · 캐비닛</legend><div class="g">${ACON.slice(2,10).map(aField).join('')}</div></fieldset>
    <fieldset><legend>데스크 · 대형 화면 · 프린터</legend><div class="g">${ACON.slice(10).map(aField).join('')}</div></fieldset>
-   <fieldset><legend>판넬 줄 방향</legend><label><select id="ac_mode"><option value="face">두 줄씩 앞면끼리 마주 봄 (Ref: F3 · NT34 · Amiral · QFE · UAD)</option><option value="same">모두 같은 방향 (Ref: Tanajib ER · Metering)</option></select></label></fieldset>`}
+   <fieldset><legend>판넬 줄 방향</legend><label><select id="ac_mode"><option value="face">두 줄씩 앞면끼리 마주 봄 (Ref: F3 · NT34 · Amiral · QFE · UAD)</option><option value="same">모두 같은 방향 (Ref: Tanajib ER · Metering)</option></select></label></fieldset>
+   <details class="arules"><summary>Ref 에서 찾은 배치 규칙 (${(REF.found||[]).length})</summary><ul>${(REF.found||[]).map(x=>`<li>${esc(x.text)}</li>`).join('')}
+     <li>판넬 앞면끼리 통로 ${rhint('cabFace')} · 앞 ↔ 다음 줄 뒤 ${rhint('cabFR')}</li><li>콘솔 ↔ 대형 화면 ${rhint('deskScreen')} · 마주 보는 데스크 줄 ${rhint('deskFace')}</li><li>콘솔 한 줄 데스크 수 ${rhint('deskRowN:p75')}</li></ul></details>`}
 function aField([k,n,def,rk,hint]){const v=def===null?rmed(rk,k==='deskMax'?9:1000):def;return `<label>${esc(n)}<input type="number" id="ac_${k}" min="0" step="${k==='deskMax'?1:50}" value="${v}"><small>${esc(rk?rhint(rk):hint)}</small></label>`}
-function aConVal(){const c={};ACON.forEach(([k])=>{const v=$('#ac_'+k).value.trim();c[k]=v===''?null:Math.max(0,+v||0)});c.mode=$('#ac_mode').value;return c}
-function autoOpen(){aConForm();aTable();$('#aErr').textContent='';$('#autodlg').hidden=false;setTimeout(()=>$('#aIn').focus(),50)}
+function aConVal(){const c={};ACON.forEach(([k])=>{const v=$('#ac_'+k).value.trim();c[k]=v===''?null:Math.max(0,+v||0)});c.mode=$('#ac_mode').value;c.method=$('#ac_method')?$('#ac_method').value:'auto';return c}
+function autoOpen(){aConForm();aTable();aPreview();$('#aErr').textContent='';$('#autodlg').hidden=false;setTimeout(()=>$('#aIn').focus(),50)}
 $('#bAuto').onclick=autoOpen; $('#aClose').onclick=()=>{$('#autodlg').hidden=true};
-function autoLayout(items,c){
-  if(!c._rot&&c.W>0&&c.L>0&&c.L>c.W*1.3){   // 적은 실이 세로로 길면: 가로로 놓고 계산한 뒤 90° 돌림 (줄이 긴 쪽을 따라감)
-    const r=autoLayout(items,{...c,W:c.L,L:c.W,_rot:true}), T=Object.fromEntries(r.types.map(t=>[t.id,t])), Lr=r.room.l;
-    r.panels.forEach(p=>{const t=T[p.type],w=t.kind==='screen'?fixDoor({...t}).w:t.w,bh=p.rot%180===0?t.d:w;const nx=Lr-(p.y+bh),ny=p.x;p.x=nx;p.y=ny;p.rot=(p.rot+90)%360});
-    r.room={...r.room,w:r.room.l,l:r.room.w};r.grew=r.room.w>c.W||r.room.l>c.L;return r}
-  const types=[],T={},P=[],col={cab:'#2f6db5',net:'#7a59b0',pwr:'#b8642a',hv:'#2f8a6a',desk:'#4f6a8a',prn:'#6b7280',ls:'#34495e'};
+function aTypeMaker(c){   // 자동 배치 Type 만들기 (같은 종류 · 크기 · 계열 = 한 Type)
+  const types=[],T={},col={cab:'#2f6db5',net:'#7a59b0',pwr:'#b8642a',hv:'#2f8a6a',desk:'#4f6a8a',prn:'#6b7280',ls:'#34495e'};
   const typ=it=>{const key=[it.k,it.k==='cab'?it.fam:'',it.w,it.d,it.h,it.inch].join('|');if(T[key])return T[key];const id=uid();let t;
     if(it.k==='desk')t={name:`OWS / EWS Desk ${it.w}×${it.d}`,pre:'WS-',kind:'desk',w:it.w,d:it.d,top:Math.min(it.h||750,950),bays:1,mon:it.w>=1000?2:1,monIn:24,tiers:1,front:c.deskOp,rear:0,door:'none',hinge:'L',color:col.desk};
     else if(it.k==='ls')t={name:`Large Screen ${it.inch}"`,pre:'LS-',kind:'screen',w:0,d:600,cols:1,rows:1,tileIn:it.inch,elev:900,front:1000,rear:0,door:'none',hinge:'L',color:col.ls};
     else if(it.k==='prn')t={name:`Printer ${it.w}×${it.d}`,pre:'PR-',kind:'cabinet',w:it.w,d:it.d,h:it.h||750,front:800,rear:0,door:'none',hinge:'L',color:col.prn};
     else t={name:`${{pwr:'Power Dist. Panel',net:'Network / Server Cabinet',hv:'HVAC / Fire Panel',cab:'System Cabinet'}[it.fam]} ${it.w}×${it.d}×${it.h}`,pre:{pwr:'PD-',net:'NW-',hv:'HV-',cab:'SC-'}[it.fam],kind:'cabinet',w:it.w,d:it.d,h:it.h||2200,front:c.cabFront,rear:Math.min(600,c.cabBack/2,c.cabRearWall),door:'front',hinge:it.w>=800?'LR':'L',color:col[it.fam]};
     let nm=t.name,k=2;while(types.some(x=>x.name===nm))nm=`${t.name} (${k++})`;t.name=nm;t.id=id;fixDoor(t);types.push(t);T[key]=id;return id};
-  const fw=it=>it.k==='ls'?Math.round(it.inch*25.4*0.8716+80):it.w;
+  return {types,typ}}
+const aFw=it=>it.k==='ls'?Math.round(it.inch*25.4*0.8716+80):it.w;
+const AUX=/\bFA\b|FIRE|CEMS|CCTV|HVAC|\bEDL\b|\bWT\b|WWT|\bPA\b|PAGA|SCANNER|MDAS|FAULT|SUBSTATION|SPARE|SUPERVISOR|SHIFT|MICROPHONE|CLOCK|PRINTER/;   // 보조 계통 데스크 = 뒷줄 (Ref: 주 운전 OWS 가 화면 앞 콘솔)
+const aPri=it=>it.k==='desk'&&AUX.test(it.desc.toUpperCase())?1:0;
+const aSortG=a=>a.slice().sort((p,q)=>aPri(p)-aPri(q)||p.grp.localeCompare(q.grp)||String(p.no).localeCompare(String(q.no),undefined,{numeric:true}));
+function autoRules(items,c){   // 학습 규칙 배치 (Ref 에서 찾은 규칙: 판넬 줄 · 콘솔은 실의 긴 쪽 · 화면은 긴 벽 · 엔지니어링 데스크는 긴 벽 마주 봄 · 프린터는 벽)
+  if(!c._rot&&c.W>0&&c.L>0&&c.L>c.W){   // 적은 실이 세로로 길면: 가로로 놓고 계산한 뒤 90° 돌림 (줄이 긴 쪽을 따라감)
+    const r=autoRules(items,{...c,W:c.L,L:c.W,_rot:true}), T=Object.fromEntries(r.types.map(t=>[t.id,t])), Lr=r.room.l;
+    r.panels.forEach(p=>{const t=T[p.type],w=t.kind==='screen'?fixDoor({...t}).w:t.w,bh=p.rot%180===0?t.d:w;const nx=Lr-(p.y+bh),ny=p.x;p.x=nx;p.y=ny;p.rot=(p.rot+90)%360});
+    r.room={...r.room,w:r.room.l,l:r.room.w};r.grew=r.room.w>c.W||r.room.l>c.L;return r}
+  const P=[], {types,typ}=aTypeMaker(c);
+  const fw=aFw;
   const put=(it,x,y,rot)=>P.push({id:uid(),type:typ(it),tag:it.no,desc:it.desc,x:Math.round(x),y:Math.round(y),rot,scope:''});
-  const AUX=/\bFA\b|FIRE|CEMS|CCTV|HVAC|\bEDL\b|\bWT\b|WWT|\bPA\b|PAGA|SCANNER|MDAS|FAULT|SUBSTATION|SPARE|SUPERVISOR|SHIFT|MICROPHONE|CLOCK|PRINTER/;   // 보조 계통 데스크 = 뒷줄 (Ref: 주 운전 OWS 가 화면 앞 콘솔)
-  const pri=it=>it.k==='desk'&&AUX.test(it.desc.toUpperCase())?1:0;
-  const sortG=a=>a.slice().sort((p,q)=>pri(p)-pri(q)||p.grp.localeCompare(q.grp)||String(p.no).localeCompare(String(q.no),undefined,{numeric:true}));
+  const sortG=aSortG;
   const lines=(arr,max,gap,maxN)=>{   // 줄 나누기: 최대 길이 · 최대 수까지 채운 줄 수를 정한 뒤, 그 수 안에서 줄 길이를 고르게. 다음 그룹이 남은 칸에 안 들어가면 그룹 경계에서 끊음
     const seq=sortG(arr), glen=seq.map((it,i)=>{let s=0;for(let j=i;j<seq.length&&seq[j].grp===it.grp;j++)s+=fw(seq[j]);return s});
     const flow=lim=>{const out=[];let cur=[],len=0;
@@ -2817,16 +2834,109 @@ function autoLayout(items,c){
     P.filter(p=>wallIt(p)&&TT[p.type].kind!=='screen'&&p.rot===0).forEach(p=>{const t=TT[p.type],ny=L-(c.prnWall||100)-t.d;if(ny>p.y)p.y=ny})}   // 프린터는 아래 벽으로
   else L=Math.max(L,Math.ceil(y/100)*100);
   const W2=Wf;
-  if(!c._loose&&Lgiv&&L>Lgiv){const r2=autoLayout(items,{...c,_loose:true});if(r2.room.l<L)return r2}   // 적은 실 L 에 안 들어가면: 계열을 줄 경계에 안 맞추고 폭까지 채워 줄 수를 줄여 봄
+  if(!c._loose&&Lgiv&&L>Lgiv){const r2=autoRules(items,{...c,_loose:true});if(r2.room.l<L)return r2}   // 적은 실 L 에 안 들어가면: 계열을 줄 경계에 안 맞추고 폭까지 채워 줄 수를 줄여 봄
   return {room:{w:W2,l:L,spX:'',spY:'',col:600,margin:wall,spare:0,spareDir:'x',gapP:c.gapP,gapD:0,touchOK:true,autoFit:true},types,panels:P,grew:(Wgiv&&W2>Wgiv)||(Lgiv&&L>Lgiv)}}
-window.crspaceAuto={parse:aParse,layout:(t,c)=>autoLayout(aParse(t).filter(it=>it.k!=='skip'),{...aConVal(),...c})};   // 시험 · 콘솔용
+/* ---------- Ref 를 따라 배치 (실 크기 · 구성이 비슷한 Ref 가 있으면) ----------
+   Ref 배치의 '줄'(같은 종류 · 같은 방향 · 같은 앞줄) 을 그대로 옮겨 사용자 장비로 채움:
+   줄 순서 = 콘솔은 화면에 가까운 줄부터, 나머지는 위 → 아래 · 왼쪽 → 오른쪽 / 줄 자리 = 실 크기 비율로 늘이거나(scale) 통로를 그대로 두고 가운데로(keep) /
+   벽에 붙은 줄은 그 벽 거리 그대로. 간섭 · 실 밖이 하나라도 있으면 쓰지 않고 학습 규칙 배치로 */
+const aKindT=t=>t.kind==='screen'?'ls':t.kind==='desk'?'desk':t.door==='none'&&(+t.h||0)<=1300?'prn':'cab';
+const aTW=t=>t.kind==='screen'?fixDoor({...t}).w:+t.w;
+function refRotData(d){   // Ref 배치를 90° 돌림 (가로 ↔ 세로)
+  const T=Object.fromEntries(d.types.map(t=>[t.id,t])), Lr=d.room.l;
+  return {...d,room:{...d.room,w:d.room.l,l:d.room.w},panels:d.panels.map(p=>{const t=T[p.type],bh=p.rot%180===0?t.d:aTW(t);return {...p,x:Lr-(p.y+bh),y:p.x,rot:(p.rot+90)%360}})}}
+function refLinesOf(d){
+  const T=Object.fromEntries(d.types.map(t=>[t.id,t])), L={};
+  d.panels.forEach(p=>{const t=T[p.type],g=geom(p,fixDoor({...t})),b=g.body,hz=p.rot%180===0,k=aKindT(t);
+    const f=p.rot===0?b.y:p.rot===180?b.y+b.h:p.rot===90?b.x+b.w:b.x, key=[k,p.rot,Math.round(f/100)].join('|');
+    b.sz=aTW(t)+'x'+t.d;(L[key]=L[key]||{k,rot:p.rot,hz,f,bs:[]}).bs.push(b)});
+  const runs=[];Object.values(L).forEach(l=>{const A=b=>l.hz?b.x:b.y,E=b=>l.hz?b.x+b.w:b.y+b.h;l.bs.sort((a,b)=>A(a)-A(b));let cur=null;   // 사이가 띄워진 곳(> 150) 에서 줄을 나눔 (화면 · RDLI · 화면 처럼)
+    l.bs.forEach(b=>{if(!cur||A(b)-E(cur.bs[cur.bs.length-1])>150){cur={...l,bs:[]};runs.push(cur)}cur.bs.push(b)})});
+  return runs.map(l=>{const a0=Math.min(...l.bs.map(b=>l.hz?b.x:b.y)),a1=Math.max(...l.bs.map(b=>l.hz?b.x+b.w:b.y+b.h)),c0=Math.min(...l.bs.map(b=>l.hz?b.y:b.x)),c1=Math.max(...l.bs.map(b=>l.hz?b.y+b.h:b.x+b.w));
+    return {k:l.k,rot:l.rot,hz:l.hz,f:l.f,a0,a1,len:a1-a0,c0,c1,n:l.bs.length,sz:l.bs.map(b=>b.sz)}})}
+const aCount=arr=>{const n={cab:0,desk:0,prn:0,ls:0};arr.forEach(k=>n[k]++);return n};
+function refScore(items,c,d){   // 구성(종류별 수) · 실 크기가 얼마나 비슷한지 0~1
+  const T=Object.fromEntries(d.types.map(t=>[t.id,t])), a=aCount(items.map(it=>it.k)), b=aCount(d.panels.map(p=>aKindT(T[p.type])));
+  const ks=Object.keys(a), den=ks.reduce((s,k)=>s+Math.max(a[k],b[k]),0), s2=den?1-ks.reduce((s,k)=>s+Math.abs(a[k]-b[k]),0)/den:0;
+  const s1=c.W>0&&c.L>0?Math.max(0,1-(Math.abs(c.W-d.room.w)/d.room.w+Math.abs(c.L-d.room.l)/d.room.l)/2):null;
+  return {s1,s2}}
+function refCands(items,c){   // 같은 종류(CCR · ER · 엔지니어링)의 Ref × 방향 2가지, 점수 높은 순
+  const kd=aRoomKind(items),out=[];REF.refs.filter(r=>!r.kind||r.kind===kd).forEach(r=>[0,1].forEach(o=>{const d=o?refRotData(r.data):r.data,sc=refScore(items,c,d);out.push({r,o,d,...sc,score:sc.s1===null?sc.s2:(sc.s1+sc.s2)/2})}));
+  return out.sort((a,b)=>b.score-a.score)}
+let aWhy='';
+function refTransfer(items,c,m){
+  const d=m.d, W=c.W>0?c.W:d.room.w, L=c.L>0?c.L:d.room.l, sx=W/d.room.w, sy=L/d.room.l, lines=refLinesOf(d), q={cab:aSortG(items.filter(i=>i.k==='cab')),desk:aSortG(items.filter(i=>i.k==='desk')),prn:items.filter(i=>i.k==='prn'),ls:items.filter(i=>i.k==='ls')};
+  const ctr=l=>[(l.hz?(l.a0+l.a1)/2:(l.c0+l.c1)/2),(l.hz?(l.c0+l.c1)/2:(l.a0+l.a1)/2)], scr=lines.filter(l=>l.k==='ls').map(ctr);
+  const ord=l=>{const [x,y]=ctr(l);return l.k==='desk'&&scr.length?Math.min(...scr.map(([a,b])=>Math.hypot(a-x,b-y))):y*1e5+x};
+  const plan={};
+  for(const k of ['ls','desk','cab','prn']){const ls=lines.filter(l=>l.k===k).sort((a,b)=>ord(a)-ord(b)),need=q[k].reduce((s,it)=>s+aFw(it),0);
+    if(!q[k].length){plan[k]=[];continue} if(!ls.length){aWhy+=(aWhy?' / ':'')+`Ref 에 ${k} 줄 없음`;return null}
+    const cap=ls.reduce((s,l)=>s+l.len*(l.hz?sx:sy),0);let ok=null;
+    for(let f=Math.max(1,need/cap);f<=1.35;f+=0.05){const rest=q[k].slice(),fill=ls.map(l=>{const lim=l.len*(l.hz?sx:sy)*f*1.04+1,its=[],want=l.sz.slice();let acc=0;
+        for(let i=0;i<rest.length&&want.length;){const z=aFw(rest[i])+'x'+(rest[i].k==='ls'?600:rest[i].d),wi=want.indexOf(z);   // 먼저 Ref 그 줄에 있던 크기와 같은 것
+          if(wi>=0&&(!its.length||acc+aFw(rest[i])<=lim)){want.splice(wi,1);acc+=aFw(rest[i]);its.push(...rest.splice(i,1))}else i++}
+        return {l,its,acc,lim}});
+      fill.forEach(z=>{while(rest.length&&(!z.its.length||z.acc+aFw(rest[0])<=z.lim)){z.acc+=aFw(rest[0]);z.its.push(rest.shift())}});   // 남은 것은 순서대로 빈 자리에
+      fill.forEach(z=>{z.its=aSortG(z.its);z.len=z.acc});
+      if(!rest.length){ok=fill;break}}
+    if(!ok){aWhy+=(aWhy?' / ':'')+`${k} 줄 자리 모자람 (필요 ${Math.round(need)} / 줄 ${Math.round(cap)})`;return null} plan[k]=ok.filter(z=>z.its.length)}
+  const near=(v,max)=>v<=700?'lo':max-v<=700?'hi':'';
+  for(const v of ['scale','keep']){
+    const {types,typ}=aTypeMaker(c), P=[];
+    Object.values(plan).flat().forEach(({l,its,len})=>{
+      const AX=l.hz?W:L, AR=l.hz?d.room.w:d.room.l, CX=l.hz?L:W, CR=l.hz?d.room.l:d.room.w, sa=l.hz?sx:sy, sc=l.hz?sy:sx;
+      let a=near(l.a0,AR)==='lo'?l.a0:near(l.a1,AR)==='hi'?AX-(AR-l.a1)-len:(v==='scale'?((l.a0+l.a1)/2)*sa:(l.a0+l.a1)/2+(AX-AR)/2)-len/2;
+      a=Math.max(100,Math.min(AX-100-len,a));
+      const wl=near(l.c0,CR), wh=near(l.c1,CR), df=wl==='lo'?0:wh==='hi'?CX-CR:(v==='scale'?l.f*(sc-1):(CX-CR)/2), f=l.f+df;
+      const li=P.length?P[P.length-1]._li+1:0;
+      its.forEach(it=>{const dd=it.k==='ls'?600:it.d,x=l.hz?a:(l.rot===90?f-dd:f),y=l.hz?(l.rot===0?f:f-dd):a;P.push({id:uid(),type:typ(it),tag:it.no,desc:it.desc,x:Math.round(x),y:Math.round(y),rot:l.rot,scope:'',_li:li,_hz:l.hz});a+=aFw(it)})});
+    const TT=Object.fromEntries(types.map(t=>[t.id,t]));
+    // 고치기: 두 줄이 규칙을 어기면 작은 줄을 줄 사이 방향으로 100 mm 씩 밀어 냄 (실 안에서만)
+    const viol=()=>{const G=P.map(p=>({p,g:geom(p,TT[p.type])}));for(let i=0;i<G.length;i++)for(let j=i+1;j<G.length;j++){if(rectDist(extOf(G[i].g),extOf(G[j].g))>Math.max(+c.gapP||0,maxTypeGap())+1)continue;const e=pairRule(G[i].p,G[i].g,G[j].p,G[j].g,+c.gapP||0,0);if(e)return {a:G[i],b:G[j],e}}return null};
+    const inRoom=()=>P.every(p=>{const b=geom(p,TT[p.type]).body;return b.x>=-1&&b.y>=-1&&b.x+b.w<=W+1&&b.y+b.h<=L+1});
+    for(let n=0;n<80;n++){const V=viol();if(!V)break;const la=V.a.p._li,lb=V.b.p._li;if(la===lb)break;
+      const na=P.filter(p=>p._li===la).length,nb=P.filter(p=>p._li===lb).length,mv=nb<=na?lb:la,st=mv===lb?V.b:V.a,ot=mv===lb?V.a:V.b,hz=st.p._hz;
+      const sg=hz?Math.sign((st.g.body.y+st.g.body.h/2)-(ot.g.body.y+ot.g.body.h/2))||1:Math.sign((st.g.body.x+st.g.body.w/2)-(ot.g.body.x+ot.g.body.w/2))||1;
+      P.filter(p=>p._li===mv).forEach(p=>{if(hz)p.y+=100*sg;else p.x+=100*sg});if(!inRoom())break}
+    const G=P.map(p=>({p,g:geom(p,TT[p.type])}));
+    {const o=G.find(({g})=>g.body.x<-1||g.body.y<-1||g.body.x+g.body.w>W+1||g.body.y+g.body.h>L+1);if(o){aWhy+=(aWhy?' / ':'')+`${v}: ${o.p.tag} 실 밖 (${Math.round(o.g.body.x)},${Math.round(o.g.body.y)} ${Math.round(o.g.body.w)}×${Math.round(o.g.body.h)} · 실 ${W}×${L})`;continue}}
+    let bad=false;for(let i=0;i<G.length&&!bad;i++)for(let j=i+1;j<G.length;j++){const e=pairRule(G[i].p,G[i].g,G[j].p,G[j].g,+c.gapP||0,0);if(e){aWhy+=(aWhy?' / ':'')+`${v}: ${e.msg}`;bad=true;break}}
+    if(bad)continue;
+    P.forEach(p=>{delete p._li;delete p._hz});
+    return {room:{w:W,l:L,spX:'',spY:'',col:600,margin:c.wall,spare:0,spareDir:'x',gapP:c.gapP,gapD:0,touchOK:true,autoFit:true},types,panels:P,grew:false,via:{ref:m.r,o:m.o,s1:m.s1,s2:m.s2,v}}}
+  return null}
+const aRoomKind=items=>items.some(i=>i.k==='ls')?'ccr':items.filter(i=>i.k==='desk').length>items.filter(i=>i.k==='cab').length?'eng':'er';
+function autoLayout(items,c){
+  // ① Ref 따라: 배치 방식이 Ref 지정이면 그 Ref, '자동' 이면 실 크기 80% · 구성 60% 이상 비슷한 Ref 중 가장 비슷한 것
+  aWhy='';
+  if(c.method&&c.method!=='rules'){
+    const cs=refCands(items,c).filter(m=>c.method==='auto'?m.s1!==null&&m.s1>=0.8&&m.s2>=0.6:m.r.id===c.method);
+    for(const m of cs.slice(0,c.method==='auto'?4:2)){const r=refTransfer(items,c,m);if(r)return r}
+    if(c.method!=='auto'){const r=autoRules(items,c);r.via={rules:true,why:'지정한 Ref 줄에 다 안 들어가거나 간섭 → 학습 규칙'};return r}}
+  // ② 학습 규칙. 실 크기를 안 적었으면 판넬 한 줄 길이를 바꿔 가며 실 비율이 그 룸 종류의 Ref 중앙값(긴 쪽/짧은 쪽)에 가까운 것
+  if(!(c.W>0)&&!(c.L>0)&&!c._nosearch){const kd=aRoomKind(items), tg=((REF.found||[]).find(x=>x.id===kd+'.aspect')||{}).v||1.6;let best=null;
+    for(let rm=3000;rm<=20000;rm+=500){const r=autoRules(items,{...c,rowMax:Math.min(rm,c.rowMax||rm),deskMax:c.deskMax}),A=r.room.w*r.room.l/1e6,ar=Math.max(r.room.w,r.room.l)/Math.min(r.room.w,r.room.l),sc=A*(1+0.6*Math.abs(ar-tg));
+      if(!best||sc<best.sc)best={r,sc,ar};if(rm>=(c.rowMax||9500))break}
+    best.r.via={rules:true,kind:kd,aspect:best.ar,target:tg};return best.r}
+  const r=autoRules(items,c);r.via={rules:true,kind:aRoomKind(items)};return r}
+window.crspaceAuto={why:()=>aWhy,parse:aParse,layout:(t,c)=>autoLayout(aParse(t).filter(it=>it.k!=='skip'),{...aConVal(),...c})};   // 시험 · 콘솔용
+function aViaTxt(r){const v=r.via||{},pc=x=>Math.round(x*100)+'%';
+  if(v.ref)return `<b>Ref ${esc(v.ref.project)} · ${esc(v.ref.room)} 처럼</b>${v.o?' (90° 돌려서)':''} — 실 크기 ${v.s1===null?'(안 적음)':pc(v.s1)} · 구성 ${pc(v.s2)} 비슷, 줄 자리 ${v.v==='scale'?'실 비율대로':'통로 그대로'}`;
+  return `<b>학습 규칙</b> (${{ccr:'CCR',eng:'엔지니어링 룸',er:'ER'}[v.kind]||''}${v.target?` · 실 비율 ${v.aspect.toFixed(2)} ≈ Ref 중앙 ${v.target}`:''})${v.why?' — '+esc(v.why):' — 비슷한 Ref 없음(실 크기 80% · 구성 60% 미만)'}`}
+const aUse=()=>AITEMS.filter(it=>it.k!=='skip'&&(it.k==='ls'||it.w>0&&it.d>0));
+let aPvT=0;function aPreview(){clearTimeout(aPvT);aPvT=setTimeout(()=>{const use=aUse(),sv=$('#aPv');if(!sv)return;if(!use.length){sv.innerHTML='';$('#aPvTxt').textContent='① 에 List 를 넣으면 미리보기가 나옵니다.';return}
+  const r=autoLayout(use,aConVal());refThumb({room:r.room,types:r.types,panels:r.panels},'#aPv');$('#aPvTxt').innerHTML=`미리보기: 실 ${fmt(r.room.w)} × ${fmt(r.room.l)} · ${use.length} EA — ${aViaTxt(r)}`},200)}
+$('#aCon').addEventListener('input',aPreview);$('#aCon').addEventListener('change',aPreview);$('#aIn').addEventListener('input',aPreview);$('#aTbl').addEventListener('change',aPreview);
+function autoApply(use,c,pre){
+  const r=autoLayout(use,c), keep={info:{...S.info},srv:S.srv,revs:S.revs,notes:[],cols:null};
+  S=norm({room:r.room,snap:S.snap||100,types:r.types,panels:r.panels,...keep}); S.autoFrom={at:today(),n:use.length,c,items:use};
+  sel.clear();selNote=null;selCol=null;commit();buildRoom();buildTypes();fit();return r}
+$('#bReAuto').onclick=()=>{const a=S.autoFrom;if(!a||!a.items)return;const r=autoApply(a.items,{...a.c,W:S.room.w,L:S.room.l});toast(`실 ${fmt(S.room.w)} × ${fmt(S.room.l)} 로 다시 자동 배치 — ${aViaTxt(r).replace(/<[^>]+>/g,'')}`)};
 $('#aGo').onclick=()=>{
-  const use=AITEMS.filter(it=>it.k!=='skip'&&(it.k==='ls'||it.w>0&&it.d>0)); if(!use.length){$('#aErr').textContent='배치할 물건이 없습니다 — ① 에 Equipment List 를 붙여 넣으세요.';return}
-  const c=aConVal(), r=autoLayout(use,c), keep={info:{...S.info},srv:S.srv,revs:S.revs,notes:[],cols:null};
-  S=norm({room:r.room,snap:S.snap||100,types:r.types,panels:r.panels,...keep}); S.autoFrom={at:today(),n:use.length,skip:AITEMS.length-use.length,c};
-  sel.clear();selNote=null;selCol=null;commit();buildRoom();buildTypes();fit();$('#autodlg').hidden=true;
+  const use=aUse(); if(!use.length){$('#aErr').textContent='배치할 물건이 없습니다 — ① 에 Equipment List 를 붙여 넣으세요.';return}
+  const r=autoApply(use,aConVal()); $('#autodlg').hidden=true;
   const sk=AITEMS.filter(it=>it.k==='skip').map(it=>it.no);
-  toast(`자동 배치 ${use.length} EA — 실 ${fmt(S.room.w)} × ${fmt(S.room.l)}${r.grew?' (적은 실보다 커서 넓힘)':''}${sk.length?` · 뺀 것 ${sk.length} (${sk.slice(0,6).join(', ')}${sk.length>6?' …':''})`:''}. 판넬을 눌러 고치세요.`)};
+  toast(`자동 배치 ${use.length} EA — ${aViaTxt(r).replace(/<[^>]+>/g,'')} · 실 ${fmt(S.room.w)} × ${fmt(S.room.l)}${r.grew?' (적은 실보다 커서 넓힘)':''}${sk.length?` · 뺀 것 ${sk.length} (${sk.slice(0,6).join(', ')}${sk.length>6?' …':''})`:''}. 판넬을 눌러 고치세요.`)};
 
 /* ---------- 2D · 3D 동기화 ----------
    같은 화면(2D | 3D 나란히): 같은 자료 S 를 그리므로 2D 를 그릴 때 3D 도 다시 그림 (v3sync — 판넬 자리 · 선택 · 기둥이 바뀐 때만).

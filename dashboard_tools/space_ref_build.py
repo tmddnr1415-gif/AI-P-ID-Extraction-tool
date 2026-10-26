@@ -20,7 +20,9 @@ def kind_of(desc, w, d, h):
     u = desc.upper()
     if re.search(r'LARGE SCREEN|LVS|LSD|CCTV DISPLAY|VIDEO WALL', u) and 'CONTROLLER' not in u and 'WORKSTATION' not in u:
         return 'ls'
-    if 'PRINTER' in u or 'SCANNER' in u or (h and h <= 800 and w <= 850 and d <= 850):
+    if re.search(r'PANEL|CABINET|CUBICLE|RACK', u) and not re.search(r'OWS|EWS|WORKSTATION|CLIENT|DESK', u):
+        return 'cab'
+    if 'PRINTER' in u or 'FAX' in u or ('SCANNER' in u and not re.search(r'CLIENT|WORKSTATION|OWS', u)) or (h and h <= 800 and w <= 850 and d <= 850):
         return 'prn'
     if h and (h <= 1000 or (h <= 1300 and re.search(r'OWS|EWS|WORKSTATION|DESK|CONSOLE|CLIENT|STATION', u))):
         return 'ows'
@@ -528,19 +530,88 @@ def learn(rooms):
     return out
 
 
+def room_kind(r):
+    ks = [('ls' if t['kind'] == 'screen' else 'desk' if t['kind'] == 'desk' else 'prn' if t['door'] == 'none' else 'cab') for p in r.panels for t in [next(x for x in r.types.values() if x['id'] == p['type'])]]
+    if 'ls' in ks: return 'ccr'
+    return 'eng' if ks.count('desk') > ks.count('cab') else 'er'
+
+
+def find_rules(rooms):
+    """Ref 배치에서 '어디에 무엇을' 규칙을 셈 (룸 종류별 비율 · 거리)"""
+    R = {'ccr': [], 'er': [], 'eng': []}
+    for r in rooms:
+        R[room_kind(r)].append(r)
+    out = []
+    def kind(t): return 'ls' if t['kind'] == 'screen' else 'desk' if t['kind'] == 'desk' else 'prn' if t['door'] == 'none' else 'cab'
+    def boxes(r):
+        d = r.data(); T = {t['id']: t for t in d['types']}
+        return d['room']['w'], d['room']['l'], [(p, T[p['type']], kind(T[p['type']]), body(p, T[p['type']])) for p in d['panels']]
+    def wall_of(b, W, L):   # 가장 가까운 벽과 그 벽이 긴 벽인지
+        ds = {'top': b[1], 'bottom': L - b[1] - b[3], 'left': b[0], 'right': W - b[0] - b[2]}
+        w = min(ds, key=ds.get); long_hz = W >= L
+        return w, ds[w], (w in ('top', 'bottom')) == long_hz
+    # CCR: 대형 화면 = 긴 벽, 콘솔은 화면 벽과 나란히
+    n = sum(1 for r in R['ccr'] for p, t, k, b in boxes(r)[2] if k == 'ls')
+    lw = sum(1 for r in R['ccr'] for W, L, B in [boxes(r)] for p, t, k, b in B if k == 'ls' and wall_of(b, W, L)[2])
+    out.append({'id': 'ccr.screenLongWall', 'kind': 'ccr', 'v': round(lw / max(n, 1), 2), 'text': f'CCR 대형 화면은 긴 벽 쪽 ({lw}/{n})'})
+    par = tot = 0
+    for r in R['ccr']:
+        W, L, B = boxes(r)
+        sr = [p['rot'] % 180 for p, t, k, b in B if k == 'ls']
+        if not sr: continue
+        for p, t, k, b in B:
+            if k == 'desk':
+                tot += 1; par += 1 if p['rot'] % 180 == sr[0] else 0
+    out.append({'id': 'ccr.consoleParallel', 'kind': 'ccr', 'v': round(par / max(tot, 1), 2), 'text': f'CCR 데스크는 화면과 같은 방향(나란히) ({par}/{tot})'})
+    # ER: 판넬 줄이 실의 긴 쪽을 따라감 (길이 가중)
+    al = tl = 0
+    for r in R['er']:
+        W, L, B = boxes(r)
+        for p, t, k, b in B:
+            if k != 'cab': continue
+            along = (p['rot'] % 180 == 0) == (W >= L)
+            tl += b[2] if p['rot'] % 180 == 0 else b[3]; al += (b[2] if p['rot'] % 180 == 0 else b[3]) if along else 0
+    out.append({'id': 'er.rowsAlongLong', 'kind': 'er', 'v': round(al / max(tl, 1), 2), 'text': f'ER 판넬 줄은 실의 긴 쪽을 따라감 (줄 길이의 {round(al / max(tl, 1) * 100)}%)'})
+    # 엔지니어링: 데스크는 긴 벽에 붙음 (벽에서 1,000 이내)
+    nw = nd = 0
+    for r in R['eng']:
+        W, L, B = boxes(r)
+        for p, t, k, b in B:
+            if k != 'desk': continue
+            w, dist, lng = wall_of(b, W, L); nd += 1; nw += 1 if dist <= 1000 and lng else 0
+    out.append({'id': 'eng.desksLongWall', 'kind': 'eng', 'v': round(nw / max(nd, 1), 2), 'text': f'엔지니어링 룸 데스크는 긴 벽에 붙여 마주 봄 ({nw}/{nd})'})
+    # 프린터: 벽에서 500 이내
+    np_ = nw2 = 0
+    for r in rooms:
+        W, L, B = boxes(r)
+        for p, t, k, b in B:
+            if k != 'prn': continue
+            np_ += 1; nw2 += 1 if wall_of(b, W, L)[1] <= 500 else 0
+    out.append({'id': 'prn.wall', 'kind': 'all', 'v': round(nw2 / max(np_, 1), 2), 'text': f'프린터는 벽 따라 (벽에서 500 이내 {nw2}/{np_})'})
+    # 실 비율 (긴 쪽 / 짧은 쪽)
+    for k, rs in R.items():
+        ar = sorted(max(r.W, r.L) / min(r.W, r.L) for r in rs)
+        if ar:
+            out.append({'id': f'{k}.aspect', 'kind': k, 'v': round(statistics.median(ar), 2), 'text': f"{ {'ccr': 'CCR', 'er': 'ER', 'eng': '엔지니어링 룸'}[k]} 실 비율 긴 쪽/짧은 쪽 중앙 {round(statistics.median(ar), 2)} ({round(ar[0], 2)}~{round(ar[-1], 2)}, {len(ar)}곳)"})
+    return out, {r.rid: room_kind(r) for r in rooms}
+
+
 def main():
     rooms = [r for f in REFS for r in f()]
     stats = learn(rooms)
-    refs = [{'id': r.rid, 'project': r.project, 'doc': r.doc, 'room': r.room, 'note': r.note, 'data': r.data()} for r in rooms]
+    found, kinds = find_rules(rooms)
+    refs = [{'id': r.rid, 'project': r.project, 'doc': r.doc, 'room': r.room, 'kind': kinds[r.rid], 'note': r.note, 'data': r.data()} for r in rooms]
     js = ('/* 판넬 공간확보 — Ref. PJT Room Layout (dashboard_tools/space_ref_build.py 가 만든 파일, 직접 고치지 말 것)\n'
           '   도면 사진에서 사람이 읽어 옮김: 치수 = 도면 치수선 · Equipment List, 자리 = 근사(±200~300 mm), 곡선 콘솔은 곧게 폄.\n'
           '   rules = 이 Ref 들에서 잰 거리 통계(mm) — Option A 자동 배치 시작값. */\n'
-          'window.CRSPACE_REF=' + json.dumps({'version': 1, 'rules': stats, 'refs': refs}, ensure_ascii=False, separators=(',', ':')) + ';\n')
+          'window.CRSPACE_REF=' + json.dumps({'version': 2, 'rules': stats, 'found': found, 'refs': refs}, ensure_ascii=False, separators=(',', ':')) + ';\n')
     with open(OUT, 'w', encoding='utf-8') as f:
         f.write(js)
     print(f'{len(rooms)} rooms → {os.path.relpath(OUT)} ({len(js) // 1024} KB)')
     for k, v in stats.items():
         print(f'  {k:11s} {v}')
+    for x in found:
+        print('  규칙', x['id'], x['v'], x['text'])
 
 
 if __name__ == '__main__':
