@@ -299,7 +299,7 @@ svg text{font-family:var(--f-mono)}
     <button id="bHome" title="프로젝트 고르기 · 저장 이력 첫 화면으로 (작업은 그대로 남습니다)">⌂ 첫 화면</button>
     <div class="brand">판넬 공간확보<small>Control Room · 건축 전달용</small></div>
     <button id="bSel" class="on" title="선택 (Esc)">선택</button>
-    <button id="bBox" title="박스 선택 모드 (PC는 Shift+Drag)">박스선택</button>
+    <button id="bBox" title="박스 선택 모드 (PC는 Shift+Drag) — 끌어서 범위를 고르고, 고른 판넬을 누르고 끌면 묶음째 옮김 · 왼쪽 칸에서 일괄 속성 · 최소 이격">박스선택</button>
     <button id="bMeas" title="거리 재기: 두 점을 차례로 클릭 (Snap) — 거리 · X · Y 차이 (Esc = 끝)">📏 거리</button>
     <button id="bNote" title="도면 노트: 도면을 누른 자리에 메모 핀 (Esc = 끝) · 핀 Drag = 옮기기 · 두 번 누르기 = 고치기">📌 노트</button>
     <button id="bCol" title="기둥 편집: 빈 곳 클릭 = 기둥 추가 · 기둥 Drag = 이동 · Delete = 삭제 (Esc = 끝)">기둥 편집</button>
@@ -1420,7 +1420,7 @@ function setMode(m){
   mode=m; if(m!=='place'){ghost=null;block=null;guides=[];showBlock()} if(m!=='col')selCol=null; if(m!=='measure')measure=null;
   $('#bSel').classList.toggle('on',m==='select'); $('#bBox').classList.toggle('on',m==='box'); $('#bCol').classList.toggle('on',m==='col'); $('#bNote').classList.toggle('on',m==='note'); $('#bMeas').classList.toggle('on',m==='measure');
   const t=S.types.find(x=>x.id===placeType);
-  $('#stMode').textContent=m==='place'?`배치: ${t?t.name:''}`:m==='box'?'박스 선택':m==='col'?'기둥 편집':m==='note'?'📌 노트':m==='measure'?'📏 거리':'선택';
+  $('#stMode').textContent=m==='place'?`배치: ${t?t.name:''}`:m==='box'?'박스 선택 — 고른 판넬을 끌면 묶음째 이동':m==='col'?'기둥 편집':m==='note'?'📌 노트':m==='measure'?'📏 거리':'선택';
   $('#stHint').textContent=m==='measure'?'첫 점 클릭 → 둘째 점 클릭 = 거리 · X · Y 차이 (Snap) · 다시 클릭 = 새로 재기 · Esc = 끝':m==='place'?'클릭 = 배치 (좌상단 기준) · Ctrl = 정렬 스냅 · R = 회전 · 연속 EA 는 옆으로 · 빨간색 = 놓을 수 없는 자리 · Esc = 끝':m==='note'?'도면을 누른 자리에 노트 · 핀 Drag = 옮기기 · 두 번 누르기 = 고치기 · Esc = 끝':m==='col'?'빈 곳 클릭 = 기둥 추가 (크기 = 기둥 크기) · 기둥 Drag = 이동 · Delete = 삭제 · Shift+Drag = 화면 이동 · Esc = 끝':m==='place'?'클릭 = 배치 (좌상단 기준) · R = 회전 · 연속 EA는 옆으로 붙여 배치 · Esc = 종료':m==='box'?'Drag = 영역 안에 완전히 들어간 판넬 선택':'빈 곳 Drag = 화면 이동 · Ctrl+Drag = 정렬 스냅 · Shift+클릭/Drag = 선택 추가 · 휠 = 확대/축소 · R = 회전 · 방향키 = Snap 이동';
   buildTypes(); buildProps(); render();
 }
@@ -1464,7 +1464,7 @@ svg.addEventListener('pointerdown',e=>{
     S.cols.push(n); selCol=n.id; commit(); buildRoom(); return;
   }
   const p=hit(w);
-  if(p&&mode!=='box'){
+  if(p&&(mode!=='box'||(sel.has(p.id)&&!e.shiftKey))){   // [박스선택] 에서도 고른 판넬을 누르면 고른 묶음째 끌어 옮김
     if(e.shiftKey){sel.has(p.id)?sel.delete(p.id):sel.add(p.id);buildProps();render();if(!sel.has(p.id))return}   // Shift = 선택 넣고 빼기
     else if(e.ctrlKey){if(!sel.has(p.id)){sel.add(p.id);buildProps()}}                                            // Ctrl = 선택에 더하고 그대로 끌기(정렬 스냅)
     else if(!sel.has(p.id)){sel=new Set([p.id]);buildProps()}
