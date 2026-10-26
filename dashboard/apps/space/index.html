@@ -348,7 +348,7 @@ svg text{font-family:var(--f-mono)}
         <h3><span class="t"><span class="step-n">1</span>프로젝트 정보</span></h3>
         <div class="f">
           <label>프로젝트명<input type="text" id="iPj" placeholder="예: OO 프로젝트"></label>
-          <label>Room 명칭<input type="text" id="iRm" placeholder="예: CCR / Rack Room"></label>
+          <label>Room 명칭<input type="text" id="iRm" placeholder="예: CCR / Engineering Room"><small id="iRmHint" class="muted" style="font-size:10.5px"></small></label>
           <label>작성자<input type="text" id="iBy"></label>
           <label>Rev<input type="text" id="iRev" placeholder="A"></label>
         </div>
@@ -703,7 +703,28 @@ try{const a=JSON.parse(localStorage.getItem('dept-auth')||'null');if(a){AUTH_TOK
 const author=()=>S.info.author.trim()||LOGIN;
 const revOf=()=>S.info.rev.trim()||'-';
 /* 워터마크: 프로젝트 · 룸 · Rev (첫 화면에서 고른 값 = 프로젝트 정보 칸) + 상태 · 날짜. 2D 화면 · PNG · PDF · 3D 에 옅게 비스듬히 */
-function wmLines(){return [`${S.info.project||'프로젝트 미정'} · ${S.info.room||'Room 미정'} · Rev ${S.info.rev.trim()||'미정'}`,`PRELIMINARY · 공간확보 초안 · ${today()}`]}
+/* Room 명칭 식별: 철자 검사(표준 룸 낱말과 1~2 글자 차이면 고쳐 읽음 — 예: Enginnering → Engineering) · 약어 풀기(CCR · CER · LER …) · 어떤 룸인지(한글).
+   출력(PDF · 요약 · CSV · DXF · 워터마크)에는 고친 이름을 쓰고, 고쳤으면 원래 입력도 같이 적음 */
+const ROOM_WORDS=['CENTRAL','CONTROL','ROOM','ENGINEERING','ENGINEER','ELECTRONIC','ELECTRICAL','EQUIPMENT','CABINET','METERING','SERVER','COMPUTER','TELECOM','TELECOMMUNICATION','BATTERY','SHIFT','CHARGE','SUPERVISOR','MANAGER','TRAINING','SIMULATOR','INSTRUMENT','MARSHALLING','RELAY','OPERATOR','OPERATION','LOCAL','SWITCHGEAR','SUBSTATION','BUILDING','MEETING','PRINT','AREA','HVAC','ANALYZER','AUXILIARY','MAIN','SATELLITE','FIELD','REMOTE','INTERFACE'];
+const ROOM_ABBR={CCR:'Central Control Room',MCR:'Main Control Room',CER:'Central Electronic Room',LER:'Local Equipment Room',RIB:'Remote Instrument Building',FAR:'Field Auxiliary Room',SRR:'Satellite Rack Room',ECR:'Electrical Control Room'};
+const ROOM_KIND=[[/SHIFT|SUPERVISOR|MANAGER|근무/,'근무 책임자실 · Shift Room'],[/CONTROL ROOM|\bCCR\b|\bMCR\b|\bECR\b|제어실|조정실/,'중앙 제어실 · Control Room'],[/ENGINEER|엔지니어링/,'엔지니어링 룸 · Engineering Room'],[/^ER$/,'ER — Electronic Room(전자 기기실)인지 Electrical Room(전기실)인지 이름에 적어 주세요'],[/ELECTRONIC|\bCER\b|전자/,'전자 기기실 · Electronic Room'],
+  [/ELECTRICAL|SWITCHGEAR|SUBSTATION|전기실/,'전기실 · Electrical Room'],[/METERING/,'미터링 룸 · Metering Room'],[/RACK|\bSRR\b|\bLER\b|\bRIB\b|\bFAR\b|EQUIPMENT ROOM|판넬실|기기실|랙/,'랙 · 판넬 · 기기실 · Rack / Equipment Room'],
+  [/SERVER|COMPUTER/,'서버 · 컴퓨터실 · Server / Computer Room'],[/TELECOM/,'통신실 · Telecom Room'],[/\bUPS\b|BATTERY/,'UPS · 배터리실'],[/TRAINING|SIMULATOR/,'교육 · 시뮬레이터실'],[/RELAY|MARSHALLING/,'릴레이 · 마샬링실']];
+function lev(a,b){const d=Array.from({length:a.length+1},(_,i)=>[i]);for(let j=1;j<=b.length;j++)d[0][j]=j;   // 편집 거리 (앞뒤 바뀐 두 글자 = 1)
+  for(let i=1;i<=a.length;i++)for(let j=1;j<=b.length;j++){d[i][j]=Math.min(d[i-1][j]+1,d[i][j-1]+1,d[i-1][j-1]+(a[i-1]===b[j-1]?0:1));if(i>1&&j>1&&a[i-1]===b[j-2]&&a[i-2]===b[j-1])d[i][j]=Math.min(d[i][j],d[i-2][j-2]+1)}return d[a.length][b.length]}
+function roomId(raw){
+  raw=String(raw||'').trim(); if(!raw)return {raw:'',std:'',kind:'',fixes:[]};
+  const fixes=[];
+  const std=raw.replace(/[A-Za-z]+/g,w=>{const U=w.toUpperCase();if(U.length<5||ROOM_WORDS.includes(U))return w;
+    let best=null,bd=9;ROOM_WORDS.forEach(r=>{if(Math.abs(r.length-U.length)>2)return;const dd=lev(U,r);if(dd<bd){bd=dd;best=r}});
+    if(best&&bd<=(U.length>=8?2:1)){const out=w===U?best:w[0]===w[0].toUpperCase()&&w.slice(1)===w.slice(1).toLowerCase()?best[0]+best.slice(1).toLowerCase():best.toLowerCase();fixes.push([w,out]);return out}return w});
+  const U=std.toUpperCase(), ab=Object.keys(ROOM_ABBR).find(k=>new RegExp(`\\b${k}\\b`).test(U)), full=ab&&!/[A-Z]{4,}/.test(U.replace(new RegExp(`\\b${ab}\\b`),''))?`${std} (${ROOM_ABBR[ab]})`:std;
+  const k=ROOM_KIND.find(([re])=>re.test(U))||ROOM_KIND.find(([re])=>re.test((ab?ROOM_ABBR[ab]:'').toUpperCase()));
+  return {raw,std:full,kind:k?k[1]:'',fixes}}
+const roomStd=()=>roomId(S.info.room).std;
+function roomLines(){const r=roomId(S.info.room);if(!r.raw)return ['Room 명칭: (적지 않음) — ① 프로젝트 정보의 Room 명칭을 적으세요'];
+  return [`Room 명칭: ${r.std}${r.kind?`   → ${r.kind}`:''}`,...(r.fixes.length?[`   ※ 입력한 '${r.raw}' 의 철자를 고쳐 적음: ${r.fixes.map(([a,b])=>`${a} → ${b}`).join(', ')}`]:[])]}
+function wmLines(){return [`${S.info.project||'프로젝트 미정'} · ${roomStd()||'Room 미정'} · Rev ${S.info.rev.trim()||'미정'}`,`PRELIMINARY · 공간확보 초안 · ${today()}`]}
 // 파일 이름: 프로젝트_Room_Rev_종류_날짜 (빈 칸은 빼고, 윈도 파일 이름에 못 쓰는 글자는 _)
 const fnPart=v=>String(v||'').trim().replace(/[\\/:*?"<>|\s]+/g,'_');
 function fname(kind,ext){const a=[fnPart(S.info.project),fnPart(S.info.room),S.info.rev.trim()?'Rev'+fnPart(S.info.rev):''].filter(Boolean);return `${a.length?a.join('_'):'ControlRoom'}_${kind}_${today()}.${ext}`}
@@ -1136,7 +1157,11 @@ function render(){v3sync();
 }
 
 /* ---------- side panels ---------- */
-function buildInfo(){$('#iPj').value=S.info.project;$('#iRm').value=S.info.room;$('#iBy').value=S.info.author;$('#iBy').placeholder=LOGIN||'이름';$('#iRev').value=S.info.rev}
+function buildInfo(){$('#iPj').value=S.info.project;$('#iRm').value=S.info.room;$('#iBy').value=S.info.author;$('#iBy').placeholder=LOGIN||'이름';$('#iRev').value=S.info.rev;rmHint()}
+function rmHint(){const r=roomId($('#iRm').value),h=$('#iRmHint');if(!h)return;   // Room 명칭 아래: 어떤 룸으로 읽었는지 · 철자 고침 제안
+  h.innerHTML=!r.raw?'':r.fixes.length?`→ <b>${esc(r.std)}</b> 로 읽음 (${r.fixes.map(([a,b])=>esc(a)+' → '+esc(b)).join(', ')}) <a href="#" id="iRmFix">고치기</a>`:r.kind?`→ ${esc(r.kind)}`:'';
+  const a=$('#iRmFix');if(a)a.onclick=e=>{e.preventDefault();S.info.room=r.std.replace(/ \([^)]*\)$/,'');commit();buildInfo();toast(`Room 명칭을 ${S.info.room} 로 고쳤습니다`)}}
+$('#iRm').addEventListener('input',rmHint);
 [['iPj','project'],['iRm','room'],['iBy','author'],['iRev','rev']].forEach(([id,k])=>$('#'+id).addEventListener('change',e=>{S.info[k]=e.target.value.trim();commit()}));
 function buildRoom(){buildInfo();$('#rW').value=S.room.w;$('#rL').value=S.room.l;$('#rSX').value=S.room.spX;$('#rSY').value=S.room.spY;$('#rC').value=S.room.col;$('#rM').value=S.room.margin;$('#rSp').value=S.room.spare;$('#rSd').value=S.room.spareDir;$('#rGp').value=S.room.gapP;$('#rGd').value=S.room.gapD;$('#rTouch').checked=S.room.touchOK;$('#rEnf').checked=S.room.enforce;$('#rFit').checked=S.room.autoFit!==false;$('#snap').value=String(S.snap);
   const cu=Array.isArray(S.cols);$('#colCustom').hidden=!cu;if(cu)$('#colCustomTxt').textContent=`기둥을 직접 고친 상태 (${S.cols.length}개) — Span · 크기는 격자로 다시 만들 때 씀`}
@@ -2192,8 +2217,9 @@ $('#bReq').onclick=()=>{
 function reqLines(){
   check(); const sm=summary(), e=issues.filter(i=>i.lv==='err').length, w=issues.filter(i=>i.lv==='warn').length, cols=columns();
   const L=[];
-  L.push('[계장 Control Room 공간 요구사항 - 초안]');
-  L.push(`프로젝트: ${S.info.project||'-'}   Room: ${S.info.room||'-'}   Rev: ${revOf()}`);
+  L.push(`[${roomStd()||'계장 Control Room'} 공간 요구사항 - 초안]`);
+  L.push(`프로젝트: ${S.info.project||'-'}   Room: ${roomStd()||'-'}   Rev: ${revOf()}`);
+  roomLines().forEach(x=>L.push(x));
   L.push(`작성자: ${author()||'-'}   작성일: ${today()}   단위: mm`);
   L.push('');
   L.push('1. 계장 판넬 배치 필요 영역 (판넬 + 전/후면 유지보수 공간)');
@@ -2234,8 +2260,9 @@ function reqLines(){
 function needLines(){
   check(); const sm=summary(), R=S.room, ws=wallSides(), cols=columns(), m=+R.margin||0, e=issues.filter(i=>i.lv==='err').length, w=issues.filter(i=>i.lv==='warn').length;
   const mh=Math.max(0,...S.panels.map(p=>+typeOf(p).h||0)), L=[];
-  L.push('# 건축 전달 — 계장 Control Room 필요 사이즈');
-  L.push(`프로젝트 ${S.info.project||'-'} · Room ${S.info.room||'-'} · Rev ${revOf()} · 작성 ${author()||'-'} · ${today()} · 단위 mm`);
+  L.push(`# 건축 전달 — ${roomStd()||'계장 Control Room'} 필요 사이즈`);
+  roomLines().forEach(x=>L.push(x));
+  L.push(`프로젝트 ${S.info.project||'-'} · Room ${roomStd()||'-'} · Rev ${revOf()} · 작성 ${author()||'-'} · ${today()} · 단위 mm`);
   L.push('');
   L.push('■ 필요 실 크기 (권장 내부 치수, 100 단위 올림)');
   L.push(sm.rec?`   W ${fmt(sm.rec.w)} × L ${fmt(sm.rec.h)} = ${(sm.rec.w*sm.rec.h/1e6).toFixed(1)} m²`:'   - (판넬 없음)');
@@ -2288,7 +2315,7 @@ function pdfBytes(jpegs,pw,ph){   // jpegs: [{data:Uint8Array,w,h}] → PDF (페
     off[iid]=len; add(`${iid} 0 obj\n<< /Type /XObject /Subtype /Image /Width ${j.w} /Height ${j.h} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${j.data.length} >>\nstream\n`); add(j.data); add(`\nendstream\nendobj\n`);
     off[cid]=len; add(`${cid} 0 obj\n<< /Length ${c.length} >>\nstream\n${c}\nendstream\nendobj\n`)});
   const N=3+n*3, xref=len; let x=`xref\n0 ${N}\n0000000000 65535 f \n`; for(let i=1;i<N;i++)x+=String(off[i]).padStart(10,'0')+' 00000 n \n';
-  add(x+`trailer\n<< /Size ${N} /Root 1 0 R /Info << /Title (Control Room Space Requirement) /Producer (CR Space Tool) >> >>\nstartxref\n${xref}\n%%EOF\n`);
+  add(x+`trailer\n<< /Size ${N} /Root 1 0 R /Info << /Title (${(roomStd().replace(/[^\x20-\x7e]/g,'').replace(/[()\\]/g,'').trim()||'Control Room')} Space Requirement) /Producer (CR Space Tool) >> >>\nstartxref\n${xref}\n%%EOF\n`);
   return new Blob(parts,{type:'application/pdf'});
 }
 const PG={w:2976,h:2104,pw:1190.55,ph:841.89};   // A3 가로, 약 180 dpi
@@ -2297,8 +2324,8 @@ const FNT=(px,b)=>`${b?'700 ':''}${px}px "Malgun Gothic","맑은 고딕",system-
 function pgFrame(g,page,total){   // 테두리 · 아래 띠(프로젝트 · Rev · 날짜 · 쪽)
   g.strokeStyle='#1b2238';g.lineWidth=4;g.strokeRect(40,40,PG.w-80,PG.h-80);
   g.fillStyle='#1b2238';g.font=FNT(26);g.textBaseline='alphabetic';
-  g.fillText(`${S.info.project||'프로젝트 -'} · ${S.info.room||'Room -'} · Rev ${revOf()} · ${author()||'-'} · ${today()}`,70,PG.h-60);
-  g.textAlign='right';g.fillText(`계장 Control Room 필요 사이즈 — ${page} / ${total}`,PG.w-70,PG.h-60);g.textAlign='left';
+  g.fillText(`${S.info.project||'프로젝트 -'} · ${roomStd()||'Room -'} · Rev ${revOf()} · ${author()||'-'} · ${today()}`,70,PG.h-60);
+  g.textAlign='right';g.fillText(`${roomStd()||'계장 Control Room'} 필요 사이즈 — ${page} / ${total}`,PG.w-70,PG.h-60);g.textAlign='left';
   {const t=`Rev ${revOf()}  |  ${today()} 출력`;g.font=FNT(30,1);const tw=g.measureText(t).width+40;g.fillStyle='#1b2238';g.fillRect(PG.w-60-tw,PG.h-130,tw,52);g.fillStyle='#fff';g.fillText(t,PG.w-40-tw,PG.h-94)}   // Rev · 날짜 도장
   if(show.wm){const [l1,l2]=wmLines();g.save();g.globalAlpha=.07;g.fillStyle='#1b2238';g.translate(PG.w/2,PG.h/2);g.rotate(-22*Math.PI/180);g.textAlign='center';
     g.font=FNT(110,1);g.fillText(l1,0,0);g.font=FNT(70,1);g.fillText(l2,0,110);g.restore()}}   // 워터마크
@@ -2312,7 +2339,8 @@ async function needPdf(){
       g.font=FNT(30,1);const t=`필요 실 W ${fmt(sm.rec.w)} × L ${fmt(sm.rec.h)} (벽 이격 ${fmt(m)} 포함 · 100 올림)`,tw=g.measureText(t).width;g.fillStyle='rgba(255,255,255,.9)';g.fillRect(ax,by+8,tw+20,44);g.fillStyle='#7c3aed';g.fillText(t,ax+10,by+42)}
     const x0=PG.w-side-60; let y=90; g.fillStyle='#f3f6fb';g.fillRect(x0,60,side,PG.h-200);g.strokeStyle='#c9d3e3';g.lineWidth=2;g.strokeRect(x0,60,side,PG.h-200);
     const T=(t,px,b,col='#1b2238')=>{y+=px*.95;g.font=FNT(px,b);g.fillStyle=col;g.fillText(t,x0+30,y);y+=px*.5};   // 글자 높이만큼 내려 쓰고 줄 간격
-    T('건축 전달 — 필요 사이즈',40,1); y+=10;
+    T('건축 전달 — 필요 사이즈',40,1);
+    {const r=roomId(S.info.room);T(r.std||'Room 명칭 없음',34,1,r.std?'#7c3aed':'#d63a2f');if(r.kind)T(r.kind,24,0,'#475569');if(r.fixes.length)T(`※ 입력 '${r.raw}' → 철자 고침`,20,0,'#b45309')} y+=10;
     T('필요 실 크기 (권장 내부 치수)',28,1,'#2d5bd8'); T(sm.rec?`W ${fmt(sm.rec.w)} × L ${fmt(sm.rec.h)}`:'-',52,1); T(sm.rec?`= ${(sm.rec.w*sm.rec.h/1e6).toFixed(1)} m²  (100 단위 올림)`:'',28); y+=16;
     T('벽과의 이격 (사방)',28,1,'#2d5bd8'); T(`${fmt(m)} mm 이상`,48,1); if(ws)ws.sides.forEach(sd=>T(`${sd.name}: 지금 ${fmt(sd.gap)}${sd.short?'  ⚠ 부족':''}`,26,0,sd.short?'#d33':'#333')); y+=16;
     T('필요 영역 (판넬 + 유지보수 + 도어)',28,1,'#2d5bd8'); T(sm.env?`${fmt(sm.env.w)} × ${fmt(sm.env.h)} = ${(sm.env.w*sm.env.h/1e6).toFixed(1)} m²`:'-',30); T(spareTxt(),26); y+=16;
@@ -2346,7 +2374,7 @@ $('#bCsv').onclick=()=>{
   const rows=[['Tag','Type','Description','Scope','W','D','H','Front','Rear','Facing','X','Y','Door','Hinge']];
   const fd={0:'N',90:'E',180:'S',270:'W'};
   S.panels.slice().sort((a,b)=>a.tag.localeCompare(b.tag)).forEach(p=>{const t=typeOf(p),g=geom(p);rows.push([p.tag,t.name,p.desc,p.scope||'',t.w,t.d,t.h,t.front,t.rear,fd[g.r],p.x,p.y,t.door==='none'?'':{front:'Front',rear:'Rear',both:'Front+Rear'}[t.door],t.door==='none'?'':t.hinge])});
-  rows.unshift(['Project',S.info.project||'','Room',S.info.room||'','Rev',revOf(),'Date',today()],[]);   // 출력 날짜 · Rev
+  rows.unshift(['Project',S.info.project||'','Room',roomStd()||'','Rev',revOf(),'Date',today()],[]);   // 출력 날짜 · Rev
   const csv='﻿'+rows.map(r=>r.map(v=>{v=String(v??'');return /[",\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v}).join(',')).join('\r\n');
   openModal('판넬 List CSV','Excel에서 바로 열립니다. 좌표는 실 좌상단(0,0) 기준, Facing은 전면 방향(N=도면 위쪽).',csv,fname('Panel_List','csv'),'text/csv;charset=utf-8');
 };
@@ -2397,7 +2425,7 @@ $('#bDxf').onclick=()=>{
   const textL=(ly,x,y,h,s)=>P(0,'TEXT',8,ly,10,X(x),20,Y(y),30,0,40,h,1,dxfStr(s),7,'CR-KOR');   // 왼쪽 아래 기준
   const ty=Lr+1600, th=250;                                // 타이틀: 실 아래 (치수 글자 밑)
   const sm=summary();
-  [`PROJECT : ${S.info.project||'-'}`,`ROOM : ${S.info.room||'-'}`,`REV : ${revOf()}   DATE : ${today()}   BY : ${author()||'-'}`,(sm.env?`REQUIRED ${fmt(sm.env.w)} x ${fmt(sm.env.h)}   ${S.room.spare>0?`SPARE ${S.room.spare}% (${S.room.spareDir==='y'?'Y':'X'})`:'SPARE 0%'}   ->   RECOMMENDED ROOM ${fmt(sm.rec.w)} x ${fmt(sm.rec.h)}`:'NO PANEL'),'CONTROL ROOM PANEL SPACE - PRELIMINARY (UNIT: mm)']
+  [`PROJECT : ${S.info.project||'-'}`,`ROOM : ${roomStd()||'-'}`,`REV : ${revOf()}   DATE : ${today()}   BY : ${author()||'-'}`,(sm.env?`REQUIRED ${fmt(sm.env.w)} x ${fmt(sm.env.h)}   ${S.room.spare>0?`SPARE ${S.room.spare}% (${S.room.spareDir==='y'?'Y':'X'})`:'SPARE 0%'}   ->   RECOMMENDED ROOM ${fmt(sm.rec.w)} x ${fmt(sm.rec.h)}`:'NO PANEL'),'CONTROL ROOM PANEL SPACE - PRELIMINARY (UNIT: mm)']
     .forEach((t,i)=>textL('CR-TEXT',0,ty+i*th*1.6,th,t));
   // Equipment List: 판넬마다 번호 원(CR-LIST) + 실 오른쪽에 표 (NO. · EQUIPMENT TAG NO. · DESCRIPTION · DIMENSION) — 화면 목록과 같은 번호
   {const EQ=eqRows(); if(EQ.length){
@@ -2557,7 +2585,8 @@ $('#hmRoomNew').onclick=()=>{$('#hmRoomBox').hidden=false;$('#hmRoomName').focus
 $('#hmRevNew').onclick=()=>{const r=(HM.det[$('#hmProj').value]?.rooms||[]).find(x=>x.id===$('#hmRoomSel').value),vs=r?r.revs.map(v=>v.rev):[],l=vs[vs.length-1]||'';
   $('#hmRevName').value=!l?'A':/^[A-Y]$/i.test(l)?String.fromCharCode(l.charCodeAt(0)+1):/^\d+$/.test(l)?String(+l+1):'';$('#hmRevBox').hidden=false;$('#hmRevName').focus()};   // 다음 Rev 를 미리 적어 둠
 $('#hmRevCancel').onclick=()=>{$('#hmRevBox').hidden=true};
-$('#hmRoomCreate').onclick=async()=>{const pid=$('#hmProj').value,name=$('#hmRoomName').value.trim();if(!name)return toast('새 룸 이름을 적으세요.',true);
+$('#hmRoomCreate').onclick=async()=>{const pid=$('#hmProj').value;let name=$('#hmRoomName').value.trim();if(!name)return toast('새 룸 이름을 적으세요.',true);
+  {const r=roomId(name);if(r.fixes.length&&confirm(`룸 이름 철자를 고칠까요?\n\n  ${name}\n→ ${r.std.replace(/ \([^)]*\)$/,'')}\n\n(${r.fixes.map(([a,b])=>a+' → '+b).join(', ')})\n취소 = 적은 그대로 만듦`))name=r.std.replace(/ \([^)]*\)$/,'')}
   if(!AUTH_TOKEN)return toast('로그인해야 룸을 만들 수 있습니다.',true);
   try{const r=await sapi('POST',`/${pid}/rooms`,{name});$('#hmRoomName').value='';$('#hmRoomBox').hidden=true;await hmDetail(pid,true);HM.wRoom=r.id;HM.st='';hmRender();toast(`룸 ${r.name} 을(를) 만들었습니다 — 이어서 [새 Rev]`)}catch(e){toast(e.message,true)}};
 $('#hmRevCreate').onclick=async()=>{const pid=$('#hmProj').value,rid=$('#hmRoomSel').value,rev=$('#hmRevName').value.trim();if(!rev)return toast('새 Rev 를 적으세요 (예: A).',true);
