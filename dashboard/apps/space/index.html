@@ -72,7 +72,8 @@ input[type=number]{font-family:var(--f-mono);font-variant-numeric:tabular-nums}
 .tile.add b{font-size:18px;line-height:1;color:var(--accent)}
 /* Type 만들기 · 고치기 창 */
 .modal.tdlg .box{width:min(780px,100%)}
-.modal.edlg .box{width:min(720px,100%)} .edlg .g{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:6px 12px;margin-top:6px} .edlg .sec{margin:10px 0}
+.modal.edlg .box{width:min(720px,100%)}
+.modal.fdlg .box{width:min(980px,100%);max-height:86vh;display:flex;flex-direction:column} .fdlg .fwrap{overflow:auto;flex:1;min-height:0;margin:8px 0} .fdlg td{vertical-align:top;padding:5px 6px} .fdlg tr.man td{opacity:.75} .edlg .g{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:6px 12px;margin-top:6px} .edlg .sec{margin:10px 0}
 /* Option B · Ref. PJT Layout / Option A · Equipment List 자동 배치 */
 .modal.rdlg .box{width:min(1180px,100%);height:min(84vh,820px);max-height:none}
 .rgrid{display:grid;grid-template-columns:330px 1fr;gap:12px;flex:1;min-height:0}
@@ -81,6 +82,11 @@ input[type=number]{font-family:var(--f-mono);font-variant-numeric:tabular-nums}
 .rlist button{display:block;width:100%;text-align:left;margin:2px 0;padding:5px 7px;font-size:12px}.rlist button small{display:block;color:var(--ink-2);font-size:11px}
 .rlist button.on{border-color:var(--accent);background:var(--accent-soft)}
 .rprev{display:flex;flex-direction:column;min-height:0;gap:6px}.rprev svg{flex:1;min-height:0;width:100%;background:var(--paper);border:1px solid var(--line);border-radius:6px}
+.rpv{display:grid;grid-template-columns:minmax(0,1fr) 330px;gap:8px;flex:1;min-height:0}.rpv svg{height:100%}
+.reql{overflow:auto;border:1px solid var(--line);border-radius:6px;font-size:11.5px}.reql table{width:100%;border-collapse:collapse}.reql th{position:sticky;top:0;background:var(--sheet);text-align:left;padding:4px 6px;font-weight:600}
+.reql td{padding:3px 6px;border-top:1px solid var(--line);vertical-align:top}.reql td.n{white-space:nowrap;color:var(--ink-2);font-family:var(--f-mono)}.reql tr.hi td{background:var(--accent-soft)}
+#refSvg g.hi rect{stroke:var(--accent);stroke-width:3;fill-opacity:.9}
+@media (max-width:900px){.rpv{grid-template-columns:1fr;grid-template-rows:1fr 180px}}
 .modal.adlg .box{width:min(1240px,100%);height:min(90vh,900px);max-height:none}
 .agrid{display:grid;grid-template-columns:1.35fr 1fr;gap:12px;flex:1;min-height:0}
 .agrid textarea{width:100%;height:120px;font:12px Consolas,monospace;resize:vertical}
@@ -331,6 +337,7 @@ svg text{font-family:var(--f-mono)}
     <label class="chk" title="프로젝트 · 룸 · Rev · 날짜 워터마크 (화면 · PNG · PDF · 3D)"><input type="checkbox" id="vWm" checked>워터마크</label>
     <label class="chk" title="3D 를 보는 자리(카메라) · 보는 방향 · 시야 · 사람 — 3D 를 돌리면 같이 움직임 (2D | 3D 나란히 · 3D 새 창)"><input type="checkbox" id="vCam" checked>3D 시점</label>
     <label class="chk" title="안전공학 · 인간공학: 앉은 운전원(데스크마다, 눈 1,240) · 선 사람(3D, 눈 1,640) 의 시야 — 정면 ±15° 최적 · ±30° 눈만 돌려 · ±60° 머리 돌려, 대형 화면 각. 데스크를 고르면 그 데스크만 자세히"><input type="checkbox" id="vView" checked>👁 시야</label>
+    <button id="bFix" title="시야 간섭을 장비별로 스펙에 맞추기 — 적용 누르면 자동">🛠 스펙 맞추기</button>
     <button id="bErgSet" title="시야 기준: 2D · 3D 켜고 끄기 · PDF 출력에 넣기/빼기 · 기준 값(눈 높이 · 시야 각) 고치기">👁 시야 기준</button>
     <span class="sep"></span>
  <button id="bNeed2" class="primary" title="건축팀용 필요 사이즈 요약 + 2D 도면 PDF">📐 필요 사이즈</button>
@@ -594,6 +601,14 @@ svg text{font-family:var(--f-mono)}
     <div class="row"><button id="kClose" class="primary">닫기 (Esc)</button></div>
   </div>
 </div>
+<div class="modal fdlg" id="fixdlg" hidden>
+  <div class="box">
+    <h4>🛠 스펙 맞추기 (시야)</h4>
+    <div class="muted" id="fixSum"></div>
+    <div class="fwrap"><table class="vt" id="fixTbl"></table></div>
+    <div class="row"><span class="muted" style="margin-right:auto">Type 값을 바꿈 (같은 Type 전체) · Ctrl+Z</span><button id="fixAll" class="primary">모두 적용</button><button id="fixClose">닫기</button></div>
+  </div>
+</div>
 <div class="modal edlg" id="ergdlg" hidden>
   <div class="box">
     <h4>👁 시야 기준 (안전공학 · 인간공학)</h4>
@@ -624,7 +639,7 @@ svg text{font-family:var(--f-mono)}
   <div class="box">
     <h4>📚 Ref. PJT Room Layout — Option B</h4>
     <div class="muted" id="refNote"></div>
-    <div class="rgrid"><div class="rlist" id="refList"></div><div class="rprev"><svg id="refSvg"></svg><div class="muted" id="refInfo"></div></div></div>
+    <div class="rgrid"><div class="rlist" id="refList"></div><div class="rprev"><div class="rpv"><svg id="refSvg"></svg><div class="reql" id="refEq"></div></div><div class="muted" id="refInfo"></div></div></div>
     <div class="row"><span class="muted" style="margin-right:auto">불러온 뒤 자유롭게 고침 (Ctrl+Z)</span><button id="refUse" class="primary">이 배치로 시작</button><button id="refClose">닫기</button></div>
   </div>
 </div>
@@ -1724,8 +1739,8 @@ function ergOpen(){const e=S.erg||{};$('#eg2d').checked=show.view;$('#eg3d').che
   $('#egPdf').checked=e.pdfErg!==false;$('#egFans').checked=!!e.pdfFans;ergFill(e);
   $('#egNote').textContent='고친 값은 PDF 에 ★ 표시. 상하는 정상 시선 기준.';
   $('#ergdlg').hidden=false}
-$('#props').addEventListener('click',e=>{if(e.target.closest('[data-fitscr]'))fitScreens()});
-$('#bErgSet').onclick=ergOpen; $('#v3ErgSet').onclick=ergOpen; $('#egClose').onclick=()=>{$('#ergdlg').hidden=true}; $('#egDef').onclick=()=>ergFill({});
+$('#props').addEventListener('click',e=>{if(e.target.closest('[data-fitscr]'))fixOpen()});
+$('#bErgSet').onclick=ergOpen; $('#bFix').onclick=fixOpen; $('#v3ErgSet').onclick=ergOpen; $('#egClose').onclick=()=>{$('#ergdlg').hidden=true}; $('#egDef').onclick=()=>ergFill({});
 $('#egOk').onclick=()=>{const n={};for(const [k,id] of Object.entries(EG_IN)){const x=+$('#'+id).value;if(!Number.isFinite(x)||x<=0){toast('기준 값은 0 보다 큰 숫자로 넣으세요.',true);return}n[k]=x}
   if(!(n.z1<n.z2&&n.z2<n.z3)){toast('좌우: 최적 < 눈만 < 머리 순으로',true);return}
   if(!(n.vz1<n.vz2)){toast('상하: 최적 < 허용',true);return}
@@ -2865,14 +2880,21 @@ let refPick=null, refPickMode=false;
 function refThumb(d,svgSel='#refSvg'){   // 미리보기: 실 · 판넬 몸체(Type 색) · 앞면 굵은 선
   const T={};d.types.forEach(t=>T[t.id]=fixDoor({...t}));const W=d.room.w,L=d.room.l,pad=Math.max(W,L)*0.03,ink=cssv('--ink')||'#ccc';
   let o=`<rect x="0" y="0" width="${W}" height="${L}" fill="none" stroke="${ink}" stroke-width="2" vector-effect="non-scaling-stroke"/>`;
-  d.panels.forEach(p=>{const t=T[p.type];if(!t)return;const g=geom(p,t),b=g.body,f=g.fe;
-    o+=`<rect x="${b.x}" y="${b.y}" width="${b.w}" height="${b.h}" fill="${esc(t.color||'#888')}" fill-opacity=".55" stroke="${esc(t.color||'#888')}" vector-effect="non-scaling-stroke"/><line x1="${f[0]}" y1="${f[1]}" x2="${f[2]}" y2="${f[3]}" stroke="${ink}" stroke-width="2" vector-effect="non-scaling-stroke"/>`;
-    if(Math.min(b.w,b.h)>500)o+=`<text x="${b.x+b.w/2}" y="${b.y+b.h/2}" font-size="${Math.min(b.w,b.h)*0.42}" text-anchor="middle" dominant-baseline="central" fill="${ink}">${esc(p.tag)}</text>`});
+  d.panels.forEach((p,i)=>{const t=T[p.type];if(!t)return;const g=geom(p,t),b=g.body,f=g.fe;
+    o+=`<g data-i="${i}"><title>${esc(p.tag)} — ${esc(p.desc||t.name)}</title><rect x="${b.x}" y="${b.y}" width="${b.w}" height="${b.h}" fill="${esc(t.color||'#888')}" fill-opacity=".55" stroke="${esc(t.color||'#888')}" vector-effect="non-scaling-stroke"/><line x1="${f[0]}" y1="${f[1]}" x2="${f[2]}" y2="${f[3]}" stroke="${ink}" stroke-width="2" vector-effect="non-scaling-stroke"/>`;
+    if(Math.min(b.w,b.h)>500)o+=`<text x="${b.x+b.w/2}" y="${b.y+b.h/2}" font-size="${Math.min(b.w,b.h)*0.42}" text-anchor="middle" dominant-baseline="central" fill="${ink}">${esc(p.tag)}</text>`;o+='</g>'});
   $(svgSel).setAttribute('viewBox',`${-pad} ${-pad} ${W+pad*2} ${L+pad*2}`);$(svgSel).innerHTML=o}
 function refShow(r){refPick=r;$('#refList').querySelectorAll('button').forEach(b=>b.classList.toggle('on',b.dataset.ref===r.id));refThumb(r.data);
   const by={};r.data.panels.forEach(p=>{const t=r.data.types.find(x=>x.id===p.type);const k=t?(t.kind==='desk'?'데스크':t.kind==='screen'?'대형 화면':t.door==='none'?'프린터':'판넬'):'?';by[k]=(by[k]||0)+1});
   $('#refInfo').innerHTML=`<b>${esc(r.project)}</b> · ${esc(r.room)} · 실 ${fmt(r.data.room.w)} × ${fmt(r.data.room.l)} · ${Object.entries(by).map(([k,v])=>k+' '+v).join(' · ')}<br>${esc(r.note||'')}<br><span style="font-size:11px">도면 ${esc(r.doc)}</span>`;
+  {const T={};r.data.types.forEach(t=>T[t.id]=fixDoor({...t}));   // 옆에: 기존 PJT 의 Equipment (Tag · Description · 크기) — 줄에 마우스 = 도면에 표시
+    const L=r.data.panels.map((p,i)=>({p,i,t:T[p.type]})).filter(o=>o.t).sort((a,b)=>TAGCMP(a.p.tag,b.p.tag));
+    $('#refEq').innerHTML=`<table><tr><th>Tag</th><th>Description (${esc(r.project)})</th><th>W×D</th></tr>${L.map(o=>`<tr data-i="${o.i}"><td class="n">${esc(o.p.tag)}</td><td>${esc(o.p.desc||o.t.name)}</td><td class="n">${fmt(o.t.w)}×${fmt(o.t.d)}</td></tr>`).join('')}</table>`}
   $('#refUse').disabled=false}
+function refHi(i){$('#refSvg').querySelectorAll('g.hi').forEach(g=>g.classList.remove('hi'));$('#refEq').querySelectorAll('tr.hi').forEach(t=>t.classList.remove('hi'));if(i==null)return;
+  const g=$('#refSvg').querySelector(`g[data-i="${i}"]`),tr=$('#refEq').querySelector(`tr[data-i="${i}"]`);if(g)g.classList.add('hi');if(tr){tr.classList.add('hi');return tr}}
+$('#refEq').addEventListener('mouseover',e=>{const tr=e.target.closest('tr[data-i]');refHi(tr?tr.dataset.i:null)});
+$('#refSvg').addEventListener('mouseover',e=>{const g=e.target.closest('g[data-i]');const tr=refHi(g?g.dataset.i:null);if(tr)tr.scrollIntoView({block:'nearest'})});
 function refOpen(pick){refPickMode=!!pick;
   if(!REF.refs.length){toast('Ref. PJT 자료(ref.js)가 없습니다 — apps/space/ref.js 를 함께 넣으세요.',true);return}
   const pj=[...new Set(REF.refs.map(r=>r.project))];
@@ -3258,14 +3280,14 @@ var SB=null, VCC=new Map();   // 가림 상자 · 시야 결과 — check() 마�
 function sightBoxes(){if(SB)return SB;const B=[];
   const rr=(pts,h0,h1,o)=>{const xs=pts.map(p=>p[0]),ys=pts.map(p=>p[1]);B.push({x0:Math.min(...xs),x1:Math.max(...xs),y0:Math.min(...ys),y1:Math.max(...ys),h0,h1,...o})};
   const rect=(b,h0,h1,o)=>rr([[b.x,b.y],[b.x+b.w,b.y+b.h]],h0,h1,o);
-  S.panels.forEach(p=>{const g=geom(p),t=g.t,b=g.body,o={pid:p.id,tag:p.tag};
+  S.panels.forEach(p=>{const g=geom(p),t=g.t,b=g.body,o={pid:p.id,tag:p.tag,kind:t.kind==='desk'?'desk':t.kind==='chair'?'chair':'panel'};
     if(t.kind==='desk'){const top=+t.top||740,f=g.fe,n=FRONT_N[g.r],W0=Math.hypot(f[2]-f[0],f[3]-f[1]),u=[(f[2]-f[0])/W0,(f[3]-f[1])/W0],D0=+t.d,P=(a,d)=>[f[0]+u[0]*a+n[0]*d,f[1]+u[1]*a+n[1]*d];
       rect(b,0,top,o); if(+t.mon>0){const tiers=Math.max(1,+t.tiers||1),[mw0,mh0]=monRaw(t.monIn),mh=mh0+30,mw=mw0+30,bw=W0/t.bays,per=Math.ceil(t.mon/tiers),tw=Math.min(bw-40,per*mw+(per-1)*12);
-        for(let i=0;i<t.bays;i++){const c=i*bw+bw/2;rr([P(c-tw/2,-D0+240),P(c+tw/2,-D0+290)],top+120,top+120+tiers*(mh+30)-30,{...o,tag:p.tag+' 모니터'})}}}
-    else if(t.kind==='screen'){const s=screensGeom().find(x=>x.p.id===p.id);if(s)rect(b,s.bot,s.top,{...o,scr:true})}
+        for(let i=0;i<t.bays;i++){const c=i*bw+bw/2;rr([P(c-tw/2,-D0+240),P(c+tw/2,-D0+290)],top+120,top+120+tiers*(mh+30)-30,{...o,tag:p.tag+' 모니터',kind:'mon'})}}}
+    else if(t.kind==='screen'){const s=screensGeom().find(x=>x.p.id===p.id);if(s)rect(b,s.bot,s.top,{...o,scr:true,kind:'scr'})}
     else rect(b,0,+t.h||2100,o)});
-  columns().forEach(c=>rect(c,0,6000,{tag:'기둥'}));
-  operators().forEach(v=>rr([[v.x-110,v.z-110],[v.x+110,v.z+110]],ERG.sitEye-140,ERG.sitEye+110,{tag:'운전원 '+v.tag,head:1}));
+  columns().forEach(c=>rect(c,0,6000,{tag:'기둥',kind:'col'}));
+  operators().forEach(v=>rr([[v.x-110,v.z-110],[v.x+110,v.z+110]],ERG.sitEye-140,ERG.sitEye+110,{tag:'운전원 '+v.tag,head:1,kind:'head'}));
   return SB=B}
 function segHit(a,b,X){let t0=.002,t1=.995;const lo=[X.x0,X.y0,X.h0],hi=[X.x1,X.y1,X.h1];
   for(let k=0;k<3;k++){const d=b[k]-a[k];if(Math.abs(d)<1e-9){if(a[k]<lo[k]||a[k]>hi[k])return false}else{let p=(lo[k]-a[k])/d,q=(hi[k]-a[k])/d;if(p>q){const t=p;p=q;q=t}if(p>t0)t0=p;if(q<t1)t1=q;if(t0>t1)return false}}return true}
@@ -3275,7 +3297,7 @@ function intrude(a,b,X){   // 시선 a→b 가 상자 X 를 지날 때: 상자 �
 function sightBlock(v,s){   // → {n: 가린 점 수 (9 중), by: [가린 것 Tag], det: [{tag, n, mm}], pts: [[x,y,h,가림?]]}
   const B=sightBoxes().filter(X=>X.pid!==s.p.id&&!(v.x>=X.x0&&v.x<=X.x1&&v.z>=X.y0&&v.z<=X.y1)), u=[-s.n[1],s.n[0]], e=[v.x,v.z,v.eye], D=new Map(), pts=[]; let n=0;
   [-.42,0,.42].forEach(a=>[s.bot+(s.top-s.bot)*.08,s.mid,s.top-(s.top-s.bot)*.08].forEach(hh=>{const q=[s.c[0]+u[0]*a*s.w+s.n[0]*30,s.c[1]+u[1]*a*s.w+s.n[1]*30,hh];
-    const H=B.filter(X=>segHit(e,q,X)); if(H.length){n++;H.forEach(X=>{const o=D.get(X.tag)||{tag:X.tag,n:0,mm:0};o.n++;o.mm=Math.max(o.mm,intrude(e,q,X));D.set(X.tag,o)})} pts.push([...q,H.length>0])}));
+    const H=B.filter(X=>segHit(e,q,X)); if(H.length){n++;H.forEach(X=>{const o=D.get(X.tag)||{tag:X.tag,pid:X.pid,kind:X.kind,n:0,mm:0};o.n++;o.mm=Math.max(o.mm,intrude(e,q,X));D.set(X.tag,o)})} pts.push([...q,H.length>0])}));
   const det=[...D.values()].sort((a,b)=>b.n-a.n||b.mm-a.mm); return {n,by:det.map(o=>o.tag),det,pts}}
 function needBottom(v,s){   // 가렸을 때: 화면 아래 끝을 몇 mm 까지 올리면 아래 줄(좌 · 가운데 · 우)이 보이나 (50 단위, 못 찾으면 null)
   const B=sightBoxes().filter(X=>X.pid!==s.p.id&&!(v.x>=X.x0&&v.x<=X.x1&&v.z>=X.y0&&v.z<=X.y1)),u=[-s.n[1],s.n[0]],e=[v.x,v.z,v.eye];
@@ -3331,20 +3353,56 @@ function viewSvg(s){
         o+=`<text x="${mx}" y="${mz}" font-size="${fs}" text-anchor="middle" fill="${col}" font-weight="700" paint-order="stroke" stroke="${paper}" stroke-width="${3/s}">${esc(r.s.p.tag)} ↔${Math.round(Math.abs(r.ah))}° ↕${sg(r.vt)}/${sg(r.vb)}${r.bad?' '+esc(r.why[0]):''}</text>`;
         if(r.blk.n)BX.filter(X=>r.blk.by.includes(X.tag)).forEach(X=>{o+=`<rect x="${X.x0}" y="${X.y0}" width="${X.x1-X.x0}" height="${X.y1-X.y0}" fill="#ff3b6b" fill-opacity=".18" stroke="#ff3b6b" stroke-width="2" stroke-dasharray="5 3" vector-effect="non-scaling-stroke"/>`})})}});
   return o}
-function fitScreens(){   // 가리지 않게: 화면 Type 마다 '바닥에서 화면 아래' 를 모든 운전원이 보이는 가장 낮은 높이로 (Ctrl+Z 됨)
-  check(); const ops=operators(), need={}, hv={};
-  screensGeom().forEach(s=>{const id=s.p.type;hv[id]=s.top-s.bot;ops.forEach(v=>{const r=viewCheck(v).find(x=>x.s.p.id===s.p.id);if(r&&r.blk.n){const h=needBottom(v,s);need[id]=Math.max(need[id]||0,h==null?Infinity:h)}})});
-  const ch=[], wall=(typeof V3!=='undefined'&&+V3.H)||3000; let inf=false;
-  Object.entries(need).forEach(([id,h])=>{const t=S.types.find(x=>x.id===id);if(!t)return;if(!isFinite(h)){inf=true;return}if(h>(+t.elev||900)){ch.push(`${t.name} ${fmt(+t.elev||900)} → ${fmt(h)}${h+hv[id]>wall?' (벽 높이 넘음)':''}`);t.elev=h}});
-  if(!ch.length){toast(inf?'높여도 가리는 화면이 있음 — 배치를 바꾸세요':'가린 화면 없음');return}
-  commit(); buildTypes(); const bad=operators().flatMap(v=>viewCheck(v)).filter(r=>r.bad);
-  toast(`화면 높이: ${ch.join(' · ')}${bad.length?` — 남은 문제 ${bad.length} 건 (${[...new Set(bad.flatMap(r=>r.why.map(w=>w.replace(/ .*/,''))))].join(', ')})`:' — 가림 없음'} (Ctrl+Z)`)}
+/* 🛠 스펙 맞추기: 시야 간섭을 장비(Type) 별 제안으로 — [적용] = 그 Type 값을 바꿈(같은 Type 전체), Ctrl+Z 됨.
+   데스크(모니터가 가림) = 모니터 작게 → 한 단 줄이기 → 작업면 낮추기(≥ 680) 중 가장 작은 변경, 화면 = '바닥에서 화면 아래' 를 가림 없는 높이로(상하 허용 안에서),
+   그 밖(판넬 · 기둥 · 앞 운전원 머리 · 좌우 각)은 배치를 바꿔야 해서 자동 없음 */
+const MON_IN=[32,27,24,23,22,21,19];
+function deskPlan(t,need){   // need = 모니터 위를 낮출 mm → 모니터 크기 × 단 수 × 작업면(≥ 680) 조합 중 가장 작은 변경 {set, txt, d, short}
+  const top=+t.top||740,tiers=Math.max(1,+t.tiers||1),inch=+t.monIn||24,mtop=(tp,tr,mi)=>tp+120+tr*(monRaw(mi)[1]+60)-30,cur=mtop(top,tiers,inch);
+  let ok=null,best=null;
+  [inch,...MON_IN.filter(x=>x<inch)].forEach(mi=>{for(let tr=tiers;tr>=1;tr--)for(let tp=top;tp>=Math.min(top,680);tp-=10){const d=cur-mtop(tp,tr,mi);if(d<=0&&tp<top)continue;
+    const cost=(inch-mi)+8*(tiers-tr)+(top-tp)/20, o={mi,tr,tp,d,cost}; if(d>=need){if(!ok||cost<ok.cost)ok=o;break} if(!best||d>best.d)best=o}});
+  const o=ok||best; if(!o||o.d<=0)return null; const set={},txt=[];
+  if(o.mi!==inch){set.monIn=o.mi;txt.push(`모니터 ${inch}" → ${o.mi}"`)} if(o.tr!==tiers){set.tiers=o.tr;txt.push(`${tiers} 단 → ${o.tr} 단`)} if(o.tp!==top){set.top=o.tp;txt.push(`작업면 ${top} → ${o.tp}`)}
+  return {set,txt:txt.join(' · '),d:o.d,short:ok?0:need-o.d}}
+function specFixes(){
+  check(); const ops=operators(), rows=[], mon={}, man={}, scr={}, up=-ERG.nlos+ERG.vz2, dn=-ERG.nlos-ERG.vz2, rad=a=>a*Math.PI/180, wall=(typeof V3!=='undefined'&&+V3.H)||3000;
+  ops.forEach(v=>viewCheck(v).forEach(r=>{const sid=r.s.p.type,S0=scr[sid]||(scr[sid]={need:0,maxB:Infinity,minB:-Infinity,n:0,hv:r.s.top-r.s.bot,cur:r.s.bot,tags:new Set()});S0.tags.add(r.s.p.tag);
+    if(!r.back){S0.maxB=Math.min(S0.maxB,v.eye+r.d*Math.tan(rad(up))-(r.s.top-r.s.bot));S0.minB=Math.max(S0.minB,v.eye+r.d*Math.tan(rad(dn)))}
+    if(r.blk.n){S0.n++;const h=needBottom(v,r.s);S0.need=Math.max(S0.need,h==null?Infinity:h)}
+    r.blk.det.forEach(o=>{if(o.kind==='mon'){const p=S.panels.find(x=>x.id===o.pid);if(!p)return;const m=mon[p.type]||(mon[p.type]={mm:0,n:0,tags:new Set()});m.mm=Math.max(m.mm,o.mm);m.n++;m.tags.add(p.tag)}
+      else{const k=o.kind==='head'?'운전원 머리':o.tag;const m=man[k]||(man[k]={kind:o.kind,mm:0,n:0});m.mm=Math.max(m.mm,o.mm);m.n++}});
+    if(r.back||r.z>=3){const k=`화면 ${r.s.p.tag} — 좌우 허용 밖`,m=man[k]||(man[k]={kind:'ang',ops:[],a:[]});m.ops.push(v.tag);if(!r.back)m.a.push(Math.round(Math.abs(r.ah)))}}));
+  const tags=set=>{const a=[...set].sort(TAGCMP);return a.length>4?a.slice(0,4).join(', ')+` 외 ${a.length-4}`:a.join(', ')};
+  Object.entries(mon).forEach(([tid,m])=>{const t=S.types.find(x=>x.id===tid);if(!t)return;const need=m.mm+20,pl=deskPlan(t,need),n=S.panels.filter(p=>p.type===tid).length;
+    rows.push({key:'d'+tid,eq:t.name,sub:`${n} EA · ${tags(m.tags)}`,prob:`모니터가 시선을 가림 — 최대 ${Math.round(m.mm/10)} cm (${m.n} 건)`,ref:'B',sug:pl?pl.txt+(pl.short?` (아직 ${Math.ceil(pl.short/10)} cm 모자람)`:` (모니터 위 −${Math.round(pl.d/10)} cm)`):'바꿀 수 있는 값 없음',
+      apply:pl?()=>{Object.assign(t,pl.set);fixDoor(t)}:null})});
+  Object.entries(scr).forEach(([tid,o])=>{const t=S.types.find(x=>x.id===tid);if(!t)return;const cur=+t.elev||900,r50=x=>Math.ceil(x/50)*50,f50=x=>Math.floor(x/50)*50;
+    let want=cur,why=[];if(o.n){want=Math.max(want,isFinite(o.need)?o.need:cur);why.push(`가림 ${o.n} 건`)}
+    if(o.minB>want+1){want=o.minB;why.push('아래 끝 허용 넘음')} if(cur>o.maxB+1&&!o.n){want=o.maxB;why.push('위 끝 허용 넘음')}
+    const tgt=want>cur?r50(want):f50(want); if(tgt===cur||!why.length)return;
+    const warn=[]; if(tgt>o.maxB+1)warn.push(`앞 운전원 위 각 넘음 (≤ ${fmt(f50(o.maxB))})`); if(tgt+o.hv>wall)warn.push('벽 높이 넘음'); if(!isFinite(o.need))warn.push('높여도 가리는 자리 있음');
+    rows.push({key:'s'+tid,eq:t.name,sub:`${S.panels.filter(p=>p.type===tid).length} EA · ${tags(o.tags)}`,prob:why.join(' · '),ref:o.n?'B':'V',sug:`화면 아래 ${fmt(cur)} → ${fmt(tgt)}${warn.length?' — ⚠ '+warn.join(', '):''}`,
+      apply:()=>{t.elev=tgt;fixDoor(t)}})});
+  Object.entries(man).forEach(([k,m])=>rows.push({key:'m'+k,eq:k,sub:'',prob:m.kind==='ang'?`운전원 ${m.ops.length} (${m.ops.slice(0,6).join(', ')}${m.ops.length>6?' …':''})${m.a.length?` · ${Math.min(...m.a)}~${Math.max(...m.a)}° (허용 ±${ERG.zones[2][0]}°)`:''}`:`시선을 가림 — 최대 ${Math.round(m.mm/10)} cm (${m.n} 건)`,ref:m.kind==='ang'?'H':'B',
+    sug:m.kind==='ang'?'데스크 방향 · 화면 위치 조정':m.kind==='head'?'줄 간격 넓히기 · 화면 올리기':m.kind==='col'?'기둥을 피해 옮기기':`옮기거나 높이 −${Math.round(m.mm/10)} cm`,apply:null}));
+  return rows}
+function fixOpen(){const rows=specFixes(),left=operators().flatMap(v=>viewCheck(v)).filter(r=>r.bad).length;FIXROWS=rows;
+  $('#fixSum').textContent=left?`간섭 ${left} 건 · 자동 조정 ${rows.filter(r=>r.apply).length} 개`:'간섭 없음';
+  $('#fixTbl').innerHTML=rows.length?`<tr><th>장비</th><th>문제 · 기준</th><th>제안</th><th></th></tr>`+rows.map((r,i)=>`<tr class="${r.apply?'':'man'}"><td><b>${esc(r.eq)}</b><br><span class="muted">${esc(r.sub)}</span></td><td>${esc(r.prob)}<br><span class="muted" title="${esc(ergRef(r.ref))}">${esc(refShort(r.ref))}</span></td><td>${esc(r.sug)}</td><td>${r.apply?`<button class="primary" data-fx="${i}">적용</button>`:'<span class="muted">직접</span>'}</td></tr>`).join(''):'<tr><td class="muted">고칠 것 없음</td></tr>';
+  $('#fixAll').disabled=!rows.some(r=>r.apply); $('#fixdlg').hidden=false}
+var FIXROWS=[];
+function fixApply(list){const before=operators().flatMap(v=>viewCheck(v)).filter(r=>r.bad).length;list.forEach(r=>r.apply());commit();buildTypes();
+  const after=operators().flatMap(v=>viewCheck(v)).filter(r=>r.bad).length;toast(`적용 ${list.length} — 간섭 ${before} → ${after} 건 (Ctrl+Z)`);fixOpen()}
+$('#fixTbl').addEventListener('click',e=>{const b=e.target.closest('[data-fx]');if(b)fixApply([FIXROWS[+b.dataset.fx]])});
+$('#fixAll').onclick=()=>{let n=0;   /* 데스크 먼저 → 다시 셈 → 화면, 되돌리기는 한 번 */for(let k=0;k<3;k++){const r=specFixes().filter(x=>x.apply&&(k===0?x.key[0]==='d':true));if(!r.length)break;r.forEach(x=>x.apply());n+=r.length}commit();buildTypes();fixOpen();toast(`모두 적용 ${n} — 남은 간섭 ${operators().flatMap(v=>viewCheck(v)).filter(r=>r.bad).length} 건 (Ctrl+Z)`)};
+$('#fixClose').onclick=()=>{$('#fixdlg').hidden=true};
 function viewHtml(p){   // 데스크 하나 고르면: 그 데스크 운전원들이 대형 화면을 보는 각 · 거리 (표)
   const ops=operators(new Set([p.id])), sc=screensGeom(); if(!sc.length)return `<div class="sec"><b>👁 시야 검토</b> <span class="muted">— 대형 화면이 없습니다</span></div>`;
   const sg=a=>(a>0?'+':'')+Math.round(a)+'°', VZ=['최적','허용','밖'];
   return `<div class="sec"><b>👁 시야 검토</b>
     <table class="vt"><tr><th>운전원</th><th>화면</th><th>좌우</th><th>상하 (위/아래)</th><th>거리</th><th>판정</th></tr>${ops.map(v=>viewCheck(v).map(r=>`<tr class="${r.bad?'err':r.z||r.vz?'warn':'ok'}"><td>${esc(v.tag)}</td><td>${esc(r.s.p.tag)}</td><td>${Math.round(Math.abs(r.ah))}° ${ERG.zones[r.z]?ERG.zones[r.z][1]:''}</td><td>${sg(r.vt)} / ${sg(r.vb)} ${VZ[r.vz]}</td><td>${fmt(Math.round(r.d/100)*100)}</td><td>${r.bad?r.iss.map(i=>`<div title="${esc(i.amt+' — '+ergRef(i.k))}">${esc(i.what)} ${i.cm?i.cm+' cm':''} <span class="muted">${esc(refShort(i.k))}</span></div>`).join(''):'OK'}${!r.back&&r.off>ERG.off?' · 비스듬히':''}${r.blk.n?(h=>h?` → 화면 아래 ≥ ${fmt(h)}`:'')(needBottom(v,r.s)):''}</td></tr>`).join('')).join('')}</table>
-    ${ops.some(v=>viewCheck(v).some(r=>r.blk.n))?'<button data-fitscr style="margin-top:6px">⬆ 가리지 않게 화면 높이 맞추기</button>':''}
+    ${ops.some(v=>viewCheck(v).some(r=>r.bad))?'<button data-fitscr style="margin-top:6px">🛠 스펙 맞추기</button>':''}
     <p class="muted" style="margin:4px 0 0">좌우 ±${ERG.zones[0][0]}/${ERG.zones[1][0]}/${ERG.zones[2][0]}° · 상하 ${sg(-ERG.nlos+ERG.vz2)} ~ ${sg(-ERG.nlos-ERG.vz2)} (최적 ${sg(-ERG.nlos+ERG.vz1)} ~ ${sg(-ERG.nlos-ERG.vz1)})</p></div>`}
 
 /* 3D 관찰자 시점을 2D 에: 카메라 자리 · 보는 방향 · 가로 시야(점선 부채꼴) · 보는 점 · 카메라 높이, 사람(자리 · 방향).
