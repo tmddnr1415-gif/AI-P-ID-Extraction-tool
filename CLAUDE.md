@@ -20,6 +20,7 @@
 
 > **★ 작업 브랜치 이관 (사용자 지시 2026-10-26)** — '2. PID 코드' 작업은 `claude/titleblock-parsing-c5st4x` 의 내용을 전부 이어받은
 > **`claude/pid-extractor-panel-update-zrl4qi`** 에서 이어 간다 (hotfix122 부터).  titleblock-parsing 의 커밋은 전부 이 브랜치에 들어 있다.
+> hotfix123 은 그 브랜치를 그대로 이어받은 **`claude/pid-extractor-panel-update-nbcrfn`** 에 있다 (zrl4qi 커밋 전부 포함).
 
 > **★ 업데이트 zip 은 어디서 만드나 (사용자 지시 2026-10-22)**
 > **P&ID · LOGIC · 판넬 공간확보 · 계장도서검토** 의 zip 은 **이 저장소(이 브랜치)** 에서 만든다 (도서 검토는 hotfix115 부터 `/books`).
@@ -5155,6 +5156,14 @@ offline.js 줄 옆에 `ref.js` 줄 · 필요 사이즈 내보내기(`await prefl
 바뀐 파일은 `app/static/space/index.html` 하나 (`ref.js` 그대로).  시험 `tests/test_hotfix122_space_light.py` · `ui_audit_space116`(11) ·
 `ui_audit_space120_sync`(7) 전부 통과 · 페이지 오류 0.
 
+**그 다음 — 판넬 10-27 판: 시야 기준 · Equipment List Excel · 간섭 상세 · 스펙 맞추기 (hotfix123 · 판정 0줄)**
+
+판넬 브랜치 `ccr-d82d97fa-bb3ty3` 의 `093c451..b8bcef2` (화면 커밋 다섯 — 시야 상하 기준 · 시선 가림 검사 `75a8cdd` · Equipment List 양식 · 출력 Excel ·
+Option A 에 .xlsx 바로 넣기 `6bfd6b6` (외부 라이브러리 없이 — 쓰기 = 압축 없는 zip, 읽기 = `DecompressionStream`) · 화면 글 간결 `809c0d0` · 간섭 상세 `009f711` ·
+🛠 스펙 맞추기 · Ref Description 목록 `b8bcef2`)를 세 갈래로 합쳤다 — **충돌 0**.  바뀐 파일은 `app/static/space/index.html` 하나 (`ref.js` · 서버 API 그대로).
+새 코드에 `confirm/prompt` · 대시보드 `/api/` 호출 없음.  시험 `tests/test_hotfix123_space_spec.py` · `ui_audit_space116`(11) · `ui_audit_space120_sync`(7) ·
+`ui_audit_space123`(5 — Equipment List xlsx 내보내기 → Option A 가 그 파일을 다시 읽어 판넬 23 · 스펙 맞추기 창) 전부 통과 · 페이지 오류 0.
+
 ## 4. 미해결 과제 (다음 단계 후보) — 우선순위 순
 
 1. **순번은 "안 붙인 것"이 최대 원인입니다** (오답 203건: 발주처는 붙였는데 우리는
@@ -5694,7 +5703,7 @@ python3 spike/regression_3p.py --reuse    # 이미 있는 결과로 채점만 (2
 | `pidcache.teach_blind("titleblock")` · `spike/ui_audit_dxf_guide.py` | **hotfix85 마무리** — 타이틀블록도 스스로 못 찾게 하는 시뮬레이션 눈가림 · DXF 안내창 화면 시험 (전부 / `partial`) |
 | `pipeline.apply_policy` · `control_function_reason` · `_resuffix` · `_drop_from_layers` · config `policy` · `result["policy_excluded"]` | **hotfix83** — 사용자가 정한 '식별하지 않는 것' (PSV · 제어실 기능 버블).  **마지막 거름**이다 (`_fold_readouts` 뒤) — 앞에서 빼면 접힘·거리 문턱이 달라진다.  제어실 판정은 그 도면 ISA 표 (CONTROLLER · 가운데 선 + 물리 기기 글자 없음) |
 | `pipeline._supplier_name` · `detect_symbols.read_mark_dictionary` 의 `col`/`CONTINUE_AT_TEXT_COLUMN` | **hotfix83** — 노트가 특정한 공급자 이름 (`BY` 밖 꼴 · 공급자 명사구) · 별표가 글 왼쪽에 따로 그려진 정의줄은 같은 열의 다음 줄까지 잇는다 |
-| `app/space.py` · `app/static/space/index.html` | **hotfix106/116** — 판넬 공간확보.  화면 원본은 `ccr-d82d97fa-bb3ty3` `dashboard/apps/space/` (지금 `d890bb5` + `ref.js` · hotfix121) — 세 갈래로 합쳐 들여오고 `/space/api` · `canWrite` · `askYes/askText` 를 되살린다.  서버는 대시보드 `api_space_*` 와 같은 꼴 (룸 · Rev · 휴지통) |
+| `app/space.py` · `app/static/space/index.html` | **hotfix106/116** — 판넬 공간확보.  화면 원본은 `ccr-d82d97fa-bb3ty3` `dashboard/apps/space/` (지금 `b8bcef2` + `ref.js` · hotfix123) — 세 갈래로 합쳐 들여오고 `/space/api` · `canWrite` · `askYes/askText` 를 되살린다.  서버는 대시보드 `api_space_*` 와 같은 꼴 (룸 · Rev · 휴지통) |
 | `app/static/dcs.html` · `app/static/hmi/{hmi.js,hmi_symbols.js,hmi.css}` | **hotfix110** — DCS HMI 화면 (LOGIC 브랜치 H1회차 화면 그대로 + 확대/이동 · LOGIC 태그 연동 · 내려받기).  심볼 사전 하나가 그림 · 범례 · 라이브러리를 먹인다 — 새 심볼 · 배관 종류는 `hmi_symbols.js` 에 한 줄 |
 | `app/hmi/scene.py` (`from_model` · `place_faces` · `service_of`) · `app/hmi/store.py` · `/dcs/api/jobs/{id}/scene/{page}` | **hotfix110** — 식별된 장(`dcs.build_sheet`) → 장면 JSON (같은 배율 · 탭한 런 · 지어내지 않음) · 사람이 다듬은 장면 저장 (작성자 필수) |
 | `scene.system_of` · `group_systems` · `from_system` · `name_only` · `/dcs/api/jobs/{id}/system/{key}/scene` · `result["equipment_labels"]` | **hotfix111** — 시스템(도면번호 − 일련번호) 한 장 · 공통 배율 격자 · 장 사이 선은 커넥터 글이 말할 때만 · 기기 이름 전부(지문 밖 · 다시 분석해야) |
