@@ -436,6 +436,7 @@ svg text{font-family:var(--f-mono)}
           <button id="bErg" title="시야 검토에 적용한 인간공학 기준 (값 · 근거 표준 · 출처) + 운전원 × 대형 화면 결과 PDF (A3 가로)">👁 인간공학 기준 PDF</button>
           <button id="bReq">건축 전달 요약 출력 (TXT)</button>
           <button id="bDxf">DXF 출력</button>
+          <button id="bEqx" title="Option A 에 그대로 다시 넣을 수 있는 양식">Equipment List (Excel)</button>
           <button id="bCsv">판넬 List 출력 (CSV)</button>
           <button id="bPng" title="지금 보이는 도면을 그림(PNG)으로 — 메일 · 회의록 · PPT 에 붙이기">도면 PNG 저장</button>
         </div>
@@ -631,7 +632,7 @@ svg text{font-family:var(--f-mono)}
       <div style="display:flex;flex-direction:column;gap:6px;min-height:0">
         <div class="muted">① Equipment List 를 엑셀에서 <b>머리줄째 복사해 붙여 넣기</b> (또는 CSV · TXT 파일). NO · TAG · DESCRIPTION · SIZE(W×D×H) · QTY 열을 알아서 찾습니다. 크기가 없으면 이름으로 짐작(OWS 1200×1100 · 프린터 800×800 · 판넬 800×800×2200), 벽걸이 · 책상 위 물건(시계 · EPB · Mimic …)은 '빼기'.</div>
         <textarea id="aIn" placeholder="NO	EQUIPMENT TAG NO.	DESCRIPTION	DIMENSION (W x D x H)	QTY&#10;1	00CJA00GH001	DCS SYSTEM CABINET #1	700 x 600 x 2285	1"></textarea>
-        <div class="row"><button id="aFile">CSV · TXT 파일…</button><input type="file" id="aFileIn" accept=".csv,.txt,.tsv,text/plain" hidden><button id="aSample">예시 넣기 (F3 CER + CCR 일부)</button><span class="muted" id="aCnt" style="margin-left:auto"></span></div>
+        <div class="row"><button id="aFile">파일 (Excel · CSV)…</button><input type="file" id="aFileIn" accept=".xlsx,.csv,.txt,.tsv,text/plain" hidden><button id="aForm" title="이 양식에 적어 다시 넣으면 됨">📄 양식 (Excel)</button><button id="aSample">예시 넣기 (F3 CER + CCR 일부)</button><span class="muted" id="aCnt" style="margin-left:auto"></span></div>
         <div class="atbl"><table><thead><tr><th>NO</th><th>TAG</th><th>DESCRIPTION</th><th>W</th><th>D</th><th>H</th><th>종류</th></tr></thead><tbody id="aTbl"></tbody></table></div>
       </div>
       <div class="acon" id="aCon"></div>
@@ -2902,7 +2903,7 @@ function aParse(txt){
   if(hi>=0){rows[hi].forEach((c,i)=>{const u=c.toUpperCase();
     if(col.no===undefined&&/^NO\.?$|^ITEM/.test(u))col.no=i; else if(col.tag===undefined&&/TAG|EQUIPMENT NO|EQUIP\. NO/.test(u))col.tag=i;
     else if(col.desc===undefined&&/DESC|NAME/.test(u))col.desc=i; else if(col.size===undefined&&/SIZE|DIMENSION|W\s*X\s*D/.test(u))col.size=i;
-    else if(/^W(IDTH)?$/.test(u))col.w=i; else if(/^D(EPTH)?$/.test(u))col.d=i; else if(/^H(EIGHT)?$/.test(u))col.h=i; else if(/Q'?TY|QUANTITY|수량/.test(u))col.qty=i})}
+    else if(/^W(IDTH)?$/.test(u))col.w=i; else if(/^D(EPTH)?$/.test(u))col.d=i; else if(/^H(EIGHT)?$/.test(u))col.h=i; else if(/Q'?TY|QUANTITY|수량/.test(u))col.qty=i; else if(col.k===undefined&&/^TYPE$|종류/.test(u))col.k=i})}
   const body=rows.slice(hi+1);
   if(col.desc===undefined){   // 머리줄 없음: 크기 칸 = 크기 꼴, 설명 = 가장 긴 글
     const r0=body[0]||[];col.size=r0.findIndex(c=>aSize(c));col.desc=r0.reduce((b,c,i)=>c.length>(r0[b]||'').length&&!aSize(c)?i:b,0);col.no=0;if(r0.length>2)col.tag=1}
@@ -2911,6 +2912,7 @@ function aParse(txt){
     let sz=col.size!==undefined&&col.size>=0?aSize(r[col.size]):null; if(!sz&&col.w!==undefined)sz=[+r[col.w]||0,+r[col.d]||0,+r[col.h]||0];
     const qty=Math.max(1,Math.min(50,parseInt(r[col.qty]||'1',10)||1)), no=(r[col.no]||'').replace(/[^\w\-]/g,'')||String(out.length+1), tags=String(r[col.tag]||'').split(/\s+|\//).filter(x=>x&&x!=='TBD');
     let [w,d,h]=sz&&!sz[3]?sz:[0,0,0]; let k=sz&&sz[3]?'ls':aKind(desc,w,d,h), inch=sz&&sz[3]?sz[0]:0;
+    {const tk=String(r[col.k]??'').toUpperCase();if(tk)k=/빼기|제외|SKIP|의자|CHAIR/.test(tk)?'skip':/화면|SCREEN/.test(tk)?'ls':/데스크|DESK|CONSOLE/.test(tk)?'desk':/프린터|PRINT/.test(tk)?'prn':/판넬|PANEL|CAB/.test(tk)?'cab':k}   // TYPE 칸이 있으면 그 종류
     if(k==='ls'&&!inch){const m=desc.match(/(\d{2,3})\s*("|″|INCH)/i);inch=m?+m[1]:75}
     if(!w||!d){if(k==='desk'){w=w||1200;d=d||1100;h=h||750}else if(k==='prn'){w=800;d=800;h=h||750}else if(k==='cab'){w=w||800;d=d||800;h=h||2200}}
     for(let i=0;i<qty;i++)out.push({no:qty>1?`${no}-${i+1}`:no,tag:tags[i]||tags[0]||'',desc,w,d,h:h||0,k,inch,grp:k==='cab'?aFam(desc):aGroup(desc),fam:aFam(desc)})});   // 판넬은 계열(시스템 · 네트워크 · 전원 · HVAC/화재)끼리 한 줄
@@ -2923,8 +2925,45 @@ function aTable(){
 $('#aTbl').addEventListener('change',e=>{const tr=e.target.closest('tr[data-i]');if(!tr)return;const it=AITEMS[+tr.dataset.i],f=e.target.dataset.f;
   if(f==='k'){it.k=e.target.value;it.grp=it.k==='cab'?it.fam:aGroup(it.desc);if(it.k==='ls'&&!it.inch)it.inch=75;if(it.k!=='ls'&&(!it.w||!it.d)){it.w=it.k==='prn'?800:it.k==='desk'?1200:800;it.d=it.k==='desk'?1100:800;it.h=it.k==='cab'?2200:750}}else it[f]=Math.max(0,Math.round(+e.target.value||0));aTable()});
 $('#aIn').addEventListener('input',()=>{AITEMS=aParse($('#aIn').value);aTable()});
+/* Excel (.xlsx) 쓰기 · 읽기 — 외부 라이브러리 없이. 쓰기 = 압축 없는 zip, 읽기 = 브라우저 내장 DecompressionStream */
+const CRC32=(()=>{const T=new Uint32Array(256);for(let n=0;n<256;n++){let c=n;for(let k=0;k<8;k++)c=c&1?0xEDB88320^(c>>>1):c>>>1;T[n]=c>>>0}return b=>{let c=0xFFFFFFFF;for(let i=0;i<b.length;i++)c=T[(c^b[i])&255]^(c>>>8);return (c^0xFFFFFFFF)>>>0}})();
+function zipStore(files,type){const E=new TextEncoder(),P=[],C=[];let off=0;const h16=v=>[v&255,v>>8&255],h32=v=>[v&255,v>>8&255,v>>16&255,v>>>24&255];
+  files.forEach(([name,txt])=>{const nm=E.encode(name),d=E.encode(txt),c=CRC32(d),hd=[...h16(20),...h16(0x0800),...h16(0),...h16(0),...h16(0x21),...h32(c),...h32(d.length),...h32(d.length),...h16(nm.length),...h16(0)];
+    const L=new Uint8Array([...h32(0x04034b50),...hd]);P.push(L,nm,d);C.push(new Uint8Array([...h32(0x02014b50),...h16(20),...hd,...h16(0),...h16(0),...h16(0),...h32(0),...h32(off)]),nm);off+=L.length+nm.length+d.length});
+  const cs=C.reduce((a,b)=>a+b.length,0);P.push(...C,new Uint8Array([...h32(0x06054b50),0,0,0,0,...h16(files.length),...h16(files.length),...h32(cs),...h32(off),0,0]));return new Blob(P,{type})}
+function xlsxBlob(rows,widths,head){   // rows: 칸 배열들, head = 굵게 · 고정할 머리줄 번호(0 부터)
+  const X=v=>String(v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'),col=i=>(i>=26?String.fromCharCode(64+Math.floor(i/26)):'')+String.fromCharCode(65+i%26);
+  const data=rows.map((r,ri)=>`<row r="${ri+1}">${r.map((v,ci)=>v===''||v==null?'':typeof v==='number'?`<c r="${col(ci)}${ri+1}"${ri===head?' s="1"':''}><v>${v}</v></c>`:`<c r="${col(ci)}${ri+1}" t="inlineStr"${ri===head?' s="1"':''}><is><t xml:space="preserve">${X(v)}</t></is></c>`).join('')}</row>`).join('');
+  const ns='http://schemas.openxmlformats.org/', M=ns+'spreadsheetml/2006/main', R=ns+'officeDocument/2006/relationships';
+  return zipStore([['[Content_Types].xml',`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="${ns}package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/><Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/></Types>`],
+    ['_rels/.rels',`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="${ns}package/2006/relationships"><Relationship Id="rId1" Type="${R}/officeDocument" Target="xl/workbook.xml"/></Relationships>`],
+    ['xl/workbook.xml',`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><workbook xmlns="${M}" xmlns:r="${R}"><sheets><sheet name="Equipment List" sheetId="1" r:id="rId1"/></sheets></workbook>`],
+    ['xl/_rels/workbook.xml.rels',`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="${ns}package/2006/relationships"><Relationship Id="rId1" Type="${R}/worksheet" Target="worksheets/sheet1.xml"/><Relationship Id="rId2" Type="${R}/styles" Target="styles.xml"/></Relationships>`],
+    ['xl/styles.xml',`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><styleSheet xmlns="${M}"><fonts count="2"><font><sz val="10"/><name val="Malgun Gothic"/></font><font><b/><sz val="10"/><name val="Malgun Gothic"/></font></fonts><fills count="3"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill><fill><patternFill patternType="solid"><fgColor rgb="FFDDE5F3"/></patternFill></fill></fills><borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders><cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs><cellXfs count="2"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/><xf numFmtId="0" fontId="1" fillId="2" borderId="0" xfId="0" applyFont="1" applyFill="1"/></cellXfs><cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles></styleSheet>`],
+    ['xl/worksheets/sheet1.xml',`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><worksheet xmlns="${M}"><sheetViews><sheetView workbookViewId="0"><pane ySplit="${head+1}" topLeftCell="A${head+2}" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews><cols>${widths.map((w,i)=>`<col min="${i+1}" max="${i+1}" width="${w}" customWidth="1"/>`).join('')}</cols><sheetData>${data}</sheetData></worksheet>`]],
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')}
+async function xlsxText(buf){   // .xlsx 첫 시트 → 탭으로 나눈 글 (Option A 붙여넣기와 같게)
+  const b=new Uint8Array(buf),dv=new DataView(buf),dec=new TextDecoder();let e=b.length-22;while(e>0&&dv.getUint32(e,true)!==0x06054b50)e--;if(e<=0)throw new Error('Excel 파일이 아닙니다');
+  const files={};let p=dv.getUint32(e+16,true);for(let i=0,n=dv.getUint16(e+10,true);i<n;i++){const m=dv.getUint16(p+10,true),cs=dv.getUint32(p+20,true),nl=dv.getUint16(p+28,true),xl=dv.getUint16(p+30,true),cl=dv.getUint16(p+32,true),lo=dv.getUint32(p+42,true),name=dec.decode(b.subarray(p+46,p+46+nl));
+    files[name]={m,s:lo+30+dv.getUint16(lo+26,true)+dv.getUint16(lo+28,true),cs};p+=46+nl+xl+cl}
+  const read=async nm=>{const f=files[nm];if(!f)return '';const raw=b.subarray(f.s,f.s+f.cs);if(f.m===0)return dec.decode(raw);
+    return await new Response(new Blob([raw]).stream().pipeThrough(new DecompressionStream('deflate-raw'))).text()};
+  const P=x=>new DOMParser().parseFromString(x,'application/xml'), ss=[...P(await read('xl/sharedStrings.xml')).getElementsByTagName('si')].map(n=>[...n.getElementsByTagName('t')].map(t=>t.textContent).join(''));
+  const sh=Object.keys(files).filter(n=>/^xl\/worksheets\/sheet\d+\.xml$/.test(n)).sort((a,b)=>parseInt(a.match(/\d+/))-parseInt(b.match(/\d+/)))[0];
+  return [...P(await read(sh)).getElementsByTagName('row')].map(r=>{const o=[];[...r.getElementsByTagName('c')].forEach(c=>{const ci=(c.getAttribute('r')||'').replace(/\d+/g,'').split('').reduce((a,ch)=>a*26+ch.charCodeAt(0)-64,0)-1,t=c.getAttribute('t'),v=c.getElementsByTagName('v')[0];
+    o[ci<0?o.length:ci]=String(t==='s'?ss[+(v&&v.textContent)]??'':t==='inlineStr'?[...c.getElementsByTagName('t')].map(x=>x.textContent).join(''):v?v.textContent:'').replace(/[\t\n]/g,' ')});return Array.from(o,x=>x??'').join('\t')}).join('\n')}
+const EQ_HEAD=['NO','EQUIPMENT TAG NO.','DESCRIPTION','DIMENSION (W x D x H)','QTY','TYPE','SCOPE','REMARK'], EQ_W=[6,22,40,24,6,10,10,24];
+$('#aForm').onclick=()=>{dlBlob(xlsxBlob([['EQUIPMENT LIST (양식) — 머리줄은 그대로, 아래에 적고 Option A 에 파일로 넣거나 복사해 붙여넣기'],['TYPE: 판넬 · 데스크 · 대형 화면 · 프린터 · 빼기 (비우면 이름 · 크기로 정함) / 화면은 크기에 75" 처럼'],[],EQ_HEAD,
+  [1,'00CJA00GH001','DCS SYSTEM CABINET #1','800 x 800 x 2200',2,'판넬','',''],[2,'OWS-01','OPERATOR WORKSTATION','1200 x 1100 x 750',4,'데스크','',''],[3,'LS-01','LARGE SCREEN DISPLAY','75"',2,'대형 화면','',''],[4,'PRN-01','A3 COLOR PRINTER','800 x 800 x 750',1,'프린터','',''],[5,'CLK-01','MASTER CLOCK','',1,'빼기','','배치 안 함']],EQ_W,3),'Equipment_List_양식.xlsx');toast('양식을 내려받았습니다')};
+function eqXlsx(){const KT={ls:'대형 화면',desk:'데스크',prn:'프린터',cab:'판넬'};
+  const rows=eqRows().map(r=>{const t=typeOf(r.p),k=t.kind==='chair'?'':aKindT(t),f=t.kind==='screen'?fixDoor({...t}):t;
+    return [r.no,r.p.tag,r.desc,t.kind==='screen'&&+t.cols*+t.rows===1?`${t.tileIn}"`:`${f.w} x ${f.d} x ${f.h}`,1,t.kind==='chair'?'빼기':KT[k],r.scope,t.kind==='screen'&&+t.cols*+t.rows>1?`${t.cols}×${t.rows} · ${t.tileIn}"`:'']});
+  return xlsxBlob([[`EQUIPMENT LIST — ${S.info.project||''} · ${roomStd()||''} · Rev ${revOf()}`],[`${today()} · ${S.panels.length} EA`],[],EQ_HEAD,...rows],EQ_W,3)}
+$('#bEqx').onclick=()=>{dlBlob(eqXlsx(),fname('Equipment_List','xlsx'));toast(`Equipment List ${S.panels.length} EA (Excel)`)};
 $('#aFile').onclick=()=>$('#aFileIn').click();
-$('#aFileIn').onchange=e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{$('#aIn').value=r.result;AITEMS=aParse(r.result);aTable()};r.readAsText(f);e.target.value=''};
+$('#aFileIn').onchange=e=>{const f=e.target.files[0];if(!f)return;
+  if(/\.xlsx$/i.test(f.name)){f.arrayBuffer().then(xlsxText).then(t=>{$('#aIn').value=t;AITEMS=aParse(t);aTable()}).catch(er=>toast('Excel 을 읽지 못함 — '+(er&&er.message||er)+'. 엑셀에서 복사해 붙여 넣으세요.',true));e.target.value='';return}
+  const r=new FileReader();r.onload=()=>{$('#aIn').value=r.result;AITEMS=aParse(r.result);aTable()};r.readAsText(f);e.target.value=''};
 $('#aSample').onclick=()=>{$('#aIn').value=['NO\tEQUIPMENT TAG NO.\tDESCRIPTION\tDIMENSION (W x D x H)\tQTY',
   '1\t00CJA00GH001\tDCS SYSTEM CABINET #1\t700 x 600 x 2285\t1','2\t00CJA00GH002\tDCS SYSTEM CABINET #2\t700 x 600 x 2285\t1','3\t00CJA00GH003\tDCS RELAY CABINET #1\t700 x 600 x 2285\t1',
   '4\t00CJA00GH007\tSIS CABINET\t1400 x 600 x 2285\t1','5\t00BJD00GH001\tDCS PDP #1\t700 x 600 x 2285\t3','8\t00CYT00GH001\tPWCS CABINET\t700 x 1000 x 2285\t1',
