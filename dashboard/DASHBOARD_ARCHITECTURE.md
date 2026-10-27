@@ -1198,3 +1198,16 @@ C:\Users\SAMSUNG\Desktop\Claude\                         ← 개발 폴더 (여�
 - 잰 것 (Chromium · 소프트웨어 GPU, F3 CCR Ref 30 EA, 한 번 하는 데 쓰는 메인 스레드 ms, 첫 번은 뺌): 판넬 끌기 31.0 → 13.7 · 화면 이동 24.9 → 13.9 · 휠 24.7 → 19.6 · 2D|3D 2D 끌기 29.0 → 16.8 · 2D|3D 3D 돌리기 45.6 → 31.5.
 - 확인한 것: 2D 화면 · 필요 사이즈 PDF · 인간공학 PDF · 3D PNG(색 618) 이전과 같음. 시험(rules · space · need · dual · side · v3 · opt · home · nosrv · bulk · p2d · furn · erg · ergpdf · ergset · stand · door · feat · margin · note · meas) 통과, 스크립트 오류 0.
 - 회사에서 확인할 것: 회사 PC 에서 판넬 끌기 · 3D 돌리기가 가벼워졌는지. 3D 는 그래픽 카드 몫이 커서, 그래도 무거우면 3D 를 닫고 2D 로만 고치거나 '2D | 3D 나란히' 대신 '3D 새 창' 을 쓰면 됨.
+
+### 2026-10-27 (44) — 판넬 공간확보: 시야 상하 · 가림 빨강 · Equipment List Excel · 글 간결 · 가볍게 (apps/space/index.html 만)
+> 서버 재시작 · 대시보드 교체 필요 없음. 배치안 `erg` 에 `vz1` · `vz2`(상하 최적 · 허용 ±, 기본 15 · 40) 가 늘 수 있음.
+- 시야 상하(`viewCheck0`): 정상 시선(수평 아래 `nlos` 15°) ±`vz1` 최적 · ±`vz2` 허용 → 수평 기준 +25° ~ −55°(허용) · 0° ~ −30°(최적). 화면 위 · 아래 끝 각으로 판정(`vt` · `vb` · `vz`).
+- 시선 가림(`sightBoxes` · `segHit` · `sightBlock`): 운전원 눈 → 화면 9 점 선분 × 상자(판넬 · 프린터 몸체 높이, 데스크 작업면 + 뒤쪽 모니터 줄[작업면+120 ~ 모니터 위, 아래 틈은 보임], 의자, 다른 화면, 기둥, 다른 운전원 머리). 운전원이 들어 있는 상자(자기 의자 · 머리)는 뺌. `bad` = 좌우 밖 · 위/아래 넘음 · 가림 · 화면 뒤, `why` = 이유.
+  - 표시: 2D 빨간 고리(그 운전원), 고른 데스크는 시선 · 이유 · 가린 것 빨간 점선 상자, 3D 상하 쐐기 · 화면 9 점 시선(가린 점 빨강), 데스크 표 · 인간공학 PDF(상하 · 가림 칸, 기준 표에 상하 최적 · 허용 · 시선 가림 줄).
+  - `needBottom`: 가렸을 때 화면 아래를 몇 mm 로 올리면 아래 줄이 보이나 → 표에 '→ 화면 아래 ≥ ○'. `fitScreens` = 데스크 표 [⬆ 가리지 않게 화면 높이 맞추기](화면 Type `elev`, 벽 높이 넘음 · 남은 문제 알림, Ctrl+Z).
+  - 결과 기억 `VCC`(check() 마다 비움), 끄는 중엔 고리를 놓을 때 다시 셈(`RING`).
+- Equipment List: `xlsxBlob` · `zipStore`(압축 없는 zip, CRC32) · `xlsxText`(DecompressionStream 'deflate-raw') — 외부 라이브러리 없음. Option A [📄 양식 (Excel)], ⑤ 출력 [Equipment List (Excel)] = 머리줄 `EQ_HEAD`(NO · EQUIPMENT TAG NO. · DESCRIPTION · DIMENSION (W x D x H) · QTY · TYPE · SCOPE · REMARK), Option A 파일에 .xlsx, `aParse` 가 TYPE 칸을 읽음.
+- 글: 늘 보이는 안내 · 상태줄 · 3D 도움말 · 창 설명 · 긴 토스트를 짧게(자세한 것은 title).
+- 가볍게: `cssv()`(CSS 변수 기억, 테마 바뀌면 다시), `TAGCMP`(Intl.Collator), `setHtml`(같은 글이면 안 넣음) — Equipment 표, 속성 칸은 같은 판넬이면 X · Y 값과 시야 표(`#ppView`)만.
+- 확인한 것: Chromium — F3 CCR 데스크 2: 화면 18 = 좌우 34° · 상하 +9°/−5° 허용 · 가림(2 · 3 모니터) → 화면 아래 ≥ 1,600, [맞추기] → 2,100(벽 높이 넘음 · 앞줄 위 넘음 알림) · Ctrl+Z. Excel: 양식 · 출력 → openpyxl · LibreOffice 로 열림, 압축 · 무압축 .xlsx 다시 넣기 = 같은 구성(데스크 16 · 화면 2 · 프린터 9 · 판넬 3). 시험(rules · space · need · dual · side · v3 · opt · home · nosrv · bulk · p2d · furn · erg · ergpdf · ergset · stand · door · feat · margin · note · meas · png3d · eqx) 통과, 스크립트 오류 0.
+- 회사에서 확인할 것: 상하 · 가림 기준값(ISO 11064-4 해설 자료 값)이 발주처 HF 기준과 같은지(다르면 [👁 시야 기준]). 회사 Excel 로 양식 · 출력이 열리는지, 회사 Equipment List .xlsx 가 Option A 에 바로 읽히는지.
