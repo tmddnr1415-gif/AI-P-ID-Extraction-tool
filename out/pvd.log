@@ -1,0 +1,11 @@
+PDF p11 rows 0 grid 0
+PDF p12 rows 0 grid 0
+PDF p13 rows 1 grid 1
+PDF p14 rows 0 grid 0
+PDF p15 rows 0 grid 0
+DXF p11 rows 27 grid 27
+DXF p12 rows 17 grid 17
+DXF p13 rows 26 grid 26
+DXF p14 rows 32 grid 32
+DXF p15 rows 8 grid 8
+→ out/pdf_vs_dxf

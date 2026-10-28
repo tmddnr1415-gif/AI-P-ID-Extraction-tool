@@ -1,0 +1,6 @@
+Ignoring BLOCK without name #574E.
+DXF: 32 sheets · readable 32 · order 파일명 앞 번호
+DXF: legend sheets [2, 3, 4, 5] · PID sheets 28
+DXF: ISA LEGEND · roles type=['#(TargetObject.Type)', 'PDIT'] tag=['#(=Drawing.General.PnID)', '#(TARGETOBJECT.UNITNUMBER)#(TARGETOBJECT.SYSTEMCODE)#(TARGETOBJECT.SYSTEMSEQNUMBER)#(TARGETOBJECT.ITEMCODE)#(TARGETOBJECT.FIRSTSEQNUMBER)'] · legend blocks 129 · instrument 12 · valve 15 · actuator 9 · bubble Ø 8.0
+DXF: rows 457 · unjudged 523 · 73.32s
+{"rows": 457, "fp": "46a9e1d5", "qty": 457, "sec": 73.9}

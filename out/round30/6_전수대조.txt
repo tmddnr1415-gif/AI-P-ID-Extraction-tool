@@ -1,0 +1,27 @@
+== AL NOUF1 ==  행 1037→1037 · 지문 fb85b039→fb85b039 · 키추가 0 삭제 0
+   움직인 칸(열별): 없음
+   지문 대상 열만: 없음
+   layout 항목 추가: {'formats.revision'} 삭제: set()
+   face_marks: 0 개 / 0 장
+   미판정: 169 → 169
+   SCOPE 분포 후: {'VENDOR(HRSG)': 49, 'SCT': 715, 'VENDOR(ST SUPPLIER)': 46, 'VENDOR(PUMP VENDOR)': 45, 'VENDOR(CONDENSER SUPPLIER)': 13, 'VENDOR(CEP SUPPLIER)': 6, 'VENDOR(BFP SUPPLIER)': 2, 'VENDOR': 77, 'VENDOR(GT SUPPLIER)': 9, 'VENDOR(SEAWATER INTAKE FACILITY SUPPLIER)': 35, 'VENDOR(FUEL OIL PUMP SUPPLIER)': 8, 'VENDOR(PUMP SUPPLIER)': 5, 'VENDOR(WATER TREATMENT SUPPLIER)': 8, 'VENDOR(BYPASS VALVE)': 18, 'VENDOR(AUX BOILER SUPPLIER)': 1}
+== SADARA ==  행 82→82 · 지문 0767ba79→0767ba79 · 키추가 0 삭제 0
+   움직인 칸(열별): 없음
+   지문 대상 열만: 없음
+   layout 항목 추가: {'formats.revision'} 삭제: set()
+   face_marks: 0 개 / 0 장
+   미판정: 44 → 44
+   SCOPE 분포 후: {'SCT': 75, 'VENDOR(ST OEM)': 3, 'VENDOR(ST SUPPLIER)': 4}
+== TC2 ==  행 607→607 · 지문 c0a2d29d→c0a2d29d · 키추가 0 삭제 0
+   움직인 칸(열별): 없음
+   지문 대상 열만: 없음
+   face_marks: 0 개 / 0 장
+   미판정: 117 → 117
+   SCOPE 분포 후: {'VENDOR(SE)': 31, 'SCT': 434, 'VENDOR': 135, 'VENDOR(SIEMENS)': 2, 'VENDOR(CEP SUPPLIER)': 5}
+== UAD ==  행 149→149 · 지문 31231bd7→db1a77d1 · 키추가 0 삭제 0
+   움직인 칸(열별): {'vendor_supply': 15, 'scope': 18, 'needs_review': 6, 'description': 18, 'remark': 14, 'description_grade': 14}
+   지문 대상 열만: {'vendor_supply': 15, 'scope': 18, 'needs_review': 6}
+   layout 항목 추가: {'formats.revision'} 삭제: set()
+   face_marks: 34 개 / 9 장
+   미판정: 62 → 62
+   SCOPE 분포 후: {'SCT': 92, 'VENDOR(TANK ACCESSORIES SUPPLIER)': 2, 'VENDOR': 30, 'VENDOR(PUMP SUPPLIER)': 25}

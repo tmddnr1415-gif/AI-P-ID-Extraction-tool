@@ -1,0 +1,93 @@
+{
+ "A": [
+  "ANALYSIS"
+ ],
+ "B": [
+  "BURNER",
+  "FLAME"
+ ],
+ "C": [
+  "CONDUCTIVITY"
+ ],
+ "D": [
+  "DENSITY",
+  "OR",
+  "SPECIFIC",
+  "GRAVITY"
+ ],
+ "E": [
+  "VOLTAGE"
+ ],
+ "F": [
+  "FLOW"
+ ],
+ "G": [
+  "GAUGING"
+ ],
+ "H": [
+  "HAND"
+ ],
+ "I": [
+  "CURRENT"
+ ],
+ "J": [
+  "POWER"
+ ],
+ "K": [
+  "TIME"
+ ],
+ "L": [
+  "LEVEL"
+ ],
+ "M": [
+  "MOISTURE",
+  "OR",
+  "HUMIDITY"
+ ],
+ "O": [
+  "USER'S",
+  "CHOICE"
+ ],
+ "P": [
+  "PRESSURE",
+  "OR",
+  "VACUUM"
+ ],
+ "PD": [
+  "PRESSURE",
+  "DIFFERENTIAL"
+ ],
+ "Q": [
+  "QUANTITY"
+ ],
+ "S": [
+  "SPEED",
+  "OR",
+  "FREQUENCY"
+ ],
+ "T": [
+  "TEMPERATURE"
+ ],
+ "U": [
+  "MULTIVARIABLE"
+ ],
+ "V": [
+  "VIBRATION"
+ ],
+ "W": [
+  "WEIGHT",
+  "OR",
+  "FORCE"
+ ],
+ "X": [
+  "UNCLASSIFIED"
+ ],
+ "Y": [
+  "EVENT",
+  "OR",
+  "STATE"
+ ],
+ "Z": [
+  "POSITION"
+ ]
+}

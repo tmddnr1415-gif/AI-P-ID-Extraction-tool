@@ -1,0 +1,12 @@
+
+=== 006. 1A5J-00EKG00-M05-0001_P&ID FOR FUEL  열기 0.5초
+  INSERT 169 · 속성 있는 것 12 · TEXT/MTEXT 198 · CIRCLE/ARC 46
+  블록 최다: [('Ball Valve (Open)', 58), ('Ball Valve (Close)', 28), ('PIP BLIND FLANGE', 21), ('Flow Arrow', 5), ('PIP FLANGED NOZZLE', 5), ('HOSE CONNECTION', 5)]
+  속성 블록: [('vent 1', 4), ('*U28', 3), ('*U23', 2), ('*U26', 1), ('*U27', 1), ('LargeBySmallReducerStyle_block', 1)]
+  속성 예: [('#(TARGETOBJECT.RIGHTSCOPE)', 'SCT'), ('#(TARGETOBJECT.LEFTSCOPE)', 'SUPPLIER ')]
+
+=== 016. 1A5J-00PGB10-M05-0001_P&ID FOR CLOS  열기 1.5초
+  INSERT 401 · 속성 있는 것 122 · TEXT/MTEXT 1523 · CIRCLE/ARC 1
+  블록 최다: [('LBRK', 40), ('LOCAL_MOUNTED', 40), ('GLOBEVALVE(OPEN)', 36), ('GLOBEVALVE(CLOSE)', 30), ('ARROWMIDDLE', 25), ('DRAIN (FUNNEL)', 22)]
+  속성 블록: [('GLOBEVALVE(OPEN)', 36), ('GLOBEVALVE(CLOSE)', 30), ('DRAIN (FUNNEL)', 22), ('CONCENTRIC REDUCER', 11), ('CHECK_2', 7), ('PIP MOTOR OPERATED', 5)]
+  속성 예: [('DIFFY', '3.25'), ('DIFFX', '0'), ('DESC', ''), ('ROWS', '6')]

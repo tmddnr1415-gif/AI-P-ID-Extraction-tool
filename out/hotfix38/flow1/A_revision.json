@@ -1,0 +1,12 @@
+{
+ "project": "QFE",
+ "revision": "Rev.A",
+ "compared_with": "",
+ "label": "Rev.A (비교 대상 없음)",
+ "counts": {
+  "BASELINE": 2011,
+  "DELETED_CANDIDATE": 0,
+  "DELETED": 0
+ },
+ "deleted_candidates": []
+}

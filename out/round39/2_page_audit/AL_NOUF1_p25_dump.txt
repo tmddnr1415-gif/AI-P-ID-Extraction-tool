@@ -1,0 +1,22 @@
+page 25 kind=PID dwg=D00P-11EKG10-M05-0001 rev=None size=Rect(0.0, 0.0, 2384.0, 1684.0) rot=0 rows=19
+  FIELD     PIT    q=4 scope=VENDOR                       tag= rect=[1188, 650, 1210, 718] desc='UNIT #11 FUEL GAS HEATER B OUTLET PRESSU' rev='a vendor mark is drawn on this'
+  FIELD     TIT    q=4 scope=SCT                          tag= rect=[1221, 650, 1244, 718] desc='FUEL GAS HEATER B TEMPERATURE TRANSMITTE' rev=''
+  FIELD     PIT    q=4 scope=SCT                          tag= rect=[1592, 650, 1614, 718] desc='UNIT #11 GT#11 FUEL GAS LAST CHANCE FILT' rev=''
+  FIELD     PIT    q=4 scope=VENDOR(GT SUPPLIER)          tag= rect=[1676, 650, 1698, 718] desc='' rev=''
+  FIELD     PIT    q=4 scope=VENDOR(GT SUPPLIER)          tag= rect=[1719, 650, 1741, 718] desc='' rev=''
+  FIELD     TIT    q=4 scope=SCT                          tag= rect=[1788, 650, 1810, 718] desc='GAS TURBINE#11 TEMPERATURE TRANSMITTER' rev=''
+  FIELD     PIT    q=4 scope=VENDOR(GT SUPPLIER)          tag= rect=[500, 696, 568, 718] desc='' rev=''
+  FIELD     TIT    q=4 scope=VENDOR(GT SUPPLIER)          tag= rect=[571, 696, 639, 718] desc='' rev=''
+  PNEUMATIC CHECK  q=4 scope=VENDOR(GT SUPPLIER)          tag= rect=[654, 791, 674, 801] desc='GT FUEL GAS FLOW METER CHECK VALVE' rev='a PNEUMATIC actuator was read '
+  MOV       BALL   q=4 scope=SCT                          tag= rect=[772, 793, 789, 800] desc='GT FUEL GAS TEMPERATURE CONTROL VALVE BA' rev=''
+  PNEUMATIC BALL   q=4 scope=VENDOR(GT SUPPLIER)          tag= rect=[855, 793, 872, 800] desc='FUEL GAS HEATER A BALL VALVE A' rev=''
+  MOV       BALL   q=4 scope=SCT                          tag= rect=[1294, 793, 1311, 800] desc='FUEL GAS HEATER A BALL VALVE B' rev=''
+  PNEUMATIC BALL   q=4 scope=VENDOR(GT SUPPLIER)          tag= rect=[1650, 793, 1667, 800] desc='FROM HRSG#11 IP ECONOMIZER BALL VALVE A' rev='Description 근거 부족 — 공란으로 남겼습니다'
+  PNEUMATIC BALL   q=4 scope=VENDOR(GT SUPPLIER)          tag= rect=[1701, 793, 1718, 800] desc='FROM HRSG#11 IP ECONOMIZER BALL VALVE B' rev='Description 근거 부족 — 공란으로 남겼습니다'
+  PNEUMATIC BALL   q=4 scope=VENDOR(GT SUPPLIER)          tag= rect=[1754, 793, 1771, 800] desc='FROM HRSG#11 IP ECONOMIZER BALL VALVE C' rev='Description 근거 부족 — 공란으로 남겼습니다'
+  MOV       BALL   q=4 scope=SCT                          tag= rect=[764, 853, 771, 870] desc='GT FUEL GAS TEMPERATURE CONTROL VALVE BA' rev=''
+  MOV       BALL   q=4 scope=SCT                          tag= rect=[1359, 853, 1366, 870] desc='GT FUEL GAS TCV BALL VALVE' rev=''
+  FIELD     PIT    q=4 scope=VENDOR                       tag= rect=[1169, 1015, 1191, 1083] desc='UNIT #11 GT FUEL GAS PERFORMANCE HEATER ' rev='a vendor mark is drawn on this'
+  FIELD     TIT    q=4 scope=SCT                          tag= rect=[1206, 1015, 1229, 1083] desc='GT FUEL GAS TCV TEMPERATURE TRANSMITTER' rev=''
+㉡ 후보(행에 안 덮인 ISA 꼴 낱말): [(73, 770, 'FROM'), (101, 770, 'FUEL'), (125, 770, 'GAS'), (145, 770, 'SUPPLY'), (181, 770, 'HEADER'), (341, 627, 'CONNECTION'), (428, 841, 'GT'), (438, 841, 'FUEL'), (447, 797, 'FLOW'), (448, 782, 'GT'), (456, 841, 'GAS'), (458, 782, 'FUEL'), (468, 797, 'METER'), (471, 841, 'FLOW'), (476, 782, 'GAS'), (491, 841, 'METER'), (617, 822, 'TEMPERATURE'), (619, 808, 'GT'), (624, 837, 'CONTROL'), (629, 851, 'VALVE'), (638, 926, 'FILTER'), (638, 957, 'CHANGE'), (638, 996, 'LAST'), (638, 1020, 'TO'), (653, 976, 'DRAWING'), (653, 1019, 'THIS'), (885, 627, 'CONNECTION'), (930, 1131, 'FAN'), (941, 1117, 'TCA'), (950, 1131, 'FOR'), (952, 900, 'GT'), (958, 781, 'FUEL'), (958, 796, 'HEATER'), (961, 1117, 'COOLER'), (963, 900, 'FUEL'), (972, 1131, 'SIMPLE'), (976, 781, 'GAS'), (981, 900, 'GAS'), (996, 900, 'PERFORMANCE'), (1022, 781, 'FUEL'), (1022, 796, 'HEATER'), (1040, 781, 'GAS'), (1047, 900, 'HEATER'), (1093, 438, 'NOTE'), (1108, 650, 'FC'), (1111, 702, 'LO'), (1140, 492, 'PSV'), (1264, 438, 'NOTE'), (1295, 1030, 'PSV'), (1333, 999, 'NOTE'), (1339, 628, 'CONNECTION'), (1379, 1070, 'THIS'), (1379, 1094, 'DRAWING'), (1393, 1070, 'FROM'), (1393, 1097, 'GT'), (1393, 1111, 'FUEL'), (1393, 1135, 'GAS'), (1393, 1155, 'TCV'), (1439, 943, 'GT'), (1449, 943, 'FUEL')] …
+unjudged on page: [('INSTRUMENT_TAG', [], None), ('VALVE_BODY', [951, 782, 964, 811], None), ('VALVE_BODY', [1014, 782, 1027, 811], None)]

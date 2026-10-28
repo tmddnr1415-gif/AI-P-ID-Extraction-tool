@@ -1,0 +1,22 @@
+{
+ "sheets": 63,
+ "srv_get_drawing_ms": 2.8,
+ "srv_set_ms": 322,
+ "open_ms": 539,
+ "switch_sheet_ms": 82.3,
+ "big_sheet": [
+  "0002",
+  86,
+  3343
+ ],
+ "render_ms": 80.2,
+ "svg_nodes": 11774,
+ "drag30_ms": 795,
+ "drag_longtasks": 3,
+ "edit_ms": 91,
+ "save_ms": 394,
+ "sim_on_ms": 2183,
+ "sim_force_ms": 95.5,
+ "sim_edit_ms": 721.6,
+ "errors": []
+}
