@@ -21,6 +21,7 @@
 > **★ 작업 브랜치 이관 (사용자 지시 2026-10-26)** — '2. PID 코드' 작업은 `claude/titleblock-parsing-c5st4x` 의 내용을 전부 이어받은
 > **`claude/pid-extractor-panel-update-zrl4qi`** 에서 이어 간다 (hotfix122 부터).  titleblock-parsing 의 커밋은 전부 이 브랜치에 들어 있다.
 > hotfix123 은 그 브랜치를 그대로 이어받은 **`claude/pid-extractor-panel-update-nbcrfn`** 에 있다 (zrl4qi 커밋 전부 포함).
+> hotfix124 — LOGIC 브랜치 L68 · L69 를 병합 (충돌 0) · 꾸러미만.
 
 > **★ 업데이트 zip 은 어디서 만드나 (사용자 지시 2026-10-22)**
 > **P&ID · LOGIC · 판넬 공간확보 · 계장도서검토** 의 zip 은 **이 저장소(이 브랜치)** 에서 만든다 (도서 검토는 hotfix115 부터 `/books`).
