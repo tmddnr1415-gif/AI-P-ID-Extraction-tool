@@ -304,6 +304,17 @@ def read(page, pno: int) -> Prims:
                 if fb[2] - fb[0] > 0.8 * out.width and fb[3] - fb[1] > 0.8 * out.height:
                     out.frame = fb
                     continue
+            if not pts and len(kinds) >= 4 and all(k == "c" for k in kinds):
+                # L71 — 곡선만으로 칠한 원(테두리 없음)도 연결점이다.  예전엔 꼭짓점('l')만 세어 통째로 버렸다 —
+                # 변 위 연결점을 못 보니 배선이 만든 네모가 블록으로 섰다 (L69 와 같은 꼴 · 퍼징 1000).
+                cp = [_pt(it[1], m) for it in items] + [_pt(it[4], m) for it in items]
+                bb = _bbox(cp)
+                w, h = bb[2] - bb[0], bb[3] - bb[1]
+                if w > 0 and 0.8 < h / w < 1.25:
+                    c = Circle((bb[0] + bb[2]) / 2, (bb[1] + bb[3]) / 2, (w + h) / 4, bb)
+                    c.poly_dot = True                 # graph 가 글자 크기 안이면 점으로 읽는다
+                    out.circles.append(c)
+                continue
             if pts and len(pts) != 3:
                 out.blobs.append(_bbox(pts))
             # L53 — 삼각형을 한 path 에 두 번 그린 화살촉(선 6개 · 꼭짓점 3)도 화살촉이다 (HRSG G053 AND 입력 막대의
@@ -311,14 +322,17 @@ def read(page, pno: int) -> Prims:
             if kinds and all(k == "l" for k in kinds) and len(pts) == 3:
                 out.arrows.append(_arrow(pts))
                 tris.append(pts)
-            elif len(pts) >= 12:
+            elif len(pts) >= 5:
+                # L71 — 칠한 다각형 하나로 그린 연결점(팔각형 등 꼭짓점 5~11)도 원이다 (예전엔 12 이상만)
                 bb = _bbox(pts)
                 w, h = bb[2] - bb[0], bb[3] - bb[1]
                 if w > 0 and 0.8 < h / w < 1.25:
                     cx, cy = (bb[0] + bb[2]) / 2, (bb[1] + bb[3]) / 2
                     ds = [math.hypot(x - cx, y - cy) for x, y in pts]
                     if min(ds) > 0.6 * max(ds):        # 고리 — 안쪽 꼭짓점도 중심에서 멀다
-                        out.circles.append(Circle(cx, cy, (w + h) / 4, bb))
+                        c = Circle(cx, cy, (w + h) / 4, bb)
+                        c.poly_dot = len(pts) < 12         # L71 — 칠한 다각형 연결점 (graph 가 점으로 읽는다)
+                        out.circles.append(c)
             elif len(pts) == 4:
                 bb = _bbox(pts)
                 w, h = bb[2] - bb[0], bb[3] - bb[1]
@@ -738,7 +752,24 @@ def layout(prims: Prims):
             vs.append((r.x0, r.y0, r.y1))
     if len(vs) < 5:
         return _cell_layout(prims) or _coverage_layout(prims)
-    vs.sort()
+    got = _layout_cols(prims, vs)
+    if got is None:
+        # L71 — LOGIC 영역 안의 긴 신호선(장 높이의 0.6 넘게)이 표 괘선으로 섞여 가장 넓은 틈이 잘못 갈렸다 (퍼징 5923).
+        # 표 괘선은 표 위에서 아래까지 간다 — 대부분의 긴 세로선이 덮는 높이를 못 덮는 선을 빼고 한 번 더 (실패했을 때만)
+        tops = sorted(a for _, a, _ in vs)
+        bots = sorted(b for _, _, b in vs)
+        mt, mb = tops[len(tops) // 2], bots[len(bots) // 2]
+        slack = 0.01 * H
+        full = [v for v in vs if v[1] <= mt + slack and v[2] >= mb - slack]
+        if 5 <= len(full) < len(vs):
+            got = _layout_cols(prims, full)
+    if got == "split":
+        return _cell_layout(prims) or _coverage_layout(prims)
+    return got
+
+
+def _layout_cols(prims, vs):
+    vs = sorted(vs)
     xs = []
     for x, a, b in vs:
         if xs and abs(x - xs[-1][0]) < 0.5:
@@ -747,7 +778,7 @@ def layout(prims: Prims):
     if len(xs) < 2:
         # 긴 세로선이 다섯 이상인데 x 가 하나뿐 — 표 괘선이 아니라 한 자리에 겹쳐 그린 선이다 (1A1Y · L23).
         # 예전엔 여기서 `max()` 가 빈 목록으로 죽어 분석 전체가 멈췄다 → 다른 양식의 표 읽기로 넘긴다.
-        return _cell_layout(prims) or _coverage_layout(prims)
+        return "split"
     gaps = [(xs[i + 1][0] - xs[i][0], i) for i in range(len(xs) - 1)]
     w, i = max(gaps)
     left_cols = [x for x, _, _ in xs[: i + 1]]

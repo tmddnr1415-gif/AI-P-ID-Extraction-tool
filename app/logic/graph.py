@@ -211,9 +211,12 @@ def build(prims: geom.Prims, lay=None) -> Sheet | None:
     if ring_pids:
         wires = [p for p in wires if p.pid not in ring_pids or not getattr(p, "curved", False)]
         glyphs = [p for p in glyphs if p.pid not in ring_pids or not getattr(p, "curved", False)]
-    dots = [c for c in circles if 2 * c.r < DOT_MAX * P]
+    wires, glyphs = _normalise_hops(wires, glyphs, P, tol)
+    # L71 — 칠한 다각형 하나로 그린 연결점은 글자 크기까지 점이다 (속이 찬 원판은 블록 기호가 아니다)
+    polydot = lambda c: getattr(c, "poly_dot", False) and 2 * c.r < GLYPH_MAX * P
+    dots = [c for c in circles if 2 * c.r < DOT_MAX * P or polydot(c)]
     dots += _blob_dots([b for b in prims.blobs if inside(b)], P)
-    bigc = [c for c in circles if 2 * c.r >= DOT_MAX * P]
+    bigc = [c for c in circles if 2 * c.r >= DOT_MAX * P and not polydot(c)]
     arrows = [a for a in prims.arrows if inside(a.bbox)]
 
     # ---- 상자: 겹친 사각형(이중 테두리)은 하나로, 변을 나눈 사각형(S/Ro · PB|START)은 한 블록의 칸으로
@@ -453,7 +456,6 @@ def build(prims: geom.Prims, lay=None) -> Sheet | None:
         return (any(_block_edge(q, b, tol) for b in bix.near(q)) or
                 any(_in_rect(q, a.bbox, tol) for a in aix.near(q)) or
                 any(_on_seg(q, w, tol)[0] for w in wix.near(q)))
-    hops = _hop_arcs(glyphs, wix, P, tol)
     for p in list(glyphs):
         if len(p.segs) != 1 or not (p.segs[0].vert or p.segs[0].horiz):
             continue
@@ -461,13 +463,6 @@ def build(prims: geom.Prims, lay=None) -> Sheet | None:
         if any(p.bbox[0] >= bl.bbox[0] - tol and p.bbox[2] <= bl.bbox[2] + tol and
                p.bbox[1] >= bl.bbox[1] - tol and p.bbox[3] <= bl.bbox[3] + tol for bl in blocks):
             continue                    # 블록 안의 글자 획
-        # L70 — 홉(건너뛰기 반원) 바로 뒤의 짧은 토막: 홉 쪽 끝은 호에만 닿아 글자 획으로 버려졌다 (19VA 0015 MTS —
-        # 홉 뒤 3pt 에 연결점 · NOT 상자 변).  호가 이 토막과 한 직선으로 바깥쪽에 이어지면 그 끝도 닿은 끝이다.
-        at_hop = [any(_hop_end(q, p.segs[0], h, tol) for h in hops) for q in (a, b)]
-        if any(at_hop) and (at_hop[0] or anchored(a)) and (at_hop[1] or anchored(b)):
-            glyphs.remove(p)
-            wires.append(p)
-            continue
         if anchored(a) and anchored(b):
             # L53 — 두 끝을 **같은 선분 하나**가 받치면 그 선 옆에 나란히 놓인 글자 획이다 (HRSG G008 `ST/BY-A` 의
             # A 가로획이 선 끝 0.6pt 옆에 놓여 선이 되고, 그 선의 끝을 '닿은 끝' 으로 만들어 단추 출력 단자가 안 섰다).
@@ -480,6 +475,7 @@ def build(prims: geom.Prims, lay=None) -> Sheet | None:
                 continue
             glyphs.remove(p)
             wires.append(p)
+    _promote_gap_stubs(glyphs, wires, blocks, P, tol)
 
     # ---- 입력 막대: 화살촉 꼭지가 몸통에 닿는 곧은 선 중 블록에 붙은 것
     tip_arrows = [a for k, a in enumerate(arrows) if k not in pointer_arrows]
@@ -514,7 +510,15 @@ def build(prims: geom.Prims, lay=None) -> Sheet | None:
     wires = [p for p in wires if id(p) not in bus_of]
 
     # ---- 파선: 글자 크기 조각 중 한 줄로 늘어선 것 (끝이 선이나 단자에 닿는 줄만)
-    short = [p for p in wires if p.size < P]
+    # L71 — 홉(고친 반원)과 그 홉에 끝이 맞닿은 짧은 토막은 파선이 아니다 — 끊김 없이 이어진 실선 조각이다
+    # (홉 → 3pt → 홉 → 3pt → 틈 이 같은 길이로 늘어서 파선으로 읽혀 마지막 끝이 매달렸다 · 퍼징 10192)
+    hop_ends = [q for p in wires if getattr(p, "hop", False) for q in (p.segs[0].ends()[0], p.segs[-1].ends()[1])]
+    hx = _seg_index([geom.Seg(q[0], q[1], q[0], q[1]) for q in hop_ends], tol)
+
+    def on_hop(p):
+        return getattr(p, "hop", False) or any(min(_d(e, h.ends()[0]) for h in hx.near(e)) <= tol
+                                               for e in (p.segs[0].ends()[0], p.segs[-1].ends()[1]) if hx.near(e))
+    short = [p for p in wires if p.size < P and not on_hop(p)]
     dashed, rest = _dash_chains(glyphs + short, [p for p in wires if p.size >= P], blocks, arrows, dots, P, tol,
                                 bounds=(LX0, LX1))
     taken = {id(p) for p in glyphs + short} - {id(p) for p in rest}
@@ -634,7 +638,7 @@ def build(prims: geom.Prims, lay=None) -> Sheet | None:
         si = segs[i][0]
         if not (si.vert or si.horiz):
             return False
-        o = si.ends()[1] if _d(e, si.ends()[0]) <= tol else si.ends()[0]
+        o = max(si.ends(), key=lambda q: _d(e, q))       # 먼 쪽 끝 (토막이 tol 보다 짧아도)
         out = (e[0] - o[0], e[1] - o[1])
         for k in near(e):
             if k in (i, j):
@@ -645,6 +649,18 @@ def build(prims: geom.Prims, lay=None) -> Sheet | None:
             qa, qb = sk.ends()
             for q, r in ((qa, qb), (qb, qa)):
                 if _d(q, e) <= tol and (r[0] - e[0]) * out[0] + (r[1] - e[1]) * out[1] > 0:
+                    return True
+                # L71 — 작은 홉 · 좁은 틈: 끝이 몸통에 닿는 거리(tol) 안에서 끊겼고 건너편에 같은 직선이 몸통에서
+                # 같은 만큼 떨어져 이어지면 지나가는 교차다 (홉 반지름 ≤ tol 이면 두 끝이 다 '닿은 끝' 이 되어 T 로 이었다)
+                if not ((si.vert and sj.horiz) or (si.horiz and sj.vert)):
+                    continue
+                if si.vert:
+                    ok = abs(q[0] - e[0]) <= tol and (q[1] - sj.y0) * (e[1] - sj.y0) < 0
+                    side = abs(q[1] - sj.y0)
+                else:
+                    ok = abs(q[1] - e[1]) <= tol and (q[0] - sj.x0) * (e[0] - sj.x0) < 0
+                    side = abs(q[0] - sj.x0)
+                if ok and side <= tol and (r[0] - e[0]) * out[0] + (r[1] - e[1]) * out[1] > 0:
                     return True
         return False
 
@@ -701,7 +717,7 @@ def build(prims: geom.Prims, lay=None) -> Sheet | None:
         for e in s.ends():
             if not joinable(e, p):
                 continue
-            if any(j != i and _on_seg(e, segs[j][0], tol)[0] for j in near(e)):
+            if any(j != i and _on_seg(e, segs[j][0], tol)[0] and not passes_through(i, e, j) for j in near(e)):
                 continue
             if any(_d(e, (c.cx, c.cy)) <= c.r + tol for c in dots):
                 continue
@@ -713,6 +729,46 @@ def build(prims: geom.Prims, lay=None) -> Sheet | None:
             # 바깥쪽 방향 (선분 안쪽 → 끝)
             o = s.ends()[1] if e == s.ends()[0] else s.ends()[0]
             loose.append((e, i, ax_, (e[0] - o[0], e[1] - o[1])))
+    _clen = {}
+
+    def comp_len(j):
+        # 그 선이 속한 (이미 이은) 선 전체 길이 — 두 선 사이 짧은 꺾임 토막도 긴 선의 일부다 (퍼징 11680)
+        if not _clen:
+            for k, (t, _) in enumerate(segs):
+                r = find(k)
+                _clen[r] = _clen.get(r, 0.0) + t.length
+        return _clen.get(find(j), segs[j][0].length)
+
+    _slen = {}
+
+    def straight_len(j):
+        # L71 — 지나가는 선의 길이는 한 직선으로 맞닿아 이어진 토막 전부 (홉 · 꺾임점에서 끊겨 그 조각이 틈보다 짧아도)
+        if j in _slen:
+            return _slen[j]
+        t0 = segs[j][0]
+        vert = t0.vert
+        key = (lambda q: q[0]) if vert else (lambda q: q[1])
+        c = key(t0.ends()[0])
+        seen, stack = {j}, [j]
+        lo = hi = None
+        while stack:
+            k = stack.pop()
+            for q in segs[k][0].ends():
+                a_ = q[1] if vert else q[0]
+                lo = a_ if lo is None else min(lo, a_)
+                hi = a_ if hi is None else max(hi, a_)
+                for m in near(q):
+                    if m in seen:
+                        continue
+                    t = segs[m][0]
+                    if (t.vert if vert else t.horiz) and abs(key(t.ends()[0]) - c) <= tol and \
+                            min(_d(q, e) for e in t.ends()) <= tol:
+                        seen.add(m)
+                        stack.append(m)
+        for k in seen:
+            _slen[k] = hi - lo
+        return hi - lo
+
     def facing(a, b):
         ea, ia, axa, va = loose[a]
         eb, ib, axb, vb = loose[b]
@@ -738,22 +794,28 @@ def build(prims: geom.Prims, lay=None) -> Sheet | None:
             t, tp = segs[j]
             if not (axa == "v" and t.horiz or axa == "h" and t.vert):
                 continue
-            if wide and ((t.length < g and not tp.dashed) or not _on_seg(mid, t, g / 4)[0]):
+            if wide and ((straight_len(j) < g and comp_len(j) < g and not tp.dashed) or not _on_seg(mid, t, g / 4)[0]):
                 continue
             if _on_seg(mid, t, g / 2)[0]:
                 return g
         return None
-    # 좁은 틈 (행 간격 안) — 예전 규칙 그대로
+    # 좁은 틈 (행 간격 안) — 가까운 짝부터 · 끝마다 하나 (L71: 교차 둘을 연달아 끊어 그린 자리에서 바깥 두 끝이
+    # 가운데 토막을 건너뛰어 서로 이으면 그 토막의 두 끝이 매달린다)
+    near_c = []
     for a in range(len(loose)):
-        ea, ia, _, _ = loose[a]
         for b in range(a + 1, len(loose)):
-            eb, ib, _, _ = loose[b]
-            if find(ia) == find(ib):
-                continue
             g = facing(a, b)
             if g is not None and g <= P:
-                union(ia, ib)
-                bridged.append((ea, eb))
+                near_c.append((g, a, b))
+    taken = set()
+    for g, a, b in sorted(near_c):
+        ea, ia, _, _ = loose[a]
+        eb, ib, _, _ = loose[b]
+        if ea in taken or eb in taken or find(ia) == find(ib):
+            continue
+        taken.update((ea, eb))
+        union(ia, ib)
+        bridged.append((ea, eb))
     # 넓은 틈 — 끝마다 가장 가까운 짝 하나만 (먼 짝을 이으면 홉 여럿을 건너뛴 다리가 생긴다 · 1A5J 0008)
     used = {q for br in bridged for q in br}
     cand = []
@@ -1164,6 +1226,7 @@ def _assemble_rects(polys, rects, P, tol, dots=()):
             elif sg.vert:
                 V.append((min(sg.y0, sg.y1), max(sg.y0, sg.y1), sg.x0, p, sg.x0))
     H.sort(key=lambda h: h[2])
+    axs = _seg_index([sg for p in polys for sg in p.segs if (sg.horiz or sg.vert) and sg.length > 0], tol)
     out, used = [], set()
     have = [(r.x0, r.y0, r.x1, r.y1) for r in rects]
     edge = set()                            # 이미 어느 상자의 변이 된 가로선 (다른 상자의 변으로 다시 쓰지 않는다)
@@ -1211,6 +1274,16 @@ def _assemble_rects(polys, rects, P, tol, dots=()):
         # 상자의 변은 연결점을 갖지 않는다 (범례 G003 · 연결점 = 선이 갈라지는 자리).
         if any(_dot_on_edge(c, bb, tol) for c in dots):
             continue
+        # L71 — 모서리에서 두 선이 다 상자 바깥으로 이어지면 모서리가 아니라 교차다.  홉 · 끊어 그린 틈으로 끊긴 네 선의
+        # 가운데 토막이 맞물려 상자처럼 보인다 (합성 퍼징: 가짜 AND · UNKNOWN 블록이 서고 안을 지나는 선이 끊겼다).
+        corners = [_corner_out(axs, cx, cy, hx, vy, P, max(tol, g)) for cx, cy, hx, vy in
+                   ((bb[0], bb[1], -1, -1), (bb[2], bb[1], 1, -1), (bb[0], bb[3], -1, 1), (bb[2], bb[3], 1, 1))]
+        if sum(h and v for h, v in corners) >= 2:
+            continue
+        # 모서리 셋 이상에서 선이 바깥으로 이어지면 (T · 꺾여 나가는 선 · 교차) 네 선이 우연히 둘러싼 배선이다.
+        # 상자 변은 모서리에서 끝난다 — 입력 막대를 변으로 겸한 게이트도 막대 쪽 두 모서리뿐이다.
+        if sum(h or v for h, v in corners) >= 3:
+            continue
         area = (bb[2] - bb[0]) * (bb[3] - bb[1])
         if any(_overlap_frac(bb, q) > 0.5 and (q[2] - q[0]) * (q[3] - q[1]) < 3 * area for q in have):
             continue
@@ -1231,6 +1304,34 @@ def _assemble_rects(polys, rects, P, tol, dots=()):
             if v[1] - v[0] <= h + 2 * g and (len(v[3].segs) == 1 or v[3].size <= max(h, x1 - x0) + 2 * g):
                 used.add(id(v[3]))
     return out, used
+
+
+def _crossing_corner(axs, cx, cy, hx, vy, P, tol):
+    """모서리 (cx, cy) 에서 가로선이 hx 쪽(바깥)으로, 세로선이 vy 쪽(바깥)으로 같은 직선을 따라 이어지나 (틈 · 홉 건너 포함)."""
+    h, v = _corner_out(axs, cx, cy, hx, vy, P, tol)
+    return h and v
+
+
+def _corner_out(axs, cx, cy, hx, vy, P, tol):
+    """(가로선이 바깥으로 이어지나, 세로선이 바깥으로 이어지나) — 틈 · 홉 건너 포함."""
+    lim = BREAK_GAP_MAX * P
+    pt = (cx, cy)
+    h = v = False
+    step = max(tol, 0.5)
+    n = int(lim / step) + 1
+    cand = {id(s): s for k in range(n + 1) for q in ((cx + hx * k * step, cy), (cx, cy + vy * k * step)) for s in axs.near(q)}
+    for s in cand.values():
+        if s.horiz and abs(s.y0 - cy) <= tol:
+            far = max(s.x0, s.x1) if hx > 0 else min(s.x0, s.x1)
+            near_ = min(s.x0, s.x1) if hx > 0 else max(s.x0, s.x1)
+            if (far - cx) * hx > tol and (near_ - cx) * hx <= lim:
+                h = True
+        elif s.vert and abs(s.x0 - cx) <= tol:
+            far = max(s.y0, s.y1) if vy > 0 else min(s.y0, s.y1)
+            near_ = min(s.y0, s.y1) if vy > 0 else max(s.y0, s.y1)
+            if (far - cy) * vy > tol and (near_ - cy) * vy <= lim:
+                v = True
+    return h, v
 
 
 def _dot_on_edge(c, bb, tol):
@@ -1278,39 +1379,261 @@ def _blob_dots(blobs, P):
     return out
 
 
-def _hop_arcs(glyphs, wix, P, tol):
-    """홉(건너뛰기 반원) — 곡선만으로 그린 열린 호의 두 끝이 한 직선(가로 · 세로) 위에 있고, 그 현의 가운데를
-    직각인 선이 지나간다.  (끝 a, 끝 b, 축 'v'|'h') 목록."""
-    out = []
+def _hop_shape(a, b, pts, P, tol):
+    """두 끝 a · b 와 그 사이 점들이 홉(한쪽으로 부푼 반원) 꼴이면 축 'v' | 'h', 아니면 None."""
+    dx, dy = abs(a[0] - b[0]), abs(a[1] - b[1])
+    L = max(dx, dy)
+    if not (0.5 * tol <= L <= P):
+        return None
+    ax = "v" if dx <= tol and dy > dx else "h" if dy <= tol and dx > dy else None
+    if ax is None:
+        return None
+    base = (a[0] + b[0]) / 2 if ax == "v" else (a[1] + b[1]) / 2
+    offs = [(q[0] - base) if ax == "v" else (q[1] - base) for q in pts]
+    far = max(offs, key=abs)
+    if abs(far) < 0.25 * L or abs(far) > 1.5 * L + tol:
+        return None
+    if any(o * far < 0 and abs(o) > tol for o in offs):
+        return None
+    return ax
+
+
+def _hop_cross(a, b, ax, wx, tol):
+    """현 a-b 안쪽을 직각으로 지나는 선의 자리 (가운데에 가장 가까운 것) · 없으면 None."""
+    base = (a[0] + b[0]) / 2 if ax == "v" else (a[1] + b[1]) / 2
+    lo, hi = (min(a[1], b[1]), max(a[1], b[1])) if ax == "v" else (min(a[0], b[0]), max(a[0], b[0]))
+    mid = ((a[0] + b[0]) / 2, (a[1] + b[1]) / 2)
+    cross = None
+    for w in wx.near(mid):
+        if ax == "v" and w.horiz and lo < w.y0 < hi and min(w.x0, w.x1) - tol <= base <= max(w.x0, w.x1) + tol:
+            c = w.y0
+        elif ax == "h" and w.vert and lo < w.x0 < hi and min(w.y0, w.y1) - tol <= base <= max(w.y0, w.y1) + tol:
+            c = w.x0
+        else:
+            continue
+        if cross is None or abs(c - (lo + hi) / 2) < abs(cross - (lo + hi) / 2):
+            cross = c
+    return cross
+
+
+def _hop_segs(a, b, ax, cross):
+    base = (a[0] + b[0]) / 2 if ax == "v" else (a[1] + b[1]) / 2
+    c = (base, cross) if ax == "v" else (cross, base)
+    a2 = (base, a[1]) if ax == "v" else (a[0], base)
+    b2 = (base, b[1]) if ax == "v" else (b[0], base)
+    return [geom.Seg(*a2, *c), geom.Seg(*c, *b2)]
+
+
+def _hops_in_paths(wires, glyphs, P, tol):
+    """한 path 안에 선 조각과 홉을 같이 그린 꼴 — 이어진 비스듬한 토막 무리(꺾은선 반원 · 사분원 현)가 홉이면 그 무리를
+    교차점에서 맞닿는 곧은 두 토막으로 바꾼다 (그대로 두면 반원의 꼭짓점이 지나는 선 위에 놓여 그 선과 이어진다)."""
+    wx = _seg_index([s for p in wires for s in p.segs if (s.vert or s.horiz) and s.length > 0], tol)
+
+    def fix(p):
+        segs = p.segs
+        if len(segs) < 3:
+            return None
+        out, i, changed = [], 0, False
+        while i < len(segs):
+            s = segs[i]
+            if s.vert or s.horiz:
+                out.append(s)
+                i += 1
+                continue
+            j = i
+            while j < len(segs) and not (segs[j].vert or segs[j].horiz) and \
+                    (j == i or _d(segs[j - 1].ends()[1], segs[j].ends()[0]) <= 1e-3):
+                j += 1
+            run = segs[i:j]
+            a, b = run[0].ends()[0], run[-1].ends()[1]
+            pts = [q for sg in run for q in sg.ends()]
+            ax = _hop_shape(a, b, pts, P, tol)
+            # 같은 축의 곧은 선 끝이 홉 끝에 닿는다 (같은 path 안 · 밖 어디든 — CAD 는 조각을 먼저 다 그리고 호를 나중에 그리기도 한다)
+            near_axis = bool(ax) and any((sg.vert if ax == "v" else sg.horiz) and min(_d(q, e) for e in sg.ends()) <= tol
+                                         for q in (a, b) for sg in segs + wx.near(q))
+            cross = _hop_cross(a, b, ax, wx, tol) if ax and near_axis else None
+            if cross is not None:
+                out.extend(_hop_segs(a, b, ax, cross))
+                changed = True
+            else:
+                out.extend(run)
+            i = j
+        if not changed:
+            return None
+        pts = [q for sg in out for q in sg.ends()]
+        q = geom.Poly(out, (min(x for x, _ in pts), min(y for _, y in pts), max(x for x, _ in pts), max(y for _, y in pts)),
+                      p.dashed, p.pid, False)
+        return q
+    nw = []
+    for p in wires:
+        q = fix(p)
+        nw.append(q if q is not None else p)
+    ng = []
     for p in glyphs:
-        if not getattr(p, "curved", False):
+        q = fix(p)
+        # 고친 홉은 선이다 (지나는 직각 선 · 같은 축 선 끝을 다 확인했다) — 글자 크기라도 글자 무리에 두면
+        # 홉 → 짧은 토막 → 모서리처럼 글자 둘이 이어질 때 어느 쪽도 양 끝이 선에 닿지 않아 끊긴다.
+        (nw if q is not None else ng).append(q if q is not None else p)
+    return nw, ng
+
+
+def _normalise_hops(wires, glyphs, P, tol):
+    """L70·L71 — 홉(건너뛰기 반원)을 **교차점에서 맞닿는 곧은 두 토막**으로 바꾼다.
+
+    도면은 선이 다른 선을 지날 때 그 자리를 반원으로 건너뛰어 그린다.  그 반원을 곡선(베지어 하나 · 사분원 둘) 으로도,
+    짧은 직선 여럿으로도 그리고, 홉 바로 뒤 몇 pt 에서 연결점 · 블록 변에 닿기도 한다 (19VA 0015 MTS).  반원은 글자 크기라
+    글자 획으로 버려지거나(뒤 토막이 매달림) 꺾은선의 꼭짓점이 지나는 선 위에 놓여 그 선과 이어졌다.
+    알아본 홉은 현(두 끝을 잇는 곧은 선)으로 펴고 지나는 선이 가로지르는 점에서 둘로 나눈다 — 'CAD 가 교차점에서 선을
+    끊어 그린 것' 과 같은 꼴이 되어 그 뒤의 규칙(지나가는 교차 · 짧은 토막 · 단자)이 그대로 읽는다.
+
+    홉 = 열린 무리 하나 · 두 끝이 한 축 위 · 현 길이 ≤ GLYPH_MAX 행 · 한쪽으로 현의 1/4 이상 부풂 · 지나는 직각 선이 현
+    안쪽을 지난다 · 한 끝 이상이 같은 축의 곧은 선 끝에 닿는다 (글자 'C' · '(' 를 거른다).  새 상수 0.
+    """
+    def free_ends(segs):
+        out = []
+        for i, s in enumerate(segs):
+            for q in s.ends():
+                if not any(j != i and min(_d(q, e) for e in t.ends()) <= 1e-3 for j, t in enumerate(segs)):
+                    out.append(q)
+        return out
+
+    lim = P
+    wires, glyphs = _hops_in_paths(wires, glyphs, P, tol)
+    cands = [p for p in wires + glyphs if p.size <= 1.6 * lim and not p.dashed and
+             (getattr(p, "curved", False) or any(not (s.vert or s.horiz) for s in p.segs))]
+    if not cands:
+        return wires, glyphs
+    # 사분원 둘처럼 따로 그린 조각은 끝끼리 묶는다
+    par = list(range(len(cands)))
+
+    def f(i):
+        while par[i] != i:
+            par[i] = par[par[i]]
+            i = par[i]
+        return i
+    keyed = defaultdict(list)
+    for i, p in enumerate(cands):
+        for q in (p.segs[0].ends()[0], p.segs[-1].ends()[1]):
+            keyed[(round(q[0] * 10), round(q[1] * 10))].append(i)
+    for (kx, ky), ids in keyed.items():
+        for dx in (0, 1):
+            for dy in (-1, 0, 1):
+                for j in keyed.get((kx + dx, ky + dy), ()):
+                    for i in ids:
+                        if i != j:
+                            par[f(j)] = f(i)
+    groups = defaultdict(list)
+    for i in range(len(cands)):
+        groups[f(i)].append(cands[i])
+    cand_ids = {id(p) for p in cands}
+    sx = _seg_index([s for p in wires + glyphs if id(p) not in cand_ids for s in p.segs
+                     if (s.vert or s.horiz) and s.length > 0], tol)
+    wx = _seg_index([s for p in wires for s in p.segs if (s.vert or s.horiz)], tol)
+    drop, add = set(), []
+    for grp in groups.values():
+        segs = [s for p in grp for s in p.segs]
+        fe = free_ends(segs)
+        if len(fe) != 2:
             continue
-        ends = _free_ends(p.segs)
-        if len(ends) != 2:
-            continue
-        a, b = ends
-        dx, dy = abs(a[0] - b[0]), abs(a[1] - b[1])
-        if max(dx, dy) > GLYPH_MAX * P or max(dx, dy) < tol:
-            continue
-        ax = "v" if dx <= tol and dy > dx else "h" if dy <= tol and dx > dy else None
+        a, b = fe
+        pts = [q for s in segs for q in s.ends()]
+        for p in grp:
+            cb = getattr(p, "cbbox", None)
+            if cb:
+                pts += [(cb[0], cb[1]), (cb[2], cb[3])]
+        ax = _hop_shape(a, b, pts, P, tol)
         if ax is None:
             continue
-        mid = ((a[0] + b[0]) / 2, (a[1] + b[1]) / 2)
-        if any((w.horiz if ax == "v" else w.vert) and _on_seg(mid, w, tol)[0] for w in wix.near(mid)):
-            out.append((a, b, ax))
-    return out
+        cross = _hop_cross(a, b, ax, wx, tol)
+        if cross is None:
+            continue
+        mine = {id(p) for p in grp}
+
+        def touches(q):
+            for s in sx.near(q):
+                if (s.vert if ax == "v" else s.horiz) and min(_d(q, e) for e in s.ends()) <= tol:
+                    return True
+            return False
+        if not (touches(a) or touches(b)):
+            continue
+        hs = _hop_segs(a, b, ax, cross)
+        e0, e1 = hs[0].ends()[0], hs[1].ends()[1]
+        pl = geom.Poly(hs, (min(e0[0], e1[0]), min(e0[1], e1[1]), max(e0[0], e1[0]), max(e0[1], e1[1])), pid=grp[0].pid)
+        pl.hop = True
+        drop |= mine
+        add.append(pl)
+    if not add:
+        return wires, glyphs
+    return [p for p in wires if id(p) not in drop] + add, [p for p in glyphs if id(p) not in drop]
 
 
-def _hop_end(q, seg, hop, tol):
-    """선분 seg 의 끝 q 가 홉의 한 끝에 닿고, 홉이 seg 와 같은 직선에서 seg 바깥쪽으로 이어지나."""
-    a, b, ax = hop
-    if (ax == "v") != bool(seg.vert) or (ax == "h") != bool(seg.horiz):
-        return False
-    for e, f in ((a, b), (b, a)):
-        if _d(q, e) <= tol:
-            o = seg.ends()[1] if _d(q, seg.ends()[0]) <= tol else seg.ends()[0]
-            return (f[0] - q[0]) * (q[0] - o[0]) + (f[1] - q[1]) * (q[1] - o[1]) > 0
-    return False
+def _promote_gap_stubs(glyphs, wires, blocks, P, tol):
+    """L71 — 홉 · 끊어 그린 교차 사이에 낀 짧은 토막도 선이다.
+
+    글자 크기 토막은 '두 끝이 다 무언가에 닿을 때만' 선으로 쳤다.  그런데 홉 바로 뒤에서 다른 선을 끊어 건너는 자리
+    (홉 → 3pt → 틈 → 다음 토막)는 한 끝이 틈에 떠 있다.  그 토막이 버려지면 틈이 넓어져 건너편과 마주 보지 못하고
+    선이 끊긴다.  한 끝이 같은 직선의 선 끝에 맞닿아 이어지고(곧게 · 바깥으로), 다른 끝이 같은 직선의 다음 선 끝과
+    마주 보며 그 사이를 직각 선이 지나면 선이다.  두 틈 사이에 낀 토막(두 끝 다 마주 봄)도 선이다.
+    새로 선 토막에도 다시 본다 (토막이 이어질 수 있다).
+    """
+    lim = BREAK_GAP_MAX * P
+    while True:
+        wsegs = [(s, p) for p in wires for s in p.segs if s.vert or s.horiz]
+        wx = _seg_index([s for s, _ in wsegs], tol)
+        moved = []
+        for p in glyphs:
+            if len(p.segs) != 1 or p.dashed:
+                continue
+            g = p.segs[0]
+            if not (g.vert or g.horiz) or g.length <= 0:
+                continue
+            if any(p.bbox[0] >= bl.bbox[0] - tol and p.bbox[2] <= bl.bbox[2] + tol and
+                   p.bbox[1] >= bl.bbox[1] - tol and p.bbox[3] <= bl.bbox[3] + tol for bl in blocks):
+                continue
+            off = (lambda q: q[0]) if g.vert else (lambda q: q[1])
+            along = (lambda q: q[1]) if g.vert else (lambda q: q[0])
+            base = off(g.ends()[0])
+            same = lambda s: (s.vert if g.vert else s.horiz) and abs(off(s.ends()[0]) - base) <= 0.4 * tol
+
+            def joined(q, o):
+                # q 가 같은 직선 선 끝에 맞닿고 그 선은 q 의 반대쪽(o 쪽이 아닌 쪽)으로 뻗는다
+                for s in wx.near(q):
+                    if not same(s):
+                        continue
+                    for e, f in ((s.ends()[0], s.ends()[1]), (s.ends()[1], s.ends()[0])):
+                        if _d(q, e) <= tol and (along(f) - along(q)) * (along(q) - along(o)) > 0:
+                            return True
+                return False
+
+            def facing(q, o):
+                # q 바깥쪽 lim 안에 같은 직선의 다음 선 끝이 있고 그 사이를 직각 선이 지난다
+                sgn = 1 if along(q) > along(o) else -1
+                best = None
+                for s, _ in wsegs:
+                    if not same(s):
+                        continue
+                    for e in s.ends():
+                        d = (along(e) - along(q)) * sgn
+                        if tol < d <= lim and (best is None or d < best[0]):
+                            best = (d, e)
+                if best is None:
+                    return False
+                lo, hi = sorted((along(q), along(best[1])))
+                for s, _ in wsegs:
+                    if (s.horiz if g.vert else s.vert) and lo < (s.y0 if g.vert else s.x0) < hi:
+                        a0, a1 = sorted(((s.x0, s.x1) if g.vert else (s.y0, s.y1)))
+                        if a0 - tol <= base <= a1 + tol:
+                            return True
+                return False
+            a, b = g.ends()
+            fa, fb = facing(a, b), facing(b, a)
+            if (fb and (joined(a, b) or fa)) or (fa and joined(b, a)):
+                moved.append(p)
+        if not moved:
+            return
+        for p in moved:
+            glyphs.remove(p)
+            wires.append(p)
 
 
 def _free_ends(segs):
