@@ -20,6 +20,7 @@
 from __future__ import annotations
 
 import datetime as dt
+import hashlib
 import json
 import os
 import re
@@ -31,7 +32,7 @@ from pathlib import Path
 from urllib.parse import unquote
 
 from fastapi import APIRouter, Request
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 from starlette.concurrency import run_in_threadpool
 
 from app import jsonstore, paths
@@ -473,8 +474,35 @@ def import_dashboard(author: str, url: str = "", fetch=None) -> dict:
 @router.get("/space")
 @router.get("/space/")
 def space_page():
-    return FileResponse(paths.resource("app", "static", "space", "index.html"),
-                        headers={"Cache-Control": "no-store"})
+    """hotfix126 — 화면이 읽는 스크립트 주소에 **내용 딱지**를 붙인다.  `/static/space/ref.js`(Ref 자료 · 출입문)와
+    `/static/offline.js` 는 늘 같은 주소라 브라우저가 업데이트 뒤에도 옛 판을 캐시에서 꺼내 쓸 수 있었다 (화면은
+    새 판인데 Ref 룸에 문이 없는 꼴).  P&ID 첫 화면(56회차 `_asset_tag`)과 같은 방법이다.  오른쪽 아래에 이 서버에
+    적용된 업데이트 이름을 작게 적어, 회사 PC 에서 어느 판이 도는지 바로 보이게 한다."""
+    html = paths.resource("app", "static", "space", "index.html").read_text(encoding="utf-8")
+    return HTMLResponse(stamp_page(html), headers={"Cache-Control": "no-store"})
+
+
+def _tag(rel: str) -> str:
+    try:
+        return hashlib.sha256(paths.resource("app", "static", *rel.split("/")).read_bytes()).hexdigest()[:8]
+    except OSError:
+        return "0"
+
+
+def stamp_page(html: str) -> str:
+    for rel in ("space/ref.js", "offline.js"):
+        html = html.replace(f'src="/static/{rel}"', f'src="/static/{rel}?v={_tag(rel)}"', 1)
+    try:
+        from app import version
+        name = (version.update_info() or {}).get("name") or ""
+    except Exception:                                                  # 딱지가 없거나 못 읽으면 적지 않는다
+        name = ""
+    if name:
+        badge = ('<div id="pidUpdateTag" title="이 서버에 적용된 업데이트" style="position:fixed;right:6px;bottom:4px;'
+                 'font:11px/1.2 sans-serif;color:#8a93a3;opacity:.75;pointer-events:none;z-index:2">'
+                 f'업데이트 {name}</div>')
+        html = html.replace("</body>", badge + "\n</body>", 1)
+    return html
 
 
 @router.get("/space/api/projects")

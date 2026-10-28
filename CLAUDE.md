@@ -5171,6 +5171,15 @@ Option A 에 .xlsx 바로 넣기 `6bfd6b6` (외부 라이브러리 없이 — �
 
 판넬 브랜치 `ccr-d82d97fa-bb3ty3` 의 `b8bcef2..0869426` (화면 커밋 셋 — Ref 6 PJT 21룸 실 출입문 38개 `4599efa` · 실 출입문 2D/3D/DXF 표시 · 문짝 자리 간섭 · 문 앞 경고 · 자동 배치가 문을 피함 `d92f636` · 도면에서 문 클릭 → 속성 칸 · R/I/방향키 `0869426`)를 세 갈래로 합쳤다 — **충돌 0**.  바뀐 파일은 `app/static/space/index.html` · `ref.js` (서버 API 그대로).  새 코드에 `confirm/prompt` · 대시보드 `/api/` 호출 없음.  시험 `tests/test_hotfix125_space_doors.py` · `ui_audit_space116`(11) · `ui_audit_space120_sync`(7) · `ui_audit_space123`(5) 전부 통과 · 페이지 오류 0.  같은 꾸러미에 LOGIC L70 · L71 (`claude/bold-einstein-8uibbv`) 병합.
 
+**그 다음 — 판넬 화면의 Ref 자료가 캐시에서 옛 판으로 (hotfix126 · 판정 0줄)**
+
+현장: *"Panel 수정사항이 반영 안 되었다."*  판넬 브랜치에 0869426 뒤 화면 커밋은 없고(7a534a0 는 문서) 저장소 · hotfix125 꾸러미의
+`app/static/space/index.html` · `ref.js` 는 그 판과 바이트까지 같다.  남은 길은 브라우저 — `/space` 는 `no-store` 지만
+`/static/space/ref.js`(hotfix125 에서 실 출입문 38개로 바뀜) · `/static/offline.js` 는 늘 같은 주소라 옛 판이 캐시에서 나올 수 있었다.
+`space.stamp_page` 가 두 주소에 내용 딱지(`?v=<sha8>` — P&ID 첫 화면 56회차와 같은 방법)를 붙이고, 오른쪽 아래에 `업데이트 <이름>`
+을 작게 적는다 (회사 PC 에서 어느 판이 도는지 바로 보이게 · 딱지 파일이 없으면 안 적음).  시험 `tests/test_hotfix126_space_asset_tag.py` 2건 ·
+판넬 시험 · ui_audit 셋 통과.  ⚠ 그래도 안 보이면 운영 서버 재시작 누락 또는 대시보드 v16.43 이하가 옛 `apps/space` 사본을 여는 것 (hotfix119).
+
 ## 4. 미해결 과제 (다음 단계 후보) — 우선순위 순
 
 1. **순번은 "안 붙인 것"이 최대 원인입니다** (오답 203건: 발주처는 붙였는데 우리는
