@@ -949,6 +949,14 @@ def commands(job: str):
     return {"items": _memo(res, "commands", lambda: sequence.commands(_all_sheets(res)))}
 
 
+@router.get("/logic/api/jobs/{job}/outputs")
+def outputs(job: str, q: str = "", limit: int = 60):
+    """L70 — 출력 행 찾기 (동작 낱말이 없는 출력도 거슬러 올라가 보게)."""
+    res = _result(job)
+    from . import sequence
+    return sequence.outputs(_all_sheets(res), q, max(1, min(int(limit or 60), 300)))
+
+
 @router.post("/logic/api/jobs/{job}/sequence")
 def sequence_plan(job: str, body: dict = Body(default={})):
     """L32 — 그 출력 행이 서려면 무엇이 필요한지 조건 나무 (묻는 순서 · 판정 0줄)."""
