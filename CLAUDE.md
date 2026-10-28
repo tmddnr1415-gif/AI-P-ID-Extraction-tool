@@ -23,6 +23,7 @@
 > hotfix123 은 그 브랜치를 그대로 이어받은 **`claude/pid-extractor-panel-update-nbcrfn`** 에 있다 (zrl4qi 커밋 전부 포함).
 > hotfix124 — LOGIC 브랜치 L68 · L69 를 병합 (충돌 0) · 꾸러미만.
 > hotfix125 — LOGIC 브랜치 `claude/bold-einstein-8uibbv` 의 L70 · L71 병합 (충돌 0) + 판넬 `ccr-d82d97fa-bb3ty3` 의 `b8bcef2..0869426` (실 출입문) 세 갈래 병합 (충돌 0).
+> **★ hotfix125 부터 작업 브랜치는 `ccr-2d6327d0-21i1fr` 이다** ('2. PID 검토 2' 세션이 대화 기록 한도로 멈춰 새 세션으로 옮김 · nbcrfn 커밋 전부 포함).  다음 꾸러미는 hotfix126.
 
 > **★ 업데이트 zip 은 어디서 만드나 (사용자 지시 2026-10-22)**
 > **P&ID · LOGIC · 판넬 공간확보 · 계장도서검토** 의 zip 은 **이 저장소(이 브랜치)** 에서 만든다 (도서 검토는 hotfix115 부터 `/books`).
