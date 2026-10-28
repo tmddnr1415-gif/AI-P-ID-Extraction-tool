@@ -223,7 +223,7 @@ def build(prims: geom.Prims, lay=None) -> Sheet | None:
     if split_by:
         wires = [p for p in wires if id(p) not in split_by]
         glyphs = [p for p in glyphs if id(p) not in split_by]
-    assembled, used = _assemble_rects(wires + glyphs, rects, P, tol)
+    assembled, used = _assemble_rects(wires + glyphs, rects, P, tol, dots)
     if assembled:
         rects += assembled
         wires = [p for p in wires if id(p) not in used]
@@ -1127,7 +1127,7 @@ def _split_by_divider(rects, polys, P, tol):
     return out, used
 
 
-def _assemble_rects(polys, rects, P, tol):
+def _assemble_rects(polys, rects, P, tol, dots=()):
     """흩어진 선분 넷이 둘러싼 상자 — 모서리를 비스듬히 깎거나 변을 따로 그린 양식 (G010 의 START 칸).
 
     위·아래 가로선이 같은 폭으로 마주 보고, 양 끝 세로선이 그 사이를 덮으면 상자다.  모서리 틈은 짧은 변의
@@ -1198,6 +1198,11 @@ def _assemble_rects(polys, rects, P, tol):
         if sides[1][4] != sides[1][2]:
             x1 = max(x1, sides[1][4])
         bb = (x0, ya, x1, yb)
+        # L69 — 변 위에 연결점이 있으면 상자가 아니라 배선이다.  게이트 입력 막대에 들어가는 두 신호선 + 그 둘을
+        # 잇는 세로선이 막대와 함께 닫힌 네모를 만든다 (19VA 0017 MIT 의 OR — 안을 지나는 선이 글자로 먹혀 끊겼다).
+        # 상자의 변은 연결점을 갖지 않는다 (범례 G003 · 연결점 = 선이 갈라지는 자리).
+        if any(_dot_on_edge(c, bb, tol) for c in dots):
+            continue
         area = (bb[2] - bb[0]) * (bb[3] - bb[1])
         if any(_overlap_frac(bb, q) > 0.5 and (q[2] - q[0]) * (q[3] - q[1]) < 3 * area for q in have):
             continue
@@ -1218,6 +1223,14 @@ def _assemble_rects(polys, rects, P, tol):
             if v[1] - v[0] <= h + 2 * g and (len(v[3].segs) == 1 or v[3].size <= max(h, x1 - x0) + 2 * g):
                 used.add(id(v[3]))
     return out, used
+
+
+def _dot_on_edge(c, bb, tol):
+    """연결점 c 가 사각형 bb 의 변(모서리 포함) 위에 있나."""
+    x, y, t = c.cx, c.cy, tol + c.r
+    on_v = (abs(x - bb[0]) <= t or abs(x - bb[2]) <= t) and bb[1] - t <= y <= bb[3] + t
+    on_h = (abs(y - bb[1]) <= t or abs(y - bb[3]) <= t) and bb[0] - t <= x <= bb[2] + t
+    return on_v or on_h
 
 
 def _overlap_frac(a, b):

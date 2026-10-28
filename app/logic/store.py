@@ -145,7 +145,9 @@ _RES = OrderedDict()
 _RES_LOCK = __import__("threading").Lock()
 
 
-def read_result(d: Path) -> dict:
+def read_result(d: Path, fast=None) -> dict:
+    """fast — L68 (api 가 준다): (load, prepare) · load(d) 가 준비해 둔 결과 사본을 돌려주면 37MB JSON 을 다시 읽지
+    않는다 · 없으면 JSON 을 읽고 prepare(res) 가 준비해(설정값 · 연산자 이름 · from-to) 사본을 남긴다."""
     p = d / "result.json"
     st = p.stat().st_mtime
     key = str(p)
@@ -160,11 +162,21 @@ def read_result(d: Path) -> dict:
         hit = _RES.get(key)
         if hit and hit[0] == st:
             return hit[1]
-        res = json.loads(p.read_text(encoding="utf-8"))
         # L29 — 846쪽 결과는 파이썬 객체 수십만 개다.  순환 참조가 없는 나무라 쓰레기 수거기(GC)가 훑을 일이 없는데,
         # 그대로 두면 큰 수거 때마다 전부 훑어 화면 요청이 0.8초씩 멈췄다 — 영구 세대로 옮긴다 (놓으면 참조 수로 그대로 풀린다)
-        gc.collect(1)
-        gc.freeze()
+        # L68 — 읽는 동안에도 훑지 않게 꺼 둔다 (만드는 수십만 개마다 세대 수거가 돌던 것 · 0.2초 + α)
+        was = gc.isenabled()
+        gc.disable()
+        try:
+            res = fast[0](d) if fast else None
+            if res is None:
+                res = json.loads(p.read_text(encoding="utf-8"))
+                if fast:
+                    fast[1](res)
+        finally:
+            gc.freeze()
+            if was:
+                gc.enable()
         _RES[key] = (st, res)
         _RES.move_to_end(key)
         while len(_RES) > RES_KEEP:

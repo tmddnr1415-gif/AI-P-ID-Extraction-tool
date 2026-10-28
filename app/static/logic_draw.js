@@ -208,12 +208,17 @@ function render() {
   const rgg = document.createElementNS(NS, "g"); rgg.id = "rguides"; svg.appendChild(rgg); drawRGuides(rgg);
   const wg = document.createElementNS(NS, "g"); wg.id = "wires";
   S._wireEls = {}; S._hopGen = (S._hopGen || 0) + 1;
-  for (const w of S.doc.wires) renderWire(wg, w);
+  nodeCacheFor();
+  const wseen = new Set();
+  for (const w of S.doc.wires) { wseen.add(w.id); wg.appendChild(wireNode(w)); }
   svg.appendChild(wg);
   const bg = document.createElementNS(NS, "g"); bg.id = "blocks";
   const bad = new Set((S.verify && S.verify.blocks || []).filter(b => !b.ok).map(b => b.id));
   S._clash = clashes();
-  for (const b of S.doc.blocks) renderBlockWrap(bg, b, bad.has(b.id));
+  const bseen = new Set();
+  for (const b of S.doc.blocks) { bseen.add(b.id); bg.appendChild(blockNode(b, bad.has(b.id))); }
+  for (const id of [...S._nc.w.keys()]) if (!wseen.has(id)) S._nc.w.delete(id);
+  for (const id of [...S._nc.b.keys()]) if (!bseen.has(id)) S._nc.b.delete(id);
   svg.appendChild(bg);
   el("g", { id: "overlay" }, svg);
   drawGhost();
@@ -272,6 +277,33 @@ function hopPath(w, hops) {
     d += ` L${q[0]},${q[1]}`;
   }
   return d;
+}
+/* L68 — 가볍게: 선 · 기호의 그림은 그 모양을 정하는 값(열쇠)이 같으면 지난 그림을 그대로 다시 붙인다.
+   render() 마다 3,343선 장의 SVG 1만여 개를 새로 만들던 것 (한 번 70~85ms) — 바뀐 선 · 기호만 새로 짓는다.
+   열쇠에 시뮬레이션 켜짐을 넣는다 — simPaint 가 붙인 class(on · act …)가 꺼진 화면에 남지 않게. */
+function nodeCacheFor() {
+  if (!S._nc || S._nc.doc !== S.doc || S._nc.pitch !== S.lay.PITCH || S._nc.form !== S.doc.form) S._nc = { doc: S.doc, pitch: S.lay.PITCH, form: S.doc.form, w: new Map(), b: new Map() };
+  return S._nc;
+}
+function wireKey(w) {
+  return JSON.stringify([w.pts, !!w.dashed, w.dots || 0, w.marks || 0, w.arrow || 0, w.label || 0, S.selWire === w.id, hopsOf(w), simOn()]);
+}
+function wireNode(w) {
+  const nc = nodeCacheFor(), key = wireKey(w), hit = nc.w.get(w.id);
+  if (hit && hit.key === key) { S._wireEls[w.id] = hit.ln; return hit.g; }
+  const tmp = document.createElementNS(NS, "g"); const g = renderWire(tmp, w); tmp.removeChild(g);
+  nc.w.set(w.id, { key, g, ln: S._wireEls[w.id] });
+  return g;
+}
+function blockKey(b, bad) {
+  return JSON.stringify([b, !!bad, S.sel.has(b.id), !!(S._clash && S._clash.has(b.id)), S.tool === "wire" || S.tool === "dash", simOn()]);
+}
+function blockNode(b, bad) {
+  const nc = nodeCacheFor(), key = blockKey(b, bad), hit = nc.b.get(b.id);
+  if (hit && hit.key === key) return hit.g;
+  const tmp = document.createElementNS(NS, "g"); const g = renderBlockWrap(tmp, b, bad); tmp.removeChild(g);
+  nc.b.set(b.id, { key, g });
+  return g;
 }
 function renderWire(wg, w) {
   const g = el("g", { "data-w": w.id }, wg), P = layout().PITCH;
