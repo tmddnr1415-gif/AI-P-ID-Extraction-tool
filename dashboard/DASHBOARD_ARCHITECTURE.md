@@ -1236,3 +1236,13 @@ C:\Users\SAMSUNG\Desktop\Claude\                         ← 개발 폴더 (여�
 - Ref 불러오기 창: 미리보기 옆 `#refEq` = 기존 PJT 기준 Tag · Description · W×D (Tag 순), 줄에 마우스 = 도면에 강조 · 도면에 마우스 = 줄 강조(`refHi`), 도면 판넬에 title.
 - 확인한 것: Chromium — F3 CCR: 간섭 32 건 → 데스크 [적용](모니터 24" → 21" · 작업면 930 → 680, 모니터 위 −29 cm) 18 건 → [모두 적용] 10 건(남은 것 = 좌우 허용 밖, 직접) → Ctrl+Z 한 번 32 건. Ref 창 F3 CCR 30 줄 · 마우스 강조. 시험 통과, 스크립트 오류 0.
 - 회사에서 확인할 것: 제안(모니터 크기 · 작업면 낮추기)이 회사 콘솔 표준에 맞는지 — 적용 전에 제안 문장을 보고 고름.
+
+### 2026-10-28 (47) — 판넬 공간확보: 실 출입문 — 학습한 Ref PJT 별 문 반영 (apps/space/index.html · ref.js · space_ref_build.py)
+> 서버 재시작 · 대시보드 교체 필요 없음. 배치안 `room.doors`(없으면 빈 배열) · `room.doorClr`(없으면 Ref 학습값) 가 늘었음.
+- Ref 문(`space_ref_build.py` `DOORS`): 6 PJT 21 룸 도면 사진에서 읽은 실 출입문 38 개 — 벽(u · d · l · r) · 위치(벽 시작에서 mm) · 폭 · 외짝/양개 · 안/밖 · 경첩. 근사 ±300 mm. Amiral CCR 오른쪽 4,800 의 호는 옆 계단실 문(프린터 줄 앞)이라 뺌. 학습값 `rules.doorClr` = 문 앞(실 안쪽, 문 폭 안) 가장 가까운 장비 거리 — 최소 1,490 · 중앙 4,695 → 기본 '문 앞 비움' 1,400(`rdClrDef`), `found` 'door.clear'.
+- 앱(`rdGeo` · `rdSvg` · `rdHit` · `rdBuild`): 2D 문(벽 끊음 · 틀 · 문짝 · 여는 궤적 · 문 앞 비움 점선 · '출입문 N'), 3D(벽 안쪽 면 문짝 · 틀 · 바닥 궤적), DXF `CR-ROOMDOOR`, 건축 전달 요약 '■ 출입문', Ref 미리보기에도 문.
+  - 검토(`check`): 안으로 여는 문짝 자리에 장비 = 간섭, 문 앞 비움 안 = 경고. 놓기 막기(`violation`) = 문짝 자리.
+  - ② 실 치수 '출입문': 목록(벽 · 위치 · 폭 · 짝 · 열림 · 경첩 · ✕) · [+ 출입문] · 문 앞 비움. 도면에서 문을 끌면 벽 따라 옮김(`drag.k='rdoor'`).
+- 자동 배치: Ref 불러오기(Option B) = 그 PJT 문 그대로. Ref 따라 배치(`refTransfer`) = Ref 문을 새 실로(`aDoorsMap`: 모서리 700 안은 그 거리, 나머지 벽 길이 비율), 막히면 벽 따라 가장 가까운 빈 자리(`aDoorFree`, ±2,000), 사용자가 정한 문 앞을 막는 후보는 버림. 90° 돌린 Ref 는 문도 같이 돌림(`refRotData`). 학습 규칙 배치 + 실에 문이 있으면(실 W · L 을 정한 때 지금 실의 문, `aWithDoors`) 그대로 · 좌우 · 위아래 · 둘 다 뒤집기 중 문 앞을 덜 막는 것(`aMirror` · `aDoorHits`).
+- 확인한 것: Chromium — F3 CCR 문 2 · NT34 CCR 4 · Tanajib ER 2 · UAD CCR 3 불러오기, 검토 문 경고 없음. 문 추가 · 벽 · 열림 바꾸기 · 끌기, 3D 문짝, DXF CR-ROOMDOOR. 21 개 Ref List 를 자기 실 크기로 → 21/21 Ref 처럼 · 문 같이 · 문 앞 걸림 0, W +10% · L −5% → 20/21(문 비킴 포함), 학습 규칙 + 문 → 18/21 걸림 0(3 곳은 경고로 남음). 시험 통과, 스크립트 오류 0.
+- 회사에서 확인할 것: Ref 문 위치는 도면 사진 근사 — 원본 CAD 가 있으면 `DOORS` 값을 고쳐 `python3 dashboard_tools/space_ref_build.py`.
