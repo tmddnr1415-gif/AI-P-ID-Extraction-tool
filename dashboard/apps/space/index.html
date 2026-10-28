@@ -74,6 +74,7 @@ input[type=number]{font-family:var(--f-mono);font-variant-numeric:tabular-nums}
 .modal.tdlg .box{width:min(780px,100%)}
 .modal.edlg .box{width:min(720px,100%)}
 .rdt{width:100%;border-collapse:collapse;font-size:11.5px;margin-top:4px}.rdt td{padding:2px 2px}.rdt input,.rdt select{width:100%;min-width:0;padding:2px 3px;font-size:11.5px}.rdt tr.on td{background:var(--accent-soft)}
+.rdbtn{display:flex;align-items:center;gap:4px;margin:6px 0}.rdbtn span{width:34px;color:var(--ink-2);font-size:12px}.rdbtn button{flex:1}
 .rdclr{display:flex;align-items:center;gap:4px;font-size:11.5px;margin-right:6px}.rdclr input{width:70px}
 .modal.fdlg .box{width:min(980px,100%);max-height:86vh;display:flex;flex-direction:column} .fdlg .fwrap{overflow:auto;flex:1;min-height:0;margin:8px 0} .fdlg td{vertical-align:top;padding:5px 6px} .fdlg tr.man td{opacity:.75} .edlg .g{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:6px 12px;margin-top:6px} .edlg .sec{margin:10px 0}
 /* Option B · Ref. PJT Layout / Option A · Equipment List 자동 배치 */
@@ -1017,11 +1018,30 @@ function rdSvg(C,s){const dc=C('--door'),pp=C('--paper'),fs=9*ANN/s;let o='';
     o+=`<line x1="${g.o0[0]}" y1="${g.o0[1]}" x2="${g.o1[0]}" y2="${g.o1[1]}" stroke="${pp}" stroke-width="6" vector-effect="non-scaling-stroke"/>`;   // 벽을 끊어 문 자리
     [g.o0,g.o1].forEach(q=>{o+=`<line x1="${q[0]-g.n[0]*120}" y1="${q[1]-g.n[1]*120}" x2="${q[0]+g.n[0]*120}" y2="${q[1]+g.n[1]*120}" stroke="${C('--wall')}" stroke-width="2.5" vector-effect="non-scaling-stroke"/>`});
     g.leaves.forEach(l=>{o+=`<line x1="${l.h[0]}" y1="${l.h[1]}" x2="${l.tip[0]}" y2="${l.tip[1]}" stroke="${on?C('--accent'):dc}" stroke-width="2" vector-effect="non-scaling-stroke"/><path d="M${l.arc.map(q=>q.join(' ')).join(' L')}" fill="none" stroke="${dc}" stroke-width="1" stroke-dasharray="4 3" vector-effect="non-scaling-stroke"/>`});
-    o+=`<text x="${g.lab[0]}" y="${g.lab[1]}" font-size="${fs}" fill="${dc}" text-anchor="middle" dominant-baseline="middle" font-weight="700">출입문 ${i+1}</text>`});
+    o+=`<text x="${g.lab[0]}" y="${g.lab[1]}" font-size="${fs}" fill="${dc}" text-anchor="middle" dominant-baseline="middle" font-weight="700">출입문 ${i+1}${on?` · ${d.swing==='out'?'밖':'안'} · ${rdDir(d)}`:''}</text>`});
   return o}
 function rdHit(w){let best=null;roomDoors().forEach((d,i)=>{const g=rdGeo(d),z={x:Math.min(g.o0[0],g.o1[0])-250,y:Math.min(g.o0[1],g.o1[1])-250,w:Math.abs(g.o1[0]-g.o0[0])+500,h:Math.abs(g.o1[1]-g.o0[1])+500};
   if(w.x>=z.x&&w.x<=z.x+z.w&&w.y>=z.y&&w.y<=z.y+z.h)best=i});return best}
 var selRD=null;
+/* 경첩 좌 · 우 = 실 안에서 그 문을 볼 때 (위 · 오른쪽 벽은 시작 쪽이 왼쪽, 아래 · 왼쪽 벽은 끝 쪽이 왼쪽). 좌→우 = 경첩 왼쪽 */
+const rdLeftIs=d=>d.wall==='u'||d.wall==='r'?'a':'b';
+const rdDir=d=>+d.leaves===2?'양개':(d.hinge==='b'?'b':'a')===rdLeftIs(d)?'좌→우':'우→좌';
+function rdSet(i,ch,msg){const d=S.room.doors[i];if(!d)return;Object.assign(d,ch);const g=rdGeo(d);d.at=g.a;d.w=g.w;commit();rdBuild();buildProps();if(msg)toast(`출입문 ${i+1} — ${msg} (Ctrl+Z)`)}
+const rdFlipSwing=i=>{const d=S.room.doors[i];rdSet(i,{swing:d.swing==='out'?'in':'out'},d.swing==='out'?'안쪽으로 열림':'바깥쪽으로 열림')};
+const rdFlipHinge=i=>{const d=S.room.doors[i];if(+d.leaves===2){toast('양개 문 — 방향 없음');return}rdSet(i,{hinge:d.hinge==='b'?'a':'b'});toast(`출입문 ${i+1} — ${rdDir(S.room.doors[i])} (Ctrl+Z)`)};
+function rdProps(box,i){const d=S.room.doors[i],g=rdGeo(d);$('#selInfo').textContent=`출입문 ${i+1}`;box.className='';
+  box.innerHTML=`<div class="sec"><b>🚪 출입문 ${i+1}</b> <span class="muted">${RD_WALL[d.wall]} 벽</span>
+    <div class="rdbtn"><span>열림</span><button data-rs="in" class="${d.swing!=='out'?'primary':''}">안쪽</button><button data-rs="out" class="${d.swing==='out'?'primary':''}">바깥쪽</button></div>
+    <div class="rdbtn"><span>방향</span><button data-rh="L" class="${rdDir(d)==='좌→우'?'primary':''}" ${+d.leaves===2?'disabled':''} title="실 안에서 볼 때 경첩 왼쪽">좌→우</button><button data-rh="R" class="${rdDir(d)==='우→좌'?'primary':''}" ${+d.leaves===2?'disabled':''} title="실 안에서 볼 때 경첩 오른쪽">우→좌</button></div>
+    <div class="rdbtn"><span>문짝</span><button data-rl="1" class="${+d.leaves!==2?'primary':''}">외짝</button><button data-rl="2" class="${+d.leaves===2?'primary':''}">양개</button></div>
+    <div class="f"><label>벽<select id="rdpW">${Object.entries(RD_WALL).map(([k,v])=>`<option value="${k}" ${d.wall===k?'selected':''}>${v}</option>`).join('')}</select></label>
+      <label>위치 (mm)<input type="number" id="rdpA" step="100" value="${Math.round(g.a)}"></label><label>폭 (mm)<input type="number" id="rdpWd" step="100" min="300" value="${g.w}"></label></div>
+    <div class="row" style="margin-top:6px"><button id="rdpDel">출입문 지우기</button><span class="muted" style="margin-left:auto" title="R = 좌↔우 · I = 안↔밖 · 방향키 = 벽 따라 · Delete = 지우기 · Esc = 풀기">R · I · 방향키</span></div></div>`;
+  box.querySelectorAll('[data-rs]').forEach(b=>b.onclick=()=>{if(d.swing!==b.dataset.rs)rdFlipSwing(i)});
+  box.querySelectorAll('[data-rh]').forEach(b=>b.onclick=()=>{const want=b.dataset.rh==='L'?rdLeftIs(d):(rdLeftIs(d)==='a'?'b':'a');if((d.hinge==='b'?'b':'a')!==want)rdFlipHinge(i)});
+  box.querySelectorAll('[data-rl]').forEach(b=>b.onclick=()=>rdSet(i,{leaves:+b.dataset.rl}));
+  $('#rdpW').onchange=e=>rdSet(i,{wall:e.target.value}); $('#rdpA').onchange=e=>rdSet(i,{at:+e.target.value||0}); $('#rdpWd').onchange=e=>rdSet(i,{w:+e.target.value||900});
+  $('#rdpDel').onclick=()=>{S.room.doors.splice(i,1);selRD=null;commit();rdBuild();buildProps();render()}}
 function wallSides(){
   const env=envelope(), m=+S.room.margin||0; if(!env||!(m>0))return null;
   const sp=spareRect(env), E=sp?unionR([env,sp]):env, R=S.room;
@@ -1282,16 +1302,16 @@ function rmHint(){const r=roomId($('#iRm').value),h=$('#iRmHint');if(!h)return; 
 $('#iRm').addEventListener('input',rmHint);
 [['iPj','project'],['iRm','room'],['iBy','author'],['iRev','rev']].forEach(([id,k])=>$('#'+id).addEventListener('change',e=>{S.info[k]=e.target.value.trim();commit()}));
 function rdBuild(){const L=roomDoors();$('#rdClr').value=+S.room.doorClr>0?S.room.doorClr:'';$('#rdClr').placeholder=String(rdClrDef());
-  $('#rdList').innerHTML=L.length?`<tr class="muted"><td></td><td>벽</td><td>위치</td><td>폭</td><td>짝</td><td>열림</td><td>경첩</td><td></td></tr>`+L.map((d,i)=>`<tr data-i="${i}" class="${selRD===i?'on':''}"><td><b>${i+1}</b></td>
+  $('#rdList').innerHTML=L.length?`<tr class="muted"><td></td><td>벽</td><td>위치</td><td>폭</td><td>짝</td><td>열림</td><td>방향</td><td></td></tr>`+L.map((d,i)=>`<tr data-i="${i}" class="${selRD===i?'on':''}"><td><b>${i+1}</b></td>
     <td><select data-k="wall">${Object.entries(RD_WALL).map(([k,v])=>`<option value="${k}" ${d.wall===k?'selected':''}>${v}</option>`).join('')}</select></td>
     <td><input type="number" data-k="at" step="100" value="${Math.round(+d.at||0)}"></td><td><input type="number" data-k="w" step="100" min="300" value="${+d.w||900}"></td>
     <td><select data-k="leaves"><option value="1" ${+d.leaves!==2?'selected':''}>외짝</option><option value="2" ${+d.leaves===2?'selected':''}>양개</option></select></td>
     <td><select data-k="swing"><option value="in" ${d.swing!=='out'?'selected':''}>안</option><option value="out" ${d.swing==='out'?'selected':''}>밖</option></select></td>
-    <td><select data-k="hinge" ${+d.leaves===2?'disabled':''}><option value="a" ${d.hinge!=='b'?'selected':''}>시작</option><option value="b" ${d.hinge==='b'?'selected':''}>끝</option></select></td>
+    <td><select data-k="hinge" ${+d.leaves===2?'disabled':''}>${[rdLeftIs(d),rdLeftIs(d)==='a'?'b':'a'].map((v,j)=>`<option value="${v}" ${(d.hinge==='b'?'b':'a')===v?'selected':''}>${j?'우→좌':'좌→우'}</option>`).join('')}</select></td>
     <td><button data-del title="지우기">✕</button></td></tr>`).join(''):'<tr><td class="muted">없음 — Ref 를 불러오면 그 PJT 의 문이 같이 옴</td></tr>'}
 $('#rdList').addEventListener('change',e=>{const tr=e.target.closest('[data-i]'),k=e.target.dataset.k;if(!tr||!k)return;const d=S.room.doors[+tr.dataset.i];
   d[k]=k==='at'||k==='w'||k==='leaves'?+e.target.value||0:e.target.value;const g=rdGeo(d);d.at=g.a;d.w=g.w;commit();rdBuild()});
-$('#rdList').addEventListener('click',e=>{const tr=e.target.closest('[data-i]');if(!tr)return;const i=+tr.dataset.i;if(e.target.closest('[data-del]')){S.room.doors.splice(i,1);selRD=null;commit();rdBuild();return}if(selRD!==i){selRD=i;rdBuild();render()}});
+$('#rdList').addEventListener('click',e=>{const tr=e.target.closest('[data-i]');if(!tr)return;const i=+tr.dataset.i;if(e.target.closest('[data-del]')){S.room.doors.splice(i,1);selRD=null;commit();rdBuild();return}if(selRD!==i){selRD=i;sel.clear();rdBuild();buildProps();render()}});
 $('#rdAdd').onclick=()=>{S.room.doors=roomDoors();S.room.doors.push({wall:'d',at:Math.max(0,Math.round(S.room.w/2-500)),w:1000,leaves:1,swing:'in',hinge:'a'});selRD=S.room.doors.length-1;commit();rdBuild()};
 $('#rdClr').onchange=e=>{S.room.doorClr=Math.max(0,+e.target.value||0)||undefined;commit();rdBuild()};
 function buildRoom(){buildInfo();rdBuild();{const ra=$('#reAutoRow');if(ra)ra.hidden=!(S.autoFrom&&S.autoFrom.items)}$('#rW').value=S.room.w;$('#rL').value=S.room.l;$('#rSX').value=S.room.spX;$('#rSY').value=S.room.spY;$('#rC').value=S.room.col;$('#rM').value=S.room.margin;$('#rSp').value=S.room.spare;$('#rSd').value=S.room.spareDir;$('#rGp').value=S.room.gapP;$('#rGd').value=S.room.gapD;$('#rTouch').checked=S.room.touchOK;$('#rEnf').checked=S.room.enforce;$('#rFit').checked=S.room.autoFit!==false;$('#snap').value=String(S.snap);
@@ -1421,6 +1441,7 @@ function buildProps(){
     $('#cDel').onclick=delCol; return;
   }
   $('#selInfo').textContent=ps.length?ps.length+' EA':'없음';
+  if(!ps.length&&selRD!==null&&roomDoors()[selRD]){rdProps(box,selRD);return}
   if(!ps.length){box.className='muted';box.innerHTML='판넬을 클릭하거나 Shift+Drag로 여러 개를 선택하세요.';return}
   box.className='';
   if(ps.length===1){
@@ -1677,7 +1698,7 @@ svg.addEventListener('pointerdown',e=>{
   if(p&&(mode!=='box'||(sel.has(p.id)&&!e.shiftKey))){   // [박스선택] 에서도 고른 판넬을 누르면 고른 묶음째 끌어 옮김
     if(e.shiftKey){sel.has(p.id)?sel.delete(p.id):sel.add(p.id);buildProps();render();if(!sel.has(p.id))return}   // Shift = 선택 넣고 빼기
     else if(e.ctrlKey){if(!sel.has(p.id)){sel.add(p.id);buildProps()}}                                            // Ctrl = 선택에 더하고 그대로 끌기(정렬 스냅)
-    else if(!sel.has(p.id)){sel=new Set([p.id]);buildProps()}
+    else if(!sel.has(p.id)){sel=new Set([p.id]);if(selRD!==null){selRD=null;rdBuild()}buildProps()}
     const ps=S.panels.filter(q=>sel.has(q.id)&&!q.lock);
     if(!ps.length){toast('잠긴 판넬입니다 — 속성칸의 🔒 또는 L 키로 풀면 옮길 수 있습니다');render();return}
     drag={k:'move',w0:w,orig:ps.map(q=>({q,x:q.x,y:q.y})),moved:false};render();return;
@@ -1724,7 +1745,7 @@ function endPtr(e){
     block=null;showBlock(); if(hp){d.o.cx=d.ox;d.o.cy=d.oy;check();render();refuse(`${hp.tag} 위에 기둥이 겹칩니다`)}else if(d.moved){commit();buildRoom()}else render()}
   else if(d.k==='note'){if(d.moved)commit();else render()}
   else if(d.k==='rdoor'){if(d.moved){commit();rdBuild()}else render()}
-  else if(d.k==='pan'){if(!d.moved&&(sel.size||selNote||selCol)){sel.clear();selNote=null;if(mode!=='col')selCol=null;buildProps();render()}}
+  else if(d.k==='pan'){if(!d.moved&&(sel.size||selNote||selCol||selRD!==null)){sel.clear();selNote=null;selRD=null;rdBuild();if(mode!=='col')selCol=null;buildProps();render()}}
   else if(d.k==='box'){const r=marquee,x0=Math.min(r.x0,r.x1),x1=Math.max(r.x0,r.x1),y0=Math.min(r.y0,r.y1),y1=Math.max(r.y0,r.y1);
     if(!r.add)sel.clear();
     S.panels.forEach(p=>{const b=geom(p).body;if(b.x>=x0&&b.y>=y0&&b.x+b.w<=x1&&b.y+b.h<=y1)sel.add(p.id)});
@@ -1760,6 +1781,12 @@ document.addEventListener('keydown',e=>{   // v3keys = 2D | 3D 나란히에서 3
   if((e.ctrlKey||e.metaKey)&&k==='y'){e.preventDefault();doRedo();return}
   if((e.ctrlKey||e.metaKey)&&k==='d'){e.preventDefault();dupSel();return}
   if((e.ctrlKey||e.metaKey)&&k==='a'){e.preventDefault();sel=new Set(S.panels.map(p=>p.id));buildProps();render();return}
+  if(selRD!==null&&!sel.size&&roomDoors()[selRD]){const i=selRD,d=S.room.doors[i],st0=e.shiftKey?S.snap*10:S.snap;   // 출입문을 고른 때: R 좌↔우 · I 안↔밖 · 방향키 벽 따라 · Delete 지우기 · Esc 풀기
+    if(k==='r'){rdFlipHinge(i);return} if(k==='i'){rdFlipSwing(i);return}
+    if(k==='delete'||k==='backspace'){S.room.doors.splice(i,1);selRD=null;commit();rdBuild();buildProps();render();return}
+    if(k==='escape'){selRD=null;rdBuild();buildProps();render();return}
+    const hz=d.wall==='u'||d.wall==='d',dv=hz?(k==='arrowleft'?-st0:k==='arrowright'?st0:0):(k==='arrowup'?-st0:k==='arrowdown'?st0:0);
+    if(dv){e.preventDefault();rdSet(i,{at:(+d.at||0)+dv});return}}
   if(k==='r'){rotSel(e.shiftKey?-90:90);return}
   if(k==='delete'||k==='backspace'){if(mode==='col')delCol();else if(selNote&&!sel.size){S.notes=S.notes.filter(x=>x.id!==selNote);selNote=null;commit();buildNotes()}else delSel();return}
   if(k==='escape'){if(mode!=='select')setMode('select');else{sel.clear();buildProps();render()}return}
