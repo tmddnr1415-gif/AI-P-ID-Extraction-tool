@@ -433,18 +433,26 @@ async function openJob(id) {
   $("#goto").disabled = false;
   const rep = $("#report"); rep.hidden = false; rep.href = `/logic/api/jobs/${id}/report.xlsx`;
   L.all = null; L.allSel = null;
-  api(`/logic/api/jobs/${id}/findings`).then((f) => { if (L.job === id) { L.all = f; renderAll(); } }).catch(() => {});
   L.memos = [];
-  loadMemos(id); aopVocab();
-  L.idrate = null; L.idrateOpen = false; loadIdrate();
+  L.idrate = null; L.idrateOpen = false;
   // L25 — 질문이 있으면 가르치기 창을 연다 (사람이 닫은 묶음은 다시 열지 않는다 · 분석 중에 열어 둔 창은 그대로)
   const teachOpen = !$("#teach").hidden && TEACH.job === id;
   const fromWin = /[#&](test|rvgo|row|blk)=/.test(location.hash);      // L42 — 다른 창(그룹 시험 · 검토)에서 자리를 짚어 왔으면 창을 덮지 않는다
-  loadTeach(id, !fromWin && !MACRO_FROM && (teachOpen || lsGet("logic.teachclosed." + id) !== "1"));
   $("#ft-report").hidden = false;
   RV.data = null; $("#rv-btn").hidden = false; $("#rv-pdf").hidden = false;
   $("#rv-pdf").href = `/logic/api/jobs/${id}/review.pdf?author=${encodeURIComponent(lsGet("pid.author") || "")}`;
-  loadReview(id);
+  // L68 — 곁 정보(묶음 점검 · 메모 · 식별률 · 가르치기 · 검토)는 첫 시트가 선 뒤에 받는다 — 함께 보내면 서버가 그것들을
+  // 세느라 첫 시트가 늦게 섰다 (846쪽 묶음 실측).  받는 것 · 그리는 것은 예전 그대로이고 순서만 뒤로 간다.
+  let sideDone = false;
+  const side = () => {
+    if (sideDone || L.job !== id) return;
+    sideDone = true;
+    api(`/logic/api/jobs/${id}/findings`).then((f) => { if (L.job === id) { L.all = f; renderAll(); } }).catch(() => {});
+    loadMemos(id); aopVocab(); loadIdrate();
+    loadTeach(id, !fromWin && !MACRO_FROM && (teachOpen || lsGet("logic.teachclosed." + id) !== "1"));
+    loadReview(id);
+  };
+  setTimeout(side, 4000);                     // 첫 시트가 어떤 까닭으로 늦어도 곁 정보는 받는다
   // 사용자 규칙 1 — 신호를 주기 전에 From-To 점검 보고를 먼저 (이 묶음을 처음 열 때 · 방금 분석이 끝났을 때)
   let seen = false;
   try { seen = localStorage.getItem("logic.ftseen." + id) === "1"; } catch (e) {}
@@ -452,6 +460,7 @@ async function openJob(id) {
   const rvgo = Number((location.hash.match(/[#&]rvgo=(\d+)/) || [])[1]);
   if (!MACRO_FROM && !fromWin && (wasRunning || !seen)) showFromTo(id);
   if (rvgo) {                                  // L41 — 검토 결과 창에서 왔다
+    side();
     await loadReview(id);
     const it = RV.data && RV.data.items.find((x) => x.id === rvgo);
     if (it) { goReview(it); return; }
@@ -459,8 +468,9 @@ async function openJob(id) {
   const p = Number((location.hash.match(/page=(\d+)/) || [])[1]) || (L.sheets[0] && L.sheets[0].page);
   const hrow = Number((location.hash.match(/[#&]row=(\d+)/) || [])[1]) || 0;     // L42 — 그룹 시험 창의 '시트-행' 에서 왔다
   const hblk = (location.hash.match(/[#&]blk=([^&]+)/) || [])[1];
-  if (p && !test && (hrow || hblk)) { await goLoc(p, hrow, (location.hash.match(/[#&]side=([LR])/) || [])[1], hblk ? "block:" + decodeURIComponent(hblk) : ""); return; }
-  if (p) { if (test) { await openSheet(p); applyHashTest(id, decodeURIComponent(test[1])); } else openSheet(p); }
+  if (p && !test && (hrow || hblk)) { try { await goLoc(p, hrow, (location.hash.match(/[#&]side=([LR])/) || [])[1], hblk ? "block:" + decodeURIComponent(hblk) : ""); } finally { side(); } return; }
+  if (p) { if (test) { try { await openSheet(p); } finally { side(); } applyHashTest(id, decodeURIComponent(test[1])); } else openSheet(p).finally(side); }
+  else side();
 }
 /* L42 — 시트 · 행(또는 블록) 자리로 간다.  그룹 시험 창이 신호마다 'BL10_P301-112' 를 누르면 여기로 온다 */
 async function goLoc(page, row, side, key) {

@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import os
 
 import shutil
 import time
@@ -287,9 +288,25 @@ _APPLIED = {}                    # job → (결과 mtime, 사람 값 mtime, 사�
 _RESULT_LOCK = threading.RLock()   # L28 — 화면이 열 때 요청 대여섯을 함께 보낸다 · 같은 결과를 동시에 준비(설정값 · from-to · 사람 값)하지 않게
 
 
+_LAST_REQ = [0.0]                 # L68 — 화면 요청이 마지막으로 결과를 찾은 때 (뒤에서 도는 미리 계산이 그 사이에 끼지 않게)
+
+
 def _result(job):
+    _LAST_REQ[0] = time.monotonic()
     with _RESULT_LOCK:
         return _result_locked(job)
+
+
+WARM_QUIET = 1.2                  # L68 — 묶음을 연 뒤 화면 요청이 이만큼(초) 조용해지면 미리 계산을 시작한다
+WARM_WAIT_MAX = 15.0              # 그래도 이만큼 지나면 시작한다
+
+
+def _wait_quiet():
+    """묶음을 열면 화면이 요청 열 개 남짓(시트 · 그림 · 점검 · 가르치기 · 식별률 …)을 함께 보낸다.  미리 계산(827장
+    시뮬레이션 · 1~2초)이 그 사이에 같은 파이썬을 쥐면 첫 시트가 늦게 선다 — 요청이 잦아든 뒤에 돈다.  답은 그대로다."""
+    t0 = time.monotonic()
+    while time.monotonic() - t0 < WARM_WAIT_MAX and time.monotonic() - _LAST_REQ[0] < WARM_QUIET:
+        time.sleep(0.2)
 
 
 def _lru_put(cache, key, value, keep=3):
@@ -303,7 +320,7 @@ def _result_locked(job):
     d = _dir(job)
     if not (d / "result.json").exists():
         raise HTTPException(409, "아직 분석이 끝나지 않았습니다.")
-    res = store.read_result(d)
+    res = store.read_result(d, (_prepared_load, lambda r: _prepare(job, d, r)))
     _drawing_sp(job, d, res)                 # L26 — 감시 블록 위에 인쇄한 설정값 (다시 분석 없이) · L30 연산자 입력 이름 · 안 그림
     _identify(res)                           # L30 — 아날로그 연산자 · 표시등 이름 (다시 분석 없이 · 결과마다 한 번)
     if not res.get("_ft"):                   # 예전 결과도 다시 분석 없이 FM ↔ TO 대조 (L5) — 캐시된 결과에는 한 번만 (L7)
@@ -332,11 +349,97 @@ def _result_locked(job):
     overrides.apply(fresh, ov, lib_rules)
     fresh["_ft"] = True
     _lru_put(_APPLIED, job, (rm, om, fresh, lm))
+    _warm_bundle(job, fresh)                 # L68 — 사람 값을 고친 뒤 첫 시뮬레이션도 기다리지 않게 (바뀐 장만 다시 센다 — L28)
     return fresh
 
 
 _LIB_RULES = {}
 _SP = {}
+
+# ------------------------------------------------------------------ L68 — 준비한 결과 사본 (다시 열 때 가볍게)
+# 결과를 처음 읽으면 37MB JSON 을 풀고(0.7초) 도면 설정값 · 연산자 이름 · from-to 대조를 얹는다(0.7초) — 서버를 다시
+# 켤 때마다 · 결과 기억(3개)에서 밀려날 때마다 · 회사 PC 에서는 몇 배로.  얹은 뒤의 결과를 분석 폴더에 marshal 로
+# 남기고(파이썬 내장 · 코드를 실행하지 않는 형식) 다음에는 그것을 읽는다 (0.25초).  열쇠는 result.json(시각 · 크기) ·
+# 설정값 규칙 판 · 이 판단에 닿는 코드 · 설정 파일 내용 · 파이썬 판 — 하나라도 다르면 예전처럼 JSON 을 읽고 다시 남긴다.
+# 사람 값은 얹지 않는다 (그것은 늘 사본에 얹는다 — L28).  답은 같다 (시험이 JSON 길과 맞댄다).
+PREPARED = "prepared.bin"
+
+
+def _code_fp():
+    import hashlib
+    h = hashlib.blake2b(digest_size=12)
+    here = Path(__file__).resolve().parent
+    for p in sorted(here.glob("*.py")) + sorted(paths.resource("config").glob("logic_*")):
+        try:
+            h.update(p.name.encode()); h.update(p.read_bytes())
+        except OSError:
+            pass
+    h.update(sys.version.encode())
+    if paths.frozen():                      # exe 에는 .py 가 디스크에 없다 — exe 자신(크기 · 시각)이 코드 판이다
+        try:
+            st = Path(sys.executable).stat()
+            h.update(f"{sys.executable}:{st.st_size}:{st.st_mtime_ns}".encode())
+        except OSError:
+            h.update(os.urandom(8))         # 모르면 매번 다르게 — 사본을 쓰지 않는다 (예전처럼 JSON 을 읽는다)
+    return h.hexdigest()
+
+
+def _prepared_key(d):
+    fp = _code_fp_cached()
+    st = (d / "result.json").stat()
+    return f"{st.st_mtime_ns}:{st.st_size}:{SP_VERSION}:{fp}".encode()
+
+
+def _code_fp_cached(_box=[]):
+    if not _box:
+        _box.append(_code_fp())
+    return _box[0]
+
+
+def _prepared_load(d):
+    import marshal
+    try:
+        key = _prepared_key(d)
+        b = (d / PREPARED).read_bytes()
+    except OSError:
+        return None
+    if not b.startswith(key + b"\n"):
+        return None
+    try:
+        res = marshal.loads(b[len(key) + 1:])
+    except Exception:
+        return None
+    return res if isinstance(res, dict) and res.get("_ft") else None
+
+
+def _prepare(job, d, res):
+    """처음 읽은 결과에 얹을 것을 얹고(아래 _result_locked 와 같은 함수 · 같은 순서) 사본을 남긴다.  못 남겨도 그만이다."""
+    import marshal
+    _drawing_sp(job, d, res)
+    _identify(res)
+    fromto.check(res["sheets"])
+    res["_ft"] = True
+    sz = _read_sizes(d)
+    if sz:
+        res["_page_sizes"] = [sz.get(i + 1, [0.0, 0.0]) for i in range(max(sz))]
+    try:
+        key = _prepared_key(d)
+        data = marshal.dumps(res)
+    except Exception:
+        return
+
+    def write():
+        tmp = d / (PREPARED + f".tmp{os.getpid()}.{threading.get_ident()}")
+        try:
+            with open(tmp, "wb") as f:
+                f.write(key + b"\n"); f.write(data)
+            store._replace(tmp, d / PREPARED)
+        except OSError:
+            try:
+                tmp.unlink(missing_ok=True)
+            except OSError:
+                pass
+    threading.Thread(target=write, daemon=True).start()
 
 
 def _identify(res):
@@ -458,16 +561,22 @@ def _size(job, d, page):
             return None
     sz = _SIZES.get(job)
     if sz is None:
-        sz = {}
-        try:
-            doc = pymupdf.open(d / "source.pdf")
-            for i, pg in enumerate(doc):
-                r = pg.rect
-                sz[i + 1] = [r.width, r.height]
-        except Exception:
-            pass
+        got = _result(job).get("_page_sizes")      # L68 — 준비한 결과 사본에 함께 남긴 쪽 크기 (846쪽을 다시 열지 않는다 · 0.2초)
+        sz = {i + 1: list(v) for i, v in enumerate(got)} if isinstance(got, list) else _read_sizes(d)
         _SIZES[job] = sz
     return sz.get(page)
+
+
+def _read_sizes(d):
+    sz = {}
+    try:
+        doc = pymupdf.open(d / "source.pdf")
+        for i, pg in enumerate(doc):
+            r = pg.rect
+            sz[i + 1] = [r.width, r.height]
+    except Exception:
+        pass
+    return sz
 
 
 def _all_sheets(res):
@@ -551,6 +660,7 @@ def _warm_bundle(job, res):
 
     def go():
         try:
+            _wait_quiet()
             with cache.setdefault("_lock", threading.Lock()):
                 if cache.get("topo") is None:
                     sim.simulate_bundle(_all_sheets(res), {}, {}, None, cache=cache)
@@ -825,7 +935,10 @@ def scenario(job: str, page: int, body: dict = Body(default={})):
     target = str(body.get("target", ""))
     if not (target.startswith("row:") and target[4:].isdigit() or target.startswith("net:")):
         raise HTTPException(400, "target 은 row:<n> · net:<id> 입니다.")
-    return sim.scenario(s, target, 1, sheets=_all_sheets(res))
+    # L68 — 묶음 기억을 넘긴다 (조합마다 827장을 처음부터 돌리던 것 · 같은 답 — L28) · 같은 출력은 다시 찾지 않는다
+    cache = _bundle_cache(job, res)
+    with cache.setdefault("_lock", threading.Lock()):
+        return _memo(res, "scenario", lambda: sim.scenario(s, target, 1, sheets=_all_sheets(res), cache=cache), page, target)
 
 
 @router.get("/logic/api/jobs/{job}/commands")
