@@ -434,6 +434,55 @@ def uad():
 
 REFS = [f3, nt34, tanajib, amiral, qfe, uad]
 
+# ---------------------------------------------------------------- 실 출입문 (도면 사진에서 읽음, 근사 ±300 mm)
+# wall: u 위 · d 아래 · l 왼쪽 · r 오른쪽 (Ref 좌표 = 도면 방향), at = 벽 시작(위·아래 = 왼쪽, 왼·오른 = 위쪽)에서 문 시작까지,
+# w = 열린 폭, leaves = 1 외짝 · 2 양개, swing = in 실 안으로 · out 밖으로, hinge = a 시작 쪽 · b 끝 쪽 (외짝)
+def D(wall, at, w, leaves=1, swing='in', hinge='a'):
+    return {'wall': wall, 'at': at, 'w': w, 'leaves': leaves, 'swing': swing, 'hinge': hinge}
+
+
+DOORS = {
+    'f3-cer': [D('u', 1950, 1600, 2, 'out'), D('r', 6900, 900, 1, 'in', 'b')],
+    'f3-ccr': [D('r', 4100, 1000, 1, 'out', 'a'), D('r', 8750, 1000, 1, 'in', 'b')],
+    'f3-eng': [D('u', 4700, 800, 1, 'in', 'b')],
+    'f3-met': [D('d', 300, 1800, 2, 'in')],
+    'nt34-ccr': [D('u', 11700, 1600, 2, 'out'), D('r', 7400, 1800, 2, 'out'), D('r', 15400, 1800, 2, 'in'), D('r', 21300, 1600, 2, 'in')],
+    'nt34-er': [D('l', 1500, 1800, 2, 'out'), D('r', 2300, 1000, 1, 'out', 'a')],
+    'nt34-eng': [D('l', 1700, 1600, 2, 'out'), D('u', 14400, 900, 1, 'out', 'b')],
+    'tnj-ccr': [D('d', 8300, 900, 1, 'in', 'a'), D('d', 9500, 900, 1, 'in', 'a')],
+    'tnj-er': [D('l', 2900, 1800, 2, 'out'), D('d', 9000, 900, 1, 'in', 'b')],
+    'tnj-eng': [D('r', 150, 1000, 1, 'out', 'a'), D('u', 9000, 900, 1, 'out', 'b')],
+    'tnj-met': [D('r', 5600, 900, 1, 'out', 'a'), D('l', 600, 1600, 2, 'out')],
+    'amr-ccr': [D('r', 400, 1000, 1, 'out', 'a')],   # 4,800 쪽 호는 옆 계단실 문(프린터 줄 앞) — 뺌
+    'amr-er': [D('l', 2600, 1600, 2, 'in'), D('r', 5100, 1600, 2, 'out')],
+    'amr-eng': [D('r', 2600, 1600, 2, 'out'), D('d', 11700, 1000, 1, 'in', 'b')],
+    'qfe-er': [D('r', 5200, 1000, 1, 'out', 'b'), D('d', 600, 1800, 2, 'out')],
+    'qfe-ccr': [D('u', 2900, 1800, 2, 'in'), D('l', 2300, 1600, 2, 'out')],
+    'qfe-eng1': [D('l', 1800, 1000, 1, 'in', 'a')],
+    'qfe-eng2': [D('l', 3900, 900, 1, 'in', 'b')],
+    'uad-ccr': [D('l', 4000, 1000, 1, 'out', 'a'), D('l', 11900, 1600, 2, 'out'), D('d', 700, 900, 1, 'out', 'a')],
+    'uad-eng': [D('r', 4000, 1000, 1, 'in', 'a')],
+    'uad-er': [D('r', 3400, 1000, 1, 'out', 'a')],
+}
+
+
+def door_clear(rid, d):
+    """문 앞(실 안쪽) 비운 깊이: 문 폭 안에서 벽에서 가장 가까운 장비까지 mm (없으면 맞은편 벽까지, 최대 5,000)"""
+    W, L = d['room']['w'], d['room']['l']; T = {t['id']: t for t in d['types']}; out = []
+    for dr in DOORS.get(rid, []):
+        a0, a1 = dr['at'] + 1, dr['at'] + dr['w'] - 1; best = W if dr['wall'] in 'lr' else L
+        for p in d['panels']:
+            x, y, bw, bh = body(p, T[p['type']])
+            if dr['wall'] in 'ud':
+                if x + bw < a0 or x > a1: continue
+                k = y if dr['wall'] == 'u' else L - (y + bh)
+            else:
+                if y + bh < a0 or y > a1: continue
+                k = x if dr['wall'] == 'l' else W - (x + bw)
+            best = min(best, max(0, k))
+        out.append(min(best, 5000))
+    return out
+
 # ---------------------------------------------------------------- 학습: Ref 배치에서 거리 통계
 def body(p, t):
     sw = p['rot'] % 180 == 0
@@ -601,6 +650,13 @@ def main():
     stats = learn(rooms)
     found, kinds = find_rules(rooms)
     refs = [{'id': r.rid, 'project': r.project, 'doc': r.doc, 'room': r.room, 'kind': kinds[r.rid], 'note': r.note, 'data': r.data()} for r in rooms]
+    dc = []
+    for x in refs:
+        x['data']['room']['doors'] = DOORS.get(x['id'], [])
+        dc += door_clear(x['id'], x['data'])
+    if dc:
+        dc.sort(); stats['doorClr'] = {'n': len(dc), 'min': dc[0], 'med': round(statistics.median(dc)), 'p75': dc[int(len(dc) * .75)], 'max': dc[-1]}
+        found.append({'id': 'door.clear', 'kind': 'all', 'v': round(statistics.median(dc)), 'text': f'출입문 앞(실 안쪽) 비움 깊이 중앙 {round(statistics.median(dc)):,} mm ({dc[0]:,}~{dc[-1]:,}, 문 {len(dc)}개)'})
     js = ('/* 판넬 공간확보 — Ref. PJT Room Layout (dashboard_tools/space_ref_build.py 가 만든 파일, 직접 고치지 말 것)\n'
           '   도면 사진에서 사람이 읽어 옮김: 치수 = 도면 치수선 · Equipment List, 자리 = 근사(±200~300 mm), 곡선 콘솔은 곧게 폄.\n'
           '   rules = 이 Ref 들에서 잰 거리 통계(mm) — Option A 자동 배치 시작값. */\n'
