@@ -176,6 +176,7 @@ button.wk:hover{transform:translateY(-2px);box-shadow:0 8px 20px rgba(30,42,90,.
 .wpeople h2{display:flex;align-items:center;gap:6px;flex-wrap:wrap}.wpeople .pfold{margin-left:auto}
 .pfmore{display:block;width:100%;margin-top:6px;border:1px dashed var(--line);background:#fafbff;border-radius:10px;padding:7px;color:var(--accent);font-weight:700}
 .pfmore:hover{background:var(--accent-l)}
+.afnote{font-size:12px;color:var(--muted);margin:-2px 0 6px}
 /* ---------- 게시판 유형 · 실명 ---------- */
 .bkinds{display:flex;gap:8px;flex-wrap:wrap;margin:6px 0 12px}
 .wtc2{border:1px solid var(--line);border-radius:99px;padding:6px 14px;background:#fff;font-size:13px;color:var(--c,var(--text))}
@@ -1112,7 +1113,7 @@ function recLabel(key, f) {
  * ===================================================================== */
 let root = null;
 /* 서버 모드: http(s):// 로 접속하면 server.py 의 REST API 사용 (폴더 선택 불필요). file:// 로 열면 폴더 모드 */
-const APP_VERSION = '2026-10-26.2';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
+const APP_VERSION = '2026-10-28.1';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
 const SERVER_URL = 'http://localhost:8080';
 // 부서원 PC 사본(file://)이 접속을 시도할 서버 — 서버가 배포 파일을 만들 때 'PC 이름 주소, IP 주소' 순으로 자동 기록함
 const DEFAULT_SERVERS = ['http://ASEUNGWOOK-B01:8080', 'http://65.3.30.234:8080'];
@@ -3395,6 +3396,7 @@ function ownerTokens(recs, f) { const m = new Map(); recs.forEach(r => tokens(r.
 const cell1 = v => String(v || '').split('\n')[0].replace(/\(.*?\)/g, '').trim() || '(미분류)';
 
 const PJ_COL = { perform:'#2b44c9', bid:'#e8730c' };   // 그래프의 수행 · 입찰 색
+const pjLegend = oth => `<span class="legend" style="display:inline-flex;margin:0 0 0 10px;font-weight:400;vertical-align:1px"><span><i style="background:${PJ_COL.perform}"></i>수행</span><span><i style="background:${PJ_COL.bid}"></i>입찰</span>${oth ? '<span><i style="background:#9aa1b5"></i>기타</span>' : ''}</span>`;
 function svgBars(items, { horiz = false, color = PALETTE[0], fmt = v => v } = {}) {
   if (!items.length) return '<div class="empty">데이터 없음</div>';
   const max = Math.max(...items.map(i => i.v)) || 1;
@@ -3414,7 +3416,10 @@ function svgBars(items, { horiz = false, color = PALETTE[0], fmt = v => v } = {}
   const W = 520, H = 230, T = 22, B = 70, bw = (W - 20) / items.length, ch = H - T - B;
   return `<svg class="chart" viewBox="0 0 ${W} ${H}" role="img"><line x1="10" x2="${W - 10}" y1="${T + ch}" y2="${T + ch}" stroke="#d9dff0"/>${items.map((i, k) => {
     const h = ch * i.v / max, x = 10 + k * bw + bw * .18, w = bw * .64;
-    return `<g${tipA(i)}><rect x="${10 + k * bw}" y="0" width="${bw}" height="${H}" fill="transparent"/><rect class="bar" x="${x}" y="${T + ch - h}" width="${w}" height="${Math.max(h, 1)}" rx="3" fill="${color}"/><text x="${x + w / 2}" y="${T + ch - h - 5}" text-anchor="middle" font-size="11" fill="#667089">${fmt(i.v)}</text><text transform="translate(${x + w / 2},${T + ch + 12}) rotate(-35)" text-anchor="end" font-size="11" fill="#1b2238">${esc(trunc(i.l, 11))}</text></g>`;
+    let yb = T + ch;                                     // 쌓은 막대(parts): 아래에서 위로 조각마다 색 · 툴팁 (2026-10-28 수행/입찰 구분)
+    const bars = i.parts ? i.parts.filter(p => p.v > 0).map(p => { const ph = ch * p.v / max; yb -= ph; return `<g${tipA(p)}><rect class="bar" x="${x}" y="${yb}" width="${w}" height="${Math.max(ph, 1)}" fill="${p.color}"/></g>`; }).join('')
+      : `<rect class="bar" x="${x}" y="${T + ch - h}" width="${w}" height="${Math.max(h, 1)}" rx="3" fill="${i.color || color}"/>`;
+    return `<g${tipA(i)}><rect x="${10 + k * bw}" y="0" width="${bw}" height="${H}" fill="transparent"/>${bars}<text x="${x + w / 2}" y="${T + ch - h - 5}" text-anchor="middle" font-size="11" fill="#667089">${fmt(i.v)}</text><text transform="translate(${x + w / 2},${T + ch + 12}) rotate(-35)" text-anchor="end" font-size="11" fill="#1b2238">${esc(trunc(i.l, 11))}</text></g>`;
   }).join('')}</svg>`;
 }
 function svgDonut(items) {
@@ -3699,8 +3704,11 @@ function renderHome(c) {
   // 차트 데이터 + 마우스 올리면 보이는 상세(툴팁)
   const tagOf = r => r.sheet === 'bid' ? '입찰' : '수행';
   const grp = new Map(); pj.forEach(r => { const ts = bizGrp(r.fields['사업군']); (ts.length ? ts : ['(미분류)']).forEach(g => (grp.get(g) || grp.set(g, []).get(g)).push(r)); });   // 수행·입찰 PJT 보드와 같은 사업군 단어 (여럿이면 각각)
-  const grpItems = [...grp].sort((a, b) => b[1].length - a[1].length).map(([l, rs]) => ({ l, v:rs.length,
-    tip:tipHtml(`${l} · ${rs.length}개 PJT`, [...(l === BIZ_LH ? [lhLine(rs)] : []), ...rs.map(r => `<span class="tm">[${tagOf(r)}]</span> ${esc(flat(r.fields['PJT명']))}${l === BIZ_LH ? ` <span class="tm">· ${esc(lhKind(r.fields['사업군']))}</span>` : ''}`)], l === BIZ_LH ? 16 : 14) }));
+  const grpLine = (l, r) => `<span class="tm">[${tagOf(r)}]</span> ${esc(flat(r.fields['PJT명']))}${l === BIZ_LH ? ` <span class="tm">· ${esc(lhKind(r.fields['사업군']))}</span>` : ''}`;
+  const grpItems = [...grp].sort((a, b) => b[1].length - a[1].length).map(([l, rs]) => { const pr = rs.filter(r => r.sheet !== 'bid'), br = rs.filter(r => r.sheet === 'bid');
+    return { l, v:rs.length,
+      tip:tipHtml(`${l} · ${rs.length}개 PJT (수행 ${pr.length} · 입찰 ${br.length})`, [...(l === BIZ_LH ? [lhLine(rs)] : []), ...rs.map(r => grpLine(l, r))], l === BIZ_LH ? 16 : 14),
+      parts:[{ v:pr.length, color:PJ_COL.perform, tip:tipHtml(`${l} · 수행 ${pr.length}개`, pr.map(r => grpLine(l, r))) }, { v:br.length, color:PJ_COL.bid, tip:tipHtml(`${l} · 입찰 ${br.length}개`, br.map(r => grpLine(l, r))) }] }; });   // 2026-10-28 VOC: 수행(파랑) · 입찰(주황) 쌓은 막대
   // 담당자: 칸에 이름이 들어 있으면 (수행 = 영문 이름 뺌, 입찰 = IEC 포함 — 수행·입찰 PJT 보드와 같은 규칙)
   const og = new Map(); [[live('perform'), 'skip'], [live('bid'), 'iec']].forEach(([rs, e]) => personGroups(rs, r => r.fields['담당자'], e).forEach(([n, xs]) => og.set(n, [...(og.get(n) || []), ...xs])));
   // 2026-10-22: 한 막대에 수행(파랑) · 입찰(주황)을 색으로 나눔 — 막대 조각에 마우스 = 그쪽 PJT 만, 이름 쪽 = 둘 다 나눠서
@@ -3714,16 +3722,17 @@ function renderHome(c) {
   const upd2 = SHEETS.map(s => { const rs = R(s.key).filter(isUpdated).sort((a, b) => (a.meta.updatedAt < b.meta.updatedAt ? 1 : -1));
     return { l:s.label, v:rs.length, tip:tipHtml(`${s.label} · 금주 업데이트 ${rs.length}건`, rs.map(r => `<b style="color:#9fd0ff">${esc(r.meta.updatedBy || '')}</b> <span class="tm">${fmtTime(r.meta.updatedAt)}</span> · ${esc(recLabel(s.key, r.fields))}`)) }; }).filter(x => x.v);
   const pv = new Map(); R('staffing').forEach(r => Object.entries(r.fields.배정 || {}).forEach(([cid, a]) => { if (num(a.pct) > 0) (pv.get(cid) || pv.set(cid, []).get(cid)).push({ r, a }); }));
-  const colName = Object.fromEntries(getCols().map(x => [x.id, x.name]));
+  const colName = Object.fromEntries(getCols().map(x => [x.id, x.name])), colKind = Object.fromEntries(getCols().map(x => [x.id, x.kind]));
+  const KCOL = { '수행':PJ_COL.perform, '입찰':PJ_COL.bid }, KOTH = '#9aa1b5';   // 투입인력 열 구분(수행 · 입찰 · 기타) → 막대 색
   const pjt = [...pv].map(([k, list]) => ({ k, list, sum:list.reduce((s, x) => s + num(x.a.pct), 0) })).sort((a, b) => b.sum - a.sum).slice(0, 12)
-    .map(({ k, list, sum }) => ({ l:colName[k] || k, v:Math.round(sum) / 100,
-      tip:tipHtml(`${colName[k] || k} · ${(Math.round(sum) / 100).toFixed(1)}명 (${list.length}명 참여)`, list.sort((a, b) => num(b.a.pct) - num(a.a.pct)).map(x => `${esc(x.r.fields.이름)} <b>${x.a.pct}%</b>${x.a.role === 'LE' ? ' <span style="color:#ff9b8f">LE</span>' : ' <span class="tm">RE</span>'}`), 20) }));
+    .map(({ k, list, sum }) => ({ l:colName[k] || k, v:Math.round(sum) / 100, color:KCOL[colKind[k]] || KOTH,
+      tip:tipHtml(`${colName[k] || k} · ${colKind[k] || ''} · ${(Math.round(sum) / 100).toFixed(1)}명 (${list.length}명 참여)`, list.sort((a, b) => num(b.a.pct) - num(a.a.pct)).map(x => `${esc(x.r.fields.이름)} <b>${x.a.pct}%</b>${x.a.role === 'LE' ? ' <span style="color:#ff9b8f">LE</span>' : ' <span class="tm">RE</span>'}`), 20) }));
   const memo = sortRecs(SHEET.notice, R('notice'))[0];
   c.insertAdjacentHTML('beforeend', `<div class="charts">
-    <section class="card"><h2>사업군별 PJT 수 (수행+입찰 · 진행 중)</h2>${svgBars(grpItems)}</section>
-    <section class="card"><h2>담당자별 담당 PJT 수 (진행 중 · 상위 12) <span class="legend" style="display:inline-flex;margin:0 0 0 10px;font-weight:400;vertical-align:1px"><span><i style="background:${PJ_COL.perform}"></i>수행</span><span><i style="background:${PJ_COL.bid}"></i>입찰</span></span></h2>${svgBars(own, { horiz:true, color:PALETTE[4] })}</section>
+    <section class="card"><h2>사업군별 PJT 수 (수행+입찰 · 진행 중) ${pjLegend()}</h2>${svgBars(grpItems)}</section>
+    <section class="card"><h2>담당자별 담당 PJT 수 (진행 중 · 상위 12) ${pjLegend()}</h2>${svgBars(own, { horiz:true, color:PALETTE[4] })}</section>
     <section class="card"><h2>시트별 금주 업데이트 비율</h2>${svgDonut(upd2)}</section>
-    <section class="card"><h2>PJT별 투입인력 (상위 12, 단위: 명 = 투입률 합/100)</h2>${svgBars(pjt, { color:PALETTE[2], fmt:v => v.toFixed(1) })}</section></div>
+    <section class="card"><h2>PJT별 투입인력 (상위 12, 단위: 명 = 투입률 합/100) ${pjLegend(pjt.some(i => i.color === KOTH))}</h2>${svgBars(pjt, { color:PALETTE[2], fmt:v => v.toFixed(1) })}</section></div>
    <p class="muted" style="margin:6px 2px 0">💡 그래프에 마우스를 올리면 PJT·담당자·업데이트 내역을 볼 수 있습니다.</p>
    <div class="homebottom"><div class="hcol">
      <section class="memo big"><span class="mt">📌 주간회의 전달사항 (최신)</span>
@@ -4477,7 +4486,8 @@ function pjHero(s) {
   const pjOf = n => live.filter(r => hasName(r.fields[s.owner], n)), endOf = n => recs.filter(r => !isLive(r) && hasName(r.fields[s.owner], n));
   const own = personGroups(live, r => r.fields[s.owner], bid ? 'iec' : 'skip').map(([n, rs]) => [n, rs.length]).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], 'ko')), omx = Math.max(1, ...own.map(x => x[1]));
   const ownTip = n => { const rs = pjOf(n), e = endOf(n).length; return tipHtml(`${n} · 진행 ${rs.length}건${e ? ` (+종결 ${e})` : ''}`, rs.length ? rs.map(r => `${esc(flat(r.fields['PJT명']) || '-')} <span class="tm">${esc(cell1(r.fields['사업군']))}</span>`) : ['담당 PJT 없음'], 16); };
-  const ofold = st.pfold !== false && own.length > 6, oshown = ofold ? own.slice(0, Math.ceil(own.length / 2)) : own;
+  // 2026-10-28 VOC: 접혀 있으면 3명만(많이 맡은 순) — 나 · 지금 고른 사람은 늘 보이게 → 아래 수행/입찰 표가 첫 화면에 보임
+  const ofold = st.pfold !== false && own.length > PJ_FOLD_N, oshown = ofold ? foldPick(own, PJ_FOLD_N, [st.owner, AUTH?.name || user]) : own;
   const ring = `<svg viewBox="0 0 42 42" class="wring"><circle cx="21" cy="21" r="16" fill="none" stroke="rgba(255,255,255,.25)" stroke-width="5"/><circle cx="21" cy="21" r="16" fill="none" stroke="#fff" stroke-width="5" stroke-linecap="round" stroke-dasharray="${rate * 1.005} 100.5" transform="rotate(-90 21 21)"/></svg>`;
   const kpi = (k, v, l, n, sub, icon, cls) => `<button class="wk ${cls} ${on(k, v)}" data-pjf="${k}|${v}"><span class="wki">${icon}</span><span class="wkl">${l}</span><span class="wkv">${n}</span><span class="wks">${sub}</span></button>`;
   return `<div id="pjhero" class="pjhero">
@@ -4494,9 +4504,17 @@ function pjHero(s) {
       <section class="card"><h2>🏷 사업군별 PJT <span class="muted">· 진행 / 종결 · 누르면 그 단어가 들어간 PJT 만</span></h2>
         ${bizs.map(([g, o]) => `<button class="ppr ${st.kw === g ? 'on' : ''}" data-pjf="kw|${esc(g)}" data-tip="${esc(bizTip(g, o))}"><span class="ppn">${esc(g)}</span><span class="pbar"><span class="pl ${bid ? 'bid' : ''}" style="width:${o.live / bmx * 100}%"></span><span class="pe" style="width:${o.end / bmx * 100}%"></span></span><span class="ppv">${o.live}${o.end ? `<small> +종결 ${o.end}</small>` : ''}</span></button>`).join('') || '<div class="empty">PJT 가 없습니다</div>'}
         <div class="wleg"><span><i class="${bid ? 'ws-soon' : 'ws-run'}"></i>진행</span><span><i style="background:#c3c8d6"></i>종결</span></div></section>
-      <section class="card"><h2>👥 부서원별 진행 PJT <span class="muted">· 전체 ${own.length}명 · 담당자 칸에 이름이 있는 PJT 수 · 마우스 = 미리보기 · 누르면 그 사람 PJT 만 · ${bid ? 'IEC 인원(영문 이름) 포함' : 'IEC 인원(영문 이름)은 세지 않음'}</span>${own.length > 6 ? `<button class="btn sm pfold" data-pjf="pfold|">${ofold ? `▼ 나머지 ${own.length - oshown.length}명 펼치기` : '▲ 반으로 접기'}</button>` : ''}</h2>
+      <section class="card"><h2>👥 부서원별 진행 PJT <span class="muted">· 전체 ${own.length}명 · 담당자 칸에 이름이 있는 PJT 수 · 마우스 = 미리보기 · 누르면 그 사람 PJT 만 · ${bid ? 'IEC 인원(영문 이름) 포함' : 'IEC 인원(영문 이름)은 세지 않음'}</span>${own.length > PJ_FOLD_N ? `<button class="btn sm pfold" data-pjf="pfold|">${ofold ? `▼ 나머지 ${own.length - oshown.length}명 펼치기` : '▲ 접기'}</button>` : ''}</h2>
         ${oshown.map(([p, n]) => `<button class="ppr pp2 ${st.owner === p ? 'on' : ''}" data-pjf="owner|${esc(p)}" data-tip="${esc(ownTip(p))}"><span class="wav">${avHtml(p)}</span><span class="ppn">${esc(p)}${isIec(p) ? '<small class="iectag">IEC</small>' : ''}</span><span class="pbar"><span class="pl ${bid ? 'bid' : ''}" style="width:${n / omx * 100}%"></span></span><span class="ppv">${n}</span></button>`).join('') || '<div class="empty">진행 중인 PJT 가 없습니다</div>'}${ofold ? `<button class="pfmore" data-pjf="pfold|">▼ ${own.length - oshown.length}명 더 보기</button>` : ''}</section>
     </div></div>`;
+}
+/* 접힌 목록: 앞에서 n 개 + 꼭 보일 이름(나 · 고른 사람)을 끝자리에 바꿔 넣음 (순서는 원래 순서 그대로) · rows = [[이름, …], …] */
+const PJ_FOLD_N = 3;
+function foldPick(rows, n, must) {
+  const keep = new Set(rows.slice(0, n).map(r => r[0]));
+  must.filter(Boolean).forEach(m => { if (keep.has(m) || !rows.some(r => r[0] === m)) return;
+    const drop = rows.slice(0, n).map(r => r[0]).reverse().find(k => keep.has(k) && !must.includes(k)); if (drop) keep.delete(drop); keep.add(m); });
+  return rows.filter(r => keep.has(r[0]));
 }
 /* ---------- 통합 업무 시트 (key 'task', 메뉴 '🚀 통합 업무') ----------
  * 수행·입찰 PJT 처럼 위 = 현황판(taskHero), 아래 = 엑셀형 표(셀 편집·행 추가·열 추가·열 필터).
@@ -4908,7 +4926,7 @@ document.addEventListener('click', e => {
  *  Step2 부서원별 월·연간 프로젝트 투입 비율(%) · 그래프 · R&R(역할) · 계획(투입인력) 대비 실제
  *  Step3 실제 시간(h)은 Management 메뉴 권한자에게만 — 서버가 권한 없는 사람에게는 시간 대신 비율 단위만 보냄
  * ===================================================================== */
-const AS = { year:String(new Date().getFullYear()), month:'', person:'', data:{}, leave:false };   // leave = Management 에서 근태 상세 펼침   // data[연도] = 서버 응답
+const AS = { year:String(new Date().getFullYear()), month:'', person:'', data:{}, leave:false, open:{} };   // open = 펼친 목록 (pj · ppl · rr, 메뉴별)   // leave = Management 에서 근태 상세 펼침   // data[연도] = 서버 응답
 const nmKey = s => flat(String(s || '').replace(/~~[\s\S]*?~~/g, '')).toLowerCase().replace(/[\s\-_()·.,]/g, '');
 const codeList = v => String(v || '').toUpperCase().split(/[\s,;/·]+/).map(x => x.trim()).filter(Boolean);
 const AL_PAL = ['#3b5bdb', '#f08c00', '#0ca678', '#e64980', '#1098ad', '#7048e8', '#d6336c', '#74b816', '#f76707', '#4263eb', '#12b886', '#ae3ec9'];
@@ -4993,6 +5011,13 @@ function renderAlloc(c, mg) {                             // mg = Management > R
   // 부서원별 100% 막대
   const ppl = [...people.values()].sort((a, b) => a.name.localeCompare(b.name, 'ko'));
   const sel = AS.person && people.has(AS.person) ? AS.person : (people.has(AUTH.name) ? AUTH.name : ppl[0]?.name || '');
+  // 2026-10-28 VOC: 처음엔 '나'와 관련된 것만 — 부서원 = 나 + 나와 같은 수행·입찰 PJT 를 한 사람, 프로젝트 = 내가 투입된 PJT, 개인 R&R 표 = 상위 3개. 나머지는 펼치기
+  const isPj = o => o.kind === 'perform' || o.kind === 'bid', ME = AUTH.name, meP = people.get(ME);
+  const myPj = new Set(meP ? [...meP.by.values()].filter(o => isPj(o) && !String(o.key).startsWith('__')).map(o => o.key) : []);   // 공통 묶음(입찰 공통 · 코드 없음)은 '같은 PJT' 로 보지 않음
+  const opened = k => AS.open[RT + k] ?? !!mg;               // Management 메뉴는 처음부터 펼침 (팀 전체를 보는 곳)
+  const foldBtn = (k, n, what) => n > 0 ? `<button class="pfmore" data-afold="${k}">${opened(k) ? '▲ 접기' : `▼ ${what} ${n}${k === 'ppl' ? '명' : '개'} 더 보기`}</button>` : '';
+  const mates = ppl.filter(P => P.name === ME || P.name === sel || [...P.by.values()].some(o => myPj.has(o.key)));
+  const pplShown = opened('ppl') || !meP ? ppl : mates;
   const stack = P => { const its = [...P.by.values()].sort((a, b) => b.v - a.v);
     return `<span class="astk" data-tip="${esc(tip(`${P.name} · ${plabel}`, its, P.tot))}">${its.map(o => `<span style="flex:${o.v};background:${colOf(o.key)}">${pct(o.v, P.tot) >= 9 ? Math.round(pct(o.v, P.tot)) + '%' : ''}</span>`).join('')}</span>`; };
   const prow = P => { const pv = [...P.by.values()].filter(o => o.kind === 'perform' || o.kind === 'bid').reduce((a, o) => a + o.v, 0);
@@ -5017,21 +5042,23 @@ function renderAlloc(c, mg) {                             // mg = Management > R
     const st = (DB.recs.staffing || []).find(r => normName(r.fields.이름) === me), cols = getCols();
     if (st) Object.entries(st.fields.배정 || {}).forEach(([cid, a]) => { const col = cols.find(x => x.id === cid); if (!col || !(num(a.pct) > 0)) return; const v = find(col.name); v.plan = num(a.pct); v.gubun = v.gubun || col.kind; v.role = v.role || a.role; });
     its.filter(o => o.kind === 'perform' || o.kind === 'bid').forEach(o => { const v = find(o.name); v.actual = pct(o.v, S.tot); v.h = o.v; v.gubun = v.gubun || (o.kind === 'bid' ? '입찰' : '수행'); });
-    const rows = [...rr.values()].sort((a, b) => (b.actual || 0) - (a.actual || 0) || (b.plan || 0) - (a.plan || 0));
+    // 2026-10-28 VOC: '계획 투입'(투입인력 시트의 고정값) 열은 뺌 — 실제 시수 · R&R 만. 투입인력에만 있고 R&R · 시수가 없는 PJT 줄도 뺌
+    const rows = [...rr.values()].filter(v => v.actual != null || v.role).sort((a, b) => (b.actual || 0) - (a.actual || 0));
     const other = its.filter(o => !(o.kind === 'perform' || o.kind === 'bid'));
-    const diff = v => v.plan == null || v.actual == null ? '' : `<span class="adiff ${v.actual - v.plan >= 0 ? 'up' : 'dn'}">${v.actual - v.plan >= 0 ? '▲' : '▼'} ${Math.abs(Math.round(v.actual - v.plan))}%p</span>`;
-    const rrTable = `<table class="t art"><thead><tr><th>PJT</th><th>구분</th><th>R&R 역할</th><th>기간 · 공정률</th><th>계획 투입 <small>(투입인력)</small></th><th>실제 투입 <small>(시수 · ${esc(plabel)})</small></th><th>차이</th></tr></thead><tbody>
-      ${rows.map(v => `<tr><td><b>${esc(v.name)}</b></td><td>${esc(v.gubun || '')}</td><td>${v.role ? `<span class="arole ${/LE/.test(v.role) ? 'le' : ''}">${esc(v.role)}</span>` : '<span class="muted">-</span>'}</td><td class="muted">${esc(v.period || '')}${v.prog ? ` · ${esc(v.prog)}%` : ''}</td>
-        <td>${v.plan != null ? `<span class="abar"><i style="width:${Math.min(100, v.plan)}%" class="pl"></i></span>${v.plan}%` : '<span class="muted">-</span>'}</td>
-        <td>${v.actual != null ? `<span class="abar"><i style="width:${Math.min(100, v.actual)}%" class="ac"></i></span>${v.actual}%${SH ? ` <small class="muted">${fmtH(v.h)}h</small>` : ''}` : '<span class="muted">0%</span>'}</td><td>${diff(v)}</td></tr>`).join('')}
-      ${other.map(o => `<tr class="aoth"><td>${esc(o.name)}</td><td>${alTag(o.kind)}</td><td></td><td></td><td></td><td>${pct(o.v, S.tot)}%${SH ? ` <small class="muted">${fmtH(o.v)}h</small>` : ''}</td><td></td></tr>`).join('')}</tbody></table>`;
+    const all = [...rows.map(v => ({ v })), ...other.map(o => ({ o }))], RR_N = 3, rrShown = opened('rr') ? all : all.slice(0, RR_N);
+    const rrTable = `<table class="t art"><thead><tr><th>PJT</th><th>구분</th><th>R&R 역할</th><th>기간 · 공정률</th><th>실제 투입 <small>(시수 · ${esc(plabel)})</small></th></tr></thead><tbody>
+      ${rrShown.map(({ v, o }) => v ? `<tr><td><b>${esc(v.name)}</b></td><td>${esc(v.gubun || '')}</td><td>${v.role ? `<span class="arole ${/LE/.test(v.role) ? 'le' : ''}">${esc(v.role)}</span>` : '<span class="muted">-</span>'}</td><td class="muted">${esc(v.period || '')}${v.prog ? ` · ${esc(v.prog)}%` : ''}</td>
+        <td>${v.actual != null ? `<span class="abar"><i style="width:${Math.min(100, v.actual)}%" class="ac"></i></span>${v.actual}%${SH ? ` <small class="muted">${fmtH(v.h)}h</small>` : ''}` : '<span class="muted">0%</span>'}</td></tr>`
+        : `<tr class="aoth"><td>${esc(o.name)}</td><td>${alTag(o.kind)}</td><td></td><td></td><td>${pct(o.v, S.tot)}%${SH ? ` <small class="muted">${fmtH(o.v)}h</small>` : ''}</td></tr>`).join('')}</tbody></table>${all.length > RR_N ? foldBtn('rr', all.length - RR_N, '나머지 항목') : ''}`;
     detail = `<div class="adet"><div class="adl">${donut}<div class="alegs">${legend}</div></div>
       <div class="adr"><h3>📅 ${esc(sel)} · ${esc(AS.year)}년 월별 투입 구성 <span class="muted">(누르면 그 달만)</span></h3><div class="amt">${trend}</div></div></div>
-      <h3 style="margin:16px 0 8px">🎯 R&R · 계획 대비 실제 투입 <span class="muted">· PJT R&R + 계장 투입인력 + 시수</span></h3>${rows.length || other.length ? rrTable : '<div class="empty">R&R·투입 정보가 없습니다</div>'}`;
+      <h3 style="margin:16px 0 8px">🎯 R&R · 실제 투입 <span class="muted">· PJT R&R + 시수 · 많이 투입된 순</span></h3>${rows.length || other.length ? rrTable : '<div class="empty">R&R·투입 정보가 없습니다</div>'}`;
   }
   // 프로젝트별
-  const projRows = pjs.map(p => `<div class="aprj"><i class="adot" style="background:${colOf(p.key)}"></i><span class="apjn">${esc(p.name)} ${alTag(p.kind)}${p.live === false ? '<span class="atag end">종결</span>' : ''}</span>
-      <span class="abar wide"><i style="width:${pct(p.v, teamTot)}%;background:${colOf(p.key)}"></i></span><b>${pct(p.v, teamTot)}%</b><span class="aav">${[...p.ppl.keys()].slice(0, 5).map(n => `<span class="wav sm" title="${esc(n)} ${valTxt(p.ppl.get(n), people.get(n).tot)}">${avHtml(n)}</span>`).join('')}${p.ppl.size > 5 ? `<small>+${p.ppl.size - 5}</small>` : ''}</span><em>${SH ? fmtH(p.v) + 'h' : `${p.ppl.size}명`}</em></div>`).join('');
+  const myRows = pjs.filter(p => myPj.has(p.key) || (p.key.startsWith('__') && p.ppl.has(ME) && isPj(p))), pjShown = opened('pj') || !myRows.length ? pjs : myRows;
+  const projRow = p => `<div class="aprj"><i class="adot" style="background:${colOf(p.key)}"></i><span class="apjn">${esc(p.name)} ${alTag(p.kind)}${p.live === false ? '<span class="atag end">종결</span>' : ''}</span>
+      <span class="abar wide"><i style="width:${pct(p.v, teamTot)}%;background:${colOf(p.key)}"></i></span><b>${pct(p.v, teamTot)}%</b><span class="aav">${[...p.ppl.keys()].slice(0, 5).map(n => `<span class="wav sm" title="${esc(n)} ${valTxt(p.ppl.get(n), people.get(n).tot)}">${avHtml(n)}</span>`).join('')}${p.ppl.size > 5 ? `<small>+${p.ppl.size - 5}</small>` : ''}</span><em>${SH ? fmtH(p.v) + 'h' : `${p.ppl.size}명`}</em></div>`;
+  const projRows = pjs.length ? (myRows.length && !opened('pj') ? `<div class="afnote">내가 투입된 PJT ${myRows.length}개</div>` : '') + pjShown.map(projRow).join('') + (myRows.length ? foldBtn('pj', pjs.length - myRows.length, '나머지 항목') : '') : '';
   const unk = pjs.filter(p => p.kind === 'unk');
   // 업로드 현황 (부서원 × 월)
   const names = [...new Set([...(DB.profiles || []).map(p => p.name), ...d.list.map(x => x.person)])].sort((a, b) => a.localeCompare(b, 'ko'));
@@ -5056,14 +5083,15 @@ function renderAlloc(c, mg) {                             // mg = Management > R
     ${SH && AS.leave ? leaveCard(list, idx, plabel) : ''}
     ${unk.length ? `<div class="al-warn">⚠ PJT 에 등록되지 않은 Project Code: ${unk.map(p => `<b>${esc(p.code)}</b> (${pct(p.v, teamTot)}%)`).join(', ')} — <b>수행·입찰 PJT</b>의 <b>Project Code</b> 칸에 넣으면 그 PJT 로 집계됩니다. <button class="btn sm" data-go="perform">수행 PJT</button> <button class="btn sm" data-go="bid">입찰 PJT</button></div>` : ''}
     <div class="wgrid algrid">
-      <section class="card"><h2>👤 부서원별 프로젝트 투입 비율 <span class="muted">· ${esc(plabel)} · 막대에 마우스 = 상세 · 누르면 아래에 개인 분석</span></h2>${ppl.length ? ppl.map(prow).join('') : `<div class="empty">${esc(plabel)} 시수 파일이 없습니다. [⬆ 시수 파일 올리기]로 올려 주세요.</div>`}</section>
+      <section class="card"><h2>👤 부서원별 프로젝트 투입 비율 <span class="muted">· ${esc(plabel)} · 막대에 마우스 = 상세 · 누르면 아래에 개인 분석</span></h2>${ppl.length ? (meP && !opened('ppl') ? `<div class="afnote">나 + 같은 PJT 를 하는 부서원 (${mates.length}명)</div>` : '') + pplShown.map(prow).join('') + (meP ? foldBtn('ppl', ppl.length - mates.length, '나머지 부서원') : '') : `<div class="empty">${esc(plabel)} 시수 파일이 없습니다. [⬆ 시수 파일 올리기]로 올려 주세요.</div>`}</section>
       <section class="card"><h2>🏗 프로젝트별 투입 <span class="muted">· 팀 전체 대비${H ? '' : ' (사람별 비중을 같게 보고 계산)'}</span></h2>${projRows || '<div class="empty">데이터 없음</div>'}</section>
     </div>
     <section class="card"><h2>🔎 개인 분석 — ${esc(sel || '-')} <span class="muted">· ${esc(plabel)}</span></h2>${detail}</section>
     <section class="card"><h2>📤 시수 업로드 현황 <span class="muted">· ${esc(AS.year)}년 · ✓ = 올림${H ? ' (누르면 삭제)' : ' (본인 것은 누르면 삭제)'}</span></h2><div class="tw" style="max-height:none">${grid}</div></section>`));
   $('#allocv').addEventListener('click', async e => {
-    const t = e.target.closest('[data-year],[data-amonth],[data-aperson],[data-aup],[data-adel],[data-atsdel],[data-goto],[data-aleave]'); if (!t) return;
+    const t = e.target.closest('[data-year],[data-amonth],[data-aperson],[data-aup],[data-adel],[data-atsdel],[data-goto],[data-aleave],[data-afold]'); if (!t) return;
     if (t.dataset.aleave != null) { AS.leave = !AS.leave; return render(); }
+    if (t.dataset.afold) { const k = RT + t.dataset.afold; AS.open[k] = !(AS.open[k] ?? !!mg); return render(); }
     const dd = t.dataset;
     if (dd.goto) { location.hash = '#' + dd.goto; return; }
     if (dd.year != null) { AS.year = dd.year || ty; AS.month = ''; }
