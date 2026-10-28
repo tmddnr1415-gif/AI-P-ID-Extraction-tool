@@ -22,6 +22,7 @@
 > **`claude/pid-extractor-panel-update-zrl4qi`** 에서 이어 간다 (hotfix122 부터).  titleblock-parsing 의 커밋은 전부 이 브랜치에 들어 있다.
 > hotfix123 은 그 브랜치를 그대로 이어받은 **`claude/pid-extractor-panel-update-nbcrfn`** 에 있다 (zrl4qi 커밋 전부 포함).
 > hotfix124 — LOGIC 브랜치 L68 · L69 를 병합 (충돌 0) · 꾸러미만.
+> hotfix125 — LOGIC 브랜치 `claude/bold-einstein-8uibbv` 의 L70 · L71 병합 (충돌 0) + 판넬 `ccr-d82d97fa-bb3ty3` 의 `b8bcef2..0869426` (실 출입문) 세 갈래 병합 (충돌 0).
 
 > **★ 업데이트 zip 은 어디서 만드나 (사용자 지시 2026-10-22)**
 > **P&ID · LOGIC · 판넬 공간확보 · 계장도서검토** 의 zip 은 **이 저장소(이 브랜치)** 에서 만든다 (도서 검토는 hotfix115 부터 `/books`).
@@ -5164,6 +5165,10 @@ Option A 에 .xlsx 바로 넣기 `6bfd6b6` (외부 라이브러리 없이 — �
 🛠 스펙 맞추기 · Ref Description 목록 `b8bcef2`)를 세 갈래로 합쳤다 — **충돌 0**.  바뀐 파일은 `app/static/space/index.html` 하나 (`ref.js` · 서버 API 그대로).
 새 코드에 `confirm/prompt` · 대시보드 `/api/` 호출 없음.  시험 `tests/test_hotfix123_space_spec.py` · `ui_audit_space116`(11) · `ui_audit_space120_sync`(7) ·
 `ui_audit_space123`(5 — Equipment List xlsx 내보내기 → Option A 가 그 파일을 다시 읽어 판넬 23 · 스펙 맞추기 창) 전부 통과 · 페이지 오류 0.
+
+**그 다음 — 판넬 10-28 판: 실 출입문 (hotfix125 · 판정 0줄)**
+
+판넬 브랜치 `ccr-d82d97fa-bb3ty3` 의 `b8bcef2..0869426` (화면 커밋 셋 — Ref 6 PJT 21룸 실 출입문 38개 `4599efa` · 실 출입문 2D/3D/DXF 표시 · 문짝 자리 간섭 · 문 앞 경고 · 자동 배치가 문을 피함 `d92f636` · 도면에서 문 클릭 → 속성 칸 · R/I/방향키 `0869426`)를 세 갈래로 합쳤다 — **충돌 0**.  바뀐 파일은 `app/static/space/index.html` · `ref.js` (서버 API 그대로).  새 코드에 `confirm/prompt` · 대시보드 `/api/` 호출 없음.  시험 `tests/test_hotfix125_space_doors.py` · `ui_audit_space116`(11) · `ui_audit_space120_sync`(7) · `ui_audit_space123`(5) 전부 통과 · 페이지 오류 0.  같은 꾸러미에 LOGIC L70 · L71 (`claude/bold-einstein-8uibbv`) 병합.
 
 ## 4. 미해결 과제 (다음 단계 후보) — 우선순위 순
 
