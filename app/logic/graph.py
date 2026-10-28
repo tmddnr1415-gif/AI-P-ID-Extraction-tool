@@ -453,6 +453,7 @@ def build(prims: geom.Prims, lay=None) -> Sheet | None:
         return (any(_block_edge(q, b, tol) for b in bix.near(q)) or
                 any(_in_rect(q, a.bbox, tol) for a in aix.near(q)) or
                 any(_on_seg(q, w, tol)[0] for w in wix.near(q)))
+    hops = _hop_arcs(glyphs, wix, P, tol)
     for p in list(glyphs):
         if len(p.segs) != 1 or not (p.segs[0].vert or p.segs[0].horiz):
             continue
@@ -460,6 +461,13 @@ def build(prims: geom.Prims, lay=None) -> Sheet | None:
         if any(p.bbox[0] >= bl.bbox[0] - tol and p.bbox[2] <= bl.bbox[2] + tol and
                p.bbox[1] >= bl.bbox[1] - tol and p.bbox[3] <= bl.bbox[3] + tol for bl in blocks):
             continue                    # 블록 안의 글자 획
+        # L70 — 홉(건너뛰기 반원) 바로 뒤의 짧은 토막: 홉 쪽 끝은 호에만 닿아 글자 획으로 버려졌다 (19VA 0015 MTS —
+        # 홉 뒤 3pt 에 연결점 · NOT 상자 변).  호가 이 토막과 한 직선으로 바깥쪽에 이어지면 그 끝도 닿은 끝이다.
+        at_hop = [any(_hop_end(q, p.segs[0], h, tol) for h in hops) for q in (a, b)]
+        if any(at_hop) and (at_hop[0] or anchored(a)) and (at_hop[1] or anchored(b)):
+            glyphs.remove(p)
+            wires.append(p)
+            continue
         if anchored(a) and anchored(b):
             # L53 — 두 끝을 **같은 선분 하나**가 받치면 그 선 옆에 나란히 놓인 글자 획이다 (HRSG G008 `ST/BY-A` 의
             # A 가로획이 선 끝 0.6pt 옆에 놓여 선이 되고, 그 선의 끝을 '닿은 끝' 으로 만들어 단추 출력 단자가 안 섰다).
@@ -1268,6 +1276,41 @@ def _blob_dots(blobs, P):
         if len(g) >= 2 and w > 0 and 0.75 < h / w < 1.33 and max(w, h) < DOT_MAX * P:
             out.append(geom.Circle((bb[0] + bb[2]) / 2, (bb[1] + bb[3]) / 2, (w + h) / 4, bb))
     return out
+
+
+def _hop_arcs(glyphs, wix, P, tol):
+    """홉(건너뛰기 반원) — 곡선만으로 그린 열린 호의 두 끝이 한 직선(가로 · 세로) 위에 있고, 그 현의 가운데를
+    직각인 선이 지나간다.  (끝 a, 끝 b, 축 'v'|'h') 목록."""
+    out = []
+    for p in glyphs:
+        if not getattr(p, "curved", False):
+            continue
+        ends = _free_ends(p.segs)
+        if len(ends) != 2:
+            continue
+        a, b = ends
+        dx, dy = abs(a[0] - b[0]), abs(a[1] - b[1])
+        if max(dx, dy) > GLYPH_MAX * P or max(dx, dy) < tol:
+            continue
+        ax = "v" if dx <= tol and dy > dx else "h" if dy <= tol and dx > dy else None
+        if ax is None:
+            continue
+        mid = ((a[0] + b[0]) / 2, (a[1] + b[1]) / 2)
+        if any((w.horiz if ax == "v" else w.vert) and _on_seg(mid, w, tol)[0] for w in wix.near(mid)):
+            out.append((a, b, ax))
+    return out
+
+
+def _hop_end(q, seg, hop, tol):
+    """선분 seg 의 끝 q 가 홉의 한 끝에 닿고, 홉이 seg 와 같은 직선에서 seg 바깥쪽으로 이어지나."""
+    a, b, ax = hop
+    if (ax == "v") != bool(seg.vert) or (ax == "h") != bool(seg.horiz):
+        return False
+    for e, f in ((a, b), (b, a)):
+        if _d(q, e) <= tol:
+            o = seg.ends()[1] if _d(q, seg.ends()[0]) <= tol else seg.ends()[0]
+            return (f[0] - q[0]) * (q[0] - o[0]) + (f[1] - q[1]) * (q[1] - o[1]) > 0
+    return False
 
 
 def _free_ends(segs):
