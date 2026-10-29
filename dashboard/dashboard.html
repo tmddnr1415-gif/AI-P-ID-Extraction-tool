@@ -1113,7 +1113,7 @@ function recLabel(key, f) {
  * ===================================================================== */
 let root = null;
 /* 서버 모드: http(s):// 로 접속하면 server.py 의 REST API 사용 (폴더 선택 불필요). file:// 로 열면 폴더 모드 */
-const APP_VERSION = '2026-10-28.1';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
+const APP_VERSION = '2026-10-29.1';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
 const SERVER_URL = 'http://localhost:8080';
 // 부서원 PC 사본(file://)이 접속을 시도할 서버 — 서버가 배포 파일을 만들 때 'PC 이름 주소, IP 주소' 순으로 자동 기록함
 const DEFAULT_SERVERS = ['http://ASEUNGWOOK-B01:8080', 'http://65.3.30.234:8080'];
@@ -1571,7 +1571,7 @@ async function saveCopy() {                                 // [내 PC 사본 �
   const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([html], { type:'text/html' })); a.download = 'dashboard.html';
   document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 5000);
   try { localStorage.setItem('dept-copy-at', stamp()); } catch (_) {}
-  toast('dashboard.html 을 받았습니다 → 바탕화면 등에 두고 앞으로는 그 파일을 더블클릭해 여세요 (서버가 꺼져도 열림)');
+  toast(location.protocol === 'file:' ? `새 dashboard.html 을 내려받았습니다 → 다운로드 폴더의 그 파일을 ${selfDir()} 로 옮겨 덮어쓰세요` : 'dashboard.html 을 받았습니다 → 바탕화면 등에 두고 앞으로는 그 파일을 더블클릭해 여세요 (서버가 꺼져도 열림)', location.protocol === 'file:');
   render();
 }
 async function cacheLoad() { try { return await kv('readonly', s => s.get('cache')); } catch (_) { return null; } }
@@ -1722,6 +1722,36 @@ async function askOverwrite(list) {
 let UPD_ASKED = '';
 const selfName = () => { try { return decodeURIComponent(location.pathname.split('/').pop()) || 'dashboard.html'; } catch (_) { return 'dashboard.html'; } };
 const selfPath = () => { try { return decodeURIComponent(location.pathname).replace(/^\/([A-Za-z]:)/, '$1').replace(/\//g, '\\'); } catch (_) { return location.pathname; } };
+const selfDir = () => selfPath().replace(/\\[^\\]*$/, '');
+/* 2026-10-29 VOC: 저장 창이 바탕화면 등 다른 폴더에서 열려 그대로 [저장] → 같은 이름의 '다른 파일'이 바뀌고(그 파일을 기억해 다음부터 묻지도 않음) 지금 쓰는 파일은 그대로였음.
+   → 고른 파일이 '지금 연 파일'인지 수정 시각으로 확인(같은 이름이라도 다른 폴더면 다름) · 저장 창 전에 지금 폴더 경로를 클립보드에 넣어 둠(주소 칸 Ctrl+V) */
+let SELF_WROTE = 0;                                         // 이번 접속에서 이 파일에 직접 쓴 시각(파일의 수정 시각)
+async function isSelfFile(h) {
+  try {
+    const f = await h.getFile(), d = Date.parse(document.lastModified) || 0;   // file:// 로 연 문서의 lastModified = 그 파일의 수정 시각
+    return !d || Math.abs(f.lastModified - d) < 2500 || (SELF_WROTE && Math.abs(f.lastModified - SELF_WROTE) < 2500);
+  } catch (_) { return true; }                               // 읽을 수 없으면 판단하지 않음
+}
+async function selfPick(fname) {                            // 저장 창 → 지금 연 파일을 고를 때까지 (다른 폴더면 다시 묻기)
+  try { await navigator.clipboard.writeText(selfDir()); toast(`저장 창 위쪽 주소 칸을 누르고 Ctrl+V → Enter 하면 지금 쓰는 폴더(${selfDir()})로 갑니다`); } catch (_) {}
+  for (;;) {
+    const h = await window.showSaveFilePicker({ id:'dept-dashboard-self', suggestedName:fname, types:[{ description:'대시보드 (HTML)', accept:{ 'text/html':['.html', '.htm'] } }] });
+    if (await isSelfFile(h)) return h;
+    try { if (!(await h.getFile()).size) await h.remove?.(); } catch (_) {}   // 저장 창이 새로 만든 빈 파일은 지움
+    const c = await ask('⚠ 지금 쓰는 파일이 아닙니다',
+      `<p style="margin-top:0">고른 곳은 <b>다른 폴더</b>입니다 (같은 이름의 다른 파일이거나 새 파일). 여기에 저장하면 지금 쓰는 파일은 바뀌지 않습니다.</p>
+      <p>지금 쓰는 파일: <b>${esc(selfPath())}</b></p>
+      <p class="muted" style="margin-bottom:0">[다시 고르기] → 저장 창 위쪽 <b>주소 칸</b>을 누르고 <b>Ctrl+V</b>(경로를 복사해 두었습니다) → Enter → <b>${esc(fname)}</b> 선택 → [저장] → [예(바꾸기)]</p>`,
+      [{ id:'again', label:'다시 고르기', cls:'pri' }, { id:'force', label:'그래도 거기에 저장' }, { id:'no', label:'취소' }]);
+    if (c === 'force') return h;
+    if (c !== 'again') throw new DOMException('취소', 'AbortError');
+    try { await navigator.clipboard.writeText(selfDir()); } catch (_) {}
+  }
+}
+async function selfWrite(h, html) {
+  const w = await h.createWritable(); await w.write(new Blob([html], { type:'text/html' })); await w.close();
+  try { SELF_WROTE = (await h.getFile()).lastModified; } catch (_) { SELF_WROTE = Date.now(); }
+}
 async function newHtml() {
   const res = await fetch(API_BASE + '/dashboard.html', { cache:'no-store' });
   if (!res.ok) throw new Error(`서버 오류 (${res.status})`);
@@ -1736,7 +1766,7 @@ async function askUpdate(manual) {
   const c = await ask('🆕 프로그램이 업데이트되었습니다',
     `<p style="margin-top:0;font-size:15px"><b>부서원의 dashboard.html 을 업데이트 파일로 교체하세요.</b></p>
     <p>내 파일 버전 <b>${esc(APP_VERSION)}</b> → 새 버전 <b style="color:var(--accent)">${esc(NEWVER)}</b><br><span class="muted">지금 쓰는 파일: ${esc(selfPath())}</span></p>
-    <p class="muted" style="margin-bottom:0">[예] 를 누르면 이 PC 의 파일을 새 파일로 덮어쓰고 다시 엽니다.${'showSaveFilePicker' in window ? `<br>처음 한 번은 <b>저장 창</b>이 열립니다 → 위 경로의 <b>${esc(selfName())}</b> 를 고르고 [저장] → [예(바꾸기)]. 다음부터는 창 없이 바로 바뀝니다.` : '<br>이 브라우저는 파일을 직접 덮어쓸 수 없어 새 파일을 내려받습니다 → 내려받은 파일로 직접 바꿔 주세요.'}</p>`,
+    <p class="muted" style="margin-bottom:0">[예] 를 누르면 이 PC 의 파일을 새 파일로 덮어쓰고 다시 엽니다.${'showSaveFilePicker' in window ? `<br>처음 한 번은 <b>저장 창</b>이 열립니다 → 창 위쪽 <b>주소 칸</b>을 누르고 <b>Ctrl+V</b> → Enter (지금 쓰는 폴더 경로를 복사해 둡니다) → <b>${esc(selfName())}</b> 선택 → [저장] → [예(바꾸기)]. 다른 폴더를 고르면 알려 드립니다. 다음부터는 창 없이 바로 바뀝니다.` : `<br>이 브라우저는 파일을 직접 덮어쓸 수 없어 새 파일을 내려받습니다 → 내려받은 dashboard.html 을 <b>${esc(selfDir())}</b> 폴더로 옮겨 덮어쓰세요.`}</p>`,
     [{ id:'yes', label:'예 (교체)', cls:'pri' }, { id:'no', label:'나중에' }]);
   if (c === 'yes') await replaceSelf(html);
 }
@@ -1749,12 +1779,15 @@ async function replaceSelf(html) {
     try { h = await kv('readonly', st => st.get('self')); } catch (_) {}
     if (h && h.name !== fname) h = null;                   // 다른 이름의 파일을 열었으면 다시 고름
     if (h && await h.queryPermission({ mode:'readwrite' }) !== 'granted' && await h.requestPermission({ mode:'readwrite' }) !== 'granted') h = null;
-    if (!h) h = await window.showSaveFilePicker({ id:'dept-dashboard-self', suggestedName:fname, types:[{ description:'대시보드 (HTML)', accept:{ 'text/html':['.html', '.htm'] } }] });
-    const w = await h.createWritable(); await w.write(new Blob([html], { type:'text/html' })); await w.close();
-    try { await kv('readwrite', st => st.put(h, 'self')); } catch (_) {}
-    if (h.name === fname) try { localStorage.setItem('dept-embed-at', String(Date.now())); } catch (_) {}
-    if (h.name === fname) { toast('새 버전으로 바꿨습니다. 다시 엽니다…'); setTimeout(() => location.reload(), 1200); }
-    else toast(`새 버전을 '${h.name}' 으로 저장했습니다. 지금 연 파일(${fname}) 대신 그 파일을 여세요`, true);
+    if (h && !(await isSelfFile(h))) { h = null; try { await kv('readwrite', st => st.delete('self')); } catch (_) {} }   // 예전에 기억한 파일이 다른 폴더의 것 → 버리고 다시 고름
+    if (!h) h = await selfPick(fname);
+    const same = await isSelfFile(h);
+    await selfWrite(h, html);
+    if (same) try { await kv('readwrite', st => st.put(h, 'self')); localStorage.setItem('dept-embed-at', String(Date.now())); } catch (_) {}   // 지금 쓰는 파일일 때만 기억
+    if (same && h.name === fname) {
+      try { sessionStorage.setItem('dept-upd', JSON.stringify({ to:(html.match(/const APP_VERSION = '([^']+)'/) || [])[1] || '', at:Date.now() })); } catch (_) {}
+      toast('새 버전으로 바꿨습니다. 다시 엽니다…'); setTimeout(() => location.reload(), 1200);
+    } else toast(`새 버전을 다른 곳('${h.name}')에 저장했습니다 — 지금 쓰는 ${selfPath()} 는 그대로입니다. 그 파일을 이 폴더로 옮기거나 [지금 교체]를 다시 누르세요`, true);
   } catch (e) {
     if (e.name === 'AbortError') return toast('교체를 취소했습니다. 위 배너의 [지금 교체]로 다시 할 수 있습니다', true);
     toast(`교체하지 못했습니다 (${e.message}) — 배너의 [새 버전 다운로드]로 받아 직접 바꿔 주세요`, true);
@@ -1781,6 +1814,7 @@ async function embedSelf(manual) {
     try { h = await kv('readonly', st => st.get('self')); } catch (_) {}
     if (h && h.name !== fname) h = null;
     if (h) { let pm = await h.queryPermission({ mode:'readwrite' }); if (pm !== 'granted' && manual) pm = await h.requestPermission({ mode:'readwrite' }); if (pm !== 'granted') h = null; }
+    if (h && !(await isSelfFile(h))) { h = null; try { await kv('readwrite', st => st.delete('self')); } catch (_) {} }   // 기억한 파일이 다른 폴더의 것 → 쓰지 않음
     if (!h && !manual) {                                    // 허락이 없으면: 이 파일 안 보관본이 없거나 3일 넘었을 때만 배너로 물음
       const sa = Date.parse(snapLoad()?.savedAt || '') || 0;
       if (Date.now() - Math.max(sa, embedAt()) > 3 * 864e5) { EMBED_ASK = true; render(); }
@@ -1788,9 +1822,9 @@ async function embedSelf(manual) {
     }
     if (!await cacheLoad()) await cacheSave();
     const html = await withSnap(await newHtml());          // 서버의 같은 버전 파일 + 지금 보관본
-    if (!h) h = await window.showSaveFilePicker({ id:'dept-dashboard-self', suggestedName:fname, types:[{ description:'대시보드 (HTML)', accept:{ 'text/html':['.html', '.htm'] } }] });
-    if (h.name !== fname) { toast(`지금 연 파일(${fname})을 골라 주세요 — '${h.name}' 에는 쓰지 않았습니다`, true); return false; }
-    const w = await h.createWritable(); await w.write(new Blob([html], { type:'text/html' })); await w.close();
+    if (!h) h = await selfPick(fname);
+    if (h.name !== fname || !(await isSelfFile(h))) { toast(`지금 쓰는 파일(${selfPath()})이 아니어서 쓰지 않았습니다`, true); return false; }
+    await selfWrite(h, html);
     try { await kv('readwrite', st => st.put(h, 'self')); } catch (_) {}
     try { localStorage.setItem('dept-embed-at', String(Date.now())); } catch (_) {}
     if (EMBED_ASK || manual) { EMBED_ASK = false; render(); } else renderSafe();
@@ -6225,6 +6259,13 @@ setInterval(() => { if (SERVER && root && (OFFLINE || QUEUE.length) && !boardTyp
   }
   // 파일(file://)로 연 사본: 서버 연결을 먼저 시도 → 실패하면 보관본으로 오프라인 모드
   if (location.protocol === 'file:') {
+    try {                                                    // 교체 뒤 다시 열렸는데 버전이 그대로면: 다른 파일에 쓴 것 → 기억한 파일을 버리고 알림 (다음 교체 때 다시 고름)
+      const u = JSON.parse(sessionStorage.getItem('dept-upd') || 'null'); sessionStorage.removeItem('dept-upd');
+      if (u && Date.now() - u.at < 120000) {
+        if (u.to && u.to !== APP_VERSION) { await kv('readwrite', st => st.delete('self')).catch(() => {}); setTimeout(() => toast(`교체가 지금 쓰는 파일(${selfPath()})에 들어가지 않았습니다 — 위 배너의 [지금 교체]를 다시 눌러 이 폴더의 파일을 고르세요`, true), 1500); }
+        else setTimeout(() => toast(`새 버전(${APP_VERSION})으로 바꿨습니다`), 1500);
+      }
+    } catch (_) {}
     SERVER = true;
     let info = null;
     // 설정한 주소가 있으면 그 주소만, 없으면 PC 이름 주소 → IP 주소 순으로 시도
