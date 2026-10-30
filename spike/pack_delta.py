@@ -93,6 +93,40 @@ def h(b: bytes | None) -> str | None:
     return hashlib.sha256(b).hexdigest() if b is not None else None
 
 
+SOURCES_FILE = ROOT / "config" / "release_sources.json"
+
+
+def unmerged_sources() -> list[str]:
+    """hotfix128 — 꾸러미에 함께 실리는 다른 세션의 브랜치가 HEAD 에 다 들어왔는지 본다.
+
+    hotfix127 이 옛 LOGIC 브랜치(L72)만 합치고 새 LOGIC 세션의 L73~L78 을 빠뜨린 일이
+    다시 없도록, `config/release_sources.json` 에 적힌 브랜치를 fetch 해서 HEAD 에 없는
+    커밋이 있으면 그 목록을 돌려준다 (빈 목록이면 통과).  판넬처럼 파일만 옮겨 오는
+    원본은 `paths` 를 적으면 그 경로를 건드린 커밋 중 `imported` 뒤의 것만 본다.
+    """
+    if not SOURCES_FILE.exists():
+        return []
+    problems = []
+    for name, src in json.loads(SOURCES_FILE.read_text(encoding="utf-8")).get("sources", {}).items():
+        branch = src["branch"]
+        subprocess.run(["git", "fetch", "-q", "origin", branch], cwd=ROOT,
+                       stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        ref = f"origin/{branch}"
+        if subprocess.run(["git", "rev-parse", "-q", "--verify", ref], cwd=ROOT,
+                          stdout=subprocess.DEVNULL).returncode:
+            problems.append(f"{name}: {ref} 를 찾지 못했습니다 (fetch 실패?)")
+            continue
+        if src.get("paths"):
+            rng = f"{src['imported']}..{ref}" if src.get("imported") else ref
+            log = git("log", "--format=%h %s", rng, "--", *src["paths"])
+        else:
+            log = git("log", "--format=%h %s", f"HEAD..{ref}")
+        if log:
+            lines = log.splitlines()
+            problems.append(f"{name}: {ref} 에 아직 안 들어온 커밋 {len(lines)}개 — 예: {lines[0]}")
+    return problems
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--name", required=True)
@@ -100,7 +134,16 @@ def main() -> int:
     ap.add_argument("--readme", default="")
     ap.add_argument("--base", default="")
     ap.add_argument("--ops", action="store_true", help="운영 폴더용 단추(적용·되돌리기)와 서버 재시작 도구를 같이 싣는다")
+    ap.add_argument("--allow-unmerged", action="store_true",
+                    help="다른 세션 브랜치가 덜 합쳐졌어도 만든다 (사용자가 그렇게 하라고 했을 때만)")
     a = ap.parse_args()
+    missing = unmerged_sources()
+    if missing and not a.allow_unmerged:
+        print("다른 세션의 최신 변경이 아직 합쳐지지 않았습니다 — 먼저 병합하세요:")
+        for m in missing:
+            print("  ·", m)
+        print("(목록은 config/release_sources.json · 일부러 빼는 경우만 --allow-unmerged)")
+        return 2
     if git("status", "--porcelain", "--untracked-files=no"):
         print("커밋하지 않은 변경이 있습니다 — 커밋한 뒤 만드세요 (꾸러미는 HEAD 를 담는다)")
         return 1
