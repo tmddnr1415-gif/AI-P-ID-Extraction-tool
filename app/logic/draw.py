@@ -246,6 +246,7 @@ def clean(doc: dict) -> dict:
            "form": str(doc.get("form") or "") if str(doc.get("form") or "") in FORMS else "",
            "project_name": _txt(doc.get("project_name"), 80), "rev": _txt(doc.get("rev"), 10),
            "left": {}, "right": {}, "blocks": [], "wires": [],
+           "compact": int(_num(doc.get("compact"), 0, 99, 0)),          # L84 — 들여온 선을 묶은 판 (draw_compact.VERSION)
            "notes": [t for t in (_txt(x, 160) for x in (doc.get("notes") if isinstance(doc.get("notes"), list) else [])[:20]) if t]}
     for side, keys in (("left", ("fm", "kks", "desc")), ("right", ("desc", "kks", "to"))):
         rows = doc.get(side) if isinstance(doc.get(side), dict) else {}
@@ -339,6 +340,8 @@ def clean(doc: dict) -> dict:
                 nw["marks"] = marks                     # L58 — 선 위의 인터페이스 표시 ◆ ■ (알다프라 양식 · 분석기는 선을 잇는 표시로 읽는다)
             if w.get("arrow") in ("start", "end"):
                 nw["arrow"] = w["arrow"]
+            if w.get("fx"):
+                nw["fx"] = 1                            # L84 — 들여온 토막을 묶은 선 (곧게 펴기에서 붙든다)
             if _txt(w.get("label"), 40):
                 nw["label"] = _txt(w.get("label"), 40)  # L56 — 선 아래 글 (아날로그 범위 `0~250 barg` · 신호 이름) — 분석기 analog._read_ranges 가 읽는 자리                # 화살촉 — 받는 쪽 끝 (상자 위·아래·오른쪽 변으로 들어가는 신호는 화살이 방향을 말한다)
             out["wires"].append(nw)
@@ -480,11 +483,16 @@ def orthogonal_wires(wires: list, tol: float = ORTHO_TOL, blocks: list | None = 
             return False
         dx, dy = abs(pts[1][0] - pts[0][0]), abs(pts[1][1] - pts[0][1])
         return dx > tol and dy > tol and 0.5 <= dx / dy <= 2.0 and (dx * dx + dy * dy) ** 0.5 <= 1.2 * PITCH
+    def settled(w):
+        """L84 — 들여온 토막을 묶은 선(fx) 이 아직 가로 · 세로뿐이면 그대로 — 묶여 가운데가 된 꼭짓점은 끝점처럼 붙들 수 없어,
+        다시 모으면 다른 선 끝으로 끌려가 연결이 바뀐다 (draw_compact 가 편 모양에서 묶어 견주었다)."""
+        return bool(w.get("fx")) and all(abs(a[0] - b[0]) < 0.05 or abs(a[1] - b[1]) < 0.05 for a, b in zip(w["pts"], w["pts"][1:]))
     keep = [symbol_stroke(w) for w in wires]
+    stay = [settled(w) for w in wires]
     fixed = []
-    for w, k in zip(wires, keep):
+    for w, k, st in zip(wires, keep, stay):
         pts = w["pts"]
-        if k:
+        if k or st:                                  # 묶은 선은 모으기에 끼되(다른 선이 붙을 자리) 그 점은 움직이지 않는다
             fl = [(True, True)] * len(pts)
         else:
             fl = []
@@ -562,8 +570,8 @@ def orthogonal_wires(wires: list, tol: float = ORTHO_TOL, blocks: list | None = 
         maps.append(m)
     mx, my = maps
     out = []
-    for w, fl, k in zip(wires, fixed, keep):
-        if k:
+    for w, fl, k, st in zip(wires, fixed, keep, stay):
+        if k or st:
             out.append(w)
             continue
         P = [[p[0] if ax else mx.get(p[0], p[0]), p[1] if ay else my.get(p[1], p[1])] for p, (ax, ay) in zip(w["pts"], fl)]
@@ -652,15 +660,43 @@ def save(did: str, body: dict, author: str) -> dict:
     return cur
 
 
-def delete(did: str, author: str) -> dict:
+def compact_saved(did: str) -> dict | None:
+    """L84 — 들여온 그림(분석 시트 · 묶음 · 씨앗)의 선 토막을 연결 그대로 적은 선으로 묶어 다시 적는다 (한 번만 · `compact` 표시).
+    계산은 잠금 밖에서 · 적을 때 그 사이 사람이 저장했으면(고친 때 · 저장 횟수 · 선이 다르면) 버린다.  고친 때 · 저장 횟수는 그대로 둔다."""
+    import pickle
+    from . import draw_compact
+    cur = load(did)
+    if int(cur.get("compact") or 0) >= draw_compact.VERSION or not draw_compact.imported(cur):
+        return None
+    work = pickle.loads(pickle.dumps(cur))
+    rep = draw_compact.compact_doc(work)
+    _commit_compact(did, cur, work)
+    return rep
+
+
+@jsonstore.serialized
+def _commit_compact(did: str, cur: dict, work: dict):
+    now = load(did)
+    if (now.get("updated"), now.get("saves"), now.get("wires")) != (cur.get("updated"), cur.get("saves"), cur.get("wires")):
+        return False
+    now["wires"] = work["wires"]
+    now["compact"] = work.get("compact", 0)
+    jsonstore.write(_path(did), now)
+    return True
+
+
+def delete(did: str, author: str, log: list | None = None) -> dict:
+    """그림을 지우고 지운 기록을 남긴다 (store.log_deletion — 분석 지우기와 같은 기록 파일 · 같은 꼴).
+    log 를 주면 기록 줄을 거기 모아 두고 부르는 쪽이 한 번에 적는다 (프로젝트 지우기 — 수백 장)."""
     import shutil
     cur = load(did)
     d = _dir(did)
-    log = store.root() / "deletion_log.json"
-    items = jsonstore.read(log, {"items": []}, expect=dict).get("items") or []
-    items.append({"kind": "drawing", "id": did, "name": cur.get("name"), "project": cur.get("project"),
-                  "author": _txt(author, 60), "time": time.time(), "blocks": len(cur.get("blocks") or [])})
-    jsonstore.write(log, {"items": items[-5000:]})
+    entry = {"kind": "drawing", "id": did, "name": cur.get("name"), "project": cur.get("project"), "set": cur.get("set"),
+             "author": _txt(author, 60), "time": time.time(), "blocks": len(cur.get("blocks") or [])}
+    if log is None:
+        store.log_deletion(entry)
+    else:
+        log.append(entry)
     shutil.rmtree(d, ignore_errors=True)
     return cur
 
@@ -1894,4 +1930,9 @@ def from_sheet(s: dict, name: str, author: str, project: str = "") -> dict:
     if notes:
         doc["notes"] = notes[:20]
     doc.update(clean(doc))
+    try:                                             # L84 — 토막을 연결 그대로 적은 선으로 (작도 화면을 가볍게)
+        from . import draw_compact
+        draw_compact.compact_doc(doc)
+    except Exception:
+        pass
     return doc

@@ -220,15 +220,20 @@ def page_png(d: Path, page: int, doc=None) -> Path:
     return cache
 
 
-def log_deletion(entry: dict):
-    """L22 — 누가 언제 어느 분석을 지웠는지 (지운 뒤에도 남는다) — `{data}/logic/deletion_log.json`."""
+def log_deletion(entry: dict | list):
+    """L22 — 누가 언제 어느 분석을 지웠는지 (지운 뒤에도 남는다) — `{data}/logic/deletion_log.json` (목록).
+    L84 — 여러 줄을 한 번에 (list) · 작도 그림 지우기가 예전에 쓰던 꼴(`{"items": [...]}`)도 버리지 않고 이어 쓴다
+    (두 꼴이 서로를 지우던 것: 그림을 지운 뒤 분석을 지우면 그림 기록이, 그 반대면 분석 기록이 사라졌다)."""
     p = root() / "deletion_log.json"
     with _DEL_LOCK:
         try:
             items = json.loads(p.read_text(encoding="utf-8"))
+            if isinstance(items, dict):
+                items = items.get("items") if isinstance(items.get("items"), list) else []
             if not isinstance(items, list):
                 items = []
         except Exception:
             items = []
-        items.append({**entry, "at": time.strftime("%Y-%m-%d %H:%M:%S")})
+        at = time.strftime("%Y-%m-%d %H:%M:%S")
+        items += [{**e, "at": at} for e in (entry if isinstance(entry, list) else [entry])]
         _atomic(p, json.dumps(items, ensure_ascii=False, indent=1))

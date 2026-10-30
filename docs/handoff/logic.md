@@ -4,21 +4,24 @@
 
 - 작업 브랜치: `ccr-cc45909d-fjjmrb` (L83 부터 · 그 전 `claude/logic-symbol-visualization-sim-2oqbxh` 는 L82 까지 — 이 브랜치에 다 들어 있음).
   바뀌면 `docs/handoff/branches.md` · `config/release_sources.json` 같이 고침.
-- 마지막 회차: **L83** — 엇갈리는 두 파선(매크로 틀 × 신호 파선)이 한 그물이 되던 것 고침 (`draw_sim._DashInner`).  **다음은 L84.**
-- 그물 감사: `python spike/audit_l83_nets.py` (시드 827장 · 약 10초).  지금 '섞인 그물 143 · 화살촉 토막만이 아닌 것 10'.
-  남은 10개는 분석 결과에서 두 분석 선이 **같은 자리에 겹쳐** 나온 것 · 오른쪽 끝 화살촉 — 작성 쪽 기하로는 못 가른다.
-  없애려면 분석기(`app/logic/graph.py`)가 겹친 선을 한 선으로 내야 한다 (0006 n32/n76 · 0007 파선 틀 n67/n205 가 재현 예).
+- 마지막 회차: **L84** — Logic 작성 가볍게(들여온 선 토막 묶기 `app/logic/draw_compact.py` · 화면 다시 짓기 줄임) · 휠로 장 넘기기 · 저장된 프로젝트 · 묶음 · 그림 지우기.
+  **다음은 L85.**
+- 선 묶기 규율: 같은 분석 그물 안에서만 · 묶은 뒤 연결(선 단위 그물 + 시뮬레이터 꼴)이 다르면 그 그물은 묶지 않는다.  묶은 선은 `fx` (곧게 펴기에서 붙듦).
+  씨앗을 다시 만들면 `python3 spike/compact_draw_seed.py config/logic_draw_seed/<씨앗>.json.gz` (판이 하나 오른다).
+- 화면 자기검증: `PW_CHROME=<chrome> python3 spike/ui_audit_l84.py <버릴 데이터 사본> <캡처 폴더>` (지우기를 하므로 사본으로).
+  이 컨테이너에서는 `PW_CHROME=/opt/pw-browsers/chromium-1243/chrome-linux64/chrome`.
+- 그물 감사: `python spike/audit_l83_nets.py` (시드 827장).  남은 것은 분석 결과에서 두 분석 선이 같은 자리에 겹쳐 나온 것 — 분석기(`graph.py`) 쪽 일.
 - 대시보드 하위 메뉴 "신호 처리 시뮬레이션"은 `docs/dashboard_embed.md` §3-3 프롬프트를 대시보드 세션에 줘야 선다.
 - ⚠ 회차 번호 충돌: 옛 LOGIC 세션(`bold-einstein`, 은퇴)도 L70~L72 를 썼다.  옛 기록에서 같은 번호가 두 번 나오면
   날짜와 브랜치로 구분한다.  앞으로 번호는 지금 LOGIC 작업 브랜치 하나만 매긴다.
-- 이 브랜치의 L70~L78 은 PID 브랜치에 hotfix128 로 들어갔다.  **LOGIC 은 zip 을 만들지 않는다** —
-  커밋·푸시만 하면 PID 세션이 병합해 꾸러미에 싣는다 (`spike/pack_delta.py` 가 덜 합쳐졌으면 멈춘다).
-- 시험 돌리기: `pip install -r requirements.txt pytest httpx` 뒤 `pytest -q -m "not slow and not ui"` (약 2분 · 1610 통과).
+- **LOGIC 은 zip 을 만들지 않는다** — 커밋·푸시만 하면 PID 세션이 병합해 꾸러미에 싣는다 (`spike/pack_delta.py` 가 덜 합쳐졌으면 멈춘다).
+- 시험 돌리기: `pip install -r requirements.txt pytest httpx` 뒤 `pytest -q -m "not slow and not ui"` (약 2분 · 1626 통과).
 
 ## 최근 회차 한 줄 요약 (자세한 것은 `docs/history/logic_log.md` · 옛것은 archive 를 grep)
 
 | 회차 | 내용 |
 | --- | --- |
+| L84 | 작성 가볍게 (선 115k→29k · 장 넘기기 3배) · 휠로 장 넘기기 · 프로젝트 지우기 |
 | L83 | 엇갈리는 두 파선 ≠ 연결 · 그물 감사 스크립트 |
 | L82 | 엇갈림 ≠ 연결 · 신호 처리 블록 두 번 누름 계산 판 |
 | L81 | 분석 · 작성 가볍게 (작성 시뮬레이션 23초 → 0.3초) |

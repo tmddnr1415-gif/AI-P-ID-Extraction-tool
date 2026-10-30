@@ -147,9 +147,19 @@ def _warm_sim(sid: str, did: str):
 @router.get("/logic/api/drawings/sets/{sid}")
 def get_set(sid: str, doc: str = ""):
     """L80 — `doc` 를 주면 장마다의 연결 표(links.docs)는 그 장 것만 (827장 묶음이면 1.1MB → 0.2MB)."""
-    out = _set_info(sid, _set(sid, shared=True), doc)
+    docs = _set(sid, shared=True)
+    out = _set_info(sid, docs, doc)
     if doc and draw.ID_RE.match(doc):
         _warm_sim(sid, doc)
+        # L84 — 이 묶음의 아직 묶지 않은 들여온 장을 뒤에서 (연 장의 앞뒤 장부터 — 휠로 넘길 차례)
+        todo = [d_ for d_ in docs if not d_.get("compact") and d_.get("id")]
+        if todo:
+            from . import draw_compact
+            ids = [d_["id"] for d_ in sorted(todo, key=lambda d_: d_.get("order") or 0) if draw_compact.imported(d_)]
+            if doc in ids:
+                k = ids.index(doc)
+                ids = ids[k:k + 3] + ids[max(0, k - 2):k] + ids[k + 3:] + ids[:max(0, k - 2)]
+            _compact_bg(ids)
     return out
 
 
@@ -439,9 +449,120 @@ def revert_typical(tid: str, body: dict = Body(default={})):
     return {"id": tid, "did": (have or {}).get("id")}
 
 
+_COMPACTING: dict = {}
+_COMPACT_LOCK = __import__("threading").Lock()
+
+
+def _compact_bg(dids: list):
+    """L84 — 들여온 그림의 선 묶기를 뒤에서 하나씩 (한 번에 한 줄기 · 이미 하는 중이면 덧붙인다 · 끄기 PID_DRAW_COMPACT=0)."""
+    import os, threading
+    if os.environ.get("PID_DRAW_COMPACT", "1") == "0":
+        return
+    with _COMPACT_LOCK:
+        q = _COMPACTING.setdefault("q", [])
+        q += [d for d in dids if d not in q]
+        if _COMPACTING.get("run"):
+            return
+        _COMPACTING["run"] = True
+
+    def run():
+        import time
+        while True:
+            with _COMPACT_LOCK:
+                if not q:
+                    _COMPACTING["run"] = False
+                    return
+                did = q.pop(0)
+            try:
+                draw.compact_saved(did)
+            except Exception:
+                pass
+            time.sleep(0.02)                         # 화면 요청에 자리를 내준다
+    threading.Thread(target=run, name="draw-compact", daemon=True).start()
+
+
+# ───────── L84 — 저장된 프로젝트 · 묶음 지우기 (Logic 작성 첫 화면) ─────────
+NO_PROJECT = "프로젝트 없음"
+
+
+def _purge_targets(project: str, set_: str = "") -> list:
+    """지울 그림 — 그 프로젝트(없으면 '프로젝트 없음')의 그림 · set 을 주면 그 묶음만.  공통 Typical 사전은 빼고."""
+    out = []
+    for it in draw.listing():
+        if it.get("set") == TYP_SET:
+            continue
+        if (it.get("project") or "") != project:
+            continue
+        if set_ and it.get("set") != set_:
+            continue
+        out.append(it)
+    return out
+
+
+@router.get("/logic/api/drawings/purge_preview")
+def purge_preview(project: str = "", set: str = ""):
+    """지우기 전에 — 함께 지워질 그림 · 묶음 수, 그린 사람, LOGIC 검토 쪽 분석(그대로 남는다)."""
+    its = _purge_targets(project, set)
+    from . import projects as P, store
+    jobs = [j for j in store.jobs() if project and (j.get("project") or "") == project]
+    return {"project": project, "set": set, "drawings": len(its), "sets": len({i.get("set") for i in its if i.get("set")}),
+            "set_names": sorted({i.get("set_name") or "" for i in its if i.get("set")})[:8],
+            "authors": sorted({i.get("author") for i in its if i.get("author")}),
+            "edited": sum(1 for i in its if (i.get("saves") or 0) > 0),
+            "review_jobs": len(jobs), "ledger": bool(project and P.exists(project)),
+            "confirm": (next((i.get("set_name") for i in its if i.get("set_name")), "") or "묶음") if set else (project or NO_PROJECT)}
+
+
+@router.post("/logic/api/drawings/purge")
+def purge(body: dict = Body(default={})):
+    """프로젝트(또는 그 안의 묶음 하나)의 그림을 지운다.  확인 칸에 이름을 그대로 적어야 하고(실수 방지) · 그린 사람 이름이 필요하다 ·
+    그림마다 지운 기록이 남는다 (draw.delete).  프로젝트 장부의 이름은 LOGIC 검토 쪽 분석이 없을 때만 함께 뺀다 —
+    분석이 있으면 그 프로젝트는 검토 화면에서 계속 쓰이므로 남긴다."""
+    project = str(body.get("project") or "").strip()
+    set_ = str(body.get("set") or "").strip()
+    who = _author(body.get("author"))
+    pv = purge_preview(project, set_)
+    if str(body.get("confirm") or "").strip() != pv["confirm"]:
+        raise HTTPException(400, f"확인 칸에 '{pv['confirm']}' 을(를) 그대로 적어야 지웁니다.")
+    its = _purge_targets(project, set_)
+    gone, log = 0, []
+    for it in its:
+        try:
+            draw.delete(it["id"], who, log)
+            gone += 1
+        except KeyError:
+            pass
+    from . import store as _store
+    if log:
+        _store.log_deletion(log)
+    _SET_CACHE.clear()
+    left_ledger = False
+    if project and not set_ and pv["ledger"]:
+        if pv["review_jobs"]:
+            left_ledger = True
+        else:
+            from . import projects as P, store
+            P.remove(project)
+            store.log_deletion({"project": project, "kind": "draw_project", "drawings": gone, "author": who})
+    return {"deleted": gone, "project": project, "set": set_, "ledger_kept": left_ledger, "review_jobs": pv["review_jobs"]}
+
+
 @router.get("/logic/api/drawings/{did}")
 def get_drawing(did: str):
     d = _load(did)
+    # L84 — 들여온 그림은 처음 열 때 선 토막을 묶는다 (작은 그림은 바로 · 큰 그림은 뒤에서 — 다음에 열면 가볍다)
+    import os
+    if os.environ.get("PID_DRAW_COMPACT", "1") != "0" and not d.get("compact"):
+        from . import draw_compact
+        if draw_compact.imported(d):
+            if len(d.get("wires") or []) <= 600:
+                try:
+                    draw.compact_saved(did)
+                    d = _load(did)
+                except Exception:
+                    pass
+            else:
+                _compact_bg([did])
     # L64 — 예전에 저장한 그림도 선을 곧게 (사선 금지) — 저장하면 그대로 남는다
     try:
         d["wires"] = draw.orthogonal_wires(d.get("wires") or [], blocks=d.get("blocks") or [])

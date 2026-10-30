@@ -57,16 +57,16 @@ input, select { font: inherit; border: 1px solid var(--line); border-radius: 5px
 .dw-cellin { position: absolute; font-size: 11px; padding: 1px 3px; border: 1px solid var(--blue); border-radius: 2px; z-index: 5; }
 
 /* SVG */
-.tbl line { stroke: #333; stroke-width: .72; }
+.tbl line, .tbl .tline { stroke: #333; stroke-width: .72; fill: none; }
 .tbl text { font-family: Helvetica, Arial, sans-serif; fill: #222; }
 .cell { fill: transparent; cursor: text; }
 .cell:hover { fill: rgba(47, 91, 216, .08); }
 .rowstub { fill: #fff; stroke: #8a93a8; stroke-width: .6; cursor: crosshair; }
 .rowstub:hover, .rowstub.hot { fill: var(--active); stroke: var(--blue); }
 /* L55 모눈종이 · 눈금자 · 안내선 — 화면 전용 */
-.grid line.gh { stroke: #e6ebf3; stroke-width: .3; }
-.grid line.g1 { stroke: #d3dbea; stroke-width: .45; }
-.grid line.g5 { stroke: #b4c0d8; stroke-width: .65; }
+.grid .gh { stroke: #e6ebf3; stroke-width: .3; fill: none; }
+.grid .g1 { stroke: #d3dbea; stroke-width: .45; fill: none; }
+.grid .g5 { stroke: #b4c0d8; stroke-width: .65; fill: none; }
 .grid rect.gframe { fill: none; stroke: #b7c2d8; stroke-width: .5; stroke-dasharray: 2 2; }
 .grid text.gnum { fill: #a9b4c9; font-family: Helvetica, Arial, sans-serif; pointer-events: none; }
 .cross { stroke: rgba(194, 69, 63, .45); stroke-width: .5; stroke-dasharray: 1.5 1.5; pointer-events: none; }
@@ -393,3 +393,29 @@ body.dw-homeon .dw-side, body.dw-homeon .dw-stage { display: none; }
 .dw-aop .ap-why { color: #a35a00; font-size: 11.5px; margin-top: 3px; }
 .dw-aop .ap-btns { margin-top: 8px; display: flex; gap: 6px; }
 .dw-aop .ap-btns button { font: inherit; font-size: 12px; border: 1px solid var(--line); background: #fff; border-radius: 6px; padding: 4px 9px; cursor: pointer; }
+
+/* L84 — 휠로 장 넘기기 표시 · 넘어온 장이 살짝 나타난다 */
+.dw-fliphint { position: absolute; left: 50%; bottom: 14px; transform: translate(-50%, 8px); z-index: 20; min-width: 220px; max-width: 70%;
+  background: rgba(24, 33, 56, .88); color: #fff; font-size: 12px; border-radius: 16px; padding: 6px 14px 8px; pointer-events: none;
+  opacity: 0; transition: opacity .12s, transform .12s; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-align: center; }
+.dw-fliphint.up { bottom: auto; top: 14px; transform: translate(-50%, -8px); }
+.dw-fliphint.on { opacity: 1; transform: translate(-50%, 0); }
+.dw-fliphint i { position: absolute; left: 0; bottom: 0; height: 3px; background: #6fa8ff; width: 0; transition: width .08s; }
+#svg.dw-flipin { animation: dwFlipIn .16s ease-out; }
+@keyframes dwFlipIn { from { opacity: .35; } to { opacity: 1; } }
+/* L84 — 가볍게: 그림 칸 · 옆 칸을 따로 배치한다 (한쪽이 바뀌어도 쪽 전체 9천 개를 다시 재지 않는다) · 안 보이는 장 목록 줄은 건너뛴다 */
+.dw-stage { contain: layout paint; }
+.dw-scroll { contain: strict; }
+.dw-side { contain: layout paint; }
+.dw-sheets li { content-visibility: auto; contain-intrinsic-size: auto 19px; }
+.dw-macros .mg { content-visibility: auto; contain-intrinsic-size: auto 120px; }
+/* L84 — 그림 고르기 상자는 넓이를 정해 둔다: 827장 목록이면 값을 바꿀 때마다 브라우저가 모든 줄 글 폭을 다시 재 쪽 전체를 다시 배치했다 (장 넘길 때 0.3초) */
+#pick { width: 300px; max-width: 26vw; contain: strict; height: 26px; }
+/* L84 — 프로젝트 · 묶음 · 그림 지우기 */
+.hm-pdel { margin-left: auto; font-size: 11.5px; padding: 3px 9px; border: 1px solid #e3c9c6; color: #a5372f; background: #fff; border-radius: 6px; cursor: pointer; opacity: .55; }
+.hm-proj:hover .hm-pdel { opacity: 1; }
+.hm-pdel:hover { background: #fbeeed; border-color: #c2453f; }
+.hm-del { border: 0; background: transparent; color: #b6aea0; font-size: 12px; padding: 0 4px; cursor: pointer; opacity: 0; }
+.hm-proj li:hover .hm-del { opacity: 1; }
+.hm-del:hover { color: #c2453f; }
+.hm-proj li.hm-more[data-more] { cursor: pointer; color: var(--blue); }
