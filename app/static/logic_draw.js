@@ -198,9 +198,15 @@ function render() {
   } else {
     svg.textContent = "";
     el("rect", { x: 0, y: 0, width: L.W, height: L.H, fill: "#fff", id: "paper" }, svg);
+    const fsig = JSON.stringify([L.N, L.W, L.H, L.PITCH, S.doc.form, S.guide.grid]);
+    if (!S._frame || S._frameSig !== fsig) {                       // L84 — 모눈 · 표 틀은 장을 넘겨도 그대로
+      S._frame = document.createElementNS(NS, "g"); S._frame.id = "frame";
+      renderGrid(S._frame, L); renderTableFrame(S._frame, L); S._frameSig = fsig;
+    }
+    svg.appendChild(S._frame);
     if (!stat) {
       stat = document.createElementNS(NS, "g"); stat.id = "static";
-      renderGrid(stat, L); renderTable(stat, L); renderTitle(stat, L); renderNotes(stat, L);
+      renderTable(stat, L); renderTitle(stat, L); renderNotes(stat, L);
       S._static = stat; S._staticSig = sig; S._staticDoc = S.id;
     }
     svg.appendChild(stat);
@@ -351,24 +357,29 @@ function renderSoon(fn) {                                          // 포인터�
   S._raf = requestAnimationFrame(() => { S._raf = 0; const f = S._rafFn; S._rafFn = null; f(); });
 }
 
-function renderTable(svg, L) {
+/* L84 — 표 틀(선 · 머리글 · 행 번호)은 행 수 · 양식이 같으면 장을 넘겨도 그대로 쓴다 (renderTableFrame) · 칸 글만 장마다 (renderTable). */
+function renderTableFrame(svg, L) {
   const g = el("g", { class: "tbl" }, svg);
   const cols = L.LCOLS.concat(L.RCOLS);
-  for (const x of cols) el("line", { x1: x, y1: L.TOP - 2 * L.PITCH, x2: x, y2: L.bottom }, g);
-  for (let k = 0; k <= L.N; k++) {
-    el("line", { x1: L.LCOLS[0], y1: L.TOP + k * L.PITCH, x2: L.LX0, y2: L.TOP + k * L.PITCH }, g);
-    el("line", { x1: L.LX1, y1: L.TOP + k * L.PITCH, x2: L.RCOLS[4], y2: L.TOP + k * L.PITCH }, g);
-  }
-  el("line", { x1: L.LCOLS[0], y1: L.TOP - 2 * L.PITCH, x2: L.LX0, y2: L.TOP - 2 * L.PITCH }, g);
-  el("line", { x1: L.LX1, y1: L.TOP - 2 * L.PITCH, x2: L.RCOLS[4], y2: L.TOP - 2 * L.PITCH }, g);
+  let d = "";
+  for (const x of cols) d += `M${x},${L.TOP - 2 * L.PITCH}V${L.bottom}`;
+  for (let k = 0; k <= L.N; k++) { const y = L.TOP + k * L.PITCH; d += `M${L.LCOLS[0]},${y}H${L.LX0}M${L.LX1},${y}H${L.RCOLS[4]}`; }
+  d += `M${L.LCOLS[0]},${L.TOP - 2 * L.PITCH}H${L.LX0}M${L.LX1},${L.TOP - 2 * L.PITCH}H${L.RCOLS[4]}`;
+  el("path", { d, class: "tline" }, g);
   const heads = [[0, 1, "FROM"], [1, 2, "NO."], [2, 3, "TAG NO."], [3, 4, "SERVICE"]];
   for (const [a, b, t] of heads) txt(g, (L.LCOLS[a] + L.LCOLS[b]) / 2, L.TOP - L.PITCH + 2, t, 6, "middle");
   for (const [a, b, t] of [[0, 1, "SERVICE"], [1, 2, "TAG NO."], [2, 3, "NO."], [3, 4, "TO"]]) txt(g, (L.RCOLS[a] + L.RCOLS[b]) / 2, L.TOP - L.PITCH + 2, t, 6, "middle");
+  for (let k = 0; k < L.N; k++) {
+    const yc = L.TOP + k * L.PITCH + L.PITCH / 2 + 1.8;
+    txt(g, (L.LCOLS[1] + L.LCOLS[2]) / 2, yc, String(k + 1), 5, "middle");
+    txt(g, (L.RCOLS[2] + L.RCOLS[3]) / 2, yc, String(L.N + k + 1), 5, "middle");
+  }
+}
+function renderTable(svg, L) {
+  const g = el("g", { class: "tbl" }, svg);
   const fields = { left: [["fm", 0, 1], ["kks", 2, 3], ["desc", 3, 4]], right: [["desc", 0, 1], ["kks", 1, 2], ["to", 3, 4]] };
   for (let k = 0; k < L.N; k++) {
     const y = L.TOP + k * L.PITCH, yc = y + L.PITCH / 2 + 1.8;
-    txt(g, (L.LCOLS[1] + L.LCOLS[2]) / 2, yc, String(k + 1), 5, "middle");
-    txt(g, (L.RCOLS[2] + L.RCOLS[3]) / 2, yc, String(L.N + k + 1), 5, "middle");
     const lrow = S.doc.left[String(k + 1)] || {}, rrow = S.doc.right[String(L.N + k + 1)] || {};
     const li = linkInfo("left", k + 1), ri = linkInfo("right", L.N + k + 1);
     for (const [f, a, b] of fields.left) {
@@ -1204,7 +1215,7 @@ function bindStage() {
   window.addEventListener("resize", () => { if (S.guide.ruler) drawRulers(); });
   svg.addEventListener("contextmenu", e => { if (S.wip) { e.preventDefault(); finishWire(); } });
   stage.addEventListener("wheel", e => {
-    if (!e.ctrlKey) return;
+    if (!e.ctrlKey) { wheelFlip(e); return; }
     e.preventDefault();
     const sc = $("#scroll"), r = $("#svg").getBoundingClientRect();
     const fx = (e.clientX - r.left) / r.width, fy = (e.clientY - r.top) / r.height;
@@ -1249,6 +1260,40 @@ function bindStage() {
   document.addEventListener("keyup", e => { if (e.key === " ") S.space = false; });
   document.addEventListener("keydown", e => { if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "s") { e.preventDefault(); if (S.doc) save(); } });
 }
+/* L84 — 마우스 휠로 장 넘기기: 그림 끝(아래 · 위)에 닿은 뒤에도 같은 쪽으로 더 굴리면 묶음의 다음 · 앞 장.
+   끝에 닿자마자 넘기지 않는다 — 끝에서 한 번 더 굴린 만큼(약 두 눈금) 모아야 넘기고, 넘긴 뒤 잠깐은 다시 넘기지 않는다
+   (관성 스크롤 · 터치패드가 여러 장을 건너뛰지 않게).  모으는 동안 가장자리에 '다음 장 …' 표시가 찬다. */
+const FLIP_NEED = 200, FLIP_REST = 450;
+function wheelFlip(e) {
+  if (!S.doc || e.shiftKey || Math.abs(e.deltaX) > Math.abs(e.deltaY) || !S.setInfo) return;
+  if (S.wip || S.drag || !$("#modal").hidden) return;
+  const sc = $("#scroll"), dir = e.deltaY > 0 ? 1 : -1;
+  if (Date.now() < (S._flipRest || 0)) { e.preventDefault(); return; }   // 넘긴 직후 남은 관성은 먹는다 — 새 장이 처음 자리에 선다
+  const atEnd = dir > 0 ? sc.scrollTop + sc.clientHeight >= sc.scrollHeight - 2 : sc.scrollTop <= 1;
+  const now = Date.now();
+  if (!atEnd) { flipHint(0); S._flipAcc = 0; return; }
+  const nb = setNeighbor(dir); if (!nb) { flipHint(dir, 0, dir > 0 ? "마지막 장입니다" : "첫 장입니다"); return; }
+  e.preventDefault();
+  const px = e.deltaMode === 1 ? e.deltaY * 33 : e.deltaMode === 2 ? e.deltaY * sc.clientHeight : e.deltaY;
+  if (S._flipDir !== dir || now - (S._flipAt || 0) > 700) S._flipAcc = 0;
+  S._flipDir = dir; S._flipAt = now;
+  S._flipAcc = (S._flipAcc || 0) + Math.abs(px);
+  const f = Math.min(1, S._flipAcc / FLIP_NEED);
+  flipHint(dir, f, `${dir > 0 ? "▼ 다음 장" : "▲ 앞 장"}  ${nb.sheet_no || ""} ${nb.title || ""}`);
+  if (f >= 1) {
+    S._flipAcc = 0; S._flipRest = now + FLIP_REST; flipHint(0);
+    openDoc(nb.id, { flip: dir > 0 ? "next" : "prev" });
+  }
+}
+function flipHint(dir, f, text) {
+  let h = $("#fliphint");
+  if (!h) { h = document.createElement("div"); h.id = "fliphint"; h.className = "dw-fliphint"; h.innerHTML = `<span></span><i></i>`; $("#stage").appendChild(h); }
+  clearTimeout(S._flipHideT);
+  if (!dir) { h.classList.remove("on"); return; }
+  h.classList.toggle("up", dir < 0); h.classList.add("on");
+  h.querySelector("span").textContent = text || ""; h.querySelector("i").style.width = Math.round((f || 0) * 100) + "%";
+  S._flipHideT = setTimeout(() => { h.classList.remove("on"); S._flipAcc = 0; }, 900);
+}
 function setZoom(z) { S.zoom = Math.max(0.3, Math.min(6, z)); $("#zval").textContent = Math.round(S.zoom * 100) + "%"; const L = layout(); const svg = $("#svg"); svg.setAttribute("width", L.W * S.zoom); svg.setAttribute("height", L.H * S.zoom); drawRulers(); }
 function fitZoom() { const sc = $("#scroll"); const L = layout(); setZoom(Math.min((sc.clientWidth - 30) / L.W, (sc.clientHeight - 30) / L.H)); }
 
@@ -1258,17 +1303,16 @@ function fitZoom() { const sc = $("#scroll"); const L = layout(); setZoom(Math.m
    세로: 같은 간격(반 행 = 5.65pt)으로 가는 선 · 5행 폭마다 굵은 선.  전부 LOGIC 영역 안에만 그린다. */
 function renderGrid(svg, L) {
   if (!S.guide.grid) return;
-  const g = el("g", { class: "grid" }, svg), half = L.PITCH / 2;
+  // L84 — 가볍게: 선 수백 개 대신 굵기마다 <path> 하나 (모눈 230여 개 → 3)
+  const g = el("g", { class: "grid" }, svg), half = L.PITCH / 2, d = { g5: "", g1: "", gh: "" };
   for (let k = 0; k <= 2 * L.N; k++) {
     const yy = L.TOP + k * half, row = k % 2 === 0 && (k / 2) % 5 === 0, major = k % 2 === 0;
-    el("line", { x1: L.LX0, y1: yy, x2: L.LX1, y2: yy, class: row ? "g5" : major ? "g1" : "gh" }, g);
+    d[row ? "g5" : major ? "g1" : "gh"] += `M${L.LX0},${yy}H${L.LX1}`;
     if (row && k > 0 && k / 2 < L.N) txt(g, L.LX0 + 1.5, yy - 1, String(k / 2 + 1), 3.6).setAttribute("class", "gnum");
   }
   const nx = Math.floor((L.LX1 - L.LX0) / half);
-  for (let k = 0; k <= nx; k++) {
-    const xx = L.LX0 + k * half;
-    el("line", { x1: xx, y1: L.TOP, x2: xx, y2: L.bottom, class: k % 10 === 0 ? "g5" : k % 2 === 0 ? "g1" : "gh" }, g);
-  }
+  for (let k = 0; k <= nx; k++) { const xx = L.LX0 + k * half; d[k % 10 === 0 ? "g5" : k % 2 === 0 ? "g1" : "gh"] += `M${xx},${L.TOP}V${L.bottom}`; }
+  for (const c of ["gh", "g1", "g5"]) if (d[c]) el("path", { d: d[c], class: c }, g);
   el("rect", { x: L.LX0, y: L.TOP, width: L.LX1 - L.LX0, height: L.bottom - L.TOP, class: "gframe" }, g);
 }
 
@@ -1757,6 +1801,7 @@ function docOut() {
 }
 function notesFromForm() { return $("#f-notes").value.split("\n").map(t => t.trim()).filter(Boolean).slice(0, 20); }
 async function save() {
+  if (S._pre) S._pre.clear();                                       // 미리 받은 그림은 저장 뒤에 다시 받는다
   if (!S.doc) return;
   const who = author(); if (!who) { toast("이름을 적어 주세요 (머리줄 ✎)."); $("#who").focus(); return; }
   try { localStorage.setItem("pid.author", who); } catch (e) {}
@@ -1785,14 +1830,43 @@ function fillForm() {
   $("#pdf").hidden = false; $("#dxf").hidden = false;
   $("#pdf").href = `/logic/api/drawings/${S.id}/export.pdf`; $("#dxf").href = `/logic/api/drawings/${S.id}/export.dxf`;
 }
-async function openDoc(id) {
+/* L84 — 장 넘기기: 같은 묶음 안의 앞 · 뒤 장 (묶음 목록 차례) · 미리 받아 둔 그림 (휠로 넘기면 바로) */
+function setNeighbor(step) {
+  const sh = S.setInfo && S.setInfo.sheets; if (!sh || !S.doc) return null;
+  const i = sh.findIndex(x => x.id === S.id); if (i < 0) return null;
+  return sh[i + step] || null;
+}
+function prefetchNeighbors() {
+  S._pre = S._pre || new Map();
+  for (const step of [1, -1]) {
+    const n = setNeighbor(step); if (!n || S._pre.has(n.id)) continue;
+    S._pre.set(n.id, { at: Date.now(), p: api(`/logic/api/drawings/${n.id}`).catch(() => null) });
+  }
+  if (S._pre.size > 12) for (const k of [...S._pre.keys()].slice(0, S._pre.size - 12)) S._pre.delete(k);
+}
+async function fetchDoc(id) {
+  const hit = S._pre && S._pre.get(id);
+  if (hit && Date.now() - hit.at < 60000) { S._pre.delete(id); const d = await hit.p; if (d && d.id === id) return d; }
+  return api(`/logic/api/drawings/${id}`);
+}
+async function openDoc(id, opts) {
+  opts = opts || {};
   if (S.dirty && !(await modal("저장하지 않은 변경", "<p>저장하지 않은 변경이 있습니다.  버리고 열까요?</p>"))) return;
-  try { S.doc = await api(`/logic/api/drawings/${id}`); } catch (e) { toast(e.message); return; }
+  const prev = S.doc ? { set: S.doc.set, W: layout().W, H: layout().H, zoom: S.zoom, top: $("#scroll").scrollTop, left: $("#scroll").scrollLeft } : null;
+  try { S.doc = await fetchDoc(id); } catch (e) { toast(e.message); return; }
   S.id = id; S.dirty = false; S.sel = new Set(); S.selWire = null; S.undo = []; S.redo = []; S.verify = null; $("#verify-card").hidden = true;
   leaveHome();
   rgLoad();
   $("#pick").value = id; $("#save").disabled = true;
-  fillForm(); await loadSet(true); await loadInst(); fitZoom(); render(); instWarn();
+  fillForm(); await loadSet(true); await loadInst();
+  // L84 — 같은 묶음 안에서 장을 옮기면 확대 · 자리를 그대로 (PDF 넘기듯) · 휠로 넘기면 다음 장은 위에서 · 앞 장은 아래에서
+  const Ln = layout(), sc = $("#scroll");
+  const keep = prev && prev.set && prev.set === S.doc.set && prev.W === Ln.W && prev.H === Ln.H;
+  if (keep) setZoom(prev.zoom); else fitZoom();
+  render(); instWarn();
+  if (keep) { sc.scrollLeft = prev.left; sc.scrollTop = opts.flip === "next" ? 0 : opts.flip === "prev" ? sc.scrollHeight : prev.top; }
+  if (opts.flip) { const svg = $("#svg"); svg.classList.remove("dw-flipin"); requestAnimationFrame(() => svg.classList.add("dw-flipin")); }
+  prefetchNeighbors();
   if (S.doc.set === TYP_SET && !S.typList) { try { S.typList = (await api("/logic/api/drawings/typicals")).items; } catch (e) {} }
   renderTypCard();
   if (S.gotoRow) { const n = S.gotoRow; S.gotoRow = null; flashRow(n); }
@@ -1973,11 +2047,13 @@ async function renderHome() {
     const setRows = Object.entries(sets).sort((a, b) => Math.max(...b[1].map(i => i.updated || 0)) - Math.max(...a[1].map(i => i.updated || 0))).map(([sid, arr]) => {
       const first = arr.slice().sort((a, b) => (a.order || 0) - (b.order || 0))[0], typ = arr.filter(i => i.typical).length;
       const lu = arr.reduce((a, b) => (b.updated || 0) > (a.updated || 0) ? b : a, arr[0]);
-      return `<li class="hm-set" data-open="${first.id}"><span class="hm-ic">▤</span><b>${esc(first.set_name || "묶음")}</b><span class="hm-chip">${arr.length}장</span>${typ ? `<span class="hm-chip t">Typical ${typ}</span>` : ""}<em>${fmtTime(lu.updated)} · ${esc(lu.author || "")}</em><span class="hm-go">열기 →</span></li>`; }).join("");
-    const looseRows = loose.slice(0, 12).map(it => `<li data-open="${it.id}"><span class="hm-ic">▢</span><b>${esc(it.name)}</b>${it.sheet_no ? `<span class="hm-chip">${esc(it.sheet_no)}</span>` : ""}<span class="hm-chip">블록 ${it.blocks}</span><em>${fmtTime(it.updated)} · ${esc(it.author || "")}</em><span class="hm-go">열기 →</span></li>`).join("") + (loose.length > 12 ? `<li class="hm-more">그림 ${loose.length - 12}개 더 — 위 그림 고르기 상자에서</li>` : "");
+      return `<li class="hm-set" data-open="${first.id}"><span class="hm-ic">▤</span><b>${esc(first.set_name || "묶음")}</b><span class="hm-chip">${arr.length}장</span>${typ ? `<span class="hm-chip t">Typical ${typ}</span>` : ""}<em>${fmtTime(lu.updated)} · ${esc(lu.author || "")}</em><span class="hm-go">열기 →</span><button type="button" class="hm-del" data-delset="${esc(sid)}" data-p="${esc(name)}" title="이 묶음 ${arr.length}장을 지웁니다">✕</button></li>`; }).join("");
+    const looseRows = loose.slice(0, S.homeAll && S.homeAll[name] ? loose.length : 12).map(it => `<li data-open="${it.id}"><span class="hm-ic">▢</span><b>${esc(it.name)}</b>${it.sheet_no ? `<span class="hm-chip">${esc(it.sheet_no)}</span>` : ""}<span class="hm-chip">블록 ${it.blocks}</span><em>${fmtTime(it.updated)} · ${esc(it.author || "")}</em><span class="hm-go">열기 →</span><button type="button" class="hm-del" data-deldoc="${it.id}" title="이 그림을 지웁니다">✕</button></li>`).join("") +
+      (loose.length > 12 && !(S.homeAll && S.homeAll[name]) ? `<li class="hm-more" data-more="${esc(name)}">그림 ${loose.length - 12}개 더 보기 ▾</li>` : "");
     const body = setRows || looseRows ? `<ul>${setRows}${looseRows}</ul>` : `<p class="dw-hint">아직 그림이 없습니다 — 위 ① 에서 이 프로젝트를 고르고 ② 에서 시작하세요.</p>`;
     return `<div class="hm-proj${name === sel.value ? " on" : ""}" data-p="${esc(name)}"><div class="hm-ph"><span class="hm-av">${esc((name || "?").slice(0, 1))}</span>
-      <div><b>${esc(name || "프로젝트 없음")}</b>${mode ? `<span class="hm-mode">${mode === "bid" ? "입찰" : "실행"}</span>` : ""}<small>묶음 ${Object.keys(sets).length} · 그림 ${its.length}${last ? " · 마지막 저장 " + fmtTime(last) : ""}</small></div></div>${body}</div>`;
+      <div><b>${esc(name || "프로젝트 없음")}</b>${mode ? `<span class="hm-mode">${mode === "bid" ? "입찰" : "실행"}</span>` : ""}<small>묶음 ${Object.keys(sets).length} · 그림 ${its.length}${last ? " · 마지막 저장 " + fmtTime(last) : ""}</small></div>
+      <button type="button" class="hm-pdel" data-delproj="${esc(name)}" title="${its.length ? `이 프로젝트의 그림 ${its.length}장을 지웁니다` : "이 프로젝트를 목록에서 뺍니다"}">🗑 ${name ? "프로젝트 삭제" : "모두 삭제"}</button></div>${body}</div>`;
   };
   $("#h-projects").innerHTML = order.map(pcard).join("") +
     (lib.length ? `<div class="hm-proj hm-lib"><div class="hm-ph"><span class="hm-av">▣</span><div><b>공통 Typical 사전 — 꺼내 고친 그림</b><small>모든 프로젝트가 함께 씀 · ${lib.length}장</small></div></div><ul>${lib.slice(0, 8).map(it => `<li data-open="${it.id}"><span class="hm-ic">▣</span><b>${esc(it.title || it.name)}</b><span class="hm-chip">${esc(it.sheet_no || "")}</span><em>${fmtTime(it.updated)} · ${esc(it.author || "")}</em><span class="hm-go">열기 →</span></li>`).join("")}</ul></div>` : "")
@@ -1985,8 +2061,43 @@ async function renderHome() {
   $("#h-psum").textContent = `프로젝트 ${names.length} · 그림 ${items.length - lib.length}`;
   const recent = items.filter(i => i.set !== TYP_SET).slice(0, 14);
   $("#h-recent").innerHTML = recent.length ? `<ul>${recent.map(it => `<li data-open="${it.id}"><b>${esc(it.sheet_no || it.name)}</b><span>${esc(it.title || it.name)}</span><em>${esc(it.project || "프로젝트 없음")}${it.set_name ? " · " + esc(it.set_name) : ""} · ${fmtTime(it.updated)} · ${esc(it.author || "")}</em></li>`).join("")}</ul>` : `<p class="dw-hint">아직 그린 그림이 없습니다.</p>`;
-  $$("#home [data-open]").forEach(li => li.onclick = () => openDoc(li.dataset.open));
+  $$("#home [data-open]").forEach(li => li.onclick = e => { if (e.target.closest(".hm-del")) return; openDoc(li.dataset.open); });
+  $$("#home [data-delproj]").forEach(b => b.onclick = e => { e.stopPropagation(); purgeAsk(b.dataset.delproj, ""); });
+  $$("#home [data-delset]").forEach(b => b.onclick = e => { e.stopPropagation(); purgeAsk(b.dataset.p, b.dataset.delset); });
+  $$("#home [data-deldoc]").forEach(b => b.onclick = e => { e.stopPropagation(); deleteOne(b.dataset.deldoc); });
+  $$("#home [data-more]").forEach(li => li.onclick = () => { S.homeAll = S.homeAll || {}; S.homeAll[li.dataset.more] = true; renderHome(); });
   $$("#h-projects .hm-ph").forEach(h => h.onclick = () => { const p = h.parentElement.dataset.p; if (p != null && !h.parentElement.classList.contains("hm-lib")) { sel.value = p; homeProjectChanged(); } });
+}
+/* L84 — 저장된 프로젝트 · 묶음 · 그림 지우기 (확인 칸에 이름을 그대로 · 작성자 이름 · 지운 기록이 남는다) */
+async function purgeAsk(project, set) {
+  let pv; try { pv = await api(`/logic/api/drawings/purge_preview?project=${encodeURIComponent(project)}&set=${encodeURIComponent(set || "")}`); } catch (e) { toast(e.message); return; }
+  const what = set ? `묶음 <b>${esc(pv.confirm)}</b>` : `프로젝트 <b>${esc(project || "프로젝트 없음")}</b>`;
+  const keepNote = !set && project && pv.ledger ? (pv.review_jobs ? `<li>LOGIC 검토의 분석 ${pv.review_jobs}개는 <b>남습니다</b> — 그래서 프로젝트 이름도 검토 화면에 남습니다.</li>` : `<li>프로젝트 이름도 목록에서 뺍니다.</li>`) : "";
+  const v = await modal(set ? "묶음 지우기" : "프로젝트 지우기", `<p>${what} 의 그림 <b>${pv.drawings}장</b>${pv.sets ? ` (묶음 ${pv.sets})` : ""} 을 지웁니다.</p>
+    <ul class="dw-hint">${pv.edited ? `<li>사람이 고쳐 저장한 그림 ${pv.edited}장이 들어 있습니다.</li>` : ""}${pv.authors.length ? `<li>그린 사람: ${esc(pv.authors.join(", "))}</li>` : ""}${keepNote}<li>공통 Typical 사전은 지우지 않습니다 · 지운 기록(누가 · 언제)은 남습니다.</li></ul>
+    <div class="dw-form"><label>확인 — <b>${esc(pv.confirm)}</b> 을(를) 그대로 적으세요 <input id="m-purge" autocomplete="off"></label><label>지운 사람 <input id="m-who" value="${esc(author())}"></label></div>`,
+    () => { const c = $("#m-purge").value.trim(), w = $("#m-who").value.trim();
+      if (c !== pv.confirm) { toast(`확인 칸에 '${pv.confirm}' 을(를) 그대로 적어 주세요.`); return false; }
+      if (!w) { toast("지운 사람 이름이 필요합니다."); return false; } return { c, w }; });
+  if (!v) return;
+  status(`지우는 중 — 그림 ${pv.drawings}장 …`);
+  try {
+    const r = await post("/logic/api/drawings/purge", { project, set, author: v.w, confirm: v.c });
+    if (S.doc && ((S.doc.project || "") === project) && (!set || S.doc.set === set)) { S.doc = null; S.id = null; S.setInfo = null; }
+    if (S._pre) S._pre.clear();
+    S.allItems = null; await loadList(); await renderHome(); status("");
+    toast(`그림 ${r.deleted}장을 지웠습니다${r.ledger_kept ? ` — LOGIC 검토 분석 ${r.review_jobs}개가 있어 프로젝트 이름은 남겼습니다` : ""}.`, 5000);
+  } catch (e) { status(""); toast("지우지 못했습니다 — " + e.message); }
+}
+async function deleteOne(id) {
+  const it = (S.allItems || []).find(i => i.id === id) || {};
+  const w = await modal("그림 지우기", `<p>그림 <b>${esc(it.name || id)}</b>${it.sheet_no ? ` (${esc(it.sheet_no)})` : ""} 을 지웁니다.  지운 기록은 남습니다.</p><div class="dw-form"><label>지운 사람 <input id="m-who" value="${esc(author())}"></label></div>`,
+    () => { const v = $("#m-who").value.trim(); if (!v) { toast("지운 사람 이름이 필요합니다."); return false; } return v; });
+  if (!w) return;
+  try { await api(`/logic/api/drawings/${id}?author=${encodeURIComponent(w)}`, { method: "DELETE" });
+    if (S.id === id) { S.doc = null; S.id = null; }
+    S.allItems = null; await loadList(); await renderHome(); toast("지웠습니다."); }
+  catch (e) { toast(e.message); }
 }
 function homeProjectChanged() {
   const v = homeProject();
@@ -2130,15 +2241,29 @@ function renderSetCard() {
     $$("#set-tools button").forEach(b => b.disabled = b.id !== "set-import"); return; }
   $$("#set-tools button").forEach(b => b.disabled = false);
   const bad = {}; for (const f of (info.links && info.links.findings) || []) if (f.code === "FT_MISMATCH") bad[f.did] = (bad[f.did] || 0) + 1;
-  box.innerHTML = `<div class="dw-setname">${esc(info.name)} <span class="dw-hint">${info.sheets.length}장</span></div>` +
-    `<ul class="dw-sheets">${info.sheets.map(sh => `<li class="${sh.id === S.id ? "on" : ""}" data-id="${sh.id}"><b>${esc(sh.sheet_no || "(이름 없음)")}</b>${sh.typical ? ' <span class="typ">Typical</span>' : ""} <span class="dw-hint">${esc(sh.title || "")}</span>${bad[sh.id] ? ` <span class="bad">✕${bad[sh.id]}</span>` : ""}</li>`).join("")}</ul>`;
+  // L84 — 장 목록(827장이면 2,500개 남짓)은 묶음 · 장 이름이 바뀔 때만 다시 짓고, 장을 넘기면 표시만 옮긴다
+  const lsig = JSON.stringify([info.id, info.name, S.setStamp || 0, info.sheets.map(sh => [sh.id, sh.sheet_no, sh.title, sh.typical]), bad]);
+  let ul = box.querySelector("ul.dw-sheets");
+  if (!ul || box._lsig !== lsig) {
+    box.innerHTML = `<div class="dw-setname">${esc(info.name)} <span class="dw-hint">${info.sheets.length}장</span></div>` +
+      `<ul class="dw-sheets">${info.sheets.map(sh => `<li data-id="${sh.id}"><b>${esc(sh.sheet_no || "(이름 없음)")}</b>${sh.typical ? ' <span class="typ">Typical</span>' : ""} <span class="dw-hint">${esc(sh.title || "")}</span>${bad[sh.id] ? ` <span class="bad">✕${bad[sh.id]}</span>` : ""}</li>`).join("")}</ul><div class="dw-missbox"></div>`;
+    box._lsig = lsig; ul = box.querySelector("ul.dw-sheets");
+    ul.onclick = e => { const li = e.target.closest("li[data-id]"); if (li && li.dataset.id !== S.id) openDoc(li.dataset.id); };
+  }
+  const was = ul.querySelector("li.on"); if (was) was.classList.remove("on");
+  const cur = ul.querySelector(`li[data-id="${S.id}"]`);
+  if (cur) {                                                       // 목록 안에서만 그 장이 보이게 (옆 칸 · 쪽 전체는 움직이지 않는다)
+    cur.classList.add("on");
+    const top = cur.offsetTop - ul.offsetTop, h = cur.offsetHeight;
+    if (top < ul.scrollTop) ul.scrollTop = top; else if (top + h > ul.scrollTop + ul.clientHeight) ul.scrollTop = top + h - ul.clientHeight;
+  }
   // 미작성 시트 — 이 장이 가리키는 것 먼저 · 많이 가리켜진 것 먼저 · 10개까지 (나머지는 펼침)
   const miss = (info.links && info.links.missing) || {}, mine = k => miss[k].some(r => r.did === S.id) ? 0 : 1;
   const mk = Object.keys(miss).sort((a, b) => mine(a) - mine(b) || miss[b].length - miss[a].length || a.localeCompare(b));
   const btn = k => `<button type="button" data-sheet="${esc(k)}" class="${mine(k) ? "" : "here"}" title="${esc(miss[k].map(r => (r.sheet_no || "") + " " + r.n + "행").join(", "))}">＋ ${esc(k)} <span class="dw-hint">${miss[k].length}곳</span></button>`;
-  if (mk.length) box.innerHTML += `<div class="dw-miss"><b>미작성 시트 ${mk.length}</b> <span class="dw-hint">가리키는 칸은 있는데 아직 없는 장 — 누르면 만들고 저절로 잇습니다</span>` +
-    mk.slice(0, S.missAll ? mk.length : 10).map(btn).join("") + (mk.length > 10 ? `<button type="button" class="more">${S.missAll ? "접기" : `＋ ${mk.length - 10}개 더`}</button>` : "") + `</div>`;
-  $$("#set-list li[data-id]").forEach(li => li.onclick = () => { if (li.dataset.id !== S.id) openDoc(li.dataset.id); });
+  const mb = box.querySelector(".dw-missbox");
+  mb.innerHTML = mk.length ? `<div class="dw-miss"><b>미작성 시트 ${mk.length}</b> <span class="dw-hint">가리키는 칸은 있는데 아직 없는 장 — 누르면 만들고 저절로 잇습니다</span>` +
+    mk.slice(0, S.missAll ? mk.length : 10).map(btn).join("") + (mk.length > 10 ? `<button type="button" class="more">${S.missAll ? "접기" : `＋ ${mk.length - 10}개 더`}</button>` : "") + `</div>` : "";
   $$("#set-list .dw-miss button").forEach(b => b.onclick = () => b.classList.contains("more") ? (S.missAll = !S.missAll, renderSetCard()) : addSheet(b.dataset.sheet));
 }
 /* ───────── L79 — 매크로 · Typical 팔레트: 타입마다 기호 그림 · 누르면 놓고 · 두 번 누르면 내부 동작 (새 창 · 고칠 수 있음) ─────────
@@ -2176,6 +2301,10 @@ function renderMacroCard() {
   const ms = macroItems();
   if (!ms.length) { box.innerHTML = `<p class="dw-hint">매크로 타입이 없습니다 — 묶음의 장에 <b>Typical 시트</b> 표시를 하거나(시트 카드) 공통 Typical 사전이 쓰입니다.</p>`; return; }
   const q = (($("#macro-q") || {}).value || "").trim().toUpperCase();
+  // L84 — 같은 묶음에서 장만 넘기면 그대로 (타일 수백 개를 장마다 다시 짓지 않는다)
+  const msig = JSON.stringify([S.setStamp || 0, S.setInfo ? S.setInfo.id : "", ms.length, q, S.macroOpen || {}]);
+  if (box._sig === msig && box.firstChild) return;
+  box._sig = msig;
   const groups = {};
   ms.forEach((m, i) => { const o = m.origin || (m.typ.startsWith("lib:") ? "공통" : "이 묶음"); (groups[o] = groups[o] || []).push(i); });
   const keys = Object.keys(groups).sort((a, b) => { const ia = MACRO_ORDER.indexOf(a), ib = MACRO_ORDER.indexOf(b); return (ia < 0 ? 99 : ia) - (ib < 0 ? 99 : ib) || a.localeCompare(b); });
@@ -2311,7 +2440,19 @@ async function importBundle() {
   status("묶음을 들여오는 중 …");
   try {
     try { localStorage.setItem("pid.author", v.who); $("#who").value = v.who; } catch (e) {}
-    const r = await post("/logic/api/drawings/sets/import", { job: v.job, name: v.name, author: v.who, project: $("#f-project").value });
+    // L85 — 뒤에서 들이고 진행을 보여 준다 (827장이면 1분 남짓)
+    const tk = await post("/logic/api/drawings/sets/import", { job: v.job, name: v.name, author: v.who, project: $("#f-project").value, async: true });
+    let r = tk;
+    if (tk.task) {
+      for (;;) {
+        await new Promise(res => setTimeout(res, 600));
+        const t = await api(`/logic/api/drawings/tasks/${tk.task}`);
+        status(`묶음을 들여오는 중 — ${t.done}/${t.total}장 (선을 정리하며 그림으로 옮깁니다)`);
+        if (t.state === "failed") throw new Error(t.error || "들여오지 못했습니다");
+        if (t.state === "done") { r = t.result; break; }
+      }
+    }
+    status("");
     toast(`${r.sheets}장을 들여왔습니다 (Typical ${r.typicals}장).`, 5000);
     const items = await loadList();
     const first = items.filter(i => i.set === r.id).sort((a, b) => (a.order || 0) - (b.order || 0))[0];

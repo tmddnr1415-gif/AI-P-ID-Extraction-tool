@@ -1,23 +1,25 @@
 # 인수인계 — "2. PID 검토" 세션 (상한 15KB · 덧붙이지 말고 고쳐 쓴다)
 
-## 지금 상태 (2026-10-30 · hotfix130)
+## 지금 상태 (2026-10-31 · hotfix131)
 
-- 작업 브랜치: `claude/gracious-ride-26nqrf` (세션 "PID 검토 코드 이관 및 로직 수정").  옛 `ccr-2d6327d0-21i1fr` 는
-  대화 한도 초과로 멈춰 은퇴 — 내용은 전부 이 브랜치에 있다.  바뀌면 `docs/handoff/branches.md` · `config/release_sources.json` 같이 고침.
-- 마지막 꾸러미: **hotfix130** — LOGIC L79~L82 (731473d) 병합.
-  충돌 4곳은 옛 LOGIC(bold-einstein L72) 매크로 팔레트 VOC 와 새 L79 팔레트 개편이 같은 자리를 고친 것:
-  매크로 목록 JS·HTML 은 **L79 판**(묶음 없어도 공통 Typical — 옛 VOC 기능을 포함), `draw_sets.macro_types` 는 씨앗까지 보는
-  `library.typicals()` + L79 의 `origin` 칸, CSS 는 옛 VOC 의 `h3.stack`(제목 세로 밀림) 만 살림.
-  옛 `/logic/api/drawings/macros`(`macros` 키) 중복 경로는 지움 — L79 판(`items` 키) 하나.
-- hotfix129: LOGIC·DCS 화면 주소 딱지(`app/page_stamp.py`) · 서비스워커가 서버 재시작 뒤 옛 화면을 내주지 않게.
-- 시험: `pytest -q -m "not slow and not ui"` 전부 통과 (1,797).  브라우저로 LOGIC 4화면 · 판넬 오류 0.
-- 저장소의 `app/_update.json` 은 옛 값(hotfix54) — 꾸러미 안의 것만 새 번호다 (화면 딱지는 회사 PC 에서 맞게 보인다).
-- **다음 꾸러미 번호: hotfix131**
+- 작업 브랜치: `claude/gracious-ride-26nqrf` (앱 목록 "2. PID 검토 4 (NEW)").  바뀌면 `docs/handoff/branches.md` · `config/release_sources.json` 같이 고침.
+- LOGIC 은 새 세션 "3. Logic 검토코드 4 (NEW)" 의 `ccr-cc45909d-fjjmrb` (L83~L85).  `logic-symbol-visualization-sim` 은 은퇴.
+- 마지막 꾸러미: **hotfix131** — LOGIC L83~L85 병합 · 판넬 0943667(3D 사람 움직임) 옮겨 옴 (imported 갱신).
+  판넬은 `git diff 0869426 0943667 -- dashboard/apps/space/index.html` 을 경로만 바꿔 `app/static/space/index.html` 에 apply
+  — P&ID 서버용 고침(+84/−31)이 그대로 남는다.  다음에도 이 방법 (`imported` → 원본 최신 사이 diff 를 apply).
+- ⚠ 병합에서 고친 것: L85 `graph.py` 의 "같은 줄 앞 토막과 겹쳐 끝난 끝은 접합 아님" 이 실선에도 걸려
+  옛 LOGIC L71 퍼징(`tests/test_logic_l71_wire_fuzz.py`, PID 브랜치에만 있음) 3~4건 실패 → **파선에만** 적용.
+  L85 자기 시험(파선 막대 입력)은 그대로 통과.  19VA 실도면 수치(입력 없는 게이트 76→15)는 PDF 가 없어 여기서 못 잼 —
+  LOGIC 세션에 알려 다시 재 보게 할 것.
+- 시험: 전부 통과 (1,828).  브라우저로 LOGIC 4화면 · 판넬 2D/3D 오류 0.
+- 저장소의 `app/_update.json` 은 옛 값(hotfix54) — 꾸러미 안의 것만 새 번호다.
+- **다음 꾸러미 번호: hotfix132**
 
 ## 최근 hotfix 한 줄 요약 (자세한 것은 `docs/history/pid_log.md` · 옛것은 archive 를 grep)
 
 | hotfix | 내용 |
 | --- | --- |
+| 131 | LOGIC L83~L85 (19VA 들여온 그림 = 검토 화면 값 · 파선 입력 · 작성 가볍게) · 판넬 3D 사람 움직임 |
 | 130 | LOGIC L79~L82 (Logic 작성 첫 화면 · Typical 팔레트 · 작성 시뮬레이션 23초→0.3초 · 엇갈림≠연결) |
 | 129 | LOGIC·DCS 화면 주소 딱지 · 오른쪽 아래 업데이트 이름 · 서비스워커가 옛 화면을 내주지 않게 |
 | 128 | 새 LOGIC L70~L78 병합 (시운전 단계별 시뮬레이션 · System Description Word · 신호 처리 시뮬레이션 · 아미랄 827장) |

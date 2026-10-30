@@ -183,7 +183,7 @@ def build(prims: geom.Prims, lay=None) -> Sheet | None:
             return None
         nb = (min(min(s.x0, s.x1) for s in segs), min(min(s.y0, s.y1) for s in segs),
               max(max(s.x0, s.x1) for s in segs), max(max(s.y0, s.y1) for s in segs))
-        q = geom.Poly(segs, nb, p.dashed, p.pid, getattr(p, "curved", False))
+        q = geom.Poly(segs, nb, p.dashed, p.pid, getattr(p, "curved", False), getattr(p, "dash_gap", 0.0))
         return q
     polys = [q for q in (clip_logic(p) for p in prims.polys) if q is not None and not on_border(q)]
     wires, glyphs = [], []
@@ -337,7 +337,7 @@ def build(prims: geom.Prims, lay=None) -> Sheet | None:
         if keep:
             nb = (min(min(s.x0, s.x1) for s in keep), min(min(s.y0, s.y1) for s in keep),
                   max(max(s.x0, s.x1) for s in keep), max(max(s.y0, s.y1) for s in keep))
-            wires.append(geom.Poly(keep, nb, p.dashed, p.pid, getattr(p, "curved", False)))
+            wires.append(geom.Poly(keep, nb, p.dashed, p.pid, getattr(p, "curved", False), getattr(p, "dash_gap", 0.0)))
 
     # ---- 빗금으로 칠한 상자(■) · 마름모(◆) = 선 위의 인터페이스 표시 (범례 G003) — 블록이 아니다
     markers = [m for m in prims.markers if inside(m) and max(m[2] - m[0], m[3] - m[1]) >= DOT_MAX * P]
@@ -979,6 +979,9 @@ def build(prims: geom.Prims, lay=None) -> Sheet | None:
                 if (round(e[0], 2), round(e[1], 2)) in forced:
                     break
                 if j != i and (segs[j][1] is p or joinable(e, p)) and _on_seg(e, segs[j][0], tol)[0] and not at_block(e):
+                    if segs[j][1] is p and (p.dashed or getattr(p, "dash_gap", 0.0)) and _collinear(s, segs[j][0]):
+                        continue                    # L85 — 같은 줄의 앞 토막이 겹쳐 이어진 것 (파선 끝 토막 · 19VA FW11_P002 막대 입력) — 접합이 아니다
+                                                    # hotfix131 — 파선만.  실선 한 path 가 같은 줄을 되짚어 내는 갈래(L71 퍼징 merge)는 진짜 접합이다
                     touched = True
                     break
             if not touched:
@@ -989,6 +992,13 @@ def build(prims: geom.Prims, lay=None) -> Sheet | None:
                         if pd is not None and (s.horiz if pd[2] in ("L", "R") else s.vert):
                             b_, ci_, side_ = pd
                             pin_ports.append((i, b_, ci_, side_, (c.cx, c.cy)))
+                        elif pd is None:
+                            # L85 — 입력 막대 위의 점(19VA: 막대 게이트 입력마다 막대 위에 작은 점) — 그 선은 막대의 입력이다.
+                            # 예전엔 '점에 닿았다' 로 끝나 단자가 안 서서 입력이 통째로 빠졌다 (FW11_P002 AND 의 위 입력 · 0028 …)
+                            bb_ = next((b_ for b_ in blocks if getattr(b_, "bar", False) and
+                                        any(_on_seg((c.cx, c.cy), geom.Seg(*bs), tol)[0] for bs in b_.bus)), None)
+                            if bb_ is not None:
+                                pin_ports.append((i, bb_, 0, "BUS", (c.cx, c.cy)))
                         break
             if not touched and (any(_d(e, q) < 1e-6 for br in bridged for q in br) or
                                 any(_d(e, q) < 1e-6 for q in linked_ends)):
@@ -1003,11 +1013,13 @@ def build(prims: geom.Prims, lay=None) -> Sheet | None:
         if k in seen_pin:
             continue
         seen_pin.add(k)
-        sh.ports.append(Port(b_.id, seg_net[i], "in" if side_ == "L" else "out",
+        sh.ports.append(Port(b_.id, seg_net[i], "in" if side_ in ("L", "BUS") else "out",
                              (round(at[0], 2), round(at[1], 2)), side_, ci_))
     for (i, e) in list(deg):
         net = seg_net[i]
         att = _attach(e, segs[i][0], blocks, tip_arrows, bus_of, lay, tol, markers)
+        if att is None and segs[i][1].dashed:
+            att = _dash_end_attach(e, segs[i][0], segs[i][1], blocks, tip_arrows, bus_of, lay, tol, markers)
         if att is None:
             sh.dangling.append((round(e[0], 2), round(e[1], 2), net))
             continue
@@ -1023,6 +1035,27 @@ def build(prims: geom.Prims, lay=None) -> Sheet | None:
         elif kind == "arrow-nowhere":
             sh.stray_arrows.append((round(info[0], 2), round(info[1], 2), net))
 
+    # L85 — 입력 막대에만 닿은 작은 넷(행 간격보다 작음 · 다른 블록 · 행 없음)은 막대 앞 화살촉 획의 남은 조각이다.
+    # 입력으로 두면 모는 쪽이 없어 늘 0 이라 AND 가 늘 0 이 됐다 (19VA Typical 0028 · 0027 — 막대 끝 모서리에 5pt 조각 둘).
+    by_net = defaultdict(list)
+    for pt in sh.ports:
+        by_net[pt.net].append(pt)
+    row_nets = {r["net"] for r in sh.rows}
+
+    def tiny(nid):
+        xs = [v for sg in sh.nets.get(nid, {}).get("segs") or [] for v in (sg[0], sg[2])]
+        ys = [v for sg in sh.nets.get(nid, {}).get("segs") or [] for v in (sg[1], sg[3])]
+        return bool(xs) and max(max(xs) - min(xs), max(ys) - min(ys)) < P
+    stub = {nid for nid, pts_ in by_net.items() if nid not in row_nets and len({pt.block for pt in pts_}) == 1 and
+            all(pt.side == "BUS" and pt.dir == "in" for pt in pts_) and tiny(nid)}
+    for nid in stub:
+        bid_ = by_net[nid][0].block
+        # 그 막대에 진짜 입력(작은 조각이 아닌 선)이 남을 때만 뺀다 — 화살촉 조각만 닿은 게이트(선이 막대에 못 미친 그림 ·
+        # 19VA 0006 B11)는 그대로 둔다 (빼면 '입력 없는 게이트' 가 된다)
+        if any(pt.side == "BUS" and pt.dir == "in" and pt.net not in stub for pt in sh.ports if pt.block == bid_):
+            sh.ports = [pt for pt in sh.ports if pt.net != nid]
+            sh.nets.pop(nid, None)
+            sh.dangling = [d for d in sh.dangling if d[2] != nid]
     # 아무 데도 닿지 않는 작은 넷은 글자다 (큰 글씨의 획 — 블록 밖 제목 · 각주)
     attached = {pt.net for pt in sh.ports} | {r["net"] for r in sh.rows}
     for nid in list(sh.nets):
@@ -1779,6 +1812,58 @@ def _flick(s, p, tol, wire_min):
     return False
 
 
+def _collinear(a, b, tol=0.05):
+    """두 축 선분이 한 직선 위에 있는가."""
+    return (a.horiz and b.horiz and abs(a.y0 - b.y0) < tol) or (a.vert and b.vert and abs(a.x0 - b.x0) < tol)
+
+
+_GAPS: dict = {}
+
+
+def _dash_gap(p):
+    """파선 한 줄의 틈 길이 — 토막을 이어 만든 줄은 이을 때 잰 값(dash_gap) · PDF 가 파선 하나로 그린 줄은 그 토막 사이 틈의
+    가운데 값.  도면마다 · 줄마다 잰다.  못 재면 None."""
+    if getattr(p, "dash_gap", 0.0):
+        return p.dash_gap
+    k = id(p)
+    if k in _GAPS and _GAPS[k][0] is p:
+        return _GAPS[k][1]
+    by_line = defaultdict(list)
+    for sg in p.segs:
+        if sg.horiz:
+            by_line[("h", round(sg.y0, 1))].append((min(sg.x0, sg.x1), max(sg.x0, sg.x1)))
+        elif sg.vert:
+            by_line[("v", round(sg.x0, 1))].append((min(sg.y0, sg.y1), max(sg.y0, sg.y1)))
+    gaps = []
+    for iv in by_line.values():
+        iv.sort()
+        gaps += [b[0] - a[1] for a, b in zip(iv, iv[1:]) if b[0] - a[1] > 0.05]
+    g = sorted(gaps)[len(gaps) // 2] if len(gaps) >= 2 else None
+    if len(_GAPS) > 4096:
+        _GAPS.clear()
+    _GAPS[k] = (p, g)
+    return g
+
+
+def _dash_end_attach(e, seg, p, blocks, arrows, bus_of, lay, tol, markers=()):
+    """L85 — 파선의 끝이 **틈에서 끝나** 상자 변 · 입력 막대에 못 미친 것 (19VA: 끝 토막이 변 2.4~3pt 앞에서 멈춤 —
+    BIT_CNT 의 IN1~IN6 · ⎍ 펄스 상자 · 막대 게이트 입력이 블록에 안 붙어 '아무 데도 안 닿은 선' 이 되었다).
+    선이 가던 방향으로 **그 줄의 틈 길이만큼만** 더 가 보고 블록 단자에 닿으면 거기를 끝으로 한다 (행 · 화살 · 선에는 쓰지 않는다)."""
+    g = _dash_gap(p)
+    if not g or not (seg.horiz or seg.vert):
+        return None
+    a, b = seg.ends()
+    o = b if _d(e, a) < _d(e, b) else a
+    L = _d(e, o) or 1.0
+    u = ((e[0] - o[0]) / L, (e[1] - o[1]) / L)
+    for t in (0.5 * g, g, g + tol):
+        q = (e[0] + u[0] * t, e[1] + u[1] * t)
+        att = _attach(q, seg, blocks, (), bus_of, lay, tol, markers)
+        if att and att[0] == "port":
+            return att
+    return None
+
+
 def _attach(e, seg, blocks, arrows, bus_of, lay, tol, markers=()):
     LX0, LY0, LX1, LY1 = lay.logic
     # 0) 경계에 붙은 인터페이스 표시(◆ ■)에 닿은 끝 — 그 표시가 선 대신 경계까지 간다
@@ -2153,6 +2238,7 @@ def _dash_chains(glyphs, wires, blocks, arrows, dots, P, tol, bounds=None):
                         break
                     q = nxt
         pts = [q for s in segs for q in s.ends()]
-        out.append(geom.Poly(segs, geom._bbox(pts), dashed=True, pid=pieces[ks[0]].pid))
+        out.append(geom.Poly(segs, geom._bbox(pts), dashed=True, pid=pieces[ks[0]].pid,
+                             dash_gap=sorted(gaps_)[len(gaps_) // 2] if gaps_ else 0.0))
         taken.update(id(pieces[k]) for k in ks)
     return out, [p for p in glyphs if id(p) not in taken]

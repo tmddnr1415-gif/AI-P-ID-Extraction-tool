@@ -127,19 +127,76 @@ def _crossing(i, k, j, wires, ends, endmap):
     return False
 
 
-def _pair_joined(i, j, wires, ends, segs, endmap=None):
+class _DashInner:
+    """L83 — 파선의 **안쪽 토막 끝**은 제 줄의 다음 토막에만 잇는다.
+    들여온 파선은 토막마다 선 하나다.  분석기(graph.joinable)는 파선 한 줄의 안쪽 토막 끝을 다른 선에 잇지 않는다 —
+    두 파선이 엇갈리는 자리(19VA 0006 매크로 틀 × 신호 파선)에서 토막 끝이 우연히 맞닿아도 연결이 아니다.
+    안쪽 끝 = 그 끝에서 같은 직선으로 반대쪽에 다른 파선 토막이 이어진다.  틈은 그 도면의 토막 길이로 잰다
+    (두 토막 중 긴 쪽 길이 안 — 파선 무늬의 틈은 토막보다 짧다).  무언가에 닿은 끝만 그때 잰다 (827장 첫 계산을 늘리지 않게)."""
+    C = 8.0                                            # 끝 색인 칸 (pt) — 답은 그대로 · 견줄 끝만 줄인다
+
+    def __init__(self, wires, ends):
+        self.ends, self.memo = ends, {}
+        self.info = {}                                 # 파선 토막 → (길이, 끝마다 몸통 쪽 방향)
+        self.cells = defaultdict(list)
+        C = self.C
+        for i, w in enumerate(wires):
+            if w.get("dashed") and len(w["pts"]) == 2:
+                (x0, y0), (x1, y1) = ends[i]
+                self.info[i] = (((x1 - x0) ** 2 + (y1 - y0) ** 2) ** 0.5, (_end_dir(w, 0), _end_dir(w, 1)))
+                for k, (x, y) in enumerate(ends[i]):
+                    self.cells[(int(x // C), int(y // C))].append((i, k))
+        self.Lmax = max((v[0] for v in self.info.values()), default=0.0)
+
+    def next_of(self, i, k):
+        """끝 (i, k) 에서 이어지는 같은 줄 토막들 (빈 집합이면 바깥 끝 — 다른 선에 이을 수 있다)."""
+        got = self.memo.get((i, k))
+        if got is not None:
+            return got
+        if i not in self.info:
+            return ()
+        L, dirs = self.info[i]
+        ex, ey = self.ends[i][k]
+        ux, uy = dirs[k]                               # 몸통 쪽 · 이어지는 토막은 그 반대쪽에 있다
+        C, info, ends = self.C, self.info, self.ends
+        r = int((max(L, self.Lmax) + JOIN) // C) + 1
+        gx, gy = int(ex // C), int(ey // C)
+        nxt = set()                                    # 이어지는 쪽 칸만 본다 (몸통 반대쪽으로 r 칸 · 옆으로 한 칸)
+        for cx in range(gx - r if ux > 0.5 else gx - 1, (gx + r if ux < -0.5 else gx + 1) + 1):
+            for cy in range(gy - r if uy > 0.5 else gy - 1, (gy + r if uy < -0.5 else gy + 1) + 1):
+                for m, mk in self.cells.get((cx, cy), ()):
+                    if m == i:
+                        continue
+                    qx, qy = ends[m][mk]
+                    ahead = (ex - qx) * ux + (ey - qy) * uy     # e 에서 이어지는 쪽으로 간 거리
+                    if ahead < -JOIN or abs((qx - ex) * uy - (qy - ey) * ux) > JOIN:     # 뒤쪽 · 직선에서 벗어남
+                        continue
+                    Lm, dm = info[m]
+                    vx, vy = dm[mk]
+                    if ahead <= max(L, Lm) + JOIN and ux * vx + uy * vy < -0.98:
+                        nxt.add(m)
+        self.memo[(i, k)] = nxt
+        return nxt
+
+    def blocks(self, i, k, j):
+        nxt = self.next_of(i, k)
+        return bool(nxt) and j not in nxt
+
+
+def _pair_joined(i, j, wires, ends, segs, endmap=None, inner=None):
     # 끝이 저 선의 끝 · 꺾임점(L66 — 꺾임에서 세 갈래로 갈라짐) · 몸통에 닿으면 한 그물 (분석기 graph 도 맞닿은 토막 끝을 잇는다)
     # L82 — 몸통에 닿은 끝이라도 반대쪽에 같은 직선이 이어지면 지나가는 교차 (연결 아님)
+    # L83 — 파선의 안쪽 토막 끝은 제 줄의 다음 토막에만 잇는다 (연결점 dot 은 아래에서 따로)
     for k, a in enumerate(ends[i]):
-        if any(abs(a[0] - b[0]) + abs(a[1] - b[1]) <= JOIN for b in wires[j]["pts"]):
-            return True
-        if any(_on_body(a[0], a[1], sg) for sg in segs[j]) and not _crossing(i, k, j, wires, ends, endmap):
-            return True
+        if (any(abs(a[0] - b[0]) + abs(a[1] - b[1]) <= JOIN for b in wires[j]["pts"]) or
+                any(_on_body(a[0], a[1], sg) for sg in segs[j]) and not _crossing(i, k, j, wires, ends, endmap)):
+            if inner is None or not inner.blocks(i, k, j):
+                return True
     for k, b in enumerate(ends[j]):
-        if any(abs(b[0] - a[0]) + abs(b[1] - a[1]) <= JOIN for a in wires[i]["pts"]):
-            return True
-        if any(_on_body(b[0], b[1], sg) for sg in segs[i]) and not _crossing(j, k, i, wires, ends, endmap):
-            return True
+        if (any(abs(b[0] - a[0]) + abs(b[1] - a[1]) <= JOIN for a in wires[i]["pts"]) or
+                any(_on_body(b[0], b[1], sg) for sg in segs[i]) and not _crossing(j, k, i, wires, ends, endmap)):
+            if inner is None or not inner.blocks(j, k, i):
+                return True
     for dx, dy in (wires[i].get("dots") or []):
         if any(_on_body(dx, dy, sg, 1.0) for sg in segs[j]) or any(abs(dx - b[0]) + abs(dy - b[1]) <= 1.0 for b in ends[j]):
             return True
@@ -163,9 +220,10 @@ def _nets_of(wires, grid=None):
             for cx in (round(x) - 1, round(x), round(x) + 1):
                 for cy in (round(y) - 1, round(y), round(y) + 1):
                     endmap[(cx, cy)].append((i, k))
+    inner = _DashInner(wires, ends)                 # L83 — 파선 안쪽 토막 끝
     for i in range(n):
         for j in g.near(g.box[i]):
-            if j > i and _pair_joined(i, j, wires, ends, segs, endmap):
+            if j > i and _pair_joined(i, j, wires, ends, segs, endmap, inner):
                 uf.union(i, j)
     roots = {}
     net_of = []
@@ -294,7 +352,7 @@ def _box_meaning(out, b, text, notes=()):
         out["func"], out["logic"] = "BUFFER", "pass"
         return
     from . import analog as A
-    if A._MON.match(t):
+    if A._MON.match(t) or (b.get("param") or {}).get("mon"):
         out["func"], out["logic"] = A.MONITOR_FUNC, "source"           # 감시 블록 — 값 · 설정값이 있으면 비교로 1/0 (analog.monitors)
         return
     # 그 장 NOTES 가 이 낱말을 따옴표로 부르며 INVERT 를 말하면 토글 (분석기 blocks._note_defined 와 같은 규칙)
@@ -331,7 +389,36 @@ def _box_meaning(out, b, text, notes=()):
             if lg in ("delay_on", "delay_off", "pulse"):
                 out["param"]["t"] = (b.get("param") or {}).get("t", 5)
         return
+    # L84 — 여러 줄 상자(분석이 읽은 줄 · param.lines)는 단자 이름(IN1 · OUT · SP …)까지 한 글로 붙어 와 연산 이름을 못 찾았다
+    #   (`EQUAL IN1 OUT IN2` · `BIT_CNT BIT_CNT IN1 …` · `IN SP SPC_ TR_V …`).  가장 큰 글씨의 줄(같으면 위 · 가운데)이 상자 이름이다 —
+    #   그 줄이 연산 사전(logic_analog.yaml)에 있으면 그 이름을 label 로 둔다 (aops.op_of 가 알아본다).  사전에 없으면 그대로.
+    title = _box_title(b)
+    if title and title != text and _is_op_word(title):
+        out["label"] = title
+        out["title_op"] = True                              # 표시 글자 상자(DISPLAY)로 읽지 않는다 (SPC = 조절기 · 받기만 하는 그림이어도)
     # 모르는 글자 — 들어오는 선 없이 나가는 선만 있으면 이름 붙은 신호 상자(source) 는 to_sheet 가 단자를 센 뒤 정한다
+
+
+def _const_word(t) -> bool:
+    from . import aops
+    return aops.vocab()["_by_label"].get(aops._lab(t)) == "const"
+
+
+def _is_op_word(t) -> bool:
+    """연산 사전(logic_analog.yaml)의 이름 · 글자인가."""
+    from . import aops
+    v = aops.vocab()
+    return aops._lab(t) in v["_by_label"] or aops._key(t) in v["_by_name"]
+
+
+def _box_title(b) -> str:
+    """여러 줄 상자의 이름 줄 — 가장 큰 글씨 · 같으면 위쪽 · 가로 가운데에 가까운 줄.  끝의 `_`(아래 첨자 자리)는 뗀다."""
+    lines = [ln for ln in ((b.get("param") or {}).get("lines") or []) if isinstance(ln, (list, tuple)) and len(ln) >= 3 and str(ln[2]).strip()]
+    if len(lines) < 2:
+        return ""
+    w = b.get("w") or 1.0
+    best = max(lines, key=lambda ln: (round(float(ln[3]) if len(ln) > 3 else 0.0, 1), -float(ln[1]), -abs(float(ln[0]) - w / 3)))
+    return str(best[2]).strip().rstrip("_").strip()
 
 
 # ───────────────────────────── 한 장 ─────────────────────────────
@@ -370,9 +457,23 @@ def to_sheet(doc: dict, page: int, typ_pages: dict | None = None) -> dict:
     io = defaultdict(lambda: [0, 0])
     drawn = {b["id"]: b for b in doc.get("blocks") or [] if b.get("kind") in D.SYMBOLS and b["kind"] != "TEXT"}
     ends = []                                             # 선 끝 — (x, y, 그물)
+    tips = defaultdict(list)                              # L85 — 그물마다 화살촉 자리 (받는 쪽 끝)
     for i, w in enumerate(wires):
         for q in (w["pts"][0], w["pts"][-1]):
             ends.append((q[0], q[1], net_of[i]))
+        a_ = w.get("arrow")
+        if a_ in ("start", "end"):
+            q = w["pts"][0] if a_ == "start" else w["pts"][-1]
+            tips[net_of[i]].append((q[0], q[1]))
+
+    def tb_dir(ex, ey, net):
+        """위 · 아래 변에 닿은 선 — 화살촉이 이 끝에 있으면 입력 · 화살촉이 그물의 다른 곳에만 있으면 이 블록에서 **나가는** 선
+        (분석기는 화살로 방향을 읽는다 — 19VA BL10_P001 상수 A 의 아래로 나가는 출력을 입력으로 읽어 뒤 블록이 다 0 이던 것).
+        화살이 없으면 예전대로 입력."""
+        ts = tips.get(net) or []
+        if not ts or any(abs(tx - ex) + abs(ty - ey) <= TOL + 1.0 for tx, ty in ts):
+            return "in"
+        return "out"
     end_cells = defaultdict(list)                         # L65 — 선 끝 색인 (블록마다 그 상자 근처 끝만 · 원래 순서)
     for k, (ex, ey, _) in enumerate(ends):
         end_cells[(int(ex // CELL), int(ey // CELL))].append(k)
@@ -422,7 +523,11 @@ def to_sheet(doc: dict, page: int, typ_pages: dict | None = None) -> dict:
                 role = ("q" if cell == 0 else "qn") if b["kind"] == "MEMORY" else ""
                 add(ex, ey, "out", role, cell if b["kind"] == "MEMORY" else 0)
             elif x0 - TOL <= ex <= x1 + TOL and (abs(ey - y0) <= TOL or abs(ey - y1) <= TOL) and spec.get("logic") not in ("source",):
-                add(ex, ey, "in", "", 0)                   # 위 · 아래 변 — 타이머의 t(위) · 리셋(아래) 은 sim._index 가 side 로 가른다
+                d_ = tb_dir(ex, ey, _)
+                add(ex, ey, d_, "", 0)                     # 위 · 아래 변 — 타이머의 t(위) · 리셋(아래) 은 sim._index 가 side 로 가른다
+                if d_ == "in" and not any(abs(tx - ex) + abs(ty - ey) <= TOL + 1.0 for tx, ty in tips.get(_) or []) and ports and \
+                        ports[-1]["block"] == bid and ports[-1]["at"] == [round(ex, 2), round(ey, 2)]:
+                    ports[-1]["_noarrow"] = True               # 화살 없이 위 · 아래로 닿은 선 (아래 L85 — 출력 없는 게이트)
     # STEP 상자 — 단자 역할은 그 높이의 글줄 이름 (STEP IN · CRIT · STEP OUT · C-STEP CMD)
     for bid, sb in blocks.items():
         if sb["func"] != "STEP":
@@ -439,13 +544,33 @@ def to_sheet(doc: dict, page: int, typ_pages: dict | None = None) -> dict:
             if best and best[0] <= D.PITCH:
                 sb["roles"][f"{pt['at'][0]},{pt['at'][1]}"] = names[best[1]]
                 pt["role"] = names[best[1]]
+    # L85 — 게이트에 나가는 선이 하나도 없는데 화살 없는 위 · 아래 선이 있으면 그것이 출력이다 (아래 것 먼저 — 위에서 아래로 흐른다).
+    #   세로로 놓인 NOT(⊠): 위로 들어와 아래로 나가는 선에 화살이 없다 (19VA 0015 — 출력이 없어 뒤가 다 비었다 · 분석기도 위 입력 · 아래 출력)
+    for bid, sb in blocks.items():
+        if io[bid][1] or sb["logic"] in ("sink", "source", "macro", "unknown", "memory", "step") or io[bid][0] < 2:
+            continue
+        cand = [pt for pt in ports if pt["block"] == bid and pt.get("_noarrow")]
+        cand.sort(key=lambda pt: (pt["side"] != "B", -pt["at"][1]))
+        if cand:
+            cand[0]["dir"] = "out"
+            io[bid] = [io[bid][0] - 1, 1]
+    for pt in ports:
+        pt.pop("_noarrow", None)
+    # L85 — 상수 상자(A)에는 들어오는 것이 없다 — 화살을 거꾸로 그린(읽은) 선도 상수가 모는 선이다 (aops._const_outs 와 같은 뜻).
+    #   예전엔 들어오는 선만 있는 'A' 를 표시 글자(DISPLAY)로 읽어 그 상수를 받는 연산이 다 비었다 (19VA DW02_P005 등 93개)
+    for bid, sb in blocks.items():
+        if sb["func"] == "UNKNOWN" and drawn[bid]["kind"] == "BOX" and io[bid][0] and _const_word(sb["label"]):
+            for pt in ports:
+                if pt["block"] == bid and pt["dir"] == "in":
+                    pt["dir"] = "out"
+            io[bid] = [0, io[bid][0] + io[bid][1]]
     # 글자 상자의 남은 뜻 · 입력 하나뿐인 AND/OR 는 그렇게 그린 것 (L53 as_drawn)
     for bid, sb in blocks.items():
         n_in, n_out = io[bid]
         if sb["func"] == "UNKNOWN" and sb["logic"] == "unknown" and drawn[bid]["kind"] == "BOX":
             if n_in == 0 and n_out > 0 and not _looks_analog(sb["label"]):
                 sb["func"], sb["logic"] = "SIGNAL", "source"            # 이름 붙은 신호 상자 (들어오는 선 없음)
-            elif n_in > 0 and n_out == 0 and len(sb["label"]) <= 3 and sb["label"].isalpha():
+            elif n_in > 0 and n_out == 0 and len(sb["label"]) <= 3 and sb["label"].isalpha() and not sb.get("title_op"):
                 sb["func"], sb["logic"] = "DISPLAY", "sink"             # 상태 표시 글자 상자 (받기만)
         if sb["logic"] in ("and", "or", "nand", "nor") and n_in == 1:
             sb["param"]["as_drawn"] = 1
@@ -496,12 +621,28 @@ def to_sheet(doc: dict, page: int, typ_pages: dict | None = None) -> dict:
          "logic": [D.LX0, D.TOP, D.LX1, D.TOP + N * D.PITCH], "pitch": D.PITCH, "frame": [0, 0, D.W, D.H],
          "nets": nets, "blocks": blocks, "ports": ports, "rows": rows, "table": table, "dangling": [], "stray_arrows": [],
          "findings": [], "typical": bool(doc.get("typical")), "N": N}
+    # L85 — 연산 블록 둘레 글(입력 이름 IN1 · FLAG · 계수 · 상수 'A : 5%') — 분석기와 같은 함수로 읽는다 (draw._aop_texts 가 옮긴 글 · 사람이 쓴 글)
+    _read_aop_texts(doc, s)
     try:
         from .analyse import _net_order
         s["order"] = _net_order(s)
     except Exception:
         s["order"] = {}
     return s
+
+
+def _read_aop_texts(doc, s):
+    texts = []
+    for b in doc.get("blocks") or []:
+        if b.get("kind") == "TEXT" and (b.get("text") or "").strip():
+            texts.append([b["x"] + b["w"] / 2, b["y"] + b["h"] / 2, b["text"], min(b["h"] * 0.8, 8)])
+    if not texts:
+        return
+    from . import aops
+    try:
+        aops.read_pins(s, _words_of(texts))
+    except Exception:
+        pass
 
 
 _ANALOG_HINT = re.compile(r"[Σ∑√∫△÷×]|^(MED|AVG|MAX|MIN|ABS|SQRT|PID|SEL|DEV|HI|LO|BIAS|K|-K|T|F\(X\)|OUT|EQUAL|BIT_CNT|SPC|A)$", re.I)

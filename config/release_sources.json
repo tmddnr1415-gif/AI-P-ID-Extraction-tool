@@ -2,14 +2,14 @@
   "_설명": "PID_dev+ops 꾸러미에 함께 실리는 다른 세션의 브랜치. spike/pack_delta.py 가 꾸러미를 만들기 전에 이 브랜치들이 HEAD 에 다 들어왔는지 확인한다. 세션을 새로 열어 브랜치가 바뀌면 여기만 고친다 (docs/handoff/branches.md 와 같이).",
   "sources": {
     "LOGIC": {
-      "branch": "claude/logic-symbol-visualization-sim-2oqbxh",
-      "session": "3. Logic 검토코드 3 (NEW)"
+      "branch": "ccr-cc45909d-fjjmrb",
+      "session": "3. Logic 검토코드 (새 세션)"
     },
     "PANEL": {
       "branch": "ccr-d82d97fa-bb3ty3",
       "session": "4. PANEL 코드",
       "paths": ["dashboard/apps/space"],
-      "imported": "0869426",
+      "imported": "0943667",
       "_설명": "판넬 화면은 병합이 아니라 dashboard/apps/space → app/static/space 로 옮겨 온다. 옮겨 온 마지막 커밋을 imported 에 적는다."
     }
   }

@@ -25,3 +25,8 @@
 - 충돌 4곳 (draw_sets.py · logic_draw.css/html/js) — 옛 LOGIC VOC(매크로 팔레트) vs 새 L79 팔레트. L79 판을 쓰고
   옛 VOC 의 씨앗 포함(`library.typicals`) · 제목 줄바꿈(`h3.stack`)만 살림.  중복 `/drawings/macros` 경로 하나 지움, 시험 키 macros→items.
 - 시험 전부 통과 · 작도 화면 매크로 타일 24개(19VA 8 · 알다프라 10 · HRSG 6) 오류 0.
+
+## hotfix131 (2026-10-31) — LOGIC L83~L85 · 판넬 3D 사람 움직임
+- LOGIC 이 새 세션 브랜치 `ccr-cc45909d-fjjmrb` 로 옮겨 감 (L83~L85, L82 포함).  branches.md 충돌은 두 쪽 행을 다 살려 풂.
+- 판넬 0869426→0943667 diff 를 app/static/space/index.html 에 apply (깨끗) · imported 갱신.
+- L85 graph.py 접합 규칙이 실선에도 걸려 L71 퍼징 실패 → 파선 한정.  19VA 실도면 재측정은 LOGIC 세션 몫.

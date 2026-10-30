@@ -14,7 +14,7 @@ def test_screen_has_grid_rulers_and_align_guides():
         assert f"function {name}(" in JS
     for ident in ("ruler-x", "ruler-y", "ruler-corner", "g-grid", "g-ruler", "g-align", "g-cross"):
         assert f'id="{ident}"' in HTML
-    for cls in (".grid line.gh", ".grid line.g5", ".align", ".cross", ".dw-ruler-x"):
+    for cls in (".grid .gh", ".grid .g5", ".align", ".cross", ".dw-ruler-x"):          # L84 — 모눈은 굵기마다 path 하나
         assert cls in CSS
 
 
