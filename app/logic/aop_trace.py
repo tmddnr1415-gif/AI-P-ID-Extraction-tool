@@ -40,7 +40,7 @@ def _names(ins):
     out = []
     for k, i in enumerate(ins):
         p = i.get("pin") or ""
-        out.append(p if p and p not in ("+", "-", "−", "±") else f"X{k + 1}")
+        out.append(p if p and p not in ("+", "-", "−", "±") else ("X" if len(ins) == 1 else f"X{k + 1}"))
     return out
 
 
@@ -144,6 +144,10 @@ def trace(op, params, inputs, out=None, dig=None, why="", label="", cond_value=N
             k = pr.get("k")
             ps.append(["k (멈춘 값)", fmt(k if k is not None else 1.0)])
             sym, sub = f"k × {xn}  (정상 상태)", f"{_c(k if k is not None else 1.0)} × {_c(x)}"
+        elif op == "leadlag":
+            k = pr.get("k") if pr.get("k") is not None else 1.0
+            ps.append(["k (멈춘 값)", fmt(k)])
+            sym, sub = f"k × {xn}  (정상 상태)", f"{_c(k)} × {_c(x)}"
         elif op == "abs":
             sym, sub = f"|{xn}|", f"|{fmt(x)}|"
         elif op == "sqrt":
@@ -211,9 +215,8 @@ def trace(op, params, inputs, out=None, dig=None, why="", label="", cond_value=N
                 env[names[0]] = vs[0]
             for k, v in (pr.get("vars") or {}).items():
                 env[k.upper()] = v
-            for k in names:
-                if env.get(k) is not None:
-                    ps.append([k, fmt(env[k])])
+            for k, v in (pr.get("vars") or {}).items():
+                ps.append([k.upper(), fmt(v)])               # 사람이 넣은 수식 글자 값 (입력선 값은 ① 에 있다)
             sym = expr
             sub = re.sub(r"\b([A-Za-z]\w*)\b", lambda m: _c(env[m.group(1).upper()]) if m.group(1).upper() in env
                          and m.group(1).upper() in names else m.group(1), expr)
@@ -223,6 +226,8 @@ def trace(op, params, inputs, out=None, dig=None, why="", label="", cond_value=N
             sym, sub = (aops.info(op).get("eq") or op or "?"), ""
     if op in ("sum", "mean", "mul") and pr.get("coef"):
         ps.append(["입력 계수", " · ".join(f"{nm[k]} {_c(_coef(i, pr))}" for k, i in enumerate(ins))])
+    if sym.startswith("M = ") or sym.startswith("M ="):
+        sym = sym[3:].lstrip("= ").strip()                  # 범례 식(eq)을 그대로 쓴 것 — M = 를 두 번 적지 않는다
     return {"sym": f"M = {sym}" if op not in ("dev", "equal", "count") else sym,
             "sub": sub, "res": res, "params": ps, "note": why or ""}
 
@@ -306,7 +311,12 @@ def run_static(op, inputs, params=None, label="", cond=None):
     b = {"label": label or "", "param": {"a_user": pr}}
     out = dg = None
     why = ""
-    if aops.is_digital(op):
+    if op == "leadlag":
+        x = ins[0]["value"] if ins else None
+        k = _f(pr.get("k"))
+        k = 1.0 if k is None else k
+        out, why = (k * x, "멈춘 값(정상 상태)의 값입니다") if x is not None else (None, "입력 값을 모릅니다")
+    elif aops.is_digital(op):
         dg = analog._digital(op, b, ii, net_v, dig)
         if dg is None:
             why = "입력 둘의 값과 편차 D 를 알아야 합니다" if op == "dev" else "입력 값을 다 알아야 합니다"
@@ -324,6 +334,9 @@ def _f(v):
         return None
     return x if math.isfinite(x) else None
 
+
+# 범례 어휘(config/logic_analog.yaml)에 없는 시험용 블록 — 식별에는 쓰지 않는다 (페이지 전용)
+EXTRA_OPS = {"leadlag": {"ko": "앞섬/지연 (LEAD/LAG)", "eq": "M = k·(1 + T₁s)/(1 + T₂s)·X — 멈춘 값에서는 M = k·X"}}
 
 TIME_OPS = {
     "lag": [["k", "이득 k", 1.0], ["t", "시정수 T (s)", 5.0]],

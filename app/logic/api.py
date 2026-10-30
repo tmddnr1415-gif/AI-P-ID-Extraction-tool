@@ -1543,6 +1543,42 @@ def aops_vocab():
             "needs": aops.NEEDS}
 
 
+@router.get("/logic/signal")
+def logic_signal_page():
+    """L72 — 신호 처리(아날로그 연산자) 시뮬레이션 페이지."""
+    return FileResponse(_static("logic_signal.html"), headers={"Cache-Control": "no-store"})
+
+
+@router.get("/logic/api/aopsim")
+def aopsim_meta():
+    """L72 — 페이지가 쓰는 연산 목록 (범례 어휘 + 시간 블록 Lead/Lag) · 시간 그래프 블록의 설정값과 기본값."""
+    v = aops.vocab()
+    ops = {k: {"ko": e.get("ko"), "eq": e.get("eq")} for g in ("ops", "digital_ops") for k, e in (v.get(g) or {}).items()}
+    ops.update(aop_trace.EXTRA_OPS)
+    return {"ops": ops, "needs": aops.NEEDS, "time_ops": aop_trace.TIME_OPS}
+
+
+@router.post("/logic/api/aopsim")
+def aopsim_run(body: dict = Body(...)):
+    """L72 — 사람이 넣은 입력 · 설정값으로 연산자 하나를 센다 (도면 판과 같은 aops.compute) → 출력 · 계산 과정."""
+    op = str(body.get("op") or "")
+    if op not in aop_trace.EXTRA_OPS and not aops.info(op):
+        raise HTTPException(400, "모르는 연산입니다.")
+    ins = body.get("inputs") or []
+    if not isinstance(ins, list) or len(ins) > 16:
+        raise HTTPException(400, "입력은 16개까지입니다.")
+    return aop_trace.run_static(op, ins, body.get("params") or {}, str(body.get("label") or "")[:200], body.get("cond"))
+
+
+@router.post("/logic/api/aopsim/timeline")
+def aopsim_timeline(body: dict = Body(...)):
+    """L72 — 시간에 따라 변하는 블록(Lag · Lead/Lag · 변화율 제한 · 적분 · 미분)의 응답 → {t, x, y}."""
+    try:
+        return aop_trace.timeline(str(body.get("op") or ""), body.get("params") or {}, body.get("input") or {}, body.get("T") or 60)
+    except (ValueError, TypeError) as e:
+        raise HTTPException(400, str(e))
+
+
 @router.get("/logic/api/functions")
 def functions_get():
     """기능 책 — 기능마다 범례가 정한 동작 한 줄 (화면 '동작 (범례)' 줄이 읽는다)."""

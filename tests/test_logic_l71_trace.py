@@ -28,7 +28,7 @@ def test_trace_writes_the_legend_formula_with_the_values_put_in():
     t = aop_trace.trace("gain", {"k": 0.8}, [_I("", 15.5)], 12.4)
     assert t["sub"] == "0.8 × 15.5" and t["res"] == "12.4" and ["K", "0.8"] in t["params"]
     t = aop_trace.trace("hilim", {"h": 50}, [_I("", 70.0)], 50.0)
-    assert t["sym"] == "M = MIN(X1, H)" and t["sub"] == "MIN(70, 50)"
+    assert t["sym"] == "M = MIN(X, H)" and t["sub"] == "MIN(70, 50)"
     t = aop_trace.trace("max", {}, [_I("", 3.0, net="a"), _I("", 7.0, net="b")], 7.0)
     assert t["sub"] == "MAX(3, 7)"
     t = aop_trace.trace("sqrt", {}, [_I("", -4.0)], None, why="음수의 제곱근")
