@@ -11,3 +11,11 @@
 - 같이: CLAUDE.md 가 960KB 라 매 요청마다 실려 "Prompt is too long" 이 반복됐다 → 짧은 안내판으로 바꾸고
   옛 내용은 `docs/history/CLAUDE_archive_pid_2026-10-30.md` 로.  `tests/test_context_budget.py` 가 크기 상한을 지킨다.
 - ⚠ 클라우드에 PyMuPDF 설치가 막혀 Python 시험을 못 돌림 (JS 구문 · 병합 대조만).
+
+## hotfix129 (2026-10-30) — 세션 이관 · LOGIC 화면이 옛 판으로 뜨는 길 막기
+- "2. PID 검토 3 (NEW)" 세션이 대화 한도 초과로 멈춤 → 새 세션 브랜치 `claude/gracious-ride-26nqrf` 로 이관.
+- LOGIC 변경 전수 대조: 새 LOGIC(`logic-symbol-visualization-sim`)·옛 LOGIC(`bold-einstein`) 둘 다 HEAD 에 0커밋 남음.
+  hotfix128 병합(502a0bf)을 처음부터 다시 해 맞대 봄 → 충돌 두 줄(버튼, 둘 다 남김) 말고 같음.  zip 에 빠진 LOGIC 파일은 캡처·기록(out/ · docs/)뿐.
+- 원인 후보 두 가지를 코드에서 찾아 고침: LOGIC·DCS 화면만 고정 스크립트 주소(브라우저 캐시) → `app/page_stamp.py` 내용 딱지 ·
+  서비스워커가 서버 재시작 사이 "꺼짐" 을 기억하면 옛 화면 보관본을 먼저 내줌 → 화면은 서버에 1.5초 먼저.
+- 시험: hotfix128 때 못 돌린 Python 시험을 이번에 돌림 — 전부 통과.  `tests/test_hotfix129_logic_asset_tag.py`.

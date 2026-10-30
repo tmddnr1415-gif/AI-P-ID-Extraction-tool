@@ -10,9 +10,9 @@ from urllib.parse import quote
 import hashlib
 import json
 from fastapi import APIRouter, Body, File, Form, HTTPException, UploadFile
-from fastapi.responses import FileResponse, JSONResponse, Response
+from fastapi.responses import JSONResponse, Response
 
-from app import paths
+from app import page_stamp, paths
 
 from . import draw, draw_sets, instruments, store
 
@@ -25,7 +25,7 @@ def _static(name):
 
 @router.get("/logic/draw")
 def draw_page():
-    return FileResponse(_static("logic_draw.html"), headers={"Cache-Control": "no-store"})
+    return page_stamp.page("logic_draw.html")
 
 
 def _load(did: str) -> dict:

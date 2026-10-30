@@ -31,9 +31,9 @@ from html import escape
 from pathlib import Path
 
 from fastapi import APIRouter, Request
-from fastapi.responses import FileResponse, JSONResponse, Response
+from fastapi.responses import JSONResponse, Response
 
-from app import paths
+from app import page_stamp, paths
 
 router = APIRouter()
 
@@ -462,19 +462,19 @@ def _json(data, status=200):
 @router.get("/dcs")
 def dcs_page():
     """hotfix110 — 화면은 LOGIC 브랜치 H1회차의 HMI 화면(`app/static/dcs.html` + `app/static/hmi/*`) 이다."""
-    return FileResponse(paths.resource("app", "static", "dcs.html"), headers={"Cache-Control": "no-store"})
+    return page_stamp.page("dcs.html", badge=False)
 
 
 @router.get("/dcs/demo")
 def dcs_demo_page():
     """예시 화면(압축기 트레인) — 식별 P&ID 없이 HMI 부품을 본다.  같은 화면이 출처 '예시' 로 연다."""
-    return FileResponse(paths.resource("app", "static", "dcs.html"), headers={"Cache-Control": "no-store"})
+    return page_stamp.page("dcs.html", badge=False)
 
 
 @router.get("/hmi")
 def hmi_page():
     """H1 인계 문서(`docs/hmi_handover.md`)가 적은 주소 — 같은 화면."""
-    return FileResponse(paths.resource("app", "static", "dcs.html"), headers={"Cache-Control": "no-store"})
+    return page_stamp.page("dcs.html", badge=False)
 
 
 @router.get("/dcs/api/example")

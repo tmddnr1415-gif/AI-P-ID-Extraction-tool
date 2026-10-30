@@ -15,6 +15,7 @@ const SHELL = VERSION + "-shell";
 const DATA = VERSION + "-data";
 const PAGES = VERSION + "-pages";
 const NAV_TIMEOUT_MS = 6000;
+const DOWN_TIMEOUT_MS = 1500;           // 꺼짐이 기억된 동안 화면을 서버에 먼저 묻는 시간 (hotfix129)
 let DOWN = false;                       // 화면이 알려 준 "서버 꺼짐" — 그동안은 보관본 먼저
 
 const HTML_PATHS = new Set(["/", "/logic", "/logic/", "/logic/test", "/space", "/space/", "/dcs", "/dcs/demo"]);
@@ -114,16 +115,20 @@ async function serveShell(req, url) {
   const html = isHtml(req, url);
   const opts = html ? { ignoreSearch: true } : {};
   const key = html ? new Request(url.pathname) : req;             // 화면은 query(?embed=1&user=) 와 무관하게 한 벌
-  if (DOWN) {
+  // hotfix129 — "서버 꺼짐" 이 기억된 동안에도 화면(HTML)은 서버에 짧게(1.5초) 먼저 묻는다.  업데이트 적용으로 서버를
+  // 다시 켜는 사이 꺼짐이 기억되면, 다시 열 때 보관해 둔 옛 LOGIC 화면이 떴다.  스크립트·스타일은 딱지(?v=) 가 같을 때만
+  // 보관본 먼저 — 딱지가 바뀌었으면 새 판이므로 서버에서 받는다.
+  if (DOWN && !html) {
     const hit = await fromCache(SHELL, key, opts);
     if (hit) return hit;
   }
   try {
-    const r = await withTimeout(fetch(req), NAV_TIMEOUT_MS);
+    const r = await withTimeout(fetch(req), DOWN ? DOWN_TIMEOUT_MS : NAV_TIMEOUT_MS);
     if (r.ok) { (await caches.open(SHELL)).put(key, r.clone()).catch(() => null); tell(false); }
     return r;
   } catch (e) {
-    const hit = await fromCache(SHELL, key, opts);
+    // 딱지 붙은 주소가 처음이면 설치 때 담은 딱지 없는 보관본으로 (절전모드에서도 화면이 열리게)
+    const hit = (await fromCache(SHELL, key, opts)) || (await fromCache(SHELL, key, { ignoreSearch: true }));
     if (hit) { tell(true); return hit; }
     throw e;
   }

@@ -16,7 +16,7 @@ import pymupdf
 from fastapi import APIRouter, Body, File, Form, HTTPException, UploadFile
 from fastapi.responses import FileResponse, JSONResponse, Response
 
-from app import paths
+from app import page_stamp, paths
 
 from . import analog, aop_trace, aops, fromto, idrate, library, memo, overrides, projects, report, sim, store, teach
 
@@ -31,7 +31,7 @@ def _static(name):
 
 @router.get("/logic")
 def logic_page():
-    return FileResponse(_static("logic.html"), headers={"Cache-Control": "no-store"})
+    return page_stamp.page("logic.html")
 
 
 def _start(d: Path):
@@ -701,7 +701,7 @@ def findings(job: str):
 @router.get("/logic/test")
 def logic_test_page():
     """L36 — 블록 그룹 시험 대시보드."""
-    return FileResponse(_static("logic_test.html"), headers={"Cache-Control": "no-store"})
+    return page_stamp.page("logic_test.html")
 
 
 def _learned(job, start=True):
@@ -793,7 +793,7 @@ _SYSDESC_LOCK = threading.Lock()
 @router.get("/logic/commission")
 def logic_commission_page():
     """L78 — 시운전 단계별 동작 · 단계마다 시뮬레이션."""
-    return FileResponse(_static("logic_commission.html"), headers={"Cache-Control": "no-store"})
+    return page_stamp.page("logic_commission.html")
 
 
 def _dangling_text(res):
@@ -1725,7 +1725,7 @@ def aops_vocab():
 @router.get("/logic/signal")
 def logic_signal_page():
     """L72 — 신호 처리(아날로그 연산자) 시뮬레이션 페이지."""
-    return FileResponse(_static("logic_signal.html"), headers={"Cache-Control": "no-store"})
+    return page_stamp.page("logic_signal.html")
 
 
 @router.get("/logic/api/aopsim")

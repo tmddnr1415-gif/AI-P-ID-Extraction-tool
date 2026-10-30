@@ -1,20 +1,24 @@
 # 인수인계 — "2. PID 검토" 세션 (상한 15KB · 덧붙이지 말고 고쳐 쓴다)
 
-## 지금 상태 (2026-10-30 · hotfix128)
+## 지금 상태 (2026-10-30 · hotfix129)
 
-- 작업 브랜치: `ccr-2d6327d0-21i1fr` (바뀌면 `docs/handoff/branches.md` · `config/release_sources.json` 같이 고침)
-- 마지막 꾸러미: **hotfix128** — 새 LOGIC 브랜치(`logic-symbol-visualization-sim`)의 L70~L78 병합.
-  hotfix127 은 옛 LOGIC 브랜치(L72)만 합쳐서 새 LOGIC 변경이 빠져 있었다.
-  병합 충돌은 `logic.html`/`logic.js` 의 버튼 줄 하나 — **🖥 DCS 그래픽(PID 쪽)과 📘 시운전(LOGIC L78) 둘 다 남김.**
-- **다음 꾸러미 번호: hotfix129**
-- 이 회차에 함께 바꾼 것: `CLAUDE.md` 를 짧게(옛 내용은 `docs/history/`) · `pack_delta.py` 병합 확인 · `tests/test_context_budget.py`.
-- ⚠ hotfix128 은 클라우드 환경에 PyMuPDF·fastapi 를 설치할 수 없어 **Python 시험을 못 돌렸다**
-  (JS 구문 검사와 "LOGIC 변경이 전부 들어왔는지" 대조만 함).  다음 세션에서 `python -m pytest -q -m "not slow and not ui"` 를 한 번 돌릴 것.
+- 작업 브랜치: `claude/gracious-ride-26nqrf` (세션 "PID 검토 코드 이관 및 로직 수정").  옛 `ccr-2d6327d0-21i1fr` 는
+  대화 한도 초과로 멈춰 은퇴 — 내용은 전부 이 브랜치에 있다.  바뀌면 `docs/handoff/branches.md` · `config/release_sources.json` 같이 고침.
+- 마지막 꾸러미: **hotfix129** — LOGIC 화면이 업데이트 뒤에도 옛 화면으로 보일 수 있던 원인 두 가지를 막음.
+  ① LOGIC(`/logic` · `/logic/draw` · `/logic/test` · `/logic/commission` · `/logic/signal`)·DCS 화면의 스크립트·스타일 주소에
+  내용 딱지(`app/page_stamp.py`) — P&ID 첫 화면·판넬은 이미 그랬는데 LOGIC 만 빠져 있었다.
+  ② 서비스워커(`sw.js`)가 "서버 꺼짐" 을 기억한 동안에도 화면은 서버에 1.5초 먼저 묻는다 (서버 재시작 사이 꺼짐이 기억되면 옛 화면이 떴다).
+  LOGIC 화면 오른쪽 아래에도 "업데이트 hotfixNNN" 이 보인다.
+- LOGIC 내용은 hotfix128 과 같다 (L70~L78 + 옛 L72).  hotfix129 에서 병합을 다시 처음부터 해 맞대 봄 — 충돌 두 줄(버튼) 말고는 git 자동 병합과 같음.
+- 시험: 이 클라우드에서 의존성 설치가 되어 `pytest -q -m "not slow and not ui"` 전부 통과 (1,778 + hotfix129 시험).
+  브라우저로 LOGIC 화면 다섯 개 · DCS 를 열어 오류 0 확인.
+- **다음 꾸러미 번호: hotfix130**
 
 ## 최근 hotfix 한 줄 요약 (자세한 것은 `docs/history/pid_log.md` · 옛것은 archive 를 grep)
 
 | hotfix | 내용 |
 | --- | --- |
+| 129 | LOGIC·DCS 화면 주소 딱지 · 오른쪽 아래 업데이트 이름 · 서비스워커가 옛 화면을 내주지 않게 |
 | 128 | 새 LOGIC L70~L78 병합 (시운전 단계별 시뮬레이션 · System Description Word · 신호 처리 시뮬레이션 · 아미랄 827장) |
 | 127 | 옛 LOGIC L72 병합 (작도 팔레트 잘림 · 매크로 공통 Typical) |
 | 126 | 판넬 화면 ref.js·offline.js 주소에 내용 딱지 · 오른쪽 아래 업데이트 이름 |
