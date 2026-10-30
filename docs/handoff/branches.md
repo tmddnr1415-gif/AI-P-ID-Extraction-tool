@@ -5,7 +5,7 @@
 | 세션 (앱 목록) | 지금 작업 브랜치 | 상태 |
 | --- | --- | --- |
 | 2. PID 검토 3 (NEW) | `ccr-2d6327d0-21i1fr` | 사용 중 · hotfix 꾸러미를 만드는 곳 |
-| 3. Logic 검토코드 3 (NEW) | `claude/logic-symbol-visualization-sim-2oqbxh` | 사용 중 · L78 까지 · 다음 L79 |
+| 3. Logic 검토코드 (새 세션) | `ccr-cc45909d-fjjmrb` | 사용 중 · L83 까지 · 다음 L84 |
 | 4. PANEL 코드 (NEW) | `ccr-d82d97fa-bb3ty3` (`dashboard/apps/space`) | 판넬 화면 원본 · 0869426 까지 PID 에 옮겨 옴 |
 | 1. DASHBOARD 코드 (NEW) | `ccr-248a5c4d-3dji7g` | 대시보드 본체 zip 은 여기서 |
 | 프로그램 시연 영상 | `ccr-ee7fd745-5z06vs` | |
@@ -14,6 +14,7 @@
 
 | 브랜치 | 무엇이었나 |
 | --- | --- |
+| `claude/logic-symbol-visualization-sim-2oqbxh` | LOGIC (L73~L82) — 전부 `ccr-cc45909d-fjjmrb` 에 들어 있음 |
 | `claude/bold-einstein-8uibbv` | 옛 LOGIC 세션 (OLD) — L70~L72 를 **새 LOGIC 과 같은 번호로** 따로 매겼다. hotfix127 이 이것만 합쳐 새 LOGIC 변경이 빠졌다. 내용은 PID 브랜치에 전부 들어 있음 |
 | `claude/logic-review-design-pd2z75` | 더 옛 LOGIC |
 | `claude/pid-extractor-panel-update-nbcrfn` · `…-zrl4qi` · `claude/titleblock-parsing-c5st4x` | 옛 PID (hotfix121~125) |

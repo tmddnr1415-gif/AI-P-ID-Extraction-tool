@@ -127,19 +127,76 @@ def _crossing(i, k, j, wires, ends, endmap):
     return False
 
 
-def _pair_joined(i, j, wires, ends, segs, endmap=None):
+class _DashInner:
+    """L83 — 파선의 **안쪽 토막 끝**은 제 줄의 다음 토막에만 잇는다.
+    들여온 파선은 토막마다 선 하나다.  분석기(graph.joinable)는 파선 한 줄의 안쪽 토막 끝을 다른 선에 잇지 않는다 —
+    두 파선이 엇갈리는 자리(19VA 0006 매크로 틀 × 신호 파선)에서 토막 끝이 우연히 맞닿아도 연결이 아니다.
+    안쪽 끝 = 그 끝에서 같은 직선으로 반대쪽에 다른 파선 토막이 이어진다.  틈은 그 도면의 토막 길이로 잰다
+    (두 토막 중 긴 쪽 길이 안 — 파선 무늬의 틈은 토막보다 짧다).  무언가에 닿은 끝만 그때 잰다 (827장 첫 계산을 늘리지 않게)."""
+    C = 8.0                                            # 끝 색인 칸 (pt) — 답은 그대로 · 견줄 끝만 줄인다
+
+    def __init__(self, wires, ends):
+        self.ends, self.memo = ends, {}
+        self.info = {}                                 # 파선 토막 → (길이, 끝마다 몸통 쪽 방향)
+        self.cells = defaultdict(list)
+        C = self.C
+        for i, w in enumerate(wires):
+            if w.get("dashed") and len(w["pts"]) == 2:
+                (x0, y0), (x1, y1) = ends[i]
+                self.info[i] = (((x1 - x0) ** 2 + (y1 - y0) ** 2) ** 0.5, (_end_dir(w, 0), _end_dir(w, 1)))
+                for k, (x, y) in enumerate(ends[i]):
+                    self.cells[(int(x // C), int(y // C))].append((i, k))
+        self.Lmax = max((v[0] for v in self.info.values()), default=0.0)
+
+    def next_of(self, i, k):
+        """끝 (i, k) 에서 이어지는 같은 줄 토막들 (빈 집합이면 바깥 끝 — 다른 선에 이을 수 있다)."""
+        got = self.memo.get((i, k))
+        if got is not None:
+            return got
+        if i not in self.info:
+            return ()
+        L, dirs = self.info[i]
+        ex, ey = self.ends[i][k]
+        ux, uy = dirs[k]                               # 몸통 쪽 · 이어지는 토막은 그 반대쪽에 있다
+        C, info, ends = self.C, self.info, self.ends
+        r = int((max(L, self.Lmax) + JOIN) // C) + 1
+        gx, gy = int(ex // C), int(ey // C)
+        nxt = set()                                    # 이어지는 쪽 칸만 본다 (몸통 반대쪽으로 r 칸 · 옆으로 한 칸)
+        for cx in range(gx - r if ux > 0.5 else gx - 1, (gx + r if ux < -0.5 else gx + 1) + 1):
+            for cy in range(gy - r if uy > 0.5 else gy - 1, (gy + r if uy < -0.5 else gy + 1) + 1):
+                for m, mk in self.cells.get((cx, cy), ()):
+                    if m == i:
+                        continue
+                    qx, qy = ends[m][mk]
+                    ahead = (ex - qx) * ux + (ey - qy) * uy     # e 에서 이어지는 쪽으로 간 거리
+                    if ahead < -JOIN or abs((qx - ex) * uy - (qy - ey) * ux) > JOIN:     # 뒤쪽 · 직선에서 벗어남
+                        continue
+                    Lm, dm = info[m]
+                    vx, vy = dm[mk]
+                    if ahead <= max(L, Lm) + JOIN and ux * vx + uy * vy < -0.98:
+                        nxt.add(m)
+        self.memo[(i, k)] = nxt
+        return nxt
+
+    def blocks(self, i, k, j):
+        nxt = self.next_of(i, k)
+        return bool(nxt) and j not in nxt
+
+
+def _pair_joined(i, j, wires, ends, segs, endmap=None, inner=None):
     # 끝이 저 선의 끝 · 꺾임점(L66 — 꺾임에서 세 갈래로 갈라짐) · 몸통에 닿으면 한 그물 (분석기 graph 도 맞닿은 토막 끝을 잇는다)
     # L82 — 몸통에 닿은 끝이라도 반대쪽에 같은 직선이 이어지면 지나가는 교차 (연결 아님)
+    # L83 — 파선의 안쪽 토막 끝은 제 줄의 다음 토막에만 잇는다 (연결점 dot 은 아래에서 따로)
     for k, a in enumerate(ends[i]):
-        if any(abs(a[0] - b[0]) + abs(a[1] - b[1]) <= JOIN for b in wires[j]["pts"]):
-            return True
-        if any(_on_body(a[0], a[1], sg) for sg in segs[j]) and not _crossing(i, k, j, wires, ends, endmap):
-            return True
+        if (any(abs(a[0] - b[0]) + abs(a[1] - b[1]) <= JOIN for b in wires[j]["pts"]) or
+                any(_on_body(a[0], a[1], sg) for sg in segs[j]) and not _crossing(i, k, j, wires, ends, endmap)):
+            if inner is None or not inner.blocks(i, k, j):
+                return True
     for k, b in enumerate(ends[j]):
-        if any(abs(b[0] - a[0]) + abs(b[1] - a[1]) <= JOIN for a in wires[i]["pts"]):
-            return True
-        if any(_on_body(b[0], b[1], sg) for sg in segs[i]) and not _crossing(j, k, i, wires, ends, endmap):
-            return True
+        if (any(abs(b[0] - a[0]) + abs(b[1] - a[1]) <= JOIN for a in wires[i]["pts"]) or
+                any(_on_body(b[0], b[1], sg) for sg in segs[i]) and not _crossing(j, k, i, wires, ends, endmap)):
+            if inner is None or not inner.blocks(j, k, i):
+                return True
     for dx, dy in (wires[i].get("dots") or []):
         if any(_on_body(dx, dy, sg, 1.0) for sg in segs[j]) or any(abs(dx - b[0]) + abs(dy - b[1]) <= 1.0 for b in ends[j]):
             return True
@@ -163,9 +220,10 @@ def _nets_of(wires, grid=None):
             for cx in (round(x) - 1, round(x), round(x) + 1):
                 for cy in (round(y) - 1, round(y), round(y) + 1):
                     endmap[(cx, cy)].append((i, k))
+    inner = _DashInner(wires, ends)                 # L83 — 파선 안쪽 토막 끝
     for i in range(n):
         for j in g.near(g.box[i]):
-            if j > i and _pair_joined(i, j, wires, ends, segs, endmap):
+            if j > i and _pair_joined(i, j, wires, ends, segs, endmap, inner):
                 uf.union(i, j)
     roots = {}
     net_of = []

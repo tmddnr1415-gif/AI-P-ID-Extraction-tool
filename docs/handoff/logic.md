@@ -2,20 +2,24 @@
 
 ## 지금 상태 (2026-10-30)
 
-- 작업 브랜치: `claude/logic-symbol-visualization-sim-2oqbxh` (바뀌면 `docs/handoff/branches.md` · `config/release_sources.json` 같이 고침)
-- 마지막 회차: **L82** — 엇갈리는 선이 이어지던 것 고침 (작성 시뮬레이션) · 신호 처리 블록 두 번 누름 → 입력 넣고 계산 과정 보기.  **다음은 L83.**
-- L82 의 남은 것: 827장 감사에서 '분석 선 둘 이상을 합친 그물' 69개/9장이 남음 — 0024~0029 화살촉 토막이 같은 블록에 닿는 것이라 동작엔 해가 없음.
-  감사 방법: 들여온 선 id `n<분석선>_<k>` 로 그림 그물 하나에 살아 있는 분석 선이 둘 이상 섞였는지 센다.
+- 작업 브랜치: `ccr-cc45909d-fjjmrb` (L83 부터 · 그 전 `claude/logic-symbol-visualization-sim-2oqbxh` 는 L82 까지 — 이 브랜치에 다 들어 있음).
+  바뀌면 `docs/handoff/branches.md` · `config/release_sources.json` 같이 고침.
+- 마지막 회차: **L83** — 엇갈리는 두 파선(매크로 틀 × 신호 파선)이 한 그물이 되던 것 고침 (`draw_sim._DashInner`).  **다음은 L84.**
+- 그물 감사: `python spike/audit_l83_nets.py` (시드 827장 · 약 10초).  지금 '섞인 그물 143 · 화살촉 토막만이 아닌 것 10'.
+  남은 10개는 분석 결과에서 두 분석 선이 **같은 자리에 겹쳐** 나온 것 · 오른쪽 끝 화살촉 — 작성 쪽 기하로는 못 가른다.
+  없애려면 분석기(`app/logic/graph.py`)가 겹친 선을 한 선으로 내야 한다 (0006 n32/n76 · 0007 파선 틀 n67/n205 가 재현 예).
 - 대시보드 하위 메뉴 "신호 처리 시뮬레이션"은 `docs/dashboard_embed.md` §3-3 프롬프트를 대시보드 세션에 줘야 선다.
 - ⚠ 회차 번호 충돌: 옛 LOGIC 세션(`bold-einstein`, 은퇴)도 L70~L72 를 썼다.  옛 기록에서 같은 번호가 두 번 나오면
-  날짜와 브랜치로 구분한다.  앞으로 번호는 이 브랜치 하나만 매긴다.
+  날짜와 브랜치로 구분한다.  앞으로 번호는 지금 LOGIC 작업 브랜치 하나만 매긴다.
 - 이 브랜치의 L70~L78 은 PID 브랜치에 hotfix128 로 들어갔다.  **LOGIC 은 zip 을 만들지 않는다** —
   커밋·푸시만 하면 PID 세션이 병합해 꾸러미에 싣는다 (`spike/pack_delta.py` 가 덜 합쳐졌으면 멈춘다).
+- 시험 돌리기: `pip install -r requirements.txt pytest httpx` 뒤 `pytest -q -m "not slow and not ui"` (약 2분 · 1610 통과).
 
 ## 최근 회차 한 줄 요약 (자세한 것은 `docs/history/logic_log.md` · 옛것은 archive 를 grep)
 
 | 회차 | 내용 |
 | --- | --- |
+| L83 | 엇갈리는 두 파선 ≠ 연결 · 그물 감사 스크립트 |
 | L82 | 엇갈림 ≠ 연결 · 신호 처리 블록 두 번 누름 계산 판 |
 | L81 | 분석 · 작성 가볍게 (작성 시뮬레이션 23초 → 0.3초) |
 | L80 | Logic 작성 가볍게 · 매크로 설명 (MACRO - SWGR / MCC <…>) |
