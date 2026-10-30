@@ -698,6 +698,14 @@ def install_seeds() -> list:
             pack = json.loads(gzip.decompress(f.read_bytes()).decode("utf-8"))
         except Exception:
             continue
+        pj = str(pack.get("project") or "").strip()
+        if pj:                                                    # 로직 그리기의 프로젝트 하나로 — 프로젝트 장부에 없으면 만든다
+            try:
+                from . import projects
+                if not any(p["name"].casefold() == pj.casefold() for p in projects.load()):
+                    projects.create(pj, "업데이트")
+            except Exception:
+                pass
         n = 0
         for doc in pack.get("docs") or []:
             if not ID_RE.match(doc.get("id") or "") or _path(doc["id"]).exists():

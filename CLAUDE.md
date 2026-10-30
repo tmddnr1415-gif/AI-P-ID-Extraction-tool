@@ -7070,3 +7070,8 @@ SHX 글꼴은 **획으로 플롯**되고 원문은 `AutoCAD SHX Text` 주석에 
   (사람이 고친 판이 이긴다) · `PID_DRAW_SEED=0` 이면 끔(conftest — 옛 시험은 빈 목록을 가정).  exe 는 `config/` 를 통째로 싣는다.
 * 확인: 빈 데이터 폴더로 서버를 켜 로직 그리기 화면 → 목록 827 `[AMIRAL 19VA Control Logic & Loop (R1)]` · HH10_G144 열림 (블록 12 · 선 54) · 화면 오류 0.
   시험 `tests/test_logic_l77_draw_seed.py` 3건.
+* **뒤이어 (같은 날)** — 사용자: *로직 그리기의 하나의 프로젝트로 들어가야 하고 사용자가 수정할 수 있어야 한다.*  씨앗에 `project` 를 싣고
+  들일 때 LOGIC 프로젝트 장부에 없으면 만든다 (`projects.create(… "업데이트")` · 종류 실행).  827장 전부 `project: AMIRAL` ·
+  타이틀블록 칸 `AMIRAL COGENERATION PLANT` · `19VA-00GEN00-J09-0001` · REV `1` (`build_draw_seed.py --project --pname --doc --rev`).
+  그림은 보통 그림이라 고치고 저장하면 남고, 서버를 다시 켜도 사람이 고친 판이 이긴다.  확인: 빈 서버 → 프로젝트 칸 `AMIRAL` · 블록 옮기고
+  설명 고쳐 저장(작성자 홍길동) → 새로고침 뒤 그대로 · 화면 오류 0.  시험 4건.

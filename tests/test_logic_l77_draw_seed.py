@@ -44,3 +44,20 @@ def test_seed_switch_off(tmp_path, monkeypatch):
     monkeypatch.setenv("PID_DRAW_SEED", "0")
     draw._SEED_DONE.clear()
     assert draw.listing() == []
+
+
+def test_seed_is_one_project_and_can_be_edited(seeded):
+    from app.logic import projects
+    items = draw.listing()
+    assert [p["name"] for p in projects.load()] == ["AMIRAL"], "로직 그리기의 프로젝트 하나로"
+    one = next(i for i in items if i.get("sheet_no") == "HH10_G144")
+    assert one["project"] == "AMIRAL"
+    doc = draw.load(one["id"])
+    assert (doc["project_name"], doc["doc_no"], doc["rev"]) == ("AMIRAL COGENERATION PLANT", "19VA-00GEN00-J09-0001", "1")
+    doc["blocks"][0]["x"] += 11.3
+    draw.save(one["id"], doc, "홍길동")
+    again = draw.load(one["id"])
+    assert again["blocks"][0]["x"] == doc["blocks"][0]["x"] and again["saves"] >= 1
+    draw._SEED_DONE.clear()
+    draw.listing()
+    assert draw.load(one["id"])["blocks"][0]["x"] == doc["blocks"][0]["x"], "다시 켜도 사람이 고친 판이 남는다"
