@@ -1116,7 +1116,7 @@ function recLabel(key, f) {
  * ===================================================================== */
 let root = null;
 /* 서버 모드: http(s):// 로 접속하면 server.py 의 REST API 사용 (폴더 선택 불필요). file:// 로 열면 폴더 모드 */
-const APP_VERSION = '2026-10-30.1';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
+const APP_VERSION = '2026-10-30.2';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
 const SERVER_URL = 'http://localhost:8080';
 // 부서원 PC 사본(file://)이 접속을 시도할 서버 — 서버가 배포 파일을 만들 때 'PC 이름 주소, IP 주소' 순으로 자동 기록함
 const DEFAULT_SERVERS = ['http://ASEUNGWOOK-B01:8080', 'http://65.3.30.234:8080'];
@@ -3601,7 +3601,11 @@ function myTasks() {
   if (!root || !user || readOnly() || !can('weekly')) return [];
   const out = [];
   for (const k of ['perform', 'bid']) for (const r of DB.recs[k] || [])
-    if (isLive(r) && isMineName(r.fields['담당자'])) out.push({ key:k, rid:r.id, f:'업무 현황', kind:`${SHEET[k].label} PJT`, label:recLabel(k, r.fields), sub:'업무 현황 작성 (바꿀 것이 없으면 그대로 [저장] = 변경 없음)', done:isDone(r) });
+    if (isLive(r) && isMineName(r.fields['담당자'])) {     // 완료 = 그 PJT 행 기준 — 담당자 중 누구든 이번 주에 작성(또는 변경 없음 확인)하면 모두 완료
+      const m = r.meta || {}, up = isUpdated(r), ck = !up && isChecked(r), who = up ? m.updatedBy : ck ? m.checkedBy : '';
+      out.push({ key:k, rid:r.id, f:'업무 현황', kind:`${SHEET[k].label} PJT`, label:recLabel(k, r.fields), done:up || ck,
+        sub:up || ck ? `${who === user ? '내가' : `${who || '담당자'} 님이`} ${up ? '작성' : '변경 없음 확인'} (${fmtTime(up ? m.updatedAt : m.checkedAt)})` : '업무 현황 작성 (바꿀 것이 없으면 그대로 [저장] = 변경 없음 · 담당자 중 한 명만 하면 완료)' });
+    }
   // 통합 업무: 내가 담당인 미완료(To do 는 완료·종결 전 전부, 일반업무·기술공유는 지연·임박) → '완료 알림'. 누르면 '확인완료' (이번 주 기준으로 다시 알림)
   const ack = ackSet();
   for (const { k, r } of workRecs()) {                      // To Do·그룹장 요청은 종결 전 전부, 일반업무·표준화·기술공유는 지연·임박만
