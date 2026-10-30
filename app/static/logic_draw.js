@@ -2174,7 +2174,8 @@ async function runSim(animate) {
   if (!simOn() || !S.doc) return;
   const s = S.sim, did = S.id, seq = (s.seq = (s.seq || 0) + 1);
   const inState = s.states;                                        // L64 — 새 창은 이 입력으로 같은 값을 낸다
-  const body = { doc: docOut(), forces: s.forces, state: s.states, timers: s.timers, analog: s.analog, inner: macroWinKeys() };
+  // 고치지 않은 그림은 보내지 않는다 — 서버가 저장된 판을 쓰면 매크로 새 창 · FROM/TO 새 창과 묶음 계산을 함께 쓴다 (보내면 창마다 827장을 다시 센다)
+  const body = { doc: S.dirty ? docOut() : undefined, forces: s.forces, state: s.states, timers: s.timers, analog: s.analog, inner: macroWinKeys() };
   let r;
   try { r = await post(`/logic/api/drawings/${did}/simulate`, body); } catch (e) { status("시뮬레이션 실패 — " + e.message); return; }
   if (!simOn() || seq !== s.seq || did !== S.id) return;         // 기다리는 동안 다른 그림으로 옮겼거나 또 눌렀다
