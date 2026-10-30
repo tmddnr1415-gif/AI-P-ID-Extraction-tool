@@ -580,6 +580,8 @@ svg text{font-family:var(--f-mono)}
       <label class="chk"><input type="checkbox" id="v3Lbl" checked>Tag</label>
       <label class="chk" title="키 175 cm · 80 kg 성인 남성 — 끌어서 옮기기 · R 돌리기 · 방향키 이동"><input type="checkbox" id="v3Man" checked>사람</label>
       <label class="chk" title="운전 데스크마다 앉은 운전원 (좌판 450 · 눈높이 1,240 mm)"><input type="checkbox" id="v3Sit" checked>앉은 사람</label>
+      <label class="chk" title="판넬 앞에 쭈그려 앉아 케이블 결선하는 작업자 — 판넬 사이를 걸어 다님 (캐비닛 6 면당 1 명)"><input type="checkbox" id="v3Tech" checked>작업자</label>
+      <button id="v3Anim" title="사람 움직임 멈춤 / 다시 움직임">⏸ 동작 멈춤</button>
       <label class="chk" title="안전공학 시야: 바닥에 정면 ±15° 최적(초록) · ±30° 눈만 돌려(노랑) · ±60° 머리 돌려(회색), 점선 = 정상 시선(수평 아래 15°, ISO 11064-4). 선 사람 + 고른 데스크의 운전원"><input type="checkbox" id="v3View" checked>시야</label>
       <button id="v3ErgSet" title="시야 기준: 켜고 끄기 · PDF 반영 · 기준 값 고치기">👁 시야 기준</button>
       <label class="chk" title="판넬 사이 · 벽과 가까운 판넬 사이 몸체 모서리 간 거리 (edge to edge, &lt;───&gt;)"><input type="checkbox" id="v3EDim" checked>간격 치수</label>
@@ -2040,22 +2042,8 @@ function v3build(){
       for(let i=0;i<la;i++)for(let j=0;j<lo;j++){const a=P(i,j),b=P(i+1,j),cc=P(i+1,j+1),d=P(i,j+1),n=v3n([(a[0]+cc[0])/2-hx,(a[1]+cc[1])/2-hy,(a[2]+cc[2])/2-hz]);quad(T,[a,b,cc,d],skin,1,n)}}   // 머리 (정수리 1,750)
     rb(-16,100,16,135,1600,1650,skin);                                                    // 코 = 보는 방향
   }
-  // 앉은 운전원 (데스크마다, 의자 좌판 450 · 눈 1,240) — 시야 검토용. 로컬 +z = 보는 쪽(모니터)
-  if(V3.sitOn!==false)operators().forEach(v=>{const rot=Math.atan2(v.f[0],v.f[1]),c=Math.cos(rot),s=Math.sin(rot),W2=(lx,lz)=>[v.x+lx*c+lz*s,v.z-lx*s+lz*c],nr=(lx,lz)=>[lx*c+lz*s,0,-lx*s+lz*c];
-    const shirt=hexRGB('#2d8cff'),pants=hexRGB('#34405a'),skin=hexRGB('#e2b08a'),shoe=hexRGB('#1d2128');
-    const rb=(x0,z0,x1,z1,y0,y1,col)=>{const P=[[x0,z0],[x1,z0],[x1,z1],[x0,z1]].map(q=>W2(q[0],q[1])),N=[nr(0,-1),nr(1,0),nr(0,1),nr(-1,0)];
-      quad(T,P.map(q=>[q[0],y1,q[1]]),col,1,[0,1,0]);P.forEach((a,i)=>{const b=P[(i+1)%4];quad(T,[[a[0],y0,a[1]],[a[0],y1,a[1]],[b[0],y1,b[1]],[b[0],y0,b[1]]],col,1,N[i])})};
-    rb(-150,250,-40,420,0,60,shoe);rb(40,250,150,420,0,60,shoe);                          // 신발
-    rb(-145,280,-55,370,60,450,pants);rb(55,280,145,370,60,450,pants);                    // 종아리
-    rb(-160,-60,-25,400,440,580,pants);rb(25,-60,160,400,440,580,pants);                  // 허벅지 (좌판 450)
-    rb(-200,-150,200,90,560,1080,shirt);                                                   // 몸통
-    rb(-270,-90,-205,60,780,1060,shirt);rb(205,-90,270,60,780,1060,shirt);                // 위팔
-    rb(-265,40,-205,330,700,780,shirt);rb(205,40,265,330,700,780,shirt);                  // 아래팔 (작업면 쪽)
-    rb(-255,330,-210,420,700,760,skin);rb(210,330,255,420,700,760,skin);                  // 손
-    rb(-50,-40,50,50,1080,1140,skin);                                                      // 목
-    {const [hx,hz]=W2(0,10),hy=1250,R=108,la=7,lo=12,P=(i,j)=>{const t=i/la*Math.PI,f=j/lo*Math.PI*2;return [hx+R*Math.sin(t)*Math.cos(f),hy+R*Math.cos(t),hz+R*Math.sin(t)*Math.sin(f)]};
-      for(let i=0;i<la;i++)for(let j=0;j<lo;j++){const a=P(i,j),b=P(i+1,j),cc=P(i+1,j+1),d=P(i,j+1),n=v3n([(a[0]+cc[0])/2-hx,(a[1]+cc[1])/2-hy,(a[2]+cc[2])/2-hz]);quad(T,[a,b,cc,d],skin,1,n)}}   // 머리 (눈 1,240)
-    rb(-14,105,14,135,1215,1255,skin)});                                                   // 코 = 보는 방향
+  // 앉은 운전원 · 결선 작업자는 움직이므로 매 화면 v3dyn() 에서 그림
+  {const k=S.room.w+'x'+S.room.l+'|'+S.panels.map(p=>p.id+':'+p.x+','+p.y+','+p.r+','+p.type).join(';')+'|'+columns().map(c=>c.x+','+c.y).join(';');if(k!==V3.agK){V3.agK=k;V3.ag=null}}   // 배치가 바뀌면 작업자 다시 놓음
   V3.gd=V3.edim?gapDims():[];   // 글자에서 다시 씀
   V3.bx=S.panels.map(p=>{const g=geom(p),b=g.body;return {p,lo:[b.x,0,b.y],hi:[b.x+b.w,+g.t.h||2100,b.y+b.h]}});   // 판넬 상자 (가림 · 마우스 고르기에 매 화면 다시 씀)
   if(V3.edim){const ec=DCS?hexRGB('#9fd0ff'):C('--ink-2'),y=40,ar=Math.min(140,1e9);   // <───> 화살 치수 (바닥 위 40)
@@ -2066,6 +2054,97 @@ function v3build(){
       const ext=d.ax==='x'?[0,0,Math.min(300,(d.hi-d.lo)/2)]:[Math.min(300,(d.hi-d.lo)/2),0,0];   // 모서리 표시선
       [A,Bp].forEach(p=>seg([p[0]-ext[0],y,p[2]-ext[2]],[p[0]+ext[0],y,p[2]+ext[2]],ec,.7))})}
   return {T,L,X,SH,WT,WL};
+}
+/* 3D 사람 움직임 (매 화면): 판넬 앞에 쭈그려 앉아 케이블 결선하는 작업자(판넬 사이를 걸어 다님) · 앉은 운전원(고개 좌우 — 시야 부채꼴도 같이 돎).
+   [⏸ 동작 멈춤] = 시간(V3.t)을 멈춤 → 자세 그대로 멈춤. 작업자 수 = 캐비닛 6 면당 1 명(1~3), 길 = 200 mm 칸 A* (판넬 · 기둥 · 데스크 · 벽 피함) */
+const opYaw=v=>{let h=0;for(const ch of v.tag)h=(h*31+ch.charCodeAt(0))%997;const x=Math.sin(.55*(V3.t||0)+h);return 32*Math.tanh(2.2*x)/Math.tanh(2.2)};   // 운전원 고개 각도(°): 좌우로 돌려 잠깐 머묾
+const v3rnd=()=>(V3.rs=((V3.rs||7)*1103515245+12345)%2147483648)/2147483648;
+function techGrid(){   // 걸을 수 있는 칸 (0 = 빈 칸)
+  const cs=200,W=S.room.w,L=S.room.l,nx=Math.max(1,Math.ceil(W/cs)),nz=Math.max(1,Math.ceil(L/cs)),G=new Uint8Array(nx*nz),m=230;
+  const blk=(x0,z0,x1,z1)=>{for(let i=Math.max(0,Math.ceil((x0-m)/cs-.5));i<=Math.min(nx-1,Math.floor((x1+m)/cs-.5));i++)for(let j=Math.max(0,Math.ceil((z0-m)/cs-.5));j<=Math.min(nz-1,Math.floor((z1+m)/cs-.5));j++)G[j*nx+i]=1};   // 칸 가운데가 (상자 + 몸 반폭) 안이면 막힘
+  S.panels.forEach(p=>{const b=geom(p).body;blk(b.x,b.y,b.x+b.w,b.y+b.h)});
+  columns().forEach(c=>blk(c.x,c.y,c.x+c.w,c.y+c.h));
+  operators().forEach(v=>blk(v.x-250,v.z-250,v.x+250,v.z+250));
+  blk(-1e9,-1e9,0,1e9);blk(W,-1e9,1e9,1e9);blk(-1e9,-1e9,1e9,0);blk(-1e9,L,1e9,1e9);
+  return {cs,nx,nz,G,free:(x,z)=>{const i=Math.floor(x/cs),j=Math.floor(z/cs);return i>=0&&j>=0&&i<nx&&j<nz&&!G[j*nx+i]}};
+}
+function techPath(gd,a,b){   // A* (8 방향) → 꺾이는 점만 남긴 길 [[x,z]…], 못 가면 null
+  const {cs,nx,nz,G}=gd,id=(x,z)=>Math.min(nz-1,Math.max(0,Math.floor(z/cs)))*nx+Math.min(nx-1,Math.max(0,Math.floor(x/cs))),s=id(a[0],a[1]),t=id(b[0],b[1]);
+  if(G[t])return null; const g=new Float32Array(nx*nz).fill(1e9),from=new Int32Array(nx*nz).fill(-1),done=new Uint8Array(nx*nz),H=[],tx=t%nx,tz=(t/nx)|0;
+  const hh=k=>{const dx=Math.abs(k%nx-tx),dz=Math.abs(((k/nx)|0)-tz);return Math.max(dx,dz)+.414*Math.min(dx,dz)};
+  const push=(f,k)=>{H.push([f,k]);let i=H.length-1;while(i){const p=(i-1)>>1;if(H[p][0]<=H[i][0])break;[H[p],H[i]]=[H[i],H[p]];i=p}};
+  const pop=()=>{const r=H[0],e=H.pop();if(H.length){H[0]=e;let i=0;for(;;){const l=2*i+1,q=l+1;let m=i;if(l<H.length&&H[l][0]<H[m][0])m=l;if(q<H.length&&H[q][0]<H[m][0])m=q;if(m===i)break;[H[m],H[i]]=[H[i],H[m]];i=m}}return r};
+  g[s]=0;push(hh(s),s);
+  while(H.length){const k=pop()[1];if(k===t)break;if(done[k])continue;done[k]=1;const x=k%nx,z=(k/nx)|0;
+    for(let dx=-1;dx<=1;dx++)for(let dz=-1;dz<=1;dz++){if(!dx&&!dz)continue;const X=x+dx,Z=z+dz;if(X<0||Z<0||X>=nx||Z>=nz)continue;const q=Z*nx+X;if(G[q]&&q!==s)continue;
+      if(dx&&dz&&(G[z*nx+X]||G[Z*nx+x]))continue;const c=g[k]+(dx&&dz?1.414:1);if(c<g[q]){g[q]=c;from[q]=k;push(c+hh(q),q)}}}
+  if(t!==s&&from[t]<0)return null;
+  const P=[];for(let k=t;k>=0&&k!==s;k=from[k])P.push([(k%nx+.5)*cs,(((k/nx)|0)+.5)*cs]);P.reverse();P[P.length-1]=b.slice();
+  const see=(p,q)=>{const n=Math.ceil(Math.hypot(q[0]-p[0],q[1]-p[1])/80);for(let i=1;i<n;i++){const x=p[0]+(q[0]-p[0])*i/n,z=p[1]+(q[1]-p[1])*i/n;if(!gd.free(x,z))return false}return true};
+  const out=[];let cur=a;for(let i=0;i<P.length;){let j=P.length-1;while(j>i&&!see(cur,P[j]))j--;out.push(P[j]);cur=P[j];i=j+1}   // 보이는 가장 먼 점으로 곧게
+  return out;
+}
+function techInit(){   // 캐비닛 앞(앞면 550 mm)마다 작업 자리, 작업자는 서로 다른 자리에서 시작
+  V3.rs=7;const gd=techGrid(),sp=[];
+  S.panels.forEach(p=>{const t=typeOf(p);if(t.kind!=='cabinet')return;const g=geom(p),f=g.fe,n=FRONT_N[g.r],x=(f[0]+f[2])/2+n[0]*560,z=(f[1]+f[3])/2+n[1]*560;if(gd.free(x,z))sp.push({x,z,rot:Math.atan2(-n[0],-n[1]),pid:p.id})});
+  const na=sp.length?Math.min(3,Math.max(1,Math.round(sp.length/6))):0,ag=[];
+  for(let i=0;i<na;i++){const k=Math.floor(v3rnd()*sp.length),s0=sp.splice(k,1)[0];if(!s0)break;ag.push({x:s0.x,z:s0.z,rot:s0.rot,face:s0.rot,at:s0,path:[],st:'work',tw:2+i*2.5+v3rnd()*2,w:1,ph:0,k:i})}
+  sp.push(...ag.map(a=>a.at));V3.ag={gd,sp,ag};
+}
+function techStep(dt){   // 작업자 움직임 dt 초
+  if(!V3.ag)techInit();const {gd,sp,ag}=V3.ag,turn=(a,b,r)=>{let d=b-a;while(d>Math.PI)d-=2*Math.PI;while(d<-Math.PI)d+=2*Math.PI;return a+Math.max(-r,Math.min(r,d))};
+  ag.forEach(a=>{
+    if(a.st==='work'){a.rot=turn(a.rot,a.face,4*dt);a.w=Math.min(1,a.w+dt/.6);a.tw-=dt;
+      if(a.tw<=0){const busy=new Set(ag.map(b=>b.at));for(let n=0;n<8;n++){const s=sp[Math.floor(v3rnd()*sp.length)];if(!s||busy.has(s))continue;const P=techPath(gd,[a.x,a.z],[s.x,s.z]);if(P&&P.length){a.at=s;a.path=P;a.st='walk';break}}if(a.st==='work')a.tw=3}}
+    else{a.w=Math.max(0,a.w-dt/.6);if(a.w>.15)return;   // 일어선 뒤 걸음
+      let d=1100*dt;while(d>0&&a.path.length){const q=a.path[0],dx=q[0]-a.x,dz=q[1]-a.z,L=Math.hypot(dx,dz);if(L>1)a.rot=turn(a.rot,Math.atan2(dx,dz),6*dt);if(L<=d){a.x=q[0];a.z=q[1];d-=L;a.path.shift()}else{a.x+=dx/L*d;a.z+=dz/L*d;d=0}}
+      a.ph+=1100*dt*2*Math.PI/1400;
+      if(!a.path.length){a.st='work';a.face=a.at.rot;a.tw=5+v3rnd()*3}}});
+}
+function v3dyn(){
+  const T=[],SH=[],t=V3.t||0,col=hexRGB;let X=0,Z=0,c=1,s=0;
+  const vtx=(A,p,cl,n)=>A.push(p[0],p[1],p[2],cl[0],cl[1],cl[2],1,n[0],n[1],n[2]);
+  const at=(x,z,rot)=>{X=x;Z=z;c=Math.cos(rot);s=Math.sin(rot)}, P=q=>[X+q[0]*c+q[2]*s,q[1],Z-q[0]*s+q[2]*c], N=q=>[q[0]*c+q[2]*s,q[1],-q[0]*s+q[2]*c];
+  const face=(q,cl,n)=>{const w=q.map(P),nn=N(n);[0,1,2,0,2,3].forEach(i=>vtx(T,w[i],cl,nn))};
+  const add=(a,b,k)=>[a[0]+b[0]*k,a[1]+b[1]*k,a[2]+b[2]*k];
+  const limb=(a,b,hw,hd,cl)=>{   // 관절 a → b 를 잇는 각진 막대 (단면 2hw × 2hd, 로컬: x 오른쪽 · y 위 · z 앞)
+    const e=v3n([b[0]-a[0],b[1]-a[1],b[2]-a[2]]),r=Math.abs(e[2])>.9?[0,1,0]:[0,0,1],u=v3n([e[1]*r[2]-e[2]*r[1],e[2]*r[0]-e[0]*r[2],e[0]*r[1]-e[1]*r[0]]),v=[u[1]*e[2]-u[2]*e[1],u[2]*e[0]-u[0]*e[2],u[0]*e[1]-u[1]*e[0]];
+    const C=p=>[add(add(p,u,-hw),v,-hd),add(add(p,u,hw),v,-hd),add(add(p,u,hw),v,hd),add(add(p,u,-hw),v,hd)],A=C(a),B=C(b),nv=[[0,-1],[1,0],[0,1],[-1,0]].map(([i,j])=>add(add([0,0,0],u,i),v,j));
+    for(let i=0;i<4;i++){const j=(i+1)%4;face([A[i],A[j],B[j],B[i]],cl,nv[i])}face(A,cl,e.map(x=>-x));face(B,cl,e)};
+  const ball=(o,R,cl,la=5,lo=9,top)=>{const Q=(i,j)=>{const th=i/la*Math.PI,f=j/lo*Math.PI*2;return [o[0]+R*Math.sin(th)*Math.cos(f),o[1]+R*Math.cos(th),o[2]+R*Math.sin(th)*Math.sin(f)]};
+    for(let i=0;i<(top?la/2:la);i++)for(let j=0;j<lo;j++){const a=Q(i,j),b=Q(i+1,j),cc=Q(i+1,j+1),d=Q(i,j+1);face([a,b,cc,d],cl,v3n([(a[0]+cc[0])/2-o[0],(a[1]+cc[1])/2-o[1],(a[2]+cc[2])/2-o[2]]))}};
+  const blob=(x,z,r)=>{for(let i=0;i<10;i++){const a=i/10*Math.PI*2,b=(i+1)/10*Math.PI*2;[[x,z],[x+r*Math.cos(a),z+r*Math.sin(a)],[x+r*Math.cos(b),z+r*Math.sin(b)]].forEach(q=>SH.push(q[0],1.5,q[1],0,0,0,.22,0,0,0))}};
+  const skin=col('#e2b08a'),pants=col('#34405a'),shoe=col('#1d2128');
+  // 결선 작업자 (안전조끼 · 안전모)
+  if(V3.techOn!==false&&V3.ag){const vest=col('#f39c12'),hat=col('#f4f6f8'),sblue=col('#1428a0'),tool=col('#c0392b'),cab=col('#222831');
+    V3.ag.ag.forEach(a=>{at(a.x,a.z,a.rot);blob(a.x,a.z,260);const w=a.w*a.w*(3-2*a.w),L=(p,q)=>p.map((x,i)=>x+(q[i]-x)*w),J={};   // 걷기 자세 ↔ 쭈그린 자세 섞기
+      [-1,1].forEach(sg=>{const k=sg<0?'l':'r',ph=a.ph+(sg<0?0:Math.PI),th=.42*Math.sin(ph),fl=.55*Math.max(0,Math.sin(ph+Math.PI/2)),hip=[sg*95,930,0],kn=add(hip,[0,-Math.cos(th),Math.sin(th)],440),an=add(kn,[0,-Math.cos(th-fl),Math.sin(th-fl)],440);
+        const sh=[sg*245,1400,0],am=-.35*Math.sin(ph),el=add(sh,[0,-Math.cos(am),Math.sin(am)],300),ha=add(el,[0,-Math.cos(am+.3),Math.sin(am+.3)],270);
+        const hand=[sg*(110+45*Math.sin(t*9+sg)),640+70*Math.sin(t*7+sg*1.3),455+20*Math.sin(t*11+sg)],sh1=[sg*215,890,150];   // 판넬 아래쪽 단자대에서 손이 움직임
+        J['hip'+k]=L(hip,[sg*110,440,-40]);J['kn'+k]=L(kn,[sg*175,500,330]);J['an'+k]=L([an[0],Math.max(55,an[1]),an[2]],[sg*140,60,150]);
+        J['sh'+k]=L(sh,sh1);J['el'+k]=L(el,add(add(sh1,add(hand,sh1,-1),.5),[sg*95,-90,0],1));J['ha'+k]=L(ha,hand)});
+      const pel=L([0,900,0],[0,440,-50]),chest=L([0,1430,0],[0,920,160]),neck=L([0,1520,0],[0,1000,215]),head=L([0,1630,0],[0,1080,290]);
+      ['l','r'].forEach(k=>{limb(J['hip'+k],J['kn'+k],70,75,pants);limb(J['kn'+k],J['an'+k],62,65,pants);limb(add(J['an'+k],[0,0,-50],1),add(J['an'+k],[0,0,150],1),55,40,shoe);
+        limb(J['sh'+k],J['el'+k],48,52,vest);limb(J['el'+k],J['ha'+k],40,42,skin);ball(J['ha'+k],48,skin,3,6)});
+      limb(pel,chest,205,120,vest);limb(chest,neck,50,50,skin);ball(head,112,skin);
+      const fw=v3n(L([0,0,1],[0,-.35,1])),up=v3n([0,fw[2],-fw[1]]),hc=add(head,up,15);limb(add(head,fw,100),add(head,fw,138),14,18,skin);   // 코 = 보는 방향
+      ball(hc,126,hat,6,12,true);limb(add(hc,fw,85),add(hc,fw,165),98,7,hat);{const r0=add(add(hc,up,88),fw,-92),r1=add(hc,up,131),r2=add(add(hc,up,88),fw,92);limb(r0,r1,15,10,hat);limb(r1,r2,15,10,hat)}   // 삼성 안전모: 흰 모체 · 앞 챙 · 윗 리브
+      {const e=add(add(hc,fw,112),up,62);for(let i=0;i<12;i++){const a=i/12*Math.PI*2,b=(i+1)/12*Math.PI*2,Q=k=>add(add(e,[1,0,0],52*Math.cos(k)),up,26*Math.sin(k));face([add(e,fw,5),add(Q(a),fw,5),add(Q(b),fw,5),add(Q(b),fw,5)],sblue,fw)}}   // 앞면 파란 타원 엠블럼
+      if(w>.6){limb([300,0,60],[300,170,60],120,90,tool);limb(J.har,[J.har[0]+20,0,520],9,9,cab)}});   // 공구함 · 판넬 아래로 내려가는 케이블
+  }
+  // 앉은 운전원 (데스크마다, 의자 좌판 450 · 눈 1,240) — 시야 검토용. 고개 좌우 = opYaw
+  if(V3.sitOn!==false)operators().forEach(v=>{at(v.x,v.z,Math.atan2(v.f[0],v.f[1]));const shirt=col('#2d8cff');
+    const rb=(x0,z0,x1,z1,y0,y1,cl)=>limb([(x0+x1)/2,y0,(z0+z1)/2],[(x0+x1)/2,y1,(z0+z1)/2],(x1-x0)/2,(z1-z0)/2,cl), ty=k=>7*Math.sin(t*13+k);   // 자판 치는 손
+    rb(-150,250,-40,420,0,60,shoe);rb(40,250,150,420,0,60,shoe);
+    rb(-145,280,-55,370,60,450,pants);rb(55,280,145,370,60,450,pants);
+    rb(-160,-60,-25,400,440,580,pants);rb(25,-60,160,400,440,580,pants);
+    rb(-200,-150,200,90,560,1080,shirt);
+    rb(-270,-90,-205,60,780,1060,shirt);rb(205,-90,270,60,780,1060,shirt);
+    rb(-265,40,-205,330,700,780,shirt);rb(205,40,265,330,700,780,shirt);
+    rb(-255,330,-210,420,700+ty(0),760+ty(0),skin);rb(210,330,255,420,700+ty(2),760+ty(2),skin);
+    rb(-50,-40,50,50,1080,1140,skin);
+    const ya=opYaw(v)*Math.PI/180,d=[-Math.sin(ya),0,Math.cos(ya)],hc=[0,1250,10];ball(hc,108,skin,5,10);limb(add(hc,d,95),add(hc,d,135),14,20,skin)});   // 머리 · 코 = 보는 방향
+  return {T,SH};
 }
 /* 매 화면(가벼움): 재기 선 · 회전 중심 · 사람 통로 폭 — 장면을 다시 만들지 않고 이것만 */
 function v3light(){
@@ -2156,6 +2235,8 @@ function v3draw(){
     const tb=performance.now(), G0=v3build(); V3.tb=performance.now()-tb; const up=A=>{if(!A.length)return null;const b=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,b);gl.bufferData(gl.ARRAY_BUFFER,new Float32Array(A),gl.STATIC_DRAW);return {b,n:A.length/10}};
     if(V3.gpu)Object.values(V3.gpu).flat().forEach(x=>{if(x&&x.b)gl.deleteBuffer(x.b)});
     V3.gpu={T:up(G0.T),L:up(G0.L),X:up(G0.X),SH:up(G0.SH),WT:G0.WT.map(up),WL:G0.WL.map(up)}; V3.dirty=false}
+  {const now=performance.now(),dt=Math.min(.1,((now-(V3.tl||now))/1000));V3.tl=now;if(V3.anim!==false){V3.t=(V3.t||0)+dt;if(V3.techOn!==false)techStep(dt)}else if(V3.techOn!==false&&!V3.ag)techInit()}   // 동작 멈춤이면 시간이 안 감
+  const Dy=v3dyn();
   const G=V3.gpu, Lt=v3light(), ee=V3.eye, wv=[ee[0]>=0,ee[0]<=S.room.w,ee[2]>=0,ee[2]<=S.room.l];   // 카메라와 실 사이 벽은 안 그림
   gl.viewport(0,0,cv.width,cv.height); gl.clearColor(bg[0],bg[1],bg[2],1); gl.clearStencil(0); gl.clear(gl.COLOR_BUFFER_BIT|gl.DEPTH_BUFFER_BIT|gl.STENCIL_BUFFER_BIT);
   gl.useProgram(V3.pg); gl.uniform3fv(V3.loc.E,new Float32Array(V3.eye));
@@ -2169,9 +2250,9 @@ function v3draw(){
     else [[-1,-1,low],[-1,1,top],[1,1,top],[1,-1,low]].map(([x,y,c])=>[x,y,0,c[0],c[1],c[2],1,0,0,0]).forEach((v,i,A)=>{if(i===0)[0,1,2,0,2,3].forEach(k=>B.push(...A[k]))});
     gl.uniformMatrix4fv(V3.loc.M,false,new Float32Array(I)); gl.disable(gl.DEPTH_TEST); gl.disable(gl.BLEND); put(B,gl.TRIANGLES)}
   gl.uniformMatrix4fv(V3.loc.M,false,new Float32Array(M)); gl.enable(gl.DEPTH_TEST); gl.depthFunc(gl.LEQUAL);
-  gl.enable(gl.POLYGON_OFFSET_FILL); gl.polygonOffset(1,1); put(G.T,gl.TRIANGLES); G.WT.forEach((x,i)=>{if(wv[i])put(x,gl.TRIANGLES)}); gl.disable(gl.POLYGON_OFFSET_FILL);
+  gl.enable(gl.POLYGON_OFFSET_FILL); gl.polygonOffset(1,1); put(G.T,gl.TRIANGLES); put(Dy.T,gl.TRIANGLES); G.WT.forEach((x,i)=>{if(wv[i])put(x,gl.TRIANGLES)}); gl.disable(gl.POLYGON_OFFSET_FILL);
   gl.enable(gl.BLEND); gl.blendFunc(gl.SRC_ALPHA,gl.ONE_MINUS_SRC_ALPHA); gl.depthMask(false);
-  gl.enable(gl.STENCIL_TEST); gl.stencilFunc(gl.EQUAL,0,0xff); gl.stencilOp(gl.KEEP,gl.KEEP,gl.INCR); put(G.SH,gl.TRIANGLES); gl.disable(gl.STENCIL_TEST);   // 그림자: 겹쳐도 한 번만 어둡게
+  gl.enable(gl.STENCIL_TEST); gl.stencilFunc(gl.EQUAL,0,0xff); gl.stencilOp(gl.KEEP,gl.KEEP,gl.INCR); put(G.SH,gl.TRIANGLES); put(Dy.SH,gl.TRIANGLES); gl.disable(gl.STENCIL_TEST);   // 그림자: 겹쳐도 한 번만 어둡게
   gl.depthMask(true); put(G.L,gl.LINES); G.WL.forEach((x,i)=>{if(wv[i])put(x,gl.LINES)}); put(Lt.MLd,gl.LINES); gl.depthMask(false); put(G.X,gl.TRIANGLES); gl.depthMask(true);
   gl.disable(gl.DEPTH_TEST); put(Lt.ML,gl.LINES); gl.enable(gl.DEPTH_TEST);
   // Tag 글자 (2D 겹친 캔버스)
@@ -2212,19 +2293,22 @@ function v3draw(){
   if(V3.manOn&&V3.man){const q=v3proj([V3.man.x,1900,V3.man.z],w,h);if(q){c2.font='600 12px "Malgun Gothic","맑은 고딕",system-ui,sans-serif';c2.textAlign='center';c2.textBaseline='middle';
     const t=V3.manBad?'막힘 — 판넬 · 기둥 · 벽':'사람 175 cm · 80 kg',tw=c2.measureText(t).width+10;c2.fillStyle=V3.manBad?'#d64545':'#e8792b';c2.fillRect(q[0]-tw/2,q[1]-9,tw,18);c2.fillStyle='#fff';c2.fillText(t,q[0],q[1])}}
   if(V3.viewOn!==false){   // 시야 (안전공학): 바닥에 ±15° 최적 · ±30° 눈만 · ±60° 머리 돌려 부채꼴 + 정상 시선(수평 아래 15°)이 바닥에 닿는 선
-    const ds=S.panels.filter(p=>sel.has(p.id)&&typeOf(p).kind==='desk'), VV=V3.sitOn!==false?operators(ds.length?new Set(ds.map(p=>p.id)):new Set()):[];
-    if(V3.manOn&&V3.man)VV.push({x:V3.man.x,z:V3.man.z,f:[Math.sin(V3.man.rot),Math.cos(V3.man.rot)],eye:ERG.standEye,kind:'stand'});
-    const R=7000, dir=(f,a)=>{const r=a*Math.PI/180;return [f[0]*Math.cos(r)-f[1]*Math.sin(r),f[0]*Math.sin(r)+f[1]*Math.cos(r)]};
-    VV.forEach(v=>{[...ERG.zones].reverse().forEach(([a,,col,al])=>{const pts=[[v.x,8,v.z]];for(let k=-a;k<=a+0.01;k+=5){const d=dir(v.f,k);pts.push([v.x+d[0]*R,8,v.z+d[1]*R])}
+    const ds=S.panels.filter(p=>sel.has(p.id)&&typeOf(p).kind==='desk'), VV=V3.sitOn!==false?operators(ds.length?new Set(ds.map(p=>p.id)):null):[];   // 데스크 안 고름 = 모든 운전원의 눈 시야(±15 · ±30°)만 짧게
+    const dir=(f,a)=>{const r=a*Math.PI/180;return [f[0]*Math.cos(r)-f[1]*Math.sin(r),f[0]*Math.sin(r)+f[1]*Math.cos(r)]};
+    VV.forEach(v=>{v.hf=dir(v.f,opYaw(v));v.R=ds.length?7000:3200;v.zs=ds.length?ERG.zones:ERG.zones.slice(0,2)});   // 고개 돌린 쪽 = hf (머리 돌려 ±60° 구역은 몸 기준 그대로)
+    if(V3.manOn&&V3.man){const f=[Math.sin(V3.man.rot),Math.cos(V3.man.rot)];VV.push({x:V3.man.x,z:V3.man.z,f,hf:f,R:7000,zs:ERG.zones,eye:ERG.standEye,kind:'stand'})}
+    VV.forEach(v=>{const R=v.R;[...v.zs].reverse().forEach(([a,,col,al],zi)=>{const f0=v.zs.length-1-zi<2?v.hf:v.f,pts=[[v.x,8,v.z]];for(let k=-a;k<=a+0.01;k+=5){const d=dir(f0,k);pts.push([v.x+d[0]*R,8,v.z+d[1]*R])}
         const q=pts.map(p=>v3proj(p,w,h));if(q.some(x=>!x))return;c2.beginPath();q.forEach((x,i)=>i?c2.lineTo(x[0],x[1]):c2.moveTo(x[0],x[1]));c2.closePath();
         c2.fillStyle=col;c2.globalAlpha=al*1.3;c2.fill();c2.globalAlpha=.6;c2.strokeStyle=col;c2.lineWidth=1;c2.stroke();c2.globalAlpha=1});
-      const L1=v.eye/Math.tan(ERG.nlos*Math.PI/180),a=v3proj([v.x,v.eye,v.z],w,h),b=v3proj([v.x+v.f[0]*L1,0,v.z+v.f[1]*L1],w,h);
+      const L1=v.eye/Math.tan(ERG.nlos*Math.PI/180),a=v3proj([v.x,v.eye,v.z],w,h),b=v3proj([v.x+v.hf[0]*L1,0,v.z+v.hf[1]*L1],w,h);
       if(a&&b){c2.setLineDash([7,5]);c2.strokeStyle='#2ecc71';c2.lineWidth=2;c2.beginPath();c2.moveTo(a[0],a[1]);c2.lineTo(b[0],b[1]);c2.stroke();c2.setLineDash([])}
       if(v.kind==='sit'&&ds.length){   // 고른 데스크: 상하 시야(옆에서 본 쐐기 — 정상 시선 ±최적 · ±허용) + 화면까지 시선 (가린 점 = 빨강)
         const ray=(deg,L)=>{const r=(-ERG.nlos+deg)*Math.PI/180;return v3proj([v.x+v.f[0]*Math.cos(r)*L,v.eye+Math.sin(r)*L,v.z+v.f[1]*Math.cos(r)*L],w,h)}, E=v3proj([v.x,v.eye,v.z],w,h);
         if(E)[[ERG.vz2,'#f5b400'],[ERG.vz1,'#2ecc71']].forEach(([dg,col])=>{const p1=ray(dg,2600),p2=ray(-dg,2600);if(!p1||!p2)return;c2.beginPath();c2.moveTo(E[0],E[1]);c2.lineTo(p1[0],p1[1]);c2.lineTo(p2[0],p2[1]);c2.closePath();c2.fillStyle=col;c2.globalAlpha=.16;c2.fill();c2.globalAlpha=.8;c2.strokeStyle=col;c2.lineWidth=1.2;c2.stroke();c2.globalAlpha=1});
         if(E)viewCheck(v).forEach(r=>r.blk.pts.forEach(([x,z,hh,hit])=>{const q=v3proj([x,hh,z],w,h);if(!q)return;c2.strokeStyle=hit?'#ff3b6b':r.bad?'#ff9db3':'#2ecc71';c2.globalAlpha=hit?.95:.55;c2.lineWidth=hit?2:1;c2.beginPath();c2.moveTo(E[0],E[1]);c2.lineTo(q[0],q[1]);c2.stroke();c2.globalAlpha=1}))}
-      const q=v3proj([v.x,v.eye+(v.kind==='stand'?420:260),v.z],w,h);if(q&&v.kind==='sit'){c2.font='600 11px "Malgun Gothic","맑은 고딕",system-ui,sans-serif';c2.textAlign='center';c2.textBaseline='middle';const t='앉음 · 눈 '+fmt(ERG.sitEye),tw=c2.measureText(t).width+10;c2.fillStyle='#2d8cff';c2.fillRect(q[0]-tw/2,q[1]-8,tw,16);c2.fillStyle='#fff';c2.fillText(t,q[0],q[1])}})}
+      const q=v3proj([v.x,v.eye+(v.kind==='stand'?420:260),v.z],w,h);if(q&&v.kind==='sit'&&ds.length){c2.font='600 11px "Malgun Gothic","맑은 고딕",system-ui,sans-serif';c2.textAlign='center';c2.textBaseline='middle';const t='앉음 · 눈 '+fmt(ERG.sitEye),tw=c2.measureText(t).width+10;c2.fillStyle='#2d8cff';c2.fillRect(q[0]-tw/2,q[1]-8,tw,16);c2.fillStyle='#fff';c2.fillText(t,q[0],q[1])}})}
+  if(V3.anim!==false&&!V3.at&&((V3.techOn!==false&&V3.ag&&V3.ag.ag.length)||(V3.sitOn!==false&&S.panels.some(p=>typeOf(p).kind==='desk'))))V3.at=setTimeout(()=>{V3.at=0;v3req(false)},40);   // 움직이는 사람이 있으면 초당 25 장
+  else if(V3.anim===false)V3.tl=0;
   V3.td=performance.now()-t0;   // 그리기 시간 (ms) — window.crspaceSpeed() 로 봄
   v3camPub();
   const mh=Math.max(0,...S.panels.map(p=>+typeOf(p).h||0));
@@ -2340,6 +2424,10 @@ document.addEventListener('keydown',e=>{   // 3D 창: M = 재기 켜고 끄기, 
   if((e.key==='m'||e.key==='M')&&!e.ctrlKey&&!e.metaKey&&!e.altKey){e.preventDefault();e.stopPropagation();v3measToggle()}},true);
 $('#v3MeasClr').onclick=()=>{V3.ms=[];V3.mp=null;v3req(false)};
 $('#v3Gap').onchange=e=>{V3.gap=e.target.checked;v3req()};
+function v3animSet(on){V3.anim=on;$('#v3Anim').textContent=on?'⏸ 동작 멈춤':'▶ 동작';$('#v3Anim').classList.toggle('on',!on);try{localStorage.setItem('crspace.anim',on?'1':'0')}catch(e){}v3req(false)}
+try{V3.anim=localStorage.getItem('crspace.anim')!=='0'}catch(e){}v3animSet(V3.anim!==false);
+$('#v3Anim').onclick=()=>v3animSet(V3.anim===false);
+$('#v3Tech').onchange=e=>{V3.techOn=e.target.checked;v3req(false)};
 $('#v3Col').onchange=e=>{V3.colOn=e.target.checked;v3req()};
 $('#v3EDim').onchange=e=>{V3.edim=e.target.checked;v3req()};
 $('#v3Style').onchange=e=>{V3.style=e.target.value==='cad'?'cad':'dcs';try{localStorage.setItem('crspace.v3style',V3.style)}catch(_){}[$('#v3dlg'),$('#dock3d')].forEach(x=>x.classList.toggle('dcs',V3.style==='dcs'));v3req()};
@@ -3364,6 +3452,7 @@ if(ONLY3D){try{if(window.opener)PEERS.add(window.opener)}catch(e){}
     if(gone&&!warned){warned=true;toast('2D 화면이 닫힘 — 연동이 멈추면 2D 에서 [↗ 3D 새 창]',true)}if(!gone)warned=false},2000)}
 window.addEventListener('storage',e=>{if(e.key==='crspace.v1'&&e.newValue&&e.newValue!==lastSnap){bcIn=true;try{applyRemote(e.newValue)}finally{bcIn=false}}});
 window.crspaceSpeed=()=>({build_ms:+(V3.tb||0).toFixed(2),draw_ms:+(V3.td||0).toFixed(2),panels:S.panels.length});   // 속도 확인용 (콘솔)
+window.crspacePeople=look=>(look&&(()=>{const o=look.op!=null?operators()[look.op]:V3.ag&&V3.ag.ag[look.tech||0];if(o){V3.T=[o.x,look.y||700,o.z];V3.D=look.D||5000;if(look.yaw!=null)V3.yaw=look.yaw;if(look.pitch!=null)V3.pitch=look.pitch;v3req(false)}})(),{t:+(V3.t||0).toFixed(2),anim:V3.anim!==false,tech:(V3.ag?V3.ag.ag:[]).map(a=>({x:Math.round(a.x),z:Math.round(a.z),rot:+a.rot.toFixed(2),st:a.st,crouch:+a.w.toFixed(2)})),yaw:V3.sitOn!==false?operators().map(v=>Math.round(opYaw(v))):[]});   // 3D 사람 움직임 확인용 (콘솔)
 function v3keys(){try{return V3.dock&&V3.kf}catch(e){return false}}
 function v3sync(){   // render() 마다: 선택을 다른 창에 · 나란히 3D 는 자료가 바뀐 때만 다시 만듦
   const ss=[...sel].join(); if(ss!==bcSelS){bcSelS=ss;bcSend({t:'sel',ids:[...sel]})}
