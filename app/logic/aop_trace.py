@@ -296,7 +296,8 @@ def run_static(op, inputs, params=None, label="", cond=None):
         net = str(i.get("net") or f"n{k}")
         pin = (i.get("pin") or "").strip().upper() or None
         pn = {"name": pin} if pin else None
-        if pn and i.get("coef") is not None:
+        if i.get("coef") is not None:                  # L82 — 이름 없는 입력의 계수도 센다 (전엔 식에만 보이고 계산엔 빠졌다)
+            pn = pn or {"name": ""}
             pn["coef"] = float(i["coef"])
         ins.append({"net": net, "pin": pin or "", "coef": i.get("coef"), "value": _f(i.get("value")), "pn": pn})
     if op == "transfer" and not any(i["pin"] in ("FLAG", "C", "COND") for i in ins):

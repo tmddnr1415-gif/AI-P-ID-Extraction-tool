@@ -9,7 +9,9 @@
 <body>
 <header class="dw-head">
   <a class="dw-back" href="/logic" title="LOGIC 검토 화면으로">← LOGIC 검토</a>
-  <h1>LOGIC 작도</h1>
+  <h1>LOGIC 작성</h1>
+  <button id="home-btn" class="dw-btn" title="Logic 작성 첫 화면 — 프로젝트 · 저장된 그림 · 시작하기">⌂ 첫 화면</button>
+  <a id="sig-link" class="dw-btn" href="/logic/signal" title="신호 처리 시뮬레이션 — 연산자(∑ · ÷ · √ · 선택 · Lag · 리미터 …)에 값을 넣어 계산 과정 · 출력 · 시간 응답">∿ 신호 처리</a>
   <select id="pick" title="저장된 그림"><option value="">(그림을 고르세요)</option></select>
   <button id="new" class="dw-btn" title="빈 양식으로 새 그림">＋ 새 그림</button>
   <button id="import" class="dw-btn" title="분석한 Logic 시트를 이 양식으로 가져와 고친다">⇩ 분석 시트에서</button>
@@ -39,6 +41,31 @@
     <linearGradient id="gd-macro" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffffff"/><stop offset=".18" stop-color="#e9fbf8"/><stop offset="1" stop-color="#a9e4da"/></linearGradient>
 </defs></svg>
 <main class="dw-main">
+  <!-- L79 — Logic 작성 첫 화면 (Logic 분석 첫 화면과 같은 결) -->
+  <section id="home" class="dw-home" hidden>
+    <div class="hm-title"><h2>Logic 작성</h2>
+      <p>분석한 로직과 같은 양식으로 Logic 시트를 그리고 바로 시뮬레이션합니다 · PDF · DXF 로 내보내고 LOGIC 검토로 보낼 수 있습니다.</p></div>
+    <div class="hm-top">
+      <div class="hm-card hm-where"><h3><b>1</b> 어디에 그릴지</h3>
+        <div class="hm-row"><span>프로젝트</span><select id="h-project"><option value="">(프로젝트 없이)</option></select><button id="h-newproj" type="button">새 프로젝트</button></div>
+        <div class="hm-row"><span>작성자</span><input id="h-who" placeholder="저장에 남는 이름"></div>
+        <p class="dw-hint">새 그림 · 들여온 시트가 이 프로젝트에 저장됩니다.  계기 리스트(TAG 자동완성)도 프로젝트마다 하나입니다.</p>
+      </div>
+      <div class="hm-card hm-start"><h3><b>2</b> 시작하기</h3>
+        <div class="hm-actions">
+          <button type="button" data-act="new"><i>＋</i><b>새 그림</b><small>빈 양식 (삼성 · 아래 타이틀블록)</small></button>
+          <button type="button" data-act="sheet"><i>⇩</i><b>분석 시트에서</b><small>LOGIC 검토로 분석한 시트 한 장을 가져와 고침</small></button>
+          <button type="button" data-act="bundle"><i>⇊</i><b>묶음 통째로</b><small>분석한 Logic PDF 의 모든 시트를 그림 묶음으로</small></button>
+          <button type="button" data-act="typ"><i>▣</i><b>Typical 사전</b><small>매크로 내부 동작 (19VA · 알다프라 · HRSG) — 보고 고침</small></button>
+          <a data-act="signal" href="/logic/signal"><i>∿</i><b>신호 처리 시뮬레이션</b><small>연산자마다 값을 넣어 계산 과정 · 출력 · 시간 응답</small></a>
+        </div>
+      </div>
+    </div>
+    <div class="hm-bottom">
+      <div class="hm-card"><h3>저장된 프로젝트 <span id="h-psum" class="dw-hint"></span></h3><div id="h-projects" class="hm-projects"></div></div>
+      <div class="hm-card"><h3>최근 그린 그림</h3><div id="h-recent" class="hm-recent"></div></div>
+    </div>
+  </section>
   <aside class="dw-side">
     <section class="dw-card">
       <h3>도구</h3>
@@ -100,7 +127,8 @@
       <div id="palette" class="dw-palette"></div>
     </section>
     <section class="dw-card" id="macro-card">
-      <h3 class="stack">매크로 <span class="dw-hint">공통 Typical 사전에서 골라 누르면 놓입니다 — 단자는 그 Typical 의 행</span></h3>
+      <h3 class="stack">매크로 · Typical <span class="dw-hint">누르면 그림에 놓고 · <b>두 번 누르면 내부 동작</b>(새 창 · 고칠 수 있음)</span></h3>
+      <input id="macro-q" class="dw-macroq" placeholder="찾기 (MOV · SOV · MTS · GRP …)" autocomplete="off">
       <div id="macro-list" class="dw-macros"></div>
     </section>
     <section class="dw-card">

@@ -12,6 +12,7 @@ nets · rows · table)이 된다.  **판정은 전부 `sim` · `analog` · `aops
 """
 from __future__ import annotations
 
+import os
 import re
 from collections import defaultdict
 
@@ -96,13 +97,48 @@ class _Grid:
         return sorted(out)
 
 
-def _pair_joined(i, j, wires, ends, segs):
-    # 끝이 저 선의 끝 · 꺾임점(L66 — 꺾임에서 세 갈래로 갈라짐) · 몸통에 닿으면 한 그물 (분석기 graph 도 맞닿은 토막 끝을 잇는다)
-    for a in ends[i]:
-        if any(abs(a[0] - b[0]) + abs(a[1] - b[1]) <= JOIN for b in wires[j]["pts"]) or any(_on_body(a[0], a[1], sg) for sg in segs[j]):
+def _end_dir(w, k):
+    """선 w 의 끝 k(0 · 1)에서 선이 뻗어 나가는 방향 (단위 벡터)."""
+    pts = w["pts"]
+    a, b = (pts[0], pts[1]) if k == 0 else (pts[-1], pts[-2])
+    dx, dy = b[0] - a[0], b[1] - a[1]
+    n = (dx * dx + dy * dy) ** 0.5 or 1.0
+    return dx / n, dy / n
+
+
+def _crossing(i, k, j, wires, ends, endmap):
+    """L82 — 선 i 의 끝 k 가 선 j 의 몸통에 닿았는데, 반대쪽으로 **같은 직선이 이어지면**(다른 토막의 끝이 그 자리에서
+    반대 방향으로 뻗음) 연결이 아니라 지나가는 교차다.  CAD 가 교차 자리에서 선을 둘로 끊어 그린 것 (분석기 graph.passes_through 와 같은 뜻).
+    그 자리에 연결점(dot)이 있으면 연결이다 — 부르는 쪽이 dot 을 따로 본다."""
+    if endmap is None:
+        return False
+    ex, ey = ends[i][k]
+    ux, uy = _end_dir(wires[i], k)
+    for m, mk in endmap.get((round(ex), round(ey)), ()):
+        if m == i or m == j:
+            continue
+        qx, qy = ends[m][mk]
+        if abs(qx - ex) + abs(qy - ey) > JOIN:
+            continue
+        vx, vy = _end_dir(wires[m], mk)
+        if ux * vx + uy * vy < -0.98:                      # 반대 방향 · 한 직선
             return True
-    for b in ends[j]:
-        if any(abs(b[0] - a[0]) + abs(b[1] - a[1]) <= JOIN for a in wires[i]["pts"]) or any(_on_body(b[0], b[1], sg) for sg in segs[i]):
+    # 같은 선 i 가 그 자리를 꺾임 없이 지나가는 경우는 몸통-몸통이라 여기 오지 않는다
+    return False
+
+
+def _pair_joined(i, j, wires, ends, segs, endmap=None):
+    # 끝이 저 선의 끝 · 꺾임점(L66 — 꺾임에서 세 갈래로 갈라짐) · 몸통에 닿으면 한 그물 (분석기 graph 도 맞닿은 토막 끝을 잇는다)
+    # L82 — 몸통에 닿은 끝이라도 반대쪽에 같은 직선이 이어지면 지나가는 교차 (연결 아님)
+    for k, a in enumerate(ends[i]):
+        if any(abs(a[0] - b[0]) + abs(a[1] - b[1]) <= JOIN for b in wires[j]["pts"]):
+            return True
+        if any(_on_body(a[0], a[1], sg) for sg in segs[j]) and not _crossing(i, k, j, wires, ends, endmap):
+            return True
+    for k, b in enumerate(ends[j]):
+        if any(abs(b[0] - a[0]) + abs(b[1] - a[1]) <= JOIN for a in wires[i]["pts"]):
+            return True
+        if any(_on_body(b[0], b[1], sg) for sg in segs[i]) and not _crossing(j, k, i, wires, ends, endmap):
             return True
     for dx, dy in (wires[i].get("dots") or []):
         if any(_on_body(dx, dy, sg, 1.0) for sg in segs[j]) or any(abs(dx - b[0]) + abs(dy - b[1]) <= 1.0 for b in ends[j]):
@@ -121,9 +157,15 @@ def _nets_of(wires, grid=None):
     segs = [_segs(w) for w in wires]
     pad = max(JOIN, 1.0)
     g = grid or _Grid(wires, pad)
+    endmap = defaultdict(list)                     # L82 — 끝점 색인 (교차 판정 — 반대쪽에 같은 직선이 이어지는가)
+    for i, (a, b) in enumerate(ends):
+        for k, (x, y) in enumerate((a, b)):
+            for cx in (round(x) - 1, round(x), round(x) + 1):
+                for cy in (round(y) - 1, round(y), round(y) + 1):
+                    endmap[(cx, cy)].append((i, k))
     for i in range(n):
         for j in g.near(g.box[i]):
-            if j > i and _pair_joined(i, j, wires, ends, segs):
+            if j > i and _pair_joined(i, j, wires, ends, segs, endmap):
                 uf.union(i, j)
     roots = {}
     net_of = []
@@ -208,6 +250,29 @@ def _block(b, notes=()):
     return out
 
 
+_TOGGLES: list = [None, frozenset()]
+
+
+def _learned_toggles() -> frozenset:
+    """공통 Typical 사전의 시트에서 분석기가 토글(장 NOTE 의 INVERT 정의)로 읽은 글자들."""
+    from . import library
+    m = library.mtime()
+    if _TOGGLES[0] == ("ok", m):
+        return _TOGGLES[1]
+    out = set()
+    try:
+        for ty in library.typicals().values():
+            for b in ((ty.get("sheet") or {}).get("blocks") or {}).values():
+                if b.get("logic") == "toggle":
+                    w = re.sub(r"[^0-9A-Z]", "", str(b.get("label") or b.get("read") or "").upper())
+                    if w:
+                        out.add(w)
+    except Exception:
+        pass
+    _TOGGLES[:] = [("ok", m), frozenset(out)]
+    return _TOGGLES[1]
+
+
 def _box_meaning(out, b, text, notes=()):
     """글자 상자 — 분석기와 같은 사전(blocks.isa_word · 범례 기능 이름 · ISA 약어).  투표 글자 `2/3` · 상수 `1`/`0`/`ON` ·
     STEP · 그 밖은 판정 못 한 블록으로 두어 aops.identify 가 연산자(Σ · MED · T …)를 알아본다."""
@@ -240,6 +305,11 @@ def _box_meaning(out, b, text, notes=()):
                 out["func"], out["logic"] = "TOGGLE", "toggle"
                 out["param"]["note"] = "NOTE — 입력이 참으로 바뀔 때마다 출력이 뒤집힌다"
                 return
+    # L81 — 그 장에 NOTE 가 없어도(예전에 다시 그린 장) 공통 Typical 사전이 토글로 배운 낱말이면 토글
+    if key and key in _learned_toggles():
+        out["func"], out["logic"] = "TOGGLE", "toggle"
+        out["param"]["note"] = "공통 Typical 사전 — 그 장 NOTE 가 토글로 정의한 글자"
+        return
     hit = None
     try:
         hit = BL.isa_word(text)
@@ -266,10 +336,28 @@ def _box_meaning(out, b, text, notes=()):
 
 # ───────────────────────────── 한 장 ─────────────────────────────
 
+def _drop_inside(wires: list, blocks: list) -> list:
+    """L81 — 기호 상자 **안에 통째로 든** 선 토막은 신호선이 아니라 그 기호의 그림이다 (분석 시트를 들여올 때 ⊠ 안쪽 획이
+    선으로 옮겨진 것 — 19VA Typical 0013).  남겨 두면 입력선과 출력선이 상자 한가운데서 만나 한 신호가 되고, NOT 이면
+    자기 입력을 자기가 뒤집어 시뮬레이션이 끝없이 되풀이된다 (827장 묶음 첫 시뮬레이션 23초).  변에 닿는 선은 그대로 단자다."""
+    boxes = [(b["x"], b["y"], b["x"] + b["w"], b["y"] + b["h"]) for b in blocks
+             if b.get("kind") in D.SYMBOLS and b.get("kind") not in ("TEXT", "MACRO") and b.get("w") and b.get("h")]
+    if not boxes:
+        return wires
+    E = 0.05
+
+    def inside(w):
+        xs, ys = [p[0] for p in w["pts"]], [p[1] for p in w["pts"]]
+        x0, x1, y0, y1 = min(xs), max(xs), min(ys), max(ys)
+        return any(bx0 - E <= x0 and x1 <= bx1 + E and by0 - E <= y0 and y1 <= by1 + E for bx0, by0, bx1, by1 in boxes)
+    return [w for w in wires if not inside(w)]
+
+
 def to_sheet(doc: dict, page: int, typ_pages: dict | None = None) -> dict:
     """그림 하나 → 분석 결과 시트 꼴.  typ_pages = {Typical 시트 이름: 그 그림의 page} (매크로 잇기)."""
     N = int(doc.get("N") or D.N_DEFAULT)
     wires = [w for w in (doc.get("wires") or []) if len(w.get("pts") or []) >= 2]
+    wires = _drop_inside(wires, doc.get("blocks") or [])
     grid = _Grid(wires, max(JOIN, 1.0))
     net_of, members = _nets_of(wires, grid)
     segs = [_segs(w) for w in wires]
@@ -491,11 +579,48 @@ def _to_sheet_memo(doc: dict, page: int, typ_pages: dict, dkey: str | None = Non
     hit = _SHEET_MEMO.get(key)
     if hit is not None:
         return pickle.loads(hit)
+    # L81 — 디스크에도 둔다 (그 그림 폴더의 sheet.pkl · 열쇠 + 코드 판).  서버를 다시 켜도 827장을 다시 바꾸지 않는다 (약 5초)
+    did = doc.get("id") if dkey else None
+    fp = None
+    if did and D.ID_RE.match(str(did)):
+        fp = D.root() / did / "sheet.pkl"
+        try:
+            k2, blob = pickle.loads(fp.read_bytes())
+            if k2 == (key, _code_ver()):
+                _SHEET_MEMO[key] = blob
+                return pickle.loads(blob)
+        except Exception:
+            pass
     sh = to_sheet(doc, page, typ_pages)
     if len(_SHEET_MEMO) > 3000:
         _SHEET_MEMO.clear()
-    _SHEET_MEMO[key] = pickle.dumps(sh, protocol=pickle.HIGHEST_PROTOCOL)
+    blob = _SHEET_MEMO[key] = pickle.dumps(sh, protocol=pickle.HIGHEST_PROTOCOL)
+    if fp is not None and fp.parent.exists():
+        try:
+            tmp = fp.with_name(f"sheet.{os.getpid()}.tmp")
+            tmp.write_bytes(pickle.dumps(((key, _code_ver()), blob), protocol=pickle.HIGHEST_PROTOCOL))
+            os.replace(tmp, fp)
+        except Exception:
+            pass
     return sh
+
+
+_VER: list = []
+
+
+def _code_ver() -> str:
+    """시트로 바꾸는 코드가 바뀌면 디스크 사본을 쓰지 않는다."""
+    if not _VER:
+        import hashlib
+        from pathlib import Path
+        h = hashlib.sha1()
+        for f in ("draw_sim.py", "draw.py", "blocks.py", "analog.py"):
+            try:
+                h.update((Path(__file__).parent / f).read_bytes())
+            except OSError:
+                pass
+        _VER.append(h.hexdigest()[:16])
+    return _VER[0]
 
 
 def sheets_of(docs: list, keys: dict | None = None) -> list:

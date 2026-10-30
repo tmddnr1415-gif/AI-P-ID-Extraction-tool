@@ -62,7 +62,23 @@ def set_docs(sid: str, shared: bool = False) -> list:
         hit = _SET_DOCS.get(sid)
         if hit and hit[0] == stamps:
             return hit[1]
-        docs = set_docs(sid)
+        # L80 — 한 장만 바뀌었으면 그 장만 다시 읽는다 (827장 묶음에서 저장마다 0.9초 → 수 ms).
+        #   묶음에 드나드는 장(set 칸)은 바뀐 파일만 보면 된다 — 안 바뀐 파일의 set 은 그대로이므로.
+        old_st = {x[0]: x[1:] for x in hit[0]} if hit else None
+        if hit is None:
+            docs = set_docs(sid)
+        else:
+            keep = {d["id"]: d for d in hit[1]}
+            docs = []
+            for name, *st in stamps:
+                if old_st.get(name) == tuple(st):
+                    if name in keep:
+                        docs.append(keep[name])
+                    continue
+                doc = draw.read_doc(draw.root() / name / "drawing.json")
+                if doc and doc.get("set") == sid:
+                    docs.append(doc)
+            docs.sort(key=lambda x: (x.get("order") or 0, x.get("sheet_no") or "", x.get("created") or 0))
         if len(_SET_DOCS) > 16:
             _SET_DOCS.clear()
         _SET_DOCS[sid] = (stamps, docs)
@@ -322,6 +338,49 @@ def missing_sheets(lk: dict) -> dict:
 
 # ─────────────────────────── 매크로 팔레트 ───────────────────────────
 
+_DESC: dict = {}
+
+
+def _short(title: str) -> str:
+    t = re.sub(r"^\s*(MACRO|TYPICAL)[\s-]*", "", str(title or "").upper())
+    return re.split(r"[<(]", t)[0].strip()
+
+
+def _bracket(title: str) -> str:
+    m = re.search(r"<([^>]+)>", str(title or "")) or re.search(r"\(([^)]*[A-Z][^)]*)\)", str(title or "").upper())
+    return m.group(1).strip() if m and not re.match(r"^\s*TYPE[-\s]", m.group(1).upper()) and not re.match(r"^\s*\d+\s*/\s*\d+\s*$", m.group(1)) else ""
+
+
+def _desc_table() -> dict:
+    if not _DESC:
+        try:
+            import yaml
+            from app import paths
+            raw = yaml.safe_load(paths.resource("config", "logic_typical_desc.yaml").read_text(encoding="utf-8")) or {}
+            for k, v in raw.items():
+                v = v if isinstance(v, dict) else {"title": str(v)}
+                _DESC[re.sub(r"[^A-Z0-9]", "", str(k).upper())] = {"title": str(v.get("title") or ""), "ko": str(v.get("ko") or "")}
+        except Exception:
+            pass
+        _DESC.setdefault("_", {"title": "", "ko": ""})
+    return _DESC
+
+
+def macro_info(title: str) -> dict:
+    """L80 — 매크로 설명 = 그 매크로 기호 장 타이틀블록의 TITLE 둘째 줄 (MACRO - SWGR / MCC <S.W.G.R/MCC>).
+    삼성 매크로는 모든 프로젝트가 같아 config/logic_typical_desc.yaml 한 곳.  없으면 그 Typical 제목 그대로."""
+    t = _desc_table()
+    key = re.sub(r"[^A-Z0-9]", "", _short(title))
+    hit = t.get(key) if key and key != "_" else None
+    if hit:
+        return dict(hit)
+    return {"title": str(title or "").strip(), "ko": ""}
+
+
+def macro_desc(title: str, siblings=()) -> str:
+    return macro_info(title)["title"]
+
+
 def macro_types(docs: list) -> list:
     """이 묶음의 Typical 그림 + 학습 사전의 Typical → 팔레트 항목 (이름 · 단자)."""
     out = []
@@ -330,7 +389,7 @@ def macro_types(docs: list) -> list:
             continue
         ins, outs = draw.macro_pins(d)
         out.append({"typ": d.get("sheet_no") or "", "did": d["id"], "title": d.get("title") or d.get("sheet_no") or "",
-                    "pins_in": ins, "pins_out": outs, "from": "이 묶음"})
+                    "pins_in": ins, "pins_out": outs, "from": "이 묶음", "origin": "이 묶음"})
     have = {d.get("sheet_no") for d in docs if d.get("typical") and d.get("sheet_no")}
     # VOC — 씨앗(처음부터 들고 있는 공통 Typical)까지 · 사람이 고친 것은 그 그림의 행으로 (library.typicals 하나가 정한다)
     for tid, ty in library.typicals().items():
@@ -345,10 +404,13 @@ def macro_types(docs: list) -> list:
         if (st.get("sheet_no") or ty.get("sheet_no")) in have:
             continue                                   # 이미 이 묶음에 들여온 Typical — 두 번 보이지 않게
         if ins and outs:
-            out.append({"typ": f"lib:{tid}", "did": None, "title": ty.get("title") or ty.get("sheet_no") or tid,
+            out.append({"typ": f"lib:{tid}", "did": None, "tid": tid, "origin": ty.get("from", ""), "title": ty.get("title") or ty.get("sheet_no") or tid,
                         "pins_in": ins[:draw.MAX_PINS], "pins_out": outs[:draw.MAX_PINS],
                         "from": f"공통 Typical 사전 · {ty.get('from', '')}{' · 고침' if ty.get('origin') == 'user' else ''}",
                         "sheet": {"sheet_no": st.get("sheet_no") or ty.get("sheet_no", "")}})   # L63 — 시트 통째는 보내지 않는다 (24개면 2MB)
+    for m in out:
+        info = macro_info(m["title"])
+        m["desc"], m["desc_ko"] = info["title"], info["ko"]
     return out
 
 

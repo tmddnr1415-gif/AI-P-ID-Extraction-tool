@@ -1,0 +1,15 @@
+# L80 — 매크로(Typical) 설명.  판정에 안 쓴다 (팔레트 · 목록 · 속성 표기만).
+# title: 그 매크로 기호 장(19VA p22~p37 · 0008 · 0012 …)의 타이틀블록 TITLE 둘째 줄 그대로 — 삼성 매크로는 모든 프로젝트가 같다.
+# ko:    one-line English explanation (shown under the title · tooltip).  (key name kept for compatibility)
+# 열쇠는 매크로 짧은 이름(앞의 MACRO/TYPICAL 과 <…>(…) 를 뗀 것)에서 글자·숫자만 남긴 대문자.
+# 여기 없는 매크로는 그 Typical 제목 그대로 (예: HRSG 'MOV BLOCK (OPEN-CLOSE) (TYPE-III-1)').
+SWGRMCC: {title: "MACRO - SWGR / MCC <S.W.G.R/MCC>", ko: "Motor start / stop via switchgear or MCC"}
+SOV:     {title: "MACRO - SOV <SOLENOID VALVE>", ko: "Solenoid valve open / close"}
+MTS:     {title: "MACRO - MTS <MOV>", ko: "Motor-operated valve open / close"}
+MIT:     {title: "MACRO - MIT <MOV-INCHING>", ko: "Motor-operated valve inching (intermediate stop)"}
+GRP:     {title: "MACRO - GRP <GROUP OPERATION>", ko: "Group operation - start / stop several drives together"}
+STEP:    {title: "MACRO - STEP <SEQUENCE STEP>", ko: "Sequence step - automatic step-by-step operation"}
+PS2:     {title: "MACRO - PS2 <PRESELECTION2>", ko: "Preselection - duty drive out of 2"}
+PS3:     {title: "MACRO - PS3 <PRESELECTION3>", ko: "Preselection - duty drive out of 3"}
+PS4:     {title: "MACRO - PS4 <DRIVE LEAD SELECTION>", ko: "Drive lead selection"}
+PS5:     {title: "MACRO - PS5 <DRIVE LEAD SELECTION>", ko: "Drive lead selection"}

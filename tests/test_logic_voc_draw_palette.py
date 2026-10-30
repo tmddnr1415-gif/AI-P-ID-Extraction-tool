@@ -13,7 +13,7 @@ ROOT = Path(__file__).resolve().parent.parent
 def test_macros_without_a_set_come_from_the_typical_library(monkeypatch):
     monkeypatch.delenv("PID_TYPICAL_SEED", raising=False)
     from app.main import app
-    ms = TestClient(app).get("/logic/api/drawings/macros").json()["macros"]
+    ms = TestClient(app).get("/logic/api/drawings/macros").json()["items"]      # L79 이 같은 주소를 items 로 (옛 VOC 는 macros)
     assert len(ms) >= 20
     assert all(m["typ"].startswith("lib:") and m["pins_in"] and m["pins_out"] for m in ms)
 

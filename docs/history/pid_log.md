@@ -19,3 +19,9 @@
 - 원인 후보 두 가지를 코드에서 찾아 고침: LOGIC·DCS 화면만 고정 스크립트 주소(브라우저 캐시) → `app/page_stamp.py` 내용 딱지 ·
   서비스워커가 서버 재시작 사이 "꺼짐" 을 기억하면 옛 화면 보관본을 먼저 내줌 → 화면은 서버에 1.5초 먼저.
 - 시험: hotfix128 때 못 돌린 Python 시험을 이번에 돌림 — 전부 통과.  `tests/test_hotfix129_logic_asset_tag.py`.
+
+## hotfix130 (2026-10-30) — LOGIC L79~L82 병합
+- 사용자 요청은 "hotfix129" 였으나 129 는 이미 냈으므로 130 으로 (같은 이름 다른 파일이 생기지 않게).
+- 충돌 4곳 (draw_sets.py · logic_draw.css/html/js) — 옛 LOGIC VOC(매크로 팔레트) vs 새 L79 팔레트. L79 판을 쓰고
+  옛 VOC 의 씨앗 포함(`library.typicals`) · 제목 줄바꿈(`h3.stack`)만 살림.  중복 `/drawings/macros` 경로 하나 지움, 시험 키 macros→items.
+- 시험 전부 통과 · 작도 화면 매크로 타일 24개(19VA 8 · 알다프라 10 · HRSG 6) 오류 0.

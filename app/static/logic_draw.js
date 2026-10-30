@@ -635,12 +635,13 @@ function renderProps() {
   if (spec.lamp) h += `<label>글자 <input id="p-text" value="${esc(b.text)}" maxlength="2" placeholder="G"></label><p class="dw-hint">표시등 — 들어오는 선만 (G · R · W · Y …).</p>`;
   if (spec.note || spec.box) h += `<label>글 <input id="p-text" value="${esc(b.text)}"></label>${spec.box ? `<p class="dw-hint">분석기는 상자 안 글자로 뜻을 읽습니다 — 신호 이름(OPEN · REMOTE) · DI · 연산 이름(∑ · T …).</p>` : ""}`;
   if (spec.macro) {
-    const p = b.param, ms = (S.setInfo && S.setInfo.macros) || [];
+    const p = b.param, ms = macroItems();
     h += `<label>이름 <input id="p-mtitle" value="${esc(p.title || "")}"></label>
-      <label>Typical <select id="p-mtyp"><option value="">(없음)</option>${ms.map(m => `<option value="${esc(m.typ)}" ${m.typ === p.typ ? "selected" : ""}>${esc(m.title)} · ${esc(m.typ)}</option>`).join("")}</select></label>
+      <label>Typical <select id="p-mtyp"><option value="">(없음)</option>${ms.map(m => `<option value="${esc(m.typ)}" ${m.typ === p.typ ? "selected" : ""}>${esc(m.title)}${m.desc ? " — " + esc(m.desc) : ""} · ${esc(m.typ)}</option>`).join("")}</select></label>
+      ${(() => { const m = ms.find(m => m.typ === p.typ); return m && m.desc ? `<p class="dw-mdesc"><b>${esc(m.desc)}</b>${m.desc_ko ? `<br>${esc(m.desc_ko)}` : ""}</p>` : ""; })()}
       <p class="dw-hint">입력 ${(p.pins_in || []).length} · 출력 ${(p.pins_out || []).length} — 단자 이름은 Typical 시트의 TAG NO. 칸(약어)과 같아야 분석기가 잇습니다.</p>
       <div class="dw-pins">${(p.pins_in || []).map((q, i) => `<span class="in"><input data-pin="in:${i}" value="${esc(q.name)}"></span>`).join("")}${(p.pins_out || []).map((q, i) => `<span class="out"><input data-pin="out:${i}" value="${esc(q.name)}"></span>`).join("")}</div>
-      ${p.typ && !p.typ.startsWith("lib:") ? `<button id="p-open-typ" type="button">Typical 시트 열기</button>` : ""}`;
+      ${p.typ ? `<button id="p-open-typ" type="button" title="이 매크로의 Typical(내부 동작) 그림을 새 창으로 — 보고 고칠 수 있습니다 (블록을 두 번 눌러도 됩니다)">▣ 내부 동작 열기 (새 창)</button>` : ""}`;
   }
   if (!spec.note) h += `<label>위 글 <input id="p-above" value="${esc(b.param.above || "")}" placeholder="설정값 202.4 barg · HH : 191 · 주석"></label><p class="dw-hint">블록 바로 위에 인쇄 — 감시 블록이면 분석기가 설정값으로 읽고 시뮬레이션의 초기값이 됩니다.</p>`;
   h += `<label>크기 <span><input id="p-w" type="number" min="4" step="1" value="${b.w}" style="width:56px"> × <input id="p-h" type="number" min="4" step="1" value="${b.h}" style="width:56px"></span></label>
@@ -662,7 +663,7 @@ function renderProps() {
   on("#p-mtitle", t => { b.param.title = t.value.trim().slice(0, 120); });
   on("#p-mtyp", t => { b.param.typ = t.value; const m = ((S.setInfo && S.setInfo.macros) || []).find(m => m.typ === t.value); if (m) { b.param.title = m.title; const L2 = layout(); b.param.pins_in = m.pins_in.map((q, i) => ({ name: q.name, row: q.row, dy: +(1.6 * L2.PITCH + (i + 0.5) * L2.PITCH).toFixed(2) })); b.param.pins_out = m.pins_out.map((q, i) => ({ name: q.name, row: q.row, dy: +(1.6 * L2.PITCH + (i + 0.5) * L2.PITCH).toFixed(2) })); b.h = +(1.6 * L2.PITCH + Math.max(m.pins_in.length, m.pins_out.length, 1) * L2.PITCH + 0.4 * L2.PITCH).toFixed(2); } });
   $$("#props input[data-pin]").forEach(inp => inp.onchange = () => upd(() => { const [side, i] = inp.dataset.pin.split(":"); const arr = side === "in" ? b.param.pins_in : b.param.pins_out; if (arr && arr[+i]) arr[+i].name = inp.value.trim().slice(0, 40); }));
-  if ($("#p-open-typ")) $("#p-open-typ").onclick = () => { const sh = ((S.setInfo && S.setInfo.sheets) || []).find(x => x.sheet_no === b.param.typ); if (sh) openDoc(sh.id); else toast("이 묶음에 그 Typical 시트가 없습니다."); };
+  if ($("#p-open-typ")) $("#p-open-typ").onclick = () => openMacroInside(macroOfBlock(b));
   on("#p-w", t => { b.w = Math.max(4, +t.value || spec.w); });
   on("#p-h", t => { b.h = Math.max(4, +t.value || spec.h); });
   on("#p-x", t => { b.x = +t.value || 0; });
@@ -1098,7 +1099,8 @@ function finishWire() {
 function bindStage() {
   const stage = $("#stage"), svg = $("#svg");
   stage.addEventListener("dragover", e => e.preventDefault());
-  stage.addEventListener("drop", e => { const k = e.dataTransfer.getData("text/kind"); if (k && S.doc) { e.preventDefault(); const p = svgPt(e); const pt = e.dataTransfer.getData("text/preset"); const pr = pt && (S.presets || []).find(x => x.text === pt); if (pr) addPreset(pr, p[0], p[1]); else addBlock(k, p[0], p[1]); if (e.shiftKey) { const nb = S.doc.blocks[S.doc.blocks.length - 1]; alignBlockNow(nb); render(); } } });
+  stage.addEventListener("drop", e => { const mi = e.dataTransfer.getData("text/macro"); if (mi !== "" && S.doc) { e.preventDefault(); const m = macroItems()[+mi]; if (m) { const p = svgPt(e); addMacro(m, p[0], p[1]); } return; }
+    const k = e.dataTransfer.getData("text/kind"); if (k && S.doc) { e.preventDefault(); const p = svgPt(e); const pt = e.dataTransfer.getData("text/preset"); const pr = pt && (S.presets || []).find(x => x.text === pt); if (pr) addPreset(pr, p[0], p[1]); else addBlock(k, p[0], p[1]); if (e.shiftKey) { const nb = S.doc.blocks[S.doc.blocks.length - 1]; alignBlockNow(nb); render(); } } });
   svg.addEventListener("pointerdown", e => {
     if (!S.doc) return;
     stage.focus();
@@ -1192,8 +1194,11 @@ function bindStage() {
     if (S.wip) { S.wip.pts.pop(); finishWire(); return; }
     if (t.classList.contains("cell")) { editCell(t); return; }
     const blk = t.closest(".blk");
-    if (blk) { const b = S.doc.blocks.find(b => b.id === blk.dataset.id); const sp = S.sym[b.kind]; const inp = $(sp.label ? "#p-label" : (sp.circle || sp.note) ? "#p-text" : sp.time ? "#p-t" : null); if (inp) { inp.focus(); inp.select(); } }
+    if (blk && !simOn()) { const b0 = S.doc.blocks.find(b => b.id === blk.dataset.id); if (b0 && b0.kind === "MACRO") { openMacroInside(macroOfBlock(b0)); return; } }   // L79 — 매크로 두 번 누름 = 내부 동작 (새 창)
+    if (blk && aopMaybe(blk.dataset.id)) { const bid = blk.dataset.id; openAopPanel(bid, e).then(ok => { if (!ok) focusBlockInput(bid); }); return; }   // L82 — 신호 처리 블록 = 입력 넣고 계산 보기
+    if (blk) focusBlockInput(blk.dataset.id);
   });
+  function focusBlockInput(id) { const b = S.doc.blocks.find(b => b.id === id); if (!b) return; const sp = S.sym[b.kind]; const inp = $(sp.label ? "#p-label" : (sp.circle || sp.note) ? "#p-text" : sp.time ? "#p-t" : null); if (inp) { inp.focus(); inp.select(); } }
   svg.addEventListener("pointerleave", () => { S.hover = null; drawGhost(); if (S.guide.ruler) drawRulers(); });
   $("#scroll").addEventListener("scroll", () => { if (S.guide.ruler) drawRulers(); });
   window.addEventListener("resize", () => { if (S.guide.ruler) drawRulers(); });
@@ -1763,7 +1768,7 @@ async function save() {
       try { const r = await post(`/logic/api/drawings/sets/${S.doc.set}/autolink`, { did: S.id, author: who });
         if (r.changed && r.changed.length) { toast(`FROM/TO ${r.changed.length}곳을 이었습니다 — ${r.changed.map(c => (c.from ? c.from + " → " : "") + c.sheet + "-" + c.n).slice(0, 4).join(", ")}`); S.doc = await api(`/logic/api/drawings/${S.id}`); } } catch (e) {}
     }
-    await loadList(S.id); fillForm(); await loadSet(); render();
+    listItemSaved(S.doc); fillForm(); await loadSet(); render();   // L80 — 저장마다 그림 목록 전체(827장)를 다시 받지 않는다
   } catch (e) { toast("저장 실패 — " + e.message); }
 }
 function fillForm() {
@@ -1784,6 +1789,7 @@ async function openDoc(id) {
   if (S.dirty && !(await modal("저장하지 않은 변경", "<p>저장하지 않은 변경이 있습니다.  버리고 열까요?</p>"))) return;
   try { S.doc = await api(`/logic/api/drawings/${id}`); } catch (e) { toast(e.message); return; }
   S.id = id; S.dirty = false; S.sel = new Set(); S.selWire = null; S.undo = []; S.redo = []; S.verify = null; $("#verify-card").hidden = true;
+  leaveHome();
   rgLoad();
   $("#pick").value = id; $("#save").disabled = true;
   fillForm(); await loadSet(true); await loadInst(); fitZoom(); render(); instWarn();
@@ -1796,11 +1802,21 @@ async function openDoc(id) {
   if (isPeerChild() && !S.peerAsked) { S.peerAsked = true; peerUp({ type: "dsheet-ask" }); }   // L64 — 연 창에 지금 시뮬레이션 값을 묻는다
   if (S.mparent && !simOn()) { toggleSim(); askParent(); }        // L59 — 새 창은 바로 시뮬레이션으로 열고 부모에게 값을 묻는다
 }
+function listItemSaved(d) {
+  // 저장한 그림 하나만 목록에서 고친다 (이름 · 시트 · 고친 때) — 고르기 상자의 그 줄도
+  const it = (S.allItems || []).find(i => i.id === d.id);
+  const sum = { id: d.id, name: d.name, project: d.project, sheet_no: d.sheet_no, title: d.title, author: d.author, created: d.created, updated: d.updated, saves: d.saves,
+    set: d.set, set_name: d.set_name, order: d.order, typical: d.typical, blocks: (d.blocks || []).length, wires: (d.wires || []).length };
+  if (it) Object.assign(it, sum); else (S.allItems = S.allItems || []).unshift(sum);
+  const o = $(`#pick option[value="${d.id}"]`), txt = `${sum.set_name ? "[" + sum.set_name + "] " : ""}${sum.name}${sum.sheet_no ? " · " + sum.sheet_no : ""}${sum.typical ? " (Typical)" : ""} — 블록 ${sum.blocks} · 선 ${sum.wires}`;
+  if (o) o.textContent = txt; else { const n = document.createElement("option"); n.value = d.id; n.textContent = txt; $("#pick").appendChild(n); }
+  $("#pick").value = d.id;
+}
 async function loadList(keep) {
   const r = await api("/logic/api/drawings");
   const sel = $("#pick"); sel.innerHTML = `<option value="">(그림을 고르세요)</option>` + r.items.map(i => `<option value="${i.id}">${i.set_name ? "[" + esc(i.set_name) + "] " : ""}${esc(i.name)}${i.sheet_no ? " · " + esc(i.sheet_no) : ""}${i.typical ? " (Typical)" : ""} — 블록 ${i.blocks} · 선 ${i.wires}</option>`).join("");
   if (keep) sel.value = keep;
-  S.allItems = r.items; S.refDocs = {}; S.refDone = {};                          // L61 — 자동완성이 다른 그림의 시트 이름도 쓴다
+  S.allItems = r.items; S._listAt = Date.now(); S.refDocs = {}; S.refDone = {};                          // L61 — 자동완성이 다른 그림의 시트 이름도 쓴다
   return r.items;
 }
 async function loadProjects() {
@@ -1910,10 +1926,88 @@ async function delDoc() {
   const v = await modal("그림 지우기", `<p><b>${esc(S.doc.name)}</b> 을 지웁니다.  기록(누가 · 언제)은 남습니다.  그림 이름을 그대로 적으세요.</p><input id="m-confirm" style="width:100%">`,
     () => $("#m-confirm").value.trim() === S.doc.name ? true : (toast("이름이 다릅니다."), false));
   if (!v) return;
-  try { await api(`/logic/api/drawings/${S.id}?author=${encodeURIComponent(who)}`, { method: "DELETE" }); S.doc = null; S.id = null; S.dirty = false; await loadList(); render(); $("#name").value = ""; $("#name").disabled = true; ["verify", "analyse", "del"].forEach(i => $("#" + i).disabled = true); $("#pdf").hidden = $("#dxf").hidden = true; status("지웠습니다"); }
+  try { await api(`/logic/api/drawings/${S.id}?author=${encodeURIComponent(who)}`, { method: "DELETE" }); S.doc = null; S.id = null; S.dirty = false; S._listAt = 0; $("#name").value = ""; $("#name").disabled = true; ["verify", "analyse", "del"].forEach(i => $("#" + i).disabled = true); $("#pdf").hidden = $("#dxf").hidden = true; status("지웠습니다"); showHome(); }
   catch (e) { toast(e.message); }
 }
 
+
+
+/* ───────── L79 — Logic 작성 첫 화면 (Logic 분석 첫 화면과 같은 결) ─────────
+   ① 어디에 그릴지(프로젝트 · 작성자) ② 시작하기 ③ 저장된 프로젝트(묶음 · 그림) · 최근 그린 그림.  새로 세는 값 없음 — 그림 목록 · 프로젝트 장부 그대로. */
+function fmtTime(t) { if (!t) return ""; const d = new Date(t * 1000), z = n => String(n).padStart(2, "0"); return `${d.getFullYear()}-${z(d.getMonth() + 1)}-${z(d.getDate())} ${z(d.getHours())}:${z(d.getMinutes())}`; }
+function homeProject() { return $("#h-project") ? $("#h-project").value : ""; }
+async function showHome() {
+  if (S.dirty && !(await modal("저장하지 않은 변경", "<p>저장하지 않은 변경이 있습니다.  버리고 첫 화면으로 갈까요?</p>"))) return;
+  if (simOn()) toggleSim();
+  S.doc = null; S.id = null; S.dirty = false; S.sel = new Set(); S.selWire = null; S.setInfo = null;
+  $("#name").value = ""; $("#name").disabled = true; $("#pick").value = "";
+  ["save", "verify", "analyse", "del", "simtoggle"].forEach(i => $("#" + i).disabled = true); $("#pdf").hidden = $("#dxf").hidden = true;
+  $("#props-card").hidden = true; $("#verify-card").hidden = true;
+  document.body.classList.add("dw-homeon"); $("#home").hidden = false;
+  if (location.hash) history.replaceState(null, "", location.pathname + location.search);
+  status(""); render(); await renderHome();
+}
+function leaveHome() { document.body.classList.remove("dw-homeon"); $("#home").hidden = true; }
+async function renderHome() {
+  let projects = [];
+  try { projects = (await api("/logic/api/projects")).projects || []; } catch (e) {}
+  let items = S.allItems;                                          // L80 — 방금 받은 목록이면 다시 받지 않는다 (827장이면 0.3MB)
+  if (!items || Date.now() - (S._listAt || 0) > 30000) { try { items = await loadList(); } catch (e) {} }
+  items = items || [];
+  const sel = $("#h-project"), keep = sel.value || (() => { try { return localStorage.getItem("logic.draw.project") || ""; } catch (e) { return ""; } })();
+  const names = projects.map(p => p.name);
+  for (const it of items) if (it.project && !names.includes(it.project) && it.set !== TYP_SET) names.push(it.project);
+  sel.innerHTML = `<option value="">(프로젝트 없이)</option>` + names.map(n => `<option value="${esc(n)}">${esc(n)}</option>`).join("");
+  sel.value = names.includes(keep) ? keep : (names[0] || "");
+  $("#f-project").innerHTML = sel.innerHTML; $("#f-project").value = sel.value;
+  if (!$("#h-who").value) $("#h-who").value = author();
+  // 프로젝트마다 묶음 · 그림
+  const byP = {};
+  const lib = items.filter(i => i.set === TYP_SET);
+  for (const it of items) { if (it.set === TYP_SET) continue; const k = it.project || ""; (byP[k] = byP[k] || []).push(it); }
+  const order = [...names, ...(byP[""] ? [""] : [])];
+  const pcard = name => {
+    const its = byP[name] || [], sets = {}, loose = [];
+    for (const it of its) { if (it.set) (sets[it.set] = sets[it.set] || []).push(it); else loose.push(it); }
+    const last = Math.max(0, ...its.map(i => i.updated || 0)), mode = (projects.find(p => p.name === name) || {}).mode;
+    const setRows = Object.entries(sets).sort((a, b) => Math.max(...b[1].map(i => i.updated || 0)) - Math.max(...a[1].map(i => i.updated || 0))).map(([sid, arr]) => {
+      const first = arr.slice().sort((a, b) => (a.order || 0) - (b.order || 0))[0], typ = arr.filter(i => i.typical).length;
+      const lu = arr.reduce((a, b) => (b.updated || 0) > (a.updated || 0) ? b : a, arr[0]);
+      return `<li class="hm-set" data-open="${first.id}"><span class="hm-ic">▤</span><b>${esc(first.set_name || "묶음")}</b><span class="hm-chip">${arr.length}장</span>${typ ? `<span class="hm-chip t">Typical ${typ}</span>` : ""}<em>${fmtTime(lu.updated)} · ${esc(lu.author || "")}</em><span class="hm-go">열기 →</span></li>`; }).join("");
+    const looseRows = loose.slice(0, 12).map(it => `<li data-open="${it.id}"><span class="hm-ic">▢</span><b>${esc(it.name)}</b>${it.sheet_no ? `<span class="hm-chip">${esc(it.sheet_no)}</span>` : ""}<span class="hm-chip">블록 ${it.blocks}</span><em>${fmtTime(it.updated)} · ${esc(it.author || "")}</em><span class="hm-go">열기 →</span></li>`).join("") + (loose.length > 12 ? `<li class="hm-more">그림 ${loose.length - 12}개 더 — 위 그림 고르기 상자에서</li>` : "");
+    const body = setRows || looseRows ? `<ul>${setRows}${looseRows}</ul>` : `<p class="dw-hint">아직 그림이 없습니다 — 위 ① 에서 이 프로젝트를 고르고 ② 에서 시작하세요.</p>`;
+    return `<div class="hm-proj${name === sel.value ? " on" : ""}" data-p="${esc(name)}"><div class="hm-ph"><span class="hm-av">${esc((name || "?").slice(0, 1))}</span>
+      <div><b>${esc(name || "프로젝트 없음")}</b>${mode ? `<span class="hm-mode">${mode === "bid" ? "입찰" : "실행"}</span>` : ""}<small>묶음 ${Object.keys(sets).length} · 그림 ${its.length}${last ? " · 마지막 저장 " + fmtTime(last) : ""}</small></div></div>${body}</div>`;
+  };
+  $("#h-projects").innerHTML = order.map(pcard).join("") +
+    (lib.length ? `<div class="hm-proj hm-lib"><div class="hm-ph"><span class="hm-av">▣</span><div><b>공통 Typical 사전 — 꺼내 고친 그림</b><small>모든 프로젝트가 함께 씀 · ${lib.length}장</small></div></div><ul>${lib.slice(0, 8).map(it => `<li data-open="${it.id}"><span class="hm-ic">▣</span><b>${esc(it.title || it.name)}</b><span class="hm-chip">${esc(it.sheet_no || "")}</span><em>${fmtTime(it.updated)} · ${esc(it.author || "")}</em><span class="hm-go">열기 →</span></li>`).join("")}</ul></div>` : "")
+    || `<p class="dw-hint">저장된 프로젝트가 없습니다.</p>`;
+  $("#h-psum").textContent = `프로젝트 ${names.length} · 그림 ${items.length - lib.length}`;
+  const recent = items.filter(i => i.set !== TYP_SET).slice(0, 14);
+  $("#h-recent").innerHTML = recent.length ? `<ul>${recent.map(it => `<li data-open="${it.id}"><b>${esc(it.sheet_no || it.name)}</b><span>${esc(it.title || it.name)}</span><em>${esc(it.project || "프로젝트 없음")}${it.set_name ? " · " + esc(it.set_name) : ""} · ${fmtTime(it.updated)} · ${esc(it.author || "")}</em></li>`).join("")}</ul>` : `<p class="dw-hint">아직 그린 그림이 없습니다.</p>`;
+  $$("#home [data-open]").forEach(li => li.onclick = () => openDoc(li.dataset.open));
+  $$("#h-projects .hm-ph").forEach(h => h.onclick = () => { const p = h.parentElement.dataset.p; if (p != null && !h.parentElement.classList.contains("hm-lib")) { sel.value = p; homeProjectChanged(); } });
+}
+function homeProjectChanged() {
+  const v = homeProject();
+  try { localStorage.setItem("logic.draw.project", v); } catch (e) {}
+  $("#f-project").value = v; loadInst();
+  $$("#h-projects .hm-proj").forEach(x => x.classList.toggle("on", x.dataset.p === v));
+}
+async function homeNewProject() {
+  const v = await modal("새 프로젝트", `<div class="dw-form"><label>프로젝트 이름 <input id="m-pjname" placeholder="예: AMIRAL"></label><label>작성자 <input id="m-who" value="${esc(author())}"></label></div>
+    <p class="dw-hint">LOGIC 검토(분석)와 같은 프로젝트 장부에 적힙니다 — 실행 프로젝트로 시작합니다.</p>`,
+    () => { const n = $("#m-pjname").value.trim(), w = $("#m-who").value.trim(); if (!n) { toast("이름을 적어 주세요."); return false; } if (!w) { toast("작성자 이름이 필요합니다."); return false; } return { n, w }; });
+  if (!v) return;
+  try { await post("/logic/api/projects", { name: v.n, author: v.w }); try { localStorage.setItem("pid.author", v.w); localStorage.setItem("logic.draw.project", v.n); } catch (e) {} $("#h-who").value = v.w; $("#who").value = v.w; $("#h-project").value = ""; await renderHome(); $("#h-project").value = v.n; homeProjectChanged(); toast(`프로젝트 ${v.n} 를 만들었습니다.`); }
+  catch (e) { toast(e.message); }
+}
+function homeAction(act) {
+  const w = $("#h-who").value.trim();
+  if (w) { $("#who").value = w; try { localStorage.setItem("pid.author", w); } catch (e) {} }
+  $("#f-project").value = homeProject();
+  if (act === "new") newDoc(); else if (act === "sheet") importSheet(); else if (act === "bundle") importBundle(); else if (act === "typ") showTypicals();
+}
 
 /* ───────── 공통 Typical 사전 (L63) — 모든 프로젝트가 같은 Typical 을 쓴다 · 처음부터 들고 있고 사람이 고친다 ───────── */
 const TYP_SET = "7e7e00000063";
@@ -1923,8 +2017,8 @@ async function showTypicals() {
   const st = it => it.origin === "user" ? `<span class="t-user">고침 · ${esc((it.edited || {}).author || "")} ${esc(((it.edited || {}).at || "").slice(0, 10))}</span>` : it.origin === "seed" ? `<span class="t-seed">기본</span>` : `<span class="t-learn">분석에서 배움</span>`;
   const body = `<p class="dw-hint">모든 프로젝트가 함께 씁니다 — 기본 ${r.seed}개는 처음부터 들어 있고, 고치면 다음 분석부터 모든 프로젝트에 반영됩니다.</p>
     <input id="typ-q" placeholder="찾기 (MOV · SOV · GROUP …)" class="dw-typq">
-    <div class="dw-typtable"><table><thead><tr><th>시트</th><th>제목</th><th>출처</th><th>입력→출력</th><th>상태</th><th></th></tr></thead><tbody>${r.items.map((it, i) =>
-      `<tr data-i="${i}"><td>${esc(it.sheet_no)}</td><td>${esc(it.title)}</td><td>${esc(it.from)}</td><td>${it.pins_in}→${it.pins_out}</td><td>${st(it)}</td>
+    <div class="dw-typtable"><table><thead><tr><th>시트</th><th>제목</th><th>설명</th><th>출처</th><th>입력→출력</th><th>상태</th><th></th></tr></thead><tbody>${r.items.map((it, i) =>
+      `<tr data-i="${i}"><td>${esc(it.sheet_no)}</td><td>${esc(it.title)}</td><td title="${esc(it.desc_ko || "")}">${esc(it.desc || "")}</td><td>${esc(it.from)}</td><td>${it.pins_in}→${it.pins_out}</td><td>${st(it)}</td>
        <td><button type="button" class="t-open" data-i="${i}">${it.did ? "열기" : "고치기"}</button>${it.origin === "user" ? ` <button type="button" class="t-rev" data-i="${i}">원래대로</button>` : ""}</td></tr>`).join("")}</tbody></table></div>`;
   const p = modal(`공통 Typical 사전 — ${r.items.length}개`, body, null);
   $("#m-ok").textContent = "닫기"; $("#m-cancel").hidden = true;
@@ -1975,10 +2069,14 @@ function renderTypCard() {
 async function loadSet(reuse) {
   // L57 — 시뮬레이션 카드가 묶음의 장 이름을 쓴다 (S.setInfo)
   // L65 — 같은 묶음 안에서 장만 옮기면 묶음 정보(연결 판정)를 다시 받지 않는다 (저장 · 장 더하기는 새로 받는다)
-  if (reuse && S.setInfo && S.doc && S.doc.set && S.setInfo.id === S.doc.set) { $("#set-card").hidden = false; renderSetCard(); renderMacroCard(); return; }
-  S.setInfo = null; S.libMacros = null; S.setStamp = (S.setStamp || 0) + 1; const card = $("#set-card"); const mc = $("#macro-card");
+  if (reuse && S.setInfo && S.doc && S.doc.set && S.setInfo.id === S.doc.set) {
+    // L80 — 묶음 정보는 그 장의 연결 표만 받는다 · 장을 옮기면 새 장 것만 더 받는다 (827장 묶음 1.1MB → 수 KB)
+    const L = S.setInfo.links || (S.setInfo.links = { docs: {} }); L.docs = L.docs || {};
+    if (!(S.doc.id in L.docs)) { try { const r = await api(`/logic/api/drawings/sets/${S.doc.set}/links?doc=${S.doc.id}`); Object.assign(L.docs, r.docs || {}); if (!(S.doc.id in L.docs)) L.docs[S.doc.id] = null; } catch (e) {} }
+    $("#set-card").hidden = false; renderSetCard(); renderMacroCard(); return; }
+  S.setInfo = null; S.setStamp = (S.setStamp || 0) + 1; const card = $("#set-card"); const mc = $("#macro-card");
   if (!S.doc || !S.doc.set) { card.hidden = false; renderSetCard(); renderMacroCard(); return; }
-  try { S.setInfo = await api(`/logic/api/drawings/sets/${S.doc.set}`); } catch (e) { S.setInfo = null; }
+  try { S.setInfo = await api(`/logic/api/drawings/sets/${S.doc.set}?doc=${S.doc.id}`); } catch (e) { S.setInfo = null; }
   S.setStamp = (S.setStamp || 0) + 1;
   card.hidden = false; renderSetCard(); renderMacroCard();
 }
@@ -2043,32 +2141,90 @@ function renderSetCard() {
   $$("#set-list li[data-id]").forEach(li => li.onclick = () => { if (li.dataset.id !== S.id) openDoc(li.dataset.id); });
   $$("#set-list .dw-miss button").forEach(b => b.onclick = () => b.classList.contains("more") ? (S.missAll = !S.missAll, renderSetCard()) : addSheet(b.dataset.sheet));
 }
-/* VOC — 매크로 팔레트는 언제나 선다: 묶음의 Typical + 공통 Typical 사전(처음부터 들고 있는 것).
-   묶음에 들지 않은 그림은 사전만 (`/logic/api/drawings/macros`) — 놓으면 그 그림을 묶음으로 만들고 Typical 을 들여온다. */
-async function libMacros() {
-  if (!S.libMacros) { try { S.libMacros = (await api("/logic/api/drawings/macros")).macros || []; } catch (e) { S.libMacros = []; } }
-  return S.libMacros;
+/* ───────── L79 — 매크로 · Typical 팔레트: 타입마다 기호 그림 · 누르면 놓고 · 두 번 누르면 내부 동작 (새 창 · 고칠 수 있음) ─────────
+   묶음이 없는 그림도 공통 Typical 사전(19VA · 알다프라 · HRSG)의 타입을 쓴다 (GET /logic/api/drawings/macros). */
+function macroItems() { return (S.setInfo && S.setInfo.macros) || S.libMacros || []; }
+async function loadLibMacros() {
+  if (S.libMacros || S._libMacLoading) return;
+  S._libMacLoading = true;
+  try { S.libMacros = (await api("/logic/api/drawings/macros")).items || []; } catch (e) { S.libMacros = []; }
+  S._libMacLoading = false; renderMacroCard();
 }
-async function renderMacroCard() {
-  const box = $("#macro-list");
-  let ms = (S.setInfo && S.setInfo.macros) || [];
-  if (!ms.length) ms = await libMacros();
-  S.macroItems = ms;
-  if (!ms.length) { box.innerHTML = `<p class="dw-hint">매크로 타입이 없습니다 — 묶음의 장에 <b>Typical 시트</b> 표시를 하거나(시트 카드) 📚 Typical 에서 사전에 더하세요.</p>`; return; }
-  const q = (S.macroQ || "").trim().toUpperCase();
-  const hit = ms.map((m, i) => [m, i]).filter(([m]) => !q || (m.title + " " + ((m.sheet || {}).sheet_no || "") + " " + m.from).toUpperCase().includes(q));
-  const src = m => m.typ.startsWith("lib:") ? `공통 사전${((m.sheet || {}).sheet_no) ? " · " + m.sheet.sheet_no : ""}` : `이 묶음 · ${m.typ}`;
-  box.innerHTML = `<input id="macro-q" class="dw-macroq" placeholder="매크로 찾기 (${ms.length}) — 예: MOV · MCC · SOV" value="${esc(S.macroQ || "")}">` +
-    (hit.length ? hit.map(([m, i]) => `<button type="button" data-i="${i}" title="${esc(m.title)} — ${esc(m.from)} · 입력 ${m.pins_in.length} · 출력 ${m.pins_out.length} · 누르면 놓입니다">` +
-      `<span class="mt">▣ ${esc(m.title)}</span><span class="dw-hint">${esc(src(m))} · 입력 ${m.pins_in.length} → 출력 ${m.pins_out.length}</span></button>`).join("")
-      : `<p class="dw-hint">찾는 매크로가 없습니다.</p>`);
-  const qi = $("#macro-q");
-  qi.oninput = () => { S.macroQ = qi.value; const pos = qi.selectionStart; renderMacroCard().then(() => { const n = $("#macro-q"); n.focus(); n.setSelectionRange(pos, pos); }); };
-  $$("#macro-list button[data-i]").forEach(b => {
-    b.onclick = () => addMacro(ms[+b.dataset.i]);
+const MACRO_ORDER = ["이 묶음", "19VA", "AL_DHAFRA", "HRSG"];
+const MACRO_GROUP = { "이 묶음": "이 묶음의 Typical", "19VA": "19VA (아미랄)", "AL_DHAFRA": "알다프라 (1A5J)", "HRSG": "HRSG" };
+function macroShort(title) {
+  let t = String(title || "").toUpperCase().replace(/^\s*(MACRO|TYPICAL)[\s-]*/, "");
+  t = t.split(/[<(]/)[0].trim();
+  return t || String(title || "").slice(0, 12);
+}
+function macroThumb(m) {
+  // 그림에 놓이는 매크로 상자와 같은 결 — 머리(이름) · 왼쪽 입력 단자 · 오른쪽 출력 단자
+  const ins = m.pins_in || [], outs = m.pins_out || [], MAX = 8;
+  const n = Math.min(Math.max(ins.length, outs.length, 1), MAX), RH = 8.5, TOP = 15, W = 132, H = TOP + n * RH + (Math.max(ins.length, outs.length) > MAX ? 9 : 3);
+  const nm = s => esc(String(s || "").slice(0, 11));
+  let g = `<rect x="14" y="1" width="${W - 28}" height="${H - 2}" rx="1.5" class="mt-box"/><line x1="14" y1="${TOP - 3}" x2="${W - 14}" y2="${TOP - 3}" class="mt-sep"/>
+    <text x="${W / 2}" y="${TOP - 6}" class="mt-title">${esc(macroShort(m.title).slice(0, 18))}</text>`;
+  for (let i = 0; i < Math.min(ins.length, MAX); i++) { const y = TOP + (i + .5) * RH; g += `<line x1="3" y1="${y}" x2="14" y2="${y}" class="mt-pin"/><text x="17" y="${y + 2}" class="mt-in">${nm(ins[i].name)}</text>`; }
+  for (let i = 0; i < Math.min(outs.length, MAX); i++) { const y = TOP + (i + .5) * RH; g += `<line x1="${W - 14}" y1="${y}" x2="${W - 3}" y2="${y}" class="mt-pin"/><text x="${W - 17}" y="${y + 2}" class="mt-out">${nm(outs[i].name)}</text>`; }
+  const more = Math.max(ins.length, outs.length) - MAX;
+  if (more > 0) g += `<text x="${W / 2}" y="${H - 3}" class="mt-more">… 단자 ${more}개 더</text>`;
+  return `<svg viewBox="0 0 ${W} ${H}" class="mt-svg" aria-hidden="true">${g}</svg>`;
+}
+function renderMacroCard() {
+  const box = $("#macro-list"); if (!box) return;
+  if (!S.setInfo && !S.libMacros) { box.innerHTML = `<p class="dw-hint">Typical 을 읽는 중 …</p>`; loadLibMacros(); return; }
+  const ms = macroItems();
+  if (!ms.length) { box.innerHTML = `<p class="dw-hint">매크로 타입이 없습니다 — 묶음의 장에 <b>Typical 시트</b> 표시를 하거나(시트 카드) 공통 Typical 사전이 쓰입니다.</p>`; return; }
+  const q = (($("#macro-q") || {}).value || "").trim().toUpperCase();
+  const groups = {};
+  ms.forEach((m, i) => { const o = m.origin || (m.typ.startsWith("lib:") ? "공통" : "이 묶음"); (groups[o] = groups[o] || []).push(i); });
+  const keys = Object.keys(groups).sort((a, b) => { const ia = MACRO_ORDER.indexOf(a), ib = MACRO_ORDER.indexOf(b); return (ia < 0 ? 99 : ia) - (ib < 0 ? 99 : ib) || a.localeCompare(b); });
+  S.macroOpen = S.macroOpen || {};
+  let html = "";
+  for (const k of keys) {
+    const idx = groups[k].filter(i => !q || (ms[i].title + " " + (ms[i].desc || "") + " " + (ms[i].desc_ko || "") + " " + ((ms[i].sheet || {}).sheet_no || ms[i].typ)).toUpperCase().includes(q));
+    if (!idx.length) continue;
+    const open = q || (S.macroOpen[k] ?? (k === "이 묶음" || k === "19VA"));   // 처음엔 이 묶음 · 19VA 만 펼친다
+    html += `<div class="mg${open ? "" : " shut"}" data-g="${esc(k)}"><h4>${esc(MACRO_GROUP[k] || k)} <span class="dw-hint">${idx.length}</span></h4><div class="mg-tiles">` +
+      idx.map(i => { const m = ms[i]; const sh = (m.sheet || {}).sheet_no || (m.typ.startsWith("lib:") ? "" : m.typ);
+        return `<button type="button" class="mtile" data-i="${i}" draggable="true" title="${esc(m.title)}${m.desc ? "\n" + esc(m.desc) : ""}${m.desc_ko ? " — " + esc(m.desc_ko) : ""}${sh ? "\n시트 " + esc(sh) : ""} · 입력 ${m.pins_in.length} → 출력 ${m.pins_out.length}\n누르면 그림에 놓고 · 두 번 누르면 내부 동작(새 창 · 고칠 수 있음)">${macroThumb(m)}<span class="mt-cap"><b>${esc(macroShort(m.title))}</b>${m.desc ? `<em>${esc(m.desc)}</em>` : ""}${m.desc_ko ? `<i>${esc(m.desc_ko)}</i>` : ""}<small>${sh ? esc(sh) + " · " : ""}${m.pins_in.length}→${m.pins_out.length}</small></span></button>`; }).join("") + `</div></div>`;
+  }
+  box.innerHTML = html || `<p class="dw-hint">찾는 Typical 이 없습니다.</p>`;
+  $$("#macro-list .mg h4").forEach(h => h.onclick = () => { const k = h.parentElement.dataset.g; S.macroOpen[k] = h.parentElement.classList.contains("shut"); renderMacroCard(); });
+  $$("#macro-list .mtile").forEach(b => {
+    const m = ms[+b.dataset.i];
+    b.onclick = () => { clearTimeout(S._macClick); S._macClick = setTimeout(() => { if (!S.doc) { toast("먼저 그림을 여세요 — 두 번 누르면 내부 동작은 볼 수 있습니다."); return; } addMacro(m); }, 260); };
+    b.ondblclick = e => { e.preventDefault(); clearTimeout(S._macClick); openMacroInside(m); };
+    b.ondragstart = e => { clearTimeout(S._macClick); e.dataTransfer.setData("text/macro", b.dataset.i); };
   });
 }
-async function addMacro(m) {
+function macroOfBlock(b) {
+  const typ = (b.param || {}).typ || "";
+  if (!typ) return null;
+  const hit = macroItems().find(m => m.typ === typ);
+  if (hit) return hit;
+  if (typ.startsWith("lib:")) return { typ, tid: typ.slice(4), title: (b.param || {}).title || typ, pins_in: [], pins_out: [] };
+  const sh = ((S.setInfo && S.setInfo.sheets) || []).find(x => x.sheet_no === typ);
+  return sh ? { typ, did: sh.id, title: sh.title || typ, pins_in: [], pins_out: [] } : { typ, title: typ, pins_in: [], pins_out: [] };
+}
+async function openMacroInside(m) {
+  // 내부 동작 = 그 Typical 의 작도 그림.  이 묶음의 Typical 장이면 그 장, 공통 사전이면 사전에서 꺼낸 그림 (고치면 '사전에 저장' 으로 모든 프로젝트에)
+  if (!m) { toast("이 매크로에 Typical 이 정해지지 않았습니다 — 속성에서 고르세요."); return; }
+  let did = m.did;
+  if (!did && S.setInfo && m.sheet && m.sheet.sheet_no) { const have = (S.setInfo.sheets || []).find(x => x.typical && x.sheet_no === m.sheet.sheet_no); if (have) did = have.id; }
+  if (!did && !m.tid) { toast(`이 묶음에 Typical 시트 ${m.typ || ""} 가 없습니다.`); return; }
+  const w = window.open("", "_blank");                            // 팝업 차단을 피하려고 누른 그 순간에 연다
+  if (!did) {
+    const who = author();
+    if (!who) { if (w) w.close(); toast("이름을 적어 주세요 (머리줄 ✎) — 사전 Typical 을 꺼낼 때 남습니다."); $("#who").focus(); return; }
+    try { did = (await post(`/logic/api/drawings/typicals/${m.tid}/open`, { author: who })).id; }
+    catch (e) { if (w) w.close(); toast(e.message); return; }
+  }
+  const url = `/logic/draw${location.search}#d=${did}`;
+  if (w) { w.location.href = url; toast(`${macroShort(m.title)} 내부 동작을 새 창으로 열었습니다 — 고치고 저장하세요${m.tid && !m.did ? " (공통 사전이면 '사전에 저장')" : ""}.`, 4500); }
+  else location.href = url;
+}
+async function addMacro(m, px, py) {
   if (!S.doc) return;
   let typ = m.typ;
   if (typ.startsWith("lib:") && !S.doc.set) {
@@ -2087,7 +2243,9 @@ async function addMacro(m) {
   const b = { id: newId("b"), kind: "MACRO", w: S.sym.MACRO.w, h: +(1.6 * P + n * P + 0.4 * P).toFixed(2), text: "", label: "",
     param: { typ, title: m.title, pins_in: m.pins_in.map((q, i) => ({ name: q.name, row: q.row, dy: +(1.6 * P + (i + 0.5) * P).toFixed(2) })),
              pins_out: m.pins_out.map((q, i) => ({ name: q.name, row: q.row, dy: +(1.6 * P + (i + 0.5) * P).toFixed(2) })) } };
-  b.x = Math.round(((L.LX0 + L.LX1) / 2 - b.w / 2) / (P / 2)) * (P / 2); b.y = ry(4) - 1.6 * P - P / 2;
+  b.x = Math.round(((px != null ? px : (L.LX0 + L.LX1) / 2) - b.w / 2) / (P / 2)) * (P / 2);
+  const r0 = px != null ? Math.max(1, Math.min(L.N - n, Math.round((py - L.TOP) / P + 0.5))) : 4;   // 첫 단자가 놓은 자리의 행 가운데에
+  b.y = ry(r0) - 1.6 * P - P / 2;
   pushUndo(); S.doc.blocks.push(b); unclash([b.id]); S.sel = new Set([b.id]); S.selWire = null; markDirty(); render();
 }
 function flashRow(n) {
@@ -2438,6 +2596,7 @@ function simClick(e, p, t) {
       const items = [{ t: "출력 1 — 조건을 채워 켠다 (게이트가 판정)", v: 1, cls: "v1" }, { t: "출력 0 — 조건을 깨서 끈다", v: 0, cls: "v0" }];
       if (cur != null) items.push({ t: "목표 풀기", v: null });
       if (sb.aop || ["unknown"].includes(sb.logic)) items.push({ t: "∿ 출력값 넣기 (공학값)", ana: "block:" + b.id });
+      if (sb.aop) items.push({ t: "∑ 입력 넣고 계산 보기 (두 번 누름)", act: () => openAopPanel(b.id, e) });   // L82
       if (S.sym[b.kind].time) items.push({ t: `⏱ 시간 ${(b.param || {}).t || 5}초 — 속성에서 바꿉니다`, info: true });
       if (sb.macro && !sb.macro.page) items.push({ t: "⚠ " + (sb.macro.why || "Typical 시트가 없습니다"), info: true });
       if (sb.macro && sb.macro.did) items.push({ t: `↗ 내부 동작 보기 (새 창) — ${sb.macro.sheet || ""}`, act: () => openMacroWin(b.id, sb.macro.did) });   // L59
@@ -2557,6 +2716,10 @@ async function init() {
   loadGuide();
   $$(".dw-arrange button").forEach(b => b.onclick = () => arrangeSel(b.dataset.op));      // L60
   for (const k of ["grid", "ruler", "align", "cross"]) $("#g-" + k).onchange = e => { S.guide[k] = e.target.checked; saveGuide(); render(); };
+  $("#home-btn").onclick = showHome; $("#h-project").onchange = homeProjectChanged; $("#h-newproj").onclick = homeNewProject;
+  $$("#home .hm-actions [data-act]").forEach(b => { if (b.dataset.act === "signal") b.href = "/logic/signal" + location.search; else b.onclick = () => homeAction(b.dataset.act); });
+  $("#sig-link").href = "/logic/signal" + location.search;
+  $("#macro-q").oninput = () => renderMacroCard();
   $("#new").onclick = newDoc; $("#import").onclick = importSheet; $("#save").onclick = save; $("#verify").onclick = verify;
   $("#typlib").onclick = showTypicals; $("#typ-list").onclick = showTypicals; $("#typ-save").onclick = saveTypical;
   $("#typ-revert").onclick = () => { const t = (S.doc && S.doc.source || {}).typlib; if (t) revertTypical(t); };
@@ -2582,6 +2745,119 @@ async function init() {
   if (mp) { S.mparent = { did: mp[1], bid: decodeURIComponent(mp[2]), inner: null, forces: {} }; document.title = "LOGIC 작도 — 매크로 내부 동작"; }
   if (m && items.some(i => i.id === m[1])) openDoc(m[1]);
   else if (ms) { const first = items.filter(i => i.set === ms[1]).sort((a, b) => (a.order || 0) - (b.order || 0))[0]; if (first) openDoc(first.id); else { render(); await loadSet(); } }
-  else { render(); await loadSet(); }
+  else { await loadSet(); await showHome(); }                   // L79 — 그림을 안 고르고 들어오면 Logic 작성 첫 화면
 }
 init().catch(e => { toast("화면을 열지 못했습니다 — " + e.message, 8000); console.error(e); });
+
+/* L82 — 신호 처리(아날로그 연산자) 블록을 두 번 누르면: 입력 값을 넣고 → 식 → 값을 넣은 식 → 출력 을 바로 본다.
+   블록의 연산 · 입력선(어디서 오나) · 설정값은 /drawings/{id}/aop, 계산은 신호 처리 페이지와 같은 /logic/api/aopsim (aops.compute). */
+const AOP_NUM = { value: 1, k: 1, b: 1, h: 1, l: 1, n: 1, d: 1, out: 1 };
+const AOP_TWO = new Set(["diff", "absdiff", "div"]);
+const AOP_FLAG = new Set(["FLAG", "C", "COND", "TR", "TRK"]);
+const aopNum = v => v == null || v === "" ? "" : String(+(+v).toFixed(6));
+async function openAopPanel(bid, ev) {
+  if (!S.doc || !S.id) return false;
+  let d;
+  try { d = await post(`/logic/api/drawings/${S.id}/aop`, { block: bid, doc: S.dirty ? docOut() : undefined }); } catch (e) { return false; }
+  if (!d || !d.op) return false;
+  closeAopPanel(); $("#simmenu").hidden = true;
+  const pr = { ...(d.params || {}) }, src = d.sources || {}, ucoef = pr.coef || {};
+  let ins = (d.inputs || []).filter(i => String(i.net) !== String(d.cond) && !AOP_FLAG.has(i.pin));
+  if (pr.order && pr.order.length === 2) ins = [...pr.order.map(n => ins.find(i => String(i.net) === String(n))).filter(Boolean), ...ins.filter(i => !pr.order.map(String).includes(String(i.net)))];
+  const P = { d, ins: ins.map(i => ({ net: i.net, pin: i.pin || "", coef: ucoef[i.net] != null ? ucoef[i.net] : i.coef, value: i.value,
+    from: (src[String(i.net)] || {}).text || "" })) };
+  const coefOn = (d.needs || []).some(x => x[0] === "coef");
+  const vars = ((d.why || "").match(/수식의 (.+?) 값을/) || [])[1];
+  const m = document.createElement("div");
+  m.id = "aoppanel"; m.className = "dw-aop";
+  const two = AOP_TWO.has(d.op) || d.op === "transfer", signed = i => ["+", "-", "−"].includes(i.pin);
+  const posPin = k => d.op === "transfer" ? "IN" + (k + 1) : "X" + (k + 1);   // 두 입력 연산 — 보이는 순서가 곧 앞 · 뒤 (⇅ 로 바꾼다)
+  const pinOf = (i, k) => two && !signed(i) ? posPin(k) : i.pin && !signed(i) ? i.pin : posPin(k);
+  const rows = () => P.ins.map((i, k) => `<tr><td><b>${esc(pinOf(i, k))}</b>${signed(i) ? ` <small>(${esc(i.pin)})</small>` : ""}</td>
+      <td><small>${esc(i.from || "선 " + i.net)}</small></td>${coefOn ? `<td><input data-coef="${k}" type="number" step="any" value="${aopNum(i.coef)}" placeholder="1"></td>` : ""}
+      <td><input data-in="${k}" type="number" step="any" value="${aopNum(i.value)}" placeholder="값"></td></tr>`).join("");
+  let ps = "";
+  for (const [k, label] of d.needs || []) {
+    if (AOP_NUM[k]) ps += `<label><span>${esc(label)}</span><input data-p="${k}" type="number" step="any" value="${aopNum(pr[k])}" placeholder="${k === "out" ? "비우면 계산" : "값"}"></label>`;
+    else if (k === "c") ps += `<label><span>${esc(label)}</span><select data-p="c"><option value="1"${pr.c === 0 ? "" : " selected"}>1 → IN1</option><option value="0"${pr.c === 0 ? " selected" : ""}>0 → IN2</option></select></label>`;
+    else if (k === "table") ps += `<label class="col"><span>${esc(label)}</span><textarea data-p="table" rows="3" placeholder="0, 0&#10;100, 50">${esc((pr.table || []).map(p => p.join(", ")).join("\n"))}</textarea></label>`;
+    else if (k === "vars" && vars) ps += vars.split(/,\s*/).map(nm => `<label><span>수식 ${esc(nm)}</span><input data-var="${esc(nm)}" type="number" step="any" value="${aopNum((pr.vars || {})[nm])}"></label>`).join("");
+  }
+  m.innerHTML = `<div class="ap-h"><b>${esc(d.label || "")} ${esc(d.ko || d.op)}</b> <small>${esc(bid)}</small><button data-a="x" title="닫기">✕</button></div>
+    ${d.eq ? `<div class="ap-eq">${esc(d.eq)}</div>` : ""}
+    <div class="ap-sub">① 입력 값을 넣으세요 <small>(도면 값은 바뀌지 않습니다 — 계산만 봅니다)</small></div>
+    ${P.ins.length ? `<table class="ap-io"><tr><th>입력</th><th>어디서</th>${coefOn ? "<th>계수</th>" : ""}<th>값</th></tr><tbody>${rows()}</tbody></table>
+      ${two && P.ins.length >= 2 ? `<button data-a="swap" class="ap-swap" title="${d.op === "transfer" ? "IN1 · IN2" : "앞 · 뒤 (분자 · 분모)"} 를 바꿉니다">⇅ ${d.op === "div" ? "분자 · 분모" : d.op === "transfer" ? "IN1 · IN2" : "앞 · 뒤"} 바꾸기</button>` : ""}`
+      : `<div class="ap-why">${d.op === "const" ? "입력선이 없는 상수입니다" : "입력선을 도면에서 읽지 못했습니다"}</div>`}
+    ${ps ? `<div class="ap-sub">② 설정값</div><div class="ap-ps">${ps}</div>` : ""}
+    <div class="ap-sub">${ps ? "③" : "②"} 계산</div><div class="ap-res" id="ap-res"></div>
+    <div class="ap-btns"><button data-a="sig" title="신호 처리 시뮬레이션 페이지를 이 값으로 채워 엽니다 (새 창 · 시간 그래프)">∿ 신호 처리 페이지에서 열기</button></div>`;
+  document.body.appendChild(m);
+  const x = Math.min((ev && ev.clientX || 200) + 14, innerWidth - m.offsetWidth - 8), y = Math.min((ev && ev.clientY || 120) - 10, innerHeight - m.offsetHeight - 8);
+  m.style.left = Math.max(8, x) + "px"; m.style.top = Math.max(8, y) + "px";
+  const req = () => {
+    const out = { op: d.op, label: d.label || "", inputs: [], params: {}, cond: null };
+    P.ins.forEach((i, k) => {
+      const v = m.querySelector(`[data-in="${k}"]`).value.trim(), c = coefOn ? m.querySelector(`[data-coef="${k}"]`).value.trim() : "";
+      const pin = two && !signed(i) ? posPin(k) : i.pin;
+      out.inputs.push({ pin, value: v === "" ? null : +v, coef: c !== "" ? +c : i.coef == null ? null : i.coef });
+    });
+    for (const e of m.querySelectorAll("[data-p]")) {
+      const k = e.dataset.p, raw = String(e.value || "").trim();
+      if (k === "c") out.cond = +raw;
+      else if (k === "table") { const pts = raw.split(/\n+/).map(l => l.split(/[,\s]+/).filter(Boolean).map(Number)).filter(p => p.length === 2 && p.every(isFinite)); if (pts.length >= 2) out.params.table = pts; }
+      else if (raw !== "" && isFinite(+raw)) out.params[k] = +raw;
+    }
+    const vv = {}; for (const e of m.querySelectorAll("[data-var]")) if (e.value.trim() !== "") vv[e.dataset.var] = +e.value;
+    if (Object.keys(vv).length) out.params.vars = vv;
+    if (d.op === "transfer" && out.cond == null) out.cond = 1;
+    return out;
+  };
+  let tm = 0, seq = 0;
+  const calc = async () => {
+    const q = req(), my = ++seq;
+    let r; try { r = await post("/logic/api/aopsim", q); } catch (e) { $("#ap-res", m).innerHTML = `<div class="ap-why">${esc(e.message)}</div>`; return; }
+    if (my !== seq || !m.isConnected) return;
+    const t = r.trace || {}, res = r.dig != null ? String(r.dig) : t.res;
+    const tp = (t.params || []).map(([k, v]) => `<span class="ap-p">${esc(k)} = <b>${esc(v)}</b></span>`).join(" ");
+    $("#ap-res", m).innerHTML = `${tp ? `<div class="ap-tp">${tp}</div>` : ""}<div class="ap-l"><i>식</i><code>${esc(t.sym || "")}</code></div>
+      <div class="ap-l"><i>값 넣기</i><code>= ${esc(t.sub || "?")}</code></div>
+      <div class="ap-l out${res === "?" ? " unk" : ""}"><i>출력</i><code>= <b>${esc(res || "?")}</b></code></div>
+      ${t.note || r.why ? `<div class="ap-why">${esc(t.note || r.why)}</div>` : ""}`;
+    P.last = q;
+  };
+  m.addEventListener("input", () => { clearTimeout(tm); tm = setTimeout(calc, 120); });
+  m.addEventListener("change", () => { clearTimeout(tm); tm = setTimeout(calc, 30); });
+  m.addEventListener("keydown", e => { if (e.key === "Escape") closeAopPanel(); e.stopPropagation(); });
+  m.addEventListener("click", e => {
+    const a = e.target.closest("button[data-a]"); if (!a) return;
+    if (a.dataset.a === "x") closeAopPanel();
+    else if (a.dataset.a === "swap") {
+      const vals = P.ins.map((_, k) => [m.querySelector(`[data-in="${k}"]`).value, coefOn ? m.querySelector(`[data-coef="${k}"]`).value : ""]);
+      [P.ins[0], P.ins[1]] = [P.ins[1], P.ins[0]]; [vals[0], vals[1]] = [vals[1], vals[0]];
+      $("tbody", m).innerHTML = rows();
+      vals.forEach(([v, c], k) => { m.querySelector(`[data-in="${k}"]`).value = v; if (coefOn) m.querySelector(`[data-coef="${k}"]`).value = c; });
+      calc();
+    } else if (a.dataset.a === "sig") {
+      const q = req();
+      q.inputs = q.inputs.map((i, k) => ({ ...i, from: P.ins[k].from }));
+      q.from = `${S.doc.sheet_no || S.doc.name || ""} · ${d.label || ""} (${bid})`;
+      window.open("/logic/signal?s=" + encodeURIComponent(JSON.stringify(q)), "_blank");
+    }
+  });
+  S._aopOff = e => { if (!m.contains(e.target)) closeAopPanel(); };
+  setTimeout(() => document.addEventListener("pointerdown", S._aopOff, true), 0);
+  const first = m.querySelector("[data-in]") || m.querySelector("[data-p]"); if (first) { first.focus(); first.select && first.select(); }
+  calc();
+  return true;
+}
+function closeAopPanel() {
+  const m = $("#aoppanel"); if (m) m.remove();
+  if (S._aopOff) { document.removeEventListener("pointerdown", S._aopOff, true); S._aopOff = null; }
+}
+function aopMaybe(id) {                       // 글자 상자(BOX)만 연산자일 수 있다 (draw_sim._box_meaning → aops.identify) · 시뮬레이션 중이면 그 판정
+  const sb = simOn() && S.sim && S.sim.res && S.sim.res.sheet && S.sim.res.sheet.blocks[id];
+  if (sb) return !!sb.aop;
+  const b = S.doc && S.doc.blocks.find(b => b.id === id);
+  return !!b && b.kind === "BOX";
+}

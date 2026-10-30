@@ -92,6 +92,13 @@ def list_sets():
     return {"items": draw_sets.sets_listing()}
 
 
+@router.get("/logic/api/drawings/macros")
+def list_macros(set: str = ""):
+    """L79 — 매크로(Typical) 팔레트.  묶음이 없는 그림도 공통 Typical 사전의 타입을 쓴다 (19VA · 알다프라 · HRSG …)."""
+    docs = draw_sets.set_docs(set) if set and draw.ID_RE.match(set) else []
+    return {"items": draw_sets.macro_types(docs)}
+
+
 @router.post("/logic/api/drawings/sets/import")
 def import_set(body: dict = Body(default={})):
     """분석한 묶음(job)의 모든 시트를 이 양식의 그림 묶음으로."""
@@ -106,26 +113,70 @@ def import_set(body: dict = Body(default={})):
     return draw_sets.import_bundle(res, name, author, str(body.get("project") or st.get("project") or "")[:80], job)
 
 
-def _set(sid: str) -> list:
+def _set(sid: str, shared: bool = False) -> list:
+    """shared=True 는 읽기만 하는 쪽 (L80 — 묶음 827장을 요청마다 다시 풀지 않는다 · 고치지 마라)."""
     if not draw.ID_RE.match(sid or ""):
         raise HTTPException(404, "그런 묶음이 없습니다.")
-    docs = draw_sets.set_docs(sid)
+    docs = draw_sets.set_docs(sid, shared=shared)
     if not docs:
         raise HTTPException(404, "그런 묶음이 없습니다.")
     return docs
 
 
+_SIM_LOCK = __import__("threading").RLock()
+_WARMED: dict = {}
+
+
+def _warm_sim(sid: str, did: str):
+    """L81 — 묶음을 열면 뒤에서 시뮬레이션을 한 번 돌려 둔다 (827장 첫 시뮬레이션 수 초 → 누르면 바로).
+    화면 요청이 잦아든 뒤에 (0.8초 조용) · 같은 묶음은 한 번만 · 끄기 PID_LOGIC_WARM=0."""
+    import os, threading, time
+    if os.environ.get("PID_LOGIC_WARM", "1") == "0" or _WARMED.get(sid):
+        return
+    _WARMED[sid] = time.time()
+
+    def run():
+        time.sleep(0.8)
+        try:
+            simulate_drawing(did, {})
+        except Exception:
+            _WARMED.pop(sid, None)
+    threading.Thread(target=run, name=f"draw-warm-{sid}", daemon=True).start()
+
+
 @router.get("/logic/api/drawings/sets/{sid}")
-def get_set(sid: str):
-    return _set_info(sid, _set(sid))
+def get_set(sid: str, doc: str = ""):
+    """L80 — `doc` 를 주면 장마다의 연결 표(links.docs)는 그 장 것만 (827장 묶음이면 1.1MB → 0.2MB)."""
+    out = _set_info(sid, _set(sid, shared=True), doc)
+    if doc and draw.ID_RE.match(doc):
+        _warm_sim(sid, doc)
+    return out
 
 
 _SET_CACHE: dict = {}
 
 
+_TAB: dict = {}
+
+
+def _tab_digest(d: dict):
+    st = (d.get("updated"), d.get("saves"))
+    hit = _TAB.get(d["id"])
+    if hit and hit[0] == st:
+        return hit[1]
+    import hashlib
+    h = hashlib.blake2b(json.dumps([d.get("sheet_no"), d.get("N"), d.get("left"), d.get("right"), d.get("typical")],
+                                   sort_keys=True, ensure_ascii=False).encode(), digest_size=12).hexdigest()
+    if len(_TAB) > 20000:
+        _TAB.clear()
+    _TAB[d["id"]] = (st, h)
+    return h
+
+
 def _set_links(sid: str, docs: list) -> dict:
     """L65 — 묶음이 그대로면(장마다 저장 횟수 · 때) FROM/TO 연결 판정을 다시 하지 않는다."""
-    key = tuple((d["id"], d.get("updated"), d.get("saves")) for d in docs)
+    # L80 — 열쇠는 연결에 닿는 칸(시트 이름 · 행 수 · 표)만.  기호 · 선만 고친 저장은 연결 판정을 다시 하지 않는다 (827장 0.7초)
+    key = tuple((d["id"], _tab_digest(d)) for d in docs)
     hit = _SET_CACHE.get(sid)
     if hit and hit[0] == key:
         return hit[1]
@@ -136,10 +187,17 @@ def _set_links(sid: str, docs: list) -> dict:
     return out
 
 
-def _set_info(sid: str, docs: list) -> dict:
+def _only_doc(links: dict, doc: str) -> dict:
+    if not doc:
+        return links
+    one = (links.get("docs") or {}).get(doc)
+    return {**links, "docs": {doc: one} if one is not None else {}}
+
+
+def _set_info(sid: str, docs: list, doc: str = "") -> dict:
     return {"id": sid, "name": docs[0].get("set_name") or "", "project": docs[0].get("project") or "",
             "sheets": [{k: d.get(k) for k in ("id", "sheet_no", "title", "typical", "order")} | {"blocks": len(d["blocks"]), "wires": len(d["wires"])} for d in docs],
-            "links": _set_links(sid, docs), "macros": draw_sets.macro_types(docs)}
+            "links": _only_doc(_set_links(sid, docs), doc), "macros": draw_sets.macro_types(docs)}
 
 
 @router.post("/logic/api/drawings/sets/{sid}/sheet")
@@ -177,8 +235,9 @@ def add_sheet(sid: str, body: dict = Body(default={})):
 
 
 @router.get("/logic/api/drawings/sets/{sid}/links")
-def set_links(sid: str):
-    return draw_sets.links(_set(sid))
+def set_links(sid: str, doc: str = ""):
+    docs = _set(sid, shared=True)
+    return _only_doc(_set_links(sid, docs), doc)
 
 
 @router.post("/logic/api/drawings/sets/{sid}/link")
@@ -200,8 +259,18 @@ def set_link(sid: str, body: dict = Body(default={})):
 @router.post("/logic/api/drawings/sets/{sid}/autolink")
 def set_autolink(sid: str, body: dict = Body(default={})):
     """저장 직후 — 이 장의 FM/TO 참조가 가리키는 상대 장의 빈 칸을 채운다."""
-    docs = _set(sid)
-    return draw_sets.autolink(docs, str(body.get("did") or ""), _author(body.get("author")))
+    # L80 — 827장을 다시 풀지 않는다: 묶음은 함께 쓰는 사본(읽기)이고, 고칠 수 있는 장(이 장 + 이 장의 FM/TO 글에
+    # 이름이 나오는 장)만 따로 복사해 넘긴다 — 함께 쓰는 사본은 고치지 않는다.
+    import copy
+    did = str(body.get("did") or "")
+    shared = _set(sid, shared=True)
+    me = next((d for d in shared if d["id"] == did), None)
+    if me is None:
+        return {"changed": []}
+    txt = " ".join([str(v.get("fm") or "") for v in (me.get("left") or {}).values()] +
+                   [str(v.get("to") or "") for v in (me.get("right") or {}).values()]).upper()
+    docs = [copy.deepcopy(d) if d is me or (d.get("sheet_no") and d["sheet_no"].upper() in txt) else d for d in shared]
+    return draw_sets.autolink(docs, did, _author(body.get("author")))
 
 
 @router.get("/logic/api/drawings/sets/{sid}/export.pdf")
@@ -275,17 +344,14 @@ async def upload_instruments(file: UploadFile = File(...), project: str = Form("
         raise HTTPException(400, str(e))
 
 
-@router.get("/logic/api/drawings/macros")
-def list_macros():
-    """VOC — 묶음에 들지 않은 그림에도 매크로 팔레트를 (공통 Typical 사전 · 처음부터 들고 있는 것)."""
-    return {"macros": draw_sets.macro_types([])}
-
-
 @router.get("/logic/api/drawings/typicals")
 def list_typicals():
     from . import library
     docs = _typ_docs()
     items = [_typ_public(k, v, docs) for k, v in library.typicals().items()]
+    for i in items:
+        info = draw_sets.macro_info(i["title"])
+        i["desc"], i["desc_ko"] = info["title"], info["ko"]
     items.sort(key=lambda x: (x["title"] or "", x["sheet_no"] or ""))
     return {"items": items, "set": TYP_SET, "seed": len(library.seed_typicals())}
 
@@ -474,9 +540,10 @@ def simulate_drawing(did: str, body: dict = Body(default={})):
     def _d(v):
         return v if isinstance(v, dict) else {}
     try:
-        out = draw_sim.simulate(docs, did, keys=keys, forces=_d(body.get("forces")), state=_d(body.get("state")), timers=_d(body.get("timers")),
-                                analog=_d(body.get("analog")), cache=cache,
-                                inner=body.get("inner") if isinstance(body.get("inner"), list) else None)
+        with _SIM_LOCK:                          # L81 — 미리 데우는 계산과 겹치지 않게 (겹치면 같은 일을 두 번 한다)
+            out = draw_sim.simulate(docs, did, keys=keys, forces=_d(body.get("forces")), state=_d(body.get("state")), timers=_d(body.get("timers")),
+                                    analog=_d(body.get("analog")), cache=cache,
+                                    inner=body.get("inner") if isinstance(body.get("inner"), list) else None)
     except Exception as e:                       # 그림이 아직 덜 그려져 있어도 화면이 멈추지 않는다 — 사유를 말한다
         return {"error": f"시뮬레이션하지 못했습니다 — {type(e).__name__}: {e}"[:300]}
     out["sig"] = sig[:12]
@@ -490,6 +557,33 @@ def drawing_sheet(did: str):
     docs, keys = _sim_docs(did, None)
     sheets = draw_sim.sheets_of(docs, keys)
     return next((s for s in sheets if s.get("did") == did), sheets[0] if sheets else {})
+
+
+@router.post("/logic/api/drawings/{did}/aop")
+def drawing_aop(did: str, body: dict = Body(default={})):
+    """L82 — 신호 처리(아날로그 연산자) 블록 하나 — 연산 · 입력 단자(어디서 오나) · 설정값 · 지금 계산 과정.
+    화면이 두 번 누름 판을 이것으로 열고, 사람이 넣은 입력으로는 `/logic/api/aopsim` 이 센다 (검토 화면 sheet_aop 와 같은 계산)."""
+    from . import draw_sim, sim, analog, aops, aop_trace
+    from .api import _aop_trace
+    bid = str(body.get("block") or "")
+    live = body.get("doc") if isinstance(body.get("doc"), dict) else None
+    docs, keys = _sim_docs(did, live)
+    me = [d for d in docs if d["id"] == did]           # 그 장만 센다 (검토 화면 sheet_aop 도 그 장만 · 묶음 전체를 지으면 수 초)
+    s = draw_sim.sheets_of(me, {did: keys[did]})[0] if me else None
+    if s is None or bid not in s["blocks"]:
+        raise HTTPException(404, "그 블록이 없습니다.")
+    b = s["blocks"][bid]
+    idx = sim._index(s)[:4]
+    det = {}
+    analog.nets(s, {}, idx, None, det)
+    d = det.get(bid) or ({"op": b.get("aop"), "inputs": [], "out": None, "why": "입력선을 읽지 못했습니다"} if b.get("aop") else None)
+    if not d or not d.get("op"):
+        return {"op": None, "block": bid}
+    tr = _aop_trace(s, bid, d, idx, {})
+    voc = aops.vocab()
+    info = (voc.get("ops") or {}).get(d["op"]) or (voc.get("digital_ops") or {}).get(d["op"]) or aop_trace.EXTRA_OPS.get(d["op"]) or {}
+    return {**d, "block": bid, "label": b.get("label") or "", "ko": info.get("ko"), "eq": info.get("eq"),
+            "needs": aops.NEEDS.get(d["op"], []), "digital": aops.is_digital(d["op"]), **tr}
 
 
 @router.post("/logic/api/drawings/{did}/analyse")

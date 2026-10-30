@@ -739,21 +739,37 @@ def install_seeds() -> list:
     return out
 
 
+_LIST_CACHE: dict = {}      # L80 — 경로 → (파일 도장, 요약).  그림을 통째로 풀지 않고 바뀐 파일만 다시 읽는다
+
+
 def listing() -> list:
     install_seeds()
     out = []
-    for d in sorted(root().iterdir()):
+    seen = set()
+    for d in root().iterdir():
         p = d / "drawing.json"
-        if not d.is_dir() or not p.exists():
+        try:
+            st = p.stat()
+        except OSError:
+            continue
+        key = (st.st_mtime_ns, st.st_size, st.st_ino)
+        sp = str(p); seen.add(sp)
+        hit = _LIST_CACHE.get(sp)
+        if hit and hit[0] == key:
+            out.append(dict(hit[1]))
             continue
         doc = read_doc(p)
         if not doc:
             continue
-        out.append({k: doc.get(k) for k in ("id", "name", "project", "sheet_no", "title", "author", "created", "updated", "saves",
-                                             "set", "set_name", "order", "typical")}
-                   | {"blocks": len(doc.get("blocks") or []), "wires": len(doc.get("wires") or []),
-                      "rows": len(doc.get("left") or {}) + len(doc.get("right") or {})})
-    out.sort(key=lambda x: -(x.get("updated") or 0))
+        it = ({k: doc.get(k) for k in ("id", "name", "project", "sheet_no", "title", "author", "created", "updated", "saves",
+                                       "set", "set_name", "order", "typical")}
+              | {"blocks": len(doc.get("blocks") or []), "wires": len(doc.get("wires") or []),
+                 "rows": len(doc.get("left") or {}) + len(doc.get("right") or {})})
+        _LIST_CACHE[sp] = (key, it)
+        out.append(dict(it))
+    for k in [k for k in _LIST_CACHE if k not in seen]:
+        _LIST_CACHE.pop(k, None)
+    out.sort(key=lambda x: (-(x.get("updated") or 0), x.get("id") or ""))
     return out
 
 
@@ -1867,5 +1883,15 @@ def from_sheet(s: dict, name: str, author: str, project: str = "") -> dict:
                     break
         if best is not None:
             best.setdefault("marks", []).append([round(mx, 2), round(my, 2), kind])
+    # L81 — 분석기가 그 장 NOTE 로 토글이라 읽은 글자 상자(SRST …)는 그 NOTE 문장을 장 노트에 옮긴다.
+    #   안 옮기면 다시 그린 장에서 '판정 못 한 블록' 이 되어 시뮬레이션이 그 매크로마다 수십 번 되풀이된다 (19VA 0009).
+    notes = list(doc.get("notes") or [])
+    for b in (s.get("blocks") or {}).values():
+        if b.get("logic") == "toggle":
+            w = re.sub(r"[^0-9A-Z_]", "", str(b.get("label") or b.get("read") or "").upper())
+            if w and not any(f'"{w}"' in n.upper() for n in notes):
+                notes.append(f'OUTPUT STATE IS INVERTED BY EACH MOMENTARY TRUE SIGNAL ON "{w}"')
+    if notes:
+        doc["notes"] = notes[:20]
     doc.update(clean(doc))
     return doc
