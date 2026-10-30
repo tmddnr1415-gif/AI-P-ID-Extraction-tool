@@ -51,6 +51,7 @@ class Poly:                     # 꺾은선 한 path
     dashed: bool = False
     pid: int = 0
     curved: bool = False         # 곡선(c)만으로 그린 열린 호 — 둥근 상자의 끝 (L21 · 19VA ON/OFF DELAY)
+    dash_gap: float = 0.0        # L85 — 토막을 이어 만든 파선의 틈 길이 (graph._dash_chains 가 잰 가운데 값)
 
     @property
     def size(self):

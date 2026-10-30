@@ -47,11 +47,20 @@ def test_dashed_line_free_end_still_joins_a_solid_line():
 
 
 def test_amiral_0006_macro_frame_is_not_a_signal():
-    """시드 묶음 0006 (CIRCUIT LOGIC DUAL) — 매크로 틀 파선(분석 선 123)이 신호 파선(44)과 한 그물이 되지 않는다."""
+    """시드 묶음 0006 (CIRCUIT LOGIC DUAL) — 매크로 틀 파선(테두리가 가장 큰 파선 분석 선)이 신호 파선과 한 그물이 되지 않는다.
+    (분석 선 번호는 씨앗을 다시 만들면 바뀐다 — L85 · 테두리 크기로 찾는다)"""
     seed = Path(__file__).resolve().parents[1] / "config" / "logic_draw_seed" / "amiral_19va_r1.json.gz"
     doc = next(d for d in json.load(gzip.open(seed))["docs"] if d["name"] == "0006")
     wires = DS._drop_inside([w for w in doc["wires"] if len(w.get("pts") or []) >= 2], doc["blocks"])
     net_of, members = DS._nets_of(wires)
     src = [re.match(r"n(\d+)_", w["id"]).group(1) for w in wires]
-    frame = {net_of[i] for i, s in enumerate(src) if s == "123"}
-    assert all({src[i] for i in members[k]} == {"123"} for k in frame)
+    box = {}
+    for w, s_ in zip(wires, src):
+        if w.get("dashed"):
+            b = box.setdefault(s_, [1e9, 1e9, -1e9, -1e9])
+            for x, y in w["pts"]:
+                b[:] = [min(b[0], x), min(b[1], y), max(b[2], x), max(b[3], y)]
+    fr = max(box, key=lambda k: (box[k][2] - box[k][0]) * (box[k][3] - box[k][1]))
+    assert (box[fr][2] - box[fr][0]) > 300 and (box[fr][3] - box[fr][1]) > 300          # 그 장의 매크로 틀
+    frame = {net_of[i] for i, s_ in enumerate(src) if s_ == fr}
+    assert frame and all({src[i] for i in members[k]} == {fr} for k in frame)
