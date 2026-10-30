@@ -195,6 +195,7 @@ button.primary:disabled{background:#b8c4e6;border-color:#b8c4e6;opacity:1}
 .pjh{display:flex;gap:10px;align-items:center;padding:8px 10px;cursor:pointer}
 .pjh .ic{width:30px;height:30px;border-radius:7px;display:grid;place-items:center;background:#e3ebff;color:#1d47b8;font-weight:800;flex:none}
 .pjh small{color:var(--ink-2)}
+.pjh .pjdel{margin-left:auto;flex:none;padding:3px 9px;color:var(--err);border-color:var(--line)}.pjh .pjdel:hover{background:var(--err-l);border-color:var(--err)}
 .pjj,.lh-recent{list-style:none;margin:0;padding:0 10px 8px}
 .pjj li,.lh-recent li{padding:6px 8px;border-top:1px solid #eef0f5;cursor:pointer}
 .pjj li:hover,.lh-recent li:hover{background:#eef2fb}
@@ -2953,7 +2954,7 @@ async function hmLoad(){
   sel.value=HM.projects.some(p=>p.id===cur)?cur:''; if(sel.value)await hmDetail(sel.value,true);
   const line=m=>`<li data-pid="${m.pid}" data-sid="${m.id}" title="이 저장본을 열어 이어서 작업"><div class="jn">${esc(m.memo||'(메모 없음)')}</div><div class="jm"><span>${esc(lt(m.at))}</span><span>${esc(m.by)}</span>${m.roomName?`<span class="chip">${esc(m.roomName)}</span>`:''}${m.rev?`<span class="chip">Rev ${esc(m.rev)}</span>`:''}<span class="chip">판넬 ${m.panels}</span>${m.sum&&m.sum.recW?`<span class="chip">권장 실 ${fmt(m.sum.recW)}×${fmt(m.sum.recH)}</span>`:''}</div></li>`;
   $('#hmProjects').innerHTML=HM.projects.length?HM.projects.map(p=>{const ss=HM.recent.filter(m=>m.pid===p.id).slice(0,3);
-    return `<div class="pj"><div class="pjh" data-pick="${p.id}" title="① 에서 이 프로젝트 고르기"><span class="ic">${esc([...p.name.replace(/\s+/g,'')].slice(0,2).join('').toUpperCase())}</span><div><b>${esc(p.name)}</b><br><small>저장 ${p.saves} · 노트 ${p.notes} · 만듦 ${esc(lt(p.createdAt).slice(0,10))} ${esc(p.createdBy)}</small></div></div>
+    return `<div class="pj"><div class="pjh" data-pick="${p.id}" title="① 에서 이 프로젝트 고르기"><span class="ic">${esc([...p.name.replace(/\s+/g,'')].slice(0,2).join('').toUpperCase())}</span><div><b>${esc(p.name)}</b><br><small>저장 ${p.saves} · 노트 ${p.notes} · 만듦 ${esc(lt(p.createdAt).slice(0,10))} ${esc(p.createdBy)}</small></div><button class="lh-del pjdel" data-del="${p.id}" title="이 프로젝트 지우기 (룸 · Rev · 저장본 모두 — 서버 휴지통으로)">🗑 삭제</button></div>
       <ul class="pjj">${ss.map(line).join('')||'<li class="empty">아직 저장 없음 — 위 ① 에서 이 프로젝트를 고르고 배치 시작 → 💾 서버에 저장</li>'}</ul></div>`}).join('')
     :'<p class="lh-help">아직 프로젝트가 없습니다 — 위 ① 의 <b>새 프로젝트</b>.</p>';
   if(HM.auto)HM.st='';
@@ -3028,7 +3029,8 @@ $('#hmCancel').onclick=()=>{$('#hmNewBox').hidden=true};
 $('#hmCreate').onclick=async()=>{const name=$('#hmNewName').value.trim();if(!name)return toast('새 프로젝트 이름을 적으세요.',true);
   if(!AUTH_TOKEN)return toast('로그인해야 프로젝트를 만들 수 있습니다 — 대시보드에서 로그인하세요 (비회원은 보기만).',true);
   try{const p=await sapi('POST','/projects',{name});$('#hmNewName').value='';$('#hmNewBox').hidden=true;await hmLoad();$('#hmProj').value=p.id;await hmDetail(p.id,true);HM.st='';hmRender();toast(`프로젝트 ${p.name} 을(를) 만들었습니다 — 이어서 [새 룸]`)}catch(e){toast(e.message,true)}};
-$('#hmProjects').addEventListener('click',e=>{const pk=e.target.closest('[data-pick]');if(pk){$('#hmProj').value=pk.dataset.pick;HM.st='';hmRender();return}hmOpenLine(e)});
+$('#hmProjects').addEventListener('click',async e=>{const dl=e.target.closest('[data-del]');if(dl){e.stopPropagation();$('#hmProj').value=dl.dataset.del;if(!await hmDetail(dl.dataset.del,true))return;hmFill();return hmDel('proj')}   // 카드의 🗑 = ① 의 프로젝트 🗑 와 같음 (이름 적어 확인)
+  const pk=e.target.closest('[data-pick]');if(pk){$('#hmProj').value=pk.dataset.pick;HM.st='';hmRender();return}hmOpenLine(e)});
 $('#hmRecent').addEventListener('click',hmOpenLine);
 async function hmOpenLine(e){const li=e.target.closest('[data-sid]');if(!li)return;await hmOpen(li.dataset.pid,li.dataset.sid)}
 async function hmOpen(pid,sid){
