@@ -133,8 +133,9 @@ def source_form(res: dict) -> str:
     return "a5j" if shape > text else ""
 
 
-def import_bundle(res: dict, name: str, author: str, project: str = "", job: str = "") -> dict:
-    """분석한 묶음의 모든 시트를 이 양식의 그림으로 (사전 Typical 사본은 뺀다).  매크로가 이어진 시트는 `typical`."""
+def import_bundle(res: dict, name: str, author: str, project: str = "", job: str = "", progress=None) -> dict:
+    """분석한 묶음의 모든 시트를 이 양식의 그림으로 (사전 Typical 사본은 뺀다).  매크로가 이어진 시트는 `typical`.
+    progress(지금 장, 모두) — L85 · 827장이면 1분 남짓이라 화면이 진행을 보여 준다."""
     sid = new_set(name)
     typ_pages = set()
     for s in res.get("sheets") or []:
@@ -144,7 +145,10 @@ def import_bundle(res: dict, name: str, author: str, project: str = "", job: str
                 typ_pages.add(m["page"])
     form = source_form(res)
     docs = []
-    for i, s in enumerate(sorted(res.get("sheets") or [], key=lambda q: q["page"])):
+    todo = sorted(res.get("sheets") or [], key=lambda q: q["page"])
+    for i, s in enumerate(todo):
+        if progress:
+            progress(i, len(todo))
         if s.get("library") or s["page"] >= library.LIB_PAGE0:
             continue
         doc = draw.from_sheet(s, s.get("sheet_no") or f"p{s['page']}", author, project)

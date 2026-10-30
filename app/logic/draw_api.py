@@ -110,7 +110,37 @@ def import_set(body: dict = Body(default={})):
     res = A._result(job)
     st = store.read_status(store.root() / job) if (store.root() / job).exists() else {}
     name = str(body.get("name") or st.get("name") or job).strip()[:80]
-    return draw_sets.import_bundle(res, name, author, str(body.get("project") or st.get("project") or "")[:80], job)
+    project = str(body.get("project") or st.get("project") or "")[:80]
+    if not body.get("async"):
+        return draw_sets.import_bundle(res, name, author, project, job)
+    # L85 — 827장이면 1분 남짓 — 뒤에서 들이고 화면은 진행(장 수)을 묻는다 (GET tasks/{id})
+    import threading, uuid as _uuid
+    tid = _uuid.uuid4().hex[:12]
+    t = _TASKS[tid] = {"id": tid, "state": "running", "done": 0, "total": len(res.get("sheets") or []), "result": None, "error": ""}
+
+    def prog(i, n):
+        t["done"], t["total"] = i, n
+
+    def run():
+        try:
+            t["result"] = draw_sets.import_bundle(res, name, author, project, job, progress=prog)
+            t["done"] = t["total"]
+            t["state"] = "done"
+        except Exception as e:  # noqa: BLE001
+            t["state"], t["error"] = "failed", f"{type(e).__name__}: {e}"[:300]
+    threading.Thread(target=run, name=f"draw-import-{tid}", daemon=True).start()
+    return {"task": tid, "total": t["total"]}
+
+
+_TASKS: dict = {}
+
+
+@router.get("/logic/api/drawings/tasks/{tid}")
+def get_task(tid: str):
+    t = _TASKS.get(tid)
+    if t is None:
+        raise HTTPException(404, "그런 작업이 없습니다 (서버를 다시 켰으면 처음부터 다시 하세요).")
+    return t
 
 
 def _set(sid: str, shared: bool = False) -> list:

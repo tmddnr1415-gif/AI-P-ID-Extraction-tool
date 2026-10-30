@@ -2419,7 +2419,19 @@ async function importBundle() {
   status("묶음을 들여오는 중 …");
   try {
     try { localStorage.setItem("pid.author", v.who); $("#who").value = v.who; } catch (e) {}
-    const r = await post("/logic/api/drawings/sets/import", { job: v.job, name: v.name, author: v.who, project: $("#f-project").value });
+    // L85 — 뒤에서 들이고 진행을 보여 준다 (827장이면 1분 남짓)
+    const tk = await post("/logic/api/drawings/sets/import", { job: v.job, name: v.name, author: v.who, project: $("#f-project").value, async: true });
+    let r = tk;
+    if (tk.task) {
+      for (;;) {
+        await new Promise(res => setTimeout(res, 600));
+        const t = await api(`/logic/api/drawings/tasks/${tk.task}`);
+        status(`묶음을 들여오는 중 — ${t.done}/${t.total}장 (선을 정리하며 그림으로 옮깁니다)`);
+        if (t.state === "failed") throw new Error(t.error || "들여오지 못했습니다");
+        if (t.state === "done") { r = t.result; break; }
+      }
+    }
+    status("");
     toast(`${r.sheets}장을 들여왔습니다 (Typical ${r.typicals}장).`, 5000);
     const items = await loadList();
     const first = items.filter(i => i.set === r.id).sort((a, b) => (a.order || 0) - (b.order || 0))[0];
