@@ -316,7 +316,16 @@ function renderWire(wg, w) {
   for (const [mx, my, kind] of w.marks || []) el("polygon", { points: markPolygon(mx, my, kind).map(q => q.join(",")).join(" "), class: "mark", "data-id": w.id }, g);
   const tri = arrowOf(w); if (tri) el("polygon", { points: tri.map(q => q.join(",")).join(" "), class: "arrow", "data-id": w.id }, g);
   if (w.label) { const [lx, ly] = wireLabelPos(w); const e = txt(g, lx, ly, w.label, 4.5, "middle"); e.setAttribute("class", "wlabel"); e.dataset.id = w.id; }
-  if (S.selWire === w.id) w.pts.forEach((p, i) => el("circle", { cx: p[0], cy: p[1], r: 1.8, class: "vtx", "data-id": w.id, "data-i": i }, g));
+  if (S.selWire === w.id) {
+    // L75 — 토막마다 가운데 손잡이: 세로 토막은 좌우로 · 가로 토막은 위아래로 끌어 꺾인 자리를 옮긴다
+    for (let i = 0; i + 1 < w.pts.length; i++) {
+      const a = w.pts[i], b = w.pts[i + 1], vert = Math.abs(a[0] - b[0]) < 0.05, hz = Math.abs(a[1] - b[1]) < 0.05;
+      if (vert === hz || Math.hypot(b[0] - a[0], b[1] - a[1]) < 2) continue;
+      const cx = (a[0] + b[0]) / 2, cy = (a[1] + b[1]) / 2, lw = vert ? 2.2 : 5, lh = vert ? 5 : 2.2;
+      el("rect", { x: cx - lw / 2, y: cy - lh / 2, width: lw, height: lh, rx: 0.8, class: "seghd " + (vert ? "ax-x" : "ax-y"), "data-id": w.id, "data-i": i, "data-ax": vert ? "x" : "y" }, g);
+    }
+    w.pts.forEach((p, i) => el("circle", { cx: p[0], cy: p[1], r: 1.8, class: "vtx", "data-id": w.id, "data-i": i }, g));
+  }
   return g;
 }
 function renderBlockWrap(parent, b, bad) { const g = el("g", { "data-bw": b.id }, parent); renderBlock(g, b, bad); return g; }
@@ -795,6 +804,10 @@ function routeScore(path, boxes, endKind) {
   const firstHz = path.length >= 2 && Math.abs(path[0][1] - path[1][1]) < 0.2;
   let sc = bends * 3 + len * 0.02 + hits * 60 + ov * 4 + cross * 1.5 + touch * 40;
   if ((endKind === "row" || endKind === "port") && !lastHz) sc += 6;     // 단자 · 행 자리에는 가로로 들어간다
+  if ((endKind === "row" || endKind === "port") && lastHz && path.length >= 3) {   // L75 — 꺾인 자리가 기호에 바짝 붙지 않게 (들어가는 가로 토막은 한 행 간격 이상)
+    const P = layout().PITCH, n = path.length, run = Math.abs(path[n - 1][0] - path[n - 2][0]);
+    if (run < P) sc += 6 * (1 - run / P);
+  }
   if (S.wip && S.wip.startKind && S.wip.startKind !== "grid" && S.wip.pts.length === 1 && !firstHz) sc += 6;
   return sc;
 }
@@ -910,6 +923,7 @@ function routeAStar(a, b, endKind, startKind) {
       if (Math.abs(xs[i2] - xs[i]) + Math.abs(ys[j2] - ys[j]) < 0.4 * P) c += bend;   // 아주 짧은 토막 (곧게 펴면 사라지는 꺾임)
       if (i2 === tx && j2 === ty && wantHzEnd && nd === 1) c += 2 * bend;
       if (i2 === tx && j2 === ty && nd === 0 && dir === 1 && Math.abs(xs[i2] - xs[i]) < 0.4 * P) c += 1.5 * bend;   // 꺾자마자 짧게 들어가는 꼬리 (0.7pt 짜리 ㄴ) 는 보기 싫다
+      if (nd === 1 && wantHzEnd && Math.abs(xs[i] - b[0]) > 0.05 && Math.abs(xs[i] - b[0]) < P) c += 0.5 * bend * (1 - Math.abs(xs[i] - b[0]) / P);   // L75 — 기호 앞 한 행 간격 안에서 세로로 가지 않는다 (꺾인 자리가 기호에 바짝 붙는다)
       const s2 = ((j2 * nx) + i2) * 3 + nd, d2 = d + c;
       if (d2 < dist[s2] - 1e-9) { dist[s2] = d2; prev[s2] = st; push(d2 + hcost(i2, j2), s2); }
     }
@@ -1020,6 +1034,36 @@ function orthoPts(P) {
   }
   return res.map(p => [+p[0].toFixed(2), +p[1].toFixed(2)]);
 }
+/* L75 — 꺾인 선의 토막을 끌어 옮긴다.  토막의 두 점을 같은 축으로 함께 옮기므로 선은 언제나 가로/세로다.
+   선의 첫 · 끝 토막이면 단자 · 행 자리 끝점을 그대로 두고 짧은 토막을 하나 덧붙여 꺾는다 (끝이 단자에서 떨어지지 않게).
+   자석이 켜져 있으면 반 행 간격 · 가이드선에 붙고, Shift 를 누르면 자석 없이 곧이곧대로. */
+function segDragStart(id, i, ax) {
+  const w = S.doc.wires.find(w => w.id === id); if (!w || i < 0 || i + 1 >= w.pts.length) return;
+  pushUndo();
+  const k = ax === "x" ? 0 : 1;
+  // 끝 토막이면 끝점에서 반 행만큼 원래 방향으로 짧은 토막을 남긴다 (표 경계를 따라 세로로 가면 행 자리를 다 잇는다)
+  const stub = (end, nxt) => { const j = 1 - k, len = Math.abs(nxt[j] - end[j]), q = end.slice(); q[j] = +(end[j] + Math.sign(nxt[j] - end[j]) * Math.min(layout().PITCH / 2, len / 2)).toFixed(2); return q; };
+  if (i === 0) { const q = stub(w.pts[0], w.pts[1]); w.pts.splice(1, 0, q, q.slice()); i = 2; }
+  if (i + 1 === w.pts.length - 1) { const n = w.pts.length, q = stub(w.pts[n - 1], w.pts[n - 2]); w.pts.splice(n - 1, 0, q.slice(), q); }
+  S.drag = { seg: true, id, i, k, v0: w.pts[i][k], moved: false };
+  $("#stage").style.cursor = k === 0 ? "ew-resize" : "ns-resize";
+  status(k === 0 ? "꺾인 자리를 좌우로 옮깁니다 (Shift = 자석 없이)" : "꺾인 자리를 위아래로 옮깁니다 (Shift = 자석 없이)");
+}
+function segDragMove(p, free) {
+  const d = S.drag, w = S.doc.wires.find(w => w.id === d.id); if (!w) return;
+  const L = layout(), k = d.k;
+  let v = p[k];
+  if (!free) {
+    const gl = k === 0 ? S.rg.v : S.rg.h, gv = rgNear(gl, v, Math.max(3, 0.4 * L.PITCH));
+    if (gv != null) v = gv;
+    else if (S.snap) { const g = L.PITCH / 2, o = k === 0 ? 0 : L.TOP; v = Math.round((v - o) / g) * g + o; }
+  }
+  v = +v.toFixed(2);
+  if (Math.abs(v - w.pts[d.i][k]) < 0.005) return;
+  w.pts[d.i][k] = v; w.pts[d.i + 1][k] = v;
+  if (Math.abs(v - d.v0) > 0.01) d.moved = true;
+  S.dirty = true; renderSoon(() => redrawWire(d.id));
+}
 function finishWire() {
   if (S.wip && S.wip.pts.length >= 2) {
     pushUndo();
@@ -1064,6 +1108,7 @@ function bindStage() {
     // select
     const blk = t.closest(".blk"), wire = t.classList.contains("wire") || t.classList.contains("wirehit"), vtx = t.classList.contains("vtx");
     if (vtx) { pushUndo(); S.drag = { vtx: true, id: t.dataset.id, i: +t.dataset.i }; return; }
+    if (t.classList.contains("seghd")) { segDragStart(t.dataset.id, +t.dataset.i, t.dataset.ax); return; }
     if (blk) {
       const id = blk.dataset.id;
       if (e.shiftKey) { if (S.sel.has(id)) S.sel.delete(id); else S.sel.add(id); S.selWire = null; render(); return; }
@@ -1092,6 +1137,7 @@ function bindStage() {
     if (S.wip) { const sp = snapPt(p); S.wip.cur = [sp[0], sp[1]]; S.wip.hot = (sp[2] === "row" || sp[2] === "port") ? sp : null; drawGhost(); return; }
     if (!S.drag) { if (S.guide.cross) drawGhost(); return; }
     if (S.drag.pan) { $("#scroll").scrollLeft = S.drag.sl - (e.clientX - S.drag.x); $("#scroll").scrollTop = S.drag.st - (e.clientY - S.drag.y); return; }
+    if (S.drag.seg) { segDragMove(p, e.shiftKey); return; }
     if (S.drag.vtx) { const w = S.doc.wires.find(w => w.id === S.drag.id); if (!w) return; const sp = snapPt(p); w.pts[S.drag.i] = [+sp[0].toFixed(2), +sp[1].toFixed(2)]; S.dirty = true; const id = w.id; renderSoon(() => redrawWire(id)); return; }
     if (S.drag.move) {
       const strong = !!e.shiftKey;                                     // L60 — Shift 를 누른 채 끌면 이웃 기호 · 선에 맞춘다 (격자보다 정렬이 먼저)
@@ -1119,6 +1165,7 @@ function bindStage() {
       if (x1 - x0 > 2 && y1 - y0 > 2) { S.sel = new Set(S.doc.blocks.filter(b => { const bb = bboxOf(b); return bb[0] >= x0 && bb[2] <= x1 && bb[1] >= y0 && bb[3] <= y1; }).map(b => b.id)); }
       S.drag = null; render(); return;
     }
+    if (S.drag.seg) { const w = S.doc.wires.find(w => w.id === S.drag.id); if (w) { w.pts = orthoPts(w.pts); render(); } if (S.drag.moved) markDirty(); }
     if (S.drag.vtx) { const w = S.doc.wires.find(w => w.id === S.drag.id); if (w) { w.pts = orthoPts(w.pts); render(); } }   // L64 — 꺾임점을 끌어도 사선이 남지 않게
     if (S.drag.move && S.drag.moved) { const n = unclash(S.drag.orig.map(o => o[0])); if (n) status(`이웃 기호와 겹쳐서 ${n}개를 한 행 비켜 놓았습니다 (입력 막대가 이웃 단자에 닿으면 분석기가 선을 엉뚱한 기호에 붙입니다)`); }
     if ((S.drag.move && S.drag.moved) || S.drag.vtx) { markDirty(); if (S.drag.move) render(); }
