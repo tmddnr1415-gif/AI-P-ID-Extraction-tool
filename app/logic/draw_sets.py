@@ -330,7 +330,7 @@ def macro_types(docs: list) -> list:
             continue
         ins, outs = draw.macro_pins(d)
         out.append({"typ": d.get("sheet_no") or "", "did": d["id"], "title": d.get("title") or d.get("sheet_no") or "",
-                    "pins_in": ins, "pins_out": outs, "from": "이 묶음"})
+                    "pins_in": ins, "pins_out": outs, "from": "이 묶음", "origin": "이 묶음"})
     lib = library.load()
     for tid, ty in (lib.get("typicals") or {}).items():
         st = ty.get("sheet") or {}
@@ -339,7 +339,7 @@ def macro_types(docs: list) -> list:
         outs = [{"name": _txt(r.get("abv") or r.get("kks") or "".join(w[0] for w in (r.get("desc") or "").split() if w[:1].isalnum())[:8], 14),
                  "row": r["n"]} for r in st.get("table", []) if r["side"] == "R" and r.get("desc")]
         if ins and outs:
-            out.append({"typ": f"lib:{tid}", "did": None, "title": ty.get("title") or ty.get("sheet_no") or tid,
+            out.append({"typ": f"lib:{tid}", "did": None, "tid": tid, "origin": ty.get("from", ""), "title": ty.get("title") or ty.get("sheet_no") or tid,
                         "pins_in": ins[:draw.MAX_PINS], "pins_out": outs[:draw.MAX_PINS],
                         "from": f"공통 Typical 사전 · {ty.get('from', '')}{' · 고침' if ty.get('origin') == 'user' else ''}",
                         "sheet": {"sheet_no": st.get("sheet_no") or ty.get("sheet_no", "")}})   # L63 — 시트 통째는 보내지 않는다 (24개면 2MB)

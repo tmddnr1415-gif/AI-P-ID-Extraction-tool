@@ -9,6 +9,7 @@
 <body>
 <header class="sp-head">
   <a class="sp-back" href="/logic" title="LOGIC 검토 화면으로">← LOGIC 검토</a>
+  <a class="sp-back" href="/logic/draw" title="Logic 작성 화면으로">✎ Logic 작성</a>
   <div class="sp-titles">
     <h1>신호 처리 시뮬레이션</h1>
     <p>연산자마다 입력 · 설정값을 넣어 보고 계산 과정과 출력을 바로 봅니다</p>
@@ -52,5 +53,6 @@
   </main>
 </div>
 <script src="/static/logic_signal.js"></script>
+<script>/* L79 — 대시보드가 붙인 ?user= 를 다른 화면으로 갈 때도 */ document.querySelectorAll(".sp-back").forEach(a => { a.href += location.search.replace(/[?&]s=[^&]*/, "").replace(/^&/, "?"); });</script>
 </body>
 </html>

@@ -92,6 +92,13 @@ def list_sets():
     return {"items": draw_sets.sets_listing()}
 
 
+@router.get("/logic/api/drawings/macros")
+def list_macros(set: str = ""):
+    """L79 — 매크로(Typical) 팔레트.  묶음이 없는 그림도 공통 Typical 사전의 타입을 쓴다 (19VA · 알다프라 · HRSG …)."""
+    docs = draw_sets.set_docs(set) if set and draw.ID_RE.match(set) else []
+    return {"items": draw_sets.macro_types(docs)}
+
+
 @router.post("/logic/api/drawings/sets/import")
 def import_set(body: dict = Body(default={})):
     """분석한 묶음(job)의 모든 시트를 이 양식의 그림 묶음으로."""
