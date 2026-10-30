@@ -1116,7 +1116,7 @@ function recLabel(key, f) {
  * ===================================================================== */
 let root = null;
 /* 서버 모드: http(s):// 로 접속하면 server.py 의 REST API 사용 (폴더 선택 불필요). file:// 로 열면 폴더 모드 */
-const APP_VERSION = '2026-10-30.2';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
+const APP_VERSION = '2026-10-30.3';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
 const SERVER_URL = 'http://localhost:8080';
 // 부서원 PC 사본(file://)이 접속을 시도할 서버 — 서버가 배포 파일을 만들 때 'PC 이름 주소, IP 주소' 순으로 자동 기록함
 const DEFAULT_SERVERS = ['http://ASEUNGWOOK-B01:8080', 'http://65.3.30.234:8080'];
@@ -2467,7 +2467,12 @@ async function submitRecord(key, id, rec, nf, mine) {
 async function afterSave(r, key, id, nf) {
   if (r.status === 'ok') { dlg.close(); toast('저장되었습니다'); await loadAll(); return render(); }
   if (r.status === 'checked') { dlg.close(); toast('바뀐 내용 없이 저장 — 이번 주 \'변경 없음\'으로 확인했습니다 (내 업무 완료)'); await loadAll(); return render(); }
-  if (r.status === 'nochange') { dlg.close(); return toast('변경된 내용이 없습니다'); }
+  if (r.status === 'nochange') {
+    dlg.close();
+    const sv = SERVER_INFO?.serverVersion || '';                 // '변경 없음' 기록(checked)은 서버 2026-10-30.1 부터 — 옛 서버면 원인을 알려 줌
+    if ((key === 'perform' || key === 'bid') && SERVER && sv < '2026-10-30.1') return toast(`⚠ 서버가 옛 판(v${sv || '?'})이라 '변경 없음'을 기록하지 못했습니다 — 서버 PC 의 server.py 를 새 판으로 바꾸고(옆에 server.py.new 가 있으면 그것) 서버를 다시 켜야 합니다`, true);
+    return toast('변경된 내용이 없습니다');
+  }
   if (r.status === 'deleted') {
     const c = await ask('이미 삭제된 행', '다른 사용자가 이 행을 삭제(휴지통 이동)했습니다.', [{ id:'new', label:'내 내용으로 새 행 저장', cls:'pri' }, { id:'no', label:'닫기' }]);
     if (c === 'new') { await createRecord(key, nf, { id }); dlg.close(); toast('새 행으로 저장했습니다'); await loadAll(); render(); }

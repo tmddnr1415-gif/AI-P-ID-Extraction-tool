@@ -1248,3 +1248,13 @@ C:\Users\SAMSUNG\Desktop\Claude\                         ← 개발 폴더 (여�
   - 헷갈리지 않게 완료 항목 설명(내 업무 창 · 툴바 마우스)에 **'박민수 님이 변경 없음 확인 (10-30 09:04)' / '내가 작성 (…)'** 표시, 미완료 설명에 '담당자 중 한 명만 하면 완료'.
 - 바뀐 곳: dashboard.html `APP_VERSION` · `myTasks`(수행 · 입찰 sub). 서버는 v16.48 그대로(변경 없음 확인은 v16.48 서버 필요).
 - 확인한 것: JS 문법 · 위 시나리오(홍길동 로그인 → 예시수행-D 완료 · 설명 '박민수 님이 변경 없음 확인').
+
+### 2026-10-30 (38) — '변경 없음'이 회사에서 안 되던 것: 판넬 브랜치 server.py 합침 · 그 판도 덮어쓰기 · 옛 서버 안내 (APP_VERSION 2026-10-30.3 / SERVER_VERSION 2026-10-30.2)
+> **server.py 바뀜 → 서버 재시작 필요.**
+- 무엇을: 사용자 "변경 없음 기능이 반영되지 않았다". 원인(유력): 판넬 브랜치(`ccr-d82d97fa-bb3ty3`, 10-24 `0a80898` · `9ccd881`)가 **대시보드 server.py 를 따로 고쳐(SERVER 2026-10-24.1/.2) 회사에 보냄** → 회사 server.py 가 이 저장소가 모르는 판 → 대시보드 zip 의 APPLY.bat 이 server.py 를 덮지 않고 **`server.py.new`** 로만 둠 → 서버에 v16.40 이후 서버 변경(파일 안 보관본 · 도서 연결 · 변경 없음 기록)이 안 들어감. 임시 서버에 그 판 server.py 를 띄워 재현: 그대로 [저장] → '변경된 내용이 없습니다'(기록 안 됨).
+  - 판넬 브랜치의 server.py 변경(룸 · Rev 만들기 · 프로젝트/룸/Rev 지우기 API, `space_room` `space_rev_add` `space_trash_saves` `space_can_del` `api_space_room_new` `api_space_rev_new` `api_space_project_del` `api_space_room_del` `api_space_rev_del` + 라우팅)을 이 server.py 에 **합침**(`git apply --3way`, 충돌 없음) → 덮어써도 그쪽 기능이 사라지지 않음.
+  - `dashboard_tools/known_extra.txt`(새): 다른 줄기가 회사에 보낸 판의 커밋 목록 → `make_patch --any` 가 그 판들도 `known/` 에 넣음 → **회사본이 판넬 브랜치 판이어도 백업 후 덮어씀**.
+  - 화면: 수행 · 입찰을 그대로 저장했는데 서버가 옛 판(2026-10-30.1 전)이면 '⚠ 서버가 옛 판(v…)이라 변경 없음을 기록하지 못했습니다 — server.py 를 새 판으로(옆에 server.py.new 가 있으면 그것) 바꾸고 서버 재시작' 안내.
+- 바뀐 곳: server.py `SERVER_VERSION` · 판넬 API(위) · Handler 'space' 라우팅. dashboard.html `APP_VERSION` · `afterSave`(nochange 안내). dashboard_tools `make_patch.py`(extra) · `known_extra.txt`.
+- 확인한 것: 문법. 새 서버(2026-10-30.2): 홍길동 예시수행-A 그대로 저장 → 완료 · `/api/space/projects` 정상. 판넬 브랜치 server.py(2026-10-24.2): 그대로 저장 → 위 ⚠ 안내 · 미완료(재현). zip 의 known/ 에 판넬 브랜치 server.py 가 들어감(아래 전달 기록).
+- 회사에서 확인할 것: 대시보드 폴더에 **`server.py.new`** · `dashboard.html.new` 등 `.new` 파일이 있는지 — 있으면 이번 zip 을 적용하면 덮어씀(옛 것은 backup\). 적용 후 서버 재시작 → 왼쪽 아래 '서버 v2026-10-30.2' 확인.

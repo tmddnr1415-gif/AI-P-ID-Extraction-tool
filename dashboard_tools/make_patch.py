@@ -57,6 +57,9 @@ def main():
                     help='회사가 어느 판이든 맞게: 기준 = 원본 기준판, delivered.txt 의 모든 전달본 내용을 known/ 에 넣어 그중 하나와 같으면 덮어씀')
     a = ap.parse_args()
     points = [l.split()[0] for l in open(DELIVERED, encoding='utf-8') if l.strip() and not l.startswith('#')]
+    # 다른 작업 줄기가 회사에 따로 보낸 대시보드 파일 판(예: 판넬 브랜치의 server.py) — 회사본이 그것과 같아도 덮어쓰게 known/ 에 넣음
+    xf = os.path.join(HERE, 'known_extra.txt')
+    extra = [l.split()[0] for l in open(xf, encoding='utf-8') if l.strip() and not l.startswith('#')] if os.path.exists(xf) else []
     base = points[0] if a.any else (a.base or default_base())
 
     if git('status', '--porcelain', '--', APP).strip():
@@ -151,7 +154,7 @@ def main():
                 z.writestr(f'{top}/base/{rel}', old)
             if a.any:                              # 그동안 보낸 판마다 다른 내용 (원본 · 새 판과 같은 것 · 중복은 뺌)
                 seen = {old, show('HEAD', rel)}
-                for ref in points[1:]:
+                for ref in points[1:] + extra:
                     blob = show(ref, rel)
                     if blob is not None and blob not in seen:
                         seen.add(blob)

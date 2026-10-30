@@ -36,7 +36,7 @@ ID_RE = re.compile(r'^[A-Za-z0-9_\-]{1,80}$')
 WEEK_RE = re.compile(r'^\d{4}-W\d{2}$')
 MAX_BODY = 30 * 1024 * 1024
 
-SERVER_VERSION = '2026-10-30.1'
+SERVER_VERSION = '2026-10-30.2'
 ROOT = os.path.dirname(os.path.abspath(__file__))
 PORT = 8080
 ALLOW_NETS = []          # 사내망: 루프백·사설망 + 서버 IP 대역(/16, 유선·Wi-Fi 등 지금까지 쓴 대역 모두 기억) + --allow 로 추가한 대역
@@ -1470,7 +1470,9 @@ def api_profile_put(acc, b):
 
 
 # ---------------------------------------------------------------- 판넬 공간확보 (apps/space): 프로젝트별 · 날짜별 저장 + 프로젝트 노트
-# 운영 폴더 space/<프로젝트ID>/index.json = {project, saves:[메타 …], notes:[…]}, space/<프로젝트ID>/saves/<저장ID>.json = {meta, data}
+# 운영 폴더 space/<프로젝트ID>/index.json = {project, rooms:[{id,name,revs:[{rev,…}]}], saves:[메타 …], notes:[…]}, space/<프로젝트ID>/saves/<저장ID>.json = {meta, data}
+# 프로젝트 → 룸(Room) → Rev 단계. 저장 메타에 room(ID) · roomName · rev. 예전 프로젝트(rooms 없음)도 그대로 읽힘
+# 지우기(프로젝트 · 룸 · Rev) = space/_trash/ 로 옮김 — 폴더를 되돌려 놓으면 복구
 # 저장은 덮어쓰지 않고 매번 새 파일 → 누가 · 언제 · 어떤 메모로 저장했는지가 그대로 이력. 보기 = 누구나(사내망), 쓰기 = 로그인 + '판넬 공간확보' 권한
 SPACE_ID_RE = re.compile(r'^[a-z0-9]{6,32}$')
 SPACE_MAX = 5 * 1024 * 1024                 # 배치안 하나 최대 (판넬 수천 개도 1MB 안팎)
@@ -1508,7 +1510,8 @@ def api_space_projects():
             continue
         sv = d.get('saves') or []
         last = sv[-1] if sv else {}
-        out.append({**d['project'], 'saves': len(sv), 'notes': len(d.get('notes') or []), 'lastAt': last.get('at', ''), 'lastBy': last.get('by', '')})
+        out.append({**d['project'], 'saves': len(sv), 'notes': len(d.get('notes') or []), 'lastAt': last.get('at', ''), 'lastBy': last.get('by', ''),
+                    'rooms': [{'id': r['id'], 'name': r['name'], 'revs': [v['rev'] for v in r.get('revs') or []]} for r in d.get('rooms') or []]})
     out.sort(key=lambda x: x.get('lastAt') or x.get('createdAt') or '', reverse=True)
     return {'projects': out}
 
@@ -1543,7 +1546,46 @@ def api_space_project_new(acc, b):
 
 def api_space_get(pid):
     d = space_idx(pid)
-    return {'project': d['project'], 'saves': list(reversed(d.get('saves') or [])), 'notes': list(reversed(d.get('notes') or []))}
+    return {'project': d['project'], 'rooms': d.get('rooms') or [], 'saves': list(reversed(d.get('saves') or [])), 'notes': list(reversed(d.get('notes') or []))}
+
+
+def space_room(d, rid):
+    r = next((x for x in d.get('rooms') or [] if x.get('id') == rid), None)
+    if not r:
+        raise ApiError(404, '없는 룸입니다 (다른 사람이 지웠거나 목록이 오래됨 — 새로 고침)')
+    return r
+
+
+def space_rev_add(r, rev, acc, note=''):
+    if not any(v.get('rev') == rev for v in r.setdefault('revs', [])):
+        r['revs'].append({'rev': rev, 'createdAt': stamp(), 'createdBy': acc['name'], 'note': note})
+
+
+def api_space_room_new(acc, pid, b):
+    name = space_name(b.get('name'), '룸 이름', 60)
+    with LOCK:
+        d = space_idx(pid)
+        if any(x['name'].lower() == name.lower() for x in d.get('rooms') or []):
+            raise ApiError(409, f'이 프로젝트에 같은 이름의 룸이 이미 있습니다: {name} — 목록에서 고르세요')
+        r = {'id': space_id(), 'name': name, 'createdAt': stamp(), 'createdBy': acc['name'], 'revs': []}
+        d.setdefault('rooms', []).append(r)
+        write_json(space_idx_path(pid), d)
+    log.info('공간확보 룸 생성: %s / %s (%s)', d['project']['name'], name, acc['name'])
+    return r
+
+
+def api_space_rev_new(acc, pid, rid, b):
+    rev = space_name(b.get('rev'), 'Rev', 20)
+    note = re.sub(r'\s+', ' ', str(b.get('note') or '')).strip()[:200]
+    with LOCK:
+        d = space_idx(pid)
+        r = space_room(d, rid)
+        if any(v.get('rev') == rev for v in r.get('revs') or []):
+            raise ApiError(409, f'이 룸에 Rev {rev} 가 이미 있습니다 — 목록에서 고르세요')
+        space_rev_add(r, rev, acc, note)
+        write_json(space_idx_path(pid), d)
+    log.info('공간확보 Rev 생성: %s / %s / Rev %s (%s)', d['project']['name'], r['name'], rev, acc['name'])
+    return r
 
 
 def api_space_save_get(pid, sid):
@@ -1571,8 +1613,14 @@ def api_space_save(acc, pid, raw):
     with LOCK:
         d = space_idx(pid)
         sid = space_id()
+        rid = str(b.get('room') or '')
+        r = space_room(d, rid) if rid else None
+        rev = str((data.get('info') or {}).get('rev') or '').strip()[:20]
+        if r and rev:
+            space_rev_add(r, rev, acc)                               # 저장한 Rev 는 룸의 Rev 목록에도 (새 Rev 를 따로 안 만들었어도)
         meta = {'id': sid, 'at': stamp(), 'by': acc['name'], 'memo': re.sub(r'\s+', ' ', str(b.get('memo') or '')).strip()[:200],
-                'rev': str((data.get('info') or {}).get('rev') or '')[:20], 'panels': len(data['panels']),
+                'room': rid if r else '', 'roomName': r['name'] if r else str((data.get('info') or {}).get('room') or '')[:60],
+                'rev': rev, 'panels': len(data['panels']),
                 'sum': {k: num(sm.get(k)) for k in ('envW', 'envH', 'recW', 'recH', 'spare')}}
         write_json(P('space', pid, 'saves', sid + '.json'), {'meta': meta, 'data': data})
         d.setdefault('saves', []).append(meta)
@@ -1605,6 +1653,65 @@ def api_space_note_del(acc, pid, nid, sup):
         write_json(space_idx_path(pid), d)
     return {'status': 'ok'}
 
+
+
+# 지우기 = 휴지통으로 옮김 (space/_trash/…, 운영자가 폴더를 되돌려 놓으면 복구). 지울 수 있는 사람 = 만든 사람(프로젝트 · 룸 · Rev) 또는 운영자
+def space_can_del(acc, sup, *who):
+    if not sup and acc['name'] not in [w for w in who if w]:
+        raise ApiError(403, '만든 사람(' + ' · '.join(dict.fromkeys(w for w in who if w)) + ') 이나 운영자만 지울 수 있습니다')
+
+
+def space_trash_saves(d, pid, what, acc, pick, extra):
+    """pick(메타)이 참인 저장본을 space/_trash/<pid>/<시각>_<what>/ 으로 옮기고 index 에서 뺌"""
+    gone = [m for m in d.get('saves') or [] if pick(m)]
+    tdir = P('space', '_trash', pid, space_id() + '_' + what)
+    os.makedirs(os.path.join(tdir, 'saves'), exist_ok=True)
+    for m in gone:
+        src = P('space', pid, 'saves', m['id'] + '.json')
+        if os.path.isfile(src):
+            os.replace(src, os.path.join(tdir, 'saves', m['id'] + '.json'))
+    write_json(os.path.join(tdir, 'deleted.json'), {**extra, 'what': what, 'project': d['project'], 'deletedBy': acc['name'], 'deletedAt': stamp(), 'saves': gone})
+    d['saves'] = [m for m in d.get('saves') or [] if not pick(m)]
+    return len(gone)
+
+
+def api_space_project_del(acc, pid, sup):
+    with LOCK:
+        d = space_idx(pid)
+        space_can_del(acc, sup, d['project'].get('createdBy'))
+        dst = P('space', '_trash', pid + '_' + space_id() + '_project')
+        os.makedirs(os.path.dirname(dst), exist_ok=True)
+        os.replace(P('space', pid), dst)
+        write_json(os.path.join(dst, 'deleted.json'), {'what': 'project', 'project': d['project'], 'deletedBy': acc['name'], 'deletedAt': stamp(), 'saves': len(d.get('saves') or [])})
+    log.info('공간확보 프로젝트 지움(휴지통): %s (%s)', d['project']['name'], acc['name'])
+    return {'status': 'ok', 'saves': len(d.get('saves') or [])}
+
+
+def api_space_room_del(acc, pid, rid, sup):
+    with LOCK:
+        d = space_idx(pid)
+        r = space_room(d, rid)
+        space_can_del(acc, sup, r.get('createdBy'), d['project'].get('createdBy'))
+        n = space_trash_saves(d, pid, 'room', acc, lambda m: m.get('room') == rid, {'room': r})
+        d['rooms'] = [x for x in d['rooms'] if x is not r]
+        write_json(space_idx_path(pid), d)
+    log.info('공간확보 룸 지움(휴지통): %s / %s · 저장 %d (%s)', d['project']['name'], r['name'], n, acc['name'])
+    return {'status': 'ok', 'saves': n}
+
+
+def api_space_rev_del(acc, pid, rid, rev, sup):
+    with LOCK:
+        d = space_idx(pid)
+        r = space_room(d, rid)
+        v = next((x for x in r.get('revs') or [] if x.get('rev') == rev), None)
+        if not v:
+            raise ApiError(404, f'이 룸에 Rev {rev} 가 없습니다 (다른 사람이 지웠거나 목록이 오래됨 — 새로 고침)')
+        space_can_del(acc, sup, v.get('createdBy'), r.get('createdBy'), d['project'].get('createdBy'))
+        n = space_trash_saves(d, pid, 'rev', acc, lambda m: m.get('room') == rid and m.get('rev') == rev, {'room': {k: r[k] for k in ('id', 'name')}, 'rev': v})
+        r['revs'] = [x for x in r['revs'] if x is not v]
+        write_json(space_idx_path(pid), d)
+    log.info('공간확보 Rev 지움(휴지통): %s / %s / Rev %s · 저장 %d (%s)', d['project']['name'], r['name'], rev, n, acc['name'])
+    return {'status': 'ok', 'saves': n}
 
 # ---------------------------------------------------------------- 메뉴 권한 (accounts/_perms.json) — 운영자(서버 PC)만 변경
 MENUS = [('weekly', '주간업무보고'), ('pid', 'P&ID 분석'), ('logic', 'LOGIC 분석'), ('space', 'ROOM SIZE 계산'), ('books', '도서검토'), ('bidpjt', '입찰 프로젝트'), ('runpjt', '실행 프로젝트'),
@@ -2195,6 +2302,16 @@ class Handler(BaseHTTPRequestHandler):
                 return api_space_save(self.need_menu('space'), seg[1], self.raw_body())
             if m == 'POST' and len(seg) == 3 and seg[2] == 'notes':
                 return api_space_note_add(self.need_menu('space'), seg[1], self.json_body())
+            if m == 'POST' and len(seg) == 3 and seg[2] == 'rooms':
+                return api_space_room_new(self.need_menu('space'), seg[1], self.json_body())
+            if m == 'POST' and len(seg) == 5 and seg[2] == 'rooms' and seg[4] == 'revs':
+                return api_space_rev_new(self.need_menu('space'), seg[1], seg[3], self.json_body())
+            if m == 'DELETE' and len(seg) == 2:
+                return api_space_project_del(self.need_menu('space'), seg[1], self.is_super())
+            if m == 'DELETE' and len(seg) == 4 and seg[2] == 'rooms':
+                return api_space_room_del(self.need_menu('space'), seg[1], seg[3], self.is_super())
+            if m == 'DELETE' and len(seg) == 5 and seg[2] == 'rooms' and seg[4] == 'revs':     # ?rev=  (Rev 에 / 가 있어도 되게)
+                return api_space_rev_del(self.need_menu('space'), seg[1], seg[3], q.get('rev', ''), self.is_super())
             if m == 'DELETE' and len(seg) == 4 and seg[2] == 'notes':
                 return api_space_note_del(self.need_menu('space'), seg[1], seg[3], self.is_super())
         if head == 'birthdays':                                     # 부서원 생일: 보기 = 누구나(비회원 화면에도 축하 팝업), 고치기·엑셀 = Management 권한
