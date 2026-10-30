@@ -76,3 +76,16 @@ def test_page_wiring():
     assert "/logic/api/aopsim/timeline" in PAGE_JS and 'type="range"' in PAGE_JS, "숫자 + 슬라이더 · 시간 그래프"
     assert "function loadUrl(" in PAGE_JS and 'q.get("s")' in PAGE_JS, "도면에서 지금 값을 채워 연다"
     assert "my !== seq" in PAGE_JS, "늦게 온 계산은 버린다 (슬라이더를 끌어도 마지막 값만)"
+
+
+def test_operator_panel_opens_the_page_with_the_current_values():
+    """L73 — 도면 연산자 판의 '시뮬레이션에서 열기': 지금 입력 값 · 계수 · 어디서 · 설정값 · 전환 조건을 ?s= 로 채워 새 창."""
+    js = (ROOT / "app/static/logic.js").read_text(encoding="utf-8")
+    assert "function opSimUrl(" in js and 'data-a="sim"' in js and 'window.open(opSimUrl(bid, d), "_blank")' in js
+    assert '"/logic/signal?s=" + encodeURIComponent(JSON.stringify(o))' in js
+    assert 'for (const k of ["coef", "order", "out", "op"]) delete pr[k];' in js, "출력값 고정은 빼고 · 계수와 순서는 입력에 싣는다"
+    page_ops = set(js.split("const SIM_PAGE_OPS = new Set([")[1].split("])")[0].replace('"', "").replace("\n", "").replace(" ", "").split(","))
+    meta_ops = set(aops.vocab()["ops"]) | set(aops.vocab()["digital_ops"])
+    assert page_ops <= meta_ops and {"pid", "ft", "counter"}.isdisjoint(page_ops), "페이지에 탭이 있는 연산만"
+    for op in page_ops:
+        assert f'"{op}"' in PAGE_JS, f"페이지 탭에 {op}"

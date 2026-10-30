@@ -1895,6 +1895,29 @@ async function opDetail(bid) {
     return await post(`/logic/api/jobs/${L.job}/sheet/${L.page}/aop`, { block: bid, analog: L.analog[L.page] || {}, detail: sd, dig });
   } catch (e) { return sd; }
 }
+/* L73 — 신호 처리 시뮬레이션 페이지(/logic/signal)를 이 연산자의 지금 입력 · 설정값으로 채워 연다.
+   계수(사람 값 → 도면 값)는 입력마다 · 사람이 정한 앞 · 뒤 순서는 입력 순서로 · 전환 조건 입력은 C 로 · 출력값 고정은 빼고. */
+const SIM_PAGE_OPS = new Set(["sum", "diff", "absdiff", "mean", "mul", "div", "max", "min", "median", "transfer", "gain", "rgain", "sqrt", "pow",
+  "abs", "fx", "formula", "convert", "const", "hilim", "lolim", "bias", "velim", "lag", "integral", "deriv", "dev", "equal", "count"]);
+function opSimUrl(bid, d) {
+  const b = L.sheet.blocks[bid], pr = { ...(d.params || {}) }, src = d.sources || {};
+  const ucoef = pr.coef || {}, order = pr.order || null;
+  let ins = (d.inputs || []).filter((i) => String(i.net) !== String(d.cond) && !["FLAG", "C", "COND", "TR", "TRK"].includes(i.pin));
+  if (order && order.length === 2) ins = [...order.map((n) => ins.find((i) => String(i.net) === String(n))).filter(Boolean), ...ins.filter((i) => !order.includes(String(i.net)))];
+  const dig = (n) => L.mode === "sim" ? (L.values[String(n)] === 1 ? 1 : 0) : null;
+  const inputs = ins.map((i) => {
+    const so = src[String(i.net)] || {};
+    const c = ucoef[i.net] != null ? ucoef[i.net] : i.coef;
+    return { pin: i.pin || "", value: d.op === "count" ? dig(i.net) : i.value, coef: c == null ? null : c,
+      from: so.kind === "row" ? so.text : so.text ? so.text + (so.origins && so.origins.length ? " ← " + so.origins.join(" · ") : "") : "" };
+  });
+  for (const k of ["coef", "order", "out", "op"]) delete pr[k];
+  const cond = d.op === "transfer" ? (pr.c != null ? pr.c : d.cond != null ? dig(d.cond) : null) : null;
+  delete pr.c;
+  const o = { op: d.op, inputs, params: pr, label: b.label || b.read || "", cond: cond == null ? 1 : cond,
+    from: `${L.sheet.sheet_no || "p" + L.page} · ${b.label || ""} (${bid})` };
+  return "/logic/signal?s=" + encodeURIComponent(JSON.stringify(o));
+}
 /* L71 — 계산 과정: ① 들어오는 값(어느 입력 행 · 계기에서) → ② 범례 식 → ③ 값을 넣은 식 → ④ 출력 */
 function opTraceHtml(d) {
   const t = d.trace;
@@ -1998,7 +2021,8 @@ async function opMenu(bid, e, chooseOp) {
     ${memos.length ? `<div class="fm-sub">이 연산자 메모</div>${memos.map((x) => `<div class="op-memo" data-memo="${esc(x.id)}"><b>${esc(x.author)}</b> <small>${esc(x.time)}</small><div>${esc(x.text)}</div></div>`).join("")}` : ""}
     <div class="op-btns"><button data-a="ok" class="v1">적용 — 동작 시뮬레이션</button>
     ${Object.keys(u).length ? `<button data-a="reset" class="vx">도면 값으로</button>` : ""}
-    <button data-a="memo" class="vt">📌 메모 달기</button></div>`;
+    <button data-a="memo" class="vt">📌 메모 달기</button>
+    ${SIM_PAGE_OPS.has(op) ? `<button data-a="sim" class="vt" title="신호 처리 시뮬레이션 페이지를 이 연산자의 지금 입력 · 설정값으로 채워 엽니다 (새 창 · 도면 값은 그대로)">∿ 시뮬레이션에서 열기</button>` : ""}</div>`;
   placeMenu(m, e);
   const first = m.querySelector(".op-p input:placeholder-shown[placeholder='값'], .op-p input") || m.querySelector("input[data-in]");
   if (first) first.focus();
@@ -2054,6 +2078,7 @@ async function opMenu(bid, e, chooseOp) {
     if (btn.dataset.a === "ok") ok();
     else if (btn.dataset.a === "reset") { closeForceMenu(); if (await saveAparam(bid, null)) rerunAnalog(); }
     else if (btn.dataset.a === "ma") { closeForceMenu(); analogMenu("block:" + bid, ev); }
+    else if (btn.dataset.a === "sim") window.open(opSimUrl(bid, d), "_blank");
     else if (btn.dataset.a === "memo") {
       closeForceMenu();
       const [x0, y0, x1] = b.bbox;
