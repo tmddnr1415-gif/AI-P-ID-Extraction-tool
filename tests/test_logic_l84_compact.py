@@ -169,3 +169,20 @@ def test_drawing_and_analysis_deletions_share_one_log(tmp_path, monkeypatch):
     store.log_deletion([{"kind": "drawing", "id": "a"}, {"kind": "drawing", "id": "b"}])
     items = json.loads(p.read_text(encoding="utf-8"))
     assert [i.get("id") or i.get("job") for i in items] == ["old", "j1", "a", "b"]
+
+
+def test_multiline_box_title_names_the_operator(seed):
+    """L84 — 여러 줄 상자는 단자 이름까지 한 글로 붙어 와 연산 이름을 못 찾았다 (EQUAL · BIT_CNT · SPC 조절기 116개).
+    가장 큰 글씨의 줄을 이름으로 — 사전에 있을 때만.  SPC 는 받기만 하는 그림이어도 표시 글자(DISPLAY)가 아니다."""
+    from app.logic import aops, draw_sim as DS
+    by = {d["name"]: d for d in seed["docs"]}
+    found = {}
+    for nm in ("CO02_G705", "CO02_P031", "HS10_P101"):
+        s = DS.to_sheet(by[nm], 1, {})
+        aops.identify([s])
+        for b in s["blocks"].values():
+            if b.get("aop"):
+                found.setdefault(nm, set()).add(b["aop"])
+    assert "equal" in found["CO02_G705"] and "count" in found["CO02_P031"] and "pid" in found["HS10_P101"]
+    one = DS._block({"kind": "BOX", "text": "A", "x": 0, "y": 0, "w": 10, "h": 10, "param": {}})
+    assert one["label"] == "A" and not one.get("title_op")          # 한 줄 상자는 그대로

@@ -389,7 +389,31 @@ def _box_meaning(out, b, text, notes=()):
             if lg in ("delay_on", "delay_off", "pulse"):
                 out["param"]["t"] = (b.get("param") or {}).get("t", 5)
         return
+    # L84 — 여러 줄 상자(분석이 읽은 줄 · param.lines)는 단자 이름(IN1 · OUT · SP …)까지 한 글로 붙어 와 연산 이름을 못 찾았다
+    #   (`EQUAL IN1 OUT IN2` · `BIT_CNT BIT_CNT IN1 …` · `IN SP SPC_ TR_V …`).  가장 큰 글씨의 줄(같으면 위 · 가운데)이 상자 이름이다 —
+    #   그 줄이 연산 사전(logic_analog.yaml)에 있으면 그 이름을 label 로 둔다 (aops.op_of 가 알아본다).  사전에 없으면 그대로.
+    title = _box_title(b)
+    if title and title != text and _is_op_word(title):
+        out["label"] = title
+        out["title_op"] = True                              # 표시 글자 상자(DISPLAY)로 읽지 않는다 (SPC = 조절기 · 받기만 하는 그림이어도)
     # 모르는 글자 — 들어오는 선 없이 나가는 선만 있으면 이름 붙은 신호 상자(source) 는 to_sheet 가 단자를 센 뒤 정한다
+
+
+def _is_op_word(t) -> bool:
+    """연산 사전(logic_analog.yaml)의 이름 · 글자인가."""
+    from . import aops
+    v = aops.vocab()
+    return aops._lab(t) in v["_by_label"] or aops._key(t) in v["_by_name"]
+
+
+def _box_title(b) -> str:
+    """여러 줄 상자의 이름 줄 — 가장 큰 글씨 · 같으면 위쪽 · 가로 가운데에 가까운 줄.  끝의 `_`(아래 첨자 자리)는 뗀다."""
+    lines = [ln for ln in ((b.get("param") or {}).get("lines") or []) if isinstance(ln, (list, tuple)) and len(ln) >= 3 and str(ln[2]).strip()]
+    if len(lines) < 2:
+        return ""
+    w = b.get("w") or 1.0
+    best = max(lines, key=lambda ln: (round(float(ln[3]) if len(ln) > 3 else 0.0, 1), -float(ln[1]), -abs(float(ln[0]) - w / 3)))
+    return str(best[2]).strip().rstrip("_").strip()
 
 
 # ───────────────────────────── 한 장 ─────────────────────────────
@@ -503,7 +527,7 @@ def to_sheet(doc: dict, page: int, typ_pages: dict | None = None) -> dict:
         if sb["func"] == "UNKNOWN" and sb["logic"] == "unknown" and drawn[bid]["kind"] == "BOX":
             if n_in == 0 and n_out > 0 and not _looks_analog(sb["label"]):
                 sb["func"], sb["logic"] = "SIGNAL", "source"            # 이름 붙은 신호 상자 (들어오는 선 없음)
-            elif n_in > 0 and n_out == 0 and len(sb["label"]) <= 3 and sb["label"].isalpha():
+            elif n_in > 0 and n_out == 0 and len(sb["label"]) <= 3 and sb["label"].isalpha() and not sb.get("title_op"):
                 sb["func"], sb["logic"] = "DISPLAY", "sink"             # 상태 표시 글자 상자 (받기만)
         if sb["logic"] in ("and", "or", "nand", "nor") and n_in == 1:
             sb["param"]["as_drawn"] = 1
