@@ -28,3 +28,4 @@
 * **매크로 설명** `config/logic_typical_desc.yaml` (19VA p22~p37 매크로 기호 장 타이틀블록 TITLE 둘째 줄 그대로 + 쉬운 말) → `draw_sets.macro_info` → 팔레트 타일 · 속성 · Typical 사전 표.
   HRSG 처럼 사전에 없는 매크로는 그 Typical 제목 그대로.
 * 시험 `tests/test_logic_l79_draw_home.py` +2 · 화면 자기검증 `out/l80/` 16항목 통과.
+* L80 뒤 — 매크로 설명 풀이 줄을 영어로 (사용자 지시 · config/logic_typical_desc.yaml 의 ko 칸).

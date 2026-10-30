@@ -46,7 +46,8 @@ def test_macro_descriptions():
     assert d("MTS") == d("MACRO MTS <MOV>") == "MACRO - MTS <MOV>"
     assert d("SOV") == "MACRO - SOV <SOLENOID VALVE>"
     assert d("MACRO-PS2 <PRESELECTION (2/2)>") == "MACRO - PS2 <PRESELECTION2>"
-    assert "MOV" in draw_sets.macro_info("MTS")["ko"]
+    assert draw_sets.macro_info("MTS")["ko"] == "Motor-operated valve open / close"
+    assert all(ord(c) < 128 for k in ("SWGR/MCC","SOV","MTS","MIT","GRP","STEP","PS2","PS3","PS4","PS5") for c in draw_sets.macro_info(k)["ko"])   # 영어로
     assert d("MOV BLOCK (OPEN-CLOSE) (TYPE-III-1)") == "MOV BLOCK (OPEN-CLOSE) (TYPE-III-1)"   # 사전에 없으면 제목 그대로
 
 
