@@ -5,7 +5,7 @@
 | 세션 (앱 목록) | 지금 작업 브랜치 | 상태 |
 | --- | --- | --- |
 | 2. PID 검토 3 (NEW) | `ccr-2d6327d0-21i1fr` | 사용 중 · hotfix 꾸러미를 만드는 곳 |
-| 3. Logic 검토코드 (새 세션) | `ccr-cc45909d-fjjmrb` | 사용 중 · L84 까지 · 다음 L85 |
+| 3. Logic 검토코드 (새 세션) | `ccr-cc45909d-fjjmrb` | 사용 중 · L85 까지 · 다음 L86 |
 | 4. PANEL 코드 (NEW) | `ccr-d82d97fa-bb3ty3` (`dashboard/apps/space`) | 판넬 화면 원본 · 0869426 까지 PID 에 옮겨 옴 |
 | 1. DASHBOARD 코드 (NEW) | `ccr-248a5c4d-3dji7g` | 대시보드 본체 zip 은 여기서 |
 | 프로그램 시연 영상 | `ccr-ee7fd745-5z06vs` | |
