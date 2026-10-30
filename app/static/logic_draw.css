@@ -27,7 +27,7 @@ input, select { font: inherit; border: 1px solid var(--line); border-radius: 5px
 .dw-status { flex: 1 1 160px; min-width: 0; overflow: hidden; text-overflow: ellipsis; color: #cdd6f4; font-size: 12px; margin-left: auto; text-align: right; }
 
 .dw-main { flex: 1; display: flex; min-height: 0; }
-.dw-side { width: 290px; flex-shrink: 0; overflow: auto; padding: 10px; display: flex; flex-direction: column; gap: 10px; border-right: 1px solid var(--line); background: #fbfaf6; }
+.dw-side { width: 300px; flex-shrink: 0; overflow-y: auto; overflow-x: hidden; padding: 10px; display: flex; flex-direction: column; gap: 10px; border-right: 1px solid var(--line); background: #fbfaf6; }
 .dw-card { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; }
 .dw-card h3 { margin: 0 0 8px; font-size: 13px; display: flex; justify-content: space-between; align-items: baseline; gap: 6px; }
 .dw-hint { color: var(--soft); font-size: 11.5px; font-weight: 400; }
@@ -35,9 +35,12 @@ input, select { font: inherit; border: 1px solid var(--line); border-radius: 5px
 .dw-tools button.on { background: var(--blue); color: #fff; border-color: var(--blue); }
 .dw-zoom { display: flex; gap: 6px; align-items: center; margin-top: 8px; font-size: 12px; }
 .dw-zoom button { padding: 2px 8px; }
-.dw-palette { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
-.dw-palette button { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 6px 4px; font-size: 11px; line-height: 1.2; }
-.dw-palette button svg { width: 44px; height: 26px; }
+/* VOC — 셋째 칸이 카드 밖으로 잘리던 것 (1fr 의 최소폭 = 글자 폭) · 아이콘이 너무 작아 글씨가 깨지던 것 → 두 칸 · 큰 아이콘 · 이름은 줄바꿈 */
+.dw-palette { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
+.dw-palette button { min-width: 0; display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 7px 4px 6px; font-size: 12px; line-height: 1.25; text-align: center; overflow-wrap: anywhere; word-break: keep-all; }
+.dw-palette button > span { max-width: 100%; }
+.dw-palette button svg { width: 72px; height: 40px; }
+.dw-palette button svg .blk rect, .dw-palette button svg .blk circle, .dw-palette button svg .blk polygon, .dw-palette button svg .blk line { vector-effect: non-scaling-stroke; stroke-width: 1.3; }
 .dw-palette button:hover { border-color: var(--blue); }
 .dw-form label { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin: 4px 0; font-size: 12px; }
 .dw-form input, .dw-form select { width: 160px; }
@@ -198,7 +201,7 @@ body.sim .blk.on1 > rect, body.sim .blk.on1 > circle { fill: rgba(0, 180, 255, .
 .dw-sim .row .v.ana { background: #7b4dff; color: #fff; }
 .dw-sim .row button { padding: 0 6px; font-size: 11px; }
 .dw-palhead { grid-column: 1 / -1; font-size: 11px; color: #555e6e; margin: 6px 0 0; border-top: 1px dashed var(--line); padding-top: 6px; }
-.dw-preicon { display: block; font-size: 15px; font-weight: 600; line-height: 1.1; min-height: 20px; }
+.dw-preicon { display: block; max-width: 100%; font-size: 17px; font-weight: 700; line-height: 1.15; min-height: 22px; padding: 2px 6px; border: 1.5px solid #8a93a6; border-radius: 3px; background: #fff; color: var(--ink); overflow-wrap: anywhere; }
 
 .mark { fill: #111; stroke: none; pointer-events: none; }
 
@@ -290,3 +293,14 @@ body.sim .blk.on1 > rect:not(.hit), body.sim .blk.on1 > circle { fill: rgba(0, 1
 ellipse.ell { fill: url(#gd-sink); stroke: #b23a2e; stroke-width: .8; }
 .blk.clash rect:not(.hit), .blk.clash circle { stroke: #e8590c !important; stroke-width: 1.3; stroke-dasharray: 2.2 1.2; }
 .blk.clash line { stroke: #e8590c !important; }
+
+/* VOC — 카드 제목 옆 긴 안내가 제목을 한 글자씩 세로로 밀던 것 ('기/호' · '매크/로') → 안내는 제목 아래 줄 */
+.dw-card h3.stack { flex-wrap: wrap; justify-content: flex-start; }
+.dw-card h3.stack > .dw-hint { flex: 1 1 100%; }
+.dw-macroq { width: 100%; margin-bottom: 4px; }
+.dw-macros { max-height: 360px; overflow-y: auto; }
+.dw-macros button { flex-direction: column; align-items: flex-start; gap: 1px; min-width: 0; }
+.dw-macros button .mt { font-weight: 600; overflow-wrap: anywhere; }
+.dw-macros button:hover { border-color: var(--blue); }
+.dw-form label.col { flex-direction: column; align-items: stretch; }
+.dw-form label.col textarea { width: 100%; }

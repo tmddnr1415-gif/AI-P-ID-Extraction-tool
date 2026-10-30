@@ -69,7 +69,7 @@
       </div>
     </section>
     <section class="dw-card" id="inst-card">
-      <h3>계기 리스트 <span class="dw-hint">TAG NO. 칸 자동완성 · 설명 자동 — 프로젝트마다 하나</span></h3>
+      <h3 class="stack">계기 리스트 <span class="dw-hint">TAG NO. 칸 자동완성 · 설명 자동 — 프로젝트마다 하나</span></h3>
       <div id="inst-say" class="dw-inst"></div>
       <div class="dw-settools">
         <label class="dw-filebtn" title="Instrument List Excel (.xlsx) — TAG(KKS) 열과 DESCRIPTION 열이 있으면 됩니다.  다시 올리면 바뀐 설명을 그림에 반영하고 표시합니다">⇧ Excel 올리기<input id="inst-file" type="file" accept=".xlsx,.xlsm,.csv" hidden></label>
@@ -85,7 +85,7 @@
       </div>
     </section>
     <section class="dw-card" id="set-card">
-      <h3>묶음 <span class="dw-hint">여러 장 · FROM/TO 가 장 사이를 잇습니다</span></h3>
+      <h3 class="stack">묶음 <span class="dw-hint">여러 장 · FROM/TO 가 장 사이를 잇습니다</span></h3>
       <div id="set-list"></div>
       <div id="set-tools" class="dw-settools" hidden>
         <button id="set-import" type="button" title="분석한 Logic 묶음의 모든 시트를 이 양식의 그림 묶음으로">⇩ 묶음 들여오기</button>
@@ -96,11 +96,11 @@
       </div>
     </section>
     <section class="dw-card">
-      <h3>기호 <span class="dw-hint">누르면 LOGIC 영역 가운데에 놓입니다 · 끌어다 놓아도 됩니다 · 크기는 분석한 로직에서 배운 값</span></h3>
+      <h3 class="stack">기호 <span class="dw-hint">누르면 LOGIC 영역 가운데에 놓입니다 · 끌어다 놓아도 됩니다</span></h3>
       <div id="palette" class="dw-palette"></div>
     </section>
     <section class="dw-card" id="macro-card">
-      <h3>매크로 <span class="dw-hint">타입(Typical 시트)마다 — 단자는 그 시트의 행</span></h3>
+      <h3 class="stack">매크로 <span class="dw-hint">공통 Typical 사전에서 골라 누르면 놓입니다 — 단자는 그 Typical 의 행</span></h3>
       <div id="macro-list" class="dw-macros"></div>
     </section>
     <section class="dw-card">
@@ -115,7 +115,7 @@
         <label>개정 <input id="f-rev" placeholder="예: 2" style="width:60px"></label>
         <label>프로젝트 <select id="f-project"><option value="">(없음)</option></select></label>
         <label>Typical 시트 <input type="checkbox" id="f-typical" title="매크로 블록의 내부 동작을 그린 장 — 매크로 카드에 타입으로 오릅니다"></label>
-        <label>노트 <textarea id="f-notes" rows="3" placeholder="한 줄에 하나 — 장 아래 NOTES 상자에 번호가 붙어 인쇄됩니다" title="장 노트 — 분석기가 NOTE 문장을 읽습니다 (예: OUTPUT STATE IS INVERTED BY EACH MOMENTARY TRUE SIGNAL ON &quot;SRST&quot;)"></textarea></label>
+        <label class="col">노트 <textarea id="f-notes" rows="3" placeholder="한 줄에 하나 — 장 아래 NOTES 상자에 번호가 붙어 인쇄됩니다" title="장 노트 — 분석기가 NOTE 문장을 읽습니다 (예: OUTPUT STATE IS INVERTED BY EACH MOMENTARY TRUE SIGNAL ON &quot;SRST&quot;)"></textarea></label>
       </div>
       <p class="dw-hint">왼쪽 표 FROM 칸에 <b>시트-행</b>(G031-81 · 0016/72)을 적으면 분석기가 그 시트의 그 행과 잇습니다.  표 칸은 두 번 누르면 고칩니다.  제목은 문서 번호(숫자-숫자 꼴)가 있어야 분석기가 읽습니다.</p>
     </section>

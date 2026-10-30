@@ -275,6 +275,12 @@ async def upload_instruments(file: UploadFile = File(...), project: str = Form("
         raise HTTPException(400, str(e))
 
 
+@router.get("/logic/api/drawings/macros")
+def list_macros():
+    """VOC — 묶음에 들지 않은 그림에도 매크로 팔레트를 (공통 Typical 사전 · 처음부터 들고 있는 것)."""
+    return {"macros": draw_sets.macro_types([])}
+
+
 @router.get("/logic/api/drawings/typicals")
 def list_typicals():
     from . import library

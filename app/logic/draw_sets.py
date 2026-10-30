@@ -311,13 +311,19 @@ def macro_types(docs: list) -> list:
         ins, outs = draw.macro_pins(d)
         out.append({"typ": d.get("sheet_no") or "", "did": d["id"], "title": d.get("title") or d.get("sheet_no") or "",
                     "pins_in": ins, "pins_out": outs, "from": "이 묶음"})
-    lib = library.load()
-    for tid, ty in (lib.get("typicals") or {}).items():
+    have = {d.get("sheet_no") for d in docs if d.get("typical") and d.get("sheet_no")}
+    # VOC — 씨앗(처음부터 들고 있는 공통 Typical)까지 · 사람이 고친 것은 그 그림의 행으로 (library.typicals 하나가 정한다)
+    for tid, ty in library.typicals().items():
         st = ty.get("sheet") or {}
-        ins = [{"name": _txt(r.get("abv") or r.get("kks") or "".join(w[0] for w in (r.get("desc") or "").split() if w[:1].isalnum())[:8], 14),
-                "row": r["n"]} for r in st.get("table", []) if r["side"] == "L" and r.get("desc")]
-        outs = [{"name": _txt(r.get("abv") or r.get("kks") or "".join(w[0] for w in (r.get("desc") or "").split() if w[:1].isalnum())[:8], 14),
-                 "row": r["n"]} for r in st.get("table", []) if r["side"] == "R" and r.get("desc")]
+        if ty.get("origin") == "user" and ty.get("doc"):
+            ins, outs = draw.macro_pins(ty["doc"])
+        else:
+            ins = [{"name": _txt(r.get("abv") or r.get("kks") or "".join(w[0] for w in (r.get("desc") or "").split() if w[:1].isalnum())[:8], 14),
+                    "row": r["n"]} for r in st.get("table", []) if r["side"] == "L" and r.get("desc")]
+            outs = [{"name": _txt(r.get("abv") or r.get("kks") or "".join(w[0] for w in (r.get("desc") or "").split() if w[:1].isalnum())[:8], 14),
+                     "row": r["n"]} for r in st.get("table", []) if r["side"] == "R" and r.get("desc")]
+        if (st.get("sheet_no") or ty.get("sheet_no")) in have:
+            continue                                   # 이미 이 묶음에 들여온 Typical — 두 번 보이지 않게
         if ins and outs:
             out.append({"typ": f"lib:{tid}", "did": None, "title": ty.get("title") or ty.get("sheet_no") or tid,
                         "pins_in": ins[:draw.MAX_PINS], "pins_out": outs[:draw.MAX_PINS],
@@ -328,7 +334,7 @@ def macro_types(docs: list) -> list:
 
 def typical_doc_from_library(tid: str, name: str, author: str, project: str, sid: str, order: int) -> dict | None:
     """사전 Typical 시트를 이 묶음의 그림으로 들여온다 (매크로를 놓으면 그 내부 동작이 묶음 안에 있어야 분석기가 잇는다)."""
-    ty = (library.load().get("typicals") or {}).get(tid)
+    ty = library.typicals().get(tid)
     if not ty or not (ty.get("sheet") or ty.get("doc")):
         return None
     if ty.get("doc"):                                 # L63 — 사람이 고친(또는 씨앗의) 작도 그림을 그대로
