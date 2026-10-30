@@ -103,6 +103,9 @@ input, select { font: inherit; border: 1px solid var(--line); border-radius: 5px
 .wire.sel { stroke: var(--sel); stroke-width: 1.8; }
 .wirehit { fill: none; stroke: transparent; stroke-width: 6; cursor: pointer; }
 .vtx { fill: #fff; stroke: var(--sel); stroke-width: 1; cursor: move; }
+.seghd { fill: var(--sel); stroke: #fff; stroke-width: .5; opacity: .85; }   /* L75 — 토막 손잡이 */
+.seghd.ax-x { cursor: ew-resize; } .seghd.ax-y { cursor: ns-resize; }
+.seghd:hover { opacity: 1; }
 .port { fill: #fff; stroke: #8a93a8; stroke-width: .6; }
 .port.hot { fill: var(--active); stroke: var(--blue); r: 3; }
 .wipline { fill: none; stroke: var(--blue); stroke-width: .9; stroke-dasharray: 2 2; pointer-events: none; }

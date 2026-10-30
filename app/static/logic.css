@@ -616,6 +616,26 @@ button.sigchip { cursor: pointer; }
 .op-io td { padding: 2px 3px; vertical-align: middle; }
 .op-io input { width: 72px; font: inherit; padding: 1px 4px; border: 1px solid var(--line); border-radius: 4px; }
 .op-out { margin: 6px 0; font-size: 13px; }
+/* L71 — 연산자 판의 계산 과정 (들어오는 값 → 식 → 값을 넣은 식 → 출력) */
+.op-trace { border: 1px solid #e3dcff; border-radius: 8px; padding: 4px 8px 6px; margin: 4px 0 8px; background: #fbfaff; }
+.op-trace .tr-step { display: flex; gap: 8px; align-items: flex-start; padding: 4px 0; border-top: 1px dashed #e8e3fb; }
+.op-trace .tr-step:first-of-type { border-top: 0; }
+.op-trace .tr-step > i { font-style: normal; flex: 0 0 20px; height: 20px; border-radius: 10px; background: #6a55c8; color: #fff;
+  font-size: 12px; text-align: center; line-height: 20px; }
+.op-trace .tr-body { flex: 1; min-width: 0; }
+.op-trace .tr-h { font-size: 11px; color: var(--soft); margin-bottom: 2px; }
+.op-trace .tr-ins { display: flex; flex-wrap: wrap; gap: 4px; }
+.op-trace .tr-in { border: 1px solid var(--line); border-radius: 6px; padding: 2px 6px; background: #fff; cursor: pointer; max-width: 100%; }
+.op-trace .tr-in:hover { border-color: #f08c00; }
+.op-trace .tr-in.unk .tr-v { color: #c92a2a; }
+.op-trace .tr-v { font-weight: 700; margin-left: 4px; font-variant-numeric: tabular-nums; }
+.op-trace .tr-from { display: block; color: var(--soft); font-size: 11px; overflow-wrap: anywhere; }
+.op-trace .tr-p { display: inline-block; margin-right: 8px; font-size: 12px; }
+.op-trace .tr-eq { font-family: Consolas, "Cascadia Mono", monospace; font-size: 13px; overflow-wrap: anywhere; }
+.op-trace .tr-eq.sub { color: #364fc7; }
+.op-trace .tr-eq.res b { font-size: 15px; color: #2b8a3e; }
+.op-trace .tr-eq.res.unk b { color: #c92a2a; }
+.op-trace .tr-note { display: block; color: var(--soft); }
 .op-out small { color: var(--soft); }
 .op-p { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
 .op-p > span { min-width: 92px; font-size: 12px; }
@@ -901,3 +921,42 @@ body.pane-review .rv-scroll { max-height: calc(100vh - 330px); }
 
 /* L54 — 작도 하위 메뉴 */
 .lg-head .lg-draw { text-decoration: none; font-size: 13px; padding: 4px 10px; border-radius: 6px; }
+
+/* L70 — 게이트 단계별 거슬러 올라가기 (Output → 최초 Input) */
+.lg-seq .sq-mode { margin: 4px 10px 6px; padding: 6px 8px; background: #f3f6fb; border: 1px solid #dde3ee; border-radius: 6px; font-size: 12.5px; display: flex; flex-direction: column; gap: 3px; }
+.lg-seq .sq-mode > span { font-weight: 600; color: #2a3a62; }
+.lg-seq .sq-mode label { cursor: pointer; }
+.lg-seq .sq-kind.g { background: #0a6b4a; color: #fff; }
+.lg-seq .sg-ins { margin: 6px 0 2px; padding-left: 4px; list-style: none; }
+.lg-seq .sg-ins li { display: block; border: 0; padding: 3px 0 3px 2px; line-height: 1.45; cursor: default; }
+.lg-seq .sg-ins li.muted { opacity: .55; }
+.lg-seq .sg-i { display: inline-block; width: 16px; text-align: center; color: #0a6b4a; font-weight: 700; }
+.lg-seq .sg-k { display: inline-block; font-size: 11px; padding: 0 5px; border-radius: 3px; background: #e9edf5; color: #2a3a62; margin-right: 3px; vertical-align: 1px; }
+.lg-seq .sg-k.g { background: #dff2ea; color: #0a6b4a; }
+.lg-seq .sg-k.m { background: #efe6fb; color: #5b2b97; }
+.lg-seq .sg-k.i { background: #e5efff; color: #1d4fb8; }
+.lg-seq .sg-k.z { background: #fff1e0; color: #a35300; }
+.lg-seq .sg-k.x { background: #fde8e8; color: #a12a2a; }
+.lg-seq .sg-ref { color: #5b2b97; }
+.lg-seq .sg-opts button { line-height: 1.45; }
+.lg-seq .sq-path { margin: 6px 10px; border: 1px solid #dde3ee; border-radius: 6px; padding: 4px 6px; background: #fbfcfe; }
+.lg-seq .sq-path summary { cursor: pointer; font-weight: 600; color: #2a3a62; font-size: 12.5px; }
+.lg-seq .sp-tree, .lg-seq .sp-tree ul { list-style: none; margin: 0; padding-left: 14px; }
+.lg-seq .sp-tree { padding-left: 0; margin-top: 4px; font-size: 12px; }
+.lg-seq .sp-tree ul { border-left: 1px dashed #c3cad8; margin-left: 6px; }
+.lg-seq .sp-tree li { display: block; border: 0; padding: 1px 0; line-height: 1.4; cursor: default; }
+.lg-seq .sp-tree li[data-id] { cursor: pointer; }
+.lg-seq .sp-tree li[data-id]:hover > .sp-ln { background: #eef3fb; }
+.lg-seq .sp-tree li.now > .sp-ln { background: #fff2b8; border-radius: 3px; }
+.lg-seq .sp-tree .sp-xs { color: #6b7385; font-size: 11px; }
+.lg-seq .sp-st { display: inline-block; width: 14px; font-style: normal; text-align: center; font-weight: 700; }
+.lg-seq .sp-st.ok { color: #0a6b4a; }
+.lg-seq .sp-st.no { color: #b42318; }
+.lg-seq .sp-st.skip, .lg-seq .sp-st.dim { color: #9aa1b0; }
+.lg-seq .sp-st.todo { color: #8a93a6; }
+.lg-seq .sp-st.now { color: #b06d00; }
+.lg-seq .sq-outh { margin: 8px 10px 2px; font-size: 12.5px; color: #2a3a62; }
+.lg-seq .sq-outs { list-style: none; margin: 0 10px 8px; padding: 0; }
+.lg-seq .sq-outs li { border: 1px solid #e3e7ef; border-radius: 5px; padding: 4px 7px; margin: 3px 0; cursor: pointer; font-size: 12px; }
+.lg-seq .sq-outs li:hover { background: #eef8f3; border-color: #0a6b4a; }
+.lg-seq .sg-sum { font-size: 11.5px; color: #3b4f7a; margin: 1px 0 0 18px; }

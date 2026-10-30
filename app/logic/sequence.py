@@ -126,6 +126,31 @@ def commands(sheets):
     return out
 
 
+def outputs(sheets, q="", limit=60):
+    """L70 — 출력 행(오른쪽 표) 아무것이나 찾기 — 동작 낱말이 없는 출력(OUTPUT · 허가 · 알림 …)도 거슬러 올라가 볼 수 있게.
+    q 의 낱말이 모두 설명 · 시트 이름 · TO 에 들어 있는 행만.  Typical 시트(매크로 안쪽)는 뒤로 · 설명 없는 행은 뺀다."""
+    typical = {(b.get("macro") or {}).get("page") for s in sheets for b in s["blocks"].values() if b.get("func") == "MACRO"}
+    words = [w for w in re.split(r"\s+", (q or "").upper().strip()) if w]
+    out, total = [], 0
+    for s in sheets:
+        if s.get("library"):
+            continue
+        for r in s["rows"]:
+            if r["side"] != "R" or r.get("net") is None or not r.get("desc"):
+                continue
+            hay = " ".join(str(x or "") for x in (r.get("desc"), s.get("sheet_no"), r.get("to"), r.get("kks"))).upper()
+            toks = set(_words(hay))
+            # 한두 글자 낱말(A · B · #1)은 낱말 통째로 — 'A' 가 SPRAY 의 A 에 맞지 않게
+            if words and not all((w in toks) if len(w) <= 2 else (w in hay) for w in words):
+                continue
+            total += 1
+            c = classify(r["desc"])
+            out.append({"page": s["page"], "sheet": s.get("sheet_no"), "row": r["n"], "desc": r["desc"], "to": r.get("to") or "",
+                        "title": s.get("title") or "", "typical": s["page"] in typical, "action": c[0] if c else None})
+    out.sort(key=lambda x: (x["typical"], x["action"] is None, str(x["sheet"]), x["row"]))
+    return {"items": out[:limit], "total": total}
+
+
 VOTE_KO = {"ge": "{a}개 이상", "gt": "{a}개보다 많이", "le": "{a}개 이하", "lt": "{a}개 미만", "eq": "정확히 {a}개", "ne": "{a}개가 아닐 때"}
 GATE_KO = {"and": "AND — 모두 만족", "nand": "NAND", "or": "OR — 하나만 만족하면 됨", "nor": "NOR", "not": "NOT — 반대",
            "memory": "메모리(래치)", "delay_on": "켜짐 지연", "delay_off": "꺼짐 지연", "pulse": "펄스",

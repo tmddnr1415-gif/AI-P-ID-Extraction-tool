@@ -665,7 +665,82 @@ def delete(did: str, author: str) -> dict:
     return cur
 
 
+# L77 — 업데이트에 실어 보내는 그림 묶음 (config/logic_draw_seed/*.json.gz).  처음 목록을 열 때 한 번 들인다 —
+# 들인 표시(_seeded/<씨앗>)가 있으면 다시 들이지 않는다 (사람이 지운 묶음이 업데이트마다 되살아나지 않게) ·
+# 같은 id 의 그림이 이미 있으면 덮지 않는다 (사람이 고친 판이 이긴다).  PID_DRAW_SEED=0 이면 끈다.
+_SEED_DONE: dict = {}
+
+
+def seed_dir() -> Path:
+    from app import paths
+    return paths.resource("config", "logic_draw_seed")
+
+
+def install_seeds() -> list:
+    import gzip
+    import os
+    if os.environ.get("PID_DRAW_SEED", "1") == "0":
+        return []
+    key = str(store.root())
+    if _SEED_DONE.get(key):
+        return []
+    _SEED_DONE[key] = True
+    out = []
+    sd = seed_dir()
+    if not sd.is_dir():
+        return out
+    mark = root() / "_seeded"
+    for f in sorted(sd.glob("*.json.gz")):
+        name = f.name[:-len(".json.gz")]
+        try:
+            pack = json.loads(gzip.decompress(f.read_bytes()).decode("utf-8"))
+        except Exception:
+            continue
+        rev = int(pack.get("rev") or 1)
+        if (mark / name).exists():
+            # L78 — 씨앗의 판(rev)이 올랐으면 **사람이 손대지 않은** 그림만 새 판으로 바꾼다.  손대지 않음 = 저장 횟수 ·
+            # 고친 때가 씨앗의 것과 같다 (사람이 저장하면 둘 다 바뀐다).  지운 그림은 되살리지 않는다.
+            try:
+                old = json.loads((mark / name).read_text(encoding="utf-8"))
+            except Exception:
+                old = {}
+            if int(old.get("rev") or 1) >= rev:
+                continue
+            n = 0
+            for doc in pack.get("docs") or []:
+                if not ID_RE.match(doc.get("id") or "") or not _path(doc["id"]).exists():
+                    continue
+                cur = read_doc(_path(doc["id"])) or {}
+                if cur == doc or cur.get("saves") != doc.get("saves") or cur.get("updated") != doc.get("updated"):
+                    continue
+                save_new(doc)
+                n += 1
+            old.update({"rev": rev, "updated_at": time.time(), "updated_docs": n})
+            (mark / name).write_text(json.dumps(old, ensure_ascii=False), encoding="utf-8")
+            out.append({"seed": name, "updated": n, "rev": rev})
+            continue
+        pj = str(pack.get("project") or "").strip()
+        if pj:                                                    # 로직 그리기의 프로젝트 하나로 — 프로젝트 장부에 없으면 만든다
+            try:
+                from . import projects
+                if not any(p["name"].casefold() == pj.casefold() for p in projects.load()):
+                    projects.create(pj, "업데이트")
+            except Exception:
+                pass
+        n = 0
+        for doc in pack.get("docs") or []:
+            if not ID_RE.match(doc.get("id") or "") or _path(doc["id"]).exists():
+                continue
+            save_new(doc)
+            n += 1
+        mark.mkdir(parents=True, exist_ok=True)
+        (mark / name).write_text(json.dumps({"at": time.time(), "docs": n, "rev": rev, "set": pack.get("set"), "name": pack.get("name")}, ensure_ascii=False), encoding="utf-8")
+        out.append({"seed": name, "docs": n})
+    return out
+
+
 def listing() -> list:
+    install_seeds()
     out = []
     for d in sorted(root().iterdir()):
         p = d / "drawing.json"
@@ -1461,6 +1536,25 @@ def _mend(segs: list, terms: list, gap: float = 4.0, reach: float = 1.5 * PITCH)
                     if d < bd:
                         best, bd = (j, kk, oe), d
             if not best:
+                # L78 — 끝이 같은 그물의 직교 선분 몸통 앞 gap 안에서 멈췄으면 (원본은 그 틈을 연결점 ● 이 메웠다 —
+                # 19VA QM02_G001 ANN 아래 1.56pt) 몸통까지 늘인다.  같은 그물 안에서만 — 다른 신호를 잇지 않는다.
+                v_i = abs(sg[0] - sg[2]) < 0.2
+                h_i = abs(sg[1] - sg[3]) < 0.2
+                hit, hd = None, gap
+                for j, og in enumerate(segs):
+                    if j == i:
+                        continue
+                    if v_i and abs(og[1] - og[3]) < 0.2 and min(og[0], og[2]) - 0.2 <= end[0] <= max(og[0], og[2]) + 0.2:
+                        d, pt = abs(og[1] - end[1]), (end[0], og[1])
+                    elif h_i and abs(og[0] - og[2]) < 0.2 and min(og[1], og[3]) - 0.2 <= end[1] <= max(og[1], og[3]) + 0.2:
+                        d, pt = abs(og[0] - end[0]), (og[0], end[1])
+                    else:
+                        continue
+                    other = (sg[2], sg[3]) if k == 0 else (sg[0], sg[1])     # 늘이는 쪽이 바깥이어야 한다 (선분을 줄이지 않는다)
+                    if d < hd and abs(pt[0] - other[0]) + abs(pt[1] - other[1]) > abs(end[0] - other[0]) + abs(end[1] - other[1]):
+                        hit, hd = pt, d
+                if hit:
+                    set_end(i, k, hit)
                 continue
             j, kk, oe = best
             og = segs[j]

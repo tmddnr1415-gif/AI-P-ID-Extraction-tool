@@ -13,6 +13,7 @@
   <h1>LOGIC 검토</h1>
   <button id="to-home" class="lg-tohome" title="프로젝트 · 자료 넣기 · 분석 이력 첫 화면으로">⌂ 첫 화면</button>
   <a id="to-draw" class="lg-tohome lg-draw" href="/logic/draw" title="LOGIC 작도 — 같은 양식으로 로직 시트를 그린다 (하위 메뉴)">✎ 작도</a>
+  <a id="to-signal" class="lg-tohome lg-draw" href="/logic/signal" target="_blank" title="신호 처리 시뮬레이션 — 연산자(∑ · ÷ · √ · 선택 · Lag · 리미터 …)에 값을 넣어 계산 과정과 시간 응답을 본다 (새 창)">∿ 신호 처리</a>
   <select id="job" title="분석한 Logic 묶음"></select>
   <span id="samples"></span>
   <input id="goto" class="lg-goto" placeholder="G049-40 로 이동" title="시트-행 (예: G049-40) 을 적고 Enter — 그 시트의 그 행으로 갑니다" disabled>
@@ -97,6 +98,7 @@
       <button id="full" title="도면 창을 화면 전체로 (Esc 로 끝)">⛶ 전체창</button>
       <button id="gt-btn" title="장비(블록 그룹)마다 배운 동작을 원 버튼으로 시험하는 대시보드">🧪 그룹 시험</button>
       <button id="dcs-btn" title="같은 프로젝트의 식별된 P&amp;ID 로 만든 DCS HMI 그래픽을 새 창(다른 모니터)으로 — 시뮬레이션의 같은 태그 값이 그 그림에 그대로 칠해집니다">🖥 DCS 그래픽 <b id="dcs-n"></b></button>
+      <button id="cm-btn" title="시운전 단계별 동작 · 단계마다 시뮬레이션 · System Description(Word)">📘 시운전</button>
       <button id="seq-btn" title="START · STOP · OPEN · CLOSE · TRIP 한 동작을 고르면 그 조건을 차례로 묻고 끝까지 시뮬레이션합니다">▶ 순차 동작</button>
       <button id="sig-toggle" title="내가 준 신호와 그에 따라 나간 출력을 이동 가능한 창으로 봅니다">📋 신호 현황</button>
       <button id="reset" class="lg-reset" title="모든 시트의 강제 신호(사람이 준 1/0)와 메모리 · 타이머 상태를 한 번에 지웁니다 — 타이머 시간 설정은 남습니다">⟲ 강제 신호 전체 리셋</button>

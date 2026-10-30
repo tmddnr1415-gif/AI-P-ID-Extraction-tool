@@ -100,6 +100,23 @@ def new_set(name: str) -> str:
     return uuid.uuid4().hex[:12]
 
 
+SHAPE_KEYS = ("BAR_BOX", "BAR_CIRCLE", "CROSS_BOX", "ROUND_BOX")
+
+
+def source_form(res: dict) -> str:
+    """L76 — 원본이 게이트를 글자가 아니라 모양(막대+네모 · 막대+원 · ⊠ · 둥근 상자)으로 그렸으면 같은 결의 양식(a5j)으로 옮긴다.
+    모양 열쇠를 가진 블록이 글자 게이트보다 많을 때만 — 글자 게이트 묶음(HRSG)은 예전처럼 기본 양식."""
+    shape = text = 0
+    for s in res.get("sheets") or []:
+        for b in s["blocks"].values():
+            k = (b.get("key") or "").split("|")[0]
+            if k in SHAPE_KEYS:
+                shape += 1
+            elif b.get("logic") in ("and", "or", "not") and (b.get("read") or b.get("label")):
+                text += 1
+    return "a5j" if shape > text else ""
+
+
 def import_bundle(res: dict, name: str, author: str, project: str = "", job: str = "") -> dict:
     """분석한 묶음의 모든 시트를 이 양식의 그림으로 (사전 Typical 사본은 뺀다).  매크로가 이어진 시트는 `typical`."""
     sid = new_set(name)
@@ -109,11 +126,14 @@ def import_bundle(res: dict, name: str, author: str, project: str = "", job: str
             m = b.get("macro") or {}
             if b.get("func") == "MACRO" and m.get("page") and not m.get("library"):
                 typ_pages.add(m["page"])
+    form = source_form(res)
     docs = []
     for i, s in enumerate(sorted(res.get("sheets") or [], key=lambda q: q["page"])):
         if s.get("library") or s["page"] >= library.LIB_PAGE0:
             continue
         doc = draw.from_sheet(s, s.get("sheet_no") or f"p{s['page']}", author, project)
+        if form:
+            doc["form"] = form
         doc.update({"set": sid, "set_name": _txt(name, 80) or "묶음", "order": i + 1, "typical": s["page"] in typ_pages,
                     "source": {"job": job, "page": s["page"], "sheet_no": s.get("sheet_no", "")}})
         draw.save_new(doc)

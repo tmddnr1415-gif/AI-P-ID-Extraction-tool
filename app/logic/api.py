@@ -18,7 +18,7 @@ from fastapi.responses import FileResponse, JSONResponse, Response
 
 from app import paths
 
-from . import analog, aops, fromto, idrate, library, memo, overrides, projects, report, sim, store, teach
+from . import analog, aop_trace, aops, fromto, idrate, library, memo, overrides, projects, report, sim, store, teach
 
 router = APIRouter()
 ZOOM = store.ZOOM
@@ -784,6 +784,142 @@ def grouptest_xlsx(job: str):
                     headers={"Content-Disposition": "attachment; filename*=UTF-8''" + quote(fn)})
 
 
+# ───────────────── L78 — 시운전 단계 · System Description (Word) ─────────────────
+
+_SYSDESC = {}                       # 분석 → {"state", "done", "total", "error", "key", "at"}
+_SYSDESC_LOCK = threading.Lock()
+
+
+@router.get("/logic/commission")
+def logic_commission_page():
+    """L78 — 시운전 단계별 동작 · 단계마다 시뮬레이션."""
+    return FileResponse(_static("logic_commission.html"), headers={"Cache-Control": "no-store"})
+
+
+def _dangling_text(res):
+    """연결 안 된 선 끝 — 로직(G) · 루프(P) · Typical 시트로 갈라 센다 (분석의 C1 점검 그대로)."""
+    from . import refs as _refs
+    n = {"G": 0, "P": 0, "T": 0}
+    for s in res.get("sheets") or []:
+        k = _refs.series(s.get("sheet_no") or "") or "T"
+        k = k if k in n else "T"
+        n[k] += sum(1 for f in s.get("findings") or [] if f.get("code") == "C1_DANGLING")
+    return f"로직(G) 시트 {n['G']} · 루프(P) 시트 {n['P']} · Typical/범례 시트 {n['T']}"
+
+
+@router.get("/logic/api/jobs/{job}/commission")
+def commission_get(job: str):
+    from . import commission
+    d = _dir(job)
+    res = _result(job)
+    st = behavior_get(job, 1)
+    cur = st["result"]
+    status = store.read_status(d)
+    out = {"state": st["state"], "progress": st["progress"], "name": status.get("name"), "project": status.get("project"),
+           "summary": (cur or {}).get("summary"), "dangling": _dangling_text(res), "systems": []}
+    if cur:
+        out["systems"] = _memo(res, "commission:" + str(cur.get("key")), lambda: commission.overview(res, cur))
+    with _SYSDESC_LOCK:
+        out["sysdesc"] = dict(_SYSDESC.get(job) or {}) or None
+    if (d / "sysdesc.docx").exists():
+        out["sysdesc_file"] = (d / "sysdesc.docx").stat().st_mtime
+    return out
+
+
+def _commission_steps(job, equip):
+    from . import commission
+    cur, _ = _learned(job, start=False)
+    if not cur:
+        raise HTTPException(409, "아직 동작을 배우는 중입니다 — 잠시 뒤 다시 누르세요.")
+    res = _result(job)
+    st = _memo(res, "commission-structure:" + str(cur.get("key")), lambda: commission.structure(res, cur))
+    e = st["equips"].get(equip)
+    if not e:
+        raise HTTPException(404, f"'{equip}' 장비를 배운 것이 없습니다.")
+    sheets = _all_sheets(res)
+    cache = _bundle_cache(job, res)
+    rk = "commission-resolver:" + str(cur.get("key"))
+    with cache.setdefault("_lock", threading.Lock()):
+        resolve = _memo(res, rk, lambda: commission.resolver(res, cur, sheets, cache, 20.0))
+        steps = commission.steps_of(e["items"], None, resolve)
+    return res, sheets, cache, e, steps
+
+
+@router.get("/logic/api/jobs/{job}/commission/steps")
+def commission_steps(job: str, equip: str):
+    _, _, _, e, steps = _commission_steps(job, equip)
+    return {"equip": equip, "sheets": e["sheets"], "deps": e["deps"], "steps": steps}
+
+
+@router.post("/logic/api/jobs/{job}/commission/run")
+def commission_run(job: str, body: dict = Body(default={})):
+    """단계마다 시뮬레이션 — upto 가 있으면 그 단계까지 (앞 단계의 상태를 이어서)."""
+    from . import commission
+    equip = str(body.get("equip") or "")
+    if not equip:
+        raise HTTPException(400, "equip 가 필요합니다.")
+    res, sheets, cache, e, steps = _commission_steps(job, equip)
+    upto = body.get("upto")
+    upto = int(upto) if isinstance(upto, (int, float)) or (isinstance(upto, str) and upto.isdigit()) else None
+    t0 = time.time()
+    with cache.setdefault("_lock", threading.Lock()):
+        out = commission.run_steps(sheets, steps, cache, _timers(body.get("timers")), upto)
+        cache.pop("_last_results", None)
+    out.update(equip=equip, seconds=round(time.time() - t0, 2))
+    return out
+
+
+@router.post("/logic/api/jobs/{job}/sysdesc")
+def sysdesc_start(job: str):
+    """System Description(Word) 만들기 — 뒤에서 (장비마다 시운전 단계까지 · AMIRAL 약 1분)."""
+    from . import commission
+    d = _dir(job)
+    cur, _ = _learned(job, start=False)
+    if not cur:
+        raise HTTPException(409, "아직 동작을 배우는 중입니다 — 끝나면 만들 수 있습니다.")
+    with _SYSDESC_LOCK:
+        now = _SYSDESC.get(job) or {}
+        if now.get("state") == "running":
+            return now
+        _SYSDESC[job] = {"state": "running", "done": 0, "total": 0, "at": time.time()}
+    res = _result(job)
+
+    def go():
+        try:
+            def prog(i, n):
+                with _SYSDESC_LOCK:
+                    _SYSDESC[job].update(done=i, total=n)
+            status = store.read_status(d)
+            rv = status.get("review") or {}
+            cache = _bundle_cache(job, res)
+            with cache.setdefault("_lock", threading.Lock()):
+                data = commission.docx_bytes(res, cur, status, review=rv if isinstance(rv, dict) else None,
+                                             dangling=_dangling_text(res), progress=prog)
+                cache.pop("_last_results", None)
+            tmp = d / f"sysdesc.docx.tmp{os.getpid()}"
+            tmp.write_bytes(data)
+            store._replace(tmp, d / "sysdesc.docx")
+            with _SYSDESC_LOCK:
+                _SYSDESC[job].update(state="done", at=time.time(), size=len(data))
+        except Exception as ex:
+            with _SYSDESC_LOCK:
+                _SYSDESC[job].update(state="failed", error=str(ex))
+    threading.Thread(target=go, daemon=True).start()
+    return _SYSDESC[job]
+
+
+@router.get("/logic/api/jobs/{job}/sysdesc.docx")
+def sysdesc_file(job: str):
+    d = _dir(job)
+    p = d / "sysdesc.docx"
+    if not p.exists():
+        raise HTTPException(404, "아직 만들지 않았습니다 — '시스템 설명서 만들기' 를 누르세요.")
+    name = store.read_status(d).get("name") or "logic"
+    fn = Path(name).stem + "_System_Description.docx"
+    return FileResponse(p, media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                        headers={"Content-Disposition": "attachment; filename*=UTF-8''" + quote(fn)})
+
+
 @router.get("/logic/api/jobs/{job}/report.xlsx")
 def report_xlsx(job: str):
     res = _result(job)
@@ -948,6 +1084,14 @@ def commands(job: str):
     res = _result(job)
     from . import sequence
     return {"items": _memo(res, "commands", lambda: sequence.commands(_all_sheets(res)))}
+
+
+@router.get("/logic/api/jobs/{job}/outputs")
+def outputs(job: str, q: str = "", limit: int = 60):
+    """L70 — 출력 행 찾기 (동작 낱말이 없는 출력도 거슬러 올라가 보게)."""
+    res = _result(job)
+    from . import sequence
+    return sequence.outputs(_all_sheets(res), q, max(1, min(int(limit or 60), 300)))
 
 
 @router.post("/logic/api/jobs/{job}/sequence")
@@ -1526,13 +1670,31 @@ def sheet_aop(job: str, page: int, body: dict = Body(default={})):
     bid = str(body.get("block") or "")
     if bid not in s["blocks"]:
         raise HTTPException(404, "그 블록이 없습니다.")
-    given = _analog({str(page): body.get("analog") or {}}).get(page, {})
-    det = {}
-    nv, bv, keys = analog.nets(s, given, sim._index(s)[:4], None, det)
-    d = det.get(bid)
-    if d is None:
-        return {"op": None, "block": bid}
-    return {**d, "block": bid, "key": keys.get(f"block:{bid}")}
+    idx = sim._index(s)[:4]
+    sd = body.get("detail")
+    if isinstance(sd, dict) and sd.get("op"):
+        d, key = sd, sd.get("key")                       # L71 — 동작 시뮬레이션 결과 (다른 장에서 이어진 값까지) 그대로 · 과정만 더한다
+    else:
+        given = _analog({str(page): body.get("analog") or {}}).get(page, {})
+        det = {}
+        nv, bv, keys = analog.nets(s, given, idx, None, det)
+        d = det.get(bid)
+        if d is None:
+            return {"op": None, "block": bid}
+        key = keys.get(f"block:{bid}")
+    return {**d, "block": bid, "key": key, **_aop_trace(s, bid, d, idx, body.get("dig") or {})}
+
+
+def _aop_trace(s, bid, d, idx, dig):
+    """L71 — 계산 과정(값을 넣은 식)과 입력마다 어디서 오나 (입력 행 · 계기까지 거슬러)."""
+    b = s["blocks"][bid]
+    tp = analog._topo(s, idx)
+    cv = dig.get(str(d.get("cond"))) if d.get("cond") is not None else None
+    tr = aop_trace.trace(d.get("op"), d.get("params") or aops.params(b), d.get("inputs") or [], d.get("out"), d.get("dig"),
+                         d.get("why") or "", b.get("label") or b.get("read") or "", cond_value=cv)
+    byname = {str(n): n for n in s["nets"]}
+    src = {str(i["net"]): aop_trace.sources(s, byname.get(str(i["net"]), i["net"]), bid, idx, tp["ops"], tp["io"]) for i in d.get("inputs") or []}
+    return {"trace": tr, "sources": src}
 
 
 @router.post("/logic/api/jobs/{job}/overrides/aparam")
@@ -1558,6 +1720,42 @@ def aops_vocab():
     return {"ops": {k: {"ko": e.get("ko"), "eq": e.get("eq")} for k, e in (v.get("ops") or {}).items()},
             "digital_ops": {k: {"ko": e.get("ko"), "eq": e.get("eq")} for k, e in (v.get("digital_ops") or {}).items()},
             "needs": aops.NEEDS}
+
+
+@router.get("/logic/signal")
+def logic_signal_page():
+    """L72 — 신호 처리(아날로그 연산자) 시뮬레이션 페이지."""
+    return FileResponse(_static("logic_signal.html"), headers={"Cache-Control": "no-store"})
+
+
+@router.get("/logic/api/aopsim")
+def aopsim_meta():
+    """L72 — 페이지가 쓰는 연산 목록 (범례 어휘 + 시간 블록 Lead/Lag) · 시간 그래프 블록의 설정값과 기본값."""
+    v = aops.vocab()
+    ops = {k: {"ko": e.get("ko"), "eq": e.get("eq")} for g in ("ops", "digital_ops") for k, e in (v.get(g) or {}).items()}
+    ops.update(aop_trace.EXTRA_OPS)
+    return {"ops": ops, "needs": aops.NEEDS, "time_ops": aop_trace.TIME_OPS}
+
+
+@router.post("/logic/api/aopsim")
+def aopsim_run(body: dict = Body(...)):
+    """L72 — 사람이 넣은 입력 · 설정값으로 연산자 하나를 센다 (도면 판과 같은 aops.compute) → 출력 · 계산 과정."""
+    op = str(body.get("op") or "")
+    if op not in aop_trace.EXTRA_OPS and not aops.info(op):
+        raise HTTPException(400, "모르는 연산입니다.")
+    ins = body.get("inputs") or []
+    if not isinstance(ins, list) or len(ins) > 16:
+        raise HTTPException(400, "입력은 16개까지입니다.")
+    return aop_trace.run_static(op, ins, body.get("params") or {}, str(body.get("label") or "")[:200], body.get("cond"))
+
+
+@router.post("/logic/api/aopsim/timeline")
+def aopsim_timeline(body: dict = Body(...)):
+    """L72 — 시간에 따라 변하는 블록(Lag · Lead/Lag · 변화율 제한 · 적분 · 미분)의 응답 → {t, x, y}."""
+    try:
+        return aop_trace.timeline(str(body.get("op") or ""), body.get("params") or {}, body.get("input") or {}, body.get("T") or 60)
+    except (ValueError, TypeError) as e:
+        raise HTTPException(400, str(e))
 
 
 @router.get("/logic/api/functions")
