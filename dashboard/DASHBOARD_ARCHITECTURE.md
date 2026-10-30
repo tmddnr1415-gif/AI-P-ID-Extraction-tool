@@ -1262,3 +1262,8 @@ C:\Users\SAMSUNG\Desktop\Claude\                         ← 개발 폴더 (여�
 - 콘솔: `crspacePeople()` = 시간 · 작업자 자리/상태 · 운전원 고개 각, `crspacePeople({tech:0,D:3000})` = 그 사람 쪽으로 카메라.
 - 확인한 것: Chromium(F3 CCR) — 작업자 2 명 결선 ↔ 걷기, 운전원 16 명 고개 각이 시간 따라 바뀜, 멈춤 뒤 1.5 초 화면 픽셀 같음 · 다시 누르면 이어감. 그리기 평균 13~16 ms. 기존 시험(v3 · png3d · erg · ergset · ergpdf · home · nosrv · door · rdedit · space · dual · fix2 · issue) 통과, 스크립트 오류 0(space 시험의 오류 2 건은 기준판과 같음).
 - 회사에서 확인할 것: 회사 PC 에서 3D 를 켜 둔 채 CPU 가 무거우면 [⏸ 동작 멈춤](기억됨).
+
+### 2026-10-30 (50) — 판넬 공간확보: 저장된 프로젝트 카드에서 삭제 (apps/space/index.html 만)
+> 서버 재시작 · 대시보드 교체 필요 없음. 서버 API 그대로(`DELETE /api/space/<pid>`).
+- 첫 화면 '저장된 프로젝트' 카드 오른쪽 [🗑 삭제](`.pjdel`, `data-del`): 그 프로젝트를 ① 에서 고른 뒤 `hmDel('proj')` 와 같게 — 프로젝트 이름을 그대로 적어야 지움, 룸 · Rev · 저장본 · 노트 모두 서버 휴지통(`space/_trash`)으로, 운영자가 되살릴 수 있음. 권한은 서버 `space_can_del`(만든 사람 · 관리자).
+- 확인한 것: Chromium — 프로젝트 만들기 → 카드 🗑 → 이름 틀림 = 남음, 이름 맞음 = 목록에서 사라짐 · ① 칸 비움. home · nosrv 시험 통과, 스크립트 오류 0.
