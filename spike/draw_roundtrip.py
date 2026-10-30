@@ -99,6 +99,7 @@ def run(job: str, keep_pdf: Path | None = None):
         os.environ["PID_DATA_DIR_DRAW"] = td
         # 들여오기는 저장소에 쓰지 않고 메모리에서 — from_sheet 만 쓴다
         docs = []
+        form = draw_sets.source_form(orig)          # L76 — 들여오기와 같은 양식으로
         typ_pages = set()
         for s in orig["sheets"]:
             for b in s["blocks"].values():
@@ -110,6 +111,8 @@ def run(job: str, keep_pdf: Path | None = None):
                 continue
             doc = draw.from_sheet(s, s.get("sheet_no") or f"p{s['page']}", "roundtrip", "")
             doc["typical"] = s["page"] in typ_pages
+            if form:
+                doc["form"] = form
             docs.append(doc)
         pdf = draw_sets.to_pdf_set(docs)
         if keep_pdf:
