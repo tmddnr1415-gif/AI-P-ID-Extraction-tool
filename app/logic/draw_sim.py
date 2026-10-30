@@ -352,7 +352,7 @@ def _box_meaning(out, b, text, notes=()):
         out["func"], out["logic"] = "BUFFER", "pass"
         return
     from . import analog as A
-    if A._MON.match(t):
+    if A._MON.match(t) or (b.get("param") or {}).get("mon"):
         out["func"], out["logic"] = A.MONITOR_FUNC, "source"           # 감시 블록 — 값 · 설정값이 있으면 비교로 1/0 (analog.monitors)
         return
     # 그 장 NOTES 가 이 낱말을 따옴표로 부르며 INVERT 를 말하면 토글 (분석기 blocks._note_defined 와 같은 규칙)
@@ -397,6 +397,11 @@ def _box_meaning(out, b, text, notes=()):
         out["label"] = title
         out["title_op"] = True                              # 표시 글자 상자(DISPLAY)로 읽지 않는다 (SPC = 조절기 · 받기만 하는 그림이어도)
     # 모르는 글자 — 들어오는 선 없이 나가는 선만 있으면 이름 붙은 신호 상자(source) 는 to_sheet 가 단자를 센 뒤 정한다
+
+
+def _const_word(t) -> bool:
+    from . import aops
+    return aops.vocab()["_by_label"].get(aops._lab(t)) == "const"
 
 
 def _is_op_word(t) -> bool:
@@ -452,9 +457,23 @@ def to_sheet(doc: dict, page: int, typ_pages: dict | None = None) -> dict:
     io = defaultdict(lambda: [0, 0])
     drawn = {b["id"]: b for b in doc.get("blocks") or [] if b.get("kind") in D.SYMBOLS and b["kind"] != "TEXT"}
     ends = []                                             # 선 끝 — (x, y, 그물)
+    tips = defaultdict(list)                              # L85 — 그물마다 화살촉 자리 (받는 쪽 끝)
     for i, w in enumerate(wires):
         for q in (w["pts"][0], w["pts"][-1]):
             ends.append((q[0], q[1], net_of[i]))
+        a_ = w.get("arrow")
+        if a_ in ("start", "end"):
+            q = w["pts"][0] if a_ == "start" else w["pts"][-1]
+            tips[net_of[i]].append((q[0], q[1]))
+
+    def tb_dir(ex, ey, net):
+        """위 · 아래 변에 닿은 선 — 화살촉이 이 끝에 있으면 입력 · 화살촉이 그물의 다른 곳에만 있으면 이 블록에서 **나가는** 선
+        (분석기는 화살로 방향을 읽는다 — 19VA BL10_P001 상수 A 의 아래로 나가는 출력을 입력으로 읽어 뒤 블록이 다 0 이던 것).
+        화살이 없으면 예전대로 입력."""
+        ts = tips.get(net) or []
+        if not ts or any(abs(tx - ex) + abs(ty - ey) <= TOL + 1.0 for tx, ty in ts):
+            return "in"
+        return "out"
     end_cells = defaultdict(list)                         # L65 — 선 끝 색인 (블록마다 그 상자 근처 끝만 · 원래 순서)
     for k, (ex, ey, _) in enumerate(ends):
         end_cells[(int(ex // CELL), int(ey // CELL))].append(k)
@@ -504,7 +523,11 @@ def to_sheet(doc: dict, page: int, typ_pages: dict | None = None) -> dict:
                 role = ("q" if cell == 0 else "qn") if b["kind"] == "MEMORY" else ""
                 add(ex, ey, "out", role, cell if b["kind"] == "MEMORY" else 0)
             elif x0 - TOL <= ex <= x1 + TOL and (abs(ey - y0) <= TOL or abs(ey - y1) <= TOL) and spec.get("logic") not in ("source",):
-                add(ex, ey, "in", "", 0)                   # 위 · 아래 변 — 타이머의 t(위) · 리셋(아래) 은 sim._index 가 side 로 가른다
+                d_ = tb_dir(ex, ey, _)
+                add(ex, ey, d_, "", 0)                     # 위 · 아래 변 — 타이머의 t(위) · 리셋(아래) 은 sim._index 가 side 로 가른다
+                if d_ == "in" and not any(abs(tx - ex) + abs(ty - ey) <= TOL + 1.0 for tx, ty in tips.get(_) or []) and ports and \
+                        ports[-1]["block"] == bid and ports[-1]["at"] == [round(ex, 2), round(ey, 2)]:
+                    ports[-1]["_noarrow"] = True               # 화살 없이 위 · 아래로 닿은 선 (아래 L85 — 출력 없는 게이트)
     # STEP 상자 — 단자 역할은 그 높이의 글줄 이름 (STEP IN · CRIT · STEP OUT · C-STEP CMD)
     for bid, sb in blocks.items():
         if sb["func"] != "STEP":
@@ -521,6 +544,26 @@ def to_sheet(doc: dict, page: int, typ_pages: dict | None = None) -> dict:
             if best and best[0] <= D.PITCH:
                 sb["roles"][f"{pt['at'][0]},{pt['at'][1]}"] = names[best[1]]
                 pt["role"] = names[best[1]]
+    # L85 — 게이트에 나가는 선이 하나도 없는데 화살 없는 위 · 아래 선이 있으면 그것이 출력이다 (아래 것 먼저 — 위에서 아래로 흐른다).
+    #   세로로 놓인 NOT(⊠): 위로 들어와 아래로 나가는 선에 화살이 없다 (19VA 0015 — 출력이 없어 뒤가 다 비었다 · 분석기도 위 입력 · 아래 출력)
+    for bid, sb in blocks.items():
+        if io[bid][1] or sb["logic"] in ("sink", "source", "macro", "unknown", "memory", "step") or io[bid][0] < 2:
+            continue
+        cand = [pt for pt in ports if pt["block"] == bid and pt.get("_noarrow")]
+        cand.sort(key=lambda pt: (pt["side"] != "B", -pt["at"][1]))
+        if cand:
+            cand[0]["dir"] = "out"
+            io[bid] = [io[bid][0] - 1, 1]
+    for pt in ports:
+        pt.pop("_noarrow", None)
+    # L85 — 상수 상자(A)에는 들어오는 것이 없다 — 화살을 거꾸로 그린(읽은) 선도 상수가 모는 선이다 (aops._const_outs 와 같은 뜻).
+    #   예전엔 들어오는 선만 있는 'A' 를 표시 글자(DISPLAY)로 읽어 그 상수를 받는 연산이 다 비었다 (19VA DW02_P005 등 93개)
+    for bid, sb in blocks.items():
+        if sb["func"] == "UNKNOWN" and drawn[bid]["kind"] == "BOX" and io[bid][0] and _const_word(sb["label"]):
+            for pt in ports:
+                if pt["block"] == bid and pt["dir"] == "in":
+                    pt["dir"] = "out"
+            io[bid] = [0, io[bid][0] + io[bid][1]]
     # 글자 상자의 남은 뜻 · 입력 하나뿐인 AND/OR 는 그렇게 그린 것 (L53 as_drawn)
     for bid, sb in blocks.items():
         n_in, n_out = io[bid]
@@ -578,12 +621,28 @@ def to_sheet(doc: dict, page: int, typ_pages: dict | None = None) -> dict:
          "logic": [D.LX0, D.TOP, D.LX1, D.TOP + N * D.PITCH], "pitch": D.PITCH, "frame": [0, 0, D.W, D.H],
          "nets": nets, "blocks": blocks, "ports": ports, "rows": rows, "table": table, "dangling": [], "stray_arrows": [],
          "findings": [], "typical": bool(doc.get("typical")), "N": N}
+    # L85 — 연산 블록 둘레 글(입력 이름 IN1 · FLAG · 계수 · 상수 'A : 5%') — 분석기와 같은 함수로 읽는다 (draw._aop_texts 가 옮긴 글 · 사람이 쓴 글)
+    _read_aop_texts(doc, s)
     try:
         from .analyse import _net_order
         s["order"] = _net_order(s)
     except Exception:
         s["order"] = {}
     return s
+
+
+def _read_aop_texts(doc, s):
+    texts = []
+    for b in doc.get("blocks") or []:
+        if b.get("kind") == "TEXT" and (b.get("text") or "").strip():
+            texts.append([b["x"] + b["w"] / 2, b["y"] + b["h"] / 2, b["text"], min(b["h"] * 0.8, 8)])
+    if not texts:
+        return
+    from . import aops
+    try:
+        aops.read_pins(s, _words_of(texts))
+    except Exception:
+        pass
 
 
 _ANALOG_HINT = re.compile(r"[Σ∑√∫△÷×]|^(MED|AVG|MAX|MIN|ABS|SQRT|PID|SEL|DEV|HI|LO|BIAS|K|-K|T|F\(X\)|OUT|EQUAL|BIT_CNT|SPC|A)$", re.I)

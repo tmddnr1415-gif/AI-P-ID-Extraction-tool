@@ -316,6 +316,8 @@ def clean(doc: dict) -> dict:
                                  "dy": _num(q.get("dy"), 0, 2000, 0)})
                 param[side] = pins
             nb["h"] = _num(b.get("h"), 4, 2000, spec["h"])     # 매크로는 상자가 길다 (표 높이까지)
+        if spec.get("box") and p.get("mon"):
+            param["mon"] = 1                            # L85 — 범례가 정한 감시 블록 (B.Q …)
         if not spec.get("note") and _txt(p.get("above"), 40):
             param["above"] = _txt(p.get("above"), 40)   # L56 — 블록 바로 위 글 (설정값 `202.4 barg` · `HH : 191` · 짧은 주석) — 분석기 analog._read_setpoint 가 읽는 자리
         nb["param"] = param
@@ -1640,6 +1642,84 @@ def _mend(segs: list, terms: list, gap: float = 4.0, reach: float = 1.5 * PITCH)
     return [[round(v, 2) for v in sg] for sg in segs]
 
 
+PIN_FS = 4.0          # L85 — 입력 이름 · 상수 글 크기 (분석 도면의 단자 이름 글씨 ≈ 4pt)
+
+
+def _note_text(cx, cy, t, fs=PIN_FS) -> dict:
+    """글(주석) 블록 하나 — 가운데 (cx, cy) · 글 폭만큼 (화면 · PDF 는 상자 없이 글만 그린다)."""
+    w = round(max(4.0, len(t) * fs * _CHAR_W + 1.0), 2)
+    h = round(fs / 0.8, 2)
+    return {"id": "t" + uuid.uuid4().hex[:7], "kind": "TEXT", "x": round(cx - w / 2, 2), "y": round(cy - h / 2, 2), "w": w, "h": h,
+            "text": t, "label": "", "param": {}}
+
+
+def _fig_symbol(b) -> str:
+    """분석이 상자 안 **그림**으로 알아본 연산(aop_fig · 글자 없음)의 기호 글 — 연산 사전의 가장 짧은 글자 (△ · ∫ · HL …)."""
+    op = b.get("aop") or ((b.get("param") or {}).get("aop_fig") or {}).get("op")
+    if not op:
+        return ""
+    from . import aops
+    labels = [x for x in (aops.info(op).get("labels") or []) if x]
+    return min(labels, key=len) if labels else ""
+
+
+def _numtxt(v) -> str:
+    """수를 글로 — 자릿수를 그대로 (99999999.9999 를 1e+08 로 줄이면 되읽을 때 1 이 된다)."""
+    try:
+        f = float(v)
+    except (TypeError, ValueError):
+        return str(v)
+    return str(int(f)) if f == int(f) and abs(f) < 1e15 else repr(f)
+
+
+def _aop_texts(s: dict, doc: dict, X, Y):
+    """L85 — 분석이 블록 둘레 글에서 읽은 **연산 입력 이름 · 상수 · 매개변수**를 그림에 같은 글로 옮긴다.
+    분석 결과에는 읽은 값만 있고(param.pins · a_const · a_drawing) 그 글의 자리는 없어, 예전엔 들여오면 사라졌다 —
+    TRANSFER 의 FLAG(어느 입력을 보낼지) · IN1/IN2 순서 · 상수 'A : 5%' 가 없어 작성 시뮬레이션이 검토 화면과 달랐다
+    (19VA 차등 시뮬레이션: CO02_G705 등 4장 출력 행 138개).  입력 이름은 그 단자 바깥 · 선 위에, 상수 · 매개변수는 상자 위에 둔다 —
+    작성 시뮬레이션(draw_sim)은 분석기와 같은 함수(aops.read_pins)로 이 글을 다시 읽는다 · PDF 로 내보내도 같은 글이다."""
+    blocks = {b["id"]: b for b in doc["blocks"]}
+    for bid, b in (s.get("blocks") or {}).items():
+        p = b.get("param") or {}
+        nb = blocks.get(bid)
+        if nb is None or not (p.get("pins") or p.get("a_const") or p.get("a_drawing")):
+            continue
+        x0, y0, x1, y1 = nb["x"], nb["y"], nb["x"] + nb["w"], nb["y"] + nb["h"]
+        const_txt = set()
+        if isinstance(p.get("a_const"), dict):
+            const_txt.add(f"{(p['a_const'].get('text') or '').split(':')[0].strip()} : {_numtxt(p['a_const'].get('v'))}")
+        for net, info in (p.get("pins") or {}).items():
+            name = str((info or {}).get("name") or "").strip()
+            if not name:
+                continue
+            pt = next((q for q in s.get("ports") or [] if q["block"] == bid and str(q["net"]) == str(net)), None)
+            if pt is None:
+                continue
+            px, py = X(pt["at"][0]), Y(pt["at"][1])
+            side = pt.get("side") or ""
+            t = name if (info.get("coef") is None or name in ("+", "-")) else f"{name} : {_numtxt(info['coef'])}"
+            if t in const_txt:
+                continue                                  # 상수 블록의 'A : 5%' 는 아래 상수 글 하나로
+            tw = len(t) * PIN_FS * _CHAR_W
+            if side == "L":
+                cx, cy = min(px, x0) - tw / 2 - 1.0, py - 0.75 * PIN_FS
+            elif side == "R":
+                cx, cy = max(px, x1) + tw / 2 + 1.0, py - 0.75 * PIN_FS
+            elif side == "T":
+                cx, cy = px - tw / 2 - 1.0, min(py, y0) - 0.75 * PIN_FS
+            else:
+                cx, cy = px - tw / 2 - 1.0, max(py, y1) + 0.75 * PIN_FS
+            doc["blocks"].append(_note_text(cx, cy, t))
+        extra = []
+        if isinstance(p.get("a_const"), dict) and p["a_const"].get("text"):
+            extra.append(str(p["a_const"]["text"]))
+        for k, e in (p.get("a_drawing") or {}).items():
+            if isinstance(e, dict) and e.get("text") and str(e["text"]) not in extra:
+                extra.append(str(e["text"]))
+        for i, t in enumerate(extra[:4]):
+            doc["blocks"].append(_note_text((x0 + x1) / 2, y0 - (i + 0.8) * PIN_FS * 1.3, _txt(t, 40)))
+
+
 def from_sheet(s: dict, name: str, author: str, project: str = "") -> dict:
     """분석한 시트 하나를 이 양식의 그림으로 — 행 글은 그대로 · 블록은 종류와 자리 · 선은 그물의 선분.
     x 는 LOGIC 영역을 비례로, y 는 행 간격으로 옮긴다 (행 n 이 이 양식의 행 n 에 선다)."""
@@ -1701,6 +1781,10 @@ def from_sheet(s: dict, name: str, author: str, project: str = "") -> dict:
             kind = "LAMP"                          # 원 안 글자 하나(R · G …)의 표시등 — 분석이 DISPLAY 로 둔 것도 그림은 램프다
         if not kind and func in ("MACRO", "STEP", "SIGNAL", "DISPLAY", "UNKNOWN", "LIGHT", "TOGGLE", "TRANSFER", "CONST"):
             kind = "MACRO" if func == "MACRO" else "BOX"
+        mon = func == "SIGNAL MONITOR"                    # L85 — 감시 블록(H/ · /L · B.Q) — 예전엔 logic=source 라 운전 버튼(PB)이 되고 설정값을 잃었다
+        fig_op = "" if (b.get("read") or "").strip() else _fig_symbol(b)   # 상자 안 그림(△ · ∫ …)으로 읽은 연산 — 예전엔 글(주석)이 되어 사라졌다
+        if not kind and (mon or fig_op):
+            kind = "BOX"
         if not kind:
             kind = _LOGIC_KIND.get(b.get("logic") or "")
         if not kind:
@@ -1738,7 +1822,14 @@ def from_sheet(s: dict, name: str, author: str, project: str = "") -> dict:
             nb["param"]["point"] = pt_
             nb["text"] = _txt((b.get("label") or b.get("read") or "A").strip()[:2] or "A", 2)
         if kind in ("TEXT", "BOX"):
-            nb["text"] = _txt(b.get("read") or b.get("label") or func or "?", 40)
+            nb["text"] = _txt(fig_op or b.get("read") or b.get("label") or func or "?", 40)
+            if mon:
+                prm = b.get("param") or {}
+                if prm.get("sp_text") and not nb["param"].get("above"):
+                    nb["param"]["above"] = _txt(prm["sp_text"], 40)     # 설정값 글 (`HH : 191` · `: 0`) — 작성 시뮬레이션이 분석기와 같은 함수로 읽는다
+                from .analog import _MON
+                if not _MON.match((nb["text"] or "").upper()):
+                    nb["param"]["mon"] = 1                            # 범례가 정한 감시 블록 (B.Q …) — 글자만으로는 모른다
             lines = b.get("lines") or []
             if func == "STEP" and not lines:
                 # STEP 상자 — 결과에 글줄 자리가 없다.  단자 역할(roles)로 그 단자 높이에 이름을 적는다 (분석기 _step_roles 가 읽는 낱말)
@@ -1816,6 +1907,7 @@ def from_sheet(s: dict, name: str, author: str, project: str = "") -> dict:
         if kind == "PB":
             nb["label"] = _txt((b.get("label") or "").replace("PB", "", 1).strip(" |"), 60)
         doc["blocks"].append(nb)
+    _aop_texts(s, doc, X, Y)
     marks_todo = [(X((m[0] + m[2]) / 2), Y((m[1] + m[3]) / 2), m[4]) for m in (s.get("markers") or []) if len(m) == 5 and m[4] in MARK_KINDS]
     # 선 — 그물의 선분 + 교차 홉(jumps · 끊어 그린 교차의 틈을 잇는 짧은 토막) · 같은 그물 안의 T 접합에는 연결점
     port_pts = [(pt[0], pt[1]) for b in doc["blocks"] for pt in ports_of(b)]
