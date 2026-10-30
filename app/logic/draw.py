@@ -665,7 +665,53 @@ def delete(did: str, author: str) -> dict:
     return cur
 
 
+# L77 — 업데이트에 실어 보내는 그림 묶음 (config/logic_draw_seed/*.json.gz).  처음 목록을 열 때 한 번 들인다 —
+# 들인 표시(_seeded/<씨앗>)가 있으면 다시 들이지 않는다 (사람이 지운 묶음이 업데이트마다 되살아나지 않게) ·
+# 같은 id 의 그림이 이미 있으면 덮지 않는다 (사람이 고친 판이 이긴다).  PID_DRAW_SEED=0 이면 끈다.
+_SEED_DONE: dict = {}
+
+
+def seed_dir() -> Path:
+    from app import paths
+    return paths.resource("config", "logic_draw_seed")
+
+
+def install_seeds() -> list:
+    import gzip
+    import os
+    if os.environ.get("PID_DRAW_SEED", "1") == "0":
+        return []
+    key = str(store.root())
+    if _SEED_DONE.get(key):
+        return []
+    _SEED_DONE[key] = True
+    out = []
+    sd = seed_dir()
+    if not sd.is_dir():
+        return out
+    mark = root() / "_seeded"
+    for f in sorted(sd.glob("*.json.gz")):
+        name = f.name[:-len(".json.gz")]
+        if (mark / name).exists():
+            continue
+        try:
+            pack = json.loads(gzip.decompress(f.read_bytes()).decode("utf-8"))
+        except Exception:
+            continue
+        n = 0
+        for doc in pack.get("docs") or []:
+            if not ID_RE.match(doc.get("id") or "") or _path(doc["id"]).exists():
+                continue
+            save_new(doc)
+            n += 1
+        mark.mkdir(parents=True, exist_ok=True)
+        (mark / name).write_text(json.dumps({"at": time.time(), "docs": n, "set": pack.get("set"), "name": pack.get("name")}, ensure_ascii=False), encoding="utf-8")
+        out.append({"seed": name, "docs": n})
+    return out
+
+
 def listing() -> list:
+    install_seeds()
     out = []
     for d in sorted(root().iterdir()):
         p = d / "drawing.json"

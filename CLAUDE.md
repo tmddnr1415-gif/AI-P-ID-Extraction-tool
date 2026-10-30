@@ -7060,3 +7060,13 @@ SHX 글꼴은 **획으로 플롯**되고 원문은 `AutoCAD SHX Text` 주석에 
   · 타이틀블록 프로젝트 이름/도면 번호/REV 칸이 비어 있음 · 0006/0007 범례성 장의 단자.
 * ⚠ 저장된 그림 묶음은 이 작업 환경의 임시 데이터에 있다 — 회사 PC 에서는 업데이트 뒤 아미랄 분석을 `⇩ 묶음 들여오기` 하면 같은 결과가 저장된다.
   시험 `tests/test_logic_l76_import_form.py` 2건.
+
+### L77회차 — 다시 그린 아미랄 827장을 업데이트에 실어 로직 그리기 메뉴에 저장 (2026-10-30)
+
+* 사용자 지시: *logic 업데이트하면 그려진 게 저장되어야 한다 — 로직 그리기 메뉴에.*
+* 씨앗 `config/logic_draw_seed/amiral_19va_r1.json.gz` (1.3MB · 827장 · Typical 8 · `spike/build_draw_seed.py <묶음 id> <이름>` 이 만든다 —
+  손으로 고치지 않는다).  `draw.install_seeds` 가 **처음 작도 목록을 열 때 한 번** 데이터 폴더에 들인다: 들인 표시
+  `drawings/_seeded/<이름>` 이 있으면 다시 안 들임(사람이 지운 묶음이 업데이트마다 되살아나지 않게) · 같은 id 그림이 있으면 덮지 않음
+  (사람이 고친 판이 이긴다) · `PID_DRAW_SEED=0` 이면 끔(conftest — 옛 시험은 빈 목록을 가정).  exe 는 `config/` 를 통째로 싣는다.
+* 확인: 빈 데이터 폴더로 서버를 켜 로직 그리기 화면 → 목록 827 `[AMIRAL 19VA Control Logic & Loop (R1)]` · HH10_G144 열림 (블록 12 · 선 54) · 화면 오류 0.
+  시험 `tests/test_logic_l77_draw_seed.py` 3건.
