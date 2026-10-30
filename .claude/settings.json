@@ -1,0 +1,17 @@
+{
+  "env": {
+    "CLAUDE_AUTOCOMPACT_PCT_OVERRIDE": "60",
+    "BASH_MAX_OUTPUT_LENGTH": "15000",
+    "MAX_MCP_OUTPUT_TOKENS": "15000"
+  },
+  "permissions": {
+    "deny": [
+      "Read(./pid-instrument-tool/web/standalone.html)",
+      "Read(./pid-instrument-tool/web/vendor/**)",
+      "Read(./pid-extractor/dist/**)",
+      "Read(**/*.min.js)",
+      "Read(**/*.pdf)",
+      "Read(**/*.xlsx)"
+    ]
+  }
+}
