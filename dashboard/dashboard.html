@@ -59,7 +59,10 @@ body.nav-closed #side{transform:translateX(-100%)}
 header.top{position:sticky;top:0;z-index:20;background:var(--bg);padding:16px 24px 10px;display:flex;align-items:center;gap:12px;flex-wrap:wrap}
 #burger{border:1px solid var(--line);background:#fff;border-radius:8px;width:38px;height:38px;font-size:18px}
 .ttl{margin-right:auto;min-width:220px}
-.ttl h1{margin:0;font-size:20px;color:var(--accent-d)}
+.charts [data-rows],.charts [data-tip]{cursor:pointer}
+table.cdt tr.cdrow{cursor:pointer}table.cdt tr.cdrow:hover td{background:#eef2ff}
+.cdtip b{display:block;font-size:15px;margin-bottom:8px}.cdtip .tl{display:block;padding:5px 0;border-bottom:1px solid var(--line)}
+.ttl h1{margin:0;font-size:20px;color:var(--accent-d);cursor:pointer;width:max-content}.ttl h1:hover{text-decoration:underline;text-underline-offset:4px}
 .ttl p{margin:2px 0 0;color:var(--sub);font-size:13px}
 .actions{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
 .btn{border:1px solid var(--line);background:#fff;border-radius:8px;padding:8px 14px;color:var(--text)}
@@ -1113,7 +1116,7 @@ function recLabel(key, f) {
  * ===================================================================== */
 let root = null;
 /* 서버 모드: http(s):// 로 접속하면 server.py 의 REST API 사용 (폴더 선택 불필요). file:// 로 열면 폴더 모드 */
-const APP_VERSION = '2026-10-29.1';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
+const APP_VERSION = '2026-10-30.1';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
 const SERVER_URL = 'http://localhost:8080';
 // 부서원 PC 사본(file://)이 접속을 시도할 서버 — 서버가 배포 파일을 만들 때 'PC 이름 주소, IP 주소' 순으로 자동 기록함
 const DEFAULT_SERVERS = ['http://ASEUNGWOOK-B01:8080', 'http://65.3.30.234:8080'];
@@ -1291,6 +1294,9 @@ function baseFieldsOf(rec) {
   if (m.createdBy !== IMPORT_BY && m.createdAt > since && m.createdAt <= until) return null;
   return m.updatedBy === IMPORT_BY ? rec.fields : undefined;
 }
+// 금주 작성 = 수정했거나, 바꿀 것이 없어 [저장]으로 '변경 없음' 확인함 (meta.checkedAt · 2026-10-30 VOC) — 내 업무 완료 · 업데이트율 · 미업데이트 목록용 (수정 표시는 isUpdated 그대로)
+function isChecked(rec) { const c = rec.meta?.checkedAt, { since, until } = period(); return !!c && c > since && c <= until; }
+const isDone = rec => isUpdated(rec) || isChecked(rec);
 function isUpdated(rec) {
   const bm = baseMaps();
   if (bm) { const b = baseRec(bm, rec); return b ? diffPaths(b.fields, rec.fields).length > 0 : !freshImport(rec); }
@@ -1441,11 +1447,11 @@ async function createRecord(key, fields, { id, order } = {}) {
   return rec;
 }
 
-async function saveEdit(key, id, newFields, baseRev, { force = false, action = 'update' } = {}) {
+async function saveEdit(key, id, newFields, baseRev, { force = false, action = 'update', confirm = false } = {}) {
   needLogin();
   if (OFFLINE) return offlineUpdate(key, id, newFields);
   if (SERVER) {
-    try { return await api('PUT', `rec/${key}/${enc(id)}`, { fields:newFields, baseRev, force, action, by:user }); }
+    try { return await api('PUT', `rec/${key}/${enc(id)}`, { fields:newFields, baseRev, force, action, by:user, ...(confirm ? { confirm:true } : {}) }); }   // confirm = 바뀐 것이 없으면 '변경 없음 확인'으로 기록
     catch (e) { if (!e.offline) throw e; goOffline(); return offlineUpdate(key, id, newFields); }
   }
   const dd = await sub(['data', key]), name = id + '.json';
@@ -2453,13 +2459,14 @@ async function submitRecord(key, id, rec, nf, mine) {
       }
       return render();
     }
-    const r = await saveEdit(key, id, nf, rec.meta.rev);
+    const r = await saveEdit(key, id, nf, rec.meta.rev, { confirm:key === 'perform' || key === 'bid' });   // 수행 · 입찰: 그대로 저장 = 이번 주 '변경 없음' 확인
     await afterSave(r, key, id, nf);
   } catch (e) { toast('저장 실패: ' + e.message, true); }
 }
 
 async function afterSave(r, key, id, nf) {
   if (r.status === 'ok') { dlg.close(); toast('저장되었습니다'); await loadAll(); return render(); }
+  if (r.status === 'checked') { dlg.close(); toast('바뀐 내용 없이 저장 — 이번 주 \'변경 없음\'으로 확인했습니다 (내 업무 완료)'); await loadAll(); return render(); }
   if (r.status === 'nochange') { dlg.close(); return toast('변경된 내용이 없습니다'); }
   if (r.status === 'deleted') {
     const c = await ask('이미 삭제된 행', '다른 사용자가 이 행을 삭제(휴지통 이동)했습니다.', [{ id:'new', label:'내 내용으로 새 행 저장', cls:'pri' }, { id:'no', label:'닫기' }]);
@@ -2539,7 +2546,7 @@ async function openStaffEdit(id, { mine, preset } = {}) {
 }
 
 /* ---------- 이력 ---------- */
-const ACT = { create:['추가','new'], update:['수정',''], overwrite:['덮어쓰기','del'], delete:['삭제','del'], restore:['복구','new'], purge:['영구삭제','del'] };
+const ACT = { create:['추가','new'], update:['수정',''], check:['변경 없음 확인','ok'], overwrite:['덮어쓰기','del'], delete:['삭제','del'], restore:['복구','new'], purge:['영구삭제','del'] };
 async function openHistory(key, id) {
   if (offlineGuard('이력 조회')) return;
   openDlg(dlg, `<div class="dh"><span>변경 이력</span><button class="btn sm" data-close>닫기</button></div><div class="db"><div class="empty">불러오는 중…</div></div>`, true);
@@ -3431,10 +3438,12 @@ const cell1 = v => String(v || '').split('\n')[0].replace(/\(.*?\)/g, '').trim()
 
 const PJ_COL = { perform:'#2b44c9', bid:'#e8730c' };   // 그래프의 수행 · 입찰 색
 const pjLegend = oth => `<span class="legend" style="display:inline-flex;margin:0 0 0 10px;font-weight:400;vertical-align:1px"><span><i style="background:${PJ_COL.perform}"></i>수행</span><span><i style="background:${PJ_COL.bid}"></i>입찰</span>${oth ? '<span><i style="background:#9aa1b5"></i>기타</span>' : ''}</span>`;
+// 그래프 칸: 마우스 = 툴팁(data-tip), 누르면 상세 목록(data-rows = 'key|id,…', 2026-10-30 VOC) — chartDetail
+const chartA = i => (i.tip ? ` data-tip="${esc(i.tip)}"` : '') + (i.rows?.length ? ` data-rows="${esc(i.rows.join(','))}"` : '');
 function svgBars(items, { horiz = false, color = PALETTE[0], fmt = v => v } = {}) {
   if (!items.length) return '<div class="empty">데이터 없음</div>';
   const max = Math.max(...items.map(i => i.v)) || 1;
-  const tipA = i => i.tip ? ` data-tip="${esc(i.tip)}"` : '';
+  const tipA = chartA;
   if (horiz) {
     const rh = 24, W = 520, L = 110, h = items.length * rh + 6;
     return `<svg class="chart" viewBox="0 0 ${W} ${h}" role="img">${items.map((i, k) => {
@@ -3460,7 +3469,7 @@ function svgDonut(items) {
   const tot = items.reduce((a, i) => a + i.v, 0);
   if (!tot) return '<div class="empty">금주 업데이트된 항목이 없습니다</div>';
   const R = 62, C = 2 * Math.PI * R; let off = 0;
-  const tipA = i => i.tip ? ` data-tip="${esc(i.tip)}"` : '';
+  const tipA = chartA;
   const arcs = items.map((i, k) => { const len = i.v / tot * C, s = `<circle${tipA(i)} cx="80" cy="80" r="${R}" fill="none" stroke="${PALETTE[k % PALETTE.length]}" stroke-width="26" stroke-dasharray="${len} ${C - len}" stroke-dashoffset="${-off}" transform="rotate(-90 80 80)"/>`; off += len; return s; }).join('');
   return `<div class="donut"><svg width="160" height="160" viewBox="0 0 160 160" role="img">${arcs}<text x="80" y="78" text-anchor="middle" font-size="26" font-weight="700" fill="#1b2238">${tot}</text><text x="80" y="96" text-anchor="middle" font-size="11" fill="#667089">건 업데이트</text></svg>
     <div class="legend" style="flex-direction:column">${items.map((i, k) => `<span${tipA(i)} style="cursor:pointer"><i style="background:${PALETTE[k % PALETTE.length]}"></i>${esc(i.l)} ${i.v}건 (${Math.round(i.v / tot * 100)}%)</span>`).join('')}</div></div>`;
@@ -3470,6 +3479,26 @@ function tipHtml(title, lines, n = 14) {
   const more = lines.length > n ? `<span class="tl tm">… 외 ${lines.length - n}건</span>` : '';
   return `<b>${esc(title)}</b>${lines.slice(0, n).map(l => `<span class="tl">${l}</span>`).join('')}${more}`;
 }
+/* 홈 그래프를 누르면: 그 막대(조각)의 PJT · 행 목록 창 → 줄을 누르면 그 행으로 이동 (2026-10-30 VOC '마우스 올리면 현황, 누르면 상세') */
+function chartDetail(el) {
+  const ids = (el.dataset.rows || '').split(',').filter(Boolean).map(x => x.split('|')), tmp = document.createElement('div');
+  tmp.innerHTML = el.dataset.tip || ''; const title = tmp.querySelector('b')?.textContent || '상세';
+  const recs = ids.map(([k, id]) => ({ k, r:(DB.recs[k] || []).find(x => x.id === id) })).filter(x => x.r);
+  const pj = recs.every(x => x.k === 'perform' || x.k === 'bid');
+  const row = ({ k, r }) => { const f = r.fields, m = r.meta || {};
+    return `<tr class="cdrow" data-jump="${esc(k)}|${esc(r.id)}|${esc(SHEET[k]?.title || '')}" title="누르면 그 행으로 이동">
+      <td><span class="tag ${k === 'bid' ? 'new' : ''}">${esc(SHEET[k]?.label || k)}</span></td><td><b>${esc(recLabel(k, f))}</b></td>
+      ${pj ? `<td>${esc(flat(f['담당자']) || '-')}</td><td class="muted">${esc(cell1(f['사업군']) || '')}</td><td>${isUpdated(r) ? '<span class="tag ok">✍ 작성</span>' : isChecked(r) ? '<span class="tag ok">✓ 변경 없음</span>' : '<span class="tag del">미작성</span>'}</td>` : ''}
+      <td class="muted">${esc(m.updatedBy || '')} ${fmtTime(m.updatedAt)}</td></tr>`; };
+  openDlg(dlg, `<div class="dh"><span>📊 ${esc(title)}</span><button class="btn sm" data-close>닫기</button></div>
+    <div class="db">${recs.length ? `<p class="muted" style="margin-top:0">줄을 누르면 그 행으로 이동합니다.</p><table class="t cdt"><thead><tr><th>시트</th><th>항목</th>${pj ? '<th>담당자</th><th>사업군</th><th>금주</th>' : ''}<th>최근 수정</th></tr></thead><tbody>${recs.map(row).join('')}</tbody></table>`
+      : `<div class="cdtip">${el.dataset.tip || '<div class="empty">내용 없음</div>'}</div>`}</div>`, true);
+  dlg.onclick = e => { if (e.target.closest('[data-close]')) return dlg.close(); const j = e.target.closest('[data-jump]'); if (j) { const [k, rid, f] = j.dataset.jump.split('|'); dlg.close(); jumpTo(k, rid, f, false); } };
+}
+document.addEventListener('click', e => {
+  const el = route === 'home' && e.target.closest?.('.charts [data-rows], .charts [data-tip]'); if (!el) return;
+  tipEl.style.display = 'none'; chartDetail(el);
+});
 const tipEl = document.createElement('div'); tipEl.className = 'tip'; document.body.appendChild(tipEl);
 document.addEventListener('mouseover', e => {
   const t = e.target.closest && e.target.closest('[data-tip]');
@@ -3491,7 +3520,7 @@ const sinceText = () => DB.state.lastClosedWeek ? `마지막 마감(${weekLabel(
 function popData(kind) {
   const R = k => getRecs(k);
   if (kind === 'notupd') return { title:'이번 주 미업데이트 PJT', desc:`${sinceText()} 내용이 바뀌지 않은 PJT입니다. 항목을 누르면 해당 PJT의 <b>업무 현황</b> 칸으로 이동합니다.`,
-    groups:['perform', 'bid'].map(k => ({ key:k, items:R(k).filter(r => isLive(r) && !isUpdated(r)).map(r => ({ rid:r.id, f:'업무 현황', label:recLabel(k, r.fields),
+    groups:['perform', 'bid'].map(k => ({ key:k, items:R(k).filter(r => isLive(r) && !isDone(r)).map(r => ({ rid:r.id, f:'업무 현황', label:recLabel(k, r.fields),
       sub:`${flat(r.fields['사업군'])} · 담당 ${flat(r.fields['담당자']) || '-'} · 최종 수정 ${r.meta.updatedBy || ''} ${fmtTime(r.meta.updatedAt)}` })) })) };
   if (kind === 'overdue') return { title:'기한 지난 통합 업무', desc:'종료일이 지났는데 종결하지 않은 업무입니다. 항목을 누르면 해당 행으로 이동합니다 (끝났으면 [🏁 종결]).',
     groups:['task', ...WORK_KEYS].map(k => ({ key:k, items:todoOverdue().filter(i => i.key === k).map(i => ({ rid:i.r.id, f:i.w.body || i.w.title, label:recLabel(k, i.f),
@@ -3572,7 +3601,7 @@ function myTasks() {
   if (!root || !user || readOnly() || !can('weekly')) return [];
   const out = [];
   for (const k of ['perform', 'bid']) for (const r of DB.recs[k] || [])
-    if (isLive(r) && isMineName(r.fields['담당자'])) out.push({ key:k, rid:r.id, f:'업무 현황', kind:`${SHEET[k].label} PJT`, label:recLabel(k, r.fields), sub:'업무 현황 작성', done:isUpdated(r) });
+    if (isLive(r) && isMineName(r.fields['담당자'])) out.push({ key:k, rid:r.id, f:'업무 현황', kind:`${SHEET[k].label} PJT`, label:recLabel(k, r.fields), sub:'업무 현황 작성 (바꿀 것이 없으면 그대로 [저장] = 변경 없음)', done:isDone(r) });
   // 통합 업무: 내가 담당인 미완료(To do 는 완료·종결 전 전부, 일반업무·기술공유는 지연·임박) → '완료 알림'. 누르면 '확인완료' (이번 주 기준으로 다시 알림)
   const ack = ackSet();
   for (const { k, r } of workRecs()) {                      // To Do·그룹장 요청은 종결 전 전부, 일반업무·표준화·기술공유는 지연·임박만
@@ -3722,7 +3751,7 @@ function renderHome(c) {
   const updTotal = upd.reduce((a, x) => a + x.v, 0);
   const todoOpen = workAll().filter(i => i.cls !== 'done' && i.cls !== 'perm');
   const overdue = todoOverdue();
-  const notUpd = pj.filter(r => !isUpdated(r)).length;
+  const notUpd = pj.filter(r => !isDone(r)).length;
   const kp = [
     ['수행 PJT 수 (진행 중)', live('perform').length, 'perform', '건'], ['입찰 PJT 수 (진행 중)', live('bid').length, 'bid', '건'],
     ['금주 업데이트 건수', updTotal, route, '건'], ['종결 PJT (집계 제외)', closedN, 'perform', '건'],
@@ -3740,26 +3769,28 @@ function renderHome(c) {
   const grp = new Map(); pj.forEach(r => { const ts = bizGrp(r.fields['사업군']); (ts.length ? ts : ['(미분류)']).forEach(g => (grp.get(g) || grp.set(g, []).get(g)).push(r)); });   // 수행·입찰 PJT 보드와 같은 사업군 단어 (여럿이면 각각)
   const grpLine = (l, r) => `<span class="tm">[${tagOf(r)}]</span> ${esc(flat(r.fields['PJT명']))}${l === BIZ_LH ? ` <span class="tm">· ${esc(lhKind(r.fields['사업군']))}</span>` : ''}`;
   const grpItems = [...grp].sort((a, b) => b[1].length - a[1].length).map(([l, rs]) => { const pr = rs.filter(r => r.sheet !== 'bid'), br = rs.filter(r => r.sheet === 'bid');
-    return { l, v:rs.length,
+    const ids = xs => xs.map(r => r.sheet + '|' + r.id);
+    return { l, v:rs.length, rows:ids(rs),
       tip:tipHtml(`${l} · ${rs.length}개 PJT (수행 ${pr.length} · 입찰 ${br.length})`, [...(l === BIZ_LH ? [lhLine(rs)] : []), ...rs.map(r => grpLine(l, r))], l === BIZ_LH ? 16 : 14),
-      parts:[{ v:pr.length, color:PJ_COL.perform, tip:tipHtml(`${l} · 수행 ${pr.length}개`, pr.map(r => grpLine(l, r))) }, { v:br.length, color:PJ_COL.bid, tip:tipHtml(`${l} · 입찰 ${br.length}개`, br.map(r => grpLine(l, r))) }] }; });   // 2026-10-28 VOC: 수행(파랑) · 입찰(주황) 쌓은 막대
+      parts:[{ v:pr.length, color:PJ_COL.perform, rows:ids(pr), tip:tipHtml(`${l} · 수행 ${pr.length}개`, pr.map(r => grpLine(l, r))) }, { v:br.length, color:PJ_COL.bid, rows:ids(br), tip:tipHtml(`${l} · 입찰 ${br.length}개`, br.map(r => grpLine(l, r))) }] }; });   // 2026-10-28 VOC: 수행(파랑) · 입찰(주황) 쌓은 막대
   // 담당자: 칸에 이름이 들어 있으면 (수행 = 영문 이름 뺌, 입찰 = IEC 포함 — 수행·입찰 PJT 보드와 같은 규칙)
   const og = new Map(); [[live('perform'), 'skip'], [live('bid'), 'iec']].forEach(([rs, e]) => personGroups(rs, r => r.fields['담당자'], e).forEach(([n, xs]) => og.set(n, [...(og.get(n) || []), ...xs])));
   // 2026-10-22: 한 막대에 수행(파랑) · 입찰(주황)을 색으로 나눔 — 막대 조각에 마우스 = 그쪽 PJT 만, 이름 쪽 = 둘 다 나눠서
   const pjLine = r => `${esc(flat(r.fields['PJT명']))}${flat(r.fields['사업군']) ? ` <span class="tm">· ${esc(cell1(r.fields['사업군']))}</span>` : ''}`;
   const own = [...og].map(([l, rs]) => [l, rs.length, rs]).filter(x => x[1]).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], 'ko')).slice(0, 12).map(([l, v, rs]) => {
     const pr = rs.filter(r => r.sheet !== 'bid'), br = rs.filter(r => r.sheet === 'bid');
-    return { l, v,
+    const ids = xs => xs.map(r => r.sheet + '|' + r.id);
+    return { l, v, rows:ids(rs),
       tip:tipHtml(`${l} · 담당 ${v}건 (수행 ${pr.length} · 입찰 ${br.length})`, [...(pr.length ? [`<b style="color:${PJ_COL.perform}">■ 수행 ${pr.length}건</b>`, ...pr.map(pjLine)] : []), ...(br.length ? [`<b style="color:${PJ_COL.bid}">■ 입찰 ${br.length}건</b>`, ...br.map(pjLine)] : [])], 18),
-      parts:[{ v:pr.length, color:PJ_COL.perform, tip:tipHtml(`${l} · 수행 ${pr.length}건`, pr.map(pjLine)) }, { v:br.length, color:PJ_COL.bid, tip:tipHtml(`${l} · 입찰 ${br.length}건`, br.map(pjLine)) }] };
+      parts:[{ v:pr.length, color:PJ_COL.perform, rows:ids(pr), tip:tipHtml(`${l} · 수행 ${pr.length}건`, pr.map(pjLine)) }, { v:br.length, color:PJ_COL.bid, rows:ids(br), tip:tipHtml(`${l} · 입찰 ${br.length}건`, br.map(pjLine)) }] };
   });
   const upd2 = SHEETS.map(s => { const rs = R(s.key).filter(isUpdated).sort((a, b) => (a.meta.updatedAt < b.meta.updatedAt ? 1 : -1));
-    return { l:s.label, v:rs.length, tip:tipHtml(`${s.label} · 금주 업데이트 ${rs.length}건`, rs.map(r => `<b style="color:#9fd0ff">${esc(r.meta.updatedBy || '')}</b> <span class="tm">${fmtTime(r.meta.updatedAt)}</span> · ${esc(recLabel(s.key, r.fields))}`)) }; }).filter(x => x.v);
+    return { l:s.label, v:rs.length, rows:rs.map(r => s.key + '|' + r.id), tip:tipHtml(`${s.label} · 금주 업데이트 ${rs.length}건`, rs.map(r => `<b style="color:#9fd0ff">${esc(r.meta.updatedBy || '')}</b> <span class="tm">${fmtTime(r.meta.updatedAt)}</span> · ${esc(recLabel(s.key, r.fields))}`)) }; }).filter(x => x.v);
   const pv = new Map(); R('staffing').forEach(r => Object.entries(r.fields.배정 || {}).forEach(([cid, a]) => { if (num(a.pct) > 0) (pv.get(cid) || pv.set(cid, []).get(cid)).push({ r, a }); }));
   const colName = Object.fromEntries(getCols().map(x => [x.id, x.name])), colKind = Object.fromEntries(getCols().map(x => [x.id, x.kind]));
   const KCOL = { '수행':PJ_COL.perform, '입찰':PJ_COL.bid }, KOTH = '#9aa1b5';   // 투입인력 열 구분(수행 · 입찰 · 기타) → 막대 색
   const pjt = [...pv].map(([k, list]) => ({ k, list, sum:list.reduce((s, x) => s + num(x.a.pct), 0) })).sort((a, b) => b.sum - a.sum).slice(0, 12)
-    .map(({ k, list, sum }) => ({ l:colName[k] || k, v:Math.round(sum) / 100, color:KCOL[colKind[k]] || KOTH,
+    .map(({ k, list, sum }) => ({ l:colName[k] || k, v:Math.round(sum) / 100, color:KCOL[colKind[k]] || KOTH, rows:list.map(x => 'staffing|' + x.r.id),
       tip:tipHtml(`${colName[k] || k} · ${colKind[k] || ''} · ${(Math.round(sum) / 100).toFixed(1)}명 (${list.length}명 참여)`, list.sort((a, b) => num(b.a.pct) - num(a.a.pct)).map(x => `${esc(x.r.fields.이름)} <b>${x.a.pct}%</b>${x.a.role === 'LE' ? ' <span style="color:#ff9b8f">LE</span>' : ' <span class="tm">RE</span>'}`), 20) }));
   const memo = sortRecs(SHEET.notice, R('notice'))[0];
   c.insertAdjacentHTML('beforeend', `<div class="charts">
@@ -3767,7 +3798,7 @@ function renderHome(c) {
     <section class="card"><h2>담당자별 담당 PJT 수 (진행 중 · 상위 12) ${pjLegend()}</h2>${svgBars(own, { horiz:true, color:PALETTE[4] })}</section>
     <section class="card"><h2>시트별 금주 업데이트 비율</h2>${svgDonut(upd2)}</section>
     <section class="card"><h2>PJT별 투입인력 (상위 12, 단위: 명 = 투입률 합/100) ${pjLegend(pjt.some(i => i.color === KOTH))}</h2>${svgBars(pjt, { color:PALETTE[2], fmt:v => v.toFixed(1) })}</section></div>
-   <p class="muted" style="margin:6px 2px 0">💡 그래프에 마우스를 올리면 PJT·담당자·업데이트 내역을 볼 수 있습니다.</p>
+   <p class="muted" style="margin:6px 2px 0">💡 그래프에 마우스를 올리면 현황, <b>누르면 상세 목록</b>(누르면 그 행으로 이동)을 볼 수 있습니다.</p>
    <div class="homebottom"><div class="hcol">
      <section class="memo big"><span class="mt">📌 주간회의 전달사항 (최신)</span>
        ${memo ? `<div class="md">${esc(memo.fields['일자'] || '')} · ${esc(memo.fields['제목'] || '')}</div><div class="mb">${fmtText(memo.fields['내용'])}</div>` : '<div class="mb muted">등록된 전달사항이 없습니다</div>'}
@@ -3985,7 +4016,7 @@ function filteredRecs(s, skipCf) {                       // skipCf: 이 열의 �
     }
     if (st.q && !JSON.stringify(Object.values(f)).toLowerCase().includes(st.q.toLowerCase())) return false;
     if (s.key === 'todo' && st.done && (st.done === 'done') !== (f['완료 여부'] === 'O')) return false;
-    if (st.upd && (st.upd === 'upd') !== isUpdated(r)) return false;
+    if (st.upd && (st.upd === 'upd') !== isDone(r)) return false;
     if (s.key === 'task' && st.wst && workItem('task', r).cls !== st.wst) return false;
     if (st.kw && !(st.kw === '(미분류)' ? !bizTok(f['사업군']).length : bizGrp(f['사업군']).includes(st.kw) || bizTok(f['사업군']).includes(st.kw))) return false;
     return true;
@@ -4509,7 +4540,7 @@ const lhLine = rs => { const c = lhSplit(rs); return `<b style="color:#9fd0ff">L
 const avHtml = name => { const pr = profOf(name); return pr?.photo ? `<img src="${esc(pr.photo)}" alt="">` : `<b style="background:${avColor(name)}">${esc(String(name).slice(0, 1))}</b>`; };
 function pjHero(s) {
   const st = fstate(s.key), recs = getRecs(s.key), live = recs.filter(isLive), closed = recs.length - live.length;
-  const upd = live.filter(isUpdated).length, rate = live.length ? Math.round(upd / live.length * 100) : 0;
+  const upd = live.filter(isDone).length, rate = live.length ? Math.round(upd / live.length * 100) : 0;
   const bid = s.key === 'bid', on = (k, v) => st[k] === v ? 'on' : '';
   const biz = new Map(); recs.forEach(r => { const ts = bizGrp(r.fields['사업군']); (ts.length ? ts : ['(미분류)']).forEach(g => { const o = biz.get(g) || biz.set(g, { live:0, end:0, rs:[] }).get(g); isLive(r) ? o.live++ : o.end++; o.rs.push(r); }); });
   const bizTip = (g, o) => tipHtml(`${g} · 진행 ${o.live}${o.end ? ` · 종결 ${o.end}` : ''}`, [...(g === BIZ_LH ? [lhLine(o.rs)] : []), ...o.rs.map(r => `${esc(flat(r.fields['PJT명']) || '-')}${isLive(r) ? '' : ' <span class="tm">(종결)</span>'}${g === BIZ_LH ? ` <span class="tm">· ${esc(lhKind(r.fields['사업군']))}</span>` : ''}`)], 16);
@@ -6154,6 +6185,7 @@ const setNavClosed = on => { document.body.classList.toggle('nav-closed', on); $
   try { localStorage.setItem('dept-nav-closed', on ? '1' : ''); } catch (_) {} };
 try { if (localStorage.getItem('dept-nav-closed') === '1' && innerWidth > 900) setNavClosed(true); } catch (_) {}
 $('#btnShot').onclick = () => shotToVoc();
+$('.ttl h1').onclick = () => go('home');   // 제목 = 주간업무보고 첫 화면 (2026-10-30 VOC)
 $('#burger').onclick =() => { if (innerWidth <= 900) document.body.classList.toggle('nav-open'); else setNavClosed(!document.body.classList.contains('nav-closed')); };
 $('#sideHide').onclick = () => { if (innerWidth <= 900) document.body.classList.remove('nav-open'); else setNavClosed(true); };
 $('#scrim').onclick = () => document.body.classList.remove('nav-open');

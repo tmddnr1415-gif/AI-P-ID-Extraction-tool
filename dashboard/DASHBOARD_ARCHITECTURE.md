@@ -1232,3 +1232,13 @@ C:\Users\SAMSUNG\Desktop\Claude\                         ← 개발 폴더 (여�
 - 바뀐 곳: dashboard.html `APP_VERSION` · 새 `selfDir` `SELF_WROTE` `isSelfFile` `selfPick` `selfWrite` · `askUpdate`(안내 문구) · `replaceSelf` · `embedSelf` · `saveCopy`(file:// 안내) · 처음 열기 file:// 갈래(교체 결과 확인).
 - 확인한 것: JS 문법. file:// 의 `document.lastModified` = 파일 수정 시각(일치). 옛 버전 파일 + 임시 서버 + 저장 창 흉내: [지금 교체] → 첫 번째로 '다른 폴더'를 고름 → 경고 창 · 빈 파일 지움 · 아무 데도 안 씀 → [다시 고르기] → 지금 파일 → 씀 · 다시 열기 → (흉내라 실제 파일은 그대로) '교체가 지금 쓰는 파일에 들어가지 않았습니다' 알림. 콘솔 오류 없음.
 - 회사에서 확인할 것: **이번 한 번은 옛 코드로 교체**되므로, 이미 바탕화면 파일을 기억한 PC 는 또 바탕화면에 저장됨 → 그 파일을 쓰는 폴더로 직접 옮겨 덮어쓰기(또는 서버 폴더 deploy 의 새 dashboard.html 복사). 그 다음 교체부터는 위처럼 확인함.
+
+### 2026-10-30 (36) — VOC: 홈 그래프 누르면 상세 · 제목 = 첫 화면 · '변경 없음' 저장도 내 업무 완료 (APP_VERSION 2026-10-30.1 / SERVER_VERSION 2026-10-30.1)
+> **server.py 바뀜 → 서버 재시작 필요.** 부서원 사본은 새 버전 배너로 교체.
+- 무엇을 (게시판 VOC · 백승욱):
+  1. **주간업무보고 첫 화면 그래프** "마우스 올리면 현황, 누르면 상세": 그래프 막대 · 쌓은 조각 · 도넛을 누르면 **상세 창** — 그 칸의 PJT/행 목록(시트 · 항목 · 담당자 · 사업군 · 금주 작성/변경 없음/미작성 · 최근 수정), 줄을 누르면 그 행으로 이동. PJT별 투입인력은 투입인력 행 목록. 막대에 `data-rows`('시트|ID,…'), `chartA` · `chartDetail`.
+  2. **머리줄 제목 '계장ENG그룹 Dashboard'** 를 누르면 주간업무보고 첫 화면(#home).
+  3. **"변경 없음 — 눌러도 내 업무에서 완료로"**: 수행 · 입찰 편집 창에서 바꾼 것 없이 [저장] → 서버가 `meta.checkedAt/checkedBy` 를 적음(내용 · rev 그대로 → 다른 사람 편집과 충돌 없음, 이력 action `check` '변경 없음 확인'). 이번 주(마지막 마감 이후)에 확인했으면 **내 업무 완료 · 금주 업데이트율 · 미업데이트 목록/배지 · 금주 업데이트 필터**에서 '작성'으로 셈(`isChecked` · `isDone`). 수정 표시(노란 칸 · 메뉴 !(n) · 시트별 업데이트 그래프)는 그대로 실제 수정만(`isUpdated`). 옛 서버는 confirm 을 모르므로 전처럼 '변경된 내용이 없습니다'.
+- 바뀐 곳: dashboard.html `APP_VERSION` · 새 `isChecked` `isDone` `chartA` `chartDetail` + 클릭 처리 · `saveEdit`(confirm) · 편집 저장(수행 · 입찰 confirm) · `afterSave`('checked') · `ACT.check` · `myTasks` · 미업데이트 목록 · `renderHome`(notUpd · 그래프 rows · 안내 문구) · 수행/입찰 보드 업데이트율 · 필터 · 제목 클릭 · CSS `.cdt` `.cdtip`. server.py `SERVER_VERSION` · `api_update`(confirm → checked).
+- 확인한 것: 문법(JS · Python). 임시 서버(박민수): 내 업무 '수행 PJT 예시수행-D 미완료' → 편집 창 → 그대로 저장 → '완료' · 보드 '18건 중 0건 → 1건 작성'. 제목 클릭 → #home. 사업군 그래프 수행 조각 클릭 → '발전 · 수행 11개' 창 11줄(예시수행-D = ✓ 변경 없음) → 줄 클릭 → #perform 이동. 투입인력 막대 → 3줄. 콘솔 오류 없음.
+- 같은 날 VOC 중 **LOGIC 분석 3건(매크로가 보이지 않음 · 글자 상자 잘림 · LOGIC 기호 잘림)** 은 LOGIC 작성 화면(`/logic/draw`, P&ID 서버) 안의 일 → '3. LOGIC 검토 코드' / '2. PID 코드' 에서.

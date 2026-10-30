@@ -36,7 +36,7 @@ ID_RE = re.compile(r'^[A-Za-z0-9_\-]{1,80}$')
 WEEK_RE = re.compile(r'^\d{4}-W\d{2}$')
 MAX_BODY = 30 * 1024 * 1024
 
-SERVER_VERSION = '2026-10-25.1'
+SERVER_VERSION = '2026-10-30.1'
 ROOT = os.path.dirname(os.path.abspath(__file__))
 PORT = 8080
 ALLOW_NETS = []          # 사내망: 루프백·사설망 + 서버 IP 대역(/16, 유선·Wi-Fi 등 지금까지 쓴 대역 모두 기억) + --allow 로 추가한 대역
@@ -242,7 +242,15 @@ def api_update(key, rid, body):
             return {'status': 'conflict', 'cur': cur}
         changed = diff_paths(cur['fields'], nf)
         if not changed:
-            return {'status': 'nochange', 'cur': cur}
+            if not body.get('confirm'):
+                return {'status': 'nochange', 'cur': cur}
+            # 바꿀 것이 없어 그대로 [저장] = 이번 주 '변경 없음' 확인 (2026-10-30). 내용 · rev 는 그대로 (다른 사람 편집과 충돌 안 남)
+            now = stamp()
+            rec = {**cur, 'meta': {**cur['meta'], 'checkedAt': now, 'checkedBy': by}}
+            write_json(path, rec)
+            add_history(key, rid, {'action': 'check', 'by': by, 'at': now, 'label': rec_label(key, nf), 'before': cur['fields'],
+                                   'after': nf, 'changed': [], 'prevBy': cur['meta'].get('updatedBy'), 'prevAt': cur['meta'].get('updatedAt')})
+            return {'status': 'checked', 'rec': rec}
         now = stamp()
         changes = dict(cur['meta'].get('changes') or {})
         for p in changed:
