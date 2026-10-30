@@ -86,6 +86,11 @@ function popReview() {
   WINS.review = w; $("#rv-modal").hidden = true;
   status("검토 결과를 새 창으로 열었습니다 — 항목을 누르면 이 창이 그 자리로 갑니다");
 }
+function popCommission(job) {                // L78 — 시운전 단계 · System Description (새 창)
+  job = job || L.job;
+  const w = window.open(`/logic/commission${location.search}${job ? "#job=" + job : ""}`, `logic-cm-${job || "home"}`, "width=1500,height=950");
+  if (!w) location.href = `/logic/commission${location.search}${job ? "#job=" + job : ""}`;
+}
 function popGroupTest(job) {
   job = job || L.job;
   const w = window.open(`/logic/test${location.search}${job ? "#job=" + job : ""}`, `logic-gt-${job || "home"}`, "width=1500,height=950");
@@ -250,6 +255,7 @@ function jobLine(x) {
     <span class="when">${fmtDate(x.created)}</span>${x.author ? ` <span class="when">· ${esc(x.author)}</span>` : ""}
     ${x.state === "done" ? `<a class="jgt" href="/logic/api/jobs/${x.id}/review.pdf" title="정합성 검토 결과를 입력 PDF 에 마크업한 파일">📋 검토 PDF</a>` : ""}
     ${x.state === "done" ? `<button class="jgt" data-gt="${x.id}" title="장비(블록 그룹)마다 배운 동작을 원 버튼으로 시험합니다">🧪 그룹 시험</button>` : ""}
+    ${x.state === "done" ? `<button class="jgt" data-cm="${x.id}" title="시운전 단계별 동작 · System Description(Word)">📘 시운전</button>` : ""}
     ${x.state === "queued" || x.state === "running" ? "" : `<button class="jdel" data-del="${x.id}" title="이 분석 기록을 지웁니다 (분석 결과 · 메모 · 사람이 정한 값)">지우기</button>`}</div>
     ${x.state === "queued" || x.state === "running" ? `<div class="pbar"><i style="width:${(x.progress && x.progress.percent) || 0}%"></i></div>` : ""}</li>`;
 }
@@ -296,6 +302,8 @@ function bindHome() {
     if (del) { e.stopPropagation(); deleteJob(del.dataset.del); return; }
     const gt = e.target.closest("button[data-gt]");
     if (gt) { e.stopPropagation(); popGroupTest(gt.dataset.gt); return; }
+    const cm = e.target.closest("button[data-cm]");
+    if (cm) { e.stopPropagation(); popCommission(cm.dataset.cm); return; }
     const li = e.target.closest("li[data-job]");
     if (!li) return;
     hideHome();
@@ -437,7 +445,7 @@ async function openJob(id) {
   L.idrate = null; L.idrateOpen = false;
   // L25 — 질문이 있으면 가르치기 창을 연다 (사람이 닫은 묶음은 다시 열지 않는다 · 분석 중에 열어 둔 창은 그대로)
   const teachOpen = !$("#teach").hidden && TEACH.job === id;
-  const fromWin = /[#&](test|rvgo|row|blk)=/.test(location.hash);      // L42 — 다른 창(그룹 시험 · 검토)에서 자리를 짚어 왔으면 창을 덮지 않는다
+  const fromWin = /[#&](test|rvgo|row|blk|cm)=/.test(location.hash);      // L42 — 다른 창(그룹 시험 · 검토)에서 자리를 짚어 왔으면 창을 덮지 않는다
   $("#ft-report").hidden = false;
   RV.data = null; $("#rv-btn").hidden = false; $("#rv-pdf").hidden = false;
   $("#rv-pdf").href = `/logic/api/jobs/${id}/review.pdf?author=${encodeURIComponent(lsGet("pid.author") || "")}`;
@@ -469,6 +477,11 @@ async function openJob(id) {
   const hrow = Number((location.hash.match(/[#&]row=(\d+)/) || [])[1]) || 0;     // L42 — 그룹 시험 창의 '시트-행' 에서 왔다
   const hblk = (location.hash.match(/[#&]blk=([^&]+)/) || [])[1];
   if (p && !test && (hrow || hblk)) { try { await goLoc(p, hrow, (location.hash.match(/[#&]side=([LR])/) || [])[1], hblk ? "block:" + decodeURIComponent(hblk) : ""); } finally { side(); } return; }
+  if (p && /[#&]cm=1/.test(location.hash)) {       // L78 — 시운전 창이 열었다: 묶음이 섰다고 알리면 그 단계의 신호를 보낸다
+    try { await openSheet(p); } finally { side(); }
+    try { if (window.opener && !window.opener.closed) window.opener.postMessage({ type: "commission-ready", job: id }, location.origin); } catch (e) {}
+    return;
+  }
   if (p) { if (test) { try { await openSheet(p); } finally { side(); } applyHashTest(id, decodeURIComponent(test[1])); } else openSheet(p).finally(side); }
   else side();
 }
@@ -516,6 +529,24 @@ async function applyHashTest_(id, equip, chk) {
   await runSim(true);
   if (at.row) { L.focus = { page: at.page, row: at.row, side: "R", at: Date.now() }; drawOverlay(); focusRow(); }
   status(`🧪 그룹 시험 '${equip}' — ${c.title} · 기대 ${c.expect} → 결과 ${c.got}`);
+  renderChain();
+}
+/* L78 — 시운전 창에서 '도면에서 보기': 그 단계의 신호를 주고 흐름을 그린다.  앞 단계(chain)를 같은 상태로 먼저 돌린다
+   (자기유지 · 정지 단계는 명령이 선 뒤의 상태에서 본다) */
+async function applyCommission(d) {
+  const take = (F) => {
+    L.allForces = {};
+    for (const [pg, f] of Object.entries(F || {})) L.allForces[Number(pg)] = { ...f };
+    L.forces = L.allForces[L.page] = L.allForces[L.page] || {};
+  };
+  if (d.page && d.page !== L.page) await openSheet(Number(d.page), { noSim: true });
+  L.states = {}; L.state = null; L.values = {};
+  setMode("sim", true);
+  for (const ch of d.chain || []) { take(ch); await runSim(false); }
+  take(d.forces);
+  await runSim(true);
+  if (d.row) { L.focus = { page: Number(d.page), row: Number(d.row), side: "R", at: Date.now() }; drawOverlay(); focusRow(); }
+  status(`📘 시운전 '${d.equip || ""}' — ${d.title || ""}`);
   renderChain();
 }
 /* ------------------------------------------------------------------ 분석 진행 (P&ID 와 같은 꼴 · L13) */
@@ -2909,6 +2940,18 @@ window.addEventListener("message", (e) => {
   if (e.data.type === "macro-ask") { handleMacroAsk(e.data, e.source); return; }   // L44
   if (e.data.type === "macro-set") { handleMacroSet(e.data); return; }             // L44
   if (PANE_REVIEW) { if (e.data.type === "review-marks" && e.data.job === L.job) loadReview(L.job, true); return; }
+  if (e.data.type === "commission-apply" && /^[0-9a-f]{12}$/.test(e.data.job || "")) {
+    (async () => {
+      try { window.focus(); } catch (er) {}
+      if (e.data.job !== L.job || !L.sheets) {
+        history.replaceState(null, "", `${location.pathname}${location.search}#job=${e.data.job}&page=${Number(e.data.page) || ""}&cm=1`);
+        hideHome(); $("#job").value = e.data.job; if (typeof closeFromTo === "function") closeFromTo();
+        await openJob(e.data.job);
+      }
+      await applyCommission(e.data);
+    })().catch((er) => { console.error(er); status(`시운전 단계를 그리지 못했습니다 — ${er.message} (${whereErr(er)})`); });
+    return;
+  }
   if (["review-go", "review-on", "review-marks", "grouptest-apply", "goto"].includes(e.data.type)) {
     fromOtherWindow(e.data).catch((er) => { console.error(er); status(`다른 창에서 온 신호를 그리지 못했습니다 — ${er.message} (${whereErr(er)})`); });
     return;
@@ -4657,6 +4700,7 @@ function bindSeq() {
   $("#seq-x").onclick = seqClose;
   $("#seq-min").onclick = () => { lsSet("logic.seq.min", pop.classList.contains("min") ? null : "1"); renderSeq(); };
   $("#gt-btn").onclick = () => popGroupTest(L.job);
+  if ($("#cm-btn")) $("#cm-btn").onclick = () => popCommission(L.job);
   $("#seq-btn").onclick = () => { if (!pop.hidden) seqClose(); else seqOpen(); };
   $("#seq-b").addEventListener("click", (e) => {
     if (SEQ.busy) return;

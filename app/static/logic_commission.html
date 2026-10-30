@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>시운전 단계</title>
+<link rel="stylesheet" href="/static/logic_test.css">
+<link rel="stylesheet" href="/static/logic_commission.css">
+</head>
+<body>
+<header class="gt-head">
+  <a class="gt-back" id="back" href="/logic" title="LOGIC 검토 화면으로">← LOGIC 검토</a>
+  <div class="gt-titles">
+    <h1>시운전 단계</h1>
+    <p id="sub">계통 · 장비 순서대로 단계별 동작과 시뮬레이션</p>
+  </div>
+  <span id="link" class="gt-link"></span>
+  <select id="job" title="분석한 Logic 묶음"></select>
+  <button id="doc-make" class="gt-btn ghost" title="전체 System Description 과 시운전 절차를 Word 로 만듭니다 (약 1분)">📄 System Description 만들기</button>
+  <a id="doc-get" class="gt-btn pri" href="#" hidden title="만든 Word 파일을 내려받습니다">⬇ Word</a>
+</header>
+
+<main class="cm-main">
+  <aside class="cm-side">
+    <div id="learn" class="gt-learn" hidden></div>
+    <div id="facts" class="cm-facts"></div>
+    <input id="q" placeholder="장비 · 계통 검색" autocomplete="off">
+    <div id="tree" class="cm-tree"></div>
+  </aside>
+  <section class="cm-body">
+    <div id="head" class="cm-headcard"></div>
+    <div id="tools" class="cm-tools" hidden>
+      <button id="run-all" class="gt-btn pri" title="처음 단계부터 차례로 시뮬레이션합니다">▶ 처음부터 차례로</button>
+      <button id="run-stop" class="gt-btn stop" hidden>■ 멈춤</button>
+      <label title="단계마다 LOGIC 창에도 그 신호를 주어 흐름을 그립니다"><input type="checkbox" id="follow"> 단계마다 LOGIC 창에 보이기</label>
+      <span id="runline" class="cm-runline"></span>
+    </div>
+    <ol id="steps" class="cm-steps"></ol>
+    <div id="empty" class="gt-empty">왼쪽에서 장비를 고르세요.</div>
+  </section>
+</main>
+<div id="toast" class="gt-toast" hidden></div>
+<script src="/static/logic_commission.js"></script>
+</body>
+</html>

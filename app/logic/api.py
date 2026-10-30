@@ -783,6 +783,142 @@ def grouptest_xlsx(job: str):
                     headers={"Content-Disposition": "attachment; filename*=UTF-8''" + quote(fn)})
 
 
+# ───────────────── L78 — 시운전 단계 · System Description (Word) ─────────────────
+
+_SYSDESC = {}                       # 분석 → {"state", "done", "total", "error", "key", "at"}
+_SYSDESC_LOCK = threading.Lock()
+
+
+@router.get("/logic/commission")
+def logic_commission_page():
+    """L78 — 시운전 단계별 동작 · 단계마다 시뮬레이션."""
+    return FileResponse(_static("logic_commission.html"), headers={"Cache-Control": "no-store"})
+
+
+def _dangling_text(res):
+    """연결 안 된 선 끝 — 로직(G) · 루프(P) · Typical 시트로 갈라 센다 (분석의 C1 점검 그대로)."""
+    from . import refs as _refs
+    n = {"G": 0, "P": 0, "T": 0}
+    for s in res.get("sheets") or []:
+        k = _refs.series(s.get("sheet_no") or "") or "T"
+        k = k if k in n else "T"
+        n[k] += sum(1 for f in s.get("findings") or [] if f.get("code") == "C1_DANGLING")
+    return f"로직(G) 시트 {n['G']} · 루프(P) 시트 {n['P']} · Typical/범례 시트 {n['T']}"
+
+
+@router.get("/logic/api/jobs/{job}/commission")
+def commission_get(job: str):
+    from . import commission
+    d = _dir(job)
+    res = _result(job)
+    st = behavior_get(job, 1)
+    cur = st["result"]
+    status = store.read_status(d)
+    out = {"state": st["state"], "progress": st["progress"], "name": status.get("name"), "project": status.get("project"),
+           "summary": (cur or {}).get("summary"), "dangling": _dangling_text(res), "systems": []}
+    if cur:
+        out["systems"] = _memo(res, "commission:" + str(cur.get("key")), lambda: commission.overview(res, cur))
+    with _SYSDESC_LOCK:
+        out["sysdesc"] = dict(_SYSDESC.get(job) or {}) or None
+    if (d / "sysdesc.docx").exists():
+        out["sysdesc_file"] = (d / "sysdesc.docx").stat().st_mtime
+    return out
+
+
+def _commission_steps(job, equip):
+    from . import commission
+    cur, _ = _learned(job, start=False)
+    if not cur:
+        raise HTTPException(409, "아직 동작을 배우는 중입니다 — 잠시 뒤 다시 누르세요.")
+    res = _result(job)
+    st = _memo(res, "commission-structure:" + str(cur.get("key")), lambda: commission.structure(res, cur))
+    e = st["equips"].get(equip)
+    if not e:
+        raise HTTPException(404, f"'{equip}' 장비를 배운 것이 없습니다.")
+    sheets = _all_sheets(res)
+    cache = _bundle_cache(job, res)
+    rk = "commission-resolver:" + str(cur.get("key"))
+    with cache.setdefault("_lock", threading.Lock()):
+        resolve = _memo(res, rk, lambda: commission.resolver(res, cur, sheets, cache, 20.0))
+        steps = commission.steps_of(e["items"], None, resolve)
+    return res, sheets, cache, e, steps
+
+
+@router.get("/logic/api/jobs/{job}/commission/steps")
+def commission_steps(job: str, equip: str):
+    _, _, _, e, steps = _commission_steps(job, equip)
+    return {"equip": equip, "sheets": e["sheets"], "deps": e["deps"], "steps": steps}
+
+
+@router.post("/logic/api/jobs/{job}/commission/run")
+def commission_run(job: str, body: dict = Body(default={})):
+    """단계마다 시뮬레이션 — upto 가 있으면 그 단계까지 (앞 단계의 상태를 이어서)."""
+    from . import commission
+    equip = str(body.get("equip") or "")
+    if not equip:
+        raise HTTPException(400, "equip 가 필요합니다.")
+    res, sheets, cache, e, steps = _commission_steps(job, equip)
+    upto = body.get("upto")
+    upto = int(upto) if isinstance(upto, (int, float)) or (isinstance(upto, str) and upto.isdigit()) else None
+    t0 = time.time()
+    with cache.setdefault("_lock", threading.Lock()):
+        out = commission.run_steps(sheets, steps, cache, _timers(body.get("timers")), upto)
+        cache.pop("_last_results", None)
+    out.update(equip=equip, seconds=round(time.time() - t0, 2))
+    return out
+
+
+@router.post("/logic/api/jobs/{job}/sysdesc")
+def sysdesc_start(job: str):
+    """System Description(Word) 만들기 — 뒤에서 (장비마다 시운전 단계까지 · AMIRAL 약 1분)."""
+    from . import commission
+    d = _dir(job)
+    cur, _ = _learned(job, start=False)
+    if not cur:
+        raise HTTPException(409, "아직 동작을 배우는 중입니다 — 끝나면 만들 수 있습니다.")
+    with _SYSDESC_LOCK:
+        now = _SYSDESC.get(job) or {}
+        if now.get("state") == "running":
+            return now
+        _SYSDESC[job] = {"state": "running", "done": 0, "total": 0, "at": time.time()}
+    res = _result(job)
+
+    def go():
+        try:
+            def prog(i, n):
+                with _SYSDESC_LOCK:
+                    _SYSDESC[job].update(done=i, total=n)
+            status = store.read_status(d)
+            rv = status.get("review") or {}
+            cache = _bundle_cache(job, res)
+            with cache.setdefault("_lock", threading.Lock()):
+                data = commission.docx_bytes(res, cur, status, review=rv if isinstance(rv, dict) else None,
+                                             dangling=_dangling_text(res), progress=prog)
+                cache.pop("_last_results", None)
+            tmp = d / f"sysdesc.docx.tmp{os.getpid()}"
+            tmp.write_bytes(data)
+            store._replace(tmp, d / "sysdesc.docx")
+            with _SYSDESC_LOCK:
+                _SYSDESC[job].update(state="done", at=time.time(), size=len(data))
+        except Exception as ex:
+            with _SYSDESC_LOCK:
+                _SYSDESC[job].update(state="failed", error=str(ex))
+    threading.Thread(target=go, daemon=True).start()
+    return _SYSDESC[job]
+
+
+@router.get("/logic/api/jobs/{job}/sysdesc.docx")
+def sysdesc_file(job: str):
+    d = _dir(job)
+    p = d / "sysdesc.docx"
+    if not p.exists():
+        raise HTTPException(404, "아직 만들지 않았습니다 — '시스템 설명서 만들기' 를 누르세요.")
+    name = store.read_status(d).get("name") or "logic"
+    fn = Path(name).stem + "_System_Description.docx"
+    return FileResponse(p, media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                        headers={"Content-Disposition": "attachment; filename*=UTF-8''" + quote(fn)})
+
+
 @router.get("/logic/api/jobs/{job}/report.xlsx")
 def report_xlsx(job: str):
     res = _result(job)

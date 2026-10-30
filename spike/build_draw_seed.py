@@ -32,7 +32,7 @@ for d in docs:                                   # 타이틀블록 칸 · 프로
     for k, f in (("project_name", "--pname"), ("doc_no", "--doc"), ("rev", "--rev")):
         if opt(f) is not None and not d.get(k):
             d[k] = opt(f)
-pack = {"set": sid, "name": docs[0].get("set_name"), "project": project, "docs": docs}
+pack = {"rev": int(opt("--seed-rev") or 1), "set": sid, "name": docs[0].get("set_name"), "project": project, "docs": docs}
 out = ROOT / "config" / "logic_draw_seed" / f"{name}.json.gz"
 out.parent.mkdir(parents=True, exist_ok=True)
 out.write_bytes(gzip.compress(json.dumps(pack, ensure_ascii=False, separators=(",", ":")).encode("utf-8"), 9, mtime=0))
