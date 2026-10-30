@@ -491,12 +491,26 @@ function paletteIcon(kind) {
   svg.setAttribute("viewBox", `0 ${spec.cells === 2 ? -4 : -8} 44 ${spec.cells === 2 ? 34 : 40}`);
   const g = el("g", { class: "blk c-" + blkCat(kind) }, svg);
   const gg = geom(b);
+  if (gg.bar && gg.box) {                                     // VOC — 막대가 상자보다 길면 아이콘이 막대 높이에 맞춰 줄어든다 → 상자 높이의 1.5배로
+    const cy = (gg.box[1] + gg.box[3]) / 2, hh = (gg.box[3] - gg.box[1]) * 0.75;
+    gg.bar = [gg.bar[0], Math.max(gg.bar[1], cy - hh), gg.bar[2], Math.min(gg.bar[3], cy + hh)];
+  }
   if (gg.circle) { el("circle", { cx: gg.circle[0], cy: gg.circle[1], r: gg.circle[2] }, g); if (gg.pointer) el("polygon", { points: gg.pointer.map(p => p.join(",")).join(" ") }, g); }
   else if (gg.cells.length) for (const c of gg.cells) el("rect", { x: c[0], y: c[1], width: c[2] - c[0], height: c[3] - c[1] }, g);
   else if (gg.box) el("rect", { x: gg.box[0], y: gg.box[1], width: gg.box[2] - gg.box[0], height: gg.box[3] - gg.box[1] }, g);
   if (gg.bar) el("line", { x1: gg.bar[0], y1: gg.bar[1], x2: gg.bar[2], y2: gg.bar[3] }, g);
-  for (const [cx, cy, t, fs] of gg.texts.slice(0, 2)) { const e = el("text", { x: cx, y: cy, "font-size": fs }, g); e.textContent = t; }
+  for (const ln of gg.lines || []) el("line", { x1: ln[0], y1: ln[1], x2: ln[2], y2: ln[3] }, g);
+  for (const [cx, cy, t, fs, anc] of gg.texts.slice(0, 2)) if (t) { const e = el("text", { x: cx, y: cy, "font-size": fs, "text-anchor": anc === "start" ? "start" : anc === "end" ? "end" : "middle" }, g); e.textContent = t; }
   return svg;
+}
+/* VOC — 기호가 아이콘 칸 안에서 작게 · 잘려 보이던 것: 그려진 범위(getBBox)에 viewBox 를 맞춘다 (보이는 카드에서만 잴 수 있다) */
+function fitIcon(svg) {
+  try {
+    const bb = svg.firstChild.getBBox(); if (!bb.width || !bb.height) return;
+    const pad = Math.max(bb.width, bb.height) * 0.12 + 1;
+    svg.setAttribute("viewBox", `${bb.x - pad} ${bb.y - pad} ${bb.width + 2 * pad} ${bb.height + 2 * pad}`);
+    svg.setAttribute("preserveAspectRatio", "xMidYMid meet");
+  } catch (e) { /* 숨은 카드 — 예전 viewBox 그대로 */ }
 }
 function buildPalette() {
   const pal = $("#palette"); pal.innerHTML = "";
@@ -510,6 +524,7 @@ function buildPalette() {
     btn.ondragstart = e => { e.dataTransfer.setData("text/kind", kind); };
     btn.onclick = () => { if (!S.doc) return; const L = layout(); addBlock(kind, (L.LX0 + L.LX1) / 2, L.TOP + L.PITCH * 6); };
     pal.appendChild(btn);
+    fitIcon(btn.firstChild);
   }
   // L57 — 글자 상자 보기: 뜻은 글자가 정한다 (상수 · ISA 약어 · 이음점 · 토글 · STEP · 감시 · 아날로그 연산 …)
   if (S.presets && S.presets.length) {
@@ -1914,7 +1929,7 @@ async function loadSet(reuse) {
   // L57 — 시뮬레이션 카드가 묶음의 장 이름을 쓴다 (S.setInfo)
   // L65 — 같은 묶음 안에서 장만 옮기면 묶음 정보(연결 판정)를 다시 받지 않는다 (저장 · 장 더하기는 새로 받는다)
   if (reuse && S.setInfo && S.doc && S.doc.set && S.setInfo.id === S.doc.set) { $("#set-card").hidden = false; renderSetCard(); renderMacroCard(); return; }
-  S.setInfo = null; S.setStamp = (S.setStamp || 0) + 1; const card = $("#set-card"); const mc = $("#macro-card");
+  S.setInfo = null; S.libMacros = null; S.setStamp = (S.setStamp || 0) + 1; const card = $("#set-card"); const mc = $("#macro-card");
   if (!S.doc || !S.doc.set) { card.hidden = false; renderSetCard(); renderMacroCard(); return; }
   try { S.setInfo = await api(`/logic/api/drawings/sets/${S.doc.set}`); } catch (e) { S.setInfo = null; }
   S.setStamp = (S.setStamp || 0) + 1;
@@ -1981,15 +1996,40 @@ function renderSetCard() {
   $$("#set-list li[data-id]").forEach(li => li.onclick = () => { if (li.dataset.id !== S.id) openDoc(li.dataset.id); });
   $$("#set-list .dw-miss button").forEach(b => b.onclick = () => b.classList.contains("more") ? (S.missAll = !S.missAll, renderSetCard()) : addSheet(b.dataset.sheet));
 }
-function renderMacroCard() {
-  const box = $("#macro-list"), ms = (S.setInfo && S.setInfo.macros) || [];
-  if (!ms.length) { box.innerHTML = `<p class="dw-hint">매크로 타입이 없습니다 — 묶음의 장에 <b>Typical 시트</b> 표시를 하거나(시트 카드) 학습 사전의 Typical 이 쓰입니다.</p>`; return; }
-  box.innerHTML = ms.map((m, i) => `<button type="button" data-i="${i}" title="${esc(m.from)} · 입력 ${m.pins_in.length} · 출력 ${m.pins_out.length}">▣ ${esc(m.title)}<span class="dw-hint">${esc(m.typ.startsWith("lib:") ? ((m.sheet || {}).sheet_no || "") + " · " + m.from.replace("공통 Typical 사전 · ", "공통 · ") : m.typ)} · ${m.pins_in.length}→${m.pins_out.length}</span></button>`).join("");
-  $$("#macro-list button").forEach(b => b.onclick = () => addMacro(ms[+b.dataset.i]));
+/* VOC — 매크로 팔레트는 언제나 선다: 묶음의 Typical + 공통 Typical 사전(처음부터 들고 있는 것).
+   묶음에 들지 않은 그림은 사전만 (`/logic/api/drawings/macros`) — 놓으면 그 그림을 묶음으로 만들고 Typical 을 들여온다. */
+async function libMacros() {
+  if (!S.libMacros) { try { S.libMacros = (await api("/logic/api/drawings/macros")).macros || []; } catch (e) { S.libMacros = []; } }
+  return S.libMacros;
+}
+async function renderMacroCard() {
+  const box = $("#macro-list");
+  let ms = (S.setInfo && S.setInfo.macros) || [];
+  if (!ms.length) ms = await libMacros();
+  S.macroItems = ms;
+  if (!ms.length) { box.innerHTML = `<p class="dw-hint">매크로 타입이 없습니다 — 묶음의 장에 <b>Typical 시트</b> 표시를 하거나(시트 카드) 📚 Typical 에서 사전에 더하세요.</p>`; return; }
+  const q = (S.macroQ || "").trim().toUpperCase();
+  const hit = ms.map((m, i) => [m, i]).filter(([m]) => !q || (m.title + " " + ((m.sheet || {}).sheet_no || "") + " " + m.from).toUpperCase().includes(q));
+  const src = m => m.typ.startsWith("lib:") ? `공통 사전${((m.sheet || {}).sheet_no) ? " · " + m.sheet.sheet_no : ""}` : `이 묶음 · ${m.typ}`;
+  box.innerHTML = `<input id="macro-q" class="dw-macroq" placeholder="매크로 찾기 (${ms.length}) — 예: MOV · MCC · SOV" value="${esc(S.macroQ || "")}">` +
+    (hit.length ? hit.map(([m, i]) => `<button type="button" data-i="${i}" title="${esc(m.title)} — ${esc(m.from)} · 입력 ${m.pins_in.length} · 출력 ${m.pins_out.length} · 누르면 놓입니다">` +
+      `<span class="mt">▣ ${esc(m.title)}</span><span class="dw-hint">${esc(src(m))} · 입력 ${m.pins_in.length} → 출력 ${m.pins_out.length}</span></button>`).join("")
+      : `<p class="dw-hint">찾는 매크로가 없습니다.</p>`);
+  const qi = $("#macro-q");
+  qi.oninput = () => { S.macroQ = qi.value; const pos = qi.selectionStart; renderMacroCard().then(() => { const n = $("#macro-q"); n.focus(); n.setSelectionRange(pos, pos); }); };
+  $$("#macro-list button[data-i]").forEach(b => {
+    b.onclick = () => addMacro(ms[+b.dataset.i]);
+  });
 }
 async function addMacro(m) {
   if (!S.doc) return;
   let typ = m.typ;
+  if (typ.startsWith("lib:") && !S.doc.set) {
+    // 묶음에 들지 않은 그림 — 매크로의 내부 동작(Typical)이 같은 묶음에 있어야 시뮬레이션 · 되읽기가 잇는다 → 이 그림을 묶음으로 만든다
+    const sid = crypto.randomUUID().replace(/-/g, "").slice(0, 12); S.doc.set = sid; S.doc.set_name = S.doc.name;
+    try { await put(`/logic/api/drawings/${S.id}`, { author: author() || "?", doc: docOut(), set: sid, set_name: S.doc.name }); await loadList(S.id); S.doc = await api(`/logic/api/drawings/${S.id}`); await loadSet(); }
+    catch (e) { toast(e.message); return; }
+  }
   if (typ.startsWith("lib:") && S.doc.set) {
     // 사전 Typical — 내부 동작이 묶음 안에 있어야 분석기가 잇는다 → 그 Typical 시트를 묶음에 들여온다 (한 번만)
     const have = (S.setInfo.sheets || []).find(x => x.sheet_no && m.sheet && x.sheet_no === m.sheet.sheet_no);
