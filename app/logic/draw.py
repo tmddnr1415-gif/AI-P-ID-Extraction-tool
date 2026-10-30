@@ -1883,5 +1883,15 @@ def from_sheet(s: dict, name: str, author: str, project: str = "") -> dict:
                     break
         if best is not None:
             best.setdefault("marks", []).append([round(mx, 2), round(my, 2), kind])
+    # L81 — 분석기가 그 장 NOTE 로 토글이라 읽은 글자 상자(SRST …)는 그 NOTE 문장을 장 노트에 옮긴다.
+    #   안 옮기면 다시 그린 장에서 '판정 못 한 블록' 이 되어 시뮬레이션이 그 매크로마다 수십 번 되풀이된다 (19VA 0009).
+    notes = list(doc.get("notes") or [])
+    for b in (s.get("blocks") or {}).values():
+        if b.get("logic") == "toggle":
+            w = re.sub(r"[^0-9A-Z_]", "", str(b.get("label") or b.get("read") or "").upper())
+            if w and not any(f'"{w}"' in n.upper() for n in notes):
+                notes.append(f'OUTPUT STATE IS INVERTED BY EACH MOMENTARY TRUE SIGNAL ON "{w}"')
+    if notes:
+        doc["notes"] = notes[:20]
     doc.update(clean(doc))
     return doc

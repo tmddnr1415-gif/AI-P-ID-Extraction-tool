@@ -123,10 +123,34 @@ def _set(sid: str, shared: bool = False) -> list:
     return docs
 
 
+_SIM_LOCK = __import__("threading").RLock()
+_WARMED: dict = {}
+
+
+def _warm_sim(sid: str, did: str):
+    """L81 — 묶음을 열면 뒤에서 시뮬레이션을 한 번 돌려 둔다 (827장 첫 시뮬레이션 수 초 → 누르면 바로).
+    화면 요청이 잦아든 뒤에 (0.8초 조용) · 같은 묶음은 한 번만 · 끄기 PID_LOGIC_WARM=0."""
+    import os, threading, time
+    if os.environ.get("PID_LOGIC_WARM", "1") == "0" or _WARMED.get(sid):
+        return
+    _WARMED[sid] = time.time()
+
+    def run():
+        time.sleep(0.8)
+        try:
+            simulate_drawing(did, {})
+        except Exception:
+            _WARMED.pop(sid, None)
+    threading.Thread(target=run, name=f"draw-warm-{sid}", daemon=True).start()
+
+
 @router.get("/logic/api/drawings/sets/{sid}")
 def get_set(sid: str, doc: str = ""):
     """L80 — `doc` 를 주면 장마다의 연결 표(links.docs)는 그 장 것만 (827장 묶음이면 1.1MB → 0.2MB)."""
-    return _set_info(sid, _set(sid, shared=True), doc)
+    out = _set_info(sid, _set(sid, shared=True), doc)
+    if doc and draw.ID_RE.match(doc):
+        _warm_sim(sid, doc)
+    return out
 
 
 _SET_CACHE: dict = {}
@@ -516,9 +540,10 @@ def simulate_drawing(did: str, body: dict = Body(default={})):
     def _d(v):
         return v if isinstance(v, dict) else {}
     try:
-        out = draw_sim.simulate(docs, did, keys=keys, forces=_d(body.get("forces")), state=_d(body.get("state")), timers=_d(body.get("timers")),
-                                analog=_d(body.get("analog")), cache=cache,
-                                inner=body.get("inner") if isinstance(body.get("inner"), list) else None)
+        with _SIM_LOCK:                          # L81 — 미리 데우는 계산과 겹치지 않게 (겹치면 같은 일을 두 번 한다)
+            out = draw_sim.simulate(docs, did, keys=keys, forces=_d(body.get("forces")), state=_d(body.get("state")), timers=_d(body.get("timers")),
+                                    analog=_d(body.get("analog")), cache=cache,
+                                    inner=body.get("inner") if isinstance(body.get("inner"), list) else None)
     except Exception as e:                       # 그림이 아직 덜 그려져 있어도 화면이 멈추지 않는다 — 사유를 말한다
         return {"error": f"시뮬레이션하지 못했습니다 — {type(e).__name__}: {e}"[:300]}
     out["sig"] = sig[:12]
