@@ -60,6 +60,9 @@ header.top{position:sticky;top:0;z-index:20;background:var(--bg);padding:16px 24
 #burger{border:1px solid var(--line);background:#fff;border-radius:8px;width:38px;height:38px;font-size:18px}
 .ttl{margin-right:auto;min-width:220px}
 .charts [data-rows],.charts [data-tip]{cursor:pointer}
+.btn.nochg{margin-right:auto;border-color:#9fd9b0;color:#17703a;background:#eefaf1;font-weight:700}.btn.nochg:hover{background:#dff4e6}
+.wkst{display:inline-block;margin-left:8px;padding:1px 9px;border-radius:99px;font-size:12px;font-weight:700}.wkst.ok{background:#e3f6ea;color:#17703a}.wkst.no{background:#fff1d6;color:#8a5a00}
+.by .chkd{color:#17703a;font-size:11px}
 table.cdt tr.cdrow{cursor:pointer}table.cdt tr.cdrow:hover td{background:#eef2ff}
 .cdtip b{display:block;font-size:15px;margin-bottom:8px}.cdtip .tl{display:block;padding:5px 0;border-bottom:1px solid var(--line)}
 .ttl h1{margin:0;font-size:20px;color:var(--accent-d);cursor:pointer;width:max-content}.ttl h1:hover{text-decoration:underline;text-underline-offset:4px}
@@ -1116,7 +1119,7 @@ function recLabel(key, f) {
  * ===================================================================== */
 let root = null;
 /* 서버 모드: http(s):// 로 접속하면 server.py 의 REST API 사용 (폴더 선택 불필요). file:// 로 열면 폴더 모드 */
-const APP_VERSION = '2026-10-30.3';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
+const APP_VERSION = '2026-10-31.1';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
 const SERVER_URL = 'http://localhost:8080';
 // 부서원 PC 사본(file://)이 접속을 시도할 서버 — 서버가 배포 파일을 만들 때 'PC 이름 주소, IP 주소' 순으로 자동 기록함
 const DEFAULT_SERVERS = ['http://ASEUNGWOOK-B01:8080', 'http://65.3.30.234:8080'];
@@ -2398,12 +2401,31 @@ async function openEdit(key, id, { mine, preset } = {}) {
     if (c.file || c.ai) return `<div class="${full} flab">${esc(c.label || c.f)}${inputFor(s, c, f[c.f])}</div>`;   // 안에 버튼이 있어 label 대신 div
     return `<label class="${full}">${esc(c.label || c.f)}${inputFor(s, c, f[c.f])}</label>`;
   }).join('');
+  const pjRec = rec && (key === 'perform' || key === 'bid');   // 수행 · 입찰: [✓ 변경 없음] 단추 (2026-10-31 VOC — 바꿀 것이 없을 때 눌러 이번 주 작성 완료)
+  const wk = !pjRec ? '' : isUpdated(rec) ? `<span class="wkst ok">✍ 이번 주 작성됨 (${esc(rec.meta.updatedBy || '')} ${fmtTime(rec.meta.updatedAt)})</span>`
+    : isChecked(rec) ? `<span class="wkst ok">✓ 이번 주 변경 없음 확인 (${esc(rec.meta.checkedBy || '')} ${fmtTime(rec.meta.checkedAt)})</span>` : '<span class="wkst no">이번 주 아직 작성 안 함 — 바꿀 것이 없으면 아래 [✓ 변경 없음]</span>';
   openDlg(dlg, `<form id="ef"><div class="dh"><span>${esc(s.label)} · ${rec ? '편집' : '행 추가'}</span><button type="button" class="btn sm" data-close>닫기</button></div>
-    <div class="db">${rec ? `<p class="muted">최종 수정: ${esc(rec.meta.updatedBy)} · ${fmtTime(rec.meta.updatedAt)} (rev ${rec.meta.rev})</p>` : ''}
+    <div class="db">${rec ? `<p class="muted">최종 수정: ${esc(rec.meta.updatedBy)} · ${fmtTime(rec.meta.updatedAt)} (rev ${rec.meta.rev}) ${wk}</p>` : ''}
       ${mineBox(s, mine)}${hasGuide ? guideBox() : ''}<div class="fg">${body}</div></div>
-    <div class="df"><button type="button" class="btn" data-close>취소</button><button class="btn pri" type="submit">저장</button></div></form>`, true);
-  dlg.onclick = e => {
+    <div class="df">${pjRec ? '<button type="button" class="btn nochg" data-nochg title="이번 주 바꿀 내용이 없을 때 — 내용은 그대로 두고 \'변경 없음\'으로 기록 → 내 업무 완료 · 금주 업데이트에 포함 (담당자 중 한 명만 하면 됨)">✓ 변경 없음</button>' : ''}<button type="button" class="btn" data-close>취소</button><button class="btn pri" type="submit">저장</button></div></form>`, true);
+  const collect = () => {                                    // 입력 칸 → 저장할 값 (저장 · 변경 없음 공통)
+    const nf = {}; dlg.querySelectorAll('[data-f]').forEach(el => nf[el.dataset.f] = el.value.replace(/\r/g, '').trim());
+    s.cols.forEach(c => { if (guideOn(s, c)) nf[c.f] = cleanGuide(nf[c.f]); });
+    s.cols.forEach(c => { if (nf[c.f]) nf[c.f] = purgeStrike(nf[c.f]); });
+    return nf;
+  };
+  dlg.onclick = async e => {
     if (e.target.closest('[data-close]')) return dlg.close();
+    if (e.target.closest('[data-nochg]')) {
+      if (diffPaths(rec.fields, collect()).length) {
+        const c = await ask('고친 내용이 있습니다', '<p style="margin:0">이 창에서 고친 내용이 있습니다. 고친 내용을 <b>저장</b>할까요, 아니면 고친 것을 버리고 <b>변경 없음</b>으로 할까요?</p>',
+          [{ id:'save', label:'고친 내용 저장', cls:'pri' }, { id:'nochg', label:'버리고 변경 없음' }, { id:'no', label:'취소' }]);
+        if (c === 'save') return $('#ef').requestSubmit();
+        if (c !== 'nochg') return;
+      }
+      try { return await afterSave(await saveEdit(key, id, rec.fields, rec.meta.rev, { confirm:true }), key, id, rec.fields); }
+      catch (er) { return toast('기록 실패: ' + er.message, true); }
+    }
     const rm = e.target.closest('[data-frm]');                // 첨부파일 목록에서 빼기 (서버 파일은 남음 → 이력에서 복원 가능)
     if (rm) { const h = $('input[type=hidden][data-f]', dlg), fs = parseFiles(h.value); fs.splice(+rm.dataset.frm, 1); h.value = fs.map(x => x.id ? `${x.name} [${x.id}]` : x.name).join('\n'); $('[data-flist]', dlg).innerHTML = filesEditHtml(h.value); return; }
     if (e.target.closest('[data-ai]')) {                      // AI 요약: 지금 입력된 내용 기준
@@ -2433,9 +2455,7 @@ async function openEdit(key, id, { mine, preset } = {}) {
   };
   $('#ef').onsubmit = async e => {
     e.preventDefault();
-    const nf = {}; dlg.querySelectorAll('[data-f]').forEach(el => nf[el.dataset.f] = el.value.replace(/\r/g, '').trim());
-    s.cols.forEach(c => { if (guideOn(s, c)) nf[c.f] = cleanGuide(nf[c.f]); });   // 내용 없는 글머리 줄 지우기
-    s.cols.forEach(c => { if (nf[c.f]) nf[c.f] = purgeStrike(nf[c.f]); });   // 지운 내용은 그냥 지움 (예전 ~~취소선~~ 도 저장 때 정리) · 추가만 파란 글씨
+    const nf = collect();                                     // 내용 없는 글머리 줄 지우기 · 예전 ~~취소선~~ 정리
     if (key === 'task' && !nf['유형']) return toast('유형을 고르세요 (일반업무 / 표준화 담당 / To Do List / 기술공유 / 그룹장 요청 사항)', true);
     if (!nf[s.title] && key !== 'unit') return toast(`'${s.cols.find(c => c.f === s.title)?.label || s.title}' 을(를) 입력하세요`, true);
     await submitRecord(key, id, rec, nf, mine);
@@ -2466,7 +2486,7 @@ async function submitRecord(key, id, rec, nf, mine) {
 
 async function afterSave(r, key, id, nf) {
   if (r.status === 'ok') { dlg.close(); toast('저장되었습니다'); await loadAll(); return render(); }
-  if (r.status === 'checked') { dlg.close(); toast('바뀐 내용 없이 저장 — 이번 주 \'변경 없음\'으로 확인했습니다 (내 업무 완료)'); await loadAll(); return render(); }
+  if (r.status === 'checked') { dlg.close(); toast('✓ 이번 주 \'변경 없음\'으로 기록했습니다 (내 업무 완료 · 금주 업데이트에 포함)'); await loadAll(); return render(); }
   if (r.status === 'nochange') {
     dlg.close();
     const sv = SERVER_INFO?.serverVersion || '';                 // '변경 없음' 기록(checked)은 서버 2026-10-30.1 부터 — 옛 서버면 원인을 알려 줌
@@ -4149,7 +4169,7 @@ function drawTable(s) {
   });
   el.insertAdjacentHTML('beforeend', `<div class="cnt">${recs.length}건 표시 / 전체 ${getRecs(s.key).length}건${ncf ? ` · <b style="color:var(--accent)">열 필터 ${ncf}개 적용 중</b>` : ''}${st.kw ? ` · <b style="color:var(--accent)">사업군에 '${esc(st.kw)}' 포함</b>` : ''} · <span class="lg-new">노란 행</span> = 새로 추가한 행 · <span class="lg-hl">노란 음영</span> = ${readOnly() ? (view.arch?.prevSheets ? '직전 마감본 대비 변경된 셀' : '엑셀 이관 데이터 대비 변경된 셀') : (DB.baseSheets ? '마지막 마감(' + esc(weekLabel(DB.state.lastClosedWeek || '')) + ' 수 11:59) 대비 변경된 셀' : '엑셀 이관 데이터 대비 변경된 셀')}</div>`);
 }
-const actCell = (key, r) => `<td class="act">${key === 'task' && !noEdit() ? (r.fields['종결 여부'] === '종결' ? `<button class="btn sm" data-wclose="task|${r.id}" title="종결 표시를 풀고 진행으로">↩ 진행</button> ` : `<button class="btn sm wclose" data-wclose="task|${r.id}" title="이 업무를 종결로 표시">🏁 종결</button> `) : ''}${noEdit() ? '' : `<button class="btn sm" data-edit="${r.id}">편집</button> `}<button class="btn sm" data-hist="${r.id}" ${readOnly() ? 'disabled' : ''}>이력</button> ${noEdit() ? '' : `<button class="btn sm bad" data-del="${r.id}">삭제</button>`}<span class="by">최종 수정: ${esc(r.meta.updatedBy)}<br>${fmtTime(r.meta.updatedAt)}</span><span class="rh" title="드래그: 행 높이 조절 · 더블클릭: 자동"></span></td>`;
+const actCell = (key, r) => `<td class="act">${key === 'task' && !noEdit() ? (r.fields['종결 여부'] === '종결' ? `<button class="btn sm" data-wclose="task|${r.id}" title="종결 표시를 풀고 진행으로">↩ 진행</button> ` : `<button class="btn sm wclose" data-wclose="task|${r.id}" title="이 업무를 종결로 표시">🏁 종결</button> `) : ''}${noEdit() ? '' : `<button class="btn sm" data-edit="${r.id}">편집</button> `}<button class="btn sm" data-hist="${r.id}" ${readOnly() ? 'disabled' : ''}>이력</button> ${noEdit() ? '' : `<button class="btn sm bad" data-del="${r.id}">삭제</button>`}<span class="by">최종 수정: ${esc(r.meta.updatedBy)}<br>${fmtTime(r.meta.updatedAt)}${isChecked(r) && !isUpdated(r) ? `<br><b class="chkd" title="${esc(fmtTime(r.meta.checkedAt))}">✓ 변경 없음 · ${esc(r.meta.checkedBy || '')}</b>` : ''}</span><span class="rh" title="드래그: 행 높이 조절 · 더블클릭: 자동"></span></td>`;
 
 /* 셀 텍스트 서식: 1. / 1) / (1) / 가. / - / -> / ※ / ㅇ□■▶ 등 글머리와 날짜를 인식해 정리 */
 const DATE_RE = /^['`΄‘’]?\d{2}(?:\d{2})?\s?[.\/]\s?\d{1,2}(?:\s?[.\/]\s?\d{1,2})?\.?(?:\s?[~∼-]\s?['`΄‘’]?\d{1,4}(?:\s?[.\/]\s?\d{1,2}){0,2}\.?)?/;
