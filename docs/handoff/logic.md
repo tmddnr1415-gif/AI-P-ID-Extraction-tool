@@ -3,7 +3,7 @@
 ## 지금 상태 (2026-10-30)
 
 - 작업 브랜치: `claude/logic-symbol-visualization-sim-2oqbxh` (바뀌면 `docs/handoff/branches.md` · `config/release_sources.json` 같이 고침)
-- 마지막 회차: **L79** — Logic 작성 첫 화면 · Typical 기호 팔레트(누르면 놓기 · 두 번 누르면 내부 새 창) · 신호 처리 메뉴.  **다음은 L80.**
+- 마지막 회차: **L80** — Logic 작성 가볍게(묶음 정보 그 장만 · 저장 0.5초) · 매크로 설명(타이틀블록 TITLE 줄 · `config/logic_typical_desc.yaml`).  **다음은 L81.**
 - 대시보드 하위 메뉴 "신호 처리 시뮬레이션"은 `docs/dashboard_embed.md` §3-3 프롬프트를 대시보드 세션에 줘야 선다.
 - ⚠ 회차 번호 충돌: 옛 LOGIC 세션(`bold-einstein`, 은퇴)도 L70~L72 를 썼다.  옛 기록에서 같은 번호가 두 번 나오면
   날짜와 브랜치로 구분한다.  앞으로 번호는 이 브랜치 하나만 매긴다.
@@ -14,6 +14,7 @@
 
 | 회차 | 내용 |
 | --- | --- |
+| L80 | Logic 작성 가볍게 · 매크로 설명 (MACRO - SWGR / MCC <…>) |
 | L79 | Logic 작성 첫 화면 · Typical 기호 팔레트 · 매크로 내부 새 창 · 신호 처리 메뉴 |
 | L78 | 시운전 단계별 시뮬레이션 · System Description(Word) · 다시 그린 선 끊긴 끝 잇기 |
 | L77 | 다시 그린 아미랄 827장을 로직 그리기 AMIRAL 프로젝트로 · 타이틀블록 칸 |

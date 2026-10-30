@@ -17,3 +17,14 @@
   대시보드 하위 메뉴는 `docs/dashboard_embed.md` §3-3 프롬프트 (dashboard.html 은 이 저장소 밖).
 * 화면 자기검증 `spike/ui_audit_l79.py` → `out/l79/` 16항목 통과 · 페이지 오류 0 · 시험 `tests/test_logic_l79_draw_home.py` 2 · 빠른 시험 1582 통과.
 
+
+## L80 — Logic 작성 가볍게 · 매크로 설명 (2026-10-30 · 판정 0줄)
+
+* 사용자: *로직 작성 메뉴가 너무 무겁다* · *매크로 Description (MOV 처럼)* · *각 매크로 Title 에 타이틀블록 TITLE 줄(MACRO - SWGR / MCC <S.W.G.R/MCC>)을 설명으로 — 모든 PJT 동일*.
+* **가볍게** (아미랄 827장 묶음 실측): 장을 열 때 묶음 정보 1.1MB → 0.19MB (`GET sets/{sid}?doc=` · 장 연결 표는 그 장 것만 · 장을 옮기면 `links?doc=` 로 그 장만) ·
+  저장 3.4 → 약 0.5초 (그림 목록 전체를 다시 받지 않고 그 줄만 `listItemSaved` · autolink 는 함께 쓰는 사본 + 고칠 장만 복사 · 묶음 문서는 바뀐 파일만 다시 읽음 `set_docs(shared)` ·
+  연결 판정 캐시 열쇠를 표 내용 지문(`_tab_digest`)으로 — 기호 · 선만 고친 저장은 다시 안 셈) · 그림 목록은 파일 도장마다 요약 캐시(`draw._LIST_CACHE`) · 첫 화면은 30초 안에 받은 목록을 다시 안 받음.
+  장 넘기기 0.5~0.7 → 0.15~0.3초.
+* **매크로 설명** `config/logic_typical_desc.yaml` (19VA p22~p37 매크로 기호 장 타이틀블록 TITLE 둘째 줄 그대로 + 쉬운 말) → `draw_sets.macro_info` → 팔레트 타일 · 속성 · Typical 사전 표.
+  HRSG 처럼 사전에 없는 매크로는 그 Typical 제목 그대로.
+* 시험 `tests/test_logic_l79_draw_home.py` +2 · 화면 자기검증 `out/l80/` 16항목 통과.

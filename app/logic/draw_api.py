@@ -113,26 +113,46 @@ def import_set(body: dict = Body(default={})):
     return draw_sets.import_bundle(res, name, author, str(body.get("project") or st.get("project") or "")[:80], job)
 
 
-def _set(sid: str) -> list:
+def _set(sid: str, shared: bool = False) -> list:
+    """shared=True 는 읽기만 하는 쪽 (L80 — 묶음 827장을 요청마다 다시 풀지 않는다 · 고치지 마라)."""
     if not draw.ID_RE.match(sid or ""):
         raise HTTPException(404, "그런 묶음이 없습니다.")
-    docs = draw_sets.set_docs(sid)
+    docs = draw_sets.set_docs(sid, shared=shared)
     if not docs:
         raise HTTPException(404, "그런 묶음이 없습니다.")
     return docs
 
 
 @router.get("/logic/api/drawings/sets/{sid}")
-def get_set(sid: str):
-    return _set_info(sid, _set(sid))
+def get_set(sid: str, doc: str = ""):
+    """L80 — `doc` 를 주면 장마다의 연결 표(links.docs)는 그 장 것만 (827장 묶음이면 1.1MB → 0.2MB)."""
+    return _set_info(sid, _set(sid, shared=True), doc)
 
 
 _SET_CACHE: dict = {}
 
 
+_TAB: dict = {}
+
+
+def _tab_digest(d: dict):
+    st = (d.get("updated"), d.get("saves"))
+    hit = _TAB.get(d["id"])
+    if hit and hit[0] == st:
+        return hit[1]
+    import hashlib
+    h = hashlib.blake2b(json.dumps([d.get("sheet_no"), d.get("N"), d.get("left"), d.get("right"), d.get("typical")],
+                                   sort_keys=True, ensure_ascii=False).encode(), digest_size=12).hexdigest()
+    if len(_TAB) > 20000:
+        _TAB.clear()
+    _TAB[d["id"]] = (st, h)
+    return h
+
+
 def _set_links(sid: str, docs: list) -> dict:
     """L65 — 묶음이 그대로면(장마다 저장 횟수 · 때) FROM/TO 연결 판정을 다시 하지 않는다."""
-    key = tuple((d["id"], d.get("updated"), d.get("saves")) for d in docs)
+    # L80 — 열쇠는 연결에 닿는 칸(시트 이름 · 행 수 · 표)만.  기호 · 선만 고친 저장은 연결 판정을 다시 하지 않는다 (827장 0.7초)
+    key = tuple((d["id"], _tab_digest(d)) for d in docs)
     hit = _SET_CACHE.get(sid)
     if hit and hit[0] == key:
         return hit[1]
@@ -143,10 +163,17 @@ def _set_links(sid: str, docs: list) -> dict:
     return out
 
 
-def _set_info(sid: str, docs: list) -> dict:
+def _only_doc(links: dict, doc: str) -> dict:
+    if not doc:
+        return links
+    one = (links.get("docs") or {}).get(doc)
+    return {**links, "docs": {doc: one} if one is not None else {}}
+
+
+def _set_info(sid: str, docs: list, doc: str = "") -> dict:
     return {"id": sid, "name": docs[0].get("set_name") or "", "project": docs[0].get("project") or "",
             "sheets": [{k: d.get(k) for k in ("id", "sheet_no", "title", "typical", "order")} | {"blocks": len(d["blocks"]), "wires": len(d["wires"])} for d in docs],
-            "links": _set_links(sid, docs), "macros": draw_sets.macro_types(docs)}
+            "links": _only_doc(_set_links(sid, docs), doc), "macros": draw_sets.macro_types(docs)}
 
 
 @router.post("/logic/api/drawings/sets/{sid}/sheet")
@@ -184,8 +211,9 @@ def add_sheet(sid: str, body: dict = Body(default={})):
 
 
 @router.get("/logic/api/drawings/sets/{sid}/links")
-def set_links(sid: str):
-    return draw_sets.links(_set(sid))
+def set_links(sid: str, doc: str = ""):
+    docs = _set(sid, shared=True)
+    return _only_doc(_set_links(sid, docs), doc)
 
 
 @router.post("/logic/api/drawings/sets/{sid}/link")
@@ -207,8 +235,18 @@ def set_link(sid: str, body: dict = Body(default={})):
 @router.post("/logic/api/drawings/sets/{sid}/autolink")
 def set_autolink(sid: str, body: dict = Body(default={})):
     """저장 직후 — 이 장의 FM/TO 참조가 가리키는 상대 장의 빈 칸을 채운다."""
-    docs = _set(sid)
-    return draw_sets.autolink(docs, str(body.get("did") or ""), _author(body.get("author")))
+    # L80 — 827장을 다시 풀지 않는다: 묶음은 함께 쓰는 사본(읽기)이고, 고칠 수 있는 장(이 장 + 이 장의 FM/TO 글에
+    # 이름이 나오는 장)만 따로 복사해 넘긴다 — 함께 쓰는 사본은 고치지 않는다.
+    import copy
+    did = str(body.get("did") or "")
+    shared = _set(sid, shared=True)
+    me = next((d for d in shared if d["id"] == did), None)
+    if me is None:
+        return {"changed": []}
+    txt = " ".join([str(v.get("fm") or "") for v in (me.get("left") or {}).values()] +
+                   [str(v.get("to") or "") for v in (me.get("right") or {}).values()]).upper()
+    docs = [copy.deepcopy(d) if d is me or (d.get("sheet_no") and d["sheet_no"].upper() in txt) else d for d in shared]
+    return draw_sets.autolink(docs, did, _author(body.get("author")))
 
 
 @router.get("/logic/api/drawings/sets/{sid}/export.pdf")
@@ -287,6 +325,9 @@ def list_typicals():
     from . import library
     docs = _typ_docs()
     items = [_typ_public(k, v, docs) for k, v in library.typicals().items()]
+    for i in items:
+        info = draw_sets.macro_info(i["title"])
+        i["desc"], i["desc_ko"] = info["title"], info["ko"]
     items.sort(key=lambda x: (x["title"] or "", x["sheet_no"] or ""))
     return {"items": items, "set": TYP_SET, "seed": len(library.seed_typicals())}
 

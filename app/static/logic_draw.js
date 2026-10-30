@@ -622,7 +622,8 @@ function renderProps() {
   if (spec.macro) {
     const p = b.param, ms = macroItems();
     h += `<label>이름 <input id="p-mtitle" value="${esc(p.title || "")}"></label>
-      <label>Typical <select id="p-mtyp"><option value="">(없음)</option>${ms.map(m => `<option value="${esc(m.typ)}" ${m.typ === p.typ ? "selected" : ""}>${esc(m.title)} · ${esc(m.typ)}</option>`).join("")}</select></label>
+      <label>Typical <select id="p-mtyp"><option value="">(없음)</option>${ms.map(m => `<option value="${esc(m.typ)}" ${m.typ === p.typ ? "selected" : ""}>${esc(m.title)}${m.desc ? " — " + esc(m.desc) : ""} · ${esc(m.typ)}</option>`).join("")}</select></label>
+      ${(() => { const m = ms.find(m => m.typ === p.typ); return m && m.desc ? `<p class="dw-mdesc"><b>${esc(m.desc)}</b>${m.desc_ko ? `<br>${esc(m.desc_ko)}` : ""}</p>` : ""; })()}
       <p class="dw-hint">입력 ${(p.pins_in || []).length} · 출력 ${(p.pins_out || []).length} — 단자 이름은 Typical 시트의 TAG NO. 칸(약어)과 같아야 분석기가 잇습니다.</p>
       <div class="dw-pins">${(p.pins_in || []).map((q, i) => `<span class="in"><input data-pin="in:${i}" value="${esc(q.name)}"></span>`).join("")}${(p.pins_out || []).map((q, i) => `<span class="out"><input data-pin="out:${i}" value="${esc(q.name)}"></span>`).join("")}</div>
       ${p.typ ? `<button id="p-open-typ" type="button" title="이 매크로의 Typical(내부 동작) 그림을 새 창으로 — 보고 고칠 수 있습니다 (블록을 두 번 눌러도 됩니다)">▣ 내부 동작 열기 (새 창)</button>` : ""}`;
@@ -1750,7 +1751,7 @@ async function save() {
       try { const r = await post(`/logic/api/drawings/sets/${S.doc.set}/autolink`, { did: S.id, author: who });
         if (r.changed && r.changed.length) { toast(`FROM/TO ${r.changed.length}곳을 이었습니다 — ${r.changed.map(c => (c.from ? c.from + " → " : "") + c.sheet + "-" + c.n).slice(0, 4).join(", ")}`); S.doc = await api(`/logic/api/drawings/${S.id}`); } } catch (e) {}
     }
-    await loadList(S.id); fillForm(); await loadSet(); render();
+    listItemSaved(S.doc); fillForm(); await loadSet(); render();   // L80 — 저장마다 그림 목록 전체(827장)를 다시 받지 않는다
   } catch (e) { toast("저장 실패 — " + e.message); }
 }
 function fillForm() {
@@ -1784,11 +1785,21 @@ async function openDoc(id) {
   if (isPeerChild() && !S.peerAsked) { S.peerAsked = true; peerUp({ type: "dsheet-ask" }); }   // L64 — 연 창에 지금 시뮬레이션 값을 묻는다
   if (S.mparent && !simOn()) { toggleSim(); askParent(); }        // L59 — 새 창은 바로 시뮬레이션으로 열고 부모에게 값을 묻는다
 }
+function listItemSaved(d) {
+  // 저장한 그림 하나만 목록에서 고친다 (이름 · 시트 · 고친 때) — 고르기 상자의 그 줄도
+  const it = (S.allItems || []).find(i => i.id === d.id);
+  const sum = { id: d.id, name: d.name, project: d.project, sheet_no: d.sheet_no, title: d.title, author: d.author, created: d.created, updated: d.updated, saves: d.saves,
+    set: d.set, set_name: d.set_name, order: d.order, typical: d.typical, blocks: (d.blocks || []).length, wires: (d.wires || []).length };
+  if (it) Object.assign(it, sum); else (S.allItems = S.allItems || []).unshift(sum);
+  const o = $(`#pick option[value="${d.id}"]`), txt = `${sum.set_name ? "[" + sum.set_name + "] " : ""}${sum.name}${sum.sheet_no ? " · " + sum.sheet_no : ""}${sum.typical ? " (Typical)" : ""} — 블록 ${sum.blocks} · 선 ${sum.wires}`;
+  if (o) o.textContent = txt; else { const n = document.createElement("option"); n.value = d.id; n.textContent = txt; $("#pick").appendChild(n); }
+  $("#pick").value = d.id;
+}
 async function loadList(keep) {
   const r = await api("/logic/api/drawings");
   const sel = $("#pick"); sel.innerHTML = `<option value="">(그림을 고르세요)</option>` + r.items.map(i => `<option value="${i.id}">${i.set_name ? "[" + esc(i.set_name) + "] " : ""}${esc(i.name)}${i.sheet_no ? " · " + esc(i.sheet_no) : ""}${i.typical ? " (Typical)" : ""} — 블록 ${i.blocks} · 선 ${i.wires}</option>`).join("");
   if (keep) sel.value = keep;
-  S.allItems = r.items; S.refDocs = {}; S.refDone = {};                          // L61 — 자동완성이 다른 그림의 시트 이름도 쓴다
+  S.allItems = r.items; S._listAt = Date.now(); S.refDocs = {}; S.refDone = {};                          // L61 — 자동완성이 다른 그림의 시트 이름도 쓴다
   return r.items;
 }
 async function loadProjects() {
@@ -1898,7 +1909,7 @@ async function delDoc() {
   const v = await modal("그림 지우기", `<p><b>${esc(S.doc.name)}</b> 을 지웁니다.  기록(누가 · 언제)은 남습니다.  그림 이름을 그대로 적으세요.</p><input id="m-confirm" style="width:100%">`,
     () => $("#m-confirm").value.trim() === S.doc.name ? true : (toast("이름이 다릅니다."), false));
   if (!v) return;
-  try { await api(`/logic/api/drawings/${S.id}?author=${encodeURIComponent(who)}`, { method: "DELETE" }); S.doc = null; S.id = null; S.dirty = false; await loadList(); render(); $("#name").value = ""; $("#name").disabled = true; ["verify", "analyse", "del"].forEach(i => $("#" + i).disabled = true); $("#pdf").hidden = $("#dxf").hidden = true; status("지웠습니다"); showHome(); }
+  try { await api(`/logic/api/drawings/${S.id}?author=${encodeURIComponent(who)}`, { method: "DELETE" }); S.doc = null; S.id = null; S.dirty = false; S._listAt = 0; $("#name").value = ""; $("#name").disabled = true; ["verify", "analyse", "del"].forEach(i => $("#" + i).disabled = true); $("#pdf").hidden = $("#dxf").hidden = true; status("지웠습니다"); showHome(); }
   catch (e) { toast(e.message); }
 }
 
@@ -1923,7 +1934,8 @@ function leaveHome() { document.body.classList.remove("dw-homeon"); $("#home").h
 async function renderHome() {
   let projects = [];
   try { projects = (await api("/logic/api/projects")).projects || []; } catch (e) {}
-  let items = S.allItems; try { items = await loadList(); } catch (e) {}
+  let items = S.allItems;                                          // L80 — 방금 받은 목록이면 다시 받지 않는다 (827장이면 0.3MB)
+  if (!items || Date.now() - (S._listAt || 0) > 30000) { try { items = await loadList(); } catch (e) {} }
   items = items || [];
   const sel = $("#h-project"), keep = sel.value || (() => { try { return localStorage.getItem("logic.draw.project") || ""; } catch (e) { return ""; } })();
   const names = projects.map(p => p.name);
@@ -1988,8 +2000,8 @@ async function showTypicals() {
   const st = it => it.origin === "user" ? `<span class="t-user">고침 · ${esc((it.edited || {}).author || "")} ${esc(((it.edited || {}).at || "").slice(0, 10))}</span>` : it.origin === "seed" ? `<span class="t-seed">기본</span>` : `<span class="t-learn">분석에서 배움</span>`;
   const body = `<p class="dw-hint">모든 프로젝트가 함께 씁니다 — 기본 ${r.seed}개는 처음부터 들어 있고, 고치면 다음 분석부터 모든 프로젝트에 반영됩니다.</p>
     <input id="typ-q" placeholder="찾기 (MOV · SOV · GROUP …)" class="dw-typq">
-    <div class="dw-typtable"><table><thead><tr><th>시트</th><th>제목</th><th>출처</th><th>입력→출력</th><th>상태</th><th></th></tr></thead><tbody>${r.items.map((it, i) =>
-      `<tr data-i="${i}"><td>${esc(it.sheet_no)}</td><td>${esc(it.title)}</td><td>${esc(it.from)}</td><td>${it.pins_in}→${it.pins_out}</td><td>${st(it)}</td>
+    <div class="dw-typtable"><table><thead><tr><th>시트</th><th>제목</th><th>설명</th><th>출처</th><th>입력→출력</th><th>상태</th><th></th></tr></thead><tbody>${r.items.map((it, i) =>
+      `<tr data-i="${i}"><td>${esc(it.sheet_no)}</td><td>${esc(it.title)}</td><td title="${esc(it.desc_ko || "")}">${esc(it.desc || "")}</td><td>${esc(it.from)}</td><td>${it.pins_in}→${it.pins_out}</td><td>${st(it)}</td>
        <td><button type="button" class="t-open" data-i="${i}">${it.did ? "열기" : "고치기"}</button>${it.origin === "user" ? ` <button type="button" class="t-rev" data-i="${i}">원래대로</button>` : ""}</td></tr>`).join("")}</tbody></table></div>`;
   const p = modal(`공통 Typical 사전 — ${r.items.length}개`, body, null);
   $("#m-ok").textContent = "닫기"; $("#m-cancel").hidden = true;
@@ -2040,10 +2052,14 @@ function renderTypCard() {
 async function loadSet(reuse) {
   // L57 — 시뮬레이션 카드가 묶음의 장 이름을 쓴다 (S.setInfo)
   // L65 — 같은 묶음 안에서 장만 옮기면 묶음 정보(연결 판정)를 다시 받지 않는다 (저장 · 장 더하기는 새로 받는다)
-  if (reuse && S.setInfo && S.doc && S.doc.set && S.setInfo.id === S.doc.set) { $("#set-card").hidden = false; renderSetCard(); renderMacroCard(); return; }
+  if (reuse && S.setInfo && S.doc && S.doc.set && S.setInfo.id === S.doc.set) {
+    // L80 — 묶음 정보는 그 장의 연결 표만 받는다 · 장을 옮기면 새 장 것만 더 받는다 (827장 묶음 1.1MB → 수 KB)
+    const L = S.setInfo.links || (S.setInfo.links = { docs: {} }); L.docs = L.docs || {};
+    if (!(S.doc.id in L.docs)) { try { const r = await api(`/logic/api/drawings/sets/${S.doc.set}/links?doc=${S.doc.id}`); Object.assign(L.docs, r.docs || {}); if (!(S.doc.id in L.docs)) L.docs[S.doc.id] = null; } catch (e) {} }
+    $("#set-card").hidden = false; renderSetCard(); renderMacroCard(); return; }
   S.setInfo = null; S.setStamp = (S.setStamp || 0) + 1; const card = $("#set-card"); const mc = $("#macro-card");
   if (!S.doc || !S.doc.set) { card.hidden = false; renderSetCard(); renderMacroCard(); return; }
-  try { S.setInfo = await api(`/logic/api/drawings/sets/${S.doc.set}`); } catch (e) { S.setInfo = null; }
+  try { S.setInfo = await api(`/logic/api/drawings/sets/${S.doc.set}?doc=${S.doc.id}`); } catch (e) { S.setInfo = null; }
   S.setStamp = (S.setStamp || 0) + 1;
   card.hidden = false; renderSetCard(); renderMacroCard();
 }
@@ -2149,12 +2165,12 @@ function renderMacroCard() {
   S.macroOpen = S.macroOpen || {};
   let html = "";
   for (const k of keys) {
-    const idx = groups[k].filter(i => !q || (ms[i].title + " " + ((ms[i].sheet || {}).sheet_no || ms[i].typ)).toUpperCase().includes(q));
+    const idx = groups[k].filter(i => !q || (ms[i].title + " " + (ms[i].desc || "") + " " + (ms[i].desc_ko || "") + " " + ((ms[i].sheet || {}).sheet_no || ms[i].typ)).toUpperCase().includes(q));
     if (!idx.length) continue;
     const open = q || (S.macroOpen[k] ?? (k === "이 묶음" || k === "19VA"));   // 처음엔 이 묶음 · 19VA 만 펼친다
     html += `<div class="mg${open ? "" : " shut"}" data-g="${esc(k)}"><h4>${esc(MACRO_GROUP[k] || k)} <span class="dw-hint">${idx.length}</span></h4><div class="mg-tiles">` +
       idx.map(i => { const m = ms[i]; const sh = (m.sheet || {}).sheet_no || (m.typ.startsWith("lib:") ? "" : m.typ);
-        return `<button type="button" class="mtile" data-i="${i}" draggable="true" title="${esc(m.title)}${sh ? " · 시트 " + esc(sh) : ""} · 입력 ${m.pins_in.length} → 출력 ${m.pins_out.length}\n누르면 그림에 놓고 · 두 번 누르면 내부 동작(새 창 · 고칠 수 있음)">${macroThumb(m)}<span class="mt-cap"><b>${esc(macroShort(m.title))}</b><small>${sh ? esc(sh) + " · " : ""}${m.pins_in.length}→${m.pins_out.length}</small></span></button>`; }).join("") + `</div></div>`;
+        return `<button type="button" class="mtile" data-i="${i}" draggable="true" title="${esc(m.title)}${m.desc ? "\n" + esc(m.desc) : ""}${m.desc_ko ? " — " + esc(m.desc_ko) : ""}${sh ? "\n시트 " + esc(sh) : ""} · 입력 ${m.pins_in.length} → 출력 ${m.pins_out.length}\n누르면 그림에 놓고 · 두 번 누르면 내부 동작(새 창 · 고칠 수 있음)">${macroThumb(m)}<span class="mt-cap"><b>${esc(macroShort(m.title))}</b>${m.desc ? `<em>${esc(m.desc)}</em>` : ""}${m.desc_ko ? `<i>${esc(m.desc_ko)}</i>` : ""}<small>${sh ? esc(sh) + " · " : ""}${m.pins_in.length}→${m.pins_out.length}</small></span></button>`; }).join("") + `</div></div>`;
   }
   box.innerHTML = html || `<p class="dw-hint">찾는 Typical 이 없습니다.</p>`;
   $$("#macro-list .mg h4").forEach(h => h.onclick = () => { const k = h.parentElement.dataset.g; S.macroOpen[k] = h.parentElement.classList.contains("shut"); renderMacroCard(); });
