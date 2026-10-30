@@ -1887,10 +1887,36 @@ function opOf(bid) { const b = L.sheet && L.sheet.blocks[bid]; return b ? b.aop 
 /* 지금 계산 — 동작 시뮬레이션 중이면 그 결과(다른 장에서 이어진 값까지), 아니면 그 장만 서버가 센다 */
 async function opDetail(bid) {
   const ops = L.analogResPage === L.page ? ((L.analogRes || {}).ops || {}) : {};
-  if (L.mode === "sim" && ops[bid]) return ops[bid];
+  const sd = L.mode === "sim" && ops[bid] ? ops[bid] : null;
+  // L71 — 시뮬레이션 결과는 그대로 두고 서버가 계산 과정(값을 넣은 식)과 입력이 어디서 오는지만 더한다
+  const dig = {};
+  if (sd && sd.cond != null) dig[String(sd.cond)] = L.values[String(sd.cond)] === 1 ? 1 : 0;
   try {
-    return await post(`/logic/api/jobs/${L.job}/sheet/${L.page}/aop`, { block: bid, analog: L.analog[L.page] || {} });
-  } catch (e) { return null; }
+    return await post(`/logic/api/jobs/${L.job}/sheet/${L.page}/aop`, { block: bid, analog: L.analog[L.page] || {}, detail: sd, dig });
+  } catch (e) { return sd; }
+}
+/* L71 — 계산 과정: ① 들어오는 값(어느 입력 행 · 계기에서) → ② 범례 식 → ③ 값을 넣은 식 → ④ 출력 */
+function opTraceHtml(d) {
+  const t = d.trace;
+  if (!t) return "";
+  const src = d.sources || {};
+  const ins = (d.inputs || []).map((i, k) => {
+    const so = src[String(i.net)] || {};
+    const from = so.kind === "row" ? so.text : so.text ? `${so.text}${so.origins && so.origins.length ? ` ← ${so.origins.join(" · ")}` : ""}` : "선 " + i.net;
+    const isCond = String(i.net) === String(d.cond);
+    const v = isCond ? (L.mode === "sim" ? (L.values[String(i.net)] === 1 ? 1 : 0) : "—") : opValText(i.value);
+    return `<div class="tr-in${i.value == null && !isCond ? " unk" : ""}" data-trsrc="${esc(so.kind === "row" ? "row:" + so.row : so.block ? "block:" + so.block : "")}">
+      <b>${esc(i.pin && !["+", "-", "−"].includes(i.pin) ? i.pin : "X" + (k + 1))}${i.pin && ["+", "-", "−"].includes(i.pin) ? ` <small>(${esc(i.pin)})</small>` : ""}</b>
+      <span class="tr-v">${esc(String(v))}${isCond ? " <small>조건</small>" : ""}</span><small class="tr-from">${esc(from)}</small></div>`;
+  }).join("");
+  const ps = (t.params || []).map(([k, v]) => `<span class="tr-p">${esc(k)} = <b>${esc(v)}</b></span>`).join("");
+  const res = d.dig != null ? `${d.dig}` : t.res;
+  return `<div class="op-trace"><div class="fm-sub">계산 과정</div>
+    ${ins ? `<div class="tr-step"><i>①</i><div class="tr-body"><div class="tr-h">들어오는 값</div><div class="tr-ins">${ins}</div></div></div>` : ""}
+    ${ps ? `<div class="tr-step"><i>${ins ? "②" : "①"}</i><div class="tr-body"><div class="tr-h">설정값</div>${ps}</div></div>` : ""}
+    <div class="tr-step"><i>∑</i><div class="tr-body"><div class="tr-h">식</div><div class="tr-eq">${esc(t.sym)}</div>
+      <div class="tr-eq sub">= ${esc(t.sub || "?")}</div><div class="tr-eq res${res === "?" ? " unk" : ""}">= <b>${esc(res)}</b>${d.key && d.key.range && d.out != null ? " " + esc(d.key.range.unit || "") : ""}</div>
+      ${t.note ? `<small class="tr-note">${esc(t.note)}</small>` : ""}</div></div></div>`;
 }
 function aopUser(b) { const u = ((b && b.param) || {}).a_user || {}; const o = {}; for (const [k, v] of Object.entries(u)) if (k !== "by" && k !== "at") o[k] = v; return o; }
 function aopDrawing(b, k) {
@@ -1959,6 +1985,7 @@ async function opMenu(bid, e, chooseOp) {
   m.id = "force-menu"; m.className = "force-menu an-menu op-menu";
   m.innerHTML = `<div class="fm-h">${esc(b.label || "")} ${esc(info.ko || "아날로그 연산자")} <small>${esc(bid)}</small></div>
     ${info.eq ? `<div class="op-eq">${esc(info.eq)}</div>` : ""}
+    ${opTraceHtml(d)}
     ${!op || chooseOp ? `<label class="fm-t op-p"><span>연산 종류</span><select data-op="op"><option value="">${op ? "그대로" : "고르세요"}</option>${allOps.map(([k, v]) => `<option value="${k}"${u.op === k ? " selected" : ""}>${esc(v.ko)}</option>`).join("")}</select></label>` : ""}
     ${insHtml}
     <div class="op-out">출력 = ${outTxt}${d.why ? ` <small>${esc(d.why)}</small>` : ""}${L.mode === "sim" ? "" : ` <small>(이 장만 — 동작 시뮬레이션에서는 다른 장에서 이어진 값까지)</small>`}</div>
@@ -2020,6 +2047,8 @@ async function opMenu(bid, e, chooseOp) {
     ev.stopPropagation();
     const mm = ev.target.closest("[data-memo]");
     if (mm) { closeForceMenu(); selectMemo(mm.dataset.memo, true); return; }
+    const ts = ev.target.closest("[data-trsrc]");
+    if (ts && ts.dataset.trsrc) { flashNeed([ts.dataset.trsrc]); return; }   // L71 — 그 입력이 오는 행 · 블록을 도면에서 짚는다
     const btn = ev.target.closest("button[data-a]");
     if (!btn) return;
     if (btn.dataset.a === "ok") ok();

@@ -616,6 +616,26 @@ button.sigchip { cursor: pointer; }
 .op-io td { padding: 2px 3px; vertical-align: middle; }
 .op-io input { width: 72px; font: inherit; padding: 1px 4px; border: 1px solid var(--line); border-radius: 4px; }
 .op-out { margin: 6px 0; font-size: 13px; }
+/* L71 — 연산자 판의 계산 과정 (들어오는 값 → 식 → 값을 넣은 식 → 출력) */
+.op-trace { border: 1px solid #e3dcff; border-radius: 8px; padding: 4px 8px 6px; margin: 4px 0 8px; background: #fbfaff; }
+.op-trace .tr-step { display: flex; gap: 8px; align-items: flex-start; padding: 4px 0; border-top: 1px dashed #e8e3fb; }
+.op-trace .tr-step:first-of-type { border-top: 0; }
+.op-trace .tr-step > i { font-style: normal; flex: 0 0 20px; height: 20px; border-radius: 10px; background: #6a55c8; color: #fff;
+  font-size: 12px; text-align: center; line-height: 20px; }
+.op-trace .tr-body { flex: 1; min-width: 0; }
+.op-trace .tr-h { font-size: 11px; color: var(--soft); margin-bottom: 2px; }
+.op-trace .tr-ins { display: flex; flex-wrap: wrap; gap: 4px; }
+.op-trace .tr-in { border: 1px solid var(--line); border-radius: 6px; padding: 2px 6px; background: #fff; cursor: pointer; max-width: 100%; }
+.op-trace .tr-in:hover { border-color: #f08c00; }
+.op-trace .tr-in.unk .tr-v { color: #c92a2a; }
+.op-trace .tr-v { font-weight: 700; margin-left: 4px; font-variant-numeric: tabular-nums; }
+.op-trace .tr-from { display: block; color: var(--soft); font-size: 11px; overflow-wrap: anywhere; }
+.op-trace .tr-p { display: inline-block; margin-right: 8px; font-size: 12px; }
+.op-trace .tr-eq { font-family: Consolas, "Cascadia Mono", monospace; font-size: 13px; overflow-wrap: anywhere; }
+.op-trace .tr-eq.sub { color: #364fc7; }
+.op-trace .tr-eq.res b { font-size: 15px; color: #2b8a3e; }
+.op-trace .tr-eq.res.unk b { color: #c92a2a; }
+.op-trace .tr-note { display: block; color: var(--soft); }
 .op-out small { color: var(--soft); }
 .op-p { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
 .op-p > span { min-width: 92px; font-size: 12px; }

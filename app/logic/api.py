@@ -18,7 +18,7 @@ from fastapi.responses import FileResponse, JSONResponse, Response
 
 from app import paths
 
-from . import analog, aops, fromto, idrate, library, memo, overrides, projects, report, sim, store, teach
+from . import analog, aop_trace, aops, fromto, idrate, library, memo, overrides, projects, report, sim, store, teach
 
 router = APIRouter()
 ZOOM = store.ZOOM
@@ -1491,13 +1491,31 @@ def sheet_aop(job: str, page: int, body: dict = Body(default={})):
     bid = str(body.get("block") or "")
     if bid not in s["blocks"]:
         raise HTTPException(404, "그 블록이 없습니다.")
-    given = _analog({str(page): body.get("analog") or {}}).get(page, {})
-    det = {}
-    nv, bv, keys = analog.nets(s, given, sim._index(s)[:4], None, det)
-    d = det.get(bid)
-    if d is None:
-        return {"op": None, "block": bid}
-    return {**d, "block": bid, "key": keys.get(f"block:{bid}")}
+    idx = sim._index(s)[:4]
+    sd = body.get("detail")
+    if isinstance(sd, dict) and sd.get("op"):
+        d, key = sd, sd.get("key")                       # L71 — 동작 시뮬레이션 결과 (다른 장에서 이어진 값까지) 그대로 · 과정만 더한다
+    else:
+        given = _analog({str(page): body.get("analog") or {}}).get(page, {})
+        det = {}
+        nv, bv, keys = analog.nets(s, given, idx, None, det)
+        d = det.get(bid)
+        if d is None:
+            return {"op": None, "block": bid}
+        key = keys.get(f"block:{bid}")
+    return {**d, "block": bid, "key": key, **_aop_trace(s, bid, d, idx, body.get("dig") or {})}
+
+
+def _aop_trace(s, bid, d, idx, dig):
+    """L71 — 계산 과정(값을 넣은 식)과 입력마다 어디서 오나 (입력 행 · 계기까지 거슬러)."""
+    b = s["blocks"][bid]
+    tp = analog._topo(s, idx)
+    cv = dig.get(str(d.get("cond"))) if d.get("cond") is not None else None
+    tr = aop_trace.trace(d.get("op"), d.get("params") or aops.params(b), d.get("inputs") or [], d.get("out"), d.get("dig"),
+                         d.get("why") or "", b.get("label") or b.get("read") or "", cond_value=cv)
+    byname = {str(n): n for n in s["nets"]}
+    src = {str(i["net"]): aop_trace.sources(s, byname.get(str(i["net"]), i["net"]), bid, idx, tp["ops"], tp["io"]) for i in d.get("inputs") or []}
+    return {"trace": tr, "sources": src}
 
 
 @router.post("/logic/api/jobs/{job}/overrides/aparam")

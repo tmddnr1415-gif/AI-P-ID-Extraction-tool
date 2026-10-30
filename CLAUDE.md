@@ -6986,3 +6986,17 @@ SHX 글꼴은 **획으로 플롯**되고 원문은 `AutoCAD SHX Text` 주석에 
 * 실측 (화면 자기검증 `spike/ui_walk_backward.py` · 권장 갈래를 따라 끝까지): 19VA `CCW FFC SPRAY PUMP A START`(CC01_G711-74 · SWGR/MCC 매크로 안
   Typical 0009 까지) 34단계 ✔ (펄스) · HRSG `GT IGNITION START` 39단계 ✔ · '입력 신호만' 방식 30단계 ✔ · 페이지 오류 0.  그림 `out/l70/`.
 * 시험 `tests/test_logic_l70_backward.py` 5건 · 빠른 시험 1552 통과 (hotfix75 교착 시험 제외).
+
+### L71회차 — 연산자를 누르면 계산 과정: 들어오는 값 → 식 → 값을 넣은 식 → 출력 (2026-10-30)
+
+* 사용자 지시: *signal processing symbol(∑ · ÷ · × · √ · H/L 선택 · 평균 · Lag · F(X) · 리미터 …)을 누르면 input → 수식 → output 을
+  단계별로 · 수식은 실제 값을 대입한 형태 · 입력이 어느 계기/태그에서 오는지도.*
+* `app/logic/aop_trace.py` (판정 0줄) — `trace()` 는 `aops.compute` 가 낸 출력을 **받아 적기만** 한다: 범례 식(`M = IN1 − IN2`) ·
+  값을 넣은 식(`60 − 5`) · 출력(`55`) · 설정값(K · H · L · b · n · D · F(X) 표) · 사유.  두 입력의 앞 · 뒤(차 · 나눗셈)는 `aops._two` 에
+  값 대신 자리 번호를 넣어 같은 규칙으로 정한다(거꾸로 적지 않게).  F(X) 는 쓰인 꺾은선 구간의 보간식 · 수식 블록은 글자 자리에 값 ·
+  전환 T 는 `C = 0 → IN2 = 20`.  `sources()` — 입력선마다 그 장의 입력 행(번호 · 설명 · FM)까지 거슬러 올라간다(지나온 연산자 · 최대 6단).
+* `POST …/sheet/{page}/aop` 가 `trace` · `sources` 를 함께 준다.  동작 시뮬레이션 중이면 화면이 그 결과(`detail` · 다른 장에서 이어진 값까지)를
+  넘겨 다시 세지 않고 과정만 받는다 — 시뮬레이터(`analog.nets`)는 한 줄도 안 바뀌어 묶음 계산 비용 그대로.
+* 연산자 판(`opMenu` · `opTraceHtml`) 맨 위에 '계산 과정' — ① 들어오는 값(카드: 이름 · 값 · 어디서 ← 최초 입력 행) · ② 설정값 · ∑ 식 → 값을 넣은 식 → 출력.
+  입력 카드를 누르면 그 행 · 블록을 도면에서 주황으로 짚는다(`flashNeed`).  모르는 값은 붉게 `?`.
+* 시험 `tests/test_logic_l71_trace.py` 8건 · LOGIC 418 통과.
