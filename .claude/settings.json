@@ -4,7 +4,6 @@
       "Read(./docs/history/CLAUDE_archive_*.md)",
       "Read(./out/**/*.json)",
       "Read(./out/**/*.db)",
-      "Read(./out/**/*.zip)",
       "Read(./**/vendor/**)",
       "Read(./**/*.min.js)",
       "Read(./pid-instrument-tool/web/standalone.html)"
