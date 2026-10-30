@@ -76,9 +76,17 @@ function rng(v, lo = 0, hi = 100) {
 }
 
 /* ------------------------------------------------------------------ 그리기 */
+// 메뉴 · 제목 옆 기호 — 도면(범례 SIGNAL PROCESSING SYMBOLS)이 상자 안에 인쇄하는 글자 그대로
+const SYM = {
+  sum: "∑", mean: "∑/N", diff: "△", absdiff: "|△|", mul: "×", div: "÷", max: ">", min: "<", median: "MED", transfer: "T",
+  gain: "K", rgain: "-K", sqrt: "√", pow: "Xⁿ", abs: "|X|", fx: "F(X)", formula: "f=", convert: "I/P", const: "A",
+  hilim: "HL", lolim: "LL", bias: "±", velim: "V>", lag: "LAG", leadlag: "L/L", integral: "∫", deriv: "d/dt",
+  dev: "DEV", equal: "EQ", count: "BIT",
+};
+function symHtml(op) { const t = SYM[op] || "?"; return `<span class="sym${t.length > 2 ? " sm" : ""}">${esc(t)}</span>`; }
 function drawTabs() {
   $("#tabs").innerHTML = GROUPS.map(([g, ops]) => `<div class="g">${esc(g)}</div>` + ops.filter((o) => META.ops[o]).map((o) =>
-    `<button data-op="${o}" class="${o === S.op ? "on" : ""}" title="${esc(META.ops[o].eq || "")}">${esc(META.ops[o].ko || o)}</button>`).join("")).join("");
+    `<button data-op="${o}" class="${o === S.op ? "on" : ""}" title="${esc(META.ops[o].eq || "")}">${symHtml(o)}<span class="nm">${esc(META.ops[o].ko || o)}</span></button>`).join("")).join("");
 }
 function numRow(name, key, v, lo, hi, step, extra = "") {
   return `<div class="sp-row" data-k="${esc(key)}"><div class="nm">${name}</div>
@@ -138,7 +146,7 @@ function drawTimeInputs() {
 }
 function drawAll() {
   const m = META.ops[S.op] || {};
-  $("#op-name").textContent = m.ko || S.op;
+  $("#op-name").innerHTML = symHtml(S.op) + esc(m.ko || S.op);
   $("#op-eq").textContent = m.eq || "";
   drawTabs(); drawInputs(); drawParams();
   const timed = !!META.time_ops[S.op];

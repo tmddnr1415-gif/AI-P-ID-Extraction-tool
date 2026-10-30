@@ -14,10 +14,19 @@ body { margin: 0; font: 13px/1.45 "Malgun Gothic", "Apple SD Gothic Neo", system
 .sp-from { background: #2f3d63; padding: 3px 10px; border-radius: 12px; font-size: 12px; color: #dfe6f7; max-width: 100%; overflow-wrap: anywhere; }
 
 .sp-wrap { display: flex; gap: 14px; padding: 14px 18px 40px; max-width: 1500px; margin: 0 auto; align-items: flex-start; }
-.sp-tabs { flex: 0 0 210px; background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 6px; position: sticky; top: 10px; }
+.sp-tabs { flex: 0 0 250px; background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 6px; position: sticky; top: 10px; }
 .sp-tabs .g { font-size: 11px; color: var(--soft); padding: 8px 8px 3px; font-weight: 600; }
 .sp-tabs button { display: block; width: 100%; text-align: left; border: 0; background: none; padding: 5px 9px; border-radius: 6px;
   font: inherit; color: var(--ink); cursor: pointer; }
+.sp-tabs button { display: flex; align-items: center; gap: 8px; }
+.sp-tabs button .nm { min-width: 0; }
+.sym { flex: none; display: inline-flex; align-items: center; justify-content: center; width: 30px; height: 22px; border: 1.5px solid currentColor;
+  border-radius: 3px; font: 600 13px/1 "Cambria Math", "Segoe UI Symbol", Consolas, monospace; background: #fff; color: #33415c; }
+.sym.sm { font-size: 9.5px; letter-spacing: -.02em; }
+.sp-tabs button.on .sym { background: #fff; color: var(--blue); border-color: #fff; }
+.sp-title h2 { display: flex; align-items: center; gap: 10px; }
+.sp-title h2 .sym { width: 40px; height: 30px; font-size: 17px; border-width: 2px; }
+.sp-title h2 .sym.sm { font-size: 12px; }
 .sp-tabs button:hover { background: #eef2fa; }
 .sp-tabs button.on { background: var(--blue); color: #fff; }
 .sp-tabs button .t { font-size: 10.5px; opacity: .8; margin-left: 4px; }
