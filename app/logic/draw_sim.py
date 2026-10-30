@@ -97,13 +97,48 @@ class _Grid:
         return sorted(out)
 
 
-def _pair_joined(i, j, wires, ends, segs):
-    # 끝이 저 선의 끝 · 꺾임점(L66 — 꺾임에서 세 갈래로 갈라짐) · 몸통에 닿으면 한 그물 (분석기 graph 도 맞닿은 토막 끝을 잇는다)
-    for a in ends[i]:
-        if any(abs(a[0] - b[0]) + abs(a[1] - b[1]) <= JOIN for b in wires[j]["pts"]) or any(_on_body(a[0], a[1], sg) for sg in segs[j]):
+def _end_dir(w, k):
+    """선 w 의 끝 k(0 · 1)에서 선이 뻗어 나가는 방향 (단위 벡터)."""
+    pts = w["pts"]
+    a, b = (pts[0], pts[1]) if k == 0 else (pts[-1], pts[-2])
+    dx, dy = b[0] - a[0], b[1] - a[1]
+    n = (dx * dx + dy * dy) ** 0.5 or 1.0
+    return dx / n, dy / n
+
+
+def _crossing(i, k, j, wires, ends, endmap):
+    """L82 — 선 i 의 끝 k 가 선 j 의 몸통에 닿았는데, 반대쪽으로 **같은 직선이 이어지면**(다른 토막의 끝이 그 자리에서
+    반대 방향으로 뻗음) 연결이 아니라 지나가는 교차다.  CAD 가 교차 자리에서 선을 둘로 끊어 그린 것 (분석기 graph.passes_through 와 같은 뜻).
+    그 자리에 연결점(dot)이 있으면 연결이다 — 부르는 쪽이 dot 을 따로 본다."""
+    if endmap is None:
+        return False
+    ex, ey = ends[i][k]
+    ux, uy = _end_dir(wires[i], k)
+    for m, mk in endmap.get((round(ex), round(ey)), ()):
+        if m == i or m == j:
+            continue
+        qx, qy = ends[m][mk]
+        if abs(qx - ex) + abs(qy - ey) > JOIN:
+            continue
+        vx, vy = _end_dir(wires[m], mk)
+        if ux * vx + uy * vy < -0.98:                      # 반대 방향 · 한 직선
             return True
-    for b in ends[j]:
-        if any(abs(b[0] - a[0]) + abs(b[1] - a[1]) <= JOIN for a in wires[i]["pts"]) or any(_on_body(b[0], b[1], sg) for sg in segs[i]):
+    # 같은 선 i 가 그 자리를 꺾임 없이 지나가는 경우는 몸통-몸통이라 여기 오지 않는다
+    return False
+
+
+def _pair_joined(i, j, wires, ends, segs, endmap=None):
+    # 끝이 저 선의 끝 · 꺾임점(L66 — 꺾임에서 세 갈래로 갈라짐) · 몸통에 닿으면 한 그물 (분석기 graph 도 맞닿은 토막 끝을 잇는다)
+    # L82 — 몸통에 닿은 끝이라도 반대쪽에 같은 직선이 이어지면 지나가는 교차 (연결 아님)
+    for k, a in enumerate(ends[i]):
+        if any(abs(a[0] - b[0]) + abs(a[1] - b[1]) <= JOIN for b in wires[j]["pts"]):
+            return True
+        if any(_on_body(a[0], a[1], sg) for sg in segs[j]) and not _crossing(i, k, j, wires, ends, endmap):
+            return True
+    for k, b in enumerate(ends[j]):
+        if any(abs(b[0] - a[0]) + abs(b[1] - a[1]) <= JOIN for a in wires[i]["pts"]):
+            return True
+        if any(_on_body(b[0], b[1], sg) for sg in segs[i]) and not _crossing(j, k, i, wires, ends, endmap):
             return True
     for dx, dy in (wires[i].get("dots") or []):
         if any(_on_body(dx, dy, sg, 1.0) for sg in segs[j]) or any(abs(dx - b[0]) + abs(dy - b[1]) <= 1.0 for b in ends[j]):
@@ -122,9 +157,15 @@ def _nets_of(wires, grid=None):
     segs = [_segs(w) for w in wires]
     pad = max(JOIN, 1.0)
     g = grid or _Grid(wires, pad)
+    endmap = defaultdict(list)                     # L82 — 끝점 색인 (교차 판정 — 반대쪽에 같은 직선이 이어지는가)
+    for i, (a, b) in enumerate(ends):
+        for k, (x, y) in enumerate((a, b)):
+            for cx in (round(x) - 1, round(x), round(x) + 1):
+                for cy in (round(y) - 1, round(y), round(y) + 1):
+                    endmap[(cx, cy)].append((i, k))
     for i in range(n):
         for j in g.near(g.box[i]):
-            if j > i and _pair_joined(i, j, wires, ends, segs):
+            if j > i and _pair_joined(i, j, wires, ends, segs, endmap):
                 uf.union(i, j)
     roots = {}
     net_of = []

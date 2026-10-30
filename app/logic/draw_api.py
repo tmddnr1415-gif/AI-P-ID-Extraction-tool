@@ -559,6 +559,33 @@ def drawing_sheet(did: str):
     return next((s for s in sheets if s.get("did") == did), sheets[0] if sheets else {})
 
 
+@router.post("/logic/api/drawings/{did}/aop")
+def drawing_aop(did: str, body: dict = Body(default={})):
+    """L82 — 신호 처리(아날로그 연산자) 블록 하나 — 연산 · 입력 단자(어디서 오나) · 설정값 · 지금 계산 과정.
+    화면이 두 번 누름 판을 이것으로 열고, 사람이 넣은 입력으로는 `/logic/api/aopsim` 이 센다 (검토 화면 sheet_aop 와 같은 계산)."""
+    from . import draw_sim, sim, analog, aops, aop_trace
+    from .api import _aop_trace
+    bid = str(body.get("block") or "")
+    live = body.get("doc") if isinstance(body.get("doc"), dict) else None
+    docs, keys = _sim_docs(did, live)
+    me = [d for d in docs if d["id"] == did]           # 그 장만 센다 (검토 화면 sheet_aop 도 그 장만 · 묶음 전체를 지으면 수 초)
+    s = draw_sim.sheets_of(me, {did: keys[did]})[0] if me else None
+    if s is None or bid not in s["blocks"]:
+        raise HTTPException(404, "그 블록이 없습니다.")
+    b = s["blocks"][bid]
+    idx = sim._index(s)[:4]
+    det = {}
+    analog.nets(s, {}, idx, None, det)
+    d = det.get(bid) or ({"op": b.get("aop"), "inputs": [], "out": None, "why": "입력선을 읽지 못했습니다"} if b.get("aop") else None)
+    if not d or not d.get("op"):
+        return {"op": None, "block": bid}
+    tr = _aop_trace(s, bid, d, idx, {})
+    voc = aops.vocab()
+    info = (voc.get("ops") or {}).get(d["op"]) or (voc.get("digital_ops") or {}).get(d["op"]) or aop_trace.EXTRA_OPS.get(d["op"]) or {}
+    return {**d, "block": bid, "label": b.get("label") or "", "ko": info.get("ko"), "eq": info.get("eq"),
+            "needs": aops.NEEDS.get(d["op"], []), "digital": aops.is_digital(d["op"]), **tr}
+
+
 @router.post("/logic/api/drawings/{did}/analyse")
 def analyse_drawing(did: str, body: dict = Body(default={})):
     """그린 것을 PDF 로 내보내 **LOGIC 검토 묶음**으로 올린다 — 시뮬레이션 · 정합성 검토를 그대로 쓴다."""

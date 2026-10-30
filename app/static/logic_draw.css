@@ -364,3 +364,32 @@ body.dw-homeon .dw-side, body.dw-homeon .dw-stage { display: none; }
 .dw-mdesc { margin: 2px 0 6px; font-size: 12px; color: #1f6b5f; background: #eefaf7; border-radius: 6px; padding: 4px 7px; }
 .mt-cap em { font-weight: 600; }
 .mt-cap i { font-style: normal; font-size: 10px; color: var(--soft); line-height: 1.2; }
+/* L82 — 신호 처리 블록 계산 판 (두 번 누름) */
+.dw-aop { position: fixed; z-index: 70; width: 380px; max-width: calc(100vw - 16px); max-height: calc(100vh - 16px); overflow: auto; background: #fff; border: 1px solid var(--line); border-radius: 10px; box-shadow: 0 8px 28px rgba(0, 0, 0, .2); padding: 10px 12px; font-size: 12.5px; }
+.dw-aop .ap-h { display: flex; gap: 6px; align-items: baseline; }
+.dw-aop .ap-h small { color: #6b7385; }
+.dw-aop .ap-h button { margin-left: auto; border: 0; background: none; cursor: pointer; font-size: 14px; }
+.dw-aop .ap-eq { margin: 4px 0 6px; padding: 4px 7px; background: #f4f7fc; border-radius: 6px; font-family: ui-monospace, monospace; font-size: 12px; }
+.dw-aop .ap-sub { margin: 8px 0 4px; font-weight: 600; color: #2d3a55; font-size: 12px; }
+.dw-aop .ap-sub small { font-weight: 400; color: #6b7385; }
+.dw-aop table.ap-io { width: 100%; border-collapse: collapse; }
+.dw-aop .ap-io th { text-align: left; font-weight: 500; color: #6b7385; font-size: 11px; border-bottom: 1px solid var(--line); padding: 2px 4px; }
+.dw-aop .ap-io td { padding: 3px 4px; border-bottom: 1px dotted #e7ebf2; vertical-align: middle; }
+.dw-aop .ap-io td small { color: #59616f; }
+.dw-aop input, .dw-aop select, .dw-aop textarea { font: inherit; padding: 3px 6px; border: 1px solid var(--line); border-radius: 5px; }
+.dw-aop .ap-io input { width: 78px; }
+.dw-aop .ap-ps label { display: flex; gap: 6px; align-items: center; margin: 3px 0; }
+.dw-aop .ap-ps label span { min-width: 120px; color: #3c465c; }
+.dw-aop .ap-ps label.col { flex-direction: column; align-items: stretch; }
+.dw-aop .ap-ps input { width: 100px; }
+.dw-aop .ap-swap { margin-top: 4px; font-size: 11.5px; padding: 2px 8px; border: 1px solid var(--line); background: #fff; border-radius: 6px; cursor: pointer; }
+.dw-aop .ap-res { background: #f8fafd; border: 1px solid #e3e8f1; border-radius: 8px; padding: 6px 8px; }
+.dw-aop .ap-l { display: flex; gap: 8px; align-items: baseline; margin: 2px 0; }
+.dw-aop .ap-l i { font-style: normal; color: #6b7385; min-width: 46px; font-size: 11.5px; }
+.dw-aop .ap-l code { font-family: ui-monospace, monospace; font-size: 12.5px; }
+.dw-aop .ap-l.out code b { font-size: 15px; color: #0b63c5; }
+.dw-aop .ap-l.out.unk code b { color: #a35a00; }
+.dw-aop .ap-tp { margin-bottom: 3px; color: #3c465c; font-size: 11.5px; }
+.dw-aop .ap-why { color: #a35a00; font-size: 11.5px; margin-top: 3px; }
+.dw-aop .ap-btns { margin-top: 8px; display: flex; gap: 6px; }
+.dw-aop .ap-btns button { font: inherit; font-size: 12px; border: 1px solid var(--line); background: #fff; border-radius: 6px; padding: 4px 9px; cursor: pointer; }

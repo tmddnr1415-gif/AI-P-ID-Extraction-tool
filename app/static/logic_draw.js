@@ -1180,8 +1180,10 @@ function bindStage() {
     if (t.classList.contains("cell")) { editCell(t); return; }
     const blk = t.closest(".blk");
     if (blk && !simOn()) { const b0 = S.doc.blocks.find(b => b.id === blk.dataset.id); if (b0 && b0.kind === "MACRO") { openMacroInside(macroOfBlock(b0)); return; } }   // L79 — 매크로 두 번 누름 = 내부 동작 (새 창)
-    if (blk) { const b = S.doc.blocks.find(b => b.id === blk.dataset.id); const sp = S.sym[b.kind]; const inp = $(sp.label ? "#p-label" : (sp.circle || sp.note) ? "#p-text" : sp.time ? "#p-t" : null); if (inp) { inp.focus(); inp.select(); } }
+    if (blk && aopMaybe(blk.dataset.id)) { const bid = blk.dataset.id; openAopPanel(bid, e).then(ok => { if (!ok) focusBlockInput(bid); }); return; }   // L82 — 신호 처리 블록 = 입력 넣고 계산 보기
+    if (blk) focusBlockInput(blk.dataset.id);
   });
+  function focusBlockInput(id) { const b = S.doc.blocks.find(b => b.id === id); if (!b) return; const sp = S.sym[b.kind]; const inp = $(sp.label ? "#p-label" : (sp.circle || sp.note) ? "#p-text" : sp.time ? "#p-t" : null); if (inp) { inp.focus(); inp.select(); } }
   svg.addEventListener("pointerleave", () => { S.hover = null; drawGhost(); if (S.guide.ruler) drawRulers(); });
   $("#scroll").addEventListener("scroll", () => { if (S.guide.ruler) drawRulers(); });
   window.addEventListener("resize", () => { if (S.guide.ruler) drawRulers(); });
@@ -2573,6 +2575,7 @@ function simClick(e, p, t) {
       const items = [{ t: "출력 1 — 조건을 채워 켠다 (게이트가 판정)", v: 1, cls: "v1" }, { t: "출력 0 — 조건을 깨서 끈다", v: 0, cls: "v0" }];
       if (cur != null) items.push({ t: "목표 풀기", v: null });
       if (sb.aop || ["unknown"].includes(sb.logic)) items.push({ t: "∿ 출력값 넣기 (공학값)", ana: "block:" + b.id });
+      if (sb.aop) items.push({ t: "∑ 입력 넣고 계산 보기 (두 번 누름)", act: () => openAopPanel(b.id, e) });   // L82
       if (S.sym[b.kind].time) items.push({ t: `⏱ 시간 ${(b.param || {}).t || 5}초 — 속성에서 바꿉니다`, info: true });
       if (sb.macro && !sb.macro.page) items.push({ t: "⚠ " + (sb.macro.why || "Typical 시트가 없습니다"), info: true });
       if (sb.macro && sb.macro.did) items.push({ t: `↗ 내부 동작 보기 (새 창) — ${sb.macro.sheet || ""}`, act: () => openMacroWin(b.id, sb.macro.did) });   // L59
@@ -2724,3 +2727,116 @@ async function init() {
   else { await loadSet(); await showHome(); }                   // L79 — 그림을 안 고르고 들어오면 Logic 작성 첫 화면
 }
 init().catch(e => { toast("화면을 열지 못했습니다 — " + e.message, 8000); console.error(e); });
+
+/* L82 — 신호 처리(아날로그 연산자) 블록을 두 번 누르면: 입력 값을 넣고 → 식 → 값을 넣은 식 → 출력 을 바로 본다.
+   블록의 연산 · 입력선(어디서 오나) · 설정값은 /drawings/{id}/aop, 계산은 신호 처리 페이지와 같은 /logic/api/aopsim (aops.compute). */
+const AOP_NUM = { value: 1, k: 1, b: 1, h: 1, l: 1, n: 1, d: 1, out: 1 };
+const AOP_TWO = new Set(["diff", "absdiff", "div"]);
+const AOP_FLAG = new Set(["FLAG", "C", "COND", "TR", "TRK"]);
+const aopNum = v => v == null || v === "" ? "" : String(+(+v).toFixed(6));
+async function openAopPanel(bid, ev) {
+  if (!S.doc || !S.id) return false;
+  let d;
+  try { d = await post(`/logic/api/drawings/${S.id}/aop`, { block: bid, doc: S.dirty ? docOut() : undefined }); } catch (e) { return false; }
+  if (!d || !d.op) return false;
+  closeAopPanel(); $("#simmenu").hidden = true;
+  const pr = { ...(d.params || {}) }, src = d.sources || {}, ucoef = pr.coef || {};
+  let ins = (d.inputs || []).filter(i => String(i.net) !== String(d.cond) && !AOP_FLAG.has(i.pin));
+  if (pr.order && pr.order.length === 2) ins = [...pr.order.map(n => ins.find(i => String(i.net) === String(n))).filter(Boolean), ...ins.filter(i => !pr.order.map(String).includes(String(i.net)))];
+  const P = { d, ins: ins.map(i => ({ net: i.net, pin: i.pin || "", coef: ucoef[i.net] != null ? ucoef[i.net] : i.coef, value: i.value,
+    from: (src[String(i.net)] || {}).text || "" })) };
+  const coefOn = (d.needs || []).some(x => x[0] === "coef");
+  const vars = ((d.why || "").match(/수식의 (.+?) 값을/) || [])[1];
+  const m = document.createElement("div");
+  m.id = "aoppanel"; m.className = "dw-aop";
+  const two = AOP_TWO.has(d.op) || d.op === "transfer", signed = i => ["+", "-", "−"].includes(i.pin);
+  const posPin = k => d.op === "transfer" ? "IN" + (k + 1) : "X" + (k + 1);   // 두 입력 연산 — 보이는 순서가 곧 앞 · 뒤 (⇅ 로 바꾼다)
+  const pinOf = (i, k) => two && !signed(i) ? posPin(k) : i.pin && !signed(i) ? i.pin : posPin(k);
+  const rows = () => P.ins.map((i, k) => `<tr><td><b>${esc(pinOf(i, k))}</b>${signed(i) ? ` <small>(${esc(i.pin)})</small>` : ""}</td>
+      <td><small>${esc(i.from || "선 " + i.net)}</small></td>${coefOn ? `<td><input data-coef="${k}" type="number" step="any" value="${aopNum(i.coef)}" placeholder="1"></td>` : ""}
+      <td><input data-in="${k}" type="number" step="any" value="${aopNum(i.value)}" placeholder="값"></td></tr>`).join("");
+  let ps = "";
+  for (const [k, label] of d.needs || []) {
+    if (AOP_NUM[k]) ps += `<label><span>${esc(label)}</span><input data-p="${k}" type="number" step="any" value="${aopNum(pr[k])}" placeholder="${k === "out" ? "비우면 계산" : "값"}"></label>`;
+    else if (k === "c") ps += `<label><span>${esc(label)}</span><select data-p="c"><option value="1"${pr.c === 0 ? "" : " selected"}>1 → IN1</option><option value="0"${pr.c === 0 ? " selected" : ""}>0 → IN2</option></select></label>`;
+    else if (k === "table") ps += `<label class="col"><span>${esc(label)}</span><textarea data-p="table" rows="3" placeholder="0, 0&#10;100, 50">${esc((pr.table || []).map(p => p.join(", ")).join("\n"))}</textarea></label>`;
+    else if (k === "vars" && vars) ps += vars.split(/,\s*/).map(nm => `<label><span>수식 ${esc(nm)}</span><input data-var="${esc(nm)}" type="number" step="any" value="${aopNum((pr.vars || {})[nm])}"></label>`).join("");
+  }
+  m.innerHTML = `<div class="ap-h"><b>${esc(d.label || "")} ${esc(d.ko || d.op)}</b> <small>${esc(bid)}</small><button data-a="x" title="닫기">✕</button></div>
+    ${d.eq ? `<div class="ap-eq">${esc(d.eq)}</div>` : ""}
+    <div class="ap-sub">① 입력 값을 넣으세요 <small>(도면 값은 바뀌지 않습니다 — 계산만 봅니다)</small></div>
+    ${P.ins.length ? `<table class="ap-io"><tr><th>입력</th><th>어디서</th>${coefOn ? "<th>계수</th>" : ""}<th>값</th></tr><tbody>${rows()}</tbody></table>
+      ${two && P.ins.length >= 2 ? `<button data-a="swap" class="ap-swap" title="${d.op === "transfer" ? "IN1 · IN2" : "앞 · 뒤 (분자 · 분모)"} 를 바꿉니다">⇅ ${d.op === "div" ? "분자 · 분모" : d.op === "transfer" ? "IN1 · IN2" : "앞 · 뒤"} 바꾸기</button>` : ""}`
+      : `<div class="ap-why">${d.op === "const" ? "입력선이 없는 상수입니다" : "입력선을 도면에서 읽지 못했습니다"}</div>`}
+    ${ps ? `<div class="ap-sub">② 설정값</div><div class="ap-ps">${ps}</div>` : ""}
+    <div class="ap-sub">${ps ? "③" : "②"} 계산</div><div class="ap-res" id="ap-res"></div>
+    <div class="ap-btns"><button data-a="sig" title="신호 처리 시뮬레이션 페이지를 이 값으로 채워 엽니다 (새 창 · 시간 그래프)">∿ 신호 처리 페이지에서 열기</button></div>`;
+  document.body.appendChild(m);
+  const x = Math.min((ev && ev.clientX || 200) + 14, innerWidth - m.offsetWidth - 8), y = Math.min((ev && ev.clientY || 120) - 10, innerHeight - m.offsetHeight - 8);
+  m.style.left = Math.max(8, x) + "px"; m.style.top = Math.max(8, y) + "px";
+  const req = () => {
+    const out = { op: d.op, label: d.label || "", inputs: [], params: {}, cond: null };
+    P.ins.forEach((i, k) => {
+      const v = m.querySelector(`[data-in="${k}"]`).value.trim(), c = coefOn ? m.querySelector(`[data-coef="${k}"]`).value.trim() : "";
+      const pin = two && !signed(i) ? posPin(k) : i.pin;
+      out.inputs.push({ pin, value: v === "" ? null : +v, coef: c !== "" ? +c : i.coef == null ? null : i.coef });
+    });
+    for (const e of m.querySelectorAll("[data-p]")) {
+      const k = e.dataset.p, raw = String(e.value || "").trim();
+      if (k === "c") out.cond = +raw;
+      else if (k === "table") { const pts = raw.split(/\n+/).map(l => l.split(/[,\s]+/).filter(Boolean).map(Number)).filter(p => p.length === 2 && p.every(isFinite)); if (pts.length >= 2) out.params.table = pts; }
+      else if (raw !== "" && isFinite(+raw)) out.params[k] = +raw;
+    }
+    const vv = {}; for (const e of m.querySelectorAll("[data-var]")) if (e.value.trim() !== "") vv[e.dataset.var] = +e.value;
+    if (Object.keys(vv).length) out.params.vars = vv;
+    if (d.op === "transfer" && out.cond == null) out.cond = 1;
+    return out;
+  };
+  let tm = 0, seq = 0;
+  const calc = async () => {
+    const q = req(), my = ++seq;
+    let r; try { r = await post("/logic/api/aopsim", q); } catch (e) { $("#ap-res", m).innerHTML = `<div class="ap-why">${esc(e.message)}</div>`; return; }
+    if (my !== seq || !m.isConnected) return;
+    const t = r.trace || {}, res = r.dig != null ? String(r.dig) : t.res;
+    const tp = (t.params || []).map(([k, v]) => `<span class="ap-p">${esc(k)} = <b>${esc(v)}</b></span>`).join(" ");
+    $("#ap-res", m).innerHTML = `${tp ? `<div class="ap-tp">${tp}</div>` : ""}<div class="ap-l"><i>식</i><code>${esc(t.sym || "")}</code></div>
+      <div class="ap-l"><i>값 넣기</i><code>= ${esc(t.sub || "?")}</code></div>
+      <div class="ap-l out${res === "?" ? " unk" : ""}"><i>출력</i><code>= <b>${esc(res || "?")}</b></code></div>
+      ${t.note || r.why ? `<div class="ap-why">${esc(t.note || r.why)}</div>` : ""}`;
+    P.last = q;
+  };
+  m.addEventListener("input", () => { clearTimeout(tm); tm = setTimeout(calc, 120); });
+  m.addEventListener("change", () => { clearTimeout(tm); tm = setTimeout(calc, 30); });
+  m.addEventListener("keydown", e => { if (e.key === "Escape") closeAopPanel(); e.stopPropagation(); });
+  m.addEventListener("click", e => {
+    const a = e.target.closest("button[data-a]"); if (!a) return;
+    if (a.dataset.a === "x") closeAopPanel();
+    else if (a.dataset.a === "swap") {
+      const vals = P.ins.map((_, k) => [m.querySelector(`[data-in="${k}"]`).value, coefOn ? m.querySelector(`[data-coef="${k}"]`).value : ""]);
+      [P.ins[0], P.ins[1]] = [P.ins[1], P.ins[0]]; [vals[0], vals[1]] = [vals[1], vals[0]];
+      $("tbody", m).innerHTML = rows();
+      vals.forEach(([v, c], k) => { m.querySelector(`[data-in="${k}"]`).value = v; if (coefOn) m.querySelector(`[data-coef="${k}"]`).value = c; });
+      calc();
+    } else if (a.dataset.a === "sig") {
+      const q = req();
+      q.inputs = q.inputs.map((i, k) => ({ ...i, from: P.ins[k].from }));
+      q.from = `${S.doc.sheet_no || S.doc.name || ""} · ${d.label || ""} (${bid})`;
+      window.open("/logic/signal?s=" + encodeURIComponent(JSON.stringify(q)), "_blank");
+    }
+  });
+  S._aopOff = e => { if (!m.contains(e.target)) closeAopPanel(); };
+  setTimeout(() => document.addEventListener("pointerdown", S._aopOff, true), 0);
+  const first = m.querySelector("[data-in]") || m.querySelector("[data-p]"); if (first) { first.focus(); first.select && first.select(); }
+  calc();
+  return true;
+}
+function closeAopPanel() {
+  const m = $("#aoppanel"); if (m) m.remove();
+  if (S._aopOff) { document.removeEventListener("pointerdown", S._aopOff, true); S._aopOff = null; }
+}
+function aopMaybe(id) {                       // 글자 상자(BOX)만 연산자일 수 있다 (draw_sim._box_meaning → aops.identify) · 시뮬레이션 중이면 그 판정
+  const sb = simOn() && S.sim && S.sim.res && S.sim.res.sheet && S.sim.res.sheet.blocks[id];
+  if (sb) return !!sb.aop;
+  const b = S.doc && S.doc.blocks.find(b => b.id === id);
+  return !!b && b.kind === "BOX";
+}
