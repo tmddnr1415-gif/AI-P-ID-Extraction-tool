@@ -520,12 +520,12 @@ def _ds_full(con, dsid, deep=True, pv=None):
         ver = (store.one(con, "SELECT MAX(id) m FROM audit WHERE datasheet_id=?", dsid)["m"], h["review_status"]) + pv
         hit = _DEEP_CACHE.get(dsid)
         if hit and hit[0] == ver:
-            return dict(hit[1])                              # top-level copy: callers may swap keys, never edit nested lists
+            return _with_history(con, dict(hit[1]))          # top-level copy: callers may swap keys, never edit nested lists
         disk = _deep_disk(dsid)                              # computed before a restart: read instead of recompute (valve20)
         if disk and tuple(disk.get("_ver") or ()) == tuple(ver):
             d = disk["d"]
             _DEEP_CACHE[dsid] = (ver, d)
-            return dict(d)
+            return _with_history(con, dict(d))
     d = store.one(con, "SELECT * FROM datasheet WHERE id=?", dsid)
     if not d:
         return None
@@ -563,15 +563,22 @@ def _ds_full(con, dsid, deep=True, pv=None):
     if not deep:
         return d
     d = _ds_deep(con, d, dsid)
-    _DEEP_CACHE[dsid] = (ver, d)
+    slim = {k: v for k, v in d.items() if k != "history"}    # the audit trail is cheap to re-read and big to keep (valve22)
+    _DEEP_CACHE[dsid] = (ver, slim)
     try:
-        store.write_json(store.root() / "cache" / "review" / f"{dsid}.json", {"_ver": list(ver), "d": d})
+        store.write_json(store.root() / "cache" / "review" / f"{dsid}.json", {"_ver": list(ver), "d": slim})
     except Exception:                                        # noqa: BLE001  (disk cache is an optimisation only)
         pass
-    if len(_DEEP_CACHE) > 1500:                              # bound memory (~100 KB each) on very large projects
-        for k in list(_DEEP_CACHE)[:500]:
+    if len(_DEEP_CACHE) > 800:                               # bound memory on very large projects (disk cache keeps the rest)
+        for k in list(_DEEP_CACHE)[:300]:
             _DEEP_CACHE.pop(k, None)
     return dict(d)
+
+
+def _with_history(con, d):
+    if "history" not in d:
+        d["history"] = store.rows(con, "SELECT * FROM audit WHERE datasheet_id=? ORDER BY id DESC", d["id"])
+    return d
 
 
 def _deep_disk(dsid: int):

@@ -482,3 +482,9 @@ Note 113 · PC-01 Confirm 6(3C0K8 의 '316 SS/FHF' 2개 · API5L-X65 MOV 1500# �
   바이트를 저장하고 매번 새 Response(`tests/test_valve_api_cache.py` 가 gzip 아래에서 두 번 요청). 목록 실패 시 '다시 시도' 단추.
 - Area · Unit 을 화면에: Valve List 열(필터) · Issue List Area 선택 · 작업대 머리 · 대시보드 'By Area' 카드(`summary.by_area`). Expert 탭 Note 는 접힌 채 시작.
 - 검토자 동작 실측(164 DS): 다음 Tag 55 ms · 쪽 넘김 130 ms · 상태 변경 즉시 · 목록 필터 < 0.5 s.
+
+## 26. 지원 · 운영 (valve22)
+
+- `GET /api/valve/health`: DB · files/cache/backups/exports 쓰기 · 디스크 여유(500 MB 미만이면 경고) · 마지막 백업 · 리뷰 캐시 수 · 워밍 중인 프로젝트. Settings › 정보 › **진단** 단추가 보여 준다 — 문제가 있으면 그 화면을 개발 쪽에.
+- Issue List 화면의 필터 · 검색은 행만 다시 그린다(도구줄 · 포커스 유지, 0.6 → 0.35 s).
+- 사용자용 설명서 `docs/valve/USER_GUIDE.md`(검토 엔지니어 관점 · 5분 시작 · 화면 · 지적 종류 · 작업대 요령 · Excel · FAQ).
