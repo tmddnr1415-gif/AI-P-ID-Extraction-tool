@@ -1059,6 +1059,7 @@ function drawRight() {
       W.selCm = +cd.dataset.cmdel; await markCmd('del'); } return; }
     const pp = e.target.closest('[data-pmsp]'); if (pp) { e.preventDefault(); openPmsRef(+pp.dataset.pmsp, JSON.parse(pp.dataset.pmsb || 'null')); return; }
     const ek = e.target.closest('[data-ek]'); if (ek) { e.preventDefault(); selectField(ek.dataset.ek); return; }
+    const nt = e.target.closest('[data-notes]'); if (nt) { W.notesOpen = !W.notesOpen; drawRight(); return; }
     const pd = e.target.closest('[data-pdp]'); if (pd) { e.preventDefault(); openRef(d.process_doc, +pd.dataset.pdp, JSON.parse(pd.dataset.pdb || 'null'), 'Process Data'); return; }
     if (e.target.closest('select')) return;
     const gx = e.target.closest('[data-grpx]'); if (gx) { const k = gx.dataset.grpx; W.grpOpen.has(k) ? W.grpOpen.delete(k) : W.grpOpen.add(k); drawRight(); return; }
@@ -1097,7 +1098,8 @@ function matList(d) {                                  // material review (matre
     const f = d.fields.find(f => x.where.endsWith(f.display || f.key) && f.bbox);
     return f ? `<a href="#" data-ek="${esc(f.key)}">${t}</a>` : t; };
   return ['Action', 'Confirm', 'Note'].map(lv => { const M = L.filter(m => m.level === lv); if (!M.length) return '';
-    return `<div class="sect"><h4><span class="pill p-${MAT_LV[lv][0]}">${lv}</span> ${MAT_LV[lv][1]} (${M.length})</h4>${M.map(m => `<div class="mat ${lv}">
+    const fold = lv === 'Note' && !W.notesOpen;                               // reference notes stay folded: the reviewer opens them when needed
+    return `<div class="sect"><h4 ${lv === 'Note' ? 'class="click" data-notes="1" style="cursor:pointer"' : ''}><span class="pill p-${MAT_LV[lv][0]}">${lv}</span> ${MAT_LV[lv][1]} (${M.length})${lv === 'Note' ? ` <span class="soft">${fold ? '▸ 펼치기' : '▾ 접기'}</span>` : ''}</h4>${fold ? '' : M.map(m => `<div class="mat ${lv}">
       <div><span class="soft" style="font-size:11px">${grp(m.rule)}</span> <b>${esc(m.rule)} · ${esc(m.title)}</b></div>${m.level !== 'Note' ? `<div class="mshort" title="설계사에게 가는 코멘트 (Issue List · Mark-up PDF · Valve List)">▸ ${esc(m.short || '')}</div>` : ''}<div>${esc(m.comment)}</div>
       <div class="soft" style="font-size:11px">근거: ${esc(m.basis)}</div>
       ${m.kb_text ? `<details class="kb"><summary>지식: ${esc(m.kb_title)}</summary>${esc(m.kb_text)}</details>` : ''}
