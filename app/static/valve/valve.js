@@ -78,6 +78,12 @@ async function pickTypes(title, { tag = '', preset = null, note = '' } = {}) {
   if (!preset) LS.set('xtypes', ts);
   return ts.join(',');
 }
+function chunkRows(tbody, rows, first = 250, empty = '') {   // big tables: first rows now, the rest in idle batches (no freeze)
+  if (!tbody) return; tbody.innerHTML = rows.length ? rows.slice(0, first).join('') : empty; let i = first;
+  const idle = window.requestIdleCallback || (f => setTimeout(f, 0));
+  const more = () => { if (i >= rows.length || !tbody.isConnected) return; const e = Math.min(i + 400, rows.length); tbody.insertAdjacentHTML('beforeend', rows.slice(i, e).join('')); i = e; idle(more); };
+  if (i < rows.length) idle(more);
+}
 async function download(path, method = 'GET', body) {
   const r = await api(method, path, body, true);
   const cd = r.headers.get('Content-Disposition') || '';
@@ -572,6 +578,14 @@ async function renderList() {
   rows.sort((a, b) => G.sort.d * String(val(a, G.sort.k)).localeCompare(String(val(b, G.sort.k)), undefined, { numeric: true }));
   const keepQ = $('#gq')?.value || '', keepT = ft || '', keepS = fs || '';
   const oldWrap = $('.xg-wrap', el), keepX = oldWrap?.scrollLeft || 0, keepY = oldWrap?.scrollTop || 0;
+  const __grows = rows.map((r, n) => `<tr data-id="${r.id}" class="${G.sel.has(r.id) ? 'sel' : ''}"><td class="fz" style="left:0"><input type="checkbox" ${G.sel.has(r.id) ? 'checked' : ''} aria-label="선택"></td><td class="fz" style="left:30px">${n + 1}</td>
+        ${cols.map((c, i) => {
+          if (c.key === 'tag') return `<td class="fz fzl" style="left:70px" data-tagcell="1"><span class="tag" style="color:var(--blue);font-weight:600">${esc(r.tag)}</span> <a href="#review" data-open="${r.id}" title="Datasheet Review 로 열기">↗</a></td>`;
+          if (c.key === 'status') return `<td>${pill(r.status)}</td>`;
+          if (c.key in r) return `<td>${esc(r[c.key])}</td>`;
+          const x = r.cells[c.key]; if (!x) return '<td class="ph">—</td>';
+          return `<td data-fid="${x.id}" data-k="${c.key}" class="${x.ed ? 'ed' : ''} ${x.st === 'placeholder' || x.st === 'blank' ? 'ph' : ''} ${x.st === 'review' ? 'rv' : ''}" title="${esc(x.v + (x.u ? ' ' + x.u : ''))}${x.ed ? ' (사용자 수정)' : ''} · p.${x.p} — 두 번 눌러 고치기">${esc(x.v || (x.st === 'blank' ? 'Not Found' : ''))}${x.u && x.v ? ' <small>' + esc(x.u) + '</small>' : ''}</td>`;
+        }).join('')}</tr>`), __gfb = '';
   el.innerHTML = `<div class="vh">${listTop()}<input type="search" id="gq" placeholder="Search Tag Number…" style="width:180px" value="${esc(keepQ)}">
       <select id="gt"><option value="">All Valve Types</option>${types.map(t => `<option ${t === keepT ? 'selected' : ''}>${esc(t)}</option>`).join('')}</select>
       <select id="gs"><option value="">All Status</option>${STATUSES.map(t => `<option ${t === keepS ? 'selected' : ''}>${t}</option>`).join('')}</select>
@@ -582,14 +596,8 @@ async function renderList() {
     ${lpWrap(`<div class="xg-wrap"><table class="xg" id="xg" style="width:${70 + cols.reduce((a, c) => a + c.w, 0)}px"><colgroup><col style="width:30px"><col style="width:40px">${cols.map(c => `<col style="width:${c.w}px">`).join('')}</colgroup>
       <thead><tr><th class="fz" style="left:0"><input type="checkbox" id="gall" aria-label="전체 선택"></th><th class="fz" style="left:30px">#</th>${cols.map((c, i) => `<th draggable="true" data-k="${c.key}" ${i === 0 ? 'class="fz fzl" style="left:70px"' : ''} title="${esc(c.title)} — 눌러 정렬 · 끌어 순서 바꾸기">${esc(c.title)}${G.sort.k === c.key ? (G.sort.d > 0 ? ' ▲' : ' ▼') : ''}<span class="rz"></span></th>`).join('')}</tr>
       <tr class="flt"><th class="fz" style="left:0"></th><th class="fz" style="left:30px"></th>${cols.map((c, i) => `<th ${i === 0 ? 'class="fz fzl" style="left:70px"' : ''}><input data-f="${c.key}" value="${esc(G.flt[c.key] || '')}" placeholder="filter" aria-label="${esc(c.title)} filter"></th>`).join('')}</tr></thead>
-      <tbody>${rows.map((r, n) => `<tr data-id="${r.id}" class="${G.sel.has(r.id) ? 'sel' : ''}"><td class="fz" style="left:0"><input type="checkbox" ${G.sel.has(r.id) ? 'checked' : ''} aria-label="선택"></td><td class="fz" style="left:30px">${n + 1}</td>
-        ${cols.map((c, i) => {
-          if (c.key === 'tag') return `<td class="fz fzl" style="left:70px" data-tagcell="1"><span class="tag" style="color:var(--blue);font-weight:600">${esc(r.tag)}</span> <a href="#review" data-open="${r.id}" title="Datasheet Review 로 열기">↗</a></td>`;
-          if (c.key === 'status') return `<td>${pill(r.status)}</td>`;
-          if (c.key in r) return `<td>${esc(r[c.key])}</td>`;
-          const x = r.cells[c.key]; if (!x) return '<td class="ph">—</td>';
-          return `<td data-fid="${x.id}" data-k="${c.key}" class="${x.ed ? 'ed' : ''} ${x.st === 'placeholder' || x.st === 'blank' ? 'ph' : ''} ${x.st === 'review' ? 'rv' : ''}" title="${esc(x.v + (x.u ? ' ' + x.u : ''))}${x.ed ? ' (사용자 수정)' : ''} · p.${x.p} — 두 번 눌러 고치기">${esc(x.v || (x.st === 'blank' ? 'Not Found' : ''))}${x.u && x.v ? ' <small>' + esc(x.u) + '</small>' : ''}</td>`;
-        }).join('')}</tr>`).join('')}</tbody></table></div>`)}`;
+      <tbody></tbody></table></div>`)}`;
+  chunkRows($('#xg tbody'), __grows, 250, __gfb);
   const wrap = $('.xg-wrap', el); wrap.scrollLeft = keepX; wrap.scrollTop = keepY;
   $$('[data-lm]', el).forEach(b => b.onclick = () => { G.mode = b.dataset.lm; renderList(); });
   mountPreview();
@@ -670,6 +678,11 @@ async function renderIssues() {
   const types = [...new Set(all.map(i => i.type))];
   const cnt = t => all.filter(i => i.type === t && i.status !== 'Dismissed').length;
   const keepY = $('.xg-wrap', el)?.scrollTop || 0;
+  const __rows = L.slice(0, 6000).map((i, n) => `<tr data-i="${esc(i.ds_id + '|' + i.ikey)}" class="${G.selIss === i.ikey && G.selDs === i.ds_id ? 'sel' : ''}">
+        <td class="fz" style="left:0"><b class="no ${i.color}">${i.no}</b></td><td class="fz fzl" style="left:34px"><b>${esc(i.tag)}</b></td><td>${esc(i.doc_no)}</td><td>${esc(i.rev)}</td><td>${i.sheet || ''} of ${i.of || ''}</td><td>${i.page || ''}</td>
+        <td title="${esc(i.field)}">${esc(i.field)}${i.row ? ` <small>#${i.row}</small>` : ''}</td><td title="${esc(i.value)}">${esc(i.value || '(blank)')}</td>
+        <td>${pill(i.type.replace(/[^A-Za-z]/g, ''), i.type)}</td><td title="${esc(i.description)}">${esc(i.description)}</td><td title="${esc(i.expected)}">${esc(i.expected)}</td>
+        <td>${pill(i.severity)}</td><td><select data-ist="${esc(i.ds_id + '|' + i.ikey)}" aria-label="status">${['Open', 'Confirmed', 'Dismissed', 'Resolved'].map(x => `<option ${x === i.status ? 'selected' : ''}>${x}</option>`).join('')}</select></td></tr>`), __fb = '<tr><td colspan="13" class="empty">조건에 맞는 지적 사항이 없습니다</td></tr>';
   el.innerHTML = `<div class="vh">${listTop()}<input type="search" id="iq" placeholder="Tag 검색" style="width:140px" value="${esc(IF.q)}">
       <select id="it"><option value="">All Issue Types</option>${types.map(t => `<option ${t === IF.type ? 'selected' : ''} value="${esc(t)}">${esc(t)} (${cnt(t)})</option>`).join('')}</select>
       <select id="isv"><option value="">All Severity</option>${['Major', 'Minor', 'Info', 'Internal'].map(t => `<option ${t === IF.sev ? 'selected' : ''}>${t}</option>`).join('')}</select>
@@ -679,12 +692,7 @@ async function renderIssues() {
       <button id="ixl" title="지금 필터 그대로 · Dismissed 제외">⇩ Issue List Excel</button><button class="pri" id="ipdf" title="지금 필터 그대로 · 인쇄용 표시 + Issue Summary">⇩ Mark-up PDF</button></div>
     ${lpWrap(`<div class="xg-wrap"><table class="xg" id="ig" style="width:1500px"><colgroup>${[34, 110, 150, 40, 62, 46, 150, 150, 130, 330, 150, 64, 100].map(w => `<col style="width:${w}px">`).join('')}</colgroup>
       <thead><tr>${['No.', 'Tag Number', 'Doc. No.', 'Rev.', 'Sheet', 'Page', 'Field', 'Datasheet Value', 'Issue Type', 'Description', 'Required / Expected', 'Severity', 'Status'].map((h, n) => `<th ${n < 2 ? `class="fz ${n ? 'fzl' : ''}" style="left:${n ? 34 : 0}px"` : ''}>${h}</th>`).join('')}</tr></thead>
-      <tbody>${L.slice(0, 3000).map((i, n) => `<tr data-i="${esc(i.ds_id + '|' + i.ikey)}" class="${G.selIss === i.ikey && G.selDs === i.ds_id ? 'sel' : ''}">
-        <td class="fz" style="left:0"><b class="no ${i.color}">${i.no}</b></td><td class="fz fzl" style="left:34px"><b>${esc(i.tag)}</b></td><td>${esc(i.doc_no)}</td><td>${esc(i.rev)}</td><td>${i.sheet || ''} of ${i.of || ''}</td><td>${i.page || ''}</td>
-        <td title="${esc(i.field)}">${esc(i.field)}${i.row ? ` <small>#${i.row}</small>` : ''}</td><td title="${esc(i.value)}">${esc(i.value || '(blank)')}</td>
-        <td>${pill(i.type.replace(/[^A-Za-z]/g, ''), i.type)}</td><td title="${esc(i.description)}">${esc(i.description)}</td><td title="${esc(i.expected)}">${esc(i.expected)}</td>
-        <td>${pill(i.severity)}</td><td><select data-ist="${esc(i.ds_id + '|' + i.ikey)}" aria-label="status">${['Open', 'Confirmed', 'Dismissed', 'Resolved'].map(x => `<option ${x === i.status ? 'selected' : ''}>${x}</option>`).join('')}</select></td></tr>`).join('')
-        || '<tr><td colspan="13" class="empty">조건에 맞는 지적 사항이 없습니다</td></tr>'}</tbody></table></div>`)}`;
+      <tbody></tbody></table></div>`)}`;
   $('.xg-wrap', el).scrollTop = keepY;
   $$('[data-lm]', el).forEach(b => b.onclick = () => { G.mode = b.dataset.lm; renderList(); });
   const re = () => renderIssues();
@@ -700,6 +708,7 @@ async function renderIssues() {
   $('#ipdf').onclick = async () => { const p = await pick('Mark-up PDF'); if (p == null) return;
     toast('Mark-up PDF 를 만드는 중… (Tag 수에 따라 수십 초)'); download(`/projects/${S.pid}/markup.pdf?${p}`).then(() => toast('내려받음 — 인쇄하면 표시도 같이 나옵니다')).catch(e => toast(e.message, 1)); };
   const tb = $('#ig tbody');
+  chunkRows(tb, __rows, 250, __fb);
   tb.onclick = async e => {
     if (e.target.closest('select')) return;
     const tr = e.target.closest('tr[data-i]'); if (!tr) return;
@@ -1277,7 +1286,7 @@ async function renderProc() {
       <span class="soft">Valve Size · Rating · Material · Piping Class 는 비교하지 않습니다. 단위 · 기준(게이지/절대)이 불명확하면 Pass/Fail 대신 Review Required 로 둡니다.</span></div></div>`;
     return;
   }
-  if (!S.procRows) { el.innerHTML = '<div class="empty">Process Data 와 비교하는 중…</div>'; const r = await api('GET', `/projects/${S.pid}/process`); S.procRows = r.rows; S.procDoc = r.process_doc; }
+  if (!S.procRows) { el.innerHTML = '<div class="empty">Process Data 와 비교하는 중…</div>'; const r = await api('GET', `/projects/${S.pid}/process`); S.procRows = r.rows; S.procRows.forEach((x, n) => { x._n = n; }); S.procDoc = r.process_doc; }
   const P = S.procF ||= { res: '', q: '', item: '' };
   const q = P.q.toUpperCase().replace(/[^0-9A-Z]/g, '');
   const L = S.procRows.filter(r => (!P.res || r.result === P.res) && (!P.item || r.item === P.item) && (!q || r.tag.includes(q)));
@@ -1292,7 +1301,7 @@ async function renderProc() {
       <input type="search" id="pq" placeholder="Tag 검색" value="${esc(P.q)}" style="width:140px"><span class="soft">${L.length}행</span></div>
       <div class="soft" style="margin-top:4px">공정 항목만 비교 (Valve Size · Rating · Material · Piping Class 제외) · 압력은 게이지/절대 기준이 양쪽에 적혀 있을 때만 · 단위가 불명확하면 Review Required · Match 허용 오차 1 %</div></div>
     <div style="flex:1;min-height:0;overflow:auto;padding:0 14px"><table class="t"><thead><tr><th>Tag Number</th><th>Item</th><th>Datasheet Value</th><th>Process Data</th><th>Result</th><th>Reason</th><th>PD p.</th><th>DS p.</th></tr></thead><tbody>
-      ${L.slice(0, 4000).map(r => `<tr class="click" data-n="${S.procRows.indexOf(r)}"><td><b>${esc(r.tag)}</b></td><td>${esc(r.item)}</td><td>${esc(r.ds || '—')} <small class="soft">${esc(r.ds_unit)}</small></td><td>${esc(r.pd || '—')} <small class="soft">${esc(r.pd_unit)}</small></td>
+      ${L.slice(0, 4000).map(r => `<tr class="click" data-n="${r._n}"><td><b>${esc(r.tag)}</b></td><td>${esc(r.item)}</td><td>${esc(r.ds || '—')} <small class="soft">${esc(r.ds_unit)}</small></td><td>${esc(r.pd || '—')} <small class="soft">${esc(r.pd_unit)}</small></td>
         <td>${pill(r.result.replace(/[^A-Za-z]/g, ''), r.result)}</td><td class="soft">${esc(r.reason)}</td><td>${r.pd_page || '—'}</td><td>${r.ds_page || ''}</td></tr>`).join('') || '<tr><td colspan="8" class="empty">없음</td></tr>'}</tbody></table></div>
     <div style="height:42%;min-height:200px;display:flex;border-top:3px solid #1d2330;position:relative"><div class="rc-side" id="pdL"></div><div class="rc-side" id="pdR"></div>
       <div class="pmhint" id="pdhint"><b>표의 행을 누르면</b> 왼쪽에 Datasheet 의 그 칸, 오른쪽에 Process Data 표의 그 칸이 나란히 열립니다.<br><span class="soft">Review Required · Referenced · Not in Process Data 는 불일치가 아니라 확인할 것입니다.</span></div></div></div>`;
@@ -1312,7 +1321,7 @@ async function renderProc() {
 async function renderPms() {
   const el = $('#v-pms'); el.classList.add('full');
   if (!S.sum.has_pms) { el.classList.remove('full'); el.innerHTML = `<div class="vh"><h2>PMS Compliance</h2></div><div class="card"><div class="empty">PMS(Piping Material Specification) PDF 가 아직 없습니다.<br>Document Management 에 올리면 Class 시트(Rating · NACE · Valve Trim · Ball Valve 품목)를 읽어 모든 Tag 를 비교합니다.</div></div>`; return; }
-  if (!S.pmsRows) { el.innerHTML = '<div class="empty">PMS 와 비교하는 중…</div>'; const r = await api('GET', `/projects/${S.pid}/pms`); S.pmsRows = r.rows; S.pmsDoc = r.pms_doc; }
+  if (!S.pmsRows) { el.innerHTML = '<div class="empty">PMS 와 비교하는 중…</div>'; const r = await api('GET', `/projects/${S.pid}/pms`); S.pmsRows = r.rows; S.pmsRows.forEach((x, n) => { x._n = n; }); S.pmsDoc = r.pms_doc; }
   const P = S.pmsF ||= { res: '', q: '', item: '' };
   const q = P.q.toUpperCase().replace(/[^0-9A-Z]/g, '');
   const L = S.pmsRows.filter(r => (!P.res || r.result === P.res) && (!P.item || r.item === P.item) && (!q || r.tag.includes(q)));
@@ -1323,7 +1332,7 @@ async function renderPms() {
       <select id="pi"><option value="">All Items</option>${[...new Set(S.pmsRows.map(r => r.item))].map(x => `<option ${x === P.item ? 'selected' : ''}>${esc(x)}</option>`).join('')}</select>
       <input type="search" id="pq" placeholder="Tag 검색" value="${esc(P.q)}" style="width:140px"><span class="soft">${L.length}행 · 재질은 규격·등급으로 비교 (표기 차이 무시)</span></div></div>
     <div style="flex:1;min-height:0;overflow:auto;padding:0 14px"><table class="t"><thead><tr><th>Tag Number</th><th>Area</th><th>Piping Material Class</th><th>Item</th><th>PMS Requirement</th><th>Datasheet Value</th><th>Compliance Result</th><th>Reason</th><th>PMS Ref. Page</th><th>DS Ref. Page</th></tr></thead><tbody>
-      ${L.slice(0, 3000).map((r, n) => `<tr class="click" data-n="${S.pmsRows.indexOf(r)}"><td><b>${esc(r.tag)}</b></td><td>${esc(r.area || '?')}</td><td>${esc(r.class)}</td><td>${esc(r.item)}</td><td>${esc(r.req)}</td><td>${esc(r.ds)}</td>
+      ${L.slice(0, 3000).map((r, n) => `<tr class="click" data-n="${r._n}"><td><b>${esc(r.tag)}</b></td><td>${esc(r.area || '?')}</td><td>${esc(r.class)}</td><td>${esc(r.item)}</td><td>${esc(r.req)}</td><td>${esc(r.ds)}</td>
         <td>${pill(r.result.replace(/[^A-Za-z]/g, ''), r.result)}</td><td class="soft">${esc(r.reason)}</td><td>${r.pms_page || '—'}</td><td>${r.ds_page || ''}</td></tr>`).join('') || '<tr><td colspan="10" class="empty">없음</td></tr>'}</tbody></table></div>
     <div style="height:42%;min-height:200px;display:flex;border-top:3px solid #1d2330;position:relative"><div class="rc-side" id="pmL"></div><div class="rc-side" id="pmR"></div>
       <div class="pmhint" id="pmhint"><b>표의 행을 누르면</b> 왼쪽에 Datasheet 의 그 칸, 오른쪽에 PMS 의 근거 쪽이 나란히 열립니다.<br><span class="soft">Review Required · Not Defined 는 부적합이 아니라 확인할 것입니다.</span></div></div></div>`;

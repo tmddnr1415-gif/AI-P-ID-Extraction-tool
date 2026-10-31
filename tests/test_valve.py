@@ -836,3 +836,48 @@ def test_tag_numbering_learned_per_area_unit():
     assert "TG-04" in {f["rule"] for f in tagrules.check(north[0], dup)}   # the same tag in two documents
     for f in tagrules.check(bad, prof):
         assert len(f["short"]) <= 120
+
+
+# ── mass simulation (spike/valve_sim.py): engineer oracle vs engines ───────────────────────────────────────────────
+
+def _sim():
+    import importlib.util
+    spec = importlib.util.spec_from_file_location("valve_sim", Path(__file__).resolve().parents[1] / "spike" / "valve_sim.py")
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
+def test_simulation_gate():
+    """400 synthetic datasheets (fixed seed) + 60 fuzz cases: no crash, the engines find what the engineer expects
+    (recall) and raise nothing he would not (precision) over the 44 modelled rules; levels agree."""
+    sim = _sim()
+    r = sim.simulate(400, seed=7, quiet=True)
+    assert not r["crashes"], r["crashes"][:3]
+    assert r["recall"] >= 0.99 and r["precision"] >= 0.99, (r["recall"], r["precision"])
+    assert r["lv"] <= 2, r["lv"]
+    assert sim.fuzz(60, seed=7) == []
+
+
+def test_sim_found_defects_fixed():
+    """Regressions for the defects the simulation found (valve20)."""
+    from app.valve import expert, matreview
+    # material: R-PTFE / RPTFE / reinforced PTFE are RTFE; RTFE vs virgin PTFE is a type difference; metal / nylon seats differ
+    assert material.compare("RTFE", "R-PTFE")[0] == material.COMPLIANT
+    assert material.compare("RTFE", "Reinforced PTFE")[0] == material.COMPLIANT
+    assert material.compare("RTFE", "PTFE")[0] == material.REVIEW
+    assert material.compare("RTFE", "Metal seated (TCC)")[0] == material.NON and material.compare("RTFE", "Nylon")[0] == material.NON
+    assert material.compare("ITCS A352-LCC", "ASTM A350 LF6 Class 2/ ASTM A352 LCC")[0] == material.COMPLIANT    # ITCS implied by LCC
+    f = lambda k, v, row: {"key": k, "value": v, "edited_value": None, "page": 1, "bbox": [1, row, 2, row + 1], "row": row, "display": k}  # noqa: E731
+    # MR-03 with a 2-point P-T table (XC0K8: 85 °C / 247 °C) and MR-13 not raised for a HOLD value
+    cls = {"code": "XC0K8", "pt": [(85.0, 154.0), (247.0, 154.0)], "pt_basis": "ASME B16.5", "class_notes": {}, "items": [], "services": []}
+    ds = {"fields": [f("seat_material", "RTFE", 26), f("fire_safe", "HOLD (in accordance with API 607/ API 6FA)", 33), f("piping_class", "XC0K8", 9)], "notes": []}
+    got = {m["rule"]: m for m in matreview.review(ds, {}, cls, [{"key": "design_temp", "pd": "260", "pd_unit": "°C"}])}
+    assert got["MR-03"]["level"] == "Action" and "MR-13" not in got
+    # VR-09: PMS item fire tested + blank datasheet fire-safe → Confirm; item that does not fit the size → nothing
+    item = {"code": "P1", "from": 0.5, "to": 24.0, "kind": "BALL VALVE", "desc": "BALL VALVE, CS A216-WCB, CL150, RF, FULL PORT, FIRE TESTED TO API 607", "page": 6, "bbox": None}
+    cls2 = {"code": "1A1A", "facing": "RAISED FACE", "rating": 150, "items": [item], "services": ["Nitrogen"], "class_notes": {}}
+    ds2 = {"fields": [f("body_size", '2"', 21), f("fire_safe", "", 33), f("body_type", "Ball (Full Bore) - Floating", 21), f("seat_material", "RTFE", 26)], "notes": []}
+    assert any(m["rule"] == "VR-09" for m in expert.review(ds2, {}, cls2, [{"key": "fluid", "pd": "NITROGEN", "pd_unit": ""}]))
+    ds2["fields"][0]["value"] = "26 in"
+    assert not any(m["rule"] == "VR-09" for m in expert.review(ds2, {}, cls2, [{"key": "fluid", "pd": "NITROGEN", "pd_unit": ""}]))

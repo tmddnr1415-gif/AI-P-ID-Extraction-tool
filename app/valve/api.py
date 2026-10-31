@@ -480,6 +480,11 @@ def _ds_full(con, dsid, deep=True, pv=None):
         hit = _DEEP_CACHE.get(dsid)
         if hit and hit[0] == ver:
             return dict(hit[1])                              # top-level copy: callers may swap keys, never edit nested lists
+        disk = _deep_disk(dsid)                              # computed before a restart: read instead of recompute (valve20)
+        if disk and tuple(disk.get("_ver") or ()) == tuple(ver):
+            d = disk["d"]
+            _DEEP_CACHE[dsid] = (ver, d)
+            return dict(d)
     d = store.one(con, "SELECT * FROM datasheet WHERE id=?", dsid)
     if not d:
         return None
@@ -518,10 +523,22 @@ def _ds_full(con, dsid, deep=True, pv=None):
         return d
     d = _ds_deep(con, d, dsid)
     _DEEP_CACHE[dsid] = (ver, d)
+    try:
+        store.write_json(store.root() / "cache" / "review" / f"{dsid}.json", {"_ver": list(ver), "d": d})
+    except Exception:                                        # noqa: BLE001  (disk cache is an optimisation only)
+        pass
     if len(_DEEP_CACHE) > 1500:                              # bound memory (~100 KB each) on very large projects
         for k in list(_DEEP_CACHE)[:500]:
             _DEEP_CACHE.pop(k, None)
     return dict(d)
+
+
+def _deep_disk(dsid: int):
+    p = store.root() / "cache" / "review" / f"{dsid}.json"
+    try:
+        return json.loads(p.read_text(encoding="utf-8")) if p.exists() else None
+    except Exception:                                        # noqa: BLE001
+        return None
 
 
 def _ds_deep(con, d, dsid):
@@ -771,7 +788,10 @@ def _issue_counts(rows):
 async def issues_list(pid: int):
     con = store.connect()
     rows = await run_in_threadpool(project_issues, con, pid)
-    return _json({"issues": rows, "counts": _issue_counts(rows), "types": issuesmod.CONTRACTOR_TYPES + ["Extraction Review"],
+    drop = {"filename", "tag_raw", "review_status", "unit", "pd_page", "pd_bbox", "result", "rule", "level"}   # not used by the list screens
+    slim = [{k: ([round(x, 1) for x in v] if k == "bbox" and v else v) for k, v in i.items() if k not in drop and v not in (None, "", [])}
+            for i in rows]
+    return _json({"issues": slim, "counts": _issue_counts(rows), "types": issuesmod.CONTRACTOR_TYPES + ["Extraction Review"],
                   "statuses": ISSUE_STATUSES})
 
 

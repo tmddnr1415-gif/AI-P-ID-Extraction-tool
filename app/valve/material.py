@@ -117,6 +117,7 @@ def compare(required: str, actual: str) -> tuple[str, str]:
         if gr & gd and (not sr or not sd or sr & sd):
             implied = {"SS"} if ({_FAM_OF.get(g) for g in gd} & {"SS316", "SS304"}) else set()
             implied |= {"CS"} if "CS" in {_FAM_OF.get(g) for g in gd} else set()
+            implied |= {"LTCS", "ITCS"} if "LTCS" in {_FAM_OF.get(g) for g in gd} else set()   # LCC / LF2 are impact-tested CS
             extra = sorted((r - d) - gr - sr - implied)
             if extra:
                 return REVIEW, f"Grade matches but required {' '.join(extra)} not stated"
