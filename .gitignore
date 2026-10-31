@@ -173,3 +173,6 @@ out/hotfix74/variants*/pdf/
 out/hotfix74/dxf_variants/*.zip
 out/hotfix88/revflow/
 out/hotfix88/*/profile.prof
+
+# dashboard branch (ccr-248a5c4d)
+/dashboard_patches/

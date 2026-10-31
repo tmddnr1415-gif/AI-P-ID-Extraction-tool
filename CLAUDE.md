@@ -10,7 +10,8 @@
 | --- | --- | --- |
 | `2. PID 검토 …` | `docs/handoff/branches.md` 참고 | `docs/handoff/pid.md` |
 | `3. Logic 검토코드 …` | 〃 | `docs/handoff/logic.md` |
-| 그 밖 (DASHBOARD · PANEL · 시연 영상 …) | 〃 | `docs/handoff/branches.md` |
+| VALVE Datasheet 검토 (실행 프로젝트 › CO2 PJT › Datasheet › Ball Valve) | `ccr-efbe7e75-n915ze` | `docs/handoff/valve.md` |
+| 그 밖 (DASHBOARD · PANEL · 시연 영상 …) | 〃 | `docs/handoff/branches.md` · `dashboard/` 규칙은 `docs/handoff/dashboard_rules.md` |
 
 - 브랜치 지도(어느 세션이 어느 브랜치인지 · 옛 브랜치)는 **`docs/handoff/branches.md` 하나**에 있습니다.
 - P&ID 엔진의 원칙·불변식·로드맵은 `docs/state_and_roadmap.md` (57KB — **목차를 보고 필요한 절만** 읽기).
