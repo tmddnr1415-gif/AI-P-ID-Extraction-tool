@@ -141,6 +141,9 @@ def main() -> int:
                     help="다른 세션 브랜치가 덜 합쳐졌어도 만든다 (사용자가 그렇게 하라고 했을 때만)")
     a = ap.parse_args()
     missing = unmerged_sources()
+    if missing and a.only:                     # 모듈 꾸러미는 --only 경로만 싣는다 — 다른 세션 파일은 어차피 안 실린다
+        print("참고 (모듈 꾸러미라 멈추지 않음):", *missing, sep="\n  · ")
+        missing = []
     if missing and not a.allow_unmerged:
         print("다른 세션의 최신 변경이 아직 합쳐지지 않았습니다 — 먼저 병합하세요:")
         for m in missing:
