@@ -9,6 +9,8 @@ column order, merged cells, widths, styles and filters stay as they were (spec �
     filled yellow and given a comment 'Previous: …'.
   · A new tag: a block (Requirement row + the vendor rows the sheet uses) is appended in the style of the
     sheet's first block, in the sheet whose title names the valve type.
+  · The vendor rows under each Requirement row (AMPO · OMS · NEWAY …) are removed from the output by default
+    (vendor_rows=False) — the list carries the datasheet requirement only.
   · Every written cell carries a comment with its source (file · page · datasheet row).
   · Columns appended at the right: DS Document No. · DS Rev. · DS Source · Datasheet Notes · Tool Status ·
     Changed Columns.  A 'Datasheet Notes' sheet lists every note on its own row.
@@ -302,8 +304,49 @@ def _src_text(ds, keys, docname):
     return t
 
 
+def _drop_vendor_rows(ws, a) -> int:
+    """Keep only the 'Requirement' row of every tag block (the vendor rows AMPO · OMS · NEWAY … are dropped —
+    user request 2026-10-31).  One pass: values · styles · comments · row heights move up, merged cells that
+    spanned a block become single-row, merges inside a kept row move with it.  Returns rows removed."""
+    first = a["first"]
+    keep = [r for r in range(first, ws.max_row + 1)
+            if _n(ws.cell(r, a["supplier_col"]).value) == "requirement"
+            or not any(r in range(b["row"], b["row"] + b["rows"]) for b in a["blocks"])]
+    if len(keep) == ws.max_row - first + 1:
+        return 0
+    new_of = {old: first + i for i, old in enumerate(keep)}
+    merges = [m for m in ws.merged_cells.ranges if m.max_row >= first]
+    for m in merges:
+        ws.unmerge_cells(str(m))
+    heights = {r: ws.row_dimensions[r].height for r in keep}
+    max_col = ws.max_column
+    for old in keep:
+        new = new_of[old]
+        if new == old:
+            continue
+        for c in range(1, max_col + 1):
+            src, dst = ws.cell(old, c), ws.cell(new, c)
+            dst.value, dst._style = src.value, copy.copy(src._style)
+            dst.comment = copy.copy(src.comment) if src.comment else None
+    removed = ws.max_row - (first + len(keep) - 1)
+    ws.delete_rows(first + len(keep), removed)
+    for old, h in heights.items():
+        ws.row_dimensions[new_of[old]].height = h
+    for r in range(first + len(keep), first + len(keep) + removed):
+        ws.row_dimensions[r].height = None
+    for m in merges:                                     # re-merge what still spans more than one cell
+        r0 = new_of.get(m.min_row)
+        if r0 is None:
+            continue
+        rows = [new_of[r] for r in range(m.min_row, m.max_row + 1) if r in new_of]
+        r1 = max(rows)
+        if r1 > r0 or m.max_col > m.min_col:
+            ws.merge_cells(start_row=r0, start_column=m.min_col, end_row=r1, end_column=m.max_col)
+    return removed
+
+
 def build(template: bytes | None, datasheets: list[dict], docnames: dict, project: str = "",
-          link=None) -> tuple[bytes, dict]:
+          link=None, vendor_rows: bool = False) -> tuple[bytes, dict]:
     """-> (xlsx bytes, report).  `datasheets`: latest revision per tag, each with fields{key: field dict}.
     link(ds, field_key) -> url: when given, every written cell links to that field in the review tool
     (clicking the cell in Excel opens the PDF page at the point the value was read)."""
@@ -316,6 +359,8 @@ def build(template: bytes | None, datasheets: list[dict], docnames: dict, projec
     sheets = {}
     for ws in wb.worksheets:
         a = analyse_sheet(ws)
+        if a and not vendor_rows and _drop_vendor_rows(ws, a):
+            a = analyse_sheet(ws)                        # blocks are one row each now
         if a:
             sheets[ws.title] = a
     by_tag = {}

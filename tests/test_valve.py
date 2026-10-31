@@ -174,6 +174,11 @@ def test_valve_list_fill_keeps_format_and_marks_changes(pdf_path):
     tags = [ws.cell(r, 2).value for r in range(5, ws.max_row + 1)]
     assert "19XV122" in tags                                     # new tag appended to the XV sheet
     assert "Datasheet Notes" in wb.sheetnames
+    sup = [ws.cell(r, 3).value for r in range(5, ws.max_row + 1)]
+    assert "AMPO" not in sup and sup == ["Requirement", "Requirement"]   # vendor rows dropped: one row per tag
+    assert tags == ["00XV921", "19XV122"]
+    keep = openpyxl.load_workbook(io.BytesIO(tbe.build(_template(), [d], {1: "ds.pdf"}, vendor_rows=True)[0]))["TBE Appendix-XV"]
+    assert keep.cell(6, 3).value == "AMPO"                       # the option keeps them
 
 
 def test_api_upload_review_and_export(tmp_path, monkeypatch, pdf_path):

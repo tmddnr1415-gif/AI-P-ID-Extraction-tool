@@ -359,6 +359,7 @@ PDF 글자 층에는 **사람 눈에 안 보이는 글자**가 섞여 있다: �
   - 같은 Tag: **바뀐 칸만** 덮고 노란 칠 + 'Previous: …' 메모. 표기만 같으면(`material.same`) 덮지 않음. 더 자세한 같은 값(`equivalent`)은 목록 값 유지 + 메모
   - 'VTA' · 'General note - 3' 처럼 목록보다 덜 말하는 값은 덮지 않음(메모만)
   - 새 Tag: 밸브 종류 시트 끝에 첫 블록 서식으로 추가(Tool Status = NEW)
+  - **Vendor 행(AMPO · OMS · NEWAY …)은 지운다** — Tag 마다 Requirement 한 줄(`_drop_vendor_rows`: 값 · 서식 · 메모 · 행 높이를 한 번에 올리고 병합을 다시 잡음). `build(..., vendor_rows=True)` 면 남긴다 (2026-10-31 사용자 요청)
   - 모든 칸에 출처(파일 · 쪽 · 행) 메모 · 도구로 여는 하이퍼링크 · 오른쪽에 DS Doc No. · Rev. · Notes · Tool Status 열 · 'Datasheet Notes' 시트
   - 기준 양식이 없으면 'Valve List (tool format)' 시트로
 - `xls_to_xlsx`: Windows 에서 PowerShell 로 Excel COM 을 불러 변환(회사 PC). 리눅스 개발 PC 는 `spike/valve_xls2xlsx.py`(xlrd)로 시험용 변환.

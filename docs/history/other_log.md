@@ -39,3 +39,8 @@
 - 1차 21,482항목 760오류(3.54 %) → 2차 오류 0 + 남은 2(도면 Doc. No. 오타, Data Error 로 지적) = 0.009 %.
 - 고친 원인: 숨은 글자(그리기 순서) · 겹친 같은 글자 · 3pt 줄 묶기 · Notes 바닥글 · Form 102 단일 열 · 번호 없는 오른쪽 열 · 단위만 있는 칸 · 'Sheet|3|of|3' · 제목 줄바꿈 · ATTACHMENT · HOLD 목록.
 - 새 지적: sheet 2 Doc. No. 불일치 · 반복 머리(Tag/PID/Service/Line) 불일치 — 실자료 3건. 시험 36개. 기준값 지문 541753c612ed.
+
+## 2026-10-31 · valve06 — Valve List Excel 에서 Vendor 행 삭제 (브랜치 ccr-efbe7e75-n915ze)
+- 요청: 엑셀에서 AMPO · OMS · NEWAY 행을 다 삭제.
+- `tbe._drop_vendor_rows`: 기준 TBE 양식을 읽자마자 Tag 블록마다 Requirement 행만 남김(값 · 서식 · 메모 · 행 높이를 한 번에 올리고 병합 재설정 — openpyxl delete_rows 는 병합 · 높이를 안 옮김). `build(vendor_rows=True)` 면 유지.
+- 실자료: 164 Tag 모두 한 줄씩, Vendor 칸 0, 링크 · 메모 유지. 시험 36개 통과.

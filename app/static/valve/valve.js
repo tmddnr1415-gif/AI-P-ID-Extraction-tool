@@ -1084,7 +1084,7 @@ async function renderExport() {
   const vl = S.sum.documents.find(d => d.kind === 'valvelist' && d.status === 'done');
   el.innerHTML = `<div class="vh"><h2>Reports &amp; Export</h2></div><div class="grid2">
     <div class="card"><h3>Valve List (Excel)</h3><p>${vl ? `기준 양식: <b>${esc(vl.filename)}</b> — 시트·열 순서·병합·서식·필터를 그대로 두고 채웁니다.` : '<b>기준 Valve List 가 없습니다</b> — 도구 기본 양식(Valve List (tool format))으로 만듭니다. 회사 양식을 쓰려면 Document Management 에 올리세요.'}</p>
-      <ul class="soft"><li>같은 Tag: 바뀐 칸만 덮고 노란색 + 'Previous:' 메모</li><li>새 Tag: 밸브 종류 시트 끝에 첫 블록 서식으로 추가 (Tool Status = NEW)</li>
+      <ul class="soft"><li>같은 Tag: 바뀐 칸만 덮고 노란색 + 'Previous:' 메모</li><li>새 Tag: 밸브 종류 시트 끝에 첫 블록 서식으로 추가 (Tool Status = NEW)</li><li>Vendor 행(AMPO · OMS · NEWAY …)은 지우고 Tag 마다 Requirement 한 줄만</li>
       <li>'VTA' · 'General note - 3' 처럼 목록보다 덜 말하는 값은 덮지 않고 메모만</li><li>모든 칸에 출처(파일·쪽·행) 메모 · 오른쪽에 DS Doc No. · Rev. · Notes · Tool Status 열 · 'Datasheet Notes' 시트</li></ul>
       <button class="pri" id="ex1">⇩ Valve List 내려받기</button> <button id="ex1p">미리 보기 (바뀔 칸)</button><div id="ex1r"></div></div>
     <div class="card"><h3>Extracted Data · Audit Trail</h3><p>모든 Tag 의 추출 칸(읽은 값 · 수정 값 · 수정자 · 상태 · 쪽 · 파일)을 CSV 로.</p>
