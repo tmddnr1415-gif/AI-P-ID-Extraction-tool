@@ -41,7 +41,7 @@
   `python3 spike/pack_delta.py --name valve01 --base 9429f4f --only app/valve/,app/static/valve/,app/main.py,tests/test_valve.py --readme out/valve01/readme_head.txt --ops`
   → `out/PID_dev+ops_valve01_<날짜>.zip`. `--only` 는 딱지(`app/_update.json`)와 기준 파일(`out/PID_dev_delta_base.txt`)을 건드리지 않는다 (PID 세션 번호와 안 섞이게).
   기준 9429f4f = hotfix131 전달본. 회사가 다른 판이면 `--base` 를 그 판으로.
-- 대시보드용: `python3 dashboard_tools/make_patch.py` (기준 = `dashboard_tools/delivered.txt` 맨 아래 = v16.51) → `dashboard_patches/…zip`. 건넬 것은 `--mark`.
+- 대시보드용: `python3 dashboard_tools/make_patch.py --out dashboard_patches --mark` (기준 = `delivered.txt` 맨 아래). `--out` 은 폴더. 첫 전달: `dashboard_patches/UPDATE_from_v16.51_VALVE_menu.zip` (기준 v16.51).
 - 적용 순서(회사): ① PID 꾸러미 `apply_to_PID_dev.bat` → 확인 → `apply_to_PID_ops.bat` (8000 서버 재시작) ② 대시보드 zip `APPLY.bat` (서버 재시작 필요 없음, 화면 새 버전 배너) ③ 대시보드 → 실행 프로젝트 › CO2 PJT › Datasheet › Ball Valve.
 
 ## 다음에 할 일
