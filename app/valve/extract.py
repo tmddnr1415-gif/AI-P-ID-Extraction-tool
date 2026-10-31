@@ -31,6 +31,12 @@ _NOTE_REF = re.compile(r"(gen(?:eral|\.)?\s*note|note)\s*[-–:#]?\s*(\d+)", re.
 
 # ── geometry helpers ────────────────────────────────────────────────────────────
 
+# Narrowest empty space between two vertical rules that still counts as a cell.  Measured, not chosen
+# (P&ID principle: a threshold only inside an empty band of the distribution): on the 456-page sample every
+# space is 5–7 pt (double rules) or ≥ 21 pt (cells), nothing in 8–20 pt.  spike/valve_eval.py re-measures the
+# band on every document it is given and says so when a new form puts widths inside it.
+DOUBLE_RULE_GAP = 9.0
+
 def _verticals(page):
     """Vertical rules as (x, y0, y1).  Lines and thin rectangles; a rectangle gives both sides."""
     out = []
@@ -228,7 +234,7 @@ def read_page(page, page_no: int):
         cells = []
         for a, b in zip(bounds, bounds[1:]):
             cw = [w for w in rw if a - 1 <= (w[0] + w[2]) / 2 < b]
-            if b - a < 9 and not cw:                       # the gap between a double rule is not a cell
+            if b - a < DOUBLE_RULE_GAP and not cw:         # the gap between a double rule is not a cell
                 continue
             cells.append({"x0": a, "x1": b, "words": cw, "text": _text(cw)})
         labels = [c for c in cells if c["x1"] <= x_val + 4 and c["text"]]

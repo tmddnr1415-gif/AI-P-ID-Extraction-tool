@@ -24,3 +24,11 @@
 - Mark-up 도구 10종(선택 · 사각형 · 구름 · 원 · 형광펜 · 선 · 화살표 · 펜 · 글상자 · 메모), 분류 → Issue 종류(Error=Data Error …), 옮기기 · 크기 · 지우기 ·
   되돌리기/다시, PDF 주석 종류 그대로 내보냄 (DESIGN §10.3).
 - 시험 30개 · 전체 1,860 통과. 꾸러미 valve03.
+
+## 2026-10-31 · valve04 — P&ID · LOGIC 개발 원리 차용 (브랜치 ccr-efbe7e75-n915ze)
+- 요청: PID 분석 · LOGIC 분석 개발 원리에서 빌릴 것이 있으면 참조.
+- 지문 게이트(`valve_eval.py --check`, 17,207칸) · 이중 괘선 문턱을 상수로 빼고 빈 띠 실측(틈 5~7 · 칸 21+ pt) · 'TBE 와 다름'을 쪽 글자로 독립 확인 ·
+  사전 밖 라벨 1,920칸 = MOV 항목(버려지지 않음) 확인.
+- 검토 피드백(VOC): `/api/valve/projects/{pid}/feedback.json` + Reports 버튼 · `spike/valve_voc.py` 채점(규칙별 정밀도 · 다시 돌리기) · 판정 모듈이 안 읽음을 AST 시험.
+- 차등 시뮬레이션 `spike/valve_diff_sim.py`: 140장 12,470칸 불일치 0. 화면 자기검증 `spike/valve_ui_audit.cjs` 22/22.
+- DESIGN §11 (차용표 · 단일 판정 자리). 시험 33개.

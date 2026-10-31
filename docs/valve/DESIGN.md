@@ -239,3 +239,28 @@ C PMS 결과 · D 지적 · E 속도.  보고서(`report.md`)에는 고객 값�
 - 모든 변경은 바로 저장(`comment` 행: kind · points · category, 지우기는 deleted=1) · 감사 기록 · ↶ 되돌리기(Ctrl+Z) / ↷ 다시(Ctrl+Y) 는 반대 요청을 보낸다
   (지우기 되돌리기 = `{restore:true}`).  Delete = 지우기, Enter = 의견 · 분류 고치기, Esc = 선택 도구.
 - 화면은 쪽 그림 위 SVG(단위 = PDF pt) 라 확대해도 어긋나지 않고, 내보낸 PDF 주석은 Acrobat · Bluebeam 에서 그대로 고칠 수 있다. 모든 주석에 인쇄 플래그.
+
+## 11. P&ID · LOGIC 개발 원리에서 빌려 온 것 (valve04)
+
+출처: `docs/state_and_roadmap.md` §3 불변 · §4 실패 유형 · §6 단일 판정 자리 · §9 원칙, hotfix82(VOC · 재학습 경로), LOGIC L84(화면 자기검증) · L85(차등 시뮬레이션).
+
+| 빌려 온 원리 | 밸브 도구에서 | 실측 결과 |
+|---|---|---|
+| §3 지문 게이트 — 지문이 움직이면 칸 단위 원인 전에 다음으로 가지 않는다 | `valve_eval.py --check`: 읽은 칸 전부(tag·rev·key·값·상태·쪽)의 지문 + 품질 개수. 움직이면 실패하고 바뀐 칸을 `--out/cells_diff.txt` 로 (고객 값이라 저장소 밖) | 지문 `spike/valve_eval_baseline.json` · 17,207칸 |
+| §4-② 외워둔 값 · 절차 3 "문턱은 분포의 빈 띠에서만" | 이중 괘선 문턱 `extract.DOUBLE_RULE_GAP` 을 이름 붙인 상수로 · 평가가 문서마다 다시 재서 빈 띠 안인지 알린다 (다음 폭이 마지막 틈의 2배 이상 = 빈 띠) | 456쪽: 틈 5~7 pt · 칸 21 pt 부터 · 8~20 pt 비어 있음 → 9 pt 는 빈 띠 안 |
+| §4-③ 검사기가 판정기와 같은 눈 | 'TBE 와 다름' 303칸을 규칙이 아니라 **쪽 글자**로 다시 확인 | 예: Stem `…Type 630` 은 쪽에 그대로 — 실제 차이 (TBE 가 덧붙임) |
+| §4-① 찾고 있는데 안 쓴다 | 사전에 없는 라벨 1,920칸 조사 | 전부 MOV(Form 102) 항목 — 버리지 않고 제 라벨로 보관 · 화면에 보임. Valve List 열을 비게 만드는 것은 없음 |
+| hotfix82 VOC → 재학습 경로 · "판정 코드는 정답지를 읽지 않는다" | Reports & Export › **Review Feedback (json)**: Confirmed/Dismissed(+사유) · 고친 값 · 직접 그린 Error/Missing(=놓친 것). `spike/valve_voc.py <파일> [--ds PDF]` 가 규칙별 맞은 비율 · 잘못 읽은 칸 · 놓친 것 + 지금 코드로 다시 돌린 결과. 판정 모듈이 이 파일을 안 읽는 것은 시험(AST)이 지킨다 | 참고축(게이트 아님) — 한 프로젝트 판정이 모든 프로젝트 정답은 아니다 |
+| LOGIC L85 차등 시뮬레이션 (분석 → 다시 그림 → 다시 분석) | `spike/valve_diff_sim.py`: 읽은 값을 깨끗한 괘선 양식에 다시 그려 다시 읽는다 — 다르면 값 글자를 다루는 읽기의 약점 | On/Off 140장 · 12,470칸 **불일치 0** (그리기 쪽 한계였던 넷째 라벨 · 쪽 넘침 · 굽은 따옴표는 고쳐 뺐다) |
+| LOGIC L84 화면 자기검증 · §4-⑪ "표시에는 독립 감사가 없다" | `spike/valve_ui_audit.cjs`: 9개 화면 · Mark-up 9종 그리기 · 옮기기 · 되돌리기/다시 · 지우기/복구 · Issue 연결 · PDF/Excel/피드백 — 서버 상태로 확인 · 캡처. **데이터 사본으로** 돌린다 | 22/22 통과 |
+
+**판정이 일어나는 단 하나의 자리 (§6 방식)** — 같은 판정을 두 곳에서 하지 않는다.
+
+| 판정 | 한 곳 |
+|---|---|
+| 칸의 '지금 값' (고친 값 > 해석한 Note 값 > 읽은 값) | `schema.effective` |
+| 재질 같음 · 더 자세한 같은 값 · PMS 적합 | `material.same` · `material.equivalent` · `material.compare` |
+| Tag 같음 · Rev 순서 | `schema.norm_tag` · `store.rev_key` |
+| 지적 종류 → 색 · 검토자 분류 → 지적 종류 | `issues.COLOR` · `issues.MARK_TYPE` (PDF 색 `exports.RGB`, 화면 색 `valve.css` 변수 · `valve.js MKCOL` — 색값만 따로, 뜻은 issues 하나) |
+| PMS 지역 | `pms.area_of_title` (못 정하면 다른 지역도 찾아 'please confirm' — §9 "도면이 말하지 않으면 묻는다") |
+| 이중 괘선 문턱 | `extract.DOUBLE_RULE_GAP` |

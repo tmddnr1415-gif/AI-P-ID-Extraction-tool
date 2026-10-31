@@ -973,6 +973,45 @@ def audit_list(pid: int):
                                      " WHERE a.project_id=? ORDER BY a.id DESC LIMIT 2000", pid)}
 
 
+@router.get("/api/valve/projects/{pid}/feedback.json")
+def feedback_json(pid: int, request: Request):
+    """Review feedback for the developers (P&ID hotfix82 'VOC → 재학습 경로'): what reviewers decided about the tool's
+    output.  verdicts = issue Confirmed / Dismissed / Resolved (+ note) · corrections = read value → corrected value ·
+    missed = reviewer mark-ups in category error / missing (things the rules did not raise).  The rule code never reads
+    this file; spike/valve_voc.py scores the tool against it (precision of each rule, reading errors, misses)."""
+    con = store.connect()
+    pname = (store.one(con, "SELECT name FROM project WHERE id=?", pid) or {}).get("name", "")
+    latest = _latest(store.rows(con, "SELECT id, tag_key, rev FROM datasheet WHERE project_id=?", pid))
+    shas = {r["id"]: r["sha256"] for r in store.rows(con, "SELECT id, sha256 FROM document WHERE project_id=?", pid)}
+    out = {"kind": "valve-feedback", "version": 1, "project": pname, "generated": store.now(), "by": _user(request),
+           "datasheets": 0, "issues_raised": 0, "verdicts": [], "corrections": [], "missed": []}
+    for d in sorted(latest.values(), key=lambda d: d["tag_key"]):
+        x = _ds_full(con, d["id"])
+        base = {"tag": x["tag_key"], "doc_no": x["doc_no"], "rev": x["rev"], "file": x["filename"],
+                "sha256": shas.get(x["document_id"])}
+        out["datasheets"] += 1
+        for i in x["issues"]:
+            if i.get("comment_id"):
+                continue
+            out["issues_raised"] += 1
+            if i["status"] != "Open":
+                out["verdicts"].append(dict(base, ikey=i["ikey"], type=i["type"], key=i["key"], value=i["value"],
+                                            description=i["description"], verdict=i["status"], note=i.get("note", ""),
+                                            page=i["page"], bbox=i["bbox"]))
+        for f in x["fields"]:
+            if f.get("edited_value") is not None:
+                out["corrections"].append(dict(base, key=f["key"], label=f.get("label"), read=f["value"],
+                                               corrected=f["edited_value"], page=f["page"], bbox=f["bbox"],
+                                               by=f.get("edited_by")))
+        for c in x["comments"]:
+            if c.get("category") in ("error", "missing") and c.get("bbox"):
+                out["missed"].append(dict(base, category=c["category"], text=c["text"], page=c["page"], bbox=c["bbox"],
+                                          kind=c.get("kind")))
+    fn = f"valve_feedback_{pname or pid}_{store.now()[:10]}.json"
+    return Response(json.dumps(out, ensure_ascii=False, indent=1), media_type="application/json",
+                    headers={"Content-Disposition": f"attachment; filename*=UTF-8''{quote(fn)}"})
+
+
 @router.get("/api/valve/projects/{pid}/extracted.csv")
 def extracted_csv(pid: int):
     """Every extracted field of the latest revision per tag, with page and status — the audit table as data."""

@@ -1089,6 +1089,9 @@ async function renderExport() {
       <button class="pri" id="ex1">⇩ Valve List 내려받기</button> <button id="ex1p">미리 보기 (바뀔 칸)</button><div id="ex1r"></div></div>
     <div class="card"><h3>Extracted Data · Audit Trail</h3><p>모든 Tag 의 추출 칸(읽은 값 · 수정 값 · 수정자 · 상태 · 쪽 · 파일)을 CSV 로.</p>
       <button id="ex2">⇩ Extracted Fields CSV</button> <button id="ex3">⇩ Audit Trail CSV</button>
+      <h3 style="margin-top:14px">검토 피드백 (개발 쪽으로 보내기)</h3><p class="soft">검토자가 Issue 를 Confirmed / Dismissed 한 것, 고친 값, 도구가 못 잡아 직접 그린 Error · Missing 표시를 한 파일로.
+      개발 쪽은 이것으로 규칙마다 맞은 비율 · 잘못 읽은 칸 · 놓친 것을 재고 고칩니다 (도구의 판정 규칙은 이 파일을 읽지 않습니다). 고객 값이 들어 있으니 사내 경로로만 보내세요.</p>
+      <button id="ex6">⇩ Review Feedback (json)</button>
       <h3 style="margin-top:14px">Mark-up PDF</h3><p class="soft">Datasheet Review 화면 PDF 도구줄의 <b>⇩ Mark-up PDF</b> (그 Tag 의 주석 · Revision 변경 표시), Revision Comparison 의 <b>Export Mark-up PDF</b>.
       원본은 그대로 두고 별도 파일로 만듭니다.</p></div>
     <div class="card"><h3>설계사 전달 — 지적 사항 (Issue List · Mark-up)</h3><p>오류 · 누락 · HOLD/TBC · PMS 부적합 · Revision 변경 · 검토자 수정/의견. 각 행에 Tag · Doc. No. · Rev. · Sheet · PDF Page · 무엇이 문제인지 · 요구값.
@@ -1107,6 +1110,7 @@ async function renderExport() {
       ${r.changes.slice(0, 400).map(c => `<tr><td>${esc(c.tag)}</td><td>${esc(c.column)}</td><td class="chg-old">${esc(c.previous.slice(0, 80))}</td><td>${esc(String(c.new).slice(0, 80))}</td></tr>`).join('')}</tbody></table></div>`;
   };
   $('#ex2').onclick = () => download(`/projects/${S.pid}/extracted.csv`).catch(e => toast(e.message, 1));
+  $('#ex6').onclick = () => download(`/projects/${S.pid}/feedback.json`).then(() => toast('내려받음 — 개발 세션에 전달하면 규칙 정확도를 잽니다')).catch(e => toast(e.message, 1));
   $('#ex3').onclick = async () => {
     const a = (await api('GET', `/projects/${S.pid}/audit`)).audit;
     const csv = '﻿' + [['When', 'Who', 'Tag', 'Rev', 'Action', 'Field', 'Before', 'After', 'Comment']].concat(a.map(x => [x.at, x.by, x.tag, x.rev, x.action, x.field_key, x.before, x.after, x.comment]))

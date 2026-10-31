@@ -433,6 +433,17 @@ def test_reviewer_markups(tmp_path, monkeypatch, pdf_path):
     assert all(a.flags & pymupdf.PDF_ANNOT_IS_PRINT for p in pdf for a in p.annots())
     txt = [a.info["content"] for p in pdf for a in p.annots() if a.type[1] == "FreeText" and a.info["content"] == "Torque?"]
     assert txt                                                                # the text box prints the reviewer's words
+    iss = next(i for i in ds["issues"] if not i.get("comment_id"))
+    c.put(f"/api/valve/datasheets/{dsid}/issues/{iss['ikey']}", json={"status": "Dismissed", "note": "per spec"})
+    fb = c.get(f"/api/valve/projects/{pid}/feedback.json").json()
+    assert fb["kind"] == "valve-feedback" and fb["verdicts"][0]["verdict"] == "Dismissed"
+    assert {m["category"] for m in fb["missed"]} == {"error", "missing"}       # what the rules did not raise
+    import importlib.util
+    spec = importlib.util.spec_from_file_location("valve_voc", Path(__file__).resolve().parents[1] / "spike" / "valve_voc.py")
+    voc = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(voc)
+    _, sc = voc.score(fb)
+    assert sc["precision"][iss["type"]]["false"] == 1 and sc["missed"] == {"error": 1, "missing": 1}
 
 
 def test_reread_keeps_review(tmp_path, monkeypatch, pdf_path):
@@ -461,3 +472,14 @@ def test_reread_keeps_review(tmp_path, monkeypatch, pdf_path):
     d2 = c.get(f"/api/valve/datasheets/{ds['id']}").json()
     g = next(x for x in d2["fields"] if x["key"] == "body_size")
     assert g["id"] == f["id"] and g["edited_value"] == '3"' and len(d2["comments"]) == 1
+
+
+def test_judging_code_never_reads_feedback():
+    """P&ID hotfix82 rule: the reviewers' answers score the tool; they must not steer it."""
+    import ast
+    root = Path(__file__).resolve().parents[1] / "app" / "valve"
+    for name in ("extract", "schema", "material", "pms", "issues", "tbe"):
+        tree = ast.parse((root / f"{name}.py").read_text(encoding="utf-8"))
+        words = {n.id for n in ast.walk(tree) if isinstance(n, ast.Name)} | \
+                {n.value for n in ast.walk(tree) if isinstance(n, ast.Constant) and isinstance(n.value, str)}
+        assert not any("feedback" in w or "verdict" in w or "issue_state" in w for w in words), name
