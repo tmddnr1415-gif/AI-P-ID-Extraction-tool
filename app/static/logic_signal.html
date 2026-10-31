@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>신호 처리 시뮬레이션</title>
+<link rel="stylesheet" href="/static/logic_signal.css">
+</head>
+<body>
+<header class="sp-head">
+  <a class="sp-back" href="/logic" title="LOGIC 검토 화면으로">← LOGIC 검토</a>
+  <a class="sp-back" href="/logic/draw" title="Logic 작성 화면으로">✎ Logic 작성</a>
+  <div class="sp-titles">
+    <h1>신호 처리 시뮬레이션</h1>
+    <p>연산자마다 입력 · 설정값을 넣어 보고 계산 과정과 출력을 바로 봅니다</p>
+  </div>
+  <span id="from" class="sp-from" hidden></span>
+</header>
+
+<div class="sp-wrap">
+  <nav id="tabs" class="sp-tabs" aria-label="연산자 종류"></nav>
+  <main class="sp-main">
+    <section class="sp-card sp-title">
+      <h2 id="op-name">—</h2>
+      <div id="op-eq" class="sp-eq"></div>
+    </section>
+    <div class="sp-grid">
+      <section class="sp-card">
+        <h3>입력</h3>
+        <div id="label-row" class="sp-label" hidden>
+          <label><span id="label-cap">도면 수식</span><input id="label" spellcheck="false"></label>
+        </div>
+        <div id="inputs"></div>
+        <div class="sp-btns" id="in-btns">
+          <button id="add-in" class="sp-btn ghost" title="입력을 하나 더">＋ 입력</button>
+          <button id="reset" class="sp-btn ghost" title="이 연산의 기본 값으로">기본 값으로</button>
+        </div>
+        <h3 id="p-h">설정값</h3>
+        <div id="params"></div>
+      </section>
+      <section class="sp-card">
+        <h3>계산 과정</h3>
+        <div id="trace" class="sp-trace"></div>
+      </section>
+    </div>
+    <section id="time-card" class="sp-card" hidden>
+      <h3>시간 응답 <small id="time-eq"></small></h3>
+      <div class="sp-time-in" id="time-in"></div>
+      <div class="sp-chart-wrap"><svg id="chart" class="sp-chart" role="img" aria-label="입력과 출력의 시간 그래프"></svg>
+        <div id="tip" class="sp-tip" hidden></div></div>
+      <div class="sp-leg"><span class="lx">입력 X</span><span class="ly">출력 M</span></div>
+    </section>
+  </main>
+</div>
+<script src="/static/logic_signal.js"></script>
+<script>/* L79 — 대시보드가 붙인 ?user= 를 다른 화면으로 갈 때도 */ document.querySelectorAll(".sp-back").forEach(a => { a.href += location.search.replace(/[?&]s=[^&]*/, "").replace(/^&/, "?"); });</script>
+</body>
+</html>

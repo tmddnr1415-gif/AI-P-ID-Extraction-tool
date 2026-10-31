@@ -1,0 +1,47 @@
+# 상태 손상 시뮬레이션
+
+결함 0
+
+- 점검 경로 23개 · job 48b5adbdd28c · 프로젝트 QFE
+- 상태 파일: id_registry.before_Rev.A.json, id_registry.before_Rev.B.json, id_registry.json, legend_profile.json, project.json, sheet_notes.json
+-   K1 id_registry.before_Rev.A.json half 백업없음: 이 파일을 읽는 경로가 점검 목록에 없음 — 판정 안 함
+-   K1 id_registry.before_Rev.A.json half 백업있음: 이 파일을 읽는 경로가 점검 목록에 없음 — 판정 안 함
+-   K1 id_registry.before_Rev.A.json empty 백업없음: 이 파일을 읽는 경로가 점검 목록에 없음 — 판정 안 함
+-   K1 id_registry.before_Rev.A.json empty 백업있음: 이 파일을 읽는 경로가 점검 목록에 없음 — 판정 안 함
+-   K1 id_registry.before_Rev.A.json binary 백업없음: 이 파일을 읽는 경로가 점검 목록에 없음 — 판정 안 함
+-   K1 id_registry.before_Rev.A.json binary 백업있음: 이 파일을 읽는 경로가 점검 목록에 없음 — 판정 안 함
+- K1 id_registry.before_Rev.B.json half 백업없음: 500 /jobs/48b5adbdd28c/revision 사람 말 — {"detail":"안정 ID 장부 파일이 깨져 있습니다 (id_registry.before_Rev.B.json) — 저장 도중 전원이 꺼졌거나 디스크 문제일 수 있습니다.  되살릴 백업(.bak)이 없어 멈춥니다 (지어낸 값으로 계속하면 안정 ID 가 어긋납니다).  깨진 파일은 id
+- K1 id_registry.before_Rev.B.json empty 백업없음: 500 /jobs/48b5adbdd28c/revision 사람 말 — {"detail":"안정 ID 장부 파일이 깨져 있습니다 (id_registry.before_Rev.B.json) — 저장 도중 전원이 꺼졌거나 디스크 문제일 수 있습니다.  되살릴 백업(.bak)이 없어 멈춥니다 (지어낸 값으로 계속하면 안정 ID 가 어긋납니다).  깨진 파일은 id
+- K1 id_registry.before_Rev.B.json list 백업없음: 500 /jobs/48b5adbdd28c/revision 사람 말 — {"detail":"안정 ID 장부 파일이 깨져 있습니다 (id_registry.before_Rev.B.json) — 저장 도중 전원이 꺼졌거나 디스크 문제일 수 있습니다.  되살릴 백업(.bak)이 없어 멈춥니다 (지어낸 값으로 계속하면 안정 ID 가 어긋납니다).  깨진 파일은 id
+- K1 id_registry.before_Rev.B.json binary 백업없음: 500 /jobs/48b5adbdd28c/revision 사람 말 — {"detail":"안정 ID 장부 파일이 깨져 있습니다 (id_registry.before_Rev.B.json) — 저장 도중 전원이 꺼졌거나 디스크 문제일 수 있습니다.  되살릴 백업(.bak)이 없어 멈춥니다 (지어낸 값으로 계속하면 안정 ID 가 어긋납니다).  깨진 파일은 id
+-   K1 id_registry.json half 백업없음: 이 파일을 읽는 경로가 점검 목록에 없음 — 판정 안 함
+-   K1 id_registry.json half 백업있음: 이 파일을 읽는 경로가 점검 목록에 없음 — 판정 안 함
+-   K1 id_registry.json empty 백업없음: 이 파일을 읽는 경로가 점검 목록에 없음 — 판정 안 함
+-   K1 id_registry.json empty 백업있음: 이 파일을 읽는 경로가 점검 목록에 없음 — 판정 안 함
+-   K1 id_registry.json binary 백업없음: 이 파일을 읽는 경로가 점검 목록에 없음 — 판정 안 함
+-   K1 id_registry.json binary 백업있음: 이 파일을 읽는 경로가 점검 목록에 없음 — 판정 안 함
+- K1 project.json half 백업없음: 500 /jobs/48b5adbdd28c/revision 사람 말 — {"detail":"프로젝트 장부 QFE 파일이 깨져 있습니다 (project.json) — 저장 도중 전원이 꺼졌거나 디스크 문제일 수 있습니다.  되살릴 백업(.bak)이 없어 멈춥니다 (지어낸 값으로 계속하면 안정 ID 가 어긋납니다).  깨진 파일은 project.json.cor
+- K1 project.json half 백업없음: 500 /jobs/48b5adbdd28c/memo 사람 말 — {"detail":"프로젝트 장부 QFE 파일이 깨져 있습니다 (project.json) — 저장 도중 전원이 꺼졌거나 디스크 문제일 수 있습니다.  되살릴 백업(.bak)이 없어 멈춥니다 (지어낸 값으로 계속하면 안정 ID 가 어긋납니다).  깨진 파일은 project.json.cor
+- K1 project.json half 백업없음: 500 /jobs/48b5adbdd28c/memo/6 사람 말 — {"detail":"프로젝트 장부 QFE 파일이 깨져 있습니다 (project.json) — 저장 도중 전원이 꺼졌거나 디스크 문제일 수 있습니다.  되살릴 백업(.bak)이 없어 멈춥니다 (지어낸 값으로 계속하면 안정 ID 가 어긋납니다).  깨진 파일은 project.json.cor
+- K1 project.json half 백업없음: 500 /projects/QFE 사람 말 — {"detail":"프로젝트 장부 QFE 파일이 깨져 있습니다 (project.json) — 저장 도중 전원이 꺼졌거나 디스크 문제일 수 있습니다.  되살릴 백업(.bak)이 없어 멈춥니다 (지어낸 값으로 계속하면 안정 ID 가 어긋납니다).  깨진 파일은 project.json.cor
+- K1 project.json empty 백업없음: 500 /jobs/48b5adbdd28c/revision 사람 말 — {"detail":"프로젝트 장부 QFE 파일이 깨져 있습니다 (project.json) — 저장 도중 전원이 꺼졌거나 디스크 문제일 수 있습니다.  되살릴 백업(.bak)이 없어 멈춥니다 (지어낸 값으로 계속하면 안정 ID 가 어긋납니다).  깨진 파일은 project.json.cor
+- K1 project.json empty 백업없음: 500 /jobs/48b5adbdd28c/memo 사람 말 — {"detail":"프로젝트 장부 QFE 파일이 깨져 있습니다 (project.json) — 저장 도중 전원이 꺼졌거나 디스크 문제일 수 있습니다.  되살릴 백업(.bak)이 없어 멈춥니다 (지어낸 값으로 계속하면 안정 ID 가 어긋납니다).  깨진 파일은 project.json.cor
+- K1 project.json empty 백업없음: 500 /jobs/48b5adbdd28c/memo/6 사람 말 — {"detail":"프로젝트 장부 QFE 파일이 깨져 있습니다 (project.json) — 저장 도중 전원이 꺼졌거나 디스크 문제일 수 있습니다.  되살릴 백업(.bak)이 없어 멈춥니다 (지어낸 값으로 계속하면 안정 ID 가 어긋납니다).  깨진 파일은 project.json.cor
+- K1 project.json empty 백업없음: 500 /projects/QFE 사람 말 — {"detail":"프로젝트 장부 QFE 파일이 깨져 있습니다 (project.json) — 저장 도중 전원이 꺼졌거나 디스크 문제일 수 있습니다.  되살릴 백업(.bak)이 없어 멈춥니다 (지어낸 값으로 계속하면 안정 ID 가 어긋납니다).  깨진 파일은 project.json.cor
+- K1 project.json list 백업없음: 500 /jobs/48b5adbdd28c/revision 사람 말 — {"detail":"프로젝트 장부 QFE 파일이 깨져 있습니다 (project.json) — 저장 도중 전원이 꺼졌거나 디스크 문제일 수 있습니다.  되살릴 백업(.bak)이 없어 멈춥니다 (지어낸 값으로 계속하면 안정 ID 가 어긋납니다).  깨진 파일은 project.json.cor
+- K1 project.json list 백업없음: 500 /jobs/48b5adbdd28c/memo 사람 말 — {"detail":"프로젝트 장부 QFE 파일이 깨져 있습니다 (project.json) — 저장 도중 전원이 꺼졌거나 디스크 문제일 수 있습니다.  되살릴 백업(.bak)이 없어 멈춥니다 (지어낸 값으로 계속하면 안정 ID 가 어긋납니다).  깨진 파일은 project.json.cor
+- K1 project.json list 백업없음: 500 /jobs/48b5adbdd28c/memo/6 사람 말 — {"detail":"프로젝트 장부 QFE 파일이 깨져 있습니다 (project.json) — 저장 도중 전원이 꺼졌거나 디스크 문제일 수 있습니다.  되살릴 백업(.bak)이 없어 멈춥니다 (지어낸 값으로 계속하면 안정 ID 가 어긋납니다).  깨진 파일은 project.json.cor
+- K1 project.json list 백업없음: 500 /projects/QFE 사람 말 — {"detail":"프로젝트 장부 QFE 파일이 깨져 있습니다 (project.json) — 저장 도중 전원이 꺼졌거나 디스크 문제일 수 있습니다.  되살릴 백업(.bak)이 없어 멈춥니다 (지어낸 값으로 계속하면 안정 ID 가 어긋납니다).  깨진 파일은 project.json.cor
+- K1 project.json binary 백업없음: 500 /jobs/48b5adbdd28c/revision 사람 말 — {"detail":"프로젝트 장부 QFE 파일이 깨져 있습니다 (project.json) — 저장 도중 전원이 꺼졌거나 디스크 문제일 수 있습니다.  되살릴 백업(.bak)이 없어 멈춥니다 (지어낸 값으로 계속하면 안정 ID 가 어긋납니다).  깨진 파일은 project.json.cor
+- K1 project.json binary 백업없음: 500 /jobs/48b5adbdd28c/memo 사람 말 — {"detail":"프로젝트 장부 QFE 파일이 깨져 있습니다 (project.json) — 저장 도중 전원이 꺼졌거나 디스크 문제일 수 있습니다.  되살릴 백업(.bak)이 없어 멈춥니다 (지어낸 값으로 계속하면 안정 ID 가 어긋납니다).  깨진 파일은 project.json.cor
+- K1 project.json binary 백업없음: 500 /jobs/48b5adbdd28c/memo/6 사람 말 — {"detail":"프로젝트 장부 QFE 파일이 깨져 있습니다 (project.json) — 저장 도중 전원이 꺼졌거나 디스크 문제일 수 있습니다.  되살릴 백업(.bak)이 없어 멈춥니다 (지어낸 값으로 계속하면 안정 ID 가 어긋납니다).  깨진 파일은 project.json.cor
+- K1 project.json binary 백업없음: 500 /projects/QFE 사람 말 — {"detail":"프로젝트 장부 QFE 파일이 깨져 있습니다 (project.json) — 저장 도중 전원이 꺼졌거나 디스크 문제일 수 있습니다.  되살릴 백업(.bak)이 없어 멈춥니다 (지어낸 값으로 계속하면 안정 ID 가 어긋납니다).  깨진 파일은 project.json.cor
+- K1 저장 뒤 파일 ['sheet_notes.json.bak', 'sheet_notes.json'] · 남은 임시 파일 []
+- K2 PDF 없음 GET /jobs/48b5adbdd28c/page/6.png → 410 {"detail":"필요한 파일이 서버에 없습니다 (gone.pdf) — 업로드 폴더가 정리됐거나 옮겨졌습니다.  같은 파일로 새로 분석해 주세요."}
+- K2 PDF 없음 POST /jobs/48b5adbdd28c/reanalyse → 410 {"detail":"이 분석의 원본 파일(gone.pdf)이 서버에 없습니다 — 업로드 폴더가 정리됐거나 옮겨졌습니다.  결과 목록·편집·Excel 은 그대로 쓸 수 있고, 도면 그림·재분석·마크업 제안은 같은 파일로 새로 분석해야 합니다."}
+- K2 PDF 없음 POST /jobs/48b5adbdd28c/diagnostic → 200 {"filename":"pid_diag_v1.0.0_20261009_48b5adbdd28c.zip","bytes":1551780,"counts":{"rows":1991,"reports":0,"edits":1,"feedback":3,"pages":93,"derived_layout_measured":23,"derived_layout_applied":38},"e
+- K2 PDF 없음 GET /jobs/48b5adbdd28c/feedback_export → 200 application/zip
+- K2 PDF 없음 POST /jobs/48b5adbdd28c/markup/propose → 410 {"detail":"필요한 파일이 서버에 없습니다 (gone.pdf) — 업로드 폴더가 정리됐거나 옮겨졌습니다.  같은 파일로 새로 분석해 주세요."}
+- K2 PDF 없음 POST /jobs/48b5adbdd28c/titleblock/preview → 400 {"detail":"cell 과 rect [x0,y0,x1,y1] 가 필요합니다"}
+- K2 PDF 없음 GET /jobs/48b5adbdd28c/notes/6 → 200 {"known":true,"found":false,"note":"이 장의 NOTES 에는 '이 도면이 유닛 몇 개에 같이 쓰이는가' 를 말하는 문단이 없습니다."}
+- K3 DB 머리 손상 → 기동 안 됨 · 마지막 출력: 'ne 400, in connect\n    raise DatabaseCorrupt(_corrupt_message(path, exc)) from exc\napp.db.DatabaseCorrupt: 분석 기록 DB 가 깨져 열 수 없습니다 (/tmp/state_59iqp_p3/k3/app.db: file is not a database).  지우거나 덮지 않고 멈춥니다.  자동 백업이 아직 없습니다 — 서버를 끄고 깨진 app.db 를 다른 이름으로 옮기면 빈 DB 로 켜집니다 (프로젝트 장부는 projects 폴더에 그대로 남습니다).\n'

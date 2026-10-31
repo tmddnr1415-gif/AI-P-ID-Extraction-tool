@@ -1,0 +1,755 @@
+"""LOGIC 작도 API (L54) — /logic/draw (화면) · /logic/api/drawings/* (데이터).  api.py 가 이 라우터를 붙인다.
+
+판정 코드는 부르지 않는다 — verify 만 분석기(analyse)를 **그대로** 불러 그린 것을 되읽는다.
+"""
+from __future__ import annotations
+
+import shutil
+from urllib.parse import quote
+
+import hashlib
+import json
+from fastapi import APIRouter, Body, File, Form, HTTPException, UploadFile
+from fastapi.responses import JSONResponse, Response
+
+from app import page_stamp, paths
+
+from . import draw, draw_sets, instruments, store
+
+router = APIRouter()
+
+
+def _static(name):
+    return paths.resource("app", "static", name)
+
+
+@router.get("/logic/draw")
+def draw_page():
+    return page_stamp.page("logic_draw.html")
+
+
+def _load(did: str) -> dict:
+    try:
+        return draw.load(did)
+    except KeyError:
+        raise HTTPException(404, "그런 그림이 없습니다.")
+
+
+def _author(v) -> str:
+    a = str(v or "").strip()[:60]
+    if not a:
+        raise HTTPException(400, "작성자 이름이 필요합니다.")
+    return a
+
+
+@router.get("/logic/api/drawings/symbols")
+def symbols():
+    """팔레트 — 서버의 기호 사전 그대로 (화면이 따로 외우지 않는다)."""
+    return {"symbols": draw.SYMBOLS, "layout": draw.layout(draw.N_DEFAULT), "style": draw.load_style(), "presets": draw.BOX_PRESETS}
+
+
+@router.get("/logic/api/drawings")
+def list_drawings():
+    return {"items": draw.listing()}
+
+
+@router.post("/logic/api/drawings")
+def create_drawing(body: dict = Body(default={})):
+    """새 그림.  `from_job` + `from_page` 를 주면 분석한 그 시트를 이 양식으로 옮겨 시작한다."""
+    author = _author(body.get("author"))
+    name = str(body.get("name") or "").strip()[:80]
+    project = str(body.get("project") or "").strip()[:80]
+    job, page = body.get("from_job"), body.get("from_page")
+    if job:
+        from . import api as A
+        res = A._result(str(job))
+        try:
+            pno = int(page)
+        except (TypeError, ValueError):
+            raise HTTPException(400, "from_page 는 쪽 번호입니다.")
+        s = next((s for s in res["sheets"] if s["page"] == pno), None)
+        if s is None:
+            raise HTTPException(404, "그 묶음에 그 쪽의 LOGIC 시트가 없습니다.")
+        doc = draw.from_sheet(s, name or (s.get("sheet_no") or f"p{pno}"), author, project)
+        doc["source"] = {"job": str(job), "page": pno, "sheet_no": s.get("sheet_no", "")}
+    else:
+        try:
+            n = int(body.get("N") or draw.N_DEFAULT)
+        except (TypeError, ValueError):
+            n = draw.N_DEFAULT
+        doc = draw.new_doc(name or "새 로직", author, project, n)
+        # L64 — 양식 · 타이틀블록 값은 화면이 준 것 (화면의 '새 그림' 은 학습 양식 draw.DEFAULT_FORM 이 기본 · API 기본은 예전 그대로)
+        c = draw.clean({**doc, **{k: body[k] for k in ("form", "project_name", "doc_no", "rev", "sheet_no", "title") if k in body}})
+        doc.update({k: c[k] for k in ("form", "project_name", "doc_no", "rev", "sheet_no", "title")})
+    draw.save_new(doc)
+    return doc
+
+
+# ─────────────────────────── 묶음 (L56) ───────────────────────────
+
+@router.get("/logic/api/drawings/sets")
+def list_sets():
+    return {"items": draw_sets.sets_listing()}
+
+
+@router.get("/logic/api/drawings/macros")
+def list_macros(set: str = ""):
+    """L79 — 매크로(Typical) 팔레트.  묶음이 없는 그림도 공통 Typical 사전의 타입을 쓴다 (19VA · 알다프라 · HRSG …)."""
+    docs = draw_sets.set_docs(set) if set and draw.ID_RE.match(set) else []
+    return {"items": draw_sets.macro_types(docs)}
+
+
+@router.post("/logic/api/drawings/sets/import")
+def import_set(body: dict = Body(default={})):
+    """분석한 묶음(job)의 모든 시트를 이 양식의 그림 묶음으로."""
+    from . import api as A
+    author = _author(body.get("author"))
+    job = str(body.get("job") or "").strip()
+    if not job:
+        raise HTTPException(400, "job 이 필요합니다.")
+    res = A._result(job)
+    st = store.read_status(store.root() / job) if (store.root() / job).exists() else {}
+    name = str(body.get("name") or st.get("name") or job).strip()[:80]
+    project = str(body.get("project") or st.get("project") or "")[:80]
+    if not body.get("async"):
+        return draw_sets.import_bundle(res, name, author, project, job)
+    # L85 — 827장이면 1분 남짓 — 뒤에서 들이고 화면은 진행(장 수)을 묻는다 (GET tasks/{id})
+    import threading, uuid as _uuid
+    tid = _uuid.uuid4().hex[:12]
+    t = _TASKS[tid] = {"id": tid, "state": "running", "done": 0, "total": len(res.get("sheets") or []), "result": None, "error": ""}
+
+    def prog(i, n):
+        t["done"], t["total"] = i, n
+
+    def run():
+        try:
+            t["result"] = draw_sets.import_bundle(res, name, author, project, job, progress=prog)
+            t["done"] = t["total"]
+            t["state"] = "done"
+        except Exception as e:  # noqa: BLE001
+            t["state"], t["error"] = "failed", f"{type(e).__name__}: {e}"[:300]
+    threading.Thread(target=run, name=f"draw-import-{tid}", daemon=True).start()
+    return {"task": tid, "total": t["total"]}
+
+
+_TASKS: dict = {}
+
+
+@router.get("/logic/api/drawings/tasks/{tid}")
+def get_task(tid: str):
+    t = _TASKS.get(tid)
+    if t is None:
+        raise HTTPException(404, "그런 작업이 없습니다 (서버를 다시 켰으면 처음부터 다시 하세요).")
+    return t
+
+
+def _set(sid: str, shared: bool = False) -> list:
+    """shared=True 는 읽기만 하는 쪽 (L80 — 묶음 827장을 요청마다 다시 풀지 않는다 · 고치지 마라)."""
+    if not draw.ID_RE.match(sid or ""):
+        raise HTTPException(404, "그런 묶음이 없습니다.")
+    docs = draw_sets.set_docs(sid, shared=shared)
+    if not docs:
+        raise HTTPException(404, "그런 묶음이 없습니다.")
+    return docs
+
+
+_SIM_LOCK = __import__("threading").RLock()
+_WARMED: dict = {}
+
+
+def _warm_sim(sid: str, did: str):
+    """L81 — 묶음을 열면 뒤에서 시뮬레이션을 한 번 돌려 둔다 (827장 첫 시뮬레이션 수 초 → 누르면 바로).
+    화면 요청이 잦아든 뒤에 (0.8초 조용) · 같은 묶음은 한 번만 · 끄기 PID_LOGIC_WARM=0."""
+    import os, threading, time
+    if os.environ.get("PID_LOGIC_WARM", "1") == "0" or _WARMED.get(sid):
+        return
+    _WARMED[sid] = time.time()
+
+    def run():
+        time.sleep(0.8)
+        try:
+            simulate_drawing(did, {})
+        except Exception:
+            _WARMED.pop(sid, None)
+    threading.Thread(target=run, name=f"draw-warm-{sid}", daemon=True).start()
+
+
+@router.get("/logic/api/drawings/sets/{sid}")
+def get_set(sid: str, doc: str = ""):
+    """L80 — `doc` 를 주면 장마다의 연결 표(links.docs)는 그 장 것만 (827장 묶음이면 1.1MB → 0.2MB)."""
+    docs = _set(sid, shared=True)
+    out = _set_info(sid, docs, doc)
+    if doc and draw.ID_RE.match(doc):
+        _warm_sim(sid, doc)
+        # L84 — 이 묶음의 아직 묶지 않은 들여온 장을 뒤에서 (연 장의 앞뒤 장부터 — 휠로 넘길 차례)
+        todo = [d_ for d_ in docs if not d_.get("compact") and d_.get("id")]
+        if todo:
+            from . import draw_compact
+            ids = [d_["id"] for d_ in sorted(todo, key=lambda d_: d_.get("order") or 0) if draw_compact.imported(d_)]
+            if doc in ids:
+                k = ids.index(doc)
+                ids = ids[k:k + 3] + ids[max(0, k - 2):k] + ids[k + 3:] + ids[:max(0, k - 2)]
+            _compact_bg(ids)
+    return out
+
+
+_SET_CACHE: dict = {}
+
+
+_TAB: dict = {}
+
+
+def _tab_digest(d: dict):
+    st = (d.get("updated"), d.get("saves"))
+    hit = _TAB.get(d["id"])
+    if hit and hit[0] == st:
+        return hit[1]
+    import hashlib
+    h = hashlib.blake2b(json.dumps([d.get("sheet_no"), d.get("N"), d.get("left"), d.get("right"), d.get("typical")],
+                                   sort_keys=True, ensure_ascii=False).encode(), digest_size=12).hexdigest()
+    if len(_TAB) > 20000:
+        _TAB.clear()
+    _TAB[d["id"]] = (st, h)
+    return h
+
+
+def _set_links(sid: str, docs: list) -> dict:
+    """L65 — 묶음이 그대로면(장마다 저장 횟수 · 때) FROM/TO 연결 판정을 다시 하지 않는다."""
+    # L80 — 열쇠는 연결에 닿는 칸(시트 이름 · 행 수 · 표)만.  기호 · 선만 고친 저장은 연결 판정을 다시 하지 않는다 (827장 0.7초)
+    key = tuple((d["id"], _tab_digest(d)) for d in docs)
+    hit = _SET_CACHE.get(sid)
+    if hit and hit[0] == key:
+        return hit[1]
+    out = draw_sets.links(docs)
+    if len(_SET_CACHE) > 16:
+        _SET_CACHE.clear()
+    _SET_CACHE[sid] = (key, out)
+    return out
+
+
+def _only_doc(links: dict, doc: str) -> dict:
+    if not doc:
+        return links
+    one = (links.get("docs") or {}).get(doc)
+    return {**links, "docs": {doc: one} if one is not None else {}}
+
+
+def _set_info(sid: str, docs: list, doc: str = "") -> dict:
+    return {"id": sid, "name": docs[0].get("set_name") or "", "project": docs[0].get("project") or "",
+            "sheets": [{k: d.get(k) for k in ("id", "sheet_no", "title", "typical", "order")} | {"blocks": len(d["blocks"]), "wires": len(d["wires"])} for d in docs],
+            "links": _only_doc(_set_links(sid, docs), doc), "macros": draw_sets.macro_types(docs)}
+
+
+@router.post("/logic/api/drawings/sets/{sid}/sheet")
+def add_sheet(sid: str, body: dict = Body(default={})):
+    """묶음에 빈 장 하나 (또는 사전 Typical 시트를 들여온다: `library`)."""
+    docs = _set(sid)
+    author = _author(body.get("author"))
+    order = max(d.get("order") or 0 for d in docs) + 1
+    if body.get("library"):
+        doc = draw_sets.typical_doc_from_library(str(body["library"]), str(body.get("name") or "")[:80], author,
+                                                 docs[0].get("project") or "", sid, order)
+        if doc is None:
+            raise HTTPException(404, "학습 사전에 그 Typical 이 없습니다.")
+        return doc
+    try:
+        n = int(body.get("N") or docs[0]["N"])
+    except (TypeError, ValueError):
+        n = docs[0]["N"]
+    doc = draw.new_doc(str(body.get("name") or "새 장")[:80], author, docs[0].get("project") or "", n)
+    # L64 — 같은 묶음의 장은 같은 양식 · 같은 타이틀블록 값 (가장 많이 쓴 값 — 장 하나가 다르게 적혀 있어도 흔들리지 않게)
+    from collections import Counter
+    for k in draw.TITLE_KEYS:
+        vals = Counter(d.get(k) or "" for d in docs if not d.get("typical") or k != "doc_no")
+        doc[k] = vals.most_common(1)[0][0] if vals else doc.get(k, "")
+    doc.update({"set": sid, "set_name": docs[0].get("set_name") or "", "order": order, "typical": bool(body.get("typical")),
+                "sheet_no": str(body.get("sheet_no") or "")[:40]})
+    draw.save_new(doc)
+    # L62 — 다른 장이 이미 이 시트 이름을 가리키고 있으면(미작성이던 참조) 새 장의 칸을 바로 채운다
+    if doc["sheet_no"]:
+        r = draw_sets.autolink(docs + [doc], doc["id"], author)
+        if r["changed"]:
+            doc = _load(doc["id"])
+            doc["autolinked"] = r["changed"]
+    return doc
+
+
+@router.get("/logic/api/drawings/sets/{sid}/links")
+def set_links(sid: str, doc: str = ""):
+    docs = _set(sid, shared=True)
+    return _only_doc(_set_links(sid, docs), doc)
+
+
+@router.post("/logic/api/drawings/sets/{sid}/link")
+def set_link(sid: str, body: dict = Body(default={})):
+    """보내는 장의 오른쪽 행 ↔ 받는 장의 왼쪽 행을 서로 가리키게 적는다 (FROM/TO 자동 잇기)."""
+    docs = {d["id"]: d for d in _set(sid)}
+    author = _author(body.get("author"))
+    try:
+        f, t = docs[str(body.get("from_did"))], docs[str(body.get("to_did"))]
+        n_out, n_in = int(body.get("n_out")), int(body.get("n_in"))
+    except (KeyError, TypeError, ValueError):
+        raise HTTPException(400, "from_did · n_out · to_did · n_in 이 필요합니다.")
+    try:
+        return draw_sets.link_rows(f, n_out, t, n_in, author)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+
+
+@router.post("/logic/api/drawings/sets/{sid}/autolink")
+def set_autolink(sid: str, body: dict = Body(default={})):
+    """저장 직후 — 이 장의 FM/TO 참조가 가리키는 상대 장의 빈 칸을 채운다."""
+    # L80 — 827장을 다시 풀지 않는다: 묶음은 함께 쓰는 사본(읽기)이고, 고칠 수 있는 장(이 장 + 이 장의 FM/TO 글에
+    # 이름이 나오는 장)만 따로 복사해 넘긴다 — 함께 쓰는 사본은 고치지 않는다.
+    import copy
+    did = str(body.get("did") or "")
+    shared = _set(sid, shared=True)
+    me = next((d for d in shared if d["id"] == did), None)
+    if me is None:
+        return {"changed": []}
+    txt = " ".join([str(v.get("fm") or "") for v in (me.get("left") or {}).values()] +
+                   [str(v.get("to") or "") for v in (me.get("right") or {}).values()]).upper()
+    docs = [copy.deepcopy(d) if d is me or (d.get("sheet_no") and d["sheet_no"].upper() in txt) else d for d in shared]
+    return draw_sets.autolink(docs, did, _author(body.get("author")))
+
+
+@router.get("/logic/api/drawings/sets/{sid}/export.pdf")
+def export_set_pdf(sid: str):
+    docs = _set(sid)
+    name = quote(f"{docs[0].get('set_name') or sid}.pdf")
+    return Response(draw_sets.to_pdf_set(docs), media_type="application/pdf",
+                    headers={"Content-Disposition": f"attachment; filename*=UTF-8''{name}"})
+
+
+@router.post("/logic/api/drawings/sets/{sid}/verify")
+def verify_set(sid: str):
+    return draw_sets.verify_set(_set(sid))
+
+
+@router.post("/logic/api/drawings/sets/{sid}/analyse")
+def analyse_set(sid: str, body: dict = Body(default={})):
+    """묶음을 한 PDF 로 내보내 LOGIC 검토 묶음으로 올린다."""
+    from . import api as A
+    docs = _set(sid)
+    author = str(body.get("author") or docs[0].get("author") or "").strip()[:60]
+    name = f"{docs[0].get('set_name') or sid} (작도).pdf"
+    job, d = store.new_job(name)
+    (d / "source.pdf").write_bytes(draw_sets.to_pdf_set(docs))
+    st = store.read_status(d)
+    st.update({"project": docs[0].get("project") or "", "materials": {"logic": name}, "author": author, "drawing_set": sid})
+    store.write_status(d, st)
+    A._start(d)
+    return {"id": job}
+
+
+# ─────────────────────────── 공통 Typical 사전 (L63) ───────────────────────────
+# Typical 은 모든 프로젝트가 같다 — 씨앗(config/logic_typicals.json.gz)으로 처음부터 들고 있고, 사람이 작도 화면에서 고친다.
+# 고칠 때는 그 Typical 을 '공통 Typical 사전' 묶음의 그림으로 꺼내고, 저장(사전에 저장)하면 모든 프로젝트가 다음 분석부터 그것을 쓴다.
+
+TYP_SET = "7e7e00000063"
+TYP_SET_NAME = "공통 Typical 사전"
+
+
+def _typ_docs() -> dict:
+    return {((d.get("source") or {}).get("typlib")): d for d in draw_sets.set_docs(TYP_SET) if (d.get("source") or {}).get("typlib")}
+
+
+def _typ_public(tid, ty, docs):
+    st = ty.get("sheet") or {}
+    tb = st.get("table") or []
+    return {"id": tid, "sheet_no": ty.get("sheet_no", ""), "title": ty.get("title", ""), "from": ty.get("from", ""),
+            "origin": ty.get("origin", ""), "edited": ty.get("edited"), "history": (ty.get("history") or [])[-5:],
+            "pins_in": sum(1 for r in tb if r.get("side") == "L" and r.get("desc")),
+            "pins_out": sum(1 for r in tb if r.get("side") == "R" and r.get("desc")),
+            "blocks": len(st.get("blocks") or {}), "did": (docs.get(tid) or {}).get("id")}
+
+
+# ───────── L64c — 계기 리스트 (Instrument List Excel) · 프로젝트마다 하나 ─────────
+@router.get("/logic/api/drawings/instruments")
+def get_instruments(project: str = ""):
+    return JSONResponse(instruments.public(project))
+
+
+@router.post("/logic/api/drawings/instruments")
+async def upload_instruments(file: UploadFile = File(...), project: str = Form(""), author: str = Form("")):
+    data = await file.read()
+    if not data:
+        raise HTTPException(400, "빈 파일입니다.")
+    if len(data) > 60 * 1024 * 1024:
+        raise HTTPException(400, "파일이 너무 큽니다 (60MB 까지).")
+    try:
+        from starlette.concurrency import run_in_threadpool      # 그림을 고쳐 쓰는 동안 다른 요청을 막지 않는다
+        return await run_in_threadpool(instruments.upload, project.strip()[:80], data, file.filename or "", _author(author))
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+
+
+@router.get("/logic/api/drawings/typicals")
+def list_typicals():
+    from . import library
+    docs = _typ_docs()
+    items = [_typ_public(k, v, docs) for k, v in library.typicals().items()]
+    for i in items:
+        info = draw_sets.macro_info(i["title"])
+        i["desc"], i["desc_ko"] = info["title"], info["ko"]
+    items.sort(key=lambda x: (x["title"] or "", x["sheet_no"] or ""))
+    return {"items": items, "set": TYP_SET, "seed": len(library.seed_typicals())}
+
+
+def _typ_doc_of(tid, ty, author):
+    from . import library
+    base = ty.get("doc")
+    if base:
+        doc = draw.new_doc(base.get("name") or ty.get("sheet_no") or tid, author, "", int(base.get("N") or draw.N_DEFAULT))
+        keep = {k: v for k, v in base.items() if k not in ("id", "history", "author", "created", "updated", "saves", "set", "set_name", "order", "source")}
+        doc.update(keep)
+    else:
+        doc = draw.from_sheet(ty["sheet"], ty.get("sheet_no") or tid, author, "")
+    doc.update({"set": TYP_SET, "set_name": TYP_SET_NAME, "typical": True, "sheet_no": ty.get("sheet_no") or doc.get("sheet_no"),
+                "title": ty.get("title") or doc.get("title"), "source": {"typlib": tid, "from": ty.get("from", "")}})
+    return doc
+
+
+@router.post("/logic/api/drawings/typicals/{tid}/open")
+def open_typical(tid: str, body: dict = Body(default={})):
+    """그 Typical 을 고치려고 꺼낸다 — 이미 꺼낸 그림이 있으면 그것을 (사람이 고치던 것을 버리지 않는다)."""
+    from . import library
+    author = _author(body.get("author"))
+    ty = library.typicals().get(tid)
+    if not ty or not (ty.get("sheet") or ty.get("doc")):
+        raise HTTPException(404, "공통 Typical 사전에 그 Typical 이 없습니다.")
+    have = _typ_docs().get(tid)
+    if have:
+        return have
+    doc = _typ_doc_of(tid, ty, author)
+    doc["order"] = len(_typ_docs()) + 1
+    draw.save_new(doc)
+    return doc
+
+
+@router.post("/logic/api/drawings/typicals")
+def save_typical(body: dict = Body(default={})):
+    """그림 하나를 공통 Typical 사전에 저장 — '공통 Typical 사전' 묶음에서 꺼낸 그림이면 그 Typical 을 고친 것,
+    다른 묶음의 Typical 시트면 새 Typical 로 더한다.  분석기로 되읽어 단자(행)를 확인한 뒤 적는다."""
+    from . import library
+    author = _author(body.get("author"))
+    doc = _load(str(body.get("did") or ""))
+    if not doc.get("sheet_no"):
+        raise HTTPException(400, "시트 이름이 있어야 Typical 로 저장합니다.")
+    tid = (doc.get("source") or {}).get("typlib") if doc.get("set") == TYP_SET else None
+    try:
+        r = library.save_typical(tid, doc, author, str(body.get("note") or ""))
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    if not tid and doc.get("set") != TYP_SET:
+        # 다른 묶음의 장은 그대로 두고, 사전 묶음에 그 Typical 의 그림을 하나 만든다
+        ty = library.typicals().get(r["id"])
+        nd = _typ_doc_of(r["id"], ty, author)
+        nd["order"] = len(_typ_docs()) + 1
+        draw.save_new(nd)
+        r["did"] = nd["id"]
+    elif not tid:
+        src = dict(doc.get("source") or {}); src["typlib"] = r["id"]
+        doc["source"] = src
+        draw.save(doc["id"], doc, author)
+    return r
+
+
+@router.post("/logic/api/drawings/typicals/{tid}/revert")
+def revert_typical(tid: str, body: dict = Body(default={})):
+    """사람이 고친 것을 거두고 원래(씨앗 · 분석에서 배운 것)로.  꺼낸 그림도 원래 그림으로 다시 쓴다."""
+    from . import library
+    author = _author(body.get("author"))
+    try:
+        library.revert_typical(tid, author)
+    except KeyError:
+        raise HTTPException(404, "그 Typical 은 사람이 고친 적이 없습니다.")
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    have = _typ_docs().get(tid)
+    ty = library.typicals().get(tid)
+    if have:
+        if ty:
+            nd = _typ_doc_of(tid, ty, author)
+            nd = {k: v for k, v in nd.items() if k not in ("id", "created", "history", "saves")}
+            draw.save(have["id"], nd, author)
+        else:
+            draw.delete(have["id"], author)
+            return {"id": tid, "removed": True}
+    return {"id": tid, "did": (have or {}).get("id")}
+
+
+_COMPACTING: dict = {}
+_COMPACT_LOCK = __import__("threading").Lock()
+
+
+def _compact_bg(dids: list):
+    """L84 — 들여온 그림의 선 묶기를 뒤에서 하나씩 (한 번에 한 줄기 · 이미 하는 중이면 덧붙인다 · 끄기 PID_DRAW_COMPACT=0)."""
+    import os, threading
+    if os.environ.get("PID_DRAW_COMPACT", "1") == "0":
+        return
+    with _COMPACT_LOCK:
+        q = _COMPACTING.setdefault("q", [])
+        q += [d for d in dids if d not in q]
+        if _COMPACTING.get("run"):
+            return
+        _COMPACTING["run"] = True
+
+    def run():
+        import time
+        while True:
+            with _COMPACT_LOCK:
+                if not q:
+                    _COMPACTING["run"] = False
+                    return
+                did = q.pop(0)
+            try:
+                draw.compact_saved(did)
+            except Exception:
+                pass
+            time.sleep(0.02)                         # 화면 요청에 자리를 내준다
+    threading.Thread(target=run, name="draw-compact", daemon=True).start()
+
+
+# ───────── L84 — 저장된 프로젝트 · 묶음 지우기 (Logic 작성 첫 화면) ─────────
+NO_PROJECT = "프로젝트 없음"
+
+
+def _purge_targets(project: str, set_: str = "") -> list:
+    """지울 그림 — 그 프로젝트(없으면 '프로젝트 없음')의 그림 · set 을 주면 그 묶음만.  공통 Typical 사전은 빼고."""
+    out = []
+    for it in draw.listing():
+        if it.get("set") == TYP_SET:
+            continue
+        if (it.get("project") or "") != project:
+            continue
+        if set_ and it.get("set") != set_:
+            continue
+        out.append(it)
+    return out
+
+
+@router.get("/logic/api/drawings/purge_preview")
+def purge_preview(project: str = "", set: str = ""):
+    """지우기 전에 — 함께 지워질 그림 · 묶음 수, 그린 사람, LOGIC 검토 쪽 분석(그대로 남는다)."""
+    its = _purge_targets(project, set)
+    from . import projects as P, store
+    jobs = [j for j in store.jobs() if project and (j.get("project") or "") == project]
+    return {"project": project, "set": set, "drawings": len(its), "sets": len({i.get("set") for i in its if i.get("set")}),
+            "set_names": sorted({i.get("set_name") or "" for i in its if i.get("set")})[:8],
+            "authors": sorted({i.get("author") for i in its if i.get("author")}),
+            "edited": sum(1 for i in its if (i.get("saves") or 0) > 0),
+            "review_jobs": len(jobs), "ledger": bool(project and P.exists(project)),
+            "confirm": (next((i.get("set_name") for i in its if i.get("set_name")), "") or "묶음") if set else (project or NO_PROJECT)}
+
+
+@router.post("/logic/api/drawings/purge")
+def purge(body: dict = Body(default={})):
+    """프로젝트(또는 그 안의 묶음 하나)의 그림을 지운다.  확인 칸에 이름을 그대로 적어야 하고(실수 방지) · 그린 사람 이름이 필요하다 ·
+    그림마다 지운 기록이 남는다 (draw.delete).  프로젝트 장부의 이름은 LOGIC 검토 쪽 분석이 없을 때만 함께 뺀다 —
+    분석이 있으면 그 프로젝트는 검토 화면에서 계속 쓰이므로 남긴다."""
+    project = str(body.get("project") or "").strip()
+    set_ = str(body.get("set") or "").strip()
+    who = _author(body.get("author"))
+    pv = purge_preview(project, set_)
+    if str(body.get("confirm") or "").strip() != pv["confirm"]:
+        raise HTTPException(400, f"확인 칸에 '{pv['confirm']}' 을(를) 그대로 적어야 지웁니다.")
+    its = _purge_targets(project, set_)
+    gone, log = 0, []
+    for it in its:
+        try:
+            draw.delete(it["id"], who, log)
+            gone += 1
+        except KeyError:
+            pass
+    from . import store as _store
+    if log:
+        _store.log_deletion(log)
+    _SET_CACHE.clear()
+    left_ledger = False
+    if project and not set_ and pv["ledger"]:
+        if pv["review_jobs"]:
+            left_ledger = True
+        else:
+            from . import projects as P, store
+            P.remove(project)
+            store.log_deletion({"project": project, "kind": "draw_project", "drawings": gone, "author": who})
+    return {"deleted": gone, "project": project, "set": set_, "ledger_kept": left_ledger, "review_jobs": pv["review_jobs"]}
+
+
+@router.get("/logic/api/drawings/{did}")
+def get_drawing(did: str):
+    d = _load(did)
+    # L84 — 들여온 그림은 처음 열 때 선 토막을 묶는다 (작은 그림은 바로 · 큰 그림은 뒤에서 — 다음에 열면 가볍다)
+    import os
+    if os.environ.get("PID_DRAW_COMPACT", "1") != "0" and not d.get("compact"):
+        from . import draw_compact
+        if draw_compact.imported(d):
+            if len(d.get("wires") or []) <= 600:
+                try:
+                    draw.compact_saved(did)
+                    d = _load(did)
+                except Exception:
+                    pass
+            else:
+                _compact_bg([did])
+    # L64 — 예전에 저장한 그림도 선을 곧게 (사선 금지) — 저장하면 그대로 남는다
+    try:
+        d["wires"] = draw.orthogonal_wires(d.get("wires") or [], blocks=d.get("blocks") or [])
+    except Exception:
+        pass
+    return d
+
+
+@router.put("/logic/api/drawings/{did}")
+def put_drawing(did: str, body: dict = Body(...)):
+    _load(did)
+    author = _author(body.get("author"))
+    doc = body.get("doc") if isinstance(body.get("doc"), dict) else body
+    if doc is not body:                       # L56 — 묶음 칸은 바깥 몸통에 실려 올 수 있다 (화면 `set-make`)
+        doc = {**doc, **{k: body[k] for k in ("set", "set_name", "order") if k in body}}
+    try:
+        return draw.save(did, doc, author)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+
+
+@router.delete("/logic/api/drawings/{did}")
+def delete_drawing(did: str, author: str = ""):
+    _load(did)
+    return {"deleted": draw.delete(did, _author(author)).get("name")}
+
+
+@router.get("/logic/api/drawings/{did}/export.pdf")
+def export_pdf(did: str):
+    doc = _load(did)
+    name = quote(f"{doc.get('sheet_no') or doc.get('name') or 'logic'}.pdf")
+    return Response(draw.to_pdf(doc), media_type="application/pdf",
+                    headers={"Content-Disposition": f"attachment; filename*=UTF-8''{name}"})
+
+
+@router.get("/logic/api/drawings/{did}/export.dxf")
+def export_dxf(did: str):
+    doc = _load(did)
+    name = quote(f"{doc.get('sheet_no') or doc.get('name') or 'logic'}.dxf")
+    return Response(draw.to_dxf(doc), media_type="application/dxf",
+                    headers={"Content-Disposition": f"attachment; filename*=UTF-8''{name}"})
+
+
+@router.post("/logic/api/drawings/{did}/verify")
+def verify_drawing(did: str, body: dict = Body(default={})):
+    """저장 전 그림(body.doc)이 있으면 그것을, 없으면 저장된 것을 분석기에 되읽혀 비교한다."""
+    saved = _load(did)
+    doc = body.get("doc") if isinstance(body.get("doc"), dict) else saved
+    return draw.verify({**saved, **draw.clean(doc), "sheet_no": str(doc.get("sheet_no") or "")[:40]})
+
+
+_SIM_CACHE: dict = {}          # L57 — 묶음 지문 → sim 캐시 (그림이 바뀌면 지문이 바뀐다 · 한 개만 든다)
+
+
+_LIVE_CLEAN: dict = {}
+
+
+def _sim_docs(did: str, live: dict | None):
+    """시뮬레이션에 넣을 그림들 — 그 그림이 묶음에 들면 묶음 전체 · 아니면 그 그림 하나.  live(저장 전 화면 그림)가 있으면 그것으로 바꿔 넣는다.
+    → (그림 목록, 그림마다 내용 열쇠).  L65 — 열쇠는 저장된 그림이면 (id · 고친 때 · 저장 횟수), 화면 그림이면 그 내용의 지문."""
+    saved = _load(did)
+    docs = list(draw_sets.set_docs(saved["set"], shared=True)) if saved.get("set") else [saved]
+    keys = {d["id"]: f'{d["id"]}:{d.get("updated")}:{d.get("saves")}' for d in docs}
+    if live is not None:
+        lk = json.dumps(live, sort_keys=True, default=str)          # L65 — 같은 화면 그림이면 다듬은 결과를 다시 쓴다 (신호만 바꿀 때)
+        hit = _LIVE_CLEAN.get(did)
+        if hit and hit[0] == lk:
+            cur = hit[1]
+        else:
+            cur = {**saved, **draw.clean(live), "sheet_no": str(live.get("sheet_no") or saved.get("sheet_no") or "")[:40],
+                   "title": str(live.get("title") or saved.get("title") or "")[:120], "typical": bool(live.get("typical", saved.get("typical")))}
+            _LIVE_CLEAN.clear(); _LIVE_CLEAN[did] = (lk, cur)
+        docs = [cur if d["id"] == did else d for d in docs]
+        if not any(d["id"] == did for d in docs):
+            docs.append(cur)
+        keys[did] = "live:" + hashlib.sha1(lk.encode()).hexdigest() + ":" + keys.get(did, "")
+    return docs, keys
+
+
+@router.post("/logic/api/drawings/{did}/simulate")
+def simulate_drawing(did: str, body: dict = Body(default={})):
+    """L57 — 그린 로직을 **PDF 로 내보내지 않고** 바로 시뮬레이션한다 (draw_sim.to_sheet → sim.simulate_bundle).
+    body: doc(저장 전 그림 · 선택) · forces {그림 id: {row:n|net:k|block:id: 0|1}} · state · timers {그림 id: {블록: 초}} · analog.
+    묶음에 든 그림이면 묶음 전체가 함께 돈다 (FROM/TO · 매크로 ↔ Typical)."""
+    from . import draw_sim
+    import hashlib
+    live = body.get("doc") if isinstance(body.get("doc"), dict) else None
+    docs, keys = _sim_docs(did, live)
+    sig = hashlib.sha1(json.dumps([keys[d["id"]] for d in docs]).encode()).hexdigest()
+    cache = _SIM_CACHE.get(sig)
+    if cache is None:
+        # L65 — 그림이 바뀌면 묶음 구조는 새로 짓되, 장마다의 계산(열쇠에 그 장의 지문이 든다)은 이어서 쓴다 — 고친 장만 다시 센다
+        keep = {"pages": next(iter(_SIM_CACHE.values())).get("pages", {})} if _SIM_CACHE else {}
+        _SIM_CACHE.clear()
+        cache = _SIM_CACHE[sig] = keep
+    def _d(v):
+        return v if isinstance(v, dict) else {}
+    try:
+        with _SIM_LOCK:                          # L81 — 미리 데우는 계산과 겹치지 않게 (겹치면 같은 일을 두 번 한다)
+            out = draw_sim.simulate(docs, did, keys=keys, forces=_d(body.get("forces")), state=_d(body.get("state")), timers=_d(body.get("timers")),
+                                    analog=_d(body.get("analog")), cache=cache,
+                                    inner=body.get("inner") if isinstance(body.get("inner"), list) else None)
+    except Exception as e:                       # 그림이 아직 덜 그려져 있어도 화면이 멈추지 않는다 — 사유를 말한다
+        return {"error": f"시뮬레이션하지 못했습니다 — {type(e).__name__}: {e}"[:300]}
+    out["sig"] = sig[:12]
+    return out
+
+
+@router.get("/logic/api/drawings/{did}/sheet")
+def drawing_sheet(did: str):
+    """그림을 분석 결과 시트 꼴로 (판정 없이 꼴만 — 시험 · 점검용)."""
+    from . import draw_sim
+    docs, keys = _sim_docs(did, None)
+    sheets = draw_sim.sheets_of(docs, keys)
+    return next((s for s in sheets if s.get("did") == did), sheets[0] if sheets else {})
+
+
+@router.post("/logic/api/drawings/{did}/aop")
+def drawing_aop(did: str, body: dict = Body(default={})):
+    """L82 — 신호 처리(아날로그 연산자) 블록 하나 — 연산 · 입력 단자(어디서 오나) · 설정값 · 지금 계산 과정.
+    화면이 두 번 누름 판을 이것으로 열고, 사람이 넣은 입력으로는 `/logic/api/aopsim` 이 센다 (검토 화면 sheet_aop 와 같은 계산)."""
+    from . import draw_sim, sim, analog, aops, aop_trace
+    from .api import _aop_trace
+    bid = str(body.get("block") or "")
+    live = body.get("doc") if isinstance(body.get("doc"), dict) else None
+    docs, keys = _sim_docs(did, live)
+    me = [d for d in docs if d["id"] == did]           # 그 장만 센다 (검토 화면 sheet_aop 도 그 장만 · 묶음 전체를 지으면 수 초)
+    s = draw_sim.sheets_of(me, {did: keys[did]})[0] if me else None
+    if s is None or bid not in s["blocks"]:
+        raise HTTPException(404, "그 블록이 없습니다.")
+    b = s["blocks"][bid]
+    idx = sim._index(s)[:4]
+    det = {}
+    analog.nets(s, {}, idx, None, det)
+    d = det.get(bid) or ({"op": b.get("aop"), "inputs": [], "out": None, "why": "입력선을 읽지 못했습니다"} if b.get("aop") else None)
+    if not d or not d.get("op"):
+        return {"op": None, "block": bid}
+    tr = _aop_trace(s, bid, d, idx, {})
+    voc = aops.vocab()
+    info = (voc.get("ops") or {}).get(d["op"]) or (voc.get("digital_ops") or {}).get(d["op"]) or aop_trace.EXTRA_OPS.get(d["op"]) or {}
+    return {**d, "block": bid, "label": b.get("label") or "", "ko": info.get("ko"), "eq": info.get("eq"),
+            "needs": aops.NEEDS.get(d["op"], []), "digital": aops.is_digital(d["op"]), **tr}
+
+
+@router.post("/logic/api/drawings/{did}/analyse")
+def analyse_drawing(did: str, body: dict = Body(default={})):
+    """그린 것을 PDF 로 내보내 **LOGIC 검토 묶음**으로 올린다 — 시뮬레이션 · 정합성 검토를 그대로 쓴다."""
+    from . import api as A
+    doc = _load(did)
+    author = str(body.get("author") or doc.get("author") or "").strip()[:60]
+    name = f"{doc.get('sheet_no') or doc.get('name') or 'logic'} (작도).pdf"
+    job, d = store.new_job(name)
+    (d / "source.pdf").write_bytes(draw.to_pdf(doc))
+    st = store.read_status(d)
+    st.update({"project": doc.get("project") or "", "materials": {"logic": name}, "author": author,
+               "drawing": did})
+    store.write_status(d, st)
+    A._start(d)
+    return {"id": job}
+

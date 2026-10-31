@@ -1,0 +1,79 @@
+{
+ "errors": [],
+ "btn_before": "🖥 DCS 그래픽",
+ "dcs_url": "http://127.0.0.1:8813/dcs?job=0b403a802592&logic=a1b2c3d4e5f6&link=j5uiprh9&user=%ED%99%8D%EA%B8%B8%EB%8F%99",
+ "dcs_who": "✎ 홍길동 · ⧉ LOGIC 창과 연동 중",
+ "logic_tags_known": 35,
+ "btn_linked": "🖥 DCS 그래픽 · 태그 8/8",
+ "dcs_msg": "LOGIC AB_G-101 시뮬레이션 값 — 이 장의 태그 8개에 칠함",
+ "dcs_states": {
+  "14LBA11CP001": {
+   "state": "run",
+   "s": 1
+  },
+  "14LBA16CP006": {
+   "state": "stop",
+   "s": 0
+  },
+  "14LBA15CP040": {
+   "open": false,
+   "s": 0
+  },
+  "14LBA11CP008": {
+   "s": 0
+  },
+  "14LBA10CP007": {
+   "s": 0
+  },
+  "14LBA13CP010": {
+   "s": 0
+  },
+  "14LBA14CP011": {
+   "s": 0
+  },
+  "14LBA10CP042": {
+   "alarm": true,
+   "s": 1
+  }
+ },
+ "on_tags": [
+  "14LBA11CP001",
+  "14LBA10CP042"
+ ],
+ "dcs_on_in_svg": 1,
+ "logic_focus": {
+  "row": 2,
+  "side": "L"
+ },
+ "dcs_states_after_off": {
+  "14LBA11CP001": {
+   "state": "stop",
+   "s": 0
+  },
+  "14LBA16CP006": {
+   "state": "stop",
+   "s": 0
+  },
+  "14LBA15CP040": {
+   "open": false,
+   "s": 0
+  },
+  "14LBA11CP008": {
+   "s": 0
+  },
+  "14LBA10CP007": {
+   "s": 0
+  },
+  "14LBA13CP010": {
+   "s": 0
+  },
+  "14LBA14CP011": {
+   "s": 0
+  },
+  "14LBA10CP042": {
+   "alarm": true,
+   "s": 1
+  }
+ },
+ "btn_after_close": "🖥 DCS 그래픽"
+}

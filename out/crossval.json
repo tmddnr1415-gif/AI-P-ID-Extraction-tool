@@ -1,0 +1,163 @@
+[
+  {
+    "group": "STEAM (in-sample)",
+    "pages": 7,
+    "steam": {
+      "tp": 122,
+      "detected": 129,
+      "expected": 122,
+      "recall": 1.0,
+      "precision": 0.9457364341085271,
+      "delta_by_type": {
+        "FIT": 4,
+        "FE": 2,
+        "PDIT": 1
+      }
+    },
+    "full": {
+      "tp": 122,
+      "detected": 129,
+      "expected": 122,
+      "recall": 1.0,
+      "precision": 0.9457364341085271,
+      "delta_by_type": {
+        "FIT": 4,
+        "FE": 2,
+        "PDIT": 1
+      }
+    }
+  },
+  {
+    "group": "PGB (held out)",
+    "pages": 7,
+    "steam": {
+      "tp": 169,
+      "detected": 176,
+      "expected": 170,
+      "recall": 0.9941176470588236,
+      "precision": 0.9602272727272727,
+      "delta_by_type": {
+        "PI": 4,
+        "LS": 2,
+        "LI": 1,
+        "TIT": -1
+      }
+    },
+    "full": {
+      "tp": 169,
+      "detected": 176,
+      "expected": 170,
+      "recall": 0.9941176470588236,
+      "precision": 0.9602272727272727,
+      "delta_by_type": {
+        "PI": 4,
+        "LS": 2,
+        "LI": 1,
+        "TIT": -1
+      }
+    }
+  },
+  {
+    "group": "PAB (held out)",
+    "pages": 3,
+    "steam": {
+      "tp": 12,
+      "detected": 50,
+      "expected": 14,
+      "recall": 0.8571428571428571,
+      "precision": 0.24,
+      "delta_by_type": {
+        "LIT": 24,
+        "PI": 13,
+        "PIT": -2,
+        "PDIT": 1
+      }
+    },
+    "full": {
+      "tp": 12,
+      "detected": 22,
+      "expected": 14,
+      "recall": 0.8571428571428571,
+      "precision": 0.5454545454545454,
+      "delta_by_type": {
+        "PI": 10,
+        "PIT": -2
+      }
+    }
+  },
+  {
+    "group": "EGD (held out)",
+    "pages": 2,
+    "steam": {
+      "tp": 31,
+      "detected": 57,
+      "expected": 33,
+      "recall": 0.9393939393939394,
+      "precision": 0.543859649122807,
+      "delta_by_type": {
+        "PI": 20,
+        "FE": 2,
+        "LI": -2,
+        "PIT": 2,
+        "TIT": 2
+      }
+    },
+    "full": {
+      "tp": 33,
+      "detected": 51,
+      "expected": 33,
+      "recall": 1.0,
+      "precision": 0.6470588235294118,
+      "delta_by_type": {
+        "PI": 12,
+        "FE": 2,
+        "PIT": 2,
+        "TIT": 2
+      }
+    }
+  },
+  {
+    "group": "ALL MATCHED",
+    "pages": 35,
+    "steam": {
+      "tp": 511,
+      "detected": 628,
+      "expected": 536,
+      "recall": 0.9533582089552238,
+      "precision": 0.8136942675159236,
+      "delta_by_type": {
+        "PI": 56,
+        "LIT": 32,
+        "RO": 8,
+        "PDIT": -5,
+        "PIT": -4,
+        "FE": 3,
+        "FIT": 3,
+        "LI": -3,
+        "LS": 2,
+        "TI": -1,
+        "TIT": 1
+      }
+    },
+    "full": {
+      "tp": 520,
+      "detected": 598,
+      "expected": 536,
+      "recall": 0.9701492537313433,
+      "precision": 0.8695652173913043,
+      "delta_by_type": {
+        "PI": 42,
+        "LIT": 8,
+        "RO": 8,
+        "PIT": -4,
+        "FE": 3,
+        "FIT": 3,
+        "LI": 2,
+        "LS": 2,
+        "PDIT": -2,
+        "TI": -1,
+        "TIT": 1
+      }
+    }
+  }
+]

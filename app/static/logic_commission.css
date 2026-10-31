@@ -1,0 +1,51 @@
+/* L78 — 시운전 단계.  그룹 시험(logic_test.css) 위에 얹는다. */
+.cm-main { display: grid; grid-template-columns: 360px 1fr; gap: 14px; padding: 14px 18px 40px; max-width: 1900px; margin: 0 auto; align-items: start; }
+.cm-side { position: sticky; top: 70px; max-height: calc(100vh - 84px); display: flex; flex-direction: column; gap: 8px; }
+.cm-side input { padding: 7px 9px; border: 1px solid var(--line); border-radius: 7px; font: inherit; }
+.cm-facts { background: #fff; border: 1px solid var(--line); border-radius: 10px; padding: 9px 12px; font-size: 12.3px; color: var(--soft); }
+.cm-facts b { color: var(--ink); }
+.cm-tree { background: #fff; border: 1px solid var(--line); border-radius: 10px; overflow: auto; flex: 1; min-height: 200px; }
+.cm-sys { border-bottom: 1px solid var(--line); }
+.cm-sys > h4 { margin: 0; padding: 7px 10px; font-size: 12.5px; background: #f6f8fc; cursor: pointer; display: flex; gap: 6px; align-items: baseline; }
+.cm-sys > h4 code { background: var(--navy2); color: #fff; border-radius: 4px; padding: 0 5px; font-size: 11.5px; }
+.cm-sys > h4 small { color: var(--soft); font-weight: 400; margin-left: auto; }
+.cm-sys.shut > ul { display: none; }
+.cm-sys ul { list-style: none; margin: 0; padding: 0; }
+.cm-sys li { padding: 5px 10px 5px 14px; cursor: pointer; font-size: 12.5px; display: flex; gap: 6px; align-items: baseline; border-top: 1px dotted #eef1f6; }
+.cm-sys li:hover { background: #f2f6ff; }
+.cm-sys li.on { background: #e6eeff; font-weight: 600; }
+.cm-sys li i { font-style: normal; color: var(--soft); min-width: 26px; text-align: right; font-size: 11.5px; }
+.cm-sys li em { font-style: normal; margin-left: auto; font-size: 11px; color: var(--soft); white-space: nowrap; }
+.cm-sys li .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--c, var(--none)); flex: none; align-self: center; }
+.cm-body { min-width: 0; }
+.cm-headcard { background: #fff; border: 1px solid var(--line); border-radius: 10px; padding: 12px 15px; margin-bottom: 10px; }
+.cm-headcard h2 { margin: 0 0 4px; font-size: 17px; color: var(--navy2); }
+.cm-headcard p { margin: 2px 0; color: var(--soft); font-size: 12.5px; }
+.cm-headcard .cnt span { display: inline-block; margin-right: 10px; font-weight: 600; color: var(--c); }
+.cm-tools { display: flex; gap: 12px; align-items: center; margin-bottom: 8px; flex-wrap: wrap; font-size: 12.5px; }
+.cm-runline { color: var(--soft); }
+.cm-steps { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.cm-step { background: #fff; border: 1px solid var(--line); border-left: 5px solid var(--c, var(--none)); border-radius: 8px; padding: 8px 12px;
+  display: grid; grid-template-columns: 38px 92px 1fr 170px 150px; gap: 10px; align-items: start; }
+.cm-step.cur { box-shadow: 0 0 0 2px var(--blue); }
+.cm-step .no { font-weight: 700; color: var(--navy2); font-size: 15px; }
+.cm-step .ph { font-size: 11.5px; border-radius: 10px; padding: 2px 8px; background: #eef2fa; color: var(--navy2); text-align: center; white-space: nowrap; }
+.cm-step .tt { font-size: 13px; }
+.cm-step .tt small { display: block; color: var(--soft); font-size: 11.8px; margin-top: 2px; }
+.cm-step .sigs { margin-top: 4px; display: flex; flex-wrap: wrap; gap: 4px; }
+.cm-step .sigs a { font-size: 11.3px; background: #f3f6fb; border: 1px solid #dfe5f0; border-radius: 10px; padding: 1px 7px; color: var(--ink); text-decoration: none; cursor: pointer; }
+.cm-step .sigs a.new { background: #fff3d6; border-color: #f0cf7a; }
+.cm-step .sigs a.v0 { color: var(--soft); }
+.cm-step .ex { font-size: 12.3px; }
+.cm-step .ex b { display: block; font-size: 11px; color: var(--soft); font-weight: 400; }
+.cm-step .ex .got { font-weight: 700; color: var(--c, var(--ink)); }
+.cm-step .act { display: flex; flex-direction: column; gap: 4px; }
+.cm-step .act button { font: inherit; font-size: 12px; border: 1px solid var(--line); background: #fff; border-radius: 6px; padding: 4px 8px; cursor: pointer; }
+.cm-step .act button.run { background: var(--blue); color: #fff; border-color: var(--blue); }
+.cm-step .act button:hover { filter: brightness(.96); }
+@media (max-width: 1100px) {
+  .cm-main { grid-template-columns: 1fr; }
+  .cm-side { position: static; max-height: none; }
+  .cm-step { grid-template-columns: 34px 1fr; }
+  .cm-step .ex, .cm-step .act { grid-column: 2; }
+}

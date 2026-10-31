@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DCS Graphic</title>
+<!-- hotfix110 — 화면은 LOGIC 브랜치 H1회차의 HMI 화면(hmi.html) 그대로 + 실제 P&ID 배치 · LOGIC 태그 연동 · 확대/이동 · 내려받기 -->
+<link rel="stylesheet" href="/static/hmi/hmi.css">
+</head>
+<body class="editing">
+<header class="hd">
+  <a class="hd-home" href="/" title="P&amp;ID 첫 화면으로">← P&amp;ID</a>
+  <h1 id="title">DCS Graphic</h1>
+  <nav class="hd-tabs" id="tabs">
+    <button class="tab on" data-tab="overview">Overview</button>
+    <button class="tab" data-tab="library">Symbol Library</button>
+  </nav>
+  <div class="hd-src">
+    <select id="src" title="무엇을 그릴지 — 예시 장면 또는 식별된 실행 P&amp;ID 분석"><option value="example">예시 — Compressor Train</option></select>
+    <select id="page" title="장" hidden></select>
+  </div>
+  <div class="hd-right">
+    <span id="plant" class="pill st-running">● Plant Normal</span>
+    <span id="clock" class="clock"></span>
+  </div>
+</header>
+
+<div class="bar">
+  <button id="edit" class="btn on" title="켜져 있으면 심볼 · 배관 꼭짓점을 끌어 옮기고 화살표 키로 조금씩 옮깁니다 · 태그는 두 번 눌러 고칩니다">✎ 옮기기</button>
+  <span class="addgrp">추가:
+    <button class="btn add" data-add="instruments" title="계기 버블 하나를 가운데에 더합니다">계기</button>
+    <button class="btn add" data-add="valves">밸브</button>
+    <button class="btn add" data-add="equipment">기기</button>
+    <button class="btn add" data-add="pipes">배관</button></span>
+  <button id="save" class="btn primary" disabled title="다듬은 장면을 이 분석 · 이 장에 저장 (작성자 이름 필요)">저장</button>
+  <button id="reset" class="btn" disabled title="저장한 장면을 버리고 식별 결과에서 다시 만듭니다">식별 결과로 다시</button>
+  <span class="sep"></span>
+  <button id="sim" class="btn on" title="값이 움직이는 데모 시뮬레이션 (실제 공정값이 아닙니다)">▶ 시뮬레이션</button>
+  <label class="chk"><input type="checkbox" id="flow" checked> 흐름 애니메이션</label>
+  <label class="chk"><input type="checkbox" id="showval" checked> 값 표시</label>
+  <span class="sep"></span>
+  <span class="zoomgrp"><button id="fit" class="btn" title="장면 전체가 보이게">맞춤</button><button id="zin" class="btn" title="확대 (휠)">＋</button><button id="zout" class="btn" title="축소 (휠)">－</button></span>
+  <span class="dlgrp"><button id="dl-svg" class="btn" title="지금 그림을 SVG 로 (이 PC 에서 만든다)">SVG</button><button id="dl-png" class="btn" title="지금 그림을 PNG 로">PNG</button><a id="dl-zip" class="btn" href="#" download hidden title="모든 장을 서버가 그린 그림 zip">전체 zip</a></span>
+  <span id="who" class="who"></span>
+</div>
+<div class="bar2"><span id="basis" class="basis"></span><span id="linkinfo" class="linkinfo"></span></div>
+
+<main class="main" id="view-overview">
+  <section class="graphic">
+    <div class="stage" id="stage">
+      <svg id="svg" xmlns="http://www.w3.org/2000/svg"></svg>
+      <input id="tagedit" class="tagedit" hidden>
+      <div id="stage-msg" class="stage-msg" hidden></div>
+    </div>
+    <div class="panels">
+      <div class="panel popup" id="motor-panel" hidden>
+        <div class="ph"><span id="motor-title">Motor</span><button class="x" id="motor-x" title="닫기">✕</button></div>
+        <table id="motor-table"></table>
+      </div>
+      <div class="panel">
+        <div class="ph">Control Mode <span id="ctl-tag" class="muted"></span></div>
+        <div class="modes" id="modes">
+          <button data-mode="AUTO" class="mode">AUTO</button>
+          <button data-mode="MAN" class="mode">MAN</button>
+          <button data-mode="LOCAL" class="mode">LOCAL</button>
+        </div>
+        <div class="sp" id="ctl-sp"></div>
+      </div>
+      <div class="panel trend">
+        <div class="ph"><span id="trend-title">Trend</span><select id="trend-tag" title="트렌드로 볼 계기"></select></div>
+        <svg id="trend" viewBox="0 0 380 150" preserveAspectRatio="none"></svg>
+      </div>
+      <div class="panel key">
+        <div class="ph">Key Parameters</div>
+        <table id="key"></table>
+      </div>
+    </div>
+  </section>
+  <aside class="side">
+    <div class="props" id="props"><div class="ph">속성</div><p class="muted">심볼을 누르면 여기서 태그 · 종류 · 상태 · 크기를 고칩니다.  끌면 옮겨집니다.</p></div>
+    <div class="legend" id="legend"></div>
+  </aside>
+</main>
+
+<section class="library" id="view-library" hidden>
+  <h2>Symbol Library (Detailed) <small>— 모든 심볼은 개별 SVG 컴포넌트이고, 장면 · 범례 · 이 표가 같은 사전을 읽습니다</small></h2>
+  <div id="library"></div>
+</section>
+
+<div id="toast" class="toast" hidden></div>
+<script src="/static/offline.js" data-app="dcs"></script>
+<script src="/static/hmi/hmi_symbols.js"></script>
+<script src="/static/hmi/hmi.js"></script>
+</body>
+</html>

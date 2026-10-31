@@ -1,0 +1,21 @@
+UAD layout act_box (9.0, 34.0) body_short (5.0, 30.0)
+UAD CHECK bodies 41 | THREE-WAY candidates 1 | overlapping bodies of different kind 10 | phantom round bodies 0 | uncovered apex-to-apex triangle pairs 6
+bodies by kind {'BALL': 621, 'BUTTERFLY': 18, 'CHECK': 41, 'GATE': 94, 'GLOBE': 59}
+bodies with actuator {'GATE/PNEUMATIC': 3}
+  apexpair (20, [801, 568, 806, 576])
+  apexpair (20, [759, 534, 764, 542])
+  apexpair (20, [583, 568, 588, 576])
+  apexpair (20, [363, 587, 368, 595])
+  apexpair (20, [208, 579, 213, 588])
+  apexpair (20, [148, 579, 153, 588])
+  3way (25, [726, 510, 736, 515], 'NONE', [729, 512, 734, 517])
+  overlap (7, 'CHECK', [459, 201, 464, 209], 'BALL', [457, 200, 462, 202], 'NONE', 'NONE')
+  overlap (8, 'CHECK', [237, 149, 242, 158], 'BALL', [235, 148, 240, 150], 'NONE', 'NONE')
+  overlap (8, 'CHECK', [237, 520, 242, 529], 'BALL', [235, 519, 240, 521], 'NONE', 'NONE')
+  overlap (8, 'CHECK', [665, 508, 670, 516], 'BALL', [662, 507, 667, 509], 'NONE', 'NONE')
+  overlap (9, 'CHECK', [687, 137, 692, 145], 'BALL', [684, 136, 689, 138], 'NONE', 'NONE')
+  overlap (19, 'CHECK', [759, 248, 764, 256], 'BALL', [756, 255, 761, 257], 'NONE', 'NONE')
+  overlap (21, 'CHECK', [769, 282, 774, 291], 'BALL', [766, 290, 772, 292], 'NONE', 'NONE')
+  overlap (21, 'CHECK', [795, 418, 800, 426], 'BALL', [792, 425, 797, 427], 'NONE', 'NONE')
+  overlap (23, 'CHECK', [803, 166, 808, 175], 'BALL', [800, 174, 805, 176], 'NONE', 'NONE')
+  overlap (23, 'CHECK', [828, 288, 833, 296], 'BALL', [825, 295, 830, 297], 'NONE', 'NONE')

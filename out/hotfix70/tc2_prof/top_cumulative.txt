@@ -1,0 +1,53 @@
+         2630767430 function calls (2630383186 primitive calls) in 1438.370 seconds
+
+   Ordered by: cumulative time
+   List reduced from 3684 to 45 due to restriction <45>
+
+   ncalls  tottime  percall  cumtime  percall filename:lineno(function)
+        1    4.636    4.636 1438.612 1438.612 /home/user/AI-P-ID-Extraction-tool/app/pipeline.py:857(analyse)
+        1    0.096    0.096 1433.580 1433.580 /home/user/AI-P-ID-Extraction-tool/app/pipeline.py:968(_analyse)
+       54    0.321    0.006  449.416    8.323 /home/user/AI-P-ID-Extraction-tool/app/engine/detect_symbols.py:1903(detect)
+ 20462096   27.984    0.000  379.581    0.000 /usr/local/lib/python3.11/dist-packages/pymupdf/__init__.py:14374(__mul__)
+     1555    0.008    0.000  373.019    0.240 /home/user/AI-P-ID-Extraction-tool/app/engine/pidcache.py:104(segments)
+ 20462096   14.340    0.000  272.863    0.000 /usr/local/lib/python3.11/dist-packages/pymupdf/__init__.py:14478(transform)
+      206    6.938    0.034  269.738    1.309 /home/user/AI-P-ID-Extraction-tool/app/engine/detect_symbols.py:1139(star_groups)
+      168    0.021    0.000  255.598    1.521 /home/user/AI-P-ID-Extraction-tool/app/engine/detect_symbols.py:945(read_mark_dictionary)
+ 20462096   32.201    0.000  250.317    0.000 /usr/local/lib/python3.11/dist-packages/pymupdf/__init__.py:24331(util_transform_point)
+      168    0.013    0.000  225.413    1.342 /home/user/AI-P-ID-Extraction-tool/app/engine/detect_symbols.py:1363(definition_stars)
+      180   41.087    0.228  223.273    1.240 /usr/local/lib/python3.11/dist-packages/pymupdf/__init__.py:11694(get_drawings)
+     1442   13.330    0.009  219.344    0.152 /home/user/AI-P-ID-Extraction-tool/app/engine/pidcache.py:86(drawings)
+      206    2.510    0.012  204.638    0.993 /home/user/AI-P-ID-Extraction-tool/app/engine/detect_symbols.py:1281(_ink_cache)
+       54    4.802    0.089  202.127    3.743 /home/user/AI-P-ID-Extraction-tool/app/engine/detect_symbols.py:1294(_ink_index)
+        1    0.000    0.000  182.095  182.095 /home/user/AI-P-ID-Extraction-tool/app/pipeline.py:554(_fit_layout)
+        1    0.001    0.001  181.892  181.892 /home/user/AI-P-ID-Extraction-tool/app/engine/derive_layout.py:977(derive)
+       54    0.744    0.014  164.097    3.039 /home/user/AI-P-ID-Extraction-tool/app/engine/detect_symbols.py:575(dashed_bubble_outlines)
+ 23924182   32.255    0.000  164.082    0.000 /usr/local/lib/python3.11/dist-packages/pymupdf/__init__.py:14783(__init__)
+       60    7.643    0.127  153.656    2.561 /home/user/AI-P-ID-Extraction-tool/app/engine/pidcache.py:128(<listcomp>)
+        1    0.022    0.022  146.326  146.326 /home/user/AI-P-ID-Extraction-tool/app/engine/derive_layout.py:651(_markup_script)
+      120    4.451    0.037  146.273    1.219 /home/user/AI-P-ID-Extraction-tool/app/engine/derive_layout.py:680(_highlights)
+ 52184783   84.951    0.000  135.949    0.000 /usr/local/lib/python3.11/dist-packages/pymupdf/__init__.py:14337(__init__)
+ 23924182   65.458    0.000  131.827    0.000 /usr/local/lib/python3.11/dist-packages/pymupdf/__init__.py:24193(util_make_rect)
+       54    0.005    0.000  124.040    2.297 /home/user/AI-P-ID-Extraction-tool/app/engine/typical.py:234(analyse)
+       48    1.005    0.021  122.366    2.549 /home/user/AI-P-ID-Extraction-tool/app/engine/typical.py:128(circle_marks)
+        1    0.000    0.000  122.360  122.360 /home/user/AI-P-ID-Extraction-tool/app/engine/detect_valves.py:2234(analyse_all)
+        1    0.000    0.000  122.352  122.352 /home/user/AI-P-ID-Extraction-tool/app/engine/detect_valves.py:2241(<dictcomp>)
+       59    0.468    0.008  122.351    2.074 /home/user/AI-P-ID-Extraction-tool/app/engine/detect_valves.py:2051(analyse)
+ 15965753    4.569    0.000  122.274    0.000 {built-in method builtins.any}
+ 32854842   29.807    0.000  105.367    0.000 /usr/local/lib/python3.11/dist-packages/pymupdf/__init__.py:21340(JM_point_from_py)
+ 12510330    3.871    0.000  103.489    0.000 /usr/local/lib/python3.11/dist-packages/pymupdf/__init__.py:14871(contains)
+       49   12.643    0.258  101.774    2.077 /home/user/AI-P-ID-Extraction-tool/app/engine/detect_symbols.py:461(_dash_pieces)
+ 12510330    8.872    0.000   99.618    0.000 /usr/local/lib/python3.11/dist-packages/pymupdf/__init__.py:14755(__contains__)
+ 20462713   23.982    0.000   96.950    0.000 /usr/local/lib/python3.11/dist-packages/pymupdf/__init__.py:20991(JM_matrix_from_py)
+  4815592    6.262    0.000   93.230    0.000 /home/user/AI-P-ID-Extraction-tool/app/engine/typical.py:160(<genexpr>)
+  3093938   80.548    0.000   91.884    0.000 /home/user/AI-P-ID-Extraction-tool/app/engine/detect_symbols.py:1318(_index_put)
+  3285486    3.481    0.000   87.881    0.000 /usr/local/lib/python3.11/dist-packages/pymupdf/__init__.py:14805(__mul__)
+ 12392746   13.051    0.000   82.774    0.000 /usr/local/lib/python3.11/dist-packages/pymupdf/__init__.py:24310(util_is_point_in_rect)
+ 27986360   29.197    0.000   82.390    0.000 /home/user/AI-P-ID-Extraction-tool/app/engine/detect_symbols.py:700(_is_ink)
+       59    0.003    0.000   82.069    1.391 /home/user/AI-P-ID-Extraction-tool/app/engine/detect_valves.py:1982(attach_tags)
+      180    0.007    0.000   78.727    0.437 /usr/local/lib/python3.11/dist-packages/pymupdf/__init__.py:11632(get_cdrawings)
+      108    0.042    0.000   78.715    0.729 /home/user/AI-P-ID-Extraction-tool/app/engine/detect_symbols.py:1087(find_marks)
+      180    0.001    0.000   78.170    0.434 /usr/local/lib/python3.11/dist-packages/pymupdf/extra.py:179(get_cdrawings)
+      180   78.169    0.434   78.169    0.434 {built-in method pymupdf._extra.get_cdrawings}
+       31    4.390    0.142   74.806    2.413 /home/user/AI-P-ID-Extraction-tool/app/engine/detect_valves.py:1886(_leader_index)
+
+

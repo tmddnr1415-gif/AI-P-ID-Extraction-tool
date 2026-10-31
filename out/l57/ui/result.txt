@@ -1,0 +1,12 @@
+1 sim on: body.sim=True card=True on_wires=[]
+2 row5=1: on_wires=1 (AOPEN 선만 · AND 는 아직 0) given='내가 준 신호 1\nG001 · 행 5 PB OPEN\n1 끄기\n나간 출력 0 / 2'
+3 row6=1: on_wires=3 (셋 다) out51 v1=True summary='t=0.0s · 선 5 · 1 인 선 3'
+   pins shown=5
+4 GT: timer text during='⏱ 2.0s' → after 2.6s out60 v1=True
+5 receiver: row2 class='rowstub v1 linked' on_wires=['2c5fc8'] NOT out v1=False (0 이어야)
+6 live edit: on before=5 after move=4 · CMD 선 지운 뒤 out51 v1=False (False 이어야) status='저장하지 않은 변경이 있습니다'
+7 undo: out51 v1=True (True 이어야)
+7b presets=24 · 상수 1 놓음 → ['BOX', '1', False, 'CONST'] (act 는 나가는 선이 없어 False · func CONST)
+8 reset: on_wires=0 given='내가 준 신호 0\n행 자리 · 누름단추 · 선을 눌러 주세요\n나간 출력 0 / 2'
+9 sim off: body.sim=False simov=False
+page errors: []

@@ -1,0 +1,429 @@
+:root {
+  --bg: #f6f4ee; --panel: #fff; --ink: #1d2433; --soft: #5b6475; --line: #d9d5ca;
+  --navy: #1f2a44; --blue: #2f5bd8; --amber: #b07614; --red: #c2453f; --green: #0f8f80;
+  --sel: #2f5bd8; --active: #00b4ff;
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }   /* .dw-modal 의 display:flex 가 hidden 을 이기던 것 (H1 과 같은 결함) */
+html, body { margin: 0; height: 100%; background: var(--bg); color: var(--ink);
+  font: 13px/1.45 "Malgun Gothic", "Apple SD Gothic Neo", system-ui, sans-serif; }
+body { display: flex; flex-direction: column; overflow: hidden; }
+button, .dw-btn { border: 1px solid var(--line); background: #fff; border-radius: 6px; padding: 4px 10px; font: inherit; cursor: pointer; color: var(--ink); text-decoration: none; }
+button:disabled, .dw-btn:disabled { opacity: .5; cursor: default; }
+input, select { font: inherit; border: 1px solid var(--line); border-radius: 5px; padding: 3px 6px; background: #fff; color: var(--ink); }
+
+.dw-head { min-height: 48px; display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; padding: 4px 12px; background: var(--navy); color: #fff; flex-shrink: 0; }  /* 좁은 창에서는 두 줄로 — 단추가 화면 밖으로 밀리지 않게 (자기검증이 잡았다) */
+.dw-head > * { white-space: nowrap; flex-shrink: 0; }
+.dw-head h1 { font-size: 16px; margin: 0 6px 0 0; }
+.dw-back { color: #cdd6f4; text-decoration: none; font-size: 13px; }
+.dw-head .dw-btn { background: #2a3a62; color: #fff; border-color: #3d4f7c; }
+.dw-head .dw-btn.pri { background: var(--blue); border-color: var(--blue); }
+.dw-head .dw-btn.ghost { background: transparent; border-color: #5a6a92; }
+.dw-head .dw-btn.danger { background: #6b2f2c; border-color: #8a3f3a; }
+.dw-head select { max-width: 260px; }
+.dw-name { width: 180px; }
+.dw-who input { width: 90px; }
+.dw-sep { width: 1px; height: 26px; background: #3d4f7c; }
+.dw-status { flex: 1 1 160px; min-width: 0; overflow: hidden; text-overflow: ellipsis; color: #cdd6f4; font-size: 12px; margin-left: auto; text-align: right; }
+
+.dw-main { flex: 1; display: flex; min-height: 0; }
+.dw-side { width: 300px; flex-shrink: 0; overflow-y: auto; overflow-x: hidden; padding: 10px; display: flex; flex-direction: column; gap: 10px; border-right: 1px solid var(--line); background: #fbfaf6; }
+.dw-card { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; }
+.dw-card h3 { margin: 0 0 8px; font-size: 13px; display: flex; justify-content: space-between; align-items: baseline; gap: 6px; }
+.dw-hint { color: var(--soft); font-size: 11.5px; font-weight: 400; }
+.dw-tools { display: flex; gap: 6px; flex-wrap: wrap; }
+.dw-tools button.on { background: var(--blue); color: #fff; border-color: var(--blue); }
+.dw-zoom { display: flex; gap: 6px; align-items: center; margin-top: 8px; font-size: 12px; }
+.dw-zoom button { padding: 2px 8px; }
+/* VOC — 셋째 칸이 카드 밖으로 잘리던 것 (1fr 의 최소폭 = 글자 폭) · 아이콘이 너무 작아 글씨가 깨지던 것 → 두 칸 · 큰 아이콘 · 이름은 줄바꿈 */
+.dw-palette { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
+.dw-palette button { min-width: 0; display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 7px 4px 6px; font-size: 12px; line-height: 1.25; text-align: center; overflow-wrap: anywhere; word-break: keep-all; }
+.dw-palette button > span { max-width: 100%; }
+.dw-palette button svg { width: 72px; height: 40px; }
+.dw-palette button svg .blk rect, .dw-palette button svg .blk circle, .dw-palette button svg .blk polygon, .dw-palette button svg .blk line { vector-effect: non-scaling-stroke; stroke-width: 1.3; }
+.dw-palette button:hover { border-color: var(--blue); }
+.dw-form label { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin: 4px 0; font-size: 12px; }
+.dw-form input, .dw-form select { width: 160px; }
+.dw-form .wide input { width: 100%; }
+.dw-help ul { margin: 0; padding-left: 16px; font-size: 11.5px; color: var(--soft); }
+.dw-verify { font-size: 12px; max-height: 260px; overflow: auto; }
+.dw-verify .ok { color: var(--green); }
+.dw-verify .bad { color: var(--red); }
+.dw-verify ul { margin: 4px 0; padding-left: 16px; }
+.dw-verify li { cursor: pointer; }
+.dw-verify li:hover { text-decoration: underline; }
+
+.dw-stage { flex: 1; position: relative; min-width: 0; outline: none; background: #e9e6dc; }
+.dw-scroll { position: absolute; inset: 0; overflow: auto; }
+#svg { display: block; background: #fff; box-shadow: 0 0 0 1px #c9c4b6; margin: 12px; }
+.dw-empty { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: var(--soft); font-size: 15px; pointer-events: none; }
+.dw-cellin { position: absolute; font-size: 11px; padding: 1px 3px; border: 1px solid var(--blue); border-radius: 2px; z-index: 5; }
+
+/* SVG */
+.tbl line, .tbl .tline { stroke: #333; stroke-width: .72; fill: none; }
+.tbl text { font-family: Helvetica, Arial, sans-serif; fill: #222; }
+.cell { fill: transparent; cursor: text; }
+.cell:hover { fill: rgba(47, 91, 216, .08); }
+.rowstub { fill: #fff; stroke: #8a93a8; stroke-width: .6; cursor: crosshair; }
+.rowstub:hover, .rowstub.hot { fill: var(--active); stroke: var(--blue); }
+/* L55 모눈종이 · 눈금자 · 안내선 — 화면 전용 */
+.grid .gh { stroke: #e6ebf3; stroke-width: .3; fill: none; }
+.grid .g1 { stroke: #d3dbea; stroke-width: .45; fill: none; }
+.grid .g5 { stroke: #b4c0d8; stroke-width: .65; fill: none; }
+.grid rect.gframe { fill: none; stroke: #b7c2d8; stroke-width: .5; stroke-dasharray: 2 2; }
+.grid text.gnum { fill: #a9b4c9; font-family: Helvetica, Arial, sans-serif; pointer-events: none; }
+.cross { stroke: rgba(194, 69, 63, .45); stroke-width: .5; stroke-dasharray: 1.5 1.5; pointer-events: none; }
+.cross-row { fill: rgba(194, 69, 63, .25); stroke: #c2453f; stroke-width: .5; pointer-events: none; }
+.align { stroke: #d33ac2; stroke-width: .7; stroke-dasharray: 3 2; pointer-events: none; }
+.align.row { stroke: #2f5bd8; }
+.align.wire { stroke: #e08a00; }     /* L60 — 선의 토막에 맞춤 */
+.align.port { stroke: #0f8f80; }     /* L60 — 이웃 단자 높이에 맞춤 */
+.dw-arrange { display: flex; flex-wrap: wrap; gap: 3px; margin-top: 6px; align-items: center; }
+.dw-arrange button { min-width: 26px; padding: 2px 5px; font-size: 13px; line-height: 1.2; }
+.dw-arrange .dw-hint { font-size: 11px; margin-left: 4px; }
+.dw-arrange kbd { font-size: 10px; border: 1px solid #c9c4b6; border-radius: 3px; padding: 0 3px; background: #fff; }
+.dw-guides { display: flex; flex-wrap: wrap; gap: 4px 10px; margin-top: 6px; font-size: 12px; color: var(--soft); }
+.dw-guides label { display: inline-flex; align-items: center; gap: 4px; cursor: pointer; }
+.dw-guides kbd { font-size: 10px; border: 1px solid #c9c4b6; border-radius: 3px; padding: 0 3px; background: #fff; }
+.dw-ruler { position: absolute; z-index: 3; pointer-events: auto; cursor: copy; }
+.dw-ruler-x { top: 0; left: 22px; right: 0; height: 22px; }
+.dw-ruler-y { top: 22px; left: 0; width: 22px; bottom: 0; }
+.dw-ruler-corner { position: absolute; z-index: 4; top: 0; left: 0; min-width: 22px; height: 22px; padding: 0 4px; font-size: 9px; line-height: 22px; white-space: nowrap; color: #4a5366; background: #f6f4ec; border-right: 1px solid #c9c4b6; border-bottom: 1px solid #c9c4b6; pointer-events: none; }
+.dw-stage.rulers .dw-scroll { top: 22px; left: 22px; }
+.blk { cursor: move; }
+.blk rect, .blk circle, .blk line { stroke: #111; stroke-width: .8; fill: #fff; }
+.blk line { fill: none; }
+.blk polygon { fill: #111; }
+.blk text { font-family: Helvetica, Arial, sans-serif; fill: #111; text-anchor: middle; dominant-baseline: central; pointer-events: none; }
+.blk.sel rect, .blk.sel circle { stroke: var(--sel); stroke-width: 1.4; }
+.blk.bad rect, .blk.bad circle { stroke: var(--red); stroke-width: 1.4; stroke-dasharray: 2 1.5; }
+.blk .hit { fill: transparent; stroke: none; }
+.wire { fill: none; stroke: #111; stroke-width: .9; cursor: pointer; }
+.wire.dashed { stroke-dasharray: 3 3; }
+.wire.sel { stroke: var(--sel); stroke-width: 1.8; }
+.wirehit { fill: none; stroke: transparent; stroke-width: 6; cursor: pointer; }
+.vtx { fill: #fff; stroke: var(--sel); stroke-width: 1; cursor: move; }
+.seghd { fill: var(--sel); stroke: #fff; stroke-width: .5; opacity: .85; }   /* L75 — 토막 손잡이 */
+.seghd.ax-x { cursor: ew-resize; } .seghd.ax-y { cursor: ns-resize; }
+.seghd:hover { opacity: 1; }
+.port { fill: #fff; stroke: #8a93a8; stroke-width: .6; }
+.port.hot { fill: var(--active); stroke: var(--blue); r: 3; }
+.wipline { fill: none; stroke: var(--blue); stroke-width: .9; stroke-dasharray: 2 2; pointer-events: none; }
+.wipalt { fill: none; stroke: var(--blue); stroke-width: .5; stroke-dasharray: 1 2; opacity: .35; pointer-events: none; }
+.marquee { fill: rgba(47, 91, 216, .08); stroke: var(--blue); stroke-width: .6; stroke-dasharray: 2 2; pointer-events: none; }
+.title text { font-family: Helvetica, Arial, sans-serif; fill: #222; }
+.title line, .title rect { stroke: #333; stroke-width: .72; fill: none; }
+
+.dw-modal { position: fixed; inset: 0; background: rgba(20, 24, 40, .45); display: flex; align-items: center; justify-content: center; z-index: 50; }
+.dw-modal-box { background: #fff; border-radius: 10px; padding: 16px 18px; min-width: 360px; max-width: 640px; max-height: 80vh; overflow: auto; }
+.dw-modal-box h3 { margin: 0 0 10px; }
+.dw-modal-foot { display: flex; justify-content: flex-end; gap: 8px; margin-top: 12px; }
+.dw-modal .dw-btn.pri { background: var(--blue); color: #fff; border-color: var(--blue); }
+.dw-modal .dw-form label { justify-content: flex-start; }
+.dw-modal .dw-form input, .dw-modal .dw-form select { flex: 1; }
+.dw-modal table { width: 100%; border-collapse: collapse; font-size: 12px; }
+.dw-modal td, .dw-modal th { border-bottom: 1px solid var(--line); padding: 3px 6px; text-align: left; }
+.dw-modal tr.pick { cursor: pointer; }
+.dw-modal tr.pick:hover, .dw-modal tr.pick.on { background: #eef2ff; }
+.dw-toast { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); background: var(--navy); color: #fff; padding: 8px 14px; border-radius: 8px; z-index: 60; font-size: 13px; max-width: 70vw; }
+
+/* L56 — 묶음 · 매크로 · 연결 */
+.dw-settools { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
+.dw-settools button { font-size: 11px; padding: 3px 6px; }
+.dw-setname { font-weight: 600; margin-bottom: 4px; }
+.dw-sheets { list-style: none; margin: 0; padding: 0; max-height: 180px; overflow: auto; font-size: 12px; }
+.dw-sheets li { padding: 2px 4px; border-radius: 3px; cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.dw-sheets li:hover { background: #eef2fb; }
+.dw-sheets li.on { background: #dfe7fb; font-weight: 600; }
+.dw-sheets .typ { font-size: 10px; color: #0f8f80; border: 1px solid #0f8f80; border-radius: 3px; padding: 0 3px; }
+.dw-macros { display: flex; flex-direction: column; gap: 4px; }
+.dw-macros button { text-align: left; font-size: 12px; padding: 4px 6px; display: flex; justify-content: space-between; gap: 6px; }
+.dw-pins { display: flex; flex-wrap: wrap; gap: 3px; margin: 4px 0; }
+.dw-pins span input { width: 64px; font-size: 10px; }
+.dw-pins span.in input { border-left: 3px solid #2f5bd8; }
+.dw-pins span.out input { border-right: 3px solid #0f8f80; }
+.blk.macro rect { stroke-width: 1; }
+.blk text.pin { font-size: 4.2px; }
+.cell.linked { fill: rgba(15, 143, 128, .06); }
+.cell.ftwarn { fill: rgba(176, 118, 20, .12); }
+.cell.ftbad { fill: rgba(194, 69, 63, .18); }
+.golink { fill: #0f8f80; cursor: pointer; font-family: Helvetica, Arial, sans-serif; }
+.golink.missing { fill: #c2453f; }
+.refin { fill: #8a93a8; font-family: Helvetica, Arial, sans-serif; pointer-events: none; }
+.dot { fill: #111; stroke: none; }
+.arrow { fill: #111; stroke: none; }
+.rowflash { fill: rgba(255, 200, 0, .45); animation: rowflash 2.6s ease-out forwards; pointer-events: none; }
+@keyframes rowflash { 0%, 40% { opacity: 1; } 100% { opacity: 0; } }
+.dw-verify li.warn { color: #b07614; }
+
+/* L56 — 선 아래 글 · 장 노트 상자 */
+#svg text.wlabel { fill: #2a3a5a; pointer-events: none; }
+#svg g.notes rect { fill: none; stroke: #222; stroke-width: 0.7; }
+#svg g.notes text { fill: #222; }
+#f-notes { width: 100%; font: inherit; font-size: 12px; resize: vertical; }
+
+/* ───────── L57 — 작도 화면 시뮬레이션 ───────── */
+body.sim .dw-head .dw-btn#simtoggle { background: var(--active, #00b4ff); border-color: var(--active, #00b4ff); color: #04304a; font-weight: 600; }
+body.sim .wire.on { stroke: var(--active, #00b4ff); stroke-width: 1.8; filter: drop-shadow(0 0 1.4px rgba(0, 200, 255, .75)); }
+body.sim .wire.on.forced { stroke-width: 2.3; }
+body.sim .wire.unk { stroke-dasharray: 1.2 1.2; stroke: #b8860b; }
+body.sim .rowstub { cursor: pointer; r: 2.2; }
+body.sim .rowstub.v1 { fill: var(--active, #00b4ff); stroke: #0078b0; }
+body.sim .rowstub.forced { stroke: #000; stroke-width: 1.2; }
+body.sim .rowstub.linked { stroke-dasharray: 1.2 .8; stroke: #003a5c; fill: var(--active, #00b4ff); }
+body.sim .blk.act > rect, body.sim .blk.act > circle { fill: rgba(0, 180, 255, .16); stroke: #0078b0; }
+body.sim .blk.src { cursor: pointer; }
+body.sim .blk.unmet > rect { stroke: #d08a14; stroke-width: 1.6; stroke-dasharray: 2 1.2; }
+body.sim .blk.on1 > rect, body.sim .blk.on1 > circle { fill: rgba(0, 180, 255, .3); }
+.simval { font-family: Helvetica, Arial, sans-serif; font-size: 3.4px; text-anchor: middle; dominant-baseline: central; pointer-events: none; }
+.simval.v1 { fill: #fff; }
+.simbox { fill: #fff; stroke: #0078b0; stroke-width: .35; rx: .6; pointer-events: none; }
+.simbox.v1 { fill: var(--active, #00b4ff); }
+.simtimer { font-family: Helvetica, Arial, sans-serif; font-size: 4.2px; fill: #0078b0; text-anchor: middle; pointer-events: none; font-weight: 600; }
+.simneed { fill: none; stroke: #ff8a00; stroke-width: 1.6; stroke-dasharray: 2 1.5; animation: needflash .55s linear 3; }
+@keyframes needflash { 0%, 100% { opacity: 1; } 50% { opacity: .15; } }
+.dw-simmenu { position: fixed; z-index: 60; background: #fff; border: 1px solid var(--line); border-radius: 8px; box-shadow: 0 6px 24px rgba(0, 0, 0, .18); padding: 6px; min-width: 190px; font-size: 12px; }
+.dw-simmenu h4 { margin: 2px 4px 6px; font-size: 11px; color: #555e6e; font-weight: 600; }
+.dw-simmenu button { display: block; width: 100%; text-align: left; margin: 2px 0; padding: 5px 8px; border-radius: 6px; }
+.dw-simmenu button.v1 { background: var(--active, #00b4ff); color: #fff; border-color: #0078b0; }
+.dw-simmenu button.v0 { background: #59616f; color: #fff; border-color: #444; }
+.dw-simmenu button.cur { outline: 2px solid var(--sel); }
+.dw-simmenu .ana { display: flex; gap: 4px; align-items: center; margin: 4px 0; }
+.dw-simmenu .ana input { width: 64px; padding: 3px 5px; border: 1px solid var(--line); border-radius: 5px; font: inherit; }
+.dw-simtools { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; margin-bottom: 6px; font-size: 12px; }
+.dw-sim { font-size: 12px; display: flex; flex-direction: column; gap: 6px; }
+.dw-sim .grp { border-left: 3px solid var(--active, #00b4ff); padding: 3px 6px; background: #f3fbff; border-radius: 4px; }
+.dw-sim .grp.warn { border-color: #d08a14; background: #fff7e6; }
+.dw-sim .grp.bad { border-color: var(--red); background: #fff0ef; }
+.dw-sim .grp b { display: block; font-size: 11px; color: #555e6e; margin-bottom: 2px; }
+.dw-sim .row { display: flex; justify-content: space-between; gap: 6px; align-items: center; padding: 1px 0; cursor: pointer; }
+.dw-sim .row:hover { background: rgba(47, 91, 216, .06); }
+.dw-sim .row .v { display: inline-block; min-width: 14px; text-align: center; border-radius: 3px; font-weight: 600; padding: 0 3px; }
+.dw-sim .row .v.v1 { background: var(--active, #00b4ff); color: #fff; }
+.dw-sim .row .v.v0 { background: #59616f; color: #fff; }
+.dw-sim .row .v.ana { background: #7b4dff; color: #fff; }
+.dw-sim .row button { padding: 0 6px; font-size: 11px; }
+.dw-palhead { grid-column: 1 / -1; font-size: 11px; color: #555e6e; margin: 6px 0 0; border-top: 1px dashed var(--line); padding-top: 6px; }
+.dw-preicon { display: block; max-width: 100%; font-size: 17px; font-weight: 700; line-height: 1.15; min-height: 22px; padding: 2px 6px; border: 1.5px solid #8a93a6; border-radius: 3px; background: #fff; color: var(--ink); overflow-wrap: anywhere; }
+
+.mark { fill: #111; stroke: none; pointer-events: none; }
+
+/* L61 — FROM/TO 칸 시트 · 행 자동완성 */
+.dw-cellac { position: absolute; z-index: 6; max-height: 260px; overflow-y: auto; background: #fff; border: 1px solid var(--blue); border-radius: 3px; box-shadow: 0 4px 14px rgba(0,0,0,.18); font-size: 11.5px; }
+.dw-cellac .ac-head { padding: 3px 7px; color: #667; background: #f3f6fb; border-bottom: 1px solid #e3e8f0; font-size: 10.5px; }
+.dw-cellac .ac-it { padding: 3px 7px; cursor: pointer; white-space: nowrap; }
+.dw-cellac .ac-it b { font-weight: 600; color: #1d3a7a; }
+.dw-cellac .ac-it span { color: #667; margin-left: 4px; }
+.dw-cellac .ac-it i { font-style: normal; font-size: 10px; color: #a06000; margin-left: 3px; }
+.dw-cellac .ac-it.on, .dw-cellac .ac-it:hover { background: #e4eeff; }
+
+/* L62 — FM/TO 칸 연결 상태 표기 */
+.cell.st-miss { fill: rgba(224, 138, 0, .14); }
+.lnkbadge { cursor: pointer; font-family: Helvetica, Arial, sans-serif; font-weight: 600; }
+.lnkbadge rect { stroke-width: .35; }
+.lnkbadge.st-ok rect { fill: none; stroke: none; }
+.lnkbadge.st-ok text { fill: #0f8f80; font-weight: 400; font-size: 5.5px; }
+.lnkbadge.st-miss rect { fill: #fff3dc; stroke: #e08a00; }
+.lnkbadge.st-miss text { fill: #a85f00; }
+.lnkbadge.st-bad rect { fill: #fde6e4; stroke: #c2453f; }
+.lnkbadge.st-bad text { fill: #b0302a; }
+.lnkbadge.st-warn rect { fill: #fdf1dc; stroke: #b07614; }
+.lnkbadge.st-warn text { fill: #8a5a0a; }
+.dw-miss { margin-top: 8px; padding-top: 6px; border-top: 1px dashed #e0c48a; display: flex; flex-wrap: wrap; gap: 4px; align-items: center; }
+.dw-miss > b { color: #a85f00; font-size: 12px; }
+.dw-miss > .dw-hint { flex-basis: 100%; }
+.dw-miss button { font-size: 11px; padding: 2px 7px; border: 1px solid #e0a040; background: #fff8ea; border-radius: 3px; cursor: pointer; }
+.dw-miss button.here { border-color: #e08a00; background: #ffe9c2; font-weight: 600; }
+.dw-miss button.more { border-style: dashed; background: #fff; color: #667; }
+
+/* L63 — 공통 Typical 사전 */
+.dw-typcard { border-left: 3px solid #6a4fd0; background: #f7f4ff; }
+.dw-typcard .pri { background: #6a4fd0; color: #fff; border-color: #6a4fd0; }
+.dw-typq { width: 100%; margin: 6px 0; padding: 4px 6px; }
+.dw-typtable { max-height: 60vh; overflow: auto; }
+.dw-typtable table { border-collapse: collapse; width: 100%; font-size: 12px; }
+.dw-typtable th, .dw-typtable td { border-bottom: 1px solid #eee; padding: 3px 6px; text-align: left; white-space: nowrap; }
+.dw-typtable td:nth-child(2) { white-space: normal; min-width: 220px; }
+.dw-typtable th { position: sticky; top: 0; background: #f3f6fb; }
+.t-seed { color: #667; } .t-learn { color: #0f8f80; } .t-user { color: #6a4fd0; font-weight: 600; }
+.dw-modal-box:has(.dw-typtable) { max-width: 980px; width: 92vw; }
+
+/* L64c — 계기 리스트 */
+.dw-inst { font-size: 11.5px; color: #34404f; line-height: 1.5; }
+.dw-inst .warn { color: #b3261e; }
+.dw-inst .chg { color: #9a5a00; }
+.dw-inst ul { margin: 3px 0 0 14px; padding: 0; max-height: 140px; overflow-y: auto; }
+.dw-inst li { cursor: pointer; }
+.dw-inst li:hover { text-decoration: underline; }
+.dw-filebtn { display: inline-block; padding: 4px 9px; border: 1px solid var(--line); border-radius: 6px; background: #fff; cursor: pointer; font-size: 12px; }
+.dw-filebtn:hover { background: #f3f6fb; }
+#svg .cell.inst-miss { fill: rgba(220, 40, 30, .14); stroke: #d0352b; stroke-width: .5; }
+#svg .cell.inst-chg { fill: rgba(255, 170, 0, .20); }
+#svg text.instmark { fill: #d0352b; font-weight: 700; }
+#svg text.instchg { fill: #9a5a00; font-weight: 700; }
+
+/* L66 — 눈금자 가이드선 (화면 전용) */
+#rguides .rgline { stroke: #0e9f8e; stroke-width: .5; stroke-dasharray: 3 2; vector-effect: non-scaling-stroke; pointer-events: none; }
+#rguides .rgline.on { stroke: #ff5a36; stroke-width: 1.2; }
+#rguides .rghit { stroke: transparent; stroke-width: 6; vector-effect: non-scaling-stroke; cursor: move; pointer-events: stroke; }
+.align.rgd { stroke: #0e9f8e; stroke-width: .7; }
+.dw-mini { font-size: 11px; padding: 1px 6px; border: 1px solid #c9c4b6; background: #fff; border-radius: 4px; cursor: pointer; }
+
+/* L66 — 기호 색 · 입체감 (화면만 · PDF 는 흑백) */
+.blk.c-gate rect:not(.hit), .blk.c-gate circle, .blk.c-gate ellipse { fill: url(#gd-gate); stroke: #2d5fae; }
+.blk.c-gate line { stroke: #2d5fae; }
+.blk.c-time rect:not(.hit), .blk.c-time circle, .blk.c-time ellipse { fill: url(#gd-time); stroke: #237a45; }
+.blk.c-time line { stroke: #237a45; }
+.blk.c-mem rect:not(.hit), .blk.c-mem circle, .blk.c-mem ellipse { fill: url(#gd-mem); stroke: #6a3fb0; }
+.blk.c-mem line { stroke: #6a3fb0; }
+.blk.c-src rect:not(.hit), .blk.c-src circle, .blk.c-src ellipse { fill: url(#gd-src); stroke: #a86b00; }
+.blk.c-src line { stroke: #a86b00; }
+.blk.c-sink rect:not(.hit), .blk.c-sink circle, .blk.c-sink ellipse { fill: url(#gd-sink); stroke: #b23a2e; }
+.blk.c-sink line { stroke: #b23a2e; }
+.blk.c-conn rect:not(.hit), .blk.c-conn circle, .blk.c-conn ellipse { fill: url(#gd-conn); stroke: #4f5866; }
+.blk.c-conn line { stroke: #4f5866; }
+.blk.c-box rect:not(.hit), .blk.c-box circle, .blk.c-box ellipse { fill: url(#gd-box); stroke: #b4621b; }
+.blk.c-box line { stroke: #b4621b; }
+.blk.c-macro rect:not(.hit), .blk.c-macro circle, .blk.c-macro ellipse { fill: url(#gd-macro); stroke: #157a6e; }
+.blk.c-macro line { stroke: #157a6e; }
+#blocks { filter: drop-shadow(.7px 1px .7px rgba(20, 30, 60, .28)); }
+body.dw-dragging #blocks { filter: none; }   /* 끄는 동안은 그림자를 빼 가볍게 */
+.blk.c-note rect:not(.hit) { fill: none; }
+.blk.sel rect:not(.hit), .blk.sel circle { stroke: var(--sel); stroke-width: 1.4; }
+.blk.bad rect:not(.hit), .blk.bad circle { stroke: var(--red); stroke-width: 1.4; stroke-dasharray: 2 1.5; }
+body.sim .blk.act > rect:not(.hit), body.sim .blk.act > circle { fill: rgba(0, 180, 255, .16); stroke: #0078b0; }
+body.sim .blk.on1 > rect:not(.hit), body.sim .blk.on1 > circle { fill: rgba(0, 180, 255, .3); }
+ellipse.ell { fill: url(#gd-sink); stroke: #b23a2e; stroke-width: .8; }
+.blk.clash rect:not(.hit), .blk.clash circle { stroke: #e8590c !important; stroke-width: 1.3; stroke-dasharray: 2.2 1.2; }
+.blk.clash line { stroke: #e8590c !important; }
+
+/* VOC — 카드 제목 옆 긴 안내가 제목을 한 글자씩 세로로 밀던 것 ('기/호' · '매크/로') → 안내는 제목 아래 줄 */
+.dw-card h3.stack { flex-wrap: wrap; justify-content: flex-start; }
+.dw-card h3.stack > .dw-hint { flex: 1 1 100%; }
+.dw-form label.col { flex-direction: column; align-items: stretch; }
+.dw-form label.col textarea { width: 100%; }
+/* L79 — Logic 작성 첫 화면 */
+body.dw-homeon .dw-side, body.dw-homeon .dw-stage { display: none; }
+.dw-home { flex: 1; overflow: auto; padding: 16px 22px 40px; }
+.dw-home .hm-title h2 { margin: 0 0 2px; color: var(--blue); font-size: 22px; }
+.dw-home .hm-title p { margin: 0 0 12px; color: var(--soft); font-size: 13px; }
+.hm-card { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; box-shadow: 0 1px 2px rgba(0,0,0,.04); }
+.hm-card h3 { margin: 0 0 10px; font-size: 14px; display: flex; align-items: center; gap: 6px; }
+.hm-card h3 > b { display: inline-grid; place-items: center; width: 20px; height: 20px; border-radius: 50%; background: var(--blue); color: #fff; font-size: 12px; }
+.hm-top { display: grid; grid-template-columns: minmax(280px, 360px) 1fr; gap: 14px; margin-bottom: 14px; }
+.hm-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; font-size: 13px; }
+.hm-row > span { width: 56px; color: var(--soft); }
+.hm-row select, .hm-row input { flex: 1; min-width: 0; }
+.hm-actions { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 10px; }
+.hm-actions > * { display: grid; grid-template-columns: 34px 1fr; grid-template-rows: auto auto; gap: 1px 8px; text-align: left; padding: 10px 12px;
+  border: 1.5px dashed #b9c4dc; border-radius: 9px; background: #fbfcff; color: var(--ink); text-decoration: none; cursor: pointer; font: inherit; }
+.hm-actions > *:hover { border-style: solid; border-color: var(--blue); background: #f2f6ff; }
+.hm-actions i { grid-row: 1 / 3; font-style: normal; font-size: 20px; display: grid; place-items: center; width: 34px; height: 34px; border-radius: 8px; background: #e7edfb; color: var(--blue); }
+.hm-actions b { font-size: 13.5px; }
+.hm-actions small { color: var(--soft); font-size: 11.5px; }
+.hm-bottom { display: grid; grid-template-columns: 1.6fr 1fr; gap: 14px; align-items: start; }
+.hm-projects { display: flex; flex-direction: column; gap: 10px; }
+.hm-proj { border: 1px solid var(--line); border-left: 4px solid #8fa3d6; border-radius: 8px; padding: 8px 10px; background: #fff; }
+.hm-proj.on { border-left-color: var(--blue); box-shadow: 0 0 0 1px rgba(47,91,216,.25); }
+.hm-proj.hm-lib { border-left-color: var(--green); }
+.hm-ph { display: flex; gap: 10px; align-items: center; cursor: pointer; }
+.hm-ph > div { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 8px; }
+.hm-ph small { width: 100%; color: var(--soft); font-size: 11.5px; }
+.hm-av { width: 28px; height: 28px; border-radius: 7px; background: #e7edfb; color: var(--blue); display: grid; place-items: center; font-weight: 700; flex: none; }
+.hm-mode { font-size: 11px; border-radius: 9px; padding: 0 7px; background: #e4ecff; color: var(--blue); }
+.hm-proj ul, .hm-recent ul { list-style: none; margin: 6px 0 0; padding: 0; }
+.hm-proj li { display: flex; align-items: center; gap: 6px; padding: 5px 6px; border-top: 1px dotted #e6e3da; font-size: 12.5px; cursor: pointer; }
+.hm-proj li:hover, .hm-recent li:hover { background: #f2f6ff; }
+.hm-proj li em, .hm-recent li em { font-style: normal; color: var(--soft); font-size: 11.5px; margin-left: auto; white-space: nowrap; }
+.hm-proj li.hm-more { cursor: default; color: var(--soft); }
+.hm-ic { color: var(--soft); }
+.hm-chip { font-size: 11px; border: 1px solid #d6dbe7; border-radius: 9px; padding: 0 6px; color: var(--soft); white-space: nowrap; }
+.hm-chip.t { border-color: #9ad6cb; color: var(--green); }
+.hm-go { font-size: 11.5px; color: var(--blue); opacity: 0; }
+.hm-proj li:hover .hm-go { opacity: 1; }
+.hm-recent li { display: grid; grid-template-columns: auto 1fr; gap: 1px 8px; padding: 6px; border-top: 1px dotted #e6e3da; cursor: pointer; font-size: 12.5px; }
+.hm-recent li b { color: var(--navy); }
+.hm-recent li span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.hm-recent li em { grid-column: 1 / 3; margin: 0; white-space: normal; }
+@media (max-width: 1000px) { .hm-top, .hm-bottom { grid-template-columns: 1fr; } }
+
+/* L79 — 매크로 · Typical 팔레트 (기호 그림) */
+.dw-macroq { width: 100%; box-sizing: border-box; margin-bottom: 6px; }
+.dw-macros .mg { margin-bottom: 4px; }
+.dw-macros .mg h4 { margin: 4px 0; font-size: 12px; cursor: pointer; color: var(--navy); }
+.dw-macros .mg h4::before { content: "▾ "; color: var(--soft); }
+.dw-macros .mg.shut h4::before { content: "▸ "; }
+.dw-macros .mg.shut .mg-tiles { display: none; }
+.mg-tiles { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; }
+.dw-macros button.mtile { display: flex; flex-direction: column; align-items: stretch; gap: 2px; padding: 4px; text-align: center; justify-content: flex-start; background: #fbfdfc; }
+.dw-macros button.mtile:hover { border-color: var(--green); background: #effaf7; }
+.mt-svg { width: 100%; height: auto; max-height: 92px; }
+.mt-svg .mt-box { fill: url(#gd-macro); stroke: #2b7a6d; stroke-width: .9; }
+.mt-svg .mt-sep { stroke: #2b7a6d; stroke-width: .5; }
+.mt-svg .mt-pin { stroke: #333; stroke-width: .8; }
+.mt-svg text { font: 5.6px Arial, sans-serif; fill: #222; }
+.mt-svg .mt-title { font: bold 7px Arial, sans-serif; text-anchor: middle; }
+.mt-svg .mt-out { text-anchor: end; }
+.mt-svg .mt-more { text-anchor: middle; fill: var(--soft); }
+.mt-cap { display: flex; flex-direction: column; line-height: 1.15; }
+.mt-cap b { font-size: 11.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mt-cap small { font-size: 10.5px; color: var(--soft); }
+.mt-cap em { font-style: normal; font-size: 10.5px; color: #1f6b5f; line-height: 1.2; }
+.dw-mdesc { margin: 2px 0 6px; font-size: 12px; color: #1f6b5f; background: #eefaf7; border-radius: 6px; padding: 4px 7px; }
+.mt-cap em { font-weight: 600; }
+.mt-cap i { font-style: normal; font-size: 10px; color: var(--soft); line-height: 1.2; }
+/* L82 — 신호 처리 블록 계산 판 (두 번 누름) */
+.dw-aop { position: fixed; z-index: 70; width: 380px; max-width: calc(100vw - 16px); max-height: calc(100vh - 16px); overflow: auto; background: #fff; border: 1px solid var(--line); border-radius: 10px; box-shadow: 0 8px 28px rgba(0, 0, 0, .2); padding: 10px 12px; font-size: 12.5px; }
+.dw-aop .ap-h { display: flex; gap: 6px; align-items: baseline; }
+.dw-aop .ap-h small { color: #6b7385; }
+.dw-aop .ap-h button { margin-left: auto; border: 0; background: none; cursor: pointer; font-size: 14px; }
+.dw-aop .ap-eq { margin: 4px 0 6px; padding: 4px 7px; background: #f4f7fc; border-radius: 6px; font-family: ui-monospace, monospace; font-size: 12px; }
+.dw-aop .ap-sub { margin: 8px 0 4px; font-weight: 600; color: #2d3a55; font-size: 12px; }
+.dw-aop .ap-sub small { font-weight: 400; color: #6b7385; }
+.dw-aop table.ap-io { width: 100%; border-collapse: collapse; }
+.dw-aop .ap-io th { text-align: left; font-weight: 500; color: #6b7385; font-size: 11px; border-bottom: 1px solid var(--line); padding: 2px 4px; }
+.dw-aop .ap-io td { padding: 3px 4px; border-bottom: 1px dotted #e7ebf2; vertical-align: middle; }
+.dw-aop .ap-io td small { color: #59616f; }
+.dw-aop input, .dw-aop select, .dw-aop textarea { font: inherit; padding: 3px 6px; border: 1px solid var(--line); border-radius: 5px; }
+.dw-aop .ap-io input { width: 78px; }
+.dw-aop .ap-ps label { display: flex; gap: 6px; align-items: center; margin: 3px 0; }
+.dw-aop .ap-ps label span { min-width: 120px; color: #3c465c; }
+.dw-aop .ap-ps label.col { flex-direction: column; align-items: stretch; }
+.dw-aop .ap-ps input { width: 100px; }
+.dw-aop .ap-swap { margin-top: 4px; font-size: 11.5px; padding: 2px 8px; border: 1px solid var(--line); background: #fff; border-radius: 6px; cursor: pointer; }
+.dw-aop .ap-res { background: #f8fafd; border: 1px solid #e3e8f1; border-radius: 8px; padding: 6px 8px; }
+.dw-aop .ap-l { display: flex; gap: 8px; align-items: baseline; margin: 2px 0; }
+.dw-aop .ap-l i { font-style: normal; color: #6b7385; min-width: 46px; font-size: 11.5px; }
+.dw-aop .ap-l code { font-family: ui-monospace, monospace; font-size: 12.5px; }
+.dw-aop .ap-l.out code b { font-size: 15px; color: #0b63c5; }
+.dw-aop .ap-l.out.unk code b { color: #a35a00; }
+.dw-aop .ap-tp { margin-bottom: 3px; color: #3c465c; font-size: 11.5px; }
+.dw-aop .ap-why { color: #a35a00; font-size: 11.5px; margin-top: 3px; }
+.dw-aop .ap-btns { margin-top: 8px; display: flex; gap: 6px; }
+.dw-aop .ap-btns button { font: inherit; font-size: 12px; border: 1px solid var(--line); background: #fff; border-radius: 6px; padding: 4px 9px; cursor: pointer; }
+
+/* L84 — 휠로 장 넘기기 표시 · 넘어온 장이 살짝 나타난다 */
+.dw-fliphint { position: absolute; left: 50%; bottom: 14px; transform: translate(-50%, 8px); z-index: 20; min-width: 220px; max-width: 70%;
+  background: rgba(24, 33, 56, .88); color: #fff; font-size: 12px; border-radius: 16px; padding: 6px 14px 8px; pointer-events: none;
+  opacity: 0; transition: opacity .12s, transform .12s; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-align: center; }
+.dw-fliphint.up { bottom: auto; top: 14px; transform: translate(-50%, -8px); }
+.dw-fliphint.on { opacity: 1; transform: translate(-50%, 0); }
+.dw-fliphint i { position: absolute; left: 0; bottom: 0; height: 3px; background: #6fa8ff; width: 0; transition: width .08s; }
+#svg.dw-flipin { animation: dwFlipIn .16s ease-out; }
+@keyframes dwFlipIn { from { opacity: .35; } to { opacity: 1; } }
+/* L84 — 가볍게: 그림 칸 · 옆 칸을 따로 배치한다 (한쪽이 바뀌어도 쪽 전체 9천 개를 다시 재지 않는다) · 안 보이는 장 목록 줄은 건너뛴다 */
+.dw-stage { contain: layout paint; }
+.dw-scroll { contain: strict; }
+.dw-side { contain: layout paint; }
+.dw-sheets li { content-visibility: auto; contain-intrinsic-size: auto 19px; }
+.dw-macros .mg { content-visibility: auto; contain-intrinsic-size: auto 120px; }
+/* L84 — 그림 고르기 상자는 넓이를 정해 둔다: 827장 목록이면 값을 바꿀 때마다 브라우저가 모든 줄 글 폭을 다시 재 쪽 전체를 다시 배치했다 (장 넘길 때 0.3초) */
+#pick { width: 300px; max-width: 26vw; contain: strict; height: 26px; }
+/* L84 — 프로젝트 · 묶음 · 그림 지우기 */
+.hm-pdel { margin-left: auto; font-size: 11.5px; padding: 3px 9px; border: 1px solid #e3c9c6; color: #a5372f; background: #fff; border-radius: 6px; cursor: pointer; opacity: .55; }
+.hm-proj:hover .hm-pdel { opacity: 1; }
+.hm-pdel:hover { background: #fbeeed; border-color: #c2453f; }
+.hm-del { border: 0; background: transparent; color: #b6aea0; font-size: 12px; padding: 0 4px; cursor: pointer; opacity: 0; }
+.hm-proj li:hover .hm-del { opacity: 1; }
+.hm-del:hover { color: #c2453f; }
+.hm-proj li.hm-more[data-more] { cursor: pointer; color: var(--blue); }

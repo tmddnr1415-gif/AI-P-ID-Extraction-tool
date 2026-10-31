@@ -1,0 +1,15 @@
+· SADARA 분석 …
+   행 86 · 지문 53531ef6 · 축3 76.0점
+
+프로젝트        행         지문     Q'ty       초     RSS      축3
+SADARA     86   53531ef6        0      85    0.9G   76.0
+
+축3 내역 (지표별 맞춘 수 / 분모)
+       도면번호         개정           태그→행         수량           심볼판정         파라미터       
+SADARA 9/9          9/9          33/33        0/86         86/131       29/32      
+결과: /home/user/AI-P-ID-Extraction-tool/out/regression_3p.json
+
+★ 기준선을 벗어났습니다
+   SADARA rows: 기준선 82 → 지금 86
+   SADARA fingerprint: 기준선 0767ba79d16ac89f65c7aecb9174754967613b96c746f106584125c1c75b81b1 → 지금 53531ef68969c58f352ee38c829eaaa7b2a44638fe3bc493a6d4c9a3b6d7c9cf
+   SADARA score: 기준선 75.4 → 지금 76.0

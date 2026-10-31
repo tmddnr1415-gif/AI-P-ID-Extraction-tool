@@ -1,0 +1,35 @@
+[감사] 산출 대상 0행 / job 0개 · 사람이 도면 값을 덮어쓴 칸 0 · 도면 근거 없는 행 0
+[감사] 고아 업로드 0 · 고아 출력 0 · 고아 진단 0 · 고아 그림 캐시 0 · DB 0.1 MB 중 죽은 페이지 0.0 MB · 정리하면 되찾는 용량 0.0 MB
+DB 백업: /tmp/claude-0/-home-user-AI-P-ID-Extraction-tool/fe53d760-3b43-5955-9b01-deac3d244b34/scratchpad/l64ui/backups/app.db.2026-10-25.bak
+INFO:     Started server process [19709]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://127.0.0.1:35379 (Press CTRL+C to quit)
+INFO:     127.0.0.1:37096 - "GET /version HTTP/1.1" 200 OK
+INFO:     127.0.0.1:37106 - "GET /logic/api/drawings/sets HTTP/1.1" 200 OK
+INFO:     127.0.0.1:37114 - "GET /logic/api/drawings/07a1f8f376f4 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:37116 - "GET /logic/draw HTTP/1.1" 200 OK
+INFO:     127.0.0.1:37120 - "GET /static/logic_draw.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:37116 - "GET /static/logic_draw.css HTTP/1.1" 200 OK
+INFO:     127.0.0.1:37120 - "GET /logic/api/drawings/symbols HTTP/1.1" 200 OK
+INFO:     127.0.0.1:37120 - "GET /logic/api/projects HTTP/1.1" 200 OK
+INFO:     127.0.0.1:37116 - "GET /favicon.ico HTTP/1.1" 200 OK
+INFO:     127.0.0.1:37116 - "GET /logic/api/drawings/instruments?project= HTTP/1.1" 200 OK
+INFO:     127.0.0.1:37120 - "GET /logic/api/drawings HTTP/1.1" 200 OK
+INFO:     127.0.0.1:37120 - "GET /logic/api/drawings/07a1f8f376f4 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:37120 - "GET /logic/api/drawings/sets/a1d8a25893b7 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:37120 - "GET /logic/api/drawings/instruments?project=1A5J HTTP/1.1" 200 OK
+INFO:     127.0.0.1:37120 - "POST /logic/api/drawings/instruments HTTP/1.1" 200 OK
+INFO:     127.0.0.1:37120 - "GET /logic/api/drawings/instruments?project=1A5J HTTP/1.1" 200 OK
+INFO:     127.0.0.1:37120 - "PUT /logic/api/drawings/07a1f8f376f4 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:37120 - "POST /logic/api/drawings/sets/a1d8a25893b7/autolink HTTP/1.1" 200 OK
+INFO:     127.0.0.1:37120 - "GET /logic/api/drawings HTTP/1.1" 200 OK
+INFO:     127.0.0.1:37116 - "GET /logic/api/drawings/sets/a1d8a25893b7 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:37120 - "POST /logic/api/drawings/instruments HTTP/1.1" 200 OK
+INFO:     127.0.0.1:37120 - "GET /logic/api/drawings/07a1f8f376f4 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:37120 - "GET /logic/api/drawings/sets/a1d8a25893b7 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:37120 - "GET /logic/api/drawings/instruments?project=1A5J HTTP/1.1" 200 OK
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [19709]

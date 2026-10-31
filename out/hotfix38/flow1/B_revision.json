@@ -1,0 +1,1303 @@
+{
+ "project": "QFE",
+ "revision": "Rev.B",
+ "compared_with": "Rev.A",
+ "label": "Rev.B vs Rev.A",
+ "counts": {
+  "UNCHANGED": 1426,
+  "MODIFIED": 382,
+  "ADDED": 191,
+  "DELETED_CANDIDATE": 46,
+  "DELETED": 0
+ },
+ "deleted_candidates": [
+  {
+   "id": "00PAB10-032",
+   "drawing_no": "1A1Y-00PAB10-M05-0001",
+   "page_no": 11,
+   "type": "RO",
+   "description": "BLOCK 10 HRSG BLOWDOWN & DISCHARGE RESTRICTION ORIFICE",
+   "tab": "FIELD",
+   "excel_no": 232,
+   "values": {
+    "description": "BLOCK 10 HRSG BLOWDOWN & DISCHARGE RESTRICTION ORIFICE",
+    "qty": 1,
+    "scope": "SCT",
+    "system": "P&ID FOR CIRCULATING WATER SYSTEM FOR SEAWATER INTAKE (1 OF 2)",
+    "tag_no": "50PAB11BP601",
+    "type": "RO",
+    "valve_type": "",
+    "vendor_supply": ""
+   },
+   "anchor": [
+    207.8,
+    699.0
+   ],
+   "radius": 73.8,
+   "radius_source": "DRAWING_BUBBLE",
+   "nearest_distance": null,
+   "nearest_row_key": null,
+   "confirmed": false
+  },
+  {
+   "id": "00PAB10-033",
+   "drawing_no": "1A1Y-00PAB10-M05-0001",
+   "page_no": 11,
+   "type": "RO",
+   "description": "1650x1900 PAB1 50PAC01AP001 WATER PLANT SEAWATER SUPPLY PUMP A RESTRICTION ORIFICE",
+   "tab": "FIELD",
+   "excel_no": 262,
+   "values": {
+    "description": "1650x1900 PAB1 50PAC01AP001 WATER PLANT SEAWATER SUPPLY PUMP A RESTRICTION ORIFICE",
+    "qty": 1,
+    "scope": "SCT",
+    "system": "P&ID FOR CIRCULATING WATER SYSTEM FOR SEAWATER INTAKE (1 OF 2)",
+    "tag_no": "50PAB12BP601",
+    "type": "RO",
+    "valve_type": "",
+    "vendor_supply": ""
+   },
+   "anchor": [
+    370.1,
+    699.0
+   ],
+   "radius": 73.8,
+   "radius_source": "DRAWING_BUBBLE",
+   "nearest_distance": null,
+   "nearest_row_key": null,
+   "confirmed": false
+  },
+  {
+   "id": "00QFA10-023",
+   "drawing_no": "1A1Y-00QFA10-M05-0001",
+   "page_no": 16,
+   "type": "PIT",
+   "description": "AIR A/B/C PRESSURE PRESSURE PRESSURE A",
+   "tab": "FIELD",
+   "excel_no": 770,
+   "values": {
+    "description": "AIR A/B/C PRESSURE PRESSURE PRESSURE A",
+    "qty": 1,
+    "scope": "VENDOR",
+    "system": "P&ID FOR COMPRESSED AIR SYSTEM",
+    "tag_no": "00SCA00CP001A",
+    "type": "PIT",
+    "valve_type": "",
+    "vendor_supply": "UNDEFINED"
+   },
+   "anchor": [
+    442.3,
+    1047.8
+   ],
+   "radius": 73.7,
+   "radius_source": "DRAWING_BUBBLE",
+   "nearest_distance": 42.4,
+   "nearest_row_key": "91852a9b8304e121",
+   "confirmed": false
+  },
+  {
+   "id": "00QFB10-001",
+   "drawing_no": "1A1Y-00QFB10-M05-0001",
+   "page_no": 17,
+   "type": "PI",
+   "description": "INSTRUMENT AIR DISTRIBUTION VACUUM PRESSURE PRESSURE PRESSURE",
+   "tab": "FIELD",
+   "excel_no": 1192,
+   "values": {
+    "description": "INSTRUMENT AIR DISTRIBUTION VACUUM PRESSURE PRESSURE PRESSURE",
+    "qty": 4,
+    "scope": "SCT",
+    "system": "P&ID FOR INSTRUMENT AIR DISTRIBUTION SYSTEM",
+    "tag_no": "00QFB26CP501",
+    "type": "PI",
+    "valve_type": "",
+    "vendor_supply": ""
+   },
+   "anchor": [
+    1179.2,
+    736.55
+   ],
+   "radius": 61.5,
+   "radius_source": "DRAWING_BUBBLE",
+   "nearest_distance": 341.15,
+   "nearest_row_key": "070c1f61ff947803",
+   "confirmed": false
+  },
+  {
+   "id": "00QFB10-002",
+   "drawing_no": "1A1Y-00QFB10-M05-0001",
+   "page_no": 17,
+   "type": "PI",
+   "description": "INSTRUMENT AIR DISTRIBUTION STEAM D PRESSURE PRESSURE PRESSURE",
+   "tab": "FIELD",
+   "excel_no": 1193,
+   "values": {
+    "description": "INSTRUMENT AIR DISTRIBUTION STEAM D PRESSURE PRESSURE PRESSURE",
+    "qty": 4,
+    "scope": "SCT",
+    "system": "P&ID FOR INSTRUMENT AIR DISTRIBUTION SYSTEM",
+    "tag_no": "00QFB26CP502",
+    "type": "PI",
+    "valve_type": "",
+    "vendor_supply": ""
+   },
+   "anchor": [
+    789.9,
+    908.4
+   ],
+   "radius": 61.5,
+   "radius_source": "DRAWING_BUBBLE",
+   "nearest_distance": 316.59,
+   "nearest_row_key": "a62787222277594b",
+   "confirmed": false
+  },
+  {
+   "id": "10LCA10-018",
+   "drawing_no": "1A1Y-10LCA10-M05-0001",
+   "page_no": 56,
+   "type": "GLOBE",
+   "description": "",
+   "tab": "REVIEW",
+   "excel_no": 166,
+   "values": {
+    "description": "",
+    "qty": 3,
+    "scope": "SCT",
+    "system": "P&ID FOR CONDENSATE SYSTEM BLOCK10",
+    "tag_no": "",
+    "type": "GLOBE",
+    "valve_type": "",
+    "vendor_supply": ""
+   },
+   "anchor": [
+    564.05,
+    615.4
+   ],
+   "radius": 73.6,
+   "radius_source": "DRAWING_BUBBLE",
+   "nearest_distance": null,
+   "nearest_row_key": null,
+   "confirmed": false
+  },
+  {
+   "id": "10LCA10-023",
+   "drawing_no": "1A1Y-10LCA10-M05-0001",
+   "page_no": 56,
+   "type": "GLOBE",
+   "description": "FROM DEMI WATER SUPPLY PUMP GLOBE VALVE",
+   "tab": "REVIEW",
+   "excel_no": 169,
+   "values": {
+    "description": "FROM DEMI WATER SUPPLY PUMP GLOBE VALVE",
+    "qty": 3,
+    "scope": "SCT",
+    "system": "P&ID FOR CONDENSATE SYSTEM BLOCK10",
+    "tag_no": "",
+    "type": "GLOBE",
+    "valve_type": "",
+    "vendor_supply": ""
+   },
+   "anchor": [
+    589.55,
+    772.55
+   ],
+   "radius": 73.6,
+   "radius_source": "DRAWING_BUBBLE",
+   "nearest_distance": null,
+   "nearest_row_key": null,
+   "confirmed": false
+  },
+  {
+   "id": "10LCM10-001",
+   "drawing_no": "1A1Y-10LCM10-M05-0001",
+   "page_no": 51,
+   "type": "PI",
+   "description": "UNIT #10 CLEAN DRAIN TANK 10LCM10BB001 PRESSURE PRESSURE PRESSURE",
+   "tab": "FIELD",
+   "excel_no": 337,
+   "values": {
+    "description": "UNIT #10 CLEAN DRAIN TANK 10LCM10BB001 PRESSURE PRESSURE PRESSURE",
+    "qty": 2,
+    "scope": "SCT",
+    "system": "P&ID FOR CLEAN DRAIN SYSTEM - BLOCK 10",
+    "tag_no": "10LCM10CP501",
+    "type": "PI",
+    "valve_type": "",
+    "vendor_supply": ""
+   },
+   "anchor": [
+    610.1,
+    566.95
+   ],
+   "radius": 73.7,
+   "radius_source": "DRAWING_BUBBLE",
+   "nearest_distance": 635.44,
+   "nearest_row_key": "121a813d309bf393",
+   "confirmed": false
+  },
+  {
+   "id": "10LCM10-002",
+   "drawing_no": "1A1Y-10LCM10-M05-0001",
+   "page_no": 51,
+   "type": "LIT",
+   "description": "UNIT #10 CLEAN DRAIN STEAM G LEVEL LEVEL LEVEL",
+   "tab": "FIELD",
+   "excel_no": 342,
+   "values": {
+    "description": "UNIT #10 CLEAN DRAIN STEAM G LEVEL LEVEL LEVEL",
+    "qty": 2,
+    "scope": "SCT",
+    "system": "P&ID FOR CLEAN DRAIN SYSTEM - BLOCK 10",
+    "tag_no": "10LCM10CL001A",
+    "type": "LIT",
+    "valve_type": "",
+    "vendor_supply": ""
+   },
+   "anchor": [
+    622.35,
+    884.55
+   ],
+   "radius": 73.7,
+   "radius_source": "DRAWING_BUBBLE",
+   "nearest_distance": null,
+   "nearest_row_key": null,
+   "confirmed": false
+  },
+  {
+   "id": "10LCM10-003",
+   "drawing_no": "1A1Y-10LCM10-M05-0001",
+   "page_no": 51,
+   "type": "LIT",
+   "description": "UNIT #10 CLEAN DRAIN TANK 10LCM10BB001 LEVEL LEVEL LEVEL",
+   "tab": "FIELD",
+   "excel_no": 338,
+   "values": {
+    "description": "UNIT #10 CLEAN DRAIN TANK 10LCM10BB001 LEVEL LEVEL LEVEL",
+    "qty": 2,
+    "scope": "SCT",
+    "system": "P&ID FOR CLEAN DRAIN SYSTEM - BLOCK 10",
+    "tag_no": "10LCM10CL001B",
+    "type": "LIT",
+    "valve_type": "",
+    "vendor_supply": ""
+   },
+   "anchor": [
+    713.45,
+    884.55
+   ],
+   "radius": 73.7,
+   "radius_source": "DRAWING_BUBBLE",
+   "nearest_distance": null,
+   "nearest_row_key": null,
+   "confirmed": false
+  },
+  {
+   "id": "10LCM10-004",
+   "drawing_no": "1A1Y-10LCM10-M05-0001",
+   "page_no": 51,
+   "type": "LI",
+   "description": "UNIT #10 CLEAN DRAIN PUMP CONTROL LEVEL LEVEL LEVEL",
+   "tab": "FIELD",
+   "excel_no": 339,
+   "values": {
+    "description": "UNIT #10 CLEAN DRAIN PUMP CONTROL LEVEL LEVEL LEVEL",
+    "qty": 2,
+    "scope": "VENDOR",
+    "system": "P&ID FOR CLEAN DRAIN SYSTEM - BLOCK 10",
+    "tag_no": "10LCM10CL002",
+    "type": "LI",
+    "valve_type": "",
+    "vendor_supply": "UNDEFINED"
+   },
+   "anchor": [
+    810.75,
+    884.5
+   ],
+   "radius": 73.7,
+   "radius_source": "DRAWING_BUBBLE",
+   "nearest_distance": null,
+   "nearest_row_key": null,
+   "confirmed": false
+  },
+  {
+   "id": "10MAA10-002",
+   "drawing_no": "1A1Y-10MAA10-M05-0001",
+   "page_no": 84,
+   "type": "NEEDLE",
+   "description": "TO CLEAN DRAIN TANK NEEDLE VALVE",
+   "tab": "REVIEW",
+   "excel_no": 342,
+   "values": {
+    "description": "TO CLEAN DRAIN TANK NEEDLE VALVE",
+    "qty": 2,
+    "scope": "SCT",
+    "system": "P&ID FOR STEAM TURBINE INTERCONNECTING SYSTEM - BLOCK 10",
+    "tag_no": "",
+    "type": "NEEDLE",
+    "valve_type": "",
+    "vendor_supply": ""
+   },
+   "anchor": [
+    1330.2,
+    872.5
+   ],
+   "radius": 18.1,
+   "radius_source": "DRAWING_BUBBLE",
+   "nearest_distance": 209.42,
+   "nearest_row_key": "712d4cd41e2eb4fa",
+   "confirmed": false
+  },
+  {
+   "id": "10PAB10-011",
+   "drawing_no": "1A1Y-10PAB10-M05-0001",
+   "page_no": 63,
+   "type": "PI",
+   "description": "UNIT #2 CIRCULATING WATER SURFACE CONDENSER #10 10MAG00AC001 PRESSURE PRESSURE PRESSURE A",
+   "tab": "FIELD",
+   "excel_no": 222,
+   "values": {
+    "description": "UNIT #2 CIRCULATING WATER SURFACE CONDENSER #10 10MAG00AC001 PRESSURE PRESSURE PRESSURE A",
+    "qty": 2,
+    "scope": "SCT",
+    "system": "P&ID FOR CIRCULATING WATER SYSTEM FOR CONDENSER COOLING WATER - BLOCK 10",
+    "tag_no": "10PAB22CP502",
+    "type": "PI",
+    "valve_type": "",
+    "vendor_supply": ""
+   },
+   "anchor": [
+    542.5,
+    707.5
+   ],
+   "radius": 73.8,
+   "radius_source": "DRAWING_BUBBLE",
+   "nearest_distance": 78.4,
+   "nearest_row_key": "d2879e8ab4911815",
+   "confirmed": false
+  },
+  {
+   "id": "10PAB10-012",
+   "drawing_no": "1A1Y-10PAB10-M05-0001",
+   "page_no": 63,
+   "type": "PI",
+   "description": "UNIT #2 CIRCULATING WATER SURFACE CONDENSER #10 10MAG00AC001 PRESSURE PRESSURE PRESSURE B",
+   "tab": "FIELD",
+   "excel_no": 217,
+   "values": {
+    "description": "UNIT #2 CIRCULATING WATER SURFACE CONDENSER #10 10MAG00AC001 PRESSURE PRESSURE PRESSURE B",
+    "qty": 2,
+    "scope": "SCT",
+    "system": "P&ID FOR CIRCULATING WATER SYSTEM FOR CONDENSER COOLING WATER - BLOCK 10",
+    "tag_no": "10PAB22CP501",
+    "type": "PI",
+    "valve_type": "",
+    "vendor_supply": ""
+   },
+   "anchor": [
+    683.9,
+    707.5
+   ],
+   "radius": 73.8,
+   "radius_source": "DRAWING_BUBBLE",
+   "nearest_distance": 78.4,
+   "nearest_row_key": "08b69a990eee8f1b",
+   "confirmed": false
+  },
+  {
+   "id": "10PAB10-013",
+   "drawing_no": "1A1Y-10PAB10-M05-0001",
+   "page_no": 63,
+   "type": "PI",
+   "description": "UNIT #2 CIRCULATING WATER SURFACE CONDENSER #10 10MAG00AC001 PRESSURE PRESSURE PRESSURE C",
+   "tab": "FIELD",
+   "excel_no": 215,
+   "values": {
+    "description": "UNIT #2 CIRCULATING WATER SURFACE CONDENSER #10 10MAG00AC001 PRESSURE PRESSURE PRESSURE C",
+    "qty": 2,
+    "scope": "SCT",
+    "system": "P&ID FOR CIRCULATING WATER SYSTEM FOR CONDENSER COOLING WATER - BLOCK 10",
+    "tag_no": "10PAB21CP502",
+    "type": "PI",
+    "valve_type": "",
+    "vendor_supply": ""
+   },
+   "anchor": [
+    825.3,
+    707.5
+   ],
+   "radius": 73.8,
+   "radius_source": "DRAWING_BUBBLE",
+   "nearest_distance": 78.4,
+   "nearest_row_key": "3d32aebd571e2641",
+   "confirmed": false
+  },
+  {
+   "id": "10PAB10-014",
+   "drawing_no": "1A1Y-10PAB10-M05-0001",
+   "page_no": 63,
+   "type": "PI",
+   "description": "UNIT #2 CIRCULATING WATER BALL REC PUMP AND COLLECTOR SKID 11PAB21AT002 PRESSURE PRESSURE PRESSURE A",
+   "tab": "FIELD",
+   "excel_no": 220,
+   "values": {
+    "description": "UNIT #2 CIRCULATING WATER BALL REC PUMP AND COLLECTOR SKID 11PAB21AT002 PRESSURE PRESSURE PRESSURE A",
+    "qty": 2,
+    "scope": "SCT",
+    "system": "P&ID FOR CIRCULATING WATER SYSTEM FOR CONDENSER COOLING WATER - BLOCK 10",
+    "tag_no": "10PAB21CP501",
+    "type": "PI",
+    "valve_type": "",
+    "vendor_supply": ""
+   },
+   "anchor": [
+    966.7,
+    707.5
+   ],
+   "radius": 73.8,
+   "radius_source": "DRAWING_BUBBLE",
+   "nearest_distance": 78.4,
+   "nearest_row_key": "9bd4dc4568f1fb78",
+   "confirmed": false
+  },
+  {
+   "id": "10PCB10-007",
+   "drawing_no": "1A1Y-10PCB10-M05-0001",
+   "page_no": 64,
+   "type": "PDIT",
+   "description": "UNIT #10 10PGB21AC001 GT AND BOP CLOSED COOLING WATER HEAT EXCHANGER A INLET DIFFERENTIAL PRESSURE B B",
+   "tab": "FIELD",
+   "excel_no": 8,
+   "values": {
+    "description": "UNIT #10 10PGB21AC001 GT AND BOP CLOSED COOLING WATER HEAT EXCHANGER A INLET DIFFERENTIAL PRESSURE B B",
+    "qty": 2,
+    "scope": "SCT",
+    "system": "P&ID FOR AUXILIARY COOLING WATER SYSTEM FOR GT AND BOP - BLOCK 10",
+    "tag_no": "",
+    "type": "PDIT",
+    "valve_type": "",
+    "vendor_supply": ""
+   },
+   "anchor": [
+    1235.9,
+    385.2
+   ],
+   "radius": 73.8,
+   "radius_source": "DRAWING_BUBBLE",
+   "nearest_distance": 486.13,
+   "nearest_row_key": "4a3a155767e67b27",
+   "confirmed": false
+  },
+  {
+   "id": "11LAB00-024",
+   "drawing_no": "1A1Y-11LAB00-M05-0001",
+   "page_no": 59,
+   "type": "RO",
+   "description": "UNIT #11 FEEDWATER 21 PUMP-A H LAB3 RESTRICTION ORIFICE",
+   "tab": "FIELD",
+   "excel_no": 928,
+   "values": {
+    "description": "UNIT #11 FEEDWATER 21 PUMP-A H LAB3 RESTRICTION ORIFICE",
+    "qty": 3,
+    "scope": "SCT",
+    "system": "P&ID FOR FEEDWATER SYSTEM - UNIT 11",
+    "tag_no": "",
+    "type": "RO",
+    "valve_type": "",
+    "vendor_supply": ""
+   },
+   "anchor": [
+    1093.05,
+    498.55
+   ],
+   "radius": 73.8,
+   "radius_source": "DRAWING_BUBBLE",
+   "nearest_distance": null,
+   "nearest_row_key": null,
+   "confirmed": false
+  },
+  {
+   "id": "11LAB00-026",
+   "drawing_no": "1A1Y-11LAB00-M05-0001",
+   "page_no": 59,
+   "type": "TIT",
+   "description": "21 PUMP-A H LAB3 TEMPERATURE TRANSMITTER",
+   "tab": "FIELD",
+   "excel_no": 966,
+   "values": {
+    "description": "21 PUMP-A H LAB3 TEMPERATURE TRANSMITTER",
+    "qty": 3,
+    "scope": "SCT",
+    "system": "P&ID FOR FEEDWATER SYSTEM - UNIT 11",
+    "tag_no": "11LAB10CT001",
+    "type": "TIT",
+    "valve_type": "",
+    "vendor_supply": ""
+   },
+   "anchor": [
+    1824.9,
+    599.8
+   ],
+   "radius": 73.8,
+   "radius_source": "DRAWING_BUBBLE",
+   "nearest_distance": 121.33,
+   "nearest_row_key": "062ca8362390857e",
+   "confirmed": false
+  },
+  {
+   "id": "11LAB00-032",
+   "drawing_no": "1A1Y-11LAB00-M05-0001",
+   "page_no": 59,
+   "type": "PI",
+   "description": "LP DRUM BYPASS V/V DISCHARGE PRESSURE GAUGE",
+   "tab": "FIELD",
+   "excel_no": 967,
+   "values": {
+    "description": "LP DRUM BYPASS V/V DISCHARGE PRESSURE GAUGE",
+    "qty": 3,
+    "scope": "SCT",
+    "system": "P&ID FOR FEEDWATER SYSTEM - UNIT 11",
+    "tag_no": "11LAB10CP901",
+    "type": "PI",
+    "valve_type": "",
+    "vendor_supply": ""
+   },
+   "anchor": [
+    1918.45,
+    670.6
+   ],
+   "radius": 73.8,
+   "radius_source": "DRAWING_BUBBLE",
+   "nearest_distance": null,
+   "nearest_row_key": null,
+   "confirmed": false
+  },
+  {
+   "id": "11LAB00-033",
+   "drawing_no": "1A1Y-11LAB00-M05-0001",
+   "page_no": 59,
+   "type": "PIT",
+   "description": "UNIT #11 FEEDWATER 21 PUMP-A H LAB3 DISCHARGE PRESSURE PRESSURE PRESSURE E",
+   "tab": "FIELD",
+   "excel_no": 954,
+   "values": {
+    "description": "UNIT #11 FEEDWATER 21 PUMP-A H LAB3 DISCHARGE PRESSURE PRESSURE PRESSURE E",
+    "qty": 3,
+    "scope": "SCT",
+    "system": "P&ID FOR FEEDWATER SYSTEM - UNIT 11",
+    "tag_no": "11LAB10CP001A",
+    "type": "PIT",
+    "valve_type": "",
+    "vendor_supply": ""
+   },
+   "anchor": [
+    1824.7,
+    689.05
+   ],
+   "radius": 73.8,
+   "radius_source": "DRAWING_BUBBLE",
+   "nearest_distance": 99.53,
+   "nearest_row_key": "0d38e5232362bba3",
+   "confirmed": false
+  },
+  {
+   "id": "11LAB00-046",
+   "drawing_no": "1A1Y-11LAB00-M05-0001",
+   "page_no": 59,
+   "type": "RO",
+   "description": "UNIT #11 FEEDWATER PUMP-B RESTRICTION ORIFICE",
+   "tab": "FIELD",
+   "excel_no": 949,
+   "values": {
+    "description": "UNIT #11 FEEDWATER PUMP-B RESTRICTION ORIFICE",
+    "qty": 3,
+    "scope": "SCT",
+    "system": "P&ID FOR FEEDWATER SYSTEM - UNIT 11",
+    "tag_no": "",
+    "type": "RO",
+    "valve_type": "",
+    "vendor_supply": ""
+   },
+   "anchor": [
+    1094.75,
+    1031.2
+   ],
+   "radius": 73.8,
+   "radius_source": "DRAWING_BUBBLE",
+   "nearest_distance": null,
+   "nearest_row_key": null,
+   "confirmed": false
+  },
+  {
+   "id": "11LAB00-063",
+   "drawing_no": "1A1Y-11LAB00-M05-0001",
+   "page_no": 59,
+   "type": "RO",
+   "description": "UNIT #11 FEEDWATER PUMP-C RESTRICTION ORIFICE",
+   "tab": "FIELD",
+   "excel_no": 952,
+   "values": {
+    "description": "UNIT #11 FEEDWATER PUMP-C RESTRICTION ORIFICE",
+    "qty": 3,
+    "scope": "SCT",
+    "system": "P&ID FOR FEEDWATER SYSTEM - UNIT 11",
+    "tag_no": "11LAB23BP601",
+    "type": "RO",
+    "valve_type": "",
+    "vendor_supply": ""
+   },
+   "anchor": [
+    1094.75,
+    1558.4
+   ],
+   "radius": 73.8,
+   "radius_source": "DRAWING_BUBBLE",
+   "nearest_distance": null,
+   "nearest_row_key": null,
+   "confirmed": false
+  },
+  {
+   "id": "11LCM10-001",
+   "drawing_no": "1A1Y-11LCM10-M05-0001",
+   "page_no": 52,
+   "type": "LI",
+   "description": "UNIT #11 GT FLASH PIPE HRSG BLOWDOWN TANK - UNIT 11 LEVEL LEVEL LEVEL",
+   "tab": "FIELD",
+   "excel_no": 1132,
+   "values": {
+    "description": "UNIT #11 GT FLASH PIPE HRSG BLOWDOWN TANK - UNIT 11 LEVEL LEVEL LEVEL",
+    "qty": 2,
+    "scope": "SCT",
+    "system": "P&ID FOR GT FLASH PIPE SYSTEM - UNIT 11",
+    "tag_no": "11LCM10CL501",
+    "type": "LI",
+    "valve_type": "",
+    "vendor_supply": ""
+   },
+   "anchor": [
+    1651.7,
+    938.2
+   ],
+   "radius": 73.8,
+   "radius_source": "DRAWING_BUBBLE",
+   "nearest_distance": 873.29,
+   "nearest_row_key": "9733043e6c651838",
+   "confirmed": false
+  },
+  {
+   "id": "11MBA10-002",
+   "drawing_no": "1A1Y-11MBA10-M05-0003",
+   "page_no": 80,
+   "type": "CHECK",
+   "description": "TO GT COOLING AIR COOLER DRAIN VALVE CHECK VALVE",
+   "tab": "REVIEW",
+   "excel_no": 261,
+   "values": {
+    "description": "TO GT COOLING AIR COOLER DRAIN VALVE CHECK VALVE",
+    "qty": 3,
+    "scope": "SCT",
+    "system": "P&ID FOR GAS TURBINE INTERCONNECTION SYSTEM - UNIT 11 (3 OF 3)",
+    "tag_no": "",
+    "type": "CHECK",
+    "valve_type": "",
+    "vendor_supply": ""
+   },
+   "anchor": [
+    1719.15,
+    204.4
+   ],
+   "radius": 73.7,
+   "radius_source": "DRAWING_BUBBLE",
+   "nearest_distance": 115.24,
+   "nearest_row_key": "ba459eb83f88f3e8",
+   "confirmed": false
+  },
+  {
+   "id": "11MBA10-004",
+   "drawing_no": "1A1Y-11MBA10-M05-0003",
+   "page_no": 80,
+   "type": "PIT",
+   "description": "UNIT #11 GAS TURBINE INTERCONNECTION COMPRESSOR DISCHARGE PRESSURE PRESSURE PRESSURE",
+   "tab": "FIELD",
+   "excel_no": 1127,
+   "values": {
+    "description": "UNIT #11 GAS TURBINE INTERCONNECTION COMPRESSOR DISCHARGE PRESSURE PRESSURE PRESSURE",
+    "qty": 3,
+    "scope": "SCT",
+    "system": "P&ID FOR GAS TURBINE INTERCONNECTION SYSTEM - UNIT 11 (3 OF 3)",
+    "tag_no": "11QFB03CP002",
+    "type": "PIT",
+    "valve_type": "",
+    "vendor_supply": ""
+   },
+   "anchor": [
+    1891.45,
+    293.7
+   ],
+   "radius": 73.7,
+   "radius_source": "DRAWING_BUBBLE",
+   "nearest_distance": 222.27,
+   "nearest_row_key": "91b6cdb670d4b833",
+   "confirmed": false
+  },
+  {
+   "id": "11PGB10-008",
+   "drawing_no": "1A1Y-11PGB10-M05-0001",
+   "page_no": 69,
+   "type": "PI",
+   "description": "UNIT #11 CCW GT CONTROL COOLER PRESSURE PRESSURE PRESSURE B",
+   "tab": "FIELD",
+   "excel_no": 449,
+   "values": {
+    "description": "UNIT #11 CCW GT CONTROL COOLER PRESSURE PRESSURE PRESSURE B",
+    "qty": 4,
+    "scope": "SCT",
+    "system": "P&ID FOR CLOSED COOLING WATER SYSTEM GT UNIT 11",
+    "tag_no": "11PGB14CP503",
+    "type": "PI",
+    "valve_type": "",
+    "vendor_supply": ""
+   },
+   "anchor": [
+    1125.75,
+    570.0
+   ],
+   "radius": 73.7,
+   "radius_source": "DRAWING_BUBBLE",
+   "nearest_distance": 152.7,
+   "nearest_row_key": "b7e012060adb088c",
+   "confirmed": false
+  },
+  {
+   "id": "11PGB10-039",
+   "drawing_no": "1A1Y-11PGB10-M05-0001",
+   "page_no": 69,
+   "type": "PI",
+   "description": "UNIT #11 CCW GT LUBE OIL COOLER 1A1Y-M01-M00-PID-0004 A PRESSURE PRESSURE PRESSURE D",
+   "tab": "FIELD",
+   "excel_no": 453,
+   "values": {
+    "description": "UNIT #11 CCW GT LUBE OIL COOLER 1A1Y-M01-M00-PID-0004 A PRESSURE PRESSURE PRESSURE D",
+    "qty": 4,
+    "scope": "SCT",
+    "system": "P&ID FOR CLOSED COOLING WATER SYSTEM GT UNIT 11",
+    "tag_no": "11PGB15CP501",
+    "type": "PI",
+    "valve_type": "",
+    "vendor_supply": ""
+   },
+   "anchor": [
+    1706.85,
+    1168.1
+   ],
+   "radius": 73.7,
+   "radius_source": "DRAWING_BUBBLE",
+   "nearest_distance": 112.2,
+   "nearest_row_key": "65310bc722c5b075",
+   "confirmed": false
+  },
+  {
+   "id": "11PGB10-040",
+   "drawing_no": "1A1Y-11PGB10-M05-0001",
+   "page_no": 69,
+   "type": "PI",
+   "description": "UNIT #11 CCW GT LUBE OIL COOLER 1A1Y-M01-M00-PID-0004 A PRESSURE PRESSURE PRESSURE E",
+   "tab": "FIELD",
+   "excel_no": 450,
+   "values": {
+    "description": "UNIT #11 CCW GT LUBE OIL COOLER 1A1Y-M01-M00-PID-0004 A PRESSURE PRESSURE PRESSURE E",
+    "qty": 4,
+    "scope": "SCT",
+    "system": "P&ID FOR CLOSED COOLING WATER SYSTEM GT UNIT 11",
+    "tag_no": "11PGB15CP502",
+    "type": "PI",
+    "valve_type": "",
+    "vendor_supply": ""
+   },
+   "anchor": [
+    1844.9,
+    1168.1
+   ],
+   "radius": 73.7,
+   "radius_source": "DRAWING_BUBBLE",
+   "nearest_distance": 112.2,
+   "nearest_row_key": "f0f2a67ebd23a1fb",
+   "confirmed": false
+  },
+  {
+   "id": "12LAB00-024",
+   "drawing_no": "1A1Y-12LAB00-M05-0001",
+   "page_no": 60,
+   "type": "RO",
+   "description": "UNIT #12 FEEDWATER 21 PUMP-A H LAB3 RESTRICTION ORIFICE",
+   "tab": "FIELD",
+   "excel_no": 1013,
+   "values": {
+    "description": "UNIT #12 FEEDWATER 21 PUMP-A H LAB3 RESTRICTION ORIFICE",
+    "qty": 3,
+    "scope": "SCT",
+    "system": "P&ID FOR FEEDWATER SYSTEM - UNIT 12",
+    "tag_no": "12LAB21BP601",
+    "type": "RO",
+    "valve_type": "",
+    "vendor_supply": ""
+   },
+   "anchor": [
+    1093.05,
+    498.55
+   ],
+   "radius": 73.7,
+   "radius_source": "DRAWING_BUBBLE",
+   "nearest_distance": null,
+   "nearest_row_key": null,
+   "confirmed": false
+  },
+  {
+   "id": "12LAB00-026",
+   "drawing_no": "1A1Y-12LAB00-M05-0001",
+   "page_no": 60,
+   "type": "TIT",
+   "description": "21 PUMP-A H LAB3 TEMPERATURE TRANSMITTER",
+   "tab": "FIELD",
+   "excel_no": 1009,
+   "values": {
+    "description": "21 PUMP-A H LAB3 TEMPERATURE TRANSMITTER",
+    "qty": 3,
+    "scope": "SCT",
+    "system": "P&ID FOR FEEDWATER SYSTEM - UNIT 12",
+    "tag_no": "12LAB10CT001",
+    "type": "TIT",
+    "valve_type": "",
+    "vendor_supply": ""
+   },
+   "anchor": [
+    1824.9,
+    599.8
+   ],
+   "radius": 73.7,
+   "radius_source": "DRAWING_BUBBLE",
+   "nearest_distance": 131.85,
+   "nearest_row_key": "a4d7736a0637c7b0",
+   "confirmed": false
+  },
+  {
+   "id": "12LAB00-030",
+   "drawing_no": "1A1Y-12LAB00-M05-0001",
+   "page_no": 60,
+   "type": "PIT",
+   "description": "UNIT #12 FEEDWATER 21 PUMP-A H LAB3 DISCHARGE PRESSURE PRESSURE PRESSURE E",
+   "tab": "FIELD",
+   "excel_no": 972,
+   "values": {
+    "description": "UNIT #12 FEEDWATER 21 PUMP-A H LAB3 DISCHARGE PRESSURE PRESSURE PRESSURE E",
+    "qty": 3,
+    "scope": "SCT",
+    "system": "P&ID FOR FEEDWATER SYSTEM - UNIT 12",
+    "tag_no": "12LAB10CP001B",
+    "type": "PIT",
+    "valve_type": "",
+    "vendor_supply": ""
+   },
+   "anchor": [
+    1824.9,
+    655.0
+   ],
+   "radius": 73.7,
+   "radius_source": "DRAWING_BUBBLE",
+   "nearest_distance": 81.71,
+   "nearest_row_key": "101f31e938900c7b",
+   "confirmed": false
+  },
+  {
+   "id": "12LAB00-032",
+   "drawing_no": "1A1Y-12LAB00-M05-0001",
+   "page_no": 60,
+   "type": "PI",
+   "description": "LP DRUM BYPASS V/V DISCHARGE PRESSURE GAUGE",
+   "tab": "FIELD",
+   "excel_no": 991,
+   "values": {
+    "description": "LP DRUM BYPASS V/V DISCHARGE PRESSURE GAUGE",
+    "qty": 3,
+    "scope": "SCT",
+    "system": "P&ID FOR FEEDWATER SYSTEM - UNIT 12",
+    "tag_no": "12LAB10CP901",
+    "type": "PI",
+    "valve_type": "",
+    "vendor_supply": ""
+   },
+   "anchor": [
+    1918.45,
+    670.6
+   ],
+   "radius": 73.7,
+   "radius_source": "DRAWING_BUBBLE",
+   "nearest_distance": null,
+   "nearest_row_key": null,
+   "confirmed": false
+  },
+  {
+   "id": "12LAB00-033",
+   "drawing_no": "1A1Y-12LAB00-M05-0001",
+   "page_no": 60,
+   "type": "PIT",
+   "description": "UNIT #12 FEEDWATER 21 PUMP-A H LAB3 DISCHARGE PRESSURE PRESSURE PRESSURE F",
+   "tab": "FIELD",
+   "excel_no": 1011,
+   "values": {
+    "description": "UNIT #12 FEEDWATER 21 PUMP-A H LAB3 DISCHARGE PRESSURE PRESSURE PRESSURE F",
+    "qty": 3,
+    "scope": "SCT",
+    "system": "P&ID FOR FEEDWATER SYSTEM - UNIT 12",
+    "tag_no": "12LAB10CP001A",
+    "type": "PIT",
+    "valve_type": "",
+    "vendor_supply": ""
+   },
+   "anchor": [
+    1824.9,
+    689.05
+   ],
+   "radius": 73.7,
+   "radius_source": "DRAWING_BUBBLE",
+   "nearest_distance": 111.06,
+   "nearest_row_key": "101f31e938900c7b",
+   "confirmed": false
+  },
+  {
+   "id": "12LAB00-046",
+   "drawing_no": "1A1Y-12LAB00-M05-0001",
+   "page_no": 60,
+   "type": "RO",
+   "description": "UNIT #12 FEEDWATER PUMP-B RESTRICTION ORIFICE",
+   "tab": "FIELD",
+   "excel_no": 1014,
+   "values": {
+    "description": "UNIT #12 FEEDWATER PUMP-B RESTRICTION ORIFICE",
+    "qty": 3,
+    "scope": "SCT",
+    "system": "P&ID FOR FEEDWATER SYSTEM - UNIT 12",
+    "tag_no": "12LAB22BP601",
+    "type": "RO",
+    "valve_type": "",
+    "vendor_supply": ""
+   },
+   "anchor": [
+    1094.75,
+    1031.2
+   ],
+   "radius": 73.7,
+   "radius_source": "DRAWING_BUBBLE",
+   "nearest_distance": null,
+   "nearest_row_key": null,
+   "confirmed": false
+  },
+  {
+   "id": "12LAB00-063",
+   "drawing_no": "1A1Y-12LAB00-M05-0001",
+   "page_no": 60,
+   "type": "RO",
+   "description": "UNIT #12 FEEDWATER PUMP-C RESTRICTION ORIFICE",
+   "tab": "FIELD",
+   "excel_no": 989,
+   "values": {
+    "description": "UNIT #12 FEEDWATER PUMP-C RESTRICTION ORIFICE",
+    "qty": 3,
+    "scope": "SCT",
+    "system": "P&ID FOR FEEDWATER SYSTEM - UNIT 12",
+    "tag_no": "12LAB23BP601",
+    "type": "RO",
+    "valve_type": "",
+    "vendor_supply": ""
+   },
+   "anchor": [
+    1094.75,
+    1558.4
+   ],
+   "radius": 73.7,
+   "radius_source": "DRAWING_BUBBLE",
+   "nearest_distance": null,
+   "nearest_row_key": null,
+   "confirmed": false
+  },
+  {
+   "id": "12LCM10-001",
+   "drawing_no": "1A1Y-12LCM10-M05-0001",
+   "page_no": 53,
+   "type": "LI",
+   "description": "UNIT #12 GT FLASH PIPE B LEVEL LEVEL LEVEL",
+   "tab": "FIELD",
+   "excel_no": 1135,
+   "values": {
+    "description": "UNIT #12 GT FLASH PIPE B LEVEL LEVEL LEVEL",
+    "qty": 2,
+    "scope": "SCT",
+    "system": "P&ID FOR GT FLASH PIPE SYSTEM - UNIT 12",
+    "tag_no": "12LCM10CL501",
+    "type": "LI",
+    "valve_type": "",
+    "vendor_supply": ""
+   },
+   "anchor": [
+    1651.7,
+    938.2
+   ],
+   "radius": 73.8,
+   "radius_source": "DRAWING_BUBBLE",
+   "nearest_distance": 873.59,
+   "nearest_row_key": "1cc4bd2d1d035507",
+   "confirmed": false
+  },
+  {
+   "id": "12MBA10-002",
+   "drawing_no": "1A1Y-12MBA10-M05-0003",
+   "page_no": 83,
+   "type": "CHECK",
+   "description": "TO GT COOLING AIR COOLER DRAIN VALVE CHECK VALVE",
+   "tab": "REVIEW",
+   "excel_no": 264,
+   "values": {
+    "description": "TO GT COOLING AIR COOLER DRAIN VALVE CHECK VALVE",
+    "qty": 3,
+    "scope": "SCT",
+    "system": "P&ID FOR GAS TURBINE INTERCONNECTION SYSTEM - UNIT 12 (3 OF 3)",
+    "tag_no": "",
+    "type": "CHECK",
+    "valve_type": "",
+    "vendor_supply": ""
+   },
+   "anchor": [
+    1719.15,
+    204.4
+   ],
+   "radius": 73.7,
+   "radius_source": "DRAWING_BUBBLE",
+   "nearest_distance": 115.24,
+   "nearest_row_key": "23cf3d85beb08af2",
+   "confirmed": false
+  },
+  {
+   "id": "12MBA10-004",
+   "drawing_no": "1A1Y-12MBA10-M05-0003",
+   "page_no": 83,
+   "type": "PIT",
+   "description": "UNIT #12 GAS TURBINE INTERCONNECTION COMPRESSOR DISCHARGE PRESSURE PRESSURE PRESSURE",
+   "tab": "FIELD",
+   "excel_no": 1130,
+   "values": {
+    "description": "UNIT #12 GAS TURBINE INTERCONNECTION COMPRESSOR DISCHARGE PRESSURE PRESSURE PRESSURE",
+    "qty": 3,
+    "scope": "SCT",
+    "system": "P&ID FOR GAS TURBINE INTERCONNECTION SYSTEM - UNIT 12 (3 OF 3)",
+    "tag_no": "12QFB03CP002",
+    "type": "PIT",
+    "valve_type": "",
+    "vendor_supply": ""
+   },
+   "anchor": [
+    1891.45,
+    293.7
+   ],
+   "radius": 73.7,
+   "radius_source": "DRAWING_BUBBLE",
+   "nearest_distance": 222.27,
+   "nearest_row_key": "5c5faf95682e4a61",
+   "confirmed": false
+  },
+  {
+   "id": "12PGB10-007",
+   "drawing_no": "1A1Y-12PGB10-M05-0001",
+   "page_no": 70,
+   "type": "PI",
+   "description": "UNIT #12 CCW GT CONTROL COOLER PRESSURE PRESSURE PRESSURE B",
+   "tab": "FIELD",
+   "excel_no": 487,
+   "values": {
+    "description": "UNIT #12 CCW GT CONTROL COOLER PRESSURE PRESSURE PRESSURE B",
+    "qty": 1,
+    "scope": "SCT",
+    "system": "P&ID FOR CLOSED COOLING WATER SYSTEM GT UNIT 12",
+    "tag_no": "12PGB14CP503",
+    "type": "PI",
+    "valve_type": "",
+    "vendor_supply": ""
+   },
+   "anchor": [
+    1125.75,
+    570.0
+   ],
+   "radius": 73.7,
+   "radius_source": "DRAWING_BUBBLE",
+   "nearest_distance": 166.8,
+   "nearest_row_key": "53962f2b0903dfb8",
+   "confirmed": false
+  },
+  {
+   "id": "20PGD10-032",
+   "drawing_no": "1A1Y-20PGD10-M05-0002",
+   "page_no": 89,
+   "type": "CHECK",
+   "description": "",
+   "tab": "REVIEW",
+   "excel_no": 135,
+   "values": {
+    "description": "",
+    "qty": 1,
+    "scope": "SCT",
+    "system": "P&ID FOR CLOSED COOLING WATER SYSTEM ST AND BOP BLOCK 20",
+    "tag_no": "",
+    "type": "CHECK",
+    "valve_type": "",
+    "vendor_supply": ""
+   },
+   "anchor": [
+    648.6,
+    867.1
+   ],
+   "radius": 73.7,
+   "radius_source": "DRAWING_BUBBLE",
+   "nearest_distance": 76.4,
+   "nearest_row_key": "ea6f53d167d60993",
+   "confirmed": false
+  },
+  {
+   "id": "20PGD10-050",
+   "drawing_no": "1A1Y-20PGD10-M05-0002",
+   "page_no": 89,
+   "type": "BUTTERFLY",
+   "description": "",
+   "tab": "REVIEW",
+   "excel_no": 133,
+   "values": {
+    "description": "",
+    "qty": 1,
+    "scope": "SCT",
+    "system": "P&ID FOR CLOSED COOLING WATER SYSTEM ST AND BOP BLOCK 20",
+    "tag_no": "",
+    "type": "BUTTERFLY",
+    "valve_type": "",
+    "vendor_supply": ""
+   },
+   "anchor": [
+    1598.2,
+    1390.75
+   ],
+   "radius": 73.7,
+   "radius_source": "DRAWING_BUBBLE",
+   "nearest_distance": null,
+   "nearest_row_key": null,
+   "confirmed": false
+  },
+  {
+   "id": "21PGB10-007",
+   "drawing_no": "1A1Y-21PGB10-M05-0001",
+   "page_no": 86,
+   "type": "PI",
+   "description": "UNIT #21 CCW GT CONTROL COOLER PRESSURE PRESSURE PRESSURE B",
+   "tab": "FIELD",
+   "excel_no": 533,
+   "values": {
+    "description": "UNIT #21 CCW GT CONTROL COOLER PRESSURE PRESSURE PRESSURE B",
+    "qty": 1,
+    "scope": "SCT",
+    "system": "P&ID FOR CLOSED COOLING WATER SYSTEM GT UNIT 21",
+    "tag_no": "21PGB14CP503",
+    "type": "PI",
+    "valve_type": "",
+    "vendor_supply": ""
+   },
+   "anchor": [
+    1125.75,
+    570.0
+   ],
+   "radius": 73.7,
+   "radius_source": "DRAWING_BUBBLE",
+   "nearest_distance": 162.8,
+   "nearest_row_key": "47b924347fbc4175",
+   "confirmed": false
+  },
+  {
+   "id": "22PGB10-008",
+   "drawing_no": "1A1Y-22PGB10-M05-0001",
+   "page_no": 87,
+   "type": "PI",
+   "description": "UNIT #22 CCW GT CONTROL COOLER PRESSURE PRESSURE PRESSURE B",
+   "tab": "FIELD",
+   "excel_no": 578,
+   "values": {
+    "description": "UNIT #22 CCW GT CONTROL COOLER PRESSURE PRESSURE PRESSURE B",
+    "qty": 1,
+    "scope": "SCT",
+    "system": "P&ID FOR CLOSED COOLING WATER SYSTEM GT UNIT 22",
+    "tag_no": "22PGB14CP503",
+    "type": "PI",
+    "valve_type": "",
+    "vendor_supply": ""
+   },
+   "anchor": [
+    1137.45,
+    570.0
+   ],
+   "radius": 73.7,
+   "radius_source": "DRAWING_BUBBLE",
+   "nearest_distance": 162.95,
+   "nearest_row_key": "2ad1c8c1c19eb7e3",
+   "confirmed": false
+  },
+  {
+   "id": "22PGB10-039",
+   "drawing_no": "1A1Y-22PGB10-M05-0001",
+   "page_no": 87,
+   "type": "PI",
+   "description": "UNIT #22 CCW GT LUBE OIL COOLER 1A1Y-M01-M00-PID-0004 A PRESSURE PRESSURE PRESSURE D",
+   "tab": "FIELD",
+   "excel_no": 555,
+   "values": {
+    "description": "UNIT #22 CCW GT LUBE OIL COOLER 1A1Y-M01-M00-PID-0004 A PRESSURE PRESSURE PRESSURE D",
+    "qty": 1,
+    "scope": "SCT",
+    "system": "P&ID FOR CLOSED COOLING WATER SYSTEM GT UNIT 22",
+    "tag_no": "22PGB15CP501",
+    "type": "PI",
+    "valve_type": "",
+    "vendor_supply": ""
+   },
+   "anchor": [
+    1704.35,
+    1168.6
+   ],
+   "radius": 73.7,
+   "radius_source": "DRAWING_BUBBLE",
+   "nearest_distance": 113.85,
+   "nearest_row_key": "7e0b0add7320ebc9",
+   "confirmed": false
+  },
+  {
+   "id": "22PGB10-040",
+   "drawing_no": "1A1Y-22PGB10-M05-0001",
+   "page_no": 87,
+   "type": "PI",
+   "description": "UNIT #22 CCW GT LUBE OIL COOLER 1A1Y-M01-M00-PID-0004 A PRESSURE PRESSURE PRESSURE E",
+   "tab": "FIELD",
+   "excel_no": 568,
+   "values": {
+    "description": "UNIT #22 CCW GT LUBE OIL COOLER 1A1Y-M01-M00-PID-0004 A PRESSURE PRESSURE PRESSURE E",
+    "qty": 1,
+    "scope": "SCT",
+    "system": "P&ID FOR CLOSED COOLING WATER SYSTEM GT UNIT 22",
+    "tag_no": "22PGB15CP502",
+    "type": "PI",
+    "valve_type": "",
+    "vendor_supply": ""
+   },
+   "anchor": [
+    1842.4,
+    1168.6
+   ],
+   "radius": 73.7,
+   "radius_source": "DRAWING_BUBBLE",
+   "nearest_distance": 113.85,
+   "nearest_row_key": "2deeae346605b477",
+   "confirmed": false
+  }
+ ]
+}

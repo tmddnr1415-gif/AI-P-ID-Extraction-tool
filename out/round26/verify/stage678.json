@@ -1,0 +1,46 @@
+{
+  "home_projects": 1,
+  "old_rows": 824,
+  "edits_alive": 5,
+  "job2": "57fa471c5544",
+  "rows_new": 1037,
+  "qty_sum": 1931,
+  "fingerprint": "fb85b039f1fd7d38eca16d64d4a1442fecd0daa45b3d6ba9d960173de587e592",
+  "seconds": 693.5,
+  "carried": 5,
+  "scope_summary": {
+    "total": 1037,
+    "delivered": 1037,
+    "held": 0,
+    "by_reason": {},
+    "by_tab": {
+      "FIELD": 885,
+      "MOV": 76,
+      "PNEUMATIC": 53,
+      "BFV": 23
+    },
+    "held_types": {},
+    "form_scope": "all",
+    "vendor": 322,
+    "vendor_by_reason": {
+      "VENDOR(HRSG)": 49,
+      "VENDOR(ST SUPPLIER)": 46,
+      "VENDOR(BYPASS VALVE)": 18,
+      "VENDOR(AUX BOILER SUPPLIER)": 1,
+      "VENDOR(PUMP VENDOR)": 45,
+      "VENDOR(CEP SUPPLIER)": 6,
+      "VENDOR(CONDENSER SUPPLIER)": 13,
+      "VENDOR(BFP SUPPLIER)": 2,
+      "VENDOR(GT SUPPLIER)": 9,
+      "VENDOR": 77,
+      "VENDOR(SEAWATER INTAKE FACILITY SUPPLIER)": 35,
+      "VENDOR(FUEL OIL PUMP SUPPLIER)": 8,
+      "VENDOR(PUMP SUPPLIER)": 5,
+      "VENDOR(WATER TREATMENT SUPPLIER)": 8
+    },
+    "legacy_no_scope": 0
+  },
+  "max_rss_gb": 4.95,
+  "revision": "Rev.B",
+  "compared_with": "Rev.A"
+}

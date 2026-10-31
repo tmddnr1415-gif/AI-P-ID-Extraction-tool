@@ -1,0 +1,205 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LOGIC 작도</title>
+<link rel="stylesheet" href="/static/logic_draw.css">
+</head>
+<body>
+<header class="dw-head">
+  <a class="dw-back" href="/logic" title="LOGIC 검토 화면으로">← LOGIC 검토</a>
+  <h1>LOGIC 작성</h1>
+  <button id="home-btn" class="dw-btn" title="Logic 작성 첫 화면 — 프로젝트 · 저장된 그림 · 시작하기">⌂ 첫 화면</button>
+  <a id="sig-link" class="dw-btn" href="/logic/signal" title="신호 처리 시뮬레이션 — 연산자(∑ · ÷ · √ · 선택 · Lag · 리미터 …)에 값을 넣어 계산 과정 · 출력 · 시간 응답">∿ 신호 처리</a>
+  <select id="pick" title="저장된 그림"><option value="">(그림을 고르세요)</option></select>
+  <button id="new" class="dw-btn" title="빈 양식으로 새 그림">＋ 새 그림</button>
+  <button id="import" class="dw-btn" title="분석한 Logic 시트를 이 양식으로 가져와 고친다">⇩ 분석 시트에서</button>
+  <button id="typlib" class="dw-btn" title="모든 프로젝트가 함께 쓰는 Typical(매크로 내부 동작) — 보고 고친다">📚 Typical</button>
+  <span class="dw-sep"></span>
+  <input id="name" class="dw-name" placeholder="그림 이름" disabled>
+  <label class="dw-who" title="저장에 남는 이름 (대시보드 로그인 이름이 있으면 그것)">✎ <input id="who" placeholder="이름"></label>
+  <button id="save" class="dw-btn pri" disabled title="저장 (Ctrl+S)">저장</button>
+  <button id="verify" class="dw-btn" disabled title="그린 것을 PDF 로 내보내 분석기에 다시 넣어 같은 블록 · 선 · 행이 읽히는지 확인한다">✔ 되읽기 검증</button>
+  <a id="pdf" class="dw-btn ghost" href="#" hidden title="같은 양식의 PDF 로 내려받기">PDF</a>
+  <a id="dxf" class="dw-btn ghost" href="#" hidden title="CAD 로 가져갈 DXF 로 내려받기">DXF</a>
+  <button id="simtoggle" class="dw-btn ghost" disabled title="그린 로직을 바로 시뮬레이션한다 — 입력 행 · 누름단추를 눌러 1/0 을 주면 활성 선이 파랗게 · 게이트는 범례대로 · 묶음이면 FROM/TO 와 매크로를 넘어간다 (그리면서 고치면 바로 다시 돈다)">▶ 시뮬레이션</button>
+  <button id="analyse" class="dw-btn ghost" disabled title="PDF 로 내보내 LOGIC 검토 묶음으로 올린다 — 시뮬레이션 · 정합성 검토를 그대로 쓴다">▶ 검토로 보내기</button>
+  <button id="del" class="dw-btn danger" disabled title="이 그림을 지운다 (기록은 남는다)">지우기</button>
+  <span id="status" class="dw-status"></span>
+</header>
+
+<!-- L66 — 화면 기호 색 (입체감 · PDF 에는 안 나감) -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+    <linearGradient id="gd-gate" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffffff"/><stop offset=".18" stop-color="#eef4ff"/><stop offset="1" stop-color="#b9d0f7"/></linearGradient>
+    <linearGradient id="gd-time" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffffff"/><stop offset=".18" stop-color="#ecfaf0"/><stop offset="1" stop-color="#ade3be"/></linearGradient>
+    <linearGradient id="gd-mem" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffffff"/><stop offset=".18" stop-color="#f5effd"/><stop offset="1" stop-color="#cdb6f2"/></linearGradient>
+    <linearGradient id="gd-src" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffffff"/><stop offset=".18" stop-color="#fff7e6"/><stop offset="1" stop-color="#f6d48a"/></linearGradient>
+    <linearGradient id="gd-sink" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffffff"/><stop offset=".18" stop-color="#fff0ee"/><stop offset="1" stop-color="#f3b3ab"/></linearGradient>
+    <linearGradient id="gd-conn" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffffff"/><stop offset=".18" stop-color="#f7f8fa"/><stop offset="1" stop-color="#cfd4dc"/></linearGradient>
+    <linearGradient id="gd-box" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffffff"/><stop offset=".18" stop-color="#fff5ea"/><stop offset="1" stop-color="#f7cfa4"/></linearGradient>
+    <linearGradient id="gd-macro" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffffff"/><stop offset=".18" stop-color="#e9fbf8"/><stop offset="1" stop-color="#a9e4da"/></linearGradient>
+</defs></svg>
+<main class="dw-main">
+  <!-- L79 — Logic 작성 첫 화면 (Logic 분석 첫 화면과 같은 결) -->
+  <section id="home" class="dw-home" hidden>
+    <div class="hm-title"><h2>Logic 작성</h2>
+      <p>분석한 로직과 같은 양식으로 Logic 시트를 그리고 바로 시뮬레이션합니다 · PDF · DXF 로 내보내고 LOGIC 검토로 보낼 수 있습니다.</p></div>
+    <div class="hm-top">
+      <div class="hm-card hm-where"><h3><b>1</b> 어디에 그릴지</h3>
+        <div class="hm-row"><span>프로젝트</span><select id="h-project"><option value="">(프로젝트 없이)</option></select><button id="h-newproj" type="button">새 프로젝트</button></div>
+        <div class="hm-row"><span>작성자</span><input id="h-who" placeholder="저장에 남는 이름"></div>
+        <p class="dw-hint">새 그림 · 들여온 시트가 이 프로젝트에 저장됩니다.  계기 리스트(TAG 자동완성)도 프로젝트마다 하나입니다.</p>
+      </div>
+      <div class="hm-card hm-start"><h3><b>2</b> 시작하기</h3>
+        <div class="hm-actions">
+          <button type="button" data-act="new"><i>＋</i><b>새 그림</b><small>빈 양식 (삼성 · 아래 타이틀블록)</small></button>
+          <button type="button" data-act="sheet"><i>⇩</i><b>분석 시트에서</b><small>LOGIC 검토로 분석한 시트 한 장을 가져와 고침</small></button>
+          <button type="button" data-act="bundle"><i>⇊</i><b>묶음 통째로</b><small>분석한 Logic PDF 의 모든 시트를 그림 묶음으로</small></button>
+          <button type="button" data-act="typ"><i>▣</i><b>Typical 사전</b><small>매크로 내부 동작 (19VA · 알다프라 · HRSG) — 보고 고침</small></button>
+          <a data-act="signal" href="/logic/signal"><i>∿</i><b>신호 처리 시뮬레이션</b><small>연산자마다 값을 넣어 계산 과정 · 출력 · 시간 응답</small></a>
+        </div>
+      </div>
+    </div>
+    <div class="hm-bottom">
+      <div class="hm-card"><h3>저장된 프로젝트 <span id="h-psum" class="dw-hint"></span></h3><div id="h-projects" class="hm-projects"></div></div>
+      <div class="hm-card"><h3>최근 그린 그림</h3><div id="h-recent" class="hm-recent"></div></div>
+    </div>
+  </section>
+  <aside class="dw-side">
+    <section class="dw-card">
+      <h3>도구</h3>
+      <div class="dw-tools">
+        <button data-tool="select" class="on" title="고르기 · 옮기기 (V)">↖ 선택</button>
+        <button data-tool="wire" title="신호선 — 자리를 차례로 누르고 두 번 누르거나 Enter 로 끝 (W)">╱ 선</button>
+        <button data-tool="dash" title="파선 신호선 (D)">╌ 파선</button>
+        <button data-tool="pan" title="끌어서 보기 (H · 가운데 단추 · Space+끌기)">✋ 보기</button>
+      </div>
+      <div class="dw-zoom">
+        <button id="zout" title="축소">−</button><span id="zval">100%</span><button id="zin" title="확대">＋</button>
+        <button id="zfit" title="화면에 맞춤">맞춤</button>
+        <label title="그릴 때 자리를 반 행 격자에 맞춘다"><input type="checkbox" id="snap" checked> 자석</label>
+      </div>
+      <div class="dw-arrange" title="고른 기호를 맞춘다 (둘 이상) · 균등 간격은 셋 이상 — Alt+H / Alt+V · Alt+화살표">
+        <button data-op="left" title="왼쪽 맞춤 (Alt+←)">⇤</button><button data-op="hcenter" title="가로 가운데 맞춤">⇹</button><button data-op="right" title="오른쪽 맞춤 (Alt+→)">⇥</button>
+        <button data-op="top" title="위 맞춤 (Alt+↑)">⤒</button><button data-op="vcenter" title="세로 중간 맞춤">⇳</button><button data-op="bottom" title="아래 맞춤 (Alt+↓)">⤓</button>
+        <button data-op="disth" title="가로 균등 간격 (Alt+H)">⇔</button><button data-op="distv" title="세로 균등 간격 (Alt+V)">⇕</button>
+        <span class="dw-hint">끌면서 <kbd>Shift</kbd> = 이웃에 맞춤</span>
+      </div>
+      <div class="dw-guides" title="화면에서만 보이는 안내 — PDF · DXF 에는 나가지 않습니다">
+        <label><input type="checkbox" id="g-grid" checked> 모눈 <kbd>G</kbd></label>
+        <label><input type="checkbox" id="g-ruler" checked> 눈금자 <kbd>R</kbd></label>
+        <label><input type="checkbox" id="g-align" checked> 정렬 안내선</label>
+        <label><input type="checkbox" id="g-cross" checked> 십자선</label>
+        <span class="dw-hint">눈금자를 누르면 가이드선 — 기호 · 선이 붙습니다</span>
+        <button id="rg-clear" type="button" class="dw-mini" hidden>가이드선 지우기</button>
+      </div>
+    </section>
+    <section class="dw-card" id="inst-card">
+      <h3 class="stack">계기 리스트 <span class="dw-hint">TAG NO. 칸 자동완성 · 설명 자동 — 프로젝트마다 하나</span></h3>
+      <div id="inst-say" class="dw-inst"></div>
+      <div class="dw-settools">
+        <label class="dw-filebtn" title="Instrument List Excel (.xlsx) — TAG(KKS) 열과 DESCRIPTION 열이 있으면 됩니다.  다시 올리면 바뀐 설명을 그림에 반영하고 표시합니다">⇧ Excel 올리기<input id="inst-file" type="file" accept=".xlsx,.xlsm,.csv" hidden></label>
+      </div>
+    </section>
+    <section class="dw-card dw-typcard" id="typ-card" hidden>
+      <h3>공통 Typical 사전</h3>
+      <p id="typ-say" class="dw-hint"></p>
+      <div class="dw-settools">
+        <button id="typ-save" type="button" class="pri" title="분석기로 되읽어 단자(행)를 확인한 뒤 사전에 적는다 — 모든 프로젝트가 다음 분석부터 이것을 쓴다">사전에 저장</button>
+        <button id="typ-revert" type="button" title="사람이 고친 것을 거두고 원래 Typical 로">원래대로</button>
+        <button id="typ-list" type="button">목록</button>
+      </div>
+    </section>
+    <section class="dw-card" id="set-card">
+      <h3 class="stack">묶음 <span class="dw-hint">여러 장 · FROM/TO 가 장 사이를 잇습니다</span></h3>
+      <div id="set-list"></div>
+      <div id="set-tools" class="dw-settools" hidden>
+        <button id="set-import" type="button" title="분석한 Logic 묶음의 모든 시트를 이 양식의 그림 묶음으로">⇩ 묶음 들여오기</button>
+        <button id="set-add" type="button" title="이 묶음에 빈 장 하나">＋ 장</button>
+        <button id="set-verify" type="button" title="묶음 전체를 한 PDF 로 내보내 분석기에 되읽혀 장마다 · FROM/TO 를 대조">✔ 묶음 검증</button>
+        <button id="set-pdf" type="button" title="묶음 전체 PDF">PDF</button>
+        <button id="set-analyse" type="button" title="묶음 전체를 LOGIC 검토 묶음으로 올린다">▶ 검토로</button>
+      </div>
+    </section>
+    <section class="dw-card">
+      <h3 class="stack">기호 <span class="dw-hint">누르면 LOGIC 영역 가운데에 놓입니다 · 끌어다 놓아도 됩니다</span></h3>
+      <div id="palette" class="dw-palette"></div>
+    </section>
+    <section class="dw-card" id="macro-card">
+      <h3 class="stack">매크로 · Typical <span class="dw-hint">누르면 그림에 놓고 · <b>두 번 누르면 내부 동작</b>(새 창 · 고칠 수 있음)</span></h3>
+      <input id="macro-q" class="dw-macroq" placeholder="찾기 (MOV · SOV · MTS · GRP …)" autocomplete="off">
+      <div id="macro-list" class="dw-macros"></div>
+    </section>
+    <section class="dw-card">
+      <h3>시트</h3>
+      <div class="dw-form">
+        <label>시트 이름 <input id="f-sheet" placeholder="예: LD-001 · G034"></label>
+        <label>제목 <input id="f-title" placeholder="예: FEED PUMP A START"></label>
+        <label>문서 번호 <input id="f-doc" placeholder="예: 19VA-00GEN00-J09-0001"></label>
+        <label>행 수 (한쪽) <input id="f-rows" type="number" min="45" max="62" step="1"></label>
+        <label>양식 <select id="f-form" title="그리는 결 — 기본은 글자 게이트(HRSG), 알다프라는 모양 게이트(AND=네모 · OR=원 · NOT=⊠)와 삼성 C&amp;T 타이틀블록"><option value="">기본 (글자 게이트 · SHEET NO.)</option><option value="a5j">알다프라 (모양 게이트 · 삼성 타이틀블록)</option></select></label>
+        <label>프로젝트 이름 <input id="f-pname" placeholder="예: AL DHAFRA POWER PLANT"></label>
+        <label>개정 <input id="f-rev" placeholder="예: 2" style="width:60px"></label>
+        <label>프로젝트 <select id="f-project"><option value="">(없음)</option></select></label>
+        <label>Typical 시트 <input type="checkbox" id="f-typical" title="매크로 블록의 내부 동작을 그린 장 — 매크로 카드에 타입으로 오릅니다"></label>
+        <label class="col">노트 <textarea id="f-notes" rows="3" placeholder="한 줄에 하나 — 장 아래 NOTES 상자에 번호가 붙어 인쇄됩니다" title="장 노트 — 분석기가 NOTE 문장을 읽습니다 (예: OUTPUT STATE IS INVERTED BY EACH MOMENTARY TRUE SIGNAL ON &quot;SRST&quot;)"></textarea></label>
+      </div>
+      <p class="dw-hint">왼쪽 표 FROM 칸에 <b>시트-행</b>(G031-81 · 0016/72)을 적으면 분석기가 그 시트의 그 행과 잇습니다.  표 칸은 두 번 누르면 고칩니다.  제목은 문서 번호(숫자-숫자 꼴)가 있어야 분석기가 읽습니다.</p>
+    </section>
+    <section class="dw-card" id="sim-card" hidden>
+      <h3>시뮬레이션 <span id="sim-sum" class="dw-hint"></span></h3>
+      <div class="dw-simtools">
+        <button id="sim-step" type="button" title="타이머가 흐른 뒤의 값 — 한 번 누를 때마다 시간을 한 틀 더 흘린다">⏭ 시간 흐르기</button>
+        <button id="sim-reset" type="button" title="준 신호 · 상태 · 아날로그 값을 전부 지운다 (타이머 시간은 그림의 속성이라 남는다)">⟲ 리셋</button>
+        <label title="시뮬레이션 중 게이트 단자마다 1/0 을 적는다"><input type="checkbox" id="sim-pins" checked> 단자 1/0</label>
+      </div>
+      <div id="sim-out" class="dw-sim"></div>
+    </section>
+    <section class="dw-card" id="props-card" hidden>
+      <h3>속성 <span id="props-kind" class="dw-hint"></span></h3>
+      <div id="props" class="dw-form"></div>
+    </section>
+    <section class="dw-card" id="verify-card" hidden>
+      <h3>되읽기 검증 <span id="verify-sum" class="dw-hint"></span></h3>
+      <div id="verify-out" class="dw-verify"></div>
+    </section>
+    <section class="dw-card dw-help">
+      <h3>단축키</h3>
+      <ul>
+        <li><b>V</b> 선택 · <b>W</b> 선 · <b>D</b> 파선 · <b>H</b> 보기 · <b>Esc</b> 취소</li>
+        <li><b>Delete</b> 지우기 · <b>Ctrl+D</b> 복사 · <b>Ctrl+C / V</b> 복사 · 붙이기 (선까지) · 화살표 옮기기 (Shift 한 행)</li>
+        <li><b>Ctrl+Z / Y</b> 되돌리기 · 다시 · <b>Ctrl+S</b> 저장</li>
+        <li><b>Ctrl+휠</b> 확대 · 표 칸 두 번 누름 = 글 고치기</li>
+        <li><b>G</b> 모눈 · <b>R</b> 눈금자 — 화면에만 보이고 내보내기에는 없습니다</li>
+        <li>FM/TO 칸의 <b>↗</b> = 그 시트 그 행으로 · 붉은 칸 = 연결 불일치 · 저장하면 상대 장의 칸을 저절로 채웁니다</li>
+        <li><b>▶ 시뮬레이션</b> — 왼쪽 행 자리 · 누름단추 · 선을 눌러 1/0 · 게이트를 누르면 출력 목표 · 그리면서 고치면 바로 다시 돕니다 (묶음이면 FROM/TO · 매크로를 넘어갑니다)</li>
+      </ul>
+    </section>
+  </aside>
+
+  <section id="stage" class="dw-stage" tabindex="0">
+    <div id="ruler-corner" class="dw-ruler-corner" hidden>pt</div>
+    <canvas id="ruler-x" class="dw-ruler dw-ruler-x" hidden title="누르면 그 자리에 세로 가이드선 — 누른 채 끌면 옮긴다 · 표식을 눌러 끌거나 오른쪽 눌러 지운다"></canvas>
+    <canvas id="ruler-y" class="dw-ruler dw-ruler-y" hidden title="누르면 그 자리에 가로 가이드선 — 누른 채 끌면 옮긴다 · 표식을 눌러 끌거나 오른쪽 눌러 지운다"></canvas>
+    <div id="scroll" class="dw-scroll">
+      <svg id="svg" xmlns="http://www.w3.org/2000/svg"></svg>
+      <input id="cellin" class="dw-cellin" hidden autocomplete="off">
+      <div id="cellac" class="dw-cellac" hidden></div>
+    </div>
+    <div id="empty" class="dw-empty">왼쪽 위에서 그림을 고르거나 <b>＋ 새 그림</b> 을 누르세요.</div>
+  </section>
+</main>
+
+<div id="modal" class="dw-modal" hidden>
+  <div class="dw-modal-box">
+    <h3 id="m-title"></h3>
+    <div id="m-body"></div>
+    <div class="dw-modal-foot"><button id="m-cancel" class="dw-btn ghost">취소</button><button id="m-ok" class="dw-btn pri">확인</button></div>
+  </div>
+</div>
+<div id="simmenu" class="dw-simmenu" hidden></div>
+<div id="toast" class="dw-toast" hidden></div>
+<script src="/static/logic_draw.js"></script>
+</body>
+</html>

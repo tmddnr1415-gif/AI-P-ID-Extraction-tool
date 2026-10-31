@@ -1,0 +1,185 @@
+{
+ "before_A41": {
+  "AL NOUF1": {
+   "rows": 1037,
+   "fp": "fb85b039",
+   "qty": 1931,
+   "sec": 762,
+   "rss": "4.9G",
+   "score": 95.1,
+   "same": true
+  },
+  "SADARA": {
+   "rows": 82,
+   "fp": "0767ba79",
+   "qty": 0,
+   "sec": 95,
+   "rss": "0.9G",
+   "score": 75.4,
+   "same": true
+  },
+  "TC2": {
+   "rows": 699,
+   "fp": "6583a866",
+   "qty": 4111,
+   "sec": 1718,
+   "rss": "8.9G",
+   "score": 91.1,
+   "same": true
+  },
+  "UAD": {
+   "rows": 184,
+   "fp": "e8d19f8f",
+   "qty": 184,
+   "sec": 441,
+   "rss": "3.2G",
+   "score": 87.9,
+   "same": true
+  }
+ },
+ "after_D41": {
+  "AL NOUF1": {
+   "rows": 1037,
+   "fp": "fb85b039",
+   "qty": 1931,
+   "sec": 794,
+   "rss": "4.9G",
+   "score": 95.1,
+   "same": true
+  },
+  "SADARA": {
+   "rows": 86,
+   "fp": "53531ef6",
+   "qty": 0,
+   "sec": 85,
+   "rss": "0.9G",
+   "score": 76.0,
+   "same": false
+  },
+  "TC2": {
+   "rows": 707,
+   "fp": "c396892a",
+   "qty": 4159,
+   "sec": 623,
+   "rss": "7.5G",
+   "score": 91.2,
+   "same": false
+  },
+  "UAD": {
+   "rows": 184,
+   "fp": "877de403",
+   "qty": 184,
+   "sec": 438,
+   "rss": "3.2G",
+   "score": 87.5,
+   "same": false
+  }
+ },
+ "verify": {
+  "real_db_sha_start": "643748dc0efe16816cb1b723941cb0fc6af1de9e183c15eab6d5dba726ecd40a",
+  "git_wt": "aac64ba",
+  "s2": {
+   "job": "0f7cde48ec7a",
+   "status": "done",
+   "rows": 824,
+   "sec": 335.3,
+   "peak_G": 5.08,
+   "scope_values": [
+    ""
+   ],
+   "edit_keys": [
+    "0496c0be022bd8d2",
+    "0e96b25afd3ef9aa",
+    "0f51c8b8fb6d6dea",
+    "1d9e879dd5342fe2",
+    "311eac50402e48c3"
+   ]
+  },
+  "s3": {
+   "edited": 5,
+   "qty9_now": 5
+  },
+  "s4": {
+   "backup": "/home/user/AI-P-ID-Extraction-tool/out/round41/verify/db_backup",
+   "files": [
+    "app.db",
+    "app.db-shm",
+    "app.db-wal",
+    "uploads"
+   ]
+  },
+  "s5": {
+   "zip": "out/round41/3_FILES_TO_OVERWRITE.zip",
+   "sha256": "5bae104f735ba5cf141ecc6354053d4ed9d7bfbe5a56922b476b4fe9c87ed479",
+   "files": 145,
+   "differs_from_HEAD": []
+  },
+  "s6": {
+   "home_keys": [
+    "projects",
+    "loose"
+   ],
+   "unbound_jobs": 0,
+   "rows": 824,
+   "edits_alive": 5
+  },
+  "s7": {
+   "first_screen_button": true,
+   "html_has_home": true
+  },
+  "s8": {
+   "job": "17477aa943ce",
+   "status": "done",
+   "rows": 1037,
+   "qty": 0,
+   "fingerprint": "fb85b039",
+   "sec": 793.9,
+   "peak_G": 5.22,
+   "msg": "done",
+   "qty_db": 1931,
+   "note": "qty 는 격리 DB item.ai_json 에서 직접 셈 (API 합계는 자리를 잘못 읽어 0)"
+  },
+  "s9": {
+   "revision": 1,
+   "form_rows": {
+    "field_pid_total.xlsx": 885,
+    "bfv_pid_total.xlsx": 23,
+    "mov_pid_total.xlsx": 76
+   }
+  },
+  "s13": {
+   "status": "failed",
+   "msg": "이 PDF 의 12장 어디에서도 도면번호를 읽지 못했습니다. 도면번호 칸의 자리를 [1950.0, 1560.0, 2384.0, 1600.0] 로 보고 있는데 종이 안이지만 비어 있습니다 (이 문서의 쪽 크기: 238",
+   "stopped_stage": "reading title blocks",
+   "sec": 3.2
+  },
+  "s14": {
+   "status": "done",
+   "rows": 78,
+   "sec": 152.8,
+   "tagged": 0,
+   "tagged_db": 38,
+   "tier": 1,
+   "note": "tag_no 는 item.ai_json/evidence 에서 셈 (rows API 최상위에는 없음)"
+  },
+  "real_db_sha_end": "643748dc0efe16816cb1b723941cb0fc6af1de9e183c15eab6d5dba726ecd40a",
+  "s12": {
+   "same": true,
+   "sha": "643748dc0efe"
+  },
+  "s10": {
+   "axis1": "99.3 / 70.5",
+   "axis2": "99.3 / 94.4 (FP 35 · FN 4)",
+   "how": "spike/accuracy.py 를 최종 코드 회귀 json(AL_NOUF1_D41) 으로"
+  },
+  "s11": {
+   "fast_worktree": "310 passed · 5 skipped(후보 워크북·SADARA json 없는 기계) · 본 저장소 315",
+   "ui": "24 passed (928초 · PID_UI_DB=/tmp/v41_data/app.db · 824행(SCOPE 없음)+1037행(SCOPE 있음) 한 DB)",
+   "slow": "안 돌림 — 46분 · 시간 상한"
+  },
+  "s15": {
+   "peak_G_new": 5.22,
+   "peak_G_old": 5.08
+  }
+ }
+}

@@ -1,0 +1,254 @@
+"""hotfix56 — PID_dev 변경분 적용기: 회사에서 고친 파일은 덮지 않는다."""
+import hashlib
+import json
+import sys
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT / "spike"))
+import apply_delta  # noqa: E402
+
+
+def _h(b):
+    return hashlib.sha256(b).hexdigest()
+
+
+def _setup(tmp_path):
+    target = tmp_path / "PID_dev"
+    pkg = tmp_path / "pkg"
+    (target / "app").mkdir(parents=True)
+    (target / "app" / "main.py").write_bytes(b"base main")
+    (target / "app" / "lan_check.py").write_bytes(b"edited on company PC")
+    (target / "app" / "_update.json").write_bytes(b'{"name": "hotfix55"}')
+    files = {"app/main.py": (b"base main", b"new main"),
+             "app/lan_check.py": (b"base lan", b"new lan"),
+             "app/analysis_proc.py": (None, b"new file"),
+             "app/_update.json": (b'{"name": "hotfix54"}', b'{"name": "hotfix56"}'),
+             "app/_data/pid.db": (None, b"never")}
+    man = {"name": "hotfix56", "files": []}
+    for p, (old, new) in files.items():
+        (pkg / "files" / p).parent.mkdir(parents=True, exist_ok=True)
+        (pkg / "files" / p).write_bytes(new)
+        man["files"].append({"path": p, "base_sha256": _h(old) if old else None,
+                             "new_sha256": _h(new), "always": p.endswith("_update.json")})
+    (pkg / "manifest.json").write_text(json.dumps(man), encoding="utf-8")
+    return target, pkg, man
+
+
+def test_overwrites_only_untouched_files_and_keeps_company_edits(tmp_path):
+    target, pkg, man = _setup(tmp_path)
+    steps, backup = apply_delta.apply(target, pkg, man)
+    act = {s["path"]: s["action"] for s in steps}
+    assert act == {"app/main.py": "overwrite", "app/lan_check.py": "conflict",
+                   "app/analysis_proc.py": "create", "app/_update.json": "overwrite",
+                   "app/_data/pid.db": "refused"}
+    assert (target / "app" / "main.py").read_bytes() == b"new main"
+    assert (target / "app" / "lan_check.py").read_bytes() == b"edited on company PC"
+    assert (target / "app" / "lan_check.py.hotfix56.new").read_bytes() == b"new lan"
+    assert (target / "app" / "analysis_proc.py").read_bytes() == b"new file"
+    assert not (target / "app" / "_data").exists()
+    assert (backup / "app" / "main.py").read_bytes() == b"base main"
+    assert (target / "delta_hotfix56_report.txt").is_file()
+
+
+def test_second_run_is_a_no_op(tmp_path):
+    target, pkg, man = _setup(tmp_path)
+    apply_delta.apply(target, pkg, man)
+    steps, _ = apply_delta.apply(target, pkg, man)
+    act = {s["path"]: s["action"] for s in steps}
+    assert act["app/main.py"] == act["app/analysis_proc.py"] == "same"
+
+
+def test_dry_run_changes_nothing(tmp_path):
+    target, pkg, man = _setup(tmp_path)
+    before = {p: p.read_bytes() for p in target.rglob("*") if p.is_file()}
+    apply_delta.apply(target, pkg, man, dry=True)
+    after = {p: p.read_bytes() for p in target.rglob("*") if p.is_file()}
+    assert before == after
+
+
+def test_refuses_the_operating_folder(tmp_path, monkeypatch, capsys):
+    ops = tmp_path / "PID"
+    (ops / "app").mkdir(parents=True)
+    (ops / "app" / "main.py").write_text("x")
+    monkeypatch.setattr(apply_delta, "HERE", tmp_path)
+    (tmp_path / "manifest.json").write_text(json.dumps({"name": "h", "files": []}))
+    assert apply_delta.main([str(ops)]) == 1
+    assert "운영 폴더" in capsys.readouterr().out
+
+
+def test_bat_files_stay_ascii():
+    src = (ROOT / "spike" / "pack_delta.py").read_text(encoding="utf-8")
+    import ast
+    bat = next(n for n in ast.walk(ast.parse(src))
+               if isinstance(n, ast.Assign) and getattr(n.targets[0], "id", "") == "BAT")
+    text = ast.literal_eval(bat.value)
+    text.encode("ascii")
+    assert "\r\n" in text and "chcp" not in text
+
+
+def test_a_version_we_delivered_earlier_is_not_a_conflict(tmp_path):
+    """hotfix57 — 앞 꾸러미(56)를 적용한 PID_dev 에 누적 꾸러미(57)를 얹어도 충돌이 아니다."""
+    target, pkg, man = _setup(tmp_path)
+    (target / "app" / "main.py").write_bytes(b"main from hotfix56")
+    for f in man["files"]:
+        if f["path"] == "app/main.py":
+            f["known_sha256"] = [_h(b"main from hotfix56")]
+    steps, _ = apply_delta.apply(target, pkg, man)
+    assert {s["path"]: s["action"] for s in steps}["app/main.py"] == "overwrite"
+    assert (target / "app" / "main.py").read_bytes() == b"new main"
+
+
+def test_removes_a_file_we_delivered_but_keeps_an_edited_one(tmp_path):
+    """hotfix58 — 저장소가 없앤 파일(hotfix57 시험)은 우리가 보낸 판일 때만 지운다."""
+    target, pkg, man = _setup(tmp_path)
+    (target / "tests").mkdir()
+    (target / "tests" / "old.py").write_bytes(b"delivered by hotfix57")
+    (target / "tests" / "mine.py").write_bytes(b"company edit")
+    man["files"] += [{"path": "tests/old.py", "base_sha256": None, "new_sha256": None,
+                      "known_sha256": [_h(b"delivered by hotfix57")], "remove": True},
+                     {"path": "tests/mine.py", "base_sha256": None, "new_sha256": None,
+                      "known_sha256": [_h(b"delivered")], "remove": True},
+                     {"path": "tests/never.py", "base_sha256": None, "new_sha256": None,
+                      "known_sha256": [], "remove": True}]
+    steps, backup = apply_delta.apply(target, pkg, man)
+    act = {s["path"]: s["action"] for s in steps}
+    assert act["tests/old.py"] == "remove" and not (target / "tests" / "old.py").exists()
+    assert (backup / "tests" / "old.py").read_bytes() == b"delivered by hotfix57"
+    assert act["tests/mine.py"] == "kept" and (target / "tests" / "mine.py").exists()
+    assert act["tests/never.py"] == "same"
+
+
+def test_ops_takes_only_server_files_and_all_or_nothing(tmp_path):
+    """hotfix60 — 운영 폴더에는 서버가 돌리는 파일(app/…)만 · 하나라도 충돌이면 아무것도 안 바꾼다."""
+    target, pkg, man = _setup(tmp_path)
+    man["files"].append({"path": "tests/test_x.py", "base_sha256": None, "new_sha256": _h(b"t")})
+    (pkg / "files" / "tests").mkdir(parents=True, exist_ok=True)
+    (pkg / "files" / "tests" / "test_x.py").write_bytes(b"t")
+    before = {p: p.read_bytes() for p in target.rglob("*") if p.is_file()}
+    steps, backup = apply_delta.apply(target, pkg, man, runtime_only=True, all_or_nothing=True)
+    assert all(s.get("aborted") for s in steps) and backup is None          # lan_check.py 가 회사판 → 멈춤
+    assert {p: p.read_bytes() for p in target.rglob("*") if p.is_file()} == before
+    (target / "app" / "lan_check.py").write_bytes(b"base lan")              # 회사판이 아니면
+    steps, backup = apply_delta.apply(target, pkg, man, runtime_only=True, all_or_nothing=True)
+    assert {s["path"] for s in steps} == {p for p in (f["path"] for f in man["files"]) if p.startswith(apply_delta.RUNTIME)}
+    assert not (target / "tests").exists()                                  # 시험 파일은 운영에 안 간다
+    assert (target / "app" / "main.py").read_bytes() == b"new main"
+
+
+def test_restore_puts_back_replaced_and_removes_created(tmp_path):
+    target, pkg, man = _setup(tmp_path)
+    (target / "app" / "lan_check.py").write_bytes(b"base lan")
+    apply_delta.apply(target, pkg, man, runtime_only=True, all_or_nothing=True)
+    assert (target / "app" / "analysis_proc.py").exists()
+    b, back, gone = apply_delta.restore(target, man["name"])
+    assert b is not None and gone == 1 and not (target / "app" / "analysis_proc.py").exists()
+    assert (target / "app" / "main.py").read_bytes() == b"base main"
+    assert (target / "app" / "lan_check.py").read_bytes() == b"base lan"
+
+
+def test_ops_refuses_an_exe_install(tmp_path, monkeypatch, capsys):
+    ops = tmp_path / "PID"
+    (ops / "app").mkdir(parents=True)
+    (ops / "app" / "main.py").write_text("x")
+    (ops / "PID_Extract.exe").write_bytes(b"MZ")
+    monkeypatch.setattr(apply_delta, "HERE", tmp_path)
+    (tmp_path / "manifest.json").write_text(json.dumps({"name": "h", "files": []}))
+    assert apply_delta.main([str(ops), "--ops", "--runtime", "--all-or-nothing"]) == 4
+
+
+def test_restart_finds_only_the_listener_on_the_port():
+    import restart_pid_server as r
+    text = """
+  Proto  Local Address          Foreign Address        State           PID
+  TCP    0.0.0.0:8000           0.0.0.0:0              LISTENING       4120
+  TCP    0.0.0.0:8080           0.0.0.0:0              LISTENING       5000
+  TCP    127.0.0.1:8000         127.0.0.1:53111        ESTABLISHED     4120
+  TCP    127.0.0.1:53111        127.0.0.1:8000         ESTABLISHED     7777
+  TCP    [::]:8000              [::]:0                 수신 대기       4120
+  TCP    0.0.0.0:18000          0.0.0.0:0              LISTENING       9999
+"""
+    assert r.listening_pids(8000, text) == [4120]          # 대시보드(8080) · 손님(7777) · 18000 은 아니다
+    src = (ROOT / "spike" / "restart_pid_server.py").read_text(encoding="utf-8")
+    assert "taskkill" in src and "/IM" not in src and "python.exe" not in src  # 이름으로 끄지 않는다
+
+
+def test_ops_bats_stay_ascii():
+    import pack_delta
+    for t in (pack_delta.OPS_BAT, pack_delta.ROLLBACK_BAT):
+        t.encode("ascii")
+        assert "\r\n" in t and "chcp" not in t
+    assert "--all-or-nothing" in pack_delta.OPS_BAT and "--runtime" in pack_delta.OPS_BAT
+
+
+def test_ops_also_takes_config(tmp_path):
+    """hotfix89 — 서버는 config/ 도 읽는다.  app/ 만 얹으면 hotfix83 의 방침(PSV 제외 · 제어실 기능 제외)이
+    운영 서버에 닿지 않는다."""
+    assert apply_delta.RUNTIME == ("app/", "config/")
+    target, pkg, man = _setup(tmp_path)
+    (target / "app" / "lan_check.py").write_bytes(b"base lan")
+    (target / "config").mkdir(exist_ok=True)
+    (target / "config" / "p.yaml").write_bytes(b"old")
+    man["files"].append({"path": "config/p.yaml", "base_sha256": _h(b"old"), "new_sha256": _h(b"new")})
+    (pkg / "files" / "config").mkdir(parents=True, exist_ok=True)
+    (pkg / "files" / "config" / "p.yaml").write_bytes(b"new")
+    apply_delta.apply(target, pkg, man, runtime_only=True, all_or_nothing=True)
+    assert (target / "config" / "p.yaml").read_bytes() == b"new"
+
+
+def _company_lan_check(crlf=False):
+    """기준판(97a8732) lan_check.py 에 회사가 netstat 을 손본 것처럼 고친 판."""
+    import subprocess
+    base = subprocess.run(["git", "-C", str(ROOT), "show", "97a8732:app/lan_check.py"],
+                          capture_output=True, check=True).stdout.decode("utf-8")
+    company = base.replace('capture_output=True, text=True,\n                             timeout=20).stdout',
+                           'capture_output=True, timeout=20).stdout.decode("cp949", "replace")'
+                           '  # company netstat fix')
+    assert company != base
+    return company.replace("\n", "\r\n") if crlf else company
+
+
+def test_company_lan_check_is_merged_not_left_as_conflict(tmp_path):
+    """hotfix89b — 회사가 고친 lan_check.py 는 회사 판을 그대로 두고 우리 추가분(tail_bytes · rotate)만 끼운다.
+    운영(전부 아니면 무)도 그 파일 때문에 멈추지 않는다."""
+    import types
+    for crlf in (False, True):
+        target, pkg, man = _setup(tmp_path / ("crlf" if crlf else "lf"))
+        company = _company_lan_check(crlf)
+        (target / "app" / "lan_check.py").write_bytes(company.encode("utf-8"))
+        new = (ROOT / "app" / "lan_check.py").read_bytes()
+        (pkg / "files" / "app" / "lan_check.py").write_bytes(new)
+        for f in man["files"]:
+            if f["path"] == "app/lan_check.py":
+                f["new_sha256"] = _h(new)
+        (target / "app" / "lan_check.py.hotfix89.new").write_bytes(new)    # 앞선 적용의 흔적
+        steps, backup = apply_delta.apply(target, pkg, man, runtime_only=True, all_or_nothing=True)
+        act = {s["path"]: s["action"] for s in steps}
+        assert act["app/lan_check.py"] == "merge" and not steps[0].get("aborted")
+        out = (target / "app" / "lan_check.py").read_bytes().decode("utf-8")
+        assert "company netstat fix" in out                       # 회사 판 그대로
+        assert ("\r\n" in out) == crlf
+        assert (backup / "app" / "lan_check.py").read_bytes() == company.encode("utf-8")
+        assert not list((target / "app").glob("lan_check.py.*.new"))
+        mod = types.ModuleType("lc")
+        mod.__file__ = str(target / "app" / "lan_check.py")
+        exec(compile(out, "lan_check.py", "exec"), mod.__dict__)
+        assert callable(mod.tail_bytes) and callable(mod.rotate)
+        log = tmp_path / ("x" + str(crlf)) / "server.log"
+        log.parent.mkdir(parents=True)
+        log.write_bytes(b"a" * 50)
+        assert mod.tail_bytes(log, 10) == b"a" * 10
+        assert mod.rotate(log, limit=10, keep=2) and (log.parent / "server.log.1").exists()
+        pre = out[out.index("def preflight("):]
+        assert "rotate()" in pre.split("\ndef ")[0]
+        assert "tail_bytes(path, 64_000)" in out
+        steps, _ = apply_delta.apply(target, pkg, man, runtime_only=True, all_or_nothing=True)
+        assert {s["path"]: s["action"] for s in steps}["app/lan_check.py"] == "same_merged"
+
+
+def test_unmergeable_company_file_stays_a_conflict(tmp_path):
+    target, pkg, man = _setup(tmp_path)
+    (target / "app" / "lan_check.py").write_bytes(b"def tail_bytes(p, n):\n    return b''\n")   # 반쯤 있다
+    steps, _ = apply_delta.apply(target, pkg, man, runtime_only=True, all_or_nothing=True)
+    assert steps[0].get("aborted")
+    assert {s["path"]: s["action"] for s in steps}["app/lan_check.py"] == "conflict"

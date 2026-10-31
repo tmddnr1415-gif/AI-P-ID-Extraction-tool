@@ -1,0 +1,96 @@
+<!--
+  가상 광장 카드 — dashboard.html 홈 화면에 넣을 조각 (메뉴 항목은 만들지 않는다).
+
+  넣는 자리: '최근 변경 이력' 카드 바로 아래.
+  ① 아래 style 블록의 규칙은 dashboard.html 의 style 안에.
+  ② '최근 변경 이력' 카드의 제목 줄에 접기 단추를 넣고, 목록을 감싼 요소에 class="pz-hist pz-half" 를 준다.
+     (아래 HIST_SELECTOR · FOLD_BTN 을 대시보드의 실제 id 로 바꾼다)
+  ③ <div class="card pz-card"> … </div> 를 그 카드 바로 아래에.
+  ④ 아래 script 블록을 넣고, 홈 화면을 그린 뒤 plazaMount() 를 부른다 (여러 번 불러도 됨).  홈을 다시 그려도 iframe 은 새로 만들지 않는다
+     — 새로 만들면 캐릭터가 나갔다 다시 들어온다.
+
+  광장 서버: 같은 PC 의 포트 8100 (plaza\run_plaza_server.bat).
+  로그인 이름: localStorage 'dept-dashboard-user' (대시보드가 쓰는 값).
+-->
+<style>
+  .pz-fold{margin-left:auto;font-size:12px;border:1px solid #c9cfe3;background:#f5f7fd;border-radius:6px;padding:3px 10px;cursor:pointer;color:#2348e0}
+  .pz-hist{position:relative;overflow:hidden}
+  .pz-hist.pz-half{max-height:150px}
+  .pz-hist.pz-half:after{content:"";position:absolute;left:0;right:0;bottom:0;height:34px;background:linear-gradient(rgba(255,255,255,0),#fff)}
+  .pz-card iframe{width:100%;height:470px;border:0;border-radius:8px;display:block;background:#24361b}
+  .pz-card .pz-off{padding:18px;color:#8a5a00;background:#fff8e1;border-radius:8px;font-size:13px}
+</style>
+
+<!-- '최근 변경 이력' 제목 줄 끝에 -->
+<button type="button" id="pz-fold" class="pz-fold">펼치기 ▾</button>
+
+<!-- '최근 변경 이력' 카드 바로 아래에 -->
+<div class="card pz-card" id="pz-card">
+  <h3>가상 광장 <small>부서원이 캐릭터로 모이는 곳 — 화면을 누르고 방향키 이동 · Enter 대화 · Space 공격</small></h3>
+  <div id="pz-slot"></div>
+</div>
+
+<script>
+(function () {
+  var PLAZA_PORT = 8100;
+  var HIST_SELECTOR = "#recent-history-list";   // ← 대시보드의 '최근 변경 이력' 목록 요소로 바꾼다
+  var FOLD_KEY = "dept-dashboard-history-folded";
+
+  function userName() {
+    try { return localStorage.getItem("dept-dashboard-user") || ""; } catch (e) { return ""; }
+  }
+
+  // 최근 변경 이력 — 반으로 접기 (기본 접힘 · 브라우저마다 기억)
+  function bindFold() {
+    var list = document.querySelector(HIST_SELECTOR), btn = document.getElementById("pz-fold");
+    if (!list || !btn || btn.dataset.bound) return;
+    btn.dataset.bound = "1";
+    list.classList.add("pz-hist");
+    var folded = true;
+    try { folded = localStorage.getItem(FOLD_KEY) !== "0"; } catch (e) {}
+    function show() {
+      list.classList.toggle("pz-half", folded);
+      btn.textContent = folded ? "펼치기 ▾" : "반으로 접기 ▴";
+    }
+    btn.addEventListener("click", function () {
+      folded = !folded;
+      try { localStorage.setItem(FOLD_KEY, folded ? "1" : "0"); } catch (e) {}
+      show();
+    });
+    show();
+  }
+
+  // 광장 iframe — 서버가 살아 있을 때만 · 한 번만 만든다
+  var frame = null;
+  function mountFrame() {
+    var slot = document.getElementById("pz-slot");
+    if (!slot) return;
+    if (frame) { if (frame.parentNode !== slot) slot.appendChild(frame); return; }
+    var base = location.protocol + "//" + location.hostname + ":" + PLAZA_PORT;
+    var ctl = new AbortController(), timer = setTimeout(function () { ctl.abort(); }, 3000);
+    fetch(base + "/version", { signal: ctl.signal, cache: "no-store" })
+      .then(function (r) { return r.json(); })
+      .then(function (v) {
+        clearTimeout(timer);
+        if (!v || v.app !== "plaza") throw new Error("not plaza");
+        if (frame) return;
+        frame = document.createElement("iframe");
+        frame.title = "가상 광장";
+        frame.allow = "fullscreen";
+        frame.src = base + "/plaza?embed=1&user=" + encodeURIComponent(userName());
+        slot.textContent = "";
+        slot.appendChild(frame);
+      })
+      .catch(function () {
+        clearTimeout(timer);
+        var off = document.createElement("div");
+        off.className = "pz-off";
+        off.textContent = "가상 광장 서버가 꺼져 있습니다 — 서버 PC 에서 plaza\\run_plaza_server.bat 을 켜 주세요.";
+        slot.textContent = "";
+        slot.appendChild(off);
+      });
+  }
+
+  window.plazaMount = function () { bindFold(); mountFrame(); };
+})();
+</script>

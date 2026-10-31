@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "deny": [
+      "Read(./docs/history/CLAUDE_archive_*.md)",
+      "Read(./out/**/*.json)",
+      "Read(./out/**/*.db)",
+      "Read(./**/vendor/**)",
+      "Read(./**/*.min.js)",
+      "Read(./pid-instrument-tool/web/standalone.html)"
+    ]
+  }
+}

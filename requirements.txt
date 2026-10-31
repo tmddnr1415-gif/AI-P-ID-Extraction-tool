@@ -1,0 +1,13 @@
+# Development install (online).  Windows offline installs use requirements-win*.txt.
+# anthropic: only for the optional Description middle-phrase selector (off by default).
+# ASCII only on purpose (see requirements-win.txt).
+pymupdf
+openpyxl
+PyYAML
+numpy
+fastapi
+uvicorn[standard]
+python-multipart
+anthropic>=0.122
+ezdxf>=1.4
+matplotlib>=3.8
