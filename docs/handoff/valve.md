@@ -1,15 +1,16 @@
 # 인수인계 — "VALVE Datasheet 검토" 세션 (상한 15KB · 덧붙이지 말고 고쳐 쓴다)
 
-## 지금 상태 (2026-10-31 · valve01)
+## 지금 상태 (2026-10-31 · valve02)
 
 - 작업 브랜치: `ccr-efbe7e75-n915ze`. 이 브랜치는 PID(`claude/gracious-ride-26nqrf`, hotfix131) 와 DASHBOARD(`ccr-248a5c4d-3dji7g`, v16.51) 를 병합한 위에 있다.
 - 무엇: 대시보드 **실행 프로젝트 › CO2 PJT › Datasheet › Ball Valve** = P&ID 서버(8000) `/valve/` — Valve Datasheet 검토 도구.
   설계 · 분석 · 남은 일: `docs/valve/DESIGN.md` (먼저 §1 표와 §8).
-- Phase 1(추출 · Valve List) 완료 + Phase 2 기본(Revision 칸별 비교 · 노랑 표시 PDF). Phase 3(Process) · 4(PMS)는 화면 틀만 — 결과 'Not Evaluated', 예시는 MOCK 버튼.
+- Phase 1(추출 · Valve List) + Phase 2 기본(Revision) + **지적 사항(오류 · 누락) · 설계사용 Issue List Excel · 인쇄용 Mark-up PDF · 분석 끝 자동 Excel · Excel 칸 ↔ PDF 연동 · 실제 PMS 비교(재질은 규격·등급으로)** (valve02, DESIGN §9).
+  Process Data(Phase 3)만 화면 틀 — 결과 'Not Evaluated', 예시는 MOCK 버튼. PMS 의 Gasket · Bolting 은 아직.
 - 실자료(고객 파일 · 저장소에 없음): Datasheet.pdf 456쪽 → 164 데이터시트(On/Off 140 · MOV 24) · TBE 164/164 Tag 일치 · Review Required 69칸.
   자료를 다시 받으면 EGG 는 `python3 spike/valve_unegg.py <폴더> *.egg`, TBE .xls 는 시험용으로 `spike/valve_xls2xlsx.py`(xlrd 필요).
-- 시험: `pytest -q tests/test_valve.py` (7개, 실자료는 `VALVE_SAMPLES=<Datasheet.pdf 폴더>`). 전체 1,836 통과 (2026-10-31).
-- 마지막 꾸러미: **valve01** (아래 §꾸러미). 회사 적용 확인 전.
+- 시험: `pytest -q tests/test_valve.py` (21개, 실자료는 `VALVE_SAMPLES=<Datasheet.pdf 폴더>`). 전체 1,850 통과 (2026-10-31).
+- 마지막 꾸러미: **valve02** (P&ID 서버용만 — 대시보드는 valve01 의 메뉴 그대로). valve01 · valve02 모두 회사 적용 확인 전. valve02 는 hotfix131 기준 누적이라 valve01 을 건너뛰어도 된다.
 
 ## 파일
 
@@ -18,7 +19,11 @@
 | `app/valve/extract.py` | PDF → 칸 (On/Off Form 80 · MOV Form 102 · 공정 조건표 · Notes · General Notes) |
 | `app/valve/schema.py` | 라벨 사전 · Tag 정규화 · 밸브 종류 · 공정이 아닌 칸 목록 |
 | `app/valve/store.py` | SQLite `{data}/valve/valve.db` · 원본 `{data}/valve/files/` · 감사 · Rev 순서 · 열 추가 이전(_migrate) |
-| `app/valve/tbe.py` | Valve List(TBE Appendix) 채우기 · .xls → .xlsx (회사 PC 의 Excel) |
+| `app/valve/tbe.py` | Valve List(TBE Appendix) 채우기 · .xls → .xlsx (회사 PC 의 Excel) · 칸 링크 |
+| `app/valve/material.py` | 재질 비교 (표기 아닌 규격 · 등급 · 계열) |
+| `app/valve/pms.py` | PMS Class 시트 읽기(지역 QN/QS) · 데이터시트 비교 |
+| `app/valve/issues.py` | 오류 · 누락 · PMS · Revision · 검토자 지적 (번호 · 색) |
+| `app/valve/exports.py` | Issue List Excel · 인쇄용 Mark-up PDF |
 | `app/valve/api.py` | `/valve/` 화면 · `/api/valve/*` (업로드 작업 · 칸 수정 · 비교 · 쪽 그림 · 검색 · 주석 · 표시 PDF · 내보내기) |
 | `app/static/valve/` | 화면 (index.html · valve.css · valve.js — 빌드 없음) |
 | `app/main.py` | 두 줄: `from app.valve import api as _valve_api` · `app.include_router(...)` |
@@ -38,7 +43,7 @@
 ## 꾸러미
 
 - P&ID 서버용 (밸브 모듈만):
-  `python3 spike/pack_delta.py --name valve01 --base 9429f4f --only app/valve/,app/static/valve/,app/main.py,tests/test_valve.py --readme out/valve01/readme_head.txt --ops`
+  `python3 spike/pack_delta.py --name valve02 --base 9429f4f --only app/valve/,app/static/valve/,app/main.py,tests/test_valve.py --readme out/valve01/readme_head.txt --ops`
   → `out/PID_dev+ops_valve01_<날짜>.zip`. `--only` 는 딱지(`app/_update.json`)와 기준 파일(`out/PID_dev_delta_base.txt`)을 건드리지 않는다 (PID 세션 번호와 안 섞이게).
   기준 9429f4f = hotfix131 전달본. 회사가 다른 판이면 `--base` 를 그 판으로.
 - 대시보드용: `python3 dashboard_tools/make_patch.py --out dashboard_patches --mark` (기준 = `delivered.txt` 맨 아래). `--out` 은 폴더. 첫 전달: `dashboard_patches/UPDATE_from_v16.51_VALVE_menu.zip` (기준 v16.51).

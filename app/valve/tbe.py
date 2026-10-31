@@ -33,7 +33,7 @@ from openpyxl.comments import Comment
 from openpyxl.styles import PatternFill
 from openpyxl.utils import get_column_letter
 
-from app.valve import schema
+from app.valve import material, schema
 
 YELLOW = PatternFill("solid", fgColor="FFF2A8")
 GREEN = PatternFill("solid", fgColor="DDF3E2")
@@ -351,8 +351,8 @@ def build(template: bytes | None, datasheets: list[dict], docnames: dict, projec
             if link:
                 cell.hyperlink = link(ds, keys[0])
             old = cell.value
-            if _cmp(old) == _cmp(val):
-                continue
+            if _cmp(old) == _cmp(val) or (old not in (None, "") and val and material.same(str(old), val)):
+                continue                                # '316 SS / HF' == 'SS 316/HF': same value, other notation
             if not val and not is_new:                  # the datasheet is silent: keep what the list says
                 continue
             note = _src_text(ds, keys, docname)

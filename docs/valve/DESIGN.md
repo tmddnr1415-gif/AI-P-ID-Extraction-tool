@@ -15,14 +15,16 @@
 | 원본 쪽 · 위치 표시 · 신뢰도 · 실패 항목 · 사용자 수정 (§3.4) | ✅ | 칸마다 `page` + `bbox` · 상태 `ok / placeholder / blank(Not Found) / review(Review Required)` · 수정은 읽은 값 옆에 |
 | Valve List 생성 — 기준 TBE 양식 유지 (§4) | ✅ | `tbe.build` · Reports & Export |
 | Revision 연결 · 칸별 비교 · Added/Deleted/Modified (§5.1–5.2) | ✅ | `api.compare` · Revision Comparison 화면 |
-| PDF 하이라이트 Mark-up (주석 방식, 원본 보존) (§5.3, §9) | ✅ 기본 | `api.markup_pdf` — Highlight(노랑) · 사용자 주석 Square(파랑) |
+| PDF Mark-up (주석 방식, 원본 보존 · **인쇄됨**) (§5.3, §9) | ✅ | `exports.markup_pdf` — 지적 사항마다 색 상자 + 번호 · 데이터시트마다 Issue Summary 쪽 · 표지 · 책갈피 (§9) |
+| **오류 · 누락 지적 + 설계사 전달 Issue List Excel** (2026-10-31 요청) | ✅ | `issues.compute` · `exports.issues_xlsx` (§9) |
+| **분석 끝나면 Excel 자동 출력 · Excel 칸 ↔ PDF 연동** (2026-10-31 요청) | ✅ | `api._auto_export` · Valve List / Issue List 화면의 PDF 미리보기 · Excel 칸 링크 (§9) |
 | Revision Comparison Report (§5.5) | ✅ 화면 | 엑셀 보고서는 다음 회차 |
 | Process Data Verification (§6) | ⏳ Phase 3 | 문서 보관 · 화면 틀 · 제외 항목 분리. 판정 엔진 없음 → 'Not Evaluated' |
-| PMS Compliance (§7) | ⏳ Phase 4 | 문서 보관 · 화면 틀. 판정 엔진 없음 → 'Not Evaluated' |
+| PMS Compliance (§7) | ✅ Ball Valve 범위 | `pms.read_pms` · `pms.check` · `material.compare` — Class(지역 QN/QS) · Rating · NACE · Trim · Stem · Body · Seat · Fire test · Bore. Gasket · Bolting 은 아직 |
 | Dashboard · Tag 별 검토 · 검토 상태 (§8) | ✅ | Dashboard · Datasheet Review (탭 8개) · 상태 6가지 |
 | Audit Trail (§10) | ✅ | `audit` 표 · History 탭 · CSV |
 
-**MOCK 표시 원칙** — Process Data / PMS 화면은 실제 Datasheet 값 · 쪽 · 위치만 보여 주고 결과 칸은 `Not Evaluated` 다.
+**MOCK 표시 원칙** — Process Data 화면은 실제 Datasheet 값 · 쪽 · 위치만 보여 주고 결과 칸은 `Not Evaluated` 다.
 화면 생김새 확인용 예시 판정은 사용자가 **MOCK 예시 판정 보기** 를 눌렀을 때만, 보라색 `MOCK` 딱지와 함께 나온다
 (사양서 rule 11 "AI 가 근거 없이 판정하지 않는다"). Revision 이 하나뿐인 프로젝트의 Revision Comparison 도 같은 방식.
 
@@ -152,3 +154,47 @@ PMS Compliance · Reports & Export · Settings. 밝은 작업 화면 + 남색 �
 2. **Phase 4 PMS** — 2.4절 계획대로 Class 구조화 → 비교 → 빨강 표시, PMS 쪽 동시 열기.
 3. Revision 비교 Excel 보고서 · Combined Mark-up PDF(4색 한 파일) · 스캔 PDF(OCR 은 회사 PC 에 엔진이 있을 때만).
 4. On/Off 13행(4라벨) 칸 나누기 — 지금은 Review Required 로 남김.
+
+
+## 9. 지적 사항 · 설계사 전달물 (2026-10-31 2차 요청)
+
+### 9.1 무엇을 지적하나 (`app/valve/issues.py`, 규칙만 · 근거 칸의 쪽 · 위치 포함)
+
+| 종류 | 언제 | 색 | 심각도 |
+|---|---|---|---|
+| Data Missing | 양식에 있는 필수 칸이 비었음 (공정값 칸은 Minor — Process DS 참조 확인) | 주황 | Major / Minor |
+| Open Item | 필수 칸이 HOLD / TBC | 주황 | Minor |
+| Data Error | Line No. 의 Class ≠ Piping class · Line No. 크기 ≠ Line Size · 운전 > 설계 · Fail 위치 ≠ Air Failure · 없는 General Note / Note 참조 | 빨강 | Major |
+| PMS Non-Compliance / PMS Review | `pms.check` 결과 | 빨강 | Major / Minor |
+| Revision Change | 같은 Tag 이전 Rev 대비 (표기만 다른 것은 변경 아님) | 노랑 | Info |
+| Reviewer Correction / Comment | 검토자가 고친 값 · 남긴 의견 | 파랑 | Major |
+| Extraction Review | 도구가 라벨-값 짝을 못 정함 (내부용, 기본은 전달본에서 제외) | 보라 | Internal |
+
+실자료: Data Error 3 (00XV921 · 24XV090092 · 25XV090092 가 문서에 없는 General Note 46 을 참조 — 그 문서의 General Notes 는 1~19),
+Data Missing 748 (전부 공정값 칸 · Minor), PMS Review 113, PMS Non-Compliance 0.
+번호: 설계사용 지적이 1…n, 내부 확인은 그 뒤 — 화면 · Issue List · 표시 PDF 의 번호가 같다. 상태 Open / Confirmed / Dismissed / Resolved (`issue_state` 표, 사유 · 감사 기록). Dismissed 는 전달본에서 빠진다.
+
+### 9.2 재질 비교 (`app/valve/material.py`) — 표기가 아니라 규격 · 등급
+
+글자를 토큰으로 나누고(`SS316` → 316 + SS, `STAINLESS STEEL` → SS, ASTM · GR · TYPE 무시) 등급을 재질 계열로 묶는다.
+`ASTM A351 CF8M` ↔ `316/316L SS A351-CF8M/CF3M` = Compliant(양방향 · dual-grade 표기), `316 SS / HF` = `SS 316/HF`,
+`CS A216-WCB` = `Carbon Steel ASTM A216 Grade WCB`. 다른 계열(CF8M vs WCB · RTFE vs PEEK)만 Non-Compliant, 같은 계열 다른 제품 형태(CF8M vs F316) ·
+요구 표기 누락(HF) 은 Review Required. Revision 비교 · Valve List 갱신도 같은 기준으로 '표기만 다름' 을 변경으로 보지 않는다.
+
+### 9.3 PMS 읽기 (`app/valve/pms.py`)
+
+Appendix C = QN · W15, Appendix D = QS (같은 Class 코드가 두 지역에 따로 있다). 데이터시트 문서 제목의 NORTH / W15 / SOUTH 로 지역을 고르고,
+없으면 다른 지역을 찾아 'please confirm'. Class 머리(Flange Class · NACE · Valve Trim) + Ball Valve 품목(크기 범위 · Bore · Floating/Trunnion 로 고름).
+`NACE Requirement: NONE` 은 요구 없음. 실자료: 지역별 Class QN 23 · QS 25, 품목 5,116개, 읽는 데 1.4초.
+
+### 9.4 설계사 전달물 (`app/valve/exports.py`)
+
+- **Issue List Excel**: No · Tag · Valve Type · Doc. No. · Rev · Sheet(x of y) · PDF File · PDF Page · Row · Field · Datasheet Value · Issue Type ·
+  Description(영문) · Required/Expected · Severity · Status · Reviewer Note · 링크 2개(도구에서 그 칸 열기 · 원본 PDF 그 쪽). 시트 'Summary by Tag' · 'Info'(범례).
+- **Mark-up PDF**: 지적이 있는 데이터시트 쪽만 원본에서 복사(원본 그대로), 색 상자 + 번호 라벨 — **인쇄 플래그**라 '주석 포함 인쇄' 없이도 종이에 나온다.
+  데이터시트마다 'Issue Summary' 쪽(번호 · Sheet · 칸 · 값 · 문제 · 요구값), 여러 장이면 표지(Tag 별 개수) · Tag 별 책갈피.
+- **분석 끝 자동 출력**: Datasheet 분석 작업이 끝나기 전에 Valve List(기준 TBE 양식) · Issue List 를 만들어 `{data}/valve/exports/<pid>/` 에 두고,
+  화면은 끝나자마자 둘 다 내려받는다 (Reports & Export 에 이력).
+- **Excel ↔ PDF**: Valve List 의 채운 칸 · DS Source 칸, Issue List 의 Tag · Open 칸은 하이퍼링크 → 이 도구가 `?ds=&key=&page=#review` 로 그 칸을 깜박여 연다.
+  도구 안의 Valve List · Issue List 화면은 오른쪽 PDF 미리보기와 실시간 연동(한 번 누르면 그 장 · 그 위치). 데스크톱 Excel 의 셀 선택 자체를
+  브라우저가 실시간으로 따라가게 하는 것은 Excel 추가 기능 없이 불가능하다 — 그래서 '칸 = 링크' 와 '도구 안 엑셀식 목록' 두 길로 했다.

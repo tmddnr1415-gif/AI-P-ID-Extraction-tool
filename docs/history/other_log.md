@@ -8,3 +8,10 @@
 - Phase 1 + Revision 비교 기본. Process/PMS 는 화면 틀(Not Evaluated · MOCK 은 버튼으로만).
 - spike/pack_delta.py 에 `--only` (모듈 꾸러미: 딱지 · 기준 파일 안 건드림). config/release_sources.json 에 VALVE.
 - 시험 tests/test_valve.py 7개 · 전체 1,836 통과.
+
+## 2026-10-31 · valve02 — 지적 사항 · 설계사 전달물 · 실제 PMS (브랜치 ccr-efbe7e75-n915ze)
+- 요청: 잘못되거나 없는 Data 를 PDF 에 표시해 같이 출력 · Excel(Tag · Doc · Sheet · Page · 무엇이 문제) 로 설계사에게 · 분석 끝나면 Excel 도 · Excel 칸 → PDF 그 자리 · 재질 표기 차이를 같게.
+- issues.py(규칙) · exports.py(Issue List xlsx · 인쇄 플래그 Mark-up PDF + Issue Summary 쪽) · material.py(규격·등급 비교) · pms.py(실제 PMS · 지역 QN/QS).
+- 화면: Valve List / Issue List + PDF 미리보기 실시간 연동, Issues 탭, 실제 PMS 화면(데이터시트 · PMS 나란히), 분석 끝 자동 내려받기, ?ds=&key=&page= 바로 열기.
+- 실자료: Data Error 3 (없는 General Note 46) · PMS 재질 Non-Compliant 0 · Body Review 32→15 · Valve List 실제 차이 571→539.
+- 시험 21개 · 전체 1,850 통과.

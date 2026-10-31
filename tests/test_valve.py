@@ -219,3 +219,105 @@ def test_real_datasheet_sample():
     assert all(d["notes"] for d in dss)
     review = sum(1 for d in dss for f in d["fields"].values() if f["status"] == "review")
     assert review <= 80
+
+
+# ── material equivalence · PMS · issues · contractor exports (round 2) ─────────────────────────
+
+from app.valve import exports, issues, material, pms  # noqa: E402
+
+
+@pytest.mark.parametrize("req, ds, want", [
+    ("ASTM A351 CF8M", "316/316L SS A351-CF8M/CF3M", material.COMPLIANT),     # user report 2026-10-31
+    ("316 SS / HF", "SS 316/HF", material.COMPLIANT),                          # user report 2026-10-31
+    ("SS 316/HF", "316 SS / HF", material.COMPLIANT),
+    ("CS A216-WCB", "Carbon Steel ASTM A216 Grade WCB", material.COMPLIANT),
+    ("RTFE", "RTFE ST", material.COMPLIANT),
+    ("ASTM A351 CF8M", "Carbon Steel ASTM A216 Grade WCB", material.NON),
+    ("RTFE", "PEEK", material.NON),
+    ("316/316L SS A351-CF8M/CF3M", "ASTM A351 CF8M", material.COMPLIANT),     # the other direction, same material
+    ("ASTM A351 CF8M", "A182 F316", material.REVIEW),                          # same family: engineer decides
+    ("316 SS/HF", "SS 316", material.REVIEW),                                  # hard-facing not stated
+    ("316 SS / HF", "VTA", material.REVIEW),
+])
+def test_material_compare(req, ds, want):
+    assert material.compare(req, ds)[0] == want
+
+
+def _pms_pdf(path):
+    doc = pymupdf.open()
+    pg = doc.new_page(width=595, height=842)
+    pg.insert_text((10, 40), "PIPING MATERIAL SPECIFICATION - QN AND W15 AREA", fontsize=8)
+    pg.insert_textbox(pymupdf.Rect(10, 60, 400, 200), "Class: 1C0K8\nClass 150, 316/316L, SS, RF, NACE\n"
+                      "NACE Requirement: MR0175/ISO 15156\nFlange Class: CLASS 150\nMaterial: STAINLESS STEEL\n"
+                      "Valve Trim: TRIM 12 (316 SS/HF)", fontsize=7)
+    pg.insert_textbox(pymupdf.Rect(10, 300, 470, 360), "PVBSED15RF02TD08U703\n0.5\n-\n2\nBALL VALVE, 316/316L SS "
+                      "A351-CF8M/CF3M, CL150, RF, B16.10, FLOATING, FULL PORT, 316 SS BALL/STEM, RTFE ST, FIRE TESTED TO "
+                      "API 607, NACE MR0175/ISO 15156", fontsize=6)
+    doc.save(str(path))
+
+
+def test_pms_read_and_check(tmp_path):
+    p = tmp_path / "pms.pdf"
+    _pms_pdf(p)
+    P = pms.read_pms(str(p))
+    c = P["areas"]["QN"]["1C0K8"]
+    assert c["rating"] == 150 and "316 SS/HF" in c["trim"] and c["items"][0]["to"] == 2.0
+    F = {k: {"value": v, "page": 1, "bbox": [0, 0, 1, 1]} for k, v in {
+        "piping_class": "1C0K8", "body_size": '2"', "body_type": "Ball (Full Bore) - Floating", "rating": "150#",
+        "nace": "Yes", "body_material": "ASTM A351 CF8M", "ball_material": "SS 316/HF", "stem_material": "316 SS / HF",
+        "seat_material": "PEEK"}.items()}
+    rows = {r["item"]: r for r in pms.check(F, P, "QN")}
+    assert rows["Pressure Class"]["result"] == material.COMPLIANT
+    assert rows["Body Material"]["result"] == material.COMPLIANT          # CF8M inside CF8M/CF3M
+    assert rows["Trim (Ball) Material"]["result"] == material.COMPLIANT   # notation only
+    assert rows["Seat Material"]["result"] == material.NON and rows["Seat Material"]["pms_page"] == 1
+    F["rating"]["value"] = "300#"
+    assert {r["item"]: r for r in pms.check(F, P, "QN")}["Pressure Class"]["result"] == material.NON
+
+
+def _ds_for_issues():
+    fields = [
+        {"key": "tag", "value": "00XV 921", "page": 1, "bbox": [1, 1, 2, 2], "row": 1, "display": "Tag"},
+        {"key": "line_no", "value": 'PW2409631-2"(1C0K8)-N', "page": 1, "bbox": [1, 3, 2, 4], "row": 5, "display": "Line No."},
+        {"key": "piping_class", "value": "1C3AS1", "page": 1, "bbox": [1, 5, 2, 6], "row": 9, "display": "Piping class"},
+        {"key": "body_size", "value": "", "page": 1, "bbox": [1, 7, 2, 8], "row": 21, "display": "Valve Size"},
+        {"key": "rating", "value": "HOLD", "page": 1, "bbox": [1, 9, 2, 10], "row": 22, "display": "Rating"},
+        {"key": "elec_connection", "value": "M20 (General Note-46)", "page": 1, "bbox": [1, 11, 2, 12], "row": 49,
+         "display": "Electrical Connection"},
+        {"key": "raw.13", "value": "Liquid", "page": 1, "bbox": [1, 13, 2, 14], "row": 13, "status": "review", "display": "Row 13"},
+    ]
+    return {"fields": [dict(f, edited_value=None, status=f.get("status", "ok")) for f in fields], "notes": [],
+            "pages": [1, 2], "sheets": [[1, 1, 2], [2, 2, 2]], "doc_no": "00-09-IN-DTS-00003", "comments": []}
+
+
+def test_issues_rules():
+    got = issues.compute(_ds_for_issues(), {str(n): "x" for n in range(1, 20)})
+    t = {(i["type"], i["key"]) for i in got}
+    assert ("Data Missing", "body_size") in t
+    assert ("Open Item", "rating") in t
+    assert ("Data Error", "piping_class") in t                           # (1C0K8) in Line No. vs 1C3AS1
+    assert ("Data Error", "elec_connection") in t                        # General Note 46 not in the document
+    assert ("Extraction Review", "raw.13") in t
+    ext = next(i for i in got if i["type"] == "Extraction Review")
+    assert ext["no"] == len(got)                                         # internal checks numbered last
+    assert all(i["sheet"] == 1 and i["of"] == 2 for i in got)
+
+
+def test_contractor_exports(tmp_path):
+    src = tmp_path / "ds.pdf"
+    src.write_bytes(make_pdf())
+    rows = [dict(i, ds_id=7, tag="00XV921", doc_no="00-09-IN-DTS-00003", rev="A", document_id=3, filename="ds.pdf",
+                 valve_type="XV") for i in issues.compute(_ds_for_issues(), {str(n): "x" for n in range(1, 20)})
+            if i["type"] != "Extraction Review"]
+    x = exports.issues_xlsx(rows, "http://pc:8000", "CO2 PJT", "tester", ["ds.pdf"])
+    ws = openpyxl.load_workbook(io.BytesIO(x))["Issue List"]
+    head = [c.value for c in ws[1]]
+    for h in ("Tag Number", "Doc. No.", "Rev.", "Sheet", "PDF Page", "Issue Type", "Description", "Required / Expected"):
+        assert h in head
+    assert ws.cell(2, head.index("Sheet") + 1).value == "1 of 2"
+    assert "ds=7" in ws.cell(2, head.index("Open in Tool") + 1).hyperlink.target
+    pdf = pymupdf.open(stream=exports.markup_pdf([{"path": str(src), "pages": [1, 2], "tag": "00XV921", "doc_no": "D",
+                                                   "rev": "A", "filename": "ds.pdf", "issues": rows}], "CO2 PJT"), filetype="pdf")
+    flags = [a.flags for p in pdf for a in p.annots()]
+    assert flags and all(f & pymupdf.PDF_ANNOT_IS_PRINT for f in flags)   # mark-ups print with the page
+    assert pdf.page_count == 3                                           # 2 datasheet pages + Issue Summary

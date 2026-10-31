@@ -84,11 +84,15 @@ def compare(required: str, actual: str) -> tuple[str, str]:
     gr, gd = _grades(r), _grades(d)
     sr, sd = {t for t in r if _SPEC.match(t)}, {t for t in d if _SPEC.match(t)}
     if gr and gd:
-        if gr <= gd and (not sr or not sd or sr & sd):
-            extra = sorted((r - d) - gr - sr)
-            if not extra:
-                return COMPLIANT, "Grade matches" + (f" (spec {'/'.join(sorted(sr))})" if sr else "")
-            return REVIEW, f"Grade matches but required {' '.join(extra)} not stated"
+        if gr & gd and (not sr or not sd or sr & sd):
+            implied = {"SS"} if ({_FAM_OF.get(g) for g in gd} & {"SS316", "SS304"}) else set()
+            implied |= {"CS"} if "CS" in {_FAM_OF.get(g) for g in gd} else set()
+            extra = sorted((r - d) - gr - sr - implied)
+            if extra:
+                return REVIEW, f"Grade matches but required {' '.join(extra)} not stated"
+            other = sorted(gr ^ gd)
+            return COMPLIANT, ("Grade matches" + (f" (spec {'/'.join(sorted(sr))})" if sr else "")
+                               + (f" — notation differs ({'/'.join(other)} dual-grade listing)" if other else ""))
         if gr & gd:
             return REVIEW, f"Required grade {'/'.join(sorted(gr - gd))} not stated (partial match)"
         fr, fd = {_FAM_OF.get(g) for g in gr} - {None}, {_FAM_OF.get(g) for g in gd} - {None}
