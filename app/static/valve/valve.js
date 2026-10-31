@@ -415,7 +415,7 @@ function renderDash() {
     ['Data Errors', k.data_errors ?? 0, '✖', '#fbe3e1', 'list:issues:Data Error', '', 'var(--bad)'], ['Data Missing', k.data_missing ?? 0, '◌', '#ffe8cc', 'list:issues:Data Missing', '', '#a35400'],
     ['PMS Non-Compliant', s.has_pms ? k.pms_noncompliant : null, '⛭', '#fbe3e1', 'pms', 'PMS 없음', 'var(--bad)'],
     ['Process Data Mismatch', s.has_process ? k.process_mismatch : null, '∿', '#ffe8d6', s.has_process ? 'list:issues:Process Mismatch' : 'proc', 'Process Data 없음', 'var(--proc)'],
-    ['Pending Review', k.pending, '◔', '#fff1d6', 'review::Not Reviewed', '', '#b26a00'], ['Completed Review', k.completed, '✔', '#dcf3e5', 'review::Accepted']];
+  ];                                            // review progress lives in the donut below (valve20: 8 tiles, not 10)
   const by = {}; s.tags.forEach(t => { by[t.review_status] = (by[t.review_status] || 0) + 1; });
   const cols = { 'Not Reviewed': '#c4cad6', 'Under Review': '#f0a43a', Accepted: '#1aa35a', Rejected: '#d9443a', Commented: '#2f5bd8', Resolved: '#0f7a43' };
   const cats = [['Data Error', k.data_errors ?? 0, 'var(--bad)', 'list:issues:Data Error'], ['Data Missing', k.data_missing ?? 0, 'var(--proc)', 'list:issues:Data Missing'],
@@ -431,11 +431,11 @@ function renderDash() {
     <div class="dashrow">
       <div class="card"><h3>Review Status by Tag</h3><div class="donut">${donut(STATUSES.map(st => ({ n: by[st] || 0, c: cols[st] })))}
         <div class="legend">${STATUSES.map(st => `<div data-go="review::${st}" class="click" title="이 상태의 Tag 만 보기"><i style="background:${cols[st]}"></i>${st}<b style="margin-left:auto;padding-left:10px">${by[st] || 0}</b></div>`).join('')}</div></div>
-        <p class="soft" style="margin:10px 0 0">검토 필요 칸(라벨·값 짝이 불확실) <b>${k.review_required}</b>개 — 판정은 사용자가 확정합니다.</p></div>
+        <p class="soft hint" style="margin:10px 0 0">검토 필요 칸(라벨·값 짝이 불확실) <b>${k.review_required}</b>개 — 판정은 사용자가 확정합니다.</p></div>
       <div class="card"><h3>Issues by Category</h3><div class="cats">${cats.map(([l, n, c, v]) => `<div class="cat ${n === null ? 'na' : ''}" ${n === null ? '' : `data-go="${v}"`} title="${n === null ? 'PMS 없음' : 'Issue List 에서 보기'}">
         <span>${l}</span><i><b style="width:${n ? Math.max(4, 100 * n / cmax) : 0}%;background:${c}"></b></i><em>${n === null ? '—' : n}</em></div>`).join('')}</div>
         ${!s.has_process ? '<p class="soft" style="margin:4px 0 0">Process Mismatch — Process Data PDF 를 올리면 셉니다.</p>' : ''}
-        <p class="soft" style="margin:8px 0 0">Dismissed 제외 · 최신 Revision 기준. 누르면 Issue List 가 그 종류로 걸러집니다.</p></div>
+        <p class="soft hint" style="margin:8px 0 0">Dismissed 제외 · 최신 Revision 기준. 누르면 Issue List 가 그 종류로 걸러집니다.</p></div>
       <div class="card"><h3>Review Status Table</h3>
         <table class="t"><thead><tr><th>Tag Number</th><th>Type</th><th>Rev.</th><th>Review Status</th><th>Issues</th></tr></thead><tbody>
         ${s.tags.slice().sort((a, b) => (b.problems - a.problems) || (b.issues - a.issues) || a.tag_key.localeCompare(b.tag_key)).slice(0, 200).map(t => `<tr class="click" data-ds="${t.id}"><td><b>${esc(t.tag_key)}</b></td><td>${esc(t.valve_type)}</td>
@@ -728,7 +728,7 @@ async function exportValveList() {
 }
 
 /* ── 4. Datasheet Review Workbench ────────────────────────────────────── */
-const W = { tab: LS.get('wtab', 'data'), q: '', type: '', st: '', viewer: null, selField: null, prevCmp: null, selCm: null,
+const W = { grpOpen: new Set(), tab: LS.get('wtab', 'data'), q: '', type: '', st: '', viewer: null, selField: null, prevCmp: null, selCm: null,
   px: LS.get('wbpx', null), col: LS.get('wbc', null) };
 const WB_MIN = { l: 180, r: 260, c: 480 }, WB_MAX = { l: 420, r: 560 };   // px — the PDF keeps at least WB_MIN.c
 const TABS = [['iss', 'Issues'], ['sum', 'Summary'], ['data', 'Data'], ['proc', 'Process'], ['pms', 'PMS'], ['mat', 'Expert'], ['rev', 'Rev'], ['notes', 'Notes'], ['cmt', 'Comments'], ['hist', 'History']];
@@ -861,7 +861,14 @@ function drawRevInfo() {
     ${d.rev_history.map(h => `<div class="soft">${esc(h)}</div>`).join('')}`;
   $$('#wrev [data-r]').forEach(a => a.onclick = e => { e.preventDefault(); openDs(+a.dataset.r); });
 }
-function setTab(t) { W.tab = t; LS.set('wtab', t); $$('#wtabs button').forEach(b => b.classList.toggle('on', b.dataset.t === t)); drawRight(); }
+function hintsInit() {                                   // '?' in the top bar: show / hide the one-line explanations
+  document.body.classList.toggle('hints', !!LS.get('hints', 0));
+  const host = $('#top .topr'); if (!host || $('#hintbtn')) return;
+  const b = document.createElement('button'); b.id = 'hintbtn'; b.title = '도움말 문장 보이기 / 숨기기'; b.textContent = '?';
+  b.onclick = () => { const on = !LS.get('hints', 0); LS.set('hints', on ? 1 : 0); document.body.classList.toggle('hints', on); toast(on ? '도움말 문장을 보입니다' : '도움말 문장을 숨깁니다'); };
+  host.prepend(b);
+}
+function setTab(t) { W.tab = t; LS.set('wtab', t); $$('#wtabs button').forEach(b => { b.classList.toggle('on', b.dataset.t === t); if (b.dataset.t === t) b.scrollIntoView({ inline: 'nearest', block: 'nearest' }); }); drawRight(); }
 function fieldLine(f) {
   const v = f.edited_value ?? f.value, ref = f.ref, part = partOf(f.key);
   const st = f.status === 'ok' ? '' : f.status === 'blank' ? pill('NotFound', 'Not Found') : f.status === 'review' ? pill('ReviewRequired', 'Review') : pill('placeholder', 'VTA/NA');
@@ -933,14 +940,30 @@ function drawRight() {
   let h = '';
   if (W.tab === 'iss') {
     const L = (d.issues || []).filter(i => i.type !== 'Extraction Review' || W.showInternal);
-    h = `<div class="sect" style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">${['error', 'missing', 'process', 'revision', 'comment'].map(c => {
-        const n = L.filter(i => i.color === c).length; return n ? `<span class="pill p-${{ error: 'bad', missing: 'ReviewRequired', process: 'ProcessMismatch', revision: 'Modified', comment: 'Commented' }[c]}">${{ error: 'Error', missing: 'Missing', process: 'Process', revision: 'Rev', comment: 'Reviewer' }[c]} ${n}</span>` : ''; }).join('')}
-        <label class="soft" style="margin-left:auto"><input type="checkbox" id="wint" ${W.showInternal ? 'checked' : ''}> 추출 확인(내부) ${(d.issues || []).filter(i => i.type === 'Extraction Review').length}</label></div>
-      ${L.map(i => `<div class="iss ${i.color} ${W.selIss === i.ikey ? 'on' : ''} ${i.status === 'Dismissed' ? 'dis' : ''}" data-iss="${esc(i.ikey)}">
-        <div class="ih"><b class="no ${i.color}">${i.no}</b><b>${esc(i.type)}</b><span class="soft">${esc(i.field)}${i.row ? ' #' + i.row : ''} · Sheet ${i.sheet || ''}/${i.of || ''} · p.${i.page || ''}</span><span class="sp"></span>
+    const card = i => `<div class="iss ${i.color} ${W.selIss === i.ikey ? 'on' : ''} ${i.status === 'Dismissed' ? 'dis' : ''}" data-iss="${esc(i.ikey)}">
+        <div class="ih"><b class="no ${i.color}">${i.no}</b><b>${esc(i.type)}</b><span class="soft">${esc(i.field)}${i.row ? ' #' + i.row : ''} · p.${i.page || ''}</span><span class="sp"></span>
         <select data-ist="${esc(i.ikey)}" aria-label="status">${['Open', 'Confirmed', 'Dismissed', 'Resolved'].map(x => `<option ${x === i.status ? 'selected' : ''}>${x}</option>`).join('')}</select></div>
-        <div>${esc(i.description)}</div>${i.expected ? `<div class="soft">Required / expected: <b>${esc(i.expected)}</b></div>` : ''}${i.note ? `<div class="soft">Note: ${esc(i.note)}</div>` : ''}</div>`).join('') || '<div class="empty">이 데이터시트에는 지적 사항이 없습니다</div>'}
-      <p class="soft">Dismissed 는 설계사 전달본(Excel · Mark-up PDF)에서 빠집니다. 상태를 바꾸면 이유를 묻고 감사 기록에 남깁니다.</p>`;
+        <div>${esc(i.description)}</div>${i.expected ? `<div class="soft">Required: <b>${esc(i.expected)}</b></div>` : ''}${i.note ? `<div class="soft">Note: ${esc(i.note)}</div>` : ''}</div>`;
+    // same type + same reason → one card with the fields as chips (13 'no value; ref. Process DS' cards become one)
+    const sig = i => i.type === 'Data Missing' ? 'Data Missing|' + i.description.replace(/^[^:]+:\s*/, '') : i.type === 'Open Item' && !i.key.startsWith('note.') ? 'Open Item|hold' : null;
+    const groups = {}; L.forEach(i => { const k = sig(i); if (k) (groups[k] ||= []).push(i); });
+    const grouped = new Set(Object.values(groups).filter(g => g.length >= 3).flat().map(i => i.ikey));
+    const items = [];
+    L.forEach(i => { if (!grouped.has(i.ikey)) { items.push(card(i)); return; }
+      const k = sig(i), g = groups[k]; if (g[0] !== i) return;
+      const open = W.grpOpen.has(k), first = g[0], st = [...new Set(g.map(x => x.status))];
+      items.push(`<div class="iss ${first.color} grp ${open ? 'open' : ''}" data-grp="${esc(k)}">
+        <div class="ih"><b class="no ${first.color}">${first.no}–${g[g.length - 1].no}</b><b>${esc(first.type)}</b><span class="soft">${g.length}건 · ${st.length === 1 ? st[0] : st.length + ' statuses'}</span><span class="sp"></span>
+          <select data-istg="${esc(k)}" aria-label="status all"><option value="">상태 일괄…</option>${['Open', 'Confirmed', 'Dismissed', 'Resolved'].map(x => `<option>${x}</option>`).join('')}</select>
+          <button data-grpx="${esc(k)}" title="${open ? '접기' : '펼치기'}">${open ? '▾' : '▸'}</button></div>
+        <div>${esc(first.type === 'Open Item' ? 'HOLD / TBC — release and give the value.' : first.description.replace(/^[^:]+:\s*/, ''))}</div>
+        <div class="chips">${g.map(x => `<span class="fchip ${x.status === 'Dismissed' ? 'dis' : ''} ${W.selIss === x.ikey ? 'on' : ''}" data-iss="${esc(x.ikey)}" title="${esc(x.description)}">${x.no} ${esc(x.field)}${x.expected && first.type === 'Data Missing' ? ` <i>→ ${esc(x.expected)}</i>` : ''}</span>`).join('')}</div>
+        ${open ? `<div class="grpbody">${g.map(card).join('')}</div>` : ''}</div>`); });
+    h = `<div class="sect" style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">${['error', 'missing', 'process', 'material', 'revision', 'comment'].map(c => {
+        const n = L.filter(i => i.color === c).length; return n ? `<span class="pill p-${{ error: 'bad', missing: 'ReviewRequired', process: 'ProcessMismatch', material: 'soft', revision: 'Modified', comment: 'Commented' }[c]}">${{ error: 'Error', missing: 'Missing', process: 'Process', material: 'Expert', revision: 'Rev', comment: 'Reviewer' }[c]} ${n}</span>` : ''; }).join('')}
+        <label class="soft" style="margin-left:auto"><input type="checkbox" id="wint" ${W.showInternal ? 'checked' : ''}> 내부 ${(d.issues || []).filter(i => i.type === 'Extraction Review').length}</label></div>
+      ${items.join('') || '<div class="empty">이 데이터시트에는 지적 사항이 없습니다</div>'}
+      <p class="soft hint">Dismissed 는 설계사 전달본(Excel · Mark-up PDF)에서 빠집니다. 상태를 바꾸면 이유를 묻고 감사 기록에 남깁니다.</p>`;
   } else if (W.tab === 'sum') {
     h = `<div class="sect"><h4>Datasheet</h4><table class="t"><tbody>
       ${[['Tag Number', d.tag], ['Valve Type', d.valve_type], ['Form', d.title + (d.form ? ` (${d.form})` : '')], ['Document No.', d.doc_no], ['Revision', `${d.rev} ${d.rev_date ? '· ' + d.rev_date : ''}`],
@@ -949,7 +972,7 @@ function drawRight() {
         .map(([k, v]) => `<tr><td class="soft" style="width:38%">${k}</td><td>${esc(v)}</td></tr>`).join('')}</tbody></table></div>
       <div class="sect"><h4>Special Requirements — Notes · General Notes · 칸</h4>${reqList(d)}</div>
       <div class="sect"><h4>Extraction</h4>${pill('ok', `읽음 ${cnt('ok')}`)} ${pill('placeholder', `VTA/NA ${cnt('placeholder')}`)} ${pill('NotFound', `Not Found ${cnt('blank')}`)} ${pill('ReviewRequired', `Review Required ${cnt('review')}`)}
-        <p class="soft">PDF 글자층에서 직접 읽어 신뢰도는 칸마다 '읽음/없음/검토 필요' 로 표시합니다 (추정하지 않음). 스캔 쪽은 읽지 않습니다.</p></div>
+        <p class="soft hint">PDF 글자층에서 직접 읽어 신뢰도는 칸마다 '읽음/없음/검토 필요' 로 표시합니다 (추정하지 않음). 스캔 쪽은 읽지 않습니다.</p></div>
       <div class="sect"><h4>Review Required</h4>${d.fields.filter(f => f.status === 'review' && f.edited_value == null).map(fieldLine).join('') || '<div class="soft">없음</div>'}</div>`;
   } else if (W.tab === 'data') {
     const secs = {};
@@ -968,16 +991,16 @@ function drawRight() {
         ${(P || []).map(r => `<tr class="click" data-k="${esc(r.ds_key || '')}" title="${esc(r.reason)}"><td>${esc(r.item)}${r.pd_page ? ` <a href="#" class="soft" data-pdp="${r.pd_page}" data-pdb="${esc(JSON.stringify(r.pd_bbox))}" title="Process Data 쪽 열기">p.${r.pd_page}</a>` : ''}</td>
           <td>${esc(r.ds || '—')} <small class="soft">${esc(r.ds_unit)}</small></td><td>${esc(r.pd || '—')} <small class="soft">${esc(r.pd_unit)}</small></td><td>${pill(r.result.replace(/[^A-Za-z]/g, ''), { Mismatch: '✖ Mismatch', 'Review Required': '? Review', 'Not in Process Data': '– Not in PD', 'Datasheet Blank': '– DS blank' }[r.result] || r.result)}</td></tr>
           ${['Mismatch', 'Review Required'].includes(r.result) ? `<tr class="why"><td colspan="4"><small>${esc(r.reason)}</small></td></tr>` : ''}`).join('') || '<tr><td colspan="4" class="empty">비교할 항목이 없습니다</td></tr>'}</tbody></table>
-        <p class="soft">Match 허용 오차 1 % · 게이지/절대압 기준이 양쪽에 적혀 있을 때만 압력을 비교 · 단위가 불명확하면 Review Required (Pass/Fail 로 만들지 않음) · Referenced = Datasheet 가 Process DS 를 참조해 비워 둔 칸.</p>`;
+        <p class="soft hint">Match 허용 오차 1 % · 게이지/절대압 기준이 양쪽에 적혀 있을 때만 압력을 비교 · 단위가 불명확하면 Review Required (Pass/Fail 로 만들지 않음) · Referenced = Datasheet 가 Process DS 를 참조해 비워 둔 칸.</p>`;
     h += `<div class="sect" style="margin-top:10px"><h4>Excluded — not process data (spec §6.3)</h4>
       <table class="t"><tbody>${ex.map(f => `<tr class="click" data-k="${esc(f.key)}"><td>${esc(f.display)}</td><td>${esc(f.edited_value ?? f.value)}</td><td>${pill('Excluded', 'N/A (Excluded)')}</td></tr>`).join('')}</tbody></table>
-      <p class="soft">Valve Size · Rating · Material · Piping Class 는 Process Data 검증에서 비교하지 않습니다 (Datasheet · PMS 기준으로 관리).</p></div>`;
+      <p class="soft hint">Valve Size · Rating · Material · Piping Class 는 Process Data 검증에서 비교하지 않습니다 (Datasheet · PMS 기준으로 관리).</p></div>`;
   } else if (W.tab === 'pms') {
     h = !d.pms ? `<div class="empty">PMS 문서가 아직 없습니다 — Document Management 에 Piping Material Specification PDF 를 올리면<br>Piping Class 의 Rating · NACE · Trim · Body · Seat 를 이 데이터시트와 비교합니다.</div>`
       : `<p>Piping Class <b>${esc(val('piping_class') || 'Not Found')}</b> · PMS ${esc(d.area || '지역 미상')} · <span class="soft">${esc(d.pms_doc?.filename || '')}</span></p>
       <table class="t"><thead><tr><th>Item</th><th>PMS Requirement</th><th>Datasheet</th><th>Result</th><th>PMS p.</th></tr></thead><tbody>
       ${d.pms.map(r => `<tr class="click" data-k="${esc(r.key)}" title="${esc(r.reason)}"><td>${esc(r.item)}</td><td>${esc(r.req)}</td><td>${esc(r.ds)}</td><td>${pill(r.result.replace(/[^A-Za-z]/g, ''), r.result)}<div class="soft" style="font-size:11px">${esc(r.reason)}</div></td><td>${r.pms_page ? `<a href="#" data-pmsp="${r.pms_page}" data-pmsb="${esc(JSON.stringify(r.pms_bbox))}">${r.pms_page}</a>` : ''}</td></tr>`).join('')}</tbody></table>
-      <p class="soft">재질은 표기가 아니라 규격·등급으로 비교합니다 (A351 CF8M ⊂ 316/316L SS A351-CF8M/CF3M = Compliant). 같은 계열의 다른 등급은 Review Required.</p>`;
+      <p class="soft hint">재질은 표기가 아니라 규격·등급으로 비교합니다 (A351 CF8M ⊂ 316/316L SS A351-CF8M/CF3M = Compliant). 같은 계열의 다른 등급은 Review Required.</p>`;
   } else if (W.tab === 'mat') {
     h = matList(d);
   } else if (W.tab === 'rev') {
@@ -1023,11 +1046,21 @@ function drawRight() {
     const ek = e.target.closest('[data-ek]'); if (ek) { e.preventDefault(); selectField(ek.dataset.ek); return; }
     const pd = e.target.closest('[data-pdp]'); if (pd) { e.preventDefault(); openRef(d.process_doc, +pd.dataset.pdp, JSON.parse(pd.dataset.pdb || 'null'), 'Process Data'); return; }
     if (e.target.closest('select')) return;
+    const gx = e.target.closest('[data-grpx]'); if (gx) { const k = gx.dataset.grpx; W.grpOpen.has(k) ? W.grpOpen.delete(k) : W.grpOpen.add(k); drawRight(); return; }
     const is = e.target.closest('[data-iss]'); if (is) { const i = d.issues.find(x => x.ikey === is.dataset.iss); W.selIss = i.ikey; paintDsOverlays(); if (i.bbox) W.viewer.focus(i.page, i.bbox, i.field); $$('#wbody .iss').forEach(x => x.classList.toggle('on', x.dataset.iss === i.ikey)); return; }
     const k = e.target.closest('[data-k]'); if (k) selectField(k.dataset.k);
   };
   b.onchange = async e => {
     if (e.target.id === 'wint') { W.showInternal = e.target.checked; paintDsOverlays(); drawRight(); return; }
+    const selg = e.target.closest('[data-istg]');
+    if (selg) {                                              // one status for every issue of the group (sequential, audited each)
+      const st = selg.value; if (!st) return;
+      const keys = [...$$(`[data-grp="${CSS.escape(selg.dataset.istg)}"] [data-iss]`)].map(x => x.dataset.iss);
+      const note = st === 'Open' ? '' : (await modal(`${st} × ${keys.length}건 — 이유`, '<input name="note" placeholder="예) Process DS 참조 — 설계사에 값 요청">', [['건너뛰기', { note: '' }], ['저장', 'form', 1]]))?.note || '';
+      toast(`${keys.length}건 → ${st} …`);
+      for (const k of keys) await api('PUT', `/datasheets/${d.id}/issues/${encodeURIComponent(k)}`, { status: st, note });
+      S.ds = await api('GET', `/datasheets/${d.id}`); S.issues = null; paintDsOverlays(); drawHead(); drawRight(); toast(`${keys.length}건 → ${st}`); return;
+    }
     const sel = e.target.closest('[data-ist]'); if (!sel) return;
     const note = sel.value === 'Open' ? '' : (await modal(`${sel.value} — 이유`, '<input name="note" placeholder="예) 설계사 확인 요청 / Process DS 참조로 문제 없음">', [['건너뛰기', { note: '' }], ['저장', 'form', 1]]))?.note || '';
     await api('PUT', `/datasheets/${d.id}/issues/${encodeURIComponent(sel.dataset.ist)}`, { status: sel.value, note });
@@ -1054,7 +1087,7 @@ function matList(d) {                                  // material review (matre
       <div class="soft" style="font-size:11px">근거: ${esc(m.basis)}</div>
       ${m.kb_text ? `<details class="kb"><summary>지식: ${esc(m.kb_title)}</summary>${esc(m.kb_text)}</details>` : ''}
       <div style="font-size:11px">${m.evidence.map(ev).join('<br>')}</div></div>`).join('')}</div>`; }).join('')
-    + '<p class="soft">Ball Valve 엔지니어 관점의 규칙 기반 의견입니다 (추측 없음): 재질(MR) · 설계(VR) · 이 프로젝트의 다른 데이터시트 대비(PC). Action·Confirm 은 Issue List 에 Material / Valve Review 로 올라가고, Note 는 여기와 Valve List 에만 남습니다. 근거 문서·칸을 누르면 그 위치로 갑니다. 지식 전체: Settings › Ball Valve 지식.</p>';
+    + '<p class="soft hint">Ball Valve 엔지니어 관점의 규칙 기반 의견입니다 (추측 없음): 재질(MR) · 설계(VR) · 이 프로젝트의 다른 데이터시트 대비(PC). Action·Confirm 은 Issue List 에 Material / Valve Review 로 올라가고, Note 는 여기와 Valve List 에만 남습니다. 근거 문서·칸을 누르면 그 위치로 갑니다. 지식 전체: Settings › Ball Valve 지식.</p>';
 }
 function reqList(d) {                                  // special requirements (requirements.py): one line per kind, sources clickable
   const by = {}; (d.requirements || []).forEach(r => (by[r.key] ||= []).push(r));
@@ -1062,7 +1095,7 @@ function reqList(d) {                                  // special requirements (
   return `<table class="t req"><tbody>${Object.values(by).map(L => { const lab = L.reduce((a, r) => r.label.length > a.length ? r.label : a, L[0].label), neg = L.filter(r => r.negative);
     return `<tr><td><b>${esc(lab)}</b>${neg.length ? ` <span class="pill p-NotEvaluated" title="${esc(neg.map(r => r.source + ': ' + r.text).join('\n'))}">datasheet: Not Required</span>` : ''}
       <div class="soft">${L.filter(r => !r.negative).map(r => `<a href="#" data-src="${esc(r.source)}" title="${esc(r.text)}">${esc(r.source)}</a>`).join(' · ')}</div></td></tr>`; }).join('')}</tbody></table>
-    <p class="soft">글에 그 요구사항의 낱말이나 규격 번호가 있을 때만 적습니다 (추측 없음). 출처를 누르면 그 Note / 칸으로 갑니다.</p>`;
+    <p class="soft hint">글에 그 요구사항의 낱말이나 규격 번호가 있을 때만 적습니다 (추측 없음). 출처를 누르면 그 Note / 칸으로 갑니다.</p>`;
 }
 function selectField(key) {
   const f = S.ds.fields.find(x => x.key === key);
@@ -1312,21 +1345,23 @@ async function renderExport() {
   const issN = ['data_errors', 'data_missing', 'open_items', 'pms_noncompliant', 'pms_review', 'revision_changes'].reduce((a, x) => a + (k[x] || 0), 0);
   el.innerHTML = `<div class="vh"><h2>Reports &amp; Export</h2><span class="soft">${esc(pname)} · Tag ${k.tags} · 최신 Revision 기준 · 원본 파일은 바꾸지 않습니다</span><span class="sp"></span><span id="exstat" class="exstat"></span></div>
     <div class="exgrid">
-    <div class="card exg"><h3>① Valve List <small>Excel</small></h3><p>${vl ? `기준 양식 <b>${esc(vl.filename)}</b> 의 시트 · 열 · 서식을 그대로 두고 채웁니다.` : '<b>기준 Valve List 가 없습니다</b> — 도구 기본 양식으로 만듭니다. 회사 양식을 쓰려면 Document Management 에 올리세요.'}</p>
-      <ul class="soft"><li>같은 Tag: 바뀐 칸만 덮고 노랑 + 'Previous:' 메모 · 새 Tag 는 시트 끝에 추가</li><li>Vendor 행(AMPO · OMS · NEWAY …)은 지우고 Tag 마다 Requirement 한 줄</li><li>모든 칸에 출처 메모 · 도구로 여는 링크 · 'Datasheet Notes' 시트</li></ul>
+    <div class="card exg"><h3>① Valve List <small>Excel</small></h3><p>${vl ? `회사 양식 <b>${esc(vl.filename)}</b> 그대로 + Summary · All Valves 시트 (Area · Unit 필터)` : '<b>기준 Valve List 가 없습니다</b> — 도구 양식으로 만듭니다 (회사 양식은 Document Management 에 올리세요).'}</p>
+      <ul class="soft hint"><li>같은 Tag: 바뀐 칸만 덮고 노랑 + 'Previous:' 메모 · 새 Tag 는 시트 끝에 추가</li><li>Vendor 행(AMPO · OMS · NEWAY …)은 지우고 Tag 마다 Requirement 한 줄</li><li>모든 칸에 출처 메모 · 도구로 여는 링크 · 'Datasheet Notes' 시트</li></ul>
       <div class="exbtn"><button class="pri" data-ex="vl">⇩ Valve List Excel</button><button id="ex1p">미리 보기 (바뀔 칸)</button></div><div id="ex1r"></div></div>
-    <div class="card exg"><h3>② Issue List <small>Excel · 설계사 전달</small></h3><p>오류 · 누락 · HOLD/TBC · PMS · Revision 변경 · 검토자 의견 — 행마다 Tag · Doc. No. · Rev. · Sheet · Page · 문제 · 요구값 · 링크. <b>Dismissed 는 빠집니다.</b></p>
-      <p class="soft">지금 지적 ${issN}건(Dismissed 제외). 종류 · 심각도로 걸러 내보내려면 Issue List 화면에서.</p>
+    <div class="card exg"><h3>② Issue List <small>Excel · 설계사 전달</small></h3><p>설계사에게 보내는 지적 목록 — Issue Type 을 골라 만듭니다. Area · Unit 필터 · Summary 시트 · Dismissed 제외.</p>
+      <p class="soft hint">지금 지적 ${issN}건(Dismissed 제외). 종류 · 심각도로 걸러 내보내려면 Issue List 화면에서.</p>
       <div class="exbtn"><button class="pri" data-ex="iss">⇩ Issue List Excel</button><button data-go="list:issues">Issue List 화면에서 거르기</button></div></div>
-    <div class="card exg"><h3>③ Mark-up PDF <small>인쇄용</small></h3><p>지적이 있는 데이터시트 쪽을 원본에서 복사해 번호 붙은 색 상자 · 검토자 Mark-up 을 넣고, Tag 마다 Issue Summary 쪽 · 표지 · 책갈피를 붙입니다. 인쇄하면 표시가 같이 나옵니다.</p>
-      <p class="soft">색: <b style="color:var(--pms)">빨강</b> 오류/PMS · <b style="color:var(--proc)">주황</b> 누락/HOLD · <b style="color:#b38f00">노랑</b> Revision · <b style="color:var(--usr)">파랑</b> 검토자. 전체는 Tag 수에 따라 1분 안팎.</p>
+    <div class="card exg"><h3>③ Mark-up PDF <small>인쇄용</small></h3><p>지적이 있는 쪽에 번호 붙은 색 상자 · Mark-up · Tag 별 Issue Summary 를 넣은 인쇄용 PDF.</p>
+      <p class="soft hint">색: <b style="color:var(--pms)">빨강</b> 오류/PMS · <b style="color:var(--proc)">주황</b> 누락/HOLD · <b style="color:#b38f00">노랑</b> Revision · <b style="color:var(--usr)">파랑</b> 검토자. 전체는 Tag 수에 따라 1분 안팎.</p>
       <div class="exbtn"><button class="pri" data-ex="pdf">⇩ Mark-up PDF (전체 Tag)</button><button data-go="review">한 Tag 만 → Datasheet Review</button><button data-go="rev">선택한 변경만 → Revision Comparison</button></div></div>
-    <div class="card exg"><h3>④ CSV <small>데이터 · 이력</small></h3><p>모든 Tag 의 추출 칸(읽은 값 · 수정 값 · 수정자 · 상태 · 쪽 · 파일)과 감사 기록(누가 · 언제 · 무엇을 · 전 → 후).</p>
+    <div class="card exg"><h3>④ CSV <small>데이터 · 이력</small></h3><p>추출 칸 전체 · 감사 기록 · Revision 비교.</p>
       <div class="exbtn"><button data-ex="csv">⇩ Extracted Fields CSV</button><button data-ex="audit">⇩ Audit Trail CSV</button><button data-ex="revx">⇩ Revision 비교 Excel</button></div></div>
-    <div class="card exg"><h3>⑤ Review Feedback <small>개발 쪽으로</small></h3><p class="soft">검토자가 Confirmed / Dismissed 한 지적과 이유, 고친 값, 도구가 못 잡아 직접 그린 Error · Missing 표시를 한 파일로. 개발 쪽이 규칙마다 맞은 비율 · 놓친 것을 재서 고칩니다 (판정 규칙은 이 파일을 읽지 않습니다). 고객 값이 들어 있으니 사내 경로로만.</p>
+    <div class="card exg"><h3>⑤ Review Feedback <small>개발 쪽으로</small></h3><p>검토 결과(Confirmed / Dismissed · 고친 값 · 직접 그린 표시)를 개발 쪽에 보내 규칙을 다듬습니다.</p><p class="soft hint">판정 규칙은 이 파일을 읽지 않습니다. 고객 값이 들어 있으니 사내 경로로만.</p>
       <div class="exbtn"><button data-ex="fb">⇩ Review Feedback (json)</button></div></div>
     <div class="card exg"><h3>분석할 때 자동으로 만든 파일</h3><div id="exl" class="soft">불러오는 중…</div></div></div>`;
-  api('GET', `/projects/${S.pid}/exports`).then(r => { $('#exl').innerHTML = r.files.map(f => `<div><a href="${f.url}" download>${esc(f.name)}</a> <span class="soft">${(f.size / 1024).toFixed(0)} KB · ${esc(f.at.replace('T', ' '))}</span></div>`).join('') || '아직 없습니다 — Datasheet PDF 를 분석하면 Valve List · Issue List 가 함께 만들어집니다'; });
+  api('GET', `/projects/${S.pid}/exports`).then(r => { const row = f => `<div><a href="${f.url}" download>${esc(f.name)}</a> <span class="soft">${(f.size / 1024).toFixed(0)} KB · ${esc(f.at.replace('T', ' ').slice(5, 16))}</span></div>`;
+    const L = r.files, more = L.length > 4;
+    $('#exl').innerHTML = (L.slice(0, 4).map(row).join('') + (more ? `<details><summary class="soft">이전 파일 ${L.length - 4}개</summary>${L.slice(4).map(row).join('')}</details>` : '')) || '아직 없습니다 — Datasheet PDF 를 분석하면 Valve List · Issue List 가 함께 만들어집니다'; });
   $('#ex1p').onclick = async () => {
     $('#ex1r').innerHTML = '<p class="soft">계산 중…</p>';
     try { const p = await api('GET', `/projects/${S.pid}/valvelist/preview`), r = p.report;
@@ -1391,7 +1426,7 @@ function renderSettings() {
       <td>${g.n}</td><td class="mono">${esc(g.format)}</td><td>${esc(g.prefix_source || '(정해지지 않음)')}</td><td>${g.functions.map(([f, n]) => `${esc(f)} ${n}`).join(' · ')}</td>
       <td>${g.number_len ? `${g.number_len}자리${g.number_lead ? ` · '${esc(g.number_lead)}' 로 시작` : ''}` : '(일정하지 않음)'}${g.suffixes.length ? ` · 끝 ${esc(g.suffixes.join('/'))}` : ''} · 구분 ${g.sep === ' ' ? '공백' : g.sep === '-' ? "'-'" : '없음'}</td>
       <td style="font-size:11px">${Object.entries(g.series).map(([k, L]) => `<b>${esc(k)}</b> → ${esc(rng(L))}`).join('<br>') || '—'}</td><td class="mono" style="font-size:11px">${g.examples.map(esc).join('<br>')}</td></tr>`).join('')}</tbody></table>
-      <p class="soft" style="margin:6px 0 0">Tag 절차서 없이 올린 데이터시트의 Tag 에서 배운 것입니다 (Area · Site · Unit 별, 80 % 이상이 따르는 규칙만). 규칙을 벗어난 Tag · 같은 Tag 중복 · 기능 코드와 Fail 동작 불일치(ESDV/SDV 는 보통 Fail Close, BDV 는 Fail Open)는 Expert 탭 'Tag 번호' 의견과 Issue 'Valve Review' 로 나옵니다.
+      <p class="soft hint" style="margin:6px 0 0">Tag 절차서 없이 올린 데이터시트의 Tag 에서 배운 것입니다 (Area · Site · Unit 별, 80 % 이상이 따르는 규칙만). 규칙을 벗어난 Tag · 같은 Tag 중복 · 기능 코드와 Fail 동작 불일치(ESDV/SDV 는 보통 Fail Close, BDV 는 Fail Open)는 Expert 탭 'Tag 번호' 의견과 Issue 'Valve Review' 로 나옵니다.
       ${Object.keys(T.duplicates).length ? `<br><b style="color:var(--bad)">두 문서에 같은 Tag: ${Object.entries(T.duplicates).map(([t, d]) => `${esc(t)} (${esc(d.join(', '))})`).join(' · ')}</b>` : ''}</p>`; })
     .catch(() => { $('#tgl').textContent = '불러오지 못했습니다'; });
   api('GET', '/knowledge').then(L => { $('#kbl').innerHTML = L.map(k => `<details class="kb"><summary><b>${esc(k.title)}</b> <small class="soft">${esc(k.ref)}</small></summary>
@@ -1452,6 +1487,7 @@ loadProjects().then(async () => {
     else if (page) W.viewer?.goPage(page);
     return;
   }
+  hintsInit();
   go((location.hash.slice(1) || LS.get('view', 'dash')).split('?')[0], false);
 })
   .catch(e => { document.querySelector('#views').innerHTML = `<div class="empty" style="color:var(--bad)">${esc(e.message)}</div>`; });

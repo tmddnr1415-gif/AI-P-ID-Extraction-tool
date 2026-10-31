@@ -426,3 +426,15 @@ details.kb p { margin: 4px 0 4px 14px; }
 label.tp { display: grid; grid-template-columns: 20px 160px 1fr 44px; box-sizing: border-box; gap: 6px; align-items: center; padding: 4px 6px; border-radius: 4px;
   cursor: pointer; white-space: nowrap; text-align: left; } label.tp input { margin: 0; } label.tp .n { text-align: right; }
 label.tp:hover { background: #f2f5f9; } label.tp .n { font-weight: 600; } label.tp.zero { opacity: .55; }
+/* valve20 — lighter UI: scrollable one-row tabs · grouped issue cards · help sentences only on demand */
+.tabs { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; } .tabs::-webkit-scrollbar { display: none; }
+.tabs button { white-space: nowrap; flex: none; }
+.tbar .lbl { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; flex: 1 1 auto; }
+.hint { display: none; } body.hints .hint { display: block; }
+#hintbtn { width: 24px; height: 24px; border-radius: 50%; border: 1px solid var(--line); background: #fff; color: var(--soft); font-weight: 700; padding: 0; margin-right: 6px; }
+body.hints #hintbtn { background: var(--blue); color: #fff; border-color: var(--blue); }
+.iss.grp .chips { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 5px; }
+.fchip { font-size: 11px; padding: 1px 7px; border-radius: 10px; background: #f3f4f7; border: 1px solid var(--line); cursor: pointer; }
+.fchip i { font-style: normal; color: var(--soft); } .fchip.on { background: var(--blue); color: #fff; border-color: var(--blue); } .fchip.dis { text-decoration: line-through; opacity: .55; }
+.iss.grp .grpbody { margin-top: 8px; padding-top: 6px; border-top: 1px dashed var(--line); } .iss.grp .grpbody .iss { margin-left: 8px; }
+.iss .ih select { max-width: 110px; }
