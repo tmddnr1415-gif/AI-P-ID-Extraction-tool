@@ -202,7 +202,6 @@ def markup_pdf(entries: list[dict], project: str, title: str = "Valve Datasheet 
             f"<th>Revision</th><th>Reviewer</th></tr>{rows}</table>")
         out.insert_pdf(cover)
         toc.append([1, "Cover - issue counts", 1])
-    entries = [dict(e, issues=[dict(i, no=n) for n, i in enumerate(e["issues"], 1)]) for e in entries]   # numbers without gaps
     for e in entries:
         src = srcs.get(e["path"]) or srcs.setdefault(e["path"], pymupdf.open(e["path"]))
         start = out.page_count

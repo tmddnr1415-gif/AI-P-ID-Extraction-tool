@@ -73,7 +73,7 @@ async function sizes(docId) { return pageInfo[docId] ||= (await api('GET', `/doc
 class Viewer {
   constructor(host, opts = {}) {
     this.host = host; this.opts = opts; this.zoom = LS.get('zoom', 1.15); this.pages = []; this.docId = null;
-    this.ovs = []; this.show = Object.assign({ revision: true, pms: true, process: true, comment: true }, LS.get('ovshow', {}));
+    this.ovs = []; this.show = Object.assign({ error: true, missing: true, revision: true, comment: true, extract: true }, LS.get('ovshow2', {}));
     host.innerHTML = `<div class="tbar">
       <button data-a="prev" title="이전 쪽 (PgUp)">◀</button><input class="pno" value="1" aria-label="쪽"><span class="lbl tot">/ 0</span>
       <button data-a="next" title="다음 쪽 (PgDn)">▶</button><span class="sep"></span>
@@ -81,13 +81,13 @@ class Viewer {
       <button data-a="fit" title="폭 맞춤">↔</button><span class="sep"></span>
       <input class="q" placeholder="PDF 검색" aria-label="PDF 검색"><button data-a="find" title="검색">⌕</button>
       <span class="sep"></span>${opts.tools ? `<button data-a="draw" title="주석 상자 그리기 (A)">▭ 주석</button><span class="sep"></span>` : ''}
-      <span class="chk" title="표시 켜기/끄기"><label><input type="checkbox" data-c="revision"> <i style="background:var(--rev)"></i>Rev</label></span>
-      <span class="chk"><label><input type="checkbox" data-c="pms"> <i style="background:var(--pms)"></i>PMS</label></span>
-      <span class="chk"><label><input type="checkbox" data-c="process"> <i style="background:var(--proc)"></i>Proc</label></span>
-      <span class="chk"><label><input type="checkbox" data-c="comment"> <i style="background:var(--usr)"></i>Comment</label></span>
+      <span class="chk" title="빨강: 데이터 오류 · PMS 부적합"><label><input type="checkbox" data-c="error"> <i style="background:var(--pms)"></i>Error</label></span>
+      <span class="chk" title="주황: 데이터 누락 · HOLD/TBC"><label><input type="checkbox" data-c="missing"> <i style="background:var(--proc)"></i>Missing</label></span>
+      <span class="chk" title="노랑: 이전 Revision 대비 변경"><label><input type="checkbox" data-c="revision"> <i style="background:var(--rev)"></i>Rev</label></span>
+      <span class="chk" title="파랑: 검토자 수정 · 의견"><label><input type="checkbox" data-c="comment"> <i style="background:var(--usr)"></i>Comment</label></span>
       <span style="flex:1"></span>${opts.extra || ''}</div><div class="stage"></div>`;
     this.stage = $('.stage', host);
-    $$('.chk input', host).forEach(i => { i.checked = this.show[i.dataset.c]; i.onchange = () => { this.show[i.dataset.c] = i.checked; LS.set('ovshow', this.show); this.paintOv(); }; });
+    $$('.chk input', host).forEach(i => { i.checked = this.show[i.dataset.c]; i.onchange = () => { this.show[i.dataset.c] = i.checked; LS.set('ovshow2', this.show); this.paintOv(); }; });
     host.querySelector('.tbar').addEventListener('click', e => {
       const a = e.target.closest('button')?.dataset.a; if (!a) return;
       if (a === 'prev') this.step(-1); else if (a === 'next') this.step(1);
@@ -152,6 +152,7 @@ class Viewer {
       d.style.cssText = `left:${x0 * z - 2}px;top:${y0 * z - 2}px;width:${(x1 - x0) * z + 4}px;height:${(y1 - y0) * z + 4}px`;
       d.title = [o.title, o.text].filter(Boolean).join('\n');
       if (o.tip) d.innerHTML = `<span class="tip">${esc(o.tip)}</span>`;
+      if (o.no) d.insertAdjacentHTML('beforeend', `<span class="ovno">${o.no}</span>`);
       d.onclick = ev => { ev.stopPropagation(); this.opts.onOverlay?.(o, i); };
       el.append(d);
     });
@@ -222,7 +223,7 @@ async function selectProject(pid) {
   await refresh();
 }
 async function refresh() {
-  S.sum = await api('GET', `/projects/${S.pid}/summary`);
+  S.sum = await api('GET', `/projects/${S.pid}/summary`); S.issues = null; S.grid = null; S.pmsRows = null;
   $('#navfoot').innerHTML = `${esc(S.sum.project.name)} · Tag ${S.sum.kpi.tags} · DS ${S.sum.kpi.datasheets}<br>${esc(USER || '이름 없음')}`;
   RENDER[S.view]?.();
 }
@@ -253,7 +254,8 @@ function renderDash() {
     ['Total Valve Tags', k.tags, '▣', '#e8eefc', 'list'], ['Total Datasheets', k.datasheets, '▤', '#e8eefc', 'docs'],
     ['New Tags', s.has_valvelist ? k.new_tags : null, '✚', '#fff1d6', 'list', s.has_valvelist ? '' : 'Valve List 없음'],
     ['Revision Changes', k.revision_changes, '⇆', '#fff4c2', 'rev'],
-    ['Process Data Mismatch', null, '∿', '#ffe8d6', 'proc', 'Phase 3'], ['PMS Non-Compliant', null, '⛭', '#fbe3e1', 'pms', 'Phase 4'],
+    ['Data Errors', k.data_errors ?? 0, '✖', '#fbe3e1', 'list:issues'], ['Data Missing', k.data_missing ?? 0, '◌', '#ffe8cc', 'list:issues'],
+    ['PMS Non-Compliant', s.has_pms ? k.pms_noncompliant : null, '⛭', '#fbe3e1', 'pms', 'PMS 없음'], ['Process Data Mismatch', null, '∿', '#ffe8d6', 'proc', 'Phase 3'],
     ['Pending Review', k.pending, '◔', '#fff1d6', 'review'], ['Completed Review', k.completed, '✔', '#dcf3e5', 'review']];
   const by = {}; s.tags.forEach(t => { by[t.review_status] = (by[t.review_status] || 0) + 1; });
   const cols = { 'Not Reviewed': '#c4cad6', 'Under Review': '#f0a43a', Accepted: '#1aa35a', Rejected: '#d9443a', Commented: '#2f5bd8', Resolved: '#0f7a43' };
@@ -261,7 +263,7 @@ function renderDash() {
       <button data-go="docs">자료 올리기</button><button class="pri" data-go="review">Datasheet Review 열기</button></div>
     ${!k.datasheets ? `<div class="banner info">아직 데이터시트가 없습니다 — <b>Document Management</b> 에서 Datasheet PDF · Valve List · Process Data · PMS 를 올리세요.</div>` : ''}
     <div class="kpis">${tiles.map(([l, n, ic, bg, v, sub]) => `<div class="kpi" data-go="${v}" tabindex="0"><div class="ic" style="background:${bg}">${ic}</div>
-      <div class="l">${l}</div><div class="n ${n === null ? 'na' : ''}">${n === null ? (sub || '—') + ' 연결 전' : n}</div></div>`).join('')}</div>
+      <div class="l">${l}</div><div class="n ${n === null ? 'na' : ''}">${n === null ? (sub || '—') + (sub === 'PMS 없음' ? '' : ' 연결 전') : n}</div></div>`).join('')}</div>
     <div class="dashrow">
       <div class="card"><h3>Review Status by Tag</h3><div class="donut">${donut(STATUSES.map(st => ({ n: by[st] || 0, c: cols[st] })))}
         <div class="legend">${STATUSES.map(st => `<div><i style="background:${cols[st]}"></i>${st}<b style="margin-left:auto;padding-left:10px">${by[st] || 0}</b></div>`).join('')}</div></div>
@@ -277,7 +279,7 @@ function renderDash() {
     </div>`;
 }
 document.addEventListener('click', e => {
-  const g = e.target.closest('[data-go]'); if (g && !e.target.closest('.tbar')) { go(g.dataset.go); return; }
+  const g = e.target.closest('[data-go]'); if (g && !e.target.closest('.tbar')) { const [v, m] = g.dataset.go.split(':'); if (m) G.mode = m; go(v); return; }
   const d = e.target.closest('tr[data-ds]'); if (d && !e.target.closest('#v-list')) openDs(+d.dataset.ds);
 });
 
@@ -301,6 +303,7 @@ function renderDocs() {
       <td>${esc(d.uploaded_by)}</td><td class="mono">${esc((d.uploaded_at || '').replace('T', ' ').slice(0, 16))}</td>
       <td>${d.status === 'error' ? `<button data-retry="${d.id}">재처리</button>` : ''}${d.kind !== 'valvelist' ? ` <a href="/api/valve/documents/${d.id}/file" target="_blank">원본</a>` : ''}</td></tr>`).join('') || '<tr><td colspan="9" class="empty">아직 없습니다</td></tr>'}
     </tbody></table></div>`;
+  (S.jobEls || []).filter(b => b.isConnected || !b.dataset.gone).forEach(b => $('#jobs').append(b));
   $$('.drop', el).forEach(d => {
     const inp = $('input', d);
     inp.onchange = () => upload(d.dataset.k, [...inp.files]);
@@ -318,6 +321,7 @@ async function upload(kind, files) {
 }
 function watch(job) {
   const box = document.createElement('div'); box.className = 'card'; box.style.marginBottom = '12px';
+  (S.jobEls ||= []).unshift(box);                   // kept across re-renders of this screen
   $('#jobs')?.prepend(box);
   const tick = async () => {
     let j; try { j = await api('GET', `/jobs/${job.id}`); } catch (e) { box.innerHTML = `<b style="color:var(--bad)">${esc(e.message)}</b>`; return; }
@@ -325,8 +329,15 @@ function watch(job) {
     box.innerHTML = `<b>처리 중</b> <span class="soft">${esc(j.file)} · ${esc(j.msg)}</span><div class="prog"><i style="width:${pct}%"></i></div>${pct}% (${j.done}/${j.total} 쪽)
       ${j.warn ? `<div style="color:var(--warn)">${esc(j.warn)}</div>` : ''}${j.errors.map(e => `<div style="color:var(--bad)">✖ ${esc(e.file)} — ${esc(e.error)}</div>`).join('')}`;
     if (j.status === 'done') {
-      box.querySelector('b').textContent = j.errors.length ? '끝 (오류 있음 — 아래 표에서 재처리)' : '끝';
-      await refresh(); setTimeout(() => box.remove(), j.errors.length ? 20000 : 5000);
+      box.querySelector('b').textContent = j.errors.length ? '끝 (오류 있음 — 아래 표에서 재처리)' : '분석 끝';
+      if (j.exports?.length) {                        // the Excel lists made with the analysis — downloaded right away
+        box.insertAdjacentHTML('beforeend', `<div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap;align-items:center"><b>결과 파일</b>${j.exports.map(f => `<a class="btnlink" href="${f.url}" download>⇩ ${esc(f.kind)}</a>`).join('')}
+          <button data-go="list">Excel List 보기 (PDF 미리보기 연동)</button><button id="jmk">⇩ Mark-up PDF</button><span class="soft">Excel 의 칸 · 링크를 누르면 이 도구가 그 PDF 장 · 위치를 엽니다</span></div>`);
+        j.exports.forEach((f, n) => setTimeout(() => { const a = document.createElement('a'); a.href = f.url; a.download = f.name; document.body.append(a); a.click(); a.remove(); }, 300 + n * 900));
+        $('#jmk', box).onclick = () => { toast('Mark-up PDF 를 만드는 중…'); download(`/projects/${S.pid}/markup.pdf`).catch(e => toast(e.message, 1)); };
+        await refresh(); return;
+      }
+      await refresh(); setTimeout(() => { box.dataset.gone = '1'; box.remove(); }, j.errors.length ? 20000 : 5000);
     } else setTimeout(tick, 700);
   };
   tick();
@@ -334,8 +345,39 @@ function watch(job) {
 
 /* ── 3. Valve List (Excel-like grid) ──────────────────────────────────── */
 const G = { sort: LS.get('gsort', { k: 'tag', d: 1 }), flt: {}, sel: new Set(), last: null };
+/* live PDF preview beside the lists: one click on a cell / issue -> that page, that point */
+function mountPreview() {
+  const host = $('#lpv'); if (!host) return;
+  S.pv = new Viewer(host, { extra: '<span class="lbl" id="pvcap"></span>', onOverlay: o => { if (o.iss && G.mode === 'issues') { G.selIss = o.iss; renderList(); } } });
+  S.pvLoaded = null;
+  const sp = $('#lpsplit');
+  if (sp) sp.onmousedown = e => {
+    e.preventDefault(); const box = $('.lp').getBoundingClientRect();
+    const mv = ev => { const w = Math.max(22, Math.min(70, (box.right - ev.clientX) / box.width * 100)); host.style.width = w + '%'; LS.set('pvw', w); };
+    const up = () => { removeEventListener('mousemove', mv); removeEventListener('mouseup', up); S.pv?.paintOv(); };
+    addEventListener('mousemove', mv); addEventListener('mouseup', up);
+  };
+  if (S.pvTarget) preview(S.pvTarget);
+  else $('#pvcap').textContent = '셀이나 지적 사항을 누르면 그 장 · 그 위치를 보여 줍니다';
+}
+async function preview(t) {
+  S.pvTarget = t; if (!S.pv) return;
+  const key = t.doc + ':' + t.pages.join(',');
+  if (S.pvLoaded !== key) { await S.pv.load(t.doc, t.pages); S.pvLoaded = key; S.pv.fit(); }
+  S.pv.setOverlays(t.ovs || []);
+  if (t.bbox) S.pv.focus(t.page, t.bbox, t.label); else S.pv.goPage(t.page || t.pages[0]);
+  const c = $('#pvcap'); if (c) c.textContent = t.label + (t.page ? ` · p.${t.page}` : '');
+}
+async function dsIssues(dsId) {                     // issues of one datasheet as preview overlays
+  if (!S.issues) S.issues = (await api('GET', `/projects/${S.pid}/issues`)).issues;
+  return S.issues.filter(i => i.ds_id === dsId && i.bbox && i.status !== 'Dismissed' && i.type !== 'Reviewer Comment' && (IF.internal || i.type !== 'Extraction Review'))
+    .map(i => ({ cat: i.color, page: i.page, bbox: i.bbox, no: i.no, iss: i.ikey, title: `#${i.no} ${i.type} · ${i.field}`, text: i.description, sel: G.selIss === i.ikey }));
+}
+const listTop = () => `<span class="segtab"><button data-lm="grid" class="${G.mode !== 'issues' ? 'on' : ''}">Valve List</button><button data-lm="issues" class="${G.mode === 'issues' ? 'on' : ''}">Issue List${S.sum?.kpi ? ` (${(S.sum.kpi.data_errors || 0) + (S.sum.kpi.data_missing || 0) + (S.sum.kpi.open_items || 0) + (S.sum.kpi.pms_noncompliant || 0) + (S.sum.kpi.pms_review || 0)})` : ''}</button></span>`;
+const lpWrap = inner => `<div class="lp"><div class="lp-left">${inner}</div><div class="split" id="lpsplit" title="끌어 너비 조절"></div><div class="lp-right" id="lpv" style="width:${LS.get('pvw', 42)}%"></div></div>`;
 async function renderList() {
   const el = $('#v-list');
+  if (G.mode === 'issues') return renderIssues();
   if (!S.grid) { el.innerHTML = '<div class="empty">불러오는 중…</div>'; S.grid = await api('GET', `/projects/${S.pid}/grid`); }
   const base = [{ key: 'tag', title: 'Tag Number', w: 120 }, { key: 'valve_type', title: 'Valve Type', w: 80 }, { key: 'rev', title: 'Rev.', w: 50 },
     { key: 'status', title: 'Review Status', w: 110 }, { key: 'doc_no', title: 'DS Document No.', w: 150 }];
@@ -354,25 +396,27 @@ async function renderList() {
   rows.sort((a, b) => G.sort.d * String(val(a, G.sort.k)).localeCompare(String(val(b, G.sort.k)), undefined, { numeric: true }));
   const keepQ = $('#gq')?.value || '', keepT = ft || '', keepS = fs || '';
   const oldWrap = $('.xg-wrap', el), keepX = oldWrap?.scrollLeft || 0, keepY = oldWrap?.scrollTop || 0;
-  el.innerHTML = `<div class="vh"><input type="search" id="gq" placeholder="Search Tag Number…" style="width:200px" value="${esc(keepQ)}">
+  el.innerHTML = `<div class="vh">${listTop()}<input type="search" id="gq" placeholder="Search Tag Number…" style="width:180px" value="${esc(keepQ)}">
       <select id="gt"><option value="">All Valve Types</option>${types.map(t => `<option ${t === keepT ? 'selected' : ''}>${esc(t)}</option>`).join('')}</select>
       <select id="gs"><option value="">All Status</option>${STATUSES.map(t => `<option ${t === keepS ? 'selected' : ''}>${t}</option>`).join('')}</select>
       <span class="soft">${rows.length} / ${S.grid.rows.length} rows · 선택 <b id="gsel">${G.sel.size}</b></span><span class="sp"></span>
       <select id="gbulk" ${G.sel.size ? '' : 'disabled'}><option value="">선택 행 상태 바꾸기…</option>${STATUSES.map(t => `<option>${t}</option>`).join('')}</select>
       <button id="greset" title="열 순서·너비 처음대로">열 초기화</button>
       <button id="gopen" ${G.sel.size ? '' : 'disabled'}>Open Datasheet</button><button class="pri" id="gx">⇩ Export Excel</button></div>
-    <div class="xg-wrap"><table class="xg" id="xg" style="width:${70 + cols.reduce((a, c) => a + c.w, 0)}px"><colgroup><col style="width:30px"><col style="width:40px">${cols.map(c => `<col style="width:${c.w}px">`).join('')}</colgroup>
+    ${lpWrap(`<div class="xg-wrap"><table class="xg" id="xg" style="width:${70 + cols.reduce((a, c) => a + c.w, 0)}px"><colgroup><col style="width:30px"><col style="width:40px">${cols.map(c => `<col style="width:${c.w}px">`).join('')}</colgroup>
       <thead><tr><th class="fz" style="left:0"><input type="checkbox" id="gall" aria-label="전체 선택"></th><th class="fz" style="left:30px">#</th>${cols.map((c, i) => `<th draggable="true" data-k="${c.key}" ${i === 0 ? 'class="fz" style="left:70px"' : ''} title="${esc(c.title)} — 눌러 정렬 · 끌어 순서 바꾸기">${esc(c.title)}${G.sort.k === c.key ? (G.sort.d > 0 ? ' ▲' : ' ▼') : ''}<span class="rz"></span></th>`).join('')}</tr>
       <tr class="flt"><th class="fz" style="left:0"></th><th class="fz" style="left:30px"></th>${cols.map((c, i) => `<th ${i === 0 ? 'class="fz" style="left:70px"' : ''}><input data-f="${c.key}" value="${esc(G.flt[c.key] || '')}" placeholder="filter" aria-label="${esc(c.title)} filter"></th>`).join('')}</tr></thead>
       <tbody>${rows.map((r, n) => `<tr data-id="${r.id}" class="${G.sel.has(r.id) ? 'sel' : ''}"><td class="fz" style="left:0"><input type="checkbox" ${G.sel.has(r.id) ? 'checked' : ''} aria-label="선택"></td><td class="fz" style="left:30px">${n + 1}</td>
         ${cols.map((c, i) => {
-          if (c.key === 'tag') return `<td class="fz" style="left:70px"><a class="tag" href="#review" data-open="${r.id}">${esc(r.tag)}</a></td>`;
+          if (c.key === 'tag') return `<td class="fz" style="left:70px" data-tagcell="1"><span class="tag" style="color:var(--blue);font-weight:600">${esc(r.tag)}</span> <a href="#review" data-open="${r.id}" title="Datasheet Review 로 열기">↗</a></td>`;
           if (c.key === 'status') return `<td>${pill(r.status)}</td>`;
           if (c.key in r) return `<td>${esc(r[c.key])}</td>`;
           const x = r.cells[c.key]; if (!x) return '<td class="ph">—</td>';
           return `<td data-fid="${x.id}" data-k="${c.key}" class="${x.ed ? 'ed' : ''} ${x.st === 'placeholder' || x.st === 'blank' ? 'ph' : ''} ${x.st === 'review' ? 'rv' : ''}" title="${esc(x.v + (x.u ? ' ' + x.u : ''))}${x.ed ? ' (사용자 수정)' : ''} · p.${x.p} — 두 번 눌러 고치기">${esc(x.v || (x.st === 'blank' ? 'Not Found' : ''))}${x.u && x.v ? ' <small>' + esc(x.u) + '</small>' : ''}</td>`;
-        }).join('')}</tr>`).join('')}</tbody></table></div>`;
+        }).join('')}</tr>`).join('')}</tbody></table></div>`)}`;
   const wrap = $('.xg-wrap', el); wrap.scrollLeft = keepX; wrap.scrollTop = keepY;
+  $$('[data-lm]', el).forEach(b => b.onclick = () => { G.mode = b.dataset.lm; renderList(); });
+  mountPreview();
   const re = () => renderList();
   $('#gq').oninput = () => { clearTimeout(G.t); G.t = setTimeout(() => { re(); $('#gq').focus(); const v = $('#gq').value; $('#gq').setSelectionRange(v.length, v.length); }, 200); };
   $('#gt').onchange = re; $('#gs').onchange = re;
@@ -395,6 +439,11 @@ async function renderList() {
     else if (e.ctrlKey || e.metaKey || e.target.type === 'checkbox') G.sel.has(id) ? G.sel.delete(id) : G.sel.add(id);
     else { G.sel.clear(); G.sel.add(id); }
     G.last = id; paintSel();
+    const row = S.grid.rows.find(r => r.id === id), td = e.target.closest('td');   // live preview
+    $$('td.hit', tb).forEach(x => x.classList.remove('hit')); td?.classList.add('hit');
+    const x = td?.dataset.k ? row.cells[td.dataset.k] : null, col = cols.find(c => c.key === td?.dataset.k);
+    dsIssues(row.id).then(ovs => preview({ doc: row.document_id, pages: row.pages, page: x?.p || row.page, bbox: x?.b, ovs,
+      label: `${row.tag}${col ? ' · ' + col.title + ': ' + (x?.v || 'Not Found') : ''}` }));
   };
   function paintSel() {                     // selection without re-rendering (a re-render would eat the double-click)
     $$('tr[data-id]', tb).forEach(tr => { const on = G.sel.has(+tr.dataset.id); tr.classList.toggle('sel', on); $('input', tr).checked = on; });
@@ -435,6 +484,60 @@ async function renderList() {
     };
   });
 }
+const IF = { type: '', sev: '', st: '', q: '', internal: false };
+async function renderIssues() {
+  const el = $('#v-list');
+  if (!S.issues) { el.innerHTML = '<div class="empty">지적 사항을 계산하는 중…</div>'; S.issues = (await api('GET', `/projects/${S.pid}/issues`)).issues; }
+  const all = S.issues.filter(i => IF.internal || i.type !== 'Extraction Review');
+  const q = IF.q.toUpperCase().replace(/[^0-9A-Z]/g, '');
+  const L = all.filter(i => (!IF.type || i.type === IF.type) && (!IF.sev || i.severity === IF.sev) && (!IF.st || i.status === IF.st) && (!q || i.tag.includes(q)));
+  const types = [...new Set(all.map(i => i.type))];
+  const cnt = t => all.filter(i => i.type === t && i.status !== 'Dismissed').length;
+  const keepY = $('.xg-wrap', el)?.scrollTop || 0;
+  el.innerHTML = `<div class="vh">${listTop()}<input type="search" id="iq" placeholder="Tag 검색" style="width:140px" value="${esc(IF.q)}">
+      <select id="it"><option value="">All Issue Types</option>${types.map(t => `<option ${t === IF.type ? 'selected' : ''} value="${esc(t)}">${esc(t)} (${cnt(t)})</option>`).join('')}</select>
+      <select id="isv"><option value="">All Severity</option>${['Major', 'Minor', 'Info', 'Internal'].map(t => `<option ${t === IF.sev ? 'selected' : ''}>${t}</option>`).join('')}</select>
+      <select id="ist"><option value="">All Status</option>${['Open', 'Confirmed', 'Dismissed', 'Resolved'].map(t => `<option ${t === IF.st ? 'selected' : ''}>${t}</option>`).join('')}</select>
+      <label class="soft"><input type="checkbox" id="iint" ${IF.internal ? 'checked' : ''}> 추출 확인(내부)</label>
+      <span class="soft">${L.length} / ${all.length}</span><span class="sp"></span>
+      <button id="ixl" title="지금 필터 그대로 · Dismissed 제외">⇩ Issue List Excel</button><button class="pri" id="ipdf" title="지금 필터 그대로 · 인쇄용 표시 + Issue Summary">⇩ Mark-up PDF</button></div>
+    ${lpWrap(`<div class="xg-wrap"><table class="xg" id="ig" style="width:1500px"><colgroup>${[34, 110, 150, 40, 62, 46, 150, 150, 130, 330, 150, 64, 100].map(w => `<col style="width:${w}px">`).join('')}</colgroup>
+      <thead><tr>${['No.', 'Tag Number', 'Doc. No.', 'Rev.', 'Sheet', 'Page', 'Field', 'Datasheet Value', 'Issue Type', 'Description', 'Required / Expected', 'Severity', 'Status'].map((h, n) => `<th ${n < 2 ? `class="fz" style="left:${n ? 34 : 0}px"` : ''}>${h}</th>`).join('')}</tr></thead>
+      <tbody>${L.slice(0, 3000).map((i, n) => `<tr data-i="${esc(i.ds_id + '|' + i.ikey)}" class="${G.selIss === i.ikey && G.selDs === i.ds_id ? 'sel' : ''}">
+        <td class="fz" style="left:0"><b class="no ${i.color}">${i.no}</b></td><td class="fz" style="left:34px"><b>${esc(i.tag)}</b></td><td>${esc(i.doc_no)}</td><td>${esc(i.rev)}</td><td>${i.sheet || ''} of ${i.of || ''}</td><td>${i.page || ''}</td>
+        <td title="${esc(i.field)}">${esc(i.field)}${i.row ? ` <small>#${i.row}</small>` : ''}</td><td title="${esc(i.value)}">${esc(i.value || '(blank)')}</td>
+        <td>${pill(i.type.replace(/[^A-Za-z]/g, ''), i.type)}</td><td title="${esc(i.description)}">${esc(i.description)}</td><td title="${esc(i.expected)}">${esc(i.expected)}</td>
+        <td>${pill(i.severity)}</td><td><select data-ist="${esc(i.ds_id + '|' + i.ikey)}" aria-label="status">${['Open', 'Confirmed', 'Dismissed', 'Resolved'].map(x => `<option ${x === i.status ? 'selected' : ''}>${x}</option>`).join('')}</select></td></tr>`).join('')
+        || '<tr><td colspan="13" class="empty">조건에 맞는 지적 사항이 없습니다</td></tr>'}</tbody></table></div>`)}`;
+  $('.xg-wrap', el).scrollTop = keepY;
+  $$('[data-lm]', el).forEach(b => b.onclick = () => { G.mode = b.dataset.lm; renderList(); });
+  const re = () => renderIssues();
+  $('#iq').oninput = e => { IF.q = e.target.value; clearTimeout(IF.t); IF.t = setTimeout(() => { re(); const f = $('#iq'); f.focus(); f.setSelectionRange(f.value.length, f.value.length); }, 250); };
+  $('#it').onchange = e => { IF.type = e.target.value; re(); }; $('#isv').onchange = e => { IF.sev = e.target.value; re(); };
+  $('#ist').onchange = e => { IF.st = e.target.value; re(); }; $('#iint').onchange = e => { IF.internal = e.target.checked; re(); };
+  const qs = () => new URLSearchParams({ types: IF.type || (IF.internal ? [...types].join(',') : ''), severity: IF.sev, tag: q ? [...new Set(L.map(i => i.tag))].join(',') : '' }).toString();
+  $('#ixl').onclick = () => download(`/projects/${S.pid}/issues.xlsx?${qs()}`).then(r => toast(`Issue List ${r.headers.get('X-Count')}행 — 설계사에게 바로 보낼 수 있습니다`)).catch(e => toast(e.message, 1));
+  $('#ipdf').onclick = () => { toast('Mark-up PDF 를 만드는 중… (Tag 수에 따라 수십 초)'); download(`/projects/${S.pid}/markup.pdf?${qs()}`).then(() => toast('내려받음 — 인쇄하면 표시도 같이 나옵니다')).catch(e => toast(e.message, 1)); };
+  const tb = $('#ig tbody');
+  tb.onclick = async e => {
+    if (e.target.closest('select')) return;
+    const tr = e.target.closest('tr[data-i]'); if (!tr) return;
+    const [dsId, ikey] = [+tr.dataset.i.split('|')[0], tr.dataset.i.slice(tr.dataset.i.indexOf('|') + 1)];
+    const i = S.issues.find(x => x.ds_id === dsId && x.ikey === ikey);
+    G.selIss = ikey; G.selDs = dsId; $$('tr.sel', tb).forEach(x => x.classList.remove('sel')); tr.classList.add('sel');
+    const pages = (S.grid?.rows.find(r => r.id === dsId)?.pages) || (await api('GET', `/datasheets/${dsId}`)).pages;
+    preview({ doc: i.document_id, pages, page: i.page, bbox: i.bbox, ovs: await dsIssues(dsId), label: `${i.tag} · #${i.no} ${i.type} · ${i.field}` });
+  };
+  tb.ondblclick = e => { const tr = e.target.closest('tr[data-i]'); if (tr) openDs(+tr.dataset.i.split('|')[0]); };
+  tb.onchange = async e => {
+    const sel = e.target.closest('[data-ist]'); if (!sel) return;
+    const [dsId, ikey] = [+sel.dataset.ist.split('|')[0], sel.dataset.ist.slice(sel.dataset.ist.indexOf('|') + 1)];
+    const note = sel.value === 'Open' ? '' : (await modal(`${sel.value} — 이유`, '<input name="note" placeholder="예) 설계사 확인 요청 / Process DS 참조로 문제 없음">', [['건너뛰기', { note: '' }], ['저장', 'form', 1]]))?.note || '';
+    await api('PUT', `/datasheets/${dsId}/issues/${encodeURIComponent(ikey)}`, { status: sel.value, note });
+    const i = S.issues.find(x => x.ds_id === dsId && x.ikey === ikey); i.status = sel.value; i.note = note; toast(`→ ${sel.value}`);
+  };
+  mountPreview();
+}
 async function exportValveList() {
   toast('Valve List 를 만드는 중… (164 태그 기준 수 초)');
   try {
@@ -457,12 +560,12 @@ function wbLayout() {
     <div class="split" data-s="l"></div>
     <div class="wb-center" id="wview"></div>
     <div class="split" data-s="r"></div>
-    <div class="wb-right" style="width:${w.r}%"><div class="tabs" id="wtabs">${[['sum', 'Summary'], ['data', 'Datasheet Data'], ['proc', 'Process Data'], ['pms', 'PMS'], ['rev', 'Revision'], ['notes', 'Notes'], ['cmt', 'Comments'], ['hist', 'History']]
+    <div class="wb-right" style="width:${w.r}%"><div class="tabs" id="wtabs">${[['iss', 'Issues'], ['sum', 'Summary'], ['data', 'Datasheet Data'], ['proc', 'Process Data'], ['pms', 'PMS'], ['rev', 'Revision'], ['notes', 'Notes'], ['cmt', 'Comments'], ['hist', 'History']]
       .map(([k, l]) => `<button data-t="${k}" class="${W.tab === k ? 'on' : ''}">${l}</button>`).join('')}</div><div class="rbody" id="wbody"></div>
       <div class="statusbar" id="wstat"></div></div></div>`;
   W.viewer = new Viewer($('#wview'), { tools: true,
     extra: `<button data-a2="prevrev" title="이전 Revision">◁ Rev</button><button data-a2="nextrev" title="다음 Revision">Rev ▷</button><button data-a2="pdf" title="표시한 PDF 내보내기">⇩ Mark-up PDF</button>`,
-    onDraw: addAnnot, onOverlay: o => { if (o.cmId) { W.selCm = o.cmId; setTab('cmt'); } else if (o.key) selectField(o.key); } });
+    onDraw: addAnnot, onOverlay: o => { if (o.cmId) { W.selCm = o.cmId; setTab('cmt'); } else if (o.iss) { W.selIss = o.iss; setTab('iss'); } else if (o.key) selectField(o.key); } });
   $('#wview .tbar').addEventListener('click', e => {
     const a = e.target.closest('[data-a2]')?.dataset.a2; if (!a || !S.ds) return;
     const rv = S.ds.revisions, i = rv.findIndex(r => r.id === S.ds.id);
@@ -493,7 +596,7 @@ function drawTagList() {
   const list = S.sum.tags.filter(t => (!q || t.tag_key.includes(q)) && (!W.type || t.valve_type === W.type) && (!W.st || t.review_status === W.st));
   W.list = list;
   $('#wlist').innerHTML = list.map(t => `<div class="ti ${t.id === S.dsId ? 'on' : ''}" data-id="${t.id}"><span class="bar"></span><b>${esc(t.tag_key)}</b>
-      <span class="iss">${t.issues ? pill('review', '⚠ ' + t.issues) : ''}</span><small>${esc(t.valve_type)} · Rev.${esc(t.revs.join('→'))} · ${pill(t.review_status)}</small></div>`).join('')
+      <span class="tiss">${t.problems ? `<span class="pill p-bad" title="오류 · 누락 · PMS 등 지적 사항">${t.problems}</span>` : ''}${t.issues ? ` <span class="pill p-ReviewRequired" title="추출 확인 필요 칸">⚠${t.issues}</span>` : ''}</span><small>${esc(t.valve_type)} · Rev.${esc(t.revs.join('→'))} · ${pill(t.review_status)}</small></div>`).join('')
     || '<div class="empty">조건에 맞는 Tag 가 없습니다</div>';
   $('#wlist').onclick = e => { const it = e.target.closest('.ti'); if (it) openDs(+it.dataset.id); };
   $('#wlist .ti.on')?.scrollIntoView({ block: 'nearest' });
@@ -518,7 +621,10 @@ async function renderReview() {
 function paintDsOverlays() {
   const ov = [];
   for (const c of S.ds.comments.filter(c => c.page && c.bbox)) ov.push({ cat: 'comment', page: c.page, bbox: c.bbox, title: `${c.by} · ${c.at}`, text: c.text, cmId: c.id, sel: W.selCm === c.id });
-  for (const r of W.prevCmp?.rows || []) if (r.change !== 'Unchanged' && r.new_page && r.new_bbox) ov.push({ cat: 'revision', page: r.new_page, bbox: r.new_bbox, key: r.key, title: `${r.change}: ${r.display}`, text: `Rev.${W.prevCmp.prev.rev}: ${r.previous || '(blank)'}\nRev.${W.prevCmp.new.rev}: ${r.new || '(blank)'}` });
+  for (const i of S.ds.issues || []) {                // every issue in its colour, numbered like the exported PDF
+    if (i.type === 'Reviewer Comment' || !i.bbox || i.status === 'Dismissed' || (i.type === 'Extraction Review' && !W.showInternal)) continue;
+    ov.push({ cat: i.color, page: i.page, bbox: i.bbox, key: i.key, no: i.no, title: `#${i.no} ${i.type} · ${i.field}`, text: i.description + (i.expected ? `\nRequired: ${i.expected}` : ''), iss: i.ikey, sel: W.selIss === i.ikey });
+  }
   const sf = S.ds.fields.find(f => f.key === W.selField);
   if (sf?.bbox) ov.push({ cat: 'field', page: sf.page, bbox: sf.bbox, title: sf.display });
   W.viewer.setOverlays(ov);
@@ -545,7 +651,17 @@ function drawRight() {
   const F = Object.fromEntries(d.fields.map(f => [f.key, f])), val = k => F[k] ? (F[k].edited_value ?? F[k].value) : '';
   const cnt = s => d.fields.filter(f => f.status === s && f.edited_value == null).length;
   let h = '';
-  if (W.tab === 'sum') {
+  if (W.tab === 'iss') {
+    const L = (d.issues || []).filter(i => i.type !== 'Extraction Review' || W.showInternal);
+    h = `<div class="sect" style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">${['error', 'missing', 'revision', 'comment'].map(c => {
+        const n = L.filter(i => i.color === c).length; return n ? `<span class="pill p-${{ error: 'bad', missing: 'ReviewRequired', revision: 'Modified', comment: 'Commented' }[c]}">${{ error: 'Error', missing: 'Missing', revision: 'Rev', comment: 'Reviewer' }[c]} ${n}</span>` : ''; }).join('')}
+        <label class="soft" style="margin-left:auto"><input type="checkbox" id="wint" ${W.showInternal ? 'checked' : ''}> 추출 확인(내부) ${(d.issues || []).filter(i => i.type === 'Extraction Review').length}</label></div>
+      ${L.map(i => `<div class="iss ${i.color} ${W.selIss === i.ikey ? 'on' : ''} ${i.status === 'Dismissed' ? 'dis' : ''}" data-iss="${esc(i.ikey)}">
+        <div class="ih"><b class="no ${i.color}">${i.no}</b><b>${esc(i.type)}</b><span class="soft">${esc(i.field)}${i.row ? ' #' + i.row : ''} · Sheet ${i.sheet || ''}/${i.of || ''} · p.${i.page || ''}</span><span class="sp"></span>
+        <select data-ist="${esc(i.ikey)}" aria-label="status">${['Open', 'Confirmed', 'Dismissed', 'Resolved'].map(x => `<option ${x === i.status ? 'selected' : ''}>${x}</option>`).join('')}</select></div>
+        <div>${esc(i.description)}</div>${i.expected ? `<div class="soft">Required / expected: <b>${esc(i.expected)}</b></div>` : ''}${i.note ? `<div class="soft">Note: ${esc(i.note)}</div>` : ''}</div>`).join('') || '<div class="empty">이 데이터시트에는 지적 사항이 없습니다</div>'}
+      <p class="soft">Dismissed 는 설계사 전달본(Excel · Mark-up PDF)에서 빠집니다. 상태를 바꾸면 이유를 묻고 감사 기록에 남깁니다.</p>`;
+  } else if (W.tab === 'sum') {
     h = `<div class="sect"><h4>Datasheet</h4><table class="t"><tbody>
       ${[['Tag Number', d.tag], ['Valve Type', d.valve_type], ['Form', d.title + (d.form ? ` (${d.form})` : '')], ['Document No.', d.doc_no], ['Revision', `${d.rev} ${d.rev_date ? '· ' + d.rev_date : ''}`],
         ['File', `${d.filename} · p.${d.pages.join(', ')}`], ['Service', val('service')], ['P&ID No.', val('pid_no')], ['Line No.', val('line_no')], ['Piping Class', val('piping_class')],
@@ -568,10 +684,11 @@ function drawRight() {
       <table class="t"><tbody>${ex.map(f => `<tr class="click" data-k="${esc(f.key)}"><td>${esc(f.display)}</td><td>${esc(f.edited_value ?? f.value)}</td><td>${pill('Excluded', 'N/A (Excluded)')}</td></tr>`).join('')}</tbody></table>
       <p class="soft">Valve Size · Rating · Material 은 Process Data 검증에서 비교하지 않습니다 (Datasheet · PMS 기준으로 관리).</p></div>`;
   } else if (W.tab === 'pms') {
-    h = `<div class="banner">${MOCK} PMS 준수 검토 엔진(Phase 4)은 아직 연결 전입니다. Piping Class · Datasheet 값 · 위치는 실제입니다. 판정은 비워 두고, 예시는 버튼으로만 봅니다. ${mockBtn()}</div>
-      <p>Piping Class <b>${esc(val('piping_class') || 'Not Found')}</b></p>
-      <table class="t"><thead><tr><th>Item</th><th>PMS Requirement ${MOCK}</th><th>Datasheet</th><th>Result</th></tr></thead><tbody>
-      ${mockPms(F).map(r => `<tr class="click" data-k="${esc(r.key)}"><td>${esc(r.item)}</td><td>${esc(r.req)}</td><td>${esc(r.ds)}</td><td>${pill(r.res.replace(/[^A-Za-z]/g, ''), r.res)}</td></tr>`).join('')}</tbody></table>`;
+    h = !d.pms ? `<div class="empty">PMS 문서가 아직 없습니다 — Document Management 에 Piping Material Specification PDF 를 올리면<br>Piping Class 의 Rating · NACE · Trim · Body · Seat 를 이 데이터시트와 비교합니다.</div>`
+      : `<p>Piping Class <b>${esc(val('piping_class') || 'Not Found')}</b> · PMS ${esc(d.area || '지역 미상')} · <span class="soft">${esc(d.pms_doc?.filename || '')}</span></p>
+      <table class="t"><thead><tr><th>Item</th><th>PMS Requirement</th><th>Datasheet</th><th>Result</th><th>PMS p.</th></tr></thead><tbody>
+      ${d.pms.map(r => `<tr class="click" data-k="${esc(r.key)}" title="${esc(r.reason)}"><td>${esc(r.item)}</td><td>${esc(r.req)}</td><td>${esc(r.ds)}</td><td>${pill(r.result.replace(/[^A-Za-z]/g, ''), r.result)}<div class="soft" style="font-size:11px">${esc(r.reason)}</div></td><td>${r.pms_page ? `<a href="#" data-pmsp="${r.pms_page}" data-pmsb="${esc(JSON.stringify(r.pms_bbox))}">${r.pms_page}</a>` : ''}</td></tr>`).join('')}</tbody></table>
+      <p class="soft">재질은 표기가 아니라 규격·등급으로 비교합니다 (A351 CF8M ⊂ 316/316L SS A351-CF8M/CF3M = Compliant). 같은 계열의 다른 등급은 Review Required.</p>`;
   } else if (W.tab === 'rev') {
     const c = W.prevCmp;
     h = c ? `<p>Rev.<b>${esc(c.prev.rev)}</b> → Rev.<b>${esc(c.new.rev)}</b> · ${['Modified', 'Added', 'Deleted'].map(k => pill(k, `${k} ${c.rows.filter(r => r.change === k).length}`)).join(' ')}</p>
@@ -602,7 +719,17 @@ function drawRight() {
       if (r?.text) { S.ds = await api('PUT', `/comments/${c.id}`, { text: r.text }); paintDsOverlays(); drawRight(); } return; }
     const cd = e.target.closest('[data-cmdel]'); if (cd) { if (await modal('의견 지우기', '이 의견(과 PDF 표시)을 지울까요? 기록은 History 에 남습니다.', [['취소', 0], ['지우기', 1, 1]])) {
       S.ds = await api('PUT', `/comments/${cd.dataset.cmdel}`, { delete: true }); paintDsOverlays(); drawRight(); } return; }
+    const pp = e.target.closest('[data-pmsp]'); if (pp) { e.preventDefault(); openPmsRef(+pp.dataset.pmsp, JSON.parse(pp.dataset.pmsb || 'null')); return; }
+    if (e.target.closest('select')) return;
+    const is = e.target.closest('[data-iss]'); if (is) { const i = d.issues.find(x => x.ikey === is.dataset.iss); W.selIss = i.ikey; paintDsOverlays(); if (i.bbox) W.viewer.focus(i.page, i.bbox, i.field); $$('#wbody .iss').forEach(x => x.classList.toggle('on', x.dataset.iss === i.ikey)); return; }
     const k = e.target.closest('[data-k]'); if (k) selectField(k.dataset.k);
+  };
+  b.onchange = async e => {
+    if (e.target.id === 'wint') { W.showInternal = e.target.checked; paintDsOverlays(); drawRight(); return; }
+    const sel = e.target.closest('[data-ist]'); if (!sel) return;
+    const note = sel.value === 'Open' ? '' : (await modal(`${sel.value} — 이유`, '<input name="note" placeholder="예) 설계사 확인 요청 / Process DS 참조로 문제 없음">', [['건너뛰기', { note: '' }], ['저장', 'form', 1]]))?.note || '';
+    await api('PUT', `/datasheets/${d.id}/issues/${encodeURIComponent(sel.dataset.ist)}`, { status: sel.value, note });
+    S.ds = await api('GET', `/datasheets/${d.id}`); S.issues = null; paintDsOverlays(); drawRight(); toast(`→ ${sel.value}`);
   };
   $('#cmadd') && ($('#cmadd').onclick = async () => { const t = $('#cmtx').value.trim(); if (!t) return;
     S.ds = await api('POST', `/datasheets/${d.id}/comments`, { text: t }); drawRight(); toast('의견을 남겼습니다'); });
@@ -635,10 +762,17 @@ async function addAnnot(page, bbox) {
   W.selCm = S.ds.comments.at(-1)?.id; setTab('cmt'); paintDsOverlays();
 }
 async function exportMarkup() {
-  const items = W.viewer.ovs.filter(o => ['comment', 'revision'].includes(o.cat) && W.viewer.show[o.cat])
-    .map(o => ({ page: o.page, bbox: o.bbox, category: o.cat, title: `${S.ds.tag} · ${o.cat === 'comment' ? 'Engineering Comment' : 'Revision Change'}`, text: o.text || o.title }));
-  try { await download('/markup.pdf', 'POST', { document_id: S.ds.document_id, pages: S.ds.pages, items }); toast(`표시 ${items.length}개 — 원본은 그대로, 별도 파일로 내려받았습니다`); }
+  toast('Mark-up PDF 를 만드는 중…');
+  try { await download(`/projects/${S.pid}/markup.pdf?tag=${encodeURIComponent(S.ds.tag_key)}`); toast('내려받음 — 원본은 그대로, 번호 붙은 표시 + Issue Summary 쪽 (인쇄하면 표시도 같이 나옵니다)'); }
   catch (e) { toast(e.message, 1); }
+}
+async function openPmsRef(page, bbox) {               // PMS reference page in a pop-up viewer beside the datasheet
+  const doc = S.ds?.pms_doc || S.pmsDoc; if (!doc) return;
+  $('#mTitle').textContent = `PMS ${doc.filename} · p.${page}`; $('#mAct').innerHTML = '<button>닫기</button>';
+  $('#mBody').innerHTML = '<div id="pmsv" style="height:70vh;display:flex;flex-direction:column;background:#525a68"></div>';
+  $('.mbox').style.width = 'min(1000px,94vw)'; $('#modal').hidden = false;
+  $('#mAct button').onclick = () => { $('#modal').hidden = true; $('.mbox').style.width = ''; };
+  const v = new Viewer($('#pmsv')); await v.load(doc.id, [page]); v.fit(); if (bbox) v.focus(page, bbox, 'PMS');
 }
 /* MOCK helpers — deterministic so the same tag always shows the same example */
 const mockBtn = () => `<button data-mock="1">${SHOWMOCK ? '예시 끄기 (판정 숨김)' : 'MOCK 예시 판정 보기'}</button>`;
@@ -648,16 +782,6 @@ function mockProc(v, i) {
   if (!v) return { pv: '—', r: 'Missing in Datasheet' };
   if (i % 5 === 3) return { pv: String(v).replace(/\d+(\.\d+)?/, n => (+n * 1.1).toFixed(1)), r: 'Mismatch' };
   return { pv: v, r: 'Match' };
-}
-function mockPms(F) {
-  const rows = [['Body Material', 'body_material', 'ASTM A351 CF8M'], ['Trim (Ball) Material', 'ball_material', '316 SS / HF'], ['Stem Material', 'stem_material', '316 SS / HF'],
-    ['Seat Material', 'seat_material', 'RTFE'], ['Gasket / Bolting', 'bolting_gasket', 'Spiral Wound 316 SS / Graphite'], ['Pressure Class', 'rating', '150#']];
-  return rows.filter(([, k]) => F[k]).map(([item, key, req]) => {
-    const ds = F[key].edited_value ?? F[key].value, n = s => String(s).toUpperCase().replace(/[^0-9A-Z]/g, '');
-    if (!SHOWMOCK) return { item, key, req: 'Phase 4 연결 전', ds, res: 'Not Evaluated' };
-    const res = !ds ? 'Review Required' : n(ds).includes(n(req)) || n(req).includes(n(ds)) ? 'Compliant' : /NOTE|VTA/i.test(ds) ? 'Review Required' : 'Non-Compliant';
-    return { item, key, req, ds, res };
-  });
 }
 
 /* ── 5. Revision Comparison ───────────────────────────────────────────── */
@@ -755,19 +879,35 @@ async function renderProc() {
   $('#ptag').onchange = draw; draw();
 }
 async function renderPms() {
-  const el = $('#v-pms'); el.classList.remove('full');
-  el.innerHTML = `<div class="vh"><h2>PMS Compliance</h2>${MOCK}<span class="soft">Reference: 98-98-PI-SPC-00001 (업로드 시)</span></div>
-    <div class="banner">Phase 4 엔진(PMS Class 표 구조화 · Line No. → Class 연결 · ASTM 등급 비교)은 아직 연결 전입니다. Tag · Piping Class · Datasheet 값과 쪽은 실제입니다. 결과는 'Not Evaluated' 로 두고, 예시는 ${mockBtn()} 으로만 봅니다.
-      동등 재질은 임의로 판정하지 않고 Review Required 로 둡니다.</div><div class="card"><div class="empty">불러오는 중…</div></div>`;
-  const dss = await allFields(40);
-  const rows = dss.flatMap(d => { const F = Object.fromEntries(d.fields.map(f => [f.key, f]));
-    return mockPms(F).map(r => ({ ...r, d, pc: F.piping_class?.edited_value ?? F.piping_class?.value ?? '', page: F[r.key].page })); });
-  $('.card', el).innerHTML = `<table class="t"><thead><tr><th>Tag Number</th><th>Piping Material Class</th><th>Item</th><th>PMS Requirement ${MOCK}</th><th>Datasheet Value</th><th>Compliance Result</th><th>PMS Ref. Page ${MOCK}</th><th>DS Ref. Page</th></tr></thead><tbody>
-    ${rows.map(r => `<tr class="click" data-g="${r.d.id}"><td><b>${esc(r.d.tag_key)}</b></td><td>${esc(r.pc)}</td><td>${esc(r.item)}</td><td>${esc(r.req)}</td><td>${esc(r.ds)}</td><td>${pill(r.res.replace(/[^A-Za-z]/g, ''), r.res)}</td><td>—</td><td>${r.page}</td></tr>`).join('')}</tbody></table>
-    <p class="soft">처음 40개 Tag 를 보여 줍니다. 행을 누르면 그 데이터시트의 해당 위치로 갑니다 (PMS 쪽 동시 열기는 Phase 4).</p>`;
-  $$('#v-pms tr[data-g]').forEach(tr => tr.onclick = () => openDs(+tr.dataset.g));
+  const el = $('#v-pms'); el.classList.add('full');
+  if (!S.sum.has_pms) { el.classList.remove('full'); el.innerHTML = `<div class="vh"><h2>PMS Compliance</h2></div><div class="card"><div class="empty">PMS(Piping Material Specification) PDF 가 아직 없습니다.<br>Document Management 에 올리면 Class 시트(Rating · NACE · Valve Trim · Ball Valve 품목)를 읽어 모든 Tag 를 비교합니다.</div></div>`; return; }
+  if (!S.pmsRows) { el.innerHTML = '<div class="empty">PMS 와 비교하는 중…</div>'; const r = await api('GET', `/projects/${S.pid}/pms`); S.pmsRows = r.rows; S.pmsDoc = r.pms_doc; }
+  const P = S.pmsF ||= { res: '', q: '', item: '' };
+  const q = P.q.toUpperCase().replace(/[^0-9A-Z]/g, '');
+  const L = S.pmsRows.filter(r => (!P.res || r.result === P.res) && (!P.item || r.item === P.item) && (!q || r.tag.includes(q)));
+  const cnt = x => S.pmsRows.filter(r => r.result === x).length;
+  el.innerHTML = `<div style="display:flex;flex-direction:column;width:100%;height:100%"><div style="padding:10px 14px 6px;background:var(--bg)"><div class="vh" style="margin:0">
+      <h2>PMS Compliance</h2><span class="soft">${esc(S.pmsDoc?.filename || '')}</span>
+      ${['Non-Compliant', 'Review Required', 'Not Defined in PMS', 'Compliant'].map(x => `<button data-pr="${x}" class="${P.res === x ? 'pri' : ''}">${pill(x.replace(/[^A-Za-z]/g, ''), x)} ${cnt(x)}</button>`).join('')}
+      <select id="pi"><option value="">All Items</option>${[...new Set(S.pmsRows.map(r => r.item))].map(x => `<option ${x === P.item ? 'selected' : ''}>${esc(x)}</option>`).join('')}</select>
+      <input type="search" id="pq" placeholder="Tag 검색" value="${esc(P.q)}" style="width:140px"><span class="soft">${L.length}행 · 재질은 규격·등급으로 비교 (표기 차이 무시)</span></div></div>
+    <div style="flex:1;min-height:0;overflow:auto;padding:0 14px"><table class="t"><thead><tr><th>Tag Number</th><th>Area</th><th>Piping Material Class</th><th>Item</th><th>PMS Requirement</th><th>Datasheet Value</th><th>Compliance Result</th><th>Reason</th><th>PMS Ref. Page</th><th>DS Ref. Page</th></tr></thead><tbody>
+      ${L.slice(0, 3000).map((r, n) => `<tr class="click" data-n="${S.pmsRows.indexOf(r)}"><td><b>${esc(r.tag)}</b></td><td>${esc(r.area || '?')}</td><td>${esc(r.class)}</td><td>${esc(r.item)}</td><td>${esc(r.req)}</td><td>${esc(r.ds)}</td>
+        <td>${pill(r.result.replace(/[^A-Za-z]/g, ''), r.result)}</td><td class="soft">${esc(r.reason)}</td><td>${r.pms_page || '—'}</td><td>${r.ds_page || ''}</td></tr>`).join('') || '<tr><td colspan="10" class="empty">없음</td></tr>'}</tbody></table></div>
+    <div style="height:42%;min-height:200px;display:flex;border-top:3px solid #1d2330"><div class="rc-side" id="pmL"></div><div class="rc-side" id="pmR"></div></div></div>`;
+  const L1 = new Viewer($('#pmL'), { extra: '<span class="lbl">Datasheet</span>' }), R1 = new Viewer($('#pmR'), { extra: '<span class="lbl">PMS</span>' });
+  $$('[data-pr]', el).forEach(b => b.onclick = () => { P.res = P.res === b.dataset.pr ? '' : b.dataset.pr; renderPms(); });
+  $('#pi').onchange = e => { P.item = e.target.value; renderPms(); };
+  $('#pq').oninput = e => { P.q = e.target.value; clearTimeout(P.t); P.t = setTimeout(() => { renderPms().then(() => { const f = $('#pq'); f.focus(); f.setSelectionRange(f.value.length, f.value.length); }); }, 300); };
+  $$('tr[data-n]', el).forEach(tr => tr.onclick = async () => {        // both references at once
+    $$('tr.sel', el).forEach(x => x.classList.remove('sel')); tr.classList.add('sel');
+    const r = S.pmsRows[+tr.dataset.n], pages = (await api('GET', `/datasheets/${r.ds_id}`)).pages;
+    await L1.load(r.document_id, pages); L1.fit();
+    L1.setOverlays([{ cat: r.result === 'Non-Compliant' ? 'error' : r.result === 'Compliant' ? 'comment' : 'missing', page: r.ds_page, bbox: r.ds_bbox, title: r.item }]);
+    if (r.ds_bbox) L1.focus(r.ds_page, r.ds_bbox, r.item);
+    if (r.pms_page) { await R1.load(S.pmsDoc.id, [r.pms_page]); R1.fit(); R1.setOverlays([]); if (r.pms_bbox) R1.focus(r.pms_page, r.pms_bbox, 'PMS'); }
+  });
 }
-
 /* ── 8. Reports & Export · 9. Settings ─────────────────────────────────── */
 async function renderExport() {
   const el = $('#v-export'); el.classList.remove('full');
@@ -780,8 +920,15 @@ async function renderExport() {
     <div class="card"><h3>Extracted Data · Audit Trail</h3><p>모든 Tag 의 추출 칸(읽은 값 · 수정 값 · 수정자 · 상태 · 쪽 · 파일)을 CSV 로.</p>
       <button id="ex2">⇩ Extracted Fields CSV</button> <button id="ex3">⇩ Audit Trail CSV</button>
       <h3 style="margin-top:14px">Mark-up PDF</h3><p class="soft">Datasheet Review 화면 PDF 도구줄의 <b>⇩ Mark-up PDF</b> (그 Tag 의 주석 · Revision 변경 표시), Revision Comparison 의 <b>Export Mark-up PDF</b>.
-      원본은 그대로 두고 별도 파일로 만듭니다. 색: <span style="color:#b38f00">노랑 Revision</span> · <span style="color:var(--pms)">빨강 PMS</span> · <span style="color:var(--proc)">주황 Process</span> · <span style="color:var(--usr)">파랑 Comment</span>.</p></div></div>`;
+      원본은 그대로 두고 별도 파일로 만듭니다.</p></div>
+    <div class="card"><h3>설계사 전달 — 지적 사항 (Issue List · Mark-up)</h3><p>오류 · 누락 · HOLD/TBC · PMS 부적합 · Revision 변경 · 검토자 수정/의견. 각 행에 Tag · Doc. No. · Rev. · Sheet · PDF Page · 무엇이 문제인지 · 요구값.
+      Dismissed 는 빠집니다. 색: <b style="color:var(--pms)">빨강</b> 오류/PMS · <b style="color:var(--proc)">주황</b> 누락/HOLD · <b style="color:#b38f00">노랑</b> Revision · <b style="color:var(--usr)">파랑</b> 검토자.</p>
+      <button class="pri" id="ex4">⇩ Issue List Excel</button> <button id="ex5">⇩ Mark-up PDF (전체 · 인쇄용)</button> <button data-go="list:issues">Issue List 화면</button></div>
+    <div class="card"><h3>분석할 때 자동으로 만든 파일</h3><div id="exl" class="soft">불러오는 중…</div></div></div>`;
   $('#ex1').onclick = exportValveList;
+  $('#ex4').onclick = () => download(`/projects/${S.pid}/issues.xlsx`).then(r => toast(`Issue List ${r.headers.get('X-Count')}행`)).catch(e => toast(e.message, 1));
+  $('#ex5').onclick = () => { toast('Mark-up PDF 를 만드는 중… (전체는 1분 안팎)'); download(`/projects/${S.pid}/markup.pdf`).then(() => toast('내려받음')).catch(e => toast(e.message, 1)); };
+  api('GET', `/projects/${S.pid}/exports`).then(r => { $('#exl').innerHTML = r.files.map(f => `<div><a href="${f.url}" download>${esc(f.name)}</a> <span class="soft">${(f.size / 1024).toFixed(0)} KB · ${esc(f.at.replace('T', ' '))}</span></div>`).join('') || '아직 없습니다 — Datasheet PDF 를 분석하면 Valve List · Issue List 가 함께 만들어집니다'; });
   $('#ex1p').onclick = async () => {
     $('#ex1r').innerHTML = '<p class="soft">계산 중…</p>';
     const p = await api('GET', `/projects/${S.pid}/valvelist/preview`), r = p.report;
@@ -837,6 +984,18 @@ addEventListener('keydown', e => {
 /* ── start ────────────────────────────────────────────────────────────── */
 if (EMBED) document.body.classList.add('embed');
 $('#who').innerHTML = `<b>${esc((USER || '?').slice(0, 1))}</b>${esc(USER || '이름 없음')}`;
-loadProjects().then(() => go((location.hash.slice(1) || LS.get('view', 'dash')).split('?')[0], false))
+loadProjects().then(async () => {
+  const ds = +Q.get('ds');                              // deep link from the Excel lists: ?ds=…&key=…&page=…#review
+  if (ds) {
+    S.dsId = ds; LS.set('tag.' + S.pid, ds); go('review', false);
+    const key = Q.get('key'), page = +Q.get('page');
+    for (let n = 0; n < 40 && !(S.ds && S.ds.id === ds); n++) await new Promise(r => setTimeout(r, 150));
+    if (key && S.ds?.fields.some(f => f.key === key)) selectField(key);
+    else if (key && S.ds?.issues?.some(i => i.key === key)) { const i = S.ds.issues.find(x => x.key === key); W.selIss = i.ikey; setTab('iss'); paintDsOverlays(); if (i.bbox) W.viewer.focus(i.page, i.bbox, i.field); }
+    else if (page) W.viewer?.goPage(page);
+    return;
+  }
+  go((location.hash.slice(1) || LS.get('view', 'dash')).split('?')[0], false);
+})
   .catch(e => { document.querySelector('#views').innerHTML = `<div class="empty" style="color:var(--bad)">${esc(e.message)}</div>`; });
 })();

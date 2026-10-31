@@ -147,6 +147,8 @@ def compute(ds: dict, general_notes: dict | None = None, pms: dict | None = None
             seen.add(k)
             uniq.append(i)
     uniq.sort(key=lambda i: (i["page"] or 0, (i["bbox"] or [0, 0])[1], (i["bbox"] or [0])[0]))
-    for n, i in enumerate(uniq, 1):
+    # numbers = what the paper shows: contractor issues 1…n first, internal extraction checks after them
+    ordered = [i for i in uniq if i["type"] != "Extraction Review"] + [i for i in uniq if i["type"] == "Extraction Review"]
+    for n, i in enumerate(ordered, 1):
         i["no"] = n
     return uniq

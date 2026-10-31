@@ -635,7 +635,7 @@ def grid(pid: int):
     q = ",".join("?" * len(ids))
     meta = {d["id"]: d for d in store.rows(con, f"SELECT id, tag, tag_key, valve_type, rev, doc_no, review_status, pages,"
                                                 f" document_id FROM datasheet WHERE id IN ({q})", *ids)}
-    fields = store.rows(con, f"SELECT id, datasheet_id, key, display, value, unit, edited_value, status, page FROM field"
+    fields = store.rows(con, f"SELECT id, datasheet_id, key, display, value, unit, edited_value, status, page, bbox FROM field"
                              f" WHERE datasheet_id IN ({q})", *ids)
     disp, by = {}, {}
     for f in fields:
@@ -653,10 +653,11 @@ def grid(pid: int):
             f = fs.get(k)
             if f:
                 cells[k] = {"v": store.field_value(f), "u": f["unit"] or "", "id": f["id"], "st": f["status"],
-                            "ed": f["edited_value"] is not None, "p": f["page"]}
+                            "ed": f["edited_value"] is not None, "p": f["page"], "b": store.unJ(f["bbox"])}
         rows_.append({"id": i, "tag": m["tag_key"], "tag_raw": m["tag"], "valve_type": m["valve_type"], "rev": m["rev"],
                       "doc_no": m["doc_no"], "status": m["review_status"], "notes": notes.get(i, 0),
-                      "document_id": m["document_id"], "page": store.unJ(m["pages"], [None])[0], "cells": cells})
+                      "document_id": m["document_id"], "page": store.unJ(m["pages"], [None])[0],
+                      "pages": store.unJ(m["pages"], []), "cells": cells})
     rows_.sort(key=lambda r: r["tag"])
     cols = [{"key": k, "title": "Valve Type" if k == "valve_type" else disp.get(k, k)} for k in GRID_KEYS
             if k == "valve_type" or k in disp]
@@ -854,7 +855,7 @@ def _auto_export(jid, pid, base, by):
     try:
         _job(jid, msg="Excel 만드는 중…")
         con = store.connect()
-        stamp = dt.datetime.now().strftime("%Y%m%d_%H%M")
+        stamp = dt.datetime.now().strftime("%Y%m%d_%H%M%S")
         out = store.root() / "exports" / str(pid)
         out.mkdir(parents=True, exist_ok=True)
         files = []
