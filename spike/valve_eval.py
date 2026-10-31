@@ -17,7 +17,6 @@ from __future__ import annotations
 
 import argparse
 import collections
-import io
 import json
 import re
 import sys
@@ -34,20 +33,36 @@ from app.valve import exports, extract, issues, material, pms, schema, tbe  # no
 LABEL_WORDS = {schema.norm_label(k) for k in schema.LABELS} | {"model no.", "tag no.", "type", "material"}
 
 
-def suspicious(v: str) -> str:
+def suspicious(v: str, key: str = "") -> str:
     t = (v or "").strip()
     if not t:
         return ""
     n = schema.norm_label(t)
-    if n in LABEL_WORDS and n not in ("na", "vta", "type", "material"):
+    if n in LABEL_WORDS and n not in ("na", "vta", "type", "material", "open", "closed", "close", "yes", "no", "spring"):
         return "value is a label"
-    if re.fullmatch(r"\d{1,3}", t) and int(t) <= 100:
+    if re.fullmatch(r"\d{1,3}", t) and int(t) <= 100 and key not in ("line_schedule", "qty", "act_rated_power") and "size" not in key:
         return "bare number (row index?)"
     if re.search(r"\b[A-Z][A-Za-z .]{2,30}\s:\s*$", t):
         return "ends with 'Label :'"
     if re.search(r"\s\|\s", t):
         return "several cells joined"
     return ""
+
+
+_PT = {}
+
+
+def _norm_ws(t):
+    return re.sub(r"\s+", " ", str(t)).strip().upper()
+
+
+def page_text(path, pages):
+    import pymupdf
+    key = tuple(pages)
+    if key not in _PT:
+        with pymupdf.open(path) as doc:
+            _PT[key] = _norm_ws(" ".join(doc[p - 1].get_text() for p in pages))
+    return _PT[key]
 
 
 def run(a):
@@ -82,7 +97,7 @@ def run(a):
                 raw[(r["row"], r["label"][:50])] += 1
             if k.startswith("x."):
                 unknown[r["label"][:40]] += 1
-            why = suspicious(r.get("value"))
+            why = suspicious(r.get("value"), k)
             if why:
                 sus[why].append((d["tag"], k, r["value"][:50], r.get("page")))
     rep += ["", "### rows not paired (raw)"] + [f"- row {k[0]} `{k[1]}` × {v}" for k, v in raw.most_common(20)]
@@ -119,26 +134,39 @@ def run(a):
                     want = str(want)
                     if tbe._cmp(want) == tbe._cmp(got):
                         kind = "exact"
-                    elif got and material.same(want, got):
+                    elif got and (material.same(want, got) or material.equivalent(want, got)):
                         kind = "same"
+                    elif tbe._is_placeholder(want):
+                        kind = "tbe_vta"
                     elif not got or tbe._is_placeholder(got) or re.search(r"note\s*[-–]?\s*\d", got, re.I):
                         kind = "soft"
                     else:
                         kind = "different"
+                    if kind == "different":                 # misread, or does the datasheet really say something else?
+                        pt = page_text(a.ds, d["pages"])
+                        w = _norm_ws(want)
+                        informative = len(w) >= 12 or re.search(r"\d", w)
+                        kind = "misread" if informative and re.search(r"(?<![\w-])" + re.escape(w) + r"(?![\w-])", pt) else "different"
                     agg[path][kind] += 1
-                    if kind == "different" and len(ex[path]) < 4:
-                        ex[path].append((d["tag_key"], want[:45], got[:45]))
+                    if kind in ("different", "misread") and len(ex[path]) < (8 if kind == "misread" else 4):
+                        ex[path].append((("MISREAD " if kind == "misread" else "") + d["tag_key"], want[:45], got[:45]))
         rep += ["", "## B. Agreement with TBE Requirement rows", "",
-                "| column | n | exact | same | soft | different | agree% |", "|---|---|---|---|---|---|---|"]
+                "| column | n | exact | same | soft | tbe VTA | misread | different | agree% |", "|---|---|---|---|---|---|---|---|---|"]
         tot = collections.Counter()
-        for path, c in sorted(agg.items(), key=lambda kv: -kv[1]["different"]):
+        for path, c in sorted(agg.items(), key=lambda kv: -(kv[1]["misread"] * 100 + kv[1]["different"])):
             n = sum(c.values())
             tot.update(c)
-            rep.append(f"| {path[:45]} | {n} | {c['exact']} | {c['same']} | {c['soft']} | {c['different']} | "
+            rep.append(f"| {path[:45]} | {n} | {c['exact']} | {c['same']} | {c['soft']} | {c['tbe_vta']} | {c['misread']} | {c['different']} | "
                        f"{100 * (c['exact'] + c['same']) / max(1, n):.0f} |")
         n = sum(tot.values())
-        rep.append(f"| **all** | {n} | {tot['exact']} | {tot['same']} | {tot['soft']} | {tot['different']} | "
+        rep.append(f"| **all** | {n} | {tot['exact']} | {tot['same']} | {tot['soft']} | {tot['tbe_vta']} | {tot['misread']} | {tot['different']} | "
                    f"{100 * (tot['exact'] + tot['same']) / max(1, n):.1f} |")
+        comp = tot["exact"] + tot["same"] + tot["different"] + tot["misread"]
+        rep += ["", f"**Comparable cells (both sides give a value): {comp} · agree {tot['exact'] + tot['same']} "
+                f"({100 * (tot['exact'] + tot['same']) / max(1, comp):.1f}%) · misread {tot['misread']} · "
+                f"datasheet really differs from TBE {tot['different']}** — 'misread' = the TBE text is on the datasheet page "
+                "but another text was read; 'different' = the TBE text is not on the datasheet at all."]
+        base["B_comparable"] = {"n": comp, "agree": tot["exact"] + tot["same"], "misread": tot["misread"]}
         rep += ["", "### different — examples (TBE → datasheet)"]
         for path, L in ex.items():
             rep.append(f"- **{path[:50]}**: " + "; ".join(f"{t}: '{w}' → '{g}'" for t, w, g in L))
@@ -154,7 +182,7 @@ def run(a):
         why = collections.defaultdict(collections.Counter)
         for d in dss:
             area = pms.area_of_title(res["docs"].get(d["doc_no"], {}).get("title", ""))
-            for r in pms.check(d["fields"], P, area):
+            for r in pms.check(d["fields"], P, area, d["notes"]):
                 pc[(r["item"], r["result"])] += 1
                 if r["result"] != material.COMPLIANT:
                     why[r["item"]][re.sub(r"'[^']*'", "'…'", r["reason"])[:90]] += 1

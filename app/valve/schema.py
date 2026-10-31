@@ -230,6 +230,17 @@ _L102 = [
     ("handwheel", None, "handwheel", "accessories", "Handwheel"),
     ("position transmitter", None, "pos_tx", "accessories", "Position Transmitter"),
     ("limit switch tag no", None, "limit_switch", "accessories", "Limit Switch"),
+    ("yoke", "ACTUAT", "act_yoke_material", "actuator", "Actuator Yoke Material"),
+    ("stem", "ACTUAT", "act_stem_material", "actuator", "Actuator Stem Material"),
+    ("power supply", None, "power_supply", "actuator", "Power Supply"),
+    ("rated power", None, "act_rated_power", "actuator", "Rated Power"),
+    ("stroke speed (close to open)", None, "stroke_open", "actuator", "Stroke Time Open"),
+    ("stroke speed (open to close)", None, "stroke_closed", "actuator", "Stroke Time Closed"),
+    ("type", "GENERAL", "ex_type", "special", "Ex Protection Type"),
+    ("flange face finish", None, "flange_finish", "mechanical", "Flange Face Finish"),
+    ("flow direction", None, "flow_direction", "mechanical", "Flow Direction"),
+    ("trim construction", None, "trim_construction", "mechanical", "Trim Construction"),
+    ("ser no.", None, "serial_no", "general", "Serial No."),
 ]
 
 
@@ -240,3 +251,16 @@ def lookup_102(label: str, group: str, heading: str = ""):
         if n == lab and (gw is None or gw in g):
             return key, sec, disp
     return None
+
+
+def effective(f: dict | None) -> str:
+    """The value to check: the reviewer's correction, else the value inside the note the cell points at
+    ('Note 14' -> '316/316L SS ASTM A351-CF8M/CF3M'), else what the cell says."""
+    if not f:
+        return ""
+    if f.get("edited_value") is not None:
+        return f["edited_value"]
+    ref = f.get("ref") or {}
+    if isinstance(ref, dict) and ref.get("value"):
+        return ref["value"]
+    return f.get("value") or ""

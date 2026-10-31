@@ -69,7 +69,7 @@ def _f(fields, *keys):
 
 
 def _val(f):
-    return f.get("edited_value") if f.get("edited_value") is not None else (f.get("value") or "")
+    return schema.effective(f)
 
 
 def _pair(fields, a, b):
@@ -86,7 +86,10 @@ def _note_part(fields, key, label):
         return "", []
     ref = f.get("ref") or {}
     txt = ref.get("text", "") if isinstance(ref, dict) else ""
-    m = re.search(label + r"\s*:\s*(.+?)(?=(?:Stud Bolt material|Gasket material|Pressure boundary)\s*:|$)", txt, re.I)
+    # stop at the next '<X> material:' heading or where prose starts ('. Pressure boundary bolting shall …') —
+    # the specification itself is written in capitals
+    m = re.search(label + r"\s*:\s*(.+?)(?=(?:Stud Bolt|Gasket|Bolt and nuts?)\s+material\s*:|\.\s+[A-Z][a-z]+\s+[a-z]|$)",
+                  txt, re.I)
     if m:
         return m.group(1).strip().rstrip("."), [key]
     return _val(f), [key]
@@ -353,6 +356,11 @@ def build(template: bytes | None, datasheets: list[dict], docnames: dict, projec
             old = cell.value
             if _cmp(old) == _cmp(val) or (old not in (None, "") and val and material.same(str(old), val)):
                 continue                                # '316 SS / HF' == 'SS 316/HF': same value, other notation
+            if old not in (None, "") and val and material.equivalent(str(old), val):
+                cell.comment = Comment(f"Datasheet says: {val}\n(same content — list kept)\n" + _src_text(ds, keys, docname),
+                                       "Valve Review")
+                report["kept"].append({"tag": ds["tag_key"], "sheet": ws.title, "column": path, "list": str(old), "datasheet": val})
+                continue
             if not val and not is_new:                  # the datasheet is silent: keep what the list says
                 continue
             note = _src_text(ds, keys, docname)

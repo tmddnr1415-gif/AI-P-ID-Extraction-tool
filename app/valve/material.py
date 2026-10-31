@@ -21,6 +21,7 @@ _NOISE = {"ASTM", "ASME", "GR", "GRADE", "TYPE", "CL", "CLASS", "AND", "OR", "WI
 _PHRASES = [(r"STAINLESS\s+STEEL", " SS "), (r"CARBON\s+STEEL", " CS "), (r"LOW\s+TEMP(?:ERATURE)?\s+CARBON\s+STEEL", " LTCS "),
             (r"HARD\s*-?\s*FACED|HARDFACED|HARD\s*FACING", " HF "), (r"\bSS\s*(\d{3}L?)\b", r" SS \1 "),
             (r"\b(\d{3}L?)\s*SS\b", r" \1 SS "), (r"\bTP\s*(\d{3}L?)\b", r" \1 "), (r"\bGR\.", " "),
+            (r"\bCL\.?\s*(\d{3,4})\b", r" \1 "), (r"\b(\d{3,4})\s*#", r" \1 "),
             (r"17\s*-\s*4\s*PH", " 174PH "), (r"\bTYPE\s+630\b", " 174PH "), (r"\b630\b", " 174PH ")]
 
 FAMILIES = {
@@ -69,6 +70,25 @@ def same(a: str, b: str) -> bool:
     """Same thing written differently ('316 SS / HF' == 'SS 316/HF').  Empty == empty."""
     ta, tb = tokens(a), tokens(b)
     return ta == tb
+
+
+def equivalent(a: str, b: str) -> bool:
+    """Same value, one side more detailed: 'Yes' ~ 'Yes (MR0175/ISO 15156)', 'Flanged, RTJ' ~ 'Flanged RTJ (ASME B16.5)',
+    'SPIRAL WOUND, 316L SS WINDING …' ~ '316L SS WINDING …'.  Not when the longer side only adds a short code
+    ('1C3AS2' vs '1C3AS2-A') or when grades differ ('316 SS' vs '316L SS' with no 316 on one side)."""
+    ta, tb = tokens(a), tokens(b)
+    if not ta or not tb:
+        return False
+    if ta == tb:
+        return True
+    small, large = (ta, tb) if len(ta) <= len(tb) else (tb, ta)
+    if not small <= large:
+        return False
+    extra = large - small
+    if any(len(t) <= 2 and not t.isdigit() for t in extra):
+        return False                                     # '-A' · '-E' qualifiers change the meaning
+    gs, gl = _grades(small), _grades(large)
+    return not gs or gs <= gl
 
 
 def compare(required: str, actual: str) -> tuple[str, str]:

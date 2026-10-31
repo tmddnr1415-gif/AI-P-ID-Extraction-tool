@@ -16,12 +16,46 @@ import re
 
 import pymupdf
 
-from app.valve import material
+from app.valve import material, schema
 
-_CLASS = re.compile(r"Class:\s*([0-9A-Z]{3,8})\b")
+_CLASS = re.compile(r"Class:\s*([0-9A-Z]{2,8})\b")
 _ITEM = re.compile(r"^(P[A-Z0-9]{8,})\n([\d.]+)\n-\n([\d.]+)\n(.+)$", re.S)
 _HDR_KEYS = {"Flange Facing": "facing", "Corrosion Allowance": "ca", "Post Weld Heat Treat": "pwht",
              "NACE Requirement": "nace", "Flange Class": "flange_class", "Material": "material", "Valve Trim": "trim"}
+
+
+_CODE = re.compile(r"^P[A-Z0-9]{8,}$")
+_SIZE_LINE = re.compile(r"^[\d.\s\-xX/]+$")
+
+
+def parse_item(block: str) -> dict | None:
+    """One PMS item block: code, size line(s), description.  Sizes come in several layouts:
+    '42 / - / 42' · '0.75 - / 1.5 / 0.5 / - / 1' (run range, then branch range) · '2' (one size)."""
+    lines = [ln.strip() for ln in block.strip().split("\n") if ln.strip()]
+    if not lines or not _CODE.match(lines[0]):
+        return None
+    k = 1
+    while k < len(lines) and (_SIZE_LINE.match(lines[k]) or lines[k] == "-"):
+        k += 1
+    desc = " ".join(" ".join(lines[k:]).split())
+    toks = re.findall(r"\d+(?:\.\d+)?|-", " ".join(lines[1:k]))
+    if not desc or not toks or toks[0] == "-":
+        return None
+    nums, j = [], 0
+    while j < len(toks):                                  # 'a - b' is a range, a lone 'a' is one size
+        if toks[j] == "-":
+            j += 1
+            continue
+        a = float(toks[j])
+        if j + 2 < len(toks) and toks[j + 1] == "-" and toks[j + 2] != "-":
+            nums.append((a, float(toks[j + 2])))
+            j += 3
+        else:
+            nums.append((a, a))
+            j += 1
+    run = nums[0]
+    return {"code": lines[0], "from": run[0], "to": run[1], "branch": list(nums[1]) if len(nums) > 1 else None,
+            "kind": desc.split(",")[0].strip(), "desc": desc}
 
 
 def area_of_page(text: str) -> str:
@@ -67,13 +101,9 @@ def read_pms(path: str, progress=None) -> dict:
                 bb = page.search_for("Flange Class:")
                 c["class_bbox"] = [round(v, 1) for v in bb[0]] if bb else None
             for b in page.get_text("blocks"):
-                mm = _ITEM.match(b[4].strip())
-                if not mm:
-                    continue
-                desc = " ".join(mm.group(4).split())
-                c["items"].append({"code": mm.group(1), "from": float(mm.group(2)), "to": float(mm.group(3)),
-                                   "kind": desc.split(",")[0].strip(), "desc": desc, "page": i + 1,
-                                   "bbox": [round(v, 1) for v in b[:4]]})
+                it = parse_item(b[4])
+                if it:
+                    c["items"].append(dict(it, page=i + 1, bbox=[round(v, 1) for v in b[:4]]))
     for classes in areas.values():
         for c in classes.values():
             m = re.search(r"CLASS\s*(\d+)", c.get("flange_class", "") or c.get("title", ""), re.I)
@@ -138,9 +168,9 @@ def _find_in(classes, cl, piping_class, line_no):
     return None, ""
 
 
-def check(fields: dict, pms: dict, area: str = "") -> list[dict]:
+def check(fields: dict, pms: dict, area: str = "", notes: list | None = None) -> list[dict]:
     """fields: key -> {value|edited_value, page, bbox}.  -> rows of {item, req, ds, result, reason, pms_page, pms_bbox, key}."""
-    val = lambda k: (fields.get(k) or {}).get("edited_value") or (fields.get(k) or {}).get("value") or ""   # noqa: E731
+    val = lambda k: schema.effective(fields.get(k))   # noqa: E731  (a 'Note 14' cell is checked by what note 14 says)
     c, how = find_class(pms, val("piping_class"), val("line_no"), area)
     rows = []
 
@@ -178,6 +208,12 @@ def check(fields: dict, pms: dict, area: str = "") -> list[dict]:
                 "Matches" if ok else f"PMS class {c['code']} is CLASS {req_rating}", c.get("header_page"), c.get("class_bbox"))
     if c.get("nace"):
         nv = val("nace").upper()
+        nn = next((n for n in notes or [] if re.search(r"NACE\s*MR\s*0?175", n["text"], re.I)), None)
+        if not nv.strip() and nn:                          # MOV form: no NACE field, the note says it
+            add("NACE", "nace", c["nace"], f"Note {nn['no']}: {nn['text'][:70]}", material.COMPLIANT,
+                f"Datasheet note {nn['no']} requires NACE", c.get("header_page"), None)
+            nv = None
+    if c.get("nace") and nv is not None:
         res = material.COMPLIANT if nv.startswith("Y") else material.NON if nv.startswith("N") else material.REVIEW
         add("NACE", "nace", c["nace"], val("nace"), res, "PMS class requires NACE" if res != material.COMPLIANT else "Matches",
             c.get("header_page"), None)

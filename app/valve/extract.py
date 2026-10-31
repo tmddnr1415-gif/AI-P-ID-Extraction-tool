@@ -228,6 +228,8 @@ def read_page(page, page_no: int):
         cells = []
         for a, b in zip(bounds, bounds[1:]):
             cw = [w for w in rw if a - 1 <= (w[0] + w[2]) / 2 < b]
+            if b - a < 9 and not cw:                       # the gap between a double rule is not a cell
+                continue
             cells.append({"x0": a, "x1": b, "words": cw, "text": _text(cw)})
         labels = [c for c in cells if c["x1"] <= x_val + 4 and c["text"]]
         vals = [c for c in cells if c["x0"] >= x_val - 4]
@@ -242,10 +244,14 @@ def read_page(page, page_no: int):
         elif len(labels) == 3 and labels[1]["text"].lower() in ("min", "open") or (
                 len(labels) == 3 and labels[2]["text"].lower() in ("max", "closed")):
             pairs = [(labels[0], []), (labels[1], left), (labels[2], right)]
+        elif len(labels) > 2 and len(vals) == len(labels):          # one value cell under each label
+            pairs = [(l, [v]) for l, v in zip(labels, vals)]
         elif len(labels) > 2 and len([v for v in vals if v["text"]]) == len(labels):
             pairs = [(l, [v]) for l, v in zip(labels, [v for v in vals if v["text"]])]
         else:
             pairs = []
+        if not pairs and not labels and not any(c["text"] for c in vals):
+            continue                                        # spare row (19, 20): nothing printed, nothing to read
         if not pairs:                                       # label/value counts do not line up: keep as raw
             txt = " | ".join(c["text"] for c in vals if c["text"])
             rows.append({"row": n, "group": group, "label": " / ".join(c["text"] for c in labels),
@@ -256,13 +262,13 @@ def read_page(page, page_no: int):
         for k, (lab, vcells) in enumerate(pairs):
             hit = schema.lookup(lab["text"], group)
             vw = [w for c in vcells for w in c["words"]]
-            parts, unit = [], ""
-            for c in vcells:
-                t = c["text"]
-                if t and schema.norm_label(t) in schema.UNIT_TOKENS and not unit:
-                    unit = t
-                elif t:
-                    parts.append(t)
+            texts = [c["text"] for c in vcells if c["text"]]
+            is_unit = [schema.norm_label(t) in schema.UNIT_TOKENS for t in texts]
+            if sum(1 for u in is_unit if not u) <= 1:      # '10 | bar-g' -> value 10, unit bar-g
+                unit = next((t for t, u in zip(texts, is_unit) if u), "")
+                parts = [t for t, u in zip(texts, is_unit) if not u]
+            else:                                           # '2 | in | sch. | 40S' reads as written
+                unit, parts = "", texts
             value = " ".join(parts).strip()
             if not value and unit and len(vcells) == 1:
                 value, unit = "", unit
@@ -512,7 +518,16 @@ def _numbered(words):
             ws = ws[1:] if ws and ws[0][4].upper().startswith("NOTES") else ws
             if not txt:
                 continue
-        m = re.match(r"^(\d{1,2})[.)]\s+(.*)", txt)
+        nxt = cur["no"] + 1 if cur else None
+        if nxt and re.search(rf"\s{nxt}\.(?=[A-Z])", txt):  # '… : Yes 14.Anti-Blow Out Stem : Yes' on one line
+            head, _, tail = txt.partition(f" {nxt}.")
+            if cur is not None:
+                cur["text"] += " " + head
+                cur["words"] += ws
+            elif head.strip():
+                pass
+            txt = f"{nxt}.{tail}"
+        m = re.match(r"^(\d{1,2})[.)](?:\s+|(?=[A-Z]))(.*)", txt)   # '14.Anti-Blow …' (no space) is note 14
         if m:
             cur = {"no": int(m.group(1)), "text": m.group(2), "words": list(ws)}
             out.append(cur)
@@ -619,6 +634,7 @@ def group_datasheets(result: dict):
     for ds in out:
         ds["valve_type"] = schema.valve_type(ds["tag"])
         gn = result["docs"].get(ds["doc_no"], {}).get("general_notes", {})
+        ds["process_ref"] = process_reference(ds["notes"], gn)
         for r in ds["fields"].values():                     # 'General Note - 8' / 'Note-1' -> the note it points at
             m = _NOTE_REF.search(r["value"] or "")
             if m:
@@ -630,4 +646,80 @@ def group_datasheets(result: dict):
                     hit = next((n for n in ds["notes"] if n["no"] == no), None)
                     if hit:
                         r["ref"] = {"kind": "note", "no": no, "text": hit["text"], "page": hit["page"], "bbox": hit["bbox"]}
+                if r.get("ref") and pure_reference(r["value"]) and r["ref"]["kind"] == "note":
+                    wrong = wrong_note(r.get("label") or "", r["ref"], ds["notes"])
+                    if wrong:
+                        r["ref"]["mismatch"] = wrong            # the note is about something else: do not use its value
+                        continue
+                if r.get("ref") and pure_reference(r["value"]):
+                    v = note_value(r["ref"]["text"], r.get("label") or "")
+                    if v:
+                        r["ref"]["value"] = v                   # 'Note 14' -> '316/316L SS ASTM A351-CF8M/CF3M''
     return out
+
+
+_STOP = {"material", "of", "the", "and", "for", "type", "valve", "no", "shall", "be"}
+
+
+def _subject(text: str) -> set[str]:
+    """Words of a note's own heading ('Bolting /Nut: …' -> bolting, nut) or of a field label."""
+    head = text.split(":")[0] if ":" in text[:70] else ""
+    return {w for w in re.findall(r"[a-z]{3,}", head.lower()) if w not in _STOP}
+
+
+def wrong_note(label: str, ref: dict, notes: list) -> dict | None:
+    """A cell 'Body/Bonnet Material : Note-8' whose note 8 is headed 'Bolting /Nut: …' points at the wrong note.
+    Only when the note has a heading, the heading shares no word with the label, and another note's heading does."""
+    lw = {w for w in re.findall(r"[a-z]{3,}", (label or "").lower()) if w not in _STOP}
+    nw = _subject(ref.get("text", ""))
+    if not lw or not nw or lw & nw:
+        return None
+    best = max(((len(lw & _subject(n["text"])), n) for n in notes if n["no"] != ref.get("no")), key=lambda t: t[0],
+               default=(0, None))
+    if best[0] == 0:
+        return None
+    n = best[1]
+    return {"no": n["no"], "text": n["text"][:200], "page": n.get("page"), "bbox": n.get("bbox"),
+            "value": note_value(n["text"], label)}
+
+
+_PURE_REF = re.compile(r"^\W*(gen(?:eral|\.)?\s*)?note\s*[-–:#]?\s*\d+\W*$", re.I)
+
+
+def pure_reference(value: str) -> bool:
+    """The cell says only 'Note 14' / 'General Note - 3' — the value is in that note."""
+    return bool(_PURE_REF.match(value or ""))
+
+
+def note_value(text: str, label: str = "") -> str:
+    """'Body material shall be 316/316L SS …' -> '316/316L SS …' · 'Actuator Type: Motorized …' -> 'Motorized …'.
+    Only short, single-statement notes; a long paragraph is left as a reference (no guessing)."""
+    t = " ".join((text or "").split())
+    if not t or len(t) > 160:
+        return ""
+    m = re.match(r"^([^:]{2,60}?)\s*:\s*(.+?)\.?$", t)
+    if m:
+        return m.group(2).strip()
+    m = re.search(r"\bshall be\s+(.+?)\.?$", t, re.I)
+    if m and len(m.group(1)) <= 120 and not re.search(r"\b(as per|in accordance|subject to|provided)\b", m.group(1), re.I):
+        return m.group(1).strip()
+    return ""
+
+
+_PROC_REF = re.compile(r"process\s+data[^.]{0,40}?(?:refer|see|as per|according to|in accordance)|"
+                       r"refer[^.]{0,40}?process\s+data|process\s+data[^.]{0,80}?-PR-DTS-", re.I)
+_DOCNO = re.compile(r"\b[0-9A-Z]{2,5}-[0-9A-Z]{2,4}-[A-Z]{2}-[A-Z]{3}-\d{5}\b")
+
+
+def process_reference(notes, general_notes) -> dict | None:
+    """'For Process data please refer to Doc.No.: 03-02-PR-DTS-00002' -> {doc, where}.  The process fields of such a
+    datasheet are blank on purpose; Phase 3 compares them with that document."""
+    for n in notes or []:
+        if _PROC_REF.search(n["text"]):
+            d = _DOCNO.search(n["text"])
+            return {"doc": d.group(0) if d else "", "where": f"Note {n['no']}", "text": n["text"][:200]}
+    for no, t in (general_notes or {}).items():
+        if _PROC_REF.search(t):
+            d = _DOCNO.search(t)
+            return {"doc": d.group(0) if d else "", "where": f"General Note {no}", "text": t[:200]}
+    return None

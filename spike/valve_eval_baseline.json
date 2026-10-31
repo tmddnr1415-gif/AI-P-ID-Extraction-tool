@@ -6,55 +6,56 @@
    "102": 24
   },
   "status": {
-   "ok": 9125,
+   "ok": 9193,
    "placeholder": 4119,
-   "blank": 3743,
-   "review": 69
+   "blank": 3894,
+   "review": 1
   },
   "no_notes": 0,
-  "raw": 410,
-  "unknown_labels": 2184,
-  "suspicious": {
-   "value is a label": 39,
-   "bare number (row index?)": 69
-  }
+  "raw": 1,
+  "unknown_labels": 1920,
+  "suspicious": {}
+ },
+ "B_comparable": {
+  "n": 4278,
+  "agree": 3975,
+  "misread": 0
  },
  "B": {
-  "different": 434,
-  "soft": 1731,
-  "exact": 3671,
-  "same": 31
+  "same": 231,
+  "soft": 1110,
+  "different": 303,
+  "tbe_vta": 479,
+  "exact": 3744
  },
  "C": {
-  "Pressure Class|Compliant": 149,
-  "NACE|Compliant": 125,
+  "Pressure Class|Compliant": 151,
+  "NACE|Compliant": 141,
   "Trim (Ball) Material|Compliant": 143,
   "Stem Material|Compliant": 143,
-  "Body Material|Compliant": 127,
-  "Seat Material|Compliant": 142,
+  "Body Material|Compliant": 142,
+  "Seat Material|Compliant": 144,
   "Fire Safe|Compliant": 10,
   "Piping Material Class|Review Required": 8,
-  "Trim (Ball) Material|Review Required": 6,
-  "Stem Material|Review Required": 6,
-  "Bore|Review Required": 23,
-  "Piping Material Class|Not Defined in PMS": 15,
+  "Trim (Ball) Material|Review Required": 8,
+  "Stem Material|Review Required": 8,
+  "Bore|Review Required": 29,
+  "Piping Material Class|Not Defined in PMS": 13,
   "Ball Valve Item|Not Defined in PMS": 7,
-  "NACE|Review Required": 16,
-  "Body Material|Review Required": 15
+  "Body Material|Review Required": 2
  },
  "D": {
-  "Data Missing|Minor": 748,
-  "Extraction Review|Internal": 69,
-  "Data Error|Major": 3,
-  "PMS Review|Minor": 96
+  "Data Error|Major": 5,
+  "PMS Review|Minor": 75,
+  "Extraction Review|Internal": 1
  },
  "E": {
-  "extract_s": 6.67,
-  "extract_ms_per_page": 14.6,
-  "pms_read_s": 1.57,
+  "extract_s": 5.94,
+  "extract_ms_per_page": 13.0,
+  "pms_read_s": 1.41,
   "issues_ms_per_ds": 0.6,
-  "issue_xlsx_s": 1.97,
-  "markup_s_per_ds": 0.049,
-  "markup_kb_per_ds": 202.3
+  "issue_xlsx_s": 0.18,
+  "markup_s_per_ds": 0.042,
+  "markup_kb_per_ds": 314.1
  }
 }

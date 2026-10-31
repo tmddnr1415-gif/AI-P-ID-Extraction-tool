@@ -46,9 +46,7 @@ def _num(v):
 
 
 def _v(f):
-    if not f:
-        return ""
-    return f["edited_value"] if f.get("edited_value") is not None else (f.get("value") or "")
+    return schema.effective(f)
 
 
 def compute(ds: dict, general_notes: dict | None = None, pms: dict | None = None, area: str = "",
@@ -76,12 +74,18 @@ def compute(ds: dict, general_notes: dict | None = None, pms: dict | None = None
                     "of": sh[1] or len(ds.get("pages", [])), "status": st.get("status", "Open"), "note": st.get("note", ""),
                     **(extra or {})})
 
+    pref = ds.get("process_ref")
+    if pref is None:                                         # stored datasheets from before valve03: look again
+        from app.valve.extract import process_reference
+        pref = process_reference(ds.get("notes"), general_notes)
     for k in REQUIRED + PROCESS_REQUIRED:
         f = F.get(k)
         if not f:
             continue                                         # not on this form: cannot be missing from it
         v = _v(f)
         proc = k in PROCESS_REQUIRED
+        if proc and pref and not v.strip():
+            continue                                         # blank on purpose: 'For Process data refer to …' (Phase 3 checks it)
         if not v.strip():
             add("Data Missing", k, f"{f.get('display') or k}: no value given" +
                 (" (check whether the Process Data Sheet is referenced)" if proc else ""), severity="Minor" if proc else "Major")
@@ -117,6 +121,12 @@ def compute(ds: dict, general_notes: dict | None = None, pms: dict | None = None
         for no in (int(x) for x in _N.findall(re.sub(_GN, " ", v))):
             if notes and no not in notes:
                 add("Data Error", f["key"], f"Referenced Note {no} does not exist on this datasheet", f=f)
+        ref = f.get("ref") or {}
+        if isinstance(ref, dict) and ref.get("mismatch"):
+            mm = ref["mismatch"]
+            add("Data Error", f["key"], f"{f.get('display') or f['key']} refers to Note {ref.get('no')}, which is about "
+                f"'{ref.get('text', '')[:60]}'; Note {mm['no']} covers this item ('{mm['text'][:80]}')",
+                expected=f"Note {mm['no']}" + (f": {mm['value']}" if mm.get("value") else ""), f=f)
         if f.get("status") == "review" and f.get("edited_value") is None and v:
             add("Extraction Review", f["key"], f"Label/value pairing of '{f.get('label') or f['key']}' could not be settled by the tool — check", f=f)
         if f.get("edited_value") is not None:
@@ -124,7 +134,7 @@ def compute(ds: dict, general_notes: dict | None = None, pms: dict | None = None
                 f" ({f.get('edited_by') or '-'})", expected=f["edited_value"], f=f)
 
     if pms:
-        for r in pmsmod.check(F, pms, area):
+        for r in pmsmod.check(F, pms, area, ds.get("notes")):
             if r["result"] == material.COMPLIANT:
                 continue
             it = "PMS Non-Compliance" if r["result"] == material.NON else "PMS Review"

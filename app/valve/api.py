@@ -337,7 +337,7 @@ def _ds_full(con, dsid, deep=True):
         return d
     pms, pdoc = _pms_for(con, d["project_id"])
     F = {f["key"]: f for f in fs}
-    d["pms"] = pmsmod.check(F, pms, d["area"]) if pms else None
+    d["pms"] = pmsmod.check(F, pms, d["area"], d["notes"]) if pms else None
     d["pms_doc"] = pdoc
     prev = None
     i = next((n for n, r in enumerate(d["revisions"]) if r["id"] == d["id"]), 0)
@@ -794,7 +794,7 @@ def _project_pms(con, pid):
     for d in sorted(latest.values(), key=lambda d: d["tag_key"]):
         x = _ds_full(con, d["id"], deep=False)
         F = {f["key"]: f for f in x["fields"]}
-        for r in pmsmod.check(F, pms, x["area"]):
+        for r in pmsmod.check(F, pms, x["area"], x["notes"]):
             f = F.get(r["key"]) or {}
             out.append(dict(r, ds_id=x["id"], tag=x["tag_key"], doc_no=x["doc_no"], rev=x["rev"], area=x["area"],
                             document_id=x["document_id"], ds_page=f.get("page") or x["pages"][0], ds_bbox=f.get("bbox")))
