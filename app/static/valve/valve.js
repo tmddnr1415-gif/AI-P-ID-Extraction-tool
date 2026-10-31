@@ -140,10 +140,22 @@ class Viewer {
     this.stage.addEventListener('scroll', () => { this.syncNo(); this.opts.onScroll?.(this); });
     this.stage.addEventListener('mousedown', e => this.mkDown(e));
     this.marks = []; this.tool = 'select'; this.mkCat = LS.get('mkcat', 'comment');
+    this.style = Object.assign({ color: '', width: 1.6 }, LS.get('mkstyle', {})); this.stamp = LS.get('mkstamp', 'APPROVED'); this.quick = !!LS.get('mkquick', 1);
     if (opts.tools) {
       const bar = $('.mkbar', host);
       bar.addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return;
-        if (b.dataset.tool) this.setTool(b.dataset.tool); else if (b.dataset.mk) this.opts.onMarkCmd?.(b.dataset.mk); });
+        if (b.dataset.tool) this.setTool(b.dataset.tool); else if (b.dataset.mk === 'fav') this.favAdd(); else if (b.dataset.mk) this.opts.onMarkCmd?.(b.dataset.mk); });
+      $('.mkcols', bar).onclick = e => { const i = e.target.closest('[data-col]'); if (!i) return; this.setStyle({ color: i.dataset.col }); };
+      $('.mkw', bar).value = String(this.style.width); $('.mkw', bar).onchange = e => this.setStyle({ width: +e.target.value });
+      const st = $('.mkst', bar); if (![...st.options].some(o => o.value === this.stamp)) st.add(new Option(this.stamp, this.stamp, true, true)); st.value = this.stamp;
+      st.onchange = async e => { let v = e.target.value;
+        if (v === '__custom') { const r = await modal('스탬프 글', '<input name="t" placeholder="예) FOR CONSTRUCTION" maxlength="40">', [['취소', null], ['확인', 'form', 1]]); v = (r?.t || '').trim().toUpperCase(); if (!v) { st.value = this.stamp; return; } st.add(new Option(v, v, true, true)); }
+        this.stamp = v; LS.set('mkstamp', v); if (this.tool !== 'stamp') this.setTool('stamp'); };
+      $('.mkquick', bar).checked = this.quick; $('.mkquick', bar).onchange = e => { this.quick = e.target.checked; LS.set('mkquick', this.quick ? 1 : 0); };
+      $('.mkfav', bar).oncontextmenu = e => { const c = e.target.closest('[data-fav]'); if (!c) return; e.preventDefault(); const L = LS.get('mkfavs', []); L.splice(+c.dataset.fav, 1); LS.set('mkfavs', L); this.favPaint(); };
+      $('.mkfav', bar).onclick = e => { const c = e.target.closest('[data-fav]'); if (!c) return; const f = LS.get('mkfavs', [])[+c.dataset.fav]; if (!f) return;
+        this.setStyle({ color: f.color, width: f.width }); if (f.stamp) { this.stamp = f.stamp; LS.set('mkstamp', f.stamp); $('.mkst', bar).value = f.stamp; } this.setTool(f.tool); };
+      this.favPaint(); this.stylePaint();
       $('.mkcat', bar).value = this.mkCat;
       $('.mkcat', bar).onchange = e => { this.mkCat = e.target.value; LS.set('mkcat', this.mkCat);
         const m = this.marks.find(m => m.sel); if (m && m.editable) this.opts.onMarkChange?.(m, { category: this.mkCat }); };
@@ -221,8 +233,19 @@ class Viewer {
     if (hits.length) { this.goPage(hits[0].page, hits[0].bbox); toast(`'${q}' ${hits.length}곳`); } else toast(`'${q}' 없음`);
   }
   /* ── user mark-up (SVG in PDF points over each page; saved as comments, exported as real PDF annotations) ── */
+  setStyle(ch) {                                     // colour / width for the next mark-up — and for the selected one
+    Object.assign(this.style, ch); LS.set('mkstyle', this.style); this.stylePaint();
+    const m = this.marks.find(x => x.sel); if (m && m.editable) this.opts.onMarkChange?.(m, { style: Object.assign({}, m.style || {}, this.styleFor(m.kind)) }, { style: m.style || null });
+  }
+  stylePaint() { const bar = $('.mkbar', this.host); if (!bar) return; $$('.mkcols i', bar).forEach(i => i.classList.toggle('on', (i.dataset.col || '') === (this.style.color || ''))); $('.mkw', bar).value = String(this.style.width); }
+  styleFor(kind) { const o = {}; if (this.style.color) o.color = this.style.color; if (this.style.width !== 1.6) o.width = this.style.width; if (kind === 'stamp') o.stamp = this.stamp; return o; }
+  favAdd() { const L = LS.get('mkfavs', []); const f = { tool: this.tool === 'select' || this.tool === 'eraser' ? 'pen' : this.tool, color: this.style.color, width: this.style.width, stamp: this.tool === 'stamp' ? this.stamp : '' };
+    if (!L.some(x => JSON.stringify(x) === JSON.stringify(f))) L.push(f); LS.set('mkfavs', L.slice(-8)); this.favPaint(); toast('즐겨찾기에 넣었습니다 — 우클릭으로 지움'); }
+  favPaint() { const el = $('.mkfav', this.host); if (!el) return; const ic = Object.fromEntries(MKTOOLS.map(([k, i]) => [k, i]));
+    el.innerHTML = LS.get('mkfavs', []).map((f, n) => `<button data-fav="${n}" title="${f.tool}${f.stamp ? ' ' + f.stamp : ''} · ${f.color || '분류 색'} · ${f.width}" style="color:${f.color || '#dbe2ee'}">${f.stamp ? esc(f.stamp.slice(0, 4)) : ic[f.tool] || f.tool}</button>`).join(''); }
   setTool(t) {
     this.tool = t; this.stage.classList.toggle('drawing', t !== 'select');
+    this.stage.classList.toggle('erasing', t === 'eraser'); const stb = $('.mkst', this.host); if (stb) stb.style.display = t === 'stamp' ? '' : 'none';
     $$('.mkbar [data-tool]', this.host).forEach(b => b.classList.toggle('on', b.dataset.tool === t));
     this.stage.dataset.tool = t; this.paintMarks();
   }
@@ -237,9 +260,8 @@ class Viewer {
       const el = $(`.pg[data-p="${p}"]`, this.stage); if (!el) continue;
       const [w, h] = this.size[p - 1] || [595, 842];
       const svg = document.createElementNS(SVGNS, 'svg');
-      svg.setAttribute('class', 'mk' + (this.tool === 'select' ? ' sel-mode' : '')); svg.setAttribute('viewBox', `0 0 ${w} ${h}`);
-      svg.innerHTML = `<defs><marker id="mkar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10" fill="none" stroke="context-stroke" stroke-width="1.8"/></marker></defs>`
-        + list.map(m => mkSvg(m, hs)).join('');
+      svg.setAttribute('class', 'mk' + (this.tool === 'select' || this.tool === 'eraser' ? ' sel-mode' : '')); svg.setAttribute('viewBox', `0 0 ${w} ${h}`);
+      svg.innerHTML = MKDEFS + list.map(m => mkSvg(m, hs)).join('');
       el.append(svg);
     }
   }
@@ -249,26 +271,32 @@ class Viewer {
     const pg = e.target.closest('.pg'); if (!pg) return;
     const page = +pg.dataset.p, p0 = this.pt(pg, e), t = this.tool;
     if (t === 'select') return this.mkSelectDown(e, pg, page, p0);
+    if (t === 'eraser') { const id = +e.target.closest('[data-mid]')?.dataset.mid; if (id) { e.preventDefault(); this.opts.onMarkErase?.(id); } return; }
     e.preventDefault();
     if (t === 'note') { this.opts.onMark?.({ page, kind: 'note', bbox: [p0[0], p0[1], p0[0] + 16, p0[1] + 16] }); return; }
-    const tmp = { page, kind: t, category: this.mkCat, bbox: [...p0, ...p0], points: t === 'pen' ? [[p0]] : [p0, p0], tmp: true };
-    this.marks = this.marks.concat(tmp);
+    if (t === 'stamp') { const lab = this.stamp, gl = lab.length <= 1, h = gl ? 18 : 20, w = gl ? 18 : Math.max(40, lab.length * 8.2 + 14);
+      this.opts.onMark?.({ page, kind: 'stamp', bbox: [p0[0] - w / 2, p0[1] - h / 2, p0[0] + w / 2, p0[1] + h / 2], style: this.styleFor('stamp') }); return; }
+    const tmp = { page, kind: t, category: this.mkCat, style: this.styleFor(t), bbox: [...p0, ...p0], points: t === 'pen' ? [[p0]] : [p0, p0], tmp: true };
+    // the mark being drawn lives in its own small SVG: the page's other marks are not redrawn on every mouse move
+    const [w, h] = this.size[page - 1] || [595, 842], tsvg = document.createElementNS(SVGNS, 'svg');
+    tsvg.setAttribute('class', 'mk mk-tmp'); tsvg.setAttribute('viewBox', `0 0 ${w} ${h}`); pg.append(tsvg);
+    let raf = 0; const paint = () => { raf = 0; tsvg.innerHTML = MKDEFS + mkSvg(tmp, 0); };
     const move = ev => {
       const q = this.pt(pg, ev);
       if (t === 'pen') { const st = tmp.points[0], l = st.at(-1); if (Math.hypot(q[0] - l[0], q[1] - l[1]) > 1.2) st.push(q); tmp.bbox = bboxOf(st); }
       else { tmp.points = [p0, q]; tmp.bbox = [Math.min(p0[0], q[0]), Math.min(p0[1], q[1]), Math.max(p0[0], q[0]), Math.max(p0[1], q[1])]; }
-      this.paintMarks();
+      if (!raf) raf = requestAnimationFrame(paint);
     };
     const up = () => {
-      removeEventListener('mousemove', move); removeEventListener('mouseup', up);
-      this.marks = this.marks.filter(m => m !== tmp); this.paintMarks();
-      const [x0, y0, x1, y1] = tmp.bbox, line = t === 'line' || t === 'arrow';
-      if (t === 'pen' ? tmp.points[0].length < 3 : line ? Math.hypot(x1 - x0, y1 - y0) < 5 : (x1 - x0 < 4 || y1 - y0 < 4)) {
-        if (t === 'text') this.opts.onMark?.({ page, kind: 'text', bbox: [p0[0], p0[1], p0[0] + 140, p0[1] + 28] });
+      removeEventListener('mousemove', move); removeEventListener('mouseup', up); if (raf) cancelAnimationFrame(raf); tsvg.remove();
+      const [x0, y0, x1, y1] = tmp.bbox, line = t === 'line' || t === 'arrow', flat = t === 'underline' || t === 'strike' || t === 'squiggle';
+      if (t === 'pen' ? tmp.points[0].length < 3 : line ? Math.hypot(x1 - x0, y1 - y0) < 5 : flat ? x1 - x0 < 4 : (x1 - x0 < 4 || y1 - y0 < 4)) {
+        if (t === 'text') this.opts.onMark?.({ page, kind: 'text', bbox: [p0[0], p0[1], p0[0] + 140, p0[1] + 28], style: this.styleFor('text') });
         return;
       }
-      const g = { page, kind: t, bbox: tmp.bbox.map(v => Math.round(v * 10) / 10) };
-      if (t === 'pen') g.points = tmp.points; else if (line) g.points = tmp.points;
+      const g = { page, kind: t, bbox: tmp.bbox.map(v => Math.round(v * 10) / 10), style: this.styleFor(t) };
+      if (flat && g.bbox[3] - g.bbox[1] < 6) g.bbox[3] = g.bbox[1] + 10;          // a dragged line of text gets a thin box
+      if (t === 'pen') g.points = tmp.points.map(st => st.map(([x, y]) => [Math.round(x * 10) / 10, Math.round(y * 10) / 10])); else if (line) g.points = tmp.points;
       this.opts.onMark?.(g);
     };
     addEventListener('mousemove', move); addEventListener('mouseup', up);
@@ -298,13 +326,29 @@ class Viewer {
 }
 
 const SVGNS = 'http://www.w3.org/2000/svg';
+const MKDEFS = `<defs><marker id="mkar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10" fill="none" stroke="context-stroke" stroke-width="1.8"/></marker></defs>`;
+const penPath = pts => {                             // smooth hand-writing: quadratic curves through the mid-points
+  if (pts.length < 3) return 'M' + pts.map(p => p.join(',')).join(' L');
+  let d = `M${pts[0][0]},${pts[0][1]}`;
+  for (let i = 1; i < pts.length - 1; i++) { const [x, y] = pts[i], [nx, ny] = pts[i + 1]; d += ` Q${x},${y} ${(x + nx) / 2},${(y + ny) / 2}`; }
+  return d + ` L${pts.at(-1)[0]},${pts.at(-1)[1]}`;
+};
 const MKCAT = { comment: 'comment', question: 'comment', error: 'error', missing: 'missing' };
 const MKCOL = { comment: '#2e66e6', question: '#2e66e6', error: '#db2626', missing: '#ff8c00' };
 const MKTOOLS = [['select', '⬚', '선택 · 옮기기 · 크기 (V)'], ['rect', '▭', '사각형 (R)'], ['cloud', '☁', '구름 (C)'], ['ellipse', '◯', '원 (E)'],
-  ['highlight', '▆', '형광펜 (H)'], ['line', '╱', '선 (L)'], ['arrow', '↗', '화살표 (W)'], ['pen', '✎', '펜 — 손글씨 (P)'], ['text', 'T', '글상자 (T)'], ['note', '🗨', '메모 (N)']];
+  ['highlight', '▆', '형광펜 (H)'], ['underline', '<u>U</u>', '밑줄 (U)'], ['strike', '<s>S</s>', '취소선 (S)'], ['squiggle', '〰', '물결 밑줄 (G)'],
+  ['line', '╱', '선 (L)'], ['arrow', '↗', '화살표 (W)'], ['pen', '✎', '펜 — 손글씨 (P)'], ['text', 'T', '글상자 (T)'], ['note', '🗨', '메모 (N)'],
+  ['stamp', '✔', '스탬프 — 누르는 자리에 (I)'], ['eraser', '⌫', '지우개 — 표시를 누르면 지움 (X)']];
+const MKCOLORS = [['', '분류 색'], ['#111111', '검정'], ['#db2626', '빨강'], ['#ff8c00', '주황'], ['#f5d400', '노랑'], ['#1aa35a', '초록'], ['#2e66e6', '파랑'], ['#8e3fd6', '보라']];
+const MKSTAMPS = ['APPROVED', 'REJECTED', 'HOLD', 'CONFIRM', 'REVISE', 'CHECKED', 'AS BUILT', 'VOID', '✓', '✗', '?', '!', '★'];
 const MKBAR = `<div class="tbar mkbar">${MKTOOLS.map(([k, i, t]) => `<button data-tool="${k}" title="${t}">${i}</button>`).join('')}
   <span class="sep"></span><select class="mkcat" title="분류 — 색과 Issue 종류가 정해집니다 (Comment 파랑 · Error 빨강 · Missing 주황 · Question 파랑)" aria-label="Mark-up 분류">
   <option value="comment">● Comment</option><option value="error">● Error</option><option value="missing">● Missing</option><option value="question">● Question</option></select>
+  <span class="mkcols" title="색 (분류 색 = Comment 파랑 · Error 빨강 · Missing 주황)">${MKCOLORS.map(([c, t]) => `<i data-col="${c}" title="${t}" style="background:${c || 'linear-gradient(135deg,#2e66e6 50%,#db2626 50%)'}"></i>`).join('')}</span>
+  <select class="mkw" title="선 굵기"><option value="0.8">얇게</option><option value="1.6" selected>보통</option><option value="3">굵게</option><option value="5">아주 굵게</option></select>
+  <select class="mkst" title="스탬프 종류 (I)">${MKSTAMPS.map(x => `<option>${x}</option>`).join('')}<option value="__custom">직접 입력…</option></select>
+  <label class="chk mkq" title="켜면 의견을 묻지 않고 바로 그립니다 (글상자 · 메모는 항상 묻습니다). 의견은 나중에 Enter 로"><input type="checkbox" class="mkquick"> 바로</label>
+  <span class="mkfav" title="즐겨찾기 — ★ 로 지금 도구·색·굵기를 저장, 누르면 적용, 우클릭 지움"></span><button data-mk="fav" title="지금 도구 · 색 · 굵기를 즐겨찾기에 저장">★</button>
   <span class="sep"></span><button data-mk="undo" title="되돌리기 (Ctrl+Z)">↶</button><button data-mk="redo" title="다시 하기 (Ctrl+Y)">↷</button>
   <button data-mk="edit" title="선택한 표시의 의견 고치기 (Enter)">✎</button><button data-mk="del" title="선택한 표시 지우기 (Delete)">🗑</button></div>`;
 const bboxOf = pts => { const xs = pts.map(p => p[0]), ys = pts.map(p => p[1]); return [Math.min(...xs), Math.min(...ys), Math.max(...xs), Math.max(...ys)]; };
@@ -333,14 +377,21 @@ function cloudPath([x0, y0, x1, y1]) {             // scalloped edge, arcs bulgi
   return d;
 }
 function mkSvg(m, hs) {
-  const c = MKCOL[m.category] || MKCOL.comment, [x0, y0, x1, y1] = m.bbox, w = x1 - x0, h = y1 - y0;
-  const st = `stroke="${c}" stroke-width="1.6" vector-effect="non-scaling-stroke"`;
+  const sty = m.style || {}, c = sty.color || MKCOL[m.category] || MKCOL.comment, [x0, y0, x1, y1] = m.bbox, w = x1 - x0, h = y1 - y0, sw = sty.width || 1.6;
+  const st = `stroke="${c}" stroke-width="${sw}" vector-effect="non-scaling-stroke"`;
   const hit = `fill="transparent" stroke="transparent" stroke-width="10" vector-effect="non-scaling-stroke"`;
   let g = '';
   if (m.kind === 'highlight') g = `<rect x="${x0}" y="${y0}" width="${w}" height="${h}" fill="${c}" fill-opacity=".32"/>`;
   else if (m.kind === 'line' || m.kind === 'arrow') { const [[a, b], [cx, cy]] = [m.points[0], m.points.at(-1)];
     g = `<line x1="${a}" y1="${b}" x2="${cx}" y2="${cy}" ${hit}/><line x1="${a}" y1="${b}" x2="${cx}" y2="${cy}" ${st} fill="none"${m.kind === 'arrow' ? ' marker-end="url(#mkar)"' : ''}/>`; }
-  else if (m.kind === 'pen') g = (m.points || []).map(s => { const d = s.map(p => p.join(',')).join(' '); return `<polyline points="${d}" ${hit}/><polyline points="${d}" ${st} fill="none" stroke-linecap="round" stroke-linejoin="round"/>`; }).join('');
+  else if (m.kind === 'pen') g = (m.points || []).map(s => { const d = penPath(s); return `<path d="${d}" ${hit}/><path d="${d}" ${st} fill="none" stroke-linecap="round" stroke-linejoin="round"/>`; }).join('');
+  else if (m.kind === 'underline' || m.kind === 'strike') { const y = m.kind === 'strike' ? (y0 + y1) / 2 : y1 - 0.6;
+    g = `<rect x="${x0}" y="${y0}" width="${w}" height="${h}" fill="transparent"/><line x1="${x0}" y1="${y}" x2="${x1}" y2="${y}" ${st}/>`; }
+  else if (m.kind === 'squiggle') { let d = `M${x0},${y1 - 1}`; for (let x = x0 + 2, k = 0; x <= x1; x += 2, k++) d += ` L${x},${y1 - 1 + (k % 2 ? 1.6 : -1.6)}`;
+    g = `<rect x="${x0}" y="${y0}" width="${w}" height="${h}" fill="transparent"/><path d="${d}" ${st} fill="none"/>`; }
+  else if (m.kind === 'stamp') { const lab = sty.stamp || m.text || 'STAMP', gl = lab.length <= 1;
+    g = gl ? `<rect x="${x0}" y="${y0}" width="${w}" height="${h}" fill="transparent"/><text x="${x0 + w / 2}" y="${y0 + h * .82}" text-anchor="middle" font-size="${h * .95}" font-weight="700" fill="${c}" style="font-family:sans-serif">${esc(lab)}</text>`
+      : `<rect x="${x0}" y="${y0}" width="${w}" height="${h}" rx="2" fill="#fff" fill-opacity=".85" stroke="${c}" stroke-width="${Math.max(1.2, sw)}" vector-effect="non-scaling-stroke"/><text x="${x0 + w / 2}" y="${y0 + h * .7}" text-anchor="middle" font-size="${Math.min(h * .6, (w - 8) / Math.max(1, lab.length) * 1.75)}" font-weight="700" fill="${c}" style="font-family:sans-serif;letter-spacing:.06em">${esc(lab)}</text>`; }
   else if (m.kind === 'cloud') g = `<path d="${cloudPath(m.bbox)}" ${st} fill="${c}" fill-opacity=".04"/>`;
   else if (m.kind === 'ellipse') g = `<ellipse cx="${x0 + w / 2}" cy="${y0 + h / 2}" rx="${w / 2}" ry="${h / 2}" ${st} fill="${c}" fill-opacity=".04"/>`;
   else if (m.kind === 'text') g = `<rect x="${x0}" y="${y0}" width="${w}" height="${h}" fill="#fff" stroke="${c}" stroke-width=".8" vector-effect="non-scaling-stroke"/>
@@ -351,7 +402,7 @@ function mkSvg(m, hs) {
   if (m.sel && m.editable) {
     const H = (x, y, k) => `<rect data-hd="${k}" class="hd hd-${k}" x="${x - hs}" y="${y - hs}" width="${hs * 2}" height="${hs * 2}"/>`;
     hd = (m.kind === 'line' || m.kind === 'arrow') ? H(...m.points[0], 'p0') + H(...m.points.at(-1), 'p1')
-      : m.kind === 'note' ? '' : H(x0, y0, 'nw') + H(x1, y0, 'ne') + H(x1, y1, 'se') + H(x0, y1, 'sw');
+      : m.kind === 'note' || (m.kind === 'stamp' && (m.style?.stamp || '').length <= 1) ? '' : H(x0, y0, 'nw') + H(x1, y0, 'ne') + H(x1, y1, 'se') + H(x0, y1, 'sw');
   }
   const no = m.no ? `<g class="mkno"><rect x="${x0 - 15}" y="${y0 - 1}" width="13" height="10" rx="1.5" fill="${c}"/><text x="${x0 - 8.5}" y="${y0 + 6.8}" text-anchor="middle">${m.no}</text></g>` : '';
   return `<g data-mid="${m.id ?? ''}" class="mkg${m.sel ? ' sel' : ''}"><title>${esc((m.no ? '#' + m.no + ' ' : '') + (m.text || '') + (m.by ? `\n— ${m.by}` : ''))}</title>${m.sel ? `<rect class="selbox" x="${x0 - 2}" y="${y0 - 2}" width="${w + 4}" height="${h + 4}"/>` : ''}${g}${no}${hd}</g>`;
@@ -779,7 +830,7 @@ function wbLayout() {
       <button class="fold" data-col="r" title="Review Panel 접기 ( ] )">▶</button></div><div class="rbody" id="wbody"></div></div></div>`;
   W.viewer = new Viewer($('#wview'), { tools: true,
     extra: `<button data-a2="prevrev" title="이전 Revision">◁ Rev</button><button data-a2="nextrev" title="다음 Revision">Rev ▷</button><button data-a2="pdf" title="이 Tag 의 표시가 들어간 PDF 내보내기">⇩ PDF</button>`,
-    onMark: addMark, onMarkChange: changeMark, onMarkSelect: m => { if ((m?.id ?? null) === W.selCm) return; W.selCm = m?.id ?? null; if (W.tab === 'cmt') drawRight(); }, onMarkCmd: markCmd,
+    onMark: addMark, onMarkChange: changeMark, onMarkErase: eraseMark, onMarkSelect: m => { if ((m?.id ?? null) === W.selCm) return; W.selCm = m?.id ?? null; if (W.tab === 'cmt') drawRight(); }, onMarkCmd: markCmd,
     onOverlay: o => { if (o.cmId) { W.selCm = o.cmId; setTab('cmt'); } else if (o.iss) { W.selIss = o.iss; setTab('iss'); } else if (o.key) selectField(o.key); } });
   $('#wview .tbar').addEventListener('click', e => {
     const a = e.target.closest('[data-a2]')?.dataset.a2; if (!a || !S.ds) return;
@@ -1135,7 +1186,7 @@ async function editField(fid) {
   catch (e) { toast(e.message, 1); }
 }
 /* mark-up: every change is saved at once (comment rows); ↶/↷ replay the inverse request */
-const KIND_KO = { rect: '사각형', cloud: '구름', ellipse: '원', highlight: '형광펜', line: '선', arrow: '화살표', pen: '펜', text: '글상자', note: '메모' };
+const KIND_KO = { rect: '사각형', cloud: '구름', ellipse: '원', highlight: '형광펜', underline: '밑줄', strike: '취소선', squiggle: '물결 밑줄', line: '선', arrow: '화살표', pen: '펜', text: '글상자', note: '메모', stamp: '스탬프' };
 const CAT_OPTS = sel => ['comment', 'error', 'missing', 'question'].map(c => `<option value="${c}" ${c === sel ? 'selected' : ''}>${{ comment: 'Comment — 의견 (파랑)', error: 'Error — 데이터 오류 (빨강)', missing: 'Missing — 데이터 누락 (주황)', question: 'Question — 질의 (파랑)' }[c]}</option>`).join('');
 async function markText(title, kind, text, cat) {
   const need = kind === 'text' || kind === 'note';
@@ -1145,7 +1196,8 @@ async function markText(title, kind, text, cat) {
 }
 function pushUndo(op) { W.undo = (W.undo || []).concat(op).slice(-100); W.redo = []; }
 async function addMark(g) {
-  const r = await markText('Mark-up 의견', g.kind, '', W.viewer.mkCat);
+  const ask = g.kind === 'text' || g.kind === 'note' || !W.viewer.quick;          // '바로' on: shapes · stamps go in without a dialog
+  const r = ask ? await markText('Mark-up 의견', g.kind, '', W.viewer.mkCat) : { category: W.viewer.mkCat, text: '' };
   if (!r || ((g.kind === 'text' || g.kind === 'note') && !r.text.trim())) return;
   try {
     const out = await api('POST', `/datasheets/${S.ds.id}/comments`, { ...g, category: r.category, text: r.text });
@@ -1154,6 +1206,12 @@ async function addMark(g) {
     paintDsOverlays(); if (W.tab === 'cmt') drawRight();
     toast('표시를 남겼습니다 — Ctrl+Z 되돌리기');
   } catch (e) { toast(e.message, 1); }
+}
+async function eraseMark(id) {
+  const c = S.ds?.comments.find(x => x.id === id); if (!c) return;
+  try { S.ds = await api('PUT', `/comments/${id}`, { delete: true }); S.issues = null; pushUndo({ t: 'delete', id, ds: S.ds.id }); if (W.selCm === id) W.selCm = null; }
+  catch (e) { toast(e.message, 1); }
+  paintDsOverlays(); if (W.tab === 'cmt') drawRight();
 }
 async function changeMark(m, after, before) {
   const c = S.ds.comments.find(x => x.id === m.id); if (!c) return;
@@ -1471,7 +1529,7 @@ addEventListener('keydown', e => {
     return;
   }
   if (e.ctrlKey || e.metaKey) return;
-  const MKKEY = { v: 'select', r: 'rect', c: 'cloud', e: 'ellipse', h: 'highlight', l: 'line', w: 'arrow', p: 'pen', t: 'text', n: 'note', a: 'rect' };
+  const MKKEY = { v: 'select', r: 'rect', c: 'cloud', e: 'ellipse', h: 'highlight', u: 'underline', s: 'strike', g: 'squiggle', l: 'line', w: 'arrow', p: 'pen', t: 'text', n: 'note', i: 'stamp', x: 'eraser', a: 'rect' };
   if (S.view === 'review' && W.viewer && (e.key === '[' || e.key === ']')) { togglePanel(e.key === '[' ? 'l' : 'r'); return; }
   if (S.view === 'review' && W.viewer && e.key === 'm') { W.viewer.showMkbar(!LS.get('mkbar', 1)); return; }
   if (S.view === 'review' && W.viewer && MKKEY[e.key]) { W.viewer.showMkbar(true); W.viewer.setTool(MKKEY[e.key]); return; }

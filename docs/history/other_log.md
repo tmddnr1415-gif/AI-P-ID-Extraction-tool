@@ -138,3 +138,8 @@
 - `/api/valve/health` + Settings 진단 · Issue List 필터 행만 재렌더(0.6→0.35 s) · 캐시 이력 제외(990 DS RSS 489→457 MB) · USER_GUIDE.md.
 - 추출 시뮬레이션 `valve_sim_pdf.py` 380장 0.833→0.992(기울기 · Max/Nor/Min 경로 · Note 번호 표기 · NOTES 줄 · 괘선 위 낱말). 실자료 지문 불변 · diff_sim 0.
 - 합성 10,000건 seed 23 재확인 1.000/1.000. 시험 53 · ui_audit 22/22.
+
+## 2026-10-31 · valve23 — PDF 주석기 수준 Mark-up (브랜치 ccr-efbe7e75-n915ze)
+- 요청: PDF Annotator 같은 주석 기능 · 매우 가볍게.
+- 도구 15(밑줄·취소선·물결·스탬프 13종+직접·지우개 추가) · 색 7+분류색 · 굵기 4단 · 즐겨찾기 · '바로'. `comment.style` 열(검증) · PDF 주석 Underline/StrikeOut/Squiggly · 스탬프 Square+FreeText · ✓✗ Ink.
+- 가벼움: 그리는 표시만 임시 SVG(rAF) · 펜 곡선. 시험 markup23 · 54 통과 · ui_audit 22/22.

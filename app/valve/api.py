@@ -284,7 +284,7 @@ async def _startup_warm():
     threading.Thread(target=warm_all, daemon=True, name="valve-warm-all").start()
 
 
-VERSION = "valve22"                       # shown in Settings › 정보 and the footer; bump with every package
+VERSION = "valve23"                       # shown in Settings › 정보 and the footer; bump with every package
 
 
 @router.get("/api/valve/version")
@@ -545,7 +545,7 @@ def _ds_full(con, dsid, deep=True, pv=None):
     d["revisions"].sort(key=lambda r: (store.rev_key(r["rev"]), r["id"]))
     d["comments"] = store.rows(con, "SELECT * FROM comment WHERE datasheet_id=? AND deleted=0 ORDER BY id", dsid)
     for c in d["comments"]:
-        c["bbox"], c["points"] = store.unJ(c["bbox"]), store.unJ(c.get("points"))
+        c["bbox"], c["points"], c["style"] = store.unJ(c["bbox"]), store.unJ(c.get("points")), store.unJ(c.get("style"))
     d["history"] = store.rows(con, "SELECT * FROM audit WHERE datasheet_id=? ORDER BY id DESC", dsid)
     d["doc_title"] = (gn or {}).get("title", "")
     d["area"] = pmsmod.area_of_title(d["doc_title"])
@@ -676,7 +676,26 @@ async def ds_status(dsid: int, request: Request):
     return _ds_full(con, dsid)
 
 
-MARK_KINDS = {"rect", "cloud", "ellipse", "highlight", "line", "arrow", "pen", "text", "note"}
+MARK_KINDS = {"rect", "cloud", "ellipse", "highlight", "line", "arrow", "pen", "text", "note",
+              "underline", "strike", "squiggle", "stamp"}                       # valve23: text mark-ups + stamps
+_HEX = re.compile(r"^#[0-9a-fA-F]{6}$")
+
+
+def _style(v) -> dict | None:
+    """Mark-up style {color '#rrggbb', width 0.5–8, opacity 0.05–1, size 6–48, stamp ≤ 40 chars} — only valid keys kept."""
+    if v is None:
+        return None
+    if not isinstance(v, dict):
+        raise ValueError
+    out = {}
+    if v.get("color") and _HEX.match(str(v["color"])):
+        out["color"] = str(v["color"]).lower()
+    for k, lo, hi in (("width", 0.5, 8), ("opacity", 0.05, 1), ("size", 6, 48)):
+        if v.get(k) is not None:
+            out[k] = min(hi, max(lo, float(v[k])))
+    if v.get("stamp"):
+        out["stamp"] = str(v["stamp"]).strip()[:40]
+    return out or None
 MARK_CATS = {"comment", "error", "missing", "question"}
 
 
@@ -708,6 +727,8 @@ def _markup(body: dict, old: dict | None = None) -> dict:
         if body["category"] not in MARK_CATS:
             raise ValueError
         out["category"] = body["category"]
+    if "style" in body:
+        out["style"] = _style(body["style"])
     if "points" in body:
         pts = body["points"]
         if pts is not None:                                  # line/arrow: [[x,y],[x,y]] · pen: [[[x,y],…], …] strokes
@@ -740,11 +761,11 @@ async def ds_comment(dsid: int, request: Request):
         return _err("없는 데이터시트", 404)
     by = _user(request)
     with store._LOCK:
-        cur = con.execute("INSERT INTO comment(datasheet_id, field_key, text, by, at, page, bbox, category, kind, points)"
-                          " VALUES (?,?,?,?,?,?,?,?,?,?)",
+        cur = con.execute("INSERT INTO comment(datasheet_id, field_key, text, by, at, page, bbox, category, kind, points, style)"
+                          " VALUES (?,?,?,?,?,?,?,?,?,?,?)",
                           (dsid, body.get("field_key"), text, by, store.now(), g.get("page"), store.J(g.get("bbox")),
                            g.get("category") or "comment", g.get("kind") or ("rect" if g.get("bbox") else None),
-                           store.J(g.get("points"))))
+                           store.J(g.get("points")), store.J(g.get("style")) if g.get("style") else None))
         store.audit(con, d["project_id"], dsid, body.get("field_key"), "comment", None,
                     text or f"[{g.get('kind') or 'rect'}] p.{g.get('page')}", by)
         con.commit()
@@ -783,9 +804,9 @@ async def comment_edit(cid: int, request: Request):
             for k in ("page", "kind", "category"):
                 if k in g:
                     sets.append(f"{k}=?"), vals.append(g[k])
-            for k in ("bbox", "points"):
+            for k in ("bbox", "points", "style"):
                 if k in g:
-                    sets.append(f"{k}=?"), vals.append(store.J(g[k]))
+                    sets.append(f"{k}=?"), vals.append(store.J(g[k]) if g[k] is not None else None)
             if not sets:
                 return _err("바꿀 것이 없습니다")
             con.execute(f"UPDATE comment SET {', '.join(sets)} WHERE id=?", (*vals, cid))

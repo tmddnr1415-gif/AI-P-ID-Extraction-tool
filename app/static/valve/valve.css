@@ -438,3 +438,13 @@ body.hints #hintbtn { background: var(--blue); color: #fff; border-color: var(--
 .fchip i { font-style: normal; color: var(--soft); } .fchip.on { background: var(--blue); color: #fff; border-color: var(--blue); } .fchip.dis { text-decoration: line-through; opacity: .55; }
 .iss.grp .grpbody { margin-top: 8px; padding-top: 6px; border-top: 1px dashed var(--line); } .iss.grp .grpbody .iss { margin-left: 8px; }
 .iss .ih select { max-width: 110px; }
+/* valve23 — annotator-grade mark-up bar */
+.mkbar { flex-wrap: wrap; row-gap: 2px; }
+.mkbar .mkcols { display: inline-flex; gap: 3px; align-items: center; margin: 0 2px; }
+.mkbar .mkcols i { width: 14px; height: 14px; border-radius: 50%; border: 2px solid transparent; cursor: pointer; display: inline-block; box-shadow: 0 0 0 1px #0007; }
+.mkbar .mkcols i.on { border-color: #fff; transform: scale(1.15); }
+.mkbar select.mkw, .mkbar select.mkst { background: #1a2130; color: #e1e7f2; border: 1px solid #3a4558; border-radius: 4px; padding: 2px 3px; font-size: 11.5px; }
+.mkbar .mkfav button { font-weight: 700; min-width: 24px; padding: 0 4px; font-size: 11px; }
+.mkbar .mkq { color: #c8d1e1; }
+.stage.erasing .pg { cursor: not-allowed; } .stage.erasing svg.mk .mkg > :not(title) { cursor: cell; }
+svg.mk-tmp { pointer-events: none; z-index: 3; }

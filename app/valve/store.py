@@ -104,7 +104,7 @@ def backup(keep: int = 7) -> Path | None:
 
 _ADDED = {"datasheet": [("sheets", "TEXT")],
           "comment": [("page", "INTEGER"), ("bbox", "TEXT"), ("category", "TEXT DEFAULT 'comment'"),
-                      ("deleted", "INTEGER DEFAULT 0"), ("kind", "TEXT"), ("points", "TEXT")]}
+                      ("deleted", "INTEGER DEFAULT 0"), ("kind", "TEXT"), ("points", "TEXT"), ("style", "TEXT")]}
 
 
 def _migrate(con):

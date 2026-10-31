@@ -290,25 +290,56 @@ def _info(a, i):
     a.set_flags(pymupdf.PDF_ANNOT_IS_PRINT)
 
 
+def _hex(c):
+    c = str(c or "").lstrip("#")
+    return (int(c[0:2], 16) / 255, int(c[2:4], 16) / 255, int(c[4:6], 16) / 255) if len(c) == 6 else None
+
+
+_GLYPH = {"✓": [[(0.15, 0.55), (0.4, 0.8), (0.88, 0.2)]], "✗": [[(0.15, 0.15), (0.85, 0.85)], [(0.85, 0.15), (0.15, 0.85)]]}
+
+
 def _markup(page, i, col):
-    """A reviewer's own mark-up, drawn as the same kind of PDF annotation (editable in Acrobat / Bluebeam)."""
+    """A reviewer's own mark-up, drawn as the same kind of PDF annotation (editable in Acrobat / Bluebeam).
+    valve23: style {color, width, opacity, size, stamp} · underline / strike / squiggle · stamps."""
     kind, r, pts = i.get("kind") or "rect", pymupdf.Rect(*i["bbox"]), i.get("points")
+    st = i.get("style") or {}
+    col = _hex(st.get("color")) or col
+    wd = float(st.get("width") or 1.6)
     if kind == "highlight":
         a = page.add_highlight_annot(r)
         a.set_colors(stroke=col)
-        a.set_opacity(0.45)
+        a.set_opacity(float(st.get("opacity") or 0.45))
+    elif kind in ("underline", "strike", "squiggle"):
+        a = {"underline": page.add_underline_annot, "strike": page.add_strikeout_annot, "squiggle": page.add_squiggly_annot}[kind](r)
+        a.set_colors(stroke=col)
+    elif kind == "stamp":
+        label = st.get("stamp") or i.get("text_raw") or "STAMP"
+        if label in _GLYPH:                                     # ✓ ✗ drawn as ink so every PDF reader shows them
+            a = page.add_ink_annot([[(r.x0 + x * r.width, r.y0 + y * r.height) for x, y in stk] for stk in _GLYPH[label]])
+            a.set_colors(stroke=col)
+            a.set_border(width=max(2.0, wd * 1.5))
+        else:
+            fs = float(st.get("size") or max(8, min(28, r.height * 0.6)))
+            frame = page.add_rect_annot(r)                      # coloured frame as its own Square annot (readers vary on FreeText borders)
+            frame.set_colors(stroke=col, fill=(1, 1, 1))
+            frame.set_border(width=max(1.2, wd))
+            frame.set_opacity(0.9)
+            _info(frame, i)
+            frame.update()
+            a = page.add_freetext_annot(r, label, fontsize=fs, fontname="hebo", text_color=col, align=1)
+            a.set_border(width=0)
     elif kind in ("line", "arrow") and pts and len(pts) >= 2:
         a = page.add_line_annot(pymupdf.Point(*pts[0]), pymupdf.Point(*pts[-1]))
         a.set_colors(stroke=col)
-        a.set_border(width=1.6)
+        a.set_border(width=wd)
         if kind == "arrow":
             a.set_line_ends(pymupdf.PDF_ANNOT_LE_NONE, pymupdf.PDF_ANNOT_LE_OPEN_ARROW)
     elif kind == "pen" and pts:
-        a = page.add_ink_annot([[tuple(p) for p in st] for st in pts])
+        a = page.add_ink_annot([[tuple(p) for p in stk] for stk in pts])
         a.set_colors(stroke=col)
-        a.set_border(width=1.6)
+        a.set_border(width=wd)
     elif kind == "text":
-        a = page.add_freetext_annot(r, i.get("text_raw") or i["description"], fontsize=9, text_color=col,
+        a = page.add_freetext_annot(r, i.get("text_raw") or i["description"], fontsize=float(st.get("size") or 9), text_color=col,
                                     fill_color=(1, 1, 1))
         a.set_border(width=0.8)
     elif kind == "note":
@@ -317,10 +348,10 @@ def _markup(page, i, col):
     else:                                                       # rect · cloud · ellipse
         a = page.add_circle_annot(r) if kind == "ellipse" else page.add_rect_annot(r)
         a.set_colors(stroke=col)
-        a.set_border(width=1.6, clouds=2 if kind == "cloud" else 0)
+        a.set_border(width=wd, clouds=2 if kind == "cloud" else 0)
     _info(a, i)
-    if kind == "text":                                          # a free-text box shows its content: keep the reviewer's words
-        a.set_info(content=i.get("text_raw") or i["description"])
+    if kind in ("text", "stamp"):                               # a free-text box shows its content: keep the reviewer's words
+        a.set_info(content=(st.get("stamp") if kind == "stamp" else "") or i.get("text_raw") or i["description"])
     a.update()
     return r
 

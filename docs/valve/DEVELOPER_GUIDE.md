@@ -704,6 +704,7 @@ python3 spike/pack_delta.py --name valve05 --base 9429f4f \
 | valve20 | 〃 | **상용 수준**: 데이터시트별 검토 캐시(메모리+디스크) · 워밍 · `_json()` · idle 표 렌더 · 그룹 이슈 카드 · 한 줄 탭 · '?' 도움말 · DB 백업 · 버전 · 시뮬레이션 `valve_sim.py`(10,000건) |
 | valve21 | 〃 | 실자료 변이 재생(`valve_mutate.py` 1,839건 100 %) · PMS Fire Safe HOLD→Review · 동료 다수 표기 합침 · NACE NA→Review · Grid 캐시 gzip 결함 · Area/Unit 화면 · Expert Note 접힘 |
 | valve22 | 〃 | `/health` + 진단 · Issue List 행만 재렌더 · 캐시 메모리 · USER_GUIDE · 추출 견고성 시뮬레이션(`valve_sim_pdf.py`) |
+| valve23 | 〃 | PDF 주석기 수준 Mark-up: 밑줄·취소선·물결·스탬프·지우개 · `comment.style`(색·굵기) · 즐겨찾기 · '바로' · 임시 SVG 그리기 층 · PDF 주석 Underline/StrikeOut/Squiggly/Stamp |
 
 **남은 일**
 1. 회사 적용 확인: .xls 자동 변환, 456쪽 처리 시간, 화면 글꼴, Edge 에서 Mark-up · 패널 접기, 내보낸 PDF 를 Acrobat 에서 열기, 1366×768 노트북에서 작업대.

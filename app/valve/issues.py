@@ -236,7 +236,7 @@ def compute(ds: dict, general_notes: dict | None = None, pms: dict | None = None
             f={"display": "Reviewer Mark-up" if c.get("bbox") else "Review Comment", "value": "", "row": None},
             severity=sev, extra={"by": c.get("by"), "comment_id": c["id"], "category": cat,
                                  "kind": c.get("kind") or ("rect" if c.get("bbox") else None), "points": c.get("points"),
-                                 "text_raw": text})
+                                 "style": c.get("style"), "text_raw": text})
     seen, uniq = set(), []
     for i in out:                                         # the same check can fire twice (two note refs in one cell)
         k = (i["ikey"], i["description"])

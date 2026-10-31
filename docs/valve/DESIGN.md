@@ -498,3 +498,16 @@ Note 113 · PC-01 Confirm 6(3C0K8 의 '316 SS/FHF' 2개 · API5L-X65 MOV 1500# �
   'Note-1' · 'NOTE-01' · 'Note 1:' 번호 인식 · 'NOTES :' 줄에서 시작하는 Note · 괘선 위 낱말이 두 칸에 찍히던 것.
 - 아직 약한 것(인수인계): **행 번호 없는 행**은 못 읽음(0.86) — 번호 없는 양식은 괘선 띠 읽기가 필요. 라벨 동의어는 `schema._L` 에 더해야 함(없으면 review 로 남김, 오독은 안 함).
   가로 표 · 한 장 여러 Tag · 세로 괘선 없는 탭 정렬 양식은 시뮬레이션 밖. 게이트 `tests/test_valve_extract_sim.py`(36장 recall ≥ 0.98).
+
+## 28. PDF 주석기 수준의 Mark-up · 가벼운 그리기 층 (valve23, 사용자 요청)
+
+요청: "PDF Annotator 와 같은 주석 마크업 기능 · 동작은 매우 가볍게".
+
+- **도구 15**: 선택 · 사각형 · 구름 · 원 · 형광펜 · **밑줄(U) · 취소선(S) · 물결 밑줄(G)** · 선 · 화살표 · 펜 · 글상자 · 메모 · **스탬프(I)** · **지우개(X)**.
+  스탬프: APPROVED · REJECTED · HOLD · CONFIRM · REVISE · CHECKED · AS BUILT · VOID · ✓ ✗ ? ! ★ · 직접 입력(대문자 40자). 누르는 자리에 놓임.
+- **색 · 굵기**: 분류 색(Comment 파랑 · Error 빨강 · Missing 주황) 또는 7색 팔레트 · 굵기 4단. 선택한 표시에 바꾸면 그 표시에 적용. `comment.style` JSON {color, width, opacity, size, stamp} — 서버가 검증(hex · 범위 clamp).
+- **즐겨찾기 ★**: 지금 도구·색·굵기(·스탬프)를 저장(브라우저, 8개), 누르면 적용, 우클릭 지움. **'바로'** 켜면 의견 창 없이 그려짐(글상자·메모는 항상 묻고, 의견은 Enter 로 나중에).
+- **가볍게**: 그리는 중인 표시는 **그 쪽의 작은 임시 SVG** 에만 그리고(`svg.mk-tmp`, rAF 로 한 프레임에 한 번) 끝나면 본 층에 합친다 — 전에는 마우스 이동마다 쪽의 모든 표시를 다시 그렸다. 펜은 1.2 pt 간격 점만 남기고 2차 곡선으로 매끈하게(`penPath`).
+  실측(1600×950 · 표시 20여 개 쪽): 펜 300점 드래그 중 프레임 끊김 없음, 표시 추가 1 POST.
+- **PDF 내보내기**(`exports._markup`): 밑줄/취소선/물결 → Underline/StrikeOut/Squiggly 주석 · 스탬프 글 → 색 테두리 Square + FreeText(hebo) · ✓ ✗ → Ink(모든 뷰어에서 보이게) · 색·굵기 반영. Acrobat 에서 편집 가능.
+- 시험 `tests/test_valve_markup23.py`(스타일 왕복 · 잘못된 색 버림 · 굵기 clamp · 잘못된 kind 400 · PDF 주석 종류).
