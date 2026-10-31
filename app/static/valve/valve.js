@@ -382,7 +382,8 @@ async function selectProject(pid) {
 }
 async function refresh() {
   S.sum = await api('GET', `/projects/${S.pid}/summary`); S.issues = null; S.grid = null; S.pmsRows = null; S.procRows = null;
-  $('#navfoot').innerHTML = `${esc(S.sum.project.name)} · Tag ${S.sum.kpi.tags} · DS ${S.sum.kpi.datasheets}<br>${esc(USER || '이름 없음')}`;
+  $('#navfoot').innerHTML = `${esc(S.sum.project.name)} · Tag ${S.sum.kpi.tags} · DS ${S.sum.kpi.datasheets}<br>${esc(USER || '이름 없음')} <span class="soft" id="navver"></span>`;
+  if (!S.ver) api('GET', '/version').then(v => { S.ver = v.version; const x = $('#navver'); if (x) x.textContent = '· ' + v.version; }).catch(() => {}); else { const x = $('#navver'); if (x) x.textContent = '· ' + S.ver; }
   RENDER[S.view]?.();
 }
 $('#projSel').onchange = e => selectProject(e.target.value);
@@ -861,6 +862,7 @@ function drawRevInfo() {
     ${d.rev_history.map(h => `<div class="soft">${esc(h)}</div>`).join('')}`;
   $$('#wrev [data-r]').forEach(a => a.onclick = e => { e.preventDefault(); openDs(+a.dataset.r); });
 }
+addEventListener('unhandledrejection', e => { const m = e.reason?.message || String(e.reason || ''); if (m) toast(m, 1); });   // no silent failures
 function hintsInit() {                                   // '?' in the top bar: show / hide the one-line explanations
   document.body.classList.toggle('hints', !!LS.get('hints', 0));
   const host = $('#top .topr'); if (!host || $('#hintbtn')) return;
@@ -1417,7 +1419,8 @@ function renderSettings() {
       <li>원본 파일은 덮어쓰지 않고, 수정은 읽은 값 옆에 수정자 · 시각과 함께 남습니다.</li><li>최종 판정 · 승인은 사용자가 합니다.</li></ul></div>
     <div class="card" style="grid-column:1/-1"><h3>Tag Numbering — 이 프로젝트의 Tag 에서 배운 Area · Unit 별 규칙</h3><div id="tgl" class="soft">불러오는 중…</div></div>
     <div class="card" style="grid-column:1/-1"><h3>Ball Valve 지식 — 검토 규칙의 근거</h3><div id="kbl" class="soft">불러오는 중…</div></div>
-    <div class="card"><h3>정보</h3><p>Module 01 — Ball Valve (On/Off · MOV) Datasheet Review · Phase 1 (+ Revision 비교 기본)<br>서버: P&amp;ID 서버 /valve · 데이터: pid_data/valve/</p></div></div>`;
+    <div class="card"><h3>정보</h3><p>Ball Valve Datasheet Review · <b id="verinfo">…</b><br>서버: P&amp;ID 서버 /valve · 데이터: <span id="datadir">pid_data/valve/</span> (매일 첫 실행 때 backups/ 에 복사)</p></div></div>`;
+  api('GET', '/version').then(v => { $('#verinfo').textContent = v.version; $('#datadir').textContent = v.data_dir; }).catch(() => {});
   const rng = L => { const n = L.map(x => (x.match(/(\d+)\s*$/) || [])[1]).filter(Boolean); if (!n.length) return L.slice(0, 2).join(', ');
     const pre = L[0].replace(/\d+\s*$/, ''); const a = n.reduce((m, x) => +x < +m ? x : m), b = n.reduce((m, x) => +x > +m ? x : m);
     return a === b ? `${pre}${a}` : `${pre}${a} ~ ${b}${L.length > 2 ? ` (${L.length}+)` : ''}`; };

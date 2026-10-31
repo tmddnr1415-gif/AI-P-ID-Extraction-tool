@@ -280,8 +280,22 @@ async def _startup_warm():
     threading.Thread(target=warm_all, daemon=True, name="valve-warm-all").start()
 
 
+VERSION = "valve20"                       # shown in Settings › 정보 and the footer; bump with every package
+
+
+@router.get("/api/valve/version")
+def version():
+    return {"version": VERSION, "data_dir": str(store.root())}
+
+
 def warm_all():
     try:
+        try:
+            b = store.backup()
+            if b:
+                print(f"[valve] db backup: {b}")
+        except Exception as e:                           # noqa: BLE001
+            print(f"[valve] db backup skipped: {e}")
         con = store.connect()
         for p in store.rows(con, "SELECT id FROM project ORDER BY id DESC LIMIT 5"):
             warm(p["id"])
@@ -504,8 +518,8 @@ def _ds_full(con, dsid, deep=True, pv=None):
         return d
     d = _ds_deep(con, d, dsid)
     _DEEP_CACHE[dsid] = (ver, d)
-    if len(_DEEP_CACHE) > 4000:                              # bound memory on very large projects
-        for k in list(_DEEP_CACHE)[:1000]:
+    if len(_DEEP_CACHE) > 1500:                              # bound memory (~100 KB each) on very large projects
+        for k in list(_DEEP_CACHE)[:500]:
             _DEEP_CACHE.pop(k, None)
     return dict(d)
 

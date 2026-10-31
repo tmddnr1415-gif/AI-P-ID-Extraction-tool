@@ -166,7 +166,7 @@ def review(ds: dict, general_notes: dict | None = None, pms_class: dict | None =
 
     # MR-03  pressure / temperature inside the PMS class P-T table -----------------------------------------------
     pt = c.get("pt") or []
-    if dt is not None and len(pt) >= 3:
+    if dt is not None and len(pt) >= 2:                  # a 2-point table (85 °C / 247 °C at 154 barg) is still a range
         tmax = max(t for t, _ in pt)
         if dt > tmax:
             add("MR-03", ACTION, "Design temperature outside PMS class range", "piping_class",
@@ -329,7 +329,7 @@ def review(ds: dict, general_notes: dict | None = None, pms_class: dict | None =
 
     # MR-13  fire-safe soft-seated valve --------------------------------------------------------------------------------
     fs = val("fire_safe").upper()
-    if kind and (fs.startswith(("Y", "REQ")) or "607" in fs or "6FA" in fs):
+    if kind and (fs.startswith(("Y", "REQ")) or "607" in fs or "6FA" in fs) and not re.search(r"\b(HOLD|TBC|TBA)\b", fs):
         add("MR-13", NOTE, "Fire-safe soft-seated valve", "fire_safe",
             "Submit API 607 / ISO 10497 fire test certificate covering size and class.",
             f"Soft seat ({kind[0]}) with fire-safe requirement: the polymer burns away in a fire, so tightness relies on a "

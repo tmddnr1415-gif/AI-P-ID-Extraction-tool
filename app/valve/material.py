@@ -20,7 +20,8 @@ COMPLIANT, NON, REVIEW, NOT_DEFINED = "Compliant", "Non-Compliant", "Review Requ
 _NOISE = {"ASTM", "ASME", "GR", "GRADE", "TYPE", "CL", "CLASS", "AND", "OR", "WITH", "W", "THE", "OF", "MATERIAL",
           "VTA", "BODY", "BALL", "STEM", "SEAT", "DISC", "TRIM", "ST", "BONNET"}
 _PHRASES = [(r"STAINLESS\s+STEEL", " SS "), (r"CARBON\s+STEEL", " CS "), (r"LOW\s+TEMP(?:ERATURE)?\s+CARBON\s+STEEL", " LTCS "),
-            (r"HARD\s*-?\s*FACED|HARDFACED|HARD\s*FACING", " HF "), (r"\bSS\s*(\d{3}L?)\b", r" SS \1 "),
+            (r"HARD\s*-?\s*FACED|HARDFACED|HARD\s*FACING", " HF "),
+            (r"\bR\s*-\s*P?TFE\b|\bRP?TFE\b|REINFORCED\s+P?TFE|(?:GLASS|CARBON)\s*-?\s*FILLED\s+P?TFE", " RTFE "), (r"\bSS\s*(\d{3}L?)\b", r" SS \1 "),
             (r"\b(\d{3}L?)\s*SS\b", r" \1 SS "), (r"\bTP\s*(\d{3}L?)\b", r" \1 "), (r"\bGR\.", " "),
             (r"\bCL\.?\s*(\d{3,4})\b", r" \1 "), (r"\b(\d{3,4})\s*#", r" \1 "),
             (r"17\s*-\s*4\s*PH", " 174PH "), (r"\bTYPE\s+630\b", " 174PH "), (r"\b630\b", " 174PH ")]
@@ -36,7 +37,10 @@ FAMILIES = {
     "PTFE": {"PTFE", "RTFE", "RPTFE", "TFE"},
     "PEEK": {"PEEK"},
     "GRAPHITE": {"GRAPHITE", "GRAFOIL", "FG"},
+    "METAL": {"METAL", "TCC", "STELLITE", "TUNGSTEN", "CARBIDE", "HVOF", "CRC"},
+    "NYLON": {"NYLON", "DEVLON", "PA6", "PA12"},
 }
+_TYPE_IN_FAMILY = {"PTFE": ("RTFE", "PTFE", "TFE")}     # same family, different type: RTFE (reinforced) ≠ PTFE (virgin)
 _FAM_OF = {g: f for f, gs in FAMILIES.items() for g in gs}
 _GRADE = re.compile(r"^(?:\d{3}[LH]?|C[FDA]\w+|F\d{2,3}[LH]?|WC[BC]|LC[BC]|LF\d|174PH|S\d{5})$")
 _SPEC = re.compile(r"^A\d{3}$")
@@ -132,5 +136,8 @@ def compare(required: str, actual: str) -> tuple[str, str]:
     if fr and fd and not (fr & fd):
         return NON, f"Different material: required {' '.join(sorted(r))}, datasheet {' '.join(sorted(d))}"
     if fr and fd and fr <= fd and not (r - d - {t for t in r if _FAM_OF.get(t)}):
+        typ = {t for t in r if t in _TYPE_IN_FAMILY.get("PTFE", ())}, {t for t in d if t in _TYPE_IN_FAMILY.get("PTFE", ())}
+        if typ[0] and typ[1] and not (typ[0] & typ[1]):
+            return REVIEW, f"Same family, different type: required {'/'.join(sorted(typ[0]))}, datasheet {'/'.join(sorted(typ[1]))}"
         return COMPLIANT, "Same material (notation differs only)"
     return REVIEW, f"Cannot decide automatically: required '{required}', datasheet '{actual}'"

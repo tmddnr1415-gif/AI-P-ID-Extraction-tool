@@ -61,14 +61,45 @@ def now() -> str:
     return dt.datetime.now().isoformat(timespec="seconds")
 
 
+_READY: set = set()                      # db paths whose schema / migration ran in this process (once, not per request)
+
+
 def connect() -> sqlite3.Connection:
     root().mkdir(parents=True, exist_ok=True)
-    con = sqlite3.connect(str(root() / "valve.db"), timeout=30, check_same_thread=False)
+    path = str(root() / "valve.db")
+    con = sqlite3.connect(path, timeout=30, check_same_thread=False)
     con.row_factory = sqlite3.Row
     con.execute("PRAGMA journal_mode=WAL")
-    con.executescript(_SCHEMA)
-    _migrate(con)
+    con.execute("PRAGMA busy_timeout=30000")
+    if path not in _READY:
+        con.executescript(_SCHEMA)
+        _migrate(con)
+        _READY.add(path)
     return con
+
+
+def backup(keep: int = 7) -> Path | None:
+    """Daily copy of valve.db (SQLite online backup, safe while in use) → valve/backups/valve.db.<date>.bak; keeps the
+    newest `keep`.  Called from the warm-up at server start; returns the file made today, or None when it exists."""
+    src = root() / "valve.db"
+    if not src.exists():
+        return None
+    bdir = root() / "backups"
+    bdir.mkdir(parents=True, exist_ok=True)
+    dst = bdir / f"valve.db.{dt.date.today().isoformat()}.bak"
+    if dst.exists():
+        return None
+    con = sqlite3.connect(str(src), timeout=30)
+    try:
+        out = sqlite3.connect(str(dst))
+        with out:
+            con.backup(out)
+        out.close()
+    finally:
+        con.close()
+    for old in sorted(bdir.glob("valve.db.*.bak"))[:-keep]:
+        old.unlink(missing_ok=True)
+    return dst
 
 
 _ADDED = {"datasheet": [("sheets", "TEXT")],

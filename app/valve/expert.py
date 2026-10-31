@@ -179,12 +179,21 @@ def review(ds: dict, general_notes: dict | None = None, pms_class: dict | None =
 
     # VR-09 fire-safe for flammable / toxic service ------------------------------------------------------------------
     service = f"{fluid} {remarks} {val('service')}"
-    fire_doc = "fire_safe" in reqs or re.search(r"FIRE\s*(?:TESTED|SAFE)", " ".join(it.get("desc", "") for it in c.get("items") or []), re.I)
-    if (_FLAMMABLE.search(fluid) or _TOXIC.search(service)) and not fire_doc:
-        add("VR-09", CONFIRM, "No fire-safe requirement for flammable / toxic service", "fire_safe",
-            f"{fluid or 'Toxic / flammable'} service: fire-safe (API 607) not stated. Confirm.",
-            f"Service '{fluid or val('service')}' ({remarks.strip() or 'toxic/flammable'}) but no fire-safe (API 607 / ISO 10497) "
-            "requirement is stated. Confirm the fire-safe requirement.", "std.fire",
+    ds_says = "fire_safe" in reqs                                   # datasheet row / notes require (or HOLD) fire-safe
+    pms_says = False
+    if c.get("items"):
+        from app.valve import pms as pmsmod
+        fit = pmsmod.select_item(c, val)[0]                           # the item that fits this valve's size / bore
+        pms_says = bool(fit and re.search(r"FIRE\s*(?:TESTED|SAFE)", fit[1].get("desc", ""), re.I))
+    fs_neg = bool(re.match(r"\s*(NOT\s+REQ|NO\b|NA\b|N/A)", val("fire_safe"), re.I))
+    if not ds_says and not fs_neg and (_FLAMMABLE.search(fluid) or _TOXIC.search(service) or pms_says):
+        # 'Not Required' against a PMS item that is fire tested is left to the PMS check (Non-Compliance), not doubled here
+        why = ("PMS item is fire tested" if pms_says else f"{fluid or 'Toxic / flammable'} service")
+        add("VR-09", CONFIRM, "Fire-safe requirement not stated", "fire_safe",
+            f"{why}: fire-safe (API 607) not stated on datasheet. State it.",
+            (f"The PMS ball valve item for this class is fire tested (API 607)" if pms_says else
+             f"Service '{fluid or val('service')}' ({remarks.strip() or 'toxic/flammable'})")
+            + " but the datasheet gives no fire-safe (API 607 / ISO 10497) requirement. State the fire-safe requirement.", "std.fire",
             [ev("fire_safe"), ev("service"), {"doc": "Process Data" if pdv.get("fluid") else "Datasheet", "where": "Service Fluid",
                                               "page": (pdv.get("fluid") or {}).get("pd_page"), "bbox": (pdv.get("fluid") or {}).get("pd_bbox"),
                                               "text": f"{fluid} {remarks}".strip()}])
