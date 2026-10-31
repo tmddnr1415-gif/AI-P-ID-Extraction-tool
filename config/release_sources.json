@@ -8,9 +8,16 @@
     "PANEL": {
       "branch": "ccr-d82d97fa-bb3ty3",
       "session": "4. PANEL 코드",
-      "paths": ["dashboard/apps/space"],
+      "paths": [
+        "dashboard/apps/space"
+      ],
       "imported": "0943667",
       "_설명": "판넬 화면은 병합이 아니라 dashboard/apps/space → app/static/space 로 옮겨 온다. 옮겨 온 마지막 커밋을 imported 에 적는다."
+    },
+    "VALVE": {
+      "branch": "ccr-efbe7e75-n915ze",
+      "session": "VALVE Datasheet 검토 (실행 프로젝트 › CO2 PJT › Datasheet › Ball Valve)",
+      "_설명": "app/valve · app/static/valve · app/main.py 두 줄 · dashboard/dashboard.html 메뉴. docs/handoff/valve.md"
     }
   }
 }

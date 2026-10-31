@@ -134,6 +134,9 @@ def main() -> int:
     ap.add_argument("--readme", default="")
     ap.add_argument("--base", default="")
     ap.add_argument("--ops", action="store_true", help="운영 폴더용 단추(적용·되돌리기)와 서버 재시작 도구를 같이 싣는다")
+    ap.add_argument("--only", default="",
+                    help="쉼표로 나눈 경로 앞부분만 싣는다 (예: app/valve/,app/static/valve/,app/main.py). "
+                         "다른 세션의 모듈 꾸러미용 — 딱지(app/_update.json)와 기준 파일(out/PID_dev_delta_base.txt)은 건드리지 않는다")
     ap.add_argument("--allow-unmerged", action="store_true",
                     help="다른 세션 브랜치가 덜 합쳐졌어도 만든다 (사용자가 그렇게 하라고 했을 때만)")
     a = ap.parse_args()
@@ -151,6 +154,9 @@ def main() -> int:
     head = git("rev-parse", "--short", "HEAD")
     paths = [p for p in git("-c", "core.quotepath=off", "diff", "--name-only", base, "HEAD").splitlines()
              if p and not p.startswith(SKIP)]
+    only = tuple(x.strip() for x in a.only.split(",") if x.strip())
+    if only:
+        paths = [p for p in paths if p.startswith(only)]
     deleted = [p for p in paths if blob("HEAD", p) is None]
     paths = [p for p in paths if p not in deleted]
     day = dt.date.today().isoformat()
@@ -177,13 +183,14 @@ def main() -> int:
                 known.append(h(b))
         files.append({"path": p, "base_sha256": h(blob(base, p)), "new_sha256": h(blob("HEAD", p)),
                       "known_sha256": known})
-    files.append({"path": STAMP, "base_sha256": h(blob(base, STAMP)), "new_sha256": h(stamp_bytes),
-                  "always": True})
+    if not only:
+        files.append({"path": STAMP, "base_sha256": h(blob(base, STAMP)), "new_sha256": h(stamp_bytes),
+                      "always": True})
     # hotfix58 — 앞 꾸러미가 보냈다가 저장소가 없앤 파일 (기준판에도 HEAD 에도 없어 diff 에 안 잡힌다).
     # 우리가 보낸 판 그대로일 때만 지운다 — 회사에서 고친 판은 남기고 보고한다.
     gone = git("-c", "core.quotepath=off", "log", "--diff-filter=D", "--name-only", "--format=",
                f"{base}..HEAD").splitlines()
-    for p in sorted({g for g in gone if g and not g.startswith(SKIP)} | set(deleted)):
+    for p in sorted({g for g in gone if g and not g.startswith(SKIP) and (not only or g.startswith(only))} | set(deleted)):
         if blob("HEAD", p) is not None:
             continue
         known = []
@@ -258,7 +265,8 @@ def main() -> int:
     if bad or diff:
         print(bad, diff)
         return 1
-    BASE_FILE.write_text(head + "\n")
+    if not only:
+        BASE_FILE.write_text(head + "\n")
     return 0
 
 

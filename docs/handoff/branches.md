@@ -8,6 +8,7 @@
 | 3. Logic 검토코드 4 (NEW) | `ccr-cc45909d-fjjmrb` | 사용 중 · L85 까지 · 다음 L86 |
 | 4. PANEL 코드 (NEW) | `ccr-d82d97fa-bb3ty3` (`dashboard/apps/space`) | 판넬 화면 원본 · 0943667 까지 PID 에 옮겨 옴 (hotfix131) |
 | 1. DASHBOARD 코드 (NEW) | `ccr-248a5c4d-3dji7g` | 대시보드 본체 zip 은 여기서 |
+| VALVE Datasheet 검토 (NEW, 2026-10-31) | `ccr-efbe7e75-n915ze` | Ball Valve Datasheet 검토 (P&ID 서버 /valve) · 대시보드 메뉴 실행 프로젝트 › CO2 PJT › Datasheet › Ball Valve. PID · DASHBOARD 세션은 꾸러미 전에 이 브랜치를 병합 (`docs/handoff/valve.md`) |
 | 프로그램 시연 영상 | `ccr-ee7fd745-5z06vs` | |
 
 ## 은퇴한 브랜치 — 여기서 병합하지 않는다

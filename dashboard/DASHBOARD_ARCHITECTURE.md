@@ -1268,3 +1268,12 @@ C:\Users\SAMSUNG\Desktop\Claude\                         ← 개발 폴더 (여�
 - 바뀐 곳: dashboard.html `APP_VERSION` · `openEdit`(pjRec · wk · collect · data-nochg) · `afterSave`('checked' 문구) · `actCell` · CSS `.btn.nochg` `.wkst` `.by .chkd`.
 - 확인한 것: JS 문법. 임시 서버(2026-10-30.2 · 홍길동): '그린수소 실증' 편집 창 → '이번 주 아직 작성 안 함' + [✓ 변경 없음] · 업무 현황을 고친 채 누르면 '고친 내용이 있습니다' 물음 · 그대로 누르면 '✅ 완료' · 내 업무 미완료 → 완료 · 표에 '✓ 변경 없음 · 홍길동'. 콘솔 오류 없음.
 - 회사에서 확인할 것: 서버가 v2026-10-30.2 인지(왼쪽 아래) — 아니면 (38) 대로 server.py 갱신 + 재시작.
+
+### 2026-10-31 (VALVE 1) — 실행 프로젝트 › CO2 PJT › Datasheet › Ball Valve 메뉴 (APP_VERSION 2026-10-31.2 / SERVER_VERSION 그대로)
+> 서버 재시작 필요 없음 (server.py 그대로 · 권한은 기존 '실행 프로젝트(runpjt)'). 부서원 사본은 새 버전 배너로 교체.
+> 만든 곳: VALVE 세션 브랜치 `ccr-efbe7e75-n915ze` (docs/handoff/valve.md). DASHBOARD 세션은 다음 zip 전에 이 변경을 병합할 것.
+- 무엇을: 요청 "실행프로젝트 메뉴 하위로 CO2 PJT, 그 하위 Datasheet, 그 하위 Ball Valve 메뉴에 Valve Datasheet 검토 툴". 왼쪽 메뉴 '🏗 실행 프로젝트' 를 접기/펼치기 묶음으로 바꾸고 그 아래 폴더 두 단(CO2 PJT › Datasheet) · 잎 'Ball Valve'.
+  잎을 누르면 P&ID 서버(8000)의 `/valve/?embed=1&project=CO2 PJT&user=<본명>` 를 P&ID · LOGIC 과 같은 틀(본문 전체 iframe)로 띄운다. '🏗 실행 프로젝트' 자체를 누르면 예전처럼 준비 중 화면.
+- 바뀐 곳: dashboard.html `APP_VERSION` · `PID_ROUTES.valve` · `ROUTES`('valve') · `menuOf`(valve → runpjt 권한) · `NAV_LS`(runpjt · runpjt-co2 · runpjt-co2-ds 접힘 상태) · `renderMenu` 안 `fold` · `runTree` · `PZ_STATUS.valve`.
+- 확인한 것: JS 문법(node --check). 임시 폴더 서버(8780) + P&ID 서버(8000, VALVE 브랜치) → 비회원으로 메뉴 트리 · Ball Valve 클릭 → Valve 화면이 iframe 으로 열림(오류 0).
+- 회사에서 확인할 것: P&ID 서버에 VALVE 꾸러미(valve01)가 먼저 적용돼 있어야 화면이 열린다 (아니면 'P&ID 서버 … 확인' 안내). 메뉴 권한 표에서 '실행 프로젝트' 를 끈 사람은 이 메뉴도 안 보인다.
