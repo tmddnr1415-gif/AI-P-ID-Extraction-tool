@@ -346,13 +346,22 @@ def test_note_helpers():
     assert extract.process_reference([{"no": 1, "text": "Painting as per spec"}], {}) is None
 
 
-def test_process_reference_skips_process_missing():
+def test_blank_process_data_always_flagged():
+    """User request 2026-10-31: every blank PROCESS DATA item is marked, also when the sheet refers to a Process DS."""
     ds = _ds_for_issues()
-    ds["fields"].append({"key": "fluid", "value": "", "edited_value": None, "status": "blank", "page": 1, "bbox": [1, 15, 2, 16],
-                         "row": 12, "display": "Fluid"})
-    assert any(i["key"] == "fluid" for i in issues.compute(ds, {}))
+    ds["fields"] += [dict(key=k, value="", edited_value=None, status="blank", page=1, bbox=[1, 15 + n, 2, 16 + n], row=12 + n,
+                          display=d, section=sec) for n, (k, d, sec) in enumerate([("fluid", "Fluid", "process"), ("corrosive", "Corrosive", "special"),
+                          ("max_dp_closed", "Max. Diff. Pressure", "process"), ("flow.max", "Flow Rate (Max)", "process"),
+                          ("flow.nor", "Flow Rate (Nor)", "process"), ("flow.min", "Flow Rate (Min)", "process")])]
+    miss = {i["key"]: i for i in issues.compute(ds, {}) if i["type"] == "Data Missing"}
+    assert {"fluid", "corrosive", "max_dp_closed", "flow"} <= set(miss)              # Max/Nor/Min counted once
     ds["process_ref"] = {"doc": "03-02-PR-DTS-00002", "where": "Note 4"}
-    assert not any(i["key"] == "fluid" for i in issues.compute(ds, {}))
+    rows = [{"ds_key": "fluid", "pd": "SOUR WATER", "pd_unit": "", "result": "Referenced"}]
+    miss = {i["key"]: i for i in issues.compute(ds, {}, process_rows=rows) if i["type"] == "Data Missing"}
+    assert "fluid" in miss and "03-02-PR-DTS-00002" in miss["fluid"]["description"] and miss["fluid"]["expected"] == "SOUR WATER"
+    assert miss["fluid"]["bbox"] and miss["fluid"]["severity"] == "Major"
+    ds["fields"][-2]["value"] = "10"                                              # one case given -> the parameter is not missing
+    assert "flow" not in {i["key"] for i in issues.compute(ds, {}) if i["type"] == "Data Missing"}
 
 
 @pytest.mark.parametrize("a, b, want", [

@@ -300,3 +300,9 @@ C PMS 결과 · D 지적 · E 속도.  보고서(`report.md`)에는 고객 값�
 - 결과 6가지: Match · Mismatch(→ 지적) · Review Required · Referenced(Datasheet 가 Process DS 를 참조해 비워 둔 칸 — `process_ref`) · Not in Process Data · Datasheet Blank.
 - 실자료 결과: Datasheet 164 중 66 Tag 연결 · Match 215 · Mismatch 42 = Line No. 32(Class 코드 `1C0K8` ↔ `1C0KL-A`, 꼬리 `-5` ↔ `-N`) · P&ID 8 · Fail 위치 2(08SDV412A/B: Datasheet Close ↔ Process FO) · Review 2 · Referenced 749.
   모두 설계사에게 물을 실제 차이다 — 도구는 어느 쪽이 옳은지 정하지 않는다.
+
+### 13.1 빈 Process Data 는 전부 지적 (valve08, 사용자 결정)
+
+valve03 에서 'Process DS 를 참조하는 데이터시트의 빈 공정 칸' 748건을 오탐으로 보고 지적에서 뺐으나, 사용자가 **"없는 것은 전부 표기"** 로 정했다.
+이제 PROCESS DATA 블록의 빈 항목은 참조 여부와 관계없이 Data Missing(Major)이고, 설명에 참조 문서(예: 03-02-PR-DTS-00002, Note 7)를,
+Required/Expected 에 Process Data 표의 값(있으면)을 적는다. 실자료 2,529건(164 Tag, 평균 15). 읽기 지문은 그대로(바뀐 칸 0).

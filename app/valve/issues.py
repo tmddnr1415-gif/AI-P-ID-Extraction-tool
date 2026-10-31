@@ -2,7 +2,8 @@
 
 Rule-based only.  Every issue says what was checked against what:
 
-  Data Missing        required field present on the form but empty                     orange  Major (process fields: Minor)
+  Data Missing        required field present on the form but empty · every blank PROCESS DATA item
+                      (also when the sheet refers to a Process Data Sheet — the reference is named)   orange  Major
   Open Item           required field says HOLD / TBC / TBA                             orange  Minor
   Data Error          the sheet contradicts itself:                                   red     Major
                         · Line No. class '(1C0K8)' ≠ Piping class
@@ -31,6 +32,10 @@ REQUIRED = ["tag", "service", "pid_no", "line_no", "piping_class", "body_size", 
             "body_material", "ball_material", "stem_material", "seat_material", "act_type", "fail_position", "tightness",
             "leakage_class", "nace"]
 PROCESS_REQUIRED = ["fluid", "op_pressure", "design_pressure", "op_temp", "design_temp"]
+# every item printed in the PROCESS DATA block is checked for a value (user request 2026-10-31: all blank process
+# data must be marked, also when the sheet refers to a Process Data Sheet).  Section 'process' plus the process-row
+# items the On/Off form files under other sections; mechanical items (schema.NOT_PROCESS) never count.
+PROCESS_ROW_ITEMS = {"sour_service", "corrosive", "erosive", "toxic", "stroke_open", "stroke_closed", "stroke_time_s"}
 COLOR = {"Data Missing": "missing", "Open Item": "missing", "Data Error": "error", "PMS Non-Compliance": "error", "Process Mismatch": "process",
          "PMS Review": "error", "Revision Change": "revision", "Reviewer Correction": "comment",
          "Reviewer Comment": "comment", "Extraction Review": "extract"}
@@ -84,19 +89,41 @@ def compute(ds: dict, general_notes: dict | None = None, pms: dict | None = None
     if pref is None:                                         # stored datasheets from before valve03: look again
         from app.valve.extract import process_reference
         pref = process_reference(ds.get("notes"), general_notes)
-    for k in REQUIRED + PROCESS_REQUIRED:
+    for k in REQUIRED:
         f = F.get(k)
         if not f:
             continue                                         # not on this form: cannot be missing from it
         v = _v(f)
-        proc = k in PROCESS_REQUIRED
-        if proc and pref and not v.strip():
-            continue                                         # blank on purpose: 'For Process data refer to …' (Phase 3 checks it)
         if not v.strip():
-            add("Data Missing", k, f"{f.get('display') or k}: no value given" +
-                (" (check whether the Process Data Sheet is referenced)" if proc else ""), severity="Minor" if proc else "Major")
+            add("Data Missing", k, f"{f.get('display') or k}: no value given")
         elif _OPEN.match(v):
             add("Open Item", k, f"{f.get('display') or k} is still '{v}'")
+    # process data — every blank item of the PROCESS DATA block (a Max/Nor/Min parameter counts once, when all cases are blank)
+    pd_val = {}
+    for r in process_rows or []:
+        if r.get("pd") and r.get("ds_key"):
+            pd_val[r["ds_key"].split(".")[0]] = f"{r['pd']} {r.get('pd_unit') or ''}".strip()
+    groups = {}
+    for f in ds["fields"]:
+        k = f["key"]
+        base = k.rsplit(".", 1)[0] if k.endswith((".max", ".nor", ".min")) else k
+        if (f.get("section") == "process" or base in PROCESS_ROW_ITEMS) and base not in schema.NOT_PROCESS:
+            groups.setdefault(base, []).append(f)
+    has_open_closed = "stroke_open" in groups or "stroke_closed" in groups
+    for base, fs in groups.items():
+        if base == "stroke_time_s" and has_open_closed:
+            continue                                         # the row caption; its Open / Closed cells are checked
+        vals = [_v(f) for f in fs]
+        if any(v.strip() for v in vals):
+            if len(fs) == 1 and _OPEN.match(vals[0]):
+                add("Open Item", base, f"{fs[0].get('display') or base} is still '{vals[0]}'", f=fs[0])
+            continue
+        f0 = next((f for f in fs if f["key"].endswith(".nor")), fs[0])
+        disp = (f0.get("display") or base).replace(" (Nor)", "")
+        why = f"{disp}: no value given" + (" (Max / Nor / Min all blank)" if len(fs) > 1 else "")
+        if pref:
+            why += f" — datasheet refers to Process Data Sheet {pref.get('doc') or ''} ({pref.get('where', '')}); state the value or confirm".replace("  ", " ")
+        add("Data Missing", base, why, expected=pd_val.get(base, ""), f=dict(f0, display=disp), severity="Major")
 
     line, pc = _v(F.get("line_no")), _v(F.get("piping_class"))
     m = re.search(r"\(([0-9A-Z][0-9A-Z\-]{2,9})\)", line)

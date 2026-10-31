@@ -52,3 +52,8 @@
 - P1~P6: 대시보드 5×2 + Issues by Category + KPI 필터 이동 · 목록 ↑/↓/Enter · Revision 같이 움직이기 + 비교 Excel · PMS 안내 · 내보내기 묶음/확인/상태 · Settings 단축키.
 - P5 실제: `app/valve/process.py`(괘선 열 띠 · 단위 · 기준 규칙) — 68 Tag · Mismatch 42 · 지적 'Process Mismatch'. MOCK 제거.
 - 회귀: pytest 38 · 전체 통과 · eval --check 불변 · diff_sim 0 · ui_audit 22/22 · 1920/1600/1366 캡처(out/ui_before · ui_after, 저장소 밖).
+
+## 2026-10-31 · valve08 — 빈 Process Data 항목 전부 지적 (브랜치 ccr-efbe7e75-n915ze)
+- 요청: Process Data 가 없는 것은 전부 표기. (valve03 의 'Process DS 참조면 제외' 를 사용자가 뒤집음)
+- issues.py: PROCESS DATA 블록 전 항목(section process + Sour/Corrosive/Erosive/Toxic/Stroke) · Max/Nor/Min 은 셋 다 비면 한 건 · 참조 문서 명시 · Process Data 값을 Expected 로.
+- 실자료 Data Missing 0 → 2,529 (164 Tag). 읽기 지문 불변(바뀐 칸 0). 시험 38개(옛 'skips' 시험을 새 규칙으로 바꿈). 기준값 다시 저장.
