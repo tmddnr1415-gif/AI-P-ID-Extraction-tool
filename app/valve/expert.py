@@ -315,9 +315,15 @@ def peer_findings(F: dict, val, peers: dict | None) -> list[dict]:
         n = sum(x for x in others.values() if x > 0)
         if n < PEER_MIN:
             continue
-        top, tn = max(((vk, x) for vk, x in others.items() if x > 0), key=lambda t: t[1])
+        ranked = sorted(((vk, x) for vk, x in others.items() if x > 0), key=lambda t: -t[1])
+        top, tn = ranked[0]
         ex = peers["example"][((k, cls), top)]
-        if tn / n < PEER_SHARE or top == mine or material.same(ex, v) or material.equivalent(ex, v) or _toks(ex) <= _toks(v):
+        for vk, x in ranked[1:]:                               # 'CF8M/CF3M' and 'CF8M' are the same majority, not two camps
+            e2 = peers["example"][((k, cls), vk)]
+            if material.equivalent(ex, e2) or _toks(e2) <= _toks(ex) or _toks(ex) <= _toks(e2):
+                tn += x
+        if tn / n < PEER_SHARE or top == mine or material.same(ex, v) or material.equivalent(ex, v) or _toks(ex) <= _toks(v) \
+                or material.compare(ex, v)[0] == material.COMPLIANT:            # 'ASTM A351 CF8M' is the peers' 316/316L CF8M/CF3M, said shorter
             continue                                           # same, or this one only says more ('PEEK with F316L backing')
         f = F[k]
         kb = knowledge.get("peer")

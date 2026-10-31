@@ -284,7 +284,7 @@ async def _startup_warm():
     threading.Thread(target=warm_all, daemon=True, name="valve-warm-all").start()
 
 
-VERSION = "valve20"                       # shown in Settings › 정보 and the footer; bump with every package
+VERSION = "valve21"                       # shown in Settings › 정보 and the footer; bump with every package
 
 
 @router.get("/api/valve/version")
@@ -969,10 +969,10 @@ def grid(pid: int):
     ver = _profile_ver(con, pid) + (store.one(con, "SELECT MAX(id) m FROM audit WHERE project_id=? AND action='status'", pid)["m"],)
     hit = _GRID_CACHE.get(pid)
     if hit and hit[0] == ver:
-        return hit[1]
-    out = _grid(con, pid)
-    _GRID_CACHE[pid] = (ver, out)
-    return out
+        return Response(hit[1], media_type="application/json")   # a NEW Response each time: middleware mutates response headers
+    body = json.dumps(_grid(con, pid), ensure_ascii=False, default=str)
+    _GRID_CACHE[pid] = (ver, body)
+    return Response(body, media_type="application/json")
 
 
 _GRID_CACHE: dict[int, tuple] = {}
@@ -983,7 +983,7 @@ def _grid(con, pid):
     latest = _latest(store.rows(con, "SELECT id, tag_key, rev FROM datasheet WHERE project_id=?", pid))
     ids = [d["id"] for d in latest.values()]
     if not ids:
-        return _json({"columns": [], "rows": []})
+        return {"columns": [], "rows": []}
     q = ",".join("?" * len(ids))
     meta = {d["id"]: d for d in store.rows(con, f"SELECT id, tag, tag_key, valve_type, rev, doc_no, review_status, pages,"
                                                 f" document_id FROM datasheet WHERE id IN ({q})", *ids)}
@@ -1015,7 +1015,7 @@ def _grid(con, pid):
     rows_.sort(key=lambda r: r["tag"])
     cols = [{"key": k, "title": "Valve Type" if k == "valve_type" else disp.get(k, k)} for k in GRID_KEYS
             if k == "valve_type" or k in disp]
-    return _json({"columns": cols, "rows": rows_})
+    return {"columns": cols, "rows": rows_}
 
 
 # ── marked-up PDF (annotations on a copy — the original is never written) ───────

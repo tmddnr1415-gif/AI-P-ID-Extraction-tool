@@ -881,3 +881,39 @@ def test_sim_found_defects_fixed():
     assert any(m["rule"] == "VR-09" for m in expert.review(ds2, {}, cls2, [{"key": "fluid", "pd": "NITROGEN", "pd_unit": ""}]))
     ds2["fields"][0]["value"] = "26 in"
     assert not any(m["rule"] == "VR-09" for m in expert.review(ds2, {}, cls2, [{"key": "fluid", "pd": "NITROGEN", "pd_unit": ""}]))
+
+
+def test_sim_round2_defects_fixed():
+    """Round-2 simulation finds: (1) PMS Fire Safe row called 'HOLD (… API 607 …)' Compliant — it is not answered yet;
+    (2) peer majority split by spelling ('CF8M/CF3M' 32 vs 'CF8M' 9) hid a WCB outlier in an all-316 class."""
+    from app.valve import expert
+    P = {"areas": {"QN": {"X": {"code": "X", "area": "QN", "facing": "RAISED FACE", "rating": 150, "material": "STAINLESS STEEL", "header_page": 1,
+                                "items": [{"code": "PVB1", "from": 0.5, "to": 24.0, "branch": None, "kind": "BALL VALVE", "page": 1, "bbox": [0, 0, 1, 1],
+                                           "desc": "BALL VALVE, 316/316L SS A351-CF8M/CF3M, CL150, RF, FLOATING, FULL PORT, 316 SS BALL/STEM, RTFE ST, FIRE TESTED TO API 607"}]}}}}
+    F = {k: {"value": v, "page": 1, "bbox": [0, 0, 1, 1]} for k, v in {"piping_class": "X", "body_size": '2"', "body_type": "Ball (Full Bore) - Floating",
+                                                                      "rating": "150#", "fire_safe": "HOLD (in accordance with API 607/ API 6FA)"}.items()}
+    rows = {r["item"]: r for r in pms.check(F, P, "QN")}
+    assert rows["Fire Safe"]["result"] == material.REVIEW and "HOLD" in rows["Fire Safe"]["reason"]
+    F["fire_safe"]["value"] = "Yes (API 607)"
+    assert {r["item"]: r for r in pms.check(F, P, "QN")}["Fire Safe"]["result"] == material.COMPLIANT
+    peers = expert.build_peers([{"tag": f"T{i}", "fields": {"piping_class": "XC0K8", "body_material": "316/316L SS A351-CF8M/CF3M" if i < 7 else "316/316L SS A351-CF8M"}}
+                                for i in range(10)])
+    f = lambda k, v: {"key": k, "value": v, "edited_value": None, "page": 1, "bbox": [1, 1, 2, 2], "row": 24, "display": k}  # noqa: E731
+    got = [m for m in expert.review({"fields": [f("piping_class", "XC0K8"), f("body_material", "CS A216-WCB")], "notes": []}, peers=peers) if m["rule"] == "PC-01"]
+    assert got and "10 of 10" in got[0]["comment"]                              # the two 316 spellings count as one majority
+    assert not [m for m in expert.review({"fields": [f("piping_class", "XC0K8"), f("body_material", "ASTM A351 CF8M")], "notes": []}, peers=peers)
+                if m["rule"] == "PC-01"]                                        # a third spelling of the same material is no outlier
+
+
+def test_mutation_replay_gate():
+    """Real-data mutation replay (spike/valve_mutate.py): one change → only the right findings move.  Needs the client
+    files (skipped elsewhere); on the dev box every mutation × datasheet must pass."""
+    import importlib.util
+    if not (Path("/tmp/ds_cache.pkl").exists() and Path("/tmp/ext/pms_now.json").exists()):
+        pytest.skip("real extraction cache not present")
+    spec = importlib.util.spec_from_file_location("valve_mutate", Path(__file__).parents[1] / "spike" / "valve_mutate.py")
+    vm = importlib.util.module_from_spec(spec); spec.loader.exec_module(vm)
+    res, dss, P, PD = vm.load("/tmp/ds_cache.pkl", "/tmp/ext/pms_now.json", "/tmp/ext/pd/Process_Data.pdf")
+    out = vm.replay(res, dss[::4], P, PD, ["seat_peek", "body_wcb", "esdv_fail_open", "tag_prefix_99", "conn_rf_rtj"], quiet=True)
+    bad = {k: v for k, v in out["stats"].items() if v[0] != v[1]}
+    assert not bad, {k: out["examples"][k][:2] for k in bad}

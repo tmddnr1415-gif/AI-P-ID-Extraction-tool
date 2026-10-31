@@ -456,6 +456,7 @@ function renderDash() {
     </div>`;
 }
 document.addEventListener('click', e => {
+  const rt = e.target.closest('[data-retry]'); if (rt) { S.grid = null; S.issues = null; go(rt.dataset.retry); return; }
   const g = e.target.closest('[data-go]'); if (g && !e.target.closest('.tbar')) {
     const [v, m, f, ar] = g.dataset.go.split(':'); if (m) G.mode = m;
     if (v === 'list' && m === 'issues') { IF.type = f || ''; IF.st = ''; IF.area = ar || ''; }
@@ -562,7 +563,8 @@ const lpWrap = inner => `<div class="lp"><div class="lp-left">${inner}</div><div
 async function renderList() {
   const el = $('#v-list');
   if (G.mode === 'issues') return renderIssues();
-  if (!S.grid) { el.innerHTML = '<div class="empty">불러오는 중…</div>'; S.grid = await api('GET', `/projects/${S.pid}/grid`); }
+  if (!S.grid) { el.innerHTML = '<div class="empty">불러오는 중…</div>'; try { S.grid = await api('GET', `/projects/${S.pid}/grid`); } catch (e) { S.grid = null; el.innerHTML = `<div class="empty">목록을 불러오지 못했습니다 — ${esc(e.message)}<br><button data-retry="list">다시 시도</button></div>`; return; } }
+  if (!S.grid?.columns) { S.grid = null; el.innerHTML = '<div class="empty">목록 응답이 비었습니다 <button data-retry="list">다시 시도</button></div>'; return; }
   const base = [{ key: 'tag', title: 'Tag Number', w: 120 }, { key: 'area', title: 'Area', w: 76 }, { key: 'unit', title: 'Unit', w: 46 }, { key: 'valve_type', title: 'Valve Type', w: 80 }, { key: 'rev', title: 'Rev.', w: 50 },
     { key: 'status', title: 'Review Status', w: 110 }, { key: 'doc_no', title: 'DS Document No.', w: 150 }];
   const all = base.concat(S.grid.columns.filter(c => c.key !== 'valve_type').map(c => ({ key: c.key, title: c.title, w: 130 }))).concat([{ key: 'notes', title: 'Notes', w: 60 }]);

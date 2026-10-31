@@ -128,3 +128,8 @@
 - UI: 그룹 이슈 카드 · 한 줄 탭 · '?' 도움말 · 8 타일 · idle 표 렌더(Issue List 6.1→2.2 s @990) · 오류 토스트 · 버전 · DB 백업.
 - 시뮬레이션 `spike/valve_sim.py`: 3,000건 recall .955/precision .906 → 10,000건 1.000/1.000 · 퍼즈 0 예외. 결함 6건 수정(R-PTFE · METAL/NYLON · LTCS · MR-03 · MR-13 · VR-09). 실자료 VR-09 2→20(진짜).
 - 시험 48 · ui_audit 22/22 · 기준값 저장.
+
+## 2026-10-31 · valve21 — 실자료 변이 재생 · 캐시 결함 · Area/Unit 화면 (브랜치 ccr-efbe7e75-n915ze)
+- 시뮬레이션 2차: oracle 55 규칙 · `valve_mutate.py` 실자료 164 × 14 변이 87.8 % → 100 %. 결함: PMS Fire Safe 'HOLD(API 607)' Compliant → Review · 동료 다수 표기 분열 · NACE NA → Review.
+- 화면: Grid 캐시 Response 재사용 → gzip 헤더 변조로 Valve List 멈춤(실제 결함) 수정 + 시험. Area/Unit 열·필터·머리·By Area 카드. Expert Note 접힘. 다시 시도 단추.
+- 실측: 다음 Tag 55 ms · 쪽 130 ms. eval: PMS Fire Safe 10 Compliant→Review(의도) · 지문 불변 · 기준값 저장. 시험 50+1 · ui_audit 22/22.

@@ -45,7 +45,7 @@
   "Stem Material|Compliant": 151,
   "Body Material|Compliant": 142,
   "Seat Material|Compliant": 144,
-  "Fire Safe|Compliant": 10,
+  "Fire Safe|Review Required": 10,
   "Piping Material Class|Review Required": 8,
   "Bore|Review Required": 28,
   "Piping Material Class|Not Defined in PMS": 13,
@@ -56,7 +56,7 @@
   "Open Item|Major": 84,
   "Data Missing|Major": 2529,
   "Data Error|Major": 6,
-  "PMS Review|Minor": 58,
+  "PMS Review|Minor": 68,
   "Extraction Review|Internal": 1
  },
  "F": {
@@ -86,12 +86,12 @@
   "MR-08|Note": 4
  },
  "E": {
-  "extract_s": 13.09,
-  "extract_ms_per_page": 28.7,
-  "pms_read_s": 1.78,
-  "issues_ms_per_ds": 1.0,
+  "extract_s": 15.49,
+  "extract_ms_per_page": 34.0,
+  "pms_read_s": 2.08,
+  "issues_ms_per_ds": 1.4,
   "issue_xlsx_s": 10.86,
-  "markup_s_per_ds": 0.069,
+  "markup_s_per_ds": 0.08,
   "markup_kb_per_ds": 22.3
  }
 }

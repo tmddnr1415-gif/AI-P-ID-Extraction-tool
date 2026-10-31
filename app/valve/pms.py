@@ -256,8 +256,10 @@ def check(fields: dict, pms: dict, area: str = "", notes: list | None = None) ->
                 f"Datasheet note {nn['no']} requires NACE", c.get("header_page"), None)
             nv = None
     if c.get("nace") and nv is not None:
-        res = material.COMPLIANT if nv.startswith("Y") else material.NON if nv.startswith("N") else material.REVIEW
-        add("NACE", "nace", c["nace"], val("nace"), res, "PMS class requires NACE" if res != material.COMPLIANT else "Matches",
+        na = bool(re.match(r"\s*(NA|N/A|NOT\s+APPLICABLE)\b", nv))
+        res = material.COMPLIANT if nv.startswith("Y") else material.REVIEW if na else material.NON if nv.startswith("N") else material.REVIEW
+        add("NACE", "nace", c["nace"], val("nace"), res,
+            "Matches" if res == material.COMPLIANT else "Datasheet says N/A but the PMS class requires NACE — confirm" if na else "PMS class requires NACE",
             c.get("header_page"), None)
     # trim (ball/stem): the ball valve item's own 'X BALL/STEM' governs; the class header's general trim
     # (e.g. 'TRIM 8 (13CR/HF)', written for gate/globe valves) is only the fallback when no item says it
@@ -287,9 +289,13 @@ def check(fields: dict, pms: dict, area: str = "", notes: list | None = None) ->
         add("Seat Material", "seat_material", f["seat"], val("seat_material"), res, why, pg, bb)
     if f["fire"] and val("fire_safe"):
         fv = val("fire_safe").upper()
-        res = material.NON if fv.startswith(("NO", "NOT")) else material.COMPLIANT if fv.startswith(("YES", "REQ")) or "607" in fv \
-            else material.REVIEW
-        add("Fire Safe", "fire_safe", f["fire"], val("fire_safe"), res, "PMS item requires fire test", pg, bb)
+        if re.match(r"\s*(HOLD|TBC|TBA|VTA)\b", fv):            # 'HOLD (in accordance with API 607)' is not an answer yet
+            res, why = material.REVIEW, "Datasheet fire-safe is on HOLD / TBC — PMS item requires fire test"
+        else:
+            res = material.NON if fv.startswith(("NO", "NOT")) else material.COMPLIANT if fv.startswith(("YES", "REQ")) or "607" in fv \
+                else material.REVIEW
+            why = "PMS item requires fire test"
+        add("Fire Safe", "fire_safe", f["fire"], val("fire_safe"), res, why, pg, bb)
     if want_bore and f["bore"] and f["bore"] != want_bore:
         add("Bore", "body_type", f["bore"] + " PORT", val("body_type"), material.REVIEW, "No PMS item with this bore for this size", pg, bb)
     return rows

@@ -469,3 +469,16 @@ Note 113 · PC-01 Confirm 6(3C0K8 의 '316 SS/FHF' 2개 · API5L-X65 MOV 1500# �
   고친 결함: `R-PTFE` 토큰(실자료 41건이 이 표기) · METAL/NYLON 시트 계열 · LCC/LF2 = LTCS · MR-03 2점 P-T 표(XC0K8) · MR-13 HOLD 제외 · VR-09 크기에 맞는 PMS 품목만.
   실자료 영향: MR-13 Note 11 → 0 · VR-09 Confirm 2 → 20(Fire Safe 빈칸인데 PMS 품목은 Fire tested — 실제 확인 거리). 읽기 지문 불변.
 - 시험 게이트 `test_simulation_gate`(400건 seed 7: 예외 0 · recall/precision ≥ 0.99). 한계: oracle 이 엔진과 같은 손잡이에서 나오므로 "규칙이 의도대로 동작한다" 를 재는 것이지 "규칙이 옳다" 를 재지는 않는다 — 규칙의 옳음은 회사 엔지니어 확인(§14.3 · §15 표).
+
+## 25. 두 번째 시뮬레이션 — 실자료 변이 재생 · 그리드 캐시 결함 (valve21)
+
+- `spike/valve_mutate.py`: 실자료 164 데이터시트마다 엔지니어가 알아보는 단일 변이 14가지(시트 PEEK/메탈 · 설계온도 +80 °C · 본체 WCB · RF↔RTJ · 300# · 10″ Floating · ESDV Fail Open · HOLD · 필수 칸 비움 ·
+  Tag 접두 99 · Tag 중복 · Fugitive Note 제거 · 엘라스토머 씰)를 넣고 **지적의 변화가 정확히 기대한 집합인지** 대조. 1,839건 87.8 % → **100 %**.
+  고친 결함: PMS Fire Safe 가 'HOLD (… API 607 …)' 를 "607" 때문에 Compliant 로(→ Review) · 동료 다수가 표기('CF8M/CF3M' 32 vs 'CF8M' 9)로 갈려 WCB 본체를 못 잡음(→ 같은 뜻은 합침).
+  oracle 도 55 규칙으로 넓힘(VR-08/10/14/15 · MR-12 · TG-02/03 · PMS Trim/Stem/NACE/Fire · Data Error op>design · Fail↔Air failure). 합성 3,000 × 2 seed: 1.000/1.000.
+- PMS NACE 'NA'(해당 없음)는 NACE 요구 Class 에서 Non-Compliant 가 아니라 **Review**("N/A 라고 썼지만 Class 는 NACE 요구 — 확인"). 실자료 영향 없음.
+- 실자료 영향: PMS Fire Safe Compliant 10 → Review 10(HOLD 인 Fire Safe) · PMS Review 58 → 68. 읽기 지문 불변.
+- 화면 결함: Grid 캐시가 `Response` 객체를 저장 → gzip 미들웨어가 헤더를 제자리에서 바꿔 두 번째 요청이 `ERR_CONTENT_LENGTH_MISMATCH`, Valve List 가 '불러오는 중…' 에 멈춤.
+  바이트를 저장하고 매번 새 Response(`tests/test_valve_api_cache.py` 가 gzip 아래에서 두 번 요청). 목록 실패 시 '다시 시도' 단추.
+- Area · Unit 을 화면에: Valve List 열(필터) · Issue List Area 선택 · 작업대 머리 · 대시보드 'By Area' 카드(`summary.by_area`). Expert 탭 Note 는 접힌 채 시작.
+- 검토자 동작 실측(164 DS): 다음 Tag 55 ms · 쪽 넘김 130 ms · 상태 변경 즉시 · 목록 필터 < 0.5 s.

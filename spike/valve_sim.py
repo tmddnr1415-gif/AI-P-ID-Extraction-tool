@@ -11,6 +11,7 @@ A fuzz pass feeds garbage (None · empty · unicode · huge numbers · wrong uni
 """
 from __future__ import annotations
 
+import re
 import argparse
 import collections
 import random
@@ -80,8 +81,10 @@ def gen_case(rng: random.Random, i: int) -> dict:
     unit = "98" if area != "Brownfield" else rng.choice(["09", "19", "84"])
     func = rng.choice(FUNCS)
     loop = rng.choice([f"98{rint(rng, 0, 4)}{rint(rng, 0, 9):02d}{rint(rng, 1, 9)}", f"{rint(rng, 100, 999)}"])
-    tag_raw = f"{unit}{func} {loop}" if area != "South" else f"{unit}{func} -{loop}"
-    tag_key = f"{unit}{func}{loop}"
+    pre = "99" if (rng.random() < 0.05) else unit
+    prefix_dev = pre != unit
+    tag_raw = f"{pre}{func} {loop}" if area != "South" else f"{pre}{func} -{loop}"
+    tag_key = f"{pre}{func}{loop}"
     fluid = rng.choice(FLUIDS)
     co2 = fluid == "CO2"
     sour = fluid in ("SOUR WATER", "AMINE") or rng.random() < 0.3
@@ -122,6 +125,13 @@ def gen_case(rng: random.Random, i: int) -> dict:
     dup_tag = rng.random() < 0.05
     peer_body = rng.choice(BODY_SS)
     peer_outlier = rng.random() < 0.15
+    seatcfg = rng.random() < 0.3                                            # note states SPE/DPE + cavity relief
+    phase = rng.choice(["Vapor", "Vapor", "Liquid", "Mixed"])               # Process Data fluid phase
+    erosive = rng.choice(["No", "No", "No", "Yes"])
+    act_sf = rng.choice(["1.5 times the valve torque", "1.25 Times", "1.1 times the valve torque", "2.0 x"])
+    seal = rng.choice(["Graphite (VTA)", "Graphite (VTA)", "FKM O-ring (RGD tested)", "Viton"])
+    op_gt = rng.random() < 0.05                                             # operating pressure above design
+    af_contra = rng.random() < 0.05                                         # air-failure action contradicts fail position
 
     nace_req = nace_cls or nace_val.startswith("Y") or sour
     # ---- fields
@@ -143,12 +153,13 @@ def gen_case(rng: random.Random, i: int) -> dict:
     F("fluid", "" if blank_proc else fluid, 12, "Fluid", "process")
     F("sour_service", "Yes" if sour and not blank_proc else "", 12, "Sour service", "process")
     F("fluid_state", "" if blank_proc else rng.choice(["Liquid", "Gas/Vapor", "Vapor"]), 13, "Fluid State", "process")
-    F("op_pressure", "" if blank_proc else str(dp - 1), 14, "Operating Pressure", "process", "barg")
+    F("op_pressure", "" if blank_proc else str(dp + 5 if op_gt else dp - 1), 14, "Operating Pressure", "process", "barg")
     F("design_pressure", "" if blank_proc else str(dp), 14, "Design Pressure", "process", "barg")
     F("op_temp", "" if blank_proc else str(dt - 20), 15, "Operating Temp.", "process", "°C")
     F("design_temp", "" if blank_proc else str(dt), 15, "Design Temperature", "process", "°C")
     F("fail_position", fail, 17, "Valve fail safe position")
-    F("air_failure", {"Close": "Fail Close", "Open": "Fail Open", "Last": "NA"}[fail], 17, "Action on Air Failure")
+    F("air_failure", {"Close": "Fail Open" if af_contra else "Fail Close", "Open": "Fail Close" if af_contra else "Fail Open", "Last": "NA"}[fail], 17, "Action on Air Failure")
+    F("erosive", "" if blank_proc else erosive, 13, "Erosive", "process")
     F("body_size", size, 21, "Body Size")
     F("body_type", f"Ball ({bore}) - {vtype}", 21, "Body Type")
     F("connections", connections, 22, "Connections")
@@ -158,7 +169,7 @@ def gen_case(rng: random.Random, i: int) -> dict:
     F("body_material", body, 24, "Body material")
     F("ball_material", ball, 25, "Ball / Disc (Trim) Material")
     F("seat_material", seat, 26, "Seat Material")
-    F("seal_material", "Graphite (VTA)", 26, "Seal Material")
+    F("seal_material", seal, 26, "Seal Material")
     F("stem_material", stem, 27, "Stem Material")
     F("bolting_gasket", "Note-1", 28, "Bolting / Gasket")
     F("packing_material", "Graphite (VTA)", 30, "Packing material")
@@ -167,12 +178,12 @@ def gen_case(rng: random.Random, i: int) -> dict:
     F("sil", sil, 33, "SIL Requirement")
     F("act_spring", "Required / SS 316 (VTA)" if fail != "Last" or rng.random() < 0.3 else "Not Required", 40, "Spring")
     F("piggable", pig, 12, "Piggable")
-    F("act_safety_factor", "1.5 times the valve torque", 41, "Actuator safety factor")
+    F("act_safety_factor", act_sf, 41, "Actuator safety factor")
     notes = [{"no": 1, "text": BOLT_NOTES[bolt], "page": 2, "bbox": None},
              {"no": 3, "text": "Body, Bonnet Stem and Trim parts shall be EN10204 of certification type 3.2.", "page": 2, "bbox": None}]
     if ext_stem and "Cold" in ins:
         notes.append({"no": 5, "text": "Extended stem / bonnet shall be provided for cold insulated valves.", "page": 2, "bbox": None})
-    if rng.random() < 0.3:
+    if seatcfg:
         notes.append({"no": 6, "text": "Seat configuration: DPE with cavity relief as per API 6D.", "page": 2, "bbox": None})
     gn = {str(n): GN_POOL[k] for n, k in enumerate(sorted(gn_keys), start=20)}
     ds = {"id": i, "tag": tag_raw, "tag_key": tag_key, "doc_no": f"{unit}-51-IN-DTS-00002", "rev": "0", "valve_type": func,
@@ -207,7 +218,7 @@ def gen_case(rng: random.Random, i: int) -> dict:
     pd_fluid = fluid if rng.random() < 0.9 else "RELF GAS FR X"
     pd_vals = {"fluid": {"v": pd_fluid, "unit": ""}, "design_temp": {"v": f"{dt:.2f}", "unit": "°C"}, "design_pressure": {"v": f"{dp:.2f}", "unit": "bar(g)"},
                "op_pressure": {"v": f"{dp - 1:.2f}", "unit": "bar(g)"}, "fail_position": {"v": {"Close": "FC", "Open": "FO", "Last": "FL"}[fail], "unit": ""},
-               "fluid_state": {"v": "Vapor", "unit": ""}, "remarks": {"v": "Toxic, Corrosive and sour service, FV" if sour else "", "unit": ""}}
+               "fluid_state": {"v": phase, "unit": ""}, "remarks": {"v": "Toxic, Corrosive and sour service, FV" if sour else "", "unit": ""}}
     pd_row = {"sr": 1, "tag": tag_raw, "page": 12, "values": pd_vals}
     pdoc = {"doc_no": "98-98-PR-DTS-00023", "by_tag": {tag_key: pd_row}, "rows": [pd_row], "n_tags": 1}
     # ---- peers (same class, 8 others)
@@ -269,7 +280,10 @@ def gen_case(rng: random.Random, i: int) -> dict:
         E["MR-11"] = "Confirm"
     elif bolt == "B7M":
         E["MR-11"] = "Note"
-    if co2 and "rgd" in gn_keys:
+    elastomer_seal = any(x in seal.upper() for x in ("FKM", "VITON", "O-RING"))
+    if co2 and elastomer_seal:
+        E["MR-12"] = "Confirm"
+    elif co2 and "rgd" in gn_keys:
         E["MR-12"] = "Note"
     if soft and fire.upper().startswith(("Y", "REQ")):
         E["MR-13"] = "Note"
@@ -307,6 +321,14 @@ def gen_case(rng: random.Random, i: int) -> dict:
     flammable = pd_fluid in ("HYDROCARBON", "SOUR WATER", "AMINE", "RELIEF GAS", "PROPANE REFRIGERANT", "FUEL GAS", "RELF GAS FR X") or sour
     if fire == "" and (flammable or (pms_fire and item_fits)):
         E["VR-09"] = "Confirm"                                           # blank fire-safe where service or PMS item asks for it
+    if "antistatic" not in gn_keys:
+        E["VR-08"] = "Note"                                                  # neither anti-static nor blow-out stated anywhere
+    if vtype == "Trunnion" and not seatcfg:
+        E["VR-10"] = "Confirm" if (phase in ("Liquid", "Mixed") or (pd_fluid == "CO2" and dp >= 74)) else "Note"
+    if erosive == "Yes" and not blank_proc and soft:
+        E["VR-14"] = "Confirm"
+    if act_sf.startswith("1.1"):
+        E["VR-15"] = "Confirm"
     if "Cold" in ins and not ext_stem:
         E["VR-11"] = "Confirm"
     if pig == "Yes" and bore == "Reduced Bore":
@@ -317,7 +339,8 @@ def gen_case(rng: random.Random, i: int) -> dict:
             del E["VR-13"]
     peer_seat_diff = not seat.upper().startswith(("RTFE", "R-PTFE"))
     peer_body_diff = peer_outlier or not (material.same(peer_body, body) or material.equivalent(peer_body, body)
-                                          or expert._toks(peer_body) <= expert._toks(body))
+                                          or expert._toks(peer_body) <= expert._toks(body)
+                                          or material.compare(peer_body, body)[0] == material.COMPLIANT)   # 'A351 CF8M' = the peers' 316 CF8M/CF3M
     if peer_seat_diff or peer_body_diff:
         E["PC-01"] = "Confirm"
     # tags
@@ -325,6 +348,13 @@ def gen_case(rng: random.Random, i: int) -> dict:
         E["TG-04"] = "Action"
     if func in ("ESDV", "SDV") and fail == "Open" or func == "BDV" and fail == "Close":
         E["TG-05"] = "Confirm"
+    if prefix_dev:
+        E["TG-02"] = "Confirm"                                               # learned: prefix = Unit (8 peers); this one says 99
+    if area != "South":
+        if len(loop) != 6 or not loop.startswith("980"):
+            E["TG-03"] = "Confirm"                                           # peers: 980nnn
+    elif len(loop) != 3:
+        E["TG-03"] = "Confirm"                                               # South peers: -nnn
     # issues
     if hold_field or fire.startswith("HOLD"):
         E["Open Item"] = True
@@ -332,6 +362,10 @@ def gen_case(rng: random.Random, i: int) -> dict:
         E["Data Missing"] = True
     if line_cls != cls_code:
         E["Data Error:piping_class"] = True
+    if op_gt and not blank_proc:
+        E["Data Error:op_pressure"] = True
+    if af_contra and fail != "Last":
+        E["Data Error:air_failure"] = True
     # requirements
     if nace_val.strip() or "NACE" in BOLT_NOTES[bolt]:                      # the row (any value, via its label) or the bolting note
         E["req:nace"] = True
@@ -344,7 +378,22 @@ def gen_case(rng: random.Random, i: int) -> dict:
         E["req:sil"] = True
     # pms check
     E["pms:Pressure Class"] = material.COMPLIANT
+    if nace_cls:                                                             # class requires NACE: row Yes / N(o|A) / blank
+        nn = "NACE MR0175" in BOLT_NOTES[bolt]
+        E["pms:NACE"] = (material.COMPLIANT if nace_val.startswith("Y") else material.REVIEW if re.match(r"\s*(NA|N/A)\b", nace_val)
+                         else material.NON if nace_val.startswith("N")
+                         else material.COMPLIANT if nn else material.REVIEW)
+    for key, v in (("Trim (Ball) Material", ball), ("Stem Material", stem)):
+        u = v.upper()
+        if item_fits:                                                        # the ball item says '316 SS BALL/STEM'
+            E[f"pms:{key}"] = (material.NON if u.startswith("17-4PH") else material.REVIEW if "F316L" in u and "316 SS" not in u
+                               else material.COMPLIANT)
+        else:                                                                # no item for 26 in: class header 'TRIM 12 (316 SS/HF)' is the fallback
+            E[f"pms:{key}"] = material.compare("316 SS/HF", v)[0]
     if item_fits:
+        if pms_fire and fire.strip():
+            E["pms:Fire Safe"] = (material.NON if fire.upper().startswith(("NO", "NOT")) else material.REVIEW if fire.startswith("HOLD")
+                                  else material.COMPLIANT)
         want = {"STAINLESS STEEL": "ss", "CARBON STEEL": "cs", "CARBON STEEL - LOW TEMP.": "lt"}[cmat]
         E["pms:Body Material"] = material.COMPLIANT if body_kind == want else material.NON
         E["pms:Seat Material"] = material.COMPLIANT if seat_name_rptfe else (material.REVIEW if seat.upper().startswith("PTFE") else material.NON)
@@ -353,7 +402,8 @@ def gen_case(rng: random.Random, i: int) -> dict:
     E["proc:fail_position"] = process.MATCH
     E["loc"] = (area, site, unit)
     spec = dict(cls=cls_code, dt=dt, dp=dp, body=body, pipe=pipe, seat=seat, ball=ball, stem=stem, fluid=fluid, size=size, conn=connections,
-                vtype=vtype, fail=fail, sil=sil, leak=leak, ins=ins, pig=pig, nace=nace_val, fire=fire, bolt=bolt, hold=hold_field,
+                vtype=vtype, fail=fail, sil=sil, leak=leak, ins=ins, pig=pig, nace=nace_val, fire=fire, bolt=bolt, hold=hold_field, seatcfg=seatcfg,
+                phase=phase, erosive=erosive, sf=act_sf, seal=seal, prefix_dev=prefix_dev, op_gt=op_gt, af=af_contra,
                 blank=blank_proc, gn=sorted(gn_keys), line=line_no, dup=dup_tag, outlier=peer_outlier, tag=tag_raw)
     return {"spec": spec, "ds": ds, "cls": cls, "pms": pms, "pdoc": pdoc, "pd_row": pd_row, "peers": peers, "tagprof": tagprof, "me": me, "expect": E}
 
@@ -404,10 +454,12 @@ def run_engines(c: dict) -> dict:
 
 MODELLED_PREFIX = ("MR-", "VR-", "PC-", "TG-", "Open Item", "Data Missing", "Data Error:", "req:", "pms:", "proc:", "loc")
 MODELLED_EXACT = {"MR-01", "MR-02", "MR-03", "MR-04", "MR-05", "MR-06", "MR-07", "MR-08", "MR-09", "MR-10", "MR-11", "MR-12", "MR-13", "MR-14", "MR-15",
-                  "VR-01", "VR-02", "VR-03", "VR-04", "VR-05", "VR-06", "VR-07", "VR-09", "VR-11", "VR-12", "VR-13", "PC-01", "TG-04", "TG-05",
-                  "Open Item", "Data Missing", "Data Error:piping_class", "Data Error:line_size_inlet",
+                  "VR-01", "VR-02", "VR-03", "VR-04", "VR-05", "VR-06", "VR-07", "VR-08", "VR-09", "VR-10", "VR-11", "VR-12", "VR-13", "VR-14", "VR-15",
+                  "PC-01", "TG-02", "TG-03", "TG-04", "TG-05",
+                  "Open Item", "Data Missing", "Data Error:piping_class", "Data Error:line_size_inlet", "Data Error:op_pressure", "Data Error:air_failure",
                   "req:nace", "req:cert", "req:fugitive", "req:pfp", "req:sil",
-                  "pms:Pressure Class", "pms:Body Material", "pms:Seat Material", "proc:design_temp", "proc:fail_position", "loc"}
+                  "pms:Pressure Class", "pms:Body Material", "pms:Seat Material", "pms:NACE", "pms:Trim (Ball) Material", "pms:Stem Material",
+                  "pms:Fire Safe", "proc:design_temp", "proc:fail_position", "loc"}
 
 
 def compare(exp: dict, got: dict) -> tuple[list, list, list]:
