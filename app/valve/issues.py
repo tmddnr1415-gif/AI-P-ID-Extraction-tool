@@ -58,6 +58,12 @@ def _num(v):
     return float(m.group(0)) if m else None
 
 
+def _cut(t: str, n: int) -> str:
+    """Quote for the contractor: whole words, at most n characters, '…' when cut."""
+    t = " ".join(str(t or "").split())
+    return t if len(t) <= n else t[:n].rsplit(" ", 1)[0].rstrip(",;:") + "…"
+
+
 def _v(f):
     return schema.effective(f)
 
@@ -119,9 +125,11 @@ def compute(ds: dict, general_notes: dict | None = None, pms: dict | None = None
             continue
         f0 = next((f for f in fs if f["key"].endswith(".nor")), fs[0])
         disp = (f0.get("display") or base).replace(" (Nor)", "")
-        why = f"{disp}: no value given" + (" (Max / Nor / Min all blank)" if len(fs) > 1 else "")
-        if pref:
-            why += f" — datasheet refers to Process Data Sheet {pref.get('doc') or ''} ({pref.get('where', '')}); state the value or confirm".replace("  ", " ")
+        why = f"{disp}: no value" + (" (Max/Nor/Min)" if len(fs) > 1 else "")
+        if pref:                                             # contractor text: what is missing, where it should come from, what to do
+            where = re.sub(r"General\s+Note", "Gen. Note", pref.get("where", "") or "")
+            why += f"; ref. {pref.get('doc') or 'Process Data Sheet'}" + (f" ({where})" if where else "")
+        why += ". Provide value."
         add("Data Missing", base, why, expected=pd_val.get(base, ""), f=dict(f0, display=disp), severity="Major")
 
     # HOLD / TBC / TBA anywhere — every field and every note (user request 2026-10-31: release the HOLD, give the value)
@@ -131,13 +139,13 @@ def compute(ds: dict, general_notes: dict | None = None, pms: dict | None = None
         if not v.strip() or not _OPEN.search(v) or _LEGEND.search(v):
             continue
         refd = [hold_notes[int(m)] for m in _HOLD_REF.findall(v) if int(m) in hold_notes]
-        add("Open Item", f["key"], f"{f.get('display') or f['key']} is '{v}' — on HOLD / TBC: release the HOLD and give the value"
-            + "".join(f" (HOLD {h['no']}: {h['text'][:100]})" for h in refd), expected="Value to be given (HOLD release)", f=f)
+        add("Open Item", f["key"], f"'{_cut(v, 50)}' on HOLD/TBC"
+            + "".join(f" (HOLD {h['no']}: {_cut(h['text'], 60)})" for h in refd) + ". Release and give value.",
+            expected="Value to be given (HOLD release)", f=f)
     for n in ds.get("notes", []):
         held = (n.get("section") or "").upper() == "HOLD"
         if held or (_OPEN.search(n["text"]) and not _LEGEND.search(n["text"])):
-            add("Open Item", f"note.{'hold.' if held else ''}{n['no']}", f"{'HOLD ' if held else 'Note '}{n['no']}: '{n['text'][:140]}' — "
-                "still on HOLD / TBC: release and confirm", expected="Confirmed content (HOLD release)", page=n.get("page"), bbox=n.get("bbox"),
+            add("Open Item", f"note.{'hold.' if held else ''}{n['no']}", f"{'HOLD ' if held else 'Note '}{n['no']} '{_cut(n['text'], 70)}' on HOLD/TBC. Release and confirm.", expected="Confirmed content (HOLD release)", page=n.get("page"), bbox=n.get("bbox"),
                 f={"display": f"{'HOLD' if held else 'Note'} {n['no']}", "value": n["text"][:80], "row": None})
 
     line, pc = _v(F.get("line_no")), _v(F.get("piping_class"))
@@ -183,8 +191,8 @@ def compute(ds: dict, general_notes: dict | None = None, pms: dict | None = None
         ref = f.get("ref") or {}
         if isinstance(ref, dict) and ref.get("mismatch"):
             mm = ref["mismatch"]
-            add("Data Error", f["key"], f"{f.get('display') or f['key']} refers to Note {ref.get('no')}, which is about "
-                f"'{ref.get('text', '')[:60]}'; Note {mm['no']} covers this item ('{mm['text'][:80]}')",
+            add("Data Error", f["key"], f"Refers to Note {ref.get('no')} ('{_cut(ref.get('text', ''), 40)}'); "
+                f"should be Note {mm['no']} ('{_cut(mm['text'], 40)}').",
                 expected=f"Note {mm['no']}" + (f": {mm['value']}" if mm.get("value") else ""), f=f)
         if f.get("status") == "review" and f.get("edited_value") is None and v:
             add("Extraction Review", f["key"], f"Label/value pairing of '{f.get('label') or f['key']}' could not be settled by the tool — check", f=f)
@@ -210,13 +218,13 @@ def compute(ds: dict, general_notes: dict | None = None, pms: dict | None = None
         if m["level"] == "Note":
             continue
         e = next((x for x in m["evidence"] if x.get("doc") == "Datasheet" and x.get("bbox")), None)
-        add("Material Review" if m["rule"].startswith("MR") else "Valve Review", f"{m['key']}.{m['rule']}", f"{m['rule']} {m['title']}: {m['comment']} [Basis: {m['basis']}]",
+        add("Material Review" if m["rule"].startswith("MR") else "Valve Review", f"{m['key']}.{m['rule']}", m.get("short") or m["title"],
             expected="", page=(e or {}).get("page"), bbox=(e or {}).get("bbox"), severity=m["severity"],
             f=dict(F.get(m["key"]) or {"display": m["title"]}),
             extra={"rule": m["rule"], "level": m["level"], "result": m["level"]})
     for r in prev_cmp or []:
         if r["change"] in ("Modified", "Added", "Deleted"):
-            add("Revision Change", r["key"], f"{r['change']}: '{r['previous'] or '(blank)'}' → '{r['new'] or '(blank)'}'",
+            add("Revision Change", r["key"], f"{r['change']}: '{_cut(r['previous'], 50) or '(blank)'}' → '{_cut(r['new'], 50) or '(blank)'}'",
                 expected="", page=r.get("new_page"), bbox=r.get("new_bbox"),
                 f={"display": r.get("display"), "row": r.get("row"), "value": r.get("new"), "unit": r.get("unit")})
 

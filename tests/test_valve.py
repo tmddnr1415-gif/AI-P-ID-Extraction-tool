@@ -713,10 +713,12 @@ def test_material_review_rules(tmp_path):
     assert {"MR-09", "MR-13", "MR-15"} <= set(got)
     for m in got.values():                                                                  # every finding cites its basis and evidence
         assert m["basis"] and m["evidence"]
+        assert 0 < len(m["short"]) <= 120, m["short"]                                       # contractor comment: one short line
     # no values → no opinion
     assert matreview.review({"fields": [f("body_material", "", 24)], "notes": []}) == []
     iss = issues.compute({"fields": ds["fields"], "notes": ds["notes"], "pages": [1]}, {}, material_rows=list(got.values()))
     mi = [i for i in iss if i["type"] == "Material Review"]
+    assert all(len(i["description"]) <= 120 for i in mi)
     assert {i["severity"] for i in mi} == {"Major", "Minor"} and not any(i["rule"] in ("MR-09", "MR-13", "MR-15") for i in mi)
 
 
@@ -746,6 +748,7 @@ def test_expert_valve_rules_and_peer_learning():
     for L in got.values():
         for m in L:
             assert m["kb"] in knowledge.KB and m["basis"] and m["evidence"]
+            assert 0 < len(m["short"]) <= 120, m["short"]
     # a value that only says more than its peers is not flagged
     ds2 = {"fields": [f("piping_class", "XC0K8", 9), f("body_material", "316/316L SS A351-CF8M/CF3M (dual certified)", 24)], "notes": []}
     assert not [m for m in expert.review(ds2, peers=peers) if m["rule"] == "PC-01"]

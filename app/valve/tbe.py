@@ -443,7 +443,7 @@ def build(template: bytes | None, datasheets: list[dict], docnames: dict, projec
         reqs = requirements.find(ds, ds.get("general_notes"))
         ws.cell(row, e["Special Requirements (Notes)"], requirements.summary(reqs)[:32000])
         mr = ds.get("material_review") or []
-        ws.cell(row, e["Expert Review (Tool)"], "\n".join(f"[{m['level']}] {m['rule']} {m['title']}: {m['comment']}"
+        ws.cell(row, e["Expert Review (Tool)"], "\n".join(f"{m.get('short') or m['title']}"
                                                             for m in mr if m["level"] != "Note")[:32000] or
                 ("No action — notes in tool" if mr else ""))
         ws.cell(row, e["Tool Status"], "NEW" if is_new else ("UPDATED" if changed else "UNCHANGED"))

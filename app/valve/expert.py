@@ -65,9 +65,9 @@ def review(ds: dict, general_notes: dict | None = None, pms_class: dict | None =
     def ev_pms(where, text):
         return {"doc": "PMS", "where": f"class {c.get('code')} · {where}", "page": c.get("header_page"), "bbox": None, "text": str(text)[:220]}
 
-    def add(rule, level, title, key, comment, kb, evidence, basis=None):
+    def add(rule, level, title, key, short, comment, kb, evidence, basis=None):
         k = knowledge.get(kb)
-        out.append({"rule": rule, "level": level, "severity": SEVERITY[level], "title": title, "key": key, "comment": comment,
+        out.append({"rule": rule, "level": level, "severity": SEVERITY[level], "title": title, "key": key, "short": short, "comment": comment,
                     "basis": basis or k["ref"], "kb": kb, "kb_title": k["title"], "kb_text": k["text"],
                     "evidence": [e for e in evidence if e]})
 
@@ -89,6 +89,7 @@ def review(ds: dict, general_notes: dict | None = None, pms_class: dict | None =
     face_pms = "RTJ" if "RING" in (c.get("facing") or "").upper() else "RF" if "RAISED" in (c.get("facing") or "").upper() else ""
     if face_ds and face_pms and face_ds != face_pms:
         add("VR-01", ACTION, "Flange facing differs from PMS class", "connections",
+            f"Flange facing {face_ds}; PMS {c.get('code')} requires {face_pms}. Revise.",
             f"Datasheet end connection '{val('connections')}' is {face_ds}, but PMS class {c.get('code')} flange facing is "
             f"{c.get('facing')}. The valve flanges must mate the line flanges — correct the facing (RTJ face-to-face is longer).",
             "std.b165", [ev("connections"), ev_pms("Flange Facing", c.get("facing"))])
@@ -96,9 +97,11 @@ def review(ds: dict, general_notes: dict | None = None, pms_class: dict | None =
     # VR-02 flange standard vs size -------------------------------------------------------------------------------
     if size and "B16.47" in conn and size <= 24:
         add("VR-02", ACTION, "B16.47 flange on a valve ≤ NPS 24", "connections",
+            f"{val('body_size')} valve: flanges to ASME B16.5, not B16.47. Revise.",
             f"Size {val('body_size')} uses ASME B16.5 flanges; B16.47 (Series A/B) covers NPS 26 and above.", "std.b165", [ev("connections"), ev("body_size")])
     elif size and size > 24 and "B16.5" in conn and "B16.47" not in conn:
         add("VR-02", ACTION, "B16.5 flange on a valve above NPS 24", "connections",
+            f"{val('body_size')} valve: flanges to ASME B16.47 Series A/B. State series.",
             f"Size {val('body_size')} is above NPS 24: flanges are ASME B16.47 Series A or B — state which series matches the line.",
             "std.b165", [ev("connections"), ev("body_size")])
 
@@ -106,6 +109,7 @@ def review(ds: dict, general_notes: dict | None = None, pms_class: dict | None =
     lim = next((v for k, v in sorted(FLOATING_MAX_NPS.items()) if rating and rating <= k), None) if rating else None
     if vtype == "FLOATING" and size and lim and size > lim:
         add("VR-03", CONFIRM, "Floating ball beyond typical size for the class", "body_type",
+            f"Floating ball {val('body_size')} Class {rating}: confirm torque / design or use trunnion.",
             f"Floating ball {val('body_size')} in Class {rating}: floating designs are normally used up to about NPS {lim:g} in "
             f"this class (seat load and torque grow with size × pressure). Confirm the manufacturer's floating design / torque "
             "at full ΔP, or specify trunnion-mounted.", "des.floating_trunnion", [ev("body_type"), ev("body_size"), ev("rating")],
@@ -117,6 +121,7 @@ def review(ds: dict, general_notes: dict | None = None, pms_class: dict | None =
         best, _, _ = pmsmod.select_item(c, val)
         if best and best[2]["type"] and best[2]["type"] != vtype:
             add("VR-04", CONFIRM, "Ball type differs from the PMS item", "body_type",
+                f"{vtype.title()} specified; PMS item {best[1]['code']} is {best[2]['type'].lower()}. Align with PMS.",
                 f"Datasheet is {vtype.lower()}, PMS item {best[1]['code']} for this size is {best[2]['type'].lower()} "
                 f"({best[1]['desc'][:120]}…). Align the datasheet with the PMS item or record the deviation.",
                 "des.floating_trunnion", [ev("body_type"), {"doc": "PMS", "where": f"item {best[1]['code']}", "page": best[1]["page"],
@@ -126,10 +131,12 @@ def review(ds: dict, general_notes: dict | None = None, pms_class: dict | None =
     fp, spring = val("fail_position").upper(), val("act_spring").upper()
     if fp.startswith(("CLOSE", "OPEN", "FC", "FO")) and spring and re.match(r"\s*(NOT\s+REQUIRED|NO\b|NA\b|N/A|NONE)", spring):
         add("VR-05", ACTION, "Fail-safe position without spring", "act_spring",
+            f"Fail {val('fail_position')} requires spring-return actuator. Revise.",
             f"Fail position '{val('fail_position')}' needs a spring-return (or accumulator) actuator, but the spring is "
             f"'{val('act_spring')}'.", "des.actuator", [ev("fail_position"), ev("act_spring")])
     elif fp.startswith(("LAST", "FL", "STAY")) and spring.startswith("REQ"):
         add("VR-05", CONFIRM, "Fail-last with spring", "act_spring",
+            "Fail last with spring specified. Confirm fail action.",
             f"Fail position '{val('fail_position')}' (stay-put) is normally double-acting; a spring is specified "
             f"('{val('act_spring')}'). Confirm the intended fail action.", "des.actuator", [ev("fail_position"), ev("act_spring")])
 
@@ -138,10 +145,12 @@ def review(ds: dict, general_notes: dict | None = None, pms_class: dict | None =
     if sil:
         if fp.startswith(("LAST", "FL")):
             add("VR-06", CONFIRM, "SIL valve with fail-last action", "fail_position",
+                f"{val('sil')} with fail last. Confirm fail-safe position.",
                 f"{val('sil')} safety valve with fail position '{val('fail_position')}': a safety function normally needs a "
                 "defined fail-safe position (spring return). Confirm with the SRS.", "std.sil", [ev("sil"), ev("fail_position")])
         if int(sil.group(1)) >= 2 and "pst" not in reqs:
             add("VR-06", NOTE, "SIL 2 without partial stroke test", "sil",
+                f"{val('sil')}: confirm PST requirement and SIL certificate.",
                 f"{val('sil')}: no partial stroke test requirement found on the datasheet or its notes. Confirm the proof-test "
                 "strategy (PST / full stroke) and the SIL certificate of the valve + actuator assembly.", "std.sil", [ev("sil")])
 
@@ -150,10 +159,12 @@ def review(ds: dict, general_notes: dict | None = None, pms_class: dict | None =
     rate = re.search(r"RATE\s*([A-G])", leak)
     if soft and rate and rate.group(1) != "A":
         add("VR-07", CONFIRM, "Soft seat with leakage rate below A", "leakage_class",
+            f"Soft seat with {val('leakage_class')}. Confirm Rate A.",
             f"Soft seat '{seat}' with '{val('leakage_class')}': soft-seated ball valves are tested to Rate A (zero visible "
             "leakage). Confirm why a lower rate is accepted.", "std.leak", [ev("leakage_class"), ev("seat_material")])
     if ("TIGHT" in tight or "TSO" in tight) and rate and rate.group(1) != "A":
         add("VR-07", CONFIRM, "Tight shut-off but leakage rate below A", "leakage_class",
+            f"TSO specified but {val('leakage_class')}. Confirm Rate A.",
             f"Tightness '{val('tightness')}' but leakage class '{val('leakage_class')}'. Tight shut-off is read as Rate A.",
             "std.leak", [ev("tightness"), ev("leakage_class")])
 
@@ -162,6 +173,7 @@ def review(ds: dict, general_notes: dict | None = None, pms_class: dict | None =
                                    ("blowout", "blow-out-proof stem", "Blow-out-proof stem not stated")):
         if key not in reqs and seat:
             add("VR-08", NOTE, rule_title, "body_type",
+                f"State {kname} (API 6D / ISO 17292).",
                 f"No {kname} requirement found on the datasheet, its notes or general notes. API 6D and ISO 17292 require it; "
                 "state it or confirm the referenced valve specification covers it.", "des.stem", [ev("body_type")])
 
@@ -170,6 +182,7 @@ def review(ds: dict, general_notes: dict | None = None, pms_class: dict | None =
     fire_doc = "fire_safe" in reqs or re.search(r"FIRE\s*(?:TESTED|SAFE)", " ".join(it.get("desc", "") for it in c.get("items") or []), re.I)
     if (_FLAMMABLE.search(fluid) or _TOXIC.search(service)) and not fire_doc:
         add("VR-09", CONFIRM, "No fire-safe requirement for flammable / toxic service", "fire_safe",
+            f"{fluid or 'Toxic / flammable'} service: fire-safe (API 607) not stated. Confirm.",
             f"Service '{fluid or val('service')}' ({remarks.strip() or 'toxic/flammable'}) but no fire-safe (API 607 / ISO 10497) "
             "requirement is stated. Confirm the fire-safe requirement.", "std.fire",
             [ev("fire_safe"), ev("service"), {"doc": "Process Data" if pdv.get("fluid") else "Datasheet", "where": "Service Fluid",
@@ -184,6 +197,7 @@ def review(ds: dict, general_notes: dict | None = None, pms_class: dict | None =
                f"the fluid is CO2 at design pressure {(pdv.get('design_pressure') or {}).get('pd')} barg, above the CO2 critical "
                "pressure (73.8 bar) — dense phase possible")
         add("VR-10", CONFIRM if liquid else NOTE, "Seat configuration / cavity relief not stated", "body_type",
+            "State seat design (SPE/DPE) and cavity relief" + (" (liquid / dense phase service)." if liquid else "."),
             "Trunnion ball valve without a stated seat configuration (SPE / DPE, DBB / DIB) or cavity relief."
             + (f" Here {why}: liquid / dense fluid trapped in the closed cavity expands with temperature — with DPE seats a "
                "cavity relief valve is required." if liquid else
@@ -194,6 +208,7 @@ def review(ds: dict, general_notes: dict | None = None, pms_class: dict | None =
     ins = val("pipe_insulation").upper()
     if re.search(r"COLD|\b5\b", ins) and not re.search(r"extended\s+(?:stem|bonnet)", all_text, re.I):
         add("VR-11", CONFIRM, "Cold-insulated valve without extended stem", "pipe_insulation",
+            "Cold insulation: specify extended stem / bonnet.",
             f"Pipe insulation '{val('pipe_insulation')}': specify an extended stem / bonnet and stem vapour barrier so the "
             "actuator stays outside the insulation and free of ice.", "des.insulation", [ev("pipe_insulation")])
 
@@ -201,6 +216,7 @@ def review(ds: dict, general_notes: dict | None = None, pms_class: dict | None =
     if val("piggable").upper().startswith("Y") and "FULL" not in btype:
         red = bool(re.search(r"REDUC|RED\.?\s*PORT", btype))
         add("VR-12", ACTION if red else CONFIRM, "Piggable line without full bore" if red else "Piggable line — bore not stated", "body_type",
+            "Piggable line: " + ("reduced bore not acceptable, use full bore." if red else "state full bore."),
             f"Line is piggable but the valve is '{val('body_type')}'"
             + (" (reduced bore)." if red else " and no full bore is stated (field or the notes it refers to).")
             + " Piggable lines need full, round bore valves.", "des.bore", [ev("piggable"), ev("body_type")])
@@ -210,16 +226,19 @@ def review(ds: dict, general_notes: dict | None = None, pms_class: dict | None =
     if size and ls and abs(size - ls) > 1e-6:
         if size > ls:
             add("VR-13", ACTION, "Valve larger than the line", "body_size",
+                f"Valve {val('body_size')} larger than line {val('line_size_inlet')}. Revise.",
                 f"Valve size {val('body_size')} is larger than the line size {val('line_size_inlet')}.", "des.bore",
                 [ev("body_size"), ev("line_size_inlet")])
         elif "FULL" in btype:
             add("VR-13", CONFIRM, "Full-bore valve smaller than the line", "body_size",
+                f"Full-bore valve {val('body_size')} in {val('line_size_inlet')} line. Confirm size.",
                 f"Valve {val('body_size')} in a {val('line_size_inlet')} line: reducers are needed and the bore is no longer "
                 "line size. Confirm the size (and piggability / pressure drop).", "des.bore", [ev("body_size"), ev("line_size_inlet")])
 
     # VR-14 erosive service with soft seat -------------------------------------------------------------------------
     if val("erosive").upper().startswith("Y") and soft:
         add("VR-14", CONFIRM, "Soft seat in erosive service", "seat_material",
+            f"Erosive service with soft seat {seat}. Consider metal seat.",
             f"Erosive service with soft seat '{seat}': consider a metal-seated, hard-faced ball and seats.", "des.metal_seat",
             [ev("erosive"), ev("seat_material")])
 
@@ -227,6 +246,7 @@ def review(ds: dict, general_notes: dict | None = None, pms_class: dict | None =
     sf = _num(val("act_safety_factor"))
     if sf and sf < 1.25 and "act_safety_factor" in F:
         add("VR-15", CONFIRM, "Low actuator sizing factor", "act_safety_factor",
+            f"Actuator safety factor {sf:g} below 1.25. Confirm.",
             f"Actuator safety factor {sf:g} is below the usual 1.25–1.5 on the maximum valve torque. Confirm with the "
             "actuator specification; the valve MAST must still exceed the actuator output.", "des.actuator", [ev("act_safety_factor")])
 
@@ -293,7 +313,8 @@ def peer_findings(F: dict, val, peers: dict | None) -> list[dict]:
         f = F[k]
         kb = knowledge.get("peer")
         out.append({"rule": "PC-01", "level": CONFIRM, "severity": SEVERITY[CONFIRM], "title": f"{f.get('display') or k} differs from the other {cls} datasheets",
-                    "key": k, "comment": f"{tn} of {n} other datasheets in piping class {cls} give {f.get('display') or k} as '{ex}'; "
+                    "key": k, "short": f"'{v}' differs from {tn}/{n} {cls} datasheets ('{ex}'). Confirm.",
+                    "comment": f"{tn} of {n} other datasheets in piping class {cls} give {f.get('display') or k} as '{ex}'; "
                                          f"this one says '{v}'. Confirm this tag really differs (service, size, vendor) or correct it.",
                     "basis": "Learned from all datasheets of this project (same piping class)", "kb": "peer", "kb_title": kb["title"],
                     "kb_text": kb["text"], "evidence": [{"doc": "Datasheet", "where": f"row {f.get('row')} {f.get('display') or k}",

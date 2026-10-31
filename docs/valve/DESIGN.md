@@ -370,3 +370,11 @@ Required/Expected 에 Process Data 표의 값(있으면)을 적는다. 실자료
 실자료(164 DS): VR Action 3(19XV122 등 2″ 에 ASME B16.47-B) · Confirm 44(Dense CO2 Trunnion 캐비티 33 · Rate B 연질 시트 4 · Cold 보온 4 · Fire-safe 2 · Piggable bore 1) ·
 Note 113 · PC-01 Confirm 6(3C0K8 의 '316 SS/FHF' 2개 · API5L-X65 MOV 1500# ↔ 다수 900# 2개 …).
 화면: 작업대 **Expert 탭**(재질 · 설계 · 다른 데이터시트 대비, 의견마다 '지식' 펼치기) · Settings › **Ball Valve 지식** · Issue 'Valve Review' · Valve List 'Expert Review (Tool)' 열.
+
+## 16. 설계사에게 가는 코멘트는 핵심만 (valve12, 사용자 요청)
+
+- 규칙마다 `short`(한 줄 · 120자 이하 · 시험이 지킴) = **무엇이 문제 · 값 · 할 일**. 예: "Seat RTFE limited to 230 °C (PMS 1C3AS2 Note 018); design temp. 260 °C. Revise seat material."
+- Issue List Excel · Mark-up PDF · Valve List 'Expert Review (Tool)' 은 short 만 쓴다. 긴 설명 · 근거 규격 · 지식은 도구의 Expert 탭에만(카드 안 '▸' 줄이 설계사에게 가는 글).
+- 다른 지적도 줄임: Data Missing "Fluid: no value; ref. 03-02-PR-DTS-00002 (Note 7). Provide value." · Open Item "'HOLD' on HOLD/TBC. Release and give value." ·
+  Note 참조 오류 · Revision 인용은 낱말 단위로 40~70자에서 자름(`issues._cut`).
+- 실자료 평균 길이: Material/Valve Review 350 → 68자 · Data Missing 136 → 80 · Open Item 93 → 56. 판정 · 개수는 그대로(eval 기준값 불변).

@@ -419,3 +419,4 @@ table.t.proc td { padding: 4px 6px; }
 .pill.p-bad { background: #fbe3e1; color: #b42318; } .pill.p-warn { background: #fff4c2; color: #8a6100; } .pill.p-soft { background: #eef1f4; color: #555; }
 details.kb { font-size: 12px; margin: 3px 0; } details.kb summary { cursor: pointer; color: #0b6f6f; }
 details.kb p { margin: 4px 0 4px 14px; }
+.mshort { font-weight: 600; background: #fff; border: 1px dashed #9fd6d6; padding: 2px 6px; margin: 3px 0; border-radius: 3px; }

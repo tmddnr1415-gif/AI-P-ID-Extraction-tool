@@ -619,7 +619,7 @@ PDF/Excel/피드백을 **서버 상태로** 확인, 캡처 저장, 그린 것은
 Action 은 문서 한계를 넘을 때만(PMS Note · P-T 표 · B16.34). 조건부 허용은 Confirm, 검토 기록은 Note. 시험 `test_material_review_rules` 에 한 줄 더한다.
 
 ### 17.5c 새 설계 규칙 · 지식 — 지식은 `knowledge.KB` 에 항목(title · text · check · ref)을 더하고 문서를 다시 만든다. 규칙은 `expert.review` 에
-`add("VR-nn", 수준, 제목, 칸, 의견, "지식 키", [증거…])` — 지식 키가 없으면 시험이 실패한다. 학습 대상 칸은 `expert.PEER_FIELDS`, 문턱은 `PEER_MIN` · `PEER_SHARE`.
+`add("VR-nn", 수준, 제목, 칸, 설계사용 한 줄(short ≤120자), 긴 의견, "지식 키", [증거…])` — 지식 키가 없으면 시험이 실패한다. 학습 대상 칸은 `expert.PEER_FIELDS`, 문턱은 `PEER_MIN` · `PEER_SHARE`.
 
 ### 17.6 새 화면 — `index.html` 메뉴 버튼 + `<section id="v-키">`, `valve.js` 의 `VIEWS` · `RENDER` 에 함수. PDF 가 필요하면 `new Viewer(host, opts)`.
 Mark-up 이 필요하면 `opts.tools=true` 와 `onMark` · `onMarkChange` · `onMarkSelect` · `onMarkCmd`.
@@ -688,6 +688,7 @@ python3 spike/pack_delta.py --name valve05 --base 9429f4f \
 | valve09 | 〃 | HOLD / TBC / TBA 를 모든 칸 · Note 에서 Open Item(Major) |
 | valve10 | 〃 | **PMS 검토 점검**(Ball 품목 Trim 우선 · P-T 표 · Service · Class Notes 읽기) · **특수 요구사항 열**(PFP · Fugitive · NACE …) · **재질 검토 엔진 MR-01~15**(Material 탭 · Issue 'Material Review' · Valve List 열) |
 | valve11 | 〃 | **Ball Valve 엔지니어 검토**: 지식 28항목(`knowledge.py`) · 설계 규칙 VR-01~15 · 프로젝트 데이터시트 학습 PC-01 · Expert 탭 · Settings › Ball Valve 지식 |
+| valve12 | 〃 | 설계사 코멘트 핵심만: 규칙별 `short` 한 줄(≤120자) → Issue List · Mark-up PDF · Valve List, 긴 설명은 Expert 탭 · 다른 지적 문구도 줄임 |
 
 **남은 일**
 1. 회사 적용 확인: .xls 자동 변환, 456쪽 처리 시간, 화면 글꼴, Edge 에서 Mark-up · 패널 접기, 내보낸 PDF 를 Acrobat 에서 열기, 1366×768 노트북에서 작업대.

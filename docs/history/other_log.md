@@ -77,3 +77,9 @@
 - 설계 규칙 `expert.py` VR-01~15 + 학습 PC-01(같은 Piping Class 데이터시트 다수 값, 5개 이상 80 %). 참조 칸('Note 2')은 Note 글까지 읽음.
 - 실자료: VR Action 3(2″ 에 B16.47-B) · Confirm 44 · PC-01 6. 웹으로 17-4PH · 316 한계 · Floating 관행 확인(관행 값은 '회사 사양 우선' 으로 표기).
 - 화면: Expert 탭 · Settings › Ball Valve 지식 · Issue 'Valve Review' · Excel 'Expert Review (Tool)'. 시험 42 · eval 은 F 절만 이동(읽기 · PMS 불변) · diff_sim 0.
+
+## 2026-10-31 · valve12 — 설계사 코멘트는 핵심만 (브랜치 ccr-efbe7e75-n915ze)
+- 요청: 설계사 주기 위한 코멘트는 핵심만 간결하게.
+- MR/VR/PC 규칙마다 `short` 한 줄(문제 · 값 · 할 일, ≤120자 시험) → Issue List · Mark-up PDF · Valve List. 긴 설명 · 근거 · 지식은 Expert 탭만.
+- Data Missing · Open Item · Note 참조 오류 · Revision 문구 줄임(`issues._cut` 낱말 단위 자르기).
+- 평균 길이 Material/Valve 350→68 · Data Missing 136→80 · Open Item 93→56. eval 기준값 불변 · 시험 42 · 전체 1,872 · ui_audit 22/22.

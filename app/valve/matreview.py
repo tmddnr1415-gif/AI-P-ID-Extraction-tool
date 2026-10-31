@@ -105,12 +105,12 @@ def review(ds: dict, general_notes: dict | None = None, pms_class: dict | None =
     def ev_pms(where, text, page=None, bbox=None):
         return {"doc": "PMS", "where": f"class {c.get('code')} · {where}", "page": page or c.get("header_page"), "bbox": bbox, "text": text[:220]}
 
-    def add(rule, level, title, key, comment, basis, evidence):
+    def add(rule, level, title, key, short, comment, basis, evidence):
         from app.valve import knowledge
         kb = KB_OF.get(rule, "")
         k = knowledge.get(kb) if kb else {"title": "", "text": ""}
         out.append({"rule": rule, "level": level, "severity": SEVERITY[level], "title": title, "key": key,
-                    "comment": comment, "basis": basis, "kb": kb, "kb_title": k["title"], "kb_text": k["text"],
+                    "short": short, "comment": comment, "basis": basis, "kb": kb, "kb_title": k["title"], "kb_text": k["text"],
                     "evidence": [e for e in evidence if e]})
 
     # ---- what the documents say about the service -------------------------------------------------------------
@@ -142,12 +142,14 @@ def review(ds: dict, general_notes: dict | None = None, pms_class: dict | None =
                 doc_lim = (float(m.group(2)), no, t)
         if dt is not None and doc_lim and dt > doc_lim[0]:
             add("MR-01", ACTION, "Seat material above PMS temperature limit", "seat_material",
+                f"Seat {seat} limited to {doc_lim[0]:g} °C (PMS {c.get('code')} Note {doc_lim[1]}); design temp. {dt:g} °C. Revise seat material.",
                 f"Seat '{seat}' ({name}) is limited to {doc_lim[0]:g} °C by PMS class {c.get('code')} note {doc_lim[1]}, "
                 f"but the Process Data design temperature is {dt:g} °C. Change the seat to a material rated for "
                 f"{dt:g} °C (e.g. PEEK up to ~260 °C, or metal seat) or confirm the design temperature.",
                 f"PMS {c.get('code')} General Class Note {doc_lim[1]}", [ev_field("seat_material"), ev_dt, ev_pms(f"note {doc_lim[1]}", doc_lim[2])])
         elif dt is not None and dt > lim:
             add("MR-02", ACTION, "Seat material above its service temperature", "seat_material",
+                f"Seat {seat} not suitable for design temp. {dt:g} °C (typ. max. {lim} °C). Revise seat or submit seat P-T curve.",
                 f"Seat '{seat}' ({name}) has a typical maximum service temperature of about {lim} °C; the Process Data design "
                 f"temperature is {dt:g} °C. Select a seat material rated for the design temperature (PEEK / metal seat) "
                 f"or obtain the vendor's seat P-T curve proving {dt:g} °C at the design pressure.",
@@ -155,6 +157,7 @@ def review(ds: dict, general_notes: dict | None = None, pms_class: dict | None =
                 [ev_field("seat_material"), ev_dt])
         elif dt is not None and dt >= lim - 30:
             add("MR-02", CONFIRM, "Seat close to its temperature limit", "seat_material",
+                f"Design temp. {dt:g} °C close to {seat} seat limit (~{lim} °C). Submit seat P-T curve.",
                 f"Design temperature {dt:g} °C is within 30 °C of the typical {name} seat limit (~{lim} °C"
                 + (f"; PMS note {doc_lim[1]}: {doc_lim[0]:g} °C" if doc_lim else "") + "). Soft seats lose pressure rating with "
                 "temperature: the vendor shall submit the seat P-T curve covering the design temperature and the "
@@ -167,6 +170,7 @@ def review(ds: dict, general_notes: dict | None = None, pms_class: dict | None =
         tmax = max(t for t, _ in pt)
         if dt > tmax:
             add("MR-03", ACTION, "Design temperature outside PMS class range", "piping_class",
+                f"Design temp. {dt:g} °C exceeds PMS {c.get('code')} max. {tmax:g} °C. Confirm piping class / design temp.",
                 f"Process Data design temperature {dt:g} °C exceeds the highest temperature of PMS class {c.get('code')} "
                 f"P-T table ({tmax:g} °C, {c.get('pt_basis') or 'ASME B16.5'}). The piping class / valve rating does not cover the service.",
                 f"PMS {c.get('code')} Temperature / Pressure Limits", [ev_dt, ev_pms("P-T limits", f"max {tmax:g} °C")])
@@ -174,6 +178,7 @@ def review(ds: dict, general_notes: dict | None = None, pms_class: dict | None =
             pr = _interp(pt, dt)
             if pr is not None and dp > pr * 1.0001:
                 add("MR-03", ACTION, "Design pressure above PMS class rating", "rating",
+                    f"Design press. {dp:g} barg exceeds PMS {c.get('code')} rating {pr:.1f} barg at {dt:g} °C. Confirm.",
                     f"At the design temperature {dt:g} °C the PMS class {c.get('code')} allows {pr:.1f} barg "
                     f"({c.get('pt_basis') or 'ASME B16.5'}), but the Process Data design pressure is {dp:g} barg. One of the two "
                     "documents is wrong: confirm the design pressure or move the line to a higher-rated class.",
@@ -186,6 +191,7 @@ def review(ds: dict, general_notes: dict | None = None, pms_class: dict | None =
     for pat, name, tmin in BODY_MIN_T:
         if pat.search(body) and not _LT_BODY.search(body) and lt_line:
             add("MR-04", ACTION, "Carbon steel body in a low-temperature line", "body_material",
+                f"Body {body} not suitable for low-temp. line. Use A352 LCC / A350 LF2 (impact tested).",
                 f"Body '{body}' ({name}) is usable without impact testing only down to {tmin} °C, but the line is low-temperature "
                 f"carbon steel ({val('pipe_material') or c.get('material')}). Use an impact-tested low-temperature grade "
                 "(A352 LCC/LCB or A350 LF2/LF6) matching the line.",
@@ -198,6 +204,7 @@ def review(ds: dict, general_notes: dict | None = None, pms_class: dict | None =
             bool(_SS.search(pipe)) and not _CS.search(pipe), bool(_CS.search(pipe))
         if (b_ss and p_cs) or (b_cs and p_ss):
             add("MR-05", CONFIRM, "Body and pipe are different material families", "body_material",
+                f"Body {body} vs pipe {pipe}: different material. Confirm.",
                 f"Body '{body}' and line pipe '{pipe}' are different families (stainless / carbon steel). Confirm the "
                 "dissimilar-metal joint (welding procedure / transition pup piece, galvanic insulation if required) and "
                 "that the body material follows the piping class.",
@@ -209,6 +216,7 @@ def review(ds: dict, general_notes: dict | None = None, pms_class: dict | None =
         ca_v = _num(ca)
         lvl = CONFIRM if not ca_v else NOTE
         add("MR-06", lvl, "Carbon steel body in CO2 service", "body_material",
+            f"CS body in CO2 service ({'CA ' + str(ca) if ca else 'no CA'}). Confirm dry CO2 or use SS.",
             f"Carbon steel body '{body}' in CO2 service: free water forms carbonic acid and corrodes carbon steel quickly. "
             + (f"Corrosion allowance is {ca}" if ca else "No corrosion allowance is stated")
             + " — confirm the CO2 is dehydrated (no free water at any operating case, including start-up / depressurisation) "
@@ -223,6 +231,7 @@ def review(ds: dict, general_notes: dict | None = None, pms_class: dict | None =
         if parts:
             hot = dt is not None and dt > 60
             add("MR-07", NOTE, "316/316L in sour service", parts[0][0],
+                "316/316L in sour service: confirm within ISO 15156-3 limits.",
                 "316/316L (" + ", ".join(k.split("_")[0] for k, _ in parts) + ") is acceptable for NACE MR0175 / ISO 15156 service "
                 "in the solution-annealed condition, ≤ 22 HRC, without cold work, within the environmental limits of "
                 "ISO 15156-3 Table A.2 (temperature, H2S partial pressure, chloride, no elemental sulphur)."
@@ -234,6 +243,7 @@ def review(ds: dict, general_notes: dict | None = None, pms_class: dict | None =
     # MR-15  carbon / low-alloy steel body in sour service (ISO 15156-2) ---------------------------------------------
     if nace_req and _CS.search(body) and not _SS.search(body):
         add("MR-15", NOTE, "Carbon steel body in sour service", "body_material",
+            "CS body in sour service: max. 22 HRC, welds max. 250 HV10, NACE certified.",
             f"Body '{body}' (carbon / low-temperature carbon steel) in NACE service: acceptable per ISO 15156-2 A.2.1 when "
             "hardness is ≤ 22 HRC (parent metal) and ≤ 250 HV10 on welds / repair welds (PWHT where required), and the "
             "material certificate states NACE MR0175 / ISO 15156 compliance. Bolting and trim follow their own rules.",
@@ -244,6 +254,7 @@ def review(ds: dict, general_notes: dict | None = None, pms_class: dict | None =
     if _PH174.search(stem_txt):
         ok = _H1150D.search(stem_txt + " " + notes_text)
         add("MR-08", NOTE if ok or not nace_req else CONFIRM, "17-4PH (A564 Type 630) stem", "stem_material",
+            "17-4PH stem: state H1150D, max. 33 HRC (ISO 15156-3)." if nace_req else "17-4PH stem: state heat treatment.",
             "Stem in 17-4PH (UNS S17400, A564 Type 630). "
             + ("For NACE service ISO 15156-3 accepts it only in the double-aged H1150D condition, max 33 HRC, and within the "
                "table's environmental limits (H2S partial pressure / pH). " if nace_req else "")
@@ -256,6 +267,7 @@ def review(ds: dict, general_notes: dict | None = None, pms_class: dict | None =
     hf = [k for k in ("ball_material", "stem_material") if _HF.search(val(k))]
     if hf and not _HF_TYPE.search(" ".join(val(k) for k in hf) + " " + notes_text):
         add("MR-09", NOTE, "Hard-facing type not stated", hf[0],
+            "State hard-facing type and thickness (e.g. TCC HVOF).",
             f"'{val(hf[0])}': hard-facing (HF) is required but its type and thickness are not stated. Vendor to state the "
             "overlay (e.g. tungsten carbide HVOF, chromium carbide, Stellite, ENP) and its qualification"
             + ("; for NACE service the overlay / coating shall meet ISO 15156-3 (ENP is not a sour-service barrier)." if nace_req else "."),
@@ -268,6 +280,7 @@ def review(ds: dict, general_notes: dict | None = None, pms_class: dict | None =
             v = val(k).upper()
             if re.search(r"316L|CF3M", v) and not re.search(r"316(?!L)|CF8M", v):
                 add("MR-10", CONFIRM, "316L only — PMS requires dual-grade 316/316L", k,
+                    f"PMS {c.get('code')} Note {dual[0]}: dual-grade 316/316L required. Revise.",
                     f"{F[k].get('display') or k} '{val(k)}' states 316L only. PMS class {c.get('code')} note {dual[0]} requires "
                     "all 316/316L to be dual-grade certified (316L chemistry with 316 strength). State 'dual certified "
                     "316/316L' or confirm the 316L allowable stress is used for the pressure design.",
@@ -280,6 +293,7 @@ def review(ds: dict, general_notes: dict | None = None, pms_class: dict | None =
         if nace_req and _B8M2.search(t):
             spec = bool(_SOUR.search(t))                    # the bolting spec itself is written 'NACE MR0175' → spec author's choice
             add("MR-11", NOTE if spec else CONFIRM, "B8M Class 2 bolting with NACE", "bolting_gasket",
+                "B8M CL.2 bolting not acceptable if exposed (ISO 15156). Confirm non-exposed or use B8M CL.1 / B7M.",
                 f"Note {n['no']}: A193 B8M Class 2 is strain-hardened (up to ~35 HRC). ISO 15156 accepts it only for bolting "
                 "that is NOT exposed to the sour environment (uninsulated, atmospheric flange bolting). If the joint is "
                 "insulated, buried, inside an enclosure or the bolts are wetted, use B8M Class 1 or B7M / L7M (≤ 22 HRC)."
@@ -288,11 +302,13 @@ def review(ds: dict, general_notes: dict | None = None, pms_class: dict | None =
                 "NACE MR0175 / ISO 15156-2 §A.2.2.4 (exposed vs non-exposed bolting)", [ev_note(n["no"])])
         elif nace_req and _B7.search(t) and not _B7M.search(t):
             add("MR-11", CONFIRM, "B7 bolting with NACE", "bolting_gasket",
+                "B7/2H bolting in NACE service: use B7M/2HM (max. 22 HRC) if exposed.",
                 f"Note {n['no']}: A193 B7 / A194 2H (up to ~35 HRC) is acceptable only as non-exposed bolting. For exposed "
                 "bolting in sour service use B7M / 2HM (≤ 22 HRC) or L7M.",
                 "NACE MR0175 / ISO 15156-2 §A.2.2.4", [ev_note(n["no"])])
         elif _B7M.search(t):
             add("MR-11", NOTE, "Sour-service bolting", "bolting_gasket",
+                "B7M/L7M bolting: acceptable for sour service.",
                 f"Note {n['no']}: B7M / L7M bolting (≤ 22 HRC) — suitable for exposed bolting in sour service.",
                 "NACE MR0175 / ISO 15156-2 §A.2.2.4", [ev_note(n["no"])])
         break                                               # one bolting note per datasheet
@@ -303,6 +319,7 @@ def review(ds: dict, general_notes: dict | None = None, pms_class: dict | None =
         seals = " ".join(val(k) for k in ("seal_material", "packing_material", "gasket_material"))
         if _ELASTOMER.search(seals + " " + notes_text) or rgd_no:
             add("MR-12", NOTE if not _ELASTOMER.search(seals) else CONFIRM, "Seals in CO2 — rapid gas decompression", "seal_material",
+                "State seal / O-ring materials, RGD qualified (ISO 23936-2 / NORSOK M-710).",
                 "CO2 dissolves in elastomers and swells PTFE; on depressurisation it causes blistering (RGD/AED). O-rings and "
                 "elastomer seals (trunnion / stem / body joints, often not on the datasheet) shall be RGD-qualified to "
                 "ISO 23936-2 / NORSOK M-710 for CO2 with H2S impurities; vendor to state each seal material."
@@ -314,6 +331,7 @@ def review(ds: dict, general_notes: dict | None = None, pms_class: dict | None =
     fs = val("fire_safe").upper()
     if kind and (fs.startswith(("Y", "REQ")) or "607" in fs or "6FA" in fs):
         add("MR-13", NOTE, "Fire-safe soft-seated valve", "fire_safe",
+            "Submit API 607 / ISO 10497 fire test certificate covering size and class.",
             f"Soft seat ({kind[0]}) with fire-safe requirement: the polymer burns away in a fire, so tightness relies on a "
             "secondary metal-to-metal seat and graphite stem / body seals. Vendor shall submit the API 607 / ISO 10497 "
             "fire-test certificate of the same design, size range and pressure class.",
@@ -330,6 +348,7 @@ def review(ds: dict, general_notes: dict | None = None, pms_class: dict | None =
         hit = any(alias.get(w, w) in listed for w in words) or (co2 and "CARBON DIOXIDE" in listed)
         if not hit:
             add("MR-14", CONFIRM, "Service fluid not listed in PMS class", "piping_class",
+                f"Fluid '{fluid}' not in PMS {c.get('code')} service list. Confirm piping class.",
                 f"Process fluid '{fluid}' is not in the service list of PMS class {c.get('code')} ({', '.join(sv)}). "
                 "Confirm the class is the right one for this fluid (materials selection report).",
                 f"PMS {c.get('code')} Service list", [{"doc": "Process Data", "where": "Service Fluid", "page": (pdv.get('fluid') or {}).get('pd_page'),

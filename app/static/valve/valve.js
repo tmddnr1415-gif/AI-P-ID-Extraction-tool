@@ -1013,7 +1013,7 @@ function matList(d) {                                  // material review (matre
     return f ? `<a href="#" data-ek="${esc(f.key)}">${t}</a>` : t; };
   return ['Action', 'Confirm', 'Note'].map(lv => { const M = L.filter(m => m.level === lv); if (!M.length) return '';
     return `<div class="sect"><h4><span class="pill p-${MAT_LV[lv][0]}">${lv}</span> ${MAT_LV[lv][1]} (${M.length})</h4>${M.map(m => `<div class="mat ${lv}">
-      <div><span class="soft" style="font-size:11px">${grp(m.rule)}</span> <b>${esc(m.rule)} · ${esc(m.title)}</b></div><div>${esc(m.comment)}</div>
+      <div><span class="soft" style="font-size:11px">${grp(m.rule)}</span> <b>${esc(m.rule)} · ${esc(m.title)}</b></div>${m.level !== 'Note' ? `<div class="mshort" title="설계사에게 가는 코멘트 (Issue List · Mark-up PDF · Valve List)">▸ ${esc(m.short || '')}</div>` : ''}<div>${esc(m.comment)}</div>
       <div class="soft" style="font-size:11px">근거: ${esc(m.basis)}</div>
       ${m.kb_text ? `<details class="kb"><summary>지식: ${esc(m.kb_title)}</summary>${esc(m.kb_text)}</details>` : ''}
       <div style="font-size:11px">${m.evidence.map(ev).join('<br>')}</div></div>`).join('')}</div>`; }).join('')
