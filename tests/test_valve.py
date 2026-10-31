@@ -784,13 +784,18 @@ def test_area_and_unit_from_documents():
     assert [c.value for c in ws[1]][:5] == ["No.", "Area", "Site", "Unit", "Tag Number"] and ws.auto_filter.ref.startswith("A1:")
     assert [c.value for c in ws[2]][1:5] == ["North", "North", "98", "98ESDV015"]
     wb = openpyxl.load_workbook(io.BytesIO(exports.issues_xlsx(rows, "", "P")))
-    assert wb.sheetnames[:3] == ["Issue List", "Summary", "Summary by Tag"]
+    assert wb.sheetnames[:4] == ["Issue List", "Summary", "Summary by Area", "Summary by Tag"]
     sm = wb["Summary"]
     assert [c.value for c in sm[3]][:5] == ["No.", "Area", "Site", "Unit", "Material Review"] and sm.cell(4, 1).value == 1
     assert wb["Summary by Tag"].cell(1, 1).value == "No." and wb["Summary by Tag"].cell(2, 1).value == 1
     mix = [dict(rows[0], tag=t, area_name=a, site=a, plant_unit="98") for t, a in (("98XV1", "W15"), ("98XV2", "South"), ("98XV3", "North"))]
     ws = openpyxl.load_workbook(io.BytesIO(exports.issues_xlsx(mix, "", "P")))["Issue List"]
     assert [ws.cell(r, 2).value for r in (2, 3, 4)] == ["North", "South", "W15"] and ws.cell(2, 1).value == 1   # sorted by Area
+    wb = openpyxl.load_workbook(io.BytesIO(exports.issues_xlsx(mix, "", "P")))
+    assert wb.sheetnames[:4] == ["Issue List", "Summary", "Summary by Area", "Summary by Tag"]
+    sa = wb["Summary by Area"]
+    assert [c.value for c in sa[3]][:7] == ["No.", "Area", "Units", "Tags", "Total", "Major", "Minor"]
+    assert [sa.cell(r, 2).value for r in (4, 5, 6, 7)] == ["North", "South", "W15", "Total"] and sa.cell(7, 5).value == 3
 
 
 def test_requirement_columns_for_all_valves():

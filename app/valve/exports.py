@@ -94,6 +94,65 @@ def summary_sheet(wb, title: str, heading: str, recs: list[dict], cat_name: str,
     return ws
 
 
+def _area_sheet(wb, rows: list[dict], project: str):
+    """'Summary by Area' sheet: one row per Area (North · South · Brownfield · W15) — units, tags, issue types,
+    severity and review status — and the same per Area split by issue type × severity underneath."""
+    head_fill, head_font = PatternFill("solid", fgColor="1F2D4D"), Font(bold=True, color="FFFFFF")
+    tot_fill, bold = PatternFill("solid", fgColor="E8EDF5"), Font(bold=True)
+    ws = wb.create_sheet("Summary by Area", 2)
+    ws.cell(1, 1, f"Issue Summary by Area — {project}").font = Font(bold=True, size=13)
+    types = [t for t in ["Data Error", "Data Missing", "Open Item", "PMS Non-Compliance", "PMS Review", "Process Mismatch", "Material Review",
+                         "Valve Review", "Revision Change", "Reviewer Correction", "Reviewer Comment", "Extraction Review"] if any(i["type"] == t for i in rows)]
+    statuses = [s for s in ["Open", "Confirmed", "Sent to Contractor", "Resolved", "Closed"] if any(i.get("status") == s for i in rows)] + \
+        sorted({i.get("status") or "Open" for i in rows} - {"Open", "Confirmed", "Sent to Contractor", "Resolved", "Closed", "Dismissed"})
+    hdr = ["No.", "Area", "Units", "Tags", "Total", "Major", "Minor"] + types + [f"Status: {s}" for s in statuses]
+    for n, h in enumerate(hdr, 1):
+        c = ws.cell(3, n, h)
+        c.fill, c.font, c.alignment = head_fill, head_font, Alignment(wrap_text=True, vertical="center", horizontal="center")
+        ws.column_dimensions[get_column_letter(n)].width = 6 if n == 1 else 12 if n == 2 else 22 if n == 3 else 11
+    ws.row_dimensions[3].height = 32
+    areas: dict[str, list] = {}
+    for i in rows:
+        areas.setdefault(i.get("area_name") or "(not stated)", []).append(i)
+
+    def line(L):
+        return [len({i["tag"] for i in L}), len(L), sum(1 for i in L if i["severity"] == "Major") or None,
+                sum(1 for i in L if i["severity"] == "Minor") or None] + \
+            [sum(1 for i in L if i["type"] == t) or None for t in types] + [sum(1 for i in L if (i.get("status") or "Open") == s) or None for s in statuses]
+    r = 4
+    order = sorted(areas, key=lambda a: AREA_ORDER.get(a, 9))
+    for n, a in enumerate(order, 1):
+        units = ", ".join(sorted({f"{i.get('site')}-{i.get('plant_unit')}" if a == "Brownfield" else (i.get("plant_unit") or "")
+                                  for i in areas[a]} - {"", "-"}))
+        for col, v in enumerate([n, a, units] + line(areas[a]), 1):
+            ws.cell(r, col, v)
+        r += 1
+    ws.auto_filter.ref = f"A3:{get_column_letter(len(hdr))}{max(4, r - 1)}"
+    for col, v in enumerate(["", "Total", ""] + line(rows), 1):
+        c = ws.cell(r, col, v)
+        c.fill, c.font = tot_fill, bold
+    # per Area: issue type × severity
+    r += 3
+    ws.cell(r - 1, 1, "By Area × Issue Type × Severity").font = Font(bold=True, size=12)
+    hdr2 = ["No.", "Area", "Issue Type", "Major", "Minor", "Info / Internal", "Total", "Tags"]
+    for n, h in enumerate(hdr2, 1):
+        c = ws.cell(r, n, h)
+        c.fill, c.font, c.alignment = head_fill, head_font, Alignment(horizontal="center")
+    k = 0
+    for a in order:
+        for t in types:
+            L = [i for i in areas[a] if i["type"] == t]
+            if not L:
+                continue
+            k += 1
+            r += 1
+            maj, mi = sum(1 for i in L if i["severity"] == "Major"), sum(1 for i in L if i["severity"] == "Minor")
+            for col, v in enumerate([k, a, t, maj or None, mi or None, (len(L) - maj - mi) or None, len(L), len({i["tag"] for i in L})], 1):
+                ws.cell(r, col, v)
+    ws.freeze_panes = "C4"
+    return ws
+
+
 # ── Issue List (xlsx) ──────────────────────────────────────────────────────────
 
 COLS = [("No.", 6), ("Area", 11), ("Site", 8), ("Unit", 6), ("Tag Number", 16), ("Valve Type", 8), ("Doc. No.", 20), ("Rev.", 6), ("Sheet", 9),
@@ -148,6 +207,7 @@ def issues_xlsx(rows: list[dict], base: str, project: str, by: str = "", sources
                   extra=[("Major", lambda L: sum(1 for r in L if r["sev"] == "Major") or None),
                          ("Minor", lambda L: sum(1 for r in L if r["sev"] == "Minor") or None),
                          ("Tags", lambda L: len({r["tag"] for r in L}))])
+    _area_sheet(wb, rows, project)
     sm = wb.create_sheet("Summary by Tag")
     types = [t for t in ["Data Error", "Data Missing", "Open Item", "PMS Non-Compliance", "PMS Review", "Revision Change",
                          "Process Mismatch", "Material Review", "Valve Review", "Reviewer Correction", "Reviewer Comment", "Extraction Review"]

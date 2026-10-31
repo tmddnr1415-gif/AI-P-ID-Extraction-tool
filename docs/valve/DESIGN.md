@@ -427,3 +427,10 @@ Note 113 · PC-01 Confirm 6(3C0K8 의 '316 SS/FHF' 2개 · API5L-X65 MOV 1500# �
   끝에 출처(row · Note · GN). `requirements.columns` · `requirements.COLUMNS`. 'Special Requirements' 한 칸 · NACE · Leakage 칸은 All Valves 에서 이 열들로 바뀜(종류 시트는 그대로).
 - 실자료(164 Tag): PFP Required 42 / Not Required 122 · Fugitive Class A type tested 144 (+ Class A 7) · SIL 2 114 · EN 10204 3.2 128 / 3.1 11 · Fire Safe HOLD 11.
   데이터시트 줄과 Note 가 다르면 둘 다: 'SIL 1 · notes: SIL 2' (2) · 'Tight Shut-Off — Rate B · notes: Rate A' (1) — 설계사 확인 거리.
+
+## 22. Issue List 'Summary by Area' 시트 (valve18, 사용자 요청)
+
+- Issue List Excel 세 번째 시트 **Summary by Area**(`exports._area_sheet`): Area 마다 한 줄 — Units(Brownfield 는 Site-Unit) · Tags · Total · Major · Minor · Issue Type 별 · 검토 상태(Status) 별, 필터 · Total 줄.
+  아래 표 'By Area × Issue Type × Severity'(Area · 종류 · Major · Minor · Info · Total · Tags).
+- 시트 순서: Issue List · Summary(Area · Site · Unit 세부) · Summary by Area · Summary by Tag · Info.
+- 실자료: North 74 Tag · 1,167 · South 69 · 1,184 · Brownfield 14 · 254 · W15 7 · 218 = 2,823.
