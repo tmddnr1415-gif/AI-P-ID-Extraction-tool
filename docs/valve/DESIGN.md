@@ -351,3 +351,22 @@ Required/Expected 에 Process Data 표의 값(있으면)을 적는다. 실자료
   Confirm 29(시트 근접 7 · CO2 탄소강 4 · 17-4PH 5 · B7 10 · Service 3), Note 다수. Issue List 에는 Action/Confirm 만 'Material Review'(청록).
 - 화면: 작업대 오른쪽 **Material 탭**(수준별 카드 · 근거 · 증거를 누르면 칸/Note/PMS 쪽/Process Data 쪽) · 머리 띠 'Material' 칩. Valve List 'Material Review (Tool)' 열.
 - 품질: `valve_eval.py --pd <Process Data PDF>` 의 F 절이 규칙×수준 개수를 기준값에 둔다.
+
+## 15. Ball Valve 엔지니어로서 검토 (valve11)
+
+요청: "Ball Valve 전문가가 되어야 한다 — 전달한 Datasheet · PMS 를 디테일하게 학습하고, Ball Valve 전문 지식을 기본으로, 전문 엔지니어로서 검토".
+원칙은 그대로다: 검출에 LLM 을 쓰지 않는다(CLAUDE.md §4). 그래서 '전문가' 는 세 겹의 결정적 규칙으로 만든다.
+
+1. **지식** `app/valve/knowledge.py` (28항목 → `docs/valve/BALL_VALVE_KNOWLEDGE.md` 로 생성) — API 6D / ISO 14313 · ISO 17292 · ASME B16.34 · B16.5/B16.47 · B16.10 ·
+   API 598 / ISO 5208 · API 607 / 6FA / ISO 10497 · ISO 15848 · NACE MR0175 / ISO 15156 · IEC 61508/61511 · Floating/Trunnion · SPE/DPE · DBB/DIB · 캐비티 릴리프 ·
+   시트 수지 · 메탈 시트 · HF · Stem(Blow-out · Anti-static) · 본체 구조 · Drain/Vent · Bore · 보온 · 액추에이터 · 탄소강 최저온도 · CO2 · RGD · Dual grade · 증명서.
+   출처끼리 다른 값(Floating 한계 크기 등)은 "통상 관행 — 회사 사양 우선" 으로 적었다. 웹 확인: 17-4PH(2020판 50 % SMYS 단서) · 316 의 60 °C / 100 kPa · Floating 크기 관행.
+2. **설계 규칙** `app/valve/expert.py` VR-01~15: 플랜지 면(PMS RF/RTJ) · 플랜지 규격 대 크기(B16.5 ≤ 24″, B16.47 > 24″) · Floating 크기×Class · PMS 품목과 Floating/Trunnion ·
+   Fail 위치 대 스프링 · SIL(Fail-last · PST) · 누설 등급 대 시트/TSO · Anti-static/Blow-out · 가연·독성 유체의 Fire-safe · Trunnion 시트 구성/캐비티 릴리프(액상·Dense CO2 면 Confirm) ·
+   Cold 보온 확장 Stem · Piggable Full bore · 밸브 크기 대 배관 · Erosive 연질 시트 · 액추에이터 계수. 'Note 2' 같은 참조 칸은 그 Note 글까지 읽는다.
+3. **학습** PC-01: 프로젝트의 모든 데이터시트(Tag 별 최신 Rev)를 Piping Class 로 묶어 칸마다 다수 값을 익히고, 5개 이상 중 80 % 이상이 같은데 혼자 다르면 Confirm
+   (표기만 다르거나 더 자세히 쓴 것은 제외). 데이터시트를 올리거나 값을 고치면 다시 익힌다(`api._peers_for` 캐시 키 = 데이터시트 수·id · 감사 id).
+
+실자료(164 DS): VR Action 3(19XV122 등 2″ 에 ASME B16.47-B) · Confirm 44(Dense CO2 Trunnion 캐비티 33 · Rate B 연질 시트 4 · Cold 보온 4 · Fire-safe 2 · Piggable bore 1) ·
+Note 113 · PC-01 Confirm 6(3C0K8 의 '316 SS/FHF' 2개 · API5L-X65 MOV 1500# ↔ 다수 900# 2개 …).
+화면: 작업대 **Expert 탭**(재질 · 설계 · 다른 데이터시트 대비, 의견마다 '지식' 펼치기) · Settings › **Ball Valve 지식** · Issue 'Valve Review' · Valve List 'Expert Review (Tool)' 열.

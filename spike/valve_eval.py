@@ -236,9 +236,10 @@ def run(a):
 
     # F — material review (matreview.py): rule × level counts; Process Data optional (--pd)
     if P:
-        from app.valve import matreview, process as procmod
+        from app.valve import expert, matreview, process as procmod, requirements
         PD = procmod.read_process_data(a.pd) if a.pd else None
         mc = collections.Counter()
+        peers = expert.build_peers([{"tag": d["tag_key"], "fields": {k: (v.get("value") or "") for k, v in d["fields"].items()}} for d in dss])
         for d in dss:
             doc = res["docs"].get(d["doc_no"], {})
             F = d["fields"]
@@ -246,9 +247,12 @@ def run(a):
                                   pms.area_of_title(doc.get("title", "")))
             ds = {"fields": [dict(v, key=k, edited_value=None) for k, v in F.items()], "notes": d["notes"], "tag_key": d["tag_key"]}
             pr = procmod.check(ds, PD) if PD else None
-            for m in matreview.review(ds, doc.get("general_notes", {}), c, pr, ((PD or {}).get("by_tag") or {}).get(d["tag_key"])):
+            row = ((PD or {}).get("by_tag") or {}).get(d["tag_key"])
+            gnotes = doc.get("general_notes", {})
+            for m in matreview.review(ds, gnotes, c, pr, row) + \
+                    expert.review(ds, gnotes, c, pr, row, requirements.find(ds, gnotes), peers):
                 mc[(m["rule"], m["level"])] += 1
-        rep += ["", "## F. Material review" + ("" if PD else " (no --pd: temperature rules idle)"), ""] + \
+        rep += ["", "## F. Material · valve design · peer review" + ("" if PD else " (no --pd: temperature rules idle)"), ""] + \
             [f"- {k[0]} {k[1]}: {v}" for k, v in sorted(mc.items())]
         base["F"] = {f"{k[0]}|{k[1]}": v for k, v in mc.items()}
 

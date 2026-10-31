@@ -57,6 +57,12 @@ _SEAT_NOTE = re.compile(r"(R?-?P?TFE|RTFE|RPTFE|PEEK|NYLON|DEVLON)[^.]*?MAX(?:IM
 _DUAL = re.compile(r"DUAL\s+GRADE", re.I)
 
 
+# knowledge entry (knowledge.KB) each rule rests on
+KB_OF = {"MR-01": "des.soft_seat", "MR-02": "des.soft_seat", "MR-03": "std.b1634", "MR-04": "mat.temp_cs", "MR-05": "des.body",
+         "MR-06": "mat.co2", "MR-07": "std.nace", "MR-08": "std.nace", "MR-09": "des.hardfacing", "MR-10": "mat.dual_grade",
+         "MR-11": "std.nace", "MR-12": "mat.rgd", "MR-13": "std.fire", "MR-14": "mat.co2", "MR-15": "std.nace"}
+
+
 def _num(v):
     m = re.search(r"-?\d+(?:\.\d+)?", str(v or ""))
     return float(m.group(0)) if m else None
@@ -100,8 +106,12 @@ def review(ds: dict, general_notes: dict | None = None, pms_class: dict | None =
         return {"doc": "PMS", "where": f"class {c.get('code')} · {where}", "page": page or c.get("header_page"), "bbox": bbox, "text": text[:220]}
 
     def add(rule, level, title, key, comment, basis, evidence):
+        from app.valve import knowledge
+        kb = KB_OF.get(rule, "")
+        k = knowledge.get(kb) if kb else {"title": "", "text": ""}
         out.append({"rule": rule, "level": level, "severity": SEVERITY[level], "title": title, "key": key,
-                    "comment": comment, "basis": basis, "evidence": [e for e in evidence if e]})
+                    "comment": comment, "basis": basis, "kb": kb, "kb_title": k["title"], "kb_text": k["text"],
+                    "evidence": [e for e in evidence if e]})
 
     # ---- what the documents say about the service -------------------------------------------------------------
     pdv = {r["key"]: r for r in process_rows or [] if r.get("pd") not in (None, "")}
@@ -239,7 +249,8 @@ def review(ds: dict, general_notes: dict | None = None, pms_class: dict | None =
                "table's environmental limits (H2S partial pressure / pH). " if nace_req else "")
             + ("H1150D is stated." if ok else "The datasheet does not state the heat treatment — require 'H1150D, ≤ 33 HRC' "
                                                "on the datasheet and the material certificate."),
-            "NACE MR0175 / ISO 15156-3 Table A.24 (precipitation-hardened martensitic SS)", [ev_field("stem_material")])
+            "NACE MR0175 / ISO 15156-3 Annex A (precipitation-hardened martensitic SS, UNS S17400) — check the project edition; "
+            "the 2020 edition also limits sustained stress to 50 % SMYS for some conditions", [ev_field("stem_material")])
 
     # MR-09  hard-facing type not stated -------------------------------------------------------------------------------
     hf = [k for k in ("ball_material", "stem_material") if _HF.search(val(k))]

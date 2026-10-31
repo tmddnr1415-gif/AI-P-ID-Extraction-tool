@@ -25,7 +25,7 @@ from fastapi.responses import FileResponse, JSONResponse, RedirectResponse, Resp
 from starlette.concurrency import run_in_threadpool
 
 from app import paths
-from app.valve import exports, extract, issues as issuesmod, material, matreview as matmod, pms as pmsmod, process as procmod, requirements as reqmod, schema, store, tbe
+from app.valve import exports, extract, issues as issuesmod, expert as expmod, knowledge as kbmod, material, matreview as matmod, pms as pmsmod, process as procmod, requirements as reqmod, schema, store, tbe
 
 router = APIRouter()
 _JOBS: dict[str, dict] = {}
@@ -356,6 +356,27 @@ def _pms_for(con, pid):
     return _PMS_CACHE[doc["id"]], {k: doc[k] for k in ("id", "filename")}
 
 
+_PEER_CACHE: dict[int, tuple] = {}
+
+
+def _peers_for(con, pid):
+    """What the project's datasheets say, per piping class (expert.build_peers) — latest revision of each tag.
+    Rebuilt when a datasheet is added or a value is corrected (the key follows datasheet / audit ids)."""
+    k = tuple(store.one(con, "SELECT COUNT(*) n, MAX(id) m FROM datasheet WHERE project_id=?", pid).values()) + \
+        (store.one(con, "SELECT MAX(a.id) m FROM audit a JOIN datasheet d ON d.id=a.datasheet_id WHERE d.project_id=?", pid)["m"],)
+    if pid in _PEER_CACHE and _PEER_CACHE[pid][0] == k:
+        return _PEER_CACHE[pid][1]
+    latest = _latest(store.rows(con, "SELECT id, tag_key, rev FROM datasheet WHERE project_id=?", pid))
+    ids = {d["id"]: d["tag_key"] for d in latest.values()}
+    vals: dict[int, dict] = {i: {} for i in ids}
+    for i in ids:
+        for f in store.rows(con, "SELECT key, value, edited_value FROM field WHERE datasheet_id=?", i):
+            vals[i][f["key"]] = f["edited_value"] if f["edited_value"] is not None else (f["value"] or "")
+    prof = expmod.build_peers([{"tag": ids[i], "fields": vals[i]} for i in ids])
+    _PEER_CACHE[pid] = (k, prof)
+    return prof
+
+
 def _ds_full(con, dsid, deep=True):
     d = store.one(con, "SELECT * FROM datasheet WHERE id=?", dsid)
     if not d:
@@ -394,6 +415,8 @@ def _ds_full(con, dsid, deep=True):
     cls = pmsmod.find_class(pms, schema.effective(F.get("piping_class")), schema.effective(F.get("line_no")), d["area"])[0] if pms else None
     d["material_review"] = matmod.review(d, d["general_notes"], cls, d["process"],
                                          ((proc or {}).get("by_tag") or {}).get(d["tag_key"]), d["requirements"])
+    d["material_review"] += expmod.review(d, d["general_notes"], cls, d["process"], ((proc or {}).get("by_tag") or {}).get(d["tag_key"]),
+                                          d["requirements"], _peers_for(con, d["project_id"]))
     prev = None
     i = next((n for n, r in enumerate(d["revisions"]) if r["id"] == d["id"]), 0)
     if i > 0:
@@ -402,6 +425,12 @@ def _ds_full(con, dsid, deep=True):
     d["issues"] = issuesmod.compute(d, d["general_notes"], pms, d["area"], prev, states, pms_rows=d["pms"], process_rows=d["process"],
                                    material_rows=d["material_review"])
     return d
+
+
+@router.get("/api/valve/knowledge")
+def knowledge_base():
+    """The ball valve engineering knowledge the review rules rest on (knowledge.KB)."""
+    return [{"key": k, **e} for k, e in kbmod.KB.items()]
 
 
 @router.get("/api/valve/datasheets/{dsid}")

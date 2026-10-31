@@ -718,3 +718,35 @@ def test_material_review_rules(tmp_path):
     iss = issues.compute({"fields": ds["fields"], "notes": ds["notes"], "pages": [1]}, {}, material_rows=list(got.values()))
     mi = [i for i in iss if i["type"] == "Material Review"]
     assert {i["severity"] for i in mi} == {"Major", "Minor"} and not any(i["rule"] in ("MR-09", "MR-13", "MR-15") for i in mi)
+
+
+def test_expert_valve_rules_and_peer_learning():
+    from app.valve import expert, knowledge
+    f = lambda k, v, row: {"key": k, "value": v, "edited_value": None, "page": 1, "bbox": [1, row, 2, row + 1], "row": row, "display": k}  # noqa: E731
+    cls = {"code": "XC0K8", "facing": "RING JOINT", "rating": 1500, "items": [], "header_page": 3}
+    ds = {"fields": [f("body_size", '2"', 21), f("rating", "1500#", 22), f("body_type", "Note - 2", 21), f("connections", "Flanged RF (ASME B16.47 -B)", 22),
+                     f("seat_material", "RTFE", 26), f("leakage_class", "ISO 5208 Rate B", 23), f("tightness", "Tight Shut-Off", 7),
+                     f("fail_position", "Last", 17), f("act_spring", "Required, SS 316", 40), f("sil", "SIL 2 (Minimum)", 44),
+                     f("pipe_insulation", "5 (Cold Insulation)", 10), f("piggable", "Yes", 12), f("line_size_inlet", "2 in sch. 160", 10),
+                     f("piping_class", "XC0K8", 9), f("body_material", "CS A216-WCB", 24)],
+          "notes": [{"no": 2, "text": "Body type shall be Ball (Reduced Bore) - Floating."}]}
+    peers = expert.build_peers([{"tag": f"T{i}", "fields": {"piping_class": "XC0K8", "body_material": "316/316L SS A351-CF8M/CF3M"}} for i in range(6)])
+    proc = [{"key": "fluid", "pd": "HYDROCARBON", "pd_unit": ""}]
+    got = {}
+    for m in expert.review(ds, {}, cls, proc, None, [], peers):
+        got.setdefault(m["rule"], []).append(m)
+    lv = lambda r: {m["level"] for m in got[r]}  # noqa: E731
+    assert lv("VR-01") == {"Action"}                       # RF datasheet, PMS RTJ
+    assert lv("VR-02") == {"Action"}                       # B16.47 on a 2" valve
+    assert "Confirm" in lv("VR-05") and "Confirm" in lv("VR-06")   # fail-last with spring · SIL with fail-last
+    assert lv("VR-07") == {"Confirm"}                      # soft seat / TSO with Rate B
+    assert "VR-08" in got and lv("VR-09") == {"Confirm"}   # anti-static / blow-out not stated · hydrocarbon without fire-safe
+    assert lv("VR-11") == {"Confirm"} and lv("VR-12") == {"Action"}   # cold insulation · piggable + reduced bore (read from Note 2)
+    assert lv("PC-01") == {"Confirm"} and "6 of 6" in got["PC-01"][0]["comment"]   # learned: the other XC0K8 datasheets say 316
+    for L in got.values():
+        for m in L:
+            assert m["kb"] in knowledge.KB and m["basis"] and m["evidence"]
+    # a value that only says more than its peers is not flagged
+    ds2 = {"fields": [f("piping_class", "XC0K8", 9), f("body_material", "316/316L SS A351-CF8M/CF3M (dual certified)", 24)], "notes": []}
+    assert not [m for m in expert.review(ds2, peers=peers) if m["rule"] == "PC-01"]
+    assert "Ball Valve" in knowledge.markdown()

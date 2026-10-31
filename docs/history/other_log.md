@@ -70,3 +70,10 @@
 - 특수 요구사항 `requirements.py` 15종 → Valve List 'Special Requirements (Notes)' 열 · Summary 탭. 164 Tag 모두 나옴.
 - 재질 검토 `matreview.py` MR-01~15 (시트 온도 · P-T · 저온 본체 · CO2 탄소강 · NACE 316/CS/17-4PH/볼트 · HF · Dual grade · RGD · Fire-safe · Service). 실자료 Action 5 · Confirm 29 → Issue 'Material Review'. Material 탭 · Valve List 열.
 - 시험 41 · eval --check: 바뀐 것은 Trim/Stem 16(원인 위) + 새 F 절, 읽기 지문 불변 → 기준값 저장 · diff_sim 0 · ui_audit 22/22.
+
+## 2026-10-31 · valve11 — Ball Valve 엔지니어로서 검토 (브랜치 ccr-efbe7e75-n915ze)
+- 요청: 전달한 Datasheet · PMS 를 디테일하게 학습하고 Ball Valve 전문 지식을 기본으로 전문 엔지니어로서 검토.
+- LLM 없이(원칙 §4.3): 지식표 `knowledge.py` 28항목(API 6D · ISO 17292 · B16.34 · B16.5/47 · 누설 · Fire · ISO 15848 · NACE · SIL · 설계 · 재질) → BALL_VALVE_KNOWLEDGE.md 생성.
+- 설계 규칙 `expert.py` VR-01~15 + 학습 PC-01(같은 Piping Class 데이터시트 다수 값, 5개 이상 80 %). 참조 칸('Note 2')은 Note 글까지 읽음.
+- 실자료: VR Action 3(2″ 에 B16.47-B) · Confirm 44 · PC-01 6. 웹으로 17-4PH · 316 한계 · Floating 관행 확인(관행 값은 '회사 사양 우선' 으로 표기).
+- 화면: Expert 탭 · Settings › Ball Valve 지식 · Issue 'Valve Review' · Excel 'Expert Review (Tool)'. 시험 42 · eval 은 F 절만 이동(읽기 · PMS 불변) · diff_sim 0.

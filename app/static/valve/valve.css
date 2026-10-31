@@ -417,3 +417,5 @@ table.t.proc td { padding: 4px 6px; }
 .mat { border-left: 3px solid #0e8c8c; padding: 6px 8px; margin: 6px 0; background: #f4fbfb; border-radius: 4px; line-height: 1.45; }
 .mat.Action { border-left-color: var(--bad, #dc2626); background: #fdf3f2; } .mat.Confirm { border-left-color: #e0a100; background: #fffaf0; }
 .pill.p-bad { background: #fbe3e1; color: #b42318; } .pill.p-warn { background: #fff4c2; color: #8a6100; } .pill.p-soft { background: #eef1f4; color: #555; }
+details.kb { font-size: 12px; margin: 3px 0; } details.kb summary { cursor: pointer; color: #0b6f6f; }
+details.kb p { margin: 4px 0 4px 14px; }

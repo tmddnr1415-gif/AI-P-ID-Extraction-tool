@@ -203,6 +203,24 @@ def _find_in(classes, cl, piping_class, line_no):
     return None, ""
 
 
+def select_item(c: dict, val) -> tuple:
+    """(best, wanted bore, wanted type): best = (score, item, ball_item_fields) of the class's ball valve item that fits
+    the valve size, preferring the datasheet's bore and floating/trunnion; None when no item covers the size."""
+    size = _inch(val("body_size"))
+    bt = val("body_type").upper() + " " + val("trim_type").upper()
+    want_bore = "FULL" if "FULL" in bt else "REDUCED" if "REDUC" in bt else ""
+    want_type = "TRUNNION" if "TRUNNION" in bt else "FLOATING" if "FLOATING" in bt else ""
+    balls = [it for it in c["items"] if it["kind"].upper().startswith("BALL VALVE")]
+    fit = [it for it in balls if size is None or it["from"] - 1e-6 <= size <= it["to"] + 1e-6]
+    best = None
+    for it in fit:
+        f = ball_item_fields(it["desc"])
+        score = (f["bore"] == want_bore if want_bore else 0) + (f["type"] == want_type if want_type else 0)
+        if best is None or score > best[0]:
+            best = (score, it, f)
+    return best, want_bore, want_type
+
+
 def check(fields: dict, pms: dict, area: str = "", notes: list | None = None) -> list[dict]:
     """fields: key -> {value|edited_value, page, bbox}.  -> rows of {item, req, ds, result, reason, pms_page, pms_bbox, key}."""
     val = lambda k: schema.effective(fields.get(k))   # noqa: E731  (a 'Note 14' cell is checked by what note 14 says)
@@ -218,18 +236,7 @@ def check(fields: dict, pms: dict, area: str = "", notes: list | None = None) ->
     if how and ("please confirm" in how or how.startswith("Piping class")):
         add("Piping Material Class", "piping_class", c["code"], val("piping_class"), material.REVIEW, how,
             c.get("header_page"), c.get("class_bbox"))
-    size = _inch(val("body_size"))
-    bt = val("body_type").upper() + " " + val("trim_type").upper()
-    want_bore = "FULL" if "FULL" in bt else "REDUCED" if "REDUC" in bt else ""
-    want_type = "TRUNNION" if "TRUNNION" in bt else "FLOATING" if "FLOATING" in bt else ""
-    balls = [it for it in c["items"] if it["kind"].upper().startswith("BALL VALVE")]
-    fit = [it for it in balls if size is None or it["from"] - 1e-6 <= size <= it["to"] + 1e-6]
-    best = None
-    for it in fit:
-        f = ball_item_fields(it["desc"])
-        score = (f["bore"] == want_bore if want_bore else 0) + (f["type"] == want_type if want_type else 0)
-        if best is None or score > best[0]:
-            best = (score, it, f)
+    best, want_bore, want_type = select_item(c, val)
     # pressure class: class header first (it is the class), then the item
     r_ds = re.search(r"(\d{3,4})", val("rating"))
     req_rating = c.get("rating") or (best[2]["rating"] if best else None)

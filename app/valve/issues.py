@@ -38,8 +38,8 @@ PROCESS_REQUIRED = ["fluid", "op_pressure", "design_pressure", "op_temp", "desig
 PROCESS_ROW_ITEMS = {"sour_service", "corrosive", "erosive", "toxic", "stroke_open", "stroke_closed", "stroke_time_s"}
 COLOR = {"Data Missing": "missing", "Open Item": "missing", "Data Error": "error", "PMS Non-Compliance": "error", "Process Mismatch": "process",
          "PMS Review": "error", "Revision Change": "revision", "Reviewer Correction": "comment",
-         "Reviewer Comment": "comment", "Extraction Review": "extract", "Material Review": "material"}
-CONTRACTOR_TYPES = ["Data Missing", "Open Item", "Data Error", "PMS Non-Compliance", "PMS Review", "Process Mismatch", "Material Review",
+         "Reviewer Comment": "comment", "Extraction Review": "extract", "Material Review": "material", "Valve Review": "material"}
+CONTRACTOR_TYPES = ["Data Missing", "Open Item", "Data Error", "PMS Non-Compliance", "PMS Review", "Process Mismatch", "Material Review", "Valve Review",
                     "Revision Change",
                     "Reviewer Correction", "Reviewer Comment"]
 # reviewer mark-up category -> (issue type, severity, description prefix) — the contractor reads one list
@@ -210,7 +210,7 @@ def compute(ds: dict, general_notes: dict | None = None, pms: dict | None = None
         if m["level"] == "Note":
             continue
         e = next((x for x in m["evidence"] if x.get("doc") == "Datasheet" and x.get("bbox")), None)
-        add("Material Review", f"{m['key']}.{m['rule']}", f"{m['rule']} {m['title']}: {m['comment']} [Basis: {m['basis']}]",
+        add("Material Review" if m["rule"].startswith("MR") else "Valve Review", f"{m['key']}.{m['rule']}", f"{m['rule']} {m['title']}: {m['comment']} [Basis: {m['basis']}]",
             expected="", page=(e or {}).get("page"), bbox=(e or {}).get("bbox"), severity=m["severity"],
             f=dict(F.get(m["key"]) or {"display": m["title"]}),
             extra={"rule": m["rule"], "level": m["level"], "result": m["level"]})

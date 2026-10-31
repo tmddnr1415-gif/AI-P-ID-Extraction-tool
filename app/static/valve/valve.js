@@ -694,7 +694,7 @@ async function exportValveList() {
 const W = { tab: LS.get('wtab', 'data'), q: '', type: '', st: '', viewer: null, selField: null, prevCmp: null, selCm: null,
   px: LS.get('wbpx', null), col: LS.get('wbc', null) };
 const WB_MIN = { l: 180, r: 260, c: 480 }, WB_MAX = { l: 420, r: 560 };   // px — the PDF keeps at least WB_MIN.c
-const TABS = [['iss', 'Issues'], ['sum', 'Summary'], ['data', 'Data'], ['proc', 'Process'], ['pms', 'PMS'], ['mat', 'Material'], ['rev', 'Rev'], ['notes', 'Notes'], ['cmt', 'Comments'], ['hist', 'History']];
+const TABS = [['iss', 'Issues'], ['sum', 'Summary'], ['data', 'Data'], ['proc', 'Process'], ['pms', 'PMS'], ['mat', 'Expert'], ['rev', 'Rev'], ['notes', 'Notes'], ['cmt', 'Comments'], ['hist', 'History']];
 function openDs(id) { if (!id) return; S.dsId = id; LS.set('tag.' + S.pid, id); go('review'); }
 function fitPanels() {                                // clamp the side panels so the viewer never gets squeezed (also on window resize)
   const wb = $('#v-review .wb'); if (!wb) return;
@@ -797,7 +797,7 @@ function drawHead() {                                  // one-line summary of th
     <span class="sp"></span><span class="hnav"><button data-nav="-1" title="이전 Tag (↑ / K)">▲</button><button data-nav="1" title="다음 Tag (↓ / J)">▼</button></span>
     ${chip('Data Error', errN, 'err', 'iss', '빨강 — 데이터 오류 (Issues 탭)')}${chip('Missing', misN, 'mis', 'iss', '주황 — 누락 · HOLD/TBC')}${chip('PMS', pmsN, 'err', 'pms', 'PMS 부적합 · 확인 (PMS 탭)')}
     ${chip('Process', iss.filter(i => i.type === 'Process Mismatch').length, 'mis', 'proc', 'Process Data 와 다른 공정 항목 (Process 탭)')}
-    ${chip('Material', iss.filter(i => i.type === 'Material Review').length, 'mat', 'mat', '재질 검토 의견 — Action · Confirm (Material 탭)')}
+    ${chip('Expert', iss.filter(i => i.type === 'Material Review' || i.type === 'Valve Review').length, 'mat', 'mat', 'Ball Valve 엔지니어 검토 — 재질 · 설계 · 다른 데이터시트 대비 (Expert 탭)')}
     ${chip('Rev Change', revN, 'rev', 'rev', '이전 Revision 대비 바뀐 칸')}${chip('Comments', d.comments.length, 'cmt', 'cmt', '검토자 의견 · Mark-up')}
     <label class="hst">Review Status <select id="wst">${STATUSES.map(s => `<option ${s === d.review_status ? 'selected' : ''}>${s}</option>`).join('')}</select></label>`;
   h.onclick = e => { const c = e.target.closest('[data-tab]'); if (c) setTab(c.dataset.tab); };
@@ -1003,7 +1003,8 @@ function drawRight() {
 const MAT_LV = { Action: ['bad', '조치 필요 — 문서 한계를 넘음'], Confirm: ['warn', '확인 필요 — 조건부 허용'], Note: ['soft', '참고 — 검토 기록'] };
 function matList(d) {                                  // material review (matreview.py): rule · comment · basis · evidence
   const L = d.material_review || [];
-  if (!L.length) return '<div class="empty">재질 검토 의견이 없습니다 — 규칙에 필요한 값(재질 · 설계온도 · PMS Class)이 문서에 있을 때만 의견을 냅니다.</div>';
+  if (!L.length) return '<div class="empty">검토 의견이 없습니다 — 규칙에 필요한 값(재질 · 설계온도 · PMS Class …)이 문서에 있을 때만 의견을 냅니다.</div>';
+  const grp = r => r.startsWith('MR') ? '재질' : r.startsWith('VR') ? '설계' : '다른 데이터시트 대비';
   const ev = x => { const t = esc(x.where) + (x.text ? ` <span class="soft">${esc(String(x.text).slice(0, 90))}</span>` : '');
     if (x.doc === 'PMS' && x.page) return `<a href="#" data-pmsp="${x.page}" data-pmsb="${esc(JSON.stringify(x.bbox))}">PMS p.${x.page}</a> ${t}`;
     if (x.doc === 'Process Data' && x.page) return `<a href="#" data-pdp="${x.page}" data-pdb="${esc(JSON.stringify(x.bbox))}">Process Data p.${x.page}</a> ${t}`;
@@ -1012,10 +1013,11 @@ function matList(d) {                                  // material review (matre
     return f ? `<a href="#" data-ek="${esc(f.key)}">${t}</a>` : t; };
   return ['Action', 'Confirm', 'Note'].map(lv => { const M = L.filter(m => m.level === lv); if (!M.length) return '';
     return `<div class="sect"><h4><span class="pill p-${MAT_LV[lv][0]}">${lv}</span> ${MAT_LV[lv][1]} (${M.length})</h4>${M.map(m => `<div class="mat ${lv}">
-      <div><b>${esc(m.rule)} · ${esc(m.title)}</b></div><div>${esc(m.comment)}</div>
+      <div><span class="soft" style="font-size:11px">${grp(m.rule)}</span> <b>${esc(m.rule)} · ${esc(m.title)}</b></div><div>${esc(m.comment)}</div>
       <div class="soft" style="font-size:11px">근거: ${esc(m.basis)}</div>
+      ${m.kb_text ? `<details class="kb"><summary>지식: ${esc(m.kb_title)}</summary>${esc(m.kb_text)}</details>` : ''}
       <div style="font-size:11px">${m.evidence.map(ev).join('<br>')}</div></div>`).join('')}</div>`; }).join('')
-    + '<p class="soft">규칙 기반 의견입니다 (추측 없음). Action·Confirm 은 Issue List 에 Material Review 로 올라가고, Note 는 여기와 Valve List 에만 남습니다. 근거 문서·칸을 누르면 그 위치로 갑니다.</p>';
+    + '<p class="soft">Ball Valve 엔지니어 관점의 규칙 기반 의견입니다 (추측 없음): 재질(MR) · 설계(VR) · 이 프로젝트의 다른 데이터시트 대비(PC). Action·Confirm 은 Issue List 에 Material / Valve Review 로 올라가고, Note 는 여기와 Valve List 에만 남습니다. 근거 문서·칸을 누르면 그 위치로 갑니다. 지식 전체: Settings › Ball Valve 지식.</p>';
 }
 function reqList(d) {                                  // special requirements (requirements.py): one line per kind, sources clickable
   const by = {}; (d.requirements || []).forEach(r => (by[r.key] ||= []).push(r));
@@ -1335,7 +1337,10 @@ function renderSettings() {
     <div class="card"><h3>원칙</h3><ul class="soft"><li>Tag Number 가 모든 문서의 연결 키입니다 (공백 · 하이픈 무시: 00XV 921 = 00XV-921 = 00XV921).</li>
       <li>추출은 PDF 글자층과 표 괘선만으로 합니다 (OCR · AI 추정 없음). 짝이 불확실한 칸은 Review Required.</li>
       <li>원본 파일은 덮어쓰지 않고, 수정은 읽은 값 옆에 수정자 · 시각과 함께 남습니다.</li><li>최종 판정 · 승인은 사용자가 합니다.</li></ul></div>
+    <div class="card" style="grid-column:1/-1"><h3>Ball Valve 지식 — 검토 규칙의 근거</h3><div id="kbl" class="soft">불러오는 중…</div></div>
     <div class="card"><h3>정보</h3><p>Module 01 — Ball Valve (On/Off · MOV) Datasheet Review · Phase 1 (+ Revision 비교 기본)<br>서버: P&amp;ID 서버 /valve · 데이터: pid_data/valve/</p></div></div>`;
+  api('GET', '/knowledge').then(L => { $('#kbl').innerHTML = L.map(k => `<details class="kb"><summary><b>${esc(k.title)}</b> <small class="soft">${esc(k.ref)}</small></summary>
+    <p>${esc(k.text)}</p><p class="soft">데이터시트에서 볼 것: ${esc(k.check)}</p></details>`).join(''); }).catch(() => { $('#kbl').textContent = '불러오지 못했습니다'; });
   $('#ssave') && ($('#ssave').onclick = () => { LS.set('user', $('#sname').value.trim()); location.reload(); });
   $('#sreset').onclick = () => { ['wbw', 'wbpx', 'wbc', 'gorder', 'gw', 'zoom', 'mkbar', 'vpart', 'rcsync', 'wtab'].forEach(k => LS.set(k, null)); toast('처음대로 — 화면을 다시 엽니다'); setTimeout(() => location.reload(), 600); };
 }

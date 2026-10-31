@@ -127,6 +127,8 @@ pytest -q                                       # 저장소 전체 (약 2분)
 | `app/valve/pms.py` | 245 | PMS PDF 읽기(지역 QN/QS · Class 머리 · Ball Valve 품목), `find_class`, `check` |
 | `app/valve/requirements.py` | 92 | **특수 요구사항**(valve10) — 칸 · Note · General Note 에서 NACE · Fugitive(ISO 15848) · Fire-safe · PFP · Anti-static · Blow-out · SIL · PST · 경도 · EN 10204 · PMI · 충격시험 · DBB · 도장 · 기밀 을 낱말/규격 번호로 찾고 출처를 단다 |
 | `app/valve/matreview.py` | 약 330 | **재질 검토 의견**(valve10) — 규칙 MR-01~15 · 수준 Action/Confirm/Note · 근거 규격/문서 조항 · 증거(칸 · Note · PMS 쪽 · Process Data 쪽) |
+| `app/valve/knowledge.py` | 약 230 | **Ball Valve 지식**(valve11) — 표준 · 설계 · 재질 28항목(무엇 · 데이터시트에서 볼 것 · 근거). `GET /api/valve/knowledge` · `python3 -m app.valve.knowledge > docs/valve/BALL_VALVE_KNOWLEDGE.md` |
+| `app/valve/expert.py` | 약 300 | **설계 검토 VR-01~15 + 학습 PC-01**(valve11) — 플랜지 · Floating/Trunnion · Fail/스프링 · SIL · 누설 · Fire-safe · 캐비티 · 보온 · Piggable … / 같은 Piping Class 데이터시트 다수 값과 비교 |
 | `app/valve/process.py` | 약 260 | **Phase 3** — Process Data 표 읽기(괘선 열 띠 · 머리 줄 · 단위 줄 · Sr no. 행) · 공정 항목 비교(`compare_item` · `check`) |
 | `app/valve/tbe.py` | 476 | 회사 Valve List(TBE) 양식 분석 · 채우기 · 바뀐 칸 표시 · 링크 · `.xls` 변환 |
 | `app/valve/exports.py` | 287 | Issue List Excel · 인쇄용 Mark-up PDF(표지 · 쪽 · Issue Summary · 책갈피) |
@@ -316,6 +318,7 @@ PDF 글자 층에는 **사람 눈에 안 보이는 글자**가 섞여 있다: �
 | Data Error | 빨강 error | Major | Line No. 의 Class ≠ Piping class(기본 Class 비교, '-QG1' 같은 꼬리 무시) · Line No. 의 크기 ≠ Line Size · 운전 > 설계(같은 단위) · Fail position ≠ Air failure 동작 · 문서에 없는 General Note / 데이터시트에 없는 Note 참조 · 엉뚱한 Note 참조 · **sheet 2 표제란 Doc. No. 불일치 · 뒷장이 반복한 Tag/PID/Service/Line 불일치**(valve05) |
 | PMS Non-Compliance | 빨강 | Major | `pms.check` → Non-Compliant |
 | PMS Review | 빨강 | Minor | `pms.check` → Review Required / Not Defined in PMS |
+| Valve Review | 청록 material | Major / Minor | `expert.review` 의 VR(설계) · PC(다른 데이터시트 대비) Action/Confirm (valve11) |
 | Material Review | 청록 material | Major / Minor | `matreview.review` 의 Action → Major, Confirm → Minor (Note 는 지적 아님 — Material 탭 · Valve List 열에만). 설명 = 규칙 번호 · 의견 · [Basis: 규격/조항] (valve10) |
 | Revision Change | 노랑 revision | Info | 이전 Rev 와 칸 비교(Modified / Added / Deleted, 재질 표기만 다른 것은 Unchanged) |
 | Reviewer Correction | 파랑 comment | Major | 검토자가 고친 칸 (읽은 값 → 고친 값) |
@@ -615,6 +618,9 @@ PDF/Excel/피드백을 **서버 상태로** 확인, 캡처 저장, 그린 것은
 규칙은 **필요한 값이 문서에 있을 때만** 낸다. 프로젝트 값(설계온도 · P-T · Class Note)은 문서에서 읽고, 일반 재질 지식(시트 수지 한계 `SEAT_LIMITS` · 본체 최저온도 `BODY_MIN_T`)은 표에 조항과 함께 둔다.
 Action 은 문서 한계를 넘을 때만(PMS Note · P-T 표 · B16.34). 조건부 허용은 Confirm, 검토 기록은 Note. 시험 `test_material_review_rules` 에 한 줄 더한다.
 
+### 17.5c 새 설계 규칙 · 지식 — 지식은 `knowledge.KB` 에 항목(title · text · check · ref)을 더하고 문서를 다시 만든다. 규칙은 `expert.review` 에
+`add("VR-nn", 수준, 제목, 칸, 의견, "지식 키", [증거…])` — 지식 키가 없으면 시험이 실패한다. 학습 대상 칸은 `expert.PEER_FIELDS`, 문턱은 `PEER_MIN` · `PEER_SHARE`.
+
 ### 17.6 새 화면 — `index.html` 메뉴 버튼 + `<section id="v-키">`, `valve.js` 의 `VIEWS` · `RENDER` 에 함수. PDF 가 필요하면 `new Viewer(host, opts)`.
 Mark-up 이 필요하면 `opts.tools=true` 와 `onMark` · `onMarkChange` · `onMarkSelect` · `onMarkCmd`.
 
@@ -681,6 +687,7 @@ python3 spike/pack_delta.py --name valve05 --base 9429f4f \
 | valve08 | 〃 | 빈 Process Data 항목 전부 Data Missing (Process DS 참조여도 · 사용자 결정) |
 | valve09 | 〃 | HOLD / TBC / TBA 를 모든 칸 · Note 에서 Open Item(Major) |
 | valve10 | 〃 | **PMS 검토 점검**(Ball 품목 Trim 우선 · P-T 표 · Service · Class Notes 읽기) · **특수 요구사항 열**(PFP · Fugitive · NACE …) · **재질 검토 엔진 MR-01~15**(Material 탭 · Issue 'Material Review' · Valve List 열) |
+| valve11 | 〃 | **Ball Valve 엔지니어 검토**: 지식 28항목(`knowledge.py`) · 설계 규칙 VR-01~15 · 프로젝트 데이터시트 학습 PC-01 · Expert 탭 · Settings › Ball Valve 지식 |
 
 **남은 일**
 1. 회사 적용 확인: .xls 자동 변환, 456쪽 처리 시간, 화면 글꼴, Edge 에서 Mark-up · 패널 접기, 내보낸 PDF 를 Acrobat 에서 열기, 1366×768 노트북에서 작업대.

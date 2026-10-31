@@ -1,6 +1,6 @@
 # 인수인계 — "VALVE Datasheet 검토" 세션 (상한 15KB · 덧붙이지 말고 고쳐 쓴다)
 
-## 지금 상태 (2026-10-31 · valve10)
+## 지금 상태 (2026-10-31 · valve11)
 
 - 작업 브랜치: `ccr-efbe7e75-n915ze`. 이 브랜치는 PID(`claude/gracious-ride-26nqrf`, hotfix131) 와 DASHBOARD(`ccr-248a5c4d-3dji7g`, v16.51) 를 병합한 위에 있다.
 - 무엇: 대시보드 **실행 프로젝트 › CO2 PJT › Datasheet › Ball Valve** = P&ID 서버(8000) `/valve/` — Valve Datasheet 검토 도구.
@@ -16,7 +16,10 @@
   + **HOLD / TBC 는 모든 칸 · Note 에서 Open Item(Major)** — 실자료 84건 (valve09, 사용자 요청)
   + **valve10 (DESIGN §14)**: PMS 대조 점검 — Ball 품목의 'X BALL/STEM' 이 머리 Trim 보다 우선(1A1A 거짓 Review 16 → 0) · PMS 머리에서 P-T 표 · Service · Class Notes 도 읽음(`READER_VERSION 2`, 옛 json 은 자동 재읽기).
     **특수 요구사항**(`requirements.py`: PFP · Fugitive · NACE … 15종, 출처 포함) → Valve List 열 · Summary 탭.
-    **재질 검토 의견**(`matreview.py` MR-01~15, Action/Confirm/Note, 근거 규격 · 증거) → Material 탭 · Issue 'Material Review'(청록) · Valve List 'Material Review (Tool)' 열. 실자료 Action 5 · Confirm 29.
+    **재질 검토 의견**(`matreview.py` MR-01~15, Action/Confirm/Note, 근거 규격 · 증거) → Issue 'Material Review'(청록). 실자료 Action 5 · Confirm 29.
+  + **valve11 (DESIGN §15) Ball Valve 엔지니어 검토**: 지식 `knowledge.py`(28항목 → `docs/valve/BALL_VALVE_KNOWLEDGE.md`) · 설계 규칙 `expert.py` VR-01~15 ·
+    프로젝트 데이터시트 학습 PC-01(같은 Piping Class 다수 값) → 작업대 **Expert 탭**(재질+설계+학습, 지식 펼치기) · Settings › Ball Valve 지식 · Issue 'Valve Review' · Valve List 'Expert Review (Tool)' 열.
+    LLM 없이 결정적 규칙 — '전문가' 는 지식표 + 규칙 + 프로젝트 학습이다. 새 지식은 KB 에, 새 규칙은 VR 로.
   + **빈 Process Data 항목은 전부 Data Missing**(Process DS 참조여도 — 사용자 요청, valve08) → 실자료 2,529건 · Process Data 값을 Required 로.
   실자료: Process Data(Annexure 7) 68 Tag 중 Datasheet 66 연결 · Match 215 · Mismatch 42(Line No. 32 · P&ID 8 · Fail 위치 2) · Review 2 · Referenced 749.
   새 양식 · 새 자료가 오면 같은 방법으로: `valve_visual_pack.py` → 검토(지시문은 §12) → `valve_visual_score.py`.
@@ -27,8 +30,8 @@
 - 회사에서 검토가 쌓이면 Review Feedback json 을 받아 `spike/valve_voc.py <파일> --ds <PDF>` — 기각(Dismissed) 많은 규칙부터 고친다.
 - 실자료(고객 파일 · 저장소에 없음): Datasheet.pdf 456쪽 → 164 데이터시트(On/Off 140 · MOV 24) · TBE 164/164 Tag 일치.
   자료를 다시 받으면 EGG 는 `python3 spike/valve_unegg.py <폴더> *.egg`, TBE .xls 는 시험용으로 `spike/valve_xls2xlsx.py`(xlrd 필요).
-- 시험: `pytest -q tests/test_valve.py` (41개, 실자료는 `VALVE_SAMPLES=<Datasheet.pdf 폴더>`). 전체 1,860 통과 (2026-10-31).
-- 마지막 꾸러미: **valve10** (P&ID 서버용만 — 대시보드는 valve01 의 메뉴 그대로). valve01~10 모두 회사 적용 확인 전. 각 꾸러미는 hotfix131 기준 누적이라 valve10 하나만 적용해도 된다.
+- 시험: `pytest -q tests/test_valve.py` (42개, 실자료는 `VALVE_SAMPLES=<Datasheet.pdf 폴더>`). 전체 1,860 통과 (2026-10-31).
+- 마지막 꾸러미: **valve11** (P&ID 서버용만 — 대시보드는 valve01 의 메뉴 그대로). valve01~11 모두 회사 적용 확인 전. 각 꾸러미는 hotfix131 기준 누적이라 valve11 하나만 적용해도 된다.
 
 ## 파일
 
@@ -61,8 +64,8 @@
 ## 꾸러미
 
 - P&ID 서버용 (밸브 모듈만):
-  `python3 spike/pack_delta.py --name valve10 --base 9429f4f --only app/valve/,app/static/valve/,app/main.py,tests/test_valve.py --readme out/valve10/readme_head.txt --ops`
-  → `out/PID_dev+ops_valve10_<날짜>.zip`. `--only` 는 딱지(`app/_update.json`)와 기준 파일(`out/PID_dev_delta_base.txt`)을 건드리지 않는다 (PID 세션 번호와 안 섞이게).
+  `python3 spike/pack_delta.py --name valve11 --base 9429f4f --only app/valve/,app/static/valve/,app/main.py,tests/test_valve.py --readme out/valve11/readme_head.txt --ops`
+  → `out/PID_dev+ops_valve11_<날짜>.zip`. `--only` 는 딱지(`app/_update.json`)와 기준 파일(`out/PID_dev_delta_base.txt`)을 건드리지 않는다 (PID 세션 번호와 안 섞이게).
   기준 9429f4f = hotfix131 전달본. 회사가 다른 판이면 `--base` 를 그 판으로.
 - 대시보드용: `python3 dashboard_tools/make_patch.py --out dashboard_patches --mark` (기준 = `delivered.txt` 맨 아래). `--out` 은 폴더. 첫 전달: `dashboard_patches/UPDATE_from_v16.51_VALVE_menu.zip` (기준 v16.51).
 - 적용 순서(회사): ① PID 꾸러미 `apply_to_PID_dev.bat` → 확인 → `apply_to_PID_ops.bat` (8000 서버 재시작) ② 대시보드 zip `APPLY.bat` (서버 재시작 필요 없음, 화면 새 버전 배너) ③ 대시보드 → 실행 프로젝트 › CO2 PJT › Datasheet › Ball Valve.
@@ -71,5 +74,5 @@
 
 1. 회사 적용 확인: .xls 자동 변환(Excel COM)이 되는지, 456쪽 처리 시간, 화면 글꼴, Mark-up 도구(Edge)와 내보낸 PDF 를 Acrobat 에서 열어 보기.
 2. Process Data: Control Valve · PRV 표(범위 밖) · Excel 판 · PMS Gasket · Bolting 품목 대조 (§2.4).
-4. 재질 검토: 회사 재질 엔지니어에게 MR 규칙표(DESIGN §14.3)를 보여 기준(시트 한계 · B8M CL.2 해석 · 316 60 °C 문구)을 확인받기. Process Data 에 최저 설계온도가 생기면 저온(MR-04)을 온도로도.
+4. 재질 · 설계 검토: 회사 재질 · 밸브 엔지니어에게 MR(§14.3) · VR(§15) 규칙과 `BALL_VALVE_KNOWLEDGE.md` 를 보여 회사 사양 값(Floating 한계 · 시트 한계 · PST 정책)으로 맞추고, 기준(시트 한계 · B8M CL.2 해석 · 316 60 °C 문구)을 확인받기. Process Data 에 최저 설계온도가 생기면 저온(MR-04)을 온도로도.
 3. 받은 PDF 에 이미 있는 주석(설계사 Mark-up) 읽어 오기 · 1366×768 노트북에서 작업대 사용감 확인.
