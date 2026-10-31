@@ -488,3 +488,13 @@ Note 113 · PC-01 Confirm 6(3C0K8 의 '316 SS/FHF' 2개 · API5L-X65 MOV 1500# �
 - `GET /api/valve/health`: DB · files/cache/backups/exports 쓰기 · 디스크 여유(500 MB 미만이면 경고) · 마지막 백업 · 리뷰 캐시 수 · 워밍 중인 프로젝트. Settings › 정보 › **진단** 단추가 보여 준다 — 문제가 있으면 그 화면을 개발 쪽에.
 - Issue List 화면의 필터 · 검색은 행만 다시 그린다(도구줄 · 포커스 유지, 0.6 → 0.35 s).
 - 사용자용 설명서 `docs/valve/USER_GUIDE.md`(검토 엔지니어 관점 · 5분 시작 · 화면 · 지적 종류 · 작업대 요령 · Excel · FAQ).
+
+## 27. 추출 견고성 시뮬레이션 — 다른 양식에도 읽히나 (valve22)
+
+- `spike/valve_sim_pdf.py --n 380 --seed 2`: Form 80 구조를 흉내 낸 합성 데이터시트 PDF 에 19가지 변형(글꼴 ±2 pt · 열 위치/너비 · 라벨 동의어 · 두 줄 값 · 빈 행 · Max/Nor/Min 블록 · 단위 열/붙임 ·
+  'Note-1'/'NOTE-01' · A3 · 90° 회전 · 0.1° 기울기 · 가는/굵은 괘선 · Sheet 2 of 2 · 스캔본 · 행 번호 누락)을 넣고 **놓은 값을 oracle 로** 재읽기 정확도를 잰다.
+- 전 0.833 → **후 0.992**(380장 · 오독 0 · 예외 0 · 스캔본 20/20 판별). 고친 것(`extract.py`, 실자료 지문 불변 · diff_sim 불일치 0):
+  괘선 직선 판정을 기울기 기준으로(0.1° CAD 출력) · Max/Nor/Min 이 있는 On/Off 장을 Form 102 경로로 보내던 것(번호 행의 70 % 이상이 Unit/Max/Nor/Min 머리 아래일 때만) ·
+  'Note-1' · 'NOTE-01' · 'Note 1:' 번호 인식 · 'NOTES :' 줄에서 시작하는 Note · 괘선 위 낱말이 두 칸에 찍히던 것.
+- 아직 약한 것(인수인계): **행 번호 없는 행**은 못 읽음(0.86) — 번호 없는 양식은 괘선 띠 읽기가 필요. 라벨 동의어는 `schema._L` 에 더해야 함(없으면 review 로 남김, 오독은 안 함).
+  가로 표 · 한 장 여러 Tag · 세로 괘선 없는 탭 정렬 양식은 시뮬레이션 밖. 게이트 `tests/test_valve_extract_sim.py`(36장 recall ≥ 0.98).

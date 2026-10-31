@@ -45,8 +45,8 @@ def _verticals(page):
         for it in dr["items"]:
             if it[0] == "l":
                 a, b = it[1], it[2]
-                if abs(a.x - b.x) < 0.8 and abs(a.y - b.y) > 3:
-                    out.append((a.x, min(a.y, b.y), max(a.y, b.y)))
+                if abs(a.y - b.y) > 3 and abs(a.x - b.x) < max(0.8, 0.003 * abs(a.y - b.y)):   # ≤ 0.17° off vertical
+                    out.append(((a.x + b.x) / 2, min(a.y, b.y), max(a.y, b.y)))
             elif it[0] == "re":
                 r = it[1]
                 if r.height > 3:
@@ -65,8 +65,8 @@ def _horizontals(page, x_a, x_b):
         for it in dr["items"]:
             if it[0] == "l":
                 a, b = it[1], it[2]
-                if abs(a.y - b.y) < 0.8 and min(a.x, b.x) <= x_a and max(a.x, b.x) >= x_b:
-                    out.append(a.y)
+                if abs(a.y - b.y) < max(0.8, 0.003 * abs(a.x - b.x)) and min(a.x, b.x) <= x_a and max(a.x, b.x) >= x_b:
+                    out.append((a.y + b.y) / 2)
             elif it[0] == "re":
                 r = it[1]
                 if r.x0 <= x_a and r.x1 >= x_b:
@@ -265,7 +265,11 @@ def read_page(page, page_no: int):
     if not nums:
         return read_notes_page(page, page_no, words)
     if {"Max", "Nor", "Min", "Unit"} <= {w[4] for w in words}:
-        return read_process_table(page, page_no, words, nums)
+        hy = min((w[1] for w in words if w[4] == "Unit"), default=0)
+        if sum(1 for w in nums if (w[1] + w[3]) / 2 > hy) >= len(nums) * 0.7:   # the table lies under its header
+            pt = read_process_table(page, page_no, words, nums)
+            if pt is not None:
+                return pt
     vert = _verticals(page)
     x_num1 = max(w[2] for w in nums)
     x_right = max((x for x, *_ in vert), default=page.rect.width)
@@ -307,9 +311,10 @@ def read_page(page, page_no: int):
         if not bounds or bounds[0] > x_num1 + 12:
             bounds = [x_num1 + 2] + bounds
         rw = [w for w in words if id(w) not in used and y0 <= (w[1] + w[3]) / 2 < y1 and w[0] >= x_num1]
-        cells = []
+        cells, taken = [], set()
         for a, b in zip(bounds, bounds[1:]):
-            cw = [w for w in rw if a - 1 <= (w[0] + w[2]) / 2 < b]
+            cw = [w for w in rw if a - 1 <= (w[0] + w[2]) / 2 < b and id(w) not in taken]   # a word belongs to one cell:
+            taken.update(id(w) for w in cw)               # the 1-pt tolerance must not print a word on a rule twice
             if b - a < DOUBLE_RULE_GAP and not cw:         # the gap between a double rule is not a cell
                 continue
             cells.append({"x0": a, "x1": b, "words": cw, "text": _text(cw)})
@@ -374,7 +379,8 @@ def read_page(page, page_no: int):
         top = nlab[0][3]
         frame = [y for y in _horizontals(page, nlab[0][0], nlab[0][2]) if y > top]   # the notes box's own rules
         bottom = max(frame) if frame else page.rect.height  # the page footer ('Page 53 of 569') is outside the box
-        body = [w for w in words if top - 1 < w[1] and w[3] <= bottom + 1 and w[0] > nlab[0][0] - 25 and id(w) not in used
+        ncy = (nlab[0][1] + nlab[0][3]) / 2                  # a note may start on the caption's own line ('NOTES : 1. …')
+        body = [w for w in words if (w[1] + w[3]) / 2 > ncy and w[3] <= bottom + 1 and w[0] > nlab[0][0] - 25 and id(w) not in used
                 and not (min(ys) - 2 <= (w[1] + w[3]) / 2 <= max(ys) + pitch)]
         notes = _numbered(body)
     return {"page": page_no, **hdr, "tag": tag, "rows": rows, "notes": notes,
@@ -681,6 +687,8 @@ def _numbered(words):
                 pass
             txt = f"{nxt}.{tail}"
         m = re.match(r"^(\d{1,2})[.)](?:\s+|(?=[A-Z]))(.*)", txt)   # '14.Anti-Blow …' (no space) is note 14
+        if not m:
+            m = re.match(r"^(?:NOTE|Note)\s*[-–]?\s*0?(\d{1,2})\s*[.:)-]?\s+(.*)", txt)   # 'Note-1 …' · 'NOTE-01 …' (other vendors)
         if m:
             cur = {"no": int(m.group(1)), "text": m.group(2), "words": list(ws), "section": section}
             out.append(cur)

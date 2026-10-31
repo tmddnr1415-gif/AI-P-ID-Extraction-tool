@@ -133,3 +133,8 @@
 - 시뮬레이션 2차: oracle 55 규칙 · `valve_mutate.py` 실자료 164 × 14 변이 87.8 % → 100 %. 결함: PMS Fire Safe 'HOLD(API 607)' Compliant → Review · 동료 다수 표기 분열 · NACE NA → Review.
 - 화면: Grid 캐시 Response 재사용 → gzip 헤더 변조로 Valve List 멈춤(실제 결함) 수정 + 시험. Area/Unit 열·필터·머리·By Area 카드. Expert Note 접힘. 다시 시도 단추.
 - 실측: 다음 Tag 55 ms · 쪽 130 ms. eval: PMS Fire Safe 10 Compliant→Review(의도) · 지문 불변 · 기준값 저장. 시험 50+1 · ui_audit 22/22.
+
+## 2026-10-31 · valve22 — 진단 · 가벼운 목록 · 사용 설명서 · 추출 견고성 (브랜치 ccr-efbe7e75-n915ze)
+- `/api/valve/health` + Settings 진단 · Issue List 필터 행만 재렌더(0.6→0.35 s) · 캐시 이력 제외(990 DS RSS 489→457 MB) · USER_GUIDE.md.
+- 추출 시뮬레이션 `valve_sim_pdf.py` 380장 0.833→0.992(기울기 · Max/Nor/Min 경로 · Note 번호 표기 · NOTES 줄 · 괘선 위 낱말). 실자료 지문 불변 · diff_sim 0.
+- 합성 10,000건 seed 23 재확인 1.000/1.000. 시험 53 · ui_audit 22/22.
