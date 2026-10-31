@@ -80,14 +80,14 @@ class Viewer {
       <button data-a="out" title="축소 (-)">−</button><span class="lbl zl">100%</span><button data-a="in" title="확대 (+)">＋</button>
       <button data-a="fit" title="폭 맞춤">↔</button><span class="sep"></span>
       <input class="q" placeholder="PDF 검색" aria-label="PDF 검색"><button data-a="find" title="검색">⌕</button>
-      <span class="sep"></span>${opts.tools ? `<button data-a="draw" title="주석 상자 그리기 (A)">▭ 주석</button><span class="sep"></span>` : ''}
+      <span class="sep"></span>
       <span class="chk" title="빨강: 데이터 오류 · PMS 부적합"><label><input type="checkbox" data-c="error"> <i style="background:var(--pms)"></i>Error</label></span>
       <span class="chk" title="주황: 데이터 누락 · HOLD/TBC"><label><input type="checkbox" data-c="missing"> <i style="background:var(--proc)"></i>Missing</label></span>
       <span class="chk" title="노랑: 이전 Revision 대비 변경"><label><input type="checkbox" data-c="revision"> <i style="background:var(--rev)"></i>Rev</label></span>
       <span class="chk" title="파랑: 검토자 수정 · 의견"><label><input type="checkbox" data-c="comment"> <i style="background:var(--usr)"></i>Comment</label></span>
-      <span style="flex:1"></span>${opts.extra || ''}</div><div class="stage"></div>`;
+      <span style="flex:1"></span>${opts.extra || ''}</div>${opts.tools ? MKBAR : ''}<div class="stage"></div>`;
     this.stage = $('.stage', host);
-    $$('.chk input', host).forEach(i => { i.checked = this.show[i.dataset.c]; i.onchange = () => { this.show[i.dataset.c] = i.checked; LS.set('ovshow2', this.show); this.paintOv(); }; });
+    $$('.chk input', host).forEach(i => { i.checked = this.show[i.dataset.c]; i.onchange = () => { this.show[i.dataset.c] = i.checked; LS.set('ovshow2', this.show); this.paintOv(); this.paintMarks(); }; });
     host.querySelector('.tbar').addEventListener('click', e => {
       const a = e.target.closest('button')?.dataset.a; if (!a) return;
       if (a === 'prev') this.step(-1); else if (a === 'next') this.step(1);
@@ -98,7 +98,17 @@ class Viewer {
     $('.q', host).addEventListener('keydown', e => { if (e.key === 'Enter') this.find(); });
     $('.pno', host).addEventListener('change', e => { const i = (+e.target.value || 1) - 1; this.goIndex(i); });
     this.stage.addEventListener('scroll', () => { this.syncNo(); this.opts.onScroll?.(this); });
-    this.stage.addEventListener('mousedown', e => this.drawStart(e));
+    this.stage.addEventListener('mousedown', e => this.mkDown(e));
+    this.marks = []; this.tool = 'select'; this.mkCat = LS.get('mkcat', 'comment');
+    if (opts.tools) {
+      const bar = $('.mkbar', host);
+      bar.addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return;
+        if (b.dataset.tool) this.setTool(b.dataset.tool); else if (b.dataset.mk) this.opts.onMarkCmd?.(b.dataset.mk); });
+      $('.mkcat', bar).value = this.mkCat;
+      $('.mkcat', bar).onchange = e => { this.mkCat = e.target.value; LS.set('mkcat', this.mkCat);
+        const m = this.marks.find(m => m.sel); if (m && m.editable) this.opts.onMarkChange?.(m, { category: this.mkCat }); };
+      this.setTool('select');
+    }
   }
   async load(docId, pages) {
     this.docId = docId; this.pages = pages; this.size = await sizes(docId);
@@ -113,7 +123,7 @@ class Viewer {
         <img loading="lazy" alt="page ${p}" src="/api/valve/documents/${this.docId}/page/${p}.png?zoom=${imgZ}"></div>`;
     }).join('') || '<div class="empty" style="color:#d6dbe5">표시할 쪽이 없습니다</div>';
     $('.zl', this.host).textContent = Math.round(z * 100) + '%';
-    this.paintOv();
+    this.paintOv(); this.paintMarks();
   }
   setZoom(z) { const p = this.current(); this.zoom = Math.max(0.4, Math.min(4, z)); LS.set('zoom', this.zoom); this.render(); this.goPage(p, null, false); }
   fit() { const w = this.size[(this.pages[0] || 1) - 1]?.[0] || 595; this.setZoom((this.stage.clientWidth - 40) / (w * 1.3333)); }
@@ -165,32 +175,141 @@ class Viewer {
     this.paintOv();
     if (hits.length) { this.goPage(hits[0].page, hits[0].bbox); toast(`'${q}' ${hits.length}곳`); } else toast(`'${q}' 없음`);
   }
-  toggleDraw(on) {
-    this.drawing = on ?? !this.drawing;
-    this.stage.classList.toggle('drawing', this.drawing);
-    $('[data-a="draw"]', this.host)?.classList.toggle('on', this.drawing);
-    if (this.drawing) toast('PDF 위에서 끌어 주석 상자를 그리세요 (Esc 취소)');
+  /* ── user mark-up (SVG in PDF points over each page; saved as comments, exported as real PDF annotations) ── */
+  setTool(t) {
+    this.tool = t; this.stage.classList.toggle('drawing', t !== 'select');
+    $$('.mkbar [data-tool]', this.host).forEach(b => b.classList.toggle('on', b.dataset.tool === t));
+    this.stage.dataset.tool = t; this.paintMarks();
   }
-  drawStart(e) {
-    if (!this.drawing || e.button !== 0) return;
+  toggleDraw(on) { this.setTool((on ?? this.tool === 'select') ? 'rect' : 'select'); }
+  setMarks(list) { this.marks = list; this.paintMarks(); }
+  paintMarks() {
+    $$('svg.mk', this.stage).forEach(e => e.remove());
+    const z = this.zoom * 1.3333, hs = 4.5 / z;
+    const byPage = {};
+    for (const m of this.marks) if (m.page && m.bbox && this.show[MKCAT[m.category] || 'comment'] !== false) (byPage[m.page] ||= []).push(m);
+    for (const [p, list] of Object.entries(byPage)) {
+      const el = $(`.pg[data-p="${p}"]`, this.stage); if (!el) continue;
+      const [w, h] = this.size[p - 1] || [595, 842];
+      const svg = document.createElementNS(SVGNS, 'svg');
+      svg.setAttribute('class', 'mk' + (this.tool === 'select' ? ' sel-mode' : '')); svg.setAttribute('viewBox', `0 0 ${w} ${h}`);
+      svg.innerHTML = `<defs><marker id="mkar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10" fill="none" stroke="context-stroke" stroke-width="1.8"/></marker></defs>`
+        + list.map(m => mkSvg(m, hs)).join('');
+      el.append(svg);
+    }
+  }
+  pt(pg, e) { const r = pg.getBoundingClientRect(), z = this.zoom * 1.3333; return [Math.round((e.clientX - r.left) / z * 10) / 10, Math.round((e.clientY - r.top) / z * 10) / 10]; }
+  mkDown(e) {
+    if (e.button !== 0) return;
     const pg = e.target.closest('.pg'); if (!pg) return;
+    const page = +pg.dataset.p, p0 = this.pt(pg, e), t = this.tool;
+    if (t === 'select') return this.mkSelectDown(e, pg, page, p0);
     e.preventDefault();
-    const r = pg.getBoundingClientRect(), x0 = e.clientX - r.left, y0 = e.clientY - r.top;
-    const box = document.createElement('div'); box.className = 'draw'; pg.append(box);
+    if (t === 'note') { this.opts.onMark?.({ page, kind: 'note', bbox: [p0[0], p0[1], p0[0] + 16, p0[1] + 16] }); return; }
+    const tmp = { page, kind: t, category: this.mkCat, bbox: [...p0, ...p0], points: t === 'pen' ? [[p0]] : [p0, p0], tmp: true };
+    this.marks = this.marks.concat(tmp);
     const move = ev => {
-      const x = ev.clientX - r.left, y = ev.clientY - r.top;
-      box.style.cssText = `left:${Math.min(x, x0)}px;top:${Math.min(y, y0)}px;width:${Math.abs(x - x0)}px;height:${Math.abs(y - y0)}px`;
+      const q = this.pt(pg, ev);
+      if (t === 'pen') { const st = tmp.points[0], l = st.at(-1); if (Math.hypot(q[0] - l[0], q[1] - l[1]) > 1.2) st.push(q); tmp.bbox = bboxOf(st); }
+      else { tmp.points = [p0, q]; tmp.bbox = [Math.min(p0[0], q[0]), Math.min(p0[1], q[1]), Math.max(p0[0], q[0]), Math.max(p0[1], q[1])]; }
+      this.paintMarks();
     };
-    const up = ev => {
-      removeEventListener('mousemove', move); removeEventListener('mouseup', up); box.remove();
-      const x = ev.clientX - r.left, y = ev.clientY - r.top, z = this.zoom * 1.3333;
-      if (Math.abs(x - x0) < 6 || Math.abs(y - y0) < 6) return;
-      const bb = [Math.min(x, x0) / z, Math.min(y, y0) / z, Math.max(x, x0) / z, Math.max(y, y0) / z].map(v => Math.round(v * 10) / 10);
-      this.toggleDraw(false);
-      this.opts.onDraw?.(+pg.dataset.p, bb);
+    const up = () => {
+      removeEventListener('mousemove', move); removeEventListener('mouseup', up);
+      this.marks = this.marks.filter(m => m !== tmp); this.paintMarks();
+      const [x0, y0, x1, y1] = tmp.bbox, line = t === 'line' || t === 'arrow';
+      if (t === 'pen' ? tmp.points[0].length < 3 : line ? Math.hypot(x1 - x0, y1 - y0) < 5 : (x1 - x0 < 4 || y1 - y0 < 4)) {
+        if (t === 'text') this.opts.onMark?.({ page, kind: 'text', bbox: [p0[0], p0[1], p0[0] + 140, p0[1] + 28] });
+        return;
+      }
+      const g = { page, kind: t, bbox: tmp.bbox.map(v => Math.round(v * 10) / 10) };
+      if (t === 'pen') g.points = tmp.points; else if (line) g.points = tmp.points;
+      this.opts.onMark?.(g);
     };
     addEventListener('mousemove', move); addEventListener('mouseup', up);
   }
+  mkSelectDown(e, pg, page, p0) {
+    const hEl = e.target.closest('[data-hd]'), sEl = e.target.closest('[data-mid]');
+    const id = +(hEl || sEl)?.closest('[data-mid]')?.dataset.mid;
+    const m = this.marks.find(x => x.id === id);
+    this.marks.forEach(x => x.sel = x === m); this.paintMarks();
+    this.opts.onMarkSelect?.(m || null);
+    if (!m) return;
+    e.preventDefault(); e.stopPropagation();
+    if (!m.editable) return;
+    const before = { bbox: [...m.bbox], points: m.points ? JSON.parse(JSON.stringify(m.points)) : null }, hd = hEl?.dataset.hd;
+    let moved = false;
+    const move = ev => {
+      const q = this.pt(pg, ev), dx = q[0] - p0[0], dy = q[1] - p0[1];
+      if (!moved && Math.hypot(dx, dy) < 2) return; moved = true;
+      Object.assign(m, mkTransform(before, m.kind, hd, dx, dy)); this.paintMarks();
+    };
+    const up = () => {
+      removeEventListener('mousemove', move); removeEventListener('mouseup', up);
+      if (moved) this.opts.onMarkChange?.(m, { bbox: m.bbox, points: m.points }, before);
+    };
+    addEventListener('mousemove', move); addEventListener('mouseup', up);
+  }
+}
+
+const SVGNS = 'http://www.w3.org/2000/svg';
+const MKCAT = { comment: 'comment', question: 'comment', error: 'error', missing: 'missing' };
+const MKCOL = { comment: '#2e66e6', question: '#2e66e6', error: '#db2626', missing: '#ff8c00' };
+const MKTOOLS = [['select', '⬚', '선택 · 옮기기 · 크기 (V)'], ['rect', '▭', '사각형 (R)'], ['cloud', '☁', '구름 (C)'], ['ellipse', '◯', '원 (E)'],
+  ['highlight', '▆', '형광펜 (H)'], ['line', '╱', '선 (L)'], ['arrow', '↗', '화살표 (W)'], ['pen', '✎', '펜 — 손글씨 (P)'], ['text', 'T', '글상자 (T)'], ['note', '🗨', '메모 (N)']];
+const MKBAR = `<div class="tbar mkbar"><span class="lbl">Mark-up</span>${MKTOOLS.map(([k, i, t]) => `<button data-tool="${k}" title="${t}">${i}</button>`).join('')}
+  <span class="sep"></span><select class="mkcat" title="분류 — 색과 Issue 종류가 정해집니다" aria-label="Mark-up 분류">
+  <option value="comment">● Comment (파랑)</option><option value="error">● Error (빨강)</option><option value="missing">● Missing (주황)</option><option value="question">● Question (파랑)</option></select>
+  <span class="sep"></span><button data-mk="undo" title="되돌리기 (Ctrl+Z)">↶</button><button data-mk="redo" title="다시 하기 (Ctrl+Y)">↷</button>
+  <button data-mk="edit" title="선택한 표시의 의견 고치기 (Enter)">✎ 의견</button><button data-mk="del" title="선택한 표시 지우기 (Delete)">🗑</button></div>`;
+const bboxOf = pts => { const xs = pts.map(p => p[0]), ys = pts.map(p => p[1]); return [Math.min(...xs), Math.min(...ys), Math.max(...xs), Math.max(...ys)]; };
+function mkTransform(b, kind, hd, dx, dy) {          // move (no handle) or resize by a corner / line end
+  const [x0, y0, x1, y1] = b.bbox;
+  if (!hd) return { bbox: [x0 + dx, y0 + dy, x1 + dx, y1 + dy], points: b.points && (kind === 'pen' ? b.points.map(st => st.map(([x, y]) => [x + dx, y + dy])) : b.points.map(([x, y]) => [x + dx, y + dy])) };
+  if (hd === 'p0' || hd === 'p1') { const pts = b.points.map(p => [...p]); const i = hd === 'p0' ? 0 : pts.length - 1; pts[i] = [pts[i][0] + dx, pts[i][1] + dy]; return { points: pts, bbox: bboxOf(pts) }; }
+  let n = [x0, y0, x1, y1];
+  if (hd.includes('w')) n[0] += dx; if (hd.includes('e')) n[2] += dx; if (hd.includes('n')) n[1] += dy; if (hd.includes('s')) n[3] += dy;
+  n = [Math.min(n[0], n[2]), Math.min(n[1], n[3]), Math.max(n[0], n[2]), Math.max(n[1], n[3])];
+  if (n[2] - n[0] < 4) n[2] = n[0] + 4; if (n[3] - n[1] < 4) n[3] = n[1] + 4;
+  let pts = b.points;
+  if (kind === 'pen' && pts) {                       // scale the strokes with the box
+    const sx = (n[2] - n[0]) / Math.max(1e-6, x1 - x0), sy = (n[3] - n[1]) / Math.max(1e-6, y1 - y0);
+    pts = pts.map(st => st.map(([x, y]) => [n[0] + (x - x0) * sx, n[1] + (y - y0) * sy]));
+  }
+  return { bbox: n, points: pts };
+}
+function cloudPath([x0, y0, x1, y1]) {             // scalloped edge, arcs bulging outwards (clockwise)
+  const r = Math.max(3, Math.min(8, Math.min(x1 - x0, y1 - y0) / 4)), corners = [[x0, y0], [x1, y0], [x1, y1], [x0, y1], [x0, y0]];
+  let d = `M${x0},${y0}`;
+  for (let k = 0; k < 4; k++) {
+    const [ax, ay] = corners[k], [bx, by] = corners[k + 1], n = Math.max(1, Math.round(Math.hypot(bx - ax, by - ay) / (r * 1.6)));
+    for (let j = 1; j <= n; j++) { const x = ax + (bx - ax) * j / n, y = ay + (by - ay) * j / n, rr = Math.hypot(bx - ax, by - ay) / n / 2 * 1.15; d += ` A${rr},${rr} 0 0 1 ${x},${y}`; }
+  }
+  return d;
+}
+function mkSvg(m, hs) {
+  const c = MKCOL[m.category] || MKCOL.comment, [x0, y0, x1, y1] = m.bbox, w = x1 - x0, h = y1 - y0;
+  const st = `stroke="${c}" stroke-width="1.6" vector-effect="non-scaling-stroke"`;
+  const hit = `fill="transparent" stroke="transparent" stroke-width="10" vector-effect="non-scaling-stroke"`;
+  let g = '';
+  if (m.kind === 'highlight') g = `<rect x="${x0}" y="${y0}" width="${w}" height="${h}" fill="${c}" fill-opacity=".32"/>`;
+  else if (m.kind === 'line' || m.kind === 'arrow') { const [[a, b], [cx, cy]] = [m.points[0], m.points.at(-1)];
+    g = `<line x1="${a}" y1="${b}" x2="${cx}" y2="${cy}" ${hit}/><line x1="${a}" y1="${b}" x2="${cx}" y2="${cy}" ${st} fill="none"${m.kind === 'arrow' ? ' marker-end="url(#mkar)"' : ''}/>`; }
+  else if (m.kind === 'pen') g = (m.points || []).map(s => { const d = s.map(p => p.join(',')).join(' '); return `<polyline points="${d}" ${hit}/><polyline points="${d}" ${st} fill="none" stroke-linecap="round" stroke-linejoin="round"/>`; }).join('');
+  else if (m.kind === 'cloud') g = `<path d="${cloudPath(m.bbox)}" ${st} fill="${c}" fill-opacity=".04"/>`;
+  else if (m.kind === 'ellipse') g = `<ellipse cx="${x0 + w / 2}" cy="${y0 + h / 2}" rx="${w / 2}" ry="${h / 2}" ${st} fill="${c}" fill-opacity=".04"/>`;
+  else if (m.kind === 'text') g = `<rect x="${x0}" y="${y0}" width="${w}" height="${h}" fill="#fff" stroke="${c}" stroke-width=".8" vector-effect="non-scaling-stroke"/>
+    <foreignObject x="${x0}" y="${y0}" width="${w}" height="${h}"><div xmlns="http://www.w3.org/1999/xhtml" class="mktx" style="color:${c}">${esc(m.text || '')}</div></foreignObject>`;
+  else if (m.kind === 'note') g = `<path d="M${x0},${y0} h16 v11 h-9 l-4,4 v-4 h-3 z" fill="${c}" stroke="#fff" stroke-width=".8"/><path d="M${x0 + 3},${y0 + 4} h10 M${x0 + 3},${y0 + 7.5} h7" stroke="#fff" stroke-width="1.1"/>`;
+  else g = `<rect x="${x0}" y="${y0}" width="${w}" height="${h}" ${st} fill="${c}" fill-opacity=".04"/>`;
+  let hd = '';
+  if (m.sel && m.editable) {
+    const H = (x, y, k) => `<rect data-hd="${k}" class="hd hd-${k}" x="${x - hs}" y="${y - hs}" width="${hs * 2}" height="${hs * 2}"/>`;
+    hd = (m.kind === 'line' || m.kind === 'arrow') ? H(...m.points[0], 'p0') + H(...m.points.at(-1), 'p1')
+      : m.kind === 'note' ? '' : H(x0, y0, 'nw') + H(x1, y0, 'ne') + H(x1, y1, 'se') + H(x0, y1, 'sw');
+  }
+  const no = m.no ? `<g class="mkno"><rect x="${x0 - 15}" y="${y0 - 1}" width="13" height="10" rx="1.5" fill="${c}"/><text x="${x0 - 8.5}" y="${y0 + 6.8}" text-anchor="middle">${m.no}</text></g>` : '';
+  return `<g data-mid="${m.id ?? ''}" class="mkg${m.sel ? ' sel' : ''}"><title>${esc((m.no ? '#' + m.no + ' ' : '') + (m.text || '') + (m.by ? `\n— ${m.by}` : ''))}</title>${m.sel ? `<rect class="selbox" x="${x0 - 2}" y="${y0 - 2}" width="${w + 4}" height="${h + 4}"/>` : ''}${g}${no}${hd}</g>`;
 }
 
 /* ── navigation ────────────────────────────────────────────────────────── */
@@ -301,7 +420,7 @@ function renderDocs() {
         d.kind === 'valvelist' && d.info?.sheets ? d.info.sheets.filter(s => s.kind === 'appendix').map(s => `${esc(s.sheet)} (${s.tags.length})`).join(' · ') : esc(d.info?.note || '')}</td>
       <td>${pill(d.status === 'done' ? 'ok' : d.status === 'error' ? 'bad' : 'UnderReview', d.status)}${d.error ? `<div style="color:var(--bad)">${esc(d.error)}</div>` : ''}</td>
       <td>${esc(d.uploaded_by)}</td><td class="mono">${esc((d.uploaded_at || '').replace('T', ' ').slice(0, 16))}</td>
-      <td>${d.status === 'error' ? `<button data-retry="${d.id}">재처리</button>` : ''}${d.kind !== 'valvelist' ? ` <a href="/api/valve/documents/${d.id}/file" target="_blank">원본</a>` : ''}</td></tr>`).join('') || '<tr><td colspan="9" class="empty">아직 없습니다</td></tr>'}
+      <td>${d.status === 'error' ? `<button data-retry="${d.id}">재처리</button>` : d.kind === 'datasheet' && d.status === 'done' ? `<button data-retry="${d.id}" title="개선된 읽기로 다시 읽습니다 — 검토자 수정 · 의견 · Mark-up · 상태는 그대로">다시 읽기</button>` : ''}${d.kind !== 'valvelist' ? ` <a href="/api/valve/documents/${d.id}/file" target="_blank">원본</a>` : ''}</td></tr>`).join('') || '<tr><td colspan="9" class="empty">아직 없습니다</td></tr>'}
     </tbody></table></div>`;
   (S.jobEls || []).filter(b => b.isConnected || !b.dataset.gone).forEach(b => $('#jobs').append(b));
   $$('.drop', el).forEach(d => {
@@ -370,7 +489,9 @@ async function preview(t) {
 }
 async function dsIssues(dsId) {                     // issues of one datasheet as preview overlays
   if (!S.issues) S.issues = (await api('GET', `/projects/${S.pid}/issues`)).issues;
-  return S.issues.filter(i => i.ds_id === dsId && i.bbox && i.status !== 'Dismissed' && i.type !== 'Reviewer Comment' && (IF.internal || i.type !== 'Extraction Review'))
+  S.pv?.setMarks(S.issues.filter(i => i.ds_id === dsId && i.comment_id && i.bbox && i.status !== 'Dismissed').map(i => ({ id: i.comment_id, page: i.page, bbox: i.bbox,
+    kind: i.kind || 'rect', points: i.points, category: i.category || 'comment', text: i.text_raw ?? i.description, by: i.by, no: i.no })));
+  return S.issues.filter(i => i.ds_id === dsId && i.bbox && i.status !== 'Dismissed' && !i.comment_id && (IF.internal || i.type !== 'Extraction Review'))
     .map(i => ({ cat: i.color, page: i.page, bbox: i.bbox, no: i.no, iss: i.ikey, title: `#${i.no} ${i.type} · ${i.field}`, text: i.description, sel: G.selIss === i.ikey }));
 }
 const listTop = () => `<span class="segtab"><button data-lm="grid" class="${G.mode !== 'issues' ? 'on' : ''}">Valve List</button><button data-lm="issues" class="${G.mode === 'issues' ? 'on' : ''}">Issue List${S.sum?.kpi ? ` (${(S.sum.kpi.data_errors || 0) + (S.sum.kpi.data_missing || 0) + (S.sum.kpi.open_items || 0) + (S.sum.kpi.pms_noncompliant || 0) + (S.sum.kpi.pms_review || 0)})` : ''}</button></span>`;
@@ -565,7 +686,8 @@ function wbLayout() {
       <div class="statusbar" id="wstat"></div></div></div>`;
   W.viewer = new Viewer($('#wview'), { tools: true,
     extra: `<button data-a2="prevrev" title="이전 Revision">◁ Rev</button><button data-a2="nextrev" title="다음 Revision">Rev ▷</button><button data-a2="pdf" title="표시한 PDF 내보내기">⇩ Mark-up PDF</button>`,
-    onDraw: addAnnot, onOverlay: o => { if (o.cmId) { W.selCm = o.cmId; setTab('cmt'); } else if (o.iss) { W.selIss = o.iss; setTab('iss'); } else if (o.key) selectField(o.key); } });
+    onMark: addMark, onMarkChange: changeMark, onMarkSelect: m => { if ((m?.id ?? null) === W.selCm) return; W.selCm = m?.id ?? null; if (W.tab === 'cmt') drawRight(); }, onMarkCmd: markCmd,
+    onOverlay: o => { if (o.cmId) { W.selCm = o.cmId; setTab('cmt'); } else if (o.iss) { W.selIss = o.iss; setTab('iss'); } else if (o.key) selectField(o.key); } });
   $('#wview .tbar').addEventListener('click', e => {
     const a = e.target.closest('[data-a2]')?.dataset.a2; if (!a || !S.ds) return;
     const rv = S.ds.revisions, i = rv.findIndex(r => r.id === S.ds.id);
@@ -620,9 +742,11 @@ async function renderReview() {
 }
 function paintDsOverlays() {
   const ov = [];
-  for (const c of S.ds.comments.filter(c => c.page && c.bbox)) ov.push({ cat: 'comment', page: c.page, bbox: c.bbox, title: `${c.by} · ${c.at}`, text: c.text, cmId: c.id, sel: W.selCm === c.id });
+  const noOf = Object.fromEntries((S.ds.issues || []).filter(i => i.comment_id).map(i => [i.comment_id, i.no]));
+  W.viewer.setMarks(S.ds.comments.filter(c => c.page && c.bbox).map(c => ({ id: c.id, page: c.page, bbox: c.bbox, kind: c.kind || 'rect',
+    points: c.points, category: c.category || 'comment', text: c.text, by: c.by, no: noOf[c.id], editable: true, sel: W.selCm === c.id })));
   for (const i of S.ds.issues || []) {                // every issue in its colour, numbered like the exported PDF
-    if (i.type === 'Reviewer Comment' || !i.bbox || i.status === 'Dismissed' || (i.type === 'Extraction Review' && !W.showInternal)) continue;
+    if (i.comment_id || !i.bbox || i.status === 'Dismissed' || (i.type === 'Extraction Review' && !W.showInternal)) continue;
     ov.push({ cat: i.color, page: i.page, bbox: i.bbox, key: i.key, no: i.no, title: `#${i.no} ${i.type} · ${i.field}`, text: i.description + (i.expected ? `\nRequired: ${i.expected}` : ''), iss: i.ikey, sel: W.selIss === i.ikey });
   }
   const sf = S.ds.fields.find(f => f.key === W.selField);
@@ -702,9 +826,9 @@ function drawRight() {
       <div class="sect notes"><h4>General Notes — ${esc(d.doc_no)} (${gn.length})</h4>${gn.map(([no, t]) => `<div class="n"><b>${no}.</b>${esc(t)}</div>`).join('') || '<div class="soft">이 문서의 General Notes 를 찾지 못했습니다</div>'}</div>`;
   } else if (W.tab === 'cmt') {
     h = `<div class="sect"><textarea id="cmtx" rows="3" style="width:100%" placeholder="Review Comment (Engineering 의견)"></textarea>
-        <div style="display:flex;gap:6px;margin-top:4px"><button class="pri" id="cmadd">의견 남기기</button><button id="cmdraw">▭ PDF 위에 표시하며 남기기</button></div></div>
-      ${d.comments.map(c => `<div class="cm ${W.selCm === c.id ? 'sel' : ''}" data-cm="${c.id}"><div class="h"><b>${esc(c.by)}</b><span>${esc(c.at.replace('T', ' ').slice(0, 16))}</span>${c.page ? `<a href="#" data-cmgo="${c.id}">p.${c.page} ▭</a>` : ''}<span class="sp"></span>
-        <button data-cmed="${c.id}" title="고치기">✎</button><button data-cmdel="${c.id}" title="지우기">✕</button></div><div class="ct">${esc(c.text)}</div></div>`).join('') || '<div class="soft">아직 의견이 없습니다</div>'}`;
+        <div style="display:flex;gap:6px;margin-top:4px"><button class="pri" id="cmadd">의견 남기기</button><button id="cmdraw" title="PDF 위 Mark-up 도구 줄에서 다른 모양(구름 · 화살표 · 펜 · 글상자 …)도 고를 수 있습니다">▭ PDF 위에 표시하며 남기기</button></div></div>
+      ${d.comments.map(c => `<div class="cm ${W.selCm === c.id ? 'sel' : ''}" data-cm="${c.id}"><div class="h"><i class="mkdot" style="background:${MKCOL[c.category] || MKCOL.comment}"></i><b>${esc(c.by)}</b>${c.bbox ? `<span class="soft">${KIND_KO[c.kind || 'rect'] || ''}</span>` : ''}<span>${esc(c.at.replace('T', ' ').slice(0, 16))}</span>${c.page ? `<a href="#" data-cmgo="${c.id}">p.${c.page} ▭</a>` : ''}<span class="sp"></span>
+        <button data-cmed="${c.id}" title="고치기">✎</button><button data-cmdel="${c.id}" title="지우기">✕</button></div><div class="ct">${esc(c.text) || '<span class="soft">(표시만)</span>'}</div></div>`).join('') || '<div class="soft">아직 의견이 없습니다</div>'}`;
   } else if (W.tab === 'hist') {
     h = `<table class="t"><thead><tr><th>When</th><th>Who</th><th>What</th></tr></thead><tbody>${d.history.map(a => `<tr><td class="mono">${esc(a.at.replace('T', ' ').slice(5, 16))}</td><td>${esc(a.by)}</td>
       <td>${esc(a.action)} ${a.field_key ? `<b>${esc(a.field_key)}</b>` : ''}${a.before != null ? ` <span class="chg-old">${esc(String(a.before).slice(0, 60))}</span>` : ''}${a.after != null ? ` → ${esc(String(a.after).slice(0, 80))}` : ''}${a.comment ? ` <small class="soft">(${esc(a.comment)})</small>` : ''}</td></tr>`).join('') || '<tr><td colspan="3" class="empty">기록 없음</td></tr>'}</tbody></table>`;
@@ -716,9 +840,9 @@ function drawRight() {
     const cg = e.target.closest('[data-cmgo]'); if (cg) { e.preventDefault(); const c = d.comments.find(x => x.id === +cg.dataset.cmgo); W.selCm = c.id; paintDsOverlays(); W.viewer.goPage(c.page, c.bbox); drawRight(); return; }
     const ce = e.target.closest('[data-cmed]'); if (ce) { const c = d.comments.find(x => x.id === +ce.dataset.cmed);
       const r = await modal('의견 고치기', `<textarea name="text" rows="4">${esc(c.text)}</textarea>`, [['취소', null], ['저장', 'form', 1]]);
-      if (r?.text) { S.ds = await api('PUT', `/comments/${c.id}`, { text: r.text }); paintDsOverlays(); drawRight(); } return; }
+      if (r) await changeMark({ id: c.id }, { text: r.text }, { text: c.text }); return; }
     const cd = e.target.closest('[data-cmdel]'); if (cd) { if (await modal('의견 지우기', '이 의견(과 PDF 표시)을 지울까요? 기록은 History 에 남습니다.', [['취소', 0], ['지우기', 1, 1]])) {
-      S.ds = await api('PUT', `/comments/${cd.dataset.cmdel}`, { delete: true }); paintDsOverlays(); drawRight(); } return; }
+      W.selCm = +cd.dataset.cmdel; await markCmd('del'); } return; }
     const pp = e.target.closest('[data-pmsp]'); if (pp) { e.preventDefault(); openPmsRef(+pp.dataset.pmsp, JSON.parse(pp.dataset.pmsb || 'null')); return; }
     if (e.target.closest('select')) return;
     const is = e.target.closest('[data-iss]'); if (is) { const i = d.issues.find(x => x.ikey === is.dataset.iss); W.selIss = i.ikey; paintDsOverlays(); if (i.bbox) W.viewer.focus(i.page, i.bbox, i.field); $$('#wbody .iss').forEach(x => x.classList.toggle('on', x.dataset.iss === i.ikey)); return; }
@@ -733,7 +857,7 @@ function drawRight() {
   };
   $('#cmadd') && ($('#cmadd').onclick = async () => { const t = $('#cmtx').value.trim(); if (!t) return;
     S.ds = await api('POST', `/datasheets/${d.id}/comments`, { text: t }); drawRight(); toast('의견을 남겼습니다'); });
-  $('#cmdraw') && ($('#cmdraw').onclick = () => W.viewer.toggleDraw(true));
+  $('#cmdraw') && ($('#cmdraw').onclick = () => { W.viewer.setTool('rect'); toast('PDF 위에서 끌어 그리세요 — 위 Mark-up 줄에서 모양·분류를 고릅니다 (Esc: 선택 도구)'); });
   $('#wstat').innerHTML = `<b>${esc(d.tag)}</b><span class="soft">Rev.${esc(d.rev)}</span><span style="flex:1"></span>
     <select id="wst" aria-label="Review Status">${STATUSES.map(s => `<option ${s === d.review_status ? 'selected' : ''}>${s}</option>`).join('')}</select>`;
   $('#wst').onchange = async e => { S.ds = await api('PUT', `/datasheets/${d.id}/status`, { status: e.target.value });
@@ -755,11 +879,57 @@ async function editField(fid) {
   try { S.ds = await api('PUT', `/datasheets/${S.ds.id}/fields/${fid}`, { value: r.value, comment: r.comment }); S.grid = null; drawRight(); toast('저장 — 원래 읽은 값과 함께 남습니다'); }
   catch (e) { toast(e.message, 1); }
 }
-async function addAnnot(page, bbox) {
-  const r = await modal('PDF 주석 (Engineering Comment)', `<p class="soft">p.${page} 에 표시합니다 (파란색).</p><textarea name="text" rows="4" placeholder="의견"></textarea>`, [['취소', null], ['남기기', 'form', 1]]);
-  if (!r?.text) return;
-  S.ds = await api('POST', `/datasheets/${S.ds.id}/comments`, { text: r.text, page, bbox });
-  W.selCm = S.ds.comments.at(-1)?.id; setTab('cmt'); paintDsOverlays();
+/* mark-up: every change is saved at once (comment rows); ↶/↷ replay the inverse request */
+const KIND_KO = { rect: '사각형', cloud: '구름', ellipse: '원', highlight: '형광펜', line: '선', arrow: '화살표', pen: '펜', text: '글상자', note: '메모' };
+const CAT_OPTS = sel => ['comment', 'error', 'missing', 'question'].map(c => `<option value="${c}" ${c === sel ? 'selected' : ''}>${{ comment: 'Comment — 의견 (파랑)', error: 'Error — 데이터 오류 (빨강)', missing: 'Missing — 데이터 누락 (주황)', question: 'Question — 질의 (파랑)' }[c]}</option>`).join('');
+async function markText(title, kind, text, cat) {
+  const need = kind === 'text' || kind === 'note';
+  return modal(title, `<p class="soft">${KIND_KO[kind] || kind} · 분류에 따라 색과 Issue 종류(Comment / Data Error / Data Missing)가 정해지고, Issue List 와 Mark-up PDF 에 번호로 나갑니다.</p>
+    <select name="category" style="width:100%;margin-bottom:6px">${CAT_OPTS(cat)}</select>
+    <textarea name="text" rows="4" placeholder="${need ? '글 (필수)' : '설계사에게 전할 의견 (비워 두면 표시만 남습니다)'}">${esc(text || '')}</textarea>`, [['취소', null], ['저장', 'form', 1]]);
+}
+function pushUndo(op) { W.undo = (W.undo || []).concat(op).slice(-100); W.redo = []; }
+async function addMark(g) {
+  const r = await markText('Mark-up 의견', g.kind, '', W.viewer.mkCat);
+  if (!r || ((g.kind === 'text' || g.kind === 'note') && !r.text.trim())) return;
+  try {
+    const out = await api('POST', `/datasheets/${S.ds.id}/comments`, { ...g, category: r.category, text: r.text });
+    S.ds = out; S.issues = null; W.selCm = out.new_comment_id;
+    pushUndo({ t: 'create', id: out.new_comment_id, ds: S.ds.id });
+    paintDsOverlays(); if (W.tab === 'cmt') drawRight();
+    toast('표시를 남겼습니다 — Ctrl+Z 되돌리기');
+  } catch (e) { toast(e.message, 1); }
+}
+async function changeMark(m, after, before) {
+  const c = S.ds.comments.find(x => x.id === m.id); if (!c) return;
+  before = before || Object.fromEntries(Object.keys(after).map(k => [k, c[k]]));
+  try { S.ds = await api('PUT', `/comments/${m.id}`, after); S.issues = null; pushUndo({ t: 'update', id: m.id, ds: S.ds.id, before, after }); }
+  catch (e) { toast(e.message, 1); }
+  paintDsOverlays(); if (W.tab === 'cmt') drawRight();
+}
+async function markCmd(cmd) {
+  const c = S.ds?.comments.find(x => x.id === W.selCm);
+  if (cmd === 'undo' || cmd === 'redo') {
+    const from = cmd === 'undo' ? (W.undo ||= []) : (W.redo ||= []), to = cmd === 'undo' ? (W.redo ||= []) : (W.undo ||= []);
+    const op = from.at(-1); if (!op) return toast(cmd === 'undo' ? '되돌릴 것이 없습니다' : '다시 할 것이 없습니다');
+    if (op.ds !== S.ds.id) return toast('다른 Tag 에서 한 작업입니다 — 그 Tag 를 열고 되돌리세요', 1);
+    from.pop();
+    const body = op.t === 'update' ? (cmd === 'undo' ? op.before : op.after)
+      : ((op.t === 'create') === (cmd === 'undo')) ? { delete: true } : { restore: true };
+    try { S.ds = await api('PUT', `/comments/${op.id}`, body); S.issues = null; to.push(op); toast(cmd === 'undo' ? '되돌렸습니다' : '다시 했습니다'); }
+    catch (e) { toast(e.message, 1); }
+    paintDsOverlays(); drawRight(); return;
+  }
+  if (!c) return toast('먼저 표시를 선택하세요 (⬚ 선택 도구)');
+  if (cmd === 'del') {
+    try { S.ds = await api('PUT', `/comments/${c.id}`, { delete: true }); S.issues = null; pushUndo({ t: 'delete', id: c.id, ds: S.ds.id }); W.selCm = null; toast('지웠습니다 — Ctrl+Z 되돌리기'); }
+    catch (e) { toast(e.message, 1); }
+    paintDsOverlays(); drawRight();
+  } else if (cmd === 'edit') {
+    const r = await markText('Mark-up 의견 고치기', c.kind || 'rect', c.text, c.category || 'comment');
+    if (!r) return;
+    await changeMark({ id: c.id }, { text: r.text, category: r.category }, { text: c.text, category: c.category || 'comment' });
+  }
 }
 async function exportMarkup() {
   toast('Mark-up PDF 를 만드는 중…');
@@ -965,8 +1135,18 @@ for (const k of Object.keys(RENDER)) { const f = RENDER[k]; RENDER[k] = () => { 
 
 /* ── keyboard ─────────────────────────────────────────────────────────── */
 addEventListener('keydown', e => {
-  if (e.key === 'Escape') { $('#modal').hidden = true; W.viewer?.toggleDraw(false); return; }
-  if (e.target.closest('input, textarea, select') || !$('#modal').hidden || e.ctrlKey || e.metaKey || e.altKey) return;
+  if (e.key === 'Escape') { $('#modal').hidden = true; W.viewer?.setTool('select'); return; }
+  if (e.target.closest('input, textarea, select') || !$('#modal').hidden || e.altKey) return;
+  if (S.view === 'review' && W.viewer && (e.ctrlKey || e.metaKey)) {
+    const k = e.key.toLowerCase();
+    if (k === 'z' && !e.shiftKey) { e.preventDefault(); markCmd('undo'); } else if (k === 'y' || (k === 'z' && e.shiftKey)) { e.preventDefault(); markCmd('redo'); }
+    return;
+  }
+  if (e.ctrlKey || e.metaKey) return;
+  const MKKEY = { v: 'select', r: 'rect', c: 'cloud', e: 'ellipse', h: 'highlight', l: 'line', w: 'arrow', p: 'pen', t: 'text', n: 'note', a: 'rect' };
+  if (S.view === 'review' && W.viewer && MKKEY[e.key]) { W.viewer.setTool(MKKEY[e.key]); return; }
+  if (S.view === 'review' && W.viewer && W.selCm && (e.key === 'Delete' || e.key === 'Backspace')) { e.preventDefault(); markCmd('del'); return; }
+  if (S.view === 'review' && W.viewer && W.selCm && e.key === 'Enter') { e.preventDefault(); markCmd('edit'); return; }
   if (/^[1-9]$/.test(e.key)) { go(VIEWS[+e.key - 1]); return; }
   if (S.view !== 'review' || !W.viewer) return;
   const list = W.list || [], i = list.findIndex(t => t.id === S.dsId);
@@ -978,7 +1158,6 @@ addEventListener('keydown', e => {
   else if (e.key === '-') W.viewer.setZoom(W.viewer.zoom / 1.2);
   else if (e.key === '/') { e.preventDefault(); $('#wq').focus(); }
   else if (e.key === 'f') { e.preventDefault(); $('#wview .q').focus(); }
-  else if (e.key === 'a') W.viewer.toggleDraw();
 });
 
 /* ── start ────────────────────────────────────────────────────────────── */

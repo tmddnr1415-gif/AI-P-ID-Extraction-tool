@@ -50,12 +50,12 @@
   "Extraction Review|Internal": 1
  },
  "E": {
-  "extract_s": 5.94,
+  "extract_s": 5.95,
   "extract_ms_per_page": 13.0,
-  "pms_read_s": 1.41,
-  "issues_ms_per_ds": 0.6,
-  "issue_xlsx_s": 0.18,
-  "markup_s_per_ds": 0.042,
-  "markup_kb_per_ds": 314.1
+  "pms_read_s": 1.5,
+  "issues_ms_per_ds": 0.5,
+  "issue_xlsx_s": 0.17,
+  "markup_s_per_ds": 0.034,
+  "markup_kb_per_ds": 40.7
  }
 }

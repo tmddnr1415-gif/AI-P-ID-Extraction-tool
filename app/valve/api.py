@@ -177,9 +177,15 @@ def _process(jid: str, pid: int, items: list[tuple[int, str, str, Path]], by: st
                 with store._LOCK:
                     for ds in dss:
                         ds["form"] = "102" if any(r.get("row", 0) > 61 for r in ds["fields"].values()) else "on/off"
-                        dup = store.one(con, "SELECT id FROM datasheet WHERE project_id=? AND tag_key=? AND rev=? AND"
-                                             " document_id IN (SELECT id FROM document WHERE sha256=(SELECT sha256 FROM"
+                        dup = store.one(con, "SELECT id, document_id FROM datasheet WHERE project_id=? AND tag_key=? AND rev=?"
+                                             " AND document_id IN (SELECT id FROM document WHERE sha256=(SELECT sha256 FROM"
                                              " document WHERE id=?))", pid, ds["tag_key"], ds["rev"], doc_id)
+                        if dup and dup["document_id"] == doc_id:     # re-read of this file: refresh, keep the review
+                            r = store.refresh_datasheet(con, dup["id"], ds)
+                            if r["changed"] or r["removed"]:
+                                store.audit(con, pid, dup["id"], None, "re-read", None, None, by,
+                                            f"{r['changed']} fields changed, {r['removed']} removed")
+                            continue
                         if dup:
                             continue
                         store.insert_datasheet(con, pid, doc_id, ds)
@@ -337,7 +343,7 @@ def _ds_full(con, dsid, deep=True):
     d["revisions"].sort(key=lambda r: (store.rev_key(r["rev"]), r["id"]))
     d["comments"] = store.rows(con, "SELECT * FROM comment WHERE datasheet_id=? AND deleted=0 ORDER BY id", dsid)
     for c in d["comments"]:
-        c["bbox"] = store.unJ(c["bbox"])
+        c["bbox"], c["points"] = store.unJ(c["bbox"]), store.unJ(c.get("points"))
     d["history"] = store.rows(con, "SELECT * FROM audit WHERE datasheet_id=? ORDER BY id DESC", dsid)
     d["doc_title"] = (gn or {}).get("title", "")
     d["area"] = pmsmod.area_of_title(d["doc_title"])
@@ -403,11 +409,63 @@ async def ds_status(dsid: int, request: Request):
     return _ds_full(con, dsid)
 
 
+MARK_KINDS = {"rect", "cloud", "ellipse", "highlight", "line", "arrow", "pen", "text", "note"}
+MARK_CATS = {"comment", "error", "missing", "question"}
+
+
+def _num_list(v, n=None):
+    if not isinstance(v, list) or (n is not None and len(v) != n):
+        raise ValueError
+    out = [round(float(x), 1) for x in v]
+    if any(abs(x) > 20000 for x in out):
+        raise ValueError
+    return out
+
+
+def _markup(body: dict, old: dict | None = None) -> dict:
+    """Geometry of a mark-up from a request: {page, bbox, kind, points, category}.  Raises ValueError on bad input.
+    Only the keys present in the body are returned (PUT changes just those)."""
+    out = {}
+    if "page" in body:
+        out["page"] = None if body["page"] is None else int(body["page"])
+    if "bbox" in body:
+        out["bbox"] = None if body["bbox"] is None else _num_list(body["bbox"], 4)
+        if out["bbox"]:
+            x0, y0, x1, y1 = out["bbox"]
+            out["bbox"] = [min(x0, x1), min(y0, y1), max(x0, x1), max(y0, y1)]
+    if "kind" in body:
+        if body["kind"] not in MARK_KINDS:
+            raise ValueError
+        out["kind"] = body["kind"]
+    if "category" in body:
+        if body["category"] not in MARK_CATS:
+            raise ValueError
+        out["category"] = body["category"]
+    if "points" in body:
+        pts = body["points"]
+        if pts is not None:                                  # line/arrow: [[x,y],[x,y]] · pen: [[[x,y],…], …] strokes
+            kind = out.get("kind") or (old or {}).get("kind")
+            strokes = pts if kind == "pen" else [pts]
+            if not isinstance(strokes, list) or not strokes or len(strokes) > 200:
+                raise ValueError
+            clean = [[_num_list(p, 2) for p in st] for st in strokes]
+            if any(len(st) < 2 for st in clean) or sum(len(st) for st in clean) > 5000:
+                raise ValueError
+            pts = clean if kind == "pen" else clean[0]
+        out["points"] = pts
+    return out
+
+
 @router.post("/api/valve/datasheets/{dsid}/comments")
 async def ds_comment(dsid: int, request: Request):
+    """A review comment — plain text, or a mark-up drawn on the PDF (page + bbox + kind [+ points])."""
     body = await request.json()
     text = str(body.get("text", "")).strip()[:4000]
-    if not text:
+    try:
+        g = _markup(body)
+    except (ValueError, TypeError):
+        return _err("주석 모양(bbox/points/kind/category) 형식이 잘못됐습니다")
+    if not text and not g.get("bbox"):
         return _err("내용이 비었습니다")
     con = store.connect()
     d = store.one(con, "SELECT project_id FROM datasheet WHERE id=?", dsid)
@@ -415,18 +473,22 @@ async def ds_comment(dsid: int, request: Request):
         return _err("없는 데이터시트", 404)
     by = _user(request)
     with store._LOCK:
-        bbox = body.get("bbox")
-        if bbox is not None and not (isinstance(bbox, list) and len(bbox) == 4):
-            return _err("bbox 형식이 잘못됐습니다")
-        con.execute("INSERT INTO comment(datasheet_id, field_key, text, by, at, page, bbox, category) VALUES (?,?,?,?,?,?,?,?)",
-                    (dsid, body.get("field_key"), text, by, store.now(), body.get("page"), store.J(bbox), "comment"))
-        store.audit(con, d["project_id"], dsid, body.get("field_key"), "comment", None, text, by)
+        cur = con.execute("INSERT INTO comment(datasheet_id, field_key, text, by, at, page, bbox, category, kind, points)"
+                          " VALUES (?,?,?,?,?,?,?,?,?,?)",
+                          (dsid, body.get("field_key"), text, by, store.now(), g.get("page"), store.J(g.get("bbox")),
+                           g.get("category") or "comment", g.get("kind") or ("rect" if g.get("bbox") else None),
+                           store.J(g.get("points"))))
+        store.audit(con, d["project_id"], dsid, body.get("field_key"), "comment", None,
+                    text or f"[{g.get('kind') or 'rect'}] p.{g.get('page')}", by)
         con.commit()
-    return _ds_full(con, dsid)
+    out = _ds_full(con, dsid)
+    out["new_comment_id"] = cur.lastrowid
+    return out
 
 
 @router.put("/api/valve/comments/{cid}")
 async def comment_edit(cid: int, request: Request):
+    """{delete: true} · {restore: true} (undo of a delete) · {text?, bbox?, points?, page?, kind?, category?}."""
     body = await request.json()
     con = store.connect()
     c = store.one(con, "SELECT c.*, d.project_id FROM comment c JOIN datasheet d ON d.id=c.datasheet_id WHERE c.id=?", cid)
@@ -437,12 +499,32 @@ async def comment_edit(cid: int, request: Request):
         if body.get("delete"):
             con.execute("UPDATE comment SET deleted=1 WHERE id=?", (cid,))
             store.audit(con, c["project_id"], c["datasheet_id"], c["field_key"], "comment-delete", c["text"], None, by)
+        elif body.get("restore"):
+            con.execute("UPDATE comment SET deleted=0 WHERE id=?", (cid,))
+            store.audit(con, c["project_id"], c["datasheet_id"], c["field_key"], "comment-restore", None, c["text"], by)
         else:
-            text = str(body.get("text", "")).strip()[:4000]
-            if not text:
-                return _err("내용이 비었습니다")
-            con.execute("UPDATE comment SET text=? WHERE id=?", (text, cid))
-            store.audit(con, c["project_id"], c["datasheet_id"], c["field_key"], "comment-edit", c["text"], text, by)
+            try:
+                g = _markup(body, c)
+            except (ValueError, TypeError):
+                return _err("주석 모양 형식이 잘못됐습니다")
+            sets, vals = [], []
+            if "text" in body:
+                text = str(body.get("text", "")).strip()[:4000]
+                if not text and not (g.get("bbox") or c["bbox"]):
+                    return _err("내용이 비었습니다")
+                sets.append("text=?"), vals.append(text)
+            for k in ("page", "kind", "category"):
+                if k in g:
+                    sets.append(f"{k}=?"), vals.append(g[k])
+            for k in ("bbox", "points"):
+                if k in g:
+                    sets.append(f"{k}=?"), vals.append(store.J(g[k]))
+            if not sets:
+                return _err("바꿀 것이 없습니다")
+            con.execute(f"UPDATE comment SET {', '.join(sets)} WHERE id=?", (*vals, cid))
+            what = "comment-edit" if "text" in body else "markup-edit"
+            store.audit(con, c["project_id"], c["datasheet_id"], c["field_key"], what,
+                        c["text"] if "text" in body else c["bbox"], body.get("text") if "text" in body else store.J(g.get("bbox")), by)
         con.commit()
     return _ds_full(con, c["datasheet_id"])
 

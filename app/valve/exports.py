@@ -147,15 +147,61 @@ def _swatch(color):
     return f"#{int(r * 255):02X}{int(g * 255):02X}{int(b * 255):02X}"
 
 
+def _info(a, i):
+    a.set_info(title=f"#{i['no']} {i['type']} ({i['severity']})" + (f" — {i['by']}" if i.get("by") else ""),
+               content=f"{i['field']}: {i.get('value') or '(blank)'}\n{i['description']}"
+                       + (f"\nRequired / expected: {i['expected']}" if i.get("expected") else ""))
+    a.set_flags(pymupdf.PDF_ANNOT_IS_PRINT)
+
+
+def _markup(page, i, col):
+    """A reviewer's own mark-up, drawn as the same kind of PDF annotation (editable in Acrobat / Bluebeam)."""
+    kind, r, pts = i.get("kind") or "rect", pymupdf.Rect(*i["bbox"]), i.get("points")
+    if kind == "highlight":
+        a = page.add_highlight_annot(r)
+        a.set_colors(stroke=col)
+        a.set_opacity(0.45)
+    elif kind in ("line", "arrow") and pts and len(pts) >= 2:
+        a = page.add_line_annot(pymupdf.Point(*pts[0]), pymupdf.Point(*pts[-1]))
+        a.set_colors(stroke=col)
+        a.set_border(width=1.6)
+        if kind == "arrow":
+            a.set_line_ends(pymupdf.PDF_ANNOT_LE_NONE, pymupdf.PDF_ANNOT_LE_OPEN_ARROW)
+    elif kind == "pen" and pts:
+        a = page.add_ink_annot([[tuple(p) for p in st] for st in pts])
+        a.set_colors(stroke=col)
+        a.set_border(width=1.6)
+    elif kind == "text":
+        a = page.add_freetext_annot(r, i.get("text_raw") or i["description"], fontsize=9, text_color=col,
+                                    fill_color=(1, 1, 1))
+        a.set_border(width=0.8)
+    elif kind == "note":
+        a = page.add_text_annot(r.tl, i["description"], icon="Comment")
+        a.set_colors(stroke=col)
+    else:                                                       # rect · cloud · ellipse
+        a = page.add_circle_annot(r) if kind == "ellipse" else page.add_rect_annot(r)
+        a.set_colors(stroke=col)
+        a.set_border(width=1.6, clouds=2 if kind == "cloud" else 0)
+    _info(a, i)
+    if kind == "text":                                          # a free-text box shows its content: keep the reviewer's words
+        a.set_info(content=i.get("text_raw") or i["description"])
+    a.update()
+    return r
+
+
 def _annotate(page, i):
     if not i.get("bbox"):
+        return
+    col = RGB.get(i["color"], RGB["comment"])
+    if i.get("comment_id"):
+        r = _markup(page, i, col)
+        _label(page, r, i, col)
         return
     r = pymupdf.Rect(*i["bbox"]) + (-1.5, -1.5, 1.5, 1.5)
     if r.width < 6:
         r.x1 = r.x0 + 6
     if r.height < 6:
         r.y1 = r.y0 + 6
-    col = RGB.get(i["color"], RGB["comment"])
     if i["color"] == "revision":
         a = page.add_highlight_annot(r)
         a.set_colors(stroke=col)
@@ -167,11 +213,12 @@ def _annotate(page, i):
         a.set_border(width=1.4, dashes=[3, 2] if i["color"] in ("comment", "extract") else None)
         if fill:
             a.set_opacity(0.55)
-    a.set_info(title=f"#{i['no']} {i['type']} ({i['severity']})",
-               content=f"{i['field']}: {i.get('value') or '(blank)'}\n{i['description']}"
-                       + (f"\nRequired / expected: {i['expected']}" if i.get("expected") else ""))
-    a.set_flags(pymupdf.PDF_ANNOT_IS_PRINT)
+    _info(a, i)
     a.update()
+    _label(page, r, i, col)
+
+
+def _label(page, r, i, col):
     lab = pymupdf.Rect(r.x0 - 13, r.y0 - 1, r.x0 - 1, r.y0 + 8)
     if lab.x0 < 2:
         lab = pymupdf.Rect(r.x0, r.y0 - 10, r.x0 + 12, r.y0 - 1)

@@ -14,7 +14,8 @@ Rule-based only.  Every issue says what was checked against what:
   PMS Review          pms.check -> Review Required / Not Defined in PMS                red     Minor
   Revision Change     changed against the previous revision of the same tag            yellow  Info
   Reviewer Correction value corrected by a reviewer (read value → corrected value)       blue    Major
-  Reviewer Comment    review comment / PDF note                                        blue    Major
+  Reviewer Comment    review comment / PDF mark-up (category comment · question)        blue    Major / Minor
+                      a mark-up in category error / missing becomes Data Error / Data Missing (red / orange)
   Extraction Review   label/value pairing the tool could not settle (internal)        purple  Internal
 
 The `color` decides the PDF mark-up: red / orange / yellow / blue / purple (docs/valve/DESIGN.md §9).
@@ -34,6 +35,9 @@ COLOR = {"Data Missing": "missing", "Open Item": "missing", "Data Error": "error
          "Reviewer Comment": "comment", "Extraction Review": "extract"}
 CONTRACTOR_TYPES = ["Data Missing", "Open Item", "Data Error", "PMS Non-Compliance", "PMS Review", "Revision Change",
                     "Reviewer Correction", "Reviewer Comment"]
+# reviewer mark-up category -> (issue type, severity, description prefix) — the contractor reads one list
+MARK_TYPE = {"comment": ("Reviewer Comment", "Major", ""), "question": ("Reviewer Comment", "Minor", "Question: "),
+             "error": ("Data Error", "Major", "Reviewer: "), "missing": ("Data Missing", "Major", "Reviewer: ")}
 _OPEN = re.compile(r"^\s*(HOLD|TBC|TBA|TO BE CONFIRMED)\b", re.I)
 _GN = re.compile(r"gen(?:eral|\.)?\s*note\s*[-–:#]?\s*(\d+)", re.I)   # 'General Note-8' · 'Gen Note-30'
 
@@ -147,9 +151,15 @@ def compute(ds: dict, general_notes: dict | None = None, pms: dict | None = None
                 expected="", page=r.get("new_page"), bbox=r.get("new_bbox"),
                 f={"display": r.get("display"), "row": r.get("row"), "value": r.get("new"), "unit": r.get("unit")})
 
-    for c in ds.get("comments", []):
-        add("Reviewer Comment", f"comment.{c['id']}", c["text"], page=c.get("page"), bbox=c.get("bbox"),
-            f={"display": "Review Comment", "value": "", "row": None}, extra={"by": c.get("by"), "comment_id": c["id"]})
+    for c in ds.get("comments", []):                         # reviewer mark-ups: the category says what kind of finding
+        cat = c.get("category") or "comment"
+        it, sev, pre = MARK_TYPE.get(cat, MARK_TYPE["comment"])
+        text = c.get("text") or ""
+        add(it, f"comment.{c['id']}", pre + (text or "(see mark-up on the PDF)"), page=c.get("page"), bbox=c.get("bbox"),
+            f={"display": "Reviewer Mark-up" if c.get("bbox") else "Review Comment", "value": "", "row": None},
+            severity=sev, extra={"by": c.get("by"), "comment_id": c["id"], "category": cat,
+                                 "kind": c.get("kind") or ("rect" if c.get("bbox") else None), "points": c.get("points"),
+                                 "text_raw": text})
     seen, uniq = set(), []
     for i in out:                                         # the same check can fire twice (two note refs in one cell)
         k = (i["ikey"], i["description"])

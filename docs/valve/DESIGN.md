@@ -198,3 +198,44 @@ Appendix C = QN · W15, Appendix D = QS (같은 Class 코드가 두 지역에 �
 - **Excel ↔ PDF**: Valve List 의 채운 칸 · DS Source 칸, Issue List 의 Tag · Open 칸은 하이퍼링크 → 이 도구가 `?ds=&key=&page=#review` 로 그 칸을 깜박여 연다.
   도구 안의 Valve List · Issue List 화면은 오른쪽 PDF 미리보기와 실시간 연동(한 번 누르면 그 장 · 그 위치). 데스크톱 Excel 의 셀 선택 자체를
   브라우저가 실시간으로 따라가게 하는 것은 Excel 추가 기능 없이 불가능하다 — 그래서 '칸 = 링크' 와 '도구 안 엑셀식 목록' 두 길로 했다.
+
+## 10. 상용 수준 다듬기 — 실패 원인 분석 · 강건성 · 사용자 Mark-up (valve03, 2026-10-31 3차 요청)
+
+### 10.1 평가 도구 `spike/valve_eval.py` (실자료로 재고, 기준값 `spike/valve_eval_baseline.json` = 개수만)
+
+`python3 -W ignore spike/valve_eval.py --ds <Datasheet.pdf> --tbe <TBE.xlsx> --pms <PMS.pdf> [--save-baseline]`
+A 추출(상태별 칸 수) · B TBE 와 칸별 일치(exact / same 표기만 다름 / soft 자리표시 / tbe_vta / **misread 쪽 글자에 TBE 값이 있는데 다르게 읽음** / different) ·
+C PMS 결과 · D 지적 · E 속도.  보고서(`report.md`)에는 고객 값이 들어가니 저장소에 넣지 않는다.
+
+| 항목 | valve02 | valve03 | 원인 → 고친 것 |
+|---|---|---|---|
+| 짝 못 지은 칸 (Extraction Review) | 69 | 1 | 이중 괘선 사이 좁은 칸(<9pt)을 값 칸으로 셈 · 빈 예비 행 · 단위 칸 분리 과잉 → `read_page` |
+| 오독 (TBE 값이 쪽에 있는데 다른 값) | 11 | 0 | 번호 열 군집 · Form 102 굵은 글자 값 · 세로 머리글 · 'Gen Note-30' 을 Note 30 으로 읽음 |
+| Data Missing 오탐 | 748 | 0 | 'For Process data refer to …-PR-DTS-…' 데이터시트는 공정 칸이 일부러 비어 있음 → `process_reference` (Phase 3 에서 대조) |
+| PMS Review | 113 | 75 | PMS 품목 배치(run×branch) · 2글자 Class('A1') · NACE 를 Notes 에서 · 'Note 8' 처럼 값이 Note 에 있으면 Note 값으로 비교(`schema.effective`) |
+| Valve List 비교 가능 칸 일치 | — | 3,975 / 4,278 (92.9 %) | 나머지 303 은 실제 차이(TBE 가 나중에 고친 값 등) — 도구가 고치지 않는다 |
+| 새 Data Error | — | 2 | 'Body : Note-8' 인데 Note 8 머리가 'Bolting' → 잘못된 Note 참조 (`wrong_note`, 머리글 단어가 겹칠 때만) |
+
+### 10.2 강건성 (`extract.read_pdf`)
+
+- A4 가 아닌 쪽(A3 · A2 · 플로터 출력)은 A4 크기로 옮겨 읽고 상자는 원래 크기로 되돌린다 (`_normalised`, 차이 8 % 이상일 때만) — 판정 거리(pt)가 같은 뜻이 되게.
+- 회전(90/270) 쪽은 회전을 풀고 읽은 뒤 상자를 회전 행렬로 되돌린다.
+- 암호 PDF · 깨진 PDF · 복구된 PDF 는 `PdfError` 로 사용자가 할 수 있는 말("암호를 풀어 저장한 뒤 …")을 문서 오류에 남긴다. 글자 층이 없는 스캔 쪽은 'scan' 으로 표시(OCR 하지 않음).
+- 속도: 456쪽 6초(13 ms/쪽) · 데이터시트 지적 0.5 ms · 프로젝트 지적은 캐시(쓰기 = 감사 행이 생길 때만 다시) · Mark-up PDF 데이터시트당 40 KB(전엔 314 KB, `garbage=4 · deflate`).
+
+### 10.3 사용자 Mark-up (Datasheet Review 화면 PDF 위 'Mark-up' 줄)
+
+| 도구 (단축키) | 저장 | Mark-up PDF 에 나가는 PDF 주석 |
+|---|---|---|
+| ⬚ 선택 (V) — 누르면 고르기, 끌면 옮기기, 모서리 · 선 끝 손잡이로 크기 | — | — |
+| ▭ 사각형 (R · A) · ☁ 구름 (C) · ◯ 원 (E) | bbox | Square · Square(clouds=2) · Circle |
+| ▆ 형광펜 (H) | bbox | Highlight |
+| ╱ 선 (L) · ↗ 화살표 (W) | points = 두 끝 | Line (화살표는 끝 OpenArrow) |
+| ✎ 펜 (P) | points = 획 목록 | Ink |
+| T 글상자 (T) · 🗨 메모 (N) | bbox + 글 | FreeText(글 그대로) · Text(스티커) |
+
+- 분류(Comment 파랑 · Error 빨강 · Missing 주황 · Question 파랑)를 고르면 색과 **Issue 종류**가 정해진다: Error → Data Error, Missing → Data Missing,
+  Comment/Question → Reviewer Comment (Question 은 Minor, 'Question:' 머리). 그래서 검토자 표시가 자동 지적과 **같은 Issue List · 같은 번호**로 설계사에게 나간다.
+- 모든 변경은 바로 저장(`comment` 행: kind · points · category, 지우기는 deleted=1) · 감사 기록 · ↶ 되돌리기(Ctrl+Z) / ↷ 다시(Ctrl+Y) 는 반대 요청을 보낸다
+  (지우기 되돌리기 = `{restore:true}`).  Delete = 지우기, Enter = 의견 · 분류 고치기, Esc = 선택 도구.
+- 화면은 쪽 그림 위 SVG(단위 = PDF pt) 라 확대해도 어긋나지 않고, 내보낸 PDF 주석은 Acrobat · Bluebeam 에서 그대로 고칠 수 있다. 모든 주석에 인쇄 플래그.

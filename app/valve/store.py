@@ -13,8 +13,10 @@ Tables
              status (ok|blank|placeholder|review) · ref(json) · edited_value · edited_by · edited_at
   audit      id · project_id · datasheet_id · field_key · action · before · after · by · at · comment
   issue_state datasheet_id · ikey · status (Open|Confirmed|Dismissed|Resolved) · note · by · at  (computed issues' review state)
-  comment    id · datasheet_id · field_key · text · by · at · page · bbox(json) · category · deleted
-             (a user annotation is a comment with a page and box; deleting keeps the row, deleted=1)
+  comment    id · datasheet_id · field_key · text · by · at · page · bbox(json) · category · deleted · kind · points(json)
+             (a user mark-up is a comment with a page and box; kind = rect/cloud/ellipse/highlight/line/arrow/pen/text/note,
+              points = line ends or pen strokes in PDF points; category = comment/error/missing/question;
+              deleting keeps the row, deleted=1)
 """
 from __future__ import annotations
 
@@ -71,7 +73,7 @@ def connect() -> sqlite3.Connection:
 
 _ADDED = {"datasheet": [("sheets", "TEXT")],
           "comment": [("page", "INTEGER"), ("bbox", "TEXT"), ("category", "TEXT DEFAULT 'comment'"),
-                      ("deleted", "INTEGER DEFAULT 0")]}
+                      ("deleted", "INTEGER DEFAULT 0"), ("kind", "TEXT"), ("points", "TEXT")]}
 
 
 def _migrate(con):
@@ -159,6 +161,31 @@ def insert_datasheet(con, project_id: int, document_id: int, ds: dict) -> int:
         [(dsid, k, r.get("section"), r.get("display"), r.get("label"), r.get("row"), r.get("value"), r.get("unit"),
           r.get("page"), J(r.get("bbox")), r.get("status"), J(r.get("ref"))) for k, r in ds["fields"].items()])
     return dsid
+
+
+def refresh_datasheet(con, dsid: int, ds: dict) -> dict:
+    """Re-read of the same PDF (a newer reader): read values are replaced in place, everything a reviewer did stays —
+    corrections (edited_*), comments · mark-ups, issue states, review status.  Field ids stay, so links keep working."""
+    con.execute("UPDATE datasheet SET tag=?, valve_type=?, doc_no=?, rev_date=?, title=?, form=?, pages=?, notes=?,"
+                " rev_history=?, sheets=? WHERE id=?",
+                (ds["tag"], ds["valve_type"], ds["doc_no"], ds.get("date", ""), ds.get("title", ""), ds.get("form", ""),
+                 J(ds["pages"]), J(ds["notes"]), J(ds.get("rev_history", [])), J(ds.get("sheets")), dsid))
+    old = {r["key"]: r for r in rows(con, "SELECT id, key, value, edited_value FROM field WHERE datasheet_id=?", dsid)}
+    changed = 0
+    for k, r in ds["fields"].items():
+        vals = (r.get("section"), r.get("display"), r.get("label"), r.get("row"), r.get("value"), r.get("unit"),
+                r.get("page"), J(r.get("bbox")), r.get("status"), J(r.get("ref")))
+        if k in old:
+            changed += (old[k]["value"] or "") != (r.get("value") or "")
+            con.execute("UPDATE field SET section=?, display=?, label=?, row=?, value=?, unit=?, page=?, bbox=?, status=?,"
+                        " ref=? WHERE id=?", (*vals, old[k]["id"]))
+        else:
+            changed += 1
+            con.execute("INSERT INTO field(datasheet_id, key, section, display, label, row, value, unit, page, bbox, status,"
+                        " ref) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)", (dsid, k, *vals))
+    gone = [o for k, o in old.items() if k not in ds["fields"] and o["edited_value"] is None]
+    con.executemany("DELETE FROM field WHERE id=?", [(o["id"],) for o in gone])
+    return {"changed": changed, "removed": len(gone)}
 
 
 def audit(con, project_id, datasheet_id, field_key, action, before, after, by, comment=""):

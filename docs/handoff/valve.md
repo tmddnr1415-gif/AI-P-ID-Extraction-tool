@@ -1,16 +1,19 @@
 # 인수인계 — "VALVE Datasheet 검토" 세션 (상한 15KB · 덧붙이지 말고 고쳐 쓴다)
 
-## 지금 상태 (2026-10-31 · valve02)
+## 지금 상태 (2026-10-31 · valve03)
 
 - 작업 브랜치: `ccr-efbe7e75-n915ze`. 이 브랜치는 PID(`claude/gracious-ride-26nqrf`, hotfix131) 와 DASHBOARD(`ccr-248a5c4d-3dji7g`, v16.51) 를 병합한 위에 있다.
 - 무엇: 대시보드 **실행 프로젝트 › CO2 PJT › Datasheet › Ball Valve** = P&ID 서버(8000) `/valve/` — Valve Datasheet 검토 도구.
-  설계 · 분석 · 남은 일: `docs/valve/DESIGN.md` (먼저 §1 표와 §8).
-- Phase 1(추출 · Valve List) + Phase 2 기본(Revision) + **지적 사항(오류 · 누락) · 설계사용 Issue List Excel · 인쇄용 Mark-up PDF · 분석 끝 자동 Excel · Excel 칸 ↔ PDF 연동 · 실제 PMS 비교(재질은 규격·등급으로)** (valve02, DESIGN §9).
+  설계 · 분석 · 남은 일: `docs/valve/DESIGN.md` (먼저 §1 표, §8, §10).
+- Phase 1(추출 · Valve List) + Phase 2 기본(Revision) + 지적 사항 · Issue List Excel · 인쇄용 Mark-up PDF · Excel ↔ PDF 연동 · 실제 PMS 비교 (valve02, §9)
+  + **실패 원인 분석 · 강건성(A3 · 회전 · 암호/손상) · 사용자 Mark-up 도구 10종(되돌리기 · 옮기기 · 크기) → Issue List · Mark-up PDF 로** (valve03, §10).
   Process Data(Phase 3)만 화면 틀 — 결과 'Not Evaluated', 예시는 MOCK 버튼. PMS 의 Gasket · Bolting 은 아직.
-- 실자료(고객 파일 · 저장소에 없음): Datasheet.pdf 456쪽 → 164 데이터시트(On/Off 140 · MOV 24) · TBE 164/164 Tag 일치 · Review Required 69칸.
+- 품질 기준값: `spike/valve_eval.py` → `spike/valve_eval_baseline.json` (Extraction Review 1 · 오독 0 · Data Missing 오탐 0 · TBE 일치 92.9 % · PMS Review 75).
+  추출 · PMS 코드를 고치면 평가를 다시 돌려 기준값이 움직인 이유를 칸 단위로 밝힌다 (CLAUDE.md §4-4).
+- 실자료(고객 파일 · 저장소에 없음): Datasheet.pdf 456쪽 → 164 데이터시트(On/Off 140 · MOV 24) · TBE 164/164 Tag 일치.
   자료를 다시 받으면 EGG 는 `python3 spike/valve_unegg.py <폴더> *.egg`, TBE .xls 는 시험용으로 `spike/valve_xls2xlsx.py`(xlrd 필요).
-- 시험: `pytest -q tests/test_valve.py` (21개, 실자료는 `VALVE_SAMPLES=<Datasheet.pdf 폴더>`). 전체 1,850 통과 (2026-10-31).
-- 마지막 꾸러미: **valve02** (P&ID 서버용만 — 대시보드는 valve01 의 메뉴 그대로). valve01 · valve02 모두 회사 적용 확인 전. valve02 는 hotfix131 기준 누적이라 valve01 을 건너뛰어도 된다.
+- 시험: `pytest -q tests/test_valve.py` (30개, 실자료는 `VALVE_SAMPLES=<Datasheet.pdf 폴더>`). 전체 1,860 통과 (2026-10-31).
+- 마지막 꾸러미: **valve03** (P&ID 서버용만 — 대시보드는 valve01 의 메뉴 그대로). valve01~03 모두 회사 적용 확인 전. 각 꾸러미는 hotfix131 기준 누적이라 valve03 하나만 적용해도 된다.
 
 ## 파일
 
@@ -23,7 +26,7 @@
 | `app/valve/material.py` | 재질 비교 (표기 아닌 규격 · 등급 · 계열) |
 | `app/valve/pms.py` | PMS Class 시트 읽기(지역 QN/QS) · 데이터시트 비교 |
 | `app/valve/issues.py` | 오류 · 누락 · PMS · Revision · 검토자 지적 (번호 · 색) |
-| `app/valve/exports.py` | Issue List Excel · 인쇄용 Mark-up PDF |
+| `app/valve/exports.py` | Issue List Excel · 인쇄용 Mark-up PDF (검토자 Mark-up 은 같은 종류의 PDF 주석으로) |
 | `app/valve/api.py` | `/valve/` 화면 · `/api/valve/*` (업로드 작업 · 칸 수정 · 비교 · 쪽 그림 · 검색 · 주석 · 표시 PDF · 내보내기) |
 | `app/static/valve/` | 화면 (index.html · valve.css · valve.js — 빌드 없음) |
 | `app/main.py` | 두 줄: `from app.valve import api as _valve_api` · `app.include_router(...)` |
@@ -43,14 +46,14 @@
 ## 꾸러미
 
 - P&ID 서버용 (밸브 모듈만):
-  `python3 spike/pack_delta.py --name valve02 --base 9429f4f --only app/valve/,app/static/valve/,app/main.py,tests/test_valve.py --readme out/valve01/readme_head.txt --ops`
-  → `out/PID_dev+ops_valve01_<날짜>.zip`. `--only` 는 딱지(`app/_update.json`)와 기준 파일(`out/PID_dev_delta_base.txt`)을 건드리지 않는다 (PID 세션 번호와 안 섞이게).
+  `python3 spike/pack_delta.py --name valve03 --base 9429f4f --only app/valve/,app/static/valve/,app/main.py,tests/test_valve.py --readme out/valve03/readme_head.txt --ops`
+  → `out/PID_dev+ops_valve03_<날짜>.zip`. `--only` 는 딱지(`app/_update.json`)와 기준 파일(`out/PID_dev_delta_base.txt`)을 건드리지 않는다 (PID 세션 번호와 안 섞이게).
   기준 9429f4f = hotfix131 전달본. 회사가 다른 판이면 `--base` 를 그 판으로.
 - 대시보드용: `python3 dashboard_tools/make_patch.py --out dashboard_patches --mark` (기준 = `delivered.txt` 맨 아래). `--out` 은 폴더. 첫 전달: `dashboard_patches/UPDATE_from_v16.51_VALVE_menu.zip` (기준 v16.51).
 - 적용 순서(회사): ① PID 꾸러미 `apply_to_PID_dev.bat` → 확인 → `apply_to_PID_ops.bat` (8000 서버 재시작) ② 대시보드 zip `APPLY.bat` (서버 재시작 필요 없음, 화면 새 버전 배너) ③ 대시보드 → 실행 프로젝트 › CO2 PJT › Datasheet › Ball Valve.
 
 ## 다음에 할 일
 
-1. 회사 적용 확인: .xls 자동 변환(Excel COM)이 되는지, 456쪽 처리 시간, 화면 글꼴.
-2. Phase 3 Process Data (DESIGN §2.3 · §8) → Phase 4 PMS (§2.4).
-3. Revision 비교 Excel 보고서 · Combined Mark-up PDF.
+1. 회사 적용 확인: .xls 자동 변환(Excel COM)이 되는지, 456쪽 처리 시간, 화면 글꼴, Mark-up 도구(Edge)와 내보낸 PDF 를 Acrobat 에서 열어 보기.
+2. Phase 3 Process Data (DESIGN §2.3 · §8) — `process_ref` 가 가리키는 PR-DTS 문서와 대조 → Phase 4 PMS Gasket · Bolting (§2.4).
+3. Revision 비교 Excel 보고서 · Combined Mark-up PDF · 받은 PDF 에 이미 있는 주석(설계사 Mark-up) 읽어 오기.

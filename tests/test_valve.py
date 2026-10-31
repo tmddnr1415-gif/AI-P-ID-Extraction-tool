@@ -321,3 +321,143 @@ def test_contractor_exports(tmp_path):
     flags = [a.flags for p in pdf for a in p.annots()]
     assert flags and all(f & pymupdf.PDF_ANNOT_IS_PRINT for f in flags)   # mark-ups print with the page
     assert pdf.page_count == 3                                           # 2 datasheet pages + Issue Summary
+
+
+# ── valve03: notes · process reference · equivalence · odd pages · reviewer mark-ups ──────────────────────
+
+def test_note_helpers():
+    notes = [{"no": 8, "text": "Bolting /Nut: A193 B8M / A194 8M", "page": 2, "bbox": [1, 1, 2, 2]},
+             {"no": 9, "text": "Body / Bonnet: 316/316L SS dual certified", "page": 2, "bbox": [1, 3, 2, 4]}]
+    w = extract.wrong_note("Body/Bonnet Material", notes[0], notes)          # Note 8 is about bolting, Note 9 about body
+    assert w and w["no"] == 9
+    assert extract.wrong_note("Bolting", notes[0], notes) is None
+    assert extract.note_value(notes[1]["text"]) == "316/316L SS dual certified"
+    assert extract.note_value("Body material shall be 316/316L SS") == "316/316L SS"
+    assert extract.note_value("Actuator Type: Motorized, multi-turn") == "Motorized, multi-turn"
+    assert extract.note_value("x " * 120) == ""                              # long paragraph: stays a reference
+    assert extract.pure_reference("General Note - 3") and not extract.pure_reference("316 SS (Note 3)")
+    ref = extract.process_reference([{"no": 4, "text": "For Process data please refer to Doc.No.: 03-02-PR-DTS-00002"}], {})
+    assert ref and ref["where"] == "Note 4" and "PR-DTS" in ref["doc"]
+    assert extract.process_reference([{"no": 1, "text": "Painting as per spec"}], {}) is None
+
+
+def test_process_reference_skips_process_missing():
+    ds = _ds_for_issues()
+    ds["fields"].append({"key": "fluid", "value": "", "edited_value": None, "status": "blank", "page": 1, "bbox": [1, 15, 2, 16],
+                         "row": 12, "display": "Fluid"})
+    assert any(i["key"] == "fluid" for i in issues.compute(ds, {}))
+    ds["process_ref"] = {"doc": "03-02-PR-DTS-00002", "where": "Note 4"}
+    assert not any(i["key"] == "fluid" for i in issues.compute(ds, {}))
+
+
+@pytest.mark.parametrize("a, b, want", [
+    ("Yes", "Yes (MR0175/ISO 15156)", True),
+    ("Flanged, RTJ", "Flanged RTJ (ASME B16.5)", True),
+    ("1C3AS2", "1C3AS2-A", False),                                           # short qualifier changes the meaning
+    ("316 SS", "316L SS", False),
+    ("316 SS / HF", "SS 316/HF", True),
+])
+def test_material_equivalent(a, b, want):
+    assert material.equivalent(a, b) is want
+
+
+def test_pms_item_layouts():
+    a = pms.parse_item("PBVF1A2B3C4\n0.5 - 1.5\nBALL VALVE, FULL BORE, A182 F316")
+    assert a and (a["from"], a["to"]) == (0.5, 1.5) and a["kind"] == "BALL VALVE"
+    b = pms.parse_item("PBVF1A2B3C5\n2 - 24 / 0.5 - 1\nBALL VALVE, REDUCED BORE")
+    assert b and b["branch"] == [0.5, 1.0]
+    assert pms.parse_item("not a code\n1\nX") is None
+
+
+def test_odd_pages_read_like_a4(tmp_path):
+    src = pymupdf.open(stream=make_pdf(), filetype="pdf")
+    a3 = pymupdf.open()                                                       # same sheet printed on A3
+    for p in src:
+        q = a3.new_page(width=p.rect.width * 1.414, height=p.rect.height * 1.414)
+        q.show_pdf_page(q.rect, src, p.number)
+    path = tmp_path / "a3.pdf"
+    a3.save(path)
+    base = tmp_path / "a4.pdf"
+    base.write_bytes(make_pdf())
+    f4 = extract.group_datasheets(extract.read_pdf(str(base)))[0]["fields"]
+    f3 = extract.group_datasheets(extract.read_pdf(str(path)))[0]["fields"]
+    assert {k: f["value"] for k, f in f3.items()} == {k: f["value"] for k, f in f4.items()}
+    k = "body_size"
+    assert abs(f3[k]["bbox"][0] - f4[k]["bbox"][0] * 1.414) < 2              # boxes stay on the A3 page
+    bad = tmp_path / "bad.pdf"
+    bad.write_bytes(b"%PDF-1.4 garbage")
+    with pytest.raises(extract.PdfError):
+        extract.read_pdf(str(bad))
+
+
+def test_reviewer_markups(tmp_path, monkeypatch, pdf_path):
+    monkeypatch.setenv("PID_DATA_DIR", str(tmp_path / "data"))
+    from fastapi import FastAPI
+    from fastapi.testclient import TestClient
+    app = FastAPI()
+    app.include_router(api.router)
+    c = TestClient(app)
+    pid = c.post("/api/valve/projects", json={"name": "CO2 PJT"}).json()["id"]
+    j = c.post(f"/api/valve/projects/{pid}/upload", data={"kind": "datasheet"},
+               files=[("files", ("ds.pdf", pdf_path.read_bytes(), "application/pdf"))]).json()
+    for _ in range(100):
+        if c.get(f"/api/valve/jobs/{j['id']}").json()["status"] == "done":
+            break
+        time.sleep(0.1)
+    dsid = c.get(f"/api/valve/projects/{pid}/summary").json()["tags"][0]["id"]
+    url = f"/api/valve/datasheets/{dsid}/comments"
+    shapes = [{"kind": "cloud", "category": "error", "text": "Body material wrong", "bbox": [100, 100, 200, 140]},
+              {"kind": "arrow", "category": "comment", "text": "see", "bbox": [50, 50, 90, 90], "points": [[50, 50], [90, 90]]},
+              {"kind": "pen", "category": "missing", "text": "", "bbox": [10, 10, 40, 30],
+               "points": [[[10, 10], [20, 30], [40, 12]]]},
+              {"kind": "text", "category": "question", "text": "Torque?", "bbox": [300, 300, 420, 330]},
+              {"kind": "note", "category": "comment", "text": "sticky", "bbox": [450, 300, 466, 316]},
+              {"kind": "highlight", "category": "comment", "text": "", "bbox": [100, 400, 300, 412]},
+              {"kind": "ellipse", "category": "comment", "text": "", "bbox": [100, 500, 160, 540]}]
+    ids = [c.post(url, json=dict(s, page=1)).json()["new_comment_id"] for s in shapes]
+    assert c.post(url, json={"kind": "star", "page": 1, "bbox": [1, 1, 2, 2]}).status_code == 400
+    assert c.post(url, json={"kind": "pen", "page": 1, "bbox": [1, 1, 2, 2], "points": [[1, 1]]}).status_code == 400
+    ds = c.put(f"/api/valve/comments/{ids[0]}", json={"bbox": [110, 110, 230, 160]}).json()   # moved / resized
+    assert next(x for x in ds["comments"] if x["id"] == ids[0])["bbox"] == [110, 110, 230, 160]
+    assert len(c.put(f"/api/valve/comments/{ids[6]}", json={"delete": True}).json()["comments"]) == 6
+    ds = c.put(f"/api/valve/comments/{ids[6]}", json={"restore": True}).json()                 # undo of a delete
+    assert len(ds["comments"]) == 7
+    mi = {i["comment_id"]: i for i in ds["issues"] if i.get("comment_id")}
+    assert mi[ids[0]]["type"] == "Data Error" and mi[ids[0]]["color"] == "error"
+    assert mi[ids[2]]["type"] == "Data Missing" and mi[ids[2]]["points"] == shapes[2]["points"]
+    assert mi[ids[3]]["type"] == "Reviewer Comment" and mi[ids[3]]["description"].startswith("Question")
+    tag = ds["tag_key"]
+    pdf = pymupdf.open(stream=c.get(f"/api/valve/projects/{pid}/markup.pdf?tag={tag}").content, filetype="pdf")
+    kinds = {a.type[1] for p in pdf for a in p.annots()}
+    assert {"Square", "Line", "Ink", "FreeText", "Text", "Highlight", "Circle"} <= kinds
+    assert all(a.flags & pymupdf.PDF_ANNOT_IS_PRINT for p in pdf for a in p.annots())
+    txt = [a.info["content"] for p in pdf for a in p.annots() if a.type[1] == "FreeText" and a.info["content"] == "Torque?"]
+    assert txt                                                                # the text box prints the reviewer's words
+
+
+def test_reread_keeps_review(tmp_path, monkeypatch, pdf_path):
+    monkeypatch.setenv("PID_DATA_DIR", str(tmp_path / "data"))
+    from fastapi import FastAPI
+    from fastapi.testclient import TestClient
+    app = FastAPI()
+    app.include_router(api.router)
+    c = TestClient(app)
+    pid = c.post("/api/valve/projects", json={"name": "P"}).json()["id"]
+
+    def wait(j):
+        for _ in range(100):
+            if c.get(f"/api/valve/jobs/{j['id']}").json()["status"] == "done":
+                return
+            time.sleep(0.1)
+    wait(c.post(f"/api/valve/projects/{pid}/upload", data={"kind": "datasheet"},
+                files=[("files", ("ds.pdf", pdf_path.read_bytes(), "application/pdf"))]).json())
+    ds = c.get(f"/api/valve/datasheets/{c.get(f'/api/valve/projects/{pid}/summary').json()['tags'][0]['id']}").json()
+    f = next(x for x in ds["fields"] if x["key"] == "body_size")
+    c.put(f"/api/valve/datasheets/{ds['id']}/fields/{f['id']}", json={"value": '3"'})
+    c.post(f"/api/valve/datasheets/{ds['id']}/comments", json={"kind": "cloud", "page": 1, "bbox": [1, 1, 50, 50], "text": "x"})
+    wait(c.post(f"/api/valve/documents/{ds['document_id']}/retry").json())
+    s = c.get(f"/api/valve/projects/{pid}/summary").json()
+    assert s["kpi"]["datasheets"] == 1                                       # refreshed, not duplicated
+    d2 = c.get(f"/api/valve/datasheets/{ds['id']}").json()
+    g = next(x for x in d2["fields"] if x["key"] == "body_size")
+    assert g["id"] == f["id"] and g["edited_value"] == '3"' and len(d2["comments"]) == 1

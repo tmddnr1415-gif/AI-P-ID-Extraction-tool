@@ -15,3 +15,12 @@
 - 화면: Valve List / Issue List + PDF 미리보기 실시간 연동, Issues 탭, 실제 PMS 화면(데이터시트 · PMS 나란히), 분석 끝 자동 내려받기, ?ds=&key=&page= 바로 열기.
 - 실자료: Data Error 3 (없는 General Note 46) · PMS 재질 Non-Compliant 0 · Body Review 32→15 · Valve List 실제 차이 571→539.
 - 시험 21개 · 전체 1,850 통과.
+
+## 2026-10-31 · valve03 — 실패 원인 분석 · 성능 · 사용자 Mark-up (브랜치 ccr-efbe7e75-n915ze)
+- 요청: 시간이 걸려도 실패 원인을 분석해 상용 수준으로 · 사용자가 직접 마크업.
+- 평가 도구 spike/valve_eval.py(실자료 · 기준값은 개수만) 로 재고 고침: 짝 실패 69→1 · 오독 11→0 · Data Missing 오탐 748→0(Process DS 참조 데이터시트) ·
+  PMS Review 113→75 · TBE 비교 가능 칸 일치 92.9 % · 잘못된 Note 참조 2건 새로 잡음 (DESIGN §10.1).
+- 강건성: A3 등 크기 다른 쪽 정규화 · 회전 쪽 · 암호/손상 PDF 안내. 속도: 13 ms/쪽 · 지적 캐시 · Mark-up PDF 314→40 KB/데이터시트.
+- Mark-up 도구 10종(선택 · 사각형 · 구름 · 원 · 형광펜 · 선 · 화살표 · 펜 · 글상자 · 메모), 분류 → Issue 종류(Error=Data Error …), 옮기기 · 크기 · 지우기 ·
+  되돌리기/다시, PDF 주석 종류 그대로 내보냄 (DESIGN §10.3).
+- 시험 30개 · 전체 1,860 통과. 꾸러미 valve03.

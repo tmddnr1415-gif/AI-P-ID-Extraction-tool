@@ -268,3 +268,18 @@ table.xg td.hit { box-shadow: inset 0 0 0 2px var(--blue); }
 .segtab button.on { background: var(--navy); color: #fff; }
 
 a.btnlink { display: inline-block; border: 1px solid var(--blue); background: var(--blue); color: #fff; border-radius: 6px; padding: 3px 10px; text-decoration: none; }
+/* user mark-up layer (SVG in PDF points over the page image) */
+.mkbar { min-height: 34px; background: #26303f; }
+.mkbar button { font-size: 13px; min-width: 30px; }
+.mkbar select.mkcat { background: #1a2130; color: #e1e7f2; border: 1px solid #3a4558; border-radius: 4px; padding: 2px 4px; font-size: 12px; }
+svg.mk { position: absolute; left: 0; top: 0; width: 100%; height: 100%; pointer-events: none; overflow: visible; z-index: 2; }
+svg.mk.sel-mode .mkg > :not(title) { pointer-events: visiblePainted; cursor: move; }
+svg.mk .hd { fill: #fff; stroke: #1b2333; stroke-width: 1; vector-effect: non-scaling-stroke; pointer-events: all !important; cursor: nwse-resize; }
+svg.mk .hd-ne, svg.mk .hd-sw { cursor: nesw-resize; } svg.mk .hd-p0, svg.mk .hd-p1 { cursor: crosshair; }
+svg.mk .selbox { fill: none; stroke: #1b2333; stroke-width: 1; stroke-dasharray: 3 2; vector-effect: non-scaling-stroke; }
+svg.mk .mkno text { font: 600 7px sans-serif; fill: #fff; }
+.mktx { font: 9px/1.25 sans-serif; padding: 2px 3px; white-space: pre-wrap; word-break: break-word; overflow: hidden; height: 100%; box-sizing: border-box; }
+.stage.drawing .ov { pointer-events: none; }
+.stage[data-tool="pen"] .pg { cursor: crosshair; }
+.stage[data-tool="text"] .pg { cursor: text; } .stage[data-tool="note"] .pg { cursor: copy; }
+.mkdot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 4px; }
