@@ -38,8 +38,9 @@ PROCESS_REQUIRED = ["fluid", "op_pressure", "design_pressure", "op_temp", "desig
 PROCESS_ROW_ITEMS = {"sour_service", "corrosive", "erosive", "toxic", "stroke_open", "stroke_closed", "stroke_time_s"}
 COLOR = {"Data Missing": "missing", "Open Item": "missing", "Data Error": "error", "PMS Non-Compliance": "error", "Process Mismatch": "process",
          "PMS Review": "error", "Revision Change": "revision", "Reviewer Correction": "comment",
-         "Reviewer Comment": "comment", "Extraction Review": "extract"}
-CONTRACTOR_TYPES = ["Data Missing", "Open Item", "Data Error", "PMS Non-Compliance", "PMS Review", "Process Mismatch", "Revision Change",
+         "Reviewer Comment": "comment", "Extraction Review": "extract", "Material Review": "material"}
+CONTRACTOR_TYPES = ["Data Missing", "Open Item", "Data Error", "PMS Non-Compliance", "PMS Review", "Process Mismatch", "Material Review",
+                    "Revision Change",
                     "Reviewer Correction", "Reviewer Comment"]
 # reviewer mark-up category -> (issue type, severity, description prefix) — the contractor reads one list
 MARK_TYPE = {"comment": ("Reviewer Comment", "Major", ""), "question": ("Reviewer Comment", "Minor", "Question: "),
@@ -63,7 +64,7 @@ def _v(f):
 
 def compute(ds: dict, general_notes: dict | None = None, pms: dict | None = None, area: str = "",
             prev_cmp: list | None = None, states: dict | None = None, pms_rows: list | None = None,
-            process_rows: list | None = None) -> list[dict]:
+            process_rows: list | None = None, material_rows: list | None = None) -> list[dict]:
     """ds: datasheet with fields (list of dicts with key/value/edited_value/page/bbox/row/status/display), notes,
     comments, pages, sheets.  Returns issue dicts (sorted by page, then position)."""
     F = {f["key"]: f for f in ds["fields"]}
@@ -205,6 +206,14 @@ def compute(ds: dict, general_notes: dict | None = None, pms: dict | None = None
                 expected=f"{r['pd']} {r.get('pd_unit') or ''}".strip(), page=r.get("ds_page"), bbox=r.get("ds_bbox"),
                 f={"display": r["item"], "value": r.get("ds"), "unit": r.get("ds_unit"), "row": None},
                 extra={"pd_page": r.get("pd_page"), "pd_bbox": r.get("pd_bbox"), "result": r["result"]})
+    for m in material_rows or []:                        # material review: Action → Major, Confirm → Minor (Notes stay in the tab)
+        if m["level"] == "Note":
+            continue
+        e = next((x for x in m["evidence"] if x.get("doc") == "Datasheet" and x.get("bbox")), None)
+        add("Material Review", f"{m['key']}.{m['rule']}", f"{m['rule']} {m['title']}: {m['comment']} [Basis: {m['basis']}]",
+            expected="", page=(e or {}).get("page"), bbox=(e or {}).get("bbox"), severity=m["severity"],
+            f=dict(F.get(m["key"]) or {"display": m["title"]}),
+            extra={"rule": m["rule"], "level": m["level"], "result": m["level"]})
     for r in prev_cmp or []:
         if r["change"] in ("Modified", "Added", "Deleted"):
             add("Revision Change", r["key"], f"{r['change']}: '{r['previous'] or '(blank)'}' → '{r['new'] or '(blank)'}'",

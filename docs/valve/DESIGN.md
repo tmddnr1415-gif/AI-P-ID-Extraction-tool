@@ -306,3 +306,48 @@ C PMS 결과 · D 지적 · E 속도.  보고서(`report.md`)에는 고객 값�
 valve03 에서 'Process DS 를 참조하는 데이터시트의 빈 공정 칸' 748건을 오탐으로 보고 지적에서 뺐으나, 사용자가 **"없는 것은 전부 표기"** 로 정했다.
 이제 PROCESS DATA 블록의 빈 항목은 참조 여부와 관계없이 Data Missing(Major)이고, 설명에 참조 문서(예: 03-02-PR-DTS-00002, Note 7)를,
 Required/Expected 에 Process Data 표의 값(있으면)을 적는다. 실자료 2,529건(164 Tag, 평균 15). 읽기 지문은 그대로(바뀐 칸 0).
+
+## 14. PMS 검토 점검 · 특수 요구사항 · 재질 검토 의견 (valve10)
+
+요청: "PMS 기준으로 검토가 제대로 되는지 · 재질 검토 의견을 전문적으로 · Note 의 Special Requirement(PFP · Fugitive …) 가 Excel 에 잘 나오는지".
+
+### 14.1 PMS 대조가 맞는지 — PMS PDF 와 한 줄씩 대조한 결과
+
+- 맞게 읽음: Class 머리(Rating · NACE · Trim · CA) · Ball Valve 품목의 크기 범위 · Bore · Floating/Trunnion · 지역 QN/QS.
+- **고친 오류 1건**: Trim(Ball)/Stem 을 Class 머리의 일반 Trim 과 비교했다. 1A1A 머리는 'TRIM 8 (13CR/HF)'(Gate/Globe 용)인데 Ball Valve 품목은 '316 SS BALL/STEM' → 316 SS 데이터시트 8개가 거짓 Review.
+  이제 **고른 Ball 품목의 'X BALL/STEM' 이 우선**, 품목에 없을 때만 머리 Trim. 결과 Trim/Stem Review 8+8 → 0 (나머지 결과 그대로, 지문 불변).
+- 남은 PMS 지적은 실제 문서 차이: 3R1B3 에 Ball Valve 품목 없음(2) · 6C0K8 에 10" 품목 없음(4) · XC0K8 에 22" 없음(1) · PMS 에 없는 Piping Class 13(API5L-X65 등) · 지역/Line No. 로 찾은 Class 확인 8 · RED PORT 인데 Full Port 품목만 28.
+- Class 머리에서 더 읽는 것: P-T 표 · ASME Group · Service 목록 · General Class Notes · Item Specific Notes (재질 검토가 쓴다).
+
+### 14.2 특수 요구사항 (`requirements.py`)
+
+칸 · 데이터시트 Note · 문서 General Note 의 글에서 낱말/규격 번호로만 찾는다(추측 없음). 종류 15: NACE · Fugitive(ISO 15848-1, Class A-C, endurance class) · Fire-safe · PFP · Anti-static · Blow-out · SIL · PST · 경도 · EN 10204 3.1/3.2 · PMI · 충격시험 · DBB · 도장 · 기밀(Rate/Class).
+칸 값이 'Not Required / No / NA' 면 '[datasheet: Not Required — 출처]' 로 따로 적는다 (예: Gen Note 26 은 PFP 를 말하지만 그 데이터시트 Fireproofing 칸은 Not Required → 둘 다 보여 엔지니어가 판단).
+실자료 164 Tag 모두 한 줄 이상: NACE 589 · Fugitive 189 · PFP 305(+122 Not Required) · Anti-static 148 · Blow-out 141 · EN 10204 139 · SIL 312 · PST 128 · Fire-safe 140 · 경도 59 (출처 수).
+→ Valve List 'Special Requirements (Notes)' 열 · 작업대 Summary 탭(출처를 누르면 그 Note/칸으로).
+
+### 14.3 재질 검토 의견 (`matreview.py`)
+
+| 규칙 | 수준 | 내용 | 근거 |
+|---|---|---|---|
+| MR-01 | Action | 시트 재질이 PMS Class Note 의 온도 한계를 넘음 (예: RPTFE 230 °C ↔ 설계 260 °C) | PMS General Class Note |
+| MR-02 | Action / Confirm | 시트 수지의 일반 사용 한계 초과(Action) · 30 °C 안쪽(Confirm — 시트 P-T 곡선 요구). PTFE 200 · RPTFE 230 · PEEK 260 · Nylon 93 °C | 제조사 시트 P-T · 데이터시트 'non-metallic suitable for design condition' |
+| MR-03 | Action | Process 설계온도가 PMS Class P-T 표 밖 · 설계압력 > 그 온도의 Class 허용압 | PMS P-T Limits (ASME B16.5) |
+| MR-04 | Action | 저온 배관(A333 · LTCS · PMS 'LOW TEMP')에 WCB/A105 본체 (-29 °C 한계) | ASME B16.34 / B31.3 |
+| MR-05 | Confirm | 본체와 배관 계열이 다름(SS ↔ CS) | 이종 용접 · PMS |
+| MR-06 | Confirm / Note | CO2 에 탄소강 본체 — 부식여유 없음 Confirm, 있으면 Note | 탄산 부식 |
+| MR-07 | Note | NACE 에 316/316L — 용체화 · 22 HRC · ISO 15156-3 Table A.2 한계, 설계 60 °C 초과면 재질선정보고서 확인 | ISO 15156-3 |
+| MR-08 | Confirm / Note | 17-4PH(A564 630) Stem — NACE 면 H1150D · 33 HRC 명기 요구 | ISO 15156-3 |
+| MR-09 | Note | HF(경화육성) 종류 · 두께 미기재 | API 6D · ISO 15156-3 |
+| MR-10 | Confirm | PMS 'DUAL GRADE' Note 인데 316L 만 기재 | PMS Class Note |
+| MR-11 | Confirm / Note | NACE 에 B7(비 M) 볼트 · B8M CL.2(노출 볼트 불가 — 볼트 사양이 NACE 를 적었으면 Note) · B7M/L7M 은 Note | ISO 15156-2 §A.2.2.4 |
+| MR-12 | Confirm / Note | CO2 에서 엘라스토머 · O-ring 의 급감압(RGD) 자격 | ISO 23936-2 · NORSOK M-710 · Gen Note |
+| MR-13 | Note | Fire-safe 연질 시트 — API 607 / ISO 10497 시험 인증 범위 | API 607 |
+| MR-14 | Confirm | Process 유체가 PMS Class Service 목록에 없음 | PMS Service |
+| MR-15 | Note | NACE 에 탄소강 본체 — 22 HRC · 용접부 250 HV10 | ISO 15156-2 A.2.1 |
+
+- 프로젝트 값(설계온도 · 압력 · P-T · Class Note · 유체)은 문서에서 읽고, 일반 재질 지식만 표로 둔다(조항과 함께). 값이 없으면 그 규칙은 말하지 않는다.
+- 실자료(164 DS · PMS · Process Data): **Action 5**(MR-01 98ESDV009 RTFE 230 °C ↔ 260 °C · MR-03 98BDV101/301 211 °C > 3C0K8 209 °C · 98ESDV015/016 98 barg > 3R1B 43.8 barg@195 °C),
+  Confirm 29(시트 근접 7 · CO2 탄소강 4 · 17-4PH 5 · B7 10 · Service 3), Note 다수. Issue List 에는 Action/Confirm 만 'Material Review'(청록).
+- 화면: 작업대 오른쪽 **Material 탭**(수준별 카드 · 근거 · 증거를 누르면 칸/Note/PMS 쪽/Process Data 쪽) · 머리 띠 'Material' 칩. Valve List 'Material Review (Tool)' 열.
+- 품질: `valve_eval.py --pd <Process Data PDF>` 의 F 절이 규칙×수준 개수를 기준값에 둔다.

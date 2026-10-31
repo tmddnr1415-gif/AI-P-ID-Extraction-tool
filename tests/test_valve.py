@@ -654,3 +654,67 @@ def test_hold_anywhere_is_flagged():
     assert "painting" not in got and "note.8" not in got                       # 'Holding' is a word · the legend only defines TBC
     assert "HOLD 1: Typical representation" in got["sov_tag"]["description"]  # 'Hold-1' points at the HOLD list
     assert all(i["severity"] == "Major" and i["color"] == "missing" for i in got.values())
+
+
+def _pms_pdf_v10(path):
+    """Class sheet like 98-98-PI-SPC-00001: header trim 13CR (gate/globe), ball item 316 SS BALL/STEM, P-T table, notes."""
+    doc = pymupdf.open()
+    pg = doc.new_page(width=595, height=842)
+    pg.insert_text((10, 40), "PIPING MATERIAL SPECIFICATION - QN AND W15 AREA", fontsize=8)
+    pg.insert_textbox(pymupdf.Rect(10, 50, 300, 560), "Class:\n1C3AS2\nClass 150, Killed CS, RF, 3.0mm C.A, NACE\n"
+                      "Corrosion Allowance: 3 MM\nNACE Requirement: MR0175/ISO 15156\nFlange Class: CLASS 150\n"
+                      "Material: CARBON STEEL\nValve Trim: TRIM 8 (13CR/HF)\nTemperature / Pressure Limits\nASME B16.5, Group: 1.1\n"
+                      "Temperature\n(DegC)\nPressure\n(BARG)\n38\n19.6\n93\n17.9\n149\n15.8\n204\n13.7\n260\n11.7\n"
+                      "Service:\nCarbon Dioxide\nHydrocarbon\nDefault Schedule Table\nGeneral Class Notes\n002\n"
+                      "ALL MATERIALS SHALL COMPLY WITH NACE MR 0175 / ISO-15156\n018\n"
+                      "THE USE OF RPTFE SOFT SEATED MATERIALS IS RESTRICTED TO MAX. TEMPERATURE OF 230°C\n034\n"
+                      "ALL SS 316/SS316L SHALL BE DUAL GRADE CERTIFIED\nItem Specific Notes\n030\nFOR FULL PORT VALVES\nPrinted: x",
+                      fontsize=6)
+    pg.insert_textbox(pymupdf.Rect(310, 300, 590, 360), "PVBSED15RF02TD08U709\n0.5\n-\n2\nBALL VALVE, CS A216-WCB, CL150, RF, "
+                      "FLOATING, FULL PORT, 316 SS BALL/STEM, RTFE ST, FIRE TESTED TO API 607, NACE MR0175/ISO 15156", fontsize=6)
+    doc.save(str(path))
+
+
+def test_pms_ball_item_trim_governs_and_header_lists(tmp_path):
+    p = tmp_path / "pms.pdf"
+    _pms_pdf_v10(p)
+    c = pms.read_pms(str(p))["areas"]["QN"]["1C3AS2"]
+    assert c["pt"][0] == (38.0, 19.6) and c["pt"][-1] == (260.0, 11.7) and "Carbon Dioxide" in c["services"]
+    assert "230" in c["class_notes"]["018"] and "DUAL GRADE" in c["class_notes"]["034"] and "030" in c["item_notes"]
+    F = {k: {"value": v, "page": 1, "bbox": [0, 0, 1, 1]} for k, v in {
+        "piping_class": "1C3AS2", "body_size": '2"', "body_type": "Ball (Full Bore)", "rating": "150#", "nace": "Yes",
+        "body_material": "CS A216-WCB", "ball_material": "316 SS/HF", "stem_material": "316 SS/HF", "seat_material": "RTFE"}.items()}
+    rows = {r["item"]: r for r in pms.check(F, {"areas": {"QN": {"1C3AS2": c}}}, "QN")}
+    # header says 13CR (gate/globe trim) but the ball valve item says 316 SS BALL/STEM — the item governs
+    assert rows["Trim (Ball) Material"]["result"] == material.COMPLIANT and "PMS item" in rows["Trim (Ball) Material"]["reason"]
+    assert rows["Stem Material"]["req"] == "316 SS"
+
+
+def test_material_review_rules(tmp_path):
+    from app.valve import matreview
+    p = tmp_path / "pms.pdf"
+    _pms_pdf_v10(p)
+    c = pms.read_pms(str(p))["areas"]["QN"]["1C3AS2"]
+    f = lambda k, v, row: {"key": k, "value": v, "edited_value": None, "page": 1, "bbox": [1, row, 2, row + 1], "row": row, "display": k}  # noqa: E731
+    ds = {"fields": [f("body_material", "CS A216-WCB", 24), f("ball_material", "316 SS/HF", 25), f("stem_material", "ASTM A564 Type 630", 27),
+                     f("seat_material", "RTFE", 26), f("pipe_material", "ITCS A333-6", 11), f("nace", "Yes", 30), f("fire_safe", "Yes API 607", 31),
+                     f("bolting_gasket", "Note-1", 28)],
+          "notes": [{"no": 1, "text": "Stud Bolt material: Continuous thread, CR-MO A193-B7, W/ 2 HVY HEX NUTS, A194-2H", "page": 2, "bbox": None}]}
+    proc = [{"key": "design_temp", "pd": "260", "pd_unit": "°C", "pd_page": 5, "pd_bbox": [0, 0, 1, 1]},
+            {"key": "design_pressure", "pd": "15", "pd_unit": "bar(g)", "pd_page": 5, "pd_bbox": None},
+            {"key": "fluid", "pd": "AMINE", "pd_unit": "", "pd_page": 5, "pd_bbox": None}]
+    got = {m["rule"]: m for m in matreview.review(ds, {"20": "Elastomers shall prevent rapid gas decompression."}, c, proc)}
+    assert got["MR-01"]["level"] == "Action" and "230" in got["MR-01"]["comment"]          # PMS note 018 vs Process 260 °C
+    assert got["MR-03"]["level"] == "Action" and "11.7" in got["MR-03"]["comment"]          # 15 barg > 11.7 barg at 260 °C
+    assert got["MR-04"]["level"] == "Action"                                                # WCB body in an LTCS (A333) line
+    assert got["MR-08"]["level"] == "Confirm" and "H1150D" in got["MR-08"]["comment"]       # 17-4PH stem, NACE, no H1150D
+    assert got["MR-11"]["level"] == "Confirm"                                               # B7 (not B7M) with NACE
+    assert got["MR-14"]["level"] == "Confirm"                                               # AMINE not in the class service list
+    assert {"MR-09", "MR-13", "MR-15"} <= set(got)
+    for m in got.values():                                                                  # every finding cites its basis and evidence
+        assert m["basis"] and m["evidence"]
+    # no values → no opinion
+    assert matreview.review({"fields": [f("body_material", "", 24)], "notes": []}) == []
+    iss = issues.compute({"fields": ds["fields"], "notes": ds["notes"], "pages": [1]}, {}, material_rows=list(got.values()))
+    mi = [i for i in iss if i["type"] == "Material Review"]
+    assert {i["severity"] for i in mi} == {"Major", "Minor"} and not any(i["rule"] in ("MR-09", "MR-13", "MR-15") for i in mi)

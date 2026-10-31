@@ -35,11 +35,11 @@ from openpyxl.comments import Comment
 from openpyxl.styles import PatternFill
 from openpyxl.utils import get_column_letter
 
-from app.valve import material, schema
+from app.valve import material, requirements, schema
 
 YELLOW = PatternFill("solid", fgColor="FFF2A8")
 GREEN = PatternFill("solid", fgColor="DDF3E2")
-EXTRA_HEADERS = ["DS Document No.", "DS Rev.", "DS Source (file · page)", "Datasheet Notes", "Tool Status",
+EXTRA_HEADERS = ["DS Document No.", "DS Rev.", "DS Source (file · page)", "Special Requirements (Notes)", "Material Review (Tool)", "Datasheet Notes", "Tool Status",
                  "Changed Columns"]
 
 
@@ -378,7 +378,7 @@ def build(template: bytes | None, datasheets: list[dict], docnames: dict, projec
             _copy_style(ws.cell(a["hdr_top"], a["last_col"]), cell)
             if a["first"] - 1 > a["hdr_top"]:
                 ws.merge_cells(start_row=a["hdr_top"], start_column=c, end_row=a["first"] - 1, end_column=c)
-            ws.column_dimensions[get_column_letter(c)].width = 34 if h == "Datasheet Notes" else 18
+            ws.column_dimensions[get_column_letter(c)].width = 34 if h in ("Datasheet Notes", "Special Requirements (Notes)", "Material Review (Tool)") else 18
             a["extra"][h] = c
 
     def write_block(ws, a, row, ds, is_new):
@@ -395,6 +395,8 @@ def build(template: bytes | None, datasheets: list[dict], docnames: dict, projec
             val, keys = b(ds["fields"])
             if not keys:
                 continue
+            if isinstance(val, str):
+                val = re.sub(r"[ \t]{2,}", " ", val).strip()     # 'Chevron  type  V  pack' as printed with wide spacing
             cell = ws.cell(row, c)
             if link:
                 cell.hyperlink = link(ds, keys[0])
@@ -438,6 +440,12 @@ def build(template: bytes | None, datasheets: list[dict], docnames: dict, projec
         if link:
             src.hyperlink = link(ds, "tag")
         ws.cell(row, e["Datasheet Notes"], notes[:32000])
+        reqs = requirements.find(ds, ds.get("general_notes"))
+        ws.cell(row, e["Special Requirements (Notes)"], requirements.summary(reqs)[:32000])
+        mr = ds.get("material_review") or []
+        ws.cell(row, e["Material Review (Tool)"], "\n".join(f"[{m['level']}] {m['rule']} {m['title']}: {m['comment']}"
+                                                            for m in mr if m["level"] != "Note")[:32000] or
+                ("No action — notes in tool" if mr else ""))
         ws.cell(row, e["Tool Status"], "NEW" if is_new else ("UPDATED" if changed else "UNCHANGED"))
         ws.cell(row, e["Changed Columns"], "; ".join(changed))
         for h, c in e.items():

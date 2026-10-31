@@ -409,3 +409,11 @@ table.xg tbody tr.sel td.fz { background: #e3ebfd; }
 .hchip.mis.zero { color: #9aa1af; }
 table.t.proc tr.why td { padding: 0 8px 5px; border-bottom: 1px solid var(--line2); color: #a35400; background: #fffaf3; }
 table.t.proc td { padding: 4px 6px; }
+
+/* material review (matreview.py) */
+.iss.material { border-left-color: #0e8c8c; } b.no.material { background: #0e8c8c; }
+.ov.material { background: rgba(14, 140, 140, .18); outline: 1.5px solid #0e8c8c; }
+.hchip.mat:not(.zero) { background: #d9f2f2; border-color: #9fd6d6; color: #0b6f6f; }
+.mat { border-left: 3px solid #0e8c8c; padding: 6px 8px; margin: 6px 0; background: #f4fbfb; border-radius: 4px; line-height: 1.45; }
+.mat.Action { border-left-color: var(--bad, #dc2626); background: #fdf3f2; } .mat.Confirm { border-left-color: #e0a100; background: #fffaf0; }
+.pill.p-bad { background: #fbe3e1; color: #b42318; } .pill.p-warn { background: #fff4c2; color: #8a6100; } .pill.p-soft { background: #eef1f4; color: #555; }

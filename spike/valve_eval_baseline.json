@@ -41,14 +41,12 @@
  "C": {
   "Pressure Class|Compliant": 151,
   "NACE|Compliant": 141,
-  "Trim (Ball) Material|Compliant": 143,
-  "Stem Material|Compliant": 143,
+  "Trim (Ball) Material|Compliant": 151,
+  "Stem Material|Compliant": 151,
   "Body Material|Compliant": 142,
   "Seat Material|Compliant": 144,
   "Fire Safe|Compliant": 10,
   "Piping Material Class|Review Required": 8,
-  "Trim (Ball) Material|Review Required": 8,
-  "Stem Material|Review Required": 8,
   "Bore|Review Required": 28,
   "Piping Material Class|Not Defined in PMS": 13,
   "Ball Valve Item|Not Defined in PMS": 7,
@@ -58,16 +56,33 @@
   "Open Item|Major": 84,
   "Data Missing|Major": 2529,
   "Data Error|Major": 6,
-  "PMS Review|Minor": 74,
+  "PMS Review|Minor": 58,
   "Extraction Review|Internal": 1
  },
+ "F": {
+  "MR-07|Note": 153,
+  "MR-09|Note": 144,
+  "MR-11|Confirm": 10,
+  "MR-15|Note": 25,
+  "MR-11|Note": 143,
+  "MR-13|Note": 11,
+  "MR-06|Confirm": 4,
+  "MR-08|Confirm": 5,
+  "MR-06|Note": 5,
+  "MR-02|Confirm": 7,
+  "MR-12|Note": 12,
+  "MR-14|Confirm": 3,
+  "MR-03|Action": 4,
+  "MR-01|Action": 1,
+  "MR-08|Note": 4
+ },
  "E": {
-  "extract_s": 10.7,
-  "extract_ms_per_page": 23.5,
-  "pms_read_s": 1.7,
-  "issues_ms_per_ds": 0.8,
-  "issue_xlsx_s": 7.39,
-  "markup_s_per_ds": 0.056,
-  "markup_kb_per_ds": 22.6
+  "extract_s": 10.67,
+  "extract_ms_per_page": 23.4,
+  "pms_read_s": 1.67,
+  "issues_ms_per_ds": 0.7,
+  "issue_xlsx_s": 8.35,
+  "markup_s_per_ds": 0.069,
+  "markup_kb_per_ds": 22.5
  }
 }

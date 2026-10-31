@@ -25,7 +25,7 @@ from fastapi.responses import FileResponse, JSONResponse, RedirectResponse, Resp
 from starlette.concurrency import run_in_threadpool
 
 from app import paths
-from app.valve import exports, extract, issues as issuesmod, material, pms as pmsmod, process as procmod, schema, store, tbe
+from app.valve import exports, extract, issues as issuesmod, material, matreview as matmod, pms as pmsmod, process as procmod, requirements as reqmod, schema, store, tbe
 
 router = APIRouter()
 _JOBS: dict[str, dict] = {}
@@ -348,7 +348,11 @@ def _pms_for(con, pid):
             if not Path(doc["path"]).exists():
                 return None, None
             store.write_json(p, pmsmod.read_pms(doc["path"]))
-        _PMS_CACHE[doc["id"]] = json.loads(p.read_text(encoding="utf-8"))
+        P = json.loads(p.read_text(encoding="utf-8"))
+        if P.get("v", 1) < pmsmod.READER_VERSION and Path(doc["path"]).exists():   # read before valve10: no P-T / notes yet
+            P = pmsmod.read_pms(doc["path"])
+            store.write_json(p, P)
+        _PMS_CACHE[doc["id"]] = P
     return _PMS_CACHE[doc["id"]], {k: doc[k] for k in ("id", "filename")}
 
 
@@ -383,15 +387,20 @@ def _ds_full(con, dsid, deep=True):
     F = {f["key"]: f for f in fs}
     d["pms"] = pmsmod.check(F, pms, d["area"], d["notes"]) if pms else None
     d["pms_doc"] = pdoc
+    d["requirements"] = reqmod.find(d, d["general_notes"])
     proc, procdoc = _process_for(con, d["project_id"])
     d["process"] = procmod.check(d, proc) if proc else None
     d["process_doc"] = procdoc
+    cls = pmsmod.find_class(pms, schema.effective(F.get("piping_class")), schema.effective(F.get("line_no")), d["area"])[0] if pms else None
+    d["material_review"] = matmod.review(d, d["general_notes"], cls, d["process"],
+                                         ((proc or {}).get("by_tag") or {}).get(d["tag_key"]), d["requirements"])
     prev = None
     i = next((n for n, r in enumerate(d["revisions"]) if r["id"] == d["id"]), 0)
     if i > 0:
         prev = compare(_ds_full(con, d["revisions"][i - 1]["id"], deep=False), d)
     states = {r["ikey"]: r for r in store.rows(con, "SELECT * FROM issue_state WHERE datasheet_id=?", dsid)}
-    d["issues"] = issuesmod.compute(d, d["general_notes"], pms, d["area"], prev, states, pms_rows=d["pms"], process_rows=d["process"])
+    d["issues"] = issuesmod.compute(d, d["general_notes"], pms, d["area"], prev, states, pms_rows=d["pms"], process_rows=d["process"],
+                                   material_rows=d["material_review"])
     return d
 
 

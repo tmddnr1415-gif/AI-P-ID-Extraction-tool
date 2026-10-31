@@ -24,8 +24,8 @@ from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
 from openpyxl.utils import get_column_letter
 
 RGB = {"error": (0.86, 0.15, 0.15), "missing": (1.0, 0.55, 0.0), "process": (0.95, 0.45, 0.05), "revision": (0.95, 0.76, 0.0),
-       "comment": (0.18, 0.40, 0.90), "extract": (0.48, 0.30, 0.86)}
-HEXFILL = {"error": "FBE3E1", "missing": "FFE8CC", "process": "FFE0C2", "revision": "FFF4C2", "comment": "E3ECFD", "extract": "EFE6FB"}
+       "comment": (0.18, 0.40, 0.90), "extract": (0.48, 0.30, 0.86), "material": (0.05, 0.55, 0.55)}
+HEXFILL = {"error": "FBE3E1", "missing": "FFE8CC", "process": "FFE0C2", "revision": "FFF4C2", "comment": "E3ECFD", "extract": "EFE6FB", "material": "D9F2F2"}
 
 
 def deep_link(base: str, project: str, i: dict) -> str:

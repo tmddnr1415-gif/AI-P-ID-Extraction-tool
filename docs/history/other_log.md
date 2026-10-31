@@ -62,3 +62,11 @@
 - 요청: HOLD 도 comment — 빨리 HOLD release 하고 값을 입력하게.
 - 전: 필수 18칸 · 값이 HOLD 로 시작할 때만 → 실자료 0건. 후: 모든 칸 · Note, 값 어디에 있어도(HOLD (…) · Hold-1 → HOLD 목록 글) · Major · 약어 설명 줄 제외.
 - 실자료 Open Item 84 (Area classification 14 · Fire Safe 11 · SOV Tag Hold-1 48 · Typical TBC 7 · Note 4). 읽기 지문 불변. 시험 39개.
+
+## 2026-10-31 · valve10 — PMS 대조 점검 · 특수 요구사항 · 재질 검토 의견 (브랜치 ccr-efbe7e75-n915ze)
+- 요청: PMS 기준 검토가 맞는지 학습 · 재질 검토 의견을 전문적으로 · Note 의 Special Requirement(PFP · Fugitive …) 가 Excel 에 잘 나오는지.
+- PMS: PDF 와 대조 — Trim/Stem 을 Class 머리 Trim(1A1A '13CR/HF', Gate/Globe 용)과 비교하던 오류 → Ball 품목 '316 SS BALL/STEM' 우선. Review 16 → 0. 남은 지적은 실제 PMS 공백(3R1B3 Ball 없음 · 6C0K8 10" · XC0K8 22" …).
+- PMS 머리에서 P-T 표 · Service · Class Notes · Item Notes 도 읽음(READER_VERSION 2, 옛 json 자동 재읽기).
+- 특수 요구사항 `requirements.py` 15종 → Valve List 'Special Requirements (Notes)' 열 · Summary 탭. 164 Tag 모두 나옴.
+- 재질 검토 `matreview.py` MR-01~15 (시트 온도 · P-T · 저온 본체 · CO2 탄소강 · NACE 316/CS/17-4PH/볼트 · HF · Dual grade · RGD · Fire-safe · Service). 실자료 Action 5 · Confirm 29 → Issue 'Material Review'. Material 탭 · Valve List 열.
+- 시험 41 · eval --check: 바뀐 것은 Trim/Stem 16(원인 위) + 새 F 절, 읽기 지문 불변 → 기준값 저장 · diff_sim 0 · ui_audit 22/22.

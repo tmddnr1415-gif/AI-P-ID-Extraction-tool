@@ -125,6 +125,8 @@ pytest -q                                       # 저장소 전체 (약 2분)
 | `app/valve/issues.py` | 186 | 지적 규칙 · 색 · 번호 · 검토자 Mark-up 분류 매핑 |
 | `app/valve/material.py` | 136 | 재질 표기 → 토큰(규격 · 등급 · 계열), `same` · `equivalent` · `compare` |
 | `app/valve/pms.py` | 245 | PMS PDF 읽기(지역 QN/QS · Class 머리 · Ball Valve 품목), `find_class`, `check` |
+| `app/valve/requirements.py` | 92 | **특수 요구사항**(valve10) — 칸 · Note · General Note 에서 NACE · Fugitive(ISO 15848) · Fire-safe · PFP · Anti-static · Blow-out · SIL · PST · 경도 · EN 10204 · PMI · 충격시험 · DBB · 도장 · 기밀 을 낱말/규격 번호로 찾고 출처를 단다 |
+| `app/valve/matreview.py` | 약 330 | **재질 검토 의견**(valve10) — 규칙 MR-01~15 · 수준 Action/Confirm/Note · 근거 규격/문서 조항 · 증거(칸 · Note · PMS 쪽 · Process Data 쪽) |
 | `app/valve/process.py` | 약 260 | **Phase 3** — Process Data 표 읽기(괘선 열 띠 · 머리 줄 · 단위 줄 · Sr no. 행) · 공정 항목 비교(`compare_item` · `check`) |
 | `app/valve/tbe.py` | 476 | 회사 Valve List(TBE) 양식 분석 · 채우기 · 바뀐 칸 표시 · 링크 · `.xls` 변환 |
 | `app/valve/exports.py` | 287 | Issue List Excel · 인쇄용 Mark-up PDF(표지 · 쪽 · Issue Summary · 책갈피) |
@@ -305,7 +307,7 @@ PDF 글자 층에는 **사람 눈에 안 보이는 글자**가 섞여 있다: �
 
 ## 8. 지적 엔진 `issues.py`
 
-`compute(ds, general_notes, pms, area, prev_cmp, states, pms_rows=None) -> [issue]`. 규칙만, 근거 칸의 쪽 · 위치를 단다.
+`compute(ds, general_notes, pms, area, prev_cmp, states, pms_rows=None, process_rows=None, material_rows=None) -> [issue]`. 규칙만, 근거 칸의 쪽 · 위치를 단다.
 
 | 종류 | 색 | 심각도 | 규칙 |
 |---|---|---|---|
@@ -314,6 +316,7 @@ PDF 글자 층에는 **사람 눈에 안 보이는 글자**가 섞여 있다: �
 | Data Error | 빨강 error | Major | Line No. 의 Class ≠ Piping class(기본 Class 비교, '-QG1' 같은 꼬리 무시) · Line No. 의 크기 ≠ Line Size · 운전 > 설계(같은 단위) · Fail position ≠ Air failure 동작 · 문서에 없는 General Note / 데이터시트에 없는 Note 참조 · 엉뚱한 Note 참조 · **sheet 2 표제란 Doc. No. 불일치 · 뒷장이 반복한 Tag/PID/Service/Line 불일치**(valve05) |
 | PMS Non-Compliance | 빨강 | Major | `pms.check` → Non-Compliant |
 | PMS Review | 빨강 | Minor | `pms.check` → Review Required / Not Defined in PMS |
+| Material Review | 청록 material | Major / Minor | `matreview.review` 의 Action → Major, Confirm → Minor (Note 는 지적 아님 — Material 탭 · Valve List 열에만). 설명 = 규칙 번호 · 의견 · [Basis: 규격/조항] (valve10) |
 | Revision Change | 노랑 revision | Info | 이전 Rev 와 칸 비교(Modified / Added / Deleted, 재질 표기만 다른 것은 Unchanged) |
 | Reviewer Correction | 파랑 comment | Major | 검토자가 고친 칸 (읽은 값 → 고친 값) |
 | Reviewer Comment | 파랑 | Major / Minor | 의견 · Mark-up(분류 comment / question) |
@@ -347,7 +350,9 @@ PDF 글자 층에는 **사람 눈에 안 보이는 글자**가 섞여 있다: �
 - Class 머리: Flange Class · NACE Requirement(`NONE` 은 요구 없음 → None) · Valve Trim · Rating · 머리 쪽과 위치(PMS 화면이 그 자리를 연다).
 - Ball Valve 품목(`parse_item`): 품목 코드 줄 + 크기 줄(`0.5 - 1.5` 범위, `2 - 24 / 0.5 - 1` 주관×지관) + 설명(BALL VALVE, FULL BORE, …).
 - `find_class(class, area)`: 그 지역에 없으면 다른 지역에서 찾고 "please confirm".
-- `check(fields, pms, area, notes)`: Pressure Class · NACE(Notes 의 'NACE MR0175' 도 인정) · Trim/Stem(머리 Trim) · Body/Seat/Fire Safe(크기 · Bore · Floating/Trunnion 으로 고른 품목) · Bore.
+- Class 머리 목록(`header_blocks`, valve10 · `READER_VERSION = 2`): **P-T 표** `pt=[(°C, barg)…]` · `pt_basis`(ASME B16.5 Group) · **Service 목록** · **General Class Notes** `class_notes={'018': 'RPTFE … MAX. TEMPERATURE OF 230°C', …}` · Item Specific Notes.
+  옛 판(v1)으로 저장된 PMS json 은 서버가 처음 쓸 때 원본 PDF 에서 다시 읽는다(`api._pms_for`).
+- `check(fields, pms, area, notes)`: Pressure Class · NACE(Notes 의 'NACE MR0175' 도 인정) · **Trim/Stem = 고른 Ball Valve 품목의 'X BALL/STEM'**(없을 때만 머리 Trim — valve10: 1A1A 머리 'TRIM 8 (13CR/HF)' 는 Gate/Globe 용이고 Ball 품목은 '316 SS BALL/STEM') · Body/Seat/Fire Safe(크기 · Bore · Floating/Trunnion 으로 고른 품목) · Bore.
   지역은 데이터시트 문서 제목의 NORTH / W15 / SOUTH 로(`area_of_title`), 못 정하면 두 지역 모두 보고 확인 요청(§16 "말하지 않으면 묻는다").
 
 ---
@@ -361,7 +366,9 @@ PDF 글자 층에는 **사람 눈에 안 보이는 글자**가 섞여 있다: �
   - 'VTA' · 'General note - 3' 처럼 목록보다 덜 말하는 값은 덮지 않음(메모만)
   - 새 Tag: 밸브 종류 시트 끝에 첫 블록 서식으로 추가(Tool Status = NEW)
   - **Vendor 행(AMPO · OMS · NEWAY …)은 지운다** — Tag 마다 Requirement 한 줄(`_drop_vendor_rows`: 값 · 서식 · 메모 · 행 높이를 한 번에 올리고 병합을 다시 잡음). `build(..., vendor_rows=True)` 면 남긴다 (2026-10-31 사용자 요청)
-  - 모든 칸에 출처(파일 · 쪽 · 행) 메모 · 도구로 여는 하이퍼링크 · 오른쪽에 DS Doc No. · Rev. · Notes · Tool Status 열 · 'Datasheet Notes' 시트
+  - 모든 칸에 출처(파일 · 쪽 · 행) 메모 · 도구로 여는 하이퍼링크 · 오른쪽에 DS Doc No. · Rev. · **Special Requirements (Notes)** · **Material Review (Tool)** · Datasheet Notes · Tool Status 열 · 'Datasheet Notes' 시트
+  - Special Requirements = `requirements.summary` ('Fugitive emission ISO 15848-1 — Class A type tested (Gen Note 8) · Passive fire protection (PFP) (Gen Note 26) [datasheet: Not Required — row 23 Fireproofing] · …')
+  - Material Review = Action/Confirm 의견 전문(Note 만 있으면 'No action — notes in tool')
   - 기준 양식이 없으면 'Valve List (tool format)' 시트로
 - `xls_to_xlsx`: Windows 에서 PowerShell 로 Excel COM 을 불러 변환(회사 PC). 리눅스 개발 PC 는 `spike/valve_xls2xlsx.py`(xlrd)로 시험용 변환.
 - `[화면 25]` 미리 보기: 갱신 · 신규 · 변화 없음 · 바뀐 칸 수와 칸별 Previous → New. `[화면 30]` 결과 Excel.
@@ -604,6 +611,10 @@ PDF/Excel/피드백을 **서버 상태로** 확인, 캡처 저장, 그린 것은
 
 ### 17.5 Phase 3 Process Data — `app/valve/process.py` 가 한다(valve07). 새 표 양식이 오면 `read_page` 의 머리 인식(`COLUMNS` 구절표)을 넓히고, 비교 항목은 `DS_KEYS`(Process 열 → Datasheet 칸) · `compare_item`(단위 · 기준 규칙)에 더한다. Control Valve · PRV 표는 아직 읽지 않는다.
 
+### 17.5b 새 재질 규칙 — `matreview.review` 안에 `add(규칙번호, 수준, 제목, 칸 키, 영문 의견, 근거 규격/조항, [증거…])`.
+규칙은 **필요한 값이 문서에 있을 때만** 낸다. 프로젝트 값(설계온도 · P-T · Class Note)은 문서에서 읽고, 일반 재질 지식(시트 수지 한계 `SEAT_LIMITS` · 본체 최저온도 `BODY_MIN_T`)은 표에 조항과 함께 둔다.
+Action 은 문서 한계를 넘을 때만(PMS Note · P-T 표 · B16.34). 조건부 허용은 Confirm, 검토 기록은 Note. 시험 `test_material_review_rules` 에 한 줄 더한다.
+
 ### 17.6 새 화면 — `index.html` 메뉴 버튼 + `<section id="v-키">`, `valve.js` 의 `VIEWS` · `RENDER` 에 함수. PDF 가 필요하면 `new Viewer(host, opts)`.
 Mark-up 이 필요하면 `opts.tools=true` 와 `onMark` · `onMarkChange` · `onMarkSelect` · `onMarkCmd`.
 
@@ -667,6 +678,9 @@ python3 spike/pack_delta.py --name valve05 --base 9429f4f \
 | valve05 | 〃 | 456쪽 전수 눈 대조 3.54 % → 0.009 % (숨은 글자 · 줄 묶기 · Notes 테두리 · Form 102 · 단위만 칸 · 제목/Sheet 표기 · 새 지적 2종) |
 | valve06 | 〃 | Valve List Excel 에서 Vendor 행 삭제 |
 | valve07 | 〃 | UI/UX 개선(작업대 머리 띠 · 접이식 패널 · 한 줄 도구줄 · 밸브 부위 그림 · 대시보드 · 목록 키보드 · Revision 동기화 · PMS 안내 · 내보내기 확인/상태) + **Phase 3 Process Data 실제 비교** + Revision 비교 Excel |
+| valve08 | 〃 | 빈 Process Data 항목 전부 Data Missing (Process DS 참조여도 · 사용자 결정) |
+| valve09 | 〃 | HOLD / TBC / TBA 를 모든 칸 · Note 에서 Open Item(Major) |
+| valve10 | 〃 | **PMS 검토 점검**(Ball 품목 Trim 우선 · P-T 표 · Service · Class Notes 읽기) · **특수 요구사항 열**(PFP · Fugitive · NACE …) · **재질 검토 엔진 MR-01~15**(Material 탭 · Issue 'Material Review' · Valve List 열) |
 
 **남은 일**
 1. 회사 적용 확인: .xls 자동 변환, 456쪽 처리 시간, 화면 글꼴, Edge 에서 Mark-up · 패널 접기, 내보낸 PDF 를 Acrobat 에서 열기, 1366×768 노트북에서 작업대.

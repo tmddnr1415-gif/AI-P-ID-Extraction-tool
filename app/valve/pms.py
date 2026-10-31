@@ -58,6 +58,40 @@ def parse_item(block: str) -> dict | None:
             "kind": desc.split(",")[0].strip(), "desc": desc}
 
 
+READER_VERSION = 2          # 2 = class header also gives P-T limits, services, class / item notes (valve10)
+_NUM = re.compile(r"^-?\d+(?:\.\d+)?$")
+
+
+def header_blocks(lines: list[str]) -> dict:
+    """The class sheet's lists: P-T limits [(°C, barg)], design code / ASME group, services, class and item notes.
+    'Temperature / Pressure Limits' … numbers in (temperature, pressure) pairs … 'Service:' … 'Default Schedule Table'
+    · 'General Class Notes' 002 / text … 'Item Specific Notes' 005 / text … 'Printed:'."""
+    out = {"pt": [], "services": [], "class_notes": {}, "item_notes": {}}
+
+    def span(a, stops):
+        i = next((k for k, ln in enumerate(lines) if ln.startswith(a)), None)
+        if i is None:
+            return []
+        j = next((k for k in range(i + 1, len(lines)) if any(lines[k].startswith(s) for s in stops)), len(lines))
+        return lines[i + 1:j]
+    nums = [float(x) for x in span("Temperature / Pressure Limits", ("Service:", "Default Schedule", "General Class Notes"))
+            if _NUM.match(x)]
+    out["pt"] = [(nums[k], nums[k + 1]) for k in range(0, len(nums) - 1, 2)]
+    g = next((ln for ln in lines if ln.startswith("ASME B16")), "")
+    out["pt_basis"] = g
+    out["services"] = [x for x in span("Service:", ("Default Schedule", "General Class Notes", "Item Specific")) if x]
+    for key, a, stops in (("class_notes", "General Class Notes", ("Item Specific Notes", "Printed:")),
+                          ("item_notes", "Item Specific Notes", ("Printed:", "SCH", "APPENDIX"))):
+        no = None
+        for ln in span(a, stops):
+            if re.fullmatch(r"\d{2,3}", ln):
+                no = ln
+                out[key][no] = ""
+            elif no and ln:
+                out[key][no] = (out[key][no] + " " + ln).strip()
+    return out
+
+
 def area_of_page(text: str) -> str:
     """Appendix C = QN and W15 area, Appendix D = QS (98-98-PI-SPC-00001 §6)."""
     m = re.search(r"APPENDIX\s+([A-Z])\.\s*PIPE MATERIAL CLASSES FOR\s+([A-Z0-9 ]+)", text.upper())
@@ -96,6 +130,7 @@ def read_pms(path: str, progress=None) -> dict:
                     key, _, val = ln.partition(":")
                     if key.strip() in _HDR_KEYS and val.strip():
                         c[_HDR_KEYS[key.strip()]] = val.strip()
+                c.update(header_blocks(lines))
                 bb = page.search_for("Valve Trim:")
                 c["trim_bbox"] = [round(v, 1) for v in bb[0]] if bb else None
                 bb = page.search_for("Flange Class:")
@@ -110,7 +145,7 @@ def read_pms(path: str, progress=None) -> dict:
             c["rating"] = int(m.group(1)) if m else None
             if re.fullmatch(r"\s*(NONE|NA|N/A|NOT REQUIRED|-)?\s*", c.get("nace", "") or ""):
                 c.pop("nace", None)                          # 'NACE Requirement: NONE' = no requirement
-    return {"areas": areas}
+    return {"areas": areas, "v": READER_VERSION}
 
 
 def ball_item_fields(desc: str) -> dict:
@@ -217,12 +252,20 @@ def check(fields: dict, pms: dict, area: str = "", notes: list | None = None) ->
         res = material.COMPLIANT if nv.startswith("Y") else material.NON if nv.startswith("N") else material.REVIEW
         add("NACE", "nace", c["nace"], val("nace"), res, "PMS class requires NACE" if res != material.COMPLIANT else "Matches",
             c.get("header_page"), None)
-    if c.get("trim"):
+    # trim (ball/stem): the ball valve item's own 'X BALL/STEM' governs; the class header's general trim
+    # (e.g. 'TRIM 8 (13CR/HF)', written for gate/globe valves) is only the fallback when no item says it
+    if best and best[2]["trim"]:
+        trim, tsrc, tpg, tbb = best[2]["trim"], f" · PMS item {best[1]['code']}", best[1]["page"], best[1]["bbox"]
+    elif c.get("trim"):
         trim = re.sub(r"^TRIM\s*\d+\s*", "", c["trim"]).strip(" ()")
+        tsrc, tpg, tbb = " · PMS class header trim", c.get("header_page"), c.get("trim_bbox")
+    else:
+        trim = ""
+    if trim:
         for item, key in (("Trim (Ball) Material", "ball_material"), ("Stem Material", "stem_material")):
             if key in fields:
                 res, why = material.compare(trim, val(key))
-                add(item, key, trim, val(key), res, why, c.get("header_page"), c.get("trim_bbox"))
+                add(item, key, trim, val(key), res, why + tsrc, tpg, tbb)
     if not best:
         add("Ball Valve Item", "body_size", "—", val("body_size"), material.NOT_DEFINED,
             f"No ball valve item for size {val('body_size')} in class {c['code']}", c.get("header_page"), None)

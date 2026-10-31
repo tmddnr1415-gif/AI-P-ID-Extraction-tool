@@ -234,6 +234,24 @@ def run(a):
     rep += ["", "## D. Issues", ""] + [f"- {k[0]} ({k[1]}): {v}" for k, v in sorted(ic.items())]
     base["D"] = {f"{k[0]}|{k[1]}": v for k, v in ic.items()}
 
+    # F — material review (matreview.py): rule × level counts; Process Data optional (--pd)
+    if P:
+        from app.valve import matreview, process as procmod
+        PD = procmod.read_process_data(a.pd) if a.pd else None
+        mc = collections.Counter()
+        for d in dss:
+            doc = res["docs"].get(d["doc_no"], {})
+            F = d["fields"]
+            c, _ = pms.find_class(P, (F.get("piping_class") or {}).get("value") or "", (F.get("line_no") or {}).get("value") or "",
+                                  pms.area_of_title(doc.get("title", "")))
+            ds = {"fields": [dict(v, key=k, edited_value=None) for k, v in F.items()], "notes": d["notes"], "tag_key": d["tag_key"]}
+            pr = procmod.check(ds, PD) if PD else None
+            for m in matreview.review(ds, doc.get("general_notes", {}), c, pr, ((PD or {}).get("by_tag") or {}).get(d["tag_key"])):
+                mc[(m["rule"], m["level"])] += 1
+        rep += ["", "## F. Material review" + ("" if PD else " (no --pd: temperature rules idle)"), ""] + \
+            [f"- {k[0]} {k[1]}: {v}" for k, v in sorted(mc.items())]
+        base["F"] = {f"{k[0]}|{k[1]}": v for k, v in mc.items()}
+
     # E — speed of deliverables
     sel = [i for i in allis if i["type"] != "Extraction Review"]
     t0 = time.time()
@@ -266,7 +284,7 @@ def check(base, out):
     moved = []
     if old.get("fingerprint") and old["fingerprint"] != base["fingerprint"]:
         moved.append(f"fingerprint {old['fingerprint']} → {base['fingerprint']} (cells {old.get('cells')} → {base['cells']})")
-    for sec in ("A", "B_comparable", "C", "D"):
+    for sec in ("A", "B_comparable", "C", "D", "F"):
         for k in sorted(set(old.get(sec, {})) | set(base.get(sec, {}))):
             if old.get(sec, {}).get(k) != base.get(sec, {}).get(k):
                 moved.append(f"{sec}.{k}: {old.get(sec, {}).get(k)} → {base.get(sec, {}).get(k)}")
@@ -289,6 +307,7 @@ if __name__ == "__main__":
     ap.add_argument("--ds", required=True)
     ap.add_argument("--tbe")
     ap.add_argument("--pms")
+    ap.add_argument("--pd", help="Process Data PDF (material review temperature / pressure rules)")
     ap.add_argument("--out", default="/tmp/valve_eval")
     ap.add_argument("--save-baseline", action="store_true")
     ap.add_argument("--check", action="store_true", help="fail when the fingerprint or a quality count moved")

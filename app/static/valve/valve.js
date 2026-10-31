@@ -694,7 +694,7 @@ async function exportValveList() {
 const W = { tab: LS.get('wtab', 'data'), q: '', type: '', st: '', viewer: null, selField: null, prevCmp: null, selCm: null,
   px: LS.get('wbpx', null), col: LS.get('wbc', null) };
 const WB_MIN = { l: 180, r: 260, c: 480 }, WB_MAX = { l: 420, r: 560 };   // px — the PDF keeps at least WB_MIN.c
-const TABS = [['iss', 'Issues'], ['sum', 'Summary'], ['data', 'Data'], ['proc', 'Process'], ['pms', 'PMS'], ['rev', 'Rev'], ['notes', 'Notes'], ['cmt', 'Comments'], ['hist', 'History']];
+const TABS = [['iss', 'Issues'], ['sum', 'Summary'], ['data', 'Data'], ['proc', 'Process'], ['pms', 'PMS'], ['mat', 'Material'], ['rev', 'Rev'], ['notes', 'Notes'], ['cmt', 'Comments'], ['hist', 'History']];
 function openDs(id) { if (!id) return; S.dsId = id; LS.set('tag.' + S.pid, id); go('review'); }
 function fitPanels() {                                // clamp the side panels so the viewer never gets squeezed (also on window resize)
   const wb = $('#v-review .wb'); if (!wb) return;
@@ -797,6 +797,7 @@ function drawHead() {                                  // one-line summary of th
     <span class="sp"></span><span class="hnav"><button data-nav="-1" title="이전 Tag (↑ / K)">▲</button><button data-nav="1" title="다음 Tag (↓ / J)">▼</button></span>
     ${chip('Data Error', errN, 'err', 'iss', '빨강 — 데이터 오류 (Issues 탭)')}${chip('Missing', misN, 'mis', 'iss', '주황 — 누락 · HOLD/TBC')}${chip('PMS', pmsN, 'err', 'pms', 'PMS 부적합 · 확인 (PMS 탭)')}
     ${chip('Process', iss.filter(i => i.type === 'Process Mismatch').length, 'mis', 'proc', 'Process Data 와 다른 공정 항목 (Process 탭)')}
+    ${chip('Material', iss.filter(i => i.type === 'Material Review').length, 'mat', 'mat', '재질 검토 의견 — Action · Confirm (Material 탭)')}
     ${chip('Rev Change', revN, 'rev', 'rev', '이전 Revision 대비 바뀐 칸')}${chip('Comments', d.comments.length, 'cmt', 'cmt', '검토자 의견 · Mark-up')}
     <label class="hst">Review Status <select id="wst">${STATUSES.map(s => `<option ${s === d.review_status ? 'selected' : ''}>${s}</option>`).join('')}</select></label>`;
   h.onclick = e => { const c = e.target.closest('[data-tab]'); if (c) setTab(c.dataset.tab); };
@@ -909,6 +910,7 @@ function drawRight() {
         ['File', `${d.filename} · p.${d.pages.join(', ')}`], ['Service', val('service')], ['P&ID No.', val('pid_no')], ['Line No.', val('line_no')], ['Piping Class', val('piping_class')],
         ['Valve Size / Rating', `${val('body_size')} / ${val('rating')}`], ['Body Type', val('body_type') || val('instrument_type')]]
         .map(([k, v]) => `<tr><td class="soft" style="width:38%">${k}</td><td>${esc(v)}</td></tr>`).join('')}</tbody></table></div>
+      <div class="sect"><h4>Special Requirements — Notes · General Notes · 칸</h4>${reqList(d)}</div>
       <div class="sect"><h4>Extraction</h4>${pill('ok', `읽음 ${cnt('ok')}`)} ${pill('placeholder', `VTA/NA ${cnt('placeholder')}`)} ${pill('NotFound', `Not Found ${cnt('blank')}`)} ${pill('ReviewRequired', `Review Required ${cnt('review')}`)}
         <p class="soft">PDF 글자층에서 직접 읽어 신뢰도는 칸마다 '읽음/없음/검토 필요' 로 표시합니다 (추정하지 않음). 스캔 쪽은 읽지 않습니다.</p></div>
       <div class="sect"><h4>Review Required</h4>${d.fields.filter(f => f.status === 'review' && f.edited_value == null).map(fieldLine).join('') || '<div class="soft">없음</div>'}</div>`;
@@ -939,6 +941,8 @@ function drawRight() {
       <table class="t"><thead><tr><th>Item</th><th>PMS Requirement</th><th>Datasheet</th><th>Result</th><th>PMS p.</th></tr></thead><tbody>
       ${d.pms.map(r => `<tr class="click" data-k="${esc(r.key)}" title="${esc(r.reason)}"><td>${esc(r.item)}</td><td>${esc(r.req)}</td><td>${esc(r.ds)}</td><td>${pill(r.result.replace(/[^A-Za-z]/g, ''), r.result)}<div class="soft" style="font-size:11px">${esc(r.reason)}</div></td><td>${r.pms_page ? `<a href="#" data-pmsp="${r.pms_page}" data-pmsb="${esc(JSON.stringify(r.pms_bbox))}">${r.pms_page}</a>` : ''}</td></tr>`).join('')}</tbody></table>
       <p class="soft">재질은 표기가 아니라 규격·등급으로 비교합니다 (A351 CF8M ⊂ 316/316L SS A351-CF8M/CF3M = Compliant). 같은 계열의 다른 등급은 Review Required.</p>`;
+  } else if (W.tab === 'mat') {
+    h = matList(d);
   } else if (W.tab === 'rev') {
     const c = W.prevCmp;
     h = c ? `<p>Rev.<b>${esc(c.prev.rev)}</b> → Rev.<b>${esc(c.new.rev)}</b> · ${['Modified', 'Added', 'Deleted'].map(k => pill(k, `${k} ${c.rows.filter(r => r.change === k).length}`)).join(' ')}</p>
@@ -964,10 +968,14 @@ function drawRight() {
   const tb = (t, n) => { const x = $(`#wtabs [data-t="${t}"] .tb`); if (x) { x.textContent = n; x.hidden = !n; } };
   tb('iss', (d.issues || []).filter(i => i.type !== 'Extraction Review' && i.status !== 'Dismissed').length); tb('cmt', d.comments.length);
   tb('rev', (W.prevCmp?.rows || []).filter(r => r.change !== 'Unchanged').length); tb('pms', (d.pms || []).filter(r => r.result !== 'Compliant').length);
-  tb('proc', (d.process || []).filter(r => r.result === 'Mismatch').length);
+  tb('proc', (d.process || []).filter(r => r.result === 'Mismatch').length); tb('mat', (d.material_review || []).filter(m => m.level !== 'Note').length);
   b.onclick = async e => {
     const ed = e.target.closest('[data-edit]'); if (ed) { editField(+ed.dataset.edit); return; }
     const np = e.target.closest('[data-np]'); if (np) { W.viewer.focus(+np.dataset.np, JSON.parse(np.dataset.nb || 'null'), 'Note'); return; }
+    const sr = e.target.closest('[data-src]'); if (sr) { e.preventDefault(); const t = sr.dataset.src, m = t.match(/^(Note|HOLD) (\d+)/), r = t.match(/^row (\d+)/);
+      if (m) { const n = d.notes.find(x => x.no === +m[2] && ((m[1] === 'HOLD') === ((x.section || '') === 'HOLD'))); if (n) W.viewer.focus(n.page, n.bbox, t); }
+      else if (r) { const f = d.fields.find(x => x.row === +r[1] && t.includes(x.display || '')) || d.fields.find(x => x.row === +r[1]); if (f) selectField(f.key); }
+      else { setTab('notes'); } return; }
     const cg = e.target.closest('[data-cmgo]'); if (cg) { e.preventDefault(); const c = d.comments.find(x => x.id === +cg.dataset.cmgo); W.selCm = c.id; paintDsOverlays(); W.viewer.goPage(c.page, c.bbox); drawRight(); return; }
     const ce = e.target.closest('[data-cmed]'); if (ce) { const c = d.comments.find(x => x.id === +ce.dataset.cmed);
       const r = await modal('의견 고치기', `<textarea name="text" rows="4">${esc(c.text)}</textarea>`, [['취소', null], ['저장', 'form', 1]]);
@@ -975,6 +983,7 @@ function drawRight() {
     const cd = e.target.closest('[data-cmdel]'); if (cd) { if (await modal('의견 지우기', '이 의견(과 PDF 표시)을 지울까요? 기록은 History 에 남습니다.', [['취소', 0], ['지우기', 1, 1]])) {
       W.selCm = +cd.dataset.cmdel; await markCmd('del'); } return; }
     const pp = e.target.closest('[data-pmsp]'); if (pp) { e.preventDefault(); openPmsRef(+pp.dataset.pmsp, JSON.parse(pp.dataset.pmsb || 'null')); return; }
+    const ek = e.target.closest('[data-ek]'); if (ek) { e.preventDefault(); selectField(ek.dataset.ek); return; }
     const pd = e.target.closest('[data-pdp]'); if (pd) { e.preventDefault(); openRef(d.process_doc, +pd.dataset.pdp, JSON.parse(pd.dataset.pdb || 'null'), 'Process Data'); return; }
     if (e.target.closest('select')) return;
     const is = e.target.closest('[data-iss]'); if (is) { const i = d.issues.find(x => x.ikey === is.dataset.iss); W.selIss = i.ikey; paintDsOverlays(); if (i.bbox) W.viewer.focus(i.page, i.bbox, i.field); $$('#wbody .iss').forEach(x => x.classList.toggle('on', x.dataset.iss === i.ikey)); return; }
@@ -990,6 +999,31 @@ function drawRight() {
   $('#cmadd') && ($('#cmadd').onclick = async () => { const t = $('#cmtx').value.trim(); if (!t) return;
     S.ds = await api('POST', `/datasheets/${d.id}/comments`, { text: t }); drawRight(); toast('의견을 남겼습니다'); });
   $('#cmdraw') && ($('#cmdraw').onclick = () => { W.viewer.showMkbar(true); W.viewer.setTool('rect'); toast('PDF 위에서 끌어 그리세요 — Mark-up 줄에서 모양·분류를 고릅니다 (Esc: 선택 도구)'); });
+}
+const MAT_LV = { Action: ['bad', '조치 필요 — 문서 한계를 넘음'], Confirm: ['warn', '확인 필요 — 조건부 허용'], Note: ['soft', '참고 — 검토 기록'] };
+function matList(d) {                                  // material review (matreview.py): rule · comment · basis · evidence
+  const L = d.material_review || [];
+  if (!L.length) return '<div class="empty">재질 검토 의견이 없습니다 — 규칙에 필요한 값(재질 · 설계온도 · PMS Class)이 문서에 있을 때만 의견을 냅니다.</div>';
+  const ev = x => { const t = esc(x.where) + (x.text ? ` <span class="soft">${esc(String(x.text).slice(0, 90))}</span>` : '');
+    if (x.doc === 'PMS' && x.page) return `<a href="#" data-pmsp="${x.page}" data-pmsb="${esc(JSON.stringify(x.bbox))}">PMS p.${x.page}</a> ${t}`;
+    if (x.doc === 'Process Data' && x.page) return `<a href="#" data-pdp="${x.page}" data-pdb="${esc(JSON.stringify(x.bbox))}">Process Data p.${x.page}</a> ${t}`;
+    if (/^(Note|HOLD|Gen Note) /.test(x.where)) return `<a href="#" data-src="${esc(x.where)}">${esc(x.where)}</a> <span class="soft">${esc(String(x.text || '').slice(0, 90))}</span>`;
+    const f = d.fields.find(f => x.where.endsWith(f.display || f.key) && f.bbox);
+    return f ? `<a href="#" data-ek="${esc(f.key)}">${t}</a>` : t; };
+  return ['Action', 'Confirm', 'Note'].map(lv => { const M = L.filter(m => m.level === lv); if (!M.length) return '';
+    return `<div class="sect"><h4><span class="pill p-${MAT_LV[lv][0]}">${lv}</span> ${MAT_LV[lv][1]} (${M.length})</h4>${M.map(m => `<div class="mat ${lv}">
+      <div><b>${esc(m.rule)} · ${esc(m.title)}</b></div><div>${esc(m.comment)}</div>
+      <div class="soft" style="font-size:11px">근거: ${esc(m.basis)}</div>
+      <div style="font-size:11px">${m.evidence.map(ev).join('<br>')}</div></div>`).join('')}</div>`; }).join('')
+    + '<p class="soft">규칙 기반 의견입니다 (추측 없음). Action·Confirm 은 Issue List 에 Material Review 로 올라가고, Note 는 여기와 Valve List 에만 남습니다. 근거 문서·칸을 누르면 그 위치로 갑니다.</p>';
+}
+function reqList(d) {                                  // special requirements (requirements.py): one line per kind, sources clickable
+  const by = {}; (d.requirements || []).forEach(r => (by[r.key] ||= []).push(r));
+  if (!Object.keys(by).length) return '<div class="soft">Notes · General Notes 에서 찾은 특수 요구사항이 없습니다</div>';
+  return `<table class="t req"><tbody>${Object.values(by).map(L => { const lab = L.reduce((a, r) => r.label.length > a.length ? r.label : a, L[0].label), neg = L.filter(r => r.negative);
+    return `<tr><td><b>${esc(lab)}</b>${neg.length ? ` <span class="pill p-NotEvaluated" title="${esc(neg.map(r => r.source + ': ' + r.text).join('\n'))}">datasheet: Not Required</span>` : ''}
+      <div class="soft">${L.filter(r => !r.negative).map(r => `<a href="#" data-src="${esc(r.source)}" title="${esc(r.text)}">${esc(r.source)}</a>`).join(' · ')}</div></td></tr>`; }).join('')}</tbody></table>
+    <p class="soft">글에 그 요구사항의 낱말이나 규격 번호가 있을 때만 적습니다 (추측 없음). 출처를 누르면 그 Note / 칸으로 갑니다.</p>`;
 }
 function selectField(key) {
   const f = S.ds.fields.find(x => x.key === key);
