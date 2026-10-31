@@ -12,7 +12,8 @@ Tables
   field      id · datasheet_id · key · section · display · label · row · value · unit · page · bbox(json) ·
              status (ok|blank|placeholder|review) · ref(json) · edited_value · edited_by · edited_at
   audit      id · project_id · datasheet_id · field_key · action · before · after · by · at · comment
-  comment    id · datasheet_id · field_key · text · by · at
+  comment    id · datasheet_id · field_key · text · by · at · page · bbox(json) · category · deleted
+             (a user annotation is a comment with a page and box; deleting keeps the row, deleted=1)
 """
 from __future__ import annotations
 
@@ -43,7 +44,7 @@ CREATE INDEX IF NOT EXISTS field_ds ON field(datasheet_id);
 CREATE TABLE IF NOT EXISTS audit (id INTEGER PRIMARY KEY, project_id INTEGER, datasheet_id INTEGER, field_key TEXT,
   action TEXT, before TEXT, after TEXT, by TEXT, at TEXT, comment TEXT);
 CREATE TABLE IF NOT EXISTS comment (id INTEGER PRIMARY KEY, datasheet_id INTEGER, field_key TEXT, text TEXT,
-  by TEXT, at TEXT);
+  by TEXT, at TEXT, page INTEGER, bbox TEXT, category TEXT DEFAULT 'comment', deleted INTEGER DEFAULT 0);
 """
 
 
