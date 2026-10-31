@@ -695,6 +695,7 @@ python3 spike/pack_delta.py --name valve05 --base 9429f4f \
 | valve14 | 〃 | Area · Site · Unit(`location.py`, 문서 제목 · P&ID) → Issue List Excel 맨 앞 열 · Valve List 'All Valves' 시트와 종류 시트 열 · Excel 필터 |
 | valve15 | 〃 | Tag 번호 규칙 학습(`tagrules.py`: Area · Site · Unit 별 접두 출처 · 번호 · 구분 · 계열↔P&ID) · TG-01~05 · Settings › Tag Numbering · All Valves 에 Tag Prefix/Function/Loop No. |
 | valve16 | 〃 | 목록 시트 첫 열 No. · Summary 시트(Area · Site · Unit × Issue Type / Valve Type, By Area — `exports.summary_sheet`) |
+| valve17 | 〃 | Issue List 시트 Area 순 정렬 · All Valves 에 요구사항 종류별 열(`requirements.columns`, 데이터시트 줄 답 우선 · 세부 · 출처) |
 
 **남은 일**
 1. 회사 적용 확인: .xls 자동 변환, 456쪽 처리 시간, 화면 글꼴, Edge 에서 Mark-up · 패널 접기, 내보낸 PDF 를 Acrobat 에서 열기, 1366×768 노트북에서 작업대.

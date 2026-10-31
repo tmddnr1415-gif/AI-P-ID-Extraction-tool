@@ -20,7 +20,7 @@ KINDS = [
     ("blowout", "Blow-out proof stem", re.compile(r"blow[- ]?out", re.I), []),
     ("sil", "SIL", re.compile(r"\bSIL\s*[1-4]\b|\bSIL\b|safety integrity", re.I), [re.compile(r"\bSIL\s*[1-4]\b", re.I)]),
     ("pst", "Partial stroke test", re.compile(r"partial\s+stroke", re.I), []),
-    ("hardness", "Hardness limit", re.compile(r"hardness|\bHRC\b|\bHV\s*10\b|\bHBW?\b", re.I), [re.compile(r"\d+\s*(?:HRC|HV\s*10|HBW?)", re.I)]),
+    ("hardness", "Hardness limit", re.compile(r"hardness|\bHRC\b|\bHV\s*10\b|\bHBW?\b", re.I), [re.compile(r"\d+\s*(?:HRC|HV\s*10|HBW?)\b|\b(?:HRC|HBW?|HV\s*10)\s*\d+", re.I)]),
     ("cert", "Material certificate EN 10204", re.compile(r"EN\s*10204|\b3\.[12]\s*cert|type\s+3\.[12]", re.I), [re.compile(r"\b3\.[12]\b")]),
     ("pmi", "PMI (positive material identification)", re.compile(r"\bPMI\b|positive\s+material", re.I), []),
     ("impact", "Low-temperature impact test", re.compile(r"impact\s+test|charpy|low[- ]temperature", re.I), []),
@@ -90,3 +90,38 @@ def summary(items: list[dict]) -> str:
             s += f" [datasheet: Not Required — {', '.join(e['neg'][:2])}]"
         parts.append(s)
     return " · ".join(parts)
+
+
+# One Excel column per requirement kind ('All Valves' sheet) — fixed order so every export has the same columns.
+COLUMNS = [("pfp", "PFP"), ("fugitive", "Fugitive Emission (ISO 15848)"), ("fire_safe", "Fire Safe"), ("nace", "NACE / Sour"),
+           ("sil", "SIL"), ("pst", "Partial Stroke Test"), ("tightness", "Tightness / Leakage"), ("antistatic", "Anti-static"),
+           ("blowout", "Blow-out Proof Stem"), ("hardness", "Hardness Limit"), ("cert", "Material Cert. (EN 10204)"), ("pmi", "PMI"),
+           ("impact", "Impact Test"), ("dbb", "DBB / Cavity Relief"), ("coating", "Painting / Coating")]
+
+
+def columns(items: list[dict]) -> dict[str, str]:
+    """{column header: cell text}.  The datasheet's own row answers first (it decides for this valve — e.g. 'Fireproofing:
+    Not Required' although General Note 26 describes PFP), then what the notes require, with the sources:
+    'Required (row 23 Fireproofing; Gen Note 26, 27)' · 'Yes — Class A type tested (Gen Note 8)' · 'Not Required (row 23 …)'."""
+    out = {}
+    for key, head in COLUMNS:
+        L = [i for i in items if i["key"] == key]
+        if not L:
+            out[head] = ""
+            continue
+        rows = [i for i in L if i["source"].startswith("row")]
+        notes = [i for i in L if not i["source"].startswith("row")]
+        detail = " ".join(dict.fromkeys(i["detail"] for i in L if i["detail"]))
+        srcs = [i["source"] for i in rows] + [i["source"].replace("Gen Note", "GN") for i in notes]
+        if rows:
+            r = rows[0]
+            ans = re.sub(r"^[^:]{1,40}:\s*", "", r["text"]).strip() if not re.search(r"\byes\b|required|not required|\bno\b", r["text"][:12], re.I) else r["text"].strip()
+            if len(ans) > 60:
+                ans = ans[:60].rsplit(" ", 1)[0] + "…"
+            ans = "Not Required" if r["negative"] else (ans or "Yes")
+        else:
+            ans = "Yes"
+        if detail and detail.lower() not in ans.lower() and not ans.startswith("Not Required"):
+            ans += f" — {detail}"
+        out[head] = f"{ans} ({'; '.join(srcs[:4])}{'…' if len(srcs) > 4 else ''})"
+    return out

@@ -106,3 +106,8 @@
 - Issue List: 'Summary' 시트(Area · Site · Unit × Issue Type, Major · Minor · Tags, By Area) · Summary by Tag 에 No. · Area 순 정렬.
 - Valve List: 'Summary' 시트(Area · Site · Unit × Valve Type, Open Issues · Tags with Action · New/Updated) · All Valves · Datasheet Notes 에 No.
 - 실자료 확인(164 Tag · 2,823 지적), 시험 45 · 전체 1,875 · ui_audit 22/22.
+
+## 2026-10-31 · valve17 — Issue List Area 순 · All Valves 요구사항 열 (브랜치 ccr-efbe7e75-n915ze)
+- 요청: Issue List 시트도 Area 별 정렬 · Valve List All Tag 에 Note 의 중요 내용(PFP · fugitive class 등)을 각 열로.
+- exports: Area → Site → Unit → Tag 정렬(Tag 안 순서 유지). requirements.columns: 종류별 열, 데이터시트 줄 답 우선(PFP 줄 Not Required 면 그 답), 세부(Class A · SIL 2 · 3.2), 출처.
+- hardness 세부 'HB 160' 형도 읽음. 시험 46 · 전체 1,876 · ui_audit 22/22.

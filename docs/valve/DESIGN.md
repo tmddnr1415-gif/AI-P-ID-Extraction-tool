@@ -417,3 +417,12 @@ Note 113 · PC-01 Confirm 6(3C0K8 의 '316 SS/FHF' 2개 · API5L-X65 MOV 1500# �
 - **Summary 시트**(`exports.summary_sheet`, 두 파일 공용): No. · Area · Site · Unit × 분류 · Total (+ 추가 열), 필터 · Total 줄 · 아래에 'By Area' 표.
   Issue List = Issue Type 별 건수 + Major · Minor · Tags (두 번째 시트). Valve List = Valve Type 별 수 + Open Issues · Tags with Action · New / Updated Tags ('All Valves' 앞).
 - Summary by Tag 는 Area → Site → Unit → Tag 순.
+
+## 21. Issue List Area 순 · All Valves 에 Note 요구사항 열 (valve17, 사용자 요청)
+
+- Issue List 시트: **Area → Site → Unit → Tag** 순(North · South · Brownfield · W15), 한 Tag 안은 데이터시트 순서 그대로, No. 1…n 다시 매김.
+- All Valves: Notes · General Notes · 칸에서 찾은 요구사항을 **종류마다 한 열**(청록 머리): PFP · Fugitive Emission (ISO 15848) · Fire Safe · NACE / Sour · SIL · Partial Stroke Test ·
+  Tightness / Leakage · Anti-static · Blow-out Proof Stem · Hardness Limit · Material Cert. (EN 10204) · (PMI · Impact Test · DBB · Painting — 어느 밸브에라도 있을 때만).
+  칸 값 = **데이터시트 줄의 답이 먼저**(그 밸브를 정함 — 예: Gen Note 26 이 PFP 를 말해도 Fireproofing 줄이 Not Required 면 'Not Required'), 다음 Note 의 세부(Class A type tested · SIL 2 · 3.2 · Rate A · 22 HRC),
+  끝에 출처(row · Note · GN). `requirements.columns` · `requirements.COLUMNS`. 'Special Requirements' 한 칸 · NACE · Leakage 칸은 All Valves 에서 이 열들로 바뀜(종류 시트는 그대로).
+- 실자료: PFP Required 31 / Not Required 120 · Fugitive Class A type tested 152 · SIL 2 133 · EN 10204 3.2 128 / 3.1 11 · Fire Safe HOLD 11.

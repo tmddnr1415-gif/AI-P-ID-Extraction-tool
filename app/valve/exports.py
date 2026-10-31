@@ -115,6 +115,8 @@ def issues_xlsx(rows: list[dict], base: str, project: str, by: str = "", sources
         c = ws.cell(1, n)
         c.fill, c.font = head_fill, head_font
         c.alignment = Alignment(wrap_text=True, vertical="center")
+    rows = sorted(rows, key=lambda i: (AREA_ORDER.get(i.get("area_name") or "", 9), i.get("site") or "", i.get("plant_unit") or "",
+                                       i["tag"]))                 # Area → Site → Unit → Tag; inside a tag the datasheet order stays
     for n, i in enumerate(rows, 1):
         sheet = f"{i['sheet']} of {i['of']}" if i.get("sheet") else ""
         val = (i.get("value") or "") + (f" {i['unit']}" if i.get("unit") and i.get("value") else "")

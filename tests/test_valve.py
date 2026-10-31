@@ -788,6 +788,22 @@ def test_area_and_unit_from_documents():
     sm = wb["Summary"]
     assert [c.value for c in sm[3]][:5] == ["No.", "Area", "Site", "Unit", "Material Review"] and sm.cell(4, 1).value == 1
     assert wb["Summary by Tag"].cell(1, 1).value == "No." and wb["Summary by Tag"].cell(2, 1).value == 1
+    mix = [dict(rows[0], tag=t, area_name=a, site=a, plant_unit="98") for t, a in (("98XV1", "W15"), ("98XV2", "South"), ("98XV3", "North"))]
+    ws = openpyxl.load_workbook(io.BytesIO(exports.issues_xlsx(mix, "", "P")))["Issue List"]
+    assert [ws.cell(r, 2).value for r in (2, 3, 4)] == ["North", "South", "W15"] and ws.cell(2, 1).value == 1   # sorted by Area
+
+
+def test_requirement_columns_for_all_valves():
+    from app.valve import requirements
+    f = lambda k, v, row, disp: {"key": k, "value": v, "edited_value": None, "row": row, "display": disp, "page": 1}  # noqa: E731
+    ds = {"fields": [f("fireproofing", "Not Required", 23, "Fireproofing (PFP)"), f("sil", "SIL 2 (Minimum)", 33, "SIL Requirement")],
+          "notes": [{"no": 3, "text": "Body, Bonnet Stem and Trim parts shall be EN10204 of certification type 3.2."}]}
+    gn = {"26": "Passive fire protection (PFP) shall be provided for valves as stated in the respective datasheet.",
+          "31": "XV in CO2 service to be provided with Class A type tested fugitive emission packing in accordance with ISO 15848-1."}
+    c = requirements.columns(requirements.find(ds, gn))
+    assert c["PFP"].startswith("Not Required") and "row 23" in c["PFP"]              # the datasheet row decides, not the general note
+    assert c["Fugitive Emission (ISO 15848)"].startswith("Yes — Class A type tested") and "GN 31" in c["Fugitive Emission (ISO 15848)"]
+    assert c["SIL"].startswith("SIL 2") and c["Material Cert. (EN 10204)"].startswith("Yes — 3.2") and c["PMI"] == ""
 
 
 def test_tag_numbering_learned_per_area_unit():

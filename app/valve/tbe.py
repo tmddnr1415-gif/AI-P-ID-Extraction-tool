@@ -348,55 +348,64 @@ def _drop_vendor_rows(ws, a) -> int:
 ALL_COLS = [("No.", 6), ("Area", 11), ("Site", 8), ("Unit", 6), ("Tag Number", 16), ("Tag Prefix", 7), ("Function", 8), ("Loop No.", 9), ("Valve Type", 9), ("DS Document No.", 20), ("DS Rev.", 6),
             ("Service", 30), ("P&ID No.", 22), ("Line No.", 24), ("Piping Class", 11), ("Size", 7), ("Rating", 8), ("Body Type", 24),
             ("End Connection", 20), ("Body Material", 26), ("Ball Material", 16), ("Stem Material", 16), ("Seat Material", 12),
-            ("Fail Position", 9), ("Leakage Class", 20), ("NACE", 14), ("Special Requirements (Notes)", 40), ("Expert Review (Tool)", 40),
+            ("Fail Position", 9), ("Special Requirements (Notes)", 40), ("Expert Review (Tool)", 40),
             ("Open Issues", 8), ("Valve List Sheet", 22), ("Tool Status", 12), ("DS Source (file · page)", 30)]
 _ALL_KEYS = {"Service": "service", "P&ID No.": "pid_no", "Line No.": "line_no", "Piping Class": "piping_class", "Size": "body_size",
              "Rating": "rating", "Body Type": "body_type", "End Connection": "connections", "Body Material": "body_material",
              "Ball Material": "ball_material", "Stem Material": "stem_material", "Seat Material": "seat_material",
-             "Fail Position": "fail_position", "Leakage Class": "leakage_class", "NACE": "nace"}
+             "Fail Position": "fail_position"}
 
 
 def _all_valves(wb, datasheets, docnames, link, sheet_of, report):
-    """'All Valves' sheet: every tag (latest revision) on one row, with Area · Site · Unit first — filter with Excel."""
+    """'All Valves' sheet: every tag (latest revision) on one row, Area · Site · Unit first, then the datasheet values and one
+    column per special requirement found in the Notes / General Notes (PFP · Fugitive class · Fire safe · NACE · SIL …)."""
     from openpyxl.styles import Alignment, Font, PatternFill
-    from app.valve import issues as issuesmod
-    ws = wb.create_sheet("All Valves", 1 if len(wb.worksheets) > 1 else 0)
-    ws.append([c for c, _ in ALL_COLS])
-    for n, (_, w) in enumerate(ALL_COLS, 1):
-        c = ws.cell(1, n)
-        c.fill, c.font = PatternFill("solid", fgColor="1F2D4D"), Font(bold=True, color="FFFFFF")
-        c.alignment = Alignment(wrap_text=True, vertical="center")
-        ws.column_dimensions[get_column_letter(n)].width = w
+    from app.valve import issues as issuesmod, tagrules
     status = {k: s for s, ks in (("NEW", report["new"]), ("UPDATED", report["updated"]), ("UNCHANGED", report["unchanged"]),
                                  ("NO SHEET", report["no_sheet"])) for k in ks}
     order = {"North": 0, "South": 1, "Brownfield": 2, "W15": 3}
-    for d in sorted(datasheets, key=lambda d: (order.get((d.get("location") or {}).get("area"), 9),
+    rows = []
+    for d in sorted(datasheets, key=lambda d: (order.get((d.get("location") or {}).get("area"), 9), (d.get("location") or {}).get("site", ""),
                                                (d.get("location") or {}).get("unit", ""), d["tag_key"])):
         loc, F = d.get("location") or {}, d["fields"]
-        reqs = requirements.find(d, d.get("general_notes"))
         mr = [m for m in d.get("material_review") or [] if m["level"] != "Note"]
         n_open = sum(1 for i in d.get("issues") or [] if i["type"] in issuesmod.CONTRACTOR_TYPES and i.get("status") != "Dismissed")
-        from app.valve import tagrules
         tp = tagrules.parse(_val(F.get("tag", {})) or d["tag_key"]) or {}
         row = {"Area": loc.get("area", ""), "Site": loc.get("site", ""), "Unit": loc.get("unit", ""), "Tag Number": d["tag_key"],
                "Tag Prefix": tp.get("prefix", ""), "Function": tp.get("func", ""), "Loop No.": (tp.get("number", "") + tp.get("suffix", "")) if tp else "",
                "Valve Type": d.get("valve_type", ""), "DS Document No.": d["doc_no"], "DS Rev.": d["rev"],
-               "Special Requirements (Notes)": requirements.summary(reqs)[:32000],
                "Expert Review (Tool)": "\n".join(m.get("short") or m["title"] for m in mr)[:32000], "Open Issues": n_open,
                "Valve List Sheet": sheet_of.get(d["tag_key"], ""), "Tool Status": status.get(d["tag_key"], ""),
                "DS Source (file · page)": f"{docnames.get(d['document_id'], '')} p.{d['pages'][0]}" if d.get("pages") else ""}
         for h, k in _ALL_KEYS.items():
             row[h] = _val(F.get(k, {})) if k in F else ""
+        row.update(requirements.columns(requirements.find(d, d.get("general_notes"))))
+        rows.append((d, row))
+    req_cols = [h for _, h in requirements.COLUMNS if any(r.get(h) for _, r in rows)]      # only kinds some valve has
+    cols = [c for c in ALL_COLS if c[0] != "Special Requirements (Notes)"]
+    at = next(i for i, c in enumerate(cols) if c[0] == "Expert Review (Tool)")
+    cols = cols[:at] + [(h, 24) for h in req_cols] + cols[at:]
+    ws = wb.create_sheet("All Valves", 1 if len(wb.worksheets) > 1 else 0)
+    ws.append([c for c, _ in cols])
+    req_fill = PatternFill("solid", fgColor="0E6E6E")                    # requirement columns: teal header ('from the Notes')
+    for n, (h, w) in enumerate(cols, 1):
+        c = ws.cell(1, n)
+        c.fill, c.font = req_fill if h in req_cols else PatternFill("solid", fgColor="1F2D4D"), Font(bold=True, color="FFFFFF")
+        c.alignment = Alignment(wrap_text=True, vertical="center")
+        ws.column_dimensions[get_column_letter(n)].width = w
+    ws.row_dimensions[1].height = 32
+    tag_col = next(i for i, c in enumerate(cols, 1) if c[0] == "Tag Number")
+    for d, row in rows:
         row["No."] = ws.max_row                           # header is row 1 → the first valve is No. 1
-        ws.append([row.get(c, "") for c, _ in ALL_COLS])
+        ws.append([row.get(c, "") for c, _ in cols])
         r = ws.max_row
-        for n in range(1, len(ALL_COLS) + 1):
+        for n in range(1, len(cols) + 1):
             ws.cell(r, n).alignment = Alignment(wrap_text=True, vertical="top")
         if link:
-            ws.cell(r, 5).hyperlink = link(d, "tag")
-            ws.cell(r, 5).font = Font(color="2F5BD8", underline="single", bold=True)
-    ws.freeze_panes = "F2"
-    ws.auto_filter.ref = f"A1:{get_column_letter(len(ALL_COLS))}{max(2, ws.max_row)}"
+            ws.cell(r, tag_col).hyperlink = link(d, "tag")
+            ws.cell(r, tag_col).font = Font(color="2F5BD8", underline="single", bold=True)
+    ws.freeze_panes = ws.cell(2, tag_col + 1).coordinate
+    ws.auto_filter.ref = f"A1:{get_column_letter(len(cols))}{max(2, ws.max_row)}"
     # Summary: valves per Area / Site / Unit × valve type, open issues, tags with an Action comment
     from app.valve import exports
     recs = []
