@@ -1,0 +1,60 @@
+{
+ "A": {
+  "datasheets": 164,
+  "forms": {
+   "on/off": 140,
+   "102": 24
+  },
+  "status": {
+   "ok": 9125,
+   "placeholder": 4119,
+   "blank": 3743,
+   "review": 69
+  },
+  "no_notes": 0,
+  "raw": 410,
+  "unknown_labels": 2184,
+  "suspicious": {
+   "value is a label": 39,
+   "bare number (row index?)": 69
+  }
+ },
+ "B": {
+  "different": 434,
+  "soft": 1731,
+  "exact": 3671,
+  "same": 31
+ },
+ "C": {
+  "Pressure Class|Compliant": 149,
+  "NACE|Compliant": 125,
+  "Trim (Ball) Material|Compliant": 143,
+  "Stem Material|Compliant": 143,
+  "Body Material|Compliant": 127,
+  "Seat Material|Compliant": 142,
+  "Fire Safe|Compliant": 10,
+  "Piping Material Class|Review Required": 8,
+  "Trim (Ball) Material|Review Required": 6,
+  "Stem Material|Review Required": 6,
+  "Bore|Review Required": 23,
+  "Piping Material Class|Not Defined in PMS": 15,
+  "Ball Valve Item|Not Defined in PMS": 7,
+  "NACE|Review Required": 16,
+  "Body Material|Review Required": 15
+ },
+ "D": {
+  "Data Missing|Minor": 748,
+  "Extraction Review|Internal": 69,
+  "Data Error|Major": 3,
+  "PMS Review|Minor": 96
+ },
+ "E": {
+  "extract_s": 6.67,
+  "extract_ms_per_page": 14.6,
+  "pms_read_s": 1.57,
+  "issues_ms_per_ds": 0.6,
+  "issue_xlsx_s": 1.97,
+  "markup_s_per_ds": 0.049,
+  "markup_kb_per_ds": 202.3
+ }
+}
