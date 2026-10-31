@@ -50,7 +50,7 @@ def _v(f):
 
 
 def compute(ds: dict, general_notes: dict | None = None, pms: dict | None = None, area: str = "",
-            prev_cmp: list | None = None, states: dict | None = None) -> list[dict]:
+            prev_cmp: list | None = None, states: dict | None = None, pms_rows: list | None = None) -> list[dict]:
     """ds: datasheet with fields (list of dicts with key/value/edited_value/page/bbox/row/status/display), notes,
     comments, pages, sheets.  Returns issue dicts (sorted by page, then position)."""
     F = {f["key"]: f for f in ds["fields"]}
@@ -133,8 +133,8 @@ def compute(ds: dict, general_notes: dict | None = None, pms: dict | None = None
             add("Reviewer Correction", f["key"], f"Correction: '{f.get('value') or '(blank)'}' → '{f['edited_value']}'"
                 f" ({f.get('edited_by') or '-'})", expected=f["edited_value"], f=f)
 
-    if pms:
-        for r in pmsmod.check(F, pms, area, ds.get("notes")):
+    if pms or pms_rows is not None:
+        for r in (pms_rows if pms_rows is not None else pmsmod.check(F, pms, area, ds.get("notes"))):
             if r["result"] == material.COMPLIANT:
                 continue
             it = "PMS Non-Compliance" if r["result"] == material.NON else "PMS Review"

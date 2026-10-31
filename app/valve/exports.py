@@ -237,4 +237,4 @@ def markup_pdf(entries: list[dict], project: str, title: str = "Valve Datasheet 
         out.new_page()
         out[0].insert_text((72, 72), "No issues selected.", fontsize=12)
     out.set_toc(toc)
-    return out.tobytes(garbage=3, deflate=True)
+    return out.tobytes(garbage=4, deflate=True, use_objstms=1)    # garbage=4: logos and fonts stored once (8x smaller)

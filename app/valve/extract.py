@@ -569,16 +569,75 @@ def _general_notes(text: str):
     return out
 
 
+class PdfError(ValueError):
+    """A PDF this reader cannot use — the message says why, in words the user can act on."""
+
+
+def open_pdf(path: str):
+    try:
+        doc = pymupdf.open(path)
+    except Exception as e:                                   # noqa: BLE001
+        raise PdfError(f"PDF 를 열 수 없습니다 (손상된 파일) — {type(e).__name__}")
+    if doc.needs_pass and not doc.authenticate(""):          # owner-only protection opens with an empty password
+        doc.close()
+        raise PdfError("암호가 걸린 PDF 입니다 — 암호를 풀어 저장한 뒤 다시 올려 주세요")
+    return doc
+
+
+_STD = 842.0                                                 # the reader's thresholds are in A4 points
+
+
+def _normalised(page):
+    """(page to read, k): a page much larger or smaller than A4 (A3, A2, plotted forms) is shown on an A4-sized
+    page first, so every distance the reader uses means the same thing; boxes are scaled back by 1/k."""
+    r = page.rect
+    k = _STD / max(r.width, r.height)
+    if abs(k - 1) < 0.08:
+        return page, 1.0
+    tmp = pymupdf.open()
+    np_ = tmp.new_page(width=r.width * k, height=r.height * k)
+    np_.show_pdf_page(np_.rect, page.parent, page.number)
+    return np_, k
+
+
+def _place(box, k, mat):
+    """Reader box -> box on the page as it is shown (scale back, then the page's own rotation)."""
+    if not box:
+        return box
+    r = pymupdf.Rect(*box) * (1 / k)
+    if mat is not None:
+        r = r * mat
+        r.normalize()
+    return [round(v, 1) for v in (r.x0, r.y0, r.x1, r.y1)]
+
+
 def read_pdf(path: str, progress=None):
-    doc = pymupdf.open(path)
+    doc = open_pdf(path)
     sheets, other, docs = [], [], {}
     cont_doc = None
+    damaged = bool(getattr(doc, "is_repaired", False))
     for i, page in enumerate(doc):
         if progress:
             progress(i + 1, doc.page_count)
-        sh = read_page(page, i + 1)
+        rot = page.rotation
+        if rot:                                              # read unrotated; boxes are turned back afterwards
+            page.set_rotation(0)
+        rp, k = _normalised(page)
+        sh = read_page(rp, i + 1)
+        mat = None
+        if rot:
+            page.set_rotation(rot)
+            mat = page.rotation_matrix
+        if sh and not sh.get("scanned") and (k != 1.0 or mat is not None):
+            for r in sh.get("rows", []):
+                r["bbox"], r["label_bbox"] = _place(r.get("bbox"), k, mat), _place(r.get("label_bbox"), k, mat)
+            for n in sh.get("notes", []):
+                n["bbox"] = _place(n.get("bbox"), k, mat)
         if sh and not sh.get("scanned"):
             sheets.append(sh)
+            continue
+        if sh and sh.get("scanned") and damaged:
+            other.append({"page": i + 1, "kind": "damaged"})
             continue
         if sh and sh.get("scanned"):
             other.append({"page": i + 1, "kind": "scanned"})
@@ -601,7 +660,7 @@ def read_pdf(path: str, progress=None):
         d["rev"] = rv.group(1) if rv else ""
         del d["text"]
     doc.close()
-    return {"pages": len(sheets) + len(other), "sheets": sheets, "other_pages": other, "docs": docs}
+    return {"pages": len(sheets) + len(other), "sheets": sheets, "other_pages": other, "docs": docs, "damaged": damaged}
 
 
 def group_datasheets(result: dict):

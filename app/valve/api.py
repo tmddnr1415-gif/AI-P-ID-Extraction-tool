@@ -171,6 +171,9 @@ def _process(jid: str, pid: int, items: list[tuple[int, str, str, Path]], by: st
                 res = extract.read_pdf(str(path), progress=prog)
                 dss = extract.group_datasheets(res)
                 n_scan = sum(1 for o in res["other_pages"] if o.get("kind") == "scanned")
+                n_bad = sum(1 for o in res["other_pages"] if o.get("kind") == "damaged")
+                if n_bad:
+                    _job(jid, warn=f"{name}: 손상된 파일 — 복구해 읽었지만 {n_bad}쪽은 글자를 찾지 못했습니다. 원본 파일을 다시 받아 올려 주세요")
                 with store._LOCK:
                     for ds in dss:
                         ds["form"] = "102" if any(r.get("row", 0) > 61 for r in ds["fields"].values()) else "on/off"
@@ -217,7 +220,8 @@ def _process(jid: str, pid: int, items: list[tuple[int, str, str, Path]], by: st
                 con.execute("UPDATE document SET status='done', info=? WHERE id=?", (store.J(info), doc_id))
                 con.commit()
         except Exception as e:                           # noqa: BLE001 — one bad file must not stop the batch
-            con.execute("UPDATE document SET status='error', error=? WHERE id=?", (f"{type(e).__name__}: {e}", doc_id))
+            msg = str(e) if isinstance(e, extract.PdfError) else f"{type(e).__name__}: {e}"
+            con.execute("UPDATE document SET status='error', error=? WHERE id=?", (msg, doc_id))
             con.commit()
             with _JLOCK:
                 _JOBS[jid]["errors"].append({"file": name, "error": str(e)[:300], "trace": traceback.format_exc()[-800:]})
@@ -251,9 +255,13 @@ async def upload(pid: int, request: Request, kind: str = Form(...), files: list[
         if ext == ".pdf":
             try:
                 with pymupdf.open(stream=data, filetype="pdf") as d:
+                    locked = d.needs_pass and not d.authenticate("")
                     pages = d.page_count
             except Exception:                            # noqa: BLE001
-                skipped.append(f"{name} — PDF 를 열 수 없습니다 (손상되었거나 암호가 걸림)")
+                skipped.append(f"{name} — PDF 를 열 수 없습니다 (손상된 파일)")
+                continue
+            if locked:
+                skipped.append(f"{name} — 암호가 걸린 PDF 입니다. 암호를 풀어 저장한 뒤 다시 올려 주세요")
                 continue
         cur = con.execute("INSERT INTO document(project_id, kind, filename, sha256, path, pages, uploaded_by, uploaded_at,"
                           " status) VALUES (?,?,?,?,?,?,?,?,'queued')",
@@ -344,7 +352,7 @@ def _ds_full(con, dsid, deep=True):
     if i > 0:
         prev = compare(_ds_full(con, d["revisions"][i - 1]["id"], deep=False), d)
     states = {r["ikey"]: r for r in store.rows(con, "SELECT * FROM issue_state WHERE datasheet_id=?", dsid)}
-    d["issues"] = issuesmod.compute(d, d["general_notes"], pms, d["area"], prev, states)
+    d["issues"] = issuesmod.compute(d, d["general_notes"], pms, d["area"], prev, states, pms_rows=d["pms"])
     return d
 
 
@@ -699,7 +707,7 @@ async def markup_pdf(request: Request):
             keep = [p - 1 for p in body.get("pages") or [] if 1 <= int(p) <= pdf.page_count]
             if keep:
                 pdf.select(keep)
-            return pdf.tobytes(garbage=3, deflate=True)
+            return pdf.tobytes(garbage=4, deflate=True, use_objstms=1)
     data = await run_in_threadpool(make)
     store.audit(con, d["project_id"], None, None, "markup-export", None, d["filename"], _user(request), f"{len(items)} items")
     con.commit()

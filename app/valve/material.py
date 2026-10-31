@@ -12,6 +12,7 @@ material' are told apart.  Nothing here guesses: when the tokens do not decide i
 """
 from __future__ import annotations
 
+import functools
 import re
 
 COMPLIANT, NON, REVIEW, NOT_DEFINED = "Compliant", "Non-Compliant", "Review Required", "Not Defined in PMS"
@@ -43,8 +44,13 @@ _PLACEHOLDER = re.compile(r"^\s*(VTA|TBC|TBA|HOLD|NA|N/A|-|)\s*$", re.I)
 _NOTE_REF = re.compile(r"(general\s*)?note\s*[-–:#]?\s*\d+", re.I)
 
 
-def tokens(text: str) -> set[str]:
-    t = " " + str(text or "").upper() + " "
+def tokens(text: str) -> frozenset[str]:
+    return _tokens(str(text or ""))
+
+
+@functools.lru_cache(maxsize=50000)                          # the same material texts repeat across hundreds of tags
+def _tokens(text: str) -> frozenset[str]:
+    t = " " + text.upper() + " "
     for pat, rep in _PHRASES:
         t = re.sub(pat, rep, t)
     t = re.sub(r"\b(A\d{3})\s*-\s*", r"\1 ", t)          # 'A351-CF8M' -> A351 CF8M
@@ -59,7 +65,7 @@ def tokens(text: str) -> set[str]:
         if tok in ("RPTFE", "R-PTFE"):
             tok = "RTFE"
         out.add(tok)
-    return out
+    return frozenset(out)
 
 
 def _grades(ts):
