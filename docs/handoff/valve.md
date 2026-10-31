@@ -4,7 +4,7 @@
 
 - 작업 브랜치: `ccr-efbe7e75-n915ze`. 이 브랜치는 PID(`claude/gracious-ride-26nqrf`, hotfix131) 와 DASHBOARD(`ccr-248a5c4d-3dji7g`, v16.51) 를 병합한 위에 있다.
 - 무엇: 대시보드 **실행 프로젝트 › CO2 PJT › Datasheet › Ball Valve** = P&ID 서버(8000) `/valve/` — Valve Datasheet 검토 도구.
-  설계 · 분석 · 남은 일: `docs/valve/DESIGN.md` (먼저 §1 표, §8, §10).
+  설계 · 분석 · 남은 일: `docs/valve/DESIGN.md` (먼저 §1 표, §8, §10). **작동 원리 · API · 화면 · 확장 · 배포: `docs/valve/DEVELOPER_GUIDE.md`**.
 - Phase 1(추출 · Valve List) + Phase 2 기본(Revision) + 지적 사항 · Issue List Excel · 인쇄용 Mark-up PDF · Excel ↔ PDF 연동 · 실제 PMS 비교 (valve02, §9)
   + 실패 원인 분석 · 강건성(A3 · 회전 · 암호/손상) · 사용자 Mark-up 도구 10종 → Issue List · Mark-up PDF (valve03, §10)
   + P&ID · LOGIC 원리 차용: 지문 게이트 · 문턱 빈 띠 실측 · 검토 피드백(VOC) · 차등 시뮬레이션 · 화면 자기검증 (valve04, §11)
