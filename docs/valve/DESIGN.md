@@ -378,3 +378,11 @@ Note 113 · PC-01 Confirm 6(3C0K8 의 '316 SS/FHF' 2개 · API5L-X65 MOV 1500# �
 - 다른 지적도 줄임: Data Missing "Fluid: no value; ref. 03-02-PR-DTS-00002 (Note 7). Provide value." · Open Item "'HOLD' on HOLD/TBC. Release and give value." ·
   Note 참조 오류 · Revision 인용은 낱말 단위로 40~70자에서 자름(`issues._cut`).
 - 실자료 평균 길이: Material/Valve Review 350 → 68자 · Data Missing 136 → 80 · Open Item 93 → 56. 판정 · 개수는 그대로(eval 기준값 불변).
+
+## 17. 설계사용 출력 때 Issue Type 고르기 (valve13, 사용자 요청)
+
+- Issue List Excel · Mark-up PDF 를 만드는 모든 단추(Reports & Export 의 둘 · Issue List 화면의 둘 · Datasheet Review 의 한 Tag PDF · 분석 끝 'Mark-up PDF')가
+  먼저 **Issue Type 선택 창**(`valve.js pickTypes`)을 연다: 종류마다 한글 설명 · 건수, '전체 / 모두 끄기 / 설계사용 기본', 고른 종류 · 건수 합계. 아무것도 안 고르면 '만들기' 가 꺼진다.
+- 고른 종류는 다음 출력 때 그대로 기억한다(브라우저 `valve.xtypes`). Issue List 화면에서 종류 필터를 걸어 둔 채 누르면 그 종류가 미리 골라진다(이때는 기억을 덮지 않음).
+- 서버는 원래 `types=` 를 받는다(`api._select`) — 바뀐 것은 화면뿐. Dismissed 는 언제나 빠진다. 분석 끝에 자동으로 만드는 Issue List 는 그대로 설계사용 기본 종류.
+- 실자료: 전체 2,819건 · PDF 548쪽 → Material + Valve Review 만 89건 · 199쪽.

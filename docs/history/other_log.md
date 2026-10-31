@@ -83,3 +83,8 @@
 - MR/VR/PC 규칙마다 `short` 한 줄(문제 · 값 · 할 일, ≤120자 시험) → Issue List · Mark-up PDF · Valve List. 긴 설명 · 근거 · 지식은 Expert 탭만.
 - Data Missing · Open Item · Note 참조 오류 · Revision 문구 줄임(`issues._cut` 낱말 단위 자르기).
 - 평균 길이 Material/Valve 350→68 · Data Missing 136→80 · Open Item 93→56. eval 기준값 불변 · 시험 42 · 전체 1,872 · ui_audit 22/22.
+
+## 2026-10-31 · valve13 — 설계사용 출력 때 Issue Type 고르기 (브랜치 ccr-efbe7e75-n915ze)
+- 요청: PDF 에 설계사 코멘트 · Excel 출력 시 어떤 issue type 을 리스트업할지 선택.
+- valve.js `pickTypes`: 종류별 건수 · 한글 설명 · 전체/모두 끄기/설계사용 기본 · 선택 기억(LS valve.xtypes). 출력 단추 5곳 모두 거침. 서버는 기존 `types=`.
+- 확인: Material+Valve Review 만 → Excel 89행(그 두 종류만) · PDF 548 → 199쪽. 시험 43 · ui_audit 22/22.

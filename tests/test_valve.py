@@ -753,3 +753,14 @@ def test_expert_valve_rules_and_peer_learning():
     ds2 = {"fields": [f("piping_class", "XC0K8", 9), f("body_material", "316/316L SS A351-CF8M/CF3M (dual certified)", 24)], "notes": []}
     assert not [m for m in expert.review(ds2, peers=peers) if m["rule"] == "PC-01"]
     assert "Ball Valve" in knowledge.markdown()
+
+
+def test_export_issue_type_selection():
+    rows = [{"type": t, "status": s, "tag": "00XV921", "severity": "Major"} for t, s in
+            [("Data Missing", "Open"), ("Material Review", "Open"), ("Valve Review", "Open"), ("Valve Review", "Dismissed"),
+             ("Extraction Review", "Open")]]
+    got = api._select(rows, "Material Review,Valve Review")
+    assert [r["type"] for r in got] == ["Material Review", "Valve Review"]          # chosen types only, Dismissed left out
+    assert "Extraction Review" not in {r["type"] for r in api._select(rows)}           # default = contractor types
+    js = (Path(api.__file__).parents[1] / "static" / "valve" / "valve.js").read_text(encoding="utf-8")
+    assert js.count("pickTypes(") >= 5                                                  # picker before every contractor export

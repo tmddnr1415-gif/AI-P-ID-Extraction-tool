@@ -47,6 +47,37 @@ function modal(title, html, buttons) {
     const f = $('#mBody input, #mBody textarea'); if (f) setTimeout(() => f.focus(), 30);
   });
 }
+/* Issue Type picker — shown before every contractor export (Issue List Excel · Mark-up PDF). The last choice is kept. */
+const TYPE_KO = { 'Data Missing': '누락 · 빈 값', 'Open Item': 'HOLD / TBC', 'Data Error': '데이터 오류', 'PMS Non-Compliance': 'PMS 부적합',
+  'PMS Review': 'PMS 확인', 'Process Mismatch': 'Process Data 불일치', 'Material Review': '재질 검토', 'Valve Review': '설계 · 다른 DS 대비 검토',
+  'Revision Change': 'Revision 변경', 'Reviewer Correction': '검토자 수정', 'Reviewer Comment': '검토자 의견', 'Extraction Review': '도구 내부 확인 (설계사용 아님)' };
+async function pickTypes(title, { tag = '', preset = null, note = '' } = {}) {
+  const r = await api('GET', `/projects/${S.pid}/issues`);
+  const live = r.issues.filter(i => i.status !== 'Dismissed' && (!tag || i.tag === tag));
+  const cnt = t => live.filter(i => i.type === t).length;
+  const contractor = r.types.filter(t => t !== 'Extraction Review');
+  const saved = LS.get('xtypes', null);
+  const on = new Set(preset || saved || contractor);
+  const row = t => `<label class="tp ${cnt(t) ? '' : 'zero'}"><input type="checkbox" data-ty="${esc(t)}" ${on.has(t) ? 'checked' : ''}> <b>${esc(t)}</b>
+      <span class="soft">${esc(TYPE_KO[t] || '')}</span><span class="n">${cnt(t)}</span></label>`;
+  const html = `${note ? `<p class="soft">${esc(note)}</p>` : ''}<div class="tpbar"><button type="button" data-tpall="1">전체</button><button type="button" data-tpall="0">모두 끄기</button>
+      <button type="button" data-tpdef="1">설계사용 기본</button><span class="sp"></span><span id="tpsum" class="soft"></span></div>
+    <div class="tplist">${r.types.map(row).join('')}</div><p class="soft" style="margin:6px 0 0">Dismissed 는 넣지 않습니다. 고른 종류는 다음 출력 때도 그대로 기억합니다.</p>`;
+  const done = modal(title, html, [['취소', null], ['만들기', 'go', 1]]);
+  const box = $('#mBody'), sum = () => { const ts = $$('input[data-ty]:checked', box).map(x => x.dataset.ty);
+    $('#tpsum', box).textContent = `${ts.length}종 · ${ts.reduce((a, t) => a + cnt(t), 0)}건`; const b = [...$$('#mAct button')].pop(); if (b) b.disabled = !ts.length; };
+  box.onclick = e => { const a = e.target.closest('[data-tpall]'), d = e.target.closest('[data-tpdef]');
+    if (a) $$('input[data-ty]', box).forEach(x => { x.checked = a.dataset.tpall === '1'; });
+    if (d) $$('input[data-ty]', box).forEach(x => { x.checked = contractor.includes(x.dataset.ty); });
+    sum(); };
+  box.onchange = sum; sum();
+  const res = await done;
+  box.onclick = box.onchange = null;
+  if (res !== 'go') return null;
+  const ts = $$('input[data-ty]:checked', box).map(x => x.dataset.ty);
+  if (!preset) LS.set('xtypes', ts);
+  return ts.join(',');
+}
 async function download(path, method = 'GET', body) {
   const r = await api(method, path, body, true);
   const cd = r.headers.get('Content-Disposition') || '';
@@ -475,7 +506,8 @@ function watch(job) {
         box.insertAdjacentHTML('beforeend', `<div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap;align-items:center"><b>결과 파일</b>${j.exports.map(f => `<a class="btnlink" href="${f.url}" download>⇩ ${esc(f.kind)}</a>`).join('')}
           <button data-go="list">Excel List 보기 (PDF 미리보기 연동)</button><button id="jmk">⇩ Mark-up PDF</button><span class="soft">Excel 의 칸 · 링크를 누르면 이 도구가 그 PDF 장 · 위치를 엽니다</span></div>`);
         j.exports.forEach((f, n) => setTimeout(() => { const a = document.createElement('a'); a.href = f.url; a.download = f.name; document.body.append(a); a.click(); a.remove(); }, 300 + n * 900));
-        $('#jmk', box).onclick = () => { toast('Mark-up PDF 를 만드는 중…'); download(`/projects/${S.pid}/markup.pdf`).catch(e => toast(e.message, 1)); };
+        $('#jmk', box).onclick = async () => { const t = await pickTypes('Mark-up PDF — 넣을 Issue Type'); if (t == null) return;
+          toast('Mark-up PDF 를 만드는 중…'); download(`/projects/${S.pid}/markup.pdf?types=${encodeURIComponent(t)}`).catch(e => toast(e.message, 1)); };
         await refresh(); return;
       }
       await refresh(); setTimeout(() => { box.dataset.gone = '1'; box.remove(); }, j.errors.length ? 20000 : 5000);
@@ -659,8 +691,13 @@ async function renderIssues() {
   $('#it').onchange = e => { IF.type = e.target.value; re(); }; $('#isv').onchange = e => { IF.sev = e.target.value; re(); };
   $('#ist').onchange = e => { IF.st = e.target.value; re(); }; $('#iint').onchange = e => { IF.internal = e.target.checked; re(); };
   const qs = () => new URLSearchParams({ types: IF.type || (IF.internal ? [...types].join(',') : ''), severity: IF.sev, tag: q ? [...new Set(L.map(i => i.tag))].join(',') : '' }).toString();
-  $('#ixl').onclick = () => download(`/projects/${S.pid}/issues.xlsx?${qs()}`).then(r => toast(`Issue List ${r.headers.get('X-Count')}행 — 설계사에게 바로 보낼 수 있습니다`)).catch(e => toast(e.message, 1));
-  $('#ipdf').onclick = () => { toast('Mark-up PDF 를 만드는 중… (Tag 수에 따라 수십 초)'); download(`/projects/${S.pid}/markup.pdf?${qs()}`).then(() => toast('내려받음 — 인쇄하면 표시도 같이 나옵니다')).catch(e => toast(e.message, 1)); };
+  const pick = async what => { const t = await pickTypes(`${what} — 넣을 Issue Type`, { preset: IF.type ? [IF.type] : null,
+      note: [IF.sev && `Severity ${IF.sev}`, q && `검색 '${q}' 에 걸린 Tag 만`].filter(Boolean).join(' · ') || '' });
+    if (t == null) return null; const p = new URLSearchParams(qs()); p.set('types', t); return p.toString(); };
+  $('#ixl').onclick = async () => { const p = await pick('Issue List Excel'); if (p == null) return;
+    download(`/projects/${S.pid}/issues.xlsx?${p}`).then(r => toast(`Issue List ${r.headers.get('X-Count')}행 — 설계사에게 바로 보낼 수 있습니다`)).catch(e => toast(e.message, 1)); };
+  $('#ipdf').onclick = async () => { const p = await pick('Mark-up PDF'); if (p == null) return;
+    toast('Mark-up PDF 를 만드는 중… (Tag 수에 따라 수십 초)'); download(`/projects/${S.pid}/markup.pdf?${p}`).then(() => toast('내려받음 — 인쇄하면 표시도 같이 나옵니다')).catch(e => toast(e.message, 1)); };
   const tb = $('#ig tbody');
   tb.onclick = async e => {
     if (e.target.closest('select')) return;
@@ -1097,8 +1134,9 @@ async function markCmd(cmd) {
   }
 }
 async function exportMarkup() {
+  const t = await pickTypes(`Mark-up PDF (${S.ds.tag}) — 넣을 Issue Type`, { tag: S.ds.tag_key }); if (t == null) return;
   toast('Mark-up PDF 를 만드는 중…');
-  try { await download(`/projects/${S.pid}/markup.pdf?tag=${encodeURIComponent(S.ds.tag_key)}`); toast('내려받음 — 원본은 그대로, 번호 붙은 표시 + Issue Summary 쪽 (인쇄하면 표시도 같이 나옵니다)'); }
+  try { await download(`/projects/${S.pid}/markup.pdf?tag=${encodeURIComponent(S.ds.tag_key)}&types=${encodeURIComponent(t)}`); toast('내려받음 — 원본은 그대로, 번호 붙은 표시 + Issue Summary 쪽 (인쇄하면 표시도 같이 나옵니다)'); }
   catch (e) { toast(e.message, 1); }
 }
 async function openPmsRef(page, bbox) { return openRef(S.ds?.pms_doc || S.pmsDoc, page, bbox, 'PMS'); }
@@ -1299,8 +1337,8 @@ async function renderExport() {
   };
   const EX = {                                             // kind → [label, filename hint, scope lines, runner]
     vl: ['Valve List Excel', (vl ? vl.filename.replace(/\.xlsx?$/i, '') : 'Valve_List') + '_<날짜>.xlsx', [`Tag ${k.tags}개 (최신 Revision)`, 'Vendor 행 삭제 · 바뀐 칸 노랑'], () => download(`/projects/${S.pid}/valvelist.xlsx`)],
-    iss: ['Issue List Excel', 'Issue_List_<날짜>.xlsx', [`지적 ${issN}건 · Dismissed 제외`, '시트: Issue List · Summary by Tag · Info'], () => download(`/projects/${S.pid}/issues.xlsx`)],
-    pdf: ['Mark-up PDF (전체 Tag)', 'Markup_<프로젝트>_<날짜>.pdf', [`지적이 있는 Tag 만 (${S.sum.tags.filter(t => t.problems).length}개)`, '표지 · Issue Summary 쪽 · 책갈피 · 인쇄 플래그 · 1분 안팎'], () => download(`/projects/${S.pid}/markup.pdf`)],
+    iss: ['Issue List Excel', 'Issue_List_<날짜>.xlsx', [`지적 ${issN}건 · Dismissed 제외`, '시트: Issue List · Summary by Tag · Info'], t => download(`/projects/${S.pid}/issues.xlsx?types=${encodeURIComponent(t)}`)],
+    pdf: ['Mark-up PDF (전체 Tag)', 'Markup_<프로젝트>_<날짜>.pdf', [`지적이 있는 Tag 만 (${S.sum.tags.filter(t => t.problems).length}개)`, '표지 · Issue Summary 쪽 · 책갈피 · 인쇄 플래그 · 1분 안팎'], t => download(`/projects/${S.pid}/markup.pdf?types=${encodeURIComponent(t)}`)],
     csv: ['Extracted Fields CSV', 'extracted_fields.csv', [`Tag ${k.tags}개 모든 칸`], () => download(`/projects/${S.pid}/extracted.csv`)],
     revx: ['Revision 비교 Excel', 'Revision_Comparison_<날짜>.xlsx', [`Revision 이 둘 이상인 Tag ${k.revision_changes}개 · 바뀐 칸(Added · Deleted · Modified)`], () => download(`/projects/${S.pid}/revisions.xlsx`)],
     fb: ['Review Feedback (json)', 'valve_feedback_<프로젝트>_<날짜>.json', ['Confirmed / Dismissed · 고친 값 · 직접 그린 Error/Missing', '고객 값 포함 — 사내 경로로만'], () => download(`/projects/${S.pid}/feedback.json`)],
@@ -1313,8 +1351,13 @@ async function renderExport() {
   };
   const stat = (cls, msg) => { const x = $('#exstat'); if (x) { x.className = 'exstat ' + cls; x.innerHTML = msg; } };
   $$('[data-ex]', el).forEach(b => b.onclick = async () => {
-    const [label, fn, scope, run] = EX[b.dataset.ex];
-    const ok = await modal(`${label} 만들기`, `<table class="t"><tbody><tr><td class="soft">프로젝트</td><td><b>${esc(pname)}</b></td></tr><tr><td class="soft">파일</td><td class="mono">${esc(fn)}</td></tr>
+    const [label, fn, scope, run0] = EX[b.dataset.ex];
+    let run = run0;
+    if (b.dataset.ex === 'iss' || b.dataset.ex === 'pdf') {          // contractor outputs: choose the issue types (replaces the confirm box)
+      const t = await pickTypes(`${label} — 넣을 Issue Type`, { note: `${pname} · ${fn}` }); if (t == null) return;
+      run = () => run0(t);
+    }
+    const ok = run !== run0 ? 1 : await modal(`${label} 만들기`, `<table class="t"><tbody><tr><td class="soft">프로젝트</td><td><b>${esc(pname)}</b></td></tr><tr><td class="soft">파일</td><td class="mono">${esc(fn)}</td></tr>
       ${scope.map(x => `<tr><td class="soft">범위</td><td>${esc(x)}</td></tr>`).join('')}</tbody></table>`, [['취소', 0], ['만들기', 1, 1]]);
     if (!ok) return;
     b.disabled = true; stat('busy', `⏳ ${esc(label)} 만드는 중…`);

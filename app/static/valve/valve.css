@@ -420,3 +420,9 @@ table.t.proc td { padding: 4px 6px; }
 details.kb { font-size: 12px; margin: 3px 0; } details.kb summary { cursor: pointer; color: #0b6f6f; }
 details.kb p { margin: 4px 0 4px 14px; }
 .mshort { font-weight: 600; background: #fff; border: 1px dashed #9fd6d6; padding: 2px 6px; margin: 3px 0; border-radius: 3px; }
+/* issue type picker (contractor exports) */
+.tpbar { display: flex; gap: 6px; align-items: center; margin-bottom: 6px; } .tpbar .sp { flex: 1; }
+.tplist { display: flex; flex-direction: column; gap: 1px; max-height: 56vh; overflow: auto; }
+label.tp { display: grid; grid-template-columns: 20px 160px 1fr 44px; box-sizing: border-box; gap: 6px; align-items: center; padding: 4px 6px; border-radius: 4px;
+  cursor: pointer; white-space: nowrap; text-align: left; } label.tp input { margin: 0; } label.tp .n { text-align: right; }
+label.tp:hover { background: #f2f5f9; } label.tp .n { font-weight: 600; } label.tp.zero { opacity: .55; }

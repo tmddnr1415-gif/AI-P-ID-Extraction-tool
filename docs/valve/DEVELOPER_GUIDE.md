@@ -689,6 +689,7 @@ python3 spike/pack_delta.py --name valve05 --base 9429f4f \
 | valve10 | 〃 | **PMS 검토 점검**(Ball 품목 Trim 우선 · P-T 표 · Service · Class Notes 읽기) · **특수 요구사항 열**(PFP · Fugitive · NACE …) · **재질 검토 엔진 MR-01~15**(Material 탭 · Issue 'Material Review' · Valve List 열) |
 | valve11 | 〃 | **Ball Valve 엔지니어 검토**: 지식 28항목(`knowledge.py`) · 설계 규칙 VR-01~15 · 프로젝트 데이터시트 학습 PC-01 · Expert 탭 · Settings › Ball Valve 지식 |
 | valve12 | 〃 | 설계사 코멘트 핵심만: 규칙별 `short` 한 줄(≤120자) → Issue List · Mark-up PDF · Valve List, 긴 설명은 Expert 탭 · 다른 지적 문구도 줄임 |
+| valve13 | 〃 | 설계사용 출력(Issue List Excel · Mark-up PDF) 전에 Issue Type 선택 창 — 건수 · 전체/끄기/기본 · 선택 기억 (`pickTypes` · `TYPE_KO`) |
 
 **남은 일**
 1. 회사 적용 확인: .xls 자동 변환, 456쪽 처리 시간, 화면 글꼴, Edge 에서 Mark-up · 패널 접기, 내보낸 PDF 를 Acrobat 에서 열기, 1366×768 노트북에서 작업대.
