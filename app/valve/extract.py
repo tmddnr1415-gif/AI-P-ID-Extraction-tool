@@ -26,7 +26,7 @@ from app.valve import schema
 
 _DOC_RE = re.compile(r"\b\d{2,3}-\d{2}-IN-DTS-\d{5}\b")
 _ANY_DOC_RE = re.compile(r"\b[0-9A-Z]{2,5}-[0-9A-Z]{2,4}-[A-Z]{2}-[A-Z]{3}-\d{5}\b")
-_NOTE_REF = re.compile(r"(general\s*note|note)\s*[-–:#]?\s*(\d+)", re.I)
+_NOTE_REF = re.compile(r"(gen(?:eral|\.)?\s*note|note)\s*[-–:#]?\s*(\d+)", re.I)
 
 
 # ── geometry helpers ────────────────────────────────────────────────────────────
@@ -532,9 +532,18 @@ def _general_notes(text: str):
     body = text[m.end():]
     body = re.split(r"\n\s*\d\.\s*\n\s*ATTACHMENT|\n\s*ATTACHMENT-", body)[0]
     lines = [ln.strip() for ln in body.split("\n")]
-    out, cur = {}, None
-    for ln in lines:
-        if not ln or re.match(r"^Page \d+ of \d+", ln):
+    out, cur, skip = {}, None, 0
+    heads = ("COMPANY:", "Contract No.:", "PROJECT:", "Doc. No.:", "CONTRACTOR:", "Doc. Title:")
+    for i, ln in enumerate(lines):
+        if skip:                                             # repeated page header between notes
+            skip -= 1
+            continue
+        if ln in heads:
+            skip = 1
+            if ln == "Doc. Title:" and i + 2 < len(lines) and lines[i + 2] and lines[i + 2] == lines[i + 2].upper():
+                skip = 2
+            continue
+        if not ln or re.match(r"^Page \d+ of \d+", ln) or re.match(r"^Rev\.\s*\S*$", ln):
             continue
         mm = re.match(r"^(\d{1,2})\.\s+(.*)", ln)
         if mm and (cur is None or int(mm.group(1)) == cur + 1):
@@ -592,9 +601,10 @@ def group_datasheets(result: dict):
         if starts or cur is None:
             cur = {"tag": sh["tag"], "tag_key": schema.norm_tag(sh["tag"]), "doc_no": sh["doc_no"], "rev": sh["rev"],
                    "date": sh["date"], "title": sh["title"], "rev_history": list(sh["rev_history"]),
-                   "pages": [], "fields": {}, "rows": [], "notes": []}
+                   "pages": [], "fields": {}, "rows": [], "notes": [], "sheets": []}
             out.append(cur)
         cur["pages"].append(sh["page"])
+        cur["sheets"].append([sh["page"], sh.get("sheet"), sh.get("of")])     # PDF page -> 'Sheet x of y' on the form
         for r in sh["rows"]:
             r = dict(r, page=sh["page"])
             cur["rows"].append(r)
@@ -613,7 +623,7 @@ def group_datasheets(result: dict):
             m = _NOTE_REF.search(r["value"] or "")
             if m:
                 no = int(m.group(2))
-                if m.group(1).lower().startswith("general"):
+                if m.group(1).lower().startswith("gen"):
                     if no in gn:
                         r["ref"] = {"kind": "general", "no": no, "text": gn[no]}
                 else:

@@ -12,6 +12,7 @@ Tables
   field      id · datasheet_id · key · section · display · label · row · value · unit · page · bbox(json) ·
              status (ok|blank|placeholder|review) · ref(json) · edited_value · edited_by · edited_at
   audit      id · project_id · datasheet_id · field_key · action · before · after · by · at · comment
+  issue_state datasheet_id · ikey · status (Open|Confirmed|Dismissed|Resolved) · note · by · at  (computed issues' review state)
   comment    id · datasheet_id · field_key · text · by · at · page · bbox(json) · category · deleted
              (a user annotation is a comment with a page and box; deleting keeps the row, deleted=1)
 """
@@ -43,6 +44,8 @@ CREATE TABLE IF NOT EXISTS field (id INTEGER PRIMARY KEY, datasheet_id INTEGER, 
 CREATE INDEX IF NOT EXISTS field_ds ON field(datasheet_id);
 CREATE TABLE IF NOT EXISTS audit (id INTEGER PRIMARY KEY, project_id INTEGER, datasheet_id INTEGER, field_key TEXT,
   action TEXT, before TEXT, after TEXT, by TEXT, at TEXT, comment TEXT);
+CREATE TABLE IF NOT EXISTS issue_state (datasheet_id INTEGER, ikey TEXT, status TEXT, note TEXT, by TEXT, at TEXT,
+  PRIMARY KEY (datasheet_id, ikey));
 CREATE TABLE IF NOT EXISTS comment (id INTEGER PRIMARY KEY, datasheet_id INTEGER, field_key TEXT, text TEXT,
   by TEXT, at TEXT, page INTEGER, bbox TEXT, category TEXT DEFAULT 'comment', deleted INTEGER DEFAULT 0);
 """
@@ -66,7 +69,8 @@ def connect() -> sqlite3.Connection:
     return con
 
 
-_ADDED = {"comment": [("page", "INTEGER"), ("bbox", "TEXT"), ("category", "TEXT DEFAULT 'comment'"),
+_ADDED = {"datasheet": [("sheets", "TEXT")],
+          "comment": [("page", "INTEGER"), ("bbox", "TEXT"), ("category", "TEXT DEFAULT 'comment'"),
                       ("deleted", "INTEGER DEFAULT 0")]}
 
 
@@ -87,6 +91,13 @@ def rows(con, sql, *args):
 def one(con, sql, *args):
     r = con.execute(sql, args).fetchone()
     return dict(r) if r else None
+
+
+def write_json(path: Path, obj) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    tmp = path.with_suffix(path.suffix + ".part")
+    tmp.write_text(json.dumps(obj, ensure_ascii=False), encoding="utf-8")
+    tmp.replace(path)
 
 
 def J(v):
@@ -137,9 +148,10 @@ def save_original(data: bytes, filename: str) -> tuple[str, Path]:
 def insert_datasheet(con, project_id: int, document_id: int, ds: dict) -> int:
     cur = con.execute(
         "INSERT INTO datasheet(project_id, document_id, tag, tag_key, valve_type, doc_no, rev, rev_date, title, form,"
-        " pages, notes, rev_history, created_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+        " pages, notes, rev_history, created_at, sheets) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
         (project_id, document_id, ds["tag"], ds["tag_key"], ds["valve_type"], ds["doc_no"], ds["rev"], ds.get("date", ""),
-         ds.get("title", ""), ds.get("form", ""), J(ds["pages"]), J(ds["notes"]), J(ds.get("rev_history", [])), now()))
+         ds.get("title", ""), ds.get("form", ""), J(ds["pages"]), J(ds["notes"]), J(ds.get("rev_history", [])), now(),
+         J(ds.get("sheets"))))
     dsid = cur.lastrowid
     con.executemany(
         "INSERT INTO field(datasheet_id, key, section, display, label, row, value, unit, page, bbox, status, ref)"

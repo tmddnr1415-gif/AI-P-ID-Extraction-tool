@@ -24,7 +24,7 @@ from fastapi.responses import FileResponse, JSONResponse, RedirectResponse, Resp
 from starlette.concurrency import run_in_threadpool
 
 from app import paths
-from app.valve import extract, schema, store, tbe
+from app.valve import extract, issues as issuesmod, material, pms as pmsmod, schema, store, tbe
 
 router = APIRouter()
 _JOBS: dict[str, dict] = {}
@@ -119,6 +119,13 @@ def summary(pid: int):
         for s in vl["info"].get("sheets", []):
             vl_tags |= {schema.norm_tag(t) for t in s.get("tags", [])}
     done = sum(1 for d in latest.values() if d["review_status"] in ("Accepted", "Resolved"))
+    has_pms = any(d["kind"] == "pms" and d["status"] == "done" for d in docs)
+    irows = project_issues(con, pid) if latest else []
+    ic = _issue_counts(irows)
+    per_tag = {}
+    for i in irows:
+        if i["status"] != "Dismissed" and i["severity"] in ("Major", "Minor"):
+            per_tag[i["ds_id"]] = per_tag.get(i["ds_id"], 0) + 1
     activity = store.rows(con, "SELECT a.*, d.tag, d.rev FROM audit a LEFT JOIN datasheet d ON d.id=a.datasheet_id"
                                " WHERE a.project_id=? ORDER BY a.id DESC LIMIT 30", pid)
     return {
@@ -126,11 +133,15 @@ def summary(pid: int):
         "kpi": {"tags": len(latest), "datasheets": len(dss),
                 "new_tags": len([k for k in latest if vl and k not in vl_tags]),
                 "revision_changes": sum(1 for v in revs.values() if len(v) > 1),
-                "process_mismatch": None, "pms_noncompliant": None,     # Phase 3 · 4 engines not connected yet
+                "process_mismatch": None,                              # Phase 3 engine not connected yet
+                "pms_noncompliant": (ic.get("PMS Non-Compliance", 0) if has_pms else None),
+                "data_errors": ic.get("Data Error", 0), "data_missing": ic.get("Data Missing", 0),
+                "open_items": ic.get("Open Item", 0), "pms_review": ic.get("PMS Review", 0) if has_pms else None,
                 "pending": len(latest) - done, "completed": done,
                 "review_required": sum(issues.get(d["id"], 0) for d in latest.values())},
         "has_valvelist": bool(vl),
-        "tags": [dict(d, issues=issues.get(d["id"], 0), revs=sorted(revs[k], key=store.rev_key),
+        "has_pms": has_pms,
+        "tags": [dict(d, issues=issues.get(d["id"], 0), problems=per_tag.get(d["id"], 0), revs=sorted(revs[k], key=store.rev_key),
                       in_valvelist=(k in vl_tags) if vl else None) for k, d in sorted(latest.items())],
         "documents": docs,
         "activity": activity,
@@ -188,8 +199,20 @@ def _process(jid: str, pid: int, items: list[tuple[int, str, str, Path]], by: st
                 con.execute("UPDATE document SET status='done', info=? WHERE id=?", (store.J(info), doc_id))
                 store.audit(con, pid, None, None, "upload", None, name, by, "valve list")
                 con.commit()
-            else:                                        # process · pms: kept, indexed by page; engines are Phase 3 · 4
-                info = {"note": "보관됨 — 비교 엔진은 다음 단계(Phase 3·4)에서 연결됩니다"}
+            elif kind == "pms":                          # class sheets -> {data}/valve/pms/<doc>.json (pms.read_pms)
+                def prog(i, n, base=done):
+                    _job(jid, done=base + i, msg=f"{name} · PMS {i}/{n} 쪽")
+                parsed = pmsmod.read_pms(str(path), progress=prog)
+                store.write_json(store.root() / "pms" / f"{doc_id}.json", parsed)
+                _PMS_CACHE.pop(doc_id, None)
+                info = {"areas": {a: len(c) for a, c in parsed["areas"].items()},
+                        "classes": sorted({k for c in parsed["areas"].values() for k in c}),
+                        "note": f"Class {sum(len(c) for c in parsed['areas'].values())}개 읽음 — PMS Compliance 에 바로 쓰입니다"}
+                con.execute("UPDATE document SET status='done', info=? WHERE id=?", (store.J(info), doc_id))
+                store.audit(con, pid, None, None, "upload", None, name, by, "pms")
+                con.commit()
+            else:                                        # process: kept, indexed by page; engine is Phase 3
+                info = {"note": "보관됨 — Process Data 비교 엔진은 다음 단계(Phase 3)에서 연결됩니다"}
                 con.execute("UPDATE document SET status='done', info=? WHERE id=?", (store.J(info), doc_id))
                 con.commit()
         except Exception as e:                           # noqa: BLE001 — one bad file must not stop the batch
@@ -265,12 +288,29 @@ def retry(doc_id: int, request: Request):
 
 # ── datasheets ──────────────────────────────────────────────────────────────────
 
-def _ds_full(con, dsid):
+_PMS_CACHE: dict[int, dict] = {}
+
+
+def _pms_for(con, pid):
+    """(parsed PMS, document row) of the project's newest PMS upload, or (None, None)."""
+    doc = store.one(con, "SELECT id, filename FROM document WHERE project_id=? AND kind='pms' AND status='done'"
+                         " ORDER BY id DESC", pid)
+    if not doc:
+        return None, None
+    if doc["id"] not in _PMS_CACHE:
+        p = store.root() / "pms" / f"{doc['id']}.json"
+        if not p.exists():
+            return None, None
+        _PMS_CACHE[doc["id"]] = json.loads(p.read_text(encoding="utf-8"))
+    return _PMS_CACHE[doc["id"]], doc
+
+
+def _ds_full(con, dsid, deep=True):
     d = store.one(con, "SELECT * FROM datasheet WHERE id=?", dsid)
     if not d:
         return None
-    for k in ("pages", "notes", "rev_history"):
-        d[k] = store.unJ(d[k], [])
+    for k in ("pages", "notes", "rev_history", "sheets"):
+        d[k] = store.unJ(d.get(k), [])
     fs = store.rows(con, "SELECT * FROM field WHERE datasheet_id=? ORDER BY row, id", dsid)
     for f in fs:
         f["bbox"], f["ref"] = store.unJ(f["bbox"]), store.unJ(f["ref"])
@@ -286,6 +326,20 @@ def _ds_full(con, dsid):
     for c in d["comments"]:
         c["bbox"] = store.unJ(c["bbox"])
     d["history"] = store.rows(con, "SELECT * FROM audit WHERE datasheet_id=? ORDER BY id DESC", dsid)
+    d["doc_title"] = (gn or {}).get("title", "")
+    d["area"] = pmsmod.area_of_title(d["doc_title"])
+    if not deep:
+        return d
+    pms, pdoc = _pms_for(con, d["project_id"])
+    F = {f["key"]: f for f in fs}
+    d["pms"] = pmsmod.check(F, pms, d["area"]) if pms else None
+    d["pms_doc"] = pdoc
+    prev = None
+    i = next((n for n, r in enumerate(d["revisions"]) if r["id"] == d["id"]), 0)
+    if i > 0:
+        prev = compare(_ds_full(con, d["revisions"][i - 1]["id"], deep=False), d)
+    states = {r["ikey"]: r for r in store.rows(con, "SELECT * FROM issue_state WHERE datasheet_id=?", dsid)}
+    d["issues"] = issuesmod.compute(d, d["general_notes"], pms, d["area"], prev, states)
     return d
 
 
@@ -380,6 +434,69 @@ async def comment_edit(cid: int, request: Request):
     return _ds_full(con, c["datasheet_id"])
 
 
+# ── issues (rule-based — app/valve/issues.py) ──────────────────────────────────
+
+_ISSUE_CACHE: dict[int, tuple] = {}
+ISSUE_STATUSES = ["Open", "Confirmed", "Dismissed", "Resolved"]
+
+
+def project_issues(con, pid) -> list[dict]:
+    """Issues of the newest revision of every tag, with tag · doc · file on each row.  Cached until the next write
+    (every write leaves an audit row, so the newest audit id is the version)."""
+    ver = (con.execute("SELECT COALESCE(MAX(id),0) FROM audit WHERE project_id=?", (pid,)).fetchone()[0],
+           con.execute("SELECT COUNT(*) FROM document WHERE project_id=?", (pid,)).fetchone()[0])
+    hit = _ISSUE_CACHE.get(pid)
+    if hit and hit[0] == ver:
+        return hit[1]
+    latest = _latest(store.rows(con, "SELECT id, tag_key, rev FROM datasheet WHERE project_id=?", pid))
+    out = []
+    for d in sorted(latest.values(), key=lambda d: d["tag_key"]):
+        x = _ds_full(con, d["id"])
+        for i in x["issues"]:
+            out.append(dict(i, ds_id=x["id"], tag=x["tag_key"], tag_raw=x["tag"], valve_type=x["valve_type"],
+                            doc_no=x["doc_no"], rev=x["rev"], document_id=x["document_id"], filename=x["filename"],
+                            review_status=x["review_status"]))
+    _ISSUE_CACHE[pid] = (ver, out)
+    return out
+
+
+def _issue_counts(rows):
+    c = {}
+    for i in rows:
+        if i["status"] == "Dismissed":
+            continue
+        c[i["type"]] = c.get(i["type"], 0) + 1
+    return c
+
+
+@router.get("/api/valve/projects/{pid}/issues")
+async def issues_list(pid: int):
+    con = store.connect()
+    rows = await run_in_threadpool(project_issues, con, pid)
+    return {"issues": rows, "counts": _issue_counts(rows), "types": issuesmod.CONTRACTOR_TYPES + ["Extraction Review"],
+            "statuses": ISSUE_STATUSES}
+
+
+@router.put("/api/valve/datasheets/{dsid}/issues/{ikey:path}")
+async def issue_state(dsid: int, ikey: str, request: Request):
+    body = await request.json()
+    st = body.get("status", "Open")
+    if st not in ISSUE_STATUSES:
+        return _err("상태 값이 잘못됐습니다")
+    con = store.connect()
+    d = store.one(con, "SELECT project_id FROM datasheet WHERE id=?", dsid)
+    if not d:
+        return _err("없는 데이터시트", 404)
+    by = _user(request)
+    with store._LOCK:
+        old = store.one(con, "SELECT * FROM issue_state WHERE datasheet_id=? AND ikey=?", dsid, ikey)
+        con.execute("INSERT OR REPLACE INTO issue_state(datasheet_id, ikey, status, note, by, at) VALUES (?,?,?,?,?,?)",
+                    (dsid, ikey, st, str(body.get("note", ""))[:2000], by, store.now()))
+        store.audit(con, d["project_id"], dsid, ikey, "issue", (old or {}).get("status", "Open"), st, by, body.get("note", ""))
+        con.commit()
+    return {"ok": True, "status": st}
+
+
 # ── revision comparison (deterministic, by extracted field) ─────────────────────
 
 def compare(prev: dict, new: dict) -> list[dict]:
@@ -390,8 +507,8 @@ def compare(prev: dict, new: dict) -> list[dict]:
         a, b = pf.get(k), nf.get(k)
         va, vb = (store.field_value(a) if a else ""), (store.field_value(b) if b else "")
         ua, ub = (a or {}).get("unit") or "", (b or {}).get("unit") or ""
-        if (va, ua) == (vb, ub):
-            kind = "Unchanged"
+        if (va, ua) == (vb, ub) or (va and vb and ua == ub and material.same(va, vb)):
+            kind = "Unchanged"                           # '316 SS / HF' -> 'SS 316/HF' is the same value
         elif not va and vb:
             kind = "Added"
         elif va and not vb:
