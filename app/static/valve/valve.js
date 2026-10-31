@@ -673,7 +673,7 @@ async function renderList() {
   });
 }
 const IF = { type: '', sev: '', st: '', q: '', area: '', internal: false };
-async function renderIssues() {
+async function renderIssues(rowsOnly) {
   const el = $('#v-list');
   if (!S.issues) { el.innerHTML = '<div class="empty">지적 사항을 계산하는 중…</div>'; S.issues = (await api('GET', `/projects/${S.pid}/issues`)).issues; }
   const all = S.issues.filter(i => IF.internal || i.type !== 'Extraction Review');
@@ -688,21 +688,22 @@ async function renderIssues() {
         <td title="${esc(i.field)}">${esc(i.field)}${i.row ? ` <small>#${i.row}</small>` : ''}</td><td title="${esc(i.value)}">${esc(i.value || '(blank)')}</td>
         <td>${pill(i.type.replace(/[^A-Za-z]/g, ''), i.type)}</td><td title="${esc(i.description)}">${esc(i.description)}</td><td title="${esc(i.expected)}">${esc(i.expected)}</td>
         <td>${pill(i.severity)}</td><td><select data-ist="${esc(i.ds_id + '|' + i.ikey)}" aria-label="status">${['Open', 'Confirmed', 'Dismissed', 'Resolved'].map(x => `<option ${x === i.status ? 'selected' : ''}>${x}</option>`).join('')}</select></td></tr>`), __fb = '<tr><td colspan="13" class="empty">조건에 맞는 지적 사항이 없습니다</td></tr>';
+  if (rowsOnly && $('#ig tbody', el)) { chunkRows($('#ig tbody', el), __rows, 250, __fb); const c = $('#icnt', el); if (c) c.textContent = `${L.length} / ${all.length}`; return; }
   el.innerHTML = `<div class="vh">${listTop()}<input type="search" id="iq" placeholder="Tag 검색" style="width:140px" value="${esc(IF.q)}">
       <select id="iar"><option value="">All Areas</option>${areas.map(a => `<option ${a === IF.area ? 'selected' : ''}>${esc(a)}</option>`).join('')}</select>
       <select id="it"><option value="">All Issue Types</option>${types.map(t => `<option ${t === IF.type ? 'selected' : ''} value="${esc(t)}">${esc(t)} (${cnt(t)})</option>`).join('')}</select>
       <select id="isv"><option value="">All Severity</option>${['Major', 'Minor', 'Info', 'Internal'].map(t => `<option ${t === IF.sev ? 'selected' : ''}>${t}</option>`).join('')}</select>
       <select id="ist"><option value="">All Status</option>${['Open', 'Confirmed', 'Dismissed', 'Resolved'].map(t => `<option ${t === IF.st ? 'selected' : ''}>${t}</option>`).join('')}</select>
       <label class="soft"><input type="checkbox" id="iint" ${IF.internal ? 'checked' : ''}> 추출 확인(내부)</label>
-      <span class="soft">${L.length} / ${all.length}</span><span class="sp"></span>
+      <span class="soft" id="icnt">${L.length} / ${all.length}</span><span class="sp"></span>
       <button id="ixl" title="지금 필터 그대로 · Dismissed 제외">⇩ Issue List Excel</button><button class="pri" id="ipdf" title="지금 필터 그대로 · 인쇄용 표시 + Issue Summary">⇩ Mark-up PDF</button></div>
     ${lpWrap(`<div class="xg-wrap"><table class="xg" id="ig" style="width:1500px"><colgroup>${[34, 110, 150, 40, 62, 46, 150, 150, 130, 330, 150, 64, 100].map(w => `<col style="width:${w}px">`).join('')}</colgroup>
       <thead><tr>${['No.', 'Tag Number', 'Doc. No.', 'Rev.', 'Sheet', 'Page', 'Field', 'Datasheet Value', 'Issue Type', 'Description', 'Required / Expected', 'Severity', 'Status'].map((h, n) => `<th ${n < 2 ? `class="fz ${n ? 'fzl' : ''}" style="left:${n ? 34 : 0}px"` : ''}>${h}</th>`).join('')}</tr></thead>
       <tbody></tbody></table></div>`)}`;
   $('.xg-wrap', el).scrollTop = keepY;
   $$('[data-lm]', el).forEach(b => b.onclick = () => { G.mode = b.dataset.lm; renderList(); });
-  const re = () => renderIssues();
-  $('#iq').oninput = e => { IF.q = e.target.value; clearTimeout(IF.t); IF.t = setTimeout(() => { re(); const f = $('#iq'); f.focus(); f.setSelectionRange(f.value.length, f.value.length); }, 250); };
+  const re = () => renderIssues(true);                       // filters only redraw the rows (toolbar · focus stay)
+  $('#iq').oninput = e => { IF.q = e.target.value; clearTimeout(IF.t); IF.t = setTimeout(re, 150); };
   $('#it').onchange = e => { IF.type = e.target.value; re(); }; $('#isv').onchange = e => { IF.sev = e.target.value; re(); }; $('#iar').onchange = e => { IF.area = e.target.value; re(); };
   $('#ist').onchange = e => { IF.st = e.target.value; re(); }; $('#iint').onchange = e => { IF.internal = e.target.checked; re(); };
   const qs = () => new URLSearchParams({ types: IF.type || (IF.internal ? [...types].join(',') : ''), severity: IF.sev, tag: q ? [...new Set(L.map(i => i.tag))].join(',') : '' }).toString();
@@ -1436,7 +1437,10 @@ function renderSettings() {
       <li>원본 파일은 덮어쓰지 않고, 수정은 읽은 값 옆에 수정자 · 시각과 함께 남습니다.</li><li>최종 판정 · 승인은 사용자가 합니다.</li></ul></div>
     <div class="card" style="grid-column:1/-1"><h3>Tag Numbering — 이 프로젝트의 Tag 에서 배운 Area · Unit 별 규칙</h3><div id="tgl" class="soft">불러오는 중…</div></div>
     <div class="card" style="grid-column:1/-1"><h3>Ball Valve 지식 — 검토 규칙의 근거</h3><div id="kbl" class="soft">불러오는 중…</div></div>
-    <div class="card"><h3>정보</h3><p>Ball Valve Datasheet Review · <b id="verinfo">…</b><br>서버: P&amp;ID 서버 /valve · 데이터: <span id="datadir">pid_data/valve/</span> (매일 첫 실행 때 backups/ 에 복사)</p></div></div>`;
+    <div class="card"><h3>정보</h3><p>Ball Valve Datasheet Review · <b id="verinfo">…</b><br>서버: P&amp;ID 서버 /valve · 데이터: <span id="datadir">pid_data/valve/</span> (매일 첫 실행 때 backups/ 에 복사)</p>
+      <p><button id="hchk">진단</button> <span id="hres" class="soft"></span></p></div></div>`;
+  $('#hchk').onclick = async () => { const h = await api('GET', '/health'); const bad = Object.entries(h.checks).filter(([k, v]) => v && typeof v === 'object' && v.ok === false).map(([k]) => k);
+    $('#hres').innerHTML = h.ok ? `<b style="color:var(--ok, #1aa35a)">정상</b> · DB ${h.checks.db?.datasheets ?? '?'} DS · 디스크 여유 ${h.checks.disk?.free_mb ?? '?'} MB · 백업 ${esc(h.checks.last_backup || '없음')} · 캐시 ${h.checks.review_cache}` : `<b style="color:var(--bad)">문제: ${esc(bad.join(', '))}</b> — 개발 쪽에 이 화면을 보내 주세요`; };
   api('GET', '/version').then(v => { $('#verinfo').textContent = v.version; $('#datadir').textContent = v.data_dir; }).catch(() => {});
   const rng = L => { const n = L.map(x => (x.match(/(\d+)\s*$/) || [])[1]).filter(Boolean); if (!n.length) return L.slice(0, 2).join(', ');
     const pre = L[0].replace(/\d+\s*$/, ''); const a = n.reduce((m, x) => +x < +m ? x : m), b = n.reduce((m, x) => +x > +m ? x : m);

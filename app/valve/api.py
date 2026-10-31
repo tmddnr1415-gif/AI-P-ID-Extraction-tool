@@ -292,6 +292,43 @@ def version():
     return {"version": VERSION, "data_dir": str(store.root())}
 
 
+@router.get("/api/valve/health")
+def health():
+    """Support check: database, data folder, cache, disk, versions — one call for the help desk."""
+    import shutil
+    import sys
+    out = {"version": VERSION, "python": sys.version.split()[0], "ok": True, "checks": {}}
+    try:
+        con = store.connect()
+        n = store.one(con, "SELECT COUNT(*) n FROM datasheet")["n"]
+        out["checks"]["db"] = {"ok": True, "datasheets": n, "path": str(store.root() / "valve.db")}
+    except Exception as e:                                   # noqa: BLE001
+        out["ok"] = False
+        out["checks"]["db"] = {"ok": False, "error": str(e)[:200]}
+    for name in ("files", "cache", "backups", "exports"):
+        p = store.root() / name
+        try:
+            p.mkdir(parents=True, exist_ok=True)
+            t = p / ".write_test"
+            t.write_text("ok")
+            t.unlink()
+            out["checks"][name] = {"ok": True}
+        except Exception as e:                               # noqa: BLE001
+            out["ok"] = False
+            out["checks"][name] = {"ok": False, "error": str(e)[:200]}
+    try:
+        u = shutil.disk_usage(str(store.root()))
+        out["checks"]["disk"] = {"ok": u.free > 500 * 1024 * 1024, "free_mb": u.free // 1048576}
+        out["ok"] = out["ok"] and out["checks"]["disk"]["ok"]
+    except Exception as e:                                   # noqa: BLE001
+        out["checks"]["disk"] = {"ok": False, "error": str(e)[:200]}
+    b = sorted((store.root() / "backups").glob("valve.db.*.bak"))
+    out["checks"]["last_backup"] = b[-1].name if b else None
+    out["checks"]["review_cache"] = len(list((store.root() / "cache" / "review").glob("*.json"))) if (store.root() / "cache" / "review").exists() else 0
+    out["checks"]["warming"] = sorted(_WARMING)
+    return out
+
+
 def warm_all():
     try:
         try:
