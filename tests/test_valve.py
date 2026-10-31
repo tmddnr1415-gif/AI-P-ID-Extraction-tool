@@ -636,3 +636,21 @@ def test_process_api_and_revision_excel(tmp_path, monkeypatch, pdf_path):
     assert x.status_code == 200 and int(x.headers["X-Count"]) >= 1
     ws = openpyxl.load_workbook(io.BytesIO(x.content))["Revision Changes"]
     assert [c.value for c in ws[1]][:4] == ["Tag Number", "Doc. No.", "Previous Rev.", "New Rev."] and ws.max_row >= 2
+
+
+def test_hold_anywhere_is_flagged():
+    """User request 2026-10-31: every HOLD / TBC must be commented so it gets released and a value given."""
+    ds = _ds_for_issues()
+    ds["fields"] += [dict(key=k, value=v, edited_value=None, status="ok", page=1, bbox=[1, 20 + n, 2, 21 + n], row=30 + n, display=d)
+                     for n, (k, v, d) in enumerate([("area_class", "HOLD", "Area Classification"),
+                                                   ("fire_safe", "HOLD (in accordance with API 607/ API 6FA)", "Fire Safe"),
+                                                   ("sov_tag", "Note-9, Hold-1", "Solenoid Tag"), ("typical", "TBC", "Typical Detail"),
+                                                   ("painting", "Holding paint system", "Painting")])]
+    ds["notes"] = [{"no": 8, "text": "VTA - Vendor to Advise, TBC - To be Confirmed, NA - Not Applicable.", "page": 2, "bbox": [1, 1, 2, 2]},
+                   {"no": 9, "text": "Partial Stroke Test: TBC based on SIL verification.", "page": 2, "bbox": [1, 3, 2, 4]},
+                   {"no": 1, "text": "Typical representation is on hold.", "page": 2, "bbox": [1, 5, 2, 6], "section": "HOLD"}]
+    got = {i["key"]: i for i in issues.compute(ds, {}) if i["type"] == "Open Item"}
+    assert {"area_class", "fire_safe", "sov_tag", "typical", "rating", "note.9", "note.hold.1"} <= set(got)
+    assert "painting" not in got and "note.8" not in got                       # 'Holding' is a word · the legend only defines TBC
+    assert "HOLD 1: Typical representation" in got["sov_tag"]["description"]  # 'Hold-1' points at the HOLD list
+    assert all(i["severity"] == "Major" and i["color"] == "missing" for i in got.values())

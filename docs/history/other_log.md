@@ -57,3 +57,8 @@
 - 요청: Process Data 가 없는 것은 전부 표기. (valve03 의 'Process DS 참조면 제외' 를 사용자가 뒤집음)
 - issues.py: PROCESS DATA 블록 전 항목(section process + Sour/Corrosive/Erosive/Toxic/Stroke) · Max/Nor/Min 은 셋 다 비면 한 건 · 참조 문서 명시 · Process Data 값을 Expected 로.
 - 실자료 Data Missing 0 → 2,529 (164 Tag). 읽기 지문 불변(바뀐 칸 0). 시험 38개(옛 'skips' 시험을 새 규칙으로 바꿈). 기준값 다시 저장.
+
+## 2026-10-31 · valve09 — HOLD / TBC 전부 지적 (브랜치 ccr-efbe7e75-n915ze)
+- 요청: HOLD 도 comment — 빨리 HOLD release 하고 값을 입력하게.
+- 전: 필수 18칸 · 값이 HOLD 로 시작할 때만 → 실자료 0건. 후: 모든 칸 · Note, 값 어디에 있어도(HOLD (…) · Hold-1 → HOLD 목록 글) · Major · 약어 설명 줄 제외.
+- 실자료 Open Item 84 (Area classification 14 · Fire Safe 11 · SOV Tag Hold-1 48 · Typical TBC 7 · Note 4). 읽기 지문 불변. 시험 39개.

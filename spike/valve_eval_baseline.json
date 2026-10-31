@@ -55,18 +55,19 @@
   "Body Material|Review Required": 2
  },
  "D": {
+  "Open Item|Major": 84,
   "Data Missing|Major": 2529,
   "Data Error|Major": 6,
   "PMS Review|Minor": 74,
   "Extraction Review|Internal": 1
  },
  "E": {
-  "extract_s": 11.74,
-  "extract_ms_per_page": 25.7,
-  "pms_read_s": 1.69,
-  "issues_ms_per_ds": 0.7,
-  "issue_xlsx_s": 7.53,
-  "markup_s_per_ds": 0.059,
-  "markup_kb_per_ds": 22.3
+  "extract_s": 10.7,
+  "extract_ms_per_page": 23.5,
+  "pms_read_s": 1.7,
+  "issues_ms_per_ds": 0.8,
+  "issue_xlsx_s": 7.39,
+  "markup_s_per_ds": 0.056,
+  "markup_kb_per_ds": 22.6
  }
 }

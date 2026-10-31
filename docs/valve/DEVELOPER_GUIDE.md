@@ -310,7 +310,7 @@ PDF 글자 층에는 **사람 눈에 안 보이는 글자**가 섞여 있다: �
 | 종류 | 색 | 심각도 | 규칙 |
 |---|---|---|---|
 | Data Missing | 주황 missing | Major | 필수 칸(REQUIRED 18)이 비어 있음 · **PROCESS DATA 블록의 모든 빈 항목**(section process + Sour Service · Corrosive · Erosive · Toxic · Stroke Time, Max/Nor/Min 은 셋 다 비면 한 건) — Process DS 를 참조해도 지적하고 참조 문서를 적으며, Process Data 에 값이 있으면 그 값을 Required/Expected 로 (valve08, 사용자 요청). 양식에 없는 칸은 지적하지 않음 |
-| Open Item | 주황 | Minor | 필수 칸이 HOLD / TBC / TBA |
+| Open Item | 주황 | **Major** | **모든 칸과 Note** 의 HOLD / TBC / TBA (값 어디에 있어도: 'HOLD (… API 607)' · 'Note-9, Hold-1' → HOLD 목록 항목 글을 붙임 · HOLD 목록 Note). 'TBC - To be Confirmed' 같은 약어 설명 줄은 제외 (valve09, 사용자 요청) |
 | Data Error | 빨강 error | Major | Line No. 의 Class ≠ Piping class(기본 Class 비교, '-QG1' 같은 꼬리 무시) · Line No. 의 크기 ≠ Line Size · 운전 > 설계(같은 단위) · Fail position ≠ Air failure 동작 · 문서에 없는 General Note / 데이터시트에 없는 Note 참조 · 엉뚱한 Note 참조 · **sheet 2 표제란 Doc. No. 불일치 · 뒷장이 반복한 Tag/PID/Service/Line 불일치**(valve05) |
 | PMS Non-Compliance | 빨강 | Major | `pms.check` → Non-Compliant |
 | PMS Review | 빨강 | Minor | `pms.check` → Review Required / Not Defined in PMS |

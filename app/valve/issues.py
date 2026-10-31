@@ -4,7 +4,7 @@ Rule-based only.  Every issue says what was checked against what:
 
   Data Missing        required field present on the form but empty · every blank PROCESS DATA item
                       (also when the sheet refers to a Process Data Sheet — the reference is named)   orange  Major
-  Open Item           required field says HOLD / TBC / TBA                             orange  Minor
+  Open Item           any field or note on HOLD / TBC / TBA ('HOLD (…)', 'Hold-1' → the HOLD list item)   orange  Major
   Data Error          the sheet contradicts itself:                                   red     Major
                         · Line No. class '(1C0K8)' ≠ Piping class
                         · Line No. size ≠ Line Size
@@ -44,7 +44,9 @@ CONTRACTOR_TYPES = ["Data Missing", "Open Item", "Data Error", "PMS Non-Complian
 # reviewer mark-up category -> (issue type, severity, description prefix) — the contractor reads one list
 MARK_TYPE = {"comment": ("Reviewer Comment", "Major", ""), "question": ("Reviewer Comment", "Minor", "Question: "),
              "error": ("Data Error", "Major", "Reviewer: "), "missing": ("Data Missing", "Major", "Reviewer: ")}
-_OPEN = re.compile(r"^\s*(HOLD|TBC|TBA|TO BE CONFIRMED)\b", re.I)
+_OPEN = re.compile(r"\b(HOLD|TBC|TBA)\b|\bto be confirmed\b", re.I)     # anywhere in the value: 'HOLD (… API 607)' · 'Note-9, Hold-1'
+_LEGEND = re.compile(r"\b(HOLD|TBC|TBA)\s*[-=:–]\s*to be\b", re.I)          # 'TBC - To be Confirmed' only defines the word
+_HOLD_REF = re.compile(r"\bhold\s*[-–#]?\s*(\d+)", re.I)                       # 'Hold-1' -> item 1 of the HOLD list
 _GN = re.compile(r"gen(?:eral|\.)?\s*note\s*[-–:#]?\s*(\d+)", re.I)   # 'General Note-8' · 'Gen Note-30'
 
 _N = re.compile(r"\bnote\s*[-–:#]?\s*(\d+)", re.I)                    # applied after _GN matches are removed
@@ -75,7 +77,7 @@ def compute(ds: dict, general_notes: dict | None = None, pms: dict | None = None
         page = page or f.get("page") or (ds["pages"][0] if ds.get("pages") else None)
         sh = sheets.get(page, (None, None))
         sev = severity or ("Info" if itype == "Revision Change" else "Internal" if itype == "Extraction Review"
-                           else "Minor" if itype in ("Open Item", "PMS Review") else "Major")
+                           else "Minor" if itype == "PMS Review" else "Major")   # HOLD / TBC = Major: release it and give the value
         ikey = f"{itype}:{key}"
         st = (states or {}).get(ikey, {})
         out.append({"ikey": ikey, "type": itype, "color": COLOR[itype], "severity": sev, "key": key,
@@ -96,8 +98,6 @@ def compute(ds: dict, general_notes: dict | None = None, pms: dict | None = None
         v = _v(f)
         if not v.strip():
             add("Data Missing", k, f"{f.get('display') or k}: no value given")
-        elif _OPEN.match(v):
-            add("Open Item", k, f"{f.get('display') or k} is still '{v}'")
     # process data — every blank item of the PROCESS DATA block (a Max/Nor/Min parameter counts once, when all cases are blank)
     pd_val = {}
     for r in process_rows or []:
@@ -115,8 +115,6 @@ def compute(ds: dict, general_notes: dict | None = None, pms: dict | None = None
             continue                                         # the row caption; its Open / Closed cells are checked
         vals = [_v(f) for f in fs]
         if any(v.strip() for v in vals):
-            if len(fs) == 1 and _OPEN.match(vals[0]):
-                add("Open Item", base, f"{fs[0].get('display') or base} is still '{vals[0]}'", f=fs[0])
             continue
         f0 = next((f for f in fs if f["key"].endswith(".nor")), fs[0])
         disp = (f0.get("display") or base).replace(" (Nor)", "")
@@ -124,6 +122,22 @@ def compute(ds: dict, general_notes: dict | None = None, pms: dict | None = None
         if pref:
             why += f" — datasheet refers to Process Data Sheet {pref.get('doc') or ''} ({pref.get('where', '')}); state the value or confirm".replace("  ", " ")
         add("Data Missing", base, why, expected=pd_val.get(base, ""), f=dict(f0, display=disp), severity="Major")
+
+    # HOLD / TBC / TBA anywhere — every field and every note (user request 2026-10-31: release the HOLD, give the value)
+    hold_notes = {n["no"]: n for n in ds.get("notes", []) if (n.get("section") or "").upper() == "HOLD"}
+    for f in ds["fields"]:
+        v = _v(f)
+        if not v.strip() or not _OPEN.search(v) or _LEGEND.search(v):
+            continue
+        refd = [hold_notes[int(m)] for m in _HOLD_REF.findall(v) if int(m) in hold_notes]
+        add("Open Item", f["key"], f"{f.get('display') or f['key']} is '{v}' — on HOLD / TBC: release the HOLD and give the value"
+            + "".join(f" (HOLD {h['no']}: {h['text'][:100]})" for h in refd), expected="Value to be given (HOLD release)", f=f)
+    for n in ds.get("notes", []):
+        held = (n.get("section") or "").upper() == "HOLD"
+        if held or (_OPEN.search(n["text"]) and not _LEGEND.search(n["text"])):
+            add("Open Item", f"note.{'hold.' if held else ''}{n['no']}", f"{'HOLD ' if held else 'Note '}{n['no']}: '{n['text'][:140]}' — "
+                "still on HOLD / TBC: release and confirm", expected="Confirmed content (HOLD release)", page=n.get("page"), bbox=n.get("bbox"),
+                f={"display": f"{'HOLD' if held else 'Note'} {n['no']}", "value": n["text"][:80], "row": None})
 
     line, pc = _v(F.get("line_no")), _v(F.get("piping_class"))
     m = re.search(r"\(([0-9A-Z][0-9A-Z\-]{2,9})\)", line)
