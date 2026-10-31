@@ -542,7 +542,7 @@ def _general_notes(text: str):
 def read_pdf(path: str, progress=None):
     doc = pymupdf.open(path)
     sheets, other, docs = [], [], {}
-    cont_doc, cont_text = None, ""
+    cont_doc = None
     for i, page in enumerate(doc):
         if progress:
             progress(i + 1, doc.page_count)
