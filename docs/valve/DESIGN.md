@@ -434,3 +434,10 @@ Note 113 · PC-01 Confirm 6(3C0K8 의 '316 SS/FHF' 2개 · API5L-X65 MOV 1500# �
   아래 표 'By Area × Issue Type × Severity'(Area · 종류 · Major · Minor · Info · Total · Tags).
 - 시트 순서: Issue List · Summary(Area · Site · Unit 세부) · Summary by Area · Summary by Tag · Info.
 - 실자료: North 74 Tag · 1,167 · South 69 · 1,184 · Brownfield 14 · 254 · W15 7 · 218 = 2,823.
+
+## 23. Valve List 'Summary by Area' 시트 (valve19, 사용자 요청)
+
+- Valve List Excel 시트 순서: TBE Tabulation · Summary · **Summary by Area** · All Valves · 종류 시트 · Datasheet Notes.
+- Summary by Area(`tbe._area_sheet`): Area 마다 한 줄 — Units(Brownfield 는 Site-Unit) · Tags · Valve Type 별 수 · Open Issues · Tags with Action · PFP Required · SIL · Fire Safe on HOLD · New / Updated, 필터 · Total.
+  아래 'By Area × Valve Type' 표: Tags · Sizes · Ratings · Open Issues · Tags with Action · PFP Required.
+- 실자료: North 74(ESDV 45 · BDV 18 · XV 5 · MOV 6, PFP 31) · South 69 · Brownfield 14(SDV 4 · XV 10, Fire Safe HOLD 11) · W15 7 = 164.

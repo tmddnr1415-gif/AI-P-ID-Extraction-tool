@@ -411,7 +411,7 @@ def _all_valves(wb, datasheets, docnames, link, sheet_of, report):
     recs = []
     for d in datasheets:
         loc = d.get("location") or {}
-        recs.append({"area": loc.get("area"), "site": loc.get("site"), "unit": loc.get("unit"), "cat": d.get("valve_type") or "(other)",
+        recs.append({"tag": d["tag_key"], "area": loc.get("area"), "site": loc.get("site"), "unit": loc.get("unit"), "cat": d.get("valve_type") or "(other)",
                      "open": sum(1 for i in d.get("issues") or [] if i["type"] in issuesmod.CONTRACTOR_TYPES and i.get("status") != "Dismissed"),
                      "action": any(m["level"] == "Action" for m in d.get("material_review") or []),
                      "new": status.get(d["tag_key"]) == "NEW", "upd": status.get(d["tag_key"]) == "UPDATED"})
@@ -423,6 +423,76 @@ def _all_valves(wb, datasheets, docnames, link, sheet_of, report):
                                  ("Tags with Action", lambda L: sum(1 for r in L if r["action"]) or None),
                                  ("New Tags", lambda L: sum(1 for r in L if r["new"]) or None),
                                  ("Updated Tags", lambda L: sum(1 for r in L if r["upd"]) or None)])
+    _area_sheet(wb, rows, recs, cats, wb.worksheets.index(ws))
+
+
+def _area_sheet(wb, rows, recs, cats, index):
+    """'Summary by Area' (Valve List): one row per Area — units, tags, valve types, open issues, tags with Action,
+    key requirements (PFP required · SIL · fire safe on HOLD), new / updated — then Area × Valve Type with sizes and ratings."""
+    from openpyxl.styles import Alignment, Font, PatternFill
+    from app.valve.exports import AREA_ORDER
+    head_fill, head_font = PatternFill("solid", fgColor="1F2D4D"), Font(bold=True, color="FFFFFF")
+    tot_fill, bold = PatternFill("solid", fgColor="E8EDF5"), Font(bold=True)
+    ws = wb.create_sheet("Summary by Area", index)
+    ws.cell(1, 1, "Valve Summary by Area").font = Font(bold=True, size=13)
+    by_tag = {d["tag_key"]: row for d, row in rows}
+    hdr = ["No.", "Area", "Units", "Tags"] + cats + ["Open Issues", "Tags with Action", "PFP Required", "SIL", "Fire Safe on HOLD",
+                                                     "New Tags", "Updated Tags"]
+    for n, h in enumerate(hdr, 1):
+        c = ws.cell(3, n, h)
+        c.fill, c.font, c.alignment = head_fill, head_font, Alignment(wrap_text=True, vertical="center", horizontal="center")
+        ws.column_dimensions[get_column_letter(n)].width = 6 if n == 1 else 12 if n == 2 else 24 if n == 3 else 10
+    ws.row_dimensions[3].height = 32
+    areas: dict[str, list] = {}
+    for r in recs:
+        areas.setdefault(r.get("area") or "(not stated)", []).append(r)
+
+    def req(r, col):
+        return str(by_tag.get(r["tag"], {}).get(col) or "")
+
+    def line(L):
+        return [len(L)] + [sum(1 for r in L if r["cat"] == c) or None for c in cats] + [
+            sum(r["open"] for r in L) or None, sum(1 for r in L if r["action"]) or None,
+            sum(1 for r in L if req(r, "PFP").startswith("Required")) or None,
+            sum(1 for r in L if req(r, "SIL").startswith("SIL")) or None,
+            sum(1 for r in L if req(r, "Fire Safe").upper().startswith("HOLD")) or None,
+            sum(1 for r in L if r["new"]) or None, sum(1 for r in L if r["upd"]) or None]
+    order = sorted(areas, key=lambda a: AREA_ORDER.get(a, 9))
+    row_n = 4
+    for n, a in enumerate(order, 1):
+        units = ", ".join(sorted({f"{r.get('site')}-{r.get('unit')}" if a == "Brownfield" else (r.get("unit") or "") for r in areas[a]} - {"", "-"}))
+        for col, v in enumerate([n, a, units] + line(areas[a]), 1):
+            ws.cell(row_n, col, v)
+        row_n += 1
+    ws.auto_filter.ref = f"A3:{get_column_letter(len(hdr))}{max(4, row_n - 1)}"
+    for col, v in enumerate(["", "Total", ""] + line(recs), 1):
+        c = ws.cell(row_n, col, v)
+        c.fill, c.font = tot_fill, bold
+    row_n += 3
+    ws.cell(row_n - 1, 1, "By Area × Valve Type").font = Font(bold=True, size=12)
+    hdr2 = ["No.", "Area", "Valve Type", "Tags", "Sizes", "Ratings", "Open Issues", "Tags with Action", "PFP Required"]
+    for n, h in enumerate(hdr2, 1):
+        c = ws.cell(row_n, n, h)
+        c.fill, c.font, c.alignment = head_fill, head_font, Alignment(horizontal="center", wrap_text=True)
+    k = 0
+    for a in order:
+        for cat in cats:
+            L = [r for r in areas[a] if r["cat"] == cat]
+            if not L:
+                continue
+            k += 1
+            row_n += 1
+            sizes = sorted({req(r, "Size") for r in L} - {""}, key=lambda x: float((re.findall(r"[\d.]+", x) or ["0"])[0]))
+            ratings = sorted({req(r, "Rating") for r in L} - {""}, key=lambda x: float((re.findall(r"\d+", x) or ["0"])[0]))
+            for col, v in enumerate([k, a, cat, len(L), ", ".join(sizes), ", ".join(ratings), sum(r["open"] for r in L) or None,
+                                     sum(1 for r in L if r["action"]) or None,
+                                     sum(1 for r in L if req(r, "PFP").startswith("Required")) or None], 1):
+                c = ws.cell(row_n, col, v)
+                c.alignment = Alignment(wrap_text=True, vertical="top")
+    ws.column_dimensions["E"].width = 30
+    ws.column_dimensions["F"].width = 22
+    ws.freeze_panes = "C4"
+    return ws
 
 
 def build(template: bytes | None, datasheets: list[dict], docnames: dict, project: str = "",

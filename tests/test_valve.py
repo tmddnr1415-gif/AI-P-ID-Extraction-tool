@@ -174,6 +174,11 @@ def test_valve_list_fill_keeps_format_and_marks_changes(pdf_path):
     tags = [ws.cell(r, 2).value for r in range(5, ws.max_row + 1)]
     assert "19XV122" in tags                                     # new tag appended to the XV sheet
     assert "Datasheet Notes" in wb.sheetnames
+    for name in ("Summary", "Summary by Area", "All Valves"):                # valve16 / valve19 sheets, in this order
+        assert name in wb.sheetnames
+    assert wb.sheetnames.index("Summary") < wb.sheetnames.index("Summary by Area") < wb.sheetnames.index("All Valves")
+    sa = wb["Summary by Area"]
+    assert [c.value for c in sa[3]][:4] == ["No.", "Area", "Units", "Tags"] and any(sa.cell(r, 2).value == "Total" for r in range(4, 9))
     sup = [ws.cell(r, 3).value for r in range(5, ws.max_row + 1)]
     assert "AMPO" not in sup and sup == ["Requirement", "Requirement"]   # vendor rows dropped: one row per tag
     assert tags == ["00XV921", "19XV122"]

@@ -116,3 +116,8 @@
 - 요청: Issue List 에도 Area 별 Summary 시트 추가.
 - exports._area_sheet: Area 한 줄씩(Units · Tags · Total · Major/Minor · 종류별 · Status별) + Area × 종류 × Severity 표. 시트 순서 Issue List · Summary · Summary by Area · Summary by Tag · Info.
 - 시험 46 · 전체 1,876 · ui_audit 22/22.
+
+## 2026-10-31 · valve19 — Valve List 'Summary by Area' 시트 (브랜치 ccr-efbe7e75-n915ze)
+- 요청: Valve List 에도 Area 별 Summary 시트 추가.
+- tbe._area_sheet: Area 한 줄씩(Units · Tags · 종류별 · Open Issues · Action · PFP Required · SIL · Fire Safe HOLD · New/Updated) + Area × Valve Type(Size · Rating). Summary 와 All Valves 사이.
+- 시험 46 · 전체 1,876 · ui_audit 22/22.
