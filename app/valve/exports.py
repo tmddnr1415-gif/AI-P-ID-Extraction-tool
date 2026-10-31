@@ -37,6 +37,63 @@ def pdf_link(base: str, i: dict) -> str:
     return f"{base.rstrip('/')}/api/valve/documents/{i['document_id']}/file#page={i.get('page') or 1}"
 
 
+# ── Summary pivot (shared by the Issue List and the Valve List) ───────────────────
+
+AREA_ORDER = {"North": 0, "South": 1, "Brownfield": 2, "W15": 3}
+
+
+def summary_sheet(wb, title: str, heading: str, recs: list[dict], cat_name: str, cats: list[str], index: int | None = None,
+                  extra: list[tuple[str, callable]] = ()):
+    """Pivot sheet: No. · Area · Site · Unit × categories · Total (+ extra columns), filterable, then a Total row and a
+    'By Area' table.  recs: dicts with area, site, unit and the category under `cat`; extra: (header, fn(list of recs) -> value)."""
+    head_fill, head_font = PatternFill("solid", fgColor="1F2D4D"), Font(bold=True, color="FFFFFF")
+    tot_fill, bold = PatternFill("solid", fgColor="E8EDF5"), Font(bold=True)
+    ws = wb.create_sheet(title, index) if index is not None else wb.create_sheet(title)
+    ws.cell(1, 1, heading).font = Font(bold=True, size=13)
+    hdr = ["No.", "Area", "Site", "Unit"] + cats + ["Total"] + [h for h, _ in extra]
+    for n, h in enumerate(hdr, 1):
+        c = ws.cell(3, n, h)
+        c.fill, c.font, c.alignment = head_fill, head_font, Alignment(wrap_text=True, vertical="center", horizontal="center")
+        ws.column_dimensions[get_column_letter(n)].width = 6 if n == 1 else 12 if n <= 4 else 11
+    groups: dict[tuple, list] = {}
+    for r in recs:
+        groups.setdefault((r.get("area") or "", r.get("site") or "", r.get("unit") or ""), []).append(r)
+    keys = sorted(groups, key=lambda k: (AREA_ORDER.get(k[0], 9), k[1], k[2]))
+
+    def line(L):
+        cnt = [sum(1 for r in L if r["cat"] == c) or None for c in cats]
+        return cnt + [len(L)] + [fn(L) for _, fn in extra]
+    row = 4
+    for n, k in enumerate(keys, 1):
+        for col, v in enumerate([n, k[0] or "(not stated)", k[1], k[2]] + line(groups[k]), 1):
+            ws.cell(row, col, v)
+        row += 1
+    ws.auto_filter.ref = f"A3:{get_column_letter(len(hdr))}{max(4, row - 1)}"
+    for col, v in enumerate(["", "Total", "", ""] + line(recs), 1):
+        c = ws.cell(row, col, v)
+        c.fill, c.font = tot_fill, bold
+    row += 3
+    ws.cell(row - 1, 1, f"By Area — {cat_name}").font = Font(bold=True, size=12)
+    hdr2 = ["No.", "Area", "Units"] + cats + ["Total"] + [h for h, _ in extra]
+    for n, h in enumerate(hdr2, 1):
+        c = ws.cell(row, n, h)
+        c.fill, c.font, c.alignment = head_fill, head_font, Alignment(wrap_text=True, horizontal="center")
+    areas: dict[str, list] = {}
+    for r in recs:
+        areas.setdefault(r.get("area") or "(not stated)", []).append(r)
+    for n, a in enumerate(sorted(areas, key=lambda a: AREA_ORDER.get(a, 9)), 1):
+        row += 1
+        units = ", ".join(sorted({r.get("unit") or "" for r in areas[a]} - {""}))
+        for col, v in enumerate([n, a, units] + line(areas[a]), 1):
+            ws.cell(row, col, v)
+    row += 1
+    for col, v in enumerate(["", "Total", ""] + line(recs), 1):
+        c = ws.cell(row, col, v)
+        c.fill, c.font = tot_fill, bold
+    ws.freeze_panes = "E4"
+    return ws
+
+
 # ── Issue List (xlsx) ──────────────────────────────────────────────────────────
 
 COLS = [("No.", 6), ("Area", 11), ("Site", 8), ("Unit", 6), ("Tag Number", 16), ("Valve Type", 8), ("Doc. No.", 20), ("Rev.", 6), ("Sheet", 9),
@@ -80,24 +137,35 @@ def issues_xlsx(rows: list[dict], base: str, project: str, by: str = "", sources
     ws.freeze_panes = ws.cell(2, CI["Tag Number"] + 1).coordinate          # No. · Area · Site · Unit · Tag stay visible
     ws.auto_filter.ref = f"A1:{get_column_letter(len(COLS))}{max(1, ws.max_row)}"
 
+    summary_sheet(wb, "Summary", f"Issue Summary — {project} (by Area / Site / Unit)",
+                  [{"area": i.get("area_name"), "site": i.get("site"), "unit": i.get("plant_unit"), "cat": i["type"], "sev": i["severity"],
+                    "tag": i["tag"]} for i in rows], "Issue Type",
+                  [t for t in ["Data Error", "Data Missing", "Open Item", "PMS Non-Compliance", "PMS Review", "Process Mismatch", "Material Review",
+                               "Valve Review", "Revision Change", "Reviewer Correction", "Reviewer Comment", "Extraction Review"]
+                   if any(i["type"] == t for i in rows)], index=1,
+                  extra=[("Major", lambda L: sum(1 for r in L if r["sev"] == "Major") or None),
+                         ("Minor", lambda L: sum(1 for r in L if r["sev"] == "Minor") or None),
+                         ("Tags", lambda L: len({r["tag"] for r in L}))])
     sm = wb.create_sheet("Summary by Tag")
     types = [t for t in ["Data Error", "Data Missing", "Open Item", "PMS Non-Compliance", "PMS Review", "Revision Change",
                          "Process Mismatch", "Material Review", "Valve Review", "Reviewer Correction", "Reviewer Comment", "Extraction Review"]
              if any(i["type"] == t for i in rows)]
-    sm.append(["Area", "Site", "Unit", "Tag Number", "Doc. No.", "Rev.", "Total"] + types)
-    for c in range(1, len(types) + 8):
+    sm.append(["No.", "Area", "Site", "Unit", "Tag Number", "Doc. No.", "Rev.", "Total"] + types)
+    for c in range(1, len(types) + 9):
         sm.cell(1, c).fill, sm.cell(1, c).font = head_fill, head_font
-        sm.column_dimensions[get_column_letter(c)].width = 11 if c <= 3 else 14 if c > 6 else 20
+        sm.column_dimensions[get_column_letter(c)].width = 6 if c == 1 else 11 if c <= 4 else 14 if c > 7 else 20
     tags = {}
     for i in rows:
         t = tags.setdefault(i["tag"], {"doc": i["doc_no"], "rev": i["rev"], "n": {},
                                        "loc": (i.get("area_name", ""), i.get("site", ""), i.get("plant_unit", ""))})
         t["n"][i["type"]] = t["n"].get(i["type"], 0) + 1
-    for tag, t in tags.items():
-        sm.append([*t["loc"], tag, t["doc"], t["rev"], sum(t["n"].values())] + [t["n"].get(x, 0) or None for x in types])
-    sm.append(["Total", "", "", "", "", "", len(rows)] + [sum(1 for i in rows if i["type"] == x) for x in types])
-    sm.freeze_panes = "E2"
-    sm.auto_filter.ref = f"A1:{get_column_letter(len(types) + 7)}{max(1, sm.max_row - 1)}"
+    for n, (tag, t) in enumerate(sorted(tags.items(), key=lambda kv: (AREA_ORDER.get(kv[1]["loc"][0], 9), kv[1]["loc"][1], kv[1]["loc"][2], kv[0])), 1):
+        sm.append([n, *t["loc"], tag, t["doc"], t["rev"], sum(t["n"].values())] + [t["n"].get(x, 0) or None for x in types])
+    sm.append(["", "Total", "", "", "", "", "", len(rows)] + [sum(1 for i in rows if i["type"] == x) for x in types])
+    for c in range(1, len(types) + 9):
+        sm.cell(sm.max_row, c).font = Font(bold=True)
+    sm.freeze_panes = "F2"
+    sm.auto_filter.ref = f"A1:{get_column_letter(len(types) + 8)}{max(1, sm.max_row - 1)}"
 
     info = wb.create_sheet("Info")
     for row in [["Valve Datasheet Review — Issue List"], ["Project", project],

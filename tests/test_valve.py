@@ -783,6 +783,11 @@ def test_area_and_unit_from_documents():
     ws = openpyxl.load_workbook(io.BytesIO(exports.issues_xlsx(rows, "", "P")))["Issue List"]
     assert [c.value for c in ws[1]][:5] == ["No.", "Area", "Site", "Unit", "Tag Number"] and ws.auto_filter.ref.startswith("A1:")
     assert [c.value for c in ws[2]][1:5] == ["North", "North", "98", "98ESDV015"]
+    wb = openpyxl.load_workbook(io.BytesIO(exports.issues_xlsx(rows, "", "P")))
+    assert wb.sheetnames[:3] == ["Issue List", "Summary", "Summary by Tag"]
+    sm = wb["Summary"]
+    assert [c.value for c in sm[3]][:5] == ["No.", "Area", "Site", "Unit", "Material Review"] and sm.cell(4, 1).value == 1
+    assert wb["Summary by Tag"].cell(1, 1).value == "No." and wb["Summary by Tag"].cell(2, 1).value == 1
 
 
 def test_tag_numbering_learned_per_area_unit():

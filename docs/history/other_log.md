@@ -100,3 +100,9 @@
 - `tagrules.py`: 구조 · 접두 출처(Unit / 제목 System / P&ID System) · 번호 자릿수 · 고정 앞자리 · 구분 · A/B · 계열↔P&ID. Brownfield North U84(08SDV) 와 South U84(84XV) 는 Site 로 나눔.
 - 결과: North 98+기능+␣980nnn(계열 1~4 = P&ID 띠) · South 98+기능-nnn · W15 315+기능␣980nnn · Brownfield 접두 = 제목 SYSTEM(North) / UNIT(South).
 - 검사 TG-01~05 → 실자료 TG-05 4건(ESDV Fail Open). Settings › Tag Numbering 표 · All Valves 에 Tag 부분 열. 시험 45 · 전체 1,875 · eval 불변 · ui_audit 22/22.
+
+## 2026-10-31 · valve16 — No. 열과 Summary 시트 (브랜치 ccr-efbe7e75-n915ze)
+- 요청: 앞에 No. 가 있어야 하고 Summary 도 있어야 한다.
+- Issue List: 'Summary' 시트(Area · Site · Unit × Issue Type, Major · Minor · Tags, By Area) · Summary by Tag 에 No. · Area 순 정렬.
+- Valve List: 'Summary' 시트(Area · Site · Unit × Valve Type, Open Issues · Tags with Action · New/Updated) · All Valves · Datasheet Notes 에 No.
+- 실자료 확인(164 Tag · 2,823 지적), 시험 45 · 전체 1,875 · ui_audit 22/22.

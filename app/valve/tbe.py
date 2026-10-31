@@ -345,7 +345,7 @@ def _drop_vendor_rows(ws, a) -> int:
     return removed
 
 
-ALL_COLS = [("Area", 11), ("Site", 8), ("Unit", 6), ("Tag Number", 16), ("Tag Prefix", 7), ("Function", 8), ("Loop No.", 9), ("Valve Type", 9), ("DS Document No.", 20), ("DS Rev.", 6),
+ALL_COLS = [("No.", 6), ("Area", 11), ("Site", 8), ("Unit", 6), ("Tag Number", 16), ("Tag Prefix", 7), ("Function", 8), ("Loop No.", 9), ("Valve Type", 9), ("DS Document No.", 20), ("DS Rev.", 6),
             ("Service", 30), ("P&ID No.", 22), ("Line No.", 24), ("Piping Class", 11), ("Size", 7), ("Rating", 8), ("Body Type", 24),
             ("End Connection", 20), ("Body Material", 26), ("Ball Material", 16), ("Stem Material", 16), ("Seat Material", 12),
             ("Fail Position", 9), ("Leakage Class", 20), ("NACE", 14), ("Special Requirements (Notes)", 40), ("Expert Review (Tool)", 40),
@@ -387,15 +387,33 @@ def _all_valves(wb, datasheets, docnames, link, sheet_of, report):
                "DS Source (file · page)": f"{docnames.get(d['document_id'], '')} p.{d['pages'][0]}" if d.get("pages") else ""}
         for h, k in _ALL_KEYS.items():
             row[h] = _val(F.get(k, {})) if k in F else ""
+        row["No."] = ws.max_row                           # header is row 1 → the first valve is No. 1
         ws.append([row.get(c, "") for c, _ in ALL_COLS])
         r = ws.max_row
         for n in range(1, len(ALL_COLS) + 1):
             ws.cell(r, n).alignment = Alignment(wrap_text=True, vertical="top")
         if link:
-            ws.cell(r, 4).hyperlink = link(d, "tag")
-            ws.cell(r, 4).font = Font(color="2F5BD8", underline="single", bold=True)
-    ws.freeze_panes = "E2"
+            ws.cell(r, 5).hyperlink = link(d, "tag")
+            ws.cell(r, 5).font = Font(color="2F5BD8", underline="single", bold=True)
+    ws.freeze_panes = "F2"
     ws.auto_filter.ref = f"A1:{get_column_letter(len(ALL_COLS))}{max(2, ws.max_row)}"
+    # Summary: valves per Area / Site / Unit × valve type, open issues, tags with an Action comment
+    from app.valve import exports
+    recs = []
+    for d in datasheets:
+        loc = d.get("location") or {}
+        recs.append({"area": loc.get("area"), "site": loc.get("site"), "unit": loc.get("unit"), "cat": d.get("valve_type") or "(other)",
+                     "open": sum(1 for i in d.get("issues") or [] if i["type"] in issuesmod.CONTRACTOR_TYPES and i.get("status") != "Dismissed"),
+                     "action": any(m["level"] == "Action" for m in d.get("material_review") or []),
+                     "new": status.get(d["tag_key"]) == "NEW", "upd": status.get(d["tag_key"]) == "UPDATED"})
+    order = ["ESDV", "SDV", "BDV", "XV", "MOV"]
+    cats = [c for c in order if any(r["cat"] == c for r in recs)] + sorted({r["cat"] for r in recs} - set(order))
+    exports.summary_sheet(wb, "Summary", "Valve Summary (by Area / Site / Unit)", recs, "Valve Type", cats,
+                          index=wb.worksheets.index(ws),
+                          extra=[("Open Issues", lambda L: sum(r["open"] for r in L) or None),
+                                 ("Tags with Action", lambda L: sum(1 for r in L if r["action"]) or None),
+                                 ("New Tags", lambda L: sum(1 for r in L if r["new"]) or None),
+                                 ("Updated Tags", lambda L: sum(1 for r in L if r["upd"]) or None)])
 
 
 def build(template: bytes | None, datasheets: list[dict], docnames: dict, project: str = "",
@@ -576,14 +594,15 @@ def build(template: bytes | None, datasheets: list[dict], docnames: dict, projec
         ws.freeze_panes = "B2"
 
     ns = wb.create_sheet("Datasheet Notes")
-    ns.append(["Tag Number", "DS Document No.", "DS Rev.", "Note No.", "Note", "Page", "File"])
+    ns.append(["No.", "Tag Number", "DS Document No.", "DS Rev.", "Note No.", "Note", "Page", "File"])
     for d in sorted(datasheets, key=lambda d: d["tag_key"]):
         for n in d["notes"]:
-            ns.append([d["tag_key"], d["doc_no"], d["rev"], n["no"], n["text"], n.get("page"),
+            ns.append([ns.max_row, d["tag_key"], d["doc_no"], d["rev"], n["no"], n["text"], n.get("page"),
                        docnames.get(d["document_id"], "")])
     ns.auto_filter.ref = ns.dimensions
     ns.freeze_panes = "A2"
-    ns.column_dimensions["E"].width = 120
+    ns.column_dimensions["F"].width = 120
+    ns.column_dimensions["A"].width = 6
 
     bio = io.BytesIO()
     wb.save(bio)

@@ -410,3 +410,10 @@ Note 113 · PC-01 Confirm 6(3C0K8 의 '316 SS/FHF' 2개 · API5L-X65 MOV 1500# �
   TG-05 기능 코드 ↔ Fail 동작(ESDV/SDV 보통 Fail Close, BDV Fail Open — 일반 관행, 프로젝트 사양 우선). 실자료: TG-05 4건(North ESDV-xx10 계열이 Fail Open) · 나머지 0.
 - 화면: Settings › **Tag Numbering** 표(Area · Site · Unit · 수 · 형식 · 접두 출처 · 기능 코드 · 번호 · 계열 → P&ID · 예 · 중복). `GET /api/valve/projects/{pid}/tagging`.
   Valve List 'All Valves' 에 Tag Prefix · Function · Loop No. 열(필터). 지식 `tag.numbering`.
+
+## 20. No. 열과 Summary 시트 (valve16, 사용자 요청)
+
+- 두 Excel 모든 목록 시트의 첫 열 = **No.** (Issue List · Summary by Tag · All Valves · Datasheet Notes). Issue List 의 No. 는 화면 · Mark-up PDF 와 같은 번호(순서 그대로).
+- **Summary 시트**(`exports.summary_sheet`, 두 파일 공용): No. · Area · Site · Unit × 분류 · Total (+ 추가 열), 필터 · Total 줄 · 아래에 'By Area' 표.
+  Issue List = Issue Type 별 건수 + Major · Minor · Tags (두 번째 시트). Valve List = Valve Type 별 수 + Open Issues · Tags with Action · New / Updated Tags ('All Valves' 앞).
+- Summary by Tag 는 Area → Site → Unit → Tag 순.
