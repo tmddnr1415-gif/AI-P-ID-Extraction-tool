@@ -589,7 +589,7 @@ async function renderList() {
           if (c.key in r) return `<td>${esc(r[c.key])}</td>`;
           const x = r.cells[c.key]; if (!x) return '<td class="ph">—</td>';
           return `<td data-fid="${x.id}" data-k="${c.key}" class="${x.ed ? 'ed' : ''} ${x.st === 'placeholder' || x.st === 'blank' ? 'ph' : ''} ${x.st === 'review' ? 'rv' : ''}" title="${esc(x.v + (x.u ? ' ' + x.u : ''))}${x.ed ? ' (사용자 수정)' : ''} · p.${x.p} — 두 번 눌러 고치기">${esc(x.v || (x.st === 'blank' ? 'Not Found' : ''))}${x.u && x.v ? ' <small>' + esc(x.u) + '</small>' : ''}</td>`;
-        }).join('')}</tr>`), __gfb = '';
+        }).join('')}</tr>`), __gfb = `<tr><td colspan="${cols.length + 2}" class="empty">조건에 맞는 행이 없습니다 — 필터를 지우세요</td></tr>`;
   el.innerHTML = `<div class="vh">${listTop()}<input type="search" id="gq" placeholder="Search Tag Number…" style="width:180px" value="${esc(keepQ)}">
       <select id="gt"><option value="">All Valve Types</option>${types.map(t => `<option ${t === keepT ? 'selected' : ''}>${esc(t)}</option>`).join('')}</select>
       <select id="gs"><option value="">All Status</option>${STATUSES.map(t => `<option ${t === keepS ? 'selected' : ''}>${t}</option>`).join('')}</select>
