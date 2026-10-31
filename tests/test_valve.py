@@ -483,3 +483,46 @@ def test_judging_code_never_reads_feedback():
         words = {n.id for n in ast.walk(tree) if isinstance(n, ast.Name)} | \
                 {n.value for n in ast.walk(tree) if isinstance(n, ast.Constant) and isinstance(n.value, str)}
         assert not any("feedback" in w or "verdict" in w or "issue_state" in w for w in words), name
+
+
+# ── valve05: what a reviewer sees on the page (visual check of all 456 sample pages) ──────────────────────
+
+def test_words_on_one_line_keep_their_order():
+    # 'SWAGELOK' sits 0.9 pt lower than '(General Note - 7)' — a 3-pt bucket used to split them into two lines
+    ws = [(315.8, 217.6, 355.6, 224.2, "SWAGELOK"), (362.5, 216.7, 394.5, 224.4, "(General"),
+          (396.8, 216.7, 414.3, 224.4, "Note"), (416.6, 216.7, 419.3, 224.4, "-"), (421.6, 216.7, 428.9, 224.4, "7)")]
+    assert extract._text(ws) == "SWAGELOK (General Note - 7)"
+    two = ws + [(315.8, 226.0, 340.0, 233.0, "next")]
+    assert extract._text(two).endswith(" next")
+
+
+def test_colon_pairs_split_label_and_value():
+    ws = [(81, 162, 94, 170, "Tag"), (97, 162, 112, 170, "No.:"), (116, 162, 143, 170, "98MOV"), (148, 162, 176, 170, "980001"),
+          (330, 162, 369, 170, "Instrument"), (371, 162, 389, 170, "Type"), (391, 162, 394, 170, ":"),
+          (395, 162, 418, 170, "Motor"), (420, 162, 457, 170, "Operated")]
+    got = [(a, extract._text(b)) for a, b in extract._colon_pairs(ws)]
+    assert got == [("Tag No.", "98MOV 980001"), ("Instrument Type", "Motor Operated")]
+
+
+def test_hidden_text_is_not_read(tmp_path):
+    doc = pymupdf.open()
+    pg = doc.new_page()
+    pg.insert_text((100, 100), "N/A or other", fontsize=8)              # an Excel drop-down remnant …
+    pg.draw_rect(pymupdf.Rect(98, 90, 170, 103), color=None, fill=(1, 1, 1))   # … painted over afterwards
+    pg.insert_text((100, 200), "Cell", fontsize=8)                       # shaded cell drawn BEFORE its text stays
+    pg.draw_rect(pymupdf.Rect(300, 192, 340, 203), color=None, fill=(0.9, 0.9, 0.9))
+    pg.insert_text((302, 200), "VTA", fontsize=8)
+    pg.insert_text((100, 300), "visible", fontsize=8)
+    words = extract._visible(pg.get_text("words"), extract._hidden_boxes(pg))
+    assert [w[4] for w in words] == ["Cell", "VTA", "visible"]
+
+
+def test_sheet_doc_number_and_repeated_header_checks():
+    ds = _ds_for_issues()
+    ds["sheet_doc_mismatch"] = [{"page": 2, "sheet": 2, "printed": "00-09-IN-DTS-0000"}]
+    ds["fields"].append({"key": "line_no.4", "value": 'PW2409631-3"(1C0K8)-N', "edited_value": None, "page": 2,
+                         "bbox": [1, 1, 2, 2], "row": 4, "display": "Line Number", "status": "ok"})
+    got = issues.compute(ds, {str(n): "x" for n in range(1, 20)})
+    d = [i["description"] for i in got if i["type"] == "Data Error"]
+    assert any("prints Document No. '00-09-IN-DTS-0000'" in x for x in d)
+    assert any("Line No." in x or "line_no" in x or "sheet 1 says" in x for x in d)

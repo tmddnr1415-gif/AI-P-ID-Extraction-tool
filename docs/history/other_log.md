@@ -32,3 +32,10 @@
 - 검토 피드백(VOC): `/api/valve/projects/{pid}/feedback.json` + Reports 버튼 · `spike/valve_voc.py` 채점(규칙별 정밀도 · 다시 돌리기) · 판정 모듈이 안 읽음을 AST 시험.
 - 차등 시뮬레이션 `spike/valve_diff_sim.py`: 140장 12,470칸 불일치 0. 화면 자기검증 `spike/valve_ui_audit.cjs` 22/22.
 - DESIGN §11 (차용표 · 단일 판정 자리). 시험 33개.
+
+## 2026-10-31 · valve05 — 456쪽 전수 눈 대조, 오류율 3.54 % → 0.009 % (브랜치 ccr-efbe7e75-n915ze)
+- 요청: 모든 쪽을 눈으로 본 것과 프로그램 분석의 오차를 재고 5 % 미만(가능하면 100 %)으로.
+- 방법: 쪽 그림 + 읽은 것 꾸러미(`spike/valve_visual_pack.py`) → 검토 에이전트 46묶음이 항목별 판정(오류는 PDF 글자 층으로 확인) → 채점(`valve_visual_score.py`) → 고침 → 바뀐 1,324줄 재판정.
+- 1차 21,482항목 760오류(3.54 %) → 2차 오류 0 + 남은 2(도면 Doc. No. 오타, Data Error 로 지적) = 0.009 %.
+- 고친 원인: 숨은 글자(그리기 순서) · 겹친 같은 글자 · 3pt 줄 묶기 · Notes 바닥글 · Form 102 단일 열 · 번호 없는 오른쪽 열 · 단위만 있는 칸 · 'Sheet|3|of|3' · 제목 줄바꿈 · ATTACHMENT · HOLD 목록.
+- 새 지적: sheet 2 Doc. No. 불일치 · 반복 머리(Tag/PID/Service/Line) 불일치 — 실자료 3건. 시험 36개. 기준값 지문 541753c612ed.

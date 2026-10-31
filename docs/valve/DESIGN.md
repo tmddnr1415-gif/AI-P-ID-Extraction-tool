@@ -264,3 +264,28 @@ C PMS 결과 · D 지적 · E 속도.  보고서(`report.md`)에는 고객 값�
 | 지적 종류 → 색 · 검토자 분류 → 지적 종류 | `issues.COLOR` · `issues.MARK_TYPE` (PDF 색 `exports.RGB`, 화면 색 `valve.css` 변수 · `valve.js MKCOL` — 색값만 따로, 뜻은 issues 하나) |
 | PMS 지역 | `pms.area_of_title` (못 정하면 다른 지역도 찾아 'please confirm' — §9 "도면이 말하지 않으면 묻는다") |
 | 이중 괘선 문턱 | `extract.DOUBLE_RULE_GAP` |
+
+## 12. 눈으로 본 것과 대조 — 456쪽 전수 (valve05)
+
+**방법**: `spike/valve_visual_pack.py` 가 쪽마다 그림(위·아래 반쪽, 144 dpi) + 도구가 그 쪽에서 읽은 것(머리 · 칸 · Notes · General Notes)을 만들고,
+검토 에이전트가 그림을 보며 항목마다 OK / WRONG / FALSE_BLANK / SPURIOUS / MISSING / WRONG_NOTE / HEADER 로 판정한다.
+**오류로 셀 때는 반드시 PDF 글자 층으로 다시 확인**(눈의 오독을 도구 탓으로 세지 않게) · 그림과 글자 층이 다르면 그림을 따른다(사람이 보는 것이 기준).
+2차는 고친 도구가 **바꾼 줄만** 다시 판정(바뀌지 않은 줄은 1차 판정 유지). 채점 `spike/valve_visual_score.py`. 결과(개수만) `spike/valve_visual_result.json`.
+판정 파일 · 그림에는 고객 값이 있어 저장소 밖(`/tmp/vis*`).
+
+| | 항목 | 오류 | 오류율 |
+|---|---|---|---|
+| 1차 (고치기 전) | 21,482 | 760 | 3.54 % |
+| 2차 (고친 뒤) | 21,482 (바뀐 1,324줄 재판정 — 오류 0) | 2 | **0.009 %** |
+
+남은 2 = 두 데이터시트의 sheet 2 표제란이 Doc. No. 끝자리를 빠뜨려 인쇄(도면 오타) — 도구는 sheet 1 번호를 유지하고 **Data Error 로 설계사에게 지적**한다.
+
+**고친 원인 (모두 일반 규칙 — 특정 칸 맞춤 없음)**
+1. 보이지 않는 글자: 나중에 그려진 불투명 채움이 덮은 글자(엑셀 드롭다운 잔재 'N/A or other' · 'SHEET 1 OF 2' 의 2 아래 숨은 4 · 'NA' 아래 숨은 'Required')는 읽지 않는다 — 판단은 쪽의 그리기 순서(seqno), 같은 자리 같은 글자 겹침은 한 번만. 칸 음영처럼 글자보다 먼저 그린 채움은 해당 없음.
+2. 줄 묶기: 3 pt 칸(bucket) 대신 '낱말 가운데가 그 줄의 높이 안' (P&ID 실패 유형 ④) — 두 부분 값의 순서 뒤바뀜 · Notes 줄 묶기.
+3. 쪽 바닥글 'Page N of M' 이 마지막 Note 에 붙던 것 — Notes 는 자기 테두리(가로 괘선) 안에서만.
+4. Form 102(MOV): 번호 열이 하나인 sheet 2 도 'Label : value' 행이 과반이면 Form 102 로 · 오른쪽 열에 번호 없는 'Instrument Type : …' 은 그 행의 짝 · 공정표 sheet 의 머리 행(Tag/PID/Service/Line …)도 읽음 · 단위나 '/' 만 있는 칸은 빈칸.
+5. 'Sheet | 3 | of | 3' 처럼 칸이 나뉜 표기 · 두 줄로 넘어간 문서 제목 · 'N. ATTACHMENT' 를 삼킨 마지막 General Note · 'HOLD:' 목록을 Notes 와 분리(section).
+
+**새 지적(설계사용)**: sheet 2 표제란 Doc. No. 가 sheet 1 과 다름 · 뒷장이 반복한 Tag/PID/Service/Line 이 sheet 1 과 다름 — 실자료에서 3건(그중 1건은 MOV 한 Tag 의 Line No. 가 sheet 1 · 2 에서 다름).
+속도: 456쪽 11~13초(숨은 글자 판단 포함, 처음 구현 35초를 순수 산술로 줄임).

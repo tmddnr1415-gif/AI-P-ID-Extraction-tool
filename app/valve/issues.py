@@ -10,6 +10,7 @@ Rule-based only.  Every issue says what was checked against what:
                         · operating > design (pressure / temperature, same unit)
                         · fail-safe position ≠ action on air failure
                         · 'General Note - N' / 'Note-N' that the document does not have
+                        · a later sheet prints another Document No. / repeats Tag · PID · Service · Line differently
   PMS Non-Compliance  pms.check -> Non-Compliant                                       red     Major
   PMS Review          pms.check -> Review Required / Not Defined in PMS                red     Minor
   Revision Change     changed against the previous revision of the same tag            yellow  Info
@@ -117,6 +118,17 @@ def compute(ds: dict, general_notes: dict | None = None, pms: dict | None = None
     if pick(fp) and pick(af) and pick(fp) != pick(af):
         add("Data Error", "air_failure", f"Fail safe position '{_v(F.get('fail_position'))}' contradicts Action on Air Failure "
             f"'{_v(F.get('air_failure'))}'", expected=_v(F.get("fail_position")))
+    for mm in ds.get("sheet_doc_mismatch") or []:            # the sheet's own title block prints another number
+        add("Data Error", f"doc_no.p{mm['page']}", f"Sheet {mm.get('sheet') or '?'} prints Document No. '{mm['printed']}'"
+            f" — sheet 1 has '{ds.get('doc_no')}'", expected=ds.get("doc_no") or "", page=mm["page"],
+            f={"display": "Document No.", "value": mm["printed"], "row": None})
+    for f in ds["fields"]:                                   # a later sheet repeats the header rows (Tag · PID · …)
+        base, _, row = f["key"].rpartition(".")
+        if base in ("tag", "pid_no", "service", "line_no") and row.isdigit() and base in F:
+            a, b = _v(F[base]), _v(f)
+            if a and b and schema.norm_tag(a) != schema.norm_tag(b):
+                add("Data Error", f["key"], f"{F[base].get('display') or base} on p.{f.get('page')} is '{b}' — sheet 1 says '{a}'",
+                    expected=a, f=f)
     for f in ds["fields"]:
         v = _v(f)
         for no in (int(x) for x in _GN.findall(v)):

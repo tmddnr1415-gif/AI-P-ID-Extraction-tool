@@ -25,6 +25,7 @@ import pymupdf
 from app.valve import schema
 
 _DOC_RE = re.compile(r"\b\d{2,3}-\d{2}-IN-DTS-\d{5}\b")
+_LOOSE_DOC = re.compile(r"\d{2,3}-\d{2}-[A-Z]{2}-[A-Z]{2,4}-\d{1,6}")   # as printed, typos included
 _ANY_DOC_RE = re.compile(r"\b[0-9A-Z]{2,5}-[0-9A-Z]{2,4}-[A-Z]{2}-[A-Z]{3}-\d{5}\b")
 _NOTE_REF = re.compile(r"(gen(?:eral|\.)?\s*note|note)\s*[-–:#]?\s*(\d+)", re.I)
 
@@ -83,8 +84,23 @@ def _xs_at(vert, y, x_min, x_max):
     return merged
 
 
+def _lines(words):
+    """Words → lines.  A word joins a line when its vertical centre lies inside that line's own height — no fixed
+    bucket (a 3-pt bucket split 'SWAGELOK (General Note - 7)' whose words sit 0.9 pt apart; P&ID failure type ④)."""
+    lines = []
+    for w in sorted(words, key=lambda w: (w[1] + w[3]) / 2):
+        c = (w[1] + w[3]) / 2
+        if lines and lines[-1][0] <= c <= lines[-1][1]:
+            ln = lines[-1]
+            ln[2].append(w)
+            ln[0], ln[1] = min(ln[0], w[1]), max(ln[1], w[3])
+        else:
+            lines.append([w[1], w[3], [w]])
+    return [sorted(ln[2], key=lambda w: w[0]) for ln in lines]
+
+
 def _text(words):
-    return " ".join(w[4] for w in sorted(words, key=lambda w: (round(w[1] / 3), w[0]))).strip()
+    return " ".join(w[4] for ln in _lines(words) for w in ln).strip()
 
 
 def _bbox(words):
@@ -138,6 +154,14 @@ def _header(page, words, top_y):
     doc = _DOC_RE.search(full) or _ANY_DOC_RE.search(full)
     out = {"doc_no": doc.group(0) if doc else "", "rev": "", "sheet": None, "of": None, "date": "", "title": "",
            "rev_history": []}
+    lab = next((w for w in head if w[4].upper().startswith("DOCUMENT")), None)
+    if lab:                                                 # the number printed in the DOCUMENT NO. cell itself
+        below = sorted((w for w in head if w[1] >= lab[3] - 1 and w[0] < lab[2] + (lab[2] - lab[0]) and
+                        w[2] > lab[0] - (lab[2] - lab[0]) and _LOOSE_DOC.fullmatch(w[4])), key=lambda w: w[1])
+        if below:
+            out["doc_no_printed"] = below[0][4]
+            if _DOC_RE.fullmatch(below[0][4]) or _ANY_DOC_RE.fullmatch(below[0][4]):
+                out["doc_no"] = below[0][4]
 
     def right_of(label, maxdx=200):
         lab = [w for w in head if w[4].upper().rstrip(".") == label]
@@ -178,12 +202,64 @@ def _header(page, words, top_y):
     return out
 
 
+_HIDDEN_CACHE: dict = {}
+
+
+def _hidden_boxes(page):
+    """Text the eye cannot see: a span painted over later by an opaque fill (a white box left on an Excel drop-down —
+    'N/A or other' under the Fluid State cell; a '4' under the '2' of 'SHEET 1 OF 2').  Judged from the page's own
+    drawing order (seqno), no fixed value.  Returns [(hidden spans, visible spans)] as (x0,y0,x1,y1,text) — [] if none."""
+    key = (id(page.parent), page.number, page.rect.width)
+    if key in _HIDDEN_CACHE:
+        return _HIDDEN_CACHE[key]
+    spans = []
+    for sp in page.get_texttrace():
+        x0, y0, x1, y1 = sp["bbox"]
+        m = (y1 - y0) * 0.25                                 # the glyphs' own height, not a page constant
+        spans.append((x0, y0, x1, y1, x0 + m, y0 + m, x1 - m, y1 - m, sp["seqno"], "".join(chr(c[0]) for c in sp["chars"])))
+    hmin = min((s[7] - s[5] for s in spans if s[7] > s[5]), default=0)
+    fills = [(r.x0, r.y0, r.x1, r.y1, d["seqno"]) for d in page.get_drawings()
+             if d.get("fill") is not None and (d.get("fill_opacity") or 1) >= 1
+             for r in (d["rect"],) if r.height >= hmin and r.width > 0]   # a ruling line cannot cover a glyph
+    hidden, shown = [], []
+    for x0, y0, x1, y1, c0, c1, c2, c3, seq, t in spans:
+        cover = c2 > c0 and c3 > c1 and any(sq > seq and fx0 <= c0 and fy0 <= c1 and fx1 >= c2 and fy1 >= c3
+                                             for fx0, fy0, fx1, fy1, sq in fills)
+        (hidden if cover else shown).append((x0, y0, x1, y1, t))
+    out = [(hidden, shown)] if hidden else []
+    if len(_HIDDEN_CACHE) > 64:
+        _HIDDEN_CACHE.clear()
+    _HIDDEN_CACHE[key] = out
+    return out
+
+
+def _visible(items, hidden, box=lambda w: w[:4], text=lambda w: w[4]):
+    """Drop a word / span only when every span that could have printed it is hidden (place + text): a visible '2'
+    printed over a hidden '4' — or over a hidden '2' — stays, once."""
+    if not hidden:
+        return items
+    hid, shown = hidden[0]
+    inside = lambda r, cx, cy: r[0] <= cx <= r[2] and r[1] <= cy <= r[3]   # noqa: E731
+    keep = []
+    for it in items:
+        x0, y0, x1, y1 = box(it)
+        cx, cy = (x0 + x1) / 2, (y0 + y1) / 2
+        t = text(it).strip()
+        if t and any(inside(h, cx, cy) and t in h[4] for h in hid):
+            if not any(inside(r, cx, cy) and t in r[4] for r in shown):
+                continue                                     # only hidden spans print it
+            if any(text(k).strip() == t and inside(box(k), cx, cy) for k in keep):
+                continue                                     # a hidden 'NA' under a visible 'NA' prints once
+        keep.append(it)
+    return keep
+
+
 def read_page(page, page_no: int):
-    words = page.get_text("words")
+    words = _visible(page.get_text("words"), _hidden_boxes(page))
     if not words:
         return {"page": page_no, "scanned": True}
     cols = _number_columns(words)
-    if len(cols) >= 2:
+    if len(cols) >= 2 or (len(cols) == 1 and _colon_rows(words, cols[0])):
         return read_page_102(page, page_no, words, cols)
     nums = _row_numbers(words, page.rect.width)
     if not nums:
@@ -296,7 +372,9 @@ def read_page(page, page_no: int):
     nlab = [w for w in words if w[4].upper().startswith("NOTES")]
     if nlab:
         top = nlab[0][3]
-        body = [w for w in words if w[1] > top - 1 and w[0] > nlab[0][0] - 25 and id(w) not in used
+        frame = [y for y in _horizontals(page, nlab[0][0], nlab[0][2]) if y > top]   # the notes box's own rules
+        bottom = max(frame) if frame else page.rect.height  # the page footer ('Page 53 of 569') is outside the box
+        body = [w for w in words if top - 1 < w[1] and w[3] <= bottom + 1 and w[0] > nlab[0][0] - 25 and id(w) not in used
                 and not (min(ys) - 2 <= (w[1] + w[3]) / 2 <= max(ys) + pitch)]
         notes = _numbered(body)
     return {"page": page_no, **hdr, "tag": tag, "rows": rows, "notes": notes,
@@ -349,6 +427,18 @@ def _tag_beside(words):
     return ""
 
 
+def _colon_rows(words, col) -> bool:
+    """Form 102 writes 'Label : value' on each numbered row; the On/Off form puts labels and values in ruled cells.
+    True when most numbered rows carry a ':' (a single-column Form 102 sheet, e.g. MOV sheet 2)."""
+    lines = _lines([w for w in words if w[0] > max(n[2] for n in col)])
+    hits = 0
+    for n in col:
+        cy = (n[1] + n[3]) / 2
+        ln = next((ln for ln in lines if min(w[1] for w in ln) <= cy <= max(w[3] for w in ln)), [])
+        hits += any(w[4].endswith(":") or w[4] == ":" for w in ln)
+    return hits >= len(col) / 2
+
+
 def read_page_102(page, page_no, words, cols):
     """Form 102 (e.g. Motor Operated Valve): numbered rows in two columns, 'Label : value' with bold values."""
     spans = []
@@ -360,13 +450,16 @@ def read_page_102(page, page_no, words, cols):
                     x0, y0, x1, y1 = sp["bbox"]
                     spans.append({"x0": x0, "y0": y0, "x1": x1, "y1": y1, "text": t,
                                   "bold": bool(sp["flags"] & 16) or "Bold" in sp["font"]})
+    spans = _visible(spans, _hidden_boxes(page), box=lambda s: (s["x0"], s["y0"], s["x1"], s["y1"]),
+                     text=lambda s: s["text"])
     first_top = min(w[1] for c in cols for w in c)
     hdr = _header(page, words, first_top - 2)
     rows, notes = [], []
     x_page = page.rect.width
     for ci, col in enumerate(cols):
         x_num1 = max(w[2] for w in col)
-        x_end = (min(w[0] for w in cols[ci + 1]) - 2) if ci + 1 < len(cols) else x_page
+        x_next = (min(w[0] for w in cols[ci + 1]) - 2) if ci + 1 < len(cols) else x_page
+        next_ys = [(w[1] + w[3]) / 2 for w in cols[ci + 1]] if ci + 1 < len(cols) else []
         stacks = _stacks(spans, x_num1 + 1, x_num1 + 22)
         x_lab = x_num1 + 22 if stacks else x_num1 + 2
         ys = [(w[1] + w[3]) / 2 for w in col]
@@ -375,6 +468,8 @@ def read_page_102(page, page_no, words, cols):
         for i, nw in enumerate(col):
             y = ys[i]
             y0, y1 = y - pitch / 2, y + pitch / 2
+            # a row the next column does not number ('Instrument Type : …' beside rows 1-4) belongs to this row
+            x_end = x_next if any(y0 <= ny < y1 for ny in next_ys) or not next_ys else x_page
             group = next((t for a, b, t in stacks if a - pitch * 0.6 <= y <= b + pitch * 0.6), "")
             if not group and stacks:
                 group = min(stacks, key=lambda st: min(abs(y - st[0]), abs(y - st[1])))[2]
@@ -471,7 +566,17 @@ def read_process_table(page, page_no, words, nums):
         rw = [w for w in words if abs((w[1] + w[3]) / 2 - y) < pitch / 2 and w[0] > x_num1 + 2
               and not (w[0] < x_num1 + 22 and len(w[4]) <= 2)]
         lab = _text([w for w in rw if w[2] <= lab_x1 + 1])
-        if not lab or lab.startswith(("Tag", "PID", "Service", "Line", "Instrument", "Valve", "Process Condition")):
+        if any(w[4].endswith(":") or w[4] == ":" for w in rw):   # 'Tag No.: … Instrument Type : …' repeated from sheet 1
+            for lab2, vws in _colon_pairs(rw):
+                hit = schema.lookup_102(lab2, "", "")
+                key, sec, disp = hit if hit else ("x." + re.sub(r"[^a-z0-9]+", "_", schema.norm_label(lab2)).strip("_"),
+                                                   "general", lab2)
+                v = _text(vws)
+                rows.append({"row": int(nw[4]), "group": "", "label": lab2, "key": key, "section": sec, "display": disp,
+                             "value": v, "unit": "", "bbox": _bbox(vws) or _bbox(rw), "label_bbox": None,
+                             "status": "ok" if v else "blank"})
+            continue
+        if not lab or lab.startswith("Process Condition"):
             continue
         n = schema.norm_label(lab)
         key, disp = _PROC_KEYS.get(n, ("x." + re.sub(r"[^a-z0-9]+", "_", n).strip("_"), lab))
@@ -479,12 +584,43 @@ def read_process_table(page, page_no, words, nums):
         for case in ("Max", "Nor", "Min"):
             a, b = colx[case]
             vw = [w for w in rw if a <= (w[0] + w[2]) / 2 < b]
+            if vw and all(w[4] == "/" or _UNIT_LIKE.match(w[4]) or schema.norm_label(w[4]) in schema.UNIT_TOKENS
+                          for w in vw):
+                vw = []                                      # only the printed unit / '/' of an empty '__ / __ bar-g' cell
             v = _text(vw)
             rows.append({"row": int(nw[4]), "group": "PROCESS", "label": f"{lab} ({case})", "key": f"{key}.{case.lower()}",
                          "section": "process", "display": f"{disp} ({case})", "value": v, "unit": unit,
                          "bbox": _bbox(vw) or [a, y - pitch / 2, b, y + pitch / 2], "label_bbox": None,
                          "status": "ok" if v else "blank"})
     return {"page": page_no, **hdr, "tag": _tag_beside(words), "rows": rows, "notes": [], "form": "process-table"}
+
+
+def _colon_pairs(words):
+    """'Tag No.: 98MOV 980001   Instrument Type : Motor Operated …' → [(label, value words)].  Words are cut into
+    runs where the gap is wider than the text's own height (a column gap, not a word space); a run ending in ':' is
+    a label, the runs after it up to the next label are its value."""
+    ws = sorted(words, key=lambda w: w[0])
+    if not ws:
+        return []
+    h = sorted(w[3] - w[1] for w in ws)[len(ws) // 2]
+    runs, cur = [], [ws[0]]
+    for a, b in zip(ws, ws[1:]):
+        if b[0] - a[2] > h:
+            runs.append(cur)
+            cur = []
+        cur.append(b)
+    runs.append(cur)
+    out, lab = [], None
+    for r in runs:
+        r = sorted(r, key=lambda w: w[0])
+        k = next((i for i, w in enumerate(r) if w[4].endswith(":")), None)
+        if k is None:
+            if lab is not None:
+                lab[1] += r
+            continue
+        lab = [_text(r[:k + 1]).rstrip(":").strip(), list(r[k + 1:])]   # 'Instrument Type : Motor …' in one run
+        out.append(lab)
+    return [(a, b) for a, b in out if a]
 
 
 def read_notes_page(page, page_no, words):
@@ -504,26 +640,37 @@ def read_notes_page(page, page_no, words):
     hdr = _header(page, words, page.rect.height)          # this form's title block is at the bottom
     dn = _DOC_RE.search(full)
     sh = re.search(r"Sheet\s+(\d+)\s+of\s+(\d+)", full)
-    hdr.update({"doc_no": dn.group(0) if dn else hdr["doc_no"], "sheet": int(sh.group(1)) if sh else None,
-                "of": int(sh.group(2)) if sh else None})
+    sheet, of = (int(sh.group(1)), int(sh.group(2))) if sh else (None, None)
+    if sh is None:                                         # 'Sheet | 3 | of | 3' in separate title-block cells
+        def num_right(lab):
+            cy = (lab[1] + lab[3]) / 2
+            n = sorted((w for w in words if w[0] > lab[2] and w[1] <= cy <= w[3] and w[4].isdigit()), key=lambda w: w[0])
+            return int(n[0][4]) if n else None
+        for lab in (w for w in words if w[4] == "Sheet"):
+            sheet = num_right(lab)
+            ofw = next((w for w in words if w[4].lower() == "of" and w[1] <= (lab[1] + lab[3]) / 2 <= w[3]
+                        and w[0] > lab[2]), None)
+            of = num_right(ofw) if ofw else None
+            if sheet and of:
+                break
+    hdr.update({"doc_no": dn.group(0) if dn else hdr["doc_no"], "sheet": sheet, "of": of})
     return {"page": page_no, **hdr, "tag": tag, "rows": [], "notes": notes, "form": "102",
             "continuation": True}
 
 
 def _numbered(words):
     """Group words into lines, then lines into '1. …' '2. …' paragraphs (the paragraph keeps its box)."""
-    lines = {}
-    for w in words:
-        lines.setdefault(round((w[1] + w[3]) / 2 / 2.5), []).append(w)
-    out, cur = [], None
-    for k in sorted(lines):
-        ws = sorted(lines[k], key=lambda w: w[0])
+    out, cur, section = [], None, ""
+    for ws in _lines(words):                             # lines by the words' own height, not a 2.5-pt bucket
         txt = " ".join(w[4] for w in ws)
         if txt.upper().startswith("NOTES"):
             txt = txt[5:].lstrip(" :")
             ws = ws[1:] if ws and ws[0][4].upper().startswith("NOTES") else ws
             if not txt:
                 continue
+        if re.fullmatch(r"[A-Z][A-Z /&-]{1,24}:", txt.strip()):   # 'HOLD:' — a new list starts, not part of the note
+            section, cur = txt.strip().rstrip(":"), None
+            continue
         nxt = cur["no"] + 1 if cur else None
         if nxt and re.search(rf"\s{nxt}\.(?=[A-Z])", txt):  # '… : Yes 14.Anti-Blow Out Stem : Yes' on one line
             head, _, tail = txt.partition(f" {nxt}.")
@@ -535,12 +682,13 @@ def _numbered(words):
             txt = f"{nxt}.{tail}"
         m = re.match(r"^(\d{1,2})[.)](?:\s+|(?=[A-Z]))(.*)", txt)   # '14.Anti-Blow …' (no space) is note 14
         if m:
-            cur = {"no": int(m.group(1)), "text": m.group(2), "words": list(ws)}
+            cur = {"no": int(m.group(1)), "text": m.group(2), "words": list(ws), "section": section}
             out.append(cur)
         elif cur is not None:
             cur["text"] += " " + txt
             cur["words"] += ws
-    return [{"no": n["no"], "text": n["text"].strip(), "bbox": _bbox(n["words"])} for n in out]
+    return [dict({"no": n["no"], "text": n["text"].strip(), "bbox": _bbox(n["words"])},
+                 **({"section": n["section"]} if n["section"] else {})) for n in out]
 
 
 # ── document-level pages (cover · index · general notes) ────────────────────────
@@ -551,7 +699,7 @@ def _general_notes(text: str):
     if not m:
         return {}
     body = text[m.end():]
-    body = re.split(r"\n\s*\d\.\s*\n\s*ATTACHMENT|\n\s*ATTACHMENT-", body)[0]
+    body = re.split(r"\n\s*\d\.\s*\n\s*ATTACHMENT|\n\s*ATTACHMENT-|\n\s*\d\.\s+ATTACHMENT", body)[0]
     lines = [ln.strip() for ln in body.split("\n")]
     out, cur, skip = {}, None, 0
     heads = ("COMPANY:", "Contract No.:", "PROJECT:", "Doc. No.:", "CONTRACTOR:", "Doc. Title:")
@@ -658,7 +806,13 @@ def read_pdf(path: str, progress=None):
             d["text"] += "\n" + text
             t = re.search(r"Doc\. Title:\s*\n(.+)", text)
             if t and not d["title"]:
-                d["title"] = t.group(1).strip()
+                parts = [t.group(1).strip()]               # a long title wraps onto the next line(s) in the same capitals
+                for ln in text[t.end():].split("\n")[1:4]:
+                    ln = ln.strip()
+                    if not ln or ln != ln.upper() or ln.endswith(":") or re.match(r"^(\d+\.|Rev\.|Page )", ln):
+                        break
+                    parts.append(ln)
+                d["title"] = " ".join(parts)
             cont_doc = dn
     for dn, d in docs.items():
         d["general_notes"] = _general_notes(d["text"])
@@ -684,6 +838,9 @@ def group_datasheets(result: dict):
                    "pages": [], "fields": {}, "rows": [], "notes": [], "sheets": []}
             out.append(cur)
         cur["pages"].append(sh["page"])
+        pr = sh.get("doc_no_printed")
+        if pr and pr != cur["doc_no"] and sh.get("sheet") and not sh.get("continuation"):   # another number than sheet 1
+            cur.setdefault("sheet_doc_mismatch", []).append({"page": sh["page"], "sheet": sh.get("sheet"), "printed": pr})
         cur["sheets"].append([sh["page"], sh.get("sheet"), sh.get("of")])     # PDF page -> 'Sheet x of y' on the form
         for r in sh["rows"]:
             r = dict(r, page=sh["page"])

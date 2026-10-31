@@ -6,9 +6,9 @@
    "102": 24
   },
   "status": {
-   "ok": 9193,
-   "placeholder": 4119,
-   "blank": 3894,
+   "ok": 9226,
+   "placeholder": 4162,
+   "blank": 4082,
    "review": 1
   },
   "no_notes": 0,
@@ -24,8 +24,8 @@
    "empty_band": true
   }
  },
- "fingerprint": "1e35ecd433bf",
- "cells": 17207,
+ "fingerprint": "541753c612ed",
+ "cells": 17471,
  "B_comparable": {
   "n": 4278,
   "agree": 3975,
@@ -49,23 +49,23 @@
   "Piping Material Class|Review Required": 8,
   "Trim (Ball) Material|Review Required": 8,
   "Stem Material|Review Required": 8,
-  "Bore|Review Required": 29,
+  "Bore|Review Required": 28,
   "Piping Material Class|Not Defined in PMS": 13,
   "Ball Valve Item|Not Defined in PMS": 7,
   "Body Material|Review Required": 2
  },
  "D": {
-  "Data Error|Major": 5,
-  "PMS Review|Minor": 75,
+  "Data Error|Major": 6,
+  "PMS Review|Minor": 74,
   "Extraction Review|Internal": 1
  },
  "E": {
-  "extract_s": 6.2,
-  "extract_ms_per_page": 13.6,
-  "pms_read_s": 1.88,
+  "extract_s": 11.39,
+  "extract_ms_per_page": 25.0,
+  "pms_read_s": 1.6,
   "issues_ms_per_ds": 0.5,
-  "issue_xlsx_s": 0.22,
-  "markup_s_per_ds": 0.046,
+  "issue_xlsx_s": 0.18,
+  "markup_s_per_ds": 0.039,
   "markup_kb_per_ds": 40.7
  }
 }
