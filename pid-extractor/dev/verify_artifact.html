@@ -1,0 +1,510 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>P&amp;ID 배포 경로 검증</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="" />
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@400;600&amp;family=IBM+Plex+Mono:wght@400;600&amp;display=swap" rel="stylesheet" />
+<style>
+/* 도면 검토표처럼: 왼쪽에 항목 번호, 오른쪽에 판정 도장. 한 열, 위에서 아래로 점검한다. */
+:root {
+  --paper: #f6f7f5;
+  --sheet: #ffffff;
+  --ink: #1d2422;
+  --muted: #5d6865;
+  --rule: #d5dbd8;
+  --accent: #1f5f8b;
+  --ok: #1d7a46;
+  --bad: #b3261e;
+  --warn: #9a6400;
+  --font-body: "IBM Plex Sans KR", "Apple SD Gothic Neo", "Malgun Gothic", system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, Menlo, Consolas, monospace;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper: #141a19; --sheet: #1c2422; --ink: #e3e9e6; --muted: #9aa7a3; --rule: #33403c;
+    --accent: #6fb0de; --ok: #5cc98a; --bad: #f08a80; --warn: #e2b04f; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --paper: #141a19; --sheet: #1c2422; --ink: #e3e9e6; --muted: #9aa7a3; --rule: #33403c;
+  --accent: #6fb0de; --ok: #5cc98a; --bad: #f08a80; --warn: #e2b04f; color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; background: var(--paper); color: var(--ink); font: 15px/1.6 var(--font-body); }
+main { max-width: 860px; margin: 0 auto; padding: 28px 16px 64px; display: grid; gap: 18px; }
+h1 { font-size: 22px; margin: 0; text-wrap: balance; }
+h2 { font-size: 16px; margin: 0; text-wrap: balance; }
+p { margin: 0; max-width: 65ch; }
+.lede { color: var(--muted); }
+code, .mono { font-family: var(--font-mono); font-size: 13px; }
+
+.summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 8px; }
+.sum { background: var(--sheet); border: 1px solid var(--rule); border-left: 4px solid var(--rule); padding: 8px 10px; }
+.sum b { display: block; font-size: 13px; }
+.sum[data-s="ok"] { border-left-color: var(--ok); }
+.sum[data-s="bad"] { border-left-color: var(--bad); }
+.sum[data-s="run"] { border-left-color: var(--warn); }
+
+section { background: var(--sheet); border: 1px solid var(--rule); padding: 16px; display: grid; gap: 10px; }
+.head { display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap; }
+.no { font-family: var(--font-mono); color: var(--muted); font-size: 13px; }
+.stamp { margin-left: auto; font-family: var(--font-mono); font-size: 12px; font-weight: 600; padding: 1px 8px; border: 1.5px solid currentColor; color: var(--muted); }
+.stamp[data-s="ok"] { color: var(--ok); }
+.stamp[data-s="bad"] { color: var(--bad); }
+.stamp[data-s="run"] { color: var(--warn); }
+
+.row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+button, select, input[type="file"] { font: inherit; font-size: 14px; }
+button { background: var(--accent); color: #fff; border: 0; padding: 7px 14px; cursor: pointer; }
+:root[data-theme="dark"] button { color: #0d1513; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) button { color: #0d1513; } }
+button.quiet { background: transparent; color: var(--accent); border: 1px solid var(--accent); }
+button:disabled { opacity: .45; cursor: default; }
+button:focus-visible, select:focus-visible, input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+select { background: var(--sheet); color: var(--ink); border: 1px solid var(--rule); padding: 6px 8px; }
+label { font-size: 14px; color: var(--muted); }
+
+pre.out { margin: 0; background: var(--paper); border: 1px solid var(--rule); padding: 10px; font: 12.5px/1.5 var(--font-mono); white-space: pre-wrap; word-break: break-word; max-height: 320px; overflow: auto; }
+table.kv { border-collapse: collapse; font-size: 13.5px; width: 100%; }
+table.kv td { border-top: 1px solid var(--rule); padding: 4px 8px 4px 0; vertical-align: top; }
+table.kv td:first-child { color: var(--muted); width: 38%; }
+table.kv td:last-child { font-family: var(--font-mono); font-size: 12.5px; font-variant-numeric: tabular-nums; }
+
+.tiles { display: grid; gap: 3px; }
+.tiles canvas { width: 100%; height: auto; display: block; border: 2px solid transparent; cursor: pointer; background: #fff; }
+.tiles canvas.on { border-color: var(--accent); }
+.tiles canvas.done { border-color: var(--ok); }
+.tiles canvas.err { border-color: var(--bad); }
+.note { font-size: 13px; color: var(--muted); }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+</head>
+<body>
+<main>
+  <header style="display:grid;gap:6px">
+    <h1>P&amp;ID 추출기 · 배포 경로 검증</h1>
+    <p class="lede">Claude Code가 파일 바이트를 그대로 올린 아티팩트에서 판독과 Excel 저장이 되는지 확인합니다.
+      다섯 항목이 모두 통과하면 대화창에 붙여 넣어 다시 쓰게 하는 배포를 그만둘 수 있습니다.</p>
+  </header>
+
+  <div class="summary" id="summary"></div>
+
+  <section>
+    <div class="head"><span class="no">01</span><h2>환경 · 기능 한도</h2><span class="stamp" id="s1">대기</span></div>
+    <p class="note">호출 없이 읽습니다. 사용량이 들지 않습니다.</p>
+    <table class="kv" id="env"></table>
+  </section>
+
+  <section>
+    <div class="head"><span class="no">02</span><h2>Claude 텍스트 호출</h2><span class="stamp" id="s2">대기</span></div>
+    <p class="note">첫 호출에서 이 페이지가 Claude를 써도 되는지 묻는 창이 뜹니다. 허용해야 다음 항목도 됩니다.</p>
+    <div class="row"><button id="b2">짧은 질문 보내기</button></div>
+    <pre class="out" id="o2">아직 보내지 않았습니다.</pre>
+  </section>
+
+  <section>
+    <div class="head"><span class="no">03</span><h2>pdf.js 불러오기 · PDF 열기</h2><span class="stamp" id="s3">대기</span></div>
+    <p class="note">cdnjs에서 pdf.js 3.11.174를 불러와 메인 스레드에서 돌립니다. P&amp;ID PDF를 고르세요 (예: <code>ref/PID_Total.pdf</code>).</p>
+    <div class="row">
+      <input type="file" id="f3" accept=".pdf,application/pdf" />
+      <label for="pg">쪽</label><select id="pg" disabled></select>
+    </div>
+    <pre class="out" id="o3">PDF를 고르면 시작합니다.</pre>
+  </section>
+
+  <section>
+    <div class="head"><span class="no">04</span><h2>타일 이미지 판독</h2><span class="stamp" id="s4">대기</span></div>
+    <p class="note">index.html의 Pass 2 프롬프트를 그대로 씁니다. 이 경로는 이미지를 약 1.2메가픽셀로 줄여 보내므로,
+      실제로 모델이 보는 크기를 함께 적습니다. 타일을 눌러 고르고 판독하세요.</p>
+    <div class="row">
+      <label for="grid">분할</label>
+      <select id="grid"><option value="3x3">3×3</option><option value="4x4" selected>4×4</option><option value="5x4">5×4</option></select>
+      <label for="px">타일 장변</label>
+      <select id="px"><option value="1300">1300 px</option><option value="1560" selected>1560 px</option></select>
+      <label for="tier">모델</label>
+      <select id="tier"><option value="default" selected>default</option><option value="complex">complex</option><option value="quick">quick</option></select>
+      <button class="quiet" id="bt" disabled>타일 만들기</button>
+    </div>
+    <div class="tiles" id="tiles"></div>
+    <div class="row">
+      <button id="b4" disabled>고른 타일 판독</button>
+      <button class="quiet" id="b4all" disabled>모든 타일 차례로</button>
+      <button class="quiet" id="b4stop" disabled>멈추기</button>
+    </div>
+    <table class="kv" id="m4"></table>
+    <pre class="out" id="o4">타일을 만들면 시작합니다.</pre>
+  </section>
+
+  <section>
+    <div class="head"><span class="no">05</span><h2>xlsx 저장</h2><span class="stamp" id="s5">대기</span></div>
+    <p class="note">04에서 읽은 계기가 있으면 그것으로, 없으면 예시 3행으로 xlsx를 만들어 저장합니다. 저장 확인 창에서 허용하세요.</p>
+    <div class="row"><button id="b5">xlsx 저장</button></div>
+    <pre class="out" id="o5">아직 저장하지 않았습니다.</pre>
+  </section>
+
+  <section>
+    <div class="head"><span class="no">··</span><h2>결과 복사</h2></div>
+    <p class="note">다섯 항목의 결과를 텍스트로 복사해 Claude Code 세션에 붙여 주세요. 다음 작업의 근거가 됩니다.</p>
+    <div class="row"><button class="quiet" id="bc">결과 복사</button><span class="note" id="oc"></span></div>
+  </section>
+</main>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const CHECKS = [
+  ['s1', '01 환경'], ['s2', '02 텍스트 호출'], ['s3', '03 pdf.js'], ['s4', '04 이미지 판독'], ['s5', '05 xlsx 저장'],
+];
+const LABEL = { wait: '대기', run: '진행 중', ok: '통과', bad: '실패' };
+const result = {};
+function mark(id, s, detail) {
+  $(id).dataset.s = s;
+  $(id).textContent = LABEL[s];
+  result[id] = { s, detail: detail || result[id]?.detail || '' };
+  if (detail !== undefined) result[id].detail = detail;
+  drawSummary();
+}
+function drawSummary() {
+  $('summary').innerHTML = CHECKS.map(([id, name]) => {
+    const r = result[id] || { s: 'wait', detail: '' };
+    return `<div class="sum" data-s="${r.s}"><b>${name}</b>${LABEL[r.s]}</div>`;
+  }).join('');
+}
+const kv = (el, rows) => { el.innerHTML = rows.map(([k, v]) => `<tr><td>${k}</td><td>${esc(v)}</td></tr>`).join(''); };
+const esc = (s) => String(s).replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
+const errText = (e) => e && e.code ? `${e.code} — ${e.message}` : String(e && e.message || e);
+drawSummary();
+
+/* ── 01 환경 ─────────────────────────────────────────────────────────── */
+let sample = null, downloads = null;
+(async () => {
+  mark('s1', 'run');
+  const hasClaude = typeof window.claude === 'object' && typeof window.claude.use === 'function';
+  if (!hasClaude) {
+    kv($('env'), [['window.claude', '없음 — Claude 뷰어 밖에서 열렸습니다']]);
+    mark('s1', 'bad', 'window.claude 없음');
+    return;
+  }
+  [sample, downloads] = await Promise.all([claude.use('sample'), claude.use('downloads')]);
+  const lim = sample ? await sample.limits().catch((e) => ({ error: errText(e) })) : null;
+  const rows = [
+    ['sample', sample ? '있음' : '없음 (null)'],
+    ['downloads', downloads ? '있음' : '없음 (null)'],
+  ];
+  if (lim) {
+    rows.push(['입력 상한', lim.maxPromptBytes ? `${lim.maxPromptBytes.toLocaleString()} bytes` : JSON.stringify(lim)]);
+    rows.push(['이미지', lim.images ? `호출당 ${lim.images.maxCount}장 · 장당 ${(lim.images.maxInputBytes / 1048576).toFixed(1)} MB · ${lim.images.mediaTypes.join(', ')}` : '불가 (선언 안 됐거나 이 화면에서 막힘)']);
+    rows.push(['페이지 도구(tools)', lim.tools ? `호출당 ${lim.tools.maxCount}개` : '없음']);
+    rows.push(['modelTier', lim.modelTiers ? lim.modelTiers.join(', ') : '안 알려 줌 (default·complex·quick 가정)']);
+  }
+  kv($('env'), rows);
+  const ok = sample && downloads && lim && lim.images;
+  mark('s1', ok ? 'ok' : 'bad', rows.map((r) => r.join(': ')).join(' | '));
+})();
+
+/* ── 02 텍스트 호출 ───────────────────────────────────────────────────── */
+$('b2').onclick = async () => {
+  if (!sample) { $('o2').textContent = 'sample 기능이 없습니다 (01 참고).'; mark('s2', 'bad', 'sample 없음'); return; }
+  $('b2').disabled = true;
+  mark('s2', 'run');
+  $('o2').textContent = 'Thinking...';
+  const t0 = performance.now();
+  try {
+    const r = await sample('다음 단어를 그대로 한 번만 답하세요: 계기판독준비완료', { modelTier: 'quick', cache: false });
+    const ms = Math.round(performance.now() - t0);
+    $('o2').textContent = `응답: ${r.text}\n걸린 시간 ${ms} ms · 답한 등급 ${r.modelTierApplied}`;
+    mark('s2', 'ok', `${ms}ms, tier=${r.modelTierApplied}`);
+  } catch (e) {
+    $('o2').textContent = `실패 — ${errText(e)}`;
+    mark('s2', 'bad', errText(e));
+  } finally { $('b2').disabled = false; }
+};
+
+/* ── 03 pdf.js ───────────────────────────────────────────────────────── */
+const PDFJS = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174';
+const loadScript = (src) => new Promise((ok, no) => {
+  const s = document.createElement('script');
+  s.src = src; s.onload = ok; s.onerror = () => no(new Error(`${src} 를 못 불러왔습니다`));
+  document.head.append(s);
+});
+let pdfReady = null;
+function ensurePdfjs() {
+  // 워커 스크립트를 먼저 심으면 globalThis.pdfjsWorker 가 차서 pdf.js 가 Worker 를 띄우지 않는다.
+  pdfReady ||= loadScript(`${PDFJS}/pdf.worker.min.js`).then(() => loadScript(`${PDFJS}/pdf.min.js`));
+  return pdfReady;
+}
+const DRAWING_NO = /D00P-[0-9A-Z]{5,9}-M\d{2}-\d{4}/;
+let doc = null, meta = { drawing_no: '', system: '', notes: '' };
+
+$('f3').onchange = async () => {
+  const file = $('f3').files[0];
+  if (!file) return;
+  mark('s3', 'run');
+  $('o3').textContent = `${file.name} 여는 중…`;
+  const t0 = performance.now();
+  try {
+    await ensurePdfjs();
+    doc = await pdfjsLib.getDocument({ data: new Uint8Array(await file.arrayBuffer()) }).promise;
+    const page1 = await doc.getPage(1);
+    const vp = page1.getViewport({ scale: 1 });
+    $('pg').innerHTML = Array.from({ length: doc.numPages }, (_, i) => `<option value="${i + 1}">${i + 1}</option>`).join('');
+    // 실판독에 쓰던 6쪽이 있으면 거기서 시작한다.
+    if (doc.numPages >= 6) $('pg').value = '6';
+    $('pg').disabled = false;
+    $('bt').disabled = false;
+    await readMeta();
+    const ms = Math.round(performance.now() - t0);
+    $('o3').textContent = `${file.name} · ${doc.numPages}쪽 · 1쪽 ${Math.round(vp.width)}×${Math.round(vp.height)} pt · ${ms} ms`
+      + `\n${$('pg').value}쪽 도면번호 ${meta.drawing_no || '(텍스트 레이어에 없음)'}`;
+    mark('s3', 'ok', `${doc.numPages}쪽, ${ms}ms`);
+  } catch (e) {
+    $('o3').textContent = `실패 — ${errText(e)}`;
+    mark('s3', 'bad', errText(e));
+  }
+};
+async function readMeta() {
+  const page = await doc.getPage(+$('pg').value);
+  const text = (await page.getTextContent()).items.map((i) => i.str).join(' ');
+  const m = text.match(DRAWING_NO);
+  const t = text.match(/P&ID FOR [A-Z0-9#&() \-]+/);
+  meta = { drawing_no: m ? m[0] : '', system: t ? t[0].replace(/^P&ID FOR\s+/, '').trim() : '', notes: '' };
+}
+$('pg').onchange = async () => { await readMeta(); $('tiles').innerHTML = ''; tiles = []; sync4(); };
+
+/* ── 04 타일 판독 ─────────────────────────────────────────────────────── */
+const OVERLAP = 0.10;
+const WHITELIST = ['PIT', 'PI', 'TIT', 'TI', 'PDIT', 'FIT', 'FE', 'LIT', 'LI', 'LS', 'FS', 'RO'];
+const MP_CAP = 1.2e6; // 이 경로는 이미지를 약 1.2메가픽셀로 줄여 보낸다
+let tiles = [], picked = null, found = [], ctl = null;
+
+function tileRects(cols, rows) {
+  const out = [];
+  const ovx = (1 / cols) * OVERLAP, ovy = (1 / rows) * OVERLAP;
+  for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) {
+    const x0 = Math.max(0, c / cols - ovx / 2), x1 = Math.min(1, (c + 1) / cols + ovx / 2);
+    const y0 = Math.max(0, r / rows - ovy / 2), y1 = Math.min(1, (r + 1) / rows + ovy / 2);
+    out.push({ r, c, x: x0, y: y0, w: x1 - x0, h: y1 - y0 });
+  }
+  return out;
+}
+async function renderTile(no, rect, longEdgePx) {
+  const page = await doc.getPage(no);
+  const base = page.getViewport({ scale: 1 });
+  const wPt = base.width * rect.w, hPt = base.height * rect.h;
+  const scale = longEdgePx / Math.max(wPt, hPt);
+  const cv = document.createElement('canvas');
+  cv.width = Math.round(wPt * scale); cv.height = Math.round(hPt * scale);
+  await page.render({
+    canvasContext: cv.getContext('2d', { alpha: false }),
+    viewport: page.getViewport({ scale }),
+    transform: [1, 0, 0, 1, -rect.x * base.width * scale, -rect.y * base.height * scale],
+  }).promise;
+  page.cleanup();
+  return cv;
+}
+function seenSize(w, h) {
+  const k = Math.min(1, Math.sqrt(MP_CAP / (w * h)));
+  return [Math.round(w * k), Math.round(h * k)];
+}
+function sync4() {
+  const busy = !!ctl;
+  $('b4').disabled = busy || !picked;
+  $('b4all').disabled = busy || !tiles.length;
+  $('b4stop').disabled = !busy;
+  $('bt').disabled = busy || !doc;
+}
+
+$('bt').onclick = async () => {
+  $('bt').disabled = true;
+  const [cols, rows] = $('grid').value.split('x').map(Number);
+  const px = +$('px').value, no = +$('pg').value;
+  const box = $('tiles');
+  box.innerHTML = '';
+  box.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
+  tiles = []; picked = null;
+  for (const rect of tileRects(cols, rows)) {
+    const cv = await renderTile(no, rect, px);
+    cv.title = `r${rect.r}c${rect.c}`;
+    cv.onclick = () => { for (const t of tiles) t.cv.classList.remove('on'); cv.classList.add('on'); picked = tiles.find((t) => t.cv === cv); sync4(); };
+    box.append(cv);
+    tiles.push({ rect, cv });
+  }
+  const { width: w, height: h } = tiles[0].cv;
+  const [sw, sh] = seenSize(w, h);
+  const page = await doc.getPage(no);
+  const inchWide = (page.getViewport({ scale: 1 }).width / 72) / cols * (1 + OVERLAP);
+  kv($('m4'), [
+    ['타일', `${cols}×${rows} = ${tiles.length}장 · ${w}×${h} px`],
+    ['모델이 보는 크기 (1.2MP 축소 후)', `약 ${sw}×${sh} px · 약 ${Math.round(sw / inchWide)} DPI`],
+    ['기존 API 경로 (장변 1568 축소)', `약 ${Math.round(Math.min(w, 1568) / inchWide)} DPI`],
+  ]);
+  $('o4').textContent = '타일을 눌러 고르세요. 계기가 보이는 타일이 좋습니다.';
+  sync4();
+};
+
+function pass2Prompt() {
+  return [
+    'P&ID 도면의 일부입니다. 계기(instrument)만 찾아 JSON 배열 하나로 답하세요. 설명·코드펜스 금지.',
+    '',
+    '이 도면은 입찰 단계라 계기 버블 안 태그가 점선(.....)으로 비어 있습니다.',
+    '태그를 지어내지 마세요. 버블 위/옆에 적힌 문자(PT, TT, FT …)로 종류를 판별합니다.',
+    '',
+    `## 뽑을 것 — 이 12종만: ${WHITELIST.join(' ')}`,
+    '도면 문자와 다를 수 있습니다: PT→PIT, TT→TIT, LT→LIT, FT→FIT, PDT/PDI→PDIT.',
+    'PI/TI/LI 는 로컬 게이지(단일 원)이고 PIT/TIT/LIT 는 전송기입니다. 심볼로 구분하세요.',
+    'FE(오리피스)와 FIT(전송기)는 한 세트로 그려져도 각각 별도 항목입니다.',
+    '',
+    '## 버릴 것',
+    '제어밸브 FCV TCV PCV LCV / 밸브·구동기 XV MOV NRV HV PSV BPRV PRV /',
+    '밸브 부속 ZS ZSO ZSC ZT ZI HS YS YSO YSR YSA / 분석기 AT AIT QMS /',
+    'I/P 변환기, 로직 박스, 서모웰(TW), 도면 간 참조 화살표(D00P-…-M05-000n) — 계기가 아닙니다.',
+    '',
+    '## 공급 역무 — 반드시 판정',
+    '계기 버블 바로 위/옆의 별표 표기를 보세요.',
+    '  * 하나  → vendor_scope: "*"',
+    '  ** 둘   → vendor_scope: "**"',
+    '점선/일점쇄선 박스에 별표가 하나 찍혀 있으면 그 박스 안 계기 전부가 해당됩니다.',
+    'SCT 기호(스코프 브레이커)와 화살표가 가리키는 쪽, 또는 SUPPLIED BY ○○ / PROVIDED BY ○○',
+    '주석이 걸린 범위의 계기도 vendor_scope 에 그 공급자명을 넣으세요.',
+    '표기가 없으면 vendor_scope: null. **추측하지 말고 보이는 대로만.**',
+    '',
+    '## 설비명과 위치 — 배관의 From/To 에서',
+    '계기가 붙은 배관을 따라가 From/To 라벨(FROM HRSG#12, TO HP BYPASS#12, TO CLEAN DRAIN TANK)과',
+    '인접 설비 박스 이름을 읽어 line_context 와 equipment 에 넣으세요.',
+    'position 은 다음 중 하나 또는 null: SUPPLY RETURN INLET OUTLET UPSTREAM DOWNSTREAM DISCHARGE SUCTION "BODY DRAIN".',
+    '같은 지점에 같은 계기가 여럿이면 왼쪽/위쪽부터 redundancy 에 A B C.',
+    '',
+    '## 이 도면 정보',
+    `도면번호 ${meta.drawing_no || '?'} · 계통 ${meta.system || '?'}`,
+    '',
+    '## 응답 형식 (배열 하나. 계기가 없으면 [])',
+    '[{"type":"PIT","x":0.42,"y":0.18,"line_context":"FROM HRSG#11 / TO HP BYPASS#11",',
+    '  "equipment":"HP STEAM MAIN","position":"DOWNSTREAM","redundancy":"A",',
+    '  "vendor_scope":null,"note_ref":"1"}]',
+    'x,y 는 이 타일 안의 상대 좌표(0~1)입니다. 계기 8개를 넘기지 마세요(응답이 잘립니다).',
+  ].join('\n');
+}
+function parseArr(text) {
+  const t = text.trim().replace(/^```(?:json)?\s*|\s*```$/g, '');
+  try { return JSON.parse(t); } catch { /* 아래 */ }
+  const s = t.indexOf('['), e = t.lastIndexOf(']');
+  return JSON.parse(t.slice(s, e + 1));
+}
+const toBlob = (cv) => new Promise((ok) => cv.toBlob(ok, 'image/png'));
+
+async function readTile(t, signal) {
+  const tag = `p${$('pg').value}:r${t.rect.r}c${t.rect.c}`;
+  const t0 = performance.now();
+  const r = await sample(pass2Prompt(), {
+    images: [await toBlob(t.cv)], modelTier: $('tier').value, cache: false, signal,
+  });
+  const ms = Math.round(performance.now() - t0);
+  const arr = parseArr(r.text).filter((x) => x && WHITELIST.includes(String(x.type || '').toUpperCase()));
+  for (const x of arr) found.push({ ...x, type: String(x.type).toUpperCase(), _tile: tag });
+  return { tag, ms, n: arr.length, tier: r.modelTierApplied, truncated: r.truncated, arr };
+}
+
+async function runTiles(list) {
+  if (!sample) { $('o4').textContent = 'sample 기능이 없습니다 (01 참고).'; mark('s4', 'bad', 'sample 없음'); return; }
+  ctl = new AbortController(); sync4();
+  mark('s4', 'run');
+  const log = [];
+  let ok = 0, bad = 0, total = 0;
+  $('o4').textContent = 'Thinking...';
+  for (const t of list) {
+    if (ctl.signal.aborted) break;
+    t.cv.classList.remove('done', 'err');
+    try {
+      const r = await readTile(t, ctl.signal);
+      ok++; total += r.n; t.cv.classList.add('done');
+      log.push(`${r.tag}  ${r.n}개 · ${r.ms} ms · ${r.tier}${r.truncated ? ' · 잘림' : ''}\n${r.arr.map((x) => `   ${x.type}  ${x.position || '-'}  ${x.line_context || ''}  vendor=${x.vendor_scope ?? 'null'}`).join('\n')}`);
+    } catch (e) {
+      if (e && e.code === 'cancelled') break;
+      bad++; t.cv.classList.add('err');
+      log.push(`r${t.rect.r}c${t.rect.c}  실패 — ${errText(e)}`);
+      // 권한·기능 문제는 타일마다 반복해 봐야 같다.
+      if (e && ['not_granted', 'sampling_disabled', 'images_unavailable', 'rate_limited', 'not_declared'].includes(e.code)) break;
+    }
+    $('o4').textContent = log.join('\n') + (ctl.signal.aborted ? '' : '\n…');
+  }
+  $('o4').textContent = log.join('\n') || '멈췄습니다.';
+  const detail = `타일 ${ok}장 성공, ${bad}장 실패, 계기 ${total}개, 분할 ${$('grid').value}, 장변 ${$('px').value}px, tier=${$('tier').value}`;
+  mark('s4', ok && !bad ? 'ok' : (ok ? 'run' : 'bad'), detail + '\n' + log.join('\n'));
+  ctl = null; sync4();
+}
+$('b4').onclick = () => picked && runTiles([picked]);
+$('b4all').onclick = () => { found = []; runTiles(tiles); };
+$('b4stop').onclick = () => ctl && ctl.abort();
+
+/* ── 05 xlsx 저장 ─────────────────────────────────────────────────────── */
+const CRC = (() => { const t = new Uint32Array(256); for (let i = 0; i < 256; i++) { let c = i; for (let k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1; t[i] = c >>> 0; } return t; })();
+const crc32 = (u8) => { let c = 0xffffffff; for (const b of u8) c = CRC[(c ^ b) & 0xff] ^ (c >>> 8); return (c ^ 0xffffffff) >>> 0; };
+/** 압축 없이(stored) 묶는 zip. 검증용이라 이걸로 충분하다. */
+function zipStored(files) {
+  const enc = new TextEncoder(), parts = [], central = [];
+  let off = 0;
+  for (const [name, text] of files) {
+    const n = enc.encode(name), d = enc.encode(text), crc = crc32(d);
+    const lh = new DataView(new ArrayBuffer(30));
+    lh.setUint32(0, 0x04034b50, true); lh.setUint16(4, 20, true); lh.setUint16(6, 0x0800, true);
+    lh.setUint32(14, crc, true); lh.setUint32(18, d.length, true); lh.setUint32(22, d.length, true); lh.setUint16(26, n.length, true);
+    const ch = new DataView(new ArrayBuffer(46));
+    ch.setUint32(0, 0x02014b50, true); ch.setUint16(4, 20, true); ch.setUint16(6, 20, true); ch.setUint16(8, 0x0800, true);
+    ch.setUint32(16, crc, true); ch.setUint32(20, d.length, true); ch.setUint32(24, d.length, true); ch.setUint16(28, n.length, true);
+    ch.setUint32(42, off, true);
+    parts.push(lh.buffer, n, d); central.push(ch.buffer, n);
+    off += 30 + n.length + d.length;
+  }
+  const cdSize = central.reduce((s, p) => s + (p.byteLength ?? p.length), 0);
+  const end = new DataView(new ArrayBuffer(22));
+  end.setUint32(0, 0x06054b50, true); end.setUint16(8, files.length, true); end.setUint16(10, files.length, true);
+  end.setUint32(12, cdSize, true); end.setUint32(16, off, true);
+  return new Blob([...parts, ...central, end.buffer]);
+}
+const xesc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+function buildXlsx(rows) {
+  const col = (i) => String.fromCharCode(65 + i);
+  const sheetRows = rows.map((r, ri) => `<row r="${ri + 1}">${r.map((v, ci) => `<c r="${col(ci)}${ri + 1}" t="inlineStr"><is><t>${xesc(v)}</t></is></c>`).join('')}</row>`).join('');
+  return zipStored([
+    ['[Content_Types].xml', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/></Types>'],
+    ['_rels/.rels', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>'],
+    ['xl/workbook.xml', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets><sheet name="Instrument List" sheetId="1" r:id="rId1"/></sheets></workbook>'],
+    ['xl/_rels/workbook.xml.rels', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/></Relationships>'],
+    ['xl/worksheets/sheet1.xml', `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetData>${sheetRows}</sheetData></worksheet>`],
+  ]);
+}
+$('b5').onclick = async () => {
+  if (!downloads) { $('o5').textContent = 'downloads 기능이 없습니다 (01 참고).'; mark('s5', 'bad', 'downloads 없음'); return; }
+  const head = ['NO', 'TYPE', 'DRAWING NO', 'EQUIPMENT', 'POSITION', 'LINE', 'VENDOR SCOPE', 'TILE'];
+  const src = found.length ? found : [
+    { type: 'PIT', equipment: 'HP STEAM MAIN', position: 'DOWNSTREAM', line_context: '예시 행', vendor_scope: null, _tile: '-' },
+    { type: 'TIT', equipment: 'HP STEAM MAIN', position: 'DOWNSTREAM', line_context: '예시 행', vendor_scope: null, _tile: '-' },
+    { type: 'FE', equipment: 'HP BYPASS', position: 'UPSTREAM', line_context: '예시 행', vendor_scope: '*', _tile: '-' },
+  ];
+  const rows = [head, ...src.map((x, i) => [i + 1, x.type, meta.drawing_no, x.equipment, x.position, x.line_context, x.vendor_scope ?? '', x._tile])];
+  const blob = buildXlsx(rows);
+  mark('s5', 'run');
+  $('o5').textContent = '저장 확인 창을 기다리는 중…';
+  try {
+    const r = await downloads.save({ filename: 'instrument_list_verify.xlsx', data: blob });
+    $('o5').textContent = `저장됨 (${r.status}) · ${rows.length - 1}행 · ${blob.size.toLocaleString()} bytes\nExcel에서 열리는지 확인하세요.`;
+    mark('s5', 'ok', `${r.status}, ${rows.length - 1}행, ${blob.size}B`);
+  } catch (e) {
+    $('o5').textContent = `실패 — ${errText(e)}`;
+    mark('s5', 'bad', errText(e));
+  }
+};
+
+/* ── 결과 복사 ────────────────────────────────────────────────────────── */
+$('bc').onclick = async () => {
+  const lines = CHECKS.map(([id, name]) => { const r = result[id] || { s: 'wait', detail: '' }; return `[${LABEL[r.s]}] ${name}: ${r.detail}`; });
+  lines.push(`UA: ${navigator.userAgent}`);
+  try { await navigator.clipboard.writeText(lines.join('\n')); $('oc').textContent = '복사했습니다.'; }
+  catch { $('oc').textContent = '복사가 막혔습니다. 각 칸의 내용을 직접 옮겨 주세요.'; }
+};
+</script>
+</body>
+</html>
