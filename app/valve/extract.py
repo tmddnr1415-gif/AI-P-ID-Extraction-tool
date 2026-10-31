@@ -143,7 +143,13 @@ def _header(page, words, top_y):
         return _text(same)
 
     out["rev"] = right_of("REV", 120).split(" ")[0] if right_of("REV", 120) else ""
-    out["date"] = right_of("DATE", 120).split(" ")[-1] if right_of("DATE", 120) else ""
+    for lab in [w for w in head if w[4].upper().rstrip(".:") == "DATE"]:   # the DATE label followed by a date
+        cy = (lab[1] + lab[3]) / 2
+        nxt = [w for w in head if abs((w[1] + w[3]) / 2 - cy) < 3 and lab[2] < w[0] < lab[2] + 120
+               and re.fullmatch(r"\d{1,2}/\d{1,2}/\d{2,4}", w[4])]
+        if nxt:
+            out["date"] = nxt[0][4]
+            break
     m = re.search(r"SHEET\s+(\d+)\s+OF\s+(\d+)", " ".join(w[4] for w in sorted(head, key=lambda w: (round(w[1]), w[0]))))
     if not m:
         sh, of = right_of("SHEET", 120), right_of("OF", 60)

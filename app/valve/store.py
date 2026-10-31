@@ -62,7 +62,22 @@ def connect() -> sqlite3.Connection:
     con.row_factory = sqlite3.Row
     con.execute("PRAGMA journal_mode=WAL")
     con.executescript(_SCHEMA)
+    _migrate(con)
     return con
+
+
+_ADDED = {"comment": [("page", "INTEGER"), ("bbox", "TEXT"), ("category", "TEXT DEFAULT 'comment'"),
+                      ("deleted", "INTEGER DEFAULT 0")]}
+
+
+def _migrate(con):
+    """Columns added after a database was first made (older valve.db keeps working)."""
+    for table, cols in _ADDED.items():
+        have = {r[1] for r in con.execute(f"PRAGMA table_info({table})")}
+        for name, typ in cols:
+            if name not in have:
+                con.execute(f"ALTER TABLE {table} ADD COLUMN {name} {typ}")
+    con.commit()
 
 
 def rows(con, sql, *args):

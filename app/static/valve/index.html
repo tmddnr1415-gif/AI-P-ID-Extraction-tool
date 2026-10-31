@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Valve Datasheet Review</title>
+<link rel="icon" href="/static/favicon.svg">
+<link rel="stylesheet" href="valve.css">
+</head>
+<body>
+<!-- EPC Instrument Engineering Workbench — Module 01 Valve Datasheet Review.
+     P&ID 서버(8000)의 /valve/ — 대시보드 메뉴 '실행 프로젝트 › CO2 PJT › Datasheet › Ball Valve' 가 연다.
+     화면 데이터는 전부 /api/valve/* 에서 온다 (app/valve/api.py). Phase 3·4 엔진 전의 Process Data · PMS 화면만
+     'MOCK' 딱지를 붙인 예시 값을 보여 준다. -->
+<aside id="nav">
+  <div class="brand"><span class="logo">EPC</span><div><b>Instrument Review</b><small>Valve Datasheet</small></div></div>
+  <nav id="menu">
+    <button data-v="dash" class="on"><i>▦</i>Dashboard</button>
+    <button data-v="docs"><i>▤</i>Document Management</button>
+    <button data-v="list"><i>☷</i>Valve List</button>
+    <button data-v="review"><i>◧</i>Datasheet Review</button>
+    <button data-v="rev"><i>⇆</i>Revision Comparison</button>
+    <button data-v="proc"><i>∿</i>Process Data Verification</button>
+    <button data-v="pms"><i>⛭</i>PMS Compliance</button>
+    <button data-v="export"><i>⇩</i>Reports &amp; Export</button>
+    <button data-v="settings"><i>⚙</i>Settings</button>
+  </nav>
+  <div class="navfoot" id="navfoot"></div>
+</aside>
+<div id="main">
+  <header id="top">
+    <div class="crumb" id="crumb">실행 프로젝트 › <b id="crumbProj">CO2 PJT</b> › Datasheet › <b>Ball Valve</b></div>
+    <div class="topr">
+      <label class="projsel">Project <select id="projSel"></select></label>
+      <button id="projNew" class="ghost" title="새 프로젝트">＋</button>
+      <span class="who" id="who"></span>
+    </div>
+  </header>
+  <div id="views">
+    <section class="view on" id="v-dash"></section>
+    <section class="view" id="v-docs"></section>
+    <section class="view" id="v-list"></section>
+    <section class="view" id="v-review"></section>
+    <section class="view" id="v-rev"></section>
+    <section class="view" id="v-proc"></section>
+    <section class="view" id="v-pms"></section>
+    <section class="view" id="v-export"></section>
+    <section class="view" id="v-settings"></section>
+  </div>
+</div>
+<div id="toast"></div>
+<div id="modal" hidden><div class="mbox"><h3 id="mTitle"></h3><div id="mBody"></div><div class="mact" id="mAct"></div></div></div>
+<script src="valve.js"></script>
+</body>
+</html>

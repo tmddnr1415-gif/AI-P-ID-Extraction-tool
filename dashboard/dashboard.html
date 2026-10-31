@@ -1119,7 +1119,7 @@ function recLabel(key, f) {
  * ===================================================================== */
 let root = null;
 /* 서버 모드: http(s):// 로 접속하면 server.py 의 REST API 사용 (폴더 선택 불필요). file:// 로 열면 폴더 모드 */
-const APP_VERSION = '2026-10-31.1';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
+const APP_VERSION = '2026-10-31.2';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
 const SERVER_URL = 'http://localhost:8080';
 // 부서원 PC 사본(file://)이 접속을 시도할 서버 — 서버가 배포 파일을 만들 때 'PC 이름 주소, IP 주소' 순으로 자동 기록함
 const DEFAULT_SERVERS = ['http://ASEUNGWOOK-B01:8080', 'http://65.3.30.234:8080'];
@@ -3221,7 +3221,8 @@ const PID_ROUTES = { pid:{ title:'P&ID 분석', port:PID_PORT, path:'/', q:'embe
   logic:{ title:'LOGIC 분석', port:PID_PORT, path:'/logic', q:'' },
   logicdraw:{ title:'LOGIC 작성', port:PID_PORT, path:'/logic/draw', q:'' },   // LOGIC 분석의 하위 메뉴 (같은 서버 · 같은 권한 'logic')
   space:{ title:'ROOM SIZE 계산', port:PID_PORT, path:'/space', q:'embed=1&' },   // P&ID 서버(run_lan_service.bat · hotfix106~)의 /space
-  books:{ title:'도서검토', port:PID_PORT, path:'/books/', q:'embed=1&' } };       // P&ID 서버(hotfix115~)의 /books/
+  books:{ title:'도서검토', port:PID_PORT, path:'/books/', q:'embed=1&' },       // P&ID 서버(hotfix115~)의 /books/
+  valve:{ title:'CO2 PJT · Datasheet · Ball Valve', port:PID_PORT, path:'/valve/', q:'embed=1&project=CO2%20PJT&' } };   // 실행 프로젝트 › CO2 PJT › Datasheet › Ball Valve — P&ID 서버의 /valve/ (Valve Datasheet 검토)       // P&ID 서버(hotfix115~)의 /books/
 const PID_OFF = 'P&ID 서버가 꺼져 있습니다 — 부서장 PC 의 run_lan_service.bat 을 확인하세요 (켜지면 자동으로 다시 연결합니다)';
 // 호스트 = 지금 연결된 대시보드 서버의 호스트 (서버 모드: 이 페이지 주소, file://: 실제 접속에 성공한 서버 주소), 포트만 PID_PORT
 function pidBase(key = 'pid') {
@@ -3355,12 +3356,12 @@ function render() {
   if (route === 'home') placePlaza();
 }
 /* 메뉴 구성: 주간업무보고(홈 대시보드 + 하위 시트 9개) / P&ID 분석 / 입찰 프로젝트 / 실행 프로젝트 / 익명게시판 */
-const ROUTES = ['home', 'work', 'alloc', 'board', 'bidpjt', 'runpjt', 'pid', 'logic', 'logicdraw', 'space', 'books', 'mgmt', 'mgalloc', 'mghours', 'mgwork', 'mgbday'];   // mgwork = 근로시간 관리(근태 시스템 엑셀 · 52h) · mgbday = 부서원 생일
+const ROUTES = ['home', 'work', 'alloc', 'board', 'bidpjt', 'runpjt', 'valve', 'pid', 'logic', 'logicdraw', 'space', 'books', 'mgmt', 'mgalloc', 'mghours', 'mgwork', 'mgbday'];   // mgwork = 근로시간 관리(근태 시스템 엑셀 · 52h) · mgbday = 부서원 생일
 const MG_ROUTES = ['mgmt', 'mgalloc', 'mghours', 'mgwork', 'mgbday'];   // logic = LOGIC 분석 (P&ID 와 같은 방식)   // mgmt = Management 머리(→ mgalloc) · mgalloc = R&R·투입 분석(시간 병기) · mghours = 근무시간(월·주·일)   // work = 예전 통합 업무 주소 → #task 로 바꿈 · alloc = R&R·투입 분석 · bidpjt/runpjt/mgmt = MODULES(준비 중), pid = P&ID 분석
-const menuOf = r => (r === 'home' || r === 'work' || r === 'alloc' || SHEET[r]) ? 'weekly' : MG_ROUTES.includes(r) ? 'mgmt' : r === 'logicdraw' ? 'logic' : r;   // 화면(route) → 권한 메뉴 키
+const menuOf = r => (r === 'home' || r === 'work' || r === 'alloc' || SHEET[r]) ? 'weekly' : MG_ROUTES.includes(r) ? 'mgmt' : r === 'logicdraw' ? 'logic' : r === 'valve' ? 'runpjt' : r;   // 화면(route) → 권한 메뉴 키
 const validRoute = k => ROUTES.includes(k) || !!SHEET[k];
 // 하위 메뉴 접기/펼치기 상태 (브라우저에 기억, 기본 펼침)
-const NAV_LS = { weekly:'dept-nav-weekly-open', logic:'dept-nav-logic-open', mgmt:'dept-nav-mgmt-open' };
+const NAV_LS = { weekly:'dept-nav-weekly-open', logic:'dept-nav-logic-open', mgmt:'dept-nav-mgmt-open', runpjt:'dept-nav-runpjt-open', 'runpjt-co2':'dept-nav-runpjt-co2-open', 'runpjt-co2-ds':'dept-nav-runpjt-co2-ds-open' };
 const NAV_OPEN = Object.fromEntries(Object.entries(NAV_LS).map(([k, ls]) => [k, (() => { try { return localStorage.getItem(ls) !== '0'; } catch (_) { return true; } })()]));
 function renderMenu() {
   if (route === 'board' && DB.board) markBoardSeen();
@@ -3375,6 +3376,13 @@ function renderMenu() {
        <div class="mhead">${btn(head, 'top')}
          <button class="mtog" data-tog="${nav}" title="하위 메뉴 ${NAV_OPEN[nav] ? '접기' : '펼치기'}" aria-label="하위 메뉴 접기/펼치기">${NAV_OPEN[nav] ? '▾' : '▸'}</button></div>
        <div class="msub" ${NAV_OPEN[nav] ? '' : 'hidden'}>${subs.map(i => btn(i, 'subi')).join('')}</div></div>`;
+  // 실행 프로젝트 › CO2 PJT › Datasheet › Ball Valve — 폴더(누르면 접기/펼치기) 안의 폴더. 잎(Ball Valve)만 화면을 연다.
+  const fold = (nav, label, inner) => `<div class="mhead"><button class="mi subi" data-tog="${nav}" title="${esc(label)}"><span class="ml">${NAV_OPEN[nav] ? '▾' : '▸'} ${esc(label)}</span></button></div>
+       <div class="msub" ${NAV_OPEN[nav] ? '' : 'hidden'}>${inner}</div>`;
+  const runTree = () => `<div class="mgrp ${route === 'runpjt' || route === 'valve' ? 'act' : ''}">
+       <div class="mhead">${btn({ k:'runpjt', l:'🏗 실행 프로젝트', n:'', c:0 }, 'top')}
+         <button class="mtog" data-tog="runpjt" title="하위 메뉴 ${NAV_OPEN.runpjt ? '접기' : '펼치기'}" aria-label="하위 메뉴 접기/펼치기">${NAV_OPEN.runpjt ? '▾' : '▸'}</button></div>
+       <div class="msub" ${NAV_OPEN.runpjt ? '' : 'hidden'}>${fold('runpjt-co2', 'CO2 PJT', fold('runpjt-co2-ds', 'Datasheet', btn({ k:'valve', l:'Ball Valve', n:'', c:0 }, 'subi')))}</div></div>`;
   // 권한이 있는 메뉴만 표시 (운영자가 ⚙ 메뉴 권한 설정에서 사용자별로 부여, Management 는 기본 비허용)
   $('#menu').innerHTML =
     (can('weekly') ? group('weekly', { k:'home', l:'📋 주간업무보고', n:'', c:NAV_OPEN.weekly ? 0 : subNew, t:'하위 메뉴의 수정·변경된 행' }, sub, inWeekly) : '') +
@@ -3383,7 +3391,7 @@ function renderMenu() {
     (can('space') ? btn({ k:'space', l:'🗄 ROOM SIZE 계산', n:'', c:0 }, 'top') : '') +
     (can('books') ? btn({ k:'books', l:'🌪️ 도서검토', n:'', c:0 }, 'top') : '') +
     (can('bidpjt') ? btn({ k:'bidpjt', l:'📈 입찰 프로젝트', n:'', c:0 }, 'top') : '') +
-    (can('runpjt') ? btn({ k:'runpjt', l:'🏗 실행 프로젝트', n:'', c:0 }, 'top') : '') +
+    (can('runpjt') ? runTree() : '') +
     (can('board') ? btn({ k:'board', l:'💬 익명게시판', n:root && DB.board ? DB.board.length : '', c:root ? boardNewCount() : 0, t:'마지막 확인 이후 새 글·댓글' }, 'top') : '') +
     (can('mgmt') ? group('mgmt', { k:'mgmt', l:'🛠 Management', n:'', c:0 }, [{ k:'mgalloc', l:'R&R · 투입 분석', n:'', c:0 }, { k:'mghours', l:'근무시간 (월·주·일)', n:'', c:0 }, { k:'mgwork', l:'근로시간 관리 (52h)', n:'', c:0 }, { k:'mgbday', l:'부서원 생일', n:'', c:0 }], MG_ROUTES.includes(route)) : '');
   $('#btnPerm').hidden = !(SERVER && ADMIN && root && !OFFLINE);   // 메뉴 권한 설정: 운영자(서버 PC)만
@@ -3859,7 +3867,7 @@ function fitRecent() { const el = $('#recent'); if (!el) return; el.style.maxHei
  *  - 비회원 · 오프라인은 안내 한 줄. 메뉴 항목은 만들지 않음. 로그아웃 · 다른 사람 로그인 → 광장에서 나감(plazaOff). 광장 화면 규칙은 plaza/README_인계.md §5
  * ===================================================================== */
 const PZ = { url:'', state:'', sent:null };
-const PZ_STATUS = { pid:'P&ID 분석 중...', logic:'LOGIC 분석 중...', logicdraw:'LOGIC 작성 중...', space:'ROOM SIZE 계산 중...', books:'도서검토 중...' };
+const PZ_STATUS = { valve:'Valve Datasheet 검토 중...', pid:'P&ID 분석 중...', logic:'LOGIC 분석 중...', logicdraw:'LOGIC 작성 중...', space:'ROOM SIZE 계산 중...', books:'도서검토 중...' };
 const plazaPort = () => SERVER_INFO?.plazaPort || 8100;
 function plazaBase() { return pidBase().replace(/:\d+$/, ':' + plazaPort()); }
 function plazaHost() {
