@@ -1,6 +1,6 @@
 # 인수인계 — "VALVE Datasheet 검토" 세션 (상한 15KB · 덧붙이지 말고 고쳐 쓴다)
 
-## 지금 상태 (2026-10-31 · valve19)
+## 지금 상태 (2026-10-31 · valve20)
 
 - 작업 브랜치: `ccr-efbe7e75-n915ze`. 이 브랜치는 PID(`claude/gracious-ride-26nqrf`, hotfix131) 와 DASHBOARD(`ccr-248a5c4d-3dji7g`, v16.51) 를 병합한 위에 있다.
 - 무엇: 대시보드 **실행 프로젝트 › CO2 PJT › Datasheet › Ball Valve** = P&ID 서버(8000) `/valve/` — Valve Datasheet 검토 도구.
@@ -28,18 +28,21 @@
   + **valve16 (DESIGN §20)**: 두 Excel 의 목록 시트 첫 열 No. · Summary 시트(Area · Site · Unit × Issue Type / Valve Type + By Area, `exports.summary_sheet`).
   + **valve17 (DESIGN §21)**: Issue List 시트 Area → Site → Unit → Tag 순 · All Valves 에 Note 요구사항 종류별 열(PFP · Fugitive class · Fire safe · NACE · SIL … `requirements.columns`).
   + **valve18 · 19 (DESIGN §22 · §23)**: Issue List · Valve List 에 'Summary by Area' 시트(`exports._area_sheet` · `tbe._area_sheet`).
+  + **valve20 (DESIGN §24) 상용 수준**: 데이터시트별 검토 캐시(메모리 + `valve/cache/review/`) · 워밍 · `_json()` · 큰 표 idle 렌더 → 990 DS 에서도 끊김 없음 ·
+    간결한 UI(그룹 카드 · 한 줄 탭 · '?' 도움말 · 8 타일) · 매일 DB 백업 · 버전 표시 · **시뮬레이션 `spike/valve_sim.py`**(10,000건 recall/precision 1.000 · 퍼즈 0 예외) + 게이트 시험.
+    규칙 코드를 고치면 `python3 spike/valve_sim.py --n 3000` 도 돌린다.
   + **빈 Process Data 항목은 전부 Data Missing**(Process DS 참조여도 — 사용자 요청, valve08) → 실자료 2,529건 · Process Data 값을 Required 로.
   실자료: Process Data(Annexure 7) 68 Tag 중 Datasheet 66 연결 · Match 215 · Mismatch 42(Line No. 32 · P&ID 8 · Fail 위치 2) · Review 2 · Referenced 749.
   새 양식 · 새 자료가 오면 같은 방법으로: `valve_visual_pack.py` → 검토(지시문은 §12) → `valve_visual_score.py`.
   PMS 의 Gasket · Bolting 품목 대조는 아직(볼트는 데이터시트 Note 로 재질 검토 MR-11 만).
 - 품질 기준값: `spike/valve_eval.py` → `spike/valve_eval_baseline.json` (지문 541753c612ed · 17,471칸 · Extraction Review 1 · 오독 0 · TBE 일치 92.9 % · PMS Review 58 · F 절 재질 규칙 개수 — `--pd <Process Data PDF>` 를 같이 줘야 온도 규칙이 돈다).
   추출 · PMS 코드를 고치면 `--check` 로 돌린다 — 움직이면 실패하고 바뀐 칸을 보여 준다 (먼저 `--save-baseline` 을 한 번 돌려 둔 `--out` 폴더가 있어야 칸 비교가 나온다). 원인을 칸 단위로 밝힌 뒤에만 `--save-baseline`.
-- 매 회차 끝 점검 넷: `pytest -q tests/test_valve.py` · `valve_eval.py --check` · `valve_diff_sim.py` (불일치 0) · `node spike/valve_ui_audit.cjs` (데이터 **사본**으로 띄운 서버, 22/22).
+- 매 회차 끝 점검 다섯(valve20: `valve_sim.py --n 3000` 추가): `pytest -q tests/test_valve.py` · `valve_eval.py --check` · `valve_diff_sim.py` (불일치 0) · `node spike/valve_ui_audit.cjs` (데이터 **사본**으로 띄운 서버, 22/22).
 - 회사에서 검토가 쌓이면 Review Feedback json 을 받아 `spike/valve_voc.py <파일> --ds <PDF>` — 기각(Dismissed) 많은 규칙부터 고친다.
 - 실자료(고객 파일 · 저장소에 없음): Datasheet.pdf 456쪽 → 164 데이터시트(On/Off 140 · MOV 24) · TBE 164/164 Tag 일치.
   자료를 다시 받으면 EGG 는 `python3 spike/valve_unegg.py <폴더> *.egg`, TBE .xls 는 시험용으로 `spike/valve_xls2xlsx.py`(xlrd 필요).
-- 시험: `pytest -q tests/test_valve.py` (46개, 실자료는 `VALVE_SAMPLES=<Datasheet.pdf 폴더>`). 전체 1,860 통과 (2026-10-31).
-- 마지막 꾸러미: **valve19** (P&ID 서버용만 — 대시보드는 valve01 의 메뉴 그대로). valve01~19 모두 회사 적용 확인 전. 각 꾸러미는 hotfix131 기준 누적이라 valve19 하나만 적용해도 된다.
+- 시험: `pytest -q tests/test_valve.py` (48개, 실자료는 `VALVE_SAMPLES=<Datasheet.pdf 폴더>`). 전체 1,860 통과 (2026-10-31).
+- 마지막 꾸러미: **valve20** (P&ID 서버용만 — 대시보드는 valve01 의 메뉴 그대로). valve01~20 모두 회사 적용 확인 전. 각 꾸러미는 hotfix131 기준 누적이라 valve20 하나만 적용해도 된다.
 
 ## 파일
 
@@ -72,8 +75,8 @@
 ## 꾸러미
 
 - P&ID 서버용 (밸브 모듈만):
-  `python3 spike/pack_delta.py --name valve19 --base 9429f4f --only app/valve/,app/static/valve/,app/main.py,tests/test_valve.py --readme out/valve19/readme_head.txt --ops`
-  → `out/PID_dev+ops_valve19_<날짜>.zip`. `--only` 는 딱지(`app/_update.json`)와 기준 파일(`out/PID_dev_delta_base.txt`)을 건드리지 않는다 (PID 세션 번호와 안 섞이게).
+  `python3 spike/pack_delta.py --name valve20 --base 9429f4f --only app/valve/,app/static/valve/,app/main.py,tests/test_valve.py --readme out/valve20/readme_head.txt --ops`
+  → `out/PID_dev+ops_valve20_<날짜>.zip`. `--only` 는 딱지(`app/_update.json`)와 기준 파일(`out/PID_dev_delta_base.txt`)을 건드리지 않는다 (PID 세션 번호와 안 섞이게).
   기준 9429f4f = hotfix131 전달본. 회사가 다른 판이면 `--base` 를 그 판으로.
 - 대시보드용: `python3 dashboard_tools/make_patch.py --out dashboard_patches --mark` (기준 = `delivered.txt` 맨 아래). `--out` 은 폴더. 첫 전달: `dashboard_patches/UPDATE_from_v16.51_VALVE_menu.zip` (기준 v16.51).
 - 적용 순서(회사): ① PID 꾸러미 `apply_to_PID_dev.bat` → 확인 → `apply_to_PID_ops.bat` (8000 서버 재시작) ② 대시보드 zip `APPLY.bat` (서버 재시작 필요 없음, 화면 새 버전 배너) ③ 대시보드 → 실행 프로젝트 › CO2 PJT › Datasheet › Ball Valve.

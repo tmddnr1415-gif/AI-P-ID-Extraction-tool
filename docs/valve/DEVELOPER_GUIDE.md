@@ -565,6 +565,9 @@ PDF/Excel/피드백을 **서버 상태로** 확인, 캡처 저장, 그린 것은
 `python3 spike/valve_voc.py <파일> --ds <같은 PDF>` → 규칙별 맞은 비율 · 잘못 읽은 칸 · 놓친 것 + 지금 코드로 다시 돌린 결과.
 참고축(게이트 아님). **판정 코드는 이 파일을 읽지 않는다**(시험이 지킨다) — 정답지를 보고 맞추는 일을 막기 위해.
 
+### 15.6b 시뮬레이션 `spike/valve_sim.py` (valve20)
+`python3 spike/valve_sim.py --n 3000 --seed 1 --fuzz 500` — 합성 데이터시트 + 엔지니어 oracle 로 MR/VR/TG/PC/지적/요구사항/PMS/Process/위치 규칙을 재고(FN · FP · 수준 차 · 예외), 퍼즈로 예외를 잡는다. 규칙을 고치면 돌리고, 400건 게이트는 pytest 에 있다.
+
 ### 15.7 회차 끝 점검 넷
 
 `pytest -q tests/test_valve.py` · `valve_eval.py --check` · `valve_diff_sim.py`(불일치 0) · `valve_ui_audit.cjs`(22/22). 읽기를 고쳤다면 + 눈 대조(바뀐 줄).
@@ -698,6 +701,7 @@ python3 spike/pack_delta.py --name valve05 --base 9429f4f \
 | valve17 | 〃 | Issue List 시트 Area 순 정렬 · All Valves 에 요구사항 종류별 열(`requirements.columns`, 데이터시트 줄 답 우선 · 세부 · 출처) |
 | valve18 | 〃 | Issue List 'Summary by Area' 시트(Area 별 Units · Tags · 종류 · Severity · Status, Area × 종류 × Severity 표) |
 | valve19 | 〃 | Valve List 'Summary by Area' 시트(Area 별 Units · Tags · Valve Type · Open Issues · Action · PFP · SIL · Fire Safe HOLD · New/Updated, Area × Valve Type 의 Size · Rating) |
+| valve20 | 〃 | **상용 수준**: 데이터시트별 검토 캐시(메모리+디스크) · 워밍 · `_json()` · idle 표 렌더 · 그룹 이슈 카드 · 한 줄 탭 · '?' 도움말 · DB 백업 · 버전 · 시뮬레이션 `valve_sim.py`(10,000건) |
 
 **남은 일**
 1. 회사 적용 확인: .xls 자동 변환, 456쪽 처리 시간, 화면 글꼴, Edge 에서 Mark-up · 패널 접기, 내보낸 PDF 를 Acrobat 에서 열기, 1366×768 노트북에서 작업대.

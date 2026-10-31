@@ -96,3 +96,9 @@ DB 스키마 · 저장 구조 · 추출(`extract.py`) · 재질 · PMS · TBE �
 - localStorage 새 키(`wbpx` `wbc` `mkbar` `vpart` `rcsync`) — 예전 `wbw`(%) 는 더 안 쓰지만 지우지 않는다. 이상하면 Settings › 처음대로.
 - Process Data PDF 를 Document Management 에 올리면 바로 비교된다(이미 올려 둔 것은 처음 열 때 자동으로 읽음). 대시보드 'Process Data Mismatch' 가 숫자로 바뀐다.
 - 1366×768 노트북은 Tag 목록이 접힌 채 시작한다 — `[` 또는 왼쪽 세로 레일로 펼친다.
+
+## 8. valve20 — 가볍게 · 간결하게
+
+- Issues 탭: 같은 종류·이유의 지적은 한 카드(칸 chip · 상태 일괄 · 펼치기). 오른쪽 탭 한 줄 가로 스크롤. 설명 문장은 머리 '?' 로 켤 때만.
+- 대시보드 8 타일. 내보내기 카드 한 줄 설명(세부는 '?'). 자동 생성 파일은 최근 4개 + 접기. 미리보기 캡션 세로 깨짐 수정. 푸터 · Settings 에 버전.
+- 큰 표(Issue List · Valve List)는 250행 먼저 그리고 나머지는 유휴 시간에 — 990 데이터시트에서도 화면이 멈추지 않는다.

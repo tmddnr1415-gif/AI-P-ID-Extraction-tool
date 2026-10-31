@@ -121,3 +121,10 @@
 - 요청: Valve List 에도 Area 별 Summary 시트 추가.
 - tbe._area_sheet: Area 한 줄씩(Units · Tags · 종류별 · Open Issues · Action · PFP Required · SIL · Fire Safe HOLD · New/Updated) + Area × Valve Type(Size · Rating). Summary 와 All Valves 사이.
 - 시험 46 · 전체 1,876 · ui_audit 22/22.
+
+## 2026-10-31 · valve20 — 상용 수준: 속도 · 간결한 UI · 시뮬레이션 (브랜치 ccr-efbe7e75-n915ze)
+- 요청: 가볍게 · 끊김 없이 · 글 적게 · UI 개선 · 수천 번 시뮬레이션 · 상업 판매 수준.
+- 속도: 데이터시트별 검토 캐시(메모리 + 디스크) · 프로젝트 판 키 · 워밍 · `_json()` · grid 캐시 → issues 250→30 ms · PMS 784→21 · 냉간 3.9 s→0.2 s · 990 DS 재시작 36 s→0.23 s.
+- UI: 그룹 이슈 카드 · 한 줄 탭 · '?' 도움말 · 8 타일 · idle 표 렌더(Issue List 6.1→2.2 s @990) · 오류 토스트 · 버전 · DB 백업.
+- 시뮬레이션 `spike/valve_sim.py`: 3,000건 recall .955/precision .906 → 10,000건 1.000/1.000 · 퍼즈 0 예외. 결함 6건 수정(R-PTFE · METAL/NYLON · LTCS · MR-03 · MR-13 · VR-09). 실자료 VR-09 2→20(진짜).
+- 시험 48 · ui_audit 22/22 · 기준값 저장.

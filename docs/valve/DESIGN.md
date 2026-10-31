@@ -441,3 +441,31 @@ Note 113 · PC-01 Confirm 6(3C0K8 의 '316 SS/FHF' 2개 · API5L-X65 MOV 1500# �
 - Summary by Area(`tbe._area_sheet`): Area 마다 한 줄 — Units(Brownfield 는 Site-Unit) · Tags · Valve Type 별 수 · Open Issues · Tags with Action · PFP Required · SIL · Fire Safe on HOLD · New / Updated, 필터 · Total.
   아래 'By Area × Valve Type' 표: Tags · Sizes · Ratings · Open Issues · Tags with Action · PFP Required.
 - 실자료: North 74(ESDV 45 · BDV 18 · XV 5 · MOV 6, PFP 31) · South 69 · Brownfield 14(SDV 4 · XV 10, Fire Safe HOLD 11) · W15 7 = 164.
+
+## 24. 상용 수준으로 — 가볍게 · 간결하게 · 시뮬레이션으로 (valve20, 사용자 요청)
+
+요청: "최대한 가볍게 · 끊김 없이 · 글 적게 · UI 개선 · 수천 번 시뮬레이션으로 보완 · 상업 판매 수준".
+
+### 24.1 속도 (실측 · 164 DS → 990 DS 복제본으로도)
+- **데이터시트별 검토 캐시** `api._DEEP_CACHE` + 디스크 `valve/cache/review/<id>.json`: 키 = 그 데이터시트의 최신 감사 id · 검토 상태 + 프로젝트 판(`_profile_ver`: 데이터시트 수/id · 문서 수/id · 값 수정 감사 id).
+  이슈 상태 · 의견 · 검토 상태 변경은 그 데이터시트만 다시 계산하고, 값 수정 · 업로드만 전체(동료 학습 · Tag 학습이 바뀌므로).
+- `_ds_full` 은 캐시 확인을 맨 앞에서(전에는 칸 · 의견 · 이력 · Revision 질의 8개를 먼저 하고 확인했다). 프로젝트 판은 요청당 한 번(`pv=`).
+- PMS · Process 프로젝트 화면은 캐시의 `pms` · `process` 를 모아 준다(다시 계산하지 않음). Grid 캐시. **서버 시작 · 분석 끝에 백그라운드 워밍**(`warm`).
+- **`_json()`**: 큰 응답은 FastAPI `jsonable_encoder` 를 거치지 않고 바로 직렬화(2,800 지적에서 200 ms 가 20 ms).
+- 결과(164 DS): issues 250 → 30 ms · PMS 784 → 21 · Process 530 → 20 · datasheet 23 → 5 · summary 냉간 3.9 s → 0.2 s(디스크 캐시).
+  990 DS: 재시작 냉간 summary 36 s → 0.23 s · issues 0.5 s(9 MB) · UI Issue List 6.1 → 2.2 s · Valve List 2.4 → 1.7 s · Review 1.1 → 0.7 s · 다음 Tag 0.35 s.
+- UI: 큰 표(Issue List · Valve List)는 250행 먼저, 나머지는 idle 배치(`chunkRows`) — 멈춤 없음. `indexOf` O(n²) 제거. 이슈 응답에서 화면이 안 쓰는 키 제거(-25 %).
+- DB: 스키마 초기화는 프로세스당 한 번 · `busy_timeout` · **매일 첫 실행 때 `valve/backups/valve.db.<날짜>.bak`**(7개 보관).
+
+### 24.2 간결한 UI
+- 작업대 Issues 탭: 같은 종류 · 같은 이유의 지적은 **한 카드**(칸 chip · 상태 일괄 · 펼치기). 13개 'no value' 카드 → 1개.
+- 오른쪽 탭 한 줄(가로 스크롤 · 활성 탭 자동 노출). 설명 문장은 **머리 '?' 단추**로 켤 때만(기본 숨김, `body.hints`). 대시보드 10 → 8 타일(검토 진행은 도넛). 내보내기 카드 한 줄씩. 미리보기 캡션 줄바꿈 깨짐 수정.
+- 전역 오류 토스트(`unhandledrejection`) · Settings › 정보에 버전 · 데이터 경로 · 푸터에 버전(`GET /api/valve/version`).
+
+### 24.3 수천 번 시뮬레이션 (`spike/valve_sim.py`)
+- 합성 데이터시트 생성기(7 PMS Class · 재질 · 시트 · Stem · 플랜지 · 크기 · Floating/Trunnion · Fail · SIL · 누설 · 보온 · Piggable · 볼트 Note · General Note · HOLD · 빈 공정 · Line/Class 불일치 · 동료 이탈 · Tag 중복 · 4 Area)
+  + 같은 손잡이에서 유도한 **엔지니어 기대값(oracle)** 44 규칙 → 엔진 결과와 대조(FN · FP · 수준 차 · 예외), 퍼즈(None · 쓰레기 · 유니코드 · 거대 수 · 틀린 단위).
+- 전 3,000건: 예외 0 · recall 0.955 · precision 0.906 · 수준 차 785 → **후 10,000건: 예외 0 · recall 1.000 · precision 1.000 · 수준 차 0** · 퍼즈 2,000 예외 0.
+  고친 결함: `R-PTFE` 토큰(실자료 41건이 이 표기) · METAL/NYLON 시트 계열 · LCC/LF2 = LTCS · MR-03 2점 P-T 표(XC0K8) · MR-13 HOLD 제외 · VR-09 크기에 맞는 PMS 품목만.
+  실자료 영향: MR-13 Note 11 → 0 · VR-09 Confirm 2 → 20(Fire Safe 빈칸인데 PMS 품목은 Fire tested — 실제 확인 거리). 읽기 지문 불변.
+- 시험 게이트 `test_simulation_gate`(400건 seed 7: 예외 0 · recall/precision ≥ 0.99). 한계: oracle 이 엔진과 같은 손잡이에서 나오므로 "규칙이 의도대로 동작한다" 를 재는 것이지 "규칙이 옳다" 를 재지는 않는다 — 규칙의 옳음은 회사 엔지니어 확인(§14.3 · §15 표).
