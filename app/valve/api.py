@@ -9,6 +9,7 @@ result carries the page and box it came from.
 """
 from __future__ import annotations
 
+import datetime as dt
 import io
 import json
 import re
@@ -24,7 +25,7 @@ from fastapi.responses import FileResponse, JSONResponse, RedirectResponse, Resp
 from starlette.concurrency import run_in_threadpool
 
 from app import paths
-from app.valve import extract, issues as issuesmod, material, pms as pmsmod, schema, store, tbe
+from app.valve import exports, extract, issues as issuesmod, material, pms as pmsmod, schema, store, tbe
 
 router = APIRouter()
 _JOBS: dict[str, dict] = {}
@@ -222,6 +223,8 @@ def _process(jid: str, pid: int, items: list[tuple[int, str, str, Path]], by: st
                 _JOBS[jid]["errors"].append({"file": name, "error": str(e)[:300], "trace": traceback.format_exc()[-800:]})
         done += max(1, pages)
         _job(jid, done=done)
+    if any(it[1] == "datasheet" for it in items) and _JOBS[jid].get("base") is not None:
+        _auto_export(jid, pid, _JOBS[jid]["base"], by)
     _job(jid, status="done", msg="끝", total=total, done=total)
 
 
@@ -261,7 +264,7 @@ async def upload(pid: int, request: Request, kind: str = Form(...), files: list[
         return _err("올릴 파일이 없습니다 — " + "; ".join(skipped) if skipped else "올릴 파일이 없습니다")
     jid = uuid.uuid4().hex[:12]
     _JOBS[jid] = {"id": jid, "status": "running", "done": 0, "total": sum(max(1, it[4]) for it in items),
-                  "msg": "", "file": "", "errors": [], "skipped": skipped, "warn": ""}
+                  "msg": "", "file": "", "errors": [], "skipped": skipped, "warn": "", "base": _base(request), "exports": []}
     threading.Thread(target=_process, args=(jid, pid, items, by), daemon=True).start()
     return _JOBS[jid]
 
@@ -280,7 +283,7 @@ def retry(doc_id: int, request: Request):
         return _err("없는 문서", 404)
     jid = uuid.uuid4().hex[:12]
     _JOBS[jid] = {"id": jid, "status": "running", "done": 0, "total": max(1, d["pages"] or 1), "msg": "", "file": "",
-                  "errors": [], "skipped": [], "warn": ""}
+                  "errors": [], "skipped": [], "warn": "", "base": _base(request), "exports": []}
     item = (d["id"], d["kind"], d["filename"], Path(d["path"]), d["pages"] or 0)
     threading.Thread(target=_process, args=(jid, d["project_id"], [item], _user(request)), daemon=True).start()
     return _JOBS[jid]
@@ -704,8 +707,14 @@ async def markup_pdf(request: Request):
 
 # ── exports ─────────────────────────────────────────────────────────────────────
 
-def _export_valvelist(pid: int):
+def _base(request: Request) -> str:
+    """Address the links in exported files point to (the server as the user reached it)."""
+    return str(request.base_url).rstrip("/")
+
+
+def _export_valvelist(pid: int, base: str = ""):
     con = store.connect()
+    pname = (store.one(con, "SELECT name FROM project WHERE id=?", pid) or {}).get("name", "")
     dss = store.rows(con, "SELECT id, tag_key, rev FROM datasheet WHERE project_id=?", pid)
     latest = _latest(dss)
     full = []
@@ -717,13 +726,15 @@ def _export_valvelist(pid: int):
     vl = store.one(con, "SELECT * FROM document WHERE project_id=? AND kind='valvelist' AND status='done' ORDER BY id DESC",
                    pid)
     template = Path(vl["path"]).read_bytes() if vl else None
-    data, report = tbe.build(template, full, names)
+    link = (lambda ds, key: exports.deep_link(base, pname, {"ds_id": ds["id"], "key": key,
+                                                         "page": (ds["fields"].get(key) or {}).get("page")})) if base else None
+    data, report = tbe.build(template, full, names, pname, link=link)
     return data, report, vl
 
 
 @router.get("/api/valve/projects/{pid}/valvelist.xlsx")
 async def valvelist_xlsx(pid: int, request: Request):
-    data, report, vl = await run_in_threadpool(_export_valvelist, pid)
+    data, report, vl = await run_in_threadpool(_export_valvelist, pid, _base(request))
     con = store.connect()
     store.audit(con, pid, None, None, "export", None, "valvelist.xlsx", _user(request),
                 json.dumps({k: len(v) for k, v in report.items()}))
@@ -739,6 +750,127 @@ async def valvelist_xlsx(pid: int, request: Request):
 async def valvelist_preview(pid: int):
     data, report, vl = await run_in_threadpool(_export_valvelist, pid)
     return {"report": report, "template": vl["filename"] if vl else None}
+
+
+def _select(rows, types: str = "", dismissed: int = 0, tag: str = "", severity: str = ""):
+    want = [t for t in types.split(",") if t] or issuesmod.CONTRACTOR_TYPES
+    sev = [x for x in severity.split(",") if x]
+    tags = {schema.norm_tag(t) for t in tag.split(",") if t}
+    return [i for i in rows if i["type"] in want and (dismissed or i["status"] != "Dismissed")
+            and (not tags or i["tag"] in tags) and (not sev or i["severity"] in sev)]
+
+
+def _issue_xlsx(pid, base, by, types="", dismissed=0, tag="", severity=""):
+    con = store.connect()
+    pname = store.one(con, "SELECT name FROM project WHERE id=?", pid)["name"]
+    rows = _select(project_issues(con, pid), types, dismissed, tag, severity)
+    srcs = sorted({i["filename"] for i in rows})
+    return exports.issues_xlsx(rows, base, pname, by, srcs), len(rows), pname
+
+
+def _markup_entries(con, rows):
+    by_ds = {}
+    for i in rows:
+        by_ds.setdefault(i["ds_id"], []).append(i)
+    out = []
+    for dsid, iss in by_ds.items():
+        d = _ds_full(con, dsid, deep=False)
+        doc = store.one(con, "SELECT path, filename FROM document WHERE id=?", d["document_id"])
+        out.append({"path": doc["path"], "pages": d["pages"], "tag": d["tag_key"], "doc_no": d["doc_no"], "rev": d["rev"],
+                    "filename": doc["filename"], "issues": iss})
+    out.sort(key=lambda e: e["tag"])
+    return out
+
+
+def _project_pms(con, pid):
+    pms, pdoc = _pms_for(con, pid)
+    if not pms:
+        return None, []
+    latest = _latest(store.rows(con, "SELECT id, tag_key, rev FROM datasheet WHERE project_id=?", pid))
+    out = []
+    for d in sorted(latest.values(), key=lambda d: d["tag_key"]):
+        x = _ds_full(con, d["id"], deep=False)
+        F = {f["key"]: f for f in x["fields"]}
+        for r in pmsmod.check(F, pms, x["area"]):
+            f = F.get(r["key"]) or {}
+            out.append(dict(r, ds_id=x["id"], tag=x["tag_key"], doc_no=x["doc_no"], rev=x["rev"], area=x["area"],
+                            document_id=x["document_id"], ds_page=f.get("page") or x["pages"][0], ds_bbox=f.get("bbox")))
+    return pdoc, out
+
+
+@router.get("/api/valve/projects/{pid}/pms")
+async def pms_rows(pid: int):
+    con = store.connect()
+    pdoc, rows = await run_in_threadpool(_project_pms, con, pid)
+    return {"pms_doc": pdoc, "rows": rows}
+
+
+@router.get("/api/valve/projects/{pid}/issues.xlsx")
+async def issues_xlsx(pid: int, request: Request, types: str = "", dismissed: int = 0, tag: str = "", severity: str = ""):
+    data, n, pname = await run_in_threadpool(_issue_xlsx, pid, _base(request), _user(request), types, dismissed, tag, severity)
+    con = store.connect()
+    store.audit(con, pid, None, None, "export", None, "issues.xlsx", _user(request), f"{n} issues")
+    con.commit()
+    fn = f"{pname.replace(' ', '_')}_Valve_Datasheet_Issue_List_{store.now()[:10]}.xlsx"
+    return Response(data, media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    headers={"Content-Disposition": f"attachment; filename*=UTF-8''{quote(fn)}", "X-Count": str(n)})
+
+
+@router.get("/api/valve/projects/{pid}/markup.pdf")
+async def issues_markup(pid: int, request: Request, types: str = "", dismissed: int = 0, tag: str = "", severity: str = "",
+                        summary: int = 1):
+    """Marked-up datasheet pages (issues in colour, numbered, printable) + an Issue Summary page per datasheet."""
+    con = store.connect()
+    pname = store.one(con, "SELECT name FROM project WHERE id=?", pid)["name"]
+    rows = _select(project_issues(con, pid), types, dismissed, tag, severity)
+    entries = _markup_entries(con, rows)
+    data = await run_in_threadpool(exports.markup_pdf, entries, pname, "Valve Datasheet Review - Mark-up", bool(summary))
+    store.audit(con, pid, None, None, "markup-export", None, "markup.pdf", _user(request), f"{len(rows)} issues · {len(entries)} datasheets")
+    con.commit()
+    one = entries[0]["tag"] + "_" if len(entries) == 1 else ""
+    fn = f"{pname.replace(' ', '_')}_{one}Datasheet_Markup_{store.now()[:10]}.pdf"
+    return Response(data, media_type="application/pdf", headers={"Content-Disposition": f"attachment; filename*=UTF-8''{quote(fn)}"})
+
+
+@router.get("/api/valve/projects/{pid}/exports")
+def export_list(pid: int):
+    d = store.root() / "exports" / str(pid)
+    files = sorted(d.glob("*.*"), key=lambda p: p.stat().st_mtime, reverse=True) if d.exists() else []
+    return {"files": [{"name": p.name, "size": p.stat().st_size, "at": dt.datetime.fromtimestamp(p.stat().st_mtime)
+                       .isoformat(timespec="seconds"), "url": f"/api/valve/projects/{pid}/exports/{quote(p.name)}"}
+                      for p in files[:60]]}
+
+
+@router.get("/api/valve/projects/{pid}/exports/{name}")
+def export_file(pid: int, name: str):
+    p = store.root() / "exports" / str(pid) / Path(name).name
+    if not p.exists():
+        return _err("없는 파일", 404)
+    return FileResponse(p, filename=p.name)
+
+
+def _auto_export(jid, pid, base, by):
+    """After an analysis: Valve List (reference format, cells linked to the PDF) + Issue List, kept on the server."""
+    try:
+        _job(jid, msg="Excel 만드는 중…")
+        con = store.connect()
+        stamp = dt.datetime.now().strftime("%Y%m%d_%H%M")
+        out = store.root() / "exports" / str(pid)
+        out.mkdir(parents=True, exist_ok=True)
+        files = []
+        vl_data, report, vl = _export_valvelist(pid, base)
+        vname = f"{stamp}_{Path(vl['filename']).stem if vl else 'Valve_List'}.xlsx"
+        (out / vname).write_bytes(vl_data)
+        files.append({"name": vname, "kind": "Valve List", "url": f"/api/valve/projects/{pid}/exports/{quote(vname)}"})
+        idata, n, pname = _issue_xlsx(pid, base, by)
+        iname = f"{stamp}_{pname.replace(' ', '_')}_Issue_List.xlsx"
+        (out / iname).write_bytes(idata)
+        files.append({"name": iname, "kind": f"Issue List ({n})", "url": f"/api/valve/projects/{pid}/exports/{quote(iname)}"})
+        store.audit(con, pid, None, None, "auto-export", None, ", ".join(f["name"] for f in files), by)
+        con.commit()
+        _job(jid, exports=files)
+    except Exception as e:                               # noqa: BLE001 — the analysis itself is done; say what failed
+        _job(jid, warn=f"Excel 자동 생성 실패: {type(e).__name__}: {e}")
 
 
 @router.get("/api/valve/projects/{pid}/audit")

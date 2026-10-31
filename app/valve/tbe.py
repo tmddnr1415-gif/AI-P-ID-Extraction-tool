@@ -299,8 +299,11 @@ def _src_text(ds, keys, docname):
     return t
 
 
-def build(template: bytes | None, datasheets: list[dict], docnames: dict, project: str = "") -> tuple[bytes, dict]:
-    """-> (xlsx bytes, report).  `datasheets`: latest revision per tag, each with fields{key: field dict}."""
+def build(template: bytes | None, datasheets: list[dict], docnames: dict, project: str = "",
+          link=None) -> tuple[bytes, dict]:
+    """-> (xlsx bytes, report).  `datasheets`: latest revision per tag, each with fields{key: field dict}.
+    link(ds, field_key) -> url: when given, every written cell links to that field in the review tool
+    (clicking the cell in Excel opens the PDF page at the point the value was read)."""
     report = {"updated": [], "new": [], "unchanged": [], "not_in_datasheets": [], "no_sheet": [], "changes": [], "kept": []}
     if template:
         wb = openpyxl.load_workbook(io.BytesIO(template))
@@ -345,6 +348,8 @@ def build(template: bytes | None, datasheets: list[dict], docnames: dict, projec
             if not keys:
                 continue
             cell = ws.cell(row, c)
+            if link:
+                cell.hyperlink = link(ds, keys[0])
             old = cell.value
             if _cmp(old) == _cmp(val):
                 continue
@@ -376,7 +381,9 @@ def build(template: bytes | None, datasheets: list[dict], docnames: dict, projec
         notes = " | ".join(f"{n['no']}) {n['text']}" for n in ds["notes"])
         ws.cell(row, e["DS Document No."], ds["doc_no"])
         ws.cell(row, e["DS Rev."], ds["rev"])
-        ws.cell(row, e["DS Source (file · page)"], f"{docname} p.{'-'.join(map(str, [ds['pages'][0], ds['pages'][-1]]))}")
+        src = ws.cell(row, e["DS Source (file · page)"], f"{docname} p.{'-'.join(map(str, [ds['pages'][0], ds['pages'][-1]]))}")
+        if link:
+            src.hyperlink = link(ds, "tag")
         ws.cell(row, e["Datasheet Notes"], notes[:32000])
         ws.cell(row, e["Tool Status"], "NEW" if is_new else ("UPDATED" if changed else "UNCHANGED"))
         ws.cell(row, e["Changed Columns"], "; ".join(changed))
