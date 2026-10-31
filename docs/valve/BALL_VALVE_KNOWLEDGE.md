@@ -198,6 +198,15 @@ EN 10204 3.1 = manufacturer's inspection certificate; 3.2 = also verified by an 
 - 데이터시트에서 볼 것: Certificate type per part, PMI scope.
 - 근거: EN 10204 · API RP 578
 
+## Tag 번호
+
+### Tag numbering (learned per Area / Unit)  `tag.numbering`
+
+An instrument / valve tag is prefix (unit or system number) + function code (ISA-5.1 style letters: ESDV emergency shutdown, SDV shutdown, BDV blowdown, XV on/off, MOV motor-operated) + loop number (+ A/B for parallel valves). New-build and existing (brownfield) plants keep their own schemes, so the tool learns the format per Area and Unit from the project's tags: where the prefix comes from (Unit, title System, P&ID system), number length and fixed leading digits, separator and suffixes. ESD / shutdown valves normally fail closed and blowdown valves fail open. The project tagging procedure governs when it is available.
+
+- 데이터시트에서 볼 것: Tag prefix matches its system / unit; number follows the Area / Unit pattern; function code matches the fail action; no duplicates.
+- 근거: ISA-5.1 · project tagging procedure · learned from the project's datasheets
+
 ## 프로젝트에서 배우는 것
 
 ### Consistency across the project's datasheets  `peer`

@@ -1041,7 +1041,7 @@ const MAT_LV = { Action: ['bad', '조치 필요 — 문서 한계를 넘음'], C
 function matList(d) {                                  // material review (matreview.py): rule · comment · basis · evidence
   const L = d.material_review || [];
   if (!L.length) return '<div class="empty">검토 의견이 없습니다 — 규칙에 필요한 값(재질 · 설계온도 · PMS Class …)이 문서에 있을 때만 의견을 냅니다.</div>';
-  const grp = r => r.startsWith('MR') ? '재질' : r.startsWith('VR') ? '설계' : '다른 데이터시트 대비';
+  const grp = r => r.startsWith('MR') ? '재질' : r.startsWith('VR') ? '설계' : r.startsWith('TG') ? 'Tag 번호' : '다른 데이터시트 대비';
   const ev = x => { const t = esc(x.where) + (x.text ? ` <span class="soft">${esc(String(x.text).slice(0, 90))}</span>` : '');
     if (x.doc === 'PMS' && x.page) return `<a href="#" data-pmsp="${x.page}" data-pmsb="${esc(JSON.stringify(x.bbox))}">PMS p.${x.page}</a> ${t}`;
     if (x.doc === 'Process Data' && x.page) return `<a href="#" data-pdp="${x.page}" data-pdb="${esc(JSON.stringify(x.bbox))}">Process Data p.${x.page}</a> ${t}`;
@@ -1380,8 +1380,20 @@ function renderSettings() {
     <div class="card"><h3>원칙</h3><ul class="soft"><li>Tag Number 가 모든 문서의 연결 키입니다 (공백 · 하이픈 무시: 00XV 921 = 00XV-921 = 00XV921).</li>
       <li>추출은 PDF 글자층과 표 괘선만으로 합니다 (OCR · AI 추정 없음). 짝이 불확실한 칸은 Review Required.</li>
       <li>원본 파일은 덮어쓰지 않고, 수정은 읽은 값 옆에 수정자 · 시각과 함께 남습니다.</li><li>최종 판정 · 승인은 사용자가 합니다.</li></ul></div>
+    <div class="card" style="grid-column:1/-1"><h3>Tag Numbering — 이 프로젝트의 Tag 에서 배운 Area · Unit 별 규칙</h3><div id="tgl" class="soft">불러오는 중…</div></div>
     <div class="card" style="grid-column:1/-1"><h3>Ball Valve 지식 — 검토 규칙의 근거</h3><div id="kbl" class="soft">불러오는 중…</div></div>
     <div class="card"><h3>정보</h3><p>Module 01 — Ball Valve (On/Off · MOV) Datasheet Review · Phase 1 (+ Revision 비교 기본)<br>서버: P&amp;ID 서버 /valve · 데이터: pid_data/valve/</p></div></div>`;
+  const rng = L => { const n = L.map(x => (x.match(/(\d+)\s*$/) || [])[1]).filter(Boolean); if (!n.length) return L.slice(0, 2).join(', ');
+    const pre = L[0].replace(/\d+\s*$/, ''); const a = n.reduce((m, x) => +x < +m ? x : m), b = n.reduce((m, x) => +x > +m ? x : m);
+    return a === b ? `${pre}${a}` : `${pre}${a} ~ ${b}${L.length > 2 ? ` (${L.length}+)` : ''}`; };
+  if (S.pid) api('GET', `/projects/${S.pid}/tagging`).then(T => { $('#tgl').innerHTML = `<table class="t"><thead><tr><th>Area</th><th>Site</th><th>Unit</th><th>Tag 수</th><th>형식</th>
+      <th>접두 = </th><th>기능 코드</th><th>번호</th><th>계열 → P&amp;ID</th><th>예</th></tr></thead><tbody>${T.groups.map(g => `<tr><td><b>${esc(g.area || '—')}</b></td><td>${esc(g.site)}</td><td>${esc(g.unit)}</td>
+      <td>${g.n}</td><td class="mono">${esc(g.format)}</td><td>${esc(g.prefix_source || '(정해지지 않음)')}</td><td>${g.functions.map(([f, n]) => `${esc(f)} ${n}`).join(' · ')}</td>
+      <td>${g.number_len ? `${g.number_len}자리${g.number_lead ? ` · '${esc(g.number_lead)}' 로 시작` : ''}` : '(일정하지 않음)'}${g.suffixes.length ? ` · 끝 ${esc(g.suffixes.join('/'))}` : ''} · 구분 ${g.sep === ' ' ? '공백' : g.sep === '-' ? "'-'" : '없음'}</td>
+      <td style="font-size:11px">${Object.entries(g.series).map(([k, L]) => `<b>${esc(k)}</b> → ${esc(rng(L))}`).join('<br>') || '—'}</td><td class="mono" style="font-size:11px">${g.examples.map(esc).join('<br>')}</td></tr>`).join('')}</tbody></table>
+      <p class="soft" style="margin:6px 0 0">Tag 절차서 없이 올린 데이터시트의 Tag 에서 배운 것입니다 (Area · Site · Unit 별, 80 % 이상이 따르는 규칙만). 규칙을 벗어난 Tag · 같은 Tag 중복 · 기능 코드와 Fail 동작 불일치(ESDV/SDV 는 보통 Fail Close, BDV 는 Fail Open)는 Expert 탭 'Tag 번호' 의견과 Issue 'Valve Review' 로 나옵니다.
+      ${Object.keys(T.duplicates).length ? `<br><b style="color:var(--bad)">두 문서에 같은 Tag: ${Object.entries(T.duplicates).map(([t, d]) => `${esc(t)} (${esc(d.join(', '))})`).join(' · ')}</b>` : ''}</p>`; })
+    .catch(() => { $('#tgl').textContent = '불러오지 못했습니다'; });
   api('GET', '/knowledge').then(L => { $('#kbl').innerHTML = L.map(k => `<details class="kb"><summary><b>${esc(k.title)}</b> <small class="soft">${esc(k.ref)}</small></summary>
     <p>${esc(k.text)}</p><p class="soft">데이터시트에서 볼 것: ${esc(k.check)}</p></details>`).join(''); }).catch(() => { $('#kbl').textContent = '불러오지 못했습니다'; });
   $('#ssave') && ($('#ssave').onclick = () => { LS.set('user', $('#sname').value.trim()); location.reload(); });

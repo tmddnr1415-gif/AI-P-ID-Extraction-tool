@@ -397,3 +397,16 @@ Note 113 · PC-01 Confirm 6(3C0K8 의 '316 SS/FHF' 2개 · API5L-X65 MOV 1500# �
 - Valve List Excel: **'All Valves' 시트**(전체 Tag 한 줄씩 — Area · Site · Unit · Tag · 종류 · Doc · Rev · Service · P&ID · Line · Class · Size · Rating · Body Type · 연결 · 재질 4 · Fail · 누설 · NACE ·
   특수 요구사항 · Expert Review · 열린 지적 수 · 어느 시트 · Tool Status · 출처, 정렬 North → South → Brownfield → W15 · Unit · Tag) + 밸브 종류 시트마다 Area · Site · Unit 열과 머리 줄 필터.
 - 실자료 164 Tag: North 74 · South 69 · Brownfield 14(North 7: Unit 09 · 84 / South 7: Unit 19 · 29 · 39 · 84 · 85) · W15 7.
+
+## 19. Area · Unit 별 Tag 번호 규칙 — 프로젝트 Tag 에서 배움 (valve15, 사용자 요청)
+
+- 받은 파일에 Tag Numbering Procedure 문서는 없다(PMS 의 'numbering philosophy' 는 Pipe Class 번호 규칙). 그래서 `app/valve/tagrules.py` 가
+  올린 데이터시트의 Tag(전 Revision)를 Area · Site · Unit 별로 묶어 규칙을 배운다(80 % 이상이 따르는 것만): 구조 접두 + 기능 코드 + 구분 + 번호 + 끝 글자,
+  **접두가 무엇과 같은지**(Unit · 제목 System · P&ID System · Doc. No. System), 번호 자릿수 · 고정 앞자리(번호 끝 3자리는 늘 자유), 구분(없음 · 공백 · '-'), 끝 글자(A/B), **계열 → P&ID 장**.
+- 배운 결과(실자료): North U98 `98 + ESDV/BDV/MOV/XV + ␣ + 980nnn[A/B]`(계열 1 → P&ID 2~13, 2 → 16~27, 3 → 30~41, 4 → 44~55, 0 → 공통) ·
+  South U98 `98 + 기능 + '-' + nnn[A/B]`(계열 0 · 1 · 3) · W15 `315(P&ID System) + MOV/ESDV + ␣ + 980nnn` · Brownfield North 접두 = 제목 SYSTEM(00/01/02/24/25 · 08) ·
+  Brownfield South 접두 = 제목 UNIT(19 · 29 · 39 · 84 · 85).
+- 검사(Expert 탭 'Tag 번호' · Issue 'Valve Review'): TG-01 구조 아님 · TG-02 접두 ≠ 그 그룹의 출처 값 · TG-03 번호 자릿수/앞자리 다름 · **TG-04 같은 Tag 가 두 문서에(Action)** ·
+  TG-05 기능 코드 ↔ Fail 동작(ESDV/SDV 보통 Fail Close, BDV Fail Open — 일반 관행, 프로젝트 사양 우선). 실자료: TG-05 4건(North ESDV-xx10 계열이 Fail Open) · 나머지 0.
+- 화면: Settings › **Tag Numbering** 표(Area · Site · Unit · 수 · 형식 · 접두 출처 · 기능 코드 · 번호 · 계열 → P&ID · 예 · 중복). `GET /api/valve/projects/{pid}/tagging`.
+  Valve List 'All Valves' 에 Tag Prefix · Function · Loop No. 열(필터). 지식 `tag.numbering`.

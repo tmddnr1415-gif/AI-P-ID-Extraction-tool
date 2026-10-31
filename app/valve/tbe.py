@@ -345,7 +345,7 @@ def _drop_vendor_rows(ws, a) -> int:
     return removed
 
 
-ALL_COLS = [("Area", 11), ("Site", 8), ("Unit", 6), ("Tag Number", 16), ("Valve Type", 9), ("DS Document No.", 20), ("DS Rev.", 6),
+ALL_COLS = [("Area", 11), ("Site", 8), ("Unit", 6), ("Tag Number", 16), ("Tag Prefix", 7), ("Function", 8), ("Loop No.", 9), ("Valve Type", 9), ("DS Document No.", 20), ("DS Rev.", 6),
             ("Service", 30), ("P&ID No.", 22), ("Line No.", 24), ("Piping Class", 11), ("Size", 7), ("Rating", 8), ("Body Type", 24),
             ("End Connection", 20), ("Body Material", 26), ("Ball Material", 16), ("Stem Material", 16), ("Seat Material", 12),
             ("Fail Position", 9), ("Leakage Class", 20), ("NACE", 14), ("Special Requirements (Notes)", 40), ("Expert Review (Tool)", 40),
@@ -376,7 +376,10 @@ def _all_valves(wb, datasheets, docnames, link, sheet_of, report):
         reqs = requirements.find(d, d.get("general_notes"))
         mr = [m for m in d.get("material_review") or [] if m["level"] != "Note"]
         n_open = sum(1 for i in d.get("issues") or [] if i["type"] in issuesmod.CONTRACTOR_TYPES and i.get("status") != "Dismissed")
+        from app.valve import tagrules
+        tp = tagrules.parse(_val(F.get("tag", {})) or d["tag_key"]) or {}
         row = {"Area": loc.get("area", ""), "Site": loc.get("site", ""), "Unit": loc.get("unit", ""), "Tag Number": d["tag_key"],
+               "Tag Prefix": tp.get("prefix", ""), "Function": tp.get("func", ""), "Loop No.": (tp.get("number", "") + tp.get("suffix", "")) if tp else "",
                "Valve Type": d.get("valve_type", ""), "DS Document No.": d["doc_no"], "DS Rev.": d["rev"],
                "Special Requirements (Notes)": requirements.summary(reqs)[:32000],
                "Expert Review (Tool)": "\n".join(m.get("short") or m["title"] for m in mr)[:32000], "Open Issues": n_open,

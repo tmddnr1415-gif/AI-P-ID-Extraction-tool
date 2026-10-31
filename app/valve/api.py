@@ -25,7 +25,7 @@ from fastapi.responses import FileResponse, JSONResponse, RedirectResponse, Resp
 from starlette.concurrency import run_in_threadpool
 
 from app import paths
-from app.valve import exports, extract, issues as issuesmod, expert as expmod, knowledge as kbmod, location as locmod, material, matreview as matmod, pms as pmsmod, process as procmod, requirements as reqmod, schema, store, tbe
+from app.valve import exports, extract, issues as issuesmod, expert as expmod, knowledge as kbmod, location as locmod, tagrules as tagmod, material, matreview as matmod, pms as pmsmod, process as procmod, requirements as reqmod, schema, store, tbe
 
 router = APIRouter()
 _JOBS: dict[str, dict] = {}
@@ -377,6 +377,33 @@ def _peers_for(con, pid):
     return prof
 
 
+_TAG_CACHE: dict[int, tuple] = {}
+
+
+def _tag_item(d) -> dict:
+    """What the tag rules need from one datasheet (tagrules.learn / check)."""
+    F = {f["key"]: f for f in d["fields"]} if isinstance(d["fields"], list) else d["fields"]
+    v = lambda k: store.field_value(F[k]) if k in F else ""          # noqa: E731
+    loc = d.get("location") or {}
+    return {"tag_raw": v("tag") or d.get("tag") or d["tag_key"], "tag_key": d["tag_key"], "area": loc.get("area", ""), "site": loc.get("site", ""),
+            "unit": loc.get("unit", ""), "system": loc.get("system", ""), "pid_no": v("pid_no"), "doc_no": d["doc_no"],
+            "valve_type": d.get("valve_type", ""), "fail": v("fail_position"), "page": (F.get("tag") or {}).get("page"), "bbox": (F.get("tag") or {}).get("bbox")}
+
+
+def _tags_for(con, pid):
+    """Tag numbering learned from every datasheet of the project (all revisions; tagrules.learn) — cached like the peers."""
+    k = tuple(store.one(con, "SELECT COUNT(*) n, MAX(id) m FROM datasheet WHERE project_id=?", pid).values()) + \
+        (store.one(con, "SELECT MAX(a.id) m FROM audit a JOIN datasheet d ON d.id=a.datasheet_id WHERE d.project_id=?", pid)["m"],)
+    if pid in _TAG_CACHE and _TAG_CACHE[pid][0] == k:
+        return _TAG_CACHE[pid][1]
+    items = []
+    for r in store.rows(con, "SELECT id FROM datasheet WHERE project_id=? ORDER BY id DESC", pid):   # newest revision first
+        items.append(_tag_item(_ds_full(con, r["id"], deep=False)))
+    prof = tagmod.learn(items)
+    _TAG_CACHE[pid] = (k, prof)
+    return prof
+
+
 def _ds_full(con, dsid, deep=True):
     d = store.one(con, "SELECT * FROM datasheet WHERE id=?", dsid)
     if not d:
@@ -427,6 +454,7 @@ def _ds_full(con, dsid, deep=True):
                                          ((proc or {}).get("by_tag") or {}).get(d["tag_key"]), d["requirements"])
     d["material_review"] += expmod.review(d, d["general_notes"], cls, d["process"], ((proc or {}).get("by_tag") or {}).get(d["tag_key"]),
                                           d["requirements"], _peers_for(con, d["project_id"]))
+    d["material_review"] += tagmod.check(_tag_item(d), _tags_for(con, d["project_id"]))
     prev = None
     i = next((n for n, r in enumerate(d["revisions"]) if r["id"] == d["id"]), 0)
     if i > 0:
@@ -435,6 +463,14 @@ def _ds_full(con, dsid, deep=True):
     d["issues"] = issuesmod.compute(d, d["general_notes"], pms, d["area"], prev, states, pms_rows=d["pms"], process_rows=d["process"],
                                    material_rows=d["material_review"])
     return d
+
+
+@router.get("/api/valve/projects/{pid}/tagging")
+async def tagging(pid: int):
+    """Tag numbering learned per Area / Site / Unit from the project's datasheets."""
+    con = store.connect()
+    prof = await run_in_threadpool(_tags_for, con, pid)
+    return {"groups": prof["groups"], "duplicates": {k: v for k, v in prof["docs_by_tag"].items() if len([x for x in v if x]) > 1}}
 
 
 @router.get("/api/valve/knowledge")

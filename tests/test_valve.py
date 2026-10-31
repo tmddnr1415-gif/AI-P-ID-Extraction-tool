@@ -783,3 +783,25 @@ def test_area_and_unit_from_documents():
     ws = openpyxl.load_workbook(io.BytesIO(exports.issues_xlsx(rows, "", "P")))["Issue List"]
     assert [c.value for c in ws[1]][:5] == ["No.", "Area", "Site", "Unit", "Tag Number"] and ws.auto_filter.ref.startswith("A1:")
     assert [c.value for c in ws[2]][1:5] == ["North", "North", "98", "98ESDV015"]
+
+
+def test_tag_numbering_learned_per_area_unit():
+    from app.valve import tagrules
+    assert tagrules.parse("98BDV 980103A") == {"prefix": "98", "func": "BDV", "sep": " ", "number": "980103", "suffix": "A"}
+    assert tagrules.parse("98ESDV -015")["sep"] == "-" and tagrules.parse("315MOV   980004")["prefix"] == "315"
+    north = [{"tag_raw": f"98ESDV 98{n:04d}", "tag_key": f"98ESDV98{n:04d}", "area": "North", "site": "North", "unit": "98", "system": "",
+              "pid_no": f"98-98-PR-PID-{n // 100 * 14 + 2:05d}", "doc_no": "98-51-IN-DTS-00002", "fail": "Close"} for n in (101, 102, 201, 202, 301, 401)]
+    brown = [{"tag_raw": "08SDV 412A", "tag_key": "08SDV412A", "area": "Brownfield", "site": "North", "unit": "84", "system": "08",
+              "pid_no": "002-08-84-PR-DR-PI-104", "doc_no": "08-84-IN-DTS-00003", "fail": "Close"}]
+    prof = tagrules.learn(north + brown)
+    g = next(g for g in prof["groups"] if g["area"] == "North")
+    assert g["prefix_source"] == "Unit" and g["number_len"] == 6 and g["number_lead"] == "980" and set(g["series"]) == {"1", "2", "3", "4"}
+    assert next(g for g in prof["groups"] if g["area"] == "Brownfield")["prefix_source"] == "System (title)"
+    bad = dict(north[0], tag_raw="98ESDV 9801", tag_key="98ESDV9801", fail="Open")
+    rules = {f["rule"] for f in tagrules.check(bad, prof)}
+    assert {"TG-03", "TG-05"} <= rules                                     # short number · ESDV failing open
+    assert not tagrules.check(north[1], prof)                              # a tag that follows its group: nothing to say
+    dup = tagrules.learn(north + [dict(north[0], doc_no="999-98-IN-DTS-00002")])
+    assert "TG-04" in {f["rule"] for f in tagrules.check(north[0], dup)}   # the same tag in two documents
+    for f in tagrules.check(bad, prof):
+        assert len(f["short"]) <= 120

@@ -232,6 +232,17 @@ KB: dict[str, dict] = {
         "check": "Certificate type per part, PMI scope.",
         "ref": "EN 10204 · API RP 578",
     },
+    # ---------------------------------------------------------------- tags
+    "tag.numbering": {
+        "title": "Tag numbering (learned per Area / Unit)",
+        "text": "An instrument / valve tag is prefix (unit or system number) + function code (ISA-5.1 style letters: ESDV emergency "
+                "shutdown, SDV shutdown, BDV blowdown, XV on/off, MOV motor-operated) + loop number (+ A/B for parallel valves). "
+                "New-build and existing (brownfield) plants keep their own schemes, so the tool learns the format per Area and Unit from "
+                "the project's tags: where the prefix comes from (Unit, title System, P&ID system), number length and fixed leading "
+                "digits, separator and suffixes. ESD / shutdown valves normally fail closed and blowdown valves fail open. The project "
+                "tagging procedure governs when it is available.",
+        "check": "Tag prefix matches its system / unit; number follows the Area / Unit pattern; function code matches the fail action; no duplicates.",
+        "ref": "ISA-5.1 · project tagging procedure · learned from the project's datasheets"},
     # ---------------------------------------------------------------- learned from the project
     "peer": {
         "title": "Consistency across the project's datasheets",
@@ -251,7 +262,7 @@ def markdown() -> str:
     lines = ["# Ball Valve 엔지니어링 지식 (도구가 쓰는 기준)", "",
              "> `app/valve/knowledge.py` 에서 만든 문서입니다 (`python3 -m app.valve.knowledge > docs/valve/BALL_VALVE_KNOWLEDGE.md`).",
              "> 일반 공개 지식입니다. 출처끼리 다르거나 '통상 관행' 인 값은 그렇게 적었고, 프로젝트 사양이 언제나 우선합니다.", ""]
-    groups = [("std.", "표준"), ("des.", "설계"), ("mat.", "재질"), ("peer", "프로젝트에서 배우는 것")]
+    groups = [("std.", "표준"), ("des.", "설계"), ("mat.", "재질"), ("tag.", "Tag 번호"), ("peer", "프로젝트에서 배우는 것")]
     for pre, name in groups:
         lines += [f"## {name}", ""]
         for k, e in KB.items():

@@ -94,3 +94,9 @@
 - `location.py`: 제목 NORTH/SOUTH/W15, '(SYSTEM xx – UNIT yy)' = Brownfield(Note 의 'South Brownfield System 19' 근거), Unit = 제목 → P&ID → Tag. 표지/장 번호 불일치 · 표지 없는 Rev 보완.
 - Issue List: Area · Site · Unit 맨 앞 + 필터, Summary by Tag 같은 열 + Material/Valve Review. Valve List: 'All Valves' 시트(164행) + 종류 시트 Area/Site/Unit 열 + 필터.
 - 실자료 North 74 · South 69 · Brownfield 14 · W15 7. 시험 44 · 전체 1,874 · ui_audit 22/22.
+
+## 2026-10-31 · valve15 — Area · Unit 별 Tag 번호 규칙 학습 (브랜치 ccr-efbe7e75-n915ze)
+- 요청: Area 별 Unit 별 Tag numbering procedure 를 학습. 받은 파일에 절차서 문서 없음 → 프로젝트 Tag(데이터시트 164 · Process Data 68)에서 배움.
+- `tagrules.py`: 구조 · 접두 출처(Unit / 제목 System / P&ID System) · 번호 자릿수 · 고정 앞자리 · 구분 · A/B · 계열↔P&ID. Brownfield North U84(08SDV) 와 South U84(84XV) 는 Site 로 나눔.
+- 결과: North 98+기능+␣980nnn(계열 1~4 = P&ID 띠) · South 98+기능-nnn · W15 315+기능␣980nnn · Brownfield 접두 = 제목 SYSTEM(North) / UNIT(South).
+- 검사 TG-01~05 → 실자료 TG-05 4건(ESDV Fail Open). Settings › Tag Numbering 표 · All Valves 에 Tag 부분 열. 시험 45 · 전체 1,875 · eval 불변 · ui_audit 22/22.
