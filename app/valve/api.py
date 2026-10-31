@@ -129,6 +129,8 @@ def summary(pid: int):
     has_process = any(d["kind"] == "process" and d["status"] == "done" and str(d["filename"]).lower().endswith(".pdf") for d in docs)
     irows = project_issues(con, pid) if latest else []
     ic = _issue_counts(irows)
+    pv = _profile_ver(con, pid)
+    loc_of = {d["id"]: ((_ds_full(con, d["id"], pv=pv) or {}).get("location") or {}) for d in latest.values()}
     per_tag = {}
     for i in irows:
         if i["status"] != "Dismissed" and i["severity"] in ("Major", "Minor"):
@@ -149,7 +151,9 @@ def summary(pid: int):
         "has_valvelist": bool(vl),
         "has_pms": has_pms,
         "has_process": has_process,
-        "tags": [dict(d, issues=issues.get(d["id"], 0), problems=per_tag.get(d["id"], 0), revs=sorted(revs[k], key=store.rev_key),
+        "by_area": _by_area(irows, latest, loc_of),
+        "tags": [dict(d, area=loc_of.get(d["id"], {}).get("area", ""), unit=loc_of.get(d["id"], {}).get("unit", ""),
+                      issues=issues.get(d["id"], 0), problems=per_tag.get(d["id"], 0), revs=sorted(revs[k], key=store.rev_key),
                       in_valvelist=(k in vl_tags) if vl else None) for k, d in sorted(latest.items())],
         "documents": docs,
         "activity": activity,
@@ -775,6 +779,25 @@ def project_issues(con, pid) -> list[dict]:
     return out
 
 
+def _by_area(irows, latest, loc_of):
+    """Dashboard card: tags · open issues · Major per Area (North · South · Brownfield · W15)."""
+    order = {"North": 0, "South": 1, "Brownfield": 2, "W15": 3}
+    out = {}
+    for d in latest.values():
+        a = loc_of.get(d["id"], {}).get("area") or "(not stated)"
+        e = out.setdefault(a, {"area": a, "tags": 0, "issues": 0, "major": 0, "units": set()})
+        e["tags"] += 1
+        if loc_of.get(d["id"], {}).get("unit"):
+            e["units"].add(loc_of[d["id"]]["unit"])
+    for i in irows:
+        if i["status"] == "Dismissed" or i["type"] == "Extraction Review":
+            continue
+        e = out.setdefault(i.get("area_name") or "(not stated)", {"area": i.get("area_name") or "(not stated)", "tags": 0, "issues": 0, "major": 0, "units": set()})
+        e["issues"] += 1
+        e["major"] += i["severity"] == "Major"
+    return [dict(e, units=sorted(e["units"])) for e in sorted(out.values(), key=lambda e: order.get(e["area"], 9))]
+
+
 def _issue_counts(rows):
     c = {}
     for i in rows:
@@ -956,6 +979,7 @@ _GRID_CACHE: dict[int, tuple] = {}
 
 
 def _grid(con, pid):
+    pv = _profile_ver(con, pid)
     latest = _latest(store.rows(con, "SELECT id, tag_key, rev FROM datasheet WHERE project_id=?", pid))
     ids = [d["id"] for d in latest.values()]
     if not ids:
@@ -982,7 +1006,9 @@ def _grid(con, pid):
             if f:
                 cells[k] = {"v": store.field_value(f), "u": f["unit"] or "", "id": f["id"], "st": f["status"],
                             "ed": f["edited_value"] is not None, "p": f["page"], "b": store.unJ(f["bbox"])}
+        loc = (_ds_full(con, i, pv=pv) or {}).get("location") or {}
         rows_.append({"id": i, "tag": m["tag_key"], "tag_raw": m["tag"], "valve_type": m["valve_type"], "rev": m["rev"],
+                      "area": loc.get("area", ""), "site": loc.get("site", ""), "unit": loc.get("unit", ""),
                       "doc_no": m["doc_no"], "status": m["review_status"], "notes": notes.get(i, 0),
                       "document_id": m["document_id"], "page": store.unJ(m["pages"], [None])[0],
                       "pages": store.unJ(m["pages"], []), "cells": cells})

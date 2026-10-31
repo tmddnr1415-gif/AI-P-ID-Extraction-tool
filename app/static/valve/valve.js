@@ -443,6 +443,8 @@ function renderDash() {
         <span>${l}</span><i><b style="width:${n ? Math.max(4, 100 * n / cmax) : 0}%;background:${c}"></b></i><em>${n === null ? '—' : n}</em></div>`).join('')}</div>
         ${!s.has_process ? '<p class="soft" style="margin:4px 0 0">Process Mismatch — Process Data PDF 를 올리면 셉니다.</p>' : ''}
         <p class="soft hint" style="margin:8px 0 0">Dismissed 제외 · 최신 Revision 기준. 누르면 Issue List 가 그 종류로 걸러집니다.</p></div>
+      <div class="card"><h3>By Area</h3><table class="t"><thead><tr><th>Area</th><th>Units</th><th>Tags</th><th>Open Issues</th><th>Major</th></tr></thead><tbody>
+        ${(s.by_area || []).map(a => `<tr class="click" data-go="list:issues::${esc(a.area)}"><td><b>${esc(a.area)}</b></td><td>${esc(a.units.join(', '))}</td><td>${a.tags}</td><td>${a.issues}</td><td>${a.major}</td></tr>`).join('') || '<tr><td colspan="5" class="empty">없음</td></tr>'}</tbody></table></div>
       <div class="card"><h3>Review Status Table</h3>
         <table class="t"><thead><tr><th>Tag Number</th><th>Type</th><th>Rev.</th><th>Review Status</th><th>Issues</th></tr></thead><tbody>
         ${s.tags.slice().sort((a, b) => (b.problems - a.problems) || (b.issues - a.issues) || a.tag_key.localeCompare(b.tag_key)).slice(0, 200).map(t => `<tr class="click" data-ds="${t.id}"><td><b>${esc(t.tag_key)}</b></td><td>${esc(t.valve_type)}</td>
@@ -455,8 +457,8 @@ function renderDash() {
 }
 document.addEventListener('click', e => {
   const g = e.target.closest('[data-go]'); if (g && !e.target.closest('.tbar')) {
-    const [v, m, f] = g.dataset.go.split(':'); if (m) G.mode = m;
-    if (v === 'list' && m === 'issues') { IF.type = f || ''; IF.st = ''; }
+    const [v, m, f, ar] = g.dataset.go.split(':'); if (m) G.mode = m;
+    if (v === 'list' && m === 'issues') { IF.type = f || ''; IF.st = ''; IF.area = ar || ''; }
     if (v === 'review' && f !== undefined) W.st = f;
     go(v); return; }
   const d = e.target.closest('tr[data-ds]'); if (d && !e.target.closest('#v-list')) openDs(+d.dataset.ds);
@@ -561,7 +563,7 @@ async function renderList() {
   const el = $('#v-list');
   if (G.mode === 'issues') return renderIssues();
   if (!S.grid) { el.innerHTML = '<div class="empty">불러오는 중…</div>'; S.grid = await api('GET', `/projects/${S.pid}/grid`); }
-  const base = [{ key: 'tag', title: 'Tag Number', w: 120 }, { key: 'valve_type', title: 'Valve Type', w: 80 }, { key: 'rev', title: 'Rev.', w: 50 },
+  const base = [{ key: 'tag', title: 'Tag Number', w: 120 }, { key: 'area', title: 'Area', w: 76 }, { key: 'unit', title: 'Unit', w: 46 }, { key: 'valve_type', title: 'Valve Type', w: 80 }, { key: 'rev', title: 'Rev.', w: 50 },
     { key: 'status', title: 'Review Status', w: 110 }, { key: 'doc_no', title: 'DS Document No.', w: 150 }];
   const all = base.concat(S.grid.columns.filter(c => c.key !== 'valve_type').map(c => ({ key: c.key, title: c.title, w: 130 }))).concat([{ key: 'notes', title: 'Notes', w: 60 }]);
   const order = LS.get('gorder', null), widths = LS.get('gw', {});
@@ -668,13 +670,14 @@ async function renderList() {
     };
   });
 }
-const IF = { type: '', sev: '', st: '', q: '', internal: false };
+const IF = { type: '', sev: '', st: '', q: '', area: '', internal: false };
 async function renderIssues() {
   const el = $('#v-list');
   if (!S.issues) { el.innerHTML = '<div class="empty">지적 사항을 계산하는 중…</div>'; S.issues = (await api('GET', `/projects/${S.pid}/issues`)).issues; }
   const all = S.issues.filter(i => IF.internal || i.type !== 'Extraction Review');
   const q = IF.q.toUpperCase().replace(/[^0-9A-Z]/g, '');
-  const L = all.filter(i => (!IF.type || i.type === IF.type) && (!IF.sev || i.severity === IF.sev) && (!IF.st || i.status === IF.st) && (!q || i.tag.includes(q)));
+  const L = all.filter(i => (!IF.type || i.type === IF.type) && (!IF.sev || i.severity === IF.sev) && (!IF.st || i.status === IF.st) && (!IF.area || i.area_name === IF.area) && (!q || i.tag.includes(q)));
+  const areas = [...new Set(all.map(i => i.area_name).filter(Boolean))].sort((a, b) => ({ North: 0, South: 1, Brownfield: 2, W15: 3 }[a] ?? 9) - ({ North: 0, South: 1, Brownfield: 2, W15: 3 }[b] ?? 9));
   const types = [...new Set(all.map(i => i.type))];
   const cnt = t => all.filter(i => i.type === t && i.status !== 'Dismissed').length;
   const keepY = $('.xg-wrap', el)?.scrollTop || 0;
@@ -684,6 +687,7 @@ async function renderIssues() {
         <td>${pill(i.type.replace(/[^A-Za-z]/g, ''), i.type)}</td><td title="${esc(i.description)}">${esc(i.description)}</td><td title="${esc(i.expected)}">${esc(i.expected)}</td>
         <td>${pill(i.severity)}</td><td><select data-ist="${esc(i.ds_id + '|' + i.ikey)}" aria-label="status">${['Open', 'Confirmed', 'Dismissed', 'Resolved'].map(x => `<option ${x === i.status ? 'selected' : ''}>${x}</option>`).join('')}</select></td></tr>`), __fb = '<tr><td colspan="13" class="empty">조건에 맞는 지적 사항이 없습니다</td></tr>';
   el.innerHTML = `<div class="vh">${listTop()}<input type="search" id="iq" placeholder="Tag 검색" style="width:140px" value="${esc(IF.q)}">
+      <select id="iar"><option value="">All Areas</option>${areas.map(a => `<option ${a === IF.area ? 'selected' : ''}>${esc(a)}</option>`).join('')}</select>
       <select id="it"><option value="">All Issue Types</option>${types.map(t => `<option ${t === IF.type ? 'selected' : ''} value="${esc(t)}">${esc(t)} (${cnt(t)})</option>`).join('')}</select>
       <select id="isv"><option value="">All Severity</option>${['Major', 'Minor', 'Info', 'Internal'].map(t => `<option ${t === IF.sev ? 'selected' : ''}>${t}</option>`).join('')}</select>
       <select id="ist"><option value="">All Status</option>${['Open', 'Confirmed', 'Dismissed', 'Resolved'].map(t => `<option ${t === IF.st ? 'selected' : ''}>${t}</option>`).join('')}</select>
@@ -697,7 +701,7 @@ async function renderIssues() {
   $$('[data-lm]', el).forEach(b => b.onclick = () => { G.mode = b.dataset.lm; renderList(); });
   const re = () => renderIssues();
   $('#iq').oninput = e => { IF.q = e.target.value; clearTimeout(IF.t); IF.t = setTimeout(() => { re(); const f = $('#iq'); f.focus(); f.setSelectionRange(f.value.length, f.value.length); }, 250); };
-  $('#it').onchange = e => { IF.type = e.target.value; re(); }; $('#isv').onchange = e => { IF.sev = e.target.value; re(); };
+  $('#it').onchange = e => { IF.type = e.target.value; re(); }; $('#isv').onchange = e => { IF.sev = e.target.value; re(); }; $('#iar').onchange = e => { IF.area = e.target.value; re(); };
   $('#ist').onchange = e => { IF.st = e.target.value; re(); }; $('#iint').onchange = e => { IF.internal = e.target.checked; re(); };
   const qs = () => new URLSearchParams({ types: IF.type || (IF.internal ? [...types].join(',') : ''), severity: IF.sev, tag: q ? [...new Set(L.map(i => i.tag))].join(',') : '' }).toString();
   const pick = async what => { const t = await pickTypes(`${what} — 넣을 Issue Type`, { preset: IF.type ? [IF.type] : null,
@@ -839,7 +843,7 @@ function drawHead() {                                  // one-line summary of th
   const revN = (W.prevCmp?.rows || []).filter(r => r.change !== 'Unchanged').length;
   const chip = (lab, n, cls, tab, tip) => `<button class="hchip ${cls} ${n ? '' : 'zero'}" data-tab="${tab}" title="${tip}">${lab} <b>${n}</b></button>`;
   h.innerHTML = `<div class="hk tag"><small>Tag Number</small><b>${esc(d.tag)}</b></div>
-    ${[['Valve Type', d.valve_type], ['Size', v('body_size')], ['Rating · Class', [v('rating'), v('piping_class')].filter(Boolean).join(' · ')], ['Body Type', v('body_type') || v('instrument_type'), 1],
+    ${[['Area · Unit', d.location ? `${d.location.area || '—'}${d.location.unit ? ' · U' + d.location.unit : ''}` : ''], ['Valve Type', d.valve_type], ['Size', v('body_size')], ['Rating · Class', [v('rating'), v('piping_class')].filter(Boolean).join(' · ')], ['Body Type', v('body_type') || v('instrument_type'), 1],
        ['Manufacturer', v('manufacturer'), 1], ['Revision', `Rev.${d.rev}${d.rev_date ? ' · ' + d.rev_date : ''}`]].map(([k, x, opt]) => `<div class="hk ${opt ? 'opt' : ''}"><small>${k}</small><b title="${esc(x)}">${esc(x || '—')}</b></div>`).join('')}
     <span class="sp"></span><span class="hnav"><button data-nav="-1" title="이전 Tag (↑ / K)">▲</button><button data-nav="1" title="다음 Tag (↓ / J)">▼</button></span>
     ${chip('Data Error', errN, 'err', 'iss', '빨강 — 데이터 오류 (Issues 탭)')}${chip('Missing', misN, 'mis', 'iss', '주황 — 누락 · HOLD/TBC')}${chip('PMS', pmsN, 'err', 'pms', 'PMS 부적합 · 확인 (PMS 탭)')}
