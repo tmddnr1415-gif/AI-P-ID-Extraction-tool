@@ -17,5 +17,5 @@ valve02 — Valve Datasheet 검토: 지적 사항(오류 · 누락) 표시 · �
 적용 순서
   1) apply_to_PID_dev.bat → PID_dev 에서 확인 (http://localhost:8000/valve/)
   2) apply_to_PID_ops.bat → 운영 폴더 · 8000 서버 재시작
-  3) PMS PDF 를 이미 올렸다면 Document Management 에서 PMS 를 한 번 더 올려 주세요 (이번 판부터 PMS 를 읽어 둡니다).
+  3) valve01 때 올린 PMS PDF 는 다시 올릴 필요 없습니다 (처음 쓸 때 자동으로 읽습니다).
   대시보드는 바꿀 것 없음 (valve01 의 메뉴 그대로).

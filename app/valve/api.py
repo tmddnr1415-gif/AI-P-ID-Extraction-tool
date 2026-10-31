@@ -296,16 +296,18 @@ _PMS_CACHE: dict[int, dict] = {}
 
 def _pms_for(con, pid):
     """(parsed PMS, document row) of the project's newest PMS upload, or (None, None)."""
-    doc = store.one(con, "SELECT id, filename FROM document WHERE project_id=? AND kind='pms' AND status='done'"
+    doc = store.one(con, "SELECT id, filename, path FROM document WHERE project_id=? AND kind='pms' AND status='done'"
                          " ORDER BY id DESC", pid)
     if not doc:
         return None, None
     if doc["id"] not in _PMS_CACHE:
         p = store.root() / "pms" / f"{doc['id']}.json"
-        if not p.exists():
-            return None, None
+        if not p.exists():                               # uploaded before PMS reading existed (valve01): read it now
+            if not Path(doc["path"]).exists():
+                return None, None
+            store.write_json(p, pmsmod.read_pms(doc["path"]))
         _PMS_CACHE[doc["id"]] = json.loads(p.read_text(encoding="utf-8"))
-    return _PMS_CACHE[doc["id"]], doc
+    return _PMS_CACHE[doc["id"]], {k: doc[k] for k in ("id", "filename")}
 
 
 def _ds_full(con, dsid, deep=True):
