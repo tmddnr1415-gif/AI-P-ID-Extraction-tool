@@ -386,3 +386,14 @@ Note 113 · PC-01 Confirm 6(3C0K8 의 '316 SS/FHF' 2개 · API5L-X65 MOV 1500# �
 - 고른 종류는 다음 출력 때 그대로 기억한다(브라우저 `valve.xtypes`). Issue List 화면에서 종류 필터를 걸어 둔 채 누르면 그 종류가 미리 골라진다(이때는 기억을 덮지 않음).
 - 서버는 원래 `types=` 를 받는다(`api._select`) — 바뀐 것은 화면뿐. Dismissed 는 언제나 빠진다. 분석 끝에 자동으로 만드는 Issue List 는 그대로 설계사용 기본 종류.
 - 실자료: 전체 2,819건 · PDF 548쪽 → Material + Valve Review 만 89건 · 199쪽.
+
+## 18. Area · Unit 로 나누어 보는 Excel (valve14, 사용자 요청)
+
+- `app/valve/location.py`: **Area** = 데이터시트 문서 제목의 QELNG NORTH / QELNG SOUTH / W15 INJECTION AREA → North / South / W15,
+  제목이 기존 플랜트 시스템을 말하면('(SYSTEM 999 – UNIT 19)' — 데이터시트 Note 가 'QELNG South Brownfield System 19' 라고 부름) 또는 Note 에 'brownfield' 가 있으면 **Brownfield**.
+  **Site** 는 Brownfield 여도 North / South 를 남긴다. **Unit** = 제목의 UNIT nn → 없으면 P&ID 번호(98-**98**-PR-PID · 002-08-**84**-PR-DR) → 없으면 Tag 앞 숫자.
+  표지와 장 번호가 다른 문서(02-09-IN-DTS-00003 표지 ↔ 장 -00006)는 같은 System-Unit 표지의 제목을 쓰고, 표지 없는 한 장짜리 Revision 은 같은 Doc. No. 의 다른 업로드에서 찾는다. 문서에 없으면 비워 둔다.
+- Issue List Excel: 맨 앞 **Area · Site · Unit** 열 + 필터 · Summary by Tag 도 같은 열 · Material/Valve Review 열 추가. 열 번호는 이름으로(`exports.CI`).
+- Valve List Excel: **'All Valves' 시트**(전체 Tag 한 줄씩 — Area · Site · Unit · Tag · 종류 · Doc · Rev · Service · P&ID · Line · Class · Size · Rating · Body Type · 연결 · 재질 4 · Fail · 누설 · NACE ·
+  특수 요구사항 · Expert Review · 열린 지적 수 · 어느 시트 · Tool Status · 출처, 정렬 North → South → Brownfield → W15 · Unit · Tag) + 밸브 종류 시트마다 Area · Site · Unit 열과 머리 줄 필터.
+- 실자료 164 Tag: North 74 · South 69 · Brownfield 14(North 7: Unit 09 · 84 / South 7: Unit 19 · 29 · 39 · 84 · 85) · W15 7.

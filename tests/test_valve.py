@@ -764,3 +764,22 @@ def test_export_issue_type_selection():
     assert "Extraction Review" not in {r["type"] for r in api._select(rows)}           # default = contractor types
     js = (Path(api.__file__).parents[1] / "static" / "valve" / "valve.js").read_text(encoding="utf-8")
     assert js.count("pickTypes(") >= 5                                                  # picker before every contractor export
+
+
+def test_area_and_unit_from_documents():
+    from app.valve import location
+    L = location.locate("98-51-IN-DTS-00002", "DATA SHEET FOR ON/OFF VALVE OF CO2 SEQUESTRATION IN QELNG NORTH", "98-98-PR-PID-00011", "98ESDV015")
+    assert (L["area"], L["site"], L["unit"]) == ("North", "North", "98")
+    L = location.locate("999-19-IN-DTS-00061", "DATA SHEET FOR ON/OFF VALVE OF CO2 SEQUESTRATION IN QELNG SOUTH (SYSTEM 999 – UNIT 19)", "", "19XV122")
+    assert (L["area"], L["site"], L["unit"]) == ("Brownfield", "South", "19")           # existing plant system = brownfield
+    L = location.locate("08-84-IN-DTS-00003", "", "002-08-84-PR-DR-PI-104", "08SDV412A")
+    assert (L["area"], L["unit"]) == ("", "84")                                         # no title: area left blank, unit from P&ID
+    assert location.locate("x", "… IN W15 INJECTION AREA", "", "315MOV980004")["unit"] == "315"
+    docs = {"02-09-IN-DTS-00003": {"title": "… QELNG NORTH (SYSTEM 02 - UNIT 09)"}}
+    assert "UNIT 09" in location.title_for("02-09-IN-DTS-00006", docs)                  # sheets print another number than the cover
+    rows = [{"tag": "98ESDV015", "doc_no": "d", "rev": "0", "sheet": 1, "of": 2, "page": 1, "row": 1, "field": "Seat", "value": "RTFE",
+             "type": "Material Review", "description": "x", "severity": "Major", "status": "Open", "color": "material",
+             "area_name": "North", "site": "North", "plant_unit": "98"}]
+    ws = openpyxl.load_workbook(io.BytesIO(exports.issues_xlsx(rows, "", "P")))["Issue List"]
+    assert [c.value for c in ws[1]][:5] == ["No.", "Area", "Site", "Unit", "Tag Number"] and ws.auto_filter.ref.startswith("A1:")
+    assert [c.value for c in ws[2]][1:5] == ["North", "North", "98", "98ESDV015"]

@@ -88,3 +88,9 @@
 - 요청: PDF 에 설계사 코멘트 · Excel 출력 시 어떤 issue type 을 리스트업할지 선택.
 - valve.js `pickTypes`: 종류별 건수 · 한글 설명 · 전체/모두 끄기/설계사용 기본 · 선택 기억(LS valve.xtypes). 출력 단추 5곳 모두 거침. 서버는 기존 `types=`.
 - 확인: Material+Valve Review 만 → Excel 89행(그 두 종류만) · PDF 548 → 199쪽. 시험 43 · ui_audit 22/22.
+
+## 2026-10-31 · valve14 — Issue List · 전체 Valve List 를 Area · Unit 별로 (브랜치 ccr-efbe7e75-n915ze)
+- 요청: 설계사용 Issue List 와 전체 Valve List 를 Excel 로, Area(North · South · Brownfield) · Unit 별 Excel 필터.
+- `location.py`: 제목 NORTH/SOUTH/W15, '(SYSTEM xx – UNIT yy)' = Brownfield(Note 의 'South Brownfield System 19' 근거), Unit = 제목 → P&ID → Tag. 표지/장 번호 불일치 · 표지 없는 Rev 보완.
+- Issue List: Area · Site · Unit 맨 앞 + 필터, Summary by Tag 같은 열 + Material/Valve Review. Valve List: 'All Valves' 시트(164행) + 종류 시트 Area/Site/Unit 열 + 필터.
+- 실자료 North 74 · South 69 · Brownfield 14 · W15 7. 시험 44 · 전체 1,874 · ui_audit 22/22.

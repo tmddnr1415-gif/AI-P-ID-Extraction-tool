@@ -39,10 +39,11 @@ def pdf_link(base: str, i: dict) -> str:
 
 # ── Issue List (xlsx) ──────────────────────────────────────────────────────────
 
-COLS = [("No.", 6), ("Tag Number", 16), ("Valve Type", 8), ("Doc. No.", 20), ("Rev.", 6), ("Sheet", 9),
+COLS = [("No.", 6), ("Area", 11), ("Site", 8), ("Unit", 6), ("Tag Number", 16), ("Valve Type", 8), ("Doc. No.", 20), ("Rev.", 6), ("Sheet", 9),
         ("PDF File", 22), ("PDF Page", 8), ("Row", 6), ("Field", 26), ("Datasheet Value", 30), ("Issue Type", 18),
         ("Description", 60), ("Required / Expected", 34), ("Severity", 9), ("Status", 11), ("Reviewer Note", 30),
         ("Open in Tool", 13), ("PDF Page Link", 13)]
+CI = {name: n for n, (name, _) in enumerate(COLS, 1)}           # column number by name
 
 
 def issues_xlsx(rows: list[dict], base: str, project: str, by: str = "", sources: list[str] | None = None) -> bytes:
@@ -60,7 +61,7 @@ def issues_xlsx(rows: list[dict], base: str, project: str, by: str = "", sources
     for n, i in enumerate(rows, 1):
         sheet = f"{i['sheet']} of {i['of']}" if i.get("sheet") else ""
         val = (i.get("value") or "") + (f" {i['unit']}" if i.get("unit") and i.get("value") else "")
-        ws.append([n, i["tag"], i.get("valve_type", ""), i["doc_no"], i["rev"], sheet, i.get("filename", ""), i.get("page"),
+        ws.append([n, i.get("area_name", ""), i.get("site", ""), i.get("plant_unit", ""), i["tag"], i.get("valve_type", ""), i["doc_no"], i["rev"], sheet, i.get("filename", ""), i.get("page"),
                    i.get("row"), i["field"], val or "(blank)", i["type"], i["description"], i.get("expected", ""),
                    i["severity"], i["status"], i.get("note", ""), "Open", "PDF p." + str(i.get("page") or "")])
         r = ws.max_row
@@ -69,32 +70,34 @@ def issues_xlsx(rows: list[dict], base: str, project: str, by: str = "", sources
             cell = ws.cell(r, c)
             cell.border = Border(top=thin, bottom=thin, left=thin, right=thin)
             cell.alignment = Alignment(wrap_text=True, vertical="top")
-        ws.cell(r, 12).fill = fill
+        ws.cell(r, CI["Issue Type"]).fill = fill
         if base:
-            for col, url in ((18, deep_link(base, project, i)), (19, pdf_link(base, i))):
+            for col, url in ((CI["Open in Tool"], deep_link(base, project, i)), (CI["PDF Page Link"], pdf_link(base, i))):
                 ws.cell(r, col).hyperlink = url
                 ws.cell(r, col).font = Font(color="2F5BD8", underline="single")
-            ws.cell(r, 2).hyperlink = deep_link(base, project, i)       # the tag itself also jumps to the point
-            ws.cell(r, 2).font = Font(color="2F5BD8", underline="single", bold=True)
-    ws.freeze_panes = "C2"
+            ws.cell(r, CI["Tag Number"]).hyperlink = deep_link(base, project, i)       # the tag itself also jumps to the point
+            ws.cell(r, CI["Tag Number"]).font = Font(color="2F5BD8", underline="single", bold=True)
+    ws.freeze_panes = ws.cell(2, CI["Tag Number"] + 1).coordinate          # No. · Area · Site · Unit · Tag stay visible
     ws.auto_filter.ref = f"A1:{get_column_letter(len(COLS))}{max(1, ws.max_row)}"
 
     sm = wb.create_sheet("Summary by Tag")
     types = [t for t in ["Data Error", "Data Missing", "Open Item", "PMS Non-Compliance", "PMS Review", "Revision Change",
-                         "Process Mismatch", "Reviewer Correction", "Reviewer Comment", "Extraction Review"] if any(i["type"] == t for i in rows)]
-    sm.append(["Tag Number", "Doc. No.", "Rev.", "Total"] + types)
-    for c in range(1, len(types) + 5):
+                         "Process Mismatch", "Material Review", "Valve Review", "Reviewer Correction", "Reviewer Comment", "Extraction Review"]
+             if any(i["type"] == t for i in rows)]
+    sm.append(["Area", "Site", "Unit", "Tag Number", "Doc. No.", "Rev.", "Total"] + types)
+    for c in range(1, len(types) + 8):
         sm.cell(1, c).fill, sm.cell(1, c).font = head_fill, head_font
-        sm.column_dimensions[get_column_letter(c)].width = 14 if c > 3 else 20
+        sm.column_dimensions[get_column_letter(c)].width = 11 if c <= 3 else 14 if c > 6 else 20
     tags = {}
     for i in rows:
-        t = tags.setdefault(i["tag"], {"doc": i["doc_no"], "rev": i["rev"], "n": {}})
+        t = tags.setdefault(i["tag"], {"doc": i["doc_no"], "rev": i["rev"], "n": {},
+                                       "loc": (i.get("area_name", ""), i.get("site", ""), i.get("plant_unit", ""))})
         t["n"][i["type"]] = t["n"].get(i["type"], 0) + 1
     for tag, t in tags.items():
-        sm.append([tag, t["doc"], t["rev"], sum(t["n"].values())] + [t["n"].get(x, 0) or None for x in types])
-    sm.append(["Total", "", "", len(rows)] + [sum(1 for i in rows if i["type"] == x) for x in types])
-    sm.freeze_panes = "B2"
-    sm.auto_filter.ref = f"A1:{get_column_letter(len(types) + 4)}{max(1, sm.max_row - 1)}"
+        sm.append([*t["loc"], tag, t["doc"], t["rev"], sum(t["n"].values())] + [t["n"].get(x, 0) or None for x in types])
+    sm.append(["Total", "", "", "", "", "", len(rows)] + [sum(1 for i in rows if i["type"] == x) for x in types])
+    sm.freeze_panes = "E2"
+    sm.auto_filter.ref = f"A1:{get_column_letter(len(types) + 7)}{max(1, sm.max_row - 1)}"
 
     info = wb.create_sheet("Info")
     for row in [["Valve Datasheet Review — Issue List"], ["Project", project],
@@ -107,6 +110,9 @@ def issues_xlsx(rows: list[dict], base: str, project: str, by: str = "", sources
                 ["PMS Non-Compliance", "Differs from the Piping Material Specification (material compared by grade, not spelling)"],
                 ["PMS Review", "Could not be confirmed against the PMS — engineer to confirm"],
                 ["Revision Change", "Changed from the previous revision of the same tag"],
+                ["Material Review / Valve Review", "Material and valve-design comments of the review tool (Action = Major, Confirm = Minor)"],
+                ["Area / Site / Unit", "From the datasheet title (QELNG North / South / W15; 'SYSTEM xx - UNIT yy' = existing plant = Brownfield) "
+                                       "and the P&ID number — use the Excel filter on these columns"],
                 ["Reviewer Correction / Comment", "Entered by the reviewer"],
                 [], ["Every row is linked: 'Open' opens the review tool at the field, 'PDF p.' opens the original page."]]:
         info.append(row)

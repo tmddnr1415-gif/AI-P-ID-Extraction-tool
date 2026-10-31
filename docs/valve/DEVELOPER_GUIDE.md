@@ -129,6 +129,7 @@ pytest -q                                       # 저장소 전체 (약 2분)
 | `app/valve/matreview.py` | 약 330 | **재질 검토 의견**(valve10) — 규칙 MR-01~15 · 수준 Action/Confirm/Note · 근거 규격/문서 조항 · 증거(칸 · Note · PMS 쪽 · Process Data 쪽) |
 | `app/valve/knowledge.py` | 약 230 | **Ball Valve 지식**(valve11) — 표준 · 설계 · 재질 28항목(무엇 · 데이터시트에서 볼 것 · 근거). `GET /api/valve/knowledge` · `python3 -m app.valve.knowledge > docs/valve/BALL_VALVE_KNOWLEDGE.md` |
 | `app/valve/expert.py` | 약 300 | **설계 검토 VR-01~15 + 학습 PC-01**(valve11) — 플랜지 · Floating/Trunnion · Fail/스프링 · SIL · 누설 · Fire-safe · 캐비티 · 보온 · Piggable … / 같은 Piping Class 데이터시트 다수 값과 비교 |
+| `app/valve/location.py` | 약 70 | **Area · Site · Unit**(valve14) — 제목 NORTH/SOUTH/W15 · 'SYSTEM xx - UNIT yy' = Brownfield · Unit 은 제목 → P&ID → Tag |
 | `app/valve/process.py` | 약 260 | **Phase 3** — Process Data 표 읽기(괘선 열 띠 · 머리 줄 · 단위 줄 · Sr no. 행) · 공정 항목 비교(`compare_item` · `check`) |
 | `app/valve/tbe.py` | 476 | 회사 Valve List(TBE) 양식 분석 · 채우기 · 바뀐 칸 표시 · 링크 · `.xls` 변환 |
 | `app/valve/exports.py` | 287 | Issue List Excel · 인쇄용 Mark-up PDF(표지 · 쪽 · Issue Summary · 책갈피) |
@@ -690,6 +691,7 @@ python3 spike/pack_delta.py --name valve05 --base 9429f4f \
 | valve11 | 〃 | **Ball Valve 엔지니어 검토**: 지식 28항목(`knowledge.py`) · 설계 규칙 VR-01~15 · 프로젝트 데이터시트 학습 PC-01 · Expert 탭 · Settings › Ball Valve 지식 |
 | valve12 | 〃 | 설계사 코멘트 핵심만: 규칙별 `short` 한 줄(≤120자) → Issue List · Mark-up PDF · Valve List, 긴 설명은 Expert 탭 · 다른 지적 문구도 줄임 |
 | valve13 | 〃 | 설계사용 출력(Issue List Excel · Mark-up PDF) 전에 Issue Type 선택 창 — 건수 · 전체/끄기/기본 · 선택 기억 (`pickTypes` · `TYPE_KO`) |
+| valve14 | 〃 | Area · Site · Unit(`location.py`, 문서 제목 · P&ID) → Issue List Excel 맨 앞 열 · Valve List 'All Valves' 시트와 종류 시트 열 · Excel 필터 |
 
 **남은 일**
 1. 회사 적용 확인: .xls 자동 변환, 456쪽 처리 시간, 화면 글꼴, Edge 에서 Mark-up · 패널 접기, 내보낸 PDF 를 Acrobat 에서 열기, 1366×768 노트북에서 작업대.

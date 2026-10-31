@@ -25,7 +25,7 @@ from fastapi.responses import FileResponse, JSONResponse, RedirectResponse, Resp
 from starlette.concurrency import run_in_threadpool
 
 from app import paths
-from app.valve import exports, extract, issues as issuesmod, expert as expmod, knowledge as kbmod, material, matreview as matmod, pms as pmsmod, process as procmod, requirements as reqmod, schema, store, tbe
+from app.valve import exports, extract, issues as issuesmod, expert as expmod, knowledge as kbmod, location as locmod, material, matreview as matmod, pms as pmsmod, process as procmod, requirements as reqmod, schema, store, tbe
 
 router = APIRouter()
 _JOBS: dict[str, dict] = {}
@@ -389,7 +389,8 @@ def _ds_full(con, dsid, deep=True):
     d["fields"] = fs
     doc = store.one(con, "SELECT id, filename, info FROM document WHERE id=?", d["document_id"])
     d["filename"] = doc["filename"] if doc else ""
-    gn = (store.unJ(doc["info"], {}) or {}).get("docs", {}).get(d["doc_no"], {}) if doc else {}
+    docs_info = (store.unJ(doc["info"], {}) or {}).get("docs", {}) if doc else {}
+    gn = docs_info.get(d["doc_no"], {})
     d["general_notes"] = gn.get("general_notes", {})
     d["revisions"] = store.rows(con, "SELECT id, rev, doc_no, document_id, created_at FROM datasheet WHERE project_id=?"
                                      " AND tag_key=? ORDER BY id", d["project_id"], d["tag_key"])
@@ -400,6 +401,15 @@ def _ds_full(con, dsid, deep=True):
     d["history"] = store.rows(con, "SELECT * FROM audit WHERE datasheet_id=? ORDER BY id DESC", dsid)
     d["doc_title"] = (gn or {}).get("title", "")
     d["area"] = pmsmod.area_of_title(d["doc_title"])
+    F0 = {f["key"]: f for f in fs}
+    title = locmod.title_for(d["doc_no"], docs_info)
+    if not title:                                        # e.g. a one-sheet revision without cover: the same Doc. No. in another upload
+        for o in store.rows(con, "SELECT info FROM document WHERE project_id=? AND id<>? AND info IS NOT NULL", d["project_id"], d["document_id"]):
+            title = locmod.title_for(d["doc_no"], (store.unJ(o["info"], {}) or {}).get("docs", {}))
+            if title:
+                break
+    d["location"] = locmod.locate(d["doc_no"], title, store.field_value(F0["pid_no"]) if "pid_no" in F0 else "",
+                                  d["tag_key"], " ".join(n.get("text", "") for n in d["notes"]))
     if d.get("process_ref") is None:                     # not stored: 'For Process data refer to …' read from the notes
         d["process_ref"] = extract.process_reference(d.get("notes"), d.get("general_notes"))
     if not deep:
@@ -620,6 +630,7 @@ def project_issues(con, pid) -> list[dict]:
         x = _ds_full(con, d["id"])
         for i in x["issues"]:
             out.append(dict(i, ds_id=x["id"], tag=x["tag_key"], tag_raw=x["tag"], valve_type=x["valve_type"],
+                            area_name=x["location"]["area"], site=x["location"]["site"], plant_unit=x["location"]["unit"],
                             doc_no=x["doc_no"], rev=x["rev"], document_id=x["document_id"], filename=x["filename"],
                             review_status=x["review_status"]))
     _ISSUE_CACHE[pid] = (ver, out)

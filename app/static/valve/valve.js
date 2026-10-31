@@ -1336,8 +1336,8 @@ async function renderExport() {
     catch (e) { $('#ex1r').innerHTML = `<p class="soft" style="color:var(--bad)">미리 보기 실패: ${esc(e.message)}</p>`; }
   };
   const EX = {                                             // kind → [label, filename hint, scope lines, runner]
-    vl: ['Valve List Excel', (vl ? vl.filename.replace(/\.xlsx?$/i, '') : 'Valve_List') + '_<날짜>.xlsx', [`Tag ${k.tags}개 (최신 Revision)`, 'Vendor 행 삭제 · 바뀐 칸 노랑'], () => download(`/projects/${S.pid}/valvelist.xlsx`)],
-    iss: ['Issue List Excel', 'Issue_List_<날짜>.xlsx', [`지적 ${issN}건 · Dismissed 제외`, '시트: Issue List · Summary by Tag · Info'], t => download(`/projects/${S.pid}/issues.xlsx?types=${encodeURIComponent(t)}`)],
+    vl: ['Valve List Excel', (vl ? vl.filename.replace(/\.xlsx?$/i, '') : 'Valve_List') + '_<날짜>.xlsx', [`Tag ${k.tags}개 (최신 Revision)`, '\'All Valves\' 시트 = 전체 Valve 한 줄씩 · Area · Site · Unit 필터', 'Vendor 행 삭제 · 바뀐 칸 노랑 · 밸브 종류 시트도 Area · Unit 열 + 필터'], () => download(`/projects/${S.pid}/valvelist.xlsx`)],
+    iss: ['Issue List Excel', 'Issue_List_<날짜>.xlsx', [`지적 ${issN}건 · Dismissed 제외`, 'Area · Site · Unit 열 (Excel 필터로 North / South / Brownfield / W15 · Unit 별)', '시트: Issue List · Summary by Tag · Info'], t => download(`/projects/${S.pid}/issues.xlsx?types=${encodeURIComponent(t)}`)],
     pdf: ['Mark-up PDF (전체 Tag)', 'Markup_<프로젝트>_<날짜>.pdf', [`지적이 있는 Tag 만 (${S.sum.tags.filter(t => t.problems).length}개)`, '표지 · Issue Summary 쪽 · 책갈피 · 인쇄 플래그 · 1분 안팎'], t => download(`/projects/${S.pid}/markup.pdf?types=${encodeURIComponent(t)}`)],
     csv: ['Extracted Fields CSV', 'extracted_fields.csv', [`Tag ${k.tags}개 모든 칸`], () => download(`/projects/${S.pid}/extracted.csv`)],
     revx: ['Revision 비교 Excel', 'Revision_Comparison_<날짜>.xlsx', [`Revision 이 둘 이상인 Tag ${k.revision_changes}개 · 바뀐 칸(Added · Deleted · Modified)`], () => download(`/projects/${S.pid}/revisions.xlsx`)],

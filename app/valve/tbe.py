@@ -39,7 +39,7 @@ from app.valve import material, requirements, schema
 
 YELLOW = PatternFill("solid", fgColor="FFF2A8")
 GREEN = PatternFill("solid", fgColor="DDF3E2")
-EXTRA_HEADERS = ["DS Document No.", "DS Rev.", "DS Source (file · page)", "Special Requirements (Notes)", "Expert Review (Tool)", "Datasheet Notes", "Tool Status",
+EXTRA_HEADERS = ["Area", "Site", "Unit", "DS Document No.", "DS Rev.", "DS Source (file · page)", "Special Requirements (Notes)", "Expert Review (Tool)", "Datasheet Notes", "Tool Status",
                  "Changed Columns"]
 
 
@@ -345,6 +345,56 @@ def _drop_vendor_rows(ws, a) -> int:
     return removed
 
 
+ALL_COLS = [("Area", 11), ("Site", 8), ("Unit", 6), ("Tag Number", 16), ("Valve Type", 9), ("DS Document No.", 20), ("DS Rev.", 6),
+            ("Service", 30), ("P&ID No.", 22), ("Line No.", 24), ("Piping Class", 11), ("Size", 7), ("Rating", 8), ("Body Type", 24),
+            ("End Connection", 20), ("Body Material", 26), ("Ball Material", 16), ("Stem Material", 16), ("Seat Material", 12),
+            ("Fail Position", 9), ("Leakage Class", 20), ("NACE", 14), ("Special Requirements (Notes)", 40), ("Expert Review (Tool)", 40),
+            ("Open Issues", 8), ("Valve List Sheet", 22), ("Tool Status", 12), ("DS Source (file · page)", 30)]
+_ALL_KEYS = {"Service": "service", "P&ID No.": "pid_no", "Line No.": "line_no", "Piping Class": "piping_class", "Size": "body_size",
+             "Rating": "rating", "Body Type": "body_type", "End Connection": "connections", "Body Material": "body_material",
+             "Ball Material": "ball_material", "Stem Material": "stem_material", "Seat Material": "seat_material",
+             "Fail Position": "fail_position", "Leakage Class": "leakage_class", "NACE": "nace"}
+
+
+def _all_valves(wb, datasheets, docnames, link, sheet_of, report):
+    """'All Valves' sheet: every tag (latest revision) on one row, with Area · Site · Unit first — filter with Excel."""
+    from openpyxl.styles import Alignment, Font, PatternFill
+    from app.valve import issues as issuesmod
+    ws = wb.create_sheet("All Valves", 1 if len(wb.worksheets) > 1 else 0)
+    ws.append([c for c, _ in ALL_COLS])
+    for n, (_, w) in enumerate(ALL_COLS, 1):
+        c = ws.cell(1, n)
+        c.fill, c.font = PatternFill("solid", fgColor="1F2D4D"), Font(bold=True, color="FFFFFF")
+        c.alignment = Alignment(wrap_text=True, vertical="center")
+        ws.column_dimensions[get_column_letter(n)].width = w
+    status = {k: s for s, ks in (("NEW", report["new"]), ("UPDATED", report["updated"]), ("UNCHANGED", report["unchanged"]),
+                                 ("NO SHEET", report["no_sheet"])) for k in ks}
+    order = {"North": 0, "South": 1, "Brownfield": 2, "W15": 3}
+    for d in sorted(datasheets, key=lambda d: (order.get((d.get("location") or {}).get("area"), 9),
+                                               (d.get("location") or {}).get("unit", ""), d["tag_key"])):
+        loc, F = d.get("location") or {}, d["fields"]
+        reqs = requirements.find(d, d.get("general_notes"))
+        mr = [m for m in d.get("material_review") or [] if m["level"] != "Note"]
+        n_open = sum(1 for i in d.get("issues") or [] if i["type"] in issuesmod.CONTRACTOR_TYPES and i.get("status") != "Dismissed")
+        row = {"Area": loc.get("area", ""), "Site": loc.get("site", ""), "Unit": loc.get("unit", ""), "Tag Number": d["tag_key"],
+               "Valve Type": d.get("valve_type", ""), "DS Document No.": d["doc_no"], "DS Rev.": d["rev"],
+               "Special Requirements (Notes)": requirements.summary(reqs)[:32000],
+               "Expert Review (Tool)": "\n".join(m.get("short") or m["title"] for m in mr)[:32000], "Open Issues": n_open,
+               "Valve List Sheet": sheet_of.get(d["tag_key"], ""), "Tool Status": status.get(d["tag_key"], ""),
+               "DS Source (file · page)": f"{docnames.get(d['document_id'], '')} p.{d['pages'][0]}" if d.get("pages") else ""}
+        for h, k in _ALL_KEYS.items():
+            row[h] = _val(F.get(k, {})) if k in F else ""
+        ws.append([row.get(c, "") for c, _ in ALL_COLS])
+        r = ws.max_row
+        for n in range(1, len(ALL_COLS) + 1):
+            ws.cell(r, n).alignment = Alignment(wrap_text=True, vertical="top")
+        if link:
+            ws.cell(r, 4).hyperlink = link(d, "tag")
+            ws.cell(r, 4).font = Font(color="2F5BD8", underline="single", bold=True)
+    ws.freeze_panes = "E2"
+    ws.auto_filter.ref = f"A1:{get_column_letter(len(ALL_COLS))}{max(2, ws.max_row)}"
+
+
 def build(template: bytes | None, datasheets: list[dict], docnames: dict, project: str = "",
           link=None, vendor_rows: bool = False) -> tuple[bytes, dict]:
     """-> (xlsx bytes, report).  `datasheets`: latest revision per tag, each with fields{key: field dict}.
@@ -378,7 +428,7 @@ def build(template: bytes | None, datasheets: list[dict], docnames: dict, projec
             _copy_style(ws.cell(a["hdr_top"], a["last_col"]), cell)
             if a["first"] - 1 > a["hdr_top"]:
                 ws.merge_cells(start_row=a["hdr_top"], start_column=c, end_row=a["first"] - 1, end_column=c)
-            ws.column_dimensions[get_column_letter(c)].width = 34 if h in ("Datasheet Notes", "Special Requirements (Notes)", "Expert Review (Tool)") else 18
+            ws.column_dimensions[get_column_letter(c)].width = 10 if h in ("Area", "Site", "Unit") else 34 if h in ("Datasheet Notes", "Special Requirements (Notes)", "Expert Review (Tool)") else 18
             a["extra"][h] = c
 
     def write_block(ws, a, row, ds, is_new):
@@ -434,6 +484,9 @@ def build(template: bytes | None, datasheets: list[dict], docnames: dict, projec
             cell.comment = Comment(note, "Valve Review")
         e = a["extra"]
         notes = " | ".join(f"{n['no']}) {n['text']}" for n in ds["notes"])
+        loc = ds.get("location") or {}
+        for h in ("Area", "Site", "Unit"):
+            ws.cell(row, e[h], loc.get(h.lower(), ""))
         ws.cell(row, e["DS Document No."], ds["doc_no"])
         ws.cell(row, e["DS Rev."], ds["rev"])
         src = ws.cell(row, e["DS Source (file · page)"], f"{docname} p.{'-'.join(map(str, [ds['pages'][0], ds['pages'][-1]]))}")
@@ -494,6 +547,11 @@ def build(template: bytes | None, datasheets: list[dict], docnames: dict, projec
             ws, a = wb[name], sheets[name]
             ws.cell(b["row"], a["extra"]["Tool Status"], "NOT IN UPLOADED DATASHEETS")
             report["not_in_datasheets"].append(key)
+
+    for name, a in sheets.items():                      # Excel filter on every valve-type sheet: Area · Site · Unit · any column
+        ws = wb[name]
+        ws.auto_filter.ref = f"A{a['first'] - 1}:{get_column_letter(max(a['extra'].values()))}{max(ws.max_row, a['first'])}"
+    _all_valves(wb, datasheets, docnames, link, {k: n for k, (n, _) in by_tag.items()}, report)
 
     if report["no_sheet"] or not sheets:                 # no reference, or a type no sheet names: tool's own list
         ws = wb.create_sheet("Valve List (tool format)")
