@@ -31,10 +31,10 @@ REQUIRED = ["tag", "service", "pid_no", "line_no", "piping_class", "body_size", 
             "body_material", "ball_material", "stem_material", "seat_material", "act_type", "fail_position", "tightness",
             "leakage_class", "nace"]
 PROCESS_REQUIRED = ["fluid", "op_pressure", "design_pressure", "op_temp", "design_temp"]
-COLOR = {"Data Missing": "missing", "Open Item": "missing", "Data Error": "error", "PMS Non-Compliance": "error",
+COLOR = {"Data Missing": "missing", "Open Item": "missing", "Data Error": "error", "PMS Non-Compliance": "error", "Process Mismatch": "process",
          "PMS Review": "error", "Revision Change": "revision", "Reviewer Correction": "comment",
          "Reviewer Comment": "comment", "Extraction Review": "extract"}
-CONTRACTOR_TYPES = ["Data Missing", "Open Item", "Data Error", "PMS Non-Compliance", "PMS Review", "Revision Change",
+CONTRACTOR_TYPES = ["Data Missing", "Open Item", "Data Error", "PMS Non-Compliance", "PMS Review", "Process Mismatch", "Revision Change",
                     "Reviewer Correction", "Reviewer Comment"]
 # reviewer mark-up category -> (issue type, severity, description prefix) — the contractor reads one list
 MARK_TYPE = {"comment": ("Reviewer Comment", "Major", ""), "question": ("Reviewer Comment", "Minor", "Question: "),
@@ -55,7 +55,8 @@ def _v(f):
 
 
 def compute(ds: dict, general_notes: dict | None = None, pms: dict | None = None, area: str = "",
-            prev_cmp: list | None = None, states: dict | None = None, pms_rows: list | None = None) -> list[dict]:
+            prev_cmp: list | None = None, states: dict | None = None, pms_rows: list | None = None,
+            process_rows: list | None = None) -> list[dict]:
     """ds: datasheet with fields (list of dicts with key/value/edited_value/page/bbox/row/status/display), notes,
     comments, pages, sheets.  Returns issue dicts (sorted by page, then position)."""
     F = {f["key"]: f for f in ds["fields"]}
@@ -157,6 +158,12 @@ def compute(ds: dict, general_notes: dict | None = None, pms: dict | None = None
             add(it, r["key"], f"{r['item']}: {r['reason']} (Class {r['class']})", expected=r["req"],
                 extra={"pms_page": r.get("pms_page"), "pms_bbox": r.get("pms_bbox"), "result": r["result"]})
 
+    for r in process_rows or []:                         # Phase 3: datasheet process item ≠ Process Data table
+        if r["result"] == "Mismatch":
+            add("Process Mismatch", r.get("ds_key") or r["key"], f"{r['item']}: {r['reason']} (Process Data p.{r.get('pd_page')})",
+                expected=f"{r['pd']} {r.get('pd_unit') or ''}".strip(), page=r.get("ds_page"), bbox=r.get("ds_bbox"),
+                f={"display": r["item"], "value": r.get("ds"), "unit": r.get("ds_unit"), "row": None},
+                extra={"pd_page": r.get("pd_page"), "pd_bbox": r.get("pd_bbox"), "result": r["result"]})
     for r in prev_cmp or []:
         if r["change"] in ("Modified", "Added", "Deleted"):
             add("Revision Change", r["key"], f"{r['change']}: '{r['previous'] or '(blank)'}' → '{r['new'] or '(blank)'}'",

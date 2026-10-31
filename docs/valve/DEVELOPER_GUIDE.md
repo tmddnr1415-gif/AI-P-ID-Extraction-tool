@@ -2,7 +2,7 @@
 
 > EPC Instrument Engineering Review Tool · Module 01 (Ball Valve Datasheet)
 > 대상 독자: 이 도구를 이어서 고치거나 넓힐 개발자, 회사 PC 에 설치·운영하는 담당자.
-> 기준 판: **valve05** (2026-10-31, 브랜치 `ccr-efbe7e75-n915ze`).
+> 기준 판: **valve07** (2026-10-31, 브랜치 `ccr-efbe7e75-n915ze`). UI/UX 개선과 Phase 3 의 근거는 `UI_UX_AUDIT.md` · `UI_UX_CHANGELOG.md`.
 > 같은 폴더의 `DESIGN.md` 는 "왜 이렇게 만들었나(분석·결정 기록)", 이 문서는 "어떻게 돌아가고 어떻게 고치나(작동 원리·절차)" 입니다.
 > 화면 캡처는 고객 자료가 보이므로 저장소에 넣지 않습니다. 캡처를 다시 만드는 법은 §15.4 에 있습니다. 이 문서에서 `[화면 NN]` 은
 > 그 캡처 파일 번호(`out/valve_shots/NN_*.png`)입니다.
@@ -125,6 +125,7 @@ pytest -q                                       # 저장소 전체 (약 2분)
 | `app/valve/issues.py` | 186 | 지적 규칙 · 색 · 번호 · 검토자 Mark-up 분류 매핑 |
 | `app/valve/material.py` | 136 | 재질 표기 → 토큰(규격 · 등급 · 계열), `same` · `equivalent` · `compare` |
 | `app/valve/pms.py` | 245 | PMS PDF 읽기(지역 QN/QS · Class 머리 · Ball Valve 품목), `find_class`, `check` |
+| `app/valve/process.py` | 약 260 | **Phase 3** — Process Data 표 읽기(괘선 열 띠 · 머리 줄 · 단위 줄 · Sr no. 행) · 공정 항목 비교(`compare_item` · `check`) |
 | `app/valve/tbe.py` | 476 | 회사 Valve List(TBE) 양식 분석 · 채우기 · 바뀐 칸 표시 · 링크 · `.xls` 변환 |
 | `app/valve/exports.py` | 287 | Issue List Excel · 인쇄용 Mark-up PDF(표지 · 쪽 · Issue Summary · 책갈피) |
 | `app/valve/store.py` | 211 | SQLite 연결 · 표 · 열 추가 이전 · 원본 저장 · 감사 · 다시 읽기 · Rev 순서 |
@@ -407,7 +408,7 @@ PDF 글자 층에는 **사람 눈에 안 보이는 글자**가 섞여 있다: �
 | POST | `/projects/{pid}/upload` | multipart `files[]`, `kind` → 작업 |
 | GET | `/jobs/{jid}` | 진행률 · 메시지 · 경고 · 건너뛴 파일 · 자동 내보내기 링크 |
 | POST | `/documents/{doc_id}/retry` | 재처리 / 다시 읽기 |
-| GET | `/datasheets/{dsid}` | 데이터시트 전체(칸 · Notes · General Notes · 지적 · PMS 행 · Revision · 의견 · 이력) |
+| GET | `/datasheets/{dsid}` | 데이터시트 전체(칸 · Notes · General Notes · 지적 · PMS 행 · **Process 행 · process_doc · process_ref** · Revision · 의견 · 이력) |
 | PUT | `/datasheets/{dsid}/fields/{fid}` | 칸 고치기 `{value, comment}` (읽은 값과 같으면 되돌리기) |
 | PUT | `/datasheets/{dsid}/status` | 검토 상태 `{status}` |
 | POST | `/datasheets/{dsid}/comments` | 의견 / Mark-up `{text, page, bbox, kind, points, category}` → `new_comment_id` |
@@ -423,6 +424,8 @@ PDF 글자 층에는 **사람 눈에 안 보이는 글자**가 섞여 있다: �
 | POST | `/markup.pdf` | 화면에서 고른 표시로 PDF |
 | GET | `/projects/{pid}/valvelist.xlsx` · `/valvelist/preview` | Valve List 만들기 / 바뀔 칸 미리 보기 |
 | GET | `/projects/{pid}/pms` | PMS 비교 행 전체 |
+| GET | `/projects/{pid}/process` | Process Data 비교 행 전체 (Phase 3) — `process_doc` + rows(결과 · 이유 · DS/PD 쪽 · 상자) |
+| GET | `/projects/{pid}/revisions.xlsx` | 모든 Tag 의 Revision 간 바뀐 칸 Excel (`X-Count`) |
 | GET | `/projects/{pid}/issues.xlsx` | Issue List Excel (`X-Count` 머리) |
 | GET | `/projects/{pid}/markup.pdf?tag=` | 인쇄용 Mark-up PDF (Tag 하나 또는 전체) |
 | GET | `/projects/{pid}/exports`, `/exports/{name}` | 자동 내보내기 목록 / 파일 |
@@ -459,10 +462,10 @@ PDF 글자 층에는 **사람 눈에 안 보이는 글자**가 섞여 있다: �
 | 03 | Valve List — 표 | 엑셀식 표: 고정 열 · 열 필터 · 정렬 · 너비 조절 · 열 순서 끌기 · 여러 줄 선택(Shift/Ctrl) · 두 번 눌러 고치기 · 상태 일괄 변경 · Excel 내보내기 |
 | 04 | Valve List — 칸 → PDF | 칸 하나를 누르면 오른쪽 미리 보기가 **그 쪽 · 그 자리**로 가서 깜박임(실시간 연동) |
 | 05 · 06 | Issue List | 지적 목록(종류 · 심각도 · 상태 거르기), 행을 누르면 PDF 그 자리, 상태 바꾸기(이유 입력), Issue List Excel / Mark-up PDF 내보내기 |
-| 07 | Datasheet Review — Issues | 3단 작업대: Tag 목록(문제 수 · 거르기 · 찾기) │ PDF(번호 붙은 색 상자) │ 오른쪽 탭. 지적 카드마다 상태 · PMS 근거 쪽 열기 |
+| 07 | Datasheet Review — Issues | **머리 띠**(Tag · Type · Size · Rating·Class · Rev + Data Error/Missing/PMS/Process/Rev/Comments 칩 · 상태 · ▲▼) + 3단 작업대: Tag 목록(2줄 · n/N · 접기 `[`) │ PDF(한 줄 도구줄 · 레이어 칩 E M R C · ✎ Mark-up 줄 접기 M) │ 오른쪽 탭(개수 배지 · 접기 `]`). 패널은 px 한도로 끌기, 창 크기 변경 때 다시 조임 |
 | 08 | — Summary | Tag 요약 · 종류별 지적 수 · 주요 칸 |
-| 09 | — Datasheet Data | 그룹별 칸 표(행 번호 · 라벨 · 값 · 단위 · 상태 · 쪽) — 누르면 PDF 그 칸, ✎ 고치기(읽은 값 보존 · 감사) |
-| 10 | — Process Data | 공정 칸 / Process DS 참조 여부 |
+| 09 | — Data | 위에 **Valve Part 그림**(볼밸브 단면 SVG · 칸을 누르면 그 부위가 파랗게 + 설명, 스크롤해도 고정) + 그룹별 칸 표 — 누르면 PDF 그 칸, ✎ 고치기(읽은 값 보존 · 감사) |
+| 10 | — Process | Process Data 표와 항목별 비교(Match · Mismatch · Review · Referenced · Not in PD), PD 쪽 열기. 문서가 없으면 Not Evaluated |
 | 11 | — PMS | 그 Tag 의 PMS 비교 행(요구값 · DS 값 · 결과 · 이유 · PMS 쪽 열기) |
 | 12 | — Notes | 데이터시트 Notes · 문서 General Notes (누르면 PDF 그 자리) |
 | 13 | — Comments | 의견 목록(분류 색 · 모양 · 쪽 링크 · 고치기 · 지우기), 새 의견 |
@@ -470,10 +473,10 @@ PDF 글자 층에는 **사람 눈에 안 보이는 글자**가 섞여 있다: �
 | 15 | 지적 누르기 | 그 상자가 굵게, PDF 가 그 자리로 |
 | 16~18 | **Mark-up** | 도구줄(선택 · 사각형 · 구름 · 원 · 형광펜 · 선 · 화살표 · 펜 · 글상자 · 메모 · 분류 · ↶ · ↷ · 의견 · 지우기), 그리고 나면 의견/분류 창, PDF 위 표시와 Comments 목록 |
 | 19 | — Revision 탭 | 이전 Rev 대비 바뀐 칸 표 |
-| 20 | Revision Comparison | 두 Rev 나란히(같이 스크롤), 바뀐 칸 노랑, 종류 거르기, 고른 것만 Mark-up PDF |
-| 21 | Process Data Verification | Phase 3 틀 — 'Not Evaluated' (예시는 MOCK 버튼) |
+| 20 | Revision Comparison | 두 Rev 나란히 — **같이 움직이기**(스크롤 비율 · 확대) 토글, 바뀐 칸 노랑, 종류 거르기, 고른 것만 Mark-up PDF, **Revision 비교 Excel** |
+| 21 | Process Data Verification | **실제**: 결과 칩(Mismatch · Review · Match · Referenced · Not in PD · DS blank) · 항목 · Tag 거르기 · 행을 누르면 Datasheet 칸 ↔ Process Data 표 나란히. 문서가 없으면 Not Evaluated |
 | 22 · 23 | PMS Compliance | 결과 개수 칩(Non-Compliant · Review · Not Defined · Compliant) · 거르기 · 행을 누르면 아래에 **데이터시트 그 칸 ↔ PMS 그 쪽** 나란히 |
-| 24 · 25 | Reports & Export | Valve List(미리 보기: 바뀔 칸) · Extracted Fields CSV · Audit Trail CSV · Issue List Excel · Mark-up PDF · **Review Feedback** · 자동 내보내기 이력 |
+| 24 · 25 | Reports & Export | 다섯 묶음(Valve List · Issue List · Mark-up PDF · CSV + Revision Excel · Review Feedback) · 만들기 전 확인 창(프로젝트 · 파일명 · 범위) · 상태 줄(만드는 중 / 완료 / 실패) · 자동 내보내기 이력 |
 | 26 | Settings | 사용자 이름 · 화면 설정 초기화 · 단축키 안내 |
 
 ### 14.4 Mark-up (valve03)
@@ -490,6 +493,9 @@ PDF 글자 층에는 **사람 눈에 안 보이는 글자**가 섞여 있다: �
 | 키 | 동작 |
 |---|---|
 | 1~9 | 메뉴 |
+| [ · ] | (Review) Tag List · Review Panel 접기/펼치기 |
+| M | Mark-up 도구 줄 보이기/숨기기 |
+| ↑/↓ · Enter | (Valve List · Issue List) 행 이동 · 열기 |
 | ↑/↓ · j/k | (Review) 이전/다음 Tag |
 | PgUp/PgDn | 쪽 |
 | + / - | 확대/축소 |
@@ -564,6 +570,7 @@ PDF/Excel/피드백을 **서버 상태로** 확인, 캡처 저장, 그린 것은
    | 판정 | 한 곳 |
    |---|---|
    | 칸의 지금 값 | `schema.effective` |
+   | Process 항목 비교 · 단위/기준 규칙 | `process.compare_item` |
    | 재질 같음 · 등가 · 적합 | `material.same` · `equivalent` · `compare` |
    | Tag 같음 · Rev 순서 | `schema.norm_tag` · `store.rev_key` |
    | 지적 종류 → 색 · Mark-up 분류 → 지적 종류 | `issues.COLOR` · `issues.MARK_TYPE` |
@@ -595,7 +602,7 @@ PDF/Excel/피드백을 **서버 상태로** 확인, 캡처 저장, 그린 것은
 
 ### 17.4 새 PMS 항목(Gasket · Bolting) — `pms.parse_item` 이 다른 품목 코드도 읽게 하고 `pms.check` 에 행을 더한다. 비교는 반드시 `material.compare`.
 
-### 17.5 Phase 3 Process Data — `process_ref` 가 가리키는 PR-DTS 문서를 `document(kind='process')` 에서 찾아 칸별로 대조(크기 · 등급 · 재질 제외 — 사양서 원칙). 화면 'Process Data Verification' 의 MOCK 을 실제로 바꾼다.
+### 17.5 Phase 3 Process Data — `app/valve/process.py` 가 한다(valve07). 새 표 양식이 오면 `read_page` 의 머리 인식(`COLUMNS` 구절표)을 넓히고, 비교 항목은 `DS_KEYS`(Process 열 → Datasheet 칸) · `compare_item`(단위 · 기준 규칙)에 더한다. Control Valve · PRV 표는 아직 읽지 않는다.
 
 ### 17.6 새 화면 — `index.html` 메뉴 버튼 + `<section id="v-키">`, `valve.js` 의 `VIEWS` · `RENDER` 에 함수. PDF 가 필요하면 `new Viewer(host, opts)`.
 Mark-up 이 필요하면 `opts.tools=true` 와 `onMark` · `onMarkChange` · `onMarkSelect` · `onMarkCmd`.
@@ -658,9 +665,11 @@ python3 spike/pack_delta.py --name valve05 --base 9429f4f \
 | valve03 | 〃 | 실패 원인 분석(짝 실패 69→1 · 오독 11→0 · 누락 오탐 748→0) · A3/회전/암호/손상 · 성능 · 사용자 Mark-up 10종 · 다시 읽기 |
 | valve04 | 〃 | P&ID · LOGIC 원리 차용: 지문 게이트 · 문턱 빈 띠 · 검토 피드백(VOC) · 차등 시뮬레이션 · 화면 자기검증 |
 | valve05 | 〃 | 456쪽 전수 눈 대조 3.54 % → 0.009 % (숨은 글자 · 줄 묶기 · Notes 테두리 · Form 102 · 단위만 칸 · 제목/Sheet 표기 · 새 지적 2종) |
+| valve06 | 〃 | Valve List Excel 에서 Vendor 행 삭제 |
+| valve07 | 〃 | UI/UX 개선(작업대 머리 띠 · 접이식 패널 · 한 줄 도구줄 · 밸브 부위 그림 · 대시보드 · 목록 키보드 · Revision 동기화 · PMS 안내 · 내보내기 확인/상태) + **Phase 3 Process Data 실제 비교** + Revision 비교 Excel |
 
 **남은 일**
-1. 회사 적용 확인: .xls 자동 변환, 456쪽 처리 시간, 화면 글꼴, Edge 에서 Mark-up, 내보낸 PDF 를 Acrobat 에서 열기.
-2. Phase 3 Process Data — `process_ref` 의 PR-DTS 문서와 칸별 대조. 그 다음 PMS Gasket · Bolting.
-3. Revision 비교 Excel 보고서 · Combined Mark-up PDF · 받은 PDF 에 이미 있는 설계사 주석 읽어 오기.
+1. 회사 적용 확인: .xls 자동 변환, 456쪽 처리 시간, 화면 글꼴, Edge 에서 Mark-up · 패널 접기, 내보낸 PDF 를 Acrobat 에서 열기, 1366×768 노트북에서 작업대.
+2. Process Data: Control Valve · PRV 표 읽기(범위 밖) · Excel 판 Process Data · PMS Gasket · Bolting.
+3. 받은 PDF 에 이미 있는 설계사 주석(PDF annotation) 읽어 오기(다시 읽기와 중복 처리 설계 필요).
 4. 회사 검토가 쌓이면 Review Feedback 을 받아 `valve_voc.py` 로 기각 많은 규칙부터 고치기.

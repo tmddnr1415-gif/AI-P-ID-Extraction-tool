@@ -1,6 +1,6 @@
 # 인수인계 — "VALVE Datasheet 검토" 세션 (상한 15KB · 덧붙이지 말고 고쳐 쓴다)
 
-## 지금 상태 (2026-10-31 · valve06)
+## 지금 상태 (2026-10-31 · valve07)
 
 - 작업 브랜치: `ccr-efbe7e75-n915ze`. 이 브랜치는 PID(`claude/gracious-ride-26nqrf`, hotfix131) 와 DASHBOARD(`ccr-248a5c4d-3dji7g`, v16.51) 를 병합한 위에 있다.
 - 무엇: 대시보드 **실행 프로젝트 › CO2 PJT › Datasheet › Ball Valve** = P&ID 서버(8000) `/valve/` — Valve Datasheet 검토 도구.
@@ -9,7 +9,11 @@
   + 실패 원인 분석 · 강건성(A3 · 회전 · 암호/손상) · 사용자 Mark-up 도구 10종 → Issue List · Mark-up PDF (valve03, §10)
   + P&ID · LOGIC 원리 차용: 지문 게이트 · 문턱 빈 띠 실측 · 검토 피드백(VOC) · 차등 시뮬레이션 · 화면 자기검증 (valve04, §11)
   + **456쪽 전수 눈 대조: 오류율 3.54 % → 0.009 % (남은 2 = 도면 오타, Data Error 로 지적)** (valve05, §12).
-  + **Valve List Excel 은 Vendor 행(AMPO · OMS · NEWAY) 없이 Tag 마다 Requirement 한 줄** (valve06, 사용자 요청).
+  + Valve List Excel 은 Vendor 행 없이 Tag 마다 Requirement 한 줄 (valve06).
+  + **UI/UX 개선(감사 `docs/valve/UI_UX_AUDIT.md` → 변경 `UI_UX_CHANGELOG.md`): 작업대 머리 띠 · 접이식 px 패널(`[` `]`) · 한 줄 도구줄 · 밸브 부위 그림(칸 → 부위) ·
+  대시보드 5×2 + Issues by Category · 목록 키보드 · Revision 같이 움직이기 · PMS 안내 · 내보내기 묶음/확인/상태**
+  + **Phase 3 Process Data 실제 비교** (`app/valve/process.py` · `GET /projects/{pid}/process` · 지적 'Process Mismatch' 주황) · Revision 비교 Excel (valve07).
+  실자료: Process Data(Annexure 7) 68 Tag 중 Datasheet 66 연결 · Match 215 · Mismatch 42(Line No. 32 · P&ID 8 · Fail 위치 2) · Review 2 · Referenced 749.
   새 양식 · 새 자료가 오면 같은 방법으로: `valve_visual_pack.py` → 검토(지시문은 §12) → `valve_visual_score.py`.
   Process Data(Phase 3)만 화면 틀 — 결과 'Not Evaluated', 예시는 MOCK 버튼. PMS 의 Gasket · Bolting 은 아직.
 - 품질 기준값: `spike/valve_eval.py` → `spike/valve_eval_baseline.json` (지문 541753c612ed · 17,471칸 · Extraction Review 1 · 오독 0 · Data Missing 오탐 0 · TBE 일치 92.9 % · PMS Review 75).
@@ -18,8 +22,8 @@
 - 회사에서 검토가 쌓이면 Review Feedback json 을 받아 `spike/valve_voc.py <파일> --ds <PDF>` — 기각(Dismissed) 많은 규칙부터 고친다.
 - 실자료(고객 파일 · 저장소에 없음): Datasheet.pdf 456쪽 → 164 데이터시트(On/Off 140 · MOV 24) · TBE 164/164 Tag 일치.
   자료를 다시 받으면 EGG 는 `python3 spike/valve_unegg.py <폴더> *.egg`, TBE .xls 는 시험용으로 `spike/valve_xls2xlsx.py`(xlrd 필요).
-- 시험: `pytest -q tests/test_valve.py` (36개, 실자료는 `VALVE_SAMPLES=<Datasheet.pdf 폴더>`). 전체 1,860 통과 (2026-10-31).
-- 마지막 꾸러미: **valve06** (P&ID 서버용만 — 대시보드는 valve01 의 메뉴 그대로). valve01~06 모두 회사 적용 확인 전. 각 꾸러미는 hotfix131 기준 누적이라 valve06 하나만 적용해도 된다.
+- 시험: `pytest -q tests/test_valve.py` (38개, 실자료는 `VALVE_SAMPLES=<Datasheet.pdf 폴더>`). 전체 1,860 통과 (2026-10-31).
+- 마지막 꾸러미: **valve07** (P&ID 서버용만 — 대시보드는 valve01 의 메뉴 그대로). valve01~07 모두 회사 적용 확인 전. 각 꾸러미는 hotfix131 기준 누적이라 valve07 하나만 적용해도 된다.
 
 ## 파일
 
@@ -52,8 +56,8 @@
 ## 꾸러미
 
 - P&ID 서버용 (밸브 모듈만):
-  `python3 spike/pack_delta.py --name valve06 --base 9429f4f --only app/valve/,app/static/valve/,app/main.py,tests/test_valve.py --readme out/valve06/readme_head.txt --ops`
-  → `out/PID_dev+ops_valve06_<날짜>.zip`. `--only` 는 딱지(`app/_update.json`)와 기준 파일(`out/PID_dev_delta_base.txt`)을 건드리지 않는다 (PID 세션 번호와 안 섞이게).
+  `python3 spike/pack_delta.py --name valve07 --base 9429f4f --only app/valve/,app/static/valve/,app/main.py,tests/test_valve.py --readme out/valve07/readme_head.txt --ops`
+  → `out/PID_dev+ops_valve07_<날짜>.zip`. `--only` 는 딱지(`app/_update.json`)와 기준 파일(`out/PID_dev_delta_base.txt`)을 건드리지 않는다 (PID 세션 번호와 안 섞이게).
   기준 9429f4f = hotfix131 전달본. 회사가 다른 판이면 `--base` 를 그 판으로.
 - 대시보드용: `python3 dashboard_tools/make_patch.py --out dashboard_patches --mark` (기준 = `delivered.txt` 맨 아래). `--out` 은 폴더. 첫 전달: `dashboard_patches/UPDATE_from_v16.51_VALVE_menu.zip` (기준 v16.51).
 - 적용 순서(회사): ① PID 꾸러미 `apply_to_PID_dev.bat` → 확인 → `apply_to_PID_ops.bat` (8000 서버 재시작) ② 대시보드 zip `APPLY.bat` (서버 재시작 필요 없음, 화면 새 버전 배너) ③ 대시보드 → 실행 프로젝트 › CO2 PJT › Datasheet › Ball Valve.
@@ -61,5 +65,5 @@
 ## 다음에 할 일
 
 1. 회사 적용 확인: .xls 자동 변환(Excel COM)이 되는지, 456쪽 처리 시간, 화면 글꼴, Mark-up 도구(Edge)와 내보낸 PDF 를 Acrobat 에서 열어 보기.
-2. Phase 3 Process Data (DESIGN §2.3 · §8) — `process_ref` 가 가리키는 PR-DTS 문서와 대조 → Phase 4 PMS Gasket · Bolting (§2.4).
-3. Revision 비교 Excel 보고서 · Combined Mark-up PDF · 받은 PDF 에 이미 있는 주석(설계사 Mark-up) 읽어 오기.
+2. Process Data: Control Valve · PRV 표(범위 밖) · Excel 판 · PMS Gasket · Bolting (§2.4).
+3. 받은 PDF 에 이미 있는 주석(설계사 Mark-up) 읽어 오기 · 1366×768 노트북에서 작업대 사용감 확인.

@@ -289,3 +289,14 @@ C PMS 결과 · D 지적 · E 속도.  보고서(`report.md`)에는 고객 값�
 
 **새 지적(설계사용)**: sheet 2 표제란 Doc. No. 가 sheet 1 과 다름 · 뒷장이 반복한 Tag/PID/Service/Line 이 sheet 1 과 다름 — 실자료에서 3건(그중 1건은 MOV 한 Tag 의 Line No. 가 sheet 1 · 2 에서 다름).
 속도: 456쪽 11~13초(숨은 글자 판단 포함, 처음 구현 35초를 순수 산술로 줄임).
+
+## 13. Phase 3 — Process Data 비교 (valve07)
+
+- 읽기(`process.read_page`): 쪽의 세로 괘선 중 표 높이의 30 % 이상 걸친 것으로 열 띠를 만들고, 'Process Data …' 제목 줄과 단위 줄 사이의 모든 줄을 머리로 모아 열 이름(`COLUMNS` 구절표 → 키)을 정한다.
+  단위 줄은 단위 낱말이 4개 이상인 줄. 데이터 행은 첫 띠가 정수(Sr no.)인 줄이고, 다음 줄의 낱말은 40 pt 안에서 같은 행의 이어진 칸으로 본다. Tag 는 `schema.norm_tag`.
+  실자료 Annexure 7(61쪽, A3 가로): On-Off · MOV 표 23장 · 68 Tag(0.3초). Control Valve · PRV 표는 머리가 달라 읽지 않는다(범위 밖).
+- 비교(`compare_item`): 공정 항목만. Fail 위치(FC/FO/FL ↔ Close/Open/Last) · 기밀(TSO ↔ Tight Shut-Off) · 상(Vapor ↔ Gas) · 유체(낱말 포함) · Line No.(Class 꼬리 `-QG1` 만 다르면 Review) ·
+  P&ID(둘 중 하나와 같으면 Match) · 수치는 단위 차원이 확실할 때만 환산(psi→bar · °F→°C · min→s), 게이지/절대압은 양쪽에 기준이 적혀 있고 같을 때만, 허용 오차 1 %. 나머지는 Review Required.
+- 결과 6가지: Match · Mismatch(→ 지적) · Review Required · Referenced(Datasheet 가 Process DS 를 참조해 비워 둔 칸 — `process_ref`) · Not in Process Data · Datasheet Blank.
+- 실자료 결과: Datasheet 164 중 66 Tag 연결 · Match 215 · Mismatch 42 = Line No. 32(Class 코드 `1C0K8` ↔ `1C0KL-A`, 꼬리 `-5` ↔ `-N`) · P&ID 8 · Fail 위치 2(08SDV412A/B: Datasheet Close ↔ Process FO) · Review 2 · Referenced 749.
+  모두 설계사에게 물을 실제 차이다 — 도구는 어느 쪽이 옳은지 정하지 않는다.

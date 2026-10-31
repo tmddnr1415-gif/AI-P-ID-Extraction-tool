@@ -23,9 +23,9 @@ import pymupdf
 from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
 from openpyxl.utils import get_column_letter
 
-RGB = {"error": (0.86, 0.15, 0.15), "missing": (1.0, 0.55, 0.0), "revision": (0.95, 0.76, 0.0),
+RGB = {"error": (0.86, 0.15, 0.15), "missing": (1.0, 0.55, 0.0), "process": (0.95, 0.45, 0.05), "revision": (0.95, 0.76, 0.0),
        "comment": (0.18, 0.40, 0.90), "extract": (0.48, 0.30, 0.86)}
-HEXFILL = {"error": "FBE3E1", "missing": "FFE8CC", "revision": "FFF4C2", "comment": "E3ECFD", "extract": "EFE6FB"}
+HEXFILL = {"error": "FBE3E1", "missing": "FFE8CC", "process": "FFE0C2", "revision": "FFF4C2", "comment": "E3ECFD", "extract": "EFE6FB"}
 
 
 def deep_link(base: str, project: str, i: dict) -> str:
@@ -81,7 +81,7 @@ def issues_xlsx(rows: list[dict], base: str, project: str, by: str = "", sources
 
     sm = wb.create_sheet("Summary by Tag")
     types = [t for t in ["Data Error", "Data Missing", "Open Item", "PMS Non-Compliance", "PMS Review", "Revision Change",
-                         "Reviewer Correction", "Reviewer Comment", "Extraction Review"] if any(i["type"] == t for i in rows)]
+                         "Process Mismatch", "Reviewer Correction", "Reviewer Comment", "Extraction Review"] if any(i["type"] == t for i in rows)]
     sm.append(["Tag Number", "Doc. No.", "Rev.", "Total"] + types)
     for c in range(1, len(types) + 5):
         sm.cell(1, c).fill, sm.cell(1, c).font = head_fill, head_font
@@ -208,7 +208,7 @@ def _annotate(page, i):
         a.set_opacity(0.5)
     else:
         a = page.add_rect_annot(r)
-        fill = {"missing": (1, 0.92, 0.80), "error": None}.get(i["color"])
+        fill = {"missing": (1, 0.92, 0.80), "process": (1, 0.88, 0.76), "error": None}.get(i["color"])
         a.set_colors(stroke=col, fill=fill)
         a.set_border(width=1.4, dashes=[3, 2] if i["color"] in ("comment", "extract") else None)
         if fill:
@@ -285,3 +285,43 @@ def markup_pdf(entries: list[dict], project: str, title: str = "Valve Datasheet 
         out[0].insert_text((72, 72), "No issues selected.", fontsize=12)
     out.set_toc(toc)
     return out.tobytes(garbage=4, deflate=True, use_objstms=1)    # garbage=4: logos and fonts stored once (8x smaller)
+
+
+# ── Revision comparison (xlsx) ───────────────────────────────────────────────────
+
+def revisions_xlsx(entries: list[dict], project: str, by: str = "") -> bytes:
+    """entries: [{tag, doc_no, prev_rev, new_rev, rows: compare rows}] — one line per changed cell."""
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "Revision Changes"
+    cols = [("Tag Number", 16), ("Doc. No.", 20), ("Previous Rev.", 12), ("New Rev.", 10), ("Field", 28), ("Row", 6),
+            ("Previous Value", 36), ("New Value", 36), ("Change", 11), ("PDF Page", 9)]
+    head_fill, head_font = PatternFill("solid", fgColor="1F2D4D"), Font(bold=True, color="FFFFFF")
+    ws.append([c for c, _ in cols])
+    for n, (_, w) in enumerate(cols, 1):
+        ws.column_dimensions[get_column_letter(n)].width = w
+        c = ws.cell(1, n)
+        c.fill, c.font = head_fill, head_font
+    fills = {"Modified": "FFF4C2", "Added": "E1F1FF", "Deleted": "FBE3E1"}
+    n = 0
+    for e in entries:
+        for r in e["rows"]:
+            if r["change"] == "Unchanged":
+                continue
+            ws.append([e["tag"], e["doc_no"], e["prev_rev"], e["new_rev"], r.get("display") or r["key"], r.get("row"),
+                       r.get("previous") or "", r.get("new") or "", r["change"], r.get("new_page") or r.get("prev_page")])
+            n += 1
+            ws.cell(ws.max_row, 9).fill = PatternFill("solid", fgColor=fills.get(r["change"], "FFFFFF"))
+    ws.freeze_panes = "A2"
+    ws.auto_filter.ref = f"A1:{get_column_letter(len(cols))}{max(1, ws.max_row)}"
+    sm = wb.create_sheet("Summary")
+    sm.append(["Tag Number", "Doc. No.", "Revisions", "Modified", "Added", "Deleted"])
+    for e in entries:
+        c = {k: sum(1 for r in e["rows"] if r["change"] == k) for k in ("Modified", "Added", "Deleted")}
+        sm.append([e["tag"], e["doc_no"], f"{e['prev_rev']} → {e['new_rev']}", c["Modified"], c["Added"], c["Deleted"]])
+    info = wb.create_sheet("Info")
+    info.append(["Project", project]), info.append(["Generated", dt.datetime.now().strftime("%Y-%m-%d %H:%M")]), info.append(["By", by])
+    info.append(["Rule", "Material written differently but meaning the same (316 SS / HF = SS 316/HF) counts as Unchanged"])
+    bio = io.BytesIO()
+    wb.save(bio)
+    return bio.getvalue(), n

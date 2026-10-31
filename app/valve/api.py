@@ -25,7 +25,7 @@ from fastapi.responses import FileResponse, JSONResponse, RedirectResponse, Resp
 from starlette.concurrency import run_in_threadpool
 
 from app import paths
-from app.valve import exports, extract, issues as issuesmod, material, pms as pmsmod, schema, store, tbe
+from app.valve import exports, extract, issues as issuesmod, material, pms as pmsmod, process as procmod, schema, store, tbe
 
 router = APIRouter()
 _JOBS: dict[str, dict] = {}
@@ -121,6 +121,7 @@ def summary(pid: int):
             vl_tags |= {schema.norm_tag(t) for t in s.get("tags", [])}
     done = sum(1 for d in latest.values() if d["review_status"] in ("Accepted", "Resolved"))
     has_pms = any(d["kind"] == "pms" and d["status"] == "done" for d in docs)
+    has_process = any(d["kind"] == "process" and d["status"] == "done" and str(d["filename"]).lower().endswith(".pdf") for d in docs)
     irows = project_issues(con, pid) if latest else []
     ic = _issue_counts(irows)
     per_tag = {}
@@ -134,7 +135,7 @@ def summary(pid: int):
         "kpi": {"tags": len(latest), "datasheets": len(dss),
                 "new_tags": len([k for k in latest if vl and k not in vl_tags]),
                 "revision_changes": sum(1 for v in revs.values() if len(v) > 1),
-                "process_mismatch": None,                              # Phase 3 engine not connected yet
+                "process_mismatch": (ic.get("Process Mismatch", 0) if has_process else None),
                 "pms_noncompliant": (ic.get("PMS Non-Compliance", 0) if has_pms else None),
                 "data_errors": ic.get("Data Error", 0), "data_missing": ic.get("Data Missing", 0),
                 "open_items": ic.get("Open Item", 0), "pms_review": ic.get("PMS Review", 0) if has_pms else None,
@@ -142,6 +143,7 @@ def summary(pid: int):
                 "review_required": sum(issues.get(d["id"], 0) for d in latest.values())},
         "has_valvelist": bool(vl),
         "has_pms": has_pms,
+        "has_process": has_process,
         "tags": [dict(d, issues=issues.get(d["id"], 0), problems=per_tag.get(d["id"], 0), revs=sorted(revs[k], key=store.rev_key),
                       in_valvelist=(k in vl_tags) if vl else None) for k, d in sorted(latest.items())],
         "documents": docs,
@@ -221,9 +223,16 @@ def _process(jid: str, pid: int, items: list[tuple[int, str, str, Path]], by: st
                 con.execute("UPDATE document SET status='done', info=? WHERE id=?", (store.J(info), doc_id))
                 store.audit(con, pid, None, None, "upload", None, name, by, "pms")
                 con.commit()
-            else:                                        # process: kept, indexed by page; engine is Phase 3
-                info = {"note": "보관됨 — Process Data 비교 엔진은 다음 단계(Phase 3)에서 연결됩니다"}
+            else:                                        # process data tables -> {data}/valve/process/<doc>.json (process.read_process_data)
+                if path.suffix.lower() != ".pdf":
+                    raise extract.PdfError("Process Data 는 PDF 만 읽습니다 — Excel 은 보관만 됩니다 (PDF 로 올려 주세요)")
+                parsed = procmod.read_process_data(str(path))
+                store.write_json(store.root() / "process" / f"{doc_id}.json", parsed)
+                _PROC_CACHE.pop(doc_id, None)
+                info = {"doc_no": parsed["doc_no"], "tags": parsed["n_tags"], "tables": len(parsed["pages"]),
+                        "note": f"Process Data 표 {len(parsed['pages'])}장 · Tag {parsed['n_tags']}개 읽음 — Process Data Verification 에 바로 쓰입니다"}
                 con.execute("UPDATE document SET status='done', info=? WHERE id=?", (store.J(info), doc_id))
+                store.audit(con, pid, None, None, "upload", None, name, by, "process")
                 con.commit()
         except Exception as e:                           # noqa: BLE001 — one bad file must not stop the batch
             msg = str(e) if isinstance(e, extract.PdfError) else f"{type(e).__name__}: {e}"
@@ -308,6 +317,25 @@ def retry(doc_id: int, request: Request):
 _PMS_CACHE: dict[int, dict] = {}
 
 
+_PROC_CACHE: dict[int, dict] = {}
+
+
+def _process_for(con, pid):
+    """(parsed Process Data, document row) of the project's newest Process Data PDF, or (None, None)."""
+    doc = store.one(con, "SELECT id, filename, path FROM document WHERE project_id=? AND kind='process' AND status='done'"
+                         " ORDER BY id DESC", pid)
+    if not doc or not str(doc["path"]).lower().endswith(".pdf"):
+        return None, None
+    if doc["id"] not in _PROC_CACHE:
+        p = store.root() / "process" / f"{doc['id']}.json"
+        if not p.exists():                               # uploaded before the Phase 3 engine (valve01~06): read it now
+            if not Path(doc["path"]).exists():
+                return None, None
+            store.write_json(p, procmod.read_process_data(doc["path"]))
+        _PROC_CACHE[doc["id"]] = json.loads(p.read_text(encoding="utf-8"))
+    return _PROC_CACHE[doc["id"]], {k: doc[k] for k in ("id", "filename")}
+
+
 def _pms_for(con, pid):
     """(parsed PMS, document row) of the project's newest PMS upload, or (None, None)."""
     doc = store.one(con, "SELECT id, filename, path FROM document WHERE project_id=? AND kind='pms' AND status='done'"
@@ -347,18 +375,23 @@ def _ds_full(con, dsid, deep=True):
     d["history"] = store.rows(con, "SELECT * FROM audit WHERE datasheet_id=? ORDER BY id DESC", dsid)
     d["doc_title"] = (gn or {}).get("title", "")
     d["area"] = pmsmod.area_of_title(d["doc_title"])
+    if d.get("process_ref") is None:                     # not stored: 'For Process data refer to …' read from the notes
+        d["process_ref"] = extract.process_reference(d.get("notes"), d.get("general_notes"))
     if not deep:
         return d
     pms, pdoc = _pms_for(con, d["project_id"])
     F = {f["key"]: f for f in fs}
     d["pms"] = pmsmod.check(F, pms, d["area"], d["notes"]) if pms else None
     d["pms_doc"] = pdoc
+    proc, procdoc = _process_for(con, d["project_id"])
+    d["process"] = procmod.check(d, proc) if proc else None
+    d["process_doc"] = procdoc
     prev = None
     i = next((n for n, r in enumerate(d["revisions"]) if r["id"] == d["id"]), 0)
     if i > 0:
         prev = compare(_ds_full(con, d["revisions"][i - 1]["id"], deep=False), d)
     states = {r["ikey"]: r for r in store.rows(con, "SELECT * FROM issue_state WHERE datasheet_id=?", dsid)}
-    d["issues"] = issuesmod.compute(d, d["general_notes"], pms, d["area"], prev, states, pms_rows=d["pms"])
+    d["issues"] = issuesmod.compute(d, d["general_notes"], pms, d["area"], prev, states, pms_rows=d["pms"], process_rows=d["process"])
     return d
 
 
@@ -889,6 +922,59 @@ def _project_pms(con, pid):
             out.append(dict(r, ds_id=x["id"], tag=x["tag_key"], doc_no=x["doc_no"], rev=x["rev"], area=x["area"],
                             document_id=x["document_id"], ds_page=f.get("page") or x["pages"][0], ds_bbox=f.get("bbox")))
     return pdoc, out
+
+
+def _project_process(con, pid):
+    proc, pdoc = _process_for(con, pid)
+    if not proc:
+        return None, []
+    latest = _latest(store.rows(con, "SELECT id, tag_key, rev FROM datasheet WHERE project_id=?", pid))
+    out = []
+    for d in sorted(latest.values(), key=lambda d: d["tag_key"]):
+        x = _ds_full(con, d["id"], deep=False)
+        for r in procmod.check(x, proc):
+            out.append(dict(r, ds_id=x["id"], tag=x["tag_key"], doc_no=x["doc_no"], rev=x["rev"], document_id=x["document_id"],
+                            ds_page=r.get("ds_page") or x["pages"][0], process_ref=bool(x.get("process_ref"))))
+    return dict(pdoc, doc_no=proc.get("doc_no"), tags=proc.get("n_tags")), out
+
+
+@router.get("/api/valve/projects/{pid}/process")
+async def process_rows(pid: int):
+    """Process Data Verification for every tag (Phase 3 engine, app/valve/process.py)."""
+    con = store.connect()
+    pdoc, rows = await run_in_threadpool(_project_process, con, pid)
+    return {"process_doc": pdoc, "rows": rows}
+
+
+def _revisions_xlsx(pid: int, by: str):
+    con = store.connect()
+    pname = (store.one(con, "SELECT name FROM project WHERE id=?", pid) or {}).get("name", "")
+    dss = store.rows(con, "SELECT id, tag_key, rev FROM datasheet WHERE project_id=?", pid)
+    by_tag = {}
+    for d in dss:
+        by_tag.setdefault(d["tag_key"], []).append(d)
+    entries = []
+    for tag, L in sorted(by_tag.items()):
+        if len(L) < 2:
+            continue
+        L.sort(key=lambda r: (store.rev_key(r["rev"]), r["id"]))
+        for a, b in zip(L, L[1:]):
+            x, y = _ds_full(con, a["id"], deep=False), _ds_full(con, b["id"], deep=False)
+            entries.append({"tag": tag, "doc_no": y["doc_no"], "prev_rev": x["rev"], "new_rev": y["rev"], "rows": compare(x, y)})
+    data, n = exports.revisions_xlsx(entries, pname, by)
+    return data, n, pname
+
+
+@router.get("/api/valve/projects/{pid}/revisions.xlsx")
+async def revisions_xlsx(pid: int, request: Request):
+    """Every changed cell between consecutive revisions of every tag (leftover item from the valve03 handoff)."""
+    data, n, pname = await run_in_threadpool(_revisions_xlsx, pid, _user(request))
+    con = store.connect()
+    store.audit(con, pid, None, None, "export", None, "revisions.xlsx", _user(request), f"{n} changes")
+    con.commit()
+    fn = f"{pname.replace(' ', '_')}_Revision_Comparison_{store.now()[:10]}.xlsx"
+    return Response(data, media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    headers={"Content-Disposition": f"attachment; filename*=UTF-8''{quote(fn)}", "X-Count": str(n)})
 
 
 @router.get("/api/valve/projects/{pid}/pms")

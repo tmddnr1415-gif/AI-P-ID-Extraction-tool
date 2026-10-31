@@ -44,3 +44,11 @@
 - 요청: 엑셀에서 AMPO · OMS · NEWAY 행을 다 삭제.
 - `tbe._drop_vendor_rows`: 기준 TBE 양식을 읽자마자 Tag 블록마다 Requirement 행만 남김(값 · 서식 · 메모 · 행 높이를 한 번에 올리고 병합 재설정 — openpyxl delete_rows 는 병합 · 높이를 안 옮김). `build(vendor_rows=True)` 면 유지.
 - 실자료: 164 Tag 모두 한 줄씩, Vendor 칸 0, 링크 · 메모 유지. 시험 36개 통과.
+
+## 2026-10-31 · valve07 — UI/UX 개선 패키지 + Phase 3 Process Data (브랜치 ccr-efbe7e75-n915ze)
+- 요청: 개선 패키지(CLAUDE_CODE_UI_IMPROVEMENT_PROMPT · 목표 그림 · 캡처 31장)대로 감사 → P0~P6 구현 · 데이터시트 칸을 누르면 밸브 부위 그림 · 남은 일 전부.
+- 감사 `docs/valve/UI_UX_AUDIT.md`(해상도 실측: 1366 에서 도구줄 124 px · PDF 646 px · 탭 3줄) → 변경 `UI_UX_CHANGELOG.md`.
+- P0: 머리 띠 · 접이식 px 패널 · 한 줄 도구줄(36 px) · 레이어 칩 · Mark-up 줄 접기 · Tag 목록 2줄 · 탭 배지 · 밸브 부위 SVG(1366 PDF 835 px).
+- P1~P6: 대시보드 5×2 + Issues by Category + KPI 필터 이동 · 목록 ↑/↓/Enter · Revision 같이 움직이기 + 비교 Excel · PMS 안내 · 내보내기 묶음/확인/상태 · Settings 단축키.
+- P5 실제: `app/valve/process.py`(괘선 열 띠 · 단위 · 기준 규칙) — 68 Tag · Mismatch 42 · 지적 'Process Mismatch'. MOCK 제거.
+- 회귀: pytest 38 · 전체 통과 · eval --check 불변 · diff_sim 0 · ui_audit 22/22 · 1920/1600/1366 캡처(out/ui_before · ui_after, 저장소 밖).

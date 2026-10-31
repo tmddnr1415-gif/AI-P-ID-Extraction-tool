@@ -531,3 +531,99 @@ def test_sheet_doc_number_and_repeated_header_checks():
     d = [i["description"] for i in got if i["type"] == "Data Error"]
     assert any("prints Document No. '00-09-IN-DTS-0000'" in x for x in d)
     assert any("Line No." in x or "line_no" in x or "sheet 1 says" in x for x in d)
+
+
+# ── valve07: Process Data verification (Phase 3) · revision comparison Excel ──────────────────────────────
+
+def _process_pdf(path, tag="00XV-921", fail="FC", line='PW2409631-2"(1C0K8)-N', op_p="0.46", pid="98-98-PR-PID-00001"):
+    """A ruled 'Process Data for On-Off Valve' table like Annexure 7: two header lines, a unit line, one tag row."""
+    doc = pymupdf.open()
+    pg = doc.new_page(width=1190, height=842)
+    pg.insert_text((540, 60), "Process Data for On-Off Valve", fontsize=9)
+    heads = [("Sr no.", ""), ("Tag Number", ""), ("PID No", ""), ("Line No", ""), ("Valve Size", ""), ("Pipe Class", ""), ("Service Fluid", ""),
+             ("Process Fluid Phase", ""), ("Operating Pressure", "bar(g)"), ("Design Pressure", "bar(g)"), ("Operating Temperature", "°C"),
+             ("Design Temperature", "°C"), ("Upstream/downstream max pressure difference for Closing", "bar"), ("Safety Position", ""),
+             ("Required Tightness", "")]
+    vals = ["1", tag, pid, line, '2"', "1C0K8", "SOUR WATER", "Vapor", op_p, "3.50", "47.27", "90", "4.5", fail, "TSO"]
+    xs = [20, 60, 130, 220, 340, 390, 440, 520, 590, 650, 710, 780, 850, 980, 1040, 1120]
+    for x in xs:
+        pg.draw_line((x, 70), (x, 200), width=0.5)
+    for y in (70, 110, 125, 140, 200):
+        pg.draw_line((20, y), (1120, y), width=0.5)
+    for (h, u), x0, x1 in zip(heads, xs, xs[1:]):
+        words = h.split()
+        half = (len(words) + 1) // 2
+        pg.insert_text((x0 + 2, 85), " ".join(words[:half]), fontsize=5.5)
+        if words[half:]:
+            pg.insert_text((x0 + 2, 100), " ".join(words[half:]), fontsize=5.5)
+        if u:
+            pg.insert_text((x0 + 2, 120), u, fontsize=5.5)
+    for v, x0 in zip(vals, xs):
+        pg.insert_text((x0 + 2, 160), v, fontsize=5.5)
+    doc.save(str(path))
+
+
+def test_process_read_and_check(tmp_path):
+    from app.valve import process as pr
+    p = tmp_path / "pd.pdf"
+    _process_pdf(p)
+    pd = pr.read_process_data(str(p))
+    assert pd["n_tags"] == 1 and "00XV921" in pd["by_tag"]
+    row = pd["by_tag"]["00XV921"]
+    assert row["values"]["op_pressure"]["v"] == "0.46" and row["values"]["op_pressure"]["unit"] == "bar(g)"
+    assert row["values"]["dp_close"]["v"] == "4.5" and row["values"]["fail_position"]["v"] == "FC"
+    # comparison rules
+    assert pr.compare_item("op_pressure", "0.46", "bar-g", "0.46", "bar(g)")[0] == pr.MATCH
+    assert pr.compare_item("op_pressure", "0.46", "bar", "0.46", "bar(g)")[0] == pr.REVIEW         # basis not written
+    assert pr.compare_item("op_pressure", "6.7", "psig", "0.46", "bar(g)")[0] == pr.MATCH         # 6.7 psig = 0.462 bar(g)
+    assert pr.compare_item("op_pressure", "1.5", "bar-a", "0.46", "bar(g)")[0] == pr.REVIEW       # different basis
+    assert pr.compare_item("dp_close", "65", "psi", "4.5", "bar")[0] == pr.MATCH                   # differential: dimension only
+    assert pr.compare_item("op_temp", "117", "°F", "47.27", "°C")[0] == pr.MATCH
+    assert pr.compare_item("design_temp", "95", "ºC", "90", "°C")[0] == pr.MISMATCH
+    assert pr.compare_item("fail_position", "Close", "", "FC", "")[0] == pr.MATCH
+    assert pr.compare_item("fail_position", "Close", "", "FO", "")[0] == pr.MISMATCH
+    assert pr.compare_item("tightness", "Tight Shut-Off", "", "TSO", "")[0] == pr.MATCH
+    assert pr.compare_item("fluid_state", "Gas", "", "Vapor", "")[0] == pr.MATCH
+    assert pr.compare_item("pid_no", "98-98-PR-PID-00013", "", "98-98-PR-PID-00012 98- 98-PR-PID-00013", "")[0] == pr.MATCH
+    assert pr.compare_item("line_no", 'AG2440-24"(1C3AS1-QG1)-E', "", 'AG2440-24"(1C3AS1)-E', "")[0] == pr.REVIEW
+    assert pr.compare_item("line_no", 'PW1-2"(1C0K8)-N', "", 'PW2-2"(1C0K8)-N', "")[0] == pr.MISMATCH
+    assert pr.compare_item("flow", "10", "m3/h", "-", "m3/h")[0] == pr.NOT_IN_PD
+    # whole datasheet: blank process fields with a Process DS reference are 'Referenced', not blank
+    ds = {"tag_key": "00XV921", "tag": "00XV 921", "process_ref": {"where": "Note 4"},
+          "fields": [{"key": "op_pressure", "value": "", "edited_value": None, "unit": "bar-g", "page": 1, "bbox": [1, 1, 2, 2]},
+                     {"key": "fail_position", "value": "Open", "edited_value": None, "unit": "", "page": 1, "bbox": [1, 1, 2, 2]}]}
+    rows = {r["key"]: r for r in pr.check(ds, pd)}
+    assert rows["op_pressure"]["result"] == pr.REFERENCED and rows["fail_position"]["result"] == pr.MISMATCH
+    assert pr.check({"tag_key": "ZZ1", "tag": "ZZ1", "fields": []}, pd)[0]["result"] == pr.NOT_IN_PD
+
+
+def test_process_api_and_revision_excel(tmp_path, monkeypatch, pdf_path):
+    monkeypatch.setenv("PID_DATA_DIR", str(tmp_path / "data"))
+    from fastapi import FastAPI
+    from fastapi.testclient import TestClient
+    app = FastAPI()
+    app.include_router(api.router)
+    c = TestClient(app)
+    pid = c.post("/api/valve/projects", json={"name": "P"}).json()["id"]
+
+    def up(kind, name, data):
+        j = c.post(f"/api/valve/projects/{pid}/upload", data={"kind": kind}, files=[("files", (name, data, "application/pdf"))]).json()
+        for _ in range(100):
+            if c.get(f"/api/valve/jobs/{j['id']}").json()["status"] == "done":
+                return
+            time.sleep(0.1)
+    up("datasheet", "dsA.pdf", pdf_path.read_bytes())
+    up("datasheet", "dsB.pdf", make_pdf(rev="B", values={5: ["10 bar-g", "16 bar-g"], 6: ['3"', "Ball (Full Bore) - Floating"]}))
+    pp = tmp_path / "pd.pdf"
+    _process_pdf(pp, op_p="0.46")                                          # Rev B datasheet says 10 bar-g
+    up("process", "pd.pdf", pp.read_bytes())
+    s = c.get(f"/api/valve/projects/{pid}/summary").json()
+    assert s["has_process"] and s["kpi"]["process_mismatch"] >= 1
+    r = c.get(f"/api/valve/projects/{pid}/process").json()
+    assert r["process_doc"]["tags"] == 1 and any(x["result"] == "Mismatch" and x["key"] == "op_pressure" for x in r["rows"])
+    ds = c.get(f"/api/valve/datasheets/{s['tags'][0]['id']}").json()
+    assert ds["process_doc"] and any(i["type"] == "Process Mismatch" for i in ds["issues"])
+    x = c.get(f"/api/valve/projects/{pid}/revisions.xlsx")
+    assert x.status_code == 200 and int(x.headers["X-Count"]) >= 1
+    ws = openpyxl.load_workbook(io.BytesIO(x.content))["Revision Changes"]
+    assert [c.value for c in ws[1]][:4] == ["Tag Number", "Doc. No.", "Previous Rev.", "New Rev."] and ws.max_row >= 2
