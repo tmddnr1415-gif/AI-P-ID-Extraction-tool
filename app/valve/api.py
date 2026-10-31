@@ -39,6 +39,11 @@ def _user(request: Request) -> str:
     return re.sub(r"\s+", " ", unquote(raw)).strip()[:40] or "(이름 없음)"
 
 
+def _json(obj) -> Response:
+    """Pre-encoded JSON: skips FastAPI's jsonable_encoder walk (a 2,800-issue list took 200 ms there, 20 ms here)."""
+    return Response(json.dumps(obj, ensure_ascii=False, default=str), media_type="application/json")
+
+
 def _err(msg, code=400):
     return JSONResponse({"error": msg}, status_code=code)
 
@@ -130,7 +135,7 @@ def summary(pid: int):
             per_tag[i["ds_id"]] = per_tag.get(i["ds_id"], 0) + 1
     activity = store.rows(con, "SELECT a.*, d.tag, d.rev FROM audit a LEFT JOIN datasheet d ON d.id=a.datasheet_id"
                                " WHERE a.project_id=? ORDER BY a.id DESC LIMIT 30", pid)
-    return {
+    return _json({
         "project": p,
         "kpi": {"tags": len(latest), "datasheets": len(dss),
                 "new_tags": len([k for k in latest if vl and k not in vl_tags]),
@@ -148,7 +153,7 @@ def summary(pid: int):
                       in_valvelist=(k in vl_tags) if vl else None) for k, d in sorted(latest.items())],
         "documents": docs,
         "activity": activity,
-    }
+    })
 
 
 # ── upload / batch ──────────────────────────────────────────────────────────────
@@ -245,6 +250,43 @@ def _process(jid: str, pid: int, items: list[tuple[int, str, str, Path]], by: st
     if any(it[1] == "datasheet" for it in items) and _JOBS[jid].get("base") is not None:
         _auto_export(jid, pid, _JOBS[jid]["base"], by)
     _job(jid, status="done", msg="끝", total=total, done=total)
+    warm(pid)
+
+
+_WARMING: set = set()
+
+
+def warm(pid: int):
+    """Compute every datasheet's review once, in a background thread, so the first screen never waits (valve20)."""
+    if pid in _WARMING:
+        return
+
+    def run():
+        _WARMING.add(pid)
+        try:
+            con = store.connect()
+            project_issues(con, pid)
+            _project_pms(con, pid)
+            _project_process(con, pid)
+        except Exception as e:                           # noqa: BLE001  (warming must never break the server)
+            print(f"[valve] warm-up of project {pid} failed: {e}")
+        finally:
+            _WARMING.discard(pid)
+    threading.Thread(target=run, daemon=True, name=f"valve-warm-{pid})").start()
+
+
+@router.on_event("startup")
+async def _startup_warm():
+    threading.Thread(target=warm_all, daemon=True, name="valve-warm-all").start()
+
+
+def warm_all():
+    try:
+        con = store.connect()
+        for p in store.rows(con, "SELECT id FROM project ORDER BY id DESC LIMIT 5"):
+            warm(p["id"])
+    except Exception as e:                               # noqa: BLE001
+        print(f"[valve] warm-up skipped: {e}")
 
 
 @router.post("/api/valve/projects/{pid}/upload")
@@ -357,13 +399,22 @@ def _pms_for(con, pid):
 
 
 _PEER_CACHE: dict[int, tuple] = {}
+_DEEP_CACHE: dict[int, tuple] = {}          # datasheet id -> (version, computed datasheet)   (valve20: no recompute per request)
+
+
+def _profile_ver(con, pid) -> tuple:
+    """Version of everything project-wide that a datasheet's review depends on: the set of datasheets, the documents
+    (PMS / Process Data uploads) and the VALUE edits (peer / tag learning).  Issue states, comments and review
+    statuses are per datasheet and do not move this."""
+    return (tuple(store.one(con, "SELECT COUNT(*) n, MAX(id) m FROM datasheet WHERE project_id=?", pid).values())
+            + tuple(store.one(con, "SELECT COUNT(*) n, MAX(id) m FROM document WHERE project_id=? AND status='done'", pid).values())
+            + (store.one(con, "SELECT MAX(id) m FROM audit WHERE project_id=? AND action IN ('edit','revert','re-read','upload')", pid)["m"],))
 
 
 def _peers_for(con, pid):
     """What the project's datasheets say, per piping class (expert.build_peers) — latest revision of each tag.
     Rebuilt when a datasheet is added or a value is corrected (the key follows datasheet / audit ids)."""
-    k = tuple(store.one(con, "SELECT COUNT(*) n, MAX(id) m FROM datasheet WHERE project_id=?", pid).values()) + \
-        (store.one(con, "SELECT MAX(a.id) m FROM audit a JOIN datasheet d ON d.id=a.datasheet_id WHERE d.project_id=?", pid)["m"],)
+    k = _profile_ver(con, pid)
     if pid in _PEER_CACHE and _PEER_CACHE[pid][0] == k:
         return _PEER_CACHE[pid][1]
     latest = _latest(store.rows(con, "SELECT id, tag_key, rev FROM datasheet WHERE project_id=?", pid))
@@ -392,8 +443,7 @@ def _tag_item(d) -> dict:
 
 def _tags_for(con, pid):
     """Tag numbering learned from every datasheet of the project (all revisions; tagrules.learn) — cached like the peers."""
-    k = tuple(store.one(con, "SELECT COUNT(*) n, MAX(id) m FROM datasheet WHERE project_id=?", pid).values()) + \
-        (store.one(con, "SELECT MAX(a.id) m FROM audit a JOIN datasheet d ON d.id=a.datasheet_id WHERE d.project_id=?", pid)["m"],)
+    k = _profile_ver(con, pid)
     if pid in _TAG_CACHE and _TAG_CACHE[pid][0] == k:
         return _TAG_CACHE[pid][1]
     items = []
@@ -404,7 +454,18 @@ def _tags_for(con, pid):
     return prof
 
 
-def _ds_full(con, dsid, deep=True):
+def _ds_full(con, dsid, deep=True, pv=None):
+    """The datasheet with everything the screens need.  deep=True adds the review (PMS · Process · requirements ·
+    expert · issues) from the per-datasheet cache; pv = project version from _profile_ver, computed once per request."""
+    if deep:
+        h = store.one(con, "SELECT project_id, review_status FROM datasheet WHERE id=?", dsid)
+        if not h:
+            return None
+        pv = pv or _profile_ver(con, h["project_id"])
+        ver = (store.one(con, "SELECT MAX(id) m FROM audit WHERE datasheet_id=?", dsid)["m"], h["review_status"]) + pv
+        hit = _DEEP_CACHE.get(dsid)
+        if hit and hit[0] == ver:
+            return dict(hit[1])                              # top-level copy: callers may swap keys, never edit nested lists
     d = store.one(con, "SELECT * FROM datasheet WHERE id=?", dsid)
     if not d:
         return None
@@ -441,6 +502,16 @@ def _ds_full(con, dsid, deep=True):
         d["process_ref"] = extract.process_reference(d.get("notes"), d.get("general_notes"))
     if not deep:
         return d
+    d = _ds_deep(con, d, dsid)
+    _DEEP_CACHE[dsid] = (ver, d)
+    if len(_DEEP_CACHE) > 4000:                              # bound memory on very large projects
+        for k in list(_DEEP_CACHE)[:1000]:
+            _DEEP_CACHE.pop(k, None)
+    return dict(d)
+
+
+def _ds_deep(con, d, dsid):
+    fs = d["fields"]
     pms, pdoc = _pms_for(con, d["project_id"])
     F = {f["key"]: f for f in fs}
     d["pms"] = pmsmod.check(F, pms, d["area"], d["notes"]) if pms else None
@@ -470,7 +541,7 @@ async def tagging(pid: int):
     """Tag numbering learned per Area / Site / Unit from the project's datasheets."""
     con = store.connect()
     prof = await run_in_threadpool(_tags_for, con, pid)
-    return {"groups": prof["groups"], "duplicates": {k: v for k, v in prof["docs_by_tag"].items() if len([x for x in v if x]) > 1}}
+    return _json({"groups": prof["groups"], "duplicates": {k: v for k, v in prof["docs_by_tag"].items() if len([x for x in v if x]) > 1}})
 
 
 @router.get("/api/valve/knowledge")
@@ -482,7 +553,7 @@ def knowledge_base():
 @router.get("/api/valve/datasheets/{dsid}")
 def datasheet(dsid: int):
     d = _ds_full(store.connect(), dsid)
-    return d if d else _err("없는 데이터시트", 404)
+    return _json(d) if d else _err("없는 데이터시트", 404)
 
 
 @router.put("/api/valve/datasheets/{dsid}/fields/{fid}")
@@ -661,9 +732,9 @@ def project_issues(con, pid) -> list[dict]:
     if hit and hit[0] == ver:
         return hit[1]
     latest = _latest(store.rows(con, "SELECT id, tag_key, rev FROM datasheet WHERE project_id=?", pid))
-    out = []
+    out, pv = [], _profile_ver(con, pid)
     for d in sorted(latest.values(), key=lambda d: d["tag_key"]):
-        x = _ds_full(con, d["id"])
+        x = _ds_full(con, d["id"], pv=pv)
         for i in x["issues"]:
             out.append(dict(i, ds_id=x["id"], tag=x["tag_key"], tag_raw=x["tag"], valve_type=x["valve_type"],
                             area_name=x["location"]["area"], site=x["location"]["site"], plant_unit=x["location"]["unit"],
@@ -686,8 +757,8 @@ def _issue_counts(rows):
 async def issues_list(pid: int):
     con = store.connect()
     rows = await run_in_threadpool(project_issues, con, pid)
-    return {"issues": rows, "counts": _issue_counts(rows), "types": issuesmod.CONTRACTOR_TYPES + ["Extraction Review"],
-            "statuses": ISSUE_STATUSES}
+    return _json({"issues": rows, "counts": _issue_counts(rows), "types": issuesmod.CONTRACTOR_TYPES + ["Extraction Review"],
+                  "statuses": ISSUE_STATUSES})
 
 
 @router.put("/api/valve/datasheets/{dsid}/issues/{ikey:path}")
@@ -838,10 +909,23 @@ GRID_KEYS = ["valve_type", "service", "pid_no", "line_no", "body_size", "rating"
 @router.get("/api/valve/projects/{pid}/grid")
 def grid(pid: int):
     con = store.connect()
+    ver = _profile_ver(con, pid) + (store.one(con, "SELECT MAX(id) m FROM audit WHERE project_id=? AND action='status'", pid)["m"],)
+    hit = _GRID_CACHE.get(pid)
+    if hit and hit[0] == ver:
+        return hit[1]
+    out = _grid(con, pid)
+    _GRID_CACHE[pid] = (ver, out)
+    return out
+
+
+_GRID_CACHE: dict[int, tuple] = {}
+
+
+def _grid(con, pid):
     latest = _latest(store.rows(con, "SELECT id, tag_key, rev FROM datasheet WHERE project_id=?", pid))
     ids = [d["id"] for d in latest.values()]
     if not ids:
-        return {"columns": [], "rows": []}
+        return _json({"columns": [], "rows": []})
     q = ",".join("?" * len(ids))
     meta = {d["id"]: d for d in store.rows(con, f"SELECT id, tag, tag_key, valve_type, rev, doc_no, review_status, pages,"
                                                 f" document_id FROM datasheet WHERE id IN ({q})", *ids)}
@@ -871,7 +955,7 @@ def grid(pid: int):
     rows_.sort(key=lambda r: r["tag"])
     cols = [{"key": k, "title": "Valve Type" if k == "valve_type" else disp.get(k, k)} for k in GRID_KEYS
             if k == "valve_type" or k in disp]
-    return {"columns": cols, "rows": rows_}
+    return _json({"columns": cols, "rows": rows_})
 
 
 # ── marked-up PDF (annotations on a copy — the original is never written) ───────
@@ -928,9 +1012,9 @@ def _export_valvelist(pid: int, base: str = ""):
     pname = (store.one(con, "SELECT name FROM project WHERE id=?", pid) or {}).get("name", "")
     dss = store.rows(con, "SELECT id, tag_key, rev FROM datasheet WHERE project_id=?", pid)
     latest = _latest(dss)
-    full = []
+    full, pv = [], _profile_ver(con, pid)
     for d in latest.values():
-        x = _ds_full(con, d["id"])
+        x = _ds_full(con, d["id"], pv=pv)
         x["fields"] = {f["key"]: f for f in x["fields"]}
         full.append(x)
     names = {r["id"]: r["filename"] for r in store.rows(con, "SELECT id, filename FROM document WHERE project_id=?", pid)}
@@ -998,11 +1082,11 @@ def _project_pms(con, pid):
     if not pms:
         return None, []
     latest = _latest(store.rows(con, "SELECT id, tag_key, rev FROM datasheet WHERE project_id=?", pid))
-    out = []
+    out, pv = [], _profile_ver(con, pid)
     for d in sorted(latest.values(), key=lambda d: d["tag_key"]):
-        x = _ds_full(con, d["id"], deep=False)
+        x = _ds_full(con, d["id"], pv=pv)                # deep: the PMS rows come from the per-datasheet cache
         F = {f["key"]: f for f in x["fields"]}
-        for r in pmsmod.check(F, pms, x["area"], x["notes"]):
+        for r in x.get("pms") or []:
             f = F.get(r["key"]) or {}
             out.append(dict(r, ds_id=x["id"], tag=x["tag_key"], doc_no=x["doc_no"], rev=x["rev"], area=x["area"],
                             document_id=x["document_id"], ds_page=f.get("page") or x["pages"][0], ds_bbox=f.get("bbox")))
@@ -1014,10 +1098,10 @@ def _project_process(con, pid):
     if not proc:
         return None, []
     latest = _latest(store.rows(con, "SELECT id, tag_key, rev FROM datasheet WHERE project_id=?", pid))
-    out = []
+    out, pv = [], _profile_ver(con, pid)
     for d in sorted(latest.values(), key=lambda d: d["tag_key"]):
-        x = _ds_full(con, d["id"], deep=False)
-        for r in procmod.check(x, proc):
+        x = _ds_full(con, d["id"], pv=pv)
+        for r in x.get("process") or []:
             out.append(dict(r, ds_id=x["id"], tag=x["tag_key"], doc_no=x["doc_no"], rev=x["rev"], document_id=x["document_id"],
                             ds_page=r.get("ds_page") or x["pages"][0], process_ref=bool(x.get("process_ref"))))
     return dict(pdoc, doc_no=proc.get("doc_no"), tags=proc.get("n_tags")), out
@@ -1028,7 +1112,7 @@ async def process_rows(pid: int):
     """Process Data Verification for every tag (Phase 3 engine, app/valve/process.py)."""
     con = store.connect()
     pdoc, rows = await run_in_threadpool(_project_process, con, pid)
-    return {"process_doc": pdoc, "rows": rows}
+    return _json({"process_doc": pdoc, "rows": rows})
 
 
 def _revisions_xlsx(pid: int, by: str):
@@ -1066,7 +1150,7 @@ async def revisions_xlsx(pid: int, request: Request):
 async def pms_rows(pid: int):
     con = store.connect()
     pdoc, rows = await run_in_threadpool(_project_pms, con, pid)
-    return {"pms_doc": pdoc, "rows": rows}
+    return _json({"pms_doc": pdoc, "rows": rows})
 
 
 @router.get("/api/valve/projects/{pid}/issues.xlsx")
