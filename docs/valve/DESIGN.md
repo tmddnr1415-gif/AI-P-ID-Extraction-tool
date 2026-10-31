@@ -425,4 +425,5 @@ Note 113 · PC-01 Confirm 6(3C0K8 의 '316 SS/FHF' 2개 · API5L-X65 MOV 1500# �
   Tightness / Leakage · Anti-static · Blow-out Proof Stem · Hardness Limit · Material Cert. (EN 10204) · (PMI · Impact Test · DBB · Painting — 어느 밸브에라도 있을 때만).
   칸 값 = **데이터시트 줄의 답이 먼저**(그 밸브를 정함 — 예: Gen Note 26 이 PFP 를 말해도 Fireproofing 줄이 Not Required 면 'Not Required'), 다음 Note 의 세부(Class A type tested · SIL 2 · 3.2 · Rate A · 22 HRC),
   끝에 출처(row · Note · GN). `requirements.columns` · `requirements.COLUMNS`. 'Special Requirements' 한 칸 · NACE · Leakage 칸은 All Valves 에서 이 열들로 바뀜(종류 시트는 그대로).
-- 실자료: PFP Required 31 / Not Required 120 · Fugitive Class A type tested 152 · SIL 2 133 · EN 10204 3.2 128 / 3.1 11 · Fire Safe HOLD 11.
+- 실자료(164 Tag): PFP Required 42 / Not Required 122 · Fugitive Class A type tested 144 (+ Class A 7) · SIL 2 114 · EN 10204 3.2 128 / 3.1 11 · Fire Safe HOLD 11.
+  데이터시트 줄과 Note 가 다르면 둘 다: 'SIL 1 · notes: SIL 2' (2) · 'Tight Shut-Off — Rate B · notes: Rate A' (1) — 설계사 확인 거리.

@@ -111,7 +111,10 @@ def columns(items: list[dict]) -> dict[str, str]:
             continue
         rows = [i for i in L if i["source"].startswith("row")]
         notes = [i for i in L if not i["source"].startswith("row")]
-        detail = " ".join(dict.fromkeys(i["detail"] for i in L if i["detail"]))
+        def details(group):                              # distinct details, a shorter one inside a longer one dropped
+            ds = list(dict.fromkeys(i["detail"] for i in group if i["detail"]))
+            return [d for d in ds if not any(d != e and d.lower() in e.lower() for e in ds)]
+        note_det = details(notes)
         srcs = [i["source"] for i in rows] + [i["source"].replace("Gen Note", "GN") for i in notes]
         if rows:
             r = rows[0]
@@ -119,9 +122,13 @@ def columns(items: list[dict]) -> dict[str, str]:
             if len(ans) > 60:
                 ans = ans[:60].rsplit(" ", 1)[0] + "…"
             ans = "Not Required" if r["negative"] else (ans or "Yes")
+            row_det = [d for d in details(rows) if d.lower() not in ans.lower()]
+            if row_det and not ans.startswith("Not Required"):
+                ans += " — " + " ".join(row_det)
+            other = [d for d in note_det if d.lower() not in ans.lower()]
+            if other and not ans.startswith("Not Required"):
+                ans += " · notes: " + " ".join(other)              # the notes say something else than the datasheet row
         else:
-            ans = "Yes"
-        if detail and detail.lower() not in ans.lower() and not ans.startswith("Not Required"):
-            ans += f" — {detail}"
+            ans = "Yes" + (" — " + " ".join(note_det) if note_det else "")
         out[head] = f"{ans} ({'; '.join(srcs[:4])}{'…' if len(srcs) > 4 else ''})"
     return out
