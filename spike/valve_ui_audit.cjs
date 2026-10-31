@@ -17,6 +17,7 @@ const ok = (name, cond, info = '') => { steps.push([cond ? 'PASS' : 'FAIL', name
   const p = await b.newPage({ viewport: { width: 1600, height: 950 } });
   const errs = []; p.on('pageerror', e => errs.push(e.message)); p.on('console', m => { if (m.type() === 'error') errs.push(m.text()); });
   const api = (u, o) => p.evaluate(([u, o]) => fetch('/api/valve' + u, o).then(r => r.json()), [u, o || {}]);
+  await p.addInitScript(() => { localStorage.setItem('valve.mkquick', '0'); localStorage.setItem('valve.mkbar', '1'); });   // dialog path first; quick mode checked below
   await p.goto(`${base}/valve/?embed=1&user=UI-AUDIT`); await p.waitForTimeout(1500);
   const projects = (await api('/projects')).projects;
   ok('project exists', projects.length > 0);
@@ -73,6 +74,17 @@ const ok = (name, cond, info = '') => { steps.push([cond ? 'PASS' : 'FAIL', name
   d = await ds();
   const mi = d.issues.filter(i => i.comment_id && mine.some(m => m.id === i.comment_id));
   ok('mark-ups become issues', mi.length === 9 && mi.some(i => i.type === 'Data Error') && mi.some(i => i.type === 'Data Missing'));
+  // valve23: quick mode (no dialog) · underline · stamp · eraser · style
+  await p.check('#wview .mkbar .mkquick'); await p.click('#wview .mkbar .mkcols i[data-col="#1aa35a"]');
+  const nq0 = (await ds()).comments.length;
+  await p.click('#wview .mkbar [data-tool="underline"]'); await p.mouse.move(pg.x + 120, pg.y + 420); await p.mouse.down(); await p.mouse.move(pg.x + 260, pg.y + 428, { steps: 4 }); await p.mouse.up(); await p.waitForTimeout(700);
+  await p.click('#wview .mkbar [data-tool="stamp"]'); await p.selectOption('#wview .mkbar .mkst', 'HOLD'); await p.mouse.click(pg.x + 420, pg.y + 160); await p.waitForTimeout(700);
+  const cq = (await ds()).comments; const und = cq.find(c => c.kind === 'underline'), stp = cq.find(c => c.kind === 'stamp');
+  ok('quick mark-ups (underline · stamp) with style', cq.length === nq0 + 2 && und?.style?.color === '#1aa35a' && stp?.style?.stamp === 'HOLD');
+  await p.click('#wview .mkbar [data-tool="eraser"]'); const gb = await p.evaluate(id => { const g = document.querySelector(`svg.mk [data-mid="${id}"]`); const r = g?.getBoundingClientRect(); return r && [r.x, r.y, r.width, r.height]; }, stp?.id);
+  if (gb) await p.mouse.click(gb[0] + gb[2] / 2, gb[1] + gb[3] / 2); await p.waitForTimeout(700);
+  ok('eraser deletes a mark-up', (await ds()).comments.length === nq0 + 1);
+  await p.click('#wview .mkbar [data-tool="select"]'); await p.uncheck('#wview .mkbar .mkquick');
 
   // 3. deliverables carry them
   const pdf = await p.evaluate(u => fetch(u).then(r => r.status), `/api/valve/projects/${pid}/markup.pdf?tag=${encodeURIComponent(d.tag_key)}`);
