@@ -113,7 +113,10 @@ async function pickTypes(title, { tag = '', preset = null, note = '', pdf = /PDF
 }
 function chunkRows(tbody, rows, first = 80, empty = '') {    // 80 rows ≈ one screen; the rest never blocks a keystroke   // big tables: first rows now, the rest in idle batches (no freeze)
   const html = (a, b) => rows.slice(a, b).map(x => typeof x === 'function' ? x() : x).join('');   // valve26: rows may be lazy builders
-  if (!tbody) return; tbody.innerHTML = rows.length ? html(0, first) : empty; let i = first;
+  if (!tbody) return;
+  const wrap = tbody.closest('.xg-wrap');
+  if (wrap && rows.length > 400) return virtualRows(tbody, wrap, rows, html);   // valve29: big grids draw only what is in view
+  tbody.innerHTML = rows.length ? html(0, first) : empty; let i = first;
   const idle = window.requestIdleCallback || (f => setTimeout(f, 0));
   const more = dl => {                                // valve29: fill the idle time, then yield — fast and never a long freeze
     if (!tbody.isConnected) return;
@@ -122,6 +125,33 @@ function chunkRows(tbody, rows, first = 80, empty = '') {    // 80 rows ≈ one 
     idle(more);
   };
   if (i < rows.length) idle(more);
+}
+/* valve29 — virtual rows for the Excel-like grids (one-line rows, table-layout fixed).  With thousands of rows in the page the
+   browser re-laid out the whole table on every insert (500 DS issue list: 0.6–0.7 s per step).  Only the rows in view
+   (+ a margin) exist; two spacer rows keep the scroll bar and the sticky header / columns exactly as before. */
+function virtualRows(tbody, wrap, rows, html) {
+  const n = rows.length, OVER = 40;
+  const ncol = tbody.closest('table')?.tHead?.rows[0]?.cells.length || 1;
+  const sp = h => `<tr class="vsp" aria-hidden="true"><td colspan="${ncol}" style="height:${Math.max(0, Math.round(h))}px;padding:0;border:0"></td></tr>`;
+  let rh = 22, a = 0, b = 0;
+  const paint = force => {
+    if (!tbody.isConnected) return;
+    const headH = tbody.closest('table')?.tHead?.offsetHeight || 0;
+    const top = Math.max(0, wrap.scrollTop - headH), vs = Math.floor(top / rh), ve = Math.min(n, vs + Math.ceil(wrap.clientHeight / rh) + 1);
+    if (!force && vs >= a && ve <= b) return;
+    a = Math.max(0, vs - OVER); b = Math.min(n, ve + OVER);
+    tbody.innerHTML = sp(a * rh) + html(a, b) + sp((n - b) * rh);
+  };
+  paint(true);
+  const real = [...tbody.rows].filter(r => !r.classList.contains('vsp'));      // measure the real row height once
+  if (real.length) {
+    const h = (real[real.length - 1].offsetTop + real[real.length - 1].offsetHeight - real[0].offsetTop) / real.length;
+    if (h > 4 && Math.abs(h - rh) > 0.5) { rh = h; paint(true); }
+  }
+  let raf = 0;
+  if (wrap._vr) wrap.removeEventListener('scroll', wrap._vr);
+  wrap._vr = () => { if (!raf) raf = requestAnimationFrame(() => { raf = 0; paint(false); }); };
+  wrap.addEventListener('scroll', wrap._vr, { passive: true });
 }
 async function download(path, method = 'GET', body) {
   const r = await api(method, path, body, true);
