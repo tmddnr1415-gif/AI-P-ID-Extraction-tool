@@ -33,6 +33,15 @@ ROOT = Path(__file__).resolve().parent.parent
 BASE_FILE = ROOT / "out" / "PID_dev_delta_base.txt"
 FIRST_BASE = "97a8732"            # out/PID_source_2026-10-08_r3.zip 을 만든 커밋
 SKIP = ("out/", "data/", "app/_data/")
+
+
+def company_owned() -> tuple:
+    """Paths the company PC develops itself (config/release_sources.json 'company_owned') — never shipped from here."""
+    try:
+        cfg = json.loads((Path(__file__).resolve().parents[1] / "config" / "release_sources.json").read_text(encoding="utf-8"))
+        return tuple(cfg.get("company_owned", {}).get("paths") or ())
+    except Exception:                                       # noqa: BLE001
+        return ()
 STAMP = "app/_update.json"
 BAT = ("@echo off\r\n"
        "rem Apply this delta to C:\\Claude\\PID_dev (never to the operating folder).\r\n"
@@ -160,6 +169,12 @@ def main() -> int:
     only = tuple(x.strip() for x in a.only.split(",") if x.strip())
     if only:
         paths = [p for p in paths if p.startswith(only)]
+    owned = company_owned()
+    if owned and not (only and any(o.startswith(owned) for o in only)):   # 2026-11-01: Valve 는 회사 PC 가 개발
+        dropped = [p for p in paths if p.startswith(owned)]
+        paths = [p for p in paths if not p.startswith(owned)]
+        if dropped:
+            print(f"회사 PC 소유 경로 {len(dropped)}개는 싣지 않음 (config/release_sources.json company_owned):", *dropped[:5], sep="\n  · ")
     deleted = [p for p in paths if blob("HEAD", p) is None]
     paths = [p for p in paths if p not in deleted]
     day = dt.date.today().isoformat()
@@ -193,7 +208,8 @@ def main() -> int:
     # 우리가 보낸 판 그대로일 때만 지운다 — 회사에서 고친 판은 남기고 보고한다.
     gone = git("-c", "core.quotepath=off", "log", "--diff-filter=D", "--name-only", "--format=",
                f"{base}..HEAD").splitlines()
-    for p in sorted({g for g in gone if g and not g.startswith(SKIP) and (not only or g.startswith(only))} | set(deleted)):
+    for p in sorted({g for g in gone if g and not g.startswith(SKIP) and not (owned and g.startswith(owned) and not only)
+                     and (not only or g.startswith(only))} | set(deleted)):
         if blob("HEAD", p) is not None:
             continue
         known = []

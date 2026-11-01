@@ -233,3 +233,10 @@
 - 대시보드: `dashboard_patches/UPDATE_from_v16.51_VALVE2_menu.zip` (make_patch --any --mark, delivered.txt 기록).
 - 회사 개발용: `out/VALVE_devkit_valve29_2026-11-01.zip` (docs/valve · handoff · other_log · spike/valve_* · CLAUDE.md 는 넣지 않음) — `C:\Claude\PID_dev` 에 풀기.
 - 안내 · 첫 지시문: `docs/handoff/VALVE_COMPANY_START.md`. 인수인계 '지금 상태' 를 valve29 끝 기준으로 고쳐 씀.
+
+## 2026-11-01 · 개발 담당 나눔 (사용자 결정)
+- 대시보드 · P&ID · LOGIC · PANEL = 개인 Claude Code 개발 + zip 전달. Valve 분석 툴(Ball · Globe · Butterfly · PSV) = 회사 PC Claude Code 가 회사 PC 에서 개발.
+- `config/release_sources.json`: VALVE 병합 대기 제거 · `company_owned` 경로 추가 → `spike/pack_delta.py` 가 개인 꾸러미에서 Valve 경로를 뺌(--only 로 명시할 때만 예외). CLAUDE.md §0 표 · §3, branches.md 갱신.
+- 회사 운영 반영 도구 `spike/valve_deploy_to_ops.py` + `.bat`(시험 → 백업 → app/valve · app/static/valve 만 복사 → 8000 재시작) · `valve_rollback_ops.bat`. 시험 `tests/test_company_owned.py`.
+- devkit 다시 만듦(위 도구 + restart_pid_server.py + 안내문 §5~7).
+

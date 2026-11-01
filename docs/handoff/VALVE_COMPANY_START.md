@@ -2,6 +2,10 @@
 
 회사 PC 의 Claude Code 가 이 한 장과 `docs/handoff/valve.md` 를 읽고 이어 갑니다.
 
+> ★ **개발 담당 (2026-11-01 사용자 결정)** — Valve 분석 툴(Ball · Globe · Butterfly · PSV)은 **회사 PC Claude Code 가 회사 PC 에서만** 개발합니다.
+> 대시보드 · P&ID · LOGIC · PANEL 은 개인 Claude Code 가 개발해 zip(hotfix · 대시보드 패치)으로 보내며, **그 zip 에는 Valve 파일이 들어가지 않습니다** — 회사에서 고친 Valve 가 덮이지 않습니다.
+> 회사 Claude Code 는 Valve 밖의 파일(app/main.py · app/static/app.js · dashboard 등)을 고치지 않습니다 — 고치면 다음 hotfix 적용이 충돌로 막힙니다.
+
 ## 1. 받은 zip 세 개와 푸는 곳
 
 | zip | 무엇 | 어디에 · 어떻게 |
@@ -53,7 +57,19 @@ C:\Claude\PID_dev 는 P&ID 추출 도구이고, 그 안의 app/valve · app/stat
 | 회차 기록 | `docs/history/other_log.md` |
 | Phase 1 보고서 | `docs/valve/valve29/` (IMPLEMENTATION · REGRESSION · RULE_CHANGELOG · USER_GUIDE_UPDATE) |
 
-## 5. 회사에서 업데이트 꾸러미를 직접 만들 때
+## 5. 고친 것을 운영 서버에 올리기 (회사 PC 안에서 끝남 · zip 필요 없음)
 
-회사 PC 에서 고친 것은 회사 폴더에 바로 반영되므로 꾸러미가 필요 없습니다. 클라우드 세션과 다시 합칠 때는
-바뀐 파일(app/valve · app/static/valve · tests/test_valve* · docs)을 zip 으로 묶어 클라우드 세션에 올려 주면 그 위에서 이어 갑니다.
+- **`C:\Claude\PID_dev\spike\valve_deploy_to_ops.bat`** 더블클릭:
+  ① 개발 폴더에서 Valve 시험 → 실패하면 멈춤 ② 운영(`C:\Claude\PID`)과 다른 Valve 파일 목록을 보여 주고 물음 ③ 운영 파일을 `C:\Claude\PID\backup\valve_<시각>\` 에 보관 후 교체 ④ 8000 서버만 재시작.
+  바꾸는 범위는 `app\valve` · `app\static\valve` 뿐 — P&ID · LOGIC · 대시보드 파일은 건드리지 않습니다.
+- 되돌리기: **`valve_rollback_ops.bat`** (가장 최근 보관본으로).
+
+## 6. 메뉴 연결 (Globe · Butterfly · PSV 를 다 만들었을 때)
+
+대시보드 메뉴 4개(Ball · Globe · Butterfly · PSV)는 이미 있습니다. Globe 등은 지금 '준비 중' 화면입니다.
+대시보드는 개인 Claude Code 담당이므로, 새 화면 주소(예: P&ID 서버 `/valve/?kind=globe`)가 정해지면 **사용자가 개인 Claude Code 의 DASHBOARD 세션에
+"Globe Valve 메뉴를 /valve/?kind=globe 로 연결" 이라고 요청** → 대시보드 zip 으로 옵니다. (회사에서 직접 `dashboard.html` 을 고치면 다음 대시보드 zip 이 `.new` 로 비켜 둡니다.)
+
+## 7. 개인 Claude Code 와 다시 합칠 일이 생기면
+
+Valve 는 회사 PC 가 원본입니다. 개인 쪽이 Valve 를 참고해야 할 때만 바뀐 파일(app/valve · app/static/valve · tests/test_valve* · docs/valve)을 zip 으로 올려 주면 됩니다.

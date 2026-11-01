@@ -13,11 +13,19 @@
       ],
       "imported": "0943667",
       "_설명": "판넬 화면은 병합이 아니라 dashboard/apps/space → app/static/space 로 옮겨 온다. 옮겨 온 마지막 커밋을 imported 에 적는다."
-    },
-    "VALVE": {
-      "branch": "ccr-efbe7e75-n915ze",
-      "session": "VALVE Datasheet 검토 (실행 프로젝트 › CO2 PJT › Datasheet › Ball Valve)",
-      "_설명": "app/valve · app/static/valve · app/main.py 두 줄 · dashboard/dashboard.html 메뉴. docs/handoff/valve.md"
     }
+  },
+  "company_owned": {
+    "_설명": "2026-11-01 사용자 결정: Valve 분석 툴(Ball · Globe · Butterfly · PSV)은 회사 PC 의 Claude Code 가 회사 PC 에서 개발한다. 개인 Claude Code(대시보드 · P&ID · LOGIC · PANEL)가 만드는 PID_dev+ops 꾸러미에는 아래 경로를 싣지 않는다 — 실으면 회사에서 고친 Valve 파일과 부딪쳐 운영 적용(all-or-nothing)이 통째로 막힌다. spike/pack_delta.py 가 지킨다(--only 로 이 경로를 명시할 때만 예외).",
+    "owner": "회사 PC Claude Code (VALVE)",
+    "paths": [
+      "app/valve/",
+      "app/static/valve/",
+      "tests/test_valve",
+      "docs/valve/",
+      "docs/handoff/valve.md",
+      "docs/handoff/VALVE_COMPANY_START.md",
+      "spike/valve_"
+    ]
   }
 }
