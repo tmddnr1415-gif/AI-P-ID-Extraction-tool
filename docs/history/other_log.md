@@ -188,3 +188,12 @@
 ## 2026-11-01 · valve29 — 메뉴별 화면 캡처 + 새 설치 첫 실행 결함 수정
 - `spike/valve_menu_shots.cjs`: 빈 서버에 실자료 4종 Import → 메뉴 16화면 캡처 (out/valve29/menus, 저장소 제외).
 - 결함: **새 설치의 첫 요청이 500** — 서버 준비 스레드와 첫 화면 요청이 빈 DB 에 같은 열을 동시에 추가(duplicate column: since). `store.connect` 첫 준비를 잠금 + 중복 열 무시. 시험 +1.
+
+## 2026-11-01 · valve29 — "모든 동작이 빠르게" (사용자 요청)
+- 측정 도구 `spike/valve_speed.cjs`: 동작 60여 개(메뉴 · 탭 · 검색 · 행 클릭 · Tag 넘기기 · 비교 창 · 확대)를 클릭→화면 안정 · 최장 멈춤으로 잼.
+- 서버: 화면 답(summary · PMS · Process · 특수요구 · Rule Performance · Tag 규칙)을 **쓰기 전까지 재사용**(store.WRITES 커밋 카운터 + DB 최신 행 키) · 서버 켤 때 전부 미리 계산.
+  990 DS 첫 진입 Rule Performance 1.5 s → 0.1 s · Settings 2.4 s → 0.1 s · summary 0.25 s → 0.005 s.
+- 화면: Valve List 검색 · 필터는 행만 다시 그림(머리줄 · 미리보기 유지) · 입력 대기 200–250 → 90 ms · 가상 행 여백 축소 · 행 높이 기억 · 목록 둘을 한가할 때 미리 받음.
+  990 DS Valve List 검색 0.5 s(멈춤 0.21 s) → 0.2 s(멈춤 0) · 탭 전환 멈춤 0.27 → 0.08 s.
+- 숨은 결함: Issue List 에서 검색을 바꾼 뒤 Excel/PDF 를 받으면 **이전 검색어**가 적용되던 것 → 누를 때의 검색어로.
+- 시험 +1(캐시가 결정 · 상태 변경 직후 바로 갱신) · 전체 1,903 통과 · UI 25/25 · LINK OK · 판정 스냅샷 차이 0.

@@ -292,3 +292,20 @@ def test_new_database_first_use_from_many_threads(tmp_path, monkeypatch):
     [t.start() for t in th]
     [t.join() for t in th]
     assert errs == []
+
+
+def test_screen_answers_cached_until_the_next_write(tmp_path, monkeypatch):
+    """valve29 speed: summary · rules · requirements answers are reused, but never after a write (decision, edit …)."""
+    c, pid, up = _client(tmp_path, monkeypatch)
+    up("ds_A.pdf", _pdf("A"))
+    a = _first(c, pid)
+    s1 = c.get(f"/api/valve/projects/{pid}/summary").json()
+    assert c.get(f"/api/valve/projects/{pid}/summary").json() == s1                    # reused, same answer
+    r1 = c.get(f"/api/valve/projects/{pid}/rules/performance").json()
+    it = next(i for i in a["issues"] if i["type"] == "Data Missing")
+    c.put(f"/api/valve/datasheets/{a['id']}/issues/{it['ikey']}", json={"decision": "Dismissed", "reason_cat": "Other"}, headers={"X-Author": "eng"})
+    s2 = c.get(f"/api/valve/projects/{pid}/summary").json()
+    r2 = c.get(f"/api/valve/projects/{pid}/rules/performance").json()
+    assert s2 != s1 and r2 != r1                                                        # the write is seen at once
+    c.put(f"/api/valve/datasheets/{a['id']}/status", json={"status": "Accepted"}, headers={"X-Author": "eng"}).raise_for_status()
+    assert c.get(f"/api/valve/projects/{pid}/summary").json() != s2

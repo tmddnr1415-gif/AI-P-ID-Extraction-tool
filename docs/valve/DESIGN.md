@@ -615,3 +615,8 @@ Note 113 · PC-01 Confirm 6(3C0K8 의 '316 SS/FHF' 2개 · API5L-X65 MOV 1500# �
 - 새로 계산하지 않는다 — Valve List Excel 과 같은 `requirements.columns()`(최신 Rev)를 `_req_rows` 가 Area / Unit / Tag 로 묶는다. 그래서 화면 · 이 Excel · Valve List Excel 의 수가 같다(실자료 PFP 42 · Fugitive 162 · Fire Safe 137 · Dense 45 · NACE 155 · SIL 116).
 - 'Not Required…' 로 시작하는 칸은 요구 아님. API `GET /projects/{pid}/requirements` · `requirements.xlsx?area=&req=`.
 
+### 34-2. 화면 답 재사용 (valve29, 사용자 요청 "모든 동작이 빠르게")
+- `api._cached(name, pid, build)`: 인코딩한 응답을 `(store.WRITES, 최신 audit id, 문서 수·완료 수, 데이터시트 수)` 가 같을 때만 재사용. WRITES 는 이 서버의 모든 commit 마다 +1(`store._Con`), DB 행 값은 다른 프로세스의 쓰기도 잡는다. 계산 중에 쓰기가 있으면 저장하지 않는다.
+- Rule Performance 는 날짜도 키(3개월 추세). 서버 시작 warm-up 이 이 답들을 미리 만든다.
+- 화면: 필터 · 검색은 행만 다시 그림(G.rowsOnly · IF.L), 클릭 핸들러는 현재 목록(G.rows · IF.L)을 읽음. 쓰기(api 의 GET 아닌 호출) 뒤 미리 받은 목록은 버림(S.wgen).
+

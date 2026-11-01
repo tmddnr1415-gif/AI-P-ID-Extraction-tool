@@ -39,7 +39,7 @@ async function api(method, path, body, raw) {
   const opt = { method, headers: { 'X-Author': encodeURIComponent(USER || '') } };
   if (body instanceof FormData) opt.body = body;
   else if (body !== undefined) { opt.body = JSON.stringify(body); opt.headers['Content-Type'] = 'application/json'; }
-  if (method !== 'GET') PRE.clear();                 // any write: forget prefetched datasheets
+  if (method !== 'GET') { PRE.clear(); S.wgen = (S.wgen || 0) + 1; }   // any write: forget prefetched datasheets · lists
   let r;
   try { r = await fetch('/api/valve' + path, opt); } catch (e) { throw new Error('서버에 닿지 못했습니다 — P&ID 서버(8000)가 켜져 있는지 확인하세요'); }
   if (method !== 'GET' && r.ok) { const m = path.match(/^\/datasheets\/(\d+)/); link({ t: 'changed', id: m ? +m[1] : null }); }   // other windows refresh
@@ -181,11 +181,12 @@ function chunkRows(tbody, rows, first = 80, empty = '') {    // 80 rows ≈ one 
 /* valve29 — virtual rows for the Excel-like grids (one-line rows, table-layout fixed).  With thousands of rows in the page the
    browser re-laid out the whole table on every insert (500 DS issue list: 0.6–0.7 s per step).  Only the rows in view
    (+ a margin) exist; two spacer rows keep the scroll bar and the sticky header / columns exactly as before. */
+const VR_H = {};                            // measured row height per grid: re-draws skip the measuring pass
 function virtualRows(tbody, wrap, rows, html) {
-  const n = rows.length, OVER = 40;
+  const n = rows.length, OVER = 20, tid = tbody.closest('table')?.id || '';   // valve29: 20-row margin is enough at 60 fps scroll
   const ncol = tbody.closest('table')?.tHead?.rows[0]?.cells.length || 1;
   const sp = h => `<tr class="vsp" aria-hidden="true"><td colspan="${ncol}" style="height:${Math.max(0, Math.round(h))}px;padding:0;border:0"></td></tr>`;
-  let rh = 22, a = 0, b = 0;
+  let rh = VR_H[tid] || 22, a = 0, b = 0;
   const paint = force => {
     if (!tbody.isConnected) return;
     const headH = tbody.closest('table')?.tHead?.offsetHeight || 0;
@@ -198,7 +199,7 @@ function virtualRows(tbody, wrap, rows, html) {
   const real = [...tbody.rows].filter(r => !r.classList.contains('vsp'));      // measure the real row height once
   if (real.length) {
     const h = (real[real.length - 1].offsetTop + real[real.length - 1].offsetHeight - real[0].offsetTop) / real.length;
-    if (h > 4 && Math.abs(h - rh) > 0.5) { rh = h; paint(true); }
+    if (h > 4 && Math.abs(h - rh) > 0.5) { rh = h; VR_H[tid] = h; paint(true); }
   }
   let raf = 0;
   if (wrap._vr) wrap.removeEventListener('scroll', wrap._vr);
@@ -617,6 +618,18 @@ async function refresh() {
   $('#navfoot').innerHTML = `${esc(S.sum.project.name)} · Tag ${S.sum.kpi.tags} · DS ${S.sum.kpi.datasheets}<br>${esc(USER || '이름 없음')} <span class="soft" id="navver"></span>`;
   if (!S.ver) api('GET', '/version').then(v => { S.ver = v.version; const x = $('#navver'); if (x) x.textContent = '· ' + v.version; }).catch(() => {}); else { const x = $('#navver'); if (x) x.textContent = '· ' + S.ver; }
   RENDER[S.view]?.();
+  warmClient();
+}
+function warmClient() {               // valve29: the big lists the user opens next are fetched while the screen is idle
+  if (POP) return;
+  const pid = S.pid, g0 = S.wgen || 0, stamp = S.sumStamp, ok = () => S.pid === pid && (S.wgen || 0) === g0 && S.sumStamp === stamp;
+  const idle = window.requestIdleCallback || (f => setTimeout(f, 300));
+  idle(async () => {
+    try {
+      if (!S.grid && ok()) { const g = await api('GET', `/projects/${pid}/grid`); if (ok() && !S.grid) S.grid = g; }
+      if (!S.issues && ok()) { const r = await loadIssues(); if (ok() && !S.issues) { S.issues = r.issues; S.issueTypes = r.types; } }
+    } catch (_) { /* the screen fetches it itself when opened */ }
+  }, { timeout: 3000 });
 }
 $('#projSel').onchange = e => selectProject(e.target.value);
 $('#projNew').onclick = async () => {
@@ -820,10 +833,16 @@ async function renderList() {
           const x = r.cells[c.key]; if (!x) return '<td class="ph">—</td>';
           return `<td data-fid="${x.id}" data-k="${c.key}" class="${x.ed ? 'ed' : ''} ${x.st === 'placeholder' || x.st === 'blank' ? 'ph' : ''} ${x.st === 'review' ? 'rv' : ''}" title="${esc(x.v + (x.u ? ' ' + x.u : ''))}${x.ed ? ' (사용자 수정)' : ''} · p.${x.p} — 두 번 눌러 고치기">${esc(x.v || (x.st === 'blank' ? 'Not Found' : ''))}${x.u && x.v ? ' <small>' + esc(x.u) + '</small>' : ''}</td>`;
         }).join('')}</tr>`), __gfb = `<tr><td colspan="${cols.length + 2}" class="empty">조건에 맞는 행이 없습니다 — 필터를 지우세요</td></tr>`;
+  const fast = G.rowsOnly && $('#xg tbody', el); G.rowsOnly = false;
+  if (fast) {                                                // valve29: a keystroke in a filter redraws only the rows
+    chunkRows($('#xg tbody', el), __grows, 80, __gfb); G.rows = rows;
+    const c = $('#gcnt', el); if (c) c.textContent = `${rows.length} / ${S.grid.rows.length} rows`; return;
+  }
+  G.rows = rows;
   el.innerHTML = `<div class="vh">${listTop()}<input type="search" id="gq" placeholder="Search Tag Number…" style="width:180px" value="${esc(keepQ)}">
       <select id="gt"><option value="">All Valve Types</option>${types.map(t => `<option ${t === keepT ? 'selected' : ''}>${esc(t)}</option>`).join('')}</select>
       <select id="gs"><option value="">All Status</option>${STATUSES.map(t => `<option ${t === keepS ? 'selected' : ''}>${t}</option>`).join('')}</select>
-      <span class="soft">${rows.length} / ${S.grid.rows.length} rows · 선택 <b id="gsel">${G.sel.size}</b></span><span class="sp"></span>
+      <span class="soft"><span id="gcnt">${rows.length} / ${S.grid.rows.length} rows</span> · 선택 <b id="gsel">${G.sel.size}</b></span><span class="sp"></span>
       <select id="gbulk" ${G.sel.size ? '' : 'disabled'}><option value="">선택 행 상태 바꾸기…</option>${STATUSES.map(t => `<option>${t}</option>`).join('')}</select>
       <button id="greset" title="열 순서·너비 처음대로">열 초기화</button>
       <button id="gopen" ${G.sel.size ? '' : 'disabled'}>Open Datasheet</button><button class="pri" id="gx">⇩ Export Excel</button></div>
@@ -835,9 +854,9 @@ async function renderList() {
   const wrap = $('.xg-wrap', el); wrap.scrollLeft = keepX; wrap.scrollTop = keepY;
   $$('[data-lm]', el).forEach(b => b.onclick = () => { G.mode = b.dataset.lm; renderList(); });
   mountPreview();
-  const re = () => renderList();
-  $('#gq').oninput = () => { clearTimeout(G.t); G.t = setTimeout(() => { re(); $('#gq').focus(); const v = $('#gq').value; $('#gq').setSelectionRange(v.length, v.length); }, 200); };
-  $('#gt').onchange = re; $('#gs').onchange = re;
+  const re = () => renderList(), reRows = () => { G.rowsOnly = true; renderList(); };
+  $('#gq').oninput = () => { clearTimeout(G.t); G.t = setTimeout(reRows, 90); };
+  $('#gt').onchange = reRows; $('#gs').onchange = reRows;
   $('#greset').onclick = () => { LS.set('gorder', null); LS.set('gw', {}); re(); };
   $('#gx').onclick = exportValveList;
   $('#gopen').onclick = () => openDs([...G.sel][0]);
@@ -846,13 +865,13 @@ async function renderList() {
     for (const id of G.sel) await api('PUT', `/datasheets/${id}/status`, { status: st, comment: 'bulk (Valve List)' });
     toast(`${G.sel.size}개 → ${st}`); S.grid = null; await refresh(); renderList();
   };
-  $('#gall').onchange = e => { rows.forEach(r => e.target.checked ? G.sel.add(r.id) : G.sel.delete(r.id)); paintSel(); };
-  $$('thead tr.flt input', el).forEach(i => i.oninput = () => { G.flt[i.dataset.f] = i.value; clearTimeout(G.t); G.t = setTimeout(() => { re(); const f = $(`input[data-f="${i.dataset.f}"]`); f.focus(); f.setSelectionRange(f.value.length, f.value.length); }, 250); });
+  $('#gall').onchange = e => { G.rows.forEach(r => e.target.checked ? G.sel.add(r.id) : G.sel.delete(r.id)); paintSel(); };
+  $$('thead tr.flt input', el).forEach(i => i.oninput = () => { G.flt[i.dataset.f] = i.value; clearTimeout(G.t); G.t = setTimeout(reRows, 90); });
   const tb = $('#xg tbody');
   tb.onclick = e => {
     const a = e.target.closest('[data-open]'); if (a) { e.preventDefault(); openDs(+a.dataset.open); return; }
     const tr = e.target.closest('tr'); if (!tr) return;
-    const id = +tr.dataset.id, ids = rows.map(r => r.id);
+    const id = +tr.dataset.id, ids = G.rows.map(r => r.id);
     if (e.shiftKey && G.last) { const [i0, i1] = [ids.indexOf(G.last), ids.indexOf(id)].sort((a, b) => a - b); ids.slice(i0, i1 + 1).forEach(x => G.sel.add(x)); }
     else if (e.ctrlKey || e.metaKey || e.target.type === 'checkbox') G.sel.has(id) ? G.sel.delete(id) : G.sel.add(id);
     else { G.sel.clear(); G.sel.add(id); }
@@ -966,6 +985,7 @@ async function renderIssues(rowsOnly) {
         <td title="${esc(i.field)}">${esc(i.field)}${i.row ? ` <small>#${i.row}</small>` : ''}</td><td title="${esc(i.value)}">${esc(i.value || '(blank)')}</td>
         <td>${pill(i.type.replace(/[^A-Za-z]/g, ''), i.type)}${i.comment_id ? '' : ` <button class="ibtn" data-icmp="1" title="어디와 다른지 나란히">⇆</button><button class="ibtn" data-iedit="1" title="코멘트 고치기 · 보완">✎${i.edited ? '•' : ''}</button>`}</td><td title="${esc(i.description)}${i.evidence?.length ? '\n근거: ' + esc(i.evidence.map(x => `${x.doc || ''}${x.page ? ' p.' + x.page : ''} ${x.where || ''}: ${String(x.text || '').slice(0, 60)}`).join(' | ')) : ''}">${esc(i.description)}</td><td title="${esc(i.expected)}">${esc(i.expected)}</td>
         <td>${pill(i.severity)}</td><td>${decSelect(`data-ist="${esc(i.ds_id + '|' + i.ikey)}"`, i)}</td></tr>`), __fb = '<tr><td colspan="13" class="empty">조건에 맞는 지적 사항이 없습니다</td></tr>';
+  IF.L = L;
   if (rowsOnly && $('#ig tbody', el)) { chunkRows($('#ig tbody', el), __rows, 80, __fb); const c = $('#icnt', el); if (c) c.textContent = `${L.length} / ${all.length}`; return; }
   el.innerHTML = `<div class="vh">${listTop()}<input type="search" id="iq" placeholder="Tag 검색" style="width:140px" value="${esc(IF.q)}">
       <select id="iar"><option value="">All Areas</option>${areas.map(a => `<option ${a === IF.area ? 'selected' : ''}>${esc(a)}</option>`).join('')}</select>
@@ -981,12 +1001,13 @@ async function renderIssues(rowsOnly) {
   $('.xg-wrap', el).scrollTop = keepY;
   $$('[data-lm]', el).forEach(b => b.onclick = () => { G.mode = b.dataset.lm; renderList(); });
   const re = () => renderIssues(true);                       // filters only redraw the rows (toolbar · focus stay)
-  $('#iq').oninput = e => { IF.q = e.target.value; clearTimeout(IF.t); IF.t = setTimeout(re, 150); };
+  $('#iq').oninput = e => { IF.q = e.target.value; clearTimeout(IF.t); IF.t = setTimeout(re, 90); };
   $('#it').onchange = e => { IF.type = e.target.value; re(); }; $('#isv').onchange = e => { IF.sev = e.target.value; re(); }; $('#iar').onchange = e => { IF.area = e.target.value; re(); };
   $('#ist').onchange = e => { IF.st = e.target.value; re(); }; $('#iint').onchange = e => { IF.internal = e.target.checked; re(); };
-  const qs = () => new URLSearchParams({ types: IF.type || (IF.internal ? [...types].join(',') : ''), severity: IF.sev, tag: q ? [...new Set(L.map(i => i.tag))].join(',') : '' }).toString();
+  const qNow = () => IF.q.toUpperCase().replace(/[^0-9A-Z]/g, '');     // read at click time: filters redraw rows only
+  const qs = () => new URLSearchParams({ types: IF.type || (IF.internal ? [...types].join(',') : ''), severity: IF.sev, tag: qNow() ? [...new Set(IF.L.map(i => i.tag))].join(',') : '' }).toString();
   const pick = async what => { const t = await pickTypes(`${what} — 넣을 Issue Type`, { preset: IF.type ? [IF.type] : null,
-      note: [IF.sev && `Severity ${IF.sev}`, q && `검색 '${q}' 에 걸린 Tag 만`].filter(Boolean).join(' · ') || '' });
+      note: [IF.sev && `Severity ${IF.sev}`, qNow() && `검색 '${qNow()}' 에 걸린 Tag 만`].filter(Boolean).join(' · ') || '' });
     if (t == null) return null; const p = new URLSearchParams(qs()); p.set('types', t); return p.toString(); };
   $('#ixl').onclick = async () => { const p = await pick('Issue List Excel'); if (p == null) return;
     download(`/projects/${S.pid}/issues.xlsx?${p}`).then(r => toast(`Issue List ${r.headers.get('X-Count')}행 — 설계사에게 바로 보낼 수 있습니다`)).catch(e => toast(e.message, 1)); };
@@ -1008,7 +1029,7 @@ async function renderIssues(rowsOnly) {
     const [dsId, ikey] = [+tr.dataset.i.split('|')[0], tr.dataset.i.slice(tr.dataset.i.indexOf('|') + 1)];
     const i = S.issues.find(x => x.ds_id === dsId && x.ikey === ikey);
     G.selIss = ikey; G.selDs = dsId; $$('tr.sel', tb).forEach(x => x.classList.remove('sel')); tr.classList.add('sel');
-    const at = L.findIndex(x => x.ds_id === dsId && x.ikey === ikey), near = [...new Set(L.slice(at + 1, at + 40).map(x => x.ds_id))].filter(x => x !== dsId).slice(0, 2);
+    const LL = IF.L || L, at = LL.findIndex(x => x.ds_id === dsId && x.ikey === ikey), near = [...new Set(LL.slice(at + 1, at + 40).map(x => x.ds_id))].filter(x => x !== dsId).slice(0, 2);
     link({ t: 'iss', id: dsId, ikey, near });
     const pages = (S.grid?.rows.find(r => r.id === dsId)?.pages) || (await api('GET', `/datasheets/${dsId}`)).pages;
     preview({ doc: i.document_id, pages, page: i.page, bbox: i.bbox, ovs: await dsIssues(dsId), label: `${i.tag} · #${i.no} ${i.type} · ${i.field}` });

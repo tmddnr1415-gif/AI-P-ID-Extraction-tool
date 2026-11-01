@@ -44,6 +44,33 @@ def _json(obj) -> Response:
     return Response(json.dumps(obj, ensure_ascii=False, default=str), media_type="application/json")
 
 
+_BODY: dict[tuple, tuple] = {}               # (screen, pid, arg) -> (version, encoded body) — valve29 speed
+
+
+def _wver(con, pid) -> tuple:
+    """Everything a project screen can depend on: commits made by this server (store.WRITES) + the database's own
+    newest rows, so a write by another process (a script on the same data folder) is also seen."""
+    r = con.execute("SELECT (SELECT COALESCE(MAX(id),0) FROM audit WHERE project_id=?), (SELECT COUNT(*) || ':' || COALESCE(MAX(id),0) || ':' || "
+                    "COALESCE(SUM(status='done'),0) FROM document WHERE project_id=?), (SELECT COUNT(*) FROM datasheet WHERE project_id=?)",
+                    (pid, pid, pid)).fetchone()
+    return (store.WRITES[0],) + tuple(r)
+
+
+def _cached(name, pid, build, arg=None) -> Response:
+    """The same answer as build() — encoded once, reused until the next write (summary 250 ms → 1 ms at 990 DS)."""
+    con = store.connect()
+    ver = _wver(con, pid)
+    hit = _BODY.get((name, pid, arg))
+    if hit and hit[0] == ver:
+        return Response(hit[1], media_type="application/json")
+    res = build(con)
+    if not isinstance(res, Response) or res.status_code != 200:
+        return res
+    if store.WRITES[0] == ver[0]:                            # nothing written while it was being computed
+        _BODY[(name, pid, arg)] = (ver, res.body)
+    return Response(res.body, media_type="application/json")
+
+
 def _err(msg, code=400):
     return JSONResponse({"error": msg}, status_code=code)
 
@@ -102,6 +129,10 @@ def _latest(dss: list[dict]) -> dict[str, dict]:
 
 @router.get("/api/valve/projects/{pid}/summary")
 def summary(pid: int):
+    return _cached("summary", pid, lambda con: _summary(pid))
+
+
+def _summary(pid: int):
     con = store.connect()
     p = store.one(con, "SELECT * FROM project WHERE id=?", pid)
     if not p:
@@ -286,6 +317,12 @@ def warm(pid: int):
             project_issues(con, pid)
             _project_pms(con, pid)
             _project_process(con, pid)
+            for f in (summary, grid, requirements_summary, rules_performance):   # valve29: the first click of every
+                f(pid)                                                        # screen after a restart is ready too
+            _cached("tagging", pid, lambda c: _tagging(c, pid))
+            _cached("pms", pid, lambda c: _pms_body(c, pid))
+            _cached("process", pid, lambda c: _process_body(c, pid))
+            issues_json(pid, 1)
         except Exception as e:                           # noqa: BLE001  (warming must never break the server)
             print(f"[valve] warm-up of project {pid} failed: {e}")
         finally:
@@ -716,8 +753,11 @@ def _ds_deep(con, d, dsid):
 @router.get("/api/valve/projects/{pid}/tagging")
 async def tagging(pid: int):
     """Tag numbering learned per Area / Site / Unit from the project's datasheets."""
-    con = store.connect()
-    prof = await run_in_threadpool(_tags_for, con, pid)
+    return await run_in_threadpool(_cached, "tagging", pid, lambda con: _tagging(con, pid))
+
+
+def _tagging(con, pid):
+    prof = _tags_for(con, pid)
     return _json({"groups": prof["groups"], "duplicates": {k: v for k, v in prof["docs_by_tag"].items() if len([x for x in v if x]) > 1}})
 
 
@@ -977,11 +1017,15 @@ _DS_KEYS = ("tag", "doc_no", "rev", "area_name", "site", "plant_unit", "valve_ty
 
 @router.get("/api/valve/projects/{pid}/issues")
 async def issues_list(pid: int, compact: int = 0):
+    return await run_in_threadpool(issues_json, pid, compact)
+
+
+def issues_json(pid: int, compact: int = 0):
     """All findings of the newest revisions.  compact=1 (the screens, valve29): the proof fields (evidence · basis · op · tol ·
     original_*) stay out — the workbench reads them per datasheet — and the per-datasheet fields are sent once in `ds`
     instead of on every row (500 DS: 8.2 MB → about a third)."""
     con = store.connect()
-    rows = await run_in_threadpool(project_issues, con, pid)
+    rows = project_issues(con, pid)
     ver = (_ISSUE_CACHE.get(pid) or (None,))[0]             # the version the rows were computed for (never an object id)
     hit = _ISSUE_JSON.get((pid, compact))
     if hit and ver is not None and hit[0] == ver and hit[2] is rows:      # rows kept alive in the tuple: `is` cannot alias
@@ -1436,8 +1480,11 @@ def _project_process(con, pid):
 @router.get("/api/valve/projects/{pid}/process")
 async def process_rows(pid: int):
     """Process Data Verification for every tag (Phase 3 engine, app/valve/process.py)."""
-    con = store.connect()
-    pdoc, rows = await run_in_threadpool(_project_process, con, pid)
+    return await run_in_threadpool(_cached, "process", pid, lambda con: _process_body(con, pid))
+
+
+def _process_body(con, pid):
+    pdoc, rows = _project_process(con, pid)
     return _json({"process_doc": pdoc, "rows": rows})
 
 
@@ -1474,8 +1521,11 @@ async def revisions_xlsx(pid: int, request: Request):
 
 @router.get("/api/valve/projects/{pid}/pms")
 async def pms_rows(pid: int):
-    con = store.connect()
-    pdoc, rows = await run_in_threadpool(_project_pms, con, pid)
+    return await run_in_threadpool(_cached, "pms", pid, lambda con: _pms_body(con, pid))
+
+
+def _pms_body(con, pid):
+    pdoc, rows = _project_pms(con, pid)
     return _json({"pms_doc": pdoc, "rows": rows})
 
 
@@ -1562,7 +1612,10 @@ def _settings(con, pid) -> dict:
 @router.get("/api/valve/projects/{pid}/rules/performance")
 def rules_performance(pid: int):
     """valve29 — Rule Performance: findings per rule and how engineers decided them (statistics only)."""
-    con = store.connect()
+    return _cached("rules", pid, lambda con: _rules_performance(con, pid), arg=dt.date.today().isoformat())   # the 3-month trend moves by date
+
+
+def _rules_performance(con, pid):
     rows = project_issues(con, pid)
     log = store.rows(con, "SELECT rule, decision, status, at FROM decision_log WHERE project_id=?", pid)
     out = ruleperf.performance(rows, log, _settings(con, pid))
@@ -1713,8 +1766,7 @@ def _req_rows(con, pid) -> dict:
 
 @router.get("/api/valve/projects/{pid}/requirements")
 def requirements_summary(pid: int):
-    con = store.connect()
-    return _json(_req_rows(con, pid))
+    return _cached("requirements", pid, lambda con: _json(_req_rows(con, pid)))
 
 
 @router.get("/api/valve/projects/{pid}/requirements.xlsx")

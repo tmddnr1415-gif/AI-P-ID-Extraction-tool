@@ -80,12 +80,20 @@ def now() -> str:
 
 _READY: set = set()                      # db paths whose schema / migration ran in this process (once, not per request)
 _READY_LOCK = threading.Lock()
+WRITES = [0]                             # valve29: bumped on every commit in this process — the key of the screen response caches
+
+
+class _Con(sqlite3.Connection):
+    """A connection that counts its commits (store.WRITES): a screen answer computed before the last write is stale."""
+    def commit(self):
+        super().commit()
+        WRITES[0] += 1
 
 
 def connect() -> sqlite3.Connection:
     root().mkdir(parents=True, exist_ok=True)
     path = str(root() / "valve.db")
-    con = sqlite3.connect(path, timeout=30, check_same_thread=False)
+    con = sqlite3.connect(path, timeout=30, check_same_thread=False, factory=_Con)
     con.row_factory = sqlite3.Row
     con.execute("PRAGMA journal_mode=WAL")
     con.execute("PRAGMA busy_timeout=30000")
