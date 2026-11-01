@@ -20,6 +20,7 @@ import shutil
 import subprocess
 import sys
 import time
+import urllib.error
 import urllib.request
 from pathlib import Path
 
@@ -28,8 +29,11 @@ ROOT = Path(__file__).resolve().parents[1]
 
 def _get(url, timeout=600):
     t = time.perf_counter()
-    with urllib.request.urlopen(url, timeout=timeout) as r:
-        b = r.read()
+    try:
+        with urllib.request.urlopen(url, timeout=timeout) as r:
+            b = r.read()
+    except urllib.error.HTTPError:                          # an older version without this endpoint
+        return None, 0, b"{}"
     return round((time.perf_counter() - t) * 1000, 1), len(b), b
 
 

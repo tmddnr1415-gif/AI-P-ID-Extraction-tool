@@ -11,6 +11,7 @@ const { chromium } = require('playwright');
   const views = [['docs', '#v-docs table, #v-docs .card'], ['list', '#xg tbody tr'], ['review', '#wlist .ti'], ['rev', '#v-rev .card, #v-rev .empty, #v-rev table'], ['proc', '#v-proc .vh'],
     ['pms', '#v-pms .vh'], ['rules', '.rp tbody tr'], ['export', '#v-export .card'], ['settings', '#v-settings .card'], ['dash', '#v-dash .kpis']];
   for (const [v, sel] of views) {
+    if (!(await p.locator(`#menu button[data-v="${v}"]`).count())) continue;     // an older version without this view
     t = Date.now(); await p.click(`#menu button[data-v="${v}"]`); await idle(sel);
     out['view_' + v] = Date.now() - t; out['view_' + v + '_longest_task'] = await lt();
   }
