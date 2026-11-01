@@ -240,3 +240,6 @@
 - 회사 운영 반영 도구 `spike/valve_deploy_to_ops.py` + `.bat`(시험 → 백업 → app/valve · app/static/valve 만 복사 → 8000 재시작) · `valve_rollback_ops.bat`. 시험 `tests/test_company_owned.py`.
 - devkit 다시 만듦(위 도구 + restart_pid_server.py + 안내문 §5~7).
 
+## 2026-11-02 · 회사 적용 확인 (사용자)
+- valve29(P&ID 서버) · UPDATE_from_v16.51_VALVE2_menu(대시보드) · VALVE_devkit_valve29 · 안내문 — 모두 적용했다고 사용자 확인. 대시보드 기준점은 delivered.txt 마지막 줄(e39cfda).
+
