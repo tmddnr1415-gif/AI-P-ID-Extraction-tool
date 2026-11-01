@@ -116,6 +116,12 @@
 - 대시보드 카드의 **제목이나 빈 곳을 누르면 크게** 보입니다 (제목 옆 ⤢). Review Status Table 은 큰 화면에서 **모든 Tag** 를 보여 줍니다.
 - 닫기: Esc · 바깥 누르기 · ✕. 큰 화면의 행 · 항목을 누르면 그 화면으로 바로 갑니다.
 
+## 10-3. Excel 같은 열 필터 — 모든 목록 (valve29)
+- 표의 열 제목 옆 **▾** 를 누르면 Excel 필터처럼: **↑ 오름차순 · ↓ 내림차순 · 검색 · 값 목록(건수) · (모두 선택) · 확인 / 지우기**.
+- 여러 열에 함께 걸 수 있고, 값 목록은 다른 열 필터에 남은 것만 보여 줍니다(Excel 과 같음). 걸린 열의 ▾ 는 파랗게.
+- 있는 곳: Valve List · Issue List · Special Req. · Process Data · PMS · 대시보드 표 · Document · Rule Performance · Revision 표 · 카드 크게 보기.
+- 메뉴를 옮겼다 와도 필터가 남습니다. Issue List 에서 필터를 건 채 Excel/PDF 를 받으면 걸린 Tag 들만 나갑니다.
+
 ## 11. 자주 묻는 것
 
 - **Area · Unit 은 어디서 오나?** 데이터시트 제목(QELNG NORTH / SOUTH / W15)과 P&ID 번호에서. 제목에 '(SYSTEM xx – UNIT yy)' 가 있으면 기존 플랜트 = Brownfield.

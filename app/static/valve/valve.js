@@ -105,6 +105,9 @@ function modal(title, html, buttons, key) {
 const DECIDE = ['Open', 'Confirmed', 'Modified', 'Dismissed', 'Deferred', 'Not Applicable', 'Resolved'];
 const REASONS = ['Project Specification Exception', 'Vendor Clarification', 'Incorrect Rule Logic', 'Incorrect Data Extraction', 'Not Applicable', 'Duplicate Finding', 'Other'];
 const NEEDS_REASON = new Set(['Dismissed', 'Not Applicable', 'Modified']);
+const ISSKEYS = ['no', 'tag', 'doc_no', 'rev', 'sheet', 'page', 'field', 'value', 'type', 'description', 'expected', 'severity', 'status'];
+const ISSCOLS = { no: i => i.no, tag: i => i.tag, doc_no: i => i.doc_no, rev: i => i.rev, sheet: i => i.sheet ? `${i.sheet} of ${i.of || ''}` : '', page: i => i.page,
+  field: i => i.field, value: i => i.value || '(blank)', type: i => i.type, description: i => i.description, expected: i => i.expected, severity: i => i.severity, status: i => decShown(i) };
 const decShown = i => i.status === 'Resolved' ? 'Resolved' : (i.decision && DECIDE.includes(i.decision) ? i.decision : i.status);
 const decSelect = (attr, i) => `<select ${attr} aria-label="engineer decision" title="Engineer Decision${i.reason_cat ? ' · ' + esc(i.reason_cat) : ''}${i.conclusion ? ' · ' + esc(i.conclusion) : ''}">${DECIDE.map(x => `<option ${x === decShown(i) ? 'selected' : ''}>${x}</option>`).join('')}</select>`;
 async function askDecision(choice, n = 1, issue = null) {
@@ -196,7 +199,7 @@ function virtualRows(tbody, wrap, rows, html) {
     tbody.innerHTML = sp(a * rh) + html(a, b) + sp((n - b) * rh);
   };
   paint(true);
-  const real = [...tbody.rows].filter(r => !r.classList.contains('vsp'));      // measure the real row height once
+  const real = VR_H[tid] ? [] : [...tbody.rows].filter(r => !r.classList.contains('vsp'));      // measure the real row height once per grid
   if (real.length) {
     const h = (real[real.length - 1].offsetTop + real[real.length - 1].offsetHeight - real[0].offsetTop) / real.length;
     if (h > 4 && Math.abs(h - rh) > 0.5) { rh = h; VR_H[tid] = h; paint(true); }
@@ -221,6 +224,102 @@ async function download(path, method = 'GET', body) {
 /* ── state ─────────────────────────────────────────────────────────────── */
 const S = { pid: null, projects: [], sum: null, grid: null, ds: null, dsId: null, view: 'dash', compare: null };
 const COLL = new Intl.Collator(undefined, { numeric: true, sensitivity: 'base' });
+/* valve29 — Excel-style column filter on every list (▾ in a column header): values with counts · search · sort A→Z / Z→A ·
+   (Select All) · Clear.  Big lists filter their DATA (xfApply: virtual / batched rows filter every row at once); small
+   tables that are drawn whole are decorated automatically (xfDom) — dashboard cards, documents, rules, revision rows … */
+const XF = {}, XFR = {};                    // key -> {f: {col: Set | null}, s: {k, d} | null} · key -> {rows, cols, redraw}
+const xfState = key => XF[key] ||= { f: {}, s: null };
+const xfVal = (g, r) => { const v = g(r); return v == null || String(v).trim() === '' ? '(Blanks)' : String(v).trim(); };
+function xfApply(key, rows, cols, redraw) {
+  XFR[key] = { rows, cols, redraw };
+  const st = xfState(key);
+  for (const k of Object.keys(st.f)) if (!cols[k]) delete st.f[k];
+  const act = Object.entries(st.f).filter(([, v]) => v);
+  let out = act.length ? rows.filter(r => act.every(([k, set]) => set.has(xfVal(cols[k], r)))) : rows;
+  if (st.s && cols[st.s.k]) {                 // sort the distinct values once (collator), then rows by rank (integers): 17k rows ≈ 20 ms
+    const g = cols[st.s.k], d = st.s.d, kv = out.map(r => xfVal(g, r));
+    const rank = new Map([...new Set(kv)].sort((a, b) => a === '(Blanks)' ? 1 : b === '(Blanks)' ? -1 : COLL.compare(a, b)).map((v, n) => [v, n]));
+    const idx = out.map((_, n) => n).sort((a, b) => d * (rank.get(kv[a]) - rank.get(kv[b])) || a - b);
+    out = idx.map(n => out[n]);
+  }
+  return out;
+}
+function xfBtn(key, k) {
+  const st = xfState(key), on = !!st.f[k], so = st.s?.k === k;
+  return `<button class="xfb ${on ? 'on' : ''}" data-xf="${esc(key)}" data-xk="${esc(k)}" title="필터 · 정렬 (Excel 처럼)">${so ? (st.s.d > 0 ? '↑' : '↓') : ''}▾</button>`;
+}
+function xfMark(key) {                       // after a rows-only redraw: the header buttons show what is filtered / sorted
+  const st = xfState(key);
+  $$(`.xfb[data-xf="${CSS.escape(key)}"]`).forEach(b => { const k = b.dataset.xk; b.classList.toggle('on', !!st.f[k]); b.textContent = (st.s?.k === k ? (st.s.d > 0 ? '↑' : '↓') : '') + '▾'; });
+}
+function xfClear(key) { XF[key] = { f: {}, s: null }; }
+const xfActive = key => !!XF[key] && (Object.values(XF[key].f).some(Boolean) || !!XF[key].s);
+function xfPop(btn) {
+  xfClose();
+  const key = btn.dataset.xf, k = btn.dataset.xk, R = XFR[key]; if (!R?.cols[k]) return;
+  const st = xfState(key), g = R.cols[k];
+  const others = Object.entries(st.f).filter(([c, v]) => v && c !== k && R.cols[c]);          // like Excel: values left by the OTHER filters
+  const base = others.length ? R.rows.filter(r => others.every(([c, set]) => set.has(xfVal(R.cols[c], r)))) : R.rows;
+  const cnt = new Map(); for (const r of base) { const v = xfVal(g, r); cnt.set(v, (cnt.get(v) || 0) + 1); }
+  const vals = [...cnt.keys()].sort((a, b) => a === '(Blanks)' ? 1 : b === '(Blanks)' ? -1 : COLL.compare(a, b));
+  const cur = st.f[k], sel = new Set(cur ? vals.filter(v => cur.has(v)) : vals);
+  const box = document.createElement('div'); box.className = 'xfpop';
+  box.innerHTML = `<div class="xfs"><button data-s="1">↑ 오름차순</button><button data-s="-1">↓ 내림차순</button></div>
+    <input type="search" placeholder="검색" class="xfq"><label class="xfall"><input type="checkbox"> (모두 선택)</label><div class="xfl"></div>
+    <div class="xfa"><button class="xfc" title="이 열의 필터 · 정렬 지우기">지우기</button><span class="sp"></span><button class="xfx">취소</button><button class="pri xfok">확인</button></div>`;
+  document.body.append(box);
+  const r = btn.getBoundingClientRect(); box.style.left = Math.max(6, Math.min(innerWidth - 276, r.left - 120)) + 'px'; box.style.top = Math.min(innerHeight - 380, r.bottom + 4) + 'px';
+  const list = $('.xfl', box), all = $('.xfall input', box), q = $('.xfq', box);
+  let shown = vals;
+  const paint = () => {
+    const t = q.value.trim().toLowerCase(); shown = t ? vals.filter(v => v.toLowerCase().includes(t)) : vals;
+    const lab = (a, b) => shown.slice(a, b).map((v, n) => `<label><input type="checkbox" data-n="${a + n}" ${sel.has(v) ? 'checked' : ''}> <span>${esc(v)}</span> <small>${cnt.get(v)}</small></label>`).join('');
+    const tail = (shown.length > 1500 ? `<div class="soft">… ${shown.length - 1500}개 더 — 검색으로 좁히세요</div>` : '') + (shown.length ? '' : '<div class="soft">없음</div>');
+    list.innerHTML = lab(0, 120) + (shown.length <= 120 ? tail : '');            // what the box shows now; the rest a moment later
+    clearTimeout(list._t); if (shown.length > 120) list._t = setTimeout(() => { if (list.isConnected) list.insertAdjacentHTML('beforeend', lab(120, 1500) + tail); }, 30);
+    all.checked = shown.length > 0 && shown.every(v => sel.has(v));
+  };
+  paint(); q.focus();
+  q.oninput = () => { clearTimeout(q._t); q._t = setTimeout(() => { if (q.value.trim()) { sel.clear(); vals.filter(v => v.toLowerCase().includes(q.value.trim().toLowerCase())).forEach(v => sel.add(v)); } else vals.forEach(v => sel.add(v)); paint(); }, 60); };
+  list.onchange = e => { const v = shown[+e.target.dataset.n]; if (v === undefined) return; e.target.checked ? sel.add(v) : sel.delete(v); all.checked = shown.every(x => sel.has(x)); };
+  all.onchange = () => { shown.forEach(v => all.checked ? sel.add(v) : sel.delete(v)); paint(); };
+  const done = () => { xfClose(); R.redraw(); xfMark(key); };
+  $('.xfs', box).onclick = e => { const b = e.target.closest('[data-s]'); if (!b) return; st.s = { k, d: +b.dataset.s }; done(); };
+  $('.xfc', box).onclick = () => { st.f[k] = null; if (st.s?.k === k) st.s = null; done(); };
+  $('.xfx', box).onclick = xfClose;
+  const ok = () => { st.f[k] = sel.size === vals.length ? null : new Set(sel); done(); };
+  $('.xfok', box).onclick = ok;
+  box.onkeydown = e => { if (e.key === 'Enter') { e.preventDefault(); ok(); } else if (e.key === 'Escape') { e.stopPropagation(); xfClose(); } };
+}
+function xfClose() { $$('body > .xfpop').forEach(x => x.remove()); }
+document.addEventListener('click', e => {                    // capture: a header ▾ never sorts / drags / opens the card behind it
+  const b = e.target.closest('.xfb');
+  if (b) { e.stopPropagation(); e.preventDefault(); const open = $('body > .xfpop'); if (open && open._b === b) { xfClose(); return; } xfPop(b); const p = $('body > .xfpop'); if (p) p._b = b; return; }
+  if (!e.target.closest('.xfpop')) xfClose();
+}, true);
+/* tables drawn whole (≤ 3000 rows, not a data-filtered list): ▾ on each header, filter = hide rows, sort = reorder rows */
+function xfDom(table) {
+  if (table.dataset.xfd || table.closest('.xfpop') || table.querySelector('thead .xfb')) return;
+  const tb = table.tBodies[0], hr = table.tHead?.rows[table.tHead.rows.length - 1]; if (!tb || !hr || tb.rows.length > 3000) return;
+  table.dataset.xfd = '1';
+  const view = table.closest('.view, .card.big, .mbox')?.id || table.closest('.card')?.querySelector('h3')?.textContent || 'x';
+  const heads = [...hr.cells], key = 'dom:' + view + ':' + heads.map(h => h.textContent.trim()).join('|');
+  const cols = {}; heads.forEach((h, i) => { const t = h.textContent.trim(); if (!t || h.querySelector('input,button,select') || h.colSpan > 1) return; cols[i] = tr => tr.cells[i]?.textContent; h.insertAdjacentHTML('beforeend', ' ' + xfBtn(key, String(i))); });
+  if (!Object.keys(cols).length) return;
+  const rows = () => [...tb.rows].filter(r => r.cells.length >= heads.length - 1 && !r.querySelector('td.empty') && !r.classList.contains('tot'));
+  const redraw = () => {
+    const all = rows(), keep = new Set(xfApply(key, all, cols, redraw)), st = xfState(key);
+    all.forEach(r => { r.hidden = !keep.has(r); });
+    if (st.s) { const tot = [...tb.rows].filter(r => r.classList.contains('tot')); xfApply(key, all, cols, redraw).forEach(r => tb.append(r)); tot.forEach(r => tb.append(r)); }
+  };
+  XFR[key] = { rows: rows(), cols, redraw };
+  const st0 = XF[key]; if (st0 && xfActive(key)) redraw();            // the table was redrawn: keep its filter
+  table.addEventListener('pointerenter', () => { XFR[key] = { rows: rows(), cols, redraw }; }, { passive: true });   // rows that arrived later count
+}
+function xfDecorate(root = document) { $$('table.t:not([data-xfdata]):not([data-xfd])', root).forEach(xfDom); }
+new MutationObserver(() => { cancelAnimationFrame(xfDecorate._r); xfDecorate._r = requestAnimationFrame(() => xfDecorate()); })
+  .observe(document.body, { childList: true, subtree: true });
+
 const VIEWS = ['dash', 'docs', 'list', 'review', 'rev', 'proc', 'pms', 'rules', 'export', 'settings'];
 const STATUSES = ['Not Reviewed', 'Under Review', 'Accepted', 'Rejected', 'Commented', 'Resolved'];
 const NOT_PROCESS = new Set(['body_size', 'rating', 'body_material', 'ball_material', 'seat_material', 'seal_material', 'stem_material',
@@ -705,6 +804,7 @@ function dashTagRows(tags, max) {          // Review Status Table: problems firs
 function bigCard(card) {
   closeBig();
   const c = card.cloneNode(true); c.classList.add('big'); c.removeAttribute('style');
+  $$('.xfb', c).forEach(b => b.remove()); $$('table[data-xfd]', c).forEach(t => { delete t.dataset.xfd; $$('tr[hidden]', t).forEach(r => { r.hidden = false; }); });   // its own filter
   if (card.dataset.big === 'tags') { const tb = $('tbody', c); if (tb) tb.innerHTML = dashTagRows(S.sum.tags, Infinity); }
   const x = document.createElement('button'); x.className = 'bigx'; x.textContent = '✕'; x.title = '닫기 (Esc)'; x.onclick = closeBig; c.prepend(x);
   const bg = document.createElement('div'); bg.className = 'bigbg'; bg.onclick = closeBig;
@@ -841,6 +941,7 @@ async function renderList() {
   if (ft) rows = rows.filter(r => r.valve_type === ft);
   if (fs) rows = rows.filter(r => r.status === fs);
   const coll = COLL, sk = rows.map(r => [String(val(r, G.sort.k)), r]); sk.sort((a, b) => G.sort.d * coll.compare(a[0], b[0])); rows = sk.map(x => x[1]);
+  rows = xfApply('grid', rows, Object.fromEntries(cols.map(c => [c.key, r => val(r, c.key)])), () => { G.rowsOnly = true; renderList(); });
   const keepQ = $('#gq')?.value || '', keepT = ft || '', keepS = fs || '';
   const oldWrap = $('.xg-wrap', el), keepX = oldWrap?.scrollLeft || 0, keepY = oldWrap?.scrollTop || 0;
   const __grows = rows.map((r, n) => () => `<tr data-id="${r.id}" class="${G.sel.has(r.id) ? 'sel' : ''}"><td class="fz" style="left:0"><input type="checkbox" ${G.sel.has(r.id) ? 'checked' : ''} aria-label="선택"></td><td class="fz" style="left:30px">${n + 1}</td>
@@ -865,7 +966,7 @@ async function renderList() {
       <button id="greset" title="열 순서·너비 처음대로">열 초기화</button>
       <button id="gopen" ${G.sel.size ? '' : 'disabled'}>Open Datasheet</button><button class="pri" id="gx">⇩ Export Excel</button></div>
     ${lpWrap(`<div class="xg-wrap"><table class="xg" id="xg" style="width:${70 + cols.reduce((a, c) => a + c.w, 0)}px"><colgroup><col style="width:30px"><col style="width:40px">${cols.map(c => `<col style="width:${c.w}px">`).join('')}</colgroup>
-      <thead><tr><th class="fz" style="left:0"><input type="checkbox" id="gall" aria-label="전체 선택"></th><th class="fz" style="left:30px">#</th>${cols.map((c, i) => `<th draggable="true" data-k="${c.key}" ${i === 0 ? 'class="fz fzl" style="left:70px"' : ''} title="${esc(c.title)} — 눌러 정렬 · 끌어 순서 바꾸기">${esc(c.title)}${G.sort.k === c.key ? (G.sort.d > 0 ? ' ▲' : ' ▼') : ''}<span class="rz"></span></th>`).join('')}</tr>
+      <thead><tr><th class="fz" style="left:0"><input type="checkbox" id="gall" aria-label="전체 선택"></th><th class="fz" style="left:30px">#</th>${cols.map((c, i) => `<th draggable="true" data-k="${c.key}" ${i === 0 ? 'class="fz fzl" style="left:70px"' : ''} title="${esc(c.title)} — 눌러 정렬 · 끌어 순서 바꾸기">${esc(c.title)}${G.sort.k === c.key ? (G.sort.d > 0 ? ' ▲' : ' ▼') : ''} ${xfBtn('grid', c.key)}<span class="rz"></span></th>`).join('')}</tr>
       <tr class="flt"><th class="fz" style="left:0"></th><th class="fz" style="left:30px"></th>${cols.map((c, i) => `<th ${i === 0 ? 'class="fz fzl" style="left:70px"' : ''}><input data-f="${c.key}" value="${esc(G.flt[c.key] || '')}" placeholder="filter" aria-label="${esc(c.title)} filter"></th>`).join('')}</tr></thead>
       <tbody></tbody></table></div>`)}`;
   chunkRows($('#xg tbody'), __grows, 80, __gfb);
@@ -958,7 +1059,9 @@ async function renderReq() {
   const el = $('#v-list');
   if (!S.reqs) { el.innerHTML = '<div class="empty">특수 요구사항을 모으는 중…</div>'; S.reqs = await api('GET', `/projects/${S.pid}/requirements`); }
   const R = S.reqs, cols = R.columns, q = RQ.q.toUpperCase().replace(/[^0-9A-Z]/g, '');
-  const L = R.tags.filter(t => (!RQ.area || t.area === RQ.area) && (!RQ.req || t.on.includes(RQ.req)) && (!q || t.tag.includes(q)));
+  const L = xfApply('req', R.tags.filter(t => (!RQ.area || t.area === RQ.area) && (!RQ.req || t.on.includes(RQ.req)) && (!q || t.tag.includes(q))),
+    { tag: t => t.tag, area: t => t.area, unit: t => t.unit, type: t => t.valve_type, n: t => t.on.length,
+      ...Object.fromEntries(cols.map(h => [h, t => !t.cells[h] ? '' : t.on.includes(h) ? 'Required' : 'Not Required'])) }, () => renderReq());
   const num = (n, a, h) => n ? `<button class="rqn ${RQ.area === a && RQ.req === h ? 'on' : ''}" data-ra="${esc(a)}" data-rr="${esc(h)}" title="${esc(a || '전체')} · ${esc(h)} — 이 Tag 들만">${n}</button>` : '<span class="soft">·</span>';
   const keepY = $('.xg-wrap', el)?.scrollTop || 0;
   const rows = L.map((t, n) => () => `<tr data-id="${t.ds_id}"><td class="fz" style="left:0">${n + 1}</td><td class="fz fzl" style="left:34px"><b>${esc(t.tag)}</b></td><td>${esc(t.area)}</td><td>${esc(t.unit)}</td><td>${esc(t.valve_type)}</td><td>${t.on.length}</td>
@@ -966,12 +1069,12 @@ async function renderReq() {
   el.innerHTML = `<div class="vh">${listTop()}<input type="search" id="rqq" placeholder="Tag 검색" value="${esc(RQ.q)}" style="width:150px">
       <span class="soft">${RQ.area || RQ.req ? `거른 것: <b>${esc(RQ.area || '전체 Area')}</b> · <b>${esc(RQ.req ? reqShort(RQ.req) : '모든 요구사항')}</b> <button id="rqclr">지우기</button> · ` : ''}${L.length} / ${R.tags.length} Tag</span>
       <span class="sp"></span><button class="pri" id="rqx" title="Summary by Area · Summary by Unit · By Tag (지금 거른 대로)">⇩ Special Requirements Excel</button></div>
-    <div class="card rqsum"><table class="t"><thead><tr><th>Area</th><th>Units</th><th>Tags</th>${cols.map(h => `<th><button class="rqh ${!RQ.area && RQ.req === h ? 'on' : ''}" data-ra="" data-rr="${esc(h)}" title="${esc(h)}">${esc(reqShort(h))}</button></th>`).join('')}</tr></thead><tbody>
+    <div class="card rqsum"><table class="t" data-xfdata="1"><thead><tr><th>Area</th><th>Units</th><th>Tags</th>${cols.map(h => `<th><button class="rqh ${!RQ.area && RQ.req === h ? 'on' : ''}" data-ra="" data-rr="${esc(h)}" title="${esc(h)}">${esc(reqShort(h))}</button></th>`).join('')}</tr></thead><tbody>
       ${R.by_area.map(a => `<tr><td><button class="rqa ${RQ.area === a.area && !RQ.req ? 'on' : ''}" data-ra="${esc(a.area)}" data-rr="">${esc(a.area)}</button></td><td class="soft">${esc(a.units.join(', '))}</td><td>${a.tags}</td>${cols.map(h => `<td>${num(a.counts[h], a.area, h)}</td>`).join('')}</tr>`).join('')}
       <tr class="tot"><td><b>Total</b></td><td></td><td><b>${R.total.tags}</b></td>${cols.map(h => `<td><b>${num(R.total.counts[h], '', h)}</b></td>`).join('')}</tr></tbody></table>
       <p class="soft hint">숫자 = 그 요구사항이 적용되는 Tag 수 (데이터시트 칸이 먼저 · 없으면 Notes / General Notes). 숫자를 누르면 아래 표가 그 Tag 들로 걸러집니다.</p></div>
     ${lpWrap(`<div class="xg-wrap rqwrap"><table class="xg rqt" id="rqt" style="width:${34 + 130 + 80 + 46 + 56 + 50 + cols.length * 104}px"><colgroup><col style="width:34px"><col style="width:130px"><col style="width:80px"><col style="width:46px"><col style="width:56px"><col style="width:50px">${cols.map(() => '<col style="width:104px">').join('')}</colgroup>
-      <thead><tr><th class="fz" style="left:0">#</th><th class="fz fzl" style="left:34px">Tag Number</th><th>Area</th><th>Unit</th><th>Type</th><th title="적용되는 요구사항 수">Count</th>${cols.map(h => `<th title="${esc(h)}">${esc(reqShort(h))}</th>`).join('')}</tr></thead>
+      <thead><tr><th class="fz" style="left:0">#</th><th class="fz fzl" style="left:34px">Tag Number ${xfBtn('req', 'tag')}</th><th>Area ${xfBtn('req', 'area')}</th><th>Unit ${xfBtn('req', 'unit')}</th><th>Type ${xfBtn('req', 'type')}</th><th title="적용되는 요구사항 수">Count ${xfBtn('req', 'n')}</th>${cols.map(h => `<th title="${esc(h)}">${esc(reqShort(h))} ${xfBtn('req', h)}</th>`).join('')}</tr></thead>
       <tbody></tbody></table></div>`)}`;
   chunkRows($('#rqt tbody'), rows, 80, `<tr><td colspan="${6 + cols.length}" class="empty">조건에 맞는 Tag 가 없습니다</td></tr>`);
   const wrap = $('.rqwrap', el); if (wrap) wrap.scrollTop = keepY;
@@ -993,7 +1096,8 @@ async function renderIssues(rowsOnly) {
   if (!S.issues) { el.innerHTML = '<div class="empty">지적 사항을 계산하는 중…</div>'; const r = await loadIssues(); S.issues = r.issues; S.issueTypes = r.types; }
   const all = S.issues.filter(i => IF.internal || i.type !== 'Extraction Review');
   const q = IF.q.toUpperCase().replace(/[^0-9A-Z]/g, '');
-  const L = all.filter(i => (!IF.type || i.type === IF.type) && (!IF.sev || i.severity === IF.sev) && (!IF.st || i.status === IF.st) && (!IF.area || i.area_name === IF.area) && (!q || i.tag.includes(q)));
+  const L = xfApply('iss', all.filter(i => (!IF.type || i.type === IF.type) && (!IF.sev || i.severity === IF.sev) && (!IF.st || i.status === IF.st) && (!IF.area || i.area_name === IF.area) && (!q || i.tag.includes(q))),
+    ISSCOLS, () => renderIssues(true));
   const areas = [...new Set(all.map(i => i.area_name).filter(Boolean))].sort((a, b) => ({ North: 0, South: 1, Brownfield: 2, W15: 3 }[a] ?? 9) - ({ North: 0, South: 1, Brownfield: 2, W15: 3 }[b] ?? 9));
   const types = [...new Set(all.map(i => i.type))];
   const cnt = t => all.filter(i => i.type === t && i.status !== 'Dismissed').length;
@@ -1014,7 +1118,7 @@ async function renderIssues(rowsOnly) {
       <span class="soft" id="icnt">${L.length} / ${all.length}</span><span class="sp"></span>
       <button id="ixl" title="지금 필터 그대로 · Dismissed 제외">⇩ Issue List Excel</button><button class="pri" id="ipdf" title="지금 필터 그대로 · 인쇄용 표시 + Issue Summary">⇩ Mark-up PDF</button></div>
     ${lpWrap(`<div class="xg-wrap"><table class="xg" id="ig" style="width:1500px"><colgroup>${[34, 110, 150, 40, 62, 46, 150, 150, 130, 330, 150, 64, 100].map(w => `<col style="width:${w}px">`).join('')}</colgroup>
-      <thead><tr>${['No.', 'Tag Number', 'Doc. No.', 'Rev.', 'Sheet', 'Page', 'Field', 'Datasheet Value', 'Issue Type', 'Description', 'Required / Expected', 'Severity', 'Status'].map((h, n) => `<th ${n < 2 ? `class="fz ${n ? 'fzl' : ''}" style="left:${n ? 34 : 0}px"` : ''}>${h}</th>`).join('')}</tr></thead>
+      <thead><tr>${['No.', 'Tag Number', 'Doc. No.', 'Rev.', 'Sheet', 'Page', 'Field', 'Datasheet Value', 'Issue Type', 'Description', 'Required / Expected', 'Severity', 'Status'].map((h, n) => `<th ${n < 2 ? `class="fz ${n ? 'fzl' : ''}" style="left:${n ? 34 : 0}px"` : ''}>${h} ${xfBtn('iss', ISSKEYS[n])}</th>`).join('')}</tr></thead>
       <tbody></tbody></table></div>`)}`;
   $('.xg-wrap', el).scrollTop = keepY;
   $$('[data-lm]', el).forEach(b => b.onclick = () => { G.mode = b.dataset.lm; renderList(); });
@@ -1023,7 +1127,7 @@ async function renderIssues(rowsOnly) {
   $('#it').onchange = e => { IF.type = e.target.value; re(); }; $('#isv').onchange = e => { IF.sev = e.target.value; re(); }; $('#iar').onchange = e => { IF.area = e.target.value; re(); };
   $('#ist').onchange = e => { IF.st = e.target.value; re(); }; $('#iint').onchange = e => { IF.internal = e.target.checked; re(); };
   const qNow = () => IF.q.toUpperCase().replace(/[^0-9A-Z]/g, '');     // read at click time: filters redraw rows only
-  const qs = () => new URLSearchParams({ types: IF.type || (IF.internal ? [...types].join(',') : ''), severity: IF.sev, tag: qNow() ? [...new Set(IF.L.map(i => i.tag))].join(',') : '' }).toString();
+  const qs = () => new URLSearchParams({ types: IF.type || (IF.internal ? [...types].join(',') : ''), severity: IF.sev, tag: qNow() || xfActive('iss') ? [...new Set(IF.L.map(i => i.tag))].join(',') : '' }).toString();
   const pick = async what => { const t = await pickTypes(`${what} — 넣을 Issue Type`, { preset: IF.type ? [IF.type] : null,
       note: [IF.sev && `Severity ${IF.sev}`, qNow() && `검색 '${qNow()}' 에 걸린 Tag 만`].filter(Boolean).join(' · ') || '' });
     if (t == null) return null; const p = new URLSearchParams(qs()); p.set('types', t); return p.toString(); };
@@ -1709,6 +1813,9 @@ async function renderRev() {
 async function allFields(limit = 60) {
   return Promise.all(S.sum.tags.slice(0, limit).map(t => api('GET', `/datasheets/${t.id}`)));
 }
+const PROCCOLS = { tag: r => r.tag, item: r => r.item, ds: r => r.ds ? `${r.ds} ${r.ds_unit || ''}` : '', pd: r => r.pd ? `${r.pd} ${r.pd_unit || ''}` : '', result: r => r.result, reason: r => r.reason, pdp: r => r.pd_page, dsp: r => r.ds_page };
+const PMSCOLS = { tag: r => r.tag, area: r => r.area || '?', class: r => r.class, item: r => r.item, req: r => r.req, ds: r => r.ds, result: r => r.result, reason: r => r.reason, pmsp: r => r.pms_page, dsp: r => r.ds_page };
+const xfHeads = (key, heads) => heads.map(([t, k]) => `<th>${t} ${xfBtn(key, k)}</th>`).join('');
 async function renderProc() {
   const el = $('#v-proc'); el.classList.add('full');
   if (!S.sum.has_process) {
@@ -1719,7 +1826,7 @@ async function renderProc() {
   if (!S.procRows) { el.innerHTML = '<div class="empty">Process Data 와 비교하는 중…</div>'; const r = await api('GET', `/projects/${S.pid}/process`); S.procRows = r.rows; S.procRows.forEach((x, n) => { x._n = n; }); S.procDoc = r.process_doc; }
   const P = S.procF ||= { res: '', q: '', item: '' };
   const q = P.q.toUpperCase().replace(/[^0-9A-Z]/g, '');
-  const L = S.procRows.filter(r => (!P.res || r.result === P.res) && (!P.item || r.item === P.item) && (!q || r.tag.includes(q)));
+  const L = xfApply('proc', S.procRows.filter(r => (!P.res || r.result === P.res) && (!P.item || r.item === P.item) && (!q || r.tag.includes(q))), PROCCOLS, () => renderProc());
   const cnt = x => S.procRows.filter(r => r.result === x).length, tagsIn = new Set(S.procRows.filter(r => r.key !== 'tag').map(r => r.tag)).size;
   const RES = ['Mismatch', 'Review Required', 'Match', 'Referenced', 'Not in Process Data', 'Datasheet Blank'];
   const tip = { Mismatch: 'Datasheet 값이 Process Data 와 다름 — 설계사에게 지적', 'Review Required': '단위 · 기준 · 표현이 달라 자동으로 못 정함 — 엔지니어 확인 (불일치 아님)', Match: '같음 (1 % 허용)',
@@ -1730,7 +1837,7 @@ async function renderProc() {
       <select id="pi"><option value="">All Items</option>${[...new Set(S.procRows.map(r => r.item))].map(x => `<option ${x === P.item ? 'selected' : ''}>${esc(x)}</option>`).join('')}</select>
       <input type="search" id="pq" placeholder="Tag 검색" value="${esc(P.q)}" style="width:140px"><span class="soft">${L.length}행</span></div>
       <div class="soft hint" style="margin-top:4px">공정 항목만 비교 (Valve Size · Rating · Material · Piping Class 제외) · 압력은 게이지/절대 기준이 양쪽에 적혀 있을 때만 · 단위가 불명확하면 Review Required · Match 허용 오차 1 %</div></div>
-    <div style="flex:1;min-height:0;overflow:auto;padding:0 14px"><table class="t"><thead><tr><th>Tag Number</th><th>Item</th><th>Datasheet Value</th><th>Process Data</th><th>Result</th><th>Reason</th><th>PD p.</th><th>DS p.</th></tr></thead><tbody id="pdtb"></tbody></table></div>
+    <div style="flex:1;min-height:0;overflow:auto;padding:0 14px"><table class="t" data-xfdata="1"><thead><tr>${xfHeads('proc', [['Tag Number', 'tag'], ['Item', 'item'], ['Datasheet Value', 'ds'], ['Process Data', 'pd'], ['Result', 'result'], ['Reason', 'reason'], ['PD p.', 'pdp'], ['DS p.', 'dsp']])}</tr></thead><tbody id="pdtb"></tbody></table></div>
     <div style="height:42%;min-height:200px;display:flex;border-top:3px solid #1d2330;position:relative"><div class="rc-side" id="pdL"></div><div class="rc-side" id="pdR"></div>
       <div class="pmhint" id="pdhint">행을 누르면 Datasheet 칸 ↔ Process Data 칸이 나란히 열립니다.<span class="hint soft"> Review Required · Referenced · Not in Process Data 는 불일치가 아니라 확인할 것.</span></div></div></div>`;
   chunkRows($('#pdtb'), L.map(r => () => `<tr class="click" data-n="${r._n}"><td><b>${esc(r.tag)}</b></td><td>${esc(r.item)}</td><td>${esc(r.ds || '—')} <small class="soft">${esc(r.ds_unit)}</small></td><td>${esc(r.pd || '—')} <small class="soft">${esc(r.pd_unit)}</small></td>
@@ -1754,14 +1861,14 @@ async function renderPms() {
   if (!S.pmsRows) { el.innerHTML = '<div class="empty">PMS 와 비교하는 중…</div>'; const r = await api('GET', `/projects/${S.pid}/pms`); S.pmsRows = r.rows; S.pmsRows.forEach((x, n) => { x._n = n; }); S.pmsDoc = r.pms_doc; }
   const P = S.pmsF ||= { res: '', q: '', item: '' };
   const q = P.q.toUpperCase().replace(/[^0-9A-Z]/g, '');
-  const L = S.pmsRows.filter(r => (!P.res || r.result === P.res) && (!P.item || r.item === P.item) && (!q || r.tag.includes(q)));
+  const L = xfApply('pms', S.pmsRows.filter(r => (!P.res || r.result === P.res) && (!P.item || r.item === P.item) && (!q || r.tag.includes(q))), PMSCOLS, () => renderPms());
   const cnt = x => S.pmsRows.filter(r => r.result === x).length;
   el.innerHTML = `<div style="display:flex;flex-direction:column;width:100%;height:100%"><div style="padding:10px 14px 6px;background:var(--bg)"><div class="vh" style="margin:0">
       <h2>PMS Compliance</h2><span class="soft">${esc(S.pmsDoc?.filename || '')}</span>
       ${['Non-Compliant', 'Review Required', 'Not Defined in PMS', 'Compliant'].map(x => `<button data-pr="${x}" class="${P.res === x ? 'pri' : ''}" title="${{ 'Non-Compliant': '요구 재질 · 등급과 다름 — 설계사에게 지적', 'Review Required': '자동으로 못 정함 — 엔지니어 확인 (부적합 아님)', 'Not Defined in PMS': 'PMS 에 그 항목이 없음 (부적합 아님)', Compliant: '요구 사항 충족' }[x]}">${pill(x.replace(/[^A-Za-z]/g, ''), { 'Non-Compliant': '✖ ', 'Review Required': '? ', 'Not Defined in PMS': '– ', Compliant: '✔ ' }[x] + x)} ${cnt(x)}</button>`).join('')}
       <select id="pi"><option value="">All Items</option>${[...new Set(S.pmsRows.map(r => r.item))].map(x => `<option ${x === P.item ? 'selected' : ''}>${esc(x)}</option>`).join('')}</select>
       <input type="search" id="pq" placeholder="Tag 검색" value="${esc(P.q)}" style="width:140px"><span class="soft">${L.length}행 · 재질은 규격·등급으로 비교 (표기 차이 무시)</span></div></div>
-    <div style="flex:1;min-height:0;overflow:auto;padding:0 14px"><table class="t"><thead><tr><th>Tag Number</th><th>Area</th><th>Piping Material Class</th><th>Item</th><th>PMS Requirement</th><th>Datasheet Value</th><th>Compliance Result</th><th>Reason</th><th>PMS Ref. Page</th><th>DS Ref. Page</th></tr></thead><tbody id="pmtb"></tbody></table></div>
+    <div style="flex:1;min-height:0;overflow:auto;padding:0 14px"><table class="t" data-xfdata="1"><thead><tr>${xfHeads('pms', [['Tag Number', 'tag'], ['Area', 'area'], ['Piping Material Class', 'class'], ['Item', 'item'], ['PMS Requirement', 'req'], ['Datasheet Value', 'ds'], ['Compliance Result', 'result'], ['Reason', 'reason'], ['PMS Ref. Page', 'pmsp'], ['DS Ref. Page', 'dsp']])}</tr></thead><tbody id="pmtb"></tbody></table></div>
     <div style="height:42%;min-height:200px;display:flex;border-top:3px solid #1d2330;position:relative"><div class="rc-side" id="pmL"></div><div class="rc-side" id="pmR"></div>
       <div class="pmhint" id="pmhint">행을 누르면 Datasheet 칸 ↔ PMS 근거 쪽이 나란히 열립니다.<span class="hint soft"> Review Required · Not Defined 는 부적합이 아니라 확인할 것.</span></div></div></div>`;
   chunkRows($('#pmtb'), L.map((r, n) => () => `<tr class="click" data-n="${r._n}"><td><b>${esc(r.tag)}</b></td><td>${esc(r.area || '?')}</td><td>${esc(r.class)}</td><td>${esc(r.item)}</td><td>${esc(r.req)}</td><td>${esc(r.ds)}</td>

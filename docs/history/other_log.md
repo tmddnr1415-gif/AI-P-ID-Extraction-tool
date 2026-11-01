@@ -203,3 +203,9 @@
 - 대시보드 카드 제목/빈 곳 클릭 → 큰 화면(Esc · 바깥 · ✕), Review Status Table 은 전체 Tag. 큰 화면 행 클릭 → 그 데이터시트.
 - 색 버튼(.on/.pri/레이어) 덮지 않게 범위 제한. UI 25/25 · LINK OK · 동작 측정 최장 멈춤 156 ms(전과 같은 범위).
 
+## 2026-11-01 · valve29 — Excel 같은 열 필터를 모든 목록에 (사용자 요청)
+- ▾ 팝업(정렬 · 검색 · 값 체크 · 건수 · 모두 선택 · 지우기). 큰 목록 5개는 데이터 단위, 나머지 표는 자동 장착(xfDom).
+- 실자료 확인: Issue Type=Data Error 7 · Process Mismatch 42 · North 74 Tag — KPI 와 일치. 메뉴 이동 후 필터 유지.
+- 990 DS 필터 ≈ 0.2 s. 정렬을 값 순위 방식으로(17k 행 JS 25 ms) · 가상 행 높이 재측정 생략.
+- UI 25/25 · LINK OK · valve 시험 105 통과. `spike/valve_filter_check.cjs`.
+

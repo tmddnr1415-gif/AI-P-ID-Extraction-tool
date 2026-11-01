@@ -625,3 +625,9 @@ Note 113 · PC-01 Confirm 6(3C0K8 의 '316 SS/FHF' 2개 · API5L-X65 MOV 1500# �
 - 카드 크게 보기: 카드를 복제해 화면 위에 띄움(뒤 격자는 안 움직임 · 클릭은 문서 위임이라 그대로 동작). Review Status Table 은 큰 화면에서 전체 Tag(`dashTagRows`).
 - Settings › 입체 화면 끄기 = `LS.flat`.
 
+### 34-4. Excel 같은 열 필터 (valve29, 사용자 요청 "모든 리스트 화면에")
+- 큰 목록(Valve List · Issue List · Special Req. · Process · PMS)은 **데이터를 거른다**(`xfApply(key, rows, cols, redraw)`): 가상 행 · 나눠 그리기여도 모든 행에 즉시. 정렬은 값 종류만 collator 로 정렬 → 순위(정수)로 행 정렬(17k 행 ≈ 20 ms).
+- 통째로 그린 작은 표(`table.t`, ≤ 3000행)는 MutationObserver 가 자동으로 ▾ 를 달고(`xfDom`) 행 숨김 · 재배치로 거른다. 큰 목록 표는 `data-xfdata` 로 제외.
+- 값 목록은 다른 열 필터에 남은 행에서 센다(Excel 방식). 처음 120개만 바로 그리고 나머지는 잠시 뒤(최대 1,500).
+- 990 DS(지적 17,512) 측정: 필터 적용 ≈ 0.2 s · 정렬 ≈ 0.2–0.3 s(JS 25 ms, 나머지는 표 배치) · 열기 0.1–0.25 s. 확인: `spike/valve_filter_check.cjs`.
+
