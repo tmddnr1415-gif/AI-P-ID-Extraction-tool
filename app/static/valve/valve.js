@@ -115,7 +115,12 @@ function chunkRows(tbody, rows, first = 80, empty = '') {    // 80 rows ≈ one 
   const html = (a, b) => rows.slice(a, b).map(x => typeof x === 'function' ? x() : x).join('');   // valve26: rows may be lazy builders
   if (!tbody) return; tbody.innerHTML = rows.length ? html(0, first) : empty; let i = first;
   const idle = window.requestIdleCallback || (f => setTimeout(f, 0));
-  const more = () => { if (i >= rows.length || !tbody.isConnected) return; const e = Math.min(i + 200, rows.length); tbody.insertAdjacentHTML('beforeend', html(i, e)); i = e; idle(more); };
+  const more = dl => {                                // valve29: fill the idle time, then yield — fast and never a long freeze
+    if (!tbody.isConnected) return;
+    do { if (i >= rows.length) return; const e = Math.min(i + 40, rows.length); tbody.insertAdjacentHTML('beforeend', html(i, e)); i = e; }
+    while (dl && dl.timeRemaining && dl.timeRemaining() > 12);
+    idle(more);
+  };
   if (i < rows.length) idle(more);
 }
 async function download(path, method = 'GET', body) {
@@ -825,7 +830,7 @@ async function renderIssues(rowsOnly) {
   const types = [...new Set(all.map(i => i.type))];
   const cnt = t => all.filter(i => i.type === t && i.status !== 'Dismissed').length;
   const keepY = $('.xg-wrap', el)?.scrollTop || 0;
-  const __rows = L.slice(0, 6000).map((i, n) => `<tr data-i="${esc(i.ds_id + '|' + i.ikey)}" class="${G.selIss === i.ikey && G.selDs === i.ds_id ? 'sel' : ''}">
+  const __rows = L.map((i, n) => () => `<tr data-i="${esc(i.ds_id + '|' + i.ikey)}" class="${G.selIss === i.ikey && G.selDs === i.ds_id ? 'sel' : ''}">
         <td class="fz" style="left:0"><b class="no ${i.color}">${i.no}</b></td><td class="fz fzl" style="left:34px"><b>${esc(i.tag)}</b></td><td>${esc(i.doc_no)}</td><td>${esc(i.rev)}</td><td>${i.sheet || ''} of ${i.of || ''}</td><td>${i.page || ''}</td>
         <td title="${esc(i.field)}">${esc(i.field)}${i.row ? ` <small>#${i.row}</small>` : ''}</td><td title="${esc(i.value)}">${esc(i.value || '(blank)')}</td>
         <td>${pill(i.type.replace(/[^A-Za-z]/g, ''), i.type)}</td><td title="${esc(i.description)}${i.evidence?.length ? '\n근거: ' + esc(i.evidence.map(x => `${x.doc || ''}${x.page ? ' p.' + x.page : ''} ${x.where || ''}: ${String(x.text || '').slice(0, 60)}`).join(' | ')) : ''}">${esc(i.description)}</td><td title="${esc(i.expected)}">${esc(i.expected)}</td>
@@ -1531,23 +1536,23 @@ async function renderProc() {
       <select id="pi"><option value="">All Items</option>${[...new Set(S.procRows.map(r => r.item))].map(x => `<option ${x === P.item ? 'selected' : ''}>${esc(x)}</option>`).join('')}</select>
       <input type="search" id="pq" placeholder="Tag 검색" value="${esc(P.q)}" style="width:140px"><span class="soft">${L.length}행</span></div>
       <div class="soft hint" style="margin-top:4px">공정 항목만 비교 (Valve Size · Rating · Material · Piping Class 제외) · 압력은 게이지/절대 기준이 양쪽에 적혀 있을 때만 · 단위가 불명확하면 Review Required · Match 허용 오차 1 %</div></div>
-    <div style="flex:1;min-height:0;overflow:auto;padding:0 14px"><table class="t"><thead><tr><th>Tag Number</th><th>Item</th><th>Datasheet Value</th><th>Process Data</th><th>Result</th><th>Reason</th><th>PD p.</th><th>DS p.</th></tr></thead><tbody>
-      ${L.slice(0, 4000).map(r => `<tr class="click" data-n="${r._n}"><td><b>${esc(r.tag)}</b></td><td>${esc(r.item)}</td><td>${esc(r.ds || '—')} <small class="soft">${esc(r.ds_unit)}</small></td><td>${esc(r.pd || '—')} <small class="soft">${esc(r.pd_unit)}</small></td>
-        <td>${pill(r.result.replace(/[^A-Za-z]/g, ''), r.result)}</td><td class="soft">${esc(r.reason)}</td><td>${r.pd_page || '—'}</td><td>${r.ds_page || ''}</td></tr>`).join('') || '<tr><td colspan="8" class="empty">없음</td></tr>'}</tbody></table></div>
+    <div style="flex:1;min-height:0;overflow:auto;padding:0 14px"><table class="t"><thead><tr><th>Tag Number</th><th>Item</th><th>Datasheet Value</th><th>Process Data</th><th>Result</th><th>Reason</th><th>PD p.</th><th>DS p.</th></tr></thead><tbody id="pdtb"></tbody></table></div>
     <div style="height:42%;min-height:200px;display:flex;border-top:3px solid #1d2330;position:relative"><div class="rc-side" id="pdL"></div><div class="rc-side" id="pdR"></div>
       <div class="pmhint" id="pdhint">행을 누르면 Datasheet 칸 ↔ Process Data 칸이 나란히 열립니다.<span class="hint soft"> Review Required · Referenced · Not in Process Data 는 불일치가 아니라 확인할 것.</span></div></div></div>`;
+  chunkRows($('#pdtb'), L.map(r => () => `<tr class="click" data-n="${r._n}"><td><b>${esc(r.tag)}</b></td><td>${esc(r.item)}</td><td>${esc(r.ds || '—')} <small class="soft">${esc(r.ds_unit)}</small></td><td>${esc(r.pd || '—')} <small class="soft">${esc(r.pd_unit)}</small></td>
+        <td>${pill(r.result.replace(/[^A-Za-z]/g, ''), r.result)}</td><td class="soft">${esc(r.reason)}</td><td>${r.pd_page || '—'}</td><td>${r.ds_page || ''}</td></tr>`), 80, '<tr><td colspan="8" class="empty">없음</td></tr>');   // valve29: every row (was capped)
   const L1 = new Viewer($('#pdL'), { extra: '<span class="lbl">Datasheet</span>' }), R1 = new Viewer($('#pdR'), { extra: '<span class="lbl">Process Data</span>' });
   $$('[data-pr]', el).forEach(b => b.onclick = () => { P.res = P.res === b.dataset.pr ? '' : b.dataset.pr; renderProc(); });
   $('#pi').onchange = e => { P.item = e.target.value; renderProc(); };
   $('#pq').oninput = e => { P.q = e.target.value; clearTimeout(P.t); P.t = setTimeout(() => { renderProc().then(() => { const f = $('#pq'); f.focus(); f.setSelectionRange(f.value.length, f.value.length); }); }, 300); };
-  $$('tr[data-n]', el).forEach(tr => tr.onclick = async () => {
+  $('#pdtb').onclick = async e => { const tr = e.target.closest('tr[data-n]'); if (!tr) return;   // valve29: rows arrive in batches — one handler
     $$('tr.sel', el).forEach(x => x.classList.remove('sel')); tr.classList.add('sel'); $('#pdhint')?.remove();
     const r = S.procRows[+tr.dataset.n], pages = (await api('GET', `/datasheets/${r.ds_id}`)).pages;
     await L1.load(r.document_id, pages); L1.fit();
     L1.setOverlays(r.ds_bbox ? [{ cat: r.result === 'Mismatch' ? 'process' : 'comment', page: r.ds_page, bbox: r.ds_bbox, title: r.item }] : []);
     if (r.ds_bbox) L1.focus(r.ds_page, r.ds_bbox, r.item); else L1.goPage(r.ds_page || pages[0]);
     if (r.pd_page) { await R1.load(S.procDoc.id, [r.pd_page]); R1.fit(); R1.setOverlays([]); if (r.pd_bbox) R1.focus(r.pd_page, r.pd_bbox, 'Process Data'); }
-  });
+  };
 }
 async function renderPms() {
   const el = $('#v-pms'); el.classList.add('full');
@@ -1562,23 +1567,23 @@ async function renderPms() {
       ${['Non-Compliant', 'Review Required', 'Not Defined in PMS', 'Compliant'].map(x => `<button data-pr="${x}" class="${P.res === x ? 'pri' : ''}" title="${{ 'Non-Compliant': '요구 재질 · 등급과 다름 — 설계사에게 지적', 'Review Required': '자동으로 못 정함 — 엔지니어 확인 (부적합 아님)', 'Not Defined in PMS': 'PMS 에 그 항목이 없음 (부적합 아님)', Compliant: '요구 사항 충족' }[x]}">${pill(x.replace(/[^A-Za-z]/g, ''), { 'Non-Compliant': '✖ ', 'Review Required': '? ', 'Not Defined in PMS': '– ', Compliant: '✔ ' }[x] + x)} ${cnt(x)}</button>`).join('')}
       <select id="pi"><option value="">All Items</option>${[...new Set(S.pmsRows.map(r => r.item))].map(x => `<option ${x === P.item ? 'selected' : ''}>${esc(x)}</option>`).join('')}</select>
       <input type="search" id="pq" placeholder="Tag 검색" value="${esc(P.q)}" style="width:140px"><span class="soft">${L.length}행 · 재질은 규격·등급으로 비교 (표기 차이 무시)</span></div></div>
-    <div style="flex:1;min-height:0;overflow:auto;padding:0 14px"><table class="t"><thead><tr><th>Tag Number</th><th>Area</th><th>Piping Material Class</th><th>Item</th><th>PMS Requirement</th><th>Datasheet Value</th><th>Compliance Result</th><th>Reason</th><th>PMS Ref. Page</th><th>DS Ref. Page</th></tr></thead><tbody>
-      ${L.slice(0, 3000).map((r, n) => `<tr class="click" data-n="${r._n}"><td><b>${esc(r.tag)}</b></td><td>${esc(r.area || '?')}</td><td>${esc(r.class)}</td><td>${esc(r.item)}</td><td>${esc(r.req)}</td><td>${esc(r.ds)}</td>
-        <td>${pill(r.result.replace(/[^A-Za-z]/g, ''), r.result)}</td><td class="soft">${esc(r.reason)}</td><td>${r.pms_page || '—'}</td><td>${r.ds_page || ''}</td></tr>`).join('') || '<tr><td colspan="10" class="empty">없음</td></tr>'}</tbody></table></div>
+    <div style="flex:1;min-height:0;overflow:auto;padding:0 14px"><table class="t"><thead><tr><th>Tag Number</th><th>Area</th><th>Piping Material Class</th><th>Item</th><th>PMS Requirement</th><th>Datasheet Value</th><th>Compliance Result</th><th>Reason</th><th>PMS Ref. Page</th><th>DS Ref. Page</th></tr></thead><tbody id="pmtb"></tbody></table></div>
     <div style="height:42%;min-height:200px;display:flex;border-top:3px solid #1d2330;position:relative"><div class="rc-side" id="pmL"></div><div class="rc-side" id="pmR"></div>
       <div class="pmhint" id="pmhint">행을 누르면 Datasheet 칸 ↔ PMS 근거 쪽이 나란히 열립니다.<span class="hint soft"> Review Required · Not Defined 는 부적합이 아니라 확인할 것.</span></div></div></div>`;
+  chunkRows($('#pmtb'), L.map((r, n) => () => `<tr class="click" data-n="${r._n}"><td><b>${esc(r.tag)}</b></td><td>${esc(r.area || '?')}</td><td>${esc(r.class)}</td><td>${esc(r.item)}</td><td>${esc(r.req)}</td><td>${esc(r.ds)}</td>
+        <td>${pill(r.result.replace(/[^A-Za-z]/g, ''), r.result)}</td><td class="soft">${esc(r.reason)}</td><td>${r.pms_page || '—'}</td><td>${r.ds_page || ''}</td></tr>`), 80, '<tr><td colspan="10" class="empty">없음</td></tr>');   // valve29: every row (was capped)
   const L1 = new Viewer($('#pmL'), { extra: '<span class="lbl">Datasheet</span>' }), R1 = new Viewer($('#pmR'), { extra: '<span class="lbl">PMS</span>' });
   $$('[data-pr]', el).forEach(b => b.onclick = () => { P.res = P.res === b.dataset.pr ? '' : b.dataset.pr; renderPms(); });
   $('#pi').onchange = e => { P.item = e.target.value; renderPms(); };
   $('#pq').oninput = e => { P.q = e.target.value; clearTimeout(P.t); P.t = setTimeout(() => { renderPms().then(() => { const f = $('#pq'); f.focus(); f.setSelectionRange(f.value.length, f.value.length); }); }, 300); };
-  $$('tr[data-n]', el).forEach(tr => tr.onclick = async () => {        // both references at once
+  $('#pmtb').onclick = async e => { const tr = e.target.closest('tr[data-n]'); if (!tr) return;   // valve29: rows arrive in batches — one handler
     $$('tr.sel', el).forEach(x => x.classList.remove('sel')); tr.classList.add('sel'); $('#pmhint')?.remove();
     const r = S.pmsRows[+tr.dataset.n], pages = (await api('GET', `/datasheets/${r.ds_id}`)).pages;
     await L1.load(r.document_id, pages); L1.fit();
     L1.setOverlays([{ cat: r.result === 'Non-Compliant' ? 'error' : r.result === 'Compliant' ? 'comment' : 'missing', page: r.ds_page, bbox: r.ds_bbox, title: r.item }]);
     if (r.ds_bbox) L1.focus(r.ds_page, r.ds_bbox, r.item);
     if (r.pms_page) { await R1.load(S.pmsDoc.id, [r.pms_page]); R1.fit(); R1.setOverlays([]); if (r.pms_bbox) R1.focus(r.pms_page, r.pms_bbox, 'PMS'); }
-  });
+  };
 }
 /* ── 8. Reports & Export · 9. Settings ─────────────────────────────────── */
 async function renderExport() {

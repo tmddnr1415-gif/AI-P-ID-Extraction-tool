@@ -593,27 +593,36 @@ def markup_pdf(entries: list[dict], project: str, title: str = "Valve Datasheet 
         toc.append([1, "Cover - issue counts", 1])
     for e in entries:
         src = srcs.get(e["path"]) or srcs.setdefault(e["path"], pymupdf.open(e["path"]))
-        start = out.page_count
+        # valve29: each datasheet is built in its own small document and appended once.  Working on the growing output
+        # re-loaded a page per annotation from an ever larger page tree (500 tags: 182 s, quadratic) — same pages, same marks.
+        sub = pymupdf.open()
         pmap = {}
         for p in e["pages"]:
             if 1 <= p <= src.page_count:
-                out.insert_pdf(src, from_page=p - 1, to_page=p - 1)
-                pmap[p] = out.page_count - 1
+                sub.insert_pdf(src, from_page=p - 1, to_page=p - 1)
+                pmap[p] = sub.page_count - 1
         if not pmap:
+            sub.close()
             continue
-        toc.append([1, f"{e['tag']}  Rev.{e['rev']}  ({len(e['issues'])})", start + 1])
+        pages = {p: sub[k] for p, k in pmap.items()}       # each page loaded once
         for i in e["issues"]:
-            if i.get("page") in pmap:
-                _annotate(out[pmap[i["page"]]], i)
+            if i.get("page") in pages:
+                _annotate(pages[i["page"]], i)
         if margin:                                         # last page first: continuation pages shift later indexes only
             for p in sorted(pmap, key=lambda k: -pmap[k]):
                 its = [i for i in e["issues"] if i.get("page") == p]
                 head = f"{e['tag']} · Rev.{e['rev']} · p.{p} — Review comments ({len(its)})"
-                rest = _comment_margin(out, pmap[p], its, head)
+                rest = _comment_margin(sub, pmap[p], its, head)
                 if rest:
-                    pg = out[pmap[p]]
-                    out.insert_pdf(_comment_page(rest, head + " (cont.)", (pg.rect.width, pg.rect.height)),
+                    pg = sub[pmap[p]]
+                    sub.insert_pdf(_comment_page(rest, head + " (cont.)", (pg.rect.width, pg.rect.height)),
                                    start_at=pmap[p] + 1)
+        if flatten:
+            sub.bake(annots=True, widgets=True)            # mark-ups become page content: identical on screen, print, any viewer
+        start = out.page_count
+        out.insert_pdf(sub)
+        sub.close()
+        toc.append([1, f"{e['tag']}  Rev.{e['rev']}  ({len(e['issues'])})", start + 1])
         if summary_pages and e["issues"]:
             trs = "".join(
                 f"<tr><td><span style='background-color:{_swatch(i['color'])};color:#FFFFFF'>&nbsp;{i['no']}&nbsp;</span></td>"
@@ -634,8 +643,6 @@ def markup_pdf(entries: list[dict], project: str, title: str = "Valve Datasheet 
     if out.page_count == 0:
         out.new_page()
         out[0].insert_text((72, 72), "No issues selected.", fontsize=12)
-    if flatten:
-        out.bake(annots=True, widgets=True)               # mark-ups become page content: identical on screen, print, any viewer
     out.set_toc(toc)
     return out.tobytes(garbage=4, deflate=True, use_objstms=1)    # garbage=4: logos and fonts stored once (8x smaller)
 
