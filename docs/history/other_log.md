@@ -209,3 +209,10 @@
 - 990 DS 필터 ≈ 0.2 s. 정렬을 값 순위 방식으로(17k 행 JS 25 ms) · 가상 행 높이 재측정 생략.
 - UI 25/25 · LINK OK · valve 시험 105 통과. `spike/valve_filter_check.cjs`.
 
+## 2026-11-01 · valve29 — Accessory 지식 · 규칙 AC-01~05 (사용자 요청: Ball valve · DVC6200 · PT · SOL · ASCO 2oo2 · PST)
+- 실자료 노트/GN 조사: GN15 Fisher DVC · GN13/7 PST+온라인 SOV 시험(DVC 경유) · GN20 PT 기본·Limit Switch 금지·안전계통 PT SIL2 · GN11/12/37 SOV de-energize-to-trip·Class H·potted.
+- 지식 5개 추가(knowledge.KB acc.*) — 공개 제조사 문서 · IEC 61508/61511 근거, 값은 '현행 bulletin 확인' 명시. emerson.com 직접 열기는 세션 네트워크에서 막힘(검색 요약만 사용).
+- 규칙 AC-01~05(데이터시트 + 자체 GN 만 비교). 실자료: AC-05 48(SOV 2~3개, 표결 미기재) · AC-03 49(Note) · 나머지 0. 기존 지적 변경 0.
+- 검토 캐시 키에 규칙 코드 지문(`_RULES_FP`) 추가 — 규칙이 바뀐 꾸러미는 VERSION 그대로여도 다시 계산(옛 캐시가 새 지적을 가리는 일 방지).
+- 시험 +1 · valve 106 · eval baseline 갱신(AC 두 줄만) · sim 1.000 · mutate 100% · rev_sim 7,175/7,175.
+

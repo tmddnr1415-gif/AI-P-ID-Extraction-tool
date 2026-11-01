@@ -258,6 +258,64 @@ def review(ds: dict, general_notes: dict | None = None, pms_class: dict | None =
             f"Actuator safety factor {sf:g} is below the usual 1.25–1.5 on the maximum valve torque. Confirm with the "
             "actuator specification; the valve MAST must still exceed the actuator output.", "des.actuator", [ev("act_safety_factor")])
 
+    # AC-01..05 accessories (valve29 — positioner · position transmitter · solenoid · redundant SOV voting) ----------------
+    # Only what the datasheet and its OWN General Notes say is compared; nothing is assumed about a make or a voting.
+    vtype = (ds.get("valve_type") or "").upper()
+    gnote = lambda k: {"doc": "Datasheet", "where": f"General Note {k}", "page": None, "bbox": None, "text": str(gn[k])[:220]}   # noqa: E731
+    nev = lambda n: {"doc": "Datasheet", "where": f"Note {n.get('no')}", "page": n.get("page"), "bbox": n.get("bbox"), "text": n["text"][:220]}   # noqa: E731
+    gn_ls_no = next((k for k, t in gn.items() if re.search(r"limit\s+switch(?:es)?\s+shall\s+not\s+be\s+used", str(t), re.I)), None)
+    ls = val("limit_switch").strip()
+    if gn_ls_no and ls and not re.match(r"^(NA|N/A|NOT\s+(?:REQUIRED|APPLICABLE)|NO|NONE|NIL|-|—)\.?$", ls, re.I) and not _PLACE.match(ls):
+        add("AC-01", ACTION, "Limit switch although the General Notes forbid it", "limit_switch",
+            f"Limit switch '{ls}' specified; General Note {gn_ls_no} says limit switches shall not be used. Shall be reviewed.",
+            f"Limit switch '{ls}' is specified, but General Note {gn_ls_no} of this datasheet says limit switches shall not be used "
+            "(position transmitter instead).", "acc.pos_tx", [ev("limit_switch"), gnote(gn_ls_no)])
+    pt_notes = [n for n in notes if re.search(r"position\s+transmitter|\bZTX?\w*\d", n["text"], re.I)]
+    pt_val = val("pos_tx").strip()
+    has_pt = bool(pt_notes) or (pt_val and not re.match(r"^(NA|N/A|NO|NONE|NOT\s+REQUIRED|-)$", pt_val, re.I))
+    gn_pt_no = next((k for k, t in gn.items() if re.search(r"shall\s+be\s+provided\s+with\s+position\s+transmitters?", str(t), re.I)), None)
+    if gn_pt_no and vtype and not has_pt:
+        head = re.split(r"shall\s+be\s+provided", str(gn[gn_pt_no]), maxsplit=1, flags=re.I)[0]
+        if vtype in re.findall(r"\b(ESDV|BDV|XV|SDV|MOV|HV|UV)\b", head.upper()):
+            add("AC-02", CONFIRM, "Position transmitter not stated", "pos_tx" if "pos_tx" in F else "limit_switch",
+                f"No position transmitter on the datasheet; General Note {gn_pt_no} requires one for {vtype}. Shall be reviewed.",
+                f"General Note {gn_pt_no} requires a position transmitter for {vtype}, but neither a field nor a note of this "
+                "datasheet states one (make · output · tag).", "acc.pos_tx", [ev("pos_tx"), ev("limit_switch"), gnote(gn_pt_no)])
+    sil_lv = re.search(r"SIL\s*([1-4])", val("sil"), re.I)
+    gn_ptsil = next((k for k, t in gn.items() if re.search(r"position\s+transmitters?\b.*\bsafety\b.*\bSIL\s*\d", str(t), re.I | re.S)), None)
+    if sil_lv and gn_ptsil and pt_notes and not any(re.search(r"\bSIL\b", n["text"]) for n in pt_notes):
+        add("AC-03", NOTE, "Position transmitter SIL rating not stated on a SIL valve", "sil",
+            f"{val('sil')} valve: position transmitter SIL rating shall be confirmed (General Note {gn_ptsil}).",
+            f"The valve is {val('sil')} and General Note {gn_ptsil} asks for a SIL-rated position transmitter when it is used in a "
+            f"safety function, but the position transmitter note (Note {pt_notes[0].get('no')}) states no SIL rating. Confirm "
+            "whether this transmitter is in a safety function (UZ logic / interlock).", "acc.pos_tx",
+            [ev("sil"), nev(pt_notes[0]), gnote(gn_ptsil)])
+    gn_dvc = next((k for k, t in gn.items() if re.search(r"Fisher\s+DVC", str(t), re.I) and re.search(r"shall\s+be", str(t), re.I)), None)
+    if gn_dvc and vtype in re.findall(r"\b(ESDV|BDV|XV|SDV)\b", str(gn[gn_dvc]).upper()):
+        pos_notes = [n for n in notes if re.search(r"positioner|digital\s+valve\s+controller", n["text"], re.I)]
+        other = [n for n in pos_notes if not re.search(r"\bDVC|FIELDVUE|Fisher", n["text"], re.I) and
+                 re.search(r"Siemens|SIPART|\bABB\b|Samson|Metso|Neles|Valmet|Flowserve|Logix|Masoneilan|\bSVi\b|Rotork|\bYTC\b|Azbil|Foxboro|Westlock", n["text"], re.I)]
+        if other:
+            add("AC-04", ACTION, "Positioner make differs from the General Notes", "act_type",
+                f"Positioner in Note {other[0].get('no')} is not the Fisher DVC required by General Note {gn_dvc}. Shall be reviewed.",
+                f"General Note {gn_dvc} names Emerson Fisher DVC for {vtype}; Note {other[0].get('no')} names a different positioner.",
+                "acc.positioner", [nev(other[0]), gnote(gn_dvc)])
+    sov_tags = []
+    for n in notes:
+        for m in re.finditer(r"\b(?:SOVs|solenoid\s+valves)\b\s*(?:\(([^)]*)\))?", n["text"], re.I):
+            items = [re.sub(r"^\s*tag\s*(?:no\.?|number)?\s*[:.]?\s*", "", x, flags=re.I).strip()
+                     for x in re.split(r"\s*(?:,|&|\band\b)\s*", m.group(1) or "") if re.search(r"\d", x)]
+            if len(items) >= 2:
+                sov_tags.append((n, items))
+    if sov_tags and not re.search(r"\b[123]\s*oo\s*[123]\s*D?\b", all_text, re.I):
+        n0, items = sov_tags[0]
+        add("AC-05", CONFIRM, "Redundant solenoid valves without voting", "sov_tag" if "sov_tag" in F else "sil",
+            f"{len(items)} SOVs ({', '.join(items[:3])}): voting (1oo2 / 2oo2 / 2oo3) and online test arrangement shall be stated.",
+            f"Note {n0.get('no')} lists {len(items)} solenoid valves ({', '.join(items)}), but no voting is written on the datasheet "
+            "or its General Notes. 1oo2 trips on either SOV (safety), 2oo2 needs both (availability, needs diagnostics); the "
+            "hook-up, online test and PFD differ — the arrangement from the SIL verification has to be stated.",
+            "acc.sov_redundant", [nev(n0), ev("sov_tag"), ev("sil")])
+
     # PC-01 peer check — learned from every datasheet of the project ---------------------------------------------------
     for m in peer_findings(F, val, peers):
         out.append(m)

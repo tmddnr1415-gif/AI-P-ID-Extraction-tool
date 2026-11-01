@@ -335,6 +335,21 @@ async def _startup_warm():
     threading.Thread(target=warm_all, daemon=True, name="valve-warm-all").start()
 
 
+def _rules_fingerprint() -> str:
+    """valve29: the review code itself is part of the cache key — new or changed rules recompute every cached review even
+    when VERSION is not bumped (a stale cache would hide a new rule's findings)."""
+    import hashlib
+    import importlib
+    h = hashlib.sha1()
+    for m in ("expert", "matreview", "issues", "checks", "knowledge", "requirements", "process", "pms", "material", "revisions"):
+        try:
+            h.update(Path(importlib.import_module(f"app.valve.{m}").__file__).read_bytes())
+        except Exception:                                   # noqa: BLE001  (a frozen build without sources: VERSION alone)
+            h.update(m.encode())
+    return h.hexdigest()[:10]
+
+
+_RULES_FP = _rules_fingerprint()
 VERSION = "valve29"                       # shown in Settings › 정보 and the footer; bump with every package
 
 
@@ -578,7 +593,7 @@ def _ds_full(con, dsid, deep=True, pv=None):
             return None
         pv = pv or _profile_ver(con, h["project_id"])
         ver = (store.one(con, "SELECT MAX(id) m FROM audit WHERE datasheet_id=?", dsid)["m"], h["review_status"]) + pv \
-            + (VERSION,)                                     # valve25: a package with new rule wording recomputes the disk cache
+            + (VERSION, _RULES_FP)                           # valve25: a package with new rule wording recomputes the disk cache
         hit = _DEEP_CACHE.get(dsid)
         if hit and hit[0] == ver:
             return _with_history(con, dict(hit[1]))          # top-level copy: callers may swap keys, never edit nested lists

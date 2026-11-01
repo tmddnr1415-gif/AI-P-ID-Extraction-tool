@@ -198,6 +198,43 @@ EN 10204 3.1 = manufacturer's inspection certificate; 3.2 = also verified by an 
 - 데이터시트에서 볼 것: Certificate type per part, PMI scope.
 - 근거: EN 10204 · API RP 578
 
+## 액세서리 (Positioner · Position Transmitter · Solenoid · PST)
+
+### Digital valve controller / smart positioner on an on-off safety valve (e.g. Fisher FIELDVUE DVC6200 / DVC6200 SIS)  `acc.positioner`
+
+On an ESD / blowdown valve the digital valve controller is not used to modulate: it holds the valve open and runs diagnostics — partial stroke test (PST), full stroke signature, and (with the solenoid in the test path) an online solenoid test; results are read in the asset-management system (e.g. AMS / ValveLink) and can be started from the control room. DVC6200: 4–20 mA input with HART (Foundation fieldbus / PROFIBUS variants exist), linkage-less non-contact travel sensing; the SIS version gives a Pass / Abnormal PST result, aborts a PST when an outgoing pressure threshold is reached (protects against a spurious trip of a sticking valve) and lets a safety demand always override a running test. Diagnostic tier, housing material, conduit entry (½ NPT / M20) and hazardous-area approval are ordering options — they must be stated, not assumed. Licences / software for remote PST are a separate scope item.
+
+- 데이터시트에서 볼 것: Make / model (project may name one), protocol (HART / FF), diagnostic tier for PST, licence & software scope, certification (IECEx / ATEX, Ex d / Ex ec / Ex n), cable entry and plugs, factory integration & function test.
+- 근거: Emerson Fisher DVC6200 SIS product bulletin 62.1:DVC6200 SIS (D103555X012) & safety manual; IEC 61511 — manufacturer literature: verify values with the current bulletin
+
+### Valve position transmitter vs limit switches (e.g. Fisher 4400, TopWorx)  `acc.pos_tx`
+
+A position transmitter gives continuous 4–20 mA travel (often HART) instead of two discrete limit-switch contacts, so the control system sees the valve move, its stroke time and where it stopped. Typical: 2-wire loop powered 24 V DC, NAMUR NE43 alarm currents (< 3.6 mA / > 21 mA), non-contact (Hall effect) sensing, optional discrete outputs. When the position signal is used in a safety function (e.g. a UZ interlock / valve-closed permissive) the transmitter needs its own SIL capability (certificate / safety manual) — a SIL-rated valve does not make its transmitter SIL-rated. Fisher 4400: SIL 2 capable (IEC 61508:2010).
+
+- 데이터시트에서 볼 것: Position transmitter present where the project asks for it (limit switches only where allowed), output / protocol, SIL rating when used in a safety function, housing material, cable entry, Ex certification, tag no.
+- 근거: Fisher FIELDVUE 4400 product bulletin (D104739X012); NAMUR NE43; IEC 61508 / 61511
+
+### Solenoid valve on an ESD / on-off actuator (e.g. ASCO 327 series, 3/2 direct acting)  `acc.sov`
+
+The SOV vents the actuator to its fail-safe position. ESD practice: de-energise-to-trip (energised in normal operation), so the coil is rated for continuous duty — high insulation class (Class H is common), low-power coils where the safety system output is limited, encapsulated (potted) construction, surge suppression across the coil, stainless body / trim for the environment. 3/2-way direct-acting valves need no minimum pressure; NAMUR mounting for quarter-turn actuators. Manual reset is a project choice. ASCO 327 / 327C: SIL 3 capable (IEC 61508, exida).
+
+- 데이터시트에서 볼 것: Energise / de-energise to trip, coil insulation class & power, continuous-duty rating, body / trim material, Ex certification, manual reset (yes / no), Cv vs stroke time, tag no.
+- 근거: ASCO 327 / 327C catalogue; IEC 61508 / 61511 — manufacturer literature: verify values with the current catalogue
+
+### Redundant solenoid valves — 1oo1 / 1oo2 / 2oo2 / 2oo3 voting (e.g. ASCO RCS / ARCS 141 series)  `acc.sov_redundant`
+
+Two or three SOVs in one pilot circuit are arranged by voting. 1oo2: either SOV trips the valve — higher SAFETY (one failed-stuck SOV does not prevent the trip) but more spurious trips. 2oo2: both must de-energise — higher AVAILABILITY (one SOV failing open does not trip the plant) but a failed-stuck SOV prevents the trip unless it is diagnosed (2oo2D with pressure switches / online test). 2oo3 combines both. Packaged systems (ASCO RCS / ARCS) add isolation / bypass for online replacement and testing; RCS 1oo1HS, 2oo2D and 2oo3 are stated SIL 3 capable (low demand, IEC 61508:2010). Which voting applies is decided by the SIL verification (PFDavg and spurious-trip rate) — it has to be written on the datasheet, because the hook-up, the test procedure and the PFD all differ.
+
+- 데이터시트에서 볼 것: Number of SOVs, voting (1oo2 / 2oo2 / 2oo3), series / parallel hook-up, online test / bypass / pressure-switch diagnostics, tags of each SOV, SIL verification reference.
+- 근거: Emerson ASCO Redundant Control System (RCS) brochure & ARCS 141 series catalogue; IEC 61508 / 61511
+
+### Partial stroke test (PST) and online solenoid test  `acc.pst`
+
+A PST moves the open valve a small part of its travel (commonly 10–20 %; DVC6200 SIS default minimum travel 10 %) and back, proving that the valve is not stuck and the actuator / pilot can move it. It lengthens the full-stroke proof-test interval in the PFDavg calculation by its diagnostic coverage — the coverage is assembly-specific (FMEDA), not a fixed number. It does NOT prove tight shut-off, and it covers the solenoid only if the test is run through the SOV (online solenoid test) rather than through the positioner alone. A safety demand must always override a running test; spurious-trip protection (travel / pressure limits) is part of the test design.
+
+- 데이터시트에서 볼 것: PST required / method (positioner-based, SOV-based), test interval from the SIL verification, whether the SOV is tested online, tight shut-off still covered by the full-stroke proof test, software / licence scope.
+- 근거: IEC 61508-6 / IEC 61511-1 (proof test, diagnostic coverage); Emerson DVC6200 SIS configuration guide
+
 ## Tag 번호
 
 ### Tag numbering (learned per Area / Unit)  `tag.numbering`

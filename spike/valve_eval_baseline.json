@@ -73,12 +73,14 @@
   "VR-10|Confirm": 33,
   "MR-06|Confirm": 4,
   "MR-08|Confirm": 5,
+  "AC-05|Confirm": 48,
   "MR-06|Note": 5,
   "VR-11|Confirm": 4,
   "MR-02|Confirm": 7,
   "MR-12|Note": 12,
   "PC-01|Confirm": 6,
   "VR-12|Confirm": 1,
+  "AC-03|Note": 49,
   "MR-14|Confirm": 3,
   "VR-02|Action": 3,
   "MR-03|Action": 4,
@@ -86,12 +88,12 @@
   "MR-08|Note": 4
  },
  "E": {
-  "extract_s": 15.49,
-  "extract_ms_per_page": 34.0,
-  "pms_read_s": 2.08,
-  "issues_ms_per_ds": 1.4,
-  "issue_xlsx_s": 10.86,
-  "markup_s_per_ds": 0.08,
-  "markup_kb_per_ds": 22.3
+  "extract_s": 12.23,
+  "extract_ms_per_page": 26.8,
+  "pms_read_s": 1.82,
+  "issues_ms_per_ds": 1.1,
+  "issue_xlsx_s": 1.38,
+  "markup_s_per_ds": 0.078,
+  "markup_kb_per_ds": 23.6
  }
 }

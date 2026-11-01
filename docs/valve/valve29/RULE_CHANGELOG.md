@@ -8,10 +8,11 @@
 | 날짜 | 꾸러미 | Rule ID | 버전 | 변경 | 판정 결과 변화 | 근거 · 승인 |
 |---|---|---|---|---|---|---|
 | 2026-11-01 | valve29 | 전체 48 (DM · OI · DE · PMS · PD · MR · VR · PC · TG · REV) | — → **1** | 버전 관리 시작. valve28 의 논리를 버전 1 로 고정. 출처는 모두 **General Engineering Check**(프로젝트 기준 문서가 아직 연결되지 않음) | **없음** — 실자료 2,887 지적 칸 단위 동일(`valve_snapshot_diff.py check` 차이 0) · `valve_eval --check` 지문 불변 | Phase 1 지시서 §1.4 · §5.3 |
+| 2026-11-01 | valve29 | **AC-01 ~ AC-05 (신규)** — Accessory | — → **1** | 사용자 요청 "Ball valve · DVC6200 · Position Transmitter · SOL · ASCO 2oo2 · Partial Stroke 스펙 학습". 지식 5개(`acc.positioner` · `acc.pos_tx` · `acc.sov` · `acc.sov_redundant` · `acc.pst`) 추가 후 규칙: AC-01 GN 이 금한 Limit Switch(Action) · AC-02 GN 이 요구한 Position Transmitter 미기재(Confirm) · AC-03 SIL 밸브의 PT SIL 등급 미기재(Note) · AC-04 GN 이 지정한 Positioner(Fisher DVC)와 다른 제조사(Action) · AC-05 SOV 2개 이상인데 1oo2/2oo2/2oo3 미기재(Confirm). 데이터시트와 그 **자체 General Note** 만 비교 — 제조사 · 표결 · SIL 을 가정하지 않음 | 실자료 164 DS: 기존 2,887 지적 **변경 0 · 삭제 0**, 추가 = AC-05 **48**(Issue List) · AC-03 **49**(Expert 탭 Note). AC-01/02/04 = 0(실자료가 GN 을 지킴). eval 지문: 칸 변화 0, 규칙 수 두 줄만 이동 → baseline 갱신 | 출처: General Note 7/13/15/20 (프로젝트 문서) + Emerson DVC6200 SIS bulletin · Fisher 4400 bulletin · ASCO RCS/ARCS · ASCO 327 catalogue · IEC 61508/61511 (General Engineering Check). 시험 `test_accessory_rules_positioner_transmitter_solenoid` |
 
 ## valve29 에서 바뀐 것과 바뀌지 않은 것
 
-- **판정 논리 변경 없음.** 새 규칙 없음(Phase 2 의 Gasket · Bolting · Cv 는 아직).
+- 기존 48 규칙 **판정 논리 변경 없음**. 새 규칙은 위 AC-01 ~ AC-05 (Accessory) 뿐 (Phase 2 의 Gasket · Bolting · Cv 는 아직).
 - 지적에 붙는 정보만 늘었다: `op`(비교 연산) · `tol`(허용오차, 규칙에 이미 있던 Process Data 1 % 만) · `result`(규칙이 낸 판정 문구) · 엔지니어 결정(`decision` · `reason_cat` · `conclusion`).
 - 엔지니어가 **Modified** 로 고친 지적은 출력에 엔지니어 문구 · Severity 가 나간다(도구 원문은 `original_description` · `original_severity` 로 보관). 규칙의 판정은 그대로.
 

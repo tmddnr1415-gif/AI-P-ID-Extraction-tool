@@ -309,3 +309,34 @@ def test_screen_answers_cached_until_the_next_write(tmp_path, monkeypatch):
     assert s2 != s1 and r2 != r1                                                        # the write is seen at once
     c.put(f"/api/valve/datasheets/{a['id']}/status", json={"status": "Accepted"}, headers={"X-Author": "eng"}).raise_for_status()
     assert c.get(f"/api/valve/projects/{pid}/summary").json() != s2
+
+
+def test_accessory_rules_positioner_transmitter_solenoid():
+    """valve29 AC-01..05 — positioner · position transmitter · solenoid valves, judged only on what the datasheet and its own
+    General Notes say (no make, voting or SIL is assumed)."""
+    from app.valve import expert, knowledge
+    for k in ("acc.positioner", "acc.pos_tx", "acc.sov", "acc.sov_redundant", "acc.pst"):
+        assert knowledge.get(k)["ref"]
+    gn = {"15": "Emerson Fisher DVC (latest proven in use model) shall be provided as valve positioner part of ESDV/BDV assembly.",
+          "20": "ESDV/BDV/XV shall be provided with position transmitters as default. Limit switches shall not be used. Position "
+                "transmitters which are specifically connected to safety systems for UZ logic/safety interlock shall be SIL 2 rated."}
+
+    def run(fields, notes, vt="ESDV"):
+        ds = {"valve_type": vt, "fields": [{"key": k, "value": v, "display": k} for k, v in fields.items()],
+              "notes": [{"no": n + 1, "text": t} for n, t in enumerate(notes)]}
+        return {r["rule"]: r for r in expert.review(ds, gn) if r["rule"].startswith("AC-")}
+
+    ok = run({"sil": "SIL 2", "limit_switch": "NA", "sov_tag": "Note-2"},
+             ["Position Transmitter 4-20 mA HART & SIL 2.", "SOVs (98ESDY-1A & 98ESDY-1B) in 1oo2 arrangement.",
+              "Emerson Fisher DVC Smart positioner, HART."])
+    assert ok == {}                                                              # everything stated → silent
+    r = run({"sil": "SIL 2", "limit_switch": "Required, 2 x SPDT", "sov_tag": "Note-2"},
+            ["Position Transmitter 4-20 mA HART.", "SOVs (98ESDY-1A & 98ESDY-1B).", "Positioner: Siemens SIPART PS2."])
+    assert set(r) == {"AC-01", "AC-03", "AC-04", "AC-05"}
+    assert r["AC-01"]["level"] == "Action" and "General Note 20" in r["AC-01"]["short"]
+    assert r["AC-05"]["level"] == "Confirm" and "98ESDY-1A" in r["AC-05"]["short"] and r["AC-05"]["kb"] == "acc.sov_redundant"
+    assert r["AC-03"]["level"] == "Note"                                         # SIL of the transmitter: confirm, not an error
+    assert any(e["where"] == "General Note 15" for e in r["AC-04"]["evidence"])
+    r = run({"limit_switch": "NA"}, ["Solenoid valve coil Class H."], vt="XV")
+    assert set(r) == {"AC-02"}                                                   # GN 20 lists XV; no transmitter anywhere
+    assert run({"limit_switch": "NA"}, [], vt="MOV") == {}                       # MOV is not in GN 20 → not asked
