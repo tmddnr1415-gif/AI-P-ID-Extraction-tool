@@ -12,6 +12,21 @@ const LS = {
 };
 const USER = Q.get('user') || LS.get('user', '');
 const EMBED = Q.get('embed') === '1';
+/* valve29 — new windows, live-linked.  Windows of the same browser talk over a BroadcastChannel: no server round-trip, no
+   polling.  A window follows another's tag / field / finding while its '연동' (link) switch is on, and refreshes what a
+   decision or edit changed.  POP = 'pdf' is the light PDF-only window for a second monitor. */
+const POP = Q.get('pop') || '';
+const BUS = 'BroadcastChannel' in window ? new BroadcastChannel('valve-link') : null;
+const WIN_ID = Math.random().toString(36).slice(2);
+let LINKING = false;                                       // applying a message from another window: do not echo it back
+const linkOn = () => LS.get('linkon', 1) === 1;
+function link(m) { if (BUS && !LINKING && linkOn() && typeof S !== 'undefined' && S.pid) BUS.postMessage({ ...m, from: WIN_ID, pid: S.pid }); }
+function popOut(kind) {                                    // ⧉ — the PDF alone, or this view, in its own window
+  const u = new URL(location.href); u.hash = kind === 'pdf' ? '' : '#' + S.view;
+  if (kind === 'pdf') { u.searchParams.set('pop', 'pdf'); if (S.ds) u.searchParams.set('ds', S.ds.id); } else { u.searchParams.delete('pop'); u.searchParams.delete('ds'); }
+  const w = window.open(u.toString(), kind === 'pdf' ? 'valve-pop-pdf' : 'valve-' + Date.now(), 'popup=yes,width=1100,height=900');
+  if (!w) toast('새 창이 막혔습니다 — 브라우저의 팝업 허용을 켜 주세요', 1); else w.focus();
+}
 const $ = (s, el = document) => el.querySelector(s);
 const $$ = (s, el = document) => [...el.querySelectorAll(s)];
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -27,6 +42,7 @@ async function api(method, path, body, raw) {
   if (method !== 'GET') PRE.clear();                 // any write: forget prefetched datasheets
   let r;
   try { r = await fetch('/api/valve' + path, opt); } catch (e) { throw new Error('서버에 닿지 못했습니다 — P&ID 서버(8000)가 켜져 있는지 확인하세요'); }
+  if (method !== 'GET' && r.ok) { const m = path.match(/^\/datasheets\/(\d+)/); link({ t: 'changed', id: m ? +m[1] : null }); }   // other windows refresh
   if (raw) { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r; }
   const j = await r.json().catch(() => ({}));
   if (!r.ok) throw new Error(j.error || `HTTP ${r.status}`);
@@ -898,7 +914,7 @@ async function renderIssues(rowsOnly) {
     const tr = e.target.closest('tr[data-i]'); if (!tr) return;
     const [dsId, ikey] = [+tr.dataset.i.split('|')[0], tr.dataset.i.slice(tr.dataset.i.indexOf('|') + 1)];
     const i = S.issues.find(x => x.ds_id === dsId && x.ikey === ikey);
-    G.selIss = ikey; G.selDs = dsId; $$('tr.sel', tb).forEach(x => x.classList.remove('sel')); tr.classList.add('sel');
+    G.selIss = ikey; G.selDs = dsId; $$('tr.sel', tb).forEach(x => x.classList.remove('sel')); tr.classList.add('sel'); link({ t: 'iss', id: dsId, ikey });
     const pages = (S.grid?.rows.find(r => r.id === dsId)?.pages) || (await api('GET', `/datasheets/${dsId}`)).pages;
     preview({ doc: i.document_id, pages, page: i.page, bbox: i.bbox, ovs: await dsIssues(dsId), label: `${i.tag} · #${i.no} ${i.type} · ${i.field}` });
   };
@@ -970,7 +986,7 @@ function wbLayout() {
     <div class="wb-right"><div class="tabs" id="wtabs">${TABS.map(([k, l]) => `<button data-t="${k}" class="${W.tab === k ? 'on' : ''}">${l}<span class="tb" hidden></span></button>`).join('')}
       <button class="fold" data-col="r" title="Review Panel 접기 ( ] )">▶</button></div><div class="rbody" id="wbody"></div></div></div>`;
   W.viewer = new Viewer($('#wview'), { tools: true,
-    extra: `<button data-a2="prevrev" title="이전 Revision">◁ Rev</button><button data-a2="nextrev" title="다음 Revision">Rev ▷</button><button data-a2="pdf" title="이 Tag 의 표시가 들어간 PDF 내보내기">⇩ PDF</button>`,
+    extra: `<button data-a2="popout" title="PDF 만 새 창으로 (두 번째 모니터) — 이 창과 연동">⧉</button><button data-a2="prevrev" title="이전 Revision">◁ Rev</button><button data-a2="nextrev" title="다음 Revision">Rev ▷</button><button data-a2="pdf" title="이 Tag 의 표시가 들어간 PDF 내보내기">⇩ PDF</button>`,
     onMark: addMark, onMarkChange: changeMark, onMarkErase: eraseMark, onMarkSelect: m => { if ((m?.id ?? null) === W.selCm) return; W.selCm = m?.id ?? null; if (W.tab === 'cmt') drawRight(); }, onMarkCmd: markCmd,
     onPagePoint: (page, [x, y]) => {                // valve29: PDF → field → its findings
       const hit = (S.ds?.fields || []).filter(f => f.page === page && f.bbox && x >= f.bbox[0] - 2 && x <= f.bbox[2] + 2 && y >= f.bbox[1] - 2 && y <= f.bbox[3] + 2)
@@ -982,6 +998,7 @@ function wbLayout() {
     onOverlay: o => { if (o.cmId) { W.selCm = o.cmId; setTab('cmt'); } else if (o.iss) { W.selIss = o.iss; setTab('iss'); } else if (o.key) selectField(o.key); } });
   $('#wview .tbar').addEventListener('click', e => {
     const a = e.target.closest('[data-a2]')?.dataset.a2; if (!a || !S.ds) return;
+    if (a === 'popout') { popOut('pdf'); return; }
     const rv = S.ds.revisions, i = rv.findIndex(r => r.id === S.ds.id);
     if (a === 'prevrev') rv[i - 1] ? openDs(rv[i - 1].id) : toast('이전 Revision 이 없습니다');
     if (a === 'nextrev') rv[i + 1] ? openDs(rv[i + 1].id) : toast('다음 Revision 이 없습니다');
@@ -1049,6 +1066,7 @@ async function renderReview() {
   drawTagList();
   if (!S.ds || S.ds.id !== S.dsId) {
     S.ds = await dsFetch(S.dsId);
+    link({ t: 'ds', id: S.ds.id });
     W.prevCmp = null; W.selField = null;
     const rv = S.ds.revisions, i = rv.findIndex(r => r.id === S.ds.id);
     if (i > 0) W.prevCmp = await api('GET', `/compare?prev=${rv[i - 1].id}&new=${S.ds.id}`).catch(() => null);
@@ -1113,6 +1131,12 @@ function hintsInit() {                                   // '?' in the top bar: 
   const b = document.createElement('button'); b.id = 'hintbtn'; b.title = '도움말 문장 보이기 / 숨기기'; b.textContent = '?';
   b.onclick = () => { const on = !LS.get('hints', 0); LS.set('hints', on ? 1 : 0); document.body.classList.toggle('hints', on); toast(on ? '도움말 문장을 보입니다' : '도움말 문장을 숨깁니다'); };
   host.prepend(b);
+  const nw = document.createElement('button'); nw.id = 'newwin'; nw.title = '이 화면을 새 창으로 — 창끼리 Tag · 칸 · 지적 · 결정이 실시간 연동'; nw.textContent = '⧉ 새 창';
+  nw.onclick = () => popOut('view');
+  const ln = document.createElement('button'); ln.id = 'linkbtn'; ln.title = '연동: 다른 창에서 고른 Tag · 칸 · 지적을 따라가고 결정 · 수정을 바로 반영';
+  const paintLn = () => { ln.textContent = linkOn() ? '🔗 연동' : '⛓ 연동 끔'; ln.classList.toggle('on', linkOn()); };
+  ln.onclick = () => { LS.set('linkon', linkOn() ? 0 : 1); paintLn(); toast(linkOn() ? '창 연동을 켰습니다' : '창 연동을 껐습니다'); }; paintLn();
+  host.prepend(ln); host.prepend(nw);
 }
 function setTab(t) { W.tab = t; LS.set('wtab', t); $$('#wtabs button').forEach(b => { b.classList.toggle('on', b.dataset.t === t); if (b.dataset.t === t) b.scrollIntoView({ inline: 'nearest', block: 'nearest' }); }); drawRight(); }
 function fieldLine(f) {
@@ -1305,7 +1329,7 @@ function drawRight() {
     const pd = e.target.closest('[data-pdp]'); if (pd) { e.preventDefault(); openRef(d.process_doc, +pd.dataset.pdp, JSON.parse(pd.dataset.pdb || 'null'), 'Process Data'); return; }
     if (e.target.closest('select')) return;
     const gx = e.target.closest('[data-grpx]'); if (gx) { const k = gx.dataset.grpx; W.grpOpen.has(k) ? W.grpOpen.delete(k) : W.grpOpen.add(k); drawRight(); return; }
-    const is = e.target.closest('[data-iss]'); if (is) { const i = d.issues.find(x => x.ikey === is.dataset.iss); W.selIss = i.ikey; paintDsOverlays(); if (i.bbox) W.viewer.focus(i.page, i.bbox, i.field); $$('#wbody .iss').forEach(x => x.classList.toggle('on', x.dataset.iss === i.ikey)); return; }
+    const is = e.target.closest('[data-iss]'); if (is) { const i = d.issues.find(x => x.ikey === is.dataset.iss); W.selIss = i.ikey; link({ t: 'iss', id: d.id, ikey: i.ikey }); paintDsOverlays(); if (i.bbox) W.viewer.focus(i.page, i.bbox, i.field); $$('#wbody .iss').forEach(x => x.classList.toggle('on', x.dataset.iss === i.ikey)); return; }
     const k = e.target.closest('[data-k]'); if (k) selectField(k.dataset.k);
   };
   b.onchange = async e => {
@@ -1369,7 +1393,7 @@ function fieldSource(f) {                            // valve29 — where a valu
 function selectField(key) {
   const f = S.ds.fields.find(x => x.key === key);
   const r = W.prevCmp?.rows.find(x => x.key === key);
-  W.selField = key; paintDsOverlays();
+  W.selField = key; paintDsOverlays(); link({ t: 'field', id: S.ds.id, key });
   const fs = $('#fsrc'); if (fs && f) { fs.innerHTML = fieldSource(f); fs.classList.add('on');
     fs.onclick = e => { const a = e.target.closest('[data-gi]'); if (!a) return; e.preventDefault(); W.selIss = a.dataset.gi; setTab('iss'); const i = S.ds.issues.find(x => x.ikey === a.dataset.gi); if (i?.bbox) W.viewer.goPage(i.page, i.bbox); }; }
   if (f?.bbox) W.viewer.focus(f.page, f.bbox, f.display);
@@ -1812,10 +1836,84 @@ addEventListener('keydown', e => {
   else if (e.key === 'f') { e.preventDefault(); $('#wview .q').focus(); }
 });
 
+/* valve29 — live link: what another window says */
+let CHG_T = 0;
+async function onLink(m) {
+  if (!linkOn()) return;
+  LINKING = true;
+  try {
+    if (m.t === 'changed') {                               // a decision / edit elsewhere: refresh what shows it (coalesced)
+      S.issues = null; S.grid = null; PRE.clear();
+      clearTimeout(CHG_T); CHG_T = setTimeout(async () => {
+        if (S.view === 'review' && S.ds && (!m.id || m.id === S.ds.id)) { S.ds = await api('GET', `/datasheets/${S.ds.id}`); paintDsOverlays(); drawHead(); drawRight(); }
+        else if (S.view === 'list') renderList();
+      }, 250);
+      return;
+    }
+    if (S.view !== 'review') return;                       // following happens in the Datasheet Review window
+    if (m.id && m.id !== S.dsId) { openDs(m.id); for (let n = 0; n < 40 && !(S.ds && S.ds.id === m.id); n++) await new Promise(r => setTimeout(r, 75)); }
+    if (!S.ds || S.ds.id !== m.id) return;
+    if (m.t === 'field' && W.selField !== m.key) { if (W.tab !== 'data') setTab('data'); selectField(m.key); }
+    if (m.t === 'iss' && W.selIss !== m.ikey) { const i = S.ds.issues.find(x => x.ikey === m.ikey); if (!i) return; W.selIss = i.ikey; setTab('iss'); paintDsOverlays(); if (i.bbox) W.viewer.focus(i.page, i.bbox, i.field); }
+  } finally { LINKING = false; }
+}
+if (BUS && POP !== 'pdf') BUS.onmessage = e => { const m = e.data; if (m.from !== WIN_ID && m.pid === S.pid) onLink(m); };
+
+async function popPdf() {                                  // the light PDF-only window (second monitor)
+  document.body.className = 'pop';
+  document.body.innerHTML = `<div class="popbar"><b id="ptag">PDF</b><span class="soft" id="pinfo">메인 창에서 Tag 를 여세요</span><span class="sp"></span>
+    <label class="soft" title="메인 창의 Tag · 칸 · 지적을 따라가고, 여기서 누른 것을 메인 창에 보냅니다"><input type="checkbox" id="plink" ${linkOn() ? 'checked' : ''}> 연동</label></div><div id="popv"></div><div id="toast"></div>`;
+  $('#plink').onchange = e => LS.set('linkon', e.target.checked ? 1 : 0);
+  S.projects = (await api('GET', '/projects')).projects;
+  const want = Q.get('project'), p = (want && S.projects.find(x => x.name === want)) || S.projects.find(x => x.id === LS.get('pid')) || S.projects[0];
+  S.pid = p?.id;
+  let selKey = null, selIss = null;
+  const V = new Viewer($('#popv'), {
+    onOverlay: o => { if (o.iss) { selIss = o.iss; paint(); link({ t: 'iss', id: S.ds.id, ikey: o.iss }); } else if (o.key) { selKey = o.key; paint(); link({ t: 'field', id: S.ds.id, key: o.key }); } },
+    onPagePoint: (page, [x, y]) => {
+      const inb = b => b && x >= b[0] - 2 && x <= b[2] + 2 && y >= b[1] - 2 && y <= b[3] + 2;
+      const iss = (S.ds?.issues || []).find(i => i.page === page && !i.comment_id && i.status !== 'Dismissed' && i.type !== 'Extraction Review' && inb(i.bbox));
+      if (iss) { selIss = iss.ikey; selKey = null; paint(); link({ t: 'iss', id: S.ds.id, ikey: iss.ikey }); return; }   // a finding box first
+      const f = (S.ds?.fields || []).filter(f => f.page === page && f.bbox && x >= f.bbox[0] - 2 && x <= f.bbox[2] + 2 && y >= f.bbox[1] - 2 && y <= f.bbox[3] + 2)
+        .sort((a, b) => (a.bbox[2] - a.bbox[0]) * (a.bbox[3] - a.bbox[1]) - (b.bbox[2] - b.bbox[0]) * (b.bbox[3] - b.bbox[1]))[0];
+      if (f) { selKey = f.key; selIss = null; paint(); link({ t: 'field', id: S.ds.id, key: f.key }); }
+    } });
+  const paint = () => {
+    if (!S.ds) return;
+    const ov = (S.ds.issues || []).filter(i => !i.comment_id && i.bbox && i.status !== 'Dismissed' && i.type !== 'Extraction Review')
+      .map(i => ({ cat: i.color, page: i.page, bbox: i.bbox, key: i.key, no: i.no, title: `#${i.no} ${i.type} · ${i.field}`, text: i.description, iss: i.ikey, sel: selIss === i.ikey }));
+    const f = selKey && S.ds.fields.find(x => x.key === selKey);
+    if (f?.bbox) ov.push({ cat: 'field', page: f.page, bbox: f.bbox, title: f.display });
+    V.setMarks(S.ds.comments.filter(c => c.page && c.bbox).map(c => ({ id: c.id, page: c.page, bbox: c.bbox, kind: c.kind || 'rect', points: c.points, style: c.style || null,
+      category: c.category || 'comment', text: c.text, by: c.by, editable: false })));
+    V.setOverlays(ov);
+  };
+  const show = async id => {
+    if (!S.ds || S.ds.id !== id) {
+      S.ds = await api('GET', `/datasheets/${id}`); selKey = selIss = null;
+      await V.load(S.ds.document_id, S.ds.pages);
+      $('#ptag').textContent = S.ds.tag; $('#pinfo').textContent = `Doc. ${S.ds.doc_no} · Rev.${S.ds.rev} · ${S.ds.pages.length}쪽`; document.title = `PDF · ${S.ds.tag}`;
+    }
+    paint();
+  };
+  if (BUS) BUS.onmessage = async e => {
+    const m = e.data; if (m.from === WIN_ID || m.pid !== S.pid || !linkOn()) return;
+    if (m.t === 'changed') { if (S.ds && (!m.id || m.id === S.ds.id)) { const id = S.ds.id; S.ds = null; await show(id); } return; }
+    if (!m.id) return;
+    await show(m.id);
+    if (m.t === 'field') { selKey = m.key; selIss = null; paint(); const f = S.ds.fields.find(x => x.key === m.key); if (f?.bbox) V.focus(f.page, f.bbox, f.display); }
+    if (m.t === 'iss') { selIss = m.ikey; selKey = null; paint(); const i = S.ds.issues.find(x => x.ikey === m.ikey); if (i?.bbox) V.goPage(i.page, i.bbox); }
+  };
+  if (+Q.get('ds')) await show(+Q.get('ds'));
+}
+
 /* ── start ────────────────────────────────────────────────────────────── */
+if (POP === 'pdf') { popPdf().catch(e => { document.body.innerHTML = `<div class="empty" style="color:var(--bad)">${esc(e.message)}</div>`; }); }
+else {
 if (EMBED) document.body.classList.add('embed');
 $('#who').innerHTML = `<b>${esc((USER || '?').slice(0, 1))}</b>${esc(USER || '이름 없음')}`;
 loadProjects().then(async () => {
+  hintsInit();                                         // top-bar buttons (? · ⧉ 새 창 · 🔗 연동) also on deep links
   const ds = +Q.get('ds');                              // deep link from the Excel lists: ?ds=…&key=…&page=…#review
   if (ds) {
     S.dsId = ds; LS.set('tag.' + S.pid, ds); go('review', false);
@@ -1826,8 +1924,8 @@ loadProjects().then(async () => {
     else if (page) W.viewer?.goPage(page);
     return;
   }
-  hintsInit();
   go((location.hash.slice(1) || LS.get('view', 'dash')).split('?')[0], false);
 })
   .catch(e => { document.querySelector('#views').innerHTML = `<div class="empty" style="color:var(--bad)">${esc(e.message)}</div>`; });
+}
 })();

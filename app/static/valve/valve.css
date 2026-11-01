@@ -463,3 +463,9 @@ table.rp tr { cursor: pointer; } table.rp tr.on td { background: #eef3ff; } tabl
 table.rp td.trend { white-space: nowrap; } table.rp .tr { display: inline-block; min-width: 16px; text-align: center; color: #5a6478; }
 .fsrc { display: none; font-size: 11.5px; background: #f6f8fc; border-bottom: 1px solid var(--line2); border-radius: 8px 8px 0 0; padding: 6px 8px; }
 .fsrc.on { display: block; }                                                                   /* valve29 field source line */
+/* valve29 — pop-out PDF window (second monitor), live-linked */
+body.pop { display: flex; flex-direction: column; height: 100vh; margin: 0; background: #1d2330; }
+body.pop .popbar { display: flex; gap: 10px; align-items: center; padding: 5px 10px; background: #fff; border-bottom: 1px solid var(--line); font-size: 13px; }
+body.pop .popbar .sp { flex: 1; }
+body.pop #popv { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+#linkbtn.on { border-color: var(--blue); color: var(--blue); }
