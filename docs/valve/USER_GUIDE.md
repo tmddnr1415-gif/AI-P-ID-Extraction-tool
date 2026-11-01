@@ -96,7 +96,15 @@
   그 표시는 바로 메인 창 · Issue List 에 반영됩니다. PDF 창에서 J / K(▲ ▼)를 누르면 왼쪽 목록이 다음 / 이전 줄로 갑니다.
 - **🔗 연동** 을 끄면 그 창은 따라가지 않습니다. 팝업이 막히면 브라우저 주소창의 팝업 허용을 켜 주세요.
 
-## 10. 자주 묻는 것
+## 10. 어디와 다른가 · 코멘트 고치기 · Dense CO2
+
+- 지적 카드(작업대 Issues 탭)와 Issue List 줄의 **⇆** = 이 칸이 **어느 문서의 어느 값과 다른지** 나란히: 왼쪽 데이터시트 칸, 오른쪽 PMS / Process Data / 이전 판의 그 쪽(상자 표시),
+  위에 두 값 · 문서 이름 · 쪽 · 올린 날짜. 수정된 Process Data · PMS 를 다시 올렸으면 **최신판 기준**으로 검토하고, 이전 판 이름도 함께 보입니다.
+  **⧉ 새 창** 을 누르면 이 비교가 새 창으로 열리고, 메인 창에서 다른 지적을 고르면 그 창이 따라갑니다.
+- **✎** = 도구가 쓴 코멘트와 Required 를 고치거나 보완합니다. 결정(Confirmed 등)은 그대로이고, 고친 문구가 Excel · Mark-up PDF 로 나갑니다. 도구 원문은 남고 '도구 원문으로' 되돌릴 수 있습니다.
+- Note 의 **Dense phase CO2** 는 PFP · Fugitive · Fire Safe 처럼 특수 요구사항으로 정리됩니다 — Valve List 'All Valves' 의 열, Summary · Summary by Area 의 Tag 수.
+
+## 11. 자주 묻는 것
 
 - **Area · Unit 은 어디서 오나?** 데이터시트 제목(QELNG NORTH / SOUTH / W15)과 P&ID 번호에서. 제목에 '(SYSTEM xx – UNIT yy)' 가 있으면 기존 플랜트 = Brownfield.
 - **왜 Process Data 빈칸을 다 지적하나?** 요청에 따라 Process DS 를 참조해도 전부 표기합니다. 한 카드로 묶여 있으니 일괄 Dismissed/Confirmed 로 처리하세요.

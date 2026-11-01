@@ -604,4 +604,10 @@ Note 113 · PC-01 Confirm 6(3C0K8 의 '316 SS/FHF' 2개 · API5L-X65 MOV 1500# �
   `W.viewer` 를 PDF 창의 뷰어로) — 같은 대화창 · 되돌리기 · 지우개 · 스탬프. Valve List(행 · 셀) · Issue List · PMS · Process 행을 누르면 `ds`/`field`/`iss` 를 보내고,
   **다음 줄 둘의 데이터시트 · 첫 쪽 그림을 함께 알려 PDF 창이 미리 받는다**(`near`) → 다음 줄로 갈 때 PDF 창 표시 ≈ 0.1 s(측정 중앙 140 ms, Playwright 포함).
   PDF 창의 J/K · ▲▼ → `nav` → 메인 창이 목록이면 다음 줄, 작업대면 다음 Tag. 머리 '⧉ PDF' 로 어느 화면에서나 연다.
+- **어디와 다른가 · 코멘트 고치기 · Dense CO2 (사용자 요청)**: ⇆ = `renderCompare` — 왼쪽 데이터시트 칸, 오른쪽 근거 문서 쪽(`refDocOf`: PMS · Process Data · 이전 판 · 같은 데이터시트의 다른 칸), 두 값 · 문서 · 쪽 ·
+  올린 날 · **이전 판**(`api._doc_ref`: 같은 종류의 최신 업로드가 기준, 나머지는 earlier). 새 창 `?pop=cmp` 은 `iss`/`ds`/`changed` 를 따라간다.
+  ✎ = `PUT /datasheets/{id}/issues-text/{ikey}` {text, expected} → `issue_state.modified_text/modified_expected` — 결정 · status 는 그대로, 원문은 `original_*`, `decision_log` 에 'Edited',
+  뒤의 결정 · Rev 이어받기에도 유지. 판정이 아니라 문구만 바뀌므로 지적 스냅샷의 description 은 엔지니어가 고친 것이 나간다(스냅샷 비교는 고치지 않은 사본에서).
+  `requirements` 에 `dense_co2`(데이터시트 Note · 칸, General Note 는 'Fluid phase:' 처럼 이 밸브의 상을 말할 때만 — "for dense/supercritical service shall…" 은 조건이라 제외) —
+  실자료 45 Tag(Note 9 등). Valve List 'All Valves' 열 · Summary 와 Summary by Area 에 PFP · Fugitive · Fire Safe · Dense Phase CO2 · NACE Tag 수(`tbe.SUMMARY_REQS`).
 
