@@ -125,6 +125,11 @@
 ## 10-4. Process Data · PMS 표가 한 줄로 (valve29)
 - 행이 한 줄로 보이고 긴 글은 … 로 줄어듭니다. **마우스를 올리면 전체 글**이 뜨고, 행을 누르면 아래에 근거 쪽이 나란히 열립니다. (수천 행이어도 화면에 보이는 줄만 그려 가볍습니다.)
 
+## 10-5. 첫 화면의 '기준 문서' 줄 (valve29)
+- Dashboard 맨 위에 지금 검토가 기준으로 삼는 **최신 Datasheet · Process Data · PMS** 의 Rev 와 날짜가 나옵니다 — 문서 자체의 개정표(Revision 표)에서 읽은 값입니다.
+- Datasheet: Tag 마다 가장 새 Revision 의 분포(Rev 0 · A · B …)와 가장 최근 개정일. PMS: Doc. No. · Rev · 개정일 · 개정 내용. Process Data: 묶음 문서 Rev 와 그 안의 공정 데이터시트별 Rev(카드 제목을 누르면 전체 목록).
+- 개정표 날짜를 못 읽으면 "원본 확인" 이라고 나옵니다(값을 지어내지 않음).
+
 ## 11. 자주 묻는 것
 
 - **Area · Unit 은 어디서 오나?** 데이터시트 제목(QELNG NORTH / SOUTH / W15)과 P&ID 번호에서. 제목에 '(SYSTEM xx – UNIT yy)' 가 있으면 기존 플랜트 = Brownfield.

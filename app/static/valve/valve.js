@@ -751,6 +751,29 @@ function donut(parts) {
   return `<svg width="120" height="120" viewBox="0 0 120 120" role="img" aria-label="review status"><circle cx="60" cy="60" r="48" stroke="#edf0f5" stroke-width="16" fill="none"/>${arcs}
     <text x="60" y="58" text-anchor="middle" font-size="20" font-weight="700" fill="#1b2333">${tot === 1 && !parts.some(p => p.n) ? 0 : tot}</text><text x="60" y="74" text-anchor="middle" font-size="11" fill="#5b6475">Tags</text></svg>`;
 }
+/* valve29 — 첫 화면: 검토가 기준으로 삼는 최신 Datasheet · Process Data · PMS 의 Rev · 날짜 (문서 자체의 개정표에서 읽음 — docrev) */
+function refDocs(L) {
+  const up = x => x?.uploaded_at ? `올린 날 ${esc(x.uploaded_at.slice(0, 10))}` : '';
+  const revs = o => Object.entries(o || {}).map(([r, n]) => `Rev ${esc(r)} <b>${n}</b>`).join(' · ');
+  const none = (t, what) => `<div class="card refdoc none"><h3>${t}</h3><div class="soft">${what} 없음 — Document Management 에서 올리세요</div></div>`;
+  const D = L.datasheet, P = L.process, M = L.pms;
+  const ds = D ? `<div class="card refdoc" title="Tag 마다 가장 새 Revision 기준 · 날짜 = 그 Revision 의 개정표 날짜"><h3>Datasheet</h3>
+      <div class="rd1"><span class="rdrev">${revs(D.by_rev)}</span></div>
+      <div class="rd2">최신 개정일 <b>${esc(D.date || '—')}</b>${D.date ? ` <span class="soft">(${D.date_tags}/${D.tags} Tag)</span>` : ''}</div>
+      <div class="rd3 soft">${esc(D.filename)} · ${up(D)}</div></div>` : none('Datasheet', 'Datasheet');
+  const ms = M ? `<div class="card refdoc" title="${esc(M.filename)}"><h3>PMS</h3>
+      <div class="rd1"><b>${esc(M.doc_no || M.filename)}</b> <span class="rdrev">Rev. <b>${esc(M.rev || M.header_rev || '—')}</b></span></div>
+      <div class="rd2">${M.date ? `<b>${esc(M.date)}</b> · ${esc(M.desc)}` : '<span class="soft">개정표 날짜를 못 읽음 — 원본 확인</span>'}</div>
+      <div class="rd3 soft">${esc(M.filename)} · ${up(M)}</div></div>` : none('PMS', 'PMS');
+  const np = P?.newest_part;
+  const ps = P ? `<div class="card refdoc" title="${esc(P.filename)} — 표지/표제를 누르면 공정 데이터시트별 Rev 목록"><h3>Process Data</h3>
+      <div class="rd1"><b>${esc(P.doc_no || P.filename)}</b> <span class="rdrev">Rev. <b>${esc(P.rev || P.header_rev || '—')}</b></span>${P.parts?.length ? ` <span class="soft">· Process DS ${P.parts.length}종: ${revs(P.part_revs)}</span>` : ''}</div>
+      <div class="rd2">${np ? `최신 <b>${esc(np.date)}</b> · ${esc(np.doc_no)} Rev ${esc(np.rev)} · ${esc(np.desc)}` : P.date ? `<b>${esc(P.date)}</b> · ${esc(P.desc)}` : '<span class="soft">개정표 날짜를 못 읽음 — 원본 확인</span>'}</div>
+      <div class="rd3 soft">${esc(P.filename)} · ${up(P)}</div>
+      ${P.parts?.length ? `<table class="t rdparts"><thead><tr><th>Process DS Doc. No.</th><th>Rev</th><th>Date</th><th>Description</th><th>Page</th></tr></thead><tbody>
+        ${P.parts.map(x => `<tr><td>${esc(x.doc_no)}</td><td>${esc(x.rev || '—')}</td><td>${esc(x.date || '—')}</td><td>${esc(x.desc)}</td><td>${x.page}</td></tr>`).join('')}</tbody></table>` : ''}</div>` : none('Process Data', 'Process Data');
+  return `<div class="refdocs">${ds}${ps}${ms}</div>`;
+}
 function renderDash() {
   const s = S.sum, k = s.kpi, el = $('#v-dash'); el.classList.add('dashv');
   const tiles = [                               // [label, value, icon, bg, go, sub, accent(exception tile)]
@@ -770,6 +793,7 @@ function renderDash() {
   const cmax = Math.max(1, ...cats.map(c => c[1] || 0));
   el.innerHTML = `<div class="vh"><h2>Project Dashboard</h2><span class="soft">${esc(s.project.name)} · Ball Valve Datasheet</span><span class="sp"></span>
       <button data-go="docs">자료 올리기</button><button class="pri" data-go="review">Datasheet Review 열기</button></div>
+    ${refDocs(s.latest_docs || {})}
     ${!k.datasheets ? `<div class="banner info">아직 데이터시트가 없습니다 — <b>Document Management</b> 에서 Datasheet PDF · Valve List · Process Data · PMS 를 올리세요.</div>` : ''}
     <div class="kpis">${tiles.map(([l, n, ic, bg, v, sub, ac]) => `<div class="kpi ${ac && n ? 'warn' : ''}" data-go="${v}" tabindex="0" style="--ac:${ac || 'var(--blue)'}"><div class="ic" style="background:${bg}">${ic}</div>
       <div class="l">${l}</div><div class="n ${n === null ? 'na' : ''}">${n === null ? (sub || '—') : n}</div></div>`).join('')}</div>

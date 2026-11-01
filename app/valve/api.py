@@ -27,7 +27,7 @@ from fastapi.responses import FileResponse, JSONResponse, RedirectResponse, Resp
 from starlette.concurrency import run_in_threadpool
 
 from app import paths
-from app.valve import ruleperf, checks as chkmod, revisions as revmod, exports, extract, issues as issuesmod, expert as expmod, knowledge as kbmod, location as locmod, tagrules as tagmod, material, matreview as matmod, pms as pmsmod, process as procmod, requirements as reqmod, schema, store, tbe
+from app.valve import docrev, ruleperf, checks as chkmod, revisions as revmod, exports, extract, issues as issuesmod, expert as expmod, knowledge as kbmod, location as locmod, tagrules as tagmod, material, matreview as matmod, pms as pmsmod, process as procmod, requirements as reqmod, schema, store, tbe
 
 router = APIRouter()
 _JOBS: dict[str, dict] = {}
@@ -236,7 +236,57 @@ def _summary(pid: int):
                       in_valvelist=(k in vl_tags) if vl else None) for k, d in sorted(latest.items())],
         "documents": docs,
         "activity": activity,
+        "latest_docs": _latest_docs(con, pid, docs, latest),
     })
+
+
+def _count_revs(revs) -> dict:
+    """{'0': 140, 'A': 20, …} in revision order."""
+    c = {}
+    for r in revs:
+        c[r or "?"] = c.get(r or "?", 0) + 1
+    return dict(sorted(c.items(), key=lambda kv: store.rev_key(kv[0])))
+
+
+def _latest_docs(con, pid, docs, latest) -> dict:
+    """valve29 — first screen: which revision of each reference the review stands on, read from the documents themselves
+    (docrev).  Datasheet: the newest revision of every tag (its own revision table).  PMS / Process Data: the newest upload
+    of that kind — its header Rev and the newest row of its revision table; a Process Data annexure lists the revision of
+    every process datasheet inside it.  Read once per upload and kept in document.info['rev']."""
+    out = {}
+    for kind in ("pms", "process"):
+        d = next((x for x in docs if x["kind"] == kind and x["status"] == "done"), None)
+        if not d:
+            continue
+        rv = (d.get("info") or {}).get("rev")
+        if rv is None:
+            row = store.one(con, "SELECT path FROM document WHERE id=?", d["id"])
+            rv = docrev.read(row["path"]) if row and row.get("path") and Path(row["path"]).exists() else {}
+            if kind != "process":
+                rv.pop("parts", None)
+            info = dict(d.get("info") or {}, rev=rv)
+            with store._LOCK:
+                con.execute("UPDATE document SET info=? WHERE id=?", (json.dumps(info, ensure_ascii=False), d["id"]))
+                con.commit()
+            d["info"] = info
+        parts = rv.get("parts") or []
+        top = docrev.newest(parts) if parts else None
+        out[kind] = {"filename": d["filename"], "uploaded_at": d["uploaded_at"], "doc_no": rv.get("doc_no", ""),
+                     "header_rev": rv.get("header_rev", ""), "rev": rv.get("rev", ""), "date": rv.get("date", ""), "desc": rv.get("desc", ""),
+                     "parts": parts, "newest_part": top,
+                     "part_revs": _count_revs(x["rev"] for x in parts)}
+    if latest:
+        rows = {r["id"]: r for r in store.rows(con, "SELECT id, rev, rev_date FROM datasheet WHERE project_id=?", pid)}
+        cur = [rows[d["id"]] for d in latest.values() if d["id"] in rows]
+        by_rev = _count_revs(r["rev"] for r in cur)
+        dated = [r for r in cur if docrev.parse_date(r["rev_date"])]
+        top = max(dated, key=lambda r: docrev.parse_date(r["rev_date"])) if dated else None
+        up = next((x for x in docs if x["kind"] == "datasheet" and x["status"] == "done"), None)
+        out["datasheet"] = {"tags": len(cur), "by_rev": by_rev,
+                            "date": (top or {}).get("rev_date", ""),
+                            "date_tags": sum(1 for r in dated if top and docrev.parse_date(r["rev_date"]) == docrev.parse_date(top["rev_date"])),
+                            "filename": (up or {}).get("filename", ""), "uploaded_at": (up or {}).get("uploaded_at", "")}
+    return out
 
 
 # ── upload / batch ──────────────────────────────────────────────────────────────

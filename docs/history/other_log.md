@@ -221,3 +221,9 @@
 - 가볍게: Process/PMS 가상 행(990 DS DOM 22만 → 3만) · 정적 파일 해시 캐시 + 화면 답 gzip 보관 + ETag 304(재방문 229 KB → 2 KB) · 서버 메모리 −12 %(990 DS). 자세히 DESIGN §34-5.
 - 측정 도구: /tmp 의 weight2.cjs(전송량) · nodes.cjs(요소 수) 는 임시 — 필요하면 spike 로 옮길 것.
 
+## 2026-11-01 · valve29 — 첫 화면 기준 문서 Rev · 날짜 + 대시보드 Globe/Butterfly/PSV 메뉴 (사용자 요청)
+- `app/valve/docrev.py`: PDF 머리(Doc. No. · Rev.)와 개정표(같은 줄의 Rev 토큰 + 날짜, 가장 늦은 날짜 행)를 글자층에서 읽음. Process Data 묶음 안의 PR-DTS 17종도 각각. 업로드마다 한 번 읽어 document.info['rev'] 에 보관.
+- 실자료: PMS 98-98-PI-SPC-00001 Rev 0 · 20/Sep/2026 · Approved For Construction with Hold / Process CO2S-SSG-IN-REQ-00009 Rev 0, DS 17종(A 8 · B 9, 최신 08/09/2026) / Datasheet Rev 0 139 · A 13 · B 12, 최신 19/9/2026.
+- 대시보드 dashboard.html: CO2 PJT › Datasheet 아래 Globe Valve · Butterfly Valve · PSV (준비 중 화면). APP_VERSION 2026-11-01.1, 변경 이력 기록. 대시보드 zip 은 DASHBOARD 세션이 병합해 냄.
+- 시험 +2 (1,906 통과) · UI 25/25 · LINK OK.
+

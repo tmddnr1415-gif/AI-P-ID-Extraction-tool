@@ -340,3 +340,44 @@ def test_accessory_rules_positioner_transmitter_solenoid():
     r = run({"limit_switch": "NA"}, ["Solenoid valve coil Class H."], vt="XV")
     assert set(r) == {"AC-02"}                                                   # GN 20 lists XV; no transmitter anywhere
     assert run({"limit_switch": "NA"}, [], vt="MOV") == {}                       # MOV is not in GN 20 → not asked
+
+
+def test_reference_document_revisions_read_from_the_document(tmp_path):
+    """valve29 first screen: Rev · date of the loaded PMS / Process Data come from the document's own revision table."""
+    import pymupdf
+    from app.valve import docrev
+    assert docrev.parse_date("20/Sep/2026").isoformat() == "2026-09-20" and docrev.parse_date("08/09/2026").isoformat() == "2026-09-08"
+    assert docrev.parse_date("19/9/2026").isoformat() == "2026-09-19" and docrev.parse_date("Rev") is None
+    doc = pymupdf.open()
+    p = doc.new_page()
+    p.insert_text((40, 40), "Doc. No.:")
+    p.insert_text((40, 52), "98-98-PI-SPC-00001")
+    p.insert_text((300, 40), "Rev. 0,")
+    for y, (rev, date, desc) in zip((600, 615, 630), (("0", "20/Sep/2026", "Approved For Construction"), ("B", "02/Aug/2026", "Issued For Approval"),
+                                                      ("A", "05/Mar/2026", "Issued for IDC"))):
+        p.insert_text((40, y), rev)
+        p.insert_text((80, y), date)
+        p.insert_text((180, y), desc)
+    p.insert_text((36, 650), "Rev.")
+    q = doc.new_page()                                        # a process datasheet inside the annexure, its own table
+    q.insert_text((40, 40), "01-09-PR-DTS-00002")
+    for y, (rev, date) in zip((600, 615), (("B", "08/09/2026"), ("A", "20/08/2026"))):
+        q.insert_text((40, y), rev)
+        q.insert_text((300, y), date)
+    q.insert_text((38, 630), "REV")
+    f = tmp_path / "x.pdf"
+    doc.save(f)
+    r = docrev.read(f)
+    assert (r["doc_no"], r["header_rev"], r["rev"], r["date"]) == ("98-98-PI-SPC-00001", "0", "0", "20/Sep/2026")
+    assert r["desc"].startswith("Approved For Construction")
+    assert [(x["doc_no"], x["rev"], x["date"]) for x in r["parts"]] == [("01-09-PR-DTS-00002", "B", "08/09/2026")]
+    assert docrev.newest(r["parts"])["rev"] == "B"
+    assert docrev.read(tmp_path / "missing.pdf")["rev"] == ""                     # unreadable → empty, never guessed
+
+
+def test_summary_names_the_latest_datasheet_revisions(tmp_path, monkeypatch):
+    c, pid, up = _client(tmp_path, monkeypatch)
+    up("ds_A.pdf", _pdf("A"))
+    L = c.get(f"/api/valve/projects/{pid}/summary").json()["latest_docs"]
+    assert L["datasheet"]["tags"] == 1 and L["datasheet"]["by_rev"] == {"A": 1} and L["datasheet"]["filename"] == "ds_A.pdf"
+    assert "pms" not in L and "process" not in L                                  # not uploaded → not shown as if it were

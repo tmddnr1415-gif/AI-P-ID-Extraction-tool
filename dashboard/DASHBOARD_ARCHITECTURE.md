@@ -1277,3 +1277,10 @@ C:\Users\SAMSUNG\Desktop\Claude\                         ← 개발 폴더 (여�
 - 바뀐 곳: dashboard.html `APP_VERSION` · `PID_ROUTES.valve` · `ROUTES`('valve') · `menuOf`(valve → runpjt 권한) · `NAV_LS`(runpjt · runpjt-co2 · runpjt-co2-ds 접힘 상태) · `renderMenu` 안 `fold` · `runTree` · `PZ_STATUS.valve`.
 - 확인한 것: JS 문법(node --check). 임시 폴더 서버(8780) + P&ID 서버(8000, VALVE 브랜치) → 비회원으로 메뉴 트리 · Ball Valve 클릭 → Valve 화면이 iframe 으로 열림(오류 0).
 - 회사에서 확인할 것: P&ID 서버에 VALVE 꾸러미(valve01)가 먼저 적용돼 있어야 화면이 열린다 (아니면 'P&ID 서버 … 확인' 안내). 메뉴 권한 표에서 '실행 프로젝트' 를 끈 사람은 이 메뉴도 안 보인다.
+
+### 2026-11-01 (VALVE 2) — CO2 PJT › Datasheet 아래 Globe Valve · Butterfly Valve · PSV 메뉴 (APP_VERSION 2026-11-01.1 / SERVER_VERSION 그대로)
+> 서버 재시작 필요 없음 (server.py 그대로 · 권한은 기존 '실행 프로젝트(runpjt)'). 만든 곳: VALVE 세션 브랜치 `ccr-efbe7e75-n915ze`. DASHBOARD 세션은 다음 zip 전에 병합할 것.
+- 무엇을: 요청 "실행 프로젝트 하위 CO2 하위의 Ball Valve 와 같은 레벨의 메뉴를 Globe Valve, Butterfly Valve, PSV 도 만든다". Datasheet 폴더에 잎 3개를 Ball Valve 옆에 추가. 검토 도구가 아직 없으므로 누르면 '🚧 준비 중' 화면(각 메뉴의 예정 내용 한 줄)을 보인다 — 연결될 때 `MODULES.<키>.src` 나 `PID_ROUTES` 로 옮기면 된다.
+- 바뀐 곳: dashboard.html `APP_VERSION` · `MODULES`(globev · bflyv · psv, `note`) · `renderModule`(note 표시) · `ROUTES` · `RUN_LEAVES`(새 상수) · `menuOf` · `runTree`.
+- 확인한 것: 임시 폴더 서버(8091) · 비회원 → 실행 프로젝트 › CO2 PJT › Datasheet 아래 Ball Valve · Globe Valve · Butterfly Valve · PSV 4개, PSV 클릭 → 'CO2 PJT · Datasheet · PSV 🚧 준비 중'. 페이지 오류 0.
+- 회사에서 확인할 것: 메뉴 권한 '실행 프로젝트' 가 있는 사용자에게 4개가 모두 보이는지.
