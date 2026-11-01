@@ -579,3 +579,20 @@ Note 113 · PC-01 Confirm 6(3C0K8 의 '316 SS/FHF' 2개 · API5L-X65 MOV 1500# �
 - 시험 `tests/test_valve_verification.py`(지적마다 check·basis·evidence · Excel 열 · 레지스트리 판정). Revision 시뮬레이션 1,500 × 3판 = 55,223 점검 1.000.
 - 다음(엔진 우선): PMS Gasket · Bolting 품목 대조 · Process Data 의 Cv/소음 · Valve List(TBE) 재사용 열에 check 번호 · 규칙마다 '평가 불가' 를 더 세밀히(MR-04 저온 line 없음 등).
 
+## 34. Phase 1 (valve29) — Engineering Feedback Loop · 근거 추적 · 990 DS 성능 (지시서 "Engineering Intelligence Upgrade")
+
+- 계획 · 분석: `docs/valve/PHASE1_PLAN.md`. 보고서 다섯: `docs/valve/valve29/` (IMPLEMENTATION · REGRESSION · RULE_CHANGELOG · PERFORMANCE · USER_GUIDE_UPDATE).
+- **결정은 status 옆에**: `issue_state.decision` 등 + `decision_log`(덧붙이기만). 결정 → 기존 status(`store.DECISION_STATUS`) 로 대응해 출력 · 이어받기 · 수 계산은 valve28 그대로.
+  Modified 는 출력 문구만 엔지니어 것으로(원문 보관). 사유 분류 7종(Dismissed · N/A · Modified 필수).
+- **Rule Performance**(`ruleperf.py`, 통계만) · **규칙 버전 · 출처**(`checks.RULE_VERSION` 전부 1 · `RULE_SOURCE` 전부 General Engineering Check) · **변경 절차**(`rule_change`: 제안 → Tested(Regression+Simulation) → 승인 → Applied 는 코드 버전이 같을 때만).
+  판정 코드(extract · schema · material · pms · issues · tbe · matreview · expert · tagrules · process · requirements · checks · revisions · knowledge)는 결정 · 변경 기록 · 설정 · feedback 을 읽지 않는다 — AST 시험.
+- **근거 추적**: `datasheet.parser_version`(`extract.PARSER_VERSION`) · 지적의 op · tol · result · 칸 출처 줄 · PDF 빈 곳 → 칸 → 지적.
+- **판정 불변 확인 장치** `spike/valve_snapshot_diff.py`: valve28 실자료 지적 2,887건 칸 단위 비교 → 차이 0.
+- **성능**(`spike/valve_perf.py` · `valve_perf_screen.cjs`, cold/restart/warm × API · 화면 완료): 측정이 찾은 것과 고친 것 —
+  ① Issue List Excel: openpyxl 이 셀마다 새 스타일 객체를 해시 · 행마다 `ws.max_row`/`ws[r]` 재주사 → 스타일 한 번 만들어 복사(`exports._proto`) · 행 번호 직접. 500 DS 105 s → 6 s.
+  ② Valve List Excel: 템플릿 스타일 복사를 StyleArray 로 · 시트 끝 · 병합 · S.No. 를 매번 다시 찾지 않음 · 검토가 이미 찾은 특수 요구사항 재사용. 500 DS 28 s → 5.6 s.
+  ③ Mark-up PDF: 커지는 출력 문서에 주석을 달 때마다 쪽을 다시 읽어 **2차 증가**(500 DS 182 s) → 데이터시트마다 작은 문서에서 만들어 한 번에 붙임(42 s, 선형).
+  ④ 화면 Issue List 가 **최대 6,000행만**(PMS 3,000 · Process 4,000) 보여 주던 결함 → 전부, 쉬는 시간에 나눠 그림 · 행 클릭은 위임.
+  ⑤ 지적 목록 API `?compact=1`(화면용: 근거 필드 빼고 데이터시트 공통값은 한 번) 8.2 → 3.5 MB · 인코딩 결과 캐시(이슈 캐시 버전 키).
+  위 ①②③ 는 결과가 같은지 셀 · 쪽 단위로 비교했다(값 · 스타일 · 쪽 글자 · 그림 · 주석 · 책갈피).
+

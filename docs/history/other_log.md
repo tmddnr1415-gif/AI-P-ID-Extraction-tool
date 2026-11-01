@@ -172,3 +172,9 @@
 - 방향(사용자): 엔진이 핵심, UI 는 신뢰·검증 수단. 실측: 지적 행에 맞대어 본 쪽 근거 0 % → `issues.add(evidence, basis, check)` 로 전 종류에 붙임.
 - Excel Evidence/Basis 열 · PDF 코멘트 Evidence 줄 · Issues 카드 근거 링크. `checks.py` 레지스트리 48 → Checks 탭 · 대시보드 Coverage · Excel Verification 시트(n/a 이유 표).
 - 실자료 164 × 48 = 7,872 (✓6,806 ✗426 –640). 시험 `test_valve_verification.py`. Revision 시뮬 1,500×3 = 55,223 점검 1.000.
+
+## 2026-11-01 · valve29 — Phase 1 운영 신뢰성 (지시서 "Engineering Intelligence Upgrade") (브랜치 ccr-efbe7e75-n915ze)
+- 계획 `docs/valve/PHASE1_PLAN.md` → 결정 5종 + 사유 분류(status 옆) · decision_log · Rule Performance · 규칙 버전/출처 · 변경 절차(자동 변경 없음) · 근거 추적.
+- 판정 불변: `valve_snapshot_diff.py` 실자료 2,887 지적 차이 0 · eval 지문 불변.
+- 성능 측정(`valve_perf.py`, 164/500/990 · cold/warm · 화면)이 찾은 것: Issue Excel 500 DS 105 → 6 s · Valve List 28 → 5.6 s · Mark-up PDF 2차 증가 182 → 42 s · 목록 화면 6,000행 상한(결함) 제거.
+- 보고서 다섯 `docs/valve/valve29/`. 시험 99(valve).

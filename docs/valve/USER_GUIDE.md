@@ -80,7 +80,14 @@
 - **Checks 탭** = 이 Tag 에 대해 도구가 본 48 항목: ✓ 이상 없음 · ✗ 지적(누르면 그 지적) · – 자료가 없어 판단하지 않음(이유 표시: PMS 없음 · Process Data 에 없는 Tag · 설계 온도 없음 · 첫 판 …).
   – 는 통과가 아닙니다. 대시보드 'Verification Coverage' 와 Issue List Excel 'Verification' 시트(Tag × 항목)에서 전체를 봅니다.
 
-## 8. 자주 묻는 것
+## 8. 지적에 대한 결정 · Rule Performance (valve29)
+
+- 지적마다 **결정**: Open · Confirmed · Modified(문구 · Severity 고쳐 보냄) · Dismissed · Deferred(보류) · Not Applicable · Resolved. Dismissed · Not Applicable · Modified 는 사유 분류를 고릅니다.
+  Dismissed · Not Applicable 은 설계사 전달본에서 빠지고, 새 Revision 에도 같은 칸 · 같은 값이면 이어받습니다.
+- 메뉴 **Rule Performance**: 규칙마다 지적 수와 결정 · 사유 · 3개월 추세. Dismiss % 는 오탐률이 아닙니다 — '도구 원인' 열을 보세요. 규칙 변경은 '변경 제안' 절차로만(규칙이 저절로 바뀌지 않음).
+- 작업대 Data 탭 · PDF 의 빈 곳을 누르면 그 칸의 출처(파일 · Rev · 쪽 · 위치 · 읽은 방법)와 그 칸의 지적이 나옵니다. 자세한 것은 `docs/valve/valve29/USER_GUIDE_UPDATE.md`.
+
+## 9. 자주 묻는 것
 
 - **Area · Unit 은 어디서 오나?** 데이터시트 제목(QELNG NORTH / SOUTH / W15)과 P&ID 번호에서. 제목에 '(SYSTEM xx – UNIT yy)' 가 있으면 기존 플랜트 = Brownfield.
 - **왜 Process Data 빈칸을 다 지적하나?** 요청에 따라 Process DS 를 참조해도 전부 표기합니다. 한 카드로 묶여 있으니 일괄 Dismissed/Confirmed 로 처리하세요.

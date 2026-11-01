@@ -1,64 +1,23 @@
 # 인수인계 — "VALVE Datasheet 검토" 세션 (상한 15KB · 덧붙이지 말고 고쳐 쓴다)
 
-## 지금 상태 (2026-11-01 · valve28)
+## 지금 상태 (2026-11-01 · valve29 = Phase 1 완료)
 
-- 작업 브랜치: `ccr-efbe7e75-n915ze`. 이 브랜치는 PID(`claude/gracious-ride-26nqrf`, hotfix131) 와 DASHBOARD(`ccr-248a5c4d-3dji7g`, v16.51) 를 병합한 위에 있다.
-- 무엇: 대시보드 **실행 프로젝트 › CO2 PJT › Datasheet › Ball Valve** = P&ID 서버(8000) `/valve/` — Valve Datasheet 검토 도구.
-  설계 · 분석 · 남은 일: `docs/valve/DESIGN.md` (먼저 §1 표, §8, §10). **작동 원리 · API · 화면 · 확장 · 배포: `docs/valve/DEVELOPER_GUIDE.md`**.
-- Phase 1(추출 · Valve List) + Phase 2 기본(Revision) + 지적 사항 · Issue List Excel · 인쇄용 Mark-up PDF · Excel ↔ PDF 연동 · 실제 PMS 비교 (valve02, §9)
-  + 실패 원인 분석 · 강건성(A3 · 회전 · 암호/손상) · 사용자 Mark-up 도구 10종 → Issue List · Mark-up PDF (valve03, §10)
-  + P&ID · LOGIC 원리 차용: 지문 게이트 · 문턱 빈 띠 실측 · 검토 피드백(VOC) · 차등 시뮬레이션 · 화면 자기검증 (valve04, §11)
-  + **456쪽 전수 눈 대조: 오류율 3.54 % → 0.009 % (남은 2 = 도면 오타, Data Error 로 지적)** (valve05, §12).
-  + Valve List Excel 은 Vendor 행 없이 Tag 마다 Requirement 한 줄 (valve06).
-  + **UI/UX 개선(감사 `docs/valve/UI_UX_AUDIT.md` → 변경 `UI_UX_CHANGELOG.md`): 작업대 머리 띠 · 접이식 px 패널(`[` `]`) · 한 줄 도구줄 · 밸브 부위 그림(칸 → 부위) ·
-  대시보드 5×2 + Issues by Category · 목록 키보드 · Revision 같이 움직이기 · PMS 안내 · 내보내기 묶음/확인/상태**
-  + **Phase 3 Process Data 실제 비교** (`app/valve/process.py` · `GET /projects/{pid}/process` · 지적 'Process Mismatch' 주황) · Revision 비교 Excel (valve07).
-  + **HOLD / TBC 는 모든 칸 · Note 에서 Open Item(Major)** — 실자료 84건 (valve09, 사용자 요청)
-  + **valve10 (DESIGN §14)**: PMS 대조 점검 — Ball 품목의 'X BALL/STEM' 이 머리 Trim 보다 우선(1A1A 거짓 Review 16 → 0) · PMS 머리에서 P-T 표 · Service · Class Notes 도 읽음(`READER_VERSION 2`, 옛 json 은 자동 재읽기).
-    **특수 요구사항**(`requirements.py`: PFP · Fugitive · NACE … 15종, 출처 포함) → Valve List 열 · Summary 탭.
-    **재질 검토 의견**(`matreview.py` MR-01~15, Action/Confirm/Note, 근거 규격 · 증거) → Issue 'Material Review'(청록). 실자료 Action 5 · Confirm 29.
-  + **valve11 (DESIGN §15) Ball Valve 엔지니어 검토**: 지식 `knowledge.py`(28항목 → `docs/valve/BALL_VALVE_KNOWLEDGE.md`) · 설계 규칙 `expert.py` VR-01~15 ·
-    프로젝트 데이터시트 학습 PC-01(같은 Piping Class 다수 값) → 작업대 **Expert 탭**(재질+설계+학습, 지식 펼치기) · Settings › Ball Valve 지식 · Issue 'Valve Review' · Valve List 'Expert Review (Tool)' 열.
-    LLM 없이 결정적 규칙 — '전문가' 는 지식표 + 규칙 + 프로젝트 학습이다. 새 지식은 KB 에, 새 규칙은 VR 로.
-  + **valve12 (DESIGN §16) 설계사 코멘트는 핵심만**: 규칙마다 `short` 한 줄(≤160자, 시험 — valve25 에서 출처 문구로 120→160) → Issue List · Mark-up PDF · Valve List. 긴 설명은 Expert 탭에만. 새 규칙을 만들 때 short 도 반드시.
-  + **valve13 (DESIGN §17)**: Issue List Excel · Mark-up PDF 를 만들 때 **Issue Type 선택 창**(`pickTypes`, 고른 것 기억). 새 Issue 종류를 만들면 `TYPE_KO` 에 한글 설명을 더한다.
-  + **valve14 (DESIGN §18)**: Area(North · South · Brownfield · W15) · Site · Unit 을 문서에서 읽어(`location.py`) Issue List Excel 맨 앞 열과 Valve List Excel('All Valves' 시트 + 종류 시트 열)에 넣고 Excel 필터.
-  + **valve15 (DESIGN §19)**: Area · Site · Unit 별 Tag 번호 규칙을 프로젝트 Tag 에서 배움(`tagrules.py`, 절차서 문서 없음) → Settings › Tag Numbering · TG 검사(중복 · 접두 · 번호 · 기능↔Fail).
-    회사 Tag Numbering Procedure 를 받으면 배운 표와 대조할 것.
-  + **valve16 (DESIGN §20)**: 두 Excel 의 목록 시트 첫 열 No. · Summary 시트(Area · Site · Unit × Issue Type / Valve Type + By Area, `exports.summary_sheet`).
-  + **valve17 (DESIGN §21)**: Issue List 시트 Area → Site → Unit → Tag 순 · All Valves 에 Note 요구사항 종류별 열(PFP · Fugitive class · Fire safe · NACE · SIL … `requirements.columns`).
-  + **valve18 · 19 (DESIGN §22 · §23)**: Issue List · Valve List 에 'Summary by Area' 시트(`exports._area_sheet` · `tbe._area_sheet`).
-  + **valve20 (DESIGN §24) 상용 수준**: 데이터시트별 검토 캐시(메모리 + `valve/cache/review/`) · 워밍 · `_json()` · 큰 표 idle 렌더 → 990 DS 에서도 끊김 없음 ·
-    간결한 UI(그룹 카드 · 한 줄 탭 · '?' 도움말 · 8 타일) · 매일 DB 백업 · 버전 표시 · **시뮬레이션 `spike/valve_sim.py`**(10,000건 recall/precision 1.000 · 퍼즈 0 예외) + 게이트 시험.
-    규칙 코드를 고치면 `python3 spike/valve_sim.py --n 3000` 도 돌린다.
-  + **valve21 (DESIGN §25)**: 실자료 변이 재생 `spike/valve_mutate.py`(164 × 14 = 1,839건 100 %) · PMS Fire Safe HOLD → Review · 동료 다수 표기 합침 · NACE 'NA' → Review ·
-    Grid 캐시 gzip 결함 수정(`tests/test_valve_api_cache.py`) · Area/Unit 화면 전반 · Expert Note 접힘.
-  + **valve22 (DESIGN §26 · §27)**: `GET /api/valve/health` + Settings 진단 · Issue List 필터는 행만 다시 그림 · 캐시에서 감사 이력 제외(990 DS 서버 RSS ≈ 460 MB) ·
-    사용자 설명서 `docs/valve/USER_GUIDE.md` · 추출 견고성 시뮬레이션 `spike/valve_sim_pdf.py`(아래 §27 참조).
-  + **valve23 (DESIGN §28) PDF 주석기 수준 Mark-up**: 밑줄·취소선·물결·스탬프·지우개 · 색/굵기(`comment.style`) · 즐겨찾기 · '바로' · 임시 SVG 층(가벼움) · PDF 주석 종류 확장. 시험 `tests/test_valve_markup23.py`.
-  + **valve24 (DESIGN §29)**: 타자기 · 말풍선 · 꺾은선 · 다각형 · DRAFT 스탬프 — PDF 주석기 도구 목록 전부. 화면 style 결함 · 팔레트가 직전 표시를 칠하던 결함 수정.
-  + **valve25 (DESIGN §30)**: Mark-up PDF 기본 = 쪽 오른쪽 여백(250pt)에 번호별 코멘트 인쇄(`exports._comment_margin`, 넘치면 다음 쪽) + `bake()` 로 마크업 고정
-    (`?margin=0&flatten=0` 이면 예전처럼 편집 가능한 주석). 공정 값 의견은 출처를 밝힘: `matreview.proc_value` — Process Data 행 우선
-    "Based on Ref. Process Data <Doc No.> (p.N) design temp. 260 °C, …", 없으면 "Based on Datasheet …". Process Mismatch · Data Missing Required 에도 문서 번호.
-    리뷰 디스크 캐시 키에 VERSION 포함 — 꾸러미를 올리면 문구가 새로 계산된다.
-  + **valve28 (DESIGN §33) ★ 방향: Engineering Verification Engine 이 핵심, UI 는 신뢰·검증 수단.** 모든 지적에 `evidence`·`basis`·`check` · Excel Evidence/Basis 열 · PDF 코멘트 Evidence ·
-    `checks.py` 48 항목 검증 보고(fail / pass / **n/a + 이유**) → Checks 탭 · 대시보드 Coverage · Excel 'Verification' 시트. 새 규칙을 만들면 **`checks.REGISTRY` 에도 한 줄**(id · 제목 · 그룹 · 필요 입력) 을 넣고 `add(..., check=id, basis=, evidence=)` 로 낸다.
-  + **valve27 (DESIGN §32)**: 990 DS 에서 Tag 이동 74~277 → 4~19 ms(Tag 목록은 강조만 옮김) · 필터 chunk 80행 · 이웃 Tag prefetch · 긴 안내문은 `?` 로.
-    **Rev B/C/D 자동 이어받기** `revisions.py` + `api._carry_over`(업로드 끝에) + `_ds_deep` 의 `rev_review`: Dismissed/Confirmed 유지(칸 값 그대로일 때) · 'Not addressed since Rev A' · 칸 의견 복사.
-    시뮬레이션 `spike/valve_rev_sim.py --n 300 --chain 2` 도 회차 점검에 넣는다. 시험 `tests/test_valve_revision.py`.
-  + **valve26**: 설계사 코멘트 끝맺음은 'Revise.' 같은 명령 대신 '… shall be reviewed.' (설계사가 다시 검토하도록, 사용자 요청). 새 규칙도 이 말투로.
-  + **빈 Process Data 항목은 전부 Data Missing**(Process DS 참조여도 — 사용자 요청, valve08) → 실자료 2,529건 · Process Data 값을 Required 로.
-  실자료: Process Data(Annexure 7) 68 Tag 중 Datasheet 66 연결 · Match 215 · Mismatch 42(Line No. 32 · P&ID 8 · Fail 위치 2) · Review 2 · Referenced 749.
-  새 양식 · 새 자료가 오면 같은 방법으로: `valve_visual_pack.py` → 검토(지시문은 §12) → `valve_visual_score.py`.
-  PMS 의 Gasket · Bolting 품목 대조는 아직(볼트는 데이터시트 Note 로 재질 검토 MR-11 만).
-- 품질 기준값: `spike/valve_eval.py` → `spike/valve_eval_baseline.json` (지문 541753c612ed · 17,471칸 · Extraction Review 1 · 오독 0 · TBE 일치 92.9 % · PMS Review 58 · F 절 재질 규칙 개수 — `--pd <Process Data PDF>` 를 같이 줘야 온도 규칙이 돈다).
-  추출 · PMS 코드를 고치면 `--check` 로 돌린다 — 움직이면 실패하고 바뀐 칸을 보여 준다 (먼저 `--save-baseline` 을 한 번 돌려 둔 `--out` 폴더가 있어야 칸 비교가 나온다). 원인을 칸 단위로 밝힌 뒤에만 `--save-baseline`.
-- 매 회차 끝 점검(valve20: `valve_sim.py --n 3000` · valve22: `valve_sim_pdf.py --n 190` · valve27: `valve_rev_sim.py --n 300` 추가): `pytest -q tests/test_valve.py` · `valve_eval.py --check` · `valve_diff_sim.py` (불일치 0) · `node spike/valve_ui_audit.cjs` (데이터 **사본**으로 띄운 서버, 25/25).
-- 회사에서 검토가 쌓이면 Review Feedback json 을 받아 `spike/valve_voc.py <파일> --ds <PDF>` — 기각(Dismissed) 많은 규칙부터 고친다.
-- 실자료(고객 파일 · 저장소에 없음): Datasheet.pdf 456쪽 → 164 데이터시트(On/Off 140 · MOV 24) · TBE 164/164 Tag 일치.
-  자료를 다시 받으면 EGG 는 `python3 spike/valve_unegg.py <폴더> *.egg`, TBE .xls 는 시험용으로 `spike/valve_xls2xlsx.py`(xlrd 필요).
-- 시험: `pytest -q tests/ -k valve` (86개, 실자료는 `VALVE_SAMPLES=<Datasheet.pdf 폴더>`). 전체 pytest 통과 (2026-11-01).
-- 마지막 꾸러미: **valve28**(valve27 은 꾸러미 없이 valve28 에 포함) (P&ID 서버용만 — 대시보드는 valve01 의 메뉴 그대로). valve01~28 모두 회사 적용 확인 전. 각 꾸러미는 hotfix131 기준 누적이라 valve28 하나만 적용해도 된다.
+- 작업 브랜치: `ccr-efbe7e75-n915ze` (PID `claude/gracious-ride-26nqrf` hotfix131 · DASHBOARD `ccr-248a5c4d-3dji7g` v16.51 병합 위).
+- 무엇: 대시보드 **실행 프로젝트 › CO2 PJT › Datasheet › Ball Valve** = P&ID 서버(8000) `/valve/`. 설계 `docs/valve/DESIGN.md`(§1 표 · §33 검증 엔진 · §34 Phase 1) · 개발 `DEVELOPER_GUIDE.md` · 사용 `USER_GUIDE.md` · 현황 `STATUS_REPORT.md`.
+- ★ **방향(사용자 지시서 "Engineering Intelligence Upgrade")**: 엔진이 핵심, UI 는 신뢰 · 검증 수단. 기존 판정을 바꾸지 않는다 · OCR/LLM 금지 · 근거 없으면 Review/Not Defined ·
+  새 규칙마다 Rule ID · 모든 판정에 출처 문서 · 쪽 · 기준값 · 실제값 · 근거. **Phase 순서: 1 운영 신뢰성(완료) → 2 PMS Gasket/Bolting · 프로젝트 기준 문서 · 문서 간 교차 검증 → 3 Cv/차압/사이징 → 4 다중 Vendor 양식 · Tag 절차 · Workflow.**
+  Phase 마다: 계획 문서 → 구현 → 회귀 → 보고서 다섯(`docs/valve/valve29/` 양식) → 꾸러미.
+- **valve29 (Phase 1, DESIGN §34)**: 결정 5종 + 사유 분류(`issue_state` 옆 열 · `decision_log`) · Rule Performance 화면 · 규칙 버전/출처(`checks.RULE_VERSION`/`RULE_SOURCE`) · 변경 절차(`rule_change`) ·
+  근거 추적(parser_version · op/tol/result · 칸 출처 · PDF 빈 곳 → 칸) · 성능(Excel 2개 · Mark-up PDF 선형화 · 목록 6,000행 상한 제거 · compact API). **판정 변경 0**(`valve_snapshot_diff.py`).
+  새 규칙을 만들면: `checks.REGISTRY` 한 줄 + `RULE_VERSION`/`RULE_SOURCE` + `add(..., check=id, basis=, evidence=)` + `RULE_CHANGELOG.md`. 규칙을 바꾸면 버전을 올리고 도구의 변경 기록과 맞춘다.
+- 그 전(요약): 추출 · Valve List(valve01~09) · PMS/재질/전문가/Tag 규칙(valve10~15) · 출력 시트들(valve16~19) · 상용화 · 시뮬레이션(valve20~22) · Mark-up(valve23~25) ·
+  코멘트 말투(26) · Rev B/C/D 이어받기 `revisions.py`(27) · 근거 · 48 항목 검증 보고 `checks.py`(28). 자세한 것은 DESIGN §14~§33.
+- 품질 기준값: `spike/valve_eval.py --check`(지문 541753c612ed · 17,471칸) — `--pd` 를 같이. 판정 스냅샷: `spike/valve_snapshot_diff.py save|check`(실자료 사본 서버 대상, 결과 파일은 out/ — 고객 값).
+- **매 회차 끝 점검**: 전체 `pytest -q` · `valve_eval.py --check` · `valve_diff_sim.py`(불일치 0) · `valve_sim.py --n 3000` · `valve_mutate.py` · `valve_sim_pdf.py --n 190` · `valve_rev_sim.py --n 300` ·
+  `valve_snapshot_diff.py check` · `node spike/valve_ui_audit.cjs`(데이터 **사본** 서버, 25/25) · 성능은 `spike/valve_perf.py --data <사본> --label N`(164 · 500 · 990 사본: `/tmp/vt_shot` · `/tmp/vt_500` · `/tmp/vt_big` — 세션마다 다시 만들어야 함).
+- 실자료(고객 파일 · 저장소에 없음): Datasheet.pdf 456쪽 → 164 데이터시트 · TBE 164/164. EGG 는 `spike/valve_unegg.py`, .xls 는 `spike/valve_xls2xlsx.py`.
+- 시험: `pytest -q tests/ -k valve` (99개). 전체 pytest 통과.
+- 마지막 꾸러미: **valve29** (P&ID 서버용만). valve01~29 모두 회사 적용 확인 전 — 누적이라 valve29 하나만 적용하면 된다.
 
 ## 파일
 
@@ -91,8 +50,8 @@
 ## 꾸러미
 
 - P&ID 서버용 (밸브 모듈만):
-  `python3 spike/pack_delta.py --name valve24 --base 9429f4f --only app/valve/,app/static/valve/,app/main.py,tests/test_valve.py --readme out/valve24/readme_head.txt --ops`
-  → `out/PID_dev+ops_valve24_<날짜>.zip`. `--only` 는 딱지(`app/_update.json`)와 기준 파일(`out/PID_dev_delta_base.txt`)을 건드리지 않는다 (PID 세션 번호와 안 섞이게).
+  `python3 spike/pack_delta.py --name valveNN --base 9429f4f --only app/valve/,app/static/valve/,app/main.py,tests/test_valve.py,tests/test_valve_api_cache.py,tests/test_valve_extract_sim.py,tests/test_valve_markup23.py,tests/test_valve_revision.py,tests/test_valve_verification.py,tests/test_valve_feedback.py --readme out/valveNN/readme_head.txt --ops`
+  → `out/PID_dev+ops_valveNN_<날짜>.zip`. `--only` 는 딱지(`app/_update.json`)와 기준 파일(`out/PID_dev_delta_base.txt`)을 건드리지 않는다 (PID 세션 번호와 안 섞이게).
   기준 9429f4f = hotfix131 전달본. 회사가 다른 판이면 `--base` 를 그 판으로.
 - 대시보드용: `python3 dashboard_tools/make_patch.py --out dashboard_patches --mark` (기준 = `delivered.txt` 맨 아래). `--out` 은 폴더. 첫 전달: `dashboard_patches/UPDATE_from_v16.51_VALVE_menu.zip` (기준 v16.51).
 - 적용 순서(회사): ① PID 꾸러미 `apply_to_PID_dev.bat` → 확인 → `apply_to_PID_ops.bat` (8000 서버 재시작) ② 대시보드 zip `APPLY.bat` (서버 재시작 필요 없음, 화면 새 버전 배너) ③ 대시보드 → 실행 프로젝트 › CO2 PJT › Datasheet › Ball Valve.
@@ -100,6 +59,6 @@
 ## 다음에 할 일
 
 1. 회사 적용 확인: .xls 자동 변환(Excel COM)이 되는지, 456쪽 처리 시간, 화면 글꼴, Mark-up 도구(Edge)와 내보낸 PDF 를 Acrobat 에서 열어 보기.
-2. Process Data: Control Valve · PRV 표(범위 밖) · Excel 판 · PMS Gasket · Bolting 품목 대조 (§2.4).
+2. **Phase 2** (지시서 §2 · §4 · §5): PMS Gasket · Bolting 대조 · 프로젝트 기준 문서 등록 · Rule Source 연결 · 문서 간 교차 검증 · Document Hierarchy. 필요한 자료: API5L-X65 PMS · 정식 Process DS · Tag Numbering Procedure · 회사 Valve Spec.
 4. 재질 · 설계 검토: 회사 재질 · 밸브 엔지니어에게 MR(§14.3) · VR(§15) 규칙과 `BALL_VALVE_KNOWLEDGE.md` 를 보여 회사 사양 값(Floating 한계 · 시트 한계 · PST 정책)으로 맞추고, 기준(시트 한계 · B8M CL.2 해석 · 316 60 °C 문구)을 확인받기. Process Data 에 최저 설계온도가 생기면 저온(MR-04)을 온도로도.
 3. 받은 PDF 에 이미 있는 주석(설계사 Mark-up) 읽어 오기 · 1366×768 노트북에서 작업대 사용감 확인.
