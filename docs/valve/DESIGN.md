@@ -620,3 +620,8 @@ Note 113 · PC-01 Confirm 6(3C0K8 의 '316 SS/FHF' 2개 · API5L-X65 MOV 1500# �
 - Rule Performance 는 날짜도 키(3개월 추세). 서버 시작 warm-up 이 이 답들을 미리 만든다.
 - 화면: 필터 · 검색은 행만 다시 그림(G.rowsOnly · IF.L), 클릭 핸들러는 현재 목록(G.rows · IF.L)을 읽음. 쓰기(api 의 GET 아닌 호출) 뒤 미리 받은 목록은 버림(S.wgen).
 
+### 34-3. 입체 화면 · 카드 크게 보기 (valve29, 사용자 선택 시안 A "Soft Depth")
+- `body.d3` 아래 CSS 만 — 기능 · 배치 불변. 그림자는 큰 판(카드 · 도구줄 · 표 틀)에만, 표의 행 · 목록 줄에는 넣지 않아 스크롤 비용이 같다(동작 측정 최장 멈춤 변화 없음). 색이 있는 버튼(.on · .pri · 레이어 E/M/R/C · 칩)은 제 색 유지.
+- 카드 크게 보기: 카드를 복제해 화면 위에 띄움(뒤 격자는 안 움직임 · 클릭은 문서 위임이라 그대로 동작). Review Status Table 은 큰 화면에서 전체 Tag(`dashTagRows`).
+- Settings › 입체 화면 끄기 = `LS.flat`.
+

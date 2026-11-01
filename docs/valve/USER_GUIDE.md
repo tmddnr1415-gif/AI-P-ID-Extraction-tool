@@ -111,6 +111,11 @@
 - 행을 누르면 미리보기(새 창과 연동), 두 번 누르면 작업대.
 - **Excel** 버튼: 지금 거른 그대로 `Special_Requirements.xlsx` — Summary by Area · Summary by Unit · By Tag(Tag 링크 · 필터) · Info.
 
+## 10-2. 입체 화면 · 대시보드 카드 크게 보기 (valve29)
+- 화면이 입체(떠 있는 카드 · 눌리는 버튼)로 바뀌었습니다. Settings › **입체 화면** 을 끄면 예전 평면 화면.
+- 대시보드 카드의 **제목이나 빈 곳을 누르면 크게** 보입니다 (제목 옆 ⤢). Review Status Table 은 큰 화면에서 **모든 Tag** 를 보여 줍니다.
+- 닫기: Esc · 바깥 누르기 · ✕. 큰 화면의 행 · 항목을 누르면 그 화면으로 바로 갑니다.
+
 ## 11. 자주 묻는 것
 
 - **Area · Unit 은 어디서 오나?** 데이터시트 제목(QELNG NORTH / SOUTH / W15)과 P&ID 번호에서. 제목에 '(SYSTEM xx – UNIT yy)' 가 있으면 기존 플랜트 = Brownfield.

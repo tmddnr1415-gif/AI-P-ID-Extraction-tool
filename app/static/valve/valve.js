@@ -687,17 +687,35 @@ function renderDash() {
         <p class="soft hint" style="margin:8px 0 0">Dismissed 제외 · 최신 Revision 기준. 누르면 Issue List 가 그 종류로 걸러집니다.</p></div>
       <div class="card"><h3>By Area</h3><table class="t"><thead><tr><th>Area</th><th>Units</th><th>Tags</th><th>Open Issues</th><th>Major</th></tr></thead><tbody>
         ${(s.by_area || []).map(a => `<tr class="click" data-go="list:issues::${esc(a.area)}"><td><b>${esc(a.area)}</b></td><td>${esc(a.units.join(', '))}</td><td>${a.tags}</td><td>${a.issues}</td><td>${a.major}</td></tr>`).join('') || '<tr><td colspan="5" class="empty">없음</td></tr>'}</tbody></table></div>
-      <div class="card"><h3>Review Status Table</h3>
+      <div class="card" data-big="tags"><h3>Review Status Table</h3>
         <table class="t"><thead><tr><th>Tag Number</th><th>Type</th><th>Rev.</th><th>Review Status</th><th>Issues</th></tr></thead><tbody>
-        ${s.tags.slice().sort((a, b) => (b.problems - a.problems) || (b.issues - a.issues) || a.tag_key.localeCompare(b.tag_key)).slice(0, 200).map(t => `<tr class="click" data-ds="${t.id}"><td><b>${esc(t.tag_key)}</b></td><td>${esc(t.valve_type)}</td>
-          <td class="nw">${esc(t.revs.join(' → '))}</td><td>${pill(t.review_status)}</td><td>${t.problems ? pill('bad', t.problems) : ''}${t.issues ? ' ' + pill('ReviewRequired', '⚠' + t.issues) : ''}${!t.problems && !t.issues ? '0' : ''}</td></tr>`).join('') || '<tr><td colspan="5" class="empty">없음</td></tr>'}</tbody></table></div>
+        ${dashTagRows(s.tags, 200) || '<tr><td colspan="5" class="empty">없음</td></tr>'}</tbody></table></div>
       <div class="card"><h3>Recent Activity</h3>
         <table class="t"><thead><tr><th>When</th><th>Tag</th><th>Action</th><th>By</th></tr></thead><tbody>
         ${s.activity.map(a => `<tr ${a.datasheet_id ? `class="click" data-ds="${a.datasheet_id}"` : ''}><td class="mono nw" title="${esc(a.at)}">${esc(a.at.replace('T', ' ').slice(5, 16))}</td><td class="nw">${esc(a.tag || '-')}</td>
           <td>${esc(a.action)}${a.field_key ? ' · ' + esc(a.field_key) : ''}${a.after && a.action !== 'comment' ? ` <span class="soft">→ ${esc(String(a.after).slice(0, 40))}</span>` : ''}</td><td class="nw">${esc(a.by)}</td></tr>`).join('') || '<tr><td colspan="4" class="empty">기록이 없습니다</td></tr>'}</tbody></table></div>
     </div>`;
 }
+function dashTagRows(tags, max) {          // Review Status Table: problems first; the big view (⤢) shows every tag
+  return tags.slice().sort((a, b) => (b.problems - a.problems) || (b.issues - a.issues) || a.tag_key.localeCompare(b.tag_key)).slice(0, max).map(t => `<tr class="click" data-ds="${t.id}"><td><b>${esc(t.tag_key)}</b></td><td>${esc(t.valve_type)}</td>
+          <td class="nw">${esc(t.revs.join(' → '))}</td><td>${pill(t.review_status)}</td><td>${t.problems ? pill('bad', t.problems) : ''}${t.issues ? ' ' + pill('ReviewRequired', '⚠' + t.issues) : ''}${!t.problems && !t.issues ? '0' : ''}</td></tr>`).join('');
+}
+/* valve29 — a dashboard card opens big: click its title or an empty spot (rows · chips · links keep their own action).
+   The big view is a copy over the page (the grid behind does not move); Esc · ✕ · a click outside closes it. */
+function bigCard(card) {
+  closeBig();
+  const c = card.cloneNode(true); c.classList.add('big'); c.removeAttribute('style');
+  if (card.dataset.big === 'tags') { const tb = $('tbody', c); if (tb) tb.innerHTML = dashTagRows(S.sum.tags, Infinity); }
+  const x = document.createElement('button'); x.className = 'bigx'; x.textContent = '✕'; x.title = '닫기 (Esc)'; x.onclick = closeBig; c.prepend(x);
+  const bg = document.createElement('div'); bg.className = 'bigbg'; bg.onclick = closeBig;
+  document.body.append(bg, c);
+}
+function closeBig() { $$('body > .card.big, body > .bigbg').forEach(x => x.remove()); }
+document.addEventListener('keydown', e => { if (e.key === 'Escape' && $('body > .card.big')) { e.stopPropagation(); closeBig(); } }, true);
 document.addEventListener('click', e => {
+  const dc = e.target.closest('#v-dash .card');
+  if (dc && !e.target.closest('a, button, input, select, label, tr.click, tr[data-ds], [data-go], .kpi')) { bigCard(dc); return; }
+  if (e.target.closest('body > .card.big [data-go], body > .card.big tr[data-ds]')) closeBig();     // a row in the big view opens its screen
   const rt = e.target.closest('[data-retry]'); if (rt) { S.grid = null; S.issues = null; go(rt.dataset.retry); return; }
   const g = e.target.closest('[data-go]'); if (g && !e.target.closest('.tbar')) {
     const [v, m, f, ar] = g.dataset.go.split(':'); if (m) G.mode = m;
@@ -1887,6 +1905,7 @@ function renderSettings() {
   el.innerHTML = `<div class="vh"><h2>Settings</h2></div><div class="grid2"><div class="card"><h3>사용자 · 화면</h3>
       <p>이름: <b>${esc(USER || '(없음 — 대시보드에서 열면 로그인 이름이 자동으로 넘어옵니다)')}</b></p>
       ${Q.get('user') ? '' : `<p><input id="sname" placeholder="이름 (대시보드 밖에서 열 때만)" value="${esc(LS.get('user', ''))}"> <button id="ssave">저장</button></p>`}
+      <p><label><input type="checkbox" id="sd3" ${document.body.classList.contains('d3') ? 'checked' : ''}> 입체 화면 (끄면 평면 — 아주 오래된 PC 에서 더 가볍게)</label></p>
       <p><button id="sreset">패널 너비 · 열 순서 · 확대 처음대로</button></p></div>
     <div class="card"><h3>단축키</h3><table class="t"><tbody>
       ${[['1 … 9', '왼쪽 메뉴 이동'], ['↑ / ↓ 또는 K / J', '(Review) 이전 / 다음 Tag · (목록) 행 이동 · Enter 열기'], ['PgUp / PgDn', '이전 / 다음 쪽'], ['+ / −', '확대 / 축소'], ['/', 'Tag 검색'], ['F', 'PDF 검색'],
@@ -1917,6 +1936,7 @@ function renderSettings() {
   api('GET', '/knowledge').then(L => { $('#kbl').innerHTML = L.map(k => `<details class="kb"><summary><b>${esc(k.title)}</b> <small class="soft">${esc(k.ref)}</small></summary>
     <p>${esc(k.text)}</p><p class="soft">데이터시트에서 볼 것: ${esc(k.check)}</p></details>`).join(''); }).catch(() => { $('#kbl').textContent = '불러오지 못했습니다'; });
   $('#ssave') && ($('#ssave').onclick = () => { LS.set('user', $('#sname').value.trim()); location.reload(); });
+  $('#sd3').onchange = e => { document.body.classList.toggle('d3', e.target.checked); LS.set('flat', !e.target.checked); };
   $('#sreset').onclick = () => { ['wbw', 'wbpx', 'wbc', 'gorder', 'gw', 'zoom', 'mkbar', 'vpart', 'rcsync', 'wtab'].forEach(k => LS.set(k, null)); toast('처음대로 — 화면을 다시 엽니다'); setTimeout(() => location.reload(), 600); };
 }
 const RENDER = { dash: renderDash, docs: renderDocs, list: renderList, review: renderReview, rev: renderRev, proc: renderProc, pms: renderPms, rules: renderRules, export: renderExport, settings: renderSettings };
@@ -2132,6 +2152,7 @@ async function popPdf() {                                  // the light PDF wind
 if (POP === 'pdf' || POP === 'cmp') { (POP === 'pdf' ? popPdf() : popCmp()).catch(e => { document.body.innerHTML = `<div class="empty" style="color:var(--bad)">${esc(e.message)}</div>`; }); }
 else {
 if (EMBED) document.body.classList.add('embed');
+if (!LS.get('flat', false)) document.body.classList.add('d3');     // valve29: depth look (Settings › 평면 화면 to turn off)
 $('#who').innerHTML = `<b>${esc((USER || '?').slice(0, 1))}</b>${esc(USER || '이름 없음')}`;
 loadProjects().then(async () => {
   hintsInit();                                         // top-bar buttons (? · ⧉ 새 창 · 🔗 연동) also on deep links
