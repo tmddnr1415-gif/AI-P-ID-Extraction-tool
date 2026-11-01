@@ -184,3 +184,7 @@
 - API `/requirements` · `/requirements.xlsx` (Summary by Area · by Unit · By Tag · Info). 계산은 Valve List 와 같은 함수 — 수 일치 확인.
 - 시험 +1 (전체 1,901 통과) · UI 25/25 · LINK OK.
 
+
+## 2026-11-01 · valve29 — 메뉴별 화면 캡처 + 새 설치 첫 실행 결함 수정
+- `spike/valve_menu_shots.cjs`: 빈 서버에 실자료 4종 Import → 메뉴 16화면 캡처 (out/valve29/menus, 저장소 제외).
+- 결함: **새 설치의 첫 요청이 500** — 서버 준비 스레드와 첫 화면 요청이 빈 DB 에 같은 열을 동시에 추가(duplicate column: since). `store.connect` 첫 준비를 잠금 + 중복 열 무시. 시험 +1.

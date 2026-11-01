@@ -274,3 +274,21 @@ def test_special_requirements_summary_and_excel(tmp_path, monkeypatch):
     # a filter that matches nothing gives an empty tag sheet, not an error
     wb = openpyxl.load_workbook(io.BytesIO(c.get(f"/api/valve/projects/{pid}/requirements.xlsx?req=PFP").content))
     assert wb["By Tag"].max_row == 1
+
+
+def test_new_database_first_use_from_many_threads(tmp_path, monkeypatch):
+    """A new installation: the warm-up thread and the first screen request open the empty database together."""
+    import threading
+    monkeypatch.setenv("PID_DATA_DIR", str(tmp_path / "fresh"))
+    from app.valve import store as st
+    errs = []
+
+    def go():
+        try:
+            st.connect().execute("SELECT count(*) FROM project").fetchone()
+        except Exception as e:                              # noqa: BLE001
+            errs.append(e)
+    th = [threading.Thread(target=go) for _ in range(8)]
+    [t.start() for t in th]
+    [t.join() for t in th]
+    assert errs == []

@@ -79,6 +79,7 @@ def now() -> str:
 
 
 _READY: set = set()                      # db paths whose schema / migration ran in this process (once, not per request)
+_READY_LOCK = threading.Lock()
 
 
 def connect() -> sqlite3.Connection:
@@ -89,9 +90,11 @@ def connect() -> sqlite3.Connection:
     con.execute("PRAGMA journal_mode=WAL")
     con.execute("PRAGMA busy_timeout=30000")
     if path not in _READY:
-        con.executescript(_SCHEMA)
-        _migrate(con)
-        _READY.add(path)
+        with _READY_LOCK:                                    # first use of a NEW database: the warm-up thread and the first
+            if path not in _READY:                           # request must not both add the same columns (valve29 fix)
+                con.executescript(_SCHEMA)
+                _migrate(con)
+                _READY.add(path)
     return con
 
 
@@ -134,7 +137,11 @@ def _migrate(con):
         have = {r[1] for r in con.execute(f"PRAGMA table_info({table})")}
         for name, typ in cols:
             if name not in have:
-                con.execute(f"ALTER TABLE {table} ADD COLUMN {name} {typ}")
+                try:
+                    con.execute(f"ALTER TABLE {table} ADD COLUMN {name} {typ}")
+                except sqlite3.OperationalError as e:       # another process added it meanwhile
+                    if "duplicate column" not in str(e):
+                        raise
     con.commit()
 
 
