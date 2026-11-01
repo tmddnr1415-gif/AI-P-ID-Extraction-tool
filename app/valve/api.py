@@ -25,7 +25,7 @@ from fastapi.responses import FileResponse, JSONResponse, RedirectResponse, Resp
 from starlette.concurrency import run_in_threadpool
 
 from app import paths
-from app.valve import exports, extract, issues as issuesmod, expert as expmod, knowledge as kbmod, location as locmod, tagrules as tagmod, material, matreview as matmod, pms as pmsmod, process as procmod, requirements as reqmod, schema, store, tbe
+from app.valve import revisions as revmod, exports, extract, issues as issuesmod, expert as expmod, knowledge as kbmod, location as locmod, tagrules as tagmod, material, matreview as matmod, pms as pmsmod, process as procmod, requirements as reqmod, schema, store, tbe
 
 router = APIRouter()
 _JOBS: dict[str, dict] = {}
@@ -131,10 +131,12 @@ def summary(pid: int):
     ic = _issue_counts(irows)
     pv = _profile_ver(con, pid)
     loc_of = {d["id"]: ((_ds_full(con, d["id"], pv=pv) or {}).get("location") or {}) for d in latest.values()}
-    per_tag = {}
+    per_tag, still = {}, {}
     for i in irows:
         if i["status"] != "Dismissed" and i["severity"] in ("Major", "Minor"):
             per_tag[i["ds_id"]] = per_tag.get(i["ds_id"], 0) + 1
+        if i.get("since") and i["status"] != "Dismissed":              # valve26: confirmed before, unchanged in the new revision
+            still[i["ds_id"]] = still.get(i["ds_id"], 0) + 1
     activity = store.rows(con, "SELECT a.*, d.tag, d.rev FROM audit a LEFT JOIN datasheet d ON d.id=a.datasheet_id"
                                " WHERE a.project_id=? ORDER BY a.id DESC LIMIT 30", pid)
     return _json({
@@ -146,14 +148,14 @@ def summary(pid: int):
                 "pms_noncompliant": (ic.get("PMS Non-Compliance", 0) if has_pms else None),
                 "data_errors": ic.get("Data Error", 0), "data_missing": ic.get("Data Missing", 0),
                 "open_items": ic.get("Open Item", 0), "pms_review": ic.get("PMS Review", 0) if has_pms else None,
-                "pending": len(latest) - done, "completed": done,
+                "pending": len(latest) - done, "completed": done, "not_addressed": sum(still.values()),
                 "review_required": sum(issues.get(d["id"], 0) for d in latest.values())},
         "has_valvelist": bool(vl),
         "has_pms": has_pms,
         "has_process": has_process,
         "by_area": _by_area(irows, latest, loc_of),
         "tags": [dict(d, area=loc_of.get(d["id"], {}).get("area", ""), unit=loc_of.get(d["id"], {}).get("unit", ""),
-                      issues=issues.get(d["id"], 0), problems=per_tag.get(d["id"], 0), revs=sorted(revs[k], key=store.rev_key),
+                      issues=issues.get(d["id"], 0), problems=per_tag.get(d["id"], 0), still=still.get(d["id"], 0), revs=sorted(revs[k], key=store.rev_key),
                       in_valvelist=(k in vl_tags) if vl else None) for k, d in sorted(latest.items())],
         "documents": docs,
         "activity": activity,
@@ -185,6 +187,7 @@ def _process(jid: str, pid: int, items: list[tuple[int, str, str, Path]], by: st
                 n_bad = sum(1 for o in res["other_pages"] if o.get("kind") == "damaged")
                 if n_bad:
                     _job(jid, warn=f"{name}: 손상된 파일 — 복구해 읽었지만 {n_bad}쪽은 글자를 찾지 못했습니다. 원본 파일을 다시 받아 올려 주세요")
+                new_ids = []
                 with store._LOCK:
                     for ds in dss:
                         ds["form"] = "102" if any(r.get("row", 0) > 61 for r in ds["fields"].values()) else "on/off"
@@ -199,7 +202,7 @@ def _process(jid: str, pid: int, items: list[tuple[int, str, str, Path]], by: st
                             continue
                         if dup:
                             continue
-                        store.insert_datasheet(con, pid, doc_id, ds)
+                        new_ids.append(store.insert_datasheet(con, pid, doc_id, ds))
                     info = {"datasheets": len(dss), "tags": sorted({d["tag"] for d in dss}),
                             "docs": {k: {"title": v.get("title"), "rev": v.get("rev"),
                                          "general_notes": v.get("general_notes", {})} for k, v in res["docs"].items()},
@@ -209,6 +212,7 @@ def _process(jid: str, pid: int, items: list[tuple[int, str, str, Path]], by: st
                     con.commit()
                 if n_scan:
                     _job(jid, warn=f"{name}: 글자층이 없는 쪽 {n_scan}장 (스캔본) — 이 판에서는 읽지 못했습니다")
+                _carry_over(con, pid, new_ids, by, jid)        # valve26: Rev B inherits what Rev A's review decided
             elif kind == "valvelist":
                 data = path.read_bytes()
                 if path.suffix.lower() == ".xls":
@@ -284,7 +288,7 @@ async def _startup_warm():
     threading.Thread(target=warm_all, daemon=True, name="valve-warm-all").start()
 
 
-VERSION = "valve26"                       # shown in Settings › 정보 and the footer; bump with every package
+VERSION = "valve27"                       # shown in Settings › 정보 and the footer; bump with every package
 
 
 @router.get("/api/valve/version")
@@ -590,6 +594,52 @@ def _deep_disk(dsid: int):
         return None
 
 
+def _prev_rev_of(con, d):
+    """The datasheet row of the previous revision of the same tag (by EPC revision order), or None."""
+    rv = sorted(store.rows(con, "SELECT id, rev FROM datasheet WHERE project_id=? AND tag_key=?", d["project_id"], d["tag_key"]),
+                key=lambda r: (store.rev_key(r["rev"]), r["id"]))
+    i = next((n for n, r in enumerate(rv) if r["id"] == d["id"]), 0)
+    return rv[i - 1] if i > 0 else None
+
+
+def _carry_over(con, pid, new_ids, by, jid=None):
+    """valve26: for every newly inserted datasheet that has an earlier revision in the project, carry the review
+    (Dismissed · Confirmed states on unchanged fields, field comments) and write an audit line with the counts."""
+    n_done = 0
+    for dsid in new_ids:
+        try:
+            d = _ds_full(con, dsid, deep=False)
+            prev = _prev_rev_of(con, d)
+            if not prev:
+                continue
+            pfull = _ds_full(con, prev["id"], deep=False)
+            cmp_rows = compare(pfull, d)
+            new = _ds_full(con, dsid)                            # reviewed by the rules (also warms the cache)
+            pstates = {r["ikey"]: r for r in store.rows(con, "SELECT * FROM issue_state WHERE datasheet_id=?", prev["id"])}
+            carried = revmod.carry_states(pstates, cmp_rows, {i["ikey"] for i in new["issues"]}, prev["rev"])
+            pcm = store.rows(con, "SELECT * FROM comment WHERE datasheet_id=? AND deleted=0", prev["id"])
+            cms = revmod.carry_comments(pcm, cmp_rows, {f["key"]: f for f in d["fields"]})
+            with store._LOCK:
+                for c in carried:
+                    con.execute("INSERT OR REPLACE INTO issue_state(datasheet_id, ikey, status, note, by, at, since) VALUES (?,?,?,?,?,?,?)",
+                                (dsid, c["ikey"], c["status"], c["note"], by, store.now(), c["since"]))
+                for c in cms:
+                    con.execute("INSERT INTO comment(datasheet_id, field_key, text, by, at, page, bbox, category, kind, origin)"
+                                " VALUES (?,?,?,?,?,?,?,?,?,?)", (dsid, c["field_key"], c["text"], c["by"], store.now(), c["page"],
+                                                                 store.J(c["bbox"]) if c["bbox"] else None, c["category"], c["kind"], f"Rev {prev['rev']}"))
+                store.audit(con, pid, dsid, None, "carry", prev["rev"], d["rev"], by,
+                            f"{sum(1 for c in carried if c['status'] == 'Dismissed')} dismissed · "
+                            f"{sum(1 for c in carried if c['status'] == 'Confirmed')} confirmed (not addressed) · {len(cms)} comments carried")
+                con.commit()
+            _DEEP_CACHE.pop(dsid, None)                         # states changed: the next read recomputes
+            n_done += 1
+        except Exception as e:                                  # noqa: BLE001 — a carry failure must not fail the upload
+            store.audit(con, pid, dsid, None, "carry-error", None, None, by, str(e)[:300])
+            con.commit()
+    if n_done and jid:
+        _job(jid, msg=f"이전 Revision 의 검토를 이어받음: {n_done} Tag")
+
+
 def _ds_deep(con, d, dsid):
     fs = d["fields"]
     pms, pdoc = _pms_for(con, d["project_id"])
@@ -613,6 +663,18 @@ def _ds_deep(con, d, dsid):
     states = {r["ikey"]: r for r in store.rows(con, "SELECT * FROM issue_state WHERE datasheet_id=?", dsid)}
     d["issues"] = issuesmod.compute(d, d["general_notes"], pms, d["area"], prev, states, pms_rows=d["pms"], process_rows=d["process"],
                                    material_rows=d["material_review"])
+    d["rev_review"] = None
+    if i > 0:                                                   # valve26: what this revision resolved / left open / added
+        pid_ = d["revisions"][i - 1]["id"]
+        pfull = _ds_full(con, pid_, deep=True)
+        pstates = {r["ikey"]: r for r in store.rows(con, "SELECT * FROM issue_state WHERE datasheet_id=?", pid_)}
+        d["rev_review"] = revmod.rev_review((pfull or {}).get("issues") or [], d["issues"], pstates, prev, d["revisions"][i - 1]["rev"])
+        still = set(d["rev_review"]["still"])
+        for it in d["issues"]:
+            if it["ikey"] in still:
+                it["since"] = d["rev_review"]["prev_rev"]
+                it["severity"] = "Major"
+                it["description"] = f"Not addressed since Rev {it['since']}: {it['description']}"
     return d
 
 

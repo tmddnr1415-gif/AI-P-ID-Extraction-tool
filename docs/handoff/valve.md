@@ -1,6 +1,6 @@
 # 인수인계 — "VALVE Datasheet 검토" 세션 (상한 15KB · 덧붙이지 말고 고쳐 쓴다)
 
-## 지금 상태 (2026-11-01 · valve26)
+## 지금 상태 (2026-11-01 · valve27)
 
 - 작업 브랜치: `ccr-efbe7e75-n915ze`. 이 브랜치는 PID(`claude/gracious-ride-26nqrf`, hotfix131) 와 DASHBOARD(`ccr-248a5c4d-3dji7g`, v16.51) 를 병합한 위에 있다.
 - 무엇: 대시보드 **실행 프로젝트 › CO2 PJT › Datasheet › Ball Valve** = P&ID 서버(8000) `/valve/` — Valve Datasheet 검토 도구.
@@ -41,6 +41,9 @@
     (`?margin=0&flatten=0` 이면 예전처럼 편집 가능한 주석). 공정 값 의견은 출처를 밝힘: `matreview.proc_value` — Process Data 행 우선
     "Based on Ref. Process Data <Doc No.> (p.N) design temp. 260 °C, …", 없으면 "Based on Datasheet …". Process Mismatch · Data Missing Required 에도 문서 번호.
     리뷰 디스크 캐시 키에 VERSION 포함 — 꾸러미를 올리면 문구가 새로 계산된다.
+  + **valve27 (DESIGN §32)**: 990 DS 에서 Tag 이동 74~277 → 4~19 ms(Tag 목록은 강조만 옮김) · 필터 chunk 80행 · 이웃 Tag prefetch · 긴 안내문은 `?` 로.
+    **Rev B/C/D 자동 이어받기** `revisions.py` + `api._carry_over`(업로드 끝에) + `_ds_deep` 의 `rev_review`: Dismissed/Confirmed 유지(칸 값 그대로일 때) · 'Not addressed since Rev A' · 칸 의견 복사.
+    시뮬레이션 `spike/valve_rev_sim.py --n 300 --chain 2` 도 회차 점검에 넣는다. 시험 `tests/test_valve_revision.py`.
   + **valve26**: 설계사 코멘트 끝맺음은 'Revise.' 같은 명령 대신 '… shall be reviewed.' (설계사가 다시 검토하도록, 사용자 요청). 새 규칙도 이 말투로.
   + **빈 Process Data 항목은 전부 Data Missing**(Process DS 참조여도 — 사용자 요청, valve08) → 실자료 2,529건 · Process Data 값을 Required 로.
   실자료: Process Data(Annexure 7) 68 Tag 중 Datasheet 66 연결 · Match 215 · Mismatch 42(Line No. 32 · P&ID 8 · Fail 위치 2) · Review 2 · Referenced 749.
@@ -48,12 +51,12 @@
   PMS 의 Gasket · Bolting 품목 대조는 아직(볼트는 데이터시트 Note 로 재질 검토 MR-11 만).
 - 품질 기준값: `spike/valve_eval.py` → `spike/valve_eval_baseline.json` (지문 541753c612ed · 17,471칸 · Extraction Review 1 · 오독 0 · TBE 일치 92.9 % · PMS Review 58 · F 절 재질 규칙 개수 — `--pd <Process Data PDF>` 를 같이 줘야 온도 규칙이 돈다).
   추출 · PMS 코드를 고치면 `--check` 로 돌린다 — 움직이면 실패하고 바뀐 칸을 보여 준다 (먼저 `--save-baseline` 을 한 번 돌려 둔 `--out` 폴더가 있어야 칸 비교가 나온다). 원인을 칸 단위로 밝힌 뒤에만 `--save-baseline`.
-- 매 회차 끝 점검 여섯(valve20: `valve_sim.py --n 3000` · valve22: `valve_sim_pdf.py --n 190` 추가): `pytest -q tests/test_valve.py` · `valve_eval.py --check` · `valve_diff_sim.py` (불일치 0) · `node spike/valve_ui_audit.cjs` (데이터 **사본**으로 띄운 서버, 25/25).
+- 매 회차 끝 점검(valve20: `valve_sim.py --n 3000` · valve22: `valve_sim_pdf.py --n 190` · valve27: `valve_rev_sim.py --n 300` 추가): `pytest -q tests/test_valve.py` · `valve_eval.py --check` · `valve_diff_sim.py` (불일치 0) · `node spike/valve_ui_audit.cjs` (데이터 **사본**으로 띄운 서버, 25/25).
 - 회사에서 검토가 쌓이면 Review Feedback json 을 받아 `spike/valve_voc.py <파일> --ds <PDF>` — 기각(Dismissed) 많은 규칙부터 고친다.
 - 실자료(고객 파일 · 저장소에 없음): Datasheet.pdf 456쪽 → 164 데이터시트(On/Off 140 · MOV 24) · TBE 164/164 Tag 일치.
   자료를 다시 받으면 EGG 는 `python3 spike/valve_unegg.py <폴더> *.egg`, TBE .xls 는 시험용으로 `spike/valve_xls2xlsx.py`(xlrd 필요).
 - 시험: `pytest -q tests/ -k valve` (86개, 실자료는 `VALVE_SAMPLES=<Datasheet.pdf 폴더>`). 전체 pytest 통과 (2026-11-01).
-- 마지막 꾸러미: **valve26** (P&ID 서버용만 — 대시보드는 valve01 의 메뉴 그대로). valve01~26 모두 회사 적용 확인 전. 각 꾸러미는 hotfix131 기준 누적이라 valve26 하나만 적용해도 된다.
+- 마지막 꾸러미: **valve27** (P&ID 서버용만 — 대시보드는 valve01 의 메뉴 그대로). valve01~27 모두 회사 적용 확인 전. 각 꾸러미는 hotfix131 기준 누적이라 valve27 하나만 적용해도 된다.
 
 ## 파일
 

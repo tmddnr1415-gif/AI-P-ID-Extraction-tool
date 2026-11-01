@@ -104,7 +104,9 @@ def backup(keep: int = 7) -> Path | None:
 
 _ADDED = {"datasheet": [("sheets", "TEXT")],
           "comment": [("page", "INTEGER"), ("bbox", "TEXT"), ("category", "TEXT DEFAULT 'comment'"),
-                      ("deleted", "INTEGER DEFAULT 0"), ("kind", "TEXT"), ("points", "TEXT"), ("style", "TEXT")]}
+                      ("deleted", "INTEGER DEFAULT 0"), ("kind", "TEXT"), ("points", "TEXT"), ("style", "TEXT"),
+                      ("origin", "TEXT")],                   # valve26: 'Rev A' when copied from the previous revision
+          "issue_state": [("since", "TEXT")]}                # valve26: revision the state was carried from
 
 
 def _migrate(con):

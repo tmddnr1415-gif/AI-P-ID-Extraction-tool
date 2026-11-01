@@ -545,3 +545,23 @@ Note 113 · PC-01 Confirm 6(3C0K8 의 '316 SS/FHF' 2개 · API5L-X65 MOV 1500# �
   MR-02 "… seat X (typ. max. N °C) shall be reviewed or P-T curve submitted." · MR-10 · VR(flange facing · flange standard · actuator type · valve size) · TG-04.
 - 판정 · 개수는 그대로(기준값 불변 · 시뮬레이션 3,000 · 변이 재생 통과). 새 규칙의 short 도 이 말투로 쓴다.
 
+## 32. 물 흐르듯 · 글자 줄이기 · Rev B/C/D 자동 이어받기 (valve27, 사용자 요청)
+
+- 요청: ① 끊김 없이 더 가볍게 ② 화면 글자는 핵심만 ③ 수천 번 시뮬레이션으로 엔지니어 의견과 비교해 보완, Rev B·C·D 가 계속 와도 자동 검토 ④ 상업 수준으로.
+- **실측부터**(Playwright longtask · CPU 프로파일 · 렌더 트레이스, `/tmp` 스크립트): 서버는 모든 화면 ≤ 63 ms 라 병목이 아니었다. 브라우저에서
+  990 DS 사본의 Tag 이동이 74~277 ms(긴 작업 250 ms) — 원인은 Tag 를 바꿀 때마다 984행 Tag 목록을 다시 그리고(`drawTagList` 155 ms) `scrollIntoView` 가 강제 레이아웃(60 ms).
+  → `selectTagRow` 로 강조만 옮기고 보이지 않을 때만 스크롤, `tagRow` 한 줄만 다시 그림(`refreshTagRow`), 목록은 chunk 로 그림. **결과 4~19 ms · 긴 작업 0**.
+  Valve List 필터 340 ms → `chunkRows` 첫 묶음 250→80행(한 화면) · 행 HTML 을 게으르게 만듦(함수) · `Intl.Collator` 하나로 정렬 → 긴 작업 60~90 ms.
+  PDF 쪽 그림은 `decoding="async"` · 다음/이전 Tag 의 데이터시트 JSON 과 첫 두 쪽 그림을 idle 에 미리 받음(`prefetchNeighbours`, 쓰기 요청이 있으면 비움).
+- **글자**: 항상 보이던 긴 문장(Process/PMS 표 안내 · 내보내기 카드 · Settings 원칙 · 빈 상태)을 한 줄로 줄이고 설명은 `.hint`(머리 `?`)로 옮김.
+- **Rev B/C/D 자동 이어받기**(`app/valve/revisions.py`, 순수 함수 · 서버 훅 `api._carry_over` · 화면): 새 Revision 이 들어오면 규칙 검토는 전과 같이 자동.
+  거기에 ① Rev A 에서 Dismissed 한 지적이 **같은 칸 · 값 그대로** 로 다시 나오면 Dismissed 유지(비고 'Carried from Rev A') ② Confirmed(설계사 전달) 였는데 값 그대로 → Confirmed 유지 ·
+  `since` 표시 · 문구 앞에 "Not addressed since Rev A:" · Major ③ 사라진 지적 = 해결, 처음 나온 지적 = 새 것 ④ 칸에 단 글 의견은 칸이 안 바뀌었으면 새 판으로 복사(`comment.origin`='Rev A') ·
+  자유 그림은 옛 쪽 것이라 복사하지 않음 ⑤ Resolved 는 이어받지 않음(다시 나오면 다시 Open). 감사 기록 'carry' 한 줄(개수).
+  화면: 머리 띠 `Rev A→B ✓해결 ✗미반영 +새로` 칩 · Tag 목록 ✗N · 대시보드 Revision Changes 타일에 '미반영 N' · 의견 카드에 'Rev A' 표.
+  `issue_state.since` · `comment.origin` 열(이전 DB 자동 추가). 리뷰 캐시 키에 VERSION.
+- **시뮬레이션 `spike/valve_rev_sim.py`**: 합성 PDF Rev A → 엔지니어 검토(Dismiss/Confirm/Resolve 무작위) → 설계사 수정 1~4(빈칸 채움 · 값 변경 · 지움 · 같은 재질 다른 표기 · Note) → Rev B → Rev C,
+  실제 리더 · compare · issues · revisions 로 돌리고 엔지니어 기대와 비교(compare 정확 · 이어받기 · 해결/미반영/새것 규칙). 60건×2판 1,506 점검 1.000.
+  찾은 것: ① `rev_review` 가 Dismissed 였던 지적을 '새것'으로 세던 것(수정) ② 시뮬레이터가 같은 칸을 두 번 고치던 것(시뮬레이터 수정). 1,500건×3판 결과는 아래 기록.
+- 실자료: 00XV921 Rev A→B = 해결 5 · 새 3 · 미반영 0(Rev A 에 Confirmed 없음). 기준값 불변.
+

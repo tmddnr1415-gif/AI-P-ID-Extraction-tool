@@ -161,3 +161,9 @@
 - 요청: "Revise 보단 설계사가 다시 검토할 수 있도록 shall be reviewed 느낌으로".
 - 한 줄 코멘트의 'Revise.'(8곳) · '— correct.' → '… shall be reviewed.' MR-01·02 는 160자 안에 들도록 괄호로 줄임.
 - 기준값 불변 · sim 3,000 · mutate · 시험 86(valve) 통과.
+
+## 2026-11-01 · valve27 — 물 흐르듯 · 글자 줄임 · Rev B/C/D 자동 이어받기 (브랜치 ccr-efbe7e75-n915ze)
+- 실측: 서버 ≤ 63 ms. 브라우저 990 DS Tag 이동 74~277 ms → 4~19 ms(Tag 목록 재생성 제거 · scrollIntoView 조건부). 필터 긴 작업 193 → 60~90 ms(chunk 80 · 게으른 행 · Collator). prefetch · decoding=async.
+- 글자: 항상 보이던 긴 안내문을 한 줄로, 설명은 `?` 로.
+- `revisions.py`: Dismissed/Confirmed 이어받기 · 'Not addressed since Rev A' · 칸 의견 복사 · rev_review(해결/미반영/새것). 화면 칩 · 목록 ✗N · 대시보드 '미반영'. `tests/test_valve_revision.py`.
+- `spike/valve_rev_sim.py` 1,506 점검 1.000(발견: Dismissed 였던 지적을 새것으로 세던 것 수정). 실자료 00XV921 A→B 해결 5 · 새 3.

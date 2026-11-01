@@ -708,6 +708,7 @@ python3 spike/pack_delta.py --name valve05 --base 9429f4f \
 | valve24 | 2026-11-01 | 타자기(Y) · 말풍선(B) · 꺾은선(O) · 다각형(Q) · DRAFT 스탬프 · 화면 style 반영 · 팔레트는 그리기 중 다음 표시에만 |
 | valve25 | 2026-11-01 | Mark-up PDF: 쪽 옆 번호별 코멘트(`_comment_margin`) · 마크업 고정(`bake`) · 선택 창 PDF 옵션 · 공정 값 의견 출처(`matreview.proc_value` "Based on Ref. Process Data <Doc> (p.N) …") · 캐시 키 VERSION |
 | valve26 | 2026-11-01 | 설계사 코멘트 말투: Revise → "… shall be reviewed." (MR-01·02·10 · VR · TG-04) |
+| valve27 | 2026-11-01 | Tag 이동 4~19 ms(목록 재생성 제거) · 필터 chunk 80 · prefetch · 글자 줄임 · **Rev B/C/D 이어받기 `revisions.py`**(Dismissed/Confirmed 유지 · 미반영 표시 · 의견 복사) · `valve_rev_sim.py` |
 
 **남은 일**
 1. 회사 적용 확인: .xls 자동 변환, 456쪽 처리 시간, 화면 글꼴, Edge 에서 Mark-up · 패널 접기, 내보낸 PDF 를 Acrobat 에서 열기, 1366×768 노트북에서 작업대.

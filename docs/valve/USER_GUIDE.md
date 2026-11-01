@@ -66,7 +66,14 @@
   *Based on Ref. Process Data CO2S-SSG-IN-REQ-00009 (p.54) design temp. 260 °C, seat RTFE exceeds its 230 °C limit …* /
   Process Data 에 값이 없으면 *Based on Datasheet design temp. …*.
 
-## 6. 자주 묻는 것
+## 6. 새 Revision(B · C · D)이 오면
+
+- 그냥 Document Management 에 올리면 됩니다. 같은 Tag 의 새 판으로 묶이고, 규칙 검토는 자동으로 다시 됩니다.
+- 이전 판의 검토는 이어받습니다: **Dismissed** 한 지적은 같은 칸이 그대로면 그대로 Dismissed · **Confirmed**(설계사에게 보낸) 지적이 그대로 남아 있으면 **"Not addressed since Rev A"** 로 표시(Major).
+  칸에 단 의견도 그 칸이 안 바뀌었으면 새 판에 복사됩니다('Rev A' 표). 직접 그린 표시는 옛 쪽 것이라 복사되지 않습니다.
+- 작업대 머리의 `Rev A→B ✓5 ✗0 +3` 칩 = 해결 · 미반영 · 새 지적. Tag 목록의 ✗N, 대시보드 Revision Changes 타일의 '미반영 N' 도 같은 수입니다.
+
+## 7. 자주 묻는 것
 
 - **Area · Unit 은 어디서 오나?** 데이터시트 제목(QELNG NORTH / SOUTH / W15)과 P&ID 번호에서. 제목에 '(SYSTEM xx – UNIT yy)' 가 있으면 기존 플랜트 = Brownfield.
 - **왜 Process Data 빈칸을 다 지적하나?** 요청에 따라 Process DS 를 참조해도 전부 표기합니다. 한 카드로 묶여 있으니 일괄 Dismissed/Confirmed 로 처리하세요.
