@@ -1,6 +1,6 @@
 # 인수인계 — "VALVE Datasheet 검토" 세션 (상한 15KB · 덧붙이지 말고 고쳐 쓴다)
 
-## 지금 상태 (2026-11-01 · valve25)
+## 지금 상태 (2026-11-01 · valve26)
 
 - 작업 브랜치: `ccr-efbe7e75-n915ze`. 이 브랜치는 PID(`claude/gracious-ride-26nqrf`, hotfix131) 와 DASHBOARD(`ccr-248a5c4d-3dji7g`, v16.51) 를 병합한 위에 있다.
 - 무엇: 대시보드 **실행 프로젝트 › CO2 PJT › Datasheet › Ball Valve** = P&ID 서버(8000) `/valve/` — Valve Datasheet 검토 도구.
@@ -41,6 +41,7 @@
     (`?margin=0&flatten=0` 이면 예전처럼 편집 가능한 주석). 공정 값 의견은 출처를 밝힘: `matreview.proc_value` — Process Data 행 우선
     "Based on Ref. Process Data <Doc No.> (p.N) design temp. 260 °C, …", 없으면 "Based on Datasheet …". Process Mismatch · Data Missing Required 에도 문서 번호.
     리뷰 디스크 캐시 키에 VERSION 포함 — 꾸러미를 올리면 문구가 새로 계산된다.
+  + **valve26**: 설계사 코멘트 끝맺음은 'Revise.' 같은 명령 대신 '… shall be reviewed.' (설계사가 다시 검토하도록, 사용자 요청). 새 규칙도 이 말투로.
   + **빈 Process Data 항목은 전부 Data Missing**(Process DS 참조여도 — 사용자 요청, valve08) → 실자료 2,529건 · Process Data 값을 Required 로.
   실자료: Process Data(Annexure 7) 68 Tag 중 Datasheet 66 연결 · Match 215 · Mismatch 42(Line No. 32 · P&ID 8 · Fail 위치 2) · Review 2 · Referenced 749.
   새 양식 · 새 자료가 오면 같은 방법으로: `valve_visual_pack.py` → 검토(지시문은 §12) → `valve_visual_score.py`.
@@ -52,7 +53,7 @@
 - 실자료(고객 파일 · 저장소에 없음): Datasheet.pdf 456쪽 → 164 데이터시트(On/Off 140 · MOV 24) · TBE 164/164 Tag 일치.
   자료를 다시 받으면 EGG 는 `python3 spike/valve_unegg.py <폴더> *.egg`, TBE .xls 는 시험용으로 `spike/valve_xls2xlsx.py`(xlrd 필요).
 - 시험: `pytest -q tests/ -k valve` (86개, 실자료는 `VALVE_SAMPLES=<Datasheet.pdf 폴더>`). 전체 pytest 통과 (2026-11-01).
-- 마지막 꾸러미: **valve25** (P&ID 서버용만 — 대시보드는 valve01 의 메뉴 그대로). valve01~25 모두 회사 적용 확인 전. 각 꾸러미는 hotfix131 기준 누적이라 valve25 하나만 적용해도 된다.
+- 마지막 꾸러미: **valve26** (P&ID 서버용만 — 대시보드는 valve01 의 메뉴 그대로). valve01~26 모두 회사 적용 확인 전. 각 꾸러미는 hotfix131 기준 누적이라 valve26 하나만 적용해도 된다.
 
 ## 파일
 

@@ -284,7 +284,7 @@ async def _startup_warm():
     threading.Thread(target=warm_all, daemon=True, name="valve-warm-all").start()
 
 
-VERSION = "valve25"                       # shown in Settings › 정보 and the footer; bump with every package
+VERSION = "valve26"                       # shown in Settings › 정보 and the footer; bump with every package
 
 
 @router.get("/api/valve/version")

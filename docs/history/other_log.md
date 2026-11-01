@@ -156,3 +156,8 @@
 - `matreview.proc_value`: Process Data 행 우선, 없으면 데이터시트 값 — MR-01·02·03·07·14 · VR-09·10 문구 "Based on Ref. Process Data <Doc> (p.N) …". Process Mismatch · Data Missing Required 에 문서 번호.
 - 글 없는 마크업은 "Stamp 'APPROVED' on the PDF" 처럼. 리뷰 디스크 캐시 키에 VERSION. short 상한 120→160.
 - 기준값 불변 · diff_sim 0 · sim 3,000 · mutate · sim_pdf 190 · ui_audit 25/25 · 시험 86(valve).
+
+## 2026-11-01 · valve26 — 코멘트 말투 'shall be reviewed' (브랜치 ccr-efbe7e75-n915ze)
+- 요청: "Revise 보단 설계사가 다시 검토할 수 있도록 shall be reviewed 느낌으로".
+- 한 줄 코멘트의 'Revise.'(8곳) · '— correct.' → '… shall be reviewed.' MR-01·02 는 160자 안에 들도록 괄호로 줄임.
+- 기준값 불변 · sim 3,000 · mutate · 시험 86(valve) 통과.

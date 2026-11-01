@@ -140,7 +140,7 @@ def check(it: dict, prof: dict | None) -> list[dict]:
         return out
     docs = prof["docs_by_tag"].get(it["tag_key"], [])
     if len([d for d in docs if d]) > 1:
-        add("TG-04", ACTION, "Same tag in two datasheet documents", f"Tag also in {', '.join(d for d in docs if d != it.get('doc_no'))}. One tag per valve — correct.",
+        add("TG-04", ACTION, "Same tag in two datasheet documents", f"Tag also in {', '.join(d for d in docs if d != it.get('doc_no'))}. One tag per valve — tag numbering shall be reviewed.",
             f"The tag {it['tag_key']} appears in documents {', '.join(docs)}: two valves must not share a tag (or the same valve is specified twice).", ev)
     g = next((g for g in prof["groups"] if (g["area"], g["site"], g["unit"]) == (it.get("area") or "", it.get("site") or "", it.get("unit") or "")), None)
     if not g or g["learned_from"] < MIN_N:

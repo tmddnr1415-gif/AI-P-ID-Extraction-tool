@@ -537,3 +537,11 @@ Note 113 · PC-01 Confirm 6(3C0K8 의 '316 SS/FHF' 2개 · API5L-X65 MOV 1500# �
 - Process Mismatch: "Datasheet 'A' vs Process Data 'B' (Ref. Process Data <Doc> p.N)". Data Missing 의 Required: "SOUR WATER (Ref. Process Data <Doc> p.N)".
 - 리뷰 캐시: `_ds_full` 버전 튜플에 `VERSION` — 규칙 문구가 바뀐 꾸러미를 올리면 디스크 캐시가 다시 계산된다.
 - 결과: 실자료 기준값 불변(`--check`) · diff_sim 불일치 0 · 시뮬레이션 3,000 · 변이 · PDF 190 그대로 · 전체 Mark-up PDF(551쪽, 193쪽에 코멘트 여백) 약 21 s · 4.9 MB.
+
+## 31. 코멘트 말투 — 'Revise' 대신 'shall be reviewed' (valve26, 사용자 요청)
+
+- 설계사가 스스로 다시 검토하도록 한 줄 코멘트의 명령형 'Revise.' · '— correct.' 를 '… shall be reviewed.' 로 바꿈:
+  MR-01 "Based on Ref. Process Data <Doc> (p.N) design temp. 260 °C, seat RTFE (limit 230 °C, PMS 1C3AS2 Note 018) shall be reviewed." ·
+  MR-02 "… seat X (typ. max. N °C) shall be reviewed or P-T curve submitted." · MR-10 · VR(flange facing · flange standard · actuator type · valve size) · TG-04.
+- 판정 · 개수는 그대로(기준값 불변 · 시뮬레이션 3,000 · 변이 재생 통과). 새 규칙의 short 도 이 말투로 쓴다.
+

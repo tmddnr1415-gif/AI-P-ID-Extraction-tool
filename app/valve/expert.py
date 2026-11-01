@@ -89,7 +89,7 @@ def review(ds: dict, general_notes: dict | None = None, pms_class: dict | None =
     face_pms = "RTJ" if "RING" in (c.get("facing") or "").upper() else "RF" if "RAISED" in (c.get("facing") or "").upper() else ""
     if face_ds and face_pms and face_ds != face_pms:
         add("VR-01", ACTION, "Flange facing differs from PMS class", "connections",
-            f"Flange facing {face_ds}; PMS {c.get('code')} requires {face_pms}. Revise.",
+            f"Flange facing {face_ds}; PMS {c.get('code')} requires {face_pms}. Flange facing shall be reviewed.",
             f"Datasheet end connection '{val('connections')}' is {face_ds}, but PMS class {c.get('code')} flange facing is "
             f"{c.get('facing')}. The valve flanges must mate the line flanges — correct the facing (RTJ face-to-face is longer).",
             "std.b165", [ev("connections"), ev_pms("Flange Facing", c.get("facing"))])
@@ -97,7 +97,7 @@ def review(ds: dict, general_notes: dict | None = None, pms_class: dict | None =
     # VR-02 flange standard vs size -------------------------------------------------------------------------------
     if size and "B16.47" in conn and size <= 24:
         add("VR-02", ACTION, "B16.47 flange on a valve ≤ NPS 24", "connections",
-            f"{val('body_size')} valve: flanges to ASME B16.5, not B16.47. Revise.",
+            f"{val('body_size')} valve: flanges to ASME B16.5, not B16.47. Flange standard shall be reviewed.",
             f"Size {val('body_size')} uses ASME B16.5 flanges; B16.47 (Series A/B) covers NPS 26 and above.", "std.b165", [ev("connections"), ev("body_size")])
     elif size and size > 24 and "B16.5" in conn and "B16.47" not in conn:
         add("VR-02", ACTION, "B16.5 flange on a valve above NPS 24", "connections",
@@ -131,7 +131,7 @@ def review(ds: dict, general_notes: dict | None = None, pms_class: dict | None =
     fp, spring = val("fail_position").upper(), val("act_spring").upper()
     if fp.startswith(("CLOSE", "OPEN", "FC", "FO")) and spring and re.match(r"\s*(NOT\s+REQUIRED|NO\b|NA\b|N/A|NONE)", spring):
         add("VR-05", ACTION, "Fail-safe position without spring", "act_spring",
-            f"Fail {val('fail_position')} requires spring-return actuator. Revise.",
+            f"Fail {val('fail_position')} requires spring-return actuator. Actuator type shall be reviewed.",
             f"Fail position '{val('fail_position')}' needs a spring-return (or accumulator) actuator, but the spring is "
             f"'{val('act_spring')}'.", "des.actuator", [ev("fail_position"), ev("act_spring")])
     elif fp.startswith(("LAST", "FL", "STAY")) and spring.startswith("REQ"):
@@ -234,7 +234,7 @@ def review(ds: dict, general_notes: dict | None = None, pms_class: dict | None =
     if size and ls and abs(size - ls) > 1e-6:
         if size > ls:
             add("VR-13", ACTION, "Valve larger than the line", "body_size",
-                f"Valve {val('body_size')} larger than line {val('line_size_inlet')}. Revise.",
+                f"Valve {val('body_size')} larger than line {val('line_size_inlet')}. Valve size shall be reviewed.",
                 f"Valve size {val('body_size')} is larger than the line size {val('line_size_inlet')}.", "des.bore",
                 [ev("body_size"), ev("line_size_inlet")])
         elif "FULL" in btype:

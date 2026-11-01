@@ -205,14 +205,14 @@ def review(ds: dict, general_notes: dict | None = None, pms_class: dict | None =
                 doc_lim = (float(m.group(2)), no, t)
         if dt is not None and doc_lim and dt > doc_lim[0]:
             add("MR-01", ACTION, "Seat material above PMS temperature limit", "seat_material",
-                f"Based on {tb}, seat {seat} exceeds its {doc_lim[0]:g} °C limit (PMS {c.get('code')} Note {doc_lim[1]}). Revise seat material.",
+                f"Based on {tb}, seat {seat} (limit {doc_lim[0]:g} °C, PMS {c.get('code')} Note {doc_lim[1]}) shall be reviewed.",
                 f"Based on {tb}{tb_more}: seat '{seat}' ({name}) is limited to {doc_lim[0]:g} °C by PMS class {c.get('code')} "
                 f"note {doc_lim[1]}. Change the seat to a material rated for "
                 f"{dt:g} °C (e.g. PEEK up to ~260 °C, or metal seat) or confirm the design temperature.",
                 f"PMS {c.get('code')} General Class Note {doc_lim[1]}", [ev_field("seat_material"), ev_dt, ev_pms(f"note {doc_lim[1]}", doc_lim[2])])
         elif dt is not None and dt > lim:
             add("MR-02", ACTION, "Seat material above its service temperature", "seat_material",
-                f"Based on {tb}, seat {seat} is above its typ. max. {lim} °C. Revise seat or submit seat P-T curve.",
+                f"Based on {tb}, seat {seat} (typ. max. {lim} °C) shall be reviewed or P-T curve submitted.",
                 f"Based on {tb}{tb_more}: seat '{seat}' ({name}) has a typical maximum service temperature of about {lim} °C. Select a seat material rated for the design temperature (PEEK / metal seat) "
                 f"or obtain the vendor's seat P-T curve proving {dt:g} °C at the design pressure.",
                 "Seat polymer service limit (vendor seat P-T curve governs); datasheet note: non-metallic parts suitable for design condition",
@@ -341,7 +341,7 @@ def review(ds: dict, general_notes: dict | None = None, pms_class: dict | None =
             v = val(k).upper()
             if re.search(r"316L|CF3M", v) and not re.search(r"316(?!L)|CF8M", v):
                 add("MR-10", CONFIRM, "316L only — PMS requires dual-grade 316/316L", k,
-                    f"PMS {c.get('code')} Note {dual[0]}: dual-grade 316/316L required. Revise.",
+                    f"PMS {c.get('code')} Note {dual[0]}: dual-grade 316/316L required. Material shall be reviewed.",
                     f"{F[k].get('display') or k} '{val(k)}' states 316L only. PMS class {c.get('code')} note {dual[0]} requires "
                     "all 316/316L to be dual-grade certified (316L chemistry with 316 strength). State 'dual certified "
                     "316/316L' or confirm the 316L allowable stress is used for the pressure design.",
