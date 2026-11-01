@@ -164,3 +164,38 @@ def test_source_traceability(tmp_path, monkeypatch):
             assert "op" in i and "result" in i and i["result"]          # every rule finding carries a result
     L = c.get(f"/api/valve/projects/{pid}/issues").json()["issues"]
     assert all("result" in i for i in L if i.get("check"))                # the list API keeps it (valve28 dropped it)
+
+
+def test_excel_styles_after_fast_path():
+    """valve29 perf: cell styles are prepared once and copied — the sheet must look exactly as before (fill · border · link)."""
+    from app.valve import exports
+    rows = [{"ikey": f"Data Missing:k{n}", "type": t, "color": col, "severity": "Major", "key": f"k{n}", "field": "F", "row": 1, "value": "",
+             "unit": "", "description": "d", "expected": "", "page": 1, "bbox": [1, 1, 2, 2], "sheet": 1, "of": 1, "status": "Open", "note": "",
+             "tag": f"T{n}", "doc_no": "D", "rev": "A", "ds_id": n, "document_id": 1, "filename": "f.pdf", "area_name": "North", "site": "",
+             "plant_unit": "98", "valve_type": "XV", "check": "DM-02", "evidence": []}
+            for n, (t, col) in enumerate([("Data Missing", "missing"), ("Data Error", "error"), ("Data Missing", "missing")] * 40)]
+    ws = openpyxl.load_workbook(io.BytesIO(exports.issues_xlsx(rows, "http://pc:8000", "P")))["Issue List"]
+    head = [c.value for c in ws[1]]
+    it, tg = head.index("Issue Type") + 1, head.index("Tag Number") + 1
+    assert ws.max_row == len(rows) + 1                                   # no stray rows from the style scratch cells
+    for r in (2, 3, 60, ws.max_row):
+        assert ws.cell(r, 1).border.top.style == "thin" and ws.cell(r, 1).alignment.wrap_text
+        assert ws.cell(r, it).fill.fgColor.rgb == "00" + exports.HEXFILL[rows[r - 2]["color"]]
+        assert ws.cell(r, tg).hyperlink and ws.cell(r, tg).font.b and ws.cell(r, tg).font.color.rgb == "002F5BD8"
+    assert "_style_tmp" not in openpyxl.load_workbook(io.BytesIO(exports.issues_xlsx(rows[:3], "", "P"))).sheetnames
+
+
+def test_compact_issue_list_same_information(tmp_path, monkeypatch):
+    """valve29 perf: the screens read ?compact=1 — once the per-datasheet fields are merged back, every row equals the full
+    list minus the proof fields (which the workbench reads per datasheet)."""
+    c, pid, up = _client(tmp_path, monkeypatch)
+    up("ds_A.pdf", _pdf("A", values={2: ["HOLD", "TBC"], 10: ["Note-7"]}))
+    full = c.get(f"/api/valve/projects/{pid}/issues").json()
+    comp = c.get(f"/api/valve/projects/{pid}/issues?compact=1").json()
+    assert len(full["issues"]) == len(comp["issues"]) and comp["counts"] == full["counts"]
+    proof = {"evidence", "basis", "op", "tol", "original_description", "original_severity", "pms_bbox", "pms_page"}
+    for a, b in zip(full["issues"], comp["issues"]):
+        b = dict(b, **comp["ds"][str(b["ds_id"])])
+        assert {k: v for k, v in a.items() if k not in proof} == {k: v for k, v in b.items() if v not in (None, "", [])}
+        assert not proof & set(comp["issues"][0])
+    assert c.get(f"/api/valve/projects/{pid}/issues?compact=1").content == c.get(f"/api/valve/projects/{pid}/issues?compact=1").content

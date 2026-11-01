@@ -962,15 +962,33 @@ def _issue_counts(rows):
     return c
 
 
+_ISSUE_JSON: dict[tuple, tuple] = {}           # (pid, compact) -> (issue-cache version, encoded body, rows)  — valve29
+_DS_KEYS = ("tag", "doc_no", "rev", "area_name", "site", "plant_unit", "valve_type", "document_id")
+
+
 @router.get("/api/valve/projects/{pid}/issues")
-async def issues_list(pid: int):
+async def issues_list(pid: int, compact: int = 0):
+    """All findings of the newest revisions.  compact=1 (the screens, valve29): the proof fields (evidence · basis · op · tol ·
+    original_*) stay out — the workbench reads them per datasheet — and the per-datasheet fields are sent once in `ds`
+    instead of on every row (500 DS: 8.2 MB → about a third)."""
     con = store.connect()
     rows = await run_in_threadpool(project_issues, con, pid)
+    ver = (_ISSUE_CACHE.get(pid) or (None,))[0]             # the version the rows were computed for (never an object id)
+    hit = _ISSUE_JSON.get((pid, compact))
+    if hit and ver is not None and hit[0] == ver and hit[2] is rows:      # rows kept alive in the tuple: `is` cannot alias
+        return Response(hit[1], media_type="application/json")
     drop = {"filename", "tag_raw", "review_status", "unit", "pd_page", "pd_bbox", "rule", "level"}   # not used by the list screens
+    if compact:
+        drop |= {"evidence", "basis", "op", "tol", "original_description", "original_severity", "pms_bbox", "pms_page"} | set(_DS_KEYS)
     slim = [{k: ([round(x, 1) for x in v] if k == "bbox" and v else v) for k, v in i.items() if k not in drop and v not in (None, "", [])}
             for i in rows]
-    return _json({"issues": slim, "counts": _issue_counts(rows), "types": issuesmod.CONTRACTOR_TYPES + ["Extraction Review"],
-                  "statuses": ISSUE_STATUSES})
+    out = {"issues": slim, "counts": _issue_counts(rows), "types": issuesmod.CONTRACTOR_TYPES + ["Extraction Review"],
+           "statuses": ISSUE_STATUSES}
+    if compact:
+        out["ds"] = {i["ds_id"]: {k: i.get(k) for k in _DS_KEYS} for i in rows}
+    body = json.dumps(out, ensure_ascii=False, separators=(",", ":"), default=str).encode()
+    _ISSUE_JSON[(pid, compact)] = (ver, body, rows)
+    return Response(body, media_type="application/json")
 
 
 @router.put("/api/valve/datasheets/{dsid}/issues/{ikey:path}")

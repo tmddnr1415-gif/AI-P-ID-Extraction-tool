@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import datetime as dt
 import html
+from copy import copy
 import io
 from urllib.parse import quote
 
@@ -223,6 +224,25 @@ def verification_sheet(wb, ver: list[dict]):
             ws.append(["", "", "", cid, why, n])
 
 
+def _proto(ws, border=None, alignment=None, font=None, fill=None):
+    """A cell style built once (valve29) on a scratch sheet of the same workbook; its StyleArray is copied to every cell that
+    needs it (styles live in the workbook, so the copy is valid on any sheet).  The scratch sheet is removed at once."""
+    wb = ws.parent
+    tmp = wb.create_sheet("_style_tmp")
+    c = tmp.cell(1, 1)
+    if border is not None:
+        c.border = border
+    if alignment is not None:
+        c.alignment = alignment
+    if font is not None:
+        c.font = font
+    if fill is not None:
+        c.fill = fill
+    st = copy(c._style)
+    wb.remove(tmp)
+    return st
+
+
 def issues_xlsx(rows: list[dict], base: str, project: str, by: str = "", sources: list[str] | None = None,
                 verification: list[dict] | None = None) -> bytes:
     wb = openpyxl.Workbook()
@@ -238,6 +258,11 @@ def issues_xlsx(rows: list[dict], base: str, project: str, by: str = "", sources
         c.alignment = Alignment(wrap_text=True, vertical="center")
     rows = sorted(rows, key=lambda i: (AREA_ORDER.get(i.get("area_name") or "", 9), i.get("site") or "", i.get("plant_unit") or "",
                                        i["tag"]))                 # Area → Site → Unit → Tag; inside a tag the datasheet order stays
+    box, wrap = Border(top=thin, bottom=thin, left=thin, right=thin), Alignment(wrap_text=True, vertical="top")
+    st_base = _proto(ws, border=box, alignment=wrap)
+    st_link = _proto(ws, border=box, alignment=wrap, font=Font(color="2F5BD8", underline="single"))
+    st_link_b = _proto(ws, border=box, alignment=wrap, font=Font(color="2F5BD8", underline="single", bold=True))
+    st_fill = {}
     for n, i in enumerate(rows, 1):
         sheet = f"{i['sheet']} of {i['of']}" if i.get("sheet") else ""
         val = (i.get("value") or "") + (f" {i['unit']}" if i.get("unit") and i.get("value") else "")
@@ -247,19 +272,19 @@ def issues_xlsx(rows: list[dict], base: str, project: str, by: str = "", sources
                    i["severity"], i["status"], i.get("note", ""), "Open", "PDF p." + str(i.get("page") or ""),
                    i.get("check") or "", i.get("decision") or "",
                    " · ".join(x for x in (i.get("reason_cat"), i.get("conclusion")) if x)])
-        r = ws.max_row
-        fill = PatternFill("solid", fgColor=HEXFILL.get(i["color"], "FFFFFF"))
-        for c in range(1, len(COLS) + 1):
-            cell = ws.cell(r, c)
-            cell.border = Border(top=thin, bottom=thin, left=thin, right=thin)
-            cell.alignment = Alignment(wrap_text=True, vertical="top")
-        ws.cell(r, CI["Issue Type"]).fill = fill
+        r = n + 1                                            # valve29: ws.max_row rescans the sheet on every call (3.9 s / 2,900 rows)
+        row = [ws.cell(r, k) for k in range(1, len(COLS) + 1)]   # ws[r] rescans the whole sheet for max_column
+        for cell in row:                                     # valve29: one prepared style per kind of cell, copied — openpyxl
+            cell._style = copy(st_base)                      # otherwise hashes a new Border/Alignment for every cell (13 s → 2 s)
+        if i["color"] not in st_fill:
+            st_fill[i["color"]] = _proto(ws, border=box, alignment=wrap, fill=PatternFill("solid", fgColor=HEXFILL.get(i["color"], "FFFFFF")))
+        row[CI["Issue Type"] - 1]._style = copy(st_fill[i["color"]])
         if base:
             for col, url in ((CI["Open in Tool"], deep_link(base, project, i)), (CI["PDF Page Link"], pdf_link(base, i))):
-                ws.cell(r, col).hyperlink = url
-                ws.cell(r, col).font = Font(color="2F5BD8", underline="single")
-            ws.cell(r, CI["Tag Number"]).hyperlink = deep_link(base, project, i)       # the tag itself also jumps to the point
-            ws.cell(r, CI["Tag Number"]).font = Font(color="2F5BD8", underline="single", bold=True)
+                row[col - 1].hyperlink = url
+                row[col - 1]._style = copy(st_link)
+            row[CI["Tag Number"] - 1].hyperlink = deep_link(base, project, i)       # the tag itself also jumps to the point
+            row[CI["Tag Number"] - 1]._style = copy(st_link_b)
     ws.freeze_panes = ws.cell(2, CI["Tag Number"] + 1).coordinate          # No. · Area · Site · Unit · Tag stay visible
     ws.auto_filter.ref = f"A1:{get_column_letter(len(COLS))}{max(1, ws.max_row)}"
 

@@ -75,8 +75,13 @@ const TYPE_KO = { 'Data Missing': '누락 · 빈 값', 'Open Item': 'HOLD / TBC'
   'PMS Review': 'PMS 확인', 'Process Mismatch': 'Process Data 불일치', 'Material Review': '재질 검토', 'Valve Review': '설계 · 다른 DS 대비 검토',
   'Revision Change': 'Revision 변경', 'Reviewer Correction': '검토자 수정', 'Reviewer Comment': '검토자 의견', 'Extraction Review': '도구 내부 확인 (설계사용 아님)' };
 const pdfq = () => { const o = LS.get('pdfopt', { margin: 1, flatten: 1 }); return `&margin=${o.margin ? 1 : 0}&flatten=${o.flatten ? 1 : 0}`; };   // valve25
+async function loadIssues() {                      // valve29: compact list — per-datasheet fields sent once, merged here
+  const r = await api('GET', `/projects/${S.pid}/issues?compact=1`);
+  for (const i of r.issues) Object.assign(i, r.ds[i.ds_id]);
+  return r;
+}
 async function pickTypes(title, { tag = '', preset = null, note = '', pdf = /PDF/.test(title) } = {}) {
-  const r = await api('GET', `/projects/${S.pid}/issues`);
+  const r = S.issues && S.issueTypes ? { issues: S.issues, types: S.issueTypes } : await loadIssues();
   const live = r.issues.filter(i => i.status !== 'Dismissed' && (!tag || i.tag === tag));
   const cnt = t => live.filter(i => i.type === t).length;
   const contractor = r.types.filter(t => t !== 'Extraction Review');
@@ -689,7 +694,7 @@ async function preview(t) {
   const c = $('#pvcap'); if (c) c.textContent = t.label + (t.page ? ` · p.${t.page}` : '');
 }
 async function dsIssues(dsId) {                     // issues of one datasheet as preview overlays
-  if (!S.issues) S.issues = (await api('GET', `/projects/${S.pid}/issues`)).issues;
+  if (!S.issues) { const r = await loadIssues(); S.issues = r.issues; S.issueTypes = r.types; }
   S.pv?.setMarks(S.issues.filter(i => i.ds_id === dsId && i.comment_id && i.bbox && i.status !== 'Dismissed').map(i => ({ id: i.comment_id, page: i.page, bbox: i.bbox,
     kind: i.kind || 'rect', points: i.points, category: i.category || 'comment', text: i.text_raw ?? i.description, by: i.by, no: i.no })));
   return S.issues.filter(i => i.ds_id === dsId && i.bbox && i.status !== 'Dismissed' && !i.comment_id && (IF.internal || i.type !== 'Extraction Review'))
@@ -812,7 +817,7 @@ async function renderList() {
 const IF = { type: '', sev: '', st: '', q: '', area: '', internal: false };
 async function renderIssues(rowsOnly) {
   const el = $('#v-list');
-  if (!S.issues) { el.innerHTML = '<div class="empty">지적 사항을 계산하는 중…</div>'; S.issues = (await api('GET', `/projects/${S.pid}/issues`)).issues; }
+  if (!S.issues) { el.innerHTML = '<div class="empty">지적 사항을 계산하는 중…</div>'; const r = await loadIssues(); S.issues = r.issues; S.issueTypes = r.types; }
   const all = S.issues.filter(i => IF.internal || i.type !== 'Extraction Review');
   const q = IF.q.toUpperCase().replace(/[^0-9A-Z]/g, '');
   const L = all.filter(i => (!IF.type || i.type === IF.type) && (!IF.sev || i.severity === IF.sev) && (!IF.st || i.status === IF.st) && (!IF.area || i.area_name === IF.area) && (!q || i.tag.includes(q)));
