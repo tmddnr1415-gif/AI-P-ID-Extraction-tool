@@ -32,10 +32,14 @@ def test_annotator_marks_round_trip(tmp_path, monkeypatch):
         {"page": 1, "kind": "stamp", "bbox": [400, 60, 418, 78], "style": {"stamp": "✓"}},
         {"page": 1, "kind": "pen", "bbox": [200, 200, 260, 240], "points": [[[200, 200], [230, 240], [260, 200]]], "style": {"width": 5, "color": "#111111"}},
         {"page": 1, "kind": "rect", "bbox": [50, 300, 150, 340], "style": {"color": "zzz", "width": 99}},   # bad colour dropped · width clamped
+        {"page": 1, "kind": "typewriter", "bbox": [60, 400, 240, 416], "text": "typed here"},              # valve24
+        {"page": 1, "kind": "callout", "bbox": [300, 400, 450, 430], "points": [[200, 380], [300, 415]], "text": "check this"},
+        {"page": 1, "kind": "polyline", "bbox": [50, 500, 200, 560], "points": [[50, 500], [120, 560], [200, 510]]},
+        {"page": 1, "kind": "polygon", "bbox": [300, 500, 400, 580], "points": [[300, 500], [400, 520], [360, 580]]},
     ]
     ids = []
     for m in marks:
-        r = c.post(f"/api/valve/datasheets/{ds}/comments", json=dict(m, text="", category="comment"))
+        r = c.post(f"/api/valve/datasheets/{ds}/comments", json=dict({"text": "", "category": "comment"}, **m))
         assert r.status_code == 200, r.text
         ids.append(r.json()["new_comment_id"])
     d = c.get(f"/api/valve/datasheets/{ds}").json()
@@ -48,7 +52,10 @@ def test_annotator_marks_round_trip(tmp_path, monkeypatch):
     pdf = c.get(f"/api/valve/projects/{pid}/markup.pdf?tag={tag}").content
     doc = pymupdf.open(stream=pdf, filetype="pdf")
     types = sorted(a.type[1] for pg in doc for a in pg.annots())
-    for t in ("Underline", "StrikeOut", "Squiggly", "FreeText", "Ink"):
+    for t in ("Underline", "StrikeOut", "Squiggly", "FreeText", "Ink", "PolyLine", "Polygon"):
         assert t in types, (t, types)
     assert any(a.info.get("content") == "APPROVED" for pg in doc for a in pg.annots())
     assert sum(1 for pg in doc for a in pg.annots() if a.type[1] == "Ink") >= 2            # pen + the ✓ glyph
+
+    assert any(a.info.get("content") == "check this" for pg in doc for a in pg.annots())          # callout keeps its words
+    assert any(a.info.get("content") == "typed here" for pg in doc for a in pg.annots())

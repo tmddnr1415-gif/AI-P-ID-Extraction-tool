@@ -143,3 +143,9 @@
 - 요청: PDF Annotator 같은 주석 기능 · 매우 가볍게.
 - 도구 15(밑줄·취소선·물결·스탬프 13종+직접·지우개 추가) · 색 7+분류색 · 굵기 4단 · 즐겨찾기 · '바로'. `comment.style` 열(검증) · PDF 주석 Underline/StrikeOut/Squiggly · 스탬프 Square+FreeText · ✓✗ Ink.
 - 가벼움: 그리는 표시만 임시 SVG(rAF) · 펜 곡선. 시험 markup23 · 54 통과 · ui_audit 22/22.
+
+## 2026-11-01 · valve24 — 주석 도구 완성 · 메뉴별/시연별 화면 (브랜치 ccr-efbe7e75-n915ze)
+- 요청: PDF 주석기 목록(Stamp · Sticky Note · Typewriter · Text Box · Callout · Highlight · Cross Out · Underline · Arrow · Line · Rectangle · Oval · Polygon Line · Polygon) 전부 + 메뉴별 · 시연별 화면 한 장씩.
+- 추가: 타자기 · 말풍선(callout 선 + 화살표) · 꺾은선 · 다각형 · DRAFT. PDF 주석 PolyLine/Polygon/Callout FreeText.
+- 결함 3 수정: 화면 style 누락 · 팔레트가 직전 표시 재칠 · 꺾은선 Enter 가 편집 창까지. 시험 markup23 확장 · ui_audit 25/25.
+- 화면 55장(메뉴·기능 31 + Mark-up 시연 24, 내보낸 PDF 포함) — 저장소 밖 zip.

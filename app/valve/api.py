@@ -284,7 +284,7 @@ async def _startup_warm():
     threading.Thread(target=warm_all, daemon=True, name="valve-warm-all").start()
 
 
-VERSION = "valve23"                       # shown in Settings › 정보 and the footer; bump with every package
+VERSION = "valve24"                       # shown in Settings › 정보 and the footer; bump with every package
 
 
 @router.get("/api/valve/version")
@@ -677,7 +677,8 @@ async def ds_status(dsid: int, request: Request):
 
 
 MARK_KINDS = {"rect", "cloud", "ellipse", "highlight", "line", "arrow", "pen", "text", "note",
-              "underline", "strike", "squiggle", "stamp"}                       # valve23: text mark-ups + stamps
+              "underline", "strike", "squiggle", "stamp",                      # valve23: text mark-ups + stamps
+              "typewriter", "callout", "polyline", "polygon"}                  # valve24: annotator tool set
 _HEX = re.compile(r"^#[0-9a-fA-F]{6}$")
 
 

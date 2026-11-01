@@ -334,6 +334,28 @@ def _markup(page, i, col):
         a.set_border(width=wd)
         if kind == "arrow":
             a.set_line_ends(pymupdf.PDF_ANNOT_LE_NONE, pymupdf.PDF_ANNOT_LE_OPEN_ARROW)
+    elif kind in ("polyline", "polygon") and pts and len(pts) >= 2:
+        P = [pymupdf.Point(*p) for p in pts]
+        a = page.add_polygon_annot(P) if kind == "polygon" else page.add_polyline_annot(P)
+        a.set_colors(stroke=col)
+        a.set_border(width=wd)
+    elif kind == "callout" and pts:
+        txt = i.get("text_raw") or i["description"]
+        try:                                                    # FreeText with a leader line ending in an arrow (Acrobat 'Callout')
+            a = page.add_freetext_annot(r, txt, fontsize=float(st.get("size") or 9), text_color=col, fill_color=(1, 1, 1),
+                                        border_color=col, callout=[pymupdf.Point(*p) for p in pts[:3]],
+                                        line_end=pymupdf.PDF_ANNOT_LE_OPEN_ARROW, rich_text=True)
+        except (TypeError, ValueError):                         # older PyMuPDF: box + separate arrow line
+            ln = page.add_line_annot(pymupdf.Point(*pts[-1]), pymupdf.Point(*pts[0]))
+            ln.set_colors(stroke=col)
+            ln.set_line_ends(pymupdf.PDF_ANNOT_LE_NONE, pymupdf.PDF_ANNOT_LE_OPEN_ARROW)
+            _info(ln, i)
+            ln.update()
+            a = page.add_freetext_annot(r, txt, fontsize=float(st.get("size") or 9), text_color=col, fill_color=(1, 1, 1))
+        a.set_border(width=max(0.8, wd * 0.6))
+    elif kind == "typewriter":
+        a = page.add_freetext_annot(r, i.get("text_raw") or i["description"], fontsize=float(st.get("size") or 10), text_color=col)
+        a.set_border(width=0)
     elif kind == "pen" and pts:
         a = page.add_ink_annot([[tuple(p) for p in stk] for stk in pts])
         a.set_colors(stroke=col)
@@ -350,7 +372,7 @@ def _markup(page, i, col):
         a.set_colors(stroke=col)
         a.set_border(width=wd, clouds=2 if kind == "cloud" else 0)
     _info(a, i)
-    if kind in ("text", "stamp"):                               # a free-text box shows its content: keep the reviewer's words
+    if kind in ("text", "stamp", "typewriter", "callout"):      # a free-text box shows its content: keep the reviewer's words
         a.set_info(content=(st.get("stamp") if kind == "stamp" else "") or i.get("text_raw") or i["description"])
     a.update()
     return r

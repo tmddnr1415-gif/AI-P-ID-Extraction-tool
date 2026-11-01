@@ -84,6 +84,17 @@ const ok = (name, cond, info = '') => { steps.push([cond ? 'PASS' : 'FAIL', name
   await p.click('#wview .mkbar [data-tool="eraser"]'); const gb = await p.evaluate(id => { const g = document.querySelector(`svg.mk [data-mid="${id}"]`); const r = g?.getBoundingClientRect(); return r && [r.x, r.y, r.width, r.height]; }, stp?.id);
   if (gb) await p.mouse.click(gb[0] + gb[2] / 2, gb[1] + gb[3] / 2); await p.waitForTimeout(700);
   ok('eraser deletes a mark-up', (await ds()).comments.length === nq0 + 1);
+  // valve24: polygon (clicks + Enter) · polyline (double-click) · callout (drag) · typewriter (click + text)
+  const nv0 = (await ds()).comments.length;
+  await p.click('#wview .mkbar [data-tool="polygon"]'); for (const [x, y] of [[100, 600], [180, 590], [200, 650]]) { await p.mouse.click(pg.x + x, pg.y + y); await p.waitForTimeout(80); } await p.keyboard.press('Enter'); await p.waitForTimeout(700);
+  await p.click('#wview .mkbar [data-tool="polyline"]'); for (const [x, y] of [[240, 600], [300, 640]]) { await p.mouse.click(pg.x + x, pg.y + y); await p.waitForTimeout(80); } await p.mouse.dblclick(pg.x + 360, pg.y + 610); await p.waitForTimeout(700);
+  await p.click('#wview .mkbar [data-tool="callout"]'); await p.mouse.move(pg.x + 300, pg.y + 300); await p.mouse.down(); await p.mouse.move(pg.x + 420, pg.y + 260, { steps: 4 }); await p.mouse.up();
+  await p.waitForSelector('#modal:not([hidden])', { timeout: 3000 }); await p.fill('#mBody textarea', 'callout text'); await p.click('#mAct button.pri'); await p.waitForTimeout(700);
+  await p.click('#wview .mkbar [data-tool="typewriter"]'); await p.mouse.click(pg.x + 120, pg.y + 700);
+  await p.waitForSelector('#modal:not([hidden])', { timeout: 3000 }); await p.fill('#mBody textarea', 'typed'); await p.click('#mAct button.pri'); await p.waitForTimeout(700);
+  const cv = (await ds()).comments; const kk = k => cv.find(c => c.kind === k);
+  ok('polygon · polyline · callout · typewriter', cv.length === nv0 + 4 && kk('polygon')?.points?.length === 3 && kk('polyline')?.points?.length >= 3 && kk('callout')?.points?.length === 2 && kk('typewriter')?.text === 'typed');
+  await p.click('#wview .mkbar [data-tool="select"]');
   await p.click('#wview .mkbar [data-tool="select"]'); await p.uncheck('#wview .mkbar .mkquick');
 
   // 3. deliverables carry them

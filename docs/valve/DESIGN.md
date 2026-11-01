@@ -511,3 +511,12 @@ Note 113 · PC-01 Confirm 6(3C0K8 의 '316 SS/FHF' 2개 · API5L-X65 MOV 1500# �
   실측(1600×950 · 표시 20여 개 쪽): 펜 300점 드래그 중 프레임 끊김 없음, 표시 추가 1 POST.
 - **PDF 내보내기**(`exports._markup`): 밑줄/취소선/물결 → Underline/StrikeOut/Squiggly 주석 · 스탬프 글 → 색 테두리 Square + FreeText(hebo) · ✓ ✗ → Ink(모든 뷰어에서 보이게) · 색·굵기 반영. Acrobat 에서 편집 가능.
 - 시험 `tests/test_valve_markup23.py`(스타일 왕복 · 잘못된 색 버림 · 굵기 clamp · 잘못된 kind 400 · PDF 주석 종류).
+
+## 29. 주석 도구 완성 — 타자기 · 말풍선 · 꺾은선 · 다각형 (valve24, 사용자 요청)
+
+- PDF 주석기 도구 목록과 같게: Stamp(DRAFT 추가) · Sticky Note · **Typewriter(Y)** · Text Box · **Callout(B)** · Highlight · Cross Out · Underline · Squiggle · Arrow · Line · Rectangle · Oval · **Polygon Line(O)** · **Polygon(Q)** · Cloud · Pen · Eraser · Select.
+- 타자기: 누른 자리에 테두리 없는 글. 말풍선: 가리킬 곳에서 끌어 상자 자리에서 놓음 — 화살표는 상자의 가까운 변에서 나옴(`calloutAttach`, 상자를 옮겨도 따라감).
+  꺾은선/다각형: 점마다 누르고 두 번 누르기 또는 Enter 로 끝, Esc 취소 · 그리는 동안 임시 층(rAF).
+- PDF 내보내기: Callout = FreeText 의 callout 선 + 열린 화살표 끝(Acrobat 말풍선) · Typewriter = 테두리 없는 FreeText · PolyLine · Polygon 주석.
+- 고친 결함 2: ① 화면이 표시의 style 을 받지 않아 모두 분류 색으로 그려짐 ② 그린 직후 선택된 표시가 다음 색 선택에 다시 칠해짐 → 그리기 도구일 때 팔레트는 다음 표시에만, 선택 도구일 때만 선택한 표시에 (스탬프 글은 유지).
+  꺾은선의 Enter 가 '선택 표시 고치기' 단축키까지 열던 것도 막음. ui_audit 25/25.

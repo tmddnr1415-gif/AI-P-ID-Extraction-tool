@@ -3,6 +3,7 @@ so the second GET of /grid failed with ERR_CONTENT_LENGTH_MISMATCH and the Valve
 from __future__ import annotations
 
 import io
+import time
 
 import pymupdf
 from fastapi import FastAPI
@@ -29,11 +30,12 @@ def test_grid_and_issues_twice_under_gzip(tmp_path, monkeypatch):
     app.include_router(api.router)
     c = TestClient(app)
     pid = c.post("/api/valve/projects", json={"name": "P"}).json()["id"]
-    c.post(f"/api/valve/projects/{pid}/upload", data={"kind": "datasheet"}, files=[("files", ("ds.pdf", _pdf(), "application/pdf"))])
-    for _ in range(100):
-        j = c.get(f"/api/valve/projects/{pid}/summary").json()
-        if not any(d["status"] in ("queued", "running") for d in j["documents"]):
+    jb = c.post(f"/api/valve/projects/{pid}/upload", data={"kind": "datasheet"}, files=[("files", ("ds.pdf", _pdf(), "application/pdf"))]).json()
+    for _ in range(200):                                # wait for the whole job (auto-export writes the last audit row)
+        if c.get(f"/api/valve/jobs/{jb['id']}").json()["status"] == "done":
             break
+        time.sleep(0.05)
+    time.sleep(0.3)                                     # the warm-up thread started at the job's end
     for u in (f"/api/valve/projects/{pid}/grid", f"/api/valve/projects/{pid}/issues", f"/api/valve/projects/{pid}/summary",
               f"/api/valve/projects/{pid}/pms", f"/api/valve/projects/{pid}/process", f"/api/valve/projects/{pid}/tagging"):
         a, b = c.get(u), c.get(u)                       # second call is served from the cache

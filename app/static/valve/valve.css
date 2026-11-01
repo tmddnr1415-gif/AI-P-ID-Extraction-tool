@@ -448,3 +448,4 @@ body.hints #hintbtn { background: var(--blue); color: #fff; border-color: var(--
 .mkbar .mkq { color: #c8d1e1; }
 .stage.erasing .pg { cursor: not-allowed; } .stage.erasing svg.mk .mkg > :not(title) { cursor: cell; }
 svg.mk-tmp { pointer-events: none; z-index: 3; }
+.mktx.tw { padding: 0 1px; background: transparent; font-size: 10px; }
