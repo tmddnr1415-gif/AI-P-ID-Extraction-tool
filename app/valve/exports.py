@@ -157,12 +157,73 @@ def _area_sheet(wb, rows: list[dict], project: str):
 
 COLS = [("No.", 6), ("Area", 11), ("Site", 8), ("Unit", 6), ("Tag Number", 16), ("Valve Type", 8), ("Doc. No.", 20), ("Rev.", 6), ("Sheet", 9),
         ("PDF File", 22), ("PDF Page", 8), ("Row", 6), ("Field", 26), ("Datasheet Value", 30), ("Issue Type", 18),
-        ("Description", 60), ("Required / Expected", 34), ("Severity", 9), ("Status", 11), ("Reviewer Note", 30),
+        ("Description", 60), ("Required / Expected", 34), ("Evidence", 46), ("Basis", 30), ("Severity", 9), ("Status", 11), ("Reviewer Note", 30),
         ("Open in Tool", 13), ("PDF Page Link", 13)]
 CI = {name: n for n, (name, _) in enumerate(COLS, 1)}           # column number by name
 
 
-def issues_xlsx(rows: list[dict], base: str, project: str, by: str = "", sources: list[str] | None = None) -> bytes:
+def ev_text(i: dict, n: int = 3) -> str:
+    """valve28: the proof behind a finding, one line — 'PMS p.12 Class 1C3AS2 · Ball valve: 316 SS trim | Process Data p.54 Design Temp: 260 °C'."""
+    out = []
+    for e in (i.get("evidence") or [])[:n]:
+        if not e:
+            continue
+        where = e.get("where") or ""
+        pg = f" p.{e['page']}" if e.get("page") else ""
+        txt = str(e.get("text") or "").strip().replace("\n", " ")
+        out.append(f"{e.get('doc') or ''}{pg} {where}: {txt[:70]}".strip(" :"))
+    return " | ".join(out)
+
+
+def verification_sheet(wb, ver: list[dict]):
+    """valve28: tags × checks — ✓ pass · ✗ findings · – not evaluable (reason in the cell comment column)."""
+    from app.valve.checks import REGISTRY
+    ws = wb.create_sheet("Verification")
+    ids = [c[0] for c in REGISTRY]
+    ws.append(["No.", "Area", "Unit", "Tag Number", "Doc. No.", "Rev.", "Pass", "Fail", "N/A"] + ids)
+    ws.append(["", "", "", "", "", "", "", "", ""] + [c[1] for c in REGISTRY])
+    for n, v in enumerate(ver, 1):
+        st = {c["id"]: c for c in v["verification"]["checks"]}
+        ws.append([n, v.get("area", ""), v.get("unit", ""), v["tag"], v.get("doc_no", ""), v.get("rev", ""),
+                   v["verification"]["summary"]["pass"], v["verification"]["summary"]["fail"], v["verification"]["summary"]["na"]]
+                  + [("✗" + (f" {st[i]['findings']}" if st[i]["findings"] > 1 else "") if st[i]["status"] == "fail" else "✓" if st[i]["status"] == "pass" else "–") if i in st else "" for i in ids])
+    head_fill, head_font = PatternFill("solid", fgColor="1F2D4D"), Font(bold=True, color="FFFFFF")
+    for c in ws[1]:
+        c.fill, c.font = head_fill, head_font
+    for c in ws[2]:
+        c.font = Font(italic=True, color="5A6478", size=8)
+        c.alignment = Alignment(wrap_text=True, vertical="top")
+    ws.row_dimensions[2].height = 48
+    for col, w in zip("ABCDEFGHI", (5, 10, 6, 16, 20, 5, 6, 6, 6)):
+        ws.column_dimensions[col].width = w
+    for k in range(10, 10 + len(ids)):
+        ws.column_dimensions[get_column_letter(k)].width = 7
+    red, grey = PatternFill("solid", fgColor="FBE3E1"), Font(color="9AA3B2")
+    for r in range(3, ws.max_row + 1):
+        for k in range(10, 10 + len(ids)):
+            cell = ws.cell(r, k)
+            cell.alignment = Alignment(horizontal="center")
+            if str(cell.value or "").startswith("✗"):
+                cell.fill = red
+            elif cell.value == "–":
+                cell.font = grey
+    ws.freeze_panes = "E3"
+    ws.auto_filter.ref = f"A2:{get_column_letter(9 + len(ids))}{max(2, ws.max_row)}"
+    # reasons a check could not run, counted — the honest part of the report
+    reasons = {}
+    for v in ver:
+        for c in v["verification"]["checks"]:
+            if c["status"] == "n/a":
+                reasons[(c["id"], c["reason"])] = reasons.get((c["id"], c["reason"]), 0) + 1
+    if reasons:
+        ws.append([])
+        ws.append(["Not evaluable — why", "", "", "Check", "Reason", "Tags"])
+        for (cid, why), n in sorted(reasons.items(), key=lambda x: -x[1]):
+            ws.append(["", "", "", cid, why, n])
+
+
+def issues_xlsx(rows: list[dict], base: str, project: str, by: str = "", sources: list[str] | None = None,
+                verification: list[dict] | None = None) -> bytes:
     wb = openpyxl.Workbook()
     ws = wb.active
     ws.title = "Issue List"
@@ -181,6 +242,7 @@ def issues_xlsx(rows: list[dict], base: str, project: str, by: str = "", sources
         val = (i.get("value") or "") + (f" {i['unit']}" if i.get("unit") and i.get("value") else "")
         ws.append([n, i.get("area_name", ""), i.get("site", ""), i.get("plant_unit", ""), i["tag"], i.get("valve_type", ""), i["doc_no"], i["rev"], sheet, i.get("filename", ""), i.get("page"),
                    i.get("row"), i["field"], val or "(blank)", i["type"], i["description"], i.get("expected", ""),
+                   ev_text(i), (f"[{i['check']}] " if i.get("check") else "") + (i.get("basis") or ""),
                    i["severity"], i["status"], i.get("note", ""), "Open", "PDF p." + str(i.get("page") or "")])
         r = ws.max_row
         fill = PatternFill("solid", fgColor=HEXFILL.get(i["color"], "FFFFFF"))
@@ -208,6 +270,8 @@ def issues_xlsx(rows: list[dict], base: str, project: str, by: str = "", sources
                          ("Minor", lambda L: sum(1 for r in L if r["sev"] == "Minor") or None),
                          ("Tags", lambda L: len({r["tag"] for r in L}))])
     _area_sheet(wb, rows, project)
+    if verification:
+        verification_sheet(wb, verification)
     sm = wb.create_sheet("Summary by Tag")
     types = [t for t in ["Data Error", "Data Missing", "Open Item", "PMS Non-Compliance", "PMS Review", "Revision Change",
                          "Process Mismatch", "Material Review", "Valve Review", "Reviewer Correction", "Reviewer Comment", "Extraction Review"]
@@ -428,9 +492,11 @@ def _cmt_html(i) -> str:
     val = i.get("value")
     req = f" <span class='q'>Required: {html.escape(_ascii(i['expected']))}</span>" if i.get("expected") else ""
     v = f" <span class='r'>[{html.escape(_ascii(str(val))[:60])}]</span>" if val and not i.get("comment_id") else ""
+    evs = ev_text(i, 2)
+    ev = f"<br/><span class='r'>Evidence: {html.escape(_ascii(evs))}</span>" if evs else ""
     return (f"<p><span class='n' style='background-color:{_swatch(i['color'])}'>&nbsp;{i['no']}&nbsp;</span> "
             f"<span class='t'>{html.escape(i['type'])}</span> · {html.escape(_ascii(i.get('field') or ''))}{v}{who}<br/>"
-            f"{html.escape(_ascii(i.get('description') or ''))}{req}</p>")
+            f"{html.escape(_ascii(i.get('description') or ''))}{req}{ev}</p>")
 
 
 def _comment_margin(out, pno: int, items: list[dict], head: str) -> list[dict]:

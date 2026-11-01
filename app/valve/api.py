@@ -25,7 +25,7 @@ from fastapi.responses import FileResponse, JSONResponse, RedirectResponse, Resp
 from starlette.concurrency import run_in_threadpool
 
 from app import paths
-from app.valve import revisions as revmod, exports, extract, issues as issuesmod, expert as expmod, knowledge as kbmod, location as locmod, tagrules as tagmod, material, matreview as matmod, pms as pmsmod, process as procmod, requirements as reqmod, schema, store, tbe
+from app.valve import checks as chkmod, revisions as revmod, exports, extract, issues as issuesmod, expert as expmod, knowledge as kbmod, location as locmod, tagrules as tagmod, material, matreview as matmod, pms as pmsmod, process as procmod, requirements as reqmod, schema, store, tbe
 
 router = APIRouter()
 _JOBS: dict[str, dict] = {}
@@ -131,6 +131,16 @@ def summary(pid: int):
     ic = _issue_counts(irows)
     pv = _profile_ver(con, pid)
     loc_of = {d["id"]: ((_ds_full(con, d["id"], pv=pv) or {}).get("location") or {}) for d in latest.values()}
+    ver = {"pass": 0, "fail": 0, "na": 0, "total": 0, "tags": 0, "na_reasons": {}}
+    for d in latest.values():                                         # valve28: verification coverage of the project
+        v = (_ds_full(con, d["id"], pv=pv) or {}).get("verification")
+        if v:
+            ver["tags"] += 1
+            for k in ("pass", "fail", "na", "total"):
+                ver[k] += v["summary"][k]
+            for c in v["checks"]:
+                if c["status"] == "n/a":
+                    ver["na_reasons"][c["reason"]] = ver["na_reasons"].get(c["reason"], 0) + 1
     per_tag, still = {}, {}
     for i in irows:
         if i["status"] != "Dismissed" and i["severity"] in ("Major", "Minor"):
@@ -148,7 +158,7 @@ def summary(pid: int):
                 "pms_noncompliant": (ic.get("PMS Non-Compliance", 0) if has_pms else None),
                 "data_errors": ic.get("Data Error", 0), "data_missing": ic.get("Data Missing", 0),
                 "open_items": ic.get("Open Item", 0), "pms_review": ic.get("PMS Review", 0) if has_pms else None,
-                "pending": len(latest) - done, "completed": done, "not_addressed": sum(still.values()),
+                "pending": len(latest) - done, "completed": done, "not_addressed": sum(still.values()), "verification": ver,
                 "review_required": sum(issues.get(d["id"], 0) for d in latest.values())},
         "has_valvelist": bool(vl),
         "has_pms": has_pms,
@@ -288,7 +298,7 @@ async def _startup_warm():
     threading.Thread(target=warm_all, daemon=True, name="valve-warm-all").start()
 
 
-VERSION = "valve27"                       # shown in Settings › 정보 and the footer; bump with every package
+VERSION = "valve28"                       # shown in Settings › 정보 and the footer; bump with every package
 
 
 @router.get("/api/valve/version")
@@ -675,6 +685,19 @@ def _ds_deep(con, d, dsid):
                 it["since"] = d["rev_review"]["prev_rev"]
                 it["severity"] = "Major"
                 it["description"] = f"Not addressed since Rev {it['since']}: {it['description']}"
+    # valve28: the engine's own report — what was checked, what failed, what could not be judged and why
+    peers = _peers_for(con, d["project_id"])
+    pcls = schema.effective(F.get("piping_class")) or ""
+    prof = _tags_for(con, d["project_id"])
+    grp = next((g for g in prof["groups"] if (g["area"], g["site"], g["unit"]) == ((d.get("location") or {}).get("area") or "", (d.get("location") or {}).get("site") or "",
+                                                                                   (d.get("location") or {}).get("unit") or "")), None)
+    T = matmod.proc_value(F, d["process"], "design_temp")
+    d["verification"] = chkmod.report(d["issues"], {
+        "has_pms": pms is not None, "pms_class": bool(cls), "piping_class": pcls,
+        "has_process": proc is not None, "pd_row": bool(((proc or {}).get("by_tag") or {}).get(d["tag_key"])),
+        "design_temp": T["v"] if T else None, "has_prev": i > 0,
+        "has_peers": any(k[1] == pcls and sum(v.values()) > 1 for k, v in (peers.get("groups") or {}).items()) if pcls else False,
+        "has_tagrules": bool(grp and grp.get("learned_from", 0) >= tagmod.MIN_N)})
     return d
 
 
@@ -1249,7 +1272,15 @@ def _issue_xlsx(pid, base, by, types="", dismissed=0, tag="", severity=""):
     pname = store.one(con, "SELECT name FROM project WHERE id=?", pid)["name"]
     rows = _select(project_issues(con, pid), types, dismissed, tag, severity)
     srcs = sorted({i["filename"] for i in rows})
-    return exports.issues_xlsx(rows, base, pname, by, srcs), len(rows), pname
+    pv = _profile_ver(con, pid)
+    ver = []
+    for d in _latest(store.rows(con, "SELECT id, tag_key, rev FROM datasheet WHERE project_id=?", pid)).values():   # valve28: tags × checks
+        full = _ds_full(con, d["id"], pv=pv)
+        if full and full.get("verification"):
+            ver.append({"tag": full["tag"], "doc_no": full["doc_no"], "rev": full["rev"], "area": (full.get("location") or {}).get("area", ""),
+                        "unit": (full.get("location") or {}).get("unit", ""), "verification": full["verification"]})
+    ver.sort(key=lambda v: (exports.AREA_ORDER.get(v["area"], 9), v["unit"], v["tag"]))
+    return exports.issues_xlsx(rows, base, pname, by, srcs, verification=ver), len(rows), pname
 
 
 def _markup_entries(con, rows):

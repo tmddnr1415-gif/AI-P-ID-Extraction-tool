@@ -167,3 +167,8 @@
 - 글자: 항상 보이던 긴 안내문을 한 줄로, 설명은 `?` 로.
 - `revisions.py`: Dismissed/Confirmed 이어받기 · 'Not addressed since Rev A' · 칸 의견 복사 · rev_review(해결/미반영/새것). 화면 칩 · 목록 ✗N · 대시보드 '미반영'. `tests/test_valve_revision.py`.
 - `spike/valve_rev_sim.py` 1,506 점검 1.000(발견: Dismissed 였던 지적을 새것으로 세던 것 수정). 실자료 00XV921 A→B 해결 5 · 새 3.
+
+## 2026-11-01 · valve28 — Verification Engine: 모든 지적에 근거 · 48 항목 검증 보고 (브랜치 ccr-efbe7e75-n915ze)
+- 방향(사용자): 엔진이 핵심, UI 는 신뢰·검증 수단. 실측: 지적 행에 맞대어 본 쪽 근거 0 % → `issues.add(evidence, basis, check)` 로 전 종류에 붙임.
+- Excel Evidence/Basis 열 · PDF 코멘트 Evidence 줄 · Issues 카드 근거 링크. `checks.py` 레지스트리 48 → Checks 탭 · 대시보드 Coverage · Excel Verification 시트(n/a 이유 표).
+- 실자료 164 × 48 = 7,872 (✓6,806 ✗426 –640). 시험 `test_valve_verification.py`. Revision 시뮬 1,500×3 = 55,223 점검 1.000.

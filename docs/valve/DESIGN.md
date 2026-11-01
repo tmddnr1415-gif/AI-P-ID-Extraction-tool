@@ -565,3 +565,17 @@ Note 113 · PC-01 Confirm 6(3C0K8 의 '316 SS/FHF' 2개 · API5L-X65 MOV 1500# �
   찾은 것: ① `rev_review` 가 Dismissed 였던 지적을 '새것'으로 세던 것(수정) ② 시뮬레이터가 같은 칸을 두 번 고치던 것(시뮬레이터 수정). 1,500건×3판 결과는 아래 기록.
 - 실자료: 00XV921 Rev A→B = 해결 5 · 새 3 · 미반영 0(Rev A 에 Confirmed 없음). 기준값 불변.
 
+## 33. Engineering Verification Engine 이 핵심 — 근거 · 검증 보고 (valve28, 사용자 방향)
+
+- 방향(사용자): "Vendor 가 Datasheet 를 내면 오류 · 누락 · 변경 · 사양 위반을 자동으로 찾고 **근거가 표시된** 검토 결과를 만든다. UI 는 엔진의 결과를 엔지니어가 신뢰하고 검증하게 돕는 수단."
+- **실측에서 출발**: 실자료 2,887 지적 모두 데이터시트 쪽·칸(100 %)은 있었지만, **맞대어 본 쪽(PMS 쪽 · Process Data 쪽 · 이전 판 값 · 규칙 근거)은 지적 행에 0 %** — 작업대 탭에만 있어서 Issue List · Mark-up PDF 를 받는 사람은 설명만 본다.
+- **모든 지적에 증거**(`issues.add(..., evidence, basis, check)`): `evidence` = [{doc, where, page, bbox, text}] 맞대어 본 쪽 · `basis` = 판정 근거(규칙 · 문서) · `check` = 규칙 번호.
+  DM-01/02(Process Data 행 · 참조 Note) · OI-01/02(HOLD note) · DE-01~09(맞대어 본 칸 — Line No. · 설계값 · fail position · sheet 1 · note) · PMS-<item>(PMS 쪽 · 요구값) · PD-<item>(Process Data 쪽 · 값) · MR/VR/PC/TG(규칙의 evidence · basis) · REV-01(이전 판 쪽 · 값).
+  Issue List Excel 'Evidence' · 'Basis' 열(`exports.ev_text`) · Mark-up PDF 쪽 옆 코멘트에 Evidence 줄 · 작업대 Issues 카드에 '근거: PMS p.12 · Process Data p.54' 링크(`evLink`, 누르면 그 쪽) · Issue List 표 tooltip.
+- **검증 보고 `checks.py`**: 48 항목 레지스트리(Datasheet 13 · PMS · Process · Material 12 · Design 14 · Peer · Tag 5 · Revision) 를 데이터시트마다 걷는다.
+  fail = 그 번호의 지적(Dismissed 제외) · **n/a = 자료가 없어 판단하지 못함 + 이유**(PMS 없음 · class 가 PMS 에 없음 · Tag 이 Process Data 에 없음 · 설계 온도 없음 · 첫 판 · 동료 없음 · Area/Unit Tag 3개 미만) — 통과로 치지 않는다 · pass = 입력이 있었고 지적 없음.
+  작업대 **Checks 탭**(✓/✗/–, ✗ 누르면 그 지적) · 대시보드 'Verification Coverage' 카드(합계 + n/a 이유 상위) · Issue List Excel **'Verification' 시트**(Tag × 48 ✓/✗/– + n/a 이유 표).
+  실자료: 164 Tag × 48 = 7,872 · ✓ 6,806 · ✗ 426 · – 640 (첫 판 163 · 설계온도 없음 294 · Process Data 에 없음 98 · API5L-X65 class 없음 60 …).
+- 시험 `tests/test_valve_verification.py`(지적마다 check·basis·evidence · Excel 열 · 레지스트리 판정). Revision 시뮬레이션 1,500 × 3판 = 55,223 점검 1.000.
+- 다음(엔진 우선): PMS Gasket · Bolting 품목 대조 · Process Data 의 Cv/소음 · Valve List(TBE) 재사용 열에 check 번호 · 규칙마다 '평가 불가' 를 더 세밀히(MR-04 저온 line 없음 등).
+

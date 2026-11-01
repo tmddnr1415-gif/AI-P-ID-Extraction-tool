@@ -1,6 +1,6 @@
 # 인수인계 — "VALVE Datasheet 검토" 세션 (상한 15KB · 덧붙이지 말고 고쳐 쓴다)
 
-## 지금 상태 (2026-11-01 · valve27)
+## 지금 상태 (2026-11-01 · valve28)
 
 - 작업 브랜치: `ccr-efbe7e75-n915ze`. 이 브랜치는 PID(`claude/gracious-ride-26nqrf`, hotfix131) 와 DASHBOARD(`ccr-248a5c4d-3dji7g`, v16.51) 를 병합한 위에 있다.
 - 무엇: 대시보드 **실행 프로젝트 › CO2 PJT › Datasheet › Ball Valve** = P&ID 서버(8000) `/valve/` — Valve Datasheet 검토 도구.
@@ -41,6 +41,8 @@
     (`?margin=0&flatten=0` 이면 예전처럼 편집 가능한 주석). 공정 값 의견은 출처를 밝힘: `matreview.proc_value` — Process Data 행 우선
     "Based on Ref. Process Data <Doc No.> (p.N) design temp. 260 °C, …", 없으면 "Based on Datasheet …". Process Mismatch · Data Missing Required 에도 문서 번호.
     리뷰 디스크 캐시 키에 VERSION 포함 — 꾸러미를 올리면 문구가 새로 계산된다.
+  + **valve28 (DESIGN §33) ★ 방향: Engineering Verification Engine 이 핵심, UI 는 신뢰·검증 수단.** 모든 지적에 `evidence`·`basis`·`check` · Excel Evidence/Basis 열 · PDF 코멘트 Evidence ·
+    `checks.py` 48 항목 검증 보고(fail / pass / **n/a + 이유**) → Checks 탭 · 대시보드 Coverage · Excel 'Verification' 시트. 새 규칙을 만들면 **`checks.REGISTRY` 에도 한 줄**(id · 제목 · 그룹 · 필요 입력) 을 넣고 `add(..., check=id, basis=, evidence=)` 로 낸다.
   + **valve27 (DESIGN §32)**: 990 DS 에서 Tag 이동 74~277 → 4~19 ms(Tag 목록은 강조만 옮김) · 필터 chunk 80행 · 이웃 Tag prefetch · 긴 안내문은 `?` 로.
     **Rev B/C/D 자동 이어받기** `revisions.py` + `api._carry_over`(업로드 끝에) + `_ds_deep` 의 `rev_review`: Dismissed/Confirmed 유지(칸 값 그대로일 때) · 'Not addressed since Rev A' · 칸 의견 복사.
     시뮬레이션 `spike/valve_rev_sim.py --n 300 --chain 2` 도 회차 점검에 넣는다. 시험 `tests/test_valve_revision.py`.
@@ -56,7 +58,7 @@
 - 실자료(고객 파일 · 저장소에 없음): Datasheet.pdf 456쪽 → 164 데이터시트(On/Off 140 · MOV 24) · TBE 164/164 Tag 일치.
   자료를 다시 받으면 EGG 는 `python3 spike/valve_unegg.py <폴더> *.egg`, TBE .xls 는 시험용으로 `spike/valve_xls2xlsx.py`(xlrd 필요).
 - 시험: `pytest -q tests/ -k valve` (86개, 실자료는 `VALVE_SAMPLES=<Datasheet.pdf 폴더>`). 전체 pytest 통과 (2026-11-01).
-- 마지막 꾸러미: **valve27** (P&ID 서버용만 — 대시보드는 valve01 의 메뉴 그대로). valve01~27 모두 회사 적용 확인 전. 각 꾸러미는 hotfix131 기준 누적이라 valve27 하나만 적용해도 된다.
+- 마지막 꾸러미: **valve28**(valve27 은 꾸러미 없이 valve28 에 포함) (P&ID 서버용만 — 대시보드는 valve01 의 메뉴 그대로). valve01~28 모두 회사 적용 확인 전. 각 꾸러미는 hotfix131 기준 누적이라 valve28 하나만 적용해도 된다.
 
 ## 파일
 

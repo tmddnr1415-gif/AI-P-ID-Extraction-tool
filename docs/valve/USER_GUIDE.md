@@ -73,7 +73,14 @@
   칸에 단 의견도 그 칸이 안 바뀌었으면 새 판에 복사됩니다('Rev A' 표). 직접 그린 표시는 옛 쪽 것이라 복사되지 않습니다.
 - 작업대 머리의 `Rev A→B ✓5 ✗0 +3` 칩 = 해결 · 미반영 · 새 지적. Tag 목록의 ✗N, 대시보드 Revision Changes 타일의 '미반영 N' 도 같은 수입니다.
 
-## 7. 자주 묻는 것
+## 7. 지적의 근거와 검증 보고
+
+- 지적마다 **근거**가 붙습니다: 맞대어 본 쪽(PMS p.12 · Process Data p.54 · 이전 판 값 · 같은 데이터시트의 다른 칸)과 실제 값, 그리고 규칙 번호. 작업대 Issues 카드의 '근거:' 링크를 누르면 그 쪽이 열립니다.
+  Issue List Excel 의 'Evidence' · 'Basis' 열, Mark-up PDF 의 쪽 옆 코멘트에도 같은 내용이 있습니다.
+- **Checks 탭** = 이 Tag 에 대해 도구가 본 48 항목: ✓ 이상 없음 · ✗ 지적(누르면 그 지적) · – 자료가 없어 판단하지 않음(이유 표시: PMS 없음 · Process Data 에 없는 Tag · 설계 온도 없음 · 첫 판 …).
+  – 는 통과가 아닙니다. 대시보드 'Verification Coverage' 와 Issue List Excel 'Verification' 시트(Tag × 항목)에서 전체를 봅니다.
+
+## 8. 자주 묻는 것
 
 - **Area · Unit 은 어디서 오나?** 데이터시트 제목(QELNG NORTH / SOUTH / W15)과 P&ID 번호에서. 제목에 '(SYSTEM xx – UNIT yy)' 가 있으면 기존 플랜트 = Brownfield.
 - **왜 Process Data 빈칸을 다 지적하나?** 요청에 따라 Process DS 를 참조해도 전부 표기합니다. 한 카드로 묶여 있으니 일괄 Dismissed/Confirmed 로 처리하세요.

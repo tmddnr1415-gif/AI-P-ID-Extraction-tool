@@ -551,6 +551,9 @@ function renderDash() {
       <div class="card"><h3>Review Status by Tag</h3><div class="donut">${donut(STATUSES.map(st => ({ n: by[st] || 0, c: cols[st] })))}
         <div class="legend">${STATUSES.map(st => `<div data-go="review::${st}" class="click" title="이 상태의 Tag 만 보기"><i style="background:${cols[st]}"></i>${st}<b style="margin-left:auto;padding-left:10px">${by[st] || 0}</b></div>`).join('')}</div></div>
         <p class="soft hint" style="margin:10px 0 0">검토 필요 칸(라벨·값 짝이 불확실) <b>${k.review_required}</b>개 — 판정은 사용자가 확정합니다.</p></div>
+      ${k.verification?.tags ? `<div class="card"><h3>Verification Coverage</h3><div class="chk-sum"><b>${k.verification.total}</b> 검사 (${k.verification.tags} Tag × ${Math.round(k.verification.total / k.verification.tags)} 항목) · <span class="ok">✓ ${k.verification.pass}</span> · <span class="bad">✗ ${k.verification.fail}</span> · <span class="soft">– ${k.verification.na}</span></div>
+        ${Object.entries(k.verification.na_reasons || {}).sort((a, b) => b[1] - a[1]).slice(0, 4).map(([r, n]) => `<div class="soft" style="font-size:11.5px">– ${esc(r)}: ${n}</div>`).join('')}
+        <p class="soft hint">Issue List Excel 의 'Verification' 시트에 Tag × 항목 표가 있습니다.</p></div>` : ''}
       <div class="card"><h3>Issues by Category</h3><div class="cats">${cats.map(([l, n, c, v]) => `<div class="cat ${n === null ? 'na' : ''}" ${n === null ? '' : `data-go="${v}"`} title="${n === null ? 'PMS 없음' : 'Issue List 에서 보기'}">
         <span>${l}</span><i><b style="width:${n ? Math.max(4, 100 * n / cmax) : 0}%;background:${c}"></b></i><em>${n === null ? '—' : n}</em></div>`).join('')}</div>
         ${!s.has_process ? '<p class="soft" style="margin:4px 0 0">Process Mismatch — Process Data PDF 를 올리면 셉니다.</p>' : ''}
@@ -798,7 +801,7 @@ async function renderIssues(rowsOnly) {
   const __rows = L.slice(0, 6000).map((i, n) => `<tr data-i="${esc(i.ds_id + '|' + i.ikey)}" class="${G.selIss === i.ikey && G.selDs === i.ds_id ? 'sel' : ''}">
         <td class="fz" style="left:0"><b class="no ${i.color}">${i.no}</b></td><td class="fz fzl" style="left:34px"><b>${esc(i.tag)}</b></td><td>${esc(i.doc_no)}</td><td>${esc(i.rev)}</td><td>${i.sheet || ''} of ${i.of || ''}</td><td>${i.page || ''}</td>
         <td title="${esc(i.field)}">${esc(i.field)}${i.row ? ` <small>#${i.row}</small>` : ''}</td><td title="${esc(i.value)}">${esc(i.value || '(blank)')}</td>
-        <td>${pill(i.type.replace(/[^A-Za-z]/g, ''), i.type)}</td><td title="${esc(i.description)}">${esc(i.description)}</td><td title="${esc(i.expected)}">${esc(i.expected)}</td>
+        <td>${pill(i.type.replace(/[^A-Za-z]/g, ''), i.type)}</td><td title="${esc(i.description)}${i.evidence?.length ? '\n근거: ' + esc(i.evidence.map(x => `${x.doc || ''}${x.page ? ' p.' + x.page : ''} ${x.where || ''}: ${String(x.text || '').slice(0, 60)}`).join(' | ')) : ''}">${esc(i.description)}</td><td title="${esc(i.expected)}">${esc(i.expected)}</td>
         <td>${pill(i.severity)}</td><td><select data-ist="${esc(i.ds_id + '|' + i.ikey)}" aria-label="status">${['Open', 'Confirmed', 'Dismissed', 'Resolved'].map(x => `<option ${x === i.status ? 'selected' : ''}>${x}</option>`).join('')}</select></td></tr>`), __fb = '<tr><td colspan="13" class="empty">조건에 맞는 지적 사항이 없습니다</td></tr>';
   if (rowsOnly && $('#ig tbody', el)) { chunkRows($('#ig tbody', el), __rows, 80, __fb); const c = $('#icnt', el); if (c) c.textContent = `${L.length} / ${all.length}`; return; }
   el.innerHTML = `<div class="vh">${listTop()}<input type="search" id="iq" placeholder="Tag 검색" style="width:140px" value="${esc(IF.q)}">
@@ -860,7 +863,7 @@ async function exportValveList() {
 const W = { grpOpen: new Set(), tab: LS.get('wtab', 'data'), q: '', type: '', st: '', viewer: null, selField: null, prevCmp: null, selCm: null,
   px: LS.get('wbpx', null), col: LS.get('wbc', null) };
 const WB_MIN = { l: 180, r: 260, c: 480 }, WB_MAX = { l: 420, r: 560 };   // px — the PDF keeps at least WB_MIN.c
-const TABS = [['iss', 'Issues'], ['sum', 'Summary'], ['data', 'Data'], ['proc', 'Process'], ['pms', 'PMS'], ['mat', 'Expert'], ['rev', 'Rev'], ['notes', 'Notes'], ['cmt', 'Comments'], ['hist', 'History']];
+const TABS = [['iss', 'Issues'], ['chk', 'Checks'], ['sum', 'Summary'], ['data', 'Data'], ['proc', 'Process'], ['pms', 'PMS'], ['mat', 'Expert'], ['rev', 'Rev'], ['notes', 'Notes'], ['cmt', 'Comments'], ['hist', 'History']];
 const PRE = new Map();                               // valve26: the next / previous tag is fetched while the engineer reads this one
 function dsFetch(id) { const h = PRE.get(id); if (h) { PRE.delete(id); return h; } return api('GET', `/datasheets/${id}`); }
 function prefetchNeighbours() {
@@ -1015,6 +1018,16 @@ function paintDsOverlays() {
   if (sf?.bbox) ov.push({ cat: 'field', page: sf.page, bbox: sf.bbox, title: sf.display });
   W.viewer.setOverlays(ov);
 }
+function evLink(d, x) {                                  // valve28: one evidence item -> a link that opens the proof (PMS / Process Data / note / field)
+  const t = esc(x.where || '') + (x.text ? ` <span class="soft">${esc(String(x.text).slice(0, 90))}</span>` : '');
+  const doc = x.doc || '';
+  if (doc === 'PMS' && x.page) return `<a href="#" data-pmsp="${x.page}" data-pmsb="${esc(JSON.stringify(x.bbox))}">PMS p.${x.page}</a> ${t}`;
+  if (doc.startsWith('Process Data') && x.page) return `<a href="#" data-pdp="${x.page}" data-pdb="${esc(JSON.stringify(x.bbox))}">Process Data p.${x.page}</a> ${t}`;
+  if (doc === 'Previous revision') return `<span class="soft">Rev. prev</span> ${t}`;
+  if (/^(Note|HOLD|Gen Note) /.test(x.where || '')) return `<a href="#" data-src="${esc(x.where)}">${esc(x.where)}</a> <span class="soft">${esc(String(x.text || '').slice(0, 90))}</span>`;
+  const f = (d.fields || []).find(f => x.where && x.where.endsWith(f.display || f.key) && f.bbox);
+  return f ? `<a href="#" data-ek="${esc(f.key)}">${t}</a>` : t;
+}
 function drawRevInfo() {
   const d = S.ds;
   $('#wrev').innerHTML = `<b>Revision Info</b><div>Doc. ${esc(d.doc_no)}</div><div>Current Rev.: <b>${esc(d.rev)}</b> ${d.rev_date ? `<small>(${esc(d.rev_date)})</small>` : ''}</div>
@@ -1105,7 +1118,7 @@ function drawRight() {
     const card = i => `<div class="iss ${i.color} ${W.selIss === i.ikey ? 'on' : ''} ${i.status === 'Dismissed' ? 'dis' : ''}" data-iss="${esc(i.ikey)}">
         <div class="ih"><b class="no ${i.color}">${i.no}</b><b>${esc(i.type)}</b><span class="soft">${esc(i.field)}${i.row ? ' #' + i.row : ''} · p.${i.page || ''}</span><span class="sp"></span>
         <select data-ist="${esc(i.ikey)}" aria-label="status">${['Open', 'Confirmed', 'Dismissed', 'Resolved'].map(x => `<option ${x === i.status ? 'selected' : ''}>${x}</option>`).join('')}</select></div>
-        <div>${esc(i.description)}</div>${i.expected ? `<div class="soft">Required: <b>${esc(i.expected)}</b></div>` : ''}${i.note ? `<div class="soft">Note: ${esc(i.note)}</div>` : ''}</div>`;
+        <div>${esc(i.description)}</div>${i.expected ? `<div class="soft">Required: <b>${esc(i.expected)}</b></div>` : ''}${i.evidence?.length ? `<div class="soft" style="font-size:11px">근거: ${i.evidence.map(x => evLink(d, x)).join(' · ')}${i.basis ? ` <span class="soft" title="${esc(i.basis)}">[${esc(i.check || '')}]</span>` : ''}</div>` : ''}${i.note ? `<div class="soft">Note: ${esc(i.note)}</div>` : ''}</div>`;
     // same type + same reason → one card with the fields as chips (13 'no value; ref. Process DS' cards become one)
     const sig = i => i.type === 'Data Missing' ? 'Data Missing|' + i.description.replace(/^[^:]+:\s*/, '') : i.type === 'Open Item' && !i.key.startsWith('note.') ? 'Open Item|hold' : null;
     const groups = {}; L.forEach(i => { const k = sig(i); if (k) (groups[k] ||= []).push(i); });
@@ -1126,6 +1139,16 @@ function drawRight() {
         <label class="soft" style="margin-left:auto"><input type="checkbox" id="wint" ${W.showInternal ? 'checked' : ''}> 내부 ${(d.issues || []).filter(i => i.type === 'Extraction Review').length}</label></div>
       ${items.join('') || '<div class="empty">이 데이터시트에는 지적 사항이 없습니다</div>'}
       <p class="soft hint">Dismissed 는 설계사 전달본(Excel · Mark-up PDF)에서 빠집니다. 상태를 바꾸면 이유를 묻고 감사 기록에 남깁니다.</p>`;
+  } else if (W.tab === 'chk') {                          // valve28: the engine's own report for this tag
+    const V = d.verification; const ic = { pass: '✓', fail: '✗', 'n/a': '–' };
+    if (!V) h = '<div class="empty">검증 보고가 없습니다</div>';
+    else {
+      const groups = [...new Set(V.checks.map(c => c.group))];
+      h = `<div class="chk-sum"><b>${V.summary.total}</b> 항목 검사 · <span class="ok">✓ ${V.summary.pass}</span> · <span class="bad">✗ ${V.summary.fail}</span> · <span class="soft">– ${V.summary.na} 평가 불가</span></div>
+        <p class="soft hint">✗ 는 Issues 탭의 지적과 같은 번호입니다. – 는 자료가 없어 판단하지 않은 항목이고 이유를 적습니다 — 통과로 치지 않습니다.</p>`
+        + groups.map(g => `<div class="chk-g"><b>${esc(g)}</b>${V.checks.filter(c => c.group === g).map(c => `<div class="chk ${c.status === 'fail' ? 'bad' : c.status === 'n/a' ? 'na' : 'ok'}" ${c.status === 'fail' ? `data-chk="${esc(c.id)}" title="Issues 탭에서 보기"` : ''}>
+          <span class="st">${ic[c.status]}</span><span class="id">${esc(c.id)}</span><span>${esc(c.title)}</span><span class="sp"></span>${c.findings ? `<b>${c.findings}</b>` : ''}${c.reason ? `<span class="soft">${esc(c.reason)}</span>` : ''}</div>`).join('')}</div>`).join('');
+    }
   } else if (W.tab === 'sum') {
     h = `<div class="sect"><h4>Datasheet</h4><table class="t"><tbody>
       ${[['Tag Number', d.tag], ['Valve Type', d.valve_type], ['Form', d.title + (d.form ? ` (${d.form})` : '')], ['Document No.', d.doc_no], ['Revision', `${d.rev} ${d.rev_date ? '· ' + d.rev_date : ''}`],
@@ -1206,6 +1229,7 @@ function drawRight() {
       W.selCm = +cd.dataset.cmdel; await markCmd('del'); } return; }
     const pp = e.target.closest('[data-pmsp]'); if (pp) { e.preventDefault(); openPmsRef(+pp.dataset.pmsp, JSON.parse(pp.dataset.pmsb || 'null')); return; }
     const ek = e.target.closest('[data-ek]'); if (ek) { e.preventDefault(); selectField(ek.dataset.ek); return; }
+    const ck = e.target.closest('[data-chk]'); if (ck) { const id = ck.dataset.chk, hit = (d.issues || []).find(i => (i.check || '').startsWith(id) && i.status !== 'Dismissed'); W.tab = 'iss'; LS.set('wtab', 'iss'); if (hit) W.selIss = hit.ikey; drawRight(); if (hit?.bbox) W.viewer.goPage(hit.page, hit.bbox); return; }
     const nt = e.target.closest('[data-notes]'); if (nt) { W.notesOpen = !W.notesOpen; drawRight(); return; }
     const pd = e.target.closest('[data-pdp]'); if (pd) { e.preventDefault(); openRef(d.process_doc, +pd.dataset.pdp, JSON.parse(pd.dataset.pdb || 'null'), 'Process Data'); return; }
     if (e.target.closest('select')) return;
