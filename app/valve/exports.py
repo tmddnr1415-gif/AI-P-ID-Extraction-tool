@@ -158,7 +158,8 @@ def _area_sheet(wb, rows: list[dict], project: str):
 COLS = [("No.", 6), ("Area", 11), ("Site", 8), ("Unit", 6), ("Tag Number", 16), ("Valve Type", 8), ("Doc. No.", 20), ("Rev.", 6), ("Sheet", 9),
         ("PDF File", 22), ("PDF Page", 8), ("Row", 6), ("Field", 26), ("Datasheet Value", 30), ("Issue Type", 18),
         ("Description", 60), ("Required / Expected", 34), ("Evidence", 46), ("Basis", 30), ("Severity", 9), ("Status", 11), ("Reviewer Note", 30),
-        ("Open in Tool", 13), ("PDF Page Link", 13)]
+        ("Open in Tool", 13), ("PDF Page Link", 13),
+        ("Rule ID", 12), ("Engineer Decision", 14), ("Decision Reason", 30)]          # valve29: appended, earlier columns unchanged
 CI = {name: n for n, (name, _) in enumerate(COLS, 1)}           # column number by name
 
 
@@ -243,7 +244,9 @@ def issues_xlsx(rows: list[dict], base: str, project: str, by: str = "", sources
         ws.append([n, i.get("area_name", ""), i.get("site", ""), i.get("plant_unit", ""), i["tag"], i.get("valve_type", ""), i["doc_no"], i["rev"], sheet, i.get("filename", ""), i.get("page"),
                    i.get("row"), i["field"], val or "(blank)", i["type"], i["description"], i.get("expected", ""),
                    ev_text(i), (f"[{i['check']}] " if i.get("check") else "") + (i.get("basis") or ""),
-                   i["severity"], i["status"], i.get("note", ""), "Open", "PDF p." + str(i.get("page") or "")])
+                   i["severity"], i["status"], i.get("note", ""), "Open", "PDF p." + str(i.get("page") or ""),
+                   i.get("check") or "", i.get("decision") or "",
+                   " · ".join(x for x in (i.get("reason_cat"), i.get("conclusion")) if x)])
         r = ws.max_row
         fill = PatternFill("solid", fgColor=HEXFILL.get(i["color"], "FFFFFF"))
         for c in range(1, len(COLS) + 1):

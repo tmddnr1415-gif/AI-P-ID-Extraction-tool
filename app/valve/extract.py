@@ -24,6 +24,10 @@ import pymupdf
 
 from app.valve import schema
 
+# valve29: recorded on every datasheet read (source traceability). Bump when the reading logic changes —
+# the last change to how cells are found was valve22 (robustness round), so this reader is "extract-v22".
+PARSER_VERSION = "extract-v22"
+
 _DOC_RE = re.compile(r"\b\d{2,3}-\d{2}-IN-DTS-\d{5}\b")
 _LOOSE_DOC = re.compile(r"\d{2,3}-\d{2}-[A-Z]{2}-[A-Z]{2,4}-\d{1,6}")   # as printed, typos included
 _ANY_DOC_RE = re.compile(r"\b[0-9A-Z]{2,5}-[0-9A-Z]{2,4}-[A-Z]{2}-[A-Z]{3}-\d{5}\b")

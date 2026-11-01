@@ -50,11 +50,12 @@ def carry_states(prev_states: dict, cmp_rows: list[dict], new_ikeys: set[str], p
         if _field_of(ikey) in chg:
             continue                                         # the field changed: the reviewer decides again
         note = (st.get("note") or "").strip()
-        if status == "Dismissed":
-            out.append({"ikey": ikey, "status": "Dismissed", "since": prev_rev,
+        keep = {k: st.get(k) for k in ("decision", "reason_cat", "conclusion", "modified_text", "modified_severity", "rule_ver") if st.get(k)}
+        if status == "Dismissed":                            # valve29: the engineer decision and its reason category travel too
+            out.append({"ikey": ikey, "status": "Dismissed", "since": prev_rev, **keep,
                         "note": f"Carried from Rev {prev_rev}" + (f": {note}" if note else "")})
         else:
-            out.append({"ikey": ikey, "status": "Confirmed", "since": prev_rev,
+            out.append({"ikey": ikey, "status": "Confirmed", "since": prev_rev, **keep,
                         "note": f"Confirmed in Rev {prev_rev} — not addressed in this revision" + (f" ({note})" if note else "")})
     return out
 

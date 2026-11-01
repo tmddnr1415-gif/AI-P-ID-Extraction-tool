@@ -48,6 +48,28 @@ function modal(title, html, buttons) {
     const f = $('#mBody input, #mBody textarea'); if (f) setTimeout(() => f.focus(), 30);
   });
 }
+/* valve29 — engineer decision on a finding: decision · reason category · reason · conclusion (Modified: wording · severity).
+   The decision maps onto the old status server-side; Open / Resolved stay plain status changes. */
+const DECIDE = ['Open', 'Confirmed', 'Modified', 'Dismissed', 'Deferred', 'Not Applicable', 'Resolved'];
+const REASONS = ['Project Specification Exception', 'Vendor Clarification', 'Incorrect Rule Logic', 'Incorrect Data Extraction', 'Not Applicable', 'Duplicate Finding', 'Other'];
+const NEEDS_REASON = new Set(['Dismissed', 'Not Applicable', 'Modified']);
+const decShown = i => i.status === 'Resolved' ? 'Resolved' : (i.decision && DECIDE.includes(i.decision) ? i.decision : i.status);
+const decSelect = (attr, i) => `<select ${attr} aria-label="engineer decision" title="Engineer Decision${i.reason_cat ? ' · ' + esc(i.reason_cat) : ''}${i.conclusion ? ' · ' + esc(i.conclusion) : ''}">${DECIDE.map(x => `<option ${x === decShown(i) ? 'selected' : ''}>${x}</option>`).join('')}</select>`;
+async function askDecision(choice, n = 1, issue = null) {
+  if (choice === 'Open') return { status: 'Open', note: '' };
+  if (choice === 'Resolved') { const r = await modal(`Resolved${n > 1 ? ` × ${n}건` : ''} — 설계사가 고침`, '<input name="note" placeholder="예) Rev B 에서 값 보완">', [['취소', null], ['저장', 'form', 1]]); return r ? { status: 'Resolved', note: r.note || '' } : null; }
+  const need = NEEDS_REASON.has(choice);
+  const html = `<label class="dfl"><span>사유 분류${need ? ' <b style="color:var(--bad)">*</b>' : ''}</span><select name="reason_cat"><option value="">${need ? '— 골라 주세요 —' : '(선택 안 함)'}</option>${REASONS.map(x => `<option ${choice === 'Not Applicable' && x === 'Not Applicable' ? 'selected' : ''}>${x}</option>`).join('')}</select></label>
+    <label class="dfl"><span>사유</span><input name="note" placeholder="예) Project spec 3.2 에 따라 허용 / Vendor 회신 확인"></label>
+    <label class="dfl"><span>최종 결론 <span class="soft">(선택)</span></span><input name="conclusion" placeholder="예) Vendor 에 PEEK 시트 요청"></label>
+    ${choice === 'Modified' ? `<label class="dfl"><span>고친 지적 문구</span><textarea name="modified_text" rows="3">${esc(issue?.original_description || issue?.description || '')}</textarea></label>
+      <label class="dfl"><span>Severity</span><select name="modified_severity">${['Major', 'Minor', 'Info'].map(x => `<option ${x === (issue?.severity) ? 'selected' : ''}>${x}</option>`).join('')}</select></label>` : ''}
+    <p class="soft hint">Dismissed 는 규칙이 틀렸다는 뜻이 아닐 수 있습니다 — 사유 분류가 Rule Performance 에 그대로 쓰입니다.</p>`;
+  const r = await modal(`${choice}${n > 1 ? ` × ${n}건` : ''} — Engineer Decision`, html, [['취소', null], ['저장', 'form', 1]]);
+  if (!r) return null;
+  if (need && !r.reason_cat) { toast('사유 분류를 골라 주세요', 1); return null; }
+  return { decision: choice, reason_cat: r.reason_cat || '', note: r.note || '', conclusion: r.conclusion || '', modified_text: r.modified_text || '', modified_severity: r.modified_severity || '' };
+}
 /* Issue Type picker — shown before every contractor export (Issue List Excel · Mark-up PDF). The last choice is kept. */
 const TYPE_KO = { 'Data Missing': '누락 · 빈 값', 'Open Item': 'HOLD / TBC', 'Data Error': '데이터 오류', 'PMS Non-Compliance': 'PMS 부적합',
   'PMS Review': 'PMS 확인', 'Process Mismatch': 'Process Data 불일치', 'Material Review': '재질 검토', 'Valve Review': '설계 · 다른 DS 대비 검토',
@@ -106,7 +128,7 @@ async function download(path, method = 'GET', body) {
 /* ── state ─────────────────────────────────────────────────────────────── */
 const S = { pid: null, projects: [], sum: null, grid: null, ds: null, dsId: null, view: 'dash', compare: null };
 const COLL = new Intl.Collator(undefined, { numeric: true, sensitivity: 'base' });
-const VIEWS = ['dash', 'docs', 'list', 'review', 'rev', 'proc', 'pms', 'export', 'settings'];
+const VIEWS = ['dash', 'docs', 'list', 'review', 'rev', 'proc', 'pms', 'rules', 'export', 'settings'];
 const STATUSES = ['Not Reviewed', 'Under Review', 'Accepted', 'Rejected', 'Commented', 'Resolved'];
 const NOT_PROCESS = new Set(['body_size', 'rating', 'body_material', 'ball_material', 'seat_material', 'seal_material', 'stem_material',
   'bolting_gasket', 'packing_material', 'packing_type', 'connections', 'line_size_inlet', 'line_size_outlet', 'piping_class', 'pipe_material']);
@@ -353,7 +375,7 @@ class Viewer {
     const m = this.marks.find(x => x.id === id);
     this.marks.forEach(x => x.sel = x === m); this.paintMarks();
     this.opts.onMarkSelect?.(m || null);
-    if (!m) return;
+    if (!m) { this.opts.onPagePoint?.(page, p0); return; }        // valve29: an empty spot of the page → the field printed there
     e.preventDefault(); e.stopPropagation();
     if (!m.editable) return;
     const before = { bbox: [...m.bbox], points: m.points ? JSON.parse(JSON.stringify(m.points)) : null }, hd = hEl?.dataset.hd;
@@ -802,7 +824,7 @@ async function renderIssues(rowsOnly) {
         <td class="fz" style="left:0"><b class="no ${i.color}">${i.no}</b></td><td class="fz fzl" style="left:34px"><b>${esc(i.tag)}</b></td><td>${esc(i.doc_no)}</td><td>${esc(i.rev)}</td><td>${i.sheet || ''} of ${i.of || ''}</td><td>${i.page || ''}</td>
         <td title="${esc(i.field)}">${esc(i.field)}${i.row ? ` <small>#${i.row}</small>` : ''}</td><td title="${esc(i.value)}">${esc(i.value || '(blank)')}</td>
         <td>${pill(i.type.replace(/[^A-Za-z]/g, ''), i.type)}</td><td title="${esc(i.description)}${i.evidence?.length ? '\n근거: ' + esc(i.evidence.map(x => `${x.doc || ''}${x.page ? ' p.' + x.page : ''} ${x.where || ''}: ${String(x.text || '').slice(0, 60)}`).join(' | ')) : ''}">${esc(i.description)}</td><td title="${esc(i.expected)}">${esc(i.expected)}</td>
-        <td>${pill(i.severity)}</td><td><select data-ist="${esc(i.ds_id + '|' + i.ikey)}" aria-label="status">${['Open', 'Confirmed', 'Dismissed', 'Resolved'].map(x => `<option ${x === i.status ? 'selected' : ''}>${x}</option>`).join('')}</select></td></tr>`), __fb = '<tr><td colspan="13" class="empty">조건에 맞는 지적 사항이 없습니다</td></tr>';
+        <td>${pill(i.severity)}</td><td>${decSelect(`data-ist="${esc(i.ds_id + '|' + i.ikey)}"`, i)}</td></tr>`), __fb = '<tr><td colspan="13" class="empty">조건에 맞는 지적 사항이 없습니다</td></tr>';
   if (rowsOnly && $('#ig tbody', el)) { chunkRows($('#ig tbody', el), __rows, 80, __fb); const c = $('#icnt', el); if (c) c.textContent = `${L.length} / ${all.length}`; return; }
   el.innerHTML = `<div class="vh">${listTop()}<input type="search" id="iq" placeholder="Tag 검색" style="width:140px" value="${esc(IF.q)}">
       <select id="iar"><option value="">All Areas</option>${areas.map(a => `<option ${a === IF.area ? 'selected' : ''}>${esc(a)}</option>`).join('')}</select>
@@ -844,9 +866,11 @@ async function renderIssues(rowsOnly) {
   tb.onchange = async e => {
     const sel = e.target.closest('[data-ist]'); if (!sel) return;
     const [dsId, ikey] = [+sel.dataset.ist.split('|')[0], sel.dataset.ist.slice(sel.dataset.ist.indexOf('|') + 1)];
-    const note = sel.value === 'Open' ? '' : (await modal(`${sel.value} — 이유`, '<input name="note" placeholder="예) 설계사 확인 요청 / Process DS 참조로 문제 없음">', [['건너뛰기', { note: '' }], ['저장', 'form', 1]]))?.note || '';
-    await api('PUT', `/datasheets/${dsId}/issues/${encodeURIComponent(ikey)}`, { status: sel.value, note });
-    const i = S.issues.find(x => x.ds_id === dsId && x.ikey === ikey); i.status = sel.value; i.note = note; toast(`→ ${sel.value}`);
+    const i = S.issues.find(x => x.ds_id === dsId && x.ikey === ikey);
+    const body = await askDecision(sel.value, 1, i); if (!body) { sel.value = decShown(i); return; }
+    const r = await api('PUT', `/datasheets/${dsId}/issues/${encodeURIComponent(ikey)}`, body);
+    Object.assign(i, { status: r.status, decision: r.decision, note: body.note, reason_cat: body.reason_cat || '', conclusion: body.conclusion || '' });
+    if (body.decision === 'Modified') S.issues = null; toast(`→ ${sel.value}`);
   };
   mountPreview();
 }
@@ -908,6 +932,13 @@ function wbLayout() {
   W.viewer = new Viewer($('#wview'), { tools: true,
     extra: `<button data-a2="prevrev" title="이전 Revision">◁ Rev</button><button data-a2="nextrev" title="다음 Revision">Rev ▷</button><button data-a2="pdf" title="이 Tag 의 표시가 들어간 PDF 내보내기">⇩ PDF</button>`,
     onMark: addMark, onMarkChange: changeMark, onMarkErase: eraseMark, onMarkSelect: m => { if ((m?.id ?? null) === W.selCm) return; W.selCm = m?.id ?? null; if (W.tab === 'cmt') drawRight(); }, onMarkCmd: markCmd,
+    onPagePoint: (page, [x, y]) => {                // valve29: PDF → field → its findings
+      const hit = (S.ds?.fields || []).filter(f => f.page === page && f.bbox && x >= f.bbox[0] - 2 && x <= f.bbox[2] + 2 && y >= f.bbox[1] - 2 && y <= f.bbox[3] + 2)
+        .sort((a, b) => (a.bbox[2] - a.bbox[0]) * (a.bbox[3] - a.bbox[1]) - (b.bbox[2] - b.bbox[0]) * (b.bbox[3] - b.bbox[1]))[0];
+      if (!hit) return;
+      if (W.tab !== 'data') setTab('data');
+      selectField(hit.key); $(`#wbody [data-k="${CSS.escape(hit.key)}"]`)?.scrollIntoView({ block: 'nearest' });
+    },
     onOverlay: o => { if (o.cmId) { W.selCm = o.cmId; setTab('cmt'); } else if (o.iss) { W.selIss = o.iss; setTab('iss'); } else if (o.key) selectField(o.key); } });
   $('#wview .tbar').addEventListener('click', e => {
     const a = e.target.closest('[data-a2]')?.dataset.a2; if (!a || !S.ds) return;
@@ -1117,8 +1148,8 @@ function drawRight() {
     const L = (d.issues || []).filter(i => i.type !== 'Extraction Review' || W.showInternal);
     const card = i => `<div class="iss ${i.color} ${W.selIss === i.ikey ? 'on' : ''} ${i.status === 'Dismissed' ? 'dis' : ''}" data-iss="${esc(i.ikey)}">
         <div class="ih"><b class="no ${i.color}">${i.no}</b><b>${esc(i.type)}</b><span class="soft">${esc(i.field)}${i.row ? ' #' + i.row : ''} · p.${i.page || ''}</span><span class="sp"></span>
-        <select data-ist="${esc(i.ikey)}" aria-label="status">${['Open', 'Confirmed', 'Dismissed', 'Resolved'].map(x => `<option ${x === i.status ? 'selected' : ''}>${x}</option>`).join('')}</select></div>
-        <div>${esc(i.description)}</div>${i.expected ? `<div class="soft">Required: <b>${esc(i.expected)}</b></div>` : ''}${i.evidence?.length ? `<div class="soft" style="font-size:11px">근거: ${i.evidence.map(x => evLink(d, x)).join(' · ')}${i.basis ? ` <span class="soft" title="${esc(i.basis)}">[${esc(i.check || '')}]</span>` : ''}</div>` : ''}${i.note ? `<div class="soft">Note: ${esc(i.note)}</div>` : ''}</div>`;
+        ${decSelect(`data-ist="${esc(i.ikey)}"`, i)}</div>
+        <div>${esc(i.description)}</div>${i.expected ? `<div class="soft">Required: <b>${esc(i.expected)}</b></div>` : ''}${i.op && i.expected ? `<div class="soft" style="font-size:11px" title="Actual · 비교 · Reference${i.tol ? ' · 허용오차' : ''} · Result">${esc(i.value || '(blank)')} <b>${esc(i.op)}</b> ${esc(i.expected)}${i.tol ? ` (±${esc(i.tol)})` : ''} → ${esc(i.result || '')}</div>` : ''}${i.evidence?.length ? `<div class="soft" style="font-size:11px">근거: ${i.evidence.map(x => evLink(d, x)).join(' · ')}${i.basis ? ` <span class="soft" title="${esc(i.basis)}">[${esc(i.check || '')}]</span>` : ''}</div>` : ''}${i.note ? `<div class="soft">Note: ${esc(i.note)}</div>` : ''}</div>`;
     // same type + same reason → one card with the fields as chips (13 'no value; ref. Process DS' cards become one)
     const sig = i => i.type === 'Data Missing' ? 'Data Missing|' + i.description.replace(/^[^:]+:\s*/, '') : i.type === 'Open Item' && !i.key.startsWith('note.') ? 'Open Item|hold' : null;
     const groups = {}; L.forEach(i => { const k = sig(i); if (k) (groups[k] ||= []).push(i); });
@@ -1129,7 +1160,7 @@ function drawRight() {
       const open = W.grpOpen.has(k), first = g[0], st = [...new Set(g.map(x => x.status))];
       items.push(`<div class="iss ${first.color} grp ${open ? 'open' : ''}" data-grp="${esc(k)}">
         <div class="ih"><b class="no ${first.color}">${first.no}–${g[g.length - 1].no}</b><b>${esc(first.type)}</b><span class="soft">${g.length}건 · ${st.length === 1 ? st[0] : st.length + ' statuses'}</span><span class="sp"></span>
-          <select data-istg="${esc(k)}" aria-label="status all"><option value="">상태 일괄…</option>${['Open', 'Confirmed', 'Dismissed', 'Resolved'].map(x => `<option>${x}</option>`).join('')}</select>
+          <select data-istg="${esc(k)}" aria-label="decision all"><option value="">일괄 결정…</option>${DECIDE.filter(x => x !== 'Modified').map(x => `<option>${x}</option>`).join('')}</select>
           <button data-grpx="${esc(k)}" title="${open ? '접기' : '펼치기'}">${open ? '▾' : '▸'}</button></div>
         <div>${esc(first.type === 'Open Item' ? 'HOLD / TBC — release and give the value.' : first.description.replace(/^[^:]+:\s*/, ''))}</div>
         <div class="chips">${g.map(x => `<span class="fchip ${x.status === 'Dismissed' ? 'dis' : ''} ${W.selIss === x.ikey ? 'on' : ''}" data-iss="${esc(x.ikey)}" title="${esc(x.description)}">${x.no} ${esc(x.field)}${x.expected && first.type === 'Data Missing' ? ` <i>→ ${esc(x.expected)}</i>` : ''}</span>`).join('')}</div>
@@ -1162,7 +1193,7 @@ function drawRight() {
   } else if (W.tab === 'data') {
     const secs = {};
     d.fields.forEach(f => { if (f.section === 'process' && f.key.includes('.')) return; (secs[f.section] ||= []).push(f); });
-    h = `<div class="vpart ${LS.get('vpart', 1) ? '' : 'min'}" id="vpart"><div class="vph"><b>Valve Part</b><span class="soft">칸 → 부위</span><span class="sp"></span><button id="vpt" title="그림 접기/펼치기">${LS.get('vpart', 1) ? '▾' : '▸'}</button></div>${valveSvg()}<div class="vpcap" id="vpcap"></div></div>`
+    h = `<div class="vpart ${LS.get('vpart', 1) ? '' : 'min'}" id="vpart"><div id="fsrc" class="fsrc"></div><div class="vph"><b>Valve Part</b><span class="soft">칸 → 부위</span><span class="sp"></span><button id="vpt" title="그림 접기/펼치기">${LS.get('vpart', 1) ? '▾' : '▸'}</button></div>${valveSvg()}<div class="vpcap" id="vpcap"></div></div>`
       + Object.keys(SECTION_NAMES).filter(s => secs[s]).map(s => `<div class="sect"><h4>${SECTION_NAMES[s]}</h4>${secs[s].map(fieldLine).join('')}</div>`).join('');
   } else if (W.tab === 'proc') {
     const P = d.process, ex = ['body_size', 'rating', 'body_material', 'ball_material', 'seat_material', 'piping_class'].map(k => F[k]).filter(Boolean);
@@ -1243,14 +1274,15 @@ function drawRight() {
     if (selg) {                                              // one status for every issue of the group (sequential, audited each)
       const st = selg.value; if (!st) return;
       const keys = [...$$(`[data-grp="${CSS.escape(selg.dataset.istg)}"] [data-iss]`)].map(x => x.dataset.iss);
-      const note = st === 'Open' ? '' : (await modal(`${st} × ${keys.length}건 — 이유`, '<input name="note" placeholder="예) Process DS 참조 — 설계사에 값 요청">', [['건너뛰기', { note: '' }], ['저장', 'form', 1]]))?.note || '';
+      const body = await askDecision(st, keys.length); if (!body) { selg.value = ''; return; }
       toast(`${keys.length}건 → ${st} …`);
-      for (const k of keys) await api('PUT', `/datasheets/${d.id}/issues/${encodeURIComponent(k)}`, { status: st, note });
+      for (const k of keys) await api('PUT', `/datasheets/${d.id}/issues/${encodeURIComponent(k)}`, body);
       S.ds = await api('GET', `/datasheets/${d.id}`); S.issues = null; paintDsOverlays(); drawHead(); drawRight(); toast(`${keys.length}건 → ${st}`); return;
     }
     const sel = e.target.closest('[data-ist]'); if (!sel) return;
-    const note = sel.value === 'Open' ? '' : (await modal(`${sel.value} — 이유`, '<input name="note" placeholder="예) 설계사 확인 요청 / Process DS 참조로 문제 없음">', [['건너뛰기', { note: '' }], ['저장', 'form', 1]]))?.note || '';
-    await api('PUT', `/datasheets/${d.id}/issues/${encodeURIComponent(sel.dataset.ist)}`, { status: sel.value, note });
+    const iss = (d.issues || []).find(i => i.ikey === sel.dataset.ist);
+    const body = await askDecision(sel.value, 1, iss); if (!body) { sel.value = decShown(iss || {}); return; }
+    await api('PUT', `/datasheets/${d.id}/issues/${encodeURIComponent(sel.dataset.ist)}`, body);
     S.ds = await api('GET', `/datasheets/${d.id}`); S.issues = null; paintDsOverlays(); drawHead(); drawRight(); toast(`→ ${sel.value}`);
   };
   $('#cmadd') && ($('#cmadd').onclick = async () => { const t = $('#cmtx').value.trim(); if (!t) return;
@@ -1285,10 +1317,21 @@ function reqList(d) {                                  // special requirements (
       <div class="soft">${L.filter(r => !r.negative).map(r => `<a href="#" data-src="${esc(r.source)}" title="${esc(r.text)}">${esc(r.source)}</a>`).join(' · ')}</div></td></tr>`; }).join('')}</tbody></table>
     <p class="soft hint">글에 그 요구사항의 낱말이나 규격 번호가 있을 때만 적습니다 (추측 없음). 출처를 누르면 그 Note / 칸으로 갑니다.</p>`;
 }
+function fieldSource(f) {                            // valve29 — where a value came from (source traceability)
+  const d = S.ds, how = f.edited_value != null ? `engineer correction (${f.edited_by || '?'} · ${(f.edited_at || '').slice(0, 10)})`
+    : f.ref?.no ? `note reference → Note ${f.ref.no}` : f.status === 'review' ? 'text layer · pairing unsure (Review)' : 'text layer · ruled table';
+  const iss = (d.issues || []).filter(i => i.key === f.key || (i.key || '').split('.')[0] === f.key.split('.')[0]);
+  return `<b>${esc(f.display || f.key)}</b> <span class="soft">${esc(f.key)}</span> = <b>${esc(f.edited_value ?? f.value ?? '')}</b>${f.unit ? ' ' + esc(f.unit) : ''}
+    <div class="soft">${esc(d.filename || '')} · Doc. ${esc(d.doc_no)} · Rev.${esc(d.rev)} · p.${f.page ?? '—'}${f.row ? ' · row ' + f.row : ''}${f.bbox ? ` · (${f.bbox.map(x => Math.round(x)).join(', ')})` : ''}
+      · ${esc(how)} · reader ${esc(d.parser_version || 'valve28 이전')}</div>
+    ${iss.length ? `<div>이 칸의 지적 ${iss.length}: ${iss.slice(0, 4).map(i => `<a href="#" data-gi="${esc(i.ikey)}">#${i.no} ${esc(i.type)}</a>`).join(' · ')}</div>` : '<div class="soft">이 칸의 지적 없음</div>'}`;
+}
 function selectField(key) {
   const f = S.ds.fields.find(x => x.key === key);
   const r = W.prevCmp?.rows.find(x => x.key === key);
   W.selField = key; paintDsOverlays();
+  const fs = $('#fsrc'); if (fs && f) { fs.innerHTML = fieldSource(f); fs.classList.add('on');
+    fs.onclick = e => { const a = e.target.closest('[data-gi]'); if (!a) return; e.preventDefault(); W.selIss = a.dataset.gi; setTab('iss'); const i = S.ds.issues.find(x => x.ikey === a.dataset.gi); if (i?.bbox) W.viewer.goPage(i.page, i.bbox); }; }
   if (f?.bbox) W.viewer.focus(f.page, f.bbox, f.display);
   else if (r?.new_bbox) W.viewer.focus(r.new_page, r.new_bbox, r.display);
   $$('#wbody [data-k]').forEach(x => x.classList.toggle('on', x.dataset.k === key));
@@ -1595,6 +1638,64 @@ async function renderExport() {
     b.disabled = false;
   });
 }
+/* valve29 — Rule Performance: how engineers decided each rule's findings · decision log · rule change records.
+   Statistics only: nothing here changes a rule. */
+const RP = { rule: null, ch: null };
+const pct = x => x == null ? '—' : Math.round(x * 100) + '%';
+async function renderRules() {
+  const el = $('#v-rules');
+  el.innerHTML = '<div class="empty">불러오는 중…</div>';
+  const [P, C] = await Promise.all([api('GET', `/projects/${S.pid}/rules/performance`), api('GET', `/projects/${S.pid}/rule-changes`)]);
+  const st = P.settings, act = P.rules.filter(r => r.total || r.decided);
+  const trend = r => P.months.map(m => { const c = r.trend?.[m] || {}; const n = Object.values(c).reduce((a, b) => a + b, 0);
+    return `<span class="tr" title="${m}: ${Object.entries(c).map(([k, v]) => k + ' ' + v).join(' · ') || '결정 없음'}">${n || '·'}</span>`; }).join('');
+  el.innerHTML = `<div class="vh"><h2>Rule Performance</h2><span class="soft">규칙별 지적 수와 엔지니어 결정 — 통계만, 규칙을 바꾸지 않습니다</span><span class="sp"></span>
+      <label class="soft" title="도구 기본값: ${st.defaults.rp_min_n}건 · ${Math.round(st.defaults.rp_dismiss_rate * 100)}% — 프로젝트에 맞게 바꾸세요">검토 권고: 결정 ≥ <input id="rpn" type="number" min="1" value="${st.rp_min_n}" style="width:56px">건 이고 Dismissed ≥ <input id="rpr" type="number" min="1" max="100" value="${Math.round(st.rp_dismiss_rate * 100)}" style="width:52px">%</label><button id="rpsave">저장</button></div>
+    <p class="soft hint">Dismissal Rate 는 오탐률이 아닙니다 — 프로젝트 예외 · Vendor 회신 · 중복 등으로도 Dismiss 합니다. '도구 원인' 은 사유 분류가 Incorrect Rule Logic / Incorrect Data Extraction 인 건수입니다.
+      Confirmed 계열 = Confirmed + Modified + Resolved. Deferred 는 판정에 넣지 않습니다.</p>
+    <div class="card" style="padding:0;overflow:auto"><table class="t rp"><thead><tr><th>Rule</th><th>내용</th><th>Ver.</th><th>출처</th><th>지적</th><th>Confirmed</th><th>Modified</th><th>Resolved</th><th>Dismissed</th><th>N/A</th><th>Deferred</th><th>미결정</th>
+      <th>Confirm %</th><th>Dismiss %</th><th title="Incorrect Rule Logic + Incorrect Data Extraction">도구 원인</th><th title="${P.months.join(' · ')}">3개월</th><th></th></tr></thead><tbody>
+      ${act.map(r => `<tr data-rule="${esc(r.rule)}" class="${RP.rule === r.rule ? 'on' : ''} ${r.review_suggested ? 'warn' : ''}"><td><b>${esc(r.rule)}</b></td><td>${esc(r.title)}</td><td>${esc(r.version)}</td><td class="soft">${r.source === 'General Engineering Check' ? 'General' : esc(r.source)}</td>
+        <td>${r.total}</td><td>${r.confirmed || ''}</td><td>${r.modified || ''}</td><td>${r.resolved || ''}</td><td>${r.dismissed || ''}</td><td>${r.not_applicable || ''}</td><td>${r.deferred || ''}</td><td class="soft">${r.undecided || ''}</td>
+        <td>${pct(r.confirmation_rate)}</td><td>${pct(r.dismissal_rate)}</td><td>${r.tool_cause || ''}</td><td class="trend">${trend(r)}</td><td>${r.review_suggested ? '<span class="pill p-bad">검토 권고</span>' : ''}</td></tr>`).join('') || '<tr><td colspan="17" class="empty">지적이 없습니다</td></tr>'}
+      </tbody></table></div>
+    <div id="rpdet"></div>
+    <div class="card"><h3>Rule 변경 기록 <small class="soft">제안 → Regression · Simulation → 승인 → 적용 (코드는 개발 쪽이 바꾸고 버전을 올림)</small></h3>
+      <table class="t"><thead><tr><th>#</th><th>Rule</th><th>버전</th><th>상태</th><th>이유</th><th>Regression</th><th>Simulation</th><th>승인</th><th></th></tr></thead><tbody>
+      ${C.rows.map(c => `<tr><td>${c.id}</td><td><b>${esc(c.rule)}</b></td><td>${esc(c.from_ver)} → ${esc(c.to_ver)}</td><td>${pill(c.status === 'Approved' || c.status === 'Applied' ? 'Accepted' : c.status === 'Rejected' ? 'Rejected' : 'UnderReview', c.status)}</td>
+        <td title="${esc(c.reason)}">${esc(c.reason.slice(0, 60))}</td><td>${c.regression ? '✓' : '—'}</td><td>${c.simulation ? '✓' : '—'}</td><td class="soft">${esc(c.approved_by || '')} ${esc((c.approved_at || '').slice(0, 10))}</td>
+        <td><button data-rc="${c.id}">열기</button></td></tr>`).join('') || '<tr><td colspan="9" class="empty">변경 기록이 없습니다 — 규칙을 누르고 \'변경 제안\'</td></tr>'}</tbody></table></div>`;
+  $('#rpsave').onclick = async () => { await api('PUT', `/projects/${S.pid}/settings`, { rp_min_n: $('#rpn').value, rp_dismiss_rate: (+$('#rpr').value || 0) / 100 }); toast('저장했습니다'); renderRules(); };
+  $(".rp tbody").onclick = e => { const tr = e.target.closest('tr[data-rule]'); if (!tr) return; RP.rule = tr.dataset.rule; $$('.rp tr.on').forEach(x => x.classList.remove('on')); tr.classList.add('on'); ruleDetail(P.rules.find(r => r.rule === RP.rule)); };
+  el.onclick = async e => { const b = e.target.closest('[data-rc]'); if (b) ruleChangeEdit(C.rows.find(c => c.id === +b.dataset.rc)); };
+  if (RP.rule) ruleDetail(P.rules.find(r => r.rule === RP.rule));
+}
+async function ruleDetail(r) {
+  const host = $('#rpdet'); if (!r || !host) return;
+  const L = (await api('GET', `/projects/${S.pid}/rules/decisions?rule=${encodeURIComponent(r.rule)}&limit=200`)).rows;
+  host.innerHTML = `<div class="card"><h3>${esc(r.rule)} · ${esc(r.title)} <small class="soft">v${esc(r.version)} · ${esc(r.source)}</small><span class="sp"></span><button id="rcnew" class="pri">변경 제안</button></h3>
+    ${Object.keys(r.reasons || {}).length ? `<div class="soft">사유 분류: ${Object.entries(r.reasons).map(([k, n]) => `${esc(k)} <b>${n}</b>`).join(' · ')}</div>` : ''}
+    <table class="t"><thead><tr><th>시각</th><th>Tag</th><th>Rev</th><th>결정</th><th>사유 분류</th><th>사유</th><th>결론</th><th>지적 (당시)</th><th>검토자</th></tr></thead><tbody>
+    ${L.map(x => `<tr><td class="soft">${esc(x.at.replace('T', ' ').slice(0, 16))}</td><td>${esc(x.tag)}</td><td>${esc(x.rev)}</td><td>${esc(x.decision)}</td><td>${esc(x.reason_cat || '')}</td><td>${esc(x.reason || '')}</td><td>${esc(x.conclusion || '')}</td>
+      <td title="${esc(x.finding)}">${esc((x.finding || '').slice(0, 70))}</td><td>${esc(x.by || '')}</td></tr>`).join('') || '<tr><td colspan="9" class="empty">이 규칙에 대한 결정이 아직 없습니다</td></tr>'}</tbody></table></div>`;
+  $('#rcnew').onclick = () => ruleChangeEdit({ rule: r.rule, from_ver: r.version, status: '' });
+}
+async function ruleChangeEdit(c) {
+  const ro = c.status === 'Applied' || c.status === 'Rejected';
+  const f = (k, lab, rows = 3) => `<label class="dfl"><span>${lab}</span><textarea name="${k}" rows="${rows}" ${ro ? 'readonly' : ''}>${esc(c[k] || '')}</textarea></label>`;
+  const nxt = { '': [['제안 저장', 'Proposed']], Proposed: [['Regression · Simulation 결과 저장 → Tested', 'Tested'], ['반려', 'Rejected']], Tested: [['승인', 'Approved'], ['반려', 'Rejected']], Approved: [['적용 표시 (코드 버전 확인)', 'Applied'], ['반려', 'Rejected']] }[c.status] || [];
+  const r = await modal(`${c.rule} 변경 ${c.id ? '#' + c.id + ' · ' + c.status : '제안'}`, f('current_logic', '① 기존 규칙') + f('proposed_logic', '① 변경안') + f('reason', '② 변경 이유 (Rule Performance 근거)')
+    + f('regression', '③ 실자료 Regression 결과 (valve_eval --check · snapshot_diff)') + f('simulation', '④ Simulation 결과 (valve_sim · mutate · rev_sim)')
+    + '<p class="soft">⑤ 승인은 Tested 뒤에만 · ⑥ 적용 표시는 개발 쪽이 코드의 규칙 버전을 올린 뒤에만 됩니다. 이 기록이 규칙을 바꾸지는 않습니다.</p>',
+    [['닫기', null]].concat(ro ? [] : [['저장만', 'save']].filter(() => !!c.id), nxt.map(([l, v]) => [l, v, 1])));
+  if (!r) return;
+  const body = Object.fromEntries($$('#mBody [name]').map(i => [i.name, i.value]));
+  try {
+    if (!c.id) await api('POST', `/projects/${S.pid}/rule-changes`, { rule: c.rule, ...body });
+    else await api('PUT', `/rule-changes/${c.id}`, r === 'save' ? body : { ...body, status: r });
+    toast('저장했습니다'); renderRules();
+  } catch (e) { toast(e.message, 1); }
+}
 function renderSettings() {
   const el = $('#v-settings'); el.classList.remove('full');
   el.innerHTML = `<div class="vh"><h2>Settings</h2></div><div class="grid2"><div class="card"><h3>사용자 · 화면</h3>
@@ -1632,7 +1733,7 @@ function renderSettings() {
   $('#ssave') && ($('#ssave').onclick = () => { LS.set('user', $('#sname').value.trim()); location.reload(); });
   $('#sreset').onclick = () => { ['wbw', 'wbpx', 'wbc', 'gorder', 'gw', 'zoom', 'mkbar', 'vpart', 'rcsync', 'wtab'].forEach(k => LS.set(k, null)); toast('처음대로 — 화면을 다시 엽니다'); setTimeout(() => location.reload(), 600); };
 }
-const RENDER = { dash: renderDash, docs: renderDocs, list: renderList, review: renderReview, rev: renderRev, proc: renderProc, pms: renderPms, export: renderExport, settings: renderSettings };
+const RENDER = { dash: renderDash, docs: renderDocs, list: renderList, review: renderReview, rev: renderRev, proc: renderProc, pms: renderPms, rules: renderRules, export: renderExport, settings: renderSettings };
 for (const k of Object.keys(RENDER)) { const f = RENDER[k]; RENDER[k] = () => { if (!S.sum) return; Promise.resolve(f()).catch(e => { console.error(e); toast(e.message, 1); }); }; }
 
 /* ── keyboard ─────────────────────────────────────────────────────────── */

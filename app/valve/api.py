@@ -25,7 +25,7 @@ from fastapi.responses import FileResponse, JSONResponse, RedirectResponse, Resp
 from starlette.concurrency import run_in_threadpool
 
 from app import paths
-from app.valve import checks as chkmod, revisions as revmod, exports, extract, issues as issuesmod, expert as expmod, knowledge as kbmod, location as locmod, tagrules as tagmod, material, matreview as matmod, pms as pmsmod, process as procmod, requirements as reqmod, schema, store, tbe
+from app.valve import ruleperf, checks as chkmod, revisions as revmod, exports, extract, issues as issuesmod, expert as expmod, knowledge as kbmod, location as locmod, tagrules as tagmod, material, matreview as matmod, pms as pmsmod, process as procmod, requirements as reqmod, schema, store, tbe
 
 router = APIRouter()
 _JOBS: dict[str, dict] = {}
@@ -298,7 +298,7 @@ async def _startup_warm():
     threading.Thread(target=warm_all, daemon=True, name="valve-warm-all").start()
 
 
-VERSION = "valve28"                       # shown in Settings › 정보 and the footer; bump with every package
+VERSION = "valve29"                       # shown in Settings › 정보 and the footer; bump with every package
 
 
 @router.get("/api/valve/version")
@@ -631,8 +631,11 @@ def _carry_over(con, pid, new_ids, by, jid=None):
             cms = revmod.carry_comments(pcm, cmp_rows, {f["key"]: f for f in d["fields"]})
             with store._LOCK:
                 for c in carried:
-                    con.execute("INSERT OR REPLACE INTO issue_state(datasheet_id, ikey, status, note, by, at, since) VALUES (?,?,?,?,?,?,?)",
-                                (dsid, c["ikey"], c["status"], c["note"], by, store.now(), c["since"]))
+                    con.execute("INSERT OR REPLACE INTO issue_state(datasheet_id, ikey, status, note, by, at, since, decision, reason_cat,"
+                                " conclusion, modified_text, modified_severity, rule_ver) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                                (dsid, c["ikey"], c["status"], c["note"], by, store.now(), c["since"], c.get("decision") or c["status"],
+                                 c.get("reason_cat") or "", c.get("conclusion") or "", c.get("modified_text") or "",
+                                 c.get("modified_severity") or "", c.get("rule_ver") or ""))
                 for c in cms:
                     con.execute("INSERT INTO comment(datasheet_id, field_key, text, by, at, page, bbox, category, kind, origin)"
                                 " VALUES (?,?,?,?,?,?,?,?,?,?)", (dsid, c["field_key"], c["text"], c["by"], store.now(), c["page"],
@@ -963,7 +966,7 @@ def _issue_counts(rows):
 async def issues_list(pid: int):
     con = store.connect()
     rows = await run_in_threadpool(project_issues, con, pid)
-    drop = {"filename", "tag_raw", "review_status", "unit", "pd_page", "pd_bbox", "result", "rule", "level"}   # not used by the list screens
+    drop = {"filename", "tag_raw", "review_status", "unit", "pd_page", "pd_bbox", "rule", "level"}   # not used by the list screens
     slim = [{k: ([round(x, 1) for x in v] if k == "bbox" and v else v) for k, v in i.items() if k not in drop and v not in (None, "", [])}
             for i in rows]
     return _json({"issues": slim, "counts": _issue_counts(rows), "types": issuesmod.CONTRACTOR_TYPES + ["Extraction Review"],
@@ -972,22 +975,59 @@ async def issues_list(pid: int):
 
 @router.put("/api/valve/datasheets/{dsid}/issues/{ikey:path}")
 async def issue_state(dsid: int, ikey: str, request: Request):
+    """Engineer decision on a finding (valve29).  Body: {decision, reason_cat, note (= reason), conclusion,
+    modified_text, modified_severity} — or the pre-valve29 {status, note}.  The decision maps onto the status the rest of
+    the tool already uses (store.DECISION_STATUS); every change is appended to decision_log with a snapshot of the
+    finding as the engineer saw it (rule · version · text · severity · values · evidence)."""
     body = await request.json()
-    st = body.get("status", "Open")
-    if st not in ISSUE_STATUSES:
-        return _err("상태 값이 잘못됐습니다")
+    dec = body.get("decision") or ""
+    if dec:
+        if dec not in store.DECISIONS:
+            return _err("결정 값이 잘못됐습니다")
+        st = store.DECISION_STATUS[dec]
+    else:
+        st = body.get("status", "Open")
+        if st not in ISSUE_STATUSES:
+            return _err("상태 값이 잘못됐습니다")
+        dec = st if st in ("Confirmed", "Dismissed") else ""          # a status-only call (bulk · old screen) is still a decision
+    cat = body.get("reason_cat") or ""
+    if cat and cat not in store.REASON_CATS:
+        return _err("사유 분류 값이 잘못됐습니다")
+    if body.get("decision") in store.NEEDS_REASON and not cat:
+        return _err("Dismissed · Not Applicable · Modified 는 사유 분류를 골라야 합니다")
+    msev = body.get("modified_severity") or ""
+    if msev and msev not in ("Major", "Minor", "Info"):
+        return _err("Severity 값이 잘못됐습니다")
     con = store.connect()
-    d = store.one(con, "SELECT project_id FROM datasheet WHERE id=?", dsid)
+    d = store.one(con, "SELECT project_id, tag_key, rev FROM datasheet WHERE id=?", dsid)
     if not d:
         return _err("없는 데이터시트", 404)
     by = _user(request)
+    hit = _DEEP_CACHE.get(dsid)                             # the finding as the engineer saw it (bulk changes: no recompute per item)
+    full = (hit[1] if hit else None) or _ds_full(con, dsid) or {}
+    it = next((i for i in full.get("issues") or [] if i["ikey"] == ikey), None) or {}
+    rule = chkmod.rule_of(it.get("check") or "")
+    note = str(body.get("note", ""))[:2000]
     with store._LOCK:
         old = store.one(con, "SELECT * FROM issue_state WHERE datasheet_id=? AND ikey=?", dsid, ikey)
-        con.execute("INSERT OR REPLACE INTO issue_state(datasheet_id, ikey, status, note, by, at) VALUES (?,?,?,?,?,?)",
-                    (dsid, ikey, st, str(body.get("note", ""))[:2000], by, store.now()))
-        store.audit(con, d["project_id"], dsid, ikey, "issue", (old or {}).get("status", "Open"), st, by, body.get("note", ""))
+        con.execute("INSERT OR REPLACE INTO issue_state(datasheet_id, ikey, status, note, by, at, since, decision, reason_cat, conclusion,"
+                    " modified_text, modified_severity, rule_ver) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                    (dsid, ikey, st, note, by, store.now(), (old or {}).get("since"), dec, cat, str(body.get("conclusion", ""))[:2000],
+                     str(body.get("modified_text", ""))[:1000] if body.get("decision") == "Modified" else "",
+                     msev if body.get("decision") == "Modified" else "", chkmod.RULE_VERSION.get(rule, "")))
+        con.execute("INSERT INTO decision_log(project_id, datasheet_id, tag, rev, ikey, rule, rule_ver, issue_type, finding, severity, actual,"
+                    " reference, source_doc, evidence, decision, status, reason_cat, reason, conclusion, modified_text, modified_severity, by, at)"
+                    " VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                    (d["project_id"], dsid, d["tag_key"], d["rev"], ikey, rule or it.get("check") or "", chkmod.RULE_VERSION.get(rule, ""),
+                     it.get("type", ikey.split(":")[0]), it.get("original_description") or it.get("description", ""),
+                     it.get("original_severity") or it.get("severity", ""), str(it.get("value") or ""), str(it.get("expected") or ""),
+                     "; ".join(sorted({e.get("doc") or "" for e in it.get("evidence") or [] if e})) or "Datasheet",
+                     store.J(it.get("evidence") or []), dec or st, st, cat, note, str(body.get("conclusion", ""))[:2000],
+                     str(body.get("modified_text", ""))[:1000], msev, by, store.now()))
+        store.audit(con, d["project_id"], dsid, ikey, "issue", (old or {}).get("status", "Open"), st, by,
+                    (f"[{dec}{' · ' + cat if cat else ''}] " if dec else "") + note)
         con.commit()
-    return {"ok": True, "status": st}
+    return {"ok": True, "status": st, "decision": dec}
 
 
 # ── revision comparison (deterministic, by extracted field) ─────────────────────
@@ -1449,6 +1489,124 @@ def audit_list(pid: int):
                                      " WHERE a.project_id=? ORDER BY a.id DESC LIMIT 2000", pid)}
 
 
+def _settings(con, pid) -> dict:
+    return {r["key"]: r["value"] for r in store.rows(con, "SELECT key, value FROM project_setting WHERE project_id=?", pid)}
+
+
+@router.get("/api/valve/projects/{pid}/rules/performance")
+def rules_performance(pid: int):
+    """valve29 — Rule Performance: findings per rule and how engineers decided them (statistics only)."""
+    con = store.connect()
+    rows = project_issues(con, pid)
+    log = store.rows(con, "SELECT rule, decision, status, at FROM decision_log WHERE project_id=?", pid)
+    out = ruleperf.performance(rows, log, _settings(con, pid))
+    out["reason_cats"] = store.REASON_CATS
+    out["decisions"] = store.DECISIONS
+    return _json(out)
+
+
+@router.put("/api/valve/projects/{pid}/settings")
+async def put_settings(pid: int, request: Request):
+    body = await request.json()
+    con = store.connect()
+    by = _user(request)
+    ok = {}
+    for k, v in (body or {}).items():
+        if k == "rp_min_n" and str(v).isdigit() and 1 <= int(v) <= 10000:
+            ok[k] = str(int(v))
+        elif k == "rp_dismiss_rate":
+            try:
+                x = float(v)
+            except (TypeError, ValueError):
+                continue
+            if 0 < x <= 1:
+                ok[k] = str(x)
+    with store._LOCK:
+        for k, v in ok.items():
+            con.execute("INSERT OR REPLACE INTO project_setting(project_id, key, value, by, at) VALUES (?,?,?,?,?)", (pid, k, v, by, store.now()))
+            store.audit(con, pid, None, None, "setting", None, f"{k}={v}", by, "")
+        con.commit()
+    return {"ok": True, "saved": ok}
+
+
+@router.get("/api/valve/projects/{pid}/rules/decisions")
+def rule_decisions(pid: int, rule: str = "", limit: int = 200):
+    """The decision log of one rule (newest first) — what was decided, why, on which finding."""
+    con = store.connect()
+    q = "SELECT id, tag, rev, ikey, rule, rule_ver, issue_type, finding, severity, actual, reference, source_doc, decision, status," \
+        " reason_cat, reason, conclusion, modified_text, modified_severity, by, at FROM decision_log WHERE project_id=?"
+    args = [pid]
+    if rule:
+        q += " AND rule=?"
+        args.append(rule)
+    q += " ORDER BY id DESC LIMIT ?"
+    args.append(max(1, min(2000, int(limit))))
+    return {"rows": store.rows(con, q, *args)}
+
+
+@router.get("/api/valve/projects/{pid}/rule-changes")
+def rule_changes(pid: int):
+    con = store.connect()
+    return {"rows": store.rows(con, "SELECT * FROM rule_change WHERE project_id=? ORDER BY id DESC", pid),
+            "statuses": ruleperf.STATUSES, "versions": chkmod.RULE_VERSION}
+
+
+@router.post("/api/valve/projects/{pid}/rule-changes")
+async def rule_change_new(pid: int, request: Request):
+    """Record a proposed change of a rule (directive §1.4).  The rule code is NOT changed here — a developer changes it
+    after approval and bumps checks.RULE_VERSION; only then can the record be marked Applied."""
+    b = await request.json()
+    rule = b.get("rule") or ""
+    if rule not in chkmod.RULE_VERSION:
+        return _err("없는 Rule ID")
+    row = {k: str(b.get(k) or "")[:4000] for k in ruleperf.STEPS}
+    st, why = ruleperf.next_status(row, "Proposed")
+    if not st:
+        return _err(why)
+    con = store.connect()
+    by = _user(request)
+    cur = chkmod.RULE_VERSION[rule]
+    to = str(b.get("to_ver") or (int(cur) + 1 if cur.isdigit() else cur + "+1"))
+    with store._LOCK:
+        c = con.execute("INSERT INTO rule_change(project_id, rule, from_ver, to_ver, current_logic, proposed_logic, reason, regression,"
+                        " simulation, status, created_by, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                        (pid, rule, cur, to, row["current_logic"], row["proposed_logic"], row["reason"], row["regression"],
+                         row["simulation"], st, by, store.now(), store.now()))
+        store.audit(con, pid, None, rule, "rule-change", None, st, by, row["reason"][:300])
+        con.commit()
+    return {"ok": True, "id": c.lastrowid, "status": st}
+
+
+@router.put("/api/valve/rule-changes/{cid}")
+async def rule_change_update(cid: int, request: Request):
+    b = await request.json()
+    con = store.connect()
+    row = store.one(con, "SELECT * FROM rule_change WHERE id=?", cid)
+    if not row:
+        return _err("없는 변경 기록", 404)
+    if row["status"] in ("Applied", "Rejected"):
+        return _err("끝난 기록은 고칠 수 없습니다")
+    upd = {k: str(b[k])[:4000] for k in ruleperf.STEPS if k in b}
+    new = dict(row, **upd)
+    st, why = row["status"], ""
+    if b.get("status") and b["status"] != st:
+        nst, why = ruleperf.next_status(new, b["status"])
+        st = nst or st                                        # a refused move still keeps the text the engineer typed
+    by = _user(request)
+    with store._LOCK:
+        sets = ", ".join(f"{k}=?" for k in upd) + (", " if upd else "") + "status=?, updated_at=?"
+        args = list(upd.values()) + [st, store.now()]
+        if st == "Approved" and row["status"] != "Approved":
+            sets += ", approved_by=?, approved_at=?"
+            args += [by, store.now()]
+        con.execute(f"UPDATE rule_change SET {sets} WHERE id=?", (*args, cid))
+        store.audit(con, row["project_id"], None, row["rule"], "rule-change", row["status"], st, by, "")
+        con.commit()
+    if why:
+        return _err(why)
+    return {"ok": True, "status": st}
+
+
 @router.get("/api/valve/projects/{pid}/feedback.json")
 def feedback_json(pid: int, request: Request):
     """Review feedback for the developers (P&ID hotfix82 'VOC → 재학습 경로'): what reviewers decided about the tool's
@@ -1459,7 +1617,7 @@ def feedback_json(pid: int, request: Request):
     pname = (store.one(con, "SELECT name FROM project WHERE id=?", pid) or {}).get("name", "")
     latest = _latest(store.rows(con, "SELECT id, tag_key, rev FROM datasheet WHERE project_id=?", pid))
     shas = {r["id"]: r["sha256"] for r in store.rows(con, "SELECT id, sha256 FROM document WHERE project_id=?", pid)}
-    out = {"kind": "valve-feedback", "version": 1, "project": pname, "generated": store.now(), "by": _user(request),
+    out = {"kind": "valve-feedback", "version": 2, "project": pname, "generated": store.now(), "by": _user(request),
            "datasheets": 0, "issues_raised": 0, "verdicts": [], "corrections": [], "missed": []}
     for d in sorted(latest.values(), key=lambda d: d["tag_key"]):
         x = _ds_full(con, d["id"])
@@ -1472,8 +1630,12 @@ def feedback_json(pid: int, request: Request):
             out["issues_raised"] += 1
             if i["status"] != "Open":
                 out["verdicts"].append(dict(base, ikey=i["ikey"], type=i["type"], key=i["key"], value=i["value"],
-                                            description=i["description"], verdict=i["status"], note=i.get("note", ""),
-                                            page=i["page"], bbox=i["bbox"]))
+                                            description=i.get("original_description") or i["description"], verdict=i["status"], note=i.get("note", ""),
+                                            page=i["page"], bbox=i["bbox"],
+                                            # valve29 (version 2): the engineer decision as recorded
+                                            rule=chkmod.rule_of(i.get("check") or ""), rule_ver=chkmod.RULE_VERSION.get(chkmod.rule_of(i.get("check") or ""), ""),
+                                            decision=i.get("decision", ""), reason_cat=i.get("reason_cat", ""), conclusion=i.get("conclusion", ""),
+                                            expected=i.get("expected", ""), evidence=i.get("evidence") or []))
         for f in x["fields"]:
             if f.get("edited_value") is not None:
                 out["corrections"].append(dict(base, key=f["key"], label=f.get("label"), read=f["value"],

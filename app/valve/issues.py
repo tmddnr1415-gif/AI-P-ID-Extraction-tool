@@ -72,6 +72,11 @@ def _v(f):
     return schema.effective(f)
 
 
+RESULT = {"Data Missing": "Missing", "Open Item": "Open (HOLD/TBC)", "Data Error": "Inconsistent", "Revision Change": "Changed",
+          "Extraction Review": "Review Required", "Reviewer Correction": "Corrected", "Reviewer Comment": "Comment",
+          "Material Review": "Finding", "Valve Review": "Finding"}   # PMS / Process rows pass their own result (Non-Compliant · Mismatch …)
+
+
 def _fev(f, where):
     """A datasheet field as evidence (the OTHER cell a value was checked against)."""
     if not f:
@@ -108,12 +113,21 @@ def compute(ds: dict, general_notes: dict | None = None, pms: dict | None = None
                            else "Minor" if itype == "PMS Review" else "Major")   # HOLD / TBC = Major: release it and give the value
         ikey = f"{itype}:{key}"
         st = (states or {}).get(ikey, {})
+        from app.valve.checks import OPS, rule_of                     # valve29: how the rule compared (traceability)
+        op, tol = OPS.get(rule_of(check), ("", ""))
+        res = (extra or {}).get("result") or RESULT.get(itype, "Finding")
+        dec = {"decision": st.get("decision") or "", "reason_cat": st.get("reason_cat") or "", "conclusion": st.get("conclusion") or "",
+               "op": op, "tol": tol, "result": res}
+        if st.get("decision") == "Modified" and (st.get("modified_text") or st.get("modified_severity")):
+            dec.update(original_description=desc, original_severity=sev)       # the engineer's wording goes out; the tool's is kept
+            desc = st.get("modified_text") or desc
+            sev = st.get("modified_severity") or sev
         out.append({"ikey": ikey, "type": itype, "color": COLOR[itype], "severity": sev, "key": key,
                     "field": f.get("display") or key, "row": f.get("row"), "value": _v(f), "unit": f.get("unit") or "",
                     "description": desc, "expected": expected, "page": page, "bbox": bbox or f.get("bbox"),
                     "sheet": sh[0] or ((ds["pages"].index(page) + 1) if page in ds.get("pages", []) else None),
                     "of": sh[1] or len(ds.get("pages", [])), "status": st.get("status", "Open"), "note": st.get("note", ""),
-                    "evidence": [e for e in (evidence or []) if e], "basis": basis, "check": check, **(extra or {})})
+                    "evidence": [e for e in (evidence or []) if e], "basis": basis, "check": check, **dec, **(extra or {})})
 
     pref = ds.get("process_ref")
     if pref is None:                                         # stored datasheets from before valve03: look again

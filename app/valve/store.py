@@ -50,7 +50,24 @@ CREATE TABLE IF NOT EXISTS issue_state (datasheet_id INTEGER, ikey TEXT, status 
   PRIMARY KEY (datasheet_id, ikey));
 CREATE TABLE IF NOT EXISTS comment (id INTEGER PRIMARY KEY, datasheet_id INTEGER, field_key TEXT, text TEXT,
   by TEXT, at TEXT, page INTEGER, bbox TEXT, category TEXT DEFAULT 'comment', deleted INTEGER DEFAULT 0);
+CREATE TABLE IF NOT EXISTS decision_log (id INTEGER PRIMARY KEY, project_id INTEGER, datasheet_id INTEGER, tag TEXT, rev TEXT,
+  ikey TEXT, rule TEXT, rule_ver TEXT, issue_type TEXT, finding TEXT, severity TEXT, actual TEXT, reference TEXT, source_doc TEXT,
+  evidence TEXT, decision TEXT, status TEXT, reason_cat TEXT, reason TEXT, conclusion TEXT, modified_text TEXT,
+  modified_severity TEXT, by TEXT, at TEXT);
+CREATE INDEX IF NOT EXISTS dlog_rule ON decision_log(project_id, rule);
+CREATE TABLE IF NOT EXISTS rule_change (id INTEGER PRIMARY KEY, project_id INTEGER, rule TEXT, from_ver TEXT, to_ver TEXT,
+  current_logic TEXT, proposed_logic TEXT, reason TEXT, regression TEXT, simulation TEXT, status TEXT,
+  approved_by TEXT, approved_at TEXT, created_by TEXT, created_at TEXT, updated_at TEXT);
+CREATE TABLE IF NOT EXISTS project_setting (project_id INTEGER, key TEXT, value TEXT, by TEXT, at TEXT,
+  PRIMARY KEY (project_id, key));
 """
+# valve29 — engineer decisions sit BESIDE the issue status (status keeps driving exports · carry-over · counts)
+DECISIONS = ["Confirmed", "Modified", "Dismissed", "Deferred", "Not Applicable"]
+DECISION_STATUS = {"Confirmed": "Confirmed", "Modified": "Confirmed", "Dismissed": "Dismissed", "Not Applicable": "Dismissed",
+                   "Deferred": "Open"}
+REASON_CATS = ["Project Specification Exception", "Vendor Clarification", "Incorrect Rule Logic", "Incorrect Data Extraction",
+               "Not Applicable", "Duplicate Finding", "Other"]
+NEEDS_REASON = {"Dismissed", "Not Applicable", "Modified"}
 
 
 def root() -> Path:
@@ -102,11 +119,12 @@ def backup(keep: int = 7) -> Path | None:
     return dst
 
 
-_ADDED = {"datasheet": [("sheets", "TEXT")],
+_ADDED = {"datasheet": [("sheets", "TEXT"), ("parser_version", "TEXT")],
           "comment": [("page", "INTEGER"), ("bbox", "TEXT"), ("category", "TEXT DEFAULT 'comment'"),
                       ("deleted", "INTEGER DEFAULT 0"), ("kind", "TEXT"), ("points", "TEXT"), ("style", "TEXT"),
                       ("origin", "TEXT")],                   # valve26: 'Rev A' when copied from the previous revision
-          "issue_state": [("since", "TEXT")]}                # valve26: revision the state was carried from
+          "issue_state": [("since", "TEXT"), ("decision", "TEXT"), ("reason_cat", "TEXT"), ("conclusion", "TEXT"),   # valve29
+                          ("modified_text", "TEXT"), ("modified_severity", "TEXT"), ("rule_ver", "TEXT")]}    # since = valve26 (carried from)
 
 
 def _migrate(con):
@@ -180,13 +198,18 @@ def save_original(data: bytes, filename: str) -> tuple[str, Path]:
 
 # ── datasheets ─────────────────────────────────────────────────────────────────
 
+def _parser_version() -> str:
+    from app.valve import extract
+    return extract.PARSER_VERSION
+
+
 def insert_datasheet(con, project_id: int, document_id: int, ds: dict) -> int:
     cur = con.execute(
         "INSERT INTO datasheet(project_id, document_id, tag, tag_key, valve_type, doc_no, rev, rev_date, title, form,"
-        " pages, notes, rev_history, created_at, sheets) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+        " pages, notes, rev_history, created_at, sheets, parser_version) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
         (project_id, document_id, ds["tag"], ds["tag_key"], ds["valve_type"], ds["doc_no"], ds["rev"], ds.get("date", ""),
          ds.get("title", ""), ds.get("form", ""), J(ds["pages"]), J(ds["notes"]), J(ds.get("rev_history", [])), now(),
-         J(ds.get("sheets"))))
+         J(ds.get("sheets")), _parser_version()))
     dsid = cur.lastrowid
     con.executemany(
         "INSERT INTO field(datasheet_id, key, section, display, label, row, value, unit, page, bbox, status, ref)"
@@ -200,9 +223,9 @@ def refresh_datasheet(con, dsid: int, ds: dict) -> dict:
     """Re-read of the same PDF (a newer reader): read values are replaced in place, everything a reviewer did stays —
     corrections (edited_*), comments · mark-ups, issue states, review status.  Field ids stay, so links keep working."""
     con.execute("UPDATE datasheet SET tag=?, valve_type=?, doc_no=?, rev_date=?, title=?, form=?, pages=?, notes=?,"
-                " rev_history=?, sheets=? WHERE id=?",
+                " rev_history=?, sheets=?, parser_version=? WHERE id=?",
                 (ds["tag"], ds["valve_type"], ds["doc_no"], ds.get("date", ""), ds.get("title", ""), ds.get("form", ""),
-                 J(ds["pages"]), J(ds["notes"]), J(ds.get("rev_history", [])), J(ds.get("sheets")), dsid))
+                 J(ds["pages"]), J(ds["notes"]), J(ds.get("rev_history", [])), J(ds.get("sheets")), _parser_version(), dsid))
     old = {r["key"]: r for r in rows(con, "SELECT id, key, value, edited_value FROM field WHERE datasheet_id=?", dsid)}
     changed = 0
     for k, r in ds["fields"].items():

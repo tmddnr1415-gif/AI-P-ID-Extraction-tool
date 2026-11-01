@@ -457,3 +457,9 @@ svg.mk-tmp { pointer-events: none; z-index: 3; }
 .chk { display: flex; gap: 6px; align-items: baseline; padding: 2px 4px; font-size: 12px; border-radius: 4px; }
 .chk .st { width: 12px; text-align: center; font-weight: 700; } .chk .id { color: var(--soft); font-size: 10.5px; width: 44px; }
 .chk.ok .st { color: #1b7f4c; } .chk.bad { background: var(--bad-bg); cursor: pointer; } .chk.bad .st { color: var(--bad); } .chk.na { color: #7a8294; }
+.dfl { display: grid; gap: 3px; margin: 0 0 8px; font-size: 12.5px; color: #36405a; }        /* valve29 decision dialog */
+.dfl input, .dfl select, .dfl textarea { width: 100%; box-sizing: border-box; }
+table.rp tr { cursor: pointer; } table.rp tr.on td { background: #eef3ff; } table.rp tr.warn td:first-child { box-shadow: inset 3px 0 var(--bad); }
+table.rp td.trend { white-space: nowrap; } table.rp .tr { display: inline-block; min-width: 16px; text-align: center; color: #5a6478; }
+.fsrc { display: none; font-size: 11.5px; background: #f6f8fc; border-bottom: 1px solid var(--line2); border-radius: 8px 8px 0 0; padding: 6px 8px; }
+.fsrc.on { display: block; }                                                                   /* valve29 field source line */

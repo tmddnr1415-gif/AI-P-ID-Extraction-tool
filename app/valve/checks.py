@@ -62,6 +62,30 @@ REGISTRY = [
     ("REV-01", "Changes vs previous revision", "Revision", "prev"),
 ]
 GROUPS = ["Datasheet", "PMS", "Process", "Material", "Design", "Peer", "Tag", "Revision"]
+TITLE = {c[0]: c[1] for c in REGISTRY}
+
+# valve29 — rule version and source.  Every rule starts at version 1 (= the logic shipped in valve28).  A rule changes
+# only through the rule-change procedure (proposal → comparison → reason → regression → simulation → engineer approval);
+# the developer then bumps the version here and RULE_CHANGELOG.md records it.  The rule code never reads the
+# decision log or the rule-change table (tests/test_valve.py guards this).
+RULE_VERSION = {c[0]: "1" for c in REGISTRY}
+# No project specification document is linked yet, so every rule is a General Engineering Check — never shown as a
+# project-approved criterion (directive §5.3).  Project documents (Phase 2) will set {doc, rev, page, clause}.
+GENERAL = "General Engineering Check"
+RULE_SOURCE = {c[0]: {"kind": GENERAL, "doc": "", "rev": "", "page": "", "clause": ""} for c in REGISTRY}
+
+# How each rule compares (source traceability): operator · tolerance.  Only what the rule code already does.
+OPS = {"DM-01": ("present", ""), "DM-02": ("present", ""), "OI-01": ("released (no HOLD/TBC)", ""), "OI-02": ("released (no HOLD/TBC)", ""),
+       "DE-01": ("=", ""), "DE-02": ("=", ""), "DE-03": ("≤", ""), "DE-04": ("=", ""), "DE-05": ("=", ""), "DE-06": ("=", ""),
+       "DE-07": ("exists", ""), "DE-08": ("exists", ""), "DE-09": ("points at", ""),
+       "PMS": ("≡ (material / spec equivalence)", ""), "PD": ("= (numbers)", "1 %"), "REV-01": ("=", ""),
+       "MR-01": ("≤ (seat limit)", ""), "MR-02": ("≤ (seat limit)", ""), "MR-03": ("inside P-T table", "")}
+
+
+def rule_of(check: str) -> str:
+    """Finding check id -> registry rule id ('PMS-trim' -> 'PMS', 'PD-design_pressure' -> 'PD')."""
+    c = check or ""
+    return "PMS" if c.startswith("PMS-") else "PD" if c.startswith("PD-") else c
 
 
 def _na_reason(need: str, ctx: dict) -> str | None:
@@ -99,7 +123,7 @@ def report(issues: list[dict], ctx: dict) -> dict:
         c = i.get("check") or ""
         if not c or i.get("status") == "Dismissed":
             continue
-        cid = "PMS" if c.startswith("PMS-") else "PD" if c.startswith("PD-") else c
+        cid = rule_of(c)
         hits[cid] = hits.get(cid, 0) + 1
     out = []
     for cid, title, group, need in REGISTRY:

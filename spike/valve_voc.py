@@ -40,6 +40,8 @@ def score(fb: dict) -> tuple[list[str], dict]:
     by_type, by_rule = collections.defaultdict(collections.Counter), collections.defaultdict(collections.Counter)
     for v in fb["verdicts"]:
         ok = "right" if v["verdict"] in ("Confirmed", "Resolved") else "false" if v["verdict"] == "Dismissed" else "other"
+        if v.get("reason_cat") in ("Project Specification Exception", "Vendor Clarification", "Duplicate Finding", "Not Applicable"):
+            ok = "other"                                    # valve29: dismissed for a reason that is not the rule's fault
         by_type[v["type"]][ok] += 1
         by_rule[(v["type"], v["key"])][ok] += 1
     rep += ["| issue type | right | false alarm | precision |", "|---|---|---|---|"]
@@ -51,6 +53,16 @@ def score(fb: dict) -> tuple[list[str], dict]:
     notes = collections.Counter(v["note"].strip() for v in fb["verdicts"] if v["verdict"] == "Dismissed" and v.get("note"))
     rep += ["", "### reviewers' reasons for dismissing"] + [f"- {n} × {k}" for k, n in notes.most_common(15)]
     out["precision"] = {t: dict(c) for t, c in by_type.items()}
+    if fb.get("version", 1) >= 2:                           # valve29: engineer decisions with reason categories, per rule id
+        rc = collections.defaultdict(collections.Counter)
+        for v in fb["verdicts"]:
+            if v.get("rule"):
+                rc[v["rule"]][v.get("decision") or v["verdict"]] += 1
+                if v.get("reason_cat"):
+                    rc[v["rule"]]["reason: " + v["reason_cat"]] += 1
+        rep += ["", "### by rule id (decision · reason category) — dismissal is not the same as a false alarm"] + \
+            [f"- {r}: " + ", ".join(f"{k} {n}" for k, n in c.most_common()) for r, c in sorted(rc.items())]
+        out["by_rule"] = {r: dict(c) for r, c in rc.items()}
     corr = collections.Counter(c["key"] for c in fb["corrections"])
     rep += ["", "## B. Reading errors (corrections)", ""] + [f"- {k}: {n}" for k, n in corr.most_common(30)]
     out["corrections"] = dict(corr)
