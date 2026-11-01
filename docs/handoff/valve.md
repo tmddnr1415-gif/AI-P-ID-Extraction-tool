@@ -1,23 +1,24 @@
 # 인수인계 — "VALVE Datasheet 검토" 세션 (상한 15KB · 덧붙이지 말고 고쳐 쓴다)
 
-## 지금 상태 (2026-11-01 · valve29 = Phase 1 완료)
+## 지금 상태 (2026-11-01 · valve29 = Phase 1 완료 + 후속 요청들)
 
-- 작업 브랜치: `ccr-efbe7e75-n915ze` (PID `claude/gracious-ride-26nqrf` hotfix131 · DASHBOARD `ccr-248a5c4d-3dji7g` v16.51 병합 위).
-- 무엇: 대시보드 **실행 프로젝트 › CO2 PJT › Datasheet › Ball Valve** = P&ID 서버(8000) `/valve/`. 설계 `docs/valve/DESIGN.md`(§1 표 · §33 검증 엔진 · §34 Phase 1) · 개발 `DEVELOPER_GUIDE.md` · 사용 `USER_GUIDE.md` · 현황 `STATUS_REPORT.md`.
-- ★ **방향(사용자 지시서 "Engineering Intelligence Upgrade")**: 엔진이 핵심, UI 는 신뢰 · 검증 수단. 기존 판정을 바꾸지 않는다 · OCR/LLM 금지 · 근거 없으면 Review/Not Defined ·
-  새 규칙마다 Rule ID · 모든 판정에 출처 문서 · 쪽 · 기준값 · 실제값 · 근거. **Phase 순서: 1 운영 신뢰성(완료) → 2 PMS Gasket/Bolting · 프로젝트 기준 문서 · 문서 간 교차 검증 → 3 Cv/차압/사이징 → 4 다중 Vendor 양식 · Tag 절차 · Workflow.**
-  Phase 마다: 계획 문서 → 구현 → 회귀 → 보고서 다섯(`docs/valve/valve29/` 양식) → 꾸러미.
-- **valve29 (Phase 1, DESIGN §34)**: 결정 5종 + 사유 분류(`issue_state` 옆 열 · `decision_log`) · Rule Performance 화면 · 규칙 버전/출처(`checks.RULE_VERSION`/`RULE_SOURCE`) · 변경 절차(`rule_change`) ·
-  근거 추적(parser_version · op/tol/result · 칸 출처 · PDF 빈 곳 → 칸) · 성능(Excel 2개 · Mark-up PDF 선형화 · 목록 6,000행 상한 제거 · compact API). **판정 변경 0**(`valve_snapshot_diff.py`).
-  새 규칙을 만들면: `checks.REGISTRY` 한 줄 + `RULE_VERSION`/`RULE_SOURCE` + `add(..., check=id, basis=, evidence=)` + `RULE_CHANGELOG.md`. 규칙을 바꾸면 버전을 올리고 도구의 변경 기록과 맞춘다.
-- 그 전(요약): 추출 · Valve List(valve01~09) · PMS/재질/전문가/Tag 규칙(valve10~15) · 출력 시트들(valve16~19) · 상용화 · 시뮬레이션(valve20~22) · Mark-up(valve23~25) ·
-  코멘트 말투(26) · Rev B/C/D 이어받기 `revisions.py`(27) · 근거 · 48 항목 검증 보고 `checks.py`(28). 자세한 것은 DESIGN §14~§33.
-- 품질 기준값: `spike/valve_eval.py --check`(지문 541753c612ed · 17,471칸) — `--pd` 를 같이. 판정 스냅샷: `spike/valve_snapshot_diff.py save|check`(실자료 사본 서버 대상, 결과 파일은 out/ — 고객 값).
-- **매 회차 끝 점검**: 전체 `pytest -q` · `valve_eval.py --check` · `valve_diff_sim.py`(불일치 0) · `valve_sim.py --n 3000` · `valve_mutate.py` · `valve_sim_pdf.py --n 190` · `valve_rev_sim.py --n 300` ·
-  `valve_snapshot_diff.py check` · `node spike/valve_ui_audit.cjs`(데이터 **사본** 서버, 25/25) · 성능은 `spike/valve_perf.py --data <사본> --label N`(164 · 500 · 990 사본: `/tmp/vt_shot` · `/tmp/vt_500` · `/tmp/vt_big` — 세션마다 다시 만들어야 함).
-- 실자료(고객 파일 · 저장소에 없음): Datasheet.pdf 456쪽 → 164 데이터시트 · TBE 164/164. EGG 는 `spike/valve_unegg.py`, .xls 는 `spike/valve_xls2xlsx.py`.
-- 시험: `pytest -q tests/ -k valve` (99개). 전체 pytest 통과.
-- 마지막 꾸러미: **valve29** (P&ID 서버용만). valve01~29 모두 회사 적용 확인 전 — 누적이라 valve29 하나만 적용하면 된다.
+- 작업 브랜치: `ccr-efbe7e75-n915ze` (PID hotfix131 · DASHBOARD v16.51 병합 위). **회사 PC 에서 이어 갈 때는 `docs/handoff/VALVE_COMPANY_START.md`** (폴더 · 지시문).
+- 무엇: 대시보드 **실행 프로젝트 › CO2 PJT › Datasheet › Ball Valve** = P&ID 서버(8000) `/valve/`. 같은 줄에 Globe Valve · Butterfly Valve · PSV 메뉴(준비 중 화면, `dashboard.html MODULES`).
+- ★ 방향(사용자 지시서 "Engineering Intelligence Upgrade"): 엔진이 핵심 · 기존 판정 불변 · OCR/LLM 금지 · 근거 없으면 Review Required/Not Defined · 새 규칙마다 Rule ID ·
+  모든 판정에 출처 문서 · 쪽 · 기준값 · 실제값 · 근거. Phase: 1 운영 신뢰성(완료) → 2 PMS Gasket/Bolting · 프로젝트 기준 문서 · 교차 검증 → 3 Cv/ΔP → 4 다른 Vendor 양식 · Tag 절차 · 워크플로.
+- valve29 에 들어간 것 (DESIGN §32~§34-5):
+  결정 5종 + 사유 분류 · decision_log · Rule Performance · 규칙 버전/출처 · 근거 추적 / 코멘트 고치기(✎ 이동 · 크기) · 나란히 비교(⇆) · 새 창 실시간 연동(BroadcastChannel) /
+  Special Req. 탭 + Excel · Dense CO2 요구사항 / Excel 같은 열 필터(xfApply · xfDom) / 입체 화면(body.d3, Settings 끔) · 대시보드 카드 크게 보기 /
+  액세서리 지식 acc.* + 규칙 AC-01~05 (AC-05 = SOV 2개 이상인데 1oo2/2oo2 미기재, 실자료 48건) / 첫 화면 '기준 문서' 줄(`docrev.py`: PMS · Process Data · Datasheet Rev · 날짜) /
+  속도 · 가볍게(화면 답 `_cached` 재사용 + gzip + ETag, 정적 파일 해시 캐시, Process/PMS 가상 행, 캐시 객체 공유) / 결함: 새 설치 첫 요청 500 · 검색 후 Excel 옛 검색어.
+- 검토 캐시 키 = (audit · 상태 · 프로젝트 판 · VERSION · **규칙 코드 지문 `_RULES_FP`**) — 규칙 파일을 고치면 저절로 다시 계산.
+- 품질 기준값: `spike/valve_eval.py --check`(AC 규칙 수까지 갱신됨) · 판정 스냅샷 `spike/valve_snapshot_diff.py check out/valve29/snapshot_valve28.json` = 기존 2,887 변경 0 · 추가 48(AC-05).
+- 매 회차 끝 점검: `pytest -q`(1,906 통과) · `tests/ -k valve`(108) · `valve_eval --check` · `valve_sim --n 3000` · `valve_mutate` · `valve_rev_sim --n 300` · `valve_snapshot_diff check` ·
+  `node spike/valve_ui_audit.cjs`(25/25) · `valve_link_check.cjs` · `valve_filter_check.cjs` · 속도 `valve_speed.cjs`(동작 60개, 최장 멈춤 ≤ 0.37 s).
+- 꾸러미: **valve29** = `out/PID_dev+ops_valve29_2026-11-01.zip`(P&ID 서버, 누적 — 이것 하나) · 대시보드 = `dashboard_patches/UPDATE_from_v16.51_VALVE2_menu.zip`(--any) ·
+  회사 개발용 = `out/VALVE_devkit_valve29_2026-11-01.zip`(문서 · 점검 도구).
+- 남은 일: PERFORMANCE_REPORT.md(측정은 끝 — DESIGN §34-2 · §34-5 · other_log 수치) · Globe/Butterfly/PSV 검토(양식 · 기준 필요) · Phase 2(회사 Valve Spec · Gasket/Bolting PMS · Process DS 원본 필요) ·
+  실사용 결정 쌓기(Rule Performance 정밀도) · 다른 Vendor 양식 시험.
 
 ## 파일
 

@@ -227,3 +227,9 @@
 - 대시보드 dashboard.html: CO2 PJT › Datasheet 아래 Globe Valve · Butterfly Valve · PSV (준비 중 화면). APP_VERSION 2026-11-01.1, 변경 이력 기록. 대시보드 zip 은 DASHBOARD 세션이 병합해 냄.
 - 시험 +2 (1,906 통과) · UI 25/25 · LINK OK.
 
+
+## 2026-11-01 · valve29 — 회사 전달 꾸러미 3개 + 회사 Claude Code 인계 (사용자 요청)
+- P&ID 서버: `out/PID_dev+ops_valve29_2026-11-01.zip` (pack_delta, 기준 9429f4f → e39cfda, 32 파일, 기준판 적용 충돌 0).
+- 대시보드: `dashboard_patches/UPDATE_from_v16.51_VALVE2_menu.zip` (make_patch --any --mark, delivered.txt 기록).
+- 회사 개발용: `out/VALVE_devkit_valve29_2026-11-01.zip` (docs/valve · handoff · other_log · spike/valve_* · CLAUDE.md 는 넣지 않음) — `C:\Claude\PID_dev` 에 풀기.
+- 안내 · 첫 지시문: `docs/handoff/VALVE_COMPANY_START.md`. 인수인계 '지금 상태' 를 valve29 끝 기준으로 고쳐 씀.
