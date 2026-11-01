@@ -424,13 +424,21 @@ def _all_valves(wb, datasheets, docnames, link, sheet_of, report):
                      "new": status.get(d["tag_key"]) == "NEW", "upd": status.get(d["tag_key"]) == "UPDATED"})
     order = ["ESDV", "SDV", "BDV", "XV", "MOV"]
     cats = [c for c in order if any(r["cat"] == c for r in recs)] + sorted({r["cat"] for r in recs} - set(order))
+    by_row = {d["tag_key"]: row for d, row in rows}
+    def has(col):                                        # valve29: tags whose special requirement column says it applies
+        return lambda L: sum(1 for r in L if (v := str(by_row.get(r["tag"], {}).get(col) or "")) and not v.startswith("Not Required")) or None
     exports.summary_sheet(wb, "Summary", "Valve Summary (by Area / Site / Unit)", recs, "Valve Type", cats,
                           index=wb.worksheets.index(ws),
                           extra=[("Open Issues", lambda L: sum(r["open"] for r in L) or None),
                                  ("Tags with Action", lambda L: sum(1 for r in L if r["action"]) or None),
                                  ("New Tags", lambda L: sum(1 for r in L if r["new"]) or None),
-                                 ("Updated Tags", lambda L: sum(1 for r in L if r["upd"]) or None)])
+                                 ("Updated Tags", lambda L: sum(1 for r in L if r["upd"]) or None)]
+                          + [(f"{h} (tags)", has(h)) for h in SUMMARY_REQS])
     _area_sheet(wb, rows, recs, cats, wb.worksheets.index(ws))
+
+
+# valve29: special requirements counted on the summary sheets (user: dense CO2 together with fugitive · PFP · fire safe)
+SUMMARY_REQS = ["PFP", "Fugitive Emission (ISO 15848)", "Fire Safe", "Dense Phase CO2", "NACE / Sour"]
 
 
 def _area_sheet(wb, rows, recs, cats, index):
@@ -444,7 +452,7 @@ def _area_sheet(wb, rows, recs, cats, index):
     ws.cell(1, 1, "Valve Summary by Area").font = Font(bold=True, size=13)
     by_tag = {d["tag_key"]: row for d, row in rows}
     hdr = ["No.", "Area", "Units", "Tags"] + cats + ["Open Issues", "Tags with Action", "PFP Required", "SIL", "Fire Safe on HOLD",
-                                                     "New Tags", "Updated Tags"]
+                                                     "New Tags", "Updated Tags"] + [f"{h} (tags)" for h in SUMMARY_REQS[1:]]
     for n, h in enumerate(hdr, 1):
         c = ws.cell(3, n, h)
         c.fill, c.font, c.alignment = head_fill, head_font, Alignment(wrap_text=True, vertical="center", horizontal="center")
@@ -463,7 +471,8 @@ def _area_sheet(wb, rows, recs, cats, index):
             sum(1 for r in L if req(r, "PFP").startswith("Required")) or None,
             sum(1 for r in L if req(r, "SIL").startswith("SIL")) or None,
             sum(1 for r in L if req(r, "Fire Safe").upper().startswith("HOLD")) or None,
-            sum(1 for r in L if r["new"]) or None, sum(1 for r in L if r["upd"]) or None]
+            sum(1 for r in L if r["new"]) or None, sum(1 for r in L if r["upd"]) or None] + [
+            sum(1 for r in L if (v := req(r, h)) and not v.startswith("Not Required")) or None for h in SUMMARY_REQS[1:]]
     order = sorted(areas, key=lambda a: AREA_ORDER.get(a, 9))
     row_n = 4
     for n, a in enumerate(order, 1):

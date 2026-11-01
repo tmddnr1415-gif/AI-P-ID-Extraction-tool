@@ -15,6 +15,8 @@ KINDS = [
     ("fugitive", "Fugitive emission ISO 15848-1", re.compile(r"fugitive|ISO\s*15848|TA[- ]?Luft", re.I),
      [re.compile(r"Class\s+[A-C]\b(?:\s*type\s*tested)?", re.I), re.compile(r"endurance\s+class\s+C[OC]\d", re.I)]),   # 'CO2' alone is the fluid
     ("fire_safe", "Fire-safe API 607 / API 6FA / ISO 10497", re.compile(r"fire[- ]?safe|fire[- ]?tested|API\s*607|API\s*6FA|ISO\s*10497", re.I), []),
+    # valve29 (user request): the fluid phase stated on the datasheet — 'Fluid Phase: Dense phase CO2.' (45 CO2 PJT datasheets, Note 9)
+    ("dense_co2", "Dense phase CO2", re.compile(r"dense\s*(?:/\s*super[- ]?critical\s*)?phase|super[- ]?critical\s+(?:phase|CO2|fluid)|\bdense\s+CO2\b", re.I), []),
     ("pfp", "Passive fire protection (PFP)", re.compile(r"\bPFP\b|passive\s+fire|fire[- ]?proof", re.I), []),
     ("antistatic", "Anti-static device", re.compile(r"anti[- ]?static", re.I), []),
     ("blowout", "Blow-out proof stem", re.compile(r"blow[- ]?out", re.I), []),
@@ -63,6 +65,8 @@ def find(ds: dict, general_notes: dict | None = None) -> list[dict]:
                 continue
             if key == "tightness" and src.startswith(("Note", "Gen")) and not re.search(r"shall|required|class|rate", text, re.I):
                 continue
+            if key == "dense_co2" and src.startswith("Gen") and not re.search(r"fluid\s+(?:phase|state)\s*[:=]", text, re.I):
+                continue                                 # 'valves FOR dense / supercritical service shall …' is a condition, not this valve's phase
             if (key, src) in seen:
                 continue
             seen.add((key, src))
@@ -93,7 +97,7 @@ def summary(items: list[dict]) -> str:
 
 
 # One Excel column per requirement kind ('All Valves' sheet) — fixed order so every export has the same columns.
-COLUMNS = [("pfp", "PFP"), ("fugitive", "Fugitive Emission (ISO 15848)"), ("fire_safe", "Fire Safe"), ("nace", "NACE / Sour"),
+COLUMNS = [("pfp", "PFP"), ("fugitive", "Fugitive Emission (ISO 15848)"), ("fire_safe", "Fire Safe"), ("dense_co2", "Dense Phase CO2"), ("nace", "NACE / Sour"),
            ("sil", "SIL"), ("pst", "Partial Stroke Test"), ("tightness", "Tightness / Leakage"), ("antistatic", "Anti-static"),
            ("blowout", "Blow-out Proof Stem"), ("hardness", "Hardness Limit"), ("cert", "Material Cert. (EN 10204)"), ("pmi", "PMI"),
            ("impact", "Impact Test"), ("dbb", "DBB / Cavity Relief"), ("coating", "Painting / Coating")]

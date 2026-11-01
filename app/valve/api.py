@@ -431,6 +431,15 @@ _PMS_CACHE: dict[int, dict] = {}
 _PROC_CACHE: dict[int, dict] = {}
 
 
+def _doc_ref(con, pid, kind, doc) -> dict:
+    """valve29: the reference document a check used — the newest upload of its kind — and the earlier uploads, so the
+    engineer sees WHICH Process Data / PMS a finding was checked against when a revised one has been loaded."""
+    vs = store.rows(con, "SELECT id, filename, uploaded_at FROM document WHERE project_id=? AND kind=? AND status='done' ORDER BY id DESC", pid, kind)
+    me = next((v for v in vs if v["id"] == doc["id"]), {"id": doc["id"], "filename": doc["filename"], "uploaded_at": ""})
+    return {"id": doc["id"], "filename": doc["filename"], "uploaded_at": me.get("uploaded_at") or "", "kind": kind,
+            "earlier": [v for v in vs if v["id"] != doc["id"]][:5]}
+
+
 def _process_for(con, pid):
     """(parsed Process Data, document row) of the project's newest Process Data PDF, or (None, None)."""
     doc = store.one(con, "SELECT id, filename, path FROM document WHERE project_id=? AND kind='process' AND status='done'"
@@ -444,7 +453,7 @@ def _process_for(con, pid):
                 return None, None
             store.write_json(p, procmod.read_process_data(doc["path"]))
         _PROC_CACHE[doc["id"]] = json.loads(p.read_text(encoding="utf-8"))
-    return _PROC_CACHE[doc["id"]], {k: doc[k] for k in ("id", "filename")}
+    return _PROC_CACHE[doc["id"]], _doc_ref(con, pid, "process", doc)
 
 
 def _pms_for(con, pid):
@@ -464,7 +473,7 @@ def _pms_for(con, pid):
             P = pmsmod.read_pms(doc["path"])
             store.write_json(p, P)
         _PMS_CACHE[doc["id"]] = P
-    return _PMS_CACHE[doc["id"]], {k: doc[k] for k in ("id", "filename")}
+    return _PMS_CACHE[doc["id"]], _doc_ref(con, pid, "pms", doc)
 
 
 _PEER_CACHE: dict[int, tuple] = {}
@@ -632,10 +641,10 @@ def _carry_over(con, pid, new_ids, by, jid=None):
             with store._LOCK:
                 for c in carried:
                     con.execute("INSERT OR REPLACE INTO issue_state(datasheet_id, ikey, status, note, by, at, since, decision, reason_cat,"
-                                " conclusion, modified_text, modified_severity, rule_ver) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                                " conclusion, modified_text, modified_severity, rule_ver, modified_expected) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
                                 (dsid, c["ikey"], c["status"], c["note"], by, store.now(), c["since"], c.get("decision") or c["status"],
                                  c.get("reason_cat") or "", c.get("conclusion") or "", c.get("modified_text") or "",
-                                 c.get("modified_severity") or "", c.get("rule_ver") or ""))
+                                 c.get("modified_severity") or "", c.get("rule_ver") or "", c.get("modified_expected") or ""))
                 for c in cms:
                     con.execute("INSERT INTO comment(datasheet_id, field_key, text, by, at, page, bbox, category, kind, origin)"
                                 " VALUES (?,?,?,?,?,?,?,?,?,?)", (dsid, c["field_key"], c["text"], c["by"], store.now(), c["page"],
@@ -979,7 +988,7 @@ async def issues_list(pid: int, compact: int = 0):
         return Response(hit[1], media_type="application/json")
     drop = {"filename", "tag_raw", "review_status", "unit", "pd_page", "pd_bbox", "rule", "level"}   # not used by the list screens
     if compact:
-        drop |= {"evidence", "basis", "op", "tol", "original_description", "original_severity", "pms_bbox", "pms_page"} | set(_DS_KEYS)
+        drop |= {"evidence", "basis", "op", "tol", "original_description", "original_severity", "original_expected", "pms_bbox", "pms_page"} | set(_DS_KEYS)
     slim = [{k: ([round(x, 1) for x in v] if k == "bbox" and v else v) for k, v in i.items() if k not in drop and v not in (None, "", [])}
             for i in rows]
     out = {"issues": slim, "counts": _issue_counts(rows), "types": issuesmod.CONTRACTOR_TYPES + ["Extraction Review"],
@@ -1031,8 +1040,10 @@ async def issue_state(dsid: int, ikey: str, request: Request):
         con.execute("INSERT OR REPLACE INTO issue_state(datasheet_id, ikey, status, note, by, at, since, decision, reason_cat, conclusion,"
                     " modified_text, modified_severity, rule_ver) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)",
                     (dsid, ikey, st, note, by, store.now(), (old or {}).get("since"), dec, cat, str(body.get("conclusion", ""))[:2000],
-                     str(body.get("modified_text", ""))[:1000] if body.get("decision") == "Modified" else "",
-                     msev if body.get("decision") == "Modified" else "", chkmod.RULE_VERSION.get(rule, "")))
+                     str(body.get("modified_text", ""))[:1000] if body.get("decision") == "Modified" else (old or {}).get("modified_text") or "",
+                     msev if body.get("decision") == "Modified" else (old or {}).get("modified_severity") or "", chkmod.RULE_VERSION.get(rule, "")))
+        if old and old.get("modified_expected"):        # an edited Required text survives a later decision too
+            con.execute("UPDATE issue_state SET modified_expected=? WHERE datasheet_id=? AND ikey=?", (old["modified_expected"], dsid, ikey))
         con.execute("INSERT INTO decision_log(project_id, datasheet_id, tag, rev, ikey, rule, rule_ver, issue_type, finding, severity, actual,"
                     " reference, source_doc, evidence, decision, status, reason_cat, reason, conclusion, modified_text, modified_severity, by, at)"
                     " VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
@@ -1046,6 +1057,43 @@ async def issue_state(dsid: int, ikey: str, request: Request):
                     (f"[{dec}{' · ' + cat if cat else ''}] " if dec else "") + note)
         con.commit()
     return {"ok": True, "status": st, "decision": dec}
+
+
+@router.put("/api/valve/datasheets/{dsid}/issues-text/{ikey:path}")
+async def issue_text(dsid: int, ikey: str, request: Request):
+    """valve29 — the engineer edits / supplements the tool's comment: {text, expected} (empty = back to the tool's own).
+    The decision and status stay as they are; the tool's wording is kept (original_description) and the edit is logged."""
+    body = await request.json()
+    text, exp = str(body.get("text") or "").strip()[:1500], str(body.get("expected") or "").strip()[:500]
+    con = store.connect()
+    d = store.one(con, "SELECT project_id, tag_key, rev FROM datasheet WHERE id=?", dsid)
+    if not d:
+        return _err("없는 데이터시트", 404)
+    by = _user(request)
+    hit = _DEEP_CACHE.get(dsid)
+    full = (hit[1] if hit else None) or _ds_full(con, dsid) or {}
+    it = next((i for i in full.get("issues") or [] if i["ikey"] == ikey), None)
+    if not it:
+        return _err("없는 지적", 404)
+    with store._LOCK:
+        old = store.one(con, "SELECT * FROM issue_state WHERE datasheet_id=? AND ikey=?", dsid, ikey)
+        if old:
+            con.execute("UPDATE issue_state SET modified_text=?, modified_expected=?, by=?, at=? WHERE datasheet_id=? AND ikey=?",
+                        (text, exp, by, store.now(), dsid, ikey))
+        else:
+            con.execute("INSERT INTO issue_state(datasheet_id, ikey, status, note, by, at, modified_text, modified_expected) VALUES (?,?,?,?,?,?,?,?)",
+                        (dsid, ikey, "Open", "", by, store.now(), text, exp))
+        rule = chkmod.rule_of(it.get("check") or "")
+        con.execute("INSERT INTO decision_log(project_id, datasheet_id, tag, rev, ikey, rule, rule_ver, issue_type, finding, severity, actual,"
+                    " reference, source_doc, evidence, decision, status, reason_cat, reason, conclusion, modified_text, modified_severity, by, at)"
+                    " VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                    (d["project_id"], dsid, d["tag_key"], d["rev"], ikey, rule or it.get("check") or "", chkmod.RULE_VERSION.get(rule, ""),
+                     it.get("type", ""), it.get("original_description") or it.get("description", ""), it.get("severity", ""), str(it.get("value") or ""),
+                     str(it.get("original_expected") or it.get("expected") or ""), "", store.J(it.get("evidence") or []), "Edited",
+                     (old or {}).get("status") or "Open", "", "comment text " + ("edited" if text or exp else "reset to the tool's"), "", text, "", by, store.now()))
+        store.audit(con, d["project_id"], dsid, ikey, "issue-text", it.get("description", "")[:300], text[:300] or "(tool text)", by, exp[:200])
+        con.commit()
+    return {"ok": True}
 
 
 # ── revision comparison (deterministic, by extracted field) ─────────────────────

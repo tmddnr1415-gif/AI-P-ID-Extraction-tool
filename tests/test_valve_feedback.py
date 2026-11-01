@@ -199,3 +199,58 @@ def test_compact_issue_list_same_information(tmp_path, monkeypatch):
         assert {k: v for k, v in a.items() if k not in proof} == {k: v for k, v in b.items() if v not in (None, "", [])}
         assert not proof & set(comp["issues"][0])
     assert c.get(f"/api/valve/projects/{pid}/issues?compact=1").content == c.get(f"/api/valve/projects/{pid}/issues?compact=1").content
+
+
+def test_engineer_edits_the_comment(tmp_path, monkeypatch):
+    """valve29 (user): the tool's comment can be corrected / supplemented; status and decision stay, the tool's text is kept."""
+    c, pid, up = _client(tmp_path, monkeypatch)
+    up("ds_A.pdf", _pdf("A", values={2: ["HOLD", "TBC"], 10: ["Note-7"]}))
+    a = _first(c, pid)
+    it = next(i for i in a["issues"] if i["type"] == "Data Error")
+    url = f"/api/valve/datasheets/{a['id']}/issues-text/{it['ikey']}"
+    assert c.put(url, json={"text": "Bolting note reference is wrong — shall refer to Note 1.", "expected": "Note 1"}, headers={"X-Author": "eng"}).json()["ok"]
+    b = {i["ikey"]: i for i in _first(c, pid)["issues"]}[it["ikey"]]
+    assert b["description"].startswith("Bolting note reference") and b["expected"] == "Note 1" and b["edited"] is True
+    assert b["original_description"] == it["description"] and b["status"] == "Open"
+    # a later decision keeps the engineer's words
+    c.put(f"/api/valve/datasheets/{a['id']}/issues/{it['ikey']}", json={"decision": "Confirmed"})
+    b = {i["ikey"]: i for i in _first(c, pid)["issues"]}[it["ikey"]]
+    assert b["status"] == "Confirmed" and b["description"].startswith("Bolting note reference") and b["expected"] == "Note 1"
+    # it reaches the contractor's Excel; the edit is logged
+    ws = openpyxl.load_workbook(io.BytesIO(c.get(f"/api/valve/projects/{pid}/issues.xlsx").content))["Issue List"]
+    head = [h.value for h in ws[1]]
+    assert any((ws.cell(r, head.index("Description") + 1).value or "").startswith("Bolting note reference") for r in range(2, ws.max_row + 1))
+    assert any(x["decision"] == "Edited" for x in c.get(f"/api/valve/projects/{pid}/rules/decisions").json()["rows"])
+    # back to the tool's own text
+    c.put(url, json={"text": "", "expected": ""})
+    b = {i["ikey"]: i for i in _first(c, pid)["issues"]}[it["ikey"]]
+    assert b["description"] == it["description"] and not b.get("edited")
+    assert c.put(f"/api/valve/datasheets/{a['id']}/issues-text/Nope:x", json={"text": "x"}).status_code == 404
+
+
+def test_dense_phase_co2_is_a_special_requirement():
+    from app.valve import requirements
+    ds = {"fields": [], "notes": [{"no": 9, "text": "Fluid Phase: Dense phase CO2."}, {"no": 2, "text": "Fugitive emission Class A type tested."}]}
+    gn = {"2": "The valves (for dense/supercritical phase, liquid and gas service) shall be TSO where specified."}
+    R = requirements.find(ds, gn)
+    dense = [r for r in R if r["key"] == "dense_co2"]
+    assert [r["source"] for r in dense] == ["Note 9"]                        # the conditional General Note is not this valve's phase
+    cols = requirements.columns(R)
+    assert cols["Dense Phase CO2"] == "Yes (Note 9)" and cols["Fugitive Emission (ISO 15848)"].startswith("Yes")
+    assert "Dense phase CO2 (Note 9)" in requirements.summary(R)
+    assert not [r for r in requirements.find({"fields": [], "notes": [{"no": 1, "text": "Fluid Phase: Gas."}]}, {}) if r["key"] == "dense_co2"]
+
+
+def test_reference_document_versions(tmp_path, monkeypatch):
+    """valve29: a finding names WHICH PMS / Process Data it was checked against — the newest upload — and the earlier ones."""
+    monkeypatch.setenv("PID_DATA_DIR", str(tmp_path / "data"))
+    from app.valve import store as st
+    con = st.connect()
+    pid = con.execute("INSERT INTO project(name, created_at) VALUES ('P', '2026-11-01')").lastrowid
+    for n, day in ((1, "2026-10-01"), (2, "2026-10-20")):
+        con.execute("INSERT INTO document(project_id, kind, filename, status, uploaded_at) VALUES (?,?,?,?,?)", (pid, "process", f"PD_rev{n}.pdf", "done", day))
+    con.commit()
+    new = st.one(con, "SELECT id, filename FROM document WHERE filename='PD_rev2.pdf'")
+    from app.valve import api
+    ref = api._doc_ref(con, pid, "process", new)
+    assert ref["filename"] == "PD_rev2.pdf" and ref["uploaded_at"] == "2026-10-20" and [e["filename"] for e in ref["earlier"]] == ["PD_rev1.pdf"]

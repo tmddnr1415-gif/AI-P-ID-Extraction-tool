@@ -469,3 +469,11 @@ body.pop .popbar { display: flex; gap: 10px; align-items: center; padding: 5px 1
 body.pop .popbar .sp { flex: 1; }
 body.pop #popv { flex: 1; min-height: 0; display: flex; flex-direction: column; }
 #linkbtn.on { border-color: var(--blue); color: var(--blue); }
+/* valve29 — compare view (datasheet ↔ reference) and small issue buttons */
+.ibtn { padding: 0 5px; font-size: 11px; line-height: 18px; margin-right: 3px; }
+.cmp { display: flex; flex-direction: column; height: 100%; }
+.cmph { padding: 6px 8px; font-size: 12.5px; } .cmph .cmpt { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; } .cmph .sp { flex: 1; }
+.cmph table.t tr.on td { background: #eef3ff; } .cmph table.t tr.click { cursor: pointer; }
+.cmpv { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 4px; background: #525a68; }
+.cmpv > div { display: flex; flex-direction: column; min-height: 0; min-width: 0; overflow: hidden; }
+body.pop #cmphost { display: flex; flex-direction: column; }

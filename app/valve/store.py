@@ -124,7 +124,8 @@ _ADDED = {"datasheet": [("sheets", "TEXT"), ("parser_version", "TEXT")],
                       ("deleted", "INTEGER DEFAULT 0"), ("kind", "TEXT"), ("points", "TEXT"), ("style", "TEXT"),
                       ("origin", "TEXT")],                   # valve26: 'Rev A' when copied from the previous revision
           "issue_state": [("since", "TEXT"), ("decision", "TEXT"), ("reason_cat", "TEXT"), ("conclusion", "TEXT"),   # valve29
-                          ("modified_text", "TEXT"), ("modified_severity", "TEXT"), ("rule_ver", "TEXT")]}    # since = valve26 (carried from)
+                          ("modified_text", "TEXT"), ("modified_severity", "TEXT"), ("rule_ver", "TEXT"),
+                          ("modified_expected", "TEXT")]}    # since = valve26 (carried from)
 
 
 def _migrate(con):

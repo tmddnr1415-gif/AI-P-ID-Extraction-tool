@@ -881,7 +881,7 @@ async function renderIssues(rowsOnly) {
   const __rows = L.map((i, n) => () => `<tr data-i="${esc(i.ds_id + '|' + i.ikey)}" class="${G.selIss === i.ikey && G.selDs === i.ds_id ? 'sel' : ''}">
         <td class="fz" style="left:0"><b class="no ${i.color}">${i.no}</b></td><td class="fz fzl" style="left:34px"><b>${esc(i.tag)}</b></td><td>${esc(i.doc_no)}</td><td>${esc(i.rev)}</td><td>${i.sheet || ''} of ${i.of || ''}</td><td>${i.page || ''}</td>
         <td title="${esc(i.field)}">${esc(i.field)}${i.row ? ` <small>#${i.row}</small>` : ''}</td><td title="${esc(i.value)}">${esc(i.value || '(blank)')}</td>
-        <td>${pill(i.type.replace(/[^A-Za-z]/g, ''), i.type)}</td><td title="${esc(i.description)}${i.evidence?.length ? '\n근거: ' + esc(i.evidence.map(x => `${x.doc || ''}${x.page ? ' p.' + x.page : ''} ${x.where || ''}: ${String(x.text || '').slice(0, 60)}`).join(' | ')) : ''}">${esc(i.description)}</td><td title="${esc(i.expected)}">${esc(i.expected)}</td>
+        <td>${pill(i.type.replace(/[^A-Za-z]/g, ''), i.type)}${i.comment_id ? '' : ` <button class="ibtn" data-icmp="1" title="어디와 다른지 나란히">⇆</button><button class="ibtn" data-iedit="1" title="코멘트 고치기 · 보완">✎${i.edited ? '•' : ''}</button>`}</td><td title="${esc(i.description)}${i.evidence?.length ? '\n근거: ' + esc(i.evidence.map(x => `${x.doc || ''}${x.page ? ' p.' + x.page : ''} ${x.where || ''}: ${String(x.text || '').slice(0, 60)}`).join(' | ')) : ''}">${esc(i.description)}</td><td title="${esc(i.expected)}">${esc(i.expected)}</td>
         <td>${pill(i.severity)}</td><td>${decSelect(`data-ist="${esc(i.ds_id + '|' + i.ikey)}"`, i)}</td></tr>`), __fb = '<tr><td colspan="13" class="empty">조건에 맞는 지적 사항이 없습니다</td></tr>';
   if (rowsOnly && $('#ig tbody', el)) { chunkRows($('#ig tbody', el), __rows, 80, __fb); const c = $('#icnt', el); if (c) c.textContent = `${L.length} / ${all.length}`; return; }
   el.innerHTML = `<div class="vh">${listTop()}<input type="search" id="iq" placeholder="Tag 검색" style="width:140px" value="${esc(IF.q)}">
@@ -913,6 +913,14 @@ async function renderIssues(rowsOnly) {
   chunkRows(tb, __rows, 80, __fb);
   tb.onclick = async e => {
     if (e.target.closest('select')) return;
+    const cb = e.target.closest('[data-icmp], [data-iedit]');
+    if (cb) {                                              // valve29: compare with the reference · edit the comment
+      const tr0 = cb.closest('tr[data-i]'), dsId0 = +tr0.dataset.i.split('|')[0], ik0 = tr0.dataset.i.slice(tr0.dataset.i.indexOf('|') + 1);
+      const i0 = S.issues.find(x => x.ds_id === dsId0 && x.ikey === ik0);
+      if (cb.dataset.icmp) { const d0 = await api('GET', `/datasheets/${dsId0}`); compareIssue(d0, d0.issues.find(x => x.ikey === ik0) || i0); }
+      else editIssueText(dsId0, i0, () => { S.issues = null; renderList(); });
+      return;
+    }
     const tr = e.target.closest('tr[data-i]'); if (!tr) return;
     const [dsId, ikey] = [+tr.dataset.i.split('|')[0], tr.dataset.i.slice(tr.dataset.i.indexOf('|') + 1)];
     const i = S.issues.find(x => x.ds_id === dsId && x.ikey === ikey);
@@ -1218,7 +1226,7 @@ function drawRight() {
     const L = (d.issues || []).filter(i => i.type !== 'Extraction Review' || W.showInternal);
     const card = i => `<div class="iss ${i.color} ${W.selIss === i.ikey ? 'on' : ''} ${i.status === 'Dismissed' ? 'dis' : ''}" data-iss="${esc(i.ikey)}">
         <div class="ih"><b class="no ${i.color}">${i.no}</b><b>${esc(i.type)}</b><span class="soft">${esc(i.field)}${i.row ? ' #' + i.row : ''} · p.${i.page || ''}</span><span class="sp"></span>
-        ${decSelect(`data-ist="${esc(i.ikey)}"`, i)}</div>
+        ${i.comment_id ? '' : `<button class="ibtn" data-icmp="${esc(i.ikey)}" title="어디와 다른지 — Datasheet 칸과 기준 문서(PMS · Process Data · 이전 판) 나란히">⇆</button><button class="ibtn" data-iedit="${esc(i.ikey)}" title="코멘트 고치기 · 보완${i.edited ? ' (고침)' : ''}">✎${i.edited ? '•' : ''}</button>`}${decSelect(`data-ist="${esc(i.ikey)}"`, i)}</div>
         <div>${esc(i.description)}</div>${i.expected ? `<div class="soft">Required: <b>${esc(i.expected)}</b></div>` : ''}${i.op && i.expected ? `<div class="soft" style="font-size:11px" title="Actual · 비교 · Reference${i.tol ? ' · 허용오차' : ''} · Result">${esc(i.value || '(blank)')} <b>${esc(i.op)}</b> ${esc(i.expected)}${i.tol ? ` (±${esc(i.tol)})` : ''} → ${esc(i.result || '')}</div>` : ''}${i.evidence?.length ? `<div class="soft" style="font-size:11px">근거: ${i.evidence.map(x => evLink(d, x)).join(' · ')}${i.basis ? ` <span class="soft" title="${esc(i.basis)}">[${esc(i.check || '')}]</span>` : ''}</div>` : ''}${i.note ? `<div class="soft">Note: ${esc(i.note)}</div>` : ''}</div>`;
     // same type + same reason → one card with the fields as chips (13 'no value; ref. Process DS' cards become one)
     const sig = i => i.type === 'Data Missing' ? 'Data Missing|' + i.description.replace(/^[^:]+:\s*/, '') : i.type === 'Open Item' && !i.key.startsWith('note.') ? 'Open Item|hold' : null;
@@ -1330,6 +1338,9 @@ function drawRight() {
       W.selCm = +cd.dataset.cmdel; await markCmd('del'); } return; }
     const pp = e.target.closest('[data-pmsp]'); if (pp) { e.preventDefault(); openPmsRef(+pp.dataset.pmsp, JSON.parse(pp.dataset.pmsb || 'null')); return; }
     const ek = e.target.closest('[data-ek]'); if (ek) { e.preventDefault(); selectField(ek.dataset.ek); return; }
+    const cb = e.target.closest('[data-icmp], [data-iedit]');
+    if (cb) { e.stopPropagation(); const i = (d.issues || []).find(x => x.ikey === (cb.dataset.icmp || cb.dataset.iedit));
+      if (i) cb.dataset.icmp ? compareIssue(d, i) : editIssueText(d.id, i, async () => { S.ds = await api('GET', `/datasheets/${d.id}`); S.issues = null; paintDsOverlays(); drawRight(); }); return; }
     const ck = e.target.closest('[data-chk]'); if (ck) { const id = ck.dataset.chk, hit = (d.issues || []).find(i => (i.check || '').startsWith(id) && i.status !== 'Dismissed'); W.tab = 'iss'; LS.set('wtab', 'iss'); if (hit) W.selIss = hit.ikey; drawRight(); if (hit?.bbox) W.viewer.goPage(hit.page, hit.bbox); return; }
     const nt = e.target.closest('[data-notes]'); if (nt) { W.notesOpen = !W.notesOpen; drawRight(); return; }
     const pd = e.target.closest('[data-pdp]'); if (pd) { e.preventDefault(); openRef(d.process_doc, +pd.dataset.pdp, JSON.parse(pd.dataset.pdb || 'null'), 'Process Data'); return; }
@@ -1844,6 +1855,95 @@ addEventListener('keydown', e => {
   else if (e.key === 'f') { e.preventDefault(); $('#wview .q').focus(); }
 });
 
+/* valve29 — the engineer edits / supplements the tool's comment (decision and status unchanged; the tool's text is kept) */
+async function editIssueText(dsId, i, after) {
+  const orig = i.original_description || i.description, origExp = i.original_expected ?? i.expected ?? '';
+  const r = await modal(`코멘트 고치기 · 보완 — ${i.type} · ${i.field}`, `${i.edited ? `<p class="soft">도구 원문: ${esc(orig)}${origExp ? ` · Required: ${esc(origExp)}` : ''}</p>` : ''}
+    <label class="dfl"><span>설계사에게 가는 코멘트</span><textarea name="text" rows="4">${esc(i.description || '')}</textarea></label>
+    <label class="dfl"><span>Required / Expected</span><input name="expected" value="${esc(i.expected || '')}"></label>
+    <p class="soft hint">고친 문구가 Issue List Excel · Mark-up PDF 에 나갑니다. 결정(Confirmed 등)은 그대로입니다. 도구 원문은 기록에 남습니다.</p>`,
+    [['취소', null], ...(i.edited ? [['도구 원문으로', 'reset']] : []), ['저장', 'form', 1]]);
+  if (!r) return;
+  const body = r === 'reset' ? { text: '', expected: '' } : { text: r.text.trim() === orig.trim() ? '' : r.text, expected: (r.expected || '').trim() === (origExp || '').trim() ? '' : r.expected };
+  try { await api('PUT', `/datasheets/${dsId}/issues-text/${encodeURIComponent(i.ikey)}`, body); toast(r === 'reset' ? '도구 원문으로 되돌렸습니다' : '코멘트를 고쳤습니다'); after && after(); }
+  catch (e) { toast(e.message, 1); }
+}
+/* valve29 — "where does it disagree": the datasheet cell beside the reference page (PMS · Process Data · previous revision · other cell) */
+function refDocOf(d, ev) {
+  const doc = ev.doc || '';
+  if (doc.startsWith('PMS')) return d.pms_doc ? { ...d.pms_doc, what: 'PMS', pages: [ev.page] } : null;
+  if (doc.startsWith('Process Data')) return d.process_doc ? { ...d.process_doc, what: 'Process Data', pages: [ev.page] } : null;
+  if (doc === 'Previous revision') { const rv = d.revisions || [], k = rv.findIndex(r => r.id === d.id); return k > 0 ? { prevDs: rv[k - 1].id, what: `Rev.${rv[k - 1].rev}`, pages: null } : null; }
+  if (doc === 'Datasheet') return { id: d.document_id, filename: d.filename, what: 'Datasheet', pages: d.pages };
+  return null;
+}
+async function renderCompare(host, d, i, opts = {}) {
+  const evs = (i.evidence || []).filter(e => e && e.page && refDocOf(d, e));
+  const sel = Math.min(opts.ev || 0, Math.max(0, evs.length - 1)), ev = evs[sel];
+  const ref = ev ? refDocOf(d, ev) : null;
+  const vh = x => x ? `<span class="soft">${esc(x)}</span>` : '';
+  host.innerHTML = `<div class="cmp"><div class="cmph">
+      <div class="cmpt"><b>${esc(d.tag)}</b> · ${esc(i.type)} · ${esc(i.field)} ${i.check ? vh('[' + i.check + ']') : ''}<span class="sp"></span>${opts.pop ? '' : '<button data-cmppop title="새 창으로 — 이 창과 연동">⧉ 새 창</button>'}</div>
+      <table class="t"><tr><th style="width:110px"></th><th>값</th><th>문서 · 쪽</th></tr>
+        <tr><td><b>Datasheet</b></td><td><b>${esc(i.value || '(blank)')}</b></td><td>${esc(d.filename || '')} · Doc. ${esc(d.doc_no)} · Rev.${esc(d.rev)} · p.${i.page ?? '—'}</td></tr>
+        ${evs.map((e, k) => { const r = refDocOf(d, e); return `<tr class="${k === sel ? 'on' : ''} click" data-cev="${k}"><td><b>${esc(r.what)}</b></td><td><b>${esc(String(e.text || '').slice(0, 120))}</b></td>
+          <td>${esc(r.filename || '')}${r.uploaded_at ? ` · 올린 날 ${esc(r.uploaded_at.slice(0, 10))} (최신판)` : ''} · ${esc(e.where || '')} · p.${e.page}${r.earlier?.length ? `<br><span class="soft">이전 판: ${r.earlier.map(x => esc(x.filename) + ' (' + esc((x.uploaded_at || '').slice(0, 10)) + ')').join(', ')} — 검토는 최신판 기준</span>` : ''}</td></tr>`; }).join('')
+          || `<tr><td colspan="3" class="soft">이 지적은 다른 문서와 맞대어 본 것이 아닙니다 (빈칸 · HOLD 등) — 왼쪽 칸만 봅니다</td></tr>`}
+      </table>
+      <div class="soft" style="margin-top:4px">${esc(i.description)}${i.expected ? ` · Required: <b>${esc(i.expected)}</b>` : ''}${i.op ? ` · 비교: ${esc(i.op)}${i.tol ? ' ±' + esc(i.tol) : ''} → ${esc(i.result || '')}` : ''}</div></div>
+    <div class="cmpv"><div class="cmpL"></div><div class="cmpR">${ref ? '' : '<div class="empty" style="color:#d6dbe5">기준 문서 쪽 없음</div>'}</div></div></div>`;
+  const L = new Viewer($('.cmpL', host), { extra: '<span class="lbl">Datasheet</span>' });
+  await new Promise(r => requestAnimationFrame(r));                 // let the two halves take their width before 'fit'
+  await L.load(d.document_id, d.pages); L.fit();
+  L.setOverlays(i.bbox ? [{ cat: i.color || 'error', page: i.page, bbox: i.bbox, title: i.field }] : []);
+  if (i.bbox) L.focus(i.page, i.bbox, i.field); else if (i.page) L.goPage(i.page);
+  if (ref) {
+    let doc = ref, pages = ref.pages;
+    if (ref.prevDs) { const p = await api('GET', `/datasheets/${ref.prevDs}`); doc = { id: p.document_id }; pages = p.pages; }
+    const R = new Viewer($('.cmpR', host), { extra: `<span class="lbl">${esc(ref.what)}</span>` });
+    await R.load(doc.id, pages); R.fit(); if (ev.bbox && R.zoom < 0.9) R.setZoom(0.9);   // a wide table page: readable around the cell
+    R.setOverlays(ev.bbox ? [{ cat: 'field', page: ev.page, bbox: ev.bbox, title: ev.where || ref.what }] : []);
+    if (ev.bbox) R.focus(ev.page, ev.bbox, ev.where || ref.what); else R.goPage(ev.page);
+  }
+  host.onclick = e => { const r = e.target.closest('[data-cev]'); if (r) { renderCompare(host, d, i, { ...opts, ev: +r.dataset.cev }); return; }
+    if (e.target.closest('[data-cmppop]')) { const u = new URL(location.href); u.hash = ''; u.searchParams.set('pop', 'cmp'); u.searchParams.set('ds', d.id); u.searchParams.set('ikey', i.ikey);
+      const w = window.open(u.toString(), 'valve-pop-cmp', 'popup=yes,width=1500,height=950'); if (!w) toast('새 창이 막혔습니다 — 팝업 허용을 켜 주세요', 1); else { w.focus(); $('#modal').hidden = true; $('.mbox').style.width = ''; } } };
+}
+async function compareIssue(d, i) {
+  $('#mTitle').textContent = '어디와 다른가 — 나란히 보기'; $('#mAct').innerHTML = '<button>닫기</button>';
+  $('#mBody').innerHTML = '<div id="cmphost" style="height:80vh"></div>';
+  $('.mbox').style.width = 'min(1600px,97vw)'; $('#modal').hidden = false;
+  $('#mAct button').onclick = () => { $('#modal').hidden = true; $('.mbox').style.width = ''; };
+  await renderCompare($('#cmphost'), d, i);
+  link({ t: 'iss', id: d.id, ikey: i.ikey });
+}
+async function popCmp() {                                  // the compare view in its own window, following the selected finding
+  document.body.className = 'pop';
+  document.body.innerHTML = `<div class="popbar"><b>어디와 다른가</b><span class="soft" id="pinfo">메인 창에서 지적을 고르세요</span><span class="sp"></span>
+    <label class="soft"><input type="checkbox" id="plink" ${linkOn() ? 'checked' : ''}> 연동</label></div><div id="cmphost" style="flex:1;min-height:0;background:#fff"></div><div id="toast"></div>
+    <div id="modal" hidden><div class="mbox"><h3 id="mTitle"></h3><div id="mBody"></div><div class="mact" id="mAct"></div></div></div>`;
+  $('#plink').onchange = e => LS.set('linkon', e.target.checked ? 1 : 0);
+  S.projects = (await api('GET', '/projects')).projects;
+  const want = Q.get('project'), p = (want && S.projects.find(x => x.name === want)) || S.projects.find(x => x.id === LS.get('pid')) || S.projects[0];
+  S.pid = p?.id;
+  let cur = { id: +Q.get('ds'), ikey: Q.get('ikey') };
+  const show = async () => {
+    if (!cur.id) return;
+    const d = await dsFetch(cur.id); S.ds = d;
+    const i = d.issues.find(x => x.ikey === cur.ikey) || d.issues.find(x => !x.comment_id && x.evidence?.length) || d.issues[0];
+    if (!i) return;
+    $('#pinfo').textContent = `${d.tag} · #${i.no} ${i.type}`; document.title = `비교 · ${d.tag}`;
+    await renderCompare($('#cmphost'), d, i, { pop: true });
+  };
+  if (BUS) BUS.onmessage = async e => {
+    const m = e.data; if (m.from === WIN_ID || m.pid !== S.pid || !linkOn()) return;
+    if (m.t === 'iss') { cur = { id: m.id, ikey: m.ikey }; await show(); }
+    else if (m.t === 'ds' && m.id !== cur.id) { cur = { id: m.id, ikey: null }; await show(); }
+    else if (m.t === 'changed' && m.id === cur.id) { PRE.delete(cur.id); await show(); }
+  };
+  await show();
+}
+
 /* valve29 — live link: what another window says */
 let CHG_T = 0;
 async function onLink(m) {
@@ -1870,7 +1970,7 @@ async function onLink(m) {
     if (m.t === 'iss' && W.selIss !== m.ikey) { const i = S.ds.issues.find(x => x.ikey === m.ikey); if (!i) return; W.selIss = i.ikey; setTab('iss'); paintDsOverlays(); if (i.bbox) W.viewer.focus(i.page, i.bbox, i.field); }
   } finally { LINKING = false; }
 }
-if (BUS && POP !== 'pdf') BUS.onmessage = e => { const m = e.data; if (m.from !== WIN_ID && m.pid === S.pid) onLink(m); };
+if (BUS && !POP) BUS.onmessage = e => { const m = e.data; if (m.from !== WIN_ID && m.pid === S.pid) onLink(m); };
 
 async function popPdf() {                                  // the light PDF window (second monitor) — mark-up tools included
   document.body.className = 'pop';
@@ -1923,7 +2023,7 @@ async function popPdf() {                                  // the light PDF wind
 }
 
 /* ── start ────────────────────────────────────────────────────────────── */
-if (POP === 'pdf') { popPdf().catch(e => { document.body.innerHTML = `<div class="empty" style="color:var(--bad)">${esc(e.message)}</div>`; }); }
+if (POP === 'pdf' || POP === 'cmp') { (POP === 'pdf' ? popPdf() : popCmp()).catch(e => { document.body.innerHTML = `<div class="empty" style="color:var(--bad)">${esc(e.message)}</div>`; }); }
 else {
 if (EMBED) document.body.classList.add('embed');
 $('#who').innerHTML = `<b>${esc((USER || '?').slice(0, 1))}</b>${esc(USER || '이름 없음')}`;

@@ -118,10 +118,11 @@ def compute(ds: dict, general_notes: dict | None = None, pms: dict | None = None
         res = (extra or {}).get("result") or RESULT.get(itype, "Finding")
         dec = {"decision": st.get("decision") or "", "reason_cat": st.get("reason_cat") or "", "conclusion": st.get("conclusion") or "",
                "op": op, "tol": tol, "result": res}
-        if st.get("decision") == "Modified" and (st.get("modified_text") or st.get("modified_severity")):
-            dec.update(original_description=desc, original_severity=sev)       # the engineer's wording goes out; the tool's is kept
+        if st.get("modified_text") or st.get("modified_severity") or st.get("modified_expected"):
+            dec.update(original_description=desc, original_severity=sev, original_expected=expected, edited=True)   # the engineer's wording goes out; the tool's is kept
             desc = st.get("modified_text") or desc
             sev = st.get("modified_severity") or sev
+            expected = st.get("modified_expected") or expected
         out.append({"ikey": ikey, "type": itype, "color": COLOR[itype], "severity": sev, "key": key,
                     "field": f.get("display") or key, "row": f.get("row"), "value": _v(f), "unit": f.get("unit") or "",
                     "description": desc, "expected": expected, "page": page, "bbox": bbox or f.get("bbox"),
