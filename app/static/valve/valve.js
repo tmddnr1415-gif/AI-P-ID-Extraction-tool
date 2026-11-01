@@ -819,7 +819,9 @@ async function renderList() {
     if (e.shiftKey && G.last) { const [i0, i1] = [ids.indexOf(G.last), ids.indexOf(id)].sort((a, b) => a - b); ids.slice(i0, i1 + 1).forEach(x => G.sel.add(x)); }
     else if (e.ctrlKey || e.metaKey || e.target.type === 'checkbox') G.sel.has(id) ? G.sel.delete(id) : G.sel.add(id);
     else { G.sel.clear(); G.sel.add(id); }
-    G.last = id; paintSel();
+    G.last = id; paintSel(); const tdk = e.target.closest('td[data-k]');
+    const near = ids.slice(ids.indexOf(id) + 1, ids.indexOf(id) + 3).concat(ids.slice(Math.max(0, ids.indexOf(id) - 1), ids.indexOf(id)));
+    link(tdk ? { t: 'field', id, key: tdk.dataset.k, near } : { t: 'ds', id, near });     // valve29: the PDF window shows that tag / cell (+ prefetches the next rows)
     const row = S.grid.rows.find(r => r.id === id), td = e.target.closest('td');   // live preview
     $$('td.hit', tb).forEach(x => x.classList.remove('hit')); td?.classList.add('hit');
     const x = td?.dataset.k ? row.cells[td.dataset.k] : null, col = cols.find(c => c.key === td?.dataset.k);
@@ -914,7 +916,9 @@ async function renderIssues(rowsOnly) {
     const tr = e.target.closest('tr[data-i]'); if (!tr) return;
     const [dsId, ikey] = [+tr.dataset.i.split('|')[0], tr.dataset.i.slice(tr.dataset.i.indexOf('|') + 1)];
     const i = S.issues.find(x => x.ds_id === dsId && x.ikey === ikey);
-    G.selIss = ikey; G.selDs = dsId; $$('tr.sel', tb).forEach(x => x.classList.remove('sel')); tr.classList.add('sel'); link({ t: 'iss', id: dsId, ikey });
+    G.selIss = ikey; G.selDs = dsId; $$('tr.sel', tb).forEach(x => x.classList.remove('sel')); tr.classList.add('sel');
+    const at = L.findIndex(x => x.ds_id === dsId && x.ikey === ikey), near = [...new Set(L.slice(at + 1, at + 40).map(x => x.ds_id))].filter(x => x !== dsId).slice(0, 2);
+    link({ t: 'iss', id: dsId, ikey, near });
     const pages = (S.grid?.rows.find(r => r.id === dsId)?.pages) || (await api('GET', `/datasheets/${dsId}`)).pages;
     preview({ doc: i.document_id, pages, page: i.page, bbox: i.bbox, ovs: await dsIssues(dsId), label: `${i.tag} · #${i.no} ${i.type} · ${i.field}` });
   };
@@ -1136,7 +1140,9 @@ function hintsInit() {                                   // '?' in the top bar: 
   const ln = document.createElement('button'); ln.id = 'linkbtn'; ln.title = '연동: 다른 창에서 고른 Tag · 칸 · 지적을 따라가고 결정 · 수정을 바로 반영';
   const paintLn = () => { ln.textContent = linkOn() ? '🔗 연동' : '⛓ 연동 끔'; ln.classList.toggle('on', linkOn()); };
   ln.onclick = () => { LS.set('linkon', linkOn() ? 0 : 1); paintLn(); toast(linkOn() ? '창 연동을 켰습니다' : '창 연동을 껐습니다'); }; paintLn();
-  host.prepend(ln); host.prepend(nw);
+  const pw = document.createElement('button'); pw.id = 'newpdf'; pw.title = 'PDF 창 (두 번째 모니터) — 왼쪽 목록에서 고르면 오른쪽 창에 바로, 거기서 Mark-up 도'; pw.textContent = '⧉ PDF';
+  pw.onclick = () => popOut('pdf');
+  host.prepend(ln); host.prepend(pw); host.prepend(nw);
 }
 function setTab(t) { W.tab = t; LS.set('wtab', t); $$('#wtabs button').forEach(b => { b.classList.toggle('on', b.dataset.t === t); if (b.dataset.t === t) b.scrollIntoView({ inline: 'nearest', block: 'nearest' }); }); drawRight(); }
 function fieldLine(f) {
@@ -1601,7 +1607,7 @@ async function renderProc() {
   $('#pq').oninput = e => { P.q = e.target.value; clearTimeout(P.t); P.t = setTimeout(() => { renderProc().then(() => { const f = $('#pq'); f.focus(); f.setSelectionRange(f.value.length, f.value.length); }); }, 300); };
   $('#pdtb').onclick = async e => { const tr = e.target.closest('tr[data-n]'); if (!tr) return;   // valve29: rows arrive in batches — one handler
     $$('tr.sel', el).forEach(x => x.classList.remove('sel')); tr.classList.add('sel'); $('#pdhint')?.remove();
-    const r = S.procRows[+tr.dataset.n], pages = (await api('GET', `/datasheets/${r.ds_id}`)).pages;
+    const r = S.procRows[+tr.dataset.n]; link({ t: 'field', id: r.ds_id, key: r.ds_key || r.key }); const pages = (await api('GET', `/datasheets/${r.ds_id}`)).pages;
     await L1.load(r.document_id, pages); L1.fit();
     L1.setOverlays(r.ds_bbox ? [{ cat: r.result === 'Mismatch' ? 'process' : 'comment', page: r.ds_page, bbox: r.ds_bbox, title: r.item }] : []);
     if (r.ds_bbox) L1.focus(r.ds_page, r.ds_bbox, r.item); else L1.goPage(r.ds_page || pages[0]);
@@ -1632,7 +1638,7 @@ async function renderPms() {
   $('#pq').oninput = e => { P.q = e.target.value; clearTimeout(P.t); P.t = setTimeout(() => { renderPms().then(() => { const f = $('#pq'); f.focus(); f.setSelectionRange(f.value.length, f.value.length); }); }, 300); };
   $('#pmtb').onclick = async e => { const tr = e.target.closest('tr[data-n]'); if (!tr) return;   // valve29: rows arrive in batches — one handler
     $$('tr.sel', el).forEach(x => x.classList.remove('sel')); tr.classList.add('sel'); $('#pmhint')?.remove();
-    const r = S.pmsRows[+tr.dataset.n], pages = (await api('GET', `/datasheets/${r.ds_id}`)).pages;
+    const r = S.pmsRows[+tr.dataset.n]; link({ t: 'field', id: r.ds_id, key: r.key }); const pages = (await api('GET', `/datasheets/${r.ds_id}`)).pages;
     await L1.load(r.document_id, pages); L1.fit();
     L1.setOverlays([{ cat: r.result === 'Non-Compliant' ? 'error' : r.result === 'Compliant' ? 'comment' : 'missing', page: r.ds_page, bbox: r.ds_bbox, title: r.item }]);
     if (r.ds_bbox) L1.focus(r.ds_page, r.ds_bbox, r.item);
@@ -1803,7 +1809,9 @@ for (const k of Object.keys(RENDER)) { const f = RENDER[k]; RENDER[k] = () => { 
 /* ── keyboard ─────────────────────────────────────────────────────────── */
 addEventListener('keydown', e => {
   if (e.key === 'Escape') { $('#modal').hidden = true; W.viewer?.setTool('select'); return; }
-  if (e.target.closest('input, textarea, select') || !$('#modal').hidden || e.altKey) return;
+  if (e.target.closest?.('input, textarea, select') || !$('#modal').hidden || e.altKey) return;
+  if (POP === 'pdf' && !e.ctrlKey && !e.metaKey && ['j', 'k', 'ArrowDown', 'ArrowUp'].includes(e.key)) {   // the PDF window steps the main window's list
+    e.preventDefault(); link({ t: 'nav', d: e.key === 'j' || e.key === 'ArrowDown' ? 1 : -1 }); return; }
   if (S.view === 'review' && W.viewer && (e.ctrlKey || e.metaKey)) {
     const k = e.key.toLowerCase();
     if (k === 'z' && !e.shiftKey) { e.preventDefault(); markCmd('undo'); } else if (k === 'y' || (k === 'z' && e.shiftKey)) { e.preventDefault(); markCmd('redo'); }
@@ -1850,6 +1858,11 @@ async function onLink(m) {
       }, 250);
       return;
     }
+    if (m.t === 'nav') {                                   // ▲ ▼ / J K in the PDF window: next row of this window's list or next tag
+      if (S.view === 'review') stepTag(m.d);
+      else if (S.view === 'list') dispatchEvent(new KeyboardEvent('keydown', { key: m.d > 0 ? 'ArrowDown' : 'ArrowUp' }));
+      return;
+    }
     if (S.view !== 'review') return;                       // following happens in the Datasheet Review window
     if (m.id && m.id !== S.dsId) { openDs(m.id); for (let n = 0; n < 40 && !(S.ds && S.ds.id === m.id); n++) await new Promise(r => setTimeout(r, 75)); }
     if (!S.ds || S.ds.id !== m.id) return;
@@ -1859,50 +1872,52 @@ async function onLink(m) {
 }
 if (BUS && POP !== 'pdf') BUS.onmessage = e => { const m = e.data; if (m.from !== WIN_ID && m.pid === S.pid) onLink(m); };
 
-async function popPdf() {                                  // the light PDF-only window (second monitor)
+async function popPdf() {                                  // the light PDF window (second monitor) — mark-up tools included
   document.body.className = 'pop';
-  document.body.innerHTML = `<div class="popbar"><b id="ptag">PDF</b><span class="soft" id="pinfo">메인 창에서 Tag 를 여세요</span><span class="sp"></span>
-    <label class="soft" title="메인 창의 Tag · 칸 · 지적을 따라가고, 여기서 누른 것을 메인 창에 보냅니다"><input type="checkbox" id="plink" ${linkOn() ? 'checked' : ''}> 연동</label></div><div id="popv"></div><div id="toast"></div>`;
+  document.body.innerHTML = `<div class="popbar"><b id="ptag">PDF</b><span class="soft" id="pinfo">메인 창에서 Tag 를 고르세요 (목록 · 작업대)</span><span class="sp"></span>
+    <button id="pprev" title="이전 Tag (K) — 메인 창의 목록 순서">▲</button><button id="pnext" title="다음 Tag (J)">▼</button>
+    <label class="soft" title="메인 창의 Tag · 칸 · 지적을 따라가고, 여기서 누른 것을 메인 창에 보냅니다"><input type="checkbox" id="plink" ${linkOn() ? 'checked' : ''}> 연동</label></div>
+    <div id="popv"></div><div id="toast"></div>
+    <div id="modal" hidden><div class="mbox"><h3 id="mTitle"></h3><div id="mBody"></div><div class="mact" id="mAct"></div></div></div>`;
   $('#plink').onchange = e => LS.set('linkon', e.target.checked ? 1 : 0);
+  $('#pprev').onclick = () => link({ t: 'nav', d: -1 }); $('#pnext').onclick = () => link({ t: 'nav', d: 1 });
   S.projects = (await api('GET', '/projects')).projects;
   const want = Q.get('project'), p = (want && S.projects.find(x => x.name === want)) || S.projects.find(x => x.id === LS.get('pid')) || S.projects[0];
-  S.pid = p?.id;
-  let selKey = null, selIss = null;
-  const V = new Viewer($('#popv'), {
-    onOverlay: o => { if (o.iss) { selIss = o.iss; paint(); link({ t: 'iss', id: S.ds.id, ikey: o.iss }); } else if (o.key) { selKey = o.key; paint(); link({ t: 'field', id: S.ds.id, key: o.key }); } },
+  S.pid = p?.id; S.view = 'review'; W.tab = 'pop';                  // the workbench's mark-up functions work here unchanged
+  const V = W.viewer = new Viewer($('#popv'), { tools: true,
+    onMark: addMark, onMarkChange: changeMark, onMarkErase: eraseMark, onMarkCmd: markCmd,
+    onMarkSelect: m => { W.selCm = m?.id ?? null; },
+    onOverlay: o => { if (o.iss) { W.selIss = o.iss; W.selField = null; paintDsOverlays(); link({ t: 'iss', id: S.ds.id, ikey: o.iss }); }
+                      else if (o.key) { W.selField = o.key; W.selIss = null; paintDsOverlays(); link({ t: 'field', id: S.ds.id, key: o.key }); } },
     onPagePoint: (page, [x, y]) => {
       const inb = b => b && x >= b[0] - 2 && x <= b[2] + 2 && y >= b[1] - 2 && y <= b[3] + 2;
       const iss = (S.ds?.issues || []).find(i => i.page === page && !i.comment_id && i.status !== 'Dismissed' && i.type !== 'Extraction Review' && inb(i.bbox));
-      if (iss) { selIss = iss.ikey; selKey = null; paint(); link({ t: 'iss', id: S.ds.id, ikey: iss.ikey }); return; }   // a finding box first
-      const f = (S.ds?.fields || []).filter(f => f.page === page && f.bbox && x >= f.bbox[0] - 2 && x <= f.bbox[2] + 2 && y >= f.bbox[1] - 2 && y <= f.bbox[3] + 2)
+      if (iss) { W.selIss = iss.ikey; W.selField = null; paintDsOverlays(); link({ t: 'iss', id: S.ds.id, ikey: iss.ikey }); return; }   // a finding box first
+      const f = (S.ds?.fields || []).filter(f => f.page === page && inb(f.bbox))
         .sort((a, b) => (a.bbox[2] - a.bbox[0]) * (a.bbox[3] - a.bbox[1]) - (b.bbox[2] - b.bbox[0]) * (b.bbox[3] - b.bbox[1]))[0];
-      if (f) { selKey = f.key; selIss = null; paint(); link({ t: 'field', id: S.ds.id, key: f.key }); }
+      if (f) { W.selField = f.key; W.selIss = null; paintDsOverlays(); link({ t: 'field', id: S.ds.id, key: f.key }); }
     } });
-  const paint = () => {
-    if (!S.ds) return;
-    const ov = (S.ds.issues || []).filter(i => !i.comment_id && i.bbox && i.status !== 'Dismissed' && i.type !== 'Extraction Review')
-      .map(i => ({ cat: i.color, page: i.page, bbox: i.bbox, key: i.key, no: i.no, title: `#${i.no} ${i.type} · ${i.field}`, text: i.description, iss: i.ikey, sel: selIss === i.ikey }));
-    const f = selKey && S.ds.fields.find(x => x.key === selKey);
-    if (f?.bbox) ov.push({ cat: 'field', page: f.page, bbox: f.bbox, title: f.display });
-    V.setMarks(S.ds.comments.filter(c => c.page && c.bbox).map(c => ({ id: c.id, page: c.page, bbox: c.bbox, kind: c.kind || 'rect', points: c.points, style: c.style || null,
-      category: c.category || 'comment', text: c.text, by: c.by, editable: false })));
-    V.setOverlays(ov);
-  };
   const show = async id => {
     if (!S.ds || S.ds.id !== id) {
-      S.ds = await api('GET', `/datasheets/${id}`); selKey = selIss = null;
+      const d = await dsFetch(id); if (S.ds && S.ds.id === id) return;         // a newer message already showed it
+      S.ds = d; S.dsId = id; W.selIss = W.selField = W.selCm = null;
       await V.load(S.ds.document_id, S.ds.pages);
       $('#ptag').textContent = S.ds.tag; $('#pinfo').textContent = `Doc. ${S.ds.doc_no} · Rev.${S.ds.rev} · ${S.ds.pages.length}쪽`; document.title = `PDF · ${S.ds.tag}`;
     }
-    paint();
+    paintDsOverlays();
   };
   if (BUS) BUS.onmessage = async e => {
-    const m = e.data; if (m.from === WIN_ID || m.pid !== S.pid || !linkOn()) return;
-    if (m.t === 'changed') { if (S.ds && (!m.id || m.id === S.ds.id)) { const id = S.ds.id; S.ds = null; await show(id); } return; }
+    const m = e.data; if (m.from === WIN_ID || m.pid !== S.pid || !linkOn() || m.t === 'nav') return;
+    if (m.t === 'changed') { if (S.ds && m.id === S.ds.id) { S.ds = await api('GET', `/datasheets/${S.ds.id}`); paintDsOverlays(); } return; }
     if (!m.id) return;
     await show(m.id);
-    if (m.t === 'field') { selKey = m.key; selIss = null; paint(); const f = S.ds.fields.find(x => x.key === m.key); if (f?.bbox) V.focus(f.page, f.bbox, f.display); }
-    if (m.t === 'iss') { selIss = m.ikey; selKey = null; paint(); const i = S.ds.issues.find(x => x.ikey === m.ikey); if (i?.bbox) V.goPage(i.page, i.bbox); }
+    for (const nid of m.near || []) if (!PRE.has(nid) && nid !== S.ds.id) {      // the next rows of the list: ready before they are clicked
+      const pr = api('GET', `/datasheets/${nid}`).then(d => { (d.pages || []).slice(0, 2).forEach(pg => { const im = new Image(); im.src = `/api/valve/documents/${d.document_id}/page/${pg}.png?zoom=${V.imgZoom()}`; }); return d; });
+      pr.catch(() => PRE.delete(nid)); PRE.set(nid, pr);
+    }
+    if (PRE.size > 12) [...PRE.keys()].slice(0, PRE.size - 12).forEach(k => PRE.delete(k));
+    if (m.t === 'field') { W.selField = m.key; W.selIss = null; paintDsOverlays(); const f = S.ds.fields.find(x => x.key === m.key); if (f?.bbox) V.focus(f.page, f.bbox, f.display); }
+    if (m.t === 'iss') { W.selIss = m.ikey; W.selField = null; paintDsOverlays(); const i = S.ds.issues.find(x => x.ikey === m.ikey); if (i?.bbox) V.goPage(i.page, i.bbox); }
   };
   if (+Q.get('ds')) await show(+Q.get('ds'));
 }

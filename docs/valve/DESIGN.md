@@ -600,4 +600,8 @@ Note 113 · PC-01 Confirm 6(3C0K8 의 '316 SS/FHF' 2개 · API5L-X65 MOV 1500# �
   ⧉(PDF 도구줄) = **PDF 만 새 창**(`?pop=pdf` — 목록 · 요약을 읽지 않는 가벼운 창, 0.8 s · JS 10 MB): 메인의 Tag · 칸 · 지적을 따라가고, 거기서 누른 지적 상자 · 칸을 메인에 보낸다.
   머리 '⧉ 새 창' = 지금 화면을 새 창으로(예: 한 창 Issue List, 다른 창 작업대). 되돌이 방지: 남의 메시지를 적용하는 동안(`LINKING`) 보내지 않고, 이미 같은 선택이면 무시.
   점검 `spike/valve_link_check.cjs` (데이터 사본 서버): 메인 → 새 창 Tag · 칸, 새 창 → 메인 지적, 두 번째 창 Issue List → 메인 · 새 창, 두 번째 창의 결정 → 메인 반영 — LINK OK.
+- **두 모니터 작업 (사용자 요청 "새 창에서도 마크업 · 반응 매우 빠르게 · 왼쪽 list 오른쪽 새 창")**: PDF 창(`?pop=pdf`)에 작업대와 **같은 Mark-up 함수**(addMark · changeMark · eraseMark · markCmd —
+  `W.viewer` 를 PDF 창의 뷰어로) — 같은 대화창 · 되돌리기 · 지우개 · 스탬프. Valve List(행 · 셀) · Issue List · PMS · Process 행을 누르면 `ds`/`field`/`iss` 를 보내고,
+  **다음 줄 둘의 데이터시트 · 첫 쪽 그림을 함께 알려 PDF 창이 미리 받는다**(`near`) → 다음 줄로 갈 때 PDF 창 표시 ≈ 0.1 s(측정 중앙 140 ms, Playwright 포함).
+  PDF 창의 J/K · ▲▼ → `nav` → 메인 창이 목록이면 다음 줄, 작업대면 다음 Tag. 머리 '⧉ PDF' 로 어느 화면에서나 연다.
 
