@@ -485,3 +485,12 @@ body.pop #cmphost { display: flex; flex-direction: column; }
 #mBody > * { flex-shrink: 0; }
 #mBody > .dfl.grow, #mBody > #cmphost, #mBody > #pmsv { flex: 1 1 auto; }
 .dfl.grow { display: flex; flex-direction: column; } .dfl.grow textarea { flex: 1; min-height: 70px; resize: none; }
+/* valve29 — Special Requirements at a glance */
+.rqsum { padding: 6px 8px; margin: 0 0 8px; overflow: auto; max-height: 38vh; }
+.rqsum table.t th, .rqsum table.t td { text-align: center; padding: 3px 6px; } .rqsum table.t td:first-child, .rqsum table.t td:nth-child(2) { text-align: left; }
+.rqsum tr.tot td { background: #e8edf5; }
+.rqn, .rqh, .rqa { border: 0; background: none; padding: 1px 6px; border-radius: 10px; cursor: pointer; font: inherit; color: var(--blue); font-weight: 600; }
+.rqh { color: inherit; } .rqa { color: var(--navy); }
+.rqn:hover, .rqh:hover, .rqa:hover { background: #e8eefc; } .rqn.on, .rqh.on, .rqa.on { background: var(--blue); color: #fff; }
+table.rqt td.rqon { background: #fff6d6; } table.rqt td.rqno { color: #9aa3b2; }
+table.rqt td .rqx { color: #9aa3b2; font-size: 11px; } table.rqt td.rqon { color: #6b4e00; }

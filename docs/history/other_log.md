@@ -178,3 +178,9 @@
 - 판정 불변: `valve_snapshot_diff.py` 실자료 2,887 지적 차이 0 · eval 지문 불변.
 - 성능 측정(`valve_perf.py`, 164/500/990 · cold/warm · 화면)이 찾은 것: Issue Excel 500 DS 105 → 6 s · Valve List 28 → 5.6 s · Mark-up PDF 2차 증가 182 → 42 s · 목록 화면 6,000행 상한(결함) 제거.
 - 보고서 다섯 `docs/valve/valve29/`. 시험 99(valve).
+
+## 2026-11-01 · valve29 — 특수 요구사항 한눈에 + Excel (사용자 요청)
+- Valve List › **Special Req.** 탭: Area 합계(숫자 누르면 거름) + Tag × 요구사항 표(● / Not Req., 원문은 툴팁) + Excel(거른 그대로).
+- API `/requirements` · `/requirements.xlsx` (Summary by Area · by Unit · By Tag · Info). 계산은 Valve List 와 같은 함수 — 수 일치 확인.
+- 시험 +1 (전체 1,901 통과) · UI 25/25 · LINK OK.
+

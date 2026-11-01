@@ -613,7 +613,7 @@ async function selectProject(pid) {
   await refresh();
 }
 async function refresh() {
-  S.sum = await api('GET', `/projects/${S.pid}/summary`); S.sumStamp = Date.now(); S.issues = null; S.grid = null; S.pmsRows = null; S.procRows = null;
+  S.sum = await api('GET', `/projects/${S.pid}/summary`); S.sumStamp = Date.now(); S.issues = null; S.reqs = null; S.grid = null; S.pmsRows = null; S.procRows = null;
   $('#navfoot').innerHTML = `${esc(S.sum.project.name)} · Tag ${S.sum.kpi.tags} · DS ${S.sum.kpi.datasheets}<br>${esc(USER || '이름 없음')} <span class="soft" id="navver"></span>`;
   if (!S.ver) api('GET', '/version').then(v => { S.ver = v.version; const x = $('#navver'); if (x) x.textContent = '· ' + v.version; }).catch(() => {}); else { const x = $('#navver'); if (x) x.textContent = '· ' + S.ver; }
   RENDER[S.view]?.();
@@ -787,11 +787,12 @@ async function dsIssues(dsId) {                     // issues of one datasheet a
   return S.issues.filter(i => i.ds_id === dsId && i.bbox && i.status !== 'Dismissed' && !i.comment_id && (IF.internal || i.type !== 'Extraction Review'))
     .map(i => ({ cat: i.color, page: i.page, bbox: i.bbox, no: i.no, iss: i.ikey, title: `#${i.no} ${i.type} · ${i.field}`, text: i.description, sel: G.selIss === i.ikey }));
 }
-const listTop = () => `<span class="segtab"><button data-lm="grid" class="${G.mode !== 'issues' ? 'on' : ''}">Valve List</button><button data-lm="issues" class="${G.mode === 'issues' ? 'on' : ''}">Issue List${S.sum?.kpi ? ` (${(S.sum.kpi.data_errors || 0) + (S.sum.kpi.data_missing || 0) + (S.sum.kpi.open_items || 0) + (S.sum.kpi.pms_noncompliant || 0) + (S.sum.kpi.pms_review || 0)})` : ''}</button></span>`;
+const listTop = () => `<span class="segtab"><button data-lm="grid" class="${G.mode !== 'issues' && G.mode !== 'req' ? 'on' : ''}">Valve List</button><button data-lm="issues" class="${G.mode === 'issues' ? 'on' : ''}">Issue List${S.sum?.kpi ? ` (${(S.sum.kpi.data_errors || 0) + (S.sum.kpi.data_missing || 0) + (S.sum.kpi.open_items || 0) + (S.sum.kpi.pms_noncompliant || 0) + (S.sum.kpi.pms_review || 0)})` : ''}</button><button data-lm="req" class="${G.mode === 'req' ? 'on' : ''}" title="PFP · Fugitive · Fire Safe · Dense CO2 · NACE … 한눈에">Special Req.</button></span>`;
 const lpWrap = inner => `<div class="lp"><div class="lp-left">${inner}</div><div class="split" id="lpsplit" title="끌어 너비 조절"></div><div class="lp-right" id="lpv" style="width:${LS.get('pvw', 42)}%"></div></div>`;
 async function renderList() {
   const el = $('#v-list');
   if (G.mode === 'issues') return renderIssues();
+  if (G.mode === 'req') return renderReq();
   if (!S.grid) { el.innerHTML = '<div class="empty">불러오는 중…</div>'; try { S.grid = await api('GET', `/projects/${S.pid}/grid`); } catch (e) { S.grid = null; el.innerHTML = `<div class="empty">목록을 불러오지 못했습니다 — ${esc(e.message)}<br><button data-retry="list">다시 시도</button></div>`; return; } }
   if (!S.grid?.columns) { S.grid = null; el.innerHTML = '<div class="empty">목록 응답이 비었습니다 <button data-retry="list">다시 시도</button></div>'; return; }
   const base = [{ key: 'tag', title: 'Tag Number', w: 120 }, { key: 'area', title: 'Area', w: 76 }, { key: 'unit', title: 'Unit', w: 46 }, { key: 'valve_type', title: 'Valve Type', w: 80 }, { key: 'rev', title: 'Rev.', w: 50 },
@@ -904,6 +905,52 @@ async function renderList() {
   });
 }
 const IF = { type: '', sev: '', st: '', q: '', area: '', internal: false };
+/* valve29 — Special Requirements at a glance: Area totals (click a number to filter) + every valve × requirement, Excel */
+const RQ = { area: '', req: '', q: '' };
+const reqShort = h => ({ 'Fugitive Emission (ISO 15848)': 'Fugitive', 'NACE / Sour': 'NACE', 'Partial Stroke Test': 'PST', 'Tightness / Leakage': 'Tightness',
+  'Blow-out Proof Stem': 'Blow-out', 'Material Cert. (EN 10204)': 'Cert. 3.1/3.2', 'DBB / Cavity Relief': 'DBB / Cavity', 'Painting / Coating': 'Painting' }[h] || h);
+function reqCell(v, on) {                                 // 'Yes — Class A type tested (GN 31)' → '● Class A type tested'
+  if (!v) return '';
+  if (!on) return '<span class="rqx">Not Req.</span>';
+  let t = String(v); for (let k = 0; k < 4 && /\([^()]*\)/.test(t); k++) t = t.replace(/\s*\([^()]*\)/g, '');   // nested '(… (PFP) …)' sources
+  t = t.replace(/^Yes\s*—\s*/i, '').replace(/^Required\s*(—\s*)?/i, '').replace(/\s*·\s*notes:.*$/, '').trim();
+  if (/^yes$/i.test(t) || !t) t = '';
+  return `● ${esc(t.slice(0, 28))}${t.length > 28 ? '…' : ''}`;
+}
+async function renderReq() {
+  const el = $('#v-list');
+  if (!S.reqs) { el.innerHTML = '<div class="empty">특수 요구사항을 모으는 중…</div>'; S.reqs = await api('GET', `/projects/${S.pid}/requirements`); }
+  const R = S.reqs, cols = R.columns, q = RQ.q.toUpperCase().replace(/[^0-9A-Z]/g, '');
+  const L = R.tags.filter(t => (!RQ.area || t.area === RQ.area) && (!RQ.req || t.on.includes(RQ.req)) && (!q || t.tag.includes(q)));
+  const num = (n, a, h) => n ? `<button class="rqn ${RQ.area === a && RQ.req === h ? 'on' : ''}" data-ra="${esc(a)}" data-rr="${esc(h)}" title="${esc(a || '전체')} · ${esc(h)} — 이 Tag 들만">${n}</button>` : '<span class="soft">·</span>';
+  const keepY = $('.xg-wrap', el)?.scrollTop || 0;
+  const rows = L.map((t, n) => () => `<tr data-id="${t.ds_id}"><td class="fz" style="left:0">${n + 1}</td><td class="fz fzl" style="left:34px"><b>${esc(t.tag)}</b></td><td>${esc(t.area)}</td><td>${esc(t.unit)}</td><td>${esc(t.valve_type)}</td><td>${t.on.length}</td>
+    ${cols.map(h => { const v = t.cells[h] || ''; const on = t.on.includes(h); return `<td class="${on ? 'rqon' : v ? 'rqno' : ''}" title="${esc(h)}: ${esc(v)}">${reqCell(v, on)}</td>`; }).join('')}</tr>`);
+  el.innerHTML = `<div class="vh">${listTop()}<input type="search" id="rqq" placeholder="Tag 검색" value="${esc(RQ.q)}" style="width:150px">
+      <span class="soft">${RQ.area || RQ.req ? `거른 것: <b>${esc(RQ.area || '전체 Area')}</b> · <b>${esc(RQ.req ? reqShort(RQ.req) : '모든 요구사항')}</b> <button id="rqclr">지우기</button> · ` : ''}${L.length} / ${R.tags.length} Tag</span>
+      <span class="sp"></span><button class="pri" id="rqx" title="Summary by Area · Summary by Unit · By Tag (지금 거른 대로)">⇩ Special Requirements Excel</button></div>
+    <div class="card rqsum"><table class="t"><thead><tr><th>Area</th><th>Units</th><th>Tags</th>${cols.map(h => `<th><button class="rqh ${!RQ.area && RQ.req === h ? 'on' : ''}" data-ra="" data-rr="${esc(h)}" title="${esc(h)}">${esc(reqShort(h))}</button></th>`).join('')}</tr></thead><tbody>
+      ${R.by_area.map(a => `<tr><td><button class="rqa ${RQ.area === a.area && !RQ.req ? 'on' : ''}" data-ra="${esc(a.area)}" data-rr="">${esc(a.area)}</button></td><td class="soft">${esc(a.units.join(', '))}</td><td>${a.tags}</td>${cols.map(h => `<td>${num(a.counts[h], a.area, h)}</td>`).join('')}</tr>`).join('')}
+      <tr class="tot"><td><b>Total</b></td><td></td><td><b>${R.total.tags}</b></td>${cols.map(h => `<td><b>${num(R.total.counts[h], '', h)}</b></td>`).join('')}</tr></tbody></table>
+      <p class="soft hint">숫자 = 그 요구사항이 적용되는 Tag 수 (데이터시트 칸이 먼저 · 없으면 Notes / General Notes). 숫자를 누르면 아래 표가 그 Tag 들로 걸러집니다.</p></div>
+    ${lpWrap(`<div class="xg-wrap rqwrap"><table class="xg rqt" id="rqt" style="width:${34 + 130 + 80 + 46 + 56 + 50 + cols.length * 104}px"><colgroup><col style="width:34px"><col style="width:130px"><col style="width:80px"><col style="width:46px"><col style="width:56px"><col style="width:50px">${cols.map(() => '<col style="width:104px">').join('')}</colgroup>
+      <thead><tr><th class="fz" style="left:0">#</th><th class="fz fzl" style="left:34px">Tag Number</th><th>Area</th><th>Unit</th><th>Type</th><th title="적용되는 요구사항 수">Count</th>${cols.map(h => `<th title="${esc(h)}">${esc(reqShort(h))}</th>`).join('')}</tr></thead>
+      <tbody></tbody></table></div>`)}`;
+  chunkRows($('#rqt tbody'), rows, 80, `<tr><td colspan="${6 + cols.length}" class="empty">조건에 맞는 Tag 가 없습니다</td></tr>`);
+  const wrap = $('.rqwrap', el); if (wrap) wrap.scrollTop = keepY;
+  $$('[data-lm]', el).forEach(b => b.onclick = () => { G.mode = b.dataset.lm; renderList(); });
+  mountPreview();
+  el.querySelector('.rqsum').onclick = e => { const b = e.target.closest('[data-ra]'); if (!b) return;
+    const a = b.dataset.ra, r = b.dataset.rr; if (RQ.area === a && RQ.req === r) { RQ.area = RQ.req = ''; } else { RQ.area = a; RQ.req = r; } renderReq(); };
+  $('#rqclr') && ($('#rqclr').onclick = () => { RQ.area = RQ.req = ''; renderReq(); });
+  $('#rqq').oninput = e => { RQ.q = e.target.value; clearTimeout(RQ.t); RQ.t = setTimeout(() => { renderReq().then(() => { const f = $('#rqq'); f.focus(); f.setSelectionRange(f.value.length, f.value.length); }); }, 200); };
+  $('#rqx').onclick = () => download(`/projects/${S.pid}/requirements.xlsx?area=${encodeURIComponent(RQ.area)}&req=${encodeURIComponent(RQ.req)}`).then(() => toast('Special Requirements Excel 을 내려받았습니다')).catch(e => toast(e.message, 1));
+  const tb = $('#rqt tbody');
+  tb.onclick = async e => { const tr = e.target.closest('tr[data-id]'); if (!tr) return; $$('tr.sel', tb).forEach(x => x.classList.remove('sel')); tr.classList.add('sel');
+    const id = +tr.dataset.id; link({ t: 'ds', id }); const d = await api('GET', `/datasheets/${id}`);
+    preview({ doc: d.document_id, pages: d.pages, page: d.pages[0], ovs: [], label: `${d.tag} · Special Requirements` }); };
+  tb.ondblclick = e => { const tr = e.target.closest('tr[data-id]'); if (tr) openDs(+tr.dataset.id); };
+}
 async function renderIssues(rowsOnly) {
   const el = $('#v-list');
   if (!S.issues) { el.innerHTML = '<div class="empty">지적 사항을 계산하는 중…</div>'; const r = await loadIssues(); S.issues = r.issues; S.issueTypes = r.types; }
@@ -1989,7 +2036,7 @@ async function onLink(m) {
   LINKING = true;
   try {
     if (m.t === 'changed') {                               // a decision / edit elsewhere: refresh what shows it (coalesced)
-      S.issues = null; S.grid = null; PRE.clear();
+      S.issues = null; S.grid = null; S.reqs = null; PRE.clear();
       clearTimeout(CHG_T); CHG_T = setTimeout(async () => {
         if (S.view === 'review' && S.ds && (!m.id || m.id === S.ds.id)) { S.ds = await api('GET', `/datasheets/${S.ds.id}`); paintDsOverlays(); drawHead(); drawRight(); }
         else if (S.view === 'list') renderList();

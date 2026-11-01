@@ -104,6 +104,13 @@
 - **✎** = 도구가 쓴 코멘트와 Required 를 고치거나 보완합니다. 결정(Confirmed 등)은 그대로이고, 고친 문구가 Excel · Mark-up PDF 로 나갑니다. 도구 원문은 남고 '도구 원문으로' 되돌릴 수 있습니다.
 - Note 의 **Dense phase CO2** 는 PFP · Fugitive · Fire Safe 처럼 특수 요구사항으로 정리됩니다 — Valve List 'All Valves' 의 열, Summary · Summary by Area 의 Tag 수.
 
+## 10-1. 특수 요구사항 한눈에 · Excel (valve29)
+- Valve List 위 **Special Req.** 탭 — 위쪽은 Area 별 합계(PFP · Fugitive · Fire Safe · Dense CO2 · NACE · SIL …), 아래는 Tag × 요구사항 표.
+- 합계 숫자를 누르면 그 Area · 그 요구사항의 Tag 만 표에 남습니다. 열 제목을 누르면 그 요구사항 전체.
+- 표의 ● 는 요구됨(마우스를 올리면 근거 Note 원문), Not Req. 는 데이터시트가 '요구 안 함'. 빈칸은 언급 없음.
+- 행을 누르면 미리보기(새 창과 연동), 두 번 누르면 작업대.
+- **Excel** 버튼: 지금 거른 그대로 `Special_Requirements.xlsx` — Summary by Area · Summary by Unit · By Tag(Tag 링크 · 필터) · Info.
+
 ## 11. 자주 묻는 것
 
 - **Area · Unit 은 어디서 오나?** 데이터시트 제목(QELNG NORTH / SOUTH / W15)과 P&ID 번호에서. 제목에 '(SYSTEM xx – UNIT yy)' 가 있으면 기존 플랜트 = Brownfield.

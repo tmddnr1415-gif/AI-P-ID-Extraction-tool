@@ -611,3 +611,7 @@ Note 113 · PC-01 Confirm 6(3C0K8 의 '316 SS/FHF' 2개 · API5L-X65 MOV 1500# �
   `requirements` 에 `dense_co2`(데이터시트 Note · 칸, General Note 는 'Fluid phase:' 처럼 이 밸브의 상을 말할 때만 — "for dense/supercritical service shall…" 은 조건이라 제외) —
   실자료 45 Tag(Note 9 등). Valve List 'All Valves' 열 · Summary 와 Summary by Area 에 PFP · Fugitive · Fire Safe · Dense Phase CO2 · NACE Tag 수(`tbe.SUMMARY_REQS`).
 
+### 34-1. 특수 요구사항 요약 (valve29, 사용자 요청 "summary 한눈에 · 엑셀 출력")
+- 새로 계산하지 않는다 — Valve List Excel 과 같은 `requirements.columns()`(최신 Rev)를 `_req_rows` 가 Area / Unit / Tag 로 묶는다. 그래서 화면 · 이 Excel · Valve List Excel 의 수가 같다(실자료 PFP 42 · Fugitive 162 · Fire Safe 137 · Dense 45 · NACE 155 · SIL 116).
+- 'Not Required…' 로 시작하는 칸은 요구 아님. API `GET /projects/{pid}/requirements` · `requirements.xlsx?area=&req=`.
+

@@ -243,6 +243,87 @@ def _proto(ws, border=None, alignment=None, font=None, fill=None):
     return st
 
 
+def requirements_xlsx(R: dict, project: str, base: str = "", area: str = "", req: str = "") -> bytes:
+    """valve29 — Special Requirements at a glance: 'Summary by Area' · 'Summary by Unit' (Tag counts per requirement) ·
+    'By Tag' (each requirement's text with its source, Excel filter).  area / req narrow the By Tag sheet like the screen."""
+    wb = openpyxl.Workbook()
+    thin = Side(style="thin", color="C9CFDB")
+    box = Border(top=thin, bottom=thin, left=thin, right=thin)
+    head_fill, head_font = PatternFill("solid", fgColor="1F2D4D"), Font(bold=True, color="FFFFFF")
+    req_fill, tot_fill, on_fill = PatternFill("solid", fgColor="7A5A00"), PatternFill("solid", fgColor="E8EDF5"), PatternFill("solid", fgColor="FFF6D6")
+    cols = R["columns"]
+
+    def header(ws, row, names, req_from):
+        for n, h in enumerate(names, 1):
+            c = ws.cell(row, n, h)
+            c.fill, c.font, c.border = (req_fill if n >= req_from else head_fill), head_font, box
+            c.alignment = Alignment(wrap_text=True, vertical="center", horizontal="center")
+        ws.row_dimensions[row].height = 42
+
+    ws = wb.active
+    ws.title = "Summary by Area"
+    ws.cell(1, 1, f"Special Requirements — {project} (Tags whose datasheet / notes require it · newest revision)").font = Font(bold=True, size=13)
+    names = ["No.", "Area", "Units", "Tags"] + cols
+    header(ws, 3, names, 5)
+    r = 4
+    for n, a in enumerate(R["by_area"], 1):
+        for k, v in enumerate([n, a["area"], ", ".join(a["units"]), a["tags"]] + [a["counts"].get(h) or None for h in cols], 1):
+            c = ws.cell(r, k, v)
+            c.border = box
+            if k > 4 and v:
+                c.fill = on_fill
+        r += 1
+    for k, v in enumerate(["", "Total", "", R["total"]["tags"]] + [R["total"]["counts"].get(h) or None for h in cols], 1):
+        c = ws.cell(r, k, v)
+        c.fill, c.font, c.border = tot_fill, Font(bold=True), box
+    for k, w in enumerate([5, 12, 22, 7] + [13] * len(cols), 1):
+        ws.column_dimensions[get_column_letter(k)].width = w
+    ws.freeze_panes = "E4"
+
+    wu = wb.create_sheet("Summary by Unit")
+    names = ["No.", "Area", "Site", "Unit", "Tags"] + cols
+    header(wu, 1, names, 6)
+    for n, u in enumerate(R["by_unit"], 1):
+        for k, v in enumerate([n, u["area"], u["site"], u["unit"], u["tags"]] + [u["counts"].get(h) or None for h in cols], 1):
+            c = wu.cell(n + 1, k, v)
+            c.border = box
+            if k > 5 and v:
+                c.fill = on_fill
+    for k, w in enumerate([5, 12, 9, 7, 7] + [13] * len(cols), 1):
+        wu.column_dimensions[get_column_letter(k)].width = w
+    wu.auto_filter.ref = f"A1:{get_column_letter(len(names))}{max(2, len(R['by_unit']) + 1)}"
+    wu.freeze_panes = "F2"
+
+    wt = wb.create_sheet("By Tag")
+    names = ["No.", "Area", "Site", "Unit", "Tag Number", "Valve Type", "Rev.", "DS Document No.", "Count"] + cols
+    header(wt, 1, names, 10)
+    tags = [t for t in R["tags"] if (not area or t["area"] == area) and (not req or req in t["on"])]
+    wrap = Alignment(wrap_text=True, vertical="top")
+    for n, t in enumerate(tags, 1):
+        vals = [n, t["area"], t["site"], t["unit"], t["tag"], t["valve_type"], t["rev"], t["doc_no"], len(t["on"])] + [t["cells"].get(h) or "" for h in cols]
+        for k, v in enumerate(vals, 1):
+            c = wt.cell(n + 1, k, v)
+            c.border, c.alignment = box, wrap
+            if k >= 10 and cols[k - 10] in t["on"]:
+                c.fill = on_fill
+        if base:
+            c = wt.cell(n + 1, 5)
+            c.hyperlink = deep_link(base, project, {"ds_id": t["ds_id"], "key": "tag", "page": None})
+            c.font = Font(color="2F5BD8", underline="single", bold=True)
+    for k, w in enumerate([5, 11, 8, 6, 16, 9, 5, 20, 7] + [30] * len(cols), 1):
+        wt.column_dimensions[get_column_letter(k)].width = w
+    wt.auto_filter.ref = f"A1:{get_column_letter(len(names))}{max(2, len(tags) + 1)}"
+    wt.freeze_panes = "F2"
+    info = wb.create_sheet("Info")
+    for row in (["Project", project], ["Generated", dt.datetime.now().strftime("%Y-%m-%d %H:%M")], ["Filter", f"Area={area or 'all'} · Requirement={req or 'all'}"],
+                ["Rule", "A requirement counts for a tag when its cell is filled and is not 'Not Required' — the datasheet row decides, Notes / General Notes add (sources in brackets)."]):
+        info.append(row)
+    info.column_dimensions["A"].width, info.column_dimensions["B"].width = 12, 110
+    buf = io.BytesIO()
+    wb.save(buf)
+    return buf.getvalue()
+
+
 def issues_xlsx(rows: list[dict], base: str, project: str, by: str = "", sources: list[str] | None = None,
                 verification: list[dict] | None = None) -> bytes:
     wb = openpyxl.Workbook()

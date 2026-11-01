@@ -1673,6 +1673,63 @@ async def rule_change_update(cid: int, request: Request):
     return {"ok": True, "status": st}
 
 
+def _req_rows(con, pid) -> dict:
+    """valve29 — special requirements of every valve at a glance (newest revision): one row per tag with the requirement
+    columns (requirements.columns — the datasheet row decides, notes add, sources in brackets) + Area / Site / Unit totals.
+    A requirement 'applies' when its cell is filled and is not 'Not Required'."""
+    latest = _latest(store.rows(con, "SELECT id, tag_key, rev FROM datasheet WHERE project_id=?", pid))
+    pv = _profile_ver(con, pid)
+    heads = [h for _, h in reqmod.COLUMNS]
+    tags = []
+    for d in latest.values():
+        x = _ds_full(con, d["id"], pv=pv) or {}
+        cells = reqmod.columns(x.get("requirements") or [])
+        loc = x.get("location") or {}
+        tags.append({"ds_id": x.get("id"), "tag": x.get("tag_key"), "valve_type": x.get("valve_type"), "rev": x.get("rev"), "doc_no": x.get("doc_no"),
+                     "area": loc.get("area") or "(not stated)", "site": loc.get("site") or "", "unit": loc.get("unit") or "", "cells": cells,
+                     "on": [h for h in heads if cells.get(h) and not str(cells[h]).startswith("Not Required")]})
+    tags.sort(key=lambda t: (exports.AREA_ORDER.get(t["area"], 9), t["site"], t["unit"], t["tag"]))
+    used = [h for h in heads if any(h in t["on"] or t["cells"].get(h) for t in tags)]
+
+    def group(key):
+        out = {}
+        for t in tags:
+            g = out.setdefault(key(t), {"tags": 0, "counts": {h: 0 for h in used}, "units": set()})
+            g["tags"] += 1
+            g["units"].add(t["unit"])
+            for h in t["on"]:
+                if h in g["counts"]:
+                    g["counts"][h] += 1
+        return out
+    ba = group(lambda t: t["area"])
+    by_area = [{"area": a, "units": sorted(u for u in ba[a]["units"] if u), "tags": ba[a]["tags"], "counts": ba[a]["counts"]}
+               for a in sorted(ba, key=lambda a: exports.AREA_ORDER.get(a, 9))]
+    bu = group(lambda t: (t["area"], t["site"], t["unit"]))
+    by_unit = [{"area": k[0], "site": k[1], "unit": k[2], "tags": v["tags"], "counts": v["counts"]}
+               for k, v in sorted(bu.items(), key=lambda kv: (exports.AREA_ORDER.get(kv[0][0], 9), kv[0][1], kv[0][2]))]
+    total = {"tags": len(tags), "counts": {h: sum(1 for t in tags if h in t["on"]) for h in used}}
+    return {"columns": used, "tags": tags, "by_area": by_area, "by_unit": by_unit, "total": total}
+
+
+@router.get("/api/valve/projects/{pid}/requirements")
+def requirements_summary(pid: int):
+    con = store.connect()
+    return _json(_req_rows(con, pid))
+
+
+@router.get("/api/valve/projects/{pid}/requirements.xlsx")
+async def requirements_xlsx(pid: int, request: Request, area: str = "", req: str = ""):
+    """Special Requirements Excel: Summary by Area · Summary by Unit · By Tag (filtered like the screen when area / req given)."""
+    con = store.connect()
+    pname = store.one(con, "SELECT name FROM project WHERE id=?", pid)["name"]
+    data = await run_in_threadpool(lambda: exports.requirements_xlsx(_req_rows(con, pid), pname, _base(request), area, req))
+    store.audit(con, pid, None, None, "export", None, "requirements.xlsx", _user(request), f"area={area} req={req}")
+    con.commit()
+    fn = f"{pname.replace(' ', '_')}_Valve_Special_Requirements_{store.now()[:10]}.xlsx"
+    return Response(data, media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    headers={"Content-Disposition": f"attachment; filename*=UTF-8''{quote(fn)}"})
+
+
 @router.get("/api/valve/projects/{pid}/feedback.json")
 def feedback_json(pid: int, request: Request):
     """Review feedback for the developers (P&ID hotfix82 'VOC → 재학습 경로'): what reviewers decided about the tool's

@@ -254,3 +254,23 @@ def test_reference_document_versions(tmp_path, monkeypatch):
     from app.valve import api
     ref = api._doc_ref(con, pid, "process", new)
     assert ref["filename"] == "PD_rev2.pdf" and ref["uploaded_at"] == "2026-10-20" and [e["filename"] for e in ref["earlier"]] == ["PD_rev1.pdf"]
+
+
+def test_special_requirements_summary_and_excel(tmp_path, monkeypatch):
+    """valve29: special requirements (PFP · Fugitive · Fire Safe · Dense CO2 …) at a glance — by Area / Unit / Tag, same in Excel."""
+    c, pid, up = _client(tmp_path, monkeypatch)
+    up("ds_A.pdf", _pdf("A", notes=["Fluid Phase: Dense phase CO2.", "Fugitive emission Class A type tested."]))
+    R = c.get(f"/api/valve/projects/{pid}/requirements").json()
+    assert R["total"] == {"tags": 1, "counts": {"Fugitive Emission (ISO 15848)": 1, "Dense Phase CO2": 1}}
+    assert len(R["tags"]) == 1 and "Dense Phase CO2" in R["columns"]
+    t = R["tags"][0]
+    assert {k for k, v in t["cells"].items() if v} <= set(R["columns"]) and "Dense Phase CO2" in t["on"]
+    assert sum((r.get("counts") or {}).get("Dense Phase CO2", 0) for r in (R["by_area"].values() if isinstance(R["by_area"], dict) else R["by_area"])) == 1
+    wb = openpyxl.load_workbook(io.BytesIO(c.get(f"/api/valve/projects/{pid}/requirements.xlsx").content))
+    assert {"Summary by Area", "Summary by Unit", "By Tag", "Info"} <= set(wb.sheetnames)
+    ws = wb["By Tag"]
+    head = [h.value for h in ws[1]]
+    assert ws.max_row == 2 and "Dense Phase CO2" in head
+    # a filter that matches nothing gives an empty tag sheet, not an error
+    wb = openpyxl.load_workbook(io.BytesIO(c.get(f"/api/valve/projects/{pid}/requirements.xlsx?req=PFP").content))
+    assert wb["By Tag"].max_row == 1
