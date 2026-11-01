@@ -416,8 +416,67 @@ def _label(page, r, i, col):
     t.update(text_color=(1, 1, 1), fill_color=col)
 
 
+MARGIN_W = 250                                           # pt added to the right of a datasheet page for the comments
+_MCSS = ("*{font-family:sans-serif;} body{font-size:6.6pt;line-height:1.18;color:#1B2433;} p{margin:0 0 3.2pt 0;}"
+         ".h{font-size:7.6pt;font-weight:bold;color:#1F2D4D;margin:0 0 4pt 0;border-bottom:0.6pt solid #1F2D4D;}"
+         ".n{color:#FFFFFF;font-weight:bold;} .t{font-weight:bold;} .r{color:#5A6478;} .q{color:#0E5A3A;}")
+
+
+def _cmt_html(i) -> str:
+    """One numbered comment as printed beside the page: [no] Type · Field — description · Required … · reviewer."""
+    who = f" <span class='r'>({html.escape(i['by'])})</span>" if i.get("by") else ""
+    val = i.get("value")
+    req = f" <span class='q'>Required: {html.escape(_ascii(i['expected']))}</span>" if i.get("expected") else ""
+    v = f" <span class='r'>[{html.escape(_ascii(str(val))[:60])}]</span>" if val and not i.get("comment_id") else ""
+    return (f"<p><span class='n' style='background-color:{_swatch(i['color'])}'>&nbsp;{i['no']}&nbsp;</span> "
+            f"<span class='t'>{html.escape(i['type'])}</span> · {html.escape(_ascii(i.get('field') or ''))}{v}{who}<br/>"
+            f"{html.escape(_ascii(i.get('description') or ''))}{req}</p>")
+
+
+def _comment_margin(out, pno: int, items: list[dict], head: str) -> list[dict]:
+    """valve25: widen the page to the right and print its numbered comments there, so the comments print with the page in
+    every viewer (no pop-ups needed).  Returns the comments that did not fit (they go to a continuation page)."""
+    page = out[pno]
+    if page.rotation or not items:
+        return items
+    mb = page.mediabox
+    page.set_mediabox(pymupdf.Rect(mb.x0, mb.y0, mb.x1 + MARGIN_W, mb.y1))
+    pr = page.rect
+    page.draw_rect(pymupdf.Rect(pr.x1 - MARGIN_W, pr.y0, pr.x1, pr.y1), color=None, fill=(0.97, 0.975, 0.985), overlay=False)
+    page.draw_line((pr.x1 - MARGIN_W, pr.y0 + 14), (pr.x1 - MARGIN_W, pr.y1 - 14), color=(0.62, 0.66, 0.74), width=0.6)
+    box = pymupdf.Rect(pr.x1 - MARGIN_W + 8, pr.y0 + 14, pr.x1 - 8, pr.y1 - 14)
+    hd = f"<p class='h'>{html.escape(head)}</p>"
+    n = len(items)
+    while n > 0:
+        more = f"<p class='r'>… {len(items) - n} more on the next page</p>" if n < len(items) else ""
+        spare, _ = page.insert_htmlbox(box, hd + "".join(_cmt_html(i) for i in items[:n]) + more, css=_MCSS, scale_low=0.8)
+        if spare >= 0:
+            return items[n:]
+        n = n - max(1, n // 4) if n > 8 else n - 1
+    page.insert_htmlbox(box, hd + "<p class='r'>Comments on the next page.</p>", css=_MCSS)
+    return items
+
+
+def _comment_page(items: list[dict], head: str, size) -> pymupdf.Document:
+    buf = io.BytesIO()
+    w = pymupdf.DocumentWriter(buf)
+    story = pymupdf.Story(html=f"<p class='h'>{html.escape(head)}</p>" + "".join(_cmt_html(i) for i in items), user_css=_MCSS)
+    box = pymupdf.Rect(0, 0, *size)
+    more = 1
+    while more:
+        dev = w.begin_page(box)
+        more, _ = story.place(box + (36, 36, -36, -36))
+        story.draw(dev)
+        w.end_page()
+    w.close()
+    return pymupdf.open("pdf", buf.getvalue())
+
+
 def markup_pdf(entries: list[dict], project: str, title: str = "Valve Datasheet Review — Mark-up",
-               summary_pages: bool = True) -> bytes:
+               summary_pages: bool = True, margin: bool = True, flatten: bool = True) -> bytes:
+    """valve25: margin — each page carries its numbered comments (program + reviewer) printed beside it;
+    flatten — annotations are baked into the page so every viewer and printer shows them exactly as on screen
+    (off = editable annotations for Acrobat / Bluebeam)."""
     """entries: [{path, pages, tag, doc_no, rev, filename, issues}] in output order."""
     out = pymupdf.open()
     toc, srcs = [], {}
@@ -452,6 +511,15 @@ def markup_pdf(entries: list[dict], project: str, title: str = "Valve Datasheet 
         for i in e["issues"]:
             if i.get("page") in pmap:
                 _annotate(out[pmap[i["page"]]], i)
+        if margin:                                         # last page first: continuation pages shift later indexes only
+            for p in sorted(pmap, key=lambda k: -pmap[k]):
+                its = [i for i in e["issues"] if i.get("page") == p]
+                head = f"{e['tag']} · Rev.{e['rev']} · p.{p} — Review comments ({len(its)})"
+                rest = _comment_margin(out, pmap[p], its, head)
+                if rest:
+                    pg = out[pmap[p]]
+                    out.insert_pdf(_comment_page(rest, head + " (cont.)", (pg.rect.width, pg.rect.height)),
+                                   start_at=pmap[p] + 1)
         if summary_pages and e["issues"]:
             trs = "".join(
                 f"<tr><td><span style='background-color:{_swatch(i['color'])};color:#FFFFFF'>&nbsp;{i['no']}&nbsp;</span></td>"
@@ -472,6 +540,8 @@ def markup_pdf(entries: list[dict], project: str, title: str = "Valve Datasheet 
     if out.page_count == 0:
         out.new_page()
         out[0].insert_text((72, 72), "No issues selected.", fontsize=12)
+    if flatten:
+        out.bake(annots=True, widgets=True)               # mark-ups become page content: identical on screen, print, any viewer
     out.set_toc(toc)
     return out.tobytes(garbage=4, deflate=True, use_objstms=1)    # garbage=4: logos and fonts stored once (8x smaller)
 

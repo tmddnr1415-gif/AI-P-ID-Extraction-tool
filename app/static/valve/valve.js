@@ -51,7 +51,8 @@ function modal(title, html, buttons) {
 const TYPE_KO = { 'Data Missing': '누락 · 빈 값', 'Open Item': 'HOLD / TBC', 'Data Error': '데이터 오류', 'PMS Non-Compliance': 'PMS 부적합',
   'PMS Review': 'PMS 확인', 'Process Mismatch': 'Process Data 불일치', 'Material Review': '재질 검토', 'Valve Review': '설계 · 다른 DS 대비 검토',
   'Revision Change': 'Revision 변경', 'Reviewer Correction': '검토자 수정', 'Reviewer Comment': '검토자 의견', 'Extraction Review': '도구 내부 확인 (설계사용 아님)' };
-async function pickTypes(title, { tag = '', preset = null, note = '' } = {}) {
+const pdfq = () => { const o = LS.get('pdfopt', { margin: 1, flatten: 1 }); return `&margin=${o.margin ? 1 : 0}&flatten=${o.flatten ? 1 : 0}`; };   // valve25
+async function pickTypes(title, { tag = '', preset = null, note = '', pdf = /PDF/.test(title) } = {}) {
   const r = await api('GET', `/projects/${S.pid}/issues`);
   const live = r.issues.filter(i => i.status !== 'Dismissed' && (!tag || i.tag === tag));
   const cnt = t => live.filter(i => i.type === t).length;
@@ -62,7 +63,10 @@ async function pickTypes(title, { tag = '', preset = null, note = '' } = {}) {
       <span class="soft">${esc(TYPE_KO[t] || '')}</span><span class="n">${cnt(t)}</span></label>`;
   const html = `${note ? `<p class="soft">${esc(note)}</p>` : ''}<div class="tpbar"><button type="button" data-tpall="1">전체</button><button type="button" data-tpall="0">모두 끄기</button>
       <button type="button" data-tpdef="1">설계사용 기본</button><span class="sp"></span><span id="tpsum" class="soft"></span></div>
-    <div class="tplist">${r.types.map(row).join('')}</div><p class="soft" style="margin:6px 0 0">Dismissed 는 넣지 않습니다. 고른 종류는 다음 출력 때도 그대로 기억합니다.</p>`;
+    <div class="tplist">${r.types.map(row).join('')}</div><p class="soft" style="margin:6px 0 0">Dismissed 는 넣지 않습니다. 고른 종류는 다음 출력 때도 그대로 기억합니다.</p>
+    ${pdf ? (o => `<div style="margin-top:8px;padding-top:6px;border-top:1px solid var(--line,#e3e6ec);display:grid;gap:4px">
+      <label style="display:flex;gap:6px;align-items:center"><input type="checkbox" id="poM" style="width:auto;flex:none;margin:0" ${o.margin ? 'checked' : ''}> <b style="white-space:nowrap">코멘트를 쪽 옆에 인쇄</b><span class="soft">— 번호마다 지적 · 검토자 의견이 그 쪽 오른쪽에</span></label>
+      <label style="display:flex;gap:6px;align-items:center"><input type="checkbox" id="poF" style="width:auto;flex:none;margin:0" ${o.flatten ? 'checked' : ''}> <b style="white-space:nowrap">마크업 고정</b><span class="soft">— 어느 뷰어 · 인쇄에서도 화면 그대로 (끄면 Acrobat 에서 고칠 수 있는 주석)</span></label></div>`)(LS.get('pdfopt', { margin: 1, flatten: 1 })) : ''}`;
   const done = modal(title, html, [['취소', null], ['만들기', 'go', 1]]);
   const box = $('#mBody'), sum = () => { const ts = $$('input[data-ty]:checked', box).map(x => x.dataset.ty);
     $('#tpsum', box).textContent = `${ts.length}종 · ${ts.reduce((a, t) => a + cnt(t), 0)}건`; const b = [...$$('#mAct button')].pop(); if (b) b.disabled = !ts.length; };
@@ -76,6 +80,7 @@ async function pickTypes(title, { tag = '', preset = null, note = '' } = {}) {
   if (res !== 'go') return null;
   const ts = $$('input[data-ty]:checked', box).map(x => x.dataset.ty);
   if (!preset) LS.set('xtypes', ts);
+  if (pdf) LS.set('pdfopt', { margin: $('#poM', box).checked ? 1 : 0, flatten: $('#poF', box).checked ? 1 : 0 });
   return ts.join(',');
 }
 function chunkRows(tbody, rows, first = 250, empty = '') {   // big tables: first rows now, the rest in idle batches (no freeze)
@@ -620,7 +625,7 @@ function watch(job) {
           <button data-go="list">Excel List 보기 (PDF 미리보기 연동)</button><button id="jmk">⇩ Mark-up PDF</button><span class="soft">Excel 의 칸 · 링크를 누르면 이 도구가 그 PDF 장 · 위치를 엽니다</span></div>`);
         j.exports.forEach((f, n) => setTimeout(() => { const a = document.createElement('a'); a.href = f.url; a.download = f.name; document.body.append(a); a.click(); a.remove(); }, 300 + n * 900));
         $('#jmk', box).onclick = async () => { const t = await pickTypes('Mark-up PDF — 넣을 Issue Type'); if (t == null) return;
-          toast('Mark-up PDF 를 만드는 중…'); download(`/projects/${S.pid}/markup.pdf?types=${encodeURIComponent(t)}`).catch(e => toast(e.message, 1)); };
+          toast('Mark-up PDF 를 만드는 중…'); download(`/projects/${S.pid}/markup.pdf?types=${encodeURIComponent(t)}${pdfq()}`).catch(e => toast(e.message, 1)); };
         await refresh(); return;
       }
       await refresh(); setTimeout(() => { box.dataset.gone = '1'; box.remove(); }, j.errors.length ? 20000 : 5000);
@@ -816,7 +821,7 @@ async function renderIssues(rowsOnly) {
   $('#ixl').onclick = async () => { const p = await pick('Issue List Excel'); if (p == null) return;
     download(`/projects/${S.pid}/issues.xlsx?${p}`).then(r => toast(`Issue List ${r.headers.get('X-Count')}행 — 설계사에게 바로 보낼 수 있습니다`)).catch(e => toast(e.message, 1)); };
   $('#ipdf').onclick = async () => { const p = await pick('Mark-up PDF'); if (p == null) return;
-    toast('Mark-up PDF 를 만드는 중… (Tag 수에 따라 수십 초)'); download(`/projects/${S.pid}/markup.pdf?${p}`).then(() => toast('내려받음 — 인쇄하면 표시도 같이 나옵니다')).catch(e => toast(e.message, 1)); };
+    toast('Mark-up PDF 를 만드는 중… (Tag 수에 따라 수십 초)'); download(`/projects/${S.pid}/markup.pdf?${p}${pdfq()}`).then(() => toast('내려받음 — 표시와 코멘트가 쪽에 같이 인쇄됩니다')).catch(e => toast(e.message, 1)); };
   const tb = $('#ig tbody');
   chunkRows(tb, __rows, 250, __fb);
   tb.onclick = async e => {
@@ -1300,7 +1305,7 @@ async function markCmd(cmd) {
 async function exportMarkup() {
   const t = await pickTypes(`Mark-up PDF (${S.ds.tag}) — 넣을 Issue Type`, { tag: S.ds.tag_key }); if (t == null) return;
   toast('Mark-up PDF 를 만드는 중…');
-  try { await download(`/projects/${S.pid}/markup.pdf?tag=${encodeURIComponent(S.ds.tag_key)}&types=${encodeURIComponent(t)}`); toast('내려받음 — 원본은 그대로, 번호 붙은 표시 + Issue Summary 쪽 (인쇄하면 표시도 같이 나옵니다)'); }
+  try { await download(`/projects/${S.pid}/markup.pdf?tag=${encodeURIComponent(S.ds.tag_key)}&types=${encodeURIComponent(t)}${pdfq()}`); toast('내려받음 — 원본은 그대로, 번호 표시 + 쪽 옆 코멘트 + Issue Summary 쪽'); }
   catch (e) { toast(e.message, 1); }
 }
 async function openPmsRef(page, bbox) { return openRef(S.ds?.pms_doc || S.pmsDoc, page, bbox, 'PMS'); }
@@ -1482,7 +1487,7 @@ async function renderExport() {
     <div class="card exg"><h3>② Issue List <small>Excel · 설계사 전달</small></h3><p>설계사에게 보내는 지적 목록 — Issue Type 을 골라 만듭니다. Area · Unit 필터 · Summary 시트 · Dismissed 제외.</p>
       <p class="soft hint">지금 지적 ${issN}건(Dismissed 제외). 종류 · 심각도로 걸러 내보내려면 Issue List 화면에서.</p>
       <div class="exbtn"><button class="pri" data-ex="iss">⇩ Issue List Excel</button><button data-go="list:issues">Issue List 화면에서 거르기</button></div></div>
-    <div class="card exg"><h3>③ Mark-up PDF <small>인쇄용</small></h3><p>지적이 있는 쪽에 번호 붙은 색 상자 · Mark-up · Tag 별 Issue Summary 를 넣은 인쇄용 PDF.</p>
+    <div class="card exg"><h3>③ Mark-up PDF <small>인쇄용</small></h3><p>지적이 있는 쪽에 번호 붙은 색 상자 · Mark-up, 그 쪽 옆에 번호별 코멘트 · Tag 별 Issue Summary — 인쇄하면 화면 그대로.</p>
       <p class="soft hint">색: <b style="color:var(--pms)">빨강</b> 오류/PMS · <b style="color:var(--proc)">주황</b> 누락/HOLD · <b style="color:#b38f00">노랑</b> Revision · <b style="color:var(--usr)">파랑</b> 검토자. 전체는 Tag 수에 따라 1분 안팎.</p>
       <div class="exbtn"><button class="pri" data-ex="pdf">⇩ Mark-up PDF (전체 Tag)</button><button data-go="review">한 Tag 만 → Datasheet Review</button><button data-go="rev">선택한 변경만 → Revision Comparison</button></div></div>
     <div class="card exg"><h3>④ CSV <small>데이터 · 이력</small></h3><p>추출 칸 전체 · 감사 기록 · Revision 비교.</p>
@@ -1504,7 +1509,7 @@ async function renderExport() {
   const EX = {                                             // kind → [label, filename hint, scope lines, runner]
     vl: ['Valve List Excel', (vl ? vl.filename.replace(/\.xlsx?$/i, '') : 'Valve_List') + '_<날짜>.xlsx', [`Tag ${k.tags}개 (최신 Revision)`, '\'All Valves\' 시트 = 전체 Valve 한 줄씩 · Area · Site · Unit 필터', 'Vendor 행 삭제 · 바뀐 칸 노랑 · 밸브 종류 시트도 Area · Unit 열 + 필터'], () => download(`/projects/${S.pid}/valvelist.xlsx`)],
     iss: ['Issue List Excel', 'Issue_List_<날짜>.xlsx', [`지적 ${issN}건 · Dismissed 제외`, 'Area · Site · Unit 열 (Excel 필터로 North / South / Brownfield / W15 · Unit 별)', '시트: Issue List · Summary by Tag · Info'], t => download(`/projects/${S.pid}/issues.xlsx?types=${encodeURIComponent(t)}`)],
-    pdf: ['Mark-up PDF (전체 Tag)', 'Markup_<프로젝트>_<날짜>.pdf', [`지적이 있는 Tag 만 (${S.sum.tags.filter(t => t.problems).length}개)`, '표지 · Issue Summary 쪽 · 책갈피 · 인쇄 플래그 · 1분 안팎'], t => download(`/projects/${S.pid}/markup.pdf?types=${encodeURIComponent(t)}`)],
+    pdf: ['Mark-up PDF (전체 Tag)', 'Markup_<프로젝트>_<날짜>.pdf', [`지적이 있는 Tag 만 (${S.sum.tags.filter(t => t.problems).length}개)`, '표지 · 쪽 옆 코멘트 · 마크업 고정 · Issue Summary 쪽 · 책갈피 · 1분 안팎'], t => download(`/projects/${S.pid}/markup.pdf?types=${encodeURIComponent(t)}${pdfq()}`)],
     csv: ['Extracted Fields CSV', 'extracted_fields.csv', [`Tag ${k.tags}개 모든 칸`], () => download(`/projects/${S.pid}/extracted.csv`)],
     revx: ['Revision 비교 Excel', 'Revision_Comparison_<날짜>.xlsx', [`Revision 이 둘 이상인 Tag ${k.revision_changes}개 · 바뀐 칸(Added · Deleted · Modified)`], () => download(`/projects/${S.pid}/revisions.xlsx`)],
     fb: ['Review Feedback (json)', 'valve_feedback_<프로젝트>_<날짜>.json', ['Confirmed / Dismissed · 고친 값 · 직접 그린 Error/Missing', '고객 값 포함 — 사내 경로로만'], () => download(`/projects/${S.pid}/feedback.json`)],

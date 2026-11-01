@@ -284,7 +284,7 @@ async def _startup_warm():
     threading.Thread(target=warm_all, daemon=True, name="valve-warm-all").start()
 
 
-VERSION = "valve24"                       # shown in Settings › 정보 and the footer; bump with every package
+VERSION = "valve25"                       # shown in Settings › 정보 and the footer; bump with every package
 
 
 @router.get("/api/valve/version")
@@ -517,7 +517,8 @@ def _ds_full(con, dsid, deep=True, pv=None):
         if not h:
             return None
         pv = pv or _profile_ver(con, h["project_id"])
-        ver = (store.one(con, "SELECT MAX(id) m FROM audit WHERE datasheet_id=?", dsid)["m"], h["review_status"]) + pv
+        ver = (store.one(con, "SELECT MAX(id) m FROM audit WHERE datasheet_id=?", dsid)["m"], h["review_status"]) + pv \
+            + (VERSION,)                                     # valve25: a package with new rule wording recomputes the disk cache
         hit = _DEEP_CACHE.get(dsid)
         if hit and hit[0] == ver:
             return _with_history(con, dict(hit[1]))          # top-level copy: callers may swap keys, never edit nested lists
@@ -1292,13 +1293,14 @@ async def issues_xlsx(pid: int, request: Request, types: str = "", dismissed: in
 
 @router.get("/api/valve/projects/{pid}/markup.pdf")
 async def issues_markup(pid: int, request: Request, types: str = "", dismissed: int = 0, tag: str = "", severity: str = "",
-                        summary: int = 1):
+                        summary: int = 1, margin: int = 1, flatten: int = 1):
     """Marked-up datasheet pages (issues in colour, numbered, printable) + an Issue Summary page per datasheet."""
     con = store.connect()
     pname = store.one(con, "SELECT name FROM project WHERE id=?", pid)["name"]
     rows = _select(project_issues(con, pid), types, dismissed, tag, severity)
     entries = _markup_entries(con, rows)
-    data = await run_in_threadpool(exports.markup_pdf, entries, pname, "Valve Datasheet Review - Mark-up", bool(summary))
+    data = await run_in_threadpool(exports.markup_pdf, entries, pname, "Valve Datasheet Review - Mark-up", bool(summary),
+                                  bool(margin), bool(flatten))
     store.audit(con, pid, None, None, "markup-export", None, "markup.pdf", _user(request), f"{len(rows)} issues · {len(entries)} datasheets")
     con.commit()
     one = entries[0]["tag"] + "_" if len(entries) == 1 else ""

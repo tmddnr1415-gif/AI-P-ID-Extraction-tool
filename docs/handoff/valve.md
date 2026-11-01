@@ -1,6 +1,6 @@
 # 인수인계 — "VALVE Datasheet 검토" 세션 (상한 15KB · 덧붙이지 말고 고쳐 쓴다)
 
-## 지금 상태 (2026-11-01 · valve24)
+## 지금 상태 (2026-11-01 · valve25)
 
 - 작업 브랜치: `ccr-efbe7e75-n915ze`. 이 브랜치는 PID(`claude/gracious-ride-26nqrf`, hotfix131) 와 DASHBOARD(`ccr-248a5c4d-3dji7g`, v16.51) 를 병합한 위에 있다.
 - 무엇: 대시보드 **실행 프로젝트 › CO2 PJT › Datasheet › Ball Valve** = P&ID 서버(8000) `/valve/` — Valve Datasheet 검토 도구.
@@ -20,7 +20,7 @@
   + **valve11 (DESIGN §15) Ball Valve 엔지니어 검토**: 지식 `knowledge.py`(28항목 → `docs/valve/BALL_VALVE_KNOWLEDGE.md`) · 설계 규칙 `expert.py` VR-01~15 ·
     프로젝트 데이터시트 학습 PC-01(같은 Piping Class 다수 값) → 작업대 **Expert 탭**(재질+설계+학습, 지식 펼치기) · Settings › Ball Valve 지식 · Issue 'Valve Review' · Valve List 'Expert Review (Tool)' 열.
     LLM 없이 결정적 규칙 — '전문가' 는 지식표 + 규칙 + 프로젝트 학습이다. 새 지식은 KB 에, 새 규칙은 VR 로.
-  + **valve12 (DESIGN §16) 설계사 코멘트는 핵심만**: 규칙마다 `short` 한 줄(≤120자, 시험) → Issue List · Mark-up PDF · Valve List. 긴 설명은 Expert 탭에만. 새 규칙을 만들 때 short 도 반드시.
+  + **valve12 (DESIGN §16) 설계사 코멘트는 핵심만**: 규칙마다 `short` 한 줄(≤160자, 시험 — valve25 에서 출처 문구로 120→160) → Issue List · Mark-up PDF · Valve List. 긴 설명은 Expert 탭에만. 새 규칙을 만들 때 short 도 반드시.
   + **valve13 (DESIGN §17)**: Issue List Excel · Mark-up PDF 를 만들 때 **Issue Type 선택 창**(`pickTypes`, 고른 것 기억). 새 Issue 종류를 만들면 `TYPE_KO` 에 한글 설명을 더한다.
   + **valve14 (DESIGN §18)**: Area(North · South · Brownfield · W15) · Site · Unit 을 문서에서 읽어(`location.py`) Issue List Excel 맨 앞 열과 Valve List Excel('All Valves' 시트 + 종류 시트 열)에 넣고 Excel 필터.
   + **valve15 (DESIGN §19)**: Area · Site · Unit 별 Tag 번호 규칙을 프로젝트 Tag 에서 배움(`tagrules.py`, 절차서 문서 없음) → Settings › Tag Numbering · TG 검사(중복 · 접두 · 번호 · 기능↔Fail).
@@ -37,18 +37,22 @@
     사용자 설명서 `docs/valve/USER_GUIDE.md` · 추출 견고성 시뮬레이션 `spike/valve_sim_pdf.py`(아래 §27 참조).
   + **valve23 (DESIGN §28) PDF 주석기 수준 Mark-up**: 밑줄·취소선·물결·스탬프·지우개 · 색/굵기(`comment.style`) · 즐겨찾기 · '바로' · 임시 SVG 층(가벼움) · PDF 주석 종류 확장. 시험 `tests/test_valve_markup23.py`.
   + **valve24 (DESIGN §29)**: 타자기 · 말풍선 · 꺾은선 · 다각형 · DRAFT 스탬프 — PDF 주석기 도구 목록 전부. 화면 style 결함 · 팔레트가 직전 표시를 칠하던 결함 수정.
+  + **valve25 (DESIGN §30)**: Mark-up PDF 기본 = 쪽 오른쪽 여백(250pt)에 번호별 코멘트 인쇄(`exports._comment_margin`, 넘치면 다음 쪽) + `bake()` 로 마크업 고정
+    (`?margin=0&flatten=0` 이면 예전처럼 편집 가능한 주석). 공정 값 의견은 출처를 밝힘: `matreview.proc_value` — Process Data 행 우선
+    "Based on Ref. Process Data <Doc No.> (p.N) design temp. 260 °C, …", 없으면 "Based on Datasheet …". Process Mismatch · Data Missing Required 에도 문서 번호.
+    리뷰 디스크 캐시 키에 VERSION 포함 — 꾸러미를 올리면 문구가 새로 계산된다.
   + **빈 Process Data 항목은 전부 Data Missing**(Process DS 참조여도 — 사용자 요청, valve08) → 실자료 2,529건 · Process Data 값을 Required 로.
   실자료: Process Data(Annexure 7) 68 Tag 중 Datasheet 66 연결 · Match 215 · Mismatch 42(Line No. 32 · P&ID 8 · Fail 위치 2) · Review 2 · Referenced 749.
   새 양식 · 새 자료가 오면 같은 방법으로: `valve_visual_pack.py` → 검토(지시문은 §12) → `valve_visual_score.py`.
   PMS 의 Gasket · Bolting 품목 대조는 아직(볼트는 데이터시트 Note 로 재질 검토 MR-11 만).
 - 품질 기준값: `spike/valve_eval.py` → `spike/valve_eval_baseline.json` (지문 541753c612ed · 17,471칸 · Extraction Review 1 · 오독 0 · TBE 일치 92.9 % · PMS Review 58 · F 절 재질 규칙 개수 — `--pd <Process Data PDF>` 를 같이 줘야 온도 규칙이 돈다).
   추출 · PMS 코드를 고치면 `--check` 로 돌린다 — 움직이면 실패하고 바뀐 칸을 보여 준다 (먼저 `--save-baseline` 을 한 번 돌려 둔 `--out` 폴더가 있어야 칸 비교가 나온다). 원인을 칸 단위로 밝힌 뒤에만 `--save-baseline`.
-- 매 회차 끝 점검 여섯(valve20: `valve_sim.py --n 3000` · valve22: `valve_sim_pdf.py --n 190` 추가): `pytest -q tests/test_valve.py` · `valve_eval.py --check` · `valve_diff_sim.py` (불일치 0) · `node spike/valve_ui_audit.cjs` (데이터 **사본**으로 띄운 서버, 22/22).
+- 매 회차 끝 점검 여섯(valve20: `valve_sim.py --n 3000` · valve22: `valve_sim_pdf.py --n 190` 추가): `pytest -q tests/test_valve.py` · `valve_eval.py --check` · `valve_diff_sim.py` (불일치 0) · `node spike/valve_ui_audit.cjs` (데이터 **사본**으로 띄운 서버, 25/25).
 - 회사에서 검토가 쌓이면 Review Feedback json 을 받아 `spike/valve_voc.py <파일> --ds <PDF>` — 기각(Dismissed) 많은 규칙부터 고친다.
 - 실자료(고객 파일 · 저장소에 없음): Datasheet.pdf 456쪽 → 164 데이터시트(On/Off 140 · MOV 24) · TBE 164/164 Tag 일치.
   자료를 다시 받으면 EGG 는 `python3 spike/valve_unegg.py <폴더> *.egg`, TBE .xls 는 시험용으로 `spike/valve_xls2xlsx.py`(xlrd 필요).
-- 시험: `pytest -q tests/test_valve.py` (50개 + api 캐시 1개, 실자료는 `VALVE_SAMPLES=<Datasheet.pdf 폴더>`). 전체 1,860 통과 (2026-10-31).
-- 마지막 꾸러미: **valve24** (P&ID 서버용만 — 대시보드는 valve01 의 메뉴 그대로). valve01~24 모두 회사 적용 확인 전. 각 꾸러미는 hotfix131 기준 누적이라 valve24 하나만 적용해도 된다.
+- 시험: `pytest -q tests/ -k valve` (86개, 실자료는 `VALVE_SAMPLES=<Datasheet.pdf 폴더>`). 전체 pytest 통과 (2026-11-01).
+- 마지막 꾸러미: **valve25** (P&ID 서버용만 — 대시보드는 valve01 의 메뉴 그대로). valve01~25 모두 회사 적용 확인 전. 각 꾸러미는 hotfix131 기준 누적이라 valve25 하나만 적용해도 된다.
 
 ## 파일
 

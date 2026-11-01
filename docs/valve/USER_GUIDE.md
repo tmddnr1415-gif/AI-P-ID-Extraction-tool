@@ -60,7 +60,11 @@
 
 - **Valve List Excel**: 회사 TBE 양식 그대로(바뀐 칸 노랑 + 'Previous:' 메모 · Vendor 행 삭제) + **Summary · Summary by Area · All Valves**(Tag 한 줄씩 — Area · Site · Unit · Tag 구조 · 재질 · PFP · Fugitive · Fire Safe · NACE · SIL … 열, Excel 필터) + Datasheet Notes.
 - **Issue List Excel**: 설계사 전달용. 맨 앞 No. · Area · Site · Unit, Area 순 정렬, Summary · Summary by Area · Summary by Tag 시트. 만들 때 **Issue Type 선택 창**이 뜹니다(선택은 기억됨).
-- Mark-up PDF: 지적이 있는 쪽만 번호 붙은 색 상자 + Tag 별 Issue Summary 쪽. 인쇄하면 표시가 같이 나옵니다.
+- Mark-up PDF: 지적이 있는 쪽만 번호 붙은 색 상자 + **그 쪽 오른쪽 여백에 번호별 코멘트**(프로그램 지적 · 내 의견) + Tag 별 Issue Summary 쪽.
+  마크업은 PDF 에 고정되어 어느 뷰어 · 인쇄에서도 화면 그대로 나옵니다. 선택 창에서 '마크업 고정' 을 끄면 Acrobat 에서 고칠 수 있는 주석으로 나옵니다.
+- 공정 값(설계 온도 · 압력 · 유체 · 상)에 기댄 의견은 어느 문서 값인지 먼저 씁니다:
+  *Based on Ref. Process Data CO2S-SSG-IN-REQ-00009 (p.54) design temp. 260 °C, seat RTFE exceeds its 230 °C limit …* /
+  Process Data 에 값이 없으면 *Based on Datasheet design temp. …*.
 
 ## 6. 자주 묻는 것
 

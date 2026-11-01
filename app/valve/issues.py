@@ -43,6 +43,10 @@ CONTRACTOR_TYPES = ["Data Missing", "Open Item", "Data Error", "PMS Non-Complian
                     "Revision Change",
                     "Reviewer Correction", "Reviewer Comment"]
 # reviewer mark-up category -> (issue type, severity, description prefix) — the contractor reads one list
+MARK_NAME = {"rect": "Rectangle", "cloud": "Cloud", "ellipse": "Oval", "highlight": "Highlight", "line": "Line", "arrow": "Arrow",
+             "pen": "Pen", "underline": "Underline", "strike": "Cross-out", "squiggle": "Squiggly underline", "stamp": "Stamp",
+             "polyline": "Polygon line", "polygon": "Polygon", "callout": "Callout", "typewriter": "Typewriter", "text": "Text box",
+             "note": "Sticky note"}
 MARK_TYPE = {"comment": ("Reviewer Comment", "Major", ""), "question": ("Reviewer Comment", "Minor", "Question: "),
              "error": ("Data Error", "Major", "Reviewer: "), "missing": ("Data Missing", "Major", "Reviewer: ")}
 _OPEN = re.compile(r"\b(HOLD|TBC|TBA)\b|\bto be confirmed\b", re.I)     # anywhere in the value: 'HOLD (… API 607)' · 'Note-9, Hold-1'
@@ -109,7 +113,8 @@ def compute(ds: dict, general_notes: dict | None = None, pms: dict | None = None
     pd_val = {}
     for r in process_rows or []:
         if r.get("pd") and r.get("ds_key"):
-            pd_val[r["ds_key"].split(".")[0]] = f"{r['pd']} {r.get('pd_unit') or ''}".strip()
+            src = " ".join(x for x in ("Ref. Process Data", r.get("pd_doc") or "", f"p.{r['pd_page']}" if r.get("pd_page") else "") if x)
+            pd_val[r["ds_key"].split(".")[0]] = f"{r['pd']} {r.get('pd_unit') or ''}".strip() + f" ({src})"   # valve25: say where from
     groups = {}
     for f in ds["fields"]:
         k = f["key"]
@@ -210,7 +215,7 @@ def compute(ds: dict, general_notes: dict | None = None, pms: dict | None = None
 
     for r in process_rows or []:                         # Phase 3: datasheet process item ≠ Process Data table
         if r["result"] == "Mismatch":
-            add("Process Mismatch", r.get("ds_key") or r["key"], f"{r['item']}: {r['reason']} (Process Data p.{r.get('pd_page')})",
+            add("Process Mismatch", r.get("ds_key") or r["key"], f"{r['item']}: {r['reason']} (Ref. Process Data {r.get('pd_doc') or ''} p.{r.get('pd_page')})".replace("Data  p.", "Data p."),
                 expected=f"{r['pd']} {r.get('pd_unit') or ''}".strip(), page=r.get("ds_page"), bbox=r.get("ds_bbox"),
                 f={"display": r["item"], "value": r.get("ds"), "unit": r.get("ds_unit"), "row": None},
                 extra={"pd_page": r.get("pd_page"), "pd_bbox": r.get("pd_bbox"), "result": r["result"]})
@@ -232,7 +237,10 @@ def compute(ds: dict, general_notes: dict | None = None, pms: dict | None = None
         cat = c.get("category") or "comment"
         it, sev, pre = MARK_TYPE.get(cat, MARK_TYPE["comment"])
         text = c.get("text") or ""
-        add(it, f"comment.{c['id']}", pre + (text or "(see mark-up on the PDF)"), page=c.get("page"), bbox=c.get("bbox"),
+        kind = c.get("kind") or ("rect" if c.get("bbox") else "")
+        stamp = (c.get("style") or {}).get("stamp") if isinstance(c.get("style"), dict) else None
+        what = (f"Stamp '{stamp}'" if kind == "stamp" and stamp else MARK_NAME.get(kind, "Mark-up")) + " on the PDF (no comment text)"
+        add(it, f"comment.{c['id']}", pre + (text or what), page=c.get("page"), bbox=c.get("bbox"),
             f={"display": "Reviewer Mark-up" if c.get("bbox") else "Review Comment", "value": "", "row": None},
             severity=sev, extra={"by": c.get("by"), "comment_id": c["id"], "category": cat,
                                  "kind": c.get("kind") or ("rect" if c.get("bbox") else None), "points": c.get("points"),

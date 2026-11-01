@@ -221,7 +221,7 @@ def compare_item(key: str, ds_v: str, ds_u: str, pd_v: str, pd_u: str) -> tuple[
     if key == "tightness":
         a, b = next((v for k2, v in _TIGHT.items() if k2 in _norm(ds_v)), None), _TIGHT.get(_norm(pd_v))
         if a and b:
-            return (MATCH, "Both tight shut-off") if a == b else (MISMATCH, f"'{ds_v}' vs '{pd_v}'")
+            return (MATCH, "Both tight shut-off") if a == b else (MISMATCH, f"Datasheet '{ds_v}' vs Process Data '{pd_v}'")
         return REVIEW, "Tightness wording not recognised"
     if key == "fluid_state":
         a, b = next((v for k2, v in _PHASE.items() if k2 in _norm(ds_v)), None), next((v for k2, v in _PHASE.items() if k2 in _norm(pd_v)), None)
@@ -237,21 +237,21 @@ def compare_item(key: str, ds_v: str, ds_u: str, pd_v: str, pd_u: str) -> tuple[
             if wa and wb and (wa <= wb or wb <= wa):
                 return MATCH, "Same fluid (one side says more)"
             if wa & wb:
-                return REVIEW, f"Partly the same words: '{ds_v}' vs '{pd_v}'"
-            return MISMATCH, f"'{ds_v}' vs '{pd_v}'"
+                return REVIEW, f"Partly the same words: Datasheet '{ds_v}' vs Process Data '{pd_v}'"
+            return MISMATCH, f"Datasheet '{ds_v}' vs Process Data '{pd_v}'"
         if key == "pid_no":                                            # 'A B' = the valve sits on two P&IDs
             pds = {schema.norm_tag(x) for x in re.sub(r"-\s+", "-", pd_v).split()}
             if a in pds:
                 return MATCH, "Datasheet P&ID is one of those in Process Data" if len(pds) > 1 else "Same"
-            return MISMATCH, f"'{ds_v}' vs '{pd_v}'"
+            return MISMATCH, f"Datasheet '{ds_v}' vs Process Data '{pd_v}'"
         strip_q = lambda x: re.sub(r"\(([0-9A-Z]+)-[0-9A-Z]+\)", r"(\1)", x)   # noqa: E731  '(1C3AS1-QG1)' -> '(1C3AS1)'
         if schema.norm_tag(strip_q(ds_v)) == schema.norm_tag(strip_q(pd_v)):
-            return REVIEW, f"Same line number; only the class qualifier differs ('{ds_v}' vs '{pd_v}')"
-        return MISMATCH, f"'{ds_v}' vs '{pd_v}'"
+            return REVIEW, f"Same line number; only the class qualifier differs (Datasheet '{ds_v}' vs Process Data '{pd_v}')"
+        return MISMATCH, f"Datasheet '{ds_v}' vs Process Data '{pd_v}'"
     # numbers
     a, b = _num(ds_v), _num(pd_v)
     if a is None or b is None:
-        return REVIEW, f"Not a number on one side: '{ds_v}' vs '{pd_v}'"
+        return REVIEW, f"Not a number on one side: Datasheet '{ds_v}' vs Process Data '{pd_v}'"
     da, ba, fa = unit_of(ds_u or ds_v[len(str(_num(ds_v))):]), None, None
     da, ba, fa = unit_of(ds_u) if ds_u else unit_of(re.sub(r"[-\d.,\s]+", "", ds_v, count=1))
     db, bb, fb = unit_of(pd_u)
@@ -310,6 +310,6 @@ def check(ds: dict, pdoc: dict | None) -> list[dict]:
         if res == DS_BLANK and ref:
             res, why = REFERENCED, f"Datasheet refers to the Process Data Sheet ({ref.get('where', '')}) — value taken from there"
         out.append({"key": key, "ds_key": (f or {}).get("key"), "item": DISPLAY.get(key, key), "ds": ds_v, "ds_unit": ds_u, "pd": pv["v"], "pd_unit": pv["unit"],
-                    "result": res, "reason": why, "pd_page": row["page"], "pd_bbox": pv.get("bbox"),
+                    "result": res, "reason": why, "pd_page": row["page"], "pd_bbox": pv.get("bbox"), "pd_doc": pdoc.get("doc_no") or "",
                     "ds_page": (f or {}).get("page"), "ds_bbox": (f or {}).get("bbox")})
     return out

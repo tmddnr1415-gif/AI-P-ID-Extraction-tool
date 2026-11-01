@@ -327,10 +327,20 @@ def test_contractor_exports(tmp_path):
     assert ws.cell(2, head.index("Sheet") + 1).value == "1 of 2"
     assert "ds=7" in ws.cell(2, head.index("Open in Tool") + 1).hyperlink.target
     pdf = pymupdf.open(stream=exports.markup_pdf([{"path": str(src), "pages": [1, 2], "tag": "00XV921", "doc_no": "D",
-                                                   "rev": "A", "filename": "ds.pdf", "issues": rows}], "CO2 PJT"), filetype="pdf")
+                                                   "rev": "A", "filename": "ds.pdf", "issues": rows}], "CO2 PJT", flatten=False), filetype="pdf")
     flags = [a.flags for p in pdf for a in p.annots()]
-    assert flags and all(f & pymupdf.PDF_ANNOT_IS_PRINT for f in flags)   # mark-ups print with the page
+    assert flags and all(f & pymupdf.PDF_ANNOT_IS_PRINT for f in flags)   # editable mark-ups still print with the page
     assert pdf.page_count == 3                                           # 2 datasheet pages + Issue Summary
+    # valve25 default: annotations baked into the page + numbered comments printed in a right-hand margin
+    entry = [{"path": str(src), "pages": [1, 2], "tag": "00XV921", "doc_no": "D", "rev": "A", "filename": "ds.pdf", "issues": rows}]
+    flat = pymupdf.open(stream=exports.markup_pdf(entry, "CO2 PJT"), filetype="pdf")
+    with pymupdf.open(src) as o:
+        w0 = o[0].rect.width
+    hit = [p for p in flat if p.rect.width > w0 + 100]
+    assert hit and not any(list(p.annots()) for p in flat)               # wider page · no loose annotations left
+    assert any(len(p.get_drawings()) for p in hit)
+    t = hit[0].get_text()
+    assert "Review comments" in t and rows[0]["description"][:25] in " ".join(t.split())
 
 
 # ── valve03: notes · process reference · equivalence · odd pages · reviewer mark-ups ──────────────────────
@@ -363,7 +373,7 @@ def test_blank_process_data_always_flagged():
     ds["process_ref"] = {"doc": "03-02-PR-DTS-00002", "where": "Note 4"}
     rows = [{"ds_key": "fluid", "pd": "SOUR WATER", "pd_unit": "", "result": "Referenced"}]
     miss = {i["key"]: i for i in issues.compute(ds, {}, process_rows=rows) if i["type"] == "Data Missing"}
-    assert "fluid" in miss and "03-02-PR-DTS-00002" in miss["fluid"]["description"] and miss["fluid"]["expected"] == "SOUR WATER"
+    assert "fluid" in miss and "03-02-PR-DTS-00002" in miss["fluid"]["description"] and miss["fluid"]["expected"].startswith("SOUR WATER (Ref. Process Data")   # valve25: value + its source
     assert miss["fluid"]["bbox"] and miss["fluid"]["severity"] == "Major"
     ds["fields"][-2]["value"] = "10"                                              # one case given -> the parameter is not missing
     assert "flow" not in {i["key"] for i in issues.compute(ds, {}) if i["type"] == "Data Missing"}
@@ -446,7 +456,7 @@ def test_reviewer_markups(tmp_path, monkeypatch, pdf_path):
     assert mi[ids[2]]["type"] == "Data Missing" and mi[ids[2]]["points"] == shapes[2]["points"]
     assert mi[ids[3]]["type"] == "Reviewer Comment" and mi[ids[3]]["description"].startswith("Question")
     tag = ds["tag_key"]
-    pdf = pymupdf.open(stream=c.get(f"/api/valve/projects/{pid}/markup.pdf?tag={tag}").content, filetype="pdf")
+    pdf = pymupdf.open(stream=c.get(f"/api/valve/projects/{pid}/markup.pdf?tag={tag}&flatten=0").content, filetype="pdf")
     kinds = {a.type[1] for p in pdf for a in p.annots()}
     assert {"Square", "Line", "Ink", "FreeText", "Text", "Highlight", "Circle"} <= kinds
     assert all(a.flags & pymupdf.PDF_ANNOT_IS_PRINT for p in pdf for a in p.annots())
@@ -718,12 +728,12 @@ def test_material_review_rules(tmp_path):
     assert {"MR-09", "MR-13", "MR-15"} <= set(got)
     for m in got.values():                                                                  # every finding cites its basis and evidence
         assert m["basis"] and m["evidence"]
-        assert 0 < len(m["short"]) <= 120, m["short"]                                       # contractor comment: one short line
+        assert 0 < len(m["short"]) <= 160, m["short"]                                       # contractor comment: one short line
     # no values → no opinion
     assert matreview.review({"fields": [f("body_material", "", 24)], "notes": []}) == []
     iss = issues.compute({"fields": ds["fields"], "notes": ds["notes"], "pages": [1]}, {}, material_rows=list(got.values()))
     mi = [i for i in iss if i["type"] == "Material Review"]
-    assert all(len(i["description"]) <= 120 for i in mi)
+    assert all(len(i["description"]) <= 160 for i in mi)
     assert {i["severity"] for i in mi} == {"Major", "Minor"} and not any(i["rule"] in ("MR-09", "MR-13", "MR-15") for i in mi)
 
 
@@ -753,7 +763,7 @@ def test_expert_valve_rules_and_peer_learning():
     for L in got.values():
         for m in L:
             assert m["kb"] in knowledge.KB and m["basis"] and m["evidence"]
-            assert 0 < len(m["short"]) <= 120, m["short"]
+            assert 0 < len(m["short"]) <= 160, m["short"]
     # a value that only says more than its peers is not flagged
     ds2 = {"fields": [f("piping_class", "XC0K8", 9), f("body_material", "316/316L SS A351-CF8M/CF3M (dual certified)", 24)], "notes": []}
     assert not [m for m in expert.review(ds2, peers=peers) if m["rule"] == "PC-01"]
@@ -835,7 +845,7 @@ def test_tag_numbering_learned_per_area_unit():
     dup = tagrules.learn(north + [dict(north[0], doc_no="999-98-IN-DTS-00002")])
     assert "TG-04" in {f["rule"] for f in tagrules.check(north[0], dup)}   # the same tag in two documents
     for f in tagrules.check(bad, prof):
-        assert len(f["short"]) <= 120
+        assert len(f["short"]) <= 160
 
 
 # ── mass simulation (spike/valve_sim.py): engineer oracle vs engines ───────────────────────────────────────────────

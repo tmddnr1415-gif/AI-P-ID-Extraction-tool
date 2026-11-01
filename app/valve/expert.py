@@ -51,9 +51,9 @@ def review(ds: dict, general_notes: dict | None = None, pms_class: dict | None =
     reqs = {r["key"] for r in requirements or [] if not r.get("negative")}
     all_text = " ".join(n["text"] for n in notes) + " " + " ".join(str(t) for t in gn.values()) + " " + \
         " ".join(val(k) for k in F)
-    pdv = {r["key"]: r for r in process_rows or [] if r.get("pd") not in (None, "")}
-    fluid = (pdv.get("fluid") or {}).get("pd") or val("fluid") or val("fluid.nor") or ""
-    phase = (pdv.get("fluid_state") or {}).get("pd") or val("fluid_state") or val("fluid_state.nor") or ""
+    from app.valve.matreview import basis_text, proc_value              # valve25: every process value names its document
+    FL, PH, DP = (proc_value(F, process_rows, k) for k in ("fluid", "fluid_state", "design_pressure"))
+    fluid, phase = (FL or {}).get("v") or "", (PH or {}).get("v") or ""
     remarks = " ".join(str((pd_row or {}).get("values", {}).get(k, {}).get("v") or "") for k in ("remarks", "notes"))
     out = []
 
@@ -188,25 +188,24 @@ def review(ds: dict, general_notes: dict | None = None, pms_class: dict | None =
     fs_neg = bool(re.match(r"\s*(NOT\s+REQ|NO\b|NA\b|N/A)", val("fire_safe"), re.I))
     if not ds_says and not fs_neg and (_FLAMMABLE.search(fluid) or _TOXIC.search(service) or pms_says):
         # 'Not Required' against a PMS item that is fire tested is left to the PMS check (Non-Compliance), not doubled here
-        why = ("PMS item is fire tested" if pms_says else f"{fluid or 'Toxic / flammable'} service")
+        why = ("PMS item is fire tested" if pms_says else f"Based on {FL['label']}" if FL else "Toxic / flammable service")
         add("VR-09", CONFIRM, "Fire-safe requirement not stated", "fire_safe",
             f"{why}: fire-safe (API 607) not stated on datasheet. State it.",
             (f"The PMS ball valve item for this class is fire tested (API 607)" if pms_says else
-             f"Service '{fluid or val('service')}' ({remarks.strip() or 'toxic/flammable'})")
+             (f"Based on {FL['label']}, the service" if FL else f"Service '{val('service')}'") + f" ({remarks.strip() or 'toxic/flammable'})")
             + " but the datasheet gives no fire-safe (API 607 / ISO 10497) requirement. State the fire-safe requirement.", "std.fire",
-            [ev("fire_safe"), ev("service"), {"doc": "Process Data" if pdv.get("fluid") else "Datasheet", "where": "Service Fluid",
-                                              "page": (pdv.get("fluid") or {}).get("pd_page"), "bbox": (pdv.get("fluid") or {}).get("pd_bbox"),
-                                              "text": f"{fluid} {remarks}".strip()}])
+            [ev("fire_safe"), ev("service"), FL["ev"] if FL else None])
 
     # VR-10 seat configuration / cavity relief (trunnion) -----------------------------------------------------------
     if vtype == "TRUNNION" and not _SEATCFG.search(all_text):
         liquid = re.search(r"LIQUID|MIXED|DENSE|SUPERCRIT", phase.upper()) or (re.search(r"CO2|CARBON DIOXIDE", fluid, re.I)
-                                                                              and (_num((pdv.get('design_pressure') or {}).get('pd')) or 0) >= 74)
-        why = (f"the fluid phase is {phase}" if re.search(r"LIQUID|MIXED|DENSE|SUPERCRIT", phase.upper()) else
-               f"the fluid is CO2 at design pressure {(pdv.get('design_pressure') or {}).get('pd')} barg, above the CO2 critical "
-               "pressure (73.8 bar) — dense phase possible")
+                                                                              and ((DP or {}).get("v") or 0) >= 74)
+        why = (f"based on {PH['label']}" if PH and re.search(r"LIQUID|MIXED|DENSE|SUPERCRIT", phase.upper()) else
+               f"based on {basis_text(FL, DP)}, above the CO2 critical pressure (73.8 bar) — dense phase possible")
         add("VR-10", CONFIRM if liquid else NOTE, "Seat configuration / cavity relief not stated", "body_type",
-            "State seat design (SPE/DPE) and cavity relief" + (" (liquid / dense phase service)." if liquid else "."),
+            (f"Based on {basis_text(PH) if PH and re.search(r'LIQUID|MIXED|DENSE|SUPERCRIT', phase.upper()) else basis_text(FL, DP)}"
+             ": state seat design (SPE/DPE) and cavity relief." if liquid else
+             "State seat design (SPE/DPE) and cavity relief."),
             "Trunnion ball valve without a stated seat configuration (SPE / DPE, DBB / DIB) or cavity relief."
             + (f" Here {why}: liquid / dense fluid trapped in the closed cavity expands with temperature — with DPE seats a "
                "cavity relief valve is required." if liquid else

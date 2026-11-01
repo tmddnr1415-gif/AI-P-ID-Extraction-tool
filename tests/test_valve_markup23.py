@@ -49,7 +49,7 @@ def test_annotator_marks_round_trip(tmp_path, monkeypatch):
     assert c.put(f"/api/valve/comments/{ids[1]}", json={"style": {"color": "#ff8c00"}}).status_code == 200
     assert c.put(f"/api/valve/comments/{ids[0]}", json={"style": None}).status_code == 200
     assert c.post(f"/api/valve/datasheets/{ds}/comments", json={"page": 1, "kind": "banana", "bbox": [1, 1, 2, 2], "text": "x"}).status_code == 400
-    pdf = c.get(f"/api/valve/projects/{pid}/markup.pdf?tag={tag}").content
+    pdf = c.get(f"/api/valve/projects/{pid}/markup.pdf?tag={tag}&flatten=0").content
     doc = pymupdf.open(stream=pdf, filetype="pdf")
     types = sorted(a.type[1] for pg in doc for a in pg.annots())
     for t in ("Underline", "StrikeOut", "Squiggly", "FreeText", "Ink", "PolyLine", "Polygon"):

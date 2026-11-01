@@ -68,6 +68,72 @@ def _num(v):
     return float(m.group(0)) if m else None
 
 
+_PNAME = {"design_temp": "design temp.", "design_pressure": "design press.", "fluid": "fluid", "fluid_state": "fluid phase"}
+
+
+def _ok_unit(key, v, u):
+    t = f"{u} {v}".upper()
+    if key == "design_temp":
+        return not re.search(r"°?\s*F\b|ºF", t) and (bool(re.search(r"C\b|°|º", t)) or not u)
+    if key == "design_pressure":
+        uu = (u or "").lower()
+        return "bar" in uu and "a" not in uu.replace("bar", "")
+    return True
+
+
+def proc_value(F: dict, process_rows: list | None, key: str) -> dict | None:
+    """valve25: a process value AND the document it comes from, so every process-based comment names its basis
+    ("Based on Datasheet design temp. 260 °C …" / "Based on Ref. Process Data 999-98-PR-DTS-00023 (p.54) design temp. …").
+    The Process Data row of the tag governs (as before valve25); when it has no value the datasheet's own process data is
+    used.  A datasheet ≠ Process Data difference is also its own Process Mismatch issue.
+    -> {v, src, label, ev, other} or None (no value anywhere — nothing is invented)."""
+    from app.valve import process as P
+    num = key in ("design_temp", "design_pressure")
+    unit = {"design_temp": "°C", "design_pressure": "barg"}.get(key, "")
+    name = _PNAME.get(key, key)
+    fmt = (lambda x: f"{x:g} {unit}") if num else (lambda x: f"'{x}'" if len(str(x)) <= 28 else f"'{str(x)[:26]}…'")
+    row = next((r for r in process_rows or [] if r.get("key") == key), None) or {}
+    f = P._ds_field(F, P.DS_KEYS.get(key, [key]))
+    ds_raw = ((schema.effective(f) if f else "") or "").strip()
+    ds_v = None
+    if ds_raw and _ok_unit(key, ds_raw, (f or {}).get("unit") or ""):
+        if num:                                           # 'Note 8' · 'TBC' · 'Refer Process DS' are not values
+            bare = re.sub(r"(?i)\b(bar-?g|barg|bar|deg|to|min|max)\b|[°º]\s*C\b|\bC\b", "", ds_raw)
+            xs = [] if re.search(r"[A-Za-z]", bare) else [float(x) for x in re.findall(r"-?\d+(?:\.\d+)?", bare)]
+            ds_v = max(xs) if xs else None                # a 'min / max' cell: the upper value governs the checks
+        elif not re.search(r"\b(REFER|SEE|PROCESS\s*D)", ds_raw.upper()):
+            ds_v = ds_raw
+    pd_raw = row.get("pd")
+    pd_v = None
+    if pd_raw not in (None, "") and _ok_unit(key, pd_raw, row.get("pd_unit") or ""):
+        pd_v = _num(pd_raw) if num else str(pd_raw).strip()
+    if pd_v is not None:                                  # the Process Data document governs the process values
+        doc = row.get("pd_doc") or ""
+        ref = "Ref. Process Data" + (f" {doc}" if doc else "") + (f" (p.{row['pd_page']})" if row.get("pd_page") else "")
+        other = (f"datasheet shows {fmt(ds_v)}" if ds_v is not None and
+                 (abs(pd_v - ds_v) > 1e-6 if num else str(pd_v).upper() != str(ds_v).upper()) else "")
+        return {"v": pd_v, "src": "Process Data", "ref": ref, "what": f"{name} {fmt(pd_v)}", "label": f"{ref} {name} {fmt(pd_v)}",
+                "other": other, "ev": {"doc": "Process Data", "where": name.capitalize().rstrip("."), "page": row.get("pd_page"),
+                                       "bbox": row.get("pd_bbox"), "text": f"{pd_raw} {row.get('pd_unit') or ''}".strip()}}
+    if ds_v is not None:                                  # no Process Data value: the datasheet's own process data
+        return {"v": ds_v, "src": "Datasheet", "ref": "Datasheet", "what": f"{name} {fmt(ds_v)}",
+                "label": f"Datasheet {name} {fmt(ds_v)}", "other": "",
+                "ev": {"doc": "Datasheet", "where": (f or {}).get("display") or name, "page": (f or {}).get("page"),
+                       "bbox": (f or {}).get("bbox"), "text": ds_raw}}
+    return None
+
+
+def basis_text(*vals) -> str:
+    """'Ref. Process Data X (p.26) fluid 'CO2', design press. 154 barg' — values from one document named once."""
+    out = []
+    for v in (x for x in vals if x):
+        if out and out[-1][0] == v["ref"]:
+            out[-1][1].append(v["what"])
+        else:
+            out.append((v["ref"], [v["what"]]))
+    return "; ".join(f"{r} {', '.join(w)}" for r, w in out)
+
+
 def _interp(pt, t):
     """Pressure rating at t from the PMS P-T table (linear between the listed points), None outside it."""
     pts = sorted(pt)
@@ -114,14 +180,11 @@ def review(ds: dict, general_notes: dict | None = None, pms_class: dict | None =
                     "evidence": [e for e in evidence if e]})
 
     # ---- what the documents say about the service -------------------------------------------------------------
-    pdv = {r["key"]: r for r in process_rows or [] if r.get("pd") not in (None, "")}
-    dt = _num(pdv["design_temp"]["pd"]) if "design_temp" in pdv and "C" in (pdv["design_temp"].get("pd_unit") or "C").upper() else None
-    dp = _num(pdv["design_pressure"]["pd"]) if "design_pressure" in pdv and "bar" in (pdv["design_pressure"].get("pd_unit") or "").lower() \
-        and "a" not in (pdv["design_pressure"].get("pd_unit") or "").lower().replace("bar", "") else None
-    ev_dt = ({"doc": "Process Data", "where": "Design Temperature", "page": pdv["design_temp"].get("pd_page"),
-              "bbox": pdv["design_temp"].get("pd_bbox"), "text": f"{pdv['design_temp']['pd']} {pdv['design_temp'].get('pd_unit') or ''}"}
-             if dt is not None else None)
-    fluid = (pdv.get("fluid") or {}).get("pd") or val("fluid") or val("fluid.nor")       # not 'service' — that is a line route
+    T, Pz, FL = (proc_value(F, process_rows, k) for k in ("design_temp", "design_pressure", "fluid"))
+    dt, ev_dt, tb = (T["v"], T["ev"], T["label"]) if T else (None, None, "")
+    tb_more = f" ({T['other']} — see Process Mismatch)" if T and T["other"] else ""
+    dp, pb = (Pz["v"], Pz["label"]) if Pz else (None, "")
+    fluid = FL["v"] if FL else ""                                                       # not 'service' — that is a line route
     remarks = " ".join(str((pd_row or {}).get("values", {}).get(k, {}).get("v") or "") for k in ("remarks", "notes"))
     notes_text = " ".join(n["text"] for n in notes)
     gen_text = " ".join(str(t) for t in gn.values())
@@ -142,23 +205,22 @@ def review(ds: dict, general_notes: dict | None = None, pms_class: dict | None =
                 doc_lim = (float(m.group(2)), no, t)
         if dt is not None and doc_lim and dt > doc_lim[0]:
             add("MR-01", ACTION, "Seat material above PMS temperature limit", "seat_material",
-                f"Seat {seat} limited to {doc_lim[0]:g} °C (PMS {c.get('code')} Note {doc_lim[1]}); design temp. {dt:g} °C. Revise seat material.",
-                f"Seat '{seat}' ({name}) is limited to {doc_lim[0]:g} °C by PMS class {c.get('code')} note {doc_lim[1]}, "
-                f"but the Process Data design temperature is {dt:g} °C. Change the seat to a material rated for "
+                f"Based on {tb}, seat {seat} exceeds its {doc_lim[0]:g} °C limit (PMS {c.get('code')} Note {doc_lim[1]}). Revise seat material.",
+                f"Based on {tb}{tb_more}: seat '{seat}' ({name}) is limited to {doc_lim[0]:g} °C by PMS class {c.get('code')} "
+                f"note {doc_lim[1]}. Change the seat to a material rated for "
                 f"{dt:g} °C (e.g. PEEK up to ~260 °C, or metal seat) or confirm the design temperature.",
                 f"PMS {c.get('code')} General Class Note {doc_lim[1]}", [ev_field("seat_material"), ev_dt, ev_pms(f"note {doc_lim[1]}", doc_lim[2])])
         elif dt is not None and dt > lim:
             add("MR-02", ACTION, "Seat material above its service temperature", "seat_material",
-                f"Seat {seat} not suitable for design temp. {dt:g} °C (typ. max. {lim} °C). Revise seat or submit seat P-T curve.",
-                f"Seat '{seat}' ({name}) has a typical maximum service temperature of about {lim} °C; the Process Data design "
-                f"temperature is {dt:g} °C. Select a seat material rated for the design temperature (PEEK / metal seat) "
+                f"Based on {tb}, seat {seat} is above its typ. max. {lim} °C. Revise seat or submit seat P-T curve.",
+                f"Based on {tb}{tb_more}: seat '{seat}' ({name}) has a typical maximum service temperature of about {lim} °C. Select a seat material rated for the design temperature (PEEK / metal seat) "
                 f"or obtain the vendor's seat P-T curve proving {dt:g} °C at the design pressure.",
                 "Seat polymer service limit (vendor seat P-T curve governs); datasheet note: non-metallic parts suitable for design condition",
                 [ev_field("seat_material"), ev_dt])
         elif dt is not None and dt >= lim - 30:
             add("MR-02", CONFIRM, "Seat close to its temperature limit", "seat_material",
-                f"Design temp. {dt:g} °C close to {seat} seat limit (~{lim} °C). Submit seat P-T curve.",
-                f"Design temperature {dt:g} °C is within 30 °C of the typical {name} seat limit (~{lim} °C"
+                f"Based on {tb}, close to {seat} seat limit (~{lim} °C). Submit seat P-T curve.",
+                f"Based on {tb}{tb_more}: within 30 °C of the typical {name} seat limit (~{lim} °C"
                 + (f"; PMS note {doc_lim[1]}: {doc_lim[0]:g} °C" if doc_lim else "") + "). Soft seats lose pressure rating with "
                 "temperature: the vendor shall submit the seat P-T curve covering the design temperature and the "
                 "maximum shut-off differential pressure.",
@@ -170,21 +232,20 @@ def review(ds: dict, general_notes: dict | None = None, pms_class: dict | None =
         tmax = max(t for t, _ in pt)
         if dt > tmax:
             add("MR-03", ACTION, "Design temperature outside PMS class range", "piping_class",
-                f"Design temp. {dt:g} °C exceeds PMS {c.get('code')} max. {tmax:g} °C. Confirm piping class / design temp.",
-                f"Process Data design temperature {dt:g} °C exceeds the highest temperature of PMS class {c.get('code')} "
+                f"Based on {tb}, exceeds PMS {c.get('code')} max. {tmax:g} °C. Confirm piping class / design temp.",
+                f"Based on {tb}{tb_more}: above the highest temperature of PMS class {c.get('code')} "
                 f"P-T table ({tmax:g} °C, {c.get('pt_basis') or 'ASME B16.5'}). The piping class / valve rating does not cover the service.",
                 f"PMS {c.get('code')} Temperature / Pressure Limits", [ev_dt, ev_pms("P-T limits", f"max {tmax:g} °C")])
         elif dp is not None:
             pr = _interp(pt, dt)
             if pr is not None and dp > pr * 1.0001:
                 add("MR-03", ACTION, "Design pressure above PMS class rating", "rating",
-                    f"Design press. {dp:g} barg exceeds PMS {c.get('code')} rating {pr:.1f} barg at {dt:g} °C. Confirm.",
-                    f"At the design temperature {dt:g} °C the PMS class {c.get('code')} allows {pr:.1f} barg "
-                    f"({c.get('pt_basis') or 'ASME B16.5'}), but the Process Data design pressure is {dp:g} barg. One of the two "
+                    f"Based on {basis_text(Pz, T)}, exceeds PMS {c.get('code')} rating {pr:.1f} barg. Confirm.",
+                    f"Based on {basis_text(Pz, T)}{tb_more}: at {dt:g} °C the PMS class {c.get('code')} allows {pr:.1f} barg "
+                    f"({c.get('pt_basis') or 'ASME B16.5'}), less than {dp:g} barg. One of the two "
                     "documents is wrong: confirm the design pressure or move the line to a higher-rated class.",
                     f"PMS {c.get('code')} Temperature / Pressure Limits",
-                    [ev_dt, {"doc": "Process Data", "where": "Design Pressure", "page": pdv["design_pressure"].get("pd_page"),
-                             "bbox": pdv["design_pressure"].get("pd_bbox"), "text": f"{dp:g} barg"}, ev_pms("P-T limits", str(pt))])
+                    [ev_dt, Pz["ev"], ev_pms("P-T limits", str(pt))])
 
     # MR-04  low temperature body / line ---------------------------------------------------------------------------
     lt_line = _LT_PIPE.search(val("pipe_material")) or "LOW TEMP" in (c.get("material") or "").upper()
@@ -235,7 +296,7 @@ def review(ds: dict, general_notes: dict | None = None, pms_class: dict | None =
                 "316/316L (" + ", ".join(k.split("_")[0] for k, _ in parts) + ") is acceptable for NACE MR0175 / ISO 15156 service "
                 "in the solution-annealed condition, ≤ 22 HRC, without cold work, within the environmental limits of "
                 "ISO 15156-3 Table A.2 (temperature, H2S partial pressure, chloride, no elemental sulphur)."
-                + (f" The design temperature is {dt:g} °C (above 60 °C): the materials selection report shall confirm the "
+                + (f" Based on {tb} (above 60 °C): the materials selection report shall confirm the "
                    "H2S partial pressure / chloride content are inside the table." if hot else "")
                 + (f" PMS class {c.get('code')} lists this service and requires NACE ({c.get('nace')})." if c.get("nace") else ""),
                 "NACE MR0175 / ISO 15156-3 Table A.2", [ev_field(parts[0][0]), ev_dt if hot else None])
@@ -348,11 +409,10 @@ def review(ds: dict, general_notes: dict | None = None, pms_class: dict | None =
         hit = any(alias.get(w, w) in listed for w in words) or (co2 and "CARBON DIOXIDE" in listed)
         if not hit:
             add("MR-14", CONFIRM, "Service fluid not listed in PMS class", "piping_class",
-                f"Fluid '{fluid}' not in PMS {c.get('code')} service list. Confirm piping class.",
-                f"Process fluid '{fluid}' is not in the service list of PMS class {c.get('code')} ({', '.join(sv)}). "
+                f"Based on {FL['label']}: not in PMS {c.get('code')} service list. Confirm piping class.",
+                f"Based on {FL['label']}: the fluid is not in the service list of PMS class {c.get('code')} ({', '.join(sv)}). "
                 "Confirm the class is the right one for this fluid (materials selection report).",
-                f"PMS {c.get('code')} Service list", [{"doc": "Process Data", "where": "Service Fluid", "page": (pdv.get('fluid') or {}).get('pd_page'),
-                                                       "bbox": (pdv.get('fluid') or {}).get('pd_bbox'), "text": fluid}, ev_pms("Service", ", ".join(sv))])
+                f"PMS {c.get('code')} Service list", [FL["ev"], ev_pms("Service", ", ".join(sv))])
     return out
 
 

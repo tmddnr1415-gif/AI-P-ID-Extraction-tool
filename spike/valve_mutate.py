@@ -69,7 +69,7 @@ def findings(d: dict, res: dict, P, PD, ctx: dict, me: dict | None = None, tagpr
         + tagrules.check(me or tag_item(d, res), tagprof or ctx["tagprof"])
     out = set()
     for m in R:
-        assert len(m["short"]) <= 120, (m["rule"], m["short"])
+        assert len(m["short"]) <= 160, (m["rule"], m["short"])
         out.add(("R", m["rule"], m["level"], m["key"]))
     Fd = {f["key"]: f for f in ds["fields"]}
     prow = pmsmod.check(Fd, P, area, ds["notes"]) if P else None

@@ -520,3 +520,20 @@ Note 113 · PC-01 Confirm 6(3C0K8 의 '316 SS/FHF' 2개 · API5L-X65 MOV 1500# �
 - PDF 내보내기: Callout = FreeText 의 callout 선 + 열린 화살표 끝(Acrobat 말풍선) · Typewriter = 테두리 없는 FreeText · PolyLine · Polygon 주석.
 - 고친 결함 2: ① 화면이 표시의 style 을 받지 않아 모두 분류 색으로 그려짐 ② 그린 직후 선택된 표시가 다음 색 선택에 다시 칠해짐 → 그리기 도구일 때 팔레트는 다음 표시에만, 선택 도구일 때만 선택한 표시에 (스탬프 글은 유지).
   꺾은선의 Enter 가 '선택 표시 고치기' 단축키까지 열던 것도 막음. ui_audit 25/25.
+
+## 30. PDF 에 마크업 · 코멘트 그대로 + 공정 값 출처 문구 (valve25, 사용자 요청)
+
+- 요청: "PDF 출력했을 때 마크업도 그대로, 프로그램이 남긴 코멘트도 PDF 상에" · "공정 값 관련 의견은 Datasheet 상 … 기준 / Ref. Process Data [문서] 기준 … 처럼 어느 문서의 값인지".
+- **쪽 옆 코멘트**(`exports._comment_margin`): 지적이 있는 쪽의 mediabox 를 오른쪽으로 250pt 넓혀 번호 · 색 · Issue Type · 칸 · [값] · 설명 · Required · 검토자를
+  `insert_htmlbox`(한글 글꼴 대체)로 씀. 넘치면 들어가는 만큼만 쓰고 "… N more on the next page" + 바로 뒤에 같은 크기의 이어지는 쪽(`_comment_page`). 회전된 쪽은 넓히지 않고 이어지는 쪽으로.
+- **마크업 고정**: 마지막에 `Document.bake(annots=True, widgets=True)` — 주석이 쪽 내용이 되어 브라우저 · 모바일 뷰어 · 인쇄 어디서나 화면 그대로. `flatten=0` 이면 편집 가능한 주석(Acrobat/Bluebeam).
+  화면: 내보내기 선택 창(PDF 일 때)에 두 체크(기억 `LS.pdfopt`) — 모든 Mark-up PDF 내려받기에 `pdfq()` 가 붙는다.
+- 글 없는 검토자 표시는 "(see mark-up on the PDF)" 대신 "Stamp 'APPROVED' on the PDF (no comment text)" 처럼 무엇인지 적음(`issues.MARK_NAME`).
+- **공정 값 출처**: `matreview.proc_value(F, process_rows, key)` → {v, src, ref, what, label, ev, other}. 그 Tag 의 Process Data 행이 우선(예전과 같은 값 — 실자료 기준값 · 시뮬레이션 불변),
+  없으면 데이터시트 자신의 값(숫자 칸만, 'Note 8' · 'TBC' · 'Refer …' 는 값이 아님, 'min / max' 는 큰 값). 문구:
+  "Based on Ref. Process Data CO2S-SSG-IN-REQ-00009 (p.54) design temp. 260 °C, seat RTFE exceeds its 230 °C limit (PMS 1C3AS2 Note 018). Revise seat material." /
+  "Based on Datasheet fluid phase 'Liquid': state seat design (SPE/DPE) and cavity relief." 같은 문서 값 둘은 `basis_text` 로 한 번만 이름.
+  둘이 다르면 긴 설명에 "(datasheet shows … — see Process Mismatch)". 적용: MR-01 · 02 · 03 · 07 · 14 · VR-09 · 10. `process.check` 행에 `pd_doc`.
+- Process Mismatch: "Datasheet 'A' vs Process Data 'B' (Ref. Process Data <Doc> p.N)". Data Missing 의 Required: "SOUR WATER (Ref. Process Data <Doc> p.N)".
+- 리뷰 캐시: `_ds_full` 버전 튜플에 `VERSION` — 규칙 문구가 바뀐 꾸러미를 올리면 디스크 캐시가 다시 계산된다.
+- 결과: 실자료 기준값 불변(`--check`) · diff_sim 불일치 0 · 시뮬레이션 3,000 · 변이 · PDF 190 그대로 · 전체 Mark-up PDF(551쪽, 193쪽에 코멘트 여백) 약 21 s · 4.9 MB.

@@ -149,3 +149,10 @@
 - 추가: 타자기 · 말풍선(callout 선 + 화살표) · 꺾은선 · 다각형 · DRAFT. PDF 주석 PolyLine/Polygon/Callout FreeText.
 - 결함 3 수정: 화면 style 누락 · 팔레트가 직전 표시 재칠 · 꺾은선 Enter 가 편집 창까지. 시험 markup23 확장 · ui_audit 25/25.
 - 화면 55장(메뉴·기능 31 + Mark-up 시연 24, 내보낸 PDF 포함) — 저장소 밖 zip.
+
+## 2026-11-01 · valve25 — PDF 에 마크업 · 코멘트 그대로 · 공정 값 출처 문구 (브랜치 ccr-efbe7e75-n915ze)
+- 요청: PDF 출력 시 마크업과 프로그램 코멘트가 PDF 위에 그대로 · 공정 값 의견은 "Datasheet 상 … 기준 / Ref. Process Data [문서] 기준 …" 으로.
+- Mark-up PDF: 쪽 오른쪽 250pt 여백에 번호별 코멘트(넘치면 이어지는 쪽) + `bake()` 로 마크업 고정(기본). 선택 창에 두 옵션(기억).
+- `matreview.proc_value`: Process Data 행 우선, 없으면 데이터시트 값 — MR-01·02·03·07·14 · VR-09·10 문구 "Based on Ref. Process Data <Doc> (p.N) …". Process Mismatch · Data Missing Required 에 문서 번호.
+- 글 없는 마크업은 "Stamp 'APPROVED' on the PDF" 처럼. 리뷰 디스크 캐시 키에 VERSION. short 상한 120→160.
+- 기준값 불변 · diff_sim 0 · sim 3,000 · mutate · sim_pdf 190 · ui_audit 25/25 · 시험 86(valve).

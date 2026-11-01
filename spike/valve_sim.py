@@ -422,7 +422,7 @@ def run_engines(c: dict) -> dict:
     for m in mr + vr + tg:
         if rank[m["level"]] >= rank.get(got.get(m["rule"]), 0):
             got[m["rule"]] = m["level"]                              # a rule raised twice: its highest level
-        assert m["short"] and len(m["short"]) <= 120, f"short too long: {m['rule']} {len(m['short'])}"
+        assert m["short"] and len(m["short"]) <= 160, f"short too long: {m['rule']} {len(m['short'])}"
         assert m["basis"] and isinstance(m["evidence"], list)
     F = {f["key"]: f for f in ds["fields"]}
     iss = issues.compute(ds, ds["general_notes"], c["pms"], "QN", None, None, pms_rows=pmsmod.check(F, c["pms"], "QN", ds["notes"]),
