@@ -10,6 +10,8 @@ result carries the page and box it came from.
 from __future__ import annotations
 
 import datetime as dt
+import gzip
+import hashlib
 import io
 import json
 import re
@@ -56,19 +58,31 @@ def _wver(con, pid) -> tuple:
     return (store.WRITES[0],) + tuple(r)
 
 
-def _cached(name, pid, build, arg=None) -> Response:
-    """The same answer as build() — encoded once, reused until the next write (summary 250 ms → 1 ms at 990 DS)."""
+def _cached(name, pid, build, arg=None, request: Request | None = None) -> Response:
+    """The same answer as build() — encoded and gzip-compressed ONCE, reused until the next write (summary 250 ms → 1 ms at
+    990 DS).  The browser gets an ETag: an unchanged answer is a 304 with no body (a 3 MB list costs nothing to re-open)."""
     con = store.connect()
     ver = _wver(con, pid)
     hit = _BODY.get((name, pid, arg))
-    if hit and hit[0] == ver:
-        return Response(hit[1], media_type="application/json")
-    res = build(con)
-    if not isinstance(res, Response) or res.status_code != 200:
-        return res
-    if store.WRITES[0] == ver[0]:                            # nothing written while it was being computed
-        _BODY[(name, pid, arg)] = (ver, res.body)
-    return Response(res.body, media_type="application/json")
+    if not (hit and hit[0] == ver):
+        res = build(con)
+        if not isinstance(res, Response) or res.status_code != 200:
+            return res
+        hit = (ver, gzip.compress(res.body, 5), f'W/"{hashlib.sha1(repr((name, arg, ver)).encode()).hexdigest()[:16]}"')
+        if store.WRITES[0] == ver[0]:                        # nothing written while it was being computed
+            _BODY[(name, pid, arg)] = hit
+    return _gz_response(hit[1], hit[2], request)
+
+
+def _gz_response(gz: bytes, etag: str, request: Request | None) -> Response:
+    """A pre-compressed JSON body: 304 when the browser already holds it, gzip when it accepts it, plain otherwise."""
+    h = {"ETag": etag, "Cache-Control": "no-cache", "Vary": "Accept-Encoding"}
+    if request is not None:
+        if request.headers.get("if-none-match") == etag:
+            return Response(status_code=304, headers=h)
+        if "gzip" in request.headers.get("accept-encoding", ""):
+            return Response(gz, media_type="application/json", headers=dict(h, **{"Content-Encoding": "gzip"}))
+    return Response(gzip.decompress(gz), media_type="application/json", headers=h)
 
 
 def _err(msg, code=400):
@@ -87,16 +101,38 @@ def valve_redirect(request: Request):
     return RedirectResponse("/valve/" + (f"?{qs}" if qs else ""), status_code=307)
 
 
+_ASSET_H: dict[str, tuple] = {}
+
+
+def _asset_hash(name: str) -> str:
+    """Content hash of a static file (re-read when its mtime changes): the page links valve.js?v=<hash>, so the browser
+    keeps it for a year and still gets a new one the moment a package changes it (valve29 lighter)."""
+    p = _static(name)
+    try:
+        mt = p.stat().st_mtime_ns
+    except OSError:
+        return "0"
+    hit = _ASSET_H.get(name)
+    if not hit or hit[0] != mt:
+        hit = (mt, hashlib.sha1(p.read_bytes()).hexdigest()[:12])
+        _ASSET_H[name] = hit
+    return hit[1]
+
+
 @router.get("/valve/")
 def valve_page():
-    return FileResponse(_static("index.html"), media_type="text/html", headers={"Cache-Control": "no-store"})
+    html = _static("index.html").read_text(encoding="utf-8")
+    for name in _STATIC:
+        html = html.replace(f'"{name}"', f'"{name}?v={_asset_hash(name)}"')
+    return Response(html, media_type="text/html", headers={"Cache-Control": "no-store"})
 
 
 @router.get("/valve/{name}")
-def valve_file(name: str):
+def valve_file(name: str, v: str = ""):
     if name not in _STATIC:
         return _err("없는 파일", 404)
-    return FileResponse(_static(name), media_type=_STATIC[name], headers={"Cache-Control": "no-cache"})
+    cc = "public, max-age=31536000, immutable" if v and v == _asset_hash(name) else "no-cache"
+    return FileResponse(_static(name), media_type=_STATIC[name], headers={"Cache-Control": cc})
 
 
 # ── projects ────────────────────────────────────────────────────────────────────
@@ -128,8 +164,8 @@ def _latest(dss: list[dict]) -> dict[str, dict]:
 
 
 @router.get("/api/valve/projects/{pid}/summary")
-def summary(pid: int):
-    return _cached("summary", pid, lambda con: _summary(pid))
+def summary(pid: int, request: Request):
+    return _cached("summary", pid, lambda con: _summary(pid), request=request)
 
 
 def _summary(pid: int):
@@ -317,8 +353,10 @@ def warm(pid: int):
             project_issues(con, pid)
             _project_pms(con, pid)
             _project_process(con, pid)
-            for f in (summary, grid, requirements_summary, rules_performance):   # valve29: the first click of every
-                f(pid)                                                        # screen after a restart is ready too
+            _cached("summary", pid, lambda c: _summary(pid))             # valve29: the first click of every screen
+            _cached("grid", pid, lambda c: _json(_grid(c, pid)))         # after a restart is ready too
+            _cached("requirements", pid, lambda c: _json(_req_rows(c, pid)))
+            _cached("rules", pid, lambda c: _rules_performance(c, pid), arg=dt.date.today().isoformat())
             _cached("tagging", pid, lambda c: _tagging(c, pid))
             _cached("pms", pid, lambda c: _pms_body(c, pid))
             _cached("process", pid, lambda c: _process_body(c, pid))
@@ -327,6 +365,7 @@ def warm(pid: int):
             print(f"[valve] warm-up of project {pid} failed: {e}")
         finally:
             _WARMING.discard(pid)
+            _trim()
     threading.Thread(target=run, daemon=True, name=f"valve-warm-{pid})").start()
 
 
@@ -599,7 +638,7 @@ def _ds_full(con, dsid, deep=True, pv=None):
             return _with_history(con, dict(hit[1]))          # top-level copy: callers may swap keys, never edit nested lists
         disk = _deep_disk(dsid)                              # computed before a restart: read instead of recompute (valve20)
         if disk and tuple(disk.get("_ver") or ()) == tuple(ver):
-            d = disk["d"]
+            d = _slim_deep(disk["d"])
             _DEEP_CACHE[dsid] = (ver, d)
             return _with_history(con, dict(d))
     d = store.one(con, "SELECT * FROM datasheet WHERE id=?", dsid)
@@ -615,7 +654,7 @@ def _ds_full(con, dsid, deep=True, pv=None):
     d["filename"] = doc["filename"] if doc else ""
     docs_info = (store.unJ(doc["info"], {}) or {}).get("docs", {}) if doc else {}
     gn = docs_info.get(d["doc_no"], {})
-    d["general_notes"] = gn.get("general_notes", {})
+    d["general_notes"] = _intern_gn(d["document_id"], d["doc_no"], gn.get("general_notes", {}))
     d["revisions"] = store.rows(con, "SELECT id, rev, doc_no, document_id, created_at FROM datasheet WHERE project_id=?"
                                      " AND tag_key=? ORDER BY id", d["project_id"], d["tag_key"])
     d["revisions"].sort(key=lambda r: (store.rev_key(r["rev"]), r["id"]))
@@ -639,16 +678,61 @@ def _ds_full(con, dsid, deep=True, pv=None):
     if not deep:
         return d
     d = _ds_deep(con, d, dsid)
-    slim = {k: v for k, v in d.items() if k != "history"}    # the audit trail is cheap to re-read and big to keep (valve22)
+    slim = _slim_deep({k: v for k, v in d.items() if k != "history"})    # the audit trail is cheap to re-read and big to keep (valve22)
     _DEEP_CACHE[dsid] = (ver, slim)
     try:
         store.write_json(store.root() / "cache" / "review" / f"{dsid}.json", {"_ver": list(ver), "d": slim})
     except Exception:                                        # noqa: BLE001  (disk cache is an optimisation only)
         pass
-    if len(_DEEP_CACHE) > 800:                               # bound memory on very large projects (disk cache keeps the rest)
-        for k in list(_DEEP_CACHE)[:300]:
+    if len(_DEEP_CACHE) > 2500:                              # bound memory on very large projects (disk cache keeps the rest)
+        for k in list(_DEEP_CACHE)[:500]:
             _DEEP_CACHE.pop(k, None)
     return dict(d)
+
+
+def _trim():
+    """Give freed heap back to the OS after a big recomputation (glibc keeps it otherwise: 990 DS −44 MB).  No-op where
+    there is no glibc (Windows)."""
+    import gc
+    gc.collect()
+    try:
+        import ctypes
+        ctypes.CDLL("libc.so.6").malloc_trim(0)
+    except Exception:                                       # noqa: BLE001
+        pass
+
+
+_GN_INTERN: dict[tuple, dict] = {}
+
+
+def _intern_gn(document_id, doc_no, gn: dict) -> dict:
+    """valve29 (lighter): the General Notes of a document are the same for all its datasheets — keep ONE dict object per
+    document instead of 164 (990 DS: ~40 MB less)."""
+    k = (document_id, doc_no)
+    hit = _GN_INTERN.get(k)
+    if hit is not None and hit == gn:
+        return hit
+    _GN_INTERN[k] = gn
+    return gn
+
+
+def _slim_deep(d: dict) -> dict:
+    """What the review cache keeps per datasheet: the knowledge text behind a finding is looked up from knowledge.KB when
+    the datasheet is served (`_fat`) instead of being stored 17,000 times; General Notes are shared per document."""
+    for m in d.get("material_review") or []:
+        m.pop("kb_text", None)
+        m.pop("kb_title", None)
+    if d.get("general_notes") is not None:
+        d["general_notes"] = _intern_gn(d.get("document_id"), d.get("doc_no"), d["general_notes"])
+    return d
+
+
+def _fat(d: dict) -> dict:
+    """The served datasheet: knowledge title / text back on every Expert finding (the screen shows them)."""
+    if d and d.get("material_review"):
+        d["material_review"] = [dict(m, kb_title=k["title"], kb_text=k["text"]) if (k := kbmod.KB.get(m.get("kb"))) else m
+                                for m in d["material_review"]]
+    return d
 
 
 def _with_history(con, d):
@@ -766,9 +850,9 @@ def _ds_deep(con, d, dsid):
 
 
 @router.get("/api/valve/projects/{pid}/tagging")
-async def tagging(pid: int):
+async def tagging(pid: int, request: Request):
     """Tag numbering learned per Area / Site / Unit from the project's datasheets."""
-    return await run_in_threadpool(_cached, "tagging", pid, lambda con: _tagging(con, pid))
+    return await run_in_threadpool(_cached, "tagging", pid, lambda con: _tagging(con, pid), None, request)
 
 
 def _tagging(con, pid):
@@ -785,7 +869,7 @@ def knowledge_base():
 @router.get("/api/valve/datasheets/{dsid}")
 def datasheet(dsid: int):
     d = _ds_full(store.connect(), dsid)
-    return _json(d) if d else _err("없는 데이터시트", 404)
+    return _json(_fat(d)) if d else _err("없는 데이터시트", 404)
 
 
 @router.put("/api/valve/datasheets/{dsid}/fields/{fid}")
@@ -989,12 +1073,15 @@ def project_issues(con, pid) -> list[dict]:
     out, pv = [], _profile_ver(con, pid)
     for d in sorted(latest.values(), key=lambda d: d["tag_key"]):
         x = _ds_full(con, d["id"], pv=pv)
-        for i in x["issues"]:
-            out.append(dict(i, ds_id=x["id"], tag=x["tag_key"], tag_raw=x["tag"], valve_type=x["valve_type"],
-                            area_name=x["location"]["area"], site=x["location"]["site"], plant_unit=x["location"]["unit"],
-                            doc_no=x["doc_no"], rev=x["rev"], document_id=x["document_id"], filename=x["filename"],
-                            review_status=x["review_status"]))
+        for i in x["issues"]:                                # the row IS the cached finding (tag fields added in place):
+            i.update(ds_id=x["id"], tag=x["tag_key"], tag_raw=x["tag"], valve_type=x["valve_type"],   # no second copy of
+                     area_name=x["location"]["area"], site=x["location"]["site"], plant_unit=x["location"]["unit"],   # 17k dicts
+                     doc_no=x["doc_no"], rev=x["rev"], document_id=x["document_id"], filename=x["filename"],
+                     review_status=x["review_status"])
+            out.append(i)
     _ISSUE_CACHE[pid] = (ver, out)
+    if len(out) > 5000:                                      # a big rebuild leaves a lot of freed heap behind
+        _trim()
     return out
 
 
@@ -1031,11 +1118,11 @@ _DS_KEYS = ("tag", "doc_no", "rev", "area_name", "site", "plant_unit", "valve_ty
 
 
 @router.get("/api/valve/projects/{pid}/issues")
-async def issues_list(pid: int, compact: int = 0):
-    return await run_in_threadpool(issues_json, pid, compact)
+async def issues_list(pid: int, compact: int = 0, request: Request = None):
+    return await run_in_threadpool(issues_json, pid, compact, request)
 
 
-def issues_json(pid: int, compact: int = 0):
+def issues_json(pid: int, compact: int = 0, request: Request | None = None):
     """All findings of the newest revisions.  compact=1 (the screens, valve29): the proof fields (evidence · basis · op · tol ·
     original_*) stay out — the workbench reads them per datasheet — and the per-datasheet fields are sent once in `ds`
     instead of on every row (500 DS: 8.2 MB → about a third)."""
@@ -1044,7 +1131,7 @@ def issues_json(pid: int, compact: int = 0):
     ver = (_ISSUE_CACHE.get(pid) or (None,))[0]             # the version the rows were computed for (never an object id)
     hit = _ISSUE_JSON.get((pid, compact))
     if hit and ver is not None and hit[0] == ver and hit[2] is rows:      # rows kept alive in the tuple: `is` cannot alias
-        return Response(hit[1], media_type="application/json")
+        return _gz_response(hit[1], hit[3], request)
     drop = {"filename", "tag_raw", "review_status", "unit", "pd_page", "pd_bbox", "rule", "level"}   # not used by the list screens
     if compact:
         drop |= {"evidence", "basis", "op", "tol", "original_description", "original_severity", "original_expected", "pms_bbox", "pms_page"} | set(_DS_KEYS)
@@ -1054,9 +1141,10 @@ def issues_json(pid: int, compact: int = 0):
            "statuses": ISSUE_STATUSES}
     if compact:
         out["ds"] = {i["ds_id"]: {k: i.get(k) for k in _DS_KEYS} for i in rows}
-    body = json.dumps(out, ensure_ascii=False, separators=(",", ":"), default=str).encode()
-    _ISSUE_JSON[(pid, compact)] = (ver, body, rows)
-    return Response(body, media_type="application/json")
+    gz = gzip.compress(json.dumps(out, ensure_ascii=False, separators=(",", ":"), default=str).encode(), 5)   # kept compressed: 15 MB → 2 MB at 990 DS
+    etag = f'W/"{hashlib.sha1(repr(("issues", compact, ver)).encode()).hexdigest()[:16]}"'
+    _ISSUE_JSON[(pid, compact)] = (ver, gz, rows, etag)
+    return _gz_response(gz, etag, request)
 
 
 @router.put("/api/valve/datasheets/{dsid}/issues/{ikey:path}")
@@ -1281,18 +1369,8 @@ GRID_KEYS = ["valve_type", "service", "pid_no", "line_no", "body_size", "rating"
 
 
 @router.get("/api/valve/projects/{pid}/grid")
-def grid(pid: int):
-    con = store.connect()
-    ver = _profile_ver(con, pid) + (store.one(con, "SELECT MAX(id) m FROM audit WHERE project_id=? AND action='status'", pid)["m"],)
-    hit = _GRID_CACHE.get(pid)
-    if hit and hit[0] == ver:
-        return Response(hit[1], media_type="application/json")   # a NEW Response each time: middleware mutates response headers
-    body = json.dumps(_grid(con, pid), ensure_ascii=False, default=str)
-    _GRID_CACHE[pid] = (ver, body)
-    return Response(body, media_type="application/json")
-
-
-_GRID_CACHE: dict[int, tuple] = {}
+def grid(pid: int, request: Request):
+    return _cached("grid", pid, lambda con: _json(_grid(con, pid)), request=request)
 
 
 def _grid(con, pid):
@@ -1493,9 +1571,9 @@ def _project_process(con, pid):
 
 
 @router.get("/api/valve/projects/{pid}/process")
-async def process_rows(pid: int):
+async def process_rows(pid: int, request: Request):
     """Process Data Verification for every tag (Phase 3 engine, app/valve/process.py)."""
-    return await run_in_threadpool(_cached, "process", pid, lambda con: _process_body(con, pid))
+    return await run_in_threadpool(_cached, "process", pid, lambda con: _process_body(con, pid), None, request)
 
 
 def _process_body(con, pid):
@@ -1535,8 +1613,8 @@ async def revisions_xlsx(pid: int, request: Request):
 
 
 @router.get("/api/valve/projects/{pid}/pms")
-async def pms_rows(pid: int):
-    return await run_in_threadpool(_cached, "pms", pid, lambda con: _pms_body(con, pid))
+async def pms_rows(pid: int, request: Request):
+    return await run_in_threadpool(_cached, "pms", pid, lambda con: _pms_body(con, pid), None, request)
 
 
 def _pms_body(con, pid):
@@ -1625,9 +1703,9 @@ def _settings(con, pid) -> dict:
 
 
 @router.get("/api/valve/projects/{pid}/rules/performance")
-def rules_performance(pid: int):
+def rules_performance(pid: int, request: Request):
     """valve29 — Rule Performance: findings per rule and how engineers decided them (statistics only)."""
-    return _cached("rules", pid, lambda con: _rules_performance(con, pid), arg=dt.date.today().isoformat())   # the 3-month trend moves by date
+    return _cached("rules", pid, lambda con: _rules_performance(con, pid), arg=dt.date.today().isoformat(), request=request)   # the 3-month trend moves by date
 
 
 def _rules_performance(con, pid):
@@ -1780,8 +1858,8 @@ def _req_rows(con, pid) -> dict:
 
 
 @router.get("/api/valve/projects/{pid}/requirements")
-def requirements_summary(pid: int):
-    return _cached("requirements", pid, lambda con: _json(_req_rows(con, pid)))
+def requirements_summary(pid: int, request: Request):
+    return _cached("requirements", pid, lambda con: _json(_req_rows(con, pid)), request=request)
 
 
 @router.get("/api/valve/projects/{pid}/requirements.xlsx")

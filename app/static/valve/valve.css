@@ -556,3 +556,8 @@ button.xfb.on { background: var(--blue) !important; color: #fff !important; }
 .xfpop .xfl small { color: var(--soft); }
 .xfpop .xfa { display: flex; gap: 6px; align-items: center; }
 .xfpop .xfa .sp { flex: 1; }
+
+/* valve29 lighter — Process / PMS tables: one-line rows (full text in the tooltip) so only the rows in view exist */
+.vscroll table.t { table-layout: fixed; min-width: 100%; }
+.vscroll table.t td, .vscroll table.t th { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.vscroll table.t td .pill { max-width: 100%; overflow: hidden; text-overflow: ellipsis; vertical-align: bottom; }

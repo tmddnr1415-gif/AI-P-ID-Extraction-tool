@@ -169,7 +169,7 @@ async function pickTypes(title, { tag = '', preset = null, note = '', pdf = /PDF
 function chunkRows(tbody, rows, first = 80, empty = '') {    // 80 rows ≈ one screen; the rest never blocks a keystroke   // big tables: first rows now, the rest in idle batches (no freeze)
   const html = (a, b) => rows.slice(a, b).map(x => typeof x === 'function' ? x() : x).join('');   // valve26: rows may be lazy builders
   if (!tbody) return;
-  const wrap = tbody.closest('.xg-wrap');
+  const wrap = tbody.closest('.xg-wrap, .vscroll');
   if (wrap && rows.length > 400) return virtualRows(tbody, wrap, rows, html);   // valve29: big grids draw only what is in view
   tbody.innerHTML = rows.length ? html(0, first) : empty; let i = first;
   const idle = window.requestIdleCallback || (f => setTimeout(f, 0));
@@ -1519,7 +1519,7 @@ function drawRight() {
     h = !d.pms ? `<div class="empty">PMS 문서가 아직 없습니다 — Document Management 에 Piping Material Specification PDF 를 올리면<br>Piping Class 의 Rating · NACE · Trim · Body · Seat 를 이 데이터시트와 비교합니다.</div>`
       : `<p>Piping Class <b>${esc(val('piping_class') || 'Not Found')}</b> · PMS ${esc(d.area || '지역 미상')} · <span class="soft">${esc(d.pms_doc?.filename || '')}</span></p>
       <table class="t"><thead><tr><th>Item</th><th>PMS Requirement</th><th>Datasheet</th><th>Result</th><th>PMS p.</th></tr></thead><tbody>
-      ${d.pms.map(r => `<tr class="click" data-k="${esc(r.key)}" title="${esc(r.reason)}"><td>${esc(r.item)}</td><td>${esc(r.req)}</td><td>${esc(r.ds)}</td><td>${pill(r.result.replace(/[^A-Za-z]/g, ''), r.result)}<div class="soft" style="font-size:11px">${esc(r.reason)}</div></td><td>${r.pms_page ? `<a href="#" data-pmsp="${r.pms_page}" data-pmsb="${esc(JSON.stringify(r.pms_bbox))}">${r.pms_page}</a>` : ''}</td></tr>`).join('')}</tbody></table>
+      ${d.pms.map(r => `<tr class="click" data-k="${esc(r.key)}" title="${esc(r.reason)}"><td>${esc(r.item)}</td><td title="${esc(r.req)}">${esc(r.req)}</td><td title="${esc(r.ds)}">${esc(r.ds)}</td><td>${pill(r.result.replace(/[^A-Za-z]/g, ''), r.result)}<div class="soft" style="font-size:11px">${esc(r.reason)}</div></td><td>${r.pms_page ? `<a href="#" data-pmsp="${r.pms_page}" data-pmsb="${esc(JSON.stringify(r.pms_bbox))}">${r.pms_page}</a>` : ''}</td></tr>`).join('')}</tbody></table>
       <p class="soft hint">재질은 표기가 아니라 규격·등급으로 비교합니다 (A351 CF8M ⊂ 316/316L SS A351-CF8M/CF3M = Compliant). 같은 계열의 다른 등급은 Review Required.</p>`;
   } else if (W.tab === 'mat') {
     h = matList(d);
@@ -1837,11 +1837,11 @@ async function renderProc() {
       <select id="pi"><option value="">All Items</option>${[...new Set(S.procRows.map(r => r.item))].map(x => `<option ${x === P.item ? 'selected' : ''}>${esc(x)}</option>`).join('')}</select>
       <input type="search" id="pq" placeholder="Tag 검색" value="${esc(P.q)}" style="width:140px"><span class="soft">${L.length}행</span></div>
       <div class="soft hint" style="margin-top:4px">공정 항목만 비교 (Valve Size · Rating · Material · Piping Class 제외) · 압력은 게이지/절대 기준이 양쪽에 적혀 있을 때만 · 단위가 불명확하면 Review Required · Match 허용 오차 1 %</div></div>
-    <div style="flex:1;min-height:0;overflow:auto;padding:0 14px"><table class="t" data-xfdata="1"><thead><tr>${xfHeads('proc', [['Tag Number', 'tag'], ['Item', 'item'], ['Datasheet Value', 'ds'], ['Process Data', 'pd'], ['Result', 'result'], ['Reason', 'reason'], ['PD p.', 'pdp'], ['DS p.', 'dsp']])}</tr></thead><tbody id="pdtb"></tbody></table></div>
+    <div class="vscroll" style="flex:1;min-height:0;overflow:auto;padding:0 14px"><table class="t" data-xfdata="1"><colgroup>${[130, 170, 160, 160, 150, 420, 72, 72].map(w => `<col style="width:${w}px">`).join('')}</colgroup><thead><tr>${xfHeads('proc', [['Tag Number', 'tag'], ['Item', 'item'], ['Datasheet Value', 'ds'], ['Process Data', 'pd'], ['Result', 'result'], ['Reason', 'reason'], ['PD p.', 'pdp'], ['DS p.', 'dsp']])}</tr></thead><tbody id="pdtb"></tbody></table></div>
     <div style="height:42%;min-height:200px;display:flex;border-top:3px solid #1d2330;position:relative"><div class="rc-side" id="pdL"></div><div class="rc-side" id="pdR"></div>
       <div class="pmhint" id="pdhint">행을 누르면 Datasheet 칸 ↔ Process Data 칸이 나란히 열립니다.<span class="hint soft"> Review Required · Referenced · Not in Process Data 는 불일치가 아니라 확인할 것.</span></div></div></div>`;
   chunkRows($('#pdtb'), L.map(r => () => `<tr class="click" data-n="${r._n}"><td><b>${esc(r.tag)}</b></td><td>${esc(r.item)}</td><td>${esc(r.ds || '—')} <small class="soft">${esc(r.ds_unit)}</small></td><td>${esc(r.pd || '—')} <small class="soft">${esc(r.pd_unit)}</small></td>
-        <td>${pill(r.result.replace(/[^A-Za-z]/g, ''), r.result)}</td><td class="soft">${esc(r.reason)}</td><td>${r.pd_page || '—'}</td><td>${r.ds_page || ''}</td></tr>`), 80, '<tr><td colspan="8" class="empty">없음</td></tr>');   // valve29: every row (was capped)
+        <td>${pill(r.result.replace(/[^A-Za-z]/g, ''), r.result)}</td><td class="soft" title="${esc(r.reason)}">${esc(r.reason)}</td><td>${r.pd_page || '—'}</td><td>${r.ds_page || ''}</td></tr>`), 80, '<tr><td colspan="8" class="empty">없음</td></tr>');   // valve29: every row (was capped)
   const L1 = new Viewer($('#pdL'), { extra: '<span class="lbl">Datasheet</span>' }), R1 = new Viewer($('#pdR'), { extra: '<span class="lbl">Process Data</span>' });
   $$('[data-pr]', el).forEach(b => b.onclick = () => { P.res = P.res === b.dataset.pr ? '' : b.dataset.pr; renderProc(); });
   $('#pi').onchange = e => { P.item = e.target.value; renderProc(); };
@@ -1868,11 +1868,11 @@ async function renderPms() {
       ${['Non-Compliant', 'Review Required', 'Not Defined in PMS', 'Compliant'].map(x => `<button data-pr="${x}" class="${P.res === x ? 'pri' : ''}" title="${{ 'Non-Compliant': '요구 재질 · 등급과 다름 — 설계사에게 지적', 'Review Required': '자동으로 못 정함 — 엔지니어 확인 (부적합 아님)', 'Not Defined in PMS': 'PMS 에 그 항목이 없음 (부적합 아님)', Compliant: '요구 사항 충족' }[x]}">${pill(x.replace(/[^A-Za-z]/g, ''), { 'Non-Compliant': '✖ ', 'Review Required': '? ', 'Not Defined in PMS': '– ', Compliant: '✔ ' }[x] + x)} ${cnt(x)}</button>`).join('')}
       <select id="pi"><option value="">All Items</option>${[...new Set(S.pmsRows.map(r => r.item))].map(x => `<option ${x === P.item ? 'selected' : ''}>${esc(x)}</option>`).join('')}</select>
       <input type="search" id="pq" placeholder="Tag 검색" value="${esc(P.q)}" style="width:140px"><span class="soft">${L.length}행 · 재질은 규격·등급으로 비교 (표기 차이 무시)</span></div></div>
-    <div style="flex:1;min-height:0;overflow:auto;padding:0 14px"><table class="t" data-xfdata="1"><thead><tr>${xfHeads('pms', [['Tag Number', 'tag'], ['Area', 'area'], ['Piping Material Class', 'class'], ['Item', 'item'], ['PMS Requirement', 'req'], ['Datasheet Value', 'ds'], ['Compliance Result', 'result'], ['Reason', 'reason'], ['PMS Ref. Page', 'pmsp'], ['DS Ref. Page', 'dsp']])}</tr></thead><tbody id="pmtb"></tbody></table></div>
+    <div class="vscroll" style="flex:1;min-height:0;overflow:auto;padding:0 14px"><table class="t" data-xfdata="1"><colgroup>${[130, 80, 160, 150, 220, 220, 150, 380, 110, 110].map(w => `<col style="width:${w}px">`).join('')}</colgroup><thead><tr>${xfHeads('pms', [['Tag Number', 'tag'], ['Area', 'area'], ['Piping Material Class', 'class'], ['Item', 'item'], ['PMS Requirement', 'req'], ['Datasheet Value', 'ds'], ['Compliance Result', 'result'], ['Reason', 'reason'], ['PMS Ref. Page', 'pmsp'], ['DS Ref. Page', 'dsp']])}</tr></thead><tbody id="pmtb"></tbody></table></div>
     <div style="height:42%;min-height:200px;display:flex;border-top:3px solid #1d2330;position:relative"><div class="rc-side" id="pmL"></div><div class="rc-side" id="pmR"></div>
       <div class="pmhint" id="pmhint">행을 누르면 Datasheet 칸 ↔ PMS 근거 쪽이 나란히 열립니다.<span class="hint soft"> Review Required · Not Defined 는 부적합이 아니라 확인할 것.</span></div></div></div>`;
-  chunkRows($('#pmtb'), L.map((r, n) => () => `<tr class="click" data-n="${r._n}"><td><b>${esc(r.tag)}</b></td><td>${esc(r.area || '?')}</td><td>${esc(r.class)}</td><td>${esc(r.item)}</td><td>${esc(r.req)}</td><td>${esc(r.ds)}</td>
-        <td>${pill(r.result.replace(/[^A-Za-z]/g, ''), r.result)}</td><td class="soft">${esc(r.reason)}</td><td>${r.pms_page || '—'}</td><td>${r.ds_page || ''}</td></tr>`), 80, '<tr><td colspan="10" class="empty">없음</td></tr>');   // valve29: every row (was capped)
+  chunkRows($('#pmtb'), L.map((r, n) => () => `<tr class="click" data-n="${r._n}"><td><b>${esc(r.tag)}</b></td><td>${esc(r.area || '?')}</td><td>${esc(r.class)}</td><td>${esc(r.item)}</td><td title="${esc(r.req)}">${esc(r.req)}</td><td title="${esc(r.ds)}">${esc(r.ds)}</td>
+        <td>${pill(r.result.replace(/[^A-Za-z]/g, ''), r.result)}</td><td class="soft" title="${esc(r.reason)}">${esc(r.reason)}</td><td>${r.pms_page || '—'}</td><td>${r.ds_page || ''}</td></tr>`), 80, '<tr><td colspan="10" class="empty">없음</td></tr>');   // valve29: every row (was capped)
   const L1 = new Viewer($('#pmL'), { extra: '<span class="lbl">Datasheet</span>' }), R1 = new Viewer($('#pmR'), { extra: '<span class="lbl">PMS</span>' });
   $$('[data-pr]', el).forEach(b => b.onclick = () => { P.res = P.res === b.dataset.pr ? '' : b.dataset.pr; renderPms(); });
   $('#pi').onchange = e => { P.item = e.target.value; renderPms(); };

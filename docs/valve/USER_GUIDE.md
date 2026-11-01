@@ -122,6 +122,9 @@
 - 있는 곳: Valve List · Issue List · Special Req. · Process Data · PMS · 대시보드 표 · Document · Rule Performance · Revision 표 · 카드 크게 보기.
 - 메뉴를 옮겼다 와도 필터가 남습니다. Issue List 에서 필터를 건 채 Excel/PDF 를 받으면 걸린 Tag 들만 나갑니다.
 
+## 10-4. Process Data · PMS 표가 한 줄로 (valve29)
+- 행이 한 줄로 보이고 긴 글은 … 로 줄어듭니다. **마우스를 올리면 전체 글**이 뜨고, 행을 누르면 아래에 근거 쪽이 나란히 열립니다. (수천 행이어도 화면에 보이는 줄만 그려 가볍습니다.)
+
 ## 11. 자주 묻는 것
 
 - **Area · Unit 은 어디서 오나?** 데이터시트 제목(QELNG NORTH / SOUTH / W15)과 P&ID 번호에서. 제목에 '(SYSTEM xx – UNIT yy)' 가 있으면 기존 플랜트 = Brownfield.

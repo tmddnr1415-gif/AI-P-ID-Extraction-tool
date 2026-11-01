@@ -631,3 +631,9 @@ Note 113 · PC-01 Confirm 6(3C0K8 의 '316 SS/FHF' 2개 · API5L-X65 MOV 1500# �
 - 값 목록은 다른 열 필터에 남은 행에서 센다(Excel 방식). 처음 120개만 바로 그리고 나머지는 잠시 뒤(최대 1,500).
 - 990 DS(지적 17,512) 측정: 필터 적용 ≈ 0.2 s · 정렬 ≈ 0.2–0.3 s(JS 25 ms, 나머지는 표 배치) · 열기 0.1–0.25 s. 확인: `spike/valve_filter_check.cjs`.
 
+### 34-5. 가볍게 (valve29, 사용자 요청 "검증하고 가볍게")
+- **잰 것**: 화면 DOM 요소 수(990 DS 에서 메뉴를 다 돌면 22만 개) · 첫/재방문 전송량(387 KB 매번) · 서버 RSS(164 DS 286 MB · 990 DS 512 MB, 그중 pymupdf import 125 MB).
+- **브라우저**: Process · PMS 표를 가상 행으로(`.vscroll` + 한 줄 셀, 원문은 툴팁) → 990 DS 27k/43k → 600 요소. 메뉴 진입 410/328 → 87/73 ms.
+- **전송**: `valve.js?v=<내용 해시>` + `immutable` 1년 캐시(index.html 은 no-store 라 꾸러미가 바뀌면 바로 새 해시). 화면 답(summary · grid · issues · pms · process · requirements · rules · tagging)은 **한 번 gzip 해 두고** ETag 로 304 → 재방문 229 KB → 2 KB.
+- **서버 메모리**: 문서별 General Notes 를 한 객체로 공유(`_intern_gn`) · Expert 지적의 kb_text/kb_title 은 캐시에 두지 않고 서빙 때 붙임(`_fat`) · 지적 목록 행이 캐시의 지적 dict 를 그대로 가리킴(복사 없음) · 응답 본문은 gz 로만 보관 · 큰 재계산 뒤 `malloc_trim`. 990 DS 490 → 431 MB(−12 %). 남은 큰 덩어리는 pymupdf import(125 MB, 손 못 댐)와 검토 캐시의 파이썬 객체(84 MB JSON ≈ 200 MB) — 더 줄이려면 압축 JSON 으로 보관하고 필요할 때 풀어야 하는데, 쓰기 뒤 첫 화면이 ~0.7 s 느려져 보류.
+
