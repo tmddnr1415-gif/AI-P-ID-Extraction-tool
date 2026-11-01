@@ -477,3 +477,11 @@ body.pop #popv { flex: 1; min-height: 0; display: flex; flex-direction: column; 
 .cmpv { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 4px; background: #525a68; }
 .cmpv > div { display: flex; flex-direction: column; min-height: 0; min-width: 0; overflow: hidden; }
 body.pop #cmphost { display: flex; flex-direction: column; }
+/* valve29 — dialogs: move by the title, resize by the corner; the comment text grows with the dialog */
+.mbox { display: flex; flex-direction: column; resize: both; overflow: auto; min-width: 320px; min-height: 150px; max-width: 98vw; max-height: 96vh; }
+#mTitle { cursor: move; user-select: none; margin-top: 0; }
+#mTitle::after { content: '  ⠿'; color: #9aa3b2; font-weight: 400; }
+#mBody { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+#mBody > * { flex-shrink: 0; }
+#mBody > .dfl.grow, #mBody > #cmphost, #mBody > #pmsv { flex: 1 1 auto; }
+.dfl.grow { display: flex; flex-direction: column; } .dfl.grow textarea { flex: 1; min-height: 70px; resize: none; }

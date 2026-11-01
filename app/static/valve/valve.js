@@ -52,8 +52,44 @@ function toast(msg, bad) {
   const t = $('#toast'); t.textContent = msg; t.className = 'on' + (bad ? ' bad' : '');
   clearTimeout(toast.t); toast.t = setTimeout(() => { t.className = ''; }, bad ? 6000 : 2600);
 }
-function modal(title, html, buttons) {
+/* valve29 — every dialog can be moved (drag the title) and resized (drag the lower-right corner).  With a key, the dialog
+   opens where and as big as it was left last time (e.g. the comment editor). */
+function placeModal(key) {
+  const box = $('.mbox'), st = key ? LS.get('mpos.' + key, null) : null;
+  box.style.position = box.style.left = box.style.top = box.style.margin = box.style.height = '';
+  if (!box.style.width || !box.dataset.keepw) box.style.width = '';
+  if (st) { Object.assign(box.style, { position: 'fixed', margin: '0', left: Math.max(0, Math.min(innerWidth - 120, st.x)) + 'px',
+    top: Math.max(0, Math.min(innerHeight - 60, st.y)) + 'px', width: Math.min(st.w, innerWidth - 8) + 'px', height: Math.min(st.h, innerHeight - 8) + 'px' });
+    requestAnimationFrame(keepOnScreen); }
+  box.dataset.mkey = key || '';
+}
+function keepOnScreen() {                               // the whole dialog (and its buttons) stays visible
+  const box = $('.mbox'); if (box.style.position !== 'fixed') return;
+  const r = box.getBoundingClientRect();
+  if (r.bottom > innerHeight) box.style.top = Math.max(0, innerHeight - r.height - 4) + 'px';
+  if (r.right > innerWidth) box.style.left = Math.max(0, innerWidth - r.width - 4) + 'px';
+}
+function saveModal() {
+  keepOnScreen();
+  const box = $('.mbox'), key = box.dataset.mkey; if (!key) return;
+  const r = box.getBoundingClientRect(); LS.set('mpos.' + key, { x: Math.round(r.left), y: Math.round(r.top), w: Math.round(r.width), h: Math.round(r.height) });
+}
+function modalDrag() {
+  const t = document.getElementById('mTitle'); if (!t) return;
+  t.addEventListener('pointerdown', e => {
+    if (e.button !== 0) return;
+    const box = $('.mbox'), r = box.getBoundingClientRect(), dx = e.clientX - r.left, dy = e.clientY - r.top;
+    Object.assign(box.style, { position: 'fixed', margin: '0', left: r.left + 'px', top: r.top + 'px', width: r.width + 'px' });
+    const mv = ev => { box.style.left = Math.max(0, Math.min(innerWidth - 80, ev.clientX - dx)) + 'px'; box.style.top = Math.max(0, Math.min(innerHeight - 40, ev.clientY - dy)) + 'px'; };
+    const up = () => { removeEventListener('pointermove', mv); removeEventListener('pointerup', up); saveModal(); };
+    addEventListener('pointermove', mv); addEventListener('pointerup', up); e.preventDefault();
+  });
+  new ResizeObserver(() => { const box = $('.mbox'); if (box && !$('#modal').hidden && box.style.position === 'fixed') saveModal(); }).observe($('.mbox'));
+}
+modalDrag();
+function modal(title, html, buttons, key) {
   return new Promise(res => {
+    placeModal(key);
     $('#mTitle').textContent = title; $('#mBody').innerHTML = html; $('#mAct').innerHTML = '';
     for (const [label, val, pri] of buttons) {
       const b = document.createElement('button'); b.textContent = label; if (pri) b.className = 'pri';
@@ -81,7 +117,7 @@ async function askDecision(choice, n = 1, issue = null) {
     ${choice === 'Modified' ? `<label class="dfl"><span>고친 지적 문구</span><textarea name="modified_text" rows="3">${esc(issue?.original_description || issue?.description || '')}</textarea></label>
       <label class="dfl"><span>Severity</span><select name="modified_severity">${['Major', 'Minor', 'Info'].map(x => `<option ${x === (issue?.severity) ? 'selected' : ''}>${x}</option>`).join('')}</select></label>` : ''}
     <p class="soft hint">Dismissed 는 규칙이 틀렸다는 뜻이 아닐 수 있습니다 — 사유 분류가 Rule Performance 에 그대로 쓰입니다.</p>`;
-  const r = await modal(`${choice}${n > 1 ? ` × ${n}건` : ''} — Engineer Decision`, html, [['취소', null], ['저장', 'form', 1]]);
+  const r = await modal(`${choice}${n > 1 ? ` × ${n}건` : ''} — Engineer Decision`, html, [['취소', null], ['저장', 'form', 1]], 'decision');
   if (!r) return null;
   if (need && !r.reason_cat) { toast('사유 분류를 골라 주세요', 1); return null; }
   return { decision: choice, reason_cat: r.reason_cat || '', note: r.note || '', conclusion: r.conclusion || '', modified_text: r.modified_text || '', modified_severity: r.modified_severity || '' };
@@ -1495,6 +1531,7 @@ async function exportMarkup() {
 async function openPmsRef(page, bbox) { return openRef(S.ds?.pms_doc || S.pmsDoc, page, bbox, 'PMS'); }
 async function openRef(doc, page, bbox, what) {        // a reference document page (PMS · Process Data) in a pop-up viewer
   if (!doc) return;
+  placeModal('ref');
   $('#mTitle').textContent = `${what} ${doc.filename} · p.${page}`; $('#mAct').innerHTML = '<button>닫기</button>';
   $('#mBody').innerHTML = '<div id="pmsv" style="height:70vh;display:flex;flex-direction:column;background:#525a68"></div>';
   $('.mbox').style.width = 'min(1000px,94vw)'; $('#modal').hidden = false;
@@ -1859,10 +1896,10 @@ addEventListener('keydown', e => {
 async function editIssueText(dsId, i, after) {
   const orig = i.original_description || i.description, origExp = i.original_expected ?? i.expected ?? '';
   const r = await modal(`코멘트 고치기 · 보완 — ${i.type} · ${i.field}`, `${i.edited ? `<p class="soft">도구 원문: ${esc(orig)}${origExp ? ` · Required: ${esc(origExp)}` : ''}</p>` : ''}
-    <label class="dfl"><span>설계사에게 가는 코멘트</span><textarea name="text" rows="4">${esc(i.description || '')}</textarea></label>
+    <label class="dfl grow"><span>설계사에게 가는 코멘트</span><textarea name="text" rows="4">${esc(i.description || '')}</textarea></label>
     <label class="dfl"><span>Required / Expected</span><input name="expected" value="${esc(i.expected || '')}"></label>
     <p class="soft hint">고친 문구가 Issue List Excel · Mark-up PDF 에 나갑니다. 결정(Confirmed 등)은 그대로입니다. 도구 원문은 기록에 남습니다.</p>`,
-    [['취소', null], ...(i.edited ? [['도구 원문으로', 'reset']] : []), ['저장', 'form', 1]]);
+    [['취소', null], ...(i.edited ? [['도구 원문으로', 'reset']] : []), ['저장', 'form', 1]], 'edit');
   if (!r) return;
   const body = r === 'reset' ? { text: '', expected: '' } : { text: r.text.trim() === orig.trim() ? '' : r.text, expected: (r.expected || '').trim() === (origExp || '').trim() ? '' : r.expected };
   try { await api('PUT', `/datasheets/${dsId}/issues-text/${encodeURIComponent(i.ikey)}`, body); toast(r === 'reset' ? '도구 원문으로 되돌렸습니다' : '코멘트를 고쳤습니다'); after && after(); }
@@ -1910,10 +1947,11 @@ async function renderCompare(host, d, i, opts = {}) {
       const w = window.open(u.toString(), 'valve-pop-cmp', 'popup=yes,width=1500,height=950'); if (!w) toast('새 창이 막혔습니다 — 팝업 허용을 켜 주세요', 1); else { w.focus(); $('#modal').hidden = true; $('.mbox').style.width = ''; } } };
 }
 async function compareIssue(d, i) {
+  placeModal('compare');
   $('#mTitle').textContent = '어디와 다른가 — 나란히 보기'; $('#mAct').innerHTML = '<button>닫기</button>';
-  $('#mBody').innerHTML = '<div id="cmphost" style="height:80vh"></div>';
-  $('.mbox').style.width = 'min(1600px,97vw)'; $('#modal').hidden = false;
-  $('#mAct button').onclick = () => { $('#modal').hidden = true; $('.mbox').style.width = ''; };
+  $('#mBody').innerHTML = '<div id="cmphost" style="height:100%;min-height:60vh"></div>';
+  if (!$('.mbox').style.height) { $('.mbox').style.width = 'min(1600px,97vw)'; $('.mbox').style.height = '88vh'; } $('#modal').hidden = false;
+  $('#mAct button').onclick = () => { $('#modal').hidden = true; $('.mbox').style.width = $('.mbox').style.height = ''; };
   await renderCompare($('#cmphost'), d, i);
   link({ t: 'iss', id: d.id, ikey: i.ikey });
 }
@@ -1922,7 +1960,7 @@ async function popCmp() {                                  // the compare view i
   document.body.innerHTML = `<div class="popbar"><b>어디와 다른가</b><span class="soft" id="pinfo">메인 창에서 지적을 고르세요</span><span class="sp"></span>
     <label class="soft"><input type="checkbox" id="plink" ${linkOn() ? 'checked' : ''}> 연동</label></div><div id="cmphost" style="flex:1;min-height:0;background:#fff"></div><div id="toast"></div>
     <div id="modal" hidden><div class="mbox"><h3 id="mTitle"></h3><div id="mBody"></div><div class="mact" id="mAct"></div></div></div>`;
-  $('#plink').onchange = e => LS.set('linkon', e.target.checked ? 1 : 0);
+  $('#plink').onchange = e => LS.set('linkon', e.target.checked ? 1 : 0); modalDrag();
   S.projects = (await api('GET', '/projects')).projects;
   const want = Q.get('project'), p = (want && S.projects.find(x => x.name === want)) || S.projects.find(x => x.id === LS.get('pid')) || S.projects[0];
   S.pid = p?.id;
@@ -1979,7 +2017,7 @@ async function popPdf() {                                  // the light PDF wind
     <label class="soft" title="메인 창의 Tag · 칸 · 지적을 따라가고, 여기서 누른 것을 메인 창에 보냅니다"><input type="checkbox" id="plink" ${linkOn() ? 'checked' : ''}> 연동</label></div>
     <div id="popv"></div><div id="toast"></div>
     <div id="modal" hidden><div class="mbox"><h3 id="mTitle"></h3><div id="mBody"></div><div class="mact" id="mAct"></div></div></div>`;
-  $('#plink').onchange = e => LS.set('linkon', e.target.checked ? 1 : 0);
+  $('#plink').onchange = e => LS.set('linkon', e.target.checked ? 1 : 0); modalDrag();
   $('#pprev').onclick = () => link({ t: 'nav', d: -1 }); $('#pnext').onclick = () => link({ t: 'nav', d: 1 });
   S.projects = (await api('GET', '/projects')).projects;
   const want = Q.get('project'), p = (want && S.projects.find(x => x.name === want)) || S.projects.find(x => x.id === LS.get('pid')) || S.projects[0];
