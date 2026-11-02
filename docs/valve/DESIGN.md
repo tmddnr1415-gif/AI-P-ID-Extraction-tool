@@ -664,3 +664,9 @@ Note 113 · PC-01 Confirm 6(3C0K8 의 '316 SS/FHF' 2개 · API5L-X65 MOV 1500# �
 - 숫자 → Tag 목록 창 → Valve List / Issue List 로 갈 때 열 필터 상태(XF grid/iss 의 tag)를 그 Tag 들로 세팅.
 - 대시보드 아래 카드 줄은 `grid-auto-rows: 330px` — 표가 길어도 카드가 눌리지 않고 화면이 스크롤.
 
+### 39. valve34 — 회사 PC 'PDF 를 열 수 없습니다 — FileDataError' 반복 · 상태 창 닫기
+- 증상: 같은 Datasheet.pdf(이름을 바꾼 Datasheet2.pdf 포함)를 몇 번 올려도 처리 단계에서 FileDataError. 업로드 때 쪽수(456)는 받은 바이트로 셌으니 파일 자체는 정상.
+- 원인: 원본은 내용 해시 이름(`valve/files/<sha16>.pdf`)으로 한 번만 저장하고, 같은 내용이면 **있는 파일을 그대로** 썼다. 그 저장본이 깨졌거나(잘림 · 다른 프로그램이 잡음) 열 수 없으면 다시 올려도 같은 저장본을 써서 매번 실패.
+- 고침: ① `store.save_original` 이 있는 저장본의 크기 · 해시를 확인해 다르면 업로드 바이트로 다시 씀(Windows 잠금은 잠깐 기다려 다시) ② `_process` 가 읽기 전에 저장본 해시 = document.sha256 확인 — 다르면 "저장된 원본 파일이 올린 파일과 다릅니다 — 같은 파일을 한 번 더 올리면 새로 씁니다" ③ `extract.open_pdf` 는 잠깐 잡힌 파일을 4번까지 다시 열고, 실패하면 이유(없음 · 빈 파일 · PDF 아님 · 다른 프로그램이 잡음)와 원래 오류 글을 그대로 보여 줌.
+- 작업 상태 창: ✕ 닫기 · 둘 이상이면 '모두 닫기' · 오류가 있으면 결과 Excel 을 자동으로 내려받지 않음. 시험 `test_broken_stored_original_is_named_and_repaired_by_reupload`.
+

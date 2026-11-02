@@ -260,3 +260,7 @@
 - API valve-summary + 대시보드 카드: 묶기 3종 · 색 농도 · 비율 · 특수요구 모두 · 숫자 → Tag 목록 → Valve/Issue List 걸러 열기 · Excel · 접기.
 - 실자료 합계 = Valve List Excel Summary 와 같음. 시험 +1 (1,986) · 스냅샷 0 · UI 25/25 · LINK OK. VERSION valve33.
 
+## 2026-11-02 · valve34 — FileDataError 반복(저장본 재사용) 고침 + 상태 창 닫기 (회사 PC 사진)
+- 원인: 내용 해시 저장본이 깨져도 같은 내용 업로드마다 재사용. 업로드 시 크기 · 해시 검증 후 다시 씀, 처리 전 해시 확인, open_pdf 재시도 + 실제 이유 표시.
+- 상태 창 ✕ · 모두 닫기 · 오류 시 자동 내려받기 안 함. 시험 +1 (1,987) · 스냅샷 0 · UI 25/25 · LINK OK. VERSION valve34.
+

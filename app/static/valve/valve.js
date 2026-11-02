@@ -980,6 +980,7 @@ function renderDocs() {
       <td>${d.status === 'error' ? `<button data-retry="${d.id}">재처리</button>` : d.kind === 'datasheet' && d.status === 'done' ? `<button data-retry="${d.id}" title="개선된 읽기로 다시 읽습니다 — 검토자 수정 · 의견 · Mark-up · 상태는 그대로">다시 읽기</button>` : ''}${d.kind !== 'valvelist' ? ` <a href="/api/valve/documents/${d.id}/file" target="_blank">원본</a>` : ''}${d.status === 'queued' || d.status === 'running' ? '' : ` <button class="ghost ddel" data-del="${d.id}" title="이 문서를 프로젝트에서 지웁니다 — 휴지통에서 되돌릴 수 있음">🗑</button>`}</td></tr>`).join('') || '<tr><td colspan="9" class="empty">아직 없습니다</td></tr>'}
     </tbody></table></div><div id="trashc"></div>`;
   (S.jobEls || []).filter(b => b.isConnected || !b.dataset.gone).forEach(b => $('#jobs').append(b));
+  jobsBar();
   drawTrash();
   $$('.drop', el).forEach(d => {
     const inp = $('input', d);
@@ -1029,21 +1030,34 @@ async function upload(kind, files) {
   try { const j = await api('POST', `/projects/${S.pid}/upload`, fd); if (j.skipped?.length) toast(j.skipped.join(' / '), 1); watch(j); }
   catch (e) { toast(e.message, 1); }
 }
+function closeJob(box) {
+  box.dataset.gone = '1'; box.remove(); S.jobEls = (S.jobEls || []).filter(b => b !== box); jobsBar();
+}
+function jobsBar() {                                 // 상태 창이 둘 이상이면 '모두 닫기'
+  const host = $('#jobs'); if (!host) return;
+  let bar = $('#jobsall', host); const n = $$('.jobc', host).length;
+  if (n < 2) { bar?.remove(); return; }
+  if (!bar) { bar = document.createElement('div'); bar.id = 'jobsall'; bar.innerHTML = '<button class="ghost">✕ 상태 창 모두 닫기</button>'; host.prepend(bar);
+    bar.onclick = () => $$('.jobc', host).forEach(closeJob); }
+  $('button', bar).textContent = `✕ 상태 창 모두 닫기 (${n})`;
+}
 function watch(job) {
-  const box = document.createElement('div'); box.className = 'card'; box.style.marginBottom = '12px';
+  const box = document.createElement('div'); box.className = 'card jobc'; box.style.marginBottom = '12px';
   (S.jobEls ||= []).unshift(box);                   // kept across re-renders of this screen
   $('#jobs')?.prepend(box);
+  box.addEventListener('click', e => { if (e.target.closest('.jx')) closeJob(box); });   // valve34: 상태 창 닫기
+  jobsBar();
   const tick = async () => {
-    let j; try { j = await api('GET', `/jobs/${job.id}`); } catch (e) { box.innerHTML = `<b style="color:var(--bad)">${esc(e.message)}</b>`; return; }
+    let j; try { j = await api('GET', `/jobs/${job.id}`); } catch (e) { box.innerHTML = `<button class="jx ghost" title="닫기">✕</button><b style="color:var(--bad)">${esc(e.message)}</b>`; return; }
     const pct = Math.round(100 * j.done / Math.max(1, j.total));
-    box.innerHTML = `<b>처리 중</b> <span class="soft">${esc(j.file)} · ${esc(j.msg)}</span><div class="prog"><i style="width:${pct}%"></i></div>${pct}% (${j.done}/${j.total} 쪽)
+    box.innerHTML = `<button class="jx ghost" title="이 상태 창 닫기 (작업은 계속됩니다)">✕</button><b>처리 중</b> <span class="soft">${esc(j.file)} · ${esc(j.msg)}</span><div class="prog"><i style="width:${pct}%"></i></div>${pct}% (${j.done}/${j.total} 쪽)
       ${j.warn ? `<div style="color:var(--warn)">${esc(j.warn)}</div>` : ''}${j.errors.map(e => `<div style="color:var(--bad)">✖ ${esc(e.file)} — ${esc(e.error)}</div>`).join('')}`;
     if (j.status === 'done') {
       box.querySelector('b').textContent = j.errors.length ? '끝 (오류 있음 — 아래 표에서 재처리)' : '분석 끝';
       if (j.exports?.length) {                        // the Excel lists made with the analysis — downloaded right away
         box.insertAdjacentHTML('beforeend', `<div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap;align-items:center"><b>결과 파일</b>${j.exports.map(f => `<a class="btnlink" href="${f.url}" download>⇩ ${esc(f.kind)}</a>`).join('')}
           <button data-go="list">Excel List 보기 (PDF 미리보기 연동)</button><button id="jmk">⇩ Mark-up PDF</button><span class="soft">Excel 의 칸 · 링크를 누르면 이 도구가 그 PDF 장 · 위치를 엽니다</span></div>`);
-        j.exports.forEach((f, n) => setTimeout(() => { const a = document.createElement('a'); a.href = f.url; a.download = f.name; document.body.append(a); a.click(); a.remove(); }, 300 + n * 900));
+        if (!j.errors.length) j.exports.forEach((f, n) => setTimeout(() => { const a = document.createElement('a'); a.href = f.url; a.download = f.name; document.body.append(a); a.click(); a.remove(); }, 300 + n * 900));
         $('#jmk', box).onclick = async () => { const t = await pickTypes('Mark-up PDF — 넣을 Issue Type'); if (t == null) return;
           toast('Mark-up PDF 를 만드는 중…'); download(`/projects/${S.pid}/markup.pdf?types=${encodeURIComponent(t)}${pdfq()}`).catch(e => toast(e.message, 1)); };
         await refresh(); return;

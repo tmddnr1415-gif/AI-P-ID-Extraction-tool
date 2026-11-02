@@ -25,6 +25,7 @@ import hashlib
 import json
 import sqlite3
 import threading
+import time
 from pathlib import Path
 
 from app import paths
@@ -199,16 +200,39 @@ def project_get_or_create(con, name: str) -> dict:
 
 # ── files ──────────────────────────────────────────────────────────────────────
 
+def file_ok(p: Path, sha: str, size: int | None = None) -> bool:
+    """The stored original still holds exactly the uploaded bytes (size, then content hash)."""
+    try:
+        if size is not None and p.stat().st_size != size:
+            return False
+        h = hashlib.sha256()
+        with open(p, "rb") as f:
+            for chunk in iter(lambda: f.read(1 << 20), b""):
+                h.update(chunk)
+        return h.hexdigest() == sha
+    except OSError:
+        return False
+
+
 def save_original(data: bytes, filename: str) -> tuple[str, Path]:
-    """Store bytes once under their hash.  An existing file with the same hash is left untouched."""
+    """Store bytes once under their hash.  An existing file with the same hash is kept — unless it no longer holds those
+    bytes (valve34: a damaged or truncated copy was reused for every later upload of the same file, so every re-upload
+    failed the same way); then it is written again from the upload."""
     sha = hashlib.sha256(data).hexdigest()
     ext = Path(filename).suffix.lower()[:6] or ".bin"
     p = root() / "files" / f"{sha[:16]}{ext}"
     p.parent.mkdir(parents=True, exist_ok=True)
-    if not p.exists():
+    if not p.exists() or not file_ok(p, sha, len(data)):
         tmp = p.with_suffix(p.suffix + ".part")
         tmp.write_bytes(data)
-        tmp.replace(p)
+        for k in range(5):                                   # Windows: a viewer / antivirus may hold the old copy for a moment
+            try:
+                tmp.replace(p)
+                break
+            except PermissionError:
+                if k == 4:
+                    raise
+                time.sleep(0.5 * (k + 1))
     return sha, p
 
 

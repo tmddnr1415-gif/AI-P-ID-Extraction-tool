@@ -305,6 +305,10 @@ def _process(jid: str, pid: int, items: list[tuple[int, str, str, Path]], by: st
         try:
             con.execute("UPDATE document SET status='running' WHERE id=?", (doc_id,))
             con.commit()
+            row = store.one(con, "SELECT sha256 FROM document WHERE id=?", doc_id)     # valve34: the stored copy is the upload
+            if row and row.get("sha256") and Path(path).exists() and not store.file_ok(Path(path), row["sha256"]):
+                raise extract.PdfError("서버에 저장된 원본 파일이 올린 파일과 다릅니다(손상 · 잘림) — 같은 파일을 한 번 더 올리면 "
+                                       "저장본을 새로 씁니다")
             if kind == "datasheet":
                 def prog(i, n, base=done):
                     _job(jid, done=base + i, msg=f"{name} · {i}/{n} 쪽")
@@ -440,7 +444,7 @@ def _rules_fingerprint() -> str:
 
 
 _RULES_FP = _rules_fingerprint()
-VERSION = "valve33"                       # shown in Settings › 정보 and the footer; bump with every package
+VERSION = "valve34"                       # shown in Settings › 정보 and the footer; bump with every package
 
 
 @router.get("/api/valve/version")

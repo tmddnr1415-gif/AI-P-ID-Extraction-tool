@@ -616,3 +616,8 @@ table.t.vsumt td.vk { text-align: left; white-space: nowrap; }
 .vstags { max-height: 56vh; overflow: auto; }
 .dashv .dashrow { flex: 1 0 auto; grid-auto-rows: 330px; }   /* valve33: Valve Summary 아래 카드가 눌리지 않게 — 길면 화면이 스크롤 */
 .dashv > .kpis, .dashv > .refdocs, .dashv > .vh, .dashv > .vsum { flex-shrink: 0; }
+
+/* valve34 — 작업 상태 창 닫기 */
+.jobc { position: relative; padding-right: 40px; }
+.jobc .jx { position: absolute; top: 8px; right: 8px; padding: 0 7px !important; font-size: 14px; line-height: 22px; border-radius: 6px; }
+#jobsall { display: flex; justify-content: flex-end; margin-bottom: 6px; }

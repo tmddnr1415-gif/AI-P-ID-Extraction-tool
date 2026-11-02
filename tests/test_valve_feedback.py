@@ -425,3 +425,27 @@ def test_first_screen_valve_summary_matches_the_project(tmp_path, monkeypatch):
     assert t["open"] == sum(1 for i in issues if i["type"] in issuesmod.CONTRACTOR_TYPES and i["status"] != "Dismissed")
     assert "Dense Phase CO2" in t["req"] and "Dense Phase CO2" in V["reqs"] and t["type"] in V["types"]
     assert V["has_valvelist"] is False and t["new"] is None                  # no Valve List → 'New Tags' is not claimed
+
+
+def test_broken_stored_original_is_named_and_repaired_by_reupload(tmp_path, monkeypatch):
+    """valve34 (company PC): every upload of the same PDF failed 'FileDataError' — the content-addressed stored copy was
+    broken and reused.  Now the job says so, and uploading the file again rewrites the stored copy."""
+    import time as _t
+    c, pid, up = _client(tmp_path, monkeypatch)
+    data = _pdf("A")
+    up("ds_A.pdf", data)
+    from app.valve import store as st
+    con = st.connect()
+    path = Path(st.one(con, "SELECT path FROM document WHERE id=1")["path"])
+    path.write_bytes(data[:len(data) // 3])                                 # the stored copy goes bad
+    j = c.post("/api/valve/documents/1/retry", headers={"X-Author": "eng"}).json()
+    for _ in range(200):
+        j = c.get(f"/api/valve/jobs/{j['id']}").json()
+        if j["status"] == "done":
+            break
+        _t.sleep(0.05)
+    assert j["errors"] and "저장된 원본 파일이 올린 파일과 다릅니다" in j["errors"][0]["error"]
+    up("ds_A_again.pdf", data)                                              # same bytes → the stored copy is rewritten
+    assert path.read_bytes() == data
+    docs = c.get(f"/api/valve/projects/{pid}/summary").json()["documents"]
+    assert next(d for d in docs if d["filename"] == "ds_A_again.pdf")["status"] == "done"

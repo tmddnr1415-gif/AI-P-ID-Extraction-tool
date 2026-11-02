@@ -740,14 +740,40 @@ class PdfError(ValueError):
 
 
 def open_pdf(path: str):
-    try:
-        doc = pymupdf.open(path)
-    except Exception as e:                                   # noqa: BLE001
-        raise PdfError(f"PDF 를 열 수 없습니다 (손상된 파일) — {type(e).__name__}")
+    """Open a stored PDF.  A file another program holds for a moment (antivirus scan right after the upload, a viewer)
+    is tried again before giving up; the error names what actually failed (valve34 — 'FileDataError' alone said nothing)."""
+    import os
+    import time
+    last = None
+    for k in range(4):
+        try:
+            doc = pymupdf.open(path)
+            break
+        except Exception as e:                               # noqa: BLE001
+            last = e
+            time.sleep(0.6 * (k + 1))
+    else:
+        size = os.path.getsize(path) if os.path.exists(path) else None
+        why = "파일이 없습니다" if size is None else "빈 파일입니다" if size == 0 else \
+            "PDF 내용이 아닙니다(손상 · 잘림)" if not _looks_pdf(path) else "다른 프로그램이 파일을 잡고 있거나 PDF 구조가 손상됨"
+        raise PdfError(f"PDF 를 열 수 없습니다 — {why} ({type(last).__name__}: {str(last)[:120]})")
     if doc.needs_pass and not doc.authenticate(""):          # owner-only protection opens with an empty password
         doc.close()
         raise PdfError("암호가 걸린 PDF 입니다 — 암호를 풀어 저장한 뒤 다시 올려 주세요")
     return doc
+
+
+def _looks_pdf(path: str) -> bool:
+    try:
+        with open(path, "rb") as f:
+            head = f.read(1024)
+            f.seek(0, 2)
+            n = f.tell()
+            f.seek(max(0, n - 2048))
+            tail = f.read()
+        return b"%PDF" in head and b"%%EOF" in tail
+    except OSError:
+        return False
 
 
 _STD = 842.0                                                 # the reader's thresholds are in A4 points
