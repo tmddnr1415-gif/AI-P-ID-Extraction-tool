@@ -361,6 +361,16 @@ class Viewer {
     $('.pno', host).addEventListener('change', e => { const i = (+e.target.value || 1) - 1; this.goIndex(i); });
     this.stage.addEventListener('scroll', () => { this.syncNo(); this.opts.onScroll?.(this); });
     this.stage.addEventListener('mousedown', e => this.mkDown(e));
+    // valve30: Ctrl + 휠 = 마우스 자리를 중심으로 확대/축소 (브라우저 전체 확대 대신) — 여러 칸을 한 번에 모아 한 번만 그림
+    this.stage.addEventListener('wheel', e => {
+      if (!e.ctrlKey) return;
+      e.preventDefault();
+      const r = this.stage.getBoundingClientRect();
+      this._wz = (this._wz || 1) * Math.exp(-e.deltaY * 0.0015);
+      this._wp = [e.clientX - r.left, e.clientY - r.top];
+      if (this._wr) return;
+      this._wr = requestAnimationFrame(() => { this._wr = 0; const f = this._wz; this._wz = 1; this.zoomAt(this.zoom * f, ...this._wp); });
+    }, { passive: false });
     this.marks = []; this.tool = 'select'; this.mkCat = LS.get('mkcat', 'comment');
     this.style = Object.assign({ color: '', width: 1.6 }, LS.get('mkstyle', {})); this.stamp = LS.get('mkstamp', 'APPROVED'); this.quick = !!LS.get('mkquick', 1);
     if (opts.tools) {
@@ -394,7 +404,10 @@ class Viewer {
     $('.tot', this.host).textContent = `/ ${pages.length}`;
     this.render();
   }
-  imgZoom() { return Math.min(3, Math.max(1, Math.ceil(this.zoom * (window.devicePixelRatio || 1) * 1.34 * 2) / 2)); }
+  imgZoom() {                                 // valve30: picture pixels ≥ 1.25 × screen pixels (was ≈ 1.0 — soft text in previews)
+    const need = this.zoom * 1.3333 * (window.devicePixelRatio || 1) * 1.25;
+    return Math.min(4, Math.max(1.5, Math.ceil(need * 4) / 4));
+  }
   render() {
     const z = this.zoom, imgZ = this.imgZoom();
     this.stage.innerHTML = this.pages.map(p => {
@@ -404,6 +417,12 @@ class Viewer {
     }).join('') || '<div class="empty" style="color:#d6dbe5">표시할 쪽이 없습니다</div>';
     $('.zl', this.host).textContent = Math.round(z * 100) + '%';
     this.paintOv(); this.paintMarks();
+  }
+  zoomAt(z, px, py) {                         // keep the point under the mouse where it is
+    const old = this.zoom, nz = Math.max(0.4, Math.min(4, z)); if (Math.abs(nz - old) < 1e-3) return;
+    const cx = this.stage.scrollLeft + px, cy = this.stage.scrollTop + py;
+    this.zoom = nz; LS.set('zoom', nz); this.render();
+    this.stage.scrollLeft = cx * nz / old - px; this.stage.scrollTop = cy * nz / old - py;
   }
   setZoom(z) { const p = this.current(); this.zoom = Math.max(0.4, Math.min(4, z)); LS.set('zoom', this.zoom); this.render(); this.goPage(p, null, false); }
   fit() { const w = this.size[(this.pages[0] || 1) - 1]?.[0] || 595; this.setZoom((this.stage.clientWidth - 40) / (w * 1.3333)); }
@@ -752,6 +771,21 @@ function donut(parts) {
     <text x="60" y="58" text-anchor="middle" font-size="20" font-weight="700" fill="#1b2333">${tot === 1 && !parts.some(p => p.n) ? 0 : tot}</text><text x="60" y="74" text-anchor="middle" font-size="11" fill="#5b6475">Tags</text></svg>`;
 }
 /* valve29 — 첫 화면: 검토가 기준으로 삼는 최신 Datasheet · Process Data · PMS 의 Rev · 날짜 (문서 자체의 개정표에서 읽음 — docrev) */
+/* valve30 — PMS · Process 화면: 표 ↔ 아래 미리보기 높이, 왼쪽 ↔ 오른쪽 미리보기 폭을 마우스로 (값은 기억) */
+function splitPanes(el, key, viewers) {
+  const bot = $('.pvbot', el), hs = $('.hsplit', el), vs = $('.vsplit', el), left = $('#' + key, el);
+  if (!bot || !hs || !vs || !left) return;
+  const box = () => bot.parentElement.getBoundingClientRect();
+  const drag = (on, move, done) => on.onmousedown = e => {
+    e.preventDefault(); document.body.classList.add('dragging');
+    const mv = ev => move(ev), up = () => { removeEventListener('mousemove', mv); removeEventListener('mouseup', up); document.body.classList.remove('dragging'); done(); };
+    addEventListener('mousemove', mv); addEventListener('mouseup', up);
+  };
+  drag(hs, ev => { const b = box(); const h = Math.max(15, Math.min(85, (b.bottom - ev.clientY) / b.height * 100)); bot.style.height = h + '%'; LS.set('pvh_' + key, Math.round(h)); },
+    () => viewers.forEach(v => v?.paintOv()));
+  drag(vs, ev => { const b = bot.getBoundingClientRect(); const w = Math.max(15, Math.min(85, (ev.clientX - b.left) / b.width * 100)); left.style.flex = `0 0 ${w}%`; LS.set('pvw_' + key, Math.round(w)); },
+    () => viewers.forEach(v => v?.paintOv()));
+}
 function refDocs(L) {
   const up = x => x?.uploaded_at ? `올린 날 ${esc(x.uploaded_at.slice(0, 10))}` : '';
   const revs = o => Object.entries(o || {}).map(([r, n]) => `Rev ${esc(r)} <b>${n}</b>`).join(' · ');
@@ -1862,11 +1896,12 @@ async function renderProc() {
       <input type="search" id="pq" placeholder="Tag 검색" value="${esc(P.q)}" style="width:140px"><span class="soft">${L.length}행</span></div>
       <div class="soft hint" style="margin-top:4px">공정 항목만 비교 (Valve Size · Rating · Material · Piping Class 제외) · 압력은 게이지/절대 기준이 양쪽에 적혀 있을 때만 · 단위가 불명확하면 Review Required · Match 허용 오차 1 %</div></div>
     <div class="vscroll" style="flex:1;min-height:0;overflow:auto;padding:0 14px"><table class="t" data-xfdata="1"><colgroup>${[130, 170, 160, 160, 150, 420, 72, 72].map(w => `<col style="width:${w}px">`).join('')}</colgroup><thead><tr>${xfHeads('proc', [['Tag Number', 'tag'], ['Item', 'item'], ['Datasheet Value', 'ds'], ['Process Data', 'pd'], ['Result', 'result'], ['Reason', 'reason'], ['PD p.', 'pdp'], ['DS p.', 'dsp']])}</tr></thead><tbody id="pdtb"></tbody></table></div>
-    <div style="height:42%;min-height:200px;display:flex;border-top:3px solid #1d2330;position:relative"><div class="rc-side" id="pdL"></div><div class="rc-side" id="pdR"></div>
+    <div class="hsplit" title="끌어서 아래 미리보기 높이 조절"></div><div class="pvbot" style="height:${LS.get('pvh_' + 'pdL', 42)}%;min-height:120px;display:flex;position:relative"><div class="rc-side" id="pdL" style="flex:0 0 ${LS.get('pvw_' + 'pdL', 50)}%"></div><div class="vsplit" title="끌어서 두 미리보기 폭 조절"></div><div class="rc-side" id="pdR"></div>
       <div class="pmhint" id="pdhint">행을 누르면 Datasheet 칸 ↔ Process Data 칸이 나란히 열립니다.<span class="hint soft"> Review Required · Referenced · Not in Process Data 는 불일치가 아니라 확인할 것.</span></div></div></div>`;
   chunkRows($('#pdtb'), L.map(r => () => `<tr class="click" data-n="${r._n}"><td><b>${esc(r.tag)}</b></td><td>${esc(r.item)}</td><td>${esc(r.ds || '—')} <small class="soft">${esc(r.ds_unit)}</small></td><td>${esc(r.pd || '—')} <small class="soft">${esc(r.pd_unit)}</small></td>
         <td>${pill(r.result.replace(/[^A-Za-z]/g, ''), r.result)}</td><td class="soft" title="${esc(r.reason)}">${esc(r.reason)}</td><td>${r.pd_page || '—'}</td><td>${r.ds_page || ''}</td></tr>`), 80, '<tr><td colspan="8" class="empty">없음</td></tr>');   // valve29: every row (was capped)
   const L1 = new Viewer($('#pdL'), { extra: '<span class="lbl">Datasheet</span>' }), R1 = new Viewer($('#pdR'), { extra: '<span class="lbl">Process Data</span>' });
+  splitPanes(el, 'pdL', [L1, R1]);
   $$('[data-pr]', el).forEach(b => b.onclick = () => { P.res = P.res === b.dataset.pr ? '' : b.dataset.pr; renderProc(); });
   $('#pi').onchange = e => { P.item = e.target.value; renderProc(); };
   $('#pq').oninput = e => { P.q = e.target.value; clearTimeout(P.t); P.t = setTimeout(() => { renderProc().then(() => { const f = $('#pq'); f.focus(); f.setSelectionRange(f.value.length, f.value.length); }); }, 300); };
@@ -1893,11 +1928,12 @@ async function renderPms() {
       <select id="pi"><option value="">All Items</option>${[...new Set(S.pmsRows.map(r => r.item))].map(x => `<option ${x === P.item ? 'selected' : ''}>${esc(x)}</option>`).join('')}</select>
       <input type="search" id="pq" placeholder="Tag 검색" value="${esc(P.q)}" style="width:140px"><span class="soft">${L.length}행 · 재질은 규격·등급으로 비교 (표기 차이 무시)</span></div></div>
     <div class="vscroll" style="flex:1;min-height:0;overflow:auto;padding:0 14px"><table class="t" data-xfdata="1"><colgroup>${[130, 80, 160, 150, 220, 220, 150, 380, 110, 110].map(w => `<col style="width:${w}px">`).join('')}</colgroup><thead><tr>${xfHeads('pms', [['Tag Number', 'tag'], ['Area', 'area'], ['Piping Material Class', 'class'], ['Item', 'item'], ['PMS Requirement', 'req'], ['Datasheet Value', 'ds'], ['Compliance Result', 'result'], ['Reason', 'reason'], ['PMS Ref. Page', 'pmsp'], ['DS Ref. Page', 'dsp']])}</tr></thead><tbody id="pmtb"></tbody></table></div>
-    <div style="height:42%;min-height:200px;display:flex;border-top:3px solid #1d2330;position:relative"><div class="rc-side" id="pmL"></div><div class="rc-side" id="pmR"></div>
+    <div class="hsplit" title="끌어서 아래 미리보기 높이 조절"></div><div class="pvbot" style="height:${LS.get('pvh_' + 'pmL', 42)}%;min-height:120px;display:flex;position:relative"><div class="rc-side" id="pmL" style="flex:0 0 ${LS.get('pvw_' + 'pmL', 50)}%"></div><div class="vsplit" title="끌어서 두 미리보기 폭 조절"></div><div class="rc-side" id="pmR"></div>
       <div class="pmhint" id="pmhint">행을 누르면 Datasheet 칸 ↔ PMS 근거 쪽이 나란히 열립니다.<span class="hint soft"> Review Required · Not Defined 는 부적합이 아니라 확인할 것.</span></div></div></div>`;
   chunkRows($('#pmtb'), L.map((r, n) => () => `<tr class="click" data-n="${r._n}"><td><b>${esc(r.tag)}</b></td><td>${esc(r.area || '?')}</td><td>${esc(r.class)}</td><td>${esc(r.item)}</td><td title="${esc(r.req)}">${esc(r.req)}</td><td title="${esc(r.ds)}">${esc(r.ds)}</td>
         <td>${pill(r.result.replace(/[^A-Za-z]/g, ''), r.result)}</td><td class="soft" title="${esc(r.reason)}">${esc(r.reason)}</td><td>${r.pms_page || '—'}</td><td>${r.ds_page || ''}</td></tr>`), 80, '<tr><td colspan="10" class="empty">없음</td></tr>');   // valve29: every row (was capped)
   const L1 = new Viewer($('#pmL'), { extra: '<span class="lbl">Datasheet</span>' }), R1 = new Viewer($('#pmR'), { extra: '<span class="lbl">PMS</span>' });
+  splitPanes(el, 'pmL', [L1, R1]);
   $$('[data-pr]', el).forEach(b => b.onclick = () => { P.res = P.res === b.dataset.pr ? '' : b.dataset.pr; renderPms(); });
   $('#pi').onchange = e => { P.item = e.target.value; renderPms(); };
   $('#pq').oninput = e => { P.q = e.target.value; clearTimeout(P.t); P.t = setTimeout(() => { renderPms().then(() => { const f = $('#pq'); f.focus(); f.setSelectionRange(f.value.length, f.value.length); }); }, 300); };

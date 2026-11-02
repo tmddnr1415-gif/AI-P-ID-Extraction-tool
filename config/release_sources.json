@@ -16,8 +16,8 @@
     }
   },
   "company_owned": {
-    "_설명": "2026-11-01 사용자 결정: Valve 분석 툴(Ball · Globe · Butterfly · PSV)은 회사 PC 의 Claude Code 가 회사 PC 에서 개발한다. 개인 Claude Code(대시보드 · P&ID · LOGIC · PANEL)가 만드는 PID_dev+ops 꾸러미에는 아래 경로를 싣지 않는다 — 실으면 회사에서 고친 Valve 파일과 부딪쳐 운영 적용(all-or-nothing)이 통째로 막힌다. spike/pack_delta.py 가 지킨다(--only 로 이 경로를 명시할 때만 예외).",
-    "owner": "회사 PC Claude Code (VALVE)",
+    "_설명": "Valve 분석 툴 경로. P&ID hotfix 꾸러미(--only 없이)는 이 경로를 싣지 않는다 — Valve 는 VALVE 세션이 따로 PID_dev+ops_valveNN(--only) 으로 낸다. 2026-11-01 회사 PC 개발로 정했다가 2026-11-02 '우선 개인(클라우드 VALVE) 세션에서 계속' 으로 바뀜; 어느 쪽이든 hotfix 와 섞지 않는 규칙은 같다.",
+    "owner": "VALVE 세션 (2026-11-02: 클라우드 ccr-efbe7e75-n915ze)",
     "paths": [
       "app/valve/",
       "app/static/valve/",

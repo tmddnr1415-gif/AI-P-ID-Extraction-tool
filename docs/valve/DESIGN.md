@@ -637,3 +637,10 @@ Note 113 · PC-01 Confirm 6(3C0K8 의 '316 SS/FHF' 2개 · API5L-X65 MOV 1500# �
 - **전송**: `valve.js?v=<내용 해시>` + `immutable` 1년 캐시(index.html 은 no-store 라 꾸러미가 바뀌면 바로 새 해시). 화면 답(summary · grid · issues · pms · process · requirements · rules · tagging)은 **한 번 gzip 해 두고** ETag 로 304 → 재방문 229 KB → 2 KB.
 - **서버 메모리**: 문서별 General Notes 를 한 객체로 공유(`_intern_gn`) · Expert 지적의 kb_text/kb_title 은 캐시에 두지 않고 서빙 때 붙임(`_fat`) · 지적 목록 행이 캐시의 지적 dict 를 그대로 가리킴(복사 없음) · 응답 본문은 gz 로만 보관 · 큰 재계산 뒤 `malloc_trim`. 990 DS 490 → 431 MB(−12 %). 남은 큰 덩어리는 pymupdf import(125 MB, 손 못 댐)와 검토 캐시의 파이썬 객체(84 MB JSON ≈ 200 MB) — 더 줄이려면 압축 JSON 으로 보관하고 필요할 때 풀어야 하는데, 쓰기 뒤 첫 화면이 ~0.7 s 느려져 보류.
 
+### 35. valve30 — 회사 PC 사진 피드백 다섯 (2026-11-02)
+- 입체 화면 규칙(`body.d3 #main button…`)이 어두운 `.tbar`(PDF 도구줄 · Mark-up 줄) 버튼까지 흰 버튼으로 덮어 흰 글씨가 안 보였다 → 일반 규칙에서 `:not(.tbar button)`, `.tbar` 는 어두운 버튼.
+- Ctrl+휠: `wheel` (passive:false) 에서 ctrlKey 일 때만 막고 rAF 로 모아 `zoomAt(z, x, y)` — 마우스 아래 점이 그 자리에 남도록 scroll 보정. 브라우저 전체 확대는 일어나지 않음.
+- 미리보기 화질: `imgZoom` = zoom × 1.3333 × devicePixelRatio × 1.25 를 0.25 단위로 올림(1.5~4). 예전 식은 화면 픽셀과 거의 1:1 이라 글자가 뿌옜다.
+- PMS · Process 아래 미리보기: `.hsplit`(높이) · `.vsplit`(좌우) 손잡이, `LS pvh_/pvw_<pane>` 기억. 끄는 동안 `body.dragging` 으로 글자 선택 · 그림 끌림 막음.
+- PMS Bore 문구: 판정은 맞음(3C3AS1 3" 일반 볼밸브는 REDUCED PORT 품목뿐, FULL PORT 는 IDBB) — 이유에 품목 코드 · 크기 범위 · 다른 밸브 종류에만 있는 bore 를 적음.
+

@@ -2,7 +2,9 @@
 
 ## 지금 상태 (2026-11-01 · valve29 = Phase 1 완료 + 후속 요청들)
 
-- ★★ **2026-11-01 사용자 결정: 이제부터 Valve 분석 툴은 회사 PC Claude Code 가 개발한다.** 클라우드 · 개인 세션은 `app/valve` · `app/static/valve` · `tests/test_valve*` · `docs/valve` 를
+- ★★★ **2026-11-02 사용자: "우선 여기 개인 클로드에서 개발을 이어서 진행한다"** — 이 세션(클라우드)이 계속 개발하고 valveNN 꾸러미를 낸다. 회사 PC 는 적용만(회사에서 Valve 를 고치면 다음 꾸러미가 충돌).
+  아래 2026-11-01 '회사 PC 개발' 장치(devkit · valve_deploy_to_ops)는 그대로 두되 지금은 쓰지 않는다.
+- (옛) 2026-11-01 사용자 결정: Valve 분석 툴은 회사 PC Claude Code 가 개발한다. 클라우드 · 개인 세션은 `app/valve` · `app/static/valve` · `tests/test_valve*` · `docs/valve` 를
   고치지 않고 꾸러미에도 싣지 않는다(`config/release_sources.json` company_owned · `spike/pack_delta.py`). 회사 쪽 운영 반영 = `spike/valve_deploy_to_ops.bat`(시험 → 백업 → Valve 만 복사 → 8000 재시작) · 되돌리기 `valve_rollback_ops.bat`.
 
 - 작업 브랜치: `ccr-efbe7e75-n915ze` (PID hotfix131 · DASHBOARD v16.51 병합 위). **회사 PC 에서 이어 갈 때는 `docs/handoff/VALVE_COMPANY_START.md`** (폴더 · 지시문).
@@ -19,7 +21,10 @@
 - 매 회차 끝 점검: `pytest -q`(1,906 통과) · `tests/ -k valve`(108) · `valve_eval --check` · `valve_sim --n 3000` · `valve_mutate` · `valve_rev_sim --n 300` · `valve_snapshot_diff check` ·
   `node spike/valve_ui_audit.cjs`(25/25) · `valve_link_check.cjs` · `valve_filter_check.cjs` · 속도 `valve_speed.cjs`(동작 60개, 최장 멈춤 ≤ 0.37 s).
 - ✅ **회사 적용 확인 (2026-11-02 사용자)**: valve29 · 대시보드 VALVE2 메뉴 zip · devkit 모두 적용. 이후 Valve 는 회사 PC 가 원본.
-- 꾸러미: **valve29** = `out/PID_dev+ops_valve29_2026-11-01.zip`(P&ID 서버, 누적 — 이것 하나) · 대시보드 = `dashboard_patches/UPDATE_from_v16.51_VALVE2_menu.zip`(--any) ·
+- **valve30 (2026-11-02, 회사 PC 사진 피드백)**: 입체 화면에서 PDF 도구줄 · Mark-up 줄 버튼이 흰 바탕 흰 글씨 → 어두운 버튼 유지 · Ctrl+휠 = PDF 확대/축소(마우스 자리 중심, `Viewer.zoomAt`) ·
+  PMS/Process 아래 미리보기 높이 · 좌우 폭 끌어서 조절(`splitPanes`, LS 기억) · 미리보기 화질(그림 = 화면 픽셀 × 1.25, 최대 4배) · PMS Bore 지적 문구에 PMS 품목 · 크기 범위(28건 문구만).
+  판정 스냅샷은 `out/valve29/snapshot_valve30.json`(2,935) 기준.
+- 꾸러미: **valve30** = `out/PID_dev+ops_valve30_2026-11-02.zip` (누적). 그 전 **valve29** = `out/PID_dev+ops_valve29_2026-11-01.zip`(P&ID 서버, 누적 — 이것 하나) · 대시보드 = `dashboard_patches/UPDATE_from_v16.51_VALVE2_menu.zip`(--any) ·
   회사 개발용 = `out/VALVE_devkit_valve29_2026-11-01.zip`(문서 · 점검 도구).
 - 남은 일: PERFORMANCE_REPORT.md(측정은 끝 — DESIGN §34-2 · §34-5 · other_log 수치) · Globe/Butterfly/PSV 검토(양식 · 기준 필요) · Phase 2(회사 Valve Spec · Gasket/Bolting PMS · Process DS 원본 필요) ·
   실사용 결정 쌓기(Rule Performance 정밀도) · 다른 Vendor 양식 시험.

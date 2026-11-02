@@ -243,3 +243,8 @@
 ## 2026-11-02 · 회사 적용 확인 (사용자)
 - valve29(P&ID 서버) · UPDATE_from_v16.51_VALVE2_menu(대시보드) · VALVE_devkit_valve29 · 안내문 — 모두 적용했다고 사용자 확인. 대시보드 기준점은 delivered.txt 마지막 줄(e39cfda).
 
+## 2026-11-02 · valve30 — 회사 PC 사진 피드백 다섯 + 개발 위치 되돌림 (사용자)
+- 사용자: "우선 여기 개인 클로드에서 개발을 이어서 진행한다" → CLAUDE.md 표 · §3, release_sources 설명, 인수인계 갱신 (hotfix 에 Valve 를 싣지 않는 규칙은 그대로).
+- 고침: Mark-up/PDF 도구줄 흰 바탕 흰 글씨 · Ctrl+휠 확대 · PMS/Process 미리보기 높이/폭 끌기 · 미리보기 화질 · Bore 지적 문구(판정 동일, 28건 문구만).
+- 점검: valve 시험 114 · eval baseline unchanged · 스냅샷 changed 28(문구만) → snapshot_valve30 저장 · UI 25/25 · LINK OK. VERSION valve30.
+

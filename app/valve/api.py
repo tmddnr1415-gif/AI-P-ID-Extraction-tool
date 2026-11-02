@@ -439,7 +439,7 @@ def _rules_fingerprint() -> str:
 
 
 _RULES_FP = _rules_fingerprint()
-VERSION = "valve29"                       # shown in Settings › 정보 and the footer; bump with every package
+VERSION = "valve30"                       # shown in Settings › 정보 and the footer; bump with every package
 
 
 @router.get("/api/valve/version")

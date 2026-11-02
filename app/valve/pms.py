@@ -297,5 +297,9 @@ def check(fields: dict, pms: dict, area: str = "", notes: list | None = None) ->
             why = "PMS item requires fire test"
         add("Fire Safe", "fire_safe", f["fire"], val("fire_safe"), res, why, pg, bb)
     if want_bore and f["bore"] and f["bore"] != want_bore:
-        add("Bore", "body_type", f["bore"] + " PORT", val("body_type"), material.REVIEW, "No PMS item with this bore for this size", pg, bb)
+        other = sorted({ball_item_fields(x["desc"])["bore"] for x in c["items"] if x is not it and not x["kind"].upper().startswith("BALL VALVE")
+                        and x["from"] - 1e-6 <= (_inch(val("body_size")) or -1) <= x["to"] + 1e-6 and "BALL" in x["desc"].upper()} - {"", f["bore"]})
+        add("Bore", "body_type", f["bore"] + " PORT", val("body_type"), material.REVIEW,     # valve30: say WHICH item and range
+            f"PMS ball valve for {val('body_size')} in class {c['code']} is {f['bore']} PORT (item {it['code']}, {it['from']:g}–{it['to']:g}\")"
+            f" — datasheet says {want_bore} BORE; confirm the deviation" + (f" ({'/'.join(other)} PORT only as another valve type, e.g. DBB)" if other else ""), pg, bb)
     return rows

@@ -10,7 +10,7 @@
 | --- | --- | --- |
 | `2. PID 검토 …` | `docs/handoff/branches.md` 참고 | `docs/handoff/pid.md` |
 | `3. Logic 검토코드 …` | 〃 | `docs/handoff/logic.md` |
-| VALVE Datasheet 검토 — ★ 2026-11-01 부터 **회사 PC Claude Code 가 개발** (여기서는 손대지 않음) | (회사 PC `C:\Claude\PID_dev`) | `docs/handoff/valve.md` · `docs/handoff/VALVE_COMPANY_START.md` |
+| VALVE Datasheet 검토 — ★ 2026-11-02 사용자: **우선 개인(클라우드 VALVE) 세션에서 계속 개발** · 회사 PC 는 valveNN 적용만 | `ccr-efbe7e75-n915ze` | `docs/handoff/valve.md` |
 | 그 밖 (DASHBOARD · PANEL · 시연 영상 …) | 〃 | `docs/handoff/branches.md` · `dashboard/` 규칙은 `docs/handoff/dashboard_rules.md` |
 
 - 브랜치 지도(어느 세션이 어느 브랜치인지 · 옛 브랜치)는 **`docs/handoff/branches.md` 하나**에 있습니다.
@@ -38,8 +38,8 @@
 ## 3. 업데이트 꾸러미(zip) 규칙
 
 - ★ **개발 담당 (2026-11-01 사용자 결정)**: 대시보드 · P&ID · LOGIC · PANEL = 개인 Claude Code 가 개발하고 zip 을 보낸다.
-  **Valve 분석 툴(Ball · Globe · Butterfly · PSV, `app/valve` · `app/static/valve`) = 회사 PC Claude Code 가 회사 PC 에서 개발**한다.
-  개인 쪽 꾸러미는 Valve 경로를 싣지 않는다 (`config/release_sources.json` `company_owned` · `spike/pack_delta.py` 가 뺀다 · 시험 `tests/test_company_owned.py`).
+  **Valve 분석 툴(`app/valve` · `app/static/valve`) = VALVE 세션 전용** — 2026-11-02 부터 다시 개인(클라우드 VALVE) 세션이 개발하고 `PID_dev+ops_valveNN` 을 낸다(회사 PC 는 적용만).
+  P&ID hotfix 꾸러미는 Valve 경로를 싣지 않는다 (`config/release_sources.json` `company_owned` · `spike/pack_delta.py` 가 뺀다 · 시험 `tests/test_company_owned.py`).
 
 - **P&ID · LOGIC · 판넬 공간확보 · 도서검토** 의 `PID_dev+ops_hotfixNNN` zip 은 **PID 브랜치**에서만 만듭니다.
   대시보드 본체·광장 zip 은 대시보드 쪽에서 만듭니다.

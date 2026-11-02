@@ -130,6 +130,10 @@
 - Datasheet: Tag 마다 가장 새 Revision 의 분포(Rev 0 · A · B …)와 가장 최근 개정일. PMS: Doc. No. · Rev · 개정일 · 개정 내용. Process Data: 묶음 문서 Rev 와 그 안의 공정 데이터시트별 Rev(카드 제목을 누르면 전체 목록).
 - 개정표 날짜를 못 읽으면 "원본 확인" 이라고 나옵니다(값을 지어내지 않음).
 
+## 10-6. PDF 보기 (valve30)
+- **Ctrl + 마우스 휠** = PDF 확대/축소 (마우스가 있는 자리를 중심으로). Datasheet 화면 · 오른쪽 · 아래 미리보기 어디서나.
+- PMS Compliance · Process Data 화면: 표와 아래 미리보기 사이의 막대를 끌면 **높이**, 두 미리보기 사이의 막대를 끌면 **폭**이 바뀝니다 (다음에 열어도 그대로).
+
 ## 11. 자주 묻는 것
 
 - **Area · Unit 은 어디서 오나?** 데이터시트 제목(QELNG NORTH / SOUTH / W15)과 P&ID 번호에서. 제목에 '(SYSTEM xx – UNIT yy)' 가 있으면 기존 플랜트 = Brownfield.

@@ -508,12 +508,12 @@ body.d3 .dashrow .card h3 { background: #fff; }
 body.d3 .kpi { transition: transform .12s, box-shadow .12s; }
 body.d3 .kpi:hover { transform: translateY(-2px); border-color: rgba(255, 255, 255, .9);
   box-shadow: 0 2px 2px rgba(16, 30, 60, .05), 0 10px 18px rgba(16, 30, 60, .10), 0 22px 36px rgba(16, 30, 60, .12); }
-body.d3 #main button:not([data-c]):not(.hchip):not(.ibtn):not(.on):not(.ghost):not(.pri) { border-radius: 8px; background: linear-gradient(180deg, #fff, #f1f4fa);
+body.d3 #main button:not([data-c]):not(.hchip):not(.ibtn):not(.on):not(.ghost):not(.pri):not(.tbar button) { border-radius: 8px; background: linear-gradient(180deg, #fff, #f1f4fa);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, .9), 0 2px 4px rgba(16, 30, 60, .10); }
 body.d3 #main button.pri:not([data-c]) { background: linear-gradient(180deg, #4a78f0, #2c55cf); box-shadow: 0 4px 10px rgba(47, 91, 216, .40), inset 0 1px 0 rgba(255, 255, 255, .3); }
 body.d3 #main button:not([data-c]):disabled { box-shadow: none; }
 body.d3 #main .tbar { background: linear-gradient(180deg, #2d3748, #1d2431); box-shadow: 0 4px 12px rgba(0, 0, 0, .25); }
-body.d3 #main .tbar button:not([data-c]):not(.on) { background: linear-gradient(180deg, #3a465b, #2a3346); box-shadow: inset 0 1px 0 rgba(255, 255, 255, .08), 0 1px 2px rgba(0, 0, 0, .4); }
+body.d3 #main .tbar button:not([data-c]):not(.on), body.d3 .tbar button:not([data-c]):not(.on) { background: linear-gradient(180deg, #3a465b, #2a3346); box-shadow: inset 0 1px 0 rgba(255, 255, 255, .08), 0 1px 2px rgba(0, 0, 0, .4); }
 body.d3 #main .tbar button.on:not([data-c]) { background: linear-gradient(180deg, #4a78f0, #2c55cf); }
 body.d3 .xg-wrap { box-shadow: 0 6px 20px rgba(16, 30, 60, .08); border-radius: 10px; }
 body.d3 input[type=search], body.d3 input[type=text], body.d3 select { box-shadow: inset 0 1px 3px rgba(16, 30, 60, .10); border-radius: 8px; }
@@ -575,3 +575,13 @@ button.xfb.on { background: var(--blue) !important; color: #fff !important; }
 .card.big.refdoc .rdparts { display: table; }
 .card.big.refdoc .rd1, .card.big.refdoc .rd2, .card.big.refdoc .rd3 { white-space: normal; }
 @media (max-width: 1100px) { .refdocs { grid-template-columns: 1fr; } }
+
+/* valve30 — 크기 조절 손잡이 (PMS · Process 아래 미리보기) */
+.hsplit { height: 7px; flex: none; cursor: row-resize; background: #1d2330; position: relative; }
+.hsplit::after { content: ""; position: absolute; left: 50%; top: 2px; width: 42px; height: 3px; margin-left: -21px; border-radius: 2px; background: #6b7690; }
+.vsplit { width: 7px; flex: none; cursor: col-resize; background: #1d2330; position: relative; }
+.vsplit::after { content: ""; position: absolute; top: 50%; left: 2px; height: 42px; width: 3px; margin-top: -21px; border-radius: 2px; background: #6b7690; }
+.hsplit:hover, .vsplit:hover { background: var(--blue); }
+.pvbot .rc-side + .vsplit + .rc-side { border-left: 0; }
+body.dragging, body.dragging * { user-select: none !important; cursor: inherit; }
+body.dragging iframe, body.dragging .stage img { pointer-events: none; }
