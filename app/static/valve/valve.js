@@ -129,6 +129,12 @@ async function askDecision(choice, n = 1, issue = null) {
 const TYPE_KO = { 'Data Missing': '누락 · 빈 값', 'Open Item': 'HOLD / TBC', 'Data Error': '데이터 오류', 'PMS Non-Compliance': 'PMS 부적합',
   'PMS Review': 'PMS 확인', 'Process Mismatch': 'Process Data 불일치', 'Material Review': '재질 검토', 'Valve Review': '설계 · 다른 DS 대비 검토',
   'Revision Change': 'Revision 변경', 'Reviewer Correction': '검토자 수정', 'Reviewer Comment': '검토자 의견', 'Extraction Review': '도구 내부 확인 (설계사용 아님)' };
+/* valve31 — 코멘트 언어: 화면 표시(clang) 와 출력(outlang) 따로.  en · ko · both.  한글은 서버가 규칙별 고정 문장으로 붙임(description_ko) */
+const clang = () => LS.get('clang', 'both'), outLang = () => LS.get('outlang', 'en');
+const descText = i => { const ko = i.description_ko, l = clang(); return l === 'ko' ? (ko || i.description) : l === 'both' && ko ? `${i.description}\n${ko}` : i.description; };
+const descHTML = i => { const ko = i.description_ko, l = clang(); if (l === 'ko') return esc(ko || i.description);
+  return esc(i.description) + (l === 'both' && ko ? `<div class="dko">${esc(ko)}</div>` : ''); };
+const LANGS = [['en', 'English'], ['ko', '한국어'], ['both', 'English + 한국어']];
 const pdfq = () => { const o = LS.get('pdfopt', { margin: 1, flatten: 1 }); return `&margin=${o.margin ? 1 : 0}&flatten=${o.flatten ? 1 : 0}`; };   // valve25
 async function loadIssues() {                      // valve29: compact list — per-datasheet fields sent once, merged here
   const r = await api('GET', `/projects/${S.pid}/issues?compact=1`);
@@ -147,6 +153,8 @@ async function pickTypes(title, { tag = '', preset = null, note = '', pdf = /PDF
   const html = `${note ? `<p class="soft">${esc(note)}</p>` : ''}<div class="tpbar"><button type="button" data-tpall="1">전체</button><button type="button" data-tpall="0">모두 끄기</button>
       <button type="button" data-tpdef="1">설계사용 기본</button><span class="sp"></span><span id="tpsum" class="soft"></span></div>
     <div class="tplist">${r.types.map(row).join('')}</div><p class="soft" style="margin:6px 0 0">Dismissed 는 넣지 않습니다. 고른 종류는 다음 출력 때도 그대로 기억합니다.</p>
+    <div class="olang"><b>코멘트 언어</b>${LANGS.map(([k, l]) => `<label><input type="radio" name="olang" value="${k}" ${outLang() === k ? 'checked' : ''}> ${l}</label>`).join('')}
+      <span class="soft">· 한글은 규칙별 고정 문장 · 검토자가 쓴 코멘트는 쓴 그대로</span></div>
     ${pdf ? (o => `<div style="margin-top:8px;padding-top:6px;border-top:1px solid var(--line,#e3e6ec);display:grid;gap:4px">
       <label style="display:flex;gap:6px;align-items:center"><input type="checkbox" id="poM" style="width:auto;flex:none;margin:0" ${o.margin ? 'checked' : ''}> <b style="white-space:nowrap">코멘트를 쪽 옆에 인쇄</b><span class="soft">— 번호마다 지적 · 검토자 의견이 그 쪽 오른쪽에</span></label>
       <label style="display:flex;gap:6px;align-items:center"><input type="checkbox" id="poF" style="width:auto;flex:none;margin:0" ${o.flatten ? 'checked' : ''}> <b style="white-space:nowrap">마크업 고정</b><span class="soft">— 어느 뷰어 · 인쇄에서도 화면 그대로 (끄면 Acrobat 에서 고칠 수 있는 주석)</span></label></div>`)(LS.get('pdfopt', { margin: 1, flatten: 1 })) : ''}`;
@@ -163,6 +171,7 @@ async function pickTypes(title, { tag = '', preset = null, note = '', pdf = /PDF
   if (res !== 'go') return null;
   const ts = $$('input[data-ty]:checked', box).map(x => x.dataset.ty);
   if (!preset) LS.set('xtypes', ts);
+  const ol = $('input[name="olang"]:checked', box); if (ol) LS.set('outlang', ol.value);
   if (pdf) LS.set('pdfopt', { margin: $('#poM', box).checked ? 1 : 0, flatten: $('#poF', box).checked ? 1 : 0 });
   return ts.join(',');
 }
@@ -210,6 +219,7 @@ function virtualRows(tbody, wrap, rows, html) {
   wrap.addEventListener('scroll', wrap._vr, { passive: true });
 }
 async function download(path, method = 'GET', body) {
+  if (/\/(issues\.xlsx|markup\.pdf)(\?|$)/.test(path) && !/[?&]lang=/.test(path)) path += (path.includes('?') ? '&' : '?') + 'lang=' + outLang();   // valve31
   const r = await api(method, path, body, true);
   const cd = r.headers.get('Content-Disposition') || '';
   const m = cd.match(/filename\*=UTF-8''([^;]+)/) || cd.match(/filename=([^;]+)/);
@@ -974,7 +984,7 @@ async function dsIssues(dsId) {                     // issues of one datasheet a
   S.pv?.setMarks(S.issues.filter(i => i.ds_id === dsId && i.comment_id && i.bbox && i.status !== 'Dismissed').map(i => ({ id: i.comment_id, page: i.page, bbox: i.bbox,
     kind: i.kind || 'rect', points: i.points, category: i.category || 'comment', text: i.text_raw ?? i.description, by: i.by, no: i.no })));
   return S.issues.filter(i => i.ds_id === dsId && i.bbox && i.status !== 'Dismissed' && !i.comment_id && (IF.internal || i.type !== 'Extraction Review'))
-    .map(i => ({ cat: i.color, page: i.page, bbox: i.bbox, no: i.no, iss: i.ikey, title: `#${i.no} ${i.type} · ${i.field}`, text: i.description, sel: G.selIss === i.ikey }));
+    .map(i => ({ cat: i.color, page: i.page, bbox: i.bbox, no: i.no, iss: i.ikey, title: `#${i.no} ${i.type} · ${i.field}`, text: descText(i), sel: G.selIss === i.ikey }));
 }
 const listTop = () => `<span class="segtab"><button data-lm="grid" class="${G.mode !== 'issues' && G.mode !== 'req' ? 'on' : ''}">Valve List</button><button data-lm="issues" class="${G.mode === 'issues' ? 'on' : ''}">Issue List${S.sum?.kpi ? ` (${(S.sum.kpi.data_errors || 0) + (S.sum.kpi.data_missing || 0) + (S.sum.kpi.open_items || 0) + (S.sum.kpi.pms_noncompliant || 0) + (S.sum.kpi.pms_review || 0)})` : ''}</button><button data-lm="req" class="${G.mode === 'req' ? 'on' : ''}" title="PFP · Fugitive · Fire Safe · Dense CO2 · NACE … 한눈에">Special Req.</button></span>`;
 const lpWrap = inner => `<div class="lp"><div class="lp-left">${inner}</div><div class="split" id="lpsplit" title="끌어 너비 조절"></div><div class="lp-right" id="lpv" style="width:${LS.get('pvw', 42)}%"></div></div>`;
@@ -1163,7 +1173,7 @@ async function renderIssues(rowsOnly) {
   const __rows = L.map((i, n) => () => `<tr data-i="${esc(i.ds_id + '|' + i.ikey)}" class="${G.selIss === i.ikey && G.selDs === i.ds_id ? 'sel' : ''}">
         <td class="fz" style="left:0"><b class="no ${i.color}">${i.no}</b></td><td class="fz fzl" style="left:34px"><b>${esc(i.tag)}</b></td><td>${esc(i.doc_no)}</td><td>${esc(i.rev)}</td><td>${i.sheet || ''} of ${i.of || ''}</td><td>${i.page || ''}</td>
         <td title="${esc(i.field)}">${esc(i.field)}${i.row ? ` <small>#${i.row}</small>` : ''}</td><td title="${esc(i.value)}">${esc(i.value || '(blank)')}</td>
-        <td>${pill(i.type.replace(/[^A-Za-z]/g, ''), i.type)}${i.comment_id ? '' : ` <button class="ibtn" data-icmp="1" title="어디와 다른지 나란히">⇆</button><button class="ibtn" data-iedit="1" title="코멘트 고치기 · 보완">✎${i.edited ? '•' : ''}</button>`}</td><td title="${esc(i.description)}${i.evidence?.length ? '\n근거: ' + esc(i.evidence.map(x => `${x.doc || ''}${x.page ? ' p.' + x.page : ''} ${x.where || ''}: ${String(x.text || '').slice(0, 60)}`).join(' | ')) : ''}">${esc(i.description)}</td><td title="${esc(i.expected)}">${esc(i.expected)}</td>
+        <td>${pill(i.type.replace(/[^A-Za-z]/g, ''), i.type)}${i.comment_id ? '' : ` <button class="ibtn" data-icmp="1" title="어디와 다른지 나란히">⇆</button><button class="ibtn" data-iedit="1" title="코멘트 고치기 · 보완">✎${i.edited ? '•' : ''}</button>`}</td><td title="${esc(i.description)}${i.evidence?.length ? '\n근거: ' + esc(i.evidence.map(x => `${x.doc || ''}${x.page ? ' p.' + x.page : ''} ${x.where || ''}: ${String(x.text || '').slice(0, 60)}`).join(' | ')) : ''}">${descHTML(i)}</td><td title="${esc(i.expected)}">${esc(i.expected)}</td>
         <td>${pill(i.severity)}</td><td>${decSelect(`data-ist="${esc(i.ds_id + '|' + i.ikey)}"`, i)}</td></tr>`), __fb = '<tr><td colspan="13" class="empty">조건에 맞는 지적 사항이 없습니다</td></tr>';
   IF.L = L;
   if (rowsOnly && $('#ig tbody', el)) { chunkRows($('#ig tbody', el), __rows, 80, __fb); const c = $('#icnt', el); if (c) c.textContent = `${L.length} / ${all.length}`; return; }
@@ -1397,7 +1407,7 @@ function paintDsOverlays() {
     points: c.points, style: c.style || null, category: c.category || 'comment', text: c.text, by: c.by, no: noOf[c.id], editable: true, sel: W.selCm === c.id })));
   for (const i of S.ds.issues || []) {                // every issue in its colour, numbered like the exported PDF
     if (i.comment_id || !i.bbox || i.status === 'Dismissed' || (i.type === 'Extraction Review' && !W.showInternal)) continue;
-    ov.push({ cat: i.color, page: i.page, bbox: i.bbox, key: i.key, no: i.no, title: `#${i.no} ${i.type} · ${i.field}`, text: i.description + (i.expected ? `\nRequired: ${i.expected}` : ''), iss: i.ikey, sel: W.selIss === i.ikey });
+    ov.push({ cat: i.color, page: i.page, bbox: i.bbox, key: i.key, no: i.no, title: `#${i.no} ${i.type} · ${i.field}`, text: descText(i) + (i.expected ? `\nRequired: ${i.expected}` : ''), iss: i.ikey, sel: W.selIss === i.ikey });
   }
   const sf = S.ds.fields.find(f => f.key === W.selField);
   if (sf?.bbox) ov.push({ cat: 'field', page: sf.page, bbox: sf.bbox, title: sf.display });
@@ -1511,7 +1521,7 @@ function drawRight() {
     const card = i => `<div class="iss ${i.color} ${W.selIss === i.ikey ? 'on' : ''} ${i.status === 'Dismissed' ? 'dis' : ''}" data-iss="${esc(i.ikey)}">
         <div class="ih"><b class="no ${i.color}">${i.no}</b><b>${esc(i.type)}</b><span class="soft">${esc(i.field)}${i.row ? ' #' + i.row : ''} · p.${i.page || ''}</span><span class="sp"></span>
         ${i.comment_id ? '' : `<button class="ibtn" data-icmp="${esc(i.ikey)}" title="어디와 다른지 — Datasheet 칸과 기준 문서(PMS · Process Data · 이전 판) 나란히">⇆</button><button class="ibtn" data-iedit="${esc(i.ikey)}" title="코멘트 고치기 · 보완${i.edited ? ' (고침)' : ''}">✎${i.edited ? '•' : ''}</button>`}${decSelect(`data-ist="${esc(i.ikey)}"`, i)}</div>
-        <div>${esc(i.description)}</div>${i.expected ? `<div class="soft">Required: <b>${esc(i.expected)}</b></div>` : ''}${i.op && i.expected ? `<div class="soft" style="font-size:11px" title="Actual · 비교 · Reference${i.tol ? ' · 허용오차' : ''} · Result">${esc(i.value || '(blank)')} <b>${esc(i.op)}</b> ${esc(i.expected)}${i.tol ? ` (±${esc(i.tol)})` : ''} → ${esc(i.result || '')}</div>` : ''}${i.evidence?.length ? `<div class="soft" style="font-size:11px">근거: ${i.evidence.map(x => evLink(d, x)).join(' · ')}${i.basis ? ` <span class="soft" title="${esc(i.basis)}">[${esc(i.check || '')}]</span>` : ''}</div>` : ''}${i.note ? `<div class="soft">Note: ${esc(i.note)}</div>` : ''}</div>`;
+        <div>${descHTML(i)}</div>${i.expected ? `<div class="soft">Required: <b>${esc(i.expected)}</b></div>` : ''}${i.op && i.expected ? `<div class="soft" style="font-size:11px" title="Actual · 비교 · Reference${i.tol ? ' · 허용오차' : ''} · Result">${esc(i.value || '(blank)')} <b>${esc(i.op)}</b> ${esc(i.expected)}${i.tol ? ` (±${esc(i.tol)})` : ''} → ${esc(i.result || '')}</div>` : ''}${i.evidence?.length ? `<div class="soft" style="font-size:11px">근거: ${i.evidence.map(x => evLink(d, x)).join(' · ')}${i.basis ? ` <span class="soft" title="${esc(i.basis)}">[${esc(i.check || '')}]</span>` : ''}</div>` : ''}${i.note ? `<div class="soft">Note: ${esc(i.note)}</div>` : ''}</div>`;
     // same type + same reason → one card with the fields as chips (13 'no value; ref. Process DS' cards become one)
     const sig = i => i.type === 'Data Missing' ? 'Data Missing|' + i.description.replace(/^[^:]+:\s*/, '') : i.type === 'Open Item' && !i.key.startsWith('note.') ? 'Open Item|hold' : null;
     const groups = {}; L.forEach(i => { const k = sig(i); if (k) (groups[k] ||= []).push(i); });
@@ -1524,8 +1534,9 @@ function drawRight() {
         <div class="ih"><b class="no ${first.color}">${first.no}–${g[g.length - 1].no}</b><b>${esc(first.type)}</b><span class="soft">${g.length}건 · ${st.length === 1 ? st[0] : st.length + ' statuses'}</span><span class="sp"></span>
           <select data-istg="${esc(k)}" aria-label="decision all"><option value="">일괄 결정…</option>${DECIDE.filter(x => x !== 'Modified').map(x => `<option>${x}</option>`).join('')}</select>
           <button data-grpx="${esc(k)}" title="${open ? '접기' : '펼치기'}">${open ? '▾' : '▸'}</button></div>
-        <div>${esc(first.type === 'Open Item' ? 'HOLD / TBC — release and give the value.' : first.description.replace(/^[^:]+:\s*/, ''))}</div>
-        <div class="chips">${g.map(x => `<span class="fchip ${x.status === 'Dismissed' ? 'dis' : ''} ${W.selIss === x.ikey ? 'on' : ''}" data-iss="${esc(x.ikey)}" title="${esc(x.description)}">${x.no} ${esc(x.field)}${x.expected && first.type === 'Data Missing' ? ` <i>→ ${esc(x.expected)}</i>` : ''}</span>`).join('')}</div>
+        <div>${first.type === 'Open Item' ? esc('HOLD / TBC — release and give the value.') + (clang() !== 'en' ? '<div class="dko">HOLD / TBC — 확정 값을 기입 바랍니다.</div>' : '')
+          : descHTML({ description: first.description.replace(/^[^:]+:\s*/, ''), description_ko: (first.description_ko || '').replace(/^[^:]+:\s*/, '') || null })}</div>
+        <div class="chips">${g.map(x => `<span class="fchip ${x.status === 'Dismissed' ? 'dis' : ''} ${W.selIss === x.ikey ? 'on' : ''}" data-iss="${esc(x.ikey)}" title="${esc(descText(x))}">${x.no} ${esc(x.field)}${x.expected && first.type === 'Data Missing' ? ` <i>→ ${esc(x.expected)}</i>` : ''}</span>`).join('')}</div>
         ${open ? `<div class="grpbody">${g.map(card).join('')}</div>` : ''}</div>`); });
     h = `<div class="sect" style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">${['error', 'missing', 'process', 'material', 'revision', 'comment'].map(c => {
         const n = L.filter(i => i.color === c).length; return n ? `<span class="pill p-${{ error: 'bad', missing: 'ReviewRequired', process: 'ProcessMismatch', material: 'soft', revision: 'Modified', comment: 'Commented' }[c]}">${{ error: 'Error', missing: 'Missing', process: 'Process', material: 'Expert', revision: 'Rev', comment: 'Reviewer' }[c]} ${n}</span>` : ''; }).join('')}
@@ -2072,6 +2083,7 @@ function renderSettings() {
   el.innerHTML = `<div class="vh"><h2>Settings</h2></div><div class="grid2"><div class="card"><h3>사용자 · 화면</h3>
       <p>이름: <b>${esc(USER || '(없음 — 대시보드에서 열면 로그인 이름이 자동으로 넘어옵니다)')}</b></p>
       ${Q.get('user') ? '' : `<p><input id="sname" placeholder="이름 (대시보드 밖에서 열 때만)" value="${esc(LS.get('user', ''))}"> <button id="ssave">저장</button></p>`}
+      <p>코멘트 표시 언어 <select id="sclang">${LANGS.map(([k, l]) => `<option value="${k}" ${clang() === k ? 'selected' : ''}>${l}</option>`).join('')}</select></p>
       <p><label><input type="checkbox" id="sd3" ${document.body.classList.contains('d3') ? 'checked' : ''}> 입체 화면 (끄면 평면 — 아주 오래된 PC 에서 더 가볍게)</label></p>
       <p><button id="sreset">패널 너비 · 열 순서 · 확대 처음대로</button></p></div>
     <div class="card"><h3>단축키</h3><table class="t"><tbody>
@@ -2103,6 +2115,7 @@ function renderSettings() {
   api('GET', '/knowledge').then(L => { $('#kbl').innerHTML = L.map(k => `<details class="kb"><summary><b>${esc(k.title)}</b> <small class="soft">${esc(k.ref)}</small></summary>
     <p>${esc(k.text)}</p><p class="soft">데이터시트에서 볼 것: ${esc(k.check)}</p></details>`).join(''); }).catch(() => { $('#kbl').textContent = '불러오지 못했습니다'; });
   $('#ssave') && ($('#ssave').onclick = () => { LS.set('user', $('#sname').value.trim()); location.reload(); });
+  $('#sclang').onchange = e => { LS.set('clang', e.target.value); toast('코멘트 표시 언어를 바꿨습니다'); };
   $('#sd3').onchange = e => { document.body.classList.toggle('d3', e.target.checked); LS.set('flat', !e.target.checked); };
   $('#sreset').onclick = () => { ['wbw', 'wbpx', 'wbc', 'gorder', 'gw', 'zoom', 'mkbar', 'vpart', 'rcsync', 'wtab'].forEach(k => LS.set(k, null)); toast('처음대로 — 화면을 다시 엽니다'); setTimeout(() => location.reload(), 600); };
 }
@@ -2182,7 +2195,7 @@ async function renderCompare(host, d, i, opts = {}) {
           <td>${esc(r.filename || '')}${r.uploaded_at ? ` · 올린 날 ${esc(r.uploaded_at.slice(0, 10))} (최신판)` : ''} · ${esc(e.where || '')} · p.${e.page}${r.earlier?.length ? `<br><span class="soft">이전 판: ${r.earlier.map(x => esc(x.filename) + ' (' + esc((x.uploaded_at || '').slice(0, 10)) + ')').join(', ')} — 검토는 최신판 기준</span>` : ''}</td></tr>`; }).join('')
           || `<tr><td colspan="3" class="soft">이 지적은 다른 문서와 맞대어 본 것이 아닙니다 (빈칸 · HOLD 등) — 왼쪽 칸만 봅니다</td></tr>`}
       </table>
-      <div class="soft" style="margin-top:4px">${esc(i.description)}${i.expected ? ` · Required: <b>${esc(i.expected)}</b>` : ''}${i.op ? ` · 비교: ${esc(i.op)}${i.tol ? ' ±' + esc(i.tol) : ''} → ${esc(i.result || '')}` : ''}</div></div>
+      <div class="soft" style="margin-top:4px">${descHTML(i)}${i.expected ? ` · Required: <b>${esc(i.expected)}</b>` : ''}${i.op ? ` · 비교: ${esc(i.op)}${i.tol ? ' ±' + esc(i.tol) : ''} → ${esc(i.result || '')}` : ''}</div></div>
     <div class="cmpv"><div class="cmpL"></div><div class="cmpR">${ref ? '' : '<div class="empty" style="color:#d6dbe5">기준 문서 쪽 없음</div>'}</div></div></div>`;
   const L = new Viewer($('.cmpL', host), { extra: '<span class="lbl">Datasheet</span>' });
   await new Promise(r => requestAnimationFrame(r));                 // let the two halves take their width before 'fit'

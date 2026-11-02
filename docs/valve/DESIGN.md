@@ -644,3 +644,10 @@ Note 113 · PC-01 Confirm 6(3C0K8 의 '316 SS/FHF' 2개 · API5L-X65 MOV 1500# �
 - PMS · Process 아래 미리보기: `.hsplit`(높이) · `.vsplit`(좌우) 손잡이, `LS pvh_/pvw_<pane>` 기억. 끄는 동안 `body.dragging` 으로 글자 선택 · 그림 끌림 막음.
 - PMS Bore 문구: 판정은 맞음(3C3AS1 3" 일반 볼밸브는 REDUCED PORT 품목뿐, FULL PORT 는 IDBB) — 이유에 품목 코드 · 크기 범위 · 다른 밸브 종류에만 있는 bore 를 적음.
 
+### 36. valve31 — 코멘트 한글 · 영어, 출력 언어 선택 (사용자 요청)
+- `app/valve/i18n.py`: 규칙마다 영어 문장 틀이 정해져 있으므로 틀마다 한국어 틀을 둔다(정규식 · 고정 문장 — 기계번역 · LLM 없음). 기술 용어 · 따옴표 값 · 문서 번호는 그대로. 틀에 없는 문장(검토자 글)은 None → 영어만.
+- 실자료 프로그램 코멘트 2,891건 전부 한글 있음(누락 0). 시험 `tests/test_valve_i18n.py`: 규칙 문장 75종 + 따옴표 값 보존 + 출력 언어.
+- 판정 코드는 i18n 을 모른다: `_ds_deep` 가 issues 계산 뒤 `i18n.attach()` 로 `description_ko` 만 붙임(스냅샷 변경 0). 엔지니어가 고친 문구 · 검토자 코멘트에는 붙이지 않음.
+- 출력: `issues.xlsx?lang=` · `markup.pdf?lang=` (en · ko · both). both = 같은 칸에 영어 줄 + 한글 줄(열 구성 그대로). PDF 는 insert_htmlbox / Story 가 한글 글꼴(Droid Sans Fallback)을 스스로 넣는다.
+- 화면: `clang`(표시, 기본 both) · `outlang`(출력, 기본 en — 설계사 제출본이 기본 영어) — 출력 창 라디오 · Settings 선택. `download()` 가 두 출력 주소에 lang 을 붙임.
+

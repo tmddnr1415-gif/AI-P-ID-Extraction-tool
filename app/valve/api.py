@@ -27,7 +27,7 @@ from fastapi.responses import FileResponse, JSONResponse, RedirectResponse, Resp
 from starlette.concurrency import run_in_threadpool
 
 from app import paths
-from app.valve import docrev, ruleperf, checks as chkmod, revisions as revmod, exports, extract, issues as issuesmod, expert as expmod, knowledge as kbmod, location as locmod, tagrules as tagmod, material, matreview as matmod, pms as pmsmod, process as procmod, requirements as reqmod, schema, store, tbe
+from app.valve import docrev, i18n, ruleperf, checks as chkmod, revisions as revmod, exports, extract, issues as issuesmod, expert as expmod, knowledge as kbmod, location as locmod, tagrules as tagmod, material, matreview as matmod, pms as pmsmod, process as procmod, requirements as reqmod, schema, store, tbe
 
 router = APIRouter()
 _JOBS: dict[str, dict] = {}
@@ -439,7 +439,7 @@ def _rules_fingerprint() -> str:
 
 
 _RULES_FP = _rules_fingerprint()
-VERSION = "valve30"                       # shown in Settings › 정보 and the footer; bump with every package
+VERSION = "valve31"                       # shown in Settings › 정보 and the footer; bump with every package
 
 
 @router.get("/api/valve/version")
@@ -871,6 +871,7 @@ def _ds_deep(con, d, dsid):
     states = {r["ikey"]: r for r in store.rows(con, "SELECT * FROM issue_state WHERE datasheet_id=?", dsid)}
     d["issues"] = issuesmod.compute(d, d["general_notes"], pms, d["area"], prev, states, pms_rows=d["pms"], process_rows=d["process"],
                                    material_rows=d["material_review"])
+    i18n.attach(d["issues"])                          # valve31: 한글 코멘트 (표시 · 출력 선택용, 판정과 무관)
     d["rev_review"] = None
     if i > 0:                                                   # valve26: what this revision resolved / left open / added
         pid_ = d["revisions"][i - 1]["id"]
@@ -1560,10 +1561,17 @@ def _select(rows, types: str = "", dismissed: int = 0, tag: str = "", severity: 
             and (not tags or i["tag"] in tags) and (not sev or i["severity"] in sev)]
 
 
-def _issue_xlsx(pid, base, by, types="", dismissed=0, tag="", severity=""):
+def _lang_rows(rows: list[dict], lang: str) -> list[dict]:
+    """valve31 — the comment language an export prints: en · ko · both (copies — the cached findings stay as they are)."""
+    if lang not in ("ko", "both"):
+        return rows
+    return [dict(i, description=i18n.pick(i.get("description"), i.get("description_ko"), lang)) for i in rows]
+
+
+def _issue_xlsx(pid, base, by, types="", dismissed=0, tag="", severity="", lang="en"):
     con = store.connect()
     pname = store.one(con, "SELECT name FROM project WHERE id=?", pid)["name"]
-    rows = _select(project_issues(con, pid), types, dismissed, tag, severity)
+    rows = _lang_rows(_select(project_issues(con, pid), types, dismissed, tag, severity), lang)
     srcs = sorted({i["filename"] for i in rows})
     pv = _profile_ver(con, pid)
     ver = []
@@ -1673,8 +1681,8 @@ def _pms_body(con, pid):
 
 
 @router.get("/api/valve/projects/{pid}/issues.xlsx")
-async def issues_xlsx(pid: int, request: Request, types: str = "", dismissed: int = 0, tag: str = "", severity: str = ""):
-    data, n, pname = await run_in_threadpool(_issue_xlsx, pid, _base(request), _user(request), types, dismissed, tag, severity)
+async def issues_xlsx(pid: int, request: Request, types: str = "", dismissed: int = 0, tag: str = "", severity: str = "", lang: str = "en"):
+    data, n, pname = await run_in_threadpool(_issue_xlsx, pid, _base(request), _user(request), types, dismissed, tag, severity, lang)
     con = store.connect()
     store.audit(con, pid, None, None, "export", None, "issues.xlsx", _user(request), f"{n} issues")
     con.commit()
@@ -1685,11 +1693,11 @@ async def issues_xlsx(pid: int, request: Request, types: str = "", dismissed: in
 
 @router.get("/api/valve/projects/{pid}/markup.pdf")
 async def issues_markup(pid: int, request: Request, types: str = "", dismissed: int = 0, tag: str = "", severity: str = "",
-                        summary: int = 1, margin: int = 1, flatten: int = 1):
+                        summary: int = 1, margin: int = 1, flatten: int = 1, lang: str = "en"):
     """Marked-up datasheet pages (issues in colour, numbered, printable) + an Issue Summary page per datasheet."""
     con = store.connect()
     pname = store.one(con, "SELECT name FROM project WHERE id=?", pid)["name"]
-    rows = _select(project_issues(con, pid), types, dismissed, tag, severity)
+    rows = _lang_rows(_select(project_issues(con, pid), types, dismissed, tag, severity), lang)
     entries = _markup_entries(con, rows)
     data = await run_in_threadpool(exports.markup_pdf, entries, pname, "Valve Datasheet Review - Mark-up", bool(summary),
                                   bool(margin), bool(flatten))

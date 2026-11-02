@@ -248,3 +248,7 @@
 - 고침: Mark-up/PDF 도구줄 흰 바탕 흰 글씨 · Ctrl+휠 확대 · PMS/Process 미리보기 높이/폭 끌기 · 미리보기 화질 · Bore 지적 문구(판정 동일, 28건 문구만).
 - 점검: valve 시험 114 · eval baseline unchanged · 스냅샷 changed 28(문구만) → snapshot_valve30 저장 · UI 25/25 · LINK OK. VERSION valve30.
 
+## 2026-11-02 · valve31 — 코멘트 한글 · 영어 + 출력 언어 선택 (사용자 요청)
+- `app/valve/i18n.py`(규칙별 고정 한국어 틀) · `description_ko` · 화면 영어+한글 · Settings 표시 언어 · Excel/PDF 출력 창 언어(en/ko/both).
+- 실자료 2,891건 한글 100 % · PDF 옆 코멘트 한글 글꼴 확인 · 스냅샷 변경 0 · eval unchanged · 전체 1,984 통과 · UI 25/25 · LINK OK. VERSION valve31.
+

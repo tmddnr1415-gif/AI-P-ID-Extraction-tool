@@ -605,7 +605,7 @@ def _cmt_html(i) -> str:
     ev = f"<br/><span class='r'>Evidence: {html.escape(_ascii(evs))}</span>" if evs else ""
     return (f"<p><span class='n' style='background-color:{_swatch(i['color'])}'>&nbsp;{i['no']}&nbsp;</span> "
             f"<span class='t'>{html.escape(i['type'])}</span> · {html.escape(_ascii(i.get('field') or ''))}{v}{who}<br/>"
-            f"{html.escape(_ascii(i.get('description') or ''))}{req}{ev}</p>")
+            f"{html.escape(_ascii(i.get('description') or '')).replace(chr(10), '<br/>')}{req}{ev}</p>")
 
 
 def _comment_margin(out, pno: int, items: list[dict], head: str) -> list[dict]:
@@ -709,7 +709,7 @@ def markup_pdf(entries: list[dict], project: str, title: str = "Valve Datasheet 
                 f"<tr><td><span style='background-color:{_swatch(i['color'])};color:#FFFFFF'>&nbsp;{i['no']}&nbsp;</span></td>"
                 f"<td>{i['sheet'] or ''} of {i['of'] or ''} (p.{i.get('page') or ''})</td><td>{i.get('row') or ''}</td>"
                 f"<td>{html.escape(_ascii(i['field']))}</td><td>{html.escape(_ascii(i.get('value') or '(blank)'))}</td>"
-                f"<td>{html.escape(i['type'])}</td><td>{html.escape(_ascii(i['description']))}</td>"
+                f"<td>{html.escape(i['type'])}</td><td>{html.escape(_ascii(i['description'])).replace(chr(10), '<br/>')}</td>"
                 f"<td>{html.escape(_ascii(i.get('expected') or ''))}</td><td>{html.escape(i['status'])}</td></tr>"
                 for i in e["issues"])
             s = _story_pages(

@@ -585,3 +585,12 @@ button.xfb.on { background: var(--blue) !important; color: #fff !important; }
 .pvbot .rc-side + .vsplit + .rc-side { border-left: 0; }
 body.dragging, body.dragging * { user-select: none !important; cursor: inherit; }
 body.dragging iframe, body.dragging .stage img { pointer-events: none; }
+
+/* valve31 — 한글 코멘트 · 출력 언어 */
+.dko { color: #3b4a66; font-size: .94em; margin-top: 2px; }
+.iss .dko { border-left: 2px solid #c9d4ec; padding-left: 6px; }
+#ig td .dko { display: inline; margin-left: 6px; }
+#ig td .dko::before { content: "· "; color: var(--soft); }
+.olang { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; margin-top: 8px; padding-top: 6px; border-top: 1px solid var(--line, #e3e6ec); }
+.olang label { display: inline-flex; gap: 4px; align-items: center; white-space: nowrap; }
+.olang input { width: auto; margin: 0; }
