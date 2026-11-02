@@ -408,6 +408,7 @@ def warm(pid: int):
             _cached("requirements", pid, lambda c: _json(_req_rows(c, pid)))
             _cached("rules", pid, lambda c: _rules_performance(c, pid), arg=dt.date.today().isoformat())
             _cached("tagging", pid, lambda c: _tagging(c, pid))
+            _cached("vsum", pid, lambda c: _json(_valve_summary(c, pid)))
             _cached("pms", pid, lambda c: _pms_body(c, pid))
             _cached("process", pid, lambda c: _process_body(c, pid))
             issues_json(pid, 1)
@@ -439,7 +440,7 @@ def _rules_fingerprint() -> str:
 
 
 _RULES_FP = _rules_fingerprint()
-VERSION = "valve32"                       # shown in Settings › 정보 and the footer; bump with every package
+VERSION = "valve33"                       # shown in Settings › 정보 and the footer; bump with every package
 
 
 @router.get("/api/valve/version")
@@ -1997,6 +1998,43 @@ async def rule_change_update(cid: int, request: Request):
     if why:
         return _err(why)
     return {"ok": True, "status": st}
+
+
+@router.get("/api/valve/projects/{pid}/valve-summary")
+def valve_summary(pid: int, request: Request):
+    """valve33 — first screen 'Valve Summary': one small record per tag (newest revision); the screen groups them
+    (Area / Site / Unit · Area · Valve Type) and every number opens its tags.  Same counts as the Valve List Excel 'Summary'
+    sheet, except 'Updated Tags' (needs the TBE cell comparison — only in the Excel); 'New Tags' = not in the Valve List."""
+    return _cached("vsum", pid, lambda con: _json(_valve_summary(con, pid)), request=request)
+
+
+def _valve_summary(con, pid) -> dict:
+    latest = _latest(store.rows(con, "SELECT id, tag_key, rev FROM datasheet WHERE project_id=?", pid))
+    pv = _profile_ver(con, pid)
+    vl = store.one(con, "SELECT info FROM document WHERE project_id=? AND kind='valvelist' AND status='done' ORDER BY id DESC LIMIT 1", pid)
+    vl_tags = set()
+    for sh in (store.unJ(vl["info"], {}) if vl else {}).get("sheets", []):
+        vl_tags |= {schema.norm_tag(t) for t in sh.get("tags", [])}
+    heads = [h for _, h in reqmod.COLUMNS]
+    out = []
+    for d in latest.values():
+        x = _ds_full(con, d["id"], pv=pv) or {}
+        loc = x.get("location") or {}
+        iss = [i for i in x.get("issues") or [] if i["type"] in issuesmod.CONTRACTOR_TYPES and i.get("status") != "Dismissed"]
+        cells = reqmod.columns(x.get("requirements") or [])
+        out.append({"id": x.get("id"), "tag": x.get("tag_key"), "type": x.get("valve_type") or "(other)", "rev": x.get("rev"),
+                    "area": loc.get("area") or "(not stated)", "site": loc.get("site") or "", "unit": loc.get("unit") or "",
+                    "status": x.get("review_status"), "open": len(iss),
+                    "major": sum(1 for i in iss if i.get("severity") == "Major"),
+                    "action": any(m.get("level") == "Action" for m in x.get("material_review") or []),
+                    "new": (x.get("tag_key") not in vl_tags) if vl else None,
+                    "revs": len(x.get("revisions") or []),
+                    "req": [h for h in heads if cells.get(h) and not str(cells[h]).startswith("Not Required")]})
+    out.sort(key=lambda t: (exports.AREA_ORDER.get(t["area"], 9), t["site"], t["unit"], t["tag"]))
+    order = ["ESDV", "SDV", "BDV", "XV", "MOV"]
+    types = [c for c in order if any(t["type"] == c for t in out)] + sorted({t["type"] for t in out} - set(order))
+    reqs = [h for h in heads if any(h in t["req"] for t in out)]
+    return {"tags": out, "types": types, "reqs": reqs, "has_valvelist": bool(vl)}
 
 
 def _req_rows(con, pid) -> dict:

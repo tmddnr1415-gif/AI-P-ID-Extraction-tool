@@ -410,3 +410,18 @@ def test_delete_uploaded_document_goes_to_trash_and_restores(tmp_path, monkeypat
     assert st["status"] == "Dismissed"                                       # the decision came back with it
     assert c.get(f"/api/valve/projects/{pid}/trash").json()["items"] == []
     assert c.delete("/api/valve/documents/9999").status_code == 404
+
+
+def test_first_screen_valve_summary_matches_the_project(tmp_path, monkeypatch):
+    """valve33: the first-screen Valve Summary records (one per newest-revision tag) add up to the project's numbers."""
+    c, pid, up = _client(tmp_path, monkeypatch)
+    up("ds_A.pdf", _pdf("A", values={2: ["HOLD", "TBC"]}, notes=["Fluid Phase: Dense phase CO2.", "Fugitive emission Class A."]))
+    V = c.get(f"/api/valve/projects/{pid}/valve-summary").json()
+    s = c.get(f"/api/valve/projects/{pid}/summary").json()
+    assert len(V["tags"]) == s["kpi"]["tags"] == 1
+    t = V["tags"][0]
+    issues = c.get(f"/api/valve/projects/{pid}/issues").json()["issues"]
+    from app.valve import issues as issuesmod
+    assert t["open"] == sum(1 for i in issues if i["type"] in issuesmod.CONTRACTOR_TYPES and i["status"] != "Dismissed")
+    assert "Dense Phase CO2" in t["req"] and "Dense Phase CO2" in V["reqs"] and t["type"] in V["types"]
+    assert V["has_valvelist"] is False and t["new"] is None                  # no Valve List → 'New Tags' is not claimed

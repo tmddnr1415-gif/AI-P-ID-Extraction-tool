@@ -146,6 +146,12 @@
 - 아래 **휴지통** 표의 **되돌리기** = 데이터시트 · 코멘트 · 결정까지 그대로 복구. 원본 파일은 지우지 않고, 변경 이력(Audit)에 '누가 언제 지웠는지' 가 남습니다.
 - 읽는 중(running)인 문서는 지울 수 없습니다.
 
+## 10-9. 첫 화면 Valve Summary 표 (valve33)
+- Dashboard 의 KPI 아래 **Valve Summary** = Valve List Excel 'Summary' 시트와 같은 수 (밸브 종류별 · Total · Open Issues · Major · Tags with Action · Rev B 이상 · 특수요구).
+- 묶는 기준: **Area · Site · Unit / Area / Valve Type × Area**. 진할수록 많은 칸(색 농도). **비율(%)** = 그 줄 Tag 중 비율. **특수요구 모두** = SIL · PST · Anti-static … 까지.
+- **숫자를 누르면** 그 Tag 목록이 뜨고 → Tag 를 누르면 Datasheet Review, **Valve List 에서 보기 / Issue List 에서 보기** = 그 Tag 들만 걸러 열림 (열 ▾ 필터로 풀기).
+- ⇩ Excel = 이 표가 들어 있는 Valve List Excel. ▾ = 접기(기억). 'Updated Tags'(TBE 칸 비교)는 Excel 에만 있습니다.
+
 ## 11. 자주 묻는 것
 
 - **Area · Unit 은 어디서 오나?** 데이터시트 제목(QELNG NORTH / SOUTH / W15)과 P&ID 번호에서. 제목에 '(SYSTEM xx – UNIT yy)' 가 있으면 기존 플랜트 = Brownfield.

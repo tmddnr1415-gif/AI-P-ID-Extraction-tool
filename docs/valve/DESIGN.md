@@ -657,3 +657,10 @@ Note 113 · PC-01 Confirm 6(3C0K8 의 '316 SS/FHF' 2개 · API5L-X65 MOV 1500# �
 - `POST /projects/{pid}/trash/{name}/restore`: 같은 번호(id)로 되넣는다(링크 · 결정이 그대로 맞음). 그 사이 번호가 다른 자료에 쓰였으면 409(덮어쓰지 않음). 되돌린 파일은 `trash/<p>/restored/`.
 - 캐시: 지운 데이터시트의 검토 캐시(메모리 · 디스크)를 버리고, 프로젝트 판(_profile_ver · _wver)이 바뀌어 화면 답이 다시 계산된다. 시험 `test_delete_uploaded_document_goes_to_trash_and_restores`.
 
+### 38. valve33 — 첫 화면 Valve Summary 표 (사용자 요청 "엑셀 Summary 같은 표 + 다양한 기능")
+- `GET /projects/{pid}/valve-summary` (`_cached` 'vsum' · warm-up): 최신 Revision Tag 마다 작은 기록(type · area/site/unit · open · major · action · new · revs · req · status). 묶기 · 합계는 화면에서 — 기준을 바꿔도 서버를 다시 부르지 않음.
+- 수 정의는 tbe.py Summary 와 같음(CONTRACTOR_TYPES 중 Dismissed 아닌 지적 · material_review Action · requirements.columns 의 'Not Required' 아닌 칸). 실자료 대조: Open 2,935 · Action 9 · PFP 42 · Fugitive 162 · Fire Safe 137 · Dense 45 · NACE 155 = Excel 과 같음.
+- 'New Tags' = Valve List(TBE) 시트들의 Tag 에 없는 것(Valve List 가 없으면 열 자체를 안 보임). 'Updated Tags' 는 TBE 칸 비교(엑셀 생성 시)라 화면에 두지 않음.
+- 숫자 → Tag 목록 창 → Valve List / Issue List 로 갈 때 열 필터 상태(XF grid/iss 의 tag)를 그 Tag 들로 세팅.
+- 대시보드 아래 카드 줄은 `grid-auto-rows: 330px` — 표가 길어도 카드가 눌리지 않고 화면이 스크롤.
+

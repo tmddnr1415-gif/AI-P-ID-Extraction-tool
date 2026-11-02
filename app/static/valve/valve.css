@@ -594,3 +594,25 @@ body.dragging iframe, body.dragging .stage img { pointer-events: none; }
 .olang { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; margin-top: 8px; padding-top: 6px; border-top: 1px solid var(--line, #e3e6ec); }
 .olang label { display: inline-flex; gap: 4px; align-items: center; white-space: nowrap; }
 .olang input { width: auto; margin: 0; }
+
+/* valve33 — 첫 화면 Valve Summary */
+.vsum { margin-bottom: 12px; padding: 10px 14px; flex: none; }
+.vsum.closed .vsbar { margin: 0; }
+.vsbar { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 8px; }
+.vsbar h3 { margin: 0; }
+.vswrap { overflow: auto; max-height: 46vh; border-radius: 8px; }
+.vsumt { font-size: 12px; }
+table.t.vsumt th { background: #1f2d4d !important; color: #fff; white-space: normal; text-align: center; vertical-align: bottom; position: sticky; top: 0; z-index: 1; min-width: 46px; }
+table.t.vsumt th.vr { background: #2f4a7a !important; }
+table.t.vsumt td { text-align: center; padding: 3px 6px; vertical-align: middle; }
+table.t.vsumt td.vk { text-align: left; white-space: nowrap; }
+.vsumt td.vc { background: rgba(47, 91, 216, var(--h, 0)); }
+.vsumt td.vc.vr { background: rgba(19, 138, 74, var(--h, 0)); }
+.vsumt td.vz { color: #c4cad6; }
+.vsumt tr.tot td { background: #e8edf5; font-weight: 700; border-top: 2px solid #1f2d4d; }
+.vsumt button.vsn { border: 0 !important; background: transparent !important; box-shadow: none !important; padding: 0 4px !important; font: inherit; font-weight: 600; color: var(--ink); cursor: pointer; }
+.vsumt button.vsn:hover { color: var(--blue); text-decoration: underline; }
+.vsnote { margin-top: 6px; font-size: 11px; }
+.vstags { max-height: 56vh; overflow: auto; }
+.dashv .dashrow { flex: 1 0 auto; grid-auto-rows: 330px; }   /* valve33: Valve Summary 아래 카드가 눌리지 않게 — 길면 화면이 스크롤 */
+.dashv > .kpis, .dashv > .refdocs, .dashv > .vh, .dashv > .vsum { flex-shrink: 0; }

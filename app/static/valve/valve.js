@@ -745,6 +745,7 @@ async function refresh() {
   S.sum = await api('GET', `/projects/${S.pid}/summary`); S.sumStamp = Date.now(); S.issues = null; S.reqs = null; S.grid = null; S.pmsRows = null; S.procRows = null;
   $('#navfoot').innerHTML = `${esc(S.sum.project.name)} · Tag ${S.sum.kpi.tags} · DS ${S.sum.kpi.datasheets}<br>${esc(USER || '이름 없음')} <span class="soft" id="navver"></span>`;
   if (!S.ver) api('GET', '/version').then(v => { S.ver = v.version; const x = $('#navver'); if (x) x.textContent = '· ' + v.version; }).catch(() => {}); else { const x = $('#navver'); if (x) x.textContent = '· ' + S.ver; }
+  S.vsum = null;
   RENDER[S.view]?.();
   warmClient();
 }
@@ -818,6 +819,69 @@ function refDocs(L) {
         ${P.parts.map(x => `<tr><td>${esc(x.doc_no)}</td><td>${esc(x.rev || '—')}</td><td>${esc(x.date || '—')}</td><td>${esc(x.desc)}</td><td>${x.page}</td></tr>`).join('')}</tbody></table>` : ''}</div>` : none('Process Data', 'Process Data');
   return `<div class="refdocs">${ds}${ps}${ms}</div>`;
 }
+/* valve33 — 첫 화면 'Valve Summary' (Valve List Excel 의 Summary 시트와 같은 수): 묶는 기준 바꾸기 · 숫자 누르면 그 Tag 들 ·
+   Valve List / Issue List 로 바로 거르기 · 비율 · 빈 열 숨기기 · 특수요구 열 고르기 · 접기 · Excel */
+const VS = { by: LS.get('vs_by', 'asu'), pct: false, all: LS.get('vs_all', false), open: LS.get('vs_open', true) };
+const VS_MAIN = ['PFP', 'Fugitive Emission (ISO 15848)', 'Fire Safe', 'Dense Phase CO2', 'NACE / Sour'];
+async function drawVsum() {
+  const box = $('#vsum'); if (!box) return;
+  if (!S.vsum) { try { S.vsum = await api('GET', `/projects/${S.pid}/valve-summary`); } catch (e) { box.innerHTML = `<h3>Valve Summary</h3><div class="soft">${esc(e.message)}</div>`; return; } }
+  const D = S.vsum, T = D.tags;
+  const keyOf = { asu: t => [t.area, t.site, t.unit], a: t => [t.area], t: t => [t.type, t.area] }[VS.by];
+  const keyHead = { asu: ['Area', 'Site', 'Unit'], a: ['Area'], t: ['Valve Type', 'Area'] }[VS.by];
+  const reqs = VS.all ? D.reqs : D.reqs.filter(h => VS_MAIN.includes(h));
+  const reqShort = h => ({ 'Fugitive Emission (ISO 15848)': 'Fugitive', 'NACE / Sour': 'NACE / Sour', 'Dense Phase CO2': 'Dense CO2', 'Partial Stroke Test': 'PST',
+    'Tightness / Leakage': 'Tightness', 'Blow-out Proof Stem': 'Blow-out', 'Material Cert. (EN 10204)': 'Mat. Cert', 'Painting / Coating': 'Painting' }[h] || h);
+  // columns: [id, title, tags-of-group → tags counted, kind]  (kind: n = count of tags · s = sum)
+  const cols = [...(VS.by === 't' ? [] : D.types.map(c => [`ty:${c}`, c, L => L.filter(t => t.type === c)])),
+    ['tot', 'Total', L => L], ['open', 'Open Issues', L => L.filter(t => t.open), 's'], ['major', 'Major', L => L.filter(t => t.major), 'sm'],
+    ['act', 'Tags with Action', L => L.filter(t => t.action)], ...(D.has_valvelist ? [['new', 'New Tags', L => L.filter(t => t.new)]] : []),
+    ['revs', 'Rev B 이상', L => L.filter(t => t.revs > 1)], ['done', '검토 완료', L => L.filter(t => t.status === 'Accepted' || t.status === 'Resolved')],
+    ...reqs.map(h => [`rq:${h}`, reqShort(h), L => L.filter(t => t.req.includes(h)), 'r'])];
+  const groups = []; const gi = new Map();
+  T.forEach(t => { const k = keyOf(t).join('\u0001'); if (!gi.has(k)) { gi.set(k, groups.length); groups.push({ key: keyOf(t), tags: [] }); } groups[gi.get(k)].tags.push(t); });
+  const AO = { North: 0, South: 1, Brownfield: 2, W15: 3 };
+  if (VS.by === 't') groups.sort((a, b) => D.types.indexOf(a.key[0]) - D.types.indexOf(b.key[0]) || (AO[a.key[1]] ?? 9) - (AO[b.key[1]] ?? 9));
+  const val = (c, L) => { const sel = c[2](L); return c[3] === 's' ? sel.reduce((a, t) => a + t.open, 0) : c[3] === 'sm' ? sel.reduce((a, t) => a + t.major, 0) : sel.length; };
+  const show = cols.filter(c => groups.some(g => val(c, g.tags)) || c[0] === 'tot');
+  const max = Object.fromEntries(show.map(c => [c[0], Math.max(1, ...groups.map(g => val(c, g.tags)))]));
+  VS.groups = groups; VS.cols = show;
+  const cell = (c, L, gi, tot) => { const v = val(c, L); if (!v) return '<td class="vz">·</td>';
+    const shade = tot ? '' : ` style="--h:${(0.08 + 0.42 * v / max[c[0]]).toFixed(2)}"`;
+    const txt = VS.pct && c[0] !== 'tot' && !c[3]?.startsWith('s') ? `${Math.round(100 * v / Math.max(1, L.length))}%` : v;
+    return `<td class="vc ${c[3] === 'r' ? 'vr' : ''}"${shade}><button class="vsn" data-g="${gi}" data-c="${esc(c[0])}" title="${esc(c[1])} — 눌러서 Tag 보기">${txt}</button></td>`; };
+  box.classList.toggle('closed', !VS.open);
+  box.innerHTML = `<div class="vsbar"><h3>Valve Summary <span class="soft" style="font-weight:400">Tag ${T.length} · 최신 Revision · Valve List Excel 'Summary' 와 같은 수</span></h3>
+      <span class="segtab">${[['asu', 'Area · Site · Unit'], ['a', 'Area'], ['t', 'Valve Type × Area']].map(([k, l]) => `<button data-vsby="${k}" class="${VS.by === k ? 'on' : ''}">${l}</button>`).join('')}</span>
+      <label class="soft"><input type="checkbox" id="vspct" ${VS.pct ? 'checked' : ''}> 비율(%)</label>
+      <label class="soft" title="SIL · PST · Anti-static … 까지"><input type="checkbox" id="vsall" ${VS.all ? 'checked' : ''}> 특수요구 모두</label>
+      <span class="sp"></span><button id="vsx" title="이 표가 'Summary' 시트로 들어 있는 Valve List Excel">⇩ Excel</button><button id="vstog" title="접기 / 펼치기">${VS.open ? '▾' : '▸'}</button></div>
+    ${VS.open ? `<div class="vswrap"><table class="t vsumt" data-xfdata="1"><thead><tr><th>No.</th>${keyHead.map(h => `<th>${h}</th>`).join('')}${show.map(c => `<th class="${c[3] === 'r' ? 'vr' : ''}" title="${esc(c[1])}">${esc(c[1])}</th>`).join('')}</tr></thead><tbody>
+      ${groups.map((g, i) => `<tr><td class="vk">${i + 1}</td>${g.key.map(x => `<td class="vk"><b>${esc(x || '—')}</b></td>`).join('')}${show.map(c => cell(c, g.tags, i)).join('')}</tr>`).join('')}
+      <tr class="tot"><td class="vk"></td><td class="vk" colspan="${keyHead.length}"><b>Total</b></td>${show.map(c => cell(c, T, -1, 1)).join('')}</tr></tbody></table></div>
+      <div class="soft vsnote">숫자를 누르면 그 Tag 목록 → Datasheet 열기 · Valve List / Issue List 에서 그 Tag 들만 보기. 'New Tags' = Valve List(TBE)에 없는 Tag · 'Updated Tags' 는 Valve List Excel 에서.</div>` : ''}`;
+  box.onclick = e => {
+    const by = e.target.closest('[data-vsby]'); if (by) { VS.by = by.dataset.vsby; LS.set('vs_by', VS.by); drawVsum(); return; }
+    if (e.target.closest('#vstog')) { VS.open = !VS.open; LS.set('vs_open', VS.open); drawVsum(); return; }
+    if (e.target.closest('#vsx')) { exportValveList(); return; }
+    const b = e.target.closest('.vsn'); if (b) { const c = VS.cols.find(x => x[0] === b.dataset.c), gi = +b.dataset.g;
+      const L = c[2](gi < 0 ? S.vsum.tags : VS.groups[gi].tags); vsTags(L, `${gi < 0 ? 'Total' : VS.groups[gi].key.filter(Boolean).join(' · ')} — ${c[1]}`); }
+  };
+  $('#vspct', box) && ($('#vspct', box).onchange = e => { VS.pct = e.target.checked; drawVsum(); });
+  $('#vsall', box) && ($('#vsall', box).onchange = e => { VS.all = e.target.checked; LS.set('vs_all', VS.all); drawVsum(); });
+}
+function vsTags(L, title) {                   // the tags behind one number
+  const html = `<div class="vstags"><table class="t"><thead><tr><th>Tag</th><th>Type</th><th>Rev</th><th>Area · Unit</th><th>Open</th><th>Major</th><th>Status</th></tr></thead><tbody>
+    ${L.map(t => `<tr class="click" data-vtag="${t.id}"><td><b>${esc(t.tag)}</b></td><td>${esc(t.type)}</td><td>${esc(t.rev)}</td><td>${esc(t.area)} · ${esc(t.unit)}</td>
+      <td>${t.open || ''}</td><td>${t.major || ''}</td><td>${pill(t.status)}</td></tr>`).join('')}</tbody></table></div>
+    <p class="soft" style="margin:6px 0 0">Tag 를 누르면 Datasheet Review 로 · 아래 단추는 목록 화면에서 이 ${L.length}개 Tag 만 걸러 보여 줍니다 (열 필터 ▾ 로 풀 수 있음).</p>`;
+  const p = modal(`${title} · Tag ${L.length}`, html, [['닫기', null], ['Issue List 에서 보기', 'iss'], ['Valve List 에서 보기', 'grid', 1]], 'vstags');
+  $('#mBody').onclick = e => { const tr = e.target.closest('[data-vtag]'); if (tr) { $('#mAct button')?.click(); openDs(+tr.dataset.vtag); } };
+  p.then(r => { if (!r) return; const set = new Set(L.map(t => t.tag));
+    if (r === 'grid') { xfClear('grid'); xfState('grid').f.tag = set; G.mode = 'grid'; }
+    else { xfClear('iss'); xfState('iss').f.tag = set; G.mode = 'issues'; IF.type = IF.st = IF.area = IF.sev = ''; }
+    go('list'); });
+}
 function renderDash() {
   const s = S.sum, k = s.kpi, el = $('#v-dash'); el.classList.add('dashv');
   const tiles = [                               // [label, value, icon, bg, go, sub, accent(exception tile)]
@@ -841,6 +905,7 @@ function renderDash() {
     ${!k.datasheets ? `<div class="banner info">아직 데이터시트가 없습니다 — <b>Document Management</b> 에서 Datasheet PDF · Valve List · Process Data · PMS 를 올리세요.</div>` : ''}
     <div class="kpis">${tiles.map(([l, n, ic, bg, v, sub, ac]) => `<div class="kpi ${ac && n ? 'warn' : ''}" data-go="${v}" tabindex="0" style="--ac:${ac || 'var(--blue)'}"><div class="ic" style="background:${bg}">${ic}</div>
       <div class="l">${l}</div><div class="n ${n === null ? 'na' : ''}">${n === null ? (sub || '—') : n}</div></div>`).join('')}</div>
+    ${k.datasheets ? '<div class="card vsum" id="vsum"><h3>Valve Summary</h3><div class="soft">불러오는 중…</div></div>' : ''}
     <div class="dashrow">
       <div class="card"><h3>Review Status by Tag</h3><div class="donut">${donut(STATUSES.map(st => ({ n: by[st] || 0, c: cols[st] })))}
         <div class="legend">${STATUSES.map(st => `<div data-go="review::${st}" class="click" title="이 상태의 Tag 만 보기"><i style="background:${cols[st]}"></i>${st}<b style="margin-left:auto;padding-left:10px">${by[st] || 0}</b></div>`).join('')}</div></div>
@@ -862,6 +927,7 @@ function renderDash() {
         ${s.activity.map(a => `<tr ${a.datasheet_id ? `class="click" data-ds="${a.datasheet_id}"` : ''}><td class="mono nw" title="${esc(a.at)}">${esc(a.at.replace('T', ' ').slice(5, 16))}</td><td class="nw">${esc(a.tag || '-')}</td>
           <td>${esc(a.action)}${a.field_key ? ' · ' + esc(a.field_key) : ''}${a.after && a.action !== 'comment' ? ` <span class="soft">→ ${esc(String(a.after).slice(0, 40))}</span>` : ''}</td><td class="nw">${esc(a.by)}</td></tr>`).join('') || '<tr><td colspan="4" class="empty">기록이 없습니다</td></tr>'}</tbody></table></div>
     </div>`;
+  drawVsum();
 }
 function dashTagRows(tags, max) {          // Review Status Table: problems first; the big view (⤢) shows every tag
   return tags.slice().sort((a, b) => (b.problems - a.problems) || (b.issues - a.issues) || a.tag_key.localeCompare(b.tag_key)).slice(0, max).map(t => `<tr class="click" data-ds="${t.id}"><td><b>${esc(t.tag_key)}</b></td><td>${esc(t.valve_type)}</td>

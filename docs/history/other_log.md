@@ -256,3 +256,7 @@
 - 🗑 → 함께 빠지는 것 확인 창 → 휴지통(JSON) · 되돌리기(같은 id) · 원본 파일 보존 · audit 'delete-doc'/'restore-doc'.
 - 실화면(vt_ui 사본): 문서 7 → 6 → 되돌리기 7 · 시험 +1 (전체 1,985) · 스냅샷 변경 0 · UI 25/25 · LINK OK. VERSION valve32.
 
+## 2026-11-02 · valve33 — 첫 화면 Valve Summary 표 (사용자 요청)
+- API valve-summary + 대시보드 카드: 묶기 3종 · 색 농도 · 비율 · 특수요구 모두 · 숫자 → Tag 목록 → Valve/Issue List 걸러 열기 · Excel · 접기.
+- 실자료 합계 = Valve List Excel Summary 와 같음. 시험 +1 (1,986) · 스냅샷 0 · UI 25/25 · LINK OK. VERSION valve33.
+

@@ -26,7 +26,8 @@
   판정 스냅샷은 `out/valve29/snapshot_valve30.json`(2,935) 기준.
 - **valve31**: 코멘트 한글 · 영어(`i18n.py` 규칙별 고정 틀 · `description_ko`) · 화면 표시 언어 · Excel/PDF 출력 언어(lang=en|ko|both). **새 규칙 문장을 만들면 `i18n.RULES` 에 한국어 틀도 추가**하고 `tests/test_valve_i18n.py` SAMPLES 에 한 줄.
 - **valve32**: 올린 문서 지우기(🗑 · 확인 창 · `valve/trash/<p>/` JSON) · 휴지통 되돌리기(같은 id) — DESIGN §37.
-- 꾸러미: **valve32** = `out/PID_dev+ops_valve32_2026-11-02.zip` (누적). 그 전 valve31. 그 전 **valve30** = `out/PID_dev+ops_valve30_2026-11-02.zip`. 그 전 **valve29** = `out/PID_dev+ops_valve29_2026-11-01.zip`(P&ID 서버, 누적 — 이것 하나) · 대시보드 = `dashboard_patches/UPDATE_from_v16.51_VALVE2_menu.zip`(--any) ·
+- **valve33**: 첫 화면 Valve Summary 표(`/valve-summary` · `drawVsum` · `vsTags`) — DESIGN §38.
+- 꾸러미: **valve33** = `out/PID_dev+ops_valve33_2026-11-02.zip` (누적). 그 전 valve32. 그 전 **valve30** = `out/PID_dev+ops_valve30_2026-11-02.zip`. 그 전 **valve29** = `out/PID_dev+ops_valve29_2026-11-01.zip`(P&ID 서버, 누적 — 이것 하나) · 대시보드 = `dashboard_patches/UPDATE_from_v16.51_VALVE2_menu.zip`(--any) ·
   회사 개발용 = `out/VALVE_devkit_valve29_2026-11-01.zip`(문서 · 점검 도구).
 - 남은 일: PERFORMANCE_REPORT.md(측정은 끝 — DESIGN §34-2 · §34-5 · other_log 수치) · Globe/Butterfly/PSV 검토(양식 · 기준 필요) · Phase 2(회사 Valve Spec · Gasket/Bolting PMS · Process DS 원본 필요) ·
   실사용 결정 쌓기(Rule Performance 정밀도) · 다른 Vendor 양식 시험.
