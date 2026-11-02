@@ -911,9 +911,10 @@ function renderDocs() {
         d.kind === 'valvelist' && d.info?.sheets ? d.info.sheets.filter(s => s.kind === 'appendix').map(s => `${esc(s.sheet)} (${s.tags.length})`).join(' · ') : esc(d.info?.note || '')}</td>
       <td>${pill(d.status === 'done' ? 'ok' : d.status === 'error' ? 'bad' : 'UnderReview', d.status)}${d.error ? `<div style="color:var(--bad)">${esc(d.error)}</div>` : ''}</td>
       <td>${esc(d.uploaded_by)}</td><td class="mono">${esc((d.uploaded_at || '').replace('T', ' ').slice(0, 16))}</td>
-      <td>${d.status === 'error' ? `<button data-retry="${d.id}">재처리</button>` : d.kind === 'datasheet' && d.status === 'done' ? `<button data-retry="${d.id}" title="개선된 읽기로 다시 읽습니다 — 검토자 수정 · 의견 · Mark-up · 상태는 그대로">다시 읽기</button>` : ''}${d.kind !== 'valvelist' ? ` <a href="/api/valve/documents/${d.id}/file" target="_blank">원본</a>` : ''}</td></tr>`).join('') || '<tr><td colspan="9" class="empty">아직 없습니다</td></tr>'}
-    </tbody></table></div>`;
+      <td>${d.status === 'error' ? `<button data-retry="${d.id}">재처리</button>` : d.kind === 'datasheet' && d.status === 'done' ? `<button data-retry="${d.id}" title="개선된 읽기로 다시 읽습니다 — 검토자 수정 · 의견 · Mark-up · 상태는 그대로">다시 읽기</button>` : ''}${d.kind !== 'valvelist' ? ` <a href="/api/valve/documents/${d.id}/file" target="_blank">원본</a>` : ''}${d.status === 'queued' || d.status === 'running' ? '' : ` <button class="ghost ddel" data-del="${d.id}" title="이 문서를 프로젝트에서 지웁니다 — 휴지통에서 되돌릴 수 있음">🗑</button>`}</td></tr>`).join('') || '<tr><td colspan="9" class="empty">아직 없습니다</td></tr>'}
+    </tbody></table></div><div id="trashc"></div>`;
   (S.jobEls || []).filter(b => b.isConnected || !b.dataset.gone).forEach(b => $('#jobs').append(b));
+  drawTrash();
   $$('.drop', el).forEach(d => {
     const inp = $('input', d);
     inp.onchange = () => upload(d.dataset.k, [...inp.files]);
@@ -922,6 +923,39 @@ function renderDocs() {
     d.ondrop = e => { e.preventDefault(); d.classList.remove('over'); upload(d.dataset.k, [...e.dataTransfer.files]); };
   });
   $$('[data-retry]', el).forEach(b => b.onclick = async () => { try { watch(await api('POST', `/documents/${b.dataset.retry}/retry`)); } catch (e) { toast(e.message, 1); } });
+  $$('[data-del]', el).forEach(b => b.onclick = () => deleteDoc(+b.dataset.del));
+}
+/* valve32 — 올린 문서 지우기: 함께 지워지는 것을 먼저 보여 주고, 휴지통에 넣는다 (되돌리기 가능 · 원본 파일은 그대로) */
+async function deleteDoc(id) {
+  let m; try { m = await api('GET', `/documents/${id}/impact`); } catch (e) { toast(e.message, 1); return; }
+  const kindName = KIND[m.kind]?.[0] || m.kind;
+  const lines = [`<b>${esc(m.filename)}</b> <span class="soft">(${esc(kindName)})</span>`];
+  if (m.kind === 'datasheet') {
+    lines.push(`이 문서에서 읽은 데이터시트 <b>${m.datasheets}</b>개 (Tag ${m.tags}개)가 함께 빠집니다.`);
+    if (m.tags_gone) lines.push(`<span style="color:var(--bad)">그중 <b>${m.tags_gone}</b>개 Tag 는 다른 Revision 이 없어 목록에서 사라집니다.</span>`);
+    else if (m.tags) lines.push('같은 Tag 의 다른 Revision 이 남아 있어 그 Revision 으로 돌아갑니다.');
+    if (m.comments || m.decisions) lines.push(`검토자 코멘트 · Mark-up <b>${m.comments}</b>개, 지적 결정 <b>${m.decisions}</b>개도 함께 휴지통으로 갑니다.`);
+  } else lines.push(m.other_same_kind ? `같은 종류의 다른 문서(${m.other_same_kind}개) 중 가장 최근 것으로 검토가 다시 계산됩니다.` : `이 종류의 문서가 없어지므로 ${esc(kindName)} 대조는 빠집니다.`);
+  lines.push('<span class="soft">휴지통에서 되돌릴 수 있습니다. 원본 파일은 지우지 않습니다. 변경 이력(Audit)은 남습니다.</span>');
+  const r = await modal('문서 지우기', `<div style="display:grid;gap:6px">${lines.map(l => `<div>${l}</div>`).join('')}</div>`, [['취소', null], ['휴지통으로', 'go', 1]]);
+  if (r !== 'go') return;
+  const btn = $(`[data-del="${id}"]`); if (btn) { btn.disabled = true; btn.textContent = '지우는 중…'; }
+  try { const x = await api('DELETE', `/documents/${id}`); toast(`지웠습니다 — 휴지통에서 되돌릴 수 있습니다 (데이터시트 ${x.datasheets}개)`);
+    if (S.ds && !S.sum.tags.some(t => t.id === S.ds.id)) S.ds = null; S.dsId = null; await refresh(); }
+  catch (e) { toast(e.message, 1); }
+}
+async function drawTrash() {
+  const box = $('#trashc'); if (!box) return;
+  let t; try { t = await api('GET', `/projects/${S.pid}/trash`); } catch (_) { return; }
+  if (!t.items.length) { box.innerHTML = ''; return; }
+  box.innerHTML = `<div class="card" style="margin-top:12px"><h3>휴지통 (${t.items.length}) <span class="soft" style="font-weight:400">— 지운 문서 · 되돌리면 데이터시트 · 코멘트 · 결정이 그대로 돌아옵니다</span></h3>
+    <table class="t"><thead><tr><th>File</th><th>Kind</th><th>Datasheets</th><th>Comments</th><th>지운 사람</th><th>지운 시각</th><th></th></tr></thead><tbody>
+    ${t.items.map(x => `<tr><td><b>${esc(x.filename)}</b></td><td>${esc(KIND[x.kind]?.[0] || x.kind)}</td><td>${x.datasheets}</td><td>${x.comments}</td><td>${esc(x.by || '')}</td>
+      <td class="mono">${esc((x.deleted_at || '').replace('T', ' ').slice(0, 16))}</td><td><button data-restore="${esc(x.name)}">되돌리기</button></td></tr>`).join('')}</tbody></table></div>`;
+  $$('[data-restore]', box).forEach(b => b.onclick = async () => {
+    b.disabled = true; b.textContent = '되돌리는 중…';
+    try { const r = await api('POST', `/projects/${S.pid}/trash/${encodeURIComponent(b.dataset.restore)}/restore`); toast(`되돌렸습니다 — ${r.filename}`); await refresh(); }
+    catch (e) { toast(e.message, 1); } });
 }
 async function upload(kind, files) {
   if (!files.length) return;

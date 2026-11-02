@@ -381,3 +381,32 @@ def test_summary_names_the_latest_datasheet_revisions(tmp_path, monkeypatch):
     L = c.get(f"/api/valve/projects/{pid}/summary").json()["latest_docs"]
     assert L["datasheet"]["tags"] == 1 and L["datasheet"]["by_rev"] == {"A": 1} and L["datasheet"]["filename"] == "ds_A.pdf"
     assert "pms" not in L and "process" not in L                                  # not uploaded → not shown as if it were
+
+
+def test_delete_uploaded_document_goes_to_trash_and_restores(tmp_path, monkeypatch):
+    """valve32: an upload can be removed (with its datasheets, comments and decisions) and put back from the trash."""
+    c, pid, up = _client(tmp_path, monkeypatch)
+    up("ds_A.pdf", _pdf("A"))
+    up("ds_B.pdf", _pdf("B", values={2: ["HOLD", "TBC"]}))
+    docs = c.get(f"/api/valve/projects/{pid}/summary").json()["documents"]
+    b = next(d for d in docs if d["filename"] == "ds_B.pdf")
+    dsb = c.get(f"/api/valve/projects/{pid}/summary").json()["tags"][0]
+    assert dsb["rev"] == "B"
+    it = next(i for i in c.get(f"/api/valve/datasheets/{dsb['id']}").json()["issues"] if i["type"] == "Open Item")
+    c.put(f"/api/valve/datasheets/{dsb['id']}/issues/{it['ikey']}", json={"decision": "Dismissed", "reason_cat": "Other"}, headers={"X-Author": "eng"})
+    imp = c.get(f"/api/valve/documents/{b['id']}/impact").json()
+    assert imp["datasheets"] == 1 and imp["decisions"] >= 1 and imp["tags_gone"] == 0       # Rev A keeps the tag
+    r = c.delete(f"/api/valve/documents/{b['id']}", headers={"X-Author": "eng"}).json()
+    assert r["ok"] and r["datasheets"] == 1
+    s = c.get(f"/api/valve/projects/{pid}/summary").json()
+    assert [d["filename"] for d in s["documents"]] == ["ds_A.pdf"] and s["tags"][0]["rev"] == "A"
+    assert c.get(f"/api/valve/datasheets/{dsb['id']}").status_code == 404
+    tr = c.get(f"/api/valve/projects/{pid}/trash").json()["items"]
+    assert len(tr) == 1 and tr[0]["filename"] == "ds_B.pdf"
+    assert c.post(f"/api/valve/projects/{pid}/trash/{tr[0]['name']}/restore", headers={"X-Author": "eng"}).json()["ok"]
+    s = c.get(f"/api/valve/projects/{pid}/summary").json()
+    assert s["tags"][0]["rev"] == "B" and len(s["documents"]) == 2
+    st = {i["ikey"]: i for i in c.get(f"/api/valve/datasheets/{dsb['id']}").json()["issues"]}[it["ikey"]]
+    assert st["status"] == "Dismissed"                                       # the decision came back with it
+    assert c.get(f"/api/valve/projects/{pid}/trash").json()["items"] == []
+    assert c.delete("/api/valve/documents/9999").status_code == 404

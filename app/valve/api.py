@@ -439,7 +439,7 @@ def _rules_fingerprint() -> str:
 
 
 _RULES_FP = _rules_fingerprint()
-VERSION = "valve31"                       # shown in Settings › 정보 and the footer; bump with every package
+VERSION = "valve32"                       # shown in Settings › 정보 and the footer; bump with every package
 
 
 @router.get("/api/valve/version")
@@ -562,6 +562,128 @@ def retry(doc_id: int, request: Request):
     item = (d["id"], d["kind"], d["filename"], Path(d["path"]), d["pages"] or 0)
     threading.Thread(target=_process, args=(jid, d["project_id"], [item], _user(request)), daemon=True).start()
     return _JOBS[jid]
+
+
+# ── delete an uploaded document → trash (restorable) · valve32 ─────────────────────────────────────────────
+
+_TRASH_TABLES = ("document", "datasheet", "field", "comment", "issue_state")
+
+
+def _doc_bundle(con, doc_id: int) -> dict:
+    """The rows that belong to one upload: the document, the datasheets read from it and their fields, reviewer comments
+    and issue decisions.  The audit trail and the decision log are history and stay where they are."""
+    doc = store.rows(con, "SELECT * FROM document WHERE id=?", doc_id)
+    ds = store.rows(con, "SELECT * FROM datasheet WHERE document_id=?", doc_id)
+    ids = [d["id"] for d in ds]
+    q = ",".join("?" * len(ids)) or "NULL"
+    return {"document": doc, "datasheet": ds,
+            "field": store.rows(con, f"SELECT * FROM field WHERE datasheet_id IN ({q})", *ids),
+            "comment": store.rows(con, f"SELECT * FROM comment WHERE datasheet_id IN ({q})", *ids),
+            "issue_state": store.rows(con, f"SELECT * FROM issue_state WHERE datasheet_id IN ({q})", *ids)}
+
+
+def _trash_dir(pid) -> Path:
+    return store.root() / "trash" / str(pid)
+
+
+@router.get("/api/valve/documents/{doc_id}/impact")
+def doc_impact(doc_id: int):
+    """What deleting this upload takes with it — shown in the confirmation before anything is removed."""
+    con = store.connect()
+    b = _doc_bundle(con, doc_id)
+    if not b["document"]:
+        return _err("없는 문서", 404)
+    d = b["document"][0]
+    tags = sorted({x["tag_key"] for x in b["datasheet"]})
+    keep = {r["tag_key"] for r in store.rows(con, "SELECT DISTINCT tag_key FROM datasheet WHERE project_id=? AND document_id<>?",
+                                               d["project_id"], doc_id)}
+    same_kind = store.one(con, "SELECT COUNT(*) n FROM document WHERE project_id=? AND kind=? AND id<>? AND status='done'",
+                          d["project_id"], d["kind"], doc_id)["n"]
+    return {"id": doc_id, "kind": d["kind"], "filename": d["filename"], "status": d["status"],
+            "datasheets": len(b["datasheet"]), "tags": len(tags), "tags_gone": len([t for t in tags if t not in keep]),
+            "comments": sum(1 for c in b["comment"] if not c.get("deleted")),
+            "decisions": sum(1 for r in b["issue_state"] if (r.get("decision") or r.get("status") not in (None, "", "Open"))),
+            "other_same_kind": same_kind}
+
+
+@router.delete("/api/valve/documents/{doc_id}")
+def doc_delete(doc_id: int, request: Request):
+    """Remove an upload from the project.  Its rows go to valve/trash/<project>/ as one JSON (restorable); the original
+    file stays in valve/files (shared by content hash — never deleted or overwritten)."""
+    con = store.connect()
+    with store._LOCK:
+        b = _doc_bundle(con, doc_id)
+        if not b["document"]:
+            return _err("없는 문서", 404)
+        d = b["document"][0]
+        if d["status"] in ("queued", "running"):
+            return _err("읽는 중인 문서는 지울 수 없습니다 — 끝난 뒤에 지우세요", 409)
+        stamp = dt.datetime.now().strftime("%Y%m%d_%H%M%S")
+        tdir = _trash_dir(d["project_id"])
+        tdir.mkdir(parents=True, exist_ok=True)
+        name = f"{stamp}_doc{doc_id}.json"
+        store.write_json(tdir / name, {"deleted_at": store.now(), "by": _user(request), "version": VERSION, "rows": b})
+        ids = [x["id"] for x in b["datasheet"]]
+        q = ",".join("?" * len(ids)) or "NULL"
+        for t in ("field", "comment", "issue_state"):
+            con.execute(f"DELETE FROM {t} WHERE datasheet_id IN ({q})", ids)
+        con.execute(f"DELETE FROM datasheet WHERE id IN ({q})", ids)
+        con.execute("DELETE FROM document WHERE id=?", (doc_id,))
+        store.audit(con, d["project_id"], None, None, "delete-doc", d["filename"], name, _user(request),
+                    f"{d['kind']} · datasheets {len(ids)} · comments {len(b['comment'])}")
+        con.commit()
+    for i in ids:                                            # computed reviews of the removed datasheets
+        _DEEP_CACHE.pop(i, None)
+        (store.root() / "cache" / "review" / f"{i}.json").unlink(missing_ok=True)
+    for c in (_PMS_CACHE, _PROC_CACHE, _ISSUE_CACHE, _ISSUE_JSON):
+        for k in [k for k in c if (k[0] if isinstance(k, tuple) else k) == d["project_id"]]:
+            c.pop(k, None)
+    return {"ok": True, "trash": name, "datasheets": len(ids)}
+
+
+@router.get("/api/valve/projects/{pid}/trash")
+def trash_list(pid: int):
+    out = []
+    for p in sorted(_trash_dir(pid).glob("*_doc*.json"), reverse=True) if _trash_dir(pid).exists() else []:
+        try:
+            j = json.loads(p.read_text(encoding="utf-8"))
+        except Exception:                                   # noqa: BLE001
+            continue
+        doc = (j.get("rows", {}).get("document") or [{}])[0]
+        out.append({"name": p.name, "deleted_at": j.get("deleted_at"), "by": j.get("by"), "filename": doc.get("filename"),
+                    "kind": doc.get("kind"), "datasheets": len(j["rows"].get("datasheet") or []),
+                    "comments": len(j["rows"].get("comment") or [])})
+    return {"items": out}
+
+
+@router.post("/api/valve/projects/{pid}/trash/{name}/restore")
+def trash_restore(pid: int, name: str, request: Request):
+    p = _trash_dir(pid) / Path(name).name
+    if not p.exists():
+        return _err("휴지통에 없습니다", 404)
+    j = json.loads(p.read_text(encoding="utf-8"))
+    rows = j.get("rows") or {}
+    con = store.connect()
+    with store._LOCK:
+        for t in ("document", "datasheet"):                  # the ids must still be free (they are kept so links stay right)
+            for r in rows.get(t) or []:
+                if store.one(con, f"SELECT id FROM {t} WHERE id=?", r["id"]):
+                    return _err(f"되돌릴 수 없습니다 — {t} 번호 {r['id']} 를 그 뒤에 올린 자료가 쓰고 있습니다", 409)
+        for t in _TRASH_TABLES:
+            have = {c[1] for c in con.execute(f"PRAGMA table_info({t})")}
+            for r in rows.get(t) or []:
+                cols = [k for k in r if k in have]
+                con.execute(f"INSERT INTO {t}({','.join(cols)}) VALUES ({','.join('?' * len(cols))})", [r[k] for k in cols])
+        doc = (rows.get("document") or [{}])[0]
+        store.audit(con, pid, None, None, "restore-doc", p.name, doc.get("filename"), _user(request), "")
+        con.commit()
+    done = p.parent / "restored"
+    done.mkdir(exist_ok=True)
+    p.replace(done / p.name)
+    for c in (_PMS_CACHE, _PROC_CACHE, _ISSUE_CACHE, _ISSUE_JSON):
+        for k in [k for k in c if (k[0] if isinstance(k, tuple) else k) == pid]:
+            c.pop(k, None)
+    return {"ok": True, "filename": doc.get("filename")}
 
 
 # ── datasheets ──────────────────────────────────────────────────────────────────

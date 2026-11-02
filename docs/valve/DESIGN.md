@@ -651,3 +651,9 @@ Note 113 · PC-01 Confirm 6(3C0K8 의 '316 SS/FHF' 2개 · API5L-X65 MOV 1500# �
 - 출력: `issues.xlsx?lang=` · `markup.pdf?lang=` (en · ko · both). both = 같은 칸에 영어 줄 + 한글 줄(열 구성 그대로). PDF 는 insert_htmlbox / Story 가 한글 글꼴(Droid Sans Fallback)을 스스로 넣는다.
 - 화면: `clang`(표시, 기본 both) · `outlang`(출력, 기본 en — 설계사 제출본이 기본 영어) — 출력 창 라디오 · Settings 선택. `download()` 가 두 출력 주소에 lang 을 붙임.
 
+### 37. valve32 — 올린 문서 지우기 · 휴지통 (사용자 요청)
+- `DELETE /api/valve/documents/{id}`: document · datasheet · field · comment · issue_state 행을 `valve/trash/<project>/<시각>_doc<id>.json` 에 통째로 넣고 지운다. audit · decision_log 는 이력이라 남김. 원본 파일은 `valve/files/` 에 그대로(내용 해시로 여러 문서가 공유 — 지우지 않음).
+- `GET …/impact` = 확인 창 내용(데이터시트 · 사라지는 Tag · 코멘트 · 결정 · 같은 종류 남은 문서). queued/running 이면 409.
+- `POST /projects/{pid}/trash/{name}/restore`: 같은 번호(id)로 되넣는다(링크 · 결정이 그대로 맞음). 그 사이 번호가 다른 자료에 쓰였으면 409(덮어쓰지 않음). 되돌린 파일은 `trash/<p>/restored/`.
+- 캐시: 지운 데이터시트의 검토 캐시(메모리 · 디스크)를 버리고, 프로젝트 판(_profile_ver · _wver)이 바뀌어 화면 답이 다시 계산된다. 시험 `test_delete_uploaded_document_goes_to_trash_and_restores`.
+

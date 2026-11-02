@@ -252,3 +252,7 @@
 - `app/valve/i18n.py`(규칙별 고정 한국어 틀) · `description_ko` · 화면 영어+한글 · Settings 표시 언어 · Excel/PDF 출력 창 언어(en/ko/both).
 - 실자료 2,891건 한글 100 % · PDF 옆 코멘트 한글 글꼴 확인 · 스냅샷 변경 0 · eval unchanged · 전체 1,984 통과 · UI 25/25 · LINK OK. VERSION valve31.
 
+## 2026-11-02 · valve32 — 올린 문서 지우기 · 휴지통 · 되돌리기 (사용자 요청)
+- 🗑 → 함께 빠지는 것 확인 창 → 휴지통(JSON) · 되돌리기(같은 id) · 원본 파일 보존 · audit 'delete-doc'/'restore-doc'.
+- 실화면(vt_ui 사본): 문서 7 → 6 → 되돌리기 7 · 시험 +1 (전체 1,985) · 스냅샷 변경 0 · UI 25/25 · LINK OK. VERSION valve32.
+
