@@ -120,47 +120,64 @@ header.top{position:sticky;top:0;z-index:20;background:var(--bg);padding:16px 24
 .oc.bg-night .oc-uh,.oc.bg-plant .oc-uh{background:rgba(255,255,255,.94)}
 .oc.bg-night .oc-top::after,.oc.bg-plant .oc-top::after,.oc.bg-night .oc-u::before,.oc.bg-night .oc-u::after,.oc.bg-plant .oc-u::before,.oc.bg-plant .oc-u::after{border-color:rgba(255,255,255,.55)}
 .oc.bg-night .oc-ghost,.oc.bg-plant .oc-ghost{color:rgba(255,255,255,.75)}
-/* 프로젝트별 LE/RE 나무 */
-.ot ul{display:flex;justify-content:center;padding:26px 0 0;margin:0;position:relative;list-style:none}
-.ot>ul{padding-top:0}
-.ot li{position:relative;padding:26px 10px 0;display:flex;flex-direction:column;align-items:center}
-.ot>ul>li{padding-top:0}
-.ot li::before,.ot li::after{content:'';position:absolute;top:0;width:50%;height:26px;border-top:2px solid #9fb3d9}.ot li::before{right:50%}.ot li::after{left:50%;border-left:2px solid #9fb3d9}
-.ot li:only-child::before,.ot li:only-child::after{border-top:0}.ot li:only-child::before{display:none}
-.ot li:first-child::before,.ot li:last-child::after{border-top:0}.ot li:last-child::before{border-right:2px solid #9fb3d9;border-radius:0 10px 0 0}.ot li:first-child::after{border-radius:10px 0 0 0}
-.ot>ul>li::before,.ot>ul>li::after{display:none}
-.ot ul ul::before{content:'';position:absolute;top:0;left:50%;height:26px;border-left:2px solid #9fb3d9}
-.ot ul.oc-grid{padding-top:26px}
-.oc.bg-night .ot li::before,.oc.bg-night .ot li::after,.oc.bg-night .ot ul ul::before,.oc.bg-plant .ot li::before,.oc.bg-plant .ot li::after,.oc.bg-plant .ot ul ul::before{border-color:rgba(255,255,255,.55)}
-.oc-cat{background:var(--c,#1739d6);color:#fff;font-weight:800;font-size:15px;border-radius:12px;padding:9px 18px;box-shadow:0 6px 16px rgba(20,40,120,.22);white-space:nowrap}
-.oc-cat.root{font-size:18px;padding:12px 26px;background:linear-gradient(135deg,#0b2a7a,#1f5fd6)}.oc-cat small{font-weight:600;opacity:.85;margin-left:6px;font-size:12px}
-.oc-pjs{display:grid;grid-template-columns:repeat(var(--n,4),270px);gap:14px;align-items:start}
-.oc-pj{background:rgba(255,255,255,.96);border:1px solid #e3e8f3;border-top:4px solid var(--c);border-radius:14px;padding:8px;box-shadow:0 4px 14px rgba(30,42,90,.08)}
-.oc-pj .oc-uh{cursor:default;padding:6px 8px}.oc-pj .oc-uh b{font-size:13.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.oc-le{display:flex;flex-direction:column;gap:6px;margin-top:8px;padding:6px;border-radius:10px;background:color-mix(in srgb,var(--c) 8%,#fff)}
-.oc-le .oc-p{border-left-width:6px}.oc-pj .oc-ms{margin-top:8px}
+/* 프로젝트별 LE/RE (시안 2026-11-05: 같은 폭 카드 격자 · 수행 파랑 · 입찰 주황) */
+.ot2{display:flex;flex-direction:column;align-items:center;padding:6px 10px 10px}
+.oc-root{background:linear-gradient(135deg,#102b57,#2563eb);color:#fff;border-radius:14px;padding:12px 28px;text-align:center;box-shadow:0 8px 20px rgba(16,43,87,.3);position:relative;z-index:1}
+.oc-root b{display:block;font-size:17px}.oc-root small{font-size:12px;opacity:.9}
+.oc-pjs2{display:grid;grid-template-columns:repeat(var(--n,5),250px);gap:16px;align-items:start;position:relative;padding-top:34px;margin-top:0}
+.oc-pjs2::before{content:'';position:absolute;top:0;left:50%;height:18px;border-left:2px solid #9fb3d9}
+.oc-pjs2::after{content:'';position:absolute;top:18px;left:125px;right:125px;border-top:2px solid #9fb3d9;border-radius:8px 8px 0 0}
+.oc-pj{position:relative;background:#fff;border:1px solid #dfe5f1;border-radius:14px;padding:0 0 8px;box-shadow:0 4px 14px rgba(30,42,90,.08);min-height:120px}
+.oc-pj::before{content:'';position:absolute;left:50%;top:-16px;height:16px;border-left:2px solid #9fb3d9}
+.oc-pjh{border-radius:14px 14px 0 0;padding:9px 11px;border-bottom:1px solid #e6ebf5}
+.oc-pj.run .oc-pjh{background:#e9f1ff}.oc-pj.bid .oc-pjh{background:#fff1dc}.oc-pj.etc .oc-pjh{background:#eef0f5}
+.oc-pjh b{display:block;font-size:13.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.oc-pjh span{font-size:11.5px;color:#4a5370}.oc-pjh em{font-style:normal;font-weight:800}
+.oc-pj.run .oc-pjh em{color:#2b44c9}.oc-pj.bid .oc-pjh em{color:#b25400}
+.oc-pjm{display:flex;flex-direction:column;gap:7px;padding:8px 8px 0}
+.oc-pjm .oc-p{border-left-width:4px}
+.oc-pjs2:only-child{padding-top:0}
+.oc-prog{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:#4a5370;background:#fff;border:1px solid var(--line);border-radius:10px;padding:5px 10px}.oc-prog i{display:inline-block;width:90px;height:7px;background:#e5e9f3;border-radius:99px;overflow:hidden}.oc-prog b{display:block;height:100%;background:linear-gradient(90deg,#2563eb,#60a5fa);border-radius:99px}.oc-prog strong{color:#102b57}
+.oc-chips{display:inline-flex;gap:4px}.oc-chips span{display:inline-flex;align-items:center;gap:4px;font-size:11.5px;background:#fff;border:1px solid var(--line);border-radius:99px;padding:3px 9px;color:#2f3a55}.oc-chips i{width:7px;height:7px;border-radius:50%;display:inline-block}
+.oc-fil{display:inline-flex;background:#eef1f7;border-radius:10px;padding:2px;gap:2px}.oc-fil button{border:0;background:none;border-radius:8px;padding:5px 12px;font-size:12.5px;font-weight:700;color:#4a5370;cursor:pointer}.oc-fil button.on{background:#fff;color:#2b44c9;box-shadow:0 1px 4px rgba(30,42,90,.15)}
+.oc.bg-night .oc-pjs2::before,.oc.bg-night .oc-pjs2::after,.oc.bg-night .oc-pj::before,.oc.bg-plant .oc-pjs2::before,.oc.bg-plant .oc-pjs2::after,.oc.bg-plant .oc-pj::before{border-color:rgba(255,255,255,.55)}
 .oc-iso{display:inline-block;font-style:normal;font-size:10px;font-weight:800;letter-spacing:.5px;background:#1f2a44;color:#fff;border-radius:4px;padding:0 4px;line-height:15px;vertical-align:1px}
-.oc-iso.big{font-size:15px;line-height:30px;padding:0 8px;border-radius:8px}
-/* 세계 지도 */
+/* 세계 지도 (시안 2026-11-05: 짙은 남색 지도 · 빛나는 점 · 국기 이름표 · 본사→현장 호) */
 .oc.m-map .oc-cv{padding:0}
-.wmap{display:block;border-radius:10px}
-.wmap .sea{fill:#cfe3f7}.oc.bg-night .wmap .sea{fill:#0b1a3a}.oc.bg-plant .wmap .sea{fill:#17345f}
-.wmap .grat path{stroke:rgba(255,255,255,.55);stroke-width:calc(var(--k,1) * .6px);fill:none}.oc.bg-night .wmap .grat path,.oc.bg-plant .wmap .grat path{stroke:rgba(255,255,255,.12)}
-.wmap .land path{fill:#f4f1e8;stroke:#b9b3a3;stroke-width:calc(var(--k,1) * .45px)}
-.oc.bg-night .wmap .land path{fill:#1f2f55;stroke:#3c4f7f}.oc.bg-plant .wmap .land path{fill:#2b4775;stroke:#4f6a9a}
-.wmap .land path.run{fill:#9cc0ff}.wmap .land path.bid{fill:#ffcf96}.wmap .land path.both{fill:#c3a6ff}
-.oc.bg-night .wmap .land path.run,.oc.bg-plant .wmap .land path.run{fill:#3d6fd6}.oc.bg-night .wmap .land path.bid,.oc.bg-plant .wmap .land path.bid{fill:#c67a2c}.oc.bg-night .wmap .land path.both,.oc.bg-plant .wmap .land path.both{fill:#7d5bd0}
-.wmap .land path:hover{filter:brightness(1.08)}
-.mk{cursor:pointer}.mk circle{stroke:#fff;stroke-width:1.2}.mk circle.run{fill:#2b6be6}.mk circle.bid{fill:#f08a24}.mk circle.both{fill:#7c4ddb}
-.mk .pulse{fill:rgba(43,107,230,.35);stroke:none;pointer-events:none;transform-origin:0 0;animation:mkp 2.2s ease-out infinite}
-@keyframes mkp{0%{transform:scale(.6);opacity:.9}100%{transform:scale(2.2);opacity:0}}
-.mk .cnt{font-size:6.5px;font-weight:800;fill:#fff;text-anchor:middle;pointer-events:none}
-.mk .lb rect{fill:rgba(255,255,255,.93);stroke:rgba(30,42,90,.18);stroke-width:.5}
-.mk .nm{font-size:7.5px;font-weight:800;fill:#1f2a44}.mk .tm,.mk .wx{font-size:6px;fill:#4a5370}
-.mk:hover .lb rect,.mk.on .lb rect{fill:#fff;stroke:#2b6be6;stroke-width:1}.mk.on circle:not(.pulse){stroke:#ffd84d;stroke-width:2}
+.oc.m-map .oc-view{background:#0b1a3a}.oc.m-map.bg-day .oc-view{background:linear-gradient(180deg,#dbe8f8,#eef3fb)}
+.wmap{display:block;border-radius:10px;--sea1:#1a3a74;--sea2:#0a1733}.oc.bg-day .wmap{--sea1:#dbeafe;--sea2:#bcd4f0}
+.wmap .grat path{stroke:rgba(255,255,255,.08);stroke-width:calc(var(--k,1) * .6px);fill:none}.oc.bg-day .wmap .grat path{stroke:rgba(255,255,255,.6)}
+.wmap .land path{fill:#1e4078;stroke:#4a74b8;stroke-width:calc(var(--k,1) * .5px)}
+.oc.bg-day .wmap .land path{fill:#f4f1e8;stroke:#b9b3a3}
+.wmap .land path.run{fill:#3a7be8;filter:drop-shadow(0 0 4px rgba(90,160,255,.9))}.wmap .land path.bid{fill:#e08a2e;filter:drop-shadow(0 0 4px rgba(255,170,60,.8))}.wmap .land path.both{fill:#8a5fe0;filter:drop-shadow(0 0 4px rgba(170,120,255,.9))}
+.oc.bg-day .wmap .land path.run{fill:#9cc0ff;filter:none}.oc.bg-day .wmap .land path.bid{fill:#ffcf96;filter:none}.oc.bg-day .wmap .land path.both{fill:#c3a6ff;filter:none}
+.wmap .land path:hover{filter:brightness(1.15)}
+.arc{fill:none;stroke:#9cc4ff;stroke-width:calc(var(--k,1) * 1px);stroke-dasharray:4 3;opacity:.45;pointer-events:none}.arc.bid{stroke:#ffc77a}.arc.both{stroke:#cbb2ff}.arc.on{opacity:1;stroke-width:calc(var(--k,1) * 2px);stroke-dasharray:none}
+.oc.bg-day .arc{stroke:#2b6be6;opacity:.3}.oc.bg-day .arc.bid{stroke:#e07a12}
+.mk,.mlb{cursor:pointer}.mk .dot{stroke:#fff;stroke-width:1.5}.mk .dot.run{fill:#3b82f6}.mk .dot.bid{fill:#f59e0b}.mk .dot.both{fill:#a78bfa}
+.mk .glow{fill:rgba(96,165,250,.55);filter:url(#mglow);pointer-events:none}.mk .pulse{fill:rgba(96,165,250,.35);stroke:none;pointer-events:none;transform-origin:0 0;animation:mkp 2.2s ease-out infinite}
+.mk.big .glow{fill:rgba(255,255,255,.75);r:18}.mk.big .dot{r:6;stroke:#ffd84d;stroke-width:2}
+@keyframes mkp{0%{transform:scale(.6);opacity:.9}100%{transform:scale(2.4);opacity:0}}
+.ld{stroke:#cfe0ff;stroke-width:calc(var(--k,1) * 1.1px);stroke-linecap:round;pointer-events:none;opacity:.9}.ld.bid{stroke:#ffd9a3}.ld.on{stroke:#ffd84d;stroke-width:calc(var(--k,1) * 2.2px)}
+.oc.bg-day .ld{stroke:#33415f}.oc.bg-day .ld.bid{stroke:#e07a12}.oc.bg-day .ld.run{stroke:#2b6be6}
+.mlb .bg{fill:rgba(255,255,255,.96);stroke:rgba(30,42,90,.25);stroke-width:.5;filter:drop-shadow(0 2px 3px rgba(0,10,40,.35))}
+.mlb .fl{font-size:12px}.mlb .nm{font-size:9px;font-weight:800;fill:#102b57}.mlb .sub{font-size:7.5px;fill:#4a5370}.mlb .cnt{font-weight:800;fill:#2563eb}.mlb.bid .cnt{fill:#b25400}.mlb.both .cnt{fill:#6a3fc4}
+.mlb:hover .bg,.mlb.on .bg{stroke:#2563eb;stroke-width:1.2}.mlb.on .bg{fill:#fff;filter:drop-shadow(0 0 5px rgba(255,216,77,.9))}
+.oc-mctl{position:absolute;right:10px;top:10px;display:flex;flex-direction:column;gap:4px}.oc-mctl button{width:32px;height:32px;border:1px solid rgba(255,255,255,.35);background:rgba(16,43,87,.85);color:#fff;border-radius:8px;font-size:16px;cursor:pointer}.oc-mctl button:hover{background:#2563eb}
+.oc.bg-day .oc-mctl button{background:#fff;color:#102b57;border-color:var(--line)}
+.oc.m-map .oc-mini{right:auto;left:10px;top:auto;bottom:34px;background:rgba(16,43,87,.8);border-color:rgba(255,255,255,.3)}.oc.m-map .oc-mini>b{color:#cfe0ff}.oc.m-map.bg-day .oc-mini{background:rgba(255,255,255,.92)}.oc.m-map.bg-day .oc-mini>b{color:#3156c8}
+.oc-mleg{position:absolute;right:10px;bottom:8px;display:flex;gap:12px;font-size:11.5px;color:#fff;background:rgba(16,43,87,.6);border-radius:8px;padding:4px 10px}.oc-mleg i{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:4px;vertical-align:-1px}.oc-mleg .run{background:#3b82f6}.oc-mleg .bid{background:#f59e0b}.oc-mleg .both{background:#a78bfa}.oc-mleg .arc{width:14px;height:0;border-top:2px dashed #9cc4ff;border-radius:0;vertical-align:2px}
+.oc.bg-day .oc-mleg{color:#102b57;background:rgba(255,255,255,.85)}
+.oc-stats{margin-top:12px;background:#fff;border:1px solid var(--line);border-radius:14px;padding:12px 14px}.oc-stats h4{margin:0 0 8px;font-size:14px}
+.oc-tiles{display:grid;grid-template-columns:repeat(5,1fr);gap:10px}.oc-tile{display:flex;gap:10px;align-items:center;border:1px solid #e3e8f3;border-radius:12px;padding:10px 12px;background:#f8fafd}
+.oc-tile i{font-style:normal;font-size:20px;width:38px;height:38px;border-radius:10px;background:color-mix(in srgb,var(--c) 14%,#fff);display:grid;place-items:center}.oc-tile b{display:block;font-size:22px;color:var(--c);line-height:1.1}.oc-tile span{font-size:12px;color:var(--sub)}.oc-tile small{display:block;font-size:11px;color:var(--sub)}
+@media (max-width:1100px){.oc-tiles{grid-template-columns:repeat(3,1fr)}}
 /* 지도 오른쪽 */
-.mrow{display:grid;grid-template-columns:auto 1fr auto auto auto;gap:6px;align-items:center;width:100%;border:0;background:none;text-align:left;padding:7px 4px;border-bottom:1px solid #eef1f7;cursor:pointer;font-size:12.5px}
-.mrow:hover{background:#f3f6ff}.mrow span{color:var(--sub);font-size:11.5px}.mrow em{font-style:normal;font-size:11.5px}.mrow small{background:#2b6be6;color:#fff;border-radius:99px;padding:0 7px;font-weight:800}
+.mrows{display:flex;flex-direction:column}
+.mrow{display:grid;grid-template-columns:22px 1fr auto 54px 36px 8px;gap:6px;align-items:center;width:100%;border:0;background:none;text-align:left;padding:8px 4px;border-bottom:1px solid #eef1f7;cursor:pointer;font-size:12.5px}
+.mrow:hover{background:#f3f6ff}.mrow .fl{font-size:16px}.mrow .iso{font-style:normal;font-size:10px;color:#6b7390;font-weight:700;margin-right:2px}.mrow b{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mrow .n{font-size:11.5px;color:#4a5370;white-space:nowrap}.mrow .bar{height:6px;background:#e5e9f3;border-radius:99px;overflow:hidden}.mrow .bar i{display:block;height:100%;background:#2563eb;border-radius:99px}
+.mrow .pc{font-size:11.5px;color:#4a5370;text-align:right}.mrow .go{color:#9aa1b5}
+.mfl{font-size:30px;line-height:1}
 .oc-st .btn{border-bottom:1px solid var(--line);color:inherit;font-weight:600}
 .mhd{display:flex;gap:10px;align-items:center}.mhd b{display:block;font-size:17px}.mhd span{font-size:11.5px;color:var(--sub)}
 .mtime{margin:10px 0;padding:10px 12px;border-radius:12px;background:linear-gradient(135deg,#0b2a7a,#1f5fd6);color:#fff}.mtime b{display:block;font-size:28px;letter-spacing:1px}.mtime span{font-size:12px;opacity:.9}
@@ -1255,7 +1272,7 @@ function recLabel(key, f) {
  * ===================================================================== */
 let root = null;
 /* 서버 모드: http(s):// 로 접속하면 server.py 의 REST API 사용 (폴더 선택 불필요). file:// 로 열면 폴더 모드 */
-const APP_VERSION = '2026-11-04.4';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
+const APP_VERSION = '2026-11-04.5';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
 const SERVER_URL = 'http://localhost:8080';
 // 부서원 PC 사본(file://)이 접속을 시도할 서버 — 서버가 배포 파일을 만들 때 'PC 이름 주소, IP 주소' 순으로 자동 기록함
 const DEFAULT_SERVERS = ['http://ASEUNGWOOK-B01:8080', 'http://65.3.30.234:8080'];
@@ -5076,14 +5093,20 @@ function orgHtml(recs, year) {
       <div class="oc-modes">${[['unit', '🧩 유닛'], ['proj', '🏗 프로젝트별 · LE/RE'], ['map', '🌏 세계 지도']].map(([k, l]) => `<button class="${mode === k ? 'on' : ''}" data-ocmode="${k}">${l}</button>`).join('')}</div>
       <div class="oc-bgs" title="배경">${[['day', '☀'], ['night', '🌙'], ['plant', '🏭']].map(([k, l]) => `<button class="${ocBg() === k ? 'on' : ''}" data-ocbg="${k}" title="${{ day:'낮', night:'밤', plant:'플랜트' }[k]} 배경">${l}</button>`).join('')}</div></div>
     <div class="oc-bar"><div class="oc-ttl"><span>${mode === 'map' ? '휠 = 확대/축소 · 끌어서 이동 · 표시를 누르면 그 나라 프로젝트' : '휠 = 확대/축소 · 끌어서 이동 · 누르면 상세 · 두 번 누르면 부서원 화면'}</span></div>
+      ${mode === 'map' ? (() => { const all = mapProjects(), dn = all.filter(p => isDone(p.r)).length, pc = all.length ? Math.round(dn / all.length * 100) : 0;
+        return `<span class="oc-prog" title="진행 중인 수행 · 입찰 PJT 중 금주 작성(변경 없음 포함) 비율">금주 작성률 <i><b style="width:${pc}%"></b></i> <strong>${pc}%</strong></span><span class="oc-chips"><span><i style="background:#64748b"></i>전체 ${all.length}</span><span><i style="background:#3b82f6"></i>수행 ${all.filter(p => p.k !== 'bid').length}</span><span><i style="background:#f59e0b"></i>입찰 ${all.filter(p => p.k === 'bid').length}</span><span><i style="background:#e0483e"></i>미작성 ${all.length - dn}</span></span>`; })() : ''}
+      ${mode !== 'unit' ? `<div class="oc-fil">${[['', '전체'], ['perform', '수행'], ['bid', '입찰']].map(([k, l]) => `<button class="${(mode === 'map' ? OC.mapF || '' : OC.projF === '수행' ? 'perform' : OC.projF === '입찰' ? 'bid' : '') === k ? 'on' : ''}" data-mapf="${k}">${l}</button>`).join('')}</div>` : ''}
       <span class="sp"></span><div class="oc-zoom"><button data-oc="out" title="축소">－</button><b id="ocZ">100%</b><button data-oc="in" title="확대">＋</button></div>
       <button class="btn sm" data-oc="fit" title="전체가 한 화면에 보이게">⊙ 전체 보기</button><button class="btn sm" data-oc="one" title="실제 크기(100%)">1:1</button><button class="btn sm" data-oc="full" title="전체 화면 (Esc = 나가기)">⛶ 전체 화면</button>
       ${AUTH ? '<button class="btn sm pri" data-myprof>🙋 내 정보</button>' : ''}</div>
     <div class="oc-main"><div class="oc-view" id="ocView">
         <div class="oc-cv" id="ocCv">${inner}</div>
         <div class="oc-mini" id="ocMini" title="누르면 그곳으로 이동"><b>Overview</b><div class="oc-mi" id="ocMi"></div><i id="ocMr"></i></div>
-        <div class="oc-hint">휠 = 확대/축소 · 끌어서 이동</div></div>
+        <div class="oc-hint">휠 = 확대/축소 · 끌어서 이동</div>
+        ${mode === 'map' ? `<div class="oc-mctl"><button data-oc="in" title="확대">＋</button><button data-oc="out" title="축소">－</button><button data-oc="fit" title="전체 보기">⌖</button></div>
+        <div class="oc-mleg"><span><i class="run"></i>수행</span><span><i class="bid"></i>입찰</span><span><i class="both"></i>수행+입찰</span><span><i class="arc"></i>본사 → 현장</span></div>` : ''}</div>
       <aside class="oc-side" id="ocSide"></aside></div>
+    ${mode === 'map' ? mapStats() : ''}
     <div class="oc-leg"><span><i style="background:#1739d6"></i>그룹장 👑</span><span><i style="background:#2b6be6"></i>유닛 · ★ 유닛장</span><span><i style="background:#ff9f43"></i>IEC</span><span><i class="t-run"></i>수행 PJT</span><span><i class="t-bid"></i>입찰 PJT</span><span>🗂 일반업무 · 📐 표준화 · ✅ To Do · 📌 그룹장 요청 (진행 중)</span></div>
   </div>`;
 }
@@ -5115,17 +5138,50 @@ function ocApply() {
   OC.m = m;
 }
 /* 지도 표시는 확대해도 화면에서 같은 크기 (구글어스처럼) + 이름표가 겹치지 않게 오른쪽 · 왼쪽 · 아래 · 위 중 빈 곳에 */
+/* 지도 이름표: 점(위치) → 선 → 이름표. 실제 글자 폭을 재고, 이름표 · 점 · 선이 서로 겹치거나 엇갈리지 않는 가장 가까운 빈자리를 찾음 */
+function mapLabelSize(lb) {
+  const g = lb.firstElementChild, tw = c => { const t = g.querySelector(c); return t ? t.getComputedTextLength() : 0; };
+  const w = 24 + Math.max(tw('.nm'), tw('.sub')) + 8; g.querySelector('.bg').setAttribute('width', w); return w;
+}
 function mapPin(cv) {
-  const k = 1.25 / OC.z, ms = [...cv.querySelectorAll('.mk')].map(g => ({ g, x:+g.dataset.x, y:+g.dataset.y, w:+g.dataset.w, n:+g.dataset.n })).sort((a, b) => b.n - a.n), boxes = [];
-  ms.forEach(m => boxes.push([m.x - 6 * k, m.y - 6 * k, 12 * k, 12 * k]));
-  cv.querySelector('.wmap')?.style.setProperty('--k', (1 / OC.z).toFixed(4));
-  const hit = b => boxes.some(o => b[0] < o[0] + o[2] && o[0] < b[0] + b[2] && b[1] < o[1] + o[3] && o[1] < b[1] + b[3]);
+  const svg = cv.querySelector('.wmap'); if (!svg) return;
+  const k = 1.2 / OC.z; svg.style.setProperty('--k', (1 / OC.z).toFixed(4));
+  const L = new Map([...svg.querySelectorAll('[data-lb]')].map(g => [g.dataset.lb, g])), D = new Map([...svg.querySelectorAll('[data-ld]')].map(g => [g.dataset.ld, g]));
+  const ms = [...svg.querySelectorAll('.mk')].map(g => { const key = g.dataset.ctry, lb = L.get(key); return { g, key, lb, x:+g.dataset.x, y:+g.dataset.y, w:mapLabelSize(lb) * k, h:26 * k, n:+g.dataset.n }; });
+  ms.forEach(m => m.crowd = ms.filter(o => Math.hypot(o.x - m.x, o.y - m.y) < 60 * k).length);
+  ms.sort((a, b) => b.crowd - a.crowd || b.n - a.n || a.x - b.x);
+  const dots = ms.map(m => [m.x - 5 * k, m.y - 5 * k, 10 * k, 10 * k, m.key]), boxes = [], segs = [];
+  const ov = (a, b) => a[0] < b[0] + b[2] && b[0] < a[0] + a[2] && a[1] < b[1] + b[3] && b[1] < a[1] + a[3];
+  const cr = (ax, ay, bx, by, cx, cy, dx, dy) => { const o = (px, py, qx, qy, rx, ry) => Math.sign((qx - px) * (ry - py) - (qy - py) * (rx - px));
+    return o(ax, ay, bx, by, cx, cy) * o(ax, ay, bx, by, dx, dy) < 0 && o(cx, cy, dx, dy, ax, ay) * o(cx, cy, dx, dy, bx, by) < 0; };
+  const segBox = (x1, y1, x2, y2, b) => { const [l, t, w, h] = b, r = l + w, bt = t + h;
+    if (Math.max(x1, x2) < l || Math.min(x1, x2) > r || Math.max(y1, y2) < t || Math.min(y1, y2) > bt) return false;
+    if (x1 > l && x1 < r && y1 > t && y1 < bt) return true;
+    return cr(x1, y1, x2, y2, l, t, r, t) || cr(x1, y1, x2, y2, r, t, r, bt) || cr(x1, y1, x2, y2, l, bt, r, bt) || cr(x1, y1, x2, y2, l, t, l, bt); };
+  const ANG = [0, 180, -30, 30, 210, 150, -60, 60, 240, 120, -90, 90, -15, 15, 195, 165, -45, 45, 225, 135, -75, 75, 255, 105].map(d => d * Math.PI / 180);
   for (const m of ms) {
     m.g.firstElementChild.setAttribute('transform', `scale(${k.toFixed(4)})`);
-    const cand = [[9, -4], [-9 - m.w + 2, -4], [-m.w / 2 + 2, 18], [-m.w / 2 + 2, -18], [9, 14], [9, -22], [-9 - m.w + 2, 14], [-9 - m.w + 2, -22]];
-    let pick = cand[0];
-    for (const c of cand) { const b = [m.x + (c[0] - 2) * k, m.y + (c[1] - 8) * k, m.w * k, 20 * k]; if (!hit(b)) { pick = c; boxes.push(b); break; } }
-    m.g.querySelector('.lb').setAttribute('transform', `translate(${pick[0]},${pick[1]})`);
+    let best = null, bestBad = Infinity;
+    for (let r = 10; r <= 300 && !(best && best.bad === 0); r += r < 40 ? 8 : r < 120 ? 14 : 24) {
+      for (const a of ANG) {
+        const c = Math.cos(a), sn = Math.sin(a), px = m.x + r * k * c, py = m.y + r * k * sn;
+        const l = c > .3 ? px : c < -.3 ? px - m.w : px - m.w / 2, t = Math.abs(sn) > .8 ? (sn < 0 ? py - m.h : py) : py - m.h / 2;
+        if (l < 1 || t < 1 || l + m.w > 1079 || t + m.h > 539) continue;
+        const b = [l, t, m.w, m.h], pad = [l - 2.5 * k, t - 2.5 * k, m.w + 5 * k, m.h + 5 * k];
+        const ex = Math.max(l, Math.min(m.x, l + m.w)), ey = Math.max(t, Math.min(m.y, t + m.h));
+        let bad = 0;
+        boxes.forEach(o => { if (ov(pad, o)) bad += 10; if (segBox(m.x, m.y, ex, ey, o)) bad += 4; });
+        dots.forEach(d => { if (d[4] === m.key) return; if (ov(pad, d)) bad += 6; if (segBox(m.x, m.y, ex, ey, d)) bad += 3; });
+        segs.forEach(sg => { if (segBox(sg[0], sg[1], sg[2], sg[3], pad)) bad += 4; if (cr(m.x, m.y, ex, ey, ...sg)) bad += 2; });
+        if (bad < bestBad) { bestBad = bad; best = { b, ex, ey, bad }; }
+        if (bad === 0) break;
+      }
+    }
+    if (!best) { const b = [m.x + 8 * k, m.y - m.h / 2, m.w, m.h]; best = { b, ex:b[0], ey:m.y }; }
+    m.g.classList.toggle('big', OC.selC === m.key);
+    boxes.push(best.b); segs.push([m.x, m.y, best.ex, best.ey]);
+    m.lb.setAttribute('transform', `translate(${best.b[0].toFixed(2)},${best.b[1].toFixed(2)})`); m.lb.firstElementChild.setAttribute('transform', `scale(${k.toFixed(4)})`);
+    const ld = D.get(m.key); if (ld) { ld.setAttribute('x1', m.x); ld.setAttribute('y1', m.y); ld.setAttribute('x2', best.ex.toFixed(2)); ld.setAttribute('y2', best.ey.toFixed(2)); }
   }
 }
 function ocFit(widthOnly) {                             // 전체 보기 = 가로 · 세로 모두 맞춤 · 처음 열 때 = 가로만 맞춤(글자가 너무 작아지지 않게, 아래는 끌어서/휠로)
@@ -5142,7 +5198,7 @@ function ocZoom(f, cx, cy) {
 function orgBind(el) {
   const v = $('#ocView', el); if (!v) return;
   const mi = $('#ocMi', el); mi.innerHTML = `<div class="oc-mc">${$('#ocCv', el).innerHTML}</div>`;   // 미니맵 = 조직도를 작게 복사
-  requestAnimationFrame(() => { if (OC.fit) { OC.fit = false; ocMode() === 'map' ? ocFit() : ocFit(true); } else ocApply(); ocMode() === 'map' ? (mapSide(OC.selC), mapTick(), wxLoad()) : ocSide(OC.sel); });
+  requestAnimationFrame(() => { if (OC.fit) { OC.fit = false; ocMode() === 'unit' ? ocFit(true) : ocFit(); } else ocApply(); ocMode() === 'map' ? (mapSide(OC.selC), mapTick(), wxLoad()) : ocSide(OC.sel); });
   let drag = null;
   v.onpointerdown = e => { if (e.button !== 0 || e.target.closest('button,a,.oc-mini')) return; drag = { x:e.clientX - OC.x, y:e.clientY - OC.y }; v.setPointerCapture(e.pointerId); v.classList.add('grab'); };
   v.onpointermove = e => { if (!drag) return; OC.x = e.clientX - drag.x; OC.y = e.clientY - drag.y; ocApply(); };
@@ -5169,18 +5225,22 @@ function projData() {
   }
   return out;
 }
+const flagOf = iso => (iso || '').slice(0, 2).toUpperCase().replace(/[A-Z]/g, ch => String.fromCodePoint(127397 + ch.charCodeAt(0)));
 function projTreeHtml() {
   const ps = projData(), card = OC.card;
   ps.forEach(p => p.mem.forEach(m => { if (!OC.people.has(m.name)) OC.people.set(m.name, { name:m.name, title:m.field || '', unit:m.grp || '', color:'#64748b' }); }));
   if (!ps.length) return '<div class="empty" style="width:600px">계장 투입인력 시트에 PJT 배정(투입률 · LE/RE)이 없습니다.</div>';
-  const box = p => { const col = p.c.kind === '입찰' ? '#f08a24' : p.c.kind === '수행' ? '#2b6be6' : '#64748b', le = p.mem.filter(m => m.role === 'LE'), re = p.mem.filter(m => m.role !== 'LE');
-    return `<div class="oc-pj" style="--c:${col}"><div class="oc-uh"><b>${esc(p.c.name)}</b><span>${esc(p.c.kind || '')}${p.ctry ? ` · <i class="oc-iso">${p.ctry.iso}</i> ${esc(p.ctry.ko)}` : ''} · 👥 ${p.mem.length}명 · ${Math.round(p.mem.reduce((a, m) => a + m.pct, 0)) / 100}명분</span></div>
-      <div class="oc-le">${le.length ? le.map(m => card(m.name, `LE · ${m.pct}%`, col)).join('') : '<span class="oc-ghost">LE 미지정</span>'}</div>
-      ${re.length ? `<div class="oc-ms">${re.map(m => card(m.name, `RE · ${m.pct}%`, col)).join('')}</div>` : ''}</div>`; };
-  const grp = k => ps.filter(p => (p.c.kind || '기타') === k);
-  const branch = (k, icon, col) => { const xs = grp(k); return xs.length ? `<li><div class="oc-cat" style="--c:${col}">${icon} ${k} PJT <small>${xs.length}개</small></div><ul class="oc-grid"><li><div class="oc-pjs" style="--n:${Math.min(4, xs.length)}">${xs.map(box).join('')}</div></li></ul></li>` : ''; };
-  return `<div class="ot"><ul><li><div class="oc-cat root">🏗 계장ENG그룹 PJT 조직 <small>수행 ${grp('수행').length} · 입찰 ${grp('입찰').length}</small></div>
-    <ul>${branch('수행', '🏗', '#2b6be6')}${branch('입찰', '📈', '#f08a24')}${branch('기타', '🧩', '#64748b')}</ul></li></ul></div>`;
+  const tot = {}; ps.forEach(p => p.mem.forEach(m => { tot[m.name] = (tot[m.name] || 0) + m.pct; }));   // 한 사람 모든 PJT 합계 — 100% 넘으면 ⚠
+  const f = OC.projF || '';
+  const list = ps.filter(p => !f || (p.c.kind || '기타') === f).sort((a, b) => (a.c.kind === '입찰') - (b.c.kind === '입찰'));
+  const box = p => { const k = p.c.kind === '입찰' ? 'bid' : p.c.kind === '수행' ? 'run' : 'etc', col = k === 'bid' ? '#f08a24' : k === 'run' ? '#2b6be6' : '#64748b';
+    const mm = p.mem.map(m => card(m.name, `${m.role} · ${m.pct}%${tot[m.name] > 100 ? ` ⚠ 합계 ${tot[m.name]}%` : ''}`, col)).join('');
+    return `<div class="oc-pj ${k}" style="--c:${col}"><div class="oc-pjh"><b title="${esc(p.c.name)}">${esc(p.c.name)}</b>
+        <span>${p.ctry ? flagOf(p.ctry.iso) + ' ' : ''}<em>${esc(p.c.kind || '기타')}</em> · ${p.mem.length}명 · ${Math.round(p.mem.reduce((a, m) => a + m.pct, 0)) / 100}명분${p.ctry ? ` · ${esc(p.ctry.ko)}` : ''}</span></div>
+      <div class="oc-pjm">${mm}</div></div>`; };
+  const nr = ps.filter(p => p.c.kind === '수행').length, nb = ps.filter(p => p.c.kind === '입찰').length;
+  return `<div class="ot2"><div class="oc-root"><b>🏗 계장ENG그룹 PJT 조직</b><small>총 ${nr}개 수행 PJT · ${nb}개 입찰 PJT${ps.length - nr - nb ? ` · 기타 ${ps.length - nr - nb}` : ''}${f ? ` · ${f}만 보는 중` : ''}</small></div>
+    <div class="oc-pjs2" style="--n:${Math.min(5, Math.max(1, list.length))}">${list.map(box).join('') || '<div class="oc-ghost">없음</div>'}</div></div>`;
 }
 /* ---------- 세계 지도 (Natural Earth 1:110m 국경 · 공용 자료를 파일 안에 넣음 · 등장방형 1° = 3단위) ---------- */
 const CTRY = [   // [찾을 글자(정규식), ISO, 이름, 위도, 경도, 시간대] — 먼저 맞는 것
@@ -5211,18 +5271,35 @@ function mapProjects() {
   return out;
 }
 function worldHtml() {
-  const W = worldData(), ps = mapProjects(), by = new Map();
+  const W = worldData(), ps = mapProjects().filter(p => !OC.mapF || p.k === OC.mapF), by = new Map();
   ps.filter(p => p.c).forEach(p => (by.get(p.c.key) || by.set(p.c.key, { c:p.c, ps:[] }).get(p.c.key)).ps.push(p));
-  OC.map = { by, none:ps.filter(p => !p.c) };
+  OC.map = { by, none:ps.filter(p => !p.c), all:ps };
   const has = new Map(); by.forEach(v => { const o = has.get(v.c.iso) || { run:0, bid:0 }; v.ps.forEach(p => o[p.k === 'bid' ? 'bid' : 'run']++); has.set(v.c.iso, o); });
   const fill = iso => { const o = has.get(iso); return !o ? '' : o.run && o.bid ? 'both' : o.bid ? 'bid' : 'run'; };
   const grat = [...Array(11)].map((_, i) => `<path d="M${(i + 1) * 90},0V540"/>`).join('') + [...Array(5)].map((_, i) => `<path d="M0,${(i + 1) * 90}H1080"/>`).join('');
-  const mk = [...by.values()].map(v => { const [x, y] = mxy(v.c.lat, v.c.lon), n = v.ps.length, run = v.ps.filter(p => p.k !== 'bid').length;
-    const w = Math.max(v.c.ko.length * 8, 58) + 6;
-    return `<g class="mk ${OC.selC === v.c.key ? 'on' : ''}" data-ctry="${esc(v.c.key)}" data-x="${x.toFixed(1)}" data-y="${y.toFixed(1)}" data-w="${w}" data-n="${n}" transform="translate(${x.toFixed(1)},${y.toFixed(1)})"><g class="mki"><circle class="pulse" r="9"/><circle r="5.5" class="${run && n - run ? 'both' : run ? 'run' : 'bid'}"/>
-      <text class="cnt" y="2.2">${n}</text><g class="lb" transform="translate(9,-4)"><rect x="-2" y="-8" width="${w}" height="20" rx="4"/><text class="nm" y="0">${esc(v.c.ko)}</text><text class="tm" y="9" data-ltime="${esc(v.c.tz)}">--:--</text><text class="wx" y="9" x="32" data-wx="${esc(v.c.key)}"></text></g></g></g>`; }).join('');
-  return `<svg class="wmap" width="1080" height="540" viewBox="0 0 1080 540"><rect class="sea" width="1080" height="540"/><g class="grat">${grat}</g>
-    <g class="land">${Object.entries(W).map(([iso, d]) => `<path class="${fill(iso)}" d="${d}"><title>${esc(iso)}</title></path>`).join('')}</g><g class="mks">${mk}</g></svg>`;
+  const vs = [...by.values()], cls = v => { const n = v.ps.length, run = v.ps.filter(p => p.k !== 'bid').length; return run && n - run ? 'both' : run ? 'run' : 'bid'; };
+  const on = v => OC.selC === v.c.key ? ' on' : '';
+  const [hx, hy] = mxy(37.0, 127.5);                       // 본사(한국)에서 각 나라로 호(弧)
+  const arcs = vs.filter(v => v.c.iso !== 'KR').map(v => { const [x, y] = mxy(v.c.lat, v.c.lon), mx = (hx + x) / 2, my = (hy + y) / 2, d = Math.hypot(x - hx, y - hy);
+    return `<path class="arc ${cls(v)}${on(v)}" data-arc="${esc(v.c.key)}" d="M${hx},${hy} Q${mx.toFixed(1)},${(my - d * .22).toFixed(1)} ${x.toFixed(1)},${y.toFixed(1)}"/>`; }).join('');
+  const lines = vs.map(v => `<line class="ld ${cls(v)}${on(v)}" data-ld="${esc(v.c.key)}"/>`).join('');
+  const mk = vs.map(v => { const [x, y] = mxy(v.c.lat, v.c.lon);
+    return `<g class="mk${on(v)}" data-ctry="${esc(v.c.key)}" data-x="${x.toFixed(1)}" data-y="${y.toFixed(1)}" data-n="${v.ps.length}" transform="translate(${x.toFixed(1)},${y.toFixed(1)})"><g class="mki"><circle class="glow" r="11"/><circle class="pulse" r="7"/><circle r="4.2" class="dot ${cls(v)}"/></g></g>`; }).join('');
+  const lbs = vs.map(v => { const h = lhour(v.c.tz);
+    return `<g class="mlb ${cls(v)}${on(v)}" data-ctry="${esc(v.c.key)}" data-lb="${esc(v.c.key)}"><g class="mli"><rect class="bg" height="26" rx="7"/>
+      <text class="fl" x="6" y="17.5">${flagOf(v.c.iso)}</text><text class="nm" x="24" y="11">${esc(v.c.ko)}</text>
+      <text class="sub" x="24" y="21"><tspan class="cnt">${v.ps.length} PJT</tspan><tspan> · </tspan><tspan data-ltime="${esc(v.c.tz)}">${h >= 6 && h < 18 ? '☀' : '🌙'} ${ltime(v.c.tz)}</tspan><tspan data-wx="${esc(v.c.key)}"></tspan></text></g></g>`; }).join('');
+  return `<svg class="wmap" width="1080" height="540" viewBox="0 0 1080 540"><defs><filter id="mglow" x="-80%" y="-80%" width="260%" height="260%"><feGaussianBlur stdDeviation="3"/></filter>
+      <radialGradient id="msea" cx="50%" cy="45%" r="70%"><stop offset="0" stop-color="var(--sea1)"/><stop offset="1" stop-color="var(--sea2)"/></radialGradient></defs>
+    <rect class="sea" width="1080" height="540" fill="url(#msea)"/><g class="grat">${grat}</g>
+    <g class="land">${Object.entries(W).map(([iso, d]) => `<path class="${fill(iso)}" d="${d}"><title>${esc(iso)}</title></path>`).join('')}</g>
+    <g class="arcs">${arcs}</g><g class="mls">${lines}</g><g class="mks">${mk}</g><g class="mlbs">${lbs}</g></svg>`;
+}
+function mapStats() {
+  const all = mapProjects(), run = all.filter(p => p.k !== 'bid'), bid = all.filter(p => p.k === 'bid'), dn = all.filter(p => isDone(p.r)), cs = new Set(all.filter(p => p.c).map(p => p.c.key));
+  const t = (ic, n, l, c, sub) => `<div class="oc-tile" style="--c:${c}"><i>${ic}</i><div><b>${n}</b><span>${l}</span>${sub ? `<small>${sub}</small>` : ''}</div></div>`;
+  return `<div class="oc-stats"><h4>📊 프로젝트 요약 <span class="muted">· 진행 중인 수행 · 입찰 PJT</span></h4><div class="oc-tiles">
+    ${t('🌐', all.length, '전체 PJT', '#2b6be6', `${cs.size}개국`)}${t('🏗', run.length, '수행 PJT', '#2f6fd9')}${t('📈', bid.length, '입찰 PJT', '#f08a24')}${t('✅', dn.length, '금주 작성', '#10a779', `${all.length ? Math.round(dn.length / all.length * 100) : 0}%`)}${t('⏳', all.length - dn.length, '금주 미작성', '#e0483e')}</div></div>`;
 }
 const ltime = (tz, opt = {}) => { try { return new Intl.DateTimeFormat('ko-KR', { timeZone:tz, hour:'2-digit', minute:'2-digit', hour12:false, ...opt }).format(new Date()); } catch (_) { return '--:--'; } };
 const lhour = tz => +ltime(tz, { hour:'2-digit', minute:undefined }).replace(/\D/g, '');
@@ -5241,6 +5318,7 @@ async function wxLoad(force) {
       WX[k] = { at:Date.now(), t:Math.round(j.current.temperature_2m), i:WXC[j.current.weather_code] || '🌡', w:j.current.wind_speed_10m }; }
     catch (_) { WX[k] = { at:Date.now(), err:true }; } }));
   document.querySelectorAll('[data-wx]').forEach(t => { const w = WX[t.dataset.wx]; t.textContent = !w ? '' : w.err ? '' : `${w.i} ${w.t}°`; });
+  const cv = $('#ocCv'); if (cv && ocMode() === 'map') mapPin(cv);
   mapSide(OC.hovC || OC.selC);
 }
 function mapSide(key) {
@@ -5248,20 +5326,22 @@ function mapSide(key) {
   const wxs = k => { const w = WX[k]; return !wxOn() ? '<button class="btn sm" data-wxon title="외부 날씨 서비스(open-meteo.com)에 나라 대표 좌표만 보냅니다">🌤 날씨 불러오기</button>' : !w ? '불러오는 중…' : w.err ? '<span class="muted">날씨 연결 안 됨 (사내망)</span>' : `${w.i} <b>${w.t}°C</b> <span class="muted">· 바람 ${w.w} km/h</span>`; };
   const V = key && OC.map.by.get(key);
   if (!V) {
-    const list = [...OC.map.by.values()].sort((a, b) => b.ps.length - a.ps.length);
-    el.innerHTML = `<div class="oc-st"><button class="on">🌏 한눈에</button><span class="muted">${list.length}개국 · ${list.reduce((a, v) => a + v.ps.length, 0)} PJT</span></div>
-      ${list.map(v => `<button class="mrow" data-ctry="${esc(v.c.key)}"><i class="oc-iso">${v.c.iso}</i><b>${esc(v.c.ko)}</b><span>${ltime(v.c.tz)} ${lhour(v.c.tz) >= 6 && lhour(v.c.tz) < 18 ? '☀' : '🌙'}</span><em>${WX[v.c.key] && !WX[v.c.key].err ? WX[v.c.key].i + ' ' + WX[v.c.key].t + '°' : ''}</em><small>${v.ps.length}</small></button>`).join('') || '<div class="empty">위치를 찾은 PJT 가 없습니다</div>'}
+    const list = [...OC.map.by.values()].sort((a, b) => b.ps.length - a.ps.length), N = OC.map.all.length, dn = OC.map.all.filter(p => isDone(p.r)).length;
+    const pct = v => { const d = v.ps.filter(p => isDone(p.r)).length; return Math.round(d / v.ps.length * 100); };
+    el.innerHTML = `<div class="oc-st"><button class="on">📋 국가별 프로젝트 현황</button><span class="muted">${list.length}개국 · ${N} PJT</span></div>
+      <div class="mrows">${list.map(v => `<button class="mrow" data-ctry="${esc(v.c.key)}"><span class="fl">${flagOf(v.c.iso)}</span><b><i class="iso">${v.c.iso}</i> ${esc(v.c.ko)}</b><span class="n">${v.ps.length} PJT</span><span class="bar"><i style="width:${pct(v)}%"></i></span><span class="pc">${pct(v)}%</span><span class="go">›</span></button>`).join('') || '<div class="empty">위치를 찾은 PJT 가 없습니다</div>'}</div>
+      <div class="muted" style="font-size:11px;margin:6px 2px 0">막대 = 그 나라 PJT 중 금주 작성(변경 없음 포함) 비율 · 전체 ${N ? Math.round(dn / N * 100) : 0}%</div>
       <div style="margin:10px 0">${wxs('')}</div>
       ${OC.map.none.length ? `<div class="oc-info"><b>📍 위치 미상 ${OC.map.none.length}개</b><p class="muted" style="margin:4px 0 0;font-size:11.5px">PJT명에 나라 · 도시 이름(예: 카타르, Jubail, 하와이)을 넣거나 수행/입찰 시트에 <b>'국가'</b> 열을 추가하면 지도에 표시됩니다.</p><div class="mnone">${OC.map.none.slice(0, 12).map(p => `<span>${esc(trunc(flat(p.r.fields['PJT명']), 16))}</span>`).join('')}${OC.map.none.length > 12 ? `<span>… 외 ${OC.map.none.length - 12}</span>` : ''}</div></div>` : ''}`;
     return;
   }
   const c = V.c, pd = projData(), lr = name => { const p = pd.find(x => normName(x.c.name) === normName(name) || normName(name).includes(normName(x.c.name)) || normName(x.c.name).includes(normName(name))); return p ? p.mem : []; };
   el.innerHTML = `<div class="oc-st"><button class="on">📍 ${esc(c.ko)}</button><button class="btn sm" data-ctry="">← 전체</button></div>
-    <div class="mhd"><i class="oc-iso big">${c.iso}</i><div><b>${esc(c.ko)}</b><span>${esc(c.tz)}</span></div></div>
+    <div class="mhd"><span class="mfl">${flagOf(c.iso)}</span><div><b>${esc(c.ko)}</b><span>${esc(c.tz)}</span></div></div>
     <div class="mtime"><b>${ltime(c.tz)}</b><span>${ltime(c.tz, { weekday:'short', month:'short', day:'numeric', hour:undefined, minute:undefined })} · ${lhour(c.tz) >= 6 && lhour(c.tz) < 18 ? '☀ 낮' : '🌙 밤'} · 한국과 ${(() => { const d = lhour(c.tz) - lhour('Asia/Seoul'); const x = ((d + 36) % 24) - 12; return x === 0 ? '같음' : (x > 0 ? '+' : '') + x + '시간'; })()}</span></div>
     <div class="mwx">${wxs(c.key)}</div>
     <div class="mps">${V.ps.map(p => { const f = p.r.fields, m = lr(f['PJT명']);
-      return `<div class="mp" style="--c:${p.k === 'bid' ? '#f08a24' : '#2b6be6'}"><button class="mpt" data-mjump="${p.k}|${esc(p.r.id)}"><span class="tag ${p.k === 'bid' ? 'new' : ''}">${p.k === 'bid' ? '입찰' : '수행'}</span> <b>${esc(flat(f['PJT명']))}</b></button>
+      return `<div class="mp" style="--c:${p.k === 'bid' ? '#f08a24' : '#2b6be6'}"><button class="mpt" data-mjump="${p.k}|${esc(p.r.id)}"><span class="tag ${p.k === 'bid' ? 'new' : ''}">${p.k === 'bid' ? '입찰' : '수행'}</span> <b>${esc(flat(f['PJT명']))}</b> ${isDone(p.r) ? '<span class="tag ok">금주 작성</span>' : '<span class="tag">미작성</span>'}</button>
         <div class="muted">${esc(cell1(f['사업군']) || '')}${f['담당자'] ? ' · 담당 ' + esc(flat(f['담당자'])) : ''}</div>
         ${m.length ? `<div class="mlr">${m.map(x => `<span class="${x.role === 'LE' ? 'le' : ''}" data-prof="${esc(x.name)}">${x.role} ${esc(x.name)} ${x.pct}%</span>`).join('')}</div>` : ''}</div>`; }).join('')}</div>`;
 }
@@ -5307,7 +5387,8 @@ function orgClick(e) {
   const u = e.target.closest('[data-uedit]'); if (u && !noEdit()) return openEdit('unit', u.dataset.uedit);
   const md = e.target.closest('[data-ocmode]'); if (md) { if (md.dataset.ocmode === ocMode()) return; OC.views[ocMode()] = { z:OC.z, x:OC.x, y:OC.y }; try { localStorage.setItem('dept-oc-mode', md.dataset.ocmode); } catch (_) {} const sv = OC.views[md.dataset.ocmode]; OC.key = ''; render(); if (sv) { Object.assign(OC, sv); OC.fit = false; ocApply(); } return; }
   const bg = e.target.closest('[data-ocbg]'); if (bg) { try { localStorage.setItem('dept-oc-bg', bg.dataset.ocbg); } catch (_) {} const o = $('#oc'); o.className = o.className.replace(/bg-\w+/, 'bg-' + bg.dataset.ocbg); o.querySelectorAll('[data-ocbg]').forEach(b => b.classList.toggle('on', b === bg)); return; }
-  const ct = e.target.closest('.oc-cv [data-ctry], .oc-side [data-ctry]'); if (ct) { OC.selC = ct.dataset.ctry; OC.hovC = ''; document.querySelectorAll('.oc-cv [data-ctry]').forEach(x => x.classList.toggle('on', x.dataset.ctry === OC.selC)); return mapSide(OC.selC); }
+  const ct = e.target.closest('.oc-cv [data-ctry], .oc-side [data-ctry]'); if (ct) { OC.selC = ct.dataset.ctry; OC.hovC = ''; document.querySelectorAll('.oc-cv [data-ctry], .oc-cv [data-ld], .oc-cv [data-arc]').forEach(x => x.classList.toggle('on', (x.dataset.ctry ?? x.dataset.ld ?? x.dataset.arc) === OC.selC)); const _cv = $('#ocCv'); if (_cv) mapPin(_cv); return mapSide(OC.selC); }
+  const mf = e.target.closest('[data-mapf]'); if (mf) { if (ocMode() === 'map') OC.mapF = mf.dataset.mapf; else OC.projF = { perform:'수행', bid:'입찰' }[mf.dataset.mapf] || ''; OC.fit = true; return render(); }
   if (e.target.closest('[data-wxon]')) { try { localStorage.setItem('dept-wx-on', '1'); } catch (_) {} return wxLoad(true); }
   const z = e.target.closest('[data-oc]');
   if (z) { const a = z.dataset.oc; if (a === 'in') return ocZoom(1.2); if (a === 'out') return ocZoom(1 / 1.2); if (a === 'fit') return ocFit();
