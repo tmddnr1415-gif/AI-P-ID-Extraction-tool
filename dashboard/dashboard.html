@@ -160,7 +160,7 @@ header.top{position:sticky;top:0;z-index:20;background:var(--bg);padding:16px 24
 .ld{stroke:#cfe0ff;stroke-width:calc(var(--k,1) * 1.1px);stroke-linecap:round;pointer-events:none;opacity:.9}.ld.bid{stroke:#ffd9a3}.ld.on{stroke:#ffd84d;stroke-width:calc(var(--k,1) * 2.2px)}
 .oc.bg-day .ld{stroke:#33415f}.oc.bg-day .ld.bid{stroke:#e07a12}.oc.bg-day .ld.run{stroke:#2b6be6}
 .mlb .bg{fill:rgba(255,255,255,.96);stroke:rgba(30,42,90,.25);stroke-width:.5;filter:drop-shadow(0 2px 3px rgba(0,10,40,.35))}
-.mlb .fl{font-size:12px}.mlb .nm{font-size:9px;font-weight:800;fill:#102b57}.mlb .sub{font-size:7.5px;fill:#4a5370}.mlb .cnt{font-weight:800;fill:#2563eb}.mlb.bid .cnt{fill:#b25400}.mlb.both .cnt{fill:#6a3fc4}
+.mlb .fl{font-size:12px}.mlb .nm{font-size:9px;font-weight:800;fill:#102b57}.mlb .sub{font-size:7.5px;fill:#4a5370}.mlb .cnt{font-size:7.5px;font-weight:800;fill:#2563eb}.mlb.bid .cnt{fill:#b25400}.mlb.both .cnt{fill:#6a3fc4}
 .mlb:hover .bg,.mlb.on .bg{stroke:#2563eb;stroke-width:1.2}.mlb.on .bg{fill:#fff;filter:drop-shadow(0 0 5px rgba(255,216,77,.9))}
 .oc-mctl{position:absolute;right:10px;top:10px;display:flex;flex-direction:column;gap:4px}.oc-mctl button{width:32px;height:32px;border:1px solid rgba(255,255,255,.35);background:rgba(16,43,87,.85);color:#fff;border-radius:8px;font-size:16px;cursor:pointer}.oc-mctl button:hover{background:#2563eb}
 .oc.bg-day .oc-mctl button{background:#fff;color:#102b57;border-color:var(--line)}
@@ -184,7 +184,8 @@ header.top{position:sticky;top:0;z-index:20;background:var(--bg);padding:16px 24
 .mwx{margin-bottom:10px;font-size:14px}
 .mps{display:flex;flex-direction:column;gap:8px}
 .mp{border:1px solid #e3e8f3;border-left:4px solid var(--c);border-radius:10px;padding:7px 9px}.mp .muted{font-size:11.5px;margin-top:2px}
-.mpt{border:0;background:none;padding:0;text-align:left;cursor:pointer;font-size:13px}.mpt:hover b{text-decoration:underline}
+.mpt{border:0;background:none;padding:0;text-align:left;cursor:pointer;font-size:13px;width:100%}.mpt:hover b{text-decoration:underline}.mpa{float:right;font-style:normal;font-size:10px;color:#9aa1b5;margin-top:3px}
+.mp.open{background:#f6f9ff;box-shadow:0 0 0 2px color-mix(in srgb,var(--c) 30%,transparent)}.mpd{margin-top:8px;border-top:1px dashed #dfe5f1;padding-top:8px;display:flex;flex-direction:column;gap:7px}.mpf b{display:block;font-size:11px;color:#2b44c9;margin-bottom:2px}.mpf div{font-size:12px;line-height:1.45;white-space:pre-wrap;word-break:break-word;max-height:150px;overflow:auto}.mpb{display:flex;gap:6px;margin-top:2px}
 .mlr{display:flex;flex-wrap:wrap;gap:4px;margin-top:5px}.mlr span{font-size:11px;background:#f1f3f9;border-radius:99px;padding:1px 7px;cursor:pointer}.mlr span.le{background:#e3ebff;color:#2b44c9;font-weight:700}
 .oc-info .mnone{display:flex;flex-wrap:wrap;gap:4px}.oc-info .mnone span{display:inline;font-size:11px;background:#fff;border-radius:6px;padding:1px 6px;color:var(--sub)}
 .ptwrap .pthead{display:flex;align-items:center;gap:10px;margin:4px 0 8px}.ptwrap h3{margin:0;font-size:15px;flex:1}
@@ -1272,7 +1273,7 @@ function recLabel(key, f) {
  * ===================================================================== */
 let root = null;
 /* 서버 모드: http(s):// 로 접속하면 server.py 의 REST API 사용 (폴더 선택 불필요). file:// 로 열면 폴더 모드 */
-const APP_VERSION = '2026-11-04.5';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
+const APP_VERSION = '2026-11-04.6';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
 const SERVER_URL = 'http://localhost:8080';
 // 부서원 PC 사본(file://)이 접속을 시도할 서버 — 서버가 배포 파일을 만들 때 'PC 이름 주소, IP 주소' 순으로 자동 기록함
 const DEFAULT_SERVERS = ['http://ASEUNGWOOK-B01:8080', 'http://65.3.30.234:8080'];
@@ -5341,9 +5342,12 @@ function mapSide(key) {
     <div class="mtime"><b>${ltime(c.tz)}</b><span>${ltime(c.tz, { weekday:'short', month:'short', day:'numeric', hour:undefined, minute:undefined })} · ${lhour(c.tz) >= 6 && lhour(c.tz) < 18 ? '☀ 낮' : '🌙 밤'} · 한국과 ${(() => { const d = lhour(c.tz) - lhour('Asia/Seoul'); const x = ((d + 36) % 24) - 12; return x === 0 ? '같음' : (x > 0 ? '+' : '') + x + '시간'; })()}</span></div>
     <div class="mwx">${wxs(c.key)}</div>
     <div class="mps">${V.ps.map(p => { const f = p.r.fields, m = lr(f['PJT명']);
-      return `<div class="mp" style="--c:${p.k === 'bid' ? '#f08a24' : '#2b6be6'}"><button class="mpt" data-mjump="${p.k}|${esc(p.r.id)}"><span class="tag ${p.k === 'bid' ? 'new' : ''}">${p.k === 'bid' ? '입찰' : '수행'}</span> <b>${esc(flat(f['PJT명']))}</b> ${isDone(p.r) ? '<span class="tag ok">금주 작성</span>' : '<span class="tag">미작성</span>'}</button>
+      const open = OC.selP === p.r.id, sh = SHEETS.find(x => x.key === p.k), rows = open ? sh.cols.filter(c => !['PJT명', '종결 여부'].includes(c.f) && flat(f[c.f]).trim()).map(c => `<div class="mpf"><b>${esc(c.label || c.f)}</b><div>${esc(flat(f[c.f])).replace(/\n/g, '<br>')}</div></div>`).join('') : '';
+      return `<div class="mp ${open ? 'open' : ''}" style="--c:${p.k === 'bid' ? '#f08a24' : '#2b6be6'}"><button class="mpt" data-mopen="${esc(p.r.id)}" title="누르면 PJT 정보 펼침/접음"><span class="tag ${p.k === 'bid' ? 'new' : ''}">${p.k === 'bid' ? '입찰' : '수행'}</span> <b>${esc(flat(f['PJT명']))}</b> ${isDone(p.r) ? '<span class="tag ok">금주 작성</span>' : '<span class="tag">미작성</span>'} <i class="mpa">${open ? '▲' : '▼'}</i></button>
         <div class="muted">${esc(cell1(f['사업군']) || '')}${f['담당자'] ? ' · 담당 ' + esc(flat(f['담당자'])) : ''}</div>
-        ${m.length ? `<div class="mlr">${m.map(x => `<span class="${x.role === 'LE' ? 'le' : ''}" data-prof="${esc(x.name)}">${x.role} ${esc(x.name)} ${x.pct}%</span>`).join('')}</div>` : ''}</div>`; }).join('')}</div>`;
+        ${m.length ? `<div class="mlr">${m.map(x => `<span class="${x.role === 'LE' ? 'le' : ''}" data-prof="${esc(x.name)}">${x.role} ${esc(x.name)} ${x.pct}%</span>`).join('')}</div>` : ''}
+        ${open ? `<div class="mpd">${rows || '<div class="muted">입력된 내용이 없습니다</div>'}<div class="muted" style="font-size:11px">마지막 수정 ${esc(p.r.meta?.updatedBy || '')} ${esc((p.r.meta?.updatedAt || '').slice(0, 10))}${p.r.meta?.checkedAt ? ` · 변경 없음 확인 ${esc(p.r.meta.checkedBy || '')} ${esc(p.r.meta.checkedAt.slice(0, 10))}` : ''}</div>
+          <div class="mpb"><button class="btn sm" data-mjump="${p.k}|${esc(p.r.id)}">📋 표에서 보기</button>${noEdit() ? '' : `<button class="btn sm pri" data-medit="${p.k}|${esc(p.r.id)}">✎ 편집</button>`}</div></div>` : ''}</div>`; }).join('')}</div>`;
 }
 
 /* 유닛분장 [📋 부서원 표] (2026-11-04): 부서원마다 한 줄 — 유닛 · 직책 · 담당 · 전화 · 수행/입찰 PJT · 진행 중 업무(유형별). 엑셀로 저장 */
@@ -5395,6 +5399,8 @@ function orgClick(e) {
     if (a === 'one') { OC.z = 1; OC.x = 16; OC.y = 12; return ocApply(); }
     if (a === 'full') { const o = $('#oc'); return document.fullscreenElement ? document.exitFullscreen() : o?.requestFullscreen?.(); } }
   const sp = e.target.closest('[data-ocp]'); if (sp) return openProfile(OC.sel, sp.dataset.ocp || undefined);
+  const mo = e.target.closest('[data-mopen]'); if (mo) { OC.selP = OC.selP === mo.dataset.mopen ? '' : mo.dataset.mopen; return mapSide(OC.selC); }
+  const med = e.target.closest('[data-medit]'); if (med) { const [k, id] = med.dataset.medit.split('|'); return openEdit(k, id); }
   const mj = e.target.closest('[data-mjump]'); if (mj) { const [k, id] = mj.dataset.mjump.split('|'); return jumpTo(k, id, '업무 현황', false); }
   const sx = e.target.closest('.oc-side [data-prof]'); if (sx) return openProfile(sx.dataset.prof);
   const p = e.target.closest('.oc-cv [data-prof]');
