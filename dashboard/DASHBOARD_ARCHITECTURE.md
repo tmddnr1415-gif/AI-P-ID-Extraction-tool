@@ -1280,3 +1280,11 @@ C:\Users\SAMSUNG\Desktop\Claude\                         ← 개발 폴더 (여�
 - 바뀐 곳: dashboard.html `APP_VERSION` · `TASK_HIDE` `TASK_VIS` `taskShown` `TASK_NEWEST` `workType` · `sortRecs` · `filteredRecs` · `drawTable`(unit) · `renderMenu`(cntOf) · `taskHero` · 업무 추가 유형 · `inputFor`(유형) · `orgPill`(owc) · 새 `IG_CATS` `personItems` `IGP` `openProfile`(새로) `unitPeople` `PT_COLS` `peopleRows` `peopleTableHtml` `peopleXlsx` `latestChange` `askSaveOnExit` `UNLOAD_OK` · `buildXlsx(sheetsIn)` · `EMBED_MS` `autoEmbed` · `replaceSelf` · `setServerUrl` · CSS `.igp…` `.pfav` `.igc…` `.ptwrap` `.ptbl` `.pname` `.owc`.
 - 확인한 것: JS 문법. 임시 서버(홍길동): 통합 업무 칩 = 전체 17 · To Do 10 · 기술공유 7 · 그룹장 요청 0(일반업무 · 표준화 없음) · 메뉴 17 · To Do 표 순서 = 등록 시각 내림차순과 같음. 조직도 카드 '🗂1 ✅2' · 홍길동 클릭 → 부서원 화면(수행 4 · 입찰 1 · To Do 3 · 기술공유 2 · 일반업무 2) · 일반업무 탭 [+ 일반업무 추가] → 행 추가 창(유형 일반업무 · 담당자 홍길동). 부서원 표 31명 · 엑셀 저장(시트 '부서원별 정보' 32행) · 칸 클릭 → 그 탭. 파일 사본 + 로그인: 나가기 → 브라우저 확인 → [취소] → '최신 내용으로 저장할까요?' → 예 → 파일에 씀 · 그다음 나가기는 바로 나감. 콘솔 오류 없음.
 - 회사에서 확인할 것: Edge 에서 창을 닫을 때 '사이트에서 나가시겠습니까?' → [취소] → 저장 질문이 뜨는지. 파일 쓰기 허락이 '방문할 때마다 허용'이 아니면 10분 자동 보관은 조용히 못 하고 [💾 자동 보관 켜기] / 빨간 표시로 안내됨.
+
+### 2026-11-04 (41) — 유닛분장(부서원 화면)에서 추가한 To Do · 기술공유 · 그룹장 요청 = 통합 업무에도 바로 (APP_VERSION 2026-11-04.2 / SERVER 그대로)
+- 무엇을: 사용자 "유닛분장에서 To Do List, 기술공유, 그룹장 요청 사항을 추가하면 자연스럽게 통합 업무에도 등록". 부서원 화면의 [+ 추가]는 원래부터 **같은 통합 업무 자료(task 시트)** 에 행을 만듦 → 통합 업무에 바로 보임(시험 확인). 다만 저장하면 창이 닫히고 유닛분장만 남아 등록됐는지 알기 어려웠음 → 
+  - 저장 뒤 **부서원 화면을 그 탭으로 다시 띄워 새 카드를 맨 앞에** + 알림 '✅ To Do List 등록 — 통합 업무 메뉴(To Do List 맨 위)에도 등록되었습니다'(일반업무 · 표준화는 '유닛분장 부서원 화면에서 봅니다').
+  - To Do · 기술공유 · 그룹장 요청 탭 위에 '이 탭의 업무는 통합 업무 메뉴와 같은 자료입니다' + **[🚀 통합 업무에서 보기 (이름 · 유형)]** → 통합 업무를 그 유형 · 그 담당자로 걸러서 엶.
+  - 반대로 통합 업무에서 추가 · 고친 것도 부서원 화면에 그대로 보임(같은 자료).
+- 바뀐 곳: dashboard.html `APP_VERSION` · `openEdit`(after) · `submitRecord`(after) · `openProfile`(추가 뒤 다시 띄움 · data-igtask · `.igtl`).
+- 확인한 것: JS 문법. 임시 서버(홍길동): 부서원 화면 To Do 탭 [+ To Do List 추가] → 저장 → 부서원 화면 다시 · 첫 카드 = 새 To Do · 알림 → [통합 업무에서 보기] → #task · To Do List 필터 · 표 맨 위 = 새 To Do. 기술공유 · 그룹장 요청도 통합 업무 표에 보임. 콘솔 오류 없음.

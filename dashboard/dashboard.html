@@ -79,6 +79,7 @@ header.top{position:sticky;top:0;z-index:20;background:var(--bg);padding:16px 24
 .igc::before{content:'';position:absolute;left:0;right:0;top:0;height:4px;background:var(--c)}
 .igc:hover{transform:translateY(-2px);box-shadow:0 8px 20px rgba(30,42,90,.12)}.igc.done{opacity:.55}
 .igc-t{font-weight:700;font-size:14px;line-height:1.35;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.igtl{display:flex;gap:10px;align-items:center;justify-content:space-between;margin:-4px 2px 10px;font-size:12px}
 .igc-m{font-size:12px;display:flex;gap:6px;align-items:center;flex-wrap:wrap}.igc-b{font-size:12px;color:var(--sub);display:-webkit-box;-webkit-line-clamp:4;-webkit-box-orient:vertical;overflow:hidden;white-space:pre-line}
 .igc.add{align-items:center;justify-content:center;color:var(--c);font-weight:700;border:2px dashed color-mix(in srgb,var(--c) 45%,#fff);background:color-mix(in srgb,var(--c) 5%,#fff)}.igc.add span{font-size:30px;line-height:1}.igc.add::before{display:none}
 .igst{font-size:11px;font-weight:700;border-radius:99px;padding:1px 8px}.igst.ok{background:#dff4ea;color:#168a5c}.igst.nc{background:#e3ebff;color:#2b44c9}.igst.no{background:#fff1d6;color:#a35f00}
@@ -1143,7 +1144,7 @@ function recLabel(key, f) {
  * ===================================================================== */
 let root = null;
 /* 서버 모드: http(s):// 로 접속하면 server.py 의 REST API 사용 (폴더 선택 불필요). file:// 로 열면 폴더 모드 */
-const APP_VERSION = '2026-11-04.1';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
+const APP_VERSION = '2026-11-04.2';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
 const SERVER_URL = 'http://localhost:8080';
 // 부서원 PC 사본(file://)이 접속을 시도할 서버 — 서버가 배포 파일을 만들 때 'PC 이름 주소, IP 주소' 순으로 자동 기록함
 const DEFAULT_SERVERS = ['http://ASEUNGWOOK-B01:8080', 'http://65.3.30.234:8080'];
@@ -2438,7 +2439,7 @@ function mineBox(s, mine) {
   return `<details style="margin-bottom:12px" open><summary><b>내가 입력했던 내용 (참고용 · 필요한 부분을 복사해 반영하세요)</b></summary>${rows}</details>`;
 }
 
-async function openEdit(key, id, { mine, preset } = {}) {
+async function openEdit(key, id, { mine, preset, after } = {}) {   // after(새 행) = 행 추가 뒤 할 일 (부서원 화면에서 추가 → 그 화면을 다시 띄움)
   if (GUEST) return toast('비회원은 보기만 할 수 있습니다 — 로그인하면 편집할 수 있습니다', true);
   const s = SHEET[key];
   if (s.special === 'matrix') return openStaffEdit(id, { mine, preset });
@@ -2510,11 +2511,11 @@ async function openEdit(key, id, { mine, preset } = {}) {
     const nf = collect();                                     // 내용 없는 글머리 줄 지우기 · 예전 ~~취소선~~ 정리
     if (key === 'task' && !nf['유형']) return toast('유형을 고르세요 (일반업무 / 표준화 담당 / To Do List / 기술공유 / 그룹장 요청 사항)', true);
     if (!nf[s.title] && key !== 'unit') return toast(`'${s.cols.find(c => c.f === s.title)?.label || s.title}' 을(를) 입력하세요`, true);
-    await submitRecord(key, id, rec, nf, mine);
+    await submitRecord(key, id, rec, nf, mine, after);
   };
 }
 
-async function submitRecord(key, id, rec, nf, mine) {
+async function submitRecord(key, id, rec, nf, mine, after) {
   try {
     if (!rec) {
       // 그룹 헤더 시트: 같은 그룹의 마지막 행 바로 뒤에 삽입
@@ -2527,9 +2528,10 @@ async function submitRecord(key, id, rec, nf, mine) {
       const nr = await createRecord(key, nf, { order }); dlg.close(); toast('추가되었습니다'); await loadAll();
       if (TOP_NEW.has(key) && nr?.id) {   // 새 행: 맨 위 고정 + 그 행으로 이동·깜빡임
         (NEW_TOP[key] || (NEW_TOP[key] = new Set())).add(nr.id);
-        JUMP = { key, rid:nr.id, f:s.title, edit:false }; SEL = { route:key, rid:nr.id, f:s.title }; MSEL = new Set([mkey(nr.id, s.title)]); ANCHOR = SEL;
+        if (!after) { JUMP = { key, rid:nr.id, f:s.title, edit:false }; SEL = { route:key, rid:nr.id, f:s.title }; MSEL = new Set([mkey(nr.id, s.title)]); ANCHOR = SEL; }
       }
-      return render();
+      render();
+      return after?.(nr);
     }
     const r = await saveEdit(key, id, nf, rec.meta.rev, { confirm:key === 'perform' || key === 'bid' });   // 수행 · 입찰: 그대로 저장 = 이번 주 '변경 없음' 확인
     await afterSave(r, key, id, nf);
@@ -5053,6 +5055,7 @@ function openProfile(name, tab) {
           <div class="igd">${esc(pr?.duty || '담당 업무 미입력')}${pr?.phone ? ` · ☎ <a href="tel:${esc(pr.phone)}">${esc(pr.phone)}</a>` : ''}</div></div></div>
       <div class="ighl">${cats.map(c => `<button class="ighc ${IGP.tab === c.k ? 'on' : ''}" data-igt="${esc(c.k)}" style="--c:${c.color}"><span class="igr ${open(c) ? 'live' : ''}"><span>${c.icon}</span></span><b>${esc(c.l)}</b><small>${open(c)} 진행</small></button>`).join('')}</div>
       <div class="igtabs">${cats.map(c => `<button class="${IGP.tab === c.k ? 'on' : ''}" data-igt="${esc(c.k)}">${c.icon} ${esc(c.l)} <small>${(items[c.k] || []).length}</small></button>`).join('')}</div>
+      ${TASK_VIS.includes(IGP.tab) ? `<div class="igtl"><span class="muted">이 탭의 업무는 <b>통합 업무</b> 메뉴와 같은 자료입니다 — 여기서 추가 · 고치면 통합 업무에도 그대로 보입니다.</span><button class="btn sm" data-igtask>🚀 통합 업무에서 보기 (${esc(name)} · ${esc(cur.l)})</button></div>` : ''}
       <div class="iggrid">${canAdd ? `<button class="igc add" data-igadd="${esc(IGP.tab)}" style="--c:${cur.color}"><span>＋</span>${esc(cur.l)} 추가</button>` : ''}${list.map(card).join('')}${!list.length && !canAdd ? `<div class="empty" style="grid-column:1/-1">${esc(cur?.l || '')} 없음</div>` : ''}</div>
       <p class="muted" style="margin:10px 2px 0">카드를 누르면 ${noEdit() ? '그 행으로 이동' : '편집 창'} · 수행/입찰 = PJT 행의 담당자 칸 · 업무 = 통합 업무 담당 칸 기준${pr ? ` · 내 정보 최종 수정 ${fmtTime(pr.updatedAt) || '-'}` : ' · 아직 내 정보를 입력하지 않은 부서원'}</p></div>
     <div class="df"><button class="btn" data-close>닫기</button></div>`, true);
@@ -5060,7 +5063,10 @@ function openProfile(name, tab) {
     if (e.target.closest('[data-close]')) return dlg.close();
     if (e.target.closest('[data-myprof]')) return openMyInfo();
     const t = e.target.closest('[data-igt]'); if (t) return openProfile(name, t.dataset.igt);
-    const a = e.target.closest('[data-igadd]'); if (a) return openEdit('task', null, { preset:{ 유형:a.dataset.igadd, 담당자:name } });
+    const a = e.target.closest('[data-igadd]'); if (a) { const ty = a.dataset.igadd;   // 같은 통합 업무 자료에 행이 생김 → To Do · 기술공유 · 그룹장 요청은 통합 업무 메뉴에도 바로 보임
+      return openEdit('task', null, { preset:{ 유형:ty, 담당자:name }, after:() => { openProfile(name, ty);
+        toast(TASK_HIDE.has(ty) ? `✅ ${ty} 등록 — 유닛분장 부서원 화면에서 봅니다` : `✅ ${ty} 등록 — 통합 업무 메뉴(${ty} 맨 위)에도 등록되었습니다`); } }); }
+    if (e.target.closest('[data-igtask]')) { const st = fstate('task'); taskTypeSwitch(st, IGP.tab); st.owner = name; dlg.close(); return go('task'); }
     const o = e.target.closest('[data-igo]'); if (o) { const [k, id] = o.dataset.igo.split('|'); if (k === 'perform' || k === 'bid' || noEdit()) { dlg.close(); return jumpTo(k, id, k === 'perform' || k === 'bid' ? '업무 현황' : SHEET[k]?.title || '업무 내용', false); } return openEdit(k, id); }
   };
 }
