@@ -1,9 +1,9 @@
 # 회사로 전달한 기준점. 맨 아래 줄이 다음 zip 의 기준. (커밋  이름)
 54f28378e9b4b4b0b5d1dabc06eea537cd9dacbc  dashboard-base (회사 사본 기준판, 2026-10-13)
-2a7f574488144107b684345cdcf3bf6780d6a53f  dashboard_patch_20261013_0023
-7bbb88d1deb335e99e66affdc500b364c83fbe1b  dashboard_patch_20261013_0118
-c18abe1970f63d3b6cb4fef3a7b49a85f2b3a545  dashboard_patch_20261013_0127
-cf00b7b3166cdc752683d0f821b3657a908cadc8  dashboard_patch_20261013_0204
+2a7f574488144107b684345cdcf3bf6780d6a53f  UPDATE_from_v16.55_to_v16.56 (+ 1_DASHBOARD_update_v16.56_2026-11-04)
+7bbb88d1deb335e99e66affdc500b364c83fbe1b  UPDATE_from_v16.55_to_v16.56 (+ 1_DASHBOARD_update_v16.56_2026-11-04)
+c18abe1970f63d3b6cb4fef3a7b49a85f2b3a545  UPDATE_from_v16.55_to_v16.56 (+ 1_DASHBOARD_update_v16.56_2026-11-04)
+cf00b7b3166cdc752683d0f821b3657a908cadc8  UPDATE_from_v16.55_to_v16.56 (+ 1_DASHBOARD_update_v16.56_2026-11-04)
 164b69c9aaa4d91005f48ba3723d73c77f4c3d12  UPDATE_from_v13.3_20261013 / FULL_from_original_20261013_v13.5 (회사 PC 는 v13.3 에서 적용)
 4c074defddb07c9135c73018290a56305c7f9ea3  UPDATE_from_v13.3_to_v13.6 / UPDATE_from_v13.5_to_v13.6 / FULL_from_original_v13.6
 562390d3f377aded6948980902492c388d8faeaa  UPDATE_from_v13.3/v13.5/v13.6_to_v13.7 / FULL_from_original_v13.7
@@ -94,3 +94,4 @@ d3e9ba8919b5f384d3ff596e982fcb5971c53e8d  UPDATE_from_v16.49_to_v16.50 (+ 1_DASH
 786d825f5531160f3ae21cbc407b154f1506f178  UPDATE_from_v16.52_to_v16.53 (+ 1_DASHBOARD_update_v16.53_2026-11-04)
 51672dbe91adaaf8e8160087d7665687d30a1ba9  UPDATE_from_v16.53_to_v16.54 (+ 1_DASHBOARD_update_v16.54_2026-11-04)
 c677428073dd2082a8c2547c22d5964ed6c15dbf  UPDATE_from_v16.54_to_v16.55 (+ 1_DASHBOARD_update_v16.55_2026-11-04)
+b65a65bc63290bec7741b4a67d3b2199d2006c8b  UPDATE_from_v16.55_to_v16.56 (+ 1_DASHBOARD_update_v16.56_2026-11-04)
