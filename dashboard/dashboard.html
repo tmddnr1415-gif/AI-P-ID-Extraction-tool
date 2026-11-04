@@ -59,6 +59,50 @@ body.nav-closed #side{transform:translateX(-100%)}
 header.top{position:sticky;top:0;z-index:20;background:var(--bg);padding:16px 24px 10px;display:flex;align-items:center;gap:12px;flex-wrap:wrap}
 #burger{border:1px solid var(--line);background:#fff;border-radius:8px;width:38px;height:38px;font-size:18px}
 .ttl{margin-right:auto;min-width:220px}
+/* ---------- 유닛분장 조직도 새 판 (2026-11-04) ---------- */
+.oc{background:#f6f8fc;border:1px solid var(--line);border-radius:16px;padding:12px;color:var(--text)}
+.oc:fullscreen{padding:16px;border-radius:0;display:flex;flex-direction:column}
+.oc-bar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px}.oc-ttl b{font-size:16px;display:block}.oc-ttl span{font-size:12px;color:var(--sub)}
+.oc-zoom{display:inline-flex;align-items:center;border:1px solid var(--line);border-radius:10px;background:#fff;overflow:hidden}.oc-zoom button{border:0;background:none;width:30px;height:30px;font-size:16px}.oc-zoom button:hover{background:#eef2ff}.oc-zoom b{min-width:52px;text-align:center;font-size:13px}
+.oc-main{display:flex;gap:12px}.oc:fullscreen .oc-main{flex:1;min-height:0}
+.oc-view{position:relative;flex:1;min-width:0;height:max(560px,calc(100vh - 330px));overflow:hidden;border-radius:14px;background:#fff radial-gradient(#dfe5f2 1px,transparent 1.3px) 0 0/18px 18px;border:1px solid var(--line);cursor:grab;touch-action:none}
+.oc:fullscreen .oc-view{height:auto}.oc-view.grab{cursor:grabbing}
+.oc-cv{position:absolute;left:0;top:0;transform-origin:0 0;padding:20px 24px 30px;width:max-content}
+.oc-top{display:flex;justify-content:center;gap:16px;position:relative;padding-bottom:30px}
+.oc-top::after{content:'';position:absolute;left:50%;bottom:0;height:30px;border-left:2px solid #9fb3d9}
+.oc-us{display:flex;justify-content:center;align-items:flex-start}
+.oc-u{position:relative;padding:28px 10px 0;width:250px}
+.oc-u::before,.oc-u::after{content:'';position:absolute;top:0;width:50%;height:28px;border-top:2px solid #9fb3d9}.oc-u::before{right:50%}.oc-u::after{left:50%;border-left:2px solid #9fb3d9}
+.oc-u:first-child::before,.oc-u:last-child::after{border-top:0}.oc-u:last-child::before{border-right:2px solid #9fb3d9;border-radius:0 10px 0 0}.oc-u:first-child::after{border-radius:10px 0 0 0}.oc-u:only-child::before{display:none}.oc-u:only-child::after{border-radius:0}
+.oc-uh{display:block;text-align:center;border:1.5px solid color-mix(in srgb,var(--c) 45%,#fff);background:color-mix(in srgb,var(--c) 10%,#fff);border-radius:12px;padding:8px 10px;cursor:pointer;box-shadow:0 2px 8px rgba(30,42,90,.06)}
+.oc-uh b{display:block;color:var(--c);font-size:14px}.oc-uh span{font-size:11.5px;color:var(--sub)}.oc-uh:hover{box-shadow:0 0 0 3px color-mix(in srgb,var(--c) 25%,transparent)}
+.oc-ms{display:flex;flex-direction:column;gap:7px;margin-top:10px;position:relative;padding-left:14px}
+.oc-ms::before{content:'';position:absolute;left:5px;top:-10px;bottom:18px;border-left:2px dashed color-mix(in srgb,var(--c) 40%,#fff)}
+.oc-p{position:relative;display:flex;gap:9px;align-items:center;width:100%;text-align:left;background:#fff;border:1px solid #e3e8f3;border-left:4px solid var(--c);border-radius:12px;padding:7px 9px;cursor:pointer;box-shadow:0 2px 6px rgba(30,42,90,.05);transition:transform .12s,box-shadow .12s}
+.oc-p:hover{transform:translateY(-1px);box-shadow:0 8px 18px rgba(30,42,90,.13)}.oc-p.on{box-shadow:0 0 0 3px color-mix(in srgb,var(--c) 40%,transparent),0 8px 18px rgba(30,42,90,.13)}
+.oc-p.big{width:auto;min-width:300px;padding:12px 18px;border:2px solid #9fb3ef;border-left-width:2px;background:linear-gradient(180deg,#f3f6ff,#fff)}
+.oc-av{position:relative;display:block;flex:none;width:38px;height:38px;border-radius:50%}.oc-av img,.oc-av b{width:100%;height:100%;border-radius:50%;object-fit:cover;display:grid;place-items:center;color:#fff;font-weight:800}
+.oc-p.big .oc-av{width:64px;height:64px}.oc-p.big .oc-av b{font-size:26px}
+.oc-crown{position:absolute;left:-10px;top:-16px;font-size:22px;font-style:normal;transform:rotate(-18deg)}.oc-star{position:absolute;right:-4px;bottom:-3px;font-size:11px;font-style:normal;background:#f2b705;color:#fff;border-radius:50%;width:16px;height:16px;display:grid;place-items:center;border:2px solid #fff}
+.oc-tx{min-width:0;display:flex;flex-direction:column}.oc-tx b{font-size:13.5px}.oc-tx span{font-size:11.5px;color:var(--sub);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.oc-tx small{font-size:11px;color:#3156c8;font-weight:700}
+.oc-p.big .oc-tx b{font-size:19px}
+.oc-tags{display:flex;gap:4px;flex-wrap:wrap;margin-top:3px}.oc-tags i{font-style:normal;font-size:10.5px;background:#f1f3f9;border-radius:99px;padding:0 6px;color:#4a5370}
+.oc-tags .t-run,.oc-leg .t-run{background:#e3ebff;color:#2b44c9}.oc-tags .t-bid,.oc-leg .t-bid{background:#fff1d6;color:#a35f00}
+.oc-ghost{color:var(--sub);font-size:12px;padding:6px}
+.oc-mini{position:absolute;right:10px;top:10px;overflow:hidden;background:rgba(255,255,255,.92);opacity:.85;border:1px solid var(--line);border-radius:10px;padding:6px 8px 8px;box-shadow:0 4px 14px rgba(30,42,90,.1);cursor:pointer}
+.oc-mini:hover{opacity:1}.oc-mini>b{display:block;font-size:11px;color:#3156c8;margin-bottom:4px}.oc-mi{position:relative;overflow:hidden;pointer-events:none}.oc-mc{transform-origin:0 0;width:max-content;padding:20px 24px 30px}
+.oc-mini>i{position:absolute;border:2px solid #2b6be6;background:rgba(43,107,230,.08);border-radius:3px;pointer-events:none}
+.oc-hint{position:absolute;left:10px;bottom:8px;font-size:11px;color:#9aa1b5;pointer-events:none}
+.oc-side{width:290px;flex:none;background:#fff;border:1px solid var(--line);border-radius:14px;padding:12px 14px;align-self:flex-start;max-height:max(560px,calc(100vh - 330px));overflow:auto}
+.oc-st{display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--line);padding-bottom:8px;margin-bottom:10px}.oc-st button{border:0;background:none;font-weight:700;color:#2b44c9;border-bottom:2px solid #2b44c9;padding:2px 4px}
+.oc-pf{display:flex;gap:12px;align-items:center;margin-bottom:10px}.oc-pav{display:block;width:74px;height:74px;border-radius:50%;flex:none;padding:3px;background:var(--c)}.oc-pav img,.oc-pav b{width:100%;height:100%;border-radius:50%;border:3px solid #fff;object-fit:cover;display:grid;place-items:center;color:#fff;font-size:28px}
+.oc-pf b{font-size:19px;display:block}.oc-pf span{color:var(--sub);font-size:13px}
+.oc-dl{display:grid;grid-template-columns:62px 1fr;gap:7px 8px;font-size:12.5px;margin:0 0 10px;border-top:1px solid var(--line);padding-top:10px}.oc-dl dt{color:var(--sub)}.oc-dl dd{margin:0}.oc-pj{display:flex;gap:4px;flex-wrap:wrap}
+.oc-ct{display:grid;grid-template-columns:repeat(3,1fr);gap:4px;margin-bottom:10px}.oc-ct button{border:1px solid var(--line);background:#fafbff;border-radius:10px;padding:6px 2px;display:flex;flex-direction:column;align-items:center;font-size:10.5px;color:var(--sub)}.oc-ct button b{font-size:16px;color:var(--text)}.oc-ct button:hover{background:#eef2ff}
+.oc-go{width:100%;margin-bottom:6px}
+.oc-info{background:#f6f8fc;border-radius:12px;padding:10px 12px;margin-top:6px}.oc-info>b{font-size:13px}.oc-info div{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:6px}.oc-info span{font-size:11.5px;color:var(--sub);display:flex;flex-direction:column}.oc-info span b{font-size:18px;color:var(--text)}
+.oc-leg{display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:var(--sub);margin-top:10px;padding:0 4px}.oc-leg i{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:5px;vertical-align:-1px}
+@media (max-width:1100px){.oc-main{flex-direction:column}.oc-side{width:auto;max-height:none}}
 .ptwrap .pthead{display:flex;align-items:center;gap:10px;margin:4px 0 8px}.ptwrap h3{margin:0;font-size:15px;flex:1}
 .ptbl{max-height:70vh}.ptbl td{font-size:12.5px;vertical-align:top}.ptbl td.plist{cursor:pointer}.ptbl td.plist:hover{background:#f4f6ff}
 .ptbl td.plist div{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:260px}.pcnt{float:right;background:#eef1f8;border-radius:99px;padding:0 7px;font-size:11px;margin-left:6px}
@@ -1144,7 +1188,7 @@ function recLabel(key, f) {
  * ===================================================================== */
 let root = null;
 /* 서버 모드: http(s):// 로 접속하면 server.py 의 REST API 사용 (폴더 선택 불필요). file:// 로 열면 폴더 모드 */
-const APP_VERSION = '2026-11-04.2';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
+const APP_VERSION = '2026-11-04.3';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
 const SERVER_URL = 'http://localhost:8080';
 // 부서원 PC 사본(file://)이 접속을 시도할 서버 — 서버가 배포 파일을 만들 때 'PC 이름 주소, IP 주소' 순으로 자동 기록함
 const DEFAULT_SERVERS = ['http://ASEUNGWOOK-B01:8080', 'http://65.3.30.234:8080'];
@@ -4217,7 +4261,7 @@ function drawTable(s) {
       mp.onclick = e => { if (e.target.closest('[data-ptxlsx]')) return peopleXlsx(recs, st.year); const t = e.target.closest('[data-pt]'); if (t) { const [n, tab] = t.dataset.pt.split('|'); openProfile(n, tab || undefined); } };
     } else mp?.remove();
   }
-  if (s.key === 'unit' && st.view !== 'table') { el.innerHTML = orgHtml(recs, st.year); el.onclick = orgClick; return; }
+  if (s.key === 'unit' && st.view !== 'table') { el.innerHTML = orgHtml(recs, st.year); el.onclick = orgClick; orgBind(el); return; }
   el.onclick = null;
   el.innerHTML = s.special === 'matrix' ? matrixHtml(s, recs) : tableHtml(s, recs);
   const hid = hiddenCols(s.key);
@@ -4926,33 +4970,101 @@ function orgPill(name, title, lead) {
       return xs.length ? `<small class="owc">${xs.map(([i, v]) => `<span>${i}${v}</span>`).join('')}</small>` : ''; })()}</span>
     ${chips.length ? `<span class="ochips">${chips.slice(0, 4).map(([k, x]) => `<span class="oc ${k}" title="${k === 'run' ? '수행' : '입찰'} · ${esc(x)}">${k === 'run' ? '수행' : '입찰'} ${esc(trunc(x, 14))}</span>`).join('')}${chips.length > 4 ? `<span class="oc more">+${chips.length - 4}</span>` : ''}</span>` : ''}</button>`;
 }
+/* 유닛분장 조직도 (2026-11-04 새 판 · 첨부 시안 결): 밝은 트리 — 그룹장 → 유닛 상자 → 부서원 카드
+   위 도구줄 = 전체 보기(화면에 맞춤) · 확대/축소 · 전체 화면 · 끌어서 이동(휠 = 이동, Ctrl+휠 = 확대) · 오른쪽 위 미니맵(Overview)
+   오른쪽 상세 창 = 마우스 올리면 미리보기 · 누르면 고정 · [부서원 화면 열기](두 번 눌러도) · 유닛 제목 = 유닛 편집 */
+const OC = { z:1, x:0, y:0, sel:'', hov:'', fit:true, key:'', people:new Map(), info:{} };
+const OC_UC = ['#2b6be6', '#16a36b', '#f08a24', '#8b5cf6', '#e0457b', '#0ea5b7', '#c2410c', '#64748b'];
 function orgHtml(recs, year) {
   if (!recs.length) return '<div class="empty">이 연도의 유닛분장이 없습니다. [+ 행 추가]로 유닛을 등록하세요.</div>';
   const heads = [...new Set(recs.flatMap(r => parseMembers(r.fields['그룹장']).map(m => m.name)))];
   const units = recs.map(r => ({ r, iec:isIecUnit(r), name:flat(r.fields['유닛']) || '(유닛)', duty:flat(String(r.fields['담당'] || '').replace(/~~[\s\S]*?~~/g, '')), mem:parseMembers(r.fields['구성원']).filter(m => !heads.includes(m.name)).sort((a, b) => isUnitLead(b.title) - isUnitLead(a.title)) }))
-    .sort((a, b) => a.iec - b.iec);                         // IEC 유닛은 Unit 1 · Unit 2 … 오른쪽
-  // IEC 인력 구성: 가장 최근 연도인데 유닛분장 표에 IEC 유닛이 없으면 기본 명단으로 보여 주고 [표에 등록] 단추 (등록하면 표에서 고칠 수 있음)
+    .sort((a, b) => a.iec - b.iec);
   const ly = (DB.recs.unit || []).map(r => String(r.fields['연도'] || '')).sort().pop() || '';
   if (!units.some(u => u.iec) && (!year || year === ly)) units.push({ r:null, iec:true, virtual:true, name:IEC_DEFAULT.unit, duty:IEC_DEFAULT.duty, mem:parseMembers(IEC_DEFAULT.mem).sort((a, b) => isUnitLead(b.title) - isUnitLead(a.title)) });
-  const iecN = new Set(units.filter(u => u.iec).flatMap(u => u.mem.map(m => m.name))).size;
-  const names = [...new Set([...heads, ...units.filter(u => !u.iec).flatMap(u => u.mem.map(m => m.name))])], total = names.length;
-  let un = 0;
-  const noProf = SERVER && !OFFLINE && !(DB.profiles || []).length;
-  const pjs = (ns, k) => new Set(ns.flatMap(n => profOf(n)?.[k] || [])).size;
-  const UC = ['#ffb84d', '#4fd1c5', '#f687b3', '#a78bfa', '#63b3ed', '#68d391', '#fc8181', '#f6e05e'];
-  const chipsOf = t => t.split(/[,/·]+/).map(x => x.trim()).filter(Boolean).slice(0, 6);
-  return `<div class="org">
-    <div class="org-title"><span>ORGANIZATION</span><b>계장ENG그룹 ${esc(year ? year + '년' : '')} 유닛 조직도</b>
-      <div class="org-stats"><span>🧩 유닛 <b>${units.filter(u => !u.iec).length}</b></span><span>👥 인원 <b>${total}</b>명</span>${iecN ? `<span>🌏 IEC <b>${iecN}</b>명</span>` : ''}<span>📸 프로필 <b>${names.filter(profOf).length}</b>/${total}</span><span>🏗 수행 PJT <b>${pjs(names, 'run')}</b></span><span>📈 입찰 PJT <b>${pjs(names, 'bid')}</b></span></div></div>
-    <div class="org-top">${heads.length ? heads.map(h => orgPill(h, '그룹장', true)).join('') : '<span class="org-ghost">그룹장 미지정</span>'}</div>
-    <div class="org-units" style="grid-template-columns:repeat(${units.length}, minmax(240px, 300px))">${units.map((u, i) => `<div class="org-unit ${u.iec ? 'iec' : ''}" style="--uc:${u.iec ? '#ff9f43' : UC[i % UC.length]}">
-        <div class="org-uh" ${u.virtual ? `data-iecadd="${esc(year || ly)}" title="${noEdit() ? 'IEC 인력 구성 (기본 명단)' : '눌러서 유닛분장 표에 등록 → 그다음부터 고칠 수 있음'}"` : `data-uedit="${esc(u.r.id)}" title="${noEdit() ? '' : '눌러서 이 유닛 편집'}"`}><span class="org-ui">${u.iec ? 'IEC' : ++un}</span><b>${esc(u.name)}</b>
-          ${u.duty ? `<span class="org-dc">${chipsOf(u.duty).map(c => `<i>${esc(c)}</i>`).join('')}</span>` : ''}
-          <em>👥 ${u.mem.length}명${u.iec ? '' : ` · 🏗 ${pjs(u.mem.map(m => m.name), 'run')} · 📈 ${pjs(u.mem.map(m => m.name), 'bid')}`}${u.virtual && !noEdit() ? ' · <u>＋ 표에 등록</u>' : ''}</em></div>
-        <div class="org-mem">${u.mem.map(m => orgPill(m.name, m.title)).join('') || '<span class="org-ghost">구성원 없음</span>'}</div></div>`).join('')}</div>
-    <div class="org-foot">${AUTH ? '<button class="btn sm" data-myprof>🙋 내 정보 입력 (사진 · 전화번호 · 담당 업무 · PJT)</button>' : ''}<span><span class="olg"><span class="osym dia"><i></i></span> 그룹장</span> <span class="olg"><span class="osym gold">★</span> 유닛장 <small>(구성원 칸에 '이름(유닛장)')</small></span> · 사람을 누르면 상세 정보 · <span class="oc run">수행</span> <span class="oc bid">입찰</span> = 각자 <b>내 정보</b>에 입력한 PJT${noProf ? ' · 아직 입력된 프로필이 없습니다' : ''}${!SERVER ? ' · 폴더 모드에서는 프로필을 쓸 수 없습니다' : ''}</span></div>
+  OC.people = new Map();
+  heads.forEach(h => OC.people.set(h, { name:h, title:'그룹장', unit:'계장ENG그룹', color:'#1739d6', lead:true }));
+  units.forEach((u, i) => { u.color = u.iec ? '#ff9f43' : OC_UC[i % OC_UC.length]; u.mem.forEach(m => { if (!OC.people.has(m.name)) OC.people.set(m.name, { name:m.name, title:m.title, unit:u.name, color:u.color, duty:u.duty, ul:isUnitLead(m.title) }); }); });
+  const real = units.filter(u => !u.iec), total = new Set([...heads, ...real.flatMap(u => u.mem.map(m => m.name))]).size, iecN = units.filter(u => u.iec).reduce((a, u) => a + u.mem.length, 0);
+  OC.info = { total, units:real.length, iecN, prof:[...OC.people.keys()].filter(profOf).length, year };
+  const key = (year || '') + '|' + units.map(u => u.name + u.mem.length).join(',');
+  if (OC.key !== key) { OC.key = key; OC.fit = true; if (!OC.people.has(OC.sel)) OC.sel = heads[0] || units[0]?.mem[0]?.name || ''; }
+  const cnt = name => { const it = personItems(name), n = t => (it[t] || []).filter(x => !x.it || x.it.cls !== 'done').length; return { run:n('perform'), bid:n('bid'), todo:n('To Do List'), gen:n('일반업무'), std:n('표준화 담당'), req:n('그룹장 요청 사항') }; };
+  const card = (name, title, color, big) => { const c = cnt(name), pr = profOf(name);
+    const tags = [c.run && `<i class="t-run">수행 ${c.run}</i>`, c.bid && `<i class="t-bid">입찰 ${c.bid}</i>`, c.gen && `<i>🗂${c.gen}</i>`, c.std && `<i>📐${c.std}</i>`, c.todo && `<i>✅${c.todo}</i>`, c.req && `<i>📌${c.req}</i>`].filter(Boolean).join('');
+    return `<button class="oc-p ${big ? 'big' : ''} ${OC.sel === name ? 'on' : ''}" data-prof="${esc(name)}" style="--c:${color}" title="${esc(name)} — 누르면 오른쪽에 상세 · 두 번 누르면 부서원 화면">
+      <span class="oc-av">${avHtml(name)}${big ? '<em class="oc-crown">👑</em>' : isUnitLead(title) ? '<em class="oc-star">★</em>' : ''}${bdayToday(name) ? HAT : ''}</span>
+      <span class="oc-tx">${big ? `<small>${esc(title || '그룹장')}</small>` : ''}<b>${esc(name)}${bdayToday(name) ? ' 🎂' : ''}</b>${big ? `<span>계장ENG그룹 ${esc(year ? year + '년' : '')}</span>` : `<span>${esc(title || pr?.duty || '')}</span>`}${tags ? `<span class="oc-tags">${tags}</span>` : ''}</span></button>`; };
+  const unitBox = u => `<div class="oc-u ${u.iec ? 'iec' : ''}" style="--c:${u.color}">
+      <div class="oc-uh" ${u.virtual ? `data-iecadd="${esc(year || ly)}" title="${noEdit() ? 'IEC 인력 구성 (기본 명단)' : '눌러서 유닛분장 표에 등록'}"` : `data-uedit="${esc(u.r.id)}" title="${noEdit() ? esc(u.duty) : '눌러서 이 유닛 편집'}"`}>
+        <b>${esc(u.name)}</b><span>👥 ${u.mem.length}명${u.duty ? ' · ' + esc(trunc(u.duty, 26)) : ''}${u.virtual && !noEdit() ? ' · <u>＋ 표에 등록</u>' : ''}</span></div>
+      <div class="oc-ms">${u.mem.map(m => card(m.name, m.title, u.color)).join('') || '<span class="oc-ghost">구성원 없음</span>'}</div></div>`;
+  return `<div class="oc" id="oc">
+    <div class="oc-bar"><div class="oc-ttl"><b>🏢 계장ENG그룹 ${esc(year ? year + '년 ' : '')}조직도</b><span>👥 ${total}명 · 🧩 유닛 ${real.length}${iecN ? ` · 🌏 IEC ${iecN}명` : ''}</span></div>
+      <span class="sp"></span><div class="oc-zoom"><button data-oc="out" title="축소">－</button><b id="ocZ">100%</b><button data-oc="in" title="확대">＋</button></div>
+      <button class="btn sm" data-oc="fit" title="전체가 한 화면에 보이게">⊙ 전체 보기</button><button class="btn sm" data-oc="one" title="실제 크기(100%)">1:1</button><button class="btn sm" data-oc="full" title="전체 화면 (Esc = 나가기)">⛶ 전체 화면</button>
+      ${AUTH ? '<button class="btn sm pri" data-myprof>🙋 내 정보</button>' : ''}</div>
+    <div class="oc-main"><div class="oc-view" id="ocView">
+        <div class="oc-cv" id="ocCv">
+          <div class="oc-top">${heads.length ? heads.map(h => card(h, '그룹장', '#1739d6', true)).join('') : '<span class="oc-ghost">그룹장 미지정</span>'}</div>
+          <div class="oc-us">${units.map(unitBox).join('')}</div></div>
+        <div class="oc-mini" id="ocMini" title="누르면 그곳으로 이동"><b>Overview</b><div class="oc-mi" id="ocMi"></div><i id="ocMr"></i></div>
+        <div class="oc-hint">끌어서 이동 · 휠 = 이동 · Ctrl+휠 = 확대/축소 · 두 번 누르면 부서원 화면</div></div>
+      <aside class="oc-side" id="ocSide"></aside></div>
+    <div class="oc-leg"><span><i style="background:#1739d6"></i>그룹장 👑</span><span><i style="background:#2b6be6"></i>유닛 · ★ 유닛장</span><span><i style="background:#ff9f43"></i>IEC</span><span><i class="t-run"></i>수행 PJT</span><span><i class="t-bid"></i>입찰 PJT</span><span>🗂 일반업무 · 📐 표준화 · ✅ To Do · 📌 그룹장 요청 (진행 중)</span></div>
   </div>`;
 }
+function ocSide(name) {
+  const el = $('#ocSide'); if (!el) return;
+  const P = OC.people.get(name), pr = profOf(name), I = OC.info;
+  if (!P) { el.innerHTML = '<div class="empty">부서원을 고르세요</div>'; return; }
+  const it = personItems(name), live = k => (it[k] || []).filter(x => !x.it || x.it.cls !== 'done');
+  const mine = pr && AUTH && pr.id === AUTH.id;
+  const pj = k => live(k).map(x => `<span class="oc ${k === 'perform' ? 'run' : 'bid'}">${esc(trunc(flat(x.r.fields['PJT명']), 18))}</span>`).join('') || '<span class="muted">-</span>';
+  const n = t => live(t).length;
+  el.innerHTML = `<div class="oc-st"><button class="on">ⓘ 상세</button><span class="muted">${OC.hov && OC.hov === name && OC.sel !== name ? '미리보기' : '선택됨'}</span></div>
+    <div class="oc-pf"><span class="oc-pav" style="--c:${P.color}">${avHtml(name)}</span><div><b>${esc(name)}</b><span>${esc(P.title || '')}</span></div></div>
+    <dl class="oc-dl"><dt>🏢 유닛</dt><dd>${esc(P.unit || '-')}</dd><dt>💼 담당</dt><dd>${esc(pr?.duty || P.duty || '-')}</dd><dt>☎ 전화</dt><dd>${pr?.phone ? `<a href="tel:${esc(pr.phone)}">${esc(pr.phone)}</a>` : `<span class="muted">${pr && !AUTH ? '로그인하면 보임' : '-'}</span>`}</dd>
+      <dt>🏗 수행</dt><dd class="oc-pj">${pj('perform')}</dd><dt>📈 입찰</dt><dd class="oc-pj">${pj('bid')}</dd></dl>
+    <div class="oc-ct">${[['✅', 'To Do', 'To Do List'], ['💡', '기술공유', '기술공유'], ['📌', '그룹장 요청', '그룹장 요청 사항'], ['🗂', '일반업무', '일반업무'], ['📐', '표준화', '표준화 담당']].map(([i, l, t]) => `<button data-ocp="${esc(t)}"><b>${n(t)}</b><span>${i} ${l}</span></button>`).join('')}</div>
+    <button class="btn pri oc-go" data-ocp="">부서원 화면 열기 →</button>${mine ? '<button class="btn oc-go" data-myprof>🙋 내 정보 수정</button>' : ''}
+    <div class="oc-info"><b>📊 조직 정보</b><div><span>전체 인원<b>${I.total}</b></span><span>유닛<b>${I.units}</b></span><span>IEC<b>${I.iecN || 0}</b></span><span>프로필 입력<b>${I.prof}/${OC.people.size}</b></span></div></div>`;
+}
+function ocApply() {
+  const cv = $('#ocCv'); if (!cv) return;
+  cv.style.transform = `translate(${OC.x}px,${OC.y}px) scale(${OC.z})`;
+  const z = $('#ocZ'); if (z) z.textContent = Math.round(OC.z * 100) + '%';
+  const v = $('#ocView'), mi = $('#ocMi'), mr = $('#ocMr'); if (!v || !mi || !mr) return;
+  const W = cv.offsetWidth, H = cv.offsetHeight, m = Math.min(140 / W, 80 / H);
+  mi.style.width = W * m + 'px'; mi.style.height = H * m + 'px'; mi.firstElementChild && (mi.firstElementChild.style.transform = `scale(${m})`);
+  Object.assign(mr.style, { left:(8 + -OC.x / OC.z * m) + 'px', top:(26 + -OC.y / OC.z * m) + 'px', width:v.clientWidth / OC.z * m + 'px', height:v.clientHeight / OC.z * m + 'px' });
+  OC.m = m;
+}
+function ocFit(widthOnly) {                             // 전체 보기 = 가로 · 세로 모두 맞춤 · 처음 열 때 = 가로만 맞춤(글자가 너무 작아지지 않게, 아래는 끌어서/휠로)
+  const v = $('#ocView'), cv = $('#ocCv'); if (!v || !cv) return;
+  const W = cv.offsetWidth, H = cv.offsetHeight, sw = v.clientWidth, sh = v.clientHeight;
+  OC.z = Math.max(.25, Math.min(1, widthOnly ? (sw - 24) / W : Math.min((sw - 24) / W, (sh - 24) / H)));
+  OC.x = (sw - W * OC.z) / 2; OC.y = widthOnly ? 8 : Math.max(12, (sh - H * OC.z) / 2); ocApply();
+}
+function ocZoom(f, cx, cy) {
+  const v = $('#ocView'); if (!v) return;
+  const nz = Math.max(.25, Math.min(2, OC.z * f)); cx ??= v.clientWidth / 2; cy ??= v.clientHeight / 2;
+  OC.x = cx - (cx - OC.x) * nz / OC.z; OC.y = cy - (cy - OC.y) * nz / OC.z; OC.z = nz; ocApply();
+}
+function orgBind(el) {
+  const v = $('#ocView', el); if (!v) return;
+  const mi = $('#ocMi', el); mi.innerHTML = `<div class="oc-mc">${$('#ocCv', el).innerHTML}</div>`;   // 미니맵 = 조직도를 작게 복사
+  requestAnimationFrame(() => { if (OC.fit) { OC.fit = false; ocFit(true); } else ocApply(); ocSide(OC.sel); });
+  let drag = null;
+  v.onpointerdown = e => { if (e.button !== 0 || e.target.closest('button,a,.oc-mini')) return; drag = { x:e.clientX - OC.x, y:e.clientY - OC.y }; v.setPointerCapture(e.pointerId); v.classList.add('grab'); };
+  v.onpointermove = e => { if (!drag) return; OC.x = e.clientX - drag.x; OC.y = e.clientY - drag.y; ocApply(); };
+  v.onpointerup = v.onpointercancel = () => { drag = null; v.classList.remove('grab'); };
+  v.onwheel = e => { e.preventDefault(); const r = v.getBoundingClientRect(); if (e.ctrlKey) ocZoom(e.deltaY < 0 ? 1.12 : 1 / 1.12, e.clientX - r.left, e.clientY - r.top); else { OC.x -= e.deltaX; OC.y -= e.deltaY; ocApply(); } };
+  $('#ocMini', el).onclick = e => { const r = mi.getBoundingClientRect(); OC.x = v.clientWidth / 2 - (e.clientX - r.left) / OC.m * OC.z; OC.y = v.clientHeight / 2 - (e.clientY - r.top) / OC.m * OC.z; ocApply(); };
+  el.onmouseover = e => { const p = e.target.closest('.oc-cv [data-prof]'); const n = p?.dataset.prof || ''; if (n === OC.hov) return; OC.hov = n; ocSide(n || OC.sel); };
+  el.ondblclick = e => { const p = e.target.closest('.oc-cv [data-prof]'); if (p) openProfile(p.dataset.prof); };
+}
+document.addEventListener('fullscreenchange', () => { if ($('#ocView')) setTimeout(ocFit, 120); });
 /* 유닛분장 [📋 부서원 표] (2026-11-04): 부서원마다 한 줄 — 유닛 · 직책 · 담당 · 전화 · 수행/입찰 PJT · 진행 중 업무(유형별). 엑셀로 저장 */
 function unitPeople(recs) {
   const out = [], seen = new Set();
@@ -4992,7 +5104,13 @@ function orgClick(e) {
   const me = e.target.closest('[data-myprof]'); if (me) return openMyInfo();
   const ia = e.target.closest('[data-iecadd]'); if (ia) return iecRegister(ia.dataset.iecadd);
   const u = e.target.closest('[data-uedit]'); if (u && !noEdit()) return openEdit('unit', u.dataset.uedit);
-  const p = e.target.closest('[data-prof]'); if (p) return openProfile(p.dataset.prof);
+  const z = e.target.closest('[data-oc]');
+  if (z) { const a = z.dataset.oc; if (a === 'in') return ocZoom(1.2); if (a === 'out') return ocZoom(1 / 1.2); if (a === 'fit') return ocFit();
+    if (a === 'one') { OC.z = 1; OC.x = 16; OC.y = 12; return ocApply(); }
+    if (a === 'full') { const o = $('#oc'); return document.fullscreenElement ? document.exitFullscreen() : o?.requestFullscreen?.(); } }
+  const sp = e.target.closest('[data-ocp]'); if (sp) return openProfile(OC.sel, sp.dataset.ocp || undefined);
+  const p = e.target.closest('.oc-cv [data-prof]');
+  if (p) { OC.sel = p.dataset.prof; OC.hov = ''; document.querySelectorAll('.oc-cv .oc-p').forEach(x => x.classList.toggle('on', x.dataset.prof === OC.sel)); return ocSide(OC.sel); }
 }
 async function iecRegister(year) {                          // 기본 IEC 명단을 유닛분장 표의 행으로 등록 (그다음부터 표·조직도에서 고침)
   if (noEdit()) return toast('로그인하면 등록할 수 있습니다', true);
