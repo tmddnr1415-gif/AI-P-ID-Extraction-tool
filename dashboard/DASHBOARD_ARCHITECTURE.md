@@ -1300,3 +1300,17 @@ C:\Users\SAMSUNG\Desktop\Claude\                         ← 개발 폴더 (여�
 - 바뀐 곳: dashboard.html `APP_VERSION` · `orgHtml`(새로) · 새 `OC` `OC_UC` `ocSide` `ocApply` `ocFit` `ocZoom` `orgBind` · `orgClick`(data-oc · data-ocp · 선택) · `drawTable`(orgBind) · fullscreenchange · CSS `.oc…`. 예전 `orgPill` 은 남아 있으나 조직도에서 쓰지 않음.
 - 확인한 것: JS 문법. 임시 서버(1600×1000): 처음 가로 맞춤 · 김철수에 마우스 → 상세 '미리보기' · 홍길동 클릭 → '선택됨' · ＋ 두 번 74% · 끌어 이동 · 미니맵 상자 · 전체 보기 · [부서원 화면 열기] · 이영희 두 번 누름 → 부서원 화면 · 전체 화면 86% · 전체 화면에서 부서원 화면. 콘솔 오류 없음.
 - 회사에서 확인할 것: 화면이 좁으면(왼쪽 메뉴 + 오른쪽 내 업무 띠) 조직도가 작게 보임 → [⛶ 전체 화면] 이나 왼쪽 메뉴 숨기기.
+
+### 2026-11-04 (43) — 조직도에 [🏗 프로젝트별 · LE/RE] · [🌏 세계 지도] 보기 + 배경(낮 · 밤 · 플랜트) + 휠 = 확대/축소 (APP_VERSION 2026-11-04.4 / SERVER 그대로)
+> server.py 안 바뀜 → 서버 재시작 필요 없음.
+- 무엇을: 사용자 "프로젝트별 LE · RE 조직으로도 한눈에 · 휠로 줌인/줌아웃 · 구글어스처럼 프로젝트 위치별 국가 · 시간 · 날씨를 한눈에 보는 탭 · 배경 이미지/색".
+  - 조직도 위에 파란 머리띠(플랜트 실루엣) + 보기 3개 **[🧩 유닛] [🏗 프로젝트별 · LE/RE] [🌏 세계 지도]** + 배경 3개 **[☀ 낮] [🌙 밤] [🏭 플랜트]**(고른 것은 PC 에 기억: localStorage `dept-oc-mode` · `dept-oc-bg`, 기본 = 유닛 · 플랜트). 보기마다 배율 · 위치를 따로 기억.
+  - **휠 = 늘 커서 쪽 확대/축소** (전에는 휠 = 이동 · Ctrl+휠 = 확대). 이동은 끌어서.
+  - **프로젝트별 · LE/RE**: 계장 투입인력 시트의 PJT 열 · 배정(투입률 · LE/RE) 기준 나무 — 맨 위 'PJT 조직' → 수행 / 입찰 / 기타 → PJT 상자(이름 · 수행/입찰 · 나라 · 인원 · 몇 명분) 안에 **LE 카드(위, 강조)** · RE 카드(아래). 카드 = 유닛 보기와 같은 카드(누르면 오른쪽 상세 · 두 번 = 부서원 화면).
+  - **세계 지도**: Natural Earth 1:110m 나라 경계(공용 자료, 약 82KB)를 파일 안에 넣음(`<script id="deptWorld">`, 외부 지도 서버 안 씀). 진행 중 수행 · 입찰 PJT 의 나라를 **'국가'(또는 '위치') 열 → PJT명 → 발주처 → PJT 개요** 순서로 낱말에서 찾음(`CTRY`: 카타르 · Ras Laffan · 사우디 · Jubail · UAE · 하와이 · 대만 · Taichung · 싱가포르 · 호주 · 알제리 · 삼척 등 약 45개 나라/도시). 나라 칠하기(수행 파랑 · 입찰 주황 · 둘 다 보라) + 표시(PJT 수 · 나라 · **현지 시각 ☀/🌙** · 날씨). 표시는 확대해도 화면에서 같은 크기 · 이름표가 겹치면 옆 빈자리로(`mapPin`). 최대 1000% 까지 확대.
+  - 지도 오른쪽: '한눈에' = 나라별 현지 시각 · 날씨 · PJT 수 · **위치 미상 PJT 목록**(PJT명에 나라/도시를 넣거나 '국가' 열을 추가하라는 안내). 나라 누르면 = 현지 시각(크게) · 날짜 · 낮/밤 · 한국과 시차 · 날씨 · 그 나라 PJT(누르면 그 행으로) · LE/RE 명단(누르면 부서원 화면).
+  - **날씨**: 외부 open-meteo.com(무료 · 키 없음)에 **나라 대표 좌표만** 보냄 → 처음 [🌤 날씨 불러오기]를 눌러야 켜짐(`dept-wx-on`), 30분 보관, 6초 안에 답 없으면 '날씨 연결 안 됨 (사내망)'. 사내망에서 막혀도 나머지는 그대로.
+  - 예전 꼬리표 `.oc`(PJT 칩) CSS 가 새 조직도 틀 `.oc` 와 이름이 겹쳐 `:is(.ochips,.pfl) .oc` 로 좁힘.
+- 바뀐 곳: dashboard.html `APP_VERSION` · `orgHtml`(보기 · 배경 머리띠) · `ocMode` `ocBg` · `ocApply`(mapPin) · `ocZoom`(지도 최대 10배) · `orgBind`(휠 · 지도 마우스 올림) · `orgClick`(data-ocmode · data-ocbg · data-ctry · data-wxon · data-mjump) · 새 `projData` `projTreeHtml` `CTRY` `ctryOf` `worldData` `mxy` `mapProjects` `worldHtml` `mapPin` `ltime` `lhour` `mapTick` `WX` `wxLoad` `mapSide` · `<script id="deptWorld">` · CSS `.oc-hero` `.oc-modes` `.oc-bgs` `.bg-*` `.ot` `.oc-cat` `.oc-pjs` `.oc-pj` `.oc-le` `.oc-iso` `.wmap` `.mk` `.mrow` `.mhd` `.mtime` `.mwx` `.mp…`.
+- 확인한 것: JS 문법. 임시 서버(가짜 PJT 이름에 카타르 · 사우디 Jubail · UAE · 하와이 · 대만 · 삼척 · 싱가포르 · 호주 · 미국 Texas, 투입인력 5개 PJT LE/RE): 유닛 보기 배경 3가지 · 프로젝트별 12개 상자(LE 위) · 휠 확대 58%→192% · 세계 지도 9개국 표시 · 현지 시각 · 카타르 누름 → 10:21 · 한국과 -6시간 · PJT 2개 · LE 홍길동 50% · 중동 1000% 확대(표시 크기 그대로) · [날씨 불러오기] → 시험 환경은 외부망 막힘 → '날씨 연결 안 됨'(오류 없이) · PJT 누름 → 수행 표로 이동. 페이지 오류 없음.
+- 회사에서 확인할 것: 사내망에서 open-meteo.com 이 열리는지(막히면 날씨만 안 보임). 실제 PJT 이름에서 나라가 잘 잡히는지 — 안 잡히는 PJT 는 지도 오른쪽 '위치 미상'에 나옴 → 낱말 추가가 필요하면 `CTRY` 에 넣거나 수행/입찰 시트에 '국가' 열.
