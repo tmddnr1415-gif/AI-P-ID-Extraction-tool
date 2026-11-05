@@ -154,6 +154,9 @@ body.pid-shell-on .dw-back { display: none; }   /* hotfix132 — 공통 셸 띠�
 .golink.missing { fill: #c2453f; }
 .refin { fill: #8a93a8; font-family: Helvetica, Arial, sans-serif; pointer-events: none; }
 .dot { fill: #111; stroke: none; }
+#stage, #svg, #svg text { user-select: none; -webkit-user-select: none; }   /* L86 — 끌어 묶을 때 표 글자가 파랗게 선택되지 않게 */
+.loose { fill: none; stroke: #d33; stroke-width: 0.55; pointer-events: none; }        /* L86 — 매달린 선 끝 */
+.loose.nodot { stroke: #e58a00; stroke-dasharray: 0.6 0.4; }
 .arrow { fill: #111; stroke: none; }
 .rowflash { fill: rgba(255, 200, 0, .45); animation: rowflash 2.6s ease-out forwards; pointer-events: none; }
 @keyframes rowflash { 0%, 40% { opacity: 1; } 100% { opacity: 0; } }

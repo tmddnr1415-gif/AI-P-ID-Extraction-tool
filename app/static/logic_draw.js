@@ -41,7 +41,7 @@ const S = {
   tool: "select", zoom: 1, sel: new Set(), selWire: null, undo: [], redo: [],
   wip: null,            // 그리는 중인 선 {pts, dashed}
   drag: null, verify: null, snap: true,
-  guide: { grid: true, ruler: true, align: true, cross: true },   // L55 — 화면 전용 안내 (PDF · DXF 에 안 나간다)
+  guide: { grid: true, ruler: true, align: true, cross: true, loose: true },   // L55 — 화면 전용 안내 (PDF · DXF 에 안 나간다)
   hover: null, alignLines: null,
   rg: { v: [], h: [] },  // L66 — 눈금자를 눌러 세운 가이드선 (화면 전용 · 그림마다 브라우저에 기억)
 };
@@ -239,6 +239,7 @@ function render() {
   for (const id of [...S._nc.w.keys()]) if (!wseen.has(id)) S._nc.w.delete(id);
   for (const id of [...S._nc.b.keys()]) if (!bseen.has(id)) S._nc.b.delete(id);
   svg.appendChild(bg);
+  renderLoose(svg);                                                 // L86 — 매달린 선 끝
   el("g", { id: "overlay" }, svg);
   drawGhost();
   renderProps();
@@ -597,7 +598,10 @@ function setInputs(b, k) {
 function portRowShift(b) {
   const L = layout(), ps = ports(b); if (!ps.length) return 0;
   const p = ps.find(q => q[2] === "in") || ps[0];
-  const n = Math.round((p[1] - L.TOP - L.PITCH / 2) / L.PITCH);
+  let n = Math.round((p[1] - L.TOP - L.PITCH / 2) / L.PITCH);
+  // L86 — 단자가 모두 표 안(1~N 행)에 들게: 입력 수를 늘려 막대가 위로 자라면 첫 입력이 0행(표 위)에 서서 분석기가 그 기호를 못 읽었다
+  const rowOf = y => Math.round((y - L.TOP - L.PITCH / 2) / L.PITCH), lo = rowOf(Math.min(...ps.map(q => q[1]))) - rowOf(p[1]), hi = rowOf(Math.max(...ps.map(q => q[1]))) - rowOf(p[1]);
+  if (n + lo < 0) n = -lo; else if (n + hi > L.N - 1) n = L.N - 1 - hi;
   return +((L.TOP + n * L.PITCH + L.PITCH / 2) - p[1]).toFixed(2);
 }
 function alignPortsToRows(b) { const d = portRowShift(b); if (Math.abs(d) > 0.01) b.y = +(b.y + d).toFixed(2); }
@@ -672,7 +676,7 @@ function renderProps() {
         <label>자리 <span><input id="p-x" type="number" step="1" value="${b.x}" style="width:56px"> , <input id="p-y" type="number" step="1" value="${b.y}" style="width:56px"></span></label>
         <div style="display:flex;gap:6px;margin-top:6px"><button id="p-dup">복사</button><button id="p-del">지우기</button></div>`;
   box.innerHTML = h;
-  const upd = fn => { pushUndo(); fn(); markDirty(); render(); };
+  const upd = fn => { pushUndo(); withFollow([b.id], fn); markDirty(); render(); };   // L86 — 자리 · 크기 · 입력 수가 바뀌면 붙은 선이 따라간다
   $("#p-kind").onchange = e => upd(() => { const k = e.target.value, sp = S.sym[k]; b.kind = k; b.text = sp.text; b.w = sp.w; b.h = sp.h; b.param = {}; if (sp.time) b.param.t = 5; if (sp.ab) { b.param.a = 2; b.param.b = 3; b.text = "2/3"; } if (sp.cells === 2) b.param.dominant = ""; });
   const on = (id, fn) => { const e = $(id); if (e) e.onchange = ev => upd(() => fn(ev.target)); };
   on("#p-t", t => { b.param.t = Math.max(0, +t.value || 0); });
@@ -694,6 +698,122 @@ function renderProps() {
   on("#p-y", t => { b.y = +t.value || 0; });
   $("#p-dup").onclick = () => duplicateSel();
   $("#p-del").onclick = () => deleteSel();
+}
+
+
+/* ───────── L86 — 기호를 옮기면 붙은 선이 따라간다 · 매달린 선 끝 표시 ─────────
+   선 끝이 기호의 단자 자리(0.3 안)에 놓여 있으면 그 끝은 기호에 '붙은' 것.  끌기 · 화살표 · 속성(자리 · 크기 · 입력 수 · 종류) · 정렬 ·
+   겹침 비키기로 기호가 옮겨지면 붙은 끝이 새 단자 자리로 가고 이웃 꺾임점이 같은 축으로 따라가 선은 가로 · 세로로 남는다.
+   양 끝이 모두 함께 옮겨지는 기호에 붙은 선은 통째로 옮긴다 (연결점 · 표시도).  단자 수가 바뀌면 가장 가까운 단자(한 행 안)로. */
+const ATT = 0.3, JOIN = 0.6, EDGE = 1.5;                                  // 붙음 판정 · 분석기 JOIN · 테두리
+function followStart(ids) {
+  const set = new Set(ids), pk = new Map(), key = (x, y) => Math.round(x) + "," + Math.round(y), blocks = [];
+  for (const id of set) {
+    const b = S.doc.blocks.find(b => b.id === id); if (!b) continue;
+    blocks.push([id, b.x, b.y]);
+    const cnt = {};                                                  // 단자 번호는 종류(in · out) 안에서 센다 — 입력 수가 바뀌어도 출력 단자가 입력으로 바뀌지 않게
+    ports(b).forEach(p => { const i = (cnt[p[2]] = (cnt[p[2]] || 0) + 1) - 1, k = key(p[0], p[1]); if (!pk.has(k)) pk.set(k, []); pk.get(k).push([id, p[2] + ":" + i, p[0], p[1]]); });
+  }
+  const find = (x, y) => { const cx = Math.round(x), cy = Math.round(y);
+    for (let i = -1; i <= 1; i++) for (let j = -1; j <= 1; j++) for (const c of pk.get((cx + i) + "," + (cy + j)) || []) if (Math.abs(c[2] - x) < ATT && Math.abs(c[3] - y) < ATT) return c;
+    return null; };
+  const wires = new Map();
+  if (pk.size) for (const w of S.doc.wires) {
+    const n = w.pts.length; if (n < 2) continue;
+    const a = find(w.pts[0][0], w.pts[0][1]), z = find(w.pts[n - 1][0], w.pts[n - 1][1]);
+    if (!a && !z) continue;
+    wires.set(w.id, { w, pts0: w.pts.map(p => p.slice()), dots0: (w.dots || []).map(p => p.slice()), marks0: (w.marks || []).map(p => p.slice()), a: a && [a[0], a[1]], z: z && [z[0], z[1]] });
+  }
+  return { blocks, wires };
+}
+function followApply(fw) {
+  if (!fw || !fw.wires.size) return [];
+  const P = layout().PITCH, pos = {}, moved = {}, out = [];
+  for (const [id, x0, y0] of fw.blocks) { const b = S.doc.blocks.find(b => b.id === id); if (!b) continue; pos[id] = ports(b); moved[id] = [b.x - x0, b.y - y0]; }
+  const newEnd = (att, old) => { const ps = pos[att[0]]; if (!ps) return null; const [kind, idx] = att[1].split(":"), same = ps.filter(q => q[2] === kind), p = same[+idx];
+    if (p) return [p[0], p[1]];
+    let best = null, bd = P;                                        // 단자가 줄어 그 번호가 없으면 같은 종류에서 가장 가까운 단자
+    for (const q of same) { const d = Math.hypot(q[0] - old[0], q[1] - old[1]); if (d < bd) { bd = d; best = [q[0], q[1]]; } } return best; };
+  const sh = (p, d) => [+(p[0] + d[0]).toFixed(2), +(p[1] + d[1]).toFixed(2)];
+  for (const [wid, f] of fw.wires) {
+    const w = f.w, n = f.pts0.length, pts = f.pts0.map(p => p.slice());
+    const da = f.a && moved[f.a[0]], dz = f.z && moved[f.z[0]];
+    if (da && dz && Math.abs(da[0] - dz[0]) < 0.01 && Math.abs(da[1] - dz[1]) < 0.01) {     // 양 끝이 함께 — 통째로
+      if (Math.abs(da[0]) < 0.005 && Math.abs(da[1]) < 0.005) continue;
+      w.pts = pts.map(p => sh(p, da));
+      if (f.dots0.length) w.dots = f.dots0.map(p => sh(p, da));
+      if (f.marks0.length) w.marks = f.marks0.map(p => [...sh(p, da), p[2]]);
+      out.push(wid); continue;
+    }
+    let changed = false;
+    const bend = (i, j, np) => {                                    // 끝 i 를 np 로 · 이웃 j 는 토막의 축을 지킨다
+      if (Math.abs(np[0] - pts[i][0]) < 0.005 && Math.abs(np[1] - pts[i][1]) < 0.005) return;
+      const hz = Math.abs(f.pts0[i][1] - f.pts0[j][1]) < 0.05;
+      if (n > 2) { if (hz) pts[j][1] = np[1]; else pts[j][0] = np[0]; }
+      pts[i] = [np[0], np[1]]; changed = true;
+    };
+    if (f.a) { const np = newEnd(f.a, f.pts0[0]); if (np) bend(0, 1, np); }
+    if (f.z) { const np = newEnd(f.z, f.pts0[n - 1]); if (np) bend(n - 1, n - 2, np); }
+    if (!changed) continue;
+    w.pts = orthoPts(pts); out.push(wid);
+  }
+  return out;
+}
+function withFollow(ids, fn) { const fw = followStart(ids); fn(); return followApply(fw); }
+/* 매달린 선 끝 — 단자 · 행 자리 · 다른 선의 끝 · 연결점이 찍힌 꺾임점 · 몸통 어디에도 닿지 않은 끝에 붉은 고리.
+   몸통 · 꺾임점에 닿았는데 연결점이 없으면 주황 고리 (범례 G003: 점이 있어야 연결 — 분석기가 잇지 않는다).  화면에서만 · PDF · DXF 에는 없다. */
+function looseEnds() {
+  const L = layout(), W = S.doc.wires, out = [];
+  if (!W.length || W.length > 8000) return out;
+  const key = (x, y) => Math.round(x) + "," + Math.round(y), pt = new Map(), add = (x, y, k) => { const q = key(x, y); if (!pt.has(q)) pt.set(q, []); pt.get(q).push([x, y, k]); };
+  const boxes = [];                                                 // 기호 테두리(막대 포함)에 닿은 끝도 연결 — 분석기 규칙(변에 닿으면 그 기호의 선)과 같게 · 들여온 그림은 단자 자리가 아닌 변에 닿은 선이 많다
+  for (const b of S.doc.blocks) { for (const p of ports(b)) add(p[0], p[1], "port"); if (!(S.sym[b.kind] || {}).note) boxes.push(fullBox(b)); }
+  const onEdge = (x, y) => { for (const B of boxes) { if (x < B[0] - EDGE || x > B[2] + EDGE || y < B[1] - EDGE || y > B[3] + EDGE) continue;
+    if (Math.abs(x - B[0]) <= EDGE || Math.abs(x - B[2]) <= EDGE || Math.abs(y - B[1]) <= EDGE || Math.abs(y - B[3]) <= EDGE) return true; } return false; };
+  const hz = [], vt = [], dots = new Set();
+  for (const w of W) {
+    const n = w.pts.length; if (n < 2) continue;
+    add(w.pts[0][0], w.pts[0][1], "end:" + w.id); add(w.pts[n - 1][0], w.pts[n - 1][1], "end:" + w.id);
+    for (let i = 1; i < n - 1; i++) add(w.pts[i][0], w.pts[i][1], "corner:" + w.id);
+    for (const d of w.dots || []) dots.add(key(d[0], d[1]));
+    for (let i = 1; i < n; i++) { const a = w.pts[i - 1], b = w.pts[i];
+      if (Math.abs(a[1] - b[1]) < 0.2) hz.push([a[1], Math.min(a[0], b[0]), Math.max(a[0], b[0]), w.id]);
+      else if (Math.abs(a[0] - b[0]) < 0.2) vt.push([a[0], Math.min(a[1], b[1]), Math.max(a[1], b[1]), w.id]); }
+  }
+  hz.sort((u, v) => u[0] - v[0]); vt.sort((u, v) => u[0] - v[0]);
+  const lb = (arr, x) => { let lo = 0, hi = arr.length; while (lo < hi) { const m = (lo + hi) >> 1; if (arr[m][0] < x) lo = m + 1; else hi = m; } return lo; };
+  const body = (x, y, wid) => {
+    for (let k = lb(hz, y - 0.6); k < hz.length && hz[k][0] <= y + 0.6; k++) if (hz[k][3] !== wid && hz[k][1] + 0.8 < x && x < hz[k][2] - 0.8) return true;
+    for (let k = lb(vt, x - 0.6); k < vt.length && vt[k][0] <= x + 0.6; k++) if (vt[k][3] !== wid && vt[k][1] + 0.8 < y && y < vt[k][2] - 0.8) return true;
+    return false; };
+  const near = (x, y, wid) => { const cx = Math.round(x), cy = Math.round(y); let corner = false;
+    for (let i = -1; i <= 1; i++) for (let j = -1; j <= 1; j++) for (const c of pt.get((cx + i) + "," + (cy + j)) || []) {
+      if (Math.abs(c[0] - x) > JOIN || Math.abs(c[1] - y) > JOIN) continue;
+      if (c[2] === "port" || (c[2].startsWith("end:") && c[2] !== "end:" + wid)) return "ok";
+      if (c[2].startsWith("corner:") && c[2] !== "corner:" + wid) corner = true; }
+    return corner ? "corner" : null; };
+  const onRow = (x, y) => (Math.abs(x - L.LX0) <= JOIN || Math.abs(x - L.LX1) <= JOIN) && Math.abs(y - ry(rowAt(y) || 1)) <= JOIN && y >= L.TOP && y <= L.bottom;
+  const dotted = (x, y) => { const cx = Math.round(x), cy = Math.round(y); for (let i = -1; i <= 1; i++) for (let j = -1; j <= 1; j++) if (dots.has((cx + i) + "," + (cy + j))) return true; return false; };
+  for (const w of W) {
+    const n = w.pts.length; if (n < 2) continue;
+    for (const e of [w.pts[0], w.pts[n - 1]]) {
+      const [x, y] = e;
+      if (onRow(x, y)) continue;
+      const k = near(x, y, w.id); if (k === "ok" || onEdge(x, y)) continue;
+      if (k === "corner" || body(x, y, w.id)) { if (!dotted(x, y)) out.push([x, y, w.id, "nodot"]); continue; }
+      out.push([x, y, w.id, "loose"]);
+    }
+  }
+  return out;
+}
+function renderLoose(svg) {
+  const g = el("g", { id: "loose" }, svg), P = layout().PITCH, ends = looseEnds();
+  S._looseN = ends.length;
+  if (S.guide.loose === false) return;
+  for (const [x, y, wid, kind] of ends) {
+    const c = el("circle", { cx: x, cy: y, r: 0.22 * P, class: "loose " + kind, "data-id": wid }, g);
+    const t = el("title", {}, c); t.textContent = kind === "nodot" ? "다른 선에 닿았지만 연결점이 없습니다 — 선을 고르고 '끝에 점 찍기' (범례: 점이 있어야 연결)" : "매달린 선 끝 — 단자 · 행 자리 · 다른 선에 닿지 않았습니다 (분석기 · 시뮬레이션이 잇지 않습니다)";
+  }
 }
 
 /* ───────── 되돌리기 · 상태 ───────── */
@@ -736,7 +856,7 @@ function duplicateSel() {
 function moveSel(dx, dy) {
   if (!S.sel.size) return;
   pushUndo();
-  for (const id of S.sel) { const b = S.doc.blocks.find(b => b.id === id); if (b) { b.x = +(b.x + dx).toFixed(2); b.y = +(b.y + dy).toFixed(2); } }
+  withFollow([...S.sel], () => { for (const id of S.sel) { const b = S.doc.blocks.find(b => b.id === id); if (b) { b.x = +(b.x + dx).toFixed(2); b.y = +(b.y + dy).toFixed(2); } } });
   markDirty(); render();
 }
 
@@ -1154,7 +1274,7 @@ function bindStage() {
       const id = blk.dataset.id;
       if (e.shiftKey) { if (S.sel.has(id)) S.sel.delete(id); else S.sel.add(id); S.selWire = null; render(); return; }
       if (!S.sel.has(id)) { S.sel = new Set([id]); S.selWire = null; render(); }
-      S.drag = { move: true, start: p, moved: false, orig: [...S.sel].map(id => { const b = S.doc.blocks.find(b => b.id === id); return [id, b.x, b.y]; }) };
+      S.drag = { move: true, start: p, moved: false, orig: [...S.sel].map(id => { const b = S.doc.blocks.find(b => b.id === id); return [id, b.x, b.y]; }), fw: followStart([...S.sel]) };   // L86 — 붙은 선이 따라간다
       return;
     }
     if (wire) { S.selWire = t.dataset.id; S.sel = new Set(); render(); return; }
@@ -1195,7 +1315,7 @@ function bindStage() {
       if (!S.drag.moved && raw) { S.drag.moved = true; pushUndo(); document.body.classList.add("dw-dragging"); }
       if (!S.drag.moved) return;
       for (const [id, x0, y0] of S.drag.orig) { const b = S.doc.blocks.find(b => b.id === id); if (b) { b.x = +(x0 + dx).toFixed(2); b.y = +(y0 + dy).toFixed(2); } }
-      S.dirty = true; const ids = S.drag.orig.map(o => o[0]); renderSoon(() => redrawBlocks(ids)); return;
+      S.dirty = true; const ids = S.drag.orig.map(o => o[0]); const wids = followApply(S.drag.fw); renderSoon(() => { redrawBlocks(ids); for (const id of wids) redrawWire(id); }); return;
     }
     if (S.drag.marquee) { S.drag.marquee[2] = p[0]; S.drag.marquee[3] = p[1]; drawGhost(); }
   });
@@ -1208,7 +1328,7 @@ function bindStage() {
     }
     if (S.drag.seg) { const w = S.doc.wires.find(w => w.id === S.drag.id); if (w) { w.pts = orthoPts(w.pts); render(); } if (S.drag.moved) markDirty(); }
     if (S.drag.vtx) { const w = S.doc.wires.find(w => w.id === S.drag.id); if (w) { w.pts = orthoPts(w.pts); render(); } }   // L64 — 꺾임점을 끌어도 사선이 남지 않게
-    if (S.drag.move && S.drag.moved) { const n = unclash(S.drag.orig.map(o => o[0])); if (n) status(`이웃 기호와 겹쳐서 ${n}개를 한 행 비켜 놓았습니다 (입력 막대가 이웃 단자에 닿으면 분석기가 선을 엉뚱한 기호에 붙입니다)`); }
+    if (S.drag.move && S.drag.moved) { const ids = S.drag.orig.map(o => o[0]); let n = 0; withFollow(ids, () => { n = unclash(ids); }); if (n) status(`이웃 기호와 겹쳐서 ${n}개를 한 행 비켜 놓았습니다 (입력 막대가 이웃 단자에 닿으면 분석기가 선을 엉뚱한 기호에 붙입니다)`); }
     if ((S.drag.move && S.drag.moved) || S.drag.vtx) { markDirty(); if (S.drag.move) render(); }
     S.drag = null; S.alignLines = null; document.body.classList.remove("dw-dragging"); drawGhost(); $("#stage").style.cursor = S.tool === "pan" ? "grab" : S.tool === "select" ? "default" : "crosshair";
   });
@@ -1469,7 +1589,7 @@ function arrangeSel(op) {
   const need = /^dist/.test(op) ? 3 : 2;
   if (bs.length < need) { status(need === 3 ? "균등 간격 — 기호를 셋 이상 고르세요 (Shift+누름 · 끌어 묶기)" : "정렬 — 기호를 둘 이상 고르세요"); return; }
   const L = layout(), items = bs.map(b => ({ b, bb: bboxOf(b) }));
-  pushUndo();
+  pushUndo(); const fw = followStart(bs.map(b => b.id));
   const setX = (it, left) => { it.b.x = +(it.b.x + left - it.bb[0]).toFixed(2); };
   const setY = (it, top) => { it.b.y = +(it.b.y + top - it.bb[1]).toFixed(2); };
   if (op === "left") { const v = Math.min(...items.map(i => i.bb[0])); items.forEach(i => setX(i, v)); }
@@ -1488,7 +1608,7 @@ function arrangeSel(op) {
     let pos = first.bb[a + 2];
     for (const it of items.slice(1)) { pos += gap; (a ? setY : setX)(it, pos); pos += sz(it); }
   }
-  markDirty(); render();
+  followApply(fw); markDirty(); render();
   status({ left: "왼쪽 맞춤", right: "오른쪽 맞춤", hcenter: "가로 가운데 맞춤", top: "위 맞춤", bottom: "아래 맞춤", vcenter: "세로 중간 맞춤", disth: "가로 균등 간격", distv: "세로 균등 간격" }[op] + ` — ${bs.length}개`);
 }
 /* ───────── L66 — 눈금자 가이드선 ─────────
@@ -1910,7 +2030,7 @@ async function openDoc(id, opts) {
   renderTypCard();
   if (S.gotoRow) { const n = S.gotoRow; S.gotoRow = null; flashRow(n); }
   if (simOn()) runSim(true);                                      // L57 — 묶음 안에서 장을 옮겨도 준 신호는 남아 그 장의 값이 선다
-  status(`${S.doc.name} · 블록 ${S.doc.blocks.length} · 선 ${S.doc.wires.length} · 저장 ${S.doc.saves || 0}번`);
+  status(`${S.doc.name} · 블록 ${S.doc.blocks.length} · 선 ${S.doc.wires.length} · 저장 ${S.doc.saves || 0}번${S._looseN ? ` · 매달린 선 끝 ${S._looseN} (붉은 고리)` : ""}`);
   location.hash = "d=" + id + (S.mparent ? `&mparent=${S.mparent.did}:${S.mparent.bid}` : "") + (S.speer ? "&speer=1" : "");
   if (isPeerChild() && !S.peerAsked) { S.peerAsked = true; peerUp({ type: "dsheet-ask" }); }   // L64 — 연 창에 지금 시뮬레이션 값을 묻는다
   if (S.mparent && !simOn()) { toggleSim(); askParent(); }        // L59 — 새 창은 바로 시뮬레이션으로 열고 부모에게 값을 묻는다
@@ -2278,8 +2398,8 @@ function renderSetCard() {
   if (!S.doc) { box.innerHTML = `<p class="dw-hint">그림을 열면 그 묶음의 장이 여기 보입니다.</p>`; $("#set-tools").hidden = true; return; }
   $("#set-tools").hidden = false;
   if (!info) { box.innerHTML = `<p class="dw-hint">이 그림은 묶음에 들어 있지 않습니다.  <button id="set-make" type="button">묶음으로 만들기</button></p>`;
-    $("#set-make").onclick = async () => { pushUndo(); const sid = crypto.randomUUID().replace(/-/g, "").slice(0, 12); S.doc.set = sid; S.doc.set_name = S.doc.name; await put(`/logic/api/drawings/${S.id}`, { author: author() || "?", doc: docOut(), set: sid, set_name: S.doc.name }); await loadList(S.id); S.doc = await api(`/logic/api/drawings/${S.id}`); await loadSet(); };
-    $$("#set-tools button").forEach(b => b.disabled = b.id !== "set-import"); return; }
+    $("#set-make").onclick = makeSet;
+    $$("#set-tools button").forEach(b => b.disabled = !(b.id === "set-import" || b.id === "set-add")); return; }   // L86 — '장 더하기' 는 묶음이 없어도 (먼저 묶음으로 만든다)
   $$("#set-tools button").forEach(b => b.disabled = false);
   const bad = {}; for (const f of (info.links && info.links.findings) || []) if (f.code === "FT_MISMATCH") bad[f.did] = (bad[f.did] || 0) + 1;
   // L84 — 장 목록(827장이면 2,500개 남짓)은 묶음 · 장 이름이 바뀔 때만 다시 짓고, 장을 넘기면 표시만 옮긴다
@@ -2500,15 +2620,24 @@ async function importBundle() {
     if (first) await openDoc(first.id);
   } catch (e) { toast(e.message); status(""); }
 }
+/* L86 — 혼자 있는 그림을 묶음으로: 그 그림 이름의 묶음이 되고 '장 더하기' · FROM/TO 잇기 · 묶음 시뮬레이션이 열린다 */
+async function makeSet() {
+  if (!S.doc || S.doc.set) return;
+  if (S.dirty) { await save(); if (S.dirty) return; }               // 저장하지 않은 변경을 묶음 만들기가 삼키지 않게 — 먼저 저장
+  const sid = crypto.randomUUID().replace(/-/g, "").slice(0, 12); S.doc.set = sid; S.doc.set_name = S.doc.name;
+  await put(`/logic/api/drawings/${S.id}`, { author: author() || "?", doc: docOut(), set: sid, set_name: S.doc.name });
+  await loadList(S.id); S.doc = await api(`/logic/api/drawings/${S.id}`); S.dirty = false; $("#save").disabled = true; await loadSet();
+}
 async function addSheet(preset) {
-  if (!S.doc || !S.doc.set) return;
+  if (!S.doc) return;
+  if (!S.doc.set) { try { await makeSet(); } catch (e) { toast(e.message); return; } if (!S.doc.set) return; }
   if (typeof preset !== "string") preset = "";
   const refs = preset ? ((S.setInfo.links || {}).missing || {})[preset] || [] : [];
   const v = await modal(preset ? `미작성 시트 ${preset} 만들기` : "묶음에 장 더하기", `${refs.length ? `<p class="dw-hint">이 시트를 가리키는 칸 ${refs.length}곳 — 만들면 그 칸들과 저절로 이어집니다.</p>` : ""}<div class="dw-form"><label>시트 이름 <input id="m-sheet" placeholder="예: G035" value="${esc(preset)}"></label><label>그림 이름 <input id="m-name"></label>
     <label>Typical 시트 <input type="checkbox" id="m-typ"></label><label>작성자 <input id="m-who" value="${esc(author())}"></label></div>`,
     () => { const w = $("#m-who").value.trim(); if (!w) { toast("작성자 이름이 필요합니다."); return false; } return { sheet: $("#m-sheet").value.trim(), name: $("#m-name").value.trim(), typical: $("#m-typ").checked, who: w }; });
   if (!v) return;
-  try { const d = await post(`/logic/api/drawings/sets/${S.doc.set}/sheet`, { sheet_no: v.sheet, name: v.name || v.sheet || "새 장", typical: v.typical, author: v.who, N: S.doc.N }); await loadList(d.id); await openDoc(d.id);
+  try { const d = await post(`/logic/api/drawings/sets/${S.doc.set}/sheet`, { sheet_no: v.sheet, name: v.name || v.sheet || "새 장", typical: v.typical, author: v.who, N: S.doc.N }); await loadList(d.id); S.setInfo = null; await openDoc(d.id);   // L86 — 묶음 정보를 새로 받아야 새 장이 묶음 카드에 보인다
     if (d.autolinked && d.autolinked.length) toast(`미작성이던 참조 ${d.autolinked.length}곳을 이었습니다 — ${d.autolinked.map(c => c.from + " → " + c.n + "행").slice(0, 4).join(", ")}`); }
   catch (e) { toast(e.message); }
 }
@@ -2897,7 +3026,7 @@ async function init() {
   $("#snap").onchange = e => { S.snap = e.target.checked; };
   loadGuide();
   $$(".dw-arrange button").forEach(b => b.onclick = () => arrangeSel(b.dataset.op));      // L60
-  for (const k of ["grid", "ruler", "align", "cross"]) $("#g-" + k).onchange = e => { S.guide[k] = e.target.checked; saveGuide(); render(); };
+  for (const k of ["grid", "ruler", "align", "cross", "loose"]) $("#g-" + k).onchange = e => { S.guide[k] = e.target.checked; saveGuide(); render(); };
   $("#home-btn").onclick = showHome; $("#h-project").onchange = homeProjectChanged; $("#h-newproj").onclick = homeNewProject;
   $$("#home .hm-actions [data-act]").forEach(b => { if (b.dataset.act === "signal") b.href = "/logic/signal" + location.search; else b.onclick = () => homeAction(b.dataset.act); });
   $("#sig-link").href = "/logic/signal" + location.search;
