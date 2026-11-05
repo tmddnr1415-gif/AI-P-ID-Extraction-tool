@@ -18,7 +18,8 @@ def test_cards_read_only_the_home_response():
     home = _block("async function listHome(", "const listJobs = listHome;")
     rev = _block("function revRow(", "function delButton(")
     # 한 번 받고(`/home`) 그 응답만 그린다 — 카드·타임라인이 따로 요청하지 않는다
-    assert home.count("fetch(") == 1 and 'fetch("/home")' in home
+    # hotfix132 — 공용 fetchJson 으로 받는다 (500 · 연결 끊김이 목록 자리에 안내로 나온다)
+    assert home.count("fetch(") == 0 and home.count("fetchJson(") == 1 and 'fetchJson("/home")' in home
     assert "fetch(" not in rev
     assert "pj-card" in home and "pj-stat" in home and "modeChip(projectMode(p))" in home
     assert "qtyDelta(r, revs[i + 1])" in home          # hotfix62 — 행 수가 아니라 계기 Q'ty

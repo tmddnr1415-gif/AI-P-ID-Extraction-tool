@@ -2186,7 +2186,7 @@ body.nav-collapsed .sb-projects .nav-item .mode-chip, body.nav-collapsed .sb-pro
   #right > #gridwrap { flex: 0 0 auto; height: max(160px, 45vh); }
   #right.compare { overflow-y: hidden; }            /* 나란히 보기는 이전 도면이 칸을 채운다 — 굴리지 않는다 */
   #right > #cmp { flex-shrink: 1; }
-  .build { max-width: 34vw; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; opacity: .55; }
+  .build { max-width: 34vw; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; opacity: .9; }
   .build:hover { max-width: 70vw; white-space: normal; opacity: 1; }
 }
 
@@ -2216,7 +2216,7 @@ body.nav-collapsed .sb-projects .nav-item .mode-chip, body.nav-collapsed .sb-pro
    ① 업데이트 딱지가 메모 줄 오른쪽을 덮었다 — 폭이 1700px 아래면 한 줄로 줄이고 흐리게 (마우스를 올리면 전부)
    ② 목록 도구줄이 세 줄로 접혔다 — 고르기 상자는 늘어나지 않게, 단추 사이를 좁게 */
 @media (max-width: 1700px) {
-  .build { max-width: 34vw; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; opacity: .55; }
+  .build { max-width: 34vw; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; opacity: .9; }
   .build:hover { max-width: 70vw; white-space: normal; opacity: 1; }
 }
 .toolbar select { flex: 0 1 auto; max-width: 170px; min-width: 0; }
@@ -2313,3 +2313,25 @@ img.tb-ex-big { max-width: min(90vw, 1000px); width: 100%; height: auto; display
 .nav-item.nav-sub { padding-left: 26px; font-size: 12.5px; }
 .nav-item.nav-sub .nav-ico { color: #8c9ac4; }
 body.nav-collapsed .nav-item.nav-sub { padding-left: 4px; }
+
+/* hotfix132 — 묻는 창(확인 · 입력 · 삭제) · 목록 자리 실패 안내 · 키보드 파일 선택 */
+button.link { border: 0; background: none; padding: 0; font: inherit; color: var(--accent);
+              text-decoration: underline; cursor: pointer; }
+button.link:disabled { color: var(--muted); cursor: default; text-decoration: none; }
+.drop-zone:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.ask-body { line-height: 1.55; margin: 0 0 10px; }
+.ask-err { color: #b42318; min-height: 1.2em; margin: 6px 0 0; }
+.del-lead { margin: 0 0 8px; }
+table.del-bits { border-collapse: collapse; width: 100%; margin: 0 0 10px; font-size: var(--t-s); }
+table.del-bits td { border-top: 1px solid var(--line); padding: 4px 6px; white-space: pre-wrap; }
+.del-ask { margin: 8px 0; line-height: 1.8; }
+.del-code { font-size: 15px; font-weight: 600; padding: 2px 8px; border: 1px solid var(--line);
+            border-radius: var(--r-s); background: var(--paper-card); user-select: all; }
+.inline-edit { display: flex; gap: 6px; align-items: center; margin: 6px 0 2px; flex-wrap: wrap; }
+.inline-edit input { min-width: 16em; }
+.load-fail, .home-empty { margin: 6px 0; }
+/* hotfix132 — 사이드바 머리: 회사 이름(작게) 위 · 제품 이름 아래 · 빈 토막은 숨김 */
+.sb-brand span { margin: 0 0 3px; }
+.sb-brand [hidden], .sb-brand[hidden] { display: none; }
+/* 공통 셸 띠가 같은 이름을 위에 적으면 사이드바 머리는 겹치므로 숨긴다 */
+body.pid-shell-on .sb-brand { display: none; }

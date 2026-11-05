@@ -1035,8 +1035,12 @@ def test_step15_the_screen_names_the_build(page, server, job_id):
     page.wait_for_timeout(800)
     text = page.locator("#build-text").inner_text()
     info = json.loads(urllib.request.urlopen(server + "/version").read())
-    assert f"v{info['version']}" in text
-    assert info["built_at"] in text
+    # hotfix132 — 사용자 꼬리줄은 '버전 1.0.0 · 업데이트 YYYY-MM-DD' 두 토막뿐 (꾸러미 이름 · zip · 커밋은 적지 않는다)
+    ver = (info.get("product") or {}).get("version") or info["version"]
+    assert f"버전 {ver}" in text
+    day = ((info.get("update") or {}).get("created_at") or info.get("built_at") or "")[:10]
+    assert not day or f"업데이트 {day}" in text
+    assert not re.search(r"hotfix|\.zip|rev |source", text)
 
 
 def test_step16_ctrl_wheel_and_keys_zoom_the_viewer_only(page, server, job_id):

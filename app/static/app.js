@@ -15,12 +15,128 @@ const $req = (sel) => {
   if (!n) throw new Error(`app.js: ${sel} is not in index.html`);
   return n;
 };
+
+/* hotfix132 — 화면 안 어디서든 잡히지 않은 오류는 한 줄로 말한다 (조용히 묻히지 않게).
+ * 연결 끊김은 offline.js · hookFetch 의 띠가 이미 말하므로 건너뛰고, 8초에 한 번만 띄운다. */
+(function globalErrors() {
+  let last = 0;
+  const fail = (err) => {
+    try {
+      if (err && (err.name === "AbortError" || err.net)) return;
+      if (NET.down || (window.OFFLINE && OFFLINE.down)) return;
+    } catch (e) { /* NET 이 아직 정의되기 전 */ }
+    console.error(err);
+    const now = Date.now();
+    if (now - last < 8000) return;
+    last = now;
+    try { notify("화면에 문제가 생겼습니다 — 새로고침하거나, 계속되면 문의해 주세요", "out"); } catch (e) { /* */ }
+  };
+  window.addEventListener("unhandledrejection", ev => fail(ev.reason));
+  window.addEventListener("error", ev => fail(ev.error || ev.message));
+})();
+
+/* hotfix132 — JSON 을 받는 요청 하나.  실패는 전부 Error 로 — 비-2xx 는 서버의 detail(절전모드 · 409 사유 그대로)
+ * 아니면 '서버 오류 (status)', JSON 이 아니면 '서버가 올바른 응답을 주지 않았습니다', 연결 실패는 '서버에 연결할 수 없습니다'
+ * (띠는 hookFetch · offline.js 가 띄우므로 여기서는 만들지 않는다 · err.net = true). */
+async function fetchJson(url, opts) {
+  let r;
+  try { r = await fetch(url, opts); }
+  catch (e) {
+    if (e && e.name === "AbortError") throw e;
+    const err = new Error("서버에 연결할 수 없습니다"); err.net = true; err.cause = e; throw err;
+  }
+  let body, text = "";
+  try { text = await r.text(); body = text.trim() ? JSON.parse(text) : null; }
+  catch (e) { body = undefined; }
+  if (!r.ok) {
+    const detail = body && typeof body.detail === "string" ? body.detail : "";
+    const err = new Error(detail || `서버 오류 (${r.status})`); err.status = r.status; err.body = body; throw err;
+  }
+  if (body === undefined) { const err = new Error("서버가 올바른 응답을 주지 않았습니다"); err.status = r.status; throw err; }
+  return body;
+}
+/* 목록 자리에 적는 실패 한 줄 — 절전모드(띠)면 띠의 단추를 가리키고, 아니면 [다시 시도]. */
+function loadFailHtml(what, e, retryId) {
+  const off = window.OFFLINE && OFFLINE.down;
+  const why = (e && e.message) || "알 수 없는 오류";
+  return `<p class="muted small load-fail">${escape(what)}을 불러오지 못했습니다 — ${escape(why)}. `
+    + (off ? "위 띠의 [서버 다시 확인] 을 눌러 주세요." : `<button type="button" class="link" id="${retryId}">다시 시도</button>`)
+    + `</p>`;
+}
+
+/* hotfix132 — 브라우저 alert/confirm/prompt 대신 쓰는 셋.  공통 셸(window.PID_SHELL)이 있으면 그쪽에 맡기고,
+ * 없으면 하단 안내 줄(editNotice) · #modal 로 만든다.  셸은 app.js 뒤에 실릴 수 있어 부를 때마다 읽는다. */
+function notify(text, tone, ms) {
+  tone = tone || "in";
+  const SH = window.PID_SHELL;
+  if (SH && typeof SH.toast === "function") {
+    try { SH.toast(text, { kind: tone === "out" ? "err" : "ok", ms: ms || (tone === "out" ? 8000 : undefined) }); return; }
+    catch (e) { /* 셸이 못 하면 아래로 */ }
+  }
+  return editNotice(text, tone, ms || (tone === "out" ? 8000 : 0));
+}
+const nl2br = (t) => escape(String(t ?? "")).replace(/\n/g, "<br>");
+function askConfirm(o) {
+  if (typeof o === "string") o = { text: o };
+  const text = o.text || "";
+  const SH = window.PID_SHELL;
+  if (SH && typeof SH.confirm === "function" && !o.html) {
+    try { return Promise.resolve(SH.confirm(text, { title: o.title, ok: o.okText || "확인", cancel: o.cancelText, danger: !!o.danger })).then(v => !!v); }
+    catch (e) { /* 셸이 못 하면 아래로 */ }
+  }
+  return new Promise(resolve => {
+    openModal(o.title || "확인",
+      `<div class="ask-body">${o.html || nl2br(text)}</div>
+       <div class="modal-actions">
+         <button type="button" id="ask-no" class="ghost">${escape(o.cancelText || "취소")}</button>
+         <button type="button" id="ask-ok"${o.danger ? ' class="danger"' : ""}>${escape(o.okText || "확인")}</button>
+       </div>`);
+    S.modalPending = () => resolve(false);
+    $("#ask-no").onclick = () => closeModal();
+    $("#ask-ok").onclick = () => { S.modalPending = null; closeModal(); resolve(true); };
+    $("#ask-ok").focus();
+  });
+}
+function askText(o) {
+  o = o || {};
+  const SH = window.PID_SHELL;
+  if (SH && typeof SH.prompt === "function" && !o.html && !o.danger) {
+    try {
+      return Promise.resolve(SH.prompt(o.label || "", { title: o.title, placeholder: o.placeholder, value: o.value ?? "",
+        ok: o.okText, mustEqual: o.mustEqual, maxLength: 200 })).then(v => (v == null ? null : String(v)));
+    } catch (e) { /* 셸이 못 하면 아래로 */ }
+  }
+  return new Promise(resolve => {
+    openModal(o.title || "입력",
+      `${o.html ? `<div class="ask-body">${o.html}</div>` : ""}
+       <div class="mk-form"><label>${escape(o.label || "")}
+         <input id="ask-text" type="text" value="${escape(o.value ?? "")}" placeholder="${escape(o.placeholder || "")}" autocomplete="off"></label></div>
+       ${o.mustEqual ? `<p id="ask-err" class="ask-err small"></p>` : ""}
+       <div class="modal-actions">
+         <button type="button" id="ask-no" class="ghost">취소</button>
+         <button type="button" id="ask-ok"${o.danger ? ' class="danger"' : ""}>${escape(o.okText || "확인")}</button>
+       </div>`);
+    S.modalPending = () => resolve(null);
+    const box = $("#ask-text");
+    const ok = () => {
+      const v = box.value;
+      if (o.mustEqual !== undefined && v.trim() !== o.mustEqual) {
+        $("#ask-err").textContent = "옮겨 적은 값이 다릅니다 — 그대로 적어 주세요."; box.focus(); return;
+      }
+      S.modalPending = null; closeModal(); resolve(v);
+    };
+    $("#ask-no").onclick = () => closeModal();
+    $("#ask-ok").onclick = ok;
+    box.addEventListener("keydown", ev => { if (ev.key === "Enter" && !ev.isComposing) { ev.preventDefault(); ok(); } });
+    box.focus(); box.select();
+  });
+}
 const TABS = [
   ["ALL", "전체"], ["FIELD", "Field"], ["BFV", "BFV"], ["MOV", "MOV"],
   ["PNEUMATIC", "Pneumatic"], ["REVIEW", "검토필요"],
   // hotfix82 — 식별 VOC: 같은 목록 환경에서 행마다 식별 O/X · 수량 O/X · 비고를 적고, 누락은 ＋행 마크업으로 더한다.
   // 저장은 누르는 순간(서버 `row_verdict` + VOC 함) · Excel 은 도구줄 [VOC Excel].  배지는 식별 평가를 적은 행 수.
-  ["VOC", "식별 VOC"],
+  ["VOC", "식별 평가"],
 ];
 const COLS = [
   ["page_no", "Page", false], ["pid_no", "P&ID No.", false],
@@ -184,7 +300,15 @@ dropZone.addEventListener("drop", ev => {
 });
 $("#file").addEventListener("change", ev => {
   const fs = [...ev.target.files];
+  ev.target.value = "";                         // hotfix132 — 같은 파일을 다시 골라도 change 가 난다
   if (fs.length) upload(fs);
+});
+// hotfix132 — 키보드로도 파일을 고른다: [파일 선택] 단추 · 놓는 칸에서 Enter/Space (프로젝트를 고르기 전에는 잠김)
+$req("#file-btn").addEventListener("click", () => { if (S.setupDone) $("#file").click(); });
+dropZone.addEventListener("keydown", ev => {
+  if (ev.target !== dropZone || (ev.key !== "Enter" && ev.key !== " ")) return;
+  ev.preventDefault();
+  if (S.setupDone) $("#file").click();
 });
 
 /* 55회차 — 입력 종류.  서버는 파일이 말하는 종류로 가르므로 여기서는 받는 파일
@@ -207,6 +331,7 @@ function setSetupDone(done, why) {
   S.setupDone = !!done;
   dropZone.classList.toggle("disabled", !S.setupDone);
   $("#file").disabled = !S.setupDone;
+  $("#file-btn").disabled = !S.setupDone;
   const lock = $("#drop-lock");
   lock.textContent = why || "";
   lock.classList.toggle("hidden", S.setupDone);
@@ -230,13 +355,13 @@ async function upload(files) {
   try {
     r = await fetch("/jobs", { method: "POST", body: fd });
   } catch (e) {
-    alert("서버에 올리지 못했습니다 — 서버가 꺼져 있거나 연결이 끊겼습니다. 잠시 뒤 다시 시도해 주세요.");
+    notify("서버에 올리지 못했습니다 — 서버가 꺼져 있거나 연결이 끊겼습니다. 잠시 뒤 다시 시도해 주세요.", "out");
     return;
   }
   if (!r.ok) {
     let why = "";
     try { why = (await r.json()).detail || ""; } catch (e) { why = ""; }
-    alert(why || `업로드 실패 (서버 응답 ${r.status})`);
+    notify(why || `업로드 실패 (서버 응답 ${r.status})`, "out");
     return;
   }
   const job = await r.json();
@@ -244,10 +369,10 @@ async function upload(files) {
   if (job.duplicate_of) {
     const d = job.duplicate_of;
     const where = d.project ? `${d.project} ${d.revision || ""}`.trim() : "프로젝트 없이 올린 분석";
-    alert(`이 파일은 이미 분석한 적이 있습니다 — ${where} (${d.pdf_name}) 와 바이트까지 같습니다.\n`
+    notify(`이 파일은 이미 분석한 적이 있습니다 — ${where} (${d.pdf_name}) 와 바이트까지 같습니다.\n`
       + (job.project && d.project === job.project
          ? `개정본을 올리려던 것이라면 파일을 확인해 주세요.  분석은 그대로 ${job.revision} 로 진행합니다.`
-         : "분석은 그대로 진행합니다."));
+         : "분석은 그대로 진행합니다."), "out");
   }
   watch(job.job_id, job.page_count, job);
 }
@@ -259,7 +384,14 @@ async function upload(files) {
  * 그 이전 아무 리비전이나 고를 수 있다.  직전이 없으면 비교 없이 진행하고
  * 그 사실을 화면에 적는다. */
 async function loadProjects(select) {
-  const list = await (await fetch("/projects")).json();
+  let list;
+  try { list = await fetchJson("/projects"); }
+  catch (e) {
+    // hotfix132 — 목록을 못 받으면 그 자리에 사유와 [다시 시도] (조용히 비워 두지 않는다)
+    $("#proj-msg").innerHTML = loadFailHtml("프로젝트 목록", e, "proj-retry");
+    const b = $("#proj-retry"); if (b) b.onclick = () => { $("#proj-msg").textContent = ""; loadProjects(select); };
+    return;
+  }
   S.projects = list;
   const pick = $("#proj-pick");
   // 첫 항목은 고르지 않은 상태다.  "프로젝트 없이 한 번만"은 그 자체로 하나의
@@ -472,11 +604,14 @@ $req("#proj-save").addEventListener("click", async () => {
   if (!name) { $("#proj-msg").textContent = "이름을 입력하세요."; return; }
   const fd = new FormData();
   fd.append("name", name);
-  const r = await fetch("/projects", { method: "POST", body: fd });
-  const out = await r.json();
-  if (!r.ok) {
+  let out;
+  try { out = await fetchJson("/projects", { method: "POST", body: fd }); }
+  catch (e) {
     // 같은 이름이 있으면 덮어쓰지 않는다 - 서버가 거절하고 그 사유를 적는다.
-    $("#proj-msg").textContent = out.detail || "프로젝트를 만들지 못했습니다.";
+    // hotfix132 — 연결이 끊겼을 때도 말한다 (이름 칸은 그대로 둔다 — 서버가 켜지면 다시 [만들기]).
+    $("#proj-msg").textContent = e.net
+      ? "서버에 연결할 수 없어 프로젝트를 만들지 못했습니다 — 서버가 켜지면 다시 [만들기] 를 누르세요."
+      : (e.message || "프로젝트를 만들지 못했습니다.");
     return;
   }
   // hotfix50 — 대시보드의 입찰 / 실행 메뉴에서 만든 프로젝트는 그 종류로 시작한다.  선언은 장부에
@@ -567,10 +702,13 @@ async function showAudit() {
     DASH.audit = { bad: bad.length, lines: a.lines || [] };
     renderDashboard();
     box.innerHTML = bad.length
-      ? `<details class="audit" open><summary>데이터 위생 — 확인할 항목 `
+      ? `<details class="audit" open><summary>보관 자료 점검 — 확인할 항목 `
         + `${bad.length}건</summary>${full}${detail}</details>`
-      : `<details class="audit"><summary>데이터 위생 — 이상 없음`
+      : `<details class="audit"><summary>보관 자료 점검 — 이상 없음`
         + `</summary>${full}${detail}</details>`;
+    // hotfix132 — 이상이 없으면 카드를 내지 않는다 (첫 화면은 할 일만 보인다) · id 와 내용은 그대로 둔다
+    const card = box.closest(".note-card");
+    if (card) card.classList.toggle("hidden", !bad.length);
   } catch (e) { /* 감사는 부가 정보다 - 실패해도 화면을 막지 않는다 */ }
 }
 loadProjects();
@@ -723,11 +861,66 @@ function delButton(jobId) {
 /* 46회차 [C] — 프로젝트 통째 삭제.  분석 하나 삭제와 **같은 규율**이다:
  * 먼저 무엇이 사라지는지 보이고 · 이름을 옮겨 적게 하고 · 누가 지웠는지 남긴다.
  * 다른 점 하나는 **안정 ID 장부는 남는다**는 사실을 먼저 말하는 것이다 (§7.3). */
+/* hotfix132 — 삭제는 창 하나: 사라지는 것 표 · 받아쓸 값(복사 단추) · 확인 입력 · 이름 · [삭제].
+ * 서버 계약(confirm == 분석 id / 프로젝트 이름)은 그대로다 — 보내기 전에 여기서 먼저 맞춰 보고, 서버가
+ * 거절하면(400 · 409 · 절전모드 503) 그 사유를 창 안에 적는다.  연결이 끊기면 "지워지지 않았습니다" 라고 말한다. */
+function deleteDialog(o) {
+  return new Promise(resolve => {
+    openModal(o.title,
+      `<p class="del-lead">지우면 아래가 사라집니다. <b>되돌릴 수 없습니다.</b></p>
+       <table class="del-bits">${o.bits.map(b => `<tr><td>${escape(b)}</td></tr>`).join("")}</table>
+       <p class="del-ask">실수로 지워지지 않게, ${escape(o.what)}를 그대로 옮겨 적으세요:
+         <code class="del-code" id="del-expected">${escape(o.expected)}</code>
+         <button type="button" id="del-copy" class="ghost mini">복사</button></p>
+       <div class="mk-form">
+         <label>${escape(o.what)} <input id="del-typed" type="text" autocomplete="off" placeholder="${escape(o.expected)}"></label>
+         <label>누가 지웁니까? <input id="del-author" type="text" value="${escape(o.author || "")}" placeholder="이름 (비워도 됩니다)" autocomplete="off"></label>
+       </div>
+       <p id="del-err" class="ask-err small"></p>
+       <div class="modal-actions">
+         <button type="button" id="del-cancel" class="ghost">취소</button>
+         <button type="button" id="del-go" class="danger">삭제</button>
+       </div>`);
+    S.modalPending = () => resolve(false);
+    const err = $("#del-err"), go = $("#del-go"), typedBox = $("#del-typed");
+    $("#del-cancel").onclick = () => closeModal();
+    $("#del-copy").onclick = async () => {
+      try { await navigator.clipboard.writeText(o.expected); $("#del-copy").textContent = "복사됨"; }
+      catch (e) {           // 복사가 막힌 브라우저면 글자를 골라 둔다 (Ctrl+C)
+        const r = document.createRange(); r.selectNodeContents($("#del-expected"));
+        const s = getSelection(); s.removeAllRanges(); s.addRange(r);
+      }
+      typedBox.focus();
+    };
+    go.onclick = async () => {
+      const typed = typedBox.value.trim();
+      if (typed !== o.expected) { err.textContent = `옮겨 적은 값이 다릅니다 — ${o.what}를 그대로 적어 주세요.`; typedBox.focus(); return; }
+      go.disabled = true; err.textContent = "";
+      const fail = await o.run(typed, $("#del-author").value.trim());
+      if (fail) { err.textContent = fail; go.disabled = false; return; }
+      S.modalPending = null; closeModal(); resolve(true);
+    };
+    typedBox.addEventListener("keydown", ev => { if (ev.key === "Enter" && !ev.isComposing) { ev.preventDefault(); go.click(); } });
+    typedBox.focus();
+  });
+}
+/* DELETE 한 번 — 실패 사유 문장을 돌려주고(창 안에 적는다), 성공이면 null. */
+async function deleteRequest(url, typed, author) {
+  const body = new FormData();
+  body.append("confirm", typed);
+  body.append("author", author);
+  try { return { out: await fetchJson(url, { method: "DELETE", body }) }; }
+  catch (e) {
+    return { fail: e.net ? "지우지 못했습니다 — 서버에 연결할 수 없습니다 (지워지지 않았습니다)"
+      : (e.status ? (e.body && typeof e.body.detail === "string" ? e.body.detail : `지우지 못했습니다 (서버 응답 ${e.status})`) : e.message) };
+  }
+}
+
 async function askDeleteProject(name) {
   let pv;
   try {
-    pv = await (await fetch(`/projects/${encodeURIComponent(name)}/deletion_preview`)).json();
-  } catch (e) { alert("무엇이 사라지는지 확인하지 못했습니다."); return; }
+    pv = await fetchJson(`/projects/${encodeURIComponent(name)}/deletion_preview`);
+  } catch (e) { notify(`무엇이 사라지는지 확인하지 못했습니다 — ${e.message}`, "out"); return; }
   const mine = (currentAuthor() || "").trim();   // hotfix74 — 저장소가 막힌 iframe 에서도 (읽기 예외 없음)
   const others = (pv.authors || []).filter(a => a && a !== mine);
   const bits = [
@@ -743,23 +936,16 @@ async function askDeleteProject(name) {
   if (others.length) {
     bits.unshift(`⚠ 다른 사람이 만든 기록이 있습니다 — ${others.join(", ")}`);
   }
-  if (!confirm("지우면 아래가 사라집니다. 되돌릴 수 없습니다.\n\n"
-      + bits.join("\n") + "\n\n계속할까요?")) return;
-  const typed = prompt("실수로 지워지지 않게, 프로젝트 이름을 그대로 옮겨 적으세요:\n"
-    + pv.project);
-  if (typed === null) return;
-  const author = prompt("누가 지웁니까? (비워도 됩니다 — 화면이 '자칭' 이라고 적습니다)",
-    mine) ?? "";
-  if (author) { try { localStorage.setItem("pid.author", author); } catch (e) {} }
-  const body = new FormData();
-  body.append("confirm", typed);
-  body.append("author", author);
-  const res = await fetch(`/projects/${encodeURIComponent(name)}`, { method: "DELETE", body });
-  if (!res.ok) {
-    const d = await res.json().catch(() => ({}));
-    alert(d.detail || "지우지 못했습니다.");
-    return;
-  }
+  const ok = await deleteDialog({
+    title: `프로젝트 삭제 — ${pv.project}`, bits, what: "프로젝트 이름", expected: String(pv.project), author: mine,
+    run: async (typed, author) => {
+      if (author) { try { localStorage.setItem("pid.author", author); } catch (e) {} }
+      const r = await deleteRequest(`/projects/${encodeURIComponent(name)}`, typed, author);
+      return r.fail || null;
+    },
+  });
+  if (!ok) return;
+  notify(`프로젝트 '${pv.project}' 를 삭제했습니다`, "in");
   // 새로고침 없이 사라진다 — 목록과 고르는 상자와 위생 경고를 함께 다시 읽는다.
   await afterDelete();
 }
@@ -767,8 +953,8 @@ async function askDeleteProject(name) {
 async function askDelete(jobId) {
   let pv;
   try {
-    pv = await (await fetch(`/jobs/${jobId}/deletion_preview`)).json();
-  } catch (e) { alert("무엇이 사라지는지 확인하지 못했습니다."); return; }
+    pv = await fetchJson(`/jobs/${jobId}/deletion_preview`);
+  } catch (e) { notify(`무엇이 사라지는지 확인하지 못했습니다 — ${e.message}`, "out"); return; }
   const bits = [
     `분석  ${pv.pdf_name}${pv.project ? `  ·  ${pv.project} ${pv.revision}` : ""}`,
     `추출한 행        ${pv.rows}행`,
@@ -781,26 +967,19 @@ async function askDelete(jobId) {
         ? "남깁니다 (다른 분석도 같은 파일을 씁니다)" : "함께 지웁니다"}`,
     `안정 ID 장부      ${pv.id_registry}`,
   ];
-  if (!confirm("지우면 아래가 사라집니다. 되돌릴 수 없습니다.\n\n"
-      + bits.join("\n") + "\n\n계속할까요?")) return;
-  const typed = prompt("실수로 지워지지 않게, 이 분석의 id 를 그대로 옮겨 적으세요:\n"
-    + jobId);
-  if (typed === null) return;
-  const author = prompt("누가 지웁니까? (비워도 됩니다 — 화면이 '자칭' 이라고 적습니다)",
-    currentAuthor() || "") ?? "";
-  if (author) rememberAuthor(author);
-  const body = new FormData();
-  body.append("confirm", typed);
-  body.append("author", author);
-  const res = await fetch(`/jobs/${jobId}`, { method: "DELETE", body });
-  if (!res.ok) {
-    const d = await res.json().catch(() => ({}));
-    alert("지우지 못했습니다: " + (d.detail || res.status));
-    return;
-  }
-  const out = await res.json();
-  alert(`지웠습니다 — ${out.rows}행 · 편집 ${out.edited_cells}칸`
-    + (out.pdf_removed ? " · 업로드 PDF 도 지웠습니다" : ""));
+  let out = null;
+  const ok = await deleteDialog({
+    title: `분석 삭제 — ${pv.pdf_name || jobId}`, bits, what: "분석 번호", expected: String(jobId), author: currentAuthor() || "",
+    run: async (typed, author) => {
+      if (author) rememberAuthor(author);
+      const r = await deleteRequest(`/jobs/${jobId}`, typed, author);
+      out = r.out || null;
+      return r.fail || null;
+    },
+  });
+  if (!ok || !out) return;
+  notify(`삭제했습니다 — ${out.rows}행 · 편집 ${out.edited_cells}칸`
+    + (out.pdf_removed ? " · 업로드 PDF 도 지웠습니다" : ""), "in");
   await afterDelete();
 }
 
@@ -846,7 +1025,14 @@ $req("#joblist").addEventListener("click", ev => {
 });
 
 async function listHome() {
-  const home = await (await fetch("/home")).json();
+  let home;
+  try { home = await fetchJson("/home"); }
+  catch (e) {
+    // hotfix132 — 서버가 500 · 빈 응답을 주면 목록 자리에 사유와 [다시 시도]
+    $("#joblist").innerHTML = loadFailHtml("저장된 프로젝트 목록", e, "joblist-retry");
+    const b = $("#joblist-retry"); if (b) b.onclick = () => listHome();
+    return;
+  }
   const box = $("#joblist");
   const parts = [];
   if (home.projects.length) {
@@ -906,7 +1092,7 @@ async function listHome() {
             + (j.top_rev ? ` ${drawnRev(j.top_rev, j.top_date, j.top_basis)}` : "")
             + (j.pdf_title ? `<span class="rv-file-sm">${escape(j.pdf_name || "")}</span>` : "")
             // hotfix74 — 프로젝트 장부를 읽지 못해 여기로 떨어진 분석 (데이터 위생이 사유를 말한다)
-            + (j.ledger_missing ? `<span class="rv-file-sm" style="color:#b42318">프로젝트 '${escape(j.ledger_missing)}' 장부를 읽지 못해 여기 보입니다 — 아래 데이터 위생 참고</span>` : "")
+            + (j.ledger_missing ? `<span class="rv-file-sm" style="color:#b42318">프로젝트 '${escape(j.ledger_missing)}' 장부를 읽지 못해 여기 보입니다 — 아래 보관 자료 점검 참고</span>` : "")
             + `</span>`
             + `<span class="rv-meta"><span class="rv-st ${RV_STATUS[st] || "off"}">${escape(JOB_STATUS_KO[st] || st)}</span>`
             + (qtyOf(j) != null ? `<span class="rv-chip qty">계기 <b>${fmtCount(qtyOf(j))}</b></span>` : "")
@@ -917,6 +1103,8 @@ async function listHome() {
             + delButton(j.id) + `</div>`;
         }).join("") + `</div>`);
   }
+  // hotfix132 — 빈 첫 화면은 빈 상자가 아니라 다음에 할 일을 말한다
+  if (!parts.length) parts.push('<p class="muted small home-empty">아직 프로젝트가 없습니다 — 위 ① 에서 [새 프로젝트] 를 만들고 PDF 를 넣으세요.</p>');
   box.innerHTML = parts.join("");
   // hotfix49 — 대시보드 · 왼쪽 메뉴가 같은 응답을 읽는다 (한 번 받고 둘이 쓴다)
   DASH.home = home;
@@ -1213,8 +1401,40 @@ function watch(jobId, pageCount, what) {
   if (S.watchSrc) { try { S.watchSrc.close(); } catch (e) {} }
   const src = new EventSource(`/jobs/${jobId}/events`);
   S.watchSrc = src;
+  // hotfix132 — 끊긴 동안 '분석 중' 만 돌지 않게.  재접속은 EventSource 가 스스로 하므로 한 줄만 적고,
+  // 30초 동안 아무 소식이 없거나 스트림이 닫히면 `/jobs/{id}` 로 확인한다 (기록이 없으면 404 → 실패 화면).
+  let stall = null;
+  const armStall = () => { clearTimeout(stall); stall = setTimeout(checkJob, 30000); };
+  const stopWatch = () => { clearTimeout(stall); try { src.close(); } catch (e) { /* */ } };
+  async function checkJob() {
+    if (S.watchSrc !== src) return;
+    try {
+      const job = await fetchJson(`/jobs/${jobId}`);
+      if (job.status === "failed") { stopWatch(); stopElapsed(); $("#prog-cancelwrap").classList.add("hidden"); showFailure(job.message, job, jobId); return; }
+      if (job.status === "done") { stopWatch(); stopElapsed(); open(jobId); return; }
+      armStall();
+    } catch (e) {
+      if (e.status === 404) {
+        stopWatch(); stopElapsed(); $("#prog-cancelwrap").classList.add("hidden");
+        showFailure("분석 기록이 서버에 없습니다 — 서버가 다시 시작된 것 같습니다", {}, jobId); return;
+      }
+      $("#prog-msg").innerHTML = '서버와 연결이 끊겼습니다 — <button type="button" class="link" id="prog-recheck">다시 확인</button> '
+        + '<button type="button" class="link" id="prog-gohome">첫 화면으로</button>';
+      $("#prog-recheck").onclick = () => { $("#prog-msg").textContent = "서버를 확인하는 중…"; checkJob(); };
+      $("#prog-gohome").onclick = () => { stopWatch(); toFirstScreen(); };
+      armStall();
+    }
+  }
+  src.onerror = () => {
+    if (S.watchSrc !== src) return;
+    if (src.readyState === EventSource.CLOSED) { checkJob(); return; }
+    $("#prog-msg").textContent = "서버와 연결이 끊겼습니다 — 다시 연결 중…";
+    armStall();
+  };
+  armStall();
   src.onmessage = (ev) => {
     const d = JSON.parse(ev.data);
+    if (d.status === "done" || d.status === "failed" || d.status === "cancelled") clearTimeout(stall); else armStall();
     // hotfix58 — 이 서버의 지난 분석으로 예상이 서면 막대는 그 예상(시간 비례)을 따른다 —
     // 첫 화면과 같은 퍼센트.  예상이 없을 때만 단계 비율을 그린다.
     if (!(DASH.live[jobId] && DASH.live[jobId].percent != null))
@@ -1511,7 +1731,7 @@ async function open(jobId) {
     const why = String((e && e.message) || e || "");
     const onResult = !$("#main").classList.contains("hidden") && S.job && S.job.id === jobId;
     if (!onResult) {
-      alert("결과를 열지 못했습니다 — 서버에 연결할 수 없거나 응답이 끊겼습니다.  잠시 뒤 다시 눌러 주세요.\n(" + why + ")");
+      notify("결과를 열지 못했습니다 — 서버에 연결할 수 없거나 응답이 끊겼습니다.  잠시 뒤 다시 눌러 주세요.\n(" + why + ")", "out");
       return;
     }
     const box = document.createElement("div");
@@ -1974,12 +2194,12 @@ function renderRevSwitch() {
 async function recompare(jobId, against) {
   if (!jobId || S.loading) return;
   const job = S.job && S.job.id === jobId ? S.job : await (await fetch(`/jobs/${jobId}`)).json();
-  if (!job.project) { alert("프로젝트에 묶인 분석이 아니라 대조할 수 없습니다."); return; }
-  if (!confirm(`${against || "직전 리비전"} 대비 대조를 다시 합니다 (재분석 없음 · 분석 결과와 편집은 그대로).  진행할까요?`)) return;
+  if (!job.project) { notify("프로젝트에 묶인 분석이 아니라 대조할 수 없습니다.", "out"); return; }
+  if (!await askConfirm({ title: "대조 다시", text: `${against || "직전 리비전"} 대비 대조를 다시 합니다 (재분석 없음 · 분석 결과와 편집은 그대로).  진행할까요?`, okText: "대조 다시" })) return;
   const body = new URLSearchParams({ project: job.project, compared_with: job.compared_with || "" });
-  const res = await fetch(`/jobs/${jobId}/revision`, { method: "POST", body });
-  if (!res.ok) { alert(`대조에 실패했습니다: ${(await res.json()).detail || res.status}`); return; }
-  const out = await res.json();
+  let out;
+  try { out = await fetchJson(`/jobs/${jobId}/revision`, { method: "POST", body }); }
+  catch (e) { notify(`대조에 실패했습니다 — ${e.message}`, "out"); return; }
   // 옛 화면 상태(메모리 캐시)는 옛 판정을 들고 있다 — 버리고 다시 연다
   S.viewCache = {};
   const want = S.page ? (S.page.drawing_no || "") : "";
@@ -3495,7 +3715,7 @@ async function showTemplates() {
       fd.append("kind", ev.target.dataset.kind);
       fd.append("file", f);
       const r = await fetch("/templates", { method: "POST", body: fd });
-      if (!r.ok) { alert((await r.json()).detail || "업로드 실패"); return; }
+      if (!r.ok) { notify((await r.json()).detail || "업로드 실패", "out"); return; }
       await showTemplates();
       // A new template changes what a snapshot can produce.
       $("#gate-check").checked = false;
@@ -4602,7 +4822,7 @@ function askAuthor(what, hint) {
     bar.innerHTML =
       (hint ? `<span class="ab-hint">${escape(hint)}</span>` : "")
       + `<span class="muted small">${escape(what)} — 누가 고쳤나요?</span>`
-      + `<input type="text" placeholder="이름 (자칭)" >`
+      + `<input type="text" placeholder="이름 (비워도 됩니다)" >`
       + `<button type="button" class="ok">확인</button>`
       + `<button type="button" class="ghost cancel">취소</button>`;
     document.body.appendChild(bar);
@@ -4668,7 +4888,7 @@ function editedTitle(row, field, val) {
  * 판정은 `scopeFacts` 하나에서 온다(근거 패널과 같은 함수).  행수는 서버의
  * `/scope_summary` 에서 오고, 그 응답은 산출 필터와 같은 판정을 쓴다 - 화면이
  * 말하는 수와 파일에 들어가는 수가 갈리면 안 된다. */
-function editNotice(text, tone) {
+function editNotice(text, tone, ms) {
   // 한 번에 한 줄만 둔다.  14회차 캡처가 잡은 것: 앞 편집의 "나갑니다" 가
   // 남아 있는 채로 다음 행의 "나가지 않습니다" 가 떠서, **서로 반대인 두
   // 문장이 동시에** 화면에 있었다.  둘 다 각자의 행에 대해서는 맞는 말이라
@@ -4678,8 +4898,9 @@ function editNotice(text, tone) {
   bar.className = "edit-note" + (tone ? ` ${tone}` : "");
   bar.textContent = text;
   document.body.appendChild(bar);
-  setTimeout(() => bar.classList.add("go"), 4200);
-  setTimeout(() => bar.remove(), 4900);
+  const stay = ms || 4900;                       // hotfix132 — 오류 안내는 더 오래 (notify 가 8초를 준다)
+  setTimeout(() => bar.classList.add("go"), stay - 700);
+  setTimeout(() => bar.remove(), stay);
   return bar;
 }
 
@@ -4753,8 +4974,8 @@ async function saveField(row, field, value) {
       body: JSON.stringify({ field, value, author }),
     });
   } catch (e) {
-    alert("저장하지 못했습니다 — 서버에 연결할 수 없습니다.  칸은 원래 값으로 돌아갑니다.\n"
-      + "서버(P&ID 분석 프로그램)가 켜져 있는지 확인한 뒤 다시 고쳐 주세요.");
+    notify("저장하지 못했습니다 — 서버에 연결할 수 없습니다.  칸은 원래 값으로 돌아갑니다.\n"
+      + "서버(P&ID 분석 프로그램)가 켜져 있는지 확인한 뒤 다시 고쳐 주세요.", "out");
     return false;
   }
   if (!r.ok) {
@@ -4765,7 +4986,7 @@ async function saveField(row, field, value) {
       msg = "저장하지 못했습니다 — 이 분석(또는 이 행)이 서버에 없습니다.  다른 창이나 다른 사람이 지웠을 수 있습니다.  "
         + "첫 화면에서 다시 열어 주세요.";
     }
-    alert(msg); return false;
+    notify(msg, "out"); return false;
   }
   const out = await r.json();
   undoRecord({ kind: "edit", field, label: `${colName(field)} ${current === "" ? "(빈칸)" : current} → ${value === "" ? "(도면 값)" : value}`,
@@ -4948,7 +5169,7 @@ async function setDescription(row, text, opts = {}) {
       // hotfix66 — 이 길은 작성자를 싣지 않고 있었다 (이력에 이름 없음).  묻지 않고 로그인 이름을 싣는다.
       body: JSON.stringify({ field, value, author: currentAuthor() }),
     });
-    if (!res.ok) { alert((await res.json()).detail || "저장 실패"); return false; }
+    if (!res.ok) { notify((await res.json()).detail || "저장 실패", "out"); return false; }
     const out = await res.json();
     r.user = out.user;
     stampEditor(r, field, currentAuthor());
@@ -4990,8 +5211,8 @@ async function setDescription(row, text, opts = {}) {
   const again = S.rows.find(r => r.key === row.key);
   if (again) showEvidence(again);
   if (opts.bulk) {
-    alert(`${targets.length}행에 적용했습니다 — ${row.drawing_no} / `
-      + `${row.values.type} / “${was}”`);
+    notify(`${targets.length}행에 적용했습니다 — ${row.drawing_no} / `
+      + `${row.values.type} / “${was}”`, "in");
   }
 }
 
@@ -5240,7 +5461,7 @@ function verdictEditor(row) {
   return `<div class="ractions"><div class="ract vxed"><span>O/X 평가</span>
     <button type="button" class="ract-b vx-b o${v === "O" ? " on" : ""}" data-vx="O" title="O — 식별되어야 함 (맞게 식별됨)">O</button>
     <button type="button" class="ract-b vx-b x${v === "X" ? " on" : ""}" data-vx="X" title="X — 식별되면 안 됨 (틀리게 식별됨 · 출력에서 빠짐 · 되돌릴 수 있음)">X</button>
-    <span class="muted small">${v ? "켜진 쪽을 다시 누르면 지웁니다" : "평가는 VOC 함에 쌓여 다음 학습 자료가 됩니다"}</span></div></div>`;
+    <span class="muted small">${v ? "켜진 쪽을 다시 누르면 지웁니다" : "평가는 기록에 남습니다"}</span></div></div>`;
 }
 function bindVerdictEditor(row) {
   document.querySelectorAll("#evidence .vxed button[data-vx]").forEach(b => {
@@ -5364,7 +5585,7 @@ function renderVerdictCount() {
   const xb = document.getElementById("vx-xlsx");
   if (xb) xb.classList.toggle("hidden", S.tab !== "VOC");                 // hotfix82 — 식별 VOC 탭에서만
   el.textContent = n ? `O ${c.O} · X ${c.X} · 미평가 ${c.open}${S.tab === "VOC" && (c.qO || c.qX) ? ` · 수량 O ${c.qO} X ${c.qX}` : ""}` : "";
-  el.title = "O/X 평가 — 식별되어야 하는 행(O) · 식별되면 안 되는 행(X) · 아직 안 적은 행.  평가는 VOC 함에 쌓여 다음 학습 자료가 됩니다";
+  el.title = "O/X 평가 — 식별되어야 하는 행(O) · 식별되면 안 되는 행(X) · 아직 안 적은 행.  평가는 기록에 남습니다";
 }
 async function setVerdict(keys, v, opts = {}) {
   // 돌고 있는 평가 요청 수 — 자기검증기가 "다 끝났다" 를 기다리는 자리 (요청 → 그 행 다시 받기 → 다음 칸까지)
@@ -5408,7 +5629,7 @@ async function _setVerdict(keys, v, opts = {}) {
   renderVerdictCount();
   updateBadge();
   const n = out.rows ? out.rows.length : keys.length;
-  const vocNote = out.voc && !out.voc.error ? " · VOC 함에 저장" : out.voc && out.voc.error ? ` · ⚠ VOC 함에 못 씀 (${out.voc.error})` : "";
+  const vocNote = out.voc && !out.voc.error ? " · 평가 기록에 저장" : out.voc && out.voc.error ? ` · ⚠ 평가 기록을 남기지 못했습니다 (${out.voc.error})` : "";
   if (field === "note") editNotice(`${n}행 비고 저장${vocNote}`);
   else if (field === "qty_verdict") editNotice(v ? `${n}행 수량 ${v} — ${v === "X" ? "수량이 틀림 (Q'ty 칸을 고치면 그 값이 나갑니다)" : "수량이 맞음"}${vocNote}` : `${n}행 수량 평가를 지웠습니다`);
   else editNotice(v ? `${n}행 ${v} — ${v === "X" ? "출력에서 뺐습니다 (되돌리기 Ctrl+Z)" : "식별되어야 함"}${vocNote}`
@@ -5451,10 +5672,10 @@ async function _applyVerdicts(items) {
 
 async function deleteRows(keys, opts = {}) {
   keys = keys.filter(k => S.rowByKey[k] && !S.rowByKey[k].removed);
-  if (!keys.length) { alert("지울 행이 없습니다 (이미 지운 행은 되돌리기로 살립니다)."); return; }
+  if (!keys.length) { notify("삭제할 행이 없습니다 (이미 지운 행은 되돌리기로 살립니다).", "out"); return; }
   // hotfix66 — '공급 대상 아님' 처럼 사유가 정해진 길은 묻지 않는다 (opts.reason).
   const reason = opts.reason !== undefined ? opts.reason
-    : window.prompt(`${keys.length}개 행을 오검출로 지웁니다 — 사유 (선택 · 비워도 됩니다)`, "");
+    : await askText({ title: "행 삭제", label: `${keys.length}개 행을 오검출로 지웁니다 — 사유`, placeholder: "비워도 됩니다", okText: "지우기", danger: true });
   if (reason === null) return;
   const author = await askAuthor(`${keys.length}개 행 삭제`);
   if (author === null) return;
@@ -5467,8 +5688,8 @@ async function deleteRows(keys, opts = {}) {
       body: JSON.stringify({ keys, reason: String(reason).trim(), reason_class: opts.klass || "FALSE_POSITIVE",
                              author, exclude: true }),
     });
-  } catch (e) { alert("삭제하지 못했습니다 — 서버에 연결할 수 없습니다."); return false; }
-  if (!r.ok) { alert("삭제 실패"); return false; }
+  } catch (e) { notify("삭제하지 못했습니다 — 서버에 연결할 수 없습니다.", "out"); return false; }
+  if (!r.ok) { notify("삭제 실패", "out"); return false; }
   const out = await r.json();
   if (out.feedback_count !== undefined) S.feedback = out.feedback_count;
   const done = Object.keys(out.rows || {}).length;
@@ -5823,12 +6044,12 @@ async function editRowsBulk(rows, field, valueOf, author, reasonOf) {
                                                                     reason: reasonOf ? reasonOf(r) : undefined })) }),
     });
   } catch (e) {
-    alert("저장하지 못했습니다 — 서버에 연결할 수 없습니다.  한 행도 바뀌지 않았습니다."); return null;
+    notify("저장하지 못했습니다 — 서버에 연결할 수 없습니다.  한 행도 바뀌지 않았습니다.", "out"); return null;
   }
   if (!res.ok) {
     let msg = "저장 실패 (서버 응답 " + res.status + ")";
     try { msg = (await res.json()).detail || msg; } catch (e) { /* 본문이 JSON 이 아니다 */ }
-    alert(msg); return null;
+    notify(msg, "out"); return null;
   }
   const got = await res.json();
   for (const r of rows) {
@@ -5845,7 +6066,7 @@ async function editRowsBulk(rows, field, valueOf, author, reasonOf) {
   const doneRows = rows.filter(r => r.key in got.users);
   if (doneRows.length) undoRecord({ kind: "edit", field, label: `${doneRows.length}행 ${colName(field)}`,
     items: doneRows.map(r => ({ key: r.key, before: befores.get(r.key), after: String(valueOf(r) ?? "").trim() })) });
-  if (out.missing.length) alert(`${out.missing.length}개 행은 서버에 없어 바꾸지 못했습니다 — 다른 창이나 다른 사람이 지웠을 수 있습니다.`);
+  if (out.missing.length) notify(`${out.missing.length}개 행은 서버에 없어 바꾸지 못했습니다 — 다른 창이나 다른 사람이 지웠을 수 있습니다.`, "out");
   return out;
 }
 
@@ -5922,7 +6143,7 @@ function showEvidence(row) {
     } else if (rv.state === "MODIFIED") {
       add("짝 근거", rv.basis === "TAG" ? "같은 태그 (거리와 무관)"
         : rv.basis === "TYPE" ? "같은 도면의 유일한 같은 TYPE 끼리 (태그가 바뀐 한 항목 · 위치는 보지 않음)"
-        : `같은 TYPE · 반경 안 최근접 (${rv.moved_pt ?? 0}pt 이동) — hotfix46 이전 대조 (위치로는 더 비교하지 않습니다 · '대조 다시')`);
+        : `같은 TYPE · 반경 안 최근접 (${rv.moved_pt ?? 0}pt 이동) — 이전 방식 대조 (위치 기준 · 지금은 위치로 비교하지 않습니다 · '대조 다시')`);
       add("바뀐 태그", (rv.changed || []).map(c =>
         `${c.field === "tag_no" ? "태그" : c.field}: ${c.was || "(없음)"} → ${c.now || "(없음)"}`).join(" · ") || "(기록 없음)");
     }
@@ -5991,7 +6212,7 @@ function showEvidence(row) {
   const mk = e.markup;
   if (row.added) {
     add("사용자 추가", mk
-      ? `${mk.author || "이름 없음"} (자칭) · ${mk.at ? new Date(mk.at * 1000).toLocaleString("ko-KR") : ""}`
+      ? `${mk.author || "이름 없음"} · ${mk.at ? new Date(mk.at * 1000).toLocaleString("ko-KR") : ""}`
         + ` · 사유 ${mk.class || ""}${mk.note ? ` · ${mk.note}` : ""}`
       : "＋행 으로 만든 행 (사각형 없음)");
     if (mk) {
@@ -6008,7 +6229,7 @@ function showEvidence(row) {
   }
   if (row.reject && Object.keys(row.reject).length) {
     add("오검출 표시", `${row.reject.class || ""}${row.reject.note ? ` · ${row.reject.note}` : ""} — `
-      + `${row.reject.author || "이름 없음"} (자칭)`
+      + `${row.reject.author || "이름 없음"}`
       + (row.reject.at ? ` · ${new Date(row.reject.at * 1000).toLocaleString("ko-KR")}` : "")
       + (row.removed ? " · Excel 제외" : " · Excel 유지"));
   }
@@ -6176,7 +6397,7 @@ function showEvidence(row) {
             .join(" · ")}${tr.dead_ends.length > 3 ? " …" : ""})`);
       }
     }
-    add("Description", "이번 회차에서는 문장을 만들지 않습니다 (추적 결과만 기록)");
+    add("Description", "설명 문장은 만들지 않습니다 (추적 결과만 기록)");
   }
 
   // --- what was not decided -------------------------------------------------
@@ -6275,7 +6496,7 @@ async function showHistory(row) {
   // 패널을 다시 그리는 사이에 응답이 오면 엉뚱한 행에 붙는다.
   if (S.sel !== row.key) return;
   box.innerHTML = `<p class="muted small hist-head">수정 이력 ${hist.length}건 `
-    + `— 이름은 <b>자칭</b>입니다 (이 앱에는 로그인이 없습니다)</p>`
+    + `— 이름은 본인이 적습니다 (이 프로그램에는 로그인이 없습니다)</p>`
     + `<div class="hist">` + hist.map(h =>
         `<div class="hist-row">`
         + `<span class="hist-who">${escape(h.author || "이름 없음")}</span>`
@@ -6394,7 +6615,7 @@ function descMarkupBlock(row) {
       ${side("to", "To")}
       <div class="dm-row dm-foot">
         <label for="dm-who">작성자</label>
-        <input id="dm-who" type="text" value="${escape(S.ftWho ?? lastAuthor())}" placeholder="이름 (자칭)" autocomplete="off">
+        <input id="dm-who" type="text" value="${escape(S.ftWho ?? lastAuthor())}" placeholder="이름 (비워도 됩니다)" autocomplete="off">
         <button id="dm-apply" class="ghost" title="입력한 From/To 로 Description 을 씁니다 (Enter)">적용</button>
         ${(st.from || st.to) ? `<button id="dm-clear" class="ghost" title="From/To 를 지우고 엔진 문장으로 되돌립니다">지우기</button>` : ""}
       </div>
@@ -6521,7 +6742,7 @@ async function _ftSave(row, author) {
                            via_from: st.from_via || "manual", via_to: st.to_via || "manual",
                            from_rect: st.from_rect || null, to_rect: st.to_rect || null }),
   });
-  if (!res.ok) { alert((await res.json()).detail || "저장 실패"); return null; }
+  if (!res.ok) { notify((await res.json()).detail || "저장 실패", "out"); return null; }
   const out = await res.json();
   row.user = row.user || {};
   if (out.cleared) {
@@ -6572,7 +6793,7 @@ async function descMarkupEnd(rect) {
     method: "POST", headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ page_no: S.page.page_no, rect }),
   });
-  if (!res.ok) { alert((await res.json()).detail || "글자를 읽지 못했습니다"); refreshDescMarkup(row); return; }
+  if (!res.ok) { notify((await res.json()).detail || "글자를 읽지 못했습니다", "out"); refreshDescMarkup(row); return; }
   const got = await res.json();
   if (!got.text) {
     editNotice("그은 범위 안에 읽을 글자가 없습니다" + ((got.dropped || []).length
@@ -6703,7 +6924,7 @@ function bindFromToPicker(row) {
       method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ from_text: fromText, to_text: toText }),
     });
-    if (!res.ok) { alert((await res.json()).detail || "저장 실패"); return null; }
+    if (!res.ok) { notify((await res.json()).detail || "저장 실패", "out"); return null; }
     const out = await res.json();
     if (out.cleared) {
       delete targetRow.user.description;
@@ -6732,7 +6953,7 @@ function bindFromToPicker(row) {
   if (saveBtn) saveBtn.onclick = async () => {
     const f = box.querySelector("#ft-from").value.trim();
     const t = box.querySelector("#ft-to").value.trim();
-    if (!f || !t) { alert("FROM 과 TO 를 모두 고르거나 입력하세요"); return; }
+    if (!f || !t) { notify("FROM 과 TO 를 모두 고르거나 입력하세요", "out"); return; }
     const out = await apply(row, f, t);
     if (!out) return;
     renderGrid();
@@ -8786,7 +9007,7 @@ async function markupDialog(rect) {
        <label>분류 <select id="mk-class">${MARKUP_CLASSES.map(([v, l]) => `<option value="${v}"${v === "MISSING" ? " selected" : ""}>${escape(l)}</option>`).join("")}</select></label>
        <label>사유 <input id="mk-note" type="text" placeholder="왜 프로그램이 못 읽었나 / 무엇이 맞나 — 한 줄"></label>
        ${vocCheckHtml("mk")}
-       <label>작성자 <input id="mk-author" type="text" value="${escape(currentAuthor())}" placeholder="이름 (자칭)"></label>
+       <label>작성자 <input id="mk-author" type="text" value="${escape(currentAuthor())}" placeholder="이름 (비워도 됩니다)"></label>
      </div>
      <div class="modal-actions">
        <button id="mk-cancel" class="ghost">취소</button>
@@ -8881,7 +9102,7 @@ async function markupDialog(rect) {
     const r = await fetch(`/jobs/${S.job.id}/rows`, {
       method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload) });
-    if (!r.ok) { alert((await r.json()).detail || "행 추가 실패"); return; }
+    if (!r.ok) { notify((await r.json()).detail || "행 추가 실패", "out"); return; }
     const out = await r.json();
     if (out.feedback_count !== undefined) S.feedback = out.feedback_count;
     const vocId = $("#mk-voc").checked ? await vocSend({
@@ -8899,7 +9120,7 @@ async function markupDialog(rect) {
     editNotice(`추가했습니다 (${out.stable_id ? `ID ${out.stable_id}` : out.id_note || "ID 없음"}) · `
       + `SCOPE ${scope || "(빈칸)"} [${scope_source === "DRAWING" ? "도면" : "사람"}] · `
       + `Q'ty ${qtyRaw === "" ? "(빈칸)" : qtyRaw} [${qty_source === "DRAWING" ? "도면" : "사람"}] · `
-      + `발주처 양식에 ${formLine}` + (vocId ? ` · VOC ${vocId} 접수` : ""), "in");
+      + `발주처 양식에 ${formLine}` + (vocId ? ` · 지원 담당에게 전달됐습니다 (접수번호 ${vocId})` : ""), "in");
   });
   $("#mk-type").focus();
 }
@@ -8924,7 +9145,7 @@ function rejectDialog(it) {
        <label id="rj-exclude-wrap"><input id="rj-exclude" type="checkbox" checked> Excel 에서 제외 (행은 화면에 남습니다)</label>
        <label>사유 <input id="rj-note" type="text" placeholder="왜 틀렸나 — 한 줄"></label>
        ${vocCheckHtml("rj")}
-       <label>작성자 <input id="rj-author" type="text" value="${escape(currentAuthor())}" placeholder="이름 (자칭)"></label>
+       <label>작성자 <input id="rj-author" type="text" value="${escape(currentAuthor())}" placeholder="이름 (비워도 됩니다)"></label>
      </div>
      <div class="modal-actions">
        ${already ? `<button id="rj-restore" class="ghost">되돌리기</button>` : ""}
@@ -8955,26 +9176,26 @@ function rejectDialog(it) {
       page_no: row.page_no, drawing_no: row.drawing_no || "", rect: row.rect, row_keys: [row.key] }, extra)) : "";
     if (cls.value === "WRONG_VALUE") {
       const field = $("#rj-field").value, value = $("#rj-value").value.trim();
-      if (!value) { alert("올바른 값을 적어 주세요."); return; }
+      if (!value) { notify("올바른 값을 적어 주세요.", "out"); return; }
       const r = await fetch(`/jobs/${S.job.id}/rows/${row.key}`, {
         method: "PATCH", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ field, value, author, reason: `WRONG_VALUE: ${note}` }) });
-      if (!r.ok) { alert((await r.json()).detail || "저장 실패"); return; }
+      if (!r.ok) { notify((await r.json()).detail || "저장 실패", "out"); return; }
       const vocId = await sendVoc({ markup: { field, value } });
       closeModal(); await refreshRows(row.key, { keys: [row.key] });
-      if (vocId) editNotice(`${field} 을(를) 고쳤습니다 · VOC ${vocId} 접수`, "in");
+      if (vocId) editNotice(`${field} 을(를) 고쳤습니다 · 지원 담당에게 전달됐습니다 (접수번호 ${vocId})`, "in");
       return;
     }
     const q = new URLSearchParams({ reason: note, reason_class: cls.value, author,
                                     exclude: $("#rj-exclude").checked ? "true" : "false" });
     const r = await fetch(`/jobs/${S.job.id}/rows/${row.key}?${q}`, { method: "DELETE" });
-    if (!r.ok) { alert("표시 실패"); return; }
+    if (!r.ok) { notify("표시 실패", "out"); return; }
     const out = await r.json();
     if (out.feedback_count !== undefined) S.feedback = out.feedback_count;
     const vocId = await sendVoc({ markup: { exclude: $("#rj-exclude").checked } });
     closeModal();
     await refreshRows(out.dropped ? null : row.key, { keys: [row.key] });
-    if (vocId) { editNotice(`표시했습니다 · VOC ${vocId} 접수 — 개발팀 함에 쌓였습니다`, "in"); return; }
+    if (vocId) { notify(`표시했습니다 · 지원 담당에게 전달됐습니다 (접수번호 ${vocId})`, "in"); return; }
     if (cls.value === "UNKNOWN_SYMBOL") {
       editNotice("미지정 심볼로 표시했습니다 — 무엇으로 볼지는 [심볼] 화면에서 등록합니다", "unjudged");
     } else {
@@ -8989,7 +9210,7 @@ function rejectDialog(it) {
  * 다시 읽어 제안하고 사람이 고른 장에만 넣는다.  자동 복제가 아니다. */
 async function markupElsewhere(row) {
   const pages = S.pages.filter(p => p.in_scope && p.page_no !== row.page_no && p.page_kind === "PID");
-  if (!pages.length) { alert("다른 분석 대상 장이 없습니다."); return; }
+  if (!pages.length) { notify("다른 분석 대상 장이 없습니다.", "out"); return; }
   const mk = (row.evidence || {}).markup || {};
   openModal("같은 마크업을 다른 장에도",
     `<p class="muted small">고른 장마다 같은 자리 (${(row.rect || []).map(v => Math.round(v)).join(", ")}) 에
@@ -9000,7 +9221,7 @@ async function markupElsewhere(row) {
   $("#me-cancel").onclick = closeModal;
   $("#me-save").onclick = async () => {
     const chosen = [...document.querySelectorAll(".mk-pages input:checked")].map(c => +c.value);
-    if (!chosen.length) { alert("장을 고르세요."); return; }
+    if (!chosen.length) { notify("장을 고르세요.", "out"); return; }
     let made = 0, lastKey = null; const madeKeys = [];
     for (const pno of chosen) {
       const pg = S.pages.find(p => p.page_no === pno);
@@ -9039,9 +9260,9 @@ async function markupElsewhere(row) {
 }
 
 /* 피드백 내보내기 — 서버가 zip 을 만들고 브라우저가 받는다. */
-$req("#feedback-export").addEventListener("click", () => {
+$req("#feedback-export").addEventListener("click", async () => {
   if (!S.job) return;
-  const by = window.prompt("내보내는 사람 이름 (자칭 · 비워도 됩니다)", lastAuthor()) ;
+  const by = await askText({ title: "피드백 내보내기", label: "내보내는 사람 이름", placeholder: "이름 (비워도 됩니다)", value: lastAuthor(), okText: "내보내기" });
   if (by === null) return;
   rememberAuthor(by.trim());
   downloadUrl(`/jobs/${S.job.id}/feedback_export?by=${encodeURIComponent(by.trim())}`, "feedback.zip");
@@ -9293,7 +9514,7 @@ $req("#prog-cancel").addEventListener("click", async () => {
   try {
     const r = await fetch(`/jobs/${id}/cancel`, { method: "POST" });
     if (!r.ok) {
-      alert((await r.json()).detail || "취소하지 못했습니다");
+      notify((await r.json()).detail || "취소하지 못했습니다", "out");
       btn.disabled = false; btn.textContent = "분석 취소";
     }
   } catch (e) {
@@ -9317,7 +9538,7 @@ async function takeSnapshot(params) {
     method: "POST", headers: { "Content-Type": "application/json" },
     body: JSON.stringify(Object.assign({ label: new Date().toISOString() }, params)),
   });
-  if (!r.ok) { alert((await r.json()).detail || "스냅샷 실패"); return null; }
+  if (!r.ok) { notify((await r.json()).detail || "스냅샷 실패", "out"); return null; }
   const out = await r.json();
   S.revision = out.revision_id;
   S.snapStale = false;
@@ -9348,14 +9569,16 @@ window.fetch = (url, opts) => {
 
 $req("#gate-check").addEventListener("change", async ev => {
   $("#excel").disabled = !ev.target.checked;
+  $("#excel").title = ev.target.checked ? "선택한 범위를 Excel 로 내려받습니다"      // hotfix132 — 왜 눌리지 않는지
+    : "[전체 검토 완료] 에 체크하면 출력할 수 있습니다";
   if (!ev.target.checked) { S.snapParams = null; return; }
   const origins = chosenOrigins();
   if (S.showOrigin && !origins.length) {
-    alert("귀속을 하나 이상 선택하세요."); ev.target.checked = false; return;
+    notify("귀속을 하나 이상 선택하세요.", "out"); ev.target.checked = false; return;
   }
   const drawings = [...document.querySelectorAll(".drawing:checked")].map(c => c.value);
   if (!drawings.length) {
-    alert("도면을 하나 이상 선택하세요."); ev.target.checked = false; return;
+    notify("도면을 하나 이상 선택하세요.", "out"); ev.target.checked = false; return;
   }
   const hold = !!($("#hold-review") || {}).checked;
   S.snapParams = { origins, drawings, hold_review: hold };
@@ -9396,7 +9619,7 @@ async function downloadUrl(url, fallbackName, btn) {
         : (d && d.error ? d.error + ((d.skipped || []).length
             ? "\n\n건너뛴 산출물:\n" + d.skipped.map(x => `· ${x.kind || ""} ${x.reason || ""}`).join("\n") : "")
           : `내려받지 못했습니다 (${r.status})`);
-      alert(msg);
+      notify(msg, "out");
       return false;
     }
     const blob = await r.blob();
@@ -9409,7 +9632,7 @@ async function downloadUrl(url, fallbackName, btn) {
     setTimeout(() => URL.revokeObjectURL(a.href), 30000);
     return true;
   } catch (e) {
-    alert("내려받지 못했습니다 — 서버에 연결할 수 없습니다.");
+    notify("내려받지 못했습니다 — 서버에 연결할 수 없습니다.", "out");
     return false;
   } finally {
     if (btn) { btn.disabled = false; btn.textContent = label; }
@@ -9481,7 +9704,7 @@ async function createRow(point) {
     method: "POST", headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
   });
-  if (!r.ok) { alert("행 추가 실패"); return; }
+  if (!r.ok) { notify("행 추가 실패", "out"); return; }
   const out = await r.json();
   if (out.feedback_count !== undefined) S.feedback = out.feedback_count;
   if (point) {
@@ -9508,9 +9731,9 @@ function clearFiltersForNewRow() {
 }
 
 $req("#row-copy").addEventListener("click", async () => {
-  if (!S.sel) { alert("복사할 행을 먼저 선택하세요."); return; }
+  if (!S.sel) { notify("복사할 행을 먼저 선택하세요.", "out"); return; }
   const r = await fetch(`/jobs/${S.job.id}/rows/${S.sel}/copy`, { method: "POST" });
-  if (!r.ok) { alert("복사 실패"); return; }
+  if (!r.ok) { notify("복사 실패", "out"); return; }
   clearFiltersForNewRow();
   const ck = (await r.json()).key;
   await refreshRows(ck, { keys: [ck] });
@@ -9519,7 +9742,7 @@ $req("#row-copy").addEventListener("click", async () => {
 $req("#row-delete").addEventListener("click", async () => {
   // hotfix14 — 묶음이 있으면 묶음을, 없으면 고른 행을 지운다.  하는 일은 `deleteRows` 하나.
   const keys = S.multi.size ? [...S.multi] : (S.sel ? [S.sel] : []);
-  if (!keys.length) { alert("삭제할 행을 먼저 선택하세요."); return; }
+  if (!keys.length) { notify("삭제할 행을 먼저 선택하세요.", "out"); return; }
   await deleteRows(keys);
 });
 
@@ -10039,7 +10262,7 @@ async function tbSave(thenRun) {
     msg.classList.add("out"); return false;
   }
   const todo = tbTaskKeys().find(k => !TEACH_TASKS[k].done() && !TEACH_TASKS[k].optional);
-  if (thenRun && todo && !confirm(`아직 「${TEACH_TASKS[todo].title}」 가 남았습니다.  그래도 다시 분석할까요? (같은 자리에서 다시 멈출 수 있습니다)`)) return false;
+  if (thenRun && todo && !await askConfirm({ title: "다시 분석", text: `아직 「${TEACH_TASKS[todo].title}」 가 남았습니다.  그래도 다시 분석할까요? (같은 자리에서 다시 멈출 수 있습니다)`, okText: "다시 분석" })) return false;
   if (TB.dirty.tb && !TB.cells.dwg_no_region) { msg.textContent = "타이틀블록은 도면번호 칸을 먼저 그으세요"; msg.classList.add("out"); return false; }
   const who = $("#tbfix-who").value.trim();
   if (!who) { msg.textContent = "작성자를 적어야 저장됩니다 (팀이 공유하는 값입니다)"; msg.classList.add("out"); $("#tbfix-who").focus(); return false; }
@@ -10123,9 +10346,9 @@ async function askReanalyse(id) {
     const r = await fetch(`/jobs/${id}/reanalyse`, { method: "POST" });
     if (r.ok) return true;
     const j = await r.json().catch(() => ({}));
-    alert(typeof j.detail === "string" ? j.detail : `다시 분석을 시작하지 못했습니다 (${r.status})`);
+    notify(typeof j.detail === "string" ? j.detail : `다시 분석을 시작하지 못했습니다 (${r.status})`, "out");
   } catch (e) {
-    alert("다시 분석을 시작하지 못했습니다 — 서버에 연결할 수 없습니다.");
+    notify("다시 분석을 시작하지 못했습니다 — 서버에 연결할 수 없습니다.", "out");
   }
   return false;
 }
@@ -10151,9 +10374,42 @@ const REPORT_WHAT = [
   ["DESCRIPTION", "Description"], ["OTHER", "기타"],
 ];
 
+/* hotfix132 — 이미 열린 창 안의 [삭제]: 첫 번 누르면 '정말 지울까요?' 로 바뀌고(4초), 그 안에 한 번 더 누르면 true. */
+function armDelete(btn) {
+  if (btn.dataset.armed) { clearTimeout(btn._armT); return true; }
+  btn.dataset.armed = "1"; btn._label = btn.textContent;
+  btn.textContent = "정말 지울까요?"; btn.classList.add("danger");
+  btn._armT = setTimeout(() => { delete btn.dataset.armed; btn.textContent = btn._label; btn.classList.remove("danger"); }, 4000);
+  return false;
+}
+/* hotfix132 — 창 안의 한 줄 고치기: 행 아래 입력칸 + [저장] [취소] (window.prompt 대신).  취소는 null. */
+function inlineEdit(row, label, value) {
+  return new Promise(resolve => {
+    const old = row.querySelector(".inline-edit"); if (old) old.remove();
+    const box = document.createElement("div");
+    box.className = "inline-edit";
+    box.innerHTML = `<label>${escape(label)} <input type="text" autocomplete="off"></label>`
+      + `<button type="button" class="mini">저장</button><button type="button" class="ghost mini">취소</button>`;
+    row.appendChild(box);
+    const inp = box.querySelector("input"); inp.value = value ?? "";
+    const [save, cancel] = box.querySelectorAll("button");
+    const done = v => { box.remove(); resolve(v); };
+    save.onclick = () => done(inp.value);
+    cancel.onclick = () => done(null);
+    inp.addEventListener("keydown", ev => { if (ev.key === "Enter" && !ev.isComposing) { ev.preventDefault(); done(inp.value); } if (ev.key === "Escape") { ev.stopPropagation(); done(null); } });
+    inp.focus(); inp.select();
+  });
+}
+
 function closeModal() {
   $("#modal").classList.add("hidden");
   $("#modal-body").innerHTML = "";
+  // hotfix132 — 묻는 창(askConfirm · askText · 삭제)을 Esc · 배경 클릭으로 닫아도 기다리는 쪽이 풀린다
+  const p = S.modalPending; S.modalPending = null;
+  if (p) { try { p(); } catch (e) { /* */ } }
+  // hotfix132 — 창을 연 단추로 포커스를 되돌린다 (키보드 사용자가 제자리를 잃지 않게)
+  const prev = S.modalPrev; S.modalPrev = null;
+  if (prev && document.contains(prev) && !prev.hidden && typeof prev.focus === "function") { try { prev.focus(); } catch (e) { /* */ } }
 }
 $req("#modal").addEventListener("click", ev => {
   if (ev.target.id === "modal") closeModal();
@@ -10163,6 +10419,9 @@ document.addEventListener("keydown", ev => {
 });
 
 function openModal(title, html) {
+  const p = S.modalPending; S.modalPending = null;        // hotfix132 — 앞 창이 묻던 중이면 취소로 푼다
+  if (p) { try { p(); } catch (e) { /* */ } }
+  if ($("#modal").classList.contains("hidden")) S.modalPrev = document.activeElement;
   $("#modal-title").textContent = title;
   $("#modal-body").innerHTML = html;
   $("#modal").classList.remove("hidden");
@@ -10193,7 +10452,7 @@ function reportPreview(opts) {
     add("클릭 위치", opts.point.map(v => Math.round(v)).join(", "));
     add("검출", "이 위치에는 검출된 항목이 없습니다 — 주변 도형을 함께 저장합니다");
   }
-  add("판정 지문", (S.job && S.job.fingerprint || "").slice(0, 8) || "(없음)");
+  add("분석 번호", (S.job && S.job.fingerprint || "").slice(0, 8) || "(없음)");
   return `<div class="rep-auto"><b class="muted">함께 저장되는 내용 (자동)</b><dl>`
     + pairs.map(([k, v]) => `<dt>${k}</dt><dd>${escape(String(v))}</dd>`).join("")
     + `</dl></div>`;
@@ -10219,7 +10478,7 @@ function reportDialog(opts) {
   const save = guarded(async () => {           // hotfix74 — 두 번 눌러도(Enter 연타) 신고는 한 건
     const what = (document.querySelector('input[name="rep-what"]:checked') || {}).value;
     const detail = $("#rep-detail").value.trim();
-    if (!detail) { alert("왜 틀렸는지 한 줄만 적어 주세요."); return; }
+    if (!detail) { notify("왜 틀렸는지 한 줄만 적어 주세요.", "out"); return; }
     const body = {
       kind: opts.point ? "MISSED" : (opts.fromDrawing ? "SYMBOL" : "ROW"),
       what, detail, row_key: opts.rowKey || "",
@@ -10230,12 +10489,12 @@ function reportDialog(opts) {
       method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
     });
-    if (!r.ok) { alert((await r.json()).detail || "신고 저장 실패"); return; }
+    if (!r.ok) { notify((await r.json()).detail || "신고 저장 실패", "out"); return; }
     const rep = await r.json();
     S.reports = rep.report_count;
     updateReportBadge();
     closeModal();
-    if (rep.voc_id) editNotice(`신고 접수 · VOC ${rep.voc_id} — 개발팀 함에도 쌓였습니다`, "in");
+    if (rep.voc_id) notify(`신고 접수 · 지원 담당에게 전달됐습니다 (접수번호 ${rep.voc_id})`, "in");
   });
   $("#rep-save").onclick = save;
   $("#rep-detail").addEventListener("keydown", ev => {
@@ -10283,16 +10542,20 @@ async function showReportList() {
   openModal(`오류 신고 ${out.count}건`,
     body + `<div class="modal-actions"><button id="rep-close" class="ghost">닫기</button></div>`);
   $("#rep-close").onclick = closeModal;
+  // hotfix132 — 목록 창 안이라 새 창을 열지 않고 단추 자체가 한 번 더 묻는다 ('정말 지울까요?' → 누르면 지움)
   document.querySelectorAll(".rep-del").forEach(b => b.onclick = async (ev) => {
-    const id = ev.target.closest(".rep-row").dataset.id;
-    if (!window.confirm("이 신고를 삭제할까요?")) return;
-    await fetch(`/reports/${id}`, { method: "DELETE" });
+    const btn = ev.target;
+    if (!armDelete(btn)) return;
+    const id = btn.closest(".rep-row").dataset.id;
+    try { await fetchJson(`/reports/${id}`, { method: "DELETE" }); }
+    catch (e) { notify(`신고를 지우지 못했습니다 — ${e.message}`, "out"); return; }
     showReportList();
   });
   document.querySelectorAll(".rep-edit").forEach(b => b.onclick = async (ev) => {
-    const id = ev.target.closest(".rep-row").dataset.id;
+    const row = ev.target.closest(".rep-row");
+    const id = row.dataset.id;
     const rec = out.reports.find(r => String(r.id) === String(id));
-    const detail = window.prompt("사유 / 올바른 값", rec.detail);
+    const detail = await inlineEdit(row, "사유 / 올바른 값", rec.detail);
     if (detail === null) return;
     await fetch(`/reports/${id}`, {
       method: "PATCH", headers: { "Content-Type": "application/json" },
@@ -10316,13 +10579,13 @@ $req("#report-list").addEventListener("click", showReportList);
  * [VOC] 버튼 · 분석 실패 화면.  쓰는 길은 `vocSend` 하나다. */
 function vocCheckHtml(prefix) {
   return `<label class="voc-check"><input id="${prefix}-voc" type="checkbox" checked>
-    개발팀에 <b>VOC</b> 로 신고 — 프로그램이 못 읽었거나 잘못 읽은 것으로 남깁니다 (사유 필수)</label>`;
+    <b>오류 신고</b> 로 지원 담당에게 전달 — 프로그램이 못 읽었거나 잘못 읽은 것으로 남깁니다 (사유 필수)</label>`;
 }
 function vocReasonOk(prefix) {
   const on = $(`#${prefix}-voc`) && $(`#${prefix}-voc`).checked;
   const note = ($(`#${prefix}-note`) || {}).value || "";
   if (on && !note.trim()) {
-    alert("VOC 로 신고하려면 사유를 한 줄 적어 주세요 (또는 'VOC 로 신고' 를 끄세요).");
+    notify("오류 신고를 보내려면 사유를 한 줄 적어 주세요 (또는 '오류 신고' 를 끄세요).", "out");
     $(`#${prefix}-note`).focus();
     return false;
   }
@@ -10339,15 +10602,15 @@ async function vocSend(body) {
   try {
     const r = await fetch("/voc", { method: "POST", headers: { "Content-Type": "application/json" },
                                     body: JSON.stringify(payload) });
-    if (!r.ok) { alert("VOC 저장 실패: " + ((await r.json()).detail || r.statusText)); return ""; }
+    if (!r.ok) { notify("의견을 보내지 못했습니다 — " + ((await r.json().catch(() => ({}))).detail || `서버 응답 ${r.status}`), "out"); return ""; }
     return (await r.json()).id || "";
-  } catch (e) { alert("VOC 저장 실패: " + e); return ""; }
+  } catch (e) { notify("의견을 보내지 못했습니다 — 서버에 연결할 수 없습니다", "out"); return ""; }
 }
 const VOC_GENERAL = ["UI", "SLOW", "FEATURE", "MISSING", "FALSE_POSITIVE", "WRONG_VALUE", "UNKNOWN_SYMBOL",
                      "SCOPE", "QTY", "TYPE", "DESCRIPTION", "ANALYSIS_FAILED", "OTHER"];
 
 function vocListHtml(items) {
-  if (!items.length) return `<p class="muted small">아직 접수된 VOC 가 없습니다.</p>`;
+  if (!items.length) return `<p class="muted small">아직 보낸 의견이 없습니다.</p>`;
   return `<table class="voc-list"><thead><tr><th>접수</th><th>분류 · 사유</th><th>자리</th><th>상태</th></tr></thead><tbody>`
     + items.map(v => `<tr class="voc-${escape((v.state || "").toLowerCase())}">
         <td class="small">${escape((v.created_at || "").replace("T", " "))}<br><span class="muted">${escape(v.author || "이름 없음")}</span></td>
@@ -10369,10 +10632,9 @@ async function vocDialog(opts) {
   const jobId = opts.jobId || (S.job && !opts.noJob ? S.job.id : "");
   const where = opts.jobId ? `분석 ${opts.jobName || opts.jobId} — 실패 사유와 멈춘 단계를 함께 담습니다`
     : S.job ? `${S.job.pdf_name || ""}${S.page ? ` · p${S.page.page_no} ${S.page.drawing_no || ""}` : ""}` : "";
-  openModal("VOC — 개발팀에 남기기",
+  openModal("의견·오류 보내기",
     `<p class="muted small">프로그램이 못 읽었거나 잘못 읽은 것, 불편한 점, 바라는 기능을 적어 주세요.
-       이 PC 의 VOC 함(<code>${escape(info.voc_dir || "voc/inbox")}</code>)에 쌓이고, 개발하는 쪽이 읽고 고친 뒤
-       <b>반영됨</b> 으로 표시합니다 — 한 번 반영된 VOC 는 다시 반영되지 않습니다.</p>
+       지원 담당이 읽고 고친 뒤 <b>반영됨</b> 으로 표시합니다 — 한 번 반영된 의견은 다시 반영되지 않습니다.</p>
      <div class="mk-form">
        <label>분류 <select id="vc-class">${VOC_GENERAL.filter(k => cats[k] || !Object.keys(cats).length)
          .map(k => `<option value="${k}"${k === pick ? " selected" : ""}>${escape(cats[k] || k)}</option>`).join("")}</select></label>
@@ -10382,15 +10644,15 @@ async function vocDialog(opts) {
      </div>
      <div class="modal-actions">
        <button id="vc-cancel" class="ghost">닫기</button>
-       <button id="vc-save">VOC 접수</button>
+       <button id="vc-save">보내기</button>
      </div>
-     <h4 class="voc-h">최근 VOC <span class="muted small">— 미반영 ${(info.counts || {}).open || 0} · 전체 ${(info.counts || {}).total || 0}${(info.counts || {}).unreadable ? ` · <span class="voc-bad">읽지 못한 ${info.counts.unreadable}건 (운영 PC 의 voc 폴더 확인)</span>` : ""}</span></h4>
+     <h4 class="voc-h">최근 의견 <span class="muted small">— 미반영 ${(info.counts || {}).open || 0} · 전체 ${(info.counts || {}).total || 0}${(info.counts || {}).unreadable ? ` · <span class="voc-bad">읽지 못한 ${info.counts.unreadable}건 (운영 PC 의 voc 폴더 확인)</span>` : ""}</span></h4>
      <div id="vc-list">${vocListHtml(info.items || [])}</div>`);
   $("#vc-cancel").onclick = closeModal;
   $("#vc-note").focus();
   $("#vc-save").onclick = guarded(async () => {       // hotfix74 — 두 번 눌러도 VOC 는 한 건
     const reason = $("#vc-note").value.trim();
-    if (!reason) { alert("내용을 적어 주세요."); $("#vc-note").focus(); return; }
+    if (!reason) { notify("내용을 적어 주세요.", "out"); $("#vc-note").focus(); return; }
     const author = $("#vc-author").value.trim();
     if (author && !EMBED.user) rememberAuthor(author);
     const withCtx = !$("#vc-ctx") || $("#vc-ctx").checked;
@@ -10401,7 +10663,7 @@ async function vocDialog(opts) {
     const id = await vocSend(body);
     if (!id) return;
     $("#vc-note").value = "";
-    editNotice(`VOC ${id} 접수 — 개발팀 함에 쌓였습니다`, "in");
+    notify(`지원 담당에게 전달됐습니다 (접수번호 ${id})`, "in");
     try { info = await (await fetch("/voc?limit=30")).json(); $("#vc-list").innerHTML = vocListHtml(info.items || []); }
     catch (e) { /* 목록은 덤 */ }
   });
@@ -10490,7 +10752,7 @@ async function showSymbolRegister() {
         `<div class="sym-row" data-id="${escape(sy.id)}">
           <div><b>${escape(sy.name)}</b>
             <span class="muted small">${escape(sy.kind)}${sy.type ? " · " + escape(sy.type) : ""}</span>
-            <div class="meta">${escape(sy.registered_by)} (자칭) ·
+            <div class="meta">${escape(sy.registered_by)} ·
               ${new Date((sy.registered_at || 0) * 1000).toLocaleString("ko-KR")}</div></div>
           <div class="acts"><button class="ghost mini sym-del">삭제</button></div>
         </div>`).join("")
@@ -10508,9 +10770,11 @@ async function showSymbolRegister() {
     showSymbolRegister();
   };
   document.querySelectorAll(".sym-del").forEach(b => b.onclick = async (ev) => {
-    const id = ev.target.closest(".sym-row").dataset.id;
-    if (!window.confirm("이 심볼을 전역 사전에서 지울까요?")) return;
-    await fetch(`/symbols/global/${encodeURIComponent(id)}`, { method: "DELETE" });
+    const btn = ev.target;
+    if (!armDelete(btn)) return;                       // hotfix132 — 창 안이라 단추가 한 번 더 묻는다
+    const id = btn.closest(".sym-row").dataset.id;
+    try { await fetchJson(`/symbols/global/${encodeURIComponent(id)}`, { method: "DELETE" }); }
+    catch (e) { notify(`심볼을 지우지 못했습니다 — ${e.message}`, "out"); return; }
     showSymbolRegister();
   });
   document.querySelectorAll(".sym-add").forEach(b => b.onclick = (ev) => {
@@ -10550,7 +10814,7 @@ function symbolForm(g) {
   $("#sym-back").onclick = showSymbolRegister;
   $("#sym-save").onclick = async () => {
     const name = $("#sym-name").value.trim();
-    if (!name) { alert("이 심볼이 무엇인지 적어야 등록됩니다."); return; }
+    if (!name) { notify("이 심볼이 무엇인지 적어야 등록됩니다.", "out"); return; }
     // 13회차 작성자 기록을 그대로 쓴다 - 확인은 매번, 타자는 한 번.
     const author = await askAuthor(`전역 심볼 등록 — ${name}`);
     if (author === null) return;
@@ -10569,7 +10833,7 @@ function symbolForm(g) {
     const r = await fetch("/symbols/global", { method: "POST", body });
     if (!r.ok) {
       const out = await r.json().catch(() => ({}));
-      alert(out.detail || "등록하지 못했습니다.");
+      notify(out.detail || "등록하지 못했습니다.", "out");
       return;
     }
     showSymbolRegister();
@@ -10587,11 +10851,11 @@ $req("#diag").addEventListener("click", async () => {
   btn.textContent = "만드는 중…";
   try {
     const r = await fetch(`/jobs/${S.job.id}/diagnostic`, { method: "POST" });
-    if (!r.ok) { alert("진단 파일을 만들지 못했습니다."); return; }
+    if (!r.ok) { notify("진단 파일을 만들지 못했습니다.", "out"); return; }
     const out = await r.json();
     const mb = (out.bytes / 1048576).toFixed(2);
     const c = out.counts || {};
-    openModal("진단 내보내기",
+    openModal("문의용 진단 파일",
       `<p><b>${escape(out.filename)}</b> — ${mb} MB (${out.bytes.toLocaleString()} bytes)</p>
        <div class="rep-auto"><b class="muted">담긴 것</b><dl>
          <dt>신고</dt><dd>${c.reports ?? 0}건</dd>
@@ -10613,31 +10877,37 @@ $req("#diag").addEventListener("click", async () => {
     $("#diag-close").onclick = closeModal;
   } finally {
     btn.disabled = false;
-    btn.textContent = "진단 내보내기";
+    btn.textContent = "문의용 진단 파일";
   }
 });
 
 /* ---------------- which build this is ---------------- */
 (async () => {
   try {
-    const v = await (await fetch("/version")).json();
-    // 56회차 — 화면 파일 딱지를 같이 적는다.  꾸러미를 덮어썼는데 브라우저가
-    // 옛 `app.js` 를 캐시로 쓰고 있으면 그것을 알 길이 없었다 (현장 보고 두 번).
-    const ui = v.ui ? ` · 화면 ${v.ui.app_js}` : "";
-    // hotfix34 — 첫 화면 오른쪽 아래에 **어느 업데이트가 적용돼 있는가** 를 적는다:
-    // 꾸러미 이름(rev 번호) · zip 파일명 · zip 을 만든 시각.  값은 꾸러미 생성기가
-    // 적어 둔 `app/_update.json` 그대로이고, 없으면 "기록 없음" (지어내지 않는다).
+    const v = await fetchJson("/version");
+    // hotfix132 — 사용자가 읽는 꼬리줄은 '버전 1.0.0 · 업데이트 2026-10-08' 두 토막뿐이다.  꾸러미 이름 · zip ·
+    // 커밋 · 브랜치 같은 내부 표기는 적지 않는다.  값은 `/version` 의 product(config/product.json) 와 v.update
+    // (`app/_update.json`) 그대로이고, 없으면 그 토막을 뺀다 (지어내지 않는다).
+    const pr = v.product || {};
     const u = v.update;
-    const upd = u
-      ? `업데이트 ${u.name}${u.rev != null ? ` (rev ${u.rev})` : ""} · ${u.zip || "zip 이름 없음"} · 생성 ${u.created_at || "시각 없음"}`
-      : "업데이트 기록 없음 (hotfix34 이전 꾸러미)";
-    $("#build-text").textContent =
-      `${upd}  |  v${v.version} · ${v.built_at || "날짜 없음"}`
-      + (v.kind === "exe" ? "" : " (source)") + ui;
-    $("#build-text").title =
-      (u ? `적용된 꾸러미 ${u.zip} · 기준 커밋 ${u.base_commit || "?"}${u.branch ? " (" + u.branch + ")" : ""} · ` : "")
-      + `버전 ${v.version} · 빌드일 ${v.built_at} (${v.dated}) · Python ${v.python}`
-      + (v.ui ? ` · app.js ${v.ui.app_js} · styles.css ${v.ui.styles_css}` : "");
+    const d = (u && u.created_at) || v.built_at || "";
+    const ver = pr.version || v.version || "";
+    $("#build-text").textContent = (ver ? `버전 ${ver}` : "") + (d ? ` · 업데이트 ${String(d).slice(0, 10)}` : "");
+    // 56회차 — 화면 파일 딱지는 툴팁에 남긴다 (브라우저가 옛 app.js 를 캐시로 쓰는지 현장에서 가리는 데 쓴다)
+    $("#build-text").title = (v.kind === "exe" ? "설치형(exe) 서버" : "소스 실행 서버")
+      + (v.ui ? ` · 화면 파일 ${v.ui.app_js}` : "");
+    // 공통 셸 띠가 판 번호를 보여 주면 꼬리줄은 겹치므로 숨긴다 (대시보드 iframe 은 띠가 없어 남긴다)
+    if (window.PID_SHELL && !EMBED.on) $("#build").hidden = true;
+    // hotfix132 — 사이드바 머리: 회사 이름(작게) + 제품 이름 — 한 곳(config/product.json)에서만 온다 · 비면 숨긴다
+    const brand = document.querySelector(".sb-brand");
+    if (brand) {
+      const co = brand.querySelector("span"), nm = brand.querySelector("b");
+      if (co) co.textContent = pr.company || "";
+      if (nm) nm.textContent = pr.name || "";
+      brand.hidden = !(pr.company || pr.name);
+      if (co) co.hidden = !pr.company;
+    }
+    if (pr.name && !window.PID_SHELL) document.title = `P&ID 리스트 추출 · ${pr.name}`;
   } catch (e) { /* the footer is a label, not a feature */ }
 })();
 
@@ -10967,7 +11237,7 @@ document.addEventListener("keydown", (ev) => {
       method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ author: who }),
     });
-    if (!r.ok) { alert("저장 기록을 남기지 못했습니다"); return; }
+    if (!r.ok) { notify("저장 기록을 남기지 못했습니다", "out"); return; }
     const sv = await r.json();
     editNotice(`저장했습니다 — ${saveWords(sv)}`, "in");
   });
@@ -11390,7 +11660,7 @@ async function popOut(role) {
   const w0 = Math.round((screen.availWidth || 1600) * 0.92), h0 = Math.round((screen.availHeight || 900) * 0.92);
   const w = _nativeOpen(url, `pid-${role}-${link}`, `popup=yes,width=${w0},height=${h0}`);
   if (!w) {
-    alert("새 창이 막혔습니다 — 주소줄 오른쪽의 팝업 차단 표시에서 이 주소를 허용한 뒤 다시 눌러 주세요.");
+    notify("새 창이 막혔습니다 — 주소줄 오른쪽의 팝업 차단 표시에서 이 주소를 허용한 뒤 다시 눌러 주세요.", "out");
     return;
   }
   SYNC.link = link; SYNC.peer = w; SYNC.peerRole = role; SYNC.alone = false;
@@ -11499,7 +11769,7 @@ const fmtN = (n) => (n == null ? "—" : Number(n).toLocaleString("ko-KR"));
 (function navCollapse() {
   let v = null;
   try { v = localStorage.getItem(NAV_KEY); } catch (e) {}
-  const collapsed = v === null ? window.innerWidth < 1500 : v === "1";
+  const collapsed = v === null ? window.innerWidth < 1280 : v === "1";     // hotfix132 — 1366·1440 에서도 글자가 보이게
   document.body.classList.toggle("nav-collapsed", collapsed);
   document.addEventListener("click", ev => {
     if (!ev.target.closest(".nav-toggle")) return;
@@ -11576,10 +11846,10 @@ $req("#nav-projects").addEventListener("click", ev => {
     }, 60);
   }
 });
-$req("#nav-rename").addEventListener("click", () => {
+$req("#nav-rename").addEventListener("click", async () => {
   if (EMBED.user) { editNotice(`대시보드 로그인 이름(${EMBED.user})으로 기록됩니다 — 바꾸려면 대시보드에서 다시 로그인하세요`); return; }
   const now = (typeof lastAuthor === "function" ? lastAuthor() : "") || "";
-  const v = prompt("이름 (자칭) — 편집 · 저장 기록에 적힙니다", now);
+  const v = await askText({ title: "이름 변경", label: "이름 — 편집 · 저장 기록에 적힙니다", placeholder: "이름 (비워도 됩니다)", value: now });
   if (v == null) return;
   if (typeof rememberAuthor === "function") rememberAuthor(v.trim());
   renderNav(); renderWhoChip();
@@ -11648,17 +11918,18 @@ function renderDashboard() {
   ].join(" · ");
 
   const pills = [];
-  if (audit && audit.bad) pills.push(`<a class="pill" data-go="audit">데이터 위생 확인 <b>${audit.bad}</b></a>`);
+  if (audit && audit.bad) pills.push(`<a class="pill" data-go="audit">보관 자료 점검 <b>${audit.bad}</b></a>`);
   if (failed.length) pills.push(`<a class="pill" data-go="list">분석 실패 <b>${failed.length}</b></a>`);
   // hotfix57 — 분석 중인 것이 하나면 그 분석의 진행 화면으로 바로 간다.
   if (running.length) pills.push(`<a class="pill info" data-go="${running.length === 1 && running[0].job_id ? "#" + escAttr(running[0].job_id) : "list"}">분석 중 <b>${running.length}</b></a>`);
   if (cmp && changes) pills.push(`<a class="pill info" data-go="#${escAttr(cmp.job_id)}">${escAttr(cmp.project)} ${escAttr(cmp.revision)} 개정 변경 <b>${fmtN(changes)}</b></a>`);
-  if (audit && !audit.bad) pills.push(`<span class="pill ok">데이터 위생 이상 없음 <b>0</b></span>`);
   $("#home-pills").innerHTML = pills.join("");
 
   // hotfix62 — 지표 카드 여섯(프로젝트 · 분석 · 산출 행 · 최근 개정 변경 · 사람이 고친 칸 · 데이터 위생)은
   // 사용자 요청으로 뺐다.  같은 사실은 위 알림 알약 · 저장된 프로젝트 카드 · 데이터 위생 카드가 말한다.
   $("#home-kpis").innerHTML = "";
+  const hint = document.querySelector(".chart-hint");           // hotfix132 — 그래프가 비어 있으면 마우스 안내도 뺀다
+  if (hint) hint.classList.toggle("hidden", !runs.length);
 
   $("#home-charts").innerHTML = [
     chartCard("프로젝트별 산출 행 (최신 리비전)", vbars(latestPer.map(x => ({ label: x.name, value: x.last.rows || 0,
@@ -11924,13 +12195,13 @@ const SHORTCUTS = [
     ["Delete", "사람이 고친 값을 도면 값으로 되돌리기 (범위면 범위 전체)"],
     ["Ctrl + F", "검색 칸으로 (글자를 치면 손이 멈춘 뒤 목록이 걸러진다)"],
   ]],
-  ["O/X 평가 (학습 자료)", [
+  ["O/X 평가", [
     ["O / X (O/X 칸을 고른 뒤)", "이 행이 식별되어야 하면 O · 아니면 X (X 는 출력에서 빠지고 되돌릴 수 있다) — 적으면 아래 칸으로"],
-    ["O / X (식별 VOC 탭의 수량 O/X 칸)", "Q'ty 가 맞으면 O · 틀리면 X (틀리면 Q'ty 칸을 고치면 그 값이 나간다)"],
-    ["비고 칸 (식별 VOC 탭)", "두 번 누르거나 F2 — 왜 O/X 인지 한 줄 (VOC 함에 같이 쌓인다)"],
+    ["O / X (식별 평가 탭의 수량 O/X 칸)", "Q'ty 가 맞으면 O · 틀리면 X (틀리면 Q'ty 칸을 고치면 그 값이 나간다)"],
+    ["비고 칸 (식별 평가 탭)", "두 번 누르거나 F2 — 왜 O/X 인지 한 줄 (평가 기록에 같이 남는다)"],
     ["Delete / Backspace (O/X 칸)", "평가 지우기 (범위면 범위 전체)"],
     ["Shift + ↑ ↓ 뒤 O / X", "범위 전체를 한 번에 평가"],
-    ["도구줄 O · X", "고른 행(묶음이면 전부)을 평가 · 평가는 VOC 함에 쌓여 다음 학습 자료가 된다"],
+    ["도구줄 O · X", "고른 행(묶음이면 전부)을 평가 · 평가는 기록에 남는다"],
   ]],
   ["되돌리기", [
     ["Ctrl + Z", "되돌리기 — 칸 고침 · 묶음 고침 · 승수 · 지우기 · O/X 평가"],
