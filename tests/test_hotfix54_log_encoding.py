@@ -39,7 +39,8 @@ def test_server_module_starts_when_the_log_is_cp949(tmp_path):
     data = tmp_path / "data"; data.mkdir()
     _seed(data)
     log = tmp_path / "server.log"
-    env = dict(os.environ, PID_DATA_DIR=str(data), PID_LAN="1", PYTHONIOENCODING="cp949")
+    env = dict(os.environ, PID_DATA_DIR=str(data), PID_LAN="1", PYTHONIOENCODING="cp949",
+               PID_STARTUP_TASKS="1")                # 기동 감사 줄이 실제로 찍혀야 하는 시험
     env.pop("PYTHONUTF8", None)
     with open(log, "wb") as out:                       # 서비스처럼 파일로 돌린다
         r = subprocess.run([sys.executable, "-c", "import app.main"], cwd=ROOT, env=env,
