@@ -1,0 +1,27 @@
+계장 설계 도구 — 시작하기
+
+(bat 파일의 안내 글은 Windows 명령 창 때문에 영어로 나옵니다.  같은 내용을 여기에 우리말로 적었습니다.)
+
+처음 한 번
+  1. Python 3.11 을 설치합니다 (3.12 · 3.13 아님 · "Add python.exe to PATH" 표시).
+  2. setup.bat 더블클릭 — 필요한 꾸러미를 설치하고 점검까지 합니다.
+  3. open_firewall_8000.bat 을 마우스 오른쪽 → 관리자 권한으로 실행 (다른 PC 에서 들어오려면).
+
+매일
+  켜기          run_lan_service.bat   (작게 뜬 검은 창 = 서버 · 닫으면 꺼짐)
+  자동으로 켜기  install_autostart_lan.bat  (이 사용자로 로그온할 때마다)
+  상태 보기      check_pid_server.bat
+  끄기          stop_pid_server.bat   (서비스 창도 닫으세요 — 그대로 두면 10초 뒤 다시 켭니다)
+  다시 켜기      restart_pid_server.bat
+  백업          backup_pid_data.bat D:\pid_backup
+
+브라우저 주소: http://<서버 PC 주소>:8000/   (이 PC 에서는 http://localhost:8000/)
+
+자주 나오는 영어 안내
+  "Python 3.11 is not installed"           → Python 3.11 설치 뒤 setup.bat 다시
+  "Missing packages"                       → setup.bat 다시
+  "port 8000 is held by another program"   → 이미 다른 서버가 떠 있음 · check_pid_server.bat 으로 확인
+  "The server fails to start"              → check_pid_server.bat 실행 뒤 logs\server.log 를 관리자에게
+  "Already running"                        → 이미 켜져 있음 · 브라우저가 열림
+
+자세한 설명서: docs\user_manual.md  (서버가 켜져 있으면 화면 오른쪽 위 ? 단추 → 설명서)

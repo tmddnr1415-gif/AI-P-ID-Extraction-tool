@@ -1,13 +1,26 @@
 # Development install (online).  Windows offline installs use requirements-win*.txt.
-# anthropic: only for the optional Description middle-phrase selector (off by default).
 # ASCII only on purpose (see requirements-win.txt).
-pymupdf
-openpyxl
-PyYAML
-numpy
-fastapi
-uvicorn[standard]
-python-multipart
-anthropic>=0.122
-ezdxf>=1.4
-matplotlib>=3.8
+# Python 3.11 (numpy 2.4 needs 3.11 or newer).
+#
+# hotfix132: pinned to the same versions as the company PC (requirements-win.txt,
+# requirements-win-dxf.txt, requirements-win.lock.txt) so a fresh install behaves the
+# same.  uvicorn[standard] pulls uvloop on Linux only.
+#
+#   python -m venv .venv
+#   .venv/bin/python -m pip install -r requirements.txt     (Windows: setup.bat)
+pymupdf==1.28.2
+numpy==2.4.6
+openpyxl==3.1.5
+PyYAML==6.0.1
+fastapi==0.141.1
+uvicorn[standard]==0.52.3
+python-multipart==0.0.32
+# anthropic: only for the optional book translation and Description selector (off by default).
+anthropic==0.122.0
+# DXF input path (optional - without them DXF drawings are not read)
+ezdxf==1.4.4
+matplotlib==3.11.2
+
+# dev extras - only for running the tests
+pytest==9.1.1
+pytest-timeout==2.4.0

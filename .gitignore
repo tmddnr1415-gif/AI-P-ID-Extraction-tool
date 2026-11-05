@@ -176,3 +176,8 @@ out/hotfix88/*/profile.prof
 
 # dashboard branch (ccr-248a5c4d)
 /dashboard_patches/
+
+# hotfix132 — 릴리스 검사 결과(spike/release_check.py)와 pytest 캐시는 산출물이 아니다
+out/release_check.json
+out/release_smoke*/
+.pytest_cache/

@@ -4,6 +4,8 @@ import sys
 import time
 from pathlib import Path
 
+import pytest
+
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from app import axis_overrides as ov
 
@@ -32,6 +34,7 @@ def test_suffix_positional_and_only_in_groups():
     assert ov.suffix_for([("k1", (0, 0, 1, 1))], "k1") == ""   # 혼자면 없음
 
 
+@pytest.mark.timing      # hotfix132 — 시간·소켓에 기대는 시험 (느린 PC 에서 빨개지면 이 파일만 한 번 더)
 def test_record_is_deterministic(tmp_path):
     p = tmp_path / "axis_overrides.json"
     kw = dict(from_text="FROM HRSG#12", to_text="HP TURBINE",

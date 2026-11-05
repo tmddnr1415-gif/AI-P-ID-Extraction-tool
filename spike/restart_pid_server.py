@@ -9,6 +9,10 @@
   3. 그 PID 와 자식(분석 프로세스)만 끈다 (`taskkill /PID … /T /F`).
   4. `run_lan_service.bat` 의 반복이 10초 뒤 새 코드로 다시 띄운다.  60초 동안 `/version` 을
      물어 업데이트 딱지(hotfix 이름)를 보여 준다.  안 뜨면 무엇을 하라고 말한다.
+
+hotfix132 — `--stop` : 끄기만 한다 (stop_pid_server.bat).  다시 뜨기를 기다리지 않는다.
+  서비스 창(run_lan_service.bat)이 열려 있으면 10초 뒤 다시 띄우므로 그 창도 닫으라고 말한다.
+  `--yes` 면 묻지 않는다.
 """
 from __future__ import annotations
 
@@ -43,6 +47,16 @@ def _get(url: str, timeout: float = 3.0):
         return json.loads(r.read().decode("utf-8", "replace"))
 
 
+def _netstat_text() -> str:
+    raw = subprocess.run(["netstat", "-ano"], capture_output=True).stdout
+    return raw.decode("utf-8", "replace") if raw.startswith(b"\xef\xbb\xbf") else raw.decode("mbcs" if sys.platform == "win32" else "utf-8", "replace")
+
+
+def _kill(pids: list[int]) -> None:
+    for pid in pids:
+        subprocess.run(["taskkill", "/PID", str(pid), "/T", "/F"], capture_output=True)
+
+
 def main(argv=None) -> int:
     for s in (sys.stdout, sys.stderr):
         try:
@@ -50,13 +64,17 @@ def main(argv=None) -> int:
         except Exception:                                     # noqa: BLE001
             pass
     argv = list(sys.argv[1:] if argv is None else argv)
-    port = int(argv[0]) if argv and argv[0].isdigit() else 8000
+    stop = "--stop" in argv                  # hotfix132 — 끄기만
+    yes = "--yes" in argv
+    nums = [a for a in argv if a.isdigit()]
+    port = int(nums[0]) if nums else 8000
     base = f"http://127.0.0.1:{port}"
-    raw = subprocess.run(["netstat", "-ano"], capture_output=True).stdout
-    text = raw.decode("utf-8", "replace") if raw.startswith(b"\xef\xbb\xbf") else raw.decode("mbcs" if sys.platform == "win32" else "utf-8", "replace")
-    pids = listening_pids(port, text)
+    pids = listening_pids(port, _netstat_text())
     if not pids:
-        print(f"[알림] 포트 {port} 에 서버가 없습니다 — run_lan_service.bat 을 실행하면 새 코드로 뜹니다.")
+        if stop:
+            print(f"[알림] 포트 {port} 에 서버가 없습니다 — 이미 꺼져 있습니다.")
+        else:
+            print(f"[알림] 포트 {port} 에 서버가 없습니다 — run_lan_service.bat 을 실행하면 새 코드로 뜹니다.")
         return 0
     try:
         running = [j for j in _get(f"{base}/running").get("jobs", []) if j.get("status") == "running"]
@@ -66,12 +84,25 @@ def main(argv=None) -> int:
         print(f"[주의] 지금 분석 {len(running)}건이 돌고 있습니다 — 다시 띄우면 그 분석은 '실패' 로 남고 다시 올려야 합니다.")
     elif running is None:
         print("[주의] 지금 분석 중인지 확인하지 못했습니다 (옛 서버). 분석 중이면 그 분석은 다시 올려야 합니다.")
+    if stop:
+        if not yes:
+            try:
+                ans = input(f"포트 {port} 서버(PID {', '.join(map(str, pids))})를 끌까요? [Y/n] ").strip().lower()
+            except EOFError:
+                ans = ""
+            if ans not in ("", "y", "yes", "ㅛ"):
+                print("끄지 않았습니다.")
+                return 0
+        _kill(pids)
+        print(f"[완료] 포트 {port} 서버를 껐습니다.\n"
+              "       서비스 창(run_lan_service.bat)이 열려 있으면 그 창도 닫으세요 — 그대로 두면 10초 뒤 다시 켭니다.\n"
+              "       다시 켤 때는 run_lan_service.bat 을 더블클릭하세요.")
+        return 0
     ans = input(f"포트 {port} 서버(PID {', '.join(map(str, pids))})를 다시 띄울까요? [Y/n] ").strip().lower()
     if ans not in ("", "y", "yes", "ㅛ"):
         print("다시 띄우지 않았습니다 — 새 코드는 서버를 다시 띄울 때 적용됩니다.")
         return 0
-    for pid in pids:
-        subprocess.run(["taskkill", "/PID", str(pid), "/T", "/F"], capture_output=True)
+    _kill(pids)
     print("껐습니다.  run_lan_service.bat 이 10초 뒤 새 코드로 다시 띄웁니다 — 기다리는 중…")
     t0 = time.time()
     time.sleep(3)

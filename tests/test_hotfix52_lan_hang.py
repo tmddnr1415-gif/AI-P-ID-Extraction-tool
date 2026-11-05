@@ -18,6 +18,8 @@ import sys
 import threading
 import time
 
+import pytest
+
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
@@ -36,11 +38,12 @@ def test_the_service_never_writes_the_server_to_its_window():
     srv = [ln for ln in body.splitlines() if "-m app.lan_serve 8000" in ln or "PID_Extract.exe\" --lan" in ln]
     assert len(srv) == 2
     exe = [ln for ln in srv if "PID_Extract" in ln][0]
-    assert exe.rstrip().endswith(">> logs\\server.log 2>&1"), exe
+    # hotfix132 — exe 는 자기 로그(pid_data\logs\server.log)를 쓴다; cmd 의 `>>` 는 로그를 누가 쥐면 실패했다
+    assert exe.rstrip().endswith(">nul 2>&1") and ">> logs" not in exe, exe
     from app import lan_serve
     import inspect
     src = inspect.getsource(lan_serve.serve)
-    assert "stdout=log" in src and "stderr=subprocess.STDOUT" in src
+    assert "stdout=subprocess.PIPE" in src and "stderr=subprocess.STDOUT" in src
 
 
 # ---------------------------------------------------------------- ② 켜기 전에 묻는다
@@ -59,6 +62,7 @@ def _free_port() -> int:
     return p
 
 
+@pytest.mark.timing      # hotfix132 — 시간·소켓에 기대는 시험 (느린 PC 에서 빨개지면 이 파일만 한 번 더)
 def test_preflight_tells_free_from_silent():
     port = _free_port()
     assert lan_check.preflight(port) == lan_check.FREE

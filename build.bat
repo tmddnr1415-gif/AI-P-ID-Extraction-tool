@@ -43,7 +43,7 @@ if errorlevel 1 (
 
 echo [2/4] writing build info  app\_build.json
 %PY% -c "import json,datetime,sys;sys.path.insert(0,'.');from app.version import VERSION;json.dump({'version':VERSION,'built_at':datetime.date.today().isoformat()},open('app/_build.json','w'),indent=1)"
-if errorlevel 1 ( echo writing build info failed & pause & exit /b 1 )
+if errorlevel 1 ( echo writing build info failed & if exist app\_build.json del app\_build.json & pause & exit /b 1 )
 %PY% -c "import json;d=json.load(open('app/_build.json'));print('    v'+d['version'],d['built_at'])"
 
 echo [3/4] fast regression tests
@@ -51,14 +51,17 @@ echo [3/4] fast regression tests
 if errorlevel 1 (
   echo.
   echo Tests failed.  No exe is built in this state.
+  if exist app\_build.json del app\_build.json
   pause
   exit /b 1
 )
 
 echo [4/4] PyInstaller
 %PY% -m PyInstaller %CLEAN% --noconfirm pid_extract.spec
-if errorlevel 1 ( echo build failed & pause & exit /b 1 )
+if errorlevel 1 ( echo build failed & if exist app\_build.json del app\_build.json & pause & exit /b 1 )
 
+rem hotfix132 - the stamp is for the exe only; left behind it makes a source run say "build".
+if exist app\_build.json del app\_build.json
 echo.
 for %%f in (dist\PID_Extract.exe) do echo done:  %%~ff  (%%~zf bytes)
 echo.

@@ -34,6 +34,82 @@ import webbrowser
 from pathlib import Path
 
 BANNER = "P&ID 계기·밸브 리스트 추출"
+LOG_LIMIT = 20 * 1024 * 1024        # hotfix132 — 로그가 이 크기를 넘으면 server.log.1 ~ .3 으로 민다
+LOG_KEEP = 3
+
+
+def _product() -> dict:
+    """hotfix132 — 제품 이름·문의처는 config/product.json 한 곳에서 (없으면 빈 dict → 기존 문구)."""
+    try:
+        from app import version
+        return getattr(version, "product", lambda: {})() or {}
+    except Exception:                                 # noqa: BLE001
+        return {}
+
+
+def _set_title(text: str) -> None:
+    """hotfix132 — exe 창 제목.  윈도우가 아니거나 창이 없으면 조용히 넘긴다."""
+    try:
+        import ctypes
+        ctypes.windll.kernel32.SetConsoleTitleW(text)  # type: ignore[attr-defined]
+    except Exception:                                 # noqa: BLE001
+        pass
+
+
+class _LogFile:
+    """hotfix132 — 두 _Tee(stdout·stderr)가 함께 쓰는 로그 파일 하나.
+
+    각자 열면 한쪽이 밀 때 다른 쪽이 옛 핸들을 쥐고 있어 Windows 에서 rename 이 실패한다.
+    그래서 파일 객체를 하나만 두고, limit 를 넘으면 닫고 .1~.keep 으로 민 뒤 다시 연다.
+    못 밀면(다른 프로그램이 쥐고 있음) 같은 파일에 이어 쓴다 — 로그 때문에 서버를 멈추지 않는다."""
+
+    _open: dict = {}
+
+    def __init__(self, path: Path, limit: int = LOG_LIMIT, keep: int = LOG_KEEP):
+        self.path, self.limit, self.keep = path, limit, keep
+        path.parent.mkdir(parents=True, exist_ok=True)
+        self.fh = open(path, "a", encoding="utf-8", buffering=1)
+        try:
+            self.size = path.stat().st_size
+        except OSError:
+            self.size = 0
+
+    @classmethod
+    def shared(cls, path: Path) -> "_LogFile":
+        key = str(Path(path).resolve())
+        lf = cls._open.get(key)
+        if lf is None or lf.fh.closed:
+            lf = cls._open[key] = cls(Path(path))
+        return lf
+
+    def write(self, text: str) -> None:
+        n = len(text.encode("utf-8", "replace"))
+        if self.size + n > self.limit:
+            self._rotate()
+        self.fh.write(text)
+        self.size += n
+
+    def _rotate(self) -> None:
+        try:
+            self.fh.close()
+        except (OSError, ValueError):
+            pass
+        try:
+            oldest = self.path.with_name(f"{self.path.name}.{self.keep}")
+            if oldest.exists():
+                oldest.unlink()
+            for i in range(self.keep - 1, 0, -1):
+                src = self.path.with_name(f"{self.path.name}.{i}")
+                if src.exists():
+                    src.replace(self.path.with_name(f"{self.path.name}.{i + 1}"))
+            self.path.replace(self.path.with_name(f"{self.path.name}.1"))
+        except OSError:
+            pass
+        self.fh = open(self.path, "a", encoding="utf-8", buffering=1)
+        try:
+            self.size = self.path.stat().st_size
+        except OSError:
+            self.size = 0
 
 
 def _bindable(port: int, host: str = "127.0.0.1") -> bool:
@@ -87,8 +163,11 @@ class _Tee:
 
     def __init__(self, stream, path: Path):
         self.stream = stream
-        path.parent.mkdir(parents=True, exist_ok=True)
-        self.file = open(path, "a", encoding="utf-8", buffering=1)
+        self.log = _LogFile.shared(path)       # hotfix132 — stdout·stderr 가 같은 파일 객체를 쓴다 (회전 때문)
+
+    @property
+    def file(self):
+        return self.log.fh
 
     def write(self, text):
         if self.stream is not None:
@@ -101,7 +180,10 @@ class _Tee:
                     self.stream.write(text.encode(enc, "replace").decode(enc, "replace"))
                 except (ValueError, OSError, UnicodeError, LookupError):
                     pass
-        self.file.write(text)
+        try:
+            self.log.write(text)
+        except (ValueError, OSError):
+            pass
         return len(text)
 
     def writelines(self, lines):
@@ -151,7 +233,10 @@ def main(argv=None) -> int:
         log = paths.log_path()
         sys.stdout = _Tee(sys.stdout, log)
         sys.stderr = _Tee(sys.stderr, log)
-        print(f"\n{BANNER}  {version.label()}")
+        prod = _product()
+        name = prod.get("name") or BANNER
+        _set_title(name)
+        print(f"\n{name}  {version.label()}")
         print(f"데이터 폴더: {paths.data_dir()}")
         print(f"로그: {log}")
 
@@ -181,13 +266,15 @@ def main(argv=None) -> int:
         print("이 창을 닫으면 서버도 함께 종료됩니다.\n")
         if not no_browser:
             threading.Timer(1.0, lambda: webbrowser.open(url)).start()
-        uvicorn.run(app, host=host, port=port, log_level="info")
+        # hotfix132 — 접속 로그(요청 주소에 사용자 이름이 남는다)와 server 머리말은 끈다
+        uvicorn.run(app, host=host, port=port, log_level="info", access_log=False, server_header=False)
         return 0
     except KeyboardInterrupt:
         print("\n종료합니다.")
         return 0
     except Exception:                                # noqa: BLE001
-        print("\n실행하지 못했습니다. 아래 내용을 그대로 신고해 주세요.\n")
+        support = _product().get("support") or "관리자"
+        print(f"\n실행하지 못했습니다. 아래 내용을 그대로 {support}에게 알려 주세요.\n")
         traceback.print_exc()
         _hold()
         return 1

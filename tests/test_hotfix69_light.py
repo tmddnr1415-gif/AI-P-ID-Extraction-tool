@@ -133,6 +133,7 @@ def test_slim_rows_drop_selected_row_fields_and_keys_gives_them_back(tmp_path):
     assert "_slim" not in plain and "trace" in plain["evidence"]           # 다른 호출자는 예전 그대로
 
 
+@pytest.mark.timing      # hotfix132 — 시간·소켓에 기대는 시험 (느린 PC 에서 빨개지면 이 파일만 한 번 더)
 def test_row_memo_parses_once_under_concurrent_readers(tmp_path, monkeypatch):
     from app import db
     con = db.connect(tmp_path / "m.db")

@@ -45,11 +45,21 @@ def company_owned() -> tuple:
 STAMP = "app/_update.json"
 BAT = ("@echo off\r\n"
        "rem Apply this delta to C:\\Claude\\PID_dev (never to the operating folder).\r\n"
+       "rem   apply_to_PID_dev.bat                   -> C:\\Claude\\PID_dev\r\n"
+       "rem   apply_to_PID_dev.bat D:\\x\\PID_dev       -> that folder (it must hold app\\main.py)\r\n"
+       "rem   add --dry-run to see what would change without changing anything\r\n"
+       "rem Unpack the whole zip first; this does not work from inside the zip.\r\n"
        "cd /d \"%~dp0\"\r\n"
+       "setlocal enabledelayedexpansion\r\n"
        "set PYTHONUTF8=1\r\n"
-       "set \"PY=C:\\Claude\\PID_dev\\.venv\\Scripts\\python.exe\"\r\n"
+       "set \"TARGET=C:\\Claude\\PID_dev\"\r\n"
+       "set \"FIRST=\"\r\n"
+       "if exist \"%~1\\app\\main.py\" (set \"TARGET=%~1\"& set \"FIRST=%~1\")\r\n"
+       "set \"REST=\"\r\n"
+       "for %%a in (%*) do if not \"%%~a\"==\"!FIRST!\" set \"REST=!REST! %%a\"\r\n"
+       "set \"PY=%TARGET%\\.venv\\Scripts\\python.exe\"\r\n"
        "if not exist \"%PY%\" set \"PY=python\"\r\n"
-       "\"%PY%\" apply_delta.py C:\\Claude\\PID_dev %*\r\n"
+       "\"%PY%\" apply_delta.py \"%TARGET%\" !REST!\r\n"
        "pause\r\n")
 
 
@@ -84,6 +94,16 @@ ROLLBACK_BAT = ("@echo off\r\n"
                 ":end\r\n"
                 "pause\r\n")
 
+# hotfix132 — 현장이 읽는 운영 적용 순서와 되돌리기 (설명서 docs/user_manual.md §업데이트 와 같은 말)
+OPS_README = ("\n운영 반영 순서 (설명서 docs\\user_manual.md 의 '업데이트' 절과 같습니다):\n"
+              "  ① 압축을 전부 푼다 (zip 안에서 바로 실행하면 멈춥니다)\n"
+              "  ② apply_to_PID_dev.bat   — 개발 폴더(PID_dev)에 먼저\n"
+              "  ③ apply_to_PID_ops.bat   — 운영 폴더(PID)에 · '다시 띄울까요?' 에 Enter\n"
+              "  ④ 화면을 새로 고쳐 오른쪽 위/아래 업데이트 번호가 바뀌었는지 본다\n"
+              "  ⑤ 문제가 있으면 rollback_PID_ops.bat — 이 꾸러미가 바꾼 파일만 원래대로\n"
+              "적용이 도중에 실패하면(파일 잠김 · 디스크 부족) 자동으로 원래대로 되돌리고 멈춥니다 — 원인을 없애고 다시 실행하세요.\n"
+              "운영 폴더에는 app\\ 와 config\\ 만 갱신됩니다 — 뿌리의 *.bat 와 spike\\ 의 도구는 PID_dev 에서 씁니다.\n")
+
 
 def git(*args, binary=False):
     out = subprocess.check_output(["git", *args], cwd=ROOT)
@@ -103,6 +123,43 @@ def h(b: bytes | None) -> str | None:
 
 
 SOURCES_FILE = ROOT / "config" / "release_sources.json"
+CHECK_FILE = ROOT / "out" / "release_check.json"       # hotfix132 — spike/release_check.py 가 남기는 검사 결과
+DOC_ONLY = ("out/", "docs/")                            # 이 경로·확장자만 다른 HEAD 는 "검사한 코드와 같다" 고 본다
+DOC_EXT = (".md", ".txt")
+
+
+def _doc_only(paths: list[str]) -> bool:
+    return all(p.startswith(DOC_ONLY) or p.endswith(DOC_EXT) for p in paths)
+
+
+def release_gate(head: str, check_file: Path | None = None) -> list[str]:
+    """hotfix132 — 꾸러미를 만들기 전 `spike/release_check.py` 가 통과했는지 본다.  막을 이유의 목록 (빈 목록 = 통과).
+
+    검사 결과의 head 가 지금 HEAD 와 같거나, 그 사이 차이가 문서(out/ · docs/ · *.md · *.txt)뿐이면 유효하다 —
+    readme_head.txt 커밋 하나 때문에 2분 검사를 다시 돌리지 않게.
+    """
+    f = check_file or CHECK_FILE
+    if not f.exists():
+        return [f"{f.relative_to(ROOT) if f.is_relative_to(ROOT) else f} 가 없습니다 — 먼저 python3 spike/release_check.py 를 돌리세요"]
+    try:
+        r = json.loads(f.read_text(encoding="utf-8"))
+    except (OSError, ValueError) as e:
+        return [f"검사 결과 파일을 읽지 못했습니다: {e}"]
+    reasons = []
+    if not r.get("ok"):
+        reasons.append("마지막 검사가 통과하지 못했습니다 (" + "; ".join(map(str, r.get("failures") or ["사유 없음"])) + ")")
+    checked = str(r.get("head") or "")
+    if not checked:
+        reasons.append("검사 결과에 head 가 없습니다")
+    elif not head.startswith(checked) and not checked.startswith(head):
+        try:
+            changed = [p for p in git("diff", "--name-only", checked, head).splitlines() if p]
+        except subprocess.CalledProcessError:
+            changed = ["?"]
+        if not _doc_only(changed):
+            code = [p for p in changed if not (p.startswith(DOC_ONLY) or p.endswith(DOC_EXT))]
+            reasons.append(f"검사한 커밋 {checked} 뒤에 코드가 바뀌었습니다 ({len(code)}개 — 예: {code[0]}) — 다시 검사하세요")
+    return reasons
 
 
 def unmerged_sources() -> list[str]:
@@ -148,6 +205,8 @@ def main() -> int:
                          "다른 세션의 모듈 꾸러미용 — 딱지(app/_update.json)와 기준 파일(out/PID_dev_delta_base.txt)은 건드리지 않는다")
     ap.add_argument("--allow-unmerged", action="store_true",
                     help="다른 세션 브랜치가 덜 합쳐졌어도 만든다 (사용자가 그렇게 하라고 했을 때만)")
+    ap.add_argument("--skip-checks", action="store_true",
+                    help="hotfix132 — release_check 결과 없이도 만든다 (사유를 1_먼저읽기.txt 꼬리에 '검사 생략' 으로 남긴다)")
     a = ap.parse_args()
     missing = unmerged_sources()
     if missing and a.only:                     # 모듈 꾸러미는 --only 경로만 싣는다 — 다른 세션 파일은 어차피 안 실린다
@@ -164,6 +223,20 @@ def main() -> int:
         return 1
     base = a.base or (BASE_FILE.read_text().strip() if BASE_FILE.exists() else FIRST_BASE)
     head = git("rev-parse", "--short", "HEAD")
+    # hotfix132 — 릴리스 게이트: 시험·JS 구문·화면 스모크가 이 HEAD 에서 통과했어야 한다 (unmerged 와 같은 꼴)
+    gate = release_gate(head)
+    skipped_note = ""
+    if gate and a.only:
+        print("참고 (모듈 꾸러미라 멈추지 않음):", *gate, sep="\n  · ")
+    elif gate and a.skip_checks:
+        print("검사 생략 (--skip-checks):", *gate, sep="\n  · ")
+        skipped_note = "\n[검사 생략] 이 꾸러미는 릴리스 검사 없이 만들었습니다:\n" + "\n".join(f"  · {g}" for g in gate) + "\n"
+    elif gate:
+        print("릴리스 검사가 통과하지 않았습니다 — 꾸러미를 만들지 않습니다:")
+        for g in gate:
+            print("  ·", g)
+        print("(python3 spike/release_check.py 를 돌린 뒤 다시 · 일부러 건너뛰는 경우만 --skip-checks)")
+        return 3
     paths = [p for p in git("-c", "core.quotepath=off", "diff", "--name-only", base, "HEAD").splitlines()
              if p and not p.startswith(SKIP)]
     only = tuple(x.strip() for x in a.only.split(",") if x.strip())
@@ -230,7 +303,30 @@ def main() -> int:
         "충돌(회사에서 고친 파일)은 덮지 않고 <파일>.<이름>.new 로 옆에 둡니다.\n"
         "원본 백업: C:\\Claude\\PID_dev\\backup\\<이름>_<시각>\\\n\n"
         + "\n".join(f"  {'(지움) ' if f.get('remove') else ''}{f['path']}" for f in files) + "\n")
+    if a.ops:
+        readme += OPS_README
+    readme += skipped_note
     out = ROOT / "out" / zname
+    tmp = out.with_name(zname + ".tmp")          # hotfix132 — 검증을 통과한 뒤에만 제 이름이 된다
+    rc = 0
+    try:
+        rc = _write_and_verify(a, files, stamp_bytes, manifest, readme, tmp, base, head)
+        if rc == 0:
+            import os as _os
+            _os.replace(tmp, out)
+            print(f"{out.relative_to(ROOT)}  {out.stat().st_size:,} bytes  · 파일 {len(files)} · 기준 {base} → {head}")
+            if not a.only:
+                BASE_FILE.write_text(head + "\n")
+        else:
+            print(f"꾸러미를 만들지 않았습니다 (검증 실패) — {zname}")
+    finally:
+        if tmp.exists():
+            tmp.unlink()
+    return rc
+
+
+def _write_and_verify(a, files, stamp_bytes, manifest, readme, out: Path, base: str, head: str) -> int:
+    """zip 을 쓰고 기준판 트리에 실제로 적용해 HEAD 와 같은지 센다.  0 이면 통과."""
     with zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED) as z:
         for f in files:
             if f.get("remove"):
@@ -276,7 +372,6 @@ def main() -> int:
                      and (ops_tree / f["path"]).exists() and not f.get("remove")
                      and h((ops_tree / f["path"]).read_bytes()) == h(blob("HEAD", f["path"]))
                      and h(blob(base, f["path"])) != h(blob("HEAD", f["path"]))]   # 운영에는 서버 파일만
-    print(f"{out.relative_to(ROOT)}  {out.stat().st_size:,} bytes  · 파일 {len(files)} · 기준 {base} → {head}")
     print(f"검증: 기준판에 적용 → 충돌 {len(bad)} · HEAD 와 다른 파일 {len(diff)}")
     rm = [f["path"] for f in files if f.get("remove")]
     if rm:
@@ -284,8 +379,6 @@ def main() -> int:
     if bad or diff:
         print(bad, diff)
         return 1
-    if not only:
-        BASE_FILE.write_text(head + "\n")
     return 0
 
 

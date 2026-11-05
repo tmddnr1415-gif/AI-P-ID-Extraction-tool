@@ -77,10 +77,13 @@ uvloop 은 성능용 이벤트 루프일 뿐이고 없으면 uvicorn 이 asyncio
 ## 3. 실행
 
 ```powershell
-.\start.bat                 # 8000 포트, 코드 변경 감시(--reload)
+.\start.bat                 # 8000 포트 (이 PC 에서만)
 .\start.bat 9000            # 다른 포트
-.\start.bat --no-reload     # 감시 끄기 (조금 빠름)
+.\start.bat --reload        # 코드를 고치면 다시 뜸 (개발할 때만)
 ```
+
+> 처음 설치는 `setup.bat` 을 한 번 더블클릭하면 위 1~2절(가상환경 · 휠 설치)을 대신합니다.
+> 부서 공용 서버는 `run_lan_service.bat` 으로 띄웁니다 — 사용 설명서 `docs\user_manual.md`.
 
 `start.bat` 은 `.venv\Scripts\python.exe` 가 있으면 자동으로 그것을 씁니다
 (활성화하지 않아도 더블클릭으로 됩니다).
@@ -96,6 +99,9 @@ uvloop 은 성능용 이벤트 루프일 뿐이고 없으면 uvicorn 이 asyncio
 ## 4. 정상 확인
 
 ### 4-1. 빠른 테스트 (10초) — 이관 확인은 이것으로 충분합니다
+
+> node 22 LTS 를 깔아 두면 화면 JS 구문 시험(`tests/test_js_syntax.py`)도 돌고,
+> `pytest-timeout` 휠을 `wheels\` 에 넣어 설치하면 멈춘 시험이 5분에서 끊깁니다 (둘 다 없어도 됩니다).
 
 ```powershell
 python -m pip install --no-index --find-links wheels -r requirements-win-test.txt

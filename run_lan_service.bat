@@ -29,15 +29,41 @@ rem ('the process cannot access the file') and the server never started.  Python
 rem opens the log in shared mode and falls back to logs\server_<time>.log.  The
 rem server also ignores Ctrl+C in this window (it used to stop the server); close
 rem the window to stop it.
+rem
+rem hotfix132: python and packages are checked once before the loop (without
+rem python the old loop said "port 8000 is held" forever).  Five quick failures
+rem in a row (logs\server.fastfail, written by lan_serve) pause the loop for 60 s
+rem with a hint.  The log is capped at 20 MB x 3 by lan_serve.  Data can live on
+rem another drive:
+rem set PID_DATA_DIR=D:\pid_data
 setlocal
 cd /d "%~dp0"
 set PID_LAN=1
 set PID_NO_HOLD=1
 set PYTHONUTF8=1
 set PYTHONIOENCODING=utf-8
+set FAST=0
 if not exist logs mkdir logs
 title PID server - LAN port 8000
 if exist ".venv\Scripts\python.exe" (set PY=.venv\Scripts\python.exe) else (set PY=python)
+if defined PID_DATA_DIR echo data folder: %PID_DATA_DIR%
+if exist "PID_Extract.exe" goto loop
+
+%PY% -c "import sys;sys.exit(0 if sys.version_info>=(3,11) else 1)" >nul 2>&1
+if errorlevel 1 (
+  echo.
+  echo Python 3.11 is not installed or not on PATH - see docs\offline_setup_windows.md
+  echo   expected: .venv\Scripts\python.exe  ^(run setup.bat once^)
+  pause
+  exit /b 1
+)
+%PY% -c "import importlib.util,sys; m=[x for x in ('fastapi','uvicorn','multipart','pymupdf','openpyxl','yaml','numpy') if not importlib.util.find_spec(x)]; sys.exit('missing: '+', '.join(m) if m else 0)"
+if errorlevel 1 (
+  echo.
+  echo Missing packages. Run setup.bat once, or:  %PY% -m pip install -r requirements.txt
+  pause
+  exit /b 1
+)
 
 :loop
 if exist "PID_Extract.exe" goto run_exe
@@ -57,8 +83,8 @@ goto stopped
 
 :run_exe
 echo [%date% %time%] starting PID_Extract.exe, LAN port 8000>> logs\lan_service.log
-echo PID server (exe) - LAN mode, port 8000.  Messages go to logs\server.log
-"PID_Extract.exe" --lan --no-browser 8000 >> logs\server.log 2>&1
+echo PID server (exe) - LAN mode, port 8000.  Messages go to pid_data\logs\server.log
+"PID_Extract.exe" --lan --no-browser 8000 >nul 2>&1
 goto stopped
 
 :already
@@ -81,7 +107,16 @@ goto loop
 echo [%date% %time%] server stopped - restarting in 10 seconds>> logs\lan_service.log
 echo.
 echo Server stopped.  End of logs\server.log:
-if exist "PID_Extract.exe" (echo   see logs\server.log) else (%PY% -m app.lan_serve --tail)
+if exist "PID_Extract.exe" (echo   see pid_data\logs\server.log) else (%PY% -m app.lan_serve --tail)
+if exist logs\server.fastfail (set /a FAST+=1) else (set FAST=0)
+if %FAST% GEQ 5 (
+  echo.
+  echo The server fails to start - run check_pid_server.bat and send logs\server.log
+  echo Trying again in 60 seconds.
+  timeout /t 60 /nobreak >nul
+  set FAST=0
+  goto loop
+)
 echo Restarting in 10 seconds.
 timeout /t 10 /nobreak >nul
 goto loop

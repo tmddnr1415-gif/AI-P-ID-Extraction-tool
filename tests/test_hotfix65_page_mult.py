@@ -13,6 +13,7 @@ from __future__ import annotations
 import asyncio
 import json
 import re
+import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -49,7 +50,7 @@ def _job(tmp_path, monkeypatch):
 
 def test_bulk_writes_like_patch_and_never_touches_the_extracted_value(tmp_path, monkeypatch):
     con, main, db = _job(tmp_path, monkeypatch)
-    out = asyncio.run(main.qty_bulk("j", {"author": "홍길동", "items": [
+    out = (main.qty_bulk("j", {"author": "홍길동", "items": [
         {"key": "a", "value": 3, "reason": "PAGE_MULTIPLIER: p6 x3"},
         {"key": "b", "value": "12", "reason": "PAGE_MULTIPLIER: p6 x3"},
         {"key": "zz", "value": 5}]}))
@@ -60,7 +61,7 @@ def test_bulk_writes_like_patch_and_never_touches_the_extracted_value(tmp_path, 
     hist = db.row_edit_history(con, "j", "a")
     assert hist and hist[-1]["author"] == "홍길동" and "PAGE_MULTIPLIER: p6 x3" in json.dumps(hist[-1], ensure_ascii=False)
     # 빈 값 = 도면 값으로 (PATCH 와 같은 규칙)
-    asyncio.run(main.qty_bulk("j", {"author": "홍길동", "items": [{"key": "a", "value": ""}]}))
+    (main.qty_bulk("j", {"author": "홍길동", "items": [{"key": "a", "value": ""}]}))
     assert "qty" not in (db.get_row(con, "j", "a")["user"] or {})
 
 
@@ -69,14 +70,14 @@ def test_bulk_rejects_non_integers(tmp_path, monkeypatch):
     con, main, db = _job(tmp_path, monkeypatch)
     for bad in ("x2", -1):
         with pytest.raises(HTTPException):
-            asyncio.run(main.qty_bulk("j", {"items": [{"key": "a", "value": bad}]}))
+            (main.qty_bulk("j", {"items": [{"key": "a", "value": bad}]}))
     assert "qty" not in (db.get_row(con, "j", "a")["user"] or {})   # 하나도 안 적었다
     with pytest.raises(HTTPException):
-        asyncio.run(main.qty_bulk("j", {"items": []}))
+        (main.qty_bulk("j", {"items": []}))
 
 
 def test_the_server_only_writes_what_the_screen_computed():
-    body = MAIN[MAIN.index("async def qty_bulk("):MAIN.index('@app.get("/jobs/{job_id}/rows/{key}/history")')]
+    body = MAIN[MAIN.index("def qty_bulk("):MAIN.index('@app.get("/jobs/{job_id}/rows/{key}/history")')]
     # hotfix75 — PATCH · qty_bulk · rows_edit 가 같은 `_edit_one` 을 부른다
     assert "_edit_one(" in body
     one = MAIN[MAIN.index("def _edit_one("):MAIN.index('@app.delete("/jobs/{job_id}/rows/{key}")')]
@@ -101,6 +102,8 @@ const rows = [
   {ai: {qty: 3}, evidence: {qty_basis: "1 point x 3 (Typical 'D' 부품 점)"}},
 ];
 console.log(JSON.stringify(rows.map(qtyBase)));"""
+    if not shutil.which("node"):                     # hotfix132 — node 가 없으면 subprocess 가 먼저 예외를 던진다
+        pytest.skip("node 없음 — JS 실행 시험")
     out = subprocess.run(["node", "-e", src], capture_output=True, text=True, timeout=30)
     if out.returncode != 0 and "not found" in (out.stderr or ""):
         pytest.skip("node 없음")

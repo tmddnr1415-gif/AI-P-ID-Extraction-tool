@@ -108,6 +108,7 @@ def test_learner_stops_when_the_result_changes_underneath(tmp_path, monkeypatch)
     assert out and (d / behavior.FILE).exists() and out["key"] == behavior.key_of(d)
 
 
+@pytest.mark.timing      # hotfix132 — 시간·소켓에 기대는 시험 (느린 PC 에서 빨개지면 이 파일만 한 번 더)
 def test_wait_quiet_waits_for_edits_to_settle(tmp_path):
     import time
     from app.logic import overrides

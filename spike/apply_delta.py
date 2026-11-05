@@ -32,11 +32,21 @@ hotfix60 - the operating folder (C:\\Claude\\PID, the server the dashboard shows
     apply_delta.py C:\\Claude\\PID --ops --restore
   puts back the files this package replaced (from backup\\<package>_<time>\\, newest) and
   removes the files it created.
+
+hotfix132 - safety around the copy loop:
+  * if a copy fails half way (file locked, disk full ...) everything written so far is
+    put back from the backup at once and the exit code is 5 - a server never keeps half
+    an update.  The backup folder records the hash of every byte written (_applied.json).
+  * --restore skips a file that was edited AFTER the update (hash differs from what we
+    wrote) and reports it; --force overrides.  --restore --dry-run only shows.  --yes
+    answers the question.
+  * running inside the zip (no files\\ folder) is refused with a plain sentence.
 """
 from __future__ import annotations
 
 import hashlib
 import json
+import os
 import shutil
 import sys
 import time
@@ -44,6 +54,27 @@ from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 NEVER = ("app/_data/", "data/", ".venv/", "logs/", "backup/")
+APPLIED = "_applied.json"            # hotfix132 — 백업 폴더에: {상대경로: 적용 때 실제로 쓴 바이트의 해시}
+EXIT_ROLLED_BACK = 5
+
+
+class ApplyFailed(OSError):
+    """hotfix132 — 복사 도중 실패해 원래대로 되돌렸다.  rel · 원인 · 되돌림 여부를 든다."""
+
+    def __init__(self, rel: str, cause: BaseException, rolled_back: bool):
+        super().__init__(str(cause))
+        self.rel, self.cause, self.rolled_back = rel, cause, rolled_back
+
+
+def _why(exc: BaseException) -> str:
+    """hotfix132 — OSError 를 계장 엔지니어가 읽는 한 줄로."""
+    if isinstance(exc, PermissionError):
+        return "권한이 없거나 다른 프로그램이 그 파일을 쓰고 있습니다 (서버·편집기를 닫고 다시 하세요)"
+    if isinstance(exc, FileNotFoundError):
+        return "파일이나 폴더를 찾을 수 없습니다"
+    if getattr(exc, "errno", None) == 28:
+        return "디스크가 가득 찼습니다"
+    return str(exc) or type(exc).__name__
 
 
 def sha(p: Path) -> str | None:
@@ -189,67 +220,144 @@ def apply(target: Path, pkg: Path, manifest: dict, dry: bool = False, runtime_on
             backup = target / "backup" / f"{name}_{stamp}"
             backup.mkdir(parents=True, exist_ok=True)
             (backup / "_created.txt").write_text("\n".join(created) + "\n", encoding="utf-8")
-        for s in steps:
-            src = pkg / "files" / s["path"]
-            dst = target / s["path"]
-            if s["action"] == "remove":
-                backup = backup or (target / "backup" / f"{name}_{stamp}")
-                b = backup / s["path"]
-                b.parent.mkdir(parents=True, exist_ok=True)
-                shutil.copy2(dst, b)
-                dst.unlink()
-            elif s["action"] in ("overwrite", "create"):
-                if s["action"] == "overwrite":
+        applied: dict[str, str] = {}             # hotfix132 — 실제로 쓴 바이트의 해시 (merge 는 합친 글의 해시)
+        failed: ApplyFailed | None = None
+
+        def _note(rel: str, dst: Path) -> None:
+            applied[rel] = sha(dst) or ""
+            if backup is not None:
+                backup.mkdir(parents=True, exist_ok=True)
+                (backup / APPLIED).write_text(json.dumps(applied, indent=1), encoding="utf-8")
+
+        try:
+            for s in steps:
+                src = pkg / "files" / s["path"]
+                dst = target / s["path"]
+                if s["action"] == "remove":
                     backup = backup or (target / "backup" / f"{name}_{stamp}")
                     b = backup / s["path"]
                     b.parent.mkdir(parents=True, exist_ok=True)
                     shutil.copy2(dst, b)
-                dst.parent.mkdir(parents=True, exist_ok=True)
-                shutil.copyfile(src, dst)
-            elif s["action"] == "merge":
-                backup = backup or (target / "backup" / f"{name}_{stamp}")
-                b = backup / s["path"]
-                b.parent.mkdir(parents=True, exist_ok=True)
-                shutil.copy2(dst, b)
-                text = merged_text(target, s["path"])
-                dst.write_bytes(text.encode("utf-8"))
-                for side in dst.parent.glob(dst.name + ".hotfix*.new"):
-                    side.unlink()                 # 앞선 적용들이 남긴 .new — 이제 합쳤다
-            elif s["action"] == "conflict":
-                side = dst.with_name(dst.name + f".{name}.new")
-                shutil.copyfile(src, side)
-                s["new_copy"] = str(side)
-        lines = [f"{name} applied {time.strftime('%Y-%m-%d %H:%M:%S')} to {target}"]
-        lines += [f"{s['action']:9s} {s['path']}" for s in steps]
-        (target / f"delta_{name}_report.txt").write_text("\n".join(lines) + "\n", encoding="utf-8")
+                    dst.unlink()
+                elif s["action"] in ("overwrite", "create"):
+                    if s["action"] == "overwrite":
+                        backup = backup or (target / "backup" / f"{name}_{stamp}")
+                        b = backup / s["path"]
+                        b.parent.mkdir(parents=True, exist_ok=True)
+                        shutil.copy2(dst, b)
+                    dst.parent.mkdir(parents=True, exist_ok=True)
+                    shutil.copyfile(src, dst)
+                    _note(s["path"], dst)
+                elif s["action"] == "merge":
+                    backup = backup or (target / "backup" / f"{name}_{stamp}")
+                    b = backup / s["path"]
+                    b.parent.mkdir(parents=True, exist_ok=True)
+                    shutil.copy2(dst, b)
+                    text = merged_text(target, s["path"])
+                    dst.write_bytes(text.encode("utf-8"))
+                    _note(s["path"], dst)
+                    for side in dst.parent.glob(dst.name + ".hotfix*.new"):
+                        side.unlink()                 # 앞선 적용들이 남긴 .new — 이제 합쳤다
+                elif s["action"] == "conflict":
+                    side = dst.with_name(dst.name + f".{name}.new")
+                    shutil.copyfile(src, side)
+                    s["new_copy"] = str(side)
+        except OSError as exc:
+            # hotfix132 — 반쪽 업데이트를 남기지 않는다: 방금 만든 백업으로 바로 되돌린다
+            rel = s["path"]
+            rolled = False
+            if backup is not None and backup.is_dir():
+                try:
+                    restore(target, name, force=True, quiet=True)
+                    rolled = True
+                except OSError:
+                    rolled = False
+            failed = ApplyFailed(rel, exc, rolled)
+        finally:
+            lines = [f"{name} applied {time.strftime('%Y-%m-%d %H:%M:%S')} to {target}"]
+            if failed is not None:
+                lines[0] = (f"{name} FAILED {time.strftime('%Y-%m-%d %H:%M:%S')} at {failed.rel}"
+                            f" ({_why(failed.cause)}) - "
+                            + ("rolled back" if failed.rolled_back else "nothing to roll back"))
+            lines += [f"{s['action']:9s} {s['path']}" for s in steps]
+            try:
+                (target / f"delta_{name}_report.txt").write_text("\n".join(lines) + "\n", encoding="utf-8")
+            except OSError:
+                pass
+        if failed is not None:
+            raise failed
     return steps, backup
 
 
-def restore(target: Path, name: str) -> tuple[Path | None, int, int]:
-    """이 꾸러미가 남긴 가장 최근 백업으로 되돌린다 — 덮은 파일은 원본으로, 만든 파일은 지운다."""
+def restore(target: Path, name: str, *, force: bool = False, dry: bool = False,
+            quiet: bool = False) -> tuple[Path | None, int, int]:
+    """이 꾸러미가 남긴 가장 최근 백업으로 되돌린다 — 덮은 파일은 원본으로, 만든 파일은 지운다.
+
+    hotfix132 — 백업에 `_applied.json`(적용 때 쓴 바이트의 해시)이 있으면 파일마다 본다:
+    지금 해시 == 적용 때 해시 → 되돌림 · 이미 백업본과 같음 → 조용히 넘김 · 둘 다 아님(그 뒤에 누가
+    고침) → '[안 되돌림 - 그 뒤에 고친 파일]' 로 보고만 (force 면 덮음).  옛 백업(기록 없음)은 전처럼 덮는다.
+    dry 면 세기만 하고 바꾸지 않는다.  반환은 (백업 폴더, 되돌린 수, 지운 수) 그대로.
+    """
     root = target / "backup"
     cands = sorted(root.glob(f"{name}_*")) if root.is_dir() else []
     if not cands:
         return None, 0, 0
     b = cands[-1]
+    applied: dict | None = None
+    try:
+        applied = json.loads((b / APPLIED).read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        applied = None
+
+    def _ours(rel: str, cur: str | None) -> bool:
+        """지금 파일이 우리가 쓴 그대로인가 (기록이 없는 옛 백업은 그렇다고 본다)."""
+        return force or applied is None or rel not in applied or applied.get(rel) == cur
+
     back = gone = 0
-    for f in b.rglob("*"):
-        if f.is_file() and f.name != "_created.txt":
-            rel = f.relative_to(b)
-            dst = target / rel
+    for f in sorted(b.rglob("*")):
+        if not f.is_file() or f.name in ("_created.txt", APPLIED):
+            continue
+        rel = f.relative_to(b).as_posix()
+        dst = target / rel
+        cur = sha(dst)
+        if cur is not None and cur == sha(f):
+            continue                                   # 이미 원본 그대로
+        if not _ours(rel, cur):
+            if not quiet:
+                print(f"  [안 되돌림 - 그 뒤에 고친 파일] {rel}   (--force 면 덮습니다)")
+            continue
+        if not dry:
             dst.parent.mkdir(parents=True, exist_ok=True)
             shutil.copy2(f, dst)
-            back += 1
+        back += 1
     lst = b / "_created.txt"
     if lst.is_file():
         for rel in lst.read_text(encoding="utf-8").split():
             if rel.startswith(NEVER) or ".." in Path(rel).parts:
                 continue
             p = target / rel
-            if p.is_file():
+            if not p.is_file():
+                continue
+            if not _ours(rel, sha(p)):
+                if not quiet:
+                    print(f"  [안 지움 - 그 뒤에 고친 파일] {rel}   (--force 면 지웁니다)")
+                continue
+            if not dry:
                 p.unlink()
-                gone += 1
+            gone += 1
     return b, back, gone
+
+
+def _package_is_unpacked(manifest_path: Path) -> bool:
+    """hotfix132 — zip 안에서 더블클릭하면 files\\ 가 없다 (manifest 에 실을 파일이 있을 때만 요구)."""
+    if not manifest_path.is_file():
+        return False
+    try:
+        man = json.loads(manifest_path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return False
+    needs_files = any(not f.get("remove") for f in man.get("files") or [])
+    return (manifest_path.parent / "files").is_dir() or not needs_files
 
 
 def main(argv=None) -> int:
@@ -263,11 +371,17 @@ def main(argv=None) -> int:
     ops = "--ops" in argv
     runtime = "--runtime" in argv
     aon = "--all-or-nothing" in argv
-    args = [a for a in argv if not a.startswith("--")]
+    force = "--force" in argv
+    yes = "--yes" in argv or "-y" in argv
+    args = [a for a in argv if a and not a.startswith("--") and a != "-y"]
     if len(args) != 1:
         print(__doc__)
         return 1
     target = Path(args[0]).resolve()
+    if not _package_is_unpacked(HERE / "manifest.json"):
+        print("[중단] 이 폴더에 꾸러미 파일(manifest.json · files 폴더)이 없습니다.\n"
+              "       zip 을 먼저 전부 푼 뒤, 푼 폴더 안의 bat 를 실행하세요 (zip 안에서 바로 실행하면 안 됩니다).")
+        return 1
     manifest = json.loads((HERE / "manifest.json").read_text(encoding="utf-8"))
     if not (target / "app" / "main.py").is_file():
         print(f"[중단] {target} 에 app\\main.py 가 없습니다. PID_dev 폴더를 지정하세요.")
@@ -281,13 +395,39 @@ def main(argv=None) -> int:
               "       exe 를 다시 빌드해야 합니다 (build.bat).  아무 파일도 바꾸지 않았습니다.")
         return 4
     if "--restore" in argv:
-        b, back, gone = restore(target, manifest["name"])
+        # hotfix132 — 먼저 세어 보여 주고(미리보기), 묻고, 그 다음에 되돌린다.  --dry-run 은 세기만.
+        b, back, gone = restore(target, manifest["name"], force=force, dry=True)
         if b is None:
             print(f"[되돌릴 것 없음] {target}\\backup 에 {manifest['name']} 백업이 없습니다.")
             return 1
+        print(f"백업: {b}\n되돌릴 파일 {back}개 · 지울 파일 {gone}개"
+              + ("   [미리보기 - 아무것도 바꾸지 않음]" if dry else ""))
+        if dry:
+            return 0
+        if not (back or gone):
+            print("이미 원본 그대로입니다 — 바꿀 것이 없습니다.")
+            return 0
+        if not yes and sys.stdin is not None and sys.stdin.isatty():
+            try:
+                ans = input("계속할까요? [Y/n] ").strip().lower()
+            except (EOFError, KeyboardInterrupt):
+                ans = "n"
+            if ans not in ("", "y", "yes", "ㅛ"):
+                print("되돌리지 않았습니다.")
+                return 0
+        b, back, gone = restore(target, manifest["name"], force=force, quiet=True)
         print(f"되돌림: {b} 의 원본 {back}개를 다시 놓고, 이 꾸러미가 만든 파일 {gone}개를 지웠습니다.")
         return 0
-    steps, backup = apply(target, HERE, manifest, dry, runtime_only=runtime, all_or_nothing=aon)
+    try:
+        steps, backup = apply(target, HERE, manifest, dry, runtime_only=runtime, all_or_nothing=aon)
+    except ApplyFailed as e:
+        print(f"{manifest['name']}  ({manifest.get('summary', '')})\n대상: {target}\n")
+        if e.rolled_back:
+            print(f"[적용하지 못해 원래대로 되돌렸습니다] 파일: {e.rel}\n   사유: {_why(e.cause)}")
+        else:
+            print(f"[적용하지 못했습니다 - 바꾼 파일은 없습니다] 파일: {e.rel}\n   사유: {_why(e.cause)}")
+        print("\n원인을 없앤 뒤(서버·편집기 닫기 · 디스크 비우기) 같은 bat 를 다시 실행하세요.  서버는 그대로 돕니다.")
+        return EXIT_ROLLED_BACK
     print(f"{manifest['name']}  ({manifest.get('summary', '')})")
     if steps and steps[0].get("aborted"):
         bad = [s for s in steps if s["action"] in ("conflict", "kept")]

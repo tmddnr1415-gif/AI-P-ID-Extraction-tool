@@ -91,6 +91,7 @@ def test_cancel_from_progress_stops_the_child(tmp_path):
     assert not [p for p in multiprocessing.active_children() if p.name == "pid-analysis"]
 
 
+@pytest.mark.timing      # hotfix132 — 시간·소켓에 기대는 시험 (느린 PC 에서 빨개지면 이 파일만 한 번 더)
 def test_parent_keeps_answering_while_the_child_is_busy(tmp_path):
     """자식이 CPU 를 쥐는 동안 부모의 다른 스레드가 제때 돈다 — 대시보드가 겪은 것의 반대."""
     worst = [0.0]

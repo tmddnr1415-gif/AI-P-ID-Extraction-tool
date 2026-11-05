@@ -252,3 +252,82 @@ def test_unmergeable_company_file_stays_a_conflict(tmp_path):
     steps, _ = apply_delta.apply(target, pkg, man, runtime_only=True, all_or_nothing=True)
     assert steps[0].get("aborted")
     assert {s["path"]: s["action"] for s in steps}["app/lan_check.py"] == "conflict"
+
+
+# ---------------------------------------------------------------- hotfix132 — 실패 시 자동 원상복구 · 되돌리기 안전장치
+def _snapshot(root):
+    return {p.relative_to(root).as_posix(): p.read_bytes() for p in root.rglob("*")
+            if p.is_file() and "backup" not in p.parts and not p.name.startswith("delta_")}
+
+
+def test_a_failed_copy_rolls_back_everything_and_exits_5(tmp_path, monkeypatch, capsys):
+    target, pkg, man = _setup(tmp_path)
+    (target / "app" / "lan_check.py").write_bytes(b"base lan")
+    before = _snapshot(target)
+    real = apply_delta.shutil.copyfile
+    calls = []
+
+    def flaky(src, dst, *a, **k):
+        calls.append(str(dst))
+        if len(calls) == 2:                              # 두 번째 파일에서 잠김
+            raise PermissionError(13, "locked", str(dst))
+        return real(src, dst, *a, **k)
+    monkeypatch.setattr(apply_delta.shutil, "copyfile", flaky)
+    monkeypatch.setattr(apply_delta, "HERE", pkg)
+    rc = apply_delta.main([str(target)])
+    out = capsys.readouterr().out
+    assert rc == 5
+    assert "원래대로 되돌렸습니다" in out and Path(calls[1]).name in out and "권한" in out
+    assert _snapshot(target) == before                   # 적용 전과 바이트가 같다
+    report = (target / "delta_hotfix56_report.txt").read_text(encoding="utf-8")
+    assert report.startswith("hotfix56 FAILED") and "rolled back" in report
+
+
+def test_restore_leaves_a_file_edited_after_the_update_and_says_so(tmp_path, capsys):
+    target, pkg, man = _setup(tmp_path)
+    (target / "app" / "lan_check.py").write_bytes(b"base lan")
+    steps, backup = apply_delta.apply(target, pkg, man)
+    applied = json.loads((backup / apply_delta.APPLIED).read_text(encoding="utf-8"))
+    assert applied["app/main.py"] == _h(b"new main")     # 적용 때 실제로 쓴 바이트의 해시
+    (target / "app" / "main.py").write_bytes(b"edited after the update")
+    b, back, gone = apply_delta.restore(target, man["name"])
+    out = capsys.readouterr().out
+    assert "[안 되돌림 - 그 뒤에 고친 파일] app/main.py" in out
+    assert (target / "app" / "main.py").read_bytes() == b"edited after the update"
+    assert (target / "app" / "lan_check.py").read_bytes() == b"base lan" and gone == 1
+    b, back, gone = apply_delta.restore(target, man["name"], force=True)   # --force 면 덮는다
+    assert (target / "app" / "main.py").read_bytes() == b"base main" and back == 1
+
+
+def test_restore_dry_run_changes_nothing(tmp_path, monkeypatch, capsys):
+    target, pkg, man = _setup(tmp_path)
+    (target / "app" / "lan_check.py").write_bytes(b"base lan")
+    apply_delta.apply(target, pkg, man)
+    after_apply = _snapshot(target)
+    monkeypatch.setattr(apply_delta, "HERE", pkg)
+    assert apply_delta.main([str(target), "--restore", "--dry-run"]) == 0
+    out = capsys.readouterr().out
+    assert "미리보기" in out and "되돌릴 파일 3개" in out and "지울 파일 1개" in out
+    assert _snapshot(target) == after_apply              # 예전에는 --restore --dry-run 이 실제로 되돌렸다
+    assert apply_delta.main([str(target), "--restore", "--yes"]) == 0
+    assert (target / "app" / "main.py").read_bytes() == b"base main"
+
+
+def test_running_inside_the_zip_is_refused_in_korean(tmp_path, monkeypatch, capsys):
+    target, pkg, man = _setup(tmp_path)
+    here = tmp_path / "zip_view"
+    here.mkdir()
+    (here / "manifest.json").write_text(json.dumps(man), encoding="utf-8")   # files/ 가 없다
+    monkeypatch.setattr(apply_delta, "HERE", here)
+    assert apply_delta.main([str(target)]) == 1
+    assert "zip 을 먼저 전부 푼 뒤" in capsys.readouterr().out
+    assert (target / "app" / "main.py").read_bytes() == b"base main"
+
+
+def test_ops_readme_and_dev_bat_say_the_field_procedure():
+    import pack_delta
+    assert "rollback_PID_ops.bat" in pack_delta.OPS_README and "압축" in pack_delta.OPS_README
+    assert "apply_to_PID_ops.bat" in pack_delta.OPS_README and "자동으로 원래대로" in pack_delta.OPS_README
+    bat = pack_delta.BAT
+    bat.encode("ascii")
+    assert "TARGET" in bat and '"%~1\\app\\main.py"' in bat and "!REST!" in bat and "\r\n" in bat

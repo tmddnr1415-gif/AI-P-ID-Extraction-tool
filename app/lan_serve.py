@@ -25,6 +25,7 @@ from __future__ import annotations
 
 import subprocess
 import sys
+import threading
 import time
 from pathlib import Path
 
@@ -76,13 +77,99 @@ def current_log(logs: Path | None = None) -> Path:
     return logs / MAIN_LOG
 
 
+LOG_LIMIT = 20 * 1024 * 1024         # hotfix132 — 이 크기를 넘으면 server.log.1 ~ .3 으로 민다 (부모만 파일을 쥐므로 rename 이 된다)
+LOG_KEEP = 3
+FASTFAIL = "server.fastfail"         # hotfix132 — 자식이 FAST_S 초 안에 끝났다는 표지 (run_lan_service.bat 이 센다)
+FAST_S = 30.0
+
+
 def server_command(port: int) -> list[str]:
-    return [sys.executable, "-m", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", str(port)]
+    # hotfix132 — 접속 로그(요청 주소에 사용자 이름이 그대로 남는다)와 server 머리말은 끈다
+    return [sys.executable, "-m", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", str(port),
+            "--no-access-log", "--no-server-header"]
+
+
+class _RotatingLog:
+    """hotfix132 — 자식의 출력을 받아 쓰는 로그.  limit 를 넘으면 제 손으로 닫고 .1~.keep 으로 민 뒤 다시 연다.
+
+    자식(uvicorn)이 아니라 이 부모 프로세스만 파일을 쥐므로 Windows 에서도 rename 이 된다.  못 밀면(누가
+    쥐고 있다) 그대로 이어 쓴다 — 로그 때문에 서버를 멈추지 않는다."""
+
+    def __init__(self, path: Path, fh, limit: int = LOG_LIMIT, keep: int = LOG_KEEP):
+        self.path, self.fh, self.limit, self.keep = path, fh, limit, keep
+        try:
+            self.size = path.stat().st_size
+        except OSError:
+            self.size = 0
+
+    def write(self, data: bytes) -> None:
+        if self.size + len(data) > self.limit:
+            self._rotate()
+        try:
+            self.fh.write(data)
+            self.size += len(data)
+        except (OSError, ValueError):
+            pass
+
+    def _rotate(self) -> None:
+        try:
+            self.fh.close()
+        except OSError:
+            pass
+        try:
+            oldest = self.path.with_name(f"{self.path.name}.{self.keep}")
+            if oldest.exists():
+                oldest.unlink()
+            for i in range(self.keep - 1, 0, -1):
+                src = self.path.with_name(f"{self.path.name}.{i}")
+                if src.exists():
+                    src.replace(self.path.with_name(f"{self.path.name}.{i + 1}"))
+            self.path.replace(self.path.with_name(f"{self.path.name}.1"))
+        except OSError:
+            pass                                          # 못 밀면 같은 파일에 이어 쓴다
+        self.fh = open(self.path, "ab", buffering=0)
+        try:
+            self.size = self.path.stat().st_size
+        except OSError:
+            self.size = 0
+
+    def close(self) -> None:
+        try:
+            self.fh.close()
+        except OSError:
+            pass
+
+
+def _pump(stream, log: _RotatingLog) -> None:
+    """자식 stdout → 로그.  줄 단위로 옮기고 자식이 닫으면 끝난다."""
+    try:
+        for line in iter(stream.readline, b""):
+            log.write(line)
+    except (OSError, ValueError):
+        pass
+    finally:
+        try:
+            stream.close()
+        except OSError:
+            pass
+
+
+def _mark_fastfail(logs: Path, elapsed: float) -> None:
+    """hotfix132 — 자식이 금방 죽었으면 표지를 남기고, 오래 살았으면 지운다 (서비스 창의 연속 실패 세기)."""
+    flag = logs / FASTFAIL
+    try:
+        if elapsed < FAST_S:
+            flag.write_text(f"{elapsed:.0f}\n", encoding="utf-8")
+        elif flag.exists():
+            flag.unlink()
+    except OSError:
+        pass
 
 
 def serve(port: int = 8000, logs: Path | None = None) -> int:
     logs = logs or LOGS
-    path, log = open_log(logs)
+    path, fh = open_log(logs)
+    log = _RotatingLog(path, fh)
     try:
         (logs / CURRENT).write_text(path.name + "\n", encoding="utf-8")
     except OSError:
@@ -96,16 +183,26 @@ def serve(port: int = 8000, logs: Path | None = None) -> int:
         kw["creationflags"] = subprocess.CREATE_NEW_PROCESS_GROUP    # Ctrl+C 가 서버에 닿지 않는다
     else:
         kw["start_new_session"] = True
+    # hotfix132 — 자식은 파이프에 쓰고 이 프로세스가 로그 파일에 옮겨 적는다 (회전은 부모가 · 창에는 안 쓴다)
+    t0 = time.monotonic()
     proc = subprocess.Popen(server_command(port), cwd=str(ROOT), stdin=subprocess.DEVNULL,
-                            stdout=log, stderr=subprocess.STDOUT, **kw)
-    log.close()                                   # 서버가 자기 몫을 들고 있다
-    while True:
-        try:
-            return proc.wait(timeout=1.0)        # 짧게 기다려야 Ctrl+C 가 바로 잡힌다
-        except subprocess.TimeoutExpired:
-            continue
-        except KeyboardInterrupt:
-            print("Ctrl+C does not stop the server.  To stop it, close this window.")
+                            stdout=subprocess.PIPE, stderr=subprocess.STDOUT, **kw)
+    pump = threading.Thread(target=_pump, args=(proc.stdout, log), daemon=True)
+    pump.start()
+    try:
+        while True:
+            try:
+                rc = proc.wait(timeout=1.0)        # 짧게 기다려야 Ctrl+C 가 바로 잡힌다
+                break
+            except subprocess.TimeoutExpired:
+                continue
+            except KeyboardInterrupt:
+                print("Ctrl+C does not stop the server.  To stop it, close this window.")
+        pump.join(timeout=5.0)
+        _mark_fastfail(logs, time.monotonic() - t0)
+        return rc
+    finally:
+        log.close()
 
 
 def show_tail() -> int:

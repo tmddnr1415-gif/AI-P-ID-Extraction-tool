@@ -50,6 +50,8 @@ def test_the_service_starts_the_server_itself():
     assert "set PID_LAN=1" in body
     assert "-m app.lan_serve 8000" in body             # hotfix93 — 서버 명령은 lan_serve 안에
     from app import lan_serve
-    assert lan_serve.server_command(8000)[1:] == ["-m", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+    # hotfix132 — 접속 로그(사용자 이름이 남는다)와 server 머리말은 끈다
+    assert lan_serve.server_command(8000)[1:] == ["-m", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000",
+                                                  "--no-access-log", "--no-server-header"]
     assert '"PID_Extract.exe" --lan --no-browser 8000' in body
     assert "goto loop" in body and "taskkill" not in body.lower()

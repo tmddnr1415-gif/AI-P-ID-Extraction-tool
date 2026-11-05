@@ -7,3 +7,4 @@
 #   .venv\Scripts\python -m pytest -q -m "not slow and not ui"
 pytest==9.1.1
 playwright==1.62.0
+# pytest-timeout==2.4.0 - optional; copy its wheel into wheels\ first (pytest.ini timeout = 300 needs it)
