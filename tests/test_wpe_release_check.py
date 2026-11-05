@@ -187,3 +187,15 @@ def test_main_stops_with_2_when_unmerged_and_3_without_a_check(two_repos, monkey
     assert pack_delta.main() == 3
     assert "만들지 않습니다" in capsys.readouterr().out
     assert not list((ROOT / "out").glob("*hotfix999*"))
+
+
+def test_pack_delta_skips_dashboard_session_paths():
+    """hotfix132 — 대시보드 세션 몫(옛 대시보드 업데이트 zip 등)은 P&ID 꾸러미에 싣지 않는다."""
+    import importlib.util
+    from pathlib import Path as _P
+    spec = importlib.util.spec_from_file_location("pack_delta_skip", _P(__file__).resolve().parents[1] / "spike" / "pack_delta.py")
+    m = importlib.util.module_from_spec(spec); spec.loader.exec_module(m)
+    for p in ("dashboard/", "dashboard_patches/", "dashboard_tools/"):
+        assert p in m.SKIP
+    assert not any("dashboard_apps".startswith(s) for s in m.SKIP)
+
