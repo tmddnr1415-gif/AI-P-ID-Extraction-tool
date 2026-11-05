@@ -28,9 +28,10 @@
   O.fetch0 = fetch0;
 
   /* ---------------- 무엇을 보관하나 — 화면마다 서버가 켜져야 하는 일(NO)만 적고 나머지 쓰기는 전부 보관 */
+  // hotfix132 — LOGIC 작도(drawings) · 시운전 실행 · 시스템 설명 쓰기도 서버가 켜져야 하는 일로 (그 화면들이 나중에 붙어도 안전하게)
   const NO = {
     pid: /^\/jobs\/?(\?|$)|\/(cancel|reanalyse|propose|preview|diagnostic|snapshot|save|revision|legend_profile|axis_text|titleblock|teach|rows\/[^/]+\/copy)(\/|\?|$)|^\/jobs\/[^/]+\/rows(\?|$)|^\/templates|^\/jobs\/[^/]+$|^\/projects\/[^/]+$|^\/reports\/|^\/symbols/,
-    logic: /\/(simulate|press|scenario|trace|sequence|aop|grouptest|teach|sample)(\/|\?|$)|^\/logic\/api\/jobs\/?(\?|$)|^\/logic\/api\/jobs\/[^/]+$|^\/logic\/api\/projects\/[^/]+$/,
+    logic: /\/(simulate|press|scenario|trace|sequence|aop|grouptest|teach|sample)(\/|\?|$)|^\/logic\/api\/jobs\/?(\?|$)|^\/logic\/api\/jobs\/[^/]+$|^\/logic\/api\/projects\/[^/]+$|^\/logic\/api\/drawings(\/|\?|$)|\/(aopsim|sysdesc)(\/|\?|$)|\/commission\/run(\/|\?|$)/,
     space: /\/import_dashboard/,
     dcs: /\/render(\/|\?|$)/,
   };
@@ -346,7 +347,11 @@
     O.failed = await allFailed().catch(() => []);
     O.ready = true;
     render();
-    await registerSw();
+    // hotfix132 — 이미 설치된 PC(서비스워커가 이 화면을 맡고 있음)는 바로, 처음 오는 PC 는 화면이 다 뜬 뒤 3초 있다가 설치한다
+    // (설치 때 화면 뼈대를 받느라 첫 화면이 느려지지 않게).  서버 확인 · 되보내기는 미루지 않는다.
+    if (navigator.serviceWorker && navigator.serviceWorker.controller) await registerSw();
+    else if (document.readyState === "complete") setTimeout(registerSw, 3000);
+    else window.addEventListener("load", () => setTimeout(registerSw, 3000), { once: true });
     if (O.down) { probeTimer = setInterval(probe, 10000); probe(); }
     else if (O.queue.length) replay();
     window.addEventListener("storage", async (ev) => {      // 다른 탭이 되보냈다 — 이 탭도 다시 받고 같은 띠를 보인다

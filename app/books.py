@@ -24,10 +24,10 @@ from pathlib import Path
 from urllib.parse import unquote
 
 from fastapi import APIRouter, Request
-from fastapi.responses import FileResponse, JSONResponse, RedirectResponse, Response
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse, Response
 from starlette.concurrency import run_in_threadpool
 
-from app import books_api, jsonstore, paths
+from app import books_api, jsonstore, page_stamp, paths
 
 router = APIRouter()
 _LOCK = threading.RLock()
@@ -128,7 +128,7 @@ async def books_api_route(path: str, request: Request):
     try:
         return await run_in_threadpool(_dispatch, request, request.method, seg, q, body)
     except ApiError as e:
-        return JSONResponse({"error": e.msg}, status_code=e.code)
+        return JSONResponse({"error": e.msg, "detail": e.msg}, status_code=e.code)   # hotfix132 — detail 도 (오류 봉투 통일)
 
 
 def _static(name: str) -> Path:
@@ -144,11 +144,13 @@ def books_redirect(request: Request):
 
 @router.get("/books/")
 def books_page():
-    return FileResponse(_static("index.html"), media_type="text/html", headers={"Cache-Control": "no-store"})
+    """hotfix132 — 공통 셸(띠 · 도움말 · 판 · 파비콘)을 입혀 내준다.  화면 파일(books/index.html)은 그대로."""
+    html = _static("index.html").read_text(encoding="utf-8")
+    return HTMLResponse(page_stamp.stamp(html, badge=True, app="books"), headers={"Cache-Control": "no-store"})
 
 
 @router.get("/books/{name:path}")
 def books_file(name: str):
     if name not in _STATIC_FILES:
-        return JSONResponse({"error": "없는 파일"}, status_code=404)
+        return JSONResponse({"error": "없는 파일", "detail": "없는 파일"}, status_code=404)
     return FileResponse(_static(name), media_type=_STATIC_FILES[name], headers={"Cache-Control": "no-cache"})

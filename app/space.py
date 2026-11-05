@@ -35,7 +35,7 @@ from fastapi import APIRouter, Request
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 from starlette.concurrency import run_in_threadpool
 
-from app import jsonstore, paths
+from app import jsonstore, page_stamp, paths
 
 router = APIRouter()
 
@@ -113,6 +113,9 @@ def _author(request: Request, body: dict | None = None) -> str:
 
 
 def _ok(data, status: int = 200):
+    # hotfix132 — 오류 봉투 통일: `error` 는 그대로 두고 `detail` 도 싣는다 (다른 화면의 서버 오류와 같은 꼴)
+    if isinstance(data, dict) and "error" in data and "detail" not in data:
+        data = {**data, "detail": data["error"]}
     return JSONResponse(data, status_code=status, headers={"Cache-Control": "no-store"})
 
 
@@ -492,16 +495,14 @@ def _tag(rel: str) -> str:
 def stamp_page(html: str) -> str:
     for rel in ("space/ref.js", "offline.js"):
         html = html.replace(f'src="/static/{rel}"', f'src="/static/{rel}?v={_tag(rel)}"', 1)
-    try:
-        from app import version
-        name = (version.update_info() or {}).get("name") or ""
-    except Exception:                                                  # 딱지가 없거나 못 읽으면 적지 않는다
-        name = ""
-    if name:
-        badge = ('<div id="pidUpdateTag" title="이 서버에 적용된 업데이트" style="position:fixed;right:6px;bottom:4px;'
-                 'font:11px/1.2 sans-serif;color:#8a93a3;opacity:.75;pointer-events:none;z-index:2">'
-                 f'업데이트 {name}</div>')
-        html = html.replace("</body>", badge + "\n</body>", 1)
+    # hotfix132 — 창 제목은 한 벌 이름으로 (원본 index.html 은 고치지 않고 내줄 때만 바꾼다)
+    html = re.sub(r"<title>[^<]*</title>", "<title>판넬 공간확보</title>", html, count=1)
+    # hotfix132 — 공통 셸(띠 · 도움말 · 알림)과 판 딱지 ("버전 1.0.0 · 날짜" — 띠가 있으면 shell.css 가 숨긴다)
+    html = page_stamp.inject_shell(html, "space")
+    if 'id="pidUpdateTag"' not in html:
+        tag = page_stamp.badge_html()
+        if tag:
+            html = html.replace("</body>", tag + "\n</body>", 1)
     return html
 
 

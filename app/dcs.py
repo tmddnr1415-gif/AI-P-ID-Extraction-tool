@@ -29,9 +29,10 @@ import time
 import zipfile
 from html import escape
 from pathlib import Path
+from urllib.parse import parse_qsl, urlencode
 
 from fastapi import APIRouter, Request
-from fastapi.responses import JSONResponse, Response
+from fastapi.responses import JSONResponse, RedirectResponse, Response
 
 from app import page_stamp, paths
 
@@ -456,6 +457,9 @@ def _sheet(job_id: str, page_no: int) -> dict | None:
 
 
 def _json(data, status=200):
+    # hotfix132 — 오류 봉투 통일: `error` 는 그대로 두고 `detail` 도 싣는다
+    if isinstance(data, dict) and "error" in data and "detail" not in data:
+        data = {**data, "detail": data["error"]}
     return JSONResponse(data, status_code=status, headers={"Cache-Control": "no-store"})
 
 
@@ -465,16 +469,24 @@ def dcs_page():
     return page_stamp.page("dcs.html", badge=False)
 
 
+def _to_dcs(request: Request, extra: dict | None = None) -> RedirectResponse:
+    """hotfix132 — DCS 화면 주소는 `/dcs` 하나.  옛 주소는 질의(embed · user …)를 그대로 들고 넘긴다."""
+    pairs = [(k, v) for k, v in parse_qsl(request.url.query, keep_blank_values=True) if k not in (extra or {})]
+    pairs += list((extra or {}).items())
+    qs = urlencode(pairs)
+    return RedirectResponse("/dcs" + (f"?{qs}" if qs else ""), status_code=307)
+
+
 @router.get("/dcs/demo")
-def dcs_demo_page():
-    """예시 화면(압축기 트레인) — 식별 P&ID 없이 HMI 부품을 본다.  같은 화면이 출처 '예시' 로 연다."""
-    return page_stamp.page("dcs.html", badge=False)
+def dcs_demo_page(request: Request):
+    """예시 화면(압축기 트레인) — `/dcs?demo=1` 로 넘긴다 (화면이 `demo=1` 이면 출처 '예시' 로 연다)."""
+    return _to_dcs(request, {"demo": "1"})
 
 
 @router.get("/hmi")
-def hmi_page():
-    """H1 인계 문서(`docs/hmi_handover.md`)가 적은 주소 — 같은 화면."""
-    return page_stamp.page("dcs.html", badge=False)
+def hmi_page(request: Request):
+    """H1 인계 문서(`docs/hmi_handover.md`)가 적은 옛 주소 — `/dcs` 로 넘긴다."""
+    return _to_dcs(request)
 
 
 @router.get("/dcs/api/example")

@@ -14,11 +14,14 @@ const VERSION = "pid-offline-v1";
 const SHELL = VERSION + "-shell";
 const DATA = VERSION + "-data";
 const PAGES = VERSION + "-pages";
-const NAV_TIMEOUT_MS = 6000;
+const NAV_TIMEOUT_MS = 20000;          // hotfix132 — 화면(HTML)은 20초까지 서버를 기다린다 (느린 응답을 '꺼짐' 으로 보지 않게)
+const STATIC_TIMEOUT_MS = 6000;
+const DATA_MAX_ITEMS = 400;             // hotfix132 — 자료 보관 상한 (넘으면 오래된 것부터 지운다)
+const DATA_MAX_BYTES = 20 * 1024 * 1024;  // hotfix132 — 이보다 큰 응답은 보관하지 않는다
 const DOWN_TIMEOUT_MS = 1500;           // 꺼짐이 기억된 동안 화면을 서버에 먼저 묻는 시간 (hotfix129)
 let DOWN = false;                       // 화면이 알려 준 "서버 꺼짐" — 그동안은 보관본 먼저
 
-const HTML_PATHS = new Set(["/", "/logic", "/logic/", "/logic/test", "/space", "/space/", "/dcs", "/dcs/demo"]);
+const HTML_PATHS = new Set(["/", "/logic", "/logic/", "/logic/test", "/space", "/space/", "/dcs"]);   // hotfix132 — /dcs/demo 는 /dcs 로 넘어간다
 const NEVER_RE = /^\/(version|running|sw\.js|offline\/|plaza)|\/events(\?|$)|\.(xlsx|pdf|zip)(\?|$)|\/(diagnostic|feedback_export|export\.zip|report\.xlsx|grouptest\.xlsx|review\.pdf|review\.xlsx|changes\.xlsx|verdicts\.xlsx|excel)(\?|$)/;
 const PNG_RE = /\.png(\?|$)/;
 
@@ -28,7 +31,8 @@ self.addEventListener("install", (ev) => {
       const r = await fetch("/offline/shell", { cache: "no-store" });
       const urls = r.ok ? (await r.json()).urls || [] : [];
       const c = await caches.open(SHELL);
-      await Promise.all(urls.map((u) => c.add(u).catch(() => null)));   // 하나가 없어도 나머지는 담는다
+      // hotfix132 — 4개씩 차례로 받는다 (한꺼번에 수십 개를 받으면 첫 화면이 느려진다) · 하나가 없어도 나머지는 담는다
+      for (let i = 0; i < urls.length; i += 4) await Promise.all(urls.slice(i, i + 4).map((u) => c.add(u).catch(() => null)));
     } catch (e) { /* 설치 때 서버가 없으면 평소 쓰면서 담는다 */ }
     await self.skipWaiting();
   })());
@@ -123,13 +127,14 @@ async function serveShell(req, url) {
     if (hit) return hit;
   }
   try {
-    const r = await withTimeout(fetch(req), DOWN ? DOWN_TIMEOUT_MS : NAV_TIMEOUT_MS);
+    const r = await withTimeout(fetch(req), DOWN ? DOWN_TIMEOUT_MS : (html ? NAV_TIMEOUT_MS : STATIC_TIMEOUT_MS));
     if (r.ok) { (await caches.open(SHELL)).put(key, r.clone()).catch(() => null); tell(false); }
     return r;
   } catch (e) {
     // 딱지 붙은 주소가 처음이면 설치 때 담은 딱지 없는 보관본으로 (절전모드에서도 화면이 열리게)
     const hit = (await fromCache(SHELL, key, opts)) || (await fromCache(SHELL, key, { ignoreSearch: true }));
-    if (hit) { tell(true); return hit; }
+    // hotfix132 — 시간 초과는 '느림' 일 수 있다 — 보관본은 주되 '서버 꺼짐' 판정은 화면의 /version 확인에 맡긴다
+    if (hit) { if (!(e && e.message === "timeout")) tell(true); return hit; }
     throw e;
   }
 }
@@ -151,7 +156,7 @@ async function serveData(req) {
   }
   try {
     const r = await fetch(req);
-    if (r.ok && (r.headers.get("content-type") || "").includes("json")) (await caches.open(DATA)).put(req, r.clone()).catch(() => null);
+    if (r.ok && (r.headers.get("content-type") || "").includes("json")) keepData(req, r.clone());
     if (r.ok) tell(false);
     return r;
   } catch (e) {
@@ -159,4 +164,16 @@ async function serveData(req) {
     const hit = await fromCache(DATA, req);
     return hit || missing(req.url);
   }
+}
+
+// hotfix132 — 자료 보관: 20MB 넘는 응답은 담지 않고, 400개를 넘으면 오래 담긴 것부터 지운다 (같은 주소는 한 항목을 덮어쓴다)
+async function keepData(req, r) {
+  try {
+    const n = Number(r.headers.get("content-length") || 0);
+    if (n > DATA_MAX_BYTES) return;
+    const c = await caches.open(DATA);
+    await c.put(req, r);
+    const keys = await c.keys();
+    for (let i = 0; i < keys.length - DATA_MAX_ITEMS; i++) await c.delete(keys[i]);
+  } catch (e) { /* 보관 실패는 화면 동작과 무관 */ }
 }
