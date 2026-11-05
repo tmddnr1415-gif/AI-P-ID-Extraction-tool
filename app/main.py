@@ -11,10 +11,13 @@ a workbook.  Live rows are never exported.
 
 from __future__ import annotations
 
+import asyncio
 import gzip
 import hashlib
+import html as _html
 import io
 import json
+import mimetypes
 import sqlite3
 import os
 import queue
@@ -29,9 +32,11 @@ import zipfile
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException, UploadFile, File, Form, Request
+from fastapi.exceptions import RequestValidationError
 from fastapi.responses import (FileResponse, HTMLResponse, JSONResponse,
                                PlainTextResponse, Response, StreamingResponse)
 from fastapi.staticfiles import StaticFiles
+from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.middleware.gzip import DEFAULT_EXCLUDED_CONTENT_TYPES, GZipMiddleware
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -45,9 +50,17 @@ console.safe_stdio()
 
 from app import (analysis_proc, audit, axis_overrides, db, excel_out, page_warm,  # noqa: E402
                  global_symbols,
-                 lan, legend_profile, markup, paths, pdf_facts, pipeline, revisions, sheet_memo,
+                 lan, legend_profile, markup, page_stamp, paths, pdf_facts, pipeline, revisions, sheet_memo,
                  unit_multipliers, sheet_numbers, title_block_cells, version, voc,
                  intake, form_teach)
+
+# hotfix132 — 정적 파일의 형식을 Python `mimetypes` 에 맡기지 않는다.  Windows 는 레지스트리를 읽어 `.js → text/plain`
+# 인 PC 가 흔하고, 아래 `X-Content-Type-Options: nosniff` 를 붙이면 브라우저가 그런 스크립트를 실행하지 않는다.
+for _ext, _mt in ((".js", "text/javascript"), (".mjs", "text/javascript"), (".css", "text/css"),
+                  (".svg", "image/svg+xml"), (".woff2", "font/woff2"), (".woff", "font/woff"),
+                  (".json", "application/json"), (".wasm", "application/wasm"), (".html", "text/html"),
+                  (".png", "image/png"), (".ico", "image/x-icon")):
+    mimetypes.add_type(_mt, _ext)
 from app.pipeline import CFG                              # noqa: E402
 
 # Two roots, and the difference matters once this is an exe: `paths.resource()`
@@ -63,7 +76,13 @@ DB_PATH = DATA_DIR / "app.db"
 PAGE_CACHE = DATA_DIR / "page_cache"
 STATIC = paths.resource("app", "static")
 
-app = FastAPI(title="P&ID extraction")
+PRODUCT = version.product()
+# hotfix132 — API 문서(/docs · /redoc · /openapi.json)는 개발할 때만 (PID_DEV_DOCS=1).  부서원 화면에는 필요 없고 263개
+# 경로와 지우기 19개를 그대로 보여 주던 것이다 (spike/api_fuzz.py 는 PID_DEV_DOCS=1 로 켜고 돌린다).
+_DEV_DOCS = os.environ.get("PID_DEV_DOCS", "") == "1"
+app = FastAPI(title=PRODUCT["name"],
+              docs_url="/docs" if _DEV_DOCS else None, redoc_url="/redoc" if _DEV_DOCS else None,
+              openapi_url="/openapi.json" if _DEV_DOCS else None)
 # hotfix50 — 사내망 모드(`--lan` · PID_LAN=1)에서만 주소를 본다: 루프백 · 사설망 · 이 PC 의
 # /16 · PID_ALLOW.  꺼져 있으면(127.0.0.1) 아무것도 하지 않는다 (app/lan.py).
 app.add_middleware(lan.Gate)
@@ -76,13 +95,153 @@ app.add_middleware(
     exclude_content_types=DEFAULT_EXCLUDED_CONTENT_TYPES + (
         "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         "application/x-zip-compressed", "application/octet-stream"))
+
+
+def _mb(n: int) -> int:
+    return max(1, int(round(n / 1024 / 1024)))
+
+
+def _body_limit(path: str, content_type: str) -> int:
+    """hotfix132 — 요청 본문 상한.  파일 올리기(multipart · 도서 색인 PUT · Valve 업로드)는 PID_MAX_UPLOAD_MB(기본 500) ·
+    그 밖 JSON 은 PID_MAX_JSON_MB(기본 20).  경로 목록을 박지 않으므로 새 업로드 라우트도 자동으로 큰 상한을 받는다."""
+    big = (content_type or "").lower().startswith("multipart/form-data") or path == "/api/books/book" \
+        or path.startswith("/api/valve/")
+    mb = os.environ.get("PID_MAX_UPLOAD_MB" if big else "PID_MAX_JSON_MB") or ("500" if big else "20")
+    try:
+        return int(float(mb) * 1024 * 1024)
+    except ValueError:
+        return (500 if big else 20) * 1024 * 1024
+
+
+class BodyLimit:
+    """hotfix132 — 순수 ASGI 미들웨어(`lan.Gate` 와 같은 꼴).  Content-Length 가 상한을 넘으면 받기 전에 413, 머리가 없으면
+    받은 바이트를 세어 넘는 순간 413 — 전에는 30MB 쓰레기도 끝까지 받아 메모리에 올린 뒤에야 400 이었다."""
+
+    def __init__(self, app):
+        self.app = app
+
+    async def __call__(self, scope, receive, send):
+        if scope.get("type") != "http" or scope.get("method") not in ("POST", "PUT", "PATCH"):
+            await self.app(scope, receive, send)
+            return
+        headers = {k.decode("latin-1").lower(): v.decode("latin-1") for k, v in (scope.get("headers") or [])}
+        limit = _body_limit(scope.get("path") or "", headers.get("content-type", ""))
+        length = headers.get("content-length", "")
+        if length.isdigit() and int(length) > limit:
+            await self._reject(send, limit)
+            return
+        seen = 0
+
+        async def counted_receive():
+            nonlocal seen
+            msg = await receive()
+            if msg.get("type") == "http.request":
+                seen += len(msg.get("body") or b"")
+                if seen > limit:
+                    # 라우트가 본문을 읽는 자리(`request.form()` · `request.body()`)에서 터져 ExceptionMiddleware 가 413 JSON 으로 답한다.
+                    raise HTTPException(413, _too_large_text(limit))
+            return msg
+
+        await self.app(scope, counted_receive, send)
+
+    @staticmethod
+    async def _reject(send, limit):
+        body = json.dumps({"detail": _too_large_text(limit)}, ensure_ascii=False).encode("utf-8")
+        await send({"type": "http.response.start", "status": 413,
+                    "headers": [(b"content-type", b"application/json; charset=utf-8"),
+                                (b"content-length", str(len(body)).encode()), (b"connection", b"close")]})
+        await send({"type": "http.response.body", "body": body})
+
+
+def _too_large_text(limit: int) -> str:
+    return f"보낸 자료가 너무 큽니다 (최대 {_mb(limit)} MB) — 파일을 나누거나 관리자에게 상한을 올려 달라고 해 주세요"
+
+
+class SecurityHeaders:
+    """hotfix132 — 모든 응답에 `X-Content-Type-Options: nosniff` · `Referrer-Policy: same-origin`, `/static/` 은 주소에 딱지(`v=`)가
+    있으면 1년 캐시(immutable) · 없으면 `no-cache`.  frame-ancestors 는 넣지 않는다 — 부서 대시보드가 iframe 으로 띄운다."""
+
+    def __init__(self, app):
+        self.app = app
+
+    async def __call__(self, scope, receive, send):
+        if scope.get("type") != "http":
+            await self.app(scope, receive, send)
+            return
+        path = scope.get("path") or ""
+        query = (scope.get("query_string") or b"").decode("latin-1")
+        tagged = any(q.startswith("v=") for q in query.split("&"))
+
+        async def send_with_headers(message):
+            if message.get("type") == "http.response.start":
+                hdrs = list(message.get("headers") or [])
+                names = {k.lower() for k, _ in hdrs}
+                if b"x-content-type-options" not in names:
+                    hdrs.append((b"x-content-type-options", b"nosniff"))
+                if b"referrer-policy" not in names:
+                    hdrs.append((b"referrer-policy", b"same-origin"))
+                if path.startswith("/static/") and b"cache-control" not in names:
+                    hdrs.append((b"cache-control", b"public, max-age=31536000, immutable" if tagged else b"no-cache"))
+                message = dict(message, headers=hdrs)
+            await send(message)
+
+        await self.app(scope, receive, send_with_headers)
+
+
+app.add_middleware(BodyLimit)
+app.add_middleware(SecurityHeaders)
 CON = db.connect(DB_PATH)
+
+# hotfix132 — 자주 쓰는 영문 오류 문장을 한국어 상수로.  'no such job' 은 다른 창이 지웠을 때 가장 흔하다 — 화면(app.js)은 404 로 가른다.
+NO_JOB = "그 분석이 없습니다 — 지워졌거나 다른 서버의 결과일 수 있습니다 (목록을 새로 고쳐 주세요)"
+NO_PAGE = "그 장이 없습니다 — 장 번호를 확인해 주세요"
+NO_ROW = "그 행이 없습니다 — 다른 창이나 다른 사람이 지웠을 수 있습니다 (목록을 새로 고쳐 주세요)"
+NO_REVISION = "그 리비전이 없습니다 — 지워졌거나 아직 만들어지지 않았습니다"
+NO_EXPORT = "그 산출물은 아직 만들지 않았습니다 — 먼저 [Excel 만들기] 를 해 주세요"
+QTY_WHOLE = "수량(Q'ty)은 정수여야 합니다"
+QTY_NEGATIVE = "수량(Q'ty)은 음수일 수 없습니다"
 
 
 # hotfix74 — 돌발 입력이 서버 내부 오류(500 · 영문 한 줄)로 끝나지 않게 한다 (spike/api_fuzz.py 가 잡은 자리).
 @app.exception_handler(revisions.ProjectNameError)
 async def _project_name_error(_request, exc):
     return JSONResponse({"detail": str(exc)}, status_code=400)
+
+
+# hotfix132 — 요청 값 검증 실패(FastAPI 기본 422 · 영문 pydantic 문장)를 400 과 한국어로.  모든 라우터(LOGIC · DCS · 판넬 · 도서)에 미친다.
+_VALIDATION_KO = {
+    "missing": "값이 필요합니다", "int_parsing": "정수여야 합니다", "int_type": "정수여야 합니다",
+    "float_parsing": "숫자여야 합니다", "float_type": "숫자여야 합니다", "string_type": "글자여야 합니다",
+    "bool_parsing": "참/거짓이어야 합니다", "dict_type": "형식이 맞지 않습니다", "list_type": "목록이어야 합니다",
+    "json_invalid": "올바른 JSON 이 아닙니다", "value_error": "값이 올바르지 않습니다",
+}
+
+
+@app.exception_handler(RequestValidationError)
+async def _validation_error(_request, exc):
+    fields = []
+    for e in exc.errors() if hasattr(exc, "errors") else []:
+        loc = [str(x) for x in (e.get("loc") or []) if x not in ("body", "query", "path", "header")]
+        fields.append({"field": ".".join(loc) or "본문",
+                       "problem": _VALIDATION_KO.get(str(e.get("type") or ""), str(e.get("msg") or ""))})
+    summary = " · ".join(f"{f['field']}: {f['problem']}" for f in fields[:5])
+    return JSONResponse({"detail": "요청 값이 올바르지 않습니다" + (f" ({summary})" if summary else ""),
+                         "fields": fields}, status_code=400)
+
+
+@app.exception_handler(StarletteHTTPException)
+async def _http_error(_request, exc):
+    """hotfix132 — 기본 영문 문장(없는 주소 · 허용되지 않은 방식)만 한국어로.  라우트가 직접 던진 detail(한국어 · dict)은 그대로."""
+    d = exc.detail
+    if d == "Not Found":
+        d = "없는 주소입니다"
+    elif d == "Method Not Allowed":
+        d = "허용되지 않은 방식입니다"
+    elif d == "There was an error parsing the body":
+        d = "보낸 자료를 읽지 못했습니다 — 형식이 맞는지 확인해 주세요"
+    if exc.status_code in (204, 304):
+        return Response(status_code=exc.status_code, headers=exc.headers)
+    return JSONResponse({"detail": d}, status_code=exc.status_code, headers=exc.headers)
 
 
 @app.exception_handler(sqlite3.OperationalError)
@@ -110,7 +269,7 @@ def _disk_full_response(request, exc):
         free = None
     left = f" (남은 공간 {free / 1024 / 1024:.0f} MB)" if free is not None else ""
     return JSONResponse({"detail": f"서버 디스크가 가득 차서 저장하지 못했습니다{left} — 관리자에게 알려 "
-                                   f"주세요.  첫 화면의 '데이터 위생' 이 정리하면 되찾는 용량을 보여 줍니다."},
+                                   f"주세요.  첫 화면의 '자료 점검' 이 지워도 되는 항목과 되찾을 용량을 보여 줍니다 — 정리는 관리자가 합니다."},
                         status_code=507)
 
 
@@ -151,7 +310,8 @@ def _known_cause(detail: str) -> str:
     d = detail or ""
     if "No space left on device" in d or "disk is full" in d or "Errno 28" in d:
         return ("서버 디스크가 가득 차서 분석 결과를 쓰지 못했습니다 — 관리자에게 알려 주세요 (첫 화면의 "
-                "'데이터 위생' 이 정리하면 되찾는 용량을 보여 줍니다).  공간을 비운 뒤 [다시 분석] 하면 됩니다.")
+                "'자료 점검' 이 지워도 되는 항목과 되찾을 용량을 보여 줍니다 — 정리는 관리자가 합니다).  "
+                "공간을 비운 뒤 [다시 분석] 하면 됩니다.")
     if "MemoryError" in d or "Cannot allocate memory" in d:
         return ("분석 중 메모리가 모자랐습니다 — 다른 분석이 끝난 뒤 [다시 분석] 하거나, 같으면 PDF 를 "
                 "나눠 올려 주세요.")
@@ -672,10 +832,21 @@ def _recover_interrupted() -> dict:
 # Upload and analysis
 # --------------------------------------------------------------------------
 
+def _check_disk_room(size: int) -> None:
+    """hotfix132 — 받기 전에 디스크를 본다.  원본 + 장 그림 캐시 + 결과로 올린 크기의 세 배는 든다 — 모자라면 507 과 할 일."""
+    try:
+        free = shutil.disk_usage(DATA_DIR).free
+    except OSError:
+        return
+    need = max(200 * 1024 * 1024, 3 * size)
+    if free < need:
+        raise HTTPException(507, f"서버 디스크 남은 공간이 {free / 1024 / 1024:.0f} MB 라 이 파일({size / 1024 / 1024:.0f} MB)을 "
+                                 f"저장·분석할 수 없습니다 — 관리자에게 알려 주세요 (첫 화면의 '자료 점검' 이 되찾을 용량을 보여 줍니다)")
+
 @app.post("/jobs")
-async def create_job(pdf: list[UploadFile] = File(...), project: str = Form(""),
-                     compared_with: str = Form(""), mode: str = Form(""),
-                     input_kind: str = Form("")):
+def create_job(pdf: list[UploadFile] = File(...), project: str = Form(""),
+               compared_with: str = Form(""), mode: str = Form(""),
+               input_kind: str = Form("")):
     """PDF 하나, 또는 DXF(zip 하나 · 개별 .dxf 여러 장)를 받는다 (55회차).
 
     `project` 가 오면 그 프로젝트의 다음 리비전이 된다.  프로젝트 없이 올려도
@@ -690,12 +861,15 @@ async def create_job(pdf: list[UploadFile] = File(...), project: str = Form(""),
     files = [f for f in (pdf or []) if f is not None and f.filename]
     if not files:
         raise HTTPException(400, "파일이 없습니다")
-    blobs = [(_display_name(f.filename), await f.read()) for f in files]
+    # hotfix132 — `async def` + `await f.read()` 였다: 파일 읽기 · DB 쓰기가 이벤트 루프를 세워 그동안 모든 요청이 멈췄다
+    # (BEGIN IMMEDIATE 6초 동안 /version 4.5초 실측).  `def` 면 FastAPI 가 스레드풀에서 돌린다.
+    blobs = [(_display_name(f.filename), f.file.read()) for f in files]
     kind, raw, name = _pack_input(blobs, input_kind)
     if kind == "PDF":
         problem = _pdf_problem(raw)
         if problem:
             raise HTTPException(400, problem)
+    _check_disk_room(len(raw))
     revision = ""
     if project:
         try:
@@ -895,7 +1069,7 @@ def cancel_job(job_id: str):
     """
     row = db.get_job(CON, job_id)
     if row is None:
-        raise HTTPException(404, "no such job")
+        raise HTTPException(404, NO_JOB)
     if row["status"] not in ("queued", "running"):
         raise HTTPException(409, f"이 분석은 '{row['status']}' 상태라 "
                                  f"취소할 수 없습니다")
@@ -917,7 +1091,7 @@ def reanalyse(job_id: str):
     """Re-run the engine, keeping every reviewer edit."""
     job = db.get_job(CON, job_id)
     if job is None:
-        raise HTTPException(404, "no such job")
+        raise HTTPException(404, NO_JOB)
     # hotfix74 — 두 창에서 [다시 분석] 을 함께 누르거나 분석 중에 또 누르면 같은 분석이 줄에 두 번 서고,
     # 도는 분석의 상태가 "대기" 로 덮였다.  이미 대기·분석 중이면 그렇다고 말한다.
     if job["status"] in ("queued", "running"):
@@ -1044,6 +1218,7 @@ def _job_public(row) -> dict:
     """
     out = dict(row)
     out.pop("error_detail", None)
+    out.pop("pdf_path", None)          # hotfix132 — 서버 PC 의 절대 경로는 내보내지 않는다 (화면은 pdf_name 만 쓴다)
     # 걸린 시간은 두 시각의 차이지 별도 사실이 아니므로 여기서 만든다.
     out["elapsed_s"] = _elapsed(row)
     out["running_s"] = _running_s(row)
@@ -1268,7 +1443,7 @@ def save_job(job_id: str, payload: dict = None):
     이름은 자기신고다 (13회차) — 비우면 비운 채로 적고 화면이 "이름 없음" 이라고 쓴다."""
     job = db.get_job(CON, job_id)
     if job is None:
-        raise HTTPException(404, "no such job")
+        raise HTTPException(404, NO_JOB)
     author = str((payload or {}).get("author") or "")
     return db.record_save(CON, job_id, author)
 
@@ -1410,7 +1585,7 @@ def job_mode(job_id: str):
     """이 분석이 어느 모드로 돌았나 (선언 · 실측 · 불일치)."""
     job = db.get_job(CON, job_id)
     if job is None:
-        raise HTTPException(404, "no such job")
+        raise HTTPException(404, NO_JOB)
     out = _mode_facts(job)
     out["project"] = job["project"]
     return out
@@ -1434,7 +1609,7 @@ def set_revision(job_id: str, project: str = Form(...),
     """
     job = db.get_job(CON, job_id)
     if job is None:
-        raise HTTPException(404, "no such job")
+        raise HTTPException(404, NO_JOB)
     try:
         meta = revisions.load_project(DATA_DIR, project)
     except (KeyError, ValueError):
@@ -1456,7 +1631,7 @@ def job_revision(job_id: str):
     """이 분석이 어느 리비전이고 무엇과 비교했는지, 그리고 삭제 후보."""
     job = db.get_job(CON, job_id)
     if job is None:
-        raise HTTPException(404, "no such job")
+        raise HTTPException(404, NO_JOB)
     cands = db.deleted_candidates(CON, job_id)
     states = db.revision_states(CON, job_id)
     counts = {}
@@ -1555,7 +1730,7 @@ def job_memos(job_id: str):
     """이 분석의 장마다 메모가 몇 판 있고 지금 메모가 무엇인지 (장 목록·도면 아래 판이 읽는다)."""
     job = db.get_job(CON, job_id)
     if job is None:
-        raise HTTPException(404, "no such job")
+        raise HTTPException(404, NO_JOB)
     project = job["project"] or ""
     data = sheet_memo.load(DATA_DIR, project, job_id)
     aliases = _note_aliases(project)
@@ -1574,11 +1749,11 @@ def job_memos(job_id: str):
 def page_memo(job_id: str, page_no: int):
     job = db.get_job(CON, job_id)
     if job is None:
-        raise HTTPException(404, "no such job")
+        raise HTTPException(404, NO_JOB)
     project = job["project"] or ""
     page = next((p for p in db.page_revisions(CON, job_id) if p["page_no"] == page_no), None)
     if page is None:
-        raise HTTPException(404, "no such page")
+        raise HTTPException(404, NO_PAGE)
     keys = _note_keys(project, page.get("drawing_no") or "", page_no, _note_aliases(project))
     data = sheet_memo.load(DATA_DIR, project, job_id)
     es = sheet_memo.entries(data, keys)
@@ -1622,10 +1797,10 @@ def _pin_view(e: dict, job_id: str, revision: str, key: str, size: tuple) -> dic
 def _memo_page(job_id: str, page_no: int):
     job = db.get_job(CON, job_id)
     if job is None:
-        raise HTTPException(404, "no such job")
+        raise HTTPException(404, NO_JOB)
     page = next((p for p in db.page_revisions(CON, job_id) if p["page_no"] == page_no), None)
     if page is None:
-        raise HTTPException(404, "no such page")
+        raise HTTPException(404, NO_PAGE)
     return job, page
 
 
@@ -1676,10 +1851,10 @@ def save_page_memo(job_id: str, page_no: int, payload: dict = None):
     """메모 한 판을 쌓는다 (지우지 않는다 — 비워서 저장해도 앞 판은 남는다)."""
     job = db.get_job(CON, job_id)
     if job is None:
-        raise HTTPException(404, "no such job")
+        raise HTTPException(404, NO_JOB)
     page = next((p for p in db.page_revisions(CON, job_id) if p["page_no"] == page_no), None)
     if page is None:
-        raise HTTPException(404, "no such page")
+        raise HTTPException(404, NO_PAGE)
     payload = payload or {}
     project = job["project"] or ""
     key = sheet_memo.key_of(page.get("drawing_no") or "", page_no)
@@ -1703,7 +1878,7 @@ def revision_changes_xlsx(job_id: str):
     from app import revision_export
     job = db.get_job(CON, job_id)
     if job is None:
-        raise HTTPException(404, "no such job")
+        raise HTTPException(404, NO_JOB)
     if not job["compared_with"]:
         raise HTTPException(400, "비교 대상이 없는 분석입니다 — 변경 내역이 없습니다")
     info = job_revision(job_id)
@@ -1768,7 +1943,7 @@ def deletion_preview(job_id: str):
     try:
         return db.deletion_preview(CON, job_id)
     except KeyError:
-        raise HTTPException(404, "no such job")
+        raise HTTPException(404, NO_JOB)
 
 
 def _drop_page_cache(job_id: str) -> bool:
@@ -1786,7 +1961,7 @@ def delete_job(job_id: str, author: str = Form(""), confirm: str = Form("")):
     """분석 하나를 지운다.  `confirm` 이 그 분석의 id 와 같아야 한다."""
     row = db.get_job(CON, job_id)
     if row is None:
-        raise HTTPException(404, "no such job")
+        raise HTTPException(404, NO_JOB)
     if confirm.strip() != job_id:
         raise HTTPException(
             400, "확인 값이 분석 id 와 다릅니다 — 실수로 지워지지 않게 하는 "
@@ -1834,7 +2009,7 @@ def project_deletion_preview(name: str):
     try:
         revisions.load_project(DATA_DIR, name)
     except KeyError:
-        raise HTTPException(404, "no such project")
+        raise HTTPException(404, "그 프로젝트가 없습니다 — 지워졌거나 이름이 바뀌었을 수 있습니다")
     pre = db.project_deletion_preview(CON, revisions.safe_name(name))
     pre["id_registry_kept"] = True
     pre["note"] = ("안정 ID 장부는 남깁니다 — 같은 이름으로 다시 만들어도 번호가 "
@@ -1849,7 +2024,7 @@ def delete_project(name: str, author: str = Form(""), confirm: str = Form("")):
     try:
         revisions.load_project(DATA_DIR, name)
     except KeyError:
-        raise HTTPException(404, "no such project")
+        raise HTTPException(404, "그 프로젝트가 없습니다 — 지워졌거나 이름이 바뀌었을 수 있습니다")
     safe = revisions.safe_name(name)
     if confirm.strip() != safe:
         raise HTTPException(
@@ -2022,7 +2197,7 @@ def _multiplier_targets(job_id: str) -> dict:
     """
     job = db.get_job(CON, job_id)
     if not job:
-        raise HTTPException(404, "no such job")
+        raise HTTPException(404, NO_JOB)
     # 유닛코드는 **도면번호에서 나온다** — 엔진이 쓰는 그 함수를 그대로 쓴다
     # (`engine_json` 은 타이틀블록을 담지 않는다.  두 벌을 두면 언젠가 갈린다).
     pages = {int(p["page_no"]): (pipeline.tb.parse_unit_code(p["drawing_no"]) or "")
@@ -2081,7 +2256,7 @@ def multiplier_set(job_id: str, unit: str = Form(...),
     """
     job = db.get_job(CON, job_id)
     if not job:
-        raise HTTPException(404, "no such job")
+        raise HTTPException(404, NO_JOB)
     try:
         rec = unit_multipliers.set_unit(DATA_DIR, job["project"] or "",
                                         unit=unit, multiplier=multiplier,
@@ -2098,9 +2273,9 @@ def multiplier_clear(job_id: str, unit: str):
     """되돌린다 — 지운 뒤에는 지정하지 않았던 때와 같아진다."""
     job = db.get_job(CON, job_id)
     if not job:
-        raise HTTPException(404, "no such job")
+        raise HTTPException(404, NO_JOB)
     if not unit_multipliers.clear_unit(DATA_DIR, job["project"] or "", unit):
-        raise HTTPException(404, "no such unit")
+        raise HTTPException(404, "그 단위가 없습니다")
     return {"cleared": unit, "targets": _multiplier_targets(job_id)}
 
 
@@ -2112,7 +2287,7 @@ def _sheet_number_targets(job_id: str) -> dict:
     """
     job = db.get_job(CON, job_id)
     if not job:
-        raise HTTPException(404, "no such job")
+        raise HTTPException(404, NO_JOB)
     engine = json.loads(job["engine_json"] or "{}")
     # hotfix33 — 장 목록은 `pid_page` 표에서 읽는다 (`/pages` 와 같은 자리).  45회차는
     # `engine_json["pages"]` 를 읽었는데 그 열쇠는 `store_result` 화이트리스트에 **없어**
@@ -2277,7 +2452,7 @@ def titleblock_state(job_id: str):
     도면에서 답한 칸."""
     job = db.get_job(CON, job_id)
     if not job:
-        raise HTTPException(404, "no such job")
+        raise HTTPException(404, NO_JOB)
     from app.engine import dxf_reader
     if dxf_reader.is_dxf_input(Path(job["pdf_path"])):
         return {"supported": False, "note": "DXF 는 타이틀 캡션 아래 칸을 읽으므로 이 지정이 없습니다"}
@@ -2305,7 +2480,7 @@ def titleblock_preview(job_id: str, payload: dict):
     """그은 사각형을 같은 크기의 모든 장에서 읽어 본다 — 저장 전에 무엇이 읽히는지 보인다."""
     job = db.get_job(CON, job_id)
     if not job:
-        raise HTTPException(404, "no such job")
+        raise HTTPException(404, NO_JOB)
     try:
         cell = str(payload.get("cell"))
         rect = tuple(float(v) for v in payload.get("rect"))
@@ -2332,7 +2507,7 @@ def titleblock_save(job_id: str, payload: dict):
     """칸을 프로젝트에 적는다.  **다시 분석해야 반영된다.**"""
     job = db.get_job(CON, job_id)
     if not job:
-        raise HTTPException(404, "no such job")
+        raise HTTPException(404, NO_JOB)
     pages = _tb_sizes(job)
     form, _sizes = _tb_form(pages)
     try:
@@ -2349,7 +2524,7 @@ def titleblock_save(job_id: str, payload: dict):
 def titleblock_clear(job_id: str):
     job = db.get_job(CON, job_id)
     if not job:
-        raise HTTPException(404, "no such job")
+        raise HTTPException(404, NO_JOB)
     return {"cleared": title_block_cells.clear(DATA_DIR, job["project"] or "")}
 
 
@@ -2458,7 +2633,7 @@ def teach_state(job_id: str):
     """가르치기 화면이 읽는 것 하나 — 저장된 칸 · 장 크기 · 먼저 띄울 장."""
     job = db.get_job(CON, job_id)
     if not job:
-        raise HTTPException(404, "no such job")
+        raise HTTPException(404, NO_JOB)
     from app.engine import dxf_reader
     if dxf_reader.is_dxf_input(Path(job["pdf_path"])):
         return {"supported": False, "note": "DXF 는 블록 이름으로 읽으므로 이 가르치기가 없습니다"}
@@ -2503,7 +2678,7 @@ def teach_preview(job_id: str, payload: dict):
     """
     job = db.get_job(CON, job_id)
     if not job:
-        raise HTTPException(404, "no such job")
+        raise HTTPException(404, NO_JOB)
     _require_source(job)
     item = str(payload.get("item") or "")
     pages = _tb_pages(job)
@@ -2693,7 +2868,7 @@ def teach_propose_(job_id: str, needs: str = "legend,bubbles,notes"):
     (큰 도면 30~70초), 분석이 멈춘 그 순간 시작된다 (`_prefetch_proposals`)."""
     job = db.get_job(CON, job_id)
     if not job:
-        raise HTTPException(404, "no such job")
+        raise HTTPException(404, NO_JOB)
     _require_source(job)
     slot = _proposal_slot(job_id)
     if not slot["event"].wait(timeout=600):
@@ -2712,7 +2887,7 @@ def teach_click(job_id: str, payload: dict):
     """
     job = db.get_job(CON, job_id)
     if not job:
-        raise HTTPException(404, "no such job")
+        raise HTTPException(404, NO_JOB)
     _require_source(job)
     item = str(payload.get("item") or "")
     pages = _tb_pages(job)
@@ -2771,7 +2946,7 @@ def teach_save(job_id: str, payload: dict):
     그 장에서 적는다 (화면이 보낸 값을 믿지 않는다)."""
     job = db.get_job(CON, job_id)
     if not job:
-        raise HTTPException(404, "no such job")
+        raise HTTPException(404, NO_JOB)
     _require_source(job)
     pages = {pc.page_no: pc for pc in _tb_sizes(job)}
 
@@ -2815,7 +2990,7 @@ def teach_save(job_id: str, payload: dict):
 def teach_clear(job_id: str):
     job = db.get_job(CON, job_id)
     if not job:
-        raise HTTPException(404, "no such job")
+        raise HTTPException(404, NO_JOB)
     return {"cleared": form_teach.clear(DATA_DIR, job["project"] or "")}
 
 
@@ -2831,7 +3006,7 @@ def sheet_number_set(job_id: str, page: int = Form(...),
     """한 장의 도면번호를 적는다.  **다시 분석해야 반영된다.**"""
     job = db.get_job(CON, job_id)
     if not job:
-        raise HTTPException(404, "no such job")
+        raise HTTPException(404, NO_JOB)
     try:
         rec = sheet_numbers.set_sheet(DATA_DIR, job["project"] or "",
                                       page=page, drawing_no=drawing_no,
@@ -2848,9 +3023,9 @@ def sheet_number_clear(job_id: str, page: int):
     """되돌린다 — 지운 뒤에는 적지 않았던 때와 같아진다."""
     job = db.get_job(CON, job_id)
     if not job:
-        raise HTTPException(404, "no such job")
+        raise HTTPException(404, NO_JOB)
     if not sheet_numbers.clear_sheet(DATA_DIR, job["project"] or "", page):
-        raise HTTPException(404, "no such sheet")
+        raise HTTPException(404, "그 장이 없습니다")
     return {"cleared": page, "targets": _sheet_number_targets(job_id)}
 
 
@@ -2888,7 +3063,7 @@ def global_symbol_register(symbol_id: str = Form(...), kind: str = Form(...),
 @app.delete("/symbols/global/{symbol_id}")
 def global_symbol_remove(symbol_id: str):
     if not global_symbols.remove(DATA_DIR, symbol_id):
-        raise HTTPException(404, "no such symbol")
+        raise HTTPException(404, "그 기호가 없습니다")
     return {"removed": symbol_id}
 
 
@@ -2917,7 +3092,7 @@ def sheet_notes(job_id: str, page_no: int):
     """
     row = db.get_job(CON, job_id)
     if row is None:
-        raise HTTPException(404, "no such job")
+        raise HTTPException(404, NO_JOB)
     eng = json.loads(row["engine_json"] or "{}")
     if "unit_notes" not in eng:
         return {"known": False,
@@ -2957,7 +3132,7 @@ def unjudged_symbols(job_id: str):
     """
     row = db.get_job(CON, job_id)
     if row is None:
-        raise HTTPException(404, "no such job")
+        raise HTTPException(404, NO_JOB)
     eng = json.loads(row["engine_json"] or "{}")
     if "unjudged_symbols" not in eng:
         return {"known": False, "items": [],
@@ -2981,7 +3156,7 @@ def deletions():
 def job(job_id: str):
     row = db.get_job(CON, job_id)
     if row is None:
-        raise HTTPException(404, "no such job")
+        raise HTTPException(404, NO_JOB)
     out = _job_public(row)
     out["engine"] = json.loads(out.pop("engine_json") or "{}")
     out["review_count"] = db.review_count(CON, job_id)
@@ -2997,31 +3172,46 @@ def job(job_id: str):
 def events(job_id: str):
     """Server-sent progress.  Emits the current state first so a late listener
     is not left waiting for an analysis that has already finished."""
+    # hotfix132 — 없는 분석은 404 (전에는 영원히 keep-alive 를 보내며 열어 두었다).  큐 등록은 그 **뒤** — 없는 job 의 큐가 남지 않게.
+    row = db.get_job(CON, job_id)
+    if row is None:
+        raise HTTPException(404, NO_JOB)
     q: "queue.Queue[dict]" = queue.Queue()
     with _LOCK:
         _LISTENERS.setdefault(job_id, []).append(q)
 
-    def stream():
-        row = db.get_job(CON, job_id)
-        if row is not None:
-            yield _sse({"progress": row["progress"], "message": row["message"],
-                        "status": row["status"],
-                        "page_count": row["page_count"],
-                        "sheets_done": row["sheets_done"],
-                        "sheets_total": row["sheets_total"],
-                        "sheet_plan": _plan(row),
-                        "stopped_stage": row["stopped_stage"],
-                        "running_s": _running_s(row),
-                        "elapsed_s": _elapsed(row)})
+    async def stream():
+        # hotfix132 — 비동기 제너레이터 + `get_nowait` 폴링.  동기 제너레이터는 Starlette 가 스레드풀(40)에서 돌려 대기 탭
+        # 하나가 스레드 하나를 15초씩 잡았고, 탭 40개면 다른 모든 요청이 멈췄다.  이제 스레드 0.
+        yield _sse({"progress": row["progress"], "message": row["message"],
+                    "status": row["status"],
+                    "page_count": row["page_count"],
+                    "sheets_done": row["sheets_done"],
+                    "sheets_total": row["sheets_total"],
+                    "sheet_plan": _plan(row),
+                    "stopped_stage": row["stopped_stage"],
+                    "running_s": _running_s(row),
+                    "elapsed_s": _elapsed(row)})
+        idle = 0.0
         try:
             while True:
                 try:
-                    yield _sse(q.get(timeout=15))
+                    payload = q.get_nowait()
                 except queue.Empty:
-                    yield ": keep-alive\n\n"
+                    await asyncio.sleep(0.25)
+                    idle += 0.25
+                    if idle >= 15:
+                        idle = 0.0
+                        yield ": keep-alive\n\n"
+                    continue
+                idle = 0.0
+                yield _sse(payload)
         finally:
             with _LOCK:
-                _LISTENERS.get(job_id, []).remove(q)
+                try:
+                    _LISTENERS.get(job_id, []).remove(q)
+                except ValueError:
+                    pass
 
     return StreamingResponse(stream(), media_type="text/event-stream",
                              headers={"Cache-Control": "no-cache",
@@ -3123,6 +3313,14 @@ def _rows_body(job_id: str, tab: str, slim: bool, old: dict) -> tuple:
     return ("[" + ",".join(chunks) + "]").encode("utf-8"), parts
 
 
+_ROWS_BODY_MAX = 12
+_ROWS_BODY_BYTES = 200 * 1024 * 1024
+
+
+def _rows_body_bytes() -> int:
+    return sum(len(h.get("raw") or b"") + len(h.get("gz") or b"") for h in _ROWS_BODY.values())
+
+
 def _rows_body_cached(job_id: str, tab: str, slim: bool) -> dict:
     """`/rows` 본문 메모 — 도장이 같으면 그대로, 아니면 **한 스레드만** 만든다 (hotfix80)."""
     with _ROWS_BODY_LOCK:
@@ -3133,7 +3331,8 @@ def _rows_body_cached(job_id: str, tab: str, slim: bool) -> dict:
             body, parts = _rows_body(job_id, tab, slim, hit["parts"] if hit else {})
             hit = {"stamp": stamp, "raw": body, "gz": None, "parts": parts}
             _ROWS_BODY[memo_key] = hit
-            while len(_ROWS_BODY) > 4:              # 두 결과(이전 · 현재) × 두 탭이면 넉넉하다
+            # hotfix132 — 서너 명이 결과 여섯 개를 번갈아 열어도 다시 만들지 않게 4 → 12 · 다만 메모리 합계(raw+gz)는 200MB 까지
+            while len(_ROWS_BODY) > _ROWS_BODY_MAX or (len(_ROWS_BODY) > 1 and _rows_body_bytes() > _ROWS_BODY_BYTES):
                 _ROWS_BODY.pop(next(iter(_ROWS_BODY)))
         return hit
 
@@ -3173,7 +3372,7 @@ def anchors(job_id: str):
     `revision_state` 와 `item` 을 이어 적기만 한다.
     """
     if db.get_job(CON, job_id) is None:
-        raise HTTPException(404, "no such job")
+        raise HTTPException(404, NO_JOB)
     out = {}
     for r in CON.execute(
             "SELECT s.stable_id, i.page_no, i.rect_json, i.key FROM revision_state s"
@@ -3309,7 +3508,7 @@ def scope_summary_now(job_id: str):
     빼지 않으면 이 수와 실제 파일의 행수가 갈린다.
     """
     if db.get_job(CON, job_id) is None:
-        raise HTTPException(404, "no such job")
+        raise HTTPException(404, NO_JOB)
     rows = [{"scope": r["values"].get("scope"), "tab": r["tab"],
              "type": r["values"].get("type")}
             for r in db.merged_rows(CON, job_id)
@@ -3410,7 +3609,7 @@ def job_legend_profile(job_id: str):
     """이 분석이 어느 범례로 나왔나 + 프로필과 다른 곳."""
     job = db.get_job(CON, job_id)
     if job is None:
-        raise HTTPException(404, "no such job")
+        raise HTTPException(404, NO_JOB)
     out = _legend_facts(job)
     out["project"] = job["project"]
     out["revision"] = job["revision"]
@@ -3428,7 +3627,7 @@ def job_intake(job_id: str, format: str = ""):
     """
     job = db.get_job(CON, job_id)
     if job is None:
-        raise HTTPException(404, "no such job")
+        raise HTTPException(404, NO_JOB)
     engine = json.loads(job["engine_json"] or "{}")
     pages = [dict(p) for p in db.page_revisions(CON, job_id)]
     rows = db.merged_rows_cached(CON, job_id, "ALL", slim=True)      # 읽기만 한다
@@ -3458,7 +3657,7 @@ def adopt_legend_profile(job_id: str, keys: str = Form("")):
     """
     job = db.get_job(CON, job_id)
     if job is None:
-        raise HTTPException(404, "no such job")
+        raise HTTPException(404, NO_JOB)
     if not job["project"]:
         raise HTTPException(400, "이 분석은 프로젝트에 묶여 있지 않아 "
                                  "프로필이 없습니다")
@@ -3506,7 +3705,7 @@ def job_review(job_id: str):
     """
     job = db.get_job(CON, job_id)
     if job is None:
-        raise HTTPException(404, "no such job")
+        raise HTTPException(404, NO_JOB)
     engine = json.loads(job["engine_json"] or "{}")
     rows = db.merged_rows_cached(CON, job_id, "ALL", slim=True)     # 읽기만 한다 (hotfix45 · 덜어낸 행이면 된다 hotfix80)
     states = db.review_states(CON, job_id)
@@ -3708,9 +3907,17 @@ def page_png(job_id: str, page_no: int, zoom: float = 1.6):
     Kept separate from the overlay data on purpose: the boxes come from JSON
     (`/pages`), so a rule change means new JSON, not a re-render.
     """
+    # hotfix132 — 확대 배율 검증.  0 은 500, -1 은 쓰레기 PNG, 16 은 13472×9520px 를 4.8초 그리며 값마다 캐시 파일이 늘었다.
+    # 반올림은 둘째 자리까지만 — 도면번호·범례 칸 지정 화면이 0.75 로 받아 자기 배율로 좌표를 환산한다 (0.8 로 그리면 어긋난다).
+    try:
+        zoom = round(float(zoom), 2)
+    except (TypeError, ValueError):
+        raise HTTPException(400, "확대 배율은 0.5~3 사이여야 합니다")
+    if not 0.5 <= zoom <= 3.0:
+        raise HTTPException(400, "확대 배율은 0.5~3 사이여야 합니다")
     row = db.get_job(CON, job_id)
     if row is None:
-        raise HTTPException(404, "no such job")
+        raise HTTPException(404, NO_JOB)
     from app.engine import dxf_reader
     if dxf_reader.is_dxf_input(Path(row["pdf_path"])):
         data = _dxf_page_png(job_id, Path(row["pdf_path"]), page_no)
@@ -3726,14 +3933,14 @@ def page_png(job_id: str, page_no: int, zoom: float = 1.6):
     # hotfix69 — 서버 밖 일꾼이 그린다 (그리는 동안 다른 요청이 기다리지 않게 · app/page_warm.render_now)
     done = page_warm.render_now(Path(row["pdf_path"]), cached, page_no, zoom)
     if done is False:
-        raise HTTPException(404, "no such page")
+        raise HTTPException(404, NO_PAGE)
     if done and cached.is_file():
         return FileResponse(str(cached), media_type="image/png",
                             headers={"Cache-Control": "public, max-age=3600"})
     import pymupdf
     doc = pymupdf.open(row["pdf_path"])
     if not 1 <= page_no <= doc.page_count:
-        raise HTTPException(404, "no such page")
+        raise HTTPException(404, NO_PAGE)
     page = doc[page_no - 1]
     pm = page.get_pixmap(matrix=pymupdf.Matrix(zoom, zoom))
     data = pm.tobytes("png")
@@ -3782,7 +3989,7 @@ def _dxf_page_png(job_id: str, path: Path, page_no: int) -> bytes:
             return f.read_bytes()
         sheet = next((sh for sh in _dxf_sheets(path, page_no) if sh.no == page_no), None)
         if sheet is None:
-            raise HTTPException(404, "no such page")
+            raise HTTPException(404, NO_PAGE)
         if sheet.error:
             raise HTTPException(422, f"이 장은 읽지 못했습니다 — {sheet.error}")
         data = dxf_render.render_png(sheet)
@@ -3840,7 +4047,7 @@ def add_row(job_id: str, payload: dict):
     """
     job = db.get_job(CON, job_id)
     if job is None:
-        raise HTTPException(404, "no such job")
+        raise HTTPException(404, NO_JOB)
     page_no = _int_field(payload, "page_no")
     values = payload.get("values") or {}
     rect = payload.get("rect") or []
@@ -3852,10 +4059,10 @@ def add_row(job_id: str, payload: dict):
             try:
                 values["qty"] = int(values["qty"])
             except (TypeError, ValueError):
-                raise HTTPException(400, "Q'ty must be a whole number")
+                raise HTTPException(400, QTY_WHOLE)
         klass = str(payload.get("reason_class") or "MISSING").upper()
         if klass not in markup.CLASSES:
-            raise HTTPException(400, f"unknown reason class {klass!r}")
+            raise HTTPException(400, f"없는 사유 종류입니다: {klass!r} (가능: {', '.join(sorted(markup.CLASSES))})")
         evidence = {"markup": {
             "rect": [round(float(v), 1) for v in rect],
             "author": author, "at": time.time(), "class": klass,
@@ -3931,18 +4138,18 @@ def markup_propose(job_id: str, payload: dict):
     """
     job = db.get_job(CON, job_id)
     if job is None:
-        raise HTTPException(404, "no such job")
+        raise HTTPException(404, NO_JOB)
     page_no = _int_field(payload, "page_no")
     rect = payload.get("rect") or []
     if not page_no or len(rect) != 4:
-        raise HTTPException(400, "page_no and a 4-number rect are required")
+        raise HTTPException(400, "page_no 와 rect [x0,y0,x1,y1] 가 필요합니다")
     return markup.propose(CON, job, page_no, rect)
 
 
 @app.get("/jobs/{job_id}/markup")
 def markup_summary(job_id: str):
     if db.get_job(CON, job_id) is None:
-        raise HTTPException(404, "no such job")
+        raise HTTPException(404, NO_JOB)
     return {"classes": markup.CLASSES, **markup.summary(CON, job_id)}
 
 
@@ -3959,7 +4166,7 @@ def feedback_export(job_id: str, by: str = ""):
     """
     job = db.get_job(CON, job_id)
     if job is None:
-        raise HTTPException(404, "no such job")
+        raise HTTPException(404, NO_JOB)
     info = markup.export_zip(CON, job, FEEDBACK_DIR, DATA_DIR, by=by)
     return FileResponse(info["path"], media_type="application/zip",
                         filename=info["name"],
@@ -3972,7 +4179,7 @@ def copy_row(job_id: str, key: str):
     try:
         new_key = db.copy_row(CON, job_id, key)
     except KeyError:
-        raise HTTPException(404, "no such row")
+        raise HTTPException(404, NO_ROW)
     return {"key": new_key, "review_count": db.review_count(CON, job_id)}
 
 
@@ -4041,11 +4248,11 @@ def delete_row(job_id: str, key: str, reason: str = "", reason_class: str = "",
     """
     klass = str(reason_class or "").upper()
     if klass and klass not in markup.CLASSES:
-        raise HTTPException(400, f"unknown reason class {klass!r}")
+        raise HTTPException(400, f"없는 사유 종류입니다: {klass!r} (가능: {', '.join(sorted(markup.CLASSES))})")
     try:
         out = _delete_one(job_id, key, klass, reason, author, exclude)
     except KeyError:
-        raise HTTPException(404, "no such row")
+        raise HTTPException(404, NO_ROW)
     out["review_count"] = db.review_count(CON, job_id)
     out["feedback_count"] = db.feedback_count(CON, job_id)
     out["markup"] = markup.summary(CON, job_id)
@@ -4061,14 +4268,14 @@ def restore_row(job_id: str, key: str):
 
 
 @app.patch("/jobs/{job_id}/rows/{key}")
-async def patch_row(job_id: str, key: str, payload: dict):
+def patch_row(job_id: str, key: str, payload: dict):
     field = payload.get("field")
     value = payload.get("value")
     if field == "qty" and value not in (None, ""):
         try:
             value = int(value)
         except (TypeError, ValueError):
-            raise HTTPException(400, "Q'ty must be a whole number")
+            raise HTTPException(400, QTY_WHOLE)
     # 누가 고쳤나 (13회차 [D]).  인증이 아니라 자기신고다 - 이 앱에는 로그인도
     # 사용자 테이블도 없고, 없는 신원을 지어내지 않는다.  비어 있으면 비어 있는
     # 채로 적고 화면이 "이름 없음" 이라고 쓴다 - 서버가 이름을 만들지 않는다.
@@ -4076,7 +4283,7 @@ async def patch_row(job_id: str, key: str, payload: dict):
     try:
         user = _edit_one(job_id, key, field, value, author, payload.get("reason") or "")
     except KeyError:
-        raise HTTPException(404, "no such row")
+        raise HTTPException(404, NO_ROW)
     except ValueError as exc:
         raise HTTPException(400, str(exc))
     return {"key": key, "user": user, "review_count": db.review_count(CON, job_id),
@@ -4085,7 +4292,7 @@ async def patch_row(job_id: str, key: str, payload: dict):
 
 
 @app.post("/jobs/{job_id}/qty_bulk")
-async def qty_bulk(job_id: str, payload: dict):
+def qty_bulk(job_id: str, payload: dict):
     """hotfix65 — 여러 행의 Q'ty 를 한 번에 (수량 승수 판의 '페이지별 승수').
 
     **하는 일은 `patch_row` 와 같다** — 행마다 같은 `db.set_user_value` · 같은
@@ -4094,10 +4301,10 @@ async def qty_bulk(job_id: str, payload: dict):
     (그 행의 기본 개수 × 사람이 적은 승수) — 서버는 받은 정수를 적기만 하고
     아무것도 다시 계산하지 않는다.  빈 값이면 도면 값으로 되돌린다 (PATCH 와 같다)."""
     if db.get_job(CON, job_id) is None:
-        raise HTTPException(404, "no such job")
+        raise HTTPException(404, NO_JOB)
     items = payload.get("items") or []
     if not isinstance(items, list) or not items:
-        raise HTTPException(400, "no rows")
+        raise HTTPException(400, "행이 없습니다 — 먼저 분석을 끝내거나 행을 추가해 주세요")
     author = " ".join(str(payload.get("author") or "").split())[:60]
     reason = str(payload.get("reason") or "")[:200]
     clean = []
@@ -4110,9 +4317,9 @@ async def qty_bulk(job_id: str, payload: dict):
             try:
                 value = int(value)
             except (TypeError, ValueError):
-                raise HTTPException(400, "Q'ty must be a whole number")
+                raise HTTPException(400, QTY_WHOLE)
             if value < 0:
-                raise HTTPException(400, "Q'ty must not be negative")
+                raise HTTPException(400, QTY_NEGATIVE)
         else:
             value = ""
         clean.append((key, value, str((it or {}).get("reason") or reason)[:200]))
@@ -4129,7 +4336,7 @@ async def qty_bulk(job_id: str, payload: dict):
 
 
 @app.post("/jobs/{job_id}/rows_edit")
-async def rows_edit(job_id: str, payload: dict):
+def rows_edit(job_id: str, payload: dict):
     """hotfix75 — 여러 행의 **같은 칸**을 한 요청으로 (도면에서 Shift 로 묶은 행의 공급 주체 · 승수 라벨의 '이 페이지
     전체' · '선택 N개').  행마다 PATCH 를 보내면 요청이 N 번 오가고 화면이 그동안 멈춰 있었다 (46행 승수 실측).
 
@@ -4137,7 +4344,7 @@ async def rows_edit(job_id: str, payload: dict):
     화면이 정한다.  `items: [{key, value}]` (행마다 값이 다를 수 있다) · `field` · `author` · `reason`.
     없는 행은 건너뛰고 `missing` 으로 돌려준다 — 다른 창이 그 사이 지웠을 수 있다."""
     if db.get_job(CON, job_id) is None:
-        raise HTTPException(404, "no such job")
+        raise HTTPException(404, NO_JOB)
     field = str(payload.get("field") or "")
     if field not in db.EDITABLE:
         raise HTTPException(400, f"{field!r} 는 고칠 수 있는 칸이 아닙니다")
@@ -4155,9 +4362,9 @@ async def rows_edit(job_id: str, payload: dict):
             try:
                 value = int(value)
             except (TypeError, ValueError):
-                raise HTTPException(400, "Q'ty must be a whole number")
+                raise HTTPException(400, QTY_WHOLE)
             if value < 0:
-                raise HTTPException(400, "Q'ty must not be negative")
+                raise HTTPException(400, QTY_NEGATIVE)
         elif value is None:
             value = ""
         elif not isinstance(value, (str, int, float)):
@@ -4185,7 +4392,7 @@ def rows_delete(job_id: str, payload: dict):
     센다.  예전에는 행마다 DELETE 를 보냈고 한 번에 0.4초(마크업 요약이 분석 전체를 다시 읽는다)라 30행이면
     13초를 멈춰 있었다.  없는 행은 건너뛰고 `missing` 으로 돌려준다."""
     if db.get_job(CON, job_id) is None:
-        raise HTTPException(404, "no such job")
+        raise HTTPException(404, NO_JOB)
     keys = payload.get("keys")
     if not isinstance(keys, list) or not keys or not all(isinstance(k, str) for k in keys):
         raise HTTPException(400, "keys 는 행 열쇠 목록이어야 합니다")
@@ -4193,7 +4400,7 @@ def rows_delete(job_id: str, payload: dict):
         raise HTTPException(400, "한 번에 5000행까지 지울 수 있습니다")
     klass = str(payload.get("reason_class") or "").upper()
     if klass and klass not in markup.CLASSES:
-        raise HTTPException(400, f"unknown reason class {klass!r}")
+        raise HTTPException(400, f"없는 사유 종류입니다: {klass!r} (가능: {', '.join(sorted(markup.CLASSES))})")
     exclude = payload.get("exclude", True)
     exclude = exclude if isinstance(exclude, bool) else str(exclude).lower() not in ("false", "0", "")
     reason = str(payload.get("reason") or "")
@@ -4300,7 +4507,7 @@ def _verdict_voc(job_id: str, done: list, author: str, note: str, crop_one: bool
 @app.get("/jobs/{job_id}/verdicts")
 def job_verdicts(job_id: str):
     if db.get_job(CON, job_id) is None:
-        raise HTTPException(404, "no such job")
+        raise HTTPException(404, NO_JOB)
     return {"counts": db.verdict_counts(CON, job_id), "items": db.verdicts(CON, job_id)}
 
 
@@ -4310,7 +4517,7 @@ def set_verdicts(job_id: str, payload: dict):
 
     항목에 없는 칸은 건드리지 않는다 (수량만 적어도 식별 평가는 그대로).  `verdict: "X"` 만 행을 출력에서 뺀다."""
     if db.get_job(CON, job_id) is None:
-        raise HTTPException(404, "no such job")
+        raise HTTPException(404, NO_JOB)
     items = payload.get("items")
     if not isinstance(items, list) or not items:
         raise HTTPException(400, "items 는 {key, verdict | qty_verdict | note} 목록이어야 합니다")
@@ -4356,7 +4563,7 @@ def verdicts_xlsx(job_id: str):
     from app import verdict_export
     job = db.get_job(CON, job_id)
     if job is None:
-        raise HTTPException(404, "no such job")
+        raise HTTPException(404, NO_JOB)
     rows = db.merged_rows(CON, job_id, "ALL")
     pages = {r["page_no"]: r["drawing_no"] for r in CON.execute(
         "SELECT page_no, drawing_no FROM pid_page WHERE job_id=?", (job_id,)).fetchall()}
@@ -4377,7 +4584,7 @@ def row_history(job_id: str, key: str):
     그 판단과 어긋나지 않는다.
     """
     if db.get_job(CON, job_id) is None:
-        raise HTTPException(404, "no such job")
+        raise HTTPException(404, NO_JOB)
     return {"key": key, "history": db.row_edit_history(CON, job_id, key)}
 
 
@@ -4504,7 +4711,7 @@ def axis_candidates(job_id: str, key: str):
     job = db.get_job(CON, job_id)
     row = db.get_row(CON, job_id, key)
     if job is None or row is None:
-        raise HTTPException(404, "no such row")
+        raise HTTPException(404, NO_ROW)
     out = _axis_candidates(job, row["page_no"])
     out["same_run"] = _axis_same_run(job_id, row)
     return out
@@ -4516,7 +4723,7 @@ def axis_override_map(job_id: str):
     "FROM/TO 확정"과 "Rev.A 확정 승계"를 이걸로 그린다."""
     job = db.get_job(CON, job_id)
     if job is None:
-        raise HTTPException(404, "no such job")
+        raise HTTPException(404, NO_JOB)
     states = db.revision_states(CON, job_id)
     out = {}
     if job["project"]:
@@ -4609,7 +4816,7 @@ def axis_text(job_id: str, payload: dict):
     """hotfix23 — 사람이 도면에 그은 범위 안의 글자.  Description From/To 마크업이 읽는다."""
     job = db.get_job(CON, job_id)
     if job is None:
-        raise HTTPException(404, "no such job")
+        raise HTTPException(404, NO_JOB)
     try:
         page_no = int(payload.get("page_no"))
         rect = [float(v) for v in payload.get("rect")]
@@ -4622,7 +4829,7 @@ def axis_text(job_id: str, payload: dict):
 
 
 @app.post("/jobs/{job_id}/rows/{key}/axis")
-async def confirm_axis(job_id: str, key: str, payload: dict):
+def confirm_axis(job_id: str, key: str, payload: dict):
     """FROM/TO 확정 → ② 문형 생성 → user_values 저장 (+프로젝트 장부).
 
     빈 from/to 는 확정 해제다: 편집을 걷어내 현행(엔진) 문장으로 되돌린다.
@@ -4630,7 +4837,7 @@ async def confirm_axis(job_id: str, key: str, payload: dict):
     job = db.get_job(CON, job_id)
     row = db.get_row(CON, job_id, key)
     if job is None or row is None:
-        raise HTTPException(404, "no such row")
+        raise HTTPException(404, NO_ROW)
     states = db.revision_states(CON, job_id)
     stable_id = (states.get(key) or {}).get("id") or ""
     from_text = str(payload.get("from_text") or "").strip()
@@ -4766,21 +4973,21 @@ def make_snapshot(job_id: str, payload: dict = None):
     says what state it was taken in.
     """
     if db.get_job(CON, job_id) is None:
-        raise HTTPException(404, "no such job")
+        raise HTTPException(404, NO_JOB)
     payload = payload or {}
     label = payload.get("label", "")
     origins = payload.get("origins") or list(db.ALL_ORIGINS)
     unknown = set(origins) - set(db.ALL_ORIGINS)
     if unknown:
-        raise HTTPException(400, f"unknown origin(s): {sorted(unknown)}")
+        raise HTTPException(400, f"없는 출처입니다: {sorted(unknown)}")
     drawings = payload.get("drawings")
     if drawings is not None:
         known = {d["drawing_no"] for d in db.drawings_of(CON, job_id)}
         unknown_d = set(drawings) - known
         if unknown_d:
-            raise HTTPException(400, f"unknown drawing(s): {sorted(unknown_d)}")
+            raise HTTPException(400, f"이 분석에 없는 도면입니다: {sorted(unknown_d)}")
         if not drawings:
-            raise HTTPException(400, "no drawing selected, so nothing to deliver")
+            raise HTTPException(400, "고른 도면이 없어 산출할 것이 없습니다 — 도면을 하나 이상 골라 주세요")
     hold = bool(payload.get("hold_review"))
     rev = db.snapshot(CON, job_id, label, origins, drawings, hold)
     snap = db.get_revision(CON, rev)
@@ -4804,7 +5011,7 @@ def make_snapshot(job_id: str, payload: dict = None):
 def job_feedback(job_id: str, limit: int = 200):
     """The correction history.  Stored, counted, and not interpreted."""
     if db.get_job(CON, job_id) is None:
-        raise HTTPException(404, "no such job")
+        raise HTTPException(404, NO_JOB)
     return {"count": db.feedback_count(CON, job_id),
             "records": db.feedback_rows(CON, job_id, limit)}
 
@@ -4891,7 +5098,7 @@ def _capture_context(job_id: str) -> dict:
 def create_report(job_id: str, payload: dict):
     """File one report.  `what` and `detail` are the person's; the rest is taken."""
     if db.get_job(CON, job_id) is None:
-        raise HTTPException(404, "no such job")
+        raise HTTPException(404, NO_JOB)
     kind = str(payload.get("kind") or "ROW").upper()
     what = str(payload.get("what") or "").upper()
     detail = str(payload.get("detail") or "").strip()
@@ -4945,7 +5152,7 @@ def create_report(job_id: str, payload: dict):
 @app.get("/jobs/{job_id}/reports")
 def job_reports(job_id: str):
     if db.get_job(CON, job_id) is None:
-        raise HTTPException(404, "no such job")
+        raise HTTPException(404, NO_JOB)
     return {"count": db.report_count(CON, job_id),
             "labels": REPORT_WHAT_LABELS,
             "reports": db.list_reports(CON, job_id)}
@@ -4959,7 +5166,7 @@ def edit_report(report_id: int, payload: dict):
             what=(str(payload["what"]).upper() if "what" in payload else None),
             detail=(str(payload["detail"]) if "detail" in payload else None))
     except KeyError:
-        raise HTTPException(404, "no such report")
+        raise HTTPException(404, "그 보고서가 없습니다")
     except ValueError as exc:
         raise HTTPException(400, str(exc))
     return out
@@ -4970,7 +5177,7 @@ def remove_report(report_id: int):
     try:
         db.delete_report(CON, report_id)
     except KeyError:
-        raise HTTPException(404, "no such report")
+        raise HTTPException(404, "그 보고서가 없습니다")
     return {"ok": True}
 
 
@@ -5065,7 +5272,7 @@ def _write_voc(payload: dict) -> dict:
     job_id = str(payload.get("job_id") or "")
     job = db.get_job(CON, job_id) if job_id else None
     if job_id and job is None:
-        raise ValueError("no such job")
+        raise ValueError(NO_JOB)
     page_no = _int_field(payload, "page_no") or None
     keys = [str(k) for k in (payload.get("row_keys") or []) if k][:50]
     rows = [_capture_row(job_id, k) for k in keys] if job else []
@@ -5097,18 +5304,28 @@ def _write_voc(payload: dict) -> dict:
 
 
 @app.post("/voc")
-def create_voc(payload: dict):
+def create_voc(payload: dict, request: Request = None):
     try:
         rec = _write_voc(payload)
     except ValueError as exc:
         raise HTTPException(400, str(exc))
     except OSError as exc:
-        raise HTTPException(500, f"VOC 함에 쓰지 못했습니다: {exc}")
-    return {"id": rec["id"], "has_crop": rec["has_crop"], "voc_dir": str(voc.voc_root())}
+        raise HTTPException(500, f"의견함에 쓰지 못했습니다: {exc}")
+    return {"id": rec["id"], "has_crop": rec["has_crop"], "voc_dir": _voc_dir_public(request)}
+
+
+def _is_loopback(request) -> bool:
+    host = (request.client.host if request is not None and request.client else "") or ""
+    return host in ("127.0.0.1", "::1", "localhost", "testclient")
+
+
+def _voc_dir_public(request) -> str:
+    """hotfix132 — 의견함의 서버 절대 경로는 서버 PC(루프백)에서 볼 때만.  다른 PC 에는 빈 값 (화면은 기본 글로 대신한다)."""
+    return str(voc.voc_root()) if _is_loopback(request) else ""
 
 
 @app.get("/voc")
-def list_voc(job_id: str = "", limit: int = 200):
+def list_voc(job_id: str = "", limit: int = 200, request: Request = None):
     """이 서버의 VOC 함 — 최근 것부터.  반영 상태는 장부 · inbox 의 반영 표시에서 읽는다."""
     items = voc.scan([voc.inbox_dir()])
     try:
@@ -5122,17 +5339,17 @@ def list_voc(job_id: str = "", limit: int = 200):
     counts = {"total": len(out), "open": sum(1 for r in out if r["state"] == "OPEN"),
               # hotfix74 — 읽지 못한 VOC 폴더 (깨진 voc.json) — 조용히 건너뛰지 않는다
               "unreadable": len(voc.unreadable([voc.inbox_dir()])) if not job_id else 0}
-    return {"voc_dir": str(voc.voc_root()), "counts": counts, "items": out[:max(1, limit)],
+    return {"voc_dir": _voc_dir_public(request), "counts": counts, "items": out[:max(1, limit)],
             "categories": voc.CATEGORIES, "sources": voc.SOURCES}
 
 
 @app.get("/voc/{voc_id}/crop.png")
 def voc_crop(voc_id: str):
     if not voc.ID_RE.match(voc_id):
-        raise HTTPException(404, "no such VOC")
+        raise HTTPException(404, "그 의견이 없습니다")
     f = voc.inbox_dir() / voc_id / "crop.png"
     if not f.is_file():
-        raise HTTPException(404, "no crop")
+        raise HTTPException(404, "그 의견에는 캡처 그림이 없습니다")
     return FileResponse(str(f), media_type="image/png")
 
 
@@ -5145,9 +5362,11 @@ def build_version():
     그것을 받았는가* 를 가를 수 있다.
     """
     out = dict(version.info())
+    out.pop("python", None)                       # hotfix132 — 파이썬 판 · 커밋 · 브랜치 · zip 이름은 진단 zip 에만
+    out["product"] = version.product()            # hotfix132 — 제품 이름 · 판 번호 · 회사 · 문의처 (config/product.json)
     out["ui"] = {"app_js": _asset_tag("app.js"), "styles_css": _asset_tag("styles.css")}
-    # hotfix34 — 적용된 꾸러미 (없으면 null · 화면이 "기록 없음" 으로 말한다)
-    out["update"] = version.update_info()
+    # hotfix34 — 적용된 꾸러미 (없으면 null · 화면이 "기록 없음" 으로 말한다) · hotfix132 — 이름 · rev · 만든 시각만
+    out["update"] = version.public_update()
     # hotfix50 — 부서 대시보드(다른 출처 · file:// 사본은 null)가 "P&ID 서버가 살아 있나" 를
     # 이것으로 묻는다.  버전 정보만 담긴 이 응답 하나만 출처를 가리지 않는다 — 다른 경로에는
     # 이 머리말이 없어 대시보드가 데이터를 읽어 가는 길은 열리지 않는다.
@@ -5193,7 +5412,7 @@ def _log_tail(limit: int = 2_000_000) -> bytes:
 def _diagnostic_zip(job_id: str) -> dict:
     job = db.get_job(CON, job_id)
     if job is None:
-        raise HTTPException(404, "no such job")
+        raise HTTPException(404, NO_JOB)
     info = version.info()
     engine = json.loads(job["engine_json"] or "{}")
     applied = engine.get("applied_rules") or {}
@@ -5286,7 +5505,7 @@ def make_diagnostic(job_id: str):
 def get_diagnostic(job_id: str, filename: str):
     path = DIAGNOSTICS / Path(filename).name
     if not path.exists() or job_id not in path.name:
-        raise HTTPException(404, "that export has not been built")
+        raise HTTPException(404, NO_EXPORT)
     return FileResponse(path, media_type="application/zip", filename=path.name)
 
 
@@ -5294,7 +5513,7 @@ def get_diagnostic(job_id: str, filename: str):
 def job_drawings(job_id: str):
     """Drawings in this job with their row and review counts, grouped by system."""
     if db.get_job(CON, job_id) is None:
-        raise HTTPException(404, "no such job")
+        raise HTTPException(404, NO_JOB)
     return db.drawings_of(CON, job_id)
 
 
@@ -5328,7 +5547,7 @@ def revision_excel(revision_id: int):
 def _revision_excel(revision_id: int):
     snap = db.get_revision(CON, revision_id)
     if snap is None:
-        raise HTTPException(404, "no such revision")
+        raise HTTPException(404, NO_REVISION)
     templates = _templates()
     out_dir = OUTPUTS / f"rev{revision_id}"
     try:
@@ -5387,16 +5606,17 @@ def _revision_excel(revision_id: int):
 
 @app.get("/templates")
 def templates():
-    return {k: (str(v) if v else None) for k, v in _templates().items()}
+    # hotfix132 — 파일 이름만 (서버 PC 의 절대 경로는 내보내지 않는다 · 화면은 있음/없음만 본다)
+    return {k: (Path(v).name if v else None) for k, v in _templates().items()}
 
 
 @app.post("/templates")
-async def upload_template(kind: str = Form(...), file: UploadFile = File(...)):
+def upload_template(kind: str = Form(...), file: UploadFile = File(...)):
     if kind not in excel_out.DELIVERABLES:
-        raise HTTPException(400, f"unknown deliverable '{kind}'")
+        raise HTTPException(400, f"'{kind}' 는 없는 산출물 종류입니다 (가능: {', '.join(excel_out.DELIVERABLES)})")
     TEMPLATES.mkdir(parents=True, exist_ok=True)
     path = TEMPLATES / f"{kind}.xlsx"
-    raw = await file.read()
+    raw = file.file.read()
     # hotfix74 — 엑셀이 아닌 파일(이름만 .xlsx · 구형 .xls · 손상)을 그대로 받아 두면 다음 Excel 출력이
     # 일반 500 으로 죽었다 (돌발상황 시뮬레이션).  받기 전에 열어 보고, 쓰기는 원자적으로 한다.
     why = _template_problem(raw)
@@ -5406,7 +5626,7 @@ async def upload_template(kind: str = Form(...), file: UploadFile = File(...)):
     tmp = path.with_name(path.name + ".tmp")
     tmp.write_bytes(raw)
     os.replace(tmp, path)
-    return {"kind": kind, "path": str(path)}
+    return {"kind": kind, "path": path.name}
 
 
 def _template_problem(raw: bytes) -> str:
@@ -5486,12 +5706,9 @@ def index():
     이제 파일이 바뀌면 **주소가 바뀌므로** 캐시가 구조적으로 비켜간다.  HTML
     자체는 캐시하지 않는다 — 그 안에 딱지가 들어 있기 때문이다.
     """
-    html = (STATIC / "index.html").read_text(encoding="utf-8")
-    html = html.replace("/static/app.js", f"/static/app.js?v={_asset_tag('app.js')}")
-    html = html.replace("/static/styles.css",
-                        f"/static/styles.css?v={_asset_tag('styles.css')}")
-    html = html.replace("/static/offline.js", f"/static/offline.js?v={_asset_tag('offline.js')}")
-    return HTMLResponse(html, headers={"Cache-Control": "no-store"})
+    # hotfix132 — 공통 조각 `page_stamp` 로 (LOGIC · DCS · 판넬과 같은 길).  `/static/*.js|css` 전부에 딱지가 붙고,
+    # 공통 셸(shell.js · shell.css)도 같은 자리에서 들어간다.  오른쪽 아래 업데이트 글은 P&ID 바닥줄이 이미 적으므로 끈다.
+    return page_stamp.page("index.html", badge=False)
 
 
 # hotfix108 — 절전모드.  서비스워커는 **출처 뿌리**에서 받아야 모든 화면(/ · /logic · /space · /dcs)을 맡는다.
@@ -5509,9 +5726,17 @@ def offline_shell():
             f"/static/app.js?v={_asset_tag('app.js')}", f"/static/styles.css?v={_asset_tag('styles.css')}",
             f"/static/offline.js?v={_asset_tag('offline.js')}"]
     skip = {"sw.js", "app.js", "styles.css", "offline.js", "index.html"}      # P&ID 첫 화면 index.html 은 `/` 로 (딱지 때문)
+    # hotfix132 — 그림·글꼴은 첫 화면 것만: 도서 뷰어 묶음 · Valve · 교재 그림(img/teach) · 회차 그림(img/r-*)은 절전 보관에서 뺀다
+    # (58개 4MB → 설치 때 다 받느라 느리고, 바뀔 때마다 전부 다시 받았다).
     for f in sorted(STATIC.rglob("*")):
-        if f.is_file() and f.relative_to(STATIC).as_posix() not in skip and f.suffix in {".js", ".css", ".html", ".svg", ".png", ".woff2", ".woff", ".ico"}:
-            urls.append("/static/" + f.relative_to(STATIC).as_posix())
+        if not f.is_file():
+            continue
+        rel = f.relative_to(STATIC).as_posix()
+        if rel in skip or f.suffix not in {".js", ".css", ".html", ".svg", ".png", ".woff2", ".woff", ".ico"}:
+            continue
+        if rel.startswith(("books/vendor/", "valve/", "img/teach/", "img/r-", "hmi/")):
+            continue
+        urls.append("/static/" + rel)
     return {"urls": urls, "update": (version.update_info() or {}).get("name")}
 
 
@@ -5529,6 +5754,130 @@ async def _offline_replay_log(request, call_next):
         print(f"[offline replay] {request.method} {request.url.path} (kept at {when} · app "
               f"{request.headers.get('x-offline-app', '?')}) -> {resp.status_code}", flush=True)
     return resp
+
+
+def _manual_text() -> tuple[str, str]:
+    """hotfix132 — 설명서 원문: docs/user_manual.md → README.md → 내장 한 문단 (exe 에는 docs 가 실리지 않을 수 있다)."""
+    for rel in (("docs", "user_manual.md"), ("README.md",)):
+        try:
+            return paths.resource(*rel).read_text(encoding="utf-8"), rel[-1]
+        except OSError:
+            continue
+    return (f"# {PRODUCT['name']} 사용 설명서\n\n설명서 파일(docs/user_manual.md)이 이 서버에 아직 없습니다.  "
+            f"각 화면의 ? 도움말을 눌러 주세요." + (f"\n\n문의: {PRODUCT['support']}" if PRODUCT.get("support") else "")), ""
+
+
+_MD_INLINE = re.compile(r"`([^`]+)`|\*\*([^*]+)\*\*|\[([^\]]+)\]\((https?://[^)\s]+|#[^)\s]+|/[^)\s]*)\)")
+
+
+def _md_inline(text: str) -> str:
+    text = _html.escape(text, quote=False)
+    def sub(m):
+        if m.group(1):
+            return f"<code>{m.group(1)}</code>"
+        if m.group(2):
+            return f"<strong>{m.group(2)}</strong>"
+        return f'<a href="{m.group(4)}">{m.group(3)}</a>'
+    return _MD_INLINE.sub(sub, text)
+
+
+def _anchor(title: str) -> str:
+    slug = re.sub(r"[^\w가-힣-]+", "-", title.strip().lower()).strip("-")
+    return slug or "section"
+
+
+def _md_to_html(md: str) -> str:
+    """markdown 라이브러리 없이 제목 · 목록 · 표 · 코드 · 문단만.  제목에는 `#절이름` 앵커."""
+    out, para, lst, code, table = [], [], None, None, None
+
+    def flush_para():
+        if para:
+            out.append("<p>" + _md_inline(" ".join(para)) + "</p>")
+            para.clear()
+
+    def flush_list():
+        nonlocal lst
+        if lst:
+            out.append(f"<{lst[0]}>" + "".join(f"<li>{_md_inline(i)}</li>" for i in lst[1]) + f"</{lst[0]}>")
+            lst = None
+
+    def flush_table():
+        nonlocal table
+        if table:
+            head, *rows = table
+            out.append("<table><thead><tr>" + "".join(f"<th>{_md_inline(c)}</th>" for c in head) + "</tr></thead><tbody>"
+                       + "".join("<tr>" + "".join(f"<td>{_md_inline(c)}</td>" for c in r) + "</tr>" for r in rows)
+                       + "</tbody></table>")
+            table = None
+
+    for raw in md.splitlines():
+        line = raw.rstrip()
+        if code is not None:
+            if line.strip().startswith("```"):
+                out.append("<pre><code>" + _html.escape("\n".join(code)) + "</code></pre>")
+                code = None
+            else:
+                code.append(line)
+            continue
+        if line.strip().startswith("```"):
+            flush_para(); flush_list(); flush_table()
+            code = []
+            continue
+        m = re.match(r"^(#{1,6})\s+(.*)$", line)
+        if m:
+            flush_para(); flush_list(); flush_table()
+            level, title = len(m.group(1)), m.group(2).strip()
+            out.append(f'<h{level} id="{_anchor(title)}">{_md_inline(title)}</h{level}>')
+            continue
+        m = re.match(r"^\s*(?:[-*+]|\d+[.)])\s+(.*)$", line)
+        if m:
+            flush_para(); flush_table()
+            kind = "ol" if re.match(r"^\s*\d", line) else "ul"
+            if lst is None or lst[0] != kind:
+                flush_list()
+                lst = (kind, [])
+            lst[1].append(m.group(1))
+            continue
+        if line.strip().startswith("|") and line.strip().endswith("|"):
+            flush_para(); flush_list()
+            cells = [c.strip() for c in line.strip().strip("|").split("|")]
+            if all(re.fullmatch(r":?-{2,}:?", c) for c in cells if c):
+                continue
+            table = (table or []) + [cells]
+            continue
+        if not line.strip():
+            flush_para(); flush_list(); flush_table()
+            continue
+        if line.strip() in ("---", "***"):
+            flush_para(); flush_list(); flush_table()
+            out.append("<hr>")
+            continue
+        flush_list(); flush_table()
+        para.append(line.strip())
+    flush_para(); flush_list(); flush_table()
+    return "\n".join(out)
+
+
+@app.get("/help/manual", response_class=HTMLResponse, include_in_schema=False)
+def help_manual():
+    """hotfix132 — 사용 설명서 화면.  `docs/user_manual.md` 를 간단히 HTML 로 (제목 앵커 `#절이름` 유지) · 공통 셸을 입힌다."""
+    md, src = _manual_text()
+    body = _md_to_html(md)
+    title = f"{PRODUCT['name']} — 사용 설명서"
+    html = f"""<!doctype html>
+<html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{_html.escape(title)}</title>
+<style>
+body{{margin:0;padding:24px 16px 60px;font:15px/1.65 -apple-system,"Malgun Gothic","Apple SD Gothic Neo",sans-serif;color:#1f2733;background:#fff}}
+main{{max-width:880px;margin:0 auto}} h1{{font-size:26px;margin:.2em 0 .6em}} h2{{font-size:20px;margin:1.6em 0 .5em;padding-top:.4em;border-top:1px solid #e3e7ee}}
+h3{{font-size:16px;margin:1.2em 0 .4em}} code{{background:#f3f5f8;padding:1px 5px;border-radius:4px;font-size:.92em}}
+pre{{background:#f3f5f8;padding:12px;border-radius:6px;overflow:auto}} table{{border-collapse:collapse;margin:.6em 0;font-size:14px}}
+th,td{{border:1px solid #d9dee7;padding:5px 9px;text-align:left;vertical-align:top}} th{{background:#f3f5f8}}
+a{{color:#1f5fbf}} .src{{color:#8a93a3;font-size:12px;margin-top:40px}}
+</style></head>
+<body><main>{body}
+<p class="src">{("원문: " + _html.escape(src)) if src else ""}</p></main></body></html>"""
+    return HTMLResponse(page_stamp.stamp(html, badge=True), headers={"Cache-Control": "no-store"})
 
 
 @app.get("/favicon.ico", include_in_schema=False)
@@ -5553,8 +5902,9 @@ from app import books as _books                      # 계장도서검토 — /b
 app.include_router(_books.router)
 from app.valve import api as _valve_api               # Valve Datasheet 검토 — /valve · /api/valve (실행 프로젝트 › CO2 PJT › Datasheet › Ball Valve)
 app.include_router(_valve_api.router)
-from app import plaza as _plaza                      # 가상 광장 — 대시보드 iframe 용 (판정과 무관 · 메모리만)
-app.include_router(_plaza.router)
+if PRODUCT.get("plaza", True):                       # hotfix132 — config/product.json 에 "plaza": false 를 적으면 붙이지 않는다 (메뉴·띠에는 넣지 않는다)
+    from app import plaza as _plaza                  # 가상 광장 — 대시보드 iframe 용 (판정과 무관 · 메모리만)
+    app.include_router(_plaza.router)
 app.mount("/static", StaticFiles(directory=STATIC), name="static")
 
 
@@ -5570,17 +5920,38 @@ def _audit_on_start() -> None:
         print(f"[감사] {line}", flush=True)
 
 
-_audit_on_start()
+# hotfix132 — `PID_STARTUP_TASKS=0` 이면 기동 감사 · 백업 루프 · 그림 씨앗 스레드를 띄우지 않는다 (시험 · `from app import main` 만 하는
+# 도구).  작업 스레드와 끊긴 분석 정리는 그대로 import 때 — 시험 흐름이 그것에 기댄다.
+_STARTUP_TASKS = os.environ.get("PID_STARTUP_TASKS", "1") != "0"
+if _STARTUP_TASKS:
+    _audit_on_start()
 
 
-def _daily_backup() -> None:
-    """하루 한 번 DB 를 떠 둔다 (hotfix74 · `db.backup_daily`).  실패해도 서버는 계속한다."""
+def _daily_backup(stop: "threading.Event | None" = None, interval: float | None = None) -> None:
+    """hotfix132 — 한 시간마다(`PID_BACKUP_EVERY_S` · 기본 3600) 확인해 **하루 한 판** DB 를 떠 둔다 (`db.backup_daily` · 보관 7판 ·
+    `PID_BACKUP_DIR` 로 다른 드라이브).  전에는 서버를 켤 때 한 번뿐이라 며칠씩 켜 두면 백업이 없었다.  실패해도 서버는 계속한다."""
+    every = float(os.environ.get("PID_BACKUP_EVERY_S", "3600")) if interval is None else float(interval)
+    while not (stop is not None and stop.is_set()):
+        try:
+            made = db.backup_daily(DB_PATH)
+            if made:
+                print(f"DB 백업: {made}", flush=True)
+        except Exception as exc:                             # noqa: BLE001
+            db.LAST_BACKUP.update(ok=False, err=f"{type(exc).__name__}: {exc}", at=time.strftime("%Y-%m-%d %H:%M:%S"))
+            print(f"DB 백업 실패 (서버는 계속): {type(exc).__name__}: {exc}", flush=True)
+        if stop is not None:
+            stop.wait(every)
+        else:
+            time.sleep(every)
+
+
+def _seed_drawings() -> None:
+    """hotfix132 — 업데이트에 실은 LOGIC 작도 그림 묶음(827장)을 켜자마자 뒤에서 깔아 둔다 — 첫 `/logic/api/drawings` 가 몇 초 걸리지 않게."""
     try:
-        made = db.backup_daily(DB_PATH)
-        if made:
-            print(f"DB 백업: {made}", flush=True)
-    except Exception as exc:                             # noqa: BLE001
-        print(f"DB 백업 실패 (서버는 계속): {type(exc).__name__}: {exc}", flush=True)
+        from app.logic import draw as _draw
+        _draw.install_seeds()
+    except Exception as exc:                                 # noqa: BLE001
+        print(f"[작도 씨앗] 깔지 못했습니다 (서버는 계속): {exc}", flush=True)
 
 
 def _start_background() -> None:
@@ -5591,7 +5962,10 @@ def _start_background() -> None:
     (`_user_multipliers` 등)가 **아직 정의되기 전**이라 `NameError` 로 실패했다 — 재시작할 때마다 기다리던
     분석이 하나씩 사라졌다.  보통 기동에서는 줄이 비어 있어 드러나지 않았다."""
     _recover_interrupted()
-    threading.Thread(target=_daily_backup, daemon=True, name="db-backup").start()
+    if _STARTUP_TASKS:
+        threading.Thread(target=_daily_backup, daemon=True, name="db-backup").start()
+        if os.environ.get("PID_DRAW_SEED", "1") != "0":
+            threading.Thread(target=_seed_drawings, daemon=True, name="draw-seed").start()
     threading.Thread(target=_worker, daemon=True, name="analysis-worker").start()
     threading.Thread(target=_backfill_facts, daemon=True, name="facts-backfill").start()
     threading.Thread(target=_warm_recent_rows, daemon=True, name="rows-warm").start()

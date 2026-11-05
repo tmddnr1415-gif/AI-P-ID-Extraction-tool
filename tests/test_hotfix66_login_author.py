@@ -68,8 +68,8 @@ def test_rows_carry_the_last_editor_per_field(tmp_path, monkeypatch):
                                "layers": {}, "multipliers": {}, "legend": {}, "glyphs": {"letters": {}},
                                "fingerprint": "f", "rows": [row]})
     import asyncio
-    asyncio.run(main.patch_row("j", "a", {"field": "qty", "value": "5", "author": "김철수"}))
-    asyncio.run(main.patch_row("j", "a", {"field": "qty", "value": "7", "author": "홍길동"}))
+    (main.patch_row("j", "a", {"field": "qty", "value": "5", "author": "김철수"}))
+    (main.patch_row("j", "a", {"field": "qty", "value": "7", "author": "홍길동"}))
     import json
     out = json.loads(main.rows("j").body)
     eb = out[0]["edited_by"]

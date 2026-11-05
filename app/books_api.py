@@ -95,6 +95,35 @@ def root_dir():
     return r if r and os.path.isdir(r) else ''
 
 
+def _forbidden_root(path):
+    """hotfix132 — 도서관으로 지정하면 안 되는 폴더: 드라이브 루트 · 사용자 홈 · Windows 폴더 · 이 프로그램의 저장소 ·
+    운영 데이터 폴더(app.db · 비밀 키가 든다) — 그 폴더 자체이거나 그 상위이면 True (부서원 누구나 안의 파일을 내려받게 된다)."""
+    try:
+        p = os.path.normcase(os.path.realpath(path))
+    except (OSError, ValueError):
+        return True
+    if os.path.dirname(p) == p:                                   # 드라이브 루트 (`C:\` · `/`)
+        return True
+    guarded = [os.path.expanduser('~'), os.environ.get('SystemRoot') or os.environ.get('WINDIR') or r'C:\Windows']
+    inside = []                                                   # 그 안쪽 폴더도 안 되는 곳 (데이터 폴더 · 이 프로그램 폴더)
+    try:
+        from app import paths
+        inside = [str(paths.resource_root()), str(paths.data_dir())]
+    except Exception:                                             # 대시보드 server.py 에서 돌 때는 app 패키지가 없다
+        pass
+    inside = {os.path.normcase(os.path.realpath(g)) for g in inside}
+    for g in guarded + list(inside):
+        try:
+            g = os.path.normcase(os.path.realpath(g))
+        except (OSError, ValueError):
+            continue
+        if g == p or g.startswith(p.rstrip(os.sep) + os.sep):     # 그 폴더 자체 · 그 상위
+            return True
+        if g in inside and p.startswith(g.rstrip(os.sep) + os.sep):   # 데이터 · 프로그램 폴더의 안쪽
+            return True
+    return False
+
+
 def who(h):
     """색인 · 폴더 설정 권한: 운영자(서버 PC) · 그룹장(SUPER) · config.json 의 managers 에 있는 본명"""
     if h.is_admin():
@@ -130,9 +159,48 @@ def safe_join(root, rel):
 
 
 # ---------------------------------------------------------------- 처리
+def _secret_path():
+    return X['P']('books', 'secret.json')
+
+
+def _read_secret():
+    return X['read_json'](_secret_path()) or {}
+
+
+def _write_secret(d):
+    """hotfix132 — API 키는 `books/secret.json` 에만.  `write_json`(.bak 사본을 남긴다) 대신 직접 원자 쓰기 · 권한 600 시도(Windows 는 무시)."""
+    path = _secret_path()
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    tmp = f'{path}.{os.getpid()}.tmp'
+    fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+    with os.fdopen(fd, 'w', encoding='utf-8') as f:
+        json.dump(d, f, ensure_ascii=False)
+    os.replace(tmp, path)
+    try:
+        os.chmod(path, 0o600)
+    except OSError:
+        pass
+
+
+def _migrate_secret():
+    """config.json(과 그 .bak)에 남아 있던 translate.apiKey 를 secret.json 으로 옮기고 지운다 — 처음 읽을 때 한 번."""
+    with X['LOCK']:
+        c = cfg()
+        t = dict(c.get('translate') or {})
+        if 'apiKey' not in t:
+            return
+        key = str(t.pop('apiKey') or '').strip()
+        if key and not _read_secret().get('apiKey'):
+            _write_secret({'apiKey': key})
+        c['translate'] = t
+        X['write_json'](X['P']('books', 'config.json'), c)
+        X['write_json'](X['P']('books', 'config.json'), c)       # 두 번 — 바로 앞 판(.bak)도 키 없는 판이 되게
+
+
 def tr_cfg():
+    _migrate_secret()
     t = cfg().get('translate') or {}
-    key = t.get('apiKey') or os.environ.get('ANTHROPIC_API_KEY') or ''
+    key = str(_read_secret().get('apiKey') or '').strip() or os.environ.get('ANTHROPIC_API_KEY') or ''
     return {'enabled': bool(t.get('enabled')) and bool(key), 'on': bool(t.get('enabled')), 'key': key, 'keySet': bool(key),
             'model': t.get('model') or DEFAULT_MODEL, 'effort': t.get('effort') or 'low'}
 
@@ -209,13 +277,14 @@ def handle(h, m, seg, q):
             raise err(403, '번역 설정은 운영자(서버 PC)만 바꿀 수 있습니다')
         b = h.json_body()
         with X['LOCK']:
+            _migrate_secret()
             c = cfg(); t = dict(c.get('translate') or {})
             if 'enabled' in b:
                 t['enabled'] = bool(b['enabled'])
-            if str(b.get('apiKey') or '').strip():
-                t['apiKey'] = str(b['apiKey']).strip()
+            if str(b.get('apiKey') or '').strip():                # hotfix132 — 키는 secret.json 에만 (config.json 에는 쓰지 않는다)
+                _write_secret({'apiKey': str(b['apiKey']).strip()})
             if b.get('clearKey'):
-                t.pop('apiKey', None)
+                _write_secret({})
             if b.get('model'):
                 t['model'] = str(b['model']).strip()[:60]
             if b.get('effort') in ('low', 'medium', 'high'):
@@ -232,10 +301,17 @@ def handle(h, m, seg, q):
         b = h.json_body()
         return translate(b.get('text'), str(b.get('src') or '')[:20], str(b.get('title') or '')[:120], by)
     if m == 'PUT' and seg == ['root']:                       # 공용 도서관 폴더 경로 (서버 PC 기준, 예: D:\계장도서)
-        by, b = who(h), h.json_body()
+        # hotfix132 — 폴더 지정은 서버 PC(루프백)에서만.  이름 머리(X-Author)는 누구나 쓸 수 있어 관리자 이름만 알면
+        # 서버 PC 의 아무 폴더나 도서관으로 열 수 있었다.  색인 올리기(PUT book · manifest)는 지정 관리자도 그대로.
+        if not h.is_admin():
+            raise err(403, '이 설정은 운영자가 서버 PC 에서만 바꿀 수 있습니다')
+        by, b = '운영자', h.json_body()
         path = os.path.normpath(os.path.expanduser(str(b.get('root') or '').strip().strip('"')))
         if not path or not os.path.isdir(path):
             raise err(400, f'서버 PC 에 그 폴더가 없습니다: {path}')
+        if _forbidden_root(path):
+            raise err(400, '그 폴더는 도서관으로 지정할 수 없습니다 — 드라이브 전체 · 사용자 폴더 · Windows 폴더 · 이 프로그램의 폴더는 '
+                           '안의 문서를 부서원 모두가 내려받게 되므로, 책만 모아 둔 폴더를 골라 주세요')
         with X['LOCK']:
             c = cfg()
             c.update(root=path, setBy=by, setAt=time.strftime('%Y-%m-%dT%H:%M:%S'))

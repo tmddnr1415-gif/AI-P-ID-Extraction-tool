@@ -45,12 +45,12 @@ def test_the_packer_writes_the_stamp_and_ships_it():
 def test_the_version_endpoint_carries_the_stamp_and_the_footer_reads_it():
     main = (ROOT / "app" / "main.py").read_text(encoding="utf-8")
     body = main[main.index("def build_version"):main.index("# Diagnostic export")]
-    assert 'out["update"] = version.update_info()' in body
+    # hotfix132 — 다른 PC 에는 이름 · rev · 만든 시각만 (zip 이름 · 커밋 · 브랜치는 진단 zip 에만)
+    assert 'out["update"] = version.public_update()' in body
     foot = re.search(r"which build this is.*?\}\)\(\);", JS, re.S).group(0)
-    assert "v.update" in foot and "업데이트 기록 없음" in foot
-    assert "u.rev" in foot and "u.zip" in foot and "u.created_at" in foot
-    # 딱지가 없을 때 화면이 값을 지어내지 않는다 — "기록 없음" 갈래가 있다.
-    assert "hotfix34 이전" in foot
+    # hotfix132 — 꼬리줄은 '버전 · 업데이트 날짜' 만 (꾸러미 zip · 커밋 · 브랜치 같은 내부 표기는 화면에 내지 않는다)
+    assert "v.update" in foot and "u.created_at" in foot
+    assert "u.zip" not in foot and "base_commit" not in foot and "u.branch" not in foot
 
 
 def test_the_footer_sits_bottom_right():

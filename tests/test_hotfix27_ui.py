@@ -90,7 +90,7 @@ def test_manual_side_is_saved_with_its_own_source(tmp_path, monkeypatch):
                   "scope": "SCT", "description": "", "tag_no": "", "needs_review": "",
                   "annotation": "", "evidence": {}}]})
     main.CON.commit()
-    out = asyncio.run(main.confirm_axis("j", "k1", {
+    out = (main.confirm_axis("j", "k1", {
         "from_text": "FROM HRSG HP STEAM", "to_text": "TO HAND TYPED",
         "via": "markup", "via_from": "markup", "via_to": "manual", "author": "검증",
         "from_rect": [6, 1, 2, 3, 4], "to_rect": [6, 9, 9, 9, 9]}))
@@ -100,7 +100,7 @@ def test_manual_side_is_saved_with_its_own_source(tmp_path, monkeypatch):
     assert fb["basis"].get("from_rect") == [6, 1, 2, 3, 4] and "to_rect" not in fb["basis"]
     assert fb["author"] == "검증"
     # 직접 입력은 한 쪽만으로도 된다
-    one = asyncio.run(main.confirm_axis("j", "k1", {"from_text": "", "to_text": "TO X",
+    one = (main.confirm_axis("j", "k1", {"from_text": "", "to_text": "TO X",
                                                      "via_from": "manual", "via_to": "manual"}))
     assert one["source_to"] == "직접 입력" and one["sentence"] == "TO X PRESSURE TRANSMITTER"
 

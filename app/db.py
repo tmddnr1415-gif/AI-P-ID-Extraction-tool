@@ -314,12 +314,22 @@ class DatabaseCorrupt(RuntimeError):
 
 
 BACKUP_DIR = "backups"
-BACKUP_KEEP = 3
+BACKUP_KEEP = 7          # hotfix132 — 일주일치 (3 → 7)
+# hotfix132 — 마지막 백업의 사실 (성공 시각 · 파일 · 실패 사유).  감사(`audit.run`)가 읽어 화면에 낸다.
+LAST_BACKUP: dict = {}
+
+
+def backup_dir(path: Path) -> Path:
+    """hotfix132 — 백업 폴더.  `PID_BACKUP_DIR` 가 있으면 그 폴더(다른 드라이브) · 없으면 DB 옆 `backups/`.
+    `backups()` 와 `backup_daily()` 가 같은 곳을 보므로 깨진 DB 의 복구 안내도 같은 폴더를 가리킨다."""
+    import os as _os0
+    override = (_os0.environ.get("PID_BACKUP_DIR") or "").strip()
+    return Path(override).expanduser() if override else Path(path).parent / BACKUP_DIR
 
 
 def backups(path: Path) -> list:
     """`backup_daily` 가 떠 둔 판 — 새것부터."""
-    d = Path(path).parent / BACKUP_DIR
+    d = backup_dir(path)
     return sorted(d.glob(Path(path).name + ".*.bak"), reverse=True) if d.is_dir() else []
 
 
@@ -342,10 +352,12 @@ def backup_daily(path: Path, keep: int = BACKUP_KEEP):
     path = Path(path)
     if not path.exists():
         return None
-    d = path.parent / BACKUP_DIR
+    d = backup_dir(path)
     d.mkdir(parents=True, exist_ok=True)
     dest = d / f"{path.name}.{time.strftime('%Y-%m-%d')}.bak"
     if dest.exists():
+        LAST_BACKUP.update(ok=True, path=str(dest), at=time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(dest.stat().st_mtime)))
+        LAST_BACKUP.pop("err", None)
         return dest
     tmp = dest.with_name(dest.name + ".tmp")
     # URI 는 `as_uri()` 로 — Windows 경로(`C:\…` · 한글 · 공백)를 손으로 붙이면 SQLite 가 잘못 읽는다.
@@ -360,6 +372,8 @@ def backup_daily(path: Path, keep: int = BACKUP_KEEP):
         src.close()
     import os as _os2
     _os2.replace(tmp, dest)
+    LAST_BACKUP.update(ok=True, path=str(dest), at=time.strftime("%Y-%m-%d %H:%M:%S"))
+    LAST_BACKUP.pop("err", None)
     for old in backups(path)[keep:]:
         try:
             old.unlink()
@@ -857,7 +871,7 @@ def merged_rows_by_keys(con, job_id: str, keys, tab: str = None) -> list:
 import collections as _collections
 import os as _os
 _ROWS_MEMO: "_collections.OrderedDict" = _collections.OrderedDict()
-_ROWS_MEMO_MAX = 3      # hotfix80 — 목록용(slim) 과 온전한 것이 따로 든다
+_ROWS_MEMO_MAX = 8      # hotfix80 — 목록용(slim) 과 온전한 것이 따로 든다 · hotfix132 — 서너 명이 번갈아 열어도 다시 파싱하지 않게 3 → 8
 
 
 def _db_stamp(con, tables=None) -> tuple:

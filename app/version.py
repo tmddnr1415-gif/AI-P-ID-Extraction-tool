@@ -23,6 +23,9 @@ _STAMP = _HERE / "_build.json"
 # hotfix34 — 어느 꾸러미(hotfix zip)가 적용돼 있는가.  `spike/pack_hotfix.py` 가 꾸러미를
 # 만들 때 저장소에 적고 꾸러미에 함께 넣는다.  없으면 "기록 없음" 이지 지어내지 않는다.
 _UPDATE = _HERE / "_update.json"
+# hotfix132 — 제품 이름 · 판 번호 · 회사 · 문의처는 `config/product.json` 한 곳에서만 (화면 띠 · /version · 창 제목이 읽는다).
+_PRODUCT_DEFAULT = {"name": "계장 설계 도구", "name_en": "Instrumentation Design Suite",
+                    "version": VERSION, "company": "", "support": ""}
 
 
 def frozen() -> bool:
@@ -57,6 +60,32 @@ def info() -> dict:
         "python": f"{sys.version_info.major}.{sys.version_info.minor}"
                   f".{sys.version_info.micro}",
     }
+
+
+def product(path: Path | None = None) -> dict:
+    """hotfix132 — `config/product.json` 의 제품 사실.  없거나 깨졌으면 기본값 — 지어내지 않고 빈칸은 빈칸으로."""
+    out = dict(_PRODUCT_DEFAULT)
+    try:
+        from app import paths
+        p = path or paths.resource("config", "product.json")
+        d = json.loads(Path(p).read_text(encoding="utf-8"))
+        if isinstance(d, dict):
+            for k in out:
+                if d.get(k) is not None:
+                    out[k] = str(d.get(k))
+            if "plaza" in d:
+                out["plaza"] = bool(d.get("plaza"))
+    except (OSError, ValueError, ImportError):
+        pass
+    return out
+
+
+def public_update(path: Path | None = None) -> dict | None:
+    """hotfix132 — 화면·다른 PC 에 내보내는 업데이트 사실: 이름 · rev · 만든 시각만 (zip 이름 · 커밋 · 브랜치는 진단 zip 에만)."""
+    u = update_info(path)
+    if not u:
+        return None
+    return {k: u.get(k) for k in ("name", "rev", "created_at")}
 
 
 def update_info(path: Path | None = None) -> dict | None:

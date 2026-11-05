@@ -162,12 +162,42 @@ def leftovers(con, data_dir: Path) -> dict:
 def run(con, data_dir: Path) -> dict:
     prov = provenance(con)
     left = leftovers(con, data_dir)
+    backup = backup_status(data_dir)
     return {"provenance": prov, "leftovers": left,
             # 46회차 — 합계 옆에 **무엇인지**를 함께 낸다.  화면이 총계만
             # 보이면 사람이 확인할 수가 없다.
             "hand_added": hand_added(con),
             "state_files": _state_incidents(),
-            "lines": summary(prov, left) + _state_lines()}
+            # hotfix132 — 마지막 DB 백업 (파일이 진실 · 실패 사유는 백업 루프가 적는다)
+            "backup": backup,
+            "lines": summary(prov, left) + _state_lines() + _backup_lines(backup)}
+
+
+def backup_status(data_dir: Path) -> dict:
+    """hotfix132 — 마지막 DB 백업의 사실.  백업 파일의 mtime 을 읽고(파일이 진실), 백업 루프가 남긴 실패 사유를 더한다.
+    25시간 넘게 오래됐거나 하나도 없으면 `stale` — 화면이 '확인할 항목' 으로 보이게 한다."""
+    import time
+    from app import db
+    out = {"ok": None, "at": "", "path": "", "err": "", "stale": False}
+    try:
+        have = db.backups(Path(data_dir) / "app.db")
+    except Exception:                                    # noqa: BLE001
+        have = []
+    if have:
+        mtime = have[0].stat().st_mtime
+        out.update(ok=True, at=time.strftime("%Y-%m-%d %H:%M", time.localtime(mtime)), path=str(have[0]),
+                   stale=(time.time() - mtime) > 25 * 3600)
+    last = dict(getattr(db, "LAST_BACKUP", {}) or {})
+    if last.get("ok") is False:
+        out.update(ok=False, err=str(last.get("err") or ""))
+    return out
+
+
+def _backup_lines(backup: dict) -> list:
+    """실패했을 때만 한 줄 — 정상 백업은 `backup` 키로만 실린다 (화면이 숫자 없는 줄을 전부 '확인할 항목' 으로 세므로)."""
+    if backup.get("ok") is False:
+        return [f"DB 백업 실패 — {backup.get('err') or '사유 모름'} (서버는 계속 돌지만 백업 폴더와 디스크를 확인해 주세요)"]
+    return []
 
 
 def _state_incidents() -> list:

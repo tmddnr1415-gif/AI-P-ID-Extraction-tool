@@ -51,8 +51,8 @@ def _job(tmp_path, monkeypatch):
 
 def test_bulk_edit_writes_exactly_what_patch_writes(tmp_path, monkeypatch):
     con, main, db = _job(tmp_path, monkeypatch)
-    asyncio.run(main.patch_row("j", "a", {"field": "scope", "value": "VENDOR", "author": "홍길동"}))
-    out = asyncio.run(main.rows_edit("j", {"field": "scope", "author": "홍길동",
+    (main.patch_row("j", "a", {"field": "scope", "value": "VENDOR", "author": "홍길동"}))
+    out = (main.rows_edit("j", {"field": "scope", "author": "홍길동",
                                           "items": [{"key": "b", "value": "VENDOR"}, {"key": "zz", "value": "SCT"}]}))
     assert set(out["users"]) == {"b"} and out["missing"] == ["zz"]
     a, b = db.get_row(con, "j", "a"), db.get_row(con, "j", "b")
@@ -63,7 +63,7 @@ def test_bulk_edit_writes_exactly_what_patch_writes(tmp_path, monkeypatch):
     assert strip(ha) == strip(hb) and hb[-1]["author"] == "홍길동"
     assert out["review_count"] == db.review_count(con, "j")
     # 빈 값 = 도면 값으로
-    asyncio.run(main.rows_edit("j", {"field": "scope", "author": "x", "items": [{"key": "b", "value": ""}]}))
+    (main.rows_edit("j", {"field": "scope", "author": "x", "items": [{"key": "b", "value": ""}]}))
     assert "scope" not in (db.get_row(con, "j", "b")["user"] or {})
 
 
@@ -77,11 +77,11 @@ def test_bulk_edit_refuses_bad_input_before_writing_anything(tmp_path, monkeypat
                  {"field": "scope", "items": ["a"]},
                  {"field": "scope", "items": [{"key": "a", "value": {"x": 1}}]}):
         with pytest.raises(HTTPException) as e:
-            asyncio.run(main.rows_edit("j", body))
+            (main.rows_edit("j", body))
         assert e.value.status_code == 400
     assert "qty" not in (db.get_row(con, "j", "a")["user"] or {})   # 하나도 안 적었다
     with pytest.raises(HTTPException) as e:
-        asyncio.run(main.rows_edit("nojob", {"field": "qty", "items": [{"key": "a", "value": 1}]}))
+        (main.rows_edit("nojob", {"field": "qty", "items": [{"key": "a", "value": 1}]}))
     assert e.value.status_code == 404
 
 
@@ -207,10 +207,10 @@ def test_memo_follows_edits_without_reparsing_and_matches_a_fresh_read(tmp_path,
     calls = []
     real = db.merged_rows
     monkeypatch.setattr(db, "merged_rows", lambda *a, **k: calls.append(a) or real(*a, **k))
-    asyncio.run(main.patch_row("j", "a", {"field": "qty", "value": 5, "author": "홍"}))
+    (main.patch_row("j", "a", {"field": "qty", "value": 5, "author": "홍"}))
     main.delete_row("j", "b", reason="x", reason_class="NOT_SUPPLY", author="홍")
     main.restore_row("j", "b")
-    asyncio.run(main.rows_edit("j", {"field": "scope", "author": "홍", "items": [{"key": "c", "value": "VENDOR"},
+    (main.rows_edit("j", {"field": "scope", "author": "홍", "items": [{"key": "c", "value": "VENDOR"},
                                                                               {"key": "d", "value": "VENDOR"}]}))
     main.rows_delete("j", {"keys": ["c"], "reason_class": "FALSE_POSITIVE", "author": "홍"})
     added = main.add_row("j", {"page_no": 6, "tab": "FIELD", "values": {"type": "PI"}})["key"]   # hotfix91 — 스레드풀 함수
@@ -242,7 +242,7 @@ def test_batches_and_readers_in_parallel_never_deadlock_and_end_consistent(tmp_p
     def writer():
         try:
             for i in range(40):
-                asyncio.run(main.rows_edit("j", {"field": "qty", "author": "w",
+                (main.rows_edit("j", {"field": "qty", "author": "w",
                                                 "items": [{"key": k, "value": i} for k in "abcd"]}))
                 main.rows_delete("j", {"keys": ["a"], "author": "w"}); main.restore_row("j", "a")
         except Exception as e:                      # noqa: BLE001

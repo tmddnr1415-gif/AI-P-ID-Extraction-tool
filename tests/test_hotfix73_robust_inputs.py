@@ -61,7 +61,7 @@ def test_upload_check_names_the_real_cause(tmp_path):
 def test_upload_rejects_before_queueing_and_keeps_the_display_name():
     src = main.create_job.__code__
     body = Path(main.__file__).read_text(encoding="utf-8")
-    fn = body[body.index("async def create_job("):body.index("def _probe_or_none(")]
+    fn = body[body.index("def create_job("):body.index("def _probe_or_none(")]
     assert fn.index("_pdf_problem(raw)") < fn.index("db.create_job(")       # 줄·기록 전에 막는다
     assert "_safe_name(name)" in fn and "_display_name(f.filename)" in fn
     assert src is not None
