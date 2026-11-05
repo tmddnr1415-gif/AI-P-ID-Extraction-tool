@@ -36,6 +36,7 @@ button{font:inherit;cursor:pointer}
 .bar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;padding:8px 16px;background:var(--card);border-bottom:1px solid var(--line)}
 .brand{font-weight:700;font-size:14.5px;color:var(--navy);margin-right:4px;white-space:nowrap}
 body.embed .brand{display:none}
+body.pid-shell-on .brand{display:none} /* hotfix132 — 공통 띠가 있으면 제목 중복을 숨긴다 */
 .folder{display:inline-flex;align-items:center;gap:6px;background:var(--bg);border:1px solid var(--line);border-radius:999px;padding:3px 10px 3px 8px;font-size:12.5px;max-width:520px;min-width:0}
 .folder b{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .folder .dot{width:8px;height:8px;border-radius:50%;background:var(--sub);flex:none}
@@ -2062,7 +2063,7 @@ function showLibPanel(host) {
         <label class="chk"><input type="checkbox" id="trOn" ${I.translateCfg.on ? 'checked' : ''}> <b>Claude 번역 사용</b> (가장 정확 · 계장 용어집 적용)</label>
         <div class="warnline" style="margin:6px 0">켜면 부서원이 [🌐 번역] 을 누른 글(그 쪽 · 고른 글만)이 <b>Anthropic(외부) 서버로 전송</b>됩니다. 사내 보안 규정(외부 전송 금지)에 맞는지 확인한 뒤 켜세요. 책 전체를 보내지는 않으며, 같은 글은 서버에 보관해 다시 보내지 않습니다. 로그인한 부서원만 쓸 수 있습니다.</div>
         <div class="row"><input id="trKey" type="password" autocomplete="off" placeholder="${I.translateCfg.keySet ? 'API 키 설정됨 — 바꿀 때만 입력' : 'Anthropic API 키 (sk-ant-…)'}">
-          <select id="trModel">${['claude-opus-5-5', 'claude-sonnet-5-5', 'claude-haiku-5-5'].map(x => `<option ${x === I.translateCfg.model ? 'selected' : ''}>${x}</option>`).join('')}</select>
+          <select id="trModel" aria-label="번역 모델" title="번역 모델">${['claude-opus-5-5', 'claude-sonnet-5-5', 'claude-haiku-5-5'].map(x => `<option ${x === I.translateCfg.model ? 'selected' : ''}>${x}</option>`).join('')}</select>
           <select id="trEffort" title="생각 깊이 (번역은 low 로 충분)">${['low', 'medium', 'high'].map(x => `<option ${x === I.translateCfg.effort ? 'selected' : ''}>${x}</option>`).join('')}</select>
           <button class="btn sm pri" id="trSave">번역 설정 저장</button></div>
         <div class="muted">설정 · 키는 서버 PC 의 books/config.json 에만 저장되고 화면에 다시 나오지 않습니다 (운영자만 바꿀 수 있음).</div></div>` : ''}

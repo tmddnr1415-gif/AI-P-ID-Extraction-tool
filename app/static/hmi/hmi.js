@@ -171,7 +171,8 @@
     s += `<g id="l-valves">${(sc.valves || []).map(drawValve).join("")}</g>`;
     s += `<g id="l-inst">${(sc.instruments || []).map(drawInstrument).join("")}</g>`;
     svg.innerHTML = s;
-    $("#title").textContent = sc.title || "DCS Graphic";
+    // hotfix132 — 머리 제목은 한국어로 · 예시는 "예시:" 를 붙이고 실제 분석은 도면번호를 뒤에 둔다
+    $("#title").textContent = A.src === "example" ? "DCS 그래픽 — 예시: Compressor Train" : "DCS 그래픽" + (sc.title ? " — " + sc.title : "");
     $("#basis").textContent = sc.basis || "";
     $("#basis").title = sc.basis || "";
     renderPanels();
@@ -209,7 +210,7 @@
     const m = P.motor && (A.scene.equipment || []).find((e) => e.id === P.motor);
     if (m && m.params && A.motorOpen) {
       $("#motor-panel").hidden = false;
-      $("#motor-title").textContent = `${m.label || "Motor"} · ${m.tag}`;
+      $("#motor-title").textContent = `${m.label || "모터"} · ${m.tag}`;
       const run = m.status === "running";
       $("#motor-table").innerHTML = Object.entries(m.params).map(([k, [v, u]]) => `<tr><td>${esc(k)}</td><td>${v == null ? "—" : run ? v : 0} ${esc(u)}</td></tr>`).join("") +
         `<tr><td>Status</td><td style="color:${statusColor(m.status)}">${esc((STATUS[m.status] || STATUS.stopped).en)}</td></tr>`;
@@ -223,7 +224,7 @@
   }
   function renderTrend() {
     const tag = $("#trend-tag").value, i = findIns(tag), svg = $("#trend");
-    $("#trend-title").textContent = i ? `${keyLabel(i)}${i.unit ? " · " + i.unit : ""}` : "Trend";
+    $("#trend-title").textContent = i ? `${keyLabel(i)}${i.unit ? " · " + i.unit : ""}` : "추세 (Trend)";
     if (!i) { svg.innerHTML = ""; return; }
     const buf = A.trend[i.id] || [];
     const P = (A.scene.panels || {}).trend || {};
@@ -504,7 +505,7 @@
       s += `<div class="pid">LOGIC 연결: ${!A.link ? "LOGIC 창에서 🖥 DCS 그래픽 으로 열면 같은 태그 값이 칠해집니다" : !o.tag ? "태그가 없어 이을 수 없습니다 — 두 번 눌러 태그를 적으세요" : st ? "이어짐" : "이 태그 값이 아직 오지 않았습니다"}</div>`;
       if (st) s += `<div class="live">LOGIC 값 ${esc(JSON.stringify(st))}</div>`;
     }
-    if (A.selKind === "instruments" && o.tag) s += `<div class="row2"><button class="btn" id="props-trend">Trend 로</button><button class="btn" id="props-key">${((A.scene.panels || {}).key || []).includes(o.tag) ? "Key Parameters 에서 빼기" : "Key Parameters 에 넣기"}</button></div>`;
+    if (A.selKind === "instruments" && o.tag) s += `<div class="row2"><button class="btn" id="props-trend">추세로 보기</button><button class="btn" id="props-key">${((A.scene.panels || {}).key || []).includes(o.tag) ? "주요 값에서 빼기" : "주요 값에 넣기"}</button></div>`;
     s += `<button class="btn del" id="props-del">이 항목 지우기</button>`;
     el.innerHTML = s;
     el.querySelectorAll("[data-k]").forEach((inp) => inp.addEventListener("change", () => {

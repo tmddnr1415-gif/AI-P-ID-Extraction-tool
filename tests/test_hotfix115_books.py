@@ -34,6 +34,8 @@ def test_page_and_static_files(client):
     assert r.status_code == 307 and r.headers["location"] == "/books/?embed=1&user=%ED%99%8D%EA%B8%B8%EB%8F%99"
     page = client.get("/books/?embed=1")
     assert page.status_code == 200 and "/api/books/" in page.text and "X-Author" in page.text
+    assert '<select id="trModel" aria-label="번역 모델"' in page.text               # hotfix132 — 낭독기가 상자 이름을 읽는다
+    assert "body.pid-shell-on .brand{display:none}" in page.text                       # 공통 띠가 있으면 제목 중복 숨김
     for f in ("kb.js", "vendor/pdf.min.js", "vendor/pdf.worker.min.js"):
         assert client.get(f"/books/{f}").status_code == 200
     assert client.get("/books/../app/main.py").status_code == 404

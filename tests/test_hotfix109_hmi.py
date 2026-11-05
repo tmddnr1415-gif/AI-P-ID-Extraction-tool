@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import json
 import re
+import shutil
 import subprocess
 from pathlib import Path
 from urllib.parse import quote
@@ -12,6 +13,9 @@ from fastapi.testclient import TestClient
 
 from app import dcs
 from app.main import app
+
+if not shutil.which('node'):                       # hotfix132 — node 가 없는 PC 에서는 화면 코드 시험을 건너뛴다
+    pytest.skip('node 없음', allow_module_level=True)
 
 ROOT = Path(__file__).resolve().parent.parent
 STATIC = ROOT / "app" / "static"
@@ -118,3 +122,23 @@ const SC = { map: new Map([[2, { _v: { rows: [ { n: 51, side: "R", net: "7", des
     assert st["10LBA11CP009"] == {"s": 1, "v": 42.5, "u": "barg"}                            # 아날로그 공학값
     assert st["10LBA12AA002"] == {"open": False, "s": 1} and "" not in st                  # 캐시된 이웃 시트 · 태그 없는 행은 없다
     assert json.loads(out[1]) == {}                                                           # 시뮬레이션이 아니면 값이 없다
+
+
+# ---------------------------------------------------------------- hotfix132 — 화면 이름 · 탭 · 글자 대비
+
+def test_dcs_screen_is_named_in_korean_and_contrast_colors(client):
+    """머리 'DCS 그래픽' · 탭/카드는 한국어(영문 병기) · 선택 탭 · AUTO 글자 색은 4.5:1 을 넘는다."""
+    r = client.get("/dcs")
+    assert r.status_code == 200
+    assert "<title>DCS 그래픽</title>" in r.text and 'id="title">DCS 그래픽<' in r.text
+    assert "전체 화면 (Overview)" in r.text and "심볼 모음 (Symbol Library)" in r.text
+    assert "제어 모드 (Control Mode)" in r.text and "주요 값 (Key Parameters)" in r.text and "추세 (Trend)" in r.text
+    assert "DCS Graphic" not in r.text
+    js = (STATIC / "hmi" / "hmi.js").read_text(encoding="utf-8")
+    assert 'A.src === "example" ? "DCS 그래픽 — 예시: Compressor Train"' in js      # 장면을 읽을 때 머리를 덮어써도 한국어
+    assert '"DCS Graphic"' not in js
+    css = (STATIC / "hmi" / "hmi.css").read_text(encoding="utf-8")
+    assert "--accent: #1e6fd9;" in css and "--accent: #2d8cff" not in css              # 글자 뒤 파랑만 바꾼다 (선 색은 그대로)
+    assert ".mode.on { background: var(--ok); color: #03300f;" in css
+    assert css.index('"Malgun Gothic"') < css.index('"Segoe UI"')                      # LOGIC · 도서 · 판넬과 같은 글꼴 순서
+    assert "body.pid-shell-on .hd-home { display: none; }" in css                      # 공통 띠가 있으면 돌아가기 중복 숨김
