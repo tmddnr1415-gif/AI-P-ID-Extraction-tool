@@ -109,7 +109,8 @@ def test_keep_prunes_old_sets_and_default_dest_inside_data_is_not_copied(tmp_pat
     for i in range(4):
         bd.backup(dest, keep=2, src=data, voc=tmp_path / "novoc", stamp=f"2026110{i}_0000")
     have = bd.listing(dest)
-    assert [p.name for p in have] == ["pid_backup_20261102_0000", "pid_backup_20261103_0000"]
+    tag = bd.tag_of(data)
+    assert [p.name for p in have] == [f"pid_backup_20261102_0000_{tag}", f"pid_backup_20261103_0000_{tag}"]
     assert not any("pid_backup_" in k for k in _tree(have[-1]))       # 백업이 백업을 담지 않는다
 
 
@@ -137,3 +138,94 @@ def test_bat_passes_one_destination_and_is_ascii_crlf():
     body = raw.decode("ascii")
     assert "spike\\backup_data.py" in body and "PID_BACKUP_DIR" in body
     assert "%PID_BACKUP_DIR% %*" not in body                          # 목적지가 둘이 되지 않게
+    # 운영 자료가 있으면 그것을 · 없으면 이 폴더의 app\_data — 어느 폴더인지 맨 먼저 말한다
+    assert 'if exist "C:\\Claude\\PID\\app\\_data\\*" set "DATA=C:\\Claude\\PID\\app\\_data"' in body
+    assert body.index("echo Data folder") < body.index(":given")
+    assert body.count('--data "%DATA%"') == 3                         # 백업 · 목적지 · 복구 모두 같은 자료 폴더
+
+
+# ---------------------------------------------------------------- --data · 같이 쓰는 목적지 · 폴더째 복구
+def test_data_option_backs_up_and_restores_that_folder(tmp_path, monkeypatch, capsys):
+    ops = tmp_path / "PID" / "app" / "_data"
+    _make_data(ops).close()
+    (tmp_path / "PID" / "voc").mkdir()
+    (tmp_path / "PID" / "voc" / "a.jsonl").write_text("의견\n", encoding="utf-8")
+    monkeypatch.delenv("PID_BACKUP_DIR", raising=False)
+    monkeypatch.delenv("PID_VOC_DIR", raising=False)
+    bk = tmp_path / "bk"
+    # bat 이 앞에 붙인 기본 --data 보다 사용자가 뒤에 준 --data 가 이긴다
+    assert bd.main(["--data", str(tmp_path / "nowhere"), str(bk), "--data", str(ops)]) == 0
+    out = capsys.readouterr().out
+    assert out.splitlines()[0].startswith(f"자료 폴더: {ops.resolve()}")
+    made = bd.listing(bk)
+    assert len(made) == 1 and made[0].name.endswith("_" + bd.tag_of(ops))
+    assert (made[0] / "_voc" / "a.jsonl").is_file()                    # 운영의 voc (도구 폴더의 voc 가 아니라)
+    (ops / "space" / "rooms.json").write_text("[]", encoding="utf-8")
+    monkeypatch.setattr(bd, "server_answers", lambda port=8000, host="127.0.0.1": False)
+    assert bd.main(["--restore", str(made[0]), "--data", str(ops), "--port", "9000"]) == 0
+    assert (ops / "space" / "rooms.json").read_text(encoding="utf-8") == "[1,2]"
+
+
+def test_restore_checks_the_given_port(tmp_path, monkeypatch, capsys):
+    data = tmp_path / "data"
+    _make_data(data).close()
+    out = bd.backup(tmp_path / "bk", src=data, voc=tmp_path / "novoc")
+    asked = []
+    monkeypatch.setattr(bd, "server_answers", lambda port=8000, host="127.0.0.1": asked.append(port) or True)
+    assert bd.main(["--restore", str(out), "--data", str(data), "--port", "9000"]) == 2
+    assert asked == [9000]
+    assert bd.main(["--restore", str(out), "--data", str(data), "--port", "abc"]) == 2
+    assert asked[-1] == 8000                                           # 숫자가 아니면 기본값
+
+
+def test_shared_destination_keeps_the_other_folders_sets(tmp_path):
+    a, b, dest = tmp_path / "dev" / "app" / "_data", tmp_path / "ops" / "app" / "_data", tmp_path / "shared"
+    _make_data(a).close()
+    _make_data(b).close()
+    for i in range(3):
+        bd.backup(dest, keep=2, src=a, voc=tmp_path / "novoc", stamp=f"2026110{i}_0000")
+    bd.backup(dest, keep=2, src=b, voc=tmp_path / "novoc", stamp="20261101_0000")
+    assert len(bd.listing(dest, bd.tag_of(a))) == 2 and len(bd.listing(dest, bd.tag_of(b))) == 1
+    assert bd.tag_of(a) != bd.tag_of(b)
+
+
+def test_restore_moves_the_folder_whole_and_undoes_a_failed_copy(tmp_path, monkeypatch, capsys):
+    data = tmp_path / "data"
+    _make_data(data).close()
+    out = bd.backup(data / "backups", src=data, voc=tmp_path / "novoc")
+    monkeypatch.setattr(bd, "server_answers", lambda port=8000, host="127.0.0.1": False)
+    (data / "uploads" / "new.pdf").write_bytes(b"new")
+    before = _tree(data)
+    real = bd.shutil.copy2
+    calls = []
+
+    def flaky(src, dst, *a, **k):
+        calls.append(src)
+        if len(calls) == 3:
+            raise OSError(28, "No space left on device")
+        return real(src, dst, *a, **k)
+    monkeypatch.setattr(bd.shutil, "copy2", flaky)
+    assert bd.restore(out, dst=data, voc=tmp_path / "novoc") == 4
+    said = capsys.readouterr().out
+    assert "원래 자료로 되돌려 놓았습니다" in said and "Traceback" not in said
+    assert _tree(data) == before                                       # 한 파일도 갈라지지 않았다
+    assert not [p for p in tmp_path.iterdir() if "_before_restore_" in p.name]
+
+
+def test_restore_refuses_cleanly_when_the_folder_cannot_be_renamed(tmp_path, monkeypatch, capsys):
+    data = tmp_path / "data"
+    _make_data(data).close()
+    out = bd.backup(tmp_path / "bk", src=data, voc=tmp_path / "novoc")
+    monkeypatch.setattr(bd, "server_answers", lambda port=8000, host="127.0.0.1": False)
+    before = _tree(data)
+    real = bd.os.replace
+
+    def locked(a, b):
+        if Path(a) == data:
+            raise PermissionError(13, "The process cannot access the file")
+        return real(a, b)
+    monkeypatch.setattr(bd.os, "replace", locked)
+    assert bd.restore(out, dst=data, voc=tmp_path / "novoc") == 4
+    said = capsys.readouterr().out
+    assert "이름을 바꾸지 못했습니다" in said and "아무것도 바꾸지 않았습니다" in said
+    assert _tree(data) == before

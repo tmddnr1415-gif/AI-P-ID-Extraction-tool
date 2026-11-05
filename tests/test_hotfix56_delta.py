@@ -331,3 +331,80 @@ def test_ops_readme_and_dev_bat_say_the_field_procedure():
     bat = pack_delta.BAT
     bat.encode("ascii")
     assert "TARGET" in bat and '"%~1\\app\\main.py"' in bat and "!REST!" in bat and "\r\n" in bat
+
+
+# ---------------------------------------------------------------- hotfix132 S1 — 잘린 백업 · 되돌림 실패를 사실대로
+def test_a_backup_cut_short_by_a_full_disk_is_never_used_to_roll_back(tmp_path, monkeypatch, capsys):
+    target, pkg, man = _setup(tmp_path)
+    (target / "app" / "lan_check.py").write_bytes(b"base lan")
+    before = _snapshot(target)
+    real = apply_delta.shutil.copy2
+    calls = []
+
+    def disk_full(src, dst, *a, **k):
+        calls.append(str(dst))
+        if len(calls) == 2:                              # 두 번째 백업본을 반쯤 쓰다 디스크가 찼다
+            Path(dst).write_bytes(b"ba")
+            raise OSError(28, "No space left on device")
+        return real(src, dst, *a, **k)
+    monkeypatch.setattr(apply_delta.shutil, "copy2", disk_full)
+    monkeypatch.setattr(apply_delta, "HERE", pkg)
+    assert apply_delta.main([str(target)]) == 5
+    out = capsys.readouterr().out
+    assert "원래대로 되돌렸습니다" in out and "디스크" in out
+    assert _snapshot(target) == before                   # lan_check.py 가 잘린 사본 "ba" 로 덮이지 않았다
+    assert not list((target / "backup").rglob("*" + apply_delta.PARTIAL))
+
+
+def test_failure_before_any_change_says_nothing_changed(tmp_path, monkeypatch, capsys):
+    target, pkg, man = _setup(tmp_path)
+    (target / "app" / "lan_check.py").write_bytes(b"base lan")
+    before = _snapshot(target)
+
+    def disk_full(src, dst, *a, **k):
+        raise OSError(28, "No space left on device")
+    monkeypatch.setattr(apply_delta.shutil, "copy2", disk_full)
+    monkeypatch.setattr(apply_delta, "HERE", pkg)
+    assert apply_delta.main([str(target)]) == 5
+    assert "바꾼 파일은 없습니다" in capsys.readouterr().out
+    assert _snapshot(target) == before
+    report = (target / "delta_hotfix56_report.txt").read_text(encoding="utf-8")
+    assert "nothing was changed" in report
+
+
+def test_a_rollback_that_fails_says_what_is_still_changed(tmp_path, monkeypatch, capsys):
+    target, pkg, man = _setup(tmp_path)
+    (target / "app" / "lan_check.py").write_bytes(b"base lan")
+    real_cf, real_c2 = apply_delta.shutil.copyfile, apply_delta.shutil.copy2
+    n = []
+
+    def flaky(src, dst, *a, **k):                       # 새 lan_check.py 를 놓다 잠김 (main.py 는 이미 바뀜)
+        n.append(dst)
+        if Path(dst).name == "lan_check.py":
+            raise PermissionError(13, "locked", str(dst))
+        return real_cf(src, dst, *a, **k)
+
+    def stuck(src, dst, *a, **k):
+        if "backup" in Path(src).parts and Path(dst).name == "main.py":     # 되돌림 때 main.py 가 잠겨 있다
+            raise PermissionError(13, "locked", str(dst))
+        return real_c2(src, dst, *a, **k)
+    monkeypatch.setattr(apply_delta.shutil, "copyfile", flaky)
+    monkeypatch.setattr(apply_delta.shutil, "copy2", stuck)
+    monkeypatch.setattr(apply_delta, "HERE", pkg)
+    assert apply_delta.main([str(target)]) == apply_delta.EXIT_ROLLBACK_FAILED
+    out = capsys.readouterr().out
+    assert "바꾼 파일은 없습니다" not in out and "다 되돌리지도 못했습니다" in out
+    assert "app/main.py" in out and "rollback_PID_ops.bat" in out
+    report = (target / "delta_hotfix56_report.txt").read_text(encoding="utf-8")
+    assert "ROLLBACK INCOMPLETE" in report and "app/main.py" in report
+
+
+def test_restore_with_nothing_to_do_does_not_lead_to_a_restart(tmp_path, monkeypatch):
+    target, pkg, man = _setup(tmp_path)
+    (target / "app" / "lan_check.py").write_bytes(b"base lan")
+    apply_delta.apply(target, pkg, man)
+    monkeypatch.setattr(apply_delta, "HERE", pkg)
+    assert apply_delta.main([str(target), "--restore", "--yes"]) == 0
+    assert apply_delta.main([str(target), "--restore", "--yes"]) == apply_delta.EXIT_NOT_RESTORED   # 롤백 bat: errorlevel 1 → 재시작 안 물음
+    import pack_delta
+    assert "if errorlevel 1 goto end" in pack_delta.ROLLBACK_BAT

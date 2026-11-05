@@ -20,7 +20,10 @@ def test_every_start_bat_checks_python_311_first():
     for name in ("start.bat", "run_lan_service.bat", "check_pid_server.bat", "install_autostart_lan.bat", "setup.bat",
                  "backup_pid_data.bat", "stop_pid_server.bat", "restart_pid_server.bat"):
         body = _bat(name)
-        assert "version_info>=(3,11)" in body, name
+        if name == "setup.bat":                               # .venv 를 만드는 곳은 정확히 3.11 (휠이 cp311)
+            assert body.count("version_info[:2]==(3,11)") == 2 and "version_info>=(3,11)" not in body
+        else:
+            assert "version_info>=(3,11)" in body, name
         assert "3.10" not in body, name
 
 
@@ -29,7 +32,8 @@ def test_service_checks_packages_and_slows_down_after_quick_failures():
     pkg, pre = body.index("find_spec"), body.index("--preflight")
     assert pkg < pre                                          # 패키지가 없으면 '포트를 누가 잡고 있다' 로 새지 않는다
     assert "server.fastfail" in body and "GEQ 5" in body and "timeout /t 60" in body
-    assert "rem set PID_DATA_DIR=" in body
+    assert "PID_DATA_DIR=D:" not in body                       # 자료 폴더를 옮기라고 하지 않는다 (옛 분석이 원본을 잃는다)
+    assert "Do not move the data folder" in body
 
 
 def test_start_bat_defaults():
@@ -81,7 +85,11 @@ def test_stop_with_nothing_on_the_port(monkeypatch, capsys):
 
 def test_stop_bat_says_close_the_service_window():
     body = _bat("stop_pid_server.bat")
-    assert "spike\\restart_pid_server.py 8000 --stop" in body
+    # 운영 폴더의 옛 restart_pid_server.py 는 --stop 을 모를 수 있다 — 자기 폴더(PID_dev)의 도구를 부르고 확인한다
+    assert 'set "TOOL=%~dp0spike\\restart_pid_server.py"' in body
+    assert '%PY% "%TOOL%" %PORT% --stop' in body and 'findstr /c:"--stop" "%TOOL%"' in body
+    assert body.index("findstr") < body.index("--stop\r\n")
+    assert "set PORT=8000" in body and 'set PORT=%~1' in body
     assert "close it too" in body and "10 s" in body
 
 

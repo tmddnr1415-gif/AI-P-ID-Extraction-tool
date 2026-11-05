@@ -33,7 +33,7 @@ router = APIRouter()
 _LOCK = threading.RLock()
 _STATIC_FILES = {"kb.js": "application/javascript", "vendor/pdf.min.js": "application/javascript",
                  "vendor/pdf.worker.min.js": "application/javascript"}
-_LOOPBACK = {"127.0.0.1", "::1", "localhost"}
+_LOOPBACK = {"127.0.0.1", "::1", "::ffff:127.0.0.1", "localhost"}   # ::ffff: = `--host ::` 로 띄운 서버의 IPv4 루프백
 
 
 class ApiError(Exception):

@@ -1,4 +1,4 @@
-"""hotfix132 — 사용 설명서(docs/user_manual.md) · README · 시작하기.txt 가 실제와 맞는가."""
+"""hotfix132 — 사용 설명서(config/user_manual.md — 운영 폴더 업데이트가 싣는 곳) · README · 시작하기.txt 가 실제와 맞는가."""
 from __future__ import annotations
 
 import re
@@ -6,7 +6,7 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-MANUAL = (ROOT / "docs" / "user_manual.md").read_text(encoding="utf-8")
+MANUAL = (ROOT / "config" / "user_manual.md").read_text(encoding="utf-8")
 README = (ROOT / "README.md").read_text(encoding="utf-8")
 START = (ROOT / "시작하기.txt").read_text(encoding="utf-8")
 
@@ -34,7 +34,7 @@ def test_product_name_and_the_eleven_sections():
 def test_internal_links_point_at_real_sections():
     ids = {_anchor(t) for t in re.findall(r"^#{1,6} (.+)$", MANUAL, re.M)}
     for doc in (MANUAL, README):
-        for target in re.findall(r"\]\((?:docs/user_manual\.md)?#([^)]+)\)", doc):
+        for target in re.findall(r"\]\((?:config/user_manual\.md)?#([^)]+)\)", doc):
             assert target in ids, target
 
 
@@ -52,8 +52,9 @@ def test_every_bat_the_manual_names_exists():
 
 def test_addresses_and_paths_the_manual_names_exist():
     main = (ROOT / "app" / "main.py").read_text(encoding="utf-8")
-    for ep in ("/version", "/running", "/help/manual"):
+    for ep in ("/version", "/running"):
         assert f'@app.get("{ep}"' in main, ep
+    assert '@app.api_route("/help/manual", methods=["GET", "HEAD"]' in main
     for rel in ("docs/offline_setup_windows.md", "config/product.json", "spike/backup_data.py", "docs/release_checklist.md",
                 "docs/pid_engine_notes.md"):
         assert (ROOT / rel).is_file(), rel
@@ -73,6 +74,6 @@ def test_no_internal_words_for_the_engineer():
 def test_readme_is_short_and_points_to_the_right_places():
     assert len(README.encode("utf-8")) < 12_000
     assert "titleblock-parsing" not in README and "setup.bat" in README and "Python 3.11" in README
-    assert "docs/user_manual.md" in README and "docs/pid_engine_notes.md" in README
+    assert "config/user_manual.md" in README and "docs/pid_engine_notes.md" in README
     notes = (ROOT / "docs" / "pid_engine_notes.md").read_text(encoding="utf-8")
     assert "## Description — 기기 축과 라인 축" in notes            # 옛 본문은 지우지 않고 옮겼다

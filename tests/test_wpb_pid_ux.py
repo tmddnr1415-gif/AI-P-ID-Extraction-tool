@@ -100,11 +100,13 @@ def test_delete_is_one_dialog_with_copy_and_the_server_contract_kept():
 
 
 # ---------------- B4 꼬리줄
-def test_footer_is_version_and_update_date_only():
+def test_footer_is_version_update_number_and_date_only():
     blk = JS[JS.index("/* ---------------- which build this is ---------------- */"):]
     blk = blk[:blk.index("})();") + 5]
-    assert "버전 ${ver}" in blk and "업데이트 ${String(d).slice(0, 10)}" in blk
-    for gone in ("u.zip", "u.rev", "base_commit", "branch", "(source)", "hotfix34 이전"):
+    # '버전 1.0.0 · 업데이트 132 · 2026-11-05' — 번호는 rev 가 있을 때만 (공통 셸 · page_stamp 와 같은 형식)
+    assert "버전 ${ver}" in blk and "업데이트 ${rv}" in blk and "${String(d).slice(0, 10)}" in blk
+    assert "u.rev" in blk
+    for gone in ("u.zip", "u.name", "base_commit", "branch", "(source)", "hotfix34 이전"):
         assert gone not in blk
     assert "v.ui.app_js" in blk               # 캐시 진단용 화면 파일 딱지는 툴팁에만
     assert "window.PID_SHELL && !EMBED.on" in blk

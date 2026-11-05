@@ -33,9 +33,9 @@ rem
 rem hotfix132: python and packages are checked once before the loop (without
 rem python the old loop said "port 8000 is held" forever).  Five quick failures
 rem in a row (logs\server.fastfail, written by lan_serve) pause the loop for 60 s
-rem with a hint.  The log is capped at 20 MB x 3 by lan_serve.  Data can live on
-rem another drive:
-rem set PID_DATA_DIR=D:\pid_data
+rem with a hint.  The log is capped at 20 MB x 3 by lan_serve.
+rem Do not move the data folder (app\_data) - keep backups on another drive
+rem instead (backup_pid_data.bat D:\pid_backup).
 setlocal
 cd /d "%~dp0"
 set PID_LAN=1

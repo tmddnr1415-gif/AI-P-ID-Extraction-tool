@@ -14,7 +14,7 @@
 검출은 도면의 글자와 도형을 규칙으로 읽습니다 (OCR · LLM 을 쓰지 않습니다).  판정 기준은 그 도면의 범례에서 실행 중에 잽니다.
 제품 이름 · 버전 · 문의처는 `config/product.json` 한 곳에 있습니다.
 
-**사용 설명서: [docs/user_manual.md](docs/user_manual.md)** — 화면별 사용법 · 끄기/켜기 · 자료 위치 · 업데이트 · 백업/복구 · 자주 생기는 문제.
+**사용 설명서: [config/user_manual.md](config/user_manual.md)** — 화면별 사용법 · 끄기/켜기 · 자료 위치 · 업데이트 · 백업/복구 · 자주 생기는 문제.
 서버가 켜져 있으면 화면의 **?** 단추 → 설명서, 또는 `/help/manual` 로도 봅니다.
 
 ## 설치 (서버 PC 한 대)
@@ -42,14 +42,14 @@ python3.11 -m venv .venv && .venv/bin/python -m pip install -r requirements.txt
 | 전체 자료 백업 · 복구 | `backup_pid_data.bat D:\pid_backup` · `backup_pid_data.bat --restore <폴더>` |
 | 단일 exe 만들기 | `build.bat` (시험을 통과해야 만든다) |
 
-자료는 모두 `app\_data\` (다른 드라이브: `PID_DATA_DIR`) · 로그는 `logs\server.log` (20MB × 3 회전).
+자료는 모두 `app\_data\` (옮기지 말고 다른 드라이브에는 백업을) · 로그는 `logs\server.log` (20MB × 3 회전).
 상태 확인 주소: `/version` (제품 · 업데이트 번호) · `/running` (지금 분석 중인 것).
 
 ## 업데이트 · 백업
 
 - 업데이트는 zip 꾸러미로 옵니다: 압축을 전부 풀고 → `apply_to_PID_dev.bat` → `apply_to_PID_ops.bat` → 화면의 업데이트 번호 확인 → 문제면 `rollback_PID_ops.bat`.
-  도중에 실패하면 자동으로 원래대로 돌립니다.  자세히: 설명서 [업데이트](docs/user_manual.md#업데이트).
-- 서버는 `app.db` 를 매일 한 판 떠 둡니다 (7일치 · `PID_BACKUP_DIR`).  나머지 자료까지는 `backup_pid_data.bat` — 설명서 [백업과 복구](docs/user_manual.md#백업과-복구).
+  도중에 실패하면 자동으로 원래대로 돌립니다.  자세히: 설명서 [업데이트](config/user_manual.md#업데이트).
+- 서버는 `app.db` 를 매일 한 판 떠 둡니다 (7일치 · `PID_BACKUP_DIR`).  나머지 자료까지는 PID_dev 에서 `backup_pid_data.bat` (운영 자료 `C:\Claude\PID\app\_data` 가 있으면 그것을 · `--data` 로 바꿈) — 설명서 [백업과 복구](config/user_manual.md#백업과-복구).
 
 ## 개발하는 사람에게
 

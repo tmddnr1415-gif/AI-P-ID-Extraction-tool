@@ -141,6 +141,7 @@
       }
       function val(v) { return typeof v === "function" ? v() : v; }
       function onKey(ev) {
+        if (ev.isComposing || ev.keyCode === 229) return;      // 한글 조합 중의 Enter · Esc 는 입력기 몫
         if (ev.key === "Escape") { ev.stopPropagation(); ev.preventDefault(); close(opts.cancelValue); }
         else if (ev.key === "Enter" && opts.enterValue !== undefined && !(ev.target && ev.target.tagName === "TEXTAREA")) {
           ev.stopPropagation(); ev.preventDefault(); var v = val(opts.enterValue); if (v !== undefined) close(v);
@@ -205,10 +206,17 @@
       });
     return verP;
   }
+  function revText(u) {                     // 업데이트 번호 — 양의 정수일 때만 (없으면 그 토막을 뺀다)
+    var r = u && u.rev;
+    if (typeof r === "boolean" || r == null) return "";
+    r = String(r).trim();
+    return /^[0-9]+$/.test(r) && Number(r) > 0 ? r : "";
+  }
   function fmtVersion(j) {
     var v = PRODUCT.version || (j && j.version) || "";
+    var rev = revText(j && j.update);
     var d = ((j && j.update && j.update.created_at) || "").slice(0, 10) || ((j && j.built_at) || "").slice(0, 10);
-    return v ? "버전 " + v + (d ? " · " + d : "") : "";
+    return v ? "버전 " + v + (rev ? " · 업데이트 " + rev : "") + (d ? " · " + d : "") : "";
   }
   function info() {
     return version().then(function (j) {
@@ -217,6 +225,7 @@
       row("제품", PRODUCT.name + (PRODUCT.name_en ? " (" + PRODUCT.name_en + ")" : ""));
       row("이 화면", screenName);
       row("버전", PRODUCT.version || j.version || "");
+      row("업데이트 번호", revText(j.update));
       row("업데이트 날짜", ((j.update && j.update.created_at) || "").slice(0, 10) || (j.built_at || "").slice(0, 10));
       row("실행 방식", j.kind === "exe" ? "설치판(exe)" : j.kind === "source" ? "소스 실행" : "");
       row("사용자 이름", user() || "(아직 없음 — 위 띠에서 넣을 수 있습니다)");
@@ -282,12 +291,7 @@
     var wrap = el("div", "ps-help");
     wrap.appendChild(el("p", null, "화면별 사용 설명서는 새 창으로 엽니다."));
     var a = el("a", null, "사용 설명서 열기"); a.href = "/help/manual"; a.target = "_blank"; a.rel = "noopener";
-    a.addEventListener("click", function (ev) {
-      ev.preventDefault();
-      fetch("/help/manual", { method: "HEAD", cache: "no-store" }).then(function (r) {
-        if (r.ok) window.open("/help/manual", "_blank", "noopener"); else toast("설명서는 준비 중입니다.", { kind: "warn" });
-      }).catch(function () { toast("설명서는 준비 중입니다.", { kind: "warn" }); });
-    });
+    // 그냥 링크로 연다 — 서버는 설명서 파일이 없어도 짧은 안내 화면으로 답한다 (먼저 묻고 열면 팝업 차단에 걸릴 수 있다)
     var p = el("p"); p.appendChild(a); wrap.appendChild(p);
     if (PRODUCT.support) wrap.appendChild(el("p", "ps-muted", "문의: " + PRODUCT.support));
     return wrap;

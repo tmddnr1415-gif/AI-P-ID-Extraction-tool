@@ -83,7 +83,7 @@ uvloop 은 성능용 이벤트 루프일 뿐이고 없으면 uvicorn 이 asyncio
 ```
 
 > 처음 설치는 `setup.bat` 을 한 번 더블클릭하면 위 1~2절(가상환경 · 휠 설치)을 대신합니다.
-> 부서 공용 서버는 `run_lan_service.bat` 으로 띄웁니다 — 사용 설명서 `docs\user_manual.md`.
+> 부서 공용 서버는 `run_lan_service.bat` 으로 띄웁니다 — 사용 설명서 `config\user_manual.md`.
 
 `start.bat` 은 `.venv\Scripts\python.exe` 가 있으면 자동으로 그것을 씁니다
 (활성화하지 않아도 더블클릭으로 됩니다).
@@ -93,8 +93,7 @@ uvloop 은 성능용 이벤트 루프일 뿐이고 없으면 uvicorn 이 asyncio
 - 처음 켜면 Windows 방화벽이 물을 수 있습니다 — **127.0.0.1 로만 듣기** 때문에
   "액세스 허용" 을 누르지 않아도 동작합니다. 취소해도 됩니다.
 - 분석 결과는 `app\_data\app.db` 에 남아 다시 켜면 그대로 열립니다.
-- 데이터 위치를 옮기려면: `$env:PID_DATA_DIR = "D:\pid_data"` 를 먼저 실행
-  (PowerShell 문법입니다 — `export` 가 아닙니다).
+- 자료 폴더(`app\_data`)는 옮기지 마세요 — 다른 드라이브에는 백업을 두세요 (`backup_pid_data.bat D:\pid_backup`).
 
 ## 4. 정상 확인
 

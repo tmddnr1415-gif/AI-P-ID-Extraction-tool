@@ -94,12 +94,12 @@ ROLLBACK_BAT = ("@echo off\r\n"
                 ":end\r\n"
                 "pause\r\n")
 
-# hotfix132 — 현장이 읽는 운영 적용 순서와 되돌리기 (설명서 docs/user_manual.md §업데이트 와 같은 말)
-OPS_README = ("\n운영 반영 순서 (설명서 docs\\user_manual.md 의 '업데이트' 절과 같습니다):\n"
+# hotfix132 — 현장이 읽는 운영 적용 순서와 되돌리기 (설명서 config/user_manual.md §업데이트 와 같은 말)
+OPS_README = ("\n운영 반영 순서 (설명서 config\\user_manual.md 의 '업데이트' 절과 같습니다):\n"
               "  ① 압축을 전부 푼다 (zip 안에서 바로 실행하면 멈춥니다)\n"
               "  ② apply_to_PID_dev.bat   — 개발 폴더(PID_dev)에 먼저\n"
               "  ③ apply_to_PID_ops.bat   — 운영 폴더(PID)에 · '다시 띄울까요?' 에 Enter\n"
-              "  ④ 화면을 새로 고쳐 오른쪽 위/아래 업데이트 번호가 바뀌었는지 본다\n"
+              "  ④ 화면을 새로 고쳐 오른쪽 위/아래의 업데이트 번호(예: '버전 1.0.0 · 업데이트 132 · 날짜')가 바뀌었는지 본다\n"
               "  ⑤ 문제가 있으면 rollback_PID_ops.bat — 이 꾸러미가 바꾼 파일만 원래대로\n"
               "적용이 도중에 실패하면(파일 잠김 · 디스크 부족) 자동으로 원래대로 되돌리고 멈춥니다 — 원인을 없애고 다시 실행하세요.\n"
               "운영 폴더에는 app\\ 와 config\\ 만 갱신됩니다 — 뿌리의 *.bat 와 spike\\ 의 도구는 PID_dev 에서 씁니다.\n")
@@ -136,7 +136,7 @@ def release_gate(head: str, check_file: Path | None = None) -> list[str]:
     """hotfix132 — 꾸러미를 만들기 전 `spike/release_check.py` 가 통과했는지 본다.  막을 이유의 목록 (빈 목록 = 통과).
 
     검사 결과의 head 가 지금 HEAD 와 같거나, 그 사이 차이가 문서(out/ · docs/ · *.md · *.txt)뿐이면 유효하다 —
-    readme_head.txt 커밋 하나 때문에 2분 검사를 다시 돌리지 않게.
+    readme_head.txt 커밋 하나 때문에 2분 검사를 다시 돌리지 않게.  커밋하지 않은 변경 위에서 돈 검사(dirty)는 거부한다.
     """
     f = check_file or CHECK_FILE
     if not f.exists():
@@ -148,6 +148,12 @@ def release_gate(head: str, check_file: Path | None = None) -> list[str]:
     reasons = []
     if not r.get("ok"):
         reasons.append("마지막 검사가 통과하지 못했습니다 (" + "; ".join(map(str, r.get("failures") or ["사유 없음"])) + ")")
+    if r.get("dirty") is None:
+        reasons.append("검사 결과에 작업 트리 기록(dirty)이 없습니다 — python3 spike/release_check.py 를 다시 돌리세요")
+    elif r.get("dirty"):
+        files = [str(x) for x in (r.get("dirty_files") or [])]
+        reasons.append(f"검사할 때 커밋하지 않은 변경이 있었습니다 ({len(files)}개"
+                       + (f" — 예: {files[0]}" if files else "") + ") — 꾸러미는 커밋에서 만듭니다.  커밋한 뒤 다시 검사하세요")
     checked = str(r.get("head") or "")
     if not checked:
         reasons.append("검사 결과에 head 가 없습니다")

@@ -6,10 +6,11 @@
 ## 순서
 
 1. **병합** — `config/release_sources.json` 에 적힌 다른 세션 브랜치를 먼저 합칩니다 (pack_delta 가 덜 합쳐졌으면 끝 코드 2 로 멈춤).
-2. **출시 전 검사** — `python3 spike/release_check.py`
+2. **출시 전 검사** — 모든 변경을 **커밋한 뒤** `python3 spike/release_check.py`
    - 빠른 시험 전체(`-m "not slow and not ui"` · Valve 시험은 참고로만) → JS 구문(`node --check`) → 서버 주소 13곳 스모크 →
      화면 12장 눈 점검(`spike/smoke_screens.js` · node 와 playwright 가 있을 때).
-   - 결과: `out/release_check.json` (`head` · `ok` · `failures` · `skipped`).  화면 캡처는 `out/release_smoke/`.
+   - 결과: `out/release_check.json` (`head` · `ok` · `dirty` · `failures` · `skipped`).  화면 캡처는 `out/release_smoke/`.
+   - `dirty: true` = 검사할 때 커밋하지 않은 변경(`out/` 제외)이 있었다 — 꾸러미는 커밋에서 만들므로 pack_delta 가 거부합니다.
    - 회사 PC(도면 자료가 있는 곳)에서는 `--strict`: 도면·결과 자료가 없어 건너뛴 시험이 있으면 실패로 봅니다.
 3. **화면 캡처 확인** — `out/release_smoke/*.png` 를 훑어보고 콘솔 오류 0 인지 (`smoke_screens.js` 의 JSON).
    대시보드 안 모습은 `node spike/smoke_screens.js <주소> out/release_smoke_embed --embed`.

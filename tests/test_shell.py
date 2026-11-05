@@ -2,7 +2,7 @@
 
 못박는 것 (판정 0 — 화면을 오가게 하고 알릴 뿐이다):
   · page_stamp 가 `</head>` 앞에 shell.css · shell.js(defer · data-app · data-version · ?v= 딱지)를 넣는다.  Valve 는 넣지 않는다.
-  · 판 글은 "버전 1.0.0 · 날짜" 한 형식 — 꾸러미 이름 · zip · 커밋은 화면에 내지 않는다.
+  · 판 글은 "버전 1.0.0 · 업데이트 132 · 날짜" 한 형식(번호는 rev 가 있을 때만) — 꾸러미 이름 · zip · 커밋은 화면에 내지 않는다.
   · 파비콘(없을 때만) · 옛 브라우저 안내 · 인쇄 스타일.
   · 도서검토도 셸을 입혀 내준다 · DCS 옛 주소는 /dcs 로 넘긴다(질의 보존) · 오류 응답에 detail 도 싣는다.
   · shell.js 는 기존 앱과 같은 이름 키(localStorage 'pid.author')를 쓰고, 링크는 누르는 순간에만 고친다.
@@ -85,15 +85,27 @@ def test_stamp_infers_app_from_file_name_and_never_doubles():
 def test_version_text_is_one_plain_format(monkeypatch, tmp_path):
     from app import version
     f = tmp_path / "_update.json"
-    f.write_text(json.dumps({"name": "hotfix999", "zip": "PID_hotfix999.zip", "created_at": "2026-10-08 05:10",
+    f.write_text(json.dumps({"name": "hotfix999", "rev": 999, "zip": "PID_hotfix999.zip", "created_at": "2026-10-08 05:10",
                              "base_commit": "abc1234"}), encoding="utf-8")
     monkeypatch.setattr(version, "_UPDATE", f)
     t = page_stamp.version_text()
-    assert re.fullmatch(r"버전 \S+ · 2026-10-08", t), t
+    assert re.fullmatch(r"버전 \S+ · 업데이트 999 · 2026-10-08", t), t        # 같은 날 두 꾸러미도 번호로 가린다
     out = page_stamp.stamp("<html><head></head><body></body></html>")
     assert out.count('id="pidUpdateTag"') == 1 and f'data-version="{t}"' in out
-    for bad in ("hotfix", "zip", "abc1234", "업데이트 "):
+    for bad in ("hotfix", "zip", "abc1234"):
         assert bad not in out, bad
+    # rev 가 없거나 이상하면 번호 토막을 뺀다 (지어내지 않는다)
+    for rev in (None, "", "abc", True, 0):
+        f.write_text(json.dumps({"name": "x", "rev": rev, "created_at": "2026-10-08 05:10"}), encoding="utf-8")
+        assert re.fullmatch(r"버전 \S+ · 2026-10-08", page_stamp.version_text()), rev
+
+
+def test_shell_and_pid_footer_show_the_update_number_the_same_way():
+    js = (STATIC / "shell.js").read_text(encoding="utf-8")
+    i = js.index("function fmtVersion(j)")
+    assert '" · 업데이트 " + rev' in js[i:i + 400] and "revText(j && j.update)" in js[i:i + 400]
+    app = (STATIC / "app.js").read_text(encoding="utf-8")
+    assert "(rv ? ` · 업데이트 ${rv}` : \"\")" in app
 
 
 def test_logic_and_space_pages_show_no_internal_update_names(client):
@@ -169,9 +181,12 @@ def test_shell_js_contract_and_name_key():
     assert "window.confirm" not in js and "alert(" not in js
     # Valve · 광장은 띠에 없다
     assert "/valve" not in js and "/plaza" not in js
-    # 도움말: 탭 셋 · 용어 열 개 · 설명서는 없으면 '준비 중' 알림
+    # 도움말: 탭 셋 · 용어 열 개 · 설명서는 그냥 새 창 링크 (HEAD 로 먼저 묻지 않는다 — 팝업 차단 · 405)
     assert js.count('["프로젝트",') == 1 and len(re.findall(r'^\s+\["[^"]+", "', js, re.M)) == 10
-    assert '"/help/manual"' in js and "설명서는 준비 중입니다." in js
+    assert 'a.href = "/help/manual"; a.target = "_blank"' in js and 'method: "HEAD"' not in js
+    # 창의 Enter 는 한글 조합 중이면 무시한다
+    i = js.index("function onKey(ev)")
+    assert "ev.isComposing || ev.keyCode === 229" in js[i:i + 200]
     for bad in ("hotfix", "VOC", "회차", "커밋"):
         assert bad not in js.split("*/", 1)[1], bad                     # 머리 주석 밖(화면에 나가는 글)
 

@@ -10885,14 +10885,17 @@ $req("#diag").addEventListener("click", async () => {
 (async () => {
   try {
     const v = await fetchJson("/version");
-    // hotfix132 — 사용자가 읽는 꼬리줄은 '버전 1.0.0 · 업데이트 2026-10-08' 두 토막뿐이다.  꾸러미 이름 · zip ·
-    // 커밋 · 브랜치 같은 내부 표기는 적지 않는다.  값은 `/version` 의 product(config/product.json) 와 v.update
-    // (`app/_update.json`) 그대로이고, 없으면 그 토막을 뺀다 (지어내지 않는다).
+    // hotfix132 — 사용자가 읽는 꼬리줄은 '버전 1.0.0 · 업데이트 132 · 2026-11-05' 세 토막뿐이다 (공통 셸 · page_stamp 와
+    // 같은 형식).  꾸러미 이름 · zip · 커밋 · 브랜치 같은 내부 표기는 적지 않는다.  값은 `/version` 의
+    // product(config/product.json) 와 v.update(`app/_update.json` 의 rev · 만든 날) 그대로이고, 없으면 그 토막을 뺀다.
     const pr = v.product || {};
     const u = v.update;
     const d = (u && u.created_at) || v.built_at || "";
     const ver = pr.version || v.version || "";
-    $("#build-text").textContent = (ver ? `버전 ${ver}` : "") + (d ? ` · 업데이트 ${String(d).slice(0, 10)}` : "");
+    const rv = u && typeof u.rev !== "boolean" && /^[0-9]+$/.test(String(u.rev ?? "").trim()) && Number(u.rev) > 0
+      ? String(u.rev).trim() : "";
+    $("#build-text").textContent = (ver ? `버전 ${ver}` : "") + (rv ? ` · 업데이트 ${rv}` : "")
+      + (d ? ` · ${String(d).slice(0, 10)}` : "");
     // 56회차 — 화면 파일 딱지는 툴팁에 남긴다 (브라우저가 옛 app.js 를 캐시로 쓰는지 현장에서 가리는 데 쓴다)
     $("#build-text").title = (v.kind === "exe" ? "설치형(exe) 서버" : "소스 실행 서버")
       + (v.ui ? ` · 화면 파일 ${v.ui.app_js}` : "");

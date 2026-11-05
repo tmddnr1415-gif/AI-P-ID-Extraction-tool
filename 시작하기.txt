@@ -24,4 +24,4 @@
   "The server fails to start"              → check_pid_server.bat 실행 뒤 logs\server.log 를 관리자에게
   "Already running"                        → 이미 켜져 있음 · 브라우저가 열림
 
-자세한 설명서: docs\user_manual.md  (서버가 켜져 있으면 화면 오른쪽 위 ? 단추 → 설명서)
+자세한 설명서: config\user_manual.md  (서버가 켜져 있으면 화면 오른쪽 위 ? 단추 → 설명서)

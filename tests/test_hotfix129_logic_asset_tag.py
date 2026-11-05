@@ -49,7 +49,7 @@ def test_badge_shows_applied_update(monkeypatch, tmp_path):
     f.write_text(json.dumps({"name": "hotfix999"}), encoding="utf-8")
     monkeypatch.setattr(version, "_UPDATE", f)
     out = page_stamp.stamp("<body></body>")
-    # hotfix132 — 딱지는 "버전 1.0.0 · 날짜" 한 형식 (꾸러미 이름 같은 내부 이름은 화면에 내지 않는다)
+    # hotfix132 — 딱지는 "버전 1.0.0 · 업데이트 N · 날짜" 한 형식 (꾸러미 이름 같은 내부 이름은 화면에 내지 않는다)
     assert "버전 " in out and "hotfix999" not in out and out.count('id="pidUpdateTag"') == 1
     assert "pidUpdateTag" not in page_stamp.stamp("<body></body>", badge=False)
 

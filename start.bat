@@ -17,8 +17,7 @@ rem comments as commands), which is how hotfix50's LAN service never started.
 rem
 rem app\_data holds ALL screens' data (analyses, uploads, LOGIC, panel, DCS,
 rem books ...).  Back it up (backup_pid_data.bat) before deleting anything there.
-rem To keep the data on another drive, set PID_DATA_DIR before starting:
-rem set PID_DATA_DIR=D:\pid_data
+rem Do not move the data folder - keep backups on another drive instead.
 
 setlocal enabledelayedexpansion
 cd /d "%~dp0"

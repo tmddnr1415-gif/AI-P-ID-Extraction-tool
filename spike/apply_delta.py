@@ -56,14 +56,35 @@ HERE = Path(__file__).resolve().parent
 NEVER = ("app/_data/", "data/", ".venv/", "logs/", "backup/")
 APPLIED = "_applied.json"            # hotfix132 — 백업 폴더에: {상대경로: 적용 때 실제로 쓴 바이트의 해시}
 EXIT_ROLLED_BACK = 5
+EXIT_ROLLBACK_FAILED = 7             # hotfix132 — 실패 뒤 되돌림까지 다 못 했다 (일부 파일이 바뀐 채)
+EXIT_NOT_RESTORED = 6                # hotfix132 — --restore 에서 '안 함'(n) · 바꿀 것 없음 → 롤백 bat 이 재시작을 묻지 않게
+PARTIAL = ".partial~"                # hotfix132 — 쓰는 중인 백업본.  다 쓴 뒤에만 제 이름으로 바꾼다 (되돌림은 이것을 안 쓴다)
 
 
 class ApplyFailed(OSError):
-    """hotfix132 — 복사 도중 실패해 원래대로 되돌렸다.  rel · 원인 · 되돌림 여부를 든다."""
+    """hotfix132 — 복사 도중 실패.  rel · 원인 · 되돌림 여부 · 바뀐 파일이 있었나 · 되돌리지 못한 파일 · 백업 폴더."""
 
-    def __init__(self, rel: str, cause: BaseException, rolled_back: bool):
+    def __init__(self, rel: str, cause: BaseException, rolled_back: bool, changed: bool = True,
+                 left: list | None = None, backup: Path | None = None):
         super().__init__(str(cause))
         self.rel, self.cause, self.rolled_back = rel, cause, rolled_back
+        self.changed, self.left, self.backup = changed, list(left or []), backup
+
+
+def _backup_copy(dst: Path, b: Path) -> None:
+    """hotfix132 — 백업본은 `<b>.partial~` 에 끝까지 쓴 뒤 제 이름으로 바꾼다.  디스크가 차서 반쯤 쓰다 실패하면
+    잘린 사본이 백업 이름으로 남지 않는다 → 자동 되돌림이 잘린 사본으로 멀쩡한 파일을 덮는 일이 없다."""
+    b.parent.mkdir(parents=True, exist_ok=True)
+    tmp = b.with_name(b.name + PARTIAL)
+    try:
+        shutil.copy2(dst, tmp)
+        os.replace(tmp, b)
+    except OSError:
+        try:
+            tmp.unlink()
+        except OSError:
+            pass
+        raise
 
 
 def _why(exc: BaseException) -> str:
@@ -222,6 +243,7 @@ def apply(target: Path, pkg: Path, manifest: dict, dry: bool = False, runtime_on
             (backup / "_created.txt").write_text("\n".join(created) + "\n", encoding="utf-8")
         applied: dict[str, str] = {}             # hotfix132 — 실제로 쓴 바이트의 해시 (merge 는 합친 글의 해시)
         failed: ApplyFailed | None = None
+        touched: list[str] = []                  # hotfix132 — 손대기 시작한 파일 (실패 때 '바뀐 것 없음' 을 가린다)
 
         def _note(rel: str, dst: Path) -> None:
             applied[rel] = sha(dst) or ""
@@ -235,25 +257,22 @@ def apply(target: Path, pkg: Path, manifest: dict, dry: bool = False, runtime_on
                 dst = target / s["path"]
                 if s["action"] == "remove":
                     backup = backup or (target / "backup" / f"{name}_{stamp}")
-                    b = backup / s["path"]
-                    b.parent.mkdir(parents=True, exist_ok=True)
-                    shutil.copy2(dst, b)
+                    _backup_copy(dst, backup / s["path"])
+                    touched.append(s["path"])
                     dst.unlink()
                 elif s["action"] in ("overwrite", "create"):
                     if s["action"] == "overwrite":
                         backup = backup or (target / "backup" / f"{name}_{stamp}")
-                        b = backup / s["path"]
-                        b.parent.mkdir(parents=True, exist_ok=True)
-                        shutil.copy2(dst, b)
+                        _backup_copy(dst, backup / s["path"])
                     dst.parent.mkdir(parents=True, exist_ok=True)
+                    touched.append(s["path"])
                     shutil.copyfile(src, dst)
                     _note(s["path"], dst)
                 elif s["action"] == "merge":
                     backup = backup or (target / "backup" / f"{name}_{stamp}")
-                    b = backup / s["path"]
-                    b.parent.mkdir(parents=True, exist_ok=True)
-                    shutil.copy2(dst, b)
+                    _backup_copy(dst, backup / s["path"])
                     text = merged_text(target, s["path"])
+                    touched.append(s["path"])
                     dst.write_bytes(text.encode("utf-8"))
                     _note(s["path"], dst)
                     for side in dst.parent.glob(dst.name + ".hotfix*.new"):
@@ -263,22 +282,40 @@ def apply(target: Path, pkg: Path, manifest: dict, dry: bool = False, runtime_on
                     shutil.copyfile(src, side)
                     s["new_copy"] = str(side)
         except OSError as exc:
-            # hotfix132 — 반쪽 업데이트를 남기지 않는다: 방금 만든 백업으로 바로 되돌린다
+            # hotfix132 — 반쪽 업데이트를 남기지 않는다: 방금 만든 백업(다 쓴 백업본만)으로 바로 되돌린다.
+            # 되돌림이 한 파일에서 실패해도 나머지는 계속 되돌리고, 못 되돌린 파일을 사실대로 적는다.
             rel = s["path"]
-            rolled = False
-            if backup is not None and backup.is_dir():
-                try:
-                    restore(target, name, force=True, quiet=True)
-                    rolled = True
-                except OSError:
-                    rolled = False
-            failed = ApplyFailed(rel, exc, rolled)
+            rolled, left = False, []
+            if touched:
+                errs: list = []
+                if backup is not None and backup.is_dir():
+                    try:
+                        restore(target, name, force=True, quiet=True, folder=backup, errors=errs)
+                    except OSError as e2:                # 백업 폴더 자체를 못 읽음
+                        errs.append(("(백업 폴더)", _why(e2)))
+                    left = [r for r, _ in errs]
+                    # 백업본이 없는 '덮은' 파일(백업 쓰기 전 실패는 touched 에 없다) · 지우지 못한 새 파일도 남은 것으로
+                    for r in touched:
+                        if r in left:
+                            continue
+                        dstp, bp = target / r, backup / r
+                        if bp.is_file():
+                            if sha(dstp) != sha(bp):
+                                left.append(r)
+                        elif r in [x["path"] for x in steps if x["action"] == "create"] and dstp.exists():
+                            left.append(r)
+                else:
+                    left = list(touched)
+                rolled = not left
+            failed = ApplyFailed(rel, exc, rolled, changed=bool(touched), left=left, backup=backup)
         finally:
             lines = [f"{name} applied {time.strftime('%Y-%m-%d %H:%M:%S')} to {target}"]
             if failed is not None:
                 lines[0] = (f"{name} FAILED {time.strftime('%Y-%m-%d %H:%M:%S')} at {failed.rel}"
                             f" ({_why(failed.cause)}) - "
-                            + ("rolled back" if failed.rolled_back else "nothing to roll back"))
+                            + ("rolled back" if failed.changed and failed.rolled_back
+                               else "nothing was changed" if not failed.changed
+                               else f"ROLLBACK INCOMPLETE - still changed: {', '.join(failed.left)}"))
             lines += [f"{s['action']:9s} {s['path']}" for s in steps]
             try:
                 (target / f"delta_{name}_report.txt").write_text("\n".join(lines) + "\n", encoding="utf-8")
@@ -290,19 +327,25 @@ def apply(target: Path, pkg: Path, manifest: dict, dry: bool = False, runtime_on
 
 
 def restore(target: Path, name: str, *, force: bool = False, dry: bool = False,
-            quiet: bool = False) -> tuple[Path | None, int, int]:
+            quiet: bool = False, folder: Path | None = None,
+            errors: list | None = None) -> tuple[Path | None, int, int]:
     """이 꾸러미가 남긴 가장 최근 백업으로 되돌린다 — 덮은 파일은 원본으로, 만든 파일은 지운다.
 
     hotfix132 — 백업에 `_applied.json`(적용 때 쓴 바이트의 해시)이 있으면 파일마다 본다:
     지금 해시 == 적용 때 해시 → 되돌림 · 이미 백업본과 같음 → 조용히 넘김 · 둘 다 아님(그 뒤에 누가
     고침) → '[안 되돌림 - 그 뒤에 고친 파일]' 로 보고만 (force 면 덮음).  옛 백업(기록 없음)은 전처럼 덮는다.
     dry 면 세기만 하고 바꾸지 않는다.  반환은 (백업 폴더, 되돌린 수, 지운 수) 그대로.
+    folder 를 주면 그 백업 폴더 (자동 되돌림 — 같은 이름의 옛 백업을 고르지 않게).  쓰다 만 백업본(*.partial~)은 쓰지 않는다.
+    errors 에 목록을 주면 파일 하나의 실패에 멈추지 않고 (상대경로, 사유) 를 담고 계속한다.
     """
-    root = target / "backup"
-    cands = sorted(root.glob(f"{name}_*")) if root.is_dir() else []
-    if not cands:
-        return None, 0, 0
-    b = cands[-1]
+    if folder is not None:
+        b = folder
+    else:
+        root = target / "backup"
+        cands = sorted(root.glob(f"{name}_*")) if root.is_dir() else []
+        if not cands:
+            return None, 0, 0
+        b = cands[-1]
     applied: dict | None = None
     try:
         applied = json.loads((b / APPLIED).read_text(encoding="utf-8"))
@@ -315,7 +358,7 @@ def restore(target: Path, name: str, *, force: bool = False, dry: bool = False,
 
     back = gone = 0
     for f in sorted(b.rglob("*")):
-        if not f.is_file() or f.name in ("_created.txt", APPLIED):
+        if not f.is_file() or f.name in ("_created.txt", APPLIED) or f.name.endswith(PARTIAL):
             continue
         rel = f.relative_to(b).as_posix()
         dst = target / rel
@@ -327,8 +370,14 @@ def restore(target: Path, name: str, *, force: bool = False, dry: bool = False,
                 print(f"  [안 되돌림 - 그 뒤에 고친 파일] {rel}   (--force 면 덮습니다)")
             continue
         if not dry:
-            dst.parent.mkdir(parents=True, exist_ok=True)
-            shutil.copy2(f, dst)
+            try:
+                dst.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copy2(f, dst)
+            except OSError as e:
+                if errors is None:
+                    raise
+                errors.append((rel, _why(e)))
+                continue
         back += 1
     lst = b / "_created.txt"
     if lst.is_file():
@@ -343,7 +392,13 @@ def restore(target: Path, name: str, *, force: bool = False, dry: bool = False,
                     print(f"  [안 지움 - 그 뒤에 고친 파일] {rel}   (--force 면 지웁니다)")
                 continue
             if not dry:
-                p.unlink()
+                try:
+                    p.unlink()
+                except OSError as e:
+                    if errors is None:
+                        raise
+                    errors.append((rel, _why(e)))
+                    continue
             gone += 1
     return b, back, gone
 
@@ -406,7 +461,7 @@ def main(argv=None) -> int:
             return 0
         if not (back or gone):
             print("이미 원본 그대로입니다 — 바꿀 것이 없습니다.")
-            return 0
+            return EXIT_NOT_RESTORED                     # 롤백 bat 이 서버 재시작을 묻지 않는다
         if not yes and sys.stdin is not None and sys.stdin.isatty():
             try:
                 ans = input("계속할까요? [Y/n] ").strip().lower()
@@ -414,7 +469,7 @@ def main(argv=None) -> int:
                 ans = "n"
             if ans not in ("", "y", "yes", "ㅛ"):
                 print("되돌리지 않았습니다.")
-                return 0
+                return EXIT_NOT_RESTORED                 # 롤백 bat 이 서버 재시작을 묻지 않는다
         b, back, gone = restore(target, manifest["name"], force=force, quiet=True)
         print(f"되돌림: {b} 의 원본 {back}개를 다시 놓고, 이 꾸러미가 만든 파일 {gone}개를 지웠습니다.")
         return 0
@@ -422,10 +477,20 @@ def main(argv=None) -> int:
         steps, backup = apply(target, HERE, manifest, dry, runtime_only=runtime, all_or_nothing=aon)
     except ApplyFailed as e:
         print(f"{manifest['name']}  ({manifest.get('summary', '')})\n대상: {target}\n")
-        if e.rolled_back:
+        if not e.changed:
+            print(f"[적용하지 못했습니다 - 바꾼 파일은 없습니다] 파일: {e.rel}\n   사유: {_why(e.cause)}")
+        elif e.rolled_back:
             print(f"[적용하지 못해 원래대로 되돌렸습니다] 파일: {e.rel}\n   사유: {_why(e.cause)}")
         else:
-            print(f"[적용하지 못했습니다 - 바꾼 파일은 없습니다] 파일: {e.rel}\n   사유: {_why(e.cause)}")
+            print(f"[적용하지 못했고, 원래대로 다 되돌리지도 못했습니다] 파일: {e.rel}\n   사유: {_why(e.cause)}")
+            print(f"   아직 바뀐 채 남은 파일 {len(e.left)}개:")
+            for r in e.left:
+                print(f"      {r}")
+            if e.backup is not None:
+                print(f"   원본(백업)은 {e.backup} 에 있습니다.")
+            print("   원인을 없앤 뒤(서버·편집기 닫기 · 디스크 비우기) rollback_PID_ops.bat 으로 되돌리거나 같은 bat 를 다시 실행하세요.\n"
+                  "   그 전에는 서버를 다시 띄우지 마세요.")
+            return EXIT_ROLLBACK_FAILED
         print("\n원인을 없앤 뒤(서버·편집기 닫기 · 디스크 비우기) 같은 bat 를 다시 실행하세요.  서버는 그대로 돕니다.")
         return EXIT_ROLLED_BACK
     print(f"{manifest['name']}  ({manifest.get('summary', '')})")

@@ -82,17 +82,52 @@ def test_gate_blocks_without_a_result(tmp_path):
 
 def test_gate_blocks_a_failed_result_and_passes_a_good_one(tmp_path):
     f = tmp_path / "rc.json"
-    f.write_text(json.dumps({"head": _head(), "ok": False, "failures": ["pytest: 1 failed"]}), encoding="utf-8")
+    f.write_text(json.dumps({"head": _head(), "ok": False, "dirty": False, "failures": ["pytest: 1 failed"]}),
+                 encoding="utf-8")
     reasons = pack_delta.release_gate(_head(), f)
     assert len(reasons) == 1 and "1 failed" in reasons[0]
-    f.write_text(json.dumps({"head": _head(), "ok": True}), encoding="utf-8")
+    f.write_text(json.dumps({"head": _head(), "ok": True, "dirty": False}), encoding="utf-8")
     assert pack_delta.release_gate(_head(), f) == []
+
+
+def test_gate_refuses_a_check_run_on_uncommitted_changes(tmp_path):
+    f = tmp_path / "rc.json"
+    f.write_text(json.dumps({"head": _head(), "ok": True, "dirty": True, "dirty_files": ["app/main.py"]}), encoding="utf-8")
+    reasons = pack_delta.release_gate(_head(), f)
+    assert len(reasons) == 1 and "커밋하지 않은 변경" in reasons[0] and "app/main.py" in reasons[0]
+    f.write_text(json.dumps({"head": _head(), "ok": True}), encoding="utf-8")       # 옛 결과(기록 없음)도 다시 검사
+    assert pack_delta.release_gate(_head(), f) and "dirty" in pack_delta.release_gate(_head(), f)[0]
+
+
+def test_release_check_records_the_dirty_tree(tmp_path, monkeypatch):
+    monkeypatch.setattr(rc, "run_pytest", lambda env, extra=None: {"ok": True, "summary": "1 passed", "skipped": [], "failed": []})
+    monkeypatch.setattr(rc, "run_valve", lambda env: True)
+    monkeypatch.setattr(rc, "run_node_check", lambda: {"ok": True, "checked": 1, "failed": []})
+    monkeypatch.setattr(rc, "run_smoke", lambda env: {"ok": True, "pages": [], "failed": []})
+    monkeypatch.setattr(rc, "git_dirty", lambda: ["app/main.py"])
+    out = tmp_path / "rc.json"
+    rc.main(["--no-screens", "--out", str(out)])
+    r = json.loads(out.read_text(encoding="utf-8"))
+    assert r["dirty"] is True and r["dirty_files"] == ["app/main.py"]
+    monkeypatch.setattr(rc, "git_dirty", lambda: [])
+    rc.main(["--no-screens", "--out", str(out)])
+    assert json.loads(out.read_text(encoding="utf-8"))["dirty"] is False
+
+
+def test_git_dirty_ignores_out_folder(tmp_path, monkeypatch):
+    _git(tmp_path, "init", "-q")
+    (tmp_path / "out").mkdir()
+    (tmp_path / "out" / "x.json").write_text("{}")
+    monkeypatch.setattr(rc, "ROOT", tmp_path)
+    assert rc.git_dirty() == []
+    (tmp_path / "a.py").write_text("x")
+    assert rc.git_dirty() == ["a.py"]
 
 
 def test_gate_blocks_when_code_changed_after_the_check(tmp_path):
     first = subprocess.check_output(["git", "rev-list", "--max-parents=0", "HEAD"], cwd=ROOT, text=True).split()[0][:9]
     f = tmp_path / "rc.json"
-    f.write_text(json.dumps({"head": first, "ok": True}), encoding="utf-8")
+    f.write_text(json.dumps({"head": first, "ok": True, "dirty": False}), encoding="utf-8")
     reasons = pack_delta.release_gate(_head(), f)
     assert reasons and "다시 검사" in reasons[0]
 

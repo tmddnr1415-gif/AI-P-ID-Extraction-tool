@@ -35,7 +35,7 @@ if errorlevel 1 (
 echo.
 echo Registered: the P^&ID server starts on LAN port 8000 at every logon of THIS user (not at boot).
 echo The PC must be logged on as this user for other PCs to reach the server - use
-echo automatic logon + screen lock, and turn sleep off (docs\user_manual.md, section "autostart").
+echo automatic logon + screen lock, and turn sleep off (config\user_manual.md, section "autostart").
 echo Starting it now ...
 schtasks /Run /TN "%TASK%" >nul
 echo.

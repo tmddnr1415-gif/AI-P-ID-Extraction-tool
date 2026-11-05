@@ -112,6 +112,29 @@ def test_backup_dir_override_and_keep_seven(monkeypatch, tmp_path):
     assert st["ok"] is True and st["stale"] is False and audit._backup_lines(st) == []
 
 
+def test_shared_backup_dir_keeps_each_data_folders_own_sets(monkeypatch, tmp_path):
+    """같은 PID_BACKUP_DIR 를 두 서버(PID_dev · 운영)가 같이 써도 서로의 판을 건너뛰거나 지우지 않는다."""
+    import sqlite3
+    a, b = tmp_path / "dev" / "app.db", tmp_path / "ops" / "app.db"
+    for p in (a, b):
+        p.parent.mkdir()
+        sqlite3.connect(p).close()
+    shared = tmp_path / "shared"
+    monkeypatch.setenv("PID_BACKUP_DIR", str(shared))
+    monkeypatch.setattr(db, "LAST_BACKUP", {})
+    ma, mb = db.backup_daily(a), db.backup_daily(b)
+    assert ma != mb and ma.exists() and mb.exists()                  # 같은 날이어도 둘 다 뜬다
+    assert db.data_tag(a.parent) in ma.name and db.data_tag(b.parent) in mb.name
+    old = shared / f"app.db.{db.data_tag(a.parent)}.2026-01-01.bak"
+    old.write_bytes(b"x")
+    ma.unlink()
+    ma = db.backup_daily(a, keep=1)                                  # a 의 정리는 a 의 판만
+    assert not old.exists() and mb.exists()
+    assert db.backups(a) == [ma] and db.backups(b) == [mb]
+    monkeypatch.delenv("PID_BACKUP_DIR")
+    assert db.backup_daily(a).name.startswith("app.db.2")            # DB 옆 backups/ 는 옛 이름 그대로
+
+
 def test_startup_tasks_switch_exists():
     assert 'os.environ.get("PID_STARTUP_TASKS", "1") != "0"' in MAIN_SRC
     i = MAIN_SRC.index("def _start_background")
@@ -340,8 +363,13 @@ def test_blocking_routes_are_plain_def():
 
 def test_offline_shell_skips_heavy_folders(client):
     urls = client.get("/offline/shell").json()["urls"]
-    assert not any(u.startswith(("/static/valve/", "/static/img/teach/", "/static/img/r-", "/static/books/vendor/",
-                                 "/static/hmi/")) for u in urls)
+    assert not any(u.startswith(("/static/valve/", "/static/img/teach/", "/static/img/r-", "/static/books/vendor/"))
+                   for u in urls)
+    # DCS 화면(/dcs · 절전모드에서 여는 화면)의 필수 셋은 담는다
+    for need in ("/static/hmi/hmi.css", "/static/hmi/hmi.js", "/static/hmi/hmi_symbols.js"):
+        assert need in urls, need
+    dcs = (main.STATIC / "dcs.html").read_text(encoding="utf-8")
+    assert all(f"static/hmi/{n}" in dcs for n in ("hmi.css", "hmi.js", "hmi_symbols.js"))
     total = 0
     for u in urls:
         if u.startswith("/static/"):
@@ -354,6 +382,15 @@ def test_offline_shell_skips_heavy_folders(client):
 def test_help_manual_page(client):
     r = client.get("/help/manual")
     assert r.status_code == 200 and "<h1" in r.text and "사용 설명서" in r.text
+    assert client.head("/help/manual").status_code == 200        # 셸 · 다른 도구가 HEAD 로 물어도 405 가 아니다
+    assert "원문: user_manual.md" in r.text                       # 설명서는 config/ (운영 업데이트가 싣는 곳) 에서
+
+
+def test_help_manual_without_the_file_never_shows_the_readme(monkeypatch, tmp_path):
+    monkeypatch.setattr(main.paths, "resource", lambda *parts: tmp_path.joinpath(*parts))
+    (tmp_path / "README.md").write_text("# 옛 개발 기록 hotfix", encoding="utf-8")
+    md, src = main._manual_text()
+    assert src == "" and "설명서 파일이 없습니다" in md and "hotfix" not in md
     assert "<script>alert" not in main._md_to_html("<script>alert(1)</script>")
     h = main._md_to_html("# 시작하기\n\n- 하나\n- 둘\n\n| a | b |\n|---|---|\n| 1 | 2 |\n\n`code` **굵게**")
     assert '<h1 id="시작하기">' in h and "<ul><li>하나</li><li>둘</li></ul>" in h and "<td>1</td>" in h
@@ -393,3 +430,26 @@ def test_rows_body_evicts_by_bytes(monkeypatch):
     finally:
         main._ROWS_BODY.clear()
         main._ROWS_BODY.update(saved)
+
+
+# ---------------------------------------------------------------- 숫자 환경변수 · 루프백
+def test_non_numeric_env_falls_back_to_the_default(monkeypatch):
+    monkeypatch.setenv("PID_BACKUP_EVERY_S", "an hour")
+    assert main._env_num("PID_BACKUP_EVERY_S", 3600) == 3600
+    monkeypatch.setenv("PID_BACKUP_EVERY_S", "-5")
+    assert main._env_num("PID_BACKUP_EVERY_S", 3600) == 3600
+    monkeypatch.setenv("PID_BACKUP_EVERY_S", "120")
+    assert main._env_num("PID_BACKUP_EVERY_S", 3600) == 120
+    from app.logic import api
+    monkeypatch.setenv("LOGIC_MAX_UPLOAD_MB", "300MB")
+    assert api._upload_mb() == 300
+    monkeypatch.setenv("LOGIC_MAX_UPLOAD_MB", "450")
+    assert api._upload_mb() == 450
+
+
+def test_ipv4_mapped_loopback_is_the_server_pc():
+    from types import SimpleNamespace
+    from app import books
+    req = SimpleNamespace(client=SimpleNamespace(host="::ffff:127.0.0.1"))
+    assert main._is_loopback(req) and "::ffff:127.0.0.1" in books._LOOPBACK
+    assert not main._is_loopback(SimpleNamespace(client=SimpleNamespace(host="::ffff:10.0.0.5")))

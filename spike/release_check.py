@@ -9,8 +9,10 @@ hotfix132 — 하는 일 (순서대로 · 하나라도 실패하면 ok=false):
   2. JS 구문  app/static/**/*.js (*.min.js · valve/ 제외) 를 `node --check`.  node 가 없으면 건너뜀으로 적는다.
   3. 서버 스모크  TestClient 로 13 주소가 200 인지 (화면 12 · /version · /help/manual · /running)
   4. 화면 눈 점검  node + playwright 가 있으면 임시 서버를 띄워 spike/smoke_screens.js (없으면 한 줄 남기고 건너뜀)
-결과는 out/release_check.json {head, ok, at, strict, steps, skipped, failures, valve_ok}.
-pack_delta 는 이 파일의 head 가 지금 HEAD(또는 문서만 다른 HEAD) 이고 ok 일 때만 꾸러미를 만든다.
+결과는 out/release_check.json {head, ok, dirty, dirty_files, at, strict, steps, skipped, failures, valve_ok}.
+pack_delta 는 이 파일의 head 가 지금 HEAD(또는 문서만 다른 HEAD) 이고 ok 이며 dirty 가 false 일 때만 꾸러미를 만든다 —
+dirty = 검사 시작·끝에 커밋하지 않은 변경(out/ 제외)이 있었다.  꾸러미는 커밋(HEAD)에서 만들므로, 커밋 안 한 수정으로
+통과한 검사는 꾸러미의 내용을 검사한 것이 아니다.
 
 ★ 서버 스모크와 화면 점검은 **임시 자료 폴더**(PID_DATA_DIR)에서 돈다 — 실 자료(app\\_data)를 건드리지 않는다.
 """
@@ -50,6 +52,20 @@ def git_head() -> str:
         return subprocess.check_output(["git", "rev-parse", "--short", "HEAD"], cwd=ROOT, text=True).strip()
     except (OSError, subprocess.CalledProcessError):
         return ""
+
+
+def git_dirty() -> list[str]:
+    """커밋하지 않은 변경(추적 안 하는 새 파일 포함 · out/ 제외).  git 을 못 부르면 ['(git 을 실행하지 못함)']."""
+    try:
+        txt = subprocess.check_output(["git", "status", "--porcelain", "--untracked-files=normal"], cwd=ROOT, text=True)
+    except (OSError, subprocess.CalledProcessError):
+        return ["(git 을 실행하지 못함)"]
+    out = []
+    for line in txt.splitlines():
+        path = line[3:].split(" -> ")[-1].strip().strip('"')
+        if path and not path.startswith("out/"):
+            out.append(path)
+    return out
 
 
 # ---------------------------------------------------------------- 1. pytest
@@ -220,6 +236,9 @@ def main(argv=None) -> int:
     if "--out" in argv:
         out = Path(argv[argv.index("--out") + 1])
     head = git_head()
+    dirty_files = git_dirty()
+    if dirty_files:
+        _say(f"[주의] 커밋하지 않은 변경 {len(dirty_files)}개 (예: {dirty_files[0]}) — 이 결과로는 꾸러미를 만들 수 없습니다 (커밋 뒤 다시 검사)")
     tmp = Path(tempfile.mkdtemp(prefix="pid-release-"))
     env = dict(os.environ)
     env.update(QUIET_ENV)
@@ -246,7 +265,10 @@ def main(argv=None) -> int:
     finally:
         shutil.rmtree(tmp, ignore_errors=True)
     ok, failures, skipped = judge(steps, strict)
-    res = {"head": head, "ok": ok, "at": dt.datetime.now().isoformat(timespec="seconds"), "strict": strict,
+    for f in git_dirty():                                   # 검사 도중에 고친 것도 (끝에서 한 번 더)
+        if f not in dirty_files:
+            dirty_files.append(f)
+    res = {"head": head, "ok": ok, "dirty": bool(dirty_files), "dirty_files": dirty_files[:20], "at": dt.datetime.now().isoformat(timespec="seconds"), "strict": strict,
            "steps": steps, "skipped": skipped, "failures": failures, "valve_ok": valve_ok}
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(json.dumps(res, ensure_ascii=False, indent=1), encoding="utf-8")

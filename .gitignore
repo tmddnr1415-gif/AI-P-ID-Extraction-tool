@@ -14,6 +14,9 @@ out/viewer/*.png
 
 # Runtime state: uploads, SQLite, generated workbooks.
 app/_data/
+# What `backup_pid_data.bat --restore` set aside (drawings and people's names) -
+# kept on the machine, never committed.
+*_before_restore_*
 
 # Packaging output and the date stamp `build.bat` writes into the build.  The
 # stamp is generated, never committed: a checked-in build date would claim a

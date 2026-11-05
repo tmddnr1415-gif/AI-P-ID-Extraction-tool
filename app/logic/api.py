@@ -35,7 +35,17 @@ def logic_page():
 
 
 _BOOT = store.BOOT                     # hotfix132 — 이 서버가 뜬 시각 (끊긴 '분석 중' 판정의 기준 · store._stale)
-MAX_UPLOAD_MB = int(os.environ.get("LOGIC_MAX_UPLOAD_MB", "300") or 300)   # hotfix132 — 올리는 파일 하나의 상한 (환경변수로 올릴 수 있다)
+def _upload_mb(default: int = 300) -> int:
+    """hotfix132 — 올리는 파일 하나의 상한 (환경변수 LOGIC_MAX_UPLOAD_MB 로 올릴 수 있다).  숫자가 아니면 기본값 — 잘못 적은
+    값 하나에 서버가 import 에서 죽지 않게."""
+    try:
+        v = int(float((os.environ.get("LOGIC_MAX_UPLOAD_MB") or "").strip() or default))
+    except ValueError:
+        return default
+    return v if v > 0 else default
+
+
+MAX_UPLOAD_MB = _upload_mb()
 MAX_UPLOAD = MAX_UPLOAD_MB * 1024 * 1024
 MIN_FREE = 200 * 1024 * 1024           # hotfix132 — 받기 전에 디스크에 이만큼(또는 파일의 3배)은 남아 있어야 한다
 

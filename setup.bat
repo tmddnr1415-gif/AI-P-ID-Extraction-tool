@@ -1,6 +1,6 @@
 @echo off
 rem hotfix132 - first-time setup on a Windows PC.  Double-click once.
-rem   1. finds Python 3.11 (the wheels are cp311)
+rem   1. finds Python 3.11 exactly (the wheels are cp311; 3.12+ is refused)
 rem   2. makes .venv (the project's own Python folder)
 rem   3. installs the packages: offline from wheels\ when that folder is there
 rem      (requirements-win.txt, and requirements-win-dxf.txt from wheels_r55\),
@@ -18,10 +18,10 @@ set BASE=
 py -3.11 -c "import sys" >nul 2>&1
 if not errorlevel 1 set BASE=py -3.11
 if not defined BASE set BASE=python
-%BASE% -c "import sys;sys.exit(0 if sys.version_info>=(3,11) else 1)" >nul 2>&1
+%BASE% -c "import sys;sys.exit(0 if sys.version_info[:2]==(3,11) else 1)" >nul 2>&1
 if errorlevel 1 (
   echo.
-  echo Python 3.11 is required ^(the wheels are cp311^) - see docs\offline_setup_windows.md
+  echo Python 3.11 is required ^(the wheels are cp311 - 3.12 or newer does not work^) - see docs\offline_setup_windows.md
   echo Install Python 3.11 for this user, tick "Add python.exe to PATH", then run setup.bat again.
   pause
   exit /b 1
@@ -32,9 +32,10 @@ if errorlevel 1 ( echo making .venv failed & pause & exit /b 1 )
 
 :have_venv
 set PY=.venv\Scripts\python.exe
-%PY% -c "import sys;sys.exit(0 if sys.version_info>=(3,11) else 1)" >nul 2>&1
+%PY% -c "import sys;sys.exit(0 if sys.version_info[:2]==(3,11) else 1)" >nul 2>&1
 if errorlevel 1 (
-  echo .venv is not Python 3.11 - rename the .venv folder and run setup.bat again.
+  echo .venv is not Python 3.11 ^(Python 3.11 is required^) - delete or rename the .venv folder,
+  echo install Python 3.11 if it is missing, and run setup.bat again.
   pause
   exit /b 1
 )
@@ -60,5 +61,5 @@ echo.
 echo Setup done.  Start the server:  run_lan_service.bat  (company network)
 echo                             or:  start.bat            (this PC only)
 echo Automatic start at logon:        install_autostart_lan.bat
-echo Manual:                          docs\user_manual.md  (or the ? button on any screen)
+echo Manual:                          config\user_manual.md  (or the ? button on any screen)
 pause

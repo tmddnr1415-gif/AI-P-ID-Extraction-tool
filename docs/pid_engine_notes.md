@@ -1,4 +1,4 @@
-<!-- 2026-11-05 README.md 에서 옮겨 온 P&ID 엔진 연구 기록 (내용은 그대로 · 삭제 없음).  설치·사용은 README.md 와 docs/user_manual.md 를 본다. -->
+<!-- 2026-11-05 README.md 에서 옮겨 온 P&ID 엔진 연구 기록 (내용은 그대로 · 삭제 없음).  설치·사용은 README.md 와 config/user_manual.md 를 본다. -->
 
 # P&ID 엔진 기록 — 계기·밸브 리스트 추출 (옛 README)
 

@@ -319,18 +319,44 @@ BACKUP_KEEP = 7          # hotfix132 — 일주일치 (3 → 7)
 LAST_BACKUP: dict = {}
 
 
+def data_tag(folder) -> str:
+    """hotfix132 — 자료 폴더의 짧은 식별 (경로의 해시 6자리).  `PID_BACKUP_DIR` 를 여러 서버(PID_dev · 운영)가 같이
+    써도 서로의 판을 덮거나 지우지 않게 백업 이름에 붙인다.  `spike/backup_data.py` 도 같은 규칙을 쓴다."""
+    import hashlib as _hl
+    try:
+        key = str(Path(folder).expanduser().resolve())
+    except OSError:
+        key = str(folder)
+    return _hl.sha1(key.lower().encode("utf-8")).hexdigest()[:6]
+
+
 def backup_dir(path: Path) -> Path:
     """hotfix132 — 백업 폴더.  `PID_BACKUP_DIR` 가 있으면 그 폴더(다른 드라이브) · 없으면 DB 옆 `backups/`.
     `backups()` 와 `backup_daily()` 가 같은 곳을 보므로 깨진 DB 의 복구 안내도 같은 폴더를 가리킨다."""
-    import os as _os0
-    override = (_os0.environ.get("PID_BACKUP_DIR") or "").strip()
+    override = _backup_override()
     return Path(override).expanduser() if override else Path(path).parent / BACKUP_DIR
 
 
+def _backup_override() -> str:
+    import os as _os0
+    return (_os0.environ.get("PID_BACKUP_DIR") or "").strip()
+
+
+def _backup_stem(path: Path) -> str:
+    """판 이름의 앞부분.  DB 옆 `backups/` 는 그 자료 폴더 전용이라 옛 이름(`app.db.<날짜>.bak`) 그대로,
+    같이 쓸 수 있는 `PID_BACKUP_DIR` 에서는 자료 폴더 식별을 붙인다 (`app.db.<식별>.<날짜>.bak`)."""
+    path = Path(path)
+    return f"{path.name}.{data_tag(path.parent)}" if _backup_override() else path.name
+
+
 def backups(path: Path) -> list:
-    """`backup_daily` 가 떠 둔 판 — 새것부터."""
+    """`backup_daily` 가 떠 둔 판 — 새것부터.  같이 쓰는 폴더에서는 이 자료 폴더의 판만."""
     d = backup_dir(path)
-    return sorted(d.glob(Path(path).name + ".*.bak"), reverse=True) if d.is_dir() else []
+    if not d.is_dir():
+        return []
+    stem = _backup_stem(path)
+    pat = re.compile(re.escape(stem) + r"\.\d{4}-\d{2}-\d{2}\.bak$")
+    return sorted((q for q in d.glob(stem + ".*.bak") if pat.match(q.name)), reverse=True)
 
 
 def _corrupt_message(path: Path, exc) -> str:
@@ -354,7 +380,7 @@ def backup_daily(path: Path, keep: int = BACKUP_KEEP):
         return None
     d = backup_dir(path)
     d.mkdir(parents=True, exist_ok=True)
-    dest = d / f"{path.name}.{time.strftime('%Y-%m-%d')}.bak"
+    dest = d / f"{_backup_stem(path)}.{time.strftime('%Y-%m-%d')}.bak"
     if dest.exists():
         LAST_BACKUP.update(ok=True, path=str(dest), at=time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(dest.stat().st_mtime)))
         LAST_BACKUP.pop("err", None)

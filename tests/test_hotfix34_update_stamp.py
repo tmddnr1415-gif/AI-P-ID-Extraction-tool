@@ -48,8 +48,8 @@ def test_the_version_endpoint_carries_the_stamp_and_the_footer_reads_it():
     # hotfix132 — 다른 PC 에는 이름 · rev · 만든 시각만 (zip 이름 · 커밋 · 브랜치는 진단 zip 에만)
     assert 'out["update"] = version.public_update()' in body
     foot = re.search(r"which build this is.*?\}\)\(\);", JS, re.S).group(0)
-    # hotfix132 — 꼬리줄은 '버전 · 업데이트 날짜' 만 (꾸러미 zip · 커밋 · 브랜치 같은 내부 표기는 화면에 내지 않는다)
-    assert "v.update" in foot and "u.created_at" in foot
+    # hotfix132 — 꼬리줄은 '버전 · 업데이트 번호 · 날짜' 만 (꾸러미 zip · 커밋 · 브랜치 같은 내부 표기는 화면에 내지 않는다)
+    assert "v.update" in foot and "u.created_at" in foot and "u.rev" in foot
     assert "u.zip" not in foot and "base_commit" not in foot and "u.branch" not in foot
 
 

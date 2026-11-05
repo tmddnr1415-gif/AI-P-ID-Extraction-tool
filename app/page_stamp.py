@@ -69,17 +69,30 @@ def _product() -> dict:
         return {}
 
 
+def _rev_text(rev) -> str:
+    """업데이트 번호 — 정수(또는 숫자 글)일 때만.  없거나 이상하면 빈 글 (지어내지 않는다)."""
+    if isinstance(rev, bool):
+        return ""
+    if isinstance(rev, int):
+        return str(rev) if rev > 0 else ""
+    r = str(rev or "").strip()
+    return r if r.isdigit() and int(r) > 0 else ""
+
+
 def version_text() -> str:
-    """hotfix132 — 화면에 보이는 판 한 형식: `버전 1.0.0 · 2026-10-08`.  날짜는 업데이트를 만든 날 → 없으면 프로그램 날짜."""
+    """hotfix132 — 화면에 보이는 판 한 형식: `버전 1.0.0 · 업데이트 132 · 2026-11-05`.
+    업데이트 번호는 `_update.json` 의 rev 가 있을 때만 · 날짜는 업데이트를 만든 날 → 없으면 프로그램 날짜."""
     try:
         from app import version
         v = str(_product().get("version") or "").strip() or str(version.info().get("version") or version.VERSION)
-        d = str((version.update_info() or {}).get("created_at") or "")[:10]
+        u = version.update_info() or {}
+        rev = _rev_text(u.get("rev"))
+        d = str(u.get("created_at") or "")[:10]
         if not d:
             d = str(version.info().get("built_at") or "")[:10]
     except Exception:                                                  # 판을 못 읽으면 적지 않는다
         return ""
-    return f"버전 {v}" + (f" · {d}" if d else "")
+    return f"버전 {v}" + (f" · 업데이트 {rev}" if rev else "") + (f" · {d}" if d else "")
 
 
 def badge_html(text: str | None = None) -> str:

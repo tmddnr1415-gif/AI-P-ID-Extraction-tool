@@ -97,6 +97,19 @@ app.add_middleware(
         "application/x-zip-compressed", "application/octet-stream"))
 
 
+def _env_num(name: str, default: float) -> float:
+    """hotfix132 — 숫자 환경변수.  비었거나 숫자가 아니면(0 이하 포함) 기본값 — 잘못 적은 값 하나에 서버 · 백업 스레드가
+    죽지 않게."""
+    raw = (os.environ.get(name) or "").strip()
+    try:
+        v = float(raw)
+    except ValueError:
+        if raw:
+            print(f"[알림] 환경변수 {name}={raw!r} 은 숫자가 아니라 기본값 {default:g} 을 씁니다.", flush=True)
+        return float(default)
+    return v if v > 0 else float(default)
+
+
 def _mb(n: int) -> int:
     return max(1, int(round(n / 1024 / 1024)))
 
@@ -5316,7 +5329,7 @@ def create_voc(payload: dict, request: Request = None):
 
 def _is_loopback(request) -> bool:
     host = (request.client.host if request is not None and request.client else "") or ""
-    return host in ("127.0.0.1", "::1", "localhost", "testclient")
+    return host in ("127.0.0.1", "::1", "::ffff:127.0.0.1", "localhost", "testclient")   # ::ffff: = `--host ::` 로 띄운 IPv4 루프백
 
 
 def _voc_dir_public(request) -> str:
@@ -5734,7 +5747,9 @@ def offline_shell():
         rel = f.relative_to(STATIC).as_posix()
         if rel in skip or f.suffix not in {".js", ".css", ".html", ".svg", ".png", ".woff2", ".woff", ".ico"}:
             continue
-        if rel.startswith(("books/vendor/", "valve/", "img/teach/", "img/r-", "hmi/")):
+        # hmi/ (92KB · DCS 화면 /dcs 의 필수 셋 hmi.css · hmi.js · hmi_symbols.js) 는 뺀 적이 있으나 다시 담는다 — 없으면
+        # DCS 를 온라인에서 한 번도 안 연 PC 의 절전모드 DCS 가 스타일·스크립트 없이 뜬다.
+        if rel.startswith(("books/vendor/", "valve/", "img/teach/", "img/r-")):
             continue
         urls.append("/static/" + rel)
     return {"urls": urls, "update": (version.update_info() or {}).get("name")}
@@ -5757,14 +5772,14 @@ async def _offline_replay_log(request, call_next):
 
 
 def _manual_text() -> tuple[str, str]:
-    """hotfix132 — 설명서 원문: docs/user_manual.md → README.md → 내장 한 문단 (exe 에는 docs 가 실리지 않을 수 있다)."""
-    for rel in (("docs", "user_manual.md"), ("README.md",)):
-        try:
-            return paths.resource(*rel).read_text(encoding="utf-8"), rel[-1]
-        except OSError:
-            continue
-    return (f"# {PRODUCT['name']} 사용 설명서\n\n설명서 파일(docs/user_manual.md)이 이 서버에 아직 없습니다.  "
-            f"각 화면의 ? 도움말을 눌러 주세요." + (f"\n\n문의: {PRODUCT['support']}" if PRODUCT.get("support") else "")), ""
+    """hotfix132 — 설명서 원문: config/user_manual.md (운영 폴더 업데이트 · exe 모두 config/ 를 싣는다) → 없으면 짧은 안내.
+    README 로 넘어가지 않는다 — 운영 폴더의 README 는 옛 개발 기록일 수 있다."""
+    try:
+        return paths.resource("config", "user_manual.md").read_text(encoding="utf-8"), "user_manual.md"
+    except OSError:
+        pass
+    return (f"# {PRODUCT['name']} 사용 설명서\n\n설명서 파일이 없습니다.  "
+            f"각 화면 오른쪽 위의 ? 도움말을 눌러 주세요." + (f"\n\n문의: {PRODUCT['support']}" if PRODUCT.get("support") else "")), ""
 
 
 _MD_INLINE = re.compile(r"`([^`]+)`|\*\*([^*]+)\*\*|\[([^\]]+)\]\((https?://[^)\s]+|#[^)\s]+|/[^)\s]*)\)")
@@ -5858,9 +5873,9 @@ def _md_to_html(md: str) -> str:
     return "\n".join(out)
 
 
-@app.get("/help/manual", response_class=HTMLResponse, include_in_schema=False)
+@app.api_route("/help/manual", methods=["GET", "HEAD"], response_class=HTMLResponse, include_in_schema=False)
 def help_manual():
-    """hotfix132 — 사용 설명서 화면.  `docs/user_manual.md` 를 간단히 HTML 로 (제목 앵커 `#절이름` 유지) · 공통 셸을 입힌다."""
+    """hotfix132 — 사용 설명서 화면 (GET · HEAD 둘 다 — 셸이 HEAD 로 있는지 묻던 적이 있다).  `config/user_manual.md` 를 간단히 HTML 로 (제목 앵커 `#절이름` 유지) · 공통 셸을 입힌다."""
     md, src = _manual_text()
     body = _md_to_html(md)
     title = f"{PRODUCT['name']} — 사용 설명서"
@@ -5930,7 +5945,7 @@ if _STARTUP_TASKS:
 def _daily_backup(stop: "threading.Event | None" = None, interval: float | None = None) -> None:
     """hotfix132 — 한 시간마다(`PID_BACKUP_EVERY_S` · 기본 3600) 확인해 **하루 한 판** DB 를 떠 둔다 (`db.backup_daily` · 보관 7판 ·
     `PID_BACKUP_DIR` 로 다른 드라이브).  전에는 서버를 켤 때 한 번뿐이라 며칠씩 켜 두면 백업이 없었다.  실패해도 서버는 계속한다."""
-    every = float(os.environ.get("PID_BACKUP_EVERY_S", "3600")) if interval is None else float(interval)
+    every = _env_num("PID_BACKUP_EVERY_S", 3600) if interval is None else float(interval)
     while not (stop is not None and stop.is_set()):
         try:
             made = db.backup_daily(DB_PATH)
@@ -5981,7 +5996,7 @@ def _warm_recent_rows() -> None:
     if os.environ.get("PID_ROWS_WARM", "1") == "0":
         return
     try:
-        time.sleep(float(os.environ.get("PID_ROWS_WARM_DELAY", "3")))
+        time.sleep(_env_num("PID_ROWS_WARM_DELAY", 3))
         jobs = [r["id"] for r in CON.execute(
             "SELECT id FROM job WHERE status='done' ORDER BY created_at DESC LIMIT 3")]
         for job_id in jobs:
