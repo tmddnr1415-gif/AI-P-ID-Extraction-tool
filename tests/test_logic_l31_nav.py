@@ -176,5 +176,5 @@ def test_screen_keeps_sheets_prefetches_neighbours_and_swaps_the_image_after_dec
 
 
 def test_sim_page_switch_resends_the_last_request_state():
-    r = _fn("runSim")
+    r = _fn("runSim_")       # hotfix132 — 본문은 runSim_ (runSim 은 실패를 붉게 알리는 겉싸개)
     assert "pageOnly" in r and "last.state" in r and "last.inputs === inputs" in r

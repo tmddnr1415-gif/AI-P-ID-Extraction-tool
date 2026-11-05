@@ -14,10 +14,14 @@ button:hover, .btn:hover { border-color: var(--blue); }
 .lg-head { height: 48px; display: flex; align-items: center; gap: 10px; padding: 0 14px; background: var(--navy); color: #fff; }
 .lg-head h1 { font-size: 16px; margin: 0 8px 0 0; letter-spacing: .02em; }
 .lg-home { color: #c9d4f2; text-decoration: none; }
+body.pid-shell-on .lg-home { display: none; }   /* hotfix132 — 공통 셸 띠가 있으면 돌아가기는 셸이 맡는다 */
 .lg-head select { max-width: 360px; }
 .lg-head .btn { background: var(--blue); color: #fff; border-color: var(--blue); }
 #samples button { background: #2a3a62; color: #fff; border-color: #3d4f7c; }
 .lg-status { margin-left: auto; color: #c9d4f2; font-size: 12px; }
+/* hotfix132 — 실패는 붉게 (성공 안내와 같은 회색 한 줄로 묻히던 것) */
+.lg-status.err { background: #c2453f; color: #fff; padding: 2px 8px; border-radius: 6px; font-weight: 600; }
+.lg-status.err::before { content: "⚠ "; }
 .lg-main { display: grid; grid-template-columns: 230px 1fr 340px; height: calc(100% - 48px); }
 .lg-sheets { border-right: 1px solid var(--line); background: var(--panel); display: flex; flex-direction: column; min-height: 0; }
 .lg-side-h { padding: 10px 12px 4px; font-weight: 700; }
@@ -346,6 +350,7 @@ button.big { padding: 8px 28px; font-size: 15px; font-weight: 700; }
 .lh-mats .drop { display: block; margin-top: 6px; padding: 14px 8px; text-align: center; border: 1.5px dashed #c5c0b2;
   border-radius: 7px; cursor: pointer; color: var(--soft); background: #fff; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .lh-mats .drop.over { border-color: var(--blue); background: #eef2fb; }
+.lh-mats .drop:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }   /* hotfix132 — 키보드로 왔을 때 보이게 */
 .lh-mats .drop .fn { color: var(--ink); font-weight: 600; }
 .lh-mats .clr { position: absolute; top: 6px; right: 6px; padding: 0 6px; }
 .lh-go { display: flex; align-items: center; justify-content: flex-end; gap: 12px; margin-top: 12px; }

@@ -1,4 +1,5 @@
 /* L36 — 블록 그룹 시험 대시보드.  P&ID 첫 화면 대시보드(hotfix49)와 같은 결: 남색 머리 · 흰 카드 · 큰 숫자. */
+[hidden] { display: none !important; }   /* hotfix132 — 저자 display 가 hidden 속성을 이기던 것 (시운전 화면도 이 파일을 읽는다) */
 :root {
   --navy: #1f2a44; --navy2: #2b3a5f; --ink: #1d2433; --soft: #5b6475; --line: #e3e7ee; --bg: #f3f5f9;
   --pass: #1a8f4c; --fail: #c2453f; --warn: #b07614; --gap: #7b8493; --none: #c7ccd6; --blue: #2f5bd8;
@@ -8,12 +9,14 @@ body { margin: 0; font: 13px/1.45 "Malgun Gothic", "Apple SD Gothic Neo", system
 .gt-head { display: flex; align-items: center; gap: 12px; padding: 10px 18px; background: var(--navy); color: #fff; position: sticky; top: 0; z-index: 5; flex-wrap: wrap; }
 .gt-back { color: #cfd7ea; text-decoration: none; font-size: 12.5px; }
 .gt-back:hover { color: #fff; }
+body.pid-shell-on .gt-back { display: none; }   /* hotfix132 — 공통 셸 띠가 있으면 돌아가기는 셸이 맡는다 */
 .gt-titles { flex: 1; min-width: 220px; }
 .gt-titles h1 { margin: 0; font-size: 18px; color: #fff; }
 .gt-titles p { margin: 1px 0 0; color: #b7c1d9; font-size: 12px; }
 .gt-head select { max-width: 360px; padding: 5px 7px; border-radius: 6px; border: 0; font: inherit; }
 .gt-who { background: #2f3d63; padding: 3px 9px; border-radius: 12px; font-size: 12px; color: #dfe6f7; }
 .gt-who input { background: transparent; border: 0; color: #fff; font: inherit; width: 90px; outline: none; }
+.gt-who input:focus-visible { outline: 2px solid #fff; outline-offset: 2px; border-radius: 6px; }   /* hotfix132 — 키보드로 왔을 때 보이게 */
 .gt-who input::placeholder { color: #9fb0d6; }
 .gt-btn { border: 1px solid transparent; border-radius: 7px; padding: 7px 13px; font: inherit; font-weight: 600; cursor: pointer; text-decoration: none; display: inline-block; }
 .gt-btn.pri { background: var(--blue); color: #fff; }

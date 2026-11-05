@@ -184,12 +184,92 @@ def read_result(d: Path, fast=None) -> dict:
     return res
 
 
+# hotfix132 — 서버가 켜진 시각.  이 시각보다 앞서 시작된 '분석 중' 은 서버가 다시 뜨기 전 것이라 끊긴 것으로 본다
+# (exe 는 분석이 서버 스레드라 서버가 죽으면 분석도 죽는다 · 따로 도는 분석 프로세스는 pid 로 살았는지 본다).
+BOOT = time.time()
+STALE_SEC = 10 * 60             # hotfix132 — status.json 이 이만큼 안 바뀌면 끊긴 것 (분석은 0.5초마다 진행을 쓴다)
+STALE_PID_SEC = 30 * 60         # hotfix132 — 살아 있는 pid 라도 이만큼 조용하면 끊긴 것 (안전망)
+STALE_ERROR = "분석이 중간에 끊겼습니다 (서버가 다시 시작됐거나 분석 프로그램이 멈춤) — 같은 파일로 다시 분석해 주세요"
+
+
+def _alive(pid: int) -> bool:
+    """hotfix132 — 그 pid 의 프로세스가 살아 있나.  Windows 는 os.kill 을 쓰지 않는다 (sig 가 CTRL_* 가 아니면
+    TerminateProcess 가 되어 살아 있는 분석을 죽인다) — OpenProcess 로 물어만 본다."""
+    try:
+        pid = int(pid)
+    except (TypeError, ValueError):
+        return False
+    if pid <= 0:
+        return False
+    if os.name == "nt":
+        try:
+            import ctypes
+            k32 = ctypes.windll.kernel32
+            h = k32.OpenProcess(0x1000, False, pid)          # PROCESS_QUERY_LIMITED_INFORMATION
+            if not h:
+                return False
+            try:
+                code = ctypes.c_ulong()
+                ok = k32.GetExitCodeProcess(h, ctypes.byref(code))
+                return bool(ok) and code.value == 259         # STILL_ACTIVE
+            finally:
+                k32.CloseHandle(h)
+        except Exception:
+            return True                                       # 모르면 살아 있는 것으로 (분석을 함부로 실패로 적지 않는다)
+    try:
+        os.kill(pid, 0)
+        return True
+    except ProcessLookupError:
+        return False
+    except PermissionError:
+        return True
+    except OSError:
+        return False
+
+
+def _stale(st: dict, d: Path) -> bool:
+    """hotfix132 — '분석 중' 인데 실제로는 끊긴 묶음인가.
+    ① 따로 도는 분석 프로세스(pid 가 있고 서버 자신이 아님): 그 프로세스가 없거나 30분 조용하면.
+    ② 그 밖(pid 없음 · exe 스레드): 지금 서버가 뜨기 전에 시작됐거나(boot 가 다름 · 기록이 BOOT 보다 오래됨) 10분 조용하면."""
+    if st.get("state") not in ("queued", "running"):
+        return False
+    try:
+        mtime = (d / "status.json").stat().st_mtime
+    except OSError:
+        return False
+    quiet = time.time() - mtime
+    pid = st.get("pid")
+    if pid and pid != os.getpid() and not paths.frozen():
+        return (not _alive(pid)) or quiet > STALE_PID_SEC
+    boot = st.get("boot")
+    if boot is not None and boot != BOOT:
+        return True
+    if boot is None:
+        ref = st.get("started") or st.get("created") or mtime
+        if ref < BOOT and mtime < BOOT:
+            return True
+    return quiet > STALE_SEC
+
+
+def settle(d: Path, st: dict) -> dict:
+    """hotfix132 — 끊긴 '분석 중' 을 failed 로 적어 돌려준다 (화면이 영원히 기다리지 않게 · 지울 수 있게).  아니면 그대로."""
+    try:
+        if not _stale(st, d):
+            return st
+    except Exception:
+        return st
+    st = {**st, "state": "failed", "error": STALE_ERROR, "stopped_stage": st.get("stage")}
+    write_status(d, st)
+    _LAST_STATUS[str(d)] = st
+    return st
+
+
 def jobs() -> list:
     out = []
     for d in sorted(root().iterdir(), key=lambda p: p.stat().st_mtime, reverse=True):
         if not d.is_dir() or not JOB_RE.match(d.name):
             continue
-        st = read_status(d)
+        st = settle(d, read_status(d))
         out.append({"id": d.name, **{k: st.get(k) for k in ("state", "name", "created", "stage", "done", "total",
                                                              "error", "sheets", "seconds", "project", "materials",
                                                              "pages", "author")}})

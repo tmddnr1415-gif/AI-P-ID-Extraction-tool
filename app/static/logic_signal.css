@@ -8,6 +8,7 @@ body { margin: 0; font: 13px/1.45 "Malgun Gothic", "Apple SD Gothic Neo", system
 .sp-head { display: flex; align-items: center; gap: 12px; padding: 10px 18px; background: var(--navy); color: #fff; flex-wrap: wrap; }
 .sp-back { color: #cfd7ea; text-decoration: none; font-size: 12.5px; }
 .sp-back:hover { color: #fff; }
+body.pid-shell-on .sp-back { display: none; }   /* hotfix132 — 공통 셸 띠가 있으면 돌아가기는 셸이 맡는다 */
 .sp-titles { flex: 1; min-width: 220px; }
 .sp-titles h1 { margin: 0; font-size: 18px; }
 .sp-titles p { margin: 1px 0 0; color: #b7c1d9; font-size: 12px; }
@@ -20,9 +21,9 @@ body { margin: 0; font: 13px/1.45 "Malgun Gothic", "Apple SD Gothic Neo", system
   font: inherit; color: var(--ink); cursor: pointer; }
 .sp-tabs button { display: flex; align-items: center; gap: 8px; }
 .sp-tabs button .nm { min-width: 0; }
-.sym { flex: none; display: inline-flex; align-items: center; justify-content: center; width: 30px; height: 22px; border: 1.5px solid currentColor;
+.sym { flex: none; display: inline-flex; align-items: center; justify-content: center; width: 34px; height: 22px; border: 1.5px solid currentColor;
   border-radius: 3px; font: 600 13px/1 "Cambria Math", "Segoe UI Symbol", Consolas, monospace; background: #fff; color: #33415c; }
-.sym.sm { font-size: 9.5px; letter-spacing: -.02em; }
+.sym.sm { font-size: 10.5px; letter-spacing: -.02em; }
 .sp-tabs button.on .sym { background: #fff; color: var(--blue); border-color: #fff; }
 .sp-title h2 { display: flex; align-items: center; gap: 10px; }
 .sp-title h2 .sym { width: 40px; height: 30px; font-size: 17px; border-width: 2px; }

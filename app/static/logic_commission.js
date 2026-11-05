@@ -11,12 +11,20 @@ const PH_KO = { base: "신호 없음", perm: "조건 넣기", alt: "다른 길",
 function esc(s) {
   return String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 }
+/* hotfix132 — 서버 오류를 사람 말로: 422 의 detail 배열 · 숫자만 남는 상태 · 서버와 연결 안 됨 (네 LOGIC 화면이 같은 꼴) */
+const NET_ERR = "서버와 연결하지 못했습니다 — 서버가 켜져 있는지 확인하고 새로 고침(F5) 하세요";
 async function api(url, opt) {
-  const r = await fetch(url, opt);
+  let r;
+  try { r = await fetch(url, opt); }
+  catch (e) { if (e instanceof TypeError || /fetch/i.test(e && e.message)) throw new Error(NET_ERR); throw e; }
   if (!r.ok) {
-    let m = r.statusText;
-    try { m = (await r.json()).detail || m; } catch (e) {}
-    throw new Error(m);
+    let d = null;
+    try { d = (await r.json()).detail; } catch (e) { /* 글 아닌 응답 */ }
+    let m;
+    if (Array.isArray(d)) m = "보낸 값의 형식이 올바르지 않습니다 (" + d.map((x) => (x && x.msg) || "").filter(Boolean).join(" · ") + ")";
+    else if (typeof d === "string" && d) m = d;
+    else m = "서버 오류 (" + r.status + ")";
+    const err = new Error(m); err.status = r.status; throw err;
   }
   return r.json();
 }
@@ -72,6 +80,7 @@ async function loadJobs() {
     `<option value="${x.id}">${esc(x.name)}${x.project ? " · " + esc(x.project) : ""} · ${x.sheets || ""}장</option>`).join("");
   const want = (location.hash.match(/job=([0-9a-f]{12})/) || [])[1] || (done[0] && done[0].id);
   if (want) { sel.value = want; await openJob(want); }
+  else { const el = $("#empty"); el.hidden = false; el.innerHTML = `아직 분석한 Logic 이 없습니다 — 먼저 <a href="/logic${esc(location.search)}">LOGIC 검토</a>에서 Logic PDF 를 분석하세요.`; }   // hotfix132
 }
 async function openJob(id) {
   C.job = id; C.equip = null; C.steps = null; C.results = null;
@@ -221,7 +230,7 @@ async function runUpto(n, opt) {
 }
 
 /* ------------------------------------------------------------------ 이벤트 */
-$("#job").onchange = (e) => { if (e.target.value) openJob(e.target.value); };
+$("#job").onchange = (e) => { if (e.target.value) openJob(e.target.value).catch((er) => toast(er.message, 6000)); };   // hotfix132 — 실패가 묻히지 않게
 $("#q").oninput = (e) => { C.q = e.target.value; renderTree(); };
 $("#tree").onclick = (e) => {
   const li = e.target.closest("li[data-eq]");
@@ -249,4 +258,4 @@ window.addEventListener("message", (e) => {
 });
 setInterval(renderLink, 2000);
 renderLink();
-loadJobs().catch((e) => toast(e.message, 6000));
+loadJobs().catch((e) => { toast(e.message, 6000); const el = $("#empty"); el.hidden = false; el.textContent = e.message; });   // hotfix132

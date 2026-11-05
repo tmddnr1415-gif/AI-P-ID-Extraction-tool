@@ -9,7 +9,8 @@ from urllib.parse import quote
 
 import hashlib
 import json
-from fastapi import APIRouter, Body, File, Form, HTTPException, UploadFile
+import time
+from fastapi import APIRouter, Body, File, Form, HTTPException, Request, UploadFile
 from fastapi.responses import JSONResponse, Response
 
 from app import page_stamp, paths
@@ -601,15 +602,42 @@ def get_drawing(did: str):
     return d
 
 
+def _ago_ko(t) -> str:
+    """hotfix132 — '3분 전' 꼴 (저장 충돌 안내)."""
+    try:
+        sec = max(0, int(time.time() - float(t or 0)))
+    except (TypeError, ValueError):
+        return "조금 전"
+    if sec < 60:
+        return "방금"
+    if sec < 3600:
+        return f"{sec // 60}분 전"
+    if sec < 86400:
+        return f"{sec // 3600}시간 전"
+    return f"{sec // 86400}일 전"
+
+
 @router.put("/logic/api/drawings/{did}")
-def put_drawing(did: str, body: dict = Body(...)):
+def put_drawing(did: str, request: Request, body: dict = Body(...)):
     _load(did)
     author = _author(body.get("author"))
+    # hotfix132 — base(화면이 연 판) · force 는 바깥 몸통에서만 꺼낸다 (그림 문서에 섞이지 않게).
+    # 절전모드가 되보낸 저장(X-Offline-Replay)은 '서버 값 덮어쓰기' 가 계약이라 force 로 본다.
+    base = body.get("base") if isinstance(body.get("base"), dict) else None
+    force = bool(body.get("force")) or bool(request.headers.get("x-offline-replay"))
     doc = body.get("doc") if isinstance(body.get("doc"), dict) else body
     if doc is not body:                       # L56 — 묶음 칸은 바깥 몸통에 실려 올 수 있다 (화면 `set-make`)
         doc = {**doc, **{k: body[k] for k in ("set", "set_name", "order") if k in body}}
+    else:
+        doc = {k: v for k, v in body.items() if k not in ("base", "force")}
     try:
-        return draw.save(did, doc, author)
+        return draw.save(did, doc, author, base=base, force=force)
+    except draw.Conflict as e:
+        cur = e.current or {}
+        who = cur.get("author") or "다른 사람"
+        return JSONResponse(status_code=409, content={
+            "detail": f"{who} 님이 {_ago_ko(cur.get('updated'))} 이 그림을 저장했습니다 — 새로 고쳐 그 판 위에 다시 그리거나, 내 판으로 덮기를 고르세요",
+            "current": cur})
     except ValueError as e:
         raise HTTPException(400, str(e))
 

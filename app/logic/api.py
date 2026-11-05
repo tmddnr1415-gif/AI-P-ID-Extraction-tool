@@ -34,7 +34,56 @@ def logic_page():
     return page_stamp.page("logic.html")
 
 
+_BOOT = store.BOOT                     # hotfix132 — 이 서버가 뜬 시각 (끊긴 '분석 중' 판정의 기준 · store._stale)
+MAX_UPLOAD_MB = int(os.environ.get("LOGIC_MAX_UPLOAD_MB", "300") or 300)   # hotfix132 — 올리는 파일 하나의 상한 (환경변수로 올릴 수 있다)
+MAX_UPLOAD = MAX_UPLOAD_MB * 1024 * 1024
+MIN_FREE = 200 * 1024 * 1024           # hotfix132 — 받기 전에 디스크에 이만큼(또는 파일의 3배)은 남아 있어야 한다
+
+
+def _ko_error(job: str, err):
+    """hotfix132 — 분석 프로세스가 남긴 파이썬 예외 원문('분석 중 오류: KeyError …')을 사람 말로.  NotLogic 의 한국어 사유
+    ('Logic 표 … 찾지 못했습니다')는 그대로 둔다.  status.json 원문 · trace 는 바꾸지 않는다 (신고 때 서버에서 본다)."""
+    if not err or not isinstance(err, str):
+        return err
+    if "Errno 28" in err or "No space left" in err:
+        return "서버 디스크가 가득 차 분석을 멈췄습니다 — 관리자에게 알려 주세요"
+    if err.startswith("분석 중 오류:"):
+        return f"분석 프로그램에 문제가 생겨 멈췄습니다 (기록 번호 {job}) — 같은 파일로 다시 분석해 보고, 반복되면 번호를 알려 주세요"
+    return err
+
+
+def _copy_limited(src, dst: Path, d: Path):
+    """hotfix132 — 조각 단위로 복사하며 크기를 센다 (UploadFile.size 는 None 일 수 있다).  상한을 넘으면 폴더를 지우고 413."""
+    total = 0
+    with open(dst, "wb") as f:
+        while True:
+            chunk = src.read(1 << 20)
+            if not chunk:
+                break
+            total += len(chunk)
+            if total > MAX_UPLOAD:
+                f.close()
+                shutil.rmtree(d, ignore_errors=True)
+                raise HTTPException(413, f"파일이 너무 큽니다 ({MAX_UPLOAD_MB}MB 까지)")
+            f.write(chunk)
+    return total
+
+
+def _check_free(d: Path, size: int):
+    """hotfix132 — 받기 전에 디스크 여유를 본다 (가득 차면 분석이 'Errno 28' 로 죽고 사유가 영문으로 남던 것)."""
+    try:
+        free = shutil.disk_usage(str(store.root())).free
+    except OSError:
+        return
+    if free < max(MIN_FREE, 3 * int(size or 0)):
+        shutil.rmtree(d, ignore_errors=True)
+        raise HTTPException(507, "서버 디스크 여유가 부족해 받을 수 없습니다 — 관리자에게 알려 주세요")
+
+
 def _start(d: Path):
+    st = store.read_status(d)      # hotfix132 — 어느 서버가 띄운 분석인지 (서버가 다시 뜨면 끊긴 것으로 안다) · 분석 pid 는 run.py 가 적는다
+    st["boot"] = _BOOT
+    store.write_status(d, st)
     if paths.frozen():
         from .run import run
         threading.Thread(target=run, args=(d,), daemon=True).start()
@@ -62,6 +111,8 @@ def list_jobs():
     for j in jobs:
         if j.get("state") in ("queued", "running"):
             j["progress"] = _progress(j, jobs)
+        elif j.get("error"):
+            j["error"] = _ko_error(j["id"], j.get("error"))
     return {"jobs": jobs, "samples": _samples()}
 
 
@@ -197,8 +248,8 @@ async def upload(file: UploadFile | None = File(None), logic: UploadFile | None 
                                          f"{' · '.join(allowed[k])} 파일만 받습니다: {f.filename}")
     name = Path(lg.filename or "logic.pdf").name
     job, d = store.new_job(name)
-    with open(d / "source.pdf", "wb") as f:
-        shutil.copyfileobj(lg.file, f)
+    _check_free(d, getattr(lg, "size", None) or 0)
+    _copy_limited(lg.file, d / "source.pdf", d)
     try:
         _check_pdf(d / "source.pdf")
     except HTTPException:
@@ -211,8 +262,7 @@ async def upload(file: UploadFile | None = File(None), logic: UploadFile | None 
         md = d / "materials"
         md.mkdir(exist_ok=True)
         fn = _safe_file(f.filename)
-        with open(md / f"{k}__{fn}", "wb") as out:
-            shutil.copyfileobj(f.file, out)
+        _copy_limited(f.file, md / f"{k}__{fn}", d)
         mats[k] = fn
     st = store.read_status(d)
     st.update({"project": project, "materials": mats, "author": (author or "").strip()[:60]})
@@ -243,10 +293,12 @@ def _dir(job):
 @router.get("/logic/api/jobs/{job}")
 def job_status(job: str):
     d = _dir(job)
-    st = store.read_status(d)
+    st = store.settle(d, store.read_status(d))
     st.pop("trace", None)
     if st.get("state") in ("queued", "running"):
         st["progress"] = _progress(st)
+    elif st.get("error"):
+        st["error"] = _ko_error(job, st.get("error"))
     return {"id": job, **st}
 
 
@@ -1131,7 +1183,7 @@ def needs(job: str, body: dict = Body(default={})):
 def delete(job: str, author: str = ""):
     """L22 — 첫 화면에서 분석 하나를 지운다 (부서원).  분석 중이면 거절 · 누가 언제 무엇을 지웠는지 남긴다."""
     d = _dir(job)
-    st = store.read_status(d)
+    st = store.settle(d, store.read_status(d))      # hotfix132 — 끊긴 분석은 failed 로 보고 지울 수 있다
     if st.get("state") in ("queued", "running"):
         raise HTTPException(409, "분석 중인 묶음은 지울 수 없습니다 — 끝난 뒤에 지우세요.")
     who = (author or "").strip()[:60]

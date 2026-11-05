@@ -5,9 +5,21 @@ const $ = (s, r) => (r || document).querySelector(s);
 const $$ = (s, r) => Array.from((r || document).querySelectorAll(s));
 const NS = "http://www.w3.org/2000/svg";
 
+/* hotfix132 — 서버 오류를 사람 말로: 422 의 detail 배열 · 숫자만 남는 상태 · 서버와 연결 안 됨 (네 LOGIC 화면이 같은 꼴) */
+const NET_ERR = "서버와 연결하지 못했습니다 — 서버가 켜져 있는지 확인하고 새로 고침(F5) 하세요";
 async function api(url, opt) {
-  const r = await fetch(url, opt);
-  if (!r.ok) { let m = `${r.status}`; try { m = (await r.json()).detail || m; } catch (e) {} throw new Error(m); }
+  let r;
+  try { r = await fetch(url, opt); }
+  catch (e) { if (e instanceof TypeError || /fetch/i.test(e && e.message)) throw new Error(NET_ERR); throw e; }
+  if (!r.ok) {
+    let d = null, extra = null;
+    try { const j = await r.json(); d = j.detail; extra = j; } catch (e) { /* 글 아닌 응답 */ }
+    let m;
+    if (Array.isArray(d)) m = "보낸 값의 형식이 올바르지 않습니다 (" + d.map(x => (x && x.msg) || "").filter(Boolean).join(" · ") + ")";
+    else if (typeof d === "string" && d) m = d;
+    else m = "서버 오류 (" + r.status + ")";
+    const err = new Error(m); err.status = r.status; err.body = extra; throw err;
+  }
   return r.json();
 }
 const post = (u, b) => api(u, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(b || {}) });
@@ -21,6 +33,7 @@ function author() {
 }
 function toast(t, ms) { const el = $("#toast"); el.textContent = t; el.hidden = false; clearTimeout(toast._t); toast._t = setTimeout(() => { el.hidden = true; }, ms || 3200); }
 function status(t) { $("#status").textContent = t || ""; }
+const whoKo = a => (a === "Claude" ? "기본 제공" : (a || ""));   // hotfix132 — 내장 827장의 작성자 표시 (저장 데이터는 그대로)
 const esc = s => String(s == null ? "" : s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 
 const S = {
@@ -1806,7 +1819,8 @@ async function save() {
   const who = author(); if (!who) { toast("이름을 적어 주세요 (머리줄 ✎)."); $("#who").focus(); return; }
   try { localStorage.setItem("pid.author", who); } catch (e) {}
   try {
-    const d = await put(`/logic/api/drawings/${S.id}`, { author: who, doc: docOut() });
+    // hotfix132 — 내가 연 판(saves · updated)을 함께 보낸다 — 그 사이 다른 사람이 저장했으면 서버가 409 로 알려 준다
+    const d = await put(`/logic/api/drawings/${S.id}`, { author: who, doc: docOut(), base: baseOf() });
     S.doc = d; S.dirty = false; $("#save").disabled = true; status(`저장됨 · ${new Date().toLocaleTimeString()} · ${who}`);
     if (S.doc.set) {
       // FROM/TO 자동 잇기 — 이 장이 가리키는 상대 장의 칸을 채운다 (비어 있는 칸만 · 서버가 둘 다 저장)
@@ -1814,7 +1828,32 @@ async function save() {
         if (r.changed && r.changed.length) { toast(`FROM/TO ${r.changed.length}곳을 이었습니다 — ${r.changed.map(c => (c.from ? c.from + " → " : "") + c.sheet + "-" + c.n).slice(0, 4).join(", ")}`); S.doc = await api(`/logic/api/drawings/${S.id}`); } } catch (e) {}
     }
     listItemSaved(S.doc); fillForm(); await loadSet(); render();   // L80 — 저장마다 그림 목록 전체(827장)를 다시 받지 않는다
-  } catch (e) { toast("저장 실패 — " + e.message); }
+  } catch (e) {
+    if (e.status === 409) { await saveConflict(e, who); return; }
+    toast("저장 실패 — " + e.message);
+  }
+}
+/* hotfix132 — 화면이 연 판의 표시 (서버가 충돌을 가리는 기준) */
+function baseOf() { return S.doc ? { saves: S.doc.saves || 0, updated: S.doc.updated } : undefined; }
+/* hotfix132 — 다른 사람이 먼저 저장했다: [새로 고침] 그 판을 다시 받는다 · [내 판으로 덮기] 내 그림을 그대로 저장한다 */
+async function saveConflict(e, who) {
+  const cur = (e.body && e.body.current) || {};
+  const pick = await modal("다른 사람이 먼저 저장했습니다", `<p>${esc(e.message)}</p><div class="dw-form">
+    <label><input type="radio" name="m-pick" value="refresh" checked> <b>새로 고침</b> — 지금 서버에 있는 ${esc(cur.author || "다른 사람")} 님의 판을 다시 받습니다 (내가 고친 것은 사라집니다)</label>
+    <label><input type="radio" name="m-pick" value="force"> <b>내 판으로 덮기</b> — 내 그림을 그대로 저장합니다 (상대가 고친 것은 사라집니다)</label></div>
+    <p class="dw-hint">취소하면 아무것도 바꾸지 않습니다 — 내 그림은 화면에 그대로 남습니다.</p>`,
+    () => (document.querySelector("input[name=m-pick]:checked") || {}).value || "refresh");
+  if (!pick) { toast("저장하지 않았습니다 — 내 그림은 화면에 그대로 있습니다."); return; }
+  if (pick === "force") {
+    try {
+      const d = await put(`/logic/api/drawings/${S.id}`, { author: who, doc: docOut(), base: baseOf(), force: true });
+      S.doc = d; S.dirty = false; $("#save").disabled = true; status(`저장됨 (내 판으로 덮음) · ${new Date().toLocaleTimeString()} · ${who}`);
+      listItemSaved(S.doc); fillForm(); await loadSet(); render();
+    } catch (er) { toast("저장 실패 — " + er.message); }
+  } else {
+    try { S.doc = await fetchDoc(S.id); S.dirty = false; $("#save").disabled = true; fillForm(); await loadSet(); render(); toast("서버의 최신 판을 다시 받았습니다."); }
+    catch (er) { toast("다시 받지 못했습니다 — " + er.message); }
+  }
 }
 function fillForm() {
   const d = S.doc;
@@ -1898,8 +1937,10 @@ async function loadProjects() {
 }
 function modal(title, bodyHtml, onOk) {
   $("#m-title").textContent = title; $("#m-body").innerHTML = bodyHtml; $("#modal").hidden = false;
+  const prev = document.activeElement;                      // hotfix132 — 닫으면 열기 전 자리로 포커스를 돌린다
+  try { ($("#m-body").querySelector("input,select,textarea,button") || $("#modal")).focus(); } catch (e) {}
   return new Promise(res => {
-    const close = v => { $("#modal").hidden = true; res(v); };
+    const close = v => { $("#modal").hidden = true; if (prev && prev.focus && document.contains(prev)) prev.focus(); res(v); };
     $("#m-cancel").onclick = () => close(null);
     $("#m-ok").onclick = async () => { const v = onOk ? await onOk() : true; if (v !== false) close(v); };
     $("#modal").onkeydown = e => { if (e.key === "Escape") close(null); };
@@ -2047,8 +2088,8 @@ async function renderHome() {
     const setRows = Object.entries(sets).sort((a, b) => Math.max(...b[1].map(i => i.updated || 0)) - Math.max(...a[1].map(i => i.updated || 0))).map(([sid, arr]) => {
       const first = arr.slice().sort((a, b) => (a.order || 0) - (b.order || 0))[0], typ = arr.filter(i => i.typical).length;
       const lu = arr.reduce((a, b) => (b.updated || 0) > (a.updated || 0) ? b : a, arr[0]);
-      return `<li class="hm-set" data-open="${first.id}"><span class="hm-ic">▤</span><b>${esc(first.set_name || "묶음")}</b><span class="hm-chip">${arr.length}장</span>${typ ? `<span class="hm-chip t">Typical ${typ}</span>` : ""}<em>${fmtTime(lu.updated)} · ${esc(lu.author || "")}</em><span class="hm-go">열기 →</span><button type="button" class="hm-del" data-delset="${esc(sid)}" data-p="${esc(name)}" title="이 묶음 ${arr.length}장을 지웁니다">✕</button></li>`; }).join("");
-    const looseRows = loose.slice(0, S.homeAll && S.homeAll[name] ? loose.length : 12).map(it => `<li data-open="${it.id}"><span class="hm-ic">▢</span><b>${esc(it.name)}</b>${it.sheet_no ? `<span class="hm-chip">${esc(it.sheet_no)}</span>` : ""}<span class="hm-chip">블록 ${it.blocks}</span><em>${fmtTime(it.updated)} · ${esc(it.author || "")}</em><span class="hm-go">열기 →</span><button type="button" class="hm-del" data-deldoc="${it.id}" title="이 그림을 지웁니다">✕</button></li>`).join("") +
+      return `<li class="hm-set" data-open="${first.id}"><span class="hm-ic">▤</span><b>${esc(first.set_name || "묶음")}</b><span class="hm-chip">${arr.length}장</span>${typ ? `<span class="hm-chip t">Typical ${typ}</span>` : ""}<em>${fmtTime(lu.updated)} · ${esc(whoKo(lu.author))}</em><span class="hm-go">열기 →</span><button type="button" class="hm-del" data-delset="${esc(sid)}" data-p="${esc(name)}" title="이 묶음 ${arr.length}장을 지웁니다">✕</button></li>`; }).join("");
+    const looseRows = loose.slice(0, S.homeAll && S.homeAll[name] ? loose.length : 12).map(it => `<li data-open="${it.id}"><span class="hm-ic">▢</span><b>${esc(it.name)}</b>${it.sheet_no ? `<span class="hm-chip">${esc(it.sheet_no)}</span>` : ""}<span class="hm-chip">블록 ${it.blocks}</span><em>${fmtTime(it.updated)} · ${esc(whoKo(it.author))}</em><span class="hm-go">열기 →</span><button type="button" class="hm-del" data-deldoc="${it.id}" title="이 그림을 지웁니다">✕</button></li>`).join("") +
       (loose.length > 12 && !(S.homeAll && S.homeAll[name]) ? `<li class="hm-more" data-more="${esc(name)}">그림 ${loose.length - 12}개 더 보기 ▾</li>` : "");
     const body = setRows || looseRows ? `<ul>${setRows}${looseRows}</ul>` : `<p class="dw-hint">아직 그림이 없습니다 — 위 ① 에서 이 프로젝트를 고르고 ② 에서 시작하세요.</p>`;
     return `<div class="hm-proj${name === sel.value ? " on" : ""}" data-p="${esc(name)}"><div class="hm-ph"><span class="hm-av">${esc((name || "?").slice(0, 1))}</span>
@@ -2056,11 +2097,11 @@ async function renderHome() {
       <button type="button" class="hm-pdel" data-delproj="${esc(name)}" title="${its.length ? `이 프로젝트의 그림 ${its.length}장을 지웁니다` : "이 프로젝트를 목록에서 뺍니다"}">🗑 ${name ? "프로젝트 삭제" : "모두 삭제"}</button></div>${body}</div>`;
   };
   $("#h-projects").innerHTML = order.map(pcard).join("") +
-    (lib.length ? `<div class="hm-proj hm-lib"><div class="hm-ph"><span class="hm-av">▣</span><div><b>공통 Typical 사전 — 꺼내 고친 그림</b><small>모든 프로젝트가 함께 씀 · ${lib.length}장</small></div></div><ul>${lib.slice(0, 8).map(it => `<li data-open="${it.id}"><span class="hm-ic">▣</span><b>${esc(it.title || it.name)}</b><span class="hm-chip">${esc(it.sheet_no || "")}</span><em>${fmtTime(it.updated)} · ${esc(it.author || "")}</em><span class="hm-go">열기 →</span></li>`).join("")}</ul></div>` : "")
+    (lib.length ? `<div class="hm-proj hm-lib"><div class="hm-ph"><span class="hm-av">▣</span><div><b>공통 Typical 사전 — 꺼내 고친 그림</b><small>모든 프로젝트가 함께 씀 · ${lib.length}장</small></div></div><ul>${lib.slice(0, 8).map(it => `<li data-open="${it.id}"><span class="hm-ic">▣</span><b>${esc(it.title || it.name)}</b><span class="hm-chip">${esc(it.sheet_no || "")}</span><em>${fmtTime(it.updated)} · ${esc(whoKo(it.author))}</em><span class="hm-go">열기 →</span></li>`).join("")}</ul></div>` : "")
     || `<p class="dw-hint">저장된 프로젝트가 없습니다.</p>`;
   $("#h-psum").textContent = `프로젝트 ${names.length} · 그림 ${items.length - lib.length}`;
   const recent = items.filter(i => i.set !== TYP_SET).slice(0, 14);
-  $("#h-recent").innerHTML = recent.length ? `<ul>${recent.map(it => `<li data-open="${it.id}"><b>${esc(it.sheet_no || it.name)}</b><span>${esc(it.title || it.name)}</span><em>${esc(it.project || "프로젝트 없음")}${it.set_name ? " · " + esc(it.set_name) : ""} · ${fmtTime(it.updated)} · ${esc(it.author || "")}</em></li>`).join("")}</ul>` : `<p class="dw-hint">아직 그린 그림이 없습니다.</p>`;
+  $("#h-recent").innerHTML = recent.length ? `<ul>${recent.map(it => `<li data-open="${it.id}"><b>${esc(it.sheet_no || it.name)}</b><span>${esc(it.title || it.name)}</span><em>${esc(it.project || "프로젝트 없음")}${it.set_name ? " · " + esc(it.set_name) : ""} · ${fmtTime(it.updated)} · ${esc(whoKo(it.author))}</em></li>`).join("")}</ul>` : `<p class="dw-hint">아직 그린 그림이 없습니다.</p>`;
   $$("#home [data-open]").forEach(li => li.onclick = e => { if (e.target.closest(".hm-del")) return; openDoc(li.dataset.open); });
   $$("#home [data-delproj]").forEach(b => b.onclick = e => { e.stopPropagation(); purgeAsk(b.dataset.delproj, ""); });
   $$("#home [data-delset]").forEach(b => b.onclick = e => { e.stopPropagation(); purgeAsk(b.dataset.p, b.dataset.delset); });
@@ -2074,7 +2115,7 @@ async function purgeAsk(project, set) {
   const what = set ? `묶음 <b>${esc(pv.confirm)}</b>` : `프로젝트 <b>${esc(project || "프로젝트 없음")}</b>`;
   const keepNote = !set && project && pv.ledger ? (pv.review_jobs ? `<li>LOGIC 검토의 분석 ${pv.review_jobs}개는 <b>남습니다</b> — 그래서 프로젝트 이름도 검토 화면에 남습니다.</li>` : `<li>프로젝트 이름도 목록에서 뺍니다.</li>`) : "";
   const v = await modal(set ? "묶음 지우기" : "프로젝트 지우기", `<p>${what} 의 그림 <b>${pv.drawings}장</b>${pv.sets ? ` (묶음 ${pv.sets})` : ""} 을 지웁니다.</p>
-    <ul class="dw-hint">${pv.edited ? `<li>사람이 고쳐 저장한 그림 ${pv.edited}장이 들어 있습니다.</li>` : ""}${pv.authors.length ? `<li>그린 사람: ${esc(pv.authors.join(", "))}</li>` : ""}${keepNote}<li>공통 Typical 사전은 지우지 않습니다 · 지운 기록(누가 · 언제)은 남습니다.</li></ul>
+    <ul class="dw-hint">${pv.edited ? `<li>사람이 고쳐 저장한 그림 ${pv.edited}장이 들어 있습니다.</li>` : ""}${pv.authors.length ? `<li>그린 사람: ${esc(pv.authors.map(whoKo).join(", "))}</li>` : ""}${keepNote}<li>공통 Typical 사전은 지우지 않습니다 · 지운 기록(누가 · 언제)은 남습니다.</li></ul>
     <div class="dw-form"><label>확인 — <b>${esc(pv.confirm)}</b> 을(를) 그대로 적으세요 <input id="m-purge" autocomplete="off"></label><label>지운 사람 <input id="m-who" value="${esc(author())}"></label></div>`,
     () => { const c = $("#m-purge").value.trim(), w = $("#m-who").value.trim();
       if (c !== pv.confirm) { toast(`확인 칸에 '${pv.confirm}' 을(를) 그대로 적어 주세요.`); return false; }
@@ -2125,7 +2166,7 @@ const TYP_SET = "7e7e00000063";
 async function showTypicals() {
   let r; try { r = await api("/logic/api/drawings/typicals"); } catch (e) { toast(e.message); return; }
   S.typList = r.items;
-  const st = it => it.origin === "user" ? `<span class="t-user">고침 · ${esc((it.edited || {}).author || "")} ${esc(((it.edited || {}).at || "").slice(0, 10))}</span>` : it.origin === "seed" ? `<span class="t-seed">기본</span>` : `<span class="t-learn">분석에서 배움</span>`;
+  const st = it => it.origin === "user" ? `<span class="t-user">고침 · ${esc(whoKo((it.edited || {}).author))} ${esc(((it.edited || {}).at || "").slice(0, 10))}</span>` : it.origin === "seed" ? `<span class="t-seed">기본</span>` : `<span class="t-learn">분석에서 배움</span>`;
   const body = `<p class="dw-hint">모든 프로젝트가 함께 씁니다 — 기본 ${r.seed}개는 처음부터 들어 있고, 고치면 다음 분석부터 모든 프로젝트에 반영됩니다.</p>
     <input id="typ-q" placeholder="찾기 (MOV · SOV · GROUP …)" class="dw-typq">
     <div class="dw-typtable"><table><thead><tr><th>시트</th><th>제목</th><th>설명</th><th>출처</th><th>입력→출력</th><th>상태</th><th></th></tr></thead><tbody>${r.items.map((it, i) =>
@@ -2359,7 +2400,7 @@ async function addMacro(m, px, py) {
   if (typ.startsWith("lib:") && !S.doc.set) {
     // 묶음에 들지 않은 그림 — 매크로의 내부 동작(Typical)이 같은 묶음에 있어야 시뮬레이션 · 되읽기가 잇는다 → 이 그림을 묶음으로 만든다
     const sid = crypto.randomUUID().replace(/-/g, "").slice(0, 12); S.doc.set = sid; S.doc.set_name = S.doc.name;
-    try { await put(`/logic/api/drawings/${S.id}`, { author: author() || "?", doc: docOut(), set: sid, set_name: S.doc.name }); await loadList(S.id); S.doc = await api(`/logic/api/drawings/${S.id}`); await loadSet(); }
+    try { await put(`/logic/api/drawings/${S.id}`, { author: author() || "?", doc: docOut(), set: sid, set_name: S.doc.name, base: baseOf() }); await loadList(S.id); S.doc = await api(`/logic/api/drawings/${S.id}`); await loadSet(); }
     catch (e) { toast(e.message); return; }
   }
   if (typ.startsWith("lib:") && S.doc.set) {
@@ -2875,6 +2916,10 @@ async function init() {
   for (const id of ["#name", "#f-sheet", "#f-title", "#f-doc", "#f-project", "#f-pname", "#f-rev"]) $(id).oninput = () => { if (!S.doc) return; S.doc.sheet_no = $("#f-sheet").value.trim(); S.doc.title = $("#f-title").value.trim(); S.doc.doc_no = $("#f-doc").value.trim(); S.doc.project_name = $("#f-pname").value.trim(); S.doc.rev = $("#f-rev").value.trim(); markDirty(); render(); };
   $("#f-project").onchange = () => { if (!S.doc) { loadInst(); return; } S.doc.project = $("#f-project").value; markDirty(); loadInst().then(render); };
   $("#inst-file").onchange = e => { const f = e.target.files[0]; e.target.value = ""; if (f) uploadInst(f); };
+  for (const lb of document.querySelectorAll(".dw-filebtn")) {   // hotfix132 — Tab 으로 가서 Enter · Space 로 파일 선택창을 연다
+    lb.tabIndex = 0; lb.setAttribute("role", "button");
+    lb.onkeydown = e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); const inp = lb.querySelector("input[type=file]"); if (inp) inp.click(); } };
+  }
   $("#f-form").onchange = () => { if (!S.doc) return; S.doc.form = $("#f-form").value; markDirty(); render(); };
   $("#f-rows").onchange = () => { if (!S.doc) return; const n = Math.max(45, Math.min(62, +$("#f-rows").value || 50)); $("#f-rows").value = n; pushUndo(); S.doc.N = n; markDirty(); render(); };
   window.addEventListener("beforeunload", e => { if (S.dirty) { e.preventDefault(); e.returnValue = ""; } });

@@ -13,10 +13,11 @@
   <h1>LOGIC 검토</h1>
   <button id="to-home" class="lg-tohome" title="프로젝트 · 자료 넣기 · 분석 이력 첫 화면으로">⌂ 첫 화면</button>
   <a id="to-draw" class="lg-tohome lg-draw" href="/logic/draw" title="LOGIC 작도 — 같은 양식으로 로직 시트를 그린다 (하위 메뉴)">✎ 작도</a>
-  <a id="to-signal" class="lg-tohome lg-draw" href="/logic/signal" target="_blank" title="신호 처리 시뮬레이션 — 연산자(∑ · ÷ · √ · 선택 · Lag · 리미터 …)에 값을 넣어 계산 과정과 시간 응답을 본다 (새 창)">∿ 신호 처리</a>
+  <a id="to-signal" class="lg-tohome lg-draw" href="/logic/signal" title="신호 처리 시뮬레이션 — 연산자(∑ · ÷ · √ · 선택 · Lag · 리미터 …)에 값을 넣어 계산 과정과 시간 응답을 본다">∿ 신호 처리</a>
+  <a id="to-test" class="lg-tohome lg-draw" href="/logic/test" title="블록 시험 — 장비 하나씩 기동·정지 신호를 넣어 로직이 맞게 동작하는지 본다">☑ 블록 시험</a>
   <select id="job" title="분석한 Logic 묶음"></select>
   <span id="samples"></span>
-  <input id="goto" class="lg-goto" placeholder="G049-40 로 이동" title="시트-행 (예: G049-40) 을 적고 Enter — 그 시트의 그 행으로 갑니다" disabled>
+  <input id="goto" class="lg-goto" placeholder="시트-행으로 이동 (예: G049-40)" title="시트-행 (예: G049-40) 을 적고 Enter — 그 시트의 그 행으로 갑니다" disabled>
   <button id="ft-report" class="btn lg-report" hidden title="From-To 가 정확하게 맞대어졌는지 — 신호를 주기 전에 먼저 봅니다">From-To 보고</button>
   <button id="rv-btn" class="btn lg-report lg-rv" hidden title="툴이 끝낸 정합성 검토 한 장 — 설계 오류 · 설계 확인 · 읽기 빈틈">📋 정합성 검토</button>
   <a id="from-draw" class="btn lg-report" href="#" hidden title="이 묶음은 LOGIC 작도에서 그려 올린 것 — 그 그림으로 돌아가 고친 뒤 다시 올립니다">✎ 이 그림으로</a>
@@ -33,7 +34,7 @@
   <div class="lh-intake">
     <div class="lh-card lh-where">
       <h3><span class="num">1</span> 어디에 넣을지</h3>
-      <div class="lh-row"><label>프로젝트</label>
+      <div class="lh-row"><label for="lh-project">프로젝트</label>
         <select id="lh-project"><option value="">(고르세요)</option></select>
         <button id="lh-newproj" class="mini">새 프로젝트</button></div>
       <div id="lh-newbox" class="lh-row" hidden>

@@ -90,8 +90,8 @@ function drawTabs() {
 }
 function numRow(name, key, v, lo, hi, step, extra = "") {
   return `<div class="sp-row" data-k="${esc(key)}"><div class="nm">${name}</div>
-    <input type="number" step="any" data-num="${esc(key)}" value="${v == null ? "" : v}">
-    <input type="range" data-rng="${esc(key)}" min="${lo}" max="${hi}" step="${step}" value="${v == null ? lo : v}">
+    <input type="number" step="any" data-num="${esc(key)}" value="${v == null ? "" : v}" aria-label="${esc(String(name).replace(/<[^>]*>/g, ""))} 값">
+    <input type="range" data-rng="${esc(key)}" min="${lo}" max="${hi}" step="${step}" value="${v == null ? lo : v}" aria-label="${esc(String(name).replace(/<[^>]*>/g, ""))} 슬라이더">
     <div class="ex">${extra}</div></div>`;
 }
 function drawInputs() {
@@ -115,7 +115,7 @@ function drawInputs() {
     }
     const [lo, hi] = rng(i.value);
     let ex = "";
-    if (c.coef) ex += `계수 <input type="number" step="any" data-coef="${k}" value="${i.coef == null ? "" : i.coef}" placeholder="1">`;
+    if (c.coef) ex += `계수 <input type="number" step="any" data-coef="${k}" value="${i.coef == null ? "" : i.coef}" placeholder="1" aria-label="${esc(String(nm).replace(/<[^>]*>/g, ""))} 계수">`;
     if (c.ins === "multi" && S.inputs.length > 2) ex += `<button class="x" data-del="${k}" title="이 입력 빼기">✕</button>`;
     h += numRow(nm, "in" + k, i.value, lo, hi, 0.1, ex).replace(/<\/div>$/, from + "</div>");
   });

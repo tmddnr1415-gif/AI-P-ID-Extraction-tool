@@ -634,13 +634,34 @@ def save_new(doc: dict) -> dict:
     return doc
 
 
+class Conflict(Exception):
+    """hotfix132 — 내가 연 뒤에 다른 사람이 먼저 저장했다.  `current` 에 지금 서버의 판(작성자 · 시각 · 저장 횟수)."""
+
+    def __init__(self, current: dict):
+        super().__init__("conflict")
+        self.current = current
+
+
+def _differs(base: dict, cur: dict) -> bool:
+    """hotfix132 — 화면이 연 판(base: saves · updated)과 서버 판이 다른가.  정수 saves 가 주 기준 (updated 는 float 왕복 오차)."""
+    try:
+        if int(base.get("saves") or 0) != int(cur.get("saves") or 0):
+            return True
+        return abs(float(base.get("updated") or 0) - float(cur.get("updated") or 0)) > 1e-3
+    except (TypeError, ValueError):
+        return True
+
+
 @jsonstore.serialized
-def save(did: str, body: dict, author: str) -> dict:
-    """그림을 덮어쓴다 — 앞 판의 요약은 history 에 남는다 (지우지 않는다 · P&ID 메모 규율)."""
+def save(did: str, body: dict, author: str, base: dict | None = None, force: bool = False) -> dict:
+    """그림을 덮어쓴다 — 앞 판의 요약은 history 에 남는다 (지우지 않는다 · P&ID 메모 규율).
+    hotfix132 — base(화면이 연 판의 saves · updated)가 있고 force 가 아니면 잠금 안에서 서버 판과 견주어 다르면 Conflict."""
     author = _txt(author, 60)
     if not author:
         raise ValueError("작성자가 필요합니다.")
     cur = load(did)
+    if isinstance(base, dict) and not force and _differs(base, cur):
+        raise Conflict({"author": cur.get("author"), "updated": cur.get("updated"), "saves": cur.get("saves")})
     nd = clean(body)
     cur["history"] = (cur.get("history") or [])[-199:] + [{
         "author": cur.get("author", ""), "time": cur.get("updated"), "saves": cur.get("saves", 0),

@@ -24,12 +24,20 @@ const NEED_MS = 520;        // 점등 한 번의 길이
 function esc(s) {
   return String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 }
+/* hotfix132 — 서버 오류를 사람 말로: 422 의 detail 배열 · 숫자만 남는 상태 · 서버와 연결 안 됨 (네 LOGIC 화면이 같은 꼴) */
+const NET_ERR = "서버와 연결하지 못했습니다 — 서버가 켜져 있는지 확인하고 새로 고침(F5) 하세요";
 async function api(url, opt) {
-  const r = await fetch(url, opt);
+  let r;
+  try { r = await fetch(url, opt); }
+  catch (e) { if (e instanceof TypeError || /fetch/i.test(e && e.message)) throw new Error(NET_ERR); throw e; }
   if (!r.ok) {
-    let m = r.statusText;
-    try { m = (await r.json()).detail || m; } catch (e) { /* 글 아닌 응답 */ }
-    throw new Error(m);
+    let d = null;
+    try { d = (await r.json()).detail; } catch (e) { /* 글 아닌 응답 */ }
+    let m;
+    if (Array.isArray(d)) m = "보낸 값의 형식이 올바르지 않습니다 (" + d.map((x) => (x && x.msg) || "").filter(Boolean).join(" · ") + ")";
+    else if (typeof d === "string" && d) m = d;
+    else m = "서버 오류 (" + r.status + ")";
+    const err = new Error(m); err.status = r.status; throw err;
   }
   return r.status === 204 ? null : r.json();
 }
@@ -40,7 +48,19 @@ function el(tag, attrs, parent) {
   if (parent) parent.appendChild(e);
   return e;
 }
-function status(t) { $("#status").textContent = t || ""; }
+/* hotfix132 — kind 가 "err" 면 붉게(⚠) 8초 또는 다음 안내까지 · 공통 셸이 있으면 토스트도 띄운다.  다음 status() 가 붉은 칠을 지운다 */
+function status(t, kind) {
+  const s = $("#status");
+  s.textContent = t || "";
+  s.classList.toggle("err", kind === "err");
+  clearTimeout(status._t);
+  if (kind === "err") {
+    const mine = s.textContent;
+    status._t = setTimeout(() => { if (s.textContent === mine) { s.textContent = ""; s.classList.remove("err"); } }, 8000);
+    const SH = window.PID_SHELL;
+    if (SH && SH.toast) try { SH.toast(t, { kind: "err" }); } catch (e) { /* 셸 없이도 띠가 말한다 */ }
+  }
+}
 
 const FUNC_KO = {
   AND: "AND 게이트", NAND: "NAND 게이트", OR: "OR 게이트", NOR: "NOR 게이트", NOT: "NOT (반전)",
@@ -98,7 +118,7 @@ async function openDcsWindow() {
   const project = await dcsProjectOf(L.job);
   let r;
   try { r = await api(`/dcs/api/for_project?name=${encodeURIComponent(project)}`); }
-  catch (e) { status(`P&ID 그래픽을 찾지 못했습니다 — ${e.message}`); return; }
+  catch (e) { status(`P&ID 그래픽을 찾지 못했습니다 — ${e.message}`, "err"); return; }
   let pick = r.match;
   if (!pick) {
     if (!(r.candidates || []).length) {
@@ -212,7 +232,7 @@ function dcsGo(d) {
 function popReview() {
   if (!L.job) return;
   const w = window.open(`/logic${location.search}#job=${L.job}&pane=review`, `logic-review-${L.job}`, "width=1400,height=950");
-  if (!w) { status("새 창을 열지 못했습니다 — 브라우저의 팝업 차단을 풀어 주세요"); return; }
+  if (!w) { status("새 창을 열지 못했습니다 — 브라우저의 팝업 차단을 풀어 주세요", "err"); return; }
   WINS.review = w; $("#rv-modal").hidden = true;
   status("검토 결과를 새 창으로 열었습니다 — 항목을 누르면 이 창이 그 자리로 갑니다");
 }
@@ -246,7 +266,7 @@ async function fromOtherWindow(d) {
   if (d.type === "review-go") {
     if (!RV.data) await loadReview(L.job);
     const it = RV.data && RV.data.items.find((x) => x.id === Number(d.id));
-    if (it) goReview(it); else status(`검토 항목 ${d.id} 를 찾지 못했습니다 — 검토를 다시 모았을 수 있습니다`);
+    if (it) goReview(it); else status(`검토 항목 ${d.id} 를 찾지 못했습니다 — 검토를 다시 모았을 수 있습니다`, "err");
   } else if (d.type === "goto") goLoc(Number(d.page), Number(d.row) || 0, d.side, d.key || "");
   else applyHashTest(L.job, d.equip, Number(d.chk) || 0);
 }
@@ -271,7 +291,8 @@ async function loadJobs(select) {
       : `분석 중 ${(x.progress && x.progress.percent) || 0}%`;
     sel.insertAdjacentHTML("beforeend", `<option value="${x.id}">${esc(x.name)} · ${st}</option>`);
   }
-  $("#samples").innerHTML = j.samples.map((n) => `<button data-sample="${esc(n)}" title="data/logic 의 샘플을 분석합니다">샘플: ${esc(n.replace(/\.pdf$/i, ""))}</button>`).join(" ");
+  const DEV = /[?&]dev=1(&|$)/.test(location.search);      // hotfix132 — 연습용 샘플 단추는 ?dev=1 일 때만 (부서원 화면에는 안 보인다)
+  $("#samples").innerHTML = DEV ? j.samples.map((n) => `<button data-sample="${esc(n)}" title="내장 예제 Logic 을 분석합니다 (연습용)">샘플: ${esc(n.replace(/\.pdf$/i, ""))}</button>`).join(" ") : "";
   sel.insertAdjacentHTML("afterbegin", `<option value="">— 묶음 고르기 —</option>`);
   L.jobsList = j.jobs;
   // 주소에 묶음이 있거나 방금 올린 묶음이면 그것을 열고, 아니면 첫 화면 (P&ID 와 같은 꼴 · L14)
@@ -312,7 +333,7 @@ async function loadHome() {
   if (HOME.projects.some((x) => x.name === cur)) sel.value = cur;
   renderMaterials(); renderHomeLists(); updateGo();
   api("/logic/api/library").then((lb) => {
-    $("#lh-library").innerHTML = `학습 사전 — Signal Processing 기호 <b>${lb.symbols}</b>개 · 그림 기호 ${lb.figures}개 · MACRO Typical <b>${lb.typicals}</b>개`
+    $("#lh-library").innerHTML = `기호 사전 — 신호 처리 기호 <b>${lb.symbols}</b>개 · 그림 기호 ${lb.figures}개 · 표준 상세(Typical) <b>${lb.typicals}</b>개`
       + (lb.user_symbols ? ` (사람이 가르친 기호 ${lb.user_symbols}개)` : "")
       + `.  새 프로젝트 Logic 은 그 묶음의 범례가 먼저이고, 범례가 말하지 않은 기호 · 없는 Typical 은 이 사전으로 읽습니다.`;
   }).catch(() => {});
@@ -326,7 +347,7 @@ function renderMaterials() {
     return `<li data-kind="${m.kind}" class="${f ? "has" : ""}">
       <div class="mh"><b>${esc(m.label)}</b> ${m.required ? `<span class="req">필수</span>` : `<span class="opt">선택</span>`}
         <small>${m.ext.join(" · ")}</small></div>
-      <label class="drop">${f ? `<span class="fn">📄 ${esc(f.name)}</span> <small>${(f.size / 1048576).toFixed(1)} MB</small>`
+      <label class="drop" tabindex="0" role="button">${f ? `<span class="fn">📄 ${esc(f.name)}</span> <small>${(f.size / 1048576).toFixed(1)} MB</small>`
         : `여기에 놓거나 <u>파일 선택</u>`}<input type="file" accept="${m.ext.join(",")}" hidden></label>
       ${f ? `<button class="mini clr" title="빼기">✕</button>` : ""}</li>`;
   }).join("");
@@ -336,6 +357,7 @@ function renderMaterials() {
     const drop = li.querySelector(".drop");
     drop.ondragover = (e) => { e.preventDefault(); drop.classList.add("over"); };
     drop.ondragleave = () => drop.classList.remove("over");
+    drop.onkeydown = (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); inp.click(); } };   // hotfix132 — Tab 으로 가서 Enter 로 파일 선택
     drop.ondrop = (e) => { e.preventDefault(); drop.classList.remove("over"); const f = e.dataTransfer.files[0]; if (f) setMaterial(kind, f); };
     const c = li.querySelector(".clr");
     if (c) c.onclick = () => { delete HOME.files[kind]; renderMaterials(); updateGo(); };
@@ -344,7 +366,8 @@ function renderMaterials() {
 function setMaterial(kind, f) {
   const m = HOME.materials.find((x) => x.kind === kind);
   const ext = (f.name.match(/\.[^.]+$/) || [""])[0].toLowerCase();
-  if (m && !m.ext.includes(ext)) { status(`${m.label} 는 ${m.ext.join(" · ")} 파일만 받습니다`); return; }
+  if (m && !m.ext.includes(ext)) { status(`${m.label} 는 ${m.ext.join(" · ")} 파일만 받습니다`, "err"); return; }
+  if (f.size > 300 * 1048576) { status("파일이 너무 큽니다 (300MB 까지)", "err"); return; }      // hotfix132 — 서버 상한과 같은 말
   HOME.files[kind] = f; renderMaterials(); updateGo();
 }
 function updateGo() {
@@ -364,7 +387,7 @@ async function analyseHome() {
     const r = await api("/logic/api/jobs", { method: "POST", body: fd });
     HOME.files = {};
     await loadJobs(r.id);
-  } catch (err) { status("올리기 실패 — " + err.message); updateGo(); }
+  } catch (err) { status("올리기 실패 — " + err.message, "err"); updateGo(); }
 }
 function fmtDate(t) {
   if (!t) return "";
@@ -420,7 +443,7 @@ function bindHome() {
       $("#lh-project").value = p.name;
       await loadHome(); $("#lh-project").value = p.name; updateGo();
       status(`프로젝트 '${p.name}' 를 만들었습니다 — 실행 프로젝트`);
-    } catch (err) { status("만들지 못했습니다 — " + err.message); }
+    } catch (err) { status("만들지 못했습니다 — " + err.message, "err"); }
   };
   $("#lh-create").onclick = create;
   $("#lh-newname").onkeydown = (e) => { if (e.key === "Enter" && !e.isComposing) create(); };
@@ -457,14 +480,14 @@ async function deleteJob(id) {
     await api(`/logic/api/jobs/${id}?author=${encodeURIComponent(who)}`, { method: "DELETE" });
     status(`'${x.name || id}' 를 지웠습니다 (${who})`);
     if (L.job === id) L.job = null;
-  } catch (err) { status("지우지 못했습니다 — " + err.message); }
+  } catch (err) { status("지우지 못했습니다 — " + err.message, "err"); }
   loadHome();
 }
 /* 프로젝트 하나와 그 분석 전부를 지운다 — 함께 지워질 것을 먼저 보이고, 이름을 옮겨 적어야 지운다 */
 async function deleteProject(name) {
   let pv;
   try { pv = await api(`/logic/api/projects/${encodeURIComponent(name)}/delete_preview`); }
-  catch (err) { status("지우지 못했습니다 — " + err.message); return; }
+  catch (err) { status("지우지 못했습니다 — " + err.message, "err"); return; }
   if (pv.running.length) {
     await askModal({ title: "프로젝트 삭제", ok: "확인", cancel: false,
       html: `<p><b>'${esc(name)}'</b> 에 분석 중인 묶음이 ${pv.running.length}건 있습니다 — 끝난 뒤에 지우세요.</p>` });
@@ -487,7 +510,7 @@ async function deleteProject(name) {
     status(`프로젝트 '${name}' 와 분석 ${r.jobs}건을 지웠습니다 (${who})`);
     try { if (localStorage.getItem("logic.project") === name) localStorage.removeItem("logic.project"); } catch (e) {}
     if ($("#lh-project").value === name) $("#lh-project").value = "";
-  } catch (err) { status("지우지 못했습니다 — " + err.message); }
+  } catch (err) { status("지우지 못했습니다 — " + err.message, "err"); }
   loadHome();
 }
 /* 누가 정했는지 남긴다 — 대시보드 로그인 · 기억된 이름, 없으면 한 번 묻는다 */
@@ -551,7 +574,7 @@ async function openJob(id) {
   await loadTimers();
   const st = await api(`/logic/api/jobs/${id}`);
   if (st.state !== "done") {
-    if (st.state === "failed") { renderProgress(st); status(`분석 실패 — ${st.error || ""}`); return; }
+    if (st.state === "failed") { renderProgress(st); status(`분석 실패 — ${st.error || ""}`, "err"); return; }
     renderProgress(st);
     status("");
     setTimeout(() => L.job === id && openJob(id), 1200);
@@ -636,7 +659,7 @@ async function goLoc(page, row, side, key) {
 /* L36 — 블록 그룹 시험 대시보드에서 '도면에서 보기' 로 왔을 때: 그 시험 항목의 신호를 그대로 주고 흐름을 그린다 */
 async function applyHashTest(id, equip, chk) {
   try { await applyHashTest_(id, equip, chk); }
-  catch (e) { console.error(e); status(`시험 신호를 그리지 못했습니다 — ${e.message} (${whereErr(e)})`); }
+  catch (e) { console.error(e); status(`시험 신호를 그리지 못했습니다 — ${e.message} (${whereErr(e)})`, "err"); }
 }
 /* L42 — 화면 오류가 어디서 났는지 한 마디 (다음 신고 때 바로 찾게) */
 function whereErr(e) {
@@ -798,7 +821,7 @@ async function rvSetMark(it, verdict) {
     renderReview();
     if (PANE_REVIEW) tellLogic({ type: "review-marks", job: L.job });
     else if (WINS.review && !WINS.review.closed) WINS.review.postMessage({ type: "review-marks", job: L.job }, location.origin);
-  } catch (e) { status("판단을 저장하지 못했습니다 — " + e.message); }
+  } catch (e) { status("판단을 저장하지 못했습니다 — " + e.message, "err"); }
 }
 function renderReview() {
   const r = RV.data;
@@ -1610,7 +1633,7 @@ async function setTimer(bid, sec) {
   const p = L.page;
   try {
     await post(`/logic/api/jobs/${L.job}/overrides/timer`, { page: p, block: bid, sec, author: who });
-  } catch (err) { status("시간을 저장하지 못했습니다 — " + err.message); return; }
+  } catch (err) { status("시간을 저장하지 못했습니다 — " + err.message, "err"); return; }
   L.timers[p] = L.timers[p] || {};
   if (sec == null) delete L.timers[p][bid]; else L.timers[p][bid] = sec;
   if (!Object.keys(L.timers[p]).length) delete L.timers[p];
@@ -1914,7 +1937,7 @@ async function saveRange(m, key) {
   if (!who) { status("이름이 없어 범위를 저장하지 않았습니다"); return false; }
   try {
     await post(`/logic/api/jobs/${L.job}/overrides/range`, { page: L.page, key, lo: want.lo, hi: want.hi, unit: want.unit, author: who });
-  } catch (err) { status("범위를 저장하지 못했습니다 — " + err.message); return false; }
+  } catch (err) { status("범위를 저장하지 못했습니다 — " + err.message, "err"); return false; }
   const ent = { lo: want.lo, hi: want.hi, unit: want.unit, by: who };
   if (key.startsWith("row:")) { const r = L.sheet.rows.find((x) => x.side === "L" && x.n === Number(key.slice(4))); if (r) r.range_user = ent; }
   else { const b = L.sheet.blocks[key.slice(6)]; b.param = b.param || {}; b.param.range_user = ent; }
@@ -1940,7 +1963,7 @@ async function postSetpoint(bid, sp) {
   if (!who) { status("이름이 없어 설정값을 저장하지 않았습니다"); return false; }
   try {
     await post(`/logic/api/jobs/${L.job}/overrides/setpoint`, { page: L.page, block: bid, sp, author: who });
-  } catch (err) { status("설정값을 저장하지 못했습니다 — " + err.message); return false; }
+  } catch (err) { status("설정값을 저장하지 못했습니다 — " + err.message, "err"); return false; }
   const b = L.sheet.blocks[bid];
   b.param = b.param || {};
   if (sp == null) { delete b.param.sp_user; delete b.param.sp_user_by; }
@@ -2254,7 +2277,7 @@ async function saveAparam(bid, params) {
   if (!who) { status("이름이 없어 저장하지 않았습니다"); return false; }
   try {
     await post(`/logic/api/jobs/${L.job}/overrides/aparam`, { page: L.page, block: bid, params, author: who });
-  } catch (err) { status("저장하지 못했습니다 — " + err.message); return false; }
+  } catch (err) { status("저장하지 못했습니다 — " + err.message, "err"); return false; }
   status(params ? `연산자 ${bid} 값을 저장했습니다 (${who}) — 다시 분석해도 남습니다` : `연산자 ${bid} — 도면 값으로 되돌렸습니다`);
   await refreshSheet();
   return true;
@@ -2383,6 +2406,11 @@ async function traceFrom(start, up) {
 /* ------------------------------------------------------------------ 동작 시뮬레이션 */
 
 async function runSim(animate, pageOnly) {
+  // hotfix132 — 계산이 실패하면(서버 꺼짐 · 500) 조용히 묻히지 않고 붉은 안내로 말한다 · 지난 입력 캐시는 버린다
+  try { return await runSim_(animate, pageOnly); }
+  catch (e) { console.error(e); L.lastSim = null; status("시뮬레이션을 계산하지 못했습니다 — " + e.message, "err"); }
+}
+async function runSim_(animate, pageOnly) {
   if (macroLinked()) { askParentMacro(); return; }   // L44 — 매크로 새 창의 값은 부모 시트의 묶음 계산이 정한다
   if (!L.sheet || L.sheet.page !== L.page) return;   // L43 — 장을 받는 중(시트와 쪽이 아직 다름)에는 돌리지 않는다 — 받은 뒤 openSheet 가 돌린다
   const askSheet = L.sheet;
@@ -2867,7 +2895,7 @@ async function runScenario(key) {
   status("동작 예시를 찾는 중…");
   let r;
   try { r = await post(`/logic/api/jobs/${L.job}/sheet/${L.page}/scenario`, { target: key }); }
-  catch (e) { status("동작 예시를 찾지 못했습니다 — " + e.message); return; }
+  catch (e) { status("동작 예시를 찾지 못했습니다 — " + e.message, "err"); return; }
   if (!r.ok) { status("⚠ " + (r.why || "이 출력까지 가는 입력 조합을 찾지 못했습니다")); L.scenario = { key, ok: false, why: r.why }; renderInfo(); return; }
   if (L.mode !== "sim") setMode("sim", true);
   const f = {};
@@ -3053,7 +3081,7 @@ function openMacro(bid) {
   const key = `${L.page}:${bid}`;
   const w = window.open(url, `macro-${L.job}-${key}`, "width=1500,height=950");
   if (w) L.childWins[key] = { win: w, page: L.page, bid };
-  else status("새 창을 열지 못했습니다 — 브라우저의 팝업 차단을 풀어 주세요");
+  else status("새 창을 열지 못했습니다 — 브라우저의 팝업 차단을 풀어 주세요", "err");
 }
 function sendMacroInputs() {
   for (const [key, c] of Object.entries(L.childWins)) {
@@ -3082,11 +3110,11 @@ window.addEventListener("message", (e) => {
         await openJob(e.data.job);
       }
       await applyCommission(e.data);
-    })().catch((er) => { console.error(er); status(`시운전 단계를 그리지 못했습니다 — ${er.message} (${whereErr(er)})`); });
+    })().catch((er) => { console.error(er); status(`시운전 단계를 그리지 못했습니다 — ${er.message} (${whereErr(er)})`, "err"); });
     return;
   }
   if (["review-go", "review-on", "review-marks", "grouptest-apply", "goto"].includes(e.data.type)) {
-    fromOtherWindow(e.data).catch((er) => { console.error(er); status(`다른 창에서 온 신호를 그리지 못했습니다 — ${er.message} (${whereErr(er)})`); });
+    fromOtherWindow(e.data).catch((er) => { console.error(er); status(`다른 창에서 온 신호를 그리지 못했습니다 — ${er.message} (${whereErr(er)})`, "err"); });
     return;
   }
   if (e.data.type !== "macro-inputs" || !MACRO_FROM) return;
@@ -3379,7 +3407,7 @@ async function saveGate(bid, choice, param, same) {
     const n = (r.set || []).length;
     status(choice ? `${n}개 블록을 ${choiceLabel(choice)} 로 정했습니다 (${who})` + (r.learned ? " · 학습 사전에 남겼습니다 — 다른 프로젝트의 같은 모양도 이 기준으로 읽습니다" : "")
       : `블록 ${bid} 를 도면 판정으로 되돌렸습니다`);
-  } catch (err) { status("저장하지 못했습니다 — " + err.message); return; }
+  } catch (err) { status("저장하지 못했습니다 — " + err.message, "err"); return; }
   await refreshSheet();
 }
 function cellEditor(t, e) {
@@ -3416,7 +3444,7 @@ async function saveCell(side, n, value) {
     const what = side === "L" ? "FM" : "TO";
     status(value == null ? `${n}행 ${what} 을 도면 글자로 되돌렸습니다`
       : `${n}행 ${what} = ${value} (${who})` + (f ? (f.ok === false ? ` — ✕ 아직 맞지 않습니다: ${(f.why || []).join(" · ")}` : f.ok ? " — ✓ 연결이 맞습니다" : "") : " — 시트-행 꼴이 아니라 잇지 못했습니다"));
-  } catch (err) { status("저장하지 못했습니다 — " + err.message); return; }
+  } catch (err) { status("저장하지 못했습니다 — " + err.message, "err"); return; }
   await refreshSheet();
 }
 /* 사람이 정한 값이 바뀌면 지금 장 · 장 목록 · 묶음 점검을 다시 받는다 (확대 · 위치는 그대로) */
@@ -5267,7 +5295,7 @@ async function saveMemo() {
       const m = await post(`/logic/api/jobs/${L.job}/memo`, { page: L.sheet.page, sheet_no: L.sheet.sheet_no, text, author, at: L.pendingAt });
       L.memos.push(m);
     }
-  } catch (err) { status("메모 저장 실패 — " + err.message); return; }
+  } catch (err) { status("메모 저장 실패 — " + err.message, "err"); return; }
   $("#memo-text").value = "";
   L.memoEdit = null; L.pendingAt = null; setPinMode(false);
   drawPins(); renderMemo(); renderSheetList();
@@ -5284,7 +5312,7 @@ async function memoAction(id, act) {
   try {
     const u = await api(`/logic/api/jobs/${L.job}/memo/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
     L.memos = L.memos.map((x) => (x.id === id ? u : x));
-  } catch (err) { status("메모 고치기 실패 — " + err.message); return; }
+  } catch (err) { status("메모 고치기 실패 — " + err.message, "err"); return; }
   drawPins(); renderMemo(); renderSheetList();
 }
 /* 메모 ↔ 핀.  fromList: 목록에서 눌렀으면 도면을 그 자리로, 핀에서 눌렀으면 목록을 그 메모로 */
@@ -5403,7 +5431,7 @@ function pinForm(at, opts, e) {
       drawPins(); renderMemo(); renderSheetList();
       status("메모를 저장했습니다");
       selectMemo(m.id, false);
-    } catch (err) { status("메모 저장 실패 — " + err.message); }
+    } catch (err) { status("메모 저장 실패 — " + err.message, "err"); }
   };
   f.addEventListener("keydown", (ev) => {
     if (ev.key === "Enter" && (ev.ctrlKey || ev.metaKey)) { ev.preventDefault(); save(); }
@@ -5585,7 +5613,7 @@ function markDialog(rect, e, preset) {
           + (mk && mk.n ? ` — ${mk.n}행` : "") + (mk && mk.made_row ? " (표에 없던 행을 만들었습니다)" : "")
           + (f ? (f.ok === false ? ` — ✕ 아직 맞지 않습니다: ${(f.why || []).join(" · ")}` : f.ok ? " — ✓ 연결이 맞습니다" : "") : ""));
       }
-    } catch (err) { status("저장하지 못했습니다 — " + err.message); return; }
+    } catch (err) { status("저장하지 못했습니다 — " + err.message, "err"); return; }
     setMarkMode(false);
     await refreshSheet();
     loadIdrate();
@@ -5840,7 +5868,7 @@ async function teachPost(body, msg) {
     await loadTeach(TEACH.job);
     if (L.sheet && TEACH.data && TEACH.data.final) { await refreshSheet(); loadIdrate(); }
     return r;
-  } catch (err) { status("저장하지 못했습니다 — " + err.message); return null; }
+  } catch (err) { status("저장하지 못했습니다 — " + err.message, "err"); return null; }
   finally { TEACH.busy = false; }
 }
 function teachLook(q) {
@@ -5860,7 +5888,7 @@ async function teachRegion(rect) {
     const p = await post(`/logic/api/jobs/${TEACH.job}/teach/preview`, { kind: d.kind, page: L.sheet.page, rect });
     TEACH.preview = { qid: d.qid, kind: d.kind, page: L.sheet.page, rect, data: p };
     status("");
-  } catch (err) { status("읽지 못했습니다 — " + err.message); }
+  } catch (err) { status("읽지 못했습니다 — " + err.message, "err"); }
   L.markDraft = null; drawMarks();
   $("#teach").hidden = false;
   renderTeach();
@@ -5997,7 +6025,7 @@ function bind() {
     const n = e.target.dataset.sample;
     if (!n) return;
     try { const r = await post("/logic/api/jobs/sample", { name: n }); await loadJobs(r.id); }
-    catch (err) { status("샘플 실패 — " + err.message); }
+    catch (err) { status("샘플 실패 — " + err.message, "err"); }
   };
   $("#mode").onclick = (e) => {
     const m = e.target.dataset.mode;
@@ -6086,8 +6114,14 @@ initPan();
 renderHelp();
 /* L51 — 기능 책(범례 동작 한 줄)은 어느 길로 열려도 한 번 받는다 (첫 화면을 거치지 않고 주소로 묶음을 열어도) */
 api("/logic/api/functions").then((fb) => { L.funcBook = fb || {}; }).catch(() => { L.funcBook = {}; });
-if (PANE_REVIEW) startReviewPane().catch((e) => status(e.message));
-else loadJobs().catch((e) => { console.error(e); status(`화면 오류 — ${e.message} (${whereErr(e)})`); });
+if (PANE_REVIEW) startReviewPane().catch((e) => status(e.message, "err"));
+else loadJobs().catch((e) => {                 // hotfix132 — 첫 화면을 못 불러오면(서버 꺼짐) 가운데에 크게 말한다 · 위치는 콘솔에만
+  console.error(e, whereErr(e));
+  const el = $("#empty"); if (el) { el.hidden = false; el.textContent = e.message; }
+  status(e.message, "err");
+});
+/* hotfix132 — 어디서도 잡지 못한 실패(약속이 거부됨)는 적어도 붉은 띠로 보인다 */
+window.addEventListener("unhandledrejection", (e) => { const r = e.reason; status("오류 — " + ((r && r.message) || r), "err"); });
 
 /* ======================================================================================================
  * hotfix108 — 절전모드 (공용 `offline.js`).  이 화면은 셋만 댄다 — 보관한 쓰기의 임시 응답(사람이 정한 값 · 메모 · 검토 판단) ·

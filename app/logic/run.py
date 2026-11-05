@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 import sys
 import time
 import traceback
@@ -49,7 +50,7 @@ def _final(d: Path, st: dict):
 def run(d: Path):
     from app.logic import analyse, store
     st = store.read_status(d)
-    st.update({"state": "running", "started": time.time()})
+    st.update({"state": "running", "started": time.time(), "pid": os.getpid()})   # hotfix132 — 서버가 살았는지 물어볼 pid
     _note(d, st)
     last = [0.0]
 

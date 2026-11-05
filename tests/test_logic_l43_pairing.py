@@ -22,7 +22,7 @@ def test_overlay_waits_for_its_own_picture():
 
 
 def test_sim_skips_while_sheet_and_page_differ():
-    f = _fn("runSim")
+    f = _fn("runSim_")       # hotfix132 — 본문은 runSim_ (runSim 은 실패를 붉게 알리는 겉싸개)
     assert "L.sheet.page !== L.page" in f
     assert "L.sheet !== askSheet" in f
 
