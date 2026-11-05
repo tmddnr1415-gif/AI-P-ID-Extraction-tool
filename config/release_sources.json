@@ -11,7 +11,7 @@
       "paths": [
         "dashboard/apps/space"
       ],
-      "imported": "0943667",
+      "imported": "68c402c6",
       "_설명": "판넬 화면은 병합이 아니라 dashboard/apps/space → app/static/space 로 옮겨 온다. 옮겨 온 마지막 커밋을 imported 에 적는다."
     }
   },
