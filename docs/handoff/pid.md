@@ -1,24 +1,27 @@
 # 인수인계 — "2. PID 검토" 세션 (상한 15KB · 덧붙이지 말고 고쳐 쓴다)
 
-## 지금 상태 (2026-10-31 · hotfix131)
+## 지금 상태 (2026-11-05 · hotfix132 — 상용 제품 수준 개선 회차)
 
-- 작업 브랜치: `claude/gracious-ride-26nqrf` (앱 목록 "2. PID 검토 4 (NEW)").  바뀌면 `docs/handoff/branches.md` · `config/release_sources.json` 같이 고침.
-- LOGIC 은 새 세션 "3. Logic 검토코드 4 (NEW)" 의 `ccr-cc45909d-fjjmrb` (L83~L85).  `logic-symbol-visualization-sim` 은 은퇴.
-- 마지막 꾸러미: **hotfix131** — LOGIC L83~L85 병합 · 판넬 0943667(3D 사람 움직임) 옮겨 옴 (imported 갱신).
-  판넬은 `git diff 0869426 0943667 -- dashboard/apps/space/index.html` 을 경로만 바꿔 `app/static/space/index.html` 에 apply
-  — P&ID 서버용 고침(+84/−31)이 그대로 남는다.  다음에도 이 방법 (`imported` → 원본 최신 사이 diff 를 apply).
-- ⚠ 병합에서 고친 것: L85 `graph.py` 의 "같은 줄 앞 토막과 겹쳐 끝난 끝은 접합 아님" 이 실선에도 걸려
-  옛 LOGIC L71 퍼징(`tests/test_logic_l71_wire_fuzz.py`, PID 브랜치에만 있음) 3~4건 실패 → **파선에만** 적용.
-  L85 자기 시험(파선 막대 입력)은 그대로 통과.  19VA 실도면 수치(입력 없는 게이트 76→15)는 PDF 가 없어 여기서 못 잼 —
-  LOGIC 세션에 알려 다시 재 보게 할 것.
-- 시험: 전부 통과 (1,828).  브라우저로 LOGIC 4화면 · 판넬 2D/3D 오류 0.
-- 저장소의 `app/_update.json` 은 옛 값(hotfix54) — 꾸러미 안의 것만 새 번호다.
-- **다음 꾸러미 번호: hotfix132**
+- 작업 브랜치: `claude/gracious-ride-26nqrf` (앱 목록 "2. PID 검토 4 (NEW)").  VALVE 라인(valve34)까지 병합됨 — Valve 경로는 꾸러미에 안 실림(company_owned).
+- 판넬: `imported` = 68c402c6 (프로젝트 카드 🗑).  옮기는 법은 이전과 같다 (원본 diff 를 경로만 바꿔 apply).
+- **hotfix132 에서 새로 생긴 것 — 다음 세션이 알아야 할 자리**
+  - 공통 셸 `app/static/shell.{js,css}` — `app/page_stamp.py` 한 곳에서 모든 화면(P&ID `/` 포함 · Valve 제외)에 주입. `?embed=1` 이면 띠 숨김.
+    `window.PID_SHELL`(user/setUser=`pid.author` · toast · confirm · help · version) · 띠가 그려지면 `body.pid-shell-on`.
+  - 제품 이름·버전·문의처는 `config/product.json` 한 곳. 화면 버전 글 `버전 1.0.0 · 업데이트 N · 날짜`(N = _update.json rev).
+  - 사용 설명서 `config/user_manual.md` → `/help/manual` (운영 업데이트에도 실림). 출시 점검 `docs/release_checklist.md`.
+  - **꾸러미 전에 `python3 spike/release_check.py` 필수** — pack_delta 가 `out/release_check.json`(ok · dirty=false · head) 없으면 멈춤.
+  - 백업·복구 `spike/backup_data.py` + `backup_pid_data.bat`(기본 운영 자료) · DB 하루 한 판 자동 백업(`PID_BACKUP_DIR`).
+  - 시험은 `PID_STARTUP_TASKS=0`(conftest) — 기동 감사·백업 루프·씨앗 스레드 안 띄움.
+- 감사 결과·남은 일: 62개 백로그 중 48개 반영. 다음 회차 후보(사용자 결정 필요): 로그인/권한(대시보드 토큰) · P&ID·LOGIC 휴지통 ·
+  /plaza 제거 여부 · Valve 화면 띠 · LOGIC 분석 취소 · 작도/신호/시운전에 offline.js(쓰기 규칙은 이미 넣음) · 설명서 P&ID 결과 캡처 2장(회사 PC).
+- 회사 PC 에서만 확인 가능: `spike/regression_3p.py` 기준선 · `release_check.py --strict` · 대시보드 안 띠(LOGIC·작도를 embed 없이 열면 띠가 보임).
+- **다음 꾸러미 번호: hotfix133**
 
 ## 최근 hotfix 한 줄 요약 (자세한 것은 `docs/history/pid_log.md` · 옛것은 archive 를 grep)
 
 | hotfix | 내용 |
 | --- | --- |
+| 132 | 상용 수준 개선 — 공통 셸·제품 이름 · P&ID/LOGIC 오류 안내 · 서버 보안·백업 · 설명서 · 운영 도구 · 판넬 카드 삭제 |
 | 131 | LOGIC L83~L85 (19VA 들여온 그림 = 검토 화면 값 · 파선 입력 · 작성 가볍게) · 판넬 3D 사람 움직임 |
 | 130 | LOGIC L79~L82 (Logic 작성 첫 화면 · Typical 팔레트 · 작성 시뮬레이션 23초→0.3초 · 엇갈림≠연결) |
 | 129 | LOGIC·DCS 화면 주소 딱지 · 오른쪽 아래 업데이트 이름 · 서비스워커가 옛 화면을 내주지 않게 |
