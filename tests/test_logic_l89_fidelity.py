@@ -119,3 +119,20 @@ def test_no_page_keeps_rule_based_pin_texts():
     doc = draw.from_sheet(s, "S1", "t")
     mon = next(b for b in doc["blocks"] if b["id"] == "B1")
     assert (mon.get("param") or {}).get("above") == "HH : 145degC"
+
+
+def test_source_notes_from_numbered_lines_below_table():
+    """원본 표 아래 NOTE — 번호 줄이 새 노트 · 이어 쓴 줄은 앞 노트에 · 테두리 구역 글자(A)와 타이틀블록 글은 아니다 (19VA CC01_G505)."""
+    s = _sheet()
+    yb = draw.TOP + 59 * draw.PITCH
+    pdf, pg = _src_page([(74.0, yb + 14, "1. DCS STANDARD RUNTIME SHALL BE APPLIED"),
+                         (74.0, yb + 22, "2. EQUAL FUNCTION :"), (80.0, yb + 30, "OUTPUT ENERGIZED WHEN IN1 = IN2"),
+                         (22.0, yb + 30, "A"), (961.0, yb + 30, "CCW FFC START SELECTION")])
+    s["table"].append({"side": "L", "n": 59, "y0": yb - draw.PITCH, "y1": yb})
+    assert draw.source_notes(pg, s) == ["DCS STANDARD RUNTIME SHALL BE APPLIED", "EQUAL FUNCTION : OUTPUT ENERGIZED WHEN IN1 = IN2"]
+    doc = draw.from_sheet(s, "S1", "t", page=pg)
+    assert doc["notes"][:2] == ["DCS STANDARD RUNTIME SHALL BE APPLIED", "EQUAL FUNCTION : OUTPUT ENERGIZED WHEN IN1 = IN2"]
+    pdf.close()
+    pdf, pg = _src_page([(74.0, yb + 14, "SOME TEXT WITHOUT NUMBER")])
+    assert draw.source_notes(pg, s) == []                         # 번호 줄이 없으면 노트를 지어내지 않는다
+    pdf.close()

@@ -239,7 +239,7 @@ def coverage(src, dst, tol):
     return cov, tot
 
 
-def words_of(page, X=None, Y=None, inside=()):
+def words_of(page, X=None, Y=None, inside=(), N=None):
     """LOGIC 영역의 낱말 (글 · 가운데).  inside = 기호 상자들 — 그 안의 글은 뺀다 (그림 자리)."""
     out = []
     for w in page.get_text("words"):
@@ -248,7 +248,7 @@ def words_of(page, X=None, Y=None, inside=()):
             cx, cy = X(cx), Y(cy)
         if any(bb[0] - 0.5 <= cx <= bb[2] + 0.5 and bb[1] - 0.5 <= cy <= bb[3] + 0.5 for bb in inside):
             continue
-        if L["LX0"] + 0.5 <= cx <= L["LX1"] - 0.5 and L["TOP"] <= cy <= L["TOP"] + 64 * P and norm(w[4]):
+        if L["LX0"] + 0.5 <= cx <= L["LX1"] - 0.5 and L["TOP"] <= cy <= L["TOP"] + (N or draw.N_DEFAULT) * P and norm(w[4]):
             out.append((norm(w[4]), cx, cy))
     return out
 
@@ -316,7 +316,7 @@ def one(i):
                     continue
                 g = draw.block_geometry(b)
                 dbox.append(g["box"] or ([g["circle"][0] - g["circle"][2], g["circle"][1] - g["circle"][2], g["circle"][0] + g["circle"][2], g["circle"][1] + g["circle"][2]] if g.get("circle") else [b["x"], b["y"], b["x"] + b["w"], b["y"] + b["h"]]))
-            sw, dw = words_of(spage, M["X"], M["Y"], inside=sbox), words_of(dpage, inside=dbox)
+            sw, dw = words_of(spage, M["X"], M["Y"], inside=sbox, N=M["N"]), words_of(dpage, inside=dbox, N=M["N"])   # LOGIC 영역 = 선과 같은 사각형
             out["W"] = [word_match(sw, dw), len(sw), len(dw)]
         from app.logic import draw_sim
         s3 = draw_sim.to_sheet({**doc, "id": "fid"}, 1)

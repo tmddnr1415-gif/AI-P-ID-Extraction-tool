@@ -1854,6 +1854,40 @@ def source_texts(page, s: dict, M: dict, doc: dict) -> list:
     return out
 
 
+def source_notes(page, s: dict) -> list:
+    """L89 — 원본 쪽 표 아래 NOTE 글 → 그림의 장 노트 (번호는 NOTES 상자가 매긴다).
+    표 맨 아래에서 7행 안 · 줄이 LOGIC 영역 왼쪽(표의 FROM · TAG 칸 아래)에서 시작하는 글 줄.  '1.' 처럼 번호로 시작하는 줄이 새 노트이고
+    번호 없는 줄은 앞 노트에 잇는다 (두 줄로 적은 노트).  번호로 시작하는 줄이 하나도 없으면 없다 — 노트를 지어내지 않는다.
+    ('NOTE :' 머리 글은 19VA 처럼 글이 아닌 그림이기도 해 기준으로 쓰지 않는다 · 타이틀블록은 오른쪽이라 줄 시작이 LOGIC 영역 안이다.)"""
+    table = s.get("table") or []
+    lg = s.get("logic") or [LX0, TOP, LX1, TOP + N_DEFAULT * PITCH]
+    pitch = s.get("pitch") or PITCH
+    ybot = max([r["y1"] for r in table if r.get("y1") is not None] + [lg[3]])
+    lines = {}
+    for w in page.get_text("words"):
+        if ybot + 0.5 < w[1] < ybot + 7 * pitch:
+            lines.setdefault((w[5], w[6]), []).append(w)
+    notes, started = [], False
+    for ws in sorted(lines.values(), key=lambda ws: (min(w[1] for w in ws), min(w[0] for w in ws))):
+        ws.sort(key=lambda w: w[0])
+        if ws[0][0] >= lg[0]:
+            continue
+        cut = next((k for k in range(1, len(ws)) if ws[k][0] - ws[k - 1][2] > 2 * max(1.0, ws[k - 1][3] - ws[k - 1][1])), len(ws))
+        ws = ws[:cut]                                 # 멀리 떨어진 꼬리(개정 표시 글자 · 타이틀블록)는 노트가 아니다
+        toks = [w[4] for w in ws]
+        while toks and re.fullmatch(r"NOTES?|:|NOTES?:", toks[0].strip().upper()):
+            toks.pop(0)
+        if not toks:
+            continue
+        t = " ".join(toks)
+        m = re.match(r"^\(?(\d{1,2})[.)]\s*(.*)$", t)
+        if m:
+            notes.append(m.group(2).strip()); started = ws[0][0]
+        elif started is not False and ws[0][0] >= started - 1.0:   # 이어 쓴 줄은 번호 자리 오른쪽 (도면 테두리의 구역 글자 A · B 는 아니다)
+            notes[-1] = (notes[-1] + " " + t).strip()
+    return [n[:160] for n in notes if n][:20]
+
+
 def from_sheet(s: dict, name: str, author: str, project: str = "", page=None) -> dict:
     """분석한 시트 하나를 이 양식의 그림으로 — 행 글은 그대로 · 블록은 종류와 자리 · 선은 그물의 선분.
     x 는 LOGIC 영역을 비례로, y 는 행 간격으로 옮긴다 (행 n 이 이 양식의 행 n 에 선다 · sheet_maps)."""
@@ -2127,6 +2161,11 @@ def from_sheet(s: dict, name: str, author: str, project: str = "", page=None) ->
             best.setdefault("marks", []).append([round(mx, 2), round(my, 2), kind])
     # L81 — 분석기가 그 장 NOTE 로 토글이라 읽은 글자 상자(SRST …)는 그 NOTE 문장을 장 노트에 옮긴다.
     #   안 옮기면 다시 그린 장에서 '판정 못 한 블록' 이 되어 시뮬레이션이 그 매크로마다 수십 번 되풀이된다 (19VA 0009).
+    if page is not None:                             # L89 — 원본 표 아래 NOTE 글 (토글 정의 문장도 여기서 온다)
+        try:
+            doc["notes"] = source_notes(page, s)
+        except Exception:
+            pass
     notes = list(doc.get("notes") or [])
     for b in (s.get("blocks") or {}).values():
         if b.get("logic") == "toggle":
