@@ -139,3 +139,8 @@ table.bom td.mat { max-width: 220px; }
 table.bom .sw { display: inline-block; width: 9px; height: 9px; border-radius: 2px; margin-right: 6px; vertical-align: baseline; }
 .parts { min-width: 0; }
 @media (max-width: 900px) { .stage { grid-template-rows: auto 64vh auto; } .hint-bar { white-space: normal; text-align: center; width: 90%; } }
+
+/* realistic style: soft studio backdrop behind a transparent canvas */
+.viewport.real { background: radial-gradient(ellipse at 50% 38%, #fbfbfc 0%, #e6e8eb 55%, #cfd3d8 100%); }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .viewport.real { background: radial-gradient(ellipse at 50% 38%, #3a3f46 0%, #24282d 60%, #15181b 100%); } }
+:root[data-theme="dark"] .viewport.real { background: radial-gradient(ellipse at 50% 38%, #3a3f46 0%, #24282d 60%, #15181b 100%); }

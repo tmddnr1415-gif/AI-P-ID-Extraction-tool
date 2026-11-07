@@ -31,7 +31,44 @@ const Anatomy = (() => {
   const sph = (r, at, scale) => ({ k: 'sph', r, at, ...(scale ? { scale } : {}) });
   const tor = (R0, r, axis, at) => ({ k: 'tor', R: R0, r, axis, at });
   const tube = (a, b, r) => ({ k: 'tube', a, b, r });
+  const lathe = (axis, pts, at = [0, 0, 0]) => ({ k: 'lathe', axis, pts, at });
+  const hex = (axis, r, h, at) => ({ k: 'cyl', axis, r, h, at, seg: 6 });
+  const rbox = (s, at, r = 4, extra = {}) => ({ k: 'rbox', s, at, r, ...extra });
+  const plate = (s, at, face, lines, extra = {}) => ({ k: 'plate', s, at, face, lines, ...extra });
+  const gauge = (axis, r, at, extra = {}) => ({ k: 'gauge', axis, r, at, ...extra });
+  const arrow = (len, w, t, at, face = 'z', dir = 1) => ({ k: 'arrow', len, w, t, at, face, dir });
   const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+  /** smooth quarter-round fillet from (sa, ra) — tangent along the axis — to (sb, rb) — tangent radial */
+  function fil(sa, ra, sb, rb, n = 6) {
+    const out = [];
+    for (let i = 0; i <= n; i++) {
+      const t = i / n * Math.PI / 2;
+      out.push([sa + (sb - sa) * Math.sin(t), ra + (rb - ra) * (1 - Math.cos(t)), i > 0 && i < n ? 1 : 0]);
+    }
+    return out;
+  }
+  /** profile written outward along +u, turned on `axis` pointing `sign` */
+  function turned(axis, sign, prof, at = [0, 0, 0]) {
+    let pts = prof.map(([u, r, sm]) => [sign * u, r, sm]);
+    if (sign < 0) pts = pts.reverse();
+    return lathe(axis, pts, at);
+  }
+  /** stud with a hex nut and washer at each end; ends at u0 and u1 along `axis` through point p */
+  function studNut(axis, p, u0, u1, d) {
+    const c = (u) => along(axis, u, p);
+    const nh = d * 0.9; const nr = d * 0.92;
+    return [
+      cyl(axis, d / 2, u1 - u0 + nh * 2 + d * 0.6, c((u0 + u1) / 2)),
+      hex(axis, nr, nh, c(u0 - nh / 2 - 0.8)), cyl(axis, nr * 1.08, 1.6, c(u0 - 0.8)),
+      hex(axis, nr, nh, c(u1 + nh / 2 + 0.8)), cyl(axis, nr * 1.08, 1.6, c(u1 + 0.8)),
+    ];
+  }
+  /** nameplate text from the resolved values */
+  const plateLines = (v, kind) => [
+    v.tag || 'TAG —',
+    v.nps ? `SIZE ${FRAC[v.nps] || v.nps}" ${v.body === 'psv' ? `CL${v.cls} x ${FRAC[v.outlet_nps] || v.outlet_nps}" CL${v.outlet_cls}` : `ASME CL${v.cls} RF`}` : kind,
+    v.body ? `${String(v.body).toUpperCase()} ${v.operator ? '· ' + String(v.operator).replace('pneumatic_', '').replace('_', ' ').toUpperCase() : ''}` : '',
+  ];
   const r1 = (x) => Math.round(x * 10) / 10;
 
   /**
@@ -73,7 +110,20 @@ const Anatomy = (() => {
       return [[0, 1, 2].map((i) => Math.min(pr.a[i], pr.b[i]) - pr.r), [0, 1, 2].map((i) => Math.max(pr.a[i], pr.b[i]) + pr.r)];
     }
     let e;
-    if (pr.k === 'box') {
+    if (pr.k === 'lathe') {
+      const rr = Math.max(...pr.pts.map((q) => q[1])); const ss = pr.pts.map((q) => q[0]);
+      const i = 'xyz'.indexOf(pr.axis);
+      const lo = pr.at.map((c) => c - rr); const hi = pr.at.map((c) => c + rr);
+      lo[i] = pr.at[i] + Math.min(...ss); hi[i] = pr.at[i] + Math.max(...ss);
+      return [lo, hi];
+    }
+    if (pr.k === 'gauge') { e = [pr.r, pr.r, pr.r]; e['xyz'.indexOf(pr.axis)] = pr.r * 0.3; return [pr.at.map((c, i) => c - e[i]), pr.at.map((c, i) => c + e[i])]; }
+    if (pr.k === 'plate' || pr.k === 'arrow') {
+      const [w, h, t] = pr.k === 'plate' ? pr.s : [pr.len, pr.w, pr.t * 1.6];
+      e = String(pr.face || 'z').includes('x') ? [t / 2, h / 2, w / 2] : String(pr.face).includes('y') ? [w / 2, t / 2, h / 2] : [w / 2, h / 2, t / 2];
+      return [pr.at.map((c, i) => c - e[i]), pr.at.map((c, i) => c + e[i])];
+    }
+    if (pr.k === 'box' || pr.k === 'rbox') {
       const ry = pr.ry || 0;
       e = [Math.abs(Math.cos(ry)) * pr.s[0] / 2 + Math.abs(Math.sin(ry)) * pr.s[2] / 2, pr.s[1] / 2,
         Math.abs(Math.sin(ry)) * pr.s[0] / 2 + Math.abs(Math.cos(ry)) * pr.s[2] / 2];
@@ -319,7 +369,7 @@ const Anatomy = (() => {
   // ───────────────────────── valve: shared pieces ─────────────────────────
   function handwheelPart(id, at, d, axis = 'y', o = {}) {
     const rim = Math.max(6, d * 0.04);
-    const prims = [tor(d / 2 - rim, rim, axis, at), cyl(axis, d * 0.08, rim * 2.4, at)];
+    const prims = [tor(d / 2 - rim, rim, axis, at), cyl(axis, d * 0.08, rim * 2.4, at), hex(axis, d * 0.06, rim * 1.4, along(axis, rim * 1.9, at))];
     for (const e of circle(axis, d / 2 - rim, 3, at, 0)) prims.push(tube(at, e, rim * 0.55));
     return P(id, o.name || 'Handwheel', 'wheel', prims, {
       group: o.group || 'Manual operator', stage: o.stage ?? 0, ex: o.ex,
@@ -328,18 +378,26 @@ const Anatomy = (() => {
     });
   }
 
+  /** ASME B16.5 weld-neck style end flange: hub with fillet, bevelled rim, 1.6 mm raised face, bore */
   function bodyFlanges(prims, axis, sign, face, f) {
-    const c = (d) => along(axis, sign * d);
-    prims.push(cyl(axis, f.od / 2, f.t, c(face - f.t / 2)));
-    prims.push(cyl(axis, f.pipeOD / 2 * 1.35, f.t * 1.1, c(face - f.t - f.t * 0.55)));
+    const t = f.t; const hub = f.pipeOD / 2 * 1.3; const hubL = t * 1.2; const bv = Math.min(2, t * 0.12);
+    const rf = Math.max(f.pipeOD / 2 + 8, f.bcd / 2 - f.bolt * 1.25); const bore = f.pipeOD / 2 - clamp(f.pipeOD * 0.06, 3, 12);
+    const u0 = face - t - hubL;
+    prims.push(turned(axis, sign, [
+      [u0, bore], [u0, hub], ...fil(face - t - Math.min(8, hubL * 0.6), hub, face - t, hub + Math.min(8, hubL * 0.6)),
+      [face - t, f.od / 2 - bv], [face - t + bv, f.od / 2], [face - 1.6 - bv, f.od / 2], [face - 1.6, f.od / 2 - bv],
+      [face - 1.6, rf], [face, rf], [face, bore], [u0, bore],
+    ]));
   }
 
   function flangeBolting(id, name, axis, sign, face, f, exDist) {
     const prims = [];
     for (const p of circle(axis, f.bcd / 2, f.n, [0, 0, 0])) {
-      const base = along(axis, sign * (face - f.t / 2 + f.bolt * 0.3), p);
-      prims.push(cyl(axis, f.bolt / 2, f.t + f.bolt * 1.6, base));
-      prims.push(cyl(axis, f.bolt * 0.85, f.bolt * 0.85, along(axis, sign * (f.t / 2 + f.bolt * 0.9), base)));
+      // from the back face of the valve flange to the back face of the mating pipe flange (+ gasket 3 mm)
+      const a = face - f.t; const b = face + 3 + f.t;
+      const ps = studNut(axis, [0, 0, 0], sign > 0 ? a : -b, sign > 0 ? b : -a, f.bolt);
+      for (const q of ps) q.at = q.at.map((c, i) => c + p[i]);
+      prims.push(...ps);
     }
     return P(id, name, 'bolt', prims, {
       group: 'Piping interface', stage: 0, ex: along(axis, sign * exDist), qty: f.n,
@@ -365,10 +423,11 @@ const Anatomy = (() => {
       material: o.cv ? 'Flexible graphite / spiral-wound 316 SS + graphite' : 'Spiral-wound 316 SS + graphite (API 600)',
       dims: [D('Gasket OD', bw * 0.76), D('Gasket ID', port + 12)],
     }));
-    parts.push(P('bonnet', 'Bonnet', 'body', [
-      cyl('y', bw * 0.42, bfT, [0, y0 + 3 + bfT / 2, 0]),
-      cone('y', bw * 0.27, bw * 0.18, v.bonnet_h - bfT - 3, [0, y0 + 3 + bfT + (v.bonnet_h - bfT - 3) / 2, 0]),
-    ], {
+    const Rf = bw * 0.42; const Rn = bw * 0.24; const Rt = bw * 0.18; const H = v.bonnet_h - 3;
+    parts.push(P('bonnet', 'Bonnet', 'body', [lathe('y', [
+      [0, port / 2 + 6], [0, Rf - 1.5], [1.5, Rf], [bfT - 1.5, Rf], [bfT, Rf - 1.5], [bfT, Rn + 8],
+      ...fil(bfT, Rn + 8, bfT + 8, Rn).slice(1), [H - 22, Rt, 1], [H - 22, Rt + 4], [H, Rt + 4], [H, sd / 2 + 1], [0, sd / 2 + 1],
+    ], [0, y0 + 3, 0])], {
       group: 'Bonnet assembly', stage: 1,
       fn: o.cv
         ? 'Closes the top of the body, guides the stem and houses the packing box. Extension bonnets keep the packing away from hot or cryogenic service.'
@@ -377,9 +436,9 @@ const Anatomy = (() => {
       dims: [D('Bonnet height', v.bonnet_h, 'mm', S('bonnet_h')), D('Bonnet flange OD', bw * 0.84)],
     }));
     const studs = [];
-    for (const p of circle('y', bw * 0.36, nb, [0, y0, 0])) {
-      studs.push(cyl('y', bd / 2, bfT + 18 + bd * 1.8, p));
-      studs.push(cyl('y', bd * 0.85, bd * 0.85, [p[0], y0 + 3 + bfT + bd * 0.45, p[2]]));
+    for (const p of circle('y', bw * 0.36, nb, [0, 0, 0])) {
+      const ps = studNut('y', [p[0], 0, p[2]], y0 - 16, y0 + 3 + bfT, bd);
+      studs.push(...ps.filter((_, i) => i !== 1 && i !== 2));     // nut on top only; the stud is screwed into the body
     }
     parts.push(P('bonnet_bolting', 'Bonnet studs & nuts', 'bolt', studs, {
       group: 'Bonnet assembly', stage: 1, qty: nb,
@@ -478,11 +537,13 @@ const Anatomy = (() => {
         dims: [D('Height', v.yoke_h, 'mm', S('yoke_h'))],
       }));
       const y = yTop + v.yoke_h;
-      parts.push(P('gearbox', 'Worm gearbox', 'act', [box([v.act_d, v.act_h, v.act_d * 0.8], [0, y + v.act_h / 2, 0])], {
+      parts.push(P('gearbox', 'Worm gearbox', 'act', [rbox([v.act_d, v.act_h, v.act_d * 0.8], [0, y + v.act_h / 2, 0], v.act_d * 0.12),
+        lathe('z', [[0, 0], [0, v.act_d * 0.18], [v.act_d * 0.12, v.act_d * 0.16], [v.act_d * 0.12, 0]], [0, y + v.act_h * 0.5, v.act_d * 0.4]),
+        plate([v.act_d * 0.4, v.act_h * 0.25, 1.2], [-v.act_d * 0.501, y + v.act_h * 0.5, 0], '-x', plateLines(v, 'GEAR OPERATOR'))], {
         group: G, stage: 0, fn: 'Self-locking worm and quadrant gear reduces handwheel effort for quarter-turn valves.',
         material: 'Ductile iron housing, bronze quadrant', dims: [D('Width', v.act_d, 'mm', S('act_d')), D('Height', v.act_h, 'mm', S('act_h'))],
       }));
-      parts.push(P('gear_indicator', 'Position indicator', 'accent', [cyl('y', v.act_d * 0.2, 14, [0, y + v.act_h + 7, 0])], {
+      parts.push(P('gear_indicator', 'Position indicator', 'accent', [lathe('y', [[0, 0], [0, v.act_d * 0.2], [6, v.act_d * 0.2], ...fil(6, v.act_d * 0.2, 20, 0).slice(1)], [0, y + v.act_h, 0])], {
         group: G, stage: 0, fn: 'Shows open/closed position on top of the gearbox.', material: 'Aluminium / polycarbonate',
       }));
       parts.push(P('input_shaft', 'Input shaft', 'steel', [cyl('z', v.act_d * 0.06, v.act_d * 0.7, [0, y + v.act_h * 0.5, v.act_d * 0.75])], {
@@ -493,7 +554,8 @@ const Anatomy = (() => {
     }
     if (op === 'pneumatic_rotary') {
       const yh = v.yoke_h; const Dd = v.act_d; const L = v.act_l;
-      parts.push(P('bracket', 'Mounting bracket', 'body', [box([Dd * 0.9, yh, Dd * 0.9], [0, yTop + yh / 2, 0])], {
+      parts.push(P('bracket', 'Mounting bracket', 'body', [rbox([Dd * 0.9, 10, Dd * 0.9], [0, yTop + 5, 0], 6), rbox([Dd * 0.9, 10, Dd * 0.9], [0, yTop + yh - 5, 0], 6),
+        rbox([10, yh - 20, Dd * 0.9], [-Dd * 0.4, yTop + yh / 2, 0], 3), rbox([10, yh - 20, Dd * 0.9], [Dd * 0.4, yTop + yh / 2, 0], 3)], {
         group: G, stage: 1, fn: 'Bolts the actuator to the valve ISO 5211 flange.', material: 'Carbon steel, painted',
         dims: [D('Height', yh, 'mm', S('yoke_h'))],
       }));
@@ -501,27 +563,29 @@ const Anatomy = (() => {
         group: G, stage: 2, ex: [0, 0, Dd * 0.9], fn: 'Square / double-D adaptor transmitting torque from the pinion to the valve stem.', material: 'Alloy steel',
       }));
       const y = yTop + yh;
-      parts.push(P('actuator', 'Actuator housing (rack & pinion)', 'act', [box([L, Dd * 1.05, Dd * 1.1], [0, y + Dd * 0.53, 0])], {
+      parts.push(P('actuator', 'Actuator housing (rack & pinion)', 'act', [rbox([L, Dd * 1.05, Dd * 1.1], [0, y + Dd * 0.53, 0], Dd * 0.18),
+        plate([Math.min(90, L * 0.3), Math.min(40, Dd * 0.35), 1.2], [0, y + Dd * 0.45, Dd * 0.55 + 0.6], 'z', plateLines(v, 'ACTUATOR'))], {
         group: G, stage: 0, fn: 'Twin pistons drive racks that turn the central pinion 90°. Spring-return units fail open or closed on air loss.',
         material: 'Extruded aluminium, hard anodised', dims: [D('Length', L, 'mm', S('act_l')), D('Body width', Dd, 'mm', S('act_d'))],
       }));
       for (const s of [-1, 1]) {
         parts.push(P(s < 0 ? 'end_cap_l' : 'end_cap_r', `End cap / spring cartridge (${s < 0 ? 'left' : 'right'})`, 'act',
-          [cyl('x', Dd * 0.48, 18, [s * (L / 2 + 9), y + Dd * 0.53, 0])], {
+          [rbox([20, Dd * 1.08, Dd * 1.14], [s * (L / 2 + 10), y + Dd * 0.53, 0], Dd * 0.2, { ry: 0 }),
+            ...circle('x', Dd * 0.42, 4, [s * (L / 2 + 21), y + Dd * 0.53, 0], 0.5).map((p) => hex('x', 5, 4, p))], {
             group: G, stage: 1, ex: [s * Dd * 0.8, 0, 0],
             fn: 'Closes the cylinder bore; on spring-return units it contains the preloaded spring cartridges.', material: 'Die-cast aluminium',
           }));
       }
-      parts.push(P('indicator', 'Visual position indicator', 'accent', [cyl('y', Dd * 0.3, 30, [0, y + Dd * 1.05 + 15, 0])], {
+      parts.push(P('indicator', 'Visual position indicator', 'accent', [lathe('y', [[0, 0], [0, Dd * 0.3], [10, Dd * 0.3], ...fil(10, Dd * 0.3, 28, 0).slice(1)], [0, y + Dd * 1.05, 0])], {
         group: 'Accessories', stage: 0, fn: 'Shows valve position (open / closed) on the pinion top.', material: 'Polycarbonate',
       }));
       if (v.positioner) {
-        parts.push(P('positioner', 'Positioner / limit switch box', 'tx', [box([120, 110, 100], [0, y + Dd * 1.05 + 85, 0])], {
+        parts.push(P('positioner', 'Positioner / limit switch box', 'tx', [rbox([120, 110, 100], [0, y + Dd * 1.05 + 85, 0], 12), gauge('z', 14, [-30, y + Dd * 1.05 + 70, 51]), gauge('z', 14, [30, y + Dd * 1.05 + 70, 51])], {
           group: 'Accessories', stage: 0, fn: 'Positioner for modulating duty, or limit switch box (ZSO / ZSC) for on-off duty.',
           material: 'Aluminium, Ex d / Ex ia', dims: [D('Envelope', '120 × 110 × 100', 'mm', 'estimate')],
         }));
       }
-      parts.push(P('solenoid', 'Solenoid valve (NAMUR)', 'tx', [box([60, 70, 50], [0, y + Dd * 0.5, Dd * 0.55 + 25])], {
+      parts.push(P('solenoid', 'Solenoid valve (NAMUR)', 'tx', [rbox([60, 40, 40], [0, y + Dd * 0.5, Dd * 0.55 + 20], 4), lathe('y', [[0, 0], [0, 17], [46, 17], [50, 13], [50, 0]], [0, y + Dd * 0.5 + 20, Dd * 0.55 + 22]), hex('x', 9, 14, [36, y + Dd * 0.5, Dd * 0.55 + 20])], {
         group: 'Accessories', stage: 0, ex: [0, 0, Dd * 0.5], fn: '3/2 or 5/2 solenoid on the NAMUR pad; trips the actuator on loss of signal.', material: 'SS body, Ex d coil',
       }));
       return;
@@ -530,7 +594,8 @@ const Anatomy = (() => {
       const yh = v.yoke_h; const W = v.act_d; const H = v.act_h;
       const multi = v.body === 'gate' || v.body === 'globe';
       parts.push(P('thrust_base', multi ? 'Thrust base (type A)' : 'Mounting bracket & coupling', 'body', [
-        cyl('y', W * 0.25, yh, [0, yTop + yh / 2, 0]), cyl('y', W * 0.34, 16, [0, yTop + yh - 8, 0]),
+        lathe('y', [[0, sd / 2 + 2], [0, W * 0.3], [12, W * 0.3], ...fil(12, W * 0.24, yh - 22, W * 0.24).slice(1, 2), [yh - 22, W * 0.24], ...fil(yh - 22, W * 0.24, yh - 12, W * 0.34).slice(1), [yh, W * 0.34], [yh, sd / 2 + 2]], [0, yTop, 0]),
+        ...circle('y', W * 0.3, 4, [0, yTop + yh - 2, 0], 0.5).map((p) => hex('y', 7, 8, p)),
       ], {
         group: G, stage: 1,
         fn: multi ? 'Takes the stem thrust through its thrust bearings, so the valve rather than the gearcase carries the axial load (ISO 5210).'
@@ -546,27 +611,33 @@ const Anatomy = (() => {
         }));
       }
       const y = yTop + yh;
-      parts.push(P('gearcase', 'Main gearcase (worm drive)', 'act', [cyl('y', W * 0.38, H * 0.55, [0, y + H * 0.275, 0])], {
+      parts.push(P('gearcase', 'Main gearcase (worm drive)', 'act', [lathe('y', [
+        [0, W * 0.2], [0, W * 0.34], ...fil(6, W * 0.34, 20, W * 0.38).slice(1), [H * 0.55 - 10, W * 0.38, 1], ...fil(H * 0.55 - 10, W * 0.38, H * 0.55, W * 0.36).slice(1), [H * 0.55, 0],
+      ], [0, y, 0]), ...circle('y', W * 0.36, 8, [0, y + 4, 0]).map((p) => hex('y', 6, 6, p))], {
         group: G, stage: 0, fn: 'Motor drives a worm and wheel to the output sleeve. Self-locking; houses torque sensing and the position encoder.',
         material: 'Aluminium alloy, IP68, Ex d', dims: [D('Width', W, 'mm', S('act_d')), D('Height', H, 'mm', S('act_h'))],
       }));
       parts.push(P('control_unit', 'Control unit & display', 'tx', [
-        box([W * 0.75, H * 0.38, W * 0.7], [0, y + H * 0.55 + H * 0.19, 0]),
-        cyl('z', W * 0.2, W * 0.06, [0, y + H * 0.74, W * 0.35 + W * 0.03]),
-        cyl('z', 16, 30, [-W * 0.2, y + H * 0.6, W * 0.35 + 15]), cyl('z', 16, 30, [W * 0.2, y + H * 0.6, W * 0.35 + 15]),
+        rbox([W * 0.75, H * 0.38, W * 0.7], [0, y + H * 0.55 + H * 0.19, 0], W * 0.12),
+        lathe('z', [[0, 0], [0, W * 0.2], [8, W * 0.2], [8, W * 0.17], [12, W * 0.17], [12, 0]], [0, y + H * 0.76, W * 0.35]),
+        plate([W * 0.22, W * 0.15, 1.5], [0, y + H * 0.76, W * 0.35 + 12.6], 'z', ['100%', 'OPEN', v.tag || ''], { style: 'lcd' }),
+        lathe('z', [[0, 0], [0, 16], [10, 14], [10, 0]], [-W * 0.22, y + H * 0.6, W * 0.35]), rbox([8, 26, 14], [-W * 0.22, y + H * 0.6, W * 0.35 + 16], 3, { look: 'wheel' }),
+        lathe('z', [[0, 0], [0, 16], [10, 14], [10, 0]], [W * 0.22, y + H * 0.6, W * 0.35]), rbox([26, 8, 14], [W * 0.22, y + H * 0.6, W * 0.35 + 16], 3, { look: 'rubber' }),
+        ...circle('z', W * 0.27, 4, [0, y + H * 0.74, W * 0.35 + 0.5], 0.5).map((p) => hex('z', 5, 4, p)),
+        plate([W * 0.4, W * 0.18, 1.2], [W * 0.376, y + H * 0.74, 0], 'x', plateLines(v, 'ELECTRIC ACTUATOR')),
       ], {
         group: G, stage: 0,
         fn: 'Motor starter, controls, LCD display and Local/Remote + Open/Close selector knobs (non-intrusive setup).',
         material: 'Aluminium, Ex d',
       }));
       parts.push(P('motor', 'Motor', 'act', [
-        cyl('x', W * 0.24, W * 0.55, [-(W * 0.38 + W * 0.27), y + H * 0.3, 0]),
-        cyl('x', W * 0.26, 14, [-(W * 0.38 + W * 0.55), y + H * 0.3, 0]),
+        lathe('x', [[0, 0], [0, W * 0.22], [W * 0.5, W * 0.22], ...fil(W * 0.5, W * 0.22, W * 0.56, 0).slice(1)], [-(W * 0.38 + W * 0.56), y + H * 0.3, 0]),
+        ...Array.from({ length: 7 }, (_, i) => ring('x', W * 0.22, W * 0.26, 3, [-(W * 0.38 + W * 0.08 + i * W * 0.06), y + H * 0.3, 0])),
       ], {
         group: G, stage: 0, ex: [-W * 0.6, 0, 0],
         fn: '3-phase squirrel-cage motor, S2-15 min / S4 rated, with winding thermostats.', material: 'Class F insulation, Ex d enclosure',
       }));
-      parts.push(P('declutch', 'Declutch lever', 'wheel', [box([14, 70, 14], [W * 0.3, y + H * 0.15, -W * 0.3], { ry: 0.4 })], {
+      parts.push(P('declutch', 'Declutch lever', 'wheel', [rbox([14, 70, 14], [W * 0.3, y + H * 0.15, -W * 0.3], 5, { ry: 0.4 }), sph(10, [W * 0.3, y + H * 0.15 - 38, -W * 0.3])], {
         group: G, stage: 0, ex: [W * 0.3, 0, -W * 0.3], fn: 'Engages the handwheel drive; a motor start re-engages motor drive automatically.', material: 'Ductile iron',
       }));
       parts.push(P('hw_shaft', 'Handwheel shaft', 'steel', [cyl('x', 12, 60, [W * 0.38 + 30, y + H * 0.3, 0])], { group: G, stage: 0, ex: [W * 0.45, 0, 0], material: 'Alloy steel' }));
@@ -575,7 +646,8 @@ const Anatomy = (() => {
         fn: 'Manual operation on loss of power; mechanically independent of the motor drive.',
       }));
       parts.push(P('terminal_cover', 'Terminal compartment & cable entries', 'bolt', [
-        box([W * 0.3, H * 0.25, 14], [0, y + H * 0.74, -W * 0.35 - 7]),
+        rbox([W * 0.5, H * 0.28, 16], [0, y + H * 0.74, -W * 0.35 - 7], 6),
+        ...[[-1, -1], [1, -1], [-1, 1], [1, 1]].map(([a, b]) => hex('z', 5, 5, [a * W * 0.21, y + H * 0.74 + b * H * 0.11, -W * 0.35 - 16])),
         cyl('x', 12, 40, [W * 0.375 + 20, y + H * 0.74, -W * 0.15]), cyl('x', 12, 40, [W * 0.375 + 20, y + H * 0.74, W * 0.05]),
       ], {
         group: G, stage: 0, ex: [0, 0, -W * 0.6],
@@ -593,10 +665,12 @@ const Anatomy = (() => {
     }
     if (op === 'pneumatic_diaphragm') {
       const yh = v.yoke_h; const Dd = v.act_d; const H = v.act_h;
+      const legW = Math.max(26, Dd * 0.11);
       parts.push(P('yoke', 'Yoke', 'body', [
-        cyl('y', Dd * 0.16, 22, [0, yTop + 11, 0]),
-        box([20, yh, 30], [-Dd * 0.17, yTop + yh / 2, 0]), box([20, yh, 30], [Dd * 0.17, yTop + yh / 2, 0]),
-        cyl('y', Dd * 0.2, 24, [0, yTop + yh - 12, 0]),
+        lathe('y', [[0, sd], [0, Dd * 0.17], [18, Dd * 0.17], ...fil(18, Dd * 0.15, 30, Dd * 0.11).slice(1), [30, sd]], [0, yTop, 0]),
+        rbox([legW, yh - 40, 34], [-Dd * 0.17, yTop + yh / 2, 0], 8), rbox([legW, yh - 40, 34], [Dd * 0.17, yTop + yh / 2, 0], 8),
+        lathe('y', [[0, sd], [0, Dd * 0.13], ...fil(10, Dd * 0.15, 20, Dd * 0.21).slice(1), [24, Dd * 0.21], [24, sd]], [0, yTop + yh - 24, 0]),
+        plate([legW * 0.9, legW * 1.25, 1.2], [-Dd * 0.17, yTop + yh * 0.52, 17.6], 'z', plateLines(v, 'CONTROL VALVE')),
       ], {
         group: G, stage: 1, fn: 'Rigid frame joining actuator and bonnet; the open window gives access to the stem connector and packing.',
         material: 'Ductile iron / cast steel', dims: [D('Yoke height', yh, 'mm', S('yoke_h'))],
@@ -613,7 +687,11 @@ const Anatomy = (() => {
         group: G, stage: 1, fn: 'Transmits diaphragm force to the valve stem.', material: 'Chrome-plated steel',
       }));
       const ya = yTop + yh;
-      parts.push(P('lower_casing', 'Lower diaphragm casing', 'act', [cone('y', Dd * 0.22, Dd / 2, H * 0.42, [0, ya + H * 0.21, 0])], {
+      const hl = H * 0.42; const hu = H * 0.5;
+      const dish = []; for (let i = 0; i <= 10; i++) { const t = i / 10; dish.push([6 + (hl - 14) * Math.pow(t, 1.6), Dd * 0.2 + (Dd / 2 - 6 - Dd * 0.2) * Math.sin(t * Math.PI / 2), 1]); }
+      parts.push(P('lower_casing', 'Lower diaphragm casing', 'act', [lathe('y', [
+        [0, sd], [0, Dd * 0.2], ...dish, [hl - 8, Dd / 2 - 4], [hl - 8, Dd / 2 + 10], [hl, Dd / 2 + 10], [hl, sd],
+      ], [0, ya, 0])], {
         group: G, stage: 0, fn: 'Lower pressure chamber, bolted to the yoke; houses the actuator spring.', material: 'Pressed steel, painted',
         dims: [D('Casing OD', Dd, 'mm', S('act_d'))],
       }));
@@ -629,11 +707,14 @@ const Anatomy = (() => {
         group: G, stage: 0, fn: 'Flexible membrane converting signal air pressure into thrust: effective area × pressure = actuator force.',
         material: 'Nitrile (NBR) with nylon fabric reinforcement', dims: [D('Effective area ≈', `${Math.round(Math.PI * (Dd * 0.45) ** 2 / 100)} cm²`, '', 'estimate')],
       }));
-      parts.push(P('upper_casing', 'Upper diaphragm casing', 'act', [cone('y', Dd / 2, Dd * 0.25, H * 0.5, [0, ya + H * 0.42 + 3 + H * 0.25, 0]), cyl('y', 8, 30, [0, ya + H * 0.92 + 18, 0])], {
+      const dome = []; for (let i = 0; i <= 12; i++) { const t = i / 12; dome.push([8 + (hu - 8) * Math.sin(t * Math.PI / 2), (Dd / 2 - 4) * Math.cos(t * Math.PI / 2 * 0.92) + 2, 1]); }
+      parts.push(P('upper_casing', 'Upper diaphragm casing', 'act', [lathe('y', [
+        [0, Dd * 0.3], [0, Dd / 2 + 10], [8, Dd / 2 + 10], [8, Dd / 2 - 4], ...dome.slice(1), [hu, 0],
+      ], [0, ya + hl + 3, 0]), hex('y', 11, 14, [0, ya + hl + 3 + hu + 6, 0]), cyl('y', 6, 24, [0, ya + hl + 3 + hu + 18, 0])], {
         group: G, stage: 0, fn: 'Upper pressure chamber with the loading connection (signal air in).', material: 'Pressed steel, painted',
         dims: [D('Loading connection', '1/4" NPT', '', 'estimate')],
       }));
-      parts.push(P('casing_bolts', 'Casing cap screws & nuts', 'bolt', circle('y', Dd / 2 + 2, 16, [0, ya + H * 0.42, 0]).map((p) => cyl('y', 4, 24, p)), {
+      parts.push(P('casing_bolts', 'Casing cap screws & nuts', 'bolt', circle('y', Dd / 2 + 3, 16, [0, ya + H * 0.42, 0]).flatMap((p) => studNut('y', [p[0], 0, p[2]], ya + hl - 8, ya + hl + 11, 7)), {
         group: G, stage: 0, qty: 16, fn: 'Clamp the two casings together and seal the diaphragm bead. Never remove with spring preload applied.',
         material: 'Zinc-plated steel',
       }));
@@ -642,12 +723,20 @@ const Anatomy = (() => {
         parts.push(P('positioner_bracket', 'Positioner mounting bracket', 'steel', [box([90, 16, 20], [Dd * 0.17 + 18, py, 0])], {
           group: 'Accessories', stage: 1, ex: [Dd * 0.2, 0, 0], material: '316 SS',
         }));
-        parts.push(P('positioner', 'Digital valve positioner', 'tx', [box([110, 150, 85], [px, py, 0]), cyl('z', 34, 14, [px, py + 5, 48])], {
+        parts.push(P('positioner', 'Digital valve positioner', 'tx', [
+          rbox([110, 150, 85], [px, py, 0], 10), rbox([96, 60, 8], [px, py + 34, 46], 6),
+          gauge('z', 16, [px - 24, py - 32, 47]), gauge('z', 16, [px + 24, py - 32, 47]),
+          cyl('x', 10, 24, [px + 64, py + 40, 0]), hex('x', 12, 10, [px + 79, py + 40, 0]),
+        ], {
           group: 'Accessories', stage: 0, ex: [Dd * 0.5, 0, 0],
           fn: 'Compares the 4–20 mA / HART setpoint with stem-travel feedback and adjusts actuator air to hold position.',
           material: 'Aluminium, Ex d / Ex ia', dims: [D('Envelope', '110 × 150 × 85', 'mm', 'estimate')],
         }));
-        parts.push(P('airset', 'Air filter regulator', 'tx', [cyl('y', 28, 110, [px, py - 150, 0]), cyl('y', 34, 30, [px, py - 80, 0])], {
+        parts.push(P('airset', 'Air filter regulator', 'tx', [
+          rbox([62, 46, 62], [px, py - 92, 0], 8),
+          lathe('y', [[0, 0], [0, 22], ...fil(-50, 26, -64, 0).slice(0, -1).reverse().map(([a, b]) => [a, b, 1]), [-70, 0]].sort((a, b) => b[0] - a[0]), [px, py - 115, 0]),
+          gauge('z', 13, [px, py - 92, 32]), cyl('y', 9, 18, [px, py - 60, 0]),
+        ], {
           group: 'Accessories', stage: 0, ex: [Dd * 0.5, -60, 0], fn: 'Filters and regulates the instrument air supply to the positioner (typ. 1.4–4 bar).', material: 'Aluminium / SS',
         }));
         parts.push(P('tubing', 'Instrument tubing', 'tube', [
@@ -673,9 +762,18 @@ const Anatomy = (() => {
     const U = Math.max(30, f.od * 0.12);
     const cv = v.service === 'control';
     if (stub) {
-      parts.push(P('pipe', 'Connecting pipe (reference)', 'ghost', [
-        cyl('x', f.pipeOD / 2, stub, [-half - stub / 2 - 2, 0, 0]), cyl('x', f.pipeOD / 2, stub, [half + stub / 2 + 2, 0, 0]),
-      ], { group: 'Reference', stage: 0, fn: 'Mating pipe, shown for context only.' }));
+      const mp = [];
+      if (v.body !== 'butterfly') for (const sg of [-1, 1]) {
+        mp.push(cyl('x', f.od / 2, f.t, [sg * (half + 3 + f.t / 2), 0, 0]));
+        mp.push(cyl('x', f.pipeOD / 2, stub, [sg * (half + 3 + f.t + stub / 2), 0, 0]));
+      }
+      parts.push(P('pipe', 'Mating pipe & flanges (reference)', 'ghost', mp, { group: 'Reference', stage: 0, fn: 'Mating pipe, shown for context only.' }));
+      if (v.body !== 'butterfly') {
+        parts.push(P('flange_gaskets', 'Flange gaskets', 'rubber', [
+          ring('x', f.pipeOD / 2, Math.max(f.pipeOD / 2 + 8, f.bcd / 2 - f.bolt * 1.25), 3, [-half - 1.5, 0, 0]),
+          ring('x', f.pipeOD / 2, Math.max(f.pipeOD / 2 + 8, f.bcd / 2 - f.bolt * 1.25), 3, [half + 1.5, 0, 0]),
+        ], { group: 'Piping interface', stage: 0, ex: [0, -U * 2, 0], qty: 2, fn: 'Spiral-wound gaskets sealing the raised faces (ASME B16.20).', material: '316 SS winding + graphite filler, CS centring ring' }));
+      }
     }
 
     // ── body
@@ -687,14 +785,16 @@ const Anatomy = (() => {
       bodyFlanges(bp, 'x', -1, half, f); bodyFlanges(bp, 'x', 1, half, f);
       bp.push(sph(bw / 2, [0, 0, 0], [Math.min(1.15, (half - f.t) / (bw / 2)), 0.9, 0.9]));
       bp.push(cyl('x', neckR, 2 * (half - f.t), [0, 0, 0]));
-      bp.push(cyl('y', bw * 0.33, v.body_h - bw * 0.2, [0, (v.body_h + bw * 0.2) / 2 - bw * 0.1, 0]));
-      bp.push(cyl('y', bw * 0.42, 16, [0, v.body_h - 8, 0]));
+      bp.push(lathe('y', [[bw * 0.1, 0], [bw * 0.1, bw * 0.33], [v.body_h - 30, bw * 0.31, 1], ...fil(v.body_h - 30, bw * 0.31, v.body_h - 16, bw * 0.37),
+        [v.body_h - 16, bw * 0.42], [v.body_h - 1.5, bw * 0.42], [v.body_h, bw * 0.42 - 1.5], [v.body_h, 0]]));
+      bp.push(arrow(bw * 0.5, bw * 0.16, 3, [0, -bw * 0.04, bw * 0.45 * 0.9 + 1.5], 'z', 1));
     } else if (v.body === 'gate') {
       bodyFlanges(bp, 'x', -1, half, f); bodyFlanges(bp, 'x', 1, half, f);
       bp.push(cyl('x', neckR, 2 * (half - f.t), [0, 0, 0]));
-      bp.push(box([bw * 0.55, v.body_h + bw * 0.25, bw], [0, (v.body_h - bw * 0.25) / 2, 0]));
+      bp.push(rbox([bw * 0.55, v.body_h + bw * 0.25 - 16, bw], [0, (v.body_h - bw * 0.25 - 16) / 2, 0], bw * 0.16));
       bp.push(cyl('z', bw / 2, bw * 0.55, [0, -bw * 0.05, 0]));
-      bp.push(cyl('y', bw * 0.42, 16, [0, v.body_h - 8, 0]));
+      bp.push(rbox([bw * 0.84, 16, bw * 1.02], [0, v.body_h - 8, 0], 6));
+      bp.push(arrow(bw * 0.42, bw * 0.13, 3, [0, -bw * 0.05, bw * 0.275 + 1.5], 'z', 1));
     } else if (v.body === 'ball') {
       const split = Math.min(half - f.t * 2.2, bw * 0.3);
       bodyFlanges(bp, 'x', -1, half, f);
@@ -973,11 +1073,13 @@ const Anatomy = (() => {
       material: 'Chrome-alloy steel (high temperature: tungsten / Inconel)', dims: [D('Coil height ≈', bh * 0.7)],
     }));
     col.push(P('upper_washer', 'Upper spring washer', 'steel', [cyl('y', bw * 0.22, 10, [0, yb + 32 + bh * 0.7, 0])], { group: 'Bonnet', stage: 1, fn: 'Upper spring button; loaded by the adjusting screw.', material: 'Carbon steel' }));
-    col.push(P('bonnet', 'Bonnet', 'act', [cyl('y', bw * 0.5, 16, [0, yb + 8, 0]), cone('y', bw * 0.42, bw * 0.26, bh, [0, yb + 16 + bh / 2, 0])], {
+    col.push(P('bonnet', 'Bonnet', 'act', [lathe('y', [
+      [0, bw * 0.2], [0, bw * 0.5], [16, bw * 0.5], ...fil(16, bw * 0.38, 30, bw * 0.36).slice(1, 2), [16, bw * 0.42], [bh - 10, bw * 0.27, 1], ...fil(bh - 10, bw * 0.27, bh + 16, bw * 0.16).slice(1), [bh + 16, 0],
+    ], [0, yb, 0]), plate([bw * 0.36, bw * 0.24, 1.2], [0, yb + 16 + bh * 0.42, bw * 0.36], 'z', plateLines(v, 'SAFETY VALVE'))], {
       group: 'Bonnet', stage: 0, fn: 'Encloses the spring. Closed bonnet for toxic or back-pressure service; open (yoke) bonnet for steam.',
       material: 'WCB / CF8M', dims: [D('Bonnet height', bh, 'mm', S('bonnet_h'))],
     }));
-    col.push(P('bonnet_studs', 'Bonnet studs & nuts', 'bolt', circle('y', bw * 0.43, 6, [0, yb + 8, 0]).map((p) => cyl('y', 6, 40, p)), {
+    col.push(P('bonnet_studs', 'Bonnet studs & nuts', 'bolt', circle('y', bw * 0.43, 6, [0, 0, 0]).flatMap((p) => studNut('y', [p[0], 0, p[2]], yb - 14, yb + 16, 10).filter((_, i) => i !== 1 && i !== 2)), {
       group: 'Bonnet', stage: 0, qty: 6, fn: 'Clamp the bonnet to the body.', material: 'ASTM A193 B7 / A194 2H',
     }));
     const ys = yb + 16 + bh;
@@ -985,7 +1087,7 @@ const Anatomy = (() => {
       group: 'Bonnet', stage: 0, fn: 'Compresses the spring to set the pressure; the lock nut holds the setting (sealed after testing).', material: '416 SS',
     }));
     col.push(P('cap', v.psv_lever ? 'Lifting lever cap' : 'Screwed cap (gas-tight)', 'act', [
-      cyl('y', bw * 0.2, 60, [0, ys + 30, 0]),
+      lathe('y', [[0, 0], [0, bw * 0.21], [44, bw * 0.2], ...fil(44, bw * 0.2, 60, 0).slice(1)], [0, ys, 0]), hex('y', bw * 0.23, 14, [0, ys + 7, 0]),
       ...(v.psv_lever ? [box([bw * 1.1, 14, 22], [bw * 0.4, ys + 45, 0]), sph(14, [bw * 0.95, ys + 45, 0])] : []),
     ], {
       group: 'Bonnet', stage: 0, fn: v.psv_lever ? 'The lever lets operators lift the disc manually for testing (required on air, steam and hot water by ASME VIII).'
@@ -1020,7 +1122,7 @@ const Anatomy = (() => {
       const cx = x0 + w * b + w / 2;
       for (const sx of [-1, 1]) for (const sz of [0, 1]) frame.push(box([post, h, post], [cx + sx * (w / 2 - post / 2), yb + h / 2, -post / 2 - sz * (d - post)]));
       frame.push(box([w, post, d], [cx, yb + post / 2, -d / 2]), box([w, post, d], [cx, yb + h - post / 2, -d / 2]));
-      roof.push(box([w + 4, 3, d + 4], [cx, yb + h + 1.5, -d / 2]));
+      roof.push(rbox([w + 4, 6, d + 4], [cx, yb + h + 3, -d / 2], 3));
       rear.push(box([w - 4, h - 4, v.rear_door ? 20 : skin], [cx, yb + h / 2, -d - (v.rear_door ? 10 : 1)]));
       if (v.mounting_plate) plates.push(box([w - 2 * post - 20, h - 2 * post - 60, 3], [cx, yb + h / 2, -d + 60]));
       const mrows = Math.max(0, Math.round(v.modules));
@@ -1045,10 +1147,16 @@ const Anatomy = (() => {
         const th = s > 0 ? -ang : ang;
         const rot = (lx, lz) => [hx + lx * Math.cos(th) + lz * Math.sin(th), -lx * Math.sin(th) + lz * Math.cos(th)];
         const c0 = rot(s * dw / 2, dt / 2);
-        doors.push(box([dw - 4, h - 4, dt], [c0[0], yb + h / 2, c0[1]], { ry: th }));
+        doors.push(rbox([dw - 4, h - 4, dt], [c0[0], yb + h / 2, c0[1]], 4, { ry: th }));
+        for (const hy of [0.12, 0.5, 0.88]) doors.push(cyl('y', 7, 60, [hx, yb + h * hy, 6]));
+        if (b === 0 && k === 0) { const np = rot(s * dw / 2, dt + 1.2); doors.push(plate([180, 56, 1.5], [np[0], yb + h - 140, np[1]], 'z', [v.tag || 'CABINET', `${v.w} x ${v.h} x ${v.d}`, 'SYSTEM CABINET'], { ry: th })); }
         const hp = rot(s * (dw - 50), dt + 15);
-        handles.push(box([20, 160, 30], [hp[0], yb + h * 0.55, hp[1]], { ry: th }));
-        if (v.louvers) for (const ly of [0.12, 0.85]) { const lp = rot(s * dw / 2, dt + 3); louvers.push(box([Math.min(320, dw * 0.5), 260, 8], [lp[0], yb + h * ly, lp[1]], { ry: th })); }
+        handles.push(rbox([22, 170, 26], [hp[0], yb + h * 0.55, hp[1]], 8, { ry: th }));
+        if (v.louvers) for (const ly of [0.12, 0.85]) {
+          const lp = rot(s * dw / 2, dt + 3); const lw = Math.min(320, dw * 0.5);
+          louvers.push(rbox([lw, 260, 8], [lp[0], yb + h * ly, lp[1]], 6, { ry: th }));
+          for (let q = 0; q < 8; q++) { const lq = rot(s * dw / 2, dt + 8); louvers.push(rbox([lw - 30, 8, 5], [lq[0], yb + h * ly - 105 + q * 30, lq[1]], 2, { ry: th, look: 'plinth' })); }
+        }
       }
     }
     const env = `${totalW} × ${h} × ${d}`;
@@ -1063,7 +1171,7 @@ const Anatomy = (() => {
       material: 'Sheet steel 2 mm, RAL 7035, IP54/55 gasket', dims: [D('Door width', (w - 4) / Number(v.doors)), D('Opening angle', v.door_open, '°', 'user')],
     }));
     out.push(P('handles', 'Handles & locks', 'bolt', handles, { group: G1, stage: 0, ex: [0, 0, E * 1.25], fn: 'Comfort handle with 3-point locking rod system.', material: 'Zinc die-cast' }));
-    if (louvers.length) out.push(P('louvers', 'Louvres / filter fans', 'accent', louvers, { group: G1, stage: 0, ex: [0, 0, E * 1.4], fn: 'Ventilation path for heat dissipation; filter mats keep dust out.', material: 'ABS / steel' }));
+    if (louvers.length) out.push(P('louvers', 'Louvres / filter fans', 'cabframe', louvers, { group: G1, stage: 0, ex: [0, 0, E * 1.4], fn: 'Ventilation path for heat dissipation; filter mats keep dust out.', material: 'ABS / steel' }));
     if (plates.length) out.push(P('mounting_plate', 'Mounting plate', 'plate', plates, { group: G2, stage: 1, ex: [0, 0, E * 0.55], fn: 'Galvanised plate for DIN rails, ducts and components.', material: 'Galvanised steel 3 mm', dims: [D('Plate W × H', `${w - 2 * post - 20} × ${h - 2 * post - 60}`)] }));
     if (rails.length) out.push(P('din_rails', 'DIN rails & wiring duct', 'steel', rails, { group: G2, stage: 2, ex: [0, 0, E * 0.85], fn: 'TS35 rails and slotted duct for terminals and I/O.', material: 'Steel / PVC' }));
     if (modules.length) out.push(P('modules', 'I/O modules & terminals', 'tx', modules, { group: G2, stage: 2, ex: [0, 0, E * 1.1], fn: 'Control system I/O cards, marshalling terminals, barriers / isolators.', material: '—' }));
@@ -1146,7 +1254,7 @@ const Anatomy = (() => {
     const [mx, my, mz] = txBase;
     const nV = { none: 0, '2V': 2, '3V': 3, '5V': 5 }[v.manifold] || 0;
     if (nV) {
-      const prims = [box([dp ? 120 : 60, 70, 60], [mx, my, mz])];
+      const prims = [rbox([dp ? 120 : 60, 70, 60], [mx, my, mz], 5)];
       for (let i = 0; i < nV; i++) {
         const sx = (i / Math.max(1, nV - 1) - 0.5) * (dp ? 100 : 40);
         prims.push(cyl('z', 6, 50, [mx + sx, my - 10, mz + 55]), cyl('x', 16, 6, [mx + sx, my - 10, mz + 82]));
@@ -1160,9 +1268,14 @@ const Anatomy = (() => {
     }
     const ty = my + 65;
     out.push(P('transmitter', v.inst === 'PT' ? 'Pressure transmitter' : 'Differential pressure transmitter', 'tx', [
-      box([dp ? 110 : 60, 50, 90], [mx, ty, mz]), cyl('y', 42, 90, [mx, ty + 70, mz]),
-      cyl('z', 52, 120, [mx, ty + 165, mz]), cyl('z', 50, 18, [mx, ty + 165, mz + 69]), cyl('z', 50, 18, [mx, ty + 165, mz - 69]),
-      cyl('x', 11, 30, [mx + 58, ty + 165, mz - 20]),
+      rbox([dp ? 110 : 60, 50, 90], [mx, ty, mz], 6), ...[[-1, -1], [1, -1], [-1, 1], [1, 1]].map(([a, b]) => hex('y', 6, 6, [mx + a * (dp ? 40 : 20), ty + 28, mz + b * 32])),
+      lathe('y', [[0, 0], [0, 40], [70, 40, 1], ...fil(70, 40, 90, 30).slice(1), [90, 0]], [mx, ty + 25, mz]),
+      lathe('z', [[0, 0], [0, 50], [8, 52], [56, 52], [56, 0]], [mx, ty + 165, mz - 28]),
+      lathe('z', [[0, 0], [0, 54], [6, 54], [14, 50], [20, 46], [20, 0]], [mx, ty + 165, mz + 28]),
+      lathe('z', [[0, 0], [0, 54], [6, 54], [14, 50], [20, 46], [20, 0]].map(([a, b]) => [-a, b]).reverse(), [mx, ty + 165, mz - 28]),
+      plate([62, 40, 1], [mx, ty + 165, mz + 48.6], 'z', ['12.48', 'bar g', v.tag || ''], { style: 'lcd' }),
+      cyl('x', 11, 30, [mx + 58, ty + 165, mz]), hex('x', 13, 12, [mx + 72, ty + 165, mz]),
+      plate([46, 30, 1], [mx - 52.6, ty + 165, mz], '-x', [v.tag || 'TX', v.inst === 'PT' ? 'PRESSURE TX' : 'DP TX', '4-20 mA HART']),
     ], {
       group: 'Instrument', stage: 0, ex: [0, E * 0.8, E * 0.9],
       fn: '4–20 mA HART transmitter: coplanar flange, sensor module and dual-compartment electronics housing with LCD.',

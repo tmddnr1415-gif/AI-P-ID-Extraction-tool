@@ -34,13 +34,124 @@ const Viewer = (() => {
     ghost: { color: 0x9aa5b1, metal: 0, rough: 1, opacity: 0.22 },
     clear: { color: 0x2fae66, metal: 0, rough: 1, opacity: 0.1 },
   };
+  /**
+   * Realistic finishes (style 'real'): painted castings with an orange-peel bump, machined and
+   * polished steel, stainless trim, bronze nuts, PTFE, rubber, painted actuators. Physically based,
+   * lit by a studio environment map — the anatomy skill's "materials on the subject, kit tones on the ground".
+   */
+  const REAL = {
+    body: { color: 0x4a525b, metal: 0.2, rough: 0.55, clear: 0.2, bump: 'cast' },
+    flange: { color: 0x4a525b, metal: 0.2, rough: 0.5, clear: 0.2, bump: 'cast' },
+    bolt: { color: 0x2b2d31, metal: 0.85, rough: 0.38 },
+    steel: { color: 0xd3d7dc, metal: 1.0, rough: 0.16, rmap: 'brushed' },
+    trim: { color: 0xc7cbcf, metal: 1.0, rough: 0.24, rmap: 'brushed' },
+    seat: { color: 0xf1eee6, metal: 0.0, rough: 0.55 },
+    rubber: { color: 0x1d1f22, metal: 0.0, rough: 0.92 },
+    spring: { color: 0x2d5f45, metal: 0.4, rough: 0.35, clear: 0.6 },
+    bore: { color: 0x101215, metal: 0.3, rough: 0.7 },
+    act: { color: 0x1d4f9a, metal: 0.1, rough: 0.4, clear: 0.6, bump: 'paint' },
+    wheel: { color: 0xa9241c, metal: 0.1, rough: 0.35, clear: 0.6 },
+    tx: { color: 0xaeb5bd, metal: 0.25, rough: 0.42, clear: 0.3, bump: 'paint' },
+    accent: { color: 0xe3a51c, metal: 0.05, rough: 0.4, clear: 0.4 },
+    bronze: { color: 0xb4823e, metal: 1.0, rough: 0.32 },
+    tube: { color: 0xd0d4d8, metal: 1.0, rough: 0.2 },
+    cab: { color: 0xd5d6d0, metal: 0.05, rough: 0.5, bump: 'paint' },
+    door: { color: 0xd2d3cc, metal: 0.05, rough: 0.48, bump: 'paint' },
+    cabframe: { color: 0x8c8e8a, metal: 0.2, rough: 0.55 },
+    plinth: { color: 0x34363a, metal: 0.1, rough: 0.7 },
+    plate: { color: 0xb8bcc1, metal: 0.85, rough: 0.42, rmap: 'brushed' },
+    glass: { color: 0x0f1a22, metal: 0.0, rough: 0.05, clear: 1.0 },
+    ghost: { color: 0x8a96a3, metal: 0, rough: 1, opacity: 0.14 },
+    clear: { color: 0x2fae66, metal: 0, rough: 1, opacity: 0.1 },
+  };
+  LOOK.bronze = { color: 0xb4823e, metal: 0.7, rough: 0.35 };
+  LOOK.glass = { color: 0x1a2630, metal: 0.1, rough: 0.2 };
+
+  // ───────── procedural textures (canvas) ─────────
+  const texCache = new Map();
+  function canvasTex(key, w, h, paint, { srgb = false, repeat = null } = {}) {
+    if (texCache.has(key)) return texCache.get(key);
+    const c = document.createElement('canvas'); c.width = w; c.height = h;
+    paint(c.getContext('2d'), w, h);
+    const t = new THREE.CanvasTexture(c);
+    if (srgb) t.encoding = THREE.sRGBEncoding;
+    if (repeat) { t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(...repeat); }
+    t.anisotropy = 4;
+    texCache.set(key, t);
+    return t;
+  }
+  /** orange-peel / sand-cast bump */
+  const castTex = () => canvasTex('cast', 256, 256, (g, w, h) => {
+    const img = g.createImageData(w, h);
+    for (let i = 0; i < w * h; i++) { const v = 128 + (Math.random() - 0.5) * 70; img.data.set([v, v, v, 255], i * 4); }
+    g.putImageData(img, 0, 0); g.filter = 'blur(1.4px)'; g.drawImage(g.canvas, 0, 0);
+  }, { repeat: [3, 3] });
+  const paintTex = () => canvasTex('paint', 256, 256, (g, w, h) => {
+    const img = g.createImageData(w, h);
+    for (let i = 0; i < w * h; i++) { const v = 128 + (Math.random() - 0.5) * 30; img.data.set([v, v, v, 255], i * 4); }
+    g.putImageData(img, 0, 0); g.filter = 'blur(2px)'; g.drawImage(g.canvas, 0, 0);
+  }, { repeat: [2, 2] });
+  /** machined / brushed roughness streaks */
+  const brushedTex = () => canvasTex('brushed', 256, 256, (g, w, h) => {
+    g.fillStyle = '#7a7a7a'; g.fillRect(0, 0, w, h);
+    for (let i = 0; i < 900; i++) {
+      const y = Math.random() * h; const a = 0.04 + Math.random() * 0.1;
+      g.strokeStyle = Math.random() < 0.5 ? `rgba(255,255,255,${a})` : `rgba(0,0,0,${a})`;
+      g.lineWidth = 0.6 + Math.random(); g.beginPath(); g.moveTo(0, y); g.lineTo(w, y + (Math.random() - 0.5) * 2); g.stroke();
+    }
+  }, { repeat: [1, 1] });
+  function textTex(lines, style, w, h) {
+    const key = `txt|${style}|${w}x${h}|${lines.join('¦')}`;
+    return canvasTex(key, w, h, (g) => {
+      if (style === 'lcd') {
+        const gr = g.createLinearGradient(0, 0, 0, h); gr.addColorStop(0, '#0d2a2a'); gr.addColorStop(1, '#06171a');
+        g.fillStyle = gr; g.fillRect(0, 0, w, h);
+        g.fillStyle = '#7dffd6'; g.textAlign = 'center'; g.textBaseline = 'middle';
+        lines.forEach((t, i) => { g.font = `${i === 0 ? 700 : 500} ${Math.round(h / (lines.length + 1) * (i === 0 ? 0.95 : 0.6))}px monospace`; g.fillText(t, w / 2, h * (i + 0.75) / (lines.length + 0.5)); });
+        return;
+      }
+      // engraved stainless nameplate
+      const gr = g.createLinearGradient(0, 0, w, h); gr.addColorStop(0, '#d9dcdf'); gr.addColorStop(0.5, '#b9bdc2'); gr.addColorStop(1, '#cfd2d5');
+      g.fillStyle = gr; g.fillRect(0, 0, w, h);
+      g.strokeStyle = '#6d7276'; g.lineWidth = Math.max(2, w * 0.008); g.strokeRect(w * 0.03, h * 0.06, w * 0.94, h * 0.88);
+      g.fillStyle = '#5f6468';
+      for (const [x, y] of [[0.06, 0.15], [0.94, 0.15], [0.06, 0.85], [0.94, 0.85]]) { g.beginPath(); g.arc(w * x, h * y, h * 0.045, 0, 7); g.fill(); }
+      g.fillStyle = '#26292c'; g.textBaseline = 'middle';
+      lines.forEach((t, i) => {
+        const fs = i === 0 ? h * 0.2 : h * 0.13;
+        g.font = `${i === 0 ? 700 : 600} ${fs}px Arial, sans-serif`;
+        g.fillText(t, w * 0.11, h * (0.27 + i * (0.62 / Math.max(1, lines.length - 1 || 1))));
+      });
+    }, { srgb: true });
+  }
+  const dialTex = () => canvasTex('dial', 256, 256, (g, w) => {
+    const c = w / 2;
+    g.fillStyle = '#f4f2ec'; g.beginPath(); g.arc(c, c, c, 0, 7); g.fill();
+    g.strokeStyle = '#222'; g.lineWidth = 3;
+    for (let i = 0; i <= 40; i++) {
+      const a = Math.PI * 0.75 + i / 40 * Math.PI * 1.5; const r0 = i % 5 ? c * 0.78 : c * 0.7;
+      g.lineWidth = i % 5 ? 2 : 4; g.beginPath(); g.moveTo(c + Math.cos(a) * r0, c + Math.sin(a) * r0); g.lineTo(c + Math.cos(a) * c * 0.88, c + Math.sin(a) * c * 0.88); g.stroke();
+    }
+    g.strokeStyle = '#c0281e'; g.lineWidth = 3; g.beginPath(); g.arc(c, c, c * 0.62, Math.PI * 1.9, Math.PI * 2.25); g.stroke();
+    g.strokeStyle = '#111'; g.lineWidth = 6; g.beginPath(); g.moveTo(c, c); g.lineTo(c + Math.cos(Math.PI * 1.55) * c * 0.72, c + Math.sin(Math.PI * 1.55) * c * 0.72); g.stroke();
+    g.fillStyle = '#111'; g.beginPath(); g.arc(c, c, c * 0.07, 0, 7); g.fill();
+    g.font = `600 ${w * 0.08}px Arial`; g.textAlign = 'center'; g.fillText('bar', c, c * 1.45);
+  }, { srgb: true });
+  const haloTex = () => canvasTex('halo', 256, 256, (g, w) => {
+    const gr = g.createRadialGradient(w / 2, w / 2, 0, w / 2, w / 2, w / 2);
+    gr.addColorStop(0, 'rgba(0,0,0,0.55)'); gr.addColorStop(0.45, 'rgba(0,0,0,0.22)'); gr.addColorStop(1, 'rgba(0,0,0,0)');
+    g.fillStyle = gr; g.fillRect(0, 0, w, w);
+  });
+
   /** cutaway section removes the front half of shells / housings (these looks and part ids) */
   const CUT_LOOKS = new Set(['body', 'flange', 'act', 'cab', 'door', 'cabframe', 'plinth', 'ghost']);
   const CUT_IDS = new Set(['cage', 'guide', 'liner', 'bonnet', 'gland', 'packing', 'body_connector', 'mounting_pad', 'thrust_base', 'lower_casing', 'upper_casing', 'gearcase']);
   const REF = new Set(['ghost', 'clear']);
 
   let renderer; let scene; let camera; let root; let host; let overlay;
-  const opts = { edges: true, labels: 'auto', dims: true, section: false, autoExplode: true, insetRight: 0 };
+  let ortho; let persp; let keyLight; let stage; let shadowCatcher; let halo; let pedestal; let envMap = null;
+  const FOV = 28;
+  const opts = { edges: false, labels: 'auto', dims: false, section: false, autoExplode: true, insetRight: 0, style: 'real' };
   const S = { parts: [], groups: new Map(), bbox: null, e: 0, eT: 0, focus: null, hovered: null, selected: null };
   const orbit = { theta: Math.PI / 4, phi: Math.acos(1 / Math.sqrt(3)), dist: 3000, target: new THREE.Vector3() };
   const goal = { dist: 3000, target: new THREE.Vector3(), follow: true, refit: true, fitDist: 3000 };
@@ -55,18 +166,84 @@ const Viewer = (() => {
     renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
     renderer.outputEncoding = THREE.sRGBEncoding;
     renderer.localClippingEnabled = true;
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     el.appendChild(renderer.domElement);
     overlay = document.createElement('div'); overlay.className = 'v-overlay'; el.appendChild(overlay);
     scene = new THREE.Scene();
-    camera = new THREE.OrthographicCamera(-1, 1, 1, -1, -1e6, 1e6);
-    scene.add(new THREE.HemisphereLight(0xffffff, 0x445566, 0.75));
-    const d1 = new THREE.DirectionalLight(0xffffff, 0.8); d1.position.set(1, 2, 1.5); scene.add(d1);
-    const d2 = new THREE.DirectionalLight(0xffffff, 0.3); d2.position.set(-1.5, 0.5, -1); scene.add(d2);
+    ortho = new THREE.OrthographicCamera(-1, 1, 1, -1, -1e6, 1e6);
+    persp = new THREE.PerspectiveCamera(FOV, 1, 1, 1e6);
+    camera = opts.style === 'real' ? persp : ortho;
+    // studio rig: soft sky/ground fill, warm key (casts shadows), cool fill, rim
+    scene.add(new THREE.HemisphereLight(0xffffff, 0x3a3f46, 0.35));
+    keyLight = new THREE.DirectionalLight(0xfff4e8, 1.6);
+    keyLight.castShadow = true; keyLight.shadow.mapSize.set(2048, 2048); keyLight.shadow.bias = -0.0004; keyLight.shadow.normalBias = 0.6;
+    keyLight.shadow.radius = 4;
+    scene.add(keyLight); scene.add(keyLight.target);
+    const fill = new THREE.DirectionalLight(0xe4ecff, 0.45); fill.position.set(-1.6, 0.6, 1.2); scene.add(fill);
+    const rim = new THREE.DirectionalLight(0xffffff, 0.55); rim.position.set(-0.8, 1.2, -1.6); scene.add(rim);
     root = new THREE.Group(); scene.add(root);
+    stage = new THREE.Group(); scene.add(stage);
+    shadowCatcher = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), new THREE.ShadowMaterial({ opacity: 0.22 }));
+    shadowCatcher.rotation.x = -Math.PI / 2; shadowCatcher.receiveShadow = true; shadowCatcher.visible = false; stage.add(shadowCatcher);   // the pedestal catches shadows; nothing floats
+    halo = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), new THREE.MeshBasicMaterial({ map: haloTex(), transparent: true, depthWrite: false, toneMapped: false }));
+    halo.rotation.x = -Math.PI / 2; halo.renderOrder = 1; stage.add(halo);
+    pedestal = new THREE.Mesh(new THREE.CylinderGeometry(1, 1.03, 1, 96), new THREE.MeshStandardMaterial({ color: new THREE.Color(0xd8d6d1).convertSRGBToLinear(), roughness: 0.8, metalness: 0 }));
+    pedestal.receiveShadow = true; stage.add(pedestal);
+    envMap = buildEnv();
+    applyStyle();
     bindInput(renderer.domElement);
     new ResizeObserver(() => { resize(); goal.refit = true; }).observe(el);
     resize();
     loop();
+  }
+
+  /** studio environment: soft gradient sky with two softbox strips → PMREM, for metal reflections */
+  function buildEnv() {
+    const c = document.createElement('canvas'); c.width = 512; c.height = 256; const g = c.getContext('2d');
+    const gr = g.createLinearGradient(0, 0, 0, 256);
+    gr.addColorStop(0, '#8e949c'); gr.addColorStop(0.46, '#6b7179'); gr.addColorStop(0.54, '#3c4148'); gr.addColorStop(1, '#1d2024');
+    g.fillStyle = gr; g.fillRect(0, 0, 512, 256);
+    // softboxes: a big key box, a strip light and a small warm kicker
+    g.fillStyle = '#ffffff'; g.fillRect(70, 46, 80, 46); g.fillRect(340, 34, 110, 18);
+    g.fillStyle = '#ffe9d0'; g.fillRect(210, 80, 30, 20);
+    const t = new THREE.CanvasTexture(c); t.mapping = THREE.EquirectangularReflectionMapping; t.encoding = THREE.sRGBEncoding;
+    const pm = new THREE.PMREMGenerator(renderer);
+    const env = pm.fromEquirectangular(t).texture; pm.dispose(); t.dispose();
+    return env;
+  }
+  function applyStyle() {
+    const real = opts.style === 'real';
+    camera = real ? persp : ortho;
+    renderer.toneMapping = real ? THREE.ACESFilmicToneMapping : THREE.NoToneMapping;
+    renderer.toneMappingExposure = 1.1;
+    scene.environment = real ? envMap : null;
+    keyLight.intensity = real ? 1.5 : 0.8;
+    keyLight.castShadow = real;
+    stage.visible = real;
+    host.classList.toggle('real', real);
+    for (const m of matCache.values()) m.dispose();
+    matCache.clear();
+  }
+  /** pedestal, halo and shadow camera sized to the (exploded) model */
+  function placeStage() {
+    if (!S.bbox || !isFinite(S.bbox.size[0])) return;
+    const live = liveBox();
+    const b = live.isEmpty() ? new THREE.Box3(new THREE.Vector3(...S.bbox.min), new THREE.Vector3(...S.bbox.max)) : live;
+    const sz = b.getSize(new THREE.Vector3()); const c = b.getCenter(new THREE.Vector3());
+    const assembledMin = S.bbox.min[1];
+    const foot = Math.max(S.bbox.size[0], S.bbox.size[2]);
+    const R = foot * 0.62 + 40; const H = Math.max(14, foot * 0.04);
+    const y0 = Math.min(assembledMin, b.min.y) - 2;
+    pedestal.scale.set(R, H, R); pedestal.position.set((S.bbox.min[0] + S.bbox.max[0]) / 2, y0 - H / 2, (S.bbox.min[2] + S.bbox.max[2]) / 2);
+    shadowCatcher.scale.set(R * 6, R * 6, 1); shadowCatcher.position.set(pedestal.position.x, y0 + 0.4, pedestal.position.z);
+    halo.scale.set(foot * 1.25 + 60, foot * 1.25 + 60, 1); halo.position.set(pedestal.position.x, y0 + 0.8, pedestal.position.z);
+    const span = Math.max(sz.x, sz.y, sz.z) * 0.9 + 200;
+    keyLight.position.set(c.x + span * 0.45, c.y + span * 2.4, c.z + span * 0.7);   // high key: shadows land on the pedestal
+    keyLight.target.position.copy(c);
+    const sc = keyLight.shadow.camera;
+    sc.left = -span; sc.right = span; sc.top = span; sc.bottom = -span; sc.near = 1; sc.far = span * 5;
+    sc.updateProjectionMatrix();
   }
 
   function resize() {
@@ -80,25 +257,40 @@ const Viewer = (() => {
     if (!renderer) return;
     const w = host.clientWidth || 600; const h = host.clientHeight || 400;
     const half = orbit.dist / 2; const asp = w / h;
-    camera.left = -half * asp; camera.right = half * asp; camera.top = half; camera.bottom = -half;
     const t = orbit.target;
-    camera.position.set(
-      t.x + 1e4 * Math.sin(orbit.phi) * Math.sin(orbit.theta),
-      t.y + 1e4 * Math.cos(orbit.phi),
-      t.z + 1e4 * Math.sin(orbit.phi) * Math.cos(orbit.theta));
-    camera.up.set(0, 1, 0);
-    camera.lookAt(t);
-    camera.updateProjectionMatrix();
-    camera.updateMatrixWorld();
+    const dir = new THREE.Vector3(Math.sin(orbit.phi) * Math.sin(orbit.theta), Math.cos(orbit.phi), Math.sin(orbit.phi) * Math.cos(orbit.theta));
+    // orthographic: orbit.dist is the visible height; perspective: the same height at the target plane
+    ortho.left = -half * asp; ortho.right = half * asp; ortho.top = half; ortho.bottom = -half;
+    ortho.position.copy(t).addScaledVector(dir, 1e4);
+    const D = half / Math.tan(FOV * Math.PI / 360);
+    persp.aspect = asp; persp.near = Math.max(1, D * 0.02); persp.far = D * 50;
+    persp.position.copy(t).addScaledVector(dir, D);
+    for (const cam of [ortho, persp]) { cam.up.set(0, 1, 0); cam.lookAt(t); cam.updateProjectionMatrix(); cam.updateMatrixWorld(); }
   }
 
-  function setBackground(css) { renderer.setClearColor(new THREE.Color(css), 1); }
+  let bgCss = '#e9edf1';
+  function setBackground(css) { bgCss = css || bgCss; renderer.setClearColor(new THREE.Color(bgCss), opts.style === 'real' ? 0 : 1); }
 
   // ───────── materials & meshes ─────────
   const matCache = new Map();
   function material(look, cut) {
     const key = `${look}|${cut ? 1 : 0}`;
     if (matCache.has(key)) return matCache.get(key);
+    if (opts.style === 'real') {
+      const m = REAL[look] || REAL.body;
+      const mat = new THREE.MeshPhysicalMaterial({
+        color: new THREE.Color(m.color).convertSRGBToLinear(), metalness: m.metal, roughness: m.rough, clearcoat: m.clear || 0, clearcoatRoughness: 0.25,
+        envMapIntensity: m.metal > 0.6 ? 1.15 : 0.55,
+        transparent: m.opacity != null, opacity: m.opacity ?? 1, depthWrite: m.opacity == null,
+        side: (m.opacity != null || cut) ? THREE.DoubleSide : THREE.FrontSide,
+        clippingPlanes: cut ? [clipPlane] : [],
+      });
+      if (m.bump === 'cast') { mat.bumpMap = castTex(); mat.bumpScale = 0.9; }
+      if (m.bump === 'paint') { mat.bumpMap = paintTex(); mat.bumpScale = 0.35; }
+      if (m.rmap === 'brushed') { mat.roughnessMap = brushedTex(); }
+      matCache.set(key, mat);
+      return mat;
+    }
     const m = LOOK[look] || LOOK.body;
     const mat = new THREE.MeshStandardMaterial({
       color: m.color, metalness: m.metal, roughness: m.rough,
@@ -126,11 +318,92 @@ const Viewer = (() => {
     }
   }
 
+  /** profile [[s, r, smooth?]…] → turned solid; creases at every knot not marked smooth */
+  function latheObj(pr, mat) {
+    let pts = pr.pts.map((p) => [p[0], Math.max(0, p[1]), p[2]]);
+    if (pts[pts.length - 1][0] < pts[0][0]) pts = pts.slice().reverse();
+    const g = new THREE.Group();
+    let run = [pts[0]];
+    const flush = () => {
+      if (run.length >= 2) {
+        const geo = new THREE.LatheGeometry(run.map(([s, r]) => new THREE.Vector2(r, s)), 64);
+        const m = new THREE.Mesh(geo, mat); g.add(m);
+      }
+    };
+    for (let i = 1; i < pts.length; i++) {
+      run.push(pts[i]);
+      if (!pts[i][2] || i === pts.length - 1) { flush(); run = [pts[i]]; }
+    }
+    g.quaternion.copy(axisQuat(pr.axis));
+    g.position.set(...pr.at);
+    return g;
+  }
+  function rboxGeo(s, r) {
+    const bev = Math.min(r, s[2] / 2 - 0.05, s[0] / 2 - 0.05, s[1] / 2 - 0.05);
+    const w = s[0] - 2 * bev; const h = s[1] - 2 * bev; const cr = Math.max(0.01, Math.min(r, w / 2 - 0.01, h / 2 - 0.01));
+    const sh = new THREE.Shape();
+    sh.moveTo(-w / 2 + cr, -h / 2); sh.lineTo(w / 2 - cr, -h / 2); sh.quadraticCurveTo(w / 2, -h / 2, w / 2, -h / 2 + cr);
+    sh.lineTo(w / 2, h / 2 - cr); sh.quadraticCurveTo(w / 2, h / 2, w / 2 - cr, h / 2); sh.lineTo(-w / 2 + cr, h / 2);
+    sh.quadraticCurveTo(-w / 2, h / 2, -w / 2, h / 2 - cr); sh.lineTo(-w / 2, -h / 2 + cr); sh.quadraticCurveTo(-w / 2, -h / 2, -w / 2 + cr, -h / 2);
+    const depth = Math.max(0.1, s[2] - 2 * bev);
+    const geo = new THREE.ExtrudeGeometry(sh, { depth, bevelEnabled: bev > 0.05, bevelThickness: bev, bevelSize: bev, bevelSegments: 3, curveSegments: 5 });
+    geo.translate(0, 0, -depth / 2);
+    return geo;
+  }
+  const FACE_Q = {
+    z: new THREE.Quaternion(), '-z': new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), Math.PI),
+    x: new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), Math.PI / 2), '-x': new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), -Math.PI / 2),
+    y: new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), -Math.PI / 2),
+  };
   function primMesh(pr, mat) {
     let geo; const mesh = new THREE.Mesh(undefined, mat);
     switch (pr.k) {
+      case 'lathe': return latheObj(pr, mat);
+      case 'rbox':
+        geo = rboxGeo(pr.s, pr.r ?? 4);
+        if (pr.ry) mesh.rotation.y = pr.ry;
+        break;
+      case 'plate': {
+        // thin plate whose front face carries an engraved nameplate or an LCD
+        const [w, h, t] = pr.s;
+        const tex = textTex(pr.lines || [], pr.style || 'plate', 512, Math.max(64, Math.round(512 * h / w)));
+        const front = new THREE.MeshStandardMaterial({ map: tex, metalness: pr.style === 'lcd' ? 0 : 0.6, roughness: pr.style === 'lcd' ? 0.15 : 0.4,
+          emissive: pr.style === 'lcd' ? 0xffffff : 0x000000, emissiveMap: pr.style === 'lcd' ? tex : null, emissiveIntensity: pr.style === 'lcd' ? 0.55 : 0 });
+        const side = mat;
+        const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, Math.max(0.2, t)), [side, side, side, side, front, side]);
+        m.quaternion.copy(FACE_Q[pr.face || 'z']);
+        m.position.set(...pr.at);
+        return m;
+      }
+      case 'gauge': {
+        // pressure gauge: case, white dial, glass — dial faces +axis
+        const g = new THREE.Group();
+        const r = pr.r;
+        const cas = new THREE.Mesh(new THREE.CylinderGeometry(r, r, r * 0.5, 40), material('steel', false));
+        g.add(cas);
+        const face = new THREE.Mesh(new THREE.CircleGeometry(r * 0.86, 40), new THREE.MeshStandardMaterial({ map: dialTex(), roughness: 0.5 }));
+        face.rotation.x = -Math.PI / 2; face.position.y = r * 0.251; g.add(face);
+        const glass = new THREE.Mesh(new THREE.CylinderGeometry(r * 0.9, r * 0.9, r * 0.04, 40), new THREE.MeshPhysicalMaterial({ color: 0xffffff, transparent: true, opacity: 0.15, roughness: 0.02, metalness: 0, clearcoat: 1 }));
+        glass.position.y = r * 0.27; g.add(glass);
+        g.quaternion.copy(axisQuat(pr.axis)); if (pr.flip) g.quaternion.multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), Math.PI));
+        g.position.set(...pr.at);
+        return g;
+      }
+      case 'arrow': {
+        // cast flow arrow on a body side
+        const L = pr.len; const W = pr.w; const sh = new THREE.Shape();
+        sh.moveTo(-L / 2, -W * 0.22); sh.lineTo(L * 0.18, -W * 0.22); sh.lineTo(L * 0.18, -W / 2); sh.lineTo(L / 2, 0);
+        sh.lineTo(L * 0.18, W / 2); sh.lineTo(L * 0.18, W * 0.22); sh.lineTo(-L / 2, W * 0.22); sh.closePath();
+        geo = new THREE.ExtrudeGeometry(sh, { depth: pr.t, bevelEnabled: true, bevelThickness: pr.t * 0.3, bevelSize: pr.t * 0.3, bevelSegments: 2 });
+        mesh.geometry = geo;
+        mesh.quaternion.copy(FACE_Q[pr.face || 'z']);
+        if (pr.dir < 0) mesh.quaternion.multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 0, 1), Math.PI));
+        mesh.position.set(...pr.at);
+        return mesh;
+      }
       case 'cyl': {
-        geo = new THREE.CylinderGeometry(pr.r2 ?? pr.r, pr.r, Math.max(0.1, pr.h), 40);
+        geo = new THREE.CylinderGeometry(pr.r2 ?? pr.r, pr.r, Math.max(0.1, pr.h), pr.seg || 40);
+        if (pr.seg && pr.seg <= 8) { geo = geo.toNonIndexed(); geo.computeVertexNormals(); }
         const q = axisQuat(pr.axis);
         if (pr.rotY) q.premultiply(new THREE.Quaternion().setFromAxisAngle(Y, pr.rotY));
         mesh.quaternion.copy(q);
@@ -190,13 +463,18 @@ const Viewer = (() => {
     for (const p of model.parts) {
       const g = new THREE.Group(); g.name = p.id; g.userData.part = p;
       const cut = isCut(p);
+      const real = opts.style === 'real';
       for (const pr of p.prims) {
         const m = primMesh(pr, material(pr.look || p.look, cut)); if (!m) continue;
-        m.userData.partId = p.id;
+        m.traverse((o) => {
+          if (!o.isMesh) return;
+          o.userData.partId = p.id;
+          o.castShadow = real && !REF.has(p.look); o.receiveShadow = real && !REF.has(p.look);
+        });
         g.add(m);
-        if (opts.edges && !REF.has(p.look) && pr.k !== 'helix' && !cut) {
+        if (opts.edges && !REF.has(p.look) && m.isMesh && !Array.isArray(m.material) && pr.k !== 'helix' && !cut) {
           const e = new THREE.LineSegments(new THREE.EdgesGeometry(m.geometry, 35),
-            new THREE.LineBasicMaterial({ color: 0x1b1f24, transparent: true, opacity: 0.32 }));
+            new THREE.LineBasicMaterial({ color: 0x1b1f24, transparent: true, opacity: real ? 0.18 : 0.32 }));
           e.position.copy(m.position); e.quaternion.copy(m.quaternion); e.scale.copy(m.scale);
           e.userData.edge = true; g.add(e);
         }
@@ -207,6 +485,7 @@ const Viewer = (() => {
     applyExplode();
     applyFocus();
     highlight();
+    placeStage();
     dirtyDims = true;
     if (!keepView) { goal.follow = true; frame(true); } else if (goal.follow) goal.refit = true;
   }
@@ -302,7 +581,8 @@ const Viewer = (() => {
   function setVisible(id, vis) { const g = S.groups.get(id); if (g) { g.visible = vis; dirtyDims = true; } }
   function setOption(k, v) {
     opts[k] = v;
-    if (k === 'edges' || k === 'section') show({ parts: S.parts, bbox: S.bbox }, { keepView: true });
+    if (k === 'style') { applyStyle(); updateCamera(); setBackground(); }
+    if (k === 'edges' || k === 'section' || k === 'style') show({ parts: S.parts, bbox: S.bbox }, { keepView: true });
     if (k === 'dims') dirtyDims = true;
     if (k === 'insetRight' && goal.follow) goal.refit = true;
   }
@@ -422,6 +702,7 @@ const Viewer = (() => {
     const live = liveBox();
     const size = Math.max(...b0.size);
     grid = new THREE.GridHelper(size * 4, 40, 0x8899aa, 0x8899aa);
+    grid.visible = opts.style !== 'real';
     grid.material.transparent = true; grid.material.opacity = 0.16;
     grid.position.set((bb.min.x + bb.max.x) / 2, Math.min(bb.min.y, live.isEmpty() ? bb.min.y : live.min.y) - 0.5, (bb.min.z + bb.max.z) / 2);
     scene.add(grid);
@@ -448,11 +729,10 @@ const Viewer = (() => {
   }
   /** world point under the cursor on the plane through the orbit target */
   function worldAt(e) {
-    const n = ndc(e);
-    const p = new THREE.Vector3(n.x, n.y, 0).unproject(camera);
+    const rc = new THREE.Raycaster(); rc.setFromCamera(ndc(e), camera);
     const dir = new THREE.Vector3(); camera.getWorldDirection(dir);
     const plane = new THREE.Plane().setFromNormalAndCoplanarPoint(dir, orbit.target);
-    return new THREE.Ray(p.addScaledVector(dir, -1e5), dir).intersectPlane(plane, new THREE.Vector3()) || orbit.target.clone();
+    return rc.ray.intersectPlane(plane, new THREE.Vector3()) || orbit.target.clone();
   }
 
   function zoomCamera(e, f) {
@@ -555,10 +835,11 @@ const Viewer = (() => {
       g.traverse((o) => {
         if (!o.isMesh || o.userData.dimmed) return;
         if (on && !o.userData.hl) {
-          o.userData.base0 = o.material; o.material = o.material.clone();
-          o.material.emissive = new THREE.Color(id === S.selected ? 0xe0a526 : 0x335577); o.material.emissiveIntensity = 0.5; o.userData.hl = true;
+          o.userData.base0 = o.material;
+          const glow = (m) => { const c = m.clone(); c.emissive = new THREE.Color(id === S.selected ? 0xe0a526 : 0x335577); c.emissiveIntensity = 0.45; return c; };
+          o.material = Array.isArray(o.material) ? o.material.map(glow) : glow(o.material); o.userData.hl = true;
         }
-        if (!on && o.userData.hl) { o.material.dispose(); o.material = o.userData.base0; o.userData.hl = false; }
+        if (!on && o.userData.hl) { [].concat(o.material).forEach((m) => m.dispose()); o.material = o.userData.base0; o.userData.hl = false; }
       });
     }
   }
@@ -569,7 +850,7 @@ const Viewer = (() => {
     let moved = false;
     if (Math.abs(S.e - S.eT) > 1e-4) {
       S.e += (S.eT - S.e) * 0.16; if (Math.abs(S.e - S.eT) < 2e-3) S.e = S.eT;
-      applyExplode(); moved = true; dirtyDims = true;
+      applyExplode(); moved = true; dirtyDims = true; placeStage();
     }
     if (goal.follow && (moved || goal.refit)) { frame(false); goal.refit = false; }
     const dd = goal.dist - orbit.dist; const dt = goal.target.clone().sub(orbit.target);

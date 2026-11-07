@@ -332,6 +332,12 @@
     $('opt-labels').addEventListener('change', (e) => Viewer.setOption('labels', e.target.value));
     $('opt-dims').addEventListener('change', (e) => Viewer.setOption('dims', e.target.checked));
     $('opt-edges').addEventListener('change', (e) => Viewer.setOption('edges', e.target.checked));
+    $('opt-style').value = store.get('style', 'real');
+    $('opt-style').addEventListener('change', (e) => {
+      store.set('style', e.target.value);
+      Viewer.setOption('style', e.target.value);
+      $('opt-edges').checked = e.target.value === 'tech'; Viewer.setOption('edges', $('opt-edges').checked);
+    });
     $('ex-stl').addEventListener('click', () => download(Viewer.toSTL(), `${fileBase()}.stl`));
     $('ex-obj').addEventListener('click', () => download(Viewer.toOBJ(fileBase()), `${fileBase()}.obj`));
     $('ex-png').addEventListener('click', async () => download(await (await fetch(Viewer.toPNG())).blob(), `${fileBase()}.png`));
@@ -379,6 +385,7 @@
       onFocus: (id) => { $('hint-bar').hidden = false; $('hint-bar').textContent = id ? 'Isolated — double-click the part again (or Isolate) to return' : HINT; },
     });
     const bg = () => Viewer.setBackground(getComputedStyle(document.documentElement).getPropertyValue('--stage').trim() || '#e9edf1');
+    if (store.get('style', 'real') !== 'real') { Viewer.setOption('style', 'tech'); Viewer.setOption('edges', true); $('opt-edges').checked = true; }
     bg();
     window.matchMedia?.('(prefers-color-scheme: dark)').addEventListener?.('change', bg);
   }

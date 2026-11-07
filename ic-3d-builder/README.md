@@ -32,6 +32,20 @@
 
 API 키 없이도 프리셋과 수동 입력만으로 3D 를 만들 수 있습니다.
 
+## 실물처럼 보이게 (Realistic 스타일, 기본)
+
+[anatomy 스킬](https://github.com/wheresryan22/anatomy)의 원칙을 3D 에 옮겼습니다 — "부품은 실제로 만들 수 있는 모양으로,
+작은 실제 부품까지, 곡면은 계단 없이 매끄럽게, 물체 아래에는 부드러운 그림자".
+
+- **선반 가공 프로파일(lathe)**: 플랜지(허브 필렛·모따기·1.6 mm raised face·보어), 보닛, 다이어프램 케이스(림 플랜지·돔),
+  MOV 기어케이스, PSV 보닛·캡, 트랜스미터 하우징을 반단면 프로파일을 회전시켜 만듭니다. 곡면은 부드럽게, 단차는 각지게.
+- **실제 작은 부품**: 육각 너트·와셔가 달린 스터드 볼트, 볼트 서클, 플랜지 개스킷, 이름판(Tag·사이즈·등급이 실제 값으로 새겨짐),
+  주물 흐름 화살표, 포지셔너·에어셋 압력계, MOV LCD 표시창·셀렉터 노브·단자함 볼트, 모터 냉각 핀, 캐비닛 경첩·루버.
+- **재질**: 도장 주물(오렌지필 범프), 가공·연마 스틸(브러시드 거칠기), 스테인리스 트림, 청동 너트, PTFE, 고무, 도장 액추에이터.
+  물리 기반 재질 + 스튜디오 환경맵 반사 + ACES 톤매핑.
+- **촬영 무대**: 원근 카메라, 받침대, 부드러운 그림자와 접지 그림자(halo). 그림자는 받침대 위에만 떨어집니다.
+- 툴바 **Style → Technical** 로 이전의 평면 톤 + 윤곽선 + 정사영 스타일로 바꿀 수 있습니다 (도면 대조용).
+
 ## 사이즈·등급 연동
 
 NPS 와 압력등급(ASME Class)을 바꾸면 부품 치수가 함께 바뀝니다.
@@ -71,8 +85,10 @@ Claude Code 에서는 스킬 `.claude/skills/ic-ga-to-3d` 가 같은 엔진을 �
 
 ## 참고한 것
 
-- [thebuggeddev/anatomy](https://github.com/thebuggeddev/anatomy) — 핫스팟 점 + 콜아웃 + 부품 설명 구조, 분해/단면 상호작용.
-  코드는 가져오지 않았고 상호작용 방식만 참고했습니다.
+- [thebuggeddev/anatomy](https://github.com/thebuggeddev/anatomy) — 핫스팟 점 + 콜아웃 + 부품 설명 구조, 분해/단면 상호작용,
+  렌더 설정(ACES 톤매핑, PMREM 환경맵, 키·필·림 조명, 받침대와 접지 그림자). 코드는 가져오지 않았습니다.
+- [wheresryan22/anatomy](https://github.com/wheresryan22/anatomy) (Claude Code 스킬) — craft 규칙: lathe 프로파일(스텝은 각지게, 곡선은 smooth),
+  작은 실제 부품(볼트·이름판·리브), 부드러운 곡면 음영, 물체 아래 halo, 재질은 주제에·바닥은 무채색. 코드는 가져오지 않았습니다.
 - Image Blaster 3D (World Labs) — 단일 이미지를 메쉬로 만드는 도구지만 유료 외부 API(World Labs, fal) 의존이고
   치수 정확도가 없어 쓰지 않았습니다. 이 툴은 도면 치수로 만드는 파라메트릭 방식입니다.
 - 부품 명칭·기능: Fisher Control Valve Handbook 정의, ASME PTC 25 용어, API 600 / API 6D / API 609 / API 526,
