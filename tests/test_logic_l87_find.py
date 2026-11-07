@@ -62,8 +62,10 @@ def test_palette_window_page_and_channel(tmp_path, monkeypatch):
     root = Path(__file__).resolve().parents[1] / "app" / "static"
     main, pal = (root / "logic_draw.js").read_text(encoding="utf-8"), (root / "logic_draw_palette.js").read_text(encoding="utf-8")
     assert 'BroadcastChannel("logic.draw.palette")' in main and 'BroadcastChannel("logic.draw.palette")' in pal
-    for t in ('t: "pick"', 't: "inside"', 't: "cancel"', 't: "hello"', 't: "alive"'):
+    for t in ('t: "pick"', 't: "cancel"', 't: "hello"', 't: "alive"'):
         assert t in pal
+    # L90 — 매크로 내부 동작은 기호 창이 바로 새 창으로 연다 (그림 창에 부탁하면 브라우저가 팝업으로 막는다)
+    assert "/logic/api/drawings/typicals/" in pal and 'window.open("", "_blank")' in pal
     for t in ('t: "items"', 't: "state"', 'm.t === "pick"', 'm.t === "inside"', 'm.t === "cancel"'):
         assert t in main
     css = (root / "logic_draw.css").read_text(encoding="utf-8")
