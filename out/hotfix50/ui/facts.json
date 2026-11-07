@@ -1,0 +1,42 @@
+{
+ "pid_url": "http://192.0.2.2:35407/?embed=1&mode=bid&user=%ED%99%8D%EA%B8%B8%EB%8F%99",
+ "host_ip": "192.0.2.2",
+ "version_from_file_origin": "ok 1.0.0",
+ "home": {
+  "embed": true,
+  "sidebar_shown": false,
+  "padding_left": "0px",
+  "author": "홍길동",
+  "mode_radio": "bid",
+  "embed_from": "입찰 프로젝트 메뉴에서 열림 — 새 프로젝트는 입찰로 시작합니다",
+  "hscroll": false
+ },
+ "results": {
+  "url": "http://192.0.2.2:35407/?embed=1&mode=bid&user=%ED%99%8D%EA%B8%B8%EB%8F%99#uidb5eb779d9111b",
+  "tabs_parent": "embed-tabs",
+  "tabs_visible": "flex",
+  "tab_buttons": 6,
+  "rows": 1133,
+  "stage_w": 673,
+  "hscroll": false
+ },
+ "tab_click": {
+  "tab": "FIELD",
+  "on": "Field904"
+ },
+ "back_home": {
+  "url": "http://192.0.2.2:35407/?embed=1&mode=bid&user=%ED%99%8D%EA%B8%B8%EB%8F%99",
+  "embed": true
+ },
+ "new_project_mode": {
+  "author": "홍길동",
+  "set_at": 1791425280.681336,
+  "value": "bid"
+ },
+ "mode_radio_after_create": "bid",
+ "direct_open": {
+  "embed": false,
+  "sidebar": true
+ },
+ "errors": []
+}

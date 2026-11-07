@@ -1,0 +1,2 @@
+AL NOUF1 solid 1385 dashed 1 dashed∩solid 0
+  page (55, 15, 1, 0, [[2157, 1231, 2224, 1250]])

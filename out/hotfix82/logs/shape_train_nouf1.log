@@ -1,0 +1,5 @@
+  pid_total.pdf: 몸체 2898 → 보기 2895 (종류 {'ANGLE': 13, 'GATE': 777, 'GLOBE': 1360, 'CHECK': 254, 'DIAPHRAGM': 46, 'BALL': 321, 'BUTTERFLY': 124})
+사전: /tmp/shape_exp/shape_library.json
+  보기 2581 (거른 것 0) · 종류 {'ANGLE': 12, 'GATE': 554, 'GLOBE': 1295, 'CHECK': 252, 'DIAPHRAGM': 46, 'BALL': 309, 'BUTTERFLY': 113}
+  문턱 0.0 — {'within_max': 0.2561, 'cross_min': 0.0, 'gap': False, 'reason': '같은 종류와 다른 종류의 거리가 겹친다 — 다른 종류 최솟값 아래만 받는다'}
+  612초

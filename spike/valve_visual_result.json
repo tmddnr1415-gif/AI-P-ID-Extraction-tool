@@ -1,0 +1,37 @@
+{
+ "sample": "Datasheet.pdf (MR CO2S-SSG-IN-REQ-00009 Annexure 6) — 456 pages, 164 datasheets",
+ "method": "every page image read by a reviewing agent and compared item by item with the reader's output (spike/valve_visual_pack.py); every suspected error confirmed against the PDF text layer before it counts; round 2 re-judged every line the fixed reader changed",
+ "round1_before_fixes": {
+  "pages": 456,
+  "items": 21482,
+  "errors": 760,
+  "error_rate_pct": 3.54,
+  "by_kind": {
+   "MISSING": 264,
+   "SPURIOUS": 153,
+   "WRONG_NOTE": 143,
+   "HEADER": 139,
+   "WRONG": 61
+  }
+ },
+ "round2_after_fixes": {
+  "lines_rejudged": 1324,
+  "errors_in_rejudged": 0,
+  "round1_errors_left": 2,
+  "items": 21482,
+  "error_rate_pct": 0.009,
+  "left": "two datasheets' sheet 2 print a cut-off Document No. (drawing typo) — the reader keeps sheet 1's number and the tool now raises it as a Data Error"
+ },
+ "causes_fixed": [
+  "text hidden under a later white fill (Excel drop-down remnants, overprinted sheet numbers) — judged from drawing order",
+  "duplicate overprinted words ('NA' over 'NA') read twice",
+  "3-pt line bucket split one line (a two-part value came out reversed)",
+  "page footer 'Page N of M' glued to the last note — notes bounded by the notes frame",
+  "Form 102 single-column sheet sent to the On/Off reader; right-hand 'Label : value' beside rows 1-4 dropped",
+  "unit-only / '/' cells read as values",
+  "'Sheet | 3 | of | 3' in separate cells",
+  "wrapped document titles cut",
+  "'3. ATTACHMENT' swallowed by the last General Note",
+  "'HOLD:' list merged into the last note"
+ ]
+}

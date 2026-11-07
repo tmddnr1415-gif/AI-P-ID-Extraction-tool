@@ -1,0 +1,15 @@
+page 27 kind=PID dwg=D02J-31PGB0-M05-0003 rev=None size=Rect(0.0, 0.0, 1191.0, 842.0) rot=270 rows=12
+  FIELD     PI     q=8 scope=SCT                          tag= rect=[167, 238, 201, 250] desc='UNIT #31 CCW ST LUBE OIL COOLER SUPPLY P' rev=''
+  FIELD     PI     q=8 scope=SCT                          tag= rect=[284, 238, 319, 250] desc='UNIT #31 CCW ST LUBE OIL COOLER SUPPLY P' rev=''
+  FIELD     PI     q=8 scope=SCT                          tag= rect=[640, 238, 675, 250] desc='UNIT #31 CCW AIR COMPRESSOR COMMON COOLE' rev=''
+  FIELD     PI     q=8 scope=SCT                          tag= rect=[758, 238, 792, 250] desc='UNIT #31 CCW AIR COMPRESSOR COMMON COOLE' rev=''
+  FIELD     PI     q=8 scope=SCT                          tag= rect=[744, 554, 778, 566] desc='AIR COMPRESSOR COMMON COOLER A/B RETURN ' rev=''
+  FIELD     PI     q=8 scope=SCT                          tag= rect=[859, 554, 893, 566] desc='UNIT #31 CCW AIR COMPRESSOR COMMON COOLE' rev=''
+  FIELD     PI     q=8 scope=SCT                          tag= rect=[270, 574, 304, 586] desc='UNIT #31 CCW ST LUBE OIL COOLER RETURN P' rev=''
+  FIELD     PI     q=8 scope=SCT                          tag= rect=[385, 574, 419, 586] desc='UNIT #31 CCW SAMPLING COOLER RETURN PRES' rev=''
+  FIELD     TI     q=8 scope=SCT                          tag= rect=[744, 575, 778, 587] desc='UNIT #31 CCW AIR COMPRESSOR COMMON COOLE' rev=''
+  FIELD     TI     q=8 scope=SCT                          tag= rect=[859, 575, 893, 587] desc='UNIT #31 CCW AIR COMPRESSOR COMMON COOLE' rev=''
+  FIELD     TI     q=8 scope=SCT                          tag= rect=[270, 595, 304, 608] desc='UNIT #31 CCW ST LUBE OIL COOLER RETURN T' rev=''
+  FIELD     TI     q=8 scope=SCT                          tag= rect=[385, 595, 419, 608] desc='UNIT #31 CCW SAMPLING COOLER RETURN TEMP' rev=''
+㉡ 후보(행에 안 덮인 ISA 꼴 낱말): [(37, 87, 'FROM'), (37, 161, 'FROM'), (37, 647, 'TO'), (37, 743, 'TO'), (43, 647, 'CCW'), (43, 743, 'CCW'), (49, 87, 'CCW'), (49, 161, 'CCW'), (53, 647, 'RETURN'), (53, 743, 'RETURN'), (59, 161, 'SUPPLY'), (60, 87, 'SUPPLY'), (70, 647, 'HEADER'), (70, 743, 'HEADER'), (75, 161, 'HEADER'), (76, 87, 'HEADER'), (164, 172, 'DN'), (164, 658, 'DN'), (236, 201, 'DN'), (236, 485, 'DN'), (265, 404, 'ST'), (271, 404, 'LUBE'), (281, 404, 'OIL'), (287, 404, 'COOLER'), (351, 201, 'DN'), (351, 485, 'DN'), (380, 497, 'PSV'), (451, 97, 'DN'), (486, 753, 'DN'), (505, 419, 'SAMPLING'), (524, 419, 'COOLERS'), (525, 161, 'DN'), (525, 693, 'DN'), (612, 97, 'DN'), (621, 753, 'DN'), (709, 200, 'DN'), (709, 519, 'DN'), (730, 404, 'AIR'), (737, 404, 'COMPRESSOR'), (738, 476, 'PSV'), (763, 404, 'COMMON'), (771, 415, 'NOTE'), (780, 404, 'COOLER'), (825, 200, 'DN'), (825, 519, 'DN'), (847, 97, 'DN'), (847, 138, 'DN'), (852, 705, 'DN'), (852, 753, 'DN'), (853, 476, 'PSV'), (890, 87, 'TO'), (893, 743, 'FROM'), (897, 87, 'CCW'), (903, 137, 'OF'), (903, 705, 'OF'), (905, 743, 'CCW'), (907, 87, 'SUPPLY'), (909, 137, 'ADJACENT'), (909, 705, 'ADJACENT'), (916, 743, 'RETURN')] …
+unjudged on page: []

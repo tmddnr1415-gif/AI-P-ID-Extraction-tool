@@ -1,0 +1,13 @@
+· TC2 분석 …
+   행 902 · 지문 23e78e27 · 축3 94.2점
+
+프로젝트      행         지문     Q'ty       초     RSS      축3
+TC2    902   23e78e27     5564     632    7.5G   94.2
+
+축3 내역 (지표별 맞춘 수 / 분모)
+    도면번호         개정           태그→행         수량           심볼판정         파라미터       
+TC2 60/60        60/60        239/266      902/902      902/1055     26/29      
+결과: /home/user/AI-P-ID-Extraction-tool/out/regression_3p.json
+
+★ 기준선을 벗어났습니다
+   TC2 fingerprint: 기준선 67eae92de409d9e81eb43d4e53b241f0aeaa3b8314d91e5c5de6402255bb706d → 지금 23e78e27146e9ea3ac2cb12666dc4509c9f1e73e8e5c014f71cff4b8a6d8a3ac

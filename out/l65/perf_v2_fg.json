@@ -1,0 +1,21 @@
+{
+ "sheets": 7,
+ "srv_get_drawing_ms": 5.9,
+ "srv_set_ms": 100,
+ "open_ms": 335,
+ "switch_sheet_ms": 112.0,
+ "big_sheet": [
+  "FG_G-201",
+  24,
+  139
+ ],
+ "render_ms": 31.8,
+ "svg_nodes": 1696,
+ "drag30_ms": 541,
+ "drag_longtasks": 0,
+ "edit_ms": 19,
+ "save_ms": 73,
+ "sim_on_ms": 192,
+ "sim_force_ms": 29.5,
+ "errors": []
+}

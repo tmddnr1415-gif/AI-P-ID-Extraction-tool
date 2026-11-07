@@ -1,0 +1,15 @@
+source: LEGEND | note: legend p4 identification matrix: 25 first letters, 0 succeeding letters
+first  A: ('ANALYSIS',)
+succeeding dict 항목 수: 0
+   'A'   -> None
+   'AH'  -> None
+   'AL'  -> None
+   'AHL' -> None
+   'I'   -> None
+   'T'   -> None
+   'S'   -> None
+cells 보강 뒤 항목 수: 23
+   'A'   -> ('LOW',)
+   'AH'  -> ('HIGH',)
+   'AL'  -> ('LOW',)
+   'AHL' -> ()

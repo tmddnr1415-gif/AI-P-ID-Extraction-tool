@@ -1,0 +1,20 @@
+## va19 (va19) — 시트 827/827 이름 같음 · 그림 827장 · 602.8초
+- 표 행 글 같음 8410/8410 (100.0%)
+- 블록 종류 같음 7610/8584 (88.7%)
+- 블록 입출력 단자 같음 17326/19453 (89.1%)
+- 그물 13348/12890 · 매달린 선 끝 3128/2779 · FROM/TO 불일치 0/0
+- 매크로 → Typical 연결 같음 166/167 (99.4%)
+- 못 읽은 블록 종류 (원래 → 되읽기 없음): [('sink', 726), ('not', 105), ('and', 51), ('or', 32), ('?INTEGRAL', 21), ('?UNKNOWN', 17), ('?VELOCITY LIMITING', 6), ('?HIGH LIMITING', 5), ('toggle', 4), ('delay_on', 2), ('pulse', 2), ('?LOW LIMITING', 1)]
+- 이름을 잃은 시트: [] · 새 이름: []
+  - 0006: 행 14/14 · 블록 24/34 (되읽기 27) · 단자 97/203 · 매크로 0/0 · 빠짐 ['?INTEGRAL', '?INTEGRAL', '?INTEGRAL', '?INTEGRAL', '?INTEGRAL', '?VELOCITY LIMITING'] · 더 읽힘 ['?UNKNOWN', '?UNKNOWN', 'source']
+  - 0007: 행 21/21 · 블록 60/77 (되읽기 64) · 단자 296/570 · 매크로 0/0 · 빠짐 ['?HIGH LIMITING', '?HIGH LIMITING', '?HIGH LIMITING', '?INTEGRAL', '?INTEGRAL', '?INTEGRAL'] · 더 읽힘 ['?UNKNOWN', '?UNKNOWN', '?UNKNOWN', 'source']
+  - 0009: 행 38/38 · 블록 58/62 (되읽기 62) · 단자 167/181 · 매크로 0/0 · 빠짐 ['and', 'delay_on', 'not', 'toggle'] · 더 읽힘 ['?UNKNOWN', 'source', 'source', 'source']
+  - 0013: 행 30/30 · 블록 47/48 (되읽기 48) · 단자 130/135 · 매크로 0/0 · 빠짐 ['toggle'] · 더 읽힘 ['?UNKNOWN']
+  - 0015: 행 36/36 · 블록 49/52 (되읽기 52) · 단자 134/158 · 매크로 0/0 · 빠짐 ['and', 'not', 'toggle'] · 더 읽힘 ['?UNKNOWN', 'source', 'source']
+  - 0016: 행 19/19 · 블록 15/16 (되읽기 16) · 단자 43/44 · 매크로 1/1 · 빠짐 ['sink'] · 더 읽힘 ['?UNKNOWN']
+  - 0017: 행 33/33 · 블록 35/38 (되읽기 37) · 단자 92/111 · 매크로 0/0 · 빠짐 ['and', 'or', 'toggle'] · 더 읽힘 ['?UNKNOWN', '?UNKNOWN']
+  - 0020: 행 8/8 · 블록 0/1 (되읽기 1) · 단자 0/8 · 매크로 0/1 · 빠짐 ['macro'] · 더 읽힘 ['step']
+  - 0023: 행 18/18 · 블록 15/19 (되읽기 17) · 단자 36/44 · 매크로 0/0 · 빠짐 ['?INTEGRAL', '?INTEGRAL', 'sink', 'sink'] · 더 읽힘 ['?UNKNOWN', '?UNKNOWN']
+  - 0024: 행 20/20 · 블록 30/32 (되읽기 31) · 단자 97/126 · 매크로 0/0 · 빠짐 ['?INTEGRAL', 'or'] · 더 읽힘 ['source']
+  - 0026: 행 47/47 · 블록 32/44 (되읽기 41) · 단자 113/248 · 매크로 0/0 · 빠짐 ['?INTEGRAL', '?INTEGRAL', '?INTEGRAL', 'and', 'and', 'and'] · 더 읽힘 ['?UNKNOWN', '?UNKNOWN', '?UNKNOWN', 'source']
+  - 0027: 행 24/24 · 블록 30/34 (되읽기 33) · 단자 92/192 · 매크로 0/0 · 빠짐 ['?INTEGRAL', '?INTEGRAL', 'and', 'or'] · 더 읽힘 ['?UNKNOWN', 'source', 'source']

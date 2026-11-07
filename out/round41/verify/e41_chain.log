@@ -1,0 +1,30 @@
+== 20:06:20 python3 spike/pack_handover_r41.py
+담는 파일 145개 — 새로 116 · 덮어쓰기 29
+3_FILES_TO_OVERWRITE.zip  963276 bytes  sha256 5bae104f735ba5cf141ecc6354053d4ed9d7bfbe5a56922b476b4fe9c87ed479
+PID_update_2026-09-13_r41.zip  963314 bytes  sha256 163765c9ada5d9aa994fd89c7cebdc82754e497ab591431f594a73f0ec976bfb
+== rc=0 20:06:27
+== 20:06:27 python3 /tmp/claude-0/-home-user-AI-P-ID-Extraction-tool/bb9fc5fb-8dbb-5734-af54-510e6c1324fb/scratchpad/verify41.py s5 out/round41/3_FILES_TO_OVERWRITE.zip
+{"zip": "out/round41/3_FILES_TO_OVERWRITE.zip", "sha256": "5bae104f735ba5cf141ecc6354053d4ed9d7bfbe5a56922b476b4fe9c87ed479", "files": 145, "differs_from_HEAD": []}
+== rc=0 20:06:28
+== 20:06:28 python3 /tmp/claude-0/-home-user-AI-P-ID-Extraction-tool/bb9fc5fb-8dbb-5734-af54-510e6c1324fb/scratchpad/verify41.py s6
+{"s6": {"home_keys": ["projects", "loose"], "unbound_jobs": 0, "rows": 824, "edits_alive": 5}, "s7": {"first_screen_button": true, "html_has_home": true}}
+== rc=0 20:06:32
+== 20:06:32 python3 /tmp/claude-0/-home-user-AI-P-ID-Extraction-tool/bb9fc5fb-8dbb-5734-af54-510e6c1324fb/scratchpad/verify41.py s8
+{"s8": {"job": "17477aa943ce", "status": "done", "rows": 1037, "qty": 0, "fingerprint": "fb85b039", "sec": 793.9, "peak_G": 5.22, "msg": "done"}, "s9": {"revision": 1, "form_rows": {"field_pid_total.xlsx": 885, "bfv_pid_total.xlsx": 23, "mov_pid_total.xlsx": 76}}}
+== rc=0 20:19:50
+== 20:19:50 python3 /tmp/claude-0/-home-user-AI-P-ID-Extraction-tool/bb9fc5fb-8dbb-5734-af54-510e6c1324fb/scratchpad/verify41.py s13
+{"status": "failed", "msg": "이 PDF 의 12장 어디에서도 도면번호를 읽지 못했습니다. 도면번호 칸의 자리를 [1950.0, 1560.0, 2384.0, 1600.0] 로 보고 있는데 종이 안이지만 비어 있습니다 (이 문서의 쪽 크기: 238", "stopped_stage": "reading title blocks", "sec": 3.2}
+== rc=0 20:19:55
+== 20:19:55 python3 /tmp/claude-0/-home-user-AI-P-ID-Extraction-tool/bb9fc5fb-8dbb-5734-af54-510e6c1324fb/scratchpad/verify41.py s14 out/round41/verify/08b_tagged_same_size.pdf
+{"status": "done", "rows": 78, "sec": 152.8, "tagged": 0}
+== rc=0 20:22:29
+== fast tests 20:22:29
+........................................................................ [ 91%]
+.ss........................                                              [100%]
+310 passed, 5 skipped, 40 deselected in 14.98s
+== ui tests 20:22:44
+........................                                                 [100%]
+24 passed, 331 deselected in 927.80s (0:15:27)
+== 20:38:12 python3 /tmp/claude-0/-home-user-AI-P-ID-Extraction-tool/bb9fc5fb-8dbb-5734-af54-510e6c1324fb/scratchpad/verify41.py s12
+{'same': True, 'sha': '643748dc0efe'}
+== rc=0 20:38:13

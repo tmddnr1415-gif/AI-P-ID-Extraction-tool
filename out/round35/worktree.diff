@@ -1,0 +1,504 @@
+diff --git a/app/engine/detect_symbols.py b/app/engine/detect_symbols.py
+index d037d2d..e794df2 100644
+--- a/app/engine/detect_symbols.py
++++ b/app/engine/detect_symbols.py
+@@ -59,6 +59,10 @@ Usage
+ """
+ 
+ from __future__ import annotations
++try:
++    from .missing import M as _M, pf as _pf, pi as _pi, pt as _pt
++except ImportError:
++    from missing import M as _M, pf as _pf, pi as _pi, pt as _pt
+ 
+ import argparse
+ import collections
+@@ -161,8 +165,9 @@ ANCHORS = RULESET_V3.anchors
+ # Glyph sizes seen in the mark legends of the pages that draw their marks.
+ # Used only to *notice* a mark on a page whose own legend is missing, never to
+ # interpret one — that stays page-scoped (docs/design.md §10.1).
+-KNOWN_GLYPH_SIZES = tuple(tuple(float(v) for v in pair)
+-                          for pair in (CFG.get_or("vendor_marks.glyph_sizes", []) or []))
++_gs = CFG.get_or("vendor_marks.glyph_sizes", [])
++KNOWN_GLYPH_SIZES = _gs if type(_gs).__name__ == "Missing" else tuple(
++    tuple(float(v) for v in pair) for pair in (_gs or []))
+ 
+ # Shape of an ISA function-letter tag, used only to spot anchors the dictionary
+ # above is missing.  Matching this does not make something a detection.
+@@ -184,22 +189,22 @@ class Layout:
+     # them per page instead.  These bounds only say "an arc cap is roughly a
+     # 2:1 rounded end of a plausible size"; the stadium length falls out of the
+     # geometry.
+-    cap_span: tuple = (7.0, 50.0)       # long side of a cap
++    cap_span: tuple = _M("ds.cap_span", (7.0, 50.0))       # long side of a cap
+     cap_ratio: tuple = (1.6, 2.4)       # long/short of a cap
+-    brk_corner_tol: float = 3.0         # how far a dashed box's corner may miss
+-    side_tol: float = 0.8               # how close a side must run to the cap edge
+-    side_slack: float = 1.5             # how far a side may fall short of the caps
+-    anchor_slack: float = 3.0
++    brk_corner_tol: float = _M("ds.brk_corner_tol", 3.0)         # how far a dashed box's corner may miss
++    side_tol: float = _M("ds.side_tol", 0.8)               # how close a side must run to the cap edge
++    side_slack: float = _M("ds.side_slack", 1.5)             # how far a side may fall short of the caps
++    anchor_slack: float = _M("ds.anchor_slack", 3.0)
+ 
+     # Vendor asterisk marks sit just above the bubble.
+-    mark_blob: tuple = (1.5, 8.0)        # a raw path fragment of a mark
+-    mark_glyph_span: tuple = (3.0, 8.0)  # a whole clustered mark
+-    mark_cluster_gap: float = 2.0        # below the 4.5pt gap between two marks
++    mark_blob: tuple = _M("ds.mark_blob", (1.5, 8.0))        # a raw path fragment of a mark
++    mark_glyph_span: tuple = _M("ds.mark_glyph_span", (3.0, 8.0))  # a whole clustered mark
++    mark_cluster_gap: float = _M("ds.mark_cluster_gap", 2.0)        # below the 4.5pt gap between two marks
+     notes_text_x_max: float = 2330.0     # right edge of the notes text column
+     box_edge_cover: float = 0.35         # how much of a box edge must be drawn
+-    box_mark_margin: float = 20.0        # how far outside a box its mark may sit
+-    note_line_gap: float = 20.0          # max y gap for a wrapped note line
+-    mark_above: float = 25.0
++    box_mark_margin: float = _M("ds.box_mark_margin", 20.0)        # how far outside a box its mark may sit
++    note_line_gap: float = _M("ds.note_line_gap", 20.0)          # max y gap for a wrapped note line
++    mark_above: float = _M("ds.mark_above", 25.0)
+     # 19회차 — 별표가 버블 **옆**에 찍힌 장이 있다 (p25 · p27 · p30).
+     # 마크가 가로로 얼마나 떨어져 찍히는가.  이 문서가 답했다 — 마크 646개를
+     # 유클리드 최근접 버블에 붙여 가로 간격을 세면
+@@ -210,24 +215,24 @@ class Layout:
+     #
+     # 문턱을 그 빈 띠 안 어디에 두어도 결과가 같으므로 임의값이 아니다
+     # (17회차 C-4 · 16회차 `brk_max_mark` 와 같은 논법).
+-    mark_side: float = 10.0
+-    note_mark_row_tol: float = 6.0
++    mark_side: float = _M("ds.mark_side", 10.0)
++    note_mark_row_tol: float = _M("ds.note_mark_row_tol", 6.0)
+ 
+     # Broken (dashed / chain-dashed) line runs.
+-    brk_max_mark: float = 20.0
+-    brk_max_gap: float = 6.0
+-    brk_bridge: float = 26.0
+-    brk_min_marks: int = 6
+-    brk_min_span: float = 40.0
++    brk_max_mark: float = _M("ds.brk_max_mark", 20.0)
++    brk_max_gap: float = _M("ds.brk_max_gap", 6.0)
++    brk_bridge: float = _M("ds.brk_bridge", 26.0)
++    brk_min_marks: int = _M("ds.brk_min_marks", 6)
++    brk_min_span: float = _M("ds.brk_min_span", 40.0)
+ 
+     # Tying a scope marker to its geometry, and an instrument to a pipe run.
+-    scope_text_tol: float = 30.0
+-    drop_x_tol: float = 2.0
+-    drop_end_tol: float = 1.5
++    scope_text_tol: float = _M("ds.scope_text_tol", 30.0)
++    drop_x_tol: float = _M("ds.drop_x_tol", 2.0)
++    drop_end_tol: float = _M("ds.drop_end_tol", 1.5)
+     # Whether a dashed scope box is built from both of its horizontal edges or
+     # from the vertical the label stands beside.  Off by default: see
+     # `find_sct_scopes`.
+-    scope_box_both_edges: bool = False
++    scope_box_both_edges: bool = _M("ds.scope_box_both_edges", False)
+ 
+ 
+ def _layout_from_config(cfg=CFG) -> Layout:
+@@ -251,24 +256,24 @@ def _layout_from_config(cfg=CFG) -> Layout:
+     # is the case for every project that has run so far.
+     brk = cfg.data.get("broken_line") or {}
+     return Layout(
+-        drawing_area=tuple(cfg.get_or("regions.drawing_area", d.drawing_area)),
+-        notes_area=tuple(cfg.get_or("regions.notes_area", d.notes_area)),
+-        notes_text_x_max=float(cfg.get_or("regions.notes_text_x_max", d.notes_text_x_max)),
+-        mark_blob=tuple(cfg.get_or("vendor_marks.blob_span", d.mark_blob)),
+-        mark_glyph_span=tuple(cfg.get_or("vendor_marks.glyph_span", d.mark_glyph_span)),
+-        mark_cluster_gap=float(cfg.get_or("vendor_marks.cluster_gap", d.mark_cluster_gap)),
+-        mark_above=float(cfg.get_or("vendor_marks.above", d.mark_above)),
+-        mark_side=float(cfg.get_or("vendor_marks.side", d.mark_side)),
+-        note_mark_row_tol=float(cfg.get_or("vendor_marks.note_row_tol", d.note_mark_row_tol)),
+-        note_line_gap=float(cfg.get_or("vendor_marks.note_line_gap", d.note_line_gap)),
+-        box_edge_cover=float(box["edge_cover"]),
+-        box_mark_margin=float(box["mark_margin"]),
+-        scope_text_tol=float(cfg.get_or("sct_scope.text_tol", d.scope_text_tol)),
+-        drop_x_tol=float(cfg.get_or("sct_scope.drop_x_tol", d.drop_x_tol)),
+-        drop_end_tol=float(cfg.get_or("sct_scope.drop_end_tol", d.drop_end_tol)),
++        drawing_area=_pt(cfg.get_or("regions.drawing_area", d.drawing_area)),
++        notes_area=_pt(cfg.get_or("regions.notes_area", d.notes_area)),
++        notes_text_x_max=_pf(cfg.get_or("regions.notes_text_x_max", d.notes_text_x_max)),
++        mark_blob=_pt(cfg.get_or("vendor_marks.blob_span", d.mark_blob)),
++        mark_glyph_span=_pt(cfg.get_or("vendor_marks.glyph_span", d.mark_glyph_span)),
++        mark_cluster_gap=_pf(cfg.get_or("vendor_marks.cluster_gap", d.mark_cluster_gap)),
++        mark_above=_pf(cfg.get_or("vendor_marks.above", d.mark_above)),
++        mark_side=_pf(cfg.get_or("vendor_marks.side", d.mark_side)),
++        note_mark_row_tol=_pf(cfg.get_or("vendor_marks.note_row_tol", d.note_mark_row_tol)),
++        note_line_gap=_pf(cfg.get_or("vendor_marks.note_line_gap", d.note_line_gap)),
++        box_edge_cover=_pf(box["edge_cover"]),
++        box_mark_margin=_pf(box["mark_margin"]),
++        scope_text_tol=_pf(cfg.get_or("sct_scope.text_tol", d.scope_text_tol)),
++        drop_x_tol=_pf(cfg.get_or("sct_scope.drop_x_tol", d.drop_x_tol)),
++        drop_end_tol=_pf(cfg.get_or("sct_scope.drop_end_tol", d.drop_end_tol)),
+         scope_box_both_edges=bool(
+             (cfg.data.get("sct_scope") or {}).get("box_from_both_edges")),
+-        **{k: float(brk[k]) if k != "brk_min_marks" else int(brk[k])
++        **{k: _pf(brk[k]) if k != "brk_min_marks" else _pi(brk[k])
+            for k in ("brk_max_mark", "brk_max_gap", "brk_bridge",
+                      "brk_min_marks", "brk_min_span", "brk_corner_tol")
+            if k in brk},
+diff --git a/app/engine/detect_valves.py b/app/engine/detect_valves.py
+index e0746d6..f280a5b 100644
+--- a/app/engine/detect_valves.py
++++ b/app/engine/detect_valves.py
+@@ -93,6 +93,10 @@ these two files can support and states what it cannot; see out/valve_report.md.
+ """
+ 
+ from __future__ import annotations
++try:
++    from .missing import M as _M, pf as _pf, pi as _pi, pt as _pt
++except ImportError:
++    from missing import M as _M, pf as _pf, pi as _pi, pt as _pt
+ 
+ import argparse
+ import collections
+@@ -180,31 +184,31 @@ class ValveLayout:
+ 
+     drawing_area: tuple = (38.0, 35.0, 1960.0, 1650.0)
+ 
+-    seg_span: tuple = (1.0, 60.0)       # segment lengths worth looking at
+-    body_short: tuple = (5.0, 30.0)     # short side of a valve body
++    seg_span: tuple = _M("dv.seg_span", (1.0, 60.0))       # segment lengths worth looking at
++    body_short: tuple = _M("dv.body_short", (5.0, 30.0))     # short side of a valve body
+     body_ratio: tuple = (1.4, 2.8)      # long / short of a bowtie body
+-    bar_axis_tol: float = 0.8           # how close an end bar is to the end
+-    bar_cover: float = 1.2              # how far a bar may fall short
++    bar_axis_tol: float = _M("dv.bar_axis_tol", 0.8)           # how close an end bar is to the end
++    bar_cover: float = _M("dv.bar_cover", 1.2)              # how far a bar may fall short
+ 
+-    centre_tol: float = 2.0             # waist object off-centre allowance
++    centre_tol: float = _M("dv.centre_tol", 2.0)             # waist object off-centre allowance
+     waist_ratio: tuple = (0.35, 1.05)   # waist object vs body short side
+     disc_aspect: tuple = (0.70, 1.45)   # a disc is round, a needle wedge is not
+-    arc_above: float = 6.0              # diaphragm arc clearance above the body
++    arc_above: float = _M("dv.arc_above", 6.0)              # diaphragm arc clearance above the body
+ 
+     # Butterfly vane ticks: two short strokes on opposite points of the rim.
+-    tick_span: tuple = (1.5, 6.0)
+-    tick_reach: float = 1.3             # multiples of the circle radius
++    tick_span: tuple = _M("dv.tick_span", (1.5, 6.0))
++    tick_reach: float = _M("dv.tick_reach", 1.3)             # multiples of the circle radius
+     # Legend page 2 draws the butterfly's 6.1 circle between bars 17.0 apart
+     # (2.79 radii) and the ball's 7.2 circle between bars 17.0 apart (2.36).
+-    bar_reach: float = 3.4              # how far an end bar may sit, in radii
+-    bar_min: float = 1.1                # ...and how close, also in radii: the
++    bar_reach: float = _M("dv.bar_reach", 3.4)              # how far an end bar may sit, in radii
++    bar_min: float = _M("dv.bar_min", 1.1)                # ...and how close, also in radii: the
+                                         # end bar is drawn clear of the circle,
+                                         # never through it
+ 
+     # How far short of the gap a stem run may fall.  Legend p3 draws it flush
+     # with the enclosure edge, so the derived value is the index slack alone;
+     # the default here is the pre-derivation behaviour (a quarter of the gap).
+-    stem_slack: float = -1.0            # <0 means "a quarter of the gap"
++    stem_slack: float = _M("dv.stem_slack", -1.0)            # <0 means "a quarter of the gap"
+ 
+     # Pneumatic actuators, legend page 3, measured by
+     # `legend_rules.derive_pneumatic`.  An empty window means the legend could
+@@ -220,16 +224,16 @@ class ValveLayout:
+     # Actuator sits on the stem, on the axis perpendicular to flow.  Both
+     # bounds are PROJECT (out/valve_project_deps.md V1, V2) and come from
+     # config; the defaults here are only so the dataclass is constructible.
+-    act_reach: float = 90.0
+-    act_offaxis: float = 12.0
++    act_reach: float = _M("dv.act_reach", 90.0)
++    act_offaxis: float = _M("dv.act_offaxis", 12.0)
+     # Legend page 3 draws its actuator enclosures at 14.2 pt across (the motor
+     # and E/H circles) and page 26 strokes its hydraulic box at 11.3.  The
+     # lower bound sits below both and above the 7.1 pt globe waist disc, which
+     # would otherwise read as an unlabelled circle standing on the stem.
+-    act_box: tuple = (9.0, 34.0)        # side of an actuator circle / box
++    act_box: tuple = _M("dv.act_box", (9.0, 34.0))        # side of an actuator circle / box
+ 
+     # Tag bubble attached by a leader.
+-    tag_reach: float = 190.0
++    tag_reach: float = _M("dv.tag_reach", 190.0)
+ 
+ 
+ # Rules that can be switched off one at a time so each one's contribution is
+@@ -275,11 +279,11 @@ def _layout(cfg=CFG) -> ValveLayout:
+     at the point of use, so they do not move with the project.
+     """
+     return ValveLayout(
+-        drawing_area=tuple(cfg.get_or("regions.drawing_area",
++        drawing_area=_pt(cfg.get_or("regions.drawing_area",
+                                       ValveLayout().drawing_area)),
+-        act_reach=float(cfg.get("valves.actuator_reach")),
+-        act_offaxis=float(cfg.get("valves.actuator_offaxis")),
+-        tag_reach=float(cfg.get("valves.tag_reach")),
++        act_reach=_pf(cfg.get("valves.actuator_reach")),
++        act_offaxis=_pf(cfg.get("valves.actuator_offaxis")),
++        tag_reach=_pf(cfg.get("valves.tag_reach")),
+     )
+ 
+ 
+diff --git a/app/engine/extract_titleblocks.py b/app/engine/extract_titleblocks.py
+index a87ac2b..08aad0a 100644
+--- a/app/engine/extract_titleblocks.py
++++ b/app/engine/extract_titleblocks.py
+@@ -54,6 +54,10 @@ Usage
+ """
+ 
+ from __future__ import annotations
++try:
++    from .missing import M as _M, pf as _pf, pi as _pi, pt as _pt, pre as _pre
++except ImportError:
++    from missing import M as _M, pf as _pf, pi as _pi, pt as _pt, pre as _pre
+ 
+ import argparse
+ import csv
+@@ -103,7 +107,7 @@ class Layout:
+     # page 48, the highest that row sits anywhere in the set).
+     title_region: tuple = (1960.0, 1500.0, 2384.0, 1574.0)
+     title_min_height: float = 15.0
+-    title_line_tol: float = 6.0
++    title_line_tol: float = _M("tb.title_line_tol", 6.0)
+ 
+     # REV and SHEET cells, inset to exclude the cell borders
+     # (rule at y=1580.7, frame at x=2330.4, dividers at x=2245.8 / 2287.9).
+@@ -119,7 +123,7 @@ class Layout:
+     hist_row_inset: float = 1.2
+ 
+     # Rasterisation and segmentation.
+-    zoom: float = 24.0
++    zoom: float = _M("tb.zoom", 24.0)
+     grid: tuple = (28, 20)          # rows, cols of the normalised bitmap
+     ink_frac: float = 0.75          # threshold between darkest pixel and white
+     blank_above: int = 245          # cell counts as empty if nothing darker
+@@ -144,11 +148,11 @@ def _layout_from_config(cfg=CFG) -> Layout:
+     # pipeline overwrites it, and `cfg.misses` records that it did.
+     def rect(name, fallback):
+         v = cfg.get_or(tb + name, None)
+-        return tuple(float(x) for x in v) if v else fallback
++        return _pt(_pf(x) for x in v) if v else fallback
+ 
+     def num(name, fallback):
+         v = cfg.get_or(tb + name, None)
+-        return float(v) if v is not None else fallback
++        return _pf(v) if v is not None else fallback
+ 
+     return Layout(
+         dwg_no_region=rect("dwg_no_region", d.dwg_no_region),
+@@ -169,9 +173,9 @@ def _layout_from_config(cfg=CFG) -> Layout:
+ LAYOUT = _layout_from_config()
+ 
+ # String formats of this project's title block (project_deps P8/P9/P10).
+-DWG_NO_RE = re.compile(CFG.get("formats.drawing_no"))
+-DATE_RE = re.compile(CFG.get("formats.date"))
+-REV_TEXT_RE = re.compile(CFG.get("formats.revision"))
++DWG_NO_RE = _pre(CFG.get("formats.drawing_no"))
++DATE_RE = _pre(CFG.get("formats.date"))
++REV_TEXT_RE = _pre(CFG.get("formats.revision"))
+ _UC_SEG = int(CFG.get("formats.unit_code_segment"))
+ _UC_FROM, _UC_TO = (int(v) for v in CFG.get("formats.unit_code_chars"))
+ 
+diff --git a/app/engine/projectconfig.py b/app/engine/projectconfig.py
+index 44e4bc6..ddd41af 100644
+--- a/app/engine/projectconfig.py
++++ b/app/engine/projectconfig.py
+@@ -120,12 +120,16 @@ class ProjectConfig:
+ 
+     def rect(self, dotted: str) -> tuple:
+         v = self.get(dotted)
++        if type(v).__name__ == 'Missing':
++            return v
+         if not (isinstance(v, list) and len(v) == 4):
+             raise ConfigError(f"{self.path.name}: '{dotted}' must be [x0,y0,x1,y1]")
+         return tuple(float(x) for x in v)
+ 
+     def pair(self, dotted: str) -> tuple:
+         v = self.get(dotted)
++        if type(v).__name__ == 'Missing':
++            return v
+         if not (isinstance(v, list) and len(v) == 2):
+             raise ConfigError(f"{self.path.name}: '{dotted}' must be a 2-element list")
+         return tuple(float(x) for x in v)
+@@ -161,6 +165,19 @@ def load(path: str | Path = None) -> ProjectConfig:
+     data = yaml.safe_load(p.read_text(encoding="utf-8"))
+     if not isinstance(data, dict):
+         raise ConfigError(f"{p}: expected a mapping at the top level")
++    _keys = os.environ.get("R35_STRIP_KEYS")
++    if _keys:
++        import json as _json
++        try:
++            from .missing import strip_config, restored
++        except ImportError:
++            from missing import strip_config, restored
++        _at_load = [k for k in os.environ.get("R35_STRIP_AT_LOAD", "").split(",") if k]
++        if _at_load == ["project.code"]:
++            # 열쇠이지 상수가 아니다 — 문서 코드와 다르게만 만들어 "낯선 프로필" 경로를 강제한다
++            data.setdefault("project", {})["code"] = "R35_STRIPPED"
++        else:
++            strip_config(data, _at_load or _json.loads(Path(_keys).read_text()), restored())
+     return ProjectConfig(p, data)
+ 
+ 
+diff --git a/app/pipeline.py b/app/pipeline.py
+index a911584..91841a1 100644
+--- a/app/pipeline.py
++++ b/app/pipeline.py
+@@ -28,6 +28,7 @@ import contextlib
+ import copy
+ import hashlib
+ import json
++import os
+ import re
+ import sys
+ import time
+@@ -48,6 +49,7 @@ import projectconfig       # noqa: E402
+ import legend_rules        # noqa: E402
+ import extract_titleblocks as tb   # noqa: E402
+ import detect_symbols as ds        # noqa: E402
++from missing import pre as _pre, Missing as _Missing  # noqa: E402  (35회차 worktree)
+ import detect_all as da            # noqa: E402
+ import detect_valves as dv         # noqa: E402
+ import parse_notes as pn           # noqa: E402
+@@ -350,7 +352,7 @@ def _document_code(pages) -> str:
+     anywhere on the sheet, and its first segment is the project.  The answer is
+     the code most pages agree on.
+     """
+-    rx = re.compile(CFG.get("formats.drawing_no"))
++    rx = _pre(CFG.get("formats.drawing_no"))
+     seen = collections.Counter()
+     for pc in pages:
+         codes = {t.split("-")[0] for _r, t in pc.words if rx.match(t)}
+@@ -437,17 +439,17 @@ def _rebind_config() -> None:
+     (`_own_config`).  두 벌을 두면 언젠가 갈린다.
+     """
+     ds.LAYOUT = ds._layout_from_config(CFG)
+-    ds.KNOWN_GLYPH_SIZES = tuple(tuple(float(v) for v in pair)
+-                                 for pair in CFG.get("vendor_marks.glyph_sizes"))
++    _gs = CFG.get("vendor_marks.glyph_sizes")
++    ds.KNOWN_GLYPH_SIZES = _gs if type(_gs).__name__ == 'Missing' else tuple(tuple(float(v) for v in pair) for pair in _gs)
+     tb.LAYOUT = tb._layout_from_config(CFG)
+     # 30회차 — 타이틀블록의 **형식 정규식 셋도** 지금 CFG 로 다시 만든다.
+     # `formats.revision` 은 이제 유도 대상이다(이력 표 REV 열).  여기서 다시
+     # 만들지 않으면 유도값을 config 에 얹어도 import 때 compile 된 옛 정규식이
+     # 계속 쓰인다 — 22회차가 `pidcache` 전역에서 겪은 것과 같은 함정이고,
+     # 나머지 둘은 지금 유도되지 않으므로 값이 같다(덫만 없앤다).
+-    tb.DWG_NO_RE = re.compile(CFG.get("formats.drawing_no"))
+-    tb.DATE_RE = re.compile(CFG.get("formats.date"))
+-    tb.REV_TEXT_RE = re.compile(CFG.get("formats.revision"))
++    tb.DWG_NO_RE = _pre(CFG.get("formats.drawing_no"))
++    tb.DATE_RE = _pre(CFG.get("formats.date"))
++    tb.REV_TEXT_RE = _pre(CFG.get("formats.revision"))
+     # The valve layout is rebuilt from the same function; the legend derivation
+     # that runs later starts from it, so it has to carry the new drawing area or
+     # every valve outside the old one is dropped before the legend is consulted.
+@@ -621,6 +623,14 @@ def _analyse(pdf_path: Path, progress=None, timings: "Timings" = None,
+             pc.segments()
+         say(0, total, "measuring the sheet")
+         layout = _fit_layout(pages)
++        if os.environ.get("R35_STRIP_KEYS"):   # 35회차 worktree — **유도가 얹힌 뒤** 지운다
++            import json as _j
++            from missing import strip_config, restored
++            _moved = {m["key"] for m in (layout.get("moved") or []) if isinstance(m, dict)}
++            _keys = [k for k in _j.load(open(os.environ["R35_STRIP_KEYS"])) if k not in _moved and k != "project.code"]
++            layout["r35_stripped"] = strip_config(CFG.data, _keys, restored())
++            layout["r35_kept_by_derivation"] = sorted(_moved)
++            _rebind_config()
+     say(1, total, "reading title blocks")
+ 
+     with clock.stage("titleblock_glyphs"):
+
+=== app/engine/missing.py (untracked) ===
+"""35회차 — 지운 상수의 자리 (worktree 전용).
+
+값이 "없다" 를 0 이나 빈 문자열과 **구분**하기 위한 sentinel.  산술·비교·bool·
+str·iter·len·getattr 어느 것이든 닿는 순간 `MissingConstant(이름)` 을 던진다 —
+None 이 조용히 흘러 이상한 값을 내는 (c) 갈래를 막는다.  `==`·`hash`·`repr`·
+deepcopy 만 조용하다 (`analyse` 의 config 스냅샷 대조와 json 덤프의 `default=str`
+전에 repr 이 필요해서).
+
+복원 목록(`R35_RESTORED`, 쉼표로 이은 이름)에 든 이름은 원래 값을 돌려준다 —
+[D] 의 "하나씩 되살린다" 가 소스 재수정 없이 환경변수 하나로 된다.
+"""
+from __future__ import annotations
+
+import os
+
+
+class MissingConstant(RuntimeError):
+    pass
+
+
+class Missing:
+    __slots__ = ("name",)
+
+    def __init__(self, name: str):
+        object.__setattr__(self, "name", name)
+
+    def _raise(self, *a, **k):
+        raise MissingConstant(self.name)
+
+    # 조용한 것 — 스냅샷 대조 · 사전 키 · 덤프 · 복사
+    def __repr__(self):
+        return f"<MISSING {self.name}>"
+
+    def __eq__(self, other):
+        return other is self
+
+    def __hash__(self):
+        return hash(("MISSING", self.name))
+
+    def __deepcopy__(self, memo):
+        return self
+
+    def __copy__(self):
+        return self
+
+    def __reduce__(self):
+        return (Missing, (self.name,))
+
+    # 시끄러운 것 — 값으로 쓰려는 모든 길
+    __bool__ = __str__ = __iter__ = __len__ = __getitem__ = __contains__ = _raise
+    __lt__ = __le__ = __gt__ = __ge__ = _raise
+    __add__ = __radd__ = __sub__ = __rsub__ = __mul__ = __rmul__ = _raise
+    __truediv__ = __rtruediv__ = __floordiv__ = __rfloordiv__ = _raise
+    __neg__ = __abs__ = __float__ = __int__ = __index__ = __round__ = _raise
+    __call__ = __fspath__ = _raise
+
+    def __getattr__(self, item):
+        raise MissingConstant(f"{self.name} (.{item})")
+
+
+def restored() -> set:
+    return {s.strip() for s in os.environ.get("R35_RESTORED", "").split(",") if s.strip()}
+
+
+def M(name: str, original):
+    """dataclass 기본값 자리.  복원 목록에 있으면 원래 값, 아니면 sentinel."""
+    if os.environ.get("R35_NO_STRIP"):
+        return original
+    return original if name in restored() else Missing(name)
+
+
+# --- 변환기 통과 -----------------------------------------------------------
+# 조립 함수는 import 때 `float(cfg.get_or(...))` 을 한다.  거기서 sentinel 이
+# 터지면 `_fit_layout` 이 유도값을 얹을 기회조차 없다 — 그것은 발견이 아니라
+# 절차의 부산물이다.  변환기만 sentinel 을 **그대로 통과**시키고, 값으로 쓰는
+# 순간(검출 산술·정규식 매칭)에 터지게 둔다.
+def _is(x):  return type(x).__name__ == "Missing"   # 모듈 정체가 둘(app.engine.missing / missing)이라 이름으로 본다
+def pf(x):  return x if _is(x) else float(x)
+def pi(x):  return x if _is(x) else int(x)
+def pt(x):  return x if _is(x) else tuple(x)
+def pre(x):
+    import re
+    return x if _is(x) else re.compile(x)
+
+
+def strip_config(data: dict, keys, restored_names: set) -> list:
+    """config 잎을 sentinel 로 바꾼다 (지우지 않는다 — `.get(...) or 기본값` 이
+    조용히 삼키지 못하게).  복원 목록의 키는 건드리지 않는다.  바꾼 키를 돌려준다."""
+    done = []
+    for dotted in keys:
+        name = "cfg." + dotted
+        if name in restored_names:
+            continue
+        parts = dotted.split("."); node = data
+        for p in parts[:-1]:
+            if not isinstance(node, dict) or p not in node:
+                node = None; break
+            node = node[p]
+        if isinstance(node, dict) and parts[-1] in node:
+            node[parts[-1]] = Missing(name); done.append(name)
+    return done

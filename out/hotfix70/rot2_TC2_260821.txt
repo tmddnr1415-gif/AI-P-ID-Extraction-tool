@@ -1,0 +1,1 @@
+TC2_260821.pdf p1-60 rotations {270: 60} · points 6885312 · rects 3227345 · mismatch 0 · old 123.1s new 68.8s · fast=True

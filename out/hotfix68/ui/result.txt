@@ -1,0 +1,17 @@
+① 도면 새 창 — 열려서 도면이 선 데까지 3.0초 · 본 창 'embed in-results pane-list' (#left none) · 새 창 'nav-collapsed embed popout pane-drawing in-results' (#right none)
+   본 창은 도면이 숨어 있다 — 장 그림 src 'b5adbdd28c/page/6.png?zoom=1.6' (다른 장으로 옮겨도 그림을 받지 않는다)
+② 목록에서 p7 행을 누름 → 도면 창 p6 → p7 · 그 상자 선택됨
+③ 도면 창에서 상자 누름 → 목록 창 그 행 선택 · 근거 '판정 근거 — PIT (P7) 신고 삭제 검토 항목 수량 Q'ty 승수가 이 도면의 범례가 아니라 프로젝트 '
+④ 목록에서 Q'ty 1 → 5 → 도면 창 행 값 5 · 라벨 'Q'ty 5 — 홍길동 고침 · 2026. 10. 9. 10시 3분 17초 (도면 근거는 1)
+근거: 1 symbol x 1 (unit code 00, CONFIG_FALLBACK)
+누르면 승수를 고칩니다 — 이 태그만 · 이 페이지 전체 · Shift 로 묶은 범위x5 ✎홍길동' · 서버 5
+⑤ 도면 창 편집 카드에서 Line No. → 목록 칸 'DUAL68TEST' (class 'edited') · 이력 작성자 홍길동
+⑥ 도면 창 '둘 다 아님' → 목록 창 행 'deleted userdel sel' · 서버 removed True
+   목록 창 되돌리기 → 도면 창 removed False · 서버 False
+⑦ 도면 창 Shift 묶음 2개 → 목록 창 묶음 2개 · 묶음 줄 2 · 판 '선택 2개 — 공급 주체 · 승수를 한 번에  p7 · Shift 또는 '
+⑧ 도면 창 장 → p6 · 목록 창 S.page p6
+⑨ 새 창 '한 창으로' → 새 창 닫힘 True · 본 창 'embed in-results' · 도면 다시 그림 p6
+⑩ 목록 새 창 — 본 창 'embed in-results pane-drawing' · 새 창 'embed popout pane-list in-results' · 목록 창은 장 그림을 안 받음 (src '')
+   목록 창에서 p7 행 누름 → 본 창(도면) p7 · 선택 True
+   목록 창을 X 로 닫음 → 본 창 'embed in-results' (두 칸 다시)
+페이지 오류 0

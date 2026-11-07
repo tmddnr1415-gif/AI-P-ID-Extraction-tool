@@ -1,0 +1,95 @@
+{
+ "errors": [],
+ "example": {
+  "inst": 6,
+  "valves": 3,
+  "equip": 3,
+  "pipes": 7,
+  "flow": 6,
+  "key": 5,
+  "trend": true,
+  "motor": true,
+  "plant": "● Plant Normal",
+  "title": "DCS Graphic – Compressor Train (Example)"
+ },
+ "library": {
+  "cats": 6,
+  "items": 44
+ },
+ "pid": {
+  "inst": 38,
+  "valves": 8,
+  "equip": 0,
+  "pipes": 37,
+  "labels": 6,
+  "notag": 12,
+  "who": "식별 결과에서 만든 초안 — 계기 38(태그 30) · 밸브 8 · 기기 0 · 배관 37",
+  "page": "5",
+  "vb": "0 260.1 1402.2 600",
+  "pages": [
+   "p5 · D00P-10LBA10-M05-0001 · 계기 38 · 밸브 8",
+   "p6 · D00P-10LBC40-M05-0001 · 계기 23 · 밸브 11"
+  ]
+ },
+ "pid_face_overlaps": 0,
+ "picked": "6b588f9b01b1fe69",
+ "props": "계기 · 14LBA16CP006\n태그\n글자\n종류\n현장 전송기\nDCS 제어기\n현지 표시\n단위\n기준값\n상한 경보\n하한 경보\n달린 곳\nx\ny\nP&ID 자리 [359, 441, 382, 509] pt · 행 6b588f9b01b1fe69 · SCOPE VENDOR(HRSG)\n버블 가운데 선 0줄 — 현장\nLOGIC 연결: LOGIC 창에서 🖥 DCS 그래픽 으로 열면 같은 태그 값이 칠해집니다\nTrend 로\nKey Parameters 에서 빼기\n이 항목 지우기",
+ "save_enabled": true,
+ "after_save_who": "저장본 · 홍길동 2026-10-23 08:52:09",
+ "reload_who": "저장본 · 홍길동 2026-10-23 08:52:09",
+ "reload_has_tag": true,
+ "after_reset_who": "식별 결과에서 만든 초안 — 계기 38(태그 30) · 밸브 8 · 기기 0 · 배관 37",
+ "after_reset_has_tag": false,
+ "p6": {
+  "inst": 23,
+  "equip": 3,
+  "valves": 11
+ },
+ "logic_tags_known": 35,
+ "btn_linked": "🖥 DCS 그래픽 · 태그 8/8",
+ "dcs_linkinfo": "LOGIC AB_G-101 시뮬레이션 — 이 장의 태그 8개 칠함",
+ "dcs_live": [
+  [
+   "14LBA11CP001",
+   "ON (1)"
+  ],
+  [
+   "14LBA16CP006",
+   "OFF (0)"
+  ],
+  [
+   "14LBA11CP008",
+   "OFF (0)"
+  ],
+  [
+   "14LBA10CP007",
+   "OFF (0)"
+  ],
+  [
+   "14LBA13CP010",
+   "OFF (0)"
+  ],
+  [
+   "14LBA14CP011",
+   "OFF (0)"
+  ]
+ ],
+ "dcs_on": [
+  "14LBA11CP001"
+ ],
+ "dcs_sim_button": "▶ 시뮬레이션",
+ "logic_focus": {
+  "row": 2,
+  "side": "L"
+ },
+ "dcs_props_after_pick": "계기 · 14LBA11CP001\n태그\n글자\n종류\n현장 전송기\nDCS 제어기\n현지 표시\n단위\n기준값\n상한 경보\n하한 경보\n달린 곳\nx\ny\nP&ID 자리 [431, 437, 499, 460] pt · 행 3fb07cc7c95c0710 · SCOPE VENDOR(HRSG)\n버블 가운데 선 0줄 — 현장\nLOGIC 연결: 이어짐\nLOGIC 값 {\"state\":\"run\",\"s\":1}\nTrend 로\nKey Parameters 에서 빼기\n이 항목 지우기",
+ "dcs_off": [
+  "14LBA11CP001",
+  "14LBA16CP006",
+  "14LBA11CP008",
+  "14LBA10CP007",
+  "14LBA13CP010",
+  "14LBA14CP011"
+ ],
+ "btn_after_close": "🖥 DCS 그래픽"
+}

@@ -1,0 +1,8 @@
+/usr/local/lib/python3.11/dist-packages/fastapi/testclient.py:1: StarletteDeprecationWarning: Using `httpx` with `starlette.testclient` is deprecated; install `httpx2` instead.
+  from starlette.testclient import TestClient as TestClient  # noqa
+[감사] 산출 대상 3990행 / job 2개 · 사람이 도면 값을 덮어쓴 칸 2 · 도면 근거 없는 행 0
+[감사] 고아 업로드 0 · 고아 출력 0 · 고아 진단 0 · 고아 그림 캐시 0 · DB 34.5 MB 중 죽은 페이지 0.2 MB · 정리하면 되찾는 용량 0.2 MB
+[감사] 위 두 값이 0 이 아니면 산출물에 도면이 대지 못하는 값이 들어갑니다 — 검토자가 넣은 것인지 시험 흔적인지 확인하세요.
+DB 백업: /tmp/fuzz_mpwodt_y/data/backups/app.db.2026-10-09.bak
+
+0 건 5xx/예외 · 82초

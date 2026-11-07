@@ -1,0 +1,132 @@
+{
+ "who": "sim",
+ "legend": {},
+ "bubbles": [
+  {
+   "page_no": 15,
+   "rect": [
+    325.3,
+    64.7,
+    402.1,
+    93.3
+   ],
+   "size": [
+    2384.0,
+    1684.0
+   ]
+  },
+  {
+   "page_no": 42,
+   "rect": [
+    1546.3,
+    1301.0,
+    1609.8,
+    1324.9
+   ],
+   "size": [
+    2384.0,
+    1684.0
+   ]
+  }
+ ],
+ "notes": {
+  "page_no": 10,
+  "rect": [
+   2024.0,
+   46.5,
+   2335.3,
+   1635.4
+  ],
+  "size": [
+   2384.0,
+   1684.0
+  ]
+ },
+ "drawing": null,
+ "legend_page": [
+  {
+   "page_no": 3,
+   "size": [
+    1191.0,
+    842.0
+   ]
+  },
+  {
+   "page_no": 2,
+   "size": [
+    1191.0,
+    842.0
+   ]
+  }
+ ],
+ "_busiest": 15,
+ "_shapes": {},
+ "_proposal": {
+  "legend_page": {
+   "pages": [
+    3,
+    2
+   ],
+   "found": {
+    "LINE VALVES": 2,
+    "VALVES ACTUATORS": 3,
+    "ELECTRIC SIGNAL": 3
+   }
+  },
+  "bubbles": {
+   "examples": [
+    {
+     "page_no": 15,
+     "rect": [
+      325.3,
+      64.7,
+      402.1,
+      93.3
+     ],
+     "click": [
+      363.7,
+      72.6
+     ]
+    },
+    {
+     "page_no": 42,
+     "rect": [
+      1546.3,
+      1301.0,
+      1609.8,
+      1324.9
+     ],
+     "click": [
+      1577.9,
+      1307.6
+     ]
+    }
+   ],
+   "covered": 249,
+   "total": 291,
+   "shapes": 2,
+   "pages": [
+    15,
+    59,
+    60,
+    32
+   ]
+  },
+  "notes": {
+   "page_no": 10,
+   "rect": [
+    2024.0,
+    46.5,
+    2335.3,
+    1635.4
+   ],
+   "pages_with_heading": 47,
+   "click": [
+    2084.3,
+    66.7
+   ]
+  },
+  "drawing": null
+ },
+ "_clicks": 1
+}

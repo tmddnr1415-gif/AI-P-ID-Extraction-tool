@@ -1,0 +1,10 @@
+계통·장비 [29, 393]
+요약 계통 29 · 장비 393 · 명령 686 (시뮬레이션으로 섬 608)
+연결 안 된 선 끝: 로직(G) 시트 0 · 루프(P) 시트 2612 · Typical/범례 시트 162
+단계 17
+차례로 11.2 초 · 17 단계 · 3.32초 — 맞음 16 · 확인 1
+LOGIC 창 📘 시운전 'AB HHP MAIN STM DRN MOV 1' — 인터록: PUSH BUTTON 'STOP' = 1 (HH10_G111) → OPEN 막힘
+CCW STOP 단계 ['허가 조건 1/1: CCW FFC SPRAY PUMP GRP STOP CMD (FM CC01_G701-84) = 1 (CC01_G703-13 → CC01_G703-79 CCW FFC SPRAY PUMP A STOP CMD)', '1', 'pass']
+Word 52.5 초
+Word 크기 112682
+화면 오류 [] []

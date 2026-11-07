@@ -1,0 +1,16 @@
+· TAKHIATASH 분석 …
+   행 1105 · 지문 17bc34dd · 축3 75.0점
+
+프로젝트            행         지문     Q'ty       초     RSS      축3
+TAKHIATASH   1105   17bc34dd     1461     130    0.8G   75.0
+
+축3 내역 (지표별 맞춘 수 / 분모)
+           도면번호         개정           태그→행         수량           심볼판정         파라미터       
+TAKHIATASH 59/59        0/60         257/325      1105/1105    1105/1218    12/15      
+결과: /home/user/AI-P-ID-Extraction-tool/out/regression_3p.json
+
+★ 기준선을 벗어났습니다
+   TAKHIATASH rows: 기준선 1139 → 지금 1105
+   TAKHIATASH fingerprint: 기준선 59757589b5653380b82ab9a16add40b12e34c66a01efc6fde30ae63e268c8818 → 지금 17bc34dd6f31b6df295fa8bf62b178d64268cf389062213ff1db5a2003b0422d
+   TAKHIATASH qty_sum: 기준선 1495 → 지금 1461
+   TAKHIATASH score: 기준선 74.6 → 지금 75.0

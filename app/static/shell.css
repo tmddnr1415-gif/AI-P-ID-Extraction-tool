@@ -1,0 +1,98 @@
+/* hotfix132 — 공통 셸(상단 띠 · 도움말 · 알림 · 확인 창).  `app/page_stamp.stamp()` 가 모든 화면에 넣는다.
+ * 띠는 화면 위에 고정(36px)되고, 띠가 그려진 화면은 body 에 `pid-shell-on` 이 붙어 그만큼 위 여백을 둔다 —
+ * `height:100%` 로 짠 화면들(P&ID · LOGIC · 판넬 · 도서검토)이 넘쳐서 이중 스크롤이 생기지 않게 box-sizing 으로 잰다.
+ * `?embed=1`(부서 대시보드 iframe)에서는 띠를 그리지 않으므로 아무것도 바뀌지 않는다. */
+:root { --shell-navy: #1f2a5c; --shell-font: "Malgun Gothic", "Segoe UI", system-ui, sans-serif; }
+html { --pid-shell-h: 36px; }
+body.pid-shell-on { box-sizing: border-box; padding-top: var(--pid-shell-h); }
+
+/* ---- 띠 */
+#pidShell { position: fixed; top: 0; left: 0; right: 0; height: var(--pid-shell-h); z-index: 900; box-sizing: border-box;
+  display: flex; align-items: center; gap: 4px; padding: 0 8px 0 12px; background: var(--shell-navy); color: #fff;
+  font: 13px/1 var(--shell-font); box-shadow: 0 1px 0 rgba(0, 0, 0, .25); }
+#pidShell * { box-sizing: border-box; }
+#pidShell a, #pidShell button { color: inherit; font: inherit; background: none; border: 0; text-decoration: none; cursor: pointer;
+  border-radius: 4px; padding: 6px 8px; line-height: 1; white-space: nowrap; }
+#pidShell a:hover, #pidShell button:hover { background: rgba(255, 255, 255, .14); }
+#pidShell a:focus-visible, #pidShell button:focus-visible { outline: 2px solid #fff; outline-offset: -2px; }
+.ps-brand { display: flex; align-items: center; gap: 8px; margin-right: 4px; font-weight: 700; letter-spacing: .01em; white-space: nowrap; }
+.ps-co { font-size: 10px; font-weight: 600; opacity: .75; letter-spacing: .08em; }
+.ps-crumb { font-weight: 400; opacity: .85; }
+.ps-crumb::before { content: "›"; margin: 0 6px; opacity: .6; }
+.ps-nav { display: flex; gap: 2px; margin-left: 10px; flex: 1; min-width: 0; overflow-x: auto; scrollbar-width: none; }
+.ps-nav::-webkit-scrollbar { display: none; }
+.ps-nav a[aria-current="page"] { background: rgba(255, 255, 255, .22); font-weight: 700; }
+.ps-right { display: flex; align-items: center; gap: 2px; margin-left: auto; }
+.ps-user { max-width: 170px; overflow: hidden; text-overflow: ellipsis; }
+.ps-user .ps-user-l { opacity: .75; margin-right: 4px; }
+.ps-ver { font-size: 11px; opacity: .8; padding: 0 4px 0 8px; white-space: nowrap; }
+@media (max-width: 1000px) { .ps-crumb, .ps-co { display: none; } #pidShell a, #pidShell button { padding: 6px 6px; } }
+@media (max-width: 720px) { .ps-ver { display: none; } .ps-user { max-width: 90px; } }
+
+/* ---- 띠가 있을 때 각 화면의 보정 (화면 파일은 고치지 않는다) */
+body.pid-shell-on #pidUpdateTag { display: none; }          /* 띠가 버전을 보이므로 작은 딱지는 embed 때만 */
+body.pid-shell-on .sidebar { top: var(--pid-shell-h); }     /* P&ID 왼쪽 메뉴(fixed · top 0) */
+body.pid-shell-on .drop::before { top: var(--pid-shell-h); }
+body.pid-shell-on.lg-full .lg-view { top: var(--pid-shell-h); }   /* LOGIC 전체 화면 보기 */
+body.pid-shell-on.pid-full #left { top: var(--pid-shell-h); }    /* P&ID 도면 크게 보기 */
+body.pid-shell-on.home #home { top: var(--pid-shell-h); }        /* 판넬 첫 화면(화면 전체를 덮는 판) */
+body.pid-shell-on.pane-review { padding-top: 0; }           /* LOGIC 검토 따로 보기 창 — 띠까지 숨는 화면 */
+/* 문서째 스크롤하는 화면의 '위에 붙는' 머리 — 띠 밑으로 숨지 않게 띠 높이만큼 내린다 */
+body.pid-shell-on .gt-head { top: var(--pid-shell-h); }                          /* 블록 시험 · 시운전 머리 */
+body.pid-shell-on .gt-table th { top: calc(56px + var(--pid-shell-h)); }
+body.pid-shell-on .cm-side { top: calc(70px + var(--pid-shell-h)); max-height: calc(100vh - 84px - var(--pid-shell-h)); }
+body.pid-shell-on .sp-tabs { top: calc(10px + var(--pid-shell-h)); }             /* 신호 처리 왼쪽 목록 */
+
+/* ---- 알림(toast) */
+#pidToasts { position: fixed; left: 50%; bottom: 18px; transform: translateX(-50%); z-index: 10001; display: flex; flex-direction: column;
+  gap: 6px; align-items: center; pointer-events: none; font: 13px/1.45 var(--shell-font); }
+.ps-toast { pointer-events: auto; max-width: min(560px, calc(100vw - 32px)); padding: 9px 14px; border-radius: 8px; background: #2b3240; color: #fff;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, .25); animation: ps-in .18s ease-out; word-break: keep-all; }
+.ps-toast.ok { background: #23643f; }
+.ps-toast.warn { background: #8a600f; }
+.ps-toast.err { background: #9b2f2a; }
+@keyframes ps-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+
+/* ---- 모달(확인 · 입력 · 도움말 · 정보) */
+.ps-back { position: fixed; inset: 0; z-index: 10000; background: rgba(15, 23, 42, .45); display: flex; align-items: center; justify-content: center;
+  font: 13.5px/1.55 var(--shell-font); color: #1d2330; }
+.ps-dlg { background: #fff; border-radius: 10px; box-shadow: 0 14px 40px rgba(0, 0, 0, .3); width: min(520px, calc(100vw - 32px));
+  max-height: calc(100vh - 48px); display: flex; flex-direction: column; overflow: hidden; }
+.ps-dlg.wide { width: min(720px, calc(100vw - 32px)); }
+.ps-dlg-h { padding: 12px 16px; font-weight: 700; font-size: 15px; border-bottom: 1px solid #e6e9ef; display: flex; align-items: center; }
+.ps-dlg-h .ps-x { margin-left: auto; border: 0; background: none; font-size: 20px; line-height: 1; cursor: pointer; color: #5b6475; padding: 2px 8px; border-radius: 4px; }
+.ps-dlg-h .ps-x:hover { background: #eef0f4; }
+.ps-dlg-b { padding: 14px 16px; overflow: auto; }
+.ps-dlg-b.pre { white-space: pre-line; word-break: keep-all; }
+.ps-dlg-f { padding: 10px 16px; border-top: 1px solid #e6e9ef; display: flex; justify-content: flex-end; gap: 8px; }
+.ps-btn { font: inherit; padding: 7px 14px; border-radius: 6px; border: 1px solid #c9cfda; background: #fff; color: #1d2330; cursor: pointer; }
+.ps-btn:hover { background: #f3f5f8; }
+.ps-btn.pri { background: var(--shell-navy); border-color: var(--shell-navy); color: #fff; }
+.ps-btn.pri:hover { background: #2a3a7a; }
+.ps-btn.danger { background: #9b2f2a; border-color: #9b2f2a; color: #fff; }
+.ps-btn.danger:hover { background: #7f2420; }
+.ps-btn:focus-visible { outline: 2px solid var(--shell-navy); outline-offset: 2px; }
+.ps-in { font: inherit; width: 100%; padding: 8px 10px; border: 1px solid #c9cfda; border-radius: 6px; margin-top: 10px; }
+.ps-in:focus { outline: 2px solid var(--shell-navy); outline-offset: 0; border-color: var(--shell-navy); }
+.ps-tabs { display: flex; gap: 2px; padding: 8px 12px 0; border-bottom: 1px solid #e6e9ef; background: #f6f7fa; }
+.ps-tabs button { font: inherit; border: 1px solid transparent; border-bottom: 0; background: none; padding: 7px 12px; border-radius: 6px 6px 0 0; cursor: pointer; color: #3a4356; }
+.ps-tabs button[aria-selected="true"] { background: #fff; border-color: #e6e9ef; color: #1d2330; font-weight: 700; margin-bottom: -1px; }
+.ps-help h4 { margin: 0 0 6px; font-size: 14px; }
+.ps-help p { margin: 0 0 8px; }
+.ps-help ol, .ps-help ul { margin: 6px 0 10px; padding-left: 22px; }
+.ps-help li { margin: 3px 0; }
+.ps-help dl { margin: 0; }
+.ps-help dt { font-weight: 700; margin-top: 8px; }
+.ps-help dd { margin: 2px 0 0; color: #3a4356; }
+.ps-help a { color: #1f4fd0; }
+.ps-muted { color: #5b6475; font-size: 12.5px; }
+.ps-kv { display: grid; grid-template-columns: auto 1fr; gap: 6px 14px; margin: 0; }
+.ps-kv dt { color: #5b6475; }
+.ps-kv dd { margin: 0; }
+
+/* ---- 인쇄: 띠 · 메뉴 · 단추는 빼고 본문만 */
+@media print {
+  #pidShell, #pidToasts, .ps-back, .sidebar, .lg-head, .build, #pidUpdateTag, .nav-toggle, .head-actions, button { display: none !important; }
+  html, body, main, #right, .lg-main { height: auto !important; overflow: visible !important; }
+  body.pid-shell-on { padding-top: 0 !important; }
+}

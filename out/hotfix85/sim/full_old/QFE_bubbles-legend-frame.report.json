@@ -1,0 +1,268 @@
+{
+ "project": "QFE",
+ "blind": "bubbles,legend,frame",
+ "secs": 655,
+ "taught": {
+  "applied": [
+   "drawing",
+   "notes",
+   "legend:LINE VALVES",
+   "legend:VALVES ACTUATORS",
+   "legend:ELECTRIC SIGNAL",
+   "bubbles"
+  ],
+  "skipped": [],
+  "who": "sim",
+  "bubble_templates": 4
+ },
+ "busiest_page": 15,
+ "bubble_shapes_on_page": {
+  "26x74": 69,
+  "26x75": 5,
+  "74x26": 4
+ },
+ "examples": 4,
+ "legend_taught": [
+  "ELECTRIC SIGNAL",
+  "LINE VALVES",
+  "VALVES ACTUATORS"
+ ],
+ "base_rows": 1605,
+ "taught_rows": 1597,
+ "same": 1594,
+ "recall": 99.3,
+ "precision": 99.8,
+ "only_base": 11,
+ "only_taught": 3,
+ "scope_diff": 13,
+ "qty_diff": 11,
+ "same_fingerprint": false,
+ "only_base_types": [
+  [
+   "LS",
+   3
+  ],
+  [
+   "PDI",
+   2
+  ],
+  [
+   "PS",
+   2
+  ],
+  [
+   "PI",
+   1
+  ],
+  [
+   "LI",
+   1
+  ],
+  [
+   "LSN",
+   1
+  ],
+  [
+   "LSLL",
+   1
+  ]
+ ],
+ "only_taught_types": [
+  [
+   "LSL",
+   1
+  ],
+  [
+   "LSH",
+   1
+  ],
+  [
+   "LSHH",
+   1
+  ]
+ ],
+ "only_base_sample": [
+  [
+   42,
+   "FIELD",
+   "PDI",
+   "32SCA12CP501",
+   [
+    1563,
+    149,
+    1623,
+    170
+   ]
+  ],
+  [
+   42,
+   "FIELD",
+   "PS",
+   "",
+   [
+    1450,
+    314,
+    1511,
+    336
+   ]
+  ],
+  [
+   42,
+   "FIELD",
+   "PS",
+   "",
+   [
+    1450,
+    342,
+    1511,
+    363
+   ]
+  ],
+  [
+   42,
+   "FIELD",
+   "PI",
+   "32SCA11CT501",
+   [
+    1284,
+    388,
+    1345,
+    408
+   ]
+  ],
+  [
+   42,
+   "FIELD",
+   "PDI",
+   "32SCA11CP501",
+   [
+    1564,
+    380,
+    1624,
+    401
+   ]
+  ],
+  [
+   42,
+   "FIELD",
+   "LI",
+   "32SCA11CT501",
+   [
+    1140,
+    470,
+    1201,
+    491
+   ]
+  ],
+  [
+   42,
+   "FIELD",
+   "LS",
+   "32GKC41CL104",
+   [
+    562,
+    816,
+    622,
+    837
+   ]
+  ],
+  [
+   42,
+   "FIELD",
+   "LSN",
+   "32GKC41CL103",
+   [
+    562,
+    848,
+    622,
+    869
+   ]
+  ],
+  [
+   42,
+   "FIELD",
+   "LS",
+   "32GKC41CL110",
+   [
+    895,
+    848,
+    955,
+    869
+   ]
+  ],
+  [
+   42,
+   "FIELD",
+   "LS",
+   "32GKC41CL102",
+   [
+    562,
+    881,
+    622,
+    902
+   ]
+  ],
+  [
+   42,
+   "FIELD",
+   "LSLL",
+   "32GKC41CL106",
+   [
+    895,
+    881,
+    955,
+    902
+   ]
+  ]
+ ],
+ "only_taught_sample": [
+  [
+   42,
+   "FIELD",
+   "LSL",
+   "32GKC41CL102",
+   [
+    568,
+    883,
+    616,
+    901
+   ]
+  ],
+  [
+   42,
+   "FIELD",
+   "LSH",
+   "32GKC41CL104",
+   [
+    568,
+    818,
+    616,
+    836
+   ]
+  ],
+  [
+   42,
+   "FIELD",
+   "LSHH",
+   "32GKC41CL110",
+   [
+    901,
+    851,
+    949,
+    869
+   ]
+  ]
+ ],
+ "only_base_pages": [
+  [
+   42,
+   11
+  ]
+ ],
+ "only_taught_pages": [
+  [
+   42,
+   3
+  ]
+ ]
+}

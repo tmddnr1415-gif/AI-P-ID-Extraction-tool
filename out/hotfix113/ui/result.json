@@ -1,0 +1,34 @@
+{
+ "errors": [],
+ "sheet": {
+  "page": "5",
+  "geom": {
+   "pipes": 31,
+   "shapes": 3,
+   "conns": 10
+  },
+  "counts": {
+   "instruments": 38,
+   "tagged": 30,
+   "valves": 8,
+   "equipment": 3,
+   "pipes": 49
+  },
+  "basis": "P&ID 도면 기하로 만든 그래픽 — 배관은 도면이 그린 선 전체 · 장비는 그 이름이 인쇄된 외곽의 자리와 크기 · 커넥터 · 직경 글은 도면 그대로 · 화살은 도면의 TO/FROM 이 말할 때만 · 값은 데모 (LOGIC 창이 붙으면 그 값)",
+  "pipes": 49,
+  "dashed": 4,
+  "equip": [
+   "LP TURBINE",
+   "HP TURBINE",
+   "IP TURBINE"
+  ],
+  "conns": 10,
+  "pipeLabels": 16,
+  "arrows": 8
+ },
+ "system": {
+  "frames": 2,
+  "equip": 7,
+  "pipes": 113
+ }
+}

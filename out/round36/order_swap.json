@@ -1,0 +1,33 @@
+[
+ {
+  "name": "SADARA",
+  "rows": 82,
+  "fingerprint": "0767ba79",
+  "qty": 0,
+  "seconds": 53.7,
+  "unit_forms": {},
+  "anchors": 24
+ },
+ {
+  "name": "AL NOUF1",
+  "rows": 1037,
+  "fingerprint": "fb85b039",
+  "qty": 1931,
+  "seconds": 516.7,
+  "unit_forms": {
+   "#DD": 25
+  },
+  "anchors": 24
+ },
+ {
+  "name": "TC2",
+  "rows": 607,
+  "fingerprint": "018315ef",
+  "qty": 3167,
+  "seconds": 362.3,
+  "unit_forms": {
+   "D-D": 23
+  },
+  "anchors": 24
+ }
+]

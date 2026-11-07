@@ -1,0 +1,42 @@
+{
+ "project": "AL NOUF1",
+ "blind": "bubbles,legend,frame",
+ "secs": 444,
+ "taught": {
+  "applied": [
+   "notes",
+   "legend_page",
+   "bubbles"
+  ],
+  "skipped": [],
+  "who": "sim",
+  "bubble_templates": 1
+ },
+ "busiest_page": 16,
+ "bubble_shapes_on_page": {},
+ "examples": 1,
+ "legend_taught": [],
+ "legend_page": [
+  3,
+  2
+ ],
+ "clicks": 4,
+ "notes_taught": true,
+ "drawing_taught": false,
+ "base_rows": 1065,
+ "taught_rows": 1065,
+ "same": 1065,
+ "recall": 100.0,
+ "precision": 100.0,
+ "only_base": 0,
+ "only_taught": 0,
+ "scope_diff": 0,
+ "qty_diff": 0,
+ "same_fingerprint": true,
+ "only_base_types": [],
+ "only_taught_types": [],
+ "only_base_pages": [],
+ "only_taught_pages": [],
+ "only_base_sample": [],
+ "only_taught_sample": []
+}

@@ -1,0 +1,204 @@
+
+== 목록 행 누르기 ×6 (다른 장) — 주 스레드 브라우저 일 (겹침 포함 · ms)
+     977.7ms  Paint
+     402.2ms  Layout
+     298.7ms  FunctionCall
+     260.3ms  Layerize
+     178.2ms  PrePaint
+     148.5ms  TimerFire
+     120.0ms  Commit
+     110.6ms  UpdateLayoutTree
+     100.7ms  FireAnimationFrame
+      91.8ms  EventDispatch
+      77.6ms  ParseHTML
+      16.0ms  UpdateLayer
+       0.4ms  PaintImage
+       0.4ms  HitTest
+
+== 목록 행 누르기 ×6 (다른 장) — 걸린 시간 5088ms · 표본 합 5217ms
+    4213.7ms  (program)
+     418.2ms  (idle)
+     222.2ms  scrollIntoView
+      89.5ms  paintWindow app.js:3701
+      52.4ms  createElementNS
+      36.0ms  centreOnSymbol app.js:4659
+      34.5ms  fetch
+      16.8ms  showEvidence app.js:5186
+      10.9ms  (garbage collector)
+       9.8ms  querySelector
+       8.6ms  (anon)
+       7.6ms  querySelectorAll
+       7.3ms  overlayItems app.js:7155
+       7.2ms  rowHtml app.js:3778
+       6.6ms  setAttribute
+       5.6ms  memoLayout app.js:6138
+       5.2ms  drawOverlay app.js:7292
+       5.2ms  revealRow app.js:3732
+       4.9ms  buildOverlayLegend app.js:7201
+       4.2ms  measure app.js:6867
+       3.9ms  drawItem app.js:7336
+       3.8ms  scopeEditor app.js:4817
+       3.7ms  (anon) app.js:7136
+       3.4ms  (anon) app.js:5175
+       3.3ms  vendorNames app.js:4807
+
+== 도면 상자 누르기 ×5 — 주 스레드 브라우저 일 (겹침 포함 · ms)
+     831.1ms  Paint
+     254.1ms  Layerize
+     158.9ms  PrePaint
+     149.2ms  Commit
+     118.9ms  EventDispatch
+      62.9ms  Layout
+      33.6ms  UpdateLayoutTree
+      12.3ms  UpdateLayer
+       7.7ms  TimerFire
+       6.7ms  FunctionCall
+       4.9ms  ParseHTML
+       3.0ms  FireAnimationFrame
+       0.1ms  HitTest
+
+== 도면 상자 누르기 ×5 — 걸린 시간 1686ms · 표본 합 1750ms
+    1565.7ms  (program)
+      60.9ms  (idle)
+      48.9ms  getBoundingClientRect
+      11.3ms  scopePop app.js:4973
+      10.7ms  (garbage collector)
+       9.1ms  scrollIntoView
+       9.0ms  querySelectorAll
+       7.5ms  vendorNames app.js:4807
+       5.6ms  showEvidence app.js:5186
+       3.0ms  fetch
+       2.4ms  paintWindow app.js:3701
+       2.2ms  querySelector
+       1.2ms  remove
+       1.0ms  (anon) app.js:5613
+       0.9ms  scopeEditor app.js:4817
+       0.7ms  select app.js:4612
+       0.7ms  (anon) app.js:5964
+       0.7ms  (anon)
+       0.6ms  window.fetch app.js:8578
+       0.6ms  (anon) app.js:4970
+       0.6ms  refreshSel app.js:7611
+       0.6ms  showHistory app.js:5561
+       0.6ms  escape app.js:6128
+       0.6ms  renderCands app.js:5953
+       0.6ms  (anon) app.js:4633
+
+== 목록 끝까지 굴리기 — 주 스레드 브라우저 일 (겹침 포함 · ms)
+     783.7ms  Paint
+     597.6ms  Layout
+     338.2ms  FireAnimationFrame
+     326.6ms  FunctionCall
+     313.5ms  Layerize
+     260.8ms  PrePaint
+     253.8ms  UpdateLayoutTree
+     164.7ms  Commit
+     120.5ms  ParseHTML
+      29.9ms  EventDispatch
+       7.8ms  UpdateLayer
+       0.2ms  HitTest
+
+== 목록 끝까지 굴리기 — 걸린 시간 1878ms · 표본 합 1915ms
+    1582.9ms  (program)
+     161.5ms  paintWindow app.js:3701
+     103.1ms  (idle)
+      34.6ms  (anon)
+       8.6ms  rowHtml app.js:3778
+       7.4ms  (anon) app.js:4890
+       6.6ms  (garbage collector)
+       4.0ms  escape app.js:6128
+       1.5ms  _flagHtml app.js:3776
+       1.2ms  markMultiRows app.js:4889
+       0.9ms  escAttr app.js:10258
+       0.7ms  editedTitle app.js:4261
+       0.7ms  (anon) app.js:3745
+       0.4ms  requestAnimationFrame
+       0.3ms  rowUserState app.js:9450
+       0.3ms  querySelectorAll
+       0.3ms  querySelector
+       0.1ms  _pidOf app.js:3759
+
+== 화살표 ↓ 20번 (칸 이동) — 주 스레드 브라우저 일 (겹침 포함 · ms)
+     817.5ms  Paint
+     170.2ms  PrePaint
+     149.7ms  Layerize
+      76.1ms  Commit
+      68.9ms  Layout
+      68.6ms  FunctionCall
+      61.2ms  EventDispatch
+      46.1ms  UpdateLayoutTree
+      43.0ms  HitTest
+      16.3ms  FireAnimationFrame
+      12.6ms  UpdateLayer
+       5.3ms  ParseHTML
+       1.6ms  TimerFire
+       0.2ms  PaintImage
+
+== 화살표 ↓ 20번 (칸 이동) — 걸린 시간 1355ms · 표본 합 1426ms
+    1140.7ms  (program)
+     175.6ms  (idle)
+      17.0ms  scrollIntoView
+      15.1ms  paintWindow app.js:3701
+      12.5ms  showEvidence app.js:5186
+       9.7ms  querySelectorAll
+       8.2ms  drawOverlay app.js:7292
+       6.9ms  memoLayout app.js:6138
+       6.2ms  appendChild
+       5.3ms  querySelector
+       2.9ms  fetch
+       2.8ms  drawItem app.js:7336
+       2.8ms  setAttribute
+       2.7ms  createElementNS
+       2.3ms  remove
+       2.2ms  buildOverlayLegend app.js:7201
+       2.2ms  renderCands app.js:5953
+       1.4ms  drawQtyTag app.js:7652
+       1.1ms  (garbage collector)
+       0.6ms  itemScope app.js:7126
+       0.6ms  setTimeout
+       0.6ms  escape app.js:6128
+       0.6ms  (anon) app.js:4017
+       0.5ms  gotoCell app.js:3927
+       0.4ms  requestAnimationFrame
+
+== 칸 하나 고치기 (Enter) — 주 스레드 브라우저 일 (겹침 포함 · ms)
+     411.8ms  Paint
+     104.6ms  Layerize
+      89.2ms  PrePaint
+      71.2ms  EventDispatch
+      58.2ms  Layout
+      26.6ms  Commit
+      26.2ms  FunctionCall
+      19.0ms  HitTest
+      12.7ms  UpdateLayoutTree
+       6.9ms  TimerFire
+       4.5ms  UpdateLayer
+       3.4ms  ParseHTML
+       2.6ms  FireAnimationFrame
+
+== 칸 하나 고치기 (Enter) — 걸린 시간 604ms · 표본 합 651ms
+     610.3ms  (program)
+       7.3ms  (idle)
+       4.4ms  showEvidence app.js:5186
+       4.4ms  focus
+       4.2ms  blur
+       2.0ms  querySelector
+       2.0ms  fetch
+       1.9ms  renderCands app.js:5953
+       1.7ms  centreOnSymbol app.js:4659
+       1.7ms  scopeEditor app.js:4817
+       1.6ms  querySelectorAll
+       1.1ms  startCellEdit app.js:3885
+       1.0ms  escape app.js:6128
+       0.9ms  vendorNames app.js:4807
+       0.8ms  saveField app.js:4335
+       0.7ms  scrollIntoView
+       0.7ms  window.fetch app.js:8578
+       0.6ms  refreshSel app.js:7611
+       0.6ms  (anon) app.js:5613
+       0.6ms  paintWindow app.js:3701
+       0.4ms  window.fetch app.js:10129
+       0.3ms  (anon) app.js:4633
+       0.3ms  descMarkupBlock app.js:5674
+       0.3ms  saveEdit app.js:4406
+       0.3ms  setCell app.js:3870

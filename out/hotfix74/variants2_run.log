@@ -1,0 +1,4 @@
+원본 {'ok': True, 'rows': 80, 'fp': 'a87db267', 'tabs': {'FIELD': 61, 'MOV': 16, 'PNEUMATIC': 3}, 'pages': 6, 's': 51.6}
+v_mediabox_origin        OK           {"ok": true, "rows": 46, "fp": "9f403bbf", "tabs": {"FIELD": 38, "MOV": 8}, "pages": 6, "s": 45.6, "file": "v02_reflowed_xobject.pdf", "expect": "run", "verdict": "OK"}
+v_extra_rotation         OK           {"ok": true, "rows": 34, "fp": "b934e6f0", "tabs": {"FIELD": 23, "MOV": 8, "PNEUMATIC": 3}, "pages": 6, "s": 48.1, "file": "v08_one_sheet_rotated.pdf", "expect": "run", "verdict": "OK"}
+v_only_legend            OK           {"ok": false, "kind": "NoPidSheets", "msg": "이 PDF(4장)에서 분석할 P&ID 장을 찾지 못했습니다 — 범례 4장.  P&ID 도면이 든 PDF 를 올려 주세요 (범례만 따로 든 PDF 라면 P&ID 와 함께 올리면 됩니다).", "s": 24.1, "file": "v15_only_legend.pdf", "expect": "run", "verdict": "OK"}

@@ -1,0 +1,141 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>계장 광장 — EPC 발전플랜트 현장</title>
+<link rel="stylesheet" href="/static/plaza.css">
+</head>
+<body>
+<div id="pz" class="pz">
+  <canvas id="pz-map" tabindex="0" aria-label="계장 광장 — 방향키 · WASD 로 움직이고 Shift 달리기 · E 설비 점검 · Enter 대화 · Space 공격 · 1~4 기술 · Z 줍기 · R 부활(운영자)"></canvas>
+
+  <div class="pz-top">
+    <span id="pz-online" class="pz-online">접속 0명</span>
+    <span class="pz-help">방향키 · WASD 이동 · Shift 달리기 · E 설비 점검/수리 · Enter 대화 · Space 공격 · 1~4 기술 · Q 고르기 · F/더블클릭 끼기 · X 놓기 · Z 줍기 · H 단축키</span>
+  </div>
+
+  <div id="pz-hud" class="pz-hud" aria-label="내 상태">
+    <div class="top"><canvas id="hud-face" class="face" width="44" height="52"></canvas>
+      <div class="hb">
+        <div class="nm"><b id="hud-lv">Lv 1</b><span id="hud-job"></span></div>
+        <div class="r"><canvas class="ic" data-ic="f_HP" width="16" height="16"></canvas><i><b id="hud-hp"></b></i><em id="hud-hpt"></em></div>
+        <div class="r"><canvas class="ic" data-ic="f_SIGNAL" width="16" height="16"></canvas><i><b id="hud-mp" class="mp"></b></i><em id="hud-mpt"></em></div>
+        <div class="r"><canvas class="ic" data-ic="f_ST" width="16" height="16"></canvas><i><b id="hud-st" class="st"></b></i><em id="hud-stt"></em></div>
+        <div class="r"><canvas class="ic" data-ic="f_XP" width="16" height="16"></canvas><i><b id="hud-xp" class="xp"></b></i><em id="hud-xpt"></em></div>
+      </div>
+    </div>
+    <div class="w" id="hud-work"></div>
+    <div class="q"><canvas class="ic" data-ic="f_QUEST" width="16" height="16"></canvas><span id="hud-eq"></span></div>
+    <div class="w pow" id="hud-pow"></div>
+    <div class="inv" id="hud-inv" title="가방 — 클릭 = 고르기 · 더블클릭 = 끼기(모습이 바뀜) · X 내려놓기 · 쓰러지면 떨어뜨림 · 곁의 것은 Z 로 주움 · 사람을 눌러 교환"></div>
+    <div class="w pres" id="hud-pres" title="하루 첫 접속 +10 · 연속 접속일마다 +4 (7일까지) · 접속 유지 5분마다 +2 (1시간 넘으면 +3, 하루 60까지)"></div>
+    <div class="w equip" id="hud-equip"></div>
+    <div class="w held" id="hud-held"></div>
+  </div>
+
+  <div id="pz-tools" class="pz-tools" aria-label="기술 (1 · 2 · 3, 마나 사용) · 도구 (지금 하는 작업에 불이 들어옴)">
+    <div class="slot sk" data-k="strike"><canvas data-ic="f_SPARK" width="30" height="30"></canvas><span>1 강타</span><u class="m">10</u><i class="cd"></i><b class="t"></b></div>
+    <div class="slot sk" data-k="aid"><canvas data-ic="f_HP" width="30" height="30"></canvas><span>2 응급</span><u class="m">20</u><i class="cd"></i><b class="t"></b></div>
+    <div class="slot sk" data-k="support"><canvas data-ic="f_AURA" width="30" height="30"></canvas><span>3 지원</span><u class="m">30</u><i class="cd"></i><b class="t"></b></div>
+    <div class="slot sk" data-k="bolt"><canvas data-ic="f_SIGNAL" width="30" height="30"></canvas><span>4 전기</span><u class="m">15</u><i class="cd"></i><b class="t"></b></div>
+    <div class="sep"></div>
+    <div class="slot tool" data-k="loop"><canvas data-ic="i_HART" width="30" height="30"></canvas><span>Loop</span></div>
+    <div class="slot tool" data-k="calib"><canvas data-ic="i_CALIB" width="30" height="30"></canvas><span>교정</span></div>
+    <div class="slot tool" data-k="cable"><canvas data-ic="i_SPOOL" width="30" height="30"></canvas><span>케이블</span></div>
+    <div class="slot tool" data-k="dcs"><canvas data-ic="i_MULTI" width="30" height="30"></canvas><span>측정</span></div>
+    <div class="slot tool" data-k="repair"><canvas data-ic="i_WRENCH" width="30" height="30"></canvas><span>수리</span></div>
+  </div>
+
+  <canvas id="pz-mini" class="pz-mini" width="192" height="88" aria-label="현장 지도"></canvas>
+
+  <div id="pz-who" class="pz-who" aria-label="광장에 있는 사람"></div>
+
+  <div class="pz-chat">
+    <div id="pz-log" class="pz-log" aria-live="polite"></div>
+    <div class="pz-inputrow">
+      <span id="pz-me" class="pz-me"></span>
+      <input id="pz-input" class="pz-input" maxlength="80" autocomplete="off"
+             placeholder="Enter 를 눌러 대화하기">
+    </div>
+  </div>
+
+  <div class="pz-btns">
+    <button id="pz-face-btn" type="button" title="고양이 기사(동물 · 갑옷 · 망토) 또는 사람(머리 · 얼굴 · 옷)으로 바꿉니다">얼굴 바꾸기</button>
+    <button id="pz-roles" type="button" hidden title="운영자만 — 그룹장 · 유닛장 · 부서원 · 운영자 지정">역할 지정</button>
+    <button id="pz-night" type="button" title="낮으로 바꾸기">🌙 밤</button>
+    <button id="pz-keys-btn" type="button" title="단축키 보기 (H · ?)">⌨ 단축키</button>
+  </div>
+
+  <div id="pz-keys" class="pz-panel" hidden>
+    <div class="pz-box pz-keybox">
+      <div class="pz-boxhead">단축키</div>
+      <div id="pz-keylist" class="pz-keylist"></div>
+      <div class="pz-boxfoot"><span class="sp"></span><button id="pz-keys-close" type="button" class="ok">닫기 (Esc)</button></div>
+    </div>
+  </div>
+
+  <div id="pz-focus" class="pz-focus" hidden>클릭하면 캐릭터를 움직일 수 있습니다</div>
+
+  <div id="pz-face" class="pz-panel" hidden>
+    <div class="pz-box pz-facebox">
+      <div class="pz-boxhead">얼굴 바꾸기</div>
+      <div class="pz-facebody">
+        <canvas id="pz-preview" width="150" height="200"></canvas>
+        <div class="pz-faceright">
+          <div class="pz-sub">머리 모양</div>
+          <div id="pz-hairs" class="pz-hairs"></div>
+          <div id="pz-facerows"></div>
+        </div>
+      </div>
+      <div id="pz-face-note" class="pz-note"></div>
+      <div class="pz-boxfoot">
+        <button id="pz-face-rand" type="button">무작위</button>
+        <span class="sp"></span>
+        <button id="pz-face-cancel" type="button">취소</button>
+        <button id="pz-face-save" type="button" class="ok">저장</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="pz-rolep" class="pz-panel" hidden>
+    <div class="pz-box pz-rolebox">
+      <div class="pz-boxhead">역할 지정 (운영자)</div>
+      <div id="pz-rolelist" class="pz-rolelist"></div>
+      <div class="rrow add">
+        <input id="pz-role-name" maxlength="20" placeholder="이름 (대시보드 로그인 이름)">
+        <select id="pz-role-sel"><option value="member">부서원 (관모)</option><option value="unit">유닛장 (사모)</option>
+          <option value="leader">그룹장 (왕관)</option><option value="operator">운영자 (노비)</option></select>
+        <button id="pz-role-add" type="button">지정</button>
+      </div>
+      <div id="pz-role-note" class="pz-note"></div>
+      <div class="pz-boxfoot"><span class="sp"></span><button id="pz-role-close" type="button" class="ok">닫기</button></div>
+    </div>
+  </div>
+
+  <div id="pz-tradein" class="pz-tradein" hidden></div>
+
+  <div id="pz-trade" class="pz-panel" hidden>
+    <div class="pz-box pz-tradebox">
+      <div class="pz-boxhead" id="pz-trade-head">교환</div>
+      <div class="pz-tradebody">
+        <div><div class="pz-sub">내가 줄 것 (눌러서 고름)</div><div id="pz-trade-mine" class="tlist"></div></div>
+        <div><div class="pz-sub">받을 것 (상대 가방)</div><div id="pz-trade-their" class="tlist"></div></div>
+      </div>
+      <div id="pz-trade-sum" class="pz-note"></div>
+      <div id="pz-trade-note" class="pz-note"></div>
+      <div class="pz-boxfoot"><span class="sp"></span><button id="pz-trade-cancel" type="button">닫기</button><button id="pz-trade-send" type="button" class="ok">교환 제안</button></div>
+    </div>
+  </div>
+
+  <div id="pz-name" class="pz-name" hidden>
+    <div class="pz-namebox">
+      <b>광장에 들어갈 이름</b>
+      <input id="pz-namein" maxlength="20" placeholder="이름">
+      <button id="pz-nameok" type="button">들어가기</button>
+    </div>
+  </div>
+</div>
+<script src="/static/plaza.js"></script>
+</body>
+</html>

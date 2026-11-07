@@ -1,0 +1,18 @@
+page 6 kind=PID dwg=D02J-31LBA10-M05-0001 rev=None size=Rect(0.0, 0.0, 1191.0, 842.0) rot=270 rows=15
+  FIELD     TIT    q=8 scope=VENDOR(SE)                   tag= rect=[622, 329, 655, 340] desc='' rev=''
+  FIELD     TW     q=8 scope=SCT                          tag= rect=[622, 349, 655, 361] desc='STRAINER THERMOWELL A' rev=''
+  FIELD     TW     q=8 scope=SCT                          tag= rect=[622, 370, 655, 381] desc='STRAINER THERMOWELL B' rev=''
+  FIELD     PIT    q=8 scope=VENDOR(SE)                   tag= rect=[622, 412, 655, 423] desc='' rev=''
+  FIELD     PIT    q=8 scope=VENDOR(SE)                   tag= rect=[622, 433, 655, 444] desc='' rev=''
+  FIELD     PIT    q=8 scope=VENDOR(SE)                   tag= rect=[198, 475, 232, 487] desc='' rev=''
+  FIELD     PIT    q=8 scope=VENDOR(SE)                   tag= rect=[232, 475, 266, 487] desc='' rev=''
+  FIELD     LS     q=8 scope=SCT                          tag= rect=[150, 491, 184, 502] desc='UNIT #31 FROM HRSG HP STEAM #3-1 FLOW' rev='Description 중간 서술을 후보에서 골랐으나 근'
+  FIELD     TIT    q=8 scope=VENDOR(SE)                   tag= rect=[252, 500, 287, 511] desc='' rev=''
+  FIELD     TIT    q=8 scope=VENDOR(SE)                   tag= rect=[287, 500, 320, 511] desc='' rev=''
+  FIELD     TIT    q=8 scope=VENDOR(SE)                   tag= rect=[320, 500, 354, 511] desc='' rev=''
+  FIELD     TW     q=8 scope=SCT                          tag= rect=[520, 500, 554, 511] desc='STRAINER THERMOWELL C' rev=''
+  FIELD     TW     q=8 scope=SCT                          tag= rect=[556, 500, 590, 511] desc='STRAINER THERMOWELL D' rev=''
+  FIELD     TIT    q=32 scope=SCT                          tag= rect=[809, 699, 843, 711] desc='UNIT #31 HIGH PRESSURE STEAM TANK TEMPER' rev=''
+  FIELD     TIT    q=32 scope=SCT                          tag= rect=[809, 716, 843, 728] desc='UNIT #31 HIGH PRESSURE STEAM TANK TEMPER' rev=''
+㉡ 후보(행에 안 덮인 ISA 꼴 낱말): [(44, 440, 'FROM'), (44, 535, 'FROM'), (49, 635, 'TO'), (56, 440, 'HP'), (56, 535, 'HRSG'), (56, 635, 'HP'), (62, 440, 'BYPASS'), (62, 635, 'BAPASS'), (68, 535, 'HP'), (74, 535, 'STEAM'), (78, 440, 'WARM-UP'), (78, 635, 'VALVE'), (324, 597, 'MOV'), (420, 519, 'MOV'), (457, 581, 'MOV'), (468, 538, 'SE'), (485, 538, 'SCT'), (505, 548, 'DN'), (593, 176, 'HP'), (641, 251, 'STOP'), (652, 251, 'CONTROL'), (675, 246, 'MSCV'), (677, 176, 'IP'), (695, 293, 'STRAINER'), (699, 480, 'DN'), (700, 252, 'SV'), (700, 269, 'CV'), (711, 315, 'SE'), (711, 331, 'SCT'), (728, 354, 'LO'), (734, 232, 'NOTE'), (760, 331, 'MOV'), (768, 356, 'DN'), (786, 176, 'LP'), (790, 668, 'HP'), (796, 668, 'TYPICAL'), (813, 668, 'DRAIN'), (816, 759, 'LO'), (826, 668, 'CONFIGURATION'), (837, 759, 'INCH'), (861, 751, 'DN'), (879, 350, 'TO'), (884, 739, 'TO'), (884, 745, 'TANK'), (885, 350, 'HRH'), (890, 739, 'CLEAN'), (894, 350, 'STEAM'), (904, 739, 'DRAIN'), (917, 739, 'TANK'), (928, 739, 'OR'), (935, 739, 'BLOW'), (947, 739, 'DOWN')] 
+unjudged on page: [('INSTRUMENT_TAG', [], None), ('INSTRUMENT_TAG', [], None), ('INSTRUMENT_TAG', [], None), ('INSTRUMENT_TAG', [], None)]

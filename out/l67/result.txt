@@ -1,0 +1,12 @@
+1 새 그림: 양식 a5j · 제목 'FEED WATER PUMP A START/STOP' · 행 59
+2 표: 입력 7 · 출력 4 행
+3 가이드선: 세로 [440.7, 519.8, 598.9, 689.3] · 가로 [211.25]
+4 기호 (Shift 로 가이드선에 붙임): AND x433.5 · AND x512.6 · OR x513.2 · NOT x435.75 · MEMORY x592.9 · NOT x514.85 · AND x591.7 · GT x680.55 · ANN x749.55
+5 선: 그은 것 20/20 · 사선 토막 0 · 건너뛰기 4
+6 되읽기: 블록 9/9 · 행 11/11 · 매달린 끝 0 · 그물 16
+7 시뮬레이션: 1 인 선 11 · 나간 출력 ['61 PUMP A START CMD', '64 PUMP A START PERMISSIVE', '66 PUMP A START FAIL']
+   운전 신호가 안 들어온 채 시간을 흘림 → 나간 출력 ['61 PUMP A START CMD', '64 PUMP A START PERMISSIVE', '66 PUMP A START FAIL'] (기동 실패 10초)
+   기동 누름을 놓음 → 나간 출력 ['61 PUMP A START CMD', '64 PUMP A START PERMISSIVE', '66 PUMP A START FAIL'] (래치 유지)
+   정지 누름 → 나간 출력 ['62 PUMP A STOP CMD', '64 PUMP A START PERMISSIVE']
+8 PDF: 색 [(0.0, 0.0, 0.0)] (흑백이어야 한다)
+화면 오류 0: []

@@ -1,0 +1,54 @@
+{"page": 15, "rows_on_page": 73, "band": {"ms": 82, "longtasks": 0, "longtask_ms": 0, "requests": 0, "kb": 0, "selected": 73}, "scope_multi": {"ms": 215, "longtasks": 0, "longtask_ms": 0, "requests": 1, "kb": 1, "ok": true}, "qty_page": {"ms": 435, "longtasks": 1, "longtask_ms": 72, "requests": 1, "kb": 1, "ok": true}, "edit_one": {"ms": 75, "longtasks": 0, "longtask_ms": 0, "requests": 1, "kb": 1, "ok": true}, "dismiss": {"ms": 418, "longtasks": 2, "longtask_ms": 107, "requests": 10, "kb": 52, "n": 20, "ok": true}, "restore": {"ms": 483, "longtasks": 2, "longtask_ms": 230, "requests": 10, "kb": 36, "ok": true}, "add_row": {"ms": 1592, "longtasks": 2, "longtask_ms": 136, "requests": 12, "kb": 35, "ok": true}, "errors": []}
+{"page": 15, "rows_on_page": 73, "band": {"ms": 61, "longtasks": 0, "longtask_ms": 0, "requests": 0, "kb": 0, "selected": 73}, "scope_multi": {"ms": 216, "longtasks": 0, "longtask_ms": 0, "requests": 1, "kb": 1, "ok": true}, "qty_page": {"ms": 461, "longtasks": 1, "longtask_ms": 62, "requests": 1, "kb": 1, "ok": true}, "edit_one": {"ms": 103, "longtasks": 1, "longtask_ms": 50, "requests": 1, "kb": 1, "ok": true}, "dismiss": {"ms": 472, "longtasks": 1, "longtask_ms": 71, "requests": 10, "kb": 52, "n": 20, "ok": true}, "restore": {"ms": 388, "longtasks": 2, "longtask_ms": 174, "requests": 10, "kb": 36, "ok": true}, "add_row": {"ms": 1546, "longtasks": 1, "longtask_ms": 79, "requests": 12, "kb": 35, "ok": true}, "errors": []}
+{"page": 15, "rows_on_page": 73, "band": {"ms": 39, "longtasks": 0, "longtask_ms": 0, "requests": 0, "kb": 0, "selected": 73}, "scope_multi": {"ms": 214, "longtasks": 0, "longtask_ms": 0, "requests": 1, "kb": 1, "ok": true}, "qty_page": {"ms": 386, "longtasks": 0, "longtask_ms": 0, "requests": 1, "kb": 1, "ok": true}, "edit_one": {"ms": 79, "longtasks": 0, "longtask_ms": 0, "requests": 1, "kb": 1, "ok": true}, "dismiss": {"ms": 406, "longtasks": 0, "longtask_ms": 0, "requests": 10, "kb": 52, "n": 20, "ok": true}, "restore": {"ms": 421, "longtasks": 2, "longtask_ms": 189, "requests": 10, "kb": 36, "ok": true}, "add_row": {"ms": 1436, "longtasks": 1, "longtask_ms": 83, "requests": 12, "kb": 35, "ok": true}, "errors": []}
+{
+ "band": {
+  "median_ms": 61,
+  "max_ms": 82,
+  "requests": 0,
+  "kb": 0,
+  "longtasks": 0
+ },
+ "scope_multi": {
+  "median_ms": 215,
+  "max_ms": 216,
+  "requests": 1,
+  "kb": 1,
+  "longtasks": 0
+ },
+ "qty_page": {
+  "median_ms": 435,
+  "max_ms": 461,
+  "requests": 1,
+  "kb": 1,
+  "longtasks": 0
+ },
+ "edit_one": {
+  "median_ms": 79,
+  "max_ms": 103,
+  "requests": 1,
+  "kb": 1,
+  "longtasks": 0
+ },
+ "dismiss": {
+  "median_ms": 418,
+  "max_ms": 472,
+  "requests": 10,
+  "kb": 52,
+  "longtasks": 0
+ },
+ "restore": {
+  "median_ms": 421,
+  "max_ms": 483,
+  "requests": 10,
+  "kb": 36,
+  "longtasks": 2
+ },
+ "add_row": {
+  "median_ms": 1546,
+  "max_ms": 1592,
+  "requests": 12,
+  "kb": 35,
+  "longtasks": 1
+ }
+}

@@ -1,0 +1,18 @@
+page 16 kind=PID dwg=D02J-31LCA10-M05-0002 rev=None size=Rect(0.0, 0.0, 1191.0, 842.0) rot=270 rows=15
+  FIELD     PI     q=8 scope=SCT                          tag= rect=[495, 103, 529, 114] desc='UNIT #31 CONDENSATE EXTRACTION PUMP A PR' rev=''
+  FIELD     PDIT   q=8 scope=SCT                          tag= rect=[273, 180, 307, 192] desc='UNIT #31 CONDENSATE EXTRACTION PUMP A SU' rev=''
+  FIELD     PI     q=8 scope=VENDOR                       tag= rect=[389, 181, 423, 192] desc='UNIT #31 CONDENSATE EXTRACTION PUMP A PR' rev='a vendor mark is drawn on this'
+  FIELD     PI     q=8 scope=VENDOR(CEP SUPPLIER)         tag= rect=[535, 182, 569, 193] desc='' rev=''
+  FIELD     PI     q=8 scope=SCT                          tag= rect=[495, 330, 529, 341] desc='CONDENSATE EXTRACTION PUMP A PRESSURE GA' rev=''
+  FIELD     PI     q=8 scope=VENDOR(CEP SUPPLIER)         tag= rect=[535, 400, 569, 412] desc='' rev=''
+  FIELD     PIT    q=8 scope=SCT                          tag= rect=[735, 400, 769, 411] desc='UNIT #31 CONDENSATE PRESSURE A' rev='Description 부분 생성 — 단위·계통·변수까지'
+  FIELD     PIT    q=8 scope=SCT                          tag= rect=[771, 400, 805, 411] desc='UNIT #31 CONDENSATE PRESSURE B' rev='Description 부분 생성 — 단위·계통·변수까지'
+  FIELD     TIT    q=8 scope=SCT                          tag= rect=[807, 400, 841, 411] desc='UNIT #31 CONDENSATE TEMPERATURE' rev='Description 부분 생성 — 단위·계통·변수까지'
+  FIELD     PDIT   q=8 scope=SCT                          tag= rect=[273, 408, 307, 419] desc='UNIT #31 DN CONDENSATE EXTRACTION PUMP B' rev=''
+  FIELD     PI     q=8 scope=VENDOR(CEP SUPPLIER)         tag= rect=[389, 408, 423, 420] desc='' rev=''
+  FIELD     PI     q=8 scope=SCT                          tag= rect=[495, 557, 529, 569] desc='DN CONDENSATE EXTRACTION PUMP B PRESSURE' rev=''
+  FIELD     PI     q=8 scope=VENDOR(CEP SUPPLIER)         tag= rect=[535, 629, 569, 640] desc='' rev=''
+  FIELD     PDIT   q=8 scope=SCT                          tag= rect=[273, 635, 307, 646] desc='UNIT #31 DN CONDENSATE EXTRACTION PUMP B' rev=''
+  FIELD     PI     q=8 scope=VENDOR(CEP SUPPLIER)         tag= rect=[389, 635, 423, 647] desc='' rev=''
+㉡ 후보(행에 안 덮인 ISA 꼴 낱말): [(40, 207, 'FROM'), (52, 207, 'CONDENSER'), (77, 207, 'HOTWELL'), (141, 218, 'DN'), (141, 445, 'DN'), (141, 672, 'DN'), (181, 221, 'LO'), (181, 225, 'VS'), (181, 448, 'LO'), (181, 452, 'VS'), (181, 675, 'LO'), (181, 679, 'VS'), (209, 203, 'DN'), (209, 430, 'DN'), (209, 657, 'DN'), (220, 190, 'DN'), (220, 417, 'DN'), (220, 644, 'DN'), (230, 202, 'NOTE'), (230, 428, 'NOTE'), (230, 655, 'NOTE'), (284, 227, 'VS'), (284, 454, 'VS'), (284, 681, 'VS'), (291, 247, 'DN'), (292, 473, 'DN'), (292, 701, 'DN'), (322, 155, 'TO'), (322, 382, 'TO'), (322, 609, 'TO'), (328, 155, 'CONDENSER'), (328, 382, 'CONDENSER'), (328, 609, 'CONDENSER'), (443, 246, 'CONDENSATE'), (443, 701, 'CONDENSATE'), (444, 474, 'CONDENSATE'), (469, 246, 'EXTRACTION'), (469, 474, 'EXTRACTION'), (469, 701, 'EXTRACTION'), (492, 246, 'PUMP'), (492, 474, 'PUMP'), (492, 701, 'PUMP'), (567, 89, 'NOTE'), (567, 316, 'NOTE'), (567, 543, 'NOTE'), (570, 96, 'SE'), (570, 323, 'SE'), (570, 550, 'SE'), (581, 112, 'SCT'), (581, 339, 'SCT'), (581, 566, 'SCT'), (601, 255, 'DN'), (601, 482, 'DN'), (601, 710, 'DN'), (604, 140, 'DN'), (604, 367, 'DN'), (604, 594, 'DN'), (635, 129, 'SEAL'), (635, 356, 'SEAL'), (635, 583, 'SEAL')] …
+unjudged on page: []

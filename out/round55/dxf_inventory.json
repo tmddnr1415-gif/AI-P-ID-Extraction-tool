@@ -1,0 +1,4467 @@
+[
+ {
+  "file": "001. 1A5J-00GEN00-M05-0001_P&I DIAGRM INDEX_Rev7.dxf",
+  "no": "001",
+  "version": "AC1032",
+  "audit_errors": 0,
+  "seconds": 0.25,
+  "entities": {
+   "LWPOLYLINE": 50,
+   "INSERT": 8,
+   "TEXT": 48,
+   "MTEXT": 133,
+   "LINE": 45
+  },
+  "insert": 8,
+  "insert_with_attribs": 0,
+  "block_kinds": 3,
+  "blocks": {
+   "A$C5f8aa12c": 4,
+   "REV.B": 3,
+   "TITLE": 1
+  },
+  "attr_blocks": {},
+  "attr_tags": {},
+  "attr_samples": {},
+  "layers": {
+   "GENERAL": 181,
+   "REV.6": 18,
+   "REV.7": 18,
+   "0": 17,
+   "REV.4": 15,
+   "TITLE BLOCK": 13,
+   "REV.C": 9,
+   "REV.B": 6,
+   "REV.4-1": 6,
+   "BID_NOTE": 1
+  },
+  "pdf_layers": [],
+  "block_defs": 10,
+  "layouts": [
+   "Model",
+   "배치1"
+  ],
+  "title": {}
+ },
+ {
+  "file": "002. 1A5J-00GEN00-M05-0002_P&ID FOR SYMBOL & LEGEND 1_Rev3.dxf",
+  "no": "002",
+  "version": "AC1032",
+  "audit_errors": 0,
+  "seconds": 0.49,
+  "entities": {
+   "LINE": 233,
+   "TEXT": 233,
+   "INSERT": 162,
+   "LWPOLYLINE": 31,
+   "ARC": 1,
+   "ELLIPSE": 3,
+   "SOLID": 3,
+   "POLYLINE": 4,
+   "HATCH": 9,
+   "CIRCLE": 6,
+   "MTEXT": 1
+  },
+  "insert": 162,
+  "insert_with_attribs": 5,
+  "block_kinds": 100,
+  "blocks": {
+   "Flow Arrow": 22,
+   "Gate Valve (Open)": 16,
+   "Award and Downward Slope": 6,
+   "*U36": 4,
+   "FLANGE": 4,
+   "Globe Valve (Open)": 4,
+   "VA2_Foot Valve": 3,
+   "Ball Valve (Open)": 3,
+   "E-VESSEL": 2,
+   "WELDED CAP": 2,
+   "Gate Valve (Close)": 2,
+   "Butterfly Valve (Close)": 2,
+   "Spray Nozzle": 2,
+   "BREAKER_SCOPE": 2,
+   "Check Valve_": 2,
+   "PIP ANGLE VALVE": 2,
+   "E-HORIZONTAL CENTRIFUGAL PUMP": 1,
+   "E-VERTICAL SUBMERSIBLE PUMP": 1,
+   "E_WET PIT PUMP": 1,
+   "E-VERTICAL CAN PUMP": 1,
+   "E-PUMP-CENTRI BARREL CASING": 1,
+   "E-HYDRO COUPLING": 1,
+   "E-H&E-U TUBE": 1,
+   "E-H&E-STRAIGHT TUBE SINGLE PASS": 1,
+   "E-H&E-STRAIGHT TUBE TWO PASS": 1,
+   "E-H&E-PLATE TYPE": 1,
+   "E-TANK-CONE ROOF": 1,
+   "E-TANK-FLOATING ROOF": 1,
+   "E_AIR COMPRESSOR-ROTARY": 1,
+   "E-MIXER": 1,
+   "E_CHEMICAL DRUM+DISPENSING PUMP": 1,
+   "E-GAS BOTTLE": 1,
+   "E-FUME SCRUBBER": 1,
+   "E_CO2 ABSORBER": 1,
+   "E_DAMPENER": 1,
+   "E_CALIBRATION CYLINDER": 1,
+   "E-EYE SHOWER": 1,
+   "E-SAMPLE COOLER": 1,
+   "E-VACUUM DEAERATOR": 1,
+   "E-VACUUM PUMP": 1,
+   "E-SJAE COOLER": 1,
+   "REDUCER": 1,
+   "VENT-LOOP": 1,
+   "*U69": 1,
+   "*U68": 1,
+   "HOSE CONNECTION": 1,
+   "*U71": 1,
+   "*U48": 1,
+   "*U47": 1,
+   "Plug Valve (Open)": 1,
+   "*U52": 1,
+   "*U53": 1,
+   "Diaph Valve (Open)": 1,
+   "Pinch Valve_": 1,
+   "Gap Symbol": 1,
+   "Screen Type Strainer": 1,
+   "*U70": 1,
+   "*U67": 1,
+   "JW1_P_Flexible Joint": 1,
+   "VA2_FILTER": 1,
+   "FLAME ARRESTER": 1,
+   "EXPANSION JOINT": 1,
+   "PIP ECCENTRIC REDUCER": 1,
+   "PIP MANUAL OPERATOR": 1,
+   "PIP STEAM TRAP": 1,
+   "NEEDLE_VALVE": 1,
+   "Simplex Basket Strainer": 1,
+   "DUPLEX BASKET": 1,
+   "T-TYPE": 1,
+   "Y-TYPE": 1,
+   "Butterfly Valve (Open)": 1,
+   "Sight Glass": 1,
+   "DIAPHRAGM SEAL": 1,
+   "VORTEXT_BREAKER": 1,
+   "PIP SINGLE SOLENOID": 1,
+   "VA2_Flow Limiting Check Valve": 1,
+   "PIP CYLINDER - PISTON": 1,
+   "PIP MOTOR OPERATED": 1,
+   "BALL_SCREEN": 1,
+   "DEBRIS_FILTER": 1,
+   "TEMPORARY STARTUP": 1,
+   "DESUPERHEATER": 1,
+   "E-EJECTOR": 1,
+   "SINGLE FLOW TURBINE": 1,
+   "DOUBLE FLOW TURBINE": 1,
+   "GENERATOR": 1,
+   "INST_LOCAL MOUNTED": 1,
+   "BUILDING_PENENTRATION": 1,
+   "PIP PLUG": 1,
+   "STOP_CHECK_VALVE": 1,
+   "ANGLE_CHECK": 1,
+   "PIP ORIFICE": 1,
+   "POSITIVE DISPLACEMENT PUMP_RECIPROCATING": 1,
+   "E-AIR COMPRESSOR-RECIPROCATING": 1,
+   "VSD": 1,
+   "PIP DIAPHRAGM": 1,
+   "E-PUMP-ROTARY": 1,
+   "A$Ca2bf7bde": 1,
+   "WATER BATH HEATER": 1,
+   "TITLE": 1
+  },
+  "attr_blocks": {
+   "BREAKER_SCOPE": 2,
+   "*U67": 1,
+   "PIP STEAM TRAP": 1,
+   "INST_LOCAL MOUNTED": 1
+  },
+  "attr_tags": {
+   "#(TARGETOBJECT.RIGHTSCOPE)": 2,
+   "#(TARGETOBJECT.LEFTSCOPE)": 2,
+   "DWG_NO": 1,
+   "DESC_MAIN": 1,
+   "DESC_ADD": 1,
+   "CONNECT_AREA": 1,
+   "UTIL_DESC": 1,
+   "#(TARGETOBJECT.TYPE)": 1,
+   "#(TargetObject.Type)": 1,
+   "#(TARGETOBJECT.UNITNUMBER)#(TARGETOBJECT.SYSTEMCODE)#(TARGETOBJECT.SYSTEMSEQNUMBER)#(TARGETOBJECT.ITEMCODE)#(TARGETOBJECT.FIRSTSEQNUMBER)": 1
+  },
+  "attr_samples": {
+   "*U67": [
+    [
+     "DWG_NO",
+     ""
+    ],
+    [
+     "DESC_MAIN",
+     ""
+    ],
+    [
+     "DESC_ADD",
+     ""
+    ],
+    [
+     "CONNECT_AREA",
+     ""
+    ]
+   ],
+   "PIP STEAM TRAP": [
+    [
+     "#(TARGETOBJECT.TYPE)",
+     "ST"
+    ]
+   ],
+   "INST_LOCAL MOUNTED": [
+    [
+     "#(TargetObject.Type)",
+     "RO"
+    ],
+    [
+     "#(TARGETOBJECT.UNITNUMBER)#(TARGETOBJECT.SYSTEMCODE)#(TARGETOBJECT.SYSTEMSEQNUMBER)#(TARGETOBJECT.ITEMCODE)#(TARGETOBJECT.FIRSTSEQNUMBER)",
+     "-"
+    ]
+   ],
+   "BREAKER_SCOPE": [
+    [
+     "#(TARGETOBJECT.RIGHTSCOPE)",
+     "AG"
+    ],
+    [
+     "#(TARGETOBJECT.LEFTSCOPE)",
+     "UG"
+    ]
+   ]
+  },
+  "layers": {
+   "TEXT": 221,
+   "Process": 159,
+   "0": 100,
+   "Valve": 72,
+   "GENERAL": 47,
+   "Equipment": 34,
+   "Annotation": 24,
+   "PIPING": 19,
+   "Instrument": 5,
+   "TITLE BLOCK": 3,
+   "EQUIP": 1,
+   "BID_NOTE": 1
+  },
+  "pdf_layers": [],
+  "block_defs": 116,
+  "layouts": [
+   "Model",
+   "배치1"
+  ],
+  "title": {}
+ },
+ {
+  "file": "003. 1A5J-00GEN00-M05-0003_P&ID FOR SYMBOL & LEGEND 2_Rev3.dxf",
+  "no": "003",
+  "version": "AC1032",
+  "audit_errors": 0,
+  "seconds": 0.34,
+  "entities": {
+   "LINE": 261,
+   "TEXT": 257,
+   "INSERT": 52,
+   "POLYLINE": 48,
+   "ARC": 6,
+   "LWPOLYLINE": 40,
+   "CIRCLE": 16,
+   "HATCH": 5,
+   "MTEXT": 13,
+   "OLE2FRAME": 3
+  },
+  "insert": 52,
+  "insert_with_attribs": 5,
+  "block_kinds": 14,
+  "blocks": {
+   "Flow Arrow": 30,
+   "INST_LOCAL MOUNTED": 5,
+   "A$C5f8aa12c": 4,
+   "PIP DIAPHRAGM": 2,
+   "Gap Symbol": 2,
+   "PIP ANGLE VALVE": 1,
+   "PIP MANUAL OPERATOR": 1,
+   "Plug Valve (Open)": 1,
+   "PIP MOTOR OPERATED": 1,
+   "*U8": 1,
+   "SILENCER": 1,
+   "SILENCER+AIR FILTER": 1,
+   "Funnel": 1,
+   "Samsung CT Eng": 1
+  },
+  "attr_blocks": {
+   "INST_LOCAL MOUNTED": 5
+  },
+  "attr_tags": {
+   "#(TargetObject.Type)": 5,
+   "#(TARGETOBJECT.UNITNUMBER)#(TARGETOBJECT.SYSTEMCODE)#(TARGETOBJECT.SYSTEMSEQNUMBER)#(TARGETOBJECT.ITEMCODE)#(TARGETOBJECT.FIRSTSEQNUMBER)": 5
+  },
+  "attr_samples": {
+   "INST_LOCAL MOUNTED": [
+    [
+     "#(TargetObject.Type)",
+     "( )CD"
+    ],
+    [
+     "#(TARGETOBJECT.UNITNUMBER)#(TARGETOBJECT.SYSTEMCODE)#(TARGETOBJECT.SYSTEMSEQNUMBER)#(TARGETOBJECT.ITEMCODE)#(TARGETOBJECT.FIRSTSEQNUMBER)",
+     ""
+    ]
+   ]
+  },
+  "layers": {
+   "GENERAL": 176,
+   "TITLE BLOCK": 170,
+   "TEXT": 157,
+   "0": 64,
+   "Equipment": 64,
+   "Process": 34,
+   "VALVE": 21,
+   "Instrument": 7,
+   "REV.4": 3,
+   "Instrument line": 2,
+   "BID_NOTE": 1,
+   "BOARDER": 1,
+   "PDF_Geometry": 1
+  },
+  "pdf_layers": [
+   "PDF_Geometry"
+  ],
+  "block_defs": 23,
+  "layouts": [
+   "Model",
+   "배치1"
+  ],
+  "title": {}
+ },
+ {
+  "file": "004. 1A5J-00GEN00-M05-0004_P&ID FOR SYMBOL & LEGEND 3_Rev3.dxf",
+  "no": "004",
+  "version": "AC1032",
+  "audit_errors": 0,
+  "seconds": 0.42,
+  "entities": {
+   "LINE": 208,
+   "TEXT": 605,
+   "INSERT": 185,
+   "POLYLINE": 16,
+   "ELLIPSE": 2,
+   "SOLID": 1,
+   "LWPOLYLINE": 18,
+   "CIRCLE": 1,
+   "ARC": 2,
+   "MTEXT": 2
+  },
+  "insert": 185,
+  "insert_with_attribs": 51,
+  "block_kinds": 45,
+  "blocks": {
+   "Gap Symbol": 84,
+   "INST_LOCAL MOUNTED": 40,
+   "Gate Valve (Open)": 7,
+   "Flow Arrow": 5,
+   "A_Pressure Relief valve": 3,
+   "PIP CYLINDER - PISTON": 3,
+   "DIAPHRAGM SEAL": 2,
+   "PIP BACK PRESSURE REGULATOR W_EXTERNAL TAP": 2,
+   "PIP BACK PRESSURE REGULATOR": 2,
+   "PIP SINGLE SOLENOID": 2,
+   "*U5": 1,
+   "INST_LOCAL MOUNTED_FF": 1,
+   "INST_MOUNTED ON LOCAL PANEL": 1,
+   "INST_MOUNTED ON MCP": 1,
+   "FOR_PERFORMANCE_TEST_ONLY": 1,
+   "FOR_PERFORMANCE_TEST_PLUS_NORMAL": 1,
+   "INST_MOUNTED BEHIND A PANEL": 1,
+   "VA2_VENTURY TUBE": 1,
+   "PIP MANUAL OPERATOR": 1,
+   "PIP ORIFICE": 1,
+   "PIP ORIFICE IN QUICK CHANGE FITTING": 1,
+   "F&R_PITOT_TUBE": 1,
+   "PIP FLUME": 1,
+   "PIP PITOT TUBE": 1,
+   "FLOW_NOZZLE": 1,
+   "PIP VORTEX": 1,
+   "PIP TURBINE OR PROPELLER": 1,
+   "ROTAMETER": 1,
+   "PIP ULTRASONIC": 1,
+   "PIP FLOW CONDITIONING DEVICES": 1,
+   "PIP POSITIVE DISPLACEMENT": 1,
+   "PIP DIFFERENTIAL PRESSURE REDUCING REGULATOR": 1,
+   "PIP DIAPHRAGM": 1,
+   "HYDRAULIC_CYLINDER": 1,
+   "PIP PRESSURE BALANCED DIAPHRAGM": 1,
+   "PIP MOTOR OPERATED": 1,
+   "PIP ELECTRO-HYDRAULIC": 1,
+   "PIP SINGLE SOLENOID - REMOTE RESET": 1,
+   "PIP MAGNETIC": 1,
+   "AL DHAFRA_TITLE BLOCK": 1,
+   "BOX": 1,
+   "BL": 1,
+   "TCS": 1,
+   "ASP": 1,
+   "TITLE": 1
+  },
+  "attr_blocks": {
+   "INST_LOCAL MOUNTED": 40,
+   "INST_LOCAL MOUNTED_FF": 1,
+   "INST_MOUNTED ON LOCAL PANEL": 1,
+   "INST_MOUNTED ON MCP": 1,
+   "FOR_PERFORMANCE_TEST_ONLY": 1,
+   "FOR_PERFORMANCE_TEST_PLUS_NORMAL": 1,
+   "INST_MOUNTED BEHIND A PANEL": 1,
+   "ROTAMETER": 1,
+   "BOX": 1,
+   "BL": 1,
+   "TCS": 1,
+   "ASP": 1
+  },
+  "attr_tags": {
+   "#(TargetObject.Type)": 51,
+   "#(TARGETOBJECT.UNITNUMBER)#(TARGETOBJECT.SYSTEMCODE)#(TARGETOBJECT.SYSTEMSEQNUMBER)#(TARGETOBJECT.ITEMCODE)#(TARGETOBJECT.FIRSTSEQNUMBER)": 51
+  },
+  "attr_samples": {
+   "INST_LOCAL MOUNTED_FF": [
+    [
+     "#(TargetObject.Type)",
+     ""
+    ],
+    [
+     "#(TARGETOBJECT.UNITNUMBER)#(TARGETOBJECT.SYSTEMCODE)#(TARGETOBJECT.SYSTEMSEQNUMBER)#(TARGETOBJECT.ITEMCODE)#(TARGETOBJECT.FIRSTSEQNUMBER)",
+     ""
+    ]
+   ],
+   "INST_MOUNTED ON LOCAL PANEL": [
+    [
+     "#(TargetObject.Type)",
+     ""
+    ],
+    [
+     "#(TARGETOBJECT.UNITNUMBER)#(TARGETOBJECT.SYSTEMCODE)#(TARGETOBJECT.SYSTEMSEQNUMBER)#(TARGETOBJECT.ITEMCODE)#(TARGETOBJECT.FIRSTSEQNUMBER)",
+     ""
+    ]
+   ],
+   "INST_MOUNTED ON MCP": [
+    [
+     "#(TargetObject.Type)",
+     ""
+    ],
+    [
+     "#(TARGETOBJECT.UNITNUMBER)#(TARGETOBJECT.SYSTEMCODE)#(TARGETOBJECT.SYSTEMSEQNUMBER)#(TARGETOBJECT.ITEMCODE)#(TARGETOBJECT.FIRSTSEQNUMBER)",
+     ""
+    ]
+   ],
+   "FOR_PERFORMANCE_TEST_ONLY": [
+    [
+     "#(TargetObject.Type)",
+     ""
+    ],
+    [
+     "#(TARGETOBJECT.UNITNUMBER)#(TARGETOBJECT.SYSTEMCODE)#(TARGETOBJECT.SYSTEMSEQNUMBER)#(TARGETOBJECT.ITEMCODE)#(TARGETOBJECT.FIRSTSEQNUMBER)",
+     ""
+    ]
+   ],
+   "FOR_PERFORMANCE_TEST_PLUS_NORMAL": [
+    [
+     "#(TargetObject.Type)",
+     ""
+    ],
+    [
+     "#(TARGETOBJECT.UNITNUMBER)#(TARGETOBJECT.SYSTEMCODE)#(TARGETOBJECT.SYSTEMSEQNUMBER)#(TARGETOBJECT.ITEMCODE)#(TARGETOBJECT.FIRSTSEQNUMBER)",
+     ""
+    ]
+   ],
+   "INST_MOUNTED BEHIND A PANEL": [
+    [
+     "#(TargetObject.Type)",
+     ""
+    ],
+    [
+     "#(TARGETOBJECT.UNITNUMBER)#(TARGETOBJECT.SYSTEMCODE)#(TARGETOBJECT.SYSTEMSEQNUMBER)#(TARGETOBJECT.ITEMCODE)#(TARGETOBJECT.FIRSTSEQNUMBER)",
+     ""
+    ]
+   ],
+   "INST_LOCAL MOUNTED": [
+    [
+     "#(TargetObject.Type)",
+     "FE"
+    ],
+    [
+     "#(TARGETOBJECT.UNITNUMBER)#(TARGETOBJECT.SYSTEMCODE)#(TARGETOBJECT.SYSTEMSEQNUMBER)#(TARGETOBJECT.ITEMCODE)#(TARGETOBJECT.FIRSTSEQNUMBER)",
+     ""
+    ]
+   ],
+   "ROTAMETER": [
+    [
+     "#(TargetObject.Type)",
+     "F( )"
+    ],
+    [
+     "#(TARGETOBJECT.UNITNUMBER)#(TARGETOBJECT.SYSTEMCODE)#(TARGETOBJECT.SYSTEMSEQNUMBER)#(TARGETOBJECT.ITEMCODE)#(TARGETOBJECT.FIRSTSEQNUMBER)",
+     ""
+    ]
+   ],
+   "BOX": [
+    [
+     "#(TARGETOBJECT.UNITNUMBER)#(TARGETOBJECT.SYSTEMCODE)#(TARGETOBJECT.SYSTEMSEQNUMBER)#(TARGETOBJECT.ITEMCODE)#(TARGETOBJECT.FIRSTSEQNUMBER)",
+     ""
+    ],
+    [
+     "#(TargetObject.Type)",
+     ""
+    ]
+   ],
+   "BL": [
+    [
+     "#(TargetObject.Type)",
+     ""
+    ],
+    [
+     "#(TARGETOBJECT.UNITNUMBER)#(TARGETOBJECT.SYSTEMCODE)#(TARGETOBJECT.SYSTEMSEQNUMBER)#(TARGETOBJECT.ITEMCODE)#(TARGETOBJECT.FIRSTSEQNUMBER)",
+     ""
+    ]
+   ],
+   "TCS": [
+    [
+     "#(TARGETOBJECT.UNITNUMBER)#(TARGETOBJECT.SYSTEMCODE)#(TARGETOBJECT.SYSTEMSEQNUMBER)#(TARGETOBJECT.ITEMCODE)#(TARGETOBJECT.FIRSTSEQNUMBER)",
+     "-"
+    ],
+    [
+     "#(TargetObject.Type)",
+     "-"
+    ]
+   ],
+   "ASP": [
+    [
+     "#(TARGETOBJECT.UNITNUMBER)#(TARGETOBJECT.SYSTEMCODE)#(TARGETOBJECT.SYSTEMSEQNUMBER)#(TARGETOBJECT.ITEMCODE)#(TARGETOBJECT.FIRSTSEQNUMBER)",
+     ""
+    ],
+    [
+     "#(TargetObject.Type)",
+     "+,++,-,- -"
+    ]
+   ]
+  },
+  "layers": {
+   "TEXT": 598,
+   "0": 169,
+   "GENERAL": 112,
+   "Process": 73,
+   "Instrument": 40,
+   "Instrument line": 23,
+   "Valve": 20,
+   "INST": 2,
+   "TITLE BLOCK": 2,
+   "BID_NOTE": 1
+  },
+  "pdf_layers": [],
+  "block_defs": 52,
+  "layouts": [
+   "Model",
+   "배치1"
+  ],
+  "title": {}
+ },
+ {
+  "file": "005. 1A5J-00GEN00-M05-0005_P&ID FOR SYMBOL & LEGEND 4_Rev4.dxf",
+  "no": "005",
+  "version": "AC1032",
+  "audit_errors": 0,
+  "seconds": 0.32,
+  "entities": {
+   "TEXT": 104,
+   "LINE": 150,
+   "INSERT": 127,
+   "HATCH": 4,
+   "LWPOLYLINE": 32,
+   "MTEXT": 4,
+   "ARC": 1
+  },
+  "insert": 127,
+  "insert_with_attribs": 53,
+  "block_kinds": 18,
+  "blocks": {
+   "INST_MOUNTED ON MCP": 26,
+   "INST_LOCAL MOUNTED": 25,
+   "Flow Arrow": 21,
+   "Gate Valve (Open)": 14,
+   "PIP MOTOR OPERATED": 8,
+   "Gap Symbol": 8,
+   "PIP CYLINDER - PISTON": 4,
+   "PIP 3-WAY VALVE": 4,
+   "PIP SINGLE SOLENOID": 4,
+   "Butterfly Valve (Close)": 2,
+   "HORIZONTAL CENTRIFUGAL PUMP": 2,
+   "HYDRAULIC_CYLINDER": 2,
+   "PIP MANUAL OPERATOR": 2,
+   "PIP DIAPHRAGM": 1,
+   "PIP TEMPERATURE REGULATOR FILLED SYSTEM TYPE": 1,
+   "Loose Item_block": 1,
+   "TITLE": 1,
+   "A$C5f8aa12c": 1
+  },
+  "attr_blocks": {
+   "INST_MOUNTED ON MCP": 26,
+   "INST_LOCAL MOUNTED": 25,
+   "HYDRAULIC_CYLINDER": 2
+  },
+  "attr_tags": {
+   "#(TargetObject.Type)": 51,
+   "#(TARGETOBJECT.UNITNUMBER)#(TARGETOBJECT.SYSTEMCODE)#(TARGETOBJECT.SYSTEMSEQNUMBER)#(TARGETOBJECT.ITEMCODE)#(TARGETOBJECT.FIRSTSEQNUMBER)": 51,
+   "PNPAttribute0": 2
+  },
+  "attr_samples": {
+   "INST_LOCAL MOUNTED": [
+    [
+     "#(TargetObject.Type)",
+     "MOV"
+    ],
+    [
+     "#(TARGETOBJECT.UNITNUMBER)#(TARGETOBJECT.SYSTEMCODE)#(TARGETOBJECT.SYSTEMSEQNUMBER)#(TARGETOBJECT.ITEMCODE)#(TARGETOBJECT.FIRSTSEQNUMBER)",
+     "NNAAANNAANN"
+    ]
+   ],
+   "INST_MOUNTED ON MCP": [
+    [
+     "#(TargetObject.Type)",
+     "YSR"
+    ],
+    [
+     "#(TARGETOBJECT.UNITNUMBER)#(TARGETOBJECT.SYSTEMCODE)#(TARGETOBJECT.SYSTEMSEQNUMBER)#(TARGETOBJECT.ITEMCODE)#(TARGETOBJECT.FIRSTSEQNUMBER)",
+     "NNAAANNAANN"
+    ]
+   ],
+   "HYDRAULIC_CYLINDER": [
+    [
+     "PNPAttribute0",
+     "H"
+    ]
+   ]
+  },
+  "layers": {
+   "0": 121,
+   "Instrument": 78,
+   "Instrument line": 75,
+   "TEXT": 48,
+   "Process": 34,
+   "Annotation": 22,
+   "Valve": 21,
+   "GENERAL": 8,
+   "TITLE BLOCK": 6,
+   "REV.4": 6,
+   "Equipment": 2,
+   "BID_NOTE": 1
+  },
+  "pdf_layers": [],
+  "block_defs": 23,
+  "layouts": [
+   "Model",
+   "배치1"
+  ],
+  "title": {}
+ },
+ {
+  "file": "006. 1A5J-00EKG00-M05-0001_P&ID FOR FUEL GAS SYSTEM (1 OF 5)_Rev4.dxf",
+  "no": "006",
+  "version": "AC1032",
+  "audit_errors": 0,
+  "seconds": 0.51,
+  "entities": {
+   "MTEXT": 52,
+   "TEXT": 146,
+   "LINE": 251,
+   "LWPOLYLINE": 151,
+   "INSERT": 169,
+   "ATTDEF": 135,
+   "HATCH": 5,
+   "ACAD_TABLE": 1,
+   "ARC": 43,
+   "CIRCLE": 3
+  },
+  "insert": 169,
+  "insert_with_attribs": 12,
+  "block_kinds": 29,
+  "blocks": {
+   "Ball Valve (Open)": 58,
+   "Ball Valve (Close)": 28,
+   "PIP BLIND FLANGE": 21,
+   "Flow Arrow": 5,
+   "PIP FLANGED NOZZLE": 5,
+   "HOSE CONNECTION": 5,
+   "E-VESSEL": 4,
+   "PIP ASSUMED NOZZLE": 4,
+   "Check Valve_": 4,
+   "vent 1": 4,
+   "A$C5f8aa12c": 4,
+   "A_Pressure Relief valve": 3,
+   "오프 페이지 커넥터-3": 3,
+   "오프 페이지 커넥터-2": 3,
+   "*U28": 3,
+   "*U23": 2,
+   "FLAME ARRESTER": 1,
+   "PIP CYLINDER - PISTON": 1,
+   "VENT-LOOP": 1,
+   "HHHH": 1,
+   "GGGGYH": 1,
+   "GGG": 1,
+   "*U26": 1,
+   "TITLE": 1,
+   "*U27": 1,
+   "UUU": 1,
+   "LargeBySmallReducerStyle_block": 1,
+   "REDUCER": 1,
+   "A$Cd32b5a21": 1
+  },
+  "attr_blocks": {
+   "vent 1": 4,
+   "*U28": 3,
+   "*U23": 2,
+   "*U26": 1,
+   "*U27": 1,
+   "LargeBySmallReducerStyle_block": 1
+  },
+  "attr_tags": {
+   "#(TARGETOBJECT.RIGHTSCOPE)": 5,
+   "#(TARGETOBJECT.LEFTSCOPE)": 5,
+   "PNPAttribute0": 4,
+   "#(=Drawing.General.PnID)": 2,
+   "#(TARGETOBJECT.ORIGINORDESTINATION)": 2,
+   "#(TargetObject.ConnectArea)": 2,
+   "#(PipeLines.Size)x#(PipeLines.Size)": 1
+  },
+  "attr_samples": {
+   "*U23": [
+    [
+     "#(TARGETOBJECT.RIGHTSCOPE)",
+     "SCT"
+    ],
+    [
+     "#(TARGETOBJECT.LEFTSCOPE)",
+     "SUPPLIER "
+    ]
+   ],
+   "vent 1": [
+    [
+     "PNPAttribute0",
+     "V"
+    ]
+   ],
+   "*U26": [
+    [
+     "#(=Drawing.General.PnID)",
+     "1A5J-00EKG00-M05-0002"
+    ],
+    [
+     "#(TARGETOBJECT.ORIGINORDESTINATION)",
+     "TO COLD VENT STACK"
+    ],
+    [
+     "#(TargetObject.ConnectArea)",
+     "(H-6)"
+    ]
+   ],
+   "*U27": [
+    [
+     "#(=Drawing.General.PnID)",
+     ""
+    ],
+    [
+     "#(TARGETOBJECT.ORIGINORDESTINATION)",
+     "TO N2 STORAGE AREA"
+    ],
+    [
+     "#(TargetObject.ConnectArea)",
+     ""
+    ]
+   ],
+   "*U28": [
+    [
+     "#(TARGETOBJECT.RIGHTSCOPE)",
+     "SCT"
+    ],
+    [
+     "#(TARGETOBJECT.LEFTSCOPE)",
+     "SUPPLIER"
+    ]
+   ],
+   "LargeBySmallReducerStyle_block": [
+    [
+     "#(PipeLines.Size)x#(PipeLines.Size)",
+     "DN600XDN550"
+    ]
+   ]
+  },
+  "layers": {
+   "0": 299,
+   "Process": 259,
+   "Valve": 86,
+   "Size": 51,
+   "Text": 45,
+   "Annotation": 38,
+   "Equipment": 33,
+   "REV.6": 24,
+   "Instrument line": 21,
+   "REV.5": 21,
+   "Primary Line": 20,
+   "REV.4": 18,
+   "TITLE BLOCK": 13,
+   "REV.7": 9,
+   "Mechanical": 6,
+   "Instrument": 5,
+   "NoPlot": 4,
+   "Existing Process": 4
+  },
+  "pdf_layers": [],
+  "block_defs": 40,
+  "layouts": [
+   "Model",
+   "배치1"
+  ],
+  "title": {}
+ },
+ {
+  "file": "007. 1A5J-00EKG00-M05-0002_P&ID FOR FUEL GAS SYSTEM (2 OF 5)_Rev4.dxf",
+  "no": "007",
+  "version": "AC1032",
+  "audit_errors": 0,
+  "seconds": 0.52,
+  "entities": {
+   "LWPOLYLINE": 441,
+   "MTEXT": 147,
+   "INSERT": 191,
+   "LINE": 386,
+   "TEXT": 254,
+   "ATTDEF": 274,
+   "HATCH": 16,
+   "ARC": 43
+  },
+  "insert": 191,
+  "insert_with_attribs": 20,
+  "block_kinds": 22,
+  "blocks": {
+   "PIP BLIND FLANGE": 41,
+   "Ball Valve (Open)": 29,
+   "Ball Valve (Close)": 28,
+   "Gate Valve (Open)": 12,
+   "GGGGYH": 11,
+   "Globe Valve (Close)": 10,
+   "*U14": 8,
+   "PIP DIAPHRAGM": 8,
+   "*U20": 7,
+   "HOSE CONNECTION": 6,
+   "PIP FLANGED NOZZLE": 6,
+   "Check Valve_": 5,
+   "PIP CYLINDER - PISTON": 4,
+   "A$C5f8aa12c": 4,
+   "WATER BATH HEATER": 3,
+   "REDUCER": 2,
+   "vent 1": 2,
+   "*U16": 1,
+   "TITLE": 1,
+   "A$Cf8895d55": 1,
+   "*U21": 1,
+   "*U26": 1
+  },
+  "attr_blocks": {
+   "*U14": 8,
+   "*U20": 7,
+   "vent 1": 2,
+   "*U16": 1,
+   "*U21": 1,
+   "*U26": 1
+  },
+  "attr_tags": {
+   "#(=Drawing.General.PnID)": 10,
+   "#(TARGETOBJECT.ORIGINORDESTINATION)": 10,
+   "#(TargetObject.ConnectArea)": 10,
+   "#(TARGETOBJECT.RIGHTSCOPE)": 8,
+   "#(TARGETOBJECT.LEFTSCOPE)": 8,
+   "PNPAttribute0": 2
+  },
+  "attr_samples": {
+   "*U14": [
+    [
+     "#(=Drawing.General.PnID)",
+     "1A5J-00EKG00-M05-0003"
+    ],
+    [
+     "#(TARGETOBJECT.ORIGINORDESTINATION)",
+     "TO GT #11"
+    ],
+    [
+     "#(TargetObject.ConnectArea)",
+     "(G-8)"
+    ]
+   ],
+   "*U16": [
+    [
+     "#(=Drawing.General.PnID)",
+     "1A5J-00EKG00-M05-0001 "
+    ],
+    [
+     "#(TARGETOBJECT.ORIGINORDESTINATION)",
+     "TO COLD VENT STACK"
+    ],
+    [
+     "#(TargetObject.ConnectArea)",
+     "(C-3)"
+    ]
+   ],
+   "*U20": [
+    [
+     "#(TARGETOBJECT.RIGHTSCOPE)",
+     "SCT"
+    ],
+    [
+     "#(TARGETOBJECT.LEFTSCOPE)",
+     "SUPPLIER"
+    ]
+   ],
+   "*U21": [
+    [
+     "#(TARGETOBJECT.RIGHTSCOPE)",
+     "SUPPLIER"
+    ],
+    [
+     "#(TARGETOBJECT.LEFTSCOPE)",
+     "SCT"
+    ]
+   ],
+   "vent 1": [
+    [
+     "PNPAttribute0",
+     "V"
+    ]
+   ],
+   "*U26": [
+    [
+     "#(=Drawing.General.PnID)",
+     "1A5J-00EKG00-M05-0005"
+    ],
+    [
+     "#(TARGETOBJECT.ORIGINORDESTINATION)",
+     "FUEL OIL STORAGE TANK"
+    ],
+    [
+     "#(TargetObject.ConnectArea)",
+     "(G-2)"
+    ]
+   ]
+  },
+  "layers": {
+   "0": 652,
+   "Process": 325,
+   "Primary Line": 119,
+   "Size": 116,
+   "REV.4": 99,
+   "REV.5": 87,
+   "Valve": 72,
+   "Text": 54,
+   "Instrument line": 41,
+   "PDF_Geometry": 40,
+   "Annotation": 33,
+   "Instrument": 24,
+   "REV.6": 24,
+   "Existing Process": 21,
+   "REV.7": 15,
+   "Equipment": 14,
+   "TITLE BLOCK": 13,
+   "GENERAL": 2,
+   "Mechanical": 1
+  },
+  "pdf_layers": [
+   "PDF_Geometry"
+  ],
+  "block_defs": 29,
+  "layouts": [
+   "Model",
+   "배치1"
+  ],
+  "title": {}
+ },
+ {
+  "file": "008. 1A5J-00EKG00-M05-0003_P&ID FOR FUEL GAS SYSTEM (3 OF 5)_Rev4.dxf",
+  "no": "008",
+  "version": "AC1032",
+  "audit_errors": 0,
+  "seconds": 0.41,
+  "entities": {
+   "LWPOLYLINE": 165,
+   "MTEXT": 61,
+   "TEXT": 126,
+   "LINE": 308,
+   "INSERT": 173,
+   "ATTDEF": 152,
+   "ARC": 56,
+   "HATCH": 6
+  },
+  "insert": 173,
+  "insert_with_attribs": 16,
+  "block_kinds": 22,
+  "blocks": {
+   "Ball Valve (Open)": 58,
+   "Ball Valve (Close)": 28,
+   "PIP BLIND FLANGE": 20,
+   "PIP FLANGED NOZZLE": 13,
+   "HOSE CONNECTION": 8,
+   "VENT": 6,
+   "E-VESSEL": 6,
+   "Check Valve_": 6,
+   "A_Pressure Relief valve": 4,
+   "REV.B": 4,
+   "*U20": 3,
+   "*U18": 2,
+   "FLAME ARRESTER": 2,
+   "Flow Arrow": 2,
+   "REV.C": 2,
+   "vent 1": 2,
+   "A$C5f8aa12c": 2,
+   "*U19": 1,
+   "TITLE": 1,
+   "*U21": 1,
+   "*U22": 1,
+   "A$C4a89a8b1": 1
+  },
+  "attr_blocks": {
+   "VENT": 6,
+   "*U20": 3,
+   "*U18": 2,
+   "vent 1": 2,
+   "*U19": 1,
+   "*U21": 1,
+   "*U22": 1
+  },
+  "attr_tags": {
+   "PNPAttribute0": 8,
+   "#(TARGETOBJECT.RIGHTSCOPE)": 6,
+   "#(TARGETOBJECT.LEFTSCOPE)": 6,
+   "#(=Drawing.General.PnID)": 2,
+   "#(TARGETOBJECT.ORIGINORDESTINATION)": 2,
+   "#(TargetObject.ConnectArea)": 2
+  },
+  "attr_samples": {
+   "*U18": [
+    [
+     "#(=Drawing.General.PnID)",
+     "1A5J-00EKG00-M05-0002"
+    ],
+    [
+     "#(TARGETOBJECT.ORIGINORDESTINATION)",
+     "FROM FUEL GAS SUPPLY HEADER"
+    ],
+    [
+     "#(TargetObject.ConnectArea)",
+     "(D-2)"
+    ]
+   ],
+   "VENT": [
+    [
+     "PNPAttribute0",
+     "V"
+    ]
+   ],
+   "*U20": [
+    [
+     "#(TARGETOBJECT.RIGHTSCOPE)",
+     "SCT"
+    ],
+    [
+     "#(TARGETOBJECT.LEFTSCOPE)",
+     "SUPPLIER"
+    ]
+   ],
+   "*U19": [
+    [
+     "#(TARGETOBJECT.RIGHTSCOPE)",
+     "SUPPLIER"
+    ],
+    [
+     "#(TARGETOBJECT.LEFTSCOPE)",
+     "SCT"
+    ]
+   ],
+   "*U21": [
+    [
+     "#(TARGETOBJECT.RIGHTSCOPE)",
+     "SCT"
+    ],
+    [
+     "#(TARGETOBJECT.LEFTSCOPE)",
+     "SUPPLIER"
+    ]
+   ],
+   "*U22": [
+    [
+     "#(TARGETOBJECT.RIGHTSCOPE)",
+     "SCT"
+    ],
+    [
+     "#(TARGETOBJECT.LEFTSCOPE)",
+     "SUPPLIER"
+    ]
+   ],
+   "vent 1": [
+    [
+     "PNPAttribute0",
+     "V"
+    ]
+   ]
+  },
+  "layers": {
+   "0": 347,
+   "Process": 310,
+   "Valve": 84,
+   "REV.5": 60,
+   "Text": 50,
+   "Size": 41,
+   "Equipment": 37,
+   "Primary Line": 22,
+   "REV.4": 21,
+   "Instrument line": 20,
+   "Annotation": 14,
+   "Mechanical": 8,
+   "REV.B": 8,
+   "TITLE BLOCK": 7,
+   "Instrument": 4,
+   "REV.C": 4,
+   "PDF_Geometry": 4,
+   "Existing Process": 4,
+   "AS_PIPE": 2
+  },
+  "pdf_layers": [
+   "PDF_Geometry"
+  ],
+  "block_defs": 30,
+  "layouts": [
+   "Model",
+   "배치1"
+  ],
+  "title": {}
+ },
+ {
+  "file": "009. 1A5J-00EKG00-M05-0004_P&ID FOR FUEL GAS SYSTEM (4 OF 5)_Rev4.dxf",
+  "no": "009",
+  "version": "AC1032",
+  "audit_errors": 0,
+  "seconds": 0.41,
+  "entities": {
+   "LWPOLYLINE": 150,
+   "INSERT": 169,
+   "MTEXT": 61,
+   "TEXT": 116,
+   "LINE": 303,
+   "ATTDEF": 152,
+   "ARC": 56,
+   "HATCH": 4
+  },
+  "insert": 169,
+  "insert_with_attribs": 18,
+  "block_kinds": 21,
+  "blocks": {
+   "Ball Valve (Open)": 58,
+   "Ball Valve (Close)": 28,
+   "PIP FLANGED NOZZLE": 13,
+   "PIP BLIND FLANGE": 12,
+   "VENT": 8,
+   "HOSE CONNECTION": 8,
+   "E-VESSEL": 6,
+   "Check Valve_": 6,
+   "REV.B": 4,
+   "A_Pressure Relief valve": 4,
+   "Flow Arrow": 4,
+   "*U19": 4,
+   "REV.C": 2,
+   "*U17": 2,
+   "FLAME ARRESTER": 2,
+   "vent 1": 2,
+   "A$C5f8aa12c": 2,
+   "A$C20f02201": 1,
+   "TITLE": 1,
+   "*U20": 1,
+   "*U21": 1
+  },
+  "attr_blocks": {
+   "VENT": 8,
+   "*U19": 4,
+   "*U17": 2,
+   "vent 1": 2,
+   "*U20": 1,
+   "*U21": 1
+  },
+  "attr_tags": {
+   "PNPAttribute0": 10,
+   "#(TARGETOBJECT.RIGHTSCOPE)": 6,
+   "#(TARGETOBJECT.LEFTSCOPE)": 6,
+   "#(=Drawing.General.PnID)": 2,
+   "#(TARGETOBJECT.ORIGINORDESTINATION)": 2,
+   "#(TargetObject.ConnectArea)": 2
+  },
+  "attr_samples": {
+   "*U17": [
+    [
+     "#(=Drawing.General.PnID)",
+     "1A5J-00EKG00-M05-0002"
+    ],
+    [
+     "#(TARGETOBJECT.ORIGINORDESTINATION)",
+     "FROM FUEL GAS SUPPLY HEADER"
+    ],
+    [
+     "#(TargetObject.ConnectArea)",
+     "(C-2)"
+    ]
+   ],
+   "VENT": [
+    [
+     "PNPAttribute0",
+     "V"
+    ]
+   ],
+   "*U19": [
+    [
+     "#(TARGETOBJECT.RIGHTSCOPE)",
+     "SCT"
+    ],
+    [
+     "#(TARGETOBJECT.LEFTSCOPE)",
+     "SUPPLIER"
+    ]
+   ],
+   "*U20": [
+    [
+     "#(TARGETOBJECT.RIGHTSCOPE)",
+     "SCT"
+    ],
+    [
+     "#(TARGETOBJECT.LEFTSCOPE)",
+     "SUPPLIER"
+    ]
+   ],
+   "*U21": [
+    [
+     "#(TARGETOBJECT.RIGHTSCOPE)",
+     "SCT"
+    ],
+    [
+     "#(TARGETOBJECT.LEFTSCOPE)",
+     "SUPPLIER"
+    ]
+   ],
+   "vent 1": [
+    [
+     "PNPAttribute0",
+     "V"
+    ]
+   ]
+  },
+  "layers": {
+   "0": 339,
+   "Process": 308,
+   "Valve": 84,
+   "Text": 50,
+   "Size": 40,
+   "REV.5": 36,
+   "Equipment": 34,
+   "Primary Line": 22,
+   "REV.4": 21,
+   "Instrument line": 20,
+   "Annotation": 16,
+   "REV.B": 8,
+   "Mechanical": 8,
+   "TITLE BLOCK": 7,
+   "REV.C": 4,
+   "Instrument": 4,
+   "PDF_Geometry": 4,
+   "Existing Process": 4,
+   "AS_PIPE": 2
+  },
+  "pdf_layers": [
+   "PDF_Geometry"
+  ],
+  "block_defs": 28,
+  "layouts": [
+   "Model",
+   "배치1"
+  ],
+  "title": {}
+ },
+ {
+  "file": "010. 1A5J-00EKG00-M05-0005_P&ID FOR FUEL GAS SYSTEM (5 OF 5)-FGC INTERCONNECTION_Rev2.dxf",
+  "no": "010",
+  "version": "AC1032",
+  "audit_errors": 0,
+  "seconds": 0.41,
+  "entities": {
+   "INSERT": 42,
+   "LWPOLYLINE": 65,
+   "LINE": 58,
+   "TEXT": 95,
+   "MTEXT": 69,
+   "ATTDEF": 29
+  },
+  "insert": 42,
+  "insert_with_attribs": 11,
+  "block_kinds": 12,
+  "blocks": {
+   "PIP BLIND FLANGE": 12,
+   "*U14": 8,
+   "REDUCER": 5,
+   "A$C5f8aa12c": 4,
+   "PIP DIAPHRAGM": 3,
+   "Gate Valve (Open)": 3,
+   "*U17": 2,
+   "TITLE": 1,
+   "Ball Valve (Open)": 1,
+   "PIP CYLINDER - PISTON": 1,
+   "HHHH": 1,
+   "*U11": 1
+  },
+  "attr_blocks": {
+   "*U14": 8,
+   "*U17": 2,
+   "*U11": 1
+  },
+  "attr_tags": {
+   "#(TARGETOBJECT.RIGHTSCOPE)": 8,
+   "#(TARGETOBJECT.LEFTSCOPE)": 8,
+   "#(=Drawing.General.PnID)": 3,
+   "#(TARGETOBJECT.ORIGINORDESTINATION)": 3,
+   "#(TargetObject.ConnectArea)": 3
+  },
+  "attr_samples": {
+   "*U11": [
+    [
+     "#(=Drawing.General.PnID)",
+     "1A5J-00EKG00-M05-0002"
+    ],
+    [
+     "#(TARGETOBJECT.ORIGINORDESTINATION)",
+     "TO N2 STORAGE AREA"
+    ],
+    [
+     "#(TargetObject.ConnectArea)",
+     "(E-5)"
+    ]
+   ],
+   "*U14": [
+    [
+     "#(TARGETOBJECT.RIGHTSCOPE)",
+     "SCT"
+    ],
+    [
+     "#(TARGETOBJECT.LEFTSCOPE)",
+     "SUPPLIER"
+    ]
+   ],
+   "*U17": [
+    [
+     "#(=Drawing.General.PnID)",
+     "1A5J-00EKG000M05-0001"
+    ],
+    [
+     "#(TARGETOBJECT.ORIGINORDESTINATION)",
+     "FUEL OIL STORAGE TANK"
+    ],
+    [
+     "#(TargetObject.ConnectArea)",
+     "(C-8)"
+    ]
+   ]
+  },
+  "layers": {
+   "0": 173,
+   "Process": 34,
+   "Size": 25,
+   "Primary Line": 17,
+   "REV.6": 15,
+   "Equipment": 14,
+   "Text": 14,
+   "TITLE BLOCK": 13,
+   "PDF_Geometry": 12,
+   "REV.7": 12,
+   "Annotation": 10,
+   "Instrument": 8,
+   "GENERAL": 5,
+   "REV.4": 3,
+   "REV.5": 3
+  },
+  "pdf_layers": [
+   "PDF_Geometry"
+  ],
+  "block_defs": 20,
+  "layouts": [
+   "Model",
+   "배치1"
+  ],
+  "title": {}
+ },
+ {
+  "file": "011. 1A5J-00EKD00-M05-0001_P&ID FOR FUEL OIL SUPPLY SYSTEM (1 OF 5)_Rev4.dxf",
+  "no": "011",
+  "version": "AC1032",
+  "audit_errors": 0,
+  "seconds": 0.56,
+  "entities": {
+   "MTEXT": 21,
+   "LEADER": 9,
+   "INSERT": 209,
+   "LINE": 269,
+   "LWPOLYLINE": 465,
+   "TEXT": 313,
+   "HATCH": 27,
+   "ATTDEF": 317,
+   "ACAD_TABLE": 1,
+   "ARC": 6
+  },
+  "insert": 209,
+  "insert_with_attribs": 35,
+  "block_kinds": 36,
+  "blocks": {
+   "Flow Arrow": 30,
+   "Ball Valve (Close)": 28,
+   "Ball Valve (Open)": 18,
+   "Inline Instrument Annotation_block": 16,
+   "DIAPHRAGM SEAL": 15,
+   "PIP BLIND FLANGE": 12,
+   "Gate Valve (Open)": 9,
+   "REDUCER": 8,
+   "PIP FLANGED NOZZLE": 8,
+   "INST_LOCAL MOUNTED": 6,
+   "HORIZONTAL CENTRIFUGAL PUMP": 4,
+   "Check Valve_": 4,
+   "*U28": 4,
+   "INTERLOCK-1": 4,
+   "PIP PLUG": 4,
+   "Gap Symbol": 4,
+   "A_Pressure Relief valve": 4,
+   "HOSE CONNECTION": 3,
+   "*U26": 3,
+   "BREAKER_SCOPE": 3,
+   "E-VESSEL": 2,
+   "FLAME ARRESTER": 2,
+   "Simplex Basket Strainer": 2,
+   "REV.B": 2,
+   "Award and Downward Slope": 2,
+   "EXPANSION JOINT": 2,
+   "Gate Valve (Close)": 1,
+   "Y-TYPE": 1,
+   "Origin or Destination_block": 1,
+   "A$C30905bd8": 1,
+   "A$C09caefb8": 1,
+   "A$Cfb9ad82f": 1,
+   "TITLE": 1,
+   "*U35": 1,
+   "PIP ORIFICE": 1,
+   "pi": 1
+  },
+  "attr_blocks": {
+   "Inline Instrument Annotation_block": 16,
+   "INST_LOCAL MOUNTED": 6,
+   "INTERLOCK-1": 4,
+   "*U26": 3,
+   "BREAKER_SCOPE": 3,
+   "Origin or Destination_block": 1,
+   "*U35": 1,
+   "pi": 1
+  },
+  "attr_tags": {
+   "#(TargetObject.Type)": 23,
+   "#(TARGETOBJECT.UNITNUMBER)#(TARGETOBJECT.SYSTEMCODE)#(TARGETOBJECT.SYSTEMSEQNUMBER)#(TARGETOBJECT.ITEMCODE)#(TARGETOBJECT.FIRSTSEQNUMBER)": 22,
+   "#(TARGETOBJECT.ORIGINORDESTINATION)": 5,
+   "#(=Drawing.General.PnID)": 4,
+   "#(TargetObject.ConnectArea)": 4,
+   "I": 4,
+   "#(TARGETOBJECT.RIGHTSCOPE)": 3,
+   "#(TARGETOBJECT.LEFTSCOPE)": 3,
+   "#(TargetObject.LoopNumber)": 1
+  },
+  "attr_samples": {
+   "*U26": [
+    [
+     "#(=Drawing.General.PnID)",
+     "1A5J-00EKD00-M05-0002"
+    ],
+    [
+     "#(TARGETOBJECT.ORIGINORDESTINATION)",
+     "FUEL OIL STORAGE TANK"
+    ],
+    [
+     "#(TargetObject.ConnectArea)",
+     "(H-8)"
+    ]
+   ],
+   "BREAKER_SCOPE": [
+    [
+     "#(TARGETOBJECT.RIGHTSCOPE)",
+     "SCT"
+    ],
+    [
+     "#(TARGETOBJECT.LEFTSCOPE)",
+     "SUPPLIER "
+    ]
+   ],
+   "Inline Instrument Annotation_block": [
+    [
+     "#(TargetObject.Type)",
+     "PI"
+    ],
+    [
+     "#(TARGETOBJECT.UNITNUMBER)#(TARGETOBJECT.SYSTEMCODE)#(TARGETOBJECT.SYSTEMSEQNUMBER)#(TARGETOBJECT.ITEMCODE)#(TARGETOBJECT.FIRSTSEQNUMBER)",
+     "00EGA11CP501"
+    ]
+   ],
+   "INST_LOCAL MOUNTED": [
+    [
+     "#(TargetObject.Type)",
+     "FS"
+    ],
+    [
+     "#(TARGETOBJECT.UNITNUMBER)#(TARGETOBJECT.SYSTEMCODE)#(TARGETOBJECT.SYSTEMSEQNUMBER)#(TARGETOBJECT.ITEMCODE)#(TARGETOBJECT.FIRSTSEQNUMBER)",
+     "00EGA02CF101"
+    ]
+   ],
+   "Origin or Destination_block": [
+    [
+     "#(TARGETOBJECT.ORIGINORDESTINATION)",
+     "CCW SUPPLY TO BOP"
+    ]
+   ],
+   "INTERLOCK-1": [
+    [
+     "I",
+     "I"
+    ]
+   ],
+   "*U35": [
+    [
+     "#(=Drawing.General.PnID)",
+     "1A5J-00EKD00-M05-0002"
+    ],
+    [
+     "#(TARGETOBJECT.ORIGINORDESTINATION)",
+     "FUEL OIL STORAGE TANK"
+    ],
+    [
+     "#(TargetObject.ConnectArea)",
+     "(F-8)"
+    ]
+   ],
+   "pi": [
+    [
+     "#(TargetObject.LoopNumber)",
+     "00EGD50BP101"
+    ],
+    [
+     "#(TargetObject.Type)",
+     "RO"
+    ]
+   ]
+  },
+  "layers": {
+   "0": 613,
+   "REV.5": 170,
+   "Process": 154,
+   "REV.4": 145,
+   "Instrument line": 103,
+   "Instrument": 88,
+   "1": 70,
+   "Valve": 58,
+   "Primary Line": 46,
+   "Annotation": 38,
+   "Size": 26,
+   "REV.7": 24,
+   "Equipment": 22,
+   "REV.6": 21,
+   "REV": 19,
+   "Mechanical": 18,
+   "GENERAL": 7,
+   "EQUIP": 6,
+   "Text": 5,
+   "REV.B": 4
+  },
+  "pdf_layers": [],
+  "block_defs": 51,
+  "layouts": [
+   "Model",
+   "배치1"
+  ],
+  "title": {}
+ },
+ {
+  "file": "012. 1A5J-00EKD00-M05-0002_P&ID FOR FUEL OIL SUPPLY SYSTEM (2 OF 5)_Rev4.dxf",
+  "no": "012",
+  "version": "AC1032",
+  "audit_errors": 0,
+  "seconds": 0.53,
+  "entities": {
+   "LINE": 326,
+   "MTEXT": 146,
+   "INSERT": 234,
+   "LWPOLYLINE": 357,
+   "LEADER": 2,
+   "TEXT": 259,
+   "ATTDEF": 316,
+   "ARC": 16,
+   "HATCH": 6
+  },
+  "insert": 234,
+  "insert_with_attribs": 38,
+  "block_kinds": 31,
+  "blocks": {
+   "Ball Valve (Close)": 33,
+   "PIP PLUG": 26,
+   "PIP FLANGED NOZZLE": 20,
+   "Flow Arrow": 20,
+   "Ball Valve (Open)": 19,
+   "INST_LOCAL MOUNTED": 14,
+   "*U26": 11,
+   "PIP BLIND FLANGE": 11,
+   "EXPANSION JOINT": 10,
+   "DIAPHRAGM SEAL": 9,
+   "PIP FRONT FACING NOZZLE": 8,
+   "Gate Valve (Open)": 8,
+   "PIP ASSUMED NOZZLE": 6,
+   "REDUCER": 4,
+   "Inline Instrument Annotation_block": 4,
+   "Gap Symbol": 4,
+   "BOX": 3,
+   "A_Pressure Relief valve": 3,
+   "FLAME ARRESTER": 2,
+   "Gate Valve (Close)": 2,
+   "Check Valve_": 2,
+   "PIP TURBINE OR PROPELLER": 2,
+   "HORIZONTAL CENTRIFUGAL PUMP": 2,
+   "Y-TYPE": 2,
+   "*U27": 2,
+   "INTERLOCK-1": 2,
+   "Offpage Connection1": 1,
+   "Award and Downward Slope": 1,
+   "오프 페이지 커넥터-2": 1,
+   "*U32": 1,
+   "TITLE": 1
+  },
+  "attr_blocks": {
+   "INST_LOCAL MOUNTED": 14,
+   "*U26": 11,
+   "Inline Instrument Annotation_block": 4,
+   "BOX": 3,
+   "*U27": 2,
+   "INTERLOCK-1": 2,
+   "Offpage Connection1": 1,
+   "*U32": 1
+  },
+  "attr_tags": {
+   "#(TargetObject.Type)": 21,
+   "#(TARGETOBJECT.UNITNUMBER)#(TARGETOBJECT.SYSTEMCODE)#(TARGETOBJECT.SYSTEMSEQNUMBER)#(TARGETOBJECT.ITEMCODE)#(TARGETOBJECT.FIRSTSEQNUMBER)": 21,
+   "#(=Drawing.General.PnID)": 13,
+   "#(TARGETOBJECT.ORIGINORDESTINATION)": 13,
+   "#(TargetObject.ConnectArea)": 13,
+   "PNPAttribute0": 2,
+   "I": 2
+  },
+  "attr_samples": {
+   "*U26": [
+    [
+     "#(=Drawing.General.PnID)",
+     "1A5J-00EKD00-M05-0001"
+    ],
+    [
+     "#(TARGETOBJECT.ORIGINORDESTINATION)",
+     "FROM FUEL OIL UNLOADING PUMPS"
+    ],
+    [
+     "#(TargetObject.ConnectArea)",
+     "(G-2)"
+    ]
+   ],
+   "INST_LOCAL MOUNTED": [
+    [
+     "#(TargetObject.Type)",
+     "00EGD21CP501"
+    ],
+    [
+     "#(TARGETOBJECT.UNITNUMBER)#(TARGETOBJECT.SYSTEMCODE)#(TARGETOBJECT.SYSTEMSEQNUMBER)#(TARGETOBJECT.ITEMCODE)#(TARGETOBJECT.FIRSTSEQNUMBER)",
+     "PI"
+    ]
+   ],
+   "Inline Instrument Annotation_block": [
+    [
+     "#(TargetObject.Type)",
+     "FE"
+    ],
+    [
+     "#(TARGETOBJECT.UNITNUMBER)#(TARGETOBJECT.SYSTEMCODE)#(TARGETOBJECT.SYSTEMSEQNUMBER)#(TARGETOBJECT.ITEMCODE)#(TARGETOBJECT.FIRSTSEQNUMBER)",
+     "00EGD33CF601"
+    ]
+   ],
+   "*U27": [
+    [
+     "PNPAttribute0",
+     "M"
+    ]
+   ],
+   "INTERLOCK-1": [
+    [
+     "I",
+     "I"
+    ]
+   ],
+   "Offpage Connection1": [
+    [
+     "#(=Drawing.General.PnID)",
+     "1A5J-00EKD00-M05-0003"
+    ],
+    [
+     "#(TARGETOBJECT.ORIGINORDESTINATION)",
+     "FUEL OIL FORWARDING PUMP"
+    ],
+    [
+     "#(TargetObject.ConnectArea)",
+     "(E-5)"
+    ]
+   ],
+   "BOX": [
+    [
+     "#(TARGETOBJECT.UNITNUMBER)#(TARGETOBJECT.SYSTEMCODE)#(TARGETOBJECT.SYSTEMSEQNUMBER)#(TARGETOBJECT.ITEMCODE)#(TARGETOBJECT.FIRSTSEQNUMBER)",
+     ""
+    ],
+    [
+     "#(TargetObject.Type)",
+     ""
+    ]
+   ],
+   "*U32": [
+    [
+     "#(=Drawing.General.PnID)",
+     "1A5J-00EKD00-M05-0001"
+    ],
+    [
+     "#(TARGETOBJECT.ORIGINORDESTINATION)",
+     "FUEL OIL STORAGE TANK"
+    ],
+    [
+     "#(TargetObject.ConnectArea)",
+     "(H-2)"
+    ]
+   ]
+  },
+  "layers": {
+   "0": 721,
+   "Process": 236,
+   "REV.4": 139,
+   "Instrument line": 120,
+   "REV.5": 99,
+   "Primary Line": 67,
+   "Valve": 56,
+   "Instrument": 51,
+   "Equipment": 50,
+   "Annotation": 35,
+   "Mechanical": 32,
+   "REV.6": 15,
+   "1": 14,
+   "NoPlot": 6,
+   "Size": 6,
+   "REV.7": 6,
+   "GENERAL": 4,
+   "EQUIP": 2,
+   "Text": 2,
+   "REV": 1
+  },
+  "pdf_layers": [],
+  "block_defs": 38,
+  "layouts": [
+   "Model",
+   "배치1"
+  ],
+  "title": {}
+ },
+ {
+  "file": "013. 1A5J-00EKD00-M05-0003_P&ID FOR FUEL OIL SUPPLY SYSTEM (3 OF 5)_Rev4.dxf",
+  "no": "013",
+  "version": "AC1032",
+  "audit_errors": 0,
+  "seconds": 0.59,
+  "entities": {
+   "MTEXT": 61,
+   "INSERT": 232,
+   "LINE": 392,
+   "TEXT": 395,
+   "LEADER": 2,
+   "HATCH": 23,
+   "CIRCLE": 2,
+   "LWPOLYLINE": 534,
+   "ATTDEF": 340,
+   "ARC": 10
+  },
+  "insert": 232,
+  "insert_with_attribs": 63,
+  "block_kinds": 34,
+  "blocks": {
+   "Flow Arrow": 32,
+   "Ball Valve (Close)": 29,
+   "*U24": 24,
+   "PIP FLANGED NOZZLE": 20,
+   "Ball Valve (Open)": 18,
+   "INST_LOCAL MOUNTED": 18,
+   "DIAPHRAGM SEAL": 10,
+   "Gap Symbol": 10,
+   "Gate Valve (Open)": 8,
+   "REDUCER": 7,
+   "Inline Instrument Annotation_block": 5,
+   "A_Pressure Relief valve": 4,
+   "INTERLOCK-1": 4,
+   "E-VESSEL": 4,
+   "FLAME ARRESTER": 4,
+   "BREAKER_SCOPE": 4,
+   "HORIZONTAL CENTRIFUGAL PUMP": 3,
+   "Check Valve_": 3,
+   "PIP MOTOR OPERATED": 3,
+   "EXPANSION JOINT": 3,
+   "*U25": 2,
+   "BOX": 2,
+   "PIP PLUG": 2,
+   "FLANGE": 2,
+   "PIP BLIND FLANGE": 2,
+   "PIP ASSUMED NOZZLE": 1,
+   "Award and Downward Slope": 1,
+   "DUPLEX BASKET": 1,
+   "PIP DIAPHRAGM": 1,
+   "*U27": 1,
+   "A$C1e621505": 1,
+   "A$Cbcc4681d": 1,
+   "TITLE": 1,
+   "*U35": 1
+  },
+  "attr_blocks": {
+   "*U24": 24,
+   "INST_LOCAL MOUNTED": 18,
+   "Inline Instrument Annotation_block": 5,
+   "INTERLOCK-1": 4,
+   "BREAKER_SCOPE": 4,
+   "PIP MOTOR OPERATED": 3,
+   "*U25": 2,
+   "BOX": 2,
+   "*U27": 1
+  },
+  "attr_tags": {
+   "#(=Drawing.General.PnID)": 27,
+   "#(TARGETOBJECT.ORIGINORDESTINATION)": 27,
+   "#(TargetObject.ConnectArea)": 27,
+   "#(TargetObject.Type)": 25,
+   "#(TARGETOBJECT.UNITNUMBER)#(TARGETOBJECT.SYSTEMCODE)#(TARGETOBJECT.SYSTEMSEQNUMBER)#(TARGETOBJECT.ITEMCODE)#(TARGETOBJECT.FIRSTSEQNUMBER)": 25,
+   "I": 4,
+   "#(TARGETOBJECT.RIGHTSCOPE)": 4,
+   "#(TARGETOBJECT.LEFTSCOPE)": 4,
+   "PNPAttribute0": 3
+  },
+  "attr_samples": {
+   "Inline Instrument Annotation_block": [
+    [
+     "#(TargetObject.Type)",
+     "PSV"
+    ],
+    [
+     "#(TARGETOBJECT.UNITNUMBER)#(TARGETOBJECT.SYSTEMCODE)#(TARGETOBJECT.SYSTEMSEQNUMBER)#(TARGETOBJECT.ITEMCODE)#(TARGETOBJECT.FIRSTSEQNUMBER)",
+     "00EGD14AA191"
+    ]
+   ],
+   "PIP MOTOR OPERATED": [
+    [
+     "PNPAttribute0",
+     "M"
+    ]
+   ],
+   "*U24": [
+    [
+     "#(=Drawing.General.PnID)",
+     "1A5J-00EKD00-M05-0002"
+    ],
+    [
+     "#(TARGETOBJECT.ORIGINORDESTINATION)",
+     "FUEL OIL STORAGE TANK"
+    ],
+    [
+     "#(TargetObject.ConnectArea)",
+     "(H-2)"
+    ]
+   ],
+   "*U25": [
+    [
+     "#(=Drawing.General.PnID)",
+     "1A5J-00EKD00-M05-0002"
+    ],
+    [
+     "#(TARGETOBJECT.ORIGINORDESTINATION)",
+     "FUEL OIL STORAGE TANK"
+    ],
+    [
+     "#(TargetObject.ConnectArea)",
+     "(G-2)"
+    ]
+   ],
+   "INST_LOCAL MOUNTED": [
+    [
+     "#(TargetObject.Type)",
+     "PI"
+    ],
+    [
+     "#(TARGETOBJECT.UNITNUMBER)#(TARGETOBJECT.SYSTEMCODE)#(TARGETOBJECT.SYSTEMSEQNUMBER)#(TARGETOBJECT.ITEMCODE)#(TARGETOBJECT.FIRSTSEQNUMBER)",
+     "00EGD04CP501"
+    ]
+   ],
+   "INTERLOCK-1": [
+    [
+     "I",
+     "I"
+    ]
+   ],
+   "BREAKER_SCOPE": [
+    [
+     "#(TARGETOBJECT.RIGHTSCOPE)",
+     " SCT"
+    ],
+    [
+     "#(TARGETOBJECT.LEFTSCOPE)",
+     "  SUPPLIER  "
+    ]
+   ],
+   "*U27": [
+    [
+     "#(=Drawing.General.PnID)",
+     "1A5J-00EKD00-M05-0004"
+    ],
+    [
+     "#(TARGETOBJECT.ORIGINORDESTINATION)",
+     "FUEL OIL STORAGE TANK"
+    ],
+    [
+     "#(TargetObject.ConnectArea)",
+     "(E-8)"
+    ]
+   ],
+   "BOX": [
+    [
+     "#(TARGETOBJECT.UNITNUMBER)#(TARGETOBJECT.SYSTEMCODE)#(TARGETOBJECT.SYSTEMSEQNUMBER)#(TARGETOBJECT.ITEMCODE)#(TARGETOBJECT.FIRSTSEQNUMBER)",
+     ""
+    ],
+    [
+     "#(TargetObject.Type)",
+     ""
+    ]
+   ]
+  },
+  "layers": {
+   "0": 769,
+   "REV.4": 244,
+   "Process": 194,
+   "REV.5": 183,
+   "Instrument line": 140,
+   "Equipment": 75,
+   "Instrument": 67,
+   "Annotation": 64,
+   "1": 56,
+   "Valve": 55,
+   "Primary Line": 41,
+   "REV.6": 24,
+   "Size": 21,
+   "REV.7": 21,
+   "Mechanical": 16,
+   "GENERAL": 13,
+   "EQUIP": 4,
+   "REV": 2,
+   "Text": 1,
+   "NoPlot": 1
+  },
+  "pdf_layers": [],
+  "block_defs": 41,
+  "layouts": [
+   "Model",
+   "배치1"
+  ],
+  "title": {}
+ },
+ {
+  "file": "014. 1A5J-00EKD00-M05-0004_P&ID FOR FUEL OIL SUPPLY SYSTEM (4 OF 5)_Rev4.dxf",
+  "no": "014",
+  "version": "AC1027",
+  "audit_errors": 0,
+  "seconds": 0.78,
+  "entities": {
+   "INSERT": 296,
+   "TEXT": 638,
+   "ATTDEF": 456,
+   "LWPOLYLINE": 993,
+   "LINE": 467,
+   "HATCH": 112,
+   "MTEXT": 44
+  },
+  "insert": 296,
+  "insert_with_attribs": 66,
+  "block_kinds": 19,
+  "blocks": {
+   "Flow Arrow": 60,
+   "Ball Valve (Close)": 58,
+   "PIP BLIND FLANGE": 58,
+   "*U13": 26,
+   "INST_LOCAL MOUNTED": 20,
+   "Inline Instrument Annotation_block": 12,
+   "*U16": 10,
+   "Ball Valve (Open)": 8,
+   "DIAPHRAGM SEAL": 8,
+   "BREAKER_SCOPE": 8,
+   "Check Valve_": 4,
+   "Gate Valve (Open)": 4,
+   "PIP MOTOR OPERATED": 4,
+   "VA2_FILTER": 4,
+   "PIP ORIFICE": 4,
+   "A_Pressure Relief valve": 4,
+   "REDUCER": 2,
+   "A$C0906ff41": 1,
+   "TITLE": 1
+  },
+  "attr_blocks": {
+   "*U13": 26,
+   "INST_LOCAL MOUNTED": 20,
+   "Inline Instrument Annotation_block": 12,
+   "BREAKER_SCOPE": 8
+  },
+  "attr_tags": {
+   "#(TargetObject.Type)": 32,
+   "#(TARGETOBJECT.UNITNUMBER)#(TARGETOBJECT.SYSTEMCODE)#(TARGETOBJECT.SYSTEMSEQNUMBER)#(TARGETOBJECT.ITEMCODE)#(TARGETOBJECT.FIRSTSEQNUMBER)": 32,
+   "#(=Drawing.General.PnID)": 26,
+   "#(TARGETOBJECT.ORIGINORDESTINATION)_001": 26,
+   "#(TargetObject.ConnectArea)": 26,
+   "#(TARGETOBJECT.RIGHTSCOPE)": 8,
+   "#(TARGETOBJECT.LEFTSCOPE)": 8
+  },
+  "attr_samples": {
+   "*U13": [
+    [
+     "#(=Drawing.General.PnID)",
+     "1A5J-00EKD00-M05-0002"
+    ],
+    [
+     "#(TARGETOBJECT.ORIGINORDESTINATION)_001",
+     "TO FUEL OIL STORGAE TANK"
+    ],
+    [
+     "#(TargetObject.ConnectArea)",
+     "(F-2)"
+    ]
+   ],
+   "Inline Instrument Annotation_block": [
+    [
+     "#(TargetObject.Type)",
+     "PDIT"
+    ],
+    [
+     "#(TARGETOBJECT.UNITNUMBER)#(TARGETOBJECT.SYSTEMCODE)#(TARGETOBJECT.SYSTEMSEQNUMBER)#(TARGETOBJECT.ITEMCODE)#(TARGETOBJECT.FIRSTSEQNUMBER)",
+     "11EGD11CP002"
+    ]
+   ],
+   "BREAKER_SCOPE": [
+    [
+     "#(TARGETOBJECT.RIGHTSCOPE)",
+     "SCT"
+    ],
+    [
+     "#(TARGETOBJECT.LEFTSCOPE)",
+     "SUPPLIER "
+    ]
+   ],
+   "INST_LOCAL MOUNTED": [
+    [
+     "#(TargetObject.Type)",
+     "TIT"
+    ],
+    [
+     "#(TARGETOBJECT.UNITNUMBER)#(TARGETOBJECT.SYSTEMCODE)#(TARGETOBJECT.SYSTEMSEQNUMBER)#(TARGETOBJECT.ITEMCODE)#(TARGETOBJECT.FIRSTSEQNUMBER)",
+     "13EGD01CT001A"
+    ]
+   ]
+  },
+  "layers": {
+   "0": 1014,
+   "REV.5": 457,
+   "1": 364,
+   "Process": 312,
+   "REV.4": 255,
+   "Size": 108,
+   "Annotation": 102,
+   "Instrument": 92,
+   "Primary Line": 88,
+   "Valve": 78,
+   "Instrument line": 68,
+   "REV.6": 36,
+   "REV.7": 12,
+   "GENERAL": 11,
+   "EQUIP": 8,
+   "Mechanical": 1
+  },
+  "pdf_layers": [],
+  "block_defs": 34,
+  "layouts": [
+   "Layout1",
+   "Layout2",
+   "Model"
+  ],
+  "title": {}
+ },
+ {
+  "file": "015. 1A5J-00EKD00-M05-0005_P&ID FOR FUEL OIL SUPPLY SYSTEM (5 OF 5)_Rev2.dxf",
+  "no": "015",
+  "version": "AC1027",
+  "audit_errors": 0,
+  "seconds": 0.41,
+  "entities": {
+   "TEXT": 856,
+   "LINE": 95,
+   "ATTDEF": 68,
+   "LWPOLYLINE": 108,
+   "INSERT": 36,
+   "MTEXT": 59
+  },
+  "insert": 36,
+  "insert_with_attribs": 21,
+  "block_kinds": 12,
+  "blocks": {
+   "STREAM NUM": 16,
+   "Flow Arrow": 4,
+   "PIP BLIND FLANGE": 4,
+   "INST_LOCAL MOUNTED": 2,
+   "BOX": 2,
+   "REDUCER": 2,
+   "TITLE": 1,
+   "REDUCER01": 1,
+   "*U18": 1,
+   "Ball Valve (Open)": 1,
+   "Ball Valve (Close)": 1,
+   "A$C78c56290": 1
+  },
+  "attr_blocks": {
+   "STREAM NUM": 16,
+   "INST_LOCAL MOUNTED": 2,
+   "BOX": 2,
+   "*U18": 1
+  },
+  "attr_tags": {
+   "TAG": 16,
+   "#(TargetObject.Type)": 4,
+   "#(TARGETOBJECT.UNITNUMBER)#(TARGETOBJECT.SYSTEMCODE)#(TARGETOBJECT.SYSTEMSEQNUMBER)#(TARGETOBJECT.ITEMCODE)#(TARGETOBJECT.FIRSTSEQNUMBER)": 4,
+   "#(TARGETOBJECT.RIGHTSCOPE)": 1,
+   "#(TARGETOBJECT.LEFTSCOPE)": 1
+  },
+  "attr_samples": {
+   "STREAM NUM": [
+    [
+     "TAG",
+     "244A"
+    ]
+   ],
+   "INST_LOCAL MOUNTED": [
+    [
+     "#(TargetObject.Type)",
+     "TIT"
+    ],
+    [
+     "#(TARGETOBJECT.UNITNUMBER)#(TARGETOBJECT.SYSTEMCODE)#(TARGETOBJECT.SYSTEMSEQNUMBER)#(TARGETOBJECT.ITEMCODE)#(TARGETOBJECT.FIRSTSEQNUMBER)",
+     "00MBQ01CT001"
+    ]
+   ],
+   "*U18": [
+    [
+     "#(TARGETOBJECT.RIGHTSCOPE)",
+     "SCT"
+    ],
+    [
+     "#(TARGETOBJECT.LEFTSCOPE)",
+     "SUPPLIER"
+    ]
+   ],
+   "BOX": [
+    [
+     "#(TARGETOBJECT.UNITNUMBER)#(TARGETOBJECT.SYSTEMCODE)#(TARGETOBJECT.SYSTEMSEQNUMBER)#(TARGETOBJECT.ITEMCODE)#(TARGETOBJECT.FIRSTSEQNUMBER)",
+     ""
+    ],
+    [
+     "#(TargetObject.Type)",
+     ""
+    ]
+   ]
+  },
+  "layers": {
+   "1": 756,
+   "0": 282,
+   "Primary Line": 37,
+   "REV.3": 36,
+   "TITLE BLOCK": 21,
+   "Annotation": 17,
+   "Size": 16,
+   "REV.2": 12,
+   "REV.4": 9,
+   "Process": 8,
+   "REV.4-1": 6,
+   "REV.5": 6,
+   "Instrument": 4,
+   "PDF_Geometry": 4,
+   "Mechanical": 3,
+   "Instrument line": 2,
+   "Valve": 2,
+   "Existing Process": 1
+  },
+  "pdf_layers": [
+   "PDF_Geometry"
+  ],
+  "block_defs": 32,
+  "layouts": [
+   "Model",
+   "ﾚｲｱｳﾄ1"
+  ],
+  "title": {}
+ },
+ {
+  "file": "016. 1A5J-00PGB10-M05-0001_P&ID FOR CLOSED COOLING WATER SYSTEM (1 OF 3)_Rev4.dxf",
+  "no": "016",
+  "version": "AC1032",
+  "audit_errors": 0,
+  "seconds": 1.33,
+  "entities": {
+   "LWPOLYLINE": 459,
+   "INSERT": 401,
+   "HATCH": 4,
+   "TEXT": 1514,
+   "LINE": 732,
+   "POLYLINE": 3,
+   "MTEXT": 9,
+   "CIRCLE": 1,
+   "ATTDEF": 8
+  },
+  "insert": 401,
+  "insert_with_attribs": 122,
+  "block_kinds": 56,
+  "blocks": {
+   "LBRK": 40,
+   "LOCAL_MOUNTED": 40,
+   "GLOBEVALVE(OPEN)": 36,
+   "GLOBEVALVE(CLOSE)": 30,
+   "ARROWMIDDLE": 25,
+   "DRAIN (FUNNEL)": 22,
+   "MOUNTED ON MCP": 20,
+   "BUTTERFLY(O)": 13,
+   "SPEC_BREAKER": 12,
+   "CONCENTRIC REDUCER": 11,
+   "NOT NORMALLY ACCESSIBLE PLC": 9,
+   "NOZZLE_PORT": 9,
+   "FLANGED NOZZLE": 8,
+   "CENTER FLANGED NOZZLE": 8,
+   "SINGLE FLANGE": 8,
+   "Gate Valve (Open)": 8,
+   "CHECK_2": 7,
+   "CONCENTRIC REDUCER_01": 7,
+   "NOZZLE": 6,
+   "Ball Valve (Close)": 6,
+   "HORIZONTAL CENTRIFUGAL PUMP": 5,
+   "TEMPORARY STARTUP STRAINER": 5,
+   "1_OPC-IN": 5,
+   "EXPANSION JOINT": 5,
+   "PIP MOTOR OPERATED": 5,
+   "ARROW2": 4,
+   "ENDCAP": 4,
+   "INST_LOCAL MOUNTED": 4,
+   "A$C5f8aa12c": 3,
+   "REV.B": 2,
+   "MOV BUTTERFLY VALVE(OPEN)": 2,
+   "PRESSURE VESSELS": 2,
+   "SCOPE BREAKER2": 2,
+   "VENT": 2,
+   "FIN FAN COOLER": 2,
+   "A$C03fab543": 2,
+   "A$C8e837f0a": 2,
+   "PIP BACK PRESSURE REGULATOR": 2,
+   "TITLE": 1,
+   "A$C30905bd8": 1,
+   "1A5J_TEMPLATE_A1": 1,
+   "*U30": 1,
+   "VENDOR PACKAGE_2": 1,
+   "FLANGED NOZZLE _1": 1,
+   "FLANGED NOZZLE_2": 1,
+   "FLANGED NOZZLE LENGTH": 1,
+   "PRESSURE RELIEF VALVE": 1,
+   "PLUG": 1,
+   "PNEMATIC SOLENOID VALVE": 1,
+   "SPEC BREAKER 2": 1,
+   "DIAPHRAGM ACTUATED-01": 1,
+   "SILENCER01": 1,
+   "3_OPC-OUT": 1,
+   "A$Cb0f574a5": 1,
+   "PORT": 1,
+   "PIP PLUG": 1
+  },
+  "attr_blocks": {
+   "GLOBEVALVE(OPEN)": 36,
+   "GLOBEVALVE(CLOSE)": 30,
+   "DRAIN (FUNNEL)": 22,
+   "CONCENTRIC REDUCER": 11,
+   "CHECK_2": 7,
+   "PIP MOTOR OPERATED": 5,
+   "ENDCAP": 4,
+   "INST_LOCAL MOUNTED": 4,
+   "VENT": 2,
+   "PLUG": 1
+  },
+  "attr_tags": {
+   "DIFFY": 113,
+   "DIFFX": 113,
+   "DESC": 113,
+   "ROWS": 113,
+   "DY": 113,
+   "DX": 113,
+   "AY": 113,
+   "AX": 113,
+   "PNPAttribute0": 5,
+   "#(TargetObject.Type)": 4,
+   "#(TARGETOBJECT.UNITNUMBER)#(TARGETOBJECT.SYSTEMCODE)#(TARGETOBJECT.SYSTEMSEQNUMBER)#(TARGETOBJECT.ITEMCODE)#(TARGETOBJECT.FIRSTSEQNUMBER)": 4
+  },
+  "attr_samples": {
+   "GLOBEVALVE(OPEN)": [
+    [
+     "DIFFY",
+     "3.25"
+    ],
+    [
+     "DIFFX",
+     "0"
+    ],
+    [
+     "DESC",
+     ""
+    ],
+    [
+     "ROWS",
+     "6"
+    ]
+   ],
+   "CHECK_2": [
+    [
+     "DIFFY",
+     "3.25"
+    ],
+    [
+     "DIFFX",
+     "0"
+    ],
+    [
+     "DESC",
+     ""
+    ],
+    [
+     "ROWS",
+     "6"
+    ]
+   ],
+   "GLOBEVALVE(CLOSE)": [
+    [
+     "DIFFY",
+     "3.25"
+    ],
+    [
+     "DIFFX",
+     "0"
+    ],
+    [
+     "DESC",
+     ""
+    ],
+    [
+     "ROWS",
+     "6"
+    ]
+   ],
+   "DRAIN (FUNNEL)": [
+    [
+     "DIFFY",
+     "6"
+    ],
+    [
+     "DIFFX",
+     "0"
+    ],
+    [
+     "DESC",
+     ""
+    ],
+    [
+     "ROWS",
+     "6"
+    ]
+   ],
+   "CONCENTRIC REDUCER": [
+    [
+     "DIFFY",
+     "3.25"
+    ],
+    [
+     "DIFFX",
+     "0"
+    ],
+    [
+     "DESC",
+     ""
+    ],
+    [
+     "ROWS",
+     "6"
+    ]
+   ],
+   "PLUG": [
+    [
+     "DIFFY",
+     "3.25"
+    ],
+    [
+     "DIFFX",
+     "-1"
+    ],
+    [
+     "DESC",
+     ""
+    ],
+    [
+     "ROWS",
+     "6"
+    ]
+   ],
+   "ENDCAP": [
+    [
+     "DIFFY",
+     "3.25"
+    ],
+    [
+     "DIFFX",
+     "0"
+    ],
+    [
+     "DESC",
+     ""
+    ],
+    [
+     "ROWS",
+     "6"
+    ]
+   ],
+   "VENT": [
+    [
+     "DIFFY",
+     "3.25"
+    ],
+    [
+     "DIFFX",
+     "-1"
+    ],
+    [
+     "DESC",
+     ""
+    ],
+    [
+     "ROWS",
+     "6"
+    ]
+   ],
+   "INST_LOCAL MOUNTED": [
+    [
+     "#(TargetObject.Type)",
+     "MOV"
+    ],
+    [
+     "#(TARGETOBJECT.UNITNUMBER)#(TARGETOBJECT.SYSTEMCODE)#(TARGETOBJECT.SYSTEMSEQNUMBER)#(TARGETOBJECT.ITEMCODE)#(TARGETOBJECT.FIRSTSEQNUMBER)",
+     "00PGB21AA201"
+    ]
+   ],
+   "PIP MOTOR OPERATED": [
+    [
+     "PNPAttribute0",
+     "M"
+    ]
+   ]
+  },
+  "layers": {
+   "AS_LAB": 1365,
+   "AS_PIPE": 569,
+   "0": 355,
+   "AS_INST": 201,
+   "REV.5": 147,
+   "Primary Line": 106,
+   "REV.4": 81,
+   "REV.6": 75,
+   "AS_EQU": 46,
+   "AS_NONPLOT": 41,
+   "BID_NOTE": 38,
+   "Instrument line": 33,
+   "Instrument": 15,
+   "REV.7": 15,
+   "TITLE BLOCK": 8,
+   "HIDE": 8,
+   "[PARENT]": 6,
+   "EQUIP": 5,
+   "Equipment": 5,
+   "REV.B": 4,
+   "PDF_Geometry": 3,
+   "Process": 2,
+   "GENERAL": 1,
+   "AS_PORT": 1,
+   "Mechanical": 1
+  },
+  "pdf_layers": [
+   "PDF_Geometry"
+  ],
+  "block_defs": 77,
+  "layouts": [
+   "Model",
+   "배치1"
+  ],
+  "title": {}
+ },
+ {
+  "file": "017.1A5J-00PGB10-M05-0002_P&ID FOR CLOSED COOLING WATER SYSTEM (2 OF 3)_Rev4.dxf",
+  "no": "017",
+  "version": "AC1032",
+  "audit_errors": 0,
+  "seconds": 1.69,
+  "entities": {
+   "LWPOLYLINE": 247,
+   "INSERT": 321,
+   "HATCH": 3,
+   "TEXT": 1757,
+   "LINE": 1098,
+   "POLYLINE": 12,
+   "MTEXT": 6
+  },
+  "insert": 321,
+  "insert_with_attribs": 126,
+  "block_kinds": 29,
+  "blocks": {
+   "GATEVALVE(CLOSE)": 52,
+   "LOCAL_MOUNTED": 48,
+   "ARROW2": 46,
+   "GLOBEVALVE(OPEN)": 36,
+   "CENTER FLANGED NOZZLE": 24,
+   "DOUBLE FLANGE": 24,
+   "ARROWMIDDLE": 16,
+   "BUTTERFLY(O)": 12,
+   "PRESSURE RELIEF VALVE": 12,
+   "CONCENTRIC REDUCER": 8,
+   "SPEC_BREAKER": 8,
+   "A$Cc13486c0": 7,
+   "VENDOR PACKAGE_2": 4,
+   "BLIND FLANGE": 4,
+   "REV.B": 2,
+   "MOV BUTTERFLY VALVE(OPEN)": 2,
+   "4_OPC-OUT": 2,
+   "INST_LOCAL MOUNTED": 2,
+   "Flow Arrow": 2,
+   "TITLE": 1,
+   "A$C30905bd8": 1,
+   "2_OPC-IN": 1,
+   "1_OPC-IN": 1,
+   "A$C2fad45ec": 1,
+   "A$C0023ba90": 1,
+   "A$Ce5c3d23e": 1,
+   "A$C19ec905f": 1,
+   "A$C46eea20b": 1,
+   "1A5J_TEMPLATE_A1": 1
+  },
+  "attr_blocks": {
+   "GATEVALVE(CLOSE)": 52,
+   "GLOBEVALVE(OPEN)": 36,
+   "DOUBLE FLANGE": 24,
+   "CONCENTRIC REDUCER": 8,
+   "BLIND FLANGE": 4,
+   "INST_LOCAL MOUNTED": 2
+  },
+  "attr_tags": {
+   "DIFFY": 124,
+   "DIFFX": 124,
+   "DESC": 124,
+   "ROWS": 124,
+   "DY": 124,
+   "DX": 124,
+   "AY": 124,
+   "AX": 124,
+   "#(TargetObject.Type)": 2,
+   "#(TARGETOBJECT.UNITNUMBER)#(TARGETOBJECT.SYSTEMCODE)#(TARGETOBJECT.SYSTEMSEQNUMBER)#(TARGETOBJECT.ITEMCODE)#(TARGETOBJECT.FIRSTSEQNUMBER)": 2
+  },
+  "attr_samples": {
+   "CONCENTRIC REDUCER": [
+    [
+     "DIFFY",
+     "3.25"
+    ],
+    [
+     "DIFFX",
+     "0"
+    ],
+    [
+     "DESC",
+     ""
+    ],
+    [
+     "ROWS",
+     "6"
+    ]
+   ],
+   "GLOBEVALVE(OPEN)": [
+    [
+     "DIFFY",
+     "3.25"
+    ],
+    [
+     "DIFFX",
+     "0"
+    ],
+    [
+     "DESC",
+     ""
+    ],
+    [
+     "ROWS",
+     "6"
+    ]
+   ],
+   "GATEVALVE(CLOSE)": [
+    [
+     "DIFFY",
+     "3.25"
+    ],
+    [
+     "DIFFX",
+     "0"
+    ],
+    [
+     "DESC",
+     ""
+    ],
+    [
+     "ROWS",
+     "6"
+    ]
+   ],
+   "BLIND FLANGE": [
+    [
+     "DIFFY",
+     "3.25"
+    ],
+    [
+     "DIFFX",
+     "-1"
+    ],
+    [
+     "DESC",
+     ""
+    ],
+    [
+     "ROWS",
+     "6"
+    ]
+   ],
+   "DOUBLE FLANGE": [
+    [
+     "DIFFY",
+     "3.25"
+    ],
+    [
+     "DIFFX",
+     "0"
+    ],
+    [
+     "DESC",
+     ""
+    ],
+    [
+     "ROWS",
+     "6"
+    ]
+   ],
+   "INST_LOCAL MOUNTED": [
+    [
+     "#(TargetObject.Type)",
+     "MOV"
+    ],
+    [
+     "#(TARGETOBJECT.UNITNUMBER)#(TARGETOBJECT.SYSTEMCODE)#(TARGETOBJECT.SYSTEMSEQNUMBER)#(TARGETOBJECT.ITEMCODE)#(TARGETOBJECT.FIRSTSEQNUMBER)",
+     "11PGB20AA201"
+    ]
+   ]
+  },
+  "layers": {
+   "AS_LAB": 1627,
+   "0": 727,
+   "AS_PIPE": 706,
+   "Primary Line": 92,
+   "REV.5": 72,
+   "REV.7": 42,
+   "AS_INST": 36,
+   "AS_EQU": 28,
+   "BID_NOTE": 27,
+   "[PARENT]": 24,
+   "REV.6": 24,
+   "REV.4": 18,
+   "TITLE BLOCK": 7,
+   "Process": 6,
+   "REV.B": 4,
+   "Annotation": 2,
+   "Instrument line": 1,
+   "AS_MISC": 1
+  },
+  "pdf_layers": [],
+  "block_defs": 144,
+  "layouts": [
+   "Model",
+   "배치1"
+  ],
+  "title": {}
+ },
+ {
+  "file": "018. 1A5J-00PGB10-M05-0003_P&ID FOR CLOSED COOLING WATER SYSTEM (3 OF 3)_Rev4.dxf",
+  "no": "018",
+  "version": "AC1024",
+  "audit_errors": 0,
+  "seconds": 1.58,
+  "entities": {
+   "LWPOLYLINE": 543,
+   "INSERT": 326,
+   "HATCH": 3,
+   "TEXT": 1679,
+   "LINE": 690,
+   "POLYLINE": 13,
+   "MTEXT": 4
+  },
+  "insert": 326,
+  "insert_with_attribs": 126,
+  "block_kinds": 26,
+  "blocks": {
+   "GATEVALVE(CLOSE)": 52,
+   "LOCAL_MOUNTED": 48,
+   "ARROW2": 45,
+   "GLOBEVALVE(OPEN)": 36,
+   "CENTER FLANGED NOZZLE": 24,
+   "DOUBLE FLANGE": 24,
+   "ARROWMIDDLE": 17,
+   "A$Ca16ccc95": 12,
+   "BUTTERFLY(O)": 12,
+   "PRESSURE RELIEF VALVE": 12,
+   "SPEC_BREAKER": 8,
+   "CONCENTRIC REDUCER": 6,
+   "BLIND FLANGE": 6,
+   "VENDOR PACKAGE_2": 4,
+   "A$C75127cd9": 4,
+   "REV.B": 2,
+   "MOV BUTTERFLY VALVE(OPEN)": 2,
+   "A$Cff4ffd7d": 2,
+   "INST_LOCAL MOUNTED": 2,
+   "Flow Arrow": 2,
+   "TITLE": 1,
+   "A$C30905bd8": 1,
+   "1A5J_TEMPLATE_A1": 1,
+   "1_OPC-IN": 1,
+   "4_OPC-OUT": 1,
+   "A$C4c4f9f36": 1
+  },
+  "attr_blocks": {
+   "GATEVALVE(CLOSE)": 52,
+   "GLOBEVALVE(OPEN)": 36,
+   "DOUBLE FLANGE": 24,
+   "CONCENTRIC REDUCER": 6,
+   "BLIND FLANGE": 6,
+   "INST_LOCAL MOUNTED": 2
+  },
+  "attr_tags": {
+   "DIFFY": 124,
+   "DIFFX": 124,
+   "DESC": 124,
+   "ROWS": 124,
+   "DY": 124,
+   "DX": 124,
+   "AY": 124,
+   "AX": 124,
+   "#(TargetObject.Type)": 2,
+   "#(TARGETOBJECT.UNITNUMBER)#(TARGETOBJECT.SYSTEMCODE)#(TARGETOBJECT.SYSTEMSEQNUMBER)#(TARGETOBJECT.ITEMCODE)#(TARGETOBJECT.FIRSTSEQNUMBER)": 2
+  },
+  "attr_samples": {
+   "CONCENTRIC REDUCER": [
+    [
+     "DIFFY",
+     "3.25"
+    ],
+    [
+     "DIFFX",
+     "0"
+    ],
+    [
+     "DESC",
+     ""
+    ],
+    [
+     "ROWS",
+     "6"
+    ]
+   ],
+   "GLOBEVALVE(OPEN)": [
+    [
+     "DIFFY",
+     "3.25"
+    ],
+    [
+     "DIFFX",
+     "0"
+    ],
+    [
+     "DESC",
+     ""
+    ],
+    [
+     "ROWS",
+     "6"
+    ]
+   ],
+   "GATEVALVE(CLOSE)": [
+    [
+     "DIFFY",
+     "3.25"
+    ],
+    [
+     "DIFFX",
+     "0"
+    ],
+    [
+     "DESC",
+     ""
+    ],
+    [
+     "ROWS",
+     "6"
+    ]
+   ],
+   "BLIND FLANGE": [
+    [
+     "DIFFY",
+     "3.25"
+    ],
+    [
+     "DIFFX",
+     "-1"
+    ],
+    [
+     "DESC",
+     ""
+    ],
+    [
+     "ROWS",
+     "6"
+    ]
+   ],
+   "DOUBLE FLANGE": [
+    [
+     "DIFFY",
+     "3.25"
+    ],
+    [
+     "DIFFX",
+     "0"
+    ],
+    [
+     "DESC",
+     ""
+    ],
+    [
+     "ROWS",
+     "6"
+    ]
+   ],
+   "INST_LOCAL MOUNTED": [
+    [
+     "#(TargetObject.Type)",
+     "MOV"
+    ],
+    [
+     "#(TARGETOBJECT.UNITNUMBER)#(TARGETOBJECT.SYSTEMCODE)#(TARGETOBJECT.SYSTEMSEQNUMBER)#(TARGETOBJECT.ITEMCODE)#(TARGETOBJECT.FIRSTSEQNUMBER)",
+     "13PGB20AA201"
+    ]
+   ]
+  },
+  "layers": {
+   "AS_LAB": 1599,
+   "AS_PIPE": 654,
+   "0": 645,
+   "Primary Line": 87,
+   "REV.5": 60,
+   "REV.7": 42,
+   "AS_INST": 36,
+   "AS_EQU": 28,
+   "[PARENT]": 25,
+   "BID_NOTE": 24,
+   "REV.6": 18,
+   "REV.4": 12,
+   "Instrument line": 8,
+   "TITLE BLOCK": 7,
+   "Process": 6,
+   "REV.B": 4,
+   "Annotation": 2,
+   "AS_MISC": 1
+  },
+  "pdf_layers": [],
+  "block_defs": 89,
+  "layouts": [
+   "Model",
+   "배치1"
+  ],
+  "title": {}
+ },
+ {
+  "file": "019.1A5J-00GHB10-M05-0001_P&ID FOR SERVICE WATER DISTRIBUTION SYSTEM (1 OF 2)_Rev.4.dxf",
+  "no": "019",
+  "version": "AC1024",
+  "audit_errors": 0,
+  "seconds": 0.67,
+  "entities": {
+   "LINE": 549,
+   "LWPOLYLINE": 428,
+   "TEXT": 386,
+   "MTEXT": 278,
+   "LEADER": 7,
+   "INSERT": 288,
+   "ATTDEF": 32,
+   "ARC": 16,
+   "HATCH": 29
+  },
+  "insert": 288,
+  "insert_with_attribs": 19,
+  "block_kinds": 32,
+  "blocks": {
+   "PIP PLUG": 39,
+   "Gate Valve (Close)": 35,
+   "Gate Valve (Open)": 35,
+   "PIP FLANGED NOZZLE": 25,
+   "Globe Valve (Open)": 20,
+   "EXPANSION JOINT": 17,
+   "Butterfly Valve (Open)": 15,
+   "오프 페이지 커넥터-1": 12,
+   "11": 8,
+   "Flow Arrow": 7,
+   "Check Valve_": 6,
+   "INST_LOCAL MOUNTED": 6,
+   "INST_LOCAL MOUNTED(Vertical)": 6,
+   "PIP BLIND FLANGE": 6,
+   "REDUCER01": 6,
+   "PIP MOTOR OPERATED": 5,
+   "A$Cff3cfadf": 5,
+   "QQ": 4,
+   "TEMPORARY STARTUP": 3,
+   "PIP ASSUMED NOZZLE": 3,
+   "HORIZONTAL CENTRIFUGAL PUMP": 3,
+   "PIP ORIFICE": 3,
+   "Ball Valve (Close)": 3,
+   "VENT-LOOP": 2,
+   "EEE": 2,
+   "A$Cdcd1b5a2": 2,
+   "*U30": 2,
+   "A$C1b7b584c": 2,
+   "Globe Valve (Close)": 2,
+   "Gap Symbol": 2,
+   "555": 1,
+   "TITLE": 1
+  },
+  "attr_blocks": {
+   "INST_LOCAL MOUNTED": 6,
+   "INST_LOCAL MOUNTED(Vertical)": 6,
+   "PIP MOTOR OPERATED": 5,
+   "*U30": 2
+  },
+  "attr_tags": {
+   "#(TargetObject.Type)": 12,
+   "#(TARGETOBJECT.UNITNUMBER)#(TARGETOBJECT.SYSTEMCODE)#(TARGETOBJECT.SYSTEMSEQNUMBER)#(TARGETOBJECT.ITEMCODE)#(TARGETOBJECT.FIRSTSEQNUMBER)": 6,
+   "#(TargetObject.LoopNumber)": 6,
+   "PNPAttribute0": 5,
+   "#(TARGETOBJECT.RIGHTSCOPE)": 2,
+   "#(TARGETOBJECT.LEFTSCOPE)": 2
+  },
+  "attr_samples": {
+   "PIP MOTOR OPERATED": [
+    [
+     "PNPAttribute0",
+     "M"
+    ]
+   ],
+   "INST_LOCAL MOUNTED": [
+    [
+     "#(TargetObject.Type)",
+     ""
+    ],
+    [
+     "#(TARGETOBJECT.UNITNUMBER)#(TARGETOBJECT.SYSTEMCODE)#(TARGETOBJECT.SYSTEMSEQNUMBER)#(TARGETOBJECT.ITEMCODE)#(TARGETOBJECT.FIRSTSEQNUMBER)",
+     ""
+    ]
+   ],
+   "INST_LOCAL MOUNTED(Vertical)": [
+    [
+     "#(TargetObject.Type)",
+     ""
+    ],
+    [
+     "#(TargetObject.LoopNumber)",
+     ""
+    ]
+   ],
+   "*U30": [
+    [
+     "#(TARGETOBJECT.RIGHTSCOPE)",
+     "SCT"
+    ],
+    [
+     "#(TARGETOBJECT.LEFTSCOPE)",
+     "SUPPLIER "
+    ]
+   ]
+  },
+  "layers": {
+   "0": 676,
+   "Process": 241,
+   "REV.4": 139,
+   "REV.5": 120,
+   "Instrument line": 119,
+   "Primary Line": 116,
+   "Valve": 113,
+   "Size": 113,
+   "Equipment": 88,
+   "Mechanical": 65,
+   "1": 60,
+   "Annotation": 53,
+   "REV.6": 51,
+   "Text": 24,
+   "Instrument": 22,
+   "NoPlot": 3,
+   "PDF_Geometry": 3,
+   "AS_PIPE": 3,
+   "PDF_Valve": 2,
+   "GENERAL": 2
+  },
+  "pdf_layers": [
+   "PDF_Geometry",
+   "PDF_Valve"
+  ],
+  "block_defs": 42,
+  "layouts": [
+   "Model",
+   "배치1",
+   "배치2"
+  ],
+  "title": {}
+ },
+ {
+  "file": "020. 1A5J-00GHB10-M05-0002_P&ID FOR SERVICE WATER DISTRIBUTION SYSTEM (2 OF 2)_Rev.4.dxf",
+  "no": "020",
+  "version": "AC1024",
+  "audit_errors": 0,
+  "seconds": 0.9,
+  "entities": {
+   "INSERT": 52,
+   "TEXT": 499,
+   "LINE": 110,
+   "CIRCLE": 26,
+   "SOLID": 98,
+   "LWPOLYLINE": 1965,
+   "HATCH": 803,
+   "SPLINE": 23,
+   "MTEXT": 34,
+   "ARC": 2
+  },
+  "insert": 52,
+  "insert_with_attribs": 21,
+  "block_kinds": 4,
+  "blocks": {
+   "BREAKER_SCOPE": 21,
+   "Gate Valve (Open)": 15,
+   "PIP PLUG": 15,
+   "TITLE": 1
+  },
+  "attr_blocks": {
+   "BREAKER_SCOPE": 21
+  },
+  "attr_tags": {
+   "#(TARGETOBJECT.RIGHTSCOPE)": 21,
+   "#(TARGETOBJECT.LEFTSCOPE)": 21
+  },
+  "attr_samples": {
+   "BREAKER_SCOPE": [
+    [
+     "#(TARGETOBJECT.RIGHTSCOPE)",
+     "AG"
+    ],
+    [
+     "#(TARGETOBJECT.LEFTSCOPE)",
+     "UG"
+    ]
+   ]
+  },
+  "layers": {
+   "PDF_Geomertry": 1561,
+   "PDF_Valve": 550,
+   "PDF_0": 391,
+   "PDF_Solid Fills": 385,
+   "0": 167,
+   "Process": 161,
+   "Primary Line": 127,
+   "PDF_Process": 75,
+   "REV.4": 74,
+   "REV.5": 24,
+   "BID_NOTE": 19,
+   "TITLE BLOCK": 17,
+   "Valve": 15,
+   "Mechanical": 15,
+   "REV.6": 15,
+   "Annotation": 8,
+   "PDF_PDF_Valve": 3,
+   "REV.6-1": 3,
+   "PDF_Geometry": 1,
+   "REV": 1
+  },
+  "pdf_layers": [
+   "PDF_0",
+   "PDF_Geomertry",
+   "PDF_Geometry",
+   "PDF_PDF_Valve",
+   "PDF_Process",
+   "PDF_Solid Fills",
+   "PDF_Valve"
+  ],
+  "block_defs": 11,
+  "layouts": [
+   "Model",
+   "배치1"
+  ],
+  "title": {}
+ },
+ {
+  "file": "021. 1A5J-00GHC10-M05-0001_P&ID FOR DEMINERALIZED WATER DISTRIBUTION SYSTEM (1 OF 2)_Rev.4.dxf",
+  "no": "021",
+  "version": "AC1032",
+  "audit_errors": 0,
+  "seconds": 0.46,
+  "entities": {
+   "LINE": 503,
+   "LWPOLYLINE": 311,
+   "LEADER": 5,
+   "INSERT": 239,
+   "TEXT": 346,
+   "ATTDEF": 305,
+   "MTEXT": 79,
+   "ARC": 8,
+   "HATCH": 14
+  },
+  "insert": 239,
+  "insert_with_attribs": 38,
+  "block_kinds": 32,
+  "blocks": {
+   "Globe Valve (Open)": 28,
+   "Gate Valve (Close)": 26,
+   "PIP PLUG": 26,
+   "PIP FLANGED NOZZLE": 22,
+   "Flow Arrow": 22,
+   "INST_LOCAL MOUNTED": 16,
+   "Gate Valve (Open)": 14,
+   "EXPANSION JOINT": 9,
+   "INST_LOCAL MOUNTED(Vertical)": 8,
+   "Check Valve_": 6,
+   "PIP BLIND FLANGE": 6,
+   "REDUCER01": 6,
+   "PIP MOTOR OPERATED": 5,
+   "Butterfly Valve (Open)": 5,
+   "A$Cff3cfadf": 5,
+   "HORIZONTAL CENTRIFUGAL PUMP": 3,
+   "PIP ASSUMED NOZZLE": 3,
+   "TEMPORARY STARTUP": 3,
+   "Inline Instrument Annotation_block": 3,
+   "PIP ORIFICE": 3,
+   "11": 3,
+   "Ball Valve (Close)": 3,
+   "Cone Roof Tank-2": 2,
+   "CO2 ABSORBER": 2,
+   "PIP STEAM TRAP": 2,
+   "Ball Valve (Open)": 2,
+   "REV.B": 1,
+   "MMM": 1,
+   "24": 1,
+   "*U31": 1,
+   "DRAIN": 1,
+   "TITLE": 1
+  },
+  "attr_blocks": {
+   "INST_LOCAL MOUNTED": 16,
+   "INST_LOCAL MOUNTED(Vertical)": 8,
+   "PIP MOTOR OPERATED": 5,
+   "Inline Instrument Annotation_block": 3,
+   "PIP STEAM TRAP": 2,
+   "MMM": 1,
+   "24": 1,
+   "*U31": 1,
+   "DRAIN": 1
+  },
+  "attr_tags": {
+   "#(TargetObject.Type)": 27,
+   "#(TARGETOBJECT.UNITNUMBER)#(TARGETOBJECT.SYSTEMCODE)#(TARGETOBJECT.SYSTEMSEQNUMBER)#(TARGETOBJECT.ITEMCODE)#(TARGETOBJECT.FIRSTSEQNUMBER)": 19,
+   "#(TargetObject.LoopNumber)": 8,
+   "PNPAttribute0": 6,
+   "#(TARGETOBJECT.TYPE)": 2,
+   "....": 1,
+   "MOV": 1,
+   "00GHC01AA201": 1,
+   "PIT": 1,
+   "00GHC13CP001A": 1,
+   "#(TARGETOBJECT.RIGHTSCOPE)": 1,
+   "#(TARGETOBJECT.LEFTSCOPE)": 1
+  },
+  "attr_samples": {
+   "PIP MOTOR OPERATED": [
+    [
+     "PNPAttribute0",
+     "M"
+    ]
+   ],
+   "INST_LOCAL MOUNTED": [
+    [
+     "#(TargetObject.Type)",
+     ""
+    ],
+    [
+     "#(TARGETOBJECT.UNITNUMBER)#(TARGETOBJECT.SYSTEMCODE)#(TARGETOBJECT.SYSTEMSEQNUMBER)#(TARGETOBJECT.ITEMCODE)#(TARGETOBJECT.FIRSTSEQNUMBER)",
+     ""
+    ]
+   ],
+   "Inline Instrument Annotation_block": [
+    [
+     "#(TargetObject.Type)",
+     ""
+    ],
+    [
+     "#(TARGETOBJECT.UNITNUMBER)#(TARGETOBJECT.SYSTEMCODE)#(TARGETOBJECT.SYSTEMSEQNUMBER)#(TARGETOBJECT.ITEMCODE)#(TARGETOBJECT.FIRSTSEQNUMBER)",
+     ""
+    ]
+   ],
+   "MMM": [
+    [
+     "....",
+     ""
+    ],
+    [
+     "MOV",
+     ""
+    ],
+    [
+     "00GHC01AA201",
+     "00GHC01AA201"
+    ]
+   ],
+   "24": [
+    [
+     "PIT",
+     ""
+    ],
+    [
+     "00GHC13CP001A",
+     "00GHC40CP001"
+    ]
+   ],
+   "*U31": [
+    [
+     "#(TARGETOBJECT.RIGHTSCOPE)",
+     "SUPPLIER"
+    ],
+    [
+     "#(TARGETOBJECT.LEFTSCOPE)",
+     "SCT"
+    ]
+   ],
+   "INST_LOCAL MOUNTED(Vertical)": [
+    [
+     "#(TargetObject.Type)",
+     ""
+    ],
+    [
+     "#(TargetObject.LoopNumber)",
+     ""
+    ]
+   ],
+   "DRAIN": [
+    [
+     "PNPAttribute0",
+     "D"
+    ]
+   ],
+   "PIP STEAM TRAP": [
+    [
+     "#(TARGETOBJECT.TYPE)",
+     "AT"
+    ]
+   ]
+  },
+  "layers": {
+   "0": 632,
+   "Process": 208,
+   "Size": 153,
+   "Instrument line": 140,
+   "REV.5": 102,
+   "Equipment": 85,
+   "Valve": 81,
+   "REV.4": 81,
+   "Primary Line": 73,
+   "REV.6": 72,
+   "Mechanical": 44,
+   "1": 40,
+   "Instrument": 39,
+   "Annotation": 38,
+   "Text": 8,
+   "PDF_Valve": 4,
+   "NoPlot": 3,
+   "AS_PIPE": 3,
+   "REV.B": 2,
+   "Piping": 1,
+   "PDF_Geometry": 1
+  },
+  "pdf_layers": [
+   "PDF_Geometry",
+   "PDF_Valve"
+  ],
+  "block_defs": 48,
+  "layouts": [
+   "Model",
+   "배치1"
+  ],
+  "title": {}
+ },
+ {
+  "file": "022. 1A5J-00GHC10-M05-0002_P&ID FOR DEMINERALIZED WATER DISTRIBUTION SYSTEM (2 OF 2)_Rev.4.dxf",
+  "no": "022",
+  "version": "AC1032",
+  "audit_errors": 0,
+  "seconds": 0.55,
+  "entities": {
+   "TEXT": 193,
+   "LINE": 86,
+   "LWPOLYLINE": 1899,
+   "CIRCLE": 16,
+   "SOLID": 768,
+   "HATCH": 18,
+   "ATTDEF": 13,
+   "MTEXT": 6,
+   "INSERT": 2
+  },
+  "insert": 2,
+  "insert_with_attribs": 1,
+  "block_kinds": 2,
+  "blocks": {
+   "INST_LOCAL MOUNTED": 1,
+   "TITLE": 1
+  },
+  "attr_blocks": {
+   "INST_LOCAL MOUNTED": 1
+  },
+  "attr_tags": {
+   "#(TargetObject.Type)": 1,
+   "#(TARGETOBJECT.UNITNUMBER)#(TARGETOBJECT.SYSTEMCODE)#(TARGETOBJECT.SYSTEMSEQNUMBER)#(TARGETOBJECT.ITEMCODE)#(TARGETOBJECT.FIRSTSEQNUMBER)": 1
+  },
+  "attr_samples": {
+   "INST_LOCAL MOUNTED": [
+    [
+     "#(TargetObject.Type)",
+     ""
+    ],
+    [
+     "#(TARGETOBJECT.UNITNUMBER)#(TARGETOBJECT.SYSTEMCODE)#(TARGETOBJECT.SYSTEMSEQNUMBER)#(TARGETOBJECT.ITEMCODE)#(TARGETOBJECT.FIRSTSEQNUMBER)",
+     ""
+    ]
+   ]
+  },
+  "layers": {
+   "PDF_0": 1564,
+   "PDF_Valve": 755,
+   "0": 176,
+   "PDF_Size": 135,
+   "Process": 95,
+   "PDF1_PDF_0": 87,
+   "REV.4": 57,
+   "Primary Line": 57,
+   "REV.5": 30,
+   "PDF_PDF_Geometry": 12,
+   "REV.6-1": 12,
+   "PDF_PDF_Valve": 10,
+   "Size": 4,
+   "REV.6": 3,
+   "PDF_Mechanical": 2,
+   "Instrument": 1,
+   "PDF_Geometry": 1
+  },
+  "pdf_layers": [
+   "PDF1_PDF_0",
+   "PDF_0",
+   "PDF_Geometry",
+   "PDF_Mechanical",
+   "PDF_PDF_Geometry",
+   "PDF_PDF_Valve",
+   "PDF_Size",
+   "PDF_Valve"
+  ],
+  "block_defs": 10,
+  "layouts": [
+   "Model",
+   "배치1"
+  ],
+  "title": {}
+ },
+ {
+  "file": "023. 1A5J-00GKB10-M05-0001_P&ID FOR POTABLE WATER DISTRIBUTION SYSTEM (1 of 2)_Rev.4.dxf",
+  "no": "023",
+  "version": "AC1032",
+  "audit_errors": 0,
+  "seconds": 0.54,
+  "entities": {
+   "LINE": 528,
+   "TEXT": 263,
+   "INSERT": 205,
+   "ACAD_TABLE": 1,
+   "MTEXT": 66,
+   "LEADER": 5,
+   "HATCH": 17,
+   "ATTDEF": 263,
+   "LWPOLYLINE": 267
+  },
+  "insert": 205,
+  "insert_with_attribs": 33,
+  "block_kinds": 35,
+  "blocks": {
+   "Gate Valve (Close)": 23,
+   "pi": 22,
+   "Globe Valve (Open)": 19,
+   "Gate Valve (Open)": 19,
+   "PIP PLUG": 14,
+   "REDUCER01": 10,
+   "EXPANSION JOINT": 9,
+   "Check Valve_": 7,
+   "FRONT FACING C NOZZLE": 6,
+   "PIP BLIND FLANGE": 6,
+   "QQ": 6,
+   "PIP MOTOR OPERATED": 5,
+   "Flow Arrow": 5,
+   "A$Cff3cfadf": 5,
+   "11": 5,
+   "TO DRAIN": 4,
+   "FLANGE": 4,
+   "Globe Valve (Close)": 4,
+   "HORIZONTAL CENTRIFUGAL PUMP": 3,
+   "TEMPORARY STARTUP": 3,
+   "*U41": 3,
+   "PIP ORIFICE": 3,
+   "Ball Valve (Close)": 3,
+   "PIP ASSUMED NOZZLE": 2,
+   "VENT-LOOP": 2,
+   "PressureVessels-10": 2,
+   "*U27": 2,
+   "A$C1b7b584c": 2,
+   "TITLE": 1,
+   "INST_LOCAL MOUNTED(Vertical)": 1,
+   "A$Cfae02140": 1,
+   "PIP DIAPHRAGM": 1,
+   "Ball Valve (Open)": 1,
+   "*U39": 1,
+   "CLOSE BALL VALVE": 1
+  },
+  "attr_blocks": {
+   "pi": 22,
+   "PIP MOTOR OPERATED": 5,
+   "*U41": 3,
+   "*U27": 2,
+   "INST_LOCAL MOUNTED(Vertical)": 1
+  },
+  "attr_tags": {
+   "#(TargetObject.LoopNumber)": 23,
+   "#(TargetObject.Type)": 23,
+   "PNPAttribute0": 5,
+   "#(=Drawing.General.PnID)": 3,
+   "#(TARGETOBJECT.ORIGINORDESTINATION)": 3,
+   "#(TargetObject.ConnectArea)": 3,
+   "#(TARGETOBJECT.RIGHTSCOPE)": 2,
+   "#(TARGETOBJECT.LEFTSCOPE)": 2
+  },
+  "attr_samples": {
+   "PIP MOTOR OPERATED": [
+    [
+     "PNPAttribute0",
+     "M"
+    ]
+   ],
+   "*U41": [
+    [
+     "#(=Drawing.General.PnID)",
+     "1A5J-00GHB10-M05-0001"
+    ],
+    [
+     "#(TARGETOBJECT.ORIGINORDESTINATION)",
+     "FROM POTABLE WATER INTERFACE"
+    ],
+    [
+     "#(TargetObject.ConnectArea)",
+     "       (H-7)"
+    ]
+   ],
+   "pi": [
+    [
+     "#(TargetObject.LoopNumber)",
+     "00GKB01AA201"
+    ],
+    [
+     "#(TargetObject.Type)",
+     "MOV"
+    ]
+   ],
+   "INST_LOCAL MOUNTED(Vertical)": [
+    [
+     "#(TargetObject.Type)",
+     ""
+    ],
+    [
+     "#(TargetObject.LoopNumber)",
+     ""
+    ]
+   ],
+   "*U27": [
+    [
+     "#(TARGETOBJECT.RIGHTSCOPE)",
+     "SCT"
+    ],
+    [
+     "#(TARGETOBJECT.LEFTSCOPE)",
+     "SUPPLIER"
+    ]
+   ]
+  },
+  "layers": {
+   "0": 563,
+   "Process": 196,
+   "Size": 145,
+   "Instrument line": 115,
+   "REV.5": 90,
+   "REV.4": 87,
+   "Equipment": 78,
+   "Valve": 75,
+   "Primary Line": 70,
+   "1": 48,
+   "Mechanical": 38,
+   "BID_NOTE": 23,
+   "REV.6": 21,
+   "Annotation": 15,
+   "TITLE BLOCK": 14,
+   "Instrument": 12,
+   "REV": 9,
+   "GENERAL": 5,
+   "Text": 4,
+   "Piping": 4,
+   "NoPlot": 2,
+   "PDF_Geometry": 1
+  },
+  "pdf_layers": [
+   "PDF_Geometry"
+  ],
+  "block_defs": 46,
+  "layouts": [
+   "Model",
+   "배치1"
+  ],
+  "title": {}
+ },
+ {
+  "file": "024. 1A5J-00GKB10-M05-0002_P&ID FOR POTABLE WATER DISTRIBUTION SYSTEM (2 of 2)_Rev.4.dxf",
+  "no": "024",
+  "version": "AC1032",
+  "audit_errors": 0,
+  "seconds": 0.39,
+  "entities": {
+   "INSERT": 45,
+   "TEXT": 130,
+   "MTEXT": 10,
+   "LWPOLYLINE": 210,
+   "LINE": 37,
+   "ATTDEF": 90,
+   "ACAD_TABLE": 1,
+   "CIRCLE": 1,
+   "HATCH": 18,
+   "SOLID": 4
+  },
+  "insert": 45,
+  "insert_with_attribs": 26,
+  "block_kinds": 7,
+  "blocks": {
+   "BREAKER_SCOPE": 16,
+   "Globe Valve (Open)": 11,
+   "*U9": 10,
+   "Gate Valve (Close)": 5,
+   "A$Cfae02140": 1,
+   "TITLE": 1,
+   "PIP PLUG": 1
+  },
+  "attr_blocks": {
+   "BREAKER_SCOPE": 16,
+   "*U9": 10
+  },
+  "attr_tags": {
+   "#(TARGETOBJECT.RIGHTSCOPE)": 16,
+   "#(TARGETOBJECT.LEFTSCOPE)": 16,
+   "#(=Drawing.General.PnID)": 10,
+   "#(TARGETOBJECT.ORIGINORDESTINATION)": 10,
+   "#(TargetObject.ConnectArea)": 10
+  },
+  "attr_samples": {
+   "*U9": [
+    [
+     "#(=Drawing.General.PnID)",
+     "TO WORKSHOP & WAREHOUSE"
+    ],
+    [
+     "#(TARGETOBJECT.ORIGINORDESTINATION)",
+     "TO WORKSHOP & WAREHOUSE"
+    ],
+    [
+     "#(TargetObject.ConnectArea)",
+     ""
+    ]
+   ],
+   "BREAKER_SCOPE": [
+    [
+     "#(TARGETOBJECT.RIGHTSCOPE)",
+     "AG"
+    ],
+    [
+     "#(TARGETOBJECT.LEFTSCOPE)",
+     "UG"
+    ]
+   ]
+  },
+  "layers": {
+   "0": 164,
+   "PDF_0": 80,
+   "Size": 58,
+   "REV.4": 51,
+   "Process": 47,
+   "REV.5": 33,
+   "Primary Line": 29,
+   "BID_NOTE": 23,
+   "Valve": 16,
+   "REV.6": 15,
+   "Annotation": 10,
+   "PDF_Process": 9,
+   "TITLE BLOCK": 4,
+   "PDF_Size": 2,
+   "PDF_Geomertry": 2,
+   "PDF_PDF_Geometry": 1,
+   "Mechanical": 1,
+   "PDF_Valve": 1
+  },
+  "pdf_layers": [
+   "PDF_0",
+   "PDF_Geomertry",
+   "PDF_PDF_Geometry",
+   "PDF_Process",
+   "PDF_Size",
+   "PDF_Valve"
+  ],
+  "block_defs": 18,
+  "layouts": [
+   "Model",
+   "배치1"
+  ],
+  "title": {}
+ },
+ {
+  "file": "025. 1A5J-00QFA10-M05-0001_P&ID FOR COMPRESSED AIR SYSTEM_Rev_4.dxf",
+  "no": "025",
+  "version": "AC1032",
+  "audit_errors": 0,
+  "seconds": 0.3,
+  "entities": {
+   "LWPOLYLINE": 202,
+   "INSERT": 115,
+   "LINE": 260,
+   "TEXT": 133,
+   "ATTDEF": 44,
+   "LEADER": 3,
+   "MTEXT": 55,
+   "SOLID": 4,
+   "POLYLINE": 3,
+   "ARC": 90,
+   "HATCH": 8
+  },
+  "insert": 115,
+  "insert_with_attribs": 19,
+  "block_kinds": 20,
+  "blocks": {
+   "Ball Valve (Open)": 54,
+   "REDUCER": 8,
+   "PIP BLIND FLANGE": 7,
+   "HHHH": 6,
+   "Funnel": 6,
+   "KKK": 5,
+   "valve": 4,
+   "INST_LOCAL MOUNTED": 3,
+   "FLANGE": 3,
+   "E-VESSEL": 3,
+   "A_Pressure Relief valve": 3,
+   "A$C25c52426": 3,
+   "PIP FLANGED NOZZLE": 2,
+   "Flow Arrow": 2,
+   "REV.B": 1,
+   "PIP CYLINDER - PISTON": 1,
+   "Globe Valve (Open)": 1,
+   "BREAKER_SCOPE": 1,
+   "PIP PLUG": 1,
+   "TITLE": 1
+  },
+  "attr_blocks": {
+   "HHHH": 6,
+   "KKK": 5,
+   "valve": 4,
+   "INST_LOCAL MOUNTED": 3,
+   "BREAKER_SCOPE": 1
+  },
+  "attr_tags": {
+   "(SHEET02,E-1)": 6,
+   "1A5J-00GHC10-M05-0001": 6,
+   "PDIT": 5,
+   "00GHC01CP001": 5,
+   "TAG-1": 4,
+   "TAG": 4,
+   "#(TargetObject.Type)": 3,
+   "#(TARGETOBJECT.UNITNUMBER)#(TARGETOBJECT.SYSTEMCODE)#(TARGETOBJECT.SYSTEMSEQNUMBER)#(TARGETOBJECT.ITEMCODE)#(TARGETOBJECT.FIRSTSEQNUMBER)": 3,
+   "#(TARGETOBJECT.RIGHTSCOPE)": 1,
+   "#(TARGETOBJECT.LEFTSCOPE)": 1
+  },
+  "attr_samples": {
+   "KKK": [
+    [
+     "PDIT",
+     "PIT"
+    ],
+    [
+     "00GHC01CP001",
+     "00QFB01CP001A"
+    ]
+   ],
+   "HHHH": [
+    [
+     "(SHEET02,E-1)",
+     "(F-8)"
+    ],
+    [
+     "1A5J-00GHC10-M05-0001",
+     "1A5J-00QFB10-M05-0001"
+    ]
+   ],
+   "INST_LOCAL MOUNTED": [
+    [
+     "#(TargetObject.Type)",
+     "PIZA -,+"
+    ],
+    [
+     "#(TARGETOBJECT.UNITNUMBER)#(TARGETOBJECT.SYSTEMCODE)#(TARGETOBJECT.SYSTEMSEQNUMBER)#(TARGETOBJECT.ITEMCODE)#(TARGETOBJECT.FIRSTSEQNUMBER)",
+     "00QFB01CP001"
+    ]
+   ],
+   "BREAKER_SCOPE": [
+    [
+     "#(TARGETOBJECT.RIGHTSCOPE)",
+     "SCT"
+    ],
+    [
+     "#(TARGETOBJECT.LEFTSCOPE)",
+     "SUPPLIER"
+    ]
+   ],
+   "valve": [
+    [
+     "TAG-1",
+     "SET:2bar g"
+    ],
+    [
+     "TAG",
+     ""
+    ]
+   ]
+  },
+  "layers": {
+   "0": 216,
+   "PDF2_Instrument": 177,
+   "Process": 163,
+   "PDF2_Text": 50,
+   "Instrument line": 45,
+   "Valve": 35,
+   "REV.4": 33,
+   "REV.5": 33,
+   "Size": 28,
+   "Primary Line": 24,
+   "Equipment": 20,
+   "REV": 20,
+   "GENERAL": 17,
+   "Instrument": 9,
+   "REV.6": 9,
+   "PIPING": 6,
+   "TITLE BLOCK": 6,
+   "Text": 5,
+   "PDF2_Instrument line": 5,
+   "PDF2_INST": 3,
+   "PDF2_Valve": 3,
+   "PDF2_0": 3,
+   "REV.B": 2,
+   "Annotation": 2,
+   "INST": 1,
+   "HIDE_LINE SIZE": 1,
+   "Mechanical": 1
+  },
+  "pdf_layers": [
+   "PDF2_0",
+   "PDF2_INST",
+   "PDF2_Instrument",
+   "PDF2_Instrument line",
+   "PDF2_Text",
+   "PDF2_Valve"
+  ],
+  "block_defs": 25,
+  "layouts": [
+   "Model",
+   "배치1"
+  ],
+  "title": {}
+ },
+ {
+  "file": "026. 1A5J-00QFB10-M05-0001_P&ID FOR COMPRESSED AIR DISTRIBUTION SYSTEM (1 OF 2)_Rev_4.dxf",
+  "no": "026",
+  "version": "AC1032",
+  "audit_errors": 0,
+  "seconds": 0.46,
+  "entities": {
+   "TEXT": 614,
+   "LINE": 231,
+   "LWPOLYLINE": 623,
+   "CIRCLE": 83,
+   "HATCH": 201,
+   "ARC": 14,
+   "INSERT": 5,
+   "ATTDEF": 4,
+   "MTEXT": 1
+  },
+  "insert": 5,
+  "insert_with_attribs": 0,
+  "block_kinds": 4,
+  "blocks": {
+   "WELDED CAP": 2,
+   "PIP BLIND FLANGE": 1,
+   "Ball Valve (Open)": 1,
+   "TITLE": 1
+  },
+  "attr_blocks": {},
+  "attr_tags": {},
+  "attr_samples": {},
+  "layers": {
+   "0": 1477,
+   "REV.4": 127,
+   "Primary Line": 113,
+   "REV.5": 33,
+   "REV.6": 9,
+   "Annotation": 8,
+   "PDF_0": 4,
+   "GENERAL": 2,
+   "Process": 2,
+   "PDF_Geometry": 1
+  },
+  "pdf_layers": [
+   "PDF_0",
+   "PDF_Geometry"
+  ],
+  "block_defs": 9,
+  "layouts": [
+   "Layout1",
+   "Model"
+  ],
+  "title": {}
+ },
+ {
+  "file": "027. 1A5J-00QFB10-M05-0002_P&ID FOR COMPRESSED AIR DISTRIBUTION SYSTEM (2 of 2)_Rev_4.dxf",
+  "no": "027",
+  "version": "AC1032",
+  "audit_errors": 0,
+  "seconds": 0.52,
+  "entities": {
+   "INSERT": 3,
+   "MTEXT": 13,
+   "TEXT": 284,
+   "LINE": 76,
+   "LWPOLYLINE": 1431,
+   "CIRCLE": 60,
+   "HATCH": 165,
+   "ARC": 8
+  },
+  "insert": 3,
+  "insert_with_attribs": 0,
+  "block_kinds": 2,
+  "blocks": {
+   "PIP PLUG": 2,
+   "TITLE": 1
+  },
+  "attr_blocks": {},
+  "attr_tags": {},
+  "attr_samples": {},
+  "layers": {
+   "PDF_0": 1789,
+   "Primary Line": 82,
+   "REV.4": 71,
+   "0": 65,
+   "REV.5": 15,
+   "Annotation": 8,
+   "REV.6": 6,
+   "Mechanical": 2,
+   "BID_NOTE": 1,
+   "PDF_Geometry": 1
+  },
+  "pdf_layers": [
+   "PDF_0",
+   "PDF_Geometry"
+  ],
+  "block_defs": 6,
+  "layouts": [
+   "Layout1",
+   "Model"
+  ],
+  "title": {}
+ },
+ {
+  "file": "028. 1A5J-00QJA10-M05-0001_P&ID FOR SERVICE GAS SYSTEM (NITROGEN GAS SUPPLY)_Rev 4.dxf",
+  "no": "028",
+  "version": "AC1032",
+  "audit_errors": 0,
+  "seconds": 0.29,
+  "entities": {
+   "LWPOLYLINE": 73,
+   "INSERT": 36,
+   "LINE": 65,
+   "MTEXT": 30,
+   "ATTDEF": 56,
+   "TEXT": 96,
+   "HATCH": 2
+  },
+  "insert": 36,
+  "insert_with_attribs": 4,
+  "block_kinds": 9,
+  "blocks": {
+   "Globe Valve (Close)": 13,
+   "HOSE CONNECTION": 12,
+   "A$C5f8aa12c": 3,
+   "REV.B": 2,
+   "*U9": 2,
+   "REV.A2": 1,
+   "*U8": 1,
+   "TITLE": 1,
+   "*U10": 1
+  },
+  "attr_blocks": {
+   "*U9": 2,
+   "*U8": 1,
+   "*U10": 1
+  },
+  "attr_tags": {
+   "1A5J-00GHC10-M05-0002": 3,
+   "#(TARGETOBJECT.ORIGINORDESTINATION)": 3,
+   "#(TargetObject.ConnectArea)": 3,
+   "#(TARGETOBJECT.RIGHTSCOPE)": 1,
+   "#(TARGETOBJECT.LEFTSCOPE)": 1
+  },
+  "attr_samples": {
+   "*U8": [
+    [
+     "#(TARGETOBJECT.RIGHTSCOPE)",
+     "SCT"
+    ],
+    [
+     "#(TARGETOBJECT.LEFTSCOPE)",
+     "SUPPLIER"
+    ]
+   ],
+   "*U10": [
+    [
+     "1A5J-00GHC10-M05-0002",
+     "(H-8)"
+    ],
+    [
+     "#(TARGETOBJECT.ORIGINORDESTINATION)",
+     "GT CCW SUPPLY"
+    ],
+    [
+     "#(TargetObject.ConnectArea)",
+     "1A5J-00PGB10-M05-0001"
+    ]
+   ],
+   "*U9": [
+    [
+     "1A5J-00GHC10-M05-0002",
+     "(D-8)"
+    ],
+    [
+     "#(TARGETOBJECT.ORIGINORDESTINATION)",
+     "GT CCW SUPPLY"
+    ],
+    [
+     "#(TargetObject.ConnectArea)",
+     "1A5J-00EKG00-M05-0002"
+    ]
+   ]
+  },
+  "layers": {
+   "0": 213,
+   "Process": 37,
+   "Primary Line": 32,
+   "REV.4-1": 15,
+   "TITLE BLOCK": 13,
+   "1": 11,
+   "REV.6": 9,
+   "Size": 6,
+   "REV.4": 6,
+   "REV.B": 4,
+   "Equipment": 4,
+   "REV.5": 3,
+   "REV.A2": 2,
+   "Annotation": 2,
+   "Valve": 1
+  },
+  "pdf_layers": [],
+  "block_defs": 15,
+  "layouts": [
+   "Model",
+   "배치1"
+  ],
+  "title": {}
+ },
+ {
+  "file": "029. 1A5J-00GMB10-M05-0001_P&ID FOR WASTE WATER TRANSFER SYSTEM(CHEMICAL)_Rev.4.dxf",
+  "no": "029",
+  "version": "AC1032",
+  "audit_errors": 0,
+  "seconds": 0.48,
+  "entities": {
+   "INSERT": 85,
+   "MTEXT": 52,
+   "TEXT": 163,
+   "ACAD_TABLE": 1,
+   "HATCH": 41,
+   "LWPOLYLINE": 188,
+   "LINE": 358,
+   "ATTDEF": 179,
+   "ARC": 30,
+   "SOLID": 5
+  },
+  "insert": 85,
+  "insert_with_attribs": 28,
+  "block_kinds": 13,
+  "blocks": {
+   "OPC-1": 16,
+   "Check Valve_": 10,
+   "pi": 10,
+   "PIP FLANGED NOZZLE": 10,
+   "VERTICAL PUMP (SUMP)": 10,
+   "GOLBE VALVE ( CLOSE)": 10,
+   "GATE VALVE": 5,
+   "Gate Valve (Open)": 5,
+   "VENT-LOOP": 5,
+   "TITLE": 1,
+   "Comment Annotation_block": 1,
+   "REDUCER": 1,
+   "LargeBySmallReducerStyle_block": 1
+  },
+  "attr_blocks": {
+   "OPC-1": 16,
+   "pi": 10,
+   "Comment Annotation_block": 1,
+   "LargeBySmallReducerStyle_block": 1
+  },
+  "attr_tags": {
+   "OPC": 16,
+   "P&IDNO": 16,
+   "TO": 16,
+   "#(TargetObject.LoopNumber)": 10,
+   "#(TargetObject.Type)": 10,
+   "#(TargetObject.Comment)": 1,
+   "#(PipeLines.Size)x#(PipeLines.Size)": 1
+  },
+  "attr_samples": {
+   "pi": [
+    [
+     "#(TargetObject.LoopNumber)",
+     "14GMB01CP501"
+    ],
+    [
+     "#(TargetObject.Type)",
+     "PI"
+    ]
+   ],
+   "Comment Annotation_block": [
+    [
+     "#(TargetObject.Comment)",
+     "CCW AREA CHEMICAL WASTE WATER "
+    ]
+   ],
+   "OPC-1": [
+    [
+     "OPC",
+     "AIRINTAKE SYSTEM FOGGING DRAIN"
+    ],
+    [
+     "P&IDNO",
+     "SXMBLS001-F8"
+    ],
+    [
+     "TO",
+     ""
+    ]
+   ],
+   "LargeBySmallReducerStyle_block": [
+    [
+     "#(PipeLines.Size)x#(PipeLines.Size)",
+     "80x100"
+    ]
+   ]
+  },
+  "layers": {
+   "0": 553,
+   "Size": 86,
+   "Instrument line": 76,
+   "Process": 73,
+   "Equipment": 60,
+   "1": 50,
+   "Primary Line": 37,
+   "BID_NOTE": 30,
+   "Text": 30,
+   "PDF_Geometry": 27,
+   "REV.5": 18,
+   "Valve": 15,
+   "PDF_0": 10,
+   "REV.4": 9,
+   "TITLE BLOCK": 9,
+   "Annotation": 8,
+   "Mechanical": 6,
+   "PDF_Solid Fills": 5
+  },
+  "pdf_layers": [
+   "PDF_0",
+   "PDF_Geometry",
+   "PDF_Solid Fills"
+  ],
+  "block_defs": 32,
+  "layouts": [
+   "Layout1",
+   "Model"
+  ],
+  "title": {}
+ },
+ {
+  "file": "030. 1A5J-00GMA10-M05-0001_P&ID FOR WASTE WATER TRANSFER SYSTEM (OILY)_Rev.4.dxf",
+  "no": "030",
+  "version": "AC1032",
+  "audit_errors": 0,
+  "seconds": 0.6,
+  "entities": {
+   "INSERT": 229,
+   "ACAD_TABLE": 1,
+   "MTEXT": 74,
+   "TEXT": 312,
+   "HATCH": 50,
+   "LWPOLYLINE": 502,
+   "LINE": 877,
+   "ATTDEF": 396,
+   "ARC": 72,
+   "SOLID": 12
+  },
+  "insert": 229,
+  "insert_with_attribs": 63,
+  "block_kinds": 13,
+  "blocks": {
+   "REDUCER": 27,
+   "LargeBySmallReducerStyle_block": 27,
+   "Check Valve_": 24,
+   "PIP FLANGED NOZZLE": 24,
+   "VERTICAL PUMP (SUMP)": 24,
+   "pi": 24,
+   "Globe Valve (Open)": 24,
+   "GATE VALVE": 12,
+   "Gate Valve (Open)": 12,
+   "VENT-LOOP": 12,
+   "Comment Annotation_block": 12,
+   "Gate Valve (Close)": 6,
+   "TITLE": 1
+  },
+  "attr_blocks": {
+   "LargeBySmallReducerStyle_block": 27,
+   "pi": 24,
+   "Comment Annotation_block": 12
+  },
+  "attr_tags": {
+   "#(PipeLines.Size)x#(PipeLines.Size)": 27,
+   "#(TargetObject.LoopNumber)": 24,
+   "#(TargetObject.Type)": 24,
+   "#(TargetObject.Comment)": 12
+  },
+  "attr_samples": {
+   "pi": [
+    [
+     "#(TargetObject.LoopNumber)",
+     "00GMA01CP501"
+    ],
+    [
+     "#(TargetObject.Type)",
+     "PI"
+    ]
+   ],
+   "LargeBySmallReducerStyle_block": [
+    [
+     "#(PipeLines.Size)x#(PipeLines.Size)",
+     "100X80"
+    ]
+   ],
+   "Comment Annotation_block": [
+    [
+     "#(TargetObject.Comment)",
+     "#12 GT AREA OILY DRAIN."
+    ]
+   ]
+  },
+  "layers": {
+   "0": 1072,
+   "Equipment": 217,
+   "Instrument line": 195,
+   "Size": 169,
+   "REV.5": 159,
+   "Process": 154,
+   "1": 120,
+   "Primary Line": 117,
+   "Text": 72,
+   "Valve": 66,
+   "Mechanical": 39,
+   "REV.4": 39,
+   "BID_NOTE": 26,
+   "PDF_Geometry": 25,
+   "PDF_0": 25,
+   "PDF_Solid Fills": 12,
+   "TITLE BLOCK": 9,
+   "Annotation": 8,
+   "PDF_PDF_Valve": 1
+  },
+  "pdf_layers": [
+   "PDF_0",
+   "PDF_Geometry",
+   "PDF_PDF_Valve",
+   "PDF_Solid Fills"
+  ],
+  "block_defs": 41,
+  "layouts": [
+   "Layout1",
+   "Model"
+  ],
+  "title": {}
+ },
+ {
+  "file": "031. 1A5J-00GQA10-M05-0001_P&ID FOR WASTE WATER TRANSFER SYSTEM (SANITARY)_Rev.4.dxf",
+  "no": "031",
+  "version": "AC1032",
+  "audit_errors": 0,
+  "seconds": 0.6,
+  "entities": {
+   "LWPOLYLINE": 142,
+   "INSERT": 64,
+   "TEXT": 111,
+   "LINE": 292,
+   "MTEXT": 36,
+   "ACAD_TABLE": 1,
+   "HATCH": 16,
+   "ATTDEF": 130,
+   "ARC": 24,
+   "SOLID": 4
+  },
+  "insert": 64,
+  "insert_with_attribs": 14,
+  "block_kinds": 13,
+  "blocks": {
+   "Check Valve_": 8,
+   "pi": 8,
+   "PIP FLANGED NOZZLE": 8,
+   "VERTICAL PUMP (SUMP)": 8,
+   "GLOBE.": 8,
+   "GATE VALVE": 4,
+   "Gate Valve (Open)": 4,
+   "VENT-LOOP": 4,
+   "Comment Annotation_block": 4,
+   "REV.B": 3,
+   "REDUCER": 2,
+   "LargeBySmallReducerStyle_block": 2,
+   "TITLE": 1
+  },
+  "attr_blocks": {
+   "pi": 8,
+   "Comment Annotation_block": 4,
+   "LargeBySmallReducerStyle_block": 2
+  },
+  "attr_tags": {
+   "#(TargetObject.LoopNumber)": 8,
+   "#(TargetObject.Type)": 8,
+   "#(TargetObject.Comment)": 4,
+   "#(PipeLines.Size)x#(PipeLines.Size)": 2
+  },
+  "attr_samples": {
+   "LargeBySmallReducerStyle_block": [
+    [
+     "#(PipeLines.Size)x#(PipeLines.Size)",
+     "80x100"
+    ]
+   ],
+   "pi": [
+    [
+     "#(TargetObject.LoopNumber)",
+     "00GQA02CP501"
+    ],
+    [
+     "#(TargetObject.Type)",
+     "PI"
+    ]
+   ],
+   "Comment Annotation_block": [
+    [
+     "#(TargetObject.Comment)",
+     "MAIN GUARD HOUSE AREA SANITARY WATER"
+    ]
+   ]
+  },
+  "layers": {
+   "0": 370,
+   "Equipment": 72,
+   "Instrument line": 70,
+   "Size": 52,
+   "Process": 50,
+   "1": 40,
+   "Primary Line": 31,
+   "BID_NOTE": 25,
+   "Text": 24,
+   "Valve": 12,
+   "REV.4": 12,
+   "REV.5": 12,
+   "REV.C": 9,
+   "TITLE BLOCK": 9,
+   "PDF_Geometry": 8,
+   "PDF_0": 8,
+   "REV.B": 6,
+   "Mechanical": 6,
+   "PDF_Solid Fills": 4
+  },
+  "pdf_layers": [
+   "PDF_0",
+   "PDF_Geometry",
+   "PDF_Solid Fills"
+  ],
+  "block_defs": 40,
+  "layouts": [
+   "Model",
+   "배치1"
+  ],
+  "title": {}
+ },
+ {
+  "file": "032. 1A5J-00MBA10-M05-0001_P&ID FOR GT INTERCONNECTION_Rev1.dxf",
+  "no": "032",
+  "version": "AC1032",
+  "audit_errors": 0,
+  "seconds": 0.43,
+  "entities": {
+   "LWPOLYLINE": 149,
+   "INSERT": 89,
+   "HATCH": 22,
+   "LINE": 340,
+   "TEXT": 178,
+   "MTEXT": 138,
+   "SPLINE": 1,
+   "ATTDEF": 80,
+   "ARC": 2,
+   "CIRCLE": 2
+  },
+  "insert": 89,
+  "insert_with_attribs": 1,
+  "block_kinds": 13,
+  "blocks": {
+   "PIP BLIND FLANGE": 33,
+   "Flow Arrow": 28,
+   "PIP FLANGED NOZZLE": 9,
+   "Funnel": 4,
+   "A$C5f8aa12c": 4,
+   "REV.B": 2,
+   "HOSE CONNECTION": 2,
+   "REDUCER": 2,
+   "TITLE": 1,
+   "FLAME ARRESTER": 1,
+   "Gate Valve (Open)": 1,
+   "Ball Valve (Open)": 1,
+   "*U14": 1
+  },
+  "attr_blocks": {
+   "*U14": 1
+  },
+  "attr_tags": {
+   "#(TARGETOBJECT.RIGHTSCOPE)": 1,
+   "#(TARGETOBJECT.LEFTSCOPE)": 1
+  },
+  "attr_samples": {
+   "*U14": [
+    [
+     "#(TARGETOBJECT.RIGHTSCOPE)",
+     "SCT"
+    ],
+    [
+     "#(TARGETOBJECT.LEFTSCOPE)",
+     "SUPPLIER"
+    ]
+   ]
+  },
+  "layers": {
+   "0": 568,
+   "Process": 106,
+   "PDF_Geometry": 61,
+   "Size": 59,
+   "Text": 33,
+   "REV.4": 33,
+   "REV.4-1": 30,
+   "Annotation": 28,
+   "Equipment": 25,
+   "TITLE BLOCK": 13,
+   "REV.6-1": 12,
+   "REV.3": 9,
+   "HIDE": 8,
+   "REV.B": 4,
+   "Mechanical": 3,
+   "GENERAL": 2,
+   "Instrument line": 2,
+   "PDF_0": 2,
+   "Valve": 1,
+   "Existing Process": 1,
+   "PDF1_PDF_0": 1
+  },
+  "pdf_layers": [
+   "PDF1_PDF_0",
+   "PDF_0",
+   "PDF_Geometry"
+  ],
+  "block_defs": 22,
+  "layouts": [
+   "Model",
+   "배치1"
+  ],
+  "title": {}
+ }
+]

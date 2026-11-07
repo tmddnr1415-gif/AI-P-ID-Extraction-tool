@@ -1,0 +1,4 @@
+TC2 legend circle 3.0 bar_reach 3.65 bar_min 1.8359999999999999 seg_span (1.0, 60.0)
+ratio histogram (circle / legend circle): [(1.0, 34), (1.17, 53), (1.33, 114), (1.4, 18), (1.47, 20), (1.77, 1)]
+circle sizes: [(3.0, 34), (3.5, 53), (4.0, 114), (4.2, 18), (4.4, 20), (5.3, 1)]
+with actuator: []

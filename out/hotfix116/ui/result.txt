@@ -1,0 +1,11 @@
+✔ 룸 선택 = CER-1: CER-1 · Rev 1
+✔ Rev 선택 = A: A
+✔ 배치 시작 가능: True
+✔ 새 룸 → Option A 창: True
+✔ 서버 목록에 룸 · Rev: True
+✔ 저장 1건: True
+✔ Rev 지우기 확인창: True
+✔ Rev 지워짐 · 저장 0: True
+✔ 프로젝트 지워짐: True
+✔ 휴지통: True
+✔ 페이지 오류 0: True

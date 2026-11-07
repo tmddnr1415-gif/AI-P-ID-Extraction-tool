@@ -1,0 +1,148 @@
+[감사] 산출 대상 0행 / job 0개 · 사람이 도면 값을 덮어쓴 칸 0 · 도면 근거 없는 행 0
+[감사] 고아 업로드 0 · 고아 출력 0 · 고아 진단 0 · DB 0.1 MB 중 죽은 페이지 0.0 MB · 정리하면 되찾는 용량 0.0 MB
+INFO:     Started server process [1192]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://127.0.0.1:59703 (Press CTRL+C to quit)
+INFO:     127.0.0.1:59190 - "GET /jobs HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59206 - "POST /jobs HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59222 - "GET /jobs/0f7cde48ec7a HTTP/1.1" 200 OK
+INFO:     127.0.0.1:42974 - "GET /jobs/0f7cde48ec7a HTTP/1.1" 200 OK
+INFO:     127.0.0.1:42984 - "GET /jobs/0f7cde48ec7a HTTP/1.1" 200 OK
+INFO:     127.0.0.1:37470 - "GET /jobs/0f7cde48ec7a HTTP/1.1" 200 OK
+INFO:     127.0.0.1:37480 - "GET /jobs/0f7cde48ec7a HTTP/1.1" 200 OK
+INFO:     127.0.0.1:38856 - "GET /jobs/0f7cde48ec7a HTTP/1.1" 200 OK
+INFO:     127.0.0.1:38858 - "GET /jobs/0f7cde48ec7a HTTP/1.1" 200 OK
+INFO:     127.0.0.1:44350 - "GET /jobs/0f7cde48ec7a HTTP/1.1" 200 OK
+INFO:     127.0.0.1:38548 - "GET /jobs/0f7cde48ec7a HTTP/1.1" 200 OK
+INFO:     127.0.0.1:38558 - "GET /jobs/0f7cde48ec7a HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49048 - "GET /jobs/0f7cde48ec7a HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49050 - "GET /jobs/0f7cde48ec7a HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56366 - "GET /jobs/0f7cde48ec7a HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56376 - "GET /jobs/0f7cde48ec7a HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46190 - "GET /jobs/0f7cde48ec7a HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46202 - "GET /jobs/0f7cde48ec7a HTTP/1.1" 200 OK
+INFO:     127.0.0.1:36698 - "GET /jobs/0f7cde48ec7a HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49344 - "GET /jobs/0f7cde48ec7a HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49358 - "GET /jobs/0f7cde48ec7a HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50020 - "GET /jobs/0f7cde48ec7a HTTP/1.1" 200 OK
+INFO:     127.0.0.1:38012 - "GET /jobs/0f7cde48ec7a HTTP/1.1" 200 OK
+INFO:     127.0.0.1:38016 - "GET /jobs/0f7cde48ec7a HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54424 - "GET /jobs/0f7cde48ec7a HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57914 - "GET /jobs/0f7cde48ec7a HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54162 - "GET /jobs/0f7cde48ec7a HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54164 - "GET /jobs/0f7cde48ec7a HTTP/1.1" 200 OK
+INFO:     127.0.0.1:35728 - "GET /jobs/0f7cde48ec7a HTTP/1.1" 200 OK
+INFO:     127.0.0.1:35732 - "GET /jobs/0f7cde48ec7a HTTP/1.1" 200 OK
+INFO:     127.0.0.1:41340 - "GET /jobs/0f7cde48ec7a HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55024 - "GET /jobs/0f7cde48ec7a HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59334 - "GET /jobs/0f7cde48ec7a HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59350 - "GET /jobs/0f7cde48ec7a HTTP/1.1" 200 OK
+INFO:     127.0.0.1:43804 - "GET /jobs/0f7cde48ec7a HTTP/1.1" 200 OK
+INFO:     127.0.0.1:43818 - "GET /jobs/0f7cde48ec7a HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57182 - "GET /jobs/0f7cde48ec7a HTTP/1.1" 200 OK
+INFO:     127.0.0.1:41816 - "GET /jobs/0f7cde48ec7a HTTP/1.1" 200 OK
+INFO:     127.0.0.1:41830 - "GET /jobs/0f7cde48ec7a HTTP/1.1" 200 OK
+INFO:     127.0.0.1:43614 - "GET /jobs/0f7cde48ec7a HTTP/1.1" 200 OK
+INFO:     127.0.0.1:43628 - "GET /jobs/0f7cde48ec7a HTTP/1.1" 200 OK
+  page   6    0.30s   instruments 0.30s annotations 0.00s
+  page   7    0.28s   instruments 0.27s annotations 0.00s
+  page   8    0.27s   instruments 0.27s annotations 0.00s
+  page   9    0.27s   instruments 0.27s annotations 0.00s
+  page  10    0.30s   instruments 0.30s annotations 0.00s
+  page  11    0.27s   instruments 0.27s annotations 0.00s
+  page  12    0.27s   instruments 0.27s annotations 0.00s
+  page  13    0.18s   instruments 0.18s annotations 0.00s
+  page  14    0.29s   instruments 0.29s annotations 0.00s
+  page  15    0.20s   instruments 0.20s annotations 0.00s
+  page  16    0.46s   instruments 0.46s annotations 0.00s
+  page  17    0.37s   instruments 0.37s annotations 0.00s
+  page  18    0.18s   instruments 0.18s annotations 0.00s
+  page  19    0.18s   instruments 0.18s annotations 0.00s
+  page  20    0.36s   instruments 0.36s annotations 0.00s
+  page  21    0.35s   instruments 0.35s annotations 0.00s
+  page  22    0.25s   instruments 0.25s annotations 0.00s
+  page  23    0.25s   instruments 0.25s annotations 0.00s
+INFO:     127.0.0.1:50052 - "GET /jobs/0f7cde48ec7a HTTP/1.1" 200 OK
+  page  24    0.30s   instruments 0.30s annotations 0.00s
+  page  25    0.32s   instruments 0.32s annotations 0.00s
+  page  26    0.19s   instruments 0.19s annotations 0.00s
+  page  27    0.19s   instruments 0.19s annotations 0.00s
+  page  28    0.17s   instruments 0.17s annotations 0.00s
+  page  29    0.16s   instruments 0.16s annotations 0.00s
+  page  30    0.39s   instruments 0.39s annotations 0.00s
+  page  31    0.20s   instruments 0.20s annotations 0.00s
+  page  32    0.24s   instruments 0.24s annotations 0.00s
+  page  33    0.23s   instruments 0.23s annotations 0.00s
+  page  34    0.15s   instruments 0.15s annotations 0.00s
+  page  35    0.22s   instruments 0.22s annotations 0.00s
+  page  36    0.20s   instruments 0.20s annotations 0.00s
+  page  37    0.20s   instruments 0.20s annotations 0.00s
+  page  38    0.19s   instruments 0.19s annotations 0.00s
+  page  39    0.20s   instruments 0.20s annotations 0.00s
+  page  40    0.20s   instruments 0.20s annotations 0.00s
+  page  41    0.21s   instruments 0.21s annotations 0.00s
+  page  42    0.22s   instruments 0.22s annotations 0.00s
+  page  43    0.26s   instruments 0.26s annotations 0.00s
+  page  44    0.25s   instruments 0.25s annotations 0.00s
+  page  45    0.20s   instruments 0.20s annotations 0.00s
+  page  46    0.20s   instruments 0.20s annotations 0.00s
+INFO:     127.0.0.1:50062 - "GET /jobs/0f7cde48ec7a HTTP/1.1" 200 OK
+  page  47    0.25s   instruments 0.25s annotations 0.00s
+  page  49    0.21s   instruments 0.21s annotations 0.00s
+  page  50    0.20s   instruments 0.20s annotations 0.00s
+  page  51    0.16s   instruments 0.16s annotations 0.00s
+  page  52    0.28s   instruments 0.28s annotations 0.00s
+  page  53    0.27s   instruments 0.27s annotations 0.00s
+  page  54    0.26s   instruments 0.26s annotations 0.00s
+  page  55    0.17s   instruments 0.17s annotations 0.00s
+  page  56    0.24s   instruments 0.24s annotations 0.00s
+  page  57    0.22s   instruments 0.22s annotations 0.00s
+  page  58    0.18s   instruments 0.18s annotations 0.00s
+INFO:     127.0.0.1:51122 - "GET /jobs/0f7cde48ec7a HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51130 - "GET /jobs/0f7cde48ec7a HTTP/1.1" 200 OK
+INFO:     127.0.0.1:40176 - "GET /jobs/0f7cde48ec7a HTTP/1.1" 200 OK
+INFO:     127.0.0.1:40186 - "GET /jobs/0f7cde48ec7a HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47806 - "GET /jobs/0f7cde48ec7a HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47810 - "GET /jobs/0f7cde48ec7a HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59728 - "GET /jobs/0f7cde48ec7a HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59738 - "GET /jobs/0f7cde48ec7a HTTP/1.1" 200 OK
+INFO:     127.0.0.1:45210 - "GET /jobs/0f7cde48ec7a HTTP/1.1" 200 OK
+INFO:     127.0.0.1:45216 - "GET /jobs/0f7cde48ec7a HTTP/1.1" 200 OK
+INFO:     127.0.0.1:38034 - "GET /jobs/0f7cde48ec7a HTTP/1.1" 200 OK
+INFO:     127.0.0.1:38044 - "GET /jobs/0f7cde48ec7a HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52586 - "GET /jobs/0f7cde48ec7a HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52598 - "GET /jobs/0f7cde48ec7a HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54306 - "GET /jobs/0f7cde48ec7a HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54312 - "GET /jobs/0f7cde48ec7a HTTP/1.1" 200 OK
+analysis took 337.5s, by stage:
+  layout                   198.89s   58.9%
+  valves.actuators          52.30s   15.5%
+  titleblock_glyphs         16.06s    4.8%
+  titleblocks               15.89s    4.7%
+  instruments               12.57s    3.7%
+  pipe_graph                10.51s    3.1%
+  candidates                 7.22s    2.1%
+  valves.bodies              6.92s    2.1%
+  describe_axis              5.95s    1.8%
+  legend_rules               5.46s    1.6%
+  valves.tags                3.20s    0.9%
+  open_pdf                   2.13s    0.6%
+  equipment                  0.29s    0.1%
+  description                0.05s    0.0%
+  annotations                0.01s    0.0%
+  valves.glyph_library       0.01s    0.0%
+  unit_multipliers           0.00s    0.0%
+  slowest pages: p3 14.1s, p4 9.5s, p2 9.1s, p14 3.4s, p16 1.9s
+INFO:     127.0.0.1:53472 - "GET /jobs/0f7cde48ec7a HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53484 - "GET /jobs/0f7cde48ec7a/rows HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53496 - "PATCH /jobs/0f7cde48ec7a/rows/0496c0be022bd8d2 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53502 - "PATCH /jobs/0f7cde48ec7a/rows/0e96b25afd3ef9aa HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53508 - "PATCH /jobs/0f7cde48ec7a/rows/0f51c8b8fb6d6dea HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53514 - "PATCH /jobs/0f7cde48ec7a/rows/1d9e879dd5342fe2 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53526 - "PATCH /jobs/0f7cde48ec7a/rows/311eac50402e48c3 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53538 - "GET /jobs/0f7cde48ec7a/rows HTTP/1.1" 200 OK
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [1192]

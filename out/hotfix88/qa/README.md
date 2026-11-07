@@ -1,0 +1,75 @@
+# QA 시뮬레이션
+
+- ## A. API 전수
+- jobs 2 · done 2 · B f4f152014e6e · A 490a334ae9e4
+- GET 47개 · 5xx 0
+-   PATCH qty → 200
+-   PATCH qty 되돌림 → 200
+-   PATCH scope → 200
+-   PATCH scope 되돌림 → 200
+-   PATCH 없는 칸 → 400
+-   PATCH 없는 행 → 404
+-   PATCH review state → 200
+-   POST rows (마크업) → 200
+-   GET history(추가행) → 200
+-   DELETE rows(추가행) → 200
+-   POST restore → 200
+-   DELETE 검출행(오검출 표시) → 200
+-   POST restore 검출행 → 200
+-   POST copy → 200
+-   POST propose → 200
+-   POST axis_text → 200
+-   POST reports → 200
+-   PATCH report → 200
+-   DELETE report → 200
+-   POST multipliers → 200
+-   DELETE multipliers → 200
+-   POST sheet_numbers → 200
+-   DELETE sheet_numbers → 200
+-   POST titleblock/preview → 400
+-   POST titleblock → 200
+-   DELETE titleblock → 200
+-   POST snapshot → 200
+-   POST save → 200
+-   GET revisions/{id}/excel → 400
+-   POST deleted confirm → 200
+-   POST deleted unconfirm → 200
+-   PATCH project mode → 200
+-   PATCH project mode auto → 200
+-   POST symbols/global → 400
+-   POST symbols/global/enabled → 200
+-   DELETE symbols/global → 404
+-   POST diagnostic → 200
+-   POST projects 중복 → 409
+-   POST projects 새 → 200
+-   DELETE projects 확인없이 → 400
+-   DELETE projects → 200
+-   POST jobs 빈 파일 → 400
+- A 끝 — 서버 Traceback 0 · 500 0
+- ## B. 화면 전수 클릭
+- -- round 1
+-   버튼 #excel 비활성
+-   mult-panel 버튼 '채우기': 동작 실패 — ElementHandle.click: Element is not attached to the DOM
+Call log:
+  - attempting click action
+    2 × waiting for element to be visible, enabled and stable
+    
+-      가림: {'row': [819.5, 747.625, 1583.484375, 27.84375], 'top': 'svg#ov.[object SVGAnimatedString]', 'rightCompare': '', 'modal': 'modal hidden'}
+-   notes-band 버튼 'NOTES — 유닛 문단 ': 동작 실패 — ElementHandle.click: Timeout 1500ms exceeded.
+Call log:
+  - attempting click action
+    2 × waiting for element to be visible, enabled and stable
+      - elemen
+-      가림: {'row': [819.5, 1232.859375, 1583.484375, 27.84375], 'top': None, 'rightCompare': '', 'modal': 'modal hidden'}
+-   리뷰 띠 버튼들: 동작 실패 — ElementHandle.click: Timeout 1000ms exceeded.
+Call log:
+  - attempting click action
+    2 × waiting for element to be visible, enabled and stable
+      - elemen
+-      가림: {'row': [819.5, 1232.859375, 1583.484375, 27.84375], 'top': None, 'rightCompare': '', 'modal': 'modal hidden'}
+- -- round 2
+-   버튼 #excel 비활성
+- B 끝 — 페이지/콘솔 오류 누적 0 · 서버 Traceback 0 · 500 0
+
+## 결함 0
+

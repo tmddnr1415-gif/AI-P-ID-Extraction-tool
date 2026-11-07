@@ -1,0 +1,98 @@
+{
+ "errors": [],
+ "pid_job": "0b403a802592",
+ "logic_job": "46195783255a",
+ "space_pid": "1a166335ad8d57627",
+ "prefetch_pid": {
+  "type": "prefetch",
+  "done": 46,
+  "failed": 0,
+  "total": 46,
+  "finished": true,
+  "missed": [],
+  "shownAt": 1792716010782
+ },
+ "rows_before": 80,
+ "prefetch_logic": {
+  "type": "prefetch",
+  "done": 18,
+  "failed": 0,
+  "total": 18,
+  "finished": true,
+  "missed": [],
+  "shownAt": 1792716011906
+ },
+ "sw_stats": {
+  "type": "stats",
+  "data": 60,
+  "pages": 8
+ },
+ "server_off_at": "00:40:12",
+ "offline_first_screen_s": 0.3,
+ "offline_sheet_png": true,
+ "rows_offline": 80,
+ "banner_offline": "⏾\n절전모드 — 서버에 연결할 수 없습니다\n이 PC 에 보관된 자료로 봅니다 · 고친 값은 보관했다가 서버가 켜지면 서버에 덮어씁니다\n서버 다시 확인\n✕",
+ "offline_edit": {
+  "qty_in_memory": "7",
+  "removed_in_memory": 1,
+  "grid_cell": "7",
+  "queue": [
+   "PATCH /jobs/0b403a802592/rows/0371833bbe306097",
+   "POST /jobs/0b403a802592/rows_delete"
+  ]
+ },
+ "banner_queued": "⏾\n절전모드 — 서버에 연결할 수 없습니다\n이 PC 에 보관된 자료로 봅니다 · 고친 값은 보관했다가 서버가 켜지면 서버에 덮어씁니다 · 보관된 변경 2건\n보관된 변경\n서버 다시 확인\n✕",
+ "refused": "503 refused",
+ "logic_offline_sheet": "",
+ "logic_memo_synth": {
+  "id": "mvk8tu0rzewd",
+  "text": "절전모드 메모",
+  "offline": true
+ },
+ "space_save_synth": {
+  "id": "1a16633874a5224b8",
+  "offline": true,
+  "memo": "절전 저장",
+  "panels": 1
+ },
+ "queue_total": 5,
+ "server_on_at": "00:40:17",
+ "replay_s": 8.6,
+ "last_replay": {
+  "at": 1792716025565,
+  "sent": 5,
+  "failed": 0,
+  "left": 0
+ },
+ "failed": [],
+ "banner_after": "⏾\n서버에 덮어썼습니다 — 5건\n⏾ 절전 대비 보관\n✕",
+ "server_after": {
+  "qty": 7,
+  "removed": true,
+  "logic_memo": [
+   "절전모드 메모"
+  ],
+  "logic_timer": {
+   "1": {
+    "B1": {
+     "t": 3.0,
+     "author": "홍길동",
+     "at": "2026-10-23 00:40:25"
+    }
+   }
+  },
+  "space_saves": [
+   [
+    "1a16633874a5224b8",
+    "절전 저장"
+   ]
+  ]
+ },
+ "ids_match": {
+  "logic_memo": true,
+  "space_save": true
+ },
+ "logic_memo_after_replay": [
+  "절전모드 메모"
+ ]
+}

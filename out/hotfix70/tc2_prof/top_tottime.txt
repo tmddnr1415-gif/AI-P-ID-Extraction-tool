@@ -1,0 +1,53 @@
+         2630767430 function calls (2630383186 primitive calls) in 1438.370 seconds
+
+   Ordered by: internal time
+   List reduced from 3684 to 45 due to restriction <45>
+
+   ncalls  tottime  percall  cumtime  percall filename:lineno(function)
+ 52184783   84.951    0.000  135.949    0.000 /usr/local/lib/python3.11/dist-packages/pymupdf/__init__.py:14337(__init__)
+  3093938   80.548    0.000   91.884    0.000 /home/user/AI-P-ID-Extraction-tool/app/engine/detect_symbols.py:1318(_index_put)
+      180   78.169    0.434   78.169    0.434 {built-in method pymupdf._extra.get_cdrawings}
+ 23924182   65.458    0.000  131.827    0.000 /usr/local/lib/python3.11/dist-packages/pymupdf/__init__.py:24193(util_make_rect)
+ 20463330   51.263    0.000   51.263    0.000 {built-in method pymupdf._mupdf.FzMatrix_swiginit}
+103492441   49.790    0.000   49.790    0.000 {built-in method builtins.round}
+386958991/386958646   48.757    0.000   58.731    0.000 {built-in method builtins.len}
+ 32854842   43.568    0.000   43.568    0.000 {built-in method pymupdf._mupdf.FzPoint_swiginit}
+      180   41.087    0.228  223.273    1.240 /usr/local/lib/python3.11/dist-packages/pymupdf/__init__.py:11694(get_drawings)
+ 23924182   35.841    0.000   66.369    0.000 /usr/local/lib/python3.11/dist-packages/pymupdf/__init__.py:24232(handle_args)
+ 23924182   32.255    0.000  164.082    0.000 /usr/local/lib/python3.11/dist-packages/pymupdf/__init__.py:14783(__init__)
+ 20462096   32.201    0.000  250.317    0.000 /usr/local/lib/python3.11/dist-packages/pymupdf/__init__.py:24331(util_transform_point)
+301130603   30.368    0.000   30.391    0.000 {built-in method builtins.isinstance}
+ 32854842   29.807    0.000  105.367    0.000 /usr/local/lib/python3.11/dist-packages/pymupdf/__init__.py:21340(JM_point_from_py)
+ 27986360   29.197    0.000   82.390    0.000 /home/user/AI-P-ID-Extraction-tool/app/engine/detect_symbols.py:700(_is_ink)
+ 20462096   27.984    0.000  379.581    0.000 /usr/local/lib/python3.11/dist-packages/pymupdf/__init__.py:14374(__mul__)
+ 20462713   23.982    0.000   96.950    0.000 /usr/local/lib/python3.11/dist-packages/pymupdf/__init__.py:20991(JM_matrix_from_py)
+ 20462096   20.803    0.000   20.803    0.000 {built-in method pymupdf._mupdf.fz_transform_point}
+      617   20.395    0.033   20.395    0.033 {built-in method pymupdf._mupdf.fz_new_display_list_from_page}
+113493232   19.895    0.000   46.264    0.000 /home/user/AI-P-ID-Extraction-tool/app/engine/detect_symbols.py:704(<genexpr>)
+ 20462096   19.814    0.000   19.814    0.000 /usr/local/lib/python3.11/dist-packages/pymupdf/__init__.py:21447(JM_py_from_point)
+147981511   19.785    0.000   19.785    0.000 {built-in method builtins.hasattr}
+      334   18.813    0.056   27.066    0.081 /home/user/AI-P-ID-Extraction-tool/app/engine/legend_rules.py:229(stroke_index)
+ 32854842   17.957    0.000   69.430    0.000 /usr/local/lib/python3.11/dist-packages/pymupdf/mupdf.py:34730(__init__)
+145647640   17.362    0.000   17.362    0.000 {method 'get' of 'dict' objects}
+ 20462096   14.340    0.000  272.863    0.000 /usr/local/lib/python3.11/dist-packages/pymupdf/__init__.py:14478(transform)
+ 23751256   13.851    0.000   18.262    0.000 /usr/local/lib/python3.11/dist-packages/pymupdf/__init__.py:24222(make_tuple)
+ 14236858   13.594    0.000   27.549    0.000 /usr/local/lib/python3.11/dist-packages/pymupdf/__init__.py:21534(JM_rect_from_py)
+     1442   13.330    0.009  219.344    0.152 /home/user/AI-P-ID-Extraction-tool/app/engine/pidcache.py:86(drawings)
+ 12392746   13.051    0.000   82.774    0.000 /usr/local/lib/python3.11/dist-packages/pymupdf/__init__.py:24310(util_is_point_in_rect)
+      167   12.683    0.076   18.757    0.112 /home/user/AI-P-ID-Extraction-tool/app/engine/detect_symbols.py:390(bubble_outlines)
+       49   12.643    0.258  101.774    2.077 /home/user/AI-P-ID-Extraction-tool/app/engine/detect_symbols.py:461(_dash_pieces)
+ 61489672   12.227    0.000   12.227    0.000 /usr/local/lib/python3.11/dist-packages/pymupdf/__init__.py:14331(__getitem__)
+86627606/86394882   12.075    0.000   12.429    0.000 {built-in method builtins.max}
+       49   12.051    0.246   23.709    0.484 /home/user/AI-P-ID-Extraction-tool/app/engine/detect_symbols.py:549(_link_pieces)
+ 20463330   11.499    0.000   68.986    0.000 /usr/local/lib/python3.11/dist-packages/pymupdf/mupdf.py:31067(__init__)
+194603530   11.134    0.000   11.134    0.000 {built-in method builtins.abs}
+ 12392746   10.315    0.000   10.315    0.000 {built-in method pymupdf._mupdf.fz_is_point_inside_rect}
+  3285486   10.087    0.000   18.518    0.000 {built-in method pymupdf._extra.util_transform_rect}
+ 10278519    9.233    0.000   46.367    0.000 /usr/local/lib/python3.11/dist-packages/pymupdf/__init__.py:11732(<listcomp>)
+        1    9.051    9.051   10.314   10.314 /home/user/AI-P-ID-Extraction-tool/app/pipeline.py:2262(_bubble_links)
+ 12510330    8.872    0.000   99.618    0.000 /usr/local/lib/python3.11/dist-packages/pymupdf/__init__.py:14755(__contains__)
+52387870/52246124    8.318    0.000   11.212    0.000 {built-in method builtins.min}
+       10    8.161    0.816   11.922    1.192 /home/user/AI-P-ID-Extraction-tool/app/engine/diaphragm_seal.py:190(link)
+   152409    8.125    0.000   15.689    0.000 /home/user/AI-P-ID-Extraction-tool/app/engine/detect_symbols.py:500(_cell_pairs)
+
+

@@ -1,0 +1,21 @@
+{
+ "project": "QFE",
+ "revision": "Rev.A",
+ "compared_with": "",
+ "label": "Rev.A (비교 대상 없음)",
+ "counts": {
+  "BASELINE": 1999,
+  "DELETED_CANDIDATE": 0,
+  "DELETED": 0
+ },
+ "matched_by": {
+  "TAG": 0,
+  "GEOMETRY": 0
+ },
+ "sheets": {
+  "only_before": [],
+  "only_now": [],
+  "renumbered": []
+ },
+ "deleted_candidates": []
+}

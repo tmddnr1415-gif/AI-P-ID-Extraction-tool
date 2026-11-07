@@ -1,0 +1,3 @@
+page 28 kind=PID dwg=1A5J-00QJA10-M05-0001 rev=None size=Rect(0.0, 0.0, 1191.0, 842.0) rot=270 rows=0
+㉡ 후보(행에 안 덮인 ISA 꼴 낱말): [(44, 754, 'PDC'), (291, 754, 'PMC'), (449, 87, 'SUPPLIER'), (475, 65, 'SCT')] 
+unjudged on page: []

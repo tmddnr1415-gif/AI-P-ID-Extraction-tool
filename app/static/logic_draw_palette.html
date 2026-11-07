@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>기호 · 매크로 — LOGIC 작성</title>
+<link rel="stylesheet" href="/static/logic_draw.css">
+<style>
+  /* L88 — 기호 · 매크로 창.  그림 창(logic_draw.html) 옆에 두고 누르면 그림 창에 놓인다 */
+  html, body { height: auto; min-height: 100%; }
+  body { display: block; overflow: auto; background: #f6f4ee; }
+  .pl-head { position: sticky; top: 0; z-index: 3; background: var(--navy); color: #fff; padding: 8px 12px 10px; }
+  .pl-head h1 { font-size: 15px; margin: 0 0 2px; }
+  .pl-tgt { font-size: 12px; color: #cdd6f4; min-height: 17px; }
+  .pl-tgt b { color: #fff; }
+  .pl-tgt.none { color: #ffcf8a; }
+  .pl-q { width: 100%; margin-top: 7px; padding: 7px 9px; border-radius: 7px; border: 0; font-size: 13px; }
+  .pl-conn { display: flex; gap: 6px; align-items: center; margin-top: 7px; font-size: 12px; color: #cdd6f4; }
+  .pl-conn b { color: #fff; }
+  .pl-conn.off { opacity: .55; }
+  .pl-hint { font-size: 11px; color: #5b6475; padding: 8px 12px 0; }
+  .pl-place { margin: 8px 12px 0; padding: 7px 10px; border-radius: 8px; background: #e3ecff; color: #1f3d99; font-size: 12px; display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+  .pl-sec { padding: 6px 12px 4px; }
+  .pl-sec > h2 { font-size: 12px; margin: 10px 0 6px; color: #3c4456; display: flex; justify-content: space-between; cursor: pointer; user-select: none; }
+  .pl-sec > h2 .n { color: #8a93a8; font-weight: 400; }
+  .pl-sec.shut > .pl-grid, .pl-sec.shut > .pl-groups { display: none; }
+  .pl-sec.shut > h2::after { content: " ▸"; color: #8a93a8; }
+  .pl-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(112px, 1fr)); gap: 6px; }
+  .pl-tile { display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 7px 4px 6px; background: #fff; border: 1px solid #d9d5ca; border-radius: 8px; cursor: pointer; text-align: center; min-height: 74px; }
+  .pl-tile:hover { border-color: var(--blue); background: #f3f6ff; }
+  .pl-tile.on { border-color: var(--blue); box-shadow: 0 0 0 2px rgba(47, 91, 216, .35); background: #e8eefc; }
+  .pl-tile svg { width: 64px; height: 44px; }
+  .pl-tile .nm { font-size: 12px; line-height: 1.25; }
+  .pl-tile .sub { font-size: 10px; color: #8a93a8; line-height: 1.2; }
+  .pl-chip { font-size: 11px; max-width: 100%; padding: 6px 8px; border: 1px solid #b9c3d6; border-radius: 4px; background: #fffbe8; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .pl-groups h3 { font-size: 11px; color: #555e6e; margin: 10px 0 5px; cursor: pointer; user-select: none; }
+  .pl-groups .g.shut .pl-grid { display: none; }
+  .pl-groups .g.shut h3::after { content: " ▸"; }
+  .pl-mac { grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); }
+  .pl-mac .pl-tile { align-items: stretch; text-align: left; }
+  .pl-mac .pl-tile .mt-svg { width: 100%; height: auto; max-height: 120px; }
+  .pl-mac .pl-tile .nm { font-weight: 600; }
+  .pl-none { color: #8a93a8; font-size: 12px; padding: 4px 0; }
+  .pl-foot { font-size: 11px; color: #8a93a8; padding: 14px 12px 18px; }
+  /* L90 — 두 번 누름 상세 */
+  .pl-detail { position: fixed; inset: 0; z-index: 20; background: rgba(20, 26, 40, .35); display: flex; align-items: flex-start; justify-content: center; overflow: auto; padding: 10px; }
+  .dt-card { background: #fff; border-radius: 12px; width: 100%; max-width: 560px; box-shadow: 0 12px 40px rgba(0, 0, 0, .3); }
+  .dt-head { position: sticky; top: 0; display: flex; justify-content: space-between; align-items: center; padding: 10px 14px; background: var(--navy); color: #fff; border-radius: 12px 12px 0 0; font-weight: 600; }
+  .dt-head button { background: transparent; color: #fff; border: 0; font-size: 16px; }
+  #dt-body { padding: 12px 14px 16px; }
+  #dt-body h4 { margin: 14px 0 6px; font-size: 13px; }
+  .dt-top { display: flex; gap: 12px; align-items: center; }
+  .dt-icon svg { width: 96px; height: 70px; }
+  .pl-chip.big { font-size: 16px; padding: 10px 14px; }
+  .dt-desc { margin: 0; font-size: 13px; line-height: 1.5; }
+  .dt-sub, .dt-hint { font-size: 11px; color: #6a7385; }
+  .dt-note { font-size: 12px; color: #3c4456; background: #f3f6ff; border-radius: 8px; padding: 8px 10px; line-height: 1.5; }
+  .dt-params { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 8px; font-size: 12px; }
+  .dt-params input { width: 64px; }
+  .dt-io { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+  .dt-lab { font-size: 11px; color: #6a7385; margin-bottom: 4px; }
+  .dt-ins, .dt-outs { display: flex; flex-wrap: wrap; gap: 6px; }
+  .dt-bit, .dt-val { display: flex; flex-direction: column; align-items: center; min-width: 58px; padding: 6px 8px; border-radius: 8px; border: 1px solid #c9cfdb; font-size: 11px; }
+  .dt-bit { cursor: pointer; }
+  .dt-bit b, .dt-val b { font-size: 20px; line-height: 1.1; }
+  .dt-bit.v1, .dt-val.v1 { background: #00b4ff; color: #fff; border-color: #0078b0; }
+  .dt-bit.v0, .dt-val.v0 { background: #eef1f6; color: #3c4456; }
+  .dt-arrow { font-size: 22px; color: #8a93a8; }
+  .dt-why { margin: 0; padding-left: 18px; font-size: 12px; line-height: 1.7; }
+  .dt-why .bad { color: #c2453f; }
+  .dt-chart { width: 100%; margin-top: 8px; background: #fafbfd; border: 1px solid #e3e7ef; border-radius: 8px; }
+  .dt-chart .ch-l { font: 9px sans-serif; fill: #555e6e; }
+  .dt-chart .ch-w { fill: none; stroke: #59616f; stroke-width: 1.6; }
+  .dt-chart .ch-w.out { stroke: #0078b0; stroke-width: 2.2; }
+  .dt-chart .ch-t { stroke: #d5dae4; stroke-dasharray: 2 2; }
+  .dt-acts { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 14px; }
+  .dt-acts button { padding: 7px 12px; }
+  .dt-acts button.pri { background: var(--blue); color: #fff; border-color: var(--blue); }
+  .dt-mthumb .mt-svg { width: 100%; height: auto; max-height: 260px; }
+  .dt-pinwrap { display: flex; gap: 12px; flex-wrap: wrap; }
+  .dt-pins { font-size: 11px; border-collapse: collapse; }
+  .dt-pins th, .dt-pins td { border-bottom: 1px solid #eef1f6; padding: 2px 8px 2px 0; text-align: left; }
+  .dt-who { display: flex; gap: 6px; align-items: center; font-size: 12px; margin-top: 8px; }
+</style>
+</head>
+<body>
+<header class="pl-head">
+  <h1>기호 · 매크로</h1>
+  <div id="tgt" class="pl-tgt none">그림 창을 찾는 중 …</div>
+  <input id="q" class="pl-q" placeholder="찾기 — AND · 타이머 · DI · ∑ · MOV · SOV …" autocomplete="off">
+  <label id="conn" class="pl-conn off" title="그림 창에서 기호 하나를 고른 채로 누르면 그 기호 출력 옆(같은 행 오른쪽)에 놓고 선으로 잇습니다 — 기호 옆 ＋ 와 같습니다">
+    <input type="checkbox" id="c-conn" checked> <span id="conn-t">고른 기호 뒤에 이어 놓기 — 그림 창에서 기호를 고르면 켜집니다</span></label>
+</header>
+<div id="placing" class="pl-place" hidden><span id="placing-t"></span><button type="button" id="placing-x">그만</button></div>
+<p class="pl-hint">누르면 → 그림 창에서 <b>놓을 자리</b>를 누르세요 · 그림 창으로 <b>끌어 놓아도</b> 됩니다.  <b>두 번 누르면 상세</b> — 기호는 설명 · 입력을 넣어 출력과 과정 보기, 매크로는 단자 · 내부 동작 열기 · 고치기.</p>
+<section class="pl-sec" id="s-rec" hidden><h2>최근 쓴 것 <span class="n"></span></h2><div class="pl-grid"></div></section>
+<section class="pl-sec" id="s-sym"><h2>기호 <span class="n"></span></h2><div class="pl-grid"></div></section>
+<section class="pl-sec" id="s-pre"><h2>글자 상자 — 뜻은 글자가 정합니다 <span class="n"></span></h2><div class="pl-grid"></div></section>
+<section class="pl-sec" id="s-mac"><h2>매크로 · Typical <span class="n"></span></h2><div class="pl-groups"></div></section>
+<p class="pl-foot">이 창은 그림 창 옆에 두고 쓰세요 — 닫으면 그림 창의 '기호 · 매크로 창' 단추로 다시 엽니다.</p>
+<script src="/static/logic_draw_palette.js"></script>
+</body>
+</html>

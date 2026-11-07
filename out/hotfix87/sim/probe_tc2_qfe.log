@@ -1,0 +1,4 @@
+== TC2
+{"legend_page": {"pages": [4, 2], "found": {"LINE VALVES": 2, "VALVES ACTUATORS": 4, "ELECTRIC SIGNAL": 4}}, "bubbles": {"examples": [{"page_no": 22, "rect": [575.8, 282.3, 615.9, 297.6], "click": [595.9, 287.8]}], "covered": 179, "total": 197, "shapes": 1, "pages": [22, 10, 51, 52]}, "notes": {"page_no": 22, "rect": [963.8, 26.7, 1162.4, 816.4], "pages_with_heading": 38, "click": [998.5, 35.3]}, "secs": [3.4, 24.4]}
+== QFE
+{"legend_page": {"pages": [3, 2], "found": {"LINE VALVES": 2, "VALVES ACTUATORS": 3, "ELECTRIC SIGNAL": 3}}, "bubbles": {"examples": [{"page_no": 15, "rect": [325.3, 64.7, 402.1, 93.3], "click": [363.7, 72.6]}], "covered": 217, "total": 255, "shapes": 1, "pages": [15, 59, 60, 32]}, "notes": {"page_no": 10, "rect": [2061.8, 57.8, 2332.3, 1635.4], "pages_with_heading": 47, "click": [2084.3, 66.7]}, "secs": [6.3, 15.8]}

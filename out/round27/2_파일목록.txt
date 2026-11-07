@@ -1,0 +1,101 @@
+﻿회사 PC 업데이트 꾸러미 r27 — 파일 목록
+==============================================================================
+
+기준: 회사 PC 현재 커밋 aac64ba  ->  이번 꾸러미 (27회차)
+10 ~ 27 회차 누적입니다. r25·r26 을 넣으셨어도 이것으로 덮어쓰면 됩니다.
+
+[A] 새로 생기는 파일 58개   [M] 덮어쓸 파일 22개
+[D] 수동 삭제할 파일 0개   [R] 이름이 바뀐 파일 0개
+
+app\_data\ (app.db · uploads) 는 들어 있지 않습니다.
+
+── [M] 덮어쓸 파일 ──
+    CLAUDE.md
+    README.md
+    app\db.py
+    app\engine\derive_layout.py
+    app\engine\describe_axis.py
+    app\engine\detect_symbols.py
+    app\engine\detect_valves.py
+    app\engine\extract_titleblocks.py
+    app\engine\pipe_graph.py
+    app\engine\projectconfig.py
+    app\excel_out.py
+    app\main.py
+    app\pipeline.py
+    app\revisions.py
+    app\static\app.js
+    app\static\index.html
+    app\static\styles.css
+    config\project_alnouf1.yaml
+    spike\accuracy.py
+    tests\test_describe_axis.py
+    tests\test_determinism.py
+    tests\test_ui_edits.py
+
+── [A] 새로 생기는 파일 ──
+    app\global_symbols.py
+    app\legend_profile.py
+    conftest.py
+    docs\new_form_checklist.md
+    docs\round10_feedback.md
+    docs\round11_scope_axis.md
+    docs\round12_annotation_design.md
+    docs\round12_ui.md
+    docs\round13_persistence.md
+    docs\round14_edit_scope.md
+    docs\round15_legend_profile.md
+    docs\round16_scope.md
+    docs\round17_delete.md
+    docs\round17_test_isolation.md
+    docs\round18_description.md
+    docs\round18_global_symbols.md
+    docs\round22_config_isolation.md
+    docs\tc2_assessment.md
+    spike\analyse_one.py
+    spike\baselines_3p.json
+    spike\build_ui_db.py
+    spike\constant_survey.py
+    spike\hist_cols_probe.py
+    spike\hist_gaps.py
+    spike\hist_measure.py
+    spike\hist_rows_probe.py
+    spike\hist_shape_probe.py
+    spike\hist_verify.py
+    spike\identification.py
+    spike\legend_star.py
+    spike\mark_probe.py
+    spike\mark_shape.py
+    spike\note_vocab_delta.py
+    spike\pack_handover_r24.py
+    spike\pack_handover_r25.py
+    spike\pack_handover_r26.py
+    spike\pack_handover_r27.py
+    spike\pack_round23.py
+    spike\projects_3p.json
+    spike\regression_3p.py
+    spike\star_gate_probe.py
+    spike\star_recall.py
+    spike\unit_notes.py
+    spike\verify_r24.py
+    spike\verify_r25.py
+    spike\verify_r26.py
+    spike\verify_r27.py
+    tests\test_config_isolation.py
+    tests\test_data_isolation.py
+    tests\test_failure_stage.py
+    tests\test_global_symbols.py
+    tests\test_legend_profile.py
+    tests\test_revision_carry.py
+    tests\test_scope_and_type.py
+    tests\test_star_marks.py
+    tests\test_titleblock_frame.py
+    tests\test_unit_notes.py
+    tests\test_vendor_mark_audit.py
+
+── 이번 회차(27)에 실제로 바뀐 것 ──
+    app\engine\projectconfig.py   그 장 NOTES 의 '유닛 몇 개' 를 읽습니다
+    app\pipeline.py               범례가 답하지 못할 때 그 값을 수량에 씁니다
+    config\project_alnouf1.yaml   qty_note (노트를 읽는 낱말) · 검토 사유 한 줄
+    app\main.py                   검토 사유 설명 한 줄
+    tests\test_unit_notes.py      새 시험 18건

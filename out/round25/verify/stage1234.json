@@ -1,0 +1,43 @@
+{
+  "worktree_base": "aac64ba",
+  "job": "c71275d1b43a",
+  "rows_old": 824,
+  "seconds": 466.3,
+  "edits": [
+    {
+      "key": "0496c0be022bd8d2",
+      "value": "검증 편집 1",
+      "ok": true
+    },
+    {
+      "key": "0e96b25afd3ef9aa",
+      "value": "검증 편집 2",
+      "ok": true
+    },
+    {
+      "key": "311eac50402e48c3",
+      "value": "검증 편집 3",
+      "ok": true
+    },
+    {
+      "key": "44d2e50a7e81229c",
+      "value": "검증 편집 4",
+      "ok": true
+    },
+    {
+      "key": "4fead343f102b4dd",
+      "value": "검증 편집 5",
+      "ok": true
+    }
+  ],
+  "realdb_sha_before": "643748dc0efe16816cb1b723941cb0fc6af1de9e183c15eab6d5dba726ecd40a",
+  "backup": [
+    "app.db",
+    "app.db-shm",
+    "app.db-wal"
+  ],
+  "scope_counts": {
+    "(빈칸)": 822,
+    "SCT": 2
+  }
+}

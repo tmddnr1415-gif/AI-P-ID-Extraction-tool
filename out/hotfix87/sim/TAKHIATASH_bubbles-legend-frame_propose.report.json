@@ -1,0 +1,45 @@
+{
+ "project": "TAKHIATASH",
+ "blind": "bubbles,legend,frame",
+ "secs": 112,
+ "taught": {
+  "applied": [
+   "notes",
+   "legend_page",
+   "bubbles"
+  ],
+  "skipped": [],
+  "who": "sim",
+  "bubble_templates": 1
+ },
+ "busiest_page": 21,
+ "bubble_shapes_on_page": {},
+ "examples": 1,
+ "legend_taught": [],
+ "legend_page": [
+  2
+ ],
+ "clicks": 1,
+ "notes_taught": true,
+ "drawing_taught": false,
+ "base_rows": 1105,
+ "taught_rows": 1105,
+ "same": 1105,
+ "recall": 100.0,
+ "precision": 100.0,
+ "only_base": 0,
+ "only_taught": 0,
+ "scope_diff": 0,
+ "qty_diff": 0,
+ "description_diff": 25,
+ "line_no_diff": 0,
+ "qty_sum_base": 1461,
+ "qty_sum_taught": 1461,
+ "same_fingerprint": false,
+ "only_base_types": [],
+ "only_taught_types": [],
+ "only_base_pages": [],
+ "only_taught_pages": [],
+ "only_base_sample": [],
+ "only_taught_sample": []
+}

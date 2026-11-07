@@ -1,0 +1,22 @@
+{
+ "wide": {
+  "rows": 2092,
+  "grid_h": 195,
+  "stage_w": 957,
+  "stage_h": 801,
+  "sidebar": false,
+  "hscroll": false,
+  "side_on": true,
+  "errors": []
+ },
+ "narrow": {
+  "rows": 2092,
+  "grid_h": 160,
+  "stage_w": 680,
+  "stage_h": 419,
+  "sidebar": false,
+  "hscroll": true,
+  "side_on": true,
+  "errors": []
+ }
+}

@@ -1,0 +1,141 @@
+{
+ "label": "after_warm",
+ "open_ms": 1326,
+ "side_on_ms": 177,
+ "side_on_requests": 3,
+ "side_on_bytes": 1710999,
+ "side_on_urls": [
+  "/jobs/2098450b4603/pages",
+  "/jobs/2098450b4603/anchors",
+  "/jobs/2098450b4603/page/40.png?zoom=1.6"
+ ],
+ "side_page": 41,
+ "page_switch_ms": [
+  88,
+  89,
+  98
+ ],
+ "scroll": {
+  "total_ms": 647,
+  "worst_frame_ms": 20,
+  "synced": true,
+  "left": [
+   1000,
+   480
+  ],
+  "right": [
+   1000,
+   480
+  ],
+  "synced_after": true
+ },
+ "side_reon_ms": 178,
+ "side_reon_requests": 0,
+ "switch_prev_ms": 5235,
+ "switch_prev_requests": [
+  [
+   "/jobs/2098450b4603",
+   155036,
+   -1
+  ],
+  [
+   "/jobs/2098450b4603/pages",
+   808130,
+   -1
+  ],
+  [
+   "/static/favicon.svg",
+   729,
+   -1
+  ],
+  [
+   "/jobs/2098450b4603/legend_profile",
+   8791,
+   -1
+  ],
+  [
+   "/jobs/2098450b4603/mode",
+   449,
+   -1
+  ],
+  [
+   "/jobs/2098450b4603/revision",
+   353,
+   -1
+  ],
+  [
+   "/jobs/2098450b4603/rows?tab=ALL",
+   13640657,
+   -1
+  ],
+  [
+   "/jobs/2098450b4603/markup",
+   2729,
+   -1
+  ],
+  [
+   "/jobs/2098450b4603/axis_overrides",
+   2,
+   -4
+  ],
+  [
+   "/jobs/2098450b4603/drawings",
+   9995,
+   -1
+  ],
+  [
+   "/jobs/2098450b4603/review",
+   52288,
+   -1
+  ],
+  [
+   "/jobs/2098450b4603/feedback?limit=1",
+   24,
+   -1
+  ],
+  [
+   "/jobs/2098450b4603/reports",
+   143,
+   -1
+  ],
+  [
+   "/jobs/2098450b4603/unjudged",
+   43876,
+   -1
+  ],
+  [
+   "/templates",
+   67,
+   -1
+  ],
+  [
+   "/jobs/2098450b4603/page/6.png?zoom=1.6",
+   820115,
+   -1
+  ],
+  [
+   "/jobs/2098450b4603/multipliers",
+   1118,
+   -1
+  ],
+  [
+   "/jobs/2098450b4603/sheet_numbers",
+   1018,
+   -1
+  ],
+  [
+   "/jobs/2098450b4603/notes/6",
+   153,
+   -1
+  ],
+  [
+   "/jobs/2098450b4603/notes/44",
+   192,
+   -1
+  ]
+ ],
+ "switch_prev_js_ms": 3161,
+ "switch_back_ms": 2326,
+ "js_heap_mb": 57,
+ "page_errors": []
+}

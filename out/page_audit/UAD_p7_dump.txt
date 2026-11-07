@@ -1,0 +1,12 @@
+page 7 kind=PID dwg=1A5J-00EKG00-M05-0002 rev=None size=Rect(0.0, 0.0, 1191.0, 842.0) rot=270 rows=9
+  FIELD     PIT    q=1 scope=SCT                          tag=00EKG30CP001A rect=[489, 169, 500, 203] desc='FUEL GAS WATER BATH HEATER A OUTLET PRES' rev="unit code '00' 의 승수 x1 는 이 도면의"
+  FIELD     PIT    q=1 scope=SCT                          tag=00EKG30CP001B rect=[506, 169, 517, 203] desc='FUEL GAS WATER BATH HEATER A OUTLET PRES' rev="unit code '00' 의 승수 x1 는 이 도면의"
+  FIELD     PIT    q=1 scope=SCT                          tag=00EKG40CP001A rect=[801, 169, 812, 203] desc='FUEL GAS PRESSURE OR VACUUM A' rev="unit code '00' 의 승수 x1 는 이 도면의"
+  FIELD     PIT    q=1 scope=SCT                          tag=00EKG40CP001B rect=[819, 169, 830, 203] desc='FUEL GAS PRESSURE OR VACUUM B' rev="unit code '00' 의 승수 x1 는 이 도면의"
+  FIELD     PIT    q=1 scope=SCT                          tag=00EKG40CP001C rect=[838, 169, 849, 203] desc='FUEL GAS PRESSURE OR VACUUM C' rev="unit code '00' 의 승수 x1 는 이 도면의"
+  PNEUMATIC GATE   q=1 scope=SCT                          tag= rect=[608, 177, 617, 182] desc='FROM METERING SYSTEM 00EKG20 BR601 GATE ' rev="unit code '00' 의 승수 x1 는 이 도면의"
+  PNEUMATIC GATE   q=1 scope=SCT                          tag= rect=[626, 177, 635, 182] desc='FROM METERING SYSTEM 00EKG20 BR601 GATE ' rev="unit code '00' 의 승수 x1 는 이 도면의"
+  FIELD     TIT    q=1 scope=SCT                          tag=00EKG30CT001 rect=[541, 185, 552, 219] desc='METERING SYSTEM 00EKG20 BR601 DISCHARGE ' rev="unit code '00' 의 승수 x1 는 이 도면의"
+  FIELD     TIT    q=1 scope=SCT                          tag=00EKG40CT001 rect=[740, 185, 751, 219] desc='METERING SYSTEM 00EKG20 BR601 DISCHARGE ' rev="unit code '00' 의 승수 x1 는 이 도면의"
+㉡ 후보(행에 안 덮인 ISA 꼴 낱말): [(41, 684, 'PDC'), (240, 745, 'AMB'), (286, 684, 'PMC'), (338, 124, 'SUPPLIER'), (360, 100, 'SCT'), (497, 126, 'PICA+'), (506, 743, 'SYSTEM'), (508, 436, 'SYSTEM'), (508, 504, 'SYSTEM'), (508, 576, 'SYSTEM'), (508, 654, 'SYSTEM'), (540, 133, 'TIA+,-'), (586, 424, 'SCT'), (586, 492, 'SCT'), (586, 564, 'SCT'), (586, 643, 'SCT'), (589, 731, 'SCT'), (610, 622, 'SUPPLIER'), (611, 402, 'SUPPLIER'), (611, 470, 'SUPPLIER'), (611, 542, 'SUPPLIER'), (613, 709, 'SUPPLIER'), (662, 109, 'SUPPLIER'), (684, 85, 'SCT'), (739, 131, 'TIA+,-,--'), (765, 347, 'SUPPLIER'), (790, 368, 'SCT'), (818, 126, 'PIA-,+')] 
+unjudged on page: [('VALVE_BODY', [261, 228, 269, 238], None), ('VALVE_BODY', [261, 160, 269, 171], None), ('VALVE_BODY', [261, 296, 269, 306], None)]

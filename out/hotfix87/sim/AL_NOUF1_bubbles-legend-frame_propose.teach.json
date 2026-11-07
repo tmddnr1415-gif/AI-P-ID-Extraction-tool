@@ -1,0 +1,106 @@
+{
+ "who": "sim",
+ "legend": {},
+ "bubbles": [
+  {
+   "page_no": 16,
+   "rect": [
+    727.9,
+    311.1,
+    798.9,
+    336.8
+   ],
+   "size": [
+    2384.0,
+    1684.0
+   ]
+  }
+ ],
+ "notes": {
+  "page_no": 16,
+  "rect": [
+   1969.5,
+   35.3,
+   2345.3,
+   1646.6
+  ],
+  "size": [
+   2384.0,
+   1684.0
+  ]
+ },
+ "drawing": null,
+ "legend_page": [
+  {
+   "page_no": 3,
+   "size": [
+    2384.0,
+    1684.0
+   ]
+  },
+  {
+   "page_no": 2,
+   "size": [
+    2384.0,
+    1684.0
+   ]
+  }
+ ],
+ "_busiest": 16,
+ "_shapes": {},
+ "_proposal": {
+  "legend_page": {
+   "pages": [
+    3,
+    2
+   ],
+   "found": {
+    "LINE VALVES": 2,
+    "VALVES ACTUATORS": 3,
+    "ELECTRIC SIGNAL": 3
+   }
+  },
+  "bubbles": {
+   "examples": [
+    {
+     "page_no": 16,
+     "rect": [
+      727.9,
+      311.1,
+      798.9,
+      336.8
+     ],
+     "click": [
+      764.0,
+      318.0
+     ]
+    }
+   ],
+   "covered": 188,
+   "total": 190,
+   "shapes": 1,
+   "pages": [
+    16,
+    52,
+    10,
+    11
+   ]
+  },
+  "notes": {
+   "page_no": 16,
+   "rect": [
+    1969.5,
+    35.3,
+    2345.3,
+    1646.6
+   ],
+   "pages_with_heading": 54,
+   "click": [
+    2053.9,
+    72.7
+   ]
+  },
+  "drawing": null
+ },
+ "_clicks": 1
+}

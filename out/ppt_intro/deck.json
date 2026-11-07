@@ -1,0 +1,55 @@
+{
+ "v": 4,
+ "createdOnFiles": {
+  "v": 1,
+  "at": "2026-10-10T04:03:50Z"
+ },
+ "lists": "css",
+ "title": "P&ID 추출 프로그램 기능 소개",
+ "order": [
+  "cover",
+  "overview",
+  "home",
+  "progress",
+  "result",
+  "evidence",
+  "listedit",
+  "drawedit",
+  "fullscreen",
+  "mult",
+  "markup",
+  "sidebyside",
+  "memo",
+  "review",
+  "output",
+  "dual",
+  "shortcuts",
+  "speed",
+  "closing"
+ ],
+ "sections": {
+  "s1": {
+   "description": "프로그램이 무엇을 하는지 한눈에",
+   "start": "cover"
+  },
+  "s2": {
+   "description": "첫 화면부터 결과 화면까지 기본 흐름",
+   "start": "home"
+  },
+  "s3": {
+   "description": "검토 · 편집 · 마크업 · 개정 대조 기능",
+   "start": "listedit"
+  },
+  "s4": {
+   "description": "출력 · 협업 · 속도와 검증 · 운영",
+   "start": "output"
+  }
+ },
+ "faces": {
+  "noto-sans-kr": {
+   "family": "Noto Sans KR",
+   "href": "https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;700&display=swap"
+  }
+ },
+ "designSystems": []
+}

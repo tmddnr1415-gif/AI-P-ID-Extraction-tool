@@ -1,0 +1,249 @@
+{
+ "원본 08b": {
+  "ok": true,
+  "rows": 80,
+  "fp": "a87db267",
+  "tabs": {
+   "FIELD": 61,
+   "MOV": 16,
+   "PNEUMATIC": 3
+  },
+  "pages": 6,
+  "s": 51.4
+ },
+ "v_cropbox": {
+  "ok": true,
+  "rows": 80,
+  "fp": "2c886c08",
+  "tabs": {
+   "FIELD": 61,
+   "MOV": 16,
+   "PNEUMATIC": 3
+  },
+  "pages": 6,
+  "s": 53.3,
+  "file": "v01_cropbox_inset.pdf",
+  "expect": "same",
+  "verdict": "OK"
+ },
+ "v_mediabox_origin": {
+  "ok": true,
+  "rows": 46,
+  "fp": "0fe9ab46",
+  "tabs": {
+   "FIELD": 38,
+   "MOV": 8
+  },
+  "pages": 6,
+  "s": 45.1,
+  "file": "v02_reflowed_xobject.pdf",
+  "expect": "run",
+  "verdict": "OK"
+ },
+ "v_owner_pw": {
+  "ok": true,
+  "rows": 80,
+  "fp": "a87db267",
+  "tabs": {
+   "FIELD": 61,
+   "MOV": 16,
+   "PNEUMATIC": 3
+  },
+  "pages": 6,
+  "s": 59.8,
+  "file": "v03_owner_password_only.pdf",
+  "expect": "same",
+  "verdict": "OK"
+ },
+ "v_incremental": {
+  "ok": true,
+  "rows": 80,
+  "fp": "a87db267",
+  "tabs": {
+   "FIELD": 61,
+   "MOV": 16,
+   "PNEUMATIC": 3
+  },
+  "pages": 6,
+  "s": 52.2,
+  "file": "v04_incremental.pdf",
+  "expect": "same",
+  "verdict": "OK"
+ },
+ "v_blank_cover": {
+  "ok": true,
+  "rows": 80,
+  "fp": "c4a69ff6",
+  "tabs": {
+   "FIELD": 61,
+   "MOV": 16,
+   "PNEUMATIC": 3
+  },
+  "pages": 7,
+  "s": 52.7,
+  "file": "v05_blank_cover.pdf",
+  "expect": "same",
+  "verdict": "OK"
+ },
+ "v_a4_cover": {
+  "ok": true,
+  "rows": 80,
+  "fp": "c4a69ff6",
+  "tabs": {
+   "FIELD": 61,
+   "MOV": 16,
+   "PNEUMATIC": 3
+  },
+  "pages": 7,
+  "s": 51.3,
+  "file": "v06_a4_cover.pdf",
+  "expect": "same",
+  "verdict": "OK"
+ },
+ "v_annots": {
+  "ok": true,
+  "rows": 80,
+  "fp": "a87db267",
+  "tabs": {
+   "FIELD": 61,
+   "MOV": 16,
+   "PNEUMATIC": 3
+  },
+  "pages": 6,
+  "s": 53.7,
+  "file": "v07_review_annotations.pdf",
+  "expect": "same",
+  "verdict": "OK"
+ },
+ "v_extra_rotation": {
+  "ok": true,
+  "rows": 34,
+  "fp": "b934e6f0",
+  "tabs": {
+   "FIELD": 23,
+   "MOV": 8,
+   "PNEUMATIC": 3
+  },
+  "pages": 6,
+  "s": 50.4,
+  "file": "v08_one_sheet_rotated.pdf",
+  "expect": "run",
+  "verdict": "OK"
+ },
+ "v_many_pages": {
+  "ok": true,
+  "rows": 1040,
+  "fp": "ede385d2",
+  "tabs": {
+   "FIELD": 793,
+   "MOV": 208,
+   "PNEUMATIC": 39
+  },
+  "pages": 30,
+  "s": 195.2,
+  "file": "v09_many_pages_30.pdf",
+  "expect": "run",
+  "verdict": "OK"
+ },
+ "v_trailing_garbage": {
+  "ok": true,
+  "rows": 80,
+  "fp": "a87db267",
+  "tabs": {
+   "FIELD": 61,
+   "MOV": 16,
+   "PNEUMATIC": 3
+  },
+  "pages": 6,
+  "s": 50.9,
+  "file": "v10_trailing_garbage.pdf",
+  "expect": "same",
+  "verdict": "OK"
+ },
+ "v_tiny_page": {
+  "ok": true,
+  "rows": 80,
+  "fp": "a87db267",
+  "tabs": {
+   "FIELD": 61,
+   "MOV": 16,
+   "PNEUMATIC": 3
+  },
+  "pages": 7,
+  "s": 49.7,
+  "file": "v11_tiny_last_page.pdf",
+  "expect": "same",
+  "verdict": "OK"
+ },
+ "v_huge_page": {
+  "ok": true,
+  "rows": 80,
+  "fp": "a87db267",
+  "tabs": {
+   "FIELD": 61,
+   "MOV": 16,
+   "PNEUMATIC": 3
+  },
+  "pages": 7,
+  "s": 54.4,
+  "file": "v12_huge_page.pdf",
+  "expect": "run",
+  "verdict": "OK"
+ },
+ "v_broken_xref": {
+  "ok": true,
+  "rows": 80,
+  "fp": "a87db267",
+  "tabs": {
+   "FIELD": 61,
+   "MOV": 16,
+   "PNEUMATIC": 3
+  },
+  "pages": 6,
+  "s": 52.3,
+  "file": "v13_broken_xref.pdf",
+  "expect": "same",
+  "verdict": "OK"
+ },
+ "v_page_labels": {
+  "ok": true,
+  "rows": 80,
+  "fp": "a87db267",
+  "tabs": {
+   "FIELD": 61,
+   "MOV": 16,
+   "PNEUMATIC": 3
+  },
+  "pages": 6,
+  "s": 52.2,
+  "file": "v14_page_labels.pdf",
+  "expect": "same",
+  "verdict": "OK"
+ },
+ "v_only_legend": {
+  "ok": true,
+  "rows": 0,
+  "fp": "06cb14a3",
+  "tabs": {},
+  "pages": 4,
+  "s": 39.5,
+  "file": "v15_only_legend.pdf",
+  "expect": "run",
+  "verdict": "OK"
+ },
+ "v_compressed_garbage": {
+  "ok": true,
+  "rows": 80,
+  "fp": "a87db267",
+  "tabs": {
+   "FIELD": 61,
+   "MOV": 16,
+   "PNEUMATIC": 3
+  },
+  "pages": 6,
+  "s": 50.4,
+  "file": "v16_garbage_collected.pdf",
+  "expect": "same",
+  "verdict": "OK"
+ }
+}

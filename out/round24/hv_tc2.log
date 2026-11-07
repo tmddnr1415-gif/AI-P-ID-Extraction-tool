@@ -1,0 +1,25 @@
+## TC2_260821.pdf (60쪽)
+### 유도 대 설정
+   hist_rule_y        유도 [599.7, 667.7]           설정 [1200.0, 1390.0]        
+   hist_rule_x0_max   유도 970.9                    설정 1975.0                  
+   hist_rule_x1_min   유도 1128.0                   설정 2320.0                  
+   hist_rev_col       유도 [965.0, 976.8]           설정 [1971.0, 1988.0]        
+   hist_date_col      유도 [979.2, 1005.1]          설정 [1992.0, 2070.0]        
+   hist_row_inset     유도 None                     설정 1.2                       ← 유도하지 않음
+   note: title block captions found: dwg_no, history, project_name, project_no, title
+   note: hist_row_inset is not derived: it is a render margin, not a drawn feature; the sheet states nothing about it
+### 설정값 그대로
+   글리프 사전 비어 있음
+   이력 행 수 분포 {0: 60}
+   REV 읽힌 장 0/60 — {'(없음)': 60}
+   방법 {'NONE': 60} · 신뢰도 {'NONE': 60}
+### 이력 칸만 유도값으로
+   글리프 사전 {'A': 60}
+   이력 행 수 분포 {7: 60}
+   REV 읽힌 장 0/60 — {'(없음)': 60}
+   방법 {'NONE': 60} · 신뢰도 {'NONE': 60}
+### 유도값 전체를 얹고 (낯선 양식 경로)
+   글리프 사전 {'A': 60}
+   이력 행 수 분포 {7: 60}
+   REV 읽힌 장 60/60 — {'A': 60}
+   방법 {'GLYPH': 60} · 신뢰도 {'HIGH': 60}

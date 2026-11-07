@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 180 160" width="180" height="160" role="img" aria-label="">
+  <g fill="none" stroke="#7a6a58" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+    <!-- body -->
+    <path d="M40 128 C28 116 32 94 52 88 C74 81 104 86 114 102 C123 117 116 135 96 140 C77 145 52 140 40 128 Z" fill="#fffdf6"/>
+    <path d="M114 104 l14 -8 -4 13"/>
+    <!-- neck -->
+    <path d="M54 90 C46 72 44 52 53 40"/>
+    <path d="M68 88 C61 70 60 52 67 40"/>
+    <!-- head -->
+    <ellipse cx="60" cy="34" rx="15" ry="13" fill="#fffdf6"/>
+    <path d="M46 34 l-14 4 14 5 z" fill="#e2a45c" stroke="#a8763c"/>
+    <circle cx="58" cy="30" r="2" fill="#4a3f33" stroke="none"/>
+    <!-- cap -->
+    <path d="M45 25 C48 14 72 12 75 23 L44 27 z" fill="#8fa87c" stroke="#5f7250"/>
+    <path d="M44 26 l-11 3" stroke="#5f7250"/>
+    <!-- legs -->
+    <path d="M66 140 l-2 13 M60 153 h12"/>
+    <path d="M88 140 l2 13 M84 153 h12"/>
+    <!-- wing -->
+    <path d="M70 106 C80 99 97 101 103 111"/>
+    <!-- signboard -->
+    <path d="M120 96 L120 140" stroke="#a8763c" stroke-width="4"/>
+    <rect x="98" y="58" width="72" height="40" rx="5" fill="#fbf6e9" stroke="#a8763c"/>
+    <text x="134" y="76" font-family="Georgia, 'Times New Roman', serif" font-size="15" font-weight="700"
+          fill="#7f9268" text-anchor="middle" stroke="none">GOOD</text>
+    <text x="134" y="91" font-family="Georgia, 'Times New Roman', serif" font-size="15" font-weight="700"
+          fill="#7f9268" text-anchor="middle" stroke="none">JOB!</text>
+  </g>
+</svg>

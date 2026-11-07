@@ -1,0 +1,99 @@
+{
+ "A": {
+  "datasheets": 164,
+  "forms": {
+   "on/off": 140,
+   "102": 24
+  },
+  "status": {
+   "ok": 9226,
+   "placeholder": 4162,
+   "blank": 4082,
+   "review": 1
+  },
+  "no_notes": 0,
+  "raw": 1,
+  "unknown_labels": 1920,
+  "suspicious": {}
+ },
+ "thresholds": {
+  "double_rule_gap": {
+   "value": 9.0,
+   "gaps_up_to": 7,
+   "cells_from": 21,
+   "empty_band": true
+  }
+ },
+ "fingerprint": "541753c612ed",
+ "cells": 17471,
+ "B_comparable": {
+  "n": 4278,
+  "agree": 3975,
+  "misread": 0
+ },
+ "B": {
+  "same": 231,
+  "soft": 1110,
+  "different": 303,
+  "tbe_vta": 479,
+  "exact": 3744
+ },
+ "C": {
+  "Pressure Class|Compliant": 151,
+  "NACE|Compliant": 141,
+  "Trim (Ball) Material|Compliant": 151,
+  "Stem Material|Compliant": 151,
+  "Body Material|Compliant": 142,
+  "Seat Material|Compliant": 144,
+  "Fire Safe|Review Required": 10,
+  "Piping Material Class|Review Required": 8,
+  "Bore|Review Required": 28,
+  "Piping Material Class|Not Defined in PMS": 13,
+  "Ball Valve Item|Not Defined in PMS": 7,
+  "Body Material|Review Required": 2
+ },
+ "D": {
+  "Open Item|Major": 84,
+  "Data Missing|Major": 2529,
+  "Data Error|Major": 6,
+  "PMS Review|Minor": 68,
+  "Extraction Review|Internal": 1
+ },
+ "F": {
+  "MR-07|Note": 153,
+  "MR-09|Note": 144,
+  "MR-11|Confirm": 10,
+  "VR-08|Note": 41,
+  "VR-09|Confirm": 20,
+  "MR-15|Note": 25,
+  "MR-11|Note": 143,
+  "VR-06|Note": 4,
+  "VR-07|Confirm": 4,
+  "VR-10|Note": 68,
+  "VR-10|Confirm": 33,
+  "MR-06|Confirm": 4,
+  "MR-08|Confirm": 5,
+  "AC-05|Confirm": 48,
+  "MR-06|Note": 5,
+  "VR-11|Confirm": 4,
+  "MR-02|Confirm": 7,
+  "MR-12|Note": 12,
+  "PC-01|Confirm": 6,
+  "VR-12|Confirm": 1,
+  "AC-03|Note": 49,
+  "MR-14|Confirm": 3,
+  "VR-02|Action": 3,
+  "MR-03|Action": 4,
+  "MR-01|Action": 1,
+  "MR-08|Note": 4
+ },
+ "E": {
+  "extract_s": 12.23,
+  "extract_ms_per_page": 26.8,
+  "pms_read_s": 1.82,
+  "issues_ms_per_ds": 1.1,
+  "issue_xlsx_s": 1.38,
+  "markup_s_per_ds": 0.078,
+  "markup_kb_per_ds": 23.6
+ }
+}

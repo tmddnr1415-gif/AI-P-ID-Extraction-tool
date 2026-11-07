@@ -1,0 +1,10 @@
+① 전체화면 → 도면 창 [1920, 1080] (화면 1920×1080)
+② 상자 누름 → 편집 카드 보임 True · 'TIT 00EKG01CT001'
+③ 카드에서 Q'ty 1→7 · Line No. '00EKG01'→99TEST01 → 목록 칸 Q'ty '7' (✎ True) · 목록 칸 Line No. '99TEST01' · 행 user {'qty': 7, 'line_no': '99TEST01'} · 도면 라벨 'Q'ty 7 — 사람이 고침 (도면 근거는 1)
+근거: 1 symbol x 1 (unit code 00, CONFIG_FALLBACK)
+누르면 승수를 고칩니다 — 이 태그만 · 이 페이지 전체 · Shift 로 묶은 범위x7 ✎'
+   서버 user = {'line_no': '99TEST01', 'qty': 7}
+④ ▶ → 다음 항목으로 (선택 True)
+⑤ Esc 두 번 → 전체화면 False · 목록 그 행 [Q'ty, Line No.] = ['7', '99TEST01'] · 목록이 보이니 편집 카드 False
+⑥ 목록을 끝까지 접음 → 편집 카드 True
+페이지 오류 0 []

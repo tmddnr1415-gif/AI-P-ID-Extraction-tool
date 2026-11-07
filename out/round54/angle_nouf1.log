@@ -1,0 +1,5 @@
+data/pid_total.pdf {'figures': 13, 'with_check': 9, 'no_check': 4}
+   p2   [899.5, 1473.2, 914.3, 1488.0] other bodies inside=[]
+   p2   [899.5, 630.7, 914.3, 645.6] other bodies inside=[]
+   p20  [843.4, 363.3, 858.2, 378.2] other bodies inside=[]
+   p21  [1048.2, 1255.1, 1063.1, 1269.9] other bodies inside=[]

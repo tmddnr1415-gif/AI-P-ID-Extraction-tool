@@ -1,0 +1,49 @@
+{
+ "project": "AL NOUF1",
+ "blind": "bubbles,legend,frame",
+ "secs": 448,
+ "taught": {
+  "applied": [
+   "drawing",
+   "notes",
+   "legend:LINE VALVES",
+   "legend:VALVES ACTUATORS",
+   "legend:ELECTRIC SIGNAL",
+   "bubbles"
+  ],
+  "skipped": [],
+  "who": "sim",
+  "bubble_templates": 4
+ },
+ "busiest_page": 16,
+ "bubble_shapes_on_page": {
+  "68x23": 48,
+  "50x17": 13,
+  "6x3": 4,
+  "6x17": 3,
+  "10x5": 2,
+  "15x45": 2
+ },
+ "examples": 4,
+ "legend_taught": [
+  "ELECTRIC SIGNAL",
+  "LINE VALVES",
+  "VALVES ACTUATORS"
+ ],
+ "base_rows": 1065,
+ "taught_rows": 1065,
+ "same": 1065,
+ "recall": 100.0,
+ "precision": 100.0,
+ "only_base": 0,
+ "only_taught": 0,
+ "scope_diff": 0,
+ "qty_diff": 0,
+ "same_fingerprint": true,
+ "only_base_types": [],
+ "only_taught_types": [],
+ "only_base_sample": [],
+ "only_taught_sample": [],
+ "only_base_pages": [],
+ "only_taught_pages": []
+}

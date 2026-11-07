@@ -1,0 +1,41 @@
+{
+ "rounds": [
+  {
+   "page": 15,
+   "cold_popup_ms": 92,
+   "cold_filled_ms": 3557,
+   "version_during_prewarm_ms": 302,
+   "warm_popup_ms": 33,
+   "warm_filled_ms": 80,
+   "propose_requests_ms": [
+    4235,
+    3514,
+    51
+   ],
+   "errors": []
+  },
+  {
+   "page": 15,
+   "cold_popup_ms": 67,
+   "cold_filled_ms": 2248,
+   "version_during_prewarm_ms": 552,
+   "warm_popup_ms": 28,
+   "warm_filled_ms": 83,
+   "propose_requests_ms": [
+    3170,
+    2220,
+    49
+   ],
+   "errors": []
+  }
+ ],
+ "job": "uidbdf07a7d2902c",
+ "root": "/home/user/AI-P-ID-Extraction-tool",
+ "median": {
+  "cold_popup_ms": 79.5,
+  "cold_filled_ms": 2902.5,
+  "version_during_prewarm_ms": 427.0,
+  "warm_popup_ms": 30.5,
+  "warm_filled_ms": 81.5
+ }
+}

@@ -1,0 +1,13 @@
+{
+ "project": "SADARA",
+ "pages": 8,
+ "seconds_per_page": {
+  "n": 9,
+  "max": 3.91,
+  "total": 18.7
+ },
+ "verdicts": {
+  "OK": 10
+ },
+ "contested_pages": []
+}

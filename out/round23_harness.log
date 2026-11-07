@@ -1,0 +1,21 @@
+· AL NOUF1 분석 …
+   행 1037 · 지문 fb85b039f1fd7d38eca16d64d4a1442fecd0daa45b3d6ba9d960173de587e592 · 축3 88.8점
+· SADARA 분석 …
+   행 82 · 지문 0767ba79d16ac89f65c7aecb9174754967613b96c746f106584125c1c75b81b1 · 축3 68.2점
+· TC2 분석 …
+   행 607 · 지문 c46b10fae42f288e14c02c06c69f3fc87f96d88e93785af87fa9e899bbfc037d · 축3 60.8점
+
+Traceback (most recent call last):
+  File "/home/user/AI-P-ID-Extraction-tool/spike/regression_3p.py", line 199, in <module>
+    raise SystemExit(main())
+                     ^^^^^^
+  File "/home/user/AI-P-ID-Extraction-tool/spike/regression_3p.py", line 172, in main
+    print(table(res))
+          ^^^^^^^^^^
+  File "/home/user/AI-P-ID-Extraction-tool/spike/regression_3p.py", line 140, in table
+    head = "%-*s " % (w, "") + " ".join("%>10s" % m for m in identification.METRICS)
+                               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/user/AI-P-ID-Extraction-tool/spike/regression_3p.py", line 140, in <genexpr>
+    head = "%-*s " % (w, "") + " ".join("%>10s" % m for m in identification.METRICS)
+                                        ~~~~~~~~^~~
+ValueError: unsupported format character '>' (0x3e) at index 1

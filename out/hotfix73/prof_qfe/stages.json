@@ -1,0 +1,765 @@
+{
+ "total_s": 1171.9,
+ "by_stage": {
+  "layout": 297.22,
+  "instruments": 248.39,
+  "valves.actuators": 173.39,
+  "describe_axis": 150.17,
+  "pipe_graph": 82.69,
+  "valves.tags": 42.15,
+  "valves.bodies": 35.41,
+  "candidates": 34.21,
+  "legend_rules": 27.7,
+  "equipment": 26.14,
+  "titleblocks": 20.15,
+  "annotations": 18.18,
+  "titleblock_glyphs": 9.67,
+  "open_pdf": 6.09,
+  "description": 0.26,
+  "unit_multipliers": 0.1,
+  "valves.glyph_library": 0.0
+ },
+ "by_page": {
+  "1": {
+   "valves.bodies": 0.11,
+   "valves.actuators": 0.18,
+   "valves.tags": 0.05
+  },
+  "2": {
+   "valves.bodies": 1.31,
+   "valves.actuators": 9.31,
+   "valves.tags": 0.47
+  },
+  "3": {
+   "valves.bodies": 2.6,
+   "valves.actuators": 3.11,
+   "valves.tags": 1.08
+  },
+  "4": {
+   "valves.bodies": 2.37,
+   "valves.actuators": 3.73,
+   "valves.tags": 0.61
+  },
+  "5": {
+   "valves.bodies": 1.42,
+   "valves.actuators": 3.23,
+   "valves.tags": 0.63
+  },
+  "6": {
+   "valves.bodies": 0.2,
+   "valves.actuators": 0.4,
+   "valves.tags": 0.28,
+   "instruments": 0.29,
+   "annotations": 0.02,
+   "pipe_graph": 0.51
+  },
+  "7": {
+   "valves.bodies": 0.11,
+   "valves.actuators": 0.53,
+   "valves.tags": 0.1,
+   "instruments": 0.33,
+   "annotations": 0.02,
+   "pipe_graph": 0.33
+  },
+  "8": {
+   "valves.bodies": 0.07,
+   "valves.actuators": 0.93,
+   "valves.tags": 0.13,
+   "instruments": 0.18,
+   "annotations": 0.03,
+   "pipe_graph": 0.27
+  },
+  "9": {
+   "valves.bodies": 0.11,
+   "valves.actuators": 0.56,
+   "valves.tags": 0.29,
+   "instruments": 0.19,
+   "annotations": 0.03,
+   "pipe_graph": 0.33
+  },
+  "10": {
+   "valves.bodies": 0.14,
+   "valves.actuators": 0.59,
+   "valves.tags": 0.35,
+   "instruments": 0.41,
+   "annotations": 0.03,
+   "pipe_graph": 0.32
+  },
+  "11": {
+   "valves.bodies": 0.92,
+   "valves.actuators": 0.75,
+   "valves.tags": 0.57,
+   "instruments": 0.48,
+   "annotations": 0.04,
+   "pipe_graph": 1.21
+  },
+  "12": {
+   "valves.bodies": 0.42,
+   "valves.actuators": 0.45,
+   "valves.tags": 0.5,
+   "instruments": 0.51,
+   "annotations": 0.05,
+   "pipe_graph": 1.0
+  },
+  "13": {
+   "valves.bodies": 0.11,
+   "valves.actuators": 0.32,
+   "valves.tags": 0.12,
+   "instruments": 0.22,
+   "annotations": 0.03,
+   "pipe_graph": 0.4
+  },
+  "14": {
+   "valves.bodies": 0.14,
+   "valves.actuators": 0.32,
+   "valves.tags": 0.13,
+   "instruments": 0.18,
+   "annotations": 0.03
+  },
+  "15": {
+   "valves.bodies": 0.68,
+   "valves.actuators": 7.54,
+   "valves.tags": 0.38,
+   "instruments": 0.29,
+   "annotations": 0.03,
+   "pipe_graph": 1.24
+  },
+  "16": {
+   "valves.bodies": 0.15,
+   "valves.actuators": 1.56,
+   "valves.tags": 0.14,
+   "instruments": 0.49,
+   "annotations": 0.02,
+   "pipe_graph": 0.39
+  },
+  "17": {
+   "valves.bodies": 0.12,
+   "valves.actuators": 0.63,
+   "valves.tags": 0.13,
+   "instruments": 0.19,
+   "annotations": 0.02,
+   "pipe_graph": 0.43
+  },
+  "18": {
+   "valves.bodies": 0.15,
+   "valves.actuators": 0.55,
+   "valves.tags": 0.14,
+   "instruments": 0.12,
+   "annotations": 0.02
+  },
+  "19": {
+   "valves.bodies": 0.18,
+   "valves.actuators": 2.26,
+   "valves.tags": 0.14,
+   "instruments": 0.24,
+   "annotations": 0.02,
+   "pipe_graph": 0.29
+  },
+  "20": {
+   "valves.bodies": 0.23,
+   "valves.actuators": 0.34,
+   "valves.tags": 0.12
+  },
+  "21": {
+   "valves.bodies": 0.43,
+   "valves.actuators": 0.29,
+   "valves.tags": 0.09
+  },
+  "22": {
+   "valves.bodies": 0.07,
+   "valves.actuators": 0.3,
+   "valves.tags": 0.1,
+   "instruments": 0.11,
+   "annotations": 0.02
+  },
+  "23": {
+   "valves.bodies": 0.07,
+   "valves.actuators": 0.2,
+   "valves.tags": 0.08,
+   "instruments": 0.21,
+   "annotations": 0.03,
+   "pipe_graph": 0.29
+  },
+  "24": {
+   "valves.bodies": 0.67,
+   "valves.actuators": 4.99,
+   "valves.tags": 0.52,
+   "instruments": 0.41,
+   "annotations": 0.03,
+   "pipe_graph": 0.91
+  },
+  "25": {
+   "valves.bodies": 0.4,
+   "valves.actuators": 0.67,
+   "valves.tags": 0.12,
+   "instruments": 0.22,
+   "annotations": 0.07,
+   "pipe_graph": 0.39
+  },
+  "26": {
+   "valves.bodies": 0.54,
+   "valves.actuators": 4.03,
+   "valves.tags": 0.52,
+   "instruments": 0.34,
+   "annotations": 0.04,
+   "pipe_graph": 0.66
+  },
+  "27": {
+   "valves.bodies": 0.2,
+   "valves.actuators": 0.52,
+   "valves.tags": 0.1,
+   "instruments": 0.21,
+   "annotations": 0.02,
+   "pipe_graph": 0.33
+  },
+  "28": {
+   "valves.bodies": 0.26,
+   "valves.actuators": 1.73,
+   "valves.tags": 0.12,
+   "instruments": 0.26,
+   "annotations": 0.02,
+   "pipe_graph": 0.41
+  },
+  "29": {
+   "valves.bodies": 0.24,
+   "valves.actuators": 0.33,
+   "valves.tags": 0.12,
+   "instruments": 0.23,
+   "annotations": 0.03,
+   "pipe_graph": 0.44
+  },
+  "30": {
+   "valves.bodies": 0.33,
+   "valves.actuators": 1.68,
+   "valves.tags": 0.36,
+   "instruments": 0.4,
+   "annotations": 0.04,
+   "pipe_graph": 0.41
+  },
+  "31": {
+   "valves.bodies": 0.56,
+   "valves.actuators": 0.39,
+   "valves.tags": 0.18,
+   "instruments": 0.39,
+   "annotations": 0.02,
+   "pipe_graph": 0.67
+  },
+  "32": {
+   "valves.bodies": 0.73,
+   "valves.actuators": 1.36,
+   "valves.tags": 0.17,
+   "instruments": 0.48,
+   "annotations": 0.03,
+   "pipe_graph": 0.67
+  },
+  "33": {
+   "valves.bodies": 0.15,
+   "valves.actuators": 0.27,
+   "valves.tags": 0.12,
+   "instruments": 0.33,
+   "annotations": 0.02,
+   "pipe_graph": 0.41
+  },
+  "34": {
+   "valves.bodies": 0.5,
+   "valves.actuators": 0.41,
+   "valves.tags": 0.21,
+   "instruments": 0.47,
+   "annotations": 0.03,
+   "pipe_graph": 0.53
+  },
+  "35": {
+   "valves.bodies": 0.53,
+   "valves.actuators": 0.51,
+   "valves.tags": 0.16,
+   "instruments": 0.53,
+   "annotations": 0.04,
+   "pipe_graph": 0.6
+  },
+  "36": {
+   "valves.bodies": 0.19,
+   "valves.actuators": 0.29,
+   "valves.tags": 0.12,
+   "instruments": 0.28,
+   "annotations": 0.02,
+   "pipe_graph": 0.37
+  },
+  "37": {
+   "valves.bodies": 0.15,
+   "valves.actuators": 0.39,
+   "valves.tags": 0.38,
+   "instruments": 0.26,
+   "annotations": 0.02,
+   "pipe_graph": 0.46
+  },
+  "38": {
+   "valves.bodies": 0.13,
+   "valves.actuators": 0.25,
+   "valves.tags": 0.09,
+   "instruments": 0.24,
+   "annotations": 0.02,
+   "pipe_graph": 0.3
+  },
+  "39": {
+   "valves.bodies": 0.51,
+   "valves.actuators": 3.14,
+   "valves.tags": 0.47,
+   "instruments": 0.32,
+   "annotations": 0.02,
+   "pipe_graph": 0.65
+  },
+  "40": {
+   "valves.bodies": 0.4,
+   "valves.actuators": 2.47,
+   "valves.tags": 0.41,
+   "instruments": 0.31,
+   "annotations": 0.02,
+   "pipe_graph": 0.49
+  },
+  "41": {
+   "valves.bodies": 0.71,
+   "valves.actuators": 0.65,
+   "valves.tags": 0.42,
+   "instruments": 0.23,
+   "annotations": 0.03,
+   "pipe_graph": 0.55
+  },
+  "42": {
+   "valves.bodies": 1.17,
+   "valves.actuators": 2.05,
+   "valves.tags": 0.18,
+   "instruments": 0.31,
+   "annotations": 0.03,
+   "pipe_graph": 0.8
+  },
+  "43": {
+   "valves.bodies": 0.15,
+   "valves.actuators": 1.24,
+   "valves.tags": 0.31,
+   "instruments": 0.19,
+   "annotations": 0.02,
+   "pipe_graph": 0.37
+  },
+  "44": {
+   "valves.bodies": 0.19,
+   "valves.actuators": 1.44,
+   "valves.tags": 0.31,
+   "instruments": 0.24,
+   "annotations": 0.02,
+   "pipe_graph": 0.56
+  },
+  "45": {
+   "valves.bodies": 0.33,
+   "valves.actuators": 2.7,
+   "valves.tags": 0.44,
+   "instruments": 0.32,
+   "annotations": 0.02,
+   "pipe_graph": 0.54
+  },
+  "46": {
+   "valves.bodies": 0.24,
+   "valves.actuators": 1.51,
+   "valves.tags": 0.45,
+   "instruments": 0.25,
+   "annotations": 0.02,
+   "pipe_graph": 0.45
+  },
+  "47": {
+   "valves.bodies": 0.11,
+   "valves.actuators": 0.57,
+   "valves.tags": 0.28,
+   "instruments": 0.26,
+   "annotations": 0.03,
+   "pipe_graph": 0.34
+  },
+  "48": {
+   "valves.bodies": 0.35,
+   "valves.actuators": 2.02,
+   "valves.tags": 0.35,
+   "instruments": 0.24,
+   "annotations": 0.03,
+   "pipe_graph": 0.59
+  },
+  "49": {
+   "valves.bodies": 0.36,
+   "valves.actuators": 2.17,
+   "valves.tags": 0.49,
+   "instruments": 0.23,
+   "annotations": 0.02,
+   "pipe_graph": 0.84
+  },
+  "50": {
+   "valves.bodies": 0.3,
+   "valves.actuators": 2.3,
+   "valves.tags": 0.4,
+   "instruments": 0.23,
+   "annotations": 0.02,
+   "pipe_graph": 0.59
+  },
+  "51": {
+   "valves.bodies": 0.22,
+   "valves.actuators": 1.14,
+   "valves.tags": 0.32,
+   "instruments": 0.2,
+   "annotations": 0.02,
+   "pipe_graph": 0.65
+  },
+  "52": {
+   "valves.bodies": 0.12,
+   "valves.actuators": 0.83,
+   "valves.tags": 0.1,
+   "instruments": 0.16,
+   "annotations": 0.02,
+   "pipe_graph": 0.29
+  },
+  "53": {
+   "valves.bodies": 0.09,
+   "valves.actuators": 0.69,
+   "valves.tags": 0.09,
+   "instruments": 0.18,
+   "annotations": 0.03,
+   "pipe_graph": 0.28
+  },
+  "54": {
+   "valves.bodies": 0.18,
+   "valves.actuators": 1.47,
+   "valves.tags": 0.1,
+   "instruments": 0.2,
+   "annotations": 0.02,
+   "pipe_graph": 0.29
+  },
+  "55": {
+   "valves.bodies": 0.15,
+   "valves.actuators": 1.35,
+   "valves.tags": 0.1,
+   "instruments": 0.26,
+   "annotations": 0.03,
+   "pipe_graph": 0.4
+  },
+  "56": {
+   "valves.bodies": 0.64,
+   "valves.actuators": 3.83,
+   "valves.tags": 0.46,
+   "instruments": 0.51,
+   "annotations": 3.86,
+   "pipe_graph": 1.07
+  },
+  "57": {
+   "valves.bodies": 0.27,
+   "valves.actuators": 2.29,
+   "valves.tags": 0.34,
+   "instruments": 0.45,
+   "annotations": 2.99,
+   "pipe_graph": 0.59
+  },
+  "58": {
+   "valves.bodies": 0.08,
+   "valves.actuators": 0.44,
+   "valves.tags": 0.09,
+   "instruments": 0.48,
+   "annotations": 1.98,
+   "pipe_graph": 0.3
+  },
+  "59": {
+   "valves.bodies": 1.5,
+   "valves.actuators": 7.8,
+   "valves.tags": 0.93,
+   "instruments": 0.37,
+   "annotations": 0.04,
+   "pipe_graph": 1.02
+  },
+  "60": {
+   "valves.bodies": 2.09,
+   "valves.actuators": 8.11,
+   "valves.tags": 0.9,
+   "instruments": 0.35,
+   "annotations": 0.03,
+   "pipe_graph": 1.32
+  },
+  "61": {
+   "valves.bodies": 0.4,
+   "valves.actuators": 2.57,
+   "valves.tags": 0.4,
+   "instruments": 0.22,
+   "annotations": 0.02,
+   "pipe_graph": 0.59
+  },
+  "62": {
+   "valves.bodies": 0.51,
+   "valves.actuators": 2.21,
+   "valves.tags": 0.48,
+   "instruments": 0.23,
+   "annotations": 0.03,
+   "pipe_graph": 0.58
+  },
+  "63": {
+   "valves.bodies": 0.17,
+   "valves.actuators": 1.2,
+   "valves.tags": 0.31,
+   "instruments": 0.26,
+   "annotations": 0.02,
+   "pipe_graph": 0.41
+  },
+  "64": {
+   "valves.bodies": 0.18,
+   "valves.actuators": 0.37,
+   "valves.tags": 0.61,
+   "instruments": 0.27,
+   "annotations": 0.04,
+   "pipe_graph": 0.41
+  },
+  "65": {
+   "valves.bodies": 0.13,
+   "valves.actuators": 0.32,
+   "valves.tags": 0.52,
+   "instruments": 0.23,
+   "annotations": 0.03,
+   "pipe_graph": 0.35
+  },
+  "66": {
+   "valves.bodies": 0.06,
+   "valves.actuators": 0.18,
+   "valves.tags": 0.08,
+   "instruments": 0.47,
+   "annotations": 1.13,
+   "pipe_graph": 0.21
+  },
+  "67": {
+   "valves.bodies": 0.1,
+   "valves.actuators": 0.23,
+   "valves.tags": 0.28,
+   "instruments": 0.44,
+   "annotations": 2.15,
+   "pipe_graph": 0.26
+  },
+  "68": {
+   "valves.bodies": 0.39,
+   "valves.actuators": 4.47,
+   "valves.tags": 0.36,
+   "instruments": 0.27,
+   "annotations": 0.03,
+   "pipe_graph": 0.58
+  },
+  "69": {
+   "valves.bodies": 0.39,
+   "valves.actuators": 5.09,
+   "valves.tags": 0.41,
+   "instruments": 0.27,
+   "annotations": 0.02,
+   "pipe_graph": 0.66
+  },
+  "70": {
+   "valves.bodies": 0.3,
+   "valves.actuators": 3.65,
+   "valves.tags": 0.39,
+   "instruments": 0.29,
+   "annotations": 0.03,
+   "pipe_graph": 0.49
+  },
+  "71": {
+   "valves.bodies": 0.42,
+   "valves.actuators": 5.12,
+   "valves.tags": 0.4,
+   "instruments": 0.3,
+   "annotations": 0.03,
+   "pipe_graph": 0.55
+  },
+  "72": {
+   "valves.bodies": 0.29,
+   "valves.actuators": 2.5,
+   "valves.tags": 0.3,
+   "instruments": 0.2,
+   "annotations": 0.02,
+   "pipe_graph": 0.53
+  },
+  "73": {
+   "valves.bodies": 0.21,
+   "valves.actuators": 2.27,
+   "valves.tags": 0.33,
+   "instruments": 0.24,
+   "annotations": 0.02,
+   "pipe_graph": 0.32
+  },
+  "74": {
+   "valves.bodies": 0.13,
+   "valves.actuators": 1.43,
+   "valves.tags": 0.28,
+   "instruments": 0.17,
+   "annotations": 0.02,
+   "pipe_graph": 0.28
+  },
+  "75": {
+   "valves.bodies": 0.15,
+   "valves.actuators": 1.68,
+   "valves.tags": 14.91,
+   "instruments": 0.18,
+   "annotations": 0.02,
+   "pipe_graph": 0.4
+  },
+  "76": {
+   "valves.bodies": 0.08,
+   "valves.actuators": 0.73,
+   "valves.tags": 0.08,
+   "instruments": 0.26,
+   "annotations": 0.02,
+   "pipe_graph": 0.41
+  },
+  "77": {
+   "valves.bodies": 0.05,
+   "valves.actuators": 0.45,
+   "valves.tags": 0.1,
+   "instruments": 0.12,
+   "annotations": 0.02
+  },
+  "78": {
+   "valves.bodies": 0.13,
+   "valves.actuators": 0.83,
+   "valves.tags": 0.09,
+   "instruments": 0.19,
+   "annotations": 0.02
+  },
+  "79": {
+   "valves.bodies": 0.08,
+   "valves.actuators": 1.11,
+   "valves.tags": 0.08,
+   "instruments": 0.27,
+   "annotations": 0.02,
+   "pipe_graph": 0.32
+  },
+  "80": {
+   "valves.bodies": 0.31,
+   "valves.actuators": 1.03,
+   "valves.tags": 0.32,
+   "instruments": 0.35,
+   "annotations": 0.03,
+   "pipe_graph": 0.55
+  },
+  "81": {
+   "valves.bodies": 0.11,
+   "valves.actuators": 0.76,
+   "valves.tags": 0.1,
+   "instruments": 0.19,
+   "annotations": 0.02
+  },
+  "82": {
+   "valves.bodies": 0.08,
+   "valves.actuators": 1.07,
+   "valves.tags": 0.09,
+   "instruments": 0.32,
+   "annotations": 0.02,
+   "pipe_graph": 0.3
+  },
+  "83": {
+   "valves.bodies": 0.32,
+   "valves.actuators": 0.92,
+   "valves.tags": 0.27,
+   "instruments": 0.32,
+   "annotations": 0.02,
+   "pipe_graph": 0.61
+  },
+  "84": {
+   "valves.bodies": 0.23,
+   "valves.actuators": 1.09,
+   "valves.tags": 0.31,
+   "instruments": 0.67,
+   "annotations": 3.94,
+   "pipe_graph": 0.54
+  },
+  "85": {
+   "valves.bodies": 0.39,
+   "valves.actuators": 4.08,
+   "valves.tags": 0.36,
+   "instruments": 0.32,
+   "annotations": 0.02,
+   "pipe_graph": 0.64
+  },
+  "86": {
+   "valves.bodies": 0.39,
+   "valves.actuators": 3.7,
+   "valves.tags": 0.38,
+   "instruments": 0.35,
+   "annotations": 0.03,
+   "pipe_graph": 0.85
+  },
+  "87": {
+   "valves.bodies": 0.39,
+   "valves.actuators": 4.75,
+   "valves.tags": 0.34,
+   "instruments": 0.35,
+   "annotations": 0.04,
+   "pipe_graph": 0.86
+  },
+  "88": {
+   "valves.bodies": 0.45,
+   "valves.actuators": 4.98,
+   "valves.tags": 0.38,
+   "instruments": 0.24,
+   "annotations": 0.02,
+   "pipe_graph": 0.57
+  },
+  "89": {
+   "valves.bodies": 0.2,
+   "valves.actuators": 2.89,
+   "valves.tags": 0.33,
+   "instruments": 0.28,
+   "annotations": 0.03,
+   "pipe_graph": 0.47
+  },
+  "90": {
+   "valves.bodies": 0.18,
+   "valves.actuators": 2.05,
+   "valves.tags": 0.3,
+   "instruments": 0.2,
+   "annotations": 0.02,
+   "pipe_graph": 0.42
+  },
+  "91": {
+   "valves.bodies": 0.12,
+   "valves.actuators": 1.46,
+   "valves.tags": 0.27,
+   "instruments": 0.19,
+   "annotations": 0.02,
+   "pipe_graph": 0.29
+  },
+  "92": {
+   "valves.bodies": 0.12,
+   "valves.actuators": 1.58,
+   "valves.tags": 0.3,
+   "instruments": 0.25,
+   "annotations": 0.03,
+   "pipe_graph": 0.29
+  },
+  "93": {
+   "valves.bodies": 0.07,
+   "valves.actuators": 0.48,
+   "valves.tags": 0.1,
+   "instruments": 0.13,
+   "annotations": 0.02
+  }
+ },
+ "slowest_pages": [
+  {
+   "page_no": 75,
+   "seconds": 17.34
+  },
+  {
+   "page_no": 60,
+   "seconds": 12.8
+  },
+  {
+   "page_no": 59,
+   "seconds": 11.65
+  },
+  {
+   "page_no": 2,
+   "seconds": 11.08
+  },
+  {
+   "page_no": 56,
+   "seconds": 10.36
+  }
+ ],
+ "wall_s": 1285.3,
+ "rows": 2068,
+ "fingerprint": null
+}

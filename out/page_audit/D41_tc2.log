@@ -1,0 +1,16 @@
+· TC2 분석 …
+   행 707 · 지문 c396892a · 축3 91.2점
+
+프로젝트      행         지문     Q'ty       초     RSS      축3
+TC2    707   c396892a     4159     623    7.5G   91.2
+
+축3 내역 (지표별 맞춘 수 / 분모)
+    도면번호         개정           태그→행         수량           심볼판정         파라미터       
+TC2 60/60        60/60        201/266      707/707      707/828      25/29      
+결과: /home/user/AI-P-ID-Extraction-tool/out/regression_3p.json
+
+★ 기준선을 벗어났습니다
+   TC2 rows: 기준선 699 → 지금 707
+   TC2 fingerprint: 기준선 6583a8661fedae0eecccc04b101f30868cabafdaa76881acc3caa1bab20d7565 → 지금 c396892aa735e9e84f9b022cecc62d6a6e28bc99a6c985f6ddb8570148f41238
+   TC2 qty_sum: 기준선 4111 → 지금 4159
+   TC2 score: 기준선 91.1 → 지금 91.2

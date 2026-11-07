@@ -1,0 +1,33 @@
+{
+ "wide": {
+  "rows": 2092,
+  "grid_h": 224,
+  "stage_w": 837,
+  "stage_h": 807,
+  "sidebar": true,
+  "hscroll": false,
+  "side_on": true,
+  "errors": []
+ },
+ "narrow": {
+  "rows": 2092,
+  "grid_h": 160,
+  "stage_w": 634,
+  "stage_h": 465,
+  "sidebar": true,
+  "hscroll": false,
+  "side_on": true,
+  "errors": []
+ },
+ "actions": {
+  "collapsed_at_start": false,
+  "collapsed_after_click": true,
+  "remembered": "1",
+  "tooltip": "QFE Rev.B · 1,991행 · 93장",
+  "nav_project_opens": "48b5adbdd28c",
+  "tabs_visible": true,
+  "home_back": true,
+  "tabs_hidden_on_home": true,
+  "errors": []
+ }
+}

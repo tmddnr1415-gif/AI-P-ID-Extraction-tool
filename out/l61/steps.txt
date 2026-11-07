@@ -1,0 +1,28 @@
+원본 FG_G-201 — 블록 24 · 선 139 · 입력 행 13 · 출력 행 9
+01_empty.png — 빈 장 — 삼성 양식(타이틀블록 · FROM/TO 표 · LOGIC 영역)
+02_table_left.png — 입력 행 13개 — FM · KKS · 설명
+03_to_type_G.png — TO 칸에 'FG' — 시트 5개가 주르륵: FG_G-101, FG_G-102, FG_G-201, FG_G-202, FG_G-207
+04_to_type_FG_G-1.png — 'FG_G-1' 까지 — 좁혀짐: FG_G-101, FG_G-102
+05_to_rows.png — 시트를 고르면 그 장의 입력 행: ['FG_G-101-8 FG WBH INL B/P MOV OPND', 'FG_G-101-9 FG WBH A INL MOV OPND', 'FG_G-101-10 FG WBH B INL MOV OPND']
+   → 61행 TO = 'FG_G-101-13'
+06_table_right.png — 출력 행 9개 — 61행 TO FG_G-101-13
+07_palette_and.png — 팔레트에서 AND 를 누름 — 가운데에 놓임
+08_place_and.png — 끌어서 그 자리로 — 반 행 격자에 맞음
+09_place_pb_lamp.png — 누름단추 AUTO · MAN · START · STOP · 표시등 · 상수 1 — 10개
+10_place_gates.png — AND · OR · NOT · ON DELAY — 12개
+11_macro_card.png — 매크로 카드에서 Typical 0012 (FG COMPR SYS GRP) 를 누름 — 단자는 Typical 행에서
+12_place_macro_ann.png — 매크로 · 경보 ANN 자리 잡음 — 기호 24개 전부
+13_wire_route.png — 선 긋기 — 다음 점까지 꺾인 경로 5가지를 점선으로 추천 (Tab 으로 바꿈 · 누르면 반영)
+14_wire_done.png — 누르니 추천 경로가 선이 됨
+15_wires_1.png — 선 46/139
+16_wires_2.png — 선 92/139
+17_wires_3.png — 선 139/139
+18_saved_verify.png — 저장 → 묶음 되읽기 검증: 되읽기 검증 · 묶음 전부 같게 읽혔습니다 ·  · 장 6/6 읽음 · FROM/TO 불일치 22 · 0.6초 ·  · ✔ FG_G-101 · 블록 36/36 · 행 40/40 · 매달림 0 · ✔ FG_G-102 · 블록 9/9 · 행 17/17 · 매달림 0 · 매크로→0012 · 
+19_sim_start.png — 시뮬레이션 켬 — 고장 신호(GR_FLT)가 서 있어 FAULT 표시
+20_sim_ready.png — 입력 16행 REM & RDY · 27행 NO FLT = 1 → 고장 풀림 · 기동 허가 EN_STRT = 1
+21_sim_man.png — PB MAN = 1 → 수동 선택 M_SEL = 1
+22_sim_start_cmd.png — PB START = 1 → 매크로 출력 C_STRT = 1 → 74행 GRP STR CMD
+23_macro_child.png — 매크로 새 창 — Typical 0012 안쪽이 부모 값으로 동작 (1 인 선 13)
+24_sim_stop_parent.png — 부모에서 PB STOP = 1 → C_STP = 1
+25_macro_child_stop.png — 새 창도 따라 바뀜 (1 인 선 13 → 15)
+페이지 오류 0 []

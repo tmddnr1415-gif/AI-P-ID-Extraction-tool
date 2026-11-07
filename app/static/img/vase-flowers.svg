@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 140 160" width="140" height="160" role="img" aria-label="">
+  <g fill="none" stroke="#7a6a58" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+    <!-- stems -->
+    <g stroke="#7f9268">
+      <path d="M70 108 C66 88 58 70 48 56"/>
+      <path d="M70 108 C72 86 78 68 88 54"/>
+      <path d="M70 108 C68 90 66 74 66 60"/>
+      <path d="M70 108 C60 94 48 86 36 82"/>
+      <path d="M70 108 C82 96 96 90 108 88"/>
+    </g>
+    <!-- leaves -->
+    <g fill="#b6c99a" stroke="#7f9268" stroke-width="1.9">
+      <path d="M56 74 C46 70 40 76 42 84 C52 87 58 82 56 74 Z"/>
+      <path d="M82 72 C92 68 99 74 96 82 C86 85 80 80 82 72 Z"/>
+      <path d="M62 90 C52 88 46 94 49 101 C58 102 64 97 62 90 Z"/>
+    </g>
+    <!-- blossoms -->
+    <g fill="#f2d0d6" stroke="#c98f9a" stroke-width="1.9">
+      <circle cx="48" cy="53" r="7"/>
+      <circle cx="88" cy="51" r="6.5"/>
+      <circle cx="66" cy="57" r="5.5"/>
+    </g>
+    <g fill="#f6e2b8" stroke="#d4a75c" stroke-width="1.9">
+      <circle cx="34" cy="80" r="6"/>
+      <circle cx="110" cy="86" r="5.5"/>
+    </g>
+    <!-- vase -->
+    <path d="M56 108 L54 118 C48 126 46 138 50 148 C56 156 84 156 90 148 C94 138 92 126 86 118 L84 108 Z"
+          fill="#dfe7ee" stroke="#8fa2b0"/>
+    <path d="M56 108 h28" stroke="#8fa2b0"/>
+    <path d="M58 132 C64 128 76 128 82 132" stroke="#8fa2b0" stroke-width="1.8" opacity=".8"/>
+  </g>
+</svg>

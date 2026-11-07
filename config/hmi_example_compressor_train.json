@@ -1,0 +1,304 @@
+{
+  "title": "DCS Graphic – Compressor Train (Example)",
+  "basis": "참고 화면의 내용을 데이터로 다시 그린 예시 — 값은 데모 시뮬레이션 · 식별된 P&ID 를 고르면 그 장의 자리·태그로 그립니다",
+  "size": [
+    1100,
+    420
+  ],
+  "equipment": [
+    {
+      "id": "MOT-101",
+      "sym": "motor",
+      "x": 250,
+      "y": 120,
+      "w": 120,
+      "h": 120,
+      "tag": "MOT-101",
+      "label": "Motor",
+      "status": "running",
+      "params": {
+        "Current": [
+          156,
+          "A"
+        ],
+        "Voltage": [
+          4.5,
+          "kV"
+        ],
+        "Speed": [
+          2980,
+          "rpm"
+        ],
+        "Power": [
+          1.2,
+          "MW"
+        ]
+      }
+    },
+    {
+      "id": "COMP-101",
+      "sym": "compressor",
+      "x": 390,
+      "y": 110,
+      "w": 170,
+      "h": 130,
+      "tag": "COMP-101",
+      "label": "Compressor",
+      "status": "running"
+    },
+    {
+      "id": "SEP-101",
+      "sym": "separator",
+      "x": 780,
+      "y": 60,
+      "w": 100,
+      "h": 240,
+      "tag": "SEP-101",
+      "label": "Separator",
+      "status": "running"
+    }
+  ],
+  "pipes": [
+    {
+      "id": "L-001",
+      "kind": "process",
+      "label": "From Upstream",
+      "pts": [
+        [
+          20,
+          175
+        ],
+        [
+          390,
+          175
+        ]
+      ],
+      "arrow": true
+    },
+    {
+      "id": "L-002",
+      "kind": "discharge",
+      "label": "",
+      "pts": [
+        [
+          560,
+          175
+        ],
+        [
+          780,
+          175
+        ]
+      ],
+      "arrow": true
+    },
+    {
+      "id": "L-002b",
+      "kind": "discharge",
+      "label": "To HP Header",
+      "pts": [
+        [
+          880,
+          70
+        ],
+        [
+          990,
+          70
+        ]
+      ],
+      "arrow": true
+    },
+    {
+      "id": "L-003",
+      "kind": "cooling",
+      "label": "Cooling Water",
+      "pts": [
+        [
+          1000,
+          230
+        ],
+        [
+          880,
+          230
+        ]
+      ],
+      "arrow": true
+    },
+    {
+      "id": "L-004",
+      "kind": "cooling",
+      "label": "",
+      "pts": [
+        [
+          780,
+          265
+        ],
+        [
+          560,
+          265
+        ]
+      ],
+      "arrow": true
+    },
+    {
+      "id": "L-005",
+      "kind": "drain",
+      "label": "Drain",
+      "pts": [
+        [
+          830,
+          300
+        ],
+        [
+          830,
+          370
+        ],
+        [
+          990,
+          370
+        ]
+      ],
+      "arrow": true
+    },
+    {
+      "id": "S-002",
+      "kind": "signal",
+      "label": "",
+      "pts": [
+        [
+          620,
+          140
+        ],
+        [
+          620,
+          370
+        ],
+        [
+          500,
+          370
+        ]
+      ],
+      "arrow": true
+    }
+  ],
+  "valves": [
+    {
+      "id": "XV-101",
+      "sym": "valve_block",
+      "tag": "XV-101",
+      "x": 160,
+      "y": 152,
+      "w": 40,
+      "h": 40,
+      "rot": 0,
+      "state": "open"
+    },
+    {
+      "id": "XV-102",
+      "sym": "valve_control_pneumatic",
+      "tag": "XV-102",
+      "x": 920,
+      "y": 208,
+      "w": 40,
+      "h": 40,
+      "rot": 0,
+      "state": "open"
+    },
+    {
+      "id": "XV-103",
+      "sym": "valve_control_pneumatic",
+      "tag": "XV-103",
+      "x": 890,
+      "y": 348,
+      "w": 40,
+      "h": 40,
+      "rot": 0,
+      "state": "open"
+    }
+  ],
+  "instruments": [
+    {
+      "id": "PT-101",
+      "func": "PT",
+      "tag": "PT-101",
+      "x": 95,
+      "y": 120,
+      "value": 52.3,
+      "unit": "bar",
+      "on": "L-001"
+    },
+    {
+      "id": "TT-102",
+      "func": "TT",
+      "tag": "TT-102",
+      "x": 230,
+      "y": 120,
+      "value": 48.7,
+      "unit": "°C",
+      "on": "L-001"
+    },
+    {
+      "id": "PT-103",
+      "func": "PT",
+      "tag": "PT-103",
+      "x": 620,
+      "y": 120,
+      "value": 118.6,
+      "unit": "bar",
+      "on": "L-002"
+    },
+    {
+      "id": "TT-104",
+      "func": "TT",
+      "tag": "TT-104",
+      "x": 710,
+      "y": 120,
+      "value": 76.2,
+      "unit": "°C",
+      "on": "L-002"
+    },
+    {
+      "id": "LT-101",
+      "func": "LT",
+      "tag": "LT-101",
+      "x": 940,
+      "y": 150,
+      "value": 72.4,
+      "unit": "%",
+      "on": "SEP-101"
+    },
+    {
+      "id": "PIC-101",
+      "func": "PIC",
+      "tag": "PIC-101",
+      "x": 470,
+      "y": 370,
+      "value": 45.0,
+      "unit": "bar",
+      "on": "S-002",
+      "kind": "dcs"
+    }
+  ],
+  "panels": {
+    "trend": {
+      "tag": "PT-103",
+      "min": 60,
+      "max": 140
+    },
+    "key": [
+      "PT-101",
+      "PT-103",
+      "TT-102",
+      "TT-104",
+      "LT-101"
+    ],
+    "control": {
+      "tag": "PIC-101",
+      "mode": "AUTO"
+    },
+    "motor": "MOT-101"
+  },
+  "links": {
+    "logic": null,
+    "note": "LOGIC 검토와는 태그로 잇는다 (추후)"
+  }
+}

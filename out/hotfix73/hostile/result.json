@@ -1,0 +1,200 @@
+[
+ {
+  "case": "a4_text.pdf",
+  "upload_status": 200,
+  "upload_body": null,
+  "stored_name": "a4_text.pdf",
+  "pages": 4,
+  "status": "failed",
+  "message": "이 PDF 의 4장 어디에서도 도면번호를 읽지 못했습니다. 도면번호 칸의 자리를 [1950.0, 1560.0, 2384.0, 1600.0] 로 보고 있는데 4장 전부에서 종이 밖입니다 (이 문서의 쪽 크기: 595.0x842.0pt 4장). 이 도면에서 그 칸을 재지 못해 프로젝트 설정 `title_block` 의 값을 그대로 썼습니다 — 이 회사 양식의 타이틀블록 좌표를 재서 프로젝트 설정에 넣으면 됩니다.",
+  "stopped": "reading title blocks",
+  "rows": null,
+  "secs": 1.7,
+  "error_tail": "me/user/AI-P-ID-Extraction-tool/app/pipeline.py\", line 1114, in _analyse\n    raise TitleBlockUnreadable(_frame_reason(pages, layout))\napp.pipeline.TitleBlockUnreadable: 이 PDF 의 4장 어디에서도 도면번호를 읽지 못했습니다. 도면번호 칸의 자리를 [1950.0, 1560.0, 2384.0, 1600.0] 로 보고 있는데 4장 전부에서 종이 밖입니다 (이 문서의 쪽 크기: 595.0x842.0pt 4장). 이 도면에서 그 칸을 재지 못해 프로젝트 설정 `title_block` 의 값을 그대로 썼습니다 — 이 회사 양식의 타이틀블록 좌표를 재서 프로젝트 설정에 넣으면 됩니다.\n",
+  "stored_inside_uploads": true,
+  "alive_after": true
+ },
+ {
+  "case": "empty.pdf",
+  "upload_status": 400,
+  "upload_body": {
+   "detail": "that file is not a PDF (PDF 하나 · DXF zip 하나 · .dxf 여러 장만 받습니다)"
+  },
+  "alive_after": true
+ },
+ {
+  "case": "enc_owner.pdf",
+  "upload_status": 200,
+  "upload_body": null,
+  "stored_name": "enc_owner.pdf",
+  "pages": 1,
+  "status": "failed",
+  "message": "이 PDF 의 1장 어디에서도 도면번호를 읽지 못했습니다. 도면번호 칸의 자리를 [1950.0, 1560.0, 2384.0, 1600.0] 로 보고 있는데 1장 전부에서 종이 밖입니다 (이 문서의 쪽 크기: 595.0x842.0pt 1장). 이 도면에서 그 칸을 재지 못해 프로젝트 설정 `title_block` 의 값을 그대로 썼습니다 — 이 회사 양식의 타이틀블록 좌표를 재서 프로젝트 설정에 넣으면 됩니다.",
+  "stopped": "reading title blocks",
+  "rows": null,
+  "secs": 1.6,
+  "error_tail": "me/user/AI-P-ID-Extraction-tool/app/pipeline.py\", line 1114, in _analyse\n    raise TitleBlockUnreadable(_frame_reason(pages, layout))\napp.pipeline.TitleBlockUnreadable: 이 PDF 의 1장 어디에서도 도면번호를 읽지 못했습니다. 도면번호 칸의 자리를 [1950.0, 1560.0, 2384.0, 1600.0] 로 보고 있는데 1장 전부에서 종이 밖입니다 (이 문서의 쪽 크기: 595.0x842.0pt 1장). 이 도면에서 그 칸을 재지 못해 프로젝트 설정 `title_block` 의 값을 그대로 썼습니다 — 이 회사 양식의 타이틀블록 좌표를 재서 프로젝트 설정에 넣으면 됩니다.\n",
+  "stored_inside_uploads": true,
+  "alive_after": true
+ },
+ {
+  "case": "enc_user.pdf",
+  "upload_status": 400,
+  "upload_body": {
+   "detail": "암호가 걸린 PDF 입니다. 암호를 풀어 저장한 PDF 로 올려 주세요 (PDF 뷰어에서 '인쇄 → PDF 로 저장' 또는 원본에서 다시 내보내기)."
+  },
+  "alive_after": true
+ },
+ {
+  "case": "garbage.pdf",
+  "upload_status": 400,
+  "upload_body": {
+   "detail": "이 파일을 PDF 로 열 수 없습니다 — 손상되었거나 PDF 가 아닙니다. 원본에서 다시 내보내 올려 주세요."
+  },
+  "alive_after": true
+ },
+ {
+  "case": "image.pdf",
+  "upload_status": 400,
+  "upload_body": {
+   "detail": "that file is not a PDF (PDF 하나 · DXF zip 하나 · .dxf 여러 장만 받습니다)"
+  },
+  "alive_after": true
+ },
+ {
+  "case": "scan.pdf",
+  "upload_status": 200,
+  "upload_body": null,
+  "stored_name": "scan.pdf",
+  "pages": 3,
+  "status": "failed",
+  "message": "이 PDF 의 3장 어디에도 글자층이 없습니다 — 스캔 이미지로 보입니다. 이 도구는 CAD 에서 내보낸 벡터 PDF(글자가 텍스트로 들어 있는 것)만 읽습니다. 원본 CAD 에서 PDF 로 다시 내보내 올려 주세요.",
+  "stopped": "opening the document",
+  "rows": null,
+  "secs": 1.6,
+  "error_tail": "lyse(pdf_path, progress=progress, timings=timings,\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/user/AI-P-ID-Extraction-tool/app/pipeline.py\", line 1046, in _analyse\n    raise NoTextLayer(_no_text_reason(doc, pages))\napp.pipeline.NoTextLayer: 이 PDF 의 3장 어디에도 글자층이 없습니다 — 스캔 이미지로 보입니다. 이 도구는 CAD 에서 내보낸 벡터 PDF(글자가 텍스트로 들어 있는 것)만 읽습니다. 원본 CAD 에서 PDF 로 다시 내보내 올려 주세요.\n",
+  "stored_inside_uploads": true,
+  "alive_after": true
+ },
+ {
+  "case": "truncated.pdf",
+  "upload_status": 400,
+  "upload_body": {
+   "detail": "PDF 가 손상돼 쪽을 하나도 읽지 못했습니다 — 파일이 중간에 잘렸을 수 있습니다. 다시 내려받거나 원본에서 다시 내보내 올려 주세요."
+  },
+  "alive_after": true
+ },
+ {
+  "case": "zero.pdf",
+  "upload_status": 400,
+  "upload_body": {
+   "detail": "PDF 가 손상돼 쪽을 하나도 읽지 못했습니다 — 파일이 중간에 잘렸을 수 있습니다. 다시 내려받거나 원본에서 다시 내보내 올려 주세요."
+  },
+  "alive_after": true
+ },
+ {
+  "case": "NAME::../../evil.pdf",
+  "upload_status": 200,
+  "upload_body": null,
+  "stored_name": "evil.pdf",
+  "pages": 4,
+  "status": "failed",
+  "message": "이 PDF 의 4장 어디에서도 도면번호를 읽지 못했습니다. 도면번호 칸의 자리를 [1950.0, 1560.0, 2384.0, 1600.0] 로 보고 있는데 4장 전부에서 종이 밖입니다 (이 문서의 쪽 크기: 595.0x842.0pt 4장). 이 도면에서 그 칸을 재지 못해 프로젝트 설정 `title_block` 의 값을 그대로 썼습니다 — 이 회사 양식의 타이틀블록 좌표를 재서 프로젝트 설정에 넣으면 됩니다.",
+  "stopped": "reading title blocks",
+  "rows": null,
+  "secs": 1.5,
+  "error_tail": "me/user/AI-P-ID-Extraction-tool/app/pipeline.py\", line 1114, in _analyse\n    raise TitleBlockUnreadable(_frame_reason(pages, layout))\napp.pipeline.TitleBlockUnreadable: 이 PDF 의 4장 어디에서도 도면번호를 읽지 못했습니다. 도면번호 칸의 자리를 [1950.0, 1560.0, 2384.0, 1600.0] 로 보고 있는데 4장 전부에서 종이 밖입니다 (이 문서의 쪽 크기: 595.0x842.0pt 4장). 이 도면에서 그 칸을 재지 못해 프로젝트 설정 `title_block` 의 값을 그대로 썼습니다 — 이 회사 양식의 타이틀블록 좌표를 재서 프로젝트 설정에 넣으면 됩니다.\n",
+  "stored_inside_uploads": true,
+  "alive_after": true
+ },
+ {
+  "case": "NAME::..\\..\\evil.pdf",
+  "upload_status": 200,
+  "upload_body": null,
+  "stored_name": "evil.pdf",
+  "pages": 4,
+  "status": "failed",
+  "message": "이 PDF 의 4장 어디에서도 도면번호를 읽지 못했습니다. 도면번호 칸의 자리를 [1950.0, 1560.0, 2384.0, 1600.0] 로 보고 있는데 4장 전부에서 종이 밖입니다 (이 문서의 쪽 크기: 595.0x842.0pt 4장). 이 도면에서 그 칸을 재지 못해 프로젝트 설정 `title_block` 의 값을 그대로 썼습니다 — 이 회사 양식의 타이틀블록 좌표를 재서 프로젝트 설정에 넣으면 됩니다.",
+  "stopped": "reading title blocks",
+  "rows": null,
+  "secs": 1.5,
+  "error_tail": "me/user/AI-P-ID-Extraction-tool/app/pipeline.py\", line 1114, in _analyse\n    raise TitleBlockUnreadable(_frame_reason(pages, layout))\napp.pipeline.TitleBlockUnreadable: 이 PDF 의 4장 어디에서도 도면번호를 읽지 못했습니다. 도면번호 칸의 자리를 [1950.0, 1560.0, 2384.0, 1600.0] 로 보고 있는데 4장 전부에서 종이 밖입니다 (이 문서의 쪽 크기: 595.0x842.0pt 4장). 이 도면에서 그 칸을 재지 못해 프로젝트 설정 `title_block` 의 값을 그대로 썼습니다 — 이 회사 양식의 타이틀블록 좌표를 재서 프로젝트 설정에 넣으면 됩니다.\n",
+  "stored_inside_uploads": true,
+  "alive_after": true
+ },
+ {
+  "case": "NAME::a:b*c?\"<>|.pdf",
+  "upload_status": 200,
+  "upload_body": null,
+  "stored_name": "a:b*c?\"<>|.pdf",
+  "pages": 4,
+  "status": "failed",
+  "message": "이 PDF 의 4장 어디에서도 도면번호를 읽지 못했습니다. 도면번호 칸의 자리를 [1950.0, 1560.0, 2384.0, 1600.0] 로 보고 있는데 4장 전부에서 종이 밖입니다 (이 문서의 쪽 크기: 595.0x842.0pt 4장). 이 도면에서 그 칸을 재지 못해 프로젝트 설정 `title_block` 의 값을 그대로 썼습니다 — 이 회사 양식의 타이틀블록 좌표를 재서 프로젝트 설정에 넣으면 됩니다.",
+  "stopped": "reading title blocks",
+  "rows": null,
+  "secs": 1.5,
+  "error_tail": "me/user/AI-P-ID-Extraction-tool/app/pipeline.py\", line 1114, in _analyse\n    raise TitleBlockUnreadable(_frame_reason(pages, layout))\napp.pipeline.TitleBlockUnreadable: 이 PDF 의 4장 어디에서도 도면번호를 읽지 못했습니다. 도면번호 칸의 자리를 [1950.0, 1560.0, 2384.0, 1600.0] 로 보고 있는데 4장 전부에서 종이 밖입니다 (이 문서의 쪽 크기: 595.0x842.0pt 4장). 이 도면에서 그 칸을 재지 못해 프로젝트 설정 `title_block` 의 값을 그대로 썼습니다 — 이 회사 양식의 타이틀블록 좌표를 재서 프로젝트 설정에 넣으면 됩니다.\n",
+  "stored_inside_uploads": true,
+  "alive_after": true
+ },
+ {
+  "case": "NAME::con.pdf",
+  "upload_status": 200,
+  "upload_body": null,
+  "stored_name": "con.pdf",
+  "pages": 4,
+  "status": "failed",
+  "message": "이 PDF 의 4장 어디에서도 도면번호를 읽지 못했습니다. 도면번호 칸의 자리를 [1950.0, 1560.0, 2384.0, 1600.0] 로 보고 있는데 4장 전부에서 종이 밖입니다 (이 문서의 쪽 크기: 595.0x842.0pt 4장). 이 도면에서 그 칸을 재지 못해 프로젝트 설정 `title_block` 의 값을 그대로 썼습니다 — 이 회사 양식의 타이틀블록 좌표를 재서 프로젝트 설정에 넣으면 됩니다.",
+  "stopped": "reading title blocks",
+  "rows": null,
+  "secs": 1.5,
+  "error_tail": "me/user/AI-P-ID-Extraction-tool/app/pipeline.py\", line 1114, in _analyse\n    raise TitleBlockUnreadable(_frame_reason(pages, layout))\napp.pipeline.TitleBlockUnreadable: 이 PDF 의 4장 어디에서도 도면번호를 읽지 못했습니다. 도면번호 칸의 자리를 [1950.0, 1560.0, 2384.0, 1600.0] 로 보고 있는데 4장 전부에서 종이 밖입니다 (이 문서의 쪽 크기: 595.0x842.0pt 4장). 이 도면에서 그 칸을 재지 못해 프로젝트 설정 `title_block` 의 값을 그대로 썼습니다 — 이 회사 양식의 타이틀블록 좌표를 재서 프로젝트 설정에 넣으면 됩니다.\n",
+  "stored_inside_uploads": true,
+  "alive_after": true
+ },
+ {
+  "case": "NAME::가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가.pdf",
+  "upload_status": 200,
+  "upload_body": null,
+  "stored_name": "가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가.pdf",
+  "pages": 4,
+  "status": "failed",
+  "message": "이 PDF 의 4장 어디에서도 도면번호를 읽지 못했습니다. 도면번호 칸의 자리를 [1950.0, 1560.0, 2384.0, 1600.0] 로 보고 있는데 4장 전부에서 종이 밖입니다 (이 문서의 쪽 크기: 595.0x842.0pt 4장). 이 도면에서 그 칸을 재지 못해 프로젝트 설정 `title_block` 의 값을 그대로 썼습니다 — 이 회사 양식의 타이틀블록 좌표를 재서 프로젝트 설정에 넣으면 됩니다.",
+  "stopped": "reading title blocks",
+  "rows": null,
+  "secs": 1.5,
+  "error_tail": "me/user/AI-P-ID-Extraction-tool/app/pipeline.py\", line 1114, in _analyse\n    raise TitleBlockUnreadable(_frame_reason(pages, layout))\napp.pipeline.TitleBlockUnreadable: 이 PDF 의 4장 어디에서도 도면번호를 읽지 못했습니다. 도면번호 칸의 자리를 [1950.0, 1560.0, 2384.0, 1600.0] 로 보고 있는데 4장 전부에서 종이 밖입니다 (이 문서의 쪽 크기: 595.0x842.0pt 4장). 이 도면에서 그 칸을 재지 못해 프로젝트 설정 `title_block` 의 값을 그대로 썼습니다 — 이 회사 양식의 타이틀블록 좌표를 재서 프로젝트 설정에 넣으면 됩니다.\n",
+  "stored_inside_uploads": true,
+  "alive_after": true
+ },
+ {
+  "case": "NAME:: spaced .pdf",
+  "upload_status": 200,
+  "upload_body": null,
+  "stored_name": "spaced .pdf",
+  "pages": 4,
+  "status": "failed",
+  "message": "이 PDF 의 4장 어디에서도 도면번호를 읽지 못했습니다. 도면번호 칸의 자리를 [1950.0, 1560.0, 2384.0, 1600.0] 로 보고 있는데 4장 전부에서 종이 밖입니다 (이 문서의 쪽 크기: 595.0x842.0pt 4장). 이 도면에서 그 칸을 재지 못해 프로젝트 설정 `title_block` 의 값을 그대로 썼습니다 — 이 회사 양식의 타이틀블록 좌표를 재서 프로젝트 설정에 넣으면 됩니다.",
+  "stopped": "reading title blocks",
+  "rows": null,
+  "secs": 1.5,
+  "error_tail": "me/user/AI-P-ID-Extraction-tool/app/pipeline.py\", line 1114, in _analyse\n    raise TitleBlockUnreadable(_frame_reason(pages, layout))\napp.pipeline.TitleBlockUnreadable: 이 PDF 의 4장 어디에서도 도면번호를 읽지 못했습니다. 도면번호 칸의 자리를 [1950.0, 1560.0, 2384.0, 1600.0] 로 보고 있는데 4장 전부에서 종이 밖입니다 (이 문서의 쪽 크기: 595.0x842.0pt 4장). 이 도면에서 그 칸을 재지 못해 프로젝트 설정 `title_block` 의 값을 그대로 썼습니다 — 이 회사 양식의 타이틀블록 좌표를 재서 프로젝트 설정에 넣으면 됩니다.\n",
+  "stored_inside_uploads": true,
+  "alive_after": true
+ },
+ {
+  "case": "NAME::tab\tname.pdf",
+  "upload_status": 200,
+  "upload_body": null,
+  "stored_name": "tab name.pdf",
+  "pages": 4,
+  "status": "failed",
+  "message": "이 PDF 의 4장 어디에서도 도면번호를 읽지 못했습니다. 도면번호 칸의 자리를 [1950.0, 1560.0, 2384.0, 1600.0] 로 보고 있는데 4장 전부에서 종이 밖입니다 (이 문서의 쪽 크기: 595.0x842.0pt 4장). 이 도면에서 그 칸을 재지 못해 프로젝트 설정 `title_block` 의 값을 그대로 썼습니다 — 이 회사 양식의 타이틀블록 좌표를 재서 프로젝트 설정에 넣으면 됩니다.",
+  "stopped": "reading title blocks",
+  "rows": null,
+  "secs": 1.5,
+  "error_tail": "me/user/AI-P-ID-Extraction-tool/app/pipeline.py\", line 1114, in _analyse\n    raise TitleBlockUnreadable(_frame_reason(pages, layout))\napp.pipeline.TitleBlockUnreadable: 이 PDF 의 4장 어디에서도 도면번호를 읽지 못했습니다. 도면번호 칸의 자리를 [1950.0, 1560.0, 2384.0, 1600.0] 로 보고 있는데 4장 전부에서 종이 밖입니다 (이 문서의 쪽 크기: 595.0x842.0pt 4장). 이 도면에서 그 칸을 재지 못해 프로젝트 설정 `title_block` 의 값을 그대로 썼습니다 — 이 회사 양식의 타이틀블록 좌표를 재서 프로젝트 설정에 넣으면 됩니다.\n",
+  "stored_inside_uploads": true,
+  "alive_after": true
+ }
+]

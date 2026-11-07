@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>가상 광장 — 부여성 남쪽</title>
+<link rel="stylesheet" href="/static/plaza.css">
+</head>
+<body>
+<div id="pz" class="pz">
+  <canvas id="pz-map" tabindex="0" aria-label="가상 광장 — 방향키로 움직이고 Enter 로 대화 · Space 로 공격"></canvas>
+
+  <div class="pz-top">
+    <span id="pz-online" class="pz-online">접속 0명</span>
+    <span class="pz-help">방향키 ←↑→↓ 이동 · Enter 대화 · Space 공격</span>
+  </div>
+
+  <div id="pz-who" class="pz-who" aria-label="광장에 있는 사람"></div>
+
+  <div class="pz-chat">
+    <div id="pz-log" class="pz-log" aria-live="polite"></div>
+    <div class="pz-inputrow">
+      <span id="pz-me" class="pz-me"></span>
+      <input id="pz-input" class="pz-input" maxlength="80" autocomplete="off"
+             placeholder="Enter 를 눌러 대화하기">
+    </div>
+  </div>
+
+  <div class="pz-btns">
+    <button id="pz-face-btn" type="button" title="머리 모양 · 머리 색 · 눈 · 수염 · 옷 색을 바꿉니다">얼굴 바꾸기</button>
+    <button id="pz-roles" type="button" hidden title="운영자만 — 그룹장 · 유닛장 · 부서원 · 운영자 지정">역할 지정</button>
+  </div>
+
+  <div id="pz-focus" class="pz-focus" hidden>클릭하면 캐릭터를 움직일 수 있습니다</div>
+
+  <div id="pz-face" class="pz-panel" hidden>
+    <div class="pz-box pz-facebox">
+      <div class="pz-boxhead">얼굴 바꾸기</div>
+      <div class="pz-facebody">
+        <canvas id="pz-preview" width="150" height="200"></canvas>
+        <div class="pz-faceright">
+          <div class="pz-sub">머리 모양</div>
+          <div id="pz-hairs" class="pz-hairs"></div>
+          <div id="pz-facerows"></div>
+        </div>
+      </div>
+      <div id="pz-face-note" class="pz-note"></div>
+      <div class="pz-boxfoot">
+        <button id="pz-face-rand" type="button">무작위</button>
+        <span class="sp"></span>
+        <button id="pz-face-cancel" type="button">취소</button>
+        <button id="pz-face-save" type="button" class="ok">저장</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="pz-rolep" class="pz-panel" hidden>
+    <div class="pz-box pz-rolebox">
+      <div class="pz-boxhead">역할 지정 (운영자)</div>
+      <div id="pz-rolelist" class="pz-rolelist"></div>
+      <div class="rrow add">
+        <input id="pz-role-name" maxlength="20" placeholder="이름 (대시보드 로그인 이름)">
+        <select id="pz-role-sel"><option value="member">부서원 (관모)</option><option value="unit">유닛장 (사모)</option>
+          <option value="leader">그룹장 (왕관)</option><option value="operator">운영자 (노비)</option></select>
+        <button id="pz-role-add" type="button">지정</button>
+      </div>
+      <div id="pz-role-note" class="pz-note"></div>
+      <div class="pz-boxfoot"><span class="sp"></span><button id="pz-role-close" type="button" class="ok">닫기</button></div>
+    </div>
+  </div>
+
+  <div id="pz-name" class="pz-name" hidden>
+    <div class="pz-namebox">
+      <b>광장에 들어갈 이름</b>
+      <input id="pz-namein" maxlength="20" placeholder="이름">
+      <button id="pz-nameok" type="button">들어가기</button>
+    </div>
+  </div>
+</div>
+<script src="/static/plaza.js"></script>
+</body>
+</html>

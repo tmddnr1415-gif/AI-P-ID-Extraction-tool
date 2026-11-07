@@ -1,0 +1,25 @@
+{
+ "entries": {
+  "VOC-20261009-130659-8ea996": {
+   "at": "2026-10-09T13:07:07",
+   "by": "Claude Code (회사)",
+   "category": "MISSING",
+   "id": "VOC-20261009-130659-8ea996",
+   "note": "파선 버블 · 배관 주석 규칙",
+   "reason": "버블이 파선이라 못 읽은 PIT",
+   "release": "hotfix72",
+   "status": "RESOLVED"
+  },
+  "VOC-20261009-130701-043c0d": {
+   "at": "2026-10-09T13:07:07",
+   "by": "Claude Code (회사)",
+   "category": "FALSE_POSITIVE",
+   "id": "VOC-20261009-130701-043c0d",
+   "note": "파선 버블 · 배관 주석 규칙",
+   "reason": "배관 주석의 PI 글자를 계기로 읽음",
+   "release": "hotfix72",
+   "status": "RESOLVED"
+  }
+ },
+ "schema": 1
+}

@@ -1,0 +1,9 @@
+✔ 서버 꺼짐 안내: True
+✔ P&ID 서버 /space 로 넘어감: True
+✔ 주소 뒤 값 유지: True
+✔ 최신 화면(룸 · Rev · 3D): True
+✔ 제목 ROOM SIZE 계산: True
+✔ 대시보드 자료 가져옴 (TEST 3): True
+✔ 저장 2건 · 룸 CCR Rev B: True
+✔ 작성자 = 대시보드 로그인 이름: True
+✔ 페이지 오류 0: True

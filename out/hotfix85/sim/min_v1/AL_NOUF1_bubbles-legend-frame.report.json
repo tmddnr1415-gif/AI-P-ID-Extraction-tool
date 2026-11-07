@@ -1,0 +1,226 @@
+{
+ "project": "AL NOUF1",
+ "blind": "bubbles,legend,frame",
+ "secs": 431,
+ "taught": {
+  "applied": [
+   "notes",
+   "legend_page",
+   "bubbles"
+  ],
+  "skipped": [],
+  "who": "sim",
+  "bubble_templates": 1
+ },
+ "busiest_page": 16,
+ "bubble_shapes_on_page": {},
+ "examples": 1,
+ "legend_taught": [],
+ "legend_page": 3,
+ "clicks": 3,
+ "notes_taught": true,
+ "drawing_taught": false,
+ "base_rows": 1065,
+ "taught_rows": 1051,
+ "same": 1051,
+ "recall": 98.7,
+ "precision": 100.0,
+ "only_base": 14,
+ "only_taught": 0,
+ "scope_diff": 337,
+ "qty_diff": 0,
+ "same_fingerprint": false,
+ "only_base_types": [
+  [
+   "RO",
+   12
+  ],
+  [
+   "LI",
+   1
+  ],
+  [
+   "LIT",
+   1
+  ]
+ ],
+ "only_taught_types": [],
+ "only_base_sample": [
+  [
+   16,
+   "FIELD",
+   "RO",
+   "",
+   [
+    530,
+    452,
+    580,
+    469
+   ]
+  ],
+  [
+   16,
+   "FIELD",
+   "RO",
+   "",
+   [
+    530,
+    486,
+    580,
+    503
+   ]
+  ],
+  [
+   16,
+   "FIELD",
+   "RO",
+   "",
+   [
+    530,
+    523,
+    580,
+    540
+   ]
+  ],
+  [
+   16,
+   "FIELD",
+   "RO",
+   "",
+   [
+    530,
+    560,
+    580,
+    576
+   ]
+  ],
+  [
+   16,
+   "FIELD",
+   "RO",
+   "",
+   [
+    530,
+    649,
+    580,
+    666
+   ]
+  ],
+  [
+   16,
+   "FIELD",
+   "RO",
+   "",
+   [
+    542,
+    736,
+    592,
+    753
+   ]
+  ],
+  [
+   16,
+   "FIELD",
+   "RO",
+   "",
+   [
+    370,
+    807,
+    420,
+    824
+   ]
+  ],
+  [
+   16,
+   "FIELD",
+   "RO",
+   "",
+   [
+    1086,
+    806,
+    1136,
+    823
+   ]
+  ],
+  [
+   16,
+   "FIELD",
+   "RO",
+   "",
+   [
+    1086,
+    846,
+    1136,
+    863
+   ]
+  ],
+  [
+   16,
+   "FIELD",
+   "RO",
+   "",
+   [
+    1086,
+    880,
+    1136,
+    897
+   ]
+  ],
+  [
+   16,
+   "FIELD",
+   "RO",
+   "",
+   [
+    1086,
+    921,
+    1136,
+    937
+   ]
+  ],
+  [
+   16,
+   "FIELD",
+   "LI",
+   "",
+   [
+    502,
+    947,
+    517,
+    992
+   ]
+  ],
+  [
+   16,
+   "FIELD",
+   "LIT",
+   "",
+   [
+    582,
+    947,
+    597,
+    992
+   ]
+  ],
+  [
+   16,
+   "FIELD",
+   "RO",
+   "",
+   [
+    530,
+    1076,
+    580,
+    1092
+   ]
+  ]
+ ],
+ "only_taught_sample": [],
+ "only_base_pages": [
+  [
+   16,
+   14
+  ]
+ ],
+ "only_taught_pages": []
+}

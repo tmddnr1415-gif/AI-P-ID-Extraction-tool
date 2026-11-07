@@ -1,0 +1,16 @@
+{
+ "job": "ad1f001e73ce",
+ "상태": "failed",
+ "★ ValueError 가 아닌가": true,
+ "사유 문장": "이 PDF 의 12장 어디에서도 도면번호를 읽지 못했습니다. 도면번호 칸의 자리를 [1950.0, 1560.0, 2384.0, 1600.0] 로 보고 있는데 종이 안이지만 비어 있습니다 (이 문서의 쪽 크기: 2384.0x1684.0pt 12장). 이 도면에서 그 칸을 재지 못해 프로젝트 설정 `title_block` 의 값을 그대로 썼습니다 — 이 회사 양식의 타이틀블록 좌표를 재서 프로젝트 설정에 넣으면 됩니다.",
+ "멈춘 단계(원문)": "reading title blocks",
+ "걸린 시간(초)": 3.0,
+ "행 0개로 조용히 성공했나": false,
+ "행 수": 0,
+ "예외 원문(앞 200)": "Traceback (most recent call last):\n  File \"/tmp/claude-0/-home-user-AI-P-ID-Extraction-tool/bb9fc5fb-8dbb-5734-af54-510e6c1324fb/scratchpad/h21/wt_old/app/main.py\", line 276, in _worker\n    result = p",
+ "화면 제목": "분석 실패",
+ "화면 사유": "이 PDF 의 12장 어디에서도 도면번호를 읽지 못했습니다. 도면번호 칸의 자리를 [1950.0, 1560.0, 2384.0, 1600.0] 로 보고 있는데 종이 안이지만 비어 있습니다 (이 문서의 쪽 크기: 2384.0x1684.0pt 12장). 이 도면에서 그 칸을 재지 못해 프로젝트 설정 `title_block` 의 값을 그대로 썼습니다 — 이 회사 양식의 타이틀블록 좌표를 재서 프로젝트 설정에 넣으면 됩니다.",
+ "화면 어디서": "도면을 한 장도 읽기 전에 멈췄습니다",
+ "예외 원문 접힘 보임": true,
+ "펼친 예외 원문(앞 160)": "Traceback (most recent call last):\n  File \"/tmp/claude-0/-home-user-AI-P-ID-Extraction-tool/bb9fc5fb-8dbb-5734-af54-510e6c1324fb/scratchpad/h21/wt_old/app/main."
+}

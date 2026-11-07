@@ -1,0 +1,228 @@
+{
+  "projects": [
+    {
+      "name": "AL NOUF1",
+      "rows": 1065,
+      "fingerprint": "b61a6995d44a8443c4d5a3d607d237053669ea1c5a1e562631cdbd83f837fc4d",
+      "qty_sum": 1996,
+      "tabs": {
+        "FIELD": 904,
+        "MOV": 76,
+        "PNEUMATIC": 55,
+        "REVIEW": 7,
+        "BFV": 23
+      },
+      "seconds": 461.6,
+      "max_rss_gb": 4.85,
+      "identification": {
+        "도면번호": [
+          58,
+          58,
+          ""
+        ],
+        "개정": [
+          58,
+          58,
+          ""
+        ],
+        "태그→행": [
+          245,
+          267,
+          "밸브 태그는 그 장에 밸브 행이 있는지까지만 본다"
+        ],
+        "수량": [
+          1065,
+          1065,
+          ""
+        ],
+        "심볼판정": [
+          1065,
+          1261,
+          ""
+        ],
+        "파라미터": [
+          28,
+          30,
+          ""
+        ]
+      },
+      "score": 94.9
+    },
+    {
+      "name": "SADARA",
+      "error": "PDF 없음: app/_data/uploads/2391ee0f1ea6_sadara_1A46.pdf"
+    },
+    {
+      "name": "TC2",
+      "rows": 864,
+      "fingerprint": "10e32bd0aab1ed0a0c94fdd139e13865f954d2e8316c717d09b87a386ab409e2",
+      "qty_sum": 5292,
+      "tabs": {
+        "FIELD": 706,
+        "MOV": 71,
+        "PNEUMATIC": 58,
+        "BFV": 7,
+        "REVIEW": 22
+      },
+      "seconds": 360.8,
+      "max_rss_gb": 7.41,
+      "identification": {
+        "도면번호": [
+          60,
+          60,
+          ""
+        ],
+        "개정": [
+          60,
+          60,
+          ""
+        ],
+        "태그→행": [
+          239,
+          266,
+          "밸브 태그는 그 장에 밸브 행이 있는지까지만 본다"
+        ],
+        "수량": [
+          864,
+          864,
+          ""
+        ],
+        "심볼판정": [
+          864,
+          1017,
+          ""
+        ],
+        "파라미터": [
+          26,
+          29,
+          ""
+        ]
+      },
+      "score": 94.1
+    },
+    {
+      "name": "UAD",
+      "error": "PDF 없음: data/UAD_binding.pdf"
+    },
+    {
+      "name": "UAD-DXF",
+      "rows": 467,
+      "fingerprint": "26d45872424dded9ecf0dd4fc54c9e868049219b501f4c15c21a2defc8b1814f",
+      "qty_sum": 467,
+      "tabs": {
+        "FIELD": 423,
+        "PNEUMATIC": 23,
+        "REVIEW": 11,
+        "MOV": 8,
+        "BFV": 2
+      },
+      "seconds": 79.2,
+      "max_rss_gb": 0.51,
+      "identification": {},
+      "score": null
+    },
+    {
+      "name": "QFE",
+      "rows": 1605,
+      "fingerprint": "531237eb9aa8f98e97be7b0c453a646b5cf36f081ba61e064390da0faeffeef3",
+      "qty_sum": 3016,
+      "tabs": {
+        "FIELD": 1373,
+        "PNEUMATIC": 47,
+        "MOV": 98,
+        "BFV": 26,
+        "REVIEW": 61
+      },
+      "seconds": 612.5,
+      "max_rss_gb": 6.22,
+      "identification": {
+        "도면번호": [
+          86,
+          86,
+          ""
+        ],
+        "개정": [
+          85,
+          93,
+          ""
+        ],
+        "태그→행": [
+          337,
+          430,
+          "밸브 태그는 그 장에 밸브 행이 있는지까지만 본다"
+        ],
+        "수량": [
+          1603,
+          1605,
+          ""
+        ],
+        "심볼판정": [
+          1605,
+          1904,
+          ""
+        ],
+        "파라미터": [
+          28,
+          31,
+          ""
+        ]
+      },
+      "score": 90.7
+    },
+    {
+      "name": "TAKHIATASH",
+      "rows": 1105,
+      "fingerprint": "17bc34dd6f31b6df295fa8bf62b178d64268cf389062213ff1db5a2003b0422d",
+      "qty_sum": 1461,
+      "tabs": {
+        "FIELD": 887,
+        "REVIEW": 172,
+        "MOV": 44,
+        "PNEUMATIC": 2
+      },
+      "seconds": 91.8,
+      "max_rss_gb": 0.81,
+      "identification": {
+        "도면번호": [
+          59,
+          59,
+          ""
+        ],
+        "개정": [
+          0,
+          60,
+          ""
+        ],
+        "태그→행": [
+          257,
+          325,
+          "밸브 태그는 그 장에 밸브 행이 있는지까지만 본다"
+        ],
+        "수량": [
+          1105,
+          1105,
+          ""
+        ],
+        "심볼판정": [
+          1105,
+          1218,
+          ""
+        ],
+        "파라미터": [
+          12,
+          15,
+          ""
+        ]
+      },
+      "score": 75.0
+    }
+  ],
+  "metrics": [
+    "도면번호",
+    "개정",
+    "태그→행",
+    "수량",
+    "심볼판정",
+    "파라미터"
+  ]
+}

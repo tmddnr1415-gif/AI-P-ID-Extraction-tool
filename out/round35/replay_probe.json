@@ -1,0 +1,676 @@
+{
+ "restored": [
+  "cfg.formats.drawing_no",
+  "cfg.formats.date",
+  "cfg.formats.revision",
+  "cfg.formats.unit_code_segment",
+  "cfg.formats.unit_code_chars",
+  "cfg.anchors.type_map.TT",
+  "cfg.anchors.type_map.PT",
+  "cfg.anchors.type_map.LT",
+  "cfg.anchors.type_map.PDT",
+  "cfg.anchors.type_map.DPIT",
+  "cfg.anchors.type_map.FT",
+  "cfg.anchors.type_map.LG",
+  "cfg.anchors.type_map.TI",
+  "cfg.anchors.type_map.PI",
+  "cfg.anchors.type_map.LI",
+  "cfg.anchors.type_map.FI",
+  "cfg.anchors.type_map.TIT",
+  "cfg.anchors.type_map.PIT",
+  "cfg.anchors.type_map.LIT",
+  "cfg.anchors.type_map.PDIT"
+ ],
+ "runs": [
+  {
+   "iter": 0,
+   "restored_before": [],
+   "ok": false,
+   "error_type": "TypeError",
+   "error": "first argument must be string or compiled pattern",
+   "missing": "cfg.formats.drawing_no",
+   "missing_all": [
+    "cfg.formats.drawing_no"
+   ],
+   "trace_tail": [
+    "  File \"/usr/lib/python3.11/re/__init__.py\", line 227, in compile",
+    "    return _compile(pattern, flags)",
+    "           ^^^^^^^^^^^^^^^^^^^^^^^^",
+    "  File \"/usr/lib/python3.11/re/__init__.py\", line 286, in _compile",
+    "    raise TypeError(\"first argument must be string or compiled pattern\")",
+    "TypeError: first argument must be string or compiled pattern"
+   ],
+   "seconds": 0.3
+  },
+  {
+   "iter": 1,
+   "restored_before": [
+    "cfg.formats.drawing_no"
+   ],
+   "ok": false,
+   "error_type": "TypeError",
+   "error": "first argument must be string or compiled pattern",
+   "missing": "cfg.formats.date",
+   "missing_all": [
+    "cfg.formats.date"
+   ],
+   "trace_tail": [
+    "  File \"/usr/lib/python3.11/re/__init__.py\", line 227, in compile",
+    "    return _compile(pattern, flags)",
+    "           ^^^^^^^^^^^^^^^^^^^^^^^^",
+    "  File \"/usr/lib/python3.11/re/__init__.py\", line 286, in _compile",
+    "    raise TypeError(\"first argument must be string or compiled pattern\")",
+    "TypeError: first argument must be string or compiled pattern"
+   ],
+   "seconds": 0.2
+  },
+  {
+   "iter": 2,
+   "restored_before": [
+    "cfg.formats.drawing_no",
+    "cfg.formats.date"
+   ],
+   "ok": false,
+   "error_type": "TypeError",
+   "error": "first argument must be string or compiled pattern",
+   "missing": "cfg.formats.revision",
+   "missing_all": [
+    "cfg.formats.revision"
+   ],
+   "trace_tail": [
+    "  File \"/usr/lib/python3.11/re/__init__.py\", line 227, in compile",
+    "    return _compile(pattern, flags)",
+    "           ^^^^^^^^^^^^^^^^^^^^^^^^",
+    "  File \"/usr/lib/python3.11/re/__init__.py\", line 286, in _compile",
+    "    raise TypeError(\"first argument must be string or compiled pattern\")",
+    "TypeError: first argument must be string or compiled pattern"
+   ],
+   "seconds": 0.2
+  },
+  {
+   "iter": 3,
+   "restored_before": [
+    "cfg.formats.drawing_no",
+    "cfg.formats.date",
+    "cfg.formats.revision"
+   ],
+   "ok": false,
+   "error_type": "MissingConstant",
+   "error": "cfg.formats.unit_code_segment",
+   "missing": "cfg.formats.unit_code_segment",
+   "missing_all": [
+    "cfg.formats.unit_code_segment"
+   ],
+   "trace_tail": [
+    "  File \"/tmp/r35_strip/app/engine/extract_titleblocks.py\", line 179, in <module>",
+    "    _UC_SEG = int(CFG.get(\"formats.unit_code_segment\"))",
+    "              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^",
+    "  File \"/tmp/r35_strip/app/engine/missing.py\", line 28, in _raise",
+    "    raise MissingConstant(self.name)",
+    "missing.MissingConstant: cfg.formats.unit_code_segment"
+   ],
+   "seconds": 0.2
+  },
+  {
+   "iter": 4,
+   "restored_before": [
+    "cfg.formats.drawing_no",
+    "cfg.formats.date",
+    "cfg.formats.revision",
+    "cfg.formats.unit_code_segment"
+   ],
+   "ok": false,
+   "error_type": "MissingConstant",
+   "error": "cfg.formats.unit_code_chars",
+   "missing": "cfg.formats.unit_code_chars",
+   "missing_all": [
+    "cfg.formats.unit_code_chars"
+   ],
+   "trace_tail": [
+    "  File \"/tmp/r35_strip/app/engine/extract_titleblocks.py\", line 180, in <module>",
+    "    _UC_FROM, _UC_TO = (int(v) for v in CFG.get(\"formats.unit_code_chars\"))",
+    "                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^",
+    "  File \"/tmp/r35_strip/app/engine/missing.py\", line 28, in _raise",
+    "    raise MissingConstant(self.name)",
+    "missing.MissingConstant: cfg.formats.unit_code_chars"
+   ],
+   "seconds": 0.2
+  },
+  {
+   "iter": 5,
+   "restored_before": [
+    "cfg.formats.drawing_no",
+    "cfg.formats.date",
+    "cfg.formats.revision",
+    "cfg.formats.unit_code_segment",
+    "cfg.formats.unit_code_chars"
+   ],
+   "ok": false,
+   "error_type": "MissingConstant",
+   "error": "cfg.anchors.type_map.TT",
+   "missing": "cfg.anchors.type_map.TT",
+   "missing_all": [
+    "cfg.anchors.type_map.TT"
+   ],
+   "trace_tail": [
+    "  File \"/tmp/r35_strip/app/engine/detect_symbols.py\", line 117, in <dictcomp>",
+    "    _V3_FIELD_TYPE_MAP = {str(k): str(v) for k, v in CFG.get(\"anchors.type_map\").items()}",
+    "                                  ^^^^^^",
+    "  File \"/tmp/r35_strip/app/engine/missing.py\", line 28, in _raise",
+    "    raise MissingConstant(self.name)",
+    "missing.MissingConstant: cfg.anchors.type_map.TT"
+   ],
+   "seconds": 0.3
+  },
+  {
+   "iter": 6,
+   "restored_before": [
+    "cfg.formats.drawing_no",
+    "cfg.formats.date",
+    "cfg.formats.revision",
+    "cfg.formats.unit_code_segment",
+    "cfg.formats.unit_code_chars",
+    "cfg.anchors.type_map.TT"
+   ],
+   "ok": false,
+   "error_type": "MissingConstant",
+   "error": "cfg.anchors.type_map.PT",
+   "missing": "cfg.anchors.type_map.PT",
+   "missing_all": [
+    "cfg.anchors.type_map.PT"
+   ],
+   "trace_tail": [
+    "  File \"/tmp/r35_strip/app/engine/detect_symbols.py\", line 117, in <dictcomp>",
+    "    _V3_FIELD_TYPE_MAP = {str(k): str(v) for k, v in CFG.get(\"anchors.type_map\").items()}",
+    "                                  ^^^^^^",
+    "  File \"/tmp/r35_strip/app/engine/missing.py\", line 28, in _raise",
+    "    raise MissingConstant(self.name)",
+    "missing.MissingConstant: cfg.anchors.type_map.PT"
+   ],
+   "seconds": 0.3
+  },
+  {
+   "iter": 7,
+   "restored_before": [
+    "cfg.formats.drawing_no",
+    "cfg.formats.date",
+    "cfg.formats.revision",
+    "cfg.formats.unit_code_segment",
+    "cfg.formats.unit_code_chars",
+    "cfg.anchors.type_map.TT",
+    "cfg.anchors.type_map.PT"
+   ],
+   "ok": false,
+   "error_type": "MissingConstant",
+   "error": "cfg.anchors.type_map.LT",
+   "missing": "cfg.anchors.type_map.LT",
+   "missing_all": [
+    "cfg.anchors.type_map.LT"
+   ],
+   "trace_tail": [
+    "  File \"/tmp/r35_strip/app/engine/detect_symbols.py\", line 117, in <dictcomp>",
+    "    _V3_FIELD_TYPE_MAP = {str(k): str(v) for k, v in CFG.get(\"anchors.type_map\").items()}",
+    "                                  ^^^^^^",
+    "  File \"/tmp/r35_strip/app/engine/missing.py\", line 28, in _raise",
+    "    raise MissingConstant(self.name)",
+    "missing.MissingConstant: cfg.anchors.type_map.LT"
+   ],
+   "seconds": 0.3
+  },
+  {
+   "iter": 8,
+   "restored_before": [
+    "cfg.formats.drawing_no",
+    "cfg.formats.date",
+    "cfg.formats.revision",
+    "cfg.formats.unit_code_segment",
+    "cfg.formats.unit_code_chars",
+    "cfg.anchors.type_map.TT",
+    "cfg.anchors.type_map.PT",
+    "cfg.anchors.type_map.LT"
+   ],
+   "ok": false,
+   "error_type": "MissingConstant",
+   "error": "cfg.anchors.type_map.PDT",
+   "missing": "cfg.anchors.type_map.PDT",
+   "missing_all": [
+    "cfg.anchors.type_map.PDT"
+   ],
+   "trace_tail": [
+    "  File \"/tmp/r35_strip/app/engine/detect_symbols.py\", line 117, in <dictcomp>",
+    "    _V3_FIELD_TYPE_MAP = {str(k): str(v) for k, v in CFG.get(\"anchors.type_map\").items()}",
+    "                                  ^^^^^^",
+    "  File \"/tmp/r35_strip/app/engine/missing.py\", line 28, in _raise",
+    "    raise MissingConstant(self.name)",
+    "missing.MissingConstant: cfg.anchors.type_map.PDT"
+   ],
+   "seconds": 0.3
+  },
+  {
+   "iter": 9,
+   "restored_before": [
+    "cfg.formats.drawing_no",
+    "cfg.formats.date",
+    "cfg.formats.revision",
+    "cfg.formats.unit_code_segment",
+    "cfg.formats.unit_code_chars",
+    "cfg.anchors.type_map.TT",
+    "cfg.anchors.type_map.PT",
+    "cfg.anchors.type_map.LT",
+    "cfg.anchors.type_map.PDT"
+   ],
+   "ok": false,
+   "error_type": "MissingConstant",
+   "error": "cfg.anchors.type_map.DPIT",
+   "missing": "cfg.anchors.type_map.DPIT",
+   "missing_all": [
+    "cfg.anchors.type_map.DPIT"
+   ],
+   "trace_tail": [
+    "  File \"/tmp/r35_strip/app/engine/detect_symbols.py\", line 117, in <dictcomp>",
+    "    _V3_FIELD_TYPE_MAP = {str(k): str(v) for k, v in CFG.get(\"anchors.type_map\").items()}",
+    "                                  ^^^^^^",
+    "  File \"/tmp/r35_strip/app/engine/missing.py\", line 28, in _raise",
+    "    raise MissingConstant(self.name)",
+    "missing.MissingConstant: cfg.anchors.type_map.DPIT"
+   ],
+   "seconds": 0.3
+  },
+  {
+   "iter": 10,
+   "restored_before": [
+    "cfg.formats.drawing_no",
+    "cfg.formats.date",
+    "cfg.formats.revision",
+    "cfg.formats.unit_code_segment",
+    "cfg.formats.unit_code_chars",
+    "cfg.anchors.type_map.TT",
+    "cfg.anchors.type_map.PT",
+    "cfg.anchors.type_map.LT",
+    "cfg.anchors.type_map.PDT",
+    "cfg.anchors.type_map.DPIT"
+   ],
+   "ok": false,
+   "error_type": "MissingConstant",
+   "error": "cfg.anchors.type_map.FT",
+   "missing": "cfg.anchors.type_map.FT",
+   "missing_all": [
+    "cfg.anchors.type_map.FT"
+   ],
+   "trace_tail": [
+    "  File \"/tmp/r35_strip/app/engine/detect_symbols.py\", line 117, in <dictcomp>",
+    "    _V3_FIELD_TYPE_MAP = {str(k): str(v) for k, v in CFG.get(\"anchors.type_map\").items()}",
+    "                                  ^^^^^^",
+    "  File \"/tmp/r35_strip/app/engine/missing.py\", line 28, in _raise",
+    "    raise MissingConstant(self.name)",
+    "missing.MissingConstant: cfg.anchors.type_map.FT"
+   ],
+   "seconds": 0.3
+  },
+  {
+   "iter": 11,
+   "restored_before": [
+    "cfg.formats.drawing_no",
+    "cfg.formats.date",
+    "cfg.formats.revision",
+    "cfg.formats.unit_code_segment",
+    "cfg.formats.unit_code_chars",
+    "cfg.anchors.type_map.TT",
+    "cfg.anchors.type_map.PT",
+    "cfg.anchors.type_map.LT",
+    "cfg.anchors.type_map.PDT",
+    "cfg.anchors.type_map.DPIT",
+    "cfg.anchors.type_map.FT"
+   ],
+   "ok": false,
+   "error_type": "MissingConstant",
+   "error": "cfg.anchors.type_map.LG",
+   "missing": "cfg.anchors.type_map.LG",
+   "missing_all": [
+    "cfg.anchors.type_map.LG"
+   ],
+   "trace_tail": [
+    "  File \"/tmp/r35_strip/app/engine/detect_symbols.py\", line 117, in <dictcomp>",
+    "    _V3_FIELD_TYPE_MAP = {str(k): str(v) for k, v in CFG.get(\"anchors.type_map\").items()}",
+    "                                  ^^^^^^",
+    "  File \"/tmp/r35_strip/app/engine/missing.py\", line 28, in _raise",
+    "    raise MissingConstant(self.name)",
+    "missing.MissingConstant: cfg.anchors.type_map.LG"
+   ],
+   "seconds": 0.3
+  },
+  {
+   "iter": 12,
+   "restored_before": [
+    "cfg.formats.drawing_no",
+    "cfg.formats.date",
+    "cfg.formats.revision",
+    "cfg.formats.unit_code_segment",
+    "cfg.formats.unit_code_chars",
+    "cfg.anchors.type_map.TT",
+    "cfg.anchors.type_map.PT",
+    "cfg.anchors.type_map.LT",
+    "cfg.anchors.type_map.PDT",
+    "cfg.anchors.type_map.DPIT",
+    "cfg.anchors.type_map.FT",
+    "cfg.anchors.type_map.LG"
+   ],
+   "ok": false,
+   "error_type": "MissingConstant",
+   "error": "cfg.anchors.type_map.TI",
+   "missing": "cfg.anchors.type_map.TI",
+   "missing_all": [
+    "cfg.anchors.type_map.TI"
+   ],
+   "trace_tail": [
+    "  File \"/tmp/r35_strip/app/engine/detect_symbols.py\", line 117, in <dictcomp>",
+    "    _V3_FIELD_TYPE_MAP = {str(k): str(v) for k, v in CFG.get(\"anchors.type_map\").items()}",
+    "                                  ^^^^^^",
+    "  File \"/tmp/r35_strip/app/engine/missing.py\", line 28, in _raise",
+    "    raise MissingConstant(self.name)",
+    "missing.MissingConstant: cfg.anchors.type_map.TI"
+   ],
+   "seconds": 0.3
+  },
+  {
+   "iter": 13,
+   "restored_before": [
+    "cfg.formats.drawing_no",
+    "cfg.formats.date",
+    "cfg.formats.revision",
+    "cfg.formats.unit_code_segment",
+    "cfg.formats.unit_code_chars",
+    "cfg.anchors.type_map.TT",
+    "cfg.anchors.type_map.PT",
+    "cfg.anchors.type_map.LT",
+    "cfg.anchors.type_map.PDT",
+    "cfg.anchors.type_map.DPIT",
+    "cfg.anchors.type_map.FT",
+    "cfg.anchors.type_map.LG",
+    "cfg.anchors.type_map.TI"
+   ],
+   "ok": false,
+   "error_type": "MissingConstant",
+   "error": "cfg.anchors.type_map.PI",
+   "missing": "cfg.anchors.type_map.PI",
+   "missing_all": [
+    "cfg.anchors.type_map.PI"
+   ],
+   "trace_tail": [
+    "  File \"/tmp/r35_strip/app/engine/detect_symbols.py\", line 117, in <dictcomp>",
+    "    _V3_FIELD_TYPE_MAP = {str(k): str(v) for k, v in CFG.get(\"anchors.type_map\").items()}",
+    "                                  ^^^^^^",
+    "  File \"/tmp/r35_strip/app/engine/missing.py\", line 28, in _raise",
+    "    raise MissingConstant(self.name)",
+    "missing.MissingConstant: cfg.anchors.type_map.PI"
+   ],
+   "seconds": 0.3
+  },
+  {
+   "iter": 14,
+   "restored_before": [
+    "cfg.formats.drawing_no",
+    "cfg.formats.date",
+    "cfg.formats.revision",
+    "cfg.formats.unit_code_segment",
+    "cfg.formats.unit_code_chars",
+    "cfg.anchors.type_map.TT",
+    "cfg.anchors.type_map.PT",
+    "cfg.anchors.type_map.LT",
+    "cfg.anchors.type_map.PDT",
+    "cfg.anchors.type_map.DPIT",
+    "cfg.anchors.type_map.FT",
+    "cfg.anchors.type_map.LG",
+    "cfg.anchors.type_map.TI",
+    "cfg.anchors.type_map.PI"
+   ],
+   "ok": false,
+   "error_type": "MissingConstant",
+   "error": "cfg.anchors.type_map.LI",
+   "missing": "cfg.anchors.type_map.LI",
+   "missing_all": [
+    "cfg.anchors.type_map.LI"
+   ],
+   "trace_tail": [
+    "  File \"/tmp/r35_strip/app/engine/detect_symbols.py\", line 117, in <dictcomp>",
+    "    _V3_FIELD_TYPE_MAP = {str(k): str(v) for k, v in CFG.get(\"anchors.type_map\").items()}",
+    "                                  ^^^^^^",
+    "  File \"/tmp/r35_strip/app/engine/missing.py\", line 28, in _raise",
+    "    raise MissingConstant(self.name)",
+    "missing.MissingConstant: cfg.anchors.type_map.LI"
+   ],
+   "seconds": 0.3
+  },
+  {
+   "iter": 15,
+   "restored_before": [
+    "cfg.formats.drawing_no",
+    "cfg.formats.date",
+    "cfg.formats.revision",
+    "cfg.formats.unit_code_segment",
+    "cfg.formats.unit_code_chars",
+    "cfg.anchors.type_map.TT",
+    "cfg.anchors.type_map.PT",
+    "cfg.anchors.type_map.LT",
+    "cfg.anchors.type_map.PDT",
+    "cfg.anchors.type_map.DPIT",
+    "cfg.anchors.type_map.FT",
+    "cfg.anchors.type_map.LG",
+    "cfg.anchors.type_map.TI",
+    "cfg.anchors.type_map.PI",
+    "cfg.anchors.type_map.LI"
+   ],
+   "ok": false,
+   "error_type": "MissingConstant",
+   "error": "cfg.anchors.type_map.FI",
+   "missing": "cfg.anchors.type_map.FI",
+   "missing_all": [
+    "cfg.anchors.type_map.FI"
+   ],
+   "trace_tail": [
+    "  File \"/tmp/r35_strip/app/engine/detect_symbols.py\", line 117, in <dictcomp>",
+    "    _V3_FIELD_TYPE_MAP = {str(k): str(v) for k, v in CFG.get(\"anchors.type_map\").items()}",
+    "                                  ^^^^^^",
+    "  File \"/tmp/r35_strip/app/engine/missing.py\", line 28, in _raise",
+    "    raise MissingConstant(self.name)",
+    "missing.MissingConstant: cfg.anchors.type_map.FI"
+   ],
+   "seconds": 0.3
+  },
+  {
+   "iter": 16,
+   "restored_before": [
+    "cfg.formats.drawing_no",
+    "cfg.formats.date",
+    "cfg.formats.revision",
+    "cfg.formats.unit_code_segment",
+    "cfg.formats.unit_code_chars",
+    "cfg.anchors.type_map.TT",
+    "cfg.anchors.type_map.PT",
+    "cfg.anchors.type_map.LT",
+    "cfg.anchors.type_map.PDT",
+    "cfg.anchors.type_map.DPIT",
+    "cfg.anchors.type_map.FT",
+    "cfg.anchors.type_map.LG",
+    "cfg.anchors.type_map.TI",
+    "cfg.anchors.type_map.PI",
+    "cfg.anchors.type_map.LI",
+    "cfg.anchors.type_map.FI"
+   ],
+   "ok": false,
+   "error_type": "MissingConstant",
+   "error": "cfg.anchors.type_map.TIT",
+   "missing": "cfg.anchors.type_map.TIT",
+   "missing_all": [
+    "cfg.anchors.type_map.TIT"
+   ],
+   "trace_tail": [
+    "  File \"/tmp/r35_strip/app/engine/detect_symbols.py\", line 117, in <dictcomp>",
+    "    _V3_FIELD_TYPE_MAP = {str(k): str(v) for k, v in CFG.get(\"anchors.type_map\").items()}",
+    "                                  ^^^^^^",
+    "  File \"/tmp/r35_strip/app/engine/missing.py\", line 28, in _raise",
+    "    raise MissingConstant(self.name)",
+    "missing.MissingConstant: cfg.anchors.type_map.TIT"
+   ],
+   "seconds": 0.3
+  },
+  {
+   "iter": 17,
+   "restored_before": [
+    "cfg.formats.drawing_no",
+    "cfg.formats.date",
+    "cfg.formats.revision",
+    "cfg.formats.unit_code_segment",
+    "cfg.formats.unit_code_chars",
+    "cfg.anchors.type_map.TT",
+    "cfg.anchors.type_map.PT",
+    "cfg.anchors.type_map.LT",
+    "cfg.anchors.type_map.PDT",
+    "cfg.anchors.type_map.DPIT",
+    "cfg.anchors.type_map.FT",
+    "cfg.anchors.type_map.LG",
+    "cfg.anchors.type_map.TI",
+    "cfg.anchors.type_map.PI",
+    "cfg.anchors.type_map.LI",
+    "cfg.anchors.type_map.FI",
+    "cfg.anchors.type_map.TIT"
+   ],
+   "ok": false,
+   "error_type": "MissingConstant",
+   "error": "cfg.anchors.type_map.PIT",
+   "missing": "cfg.anchors.type_map.PIT",
+   "missing_all": [
+    "cfg.anchors.type_map.PIT"
+   ],
+   "trace_tail": [
+    "  File \"/tmp/r35_strip/app/engine/detect_symbols.py\", line 117, in <dictcomp>",
+    "    _V3_FIELD_TYPE_MAP = {str(k): str(v) for k, v in CFG.get(\"anchors.type_map\").items()}",
+    "                                  ^^^^^^",
+    "  File \"/tmp/r35_strip/app/engine/missing.py\", line 28, in _raise",
+    "    raise MissingConstant(self.name)",
+    "missing.MissingConstant: cfg.anchors.type_map.PIT"
+   ],
+   "seconds": 0.3
+  },
+  {
+   "iter": 18,
+   "restored_before": [
+    "cfg.formats.drawing_no",
+    "cfg.formats.date",
+    "cfg.formats.revision",
+    "cfg.formats.unit_code_segment",
+    "cfg.formats.unit_code_chars",
+    "cfg.anchors.type_map.TT",
+    "cfg.anchors.type_map.PT",
+    "cfg.anchors.type_map.LT",
+    "cfg.anchors.type_map.PDT",
+    "cfg.anchors.type_map.DPIT",
+    "cfg.anchors.type_map.FT",
+    "cfg.anchors.type_map.LG",
+    "cfg.anchors.type_map.TI",
+    "cfg.anchors.type_map.PI",
+    "cfg.anchors.type_map.LI",
+    "cfg.anchors.type_map.FI",
+    "cfg.anchors.type_map.TIT",
+    "cfg.anchors.type_map.PIT"
+   ],
+   "ok": false,
+   "error_type": "MissingConstant",
+   "error": "cfg.anchors.type_map.LIT",
+   "missing": "cfg.anchors.type_map.LIT",
+   "missing_all": [
+    "cfg.anchors.type_map.LIT"
+   ],
+   "trace_tail": [
+    "  File \"/tmp/r35_strip/app/engine/detect_symbols.py\", line 117, in <dictcomp>",
+    "    _V3_FIELD_TYPE_MAP = {str(k): str(v) for k, v in CFG.get(\"anchors.type_map\").items()}",
+    "                                  ^^^^^^",
+    "  File \"/tmp/r35_strip/app/engine/missing.py\", line 28, in _raise",
+    "    raise MissingConstant(self.name)",
+    "missing.MissingConstant: cfg.anchors.type_map.LIT"
+   ],
+   "seconds": 0.3
+  },
+  {
+   "iter": 19,
+   "restored_before": [
+    "cfg.formats.drawing_no",
+    "cfg.formats.date",
+    "cfg.formats.revision",
+    "cfg.formats.unit_code_segment",
+    "cfg.formats.unit_code_chars",
+    "cfg.anchors.type_map.TT",
+    "cfg.anchors.type_map.PT",
+    "cfg.anchors.type_map.LT",
+    "cfg.anchors.type_map.PDT",
+    "cfg.anchors.type_map.DPIT",
+    "cfg.anchors.type_map.FT",
+    "cfg.anchors.type_map.LG",
+    "cfg.anchors.type_map.TI",
+    "cfg.anchors.type_map.PI",
+    "cfg.anchors.type_map.LI",
+    "cfg.anchors.type_map.FI",
+    "cfg.anchors.type_map.TIT",
+    "cfg.anchors.type_map.PIT",
+    "cfg.anchors.type_map.LIT"
+   ],
+   "ok": false,
+   "error_type": "MissingConstant",
+   "error": "cfg.anchors.type_map.PDIT",
+   "missing": "cfg.anchors.type_map.PDIT",
+   "missing_all": [
+    "cfg.anchors.type_map.PDIT"
+   ],
+   "trace_tail": [
+    "  File \"/tmp/r35_strip/app/engine/detect_symbols.py\", line 117, in <dictcomp>",
+    "    _V3_FIELD_TYPE_MAP = {str(k): str(v) for k, v in CFG.get(\"anchors.type_map\").items()}",
+    "                                  ^^^^^^",
+    "  File \"/tmp/r35_strip/app/engine/missing.py\", line 28, in _raise",
+    "    raise MissingConstant(self.name)",
+    "missing.MissingConstant: cfg.anchors.type_map.PDIT"
+   ],
+   "seconds": 0.3
+  },
+  {
+   "iter": 20,
+   "restored_before": [
+    "cfg.formats.drawing_no",
+    "cfg.formats.date",
+    "cfg.formats.revision",
+    "cfg.formats.unit_code_segment",
+    "cfg.formats.unit_code_chars",
+    "cfg.anchors.type_map.TT",
+    "cfg.anchors.type_map.PT",
+    "cfg.anchors.type_map.LT",
+    "cfg.anchors.type_map.PDT",
+    "cfg.anchors.type_map.DPIT",
+    "cfg.anchors.type_map.FT",
+    "cfg.anchors.type_map.LG",
+    "cfg.anchors.type_map.TI",
+    "cfg.anchors.type_map.PI",
+    "cfg.anchors.type_map.LI",
+    "cfg.anchors.type_map.FI",
+    "cfg.anchors.type_map.TIT",
+    "cfg.anchors.type_map.PIT",
+    "cfg.anchors.type_map.LIT",
+    "cfg.anchors.type_map.PDIT"
+   ],
+   "ok": false,
+   "error_type": "MissingConstant",
+   "error": "cfg.anchors.type_map.FIT",
+   "missing": "cfg.anchors.type_map.FIT",
+   "missing_all": [
+    "cfg.anchors.type_map.FIT"
+   ],
+   "trace_tail": [
+    "  File \"/tmp/r35_strip/app/engine/detect_symbols.py\", line 117, in <dictcomp>",
+    "    _V3_FIELD_TYPE_MAP = {str(k): str(v) for k, v in CFG.get(\"anchors.type_map\").items()}",
+    "                                  ^^^^^^",
+    "  File \"/tmp/r35_strip/app/engine/missing.py\", line 28, in _raise",
+    "    raise MissingConstant(self.name)",
+    "missing.MissingConstant: cfg.anchors.type_map.FIT"
+   ],
+   "seconds": 0.3
+  }
+ ]
+}

@@ -1,0 +1,99 @@
+=== 1~3 옛 코드(aac64ba)로 분석 + 손편집 3칸 ===
+옛 코드 분석: status=done · 행 824 · 지문 91ba3e33
+편집 칸 3
+SCOPE 값이 있는 행 2
+JOB 0e13e389625d
+
+=== 4 백업 ===
+32M	/tmp/claude-0/-home-user-AI-P-ID-Extraction-tool/bb9fc5fb-8dbb-5734-af54-510e6c1324fb/scratchpad/r15/site.backup
+
+=== 5 zip 을 옛 트리에 덮어쓴다 ===
+zip 엔트리 30 · app/_data 엔트리 0
+푼 파일이 HEAD 와 바이트 동일: 29 · 다름: 0
+
+=== 6 수동 삭제 ===
+삭제·이름변경 0개
+
+=== 7~10 서버 기동 · 첫 화면 · 옛 프로젝트 열기 ===
+  "귀속",
+  "Type▾",
+  "Valve Type▾",
+  "Q'ty▾",
+  "System▾",
+  "Vendor▾",
+  "Scope",
+  "Tag No.",
+  "Description",
+  "등급",
+  "Remark",
+  ""
+ ],
+ "10_SCOPE_칸_앞5행": [
+  "\"\"",
+  "\"\"",
+  "\"\"",
+  "\"\"",
+  "\"\""
+ ],
+ "JS_오류": [],
+ "E1_snapshot": {
+  "revision_id": 1,
+  "id": null,
+  "rows": 824
+ },
+ "E1_MANIFEST": {
+  "total_rows": null,
+  "written_rows": null,
+  "out_of_scope_rows": 0,
+  "legacy_no_scope_rows": 822,
+  "scope_filter": "SCT"
+ },
+ "E1_zip안": [
+  "field_pid_total.xlsx",
+  "bfv_pid_total.xlsx",
+  "mov_pid_total.xlsx",
+  "MANIFEST.json"
+ ]
+}
+
+=== 11 재분석 (새 코드) ===
+{
+ "11_전_행수": 824,
+ "11_전_편집": {
+  "key": "0496c0be022bd8d2",
+  "user": {
+   "description": "회사PC 옛 편집",
+   "qty": 3,
+   "tag_no": "OLD-1"
+  }
+ },
+ "11_분석초": 419,
+ "11_상태": "done",
+ "11_지문": "69ad281f",
+ "11_doc_rev": "D",
+ "11_화면_행수": 1029,
+ "JS_오류": [],
+ "11_후_행수": 1029,
+ "11_Qty합": 1912,
+ "11_SCOPE_값있는행": 1029,
+ "11_옛편집_남았나": {
+  "description": "회사PC 옛 편집",
+  "qty": 3,
+  "tag_no": "OLD-1"
+ },
+ "11_사람이_고친칸": 3
+}
+
+=== 12 옛 DB 에서 프로필이 생겼나 ===
+total 1572
+drwxr-xr-x 2 root root    4096 Sep  6 07:14 .
+drwxr-xr-x 3 root root    4096 Sep  6 07:00 ..
+-rw-r--r-- 1 root root 1581692 Sep  6 07:14 id_registry.json
+-rw-r--r-- 1 root root    9675 Sep  6 07:14 legend_profile.json
+-rw-r--r-- 1 root root     364 Sep  6 07:14 project.json
+
+=== 13 적용된 나무에서 빠른 테스트 ===
+........sss............................................................. [ 42%]
+........................................................................ [ 84%]
+..........................                                               [100%]
+167 passed, 3 skipped, 34 deselected in 12.06s

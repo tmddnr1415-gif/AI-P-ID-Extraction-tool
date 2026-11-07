@@ -1,0 +1,5 @@
+# 다른 작업 줄기(브랜치)가 회사에 따로 보낸 대시보드 파일의 판 — make_patch --any 가 known/ 에 넣어, 회사본이 이 판이어도 백업 후 덮어씀
+# 형식: <커밋>  <설명>   (그 커밋의 dashboard/ 파일 내용을 씀)
+0a80898  ccr-d82d97fa-bb3ty3 판넬 — 프로젝트 → 룸 → Rev 만들기 (server.py SERVER 2026-10-24.1)
+9ccd881  ccr-d82d97fa-bb3ty3 판넬 — 프로젝트 · 룸 · Rev 지우기 API (server.py SERVER 2026-10-24.2)
+7347284  ccr-d82d97fa-bb3ty3 판넬 브랜치 마지막 (2026-10-24)

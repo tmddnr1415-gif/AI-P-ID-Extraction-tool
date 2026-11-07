@@ -1,0 +1,4 @@
+SADARA non-black/non-red drawings in drawing area: {(0.0, 0.0, 1.0): 50} | pages: {6: {(0.0, 0.0, 1.0): 14}, 7: {(0.0, 0.0, 1.0): 17}, 8: {(0.0, 0.0, 1.0): 10}, 9: {(0.0, 0.0, 1.0): 9}}
+UAD non-black/non-red drawings in drawing area: {} | pages: {}
+AL NOUF1 non-black/non-red drawings in drawing area: {(1.0, 1.0, 1.0): 22, (0.94, 0.32, 0.31): 4, (0.8, 0.12, 0.15): 2} | pages: {30: {(0.94, 0.32, 0.31): 3}, 33: {(0.8, 0.12, 0.15): 2}, 46: {(0.94, 0.32, 0.31): 1}, 55: {(1.0, 1.0, 1.0): 22}}
+TC2 non-black/non-red drawings in drawing area: {(1.0, 1.0, 1.0): 196} | pages: {23: {(1.0, 1.0, 1.0): 25}, 24: {(1.0, 1.0, 1.0): 11}, 49: {(1.0, 1.0, 1.0): 80}, 50: {(1.0, 1.0, 1.0): 80}}

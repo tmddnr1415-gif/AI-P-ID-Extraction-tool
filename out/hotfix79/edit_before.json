@@ -1,0 +1,388 @@
+{
+ "rounds": [
+  {
+   "page": 15,
+   "rows_on_page": 73,
+   "band": {
+    "ms": 64,
+    "longtasks": 0,
+    "longtask_ms": 0,
+    "requests": 0,
+    "kb": 0,
+    "urls": [],
+    "selected": 73
+   },
+   "scope_multi": {
+    "ms": 263,
+    "longtasks": 1,
+    "longtask_ms": 60,
+    "requests": 1,
+    "kb": 1,
+    "urls": [
+     "/jobs/48b5adbdd28c/rows_edit"
+    ],
+    "ok": true
+   },
+   "qty_page": {
+    "ms": 617,
+    "longtasks": 2,
+    "longtask_ms": 188,
+    "requests": 1,
+    "kb": 1,
+    "urls": [
+     "/jobs/48b5adbdd28c/rows_edit"
+    ],
+    "ok": true
+   },
+   "edit_one": {
+    "ms": 154,
+    "longtasks": 1,
+    "longtask_ms": 74,
+    "requests": 1,
+    "kb": 1,
+    "urls": [
+     "/jobs/48b5adbdd28c/rows/0668f91a333c504c"
+    ],
+    "ok": true
+   },
+   "dismiss": {
+    "ms": 568,
+    "longtasks": 1,
+    "longtask_ms": 50,
+    "requests": 10,
+    "kb": 51,
+    "urls": [
+     "/jobs/48b5adbdd28c/rows_delete",
+     "/jobs/48b5adbdd28c/rows",
+     "/jobs/48b5adbdd28c/markup",
+     "/jobs/48b5adbdd28c/axis_overrides",
+     "/jobs/48b5adbdd28c/review",
+     "/jobs/48b5adbdd28c/feedback",
+     "/jobs/48b5adbdd28c/reports",
+     "/jobs/48b5adbdd28c/drawings",
+     "/jobs/48b5adbdd28c/unjudged",
+     "/templates"
+    ],
+    "n": 20,
+    "ok": true
+   },
+   "restore": {
+    "ms": 615,
+    "longtasks": 2,
+    "longtask_ms": 326,
+    "requests": 10,
+    "kb": 36,
+    "urls": [
+     "/jobs/48b5adbdd28c/rows/08d94973b57ee7cf",
+     "/jobs/48b5adbdd28c/rows",
+     "/jobs/48b5adbdd28c/markup",
+     "/jobs/48b5adbdd28c/axis_overrides",
+     "/jobs/48b5adbdd28c/review",
+     "/jobs/48b5adbdd28c/feedback",
+     "/jobs/48b5adbdd28c/reports",
+     "/jobs/48b5adbdd28c/drawings",
+     "/jobs/48b5adbdd28c/unjudged",
+     "/templates"
+    ],
+    "ok": true
+   },
+   "add_row": {
+    "ms": 3117,
+    "longtasks": 2,
+    "longtask_ms": 192,
+    "requests": 12,
+    "kb": 35,
+    "urls": [
+     "/jobs/48b5adbdd28c/rows/08d94973b57ee7cf",
+     "/jobs/48b5adbdd28c/markup/propose",
+     "/jobs/48b5adbdd28c/rows",
+     "/jobs/48b5adbdd28c/rows",
+     "/jobs/48b5adbdd28c/markup",
+     "/jobs/48b5adbdd28c/axis_overrides",
+     "/jobs/48b5adbdd28c/review",
+     "/jobs/48b5adbdd28c/feedback",
+     "/jobs/48b5adbdd28c/reports",
+     "/jobs/48b5adbdd28c/drawings",
+     "/jobs/48b5adbdd28c/unjudged",
+     "/templates"
+    ],
+    "ok": true
+   },
+   "errors": []
+  },
+  {
+   "page": 15,
+   "rows_on_page": 73,
+   "band": {
+    "ms": 83,
+    "longtasks": 0,
+    "longtask_ms": 0,
+    "requests": 0,
+    "kb": 0,
+    "urls": [],
+    "selected": 73
+   },
+   "scope_multi": {
+    "ms": 325,
+    "longtasks": 1,
+    "longtask_ms": 74,
+    "requests": 1,
+    "kb": 1,
+    "urls": [
+     "/jobs/48b5adbdd28c/rows_edit"
+    ],
+    "ok": true
+   },
+   "qty_page": {
+    "ms": 609,
+    "longtasks": 2,
+    "longtask_ms": 170,
+    "requests": 1,
+    "kb": 1,
+    "urls": [
+     "/jobs/48b5adbdd28c/rows_edit"
+    ],
+    "ok": true
+   },
+   "edit_one": {
+    "ms": 141,
+    "longtasks": 1,
+    "longtask_ms": 70,
+    "requests": 1,
+    "kb": 1,
+    "urls": [
+     "/jobs/48b5adbdd28c/rows/0668f91a333c504c"
+    ],
+    "ok": true
+   },
+   "dismiss": {
+    "ms": 556,
+    "longtasks": 2,
+    "longtask_ms": 133,
+    "requests": 10,
+    "kb": 52,
+    "urls": [
+     "/jobs/48b5adbdd28c/rows_delete",
+     "/jobs/48b5adbdd28c/rows",
+     "/jobs/48b5adbdd28c/markup",
+     "/jobs/48b5adbdd28c/axis_overrides",
+     "/jobs/48b5adbdd28c/review",
+     "/jobs/48b5adbdd28c/feedback",
+     "/jobs/48b5adbdd28c/reports",
+     "/jobs/48b5adbdd28c/drawings",
+     "/jobs/48b5adbdd28c/unjudged",
+     "/templates"
+    ],
+    "n": 20,
+    "ok": true
+   },
+   "restore": {
+    "ms": 672,
+    "longtasks": 2,
+    "longtask_ms": 301,
+    "requests": 10,
+    "kb": 36,
+    "urls": [
+     "/jobs/48b5adbdd28c/rows/08d94973b57ee7cf",
+     "/jobs/48b5adbdd28c/rows",
+     "/jobs/48b5adbdd28c/markup",
+     "/jobs/48b5adbdd28c/axis_overrides",
+     "/jobs/48b5adbdd28c/review",
+     "/jobs/48b5adbdd28c/feedback",
+     "/jobs/48b5adbdd28c/reports",
+     "/jobs/48b5adbdd28c/drawings",
+     "/jobs/48b5adbdd28c/unjudged",
+     "/templates"
+    ],
+    "ok": true
+   },
+   "add_row": {
+    "ms": 3218,
+    "longtasks": 2,
+    "longtask_ms": 214,
+    "requests": 12,
+    "kb": 35,
+    "urls": [
+     "/jobs/48b5adbdd28c/rows/08d94973b57ee7cf",
+     "/jobs/48b5adbdd28c/markup/propose",
+     "/jobs/48b5adbdd28c/rows",
+     "/jobs/48b5adbdd28c/rows",
+     "/jobs/48b5adbdd28c/markup",
+     "/jobs/48b5adbdd28c/axis_overrides",
+     "/jobs/48b5adbdd28c/review",
+     "/jobs/48b5adbdd28c/feedback",
+     "/jobs/48b5adbdd28c/reports",
+     "/jobs/48b5adbdd28c/drawings",
+     "/jobs/48b5adbdd28c/unjudged",
+     "/templates"
+    ],
+    "ok": true
+   },
+   "errors": []
+  },
+  {
+   "page": 15,
+   "rows_on_page": 73,
+   "band": {
+    "ms": 77,
+    "longtasks": 0,
+    "longtask_ms": 0,
+    "requests": 0,
+    "kb": 0,
+    "urls": [],
+    "selected": 73
+   },
+   "scope_multi": {
+    "ms": 371,
+    "longtasks": 1,
+    "longtask_ms": 97,
+    "requests": 1,
+    "kb": 1,
+    "urls": [
+     "/jobs/48b5adbdd28c/rows_edit"
+    ],
+    "ok": true
+   },
+   "qty_page": {
+    "ms": 608,
+    "longtasks": 1,
+    "longtask_ms": 103,
+    "requests": 1,
+    "kb": 1,
+    "urls": [
+     "/jobs/48b5adbdd28c/rows_edit"
+    ],
+    "ok": true
+   },
+   "edit_one": {
+    "ms": 142,
+    "longtasks": 1,
+    "longtask_ms": 61,
+    "requests": 1,
+    "kb": 1,
+    "urls": [
+     "/jobs/48b5adbdd28c/rows/0668f91a333c504c"
+    ],
+    "ok": true
+   },
+   "dismiss": {
+    "ms": 618,
+    "longtasks": 2,
+    "longtask_ms": 133,
+    "requests": 10,
+    "kb": 52,
+    "urls": [
+     "/jobs/48b5adbdd28c/rows_delete",
+     "/jobs/48b5adbdd28c/rows",
+     "/jobs/48b5adbdd28c/markup",
+     "/jobs/48b5adbdd28c/axis_overrides",
+     "/jobs/48b5adbdd28c/review",
+     "/jobs/48b5adbdd28c/feedback",
+     "/jobs/48b5adbdd28c/reports",
+     "/jobs/48b5adbdd28c/drawings",
+     "/jobs/48b5adbdd28c/unjudged",
+     "/templates"
+    ],
+    "n": 20,
+    "ok": true
+   },
+   "restore": {
+    "ms": 552,
+    "longtasks": 2,
+    "longtask_ms": 273,
+    "requests": 11,
+    "kb": 37,
+    "urls": [
+     "/jobs/48b5adbdd28c/rows/08d94973b57ee7cf",
+     "/jobs/48b5adbdd28c/rows",
+     "/jobs/48b5adbdd28c/markup",
+     "/jobs/48b5adbdd28c/axis_overrides",
+     "/jobs/48b5adbdd28c/review",
+     "/jobs/48b5adbdd28c/feedback",
+     "/jobs/48b5adbdd28c/reports",
+     "/jobs/48b5adbdd28c/drawings",
+     "/jobs/48b5adbdd28c/unjudged",
+     "/templates",
+     "/jobs/48b5adbdd28c/multipliers"
+    ],
+    "ok": true
+   },
+   "add_row": {
+    "ms": 3050,
+    "longtasks": 2,
+    "longtask_ms": 211,
+    "requests": 12,
+    "kb": 35,
+    "urls": [
+     "/jobs/48b5adbdd28c/rows/08d94973b57ee7cf",
+     "/jobs/48b5adbdd28c/markup/propose",
+     "/jobs/48b5adbdd28c/rows",
+     "/jobs/48b5adbdd28c/rows",
+     "/jobs/48b5adbdd28c/markup",
+     "/jobs/48b5adbdd28c/axis_overrides",
+     "/jobs/48b5adbdd28c/review",
+     "/jobs/48b5adbdd28c/feedback",
+     "/jobs/48b5adbdd28c/reports",
+     "/jobs/48b5adbdd28c/drawings",
+     "/jobs/48b5adbdd28c/unjudged",
+     "/templates"
+    ],
+    "ok": true
+   },
+   "errors": []
+  }
+ ],
+ "job": "48b5adbdd28c",
+ "root": "/home/user/AI-P-ID-Extraction-tool",
+ "summary": {
+  "band": {
+   "median_ms": 77,
+   "max_ms": 83,
+   "requests": 0,
+   "kb": 0,
+   "longtasks": 0
+  },
+  "scope_multi": {
+   "median_ms": 325,
+   "max_ms": 371,
+   "requests": 1,
+   "kb": 1,
+   "longtasks": 1
+  },
+  "qty_page": {
+   "median_ms": 609,
+   "max_ms": 617,
+   "requests": 1,
+   "kb": 1,
+   "longtasks": 1
+  },
+  "edit_one": {
+   "median_ms": 142,
+   "max_ms": 154,
+   "requests": 1,
+   "kb": 1,
+   "longtasks": 1
+  },
+  "dismiss": {
+   "median_ms": 568,
+   "max_ms": 618,
+   "requests": 10,
+   "kb": 52,
+   "longtasks": 2
+  },
+  "restore": {
+   "median_ms": 615,
+   "max_ms": 672,
+   "requests": 11,
+   "kb": 37,
+   "longtasks": 2
+  },
+  "add_row": {
+   "median_ms": 3117,
+   "max_ms": 3218,
+   "requests": 12,
+   "kb": 35,
+   "longtasks": 2
+  }
+ }
+}

@@ -1,0 +1,283 @@
+[감사] 산출 대상 0행 / job 0개 · 사람이 도면 값을 덮어쓴 칸 0 · 도면 근거 없는 행 0
+[감사] 고아 업로드 0 · 고아 출력 0 · 고아 진단 0 · 고아 그림 캐시 0 · DB 0.1 MB 중 죽은 페이지 0.0 MB · 정리하면 되찾는 용량 0.0 MB
+DB 백업: /tmp/audit85-4ye9epx3/backups/app.db.2026-10-11.bak
+INFO:     Started server process [12717]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://127.0.0.1:47295 (Press CTRL+C to quit)
+INFO:     127.0.0.1:56388 - "GET /home HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56392 - "POST /jobs HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56408 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56408 - "GET /static/styles.css?v=5037de05 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56418 - "GET /static/app.js?v=598614e2 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56418 - "GET /projects HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56408 - "GET /jobs/5dd5a8e527c6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56434 - "GET /version HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56446 - "GET /version HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56434 - "GET /audit HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56408 - "GET /home HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56418 - "GET /running HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56476 - "GET /jobs/5dd5a8e527c6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56456 - "GET /jobs/5dd5a8e527c6/events HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56470 - "GET /static/favicon.svg HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56490 - "GET /jobs/5dd5a8e527c6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56470 - "GET /running HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56494 - "GET /jobs/5dd5a8e527c6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54088 - "GET /jobs/5dd5a8e527c6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56470 - "GET /running HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54102 - "GET /jobs/5dd5a8e527c6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56470 - "GET /running HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54114 - "GET /jobs/5dd5a8e527c6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54120 - "GET /jobs/5dd5a8e527c6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56470 - "GET /running HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54130 - "GET /jobs/5dd5a8e527c6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56470 - "GET /running HTTP/1.1" 200 OK
+INFO:     127.0.0.1:33584 - "GET /jobs/5dd5a8e527c6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:33586 - "GET /jobs/5dd5a8e527c6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56470 - "GET /running HTTP/1.1" 200 OK
+INFO:     127.0.0.1:33596 - "GET /jobs/5dd5a8e527c6 HTTP/1.1" 200 OK
+Traceback (most recent call last):
+  File "/home/user/AI-P-ID-Extraction-tool/app/main.py", line 502, in _worker
+    result = analysis_proc.run(Path(row["pdf_path"]), progress,
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/user/AI-P-ID-Extraction-tool/app/analysis_proc.py", line 173, in run
+    raise exc
+app.pipeline.LegendUnavailable: 이 PDF 에서 Symbol & Legend 시트를 읽지 못했고, 이 프로젝트에 저장된 범례 프로필도 없습니다. 범례 장이 든 PDF 로 한 번 분석하면 그 값이 프로젝트에 저장되고, 다음 개정본부터는 범례 장이 없어도 분석할 수 있습니다.  범례 장이 이 PDF 에 있는데 못 읽은 것이라면 [도면 가르치기] 에서 범례 장을 띄우고 [이 장이 범례입니다] 를 한 번 누르면 그 장에서 읽습니다.
+INFO:     127.0.0.1:33606 - "GET /jobs HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56470 - "GET /jobs/5dd5a8e527c6/titleblock HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56470 - "GET /running HTTP/1.1" 200 OK
+INFO:     127.0.0.1:33618 - "GET /jobs/5dd5a8e527c6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56470 - "GET /running HTTP/1.1" 200 OK
+INFO:     127.0.0.1:33602 - "GET /jobs/5dd5a8e527c6/teach HTTP/1.1" 200 OK
+INFO:     127.0.0.1:33602 - "GET /jobs/5dd5a8e527c6/page/2.png?zoom=0.5 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:33602 - "POST /jobs/5dd5a8e527c6/teach/preview HTTP/1.1" 200 OK
+INFO:     127.0.0.1:33602 - "GET /jobs/5dd5a8e527c6/page/21.png?zoom=0.5 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:33602 - "GET /jobs/5dd5a8e527c6/page/21.png?zoom=0.75 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:33602 - "GET /running HTTP/1.1" 200 OK
+INFO:     127.0.0.1:33602 - "GET /jobs/5dd5a8e527c6/page/21.png?zoom=1 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:33602 - "POST /jobs/5dd5a8e527c6/teach/click HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49992 - "GET /running HTTP/1.1" 200 OK
+INFO:     127.0.0.1:33602 - "POST /jobs/5dd5a8e527c6/teach/preview HTTP/1.1" 200 OK
+INFO:     127.0.0.1:33602 - "GET /running HTTP/1.1" 200 OK
+INFO:     127.0.0.1:44958 - "GET /running HTTP/1.1" 200 OK
+INFO:     127.0.0.1:44958 - "GET /running HTTP/1.1" 200 OK
+INFO:     127.0.0.1:33602 - "POST /jobs/5dd5a8e527c6/teach/click HTTP/1.1" 200 OK
+INFO:     127.0.0.1:33602 - "POST /jobs/5dd5a8e527c6/teach/preview HTTP/1.1" 200 OK
+INFO:     127.0.0.1:33602 - "POST /jobs/5dd5a8e527c6/teach HTTP/1.1" 200 OK
+INFO:     127.0.0.1:33602 - "POST /jobs/5dd5a8e527c6/reanalyse HTTP/1.1" 200 OK
+INFO:     127.0.0.1:33602 - "GET /jobs/5dd5a8e527c6/events HTTP/1.1" 200 OK
+INFO:     127.0.0.1:44962 - "GET /jobs/5dd5a8e527c6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:44970 - "GET /jobs/5dd5a8e527c6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:44958 - "GET /running HTTP/1.1" 200 OK
+INFO:     127.0.0.1:44976 - "GET /jobs/5dd5a8e527c6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:44958 - "GET /running HTTP/1.1" 200 OK
+INFO:     127.0.0.1:35280 - "GET /jobs/5dd5a8e527c6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:35286 - "GET /jobs/5dd5a8e527c6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:44958 - "GET /running HTTP/1.1" 200 OK
+INFO:     127.0.0.1:35294 - "GET /jobs/5dd5a8e527c6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:44958 - "GET /running HTTP/1.1" 200 OK
+INFO:     127.0.0.1:35304 - "GET /jobs/5dd5a8e527c6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:35310 - "GET /jobs/5dd5a8e527c6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:44958 - "GET /running HTTP/1.1" 200 OK
+INFO:     127.0.0.1:40858 - "GET /jobs/5dd5a8e527c6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:44958 - "GET /running HTTP/1.1" 200 OK
+INFO:     127.0.0.1:40866 - "GET /jobs/5dd5a8e527c6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:44958 - "GET /version HTTP/1.1" 200 OK
+INFO:     127.0.0.1:40876 - "GET /jobs/5dd5a8e527c6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:44958 - "GET /running HTTP/1.1" 200 OK
+INFO:     127.0.0.1:40884 - "GET /jobs/5dd5a8e527c6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:44958 - "GET /running HTTP/1.1" 200 OK
+INFO:     127.0.0.1:40888 - "GET /jobs/5dd5a8e527c6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50386 - "GET /jobs/5dd5a8e527c6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:44958 - "GET /running HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50390 - "GET /jobs/5dd5a8e527c6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:44958 - "GET /running HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50394 - "GET /jobs/5dd5a8e527c6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50406 - "GET /jobs/5dd5a8e527c6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:44958 - "GET /running HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50420 - "GET /jobs/5dd5a8e527c6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:44958 - "GET /running HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46550 - "GET /jobs/5dd5a8e527c6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46552 - "GET /jobs/5dd5a8e527c6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:44958 - "GET /running HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46560 - "GET /jobs/5dd5a8e527c6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:44958 - "GET /running HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46576 - "GET /jobs/5dd5a8e527c6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46588 - "GET /jobs/5dd5a8e527c6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:44958 - "GET /running HTTP/1.1" 200 OK
+INFO:     127.0.0.1:43904 - "GET /jobs/5dd5a8e527c6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:44958 - "GET /running HTTP/1.1" 200 OK
+INFO:     127.0.0.1:43914 - "GET /jobs/5dd5a8e527c6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:43930 - "GET /jobs/5dd5a8e527c6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:44958 - "GET /running HTTP/1.1" 200 OK
+INFO:     127.0.0.1:43936 - "GET /jobs/5dd5a8e527c6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:44958 - "GET /running HTTP/1.1" 200 OK
+INFO:     127.0.0.1:43938 - "GET /jobs/5dd5a8e527c6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52086 - "GET /jobs/5dd5a8e527c6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:44958 - "GET /running HTTP/1.1" 200 OK
+  page   2    0.71s   valves.actuators 0.62s valves.bodies 0.07s instruments 0.01s valves.tags 0.01s annotations 0.00s
+  page   3    0.41s   valves.actuators 0.18s valves.tags 0.10s instruments 0.09s valves.bodies 0.03s annotations 0.00s
+  page   5    0.02s   instruments 0.01s valves.tags 0.01s valves.actuators 0.01s valves.bodies 0.00s annotations 0.00s
+  page   6    0.58s   instruments 0.22s valves.actuators 0.18s valves.bodies 0.12s valves.tags 0.06s annotations 0.00s
+INFO:     127.0.0.1:52100 - "GET /jobs/5dd5a8e527c6 HTTP/1.1" 200 OK
+  page   7    0.38s   instruments 0.15s valves.actuators 0.10s valves.bodies 0.07s valves.tags 0.05s annotations 0.00s
+  page   8    0.55s   instruments 0.29s valves.actuators 0.13s valves.bodies 0.08s valves.tags 0.06s annotations 0.00s
+INFO:     127.0.0.1:44958 - "GET /running HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52110 - "GET /jobs/5dd5a8e527c6 HTTP/1.1" 200 OK
+  page   9    1.43s   instruments 0.45s valves.bodies 0.41s valves.actuators 0.40s valves.tags 0.18s annotations 0.00s
+  page  10    0.02s   valves.actuators 0.01s valves.bodies 0.01s instruments 0.01s valves.tags 0.00s annotations 0.00s
+  page  11    1.54s   valves.bodies 0.93s valves.actuators 0.40s instruments 0.18s valves.tags 0.04s annotations 0.00s
+  page  12    0.38s   valves.actuators 0.15s instruments 0.11s valves.bodies 0.09s valves.tags 0.02s annotations 0.00s
+INFO:     127.0.0.1:52120 - "GET /jobs/5dd5a8e527c6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:44958 - "GET /running HTTP/1.1" 200 OK
+  page  13    1.02s   valves.actuators 0.41s instruments 0.28s valves.tags 0.17s valves.bodies 0.16s annotations 0.00s
+  page  14    0.83s   valves.actuators 0.33s valves.bodies 0.27s instruments 0.20s valves.tags 0.03s annotations 0.00s
+INFO:     127.0.0.1:52126 - "GET /jobs/5dd5a8e527c6 HTTP/1.1" 200 OK
+  page  15    0.23s   valves.actuators 0.11s valves.bodies 0.05s instruments 0.05s valves.tags 0.02s annotations 0.00s
+  page  16    0.27s   valves.actuators 0.14s instruments 0.06s valves.bodies 0.05s valves.tags 0.02s annotations 0.00s
+  page  17    0.01s   valves.actuators 0.00s instruments 0.00s valves.bodies 0.00s valves.tags 0.00s annotations 0.00s
+  page  18    0.37s   valves.actuators 0.16s instruments 0.11s valves.bodies 0.08s valves.tags 0.02s annotations 0.00s
+INFO:     127.0.0.1:44958 - "GET /running HTTP/1.1" 200 OK
+  page  19    0.85s   valves.actuators 0.46s valves.bodies 0.21s instruments 0.14s valves.tags 0.04s annotations 0.00s
+  page  20    1.92s   valves.actuators 0.99s valves.bodies 0.63s instruments 0.17s valves.tags 0.14s annotations 0.00s
+INFO:     127.0.0.1:59588 - "GET /jobs/5dd5a8e527c6 HTTP/1.1" 200 OK
+  page  21    1.75s   valves.actuators 0.70s instruments 0.57s valves.bodies 0.28s valves.tags 0.20s annotations 0.00s
+  page  22    0.22s   valves.actuators 0.10s valves.bodies 0.05s instruments 0.05s valves.tags 0.02s annotations 0.00s
+INFO:     127.0.0.1:59598 - "GET /jobs/5dd5a8e527c6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:44958 - "GET /running HTTP/1.1" 200 OK
+  page  23    0.64s   instruments 0.23s valves.actuators 0.22s valves.bodies 0.14s valves.tags 0.05s annotations 0.00s
+  page  24    0.82s   valves.actuators 0.37s valves.bodies 0.19s instruments 0.17s valves.tags 0.10s annotations 0.00s
+  page  25    0.94s   valves.actuators 0.36s valves.bodies 0.31s instruments 0.20s valves.tags 0.07s annotations 0.00s
+INFO:     127.0.0.1:59604 - "GET /jobs/5dd5a8e527c6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:44958 - "GET /running HTTP/1.1" 200 OK
+  page  26    2.19s   instruments 1.59s valves.actuators 0.28s valves.bodies 0.21s valves.tags 0.10s annotations 0.00s
+INFO:     127.0.0.1:59616 - "GET /jobs/5dd5a8e527c6 HTTP/1.1" 200 OK
+  page  27    0.90s   valves.actuators 0.41s instruments 0.28s valves.bodies 0.15s valves.tags 0.06s annotations 0.00s
+  page  28    0.67s   valves.bodies 0.32s valves.actuators 0.32s instruments 0.02s valves.tags 0.01s annotations 0.00s
+INFO:     127.0.0.1:59632 - "GET /jobs/5dd5a8e527c6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:44958 - "GET /running HTTP/1.1" 200 OK
+  page  29    0.97s   instruments 0.43s valves.actuators 0.25s valves.bodies 0.15s valves.tags 0.14s annotations 0.00s
+  page  30    1.03s   valves.actuators 0.41s valves.bodies 0.23s valves.tags 0.22s instruments 0.17s annotations 0.00s
+  page  31    0.66s   valves.bodies 0.31s instruments 0.17s valves.actuators 0.11s valves.tags 0.07s annotations 0.00s
+INFO:     127.0.0.1:50154 - "GET /jobs/5dd5a8e527c6 HTTP/1.1" 200 OK
+  page  32    0.76s   valves.actuators 0.45s instruments 0.14s valves.bodies 0.11s valves.tags 0.06s annotations 0.00s
+  page  33    0.79s   valves.actuators 0.32s instruments 0.23s valves.bodies 0.20s valves.tags 0.04s annotations 0.00s
+INFO:     127.0.0.1:44958 - "GET /running HTTP/1.1" 200 OK
+  page  34    0.75s   instruments 0.27s valves.actuators 0.26s valves.bodies 0.19s valves.tags 0.03s annotations 0.00s
+INFO:     127.0.0.1:50164 - "GET /jobs/5dd5a8e527c6 HTTP/1.1" 200 OK
+  page  35    0.45s   instruments 0.17s valves.actuators 0.14s valves.bodies 0.09s valves.tags 0.05s annotations 0.00s
+  page  36    0.87s   valves.actuators 0.38s valves.bodies 0.32s instruments 0.10s valves.tags 0.06s annotations 0.00s
+  page  37    0.70s   valves.actuators 0.37s valves.bodies 0.24s instruments 0.06s valves.tags 0.03s annotations 0.00s
+INFO:     127.0.0.1:44958 - "GET /version HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50176 - "GET /version HTTP/1.1" 200 OK
+  page  38    0.26s   valves.actuators 0.13s valves.bodies 0.10s instruments 0.02s valves.tags 0.01s annotations 0.00s
+  page  39    0.79s   valves.actuators 0.36s valves.bodies 0.28s instruments 0.11s valves.tags 0.04s annotations 0.00s
+INFO:     127.0.0.1:50182 - "GET /jobs/5dd5a8e527c6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50176 - "GET /running HTTP/1.1" 200 OK
+  page  40    2.28s   valves.bodies 1.47s valves.actuators 0.45s instruments 0.30s valves.tags 0.06s annotations 0.00s
+  page  41    0.52s   valves.actuators 0.25s valves.bodies 0.23s instruments 0.02s valves.tags 0.02s annotations 0.00s
+  page  42    0.48s   valves.actuators 0.23s valves.bodies 0.21s instruments 0.02s valves.tags 0.01s annotations 0.00s
+  page  43    0.40s   valves.actuators 0.21s valves.bodies 0.17s instruments 0.01s valves.tags 0.01s annotations 0.00s
+  page  44    1.05s   valves.bodies 0.74s valves.actuators 0.28s instruments 0.02s valves.tags 0.01s annotations 0.00s
+INFO:     127.0.0.1:50192 - "GET /jobs/5dd5a8e527c6 HTTP/1.1" 200 OK
+  page  45    1.16s   instruments 0.44s valves.actuators 0.41s valves.bodies 0.22s valves.tags 0.09s annotations 0.00s
+  page  46    0.63s   valves.actuators 0.25s valves.bodies 0.22s instruments 0.13s valves.tags 0.03s annotations 0.00s
+INFO:     127.0.0.1:50176 - "GET /running HTTP/1.1" 200 OK
+  page  47    1.13s   valves.bodies 0.42s valves.actuators 0.35s instruments 0.29s valves.tags 0.06s annotations 0.00s
+  page  48    0.12s   valves.actuators 0.05s valves.bodies 0.03s instruments 0.03s valves.tags 0.01s annotations 0.00s
+INFO:     127.0.0.1:50194 - "GET /jobs/5dd5a8e527c6 HTTP/1.1" 200 OK
+  page  49    0.76s   valves.actuators 0.41s valves.bodies 0.21s instruments 0.12s valves.tags 0.03s annotations 0.00s
+  page  50    0.19s   valves.actuators 0.09s valves.bodies 0.07s instruments 0.02s valves.tags 0.01s annotations 0.00s
+  page  51    0.78s   valves.bodies 0.36s instruments 0.21s valves.actuators 0.18s valves.tags 0.04s annotations 0.00s
+  page  52    0.67s   valves.actuators 0.29s instruments 0.19s valves.bodies 0.15s valves.tags 0.04s annotations 0.00s
+INFO:     127.0.0.1:59366 - "GET /jobs/5dd5a8e527c6 HTTP/1.1" 200 OK
+  page  53    0.12s   valves.actuators 0.06s valves.bodies 0.04s instruments 0.01s valves.tags 0.01s annotations 0.00s
+INFO:     127.0.0.1:50176 - "GET /running HTTP/1.1" 200 OK
+  page  54    2.15s   valves.actuators 1.89s valves.bodies 0.20s instruments 0.05s valves.tags 0.02s annotations 0.00s
+INFO:     127.0.0.1:59374 - "GET /jobs/5dd5a8e527c6 HTTP/1.1" 200 OK
+  page  55    0.75s   valves.bodies 0.27s valves.actuators 0.27s instruments 0.16s valves.tags 0.05s annotations 0.00s
+  page  56    0.49s   valves.actuators 0.21s valves.bodies 0.19s instruments 0.07s valves.tags 0.03s annotations 0.00s
+  page  57    0.38s   valves.actuators 0.15s valves.bodies 0.13s instruments 0.06s valves.tags 0.03s annotations 0.00s
+INFO:     127.0.0.1:50176 - "GET /running HTTP/1.1" 200 OK
+  page  58    0.56s   valves.actuators 0.22s valves.bodies 0.16s instruments 0.13s valves.tags 0.04s annotations 0.00s
+  page  59    0.16s   valves.actuators 0.10s valves.bodies 0.05s instruments 0.01s valves.tags 0.00s annotations 0.00s
+  page  60    0.10s   valves.actuators 0.04s valves.bodies 0.03s instruments 0.02s valves.tags 0.00s annotations 0.00s
+INFO:     127.0.0.1:59386 - "GET /jobs/5dd5a8e527c6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59392 - "GET /jobs/5dd5a8e527c6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50176 - "GET /running HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59402 - "GET /jobs/5dd5a8e527c6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50176 - "GET /running HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50958 - "GET /jobs/5dd5a8e527c6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50972 - "GET /jobs/5dd5a8e527c6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50176 - "GET /running HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50974 - "GET /jobs/5dd5a8e527c6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50176 - "GET /running HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50976 - "GET /jobs/5dd5a8e527c6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50980 - "GET /jobs/5dd5a8e527c6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50176 - "GET /running HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47132 - "GET /jobs/5dd5a8e527c6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50176 - "GET /running HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47142 - "GET /jobs/5dd5a8e527c6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47154 - "GET /jobs/5dd5a8e527c6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50176 - "GET /running HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47158 - "GET /jobs/5dd5a8e527c6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50176 - "GET /running HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47170 - "GET /jobs/5dd5a8e527c6 HTTP/1.1" 200 OK
+policy: excluded 69 rows {'CONTROL_FUNCTION': 49, 'NOT_IDENTIFIED_TAG': 20} {'GSC': 10, 'PIC': 3, 'TICA': 6, 'PICA': 10, 'FIC': 4, 'TICAZ': 3, 'PICAZ': 2, 'LICAZ': 6, 'FICA': 1, 'TIC': 1, 'LA': 1, 'LIA': 2, 'PSV': 20}
+analysis took 110.5s, by stage:
+  instruments               29.13s   26.4%
+  valves.actuators          17.13s   15.5%
+  layout                    15.18s   13.7%
+  valves.bodies             12.71s   11.5%
+  describe_axis             11.85s   10.7%
+  pipe_graph                10.56s    9.6%
+  equipment                  3.75s    3.4%
+  legend_rules               2.99s    2.7%
+  valves.tags                2.93s    2.7%
+  open_pdf                   1.64s    1.5%
+  candidates                 1.45s    1.3%
+  titleblock_glyphs          0.52s    0.5%
+  titleblocks                0.52s    0.5%
+  description                0.07s    0.1%
+  unit_multipliers           0.03s    0.0%
+  annotations                0.01s    0.0%
+  valves.glyph_library       0.00s    0.0%
+  slowest pages: p40 2.4s, p26 2.3s, p51 2.2s, p54 2.2s, p20 2.0s
+INFO:     127.0.0.1:36326 - "GET /jobs/5dd5a8e527c6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:36336 - "GET /jobs/5dd5a8e527c6 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50176 - "GET /running HTTP/1.1" 200 OK
+INFO:     127.0.0.1:36344 - "GET /jobs/5dd5a8e527c6/rows?tab=ALL&slim=1 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50176 - "GET /running HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50176 - "GET /running HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50176 - "GET /running HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50176 - "GET /running HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50176 - "GET /running HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50176 - "GET /running HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50176 - "GET /running HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50176 - "GET /version HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50176 - "GET /running HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50176 - "GET /running HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50176 - "GET /running HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50176 - "GET /running HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50176 - "GET /running HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50176 - "GET /running HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50176 - "GET /running HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50176 - "GET /running HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50176 - "GET /running HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50176 - "GET /running HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50176 - "GET /running HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50176 - "GET /running HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50176 - "GET /running HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50176 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50176 - "GET /static/app.js?v=598614e2 HTTP/1.1" 304 Not Modified
+INFO:     127.0.0.1:50176 - "GET /projects HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50176 - "GET /version HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55740 - "GET /audit HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55748 - "GET /home HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55752 - "GET /version HTTP/1.1" 200 OK
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [12717]
+/usr/lib/python3.11/multiprocessing/resource_tracker.py:254: UserWarning: resource_tracker: There appear to be 6 leaked semaphore objects to clean up at shutdown
+  warnings.warn('resource_tracker: There appear to be %d '

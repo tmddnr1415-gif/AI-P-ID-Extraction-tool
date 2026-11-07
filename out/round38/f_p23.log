@@ -1,0 +1,20 @@
+--- p23 mark_dict: {1: 'SUPPLIED BY PUMP SUPPLIER', 2: 'SUPPLIED BY TANK SUPPLIER', 3: 'SUPPLIED BY SCT', 4: 'SUPPLIED BY WT WWT SUPPLIERSUPPLIED BY WT WWT SUPPLIER'}
+boxes: []
+box_marks: []
+RO 00GKB34BP101 VENDOR(PUMP SUPPLIER) | rect [784, 75, 796, 105] | marks near: [(798, 76, 1, 'TEXT'), (823, 76, 1, 'TEXT')] | read: AttributeError("'tuple' object has no attribute 'get'")
+RO 00GKB35BP101 VENDOR(PUMP SUPPLIER) | rect [809, 75, 820, 105] | marks near: [(798, 76, 1, 'TEXT'), (823, 76, 1, 'TEXT'), (848, 76, 1, 'TEXT')] | read: AttributeError("'tuple' object has no attribute 'get'")
+RO 00GKB36BP101 VENDOR(PUMP SUPPLIER) | rect [834, 75, 846, 105] | marks near: [(823, 76, 1, 'TEXT'), (848, 76, 1, 'TEXT')] | read: AttributeError("'tuple' object has no attribute 'get'")
+PDIT 00GKB21CP001 VENDOR(PUMP SUPPLIER) | rect [606, 158, 635, 170] | marks near: [(621, 139, 1, 'GLYPH')] | read: AttributeError("'tuple' object has no attribute 'get'")
+PDIT 00GKB22CP001 SCT | rect [606, 279, 635, 290] | marks near: [] | read: ([], None)
+PDIT 00GKB23CP001 VENDOR(PUMP SUPPLIER) | rect [606, 408, 635, 420] | marks near: [(621, 388, 1, 'GLYPH')] | read: AttributeError("'tuple' object has no attribute 'get'")
+--- p29 mark_dict: {1: 'SUPPLIED BY PUMP SUPPLIER', 2: 'FOR CONSTRUCTION W.H.PARK I.S.LEE Y.H.JEONG'}
+boxes: []
+box_marks: []
+PI 14GMB01CP501 VENDOR(PUMP SUPPLIER) | rect [216, 306, 246, 318] | marks near: [(246, 308, 1, 'TEXT'), (235, 328, 1, 'TEXT')] | read: AttributeError("'tuple' object has no attribute 'get'")
+PI 13GMB01CP501 VENDOR | rect [489, 306, 519, 318] | marks near: [(480, 282, 1, 'GLYPH'), (520, 308, 1, 'TEXT'), (508, 328, 1, 'TEXT')] | read: AttributeError("'tuple' object has no attribute 'get'")
+--- p30 mark_dict: {1: 'SUPPLIED BY PUMP SUPPLIER'}
+boxes: []
+box_marks: []
+PI 00GMA03CP501 VENDOR(PUMP SUPPLIER) | rect [167, 152, 197, 163] | marks near: [(207, 150, 1, 'GLYPH'), (198, 152, 1, 'TEXT'), (186, 173, 1, 'TEXT')] | read: AttributeError("'NoneType' object has no attribute 'get'")
+PI 00GMA03CP502 VENDOR | rect [216, 152, 246, 163] | marks near: [(207, 150, 1, 'GLYPH'), (198, 152, 1, 'TEXT'), (246, 152, 1, 'TEXT'), (236, 174, 1, 'TEXT')] | read: AttributeError("'NoneType' object has no attribute 'get'")
+PI 00GMA11CP501 VENDOR | rect [866, 400, 896, 411] | marks near: [(906, 396, 1, 'GLYPH'), (856, 390, 1, 'GLYPH'), (896, 400, 1, 'TEXT'), (886, 421, 1, 'TEXT')] | read: AttributeError("'NoneType' object has no attribute 'get'")

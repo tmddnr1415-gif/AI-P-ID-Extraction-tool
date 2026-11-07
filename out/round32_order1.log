@@ -1,0 +1,204 @@
+  page   6    0.30s   instruments 0.30s annotations 0.00s
+  page   7    0.28s   instruments 0.28s annotations 0.00s
+  page   8    0.27s   instruments 0.27s annotations 0.00s
+  page   9    0.26s   instruments 0.26s annotations 0.00s
+  page  10    0.27s   instruments 0.27s annotations 0.00s
+  page  11    0.47s   instruments 0.47s annotations 0.00s
+  page  12    0.22s   instruments 0.22s annotations 0.00s
+  page  13    0.43s   instruments 0.43s annotations 0.00s
+  page  14    0.26s   instruments 0.26s annotations 0.00s
+  page  15    0.36s   instruments 0.36s annotations 0.00s
+  page  16    0.60s   instruments 0.60s annotations 0.00s
+  page  17    0.47s   instruments 0.47s annotations 0.00s
+  page  18    0.41s   instruments 0.41s annotations 0.00s
+  page  19    0.44s   instruments 0.44s annotations 0.00s
+  page  20    0.33s   instruments 0.33s annotations 0.00s
+  page  21    0.50s   instruments 0.50s annotations 0.00s
+  page  22    0.40s   instruments 0.40s annotations 0.00s
+  page  23    0.43s   instruments 0.43s annotations 0.00s
+  page  24    0.48s   instruments 0.48s annotations 0.00s
+  page  25    0.49s   instruments 0.49s annotations 0.00s
+  page  26    0.56s   instruments 0.56s annotations 0.00s
+  page  27    0.57s   instruments 0.57s annotations 0.00s
+  page  28    0.49s   instruments 0.49s annotations 0.00s
+  page  29    0.15s   instruments 0.15s annotations 0.00s
+  page  30    0.31s   instruments 0.31s annotations 0.00s
+  page  31    0.44s   instruments 0.44s annotations 0.00s
+  page  32    0.51s   instruments 0.51s annotations 0.00s
+  page  33    0.61s   instruments 0.61s annotations 0.00s
+  page  34    0.39s   instruments 0.39s annotations 0.00s
+  page  35    0.50s   instruments 0.50s annotations 0.00s
+  page  36    0.42s   instruments 0.42s annotations 0.00s
+  page  37    0.46s   instruments 0.46s annotations 0.00s
+  page  38    0.45s   instruments 0.45s annotations 0.00s
+  page  39    0.44s   instruments 0.44s annotations 0.00s
+  page  40    0.48s   instruments 0.48s annotations 0.00s
+  page  41    0.48s   instruments 0.48s annotations 0.00s
+  page  42    0.44s   instruments 0.44s annotations 0.00s
+  page  43    0.40s   instruments 0.40s annotations 0.00s
+  page  44    0.17s   instruments 0.17s annotations 0.00s
+  page  45    0.17s   instruments 0.17s annotations 0.00s
+  page  46    0.50s   instruments 0.50s annotations 0.00s
+  page  47    0.52s   instruments 0.52s annotations 0.00s
+  page  49    0.48s   instruments 0.47s annotations 0.00s
+  page  50    0.19s   instruments 0.19s annotations 0.00s
+  page  51    0.42s   instruments 0.42s annotations 0.00s
+  page  52    0.51s   instruments 0.51s annotations 0.00s
+  page  53    0.47s   instruments 0.47s annotations 0.00s
+  page  54    0.45s   instruments 0.45s annotations 0.00s
+  page  55    0.38s   instruments 0.38s annotations 0.00s
+  page  56    0.48s   instruments 0.48s annotations 0.00s
+  page  57    0.17s   instruments 0.17s annotations 0.00s
+  page  58    0.16s   instruments 0.16s annotations 0.00s
+analysis took 671.6s, by stage:
+  layout                   368.70s   54.9%
+  instruments              177.08s   26.4%
+  valves.actuators          52.12s    7.8%
+  titleblock_glyphs         16.25s    2.4%
+  titleblocks               15.97s    2.4%
+  pipe_graph                10.72s    1.6%
+  candidates                 7.22s    1.1%
+  valves.bodies              7.12s    1.1%
+  describe_axis              5.86s    0.9%
+  legend_rules               4.66s    0.7%
+  valves.tags                3.26s    0.5%
+  open_pdf                   2.32s    0.3%
+  equipment                  0.28s    0.0%
+  description                0.05s    0.0%
+  annotations                0.01s    0.0%
+  valves.glyph_library       0.01s    0.0%
+  unit_multipliers           0.00s    0.0%
+  slowest pages: p3 14.0s, p4 9.3s, p2 8.9s, p14 3.4s, p33 2.2s
+{"name": "AL_NOUF1", "rows": 1037, "fingerprint": "fb85b039", "qty": 1931, "seconds": 672.0, "max_rss_gb_so_far": 4.9}
+  page   1    0.35s   annotations 0.26s instruments 0.09s
+  page   6    0.48s   annotations 0.27s instruments 0.20s
+  page   7    0.60s   annotations 0.36s instruments 0.24s
+  page   8    0.55s   annotations 0.33s instruments 0.23s
+  page   9    0.63s   annotations 0.37s instruments 0.26s
+analysis took 77.6s, by stage:
+  layout                    39.64s   51.1%
+  instruments               18.10s   23.3%
+  valves.actuators          12.34s   15.9%
+  titleblock_glyphs          2.15s    2.8%
+  annotations                1.59s    2.0%
+  titleblocks                1.08s    1.4%
+  valves.bodies              0.63s    0.8%
+  pipe_graph                 0.50s    0.6%
+  open_pdf                   0.40s    0.5%
+  legend_rules               0.32s    0.4%
+  describe_axis              0.30s    0.4%
+  valves.tags                0.26s    0.3%
+  candidates                 0.22s    0.3%
+  equipment                  0.04s    0.1%
+  description                0.00s    0.0%
+  unit_multipliers           0.00s    0.0%
+  valves.glyph_library       0.00s    0.0%
+  slowest pages: p9 4.9s, p7 3.9s, p8 3.0s, p2 1.3s, p6 1.2s
+{"name": "SADARA", "rows": 82, "fingerprint": "0767ba79", "qty": 0, "seconds": 77.9, "max_rss_gb_so_far": 4.9}
+  page   6    0.48s   instruments 0.48s annotations 0.00s
+  page   7    0.42s   instruments 0.42s annotations 0.00s
+  page   8    0.41s   instruments 0.41s annotations 0.00s
+  page   9    0.47s   instruments 0.47s annotations 0.00s
+  page  10    0.58s   instruments 0.58s annotations 0.00s
+  page  11    0.46s   instruments 0.46s annotations 0.00s
+  page  12    0.44s   instruments 0.44s annotations 0.00s
+  page  13    0.42s   instruments 0.42s annotations 0.00s
+  page  14    0.41s   instruments 0.41s annotations 0.00s
+  page  15    0.54s   instruments 0.54s annotations 0.00s
+  page  16    0.61s   instruments 0.61s annotations 0.00s
+  page  17    0.45s   instruments 0.45s annotations 0.00s
+  page  18    0.43s   instruments 0.43s annotations 0.00s
+  page  19    0.20s   instruments 0.20s annotations 0.00s
+  page  20    0.40s   instruments 0.40s annotations 0.00s
+  page  21    0.41s   instruments 0.41s annotations 0.00s
+  page  22    0.50s   instruments 0.50s annotations 0.00s
+  page  23    0.57s   instruments 0.57s annotations 0.00s
+  page  24    0.50s   instruments 0.50s annotations 0.00s
+  page  29    0.41s   instruments 0.41s annotations 0.00s
+  page  30    0.42s   instruments 0.42s annotations 0.00s
+  page  31    0.41s   instruments 0.41s annotations 0.00s
+  page  32    0.44s   instruments 0.44s annotations 0.00s
+  page  33    0.42s   instruments 0.42s annotations 0.00s
+  page  34    0.44s   instruments 0.44s annotations 0.00s
+  page  35    0.22s   instruments 0.22s annotations 0.00s
+  page  36    0.55s   instruments 0.55s annotations 0.00s
+  page  37    0.40s   instruments 0.40s annotations 0.00s
+  page  38    0.45s   instruments 0.45s annotations 0.00s
+  page  39    0.21s   instruments 0.21s annotations 0.00s
+  page  40    0.40s   instruments 0.40s annotations 0.00s
+  page  42    0.44s   instruments 0.44s annotations 0.00s
+  page  43    0.39s   instruments 0.39s annotations 0.00s
+  page  44    0.42s   instruments 0.42s annotations 0.00s
+  page  45    0.39s   instruments 0.39s annotations 0.00s
+  page  46    0.41s   instruments 0.41s annotations 0.00s
+  page  47    0.41s   instruments 0.41s annotations 0.00s
+  page  48    0.21s   instruments 0.21s annotations 0.00s
+  page  49    0.50s   instruments 0.50s annotations 0.00s
+  page  50    0.51s   instruments 0.51s annotations 0.00s
+  page  51    0.50s   instruments 0.50s annotations 0.00s
+  page  52    0.51s   instruments 0.51s annotations 0.00s
+  page  53    0.43s   instruments 0.43s annotations 0.00s
+  page  54    0.47s   instruments 0.47s annotations 0.00s
+  page  55    0.46s   instruments 0.46s annotations 0.00s
+  page  56    0.41s   instruments 0.41s annotations 0.00s
+  page  57    0.43s   instruments 0.43s annotations 0.00s
+  page  58    0.45s   instruments 0.45s annotations 0.00s
+  page  59    0.20s   instruments 0.20s annotations 0.00s
+  page  60    0.20s   instruments 0.20s annotations 0.00s
+analysis took 478.4s, by stage:
+  layout                   260.18s   54.4%
+  instruments              162.87s   34.0%
+  titleblocks               21.08s    4.4%
+  valves.actuators           7.33s    1.5%
+  titleblock_glyphs          5.73s    1.2%
+  valves.bodies              4.61s    1.0%
+  pipe_graph                 4.28s    0.9%
+  open_pdf                   2.94s    0.6%
+  describe_axis              2.60s    0.5%
+  candidates                 2.38s    0.5%
+  valves.tags                2.32s    0.5%
+  legend_rules               1.81s    0.4%
+  equipment                  0.18s    0.0%
+  description                0.03s    0.0%
+  unit_multipliers           0.02s    0.0%
+  annotations                0.01s    0.0%
+  valves.glyph_library       0.00s    0.0%
+  slowest pages: p42 1.1s, p12 1.1s, p16 1.0s, p36 1.0s, p38 0.9s
+{"name": "TC2", "rows": 607, "fingerprint": "c0a2d29d", "qty": 3047, "seconds": 481.5, "max_rss_gb_so_far": 7.48}
+  page   6    4.49s   instruments 4.49s annotations 0.00s
+  page   7    7.23s   instruments 7.23s annotations 0.00s
+  page   8    4.47s   instruments 4.47s annotations 0.00s
+  page   9   12.12s   instruments 12.12s annotations 0.00s
+  page  10    1.15s   instruments 1.15s annotations 0.00s
+  page  19    7.52s   instruments 7.52s annotations 0.00s
+  page  20    5.85s   instruments 5.85s annotations 0.00s
+  page  21    6.09s   instruments 6.08s annotations 0.00s
+  page  23    6.23s   instruments 6.23s annotations 0.00s
+  page  24    1.38s   instruments 1.38s annotations 0.00s
+  page  25    2.81s   instruments 2.81s annotations 0.00s
+  page  26   13.22s   instruments 13.22s annotations 0.00s
+  page  27    4.21s   instruments 4.21s annotations 0.00s
+  page  28    1.43s   instruments 1.43s annotations 0.00s
+  page  29    5.76s   instruments 5.76s annotations 0.00s
+  page  30    8.99s   instruments 8.99s annotations 0.00s
+  page  31    5.05s   instruments 5.05s annotations 0.00s
+analysis took 406.4s, by stage:
+  instruments              210.33s   51.8%
+  layout                   136.61s   33.6%
+  valves.actuators          18.68s    4.6%
+  open_pdf                  13.90s    3.4%
+  titleblocks                9.16s    2.3%
+  titleblock_glyphs          5.39s    1.3%
+  valves.bodies              3.43s    0.8%
+  pipe_graph                 2.80s    0.7%
+  candidates                 1.75s    0.4%
+  valves.tags                1.52s    0.4%
+  describe_axis              1.30s    0.3%
+  legend_rules               1.10s    0.3%
+  equipment                  0.39s    0.1%
+  description                0.01s    0.0%
+  annotations                0.00s    0.0%
+  unit_multipliers           0.00s    0.0%
+  valves.glyph_library       0.00s    0.0%
+  slowest pages: p26 13.7s, p9 12.5s, p30 11.6s, p7 10.0s, p19 8.4s
+{"name": "UAD", "rows": 149, "fingerprint": "db1a77d1", "qty": 149, "seconds": 407.7, "max_rss_gb_so_far": 7.48}

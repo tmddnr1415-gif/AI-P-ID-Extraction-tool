@@ -1,0 +1,82 @@
+﻿회사 PC 업데이트 꾸러미 r25 — 파일 목록
+==============================================================================
+
+기준: 회사 PC 현재 커밋 aac64ba  ->  이번 꾸러미 84f90df
+10 ~ 25 회차 누적입니다. 앞의 꾸러미를 따로 넣을 필요 없습니다.
+
+[A] 새로 생기는 파일 47개   [M] 덮어쓸 파일 21개
+[D] 수동 삭제할 파일 0개   [R] 이름이 바뀐 파일 0개
+
+app\_data\ (app.db · uploads) 는 들어 있지 않습니다.
+
+── [M] 덮어쓸 파일 ──
+[M] CLAUDE.md
+[M] README.md
+[M] app/db.py
+[M] app/engine/derive_layout.py
+[M] app/engine/describe_axis.py
+[M] app/engine/detect_symbols.py
+[M] app/engine/detect_valves.py
+[M] app/engine/extract_titleblocks.py
+[M] app/engine/pipe_graph.py
+[M] app/excel_out.py
+[M] app/main.py
+[M] app/pipeline.py
+[M] app/revisions.py
+[M] app/static/app.js
+[M] app/static/index.html
+[M] app/static/styles.css
+[M] config/project_alnouf1.yaml
+[M] spike/accuracy.py
+[M] tests/test_describe_axis.py
+[M] tests/test_determinism.py
+[M] tests/test_ui_edits.py
+
+── [A] 새로 생기는 파일 ──
+[A] app/global_symbols.py
+[A] app/legend_profile.py
+[A] conftest.py
+[A] docs/new_form_checklist.md
+[A] docs/round10_feedback.md
+[A] docs/round11_scope_axis.md
+[A] docs/round12_annotation_design.md
+[A] docs/round12_ui.md
+[A] docs/round13_persistence.md
+[A] docs/round14_edit_scope.md
+[A] docs/round15_legend_profile.md
+[A] docs/round16_scope.md
+[A] docs/round17_delete.md
+[A] docs/round17_test_isolation.md
+[A] docs/round18_description.md
+[A] docs/round18_global_symbols.md
+[A] docs/round22_config_isolation.md
+[A] docs/tc2_assessment.md
+[A] spike/analyse_one.py
+[A] spike/baselines_3p.json
+[A] spike/build_ui_db.py
+[A] spike/constant_survey.py
+[A] spike/hist_cols_probe.py
+[A] spike/hist_gaps.py
+[A] spike/hist_measure.py
+[A] spike/hist_rows_probe.py
+[A] spike/hist_shape_probe.py
+[A] spike/hist_verify.py
+[A] spike/identification.py
+[A] spike/legend_star.py
+[A] spike/mark_probe.py
+[A] spike/mark_shape.py
+[A] spike/pack_handover_r24.py
+[A] spike/pack_round23.py
+[A] spike/projects_3p.json
+[A] spike/regression_3p.py
+[A] spike/verify_r24.py
+[A] tests/test_config_isolation.py
+[A] tests/test_data_isolation.py
+[A] tests/test_failure_stage.py
+[A] tests/test_global_symbols.py
+[A] tests/test_legend_profile.py
+[A] tests/test_revision_carry.py
+[A] tests/test_scope_and_type.py
+[A] tests/test_star_marks.py
+[A] tests/test_titleblock_frame.py
+[A] tests/test_vendor_mark_audit.py

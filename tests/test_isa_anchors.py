@@ -1,0 +1,316 @@
+"""무엇이 계기 태그인가를 **그 도면의 ISA 문자표**가 답한다 (50회차 · §9 ①).
+
+지금까지는 `anchors.type_map` 24종을 손으로 적어 정했고, 그래서 도면이 버블에
+인쇄한 `AIT`·`PP`·`ZS`·`PDI` 가 행이 되지 못했다 (실측 AL NOUF1 32 · TC2 25).
+범례는 그 답을 **이미 인쇄하고 있다** — FIRST LETTER 열이 측정 변수를,
+SUCCEEDING LETTERS 열이 기능을 정의한다.
+
+이 시험이 지키는 것 넷:
+
+  ① 표로 풀리는 낱말은 앵커가 된다 (`AIT`)
+  ② 표가 정의하지 않은 글자가 하나라도 있으면 앵커가 아니다 (`NOTE`·`ZSO`)
+  ③ 설정이 답하는 낱말은 설정이 이긴다 (`TT → TIT`)
+  ④ 스위치를 끄면 **24종 사전만 쓰던 때와 정확히 같아진다**
+"""
+from __future__ import annotations
+
+import ast
+import pathlib
+import sys
+
+import pymupdf
+import pytest
+
+ROOT = pathlib.Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(ROOT / "app" / "engine"))
+import detect_symbols as ds      # noqa: E402
+import isa_table                 # noqa: E402
+import pidcache                  # noqa: E402
+
+
+# 범례가 인쇄한 그대로의 최소 표 — 지어낸 글자가 없다.
+TABLE = isa_table.IsaTable(
+    first={"A": ("ANALYSIS",), "P": ("PRESSURE", "OR", "VACUUM"),
+           "PD": ("PRESSURE", "DIFFERENTIAL"), "T": ("TEMPERATURE",),
+           "Z": ("POSITION",), "L": ("LEVEL",)},
+    succeeding={"I": ("INDICATOR",), "T": ("TRANSMITTER",), "S": ("SWITCH",),
+                "P": ("TEST", "POINT"), "C": ("CONTROLLER",)},
+    page_no=3, note="test")
+
+
+def _stadium(page, x0, y0, w, h):
+    r = h / 2
+    sh = page.new_shape()
+    sh.draw_line((x0 + r, y0), (x0 + w - r, y0)); sh.finish(width=0.3)
+    sh.draw_line((x0 + r, y0 + h), (x0 + w - r, y0 + h)); sh.finish(width=0.3)
+    sh.commit()
+    for cx, side in ((x0 + r, -1), (x0 + w - r, 1)):
+        sh = page.new_shape()
+        sh.draw_sector((cx, y0 + r), (cx, y0), 180 if side < 0 else -180,
+                       fullSector=False)
+        sh.finish(width=0.3, closePath=False); sh.commit()
+
+
+@pytest.fixture
+def sheet(tmp_path):
+    """버블 넷 — 사전에 있는 것 하나, 표로만 풀리는 것 둘, 안 풀리는 것 하나."""
+    doc = pymupdf.open(); page = doc.new_page(width=700, height=400)
+    for i, word in enumerate(("TT", "AIT", "PP", "NOTE")):
+        x = 100 + i * 120
+        _stadium(page, x, 150, 68, 22)
+        page.insert_text((x + 16, 166), word, fontsize=9)
+    path = tmp_path / "isa.pdf"; doc.save(path); doc.close()
+    _d, pages = pidcache.load_pages(str(path))
+    return pages[0]
+
+
+def _detect(pc, rules, isa):
+    dets, *_ = ds.detect(pc, lay=ds.LAYOUT, rules=rules, isa=isa)
+    return {d.anchor: d for d in dets}
+
+
+def _rules(**kw):
+    base = dict(name="t", field_type_map={"TT": "TIT"}, not_field=frozenset(),
+                valves=frozenset(), disabled=frozenset(), derive_from_isa=True)
+    base.update(kw)
+    return ds.Ruleset(**base)
+
+
+def test_a_tag_the_table_explains_becomes_an_anchor(sheet):
+    got = _detect(sheet, _rules(), TABLE)
+    assert "AIT" in got, "범례가 A·I·T 를 전부 정의하는데 앵커가 되지 못했다"
+    d = got["AIT"]
+    assert d.category == "FIELD_INSTRUMENT"
+    assert d.excel_type == "AIT"          # 설정에 없으면 도면이 쓴 글자 그대로
+    src = d.evidence["anchor_source"]
+    assert src["rule"] == "ISA_TABLE" and src["page_no"] == 3
+    assert src["first"].startswith("A = ANALYSIS")
+    assert "ANCHOR_FROM_ISA_TABLE" in d.rules_hit
+
+
+def test_two_letters_of_the_same_kind_still_decompose(sheet):
+    """`PP` 는 P(측정 변수) + P(TEST POINT) 다 — 같은 글자라도 열이 다르다."""
+    assert "PP" in _detect(sheet, _rules(), TABLE)
+
+
+def test_a_word_the_table_cannot_explain_is_not_an_anchor(sheet):
+    """`NOTE` 는 `N` 이 FIRST LETTER 에 없다 — 도면이 스스로 걸러낸다."""
+    assert "NOTE" not in _detect(sheet, _rules(), TABLE)
+
+
+def test_the_project_dictionary_still_wins_for_naming(sheet):
+    """`TT` 는 표로도 풀리지만 이 발주처는 `TIT` 라고 부른다 (②층)."""
+    d = _detect(sheet, _rules(), TABLE)["TT"]
+    assert d.excel_type == "TIT"
+    assert "anchor_source" not in d.evidence, "사전에 있는 낱말에 유도 근거를 달면 안 된다"
+
+
+def test_switching_it_off_reproduces_the_dictionary_only_behaviour(sheet):
+    got = _detect(sheet, _rules(derive_from_isa=False), TABLE)
+    assert set(got) == {"TT"}
+
+
+def test_no_table_means_no_derivation(sheet):
+    """범례를 못 읽은 문서에서 사전 밖 낱말을 계기로 만들지 않는다."""
+    assert set(_detect(sheet, _rules(), None)) == {"TT"}
+    assert set(_detect(sheet, _rules(), isa_table.IsaTable())) == {"TT"}
+
+
+# ---- 규칙 자체 (PDF 없이) ------------------------------------------------
+
+@pytest.mark.parametrize("tag, ok", [
+    ("AIT", True), ("AT", True), ("PP", True), ("ZS", True), ("ZSC", True),
+    ("PDI", True), ("PDIT", True), ("TIT", True),
+    ("NOTE", False),        # N 이 FIRST LETTER 에 없다
+    ("ZSO", False),         # O 가 SUCCEEDING 에 없다 (경보 수식자 — 표가 정의 안 함)
+    ("TO", False), ("M", False), ("V", False), ("", False), ("P1", False),
+])
+def test_decompose_reads_only_what_the_table_prints(tag, ok):
+    assert (TABLE.decompose(tag) is not None) is ok
+
+
+def test_two_letter_heads_are_tried_first():
+    """`PDIT` 는 `PD` + `IT` 이지 `P` + `DIT` 가 아니다."""
+    assert TABLE.decompose("PDIT") == ("PD", "IT")
+
+
+def test_no_letter_dictionary_is_hardcoded():
+    """글자 뜻을 코드에 적으면 그것이 곧 외워둔 값이다 (§9 ②)."""
+    src = (ROOT / "app" / "engine" / "isa_table.py").read_text()
+    tree = ast.parse(src)
+    fn = next(n for n in ast.walk(tree)
+              if isinstance(n, ast.FunctionDef) and n.name == "decompose")
+    body = ast.get_source_segment(src, fn) or ""
+    body = body.replace(ast.get_docstring(fn) or "", "")
+    for word in ("ANALYSIS", "PRESSURE", "TEMPERATURE", "SWITCH", "INDICATOR"):
+        assert word not in body, f"{word} 가 코드에 박혀 있다"
+
+
+# ---- 실제 두 문서의 ISA 표로 규칙이 무엇을 받아들이는지 못박는다 -----------
+#
+# PDF 없이도 정확한 이유: 저장된 결과의 `unjudged_symbols` 중 "사전에 없음" 은
+# `detect()` 가 **버블 검증을 이미 통과시킨** 낱말이다 (`len(hit) == 1` 뒤에
+# 모은다).  사전에 낱말만 있으면 같은 자리에서 그대로 검출이 된다.
+
+REAL = [("AL NOUF1", "out/round20/run_base.json", 32,
+         {"PP": 8, "ZSC": 7, "ZT": 6, "ZS": 5, "AIT": 4, "AT": 2}, {"ZSO": 11}),
+        ("TC2", "out/round47/TC2_after.json", 25,
+         {"PP": 12, "AIT": 8, "PDI": 3, "PS": 2},
+         {"NOTE": 15, "VBV": 4, "SSV": 4, "TO": 2, "M": 2, "V": 2,
+          "PDIA": 2, "BRPV": 1})]
+
+
+def _real(path):
+    import collections
+    import json
+    f = ROOT / path
+    if not f.exists():
+        pytest.skip(f"{path} 없음")
+    r = json.loads(f.read_text())
+    r = r.get("result", r)
+    isa = (r.get("description_build") or {}).get("isa_table") or {}
+    t = isa_table.IsaTable(
+        first={k: tuple(v) for k, v in (isa.get("first") or {}).items()},
+        succeeding={k: tuple(v) for k, v in (isa.get("succeeding") or {}).items()})
+    took, left = collections.Counter(), collections.Counter()
+    for x in r.get("unjudged_symbols", []):
+        if x.get("kind") != "INSTRUMENT_TAG" or "사전에 없" not in (x.get("why") or ""):
+            continue
+        lab = (x.get("label") or "").strip()
+        (took if t.decompose(lab) else left)[lab] += 1
+    return took, left
+
+
+@pytest.mark.parametrize("name, path, total, taken, rejected", REAL)
+def test_the_rule_on_the_real_documents(name, path, total, taken, rejected):
+    took, left = _real(path)
+    assert dict(took) == taken, f"{name} — 받아들이는 낱말이 달라졌다"
+    assert dict(left) == rejected, f"{name} — 걸러내는 낱말이 달라졌다"
+    assert sum(took.values()) == total
+
+
+def test_the_succeeding_block_heading_is_found_in_a_stroke_font_legend(tmp_path):
+    """획 글꼴 범례는 `TYPICAL SYMBOL` 을 한 조각으로 싣는다 (28회차).
+
+    같은 함수가 쪽을 두 가지로 읽고 있었다 — FIRST LETTER 머리말은
+    `pidcache.tokens` 로 찾는데 SUCCEEDING 블록만 raw `pc.words` 였다.
+    그래서 UAD 는 `25 first letters, 0 succeeding letters` 로 읽혔다.
+    """
+    import isa_table as it
+    chunk = [(pymupdf.Rect(100, 50, 260, 62), "TYPICAL SYMBOL")]
+    plain = [(pymupdf.Rect(100, 50, 180, 62), "TYPICAL")]
+    for words, label in ((chunk, "획 글꼴(한 조각)"), (plain, "활자(낱말)")):
+        found = next((r for r, t in pidcache.tokens(words) if t == "TYPICAL"), None)
+        assert found is not None, label
+    # raw 로 읽으면 조각은 못 찾는다 — 그것이 있던 결함이다
+    assert next((r for r, t in chunk if t == "TYPICAL"), None) is None
+
+
+def test_the_heading_lookup_uses_the_token_accessor():
+    """자리 재기는 그대로 두고 **이름 찾기만** 바꿨다는 것을 소스로 못박는다."""
+    src = (ROOT / "app" / "engine" / "isa_table.py").read_text()
+    i = src.index('if t == "TYPICAL"')
+    seg = src[max(0, i - 200):i]
+    assert "pidcache.tokens(pc.words)" in seg
+
+
+# ---------------------------------------------------------------- 미판정 사유
+#
+# 50회차 — "버블 기하 검증 실패" 한 문장 아래에 **서로 다른 두 실패**가 접혀
+# 있었다 (실측: AL NOUF1 44건 · TC2 59건).  `detect()` 가 이미 세고 있던 수를
+# 파이프라인이 버리지 않게 했으므로, 그 수가 문장으로 나오는지 못박는다.
+
+def test_no_bubble_and_overlapping_bubbles_say_different_things():
+    from app import pipeline
+    zero = pipeline._bubble_why(0)
+    two = pipeline._bubble_why(2)
+    assert zero != two
+    assert "버블이 없" in zero
+    assert "2" in two
+
+
+def test_an_old_result_without_the_count_keeps_the_old_sentence():
+    """수가 없으면 지어내지 않는다 — 옛 결과에는 이 칸이 없다."""
+    from app import pipeline
+    assert pipeline._bubble_why(None) == "버블 기하 검증 실패"
+
+
+def test_detect_counts_the_bubbles_it_matched():
+    """수는 파이프라인이 만든 값이 아니라 `detect()` 가 세어 둔 것이다."""
+    import inspect
+    from app.engine import detect_symbols as ds
+    src = inspect.getsource(ds.detect)
+    assert '"bubbles_matched": len(hit)' in src
+
+
+# ------------------------------------------------- 51회차 — 앵커가 행까지 가는가
+#
+# ★ 50회차는 `detect()` 만 고치고 **파이프라인이 행을 만들 때 보는 함수**를
+# 안 고쳤다.  그래서 표가 인정한 32개 검출이 서고도 한 행도 되지 않았다
+# (예측 1069 ↔ 실측 1037).  같은 질문에 답하는 곳이 둘이면 갈린다.
+
+def test_a_derived_anchor_carries_a_type_all_the_way_to_the_row(sheet):
+    """`excel_type_under` 가 사전에 없는 유도 앵커에 TYPE 을 준다."""
+    from app.engine import detect_all as da
+    rules = _rules()
+    got = _detect(sheet, rules, TABLE)
+    for tag in ("AIT", "PP"):
+        d = got[tag]
+        assert da.excel_type_under(d, rules) == tag
+        assert da.included_under(d, rules, da.active_scope("none")) is True
+
+
+def test_the_dictionary_is_still_the_naming_authority(sheet):
+    """사전이 답하면 사전이 이긴다 — 유도가 그것을 덮지 않는다."""
+    from app.engine import detect_all as da
+    rules = _rules()
+    got = _detect(sheet, rules, TABLE)
+    assert da.excel_type_under(got["TT"], rules) == "TIT"
+
+
+def test_a_word_without_the_table_marker_gets_no_type():
+    """근거가 없으면 낱말을 TYPE 으로 쓰지 않는다 — 낱말 목록으로 가르지 않는다."""
+    from app.engine import detect_all as da
+    rules = _rules()
+
+    class Bare:
+        anchor = "DN"
+        rules_hit = []
+    assert da.excel_type_under(Bare, rules) is None
+
+
+def test_the_marker_name_lives_in_one_place():
+    """`detect()` 가 달고 `detect_all` 이 읽는 표시 — 두 벌을 두지 않는다."""
+    from app.engine import detect_all as da
+    assert da.ANCHOR_FROM_ISA is ds.ANCHOR_FROM_ISA
+    import inspect
+    assert '"ANCHOR_FROM_ISA_TABLE"' not in inspect.getsource(da.excel_type_under)
+
+
+# ------------------------------------- 51회차 — 유도된 낱말은 버블이 섰을 때만 센다
+
+def _plain(tmp_path, words):
+    """버블 없이 낱말만 인쇄한 장."""
+    doc = pymupdf.open(); page = doc.new_page(width=700, height=400)
+    for i, w in enumerate(words):
+        page.insert_text((120 + i * 110, 200), w, fontsize=9)
+    path = tmp_path / "plain.pdf"; doc.save(path); doc.close()
+    _d, pages = pidcache.load_pages(str(path))
+    return pages[0]
+
+
+def test_a_derived_word_with_no_bubble_is_not_reported(tmp_path):
+    """ISA 표가 `DN` 을 분해한다는 것은 `DN` 이 계기라는 증거가 아니다."""
+    pc = _plain(tmp_path, ["DN", "GT", "VS"])
+    dets, _s, _m, unverified, unmapped, *_ = ds.detect(
+        pc, lay=ds.LAYOUT, rules=_rules(), isa=TABLE)
+    assert dets == []
+    assert [u["anchor"] for u in unverified] == []
+
+
+def test_a_dictionary_anchor_with_no_bubble_is_still_reported(tmp_path):
+    """사전 앵커가 버블 없이 인쇄된 것은 보고할 값어치가 있다 — 계속 센다."""
+    pc = _plain(tmp_path, ["TT"])
+    _d, _s, _m, unverified, *_ = ds.detect(
+        pc, lay=ds.LAYOUT, rules=_rules(), isa=TABLE)
+    assert [(u["anchor"], u["bubbles_matched"]) for u in unverified] == [("TT", 0)]
