@@ -204,7 +204,17 @@ def main():
     built = datetime.datetime.now().strftime('%Y-%m-%d %H:%M')
     import track                                   # 변경 추적 · 결정적 점검 (status/track.py)
     hist = track.update(ROOT, HERE, data, built, st.get('read_at', ''))
-    meta = dict(built=built, read_at=st.get('read_at', ''), bucket=BUCKET, history=hist, checks=track.checks(ROOT, HERE, data))
+    names = {x['sid']: x['name'] for x in data}
+    for x in data:                                 # 쉬운 말 커밋 제목 (최근 활동 · 목록용)
+        for c in x['recent'] + x['pending']:
+            c['p'] = track.short(c['s'], 40)
+    for c in hist['changes']:
+        c['plain'] = track.plain(c)
+    hist['summary'] = track.summarize(hist['changes'])
+    chks = track.checks(ROOT, HERE, data)
+    for c in chks:
+        c['plain'] = track.plain_check(c, names)
+    meta = dict(built=built, read_at=st.get('read_at', ''), bucket=BUCKET, history=hist, checks=chks)
     # 프론트엔드(template.html)는 그대로, 데이터만 window.DATA · window.META 로 끼운다
     out = tpl.replace('/*DATA*/', 'window.DATA=' + json.dumps(data, ensure_ascii=False) + ';window.META=' + json.dumps(meta, ensure_ascii=False) + ';')
     # 그림은 맨 끝에 — 앱 파일 미리보기가 큰 파일 끝을 잘라도 지도는 먼저 그려진다

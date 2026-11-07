@@ -140,3 +140,93 @@ def checks(root, here, data, rule_at='2026-11-07T07:10:00Z'):
         if st.get('needs') and st.get('updated', '') < rule_at.replace('07:10', '08:00'):
             out.append(dict(sid=x['sid'], kind='waiting', text=f"확인 필요가 {st.get('updated', '')[:16].replace('T', ' ')} 부터 그대로"))
     return out
+
+
+# ---- 쉬운 말 (비전공자용 · 간결) -------------------------------------------------------------
+STATE_KO = {'BLOCKED': '확인 기다림', 'COMPLETED': '완료', 'WORKING': '작업 중', 'REVIEW_READY': '검토 준비', 'FAILED': '실패', '': '?'}
+_PREFIX = re.compile(r'^(?:(?:dashboard|valve|hotfix)\s*v?[\d.]+(?:\([A-Z]\))?|L\d+|v[\d.]+|hotfix\d+(?:\([A-Z]\))?|valve\d+|'
+                     r'feat|fix|docs|chore|build|tools|import|refactor|test|orch)(?:\([^)]*\))?\s*[:：]\s*', re.I)
+
+
+def short(s, n=42):
+    s = (s or '').strip()
+    if s.startswith('Merge '):
+        return '다른 작업 줄기 합침'
+    s = _PREFIX.sub('', s)
+    s = _PREFIX.sub('', s)                         # 'hotfix132(D): LOGIC — …' 처럼 두 겹
+    for cut in (' — ', ' · ', ' (', ': ', ' - '):
+        if len(s) > n and cut in s[8:]:
+            s = s[:8 + s[8:].index(cut)]
+    return s if len(s) <= n else s[:n - 1].rstrip() + '…'
+
+
+def _ver(v):
+    v = re.split(r' · | \(', v or '')[0].strip()
+    return '새 판' if re.fullmatch(r'[0-9a-f]{7,40}', v) else v
+
+
+def plain(c):
+    k, t = c['kind'], c['text']
+    if k == 'commit':
+        return short(t) if c.get('h') else '코드가 크게 바뀜 (이어지지 않는 변경)'
+    if k == 'version':
+        a, b = t.replace('버전 ', '', 1).split(' → ', 1)
+        return f'버전 {_ver(a)} → {_ver(b)}' if _ver(b) != '새 판' else '코드 새 판'
+    if k == 'state':
+        a, b = t.replace('상태 ', '', 1).split(' → ', 1)
+        return f'상태: {STATE_KO.get(a, a)} → {STATE_KO.get(b, b)}'
+    if k == 'needs':
+        return '사용자 확인 끝남' if '풀림' in t else '⚠ 사용자 확인 필요 — ' + short(t.split(' — ', 1)[-1], 46)
+    if k == 'report':
+        return '세션 보고: ' + short(t.split(' — ', 1)[-1], 46)
+    if k == 'pending':
+        a, b = [int(x) for x in re.findall(r'\d+', t)[:2]]
+        return '회사 업데이트 파일에 모두 담김' if b == 0 and a > 0 else f'회사에 보낼 변경 {a} → {b}건'
+    if k == 'branch':
+        return '작업 줄기(브랜치)가 바뀜'
+    if k == 'new':
+        return '세션 지도에 새로 들어옴'
+    return short(t)
+
+
+def summarize(changes):
+    """(갱신 시점, 세션) 마다 한 줄 요약 + 쉬운 말 목록 (기술 기록은 따로)."""
+    groups = {}
+    for c in changes:
+        groups.setdefault((c['at'], c['sid']), []).append(c)
+    out = []
+    for (at, sid), cs in groups.items():
+        n = sum(1 for c in cs if c['kind'] == 'commit')
+        bits = [f'변경 {n}건'] if n else []
+        v = [plain(c) for c in cs if c['kind'] == 'version']
+        if v and v[0] != '코드 새 판':
+            bits.append(v[0].replace('버전 ', ''))
+        if any(c['kind'] == 'needs' and '풀림' in c['text'] for c in cs):
+            bits.append('확인 끝남')
+        if any(c['kind'] == 'needs' and '풀림' not in c['text'] for c in cs):
+            bits.append('⚠ 확인 필요')
+        p = [c for c in cs if c['kind'] == 'pending']
+        if p:
+            b = int(re.findall(r'\d+', p[-1]['text'])[1])
+            bits.append('회사 업데이트 파일에 담김' if b == 0 else f'회사에 보낼 것 {b}건')
+        items = [plain(c) for c in cs if c['kind'] == 'commit'][:5]
+        more = n - len(items)
+        items += [plain(c) for c in cs if c['kind'] == 'needs' and '풀림' not in c['text']]   # 한 줄에 없는 것만 (새 확인 요청)
+        if not bits:                                   # 보고 · 상태만 바뀐 경우
+            rep = [plain(c) for c in cs if c['kind'] in ('report', 'state')]
+            bits, items = (['세션 알림만'], rep[:2]) if rep else (['상태만 바뀜'], items)
+        out.append(dict(at=at, prev=cs[0].get('prev', ''), sid=sid, line=' · '.join(bits), items=items, more=max(0, more)))
+    return sorted(out, key=lambda x: (x['at'], x['sid']), reverse=True)
+
+
+def plain_check(c, names):
+    nm = names.get(c['sid'], c['sid'])
+    if c['kind'] == 'preview':
+        n = re.search(r'커밋 (\d+)개', c['text'])
+        return f"{nm}: 미리보기 화면이 최신 코드보다 오래됨 (그 뒤 변경 {n.group(1) if n else '?'}건) — 다시 찍을 것"
+    if c['kind'] == 'zip':
+        return f"{nm}: 규칙이 바뀐 뒤에도 세션이 업데이트 zip 을 따로 올림 — 회사로는 오케스트레이터 파일만"
+    if c['kind'] == 'waiting':
+        t = re.search(r'(\d{2}:\d{2})', c['text'])
+        return f"{nm}: {t.group(1) if t else '오래'}부터 사용자 답을 기다리는 중"
+    return f'{nm}: ' + c['text']

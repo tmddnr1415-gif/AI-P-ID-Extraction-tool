@@ -148,6 +148,14 @@ tr[data-go]{cursor:pointer}tr[data-go]:hover td{color:var(--accent)}
 .sig.git{background:color-mix(in srgb,var(--accent) 16%,transparent);color:var(--accent)}
 .sig.rep{background:color-mix(in srgb,var(--warn) 16%,transparent);color:var(--warn)}
 .sig.calc{background:var(--chip);color:var(--muted)}
+.sumrow{display:grid;grid-template-columns:14px 1fr;gap:4px 10px;padding:9px 2px;border-bottom:1px solid var(--line);cursor:pointer}
+.sumrow:hover .ln{color:var(--accent)}
+.sumrow .orb{width:11px;height:11px;margin-top:5px}
+.sumrow .nm{font-size:12px;color:var(--muted)}
+.sumrow .ln{font-size:14px;font-weight:600}
+.sumrow ul{grid-column:2;margin:2px 0 0;padding-left:16px;font-size:12.5px;color:var(--muted)}
+.sumrow li{margin:1px 0}
+.techtog{display:inline-flex;gap:6px;align-items:center;font-size:12px;color:var(--muted);cursor:pointer}
 .chk{display:flex;gap:8px;padding:6px 0;border-bottom:1px solid var(--line);font-size:12.5px;cursor:pointer}
 .chk:hover{color:var(--accent)}
 .newb{display:inline-block;margin-left:4px;border-radius:6px;padding:0 5px;font-size:10px;font-weight:800;background:var(--accent);color:var(--panel-solid)}
@@ -696,7 +704,7 @@ $("#left").innerHTML=`<h4>AGENT</h4>
 $$(".item").forEach(b=>b.onclick=()=>{select(byId[b.dataset.id],true);$("#left").classList.remove("open");});
 $$(".legend input[data-t]").forEach(c=>c.onchange=()=>{c.checked?hidden.delete(c.dataset.t):hidden.add(c.dataset.t);if(c.dataset.t==="pending"){if(!c.checked)hidden.add("change");else hidden.delete("change");$('.legend input[data-t="change"]').checked=c.checked;}alpha=Math.max(alpha,.3);});
 const acts=DATA.flatMap(x=>x.recent.map(c=>({...c,sid:x.sid}))).sort((a,b)=>b.d.localeCompare(a.d)).slice(0,6);
-$("#activity").innerHTML=`<h4>최근 활동</h4>${acts.map(c=>`<div class="act" data-go="${c.sid}:${esc(c.h)}"><i style="background:${COLOR[c.sid]};box-shadow:0 0 8px ${COLOR[c.sid]}"></i><span class="t">${esc(c.s)}</span><span class="d">${esc(c.d.slice(5))}</span></div>`).join("")}`;
+$("#activity").innerHTML=`<h4>최근 활동</h4>${acts.map(c=>`<div class="act" data-go="${c.sid}:${esc(c.h)}"><i style="background:${COLOR[c.sid]};box-shadow:0 0 8px ${COLOR[c.sid]}"></i><span class="t" title="${esc(c.s)}">${esc(c.p||c.s)}</span><span class="d">${esc(c.d.slice(5))}</span></div>`).join("")}`;
 $$("#activity .act").forEach(a=>a.onclick=()=>select(byId[a.dataset.go],true));
 
 const tl=(a,sid,dim)=>a.length?`<ul class="tl" style="--c:${COLOR[sid]}">${a.map(c=>`<li class="${dim?"dim":""}" data-go="${sid}:${esc(c.h)}"><span class="h">${esc(c.h)} · ${esc(c.d)}${c.files&&c.files.length?" · 파일 "+c.files.length:""}</span><br>${esc(c.s)}</li>`).join("")}</ul>`:'<div style="color:var(--muted);font-size:12.5px">없음</div>';
@@ -713,7 +721,7 @@ function detail(n){
      <div class="row" style="margin-top:8px"><button class="pill info" data-demo="${x.sid}" style="cursor:pointer;border:0">▶ 회사 PC 시연에서 보기</button></div>
      <div class="stats"><div class="stat"><b>${x.pending.length}</b><span>다음 업데이트 커밋</span></div><div class="stat"><b>${nf}</b><span>변경 파일</span></div><div class="stat"><b>${esc(x.tipdate.slice(5,10))}</b><span>마지막 커밋</span></div></div></div>
      ${x.state.needs?`<div class="sec"><div class="callout"><b>확인 필요</b> — ${esc(x.state.needs)}</div></div>`:""}
-     ${newBy(x.sid).length?`<div class="sec"><h3>지난 갱신 뒤 바뀐 것 · ${newBy(x.sid).length} <span style="font-weight:500;letter-spacing:0">(${esc(prevAt)} → ${esc(HIST.latest)})</span></h3>${newBy(x.sid).map(chgRow).join("")}</div>`:""}
+     ${newBy(x.sid).length?`<div class="sec"><h3>지난 갱신 뒤 바뀐 것 <span style="font-weight:500;letter-spacing:0">(${esc(prevAt.slice(5))} → ${esc(HIST.latest.slice(5))})</span></h3>${TECH?newBy(x.sid).map(chgRow).join(""):(sumOf(HIST.latest,x.sid)?sumRow(sumOf(HIST.latest,x.sid),false):"")}</div>`:""}
      ${CHECKS.filter(c=>c.sid===x.sid).length?`<div class="sec"><h3>점검</h3>${CHECKS.filter(c=>c.sid===x.sid).map(chkRow).join("")}</div>`:""}
      ${x.previews.length?`<div class="sec" style="--c:${c}"><h3>미리보기</h3><div class="viewer"><img id="big" alt=""><div class="cap"><span id="bigc"></span><span id="bigd"></span></div></div>
        <div class="thumbs">${x.previews.map((p,i)=>`<button data-i="${i}" aria-pressed="false"><img data-key="${p.key}" src="${pvs(p)}" alt=""></button>`).join("")}</div></div>`:""}
@@ -784,21 +792,30 @@ function renderOrg(){
      <div class="common">공통: ${x.common.join(" · ")}</div></div>`;}).join("")}</div>`;
   o.querySelectorAll("[data-go]").forEach(el=>el.onclick=e=>{e.stopPropagation();const t=byId[el.dataset.go];if(t)select(t);});
 }
+let TECH=false;
+const SIGKO={git:"코드","세션 기록":"세션 알림","계산":"자동 계산"};
 function chgRow(c){const go=c.h&&byId[c.sid+":"+c.h]?c.sid+":"+c.h:c.sid;
-  return `<div class="chg" data-go="${esc(go)}"><span class="orb" style="--c:${COLOR[c.sid]||"#9fb6ff"}"></span><span><span class="sig ${SIGC[c.sig]||"calc"}">${esc(c.sig)}</span></span><span>${c.h?`<span class="path">${esc(c.h)}</span> `:""}${esc(c.text)}</span></div>`;}
-function chkRow(c){return `<div class="chk" data-go="${esc(c.sid)}"><span class="orb" style="--c:${COLOR[c.sid]||"#9fb6ff"};width:10px;height:10px;margin-top:4px"></span><span>${esc(c.text)}</span></div>`;}
+  return `<div class="chg" data-go="${esc(go)}"><span class="orb" style="--c:${COLOR[c.sid]||"#9fb6ff"}"></span><span><span class="sig ${SIGC[c.sig]||"calc"}">${esc(SIGKO[c.sig]||c.sig)}</span></span><span>${c.h?`<span class="path">${esc(c.h)}</span> `:""}${esc(c.text)}</span></div>`;}
+function sumRow(g,showName){const sn=(DATA.find(x=>x.sid===g.sid)||{}).name||g.sid;
+  return `<div class="sumrow" data-go="${esc(g.sid)}"><span class="orb" style="--c:${COLOR[g.sid]||"#9fb6ff"}"></span><div>${showName?`<div class="nm">${esc(sn)}</div>`:""}<div class="ln">${esc(g.line)}</div></div>
+   ${g.items.length?`<ul>${g.items.map(i=>`<li>${esc(i)}</li>`).join("")}${g.more?`<li>그 밖 ${g.more}건</li>`:""}</ul>`:""}</div>`;}
+const sumOf=(at,sid)=>(HIST.summary||[]).find(g=>g.at===at&&g.sid===sid);
+function chkRow(c){return `<div class="chk" data-go="${esc(c.sid)}"><span class="orb" style="--c:${COLOR[c.sid]||"#9fb6ff"};width:10px;height:10px;margin-top:4px"></span><span>${esc(c.plain||c.text)}</span></div>`;}
 function renderLog(){
   const groups=[];HIST.changes.forEach(c=>{let g=groups.find(x=>x.at===c.at);if(!g){g={at:c.at,prev:c.prev,items:[]};groups.push(g);}g.items.push(c);});
   groups.sort((a,b)=>b.at.localeCompare(a.at));
   const sname=sid=>(DATA.find(x=>x.sid===sid)||{}).name||sid;
-  $("#logview").innerHTML=`<div class="loghead"><div><h2>변경 기록</h2><div class="sub">갱신할 때마다 이전 상태와 비교해 확인되는 것만 남깁니다 — 근거 순서: <span class="sig git">git</span> 커밋 → <span class="sig rep">세션 기록</span> 보고 · 상태 → <span class="sig calc">계산</span> 대기 건수</div></div>
-   <div class="sub">스냅숏 ${HIST.snapshots.length}개 · ${esc((HIST.snapshots[0]||{}).at||"")} 부터</div></div>
+  $("#logview").innerHTML=`<div class="loghead"><div><h2>변경 기록</h2><div class="sub">갱신할 때마다 세션별로 무엇이 달라졌는지 한 줄로 적습니다 · 확인된 것만 (코드 변경 → 세션 알림 → 자동 계산)</div></div>
+   <label class="techtog"><input type="checkbox" id="techtog" ${TECH?"checked":""}> 자세히 (개발 기록 원문)</label></div>
    <div class="lgrid"><div class="lcard glass">${groups.length?groups.map(g=>{const by={};g.items.forEach(c=>(by[c.sid]=by[c.sid]||[]).push(c));
-     return `<div class="snap"><div class="when">${esc(g.at)} 갱신 <span>${esc(g.prev)} 대비 · ${g.items.length}건</span></div>${Object.keys(by).sort().map(sid=>`<div style="margin:8px 0 2px;font-size:12px;font-weight:700;color:${COLOR[sid]}">${esc(sname(sid))}</div>${by[sid].map(chgRow).join("")}`).join("")}</div>`;}).join(""):'<div style="color:var(--muted)">아직 변경이 없습니다 — 다음 갱신부터 쌓입니다.</div>'}</div>
+     return `<div class="snap"><div class="when">${esc(g.at.slice(5))} 갱신 <span>${esc((g.prev||"").slice(5))} 이후</span></div>${Object.keys(by).sort().map(sid=>TECH
+       ?`<div style="margin:8px 0 2px;font-size:12px;font-weight:700;color:${COLOR[sid]}">${esc(sname(sid))}</div>${by[sid].map(chgRow).join("")}`
+       :(sumOf(g.at,sid)?sumRow(sumOf(g.at,sid),true):"")).join("")}</div>`;}).join(""):'<div style="color:var(--muted)">아직 변경이 없습니다 — 다음 갱신부터 쌓입니다.</div>'}</div>
    <div><div class="lcard glass" style="margin-bottom:12px"><h3>점검 · ${CHECKS.length}</h3>${CHECKS.length?CHECKS.map(chkRow).join(""):'<div style="color:var(--muted);font-size:12.5px">걸린 것 없음</div>'}
-     <div style="font-size:11.5px;color:var(--muted);margin-top:8px">git · 파일로 확인되는 것만: 미리보기를 찍은 뒤 커밋이 더 생김 · 규약 v2 뒤 zip 커밋 · 오래 기다리는 확인 필요</div></div>
+     <div style="font-size:11.5px;color:var(--muted);margin-top:8px">자동으로 찾은 것: 미리보기가 오래됨 · 규칙과 다른 zip · 오래 기다리는 답</div></div>
      <div class="lcard glass"><h3>내보내기</h3><div class="expbar"><button data-ex="canvas">⇩ Obsidian Canvas (.canvas)</button><button data-ex="md">⇩ 변경 기록 (.md)</button></div>
-     <div style="font-size:11.5px;color:var(--muted);margin-top:8px">Canvas 는 Obsidian 기본 기능(JSON Canvas) — 볼트에 넣으면 세션 그룹 · 역할 · 업데이트 파일이 보드로 열립니다. Markdown 은 일일 리뷰 형식(git → 세션 보고 → 확인 필요).</div></div></div></div>`;
+     <div style="font-size:11.5px;color:var(--muted);margin-top:8px">Canvas: Obsidian 에서 보드로 열림 · Markdown: 일일 노트에 붙여 쓰기</div></div></div></div>`;
+  const tg=$("#techtog");if(tg)tg.onchange=()=>{TECH=tg.checked;renderLog();};
   $("#logview").querySelectorAll("[data-go]").forEach(el=>el.onclick=()=>{const t=byId[el.dataset.go];if(t)select(t,true);});
   $("#logview").querySelectorAll("[data-ex]").forEach(el=>el.onclick=()=>el.dataset.ex==="canvas"?exportCanvas():exportMd());
 }
@@ -823,15 +840,15 @@ function exportCanvas(){
 function exportMd(){
   const day=(META.built||"").slice(0,10);const L=[];
   L.push("---",`date: ${day}`,"type: session-review",`built: ${META.built}`,`sessions: ${DATA.length}`,`pending: ${totalPend}`,`blocked: ${blocked}`,"tags: [오케스트레이션, 세션지도]","---","",`# 세션 지도 변경 기록 — ${META.built}`,"");
-  L.push(`> 근거 순서: git 커밋 → 세션 보고 → 계산. 확인되는 것만 적었습니다. 직전 갱신: ${prevAt||"-"}`,"");
-  L.push("## 이번 갱신에서 바뀐 것","");
+  L.push(`> 직전 갱신(${prevAt||"-"}) 이후 확인된 것만 적었습니다.`,"");
+  L.push("## 이번에 바뀐 것","");
   if(!NEWC.length)L.push("- 없음");
-  DATA.forEach(x=>{const cs=newBy(x.sid);if(!cs.length)return;L.push(`### ${x.name}`);cs.forEach(c=>L.push(`- [${c.sig}] ${c.h?"`"+c.h+"` ":""}${c.text}`));L.push("");});
+  DATA.forEach(x=>{const g=sumOf(HIST.latest,x.sid);if(!g)return;L.push(`- **${x.name}** — ${g.line}`);g.items.forEach(i=>L.push(`  - ${i}`));if(g.more)L.push(`  - 그 밖 ${g.more}건`);});
   L.push("## 세션 현황","","| 세션 | 상태 | 버전 | 다음 업데이트 | 파일 |","|---|---|---|---|---|");
   DATA.forEach(x=>L.push(`| ${x.name} | ${B(x.state.bucket)[1]} | ${x.ver} | ${x.pending.length} | ${x.file} |`));
   L.push("","## 확인 필요 (사용자)","");const nd=DATA.filter(x=>x.state.needs);if(!nd.length)L.push("- 없음");nd.forEach(x=>L.push(`- [ ] **${x.name}** — ${x.state.needs}`));
-  L.push("","## 점검","");if(!CHECKS.length)L.push("- 걸린 것 없음");CHECKS.forEach(c=>L.push(`- ${c.sid}: ${c.text}`));
-  L.push("","## 지난 기록","");HIST.changes.filter(c=>c.at!==HIST.latest).slice(0,60).forEach(c=>L.push(`- ${c.at} · ${c.sid} · [${c.sig}] ${c.h?"`"+c.h+"` ":""}${c.text}`));
+  L.push("","## 자동 점검","");if(!CHECKS.length)L.push("- 걸린 것 없음");CHECKS.forEach(c=>L.push(`- ${c.plain||c.text}`));
+  L.push("","## 지난 기록","");(HIST.summary||[]).filter(g=>g.at!==HIST.latest).slice(0,30).forEach(g=>L.push(`- ${g.at.slice(5)} · ${(DATA.find(x=>x.sid===g.sid)||{}).name||g.sid} — ${g.line}`));
   openExp("변경 기록 — Markdown (일일 리뷰 형식)","Obsidian 일일 노트에 붙이거나 .md 로 저장하세요.",`세션지도_${day}.md`,L.join("\n")+"\n");
 }
 let EXP=null;
