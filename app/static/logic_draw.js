@@ -3672,11 +3672,16 @@ function palAlive() { return Date.now() - (S.palSeen || 0) < 4500; }
 function palItems() {
   const sym = [], pre = [], mac = [];
   for (const k in S.sym || {}) { const sp = S.sym[k]; if (sp.macro) continue; let icon = ""; try { icon = paletteIcon(k).outerHTML; } catch (e) {}
-    sym.push({ key: "k:" + k, kind: k, name: sp.name, icon, q: `${sp.name} ${k} ${sp.text || ""}`.toUpperCase(), learned: sp.learned || 0 }); }
-  for (const pr of S.presets || []) pre.push({ key: "p:" + pr.text, text: pr.text, name: pr.name, hint: pr.hint || "", q: `${pr.name} ${pr.text} ${pr.hint || ""}`.toUpperCase() });
+    sym.push({ key: "k:" + k, kind: k, name: sp.name, icon, q: `${sp.name} ${k} ${sp.text || ""}`.toUpperCase(), learned: sp.learned || 0,
+      logic: sp.logic || "", bar: !!sp.bar, time: !!sp.time, ab: !!sp.ab, cells: sp.cells || 0, lamp: !!sp.lamp, circle: !!sp.circle, text: sp.text || "" }); }   // L90 — 두 번 누름 설명 · 해 보기
+  for (const pr of S.presets || []) pre.push({ key: "p:" + pr.text, text: pr.text, name: pr.name, hint: pr.hint || "", q: `${pr.name} ${pr.text} ${pr.hint || ""}`.toUpperCase(),
+    kind: pr.kind || "BOX", noin: !!pr.src || /들어오는 선 없이/.test(pr.hint || ""), sink: !!pr.sink, analog: /^아날로그/.test(pr.hint || ""), above: pr.above || "" });
   macroItems().forEach(m => { const o = m.origin || (m.typ.startsWith("lib:") ? "공통" : "이 묶음"), sh = (m.sheet || {}).sheet_no || (m.typ.startsWith("lib:") ? "" : m.typ);
     mac.push({ key: "m:" + m.typ, title: m.title, short: macroShort(m.title), desc: m.desc || "", desc_ko: m.desc_ko || "", sheet: sh, group: o, gname: MACRO_GROUP[o] || o,
       order: MACRO_ORDER.indexOf(o) < 0 ? 99 : MACRO_ORDER.indexOf(o), nin: (m.pins_in || []).length, nout: (m.pins_out || []).length, thumb: macroThumb(m),
+      did: m.did || (((S.setInfo && S.setInfo.sheets) || []).find(x => x.typical && ((m.sheet && x.sheet_no === m.sheet.sheet_no) || x.sheet_no === m.typ)) || {}).id || null,
+      tid: m.tid || (m.typ.startsWith("lib:") ? m.typ.slice(4) : null), typ: m.typ,
+      pins_in: (m.pins_in || []).map(q => ({ name: q.name, row: q.row })), pins_out: (m.pins_out || []).map(q => ({ name: q.name, row: q.row })),
       q: `${m.title} ${m.desc || ""} ${m.desc_ko || ""} ${sh} ${m.typ}`.toUpperCase() }); });
   return { sym, pre, mac };
 }

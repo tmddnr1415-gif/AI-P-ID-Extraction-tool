@@ -28,6 +28,26 @@ def draw_page():
     return FileResponse(_static("logic_draw.html"), headers={"Cache-Control": "no-store"})
 
 
+@router.post("/logic/api/drawings/symbol_sim")
+def symbol_sim(body: dict = Body(default={})):
+    """L90 — 기호 하나 해 보기 (기호 · 매크로 창에서 두 번 누름): 그 기호만 든 그림을 작성 시뮬레이션으로 — 입력 · 출력 · 시간 틀 · 메모."""
+    from . import draw_sim
+    kind = str(body.get("kind") or "")
+    if kind not in draw.SYMBOLS:
+        raise HTTPException(400, "그런 기호가 없습니다.")
+    try:
+        k = int(body.get("k")) if body.get("k") is not None else None
+    except (TypeError, ValueError):
+        k = None
+    param = body.get("param") if isinstance(body.get("param"), dict) else {}
+    param = {kk: v for kk, v in param.items() if kk in ("t", "a", "b", "dominant", "above", "point")}
+    inputs = [1 if v else 0 for v in (body.get("inputs") or [])][:8] if isinstance(body.get("inputs"), list) else []
+    press = body.get("press")
+    state = body.get("state") if isinstance(body.get("state"), dict) else {}
+    return draw_sim.symbol_sim(kind, str(body.get("text") or "")[:40], param, k, inputs, state,
+                               None if press is None else (1 if press else 0), bool(body.get("noin")))
+
+
 @router.get("/logic/draw/palette")
 def draw_palette_page():
     """L88 — 기호 · 매크로 창 (그림 창 옆에 띄워 누르면 그림 창에 놓인다 · BroadcastChannel)."""

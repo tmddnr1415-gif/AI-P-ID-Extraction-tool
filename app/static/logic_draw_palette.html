@@ -42,6 +42,45 @@
   .pl-mac .pl-tile .nm { font-weight: 600; }
   .pl-none { color: #8a93a8; font-size: 12px; padding: 4px 0; }
   .pl-foot { font-size: 11px; color: #8a93a8; padding: 14px 12px 18px; }
+  /* L90 — 두 번 누름 상세 */
+  .pl-detail { position: fixed; inset: 0; z-index: 20; background: rgba(20, 26, 40, .35); display: flex; align-items: flex-start; justify-content: center; overflow: auto; padding: 10px; }
+  .dt-card { background: #fff; border-radius: 12px; width: 100%; max-width: 560px; box-shadow: 0 12px 40px rgba(0, 0, 0, .3); }
+  .dt-head { position: sticky; top: 0; display: flex; justify-content: space-between; align-items: center; padding: 10px 14px; background: var(--navy); color: #fff; border-radius: 12px 12px 0 0; font-weight: 600; }
+  .dt-head button { background: transparent; color: #fff; border: 0; font-size: 16px; }
+  #dt-body { padding: 12px 14px 16px; }
+  #dt-body h4 { margin: 14px 0 6px; font-size: 13px; }
+  .dt-top { display: flex; gap: 12px; align-items: center; }
+  .dt-icon svg { width: 96px; height: 70px; }
+  .pl-chip.big { font-size: 16px; padding: 10px 14px; }
+  .dt-desc { margin: 0; font-size: 13px; line-height: 1.5; }
+  .dt-sub, .dt-hint { font-size: 11px; color: #6a7385; }
+  .dt-note { font-size: 12px; color: #3c4456; background: #f3f6ff; border-radius: 8px; padding: 8px 10px; line-height: 1.5; }
+  .dt-params { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 8px; font-size: 12px; }
+  .dt-params input { width: 64px; }
+  .dt-io { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+  .dt-lab { font-size: 11px; color: #6a7385; margin-bottom: 4px; }
+  .dt-ins, .dt-outs { display: flex; flex-wrap: wrap; gap: 6px; }
+  .dt-bit, .dt-val { display: flex; flex-direction: column; align-items: center; min-width: 58px; padding: 6px 8px; border-radius: 8px; border: 1px solid #c9cfdb; font-size: 11px; }
+  .dt-bit { cursor: pointer; }
+  .dt-bit b, .dt-val b { font-size: 20px; line-height: 1.1; }
+  .dt-bit.v1, .dt-val.v1 { background: #00b4ff; color: #fff; border-color: #0078b0; }
+  .dt-bit.v0, .dt-val.v0 { background: #eef1f6; color: #3c4456; }
+  .dt-arrow { font-size: 22px; color: #8a93a8; }
+  .dt-why { margin: 0; padding-left: 18px; font-size: 12px; line-height: 1.7; }
+  .dt-why .bad { color: #c2453f; }
+  .dt-chart { width: 100%; margin-top: 8px; background: #fafbfd; border: 1px solid #e3e7ef; border-radius: 8px; }
+  .dt-chart .ch-l { font: 9px sans-serif; fill: #555e6e; }
+  .dt-chart .ch-w { fill: none; stroke: #59616f; stroke-width: 1.6; }
+  .dt-chart .ch-w.out { stroke: #0078b0; stroke-width: 2.2; }
+  .dt-chart .ch-t { stroke: #d5dae4; stroke-dasharray: 2 2; }
+  .dt-acts { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 14px; }
+  .dt-acts button { padding: 7px 12px; }
+  .dt-acts button.pri { background: var(--blue); color: #fff; border-color: var(--blue); }
+  .dt-mthumb .mt-svg { width: 100%; height: auto; max-height: 260px; }
+  .dt-pinwrap { display: flex; gap: 12px; flex-wrap: wrap; }
+  .dt-pins { font-size: 11px; border-collapse: collapse; }
+  .dt-pins th, .dt-pins td { border-bottom: 1px solid #eef1f6; padding: 2px 8px 2px 0; text-align: left; }
+  .dt-who { display: flex; gap: 6px; align-items: center; font-size: 12px; margin-top: 8px; }
 </style>
 </head>
 <body>
@@ -53,7 +92,7 @@
     <input type="checkbox" id="c-conn" checked> <span id="conn-t">고른 기호 뒤에 이어 놓기 — 그림 창에서 기호를 고르면 켜집니다</span></label>
 </header>
 <div id="placing" class="pl-place" hidden><span id="placing-t"></span><button type="button" id="placing-x">그만</button></div>
-<p class="pl-hint">누르면 → 그림 창에서 <b>놓을 자리</b>를 누르세요 · <b>두 번 누르면</b> 그림 창 화면 가운데에 · 그림 창으로 <b>끌어 놓아도</b> 됩니다.  매크로는 두 번 누르면 <b>내부 동작</b>(새 창).</p>
+<p class="pl-hint">누르면 → 그림 창에서 <b>놓을 자리</b>를 누르세요 · 그림 창으로 <b>끌어 놓아도</b> 됩니다.  <b>두 번 누르면 상세</b> — 기호는 설명 · 입력을 넣어 출력과 과정 보기, 매크로는 단자 · 내부 동작 열기 · 고치기.</p>
 <section class="pl-sec" id="s-rec" hidden><h2>최근 쓴 것 <span class="n"></span></h2><div class="pl-grid"></div></section>
 <section class="pl-sec" id="s-sym"><h2>기호 <span class="n"></span></h2><div class="pl-grid"></div></section>
 <section class="pl-sec" id="s-pre"><h2>글자 상자 — 뜻은 글자가 정합니다 <span class="n"></span></h2><div class="pl-grid"></div></section>

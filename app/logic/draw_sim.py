@@ -832,3 +832,106 @@ def simulate(docs: list, focus_did: str, forces=None, state=None, timers=None, a
                      "rows": [{"n": r["n"], "side": r["side"], "net": r.get("net"), "ref": r.get("ref"), "ft": r.get("ft")} for r in s["rows"]]},
            "default_t": sim.DEFAULT_T}
     return out
+
+
+# ─────────────────────────── L90 — 기호 하나 해 보기 (기호 · 매크로 창에서 두 번 누름) ───────────────────────────
+SYM_DID = "5b1a00000090"
+
+
+def symbol_doc(kind: str, text: str = "", param: dict | None = None, k: int | None = None, noin: bool = False) -> dict:
+    """기호 하나 + 입력 행(왼쪽 3행부터 차례로) + 출력 행(오른쪽) 만 든 그림 — 작성 시뮬레이션이 그대로 돌린다 (따로 흉내 내지 않는다).
+    입력 단자가 행 가운데에 서면 곧은 선 · 아니면 세로로 꺾어 그 행으로.  막대 게이트는 k 입력 (행 간격 × k 막대)."""
+    spec = D.SYMBOLS[kind]
+    P, N = D.PITCH, D.N_DEFAULT
+    b = {"id": "B1", "kind": kind, "x": round(D.LX0 + 200, 2), "y": 0.0, "w": spec["w"], "h": spec["h"],
+         "text": D._txt(text, 40) or spec["text"], "label": "", "param": dict(param or {})}
+    if spec.get("time") and "t" not in b["param"]:
+        b["param"]["t"] = 5
+    if spec.get("ab"):
+        a_, b_ = int(b["param"].get("a") or 2), int(b["param"].get("b") or 3)
+        b["param"].update({"a": a_, "b": b_})
+        b["text"] = f"{a_}/{b_}"
+    if spec.get("cells") == 2:
+        b["h"] = round(2 * P, 2)
+    if spec.get("bar"):
+        k = max(1, min(8, int(k or 2)))
+        lb = k * P + 0.4
+        b["param"]["bar"] = [round(b["h"] / 2 - lb / 2, 2), round(b["h"] / 2 + lb / 2, 2)]
+    ps = D.ports_of(b)
+    ins = [p for p in ps if p[2] == "in"]
+    if spec.get("lamp"):
+        ins = ins[:1]
+    ref = ins[0] if ins else (ps[0] if ps else None)
+    if ref is not None:
+        b["y"] = round(b["y"] + D.ry(3, N) - ref[1], 2)
+    ps = D.ports_of(b)
+    ins = [] if noin else [p for p in ps if p[2] == "in"][:1 if spec.get("lamp") else None]   # 상수 · 신호 상자는 들어오는 선 없이
+    outs = [p for p in ps if p[2] == "out"]
+    row_of = lambda y: max(1, min(N, int(round((y - D.TOP - P / 2) / P)) + 1))
+    wires, left, right, used = [], {}, {}, set()
+    for i, p in enumerate(ins):
+        r = row_of(p[1])
+        while r in used:
+            r += 1
+        used.add(r)
+        y = D.ry(r, N)
+        jx = round(p[0] - 12 - 4 * i, 2)
+        pts = [[D.LX0, y], [p[0], y]] if abs(y - p[1]) < 0.05 else [[D.LX0, y], [jx, y], [jx, p[1]], [p[0], p[1]]]
+        wires.append({"id": f"wi{i}", "pts": pts})
+        left[str(r)] = {"desc": (p[3] if len(p) > 3 and p[3] else f"IN{i + 1}")[:40], "kks": "", "fm": ""}
+    used_r = set()
+    for j, p in enumerate(outs):
+        r = row_of(p[1])
+        while r in used_r:
+            r += 1
+        used_r.add(r)
+        y = D.ry(r, N)
+        jx = round(p[0] + 12 + 4 * j, 2)
+        pts = [[p[0], p[1]], [D.LX1, y]] if abs(y - p[1]) < 0.05 else [[p[0], p[1]], [jx, p[1]], [jx, y], [D.LX1, y]]
+        if len(pts) == 2:
+            pts = [[p[0], p[1]], [D.LX1, p[1]]]
+        wires.append({"id": f"wo{j}", "pts": pts})
+        right[str(N + r)] = {"desc": "OUT" if len(outs) == 1 else f"OUT{j + 1}", "kks": "", "to": ""}
+    doc = D.new_doc("기호 해 보기", "symbol", "", N)
+    doc.update({"id": SYM_DID, "blocks": [b], "wires": wires, "left": left, "right": right, "sheet_no": "SYM"})
+    return doc
+
+
+def symbol_sim(kind: str, text: str = "", param: dict | None = None, k: int | None = None,
+               inputs: list | None = None, state: dict | None = None, press: int | None = None, noin: bool = False) -> dict:
+    """기호 하나를 작성 시뮬레이션으로 — 입력 행 값(0/1) · 누름단추(press) · 앞 상태(state: 래치 · 타이머)를 주면
+    틀마다(시간) 입력 · 출력 값과 시뮬레이터가 읽은 블록(기능 · 동작) · 메모를 돌려준다."""
+    if kind not in D.SYMBOLS or D.SYMBOLS[kind].get("macro") or D.SYMBOLS[kind].get("note"):
+        return {"error": "해 볼 수 없는 기호입니다"}
+    doc = symbol_doc(kind, text, param, k, noin)
+    F = {}
+    lrows = sorted(int(n) for n in doc["left"])
+    for i, n in enumerate(lrows):
+        v = (inputs or [])[i] if i < len(inputs or []) else 0
+        F[f"row:{n}"] = 1 if v else 0
+    if press is not None:
+        F["block:B1"] = 1 if press else 0
+    res = simulate([doc], SYM_DID, forces={SYM_DID: F}, state=state or {})
+    if res.get("error"):
+        return {"error": res["error"]}
+    sh = res.get("sheet") or {}
+    rows = {(r.get("side"), r.get("n")): r.get("net") for r in sh.get("rows") or []}
+    rrows = sorted(int(n) for n in doc["right"])
+    frames = []
+    for fr in (res.get("focus") or {}).get("frames") or []:
+        vals = fr.get("values") or {}
+        frames.append({"t": fr.get("t", 0),
+                       "in": [vals.get(str(rows.get(("L", n)))) for n in lrows],
+                       "out": [vals.get(str(rows.get(("R", n)))) for n in rrows],
+                       "note": fr.get("note") or ""})
+    blk = (sh.get("blocks") or {}).get("B1") or {}
+    aop = ""
+    try:
+        from . import aops
+        aop = aops.op_of(blk) or ""
+    except Exception:
+        aop = ""
+    return {"aop": aop,"inputs": [doc["left"][str(n)]["desc"] for n in lrows], "outputs": [doc["right"][str(n)]["desc"] for n in rrows],
+            "frames": frames, "state": res.get("state") or {}, "notes": res.get("notes") or [],
+            "block": {"func": blk.get("func"), "logic": blk.get("logic"), "label": blk.get("label")},
+            "param": doc["blocks"][0]["param"], "text": doc["blocks"][0]["text"]}
