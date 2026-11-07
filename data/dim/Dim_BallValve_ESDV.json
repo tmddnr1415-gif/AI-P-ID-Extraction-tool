@@ -1,0 +1,29 @@
+{
+  "item": "Ball Valve",
+  "type": "ESDV",
+  "dims": {
+    "face_to_face": "미확인",
+    "flange": "미확인",
+    "actuator_iso5211": "미확인"
+  },
+  "notes": "Trunnion 볼밸브 FTF 기준이 공급사별로 ASME B16.10 또는 API 6D로 다름 → 프로젝트 Spec으로 확정",
+  "sources": [
+    {
+      "title": "Valvotubi Class 300 trunnion (FTF B16.10, flange B16.5)",
+      "url": "https://app.bilbaoexhibitioncentre.com/en/exhibitor/VALVOTUBI-IND/product/Vlvula-de-bola-Trunnion-mounted-ball-valves-RF-ANSI-class-300/33767/?idioma=US",
+      "note": "링크만"
+    },
+    {
+      "title": "Williams Valve trunnion catalog (FTF API 6D, flange B16.5, API 6FA fire safe)",
+      "url": "https://static1.squarespace.com/static/61cc92f8aa6b5f348b889cd5/t/641e10c1ca8e7f73aeaf4f3e/1679692468788/WilliamsValve_TrunnionCatalog_V15.pdf",
+      "note": "링크만"
+    },
+    {
+      "title": "Hy-Lok API 6D/6A ball valve catalog (Class 150/300 표, 참고용)",
+      "url": "https://www.fitok.org.ru/brands/hy-lok/pdfs/api-6d-and-6a-ball-valves-2021.pdf",
+      "note": "수치 미추출"
+    }
+  ],
+  "retrieved": "2026-11-06",
+  "policy": "제조사 도면 복제 금지: 수치와 URL만 저장. 출처 없는 값은 미확인"
+}

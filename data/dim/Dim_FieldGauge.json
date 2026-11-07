@@ -1,0 +1,26 @@
+{
+  "item": "Field Gauge",
+  "type": "Pressure Gauge NG100",
+  "dims": {
+    "case_front_dia_mm": 100,
+    "case_rear_dia_mm": 96,
+    "height_H_mm": 135,
+    "depth_t_mm": 50,
+    "connection": "G 1/2 bottom"
+  },
+  "notes": "Loesi 개별 제품 값(EN 837-1 표기). 일반 EN 837-1 치수와 다를 수 있음 → 제조사 도면 대조 필요",
+  "sources": [
+    {
+      "title": "Loesi double-scale gauge NG100",
+      "url": "https://loesi.de/shop/en/pressure-gauge-double-scale-0-40-bar-thread-g1-2-ng100-connection-bottom-valcon.html",
+      "note": "수치 인용"
+    },
+    {
+      "title": "RS PRO 100mm gauge datasheet",
+      "url": "https://docs.rs-online.com/5702/A700000012202765.pdf",
+      "note": "컬럼 정의 미확인"
+    }
+  ],
+  "retrieved": "2026-11-06",
+  "policy": "제조사 도면 복제 금지: 수치와 URL만 저장. 출처 없는 값은 미확인"
+}

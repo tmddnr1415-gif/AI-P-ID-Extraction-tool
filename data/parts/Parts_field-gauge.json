@@ -1,0 +1,14 @@
+{
+ "item": "field-gauge",
+ "title": "Field Gauge — Bourdon 압력계(100 mm, Bottom 연결)",
+ "parts": {
+  "case": "Case(SS, Solid front)",
+  "dial": "Dial(눈금판)",
+  "needle": "Pointer",
+  "bezel": "Bezel/Window",
+  "socket": "Socket(Hex)",
+  "process-conn": "Process connection(1/2\" NPT)",
+  "blowout": "Blow-out disc"
+ },
+ "note": "자체 개념 모델 부품 id. 치수 미확인."
+}

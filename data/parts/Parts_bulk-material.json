@@ -1,0 +1,14 @@
+{
+ "item": "bulk-material",
+ "title": "Bulk Material — JB · Gland · Cable tray · Tubing/Fitting",
+ "parts": {
+  "jb": "Junction box(Ex e)",
+  "gland": "Cable gland(Ex d/e)",
+  "cable": "Instrument cable",
+  "tray": "Cable tray(Ladder)",
+  "tubing": "Instrument tubing(SS 316)",
+  "fitting": "Compression fitting/Valve",
+  "support": "Support(Angle)"
+ },
+ "note": "자체 개념 모델 부품 id. 치수 미확인."
+}

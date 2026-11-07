@@ -1,0 +1,13 @@
+{
+ "item": "butterfly-valve",
+ "title": "Butterfly Valve — Triple offset (Rack&Pinion 액추에이터)",
+ "parts": {
+  "process-conn": "Process connection(플랜지)",
+  "body": "Body(Wafer/Lug)",
+  "disc": "Disc",
+  "shaft": "Shaft",
+  "actuator": "Actuator(Rack & Pinion)",
+  "positioner": "Positioner/Limit switch"
+ },
+ "note": "자체 개념 모델 부품 id. 치수 미확인."
+}

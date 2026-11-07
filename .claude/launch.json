@@ -1,0 +1,13 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "ic-dashboard",
+      "runtimeExecutable": "python",
+      "runtimeArgs": [
+        "app/server.py"
+      ],
+      "port": 8790
+    }
+  ]
+}

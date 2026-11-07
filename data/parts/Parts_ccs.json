@@ -1,0 +1,16 @@
+{
+ "item": "ccs",
+ "title": "CCS — 원심 압축기 Anti-surge 루프",
+ "parts": {
+  "compressor": "Centrifugal compressor",
+  "driver": "Driver(Motor/Turbine)",
+  "asv": "Anti-surge valve",
+  "recycle-line": "Recycle line",
+  "flow-element": "Flow element(Suction)",
+  "ft": "Flow(DP) transmitter",
+  "pt-tt": "PT/TT (Suction/Discharge)",
+  "controller": "CCS controller",
+  "signal": "Control signal cable"
+ },
+ "note": "자체 개념 모델 부품 id. 치수 미확인."
+}

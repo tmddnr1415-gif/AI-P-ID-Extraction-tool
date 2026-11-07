@@ -1,0 +1,23 @@
+{
+  "item": "Transmitter",
+  "type": "Pressure (Coplanar)",
+  "dims": {
+    "coplanar_overall": "미확인",
+    "manifold": "미확인"
+  },
+  "notes": "Siemens DS III 값(DN25/PN40 ∅D 115, H2≈52)은 front-flush 형이라 coplanar에 사용 금지",
+  "sources": [
+    {
+      "title": "Emerson Rosemount 2051 datasheet (Dimensional drawings 절)",
+      "url": "https://emerson.com/documents/automation/product-data-sheet-rosemount-2051-pressure-transmitter-en-73206.pdf",
+      "note": "링크만"
+    },
+    {
+      "title": "AS-Schneider W2RA 2-valve manifold",
+      "url": "https://www.as-schneider.com/gb/en/Products-Services/Instrumentation-Valves-and-Manifolds/E-Series-Manifolds/Direct-Mount-Manifolds-Integral-Style/2-Valve-Manifolds-W2RA-Type.html",
+      "note": "링크만"
+    }
+  ],
+  "retrieved": "2026-11-06",
+  "policy": "제조사 도면 복제 금지: 수치와 URL만 저장. 출처 없는 값은 미확인"
+}

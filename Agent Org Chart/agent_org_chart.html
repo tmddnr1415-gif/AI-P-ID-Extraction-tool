@@ -1,0 +1,148 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>I&C Agent Org Chart</title>
+<style>
+  :root{
+    --bg:#14161a; --panel:#1b1e24; --line:#4b5563; --text:#e6e8eb; --muted:#9aa3af;
+    --node:#232832; --node-stroke:#3b4452; --accent:#6aa3ff; --safe:#ff8a5c; --unk:#e0b84a; --human:#7bd88f;
+  }
+  @media (prefers-color-scheme: light){
+    :root:not([data-theme="dark"]){
+      --bg:#f6f7f9; --panel:#ffffff; --line:#8a94a3; --text:#1c2128; --muted:#5b6573;
+      --node:#eef1f5; --node-stroke:#c3cad4; --accent:#2f6fe0; --safe:#d4521a; --unk:#a77a00; --human:#2a8a46;
+    }
+  }
+  html,body{margin:0;background:var(--bg);color:var(--text);font-family:"Segoe UI","Malgun Gothic",system-ui,sans-serif}
+  .wrap{max-width:1280px;margin:0 auto;padding:20px 16px 32px}
+  h1{font-size:20px;margin:0 0 4px}
+  .sub{color:var(--muted);font-size:13px;margin:0 0 14px}
+  svg{width:100%;height:auto;display:block}
+  .t{fill:var(--text);font-size:14px;font-weight:600}
+  .s{fill:var(--muted);font-size:11.5px}
+  .gt{fill:var(--accent);font-size:13px;font-weight:700;letter-spacing:.3px}
+  .node{fill:var(--node);stroke:var(--node-stroke);stroke-width:1.2}
+  .safe{stroke:var(--safe);stroke-width:1.8}
+  .unk{stroke:var(--unk);stroke-dasharray:5 4;stroke-width:1.6}
+  .grp{fill:var(--panel);stroke:var(--node-stroke);stroke-width:1}
+  .link{stroke:var(--line);stroke-width:1.6;fill:none}
+  .gate{stroke:var(--human);stroke-width:1.8;stroke-dasharray:6 5;fill:none}
+  .badge{fill:var(--safe);font-size:13px;font-weight:700}
+  .tag{fill:var(--unk);font-size:11px;font-weight:600}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>계측제어 설계 멀티에이전트 챗봇 – 에이전트 조직도</h1>
+  <p class="sub">오케스트레이터 1 · Item 에이전트 12 · 지원 에이전트 3 · 사람 승인(Human Gate) — 기획서 2026-11-06 기준</p>
+
+<svg viewBox="0 0 1260 800" role="img" aria-label="계측제어 설계 멀티에이전트 조직도" xmlns="http://www.w3.org/2000/svg">
+
+  <!-- User -->
+  <rect class="node" x="500" y="10" width="260" height="54" rx="10"/>
+  <text class="t" x="630" y="33" text-anchor="middle">사용자</text>
+  <text class="s" x="630" y="51" text-anchor="middle">I&amp;C 설계 엔지니어 (질의 · 검토 요청)</text>
+  <line class="link" x1="630" y1="64" x2="630" y2="130"/>
+
+  <!-- Guard -->
+  <rect class="node" x="20" y="124" width="330" height="76" rx="10"/>
+  <text class="t" x="36" y="146">공통 가드 · ic-concise-answer</text>
+  <text class="s" x="36" y="166">결론 1줄 → 항목 ≤5 → 출처·미확인 → 후속 1개</text>
+  <text class="s" x="36" y="184">출처 표기 · '미확인' 표시 · 질의/답변 로그</text>
+  <line class="link" x1="350" y1="162" x2="420" y2="162"/>
+
+  <!-- Orchestrator -->
+  <rect class="node" x="420" y="130" width="420" height="64" rx="12" style="stroke:var(--accent);stroke-width:2"/>
+  <text class="t" x="630" y="156" text-anchor="middle" style="font-size:16px">오케스트레이터</text>
+  <text class="s" x="630" y="176" text-anchor="middle">분류 → 라우팅 → 병합 → 응답 · 에이전트 간 직접 호출 금지</text>
+
+  <!-- Human Gate -->
+  <rect class="node" x="910" y="124" width="330" height="76" rx="10" style="stroke:var(--human);stroke-width:1.8"/>
+  <text class="t" x="926" y="146" style="fill:var(--human)">Human Gate (사람 승인)</text>
+  <text class="s" x="926" y="166">일반: 담당 엔지니어 → 팀 리드(MR 발행)</text>
+  <text class="s" x="926" y="184">안전 계통(*): + SIS 담당자 / 자동 발행·발송 금지</text>
+  <path class="gate" d="M840 162 H910"/>
+  <path class="gate" d="M1075 124 V37 H760"/>
+
+  <!-- Bus -->
+  <line class="link" x1="630" y1="194" x2="630" y2="262"/>
+  <line class="link" x1="157.5" y1="262" x2="1102.5" y2="262"/>
+  <line class="link" x1="157.5" y1="262" x2="157.5" y2="296"/>
+  <line class="link" x1="472.5" y1="262" x2="472.5" y2="296"/>
+  <line class="link" x1="787.5" y1="262" x2="787.5" y2="296"/>
+  <line class="link" x1="1102.5" y1="262" x2="1102.5" y2="296"/>
+
+  <!-- Group 1: 제어·안전 -->
+  <rect class="grp" x="20" y="296" width="275" height="360" rx="12"/>
+  <text class="gt" x="36" y="322">제어 · 안전 계통 (5)</text>
+  <g>
+    <rect class="node" x="30" y="340" width="255" height="52" rx="8"/>
+    <text class="t" x="44" y="362">DCS</text><text class="s" x="44" y="380">제어 시스템 전체</text>
+    <rect class="node safe" x="30" y="402" width="255" height="52" rx="8"/>
+    <text class="t" x="44" y="424">IPS</text><text class="badge" x="266" y="424">*</text><text class="s" x="44" y="442">보호 계통(SIS) · IEC 61511</text>
+    <rect class="node safe" x="30" y="464" width="255" height="52" rx="8"/>
+    <text class="t" x="44" y="486">MMS</text><text class="badge" x="266" y="486">*</text><text class="s" x="44" y="504">기계 감시 · API 670</text>
+    <rect class="node" x="30" y="526" width="255" height="52" rx="8"/>
+    <text class="t" x="44" y="548">CCS</text><text class="s" x="44" y="566">압축기 제어 · 서지/성능</text>
+    <rect class="node safe" x="30" y="588" width="255" height="52" rx="8"/>
+    <text class="t" x="44" y="610">FGS</text><text class="badge" x="266" y="610">*</text><text class="s" x="44" y="628">화재·가스 감지 · Cause &amp; Effect</text>
+  </g>
+
+  <!-- Group 2: 밸브 -->
+  <rect class="grp" x="335" y="296" width="275" height="360" rx="12"/>
+  <text class="gt" x="351" y="322">밸브 (4)</text>
+  <g>
+    <rect class="node safe" x="345" y="340" width="255" height="52" rx="8"/>
+    <text class="t" x="359" y="362">Ball Valve</text><text class="badge" x="581" y="362">*</text><text class="s" x="359" y="380">ESDV · SDV · BDV · XV · Control</text>
+    <rect class="node" x="345" y="402" width="255" height="52" rx="8"/>
+    <text class="t" x="359" y="424">Globe Valve</text><text class="s" x="359" y="442">Control · PRV · MOV</text>
+    <rect class="node" x="345" y="464" width="255" height="52" rx="8"/>
+    <text class="t" x="359" y="486">Butterfly Valve</text><text class="s" x="359" y="504">Control · MOV</text>
+    <rect class="node safe" x="345" y="526" width="255" height="52" rx="8"/>
+    <text class="t" x="359" y="548">PSV</text><text class="badge" x="581" y="548">*</text><text class="s" x="359" y="566">안전밸브 · API 520/526/527</text>
+  </g>
+
+  <!-- Group 3: 계기·자재 -->
+  <rect class="grp" x="650" y="296" width="275" height="360" rx="12"/>
+  <text class="gt" x="666" y="322">계기 · 자재 (3)</text>
+  <g>
+    <rect class="node" x="660" y="340" width="255" height="52" rx="8"/>
+    <text class="t" x="674" y="362">Field Gauge</text><text class="s" x="674" y="380">압력 · 온도 · 레벨 · 유량</text>
+    <rect class="node" x="660" y="402" width="255" height="52" rx="8"/>
+    <text class="t" x="674" y="424">Transmitter</text><text class="s" x="674" y="442">압력 · 온도 · 레벨 · 유량 · SIL</text>
+    <rect class="node" x="660" y="464" width="255" height="52" rx="8"/>
+    <text class="t" x="674" y="486">Bulk Material</text><text class="s" x="674" y="504">Instrument · Cable Hook-up</text>
+  </g>
+
+  <!-- Group 4: 지원 -->
+  <rect class="grp" x="965" y="296" width="275" height="360" rx="12"/>
+  <text class="gt" x="981" y="322">지원 에이전트 (3)</text>
+  <g>
+    <rect class="node unk" x="975" y="340" width="255" height="62" rx="8"/>
+    <text class="t" x="989" y="362">Anatomy 뷰어</text><text class="s" x="989" y="380">ic-anatomy-link · 부품 점멸</text><text class="tag" x="989" y="395">Anatomy skill 사양 미확인</text>
+    <rect class="node unk" x="975" y="412" width="255" height="62" rx="8"/>
+    <text class="t" x="989" y="434">MR 작성</text><text class="s" x="989" y="452">ic-mr-writer · .docx 생성</text><text class="tag" x="989" y="467">회사 MR 양식 미확인</text>
+    <rect class="node unk" x="975" y="484" width="255" height="62" rx="8"/>
+    <text class="t" x="989" y="506">공시 재무제표</text><text class="s" x="989" y="524">fin-dashboard-qa · 계측제어와 분리</text><text class="tag" x="989" y="539">대시보드 소스 미확인</text>
+    <text class="s" x="989" y="574">Key는 .env → 환경변수로만 접근</text>
+    <text class="s" x="989" y="592">(값 열람·출력 금지)</text>
+  </g>
+
+  <!-- Spec knowledge base -->
+  <rect class="node" x="20" y="672" width="1220" height="40" rx="8"/>
+  <text class="s" x="36" y="697">지식 베이스: Item 에이전트는 각자 <tspan style="fill:var(--text)">Spec for each Item/{Item}/</tspan> 폴더만 참조 (Item 간 문서 혼합 금지) · 근거 순위: 프로젝트 Spec &gt; 고객·회사 표준 &gt; 국제·업계 표준 &gt; 일반 지식</text>
+
+  <!-- Legend -->
+  <g transform="translate(20,736)">
+    <line class="link" x1="0" y1="8" x2="36" y2="8"/><text class="s" x="44" y="12">호출 경로</text>
+    <path class="gate" d="M150 8 H186"/><text class="s" x="194" y="12">사람 승인</text>
+    <rect class="node safe" x="290" y="0" width="30" height="16" rx="4"/><text class="s" x="328" y="12">안전 계통 * (초안, 담당자 확인 필수)</text>
+    <rect class="node unk" x="580" y="0" width="30" height="16" rx="4"/><text class="s" x="618" y="12">외부 의존 미확인</text>
+  </g>
+  <text class="s" x="20" y="782">가정: IPS = Instrumented Protective System(SIS) · MMS = Machinery Monitoring System · PRV = 압력 조절 밸브 · 직책명은 조직에 맞게 변경</text>
+</svg>
+</div>
+</body>
+</html>

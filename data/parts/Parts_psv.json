@@ -1,0 +1,16 @@
+{
+ "item": "psv",
+ "title": "PSV — Conventional spring-loaded (Lifting lever)",
+ "parts": {
+  "process-conn": "Inlet/Outlet flange",
+  "body": "Body",
+  "nozzle": "Nozzle",
+  "disc": "Disc",
+  "bonnet": "Bonnet",
+  "spring": "Spring",
+  "stem": "Spindle",
+  "cap": "Cap",
+  "lever": "Lifting lever"
+ },
+ "note": "자체 개념 모델 부품 id. 치수 미확인."
+}

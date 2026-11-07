@@ -1,0 +1,15 @@
+{
+ "item": "transmitter",
+ "title": "Transmitter — DP Coplanar + 3-valve manifold",
+ "parts": {
+  "housing": "Electronics housing(Dual compartment)",
+  "cover": "Cover",
+  "display": "LCD display",
+  "sensor": "Sensor module",
+  "flange": "Coplanar flange",
+  "manifold": "3-valve manifold",
+  "process-conn": "Impulse line connection",
+  "conduit": "Conduit entry(M20/½\"NPT)"
+ },
+ "note": "자체 개념 모델 부품 id. 치수 미확인."
+}

@@ -1,0 +1,201 @@
+<!doctype html>
+<html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>I&amp;C 사양 검토 멀티에이전트</title>
+<style>
+/*__ISO_CSS__*/
+:root{--blue:#1428A0;--blue2:#273BBA;--blue3:#6276E8;--tint:#EEF1FB;--bg:#F5F6F8;--panel:#fff;--line:#E3E5EA;--text:#222;--sub:#666;--mute:#888;--ok:#0E8A5F;--warn:#B45309;--warnbg:#FFF4E0;--run:#1428A0}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{font:14px/1.55 "Malgun Gothic","Apple SD Gothic Neo",system-ui,sans-serif;background:var(--bg);color:var(--text);display:flex;flex-direction:column}
+header{height:52px;background:#fff;border-bottom:1px solid var(--line);display:flex;align-items:center;padding:0 18px;gap:14px;flex:none}
+.logo{font-weight:800;color:var(--blue);letter-spacing:-.5px;font-size:18px}
+.logo small{font-weight:500;color:var(--sub);font-size:13px;margin-left:8px;letter-spacing:0}
+.sp{flex:1}
+.badge{font-size:12px;padding:3px 9px;border-radius:999px;background:var(--tint);color:var(--blue)}
+.badge.w{background:var(--warnbg);color:var(--warn)}
+#prog{height:46px;background:#fff;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:14px;padding:0 18px;flex:none}
+#prog .lab{width:210px;font-size:12.5px;color:var(--sub);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#prog .lab b{color:var(--blue)}
+.bar{flex:1;height:10px;background:#E8EBF5;border-radius:999px;overflow:hidden;position:relative}
+.bar i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--blue),var(--blue3));border-radius:999px;transition:width .2s linear}
+.bar.run i{background-size:40px 100%}
+#prog .pct{width:150px;text-align:right;font-size:12.5px;color:var(--sub);font-variant-numeric:tabular-nums}
+#prog .pct b{color:var(--text);font-size:15px}
+main{flex:1;display:grid;grid-template-columns:var(--wl,250px) 6px minmax(300px,1fr) 6px var(--wr,560px);min-height:0}
+.split{cursor:col-resize;background:transparent;position:relative;z-index:3}.split:hover,.split.on{background:var(--blue3);opacity:.5}
+.split::after{content:"";position:absolute;top:50%;left:2px;width:2px;height:28px;margin-top:-14px;border-radius:2px;background:var(--line)}
+aside,section.chat,section.right{min-height:0;display:flex;flex-direction:column}
+aside{background:#fff;border-right:1px solid var(--line);overflow:auto}
+aside h4{margin:14px 16px 6px;font-size:11.5px;color:var(--mute);font-weight:600;letter-spacing:.04em}
+.ag{display:flex;align-items:center;gap:9px;padding:7px 16px;cursor:default;font-size:13px;border-left:3px solid transparent}
+.ag:hover{background:var(--bg)}
+.dot{width:9px;height:9px;border-radius:50%;background:#C9CDD6;flex:none}
+.ag.run{background:var(--tint);border-left-color:var(--blue);font-weight:600;color:var(--blue)}
+.ag.run .dot{background:var(--blue);animation:pulse 1s infinite}
+.ag.done .dot{background:var(--ok)}
+.ag .sf{margin-left:auto;font-size:10.5px;color:var(--warn);background:var(--warnbg);border-radius:4px;padding:0 5px}
+.ag .st{margin-left:auto;font-size:11px;color:var(--mute)}
+.ag.run .st{color:var(--blue)}
+@keyframes pulse{0%{box-shadow:0 0 0 0 rgba(20,40,160,.5)}100%{box-shadow:0 0 0 8px rgba(20,40,160,0)}}
+section.chat{background:var(--bg)}
+#msgs{flex:1;overflow:auto;padding:20px 22px;display:flex;flex-direction:column;gap:14px}
+.m{max-width:92%;padding:11px 14px;border-radius:12px;background:#fff;border:1px solid var(--line);white-space:pre-wrap}
+.m.u{align-self:flex-end;background:var(--blue);color:#fff;border-color:var(--blue)}
+.m.sys{align-self:center;background:transparent;border:none;color:var(--mute);font-size:12.5px;padding:0}
+.m .gate{display:block;margin-bottom:8px;padding:5px 9px;border-radius:6px;background:var(--warnbg);color:var(--warn);font-weight:700;font-size:12.5px}
+.m .h{font-weight:700;margin-bottom:6px}
+.m ul{margin:6px 0 6px 0;padding-left:18px}
+.m li{margin:3px 0}
+.m .src{font-size:12px;color:var(--sub);margin-top:6px}
+.tag{display:inline-block;margin-left:6px;font:600 11px/1 "Consolas",monospace;padding:3px 6px;border-radius:5px;background:var(--tint);color:var(--blue);cursor:pointer;border:1px solid #D6DCF5}
+.tag:hover{background:var(--blue);color:#fff}
+.btn{display:inline-block;margin-top:8px;padding:6px 12px;border-radius:7px;border:1px solid var(--blue);background:#fff;color:var(--blue);cursor:pointer;font:inherit;font-size:13px}
+.btn:hover{background:var(--blue);color:#fff}
+.btn.p{background:var(--blue);color:#fff}
+#chips{padding:0 22px 8px;display:flex;gap:7px;flex-wrap:wrap}
+.chip{border:1px solid var(--line);background:#fff;border-radius:999px;padding:4px 11px;font-size:12.5px;color:var(--sub);cursor:pointer}
+.chip:hover{border-color:var(--blue);color:var(--blue)}
+form{display:flex;gap:8px;padding:10px 22px 18px}
+#q{flex:1;padding:11px 14px;border:1px solid var(--line);border-radius:10px;font:inherit;background:#fff;outline:none}
+#q:focus{border-color:var(--blue);box-shadow:0 0 0 3px rgba(20,40,160,.12)}
+#go{padding:0 20px;border:none;border-radius:10px;background:var(--blue);color:#fff;font:inherit;font-weight:700;cursor:pointer}
+#go:disabled{background:#AEB5D6;cursor:wait}
+section.right{background:#fff;border-left:1px solid var(--line)}
+.tabs{display:flex;border-bottom:1px solid var(--line);flex:none}
+.tab{padding:11px 16px;cursor:pointer;color:var(--sub);border-bottom:2px solid transparent;font-size:13.5px}
+.tab.on{color:var(--blue);border-bottom-color:var(--blue);font-weight:700}
+.pane{display:none;flex:1;overflow:auto;padding:14px}
+.pane.on{display:block}#finp.on{display:block;height:100%}
+#org{width:100%;height:auto}
+.node rect{fill:#fff;stroke:#C9CFE6;stroke-width:1.2;rx:7}
+.node text{font-size:11.5px;fill:var(--text);text-anchor:middle;dominant-baseline:central;font-family:inherit}
+.node.safety rect{stroke:#E0A55A;fill:#FFFAF1}
+.node.dash rect{stroke-dasharray:4 3;fill:#FAFAFB}
+.node.run rect{fill:var(--blue);stroke:var(--blue);filter:drop-shadow(0 0 6px rgba(20,40,160,.55));animation:glow 1s ease-in-out infinite alternate}
+.node.run text{fill:#fff;font-weight:700}
+.node.done rect{stroke:var(--ok);fill:#F0FAF6}
+.node.done text{fill:var(--ok)}
+@keyframes glow{from{filter:drop-shadow(0 0 2px rgba(20,40,160,.4))}to{filter:drop-shadow(0 0 9px rgba(98,118,232,.9))}}
+.edge{stroke:#C9CFE6;stroke-width:1.2;fill:none}
+.edge.on{stroke:var(--blue);stroke-width:2;stroke-dasharray:6 4;animation:flow .6s linear infinite}
+@keyframes flow{to{stroke-dashoffset:-10}}
+.legend{display:flex;gap:14px;font-size:12px;color:var(--sub);margin:6px 2px 0;flex-wrap:wrap}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:5px;vertical-align:-1px}
+.part.blink{animation:pb .45s ease-in-out 6;transform-box:fill-box}
+@keyframes pb{0%,100%{filter:none}50%{filter:drop-shadow(0 0 7px #1428A0) drop-shadow(0 0 2px #6276E8) saturate(3) hue-rotate(200deg)}}
+.plist{display:flex;gap:6px;flex-wrap:wrap;margin:10px 0}
+.note{font-size:12.5px;color:var(--sub);background:var(--bg);border-radius:8px;padding:9px 11px;margin-top:10px}
+table{border-collapse:collapse;width:100%;font-size:12.5px}
+td,th{border-bottom:1px solid var(--line);padding:6px 8px;text-align:left}
+th{color:var(--mute);font-weight:600}
+.iso-svg{width:100%;height:auto;background:#fff}
+#log{font:12px/1.6 Consolas,monospace;white-space:pre-wrap;color:var(--sub)}
+.ag{cursor:pointer}.ag.sel{background:#E4E9FA;box-shadow:inset 3px 0 0 var(--blue)}
+.ag .un{margin-left:6px;min-width:16px;height:16px;border-radius:8px;background:var(--blue);color:#fff;font-size:10px;line-height:16px;text-align:center;padding:0 4px}
+#chead{display:flex;align-items:center;gap:10px;padding:10px 22px;background:#fff;border-bottom:1px solid var(--line);flex:none}
+#chead b{color:var(--blue);font-size:15px}#chead .sub{color:var(--sub);font-size:12.5px}
+.thread{display:flex;flex-direction:column;gap:14px}
+.m.a{border-left:3px solid var(--blue)}.m .who{font-size:11.5px;color:var(--blue);font-weight:700;margin-bottom:4px}
+.m p{margin:4px 0}.m{white-space:normal}.m.u{white-space:pre-wrap}
+.m .concl{font-weight:700;font-size:14.5px;line-height:1.5;padding:8px 11px;background:var(--tint);border-radius:8px;margin:4px 0 8px}
+.m .sec{margin:12px 0 5px;font-weight:700;font-size:13px;color:var(--blue);border-bottom:1px solid var(--line);padding-bottom:3px}
+.m ol.pts{margin:4px 0;padding-left:22px}.m ol.pts li{margin:4px 0}
+.m table.mt{width:100%;border-collapse:collapse;font-size:12.8px;margin:4px 0}.m table.mt th{background:#F3F5FB;color:var(--sub);font-weight:600;text-align:left;padding:6px 8px;border:1px solid var(--line)}
+.m table.mt td{padding:6px 8px;border:1px solid var(--line);vertical-align:top}
+.m ul.srcl{margin:2px 0;padding-left:18px;font-size:12px;color:var(--sub)}.m ul.srcl a{color:var(--blue2)}
+.m .tagrow{font-size:12px;color:var(--sub);margin:6px 0}.m .tagrow .tag:first-of-type{margin-left:4px}
+.m .next{margin-top:10px;font-size:12px;color:var(--sub)}.m .next .chip{margin-left:6px}.m .src a{color:var(--blue2)}
+#v3wrap{position:relative;height:430px;border:1px solid var(--line);border-radius:10px;overflow:hidden;background:#fff}
+#v3{width:100%;height:100%;display:block;touch-action:none;cursor:grab}#v3:active{cursor:grabbing}
+#v3tip{position:absolute;pointer-events:none;background:#1428A0;color:#fff;font-size:12px;padding:3px 8px;border-radius:5px;display:none;white-space:nowrap}
+#v3bar{display:flex;gap:6px;align-items:center;margin:8px 0;flex-wrap:wrap}#v3bar select{font:inherit;padding:5px 8px;border:1px solid var(--line);border-radius:7px}
+#v3bar .btn{margin:0;padding:4px 10px;font-size:12.5px}#v3t{font-weight:700;font-size:13px;margin-bottom:6px}
+#simbox{margin:10px 0;border:1px solid var(--line);border-radius:10px;padding:10px 12px;background:var(--card,#fff)}#simbox:empty{display:none}
+#simbox h5{margin:0 0 8px;font-size:13px;color:var(--blue)}#simbox .row{display:flex;align-items:center;gap:10px;margin:6px 0;font-size:12.5px}
+#simbox .row label{width:150px;color:var(--sub)}#simbox input[type=range]{flex:1;accent-color:var(--blue)}#simbox .val{width:84px;text-align:right;font-variant-numeric:tabular-nums;font-weight:700}
+#simbox .acts{display:flex;gap:6px;flex-wrap:wrap;margin:8px 0}#simbox .acts .btn{margin:0;padding:4px 10px;font-size:12.5px}
+#simbox .tg{display:inline-flex;align-items:center;gap:5px;margin-right:12px;font-size:12.5px;color:var(--sub)}
+#simro{margin-top:8px;padding:8px 10px;border-radius:8px;background:var(--tint);font-size:12.5px;line-height:1.5}
+.m table.mt{min-width:280px}.m{overflow-x:auto}
+
+/* ---- 어두운 화면 ---- */
+:root{--card:#fff;--hdr:#fff;--inp:#fff;--th:#F3F5FB;--v3a:#FFFFFF;--v3b:#EEF1F7;--node:#fff}
+:root[data-theme="dark"]{--blue:#6E86FF;--blue2:#8FA2FF;--blue3:#9DB0FF;--tint:#1E2747;--bg:#0F1218;--panel:#171B23;--line:#2A303C;--text:#E6E8EE;--sub:#A3A9B6;--mute:#7D8494;--ok:#3CCB8E;--warn:#F2B35E;--warnbg:#3A2C14;--card:#1B2029;--hdr:#141821;--inp:#1B2029;--th:#222836;--v3a:#232A36;--v3b:#141820;--node:#1B2029}
+:root[data-theme="dark"] header,:root[data-theme="dark"] #prog,:root[data-theme="dark"] aside,:root[data-theme="dark"] section.right,:root[data-theme="dark"] #chead{background:var(--hdr)}
+:root[data-theme="dark"] .m,:root[data-theme="dark"] .chip,:root[data-theme="dark"] #q,:root[data-theme="dark"] #v3wrap,:root[data-theme="dark"] #v3bar select,:root[data-theme="dark"] .btn{background:var(--card);color:var(--text);border-color:var(--line)}
+:root[data-theme="dark"] .m.u{background:#2B44C9;border-color:#2B44C9;color:#fff}
+:root[data-theme="dark"] .btn{color:var(--blue2);border-color:#3A4670}:root[data-theme="dark"] .btn:hover,:root[data-theme="dark"] .btn.p{background:#2B44C9;color:#fff}
+:root[data-theme="dark"] #go{background:#2B44C9}:root[data-theme="dark"] .bar{background:#252B3A}
+:root[data-theme="dark"] .m table.mt th,:root[data-theme="dark"] th{background:var(--th)}
+:root[data-theme="dark"] .ag.sel{background:#1E2747}:root[data-theme="dark"] .ag:hover{background:#1A1F2A}
+:root[data-theme="dark"] .node rect{fill:var(--node);stroke:#3A4256}:root[data-theme="dark"] .node.safety rect{fill:#2A2316;stroke:#9A7638}
+:root[data-theme="dark"] .node.done rect{fill:#13291F}:root[data-theme="dark"] .node.run rect{fill:#2B44C9;stroke:#6E86FF}:root[data-theme="dark"] .edge{stroke:#343C50}
+:root[data-theme="dark"] .tag{background:#1E2747;border-color:#33407A;color:#AFC0FF}:root[data-theme="dark"] .note{background:#141821}
+:root[data-theme="dark"] .logo{color:#8FA2FF}:root[data-theme="dark"] .badge{background:#1E2747;color:#AFC0FF}:root[data-theme="dark"] .badge.w{background:var(--warnbg);color:var(--warn)}
+:root[data-theme="dark"] #mrbox td[style]{background:#4A4214!important}
+:root[data-theme="dark"] .iso-svg{background:#fff}
+@media(max-width:1100px){main{grid-template-columns:200px 6px 1fr 0 0}section.right,#sp2{display:none}}
+</style></head>
+<body>
+<header>
+  <span class="logo">SAMSUNG C&amp;T<small>I&amp;C 통합 사양 검토 멀티에이전트</small></span>
+  <span class="sp"></span>
+  <button id="theme" class="btn" style="margin:0;padding:4px 11px;font-size:12.5px" title="밝은/어두운 화면 전환">🌙 어두운 화면</button>
+  <span class="badge w">안전 계통: 초안, 담당자 확인 필수</span>
+  <span class="badge">지식: 웹 조사 Q&amp;A + Item Spec · 로컬 검색형 답변</span>
+</header>
+
+<div id="prog">
+  <div class="lab" id="plab">대기 중 · 질의를 입력하세요</div>
+  <div class="bar" id="bar"><i id="barfill"></i></div>
+  <div class="pct"><b id="ppct">0%</b> · <span id="peta">예상 -</span></div>
+</div>
+
+<main>
+  <aside id="agents"></aside>
+  <div class="split" id="sp1" title="드래그: 너비 조절 · 더블클릭: 기본값"></div>
+
+  <section class="chat">
+    <div id="chead"></div>
+    <div id="msgs"></div>
+    <div id="chips"></div>
+    <form id="f"><input id="q" autocomplete="off" placeholder="예: ESDV Spec 검토 시 유의사항은?  /  PSV MR 작성해줘" /><button id="go">전송</button></form>
+  </section>
+
+  <div class="split" id="sp2" title="드래그: 너비 조절 · 더블클릭: 기본값"></div>
+  <section class="right">
+    <div class="tabs">
+      <div class="tab on" data-t="orgp">조직도</div>
+      <div class="tab" data-t="anap">Anatomy</div>
+      <div class="tab" data-t="mrp">MR 미리보기</div>
+      <div class="tab" data-t="finp">재무 대시보드</div>
+      <div class="tab" data-t="logp">로그</div>
+    </div>
+    <div class="pane on" id="orgp">
+      <svg id="org" viewBox="0 0 530 430"></svg>
+      <div class="legend"><span><i style="background:#fff;border:1px solid #C9CFE6"></i>대기</span><span><i style="background:var(--blue)"></i>동작 중</span><span><i style="background:#F0FAF6;border:1px solid var(--ok)"></i>완료</span><span><i style="background:#FFFAF1;border:1px solid #E0A55A"></i>안전 계통</span><span><i style="background:#FAFAFB;border:1px dashed #aaa"></i>소스 미확인</span></div>
+      <div class="note">에이전트는 서로 직접 호출하지 않고 오케스트레이터를 통해서만 호출됩니다. 판정·승인은 항상 사람(Human Gate)이 합니다.</div>
+    </div>
+    <div class="pane" id="anap">
+      <div id="v3t"></div>
+      <div id="v3bar"><select id="v3sel"></select><button class="btn" id="v3auto">자동회전 ON</button><button class="btn" id="v3x">투시(X-ray)</button><button class="btn" id="v3zi">＋</button><button class="btn" id="v3zo">－</button><button class="btn" id="v3r">리셋</button></div>
+      <div id="v3wrap"><canvas id="v3"></canvas><div id="v3tip"></div></div>
+      <div id="simbox"></div>
+      <div class="plist" id="plist"></div>
+      <div class="note">드래그=회전 · 휠=확대/축소 · 우클릭/Shift 드래그=이동 · 더블클릭=리셋 · 부품 클릭/태그 클릭=점멸. 자체 생성 개념 모델이며 제조사 도면이 아님, 치수 <b>미확인</b>(data/dim, data/parts 참조).</div>
+      <details style="margin-top:10px"><summary style="cursor:pointer;color:var(--sub);font-size:12.5px">정적 아이소 도해(anatomy 스킬 kit) — Ball Valve ESDV</summary><div class="iso" data-theme="light"><!--__FIGURE__--></div></details>
+    </div>
+    <div class="pane" id="mrp">
+      <div id="mrbox" class="note">MR 요청 시 여기에 .docx 초안 미리보기가 표시됩니다. (예: “ESDV MR 작성해줘”)</div>
+    </div>
+    <div class="pane" id="finp" style="padding:0">
+      <div style="display:flex;gap:8px;align-items:center;padding:8px 12px;border-bottom:1px solid var(--line)"><b style="font-size:13px">공시 재무제표 대시보드</b><span class="src" id="finst" style="font-size:12px;color:var(--sub)">채팅과 실시간 연동</span><span class="sp" style="flex:1"></span><button class="btn" style="margin:0;padding:4px 10px;font-size:12.5px" id="finpop">↗ 새 창으로 띄우기</button></div>
+      <iframe id="finframe" title="공시 재무제표 대시보드" style="width:100%;height:calc(100% - 46px);border:0;display:block"></iframe>
+    </div>
+    <div class="pane" id="logp"><div id="log">질의·답변 로그(세션 메모리, Key·비밀값 제외). 실제 기록은 logs/YYYY-MM-DD.md 에 저장됩니다.</div></div>
+  </section>
+</main>
+
+<script>/*__V3D__*/</script>
+<script>/*__APP__*/</script>
+</body></html>

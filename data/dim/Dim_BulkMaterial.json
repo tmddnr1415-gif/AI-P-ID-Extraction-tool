@@ -1,0 +1,22 @@
+{
+  "item": "Bulk Material",
+  "type": "Instrument Hook-up",
+  "dims": {
+    "standard_detail": "미확인"
+  },
+  "notes": "Stanchion/표준 상세는 회사·프로젝트 표준 라이브러리 확인 필요",
+  "sources": [
+    {
+      "title": "Impulse piping installation precautions",
+      "url": "https://automationforum.co/impulse-piping-installation-precautions-how-to-connect-impulse-piping-to-transmitter-manifold-valves/",
+      "note": "개념"
+    },
+    {
+      "title": "Yokogawa EJA110E manual (3-valve manifold 설치 순서)",
+      "url": "https://www.manualsdir.com/manuals/360033/yokogawa-eja110e.html?page=28",
+      "note": "개념"
+    }
+  ],
+  "retrieved": "2026-11-06",
+  "policy": "제조사 도면 복제 금지: 수치와 URL만 저장. 출처 없는 값은 미확인"
+}

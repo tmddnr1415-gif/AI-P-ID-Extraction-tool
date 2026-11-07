@@ -1,0 +1,15 @@
+{
+ "item": "fgs",
+ "title": "FGS — 공정 구역 화재·가스 감지",
+ "parts": {
+  "vessel": "Process vessel(참고)",
+  "gas-detector": "Point gas detector(IR)",
+  "op-gas": "Open-path gas detector",
+  "flame-detector": "Flame detector(IR3)",
+  "mac": "Manual alarm call point",
+  "beacon": "Beacon/Horn",
+  "fgs-panel": "FGS panel",
+  "cable": "Field cable"
+ },
+ "note": "자체 개념 모델 부품 id. 치수 미확인."
+}

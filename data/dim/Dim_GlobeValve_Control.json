@@ -1,0 +1,22 @@
+{
+  "item": "Globe Valve",
+  "type": "Control Valve",
+  "dims": {
+    "face_to_face": "미확인"
+  },
+  "notes": "ISA 75.08 시리즈는 유료/AI 입력 제한 → 표 수치 미수록",
+  "sources": [
+    {
+      "title": "ISA 75.08.01 Class 125-600 flanged globe",
+      "url": "https://standards.globalspec.com/std/1112167/isa-75-08-01",
+      "note": "링크만"
+    },
+    {
+      "title": "ISA 75.08.06 Class 900-2500 flanged globe",
+      "url": "https://standards.globalspec.com/std/1586628/isa-75-08-06",
+      "note": "링크만"
+    }
+  ],
+  "retrieved": "2026-11-06",
+  "policy": "제조사 도면 복제 금지: 수치와 URL만 저장. 출처 없는 값은 미확인"
+}

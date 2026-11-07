@@ -1,0 +1,15 @@
+{
+ "item": "mms",
+ "title": "MMS — 축 진동·변위 감시(API 670) + Monitor rack",
+ "parts": {
+  "shaft": "Shaft/Coupling hub",
+  "bearing": "Bearing housing",
+  "probe": "Radial proximity probe(X/Y)",
+  "probe-axial": "Axial(Thrust) probe",
+  "keyphasor": "Keyphasor probe",
+  "rtd": "Bearing RTD",
+  "cable": "Extension cable",
+  "monitor-rack": "Monitor rack"
+ },
+ "note": "자체 개념 모델 부품 id. 치수 미확인."
+}

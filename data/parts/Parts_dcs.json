@@ -1,0 +1,14 @@
+{
+ "item": "dcs",
+ "title": "DCS — System cabinet + Operator console",
+ "parts": {
+  "cabinet": "System cabinet",
+  "controller": "Controller(Redundant)",
+  "io": "I/O card",
+  "psu": "Power supply(Redundant)",
+  "network": "Control network switch",
+  "terminal": "Terminal/Marshalling",
+  "hmi": "Operator console(HMI)"
+ },
+ "note": "자체 개념 모델 부품 id. 치수 미확인."
+}

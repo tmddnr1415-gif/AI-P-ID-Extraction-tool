@@ -1,0 +1,22 @@
+{
+  "item": "Butterfly Valve",
+  "type": "Control Valve / MOV",
+  "dims": {
+    "face_to_face": "미확인"
+  },
+  "notes": "FTF 기준 API 609 / ASME B16.10 / ISO 5752 중 프로젝트 지정 필요",
+  "sources": [
+    {
+      "title": "API STD 609 (범위: lug/wafer NPS 3-48 등)",
+      "url": "https://online.standard.no/en/api-std-609",
+      "note": "링크만"
+    },
+    {
+      "title": "API 609 e8 preview",
+      "url": "https://www.api.org/~/media/files/publications/whats%20new/609_e8%20pa.pdf",
+      "note": "링크만"
+    }
+  ],
+  "retrieved": "2026-11-06",
+  "policy": "제조사 도면 복제 금지: 수치와 URL만 저장. 출처 없는 값은 미확인"
+}

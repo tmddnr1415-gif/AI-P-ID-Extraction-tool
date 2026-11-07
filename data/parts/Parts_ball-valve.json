@@ -1,0 +1,19 @@
+{
+ "item": "ball-valve",
+ "title": "Ball Valve — ESDV (트러니언 볼 + 스프링리턴 액추에이터)",
+ "parts": {
+  "process-conn": "Process connection(플랜지)",
+  "body": "Body(2-piece)",
+  "ball": "Ball(Full bore)",
+  "seat": "Seat ring",
+  "stem": "Stem(Blow-out proof)",
+  "bracket": "Mounting bracket(ISO 5211)",
+  "actuator": "Actuator(Scotch-yoke, 공압 실린더)",
+  "spring": "Spring cartridge(Fail-close)",
+  "solenoid": "SOV(Solenoid valve)",
+  "limit-switch": "Limit switch box",
+  "pst": "PST device/Smart positioner",
+  "support": "Pipe support"
+ },
+ "note": "자체 개념 모델 부품 id. 치수 미확인."
+}

@@ -1,0 +1,20 @@
+{
+  "item": "DCS",
+  "type": "System/Cabinet",
+  "dims": {
+    "cabinet_W_mm": 800,
+    "cabinet_D_mm": "600 또는 800(변형)",
+    "cabinet_H_mm": "2000 + 플린스 100/200",
+    "vendor": "Emerson DeltaV CTO (예시)"
+  },
+  "notes": "특정 벤더 사례. 프로젝트 벤더 확정 전 '미확인'",
+  "sources": [
+    {
+      "title": "Emerson DeltaV CTO DCS cabinets",
+      "url": "https://www.emerson.com/en/automation-systems/distributed-control-systems-dcs/deltav-distributed-control-system/deltav-controllers-io/deltav-cto-dcs-cabinets",
+      "note": "수치 인용"
+    }
+  ],
+  "retrieved": "2026-11-06",
+  "policy": "제조사 도면 복제 금지: 수치와 URL만 저장. 출처 없는 값은 미확인"
+}

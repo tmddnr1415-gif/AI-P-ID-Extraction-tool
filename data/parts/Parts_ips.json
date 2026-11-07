@@ -1,0 +1,14 @@
+{
+ "item": "ips",
+ "title": "IPS — SIS cabinet(TMR) + ESD Matrix panel",
+ "parts": {
+  "cabinet": "SIS cabinet",
+  "controller": "Safety controller(TMR, 2oo3)",
+  "io": "Safety I/O",
+  "psu": "Power supply",
+  "network": "Safety network",
+  "bypass-panel": "Bypass/Reset key panel",
+  "esd-pb": "ESD push button"
+ },
+ "note": "자체 개념 모델 부품 id. 치수 미확인."
+}

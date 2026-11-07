@@ -1,0 +1,23 @@
+{
+  "item": "PSV",
+  "type": "PSV",
+  "dims": {
+    "center_to_face": "미확인",
+    "orifice_area": "미확인"
+  },
+  "notes": "API 526 표 미확인. LESER: 플랜지 치수가 B16.5를 초과할 수 있음(API 526 §2.4)",
+  "sources": [
+    {
+      "title": "LESER Type 526 data sheet",
+      "url": "https://www.unitecd.com/ecatalog-files/leser-5262-6594-api-series-data-sheet-2.pdf",
+      "note": "링크만"
+    },
+    {
+      "title": "Neutrium API 526 orifice areas",
+      "url": "https://neutrium.net/tags/api-526/",
+      "note": "링크만"
+    }
+  ],
+  "retrieved": "2026-11-06",
+  "policy": "제조사 도면 복제 금지: 수치와 URL만 저장. 출처 없는 값은 미확인"
+}

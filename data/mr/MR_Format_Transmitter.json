@@ -1,0 +1,138 @@
+{
+ "item": "Transmitter",
+ "folder": "Transmitter",
+ "types": [
+  "Pressure",
+  "DP",
+  "Temperature",
+  "Level",
+  "Flow"
+ ],
+ "safety": false,
+ "basis": "웹 검토로 파악한 일반 EPC MR 구성 + Item 특화 섹션. 회사 MR 양식·승인 조항은 미확인이므로 프로젝트 양식으로 교체 필요.",
+ "note": "",
+ "header": [
+  "Project",
+  "MR No.",
+  "Rev",
+  "Item / Type",
+  "Date",
+  "작성(Prepared)",
+  "검토(Checked)",
+  "승인(Approved) — 사람이 서명"
+ ],
+ "sections": [
+  {
+   "id": "scope",
+   "title": "1. 적용 범위 (Scope of Supply)",
+   "fields": [
+    "공급 범위",
+    "Tag 목록·수량(MTO)",
+    "제외 범위",
+    "인접 Item과의 경계(Interface)"
+   ]
+  },
+  {
+   "id": "std",
+   "title": "2. 적용 코드·표준",
+   "fields": [
+    "승인된 조항 라이브러리에 있는 표준만 기재 (없으면 '미확인')"
+   ]
+  },
+  {
+   "id": "tech",
+   "title": "3. 기술 요구사항 (Datasheet 항목)",
+   "fields": []
+  },
+  {
+   "id": "tx1",
+   "title": "4. Transmitter 특화",
+   "fields": [
+    "Range·Span·정확도",
+    "출력/통신(4-20mA HART 등)",
+    "방폭 등급(IEC 60079, 미확인)",
+    "SIL 인증서(해당 시)",
+    "Manifold/Mounting bracket",
+    "Calibration 성적서",
+    "Type test 보고서",
+    "BOM(구성품 목록)"
+   ]
+  },
+  {
+   "id": "insp",
+   "title": "5. 검사·시험 (Inspection & Test)",
+   "fields": [
+    "ITP 제출 요구",
+    "Hydro/기능 시험",
+    "Third-party 검사 여부",
+    "시험 성적서·증빙"
+   ]
+  },
+  {
+   "id": "vdr",
+   "title": "6. Vendor Document Requirement",
+   "fields": [
+    "제출 문서 목록(Datasheet·도면·매뉴얼)",
+    "제출 시점(PO 후 n주)",
+    "문서 번호에 MR No. 표기",
+    "Rev 관리"
+   ]
+  },
+  {
+   "id": "cert",
+   "title": "7. 인증서 요건",
+   "fields": [
+    "Material Cert (EN 10204 3.1 등, 미확인)",
+    "방폭·SIL 인증서(해당 시)",
+    "Calibration Cert(해당 시)"
+   ]
+  },
+  {
+   "id": "prio",
+   "title": "8. 문서 우선순위",
+   "fields": [
+    "프로젝트 Spec > 고객·회사 표준 > 국제·업계 표준 순서 명기"
+   ]
+  },
+  {
+   "id": "pack",
+   "title": "9. 포장·표시·납품",
+   "fields": [
+    "포장 사양",
+    "Tag/Marking",
+    "납기·인도 조건",
+    "예비품·Commissioning spares"
+   ]
+  }
+ ],
+ "sources": [
+  {
+   "title": "EPCLand - MR 구성(Fittings)",
+   "url": "https://epcland.com/courses/material-requisition-item-name-fittings/"
+  },
+  {
+   "title": "Udemy - MR Pipes",
+   "url": "https://www.udemy.com/course/material-requisition-mr-item-name-pipes/"
+  },
+  {
+   "title": "Scribd - Material Request 예시",
+   "url": "https://www.scribd.com/document/396063388/Material-Request"
+  },
+  {
+   "title": "LawInsider - MR/Technical Specifications 정의",
+   "url": "https://www.lawinsider.com/dictionary/material-requisition-or-technical-specifications"
+  },
+  {
+   "title": "Oregon State RFQ - Transmitters",
+   "url": "https://bid.oregonstate.edu/opportunity/viewFile/44440/RFQ_92218032_Transmitters.pdf"
+  },
+  {
+   "title": "Scribd - Pressure Transmitter 사양 예시",
+   "url": "https://www.scribd.com/document/648390960/Pressure-Transmitter-ADWEA"
+  },
+  {
+   "title": "Emerson - Rosemount 2051 Data Sheet(벤더 예시)",
+   "url": "https://emerson.com/documents/automation/product-data-sheet-rosemount-2051-pressure-transmitter-en-73206.pdf"
+  }
+ ]
+}
