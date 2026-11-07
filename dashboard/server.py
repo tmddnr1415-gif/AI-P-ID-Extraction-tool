@@ -32,7 +32,7 @@ ID_RE = re.compile(r'^[A-Za-z0-9_\-]{1,80}$')
 WEEK_RE = re.compile(r'^\d{4}-W\d{2}$')
 MAX_BODY = 30 * 1024 * 1024
 
-SERVER_VERSION = '2026-10-24.2'
+SERVER_VERSION = '2026-11-07.1'
 ROOT = os.path.dirname(os.path.abspath(__file__))
 PORT = 8080
 ALLOW_NETS = []          # 사내망: 루프백·사설망 + 서버 IP 대역(/16, 유선·Wi-Fi 등 지금까지 쓴 대역 모두 기억) + --allow 로 추가한 대역
@@ -1522,6 +1522,7 @@ def api_space_save(acc, pid, raw):
         meta = {'id': sid, 'at': stamp(), 'by': acc['name'], 'memo': re.sub(r'\s+', ' ', str(b.get('memo') or '')).strip()[:200],
                 'room': rid if r else '', 'roomName': r['name'] if r else str((data.get('info') or {}).get('room') or '')[:60],
                 'rev': rev, 'panels': len(data['panels']),
+                'phase': 2 if data.get('phase') == 2 else 1, 'p2': isinstance(data.get('arch'), dict),   # 판넬 공간확보 Phase (1 계획 · 2 건축 도면) · Phase 2 건축 도면 있음
                 'sum': {k: num(sm.get(k)) for k in ('envW', 'envH', 'recW', 'recH', 'spare')}}
         write_json(P('space', pid, 'saves', sid + '.json'), {'meta': meta, 'data': data})
         d.setdefault('saves', []).append(meta)
