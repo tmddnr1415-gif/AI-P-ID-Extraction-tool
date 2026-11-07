@@ -1391,7 +1391,7 @@ function recLabel(key, f) {
  * ===================================================================== */
 let root = null;
 /* 서버 모드: http(s):// 로 접속하면 server.py 의 REST API 사용 (폴더 선택 불필요). file:// 로 열면 폴더 모드 */
-const APP_VERSION = '2026-11-05.1';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
+const APP_VERSION = '2026-11-07.1';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
 const SERVER_URL = 'http://localhost:8080';
 // 부서원 PC 사본(file://)이 접속을 시도할 서버 — 서버가 배포 파일을 만들 때 'PC 이름 주소, IP 주소' 순으로 자동 기록함
 const DEFAULT_SERVERS = ['http://ASEUNGWOOK-B01:8080', 'http://65.3.30.234:8080'];
@@ -3158,7 +3158,7 @@ function openPost(p) {
 /* ---------- VOC (2026-10-22): 메뉴별 VOC · 실명만 · 왼쪽 = 그림(캡처 · 파일 · 붙여넣기) 미리보기, 오른쪽 = 작성 ----------
  * 📷 스크린(위쪽 단추 · 어느 화면에서나): 화면을 캡처해 범위를 고르면 그 자리에서 VOC 창 → 등록해도 지금 화면 그대로(화면 전환 없음)
  * 캡처 = 브라우저 화면 공유(getDisplayMedia, '이 탭' 선택). http://PC이름 주소처럼 보안 연결이 아니면 브라우저가 막음 → Win+Shift+S 후 Ctrl+V 안내 */
-const VOC_MENU = { weekly:'주간업무보고', pid:'P&ID 분석', logic:'LOGIC 분석', space:'ROOM SIZE 계산', books:'도서검토', bidpjt:'입찰 프로젝트', runpjt:'실행 프로젝트', board:'익명게시판', mgmt:'Management', plaza:'계장 광장', etc:'기타' };
+const VOC_MENU = { weekly:'주간업무보고', pid:'P&ID 분석', logic:'LOGIC 분석', space:'ROOM SIZE 계산', books:'도서검토', ic3d:'3D 계측제어', bidpjt:'입찰 프로젝트', runpjt:'실행 프로젝트', board:'익명게시판', mgmt:'Management', plaza:'계장 광장', etc:'기타' };
 const VOC_IMG_MAX = 6;
 const imgUrl = id => `${API_BASE}/api/board/img/${enc(id)}`;
 function vocImgsHtml(ids) {                    // 글 카드의 그림 — 첫 장 크게 · 나머지 작게 · 누르면 새 창 원본
@@ -3522,7 +3522,8 @@ const PID_ROUTES = { pid:{ title:'P&ID 분석', port:PID_PORT, path:'/', q:'embe
   logic:{ title:'LOGIC 분석', port:PID_PORT, path:'/logic', q:'' },
   logicdraw:{ title:'LOGIC 작성', port:PID_PORT, path:'/logic/draw', q:'' },   // LOGIC 분석의 하위 메뉴 (같은 서버 · 같은 권한 'logic')
   space:{ title:'ROOM SIZE 계산', port:PID_PORT, path:'/space', q:'embed=1&' },   // P&ID 서버(run_lan_service.bat · hotfix106~)의 /space
-  books:{ title:'도서검토', port:PID_PORT, path:'/books/', q:'embed=1&' } };       // P&ID 서버(hotfix115~)의 /books/
+  books:{ title:'도서검토', port:PID_PORT, path:'/books/', q:'embed=1&' },       // P&ID 서버(hotfix115~)의 /books/
+  ic3d:{ title:'3D 계측제어', port:PID_PORT, path:'/ic3d', q:'embed=1&' } };     // 2026-11-07 세션 7 '3D 계측제어 도구' — P&ID 서버의 /ic3d (그쪽에서 만듦, 여기는 연결만)
 const PID_OFF = 'P&ID 서버가 꺼져 있습니다 — 부서장 PC 의 run_lan_service.bat 을 확인하세요 (켜지면 자동으로 다시 연결합니다)';
 // 호스트 = 지금 연결된 대시보드 서버의 호스트 (서버 모드: 이 페이지 주소, file://: 실제 접속에 성공한 서버 주소), 포트만 PID_PORT
 function pidBase(key = 'pid') {
@@ -3656,7 +3657,7 @@ function render() {
   if (route === 'home') placePlaza();
 }
 /* 메뉴 구성: 주간업무보고(홈 대시보드 + 하위 시트 9개) / P&ID 분석 / 입찰 프로젝트 / 실행 프로젝트 / 익명게시판 */
-const ROUTES = ['home', 'work', 'alloc', 'board', 'bidpjt', 'runpjt', 'pid', 'logic', 'logicdraw', 'space', 'books', 'mgmt', 'mgalloc', 'mghours', 'mgwork', 'mgbday'];   // mgwork = 근로시간 관리(근태 시스템 엑셀 · 52h) · mgbday = 부서원 생일
+const ROUTES = ['home', 'work', 'alloc', 'board', 'bidpjt', 'runpjt', 'pid', 'logic', 'logicdraw', 'space', 'books', 'ic3d', 'mgmt', 'mgalloc', 'mghours', 'mgwork', 'mgbday'];   // mgwork = 근로시간 관리(근태 시스템 엑셀 · 52h) · mgbday = 부서원 생일
 const MG_ROUTES = ['mgmt', 'mgalloc', 'mghours', 'mgwork', 'mgbday'];   // logic = LOGIC 분석 (P&ID 와 같은 방식)   // mgmt = Management 머리(→ mgalloc) · mgalloc = R&R·투입 분석(시간 병기) · mghours = 근무시간(월·주·일)   // work = 예전 통합 업무 주소 → #task 로 바꿈 · alloc = R&R·투입 분석 · bidpjt/runpjt/mgmt = MODULES(준비 중), pid = P&ID 분석
 const menuOf = r => (r === 'home' || r === 'work' || r === 'alloc' || SHEET[r]) ? 'weekly' : MG_ROUTES.includes(r) ? 'mgmt' : r === 'logicdraw' ? 'logic' : r;   // 화면(route) → 권한 메뉴 키
 const validRoute = k => ROUTES.includes(k) || !!SHEET[k];
@@ -3684,6 +3685,7 @@ function renderMenu() {
     (can('logic') ? group('logic', { k:'logic', l:'🔀 LOGIC 분석', n:'', c:0 }, [{ k:'logicdraw', l:'LOGIC 작성', n:'', c:0 }], route === 'logic' || route === 'logicdraw') : '') +
     (can('space') ? btn({ k:'space', l:'🗄 ROOM SIZE 계산', n:'', c:0 }, 'top') : '') +
     (can('books') ? btn({ k:'books', l:'🌪️ 도서검토', n:'', c:0 }, 'top') : '') +
+    (can('ic3d') ? btn({ k:'ic3d', l:'🧊 3D 계측제어', n:'', c:0 }, 'top') : '') +
     (can('bidpjt') ? btn({ k:'bidpjt', l:'📈 입찰 프로젝트', n:'', c:0 }, 'top') : '') +
     (can('runpjt') ? btn({ k:'runpjt', l:'🏗 실행 프로젝트', n:'', c:0 }, 'top') : '') +
     (can('board') ? btn({ k:'board', l:'💬 익명게시판', n:root && DB.board ? DB.board.length : '', c:root ? boardNewCount() : 0, t:'마지막 확인 이후 새 글·댓글' }, 'top') : '') +
@@ -3868,7 +3870,7 @@ function ddayChip() {
 }
 /* 2026-10-23 빠른 찾기 (Ctrl+K · 🔍 찾기): 메뉴 이름 · 모든 시트의 행(제목·내용·담당자) · 게시글 제목을 한 번에 → 누르면 그 자리로 이동 */
 const QF_MENUS = () => [['home', '📋 주간업무보고 홈'], ...SHEETS.filter(s => !s.merged).map(s => [s.key, s.label]), ['alloc', 'R&R · 투입 분석'], ['task', '통합 업무'],
-  ['pid', 'P&ID 분석'], ['logic', 'LOGIC 분석'], ['logicdraw', 'LOGIC 분석 · LOGIC 작성'], ['space', 'ROOM SIZE 계산'], ['books', '도서검토'], ['bidpjt', '입찰 프로젝트'], ['runpjt', '실행 프로젝트'], ['board', '익명게시판'],
+  ['pid', 'P&ID 분석'], ['logic', 'LOGIC 분석'], ['logicdraw', 'LOGIC 분석 · LOGIC 작성'], ['space', 'ROOM SIZE 계산'], ['books', '도서검토'], ['ic3d', '3D 계측제어'], ['bidpjt', '입찰 프로젝트'], ['runpjt', '실행 프로젝트'], ['board', '익명게시판'],
   ['mgalloc', 'Management · R&R 투입 분석'], ['mghours', 'Management · 근무시간'], ['mgwork', 'Management · 근로시간 관리'], ['mgbday', 'Management · 부서원 생일']]
   .filter(([k]) => can(SHEET[k] || k === 'home' || k === 'alloc' || k === 'task' ? 'weekly' : k.startsWith('mg') ? 'mgmt' : menuOf(k)));
 function qfSearch(q) {
@@ -4165,7 +4167,7 @@ function fitRecent() { const el = $('#recent'); if (!el) return; el.style.maxHei
  *  - 비회원 · 오프라인은 안내 한 줄. 메뉴 항목은 만들지 않음. 로그아웃 · 다른 사람 로그인 → 광장에서 나감(plazaOff). 광장 화면 규칙은 plaza/README_인계.md §5
  * ===================================================================== */
 const PZ = { url:'', state:'', sent:null };
-const PZ_STATUS = { pid:'P&ID 분석 중...', logic:'LOGIC 분석 중...', logicdraw:'LOGIC 작성 중...', space:'ROOM SIZE 계산 중...', books:'도서검토 중...' };
+const PZ_STATUS = { pid:'P&ID 분석 중...', logic:'LOGIC 분석 중...', logicdraw:'LOGIC 작성 중...', space:'ROOM SIZE 계산 중...', books:'도서검토 중...', ic3d:'3D 계측제어 중...' };
 const plazaPort = () => SERVER_INFO?.plazaPort || 8100;
 function plazaBase() { return pidBase().replace(/:\d+$/, ':' + plazaPort()); }
 function plazaHost() {

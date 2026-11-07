@@ -36,7 +36,7 @@ ID_RE = re.compile(r'^[A-Za-z0-9_\-]{1,80}$')
 WEEK_RE = re.compile(r'^\d{4}-W\d{2}$')
 MAX_BODY = 30 * 1024 * 1024
 
-SERVER_VERSION = '2026-10-30.2'
+SERVER_VERSION = '2026-11-07.1'
 ROOT = os.path.dirname(os.path.abspath(__file__))
 PORT = 8080
 ALLOW_NETS = []          # 사내망: 루프백·사설망 + 서버 IP 대역(/16, 유선·Wi-Fi 등 지금까지 쓴 대역 모두 기억) + --allow 로 추가한 대역
@@ -539,7 +539,7 @@ def board_kind(b):
 
 
 # ---- VOC (2026-10-22): 메뉴별 VOC · 실명만 · 화면 캡처/사진 첨부 (board/img/{이미지ID}.{png|jpg|gif|webp}) ----
-VOC_MENUS = ('weekly', 'pid', 'logic', 'space', 'books', 'bidpjt', 'runpjt', 'board', 'mgmt', 'plaza', 'etc')
+VOC_MENUS = ('weekly', 'pid', 'logic', 'space', 'books', 'ic3d', 'bidpjt', 'runpjt', 'board', 'mgmt', 'plaza', 'etc')
 IMG_ID_RE = re.compile(r'^i[0-9a-f]{8,40}$')
 IMG_MAX = 8 * 1024 * 1024
 IMG_TYPES = {'.png': 'image/png', '.jpg': 'image/jpeg', '.gif': 'image/gif', '.webp': 'image/webp'}
@@ -1714,7 +1714,7 @@ def api_space_rev_del(acc, pid, rid, rev, sup):
     return {'status': 'ok', 'saves': n}
 
 # ---------------------------------------------------------------- 메뉴 권한 (accounts/_perms.json) — 운영자(서버 PC)만 변경
-MENUS = [('weekly', '주간업무보고'), ('pid', 'P&ID 분석'), ('logic', 'LOGIC 분석'), ('space', 'ROOM SIZE 계산'), ('books', '도서검토'), ('bidpjt', '입찰 프로젝트'), ('runpjt', '실행 프로젝트'),
+MENUS = [('weekly', '주간업무보고'), ('pid', 'P&ID 분석'), ('logic', 'LOGIC 분석'), ('space', 'ROOM SIZE 계산'), ('books', '도서검토'), ('ic3d', '3D 계측제어'), ('bidpjt', '입찰 프로젝트'), ('runpjt', '실행 프로젝트'),
          ('board', '익명게시판'), ('mgmt', 'Management')]
 MENU_KEYS = [k for k, _ in MENUS]
 DEFAULT_PERMS = {k: k != 'mgmt' for k in MENU_KEYS}

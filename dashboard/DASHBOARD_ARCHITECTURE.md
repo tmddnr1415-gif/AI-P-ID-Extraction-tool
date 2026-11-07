@@ -1344,3 +1344,8 @@ C:\Users\SAMSUNG\Desktop\Claude\                         ← 개발 폴더 (여�
 - 넣지 않은 것: 키트 STEP 2(앱 전체를 왼쪽 네이비 사이드바 + 버튼 묶기(내보내기 ▾ 등)로 바꾸는 것) — 모든 메뉴 화면이 바뀌므로 사용자 확인 뒤. KPI 스파크라인 — 주별 추이 자료가 없어 지어내지 않음. Pretendard 글꼴 — CDN 금지라 기존 글꼴. 다크 모드 — 대시보드에 없음.
 - 바뀐 곳: dashboard.html `APP_VERSION` · `OC_UC` `OC_BAND` · `orgHtml`(머리 · 도구줄 · 떠 있는 버튼 · 범례 칩 · `unitBox`) · `card`(칩) · `ocSide`(새로, 탭 · 멤버) · `ocApply`(미니맵 크기) · `worldHtml`(many) · `mapLabelSize` · `mapSide`(목록 · 더보기) · `mapStats`(warn) · `orgClick`(data-octab · data-ocpick · data-mmore) · `tkCls` · `renderTaskBar`(배지 · 완료 접기) · `taskBarClick`(done) · CSS 맨 끝 'redesign-kit 반영' 묶음(`.oc.rd …` · `#taskbar …`).
 - 확인한 것: JS 문법. 임시 서버(1600×1000): 유닛 · 홍길동 선택(상세 · 접속 초록 점 · 수행 칩 4 · 입찰 칩 1) · 멤버 탭 · 프로젝트별(머리 띠 전체 폭) · 세계 지도(국가 목록 이름 안 잘림 · 더보기(10)) · 카타르 상세 · 내 업무(2줄 · 배지 · 완료됨 6 접힘). 페이지 오류 없음.
+
+### 2026-11-07 (APP_VERSION 2026-11-07.1 / SERVER_VERSION 2026-11-07.1)
+- 무엇을: 메뉴에 **🧊 3D 계측제어** 추가 (도서검토 바로 아래). 왜: 사용자 지시 — 세션 7 '3D 계측제어 도구'를 대시보드 메뉴로 연결. 도구 자체는 그 세션에서 만들고 P&ID 서버(run_lan_service.bat, 8000)의 `/ic3d` 에 붙음. 여기서는 연결(iframe)만.
+- 바뀐 곳: dashboard.html `APP_VERSION` · `PID_ROUTES.ic3d`({ port:PID_PORT, path:'/ic3d', q:'embed=1&' }) · `ROUTES` · `renderMenu` · `QF_MENUS`(빠른 찾기) · `VOC_MENU` · `PZ_STATUS`('3D 계측제어 중...') / server.py `SERVER_VERSION` · `MENUS`(메뉴 권한 설정 열 · 기본 허용) · `VOC_MENUS`.
+- 확인한 것: 임시 서버 + 가짜 P&ID 서버(8000): 메뉴 표시 · 누르면 `http://<호스트>:8000/ic3d?embed=1&user=본명` iframe · 메뉴 권한 설정 목록에 '3D 계측제어' · 페이지 오류 없음. 회사에서 확인할 것: P&ID 서버에 `/ic3d` 가 붙은 뒤 화면이 뜨는지 (붙기 전에는 P&ID 서버의 '없는 경로' 화면이 보임). server.py 가 바뀌었으므로 서버 재시작 필요.
