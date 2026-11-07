@@ -27,6 +27,12 @@ def log(rng, *paths, n=60):
     return [dict(zip(('h', 'd', 's'), l.split('\x1f'))) for l in out.splitlines() if l]
 
 
+def changed(h, cap=30):
+    """커밋이 바꾼 파일 (지도의 '변경 파일' 점) — 큰 반입 커밋은 cap 개까지만."""
+    fs = [f for f in git('show', '--name-only', '--format=', h).splitlines() if f and not f.startswith('out/')]
+    return fs[:cap]
+
+
 def first(rx, text, g=1, default=''):
     m = re.search(rx, text or '', re.M)
     return m.group(g) if m else default
@@ -103,6 +109,29 @@ CAPS = {  # 미리보기 이름 — status/previews/<SID>_<n>.jpg
     'S3_1': 'LOGIC 분석 첫 화면', 'S3_2': '신호 처리 — 계산 과정', 'S3_3': '연결 따라가기', 'S4_1': '첫 화면 Phase 1 · 2 (최신 브랜치)',
     'S4_2': '3D 배치 검토', 'S4_3': '대시보드 ROOM SIZE (지금 회사 경로)', 'S5_1': '도서검토 (대시보드 안)', 'S5_2': '답변 · 근거 도서',
     'S6_1': 'Valve Project Dashboard', 'S6_2': 'Datasheet Review', 'S7_1': '조직도 · 에이전트', 'S7_2': 'PSV MR 초안', 'S7_3': '실물 3D — CDN 막히면 (고칠 것)'}
+# 세션별 역할 Agent (ORCHESTRATION_PLAN.md 4장 · 세션 검토로 실제 기능에 맞춤) — (이름, 하는 일, 미리보기 키)
+ROLES = {
+    'S1': [('UI Agent', 'dashboard.html 한 파일 화면 — 주간업무보고 · 유닛분장 · 세계 지도', 'S1_1'),
+           ('데이터 Agent', 'server.py — JSON 행 저장 · 주간 마감 · 백업 · 계정', 'S1_2')],
+    'S2': [('추출 엔진 Agent', 'P&ID PDF/DXF 판독 — 판정 근거를 도면 위에 표시', 'S2_2'),
+           ('판독 규칙 Agent', '범례 · NOTES · 표제란에서 규칙 · 도면 가르치기', 'S2_2'),
+           ('Excel 출력 Agent', '고객 서식 계기 · 밸브 리스트 · 변경 내역 Excel', 'S2_1')],
+    'S3': [('로직 파싱 Agent', 'Logic Diagram PDF → 블록 · 단자 · 선 · From-To 보고', 'S3_1'),
+           ('추적 · 정합성 Agent', '연결 따라가기 — 최종 명령에서 최초 입력까지', 'S3_3'),
+           ('시뮬레이션 Agent', '동작 시뮬레이션 · 신호 처리 계산 과정', 'S3_2')],
+    'S4': [('배치 Agent', 'Panel Type · Equipment List 자동 배치 · 간섭 · 이격', 'S4_1'),
+           ('3D · 출력 Agent', 'WebGL 3D 검토 · PDF · DXF · CSV · 건축 전달 요약', 'S4_2'),
+           ('대시보드 연결 Agent', '회사 DASHBOARD 메뉴 ROOM SIZE 계산 경로', 'S4_3')],
+    'S5': [('문서 파싱 Agent', 'PDF · DOCX · XLSX · PPTX 본문 색인 · 공용 도서관', 'S5_1'),
+           ('답변 Agent', '폴더 원문 인용과 학습 지식을 나눠 답변', 'S5_2')],
+    'S6': [('추출 Agent', 'Ball Valve Datasheet PDF 텍스트 → 항목', 'S6_2'),
+           ('교차 검증 Agent', 'Valve List · Process Data · PMS 대조 · Typical 묶기', 'S6_1')],
+    'S7': [('3D 뷰 Agent', 'Anatomy 개념 · 실물 3D (three.js 오프라인화 필요)', 'S7_3'),
+           ('MR · 지식 Agent', 'Item Spec · 전문가 지식베이스 · MR 초안', 'S7_2')],
+}
+AGENT_PV = {'ic-mr-writer': 'S7_2', 'ic-anatomy-viewer': 'S7_3', 'ic-anatomy-link': 'S7_3', 'ic-ga-to-3d': 'S7_3'}
+COMMON = ['설계', '구현', '검증', '문서']
+
 BUCKET = {'WORKING': ('info', '작업 중'), 'BLOCKED': ('warn', '사용자 확인 필요'), 'REVIEW_READY': ('ok', '검토 준비'),
           'COMPLETED': ('ok', '완료 · 대기'), 'FAILED': ('bad', '실패')}
 
@@ -134,10 +163,14 @@ def main():
     data = []
     for sid, name, fn in SESS:
         g = fn()
+        for c in g['pending']:
+            c['files'] = changed(c['h'])
         h, d = tip(g['branch'])
         s = st['sessions'].get(sid, {})
         pv = sorted(f for f in os.listdir(pv_dir) if f.startswith(sid + '_'))
-        data.append(dict(sid=sid, name=name, **g, tip=h, tipdate=d, recent=log(g['branch'], n=6), agents=agents(g['branch']),
+        data.append(dict(sid=sid, name=name, **g, tip=h, tipdate=d, recent=log(g['branch'], n=6),
+                         agents=[dict(a, pv=AGENT_PV.get(a['name'], f'{sid}_1')) for a in agents(g['branch'])],
+                         roles=[dict(name=r[0], duty=r[1], pv=r[2]) for r in ROLES.get(sid, [])], common=COMMON,
                          state=s, previews=[dict(key=f[:-4], cap=CAPS.get(f[:-4], f),
                                                  date=datetime.date.fromtimestamp(os.path.getmtime(os.path.join(pv_dir, f))).isoformat()) for f in pv]))
     tpl = open(os.path.join(HERE, 'template.html'), encoding='utf-8').read()
