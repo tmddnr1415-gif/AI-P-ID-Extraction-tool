@@ -1,17 +1,17 @@
 // Regression screenshots: every preset (assembled + wheel-exploded), plus info card, cutaway and isolate.
-//   node dev/shots.mjs <three.min.js> <out dir>
+//   node dev/shots.mjs <out dir>      (all network blocked: proves the page works offline)
 import { createRequire } from 'node:module';
 import fs from 'node:fs'; import path from 'node:path'; import url from 'node:url';
 
 const { chromium } = createRequire(import.meta.url)('playwright');
-const [threePath, outDir] = process.argv.slice(2);
+const [outDir] = process.argv.slice(2).filter((a) => !a.endsWith('.js'));
 fs.mkdirSync(outDir, { recursive: true });
-const browser = await chromium.launch({ args: ['--use-gl=swiftshader', '--enable-unsafe-swiftshader'] });
+const browser = await chromium.launch();
 const page = await browser.newPage({ viewport: { width: 1440, height: 920 } });
 const errors = [];
 page.on('pageerror', (e) => errors.push(String(e)));
 page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); });
-await page.route('**/three.min.js', (r) => r.fulfill({ body: fs.readFileSync(threePath), contentType: 'text/javascript' }));
+const net = []; await page.route(/^(https?|wss?):/, (r) => { net.push(r.request().url()); r.abort(); });
 await page.goto('file://' + path.resolve(path.dirname(url.fileURLToPath(import.meta.url)), '../index.html'));
 await page.waitForTimeout(800);
 const vp = page.locator('#viewport');
@@ -57,5 +57,5 @@ await page.evaluate(() => Viewer.focus(null)); await settle();
 const exp = await page.evaluate(async () => ({ stl: (await Viewer.toSTL().arrayBuffer()).byteLength, objGroups: (await Viewer.toOBJ('x').text()).split('\n').filter((l) => l.startsWith('g ')).length }));
 console.log('export', exp);
 await page.screenshot({ path: `${outDir}/_full.png` });
-console.log('errors', errors);
+console.log('errors', errors); console.log('network requests (blocked)', net);
 await browser.close();

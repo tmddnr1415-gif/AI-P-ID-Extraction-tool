@@ -46,9 +46,8 @@ description: 계측제어 품목의 General Arrangement(GA) / Dimensional Drawin
    node ic-3d-builder/dev/render.mjs <작업폴더>/spec.json <작업폴더>/exploded.png --explode 1 --labels on   # 분해도 + 번호 콜아웃
    node ic-3d-builder/dev/render.mjs <작업폴더>/spec.json <작업폴더>/cutaway.png --section                 # 내부 단면
    ```
-   기본 렌더는 Realistic(도장 주물·가공 금속 재질, 그림자, 원근)이다. 도면과 선으로 대조할 때는 앱에서 Style → Technical.
-   네트워크에서 three.js 를 받을 수 없으면 `npm i three@0.128.0` 후
-   `--three node_modules/three/build/three.min.js` 를 붙인다.
+   기본 렌더는 Realistic(재질색·하이라이트·받침대 그림자, 아이소메트릭 직교 투영)이다. 도면과 선으로 대조할 때는 앱에서 Style → Technical.
+   3D 엔진은 내장(Anatomy 방식 Canvas 렌더러)이라 네트워크가 없어도 된다.
    정면도의 전체 높이·폭을 도면과 비교한다. 다르면 key 대응(치수선이 어디서 어디까지 재는지)을 다시 읽는다.
 6. **전달.** spec JSON 과 PNG 를 넘기고, 사용법을 알려준다:
    브라우저로 `ic-3d-builder/index.html` 열기 → **Load JSON** → 휠 인으로 분해, 부품 클릭으로 설명,

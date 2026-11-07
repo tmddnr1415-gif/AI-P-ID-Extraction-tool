@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """src/ 를 단일 파일 ic-3d-builder/index.html 로 합친다 (더블클릭으로 열리게).
 
-three.js 는 cdnjs 에서 그대로 불러온다. 나머지 로컬 css/js 는 인라인한다.
+외부 라이브러리 없음(Anatomy 방식 내장 3D 엔진). 로컬 css/js 를 모두 인라인해 오프라인에서 열린다.
     python3 ic-3d-builder/dev/build.py
 """
 import pathlib, re

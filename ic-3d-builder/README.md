@@ -15,7 +15,7 @@
 
 ## 쓰는 법
 
-1. `index.html` 을 브라우저로 엽니다 (더블클릭). three.js 를 cdnjs 에서 받으므로 인터넷이 필요합니다.
+1. `index.html` 을 브라우저로 엽니다 (더블클릭). 외부 라이브러리·CDN 없이 오프라인에서 열립니다(Anatomy 방식 내장 3D 엔진). 도면 자동 판독(Claude)만 API Key·인터넷이 필요합니다.
 2. 품목 프리셋을 고릅니다.
 3. GA 도면(PDF/PNG/JPG)을 넣고, 필요하면 힌트(사이즈·등급·치수표 행)를 적은 뒤 **Read drawing → 3D**.
    ⚙ Settings 에 Anthropic API 키가 필요합니다. 기본 모델 `claude-opus-5-5`.
@@ -70,8 +70,8 @@ ic-3d-builder/
 ├── index.html          ← 생성 파일 (단일 파일 앱). src/ 를 고치고 dev/build.py 로 다시 만든다
 ├── src/
 │   ├── refdata.js      표준 치수 참고표 (원문 대조 전)
-│   ├── anatomy.js      품목별 파라미터 + 부품 분해(기능·재질·치수·분해 경로) + 설계 점검. three.js 비의존
-│   ├── viewer.js       three.js 뷰어: 휠 분해, 콜아웃, 컷어웨이, 격리, STL/OBJ/PNG
+│   ├── anatomy.js      품목별 파라미터 + 부품 분해(기능·재질·치수·분해 경로) + 설계 점검. 순수 데이터
+│   ├── viewer.js       Anatomy 방식 내장 3D 엔진(Canvas 2D, 아이소메트릭 투영·4톤 셰이딩·painter's order·윤곽선, 외부 라이브러리 없음): 휠 분해, 콜아웃, 컷어웨이, 격리, STL/OBJ/PNG
 │   ├── extract.js      Claude 도면 판독 (치수 + Parts list, 구조화 출력)
 │   └── app.js, index.html, styles.css
 ├── dev/

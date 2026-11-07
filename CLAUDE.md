@@ -56,7 +56,7 @@
 ## 6-1. 이 저장소에서 함께 쓰는 도구 (해커톤 기준 위에 반영한 것)
 | 도구 | 위치 | 쓰임 |
 |---|---|---|
-| 실물 3D 엔진 | `ic-3d-builder/` (스킬 `ic-ga-to-3d`) | GA·치수도 → 부품 단위 파라메트릭 3D. 사이즈·등급 연동 치수(출처 배지 Drawing/User/Standard/Estimate), 휠로 분해, 부품 설명·재질 카드, 컷어웨이, STL/OBJ. 대시보드 Anatomy 탭의 **실물 3D** 모드로 들어간다(빌드 시 `app/viewer-real.html` 로 복사). |
+| 실물 3D 엔진 | `ic-3d-builder/` (스킬 `ic-ga-to-3d`) | GA·치수도 → 부품 단위 파라메트릭 3D. **Anatomy 방식 내장 엔진(Canvas 2D 아이소메트릭·4톤 셰이딩·painter's order, three.js·CDN 없음) → 사내 PC 오프라인 동작**. 사이즈·등급 연동 치수(출처 배지 Drawing/User/Standard/Estimate), 휠로 분해, 부품 설명·재질 카드, 컷어웨이, STL/OBJ. 대시보드 Anatomy 탭의 **실물 3D** 모드로 들어간다(빌드 시 `app/viewer-real.html` 로 복사). |
 | 부품 매핑 | `data/parts/Map_3d.json` | 개념 모델 part id → 실물 3D 프리셋·부품 id. 답변의 `part:*` 태그를 누르면 실물 3D 에서 그 부품을 강조한다. 매핑 없는 Item(MMS·CCS·FGS·Field Gauge·Bulk)은 개념 모델로 표시. |
 | LLM 답변 엔진(선택) | `app/llm.js` (원형: `ic-expert/`, 스킬 `ic-expert`) | 헤더 [답변 엔진] 버튼으로 로컬 검색형 ↔ Claude(LLM). §5 규칙·ic-concise-answer·ic-safety-gate·part 태그를 그대로 따르고, 근거는 해당 Item 의 Spec·Knowledge 원문 + `ic-expert/knowledge`(국제 코드·아이템별 선정)만 쓴다. Key 는 브라우저에만 저장. |
 | 전문가 지식베이스 | `ic-expert/knowledge/01~06` | 국제 코드, Saudi Aramco, QatarEnergy·걸프, Emerson·Honeywell, Yokogawa·Bently Nevada·WIKA, 아이템별 선정. 사실마다 출처 링크, 미확인은 `[general knowledge — verify]`. |
@@ -67,6 +67,6 @@ Anatomy 부품 맵(Parts_*.json), 회사 MR 양식·승인 조항, 재무제표 
 
 ## 8. 실행
 - 대시보드: `python app/server.py` → http://127.0.0.1:8790 (빌드: `node app/build.mjs` — 실물 3D 를 고쳤으면 먼저 `python3 ic-3d-builder/dev/build.py`). 파일로 열면 재무 기능만 비활성.
-- 통합 테스트: `NODE_PATH=$(npm root -g) node app/test_e2e.mjs` (실물 3D 전환·부품 강조·LLM 답변 규칙 14개 검사, API 는 가짜 스트림).
+- 통합 테스트: `NODE_PATH=$(npm root -g) node app/test_e2e.mjs` (실물 3D 전환·부품 강조·LLM 답변 규칙·외부 네트워크 차단 16개 검사, API 는 가짜 스트림).
 - 지식 베이스: `Spec for each Item/{Item}/*_Knowledge.md`(웹 조사 Q&A, 출처 URL 포함) + `*_Integration_Spec.md`.
 - 공시 재무제표: '공시 재무제표 대시보드'(../현장회의록_요약/dart_dashboard) UI를 /fin/ 에 그대로 올리고 채팅과 BroadcastChannel 로 연동. DART 키는 서버 코드가 환경변수 DART_API_KEY → .env → 벤치마크 키 파일 순으로 읽는다(사람·에이전트는 열지 않음).

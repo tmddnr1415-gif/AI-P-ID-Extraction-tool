@@ -115,7 +115,7 @@
       console.error(e); setStatus(`Could not build the model: ${e.message}`, true); return;
     }
     renderForm();
-    if (window.THREE) {
+    if (window.Viewer) {
       if (refit && Viewer.state.focus) Viewer.focus(null);
       Viewer.show(S.model, { keepView: !refit });
       if (refit) { Viewer.setExplode(0, true); $('explode').value = 0; Viewer.setView('iso'); $('hint-bar').hidden = false; }
@@ -138,14 +138,14 @@
       const tr = document.createElement('tr'); tr.dataset.id = p.id;
       const td0 = document.createElement('td');
       const cbx = document.createElement('input'); cbx.type = 'checkbox'; cbx.checked = true; cbx.title = 'Show / hide';
-      cbx.addEventListener('click', (e) => { e.stopPropagation(); if (window.THREE) Viewer.setVisible(p.id, cbx.checked); });
+      cbx.addEventListener('click', (e) => { e.stopPropagation(); if (window.Viewer) Viewer.setVisible(p.id, cbx.checked); });
       td0.appendChild(cbx); tr.appendChild(td0);
-      const sw = `<span class="sw" style="background:${window.THREE ? Viewer.lookColor(p.look) : '#888'}"></span>`;
+      const sw = `<span class="sw" style="background:${window.Viewer ? Viewer.lookColor(p.look) : '#888'}"></span>`;
       const mat = p.dwgMaterial ? `${esc(p.dwgMaterial)} <span class="src src-drawing">Drawing</span>` : esc(p.material);
       tr.insertAdjacentHTML('beforeend', `<td class="no">${esc(p.no ?? '')}</td><td>${sw}${esc(p.dwgName || p.name)}</td><td class="muted">${esc(p.group)}</td>`
         + `<td>${esc(p.dwgQty || p.qty)}</td><td class="mat">${mat}</td><td class="muted">${esc(keySize(p))}</td>`);
       tr.addEventListener('click', () => selectPart(p.id, true));
-      tr.addEventListener('dblclick', () => window.THREE && Viewer.focus(p.id));
+      tr.addEventListener('dblclick', () => window.Viewer && Viewer.focus(p.id));
       tb.appendChild(tr);
     }
   }
@@ -155,14 +155,14 @@
     if (id && !quiet && document.body.classList.contains('embed') && window.parent !== window) {
       try { window.parent.postMessage({ type: 'ic3d-pick', part: id, preset: S.presetId }, '*'); } catch { /* host gone */ }
     }
-    if (window.THREE) Viewer.select(id);
+    if (window.Viewer) Viewer.select(id);
     for (const tr of $('bom').querySelectorAll('tbody tr')) tr.classList.toggle('sel', tr.dataset.id === id);
     if (!id) { hideInfo(); return; }
     showInfo(id);
     if (quiet) return;
     if (!fromList) $('bom').querySelector(`tr[data-id="${CSS.escape(id)}"]`)?.scrollIntoView({ block: 'nearest' });
     // picking an internal part from the list: take the assembly apart so it can be seen
-    if (fromList && window.THREE && Viewer.getExplode() < 0.9) {
+    if (fromList && window.Viewer && Viewer.getExplode() < 0.9) {
       const p = S.model.parts.find((x) => x.id === id);
       if (p && (p.stage ?? 1) >= 1) { Viewer.setExplode(1); $('explode').value = 1; $('hint-bar').hidden = true; }
     }
@@ -171,7 +171,7 @@
   function showInfo(id) {
     const p = S.model.parts.find((x) => x.id === id); if (!p) { hideInfo(); return; }
     const box = $('info'); box.hidden = false;
-    if (window.THREE) Viewer.setOption('insetRight', Math.min(360, $('viewport').clientWidth * 0.4));
+    if (window.Viewer) Viewer.setOption('insetRight', Math.min(360, $('viewport').clientWidth * 0.4));
     const dims = p.dims.map((d) => `<tr><td>${esc(d.k)}</td><td><b>${esc(d.v)}</b>${d.unit ? ' ' + esc(d.unit) : ''}</td><td><span class="src src-${esc(d.src)}">${esc(SRC[d.src] || d.src)}</span></td></tr>`).join('');
     const mat = p.dwgMaterial
       ? `${esc(p.dwgMaterial)} <span class="src src-drawing">Drawing</span><div class="muted small">Typical: ${esc(p.material)}</div>`
@@ -186,13 +186,13 @@
       ${p.note ? `<p class="muted small">${esc(p.note)}</p>` : ''}
       <div class="row small"><button class="ghost-btn" id="info-iso">Isolate</button><button class="ghost-btn" id="info-hide">Hide</button></div>`;
     $('info-close').onclick = () => selectPart(null);
-    $('info-iso').onclick = () => window.THREE && Viewer.focus(p.id);
+    $('info-iso').onclick = () => window.Viewer && Viewer.focus(p.id);
     $('info-hide').onclick = () => {
-      if (window.THREE) Viewer.setVisible(p.id, false);
+      if (window.Viewer) Viewer.setVisible(p.id, false);
       const cbx = $('bom').querySelector(`tr[data-id="${CSS.escape(p.id)}"] input`); if (cbx) cbx.checked = false;
     };
   }
-  function hideInfo() { $('info').hidden = true; if (window.THREE) Viewer.setOption('insetRight', 0); }
+  function hideInfo() { $('info').hidden = true; if (window.Viewer) Viewer.setOption('insetRight', 0); }
 
   function renderSummary() {
     const { values, meta, bbox } = S.model;
@@ -368,9 +368,9 @@
   }
 
   function initViewer() {
-    if (!window.THREE) {
+    if (!window.Viewer) {
       const n = $('noscene'); n.hidden = false;
-      n.textContent = 'The 3D engine (three.js) could not be loaded from cdnjs.cloudflare.com. Check whether that address is blocked. Parameter editing and JSON export still work.';
+      n.textContent = 'The built-in 3D engine failed to start. Parameter editing and JSON export still work.';
       return;
     }
     const tip = $('tip');
@@ -415,9 +415,9 @@
       if (m.id !== S.presetId) { $('preset').value = m.id; applyPreset(m.id, true); }
     } else if (m.cmd === 'highlight' && m.part && S.model.parts.some((p) => p.id === m.part)) {
       selectPart(m.part, true);
-      if (window.THREE) { const el = document.getElementById('viewport'); el.classList.remove('pulse'); void el.offsetWidth; el.classList.add('pulse'); }
-    } else if (m.cmd === 'explode' && window.THREE) { Viewer.setExplode(+m.k || 0); $('explode').value = +m.k || 0; }
-    else if (m.cmd === 'view' && window.THREE) Viewer.setView(m.name);
+      if (window.Viewer) { const el = document.getElementById('viewport'); el.classList.remove('pulse'); void el.offsetWidth; el.classList.add('pulse'); }
+    } else if (m.cmd === 'explode' && window.Viewer) { Viewer.setExplode(+m.k || 0); $('explode').value = +m.k || 0; }
+    else if (m.cmd === 'view' && window.Viewer) Viewer.setView(m.name);
   });
   post({ type: 'ic3d-ready', presets: Anatomy.PRESETS.map((p) => p.id) });
   window.IC3D = { S, loadSpec, specJSON, rebuild, selectPart };   // automation / debugging

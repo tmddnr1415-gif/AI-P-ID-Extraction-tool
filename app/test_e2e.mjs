@@ -1,12 +1,12 @@
 // 대시보드 통합 E2E (헤드리스 크로미움, API 는 가짜 스트림):
 //   실물 3D 모드 전환·부품 태그 → 3D 강조, 로컬 검색형 답변, Claude(LLM) 답변(규칙·part 태그·안전 게이트).
-//   NODE_PATH=$(npm root -g) node app/test_e2e.mjs [three.min.js 경로]   (CDN 이 막힌 환경이면 경로를 준다)
+//   NODE_PATH=$(npm root -g) node app/test_e2e.mjs
+//   외부 네트워크는 전부 차단한다(사내 PC 와 같은 조건). api.anthropic.com 만 가짜 스트림으로 응답.
 import { createRequire } from "node:module";
 import fs from "node:fs"; import path from "node:path"; import url from "node:url";
 
 const { chromium } = createRequire(import.meta.url)("playwright");
 const here = path.dirname(url.fileURLToPath(import.meta.url));
-const three = process.argv[2];
 const shot = process.env.SHOT;
 const sse = (text) => [
   { type: "message_start", message: { usage: { input_tokens: 5 } } },
@@ -16,10 +16,11 @@ const sse = (text) => [
   { type: "message_delta", delta: { stop_reason: "end_turn" }, usage: { output_tokens: 9 } },
 ].map((e) => `event: ${e.type}\ndata: ${JSON.stringify(e)}\n\n`).join("");
 
-const browser = await chromium.launch({ args: ["--use-gl=swiftshader", "--enable-unsafe-swiftshader"] });
+const browser = await chromium.launch();
 const page = await browser.newPage({ viewport: { width: 1600, height: 950 } });
 const errors = []; page.on("pageerror", (e) => errors.push(String(e)));
-if (three) await page.route("**/three.min.js", (r) => r.fulfill({ body: fs.readFileSync(three), contentType: "text/javascript" }));
+const net = [];
+await page.context().route(/^(https?|wss?):/, (r) => { if (r.request().url().startsWith("https://api.anthropic.com/")) return r.fallback(); net.push(r.request().url()); r.abort(); });
 const bodies = [];
 await page.route("https://api.anthropic.com/**", (r) => {
   bodies.push(JSON.parse(r.request().postData()));
@@ -71,7 +72,10 @@ check("안전 게이트 표기", /초안, 담당자 확인 필수/.test(last));
 check("part:spring → 태그로 변환", /class="tag" data-i="ball-valve" data-p="spring"/.test(last));
 check("표 렌더링", /<table class="mt">/.test(last));
 check("페이지 오류 없음", errors.length === 0);
+check("외부 네트워크 요청 없음(LLM 제외)", net.length === 0);
+check("3D 엔진 내장(three.js·CDN 미사용)", await fr.evaluate(() => typeof THREE === "undefined" && !!window.Viewer && document.querySelectorAll("script[src]").length === 0));
 if (shot) await page.screenshot({ path: shot });
 await browser.close();
 if (errors.length) console.log(errors);
+if (net.length) console.log(net);
 process.exit(ok.every(Boolean) ? 0 : 1);

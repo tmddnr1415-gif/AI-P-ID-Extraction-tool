@@ -9,4 +9,4 @@
    DART 키는 zip 에 넣지 않았다. 새 PC 에서 환경변수 `DART_API_KEY` 또는 프로젝트 `.env`(`DART_API_KEY=...`)로 설정한다. 키 값은 대화·로그에 출력하지 않는다.
 4. 구조: `app/`(template.html, app.js, viewer3d.js, sims.js, build.mjs, server.py), `Spec for each Item/`(Spec+Knowledge 12), `data/`(mr, dim, parts), `output/`(MR 초안 docx), `제출/`(과제 제출 3파일).
 5. 개선 시 주의: 편집은 app.js / viewer3d.js / sims.js / template.html 에서 하고 `node app/build.mjs` 로 빌드한다. `app/index.html` 은 생성물이다.
-6. 알려진 한계: 답변은 기본 로컬 검색형(헤더 [답변 엔진]으로 Claude(LLM) 선택 가능, Anthropic API Key 필요), 실물 3D 는 three.js 를 cdnjs 에서 받으므로 인터넷 필요, 수치는 모두 '미확인'(프로젝트 Spec 대조 필요), 3D 는 개념 모델, 12개 중 볼밸브·CCS 시뮬레이션만 화면 확인.
+6. 알려진 한계: 답변은 기본 로컬 검색형(헤더 [답변 엔진]으로 Claude(LLM) 선택 가능, Anthropic API Key 필요), 실물 3D 는 Anatomy 방식 내장 엔진이라 오프라인 동작(외부 라이브러리·CDN 없음), 수치는 모두 '미확인'(프로젝트 Spec 대조 필요), 3D 는 개념 모델, 12개 중 볼밸브·CCS 시뮬레이션만 화면 확인.
