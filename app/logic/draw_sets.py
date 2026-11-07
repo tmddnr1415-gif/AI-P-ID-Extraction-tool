@@ -133,7 +133,7 @@ def source_form(res: dict) -> str:
     return "a5j" if shape > text else ""
 
 
-def import_bundle(res: dict, name: str, author: str, project: str = "", job: str = "", progress=None) -> dict:
+def import_bundle(res: dict, name: str, author: str, project: str = "", job: str = "", progress=None, pdf_path=None) -> dict:
     """분석한 묶음의 모든 시트를 이 양식의 그림으로 (사전 Typical 사본은 뺀다).  매크로가 이어진 시트는 `typical`.
     progress(지금 장, 모두) — L85 · 827장이면 1분 남짓이라 화면이 진행을 보여 준다."""
     sid = new_set(name)
@@ -146,18 +146,27 @@ def import_bundle(res: dict, name: str, author: str, project: str = "", job: str
     form = source_form(res)
     docs = []
     todo = sorted(res.get("sheets") or [], key=lambda q: q["page"])
+    src = None                                        # L89 — 원본 PDF (있으면 LOGIC 영역의 글을 그 자리에 옮긴다 · draw.source_texts)
+    if pdf_path:
+        try:
+            src = pymupdf.open(str(pdf_path))
+        except Exception:
+            src = None
     for i, s in enumerate(todo):
         if progress:
             progress(i, len(todo))
         if s.get("library") or s["page"] >= library.LIB_PAGE0:
             continue
-        doc = draw.from_sheet(s, s.get("sheet_no") or f"p{s['page']}", author, project)
+        page = src[s["page"] - 1] if src is not None and 0 < s["page"] <= len(src) else None
+        doc = draw.from_sheet(s, s.get("sheet_no") or f"p{s['page']}", author, project, page=page)
         if form:
             doc["form"] = form
         doc.update({"set": sid, "set_name": _txt(name, 80) or "묶음", "order": i + 1, "typical": s["page"] in typ_pages,
                     "source": {"job": job, "page": s["page"], "sheet_no": s.get("sheet_no", "")}})
         draw.save_new(doc)
         docs.append(doc)
+    if src is not None:
+        src.close()
     return {"id": sid, "name": name, "sheets": len(docs), "typicals": sum(1 for d in docs if d["typical"])}
 
 

@@ -29,10 +29,14 @@ if sid == "-":                                   # 묶음 없이 — 분석 결�
     from app.logic import draw
     form = draw_sets.source_form(res)
     docs = []
+    import pymupdf                                 # L89 — 들여오기처럼 원본 PDF 쪽을 준다 (LOGIC 영역 글을 그 자리에)
+    _src_pdf = A._dir(job) / "source.pdf"
+    _src = pymupdf.open(str(_src_pdf)) if _src_pdf.exists() else None
     for i, s_ in enumerate(sorted(A_by_page.values(), key=lambda q: q["page"])):
         if ONLY and (s_.get("sheet_no") or f"p{s_['page']}") not in ONLY:
             continue
-        d_ = draw.from_sheet(s_, s_.get("sheet_no") or f"p{s_['page']}", "diff", "")
+        _pg = _src[s_["page"] - 1] if _src is not None and 0 < s_["page"] <= len(_src) else None
+        d_ = draw.from_sheet(s_, s_.get("sheet_no") or f"p{s_['page']}", "diff", "", page=_pg)
         if form:
             d_["form"] = form
         d_.update({"set": "diffset", "order": i + 1, "source": {"job": job, "page": s_["page"]}})

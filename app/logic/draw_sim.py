@@ -681,6 +681,9 @@ def _apply_texts(doc, wires, segs, net_of, blocks, rows):
             pos = D.wire_label_pos(w)
             if pos:
                 ws += _words_of([[pos[0], pos[1], w["label"], 4.2]])
+    for b in doc.get("blocks") or []:                  # L89 — 그림 위의 글(TEXT · 원본에서 옮긴 설정값 글 등)도 — 분석기는 쪽의 모든 글로 읽는다
+        if b.get("kind") == "TEXT" and str(b.get("text") or "").strip():
+            ws += _words_of([[b["x"] + b["w"] / 2, b["y"] + b["h"] / 2, str(b["text"]), min(b["h"] * 0.8, 8)]])
     if not ws:
         return
     s = {"blocks": blocks, "ports": [], "rows": rows, "nets": {}, "pitch": D.PITCH}

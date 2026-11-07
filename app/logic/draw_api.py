@@ -41,6 +41,16 @@ def _load(did: str) -> dict:
         raise HTTPException(404, "그런 그림이 없습니다.")
 
 
+def _job_pdf(job):
+    """L89 — 분석 묶음의 원본 PDF (들여오기가 LOGIC 영역 글을 옮긴다) · 없으면 None."""
+    try:
+        from . import api as A
+        p = A._dir(str(job)) / "source.pdf"
+        return p if p.exists() else None
+    except Exception:
+        return None
+
+
 def _author(v) -> str:
     a = str(v or "").strip()[:60]
     if not a:
@@ -76,7 +86,19 @@ def create_drawing(body: dict = Body(default={})):
         s = next((s for s in res["sheets"] if s["page"] == pno), None)
         if s is None:
             raise HTTPException(404, "그 묶음에 그 쪽의 LOGIC 시트가 없습니다.")
-        doc = draw.from_sheet(s, name or (s.get("sheet_no") or f"p{pno}"), author, project)
+        page = None                                    # L89 — 원본 PDF 의 그 쪽 (LOGIC 영역 글을 그 자리에)
+        try:
+            import pymupdf
+            src_pdf = A._dir(str(job)) / "source.pdf"
+            if src_pdf.exists():
+                _pdf = pymupdf.open(str(src_pdf))
+                page = _pdf[pno - 1] if 0 < pno <= len(_pdf) else None
+        except Exception:
+            page = None
+        doc = draw.from_sheet(s, name or (s.get("sheet_no") or f"p{pno}"), author, project, page=page)
+        form = draw_sets.source_form(res)            # L89 — 묶음 들여오기와 같은 양식 (원본이 모양 게이트면 a5j · 경보는 둥근 상자 …)
+        if form:
+            doc["form"] = form
         doc["source"] = {"job": str(job), "page": pno, "sheet_no": s.get("sheet_no", "")}
     else:
         try:
@@ -118,7 +140,7 @@ def import_set(body: dict = Body(default={})):
     name = str(body.get("name") or st.get("name") or job).strip()[:80]
     project = str(body.get("project") or st.get("project") or "")[:80]
     if not body.get("async"):
-        return draw_sets.import_bundle(res, name, author, project, job)
+        return draw_sets.import_bundle(res, name, author, project, job, pdf_path=_job_pdf(job))
     # L85 — 827장이면 1분 남짓 — 뒤에서 들이고 화면은 진행(장 수)을 묻는다 (GET tasks/{id})
     import threading, uuid as _uuid
     tid = _uuid.uuid4().hex[:12]
@@ -129,7 +151,7 @@ def import_set(body: dict = Body(default={})):
 
     def run():
         try:
-            t["result"] = draw_sets.import_bundle(res, name, author, project, job, progress=prog)
+            t["result"] = draw_sets.import_bundle(res, name, author, project, job, progress=prog, pdf_path=_job_pdf(job))
             t["done"] = t["total"]
             t["state"] = "done"
         except Exception as e:  # noqa: BLE001
