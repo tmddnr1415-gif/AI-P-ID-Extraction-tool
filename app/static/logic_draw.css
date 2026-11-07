@@ -122,7 +122,7 @@ input, select { font: inherit; border: 1px solid var(--line); border-radius: 5px
 .dw-modal td, .dw-modal th { border-bottom: 1px solid var(--line); padding: 3px 6px; text-align: left; }
 .dw-modal tr.pick { cursor: pointer; }
 .dw-modal tr.pick:hover, .dw-modal tr.pick.on { background: #eef2ff; }
-.dw-toast { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); background: var(--navy); color: #fff; padding: 8px 14px; border-radius: 8px; z-index: 60; font-size: 13px; max-width: 70vw; }
+.dw-toast { pointer-events: none; position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); background: var(--navy); color: #fff; padding: 8px 14px; border-radius: 8px; z-index: 60; font-size: 13px; max-width: 70vw; }
 
 /* L56 — 묶음 · 매크로 · 연결 */
 .dw-settools { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
@@ -465,3 +465,16 @@ body.dw-homeon .dw-side, body.dw-homeon .dw-stage { display: none; }
 .dw-keys { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; font-size: 12px; }
 .dw-keys h4 { margin: 0 0 4px; font-size: 12px; }
 .dw-keys td { padding: 2px 6px 2px 0; vertical-align: top; }
+
+/* L88 — 기호 · 매크로 창 */
+.dw-palopen { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; width: 100%; padding: 9px 11px; border: 1px solid var(--blue); background: #eef3ff; border-radius: 8px; text-align: left; }
+.dw-palopen b { color: #1f3d99; font-size: 13px; }
+.dw-palopen small { color: #5b6475; font-size: 11px; line-height: 1.35; }
+.dw-palopen:hover { background: #e2eaff; }
+.dw-palauto { display: flex; gap: 5px; align-items: center; margin: 6px 2px 2px; }
+.dw-inline { margin-top: 8px; }
+.dw-inline > summary { cursor: pointer; font-size: 12px; color: #3c4456; margin-bottom: 6px; }
+.placeghost { fill: rgba(47, 91, 216, .12); stroke: #2f5bd8; stroke-width: .6; stroke-dasharray: 2 1.4; pointer-events: none; }
+.placeghost-t { font: 4.5px Helvetica, Arial, sans-serif; fill: #2f5bd8; text-anchor: middle; pointer-events: none; }
+.dw-palopen.blocked { border-color: #d08a14; background: #fff6e6; }
+.dw-palopen.blocked small { color: #8a5a00; }

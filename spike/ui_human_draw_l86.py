@@ -82,6 +82,7 @@ try:
                 if shift: pg.keyboard.up("Shift")
             # ③ 팔레트에서 기호 놓고 끌어 옮김: 첫 입력 단자가 row 행 가운데 · 왼쪽 변이 x 에 오게
             def place(kind, x, row, nin=None):
+                pg.evaluate("() => { const d = document.querySelector('#pal-inline'); if (d) d.open = true; }")   # L88 — 옆 칸 기호는 접혀 있다 (기호 창이 따로)
                 pg.click(f"#palette button:has(span:text-is('{pg.evaluate('k => S.sym[k].name', kind)}'))")
                 pg.wait_for_function("() => S.sel.size === 1")
                 b = pg.evaluate("() => __h.last()")
@@ -504,6 +505,63 @@ try:
             chk("단축키" in pg.inner_text("#m-title") and "Ctrl+F" in pg.inner_text("#m-body"), "? — 단축키 창")
             pg.screenshot(path=f"{out}/11_keys.png"); pg.click("#m-ok")
             lap("미니맵 · 팔레트 찾기 · 단축키")
+            def wf(page, expr, ms):
+                try: page.wait_for_function(expr, timeout=ms)
+                except Exception:
+                    print("   ✕ 기다림 실패:", expr[:90], "| 그림:", pg.evaluate("() => [S.doc.blocks.length, S.placing && S.placing.key, [...S.sel], document.querySelector('#status').textContent]"), "| 기호 창:", pal.evaluate("() => [document.querySelector('#conn-t').textContent, P.target]") if pal else None)
+                    raise
+            pal = None
+            # ─── L88 — 기호 · 매크로 창 (새 창): 누르고 그림에서 놓을 자리 · 이어 놓기 · 두 번 = 가운데 · 매크로 ───
+            pal = next((q for q in pg.context.pages if "/logic/draw/palette" in q.url), None)
+            chk(pal is not None, f"그림을 열면 기호 · 매크로 창이 함께 열린다 ({'열림' if pal else '안 열림 — 단추로 연다'})")
+            if pal is None:
+                with pg.context.expect_page() as pi: pg.click("#pal-open")
+                pal = pi.value
+            pal.on("pageerror", lambda e: errs.append("기호 창: " + str(e)))
+            pal.wait_for_load_state(); pal.wait_for_selector(".pl-tile[data-key='k:OR']", timeout=20000)
+            wf(pal, "() => document.querySelector('#tgt').textContent.includes('FG_G-303')", 10000)
+            chk(True, f"기호 창 — 대상 '{pal.inner_text('#tgt')}' · 기호 {pal.evaluate('() => document.querySelectorAll(\"#s-sym .pl-tile\").length')} · 글자 상자 {pal.evaluate('() => document.querySelectorAll(\"#s-pre .pl-tile\").length')} · 매크로 {pal.evaluate('() => document.querySelectorAll(\"#s-mac .pl-tile\").length')}")
+            pal.screenshot(path=f"{out}/12_palette_window.png", full_page=False)
+            pg.evaluate("() => { fitZoom(); setZoom(1.6); S.sel = new Set(); S.selW = new Set(); render(); }")
+            nb = pg.evaluate("() => S.doc.blocks.length")
+            pal.click(".pl-tile[data-key='k:OR']")
+            wf(pg, "() => S.placing && S.placing.key === 'k:OR'", 5000)
+            tx, ty = LX0 + 120, ry(30)
+            c = at(tx, ty); pg.mouse.move(c[0] - 20, c[1] - 10); pg.mouse.move(c[0], c[1]); time.sleep(0.1)
+            gh = pg.evaluate("() => !!document.querySelector('#overlay rect.placeghost')")
+            pg.mouse.click(c[0], c[1])
+            orb = pg.evaluate("() => __h.last()")
+            cx, cy = orb["x"] + orb["w"] / 2, orb["y"] + orb["h"] / 2
+            chk(pg.evaluate("() => S.doc.blocks.length") == nb + 1 and orb["kind"] == "OR" and abs(cx - tx) < P and abs(cy - ty) < P and gh,
+                f"기호 창에서 OR 누름 → 그림에 놓을 자리 미리보기 → 누른 자리에 OR ({cx:.1f},{cy:.1f} ≈ {tx:.1f},{ty:.1f})")
+            wf(pal, "() => document.querySelector('#conn-t').textContent.includes('OR')", 5000)
+            pal.click(".pl-tile[data-key='k:NOT']")
+            wf(pg, f"() => S.doc.blocks.length === {nb + 2}", 5000)
+            nt = pg.evaluate("() => __h.last()"); wl = pg.evaluate("() => S.doc.wires[S.doc.wires.length - 1]")
+            oo, ni = port(orb["id"], "out"), port(nt["id"], "in")
+            chk(nt["kind"] == "NOT" and max(abs(wl["pts"][0][0] - oo[0]), abs(wl["pts"][0][1] - oo[1]), abs(wl["pts"][-1][0] - ni[0]), abs(wl["pts"][-1][1] - ni[1])) < 0.05,
+                "OR 을 고른 채 기호 창에서 NOT 누름 → OR 출력 옆에 놓고 이어짐 (이어 놓기)")
+            vc = pg.evaluate("() => viewCenter()")
+            pal.dblclick(".pl-tile[data-key='k:PD']")
+            wf(pg, f"() => S.doc.blocks.length === {nb + 3}", 5000)
+            pdb = pg.evaluate("() => __h.last()")
+            chk(pdb["kind"] == "PD" and abs(pdb["x"] + pdb["w"] / 2 - vc[0]) < P and abs(pdb["y"] + pdb["h"] / 2 - vc[1]) < 2 * P, f"기호 창에서 두 번 누름 → 그림 창 화면 가운데에 PD")
+            pg.evaluate("() => { S.sel = new Set(); render(); }"); wf(pal, "() => document.querySelector('#conn').classList.contains('off')", 5000)   # 고른 것이 없으면 이어 놓기는 꺼진다
+            pal.click(".pl-tile[data-key='k:GT']"); wf(pg, "() => !!S.placing", 5000)
+            pg.evaluate("() => document.querySelector('#stage').focus()"); pg.keyboard.press("Escape")
+            chk(pg.evaluate("() => !S.placing") and pal.evaluate("() => document.querySelector('#placing').hidden"), "놓기 상태에서 Esc → 그만 (기호 창 표시도 꺼짐)")
+            pal.fill("#q", "MOV"); time.sleep(0.2)
+            mk = pal.evaluate("() => { const t = document.querySelector('#s-mac .pl-tile'); return t && t.dataset.key; }")
+            chk(bool(mk), f"기호 창 찾기 'MOV' → 매크로 {mk}")
+            pal.click(f".pl-tile[data-key='{mk}']"); wf(pg, "() => S.placing && S.placing.macro", 5000)
+            c = at(LX0 + 300, ry(35)); pg.mouse.move(c[0], c[1]); pg.mouse.click(c[0], c[1])
+            wf(pg, f"() => S.doc.blocks.length === {nb + 4}", 20000)
+            mb = pg.evaluate("() => __h.last()")
+            chk(mb["kind"] == "MACRO" and (mb.get("param") or {}).get("pins_in"), f"매크로를 기호 창에서 골라 그림에 놓음 — {mb['param'].get('title')} · 입력 {len(mb['param'].get('pins_in') or [])} · 출력 {len(mb['param'].get('pins_out') or [])}")
+            pg.screenshot(path=f"{out}/13_placed_from_palette.png")
+            pal.fill("#q", "")
+            pg.keyboard.press("Control+s"); wf(pg, "() => !S.dirty", 15000)
+            lap("기호 · 매크로 창")
             # ⑫ PDF · DXF
             for ext in ("pdf", "dxf"):
                 t = time.time(); b = get(f"/logic/api/drawings/{did}/export.{ext}")

@@ -51,3 +51,20 @@ def test_set_search_limit(tmp_path, monkeypatch):
     sid, _, _ = _set_of_two(c)
     r = c.get(f"/logic/api/drawings/sets/{sid}/search", params={"q": "BFP", "limit": 2}).json()
     assert len(r["hits"]) == 2 and r["more"] is True
+
+
+def test_palette_window_page_and_channel(tmp_path, monkeypatch):
+    """L88 — 기호 · 매크로 창: 페이지가 서고, 그림 창과 같은 BroadcastChannel 이름 · 같은 말(pick · state · items)을 쓴다."""
+    from pathlib import Path
+    c = _client(tmp_path, monkeypatch)
+    r = c.get("/logic/draw/palette")
+    assert r.status_code == 200 and "logic_draw_palette.js" in r.text
+    root = Path(__file__).resolve().parents[1] / "app" / "static"
+    main, pal = (root / "logic_draw.js").read_text(encoding="utf-8"), (root / "logic_draw_palette.js").read_text(encoding="utf-8")
+    assert 'BroadcastChannel("logic.draw.palette")' in main and 'BroadcastChannel("logic.draw.palette")' in pal
+    for t in ('t: "pick"', 't: "inside"', 't: "cancel"', 't: "hello"', 't: "alive"'):
+        assert t in pal
+    for t in ('t: "items"', 't: "state"', 'm.t === "pick"', 'm.t === "inside"', 'm.t === "cancel"'):
+        assert t in main
+    css = (root / "logic_draw.css").read_text(encoding="utf-8")
+    assert ".dw-toast { pointer-events: none;" in css          # 알림이 그림 위의 누르기를 가로채지 않게

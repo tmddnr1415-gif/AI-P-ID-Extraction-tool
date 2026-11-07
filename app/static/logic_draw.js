@@ -233,6 +233,7 @@ function render() {
   rulersSoon();
   if (simOn()) simPaint(S.sim.values || {}, S.sim.frames && S.sim.frames.length ? S.sim.frames[S.sim.frames.length - 1] : null);   // L57
   miniSoon(true);                                                   // L87 — 미니맵
+  palSyncSoon(false);                                               // L88 — 기호 창에 고른 기호 알림
 }
 /* L66 — 선 건너뛰기 (화면에서만): 가로 토막이 다른 선의 세로 토막을 (점 없이) 가로지르면 그 자리에서 위로 볼록하게 넘는다.
    가로가 넘는다 · 연결점 · 끝 · 꺾임 가까이에서는 넘지 않는다 · 반지름 0.22 행.  PDF · DXF 는 학습한 양식 그대로 그냥 교차시킨다 —
@@ -930,7 +931,7 @@ function drawGhost() {
     if (S.wip.hot) el("circle", { cx: S.wip.hot[0], cy: S.wip.hot[1], r: 2.6, class: "port hot" }, ov);
   }
   if (!S.wip && !S.drag && S.hoverPort) el("circle", { cx: S.hoverPort[0], cy: S.hoverPort[1], r: 2.4, class: "port hover" }, ov);   // L87 — 여기서 끌면 선
-  qcDraw(ov);
+  qcDraw(ov); placeGhost(ov);
   if (S.drag && S.drag.marquee) { const m = S.drag.marquee; el("rect", { x: Math.min(m[0], m[2]), y: Math.min(m[1], m[3]), width: Math.abs(m[2] - m[0]), height: Math.abs(m[3] - m[1]), class: "marquee" }, ov); }
   drawAlign(ov); drawCross(ov);
 }
@@ -1293,12 +1294,17 @@ function finishWire() {
 function bindStage() {
   const stage = $("#stage"), svg = $("#svg");
   stage.addEventListener("dragover", e => e.preventDefault());
-  stage.addEventListener("drop", e => { const mi = e.dataTransfer.getData("text/macro"); if (mi !== "" && S.doc) { e.preventDefault(); const m = macroItems()[+mi]; if (m) { const p = svgPt(e); addMacro(m, p[0], p[1]); } return; }
+  stage.addEventListener("drop", e => {
+    const tp = e.dataTransfer.getData("text/plain");                 // L88 — 기호 · 매크로 창에서 끌어 온 것
+    if (tp && tp.startsWith("logicpal:") && S.doc) { e.preventDefault(); const it = palResolve(tp.slice(9)); if (it && !simOn()) placeAt(it, svgPt(e)); return; }
+    const mi = e.dataTransfer.getData("text/macro"); if (mi !== "" && S.doc) { e.preventDefault(); const m = macroItems()[+mi]; if (m) { const p = svgPt(e); addMacro(m, p[0], p[1]); } return; }
     const k = e.dataTransfer.getData("text/kind"); if (k && S.doc) { e.preventDefault(); const p = svgPt(e); const pt = e.dataTransfer.getData("text/preset"); const pr = pt && (S.presets || []).find(x => x.text === pt); if (pr) addPreset(pr, p[0], p[1]); else addBlock(k, p[0], p[1]); if (e.shiftKey) { const nb = S.doc.blocks[S.doc.blocks.length - 1]; alignBlockNow(nb); render(); } } });
   svg.addEventListener("pointerdown", e => {
     if (!S.doc) return;
     stage.focus();
     const p = svgPt(e), t = e.target;
+    palSyncSoon(true);                                               // L88 — 기호 창의 대상 = 마지막으로 만진 그림 창
+    if (S.placing) { e.preventDefault(); if (e.button === 0) { const it = S.placing; S.placing = null; $("#stage").style.cursor = "default"; placeAt(it, p); palSyncSoon(true); } else placeCancel(); return; }   // L88 — 기호 창에서 고른 것을 누른 자리에
     if (e.button === 1 || S.tool === "pan" || S.space) { S.drag = { pan: true, x: e.clientX, y: e.clientY, sl: $("#scroll").scrollLeft, st: $("#scroll").scrollTop }; e.preventDefault(); return; }
     if (e.button !== 0) return;
     if (simOn() && S.tool === "select" && !e.shiftKey && simClick(e, p, t)) return;   // L57 — 시뮬레이션: 행 자리 · 신호원 · 게이트 · 선을 눌러 1/0
@@ -1342,6 +1348,7 @@ function bindStage() {
     if (!S.doc) return;
     const p = svgPt(e);
     S.hover = p; if (S.guide.ruler) rulersSoon();
+    if (S.placing) { drawGhost(); return; }                          // L88 — 놓을 자리 미리 보기
     if (S.wip) { const sp = snapPt(p); S.wip.cur = [sp[0], sp[1]]; S.wip.hot = (sp[2] === "row" || sp[2] === "port") ? sp : null; drawGhost(); return; }
     if (!S.drag) {                                                   // L87 — 단자 · 행 자리 위면 파란 고리 (여기서 끌면 선)
       const hp = (S.tool === "select" && !simOn()) ? portAt(p) : null, hk = hp ? hp[0] + "," + hp[1] : "";
@@ -1433,6 +1440,7 @@ function bindStage() {
     const L = layout();
     if (e.key === "Escape" && !$("#simmenu").hidden) { simMenuClose(); return; }
     if (e.key === "Escape" && ctxClose()) return;
+    if (e.key === "Escape" && S.placing) { placeCancel(); return; }
     if (e.key === "Escape" && $("#find") && !$("#find").hidden) { findClose(); return; }
     if (e.key === "Escape") { if (S.wip) { S.wip = null; render(); } else { S.sel = new Set(); S.selWire = null; S.selW = new Set(); render(); } }
     else if (e.key === "Enter" && S.wip) { finishWire(); }
@@ -1449,6 +1457,7 @@ function bindStage() {
     else if ((e.ctrlKey || e.metaKey) && e.key === "0") { e.preventDefault(); fitZoom(); }
     else if ((e.key === "PageDown" || e.key === "PageUp") && !e.ctrlKey) { e.preventDefault(); const nb = setNeighbor(e.key === "PageDown" ? 1 : -1); if (nb) openDoc(nb.id, { flip: e.key === "PageDown" ? "next" : "prev" }); else status(e.key === "PageDown" ? "마지막 장입니다" : "첫 장입니다"); }
     else if (e.key === "?" || e.key === "F1") { e.preventDefault(); showKeys(); }
+    else if ((e.key === "p" || e.key === "P") && !e.ctrlKey && !e.metaKey && !e.altKey) { e.preventDefault(); openPalette(false); }   // L88
     else if (e.key === "Delete" || e.key === "Backspace") { e.preventDefault(); deleteSel(); }
     else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "z") { e.preventDefault(); e.shiftKey ? redo() : undo(); }
     else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "y") { e.preventDefault(); redo(); }
@@ -2092,6 +2101,7 @@ async function openDoc(id, opts) {
   location.hash = "d=" + id + (S.mparent ? `&mparent=${S.mparent.did}:${S.mparent.bid}` : "") + (S.speer ? "&speer=1" : "");
   if (isPeerChild() && !S.peerAsked) { S.peerAsked = true; peerUp({ type: "dsheet-ask" }); }   // L64 — 연 창에 지금 시뮬레이션 값을 묻는다
   if (S.mparent && !simOn()) { toggleSim(); askParent(); }        // L59 — 새 창은 바로 시뮬레이션으로 열고 부모에게 값을 묻는다
+  palSyncSoon(true); paletteMaybeAuto();                            // L88 — 기호 · 매크로 창
   await draftOffer();                                               // L87 — 이 브라우저에 남은 저장 안 한 판
 }
 function listItemSaved(d) {
@@ -2492,7 +2502,7 @@ async function loadLibMacros() {
   if (S.libMacros || S._libMacLoading) return;
   S._libMacLoading = true;
   try { S.libMacros = (await api("/logic/api/drawings/macros")).items || []; } catch (e) { S.libMacros = []; }
-  S._libMacLoading = false; renderMacroCard();
+  S._libMacLoading = false; renderMacroCard(); palSyncSoon(false);
 }
 const MACRO_ORDER = ["이 묶음", "19VA", "AL_DHAFRA", "HRSG"];
 const MACRO_GROUP = { "이 묶음": "이 묶음의 Typical", "19VA": "19VA (아미랄)", "AL_DHAFRA": "알다프라 (1A5J)", "HRSG": "HRSG" };
@@ -3080,7 +3090,10 @@ async function init() {
   $$(".dw-arrange button").forEach(b => b.onclick = () => arrangeSel(b.dataset.op));      // L60
   for (const k of ["grid", "ruler", "align", "cross", "loose", "mini"]) $("#g-" + k).onchange = e => { S.guide[k] = e.target.checked; saveGuide(); render(); };
   $("#pal-q").oninput = () => { const q = $("#pal-q").value.trim().toUpperCase(); $$("#palette button").forEach(b => { b.hidden = !!q && !(b.dataset.q || "").includes(q); }); $$("#palette .dw-palhead").forEach(h => { h.hidden = !!q; }); };   // L87
-  $("#keys-btn").onclick = showKeys; $("#find-btn").onclick = () => { if (S.doc) findOpen(); };
+  $("#keys-btn").onclick = showKeys;
+  palChan(); $("#pal-open").onclick = () => openPalette(false);   // L88 — 기호 · 매크로 창
+  $("#pal-auto").checked = paletteAutoOn(); $("#pal-auto").onchange = e => { try { localStorage.setItem(PAL_AUTO, e.target.checked ? "1" : "0"); } catch (x) {} };
+  for (const id of ["pal-inline", "mac-inline"]) { const d = $("#" + id); try { d.open = localStorage.getItem("logic.draw." + id) === "1"; } catch (x) {} d.ontoggle = () => { try { localStorage.setItem("logic.draw." + id, d.open ? "1" : "0"); } catch (x) {} }; } $("#find-btn").onclick = () => { if (S.doc) findOpen(); };
   $("#home-btn").onclick = showHome; $("#h-project").onchange = homeProjectChanged; $("#h-newproj").onclick = homeNewProject;
   $$("#home .hm-actions [data-act]").forEach(b => { if (b.dataset.act === "signal") b.href = "/logic/signal" + location.search; else b.onclick = () => homeAction(b.dataset.act); });
   $("#sig-link").href = "/logic/signal" + location.search;
@@ -3446,7 +3459,7 @@ function focusHit(h) {
 function miniSoon(full) { if (full) S._miniDirty = true; if (S._miniRaf) return; S._miniRaf = requestAnimationFrame(() => { S._miniRaf = 0; miniDraw(); }); }
 function miniDraw() {
   let box = $("#mini");
-  const sc = $("#scroll"), show = S.doc && S.guide.mini !== false && $("#home").hidden && (sc.scrollWidth > sc.clientWidth + 4 || sc.scrollHeight > sc.clientHeight + 4);
+  const sc = $("#scroll"), show = S.doc && S.guide.mini !== false && $("#home").hidden && (sc.scrollWidth > sc.clientWidth * 1.15 || sc.scrollHeight > sc.clientHeight * 1.15);   // 몇 px 넘치는 맞춤 보기에서는 숨긴다
   if (!show) { if (box) box.hidden = true; return; }
   const L = layout(), W = 210, H = Math.round(W * L.H / L.W), dpr = window.devicePixelRatio || 1;
   if (!box) {
@@ -3587,7 +3600,7 @@ async function draftOffer() {
 const KEYS = [
   ["그리기", [["V", "선택"], ["W / D", "선 / 파선 도구"], ["단자 · 행 자리에서 끌기", "선 (도구를 바꾸지 않고)"], ["＋ (기호 옆)", "다음 기호를 놓고 잇기"], ["빈 곳 두 번 누름", "그 자리에 기호 넣기"], ["Tab", "선 — 다른 경로"], ["Enter · 두 번 누름", "선 끝내기"], ["Esc", "취소 · 고르기 풀기"]]],
   ["고치기", [["Delete", "지우기"], ["Ctrl+C / X / V", "복사 · 잘라내기 · 붙이기"], ["Ctrl+D", "복제"], ["Ctrl+끌기", "복사해 옮기기"], ["Ctrl+A", "모두 고르기 (선까지)"], ["끌어 묶기", "블록 · 선 고르기"], ["Shift+누름", "더하기 · 빼기"], ["화살표 (Shift)", "반 행 (한 행) 옮기기"], ["Alt+화살표 · Alt+H/V", "맞춤 · 균등 간격"], ["Ctrl+Z / Y", "되돌리기 · 다시"], ["Ctrl+S", "저장"]]],
-  ["보기 · 찾기", [["Ctrl+F · F3", "찾기 (묶음 전체) · 다음"], ["Ctrl+휠 · Ctrl+± ", "확대 · 축소"], ["Ctrl+0 · Ctrl+Shift+H", "맞춤 보기"], ["휠 (끝에서) · PgUp/PgDn", "앞 · 다음 장"], ["Space+끌기 · H", "화면 옮기기"], ["Ctrl+Shift+O", "미니맵"], ["G · R", "모눈 · 눈금자"], ["오른쪽 누름", "메뉴"], ["? · F1", "이 창"]]],
+  ["보기 · 찾기", [["Ctrl+F · F3", "찾기 (묶음 전체) · 다음"], ["Ctrl+휠 · Ctrl+± ", "확대 · 축소"], ["Ctrl+0 · Ctrl+Shift+H", "맞춤 보기"], ["휠 (끝에서) · PgUp/PgDn", "앞 · 다음 장"], ["Space+끌기 · H", "화면 옮기기"], ["Ctrl+Shift+O", "미니맵"], ["P", "기호 · 매크로 창 (새 창)"], ["G · R", "모눈 · 눈금자"], ["오른쪽 누름", "메뉴"], ["? · F1", "이 창"]]],
 ];
 function showKeys() {
   const body = `<div class="dw-keys">${KEYS.map(([h, rows]) => `<div><h4>${esc(h)}</h4><table>${rows.map(([k, t]) => `<tr><td><kbd>${esc(k)}</kbd></td><td>${esc(t)}</td></tr>`).join("")}</table></div>`).join("")}</div>`;
@@ -3633,4 +3646,122 @@ function zoomBy(f) {
   const sc = $("#scroll"), cx = sc.scrollLeft + sc.clientWidth / 2, cy = sc.scrollTop + sc.clientHeight / 2, z0 = S.zoom;
   setZoom(S.zoom * f); const k = S.zoom / z0;
   sc.scrollLeft = cx * k - sc.clientWidth / 2; sc.scrollTop = cy * k - sc.clientHeight / 2;
+}
+
+/* ───────── L88 — 기호 · 매크로를 새 창으로 (draw.io 의 떼어 낸 도형 창처럼) ─────────
+   사용자가 그림 창 옆에 둔 '기호 · 매크로' 창에서 누르면 → 그림 창이 놓기 상태가 되고 놓을 자리를 누르면 그 자리에 놓인다.
+   두 번 누르면 화면 가운데 · '고른 기호 뒤에 이어 놓기' 가 켜져 있으면 고른 기호 출력 옆에 놓고 잇는다 (＋ 와 같다) · 그림 창으로 끌어 놓아도 된다.
+   두 창은 BroadcastChannel 로 말한다 (같은 주소의 창끼리).  그림 창이 여럿이면 마지막으로 만진 그림 창에 놓는다. */
+const PAL_NAME = "logic-draw-palette", PAL_AUTO = "logic.draw.palAuto";
+function palChan() {
+  if (S._pch !== undefined) return S._pch;
+  try { S._pch = new BroadcastChannel("logic.draw.palette"); } catch (e) { S._pch = null; return null; }
+  S.winId = S.winId || Math.random().toString(36).slice(2, 10);
+  S._pch.onmessage = ev => {
+    const m = ev.data || {};
+    if (m.t === "alive" || m.t === "hello") { const was = palAlive(); S.palSeen = Date.now(); if (m.t === "hello" || !was) { S._palItemsSig = null; palSync(true); } return; }
+    if (m.t === "bye") { S.palSeen = 0; return; }
+    if (m.win !== S.winId) return;
+    if (m.t === "pick") palPick(m.key, m.mode);
+    else if (m.t === "inside") { const mm = macroItems().find(x => "m:" + x.typ === m.key); if (mm) openMacroInside(mm); }
+    else if (m.t === "cancel") placeCancel();
+  };
+  return S._pch;
+}
+function palAlive() { return Date.now() - (S.palSeen || 0) < 4500; }
+function palItems() {
+  const sym = [], pre = [], mac = [];
+  for (const k in S.sym || {}) { const sp = S.sym[k]; if (sp.macro) continue; let icon = ""; try { icon = paletteIcon(k).outerHTML; } catch (e) {}
+    sym.push({ key: "k:" + k, kind: k, name: sp.name, icon, q: `${sp.name} ${k} ${sp.text || ""}`.toUpperCase(), learned: sp.learned || 0 }); }
+  for (const pr of S.presets || []) pre.push({ key: "p:" + pr.text, text: pr.text, name: pr.name, hint: pr.hint || "", q: `${pr.name} ${pr.text} ${pr.hint || ""}`.toUpperCase() });
+  macroItems().forEach(m => { const o = m.origin || (m.typ.startsWith("lib:") ? "공통" : "이 묶음"), sh = (m.sheet || {}).sheet_no || (m.typ.startsWith("lib:") ? "" : m.typ);
+    mac.push({ key: "m:" + m.typ, title: m.title, short: macroShort(m.title), desc: m.desc || "", desc_ko: m.desc_ko || "", sheet: sh, group: o, gname: MACRO_GROUP[o] || o,
+      order: MACRO_ORDER.indexOf(o) < 0 ? 99 : MACRO_ORDER.indexOf(o), nin: (m.pins_in || []).length, nout: (m.pins_out || []).length, thumb: macroThumb(m),
+      q: `${m.title} ${m.desc || ""} ${m.desc_ko || ""} ${sh} ${m.typ}`.toUpperCase() }); });
+  return { sym, pre, mac };
+}
+/* 그림 창 → 기호 창: 지금 그림 · 고른 기호 · 놓기 상태 · 최근 (자주) · 기호 목록 (바뀔 때만) */
+function palSync(active) {
+  const ch = palChan(); if (!ch || !palAlive()) return;
+  if (!S.setInfo && !S.libMacros) loadLibMacros();
+  const isig = JSON.stringify([Object.keys(S.sym || {}).length, (S.presets || []).length, macroItems().map(m => m.typ), S.setStamp || 0]);
+  if (isig !== S._palItemsSig) { S._palItemsSig = isig; ch.postMessage({ t: "items", win: S.winId, items: palItems() }); }
+  const one = S.sel && S.sel.size === 1 ? S.doc && S.doc.blocks.find(b => b.id === [...S.sel][0]) : null;
+  const canFrom = one && !(S.sym[one.kind] || {}).note && ports(one).some(q => q[2] === "out");
+  ch.postMessage({ t: "state", win: S.winId, active: !!active, at: Date.now(),
+    doc: S.doc ? { name: S.doc.name || "", sheet_no: S.doc.sheet_no || "", sim: simOn() } : null,
+    sel: canFrom ? { id: one.id, name: `${(S.sym[one.kind] || {}).name || one.kind}${one.text && one.kind === "BOX" ? " " + one.text : ""}` } : null,
+    placing: S.placing ? S.placing.key : null, recent: recentKeys() });
+}
+function palSyncSoon(active) { if (!palAlive()) return; if (active) S._palActive = true; clearTimeout(S._palT); S._palT = setTimeout(() => { const a = S._palActive; S._palActive = false; palSync(a); }, 120); }
+function openPalette(auto) {
+  palChan();
+  const W = 420, H = Math.min(screen.availHeight - 40, 940);
+  const rightRoom = screen.availWidth - (window.screenX + window.outerWidth);
+  const left = rightRoom >= W ? window.screenX + window.outerWidth : Math.max(0, window.screenX + window.outerWidth - W - 20);
+  const w = window.open("", PAL_NAME, `popup=yes,width=${W},height=${H},left=${Math.round(left)},top=${Math.round(window.screenY + 40)}`);
+  if (!w) {                                                        // 막힘 — 그림 위에 알림을 띄우지 않고 단추에 표시 (알림이 그림을 가리던 것)
+    const b = $("#pal-open"); if (b) { b.classList.add("blocked"); b.querySelector("small").textContent = "브라우저가 새 창을 막았습니다 — 이 단추를 누르면 열립니다 (주소 줄에서 이 사이트의 팝업을 허용하면 다음부터 저절로)"; }
+    if (!auto) toast("새 창이 막혔습니다 — 브라우저 주소 줄에서 이 사이트의 팝업을 허용하세요.", 6000);
+    return false;
+  }
+  { const b = $("#pal-open"); if (b && b.classList.contains("blocked")) { b.classList.remove("blocked"); b.querySelector("small").textContent = "새 창 — 누르고 그림에서 놓을 자리를 누르기 · 두 번 누르면 가운데 · 끌어 놓기"; } }
+  let blank = true; try { blank = !w.location.href || w.location.href === "about:blank"; } catch (e) { blank = false; }
+  if (blank) w.location.href = "/logic/draw/palette" + location.search;
+  else if (!auto) w.focus();
+  S.palWin = w;
+  return true;
+}
+function paletteAutoOn() { try { return localStorage.getItem(PAL_AUTO) !== "0"; } catch (e) { return true; } }
+function paletteMaybeAuto() {
+  if (S._palAutoTried || !S.doc || S.mparent || isPeerChild() || !paletteAutoOn()) return;
+  S._palAutoTried = true;
+  // 이미 열린 기호 창이 있으면 물으면 곧 답한다 — 짧게 기다려 누른 순간의 허락(사용자 동작) 안에서 연다
+  const ch = palChan(); if (ch) ch.postMessage({ t: "ping" });
+  setTimeout(() => { if (!palAlive()) openPalette(true); }, 250);
+}
+/* 기호 창에서 고른 것 */
+function palResolve(key) {
+  if (key.startsWith("k:")) { const k = key.slice(2); return S.sym[k] ? { key, kind: k, name: S.sym[k].name } : null; }
+  if (key.startsWith("p:")) { const pr = (S.presets || []).find(x => x.text === key.slice(2)); return pr ? { key, kind: pr.kind || "BOX", preset: pr, name: pr.name } : null; }
+  if (key.startsWith("m:")) { const m = macroItems().find(x => x.typ === key.slice(2)); return m ? { key, macro: m, name: macroShort(m.title) } : null; }
+  return null;
+}
+function viewCenter() {
+  const L = layout(), sc = $("#scroll"), r = $("#svg").getBoundingClientRect(), sr = sc.getBoundingClientRect(), z = r.width / L.W;
+  const x = (sr.left + sc.clientWidth / 2 - r.left) / z, y = (sr.top + sc.clientHeight / 2 - r.top) / z;
+  return [Math.max(L.LX0 + 20, Math.min(L.LX1 - 20, x)), Math.max(L.TOP + 2 * L.PITCH, Math.min(L.bottom - 2 * L.PITCH, y))];
+}
+function placeAt(it, p) {
+  recentPush(it.key);
+  if (it.macro) { addMacro(it.macro, p[0], p[1]); status(`${it.name} 매크로를 놓았습니다`); return; }
+  if (it.preset) addPreset(it.preset, p[0], p[1]); else addBlock(it.kind, p[0], p[1]);
+  status(`${it.name} 를 놓았습니다`);
+}
+function palPick(key, mode) {
+  if (!S.doc) { toast("먼저 그림을 여세요."); return; }
+  if (simOn()) { toast("시뮬레이션 중에는 그리지 않습니다 — ▶ 시뮬레이션을 끄고 놓으세요."); return; }
+  const it = palResolve(key); if (!it) return;
+  if (mode === "connect" && !it.macro) {
+    const one = S.sel.size === 1 ? S.doc.blocks.find(b => b.id === [...S.sel][0]) : null;
+    if (one && ports(one).some(q => q[2] === "out")) { recentPush(key); placeItem({ ...it, name: it.name }, { from: one.id, i: 0 }); palSyncSoon(true); return; }
+  }
+  if (mode === "center") { placeAt(it, viewCenter()); palSyncSoon(true); return; }
+  if (S.tool !== "select") setTool("select");
+  S.placing = it; S.wip = null;
+  $("#stage").style.cursor = "copy";
+  status(`${it.name} — 그림에서 놓을 자리를 누르세요 (Esc 취소 · 기호 창에서 두 번 누르면 화면 가운데)`);
+  drawGhost(); palSyncSoon(true);
+  try { window.focus(); } catch (e) {}
+}
+function placeCancel() { if (!S.placing) return; S.placing = null; $("#stage").style.cursor = S.tool === "select" ? "default" : "crosshair"; status("놓기를 그만두었습니다"); drawGhost(); palSyncSoon(true); }
+function placeGhost(ov) {
+  if (!S.placing || !S.hover) return;
+  const it = S.placing, L = layout(), P = L.PITCH;
+  let w = 20, h = 12;
+  if (it.macro) { w = S.sym.MACRO.w; h = 1.6 * P + Math.max((it.macro.pins_in || []).length, (it.macro.pins_out || []).length, 1) * P + 0.4 * P; }
+  else { const sp = S.sym[it.kind] || {}; w = (it.preset && it.preset.w) || sp.w || w; h = (it.preset && it.preset.h) || sp.h || h; }
+  const [x, y] = S.hover;
+  el("rect", { x: x - w / 2, y: it.macro ? y - 1.6 * P - P / 2 : y - h / 2, width: w, height: h, rx: 1, class: "placeghost" }, ov);
+  const t = el("text", { x, y: (it.macro ? y - 1.6 * P - P / 2 : y - h / 2) - 1.5, class: "placeghost-t" }, ov); t.textContent = it.name;
 }

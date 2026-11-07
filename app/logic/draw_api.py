@@ -28,6 +28,12 @@ def draw_page():
     return FileResponse(_static("logic_draw.html"), headers={"Cache-Control": "no-store"})
 
 
+@router.get("/logic/draw/palette")
+def draw_palette_page():
+    """L88 — 기호 · 매크로 창 (그림 창 옆에 띄워 누르면 그림 창에 놓인다 · BroadcastChannel)."""
+    return FileResponse(_static("logic_draw_palette.html"), headers={"Cache-Control": "no-store"})
+
+
 def _load(did: str) -> dict:
     try:
         return draw.load(did)

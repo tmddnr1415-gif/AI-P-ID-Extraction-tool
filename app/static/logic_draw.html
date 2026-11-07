@@ -125,14 +125,17 @@
       </div>
     </section>
     <section class="dw-card">
-      <h3>기호 <span class="dw-hint">누르면 LOGIC 영역 가운데에 놓입니다 · 끌어다 놓아도 됩니다 · 크기는 분석한 로직에서 배운 값</span></h3>
+      <h3>기호 · 매크로</h3>
+      <button type="button" id="pal-open" class="dw-palopen" title="기호 · 매크로를 큰 새 창으로 (P) — 그 창에서 누르고 그림에서 놓을 자리를 누릅니다"><b>▣ 기호 · 매크로 창</b><small>새 창 — 누르고 그림에서 놓을 자리를 누르기 · 두 번 누르면 가운데 · 끌어 놓기</small></button>
+      <label class="dw-hint dw-palauto"><input type="checkbox" id="pal-auto" checked> 그림을 열면 함께 열기</label>
+      <details id="pal-inline" class="dw-inline"><summary>기호를 여기에도 펼치기</summary>
       <input id="pal-q" class="dw-palq" placeholder="기호 찾기 — AND · 타이머 · DI · ∑ …" autocomplete="off">
-      <div id="palette" class="dw-palette"></div>
+      <div id="palette" class="dw-palette"></div></details>
     </section>
     <section class="dw-card" id="macro-card">
-      <h3>매크로 · Typical <span class="dw-hint">누르면 그림에 놓고 · <b>두 번 누르면 내부 동작</b>(새 창 · 고칠 수 있음)</span></h3>
+      <details id="mac-inline" class="dw-inline"><summary>매크로 · Typical 을 여기에도 펼치기 <span class="dw-hint">누르면 그림에 놓고 · 두 번 누르면 내부 동작</span></summary>
       <input id="macro-q" class="dw-macroq" placeholder="찾기 (MOV · SOV · MTS · GRP …)" autocomplete="off">
-      <div id="macro-list" class="dw-macros"></div>
+      <div id="macro-list" class="dw-macros"></div></details>
     </section>
     <section class="dw-card">
       <h3>시트</h3>
@@ -170,7 +173,7 @@
     <section class="dw-card dw-help">
       <h3>단축키</h3>
       <ul>
-        <li><button type="button" id="keys-btn" class="dw-mini">단축키 전부 (?)</button> <button type="button" id="find-btn" class="dw-mini">찾기 (Ctrl+F)</button></li>
+        <li><b>P</b> 기호 · 매크로 창 · <button type="button" id="keys-btn" class="dw-mini">단축키 전부 (?)</button> <button type="button" id="find-btn" class="dw-mini">찾기 (Ctrl+F)</button></li>
         <li><b>단자 · 행 자리에서 끌기</b> = 선 · 기호 옆 <b>＋</b> = 다음 기호 놓고 잇기 · 빈 곳 <b>두 번 누름</b> = 기호 넣기 · <b>오른쪽 누름</b> = 메뉴</li>
         <li><b>V</b> 선택 · <b>W</b> 선 · <b>D</b> 파선 · <b>H</b> 보기 · <b>Esc</b> 취소</li>
         <li><b>Delete</b> 지우기 · <b>Ctrl+D</b> 복제 · <b>Ctrl+C / X / V</b> 복사 · 잘라내기 · 붙이기 (선까지) · <b>Ctrl+끌기</b> 복사해 옮기기 · <b>Ctrl+A</b> 모두 · 화살표 옮기기 (Shift 한 행)</li>
