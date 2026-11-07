@@ -177,7 +177,11 @@ def main():
     meta = dict(built=datetime.datetime.now().strftime('%Y-%m-%d %H:%M'), read_at=st.get('read_at', ''), bucket=BUCKET)
     out = tpl.replace('/*DATA*/', 'const DATA=' + json.dumps(data, ensure_ascii=False) + ';const META=' + json.dumps(meta, ensure_ascii=False) + ';')
     # 그림은 맨 끝에 — 앱 파일 미리보기가 큰 파일 끝을 잘라도 지도는 먼저 그려진다
-    pv = {f[:-4]: img64(os.path.join(pv_dir, f)) for f in sorted(os.listdir(pv_dir)) if f.endswith('.jpg')}
+    pv = {}                                       # previews/*.jpg (세션 미리보기) + previews/demo/*.jpg (회사 PC 시연)
+    for d, _, fs in os.walk(pv_dir):
+        for f in sorted(fs):
+            if f.endswith('.jpg'):
+                pv[f[:-4]] = img64(os.path.join(d, f))
     out = out.replace('</body>', '<script>window.PV=' + json.dumps(pv) + ';window.dispatchEvent(new Event("pv-ready"));</script>\n</body>')
     path = os.path.join(HERE, 'SESSION_STATUS.html')
     open(path, 'w', encoding='utf-8').write(out)

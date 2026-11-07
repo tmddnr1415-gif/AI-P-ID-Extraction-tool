@@ -61,9 +61,11 @@ Windows · Edge · Python 3.11 · CDN/npm/외부 서비스 금지 (라이브러�
 4. ② S2 브랜치 기준 통합 브랜치에 3~7 을 위 표대로 싣고 → 시험 → `release_check.py` → `pack_delta.py`
 5. 두 zip 과 `1_먼저읽기` 를 사용자에게 전달 → **사용자가 회사 PC 적용을 알려 주면** 기준점 갱신
 
-## 7. 세션 현황판 — `status/SESSION_STATUS.html`
+## 7. 세션 현황판 + 회사 PC 시연 = 한 파일 — `status/SESSION_STATUS.html`
 
-오케스트레이터가 따로 만드는 HTML. 각 세션의 **최신 작업 현황 · 미리보기 · 다음 업데이트에 들어갈 것**을 한 장에 보여 준다.
+오케스트레이터가 만드는 HTML **하나**. 보기 4개: **3D 지도 · 조직도 · 목록 · 회사 PC 시연**.
+각 세션의 **최신 작업 현황 · 미리보기 · 다음 업데이트에 들어갈 것**과, **업데이트 파일 2개를 회사 PC 에 적용했을 때의 시연**을 같이 담는다.
+세션 상세의 "▶ 회사 PC 시연에서 보기" ↔ 시연의 "◎ 세션 지도에서 보기" 로 서로 오간다. 시연 그림은 `status/previews/demo/`.
 
 - 만들기: `git fetch origin` → 세션 상태를 `status/sessions.json` 에 갱신(list_sessions) → `python status/build_status.py`
 - 숫자 · 커밋은 각 브랜치(git)에서 자동으로 읽는다: ① DASHBOARD 는 `delivered.txt` 마지막 줄 이후, ② 통합은 마지막 hotfix 꾸러미 · `release_sources.json` imported · PID 브랜치에 아직 없는 커밋

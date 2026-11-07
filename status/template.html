@@ -174,6 +174,121 @@ body.flat::after{content:"";position:fixed;inset:0;background:var(--bg);z-index:
   .right.on~.ctrl{display:none}
   .listview{top:70px;left:8px;right:8px;bottom:8px}
 }
+
+/* ---- 회사 PC 시연 (한 파일로 합침) ---- */
+.demoview{--panel2:#f6f8fb;--accent-soft:#e3ecfc;--ok-soft:#ddf3e6;--warn-soft:#fdf0d9;--bad-soft:#fbe3e3;--console:#0f1620;--console-ink:#cfe3ff;--side:#1d2a3b;--side-ink:#d5deea;--panel:var(--panel-solid)}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .demoview{--panel2:#151b23;--accent-soft:#1d2c48;--ok-soft:#173326;--warn-soft:#3a2c12;--bad-soft:#3d1c1c;--console:#090d12;--console-ink:#bcd6ff;--side:#0e141b;--side-ink:#c3cfdd}}
+:root[data-theme="dark"] .demoview{--panel2:#151b23;--accent-soft:#1d2c48;--ok-soft:#173326;--warn-soft:#3a2c12;--bad-soft:#3d1c1c;--console:#090d12;--console-ink:#bcd6ff;--side:#0e141b;--side-ink:#c3cfdd}
+.demoview{position:fixed;top:78px;left:286px;right:12px;bottom:12px;overflow:auto;display:none;z-index:2;border-radius:16px;background:var(--bg)}
+.demoview.on{display:block}
+.demoview .wrap{padding-top:8px}
+.demoview .btn.map{border-color:var(--accent);color:var(--accent)}
+@media (max-width:860px){.demoview{top:70px;left:8px;right:8px;bottom:8px}}
+.demoview{background:var(--bg);color:var(--ink);font:14px/1.55 "Malgun Gothic","Apple SD Gothic Neo","Noto Sans KR",system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+.demoview button{font:inherit;color:inherit;cursor:pointer}
+.demoview .wrap{max-width:1240px;margin:0 auto;padding:20px 16px 48px}
+.demoview header.dtop{display:flex;flex-wrap:wrap;gap:12px;align-items:flex-end;justify-content:space-between;margin-bottom:14px}
+.demoview h1{font-size:22px;margin:0 0 2px;letter-spacing:-.01em}
+.demoview h3{margin:0 0 8px;font-size:15px}
+.demoview .sub,.demoview .muted{color:var(--muted)}
+.demoview .small{font-size:12.5px}
+.demoview .mono{font-family:Consolas,"D2Coding",monospace;font-size:12.5px}
+.demoview .actions{display:flex;gap:8px;flex-wrap:wrap}
+.demoview .btn{border:1px solid var(--line);background:var(--panel);border-radius:8px;padding:7px 12px}
+.demoview .btn:hover{border-color:var(--accent)}
+.demoview .btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+.demoview .btn:disabled{opacity:.5;cursor:default}
+.demoview .notice{background:var(--accent-soft);border:1px solid color-mix(in srgb,var(--accent) 30%,transparent);border-radius:10px;padding:10px 12px;font-size:13px;margin-bottom:14px}
+.demoview .notice b{color:var(--accent)}
+.demoview .steps{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:14px}
+.demoview .step{display:flex;gap:10px;align-items:center;text-align:left;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:10px 12px;box-shadow:var(--shadow)}
+.demoview .step .n{flex:none;width:26px;height:26px;border-radius:50%;display:grid;place-items:center;background:var(--panel2);border:1px solid var(--line);font-weight:700;font-size:13px}
+.demoview .step .t{font-weight:600;font-size:13.5px;line-height:1.25}
+.demoview .step .d{color:var(--muted);font-size:12px;line-height:1.25}
+.demoview .step[aria-selected="true"]{border-color:var(--accent);background:var(--accent-soft)}
+.demoview .step[aria-selected="true"] .n{background:var(--accent);border-color:var(--accent);color:#fff}
+.demoview .stage{display:none}
+.demoview .stage.on{display:block;animation:fade .25s ease}
+@keyframes fade{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+.demoview .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px;box-shadow:var(--shadow)}
+.demoview .grid2{display:grid;grid-template-columns:1.25fr 1fr;gap:14px}
+.demoview .win{background:var(--panel);border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow);overflow:hidden}
+.demoview .win-bar{display:flex;align-items:center;gap:10px;padding:8px 12px;background:var(--panel2);border-bottom:1px solid var(--line);font-size:12.5px;color:var(--muted)}
+.demoview .win-bar .dots{display:flex;gap:6px}
+.demoview .win-bar .dots i{width:10px;height:10px;border-radius:50%;background:var(--line);display:block}
+.demoview .win-bar .path{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:3px 8px;font-family:Consolas,"D2Coding",monospace}
+.demoview table{width:100%;border-collapse:collapse;font-size:13px}
+.demoview th,.demoview td{padding:7px 8px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
+.demoview th{font-weight:600;color:var(--muted);font-size:12px;background:var(--panel2)}
+.demoview .tablebox{overflow:auto;border:1px solid var(--line);border-radius:8px}
+.demoview .chip{display:inline-block;border-radius:999px;padding:1px 8px;font-size:11.5px;font-weight:600;white-space:nowrap}
+.demoview .chip.ok{background:var(--ok-soft);color:var(--ok)}
+.demoview .chip.warn{background:var(--warn-soft);color:var(--warn)}
+.demoview .chip.bad{background:var(--bad-soft);color:var(--bad)}
+.demoview .chip.info{background:var(--accent-soft);color:var(--accent)}
+.demoview .chip.gray{background:var(--panel2);color:var(--muted);border:1px solid var(--line)}
+.demoview .console{background:var(--console);color:var(--console-ink);font:12.5px/1.6 Consolas,"D2Coding",monospace;padding:14px;min-height:380px;max-height:460px;overflow:auto;white-space:pre-wrap;word-break:break-all}
+.demoview .console .g{color:#5fe39a}
+.demoview .console .y{color:#ffd166}
+.demoview .console .c{color:#7fc8ff}
+.demoview .console .r{color:#ff9a9a}
+.demoview .console .w{color:#fff}
+.demoview .console .m{color:#8ea3bd}
+.demoview .bar{height:8px;background:var(--panel2);border:1px solid var(--line);border-radius:99px;overflow:hidden}
+.demoview .bar>i{display:block;height:100%;width:0;background:var(--accent);transition:width .35s}
+.demoview .plist{display:grid;gap:6px;margin-top:10px}
+.demoview .plist .it{display:flex;justify-content:space-between;gap:8px;align-items:center;padding:7px 9px;border:1px solid var(--line);border-radius:8px;font-size:13px}
+.demoview /* step 3 */
+.app{display:grid;grid-template-columns:230px 1fr;min-height:620px}
+.demoview .side{background:var(--side);color:var(--side-ink);padding:12px 8px;display:flex;flex-direction:column;gap:2px}
+.demoview .side .brand{font-weight:800;font-size:14px;padding:4px 10px 2px;color:#fff}
+.demoview .side .brand small{display:block;font-weight:400;font-size:11px;opacity:.7}
+.demoview .side .lbl{font-size:10.5px;letter-spacing:.08em;opacity:.55;padding:12px 10px 4px}
+.demoview .side button{all:unset;cursor:pointer;display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:7px;font-size:13px;line-height:1.25}
+.demoview .side button:hover{background:rgba(255,255,255,.08)}
+.demoview .side button[aria-current="true"]{background:rgba(122,162,255,.25);color:#fff}
+.demoview .side button .sid{margin-left:auto;font-size:10.5px;opacity:.65}
+.demoview .side .foot{margin-top:auto;padding:10px;font-size:11px;opacity:.75}
+.demoview .main{padding:16px;min-width:0;background:var(--panel)}
+.demoview .main h2{margin:0;font-size:18px}
+.demoview .meta{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:6px 0 12px}
+.demoview .viewer{border:1px solid var(--line);border-radius:10px;background:var(--panel2);overflow:hidden}
+.demoview .viewer img{display:block;width:100%;height:auto;cursor:zoom-in;background:#fff}
+.demoview .cap{padding:8px 12px;font-size:13px;border-top:1px solid var(--line);display:flex;flex-wrap:wrap;gap:4px 12px;justify-content:space-between}
+.demoview .cap .src{color:var(--muted);font-size:11.5px}
+.demoview .thumbs{display:flex;gap:8px;margin-top:10px;overflow-x:auto;padding-bottom:4px}
+.demoview .thumbs button{all:unset;cursor:pointer;flex:none;width:132px;border:2px solid var(--line);border-radius:8px;overflow:hidden;background:var(--panel2)}
+.demoview .thumbs button[aria-pressed="true"]{border-color:var(--accent)}
+.demoview .thumbs img{display:block;width:100%;height:76px;object-fit:cover;object-position:top}
+.demoview .thumbs span{display:block;font-size:11px;padding:3px 6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.demoview .facts{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px}
+.demoview .facts ul{margin:0;padding-left:18px}
+.demoview .facts li{margin:2px 0;font-size:13px}
+
+
+
+.demoview .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:14px}
+.demoview .kpi{border:1px solid var(--line);border-radius:10px;padding:12px;background:var(--panel)}
+.demoview .kpi .v{font-size:22px;font-weight:700;font-variant-numeric:tabular-nums}
+.demoview .kpi .k{font-size:12px;color:var(--muted)}
+.demoview .org{display:grid;gap:10px}
+.demoview .org .top{justify-self:center;text-align:center;border:1px solid var(--accent);background:var(--accent-soft);border-radius:10px;padding:8px 14px;font-weight:600}
+.demoview .org .kids{display:grid;grid-template-columns:repeat(7,1fr);gap:6px}
+.demoview .org .kids div{border:1px solid var(--line);border-radius:8px;padding:6px;text-align:center;font-size:12px;background:var(--panel2)}
+.demoview .org .kids b{display:block;font-size:11px;color:var(--accent)}
+.demoview .issues li{margin:4px 0}
+.demoview .foot{margin-top:18px;color:var(--muted);font-size:12px}
+@media (max-width:920px){.demoview .grid2,.demoview .facts{grid-template-columns:1fr}
+.demoview .app{grid-template-columns:1fr}
+.demoview .side{flex-direction:row;flex-wrap:wrap}
+.demoview .side .lbl,.demoview .side .brand,.demoview .side .foot{width:100%}
+.demoview .side button .sid{display:none}
+.demoview .kpis{grid-template-columns:repeat(2,1fr)}
+.demoview .org .kids{grid-template-columns:repeat(4,1fr)}}
+@media (max-width:620px){.demoview .steps{grid-template-columns:repeat(2,1fr)}
+.demoview .org .kids{grid-template-columns:repeat(2,1fr)}
+.demoview h1{font-size:19px}
+.demoview .hide-m{display:none}}
 </style>
 </head>
 <body>
@@ -183,7 +298,7 @@ body.flat::after{content:"";position:fixed;inset:0;background:var(--bg);z-index:
   <div class="brand"><span class="mark"><i></i></span><div><b>세션 지도</b><small id="built"></small></div></div>
   <div class="kpis" id="kpis"></div>
   <label class="search">🔍<input id="q" placeholder="세션 · 커밋 · 파일 · Agent 찾기" aria-label="찾기"></label>
-  <div class="seg" role="group"><button data-v="map" aria-pressed="true">3D 지도</button><button data-v="org" aria-pressed="false">조직도</button><button data-v="list" aria-pressed="false">목록</button></div>
+  <div class="seg" role="group"><button data-v="map" aria-pressed="true">3D 지도</button><button data-v="org" aria-pressed="false">조직도</button><button data-v="list" aria-pressed="false">목록</button><button data-v="demo" aria-pressed="false">회사 PC 시연</button></div>
   <button class="ib" id="theme" aria-label="밝게/어둡게">◐</button>
 </header>
 <aside class="left glass" id="left"></aside>
@@ -205,6 +320,110 @@ body.flat::after{content:"";position:fixed;inset:0;background:var(--bg);z-index:
 </div>
 <div class="orgview" id="orgview"></div>
 <div class="listview" id="listview"><div class="cards" id="cards"></div></div>
+<div class="demoview" id="demoview">
+<div class="wrap">
+  <header class="dtop">
+    <div>
+      <h1>회사 PC 업데이트 시연</h1>
+      <div class="sub">7개 세션의 실제 결과물 기준 · 2026-11-07 정정판 — 파일 2개(① 대시보드 개별 · ② 통합) · 덮어쓰기 원칙</div>
+    </div>
+    <div class="actions">
+      <button class="btn primary" id="autoplay">▶ 자동 시연</button>
+      
+    </div>
+  </header>
+
+  <div class="notice"><b>이 페이지의 화면은 모두 실제 프로그램입니다.</b>
+    각 세션 브랜치의 코드를 그대로 띄워 찍었거나, 세션이 남긴 캡처입니다. 사진 아래에 출처를 적었습니다.
+    DASHBOARD 의 PJT 행 7개는 화면을 채우려고 넣은 예시 데이터입니다. 2단계 적용 창은 ② 통합 파일의 적용 절차를 순서대로 보여 주는 재현이며, <b>업데이트 파일 자체는 아직 만들지 않았습니다</b> (요청 때 만듭니다).</div>
+
+  <nav class="steps" role="tablist">
+    <button class="step" role="tab" data-step="0" aria-selected="true"><span class="n">1</span><span><span class="t">업데이트 파일 2개</span><br><span class="d">① 대시보드 · ② 통합</span></span></button>
+    <button class="step" role="tab" data-step="1"><span class="n">2</span><span><span class="t">회사 PC 에 적용</span><br><span class="d">덮어쓰기 · 적용 순서</span></span></button>
+    <button class="step" role="tab" data-step="2"><span class="n">3</span><span><span class="t">적용 후 화면</span><br><span class="d">DASHBOARD 메뉴별</span></span></button>
+    <button class="step" role="tab" data-step="3"><span class="n">4</span><span><span class="t">결과 · 남은 일</span><br><span class="d">세션별 반영 · 다음 순서</span></span></button>
+  </nav>
+
+  <!-- STEP 1 -->
+  <section class="stage on" data-stage="0">
+    <div class="grid2">
+      <div class="win">
+        <div class="win-bar"><span class="dots"><i></i><i></i><i></i></span><span class="path">company-pc-update-&lt;날짜&gt;\  (요청 때 생성 — 아직 없음)</span></div>
+        <div class="tablebox" style="border:0;border-radius:0"><table id="pkgtable"></table></div>
+      </div>
+      <div class="card">
+        <h3>업데이트 파일은 2개 — 누가 만드나</h3>
+        <div class="org">
+          <div class="top">🧭 오케스트레이터 세션<br><span class="small muted">검토 · 수집 · 통합 패키징</span></div>
+          <div class="kids" id="orgkids"></div>
+        </div>
+        <p class="small muted" style="margin:12px 0 0">회사 PC 는 두 서버로 돌아갑니다.
+          <b>DASHBOARD</b>(<span class="mono">server.py</span>, 포트 8080, Python 표준 라이브러리만)가 메뉴를 띄우고,
+          P&amp;ID · LOGIC · ROOM SIZE · 도서검토 · Valve 화면은 <b>PID 서버</b>(<span class="mono">PID_Extract</span>, 포트 8000)가 띄워 DASHBOARD 안에 끼워 보여 줍니다.</p>
+        <p class="small muted" style="margin:8px 0 0"><b>① DASHBOARD 만 개별 파일</b>, <b>그 외 2~7 은 ② 통합 파일 하나</b>로 갑니다 (Valve · 3D 포함, valveNN 별도 꾸러미 폐지).
+          각 세션은 개발 · 커밋 · 푸시만 하고, 두 파일은 오케스트레이터가 요청 때 만듭니다.</p>
+        <p class="small muted" style="margin:8px 0 0"><b>덮어쓰기 원칙</b>: 회사 PC 에 hotfix132 가 적용됐는지와 무관하게, ② 를 적용하면 각 세션 최신판이 됩니다. 회사에서 고친 파일은 백업 뒤 덮습니다.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- STEP 2 -->
+  <section class="stage" data-stage="1">
+    <div class="grid2">
+      <div class="win">
+        <div class="win-bar"><span class="dots"><i></i><i></i><i></i></span><span class="path">명령 프롬프트 — 적용 순서 재현</span></div>
+        <div class="console" id="console" aria-live="polite"></div>
+      </div>
+      <div class="card">
+        <h3>적용 순서</h3>
+        <div class="bar"><i id="pbar"></i></div>
+        <div class="small muted" id="ptext" style="margin-top:6px">‘적용’을 누르면 각 꾸러미의 실제 절차를 차례로 보여 줍니다.</div>
+        <div class="plist" id="plist"></div>
+        <div class="actions" style="margin-top:12px">
+          <button class="btn primary" id="runapply">▶ 적용</button>
+          <button class="btn" id="gotodash" disabled>적용 후 화면 →</button>
+        </div>
+        <p class="small muted" style="margin:10px 0 0">이전 방식의 <b>hotfix132 → valve35 순서 문제</b>는 Valve 를 ② 에 합치면서 없어졌습니다. ② 하나를 개발 사본 → 운영 폴더 순서로 넣으면 됩니다.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- STEP 3 -->
+  <section class="stage" data-stage="2">
+    <div class="win">
+      <div class="win-bar"><span class="dots"><i></i><i></i><i></i></span><span class="path" id="apppath">http://부서장PC:8080/#home</span></div>
+      <div class="app">
+        <aside class="side" id="side">
+          <div class="brand">SAMSUNG C&amp;T<small>계장ENG그룹 Dashboard v16.58</small></div>
+        </aside>
+        <main class="main" id="main"></main>
+      </div>
+    </div>
+  </section>
+
+  <!-- STEP 4 -->
+  <section class="stage" data-stage="3">
+    <div class="kpis" id="d-kpis"></div>
+    <div class="card" style="margin-bottom:14px">
+      <h3>세션별 반영 (② hotfix133 기준)</h3>
+      <div class="tablebox"><table id="sumtable"></table></div>
+    </div>
+    <div class="grid2">
+      <div class="card">
+        <h3>통합하면서 찾은 문제</h3>
+        <ol class="issues small" id="issues"></ol>
+      </div>
+      <div class="card">
+        <h3>다음 순서</h3>
+        <ol class="issues small" id="next"></ol>
+      </div>
+    </div>
+  </section>
+
+  <div class="foot">출처: 각 세션 브랜치 (<span class="mono">ccr-248a5c4d · gracious-ride · ccr-cc45909d · ccr-d82d97fa · new-session-v23o67 · ccr-efbe7e75 · practical-newton</span>) · 프로그램 시연 영상 세션(<span class="mono">launch_video/upload</span>).
+    외부 라이브러리 없이 이 파일 하나로 열립니다.</div>
+</div>
+</div>
 <aside class="right glass" id="right"><div id="detail"></div></aside>
 <div class="tip glass" id="tip"></div>
 <div class="lb" id="lb"><img alt=""><span></span></div>
@@ -447,6 +666,7 @@ function detail(n){
   if(n.type==="session"){const x=n.d,b=B(x.state.bucket),nf=new Set(x.pending.flatMap(p=>p.files||[])).size;
     h=`<div class="hero" style="--c:${c}">${CLOSE}<div class="row"><span class="orb" style="--c:${c}"></span><span class="kind">${KIND.session} · ${x.sid}</span></div>
      <h2>${esc(x.name)}</h2><div class="row"><span class="pill ${b[0]}">${esc(b[1])}</span><span class="path">${esc(x.branch.replace("origin/",""))} @ ${esc(x.tip)}</span></div>
+     <div class="row" style="margin-top:8px"><button class="pill info" data-demo="${x.sid}" style="cursor:pointer;border:0">▶ 회사 PC 시연에서 보기</button></div>
      <div class="stats"><div class="stat"><b>${x.pending.length}</b><span>다음 업데이트 커밋</span></div><div class="stat"><b>${nf}</b><span>변경 파일</span></div><div class="stat"><b>${esc(x.tipdate.slice(5,10))}</b><span>마지막 커밋</span></div></div></div>
      ${x.state.needs?`<div class="sec"><div class="callout"><b>확인 필요</b> — ${esc(x.state.needs)}</div></div>`:""}
      ${x.previews.length?`<div class="sec" style="--c:${c}"><h3>미리보기</h3><div class="viewer"><img id="big" alt=""><div class="cap"><span id="bigc"></span><span id="bigd"></span></div></div>
@@ -484,6 +704,7 @@ function detail(n){
      <div class="sec"><div style="font-size:13px">${esc(a.desc)}</div></div><div class="sec"><dl><dt>세션</dt><dd>${sessLink(n.sid)}</dd></dl></div>`;}
   const d=$("#detail");d.innerHTML=h;$("#close").onclick=()=>select(null);
   d.querySelectorAll("[data-go]").forEach(el=>el.onclick=e=>{e.preventDefault();const t=byId[el.dataset.go];if(t)select(t,true);});
+  d.querySelectorAll("[data-demo]").forEach(el=>el.onclick=()=>{select(null);setMode("demo");demoOpen&&demoOpen(el.dataset.demo);});
   const b1=d.querySelector("#big1");if(b1)b1.onclick=()=>{$("#lb img").src=b1.src;$("#lb span").textContent=n.label;$("#lb").classList.add("on");};
   if(n.type==="session"&&n.d.previews.length){const x=n.d;const show=i=>{const p=x.previews[i];$("#big").src=pvs(p);$("#big").dataset.i=i;$("#bigc").textContent=p.cap;$("#bigd").textContent=p.date;
       d.querySelectorAll(".thumbs button").forEach(b=>b.setAttribute("aria-pressed",+b.dataset.i===i));};
@@ -517,13 +738,178 @@ function renderOrg(){
   o.querySelectorAll("[data-go]").forEach(el=>el.onclick=e=>{e.stopPropagation();const t=byId[el.dataset.go];if(t)select(t);});
 }
 renderOrg();
-let mode="map";
-function setMode(m){mode=m;$$(".seg button").forEach(x=>x.setAttribute("aria-pressed",x.dataset.v===m));$("#listview").classList.toggle("on",m==="list");$("#orgview").classList.toggle("on",m==="org");$("#activity").style.visibility=m==="map"?"":"hidden";document.body.classList.toggle("flat",m!=="map");}
+let mode="map";let demoOpen=null;
+function setMode(m){mode=m;$$(".seg button").forEach(x=>x.setAttribute("aria-pressed",x.dataset.v===m));$("#listview").classList.toggle("on",m==="list");$("#orgview").classList.toggle("on",m==="org");$("#demoview").classList.toggle("on",m==="demo");$("#activity").style.visibility=m==="map"?"":"hidden";document.body.classList.toggle("flat",m!=="map");}
 $$(".seg button").forEach(b=>b.onclick=()=>setMode(b.dataset.v));
 $("#q").addEventListener("input",e=>{query=e.target.value.trim().toLowerCase();});
 $("#q").addEventListener("keydown",e=>{if(e.key==="Enter"){const n=nodes.find(n=>vis(n)&&match(n)&&n.type!=="hub");if(n)select(n,true);}});
 $("#menuBtn").onclick=()=>$("#left").classList.toggle("open");
 $("#theme").onclick=()=>{const r=document.documentElement;const d=r.dataset.theme?r.dataset.theme==="dark":matchMedia("(prefers-color-scheme: dark)").matches;r.dataset.theme=d?"light":"dark";};
+
+/* ================= 회사 PC 시연 (합침) ================= */
+{
+
+const D=document.getElementById("demoview");const $=s=>D.querySelector(s),$$=s=>Array.from(D.querySelectorAll(s));
+const IMG=new Proxy({},{get:(_,k)=>pvk(k)});
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const ST={plan:["ok","반영 예정 · hotfix133"],same:["gray","이미 최신 · 변경 없음"],prep:["warn","준비 중 · 세션 작업 필요"]};
+
+/* ---------- 실제 값 (2026-11-07 각 브랜치 끝 · 회사 전달 기록 재확인) ---------- */
+const TOOLS=[
+ {sid:"S1",name:"DASHBOARD",session:"1. DASHBOARD 코드",menu:"📋 주간업무보고",ver:"v16.58 (화면 2026-11-05.1 · 서버 2026-10-30.2)",st:"same",file:"①",
+  pkg:"UPDATE_from_… (이번엔 없음 — v16.58 이미 전달)",bytes:0,apply:"변경 없음. 3D 메뉴 한 줄이 들어가면 그때 ‘어느 버전에서든 적용되는 판’으로",
+  path:"#home",
+  what:["엑셀 ‘계장ENG그룹 주간 업무 보고’를 대체하는 부서 웹 프로그램","dashboard.html 한 파일 + server.py (Python 3.11 표준 라이브러리만)","수행 · 입찰 · 프로젝트 이슈사항 · PJT R&R · 통합 업무 · 유닛분장 · 주간회의 전달사항","v16.54–58: 유닛분장 조직도 · 프로젝트별 LE/RE · 세계 지도"],
+  review:["delivered.txt 마지막 줄 = v16.58 → 회사 PC 가 v16.58 인지 한 번 확인","7. 3D 가 /ic3d 로 붙으면 메뉴 한 줄 추가 → 그때 ① 파일 생김"],
+  shots:[["s1_home","홈 — 수행 · 입찰 PJT 집계","실제 server.py 실행 · 예시 PJT 7행"],["s1_perform","수행 PJT 보드","실제 server.py 실행 · 예시 PJT"],["lv_dash","홈 그래프 (시연 영상 캡처)","프로그램 시연 영상 세션"]]},
+ {sid:"S2",name:"P&ID 검토 4",session:"2. PID 검토 4",menu:"📐 P&ID 분석",ver:"hotfix132 + 커밋 2 → hotfix133",st:"plan",file:"②",
+  pkg:"PID_dev+ops_hotfix133_<날짜>.zip (통합 · 요청 때 생성)",bytes:0,apply:"apply_to_PID_dev.bat → 확인 → apply_to_PID_ops.bat --overwrite → 포트 8000 재시작 → 상단 띠 ‘업데이트 133’",
+  path:"#pid",
+  what:["CAD P&ID PDF 를 넣으면 고객 Excel 서식의 계기 · 밸브 리스트","판정 근거를 도면 위에 표시 (실선 계장 · 파선 밸브 · 모서리 ● 검토 필요)","규칙은 그 도면의 범례 · NOTES · 표제란에서 읽음 — 검출에 LLM 쓰지 않음","hotfix133 에 새로: Excel ‘=’ 시작 글 안전 처리 · LOGIC 업로드 PDF 닫기"],
+  review:["판독 결과는 사람 검토 전에는 확정본이 아님","글자 없는 스캔 PDF 는 DXF 로 다시 올려야 함 (도구가 안내)","hotfix132 의 회사 적용 확인 기록이 없음 → 덮어쓰기 원칙으로 131 이든 132 든 133 으로"],
+  shots:[["s1_pid","DASHBOARD › P&ID 분석 — PID 서버 hotfix132 를 실제로 띄워 연결","hotfix132 코드 실행"],["lv_pid_end","판독 결과 — 도면 위 공급 범위 표시 (SCT 공급 범위 24)","프로그램 시연 영상 세션"],["lv_pid_start","판독 결과 목록과 도면","프로그램 시연 영상 세션"]]},
+ {sid:"S3",name:"Logic 검토 4",session:"3. Logic 검토코드 4",menu:"🔀 LOGIC 분석",ver:"L91 (회사에는 L86 까지 → hotfix133 에 L87–L91)",st:"plan",file:"②",
+  pkg:"(② 통합에 병합)",bytes:0,apply:"② 와 함께",
+  path:"#logic",
+  what:["Logic Diagram PDF → From-To 보고 · 정합성 검토","연결 따라가기: 최종 명령에서 최초 입력까지","동작 시뮬레이션 · 그룹 시험 · 시운전 단계별 · System Description(Word)","신호 처리 시뮬레이션 (∑ · △ · √ · LAG · PID 등 약 30개, 계산 과정)","L87–L91 에 새로: draw.io 식 편집 · 기호 새 창 · 827장 재현 · 기호 설명 · 매크로 프로젝트 사본"],
+  review:["L87–L91 7개 커밋이 LOGIC 파일 4개를 건드려 hotfix133 의 Excel 안전 처리와 충돌 확인 (통합 때)","시험: 빠른 시험 1,655 통과 · 화면 시험 125/125 (L91 기준)"],
+  shots:[["s1_logic","DASHBOARD › LOGIC 분석 — 첫 화면","hotfix132 코드 실행"],["s3_trace","연결 따라가기 (L70)","S3 브랜치 out/l70"],["s3_sim","동작 시뮬레이션","S3 브랜치 out/l64"],["s3_draw","LOGIC 작도 — 저장된 프로젝트 AMIRAL","hotfix132 코드 실행"],["s3_signal","신호 처리 시뮬레이션 — 계산 과정","hotfix132 코드 실행"]]},
+ {sid:"S4",name:"PANEL (판넬 공간확보)",session:"4. PANEL 코드",menu:"🗄 ROOM SIZE 계산",ver:"변경 이력 (55) — 회사에는 10-30 판까지 → hotfix133 에 5개 커밋",st:"plan",file:"②",
+  pkg:"(② 통합에 apps/space → app/static/space 로 옮김)",bytes:0,apply:"② 와 함께 · 메뉴 경로(PID 서버 /space)는 그대로",
+  path:"#space",
+  what:["계장 판넬실(Control · Equipment Room) 배치 도구","Panel Type 정의 → Equipment List 자동 배치(Option A) 또는 Ref. PJT(Option B)","간섭 · 이격 · 문 열림 · 운전원 시야를 2D 와 순수 WebGL 3D 로 검토","hotfix133 에 새로: 첫 화면 Phase 1(계획) · Phase 2(건축 DXF) · 고급 조명 넣었다 뺌"],
+  review:["판넬 화면은 병합이 아니라 파일을 옮겨 오는 방식 — imported 68c402c6 → 7b10d7cb 로 갱신","3D 사람 시점 · 결선 작업자 화면이 회사 PC Edge 에서 매끄러운지"],
+  shots:[["s1_space","DASHBOARD › ROOM SIZE 계산 — 지금 회사 PC 경로 (10-30 판)","hotfix132 코드 실행"],["s4_first","새 첫 화면 — 프로젝트별 Phase 1 · Phase 2 (hotfix133 에 들어감)","S4 브랜치 reports/img"],["s4_3d","3D 등각 — 판넬 배치 검토","S4 브랜치 reports/img"],["s4_worker","3D 사람 시점 — 결선 작업자","S4 브랜치 reports/img"],["s4_cad","Phase 2 — 건축 DXF 위 결과","S4 브랜치 reports/img"]]},
+ {sid:"S5",name:"도서 검토",session:"5. 도서 검토",menu:"🌪️ 도서검토",ver:"2026-10-24.1 — PID 서버 /books 에 같은 판 (hotfix115~)",st:"same",file:"②",
+  pkg:"(변경 없음 — 이미 ② 안에 있음)",bytes:0,apply:"없음",
+  path:"#books",
+  what:["부서 계장 도서를 본문 내용으로 찾기 — 말하듯 질문","공용 도서관(서버 PC 폴더 색인) 또는 내 PC 폴더","개념 49개 · 학습 지식 노트 118개 · 답변 상자 (폴더 원문 인용 / 내장 지식 구분)","PDF · DOCX · XLSX · PPTX · EPUB · HWPX 본문"],
+  review:["인터넷 공개 도서 63–67권으로만 시험 — 부서 실제 도서로 확인 필요","Claude 번역 엔진은 기본 꺼짐 — 정책 확인 뒤에만","앞으로 바뀌면 apps/books → app/static/books 로 옮겨 ② 에 실음"],
+  shots:[["s1_books","DASHBOARD › 도서검토 — PID 서버 /books/","hotfix132 코드 실행"],["lv_books","답변 — 근거 도서 · 목차에서 찾은 곳","프로그램 시연 영상 세션"]]},
+ {sid:"S6",name:"Datasheet 자동 검토 (Valve)",session:"6. Datasheet 자동 검토",menu:"🏗 실행 프로젝트 › Datasheet › Ball Valve",ver:"valve35 (회사 확인은 valve29 까지) → hotfix133 에 포함",st:"plan",file:"②",
+  pkg:"(② 통합에 병합 — valveNN 별도 꾸러미 폐지)",bytes:0,apply:"② 와 함께 · 회사에서 고친 app/valve/* 는 backup\\ 에 두고 덮음",
+  path:"/valve/",
+  what:["Ball Valve Datasheet PDF (+ Valve List · Process Data · PMS) 를 규칙으로 검토 — OCR · AI 없음","Data Error · Data Missing · Open Item · PMS · Process Mismatch 등, 문서 · 쪽 · 기대값 · 실제값 근거","valve35: 같은 지적을 Typical · 블럭으로 묶어 코멘트 2,935 → 276 (판정은 그대로, 변경 0)","Excel 첫 장 ‘Comments (Typical)’ · Mark-up PDF"],
+  review:["11-01~02 회사 PC 에서 직접 고친 Valve 파일이 있으면 덮임 → 1_먼저읽기 맨 위 목록 · backup\\ 에서 복구 가능","app/main.py 충돌은 통합 브랜치에서 오케스트레이터가 맞춤 (회사 PC 에서 .new 안 생김)","시험: pytest 1,989 통과 · UI 25/25"],
+  shots:[["s6_valve","Valve Datasheet — Project Dashboard (빈 프로젝트)","hotfix132 + valve35 코드 실행"],["lv_ds_start","Datasheet Review 화면","프로그램 시연 영상 세션"],["lv_ds_end","Datasheet 값 확인 — 지적 칸 표시","프로그램 시연 영상 세션"]]},
+ {sid:"S7",name:"3D 계측제어 도구",session:"7. 3D 계측제어 도구 개발",menu:"🧊 3D 계측제어 (메뉴 추가 예정)",ver:"IC_Dashboard 2026-11-07 — 회사 경로 없음 → ② 에 /ic3d 로",st:"prep",file:"②",
+  pkg:"(② 통합에 app/static/ic3d 로 옮김 — 준비되면)",bytes:0,apply:"PID 서버 /ic3d (S2) + DASHBOARD 메뉴 한 줄 (S1 → ① 파일)",
+  path:"/ic3d",
+  what:["‘I&C 통합 사양 검토 멀티에이전트’ — 오케스트레이터가 12개 Item 에이전트 + 지원 3개에 질문을 나눔","Item Spec · ic-expert 지식베이스로 답변 (기본: 로컬 검색)","‘PSV MR 작성해줘’ → MR 초안 Word — 값은 미확인, 승인란 비움","Anatomy: 개념 · 시뮬레이션 / 실물 3D"],
+  review:["실물 3D 가 three.js 를 cdnjs 에서 받음 — 회사망에서 안 열림 (넷째 화면이 실제 결과) → 파일 안에 넣기 (S7 작업)","Claude 답변 엔진(api.anthropic.com) · DART 는 회사 PC 기본 꺼짐 확인","앱 파일을 app/static/ic3d/ 로 옮겨도 서로 찾게 상대 경로 정리"],
+  shots:[["s7_org","조직도 — 오케스트레이터 · Item 에이전트 · Human Gate","practical-newton 코드 실행 (file://)"],["s7_mr","‘PSV MR 작성해줘’ → MR 미리보기","practical-newton 코드 실행"],["s7_concept","Anatomy · 개념 · 시뮬레이션 — PSV","practical-newton 코드 실행"],["s7_3dfail","실물 3D — 외부 접속이 막히면 이렇게 나옴 (고칠 것)","practical-newton 코드 실행 (CDN 막힘)"],["lv_3d","실물 3D — 외부 접속이 될 때","프로그램 시연 영상 세션"]]}
+];
+const fmtB=b=>b?(b>=1048576?(b/1048576).toFixed(1)+" MB":Math.round(b/1024)+" KB"):"—";
+const chip=st=>`<span class="chip ${ST[st][0]}">${ST[st][1]}</span>`;
+const fileChip=f=>`<span class="chip ${f==="①"?"gray":"info"}">${f}</span>`;
+
+/* ---------- STEP 1 ---------- */
+$("#pkgtable").innerHTML="<thead><tr><th>파일</th><th>세션</th><th class='hide-m'>이번 회차에 들어가는 것</th><th>상태</th></tr></thead><tbody>"+
+  `<tr><td colspan="4" class="small" style="background:var(--panel2)"><b>① UPDATE_from_vA_to_vB.zip</b> — DASHBOARD 개별 <span class="muted">· 이번엔 변경 없음 (v16.58 이미 전달)</span></td></tr>`+
+  TOOLS.filter(t=>t.file==="①").map(t=>`<tr><td>${fileChip(t.file)}</td><td><span class="chip info">${t.sid}</span> ${esc(t.name)}</td><td class="hide-m small muted">${esc(t.apply)}</td><td>${chip(t.st)}</td></tr>`).join("")+
+  `<tr><td colspan="4" class="small" style="background:var(--panel2)"><b>② PID_dev+ops_hotfix133_&lt;날짜&gt;.zip</b> — 그 외 전부 통합 <span class="muted">· 기준 = 마지막 적용 확인(2026-11-02 valve29) · 최신으로 덮어씀</span></td></tr>`+
+  TOOLS.filter(t=>t.file==="②").map(t=>`<tr><td>${fileChip(t.file)}</td><td><span class="chip info">${t.sid}</span> ${esc(t.name)}</td><td class="hide-m small muted">${esc(t.pkg)}</td><td>${chip(t.st)}</td></tr>`).join("")+
+  `<tr><td colspan="4" class="small muted">+ <span class="mono">1_먼저읽기.txt</span> (덮어쓴 회사 수정 파일 목록 맨 위) · <span class="mono">MANIFEST</span> (SHA-256) · 이 시연 파일 — <b>아직 만들지 않았고, 요청할 때 만듭니다</b></td></tr></tbody>`;
+$("#orgkids").innerHTML=TOOLS.map(t=>`<div><b>${t.sid}</b>${esc(t.name.replace(/ \(.+\)/,""))}</div>`).join("");
+
+/* ---------- STEP 2 ---------- */
+const PLAN=[
+ {sid:"S1",lab:"① DASHBOARD — 이번엔 없음",lines:[["m","  delivered.txt 마지막 줄 = v16.58 · 브랜치에 새 변경 없음 → 건너뜀"],["m","  (7. 3D 메뉴가 붙으면 그때 ‘어느 버전에서든 적용되는 판’으로 한 번)"]]},
+ {sid:"S2",lab:"② hotfix133 — 개발 사본에 먼저",lines:[
+   ["","> PID_dev+ops_hotfix133\\apply_to_PID_dev.bat"],["m","  C:\\Claude\\PID_dev — 기준 = 마지막 적용 확인(valve29 · 11-02) 뒤 바뀐 파일 전부"],["m","  회사 PC 가 hotfix131 이든 132 든 → 133 으로 (우리가 보낸 어느 판이든 덮음)"],["","  내용: P&ID(132+2) · LOGIC L87–L91 · 판넬 5커밋 · Valve valve35 · 3D /ic3d(준비되면) ........ <span class='g'>확인</span>"]]},
+ {sid:"S6",lab:"② 회사에서 고친 파일",lines:[["y","  ! 11-01~02 회사 PC 에서 고친 app/valve/* → backup\\hotfix133_<시각>\\ 에 두고 최신으로 덮음 (--overwrite)"],["m","  1_먼저읽기 맨 위에 덮은 파일 목록 · 되돌리기는 --restore"]]},
+ {sid:"S3",lab:"② 운영 폴더 적용",lines:[
+   ["","> apply_to_PID_ops.bat --overwrite"],["m","  C:\\Claude\\PID (운영, 포트 8000) — 복사 중 실패하면 자동 되돌림 (hotfix132 안전장치 그대로)"],["","  PID 서버 재시작 · 상단 띠 ‘업데이트 133’ ........ <span class='g'>확인</span>"]]},
+ {sid:"S4",lab:"② 메뉴 6곳 확인",lines:[["","  P&ID · LOGIC · LOGIC 작성 · ROOM SIZE(Phase 1/2 새 첫 화면) · 도서검토 · Valve ........ <span class='g'>6/6 열림</span>"]]},
+ {sid:"S7",lab:"② 3D /ic3d",lines:[["y","  ! three.js 파일 안에 넣기 · LLM 끔 뒤 포함 — 준비 전이면 이번 ② 에서 빠지고 메뉴도 안 붙음"]]},
+ {sid:"S5",lab:"적용 뒤",lines:[["w","  회사 PC 에서 “적용했다” → 오케스트레이터가 기준점(delivered · 적용 확인) 갱신"]]}
+];
+const plist=done=>{$("#plist").innerHTML=PLAN.map((p,i)=>{const t=TOOLS.find(x=>x.sid===p.sid);
+  const s=i<done?chip(t.st):(i===done&&busy?'<span class="chip info">진행</span>':'<span class="chip gray">대기</span>');
+  return `<div class="it"><span><span class="chip info">${p.sid}</span> ${esc(p.lab)}</span>${s}</div>`;}).join("");};
+let busy=false;plist(0);
+const wait=ms=>new Promise(r=>setTimeout(r,ms));
+async function runApply(){
+  if(busy) return; busy=true; $("#runapply").disabled=true; $("#gotodash").disabled=true;
+  const con=$("#console"); con.innerHTML="";
+  const tot=PLAN.reduce((a,p)=>a+p.lines.length+1,0)+3; let n=0;
+  const put=(c,h)=>{const d=document.createElement("div"); if(c) d.className=c; d.innerHTML=h; con.appendChild(d); con.scrollTop=con.scrollHeight; $("#pbar").style.width=Math.round(++n/tot*100)+"%";};
+  put("w","C:\\Claude\\업데이트\\company-pc-update-20261107> UPDATE_GUIDE.md 순서대로"); await wait(400);
+  for(let i=0;i<PLAN.length;i++){ plist(i); const p=PLAN[i];
+    put("c",`[${i+1}/${PLAN.length}] ${p.sid} ${p.lab}`); await wait(350);
+    for(const [c,h] of p.lines){ put(c,h); await wait(260); } }
+  plist(PLAN.length);
+  put("g","② 통합 1개 적용 · 반영 4세션 · 이미 최신 2세션 · 3D 는 준비되면 → 4단계 표"); await wait(200);
+  put("w","부서원은 Edge 로 http://부서장PC:8080/ 에 접속 (화면은 그대로, 안의 도구가 최신)");
+  $("#pbar").style.width="100%"; $("#ptext").textContent="완료 — 파일 2개 중 ② 통합 1개 적용 (① 은 변경 없음)";
+  busy=false; $("#runapply").disabled=false; $("#runapply").textContent="↺ 다시"; $("#gotodash").disabled=false;
+}
+$("#runapply").onclick=runApply; $("#gotodash").onclick=()=>go(2);
+
+/* ---------- STEP 3 ---------- */
+$("#side").insertAdjacentHTML("beforeend",'<div class="lbl">MENU</div>'+TOOLS.map(t=>`<button data-sid="${t.sid}">${esc(t.menu)}<span class="sid">${t.sid}</span></button>`).join("")+
+  '<div class="foot">● 서버 연결됨<br>화면 v2026-11-05.1 · 서버 v2026-10-30.2</div>');
+$$("#side button").forEach(b=>b.onclick=()=>{stopAuto();openTool(b.dataset.sid);});
+let curTool=null,curShot=0;
+function openTool(sid,shot=0){
+  const t=TOOLS.find(x=>x.sid===sid); curTool=t; curShot=shot;
+  $$("#side button").forEach(b=>b.setAttribute("aria-current",b.dataset.sid===sid));
+  $("#apppath").textContent=(t.path.startsWith("/")?"http://부서장PC:8000"+t.path:"http://부서장PC:8080/"+t.path)+(t.sid==="S7"?"   (예정 — 준비되면)":"");
+  $("#main").innerHTML=`<h2>${esc(t.name)}</h2>
+   <div class="meta"><span class="chip info">${t.sid} · ${esc(t.session)}</span>${chip(t.st)}<span class="small muted">${esc(t.ver)}</span><button class="btn map" data-map="${t.sid}">◎ 세션 지도에서 보기</button></div>
+   <div class="viewer"><img id="bigimg" alt=""><div class="cap"><span id="capt"></span><span class="src" id="caps"></span></div></div>
+   <div class="thumbs">${t.shots.map((s,i)=>`<button data-i="${i}" aria-pressed="false"><img src="${IMG[s[0]]}" alt=""><span>${esc(s[1])}</span></button>`).join("")}</div>
+   <div class="facts"><div><h3 style="font-size:13.5px">무엇을 하나</h3><ul>${t.what.map(x=>`<li>${esc(x)}</li>`).join("")}</ul></div>
+   <div><h3 style="font-size:13.5px">사람이 확인할 것</h3><ul>${t.review.map(x=>`<li>${esc(x)}</li>`).join("")}</ul></div></div>`;
+  $$(".thumbs button").forEach(b=>b.onclick=()=>{stopAuto();showShot(+b.dataset.i);});
+  $("[data-map]").onclick=()=>{stopAuto();setMode("map");select(byId[t.sid],true);};
+  $("#bigimg").onclick=()=>{document.querySelector("#lb img").src=$("#bigimg").src;document.querySelector("#lb span").textContent=$("#capt").textContent;document.getElementById("lb").classList.add("on");};
+  showShot(shot);
+}
+function showShot(i){const s=curTool.shots[i]; curShot=i; $("#bigimg").src=IMG[s[0]]; $("#bigimg").alt=s[1]; $("#capt").textContent=s[1]; $("#caps").textContent="출처: "+s[2];
+  $$(".thumbs button").forEach(b=>b.setAttribute("aria-pressed",+b.dataset.i===i));}
+
+/* ---------- STEP 4 ---------- */
+const cnt=k=>TOOLS.filter(t=>t.st===k).length;
+$("#d-kpis").innerHTML=[["1 / 2","이번에 만들 파일 (② 통합)"],[cnt("plan"),"반영 예정 세션"],[cnt("same"),"이미 최신"],[cnt("prep"),"준비 중 (3D)"]].map(k=>`<div class="kpi"><div class="v">${k[0]}</div><div class="k">${k[1]}</div></div>`).join("");
+$("#sumtable").innerHTML="<thead><tr><th>세션</th><th>버전 · 회사 쪽</th><th>파일 · 방법</th><th>결과</th></tr></thead><tbody>"+
+  TOOLS.map(t=>`<tr><td><span class="chip info">${t.sid}</span> ${esc(t.name)}</td><td class="small">${esc(t.ver)}</td><td class="small">${fileChip(t.file)} ${esc(t.pkg)}<br><span class="muted">${esc(t.apply)}</span></td><td>${chip(t.st)}</td></tr>`).join("")+"</tbody>";
+$("#issues").innerHTML=[
+ "LOGIC L87–L91 7개 커밋이 아직 회사로 나가는 꾸러미에 없음 → hotfix133 에 병합 (오케스트레이터가 통합 때)",
+ "판넬 · 도서는 세션 원본(dashboard/apps/space · apps/books)과 PID 서버 사본(app/static/…)이 따로 → 통합 때 원본을 옮겨 싣는 방식으로 정리 (규약 v2), 메뉴 경로는 그대로",
+ "Valve 는 valveNN 별도 꾸러미를 없애고 ② 에 병합 → app/main.py 충돌은 통합 브랜치에서 맞춰 회사 PC 에 .new 가 안 생기게",
+ "3D 실물 3D 가 cdnjs 의 three.js 를 받아 회사망에서 깨짐(실제로 띄워 확인) · Claude 답변 엔진은 외부 API → 오프라인화 · 끔 뒤에 /ic3d 로",
+ "hotfix132 이후 회사 적용 확인 기록 없음 → 덮어쓰기 원칙: 기준을 마지막 확인(valve29 · 11-02)으로 잡아 131 이든 132 든 133 으로",
+ "11-01~02 회사 PC 에서 직접 고친 Valve 파일은 덮이면서 지워짐 → backup\\ 에 두고 1_먼저읽기 맨 위에 목록"
+].map(x=>`<li>${esc(x)}</li>`).join("");
+$("#next").innerHTML=[
+ "각 세션에서 규약 v2 확인 한마디 (1 · 2 · 4 · 6 · 7 이 ‘사용자 뜻인지’ 확인 대기)",
+ "S7: three.js 파일 안에 · LLM 기본 끔 · 상대 경로 — S2: PID 서버 /ic3d 주소 — S1: 메뉴 한 줄 (그때 ① 파일)",
+ "사용자가 “회사 업데이트 파일 만들어 줘” → 오케스트레이터가 7개 브랜치 수집 → 통합 → 시험 → release_check → pack_delta (--overwrite 신설) → 파일 2개",
+ "회사 PC 적용 → “적용했다” → 기준점 갱신 → 다음 회차는 그 뒤 바뀐 것만"
+].map(x=>`<li>${esc(x)}</li>`).join("");
+
+/* ---------- nav ---------- */
+function go(i){
+  $$(".step").forEach((b,j)=>b.setAttribute("aria-selected",j===i));
+  $$(".stage").forEach((s,j)=>s.classList.toggle("on",j===i));
+  if(i===2&&!curTool) openTool("S1");
+}
+$$(".step").forEach(b=>b.onclick=()=>{stopAuto();go(+b.dataset.step);});
+let auto=false,timer=null;
+const sleep=ms=>new Promise(r=>{timer=setTimeout(r,ms);});
+function stopAuto(){auto=false;clearTimeout(timer);$("#autoplay").textContent="▶ 자동 시연";}
+$("#autoplay").onclick=async()=>{
+  if(auto){stopAuto();return;} auto=true; $("#autoplay").textContent="■ 멈춤";
+  go(0); await sleep(3500); if(!auto)return;
+  go(1); await runApply(); await sleep(1500); if(!auto)return;
+  go(2);
+  for(const t of TOOLS){ for(let i=0;i<t.shots.length;i++){ if(!auto)return; if(i===0) openTool(t.sid); else showShot(i); await sleep(2600);} }
+  if(!auto)return; go(3); stopAuto();
+};
+
+demoOpen=(sid)=>{go(2);openTool(sid);};
+}
 addEventListener("resize",size);
 size();requestAnimationFrame(frame);
 })();
