@@ -12,6 +12,7 @@ import time
 from typing import Iterable
 
 import openpyxl
+from app import xlsx_safe   # hotfix133 — 글이 수식이 되지 않게 · 제어 문자 빼기
 from openpyxl.styles import Font, PatternFill, Alignment
 
 HEAD_FILL = PatternFill("solid", fgColor="EFE8D8")
@@ -56,7 +57,7 @@ def _cell(row: dict, pages: dict, vx: dict, name: str, no: int):
 
 def _sheet(wb, title: str, header: Iterable[str]):
     ws = wb.create_sheet(title)
-    ws.append(list(header))
+    xlsx_safe.append(ws, list(header))
     for c in ws[1]:
         c.font = Font(bold=True)
         c.fill = HEAD_FILL
@@ -67,7 +68,7 @@ def _sheet(wb, title: str, header: Iterable[str]):
 def _fill_rows(ws, rows, pages, vxs):
     for i, row in enumerate(rows, 1):
         vx = vxs.get(row["key"], {})
-        ws.append([_cell(row, pages, vx, name, i) for _h, name in COLS])
+        xlsx_safe.append(ws, [_cell(row, pages, vx, name, i) for _h, name in COLS])
         r = ws.max_row
         for ci, (_h, name) in enumerate(COLS, 1):
             if name in ("verdict", "qty_verdict") and vx.get(name) in FILL:
@@ -105,7 +106,7 @@ def build(job: dict, rows: list, pages: dict, vxs: dict, counts: dict) -> bytes:
                   "평가는 VOC 함에 쌓여 개발이 읽는다 (spike/voc.py verdicts)."),
     ]
     for k, v in lines:
-        ws.append([k, v])
+        xlsx_safe.append(ws, [k, v])
     ws.column_dimensions["A"].width = 38
     ws.column_dimensions["B"].width = 90
     ws["B15"].alignment = Alignment(wrap_text=True, vertical="top")

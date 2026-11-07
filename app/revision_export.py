@@ -11,6 +11,7 @@ import io
 from typing import Iterable
 
 import openpyxl
+from app import xlsx_safe   # hotfix133 — 글이 수식이 되지 않게 · 제어 문자 빼기
 from openpyxl.styles import Font, PatternFill, Alignment
 
 HEAD_FILL = PatternFill("solid", fgColor="EFE8D8")
@@ -35,7 +36,7 @@ def _val(row: dict, pages: dict, name: str):
 
 def _sheet(wb, title: str, header: Iterable[str]):
     ws = wb.create_sheet(title)
-    ws.append(list(header))
+    xlsx_safe.append(ws, list(header))
     for c in ws[1]:
         c.font = Font(bold=True)
         c.fill = HEAD_FILL
@@ -79,7 +80,7 @@ def build(job: dict, rows: list, rev_states: dict, deleted: list, pages: dict,
                             "태그 변경인지 추가/삭제인지 도면이 가르지 않으므로 전부 '수정' 으로만 표기합니다 — "
                             "새 태그 쪽은 '수정' 시트, 사라진 태그 쪽은 '삭제' 시트에 '수정 (이전 태그)' 로.  "
                             "삭제 후보는 사람이 확정하기 전에는 발주처 양식에 나가지 않습니다.")]:
-        ws.append(list(line))
+        xlsx_safe.append(ws, list(line))
     ws["A1"].font = ws["A2"].font = ws["A3"].font = Font(bold=True)
     _fit(ws, {"A": 18, "B": 80})
 
@@ -99,7 +100,7 @@ def build(job: dict, rows: list, rev_states: dict, deleted: list, pages: dict,
                 line.append(" · ".join(f"{c.get('field')}: {c.get('was') or '(빈칸)'} → {c.get('now') or '(빈칸)'}"
                                        for c in fd if isinstance(c, dict)))
                 line.append((r.get("rev") or {}).get("moved_pt"))
-            w.append(line)
+            xlsx_safe.append(w, line)
             fill = PatternFill("solid", fgColor=STATE_FILL[(r.get("rev") or {}).get("state")])
             w.cell(row=i + 1, column=1).fill = fill
         _fit(w, {"A": 5, "B": 26, "C": 5, "D": 10, "E": 10, "F": 16, "G": 12, "H": 6, "I": 18,
@@ -124,7 +125,7 @@ def build(job: dict, rows: list, rev_states: dict, deleted: list, pages: dict,
             why = "그 도면에 같은 TYPE 이 하나도 없습니다"
         else:
             why = f"가장 가까운 같은 TYPE 이 {d['nearest_distance']}pt (반경 {d.get('radius')}pt)"
-        w.append([i, "삭제 확정" if d.get("confirmed") else
+        xlsx_safe.append(w, [i, "삭제 확정" if d.get("confirmed") else
                   ("수정 (이전 태그)" if d.get("state") == "MODIFIED" else "삭제 후보"), d.get("id", ""),
                   d.get("drawing_no", ""), d.get("page_no"), d.get("tab", ""), d.get("type", ""),
                   d.get("tag_no", ""), d.get("description", ""), why,
@@ -137,12 +138,12 @@ def build(job: dict, rows: list, rev_states: dict, deleted: list, pages: dict,
 
     w = _sheet(wb, "장", ["구분", "직전 도면번호", "이번 도면번호", "공유 태그", "직전 태그 수", "이번 태그 수"])
     for e in (sheets or {}).get("renumbered") or []:
-        w.append(["도면번호 바뀜", e.get("before", ""), e.get("now", ""), e.get("shared"),
+        xlsx_safe.append(w, ["도면번호 바뀜", e.get("before", ""), e.get("now", ""), e.get("shared"),
                   e.get("before_tags"), e.get("now_tags")])
     for d in (sheets or {}).get("only_before") or []:
-        w.append(["직전에만 있음", d, "", "", "", ""])
+        xlsx_safe.append(w, ["직전에만 있음", d, "", "", "", ""])
     for d in (sheets or {}).get("only_now") or []:
-        w.append(["이번에만 있음", "", d, "", "", ""])
+        xlsx_safe.append(w, ["이번에만 있음", "", d, "", "", ""])
     _fit(w, {"A": 14, "B": 26, "C": 26, "D": 10, "E": 12, "F": 12})
     for s in wb.worksheets:
         for row in s.iter_rows(min_row=2):

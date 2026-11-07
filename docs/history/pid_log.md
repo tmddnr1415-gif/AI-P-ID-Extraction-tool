@@ -46,3 +46,12 @@
   못 지우고 빈 LOGIC 묶음 폴더가 목록에 남을 수 있었다 → finally close.  시험 `tests/test_hotfix133_logic_check_pdf_close.py`.
   (LOGIC 세션 파일 — 다음 L 병합 때 충돌 주의.)  꾸러미는 아직 안 만듦 — 다음 hotfix133 에 실린다.
 - 후보(사용자 결정): 스캔 P&ID 글자 인식(로컬 Tesseract) · LOGIC 업로드에도 스캔 PDF 안내.
+
+## 2026-11-07 — anthropics/skills 전체 검토 · 엑셀 내보내기 안전 (hotfix133 후보)
+- 19개 중 관련: xlsx · webapp-testing(우리 `spike/smoke_screens.js` 와 같은 방식 — 변경 없음) · frontend-design(hotfix132 셸로 반영됨).
+- xlsx 스킬 "수식 오류 0" 을 대조해 2건 발견 → 새 `app/xlsx_safe.py` (`text` · `put` · `append`):
+  ① `=` 로 시작하는 도면 글자·의견이 수식으로 저장됨(#NAME? · `=HYPERLINK` 실행) → 글로 저장.
+  ② PDF 제어 문자(\x01 등)가 있으면 IllegalCharacterError 로 엑셀 전체 실패 → 그 문자만 뺌 (수정 전 코드로 재현).
+- 적용: verdict_export · revision_export · excel_out(우리가 쓰는 칸만 · 발주처 양식의 수식은 그대로) ·
+  logic/report · review · grouptest (LOGIC 세션 파일 — `ws.append(` → `xlsx_safe.append(ws, ` 기계적 치환, 병합 때 충돌 주의).
+- 시험 `tests/test_hotfix133_xlsx_safe.py` · 빠른 전체 2,199 통과.

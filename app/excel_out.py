@@ -31,6 +31,7 @@ from pathlib import Path
 import openpyxl
 from openpyxl.styles import Font, PatternFill
 
+from app import xlsx_safe
 from app import pipeline           # TYPE 표기(`type_display`) 한 곳에서만 만든다
 
 # 개정 표기.  세 곳(리스트 · 도면 · Excel)이 같은 낱말과 같은 색을 쓰도록
@@ -207,7 +208,7 @@ def write_deliverable(template: Path, out_path: Path, rows: list, cfg,
         for name, col in cols.items():
             if name == "no":
                 continue
-            ws.cell(r, int(col)).value = _value_for(name, row, values)
+            xlsx_safe.put(ws.cell(r, int(col)), _value_for(name, row, values))   # hotfix133 — 글이 수식이 되지 않게
         _mark_revision(ws, r, last_col, row, marked)
 
     # Anything left over from the template's own data is cleared, not deleted:

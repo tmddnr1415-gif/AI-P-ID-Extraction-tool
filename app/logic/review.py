@@ -20,6 +20,7 @@ import re
 import time
 
 from . import behavior as BH
+from app import xlsx_safe   # hotfix133 — 글이 수식이 되지 않게 · 제어 문자 빼기
 from . import idrate as IDR
 from . import report as RP
 from . import sequence, sim
@@ -555,23 +556,23 @@ def workbook(rv, name=""):
     ws.title = "요약"
     rate = rv.get("rate") or {}
     pct = lambda v: "" if v is None else round(v * 100, 1)
-    ws.append(["LOGIC 정합성 검토", name])
-    ws.append(["도면 읽기 %", pct(rate.get("read")), "툴 판정 %", pct(rate.get("judged"))])
-    ws.append(["설계 오류", rv["count"].get("ERROR", 0), "설계 확인", rv["count"].get("CHECK", 0),
+    xlsx_safe.append(ws, ["LOGIC 정합성 검토", name])
+    xlsx_safe.append(ws, ["도면 읽기 %", pct(rate.get("read")), "툴 판정 %", pct(rate.get("judged"))])
+    xlsx_safe.append(ws, ["설계 오류", rv["count"].get("ERROR", 0), "설계 확인", rv["count"].get("CHECK", 0),
                "읽기 빈틈", rv["count"].get("GAP", 0), "참고", rv["count"].get("INFO", 0)])
     dz = (rv.get("marks") or {}).get("design") or {}
-    ws.append(["사람 판단 — 맞음", dz.get("OK", 0), "툴 오판", dz.get("WRONG", 0), "툴 검토 정밀도 %", pct(dz.get("precision"))])
-    ws.append([])
-    ws.append(["툴 판정", "끝냄", "모두", "%"])
+    xlsx_safe.append(ws, ["사람 판단 — 맞음", dz.get("OK", 0), "툴 오판", dz.get("WRONG", 0), "툴 검토 정밀도 %", pct(dz.get("precision"))])
+    xlsx_safe.append(ws, [])
+    xlsx_safe.append(ws, ["툴 판정", "끝냄", "모두", "%"])
     for k, v in (rate.get("tally") or {}).items():
-        ws.append([TOPIC_KO.get(k, k), v["done"], v["all"], pct(v["done"] / v["all"]) if v["all"] else ""])
-    ws.append([])
-    ws.append(["시트", "쪽", "제목", "설계 오류", "설계 확인", "읽기 빈틈"])
+        xlsx_safe.append(ws, [TOPIC_KO.get(k, k), v["done"], v["all"], pct(v["done"] / v["all"]) if v["all"] else ""])
+    xlsx_safe.append(ws, [])
+    xlsx_safe.append(ws, ["시트", "쪽", "제목", "설계 오류", "설계 확인", "읽기 빈틈"])
     for r in rv.get("per_sheet") or []:
-        ws.append([r["sheet_no"], r["page"], r["title"], r["ERROR"], r["CHECK"], r["GAP"]])
+        xlsx_safe.append(ws, [r["sheet_no"], r["page"], r["title"], r["ERROR"], r["CHECK"], r["GAP"]])
     ws2 = wb.create_sheet("항목")
     head = ["번호", "분류", "주제", "시트", "쪽", "행", "제목", "내용", "판단", "메모"]
-    ws2.append(head)
+    xlsx_safe.append(ws2, head)
     for c in ws2[1]:
         c.font = Font(bold=True)
         c.fill = PatternFill("solid", fgColor="DDE6F7")
@@ -579,7 +580,7 @@ def workbook(rv, name=""):
     tag = {"ERROR": "E", "CHECK": "C", "GAP": "G", "INFO": "I"}
     for it in rv.get("items") or []:
         m = it.get("mark") or {}
-        ws2.append([f"{tag[it['cat']]}{it['id']}", CAT_KO[it["cat"]], TOPIC_KO.get(it["topic"], it["topic"]), it["sheet_no"],
+        xlsx_safe.append(ws2, [f"{tag[it['cat']]}{it['id']}", CAT_KO[it["cat"]], TOPIC_KO.get(it["topic"], it["topic"]), it["sheet_no"],
                     it["page"], it.get("row"), it["title"], it["text"],
                     VERDICTS.get(m.get("verdict"), "") + (f" ({m['author']})" if m.get("author") else ""), m.get("note") or ""])
         ws2.cell(ws2.max_row, 2).fill = PatternFill("solid", fgColor=fill[it["cat"]])

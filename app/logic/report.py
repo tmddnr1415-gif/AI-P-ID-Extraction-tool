@@ -4,6 +4,7 @@ from __future__ import annotations
 from io import BytesIO
 
 import openpyxl
+from app import xlsx_safe   # hotfix133 — 글이 수식이 되지 않게 · 제어 문자 빼기
 from openpyxl.styles import Font, PatternFill
 from openpyxl.utils import get_column_letter
 
@@ -39,7 +40,7 @@ def findings(sheets):
 
 def _sheet(wb, title, header):
     ws = wb.create_sheet(title)
-    ws.append(header)
+    xlsx_safe.append(ws, header)
     for c in ws[1]:
         c.font = Font(bold=True)
         c.fill = PatternFill("solid", fgColor="DDE6F7")
@@ -57,21 +58,21 @@ def workbook(res, name="") -> bytes:
     wb = openpyxl.Workbook()
     ws = wb.active
     ws.title = "요약"
-    ws.append(["LOGIC 검토", name])
-    ws.append(["PDF 쪽수", res.get("pdf_pages"), "Logic 표 시트", len(sheets), "분석 시간(초)", res.get("seconds")])
-    ws.append([])
-    ws.append(["점검 종류", "건수"])
+    xlsx_safe.append(ws, ["LOGIC 검토", name])
+    xlsx_safe.append(ws, ["PDF 쪽수", res.get("pdf_pages"), "Logic 표 시트", len(sheets), "분석 시간(초)", res.get("seconds")])
+    xlsx_safe.append(ws, [])
+    xlsx_safe.append(ws, ["점검 종류", "건수"])
     fd = findings(sheets)
     for c in fd["codes"]:
-        ws.append([c["label"], c["n"]])
-    ws.append(["합계", fd["total"]])
-    ws.append([])
-    ws.append(["시트", "쪽", "제목", "블록", "선", "입력 행", "출력 행", "from-to 불일치", "설명 다름", "점검 합계"])
+        xlsx_safe.append(ws, [c["label"], c["n"]])
+    xlsx_safe.append(ws, ["합계", fd["total"]])
+    xlsx_safe.append(ws, [])
+    xlsx_safe.append(ws, ["시트", "쪽", "제목", "블록", "선", "입력 행", "출력 행", "from-to 불일치", "설명 다름", "점검 합계"])
     for c in ws[ws.max_row]:
         c.font = Font(bold=True)
     for s in sheets:
         fs = s.get("findings", [])
-        ws.append([s.get("sheet_no"), s["page"], s.get("title"), len(s.get("blocks", {})), len(s.get("nets", [])),
+        xlsx_safe.append(ws, [s.get("sheet_no"), s["page"], s.get("title"), len(s.get("blocks", {})), len(s.get("nets", [])),
                    sum(1 for r in s.get("rows", []) if r["side"] == "L"),
                    sum(1 for r in s.get("rows", []) if r["side"] == "R"),
                    sum(1 for f in fs if f["code"] == "FT_MISMATCH"),
@@ -83,7 +84,7 @@ def workbook(res, name="") -> bytes:
         for r in s.get("rows", []):
             ft = r.get("ft")
             if ft and ft.get("ok") is False:
-                ws.append([s.get("sheet_no"), s["page"], r["side"], r["n"], ft.get("peer"), " · ".join(ft.get("why") or [])])
+                xlsx_safe.append(ws, [s.get("sheet_no"), s["page"], r["side"], r["n"], ft.get("peer"), " · ".join(ft.get("why") or [])])
     _widths(ws, [10, 6, 14, 6, 20, 90])
 
     ws = _sheet(wb, "설명 다름", ["시트", "쪽", "행", "상대", "이 쪽 설명", "상대 설명"])
@@ -96,7 +97,7 @@ def workbook(res, name="") -> bytes:
                 for w in ft["warn"]:
                     if "↔" in w:
                         other = w.split("↔", 1)[1].strip().strip("'")
-                ws.append([s.get("sheet_no"), s["page"], r["n"], peer, r.get("desc"), other])
+                xlsx_safe.append(ws, [s.get("sheet_no"), s["page"], r["n"], peer, r.get("desc"), other])
     _widths(ws, [10, 6, 6, 20, 50, 50])
 
     ws = _sheet(wb, "연결 점검", ["시트", "쪽", "점검", "코드", "행", "블록", "자리 x", "자리 y", "내용"])
@@ -104,7 +105,7 @@ def workbook(res, name="") -> bytes:
         if it["code"].startswith("FT_"):
             continue
         at = it.get("at") or [None, None]
-        ws.append([it["sheet_no"], it["page"], it["label"], it["code"], it.get("row"), it.get("block"), at[0], at[1], it["text"]])
+        xlsx_safe.append(ws, [it["sheet_no"], it["page"], it["label"], it["code"], it.get("row"), it.get("block"), at[0], at[1], it["text"]])
     _widths(ws, [10, 6, 28, 26, 6, 8, 9, 9, 70])
 
     ws = _sheet(wb, "입력 행", ["시트", "쪽", "행", "FM", "설명", "KKS", "from-to 판정", "상대", "비고"])
@@ -115,7 +116,7 @@ def workbook(res, name="") -> bytes:
             ft = r.get("ft")
             verdict = "" if not ft else ("불일치" if ft.get("ok") is False else ("설명 다름" if ft.get("warn") else "일치"))
             note = " · ".join((ft or {}).get("why") or (ft or {}).get("warn") or [])
-            ws.append([s.get("sheet_no"), s["page"], r["n"], r.get("fm"), r.get("desc"), r.get("kks"), verdict, (ft or {}).get("peer"), note])
+            xlsx_safe.append(ws, [s.get("sheet_no"), s["page"], r["n"], r.get("fm"), r.get("desc"), r.get("kks"), verdict, (ft or {}).get("peer"), note])
     _widths(ws, [10, 6, 6, 12, 50, 18, 12, 20, 70])
 
     ws = _sheet(wb, "출력 행", ["시트", "쪽", "행", "KKS", "설명", "TO", "from-to 판정", "상대", "비고"])
@@ -126,7 +127,7 @@ def workbook(res, name="") -> bytes:
             ft = r.get("ft")
             verdict = "" if not ft else ("불일치" if ft.get("ok") is False else "일치")
             note = " · ".join((ft or {}).get("why") or [])
-            ws.append([s.get("sheet_no"), s["page"], r["n"], r.get("kks"), r.get("desc"), r.get("to"), verdict, (ft or {}).get("peer"), note])
+            xlsx_safe.append(ws, [s.get("sheet_no"), s["page"], r["n"], r.get("kks"), r.get("desc"), r.get("to"), verdict, (ft or {}).get("peer"), note])
     _widths(ws, [10, 6, 6, 18, 50, 18, 12, 24, 70])
 
     buf = BytesIO()

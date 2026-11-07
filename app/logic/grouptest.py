@@ -24,6 +24,7 @@ import threading
 import time
 
 from . import behavior, sequence, sim
+from app import xlsx_safe   # hotfix133 — 글이 수식이 되지 않게 · 제어 문자 빼기
 
 
 def _F(forces):
@@ -291,26 +292,26 @@ def workbook(learned, tested, name):
     ws.title = "그룹 요약"
     fill = {"pass": "D9F2E1", "fail": "F8D7D7", "warn": "FFF1C2", "gap": "E5E7EB"}
     head = ["장비(블록 그룹)", "시트", "동작", "결과", "통과", "실패", "확인", "시험 불가", "시험한 사람", "시험 시각"]
-    ws.append(head)
+    xlsx_safe.append(ws, head)
     for c in ws[1]:
         c.font = Font(bold=True)
     tg = (tested or {}).get("groups") or {}
     for g in groups(learned):
         r = tg.get(g["equip"]) or {}
         n = r.get("counts") or {}
-        ws.append([g["equip"], " ".join(g["sheets"][:4]), " ".join(a["action"] for a in g["actions"]),
+        xlsx_safe.append(ws, [g["equip"], " ".join(g["sheets"][:4]), " ".join(a["action"] for a in g["actions"]),
                    STATUS_KO.get(r.get("status")), n.get("pass"), n.get("fail"), n.get("warn"), n.get("gap"), r.get("author"),
                    time.strftime("%Y-%m-%d %H:%M", time.localtime(r["at"])) if r.get("at") else ""])
         if r.get("status") in fill:
             ws.cell(ws.max_row, 4).fill = PatternFill("solid", fgColor=fill[r["status"]])
     ws2 = wb.create_sheet("시험 항목")
-    ws2.append(["장비", "동작", "항목", "시험 내용", "기대", "결과", "판정", "사유", "시트", "행"])
+    xlsx_safe.append(ws2, ["장비", "동작", "항목", "시험 내용", "기대", "결과", "판정", "사유", "시트", "행"])
     for c in ws2[1]:
         c.font = Font(bold=True)
     for eq, r in sorted(tg.items()):
         for c in r.get("checks") or []:
             at = c.get("at") or {}
-            ws2.append([eq, c.get("action"), KIND_KO.get(c["kind"], c["kind"]), c["title"], c["expect"], c["got"],
+            xlsx_safe.append(ws2, [eq, c.get("action"), KIND_KO.get(c["kind"], c["kind"]), c["title"], c["expect"], c["got"],
                         STATUS_KO.get(c["status"]), c.get("why") or "", at.get("sheet") or "", at.get("row") or ""])
             if c["status"] in fill:
                 ws2.cell(ws2.max_row, 7).fill = PatternFill("solid", fgColor=fill[c["status"]])
