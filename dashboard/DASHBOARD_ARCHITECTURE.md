@@ -1267,3 +1267,18 @@ C:\Users\SAMSUNG\Desktop\Claude\                         ← 개발 폴더 (여�
 > 서버 재시작 · 대시보드 교체 필요 없음. 서버 API 그대로(`DELETE /api/space/<pid>`).
 - 첫 화면 '저장된 프로젝트' 카드 오른쪽 [🗑 삭제](`.pjdel`, `data-del`): 그 프로젝트를 ① 에서 고른 뒤 `hmDel('proj')` 와 같게 — 프로젝트 이름을 그대로 적어야 지움, 룸 · Rev · 저장본 · 노트 모두 서버 휴지통(`space/_trash`)으로, 운영자가 되살릴 수 있음. 권한은 서버 `space_can_del`(만든 사람 · 관리자).
 - 확인한 것: Chromium — 프로젝트 만들기 → 카드 🗑 → 이름 틀림 = 남음, 이름 맞음 = 목록에서 사라짐 · ① 칸 비움. home · nosrv 시험 통과, 스크립트 오류 0.
+
+### 2026-11-07 (51) — 판넬 공간확보: Phase 1 (계획 → PDF + CAD) · Phase 2 (건축 actual DXF 배경 + Phase 1 Equipment List 배치) (apps/space/index.html 만)
+> 서버 재시작 · 대시보드 교체 필요 없음. 배치안에 `phase`(1|2) · `ph`({1,2}: 쉬는 Phase 의 room · panels · cols · notes) · `arch`(건축 도면) · `panels[].p1`(Phase 2 판넬 ↔ Phase 1 판넬 id) 가 늘었음. 예전 배치안 = Phase 1.
+- Phase 1 = 건축 actual 도면이 없을 때 — Ref. PJT 불러오기 또는 사용자 지정 배치(지금까지 기능 그대로). [📦 Phase 1 결과 (PDF + CAD)](`phExport`) = 필요 사이즈 PDF(`needPdf`, 머리 'Phase 1 필요 사이즈') + DXF(`dxfText`, 기존 [DXF 출력]의 몸통을 함수로 뺌) 두 파일.
+- Phase 2 = 건축이 그린 그 프로젝트의 actual 배치도(DXF)를 2D 배경으로:
+  - DXF 읽기(`dxfDecode` · `dxfRead` · `dxfFlatten`, 라이브러리 없음): ASCII DXF R12~2018, 글자 UTF-8 → 안 되면 CP949(`$DWGCODEPAGE ANSI_949` 예전 한글 도면), `\U+XXXX` · `%%c/d/p`. LINE · LWPOLYLINE(bulge 호) · POLYLINE · CIRCLE · ARC · ELLIPSE · SPLINE(맞춤점/제어점) · SOLID · 3DFACE · LEADER · TEXT · MTEXT(서식 코드 지움) · ATTRIB, INSERT(블록 · 중첩 8 단 · 대칭 · 회전 · 배열) · DIMENSION(*D 블록), 압출 (0,0,−1) = X 대칭. HATCH 는 뺌. 꺼짐 · 동결 레이어는 기본 끔. Binary DXF · DWG 는 'DXF 로 저장' 안내.
+  - [▶ Phase 2] → 창(`#archdlg`): 미리보기(레이어 색) · 레이어 켜고 끄기 · 단위($INSUNITS, 고를 수 있음) · 실 영역 끌기(Snap = 꼭짓점 · 두 선 교점(벽 안쪽 면 모서리) · 선 위, `arSnapAt`) 또는 닫힌 선 클릭 · '기둥 레이어'(이름에 COL/기둥, 닫힌 선 2.5 m 이하 → `S.cols` = 판넬 못 놓는 기둥 · 3D 기둥).
+  - `archBuild`: 고른 실 영역 ± 6 m 로 선을 잘라(Liang–Barsky) 실 좌상단 = (0,0) mm 로 옮겨 `S.arch` {pl [레이어, 닫힘, x, y…], tx [레이어, x, y, 높이, 각, 글, 맞춤], ly [{n, c, on}], alpha, src, k}. 실 W · L = 고른 영역, 실 자동 넓힘 끔, 출입문은 배경(빈 목록).
+  - 2D: `archSvg`(도면 층 두 번째, 한 번 만든 글 다시 씀) · 옆 칸 배경 진하기 · 보이기 · 레이어. 3D: 바닥에 선(최대 12 만 선분). 실 테두리 = 파란 점선.
+  - 옆 칸 맨 위 `#phSec`(`phBuild`): Phase 1 Equipment List(Tag 순 번호) — 줄을 도면으로 끌기(HTML 끌어 놓기 → 커서가 몸체 가운데) · 줄 누르기 → 놓기 모드(`placeItem`, `makeGhost` 가 그 항목 하나, 놓으면 다음 항목) · [남은 N EA Phase 1 배치대로](`p2PlaceRest`, Phase 1 모양 그대로 실 가운데) · 놓은 줄 ✓(누르면 도면에서 고름). 놓기는 기존 배치 규칙(`violation`) 그대로.
+  - [📦 Phase 2 결과 (PDF + CAD)]: PDF 머리 'Phase 2 건축 도면 배치' · 건축 도면 이름 · 놓음 n/m, DXF 에 배경 = `ARCH-<원래 레이어>`(POLYLINE · TEXT, 원래 색), 표제 · Equipment List 표는 도면 밖으로.
+  - 도구줄 [Phase 1 · 계획 | Phase 2 · 건축 도면](`phSwap`): 지금 Phase 배치를 `S.ph` 에 두고 바꿈(Type 같이 씀, Ctrl+Z 됨). Phase 2 에서 Phase 1 배치를 고치면 목록에 바로 반영(다음에 Phase 2 로 올 때).
+- 콘솔: `crspacePhase()` = Phase · 건축 도면 요약 · 항목/놓음 수.
+- 확인한 것: Chromium — F3 CCR Ref(30 EA) → Phase 1 결과 PDF 2 쪽 + DXF(ezdxf 오류 0) → 시험 건축 도면 `reports/…/sample/건축_actual_MEB_1F_예시.dxf`(ezdxf R2010, 블록 · 대칭문 · 치수 · MTEXT 한글 · 꺼진 레이어) 넣기 → CCR 안쪽 벽면 끌기 = 24,075 × 15,975(정확) · 기둥 12 → 끌어 놓기 1 · 눌러 놓기 1 · 남은 28 → 30/30 → Phase 2 결과 PDF + DXF(ezdxf 오류 0, ARCH-* 8 레이어) → 3D 기둥 · 바닥 선 → Phase 1 ↔ 2 오가기 · 새로 고침 뒤 그대로. 같은 도면 R2000 CP949 판도 한글 정상. 기존 시험 16 개 통과, 스크립트 오류 0.
+- 회사에서 확인할 것: 실제 건축 DXF(회사 CAD 표준 레이어 이름 — 기둥 레이어가 자동으로 안 잡히면 창에서 고름), 아주 큰 도면(수십 MB)은 레이어를 끄고 넣기. DWG 는 CAD 에서 DXF 로 저장.
