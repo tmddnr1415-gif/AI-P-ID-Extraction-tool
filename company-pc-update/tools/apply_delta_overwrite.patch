@@ -1,0 +1,91 @@
+--- a/spike/apply_delta.py
++++ b/spike/apply_delta.py
+@@ -195,7 +195,9 @@
+     return fn(text)
+ 
+ 
+-def plan(target: Path, manifest: dict, runtime_only: bool = False) -> list[dict]:
++def plan(target: Path, manifest: dict, runtime_only: bool = False, overwrite: bool = False) -> list[dict]:
++    """overwrite=True (hotfix133 --overwrite): 회사 PC 에서 따로 고친 파일도 백업 뒤 최신으로 덮는다.
++    '충돌' 대신 'forced' 로 표시해 1_먼저읽기 · 화면에 목록을 남긴다.  보호 폴더(NEVER)는 그대로 거부."""
+     out = []
+     for f in manifest["files"]:
+         rel = f["path"]
+@@ -207,7 +209,7 @@
+         now = sha(target / rel)
+         if f.get("remove"):
+             act = ("same" if now is None
+-                   else "remove" if (now in (f.get("known_sha256") or ()) or now == f.get("base_sha256"))
++                   else "remove" if (overwrite or now in (f.get("known_sha256") or ()) or now == f.get("base_sha256"))
+                    else "kept")
+             out.append({**f, "now_sha256": now, "action": act})
+             continue
+@@ -215,6 +217,8 @@
+             act = "same"
+         elif f.get("always") or now == f["base_sha256"] or now in (f.get("known_sha256") or ()):
+             act = "create" if now is None else "overwrite"
++        elif overwrite:
++            act = "forced"                       # 회사에서 고친 파일 — 백업 뒤 덮는다
+         else:
+             act = "conflict"
+             m = merged_text(target, rel)
+@@ -226,8 +230,8 @@
+ 
+ 
+ def apply(target: Path, pkg: Path, manifest: dict, dry: bool = False, runtime_only: bool = False,
+-          all_or_nothing: bool = False) -> tuple[list[dict], Path | None]:
+-    steps = plan(target, manifest, runtime_only)
++          all_or_nothing: bool = False, overwrite: bool = False) -> tuple[list[dict], Path | None]:
++    steps = plan(target, manifest, runtime_only, overwrite)
+     name = manifest["name"]
+     backup = None
+     if all_or_nothing and any(s["action"] in ("conflict", "kept") for s in steps):
+@@ -260,8 +264,8 @@
+                     _backup_copy(dst, backup / s["path"])
+                     touched.append(s["path"])
+                     dst.unlink()
+-                elif s["action"] in ("overwrite", "create"):
+-                    if s["action"] == "overwrite":
++                elif s["action"] in ("overwrite", "create", "forced"):
++                    if s["action"] != "create":
+                         backup = backup or (target / "backup" / f"{name}_{stamp}")
+                         _backup_copy(dst, backup / s["path"])
+                     dst.parent.mkdir(parents=True, exist_ok=True)
+@@ -427,6 +431,7 @@
+     runtime = "--runtime" in argv
+     aon = "--all-or-nothing" in argv
+     force = "--force" in argv
++    ow = "--overwrite" in argv                 # hotfix133: 회사에서 고친 파일도 백업 뒤 최신으로 (덮어쓰기 원칙)
+     yes = "--yes" in argv or "-y" in argv
+     args = [a for a in argv if a and not a.startswith("--") and a != "-y"]
+     if len(args) != 1:
+@@ -474,7 +479,7 @@
+         print(f"되돌림: {b} 의 원본 {back}개를 다시 놓고, 이 꾸러미가 만든 파일 {gone}개를 지웠습니다.")
+         return 0
+     try:
+-        steps, backup = apply(target, HERE, manifest, dry, runtime_only=runtime, all_or_nothing=aon)
++        steps, backup = apply(target, HERE, manifest, dry, runtime_only=runtime, all_or_nothing=aon, overwrite=ow)
+     except ApplyFailed as e:
+         print(f"{manifest['name']}  ({manifest.get('summary', '')})\n대상: {target}\n")
+         if not e.changed:
+@@ -507,13 +512,19 @@
+     words = {"overwrite": "덮어씀", "create": "새로 만듦", "same": "이미 같음",
+              "conflict": "충돌 - 안 덮음", "refused": "거부(보호 폴더)",
+              "remove": "지움 (저장소에서 없앤 파일)", "kept": "안 지움 - 회사에서 고친 파일",
+-             "merge": "합침 - 회사 판 + 이번 추가분", "same_merged": "이미 합쳐짐"}
++             "merge": "합침 - 회사 판 + 이번 추가분", "same_merged": "이미 합쳐짐",
++             "forced": "덮어씀 - 회사에서 고친 파일 (원본은 백업에)"}
+     for s in steps:
+         tail = f"   -> 새 버전: {Path(s['new_copy']).name}" if s.get("new_copy") else ""
+         print(f"  [{words[s['action']]}] {s['path']}{tail}")
+     conflicts = [s for s in steps if s["action"] == "conflict"]
++    forced = [s for s in steps if s["action"] == "forced"]
+     if backup:
+         print(f"\n원본 백업: {backup}")
++    if forced:
++        print(f"\n회사에서 고친 파일 {len(forced)}개를 최신으로 덮었습니다 (--overwrite). 원본은 위 백업 폴더에 있고 --restore 로 되돌립니다:")
++        for s in forced:
++            print(f"    {s['path']}")
+     if conflicts:
+         print(f"\n충돌 {len(conflicts)}개: 회사에서 고친 파일이라 덮지 않았습니다.")
+         print("회사 Claude 에게: '충돌 파일(.new)과 지금 파일을 비교해 둘 다 살려서 합쳐줘'")

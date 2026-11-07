@@ -37,7 +37,9 @@ def main():
     out = sys.argv[2] if len(sys.argv) > 2 else os.path.join(here, '..', 'DEMO_company_pc.html')
     imgs = {k: encode(os.path.join(src, v)) for k, v in IMAGES.items()}
     tpl = open(os.path.join(here, 'template.html'), encoding='utf-8').read()
-    html = tpl.replace('/*IMAGES*/', 'const IMG=' + json.dumps(imgs) + ';')
+    # 그림은 파일 맨 끝에 — 앱 파일 미리보기가 큰 파일 끝을 잘라도 1·2·4단계는 먼저 그려진다
+    html = tpl.replace('/*IMAGES*/', 'const IMG=new Proxy({},{get:(_,k)=>(window.IMG||{})[k]||""});')
+    html = html.replace('</body>', '<script>window.IMG=' + json.dumps(imgs) + ';</script>\n</body>')
     open(out, 'w', encoding='utf-8').write(html)
     print(out, f'{len(html) / 1048576:.1f} MB', len(imgs), 'images')
 

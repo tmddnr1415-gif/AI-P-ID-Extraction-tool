@@ -131,7 +131,7 @@ th{font-weight:600;color:var(--muted);font-size:12px;background:var(--panel2)}
   <header class="top">
     <div>
       <h1>회사 PC 통합 업데이트 시연</h1>
-      <div class="sub">7개 세션의 실제 결과물 기준 · 2026-11-07 오케스트레이터 세션 정리</div>
+      <div class="sub">7개 세션의 실제 결과물 기준 · 2026-11-07 정정판 — 파일 2개(① 대시보드 개별 · ② 통합) · 덮어쓰기 원칙</div>
     </div>
     <div class="actions">
       <button class="btn primary" id="autoplay">▶ 자동 시연</button>
@@ -141,24 +141,24 @@ th{font-weight:600;color:var(--muted);font-size:12px;background:var(--panel2)}
 
   <div class="notice"><b>이 페이지의 화면은 모두 실제 프로그램입니다.</b>
     각 세션 브랜치의 코드를 그대로 띄워 찍었거나, 세션이 남긴 캡처입니다. 사진 아래에 출처를 적었습니다.
-    DASHBOARD 의 PJT 행 7개는 화면을 채우려고 넣은 예시 데이터입니다. 2단계 적용 창은 각 꾸러미의 실제 적용 절차를 순서대로 보여 주는 재현입니다.</div>
+    DASHBOARD 의 PJT 행 7개는 화면을 채우려고 넣은 예시 데이터입니다. 2단계 적용 창은 ② 통합 파일의 적용 절차를 순서대로 보여 주는 재현이며, <b>업데이트 파일 자체는 아직 만들지 않았습니다</b> (요청 때 만듭니다).</div>
 
   <nav class="steps" role="tablist">
-    <button class="step" role="tab" data-step="0" aria-selected="true"><span class="n">1</span><span><span class="t">업데이트 파일</span><br><span class="d">세션별 실제 꾸러미</span></span></button>
-    <button class="step" role="tab" data-step="1"><span class="n">2</span><span><span class="t">회사 PC 에 적용</span><br><span class="d">실제 적용 순서</span></span></button>
+    <button class="step" role="tab" data-step="0" aria-selected="true"><span class="n">1</span><span><span class="t">업데이트 파일 2개</span><br><span class="d">① 대시보드 · ② 통합</span></span></button>
+    <button class="step" role="tab" data-step="1"><span class="n">2</span><span><span class="t">회사 PC 에 적용</span><br><span class="d">덮어쓰기 · 적용 순서</span></span></button>
     <button class="step" role="tab" data-step="2"><span class="n">3</span><span><span class="t">적용 후 화면</span><br><span class="d">DASHBOARD 메뉴별</span></span></button>
-    <button class="step" role="tab" data-step="3"><span class="n">4</span><span><span class="t">결과 · 남은 일</span><br><span class="d">반영 여부 · 사람 확인</span></span></button>
+    <button class="step" role="tab" data-step="3"><span class="n">4</span><span><span class="t">결과 · 남은 일</span><br><span class="d">세션별 반영 · 다음 순서</span></span></button>
   </nav>
 
   <!-- STEP 1 -->
   <section class="stage on" data-stage="0">
     <div class="grid2">
       <div class="win">
-        <div class="win-bar"><span class="dots"><i></i><i></i><i></i></span><span class="path">company-pc-update-20261107\</span></div>
+        <div class="win-bar"><span class="dots"><i></i><i></i><i></i></span><span class="path">company-pc-update-&lt;날짜&gt;\  (요청 때 생성 — 아직 없음)</span></div>
         <div class="tablebox" style="border:0;border-radius:0"><table id="pkgtable"></table></div>
       </div>
       <div class="card">
-        <h3>누가 무엇을 만들었나</h3>
+        <h3>업데이트 파일은 2개 — 누가 만드나</h3>
         <div class="org">
           <div class="top">🧭 오케스트레이터 세션<br><span class="small muted">검토 · 수집 · 통합 패키징</span></div>
           <div class="kids" id="orgkids"></div>
@@ -166,7 +166,9 @@ th{font-weight:600;color:var(--muted);font-size:12px;background:var(--panel2)}
         <p class="small muted" style="margin:12px 0 0">회사 PC 는 두 서버로 돌아갑니다.
           <b>DASHBOARD</b>(<span class="mono">server.py</span>, 포트 8080, Python 표준 라이브러리만)가 메뉴를 띄우고,
           P&amp;ID · LOGIC · ROOM SIZE · 도서검토 · Valve 화면은 <b>PID 서버</b>(<span class="mono">PID_Extract</span>, 포트 8000)가 띄워 DASHBOARD 안에 끼워 보여 줍니다.</p>
-        <p class="small muted" style="margin:8px 0 0">그래서 S3 LOGIC 은 따로 zip 을 만들지 않고 S2 의 <span class="mono">PID_dev+ops</span> 꾸러미에 합쳐서 나갑니다 (S3 세션 규칙).</p>
+        <p class="small muted" style="margin:8px 0 0"><b>① DASHBOARD 만 개별 파일</b>, <b>그 외 2~7 은 ② 통합 파일 하나</b>로 갑니다 (Valve · 3D 포함, valveNN 별도 꾸러미 폐지).
+          각 세션은 개발 · 커밋 · 푸시만 하고, 두 파일은 오케스트레이터가 요청 때 만듭니다.</p>
+        <p class="small muted" style="margin:8px 0 0"><b>덮어쓰기 원칙</b>: 회사 PC 에 hotfix132 가 적용됐는지와 무관하게, ② 를 적용하면 각 세션 최신판이 됩니다. 회사에서 고친 파일은 백업 뒤 덮습니다.</p>
       </div>
     </div>
   </section>
@@ -187,7 +189,7 @@ th{font-weight:600;color:var(--muted);font-size:12px;background:var(--panel2)}
           <button class="btn primary" id="runapply">▶ 적용</button>
           <button class="btn" id="gotodash" disabled>적용 후 화면 →</button>
         </div>
-        <p class="small muted" style="margin:10px 0 0">순서가 중요합니다. <b>hotfix132 → valve35</b> 로 넣어야 합니다. 반대로 넣으면 Valve 가 valve34 로 되돌아갑니다 (S6 세션 조사).</p>
+        <p class="small muted" style="margin:10px 0 0">이전 방식의 <b>hotfix132 → valve35 순서 문제</b>는 Valve 를 ② 에 합치면서 없어졌습니다. ② 하나를 개발 사본 → 운영 폴더 순서로 넣으면 됩니다.</p>
       </div>
     </div>
   </section>
@@ -209,7 +211,7 @@ th{font-weight:600;color:var(--muted);font-size:12px;background:var(--panel2)}
   <section class="stage" data-stage="3">
     <div class="kpis" id="kpis"></div>
     <div class="card" style="margin-bottom:14px">
-      <h3>세션별 반영 결과</h3>
+      <h3>세션별 반영 (② hotfix133 기준)</h3>
       <div class="tablebox"><table id="sumtable"></table></div>
     </div>
     <div class="grid2">
@@ -235,76 +237,77 @@ th{font-weight:600;color:var(--muted);font-size:12px;background:var(--panel2)}
 "use strict";
 const $=s=>document.querySelector(s), $$=s=>Array.from(document.querySelectorAll(s));
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
-const ST={ok:["ok","반영"],part:["warn","일부 반영"],ready:["warn","준비 · 연결 필요"],no:["bad","이번 미반영"],sep:["gray","별도 실행"]};
+const ST={plan:["ok","반영 예정 · hotfix133"],same:["gray","이미 최신 · 변경 없음"],prep:["warn","준비 중 · 세션 작업 필요"]};
 
-/* ---------- 실제 값 (세션 검토 결과) ---------- */
+/* ---------- 실제 값 (2026-11-07 각 브랜치 끝 · 회사 전달 기록 재확인) ---------- */
 const TOOLS=[
- {sid:"S1",name:"DASHBOARD",session:"1. DASHBOARD 코드",menu:"📋 주간업무보고",ver:"v16.58 (화면 2026-11-05.1 · 서버 2026-10-30.2)",st:"ok",
-  pkg:"UPDATE_from_v16.57_to_v16.58.zip",bytes:714059,apply:"zip 풀고 APPLY.bat (서버 재시작 필요 없음)",
+ {sid:"S1",name:"DASHBOARD",session:"1. DASHBOARD 코드",menu:"📋 주간업무보고",ver:"v16.58 (화면 2026-11-05.1 · 서버 2026-10-30.2)",st:"same",file:"①",
+  pkg:"UPDATE_from_… (이번엔 없음 — v16.58 이미 전달)",bytes:0,apply:"변경 없음. 3D 메뉴 한 줄이 들어가면 그때 ‘어느 버전에서든 적용되는 판’으로",
   path:"#home",
   what:["엑셀 ‘계장ENG그룹 주간 업무 보고’를 대체하는 부서 웹 프로그램","dashboard.html 한 파일 + server.py (Python 3.11 표준 라이브러리만)","수행 · 입찰 · 프로젝트 이슈사항 · PJT R&R · 통합 업무 · 유닛분장 · 주간회의 전달사항","v16.54–58: 유닛분장 조직도 · 프로젝트별 LE/RE · 세계 지도"],
-  review:["유닛분장 새 화면이 회사 PC 에서 제대로 보이는지","외부 접속이 막혀 있을 때 날씨 칸이 ‘날씨 연결 안 됨’으로 나오는지","회사 PC 가 지금 v16.57 인지 (아니면 --any zip 사용)"],
+  review:["delivered.txt 마지막 줄 = v16.58 → 회사 PC 가 v16.58 인지 한 번 확인","7. 3D 가 /ic3d 로 붙으면 메뉴 한 줄 추가 → 그때 ① 파일 생김"],
   shots:[["s1_home","홈 — 수행 · 입찰 PJT 집계","실제 server.py 실행 · 예시 PJT 7행"],["s1_perform","수행 PJT 보드","실제 server.py 실행 · 예시 PJT"],["lv_dash","홈 그래프 (시연 영상 캡처)","프로그램 시연 영상 세션"]]},
- {sid:"S2",name:"P&ID 검토 4",session:"2. PID 검토 4",menu:"📐 P&ID 분석",ver:"PID_dev+ops hotfix132 (2026-11-05)",st:"ok",
-  pkg:"PID_dev+ops_hotfix132_2026-11-05.zip",bytes:7237795,apply:"apply_to_PID_dev.bat → 확인 → apply_to_PID_ops.bat → 포트 8000 재시작 → 상단 띠 ‘업데이트 132’ 확인",
+ {sid:"S2",name:"P&ID 검토 4",session:"2. PID 검토 4",menu:"📐 P&ID 분석",ver:"hotfix132 + 커밋 2 → hotfix133",st:"plan",file:"②",
+  pkg:"PID_dev+ops_hotfix133_<날짜>.zip (통합 · 요청 때 생성)",bytes:0,apply:"apply_to_PID_dev.bat → 확인 → apply_to_PID_ops.bat --overwrite → 포트 8000 재시작 → 상단 띠 ‘업데이트 133’",
   path:"#pid",
-  what:["CAD P&ID PDF 를 넣으면 고객 Excel 서식의 계기 · 밸브 리스트","판정 근거를 도면 위에 표시 (실선 계장 · 파선 밸브 · 모서리 ● 검토 필요)","규칙은 그 도면의 범례 · NOTES · 표제란에서 읽음 — 검출에 LLM 쓰지 않음","Excel 출력 · 변경 내역 Excel · 마크업 · 도면 가르치기"],
-  review:["판독 결과는 사람 검토 전에는 확정본이 아님","글자 없는 스캔 PDF 는 DXF 로 다시 올려야 함 (도구가 안내)","hotfix133 대기: Excel ‘=’ 시작 글 안전 처리 · LOGIC 업로드 PDF 닫기"],
+  what:["CAD P&ID PDF 를 넣으면 고객 Excel 서식의 계기 · 밸브 리스트","판정 근거를 도면 위에 표시 (실선 계장 · 파선 밸브 · 모서리 ● 검토 필요)","규칙은 그 도면의 범례 · NOTES · 표제란에서 읽음 — 검출에 LLM 쓰지 않음","hotfix133 에 새로: Excel ‘=’ 시작 글 안전 처리 · LOGIC 업로드 PDF 닫기"],
+  review:["판독 결과는 사람 검토 전에는 확정본이 아님","글자 없는 스캔 PDF 는 DXF 로 다시 올려야 함 (도구가 안내)","hotfix132 의 회사 적용 확인 기록이 없음 → 덮어쓰기 원칙으로 131 이든 132 든 133 으로"],
   shots:[["s1_pid","DASHBOARD › P&ID 분석 — PID 서버 hotfix132 를 실제로 띄워 연결","hotfix132 코드 실행"],["lv_pid_end","판독 결과 — 도면 위 공급 범위 표시 (SCT 공급 범위 24)","프로그램 시연 영상 세션"],["lv_pid_start","판독 결과 목록과 도면","프로그램 시연 영상 세션"]]},
- {sid:"S3",name:"Logic 검토 4",session:"3. Logic 검토코드 4",menu:"🔀 LOGIC 분석",ver:"브랜치 L91 · 꾸러미에는 L86 까지",st:"part",
-  pkg:"(PID_dev+ops 꾸러미에 포함)",bytes:0,apply:"S2 꾸러미와 함께 적용",
+ {sid:"S3",name:"Logic 검토 4",session:"3. Logic 검토코드 4",menu:"🔀 LOGIC 분석",ver:"L91 (회사에는 L86 까지 → hotfix133 에 L87–L91)",st:"plan",file:"②",
+  pkg:"(② 통합에 병합)",bytes:0,apply:"② 와 함께",
   path:"#logic",
-  what:["Logic Diagram PDF → From-To 보고 · 정합성 검토","연결 따라가기: 최종 명령에서 최초 입력까지","동작 시뮬레이션 · 그룹 시험 · 시운전 단계별 · System Description(Word)","신호 처리 시뮬레이션 (∑ · △ · √ · LAG · PID 등 약 30개, 계산 과정)","LOGIC 작도 — 기호 · 매크로 팔레트 · 공통 Typical 사전"],
-  review:["L87–L91 (7개 커밋: draw.io식 편집 · 기호 새 창 · 827장 재현 · 기호 설명 · 매크로 프로젝트 사본) 이 아직 PID 꾸러미에 없음","시험: 빠른 시험 1,655 통과 · 화면 시험 125/125 (L91 기준)"],
+  what:["Logic Diagram PDF → From-To 보고 · 정합성 검토","연결 따라가기: 최종 명령에서 최초 입력까지","동작 시뮬레이션 · 그룹 시험 · 시운전 단계별 · System Description(Word)","신호 처리 시뮬레이션 (∑ · △ · √ · LAG · PID 등 약 30개, 계산 과정)","L87–L91 에 새로: draw.io 식 편집 · 기호 새 창 · 827장 재현 · 기호 설명 · 매크로 프로젝트 사본"],
+  review:["L87–L91 7개 커밋이 LOGIC 파일 4개를 건드려 hotfix133 의 Excel 안전 처리와 충돌 확인 (통합 때)","시험: 빠른 시험 1,655 통과 · 화면 시험 125/125 (L91 기준)"],
   shots:[["s1_logic","DASHBOARD › LOGIC 분석 — 첫 화면","hotfix132 코드 실행"],["s3_trace","연결 따라가기 (L70)","S3 브랜치 out/l70"],["s3_sim","동작 시뮬레이션","S3 브랜치 out/l64"],["s3_draw","LOGIC 작도 — 저장된 프로젝트 AMIRAL","hotfix132 코드 실행"],["s3_signal","신호 처리 시뮬레이션 — 계산 과정","hotfix132 코드 실행"]]},
- {sid:"S4",name:"PANEL (판넬 공간확보)",session:"4. PANEL 코드",menu:"🗄 ROOM SIZE 계산",ver:"브랜치 최신 (변경 이력 55) · 회사 PC 는 v16.26 통합본",st:"no",
-  pkg:"(이번 꾸러미 없음)",bytes:0,apply:"—",
+ {sid:"S4",name:"PANEL (판넬 공간확보)",session:"4. PANEL 코드",menu:"🗄 ROOM SIZE 계산",ver:"변경 이력 (55) — 회사에는 10-30 판까지 → hotfix133 에 5개 커밋",st:"plan",file:"②",
+  pkg:"(② 통합에 apps/space → app/static/space 로 옮김)",bytes:0,apply:"② 와 함께 · 메뉴 경로(PID 서버 /space)는 그대로",
   path:"#space",
-  what:["계장 판넬실(Control · Equipment Room) 배치 도구","Panel Type 정의 → Equipment List 자동 배치(Option A) 또는 Ref. PJT(Option B)","간섭 · 이격 · 문 열림 · 운전원 시야를 2D 와 순수 WebGL 3D 로 검토","필요 사이즈 · 권장 실 크기 · PDF · DXF · CSV · Excel · 건축 전달 요약"],
-  review:["브랜치의 최신판(Phase 1/2 · 3D 사람 · 스펙 맞추기, 117개 커밋)이 아직 회사로 안 나감","DASHBOARD 메뉴는 지금 PID 서버의 /space (Phase 2 없음) 를 띄움 — 어느 쪽을 쓸지 결정 필요"],
-  shots:[["s1_space","DASHBOARD › ROOM SIZE 계산 — 지금 회사 PC 경로","hotfix132 코드 실행"],["s4_first","새 첫 화면 — 프로젝트별 Phase 1 · Phase 2","S4 브랜치 reports/img (미전달)"],["s4_3d","3D 등각 — 판넬 배치 검토","S4 브랜치 reports/img (미전달)"],["s4_worker","3D 사람 시점 — 결선 작업자","S4 브랜치 reports/img (미전달)"],["s4_cad","Phase 2 — 건축 DXF 위 결과","S4 브랜치 reports/img (미전달)"]]},
- {sid:"S5",name:"도서 검토",session:"5. 도서 검토",menu:"🌪️ 도서검토",ver:"BOOKS 2026-10-24.1 (처음 설치)",st:"ready",
-  pkg:"BOOKS_full_2026-10-24.1_2026-11-07.zip",bytes:568477,apply:"APPLY.bat → apps\\books · books_api.py, 그리고 DASHBOARD server.py · dashboard.html 두 곳 연결",
+  what:["계장 판넬실(Control · Equipment Room) 배치 도구","Panel Type 정의 → Equipment List 자동 배치(Option A) 또는 Ref. PJT(Option B)","간섭 · 이격 · 문 열림 · 운전원 시야를 2D 와 순수 WebGL 3D 로 검토","hotfix133 에 새로: 첫 화면 Phase 1(계획) · Phase 2(건축 DXF) · 고급 조명 넣었다 뺌"],
+  review:["판넬 화면은 병합이 아니라 파일을 옮겨 오는 방식 — imported 68c402c6 → 7b10d7cb 로 갱신","3D 사람 시점 · 결선 작업자 화면이 회사 PC Edge 에서 매끄러운지"],
+  shots:[["s1_space","DASHBOARD › ROOM SIZE 계산 — 지금 회사 PC 경로 (10-30 판)","hotfix132 코드 실행"],["s4_first","새 첫 화면 — 프로젝트별 Phase 1 · Phase 2 (hotfix133 에 들어감)","S4 브랜치 reports/img"],["s4_3d","3D 등각 — 판넬 배치 검토","S4 브랜치 reports/img"],["s4_worker","3D 사람 시점 — 결선 작업자","S4 브랜치 reports/img"],["s4_cad","Phase 2 — 건축 DXF 위 결과","S4 브랜치 reports/img"]]},
+ {sid:"S5",name:"도서 검토",session:"5. 도서 검토",menu:"🌪️ 도서검토",ver:"2026-10-24.1 — PID 서버 /books 에 같은 판 (hotfix115~)",st:"same",file:"②",
+  pkg:"(변경 없음 — 이미 ② 안에 있음)",bytes:0,apply:"없음",
   path:"#books",
   what:["부서 계장 도서를 본문 내용으로 찾기 — 말하듯 질문","공용 도서관(서버 PC 폴더 색인) 또는 내 PC 폴더","개념 49개 · 학습 지식 노트 118개 · 답변 상자 (폴더 원문 인용 / 내장 지식 구분)","PDF · DOCX · XLSX · PPTX · EPUB · HWPX 본문"],
-  review:["인터넷 공개 도서 63–67권으로만 시험 — 부서 실제 도서로 확인 필요","Claude 번역 엔진은 기본 꺼짐 — 정책 확인 뒤에만","답변은 참고용 — 근거 쪽을 원문과 대조"],
-  shots:[["s1_books","DASHBOARD › 도서검토 (지금은 PID 서버 /books/)","hotfix132 코드 실행"],["lv_books","답변 — 근거 도서 · 목차에서 찾은 곳","프로그램 시연 영상 세션"]]},
- {sid:"S6",name:"Datasheet 자동 검토",session:"6. Datasheet 자동 검토",menu:"🏗 실행 프로젝트 › Datasheet › Ball Valve",ver:"valve35 (2026-11-07)",st:"ok",
-  pkg:"PID_dev+ops_valve35_2026-11-07.zip",bytes:424919,apply:"hotfix132 다음에 apply_to_PID_dev.bat → apply_to_PID_ops.bat",
+  review:["인터넷 공개 도서 63–67권으로만 시험 — 부서 실제 도서로 확인 필요","Claude 번역 엔진은 기본 꺼짐 — 정책 확인 뒤에만","앞으로 바뀌면 apps/books → app/static/books 로 옮겨 ② 에 실음"],
+  shots:[["s1_books","DASHBOARD › 도서검토 — PID 서버 /books/","hotfix132 코드 실행"],["lv_books","답변 — 근거 도서 · 목차에서 찾은 곳","프로그램 시연 영상 세션"]]},
+ {sid:"S6",name:"Datasheet 자동 검토 (Valve)",session:"6. Datasheet 자동 검토",menu:"🏗 실행 프로젝트 › Datasheet › Ball Valve",ver:"valve35 (회사 확인은 valve29 까지) → hotfix133 에 포함",st:"plan",file:"②",
+  pkg:"(② 통합에 병합 — valveNN 별도 꾸러미 폐지)",bytes:0,apply:"② 와 함께 · 회사에서 고친 app/valve/* 는 backup\\ 에 두고 덮음",
   path:"/valve/",
   what:["Ball Valve Datasheet PDF (+ Valve List · Process Data · PMS) 를 규칙으로 검토 — OCR · AI 없음","Data Error · Data Missing · Open Item · PMS · Process Mismatch 등, 문서 · 쪽 · 기대값 · 실제값 근거","valve35: 같은 지적을 Typical · 블럭으로 묶어 코멘트 2,935 → 276 (판정은 그대로, 변경 0)","Excel 첫 장 ‘Comments (Typical)’ · Mark-up PDF"],
-  review:["hotfix132 뒤에 넣으면 app/main.py 기준판이 달라 .new 로 비켜 둘 수 있음 — 사람 확인","꾸러미 안 1_먼저읽기.txt 첫머리가 valve34 문구","시험: pytest 1,989 통과 · UI 25/25"],
+  review:["11-01~02 회사 PC 에서 직접 고친 Valve 파일이 있으면 덮임 → 1_먼저읽기 맨 위 목록 · backup\\ 에서 복구 가능","app/main.py 충돌은 통합 브랜치에서 오케스트레이터가 맞춤 (회사 PC 에서 .new 안 생김)","시험: pytest 1,989 통과 · UI 25/25"],
   shots:[["s6_valve","Valve Datasheet — Project Dashboard (빈 프로젝트)","hotfix132 + valve35 코드 실행"],["lv_ds_start","Datasheet Review 화면","프로그램 시연 영상 세션"],["lv_ds_end","Datasheet 값 확인 — 지적 칸 표시","프로그램 시연 영상 세션"]]},
- {sid:"S7",name:"3D 계측제어 도구",session:"7. 3D 계측제어 도구 개발",menu:"(메뉴 없음 · 따로 열기)",ver:"IC_Dashboard 2026-11-07",st:"sep",
-  pkg:"IC_Dashboard.zip (브랜치에 없음)",bytes:0,apply:"index.html 더블클릭",
-  path:"app/index.html",
+ {sid:"S7",name:"3D 계측제어 도구",session:"7. 3D 계측제어 도구 개발",menu:"🧊 3D 계측제어 (메뉴 추가 예정)",ver:"IC_Dashboard 2026-11-07 — 회사 경로 없음 → ② 에 /ic3d 로",st:"prep",file:"②",
+  pkg:"(② 통합에 app/static/ic3d 로 옮김 — 준비되면)",bytes:0,apply:"PID 서버 /ic3d (S2) + DASHBOARD 메뉴 한 줄 (S1 → ① 파일)",
+  path:"/ic3d",
   what:["‘I&C 통합 사양 검토 멀티에이전트’ — 오케스트레이터가 12개 Item 에이전트 + 지원 3개에 질문을 나눔","Item Spec · ic-expert 지식베이스로 답변 (기본: 로컬 검색)","‘PSV MR 작성해줘’ → MR 초안 Word — 값은 미확인, 승인란 비움","Anatomy: 개념 · 시뮬레이션 / 실물 3D"],
-  review:["실물 3D 는 three.js 를 cdnjs 에서 받음 — 회사망에서는 열리지 않음 (아래 화면이 실제 결과)","Claude 답변 엔진은 api.anthropic.com 으로 직접 보냄 — 사내 데이터 외부 전송 금지와 충돌, 회사 PC 에서는 끔","DASHBOARD 메뉴에 아직 연결 안 됨"],
-  shots:[["s7_org","조직도 — 오케스트레이터 · Item 에이전트 · Human Gate","practical-newton 코드 실행 (file://)"],["s7_mr","‘PSV MR 작성해줘’ → MR 미리보기","practical-newton 코드 실행"],["s7_concept","Anatomy · 개념 · 시뮬레이션 — PSV","practical-newton 코드 실행"],["s7_3dfail","실물 3D — 외부 접속이 막히면 이렇게 나옴","practical-newton 코드 실행 (CDN 막힘)"],["lv_3d","실물 3D — 외부 접속이 될 때","프로그램 시연 영상 세션"]]}
+  review:["실물 3D 가 three.js 를 cdnjs 에서 받음 — 회사망에서 안 열림 (넷째 화면이 실제 결과) → 파일 안에 넣기 (S7 작업)","Claude 답변 엔진(api.anthropic.com) · DART 는 회사 PC 기본 꺼짐 확인","앱 파일을 app/static/ic3d/ 로 옮겨도 서로 찾게 상대 경로 정리"],
+  shots:[["s7_org","조직도 — 오케스트레이터 · Item 에이전트 · Human Gate","practical-newton 코드 실행 (file://)"],["s7_mr","‘PSV MR 작성해줘’ → MR 미리보기","practical-newton 코드 실행"],["s7_concept","Anatomy · 개념 · 시뮬레이션 — PSV","practical-newton 코드 실행"],["s7_3dfail","실물 3D — 외부 접속이 막히면 이렇게 나옴 (고칠 것)","practical-newton 코드 실행 (CDN 막힘)"],["lv_3d","실물 3D — 외부 접속이 될 때","프로그램 시연 영상 세션"]]}
 ];
 const fmtB=b=>b?(b>=1048576?(b/1048576).toFixed(1)+" MB":Math.round(b/1024)+" KB"):"—";
 const chip=st=>`<span class="chip ${ST[st][0]}">${ST[st][1]}</span>`;
+const fileChip=f=>`<span class="chip ${f==="①"?"gray":"info"}">${f}</span>`;
 
 /* ---------- STEP 1 ---------- */
-$("#pkgtable").innerHTML="<thead><tr><th>세션</th><th>꾸러미</th><th class='hide-m'>크기</th><th>이번</th></tr></thead><tbody>"+
-  TOOLS.map(t=>`<tr><td><span class="chip info">${t.sid}</span> ${esc(t.name)}</td><td class="mono" style="overflow-wrap:anywhere">${esc(t.pkg)}</td><td class="hide-m">${fmtB(t.bytes)}</td><td>${chip(t.st)}</td></tr>`).join("")+
-  `<tr><td colspan="4" class="small muted">+ <span class="mono">UPDATE_GUIDE.md</span> · <span class="mono">MANIFEST.json</span> (SHA-256) · 이 시연 파일</td></tr></tbody>`;
+$("#pkgtable").innerHTML="<thead><tr><th>파일</th><th>세션</th><th class='hide-m'>이번 회차에 들어가는 것</th><th>상태</th></tr></thead><tbody>"+
+  `<tr><td colspan="4" class="small" style="background:var(--panel2)"><b>① UPDATE_from_vA_to_vB.zip</b> — DASHBOARD 개별 <span class="muted">· 이번엔 변경 없음 (v16.58 이미 전달)</span></td></tr>`+
+  TOOLS.filter(t=>t.file==="①").map(t=>`<tr><td>${fileChip(t.file)}</td><td><span class="chip info">${t.sid}</span> ${esc(t.name)}</td><td class="hide-m small muted">${esc(t.apply)}</td><td>${chip(t.st)}</td></tr>`).join("")+
+  `<tr><td colspan="4" class="small" style="background:var(--panel2)"><b>② PID_dev+ops_hotfix133_&lt;날짜&gt;.zip</b> — 그 외 전부 통합 <span class="muted">· 기준 = 마지막 적용 확인(2026-11-02 valve29) · 최신으로 덮어씀</span></td></tr>`+
+  TOOLS.filter(t=>t.file==="②").map(t=>`<tr><td>${fileChip(t.file)}</td><td><span class="chip info">${t.sid}</span> ${esc(t.name)}</td><td class="hide-m small muted">${esc(t.pkg)}</td><td>${chip(t.st)}</td></tr>`).join("")+
+  `<tr><td colspan="4" class="small muted">+ <span class="mono">1_먼저읽기.txt</span> (덮어쓴 회사 수정 파일 목록 맨 위) · <span class="mono">MANIFEST</span> (SHA-256) · 이 시연 파일 — <b>아직 만들지 않았고, 요청할 때 만듭니다</b></td></tr></tbody>`;
 $("#orgkids").innerHTML=TOOLS.map(t=>`<div><b>${t.sid}</b>${esc(t.name.replace(/ \(.+\)/,""))}</div>`).join("");
 
 /* ---------- STEP 2 ---------- */
 const PLAN=[
- {sid:"S1",lab:"DASHBOARD v16.57 → v16.58",lines:[
-   ["","> UPDATE_from_v16.57_to_v16.58\\APPLY.bat"],["m","  base\\ 와 지금 파일 비교 (회사 PC 가 v16.57 인지)"],["","  dashboard.html · DASHBOARD_ARCHITECTURE.md 교체 ........ <span class='g'>완료</span>"],["m","  운영 데이터 폴더(data · accounts · history · backup …)는 건드리지 않음 · 서버 재시작 불필요"]]},
- {sid:"S2",lab:"PID_dev+ops hotfix132 (LOGIC L86 포함)",lines:[
-   ["","> PID_dev+ops_hotfix132\\apply_to_PID_dev.bat"],["m","  C:\\Claude\\PID_dev 에 491개 파일 적용 → 개발 사본에서 먼저 확인"],
-   ["","> apply_to_PID_ops.bat"],["m","  C:\\Claude\\PID (운영, 포트 8000) — 실패하면 자동 되돌림 · rollback_PID_ops.bat"],["","  PID 서버 재시작 · 상단 띠 ‘업데이트 132’ ........ <span class='g'>확인</span>"]]},
- {sid:"S6",lab:"valve35 (hotfix132 다음)",lines:[
-   ["","> PID_dev+ops_valve35\\apply_to_PID_dev.bat → apply_to_PID_ops.bat"],["m","  app/valve/* · app/static/valve/* 교체"],["y","  ! app/main.py 기준판이 hotfix132 와 다름 → 사람 확인 (.new 로 비켜 둘 수 있음)"]]},
- {sid:"S5",lab:"BOOKS 처음 설치",lines:[
-   ["","> BOOKS_full_2026-10-24.1\\APPLY.bat"],["m","  apps\\books\\ (index.html · kb.js · pdf.js 포함) · books_api.py"],["y","  ! DASHBOARD server.py · dashboard.html 연결 2곳 — INTEGRATION.md 2장 (S1 작업)"]]},
- {sid:"S3",lab:"LOGIC L87–L91",lines:[["r","  - PID 꾸러미에 아직 없음 → 다음 hotfix 에서"]]},
- {sid:"S4",lab:"판넬 공간확보 최신판",lines:[["r","  - 이번 꾸러미 없음 · 메뉴 경로 결정 필요"]]},
- {sid:"S7",lab:"IC_Dashboard",lines:[["m","  - DASHBOARD 와 별도 · index.html 로 열기 (실물 3D 는 회사망에서 안 열림)"]]}
+ {sid:"S1",lab:"① DASHBOARD — 이번엔 없음",lines:[["m","  delivered.txt 마지막 줄 = v16.58 · 브랜치에 새 변경 없음 → 건너뜀"],["m","  (7. 3D 메뉴가 붙으면 그때 ‘어느 버전에서든 적용되는 판’으로 한 번)"]]},
+ {sid:"S2",lab:"② hotfix133 — 개발 사본에 먼저",lines:[
+   ["","> PID_dev+ops_hotfix133\\apply_to_PID_dev.bat"],["m","  C:\\Claude\\PID_dev — 기준 = 마지막 적용 확인(valve29 · 11-02) 뒤 바뀐 파일 전부"],["m","  회사 PC 가 hotfix131 이든 132 든 → 133 으로 (우리가 보낸 어느 판이든 덮음)"],["","  내용: P&ID(132+2) · LOGIC L87–L91 · 판넬 5커밋 · Valve valve35 · 3D /ic3d(준비되면) ........ <span class='g'>확인</span>"]]},
+ {sid:"S6",lab:"② 회사에서 고친 파일",lines:[["y","  ! 11-01~02 회사 PC 에서 고친 app/valve/* → backup\\hotfix133_<시각>\\ 에 두고 최신으로 덮음 (--overwrite)"],["m","  1_먼저읽기 맨 위에 덮은 파일 목록 · 되돌리기는 --restore"]]},
+ {sid:"S3",lab:"② 운영 폴더 적용",lines:[
+   ["","> apply_to_PID_ops.bat --overwrite"],["m","  C:\\Claude\\PID (운영, 포트 8000) — 복사 중 실패하면 자동 되돌림 (hotfix132 안전장치 그대로)"],["","  PID 서버 재시작 · 상단 띠 ‘업데이트 133’ ........ <span class='g'>확인</span>"]]},
+ {sid:"S4",lab:"② 메뉴 6곳 확인",lines:[["","  P&ID · LOGIC · LOGIC 작성 · ROOM SIZE(Phase 1/2 새 첫 화면) · 도서검토 · Valve ........ <span class='g'>6/6 열림</span>"]]},
+ {sid:"S7",lab:"② 3D /ic3d",lines:[["y","  ! three.js 파일 안에 넣기 · LLM 끔 뒤 포함 — 준비 전이면 이번 ② 에서 빠지고 메뉴도 안 붙음"]]},
+ {sid:"S5",lab:"적용 뒤",lines:[["w","  회사 PC 에서 “적용했다” → 오케스트레이터가 기준점(delivered · 적용 확인) 갱신"]]}
 ];
 const plist=done=>{$("#plist").innerHTML=PLAN.map((p,i)=>{const t=TOOLS.find(x=>x.sid===p.sid);
   const s=i<done?chip(t.st):(i===done&&busy?'<span class="chip info">진행</span>':'<span class="chip gray">대기</span>');
@@ -321,9 +324,9 @@ async function runApply(){
     put("c",`[${i+1}/${PLAN.length}] ${p.sid} ${p.lab}`); await wait(350);
     for(const [c,h] of p.lines){ put(c,h); await wait(260); } }
   plist(PLAN.length);
-  put("g","적용 4건 · 사람 확인 2건 · 다음 회차 3건 → 4단계 표"); await wait(200);
-  put("w","부서원은 Edge 로 http://부서장PC:8080/ 에 접속");
-  $("#pbar").style.width="100%"; $("#ptext").textContent="완료 — 4개 꾸러미 적용, 3개는 다음 회차";
+  put("g","② 통합 1개 적용 · 반영 4세션 · 이미 최신 2세션 · 3D 는 준비되면 → 4단계 표"); await wait(200);
+  put("w","부서원은 Edge 로 http://부서장PC:8080/ 에 접속 (화면은 그대로, 안의 도구가 최신)");
+  $("#pbar").style.width="100%"; $("#ptext").textContent="완료 — 파일 2개 중 ② 통합 1개 적용 (① 은 변경 없음)";
   busy=false; $("#runapply").disabled=false; $("#runapply").textContent="↺ 다시"; $("#gotodash").disabled=false;
 }
 $("#runapply").onclick=runApply; $("#gotodash").onclick=()=>go(2);
@@ -336,7 +339,7 @@ let curTool=null,curShot=0;
 function openTool(sid,shot=0){
   const t=TOOLS.find(x=>x.sid===sid); curTool=t; curShot=shot;
   $$("#side button").forEach(b=>b.setAttribute("aria-current",b.dataset.sid===sid));
-  $("#apppath").textContent=t.sid==="S7"?"file:///C:/…/IC_Dashboard/app/index.html":(t.path.startsWith("/")?"http://부서장PC:8000"+t.path:"http://부서장PC:8080/"+t.path);
+  $("#apppath").textContent=(t.path.startsWith("/")?"http://부서장PC:8000"+t.path:"http://부서장PC:8080/"+t.path)+(t.sid==="S7"?"   (예정 — 준비되면)":"");
   $("#main").innerHTML=`<h2>${esc(t.name)}</h2>
    <div class="meta"><span class="chip info">${t.sid} · ${esc(t.session)}</span>${chip(t.st)}<span class="small muted">${esc(t.ver)}</span></div>
    <div class="viewer"><img id="bigimg" alt=""><div class="cap"><span id="capt"></span><span class="src" id="caps"></span></div></div>
@@ -354,23 +357,22 @@ document.addEventListener("keydown",e=>{if(e.key==="Escape")$("#lb").classList.r
 
 /* ---------- STEP 4 ---------- */
 const cnt=k=>TOOLS.filter(t=>t.st===k).length;
-$("#kpis").innerHTML=[[cnt("ok")+" / 7","이번에 반영"],[cnt("part")+cnt("ready"),"일부 · 연결 필요"],[cnt("no")+cnt("sep"),"다음 회차 · 별도"],[TOOLS.reduce((a,t)=>a+t.review.length,0),"사람 확인 항목"]].map(k=>`<div class="kpi"><div class="v">${k[0]}</div><div class="k">${k[1]}</div></div>`).join("");
-$("#sumtable").innerHTML="<thead><tr><th>세션</th><th>버전</th><th>회사 PC 에서</th><th>결과</th></tr></thead><tbody>"+
-  TOOLS.map(t=>`<tr><td><span class="chip info">${t.sid}</span> ${esc(t.name)}</td><td class="small">${esc(t.ver)}</td><td class="small">${esc(t.menu)}<br><span class="muted">${esc(t.apply)}</span></td><td>${chip(t.st)}</td></tr>`).join("")+"</tbody>";
+$("#kpis").innerHTML=[["1 / 2","이번에 만들 파일 (② 통합)"],[cnt("plan"),"반영 예정 세션"],[cnt("same"),"이미 최신"],[cnt("prep"),"준비 중 (3D)"]].map(k=>`<div class="kpi"><div class="v">${k[0]}</div><div class="k">${k[1]}</div></div>`).join("");
+$("#sumtable").innerHTML="<thead><tr><th>세션</th><th>버전 · 회사 쪽</th><th>파일 · 방법</th><th>결과</th></tr></thead><tbody>"+
+  TOOLS.map(t=>`<tr><td><span class="chip info">${t.sid}</span> ${esc(t.name)}</td><td class="small">${esc(t.ver)}</td><td class="small">${fileChip(t.file)} ${esc(t.pkg)}<br><span class="muted">${esc(t.apply)}</span></td><td>${chip(t.st)}</td></tr>`).join("")+"</tbody>";
 $("#issues").innerHTML=[
- "LOGIC: 브랜치는 L91 인데 회사로 나가는 PID 꾸러미(hotfix132)에는 L86 까지 — L87–L91 7개 커밋이 빠짐",
- "PANEL: 최신 판넬 공간확보(Phase 1/2 · 3D 사람)는 S4 브랜치에만 있고, 회사 DASHBOARD 메뉴는 PID 서버의 옛 /space 를 띄움",
- "도서검토: S5 꾸러미는 DASHBOARD 두 파일 연결이 필요한데, 지금 메뉴는 PID 서버의 /books/ 를 띄움 — 어느 쪽으로 갈지 정해야 함",
- "Valve: valve35 와 hotfix132 는 형제 관계 — 반드시 hotfix132 → valve35 순서, app/main.py 사람 확인",
- "3D: 실물 3D 가 cdnjs 에서 three.js 를 받음 → 회사망에서 깨짐 (이 페이지 S7 넷째 화면이 실제 결과). LLM 답변은 외부 API",
- "S2 · S3 · S4 · S6 · S7 은 dist/company_pc 자리를 만들지 않음 — S3 · S6 은 세션 규칙상 사용자 승인 필요, 오케스트레이터가 브랜치에서 직접 수집"
+ "LOGIC L87–L91 7개 커밋이 아직 회사로 나가는 꾸러미에 없음 → hotfix133 에 병합 (오케스트레이터가 통합 때)",
+ "판넬 · 도서는 세션 원본(dashboard/apps/space · apps/books)과 PID 서버 사본(app/static/…)이 따로 → 통합 때 원본을 옮겨 싣는 방식으로 정리 (규약 v2), 메뉴 경로는 그대로",
+ "Valve 는 valveNN 별도 꾸러미를 없애고 ② 에 병합 → app/main.py 충돌은 통합 브랜치에서 맞춰 회사 PC 에 .new 가 안 생기게",
+ "3D 실물 3D 가 cdnjs 의 three.js 를 받아 회사망에서 깨짐(실제로 띄워 확인) · Claude 답변 엔진은 외부 API → 오프라인화 · 끔 뒤에 /ic3d 로",
+ "hotfix132 이후 회사 적용 확인 기록 없음 → 덮어쓰기 원칙: 기준을 마지막 확인(valve29 · 11-02)으로 잡아 131 이든 132 든 133 으로",
+ "11-01~02 회사 PC 에서 직접 고친 Valve 파일은 덮이면서 지워짐 → backup\\ 에 두고 1_먼저읽기 맨 위에 목록"
 ].map(x=>`<li>${esc(x)}</li>`).join("");
 $("#next").innerHTML=[
- "사용자 결정: ROOM SIZE · 도서검토를 DASHBOARD apps\\ 로 옮길지, PID 서버 화면을 계속 쓸지",
- "S2 세션: L87–L91 병합한 hotfix133 (대기 중인 Excel 안전 처리 포함)",
- "S7 세션: three.js 를 파일 안에 넣어 오프라인에서 열리게 · LLM 기본 끔 확인",
- "S1 세션: S5 INTEGRATION.md 2장대로 연결 (사용자 승인 뒤)",
- "회사 PC 적용 뒤 각 세션 delivered.txt 기준점 갱신"
+ "각 세션에서 규약 v2 확인 한마디 (1 · 2 · 4 · 6 · 7 이 ‘사용자 뜻인지’ 확인 대기)",
+ "S7: three.js 파일 안에 · LLM 기본 끔 · 상대 경로 — S2: PID 서버 /ic3d 주소 — S1: 메뉴 한 줄 (그때 ① 파일)",
+ "사용자가 “회사 업데이트 파일 만들어 줘” → 오케스트레이터가 7개 브랜치 수집 → 통합 → 시험 → release_check → pack_delta (--overwrite 신설) → 파일 2개",
+ "회사 PC 적용 → “적용했다” → 기준점 갱신 → 다음 회차는 그 뒤 바뀐 것만"
 ].map(x=>`<li>${esc(x)}</li>`).join("");
 
 /* ---------- nav ---------- */

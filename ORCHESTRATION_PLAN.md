@@ -296,3 +296,9 @@ create_session(
 ## 8. 다음 단계
 
 이 기획안이 승인되고 7장 답변을 받으면 **Phase 0 → Phase 1** 부터 실행합니다.
+
+### 4.4 실제 역할 Agent (2026-11-07 세션 검토 뒤 조정)
+
+4.2 의 세션별 특화 Agent 는 기획 시점의 안이다. 각 브랜치를 검토한 뒤 **실제 기능에 맞춘 역할**은 `status/build_status.py` 의 `ROLES` 표가 기준이며, 현황판(세션 지도 · 조직도)에 그대로 나온다.
+브랜치에 정식 정의된 Agent · Skill(`.claude/agents` · `.claude/skills`)은 자동으로 읽어 함께 표시한다 (지금은 7. 3D 의 Agent 15 · Skill 8, 4. PANEL 의 Skill 1).
+공통 틀(설계 · 구현 · 검증 · 문서)은 4.1 그대로.
