@@ -37,3 +37,12 @@
 - 배포 전 적대 리뷰 must 3 · should 8 수정(설명서 HEAD 405 · 운영 폴더에 설명서/백업 경로 · 자료 이동 안내 삭제 · 되돌림 안전 등).
 - 판정 로직 diff 0 · 회사 소유/판넬 원본 diff 0. 빠른 시험 2,191 통과. 12화면 × (보통·embed) 콘솔 오류 0.
 - 판넬 68c402c6(카드 🗑) 들여옴 · VALVE valve34 라인 병합(ff).
+
+## 2026-11-07 — PDF 스킬 3종 검토 · hotfix133 후보 1건
+- 검토: awesomeskill pdf-parser(빈 틀) · ComPDF skills(유료 외부 클라우드 API — 도면 반출·AI 판정이라 불가) ·
+  anthropics/skills pdf(pypdf·pdfplumber·OCR·qpdf 안내).  암호·손상·빈 PDF·스캔 PDF 처리는 P&ID `_pdf_problem`
+  (hotfix73) · `pipeline` 스캔 판별로 이미 있음 → 엔진 변경 없음.
+- 고침: `app/logic/api.py::_check_pdf` 가 연 PDF 를 닫지 않아, 거절 시 Windows 에서 rmtree 가 잠긴 source.pdf 를
+  못 지우고 빈 LOGIC 묶음 폴더가 목록에 남을 수 있었다 → finally close.  시험 `tests/test_hotfix133_logic_check_pdf_close.py`.
+  (LOGIC 세션 파일 — 다음 L 병합 때 충돌 주의.)  꾸러미는 아직 안 만듦 — 다음 hotfix133 에 실린다.
+- 후보(사용자 결정): 스캔 P&ID 글자 인식(로컬 Tesseract) · LOGIC 업로드에도 스캔 PDF 안내.

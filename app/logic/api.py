@@ -104,14 +104,19 @@ def _start(d: Path):
 
 
 def _check_pdf(path: Path):
+    # hotfix133 — 연 PDF 를 반드시 닫는다.  닫지 않으면 거절(HTTPException)의 traceback 이 문서를 붙잡아,
+    # Windows 에서 호출부의 rmtree 가 잠긴 source.pdf 를 못 지우고(ignore_errors) 빈 묶음 폴더가 목록에 남았다.
     try:
         doc = pymupdf.open(path)
     except Exception:
         raise HTTPException(400, "PDF 로 열리지 않는 파일입니다.")
-    if doc.needs_pass:
-        raise HTTPException(400, "암호가 걸린 PDF 입니다 — 암호를 푼 판으로 올려 주세요.")
-    if len(doc) == 0:
-        raise HTTPException(400, "쪽이 하나도 없는 PDF 입니다.")
+    try:
+        if doc.needs_pass:
+            raise HTTPException(400, "암호가 걸린 PDF 입니다 — 암호를 푼 판으로 올려 주세요.")
+        if len(doc) == 0:
+            raise HTTPException(400, "쪽이 하나도 없는 PDF 입니다.")
+    finally:
+        doc.close()
 
 
 @router.get("/logic/api/jobs")

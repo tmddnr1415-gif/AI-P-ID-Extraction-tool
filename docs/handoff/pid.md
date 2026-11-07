@@ -16,6 +16,7 @@
   /plaza 제거 여부 · Valve 화면 띠 · LOGIC 분석 취소 · 작도/신호/시운전에 offline.js(쓰기 규칙은 이미 넣음) · 설명서 P&ID 결과 캡처 2장(회사 PC).
 - 회사 PC 에서만 확인 가능: `spike/regression_3p.py` 기준선 · `release_check.py --strict` · 대시보드 안 띠(LOGIC·작도를 embed 없이 열면 띠가 보임).
 - **다음 꾸러미 번호: hotfix133**
+- hotfix133 에 실을 것(아직 꾸러미 없음): LOGIC `_check_pdf` PDF 닫기 (pid_log 2026-11-07).
 
 ## 최근 hotfix 한 줄 요약 (자세한 것은 `docs/history/pid_log.md` · 옛것은 archive 를 grep)
 
