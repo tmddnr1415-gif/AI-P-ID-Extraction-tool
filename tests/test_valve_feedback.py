@@ -503,3 +503,17 @@ def test_comment_digest_api_and_exports(tmp_path, monkeypatch):
     assert "Comments (Typical)" not in openpyxl.load_workbook(io.BytesIO(c.get(f"/api/valve/projects/{pid}/issues.xlsx").content)).sheetnames
     p = c.get(f"/api/valve/projects/{pid}/markup.pdf?group=1")
     assert p.status_code == 200 and p.content[:4] == b"%PDF"
+
+
+def test_valve_model_is_the_anatomy_engine(tmp_path, monkeypatch):
+    """valve36: the Valve Part model is session 7's Anatomy engine (anatomy.js, no library / CDN), served with the page and
+    built from the datasheet; the PDF viewer keeps the name `Viewer`."""
+    c, pid, up = _client(tmp_path, monkeypatch)
+    page = c.get("/valve/").text
+    assert 'src="anatomy.js?v=' in page and page.index("anatomy.js") < page.index("valve.js?v=")
+    js = c.get("/valve/anatomy.js").text
+    assert "const AnatomyViewer = (() => {" in js and "const Anatomy = (() => {" in js and "const RefData = (() => {" in js
+    assert "const Viewer =" not in js and "THREE." not in js
+    assert "cdnjs" not in js and "http://" not in js.replace("http://www.w3.org", "") and "https://" not in js
+    v = (Path(__file__).resolve().parents[1] / "app/static/valve/valve.js").read_text(encoding="utf-8")
+    assert "Anatomy.build({ type: 'valve'" in v and "valveSvg" not in v and "class Viewer" in v

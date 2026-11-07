@@ -30,7 +30,9 @@
 - **valve34**: FileDataError 반복(깨진 저장본 재사용) 고침 · 저장본 해시 검증 · open_pdf 재시도/이유 · 작업 상태 창 닫기 — DESIGN §39.
 - **valve35**: 코멘트 정리 — 블럭(한 쪽에 붙은 Data Missing 3개+ = 한 코멘트) · Typical(같은 코멘트 2 Tag+ = 한 줄) · ▸ 상세 · 묶음 일괄 결정 ·
   Excel 'Comments (Typical)' 시트 · PDF 블럭 박스(`digest.py`, `/issues/digest`, `group=1`) — DESIGN §40. 판정 불변(스냅샷 0). 실자료 2,935 → 276.
-- 꾸러미: **valve35** = `out/PID_dev+ops_valve35_2026-11-07.zip` (누적). 그 전 valve34. 그 전 **valve30** = `out/PID_dev+ops_valve30_2026-11-02.zip`. 그 전 **valve29** = `out/PID_dev+ops_valve29_2026-11-01.zip`(P&ID 서버, 누적 — 이것 하나) · 대시보드 = `dashboard_patches/UPDATE_from_v16.51_VALVE2_menu.zip`(--any) ·
+- **valve36**: 밸브 모형 = 세션 7 Anatomy 엔진(`app/static/valve/anatomy.js`, `spike/mk_anatomy.py` 로 묶음 · 오프라인) — 칸 ↔ 부위 양방향 · DESIGN §41.
+- ★ 2026-11-07 오케스트레이터(세션 메시지): "Valve 도 통합 PID_dev+ops_hotfixNNN 에 싣고 valveNN 별도 꾸러미 폐지" — **사용자 확인 전**이라 규칙은 아직 그대로.
+- 꾸러미: **valve35** = `out/PID_dev+ops_valve35_2026-11-07.zip` (누적). 그 전 valve34. valve36 은 꾸러미 방식 확인 뒤. 그 전 **valve30** = `out/PID_dev+ops_valve30_2026-11-02.zip`. 그 전 **valve29** = `out/PID_dev+ops_valve29_2026-11-01.zip`(P&ID 서버, 누적 — 이것 하나) · 대시보드 = `dashboard_patches/UPDATE_from_v16.51_VALVE2_menu.zip`(--any) ·
   회사 개발용 = `out/VALVE_devkit_valve29_2026-11-01.zip`(문서 · 점검 도구).
 - 남은 일: PERFORMANCE_REPORT.md(측정은 끝 — DESIGN §34-2 · §34-5 · other_log 수치) · Globe/Butterfly/PSV 검토(양식 · 기준 필요) · Phase 2(회사 Valve Spec · Gasket/Bolting PMS · Process DS 원본 필요) ·
   실사용 결정 쌓기(Rule Performance 정밀도) · 다른 Vendor 양식 시험.

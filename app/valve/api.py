@@ -32,7 +32,7 @@ from app.valve import digest, docrev, i18n, ruleperf, checks as chkmod, revision
 router = APIRouter()
 _JOBS: dict[str, dict] = {}
 _JLOCK = threading.Lock()
-_STATIC = {"valve.js": "application/javascript", "valve.css": "text/css"}
+_STATIC = {"valve.js": "application/javascript", "valve.css": "text/css", "anatomy.js": "application/javascript"}   # anatomy.js = valve36 valve model (session 7 engine)
 KINDS = ("datasheet", "valvelist", "process", "pms")
 
 
@@ -445,7 +445,7 @@ def _rules_fingerprint() -> str:
 
 
 _RULES_FP = _rules_fingerprint()
-VERSION = "valve35"                       # shown in Settings › 정보 and the footer; bump with every package
+VERSION = "valve36"                       # shown in Settings › 정보 and the footer; bump with every package
 
 
 @router.get("/api/valve/version")

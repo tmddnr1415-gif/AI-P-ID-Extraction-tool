@@ -1654,35 +1654,66 @@ const PART_INFO = { body: ['Body / Bonnet (몸통)', '압력을 가두는 바깥
   ls: ['Limit Switch / Position Transmitter', '열림 · 닫힘 위치 신호 — 리밋 스위치 · 위치 발신기'], pipe: ['Pipe / Line (배관)', '밸브가 설치되는 배관 — 라인 번호 · 크기 · 재질 · 보온'],
   bore: ['Flow Path (유로)', '공정 유체가 지나는 길 — 유체 · 압력 · 온도 · 유량 조건'] };
 function partOf(key) { const k = (key || '').toLowerCase(); for (const [re, p] of PART_RULES) if (re.test(k)) return p; return null; }
-function valveSvg() {
-  const bolts = (x, ys) => ys.map(y => `<circle cx="${x}" cy="${y}" r="2.6"/>`).join('');
-  return `<svg viewBox="0 0 320 236" class="vsvg" role="img" aria-label="ball valve parts">
-    <g data-part="pipe"><rect x="0" y="128" width="26" height="60"/><rect x="294" y="128" width="26" height="60"/><path class="ins" d="M0 124h26M0 192h26M294 124h26M294 192h26"/></g>
-    <g data-part="flange"><rect x="26" y="112" width="18" height="92" rx="2"/><rect x="276" y="112" width="18" height="92" rx="2"/><g class="bolt">${bolts(35, [121, 139, 177, 195])}${bolts(285, [121, 139, 177, 195])}</g></g>
-    <g data-part="body"><rect x="44" y="118" width="232" height="80" rx="7"/></g>
-    <g data-part="bore"><rect x="26" y="146" width="268" height="24"/><path class="arrow" d="M60 158h24m-6-5l6 5-6 5M236 158h24m-6-5l6 5-6 5"/></g>
-    <g data-part="seat"><rect x="111" y="137" width="10" height="42" rx="2"/><rect x="199" y="137" width="10" height="42" rx="2"/></g>
-    <g data-part="ball"><circle cx="160" cy="158" r="40"/><rect x="121" y="146" width="78" height="24" class="bore2"/></g>
-    <g data-part="seal"><rect x="144" y="110" width="32" height="8" rx="2"/></g>
-    <g data-part="bolting"><circle cx="136" cy="114" r="3"/><circle cx="184" cy="114" r="3"/><circle cx="92" cy="126" r="2.6"/><circle cx="228" cy="126" r="2.6"/></g>
-    <g data-part="packing"><rect x="147" y="86" width="26" height="24" rx="2" class="hatch"/></g>
-    <g data-part="stem"><rect x="156" y="46" width="8" height="76" rx="2"/></g>
-    <g data-part="yoke"><path d="M118 86h84v-16h-84zM118 70v16M202 70v16"/></g>
-    <g data-part="actuator"><rect x="66" y="26" width="188" height="44" rx="7"/><line x1="160" y1="26" x2="160" y2="70" class="piston"/></g>
-    <g data-part="spring"><polyline points="74,48 82,38 90,58 98,38 106,58 114,38 122,58 130,38 138,58 146,48"/></g>
-    <g data-part="handwheel"><circle cx="38" cy="48" r="13"/><circle cx="38" cy="48" r="4"/><line x1="51" y1="48" x2="66" y2="48"/></g>
-    <g data-part="ls"><rect x="118" y="6" width="84" height="18" rx="3"/><text x="160" y="19">LS / ZT</text></g>
-    <g data-part="sov"><rect x="266" y="30" width="48" height="22" rx="3"/><text x="290" y="45">SOV</text><line x1="254" y1="41" x2="266" y2="41"/></g>
-    <g data-part="afr"><rect x="266" y="66" width="48" height="22" rx="3"/><text x="290" y="81">AFR</text></g>
-    <g data-part="tube"><path class="tube" d="M290 52v14M290 88v20h-32"/></g>
-    <text class="cap" x="160" y="230">Flow →  ·  Air ↑</text></svg>`;
+/* valve36 — the valve model is drawn the Anatomy way (session 7 '3D 계측제어 도구' engine: isometric, four-tone shading,
+   painter's order, ink lines — anatomy.js, offline).  The model is built from this datasheet (size · class · bore · operator);
+   the field → part link is the same PART_RULES as before.  Dimensions are reference values: the model shows WHERE, not how big. */
+const ANAT_IDS = { pipe: ['pipe'], flange: ['bolting_in', 'bolting_out', 'flange_gaskets'], body: ['body', 'body_connector', 'mounting_pad'],
+  bore: ['ball', 'pipe'], seat: ['seats'], ball: ['ball', 'trunnion'], seal: ['body_connector', 'body_bolting'], bolting: ['body_bolting', 'bolting_in', 'bolting_out'],
+  packing: ['stem_seal'], stem: ['stem', 'thrust_washer'], yoke: ['bracket', 'coupling', 'thrust_base'],
+  actuator: ['actuator', 'end_cap_l', 'end_cap_r', 'gearcase', 'motor', 'control_unit', 'gearbox', 'lever', 'lever_head', 'input_shaft'],
+  spring: ['end_cap_l', 'end_cap_r'], handwheel: ['handwheel', 'hw_shaft', 'declutch'], sov: ['solenoid'], afr: [], tube: [],
+  ls: ['positioner', 'indicator', 'control_unit', 'gear_indicator'] };
+const ANAT = { el: null, key: '', model: null, note: '', pick: null };
+function anatInputs(d) {
+  const F = Object.fromEntries((d?.fields || []).map(f => [f.key, f])), v = k => String(F[k] ? (F[k].edited_value ?? F[k].value) ?? '' : '');
+  const sz = v('body_size').replace(/(\d+)\s+(\d)\/(\d)/, (m, a, b, c) => String(+a + b / c)).match(/(\d+(?:\.\d+)?)/);
+  const nps = sz ? +sz[1] : null, rt = (v('rating').match(/(\d{3,4})/) || [])[1] || '', bt = (v('body_type') + ' ' + v('bore')).toLowerCase();
+  const at = (v('act_type') + ' ' + v('typeofactuator') + ' ' + (d?.valve_type || '') + ' ' + (d?.tag || '')).toLowerCase();
+  const op = /electric|motor|\bmov\b|mov\d|^\d*mov/.test(at) ? 'electric' : /gear/.test(at) ? 'gear' : /lever|manual|hand/.test(at) && !/pneum|spring/.test(at) ? 'lever' : 'pneumatic_rotary';
+  const cls = rt === '150' || rt === '300' ? rt : '300', notes = [];
+  if (!nps) notes.push('Size 없음 → 4" 모양');
+  if (rt && cls !== rt) notes.push(`CL${rt} 치수표 없음 → CL300 모양`);
+  return { inputs: { body: 'ball', operator: op, service: 'on_off', nps: nps ? Math.min(24, Math.max(0.5, nps)) : 4, cls,
+    bore: /reduc|\brb\b|r\.?p\b/.test(bt) ? 'reduced' : 'full', positioner: op !== 'electric' }, note: notes.join(' · ') };
 }
-function paintPart() {
-  const svg = $('#vpart svg'), cap = $('#vpcap'); if (!svg) return;
+function anatMount() {                                  // one canvas for the whole session; the Data tab re-parents it
+  const slot = $('#vanat'); if (typeof AnatomyViewer === 'undefined') return false;
+  if (!slot) { if (!ANAT.el || !document.contains(ANAT.el)) return false; }
+  else if (!ANAT.el) {
+    ANAT.el = document.createElement('div'); ANAT.el.className = 'anat';
+    slot.replaceWith(ANAT.el);
+    AnatomyViewer.setOption('labels', 'off'); AnatomyViewer.setOption('autoExplode', false);
+    AnatomyViewer.init(ANAT.el, { onPick: id => { ANAT.pick = id; paintPart(true); } });
+  } else slot.replaceWith(ANAT.el);
+  const { inputs, note } = anatInputs(S.ds), key = (S.ds?.id || '') + JSON.stringify(inputs);
+  if (key !== ANAT.key) {
+    ANAT.key = key; ANAT.note = note;
+    try { ANAT.model = Anatomy.build({ type: 'valve', inputs }); AnatomyViewer.show(ANAT.model); AnatomyViewer.setView?.('iso'); AnatomyViewer.fit(); }
+    catch (e) { ANAT.model = null; console.warn('anatomy', e); }
+  }
+  return true;
+}
+function paintPart(fromModel) {
+  const cap = $('#vpcap'); if (!cap) return;
+  if (!anatMount()) { cap.innerHTML = '<div class="soft">밸브 모형을 불러오지 못했습니다</div>'; return; }
+  const have = new Set((ANAT.model?.parts || []).map(x => x.id)), info = id => (ANAT.model?.parts || []).find(x => x.id === id);
+  if (fromModel && ANAT.pick) {                         // model → fields: which datasheet rows talk about this part
+    const ours = Object.keys(ANAT_IDS).filter(k => ANAT_IDS[k].includes(ANAT.pick)), pt = info(ANAT.pick);
+    const fs = (S.ds?.fields || []).filter(f => { const q = partOf(f.key); return q && (ours.includes(q) || (PART_GROUP[q] || []).some(x => ours.includes(x))); });
+    AnatomyViewer.select([ANAT.pick]);
+    cap.innerHTML = `<b>${esc(pt?.name || ANAT.pick)}</b>${pt?.fn ? `<div class="soft">${esc(pt.fn)}</div>` : ''}
+      <div class="achips">${fs.length ? fs.map(f => `<span class="fchip" data-afield="${esc(f.key)}">${esc(f.display)}: <b>${esc((f.edited_value ?? f.value) || '—')}</b></span>`).join('') : '<span class="soft">이 부품을 다루는 칸이 없습니다</span>'}</div>`;
+    $$('[data-afield]', cap).forEach(c => c.onclick = () => { selectField(c.dataset.afield); $(`#wbody [data-k="${CSS.escape(c.dataset.afield)}"]`)?.scrollIntoView({ block: 'nearest' }); });
+    return;
+  }
+  ANAT.pick = null;
   const f = S.ds?.fields.find(x => x.key === W.selField), p = f ? partOf(f.key) : null, parts = p ? (PART_GROUP[p] || [p]) : [];
-  $$('[data-part]', svg).forEach(g => { g.classList.toggle('hi', parts.includes(g.dataset.part)); g.classList.toggle('dim', !!parts.length && !parts.includes(g.dataset.part)); });
-  cap.innerHTML = p ? `<b>${PART_INFO[p][0]}</b><div class="soft">${PART_INFO[p][1]}</div><div><small>${esc(f.display)}: <b>${esc((f.edited_value ?? f.value) || '—')}</b></small></div>`
-    : f ? `<b>${esc(f.display)}</b><div class="soft">밸브 부위가 아닌 항목(식별 · 문서 · 수량)</div>` : '<div class="soft">칸을 누르면 밸브의 어느 부위인지 그림에서 보여 줍니다</div>';
+  const ids = [...new Set(parts.flatMap(x => ANAT_IDS[x] || []))].filter(x => have.has(x));
+  AnatomyViewer.select(ids);
+  const miss = p && !ids.length ? '<div class="soft">이 모형에는 그려지지 않은 부위입니다 (예: AFR · 튜빙)</div>' : '';
+  cap.innerHTML = (p ? `<b>${PART_INFO[p][0]}</b><div class="soft">${PART_INFO[p][1]}</div>${miss}<div><small>${esc(f.display)}: <b>${esc((f.edited_value ?? f.value) || '—')}</b></small></div>`
+    : f ? `<b>${esc(f.display)}</b><div class="soft">밸브 부위가 아닌 항목(식별 · 문서 · 수량)</div>` : '<div class="soft">칸을 누르면 그 부위가 모형에서 주황색으로 · 모형의 부품을 누르면 관련 칸 · 휠 = 분해 / 확대 · 끌기 = 돌려 보기</div>')
+    + (ANAT.note ? `<div class="soft" style="font-size:10.5px">모형: ${esc(ANAT.note)}</div>` : '');
 }
 function drawRight() {
   const d = S.ds, b = $('#wbody'); if (!d || !b) return;
@@ -1739,7 +1770,7 @@ function drawRight() {
   } else if (W.tab === 'data') {
     const secs = {};
     d.fields.forEach(f => { if (f.section === 'process' && f.key.includes('.')) return; (secs[f.section] ||= []).push(f); });
-    h = `<div class="vpart ${LS.get('vpart', 1) ? '' : 'min'}" id="vpart"><div id="fsrc" class="fsrc"></div><div class="vph"><b>Valve Part</b><span class="soft">칸 → 부위</span><span class="sp"></span><button id="vpt" title="그림 접기/펼치기">${LS.get('vpart', 1) ? '▾' : '▸'}</button></div>${valveSvg()}<div class="vpcap" id="vpcap"></div></div>`
+    h = `<div class="vpart ${LS.get('vpart', 1) ? '' : 'min'}" id="vpart"><div id="fsrc" class="fsrc"></div><div class="vph"><b>Valve Part</b><span class="soft">칸 ↔ 부위 · Anatomy</span><span class="sp"></span><button id="vfit" title="처음 모습 (조립 · 맞춤)">⟲</button><button id="vpt" title="그림 접기/펼치기">${LS.get('vpart', 1) ? '▾' : '▸'}</button></div><div id="vanat"></div><div class="vpcap" id="vpcap"></div></div>`
       + Object.keys(SECTION_NAMES).filter(s => secs[s]).map(s => `<div class="sect"><h4>${SECTION_NAMES[s]}</h4>${secs[s].map(fieldLine).join('')}</div>`).join('');
   } else if (W.tab === 'proc') {
     const P = d.process, ex = ['body_size', 'rating', 'body_material', 'ball_material', 'seat_material', 'piping_class'].map(k => F[k]).filter(Boolean);
@@ -1786,7 +1817,7 @@ function drawRight() {
       <td>${esc(a.action)} ${a.field_key ? `<b>${esc(a.field_key)}</b>` : ''}${a.before != null ? ` <span class="chg-old">${esc(String(a.before).slice(0, 60))}</span>` : ''}${a.after != null ? ` → ${esc(String(a.after).slice(0, 80))}` : ''}${a.comment ? ` <small class="soft">(${esc(a.comment)})</small>` : ''}</td></tr>`).join('') || '<tr><td colspan="3" class="empty">기록 없음</td></tr>'}</tbody></table>`;
   }
   b.innerHTML = h;
-  if (W.tab === 'data') { paintPart(); $('#vpt').onclick = () => { const on = !LS.get('vpart', 1); LS.set('vpart', on ? 1 : 0); $('#vpart').classList.toggle('min', !on); $('#vpt').textContent = on ? '▾' : '▸'; }; }
+  if (W.tab === 'data') { paintPart(); $('#vfit').onclick = () => { AnatomyViewer.setExplode?.(0); AnatomyViewer.focus?.(null); AnatomyViewer.fit(); }; $('#vpt').onclick = () => { const on = !LS.get('vpart', 1); LS.set('vpart', on ? 1 : 0); $('#vpart').classList.toggle('min', !on); $('#vpt').textContent = on ? '▾' : '▸'; }; }
   const tb = (t, n) => { const x = $(`#wtabs [data-t="${t}"] .tb`); if (x) { x.textContent = n; x.hidden = !n; } };
   tb('iss', (d.issues || []).filter(i => i.type !== 'Extraction Review' && i.status !== 'Dismissed').length); tb('cmt', d.comments.length);
   tb('rev', (W.prevCmp?.rows || []).filter(r => r.change !== 'Unchanged').length); tb('pms', (d.pms || []).filter(r => r.result !== 'Compliant').length);

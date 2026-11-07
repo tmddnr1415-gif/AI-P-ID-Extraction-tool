@@ -161,6 +161,11 @@
 - Excel · Mark-up PDF 고르기 창의 **코멘트 정리**(기본 켬): Excel 맨 앞 'Comments (Typical)' 시트 + 낱개 Issue List 시트 그대로 /
   PDF 는 블럭마다 박스 하나 · 코멘트 하나.
 
+## 10-11. 밸브 모형 (Anatomy · valve36)
+- Datasheet Review › **Data** 탭 위 **Valve Part** = 이 데이터시트 값(크기 · 압력 등급 · Bore · 구동기)으로 만든 볼밸브 입체 모형.
+- **칸을 누르면** 그 부위가 주황색, 나머지는 반투명 (몸통 안 Ball · Seat 도 보임). **모형의 부품을 누르면** 부품 설명과 관련 칸 목록 → 누르면 그 칸으로.
+- 휠 = 분해 · 확대, 끌기 = 돌려 보기, ⟲ = 처음 모습, ▾ = 접기. 치수는 참고 모양 — 크기 판정에 쓰지 않습니다.
+
 ## 11. 자주 묻는 것
 
 - **Area · Unit 은 어디서 오나?** 데이터시트 제목(QELNG NORTH / SOUTH / W15)과 P&ID 번호에서. 제목에 '(SYSTEM xx – UNIT yy)' 가 있으면 기존 플랜트 = Brownfield.

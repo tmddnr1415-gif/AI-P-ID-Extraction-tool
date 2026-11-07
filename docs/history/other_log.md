@@ -270,3 +270,8 @@
 - Issue List '정리 보기 | 낱개 전체' · ▸ 상세 · 묶음 일괄 결정 · Excel 'Comments (Typical)' 시트 · Mark-up PDF 블럭 박스 (group=1, 기본 켬).
 - 실자료 2,935 → 276. 판정 스냅샷 변경 0 · 시험 +2 (1,989) · UI 25/25 · 필터 · LINK OK. VERSION valve35.
 - 같은 날 답: Fugitive 카운트 = 칸 · Note · General Note 의 fugitive/ISO 15848/TA-Luft (조건부 GN 미구분 — 사용자 결정 대기).
+
+## 2026-11-07 · valve36 — 밸브 모형을 Anatomy 방식으로 (사용자 요청 "세션 7 참조")
+- 세션 7 ic-3d-builder 엔진(af748c7: refdata · anatomy · viewer)을 `app/static/valve/anatomy.js` 한 파일로(`spike/mk_anatomy.py`) — 이름 AnatomyViewer · 여러 부품 강조 + 나머지 반투명.
+- Data 탭 Valve Part: 데이터시트 크기 · CL · Bore · 구동기로 모형, 칸 → 부위 주황 · 부품 → 관련 칸. 평면 SVG 삭제.
+- 시험 +1 · 판정 변경 없음. VERSION valve36. 꾸러미는 통합 방식(오케스트레이터) 사용자 확인 대기.

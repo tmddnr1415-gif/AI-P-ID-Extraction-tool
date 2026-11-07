@@ -685,3 +685,17 @@ Note 113 · PC-01 Confirm 6(3C0K8 의 '316 SS/FHF' 2개 · API5L-X65 MOV 1500# �
 - 출력: 고르기 창 '코멘트 정리'(기본 켬, LS `outgroup`) → `group=1`. Excel = 맨 앞 'Comments (Typical)' 시트(열린 채로) + 기존 Issue List 등 그대로 ·
   Mark-up PDF = 블럭 하나에 박스 하나 · 번호 하나 · 코멘트 하나.
 - 시험 `test_comment_digest_blocks_and_typical` · `test_comment_digest_api_and_exports`.
+
+### 41. valve36 — 밸브 모형을 Anatomy 방식으로 (사용자 요청 "세션 7 참조해서 밸브 모형은 anatomy로")
+- 세션 7(3D 계측제어 도구, 브랜치 `claude/practical-newton-n6bt58`, `ic-3d-builder/src`, 커밋 af748c7)의 Anatomy 엔진을 그대로 가져옴:
+  refdata.js(치수 참고표) + anatomy.js(부품 정의 — 볼밸브 Body · Seats · Ball · Stem · Stem seal · Trunnion · 액추에이터 · SOV · 리밋 박스 · 볼트 …) +
+  viewer.js(Canvas 2D 아이소메트릭 · 4톤 셰이딩 · painter's order · 잉크 선). 외부 라이브러리 · CDN 없음 — 회사 PC 오프라인에서 동작.
+- `spike/mk_anatomy.py <세션7 src> app/static/valve/anatomy.js <커밋>` 이 세 파일을 한 파일로 묶는다(손으로 고치지 않음 — 세션 7 이 엔진을 고치면 다시 묶기).
+  바꾼 것 두 가지만: 이름 `Viewer` → `AnatomyViewer`(PDF 뷰어 class Viewer 와 겹침) · select(목록) = 여러 부품 강조 + 나머지는 반투명(몸통 안 Ball · Seat 이 보이게).
+- 모형 입력 = 그 Datasheet 값: Body Size → NPS · Rating → CL(엔진 치수표가 150/300 뿐 — 600 이상은 CL300 모양 + 캡션에 그렇게 적음) ·
+  Body Type 의 Reduced/RB → reduced bore · 구동기(Actuator Type · 밸브 종류 · Tag 의 MOV) → 공압 rack&pinion / 전동 / 기어 / 레버.
+  치수는 참고값 · 비례 추정 — 모형은 '어느 부위' 를 보여 줄 뿐 크기 판정에 쓰지 않는다.
+- 칸 → 부위: 기존 PART_RULES · PART_GROUP 그대로, 부위 → 모형 부품 id 는 `ANAT_IDS`. 모형에 없는 부위(AFR · 튜빙)는 그렇다고 적는다.
+  부품 → 칸: 모형의 부품을 누르면 그 부품 설명(엔진의 fn) + 그 부위를 다루는 칸 목록(누르면 그 칸으로).
+- 휠 = 분해 → 확대, 끌기 = 돌려 보기, ⟲ = 처음 모습. 캔버스 하나를 세션 내내 다시 붙여 씀(탭을 바꿔도 새로 만들지 않음).
+- 시험 `test_valve_model_is_the_anatomy_engine`.

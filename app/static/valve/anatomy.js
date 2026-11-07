@@ -1,0 +1,2387 @@
+/* Anatomy valve model — the engine of session 7 (3D 계측제어 도구, branch claude/practical-newton-n6bt58, ic-3d-builder/src,
+ * commit af748c7): refdata.js + anatomy.js + viewer.js in one file, no library, no CDN, works offline.
+ * Built by spike/mk_anatomy.py — do not edit by hand; take a newer engine from session 7 and rebuild.
+ * Dimensions are reference / proportional values (RefData 'standard' / 'estimate'): the model shows WHERE a part is, not its size.
+ */
+/* 표준 치수 참고표 — 도면에서 치수를 못 읽었을 때 쓰는 기본값.
+ *
+ * ⚠ 이 표는 공개 자료와 엔지니어링 지식으로 채운 "참고값"이다. 원문 표준
+ *   (ASME B16.5 / B16.10 / ANSI/ISA-75.08.01 / API 526 / API 609)이나
+ *   벤더 Dimensional Drawing 과 대조하지 않았다. 3D 에서 이 값을 쓴 치수는
+ *   출처가 'standard' 로 표시되며, 배치 검토(간섭·공간) 용도로만 쓴다.
+ *   제작·구매용 치수로 쓰지 않는다.
+ *
+ * 단위: mm. 키: NPS(inch) 문자열.
+ */
+'use strict';
+
+const RefData = (() => {
+  const NPS = ['0.5', '0.75', '1', '1.5', '2', '3', '4', '6', '8', '10', '12'];
+  const row = (arr) => Object.fromEntries(NPS.map((k, i) => [k, arr[i]]));
+
+  // ASME B36.10 파이프 외경
+  const pipeOD = row([21.3, 26.7, 33.4, 48.3, 60.3, 88.9, 114.3, 168.3, 219.1, 273.1, 323.9]);
+
+  // ASME B16.5 RF 플랜지: 외경, 두께, 볼트원 지름, 볼트 수, 볼트 지름
+  const flange = {
+    150: {
+      od: row([89, 98, 108, 127, 152, 191, 229, 279, 343, 406, 483]),
+      t: row([9.6, 11.2, 12.7, 15.9, 17.5, 22.3, 22.3, 23.9, 27.0, 28.6, 30.2]),
+      bcd: row([60.3, 69.8, 79.4, 98.4, 120.7, 152.4, 190.5, 241.3, 298.5, 362.0, 431.8]),
+      n: row([4, 4, 4, 4, 4, 4, 8, 8, 8, 12, 12]),
+      bolt: row([12.7, 12.7, 12.7, 12.7, 15.9, 15.9, 15.9, 19.1, 19.1, 22.2, 22.2]),
+    },
+    300: {
+      od: row([95, 117, 124, 156, 165, 210, 254, 318, 381, 444, 521]),
+      t: row([12.7, 14.3, 15.9, 19.1, 20.7, 27.0, 30.2, 35.0, 39.7, 46.1, 49.3]),
+      bcd: row([66.7, 82.6, 88.9, 114.3, 127.0, 168.3, 200.0, 269.9, 330.2, 387.4, 450.8]),
+      n: row([4, 4, 4, 4, 8, 8, 8, 12, 12, 16, 16]),
+      bolt: row([12.7, 15.9, 15.9, 19.1, 15.9, 19.1, 19.1, 19.1, 22.2, 25.4, 28.6]),
+    },
+  };
+
+  // 면간거리 (Face-to-Face, RF)
+  const ftf = {
+    gate: { 150: row([108, 117, 127, 165, 178, 203, 229, 267, 292, 330, 356]),
+            300: row([140, 152, 165, 190, 216, 283, 305, 403, 419, 457, 502]) },
+    globe: { 150: row([108, 117, 127, 165, 203, 241, 292, 406, 495, 622, 698]),
+             300: row([152, 178, 203, 229, 267, 318, 356, 444, 559, 622, 711]) },
+    // 볼밸브 short pattern (B16.10) — 150/300 모두 gate 와 동일 계열
+    ball: { 150: row([108, 117, 127, 165, 178, 203, 229, 267, 292, 330, 356]),
+            300: row([140, 152, 165, 190, 216, 283, 305, 403, 419, 457, 502]) },
+    // 조절밸브 글로브 (ANSI/ISA-75.08.01 integral flanged)
+    control_globe: { 150: row([184, 184, 184, 222, 254, 298, 352, 451, 543, 673, 737]),
+                     300: row([190, 194, 197, 235, 267, 317, 368, 473, 568, 708, 775]) },
+    // 버터플라이 wafer/lug (API 609 Cat A 계열 근사) — 2" 미만은 없음
+    butterfly: { 150: row([43, 43, 43, 43, 43, 46, 52, 56, 60, 68, 78]),
+                 300: row([43, 43, 43, 43, 43, 48, 54, 59, 73, 83, 92]) },
+  };
+
+  const SOURCES = {
+    pipeOD: 'ASME B36.10M (참고값)',
+    flange: 'ASME B16.5 Class 150/300 RF (참고값)',
+    gate: 'ASME B16.10 Gate (참고값)',
+    globe: 'ASME B16.10 Globe (참고값)',
+    ball: 'ASME B16.10 Ball short pattern (참고값)',
+    control_globe: 'ANSI/ISA-75.08.01 (참고값)',
+    butterfly: 'API 609 Cat A 근사 (참고값)',
+  };
+
+  function nearestNps(nps) {
+    const v = Number(nps);
+    let best = NPS[0];
+    for (const k of NPS) if (Math.abs(Number(k) - v) < Math.abs(Number(best) - v)) best = k;
+    return best;
+  }
+
+  function cls(c) { return Number(c) >= 300 ? 300 : 150; }
+
+  /** 플랜지·파이프 치수 묶음 */
+  function flangeOf(nps, c) {
+    const k = nearestNps(nps); const f = flange[cls(c)];
+    return { od: f.od[k], t: f.t[k], bcd: f.bcd[k], n: f.n[k], bolt: f.bolt[k], pipeOD: pipeOD[k] };
+  }
+
+  function ftfOf(kind, nps, c) {
+    const t = ftf[kind]; if (!t) return null;
+    return t[cls(c)][nearestNps(nps)];
+  }
+
+  return { NPS, pipeOD, flange, ftf, SOURCES, nearestNps, flangeOf, ftfOf };
+})();
+
+if (typeof module !== 'undefined' && module.exports && false) module.exports = RefData;
+
+/* Anatomy — parametric, part-by-part 3D definitions of I&C items.
+ *
+ * One item = parameter list + build(values) → list of parts.
+ * One part = named primitives + engineering data (item no., function, typical
+ * material, qty, size-linked dimensions) + explode offset/stage.
+ * Pure data, no three.js: shared by the browser viewer, Node CLI and the Claude skill.
+ *
+ * Coordinates: mm, Y up.
+ *   valve   — origin = valve centre on the pipe centreline, pipe axis = X
+ *   cabinet — origin = floor level, front-bottom-centre of the first bay, front = +Z
+ *   hookup  — origin = floor (Y=0) under the process tap, process pipe axis = X
+ *
+ * Dimension sources:
+ *   drawing  — read from the GA / dimensional drawing (with evidence)
+ *   user     — typed by the user
+ *   standard — built-in reference table (RefData) — not yet verified against the source standard
+ *   estimate — proportional estimate; shape reference only
+ */
+'use strict';
+
+const Anatomy = (() => {
+  const R = (typeof RefData !== 'undefined') ? RefData
+    : (typeof require !== 'undefined' ? require('./refdata.js') : null);
+
+  // ───────────────────────── primitives ─────────────────────────
+  const cyl = (axis, r, h, at, extra = {}) => ({ k: 'cyl', axis, r, h, at, ...extra });
+  const cone = (axis, r, r2, h, at) => ({ k: 'cyl', axis, r, r2, h, at });
+  const ring = (axis, ri, ro, h, at) => ({ k: 'ring', axis, ri, ro, h, at });
+  const helix = (axis, Rh, r, h, turns, at) => ({ k: 'helix', axis, R: Rh, r, h, turns, at });
+  const box = (s, at, extra = {}) => ({ k: 'box', s, at, ...extra });
+  const sph = (r, at, scale) => ({ k: 'sph', r, at, ...(scale ? { scale } : {}) });
+  const tor = (R0, r, axis, at) => ({ k: 'tor', R: R0, r, axis, at });
+  const tube = (a, b, r) => ({ k: 'tube', a, b, r });
+  const lathe = (axis, pts, at = [0, 0, 0]) => ({ k: 'lathe', axis, pts, at });
+  const hex = (axis, r, h, at) => ({ k: 'cyl', axis, r, h, at, seg: 6 });
+  const rbox = (s, at, r = 4, extra = {}) => ({ k: 'rbox', s, at, r, ...extra });
+  const plate = (s, at, face, lines, extra = {}) => ({ k: 'plate', s, at, face, lines, ...extra });
+  const gauge = (axis, r, at, extra = {}) => ({ k: 'gauge', axis, r, at, ...extra });
+  const arrow = (len, w, t, at, face = 'z', dir = 1) => ({ k: 'arrow', len, w, t, at, face, dir });
+  const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+  /** smooth quarter-round fillet from (sa, ra) — tangent along the axis — to (sb, rb) — tangent radial */
+  function fil(sa, ra, sb, rb, n = 6) {
+    const out = [];
+    for (let i = 0; i <= n; i++) {
+      const t = i / n * Math.PI / 2;
+      out.push([sa + (sb - sa) * Math.sin(t), ra + (rb - ra) * (1 - Math.cos(t)), i > 0 && i < n ? 1 : 0]);
+    }
+    return out;
+  }
+  /** profile written outward along +u, turned on `axis` pointing `sign` */
+  function turned(axis, sign, prof, at = [0, 0, 0]) {
+    let pts = prof.map(([u, r, sm]) => [sign * u, r, sm]);
+    if (sign < 0) pts = pts.reverse();
+    return lathe(axis, pts, at);
+  }
+  /** stud with a hex nut and washer at each end; ends at u0 and u1 along `axis` through point p */
+  function studNut(axis, p, u0, u1, d) {
+    const c = (u) => along(axis, u, p);
+    const nh = d * 0.9; const nr = d * 0.92;
+    return [
+      cyl(axis, d / 2, u1 - u0 + nh * 2 + d * 0.6, c((u0 + u1) / 2)),
+      hex(axis, nr, nh, c(u0 - nh / 2 - 0.8)), cyl(axis, nr * 1.08, 1.6, c(u0 - 0.8)),
+      hex(axis, nr, nh, c(u1 + nh / 2 + 0.8)), cyl(axis, nr * 1.08, 1.6, c(u1 + 0.8)),
+    ];
+  }
+  /** nameplate text from the resolved values */
+  const plateLines = (v, kind) => [
+    v.tag || 'TAG —',
+    v.nps ? `SIZE ${FRAC[v.nps] || v.nps}" ${v.body === 'psv' ? `CL${v.cls} x ${FRAC[v.outlet_nps] || v.outlet_nps}" CL${v.outlet_cls}` : `ASME CL${v.cls} RF`}` : kind,
+    v.body ? `${String(v.body).toUpperCase()} ${v.operator ? '· ' + String(v.operator).replace('pneumatic_', '').replace('_', ' ').toUpperCase() : ''}` : '',
+  ];
+  const r1 = (x) => Math.round(x * 10) / 10;
+
+  /**
+   * Part constructor.
+   * o: { group, stage (0 moves first … 2 last), ex [dx,dy,dz] explode offset in mm,
+   *      fn (function), material (typical), qty, dims [{k, v, unit, src}], note }
+   */
+  function P(id, name, look, prims, o = {}) {
+    return {
+      id, name, look, prims,
+      group: o.group || '', stage: o.stage ?? 1, ex: o.ex || [0, 0, 0],
+      fn: o.fn || '', material: o.material || '', qty: o.qty ?? 1, dims: o.dims || [], note: o.note || '',
+      no: null,
+    };
+  }
+  const D = (k, v, unit = 'mm', src = 'estimate') => ({ k, v: typeof v === 'number' ? r1(v) : v, unit, src });
+
+  const AX = { x: [1, 0, 0], y: [0, 1, 0], z: [0, 0, 1] };
+  const along = (axis, d, base = [0, 0, 0]) => base.map((b, i) => b + AX[axis][i] * d);
+  const perp = { x: [[0, 1, 0], [0, 0, 1]], y: [[1, 0, 0], [0, 0, 1]], z: [[1, 0, 0], [0, 1, 0]] };
+  /** n points on a circle of radius rc around `axis` through `c` */
+  function circle(axis, rc, n, c, phase = 0.5) {
+    const [u, w] = perp[axis];
+    const out = [];
+    for (let i = 0; i < n; i++) {
+      const a = (i + phase) / n * Math.PI * 2;
+      out.push([0, 1, 2].map((j) => c[j] + (u[j] * Math.cos(a) + w[j] * Math.sin(a)) * rc));
+    }
+    return out;
+  }
+
+  const FRAC = { 0.5: '1/2', 0.75: '3/4', 1: '1', 1.5: '1-1/2', 2: '2', 2.5: '2-1/2', 3: '3', 4: '4', 6: '6', 8: '8', 10: '10', 12: '12' };
+  const npsTxt = (n) => `${FRAC[n] || n}"`;
+  const inch = (mm) => `${Math.round(mm / 25.4 * 8) / 8}"`;
+
+  // ───────────────────────── bounding boxes ─────────────────────────
+  function primBox(pr) {
+    if (pr.k === 'tube') {
+      return [[0, 1, 2].map((i) => Math.min(pr.a[i], pr.b[i]) - pr.r), [0, 1, 2].map((i) => Math.max(pr.a[i], pr.b[i]) + pr.r)];
+    }
+    let e;
+    if (pr.k === 'lathe') {
+      const rr = Math.max(...pr.pts.map((q) => q[1])); const ss = pr.pts.map((q) => q[0]);
+      const i = 'xyz'.indexOf(pr.axis);
+      const lo = pr.at.map((c) => c - rr); const hi = pr.at.map((c) => c + rr);
+      lo[i] = pr.at[i] + Math.min(...ss); hi[i] = pr.at[i] + Math.max(...ss);
+      return [lo, hi];
+    }
+    if (pr.k === 'gauge') { e = [pr.r, pr.r, pr.r]; e['xyz'.indexOf(pr.axis)] = pr.r * 0.3; return [pr.at.map((c, i) => c - e[i]), pr.at.map((c, i) => c + e[i])]; }
+    if (pr.k === 'plate' || pr.k === 'arrow') {
+      const [w, h, t] = pr.k === 'plate' ? pr.s : [pr.len, pr.w, pr.t * 1.6];
+      e = String(pr.face || 'z').includes('x') ? [t / 2, h / 2, w / 2] : String(pr.face).includes('y') ? [w / 2, t / 2, h / 2] : [w / 2, h / 2, t / 2];
+      return [pr.at.map((c, i) => c - e[i]), pr.at.map((c, i) => c + e[i])];
+    }
+    if (pr.k === 'box' || pr.k === 'rbox') {
+      const ry = pr.ry || 0;
+      e = [Math.abs(Math.cos(ry)) * pr.s[0] / 2 + Math.abs(Math.sin(ry)) * pr.s[2] / 2, pr.s[1] / 2,
+        Math.abs(Math.sin(ry)) * pr.s[0] / 2 + Math.abs(Math.cos(ry)) * pr.s[2] / 2];
+    } else if (pr.k === 'cyl' || pr.k === 'ring' || pr.k === 'helix') {
+      const r = pr.k === 'ring' ? pr.ro : pr.k === 'helix' ? pr.R + pr.r : Math.max(pr.r, pr.r2 ?? pr.r);
+      e = [r, r, r]; e['xyz'.indexOf(pr.axis)] = pr.h / 2 + (pr.k === 'helix' ? pr.r : 0);
+    } else if (pr.k === 'sph') {
+      const s = pr.scale || [1, 1, 1]; e = s.map((k) => pr.r * k);
+    } else if (pr.k === 'tor') {
+      const o = pr.R + pr.r; e = [o, o, o]; e['xyz'.indexOf(pr.axis)] = pr.r;
+    }
+    return [pr.at.map((c, i) => c - e[i]), pr.at.map((c, i) => c + e[i])];
+  }
+  function partBox(p) {
+    const lo = [Infinity, Infinity, Infinity]; const hi = [-Infinity, -Infinity, -Infinity];
+    for (const pr of p.prims) {
+      const [a, b] = primBox(pr);
+      for (let i = 0; i < 3; i++) { lo[i] = Math.min(lo[i], a[i]); hi[i] = Math.max(hi[i], b[i]); }
+    }
+    return { min: lo, max: hi };
+  }
+  function bboxOf(parts, filter = (p) => p.look !== 'ghost' && p.look !== 'clear', exploded = 0) {
+    const lo = [Infinity, Infinity, Infinity]; const hi = [-Infinity, -Infinity, -Infinity];
+    for (const p of parts) {
+      if (!filter(p)) continue;
+      const b = partBox(p); const off = p.ex.map((x) => x * exploded);
+      for (let i = 0; i < 3; i++) { lo[i] = Math.min(lo[i], b.min[i] + off[i]); hi[i] = Math.max(hi[i], b.max[i] + off[i]); }
+    }
+    return { min: lo, max: hi, size: hi.map((h, i) => h - lo[i]) };
+  }
+
+  /** Lay parts out in an exploded column along `axis` starting at `start` with `gap` between them (sets p.ex). */
+  function stack(parts, axis, start, gap, sign = 1) {
+    const i = 'xyz'.indexOf(axis);
+    let cur = start;
+    for (const p of parts) {
+      const b = partBox(p);
+      const len = b.max[i] - b.min[i];
+      const c = (b.max[i] + b.min[i]) / 2;
+      p.ex = p.ex.slice(); p.ex[i] += cur + sign * len / 2 - c;
+      cur += sign * (len + gap);
+    }
+    return cur;
+  }
+
+  // ───────────────────────── parameters ─────────────────────────
+  const BODY = ['globe', 'gate', 'ball', 'butterfly', 'psv'];
+  const OPERATOR = ['handwheel', 'lever', 'gear', 'pneumatic_diaphragm', 'pneumatic_rotary', 'electric', 'spring'];
+  const flg = (v) => R.flangeOf(v.nps, v.cls);
+  const pipeID = (nps) => { const od = R.pipeOD[R.nearestNps(nps)]; return od - 2 * clamp(0.055 * od + 1.5, 2.8, 12.7); };
+
+  const VALVE_PARAMS = [
+    { key: 'tag', label: 'Tag No.', type: 'text', default: '', group: 'Identification' },
+    { key: 'body', label: 'Body type', type: 'enum', options: BODY, default: 'globe', group: 'Configuration',
+      desc: 'globe / gate / ball / butterfly / psv (angle-pattern spring-loaded safety valve)' },
+    { key: 'operator', label: 'Operator', type: 'enum', options: OPERATOR, default: 'pneumatic_diaphragm', group: 'Configuration',
+      desc: 'handwheel, lever, gear (worm gear), pneumatic_diaphragm (spring & diaphragm CV), pneumatic_rotary (rack & pinion / scotch yoke), electric (MOV), spring (PSV)' },
+    { key: 'service', label: 'Service', type: 'enum', options: ['control', 'on_off'], default: 'control', group: 'Configuration',
+      desc: 'control → globe face-to-face per ISA-75.08.01 and cage-guided trim' },
+    { key: 'nps', label: 'Size NPS (inlet)', unit: 'in', type: 'num', default: 4, min: 0.5, max: 12, step: 0.25, group: 'Configuration' },
+    { key: 'cls', label: 'Pressure class (inlet)', type: 'enum', options: ['150', '300'], default: '150', group: 'Configuration' },
+    { key: 'outlet_nps', label: 'Outlet NPS', unit: 'in', type: 'num', group: 'Configuration', when: (v) => v.body === 'psv',
+      est: (v) => R.NPS.map(Number).find((n) => n >= v.nps * 1.5) || 12 },
+    { key: 'outlet_cls', label: 'Outlet class', type: 'enum', options: ['150', '300'], default: '150', group: 'Configuration',
+      when: (v) => v.body === 'psv' },
+    { key: 'bore', label: 'Ball bore', type: 'enum', options: ['full', 'reduced'], default: 'full', group: 'Configuration',
+      when: (v) => v.body === 'ball' },
+
+    { key: 'ftf', label: 'Face-to-face', unit: 'mm', type: 'num', group: 'Body', when: (v) => v.body !== 'psv',
+      std: (v) => {
+        const kind = v.body === 'globe' && v.service === 'control' ? 'control_globe' : v.body;
+        const val = R.ftfOf(kind, v.nps, v.cls);
+        return val ? { value: val, ref: R.SOURCES[kind] } : null;
+      }, desc: 'Flange face to flange face' },
+    { key: 'cti', label: 'Centre to inlet face', unit: 'mm', type: 'num', group: 'Body', when: (v) => v.body === 'psv',
+      est: (v) => Math.round(85 + 28 * v.nps), desc: 'Outlet centreline to inlet flange face (vertical)' },
+    { key: 'cto', label: 'Centre to outlet face', unit: 'mm', type: 'num', group: 'Body', when: (v) => v.body === 'psv',
+      est: (v) => Math.round(95 + 32 * v.nps), desc: 'Inlet centreline to outlet flange face (horizontal)' },
+    { key: 'body_h', label: 'Body height (CL → bonnet face)', unit: 'mm', type: 'num', group: 'Body',
+      est: (v) => {
+        const f = flg(v);
+        return Math.round({ globe: 0.55 * f.od + 20, gate: 0.85 * f.od + 20, ball: 0.62 * f.od + 25,
+          butterfly: 0.55 * f.od + 60, psv: 1.0 * f.od }[v.body]);
+      } },
+    { key: 'body_w', label: 'Body max. width', unit: 'mm', type: 'num', group: 'Body',
+      est: (v) => {
+        const f = flg(v);
+        return Math.round({ globe: 0.95 * f.od, gate: 0.75 * f.od, ball: 1.0 * f.od, butterfly: 0.95 * f.od, psv: 0.9 * f.od }[v.body]);
+      } },
+    { key: 'bonnet_h', label: 'Bonnet / neck height', unit: 'mm', type: 'num', group: 'Body',
+      est: (v) => Math.round({ globe: 70 + 25 * v.nps, gate: 90 + 45 * v.nps, ball: 40 + 12 * v.nps,
+        butterfly: 40 + 10 * v.nps, psv: 160 + 70 * v.nps }[v.body]),
+      desc: 'Bonnet flange to yoke/operator mounting face (PSV: spring bonnet height)' },
+    { key: 'port_d', label: 'Port / seat bore', unit: 'mm', type: 'num', group: 'Trim',
+      est: (v) => {
+        const id = pipeID(v.nps);
+        return Math.round({ globe: v.service === 'control' ? 0.78 * id : 0.85 * id, gate: id,
+          ball: v.bore === 'reduced' ? 0.72 * id : id, butterfly: id, psv: 0.5 * id }[v.body]);
+      }, desc: 'Seat ring bore / ball bore / nozzle bore' },
+    { key: 'stem_d', label: 'Stem / shaft diameter', unit: 'mm', type: 'num', group: 'Trim',
+      est: (v) => Math.round({ globe: clamp(9.5 + 3.2 * v.nps, 9.5, 50), gate: clamp(16 + 4 * v.nps, 16, 70),
+        ball: clamp(12 + 4.5 * v.nps, 12, 90), butterfly: clamp(12 + 4 * v.nps, 12, 90), psv: clamp(12 + 5 * v.nps, 12, 60) }[v.body]) },
+    { key: 'pipe_stub', label: 'Reference pipe length', unit: 'mm', type: 'num', default: 150, group: 'Body', desc: '0 = hide' },
+
+    { key: 'yoke_h', label: 'Yoke / bracket height', unit: 'mm', type: 'num', group: 'Operator',
+      when: (v) => ['pneumatic_diaphragm', 'pneumatic_rotary', 'electric', 'handwheel', 'gear'].includes(v.operator),
+      est: (v) => Math.round({ pneumatic_diaphragm: 150 + 45 * v.nps, pneumatic_rotary: 60 + 10 * v.nps,
+        electric: 90 + 25 * v.nps, handwheel: v.body === 'gate' ? 120 + 70 * v.nps : 60 + 20 * v.nps,
+        gear: 50 + 10 * v.nps }[v.operator] || 100) },
+    { key: 'act_d', label: 'Actuator diameter / width', unit: 'mm', type: 'num', group: 'Operator',
+      when: (v) => ['pneumatic_diaphragm', 'pneumatic_rotary', 'electric', 'gear'].includes(v.operator),
+      est: (v) => Math.round({ pneumatic_diaphragm: clamp(200 + 55 * v.nps, 220, 600),
+        pneumatic_rotary: clamp(80 + 18 * v.nps, 90, 320), electric: clamp(230 + 15 * v.nps, 240, 450),
+        gear: clamp(110 + 18 * v.nps, 120, 340) }[v.operator]) },
+    { key: 'act_h', label: 'Actuator height', unit: 'mm', type: 'num', group: 'Operator',
+      when: (v) => ['pneumatic_diaphragm', 'electric', 'gear'].includes(v.operator),
+      est: (v) => Math.round({ pneumatic_diaphragm: clamp(110 + 30 * v.nps, 130, 380),
+        electric: clamp(300 + 18 * v.nps, 320, 560), gear: clamp(90 + 12 * v.nps, 100, 260) }[v.operator]) },
+    { key: 'act_l', label: 'Cylinder length (rotary)', unit: 'mm', type: 'num', group: 'Operator',
+      when: (v) => v.operator === 'pneumatic_rotary', est: (v) => Math.round(clamp(240 + 60 * v.nps, 260, 900)) },
+    { key: 'hw_d', label: 'Handwheel diameter', unit: 'mm', type: 'num', group: 'Operator',
+      when: (v) => ['handwheel', 'electric', 'gear'].includes(v.operator) || (v.operator === 'pneumatic_diaphragm' && v.cv_handwheel),
+      est: (v) => Math.round(clamp(100 + 40 * v.nps, 100, 610)) },
+    { key: 'lever_l', label: 'Lever length', unit: 'mm', type: 'num', group: 'Operator',
+      when: (v) => v.operator === 'lever', est: (v) => Math.round(clamp(120 + 60 * v.nps, 120, 700)) },
+    { key: 'stem_ext', label: 'Stem rise (rising stem, open)', unit: 'mm', type: 'num', group: 'Operator',
+      when: (v) => v.operator === 'handwheel' && v.body === 'gate', est: (v) => Math.round(25.4 * v.nps * 1.05) },
+    { key: 'positioner', label: 'Positioner', type: 'bool', default: true, group: 'Operator',
+      when: (v) => ['pneumatic_diaphragm', 'pneumatic_rotary'].includes(v.operator) },
+    { key: 'cv_handwheel', label: 'Top-mounted handwheel', type: 'bool', default: false, group: 'Operator',
+      when: (v) => v.operator === 'pneumatic_diaphragm' },
+    { key: 'psv_lever', label: 'Lifting lever', type: 'bool', default: false, group: 'Operator', when: (v) => v.body === 'psv' },
+    { key: 'overall_h', label: 'Overall height (CL → top)', unit: 'mm', type: 'num', group: 'Check',
+      desc: 'If the drawing only gives the overall height, enter it here: estimated heights are scaled to match' },
+  ];
+
+  const CAB_PARAMS = [
+    { key: 'tag', label: 'Cabinet No.', type: 'text', default: '', group: 'Identification' },
+    { key: 'bays', label: 'Number of bays', type: 'num', default: 1, min: 1, max: 10, step: 1, group: 'Envelope' },
+    { key: 'w', label: 'Width W (per bay)', unit: 'mm', type: 'num', default: 800, group: 'Envelope' },
+    { key: 'h', label: 'Height H (excl. plinth)', unit: 'mm', type: 'num', default: 2000, group: 'Envelope' },
+    { key: 'd', label: 'Depth D', unit: 'mm', type: 'num', default: 800, group: 'Envelope' },
+    { key: 'plinth_h', label: 'Plinth height', unit: 'mm', type: 'num', default: 100, group: 'Envelope' },
+    { key: 'doors', label: 'Front doors per bay', type: 'enum', options: ['1', '2'], default: '1', group: 'Doors',
+      est: (v) => (v.w >= 1000 ? '2' : '1') },
+    { key: 'rear_door', label: 'Rear door', type: 'bool', default: true, group: 'Doors' },
+    { key: 'door_open', label: 'Door opening angle', unit: '°', type: 'num', default: 0, min: 0, max: 180, step: 5, group: 'Doors' },
+    { key: 'louvers', label: 'Door louvres / filter fans', type: 'bool', default: true, group: 'Accessories' },
+    { key: 'fan', label: 'Roof fan', type: 'bool', default: false, group: 'Accessories' },
+    { key: 'lifting_eyes', label: 'Lifting eye bolts', type: 'bool', default: true, group: 'Accessories' },
+    { key: 'mounting_plate', label: 'Mounting plate', type: 'bool', default: true, group: 'Interior' },
+    { key: 'modules', label: 'DIN rail / I/O rows', type: 'num', default: 4, min: 0, max: 12, step: 1, group: 'Interior' },
+    { key: 'gland_plate', label: 'Bottom gland plate', type: 'bool', default: true, group: 'Accessories' },
+    { key: 'clearance', label: 'Front maintenance clearance', unit: 'mm', type: 'num', default: 1000, group: 'Check', desc: '0 = hide' },
+  ];
+
+  const HOOK_PARAMS = [
+    { key: 'tag', label: 'Tag No.', type: 'text', default: '', group: 'Identification' },
+    { key: 'inst', label: 'Instrument', type: 'enum', options: ['PT', 'DPT', 'LT_DP', 'FT_DP'], default: 'PT', group: 'Configuration',
+      desc: 'PT = pressure, DPT = differential pressure, LT_DP = DP level (two vessel nozzles), FT_DP = DP flow (orifice taps)' },
+    { key: 'service', label: 'Fluid', type: 'enum', options: ['gas', 'liquid', 'steam'], default: 'liquid', group: 'Configuration',
+      desc: 'gas → instrument above tap; liquid/steam → instrument below tap' },
+    { key: 'proc_nps', label: 'Process pipe NPS', unit: 'in', type: 'num', default: 6, min: 0.5, max: 24, group: 'Process' },
+    { key: 'pipe_el', label: 'Pipe centreline elevation', unit: 'mm', type: 'num', default: 2500, group: 'Process' },
+    { key: 'tap', label: 'Tap orientation', type: 'enum', options: ['top', 'side', 'bottom', 'side45'], group: 'Process',
+      est: (v) => (v.service === 'gas' ? 'top' : 'side') },
+    { key: 'tap_sep', label: 'HP–LP tap separation', unit: 'mm', type: 'num', group: 'Process',
+      when: (v) => v.inst !== 'PT', est: (v) => (v.inst === 'LT_DP' ? 2000 : 110),
+      desc: 'DP flow: orifice flange tap spacing; DP level: nozzle elevation difference' },
+    { key: 'mount', label: 'Mounting', type: 'enum', options: ['stand', 'close_coupled'], default: 'stand', group: 'Installation' },
+    { key: 'stand_h', label: 'Stand height', unit: 'mm', type: 'num', default: 1200, group: 'Installation', when: (v) => v.mount === 'stand' },
+    { key: 'stand_dx', label: 'Stand offset X (along pipe)', unit: 'mm', type: 'num', default: 600, group: 'Installation', when: (v) => v.mount === 'stand' },
+    { key: 'stand_dz', label: 'Stand offset Z (from pipe)', unit: 'mm', type: 'num', default: 700, group: 'Installation', when: (v) => v.mount === 'stand' },
+    { key: 'tube_od', label: 'Impulse tube OD', unit: 'mm', type: 'num', default: 12.7, group: 'Tubing' },
+    { key: 'slope', label: 'Tubing slope', unit: '1:x', type: 'num', default: 12, group: 'Tubing', desc: 'Minimum slope of horizontal runs; 1:12 is typical' },
+    { key: 'root_valve', label: 'Root valve', type: 'bool', default: true, group: 'Valves' },
+    { key: 'manifold', label: 'Manifold', type: 'enum', options: ['none', '2V', '3V', '5V'], group: 'Valves',
+      est: (v) => (v.inst === 'PT' ? '2V' : '5V') },
+    { key: 'drain', label: 'Drain / vent valve', type: 'bool', default: true, group: 'Valves' },
+    { key: 'sunshade', label: 'Sunshade', type: 'bool', default: false, group: 'Accessories' },
+  ];
+
+  // ───────────────────────── resolve values (with source) ─────────────────────────
+  function resolve(typeId, inputs = {}) {
+    const T = TYPES[typeId];
+    const v = {}; const meta = {};
+    const get = (k) => {
+      const x = inputs[k];
+      if (x === undefined || x === null || x === '') return null;
+      if (typeof x === 'object' && 'value' in x) {
+        if (x.value === undefined || x.value === null || x.value === '') return null;
+        return x;
+      }
+      return { value: x, src: 'user' };
+    };
+    const norm = (p, val) => {
+      if (p.type === 'num') return Number(val);
+      if (p.type === 'bool') return val === true || val === 'true' || val === 1;
+      return String(val);
+    };
+    for (let pass = 0; pass < 2; pass++) {
+      for (const p of T.params) {
+        const given = get(p.key);
+        if (given) {
+          v[p.key] = norm(p, given.value);
+          meta[p.key] = { src: given.src || 'user', evidence: given.evidence, confidence: given.confidence };
+          continue;
+        }
+        let s = null;
+        try { s = p.std ? p.std(v) : null; } catch { s = null; }
+        if (s && s.value != null) { v[p.key] = norm(p, s.value); meta[p.key] = { src: 'standard', ref: s.ref }; continue; }
+        let e;
+        try { e = p.est ? p.est(v) : undefined; } catch { e = undefined; }
+        if (e !== undefined && e !== null && !Number.isNaN(e)) { v[p.key] = norm(p, e); meta[p.key] = { src: 'estimate' }; continue; }
+        if (p.default !== undefined) { v[p.key] = norm(p, p.default); meta[p.key] = { src: 'default' }; continue; }
+        v[p.key] = undefined; meta[p.key] = { src: 'none' };
+      }
+    }
+    for (const p of T.params) meta[p.key].active = !p.when || !!p.when(v);
+    if (T.fit) T.fit(v, meta);
+    return { values: v, meta };
+  }
+
+  /** Scale estimated heights so the model matches an overall height read from the drawing. */
+  function fitValve(v, meta) {
+    if (!(v.overall_h > 0) || !meta.overall_h || !['drawing', 'user'].includes(meta.overall_h.src)) return;
+    const keys = ['body_h', 'bonnet_h', 'yoke_h', 'act_h', 'stem_ext'];
+    const top = bboxOf(buildValve(v, meta), () => true).max[1];
+    if (!(top > 0)) return;
+    const fixed = keys.filter((k) => meta[k]?.active && v[k] > 0 && meta[k].src !== 'estimate').reduce((s, k) => s + v[k], 0);
+    const scalable = keys.filter((k) => meta[k]?.active && v[k] > 0 && meta[k].src === 'estimate');
+    const scal = scalable.reduce((s, k) => s + v[k], 0);
+    const extra = top - fixed - scal;
+    if (scal <= 0) return;
+    const k = (v.overall_h - fixed - extra) / scal;
+    if (!(k > 0.3 && k < 3)) return;
+    for (const key of scalable) {
+      v[key] = Math.round(v[key] * k);
+      meta[key] = { ...meta[key], src: 'estimate', ref: `scaled ×${k.toFixed(2)} to overall height ${v.overall_h}` };
+    }
+  }
+
+  // ───────────────────────── valve: shared pieces ─────────────────────────
+  function handwheelPart(id, at, d, axis = 'y', o = {}) {
+    const rim = Math.max(6, d * 0.04);
+    const prims = [tor(d / 2 - rim, rim, axis, at), cyl(axis, d * 0.08, rim * 2.4, at), hex(axis, d * 0.06, rim * 1.4, along(axis, rim * 1.9, at))];
+    for (const e of circle(axis, d / 2 - rim, 3, at, 0)) prims.push(tube(at, e, rim * 0.55));
+    return P(id, o.name || 'Handwheel', 'wheel', prims, {
+      group: o.group || 'Manual operator', stage: o.stage ?? 0, ex: o.ex,
+      fn: o.fn || 'Manual operation of the valve stem; rim force is kept within MSS SP-91 / EN 12570 limits.',
+      material: 'Ductile iron or carbon steel, painted', dims: [D('Diameter', d, 'mm', o.src || 'estimate')],
+    });
+  }
+
+  /** ASME B16.5 weld-neck style end flange: hub with fillet, bevelled rim, 1.6 mm raised face, bore */
+  function bodyFlanges(prims, axis, sign, face, f) {
+    const t = f.t; const hub = f.pipeOD / 2 * 1.3; const hubL = t * 1.2; const bv = Math.min(2, t * 0.12);
+    const rf = Math.max(f.pipeOD / 2 + 8, f.bcd / 2 - f.bolt * 1.25); const bore = f.pipeOD / 2 - clamp(f.pipeOD * 0.06, 3, 12);
+    const u0 = face - t - hubL;
+    prims.push(turned(axis, sign, [
+      [u0, bore], [u0, hub], ...fil(face - t - Math.min(8, hubL * 0.6), hub, face - t, hub + Math.min(8, hubL * 0.6)),
+      [face - t, f.od / 2 - bv], [face - t + bv, f.od / 2], [face - 1.6 - bv, f.od / 2], [face - 1.6, f.od / 2 - bv],
+      [face - 1.6, rf], [face, rf], [face, bore], [u0, bore],
+    ]));
+  }
+
+  function flangeBolting(id, name, axis, sign, face, f, exDist) {
+    const prims = [];
+    for (const p of circle(axis, f.bcd / 2, f.n, [0, 0, 0])) {
+      // from the back face of the valve flange to the back face of the mating pipe flange (+ gasket 3 mm)
+      const a = face - f.t; const b = face + 3 + f.t;
+      const ps = studNut(axis, [0, 0, 0], sign > 0 ? a : -b, sign > 0 ? b : -a, f.bolt);
+      for (const q of ps) q.at = q.at.map((c, i) => c + p[i]);
+      prims.push(...ps);
+    }
+    return P(id, name, 'bolt', prims, {
+      group: 'Piping interface', stage: 0, ex: along(axis, sign * exDist), qty: f.n,
+      fn: 'Stud bolts and heavy hex nuts clamping the valve end flange to the mating pipe flange (supplied by piping).',
+      material: 'ASTM A193 B7 studs / A194 2H nuts',
+      dims: [D('Bolts', `${f.n} × ${inch(f.bolt)}`, '', 'standard'), D('Bolt circle', f.bcd, 'mm', 'standard')],
+    });
+  }
+
+  /** Bonnet + gasket + bonnet bolting + packing + follower/gland + gland flange & studs. Returns top Y. */
+  function bonnetAssembly(v, meta, parts, o) {
+    const S = (k) => meta?.[k]?.src || 'estimate';
+    const { bw, sd, port } = o;
+    const y0 = v.body_h;
+    const bfT = Math.max(14, o.f.t * 0.9);
+    const yb = y0 + v.bonnet_h;
+    const nb = v.nps >= 8 ? 12 : v.nps >= 3 ? 8 : 4;
+    const bd = clamp(0.05 * bw + 6, 10, 36);
+
+    parts.push(P('bonnet_gasket', 'Bonnet gasket', 'rubber', [ring('y', port / 2 + 6, bw * 0.38, 3, [0, y0 + 1.5, 0])], {
+      group: 'Bonnet assembly', stage: 2,
+      fn: 'Seals the body-to-bonnet joint against process pressure.',
+      material: o.cv ? 'Flexible graphite / spiral-wound 316 SS + graphite' : 'Spiral-wound 316 SS + graphite (API 600)',
+      dims: [D('Gasket OD', bw * 0.76), D('Gasket ID', port + 12)],
+    }));
+    const Rf = bw * 0.42; const Rn = bw * 0.24; const Rt = bw * 0.18; const H = v.bonnet_h - 3;
+    parts.push(P('bonnet', 'Bonnet', 'body', [lathe('y', [
+      [0, port / 2 + 6], [0, Rf - 1.5], [1.5, Rf], [bfT - 1.5, Rf], [bfT, Rf - 1.5], [bfT, Rn + 8],
+      ...fil(bfT, Rn + 8, bfT + 8, Rn).slice(1), [H - 22, Rt, 1], [H - 22, Rt + 4], [H, Rt + 4], [H, sd / 2 + 1], [0, sd / 2 + 1],
+    ], [0, y0 + 3, 0])], {
+      group: 'Bonnet assembly', stage: 1,
+      fn: o.cv
+        ? 'Closes the top of the body, guides the stem and houses the packing box. Extension bonnets keep the packing away from hot or cryogenic service.'
+        : 'Closes the top of the body, contains the packing box and backseat; carries the yoke.',
+      material: o.cv ? 'Same as body (e.g. WCC / CF8M)' : 'ASTM A216 WCB or A351 CF8M',
+      dims: [D('Bonnet height', v.bonnet_h, 'mm', S('bonnet_h')), D('Bonnet flange OD', bw * 0.84)],
+    }));
+    const studs = [];
+    for (const p of circle('y', bw * 0.36, nb, [0, 0, 0])) {
+      const ps = studNut('y', [p[0], 0, p[2]], y0 - 16, y0 + 3 + bfT, bd);
+      studs.push(...ps.filter((_, i) => i !== 1 && i !== 2));     // nut on top only; the stud is screwed into the body
+    }
+    parts.push(P('bonnet_bolting', 'Bonnet studs & nuts', 'bolt', studs, {
+      group: 'Bonnet assembly', stage: 1, qty: nb,
+      fn: 'Clamp the bonnet to the body and compress the bonnet gasket.',
+      material: 'ASTM A193 B7 / A194 2H (B7M / 2HM for sour service)',
+      dims: [D('Studs', `${nb} × ${inch(bd)}`, '', 'estimate')],
+    }));
+    const pkW = Math.max(5, sd * 0.32);
+    const pkH = sd * 1.6;
+    parts.push(P('packing', o.cv ? 'Packing set' : 'Gland packing', 'rubber',
+      [ring('y', sd / 2, sd / 2 + pkW, pkH, [0, yb - pkH / 2 - 4, 0])], {
+        group: 'Bonnet assembly', stage: 2,
+        fn: 'Seals the moving stem against process leakage. Live-loaded or ISO 15848 low-emission sets are common.',
+        material: o.cv ? 'PTFE V-rings or flexible graphite, with packing spring and box ring' : 'Flexible graphite with anti-extrusion rings',
+        dims: [D('Packing bore (= stem)', sd, 'mm', S('stem_d')), D('Cross-section', pkW)],
+      }));
+    const folH = sd * 0.6;
+    parts.push(P('gland', o.cv ? 'Packing follower' : 'Gland', 'body', [ring('y', sd / 2 + 0.5, sd / 2 + pkW, folH, [0, yb + folH / 2 - 2, 0])], {
+      group: 'Bonnet assembly', stage: 2,
+      fn: 'Transfers the gland-bolt load evenly onto the packing rings.',
+      material: '316 SS', dims: [D('Bore', sd + 1)],
+    }));
+    const gfW = (sd + 2 * pkW) * 2.6; const gfT = Math.max(10, sd * 0.5);
+    parts.push(P('gland_flange', o.cv ? 'Packing flange' : 'Gland flange', 'body',
+      [box([gfW, gfT, (sd + 2 * pkW) * 1.3], [0, yb + folH + gfT / 2 - 2, 0])], {
+        group: 'Bonnet assembly', stage: 2,
+        fn: 'Bridge plate pulled down by the gland studs to load the packing.',
+        material: 'Carbon steel, zinc plated / 316 SS', dims: [D('Width', gfW)],
+      }));
+    parts.push(P('gland_studs', o.cv ? 'Packing flange studs & nuts' : 'Gland eyebolts & nuts', 'bolt', [
+      cyl('y', Math.max(4, sd * 0.18), folH + gfT + 30, [-gfW * 0.38, yb + 4, 0]),
+      cyl('y', Math.max(4, sd * 0.18), folH + gfT + 30, [gfW * 0.38, yb + 4, 0]),
+    ], {
+      group: 'Bonnet assembly', stage: 2, qty: 2,
+      fn: 'Adjust the packing load; re-tighten if the stem weeps.', material: 'ASTM A193 B7 / B8M',
+    }));
+    return yb + folH + gfT;
+  }
+
+  // ───────────────────────── operators ─────────────────────────
+  function operator(v, meta, parts, yTop, o) {
+    const S = (k) => meta?.[k]?.src || 'estimate';
+    const op = v.operator; const sd = o.sd;
+    const G = 'Actuator';
+    if (op === 'handwheel') {
+      if (v.body === 'gate' || v.body === 'globe') {
+        const yh = v.yoke_h;
+        parts.push(P('yoke', 'Yoke', 'body', [
+          box([18, yh, 26], [-v.hw_d * 0.18, yTop + yh / 2, 0]), box([18, yh, 26], [v.hw_d * 0.18, yTop + yh / 2, 0]),
+          box([v.hw_d * 0.45, 22, 40], [0, yTop + yh - 11, 0]),
+        ], {
+          group: 'Manual operator', stage: 1,
+          fn: 'Outside screw & yoke (OS&Y): holds the yoke sleeve above the packing so the stem threads stay out of the process.',
+          material: 'Integral with bonnet, or WCB', dims: [D('Yoke height', yh, 'mm', S('yoke_h'))],
+        }));
+        const yt = yTop + yh;
+        parts.push(P('yoke_sleeve', 'Yoke sleeve (stem nut)', 'accent', [cyl('y', sd * 1.15, 40, [0, yt + 20, 0])], {
+          group: 'Manual operator', stage: 1,
+          fn: 'Threaded bronze nut turned by the handwheel; drives the rising stem up and down.',
+          material: 'Aluminium bronze / Ni-resist', dims: [D('Thread (= stem)', sd, 'mm', S('stem_d'))],
+        }));
+        const rise = v.body === 'gate' ? v.stem_ext : 25.4 * v.nps * 0.35;
+        const base = o.stemBase;
+        parts.push(P('stem', 'Stem (rising)', 'steel', [cyl('y', sd / 2, yt + rise + 60 - base, [0, (base + yt + rise + 60) / 2, 0])], {
+          group: 'Trim', stage: 2,
+          fn: 'Connects the closure member to the handwheel; trapezoidal (ACME) thread at the top, polished through the packing.',
+          material: '13Cr (A182 F6a) or 316 SS', dims: [D('Diameter', sd, 'mm', S('stem_d')), D('Stem rise (open)', rise, 'mm', S('stem_ext'))],
+        }));
+        parts.push(handwheelPart('handwheel', [0, yt + 30, 0], v.hw_d, 'y', { src: S('hw_d') }));
+        parts.push(P('hw_nut', 'Handwheel nut', 'bolt', [cyl('y', sd * 0.9, 20, [0, yt + 52, 0])], {
+          group: 'Manual operator', stage: 0, fn: 'Retains the handwheel on the yoke sleeve.', material: 'Carbon steel',
+        }));
+      } else {
+        parts.push(P('stem_ext', 'Stem extension', 'steel', [cyl('y', 10, v.yoke_h, [0, yTop + v.yoke_h / 2, 0])], { group: 'Manual operator', stage: 1 }));
+        parts.push(handwheelPart('handwheel', [0, yTop + v.yoke_h, 0], v.hw_d, 'y', { src: S('hw_d') }));
+      }
+      return;
+    }
+    if (op === 'lever') {
+      parts.push(P('lever_head', 'Wrench head & stop plate', 'bolt', [cyl('y', sd * 1.2, 24, [0, yTop + 12, 0]), box([sd * 3, 4, sd * 3], [0, yTop + 2, 0])], {
+        group: 'Manual operator', stage: 0, fn: 'Engages the stem flats; the stop plate limits travel to 90°. Lockable open/closed.', material: 'Carbon steel',
+      }));
+      parts.push(P('lever', 'Lever handle', 'wheel', [
+        box([v.lever_l, 10, 34], [v.lever_l / 2 - 20, yTop + 30, 0]),
+        box([v.lever_l * 0.3, 22, 40], [v.lever_l * 0.82, yTop + 30, 0]),
+      ], {
+        group: 'Manual operator', stage: 0,
+        fn: 'Quarter-turn manual operation. Lever parallel to the pipe = open.',
+        material: 'Carbon steel, vinyl grip', dims: [D('Lever length', v.lever_l, 'mm', S('lever_l'))],
+      }));
+      return;
+    }
+    if (op === 'gear') {
+      parts.push(P('bracket', 'Mounting adaptor', 'body', [cyl('y', o.f.pipeOD * 0.35, v.yoke_h, [0, yTop + v.yoke_h / 2, 0])], {
+        group: G, stage: 1, fn: 'Adapts the valve ISO 5211 top flange to the gearbox flange; houses the stem coupling.', material: 'Carbon steel',
+        dims: [D('Height', v.yoke_h, 'mm', S('yoke_h'))],
+      }));
+      const y = yTop + v.yoke_h;
+      parts.push(P('gearbox', 'Worm gearbox', 'act', [rbox([v.act_d, v.act_h, v.act_d * 0.8], [0, y + v.act_h / 2, 0], v.act_d * 0.12),
+        lathe('z', [[0, 0], [0, v.act_d * 0.18], [v.act_d * 0.12, v.act_d * 0.16], [v.act_d * 0.12, 0]], [0, y + v.act_h * 0.5, v.act_d * 0.4]),
+        plate([v.act_d * 0.4, v.act_h * 0.25, 1.2], [-v.act_d * 0.501, y + v.act_h * 0.5, 0], '-x', plateLines(v, 'GEAR OPERATOR'))], {
+        group: G, stage: 0, fn: 'Self-locking worm and quadrant gear reduces handwheel effort for quarter-turn valves.',
+        material: 'Ductile iron housing, bronze quadrant', dims: [D('Width', v.act_d, 'mm', S('act_d')), D('Height', v.act_h, 'mm', S('act_h'))],
+      }));
+      parts.push(P('gear_indicator', 'Position indicator', 'accent', [lathe('y', [[0, 0], [0, v.act_d * 0.2], [6, v.act_d * 0.2], ...fil(6, v.act_d * 0.2, 20, 0).slice(1)], [0, y + v.act_h, 0])], {
+        group: G, stage: 0, fn: 'Shows open/closed position on top of the gearbox.', material: 'Aluminium / polycarbonate',
+      }));
+      parts.push(P('input_shaft', 'Input shaft', 'steel', [cyl('z', v.act_d * 0.06, v.act_d * 0.7, [0, y + v.act_h * 0.5, v.act_d * 0.75])], {
+        group: G, stage: 0, ex: [0, 0, v.act_d * 0.3], fn: 'Worm shaft driven by the handwheel.', material: 'Alloy steel',
+      }));
+      parts.push(handwheelPart('handwheel', [0, y + v.act_h * 0.5, v.act_d * 1.1], v.hw_d, 'z', { src: S('hw_d'), ex: [0, 0, v.act_d * 0.6] }));
+      return;
+    }
+    if (op === 'pneumatic_rotary') {
+      const yh = v.yoke_h; const Dd = v.act_d; const L = v.act_l;
+      parts.push(P('bracket', 'Mounting bracket', 'body', [rbox([Dd * 0.9, 10, Dd * 0.9], [0, yTop + 5, 0], 6), rbox([Dd * 0.9, 10, Dd * 0.9], [0, yTop + yh - 5, 0], 6),
+        rbox([10, yh - 20, Dd * 0.9], [-Dd * 0.4, yTop + yh / 2, 0], 3), rbox([10, yh - 20, Dd * 0.9], [Dd * 0.4, yTop + yh / 2, 0], 3)], {
+        group: G, stage: 1, fn: 'Bolts the actuator to the valve ISO 5211 flange.', material: 'Carbon steel, painted',
+        dims: [D('Height', yh, 'mm', S('yoke_h'))],
+      }));
+      parts.push(P('coupling', 'Drive coupling', 'steel', [cyl('y', sd * 0.9, yh * 0.8, [0, yTop + yh / 2, 0])], {
+        group: G, stage: 2, ex: [0, 0, Dd * 0.9], fn: 'Square / double-D adaptor transmitting torque from the pinion to the valve stem.', material: 'Alloy steel',
+      }));
+      const y = yTop + yh;
+      parts.push(P('actuator', 'Actuator housing (rack & pinion)', 'act', [rbox([L, Dd * 1.05, Dd * 1.1], [0, y + Dd * 0.53, 0], Dd * 0.18),
+        plate([Math.min(90, L * 0.3), Math.min(40, Dd * 0.35), 1.2], [0, y + Dd * 0.45, Dd * 0.55 + 0.6], 'z', plateLines(v, 'ACTUATOR'))], {
+        group: G, stage: 0, fn: 'Twin pistons drive racks that turn the central pinion 90°. Spring-return units fail open or closed on air loss.',
+        material: 'Extruded aluminium, hard anodised', dims: [D('Length', L, 'mm', S('act_l')), D('Body width', Dd, 'mm', S('act_d'))],
+      }));
+      for (const s of [-1, 1]) {
+        parts.push(P(s < 0 ? 'end_cap_l' : 'end_cap_r', `End cap / spring cartridge (${s < 0 ? 'left' : 'right'})`, 'act',
+          [rbox([20, Dd * 1.08, Dd * 1.14], [s * (L / 2 + 10), y + Dd * 0.53, 0], Dd * 0.2, { ry: 0 }),
+            ...circle('x', Dd * 0.42, 4, [s * (L / 2 + 21), y + Dd * 0.53, 0], 0.5).map((p) => hex('x', 5, 4, p))], {
+            group: G, stage: 1, ex: [s * Dd * 0.8, 0, 0],
+            fn: 'Closes the cylinder bore; on spring-return units it contains the preloaded spring cartridges.', material: 'Die-cast aluminium',
+          }));
+      }
+      parts.push(P('indicator', 'Visual position indicator', 'accent', [lathe('y', [[0, 0], [0, Dd * 0.3], [10, Dd * 0.3], ...fil(10, Dd * 0.3, 28, 0).slice(1)], [0, y + Dd * 1.05, 0])], {
+        group: 'Accessories', stage: 0, fn: 'Shows valve position (open / closed) on the pinion top.', material: 'Polycarbonate',
+      }));
+      if (v.positioner) {
+        parts.push(P('positioner', 'Positioner / limit switch box', 'tx', [rbox([120, 110, 100], [0, y + Dd * 1.05 + 85, 0], 12), gauge('z', 14, [-30, y + Dd * 1.05 + 70, 51]), gauge('z', 14, [30, y + Dd * 1.05 + 70, 51])], {
+          group: 'Accessories', stage: 0, fn: 'Positioner for modulating duty, or limit switch box (ZSO / ZSC) for on-off duty.',
+          material: 'Aluminium, Ex d / Ex ia', dims: [D('Envelope', '120 × 110 × 100', 'mm', 'estimate')],
+        }));
+      }
+      parts.push(P('solenoid', 'Solenoid valve (NAMUR)', 'tx', [rbox([60, 40, 40], [0, y + Dd * 0.5, Dd * 0.55 + 20], 4), lathe('y', [[0, 0], [0, 17], [46, 17], [50, 13], [50, 0]], [0, y + Dd * 0.5 + 20, Dd * 0.55 + 22]), hex('x', 9, 14, [36, y + Dd * 0.5, Dd * 0.55 + 20])], {
+        group: 'Accessories', stage: 0, ex: [0, 0, Dd * 0.5], fn: '3/2 or 5/2 solenoid on the NAMUR pad; trips the actuator on loss of signal.', material: 'SS body, Ex d coil',
+      }));
+      return;
+    }
+    if (op === 'electric') {
+      const yh = v.yoke_h; const W = v.act_d; const H = v.act_h;
+      const multi = v.body === 'gate' || v.body === 'globe';
+      parts.push(P('thrust_base', multi ? 'Thrust base (type A)' : 'Mounting bracket & coupling', 'body', [
+        lathe('y', [[0, sd / 2 + 2], [0, W * 0.3], [12, W * 0.3], ...fil(12, W * 0.24, yh - 22, W * 0.24).slice(1, 2), [yh - 22, W * 0.24], ...fil(yh - 22, W * 0.24, yh - 12, W * 0.34).slice(1), [yh, W * 0.34], [yh, sd / 2 + 2]], [0, yTop, 0]),
+        ...circle('y', W * 0.3, 4, [0, yTop + yh - 2, 0], 0.5).map((p) => hex('y', 7, 8, p)),
+      ], {
+        group: G, stage: 1,
+        fn: multi ? 'Takes the stem thrust through its thrust bearings, so the valve rather than the gearcase carries the axial load (ISO 5210).'
+          : 'Adapts the valve ISO 5211 flange to the part-turn actuator and transmits torque.',
+        material: 'Ductile iron / carbon steel',
+        dims: [D(multi ? 'Flange (ISO 5210)' : 'Flange (ISO 5211)', `F${Math.round(clamp(10 + v.nps * 2.5, 10, 30))}`, '', 'estimate'), D('Height', yh, 'mm', S('yoke_h'))],
+      }));
+      if (multi) {
+        parts.push(P('drive_bush', 'Drive bush (stem nut)', 'accent', [ring('y', sd / 2, sd / 2 + 10, yh * 0.6, [0, yTop + yh * 0.55, 0])], {
+          group: G, stage: 2, ex: [0, 0, W * 0.9],
+          fn: 'Bronze nut machined to the stem thread; converts output-sleeve rotation into stem lift.',
+          material: 'Aluminium bronze', dims: [D('Bore (= stem)', sd, 'mm', S('stem_d'))],
+        }));
+      }
+      const y = yTop + yh;
+      parts.push(P('gearcase', 'Main gearcase (worm drive)', 'act', [lathe('y', [
+        [0, W * 0.2], [0, W * 0.34], ...fil(6, W * 0.34, 20, W * 0.38).slice(1), [H * 0.55 - 10, W * 0.38, 1], ...fil(H * 0.55 - 10, W * 0.38, H * 0.55, W * 0.36).slice(1), [H * 0.55, 0],
+      ], [0, y, 0]), ...circle('y', W * 0.36, 8, [0, y + 4, 0]).map((p) => hex('y', 6, 6, p))], {
+        group: G, stage: 0, fn: 'Motor drives a worm and wheel to the output sleeve. Self-locking; houses torque sensing and the position encoder.',
+        material: 'Aluminium alloy, IP68, Ex d', dims: [D('Width', W, 'mm', S('act_d')), D('Height', H, 'mm', S('act_h'))],
+      }));
+      parts.push(P('control_unit', 'Control unit & display', 'tx', [
+        rbox([W * 0.75, H * 0.38, W * 0.7], [0, y + H * 0.55 + H * 0.19, 0], W * 0.12),
+        lathe('z', [[0, 0], [0, W * 0.2], [8, W * 0.2], [8, W * 0.17], [12, W * 0.17], [12, 0]], [0, y + H * 0.76, W * 0.35]),
+        plate([W * 0.22, W * 0.15, 1.5], [0, y + H * 0.76, W * 0.35 + 12.6], 'z', ['100%', 'OPEN', v.tag || ''], { style: 'lcd' }),
+        lathe('z', [[0, 0], [0, 16], [10, 14], [10, 0]], [-W * 0.22, y + H * 0.6, W * 0.35]), rbox([8, 26, 14], [-W * 0.22, y + H * 0.6, W * 0.35 + 16], 3, { look: 'wheel' }),
+        lathe('z', [[0, 0], [0, 16], [10, 14], [10, 0]], [W * 0.22, y + H * 0.6, W * 0.35]), rbox([26, 8, 14], [W * 0.22, y + H * 0.6, W * 0.35 + 16], 3, { look: 'rubber' }),
+        ...circle('z', W * 0.27, 4, [0, y + H * 0.74, W * 0.35 + 0.5], 0.5).map((p) => hex('z', 5, 4, p)),
+        plate([W * 0.4, W * 0.18, 1.2], [W * 0.376, y + H * 0.74, 0], 'x', plateLines(v, 'ELECTRIC ACTUATOR')),
+      ], {
+        group: G, stage: 0,
+        fn: 'Motor starter, controls, LCD display and Local/Remote + Open/Close selector knobs (non-intrusive setup).',
+        material: 'Aluminium, Ex d',
+      }));
+      parts.push(P('motor', 'Motor', 'act', [
+        lathe('x', [[0, 0], [0, W * 0.22], [W * 0.5, W * 0.22], ...fil(W * 0.5, W * 0.22, W * 0.56, 0).slice(1)], [-(W * 0.38 + W * 0.56), y + H * 0.3, 0]),
+        ...Array.from({ length: 7 }, (_, i) => ring('x', W * 0.22, W * 0.26, 3, [-(W * 0.38 + W * 0.08 + i * W * 0.06), y + H * 0.3, 0])),
+      ], {
+        group: G, stage: 0, ex: [-W * 0.6, 0, 0],
+        fn: '3-phase squirrel-cage motor, S2-15 min / S4 rated, with winding thermostats.', material: 'Class F insulation, Ex d enclosure',
+      }));
+      parts.push(P('declutch', 'Declutch lever', 'wheel', [rbox([14, 70, 14], [W * 0.3, y + H * 0.15, -W * 0.3], 5, { ry: 0.4 }), sph(10, [W * 0.3, y + H * 0.15 - 38, -W * 0.3])], {
+        group: G, stage: 0, ex: [W * 0.3, 0, -W * 0.3], fn: 'Engages the handwheel drive; a motor start re-engages motor drive automatically.', material: 'Ductile iron',
+      }));
+      parts.push(P('hw_shaft', 'Handwheel shaft', 'steel', [cyl('x', 12, 60, [W * 0.38 + 30, y + H * 0.3, 0])], { group: G, stage: 0, ex: [W * 0.45, 0, 0], material: 'Alloy steel' }));
+      parts.push(handwheelPart('handwheel', [W * 0.38 + 60, y + H * 0.3, 0], v.hw_d, 'x', {
+        name: 'Handwheel (emergency)', group: G, src: S('hw_d'), ex: [W * 0.8, 0, 0],
+        fn: 'Manual operation on loss of power; mechanically independent of the motor drive.',
+      }));
+      parts.push(P('terminal_cover', 'Terminal compartment & cable entries', 'bolt', [
+        rbox([W * 0.5, H * 0.28, 16], [0, y + H * 0.74, -W * 0.35 - 7], 6),
+        ...[[-1, -1], [1, -1], [-1, 1], [1, 1]].map(([a, b]) => hex('z', 5, 5, [a * W * 0.21, y + H * 0.74 + b * H * 0.11, -W * 0.35 - 16])),
+        cyl('x', 12, 40, [W * 0.375 + 20, y + H * 0.74, -W * 0.15]), cyl('x', 12, 40, [W * 0.375 + 20, y + H * 0.74, W * 0.05]),
+      ], {
+        group: G, stage: 0, ex: [0, 0, -W * 0.6],
+        fn: 'Separately sealed terminal box, so the internals stay protected when it is opened for site cabling. Typically 3 × M25 / M40 entries.',
+        material: 'Aluminium, Ex e / Ex d',
+      }));
+      if (multi) {
+        const st = 25.4 * v.nps * 1.05 + 40;
+        parts.push(P('stem_cover', 'Stem protection tube', 'steel', [cyl('y', W * 0.1, st, [0, y + H * 0.93 + st / 2, 0])], {
+          group: G, stage: 0, fn: 'Covers the rising stem above the actuator; length ≥ valve stroke.', material: 'Steel tube, painted',
+          dims: [D('Stroke (≈ port)', 25.4 * v.nps * 1.05)],
+        }));
+      }
+      return;
+    }
+    if (op === 'pneumatic_diaphragm') {
+      const yh = v.yoke_h; const Dd = v.act_d; const H = v.act_h;
+      const legW = Math.max(26, Dd * 0.11);
+      parts.push(P('yoke', 'Yoke', 'body', [
+        lathe('y', [[0, sd], [0, Dd * 0.17], [18, Dd * 0.17], ...fil(18, Dd * 0.15, 30, Dd * 0.11).slice(1), [30, sd]], [0, yTop, 0]),
+        rbox([legW, yh - 40, 34], [-Dd * 0.17, yTop + yh / 2, 0], 8), rbox([legW, yh - 40, 34], [Dd * 0.17, yTop + yh / 2, 0], 8),
+        lathe('y', [[0, sd], [0, Dd * 0.13], ...fil(10, Dd * 0.15, 20, Dd * 0.21).slice(1), [24, Dd * 0.21], [24, sd]], [0, yTop + yh - 24, 0]),
+        plate([legW * 0.9, legW * 1.25, 1.2], [-Dd * 0.17, yTop + yh * 0.52, 17.6], 'z', plateLines(v, 'CONTROL VALVE')),
+      ], {
+        group: G, stage: 1, fn: 'Rigid frame joining actuator and bonnet; the open window gives access to the stem connector and packing.',
+        material: 'Ductile iron / cast steel', dims: [D('Yoke height', yh, 'mm', S('yoke_h'))],
+      }));
+      parts.push(P('stem_connector', 'Stem connector', 'steel', [box([42, 30, 32], [0, yTop + yh * 0.45, 0])], {
+        group: G, stage: 2, ex: [0, 0, Dd * 0.6],
+        fn: 'Split clamp joining actuator stem and valve stem; sets plug seating and travel.', material: 'Zinc-plated steel',
+      }));
+      parts.push(P('travel_indicator', 'Travel indicator & scale', 'accent', [
+        box([4, yh * 0.3, 36], [Dd * 0.17 + 12, yTop + yh * 0.45, 0]), box([30, 4, 6], [16, yTop + yh * 0.45, 0]),
+      ], { group: G, stage: 2, ex: [Dd * 0.35, 0, 0], fn: 'Pointer on the stem connector against a scale on the yoke — shows % open of rated travel.', material: 'Stainless steel' }));
+      const asL = yh * 0.55 + H * 0.42;
+      parts.push(P('actuator_stem', 'Actuator stem', 'steel', [cyl('y', sd * 0.7, asL, [0, yTop + yh * 0.45 + asL / 2, 0])], {
+        group: G, stage: 1, fn: 'Transmits diaphragm force to the valve stem.', material: 'Chrome-plated steel',
+      }));
+      const ya = yTop + yh;
+      const hl = H * 0.42; const hu = H * 0.5;
+      const dish = []; for (let i = 0; i <= 10; i++) { const t = i / 10; dish.push([6 + (hl - 14) * Math.pow(t, 1.6), Dd * 0.2 + (Dd / 2 - 6 - Dd * 0.2) * Math.sin(t * Math.PI / 2), 1]); }
+      parts.push(P('lower_casing', 'Lower diaphragm casing', 'act', [lathe('y', [
+        [0, sd], [0, Dd * 0.2], ...dish, [hl - 8, Dd / 2 - 4], [hl - 8, Dd / 2 + 10], [hl, Dd / 2 + 10], [hl, sd],
+      ], [0, ya, 0])], {
+        group: G, stage: 0, fn: 'Lower pressure chamber, bolted to the yoke; houses the actuator spring.', material: 'Pressed steel, painted',
+        dims: [D('Casing OD', Dd, 'mm', S('act_d'))],
+      }));
+      parts.push(P('spring', 'Actuator spring', 'spring', [helix('y', Dd * 0.2, Math.max(3, Dd * 0.018), H * 0.36, 6, [0, ya + H * 0.2, 0])], {
+        group: G, stage: 0, ex: [0, 0, Dd * 0.75],
+        fn: 'Opposes the air load and drives the valve to its fail position (FC / FO) on loss of air. The spring range sets the bench set.',
+        material: 'Chrome-silicon / alloy spring steel', dims: [D('Mean coil Ø', Dd * 0.4)],
+      }));
+      parts.push(P('diaphragm_plate', 'Diaphragm plate (head)', 'steel', [cyl('y', Dd * 0.38, 8, [0, ya + H * 0.42 - 6, 0])], {
+        group: G, stage: 0, fn: 'Rigid plate behind the diaphragm; transfers air force to the actuator stem.', material: 'Steel',
+      }));
+      parts.push(P('diaphragm', 'Diaphragm', 'rubber', [cyl('y', Dd / 2 + 5, 3, [0, ya + H * 0.42 + 1.5, 0])], {
+        group: G, stage: 0, fn: 'Flexible membrane converting signal air pressure into thrust: effective area × pressure = actuator force.',
+        material: 'Nitrile (NBR) with nylon fabric reinforcement', dims: [D('Effective area ≈', `${Math.round(Math.PI * (Dd * 0.45) ** 2 / 100)} cm²`, '', 'estimate')],
+      }));
+      const dome = []; for (let i = 0; i <= 12; i++) { const t = i / 12; dome.push([8 + (hu - 8) * Math.sin(t * Math.PI / 2), (Dd / 2 - 4) * Math.cos(t * Math.PI / 2 * 0.92) + 2, 1]); }
+      parts.push(P('upper_casing', 'Upper diaphragm casing', 'act', [lathe('y', [
+        [0, Dd * 0.3], [0, Dd / 2 + 10], [8, Dd / 2 + 10], [8, Dd / 2 - 4], ...dome.slice(1), [hu, 0],
+      ], [0, ya + hl + 3, 0]), hex('y', 11, 14, [0, ya + hl + 3 + hu + 6, 0]), cyl('y', 6, 24, [0, ya + hl + 3 + hu + 18, 0])], {
+        group: G, stage: 0, fn: 'Upper pressure chamber with the loading connection (signal air in).', material: 'Pressed steel, painted',
+        dims: [D('Loading connection', '1/4" NPT', '', 'estimate')],
+      }));
+      parts.push(P('casing_bolts', 'Casing cap screws & nuts', 'bolt', circle('y', Dd / 2 + 3, 16, [0, ya + H * 0.42, 0]).flatMap((p) => studNut('y', [p[0], 0, p[2]], ya + hl - 8, ya + hl + 11, 7)), {
+        group: G, stage: 0, qty: 16, fn: 'Clamp the two casings together and seal the diaphragm bead. Never remove with spring preload applied.',
+        material: 'Zinc-plated steel',
+      }));
+      if (v.positioner) {
+        const px = Dd * 0.17 + 75; const py = yTop + yh * 0.55;
+        parts.push(P('positioner_bracket', 'Positioner mounting bracket', 'steel', [box([90, 16, 20], [Dd * 0.17 + 18, py, 0])], {
+          group: 'Accessories', stage: 1, ex: [Dd * 0.2, 0, 0], material: '316 SS',
+        }));
+        parts.push(P('positioner', 'Digital valve positioner', 'tx', [
+          rbox([110, 150, 85], [px, py, 0], 10), rbox([96, 60, 8], [px, py + 34, 46], 6),
+          gauge('z', 16, [px - 24, py - 32, 47]), gauge('z', 16, [px + 24, py - 32, 47]),
+          cyl('x', 10, 24, [px + 64, py + 40, 0]), hex('x', 12, 10, [px + 79, py + 40, 0]),
+        ], {
+          group: 'Accessories', stage: 0, ex: [Dd * 0.5, 0, 0],
+          fn: 'Compares the 4–20 mA / HART setpoint with stem-travel feedback and adjusts actuator air to hold position.',
+          material: 'Aluminium, Ex d / Ex ia', dims: [D('Envelope', '110 × 150 × 85', 'mm', 'estimate')],
+        }));
+        parts.push(P('airset', 'Air filter regulator', 'tx', [
+          rbox([62, 46, 62], [px, py - 92, 0], 8),
+          lathe('y', [[0, 0], [0, 22], ...fil(-50, 26, -64, 0).slice(0, -1).reverse().map(([a, b]) => [a, b, 1]), [-70, 0]].sort((a, b) => b[0] - a[0]), [px, py - 115, 0]),
+          gauge('z', 13, [px, py - 92, 32]), cyl('y', 9, 18, [px, py - 60, 0]),
+        ], {
+          group: 'Accessories', stage: 0, ex: [Dd * 0.5, -60, 0], fn: 'Filters and regulates the instrument air supply to the positioner (typ. 1.4–4 bar).', material: 'Aluminium / SS',
+        }));
+        parts.push(P('tubing', 'Instrument tubing', 'tube', [
+          tube([px, py - 95, 0], [px, py - 75, 0], 3), tube([px + 55, py + 40, 0], [px + 55, ya + H * 0.92 + 30, 0], 3),
+          tube([px + 55, ya + H * 0.92 + 30, 0], [8, ya + H * 0.92 + 30, 0], 3),
+        ], { group: 'Accessories', stage: 0, ex: [Dd * 0.5, 0, 0], fn: 'Supply and output air lines (positioner → actuator loading connection).', material: '316 SS tube 1/4" or 3/8"' }));
+      }
+      if (v.cv_handwheel) {
+        parts.push(handwheelPart('handwheel', [0, ya + H + 120, 0], v.hw_d, 'y', { group: G, src: S('hw_d'), fn: 'Top-mounted handwheel: manual override and adjustable travel stop.' }));
+      }
+    }
+  }
+
+  // ───────────────────────── valve build ─────────────────────────
+  function buildValve(v, meta) {
+    const S = (k) => meta?.[k]?.src || 'estimate';
+    const f = R.flangeOf(v.nps, v.cls);
+    if (v.body === 'psv') return buildPSV(v, meta, f);
+    const parts = [];
+    const stub = v.pipe_stub > 0 ? v.pipe_stub : 0;
+    const rating = `${npsTxt(v.nps)} ASME CL${v.cls} RF`;
+    const half = v.ftf / 2; const bw = v.body_w; const port = v.port_d; const sd = v.stem_d;
+    const U = Math.max(30, f.od * 0.12);
+    const cv = v.service === 'control';
+    if (stub) {
+      const mp = [];
+      if (v.body !== 'butterfly') for (const sg of [-1, 1]) {
+        mp.push(cyl('x', f.od / 2, f.t, [sg * (half + 3 + f.t / 2), 0, 0]));
+        mp.push(cyl('x', f.pipeOD / 2, stub, [sg * (half + 3 + f.t + stub / 2), 0, 0]));
+      }
+      parts.push(P('pipe', 'Mating pipe & flanges (reference)', 'ghost', mp, { group: 'Reference', stage: 0, fn: 'Mating pipe, shown for context only.' }));
+      if (v.body !== 'butterfly') {
+        parts.push(P('flange_gaskets', 'Flange gaskets', 'rubber', [
+          ring('x', f.pipeOD / 2, Math.max(f.pipeOD / 2 + 8, f.bcd / 2 - f.bolt * 1.25), 3, [-half - 1.5, 0, 0]),
+          ring('x', f.pipeOD / 2, Math.max(f.pipeOD / 2 + 8, f.bcd / 2 - f.bolt * 1.25), 3, [half + 1.5, 0, 0]),
+        ], { group: 'Piping interface', stage: 0, ex: [0, -U * 2, 0], qty: 2, fn: 'Spiral-wound gaskets sealing the raised faces (ASME B16.20).', material: '316 SS winding + graphite filler, CS centring ring' }));
+      }
+    }
+
+    // ── body
+    const bp = [];
+    const mat = cv ? 'ASTM A216 WCC / A351 CF8M' : 'ASTM A216 WCB / A351 CF8M';
+    const neckR = f.pipeOD / 2 * 1.3;
+    let stemBase = 0;
+    if (v.body === 'globe') {
+      bodyFlanges(bp, 'x', -1, half, f); bodyFlanges(bp, 'x', 1, half, f);
+      bp.push(sph(bw / 2, [0, 0, 0], [Math.min(1.15, (half - f.t) / (bw / 2)), 0.9, 0.9]));
+      bp.push(cyl('x', neckR, 2 * (half - f.t), [0, 0, 0]));
+      bp.push(lathe('y', [[bw * 0.1, 0], [bw * 0.1, bw * 0.33], [v.body_h - 30, bw * 0.31, 1], ...fil(v.body_h - 30, bw * 0.31, v.body_h - 16, bw * 0.37),
+        [v.body_h - 16, bw * 0.42], [v.body_h - 1.5, bw * 0.42], [v.body_h, bw * 0.42 - 1.5], [v.body_h, 0]]));
+      bp.push(arrow(bw * 0.5, bw * 0.16, 3, [0, -bw * 0.04, bw * 0.45 * 0.9 + 1.5], 'z', 1));
+    } else if (v.body === 'gate') {
+      bodyFlanges(bp, 'x', -1, half, f); bodyFlanges(bp, 'x', 1, half, f);
+      bp.push(cyl('x', neckR, 2 * (half - f.t), [0, 0, 0]));
+      bp.push(rbox([bw * 0.55, v.body_h + bw * 0.25 - 16, bw], [0, (v.body_h - bw * 0.25 - 16) / 2, 0], bw * 0.16));
+      bp.push(cyl('z', bw / 2, bw * 0.55, [0, -bw * 0.05, 0]));
+      bp.push(rbox([bw * 0.84, 16, bw * 1.02], [0, v.body_h - 8, 0], 6));
+      bp.push(arrow(bw * 0.42, bw * 0.13, 3, [0, -bw * 0.05, bw * 0.275 + 1.5], 'z', 1));
+    } else if (v.body === 'ball') {
+      const split = Math.min(half - f.t * 2.2, bw * 0.3);
+      bodyFlanges(bp, 'x', -1, half, f);
+      bp.push(sph(bw / 2, [0, 0, 0], [Math.min(1, (half - f.t) / (bw / 2)), 1, 1]));
+      bp.push(cyl('x', neckR * 1.1, half - f.t, [-(half - f.t) / 2, 0, 0]));
+      bp.push(cyl('x', bw * 0.45, 14, [split - 7, 0, 0]));
+      bp.push(cyl('y', f.pipeOD * 0.32, v.body_h - bw * 0.4, [0, bw * 0.4 + (v.body_h - bw * 0.4) / 2, 0]));
+      const cp = []; bodyFlanges(cp, 'x', 1, half, f);
+      cp.push(cyl('x', bw * 0.45, 14, [split + 7, 0, 0]));
+      const cl = Math.max(4, half - f.t - split - 14);
+      cp.push(cyl('x', neckR * 1.1, cl, [split + 14 + cl / 2, 0, 0]));
+      parts.push(P('body_connector', 'Body connector (end piece)', 'body', cp, {
+        group: 'Body', stage: 1, ex: [U * 3, 0, 0],
+        fn: 'Second half of the split body; retains the ball and downstream seat and carries the outlet end flange.',
+        material: mat, dims: [D('End flange OD × thk', `${f.od} × ${f.t}`, 'mm', 'standard')],
+      }));
+      parts.push(P('body_bolting', 'Body bolting', 'bolt', circle('x', bw * 0.4, 8, [split, 0, 0]).map((p) => cyl('x', 8, 50, p)), {
+        group: 'Body', stage: 1, ex: [U * 5, 0, 0], qty: 8, fn: 'Studs joining body and body connector; part of the pressure boundary.',
+        material: 'ASTM A193 B7 / A194 2H',
+      }));
+    } else if (v.body === 'butterfly') {
+      const pid = pipeID(v.nps);
+      bp.push(ring('x', pid / 2, f.bcd / 2 - f.bolt, v.ftf, [0, 0, 0]));
+      bp.push(cyl('y', f.pipeOD * 0.22, v.body_h - f.bcd / 2, [0, f.bcd / 2 + (v.body_h - f.bcd / 2) / 2 - f.bolt, 0]));
+      bp.push(cyl('y', f.pipeOD * 0.2, f.bcd / 2 - pid / 2, [0, -(pid / 2 + (f.bcd / 2 - pid / 2) / 2), 0]));
+      parts.push(P('mating_flanges', 'Mating pipe flanges (reference)', 'ghost', [
+        cyl('x', f.od / 2, f.t, [-half - f.t / 2, 0, 0]), cyl('x', f.od / 2, f.t, [half + f.t / 2, 0, 0]),
+      ], { group: 'Reference', stage: 0, fn: 'Wafer bodies are clamped between the pipe flanges by through-bolts.' }));
+    }
+    parts.push(P('body', 'Body', 'body', bp, {
+      group: 'Body', stage: 2,
+      fn: {
+        globe: cv ? 'Pressure-retaining casting with an S-shaped flow path through a horizontal seat; provides the end connections and holds the trim.'
+          : 'Pressure-retaining globe body; flow turns through a horizontal seat — good for throttling and positive shut-off.',
+        gate: 'Pressure-retaining body with a straight-through bore; the wedge seats against two inclined seat rings (on-off duty only).',
+        ball: 'Split body (inlet half) holding the ball between two seats; straight-through bore.',
+        butterfly: 'Short wafer body clamped between pipe flanges; the disc rotates 90° on a shaft.',
+      }[v.body],
+      material: mat,
+      dims: [
+        D('Size / rating', rating, '', S('nps')), D('Face-to-face', v.ftf, 'mm', S('ftf')),
+        D('End flange OD × thk', `${f.od} × ${f.t}`, 'mm', 'standard'), D('Flange bolting', `${f.n} × ${inch(f.bolt)} on Ø${f.bcd}`, '', 'standard'),
+        D('Body height (CL → top)', v.body_h, 'mm', S('body_h')), D('Port', port, 'mm', S('port_d')),
+      ],
+      note: v.body === 'butterfly' ? 'Wafer pattern per API 609; class rating per ASME B16.34.'
+        : 'End flanges are integral with the body casting (ASME B16.5 dimensions, B16.34 pressure–temperature rating).',
+    }));
+    if (v.body !== 'butterfly') {
+      parts.push(flangeBolting('bolting_in', 'Inlet flange studs & nuts', 'x', -1, half, f, U * 3));
+      parts.push(flangeBolting('bolting_out', 'Outlet flange studs & nuts', 'x', 1, half, f, U * (v.body === 'ball' ? 7 : 3)));
+    }
+
+    // ── trim & top works
+    let yTop = v.body_h;
+    if (v.body === 'globe') {
+      const srW = Math.max(6, port * 0.14); const srH = Math.max(8, port * 0.16); const seatY = -port * 0.12;
+      parts.push(P('seat_ring', 'Seat ring', 'trim', [ring('y', port / 2, port / 2 + srW, srH, [0, seatY - srH / 2, 0])], {
+        group: 'Trim', stage: 2,
+        fn: 'Replaceable shut-off surface the plug closes against; its bore sets the port size and rated Cv.',
+        material: cv ? '316 SS, or 316 SS with Alloy 6 (Stellite) hard-facing' : '13Cr / Stellite hard-faced',
+        dims: [D('Port (bore)', port, 'mm', S('port_d')), D('Shut-off class', cv ? 'ANSI/FCI 70-2 Class IV–V' : 'API 598', '', 'estimate')],
+      }));
+      if (cv) {
+        const cr = port / 2 + 3; const cw = Math.max(6, port * 0.1); const ch = v.body_h - seatY - 2;
+        parts.push(P('cage', 'Cage', 'trim', [ring('y', cr, cr + cw, ch, [0, seatY + ch / 2, 0])], {
+          group: 'Trim', stage: 2,
+          fn: 'Guides the plug and clamps the seat ring; the window shape sets the flow characteristic (linear / equal %). Anti-cavitation cages use drilled holes.',
+          material: '416 SS / 17-4PH, hardened', dims: [D('Cage bore', 2 * cr), D('Height', ch)],
+        }));
+      }
+      const plH = cv ? Math.max(25, port * 0.6) : Math.max(14, port * 0.28);
+      const plR = cv ? port / 2 : port / 2 + srW * 0.6;
+      parts.push(P(cv ? 'plug' : 'disc', cv ? 'Valve plug' : 'Disc', 'trim', [cyl('y', plR, plH, [0, seatY + plH / 2, 0])], {
+        group: 'Trim', stage: 2,
+        fn: cv ? 'Moving closure member; its position in the cage throttles the flow. Balanced plugs with seal rings reduce the actuator force.'
+          : 'Closure member lowered onto the seat by the stem for shut-off.',
+        material: cv ? '316 SS / hardened 416 SS, seating surface hard-faced' : '13Cr / Stellite faced',
+        dims: [D('Plug Ø', 2 * plR), D('Stroke (≈ ¼ port)', port * 0.25)],
+      }));
+      stemBase = seatY + plH;
+      if (cv) {
+        const stemTop = v.body_h + v.bonnet_h + v.yoke_h * 0.45;
+        parts.push(P('stem', 'Valve stem', 'steel', [cyl('y', sd / 2, stemTop - stemBase, [0, (stemTop + stemBase) / 2, 0])], {
+          group: 'Trim', stage: 2, fn: 'Connects plug and actuator stem; polished through the packing for low friction and emissions.',
+          material: 'S20910 (Nitronic 50) / 316 SS', dims: [D('Diameter', sd, 'mm', S('stem_d'))],
+        }));
+      }
+      yTop = bonnetAssembly(v, meta, parts, { bw, sd, port, f, cv });
+    } else if (v.body === 'gate') {
+      const wT = Math.max(18, port * 0.32);
+      const srH = Math.max(8, port * 0.12);
+      parts.push(P('seat_rings', 'Seat rings', 'trim', [
+        ring('x', port / 2, port / 2 + Math.max(6, port * 0.12), srH, [-(wT / 2 + srH / 2), 0, 0]),
+        ring('x', port / 2, port / 2 + Math.max(6, port * 0.12), srH, [wT / 2 + srH / 2, 0, 0]),
+      ], {
+        group: 'Trim', stage: 2, qty: 2, fn: 'Welded-in or threaded rings forming the sealing faces for the wedge.',
+        material: 'Hard-faced 13Cr / Stellite 6', dims: [D('Bore', port, 'mm', S('port_d'))],
+      }));
+      parts.push(P('wedge', 'Wedge (gate)', 'trim', [box([wT, port * 1.2, port * 1.15], [0, port * 0.05, 0])], {
+        group: 'Trim', stage: 2, fn: 'Flexible or solid wedge lowered across the bore; seats on both inclined seat rings for tight shut-off.',
+        material: 'WCB + 13Cr / Stellite facing (API 600 trim 8)', dims: [D('Wedge width', port * 1.15), D('Bore', port, 'mm', S('port_d'))],
+      }));
+      stemBase = port * 0.65;
+      yTop = bonnetAssembly(v, meta, parts, { bw, sd, port, f, cv: false });
+    } else if (v.body === 'ball') {
+      const ballR = Math.max(port / 2 + 10, port * 0.72);
+      const sW = Math.max(8, port * 0.15);
+      parts.push(P('seats', 'Seats', 'seat', [
+        ring('x', port / 2 + 2, port / 2 + 2 + sW, 10, [-ballR * 0.82, 0, 0]), ring('x', port / 2 + 2, port / 2 + 2 + sW, 10, [ballR * 0.82, 0, 0]),
+      ], {
+        group: 'Trim', stage: 2, qty: 2, fn: 'Soft or metal seat rings sealing against the ball; fire-safe design per API 607.',
+        material: 'RPTFE / PEEK / Devlon; metal seats for abrasive service', dims: [D('Seat ID', port + 4)],
+      }));
+      parts.push(P('ball', 'Ball', 'trim', [sph(ballR, [0, 0, 0]), cyl('x', port / 2, ballR * 1.95, [0, 0, 0], { look: 'bore' })], {
+        group: 'Trim', stage: 2,
+        fn: `Rotating sphere with a ${v.bore} bore; a 90° turn opens or closes the flow path.${v.nps >= 6 ? ' Trunnion-mounted at this size: the ball is held by upper and lower trunnions and the seats float.' : ' Floating ball: line pressure pushes it onto the downstream seat.'}`,
+        material: 'A105 + ENP / 316 SS; hard chrome or tungsten-carbide coated for severe service',
+        dims: [D('Ball Ø', 2 * ballR), D('Bore', port, 'mm', S('port_d'))],
+      }));
+      parts.push(P('thrust_washer', 'Stem thrust washer', 'seat', [ring('y', sd / 2, sd / 2 + 8, 4, [0, ballR + 8, 0])], {
+        group: 'Trim', stage: 2, fn: 'Blow-out-proof stem: the stem shoulder bears on this washer from inside the body.', material: 'PTFE / PEEK',
+      }));
+      const sTop = v.body_h + v.bonnet_h + 30; const sBot = ballR * 0.7;
+      parts.push(P('stem', 'Stem', 'steel', [cyl('y', sd / 2, sTop - sBot, [0, (sTop + sBot) / 2, 0])], {
+        group: 'Trim', stage: 2, fn: 'Anti-blow-out stem with flats or a key transmitting torque to the ball slot.', material: '17-4PH / 316 SS',
+        dims: [D('Diameter', sd, 'mm', S('stem_d'))],
+      }));
+      parts.push(P('stem_seal', 'Stem seals (O-rings / packing)', 'rubber', [ring('y', sd / 2, sd / 2 + 5, sd, [0, v.body_h - sd * 0.8, 0])], {
+        group: 'Trim', stage: 2, fn: 'Primary O-rings plus graphite packing as the fire-safe secondary seal.', material: 'FKM / graphite',
+      }));
+      if (v.nps >= 6) {
+        const tl = bw / 2 - ballR + 20;
+        parts.push(P('trunnion', 'Lower trunnion & cover', 'steel', [
+          cyl('y', sd * 0.55, tl, [0, -ballR - tl / 2 + 10, 0]), cyl('y', sd * 1.5, 12, [0, -bw / 2 - 6, 0]),
+        ], { group: 'Trim', stage: 2, ex: [0, -U * 4, 0], fn: 'Supports the ball on its lower axis so the line load goes into the body, not the seats.', material: 'A105 / 316 SS' }));
+      }
+      parts.push(P('mounting_pad', 'Top flange (ISO 5211 pad)', 'body', [
+        cyl('y', f.pipeOD * 0.2 + 6, v.bonnet_h, [0, v.body_h + v.bonnet_h / 2, 0]), box([f.pipeOD * 0.9, 12, f.pipeOD * 0.9], [0, v.body_h + v.bonnet_h - 6, 0]),
+      ], {
+        group: 'Body', stage: 1, fn: 'Standard mounting interface for levers, gearboxes and actuators (ISO 5211 F-flange).', material: mat,
+        dims: [D('ISO 5211 flange', `F${Math.round(clamp(5 + v.nps * 2.5, 5, 25))}`, '', 'estimate')],
+      }));
+      yTop = v.body_h + v.bonnet_h;
+    } else if (v.body === 'butterfly') {
+      const pid = pipeID(v.nps);
+      parts.push(P('liner', 'Seat liner', 'rubber', [ring('x', pid / 2 - 4, pid / 2, v.ftf * 0.95, [0, 0, 0])], {
+        group: 'Trim', stage: 2, fn: 'Resilient (or PTFE / metal) seat; doubles as the flange gasket in resilient-seated designs.',
+        material: 'EPDM / NBR / PTFE; metal seat for triple-offset designs', dims: [D('Seat ID', pid - 8)],
+      }));
+      parts.push(P('disc', 'Disc', 'trim', [cyl('x', pid / 2 - 4, Math.max(8, v.ftf * 0.3), [0, 0, 0], { rotY: Math.PI / 5 })], {
+        group: 'Trim', stage: 2,
+        fn: 'Rotates 90° on the shaft to throttle or isolate; stays in the flow stream when open (pressure drop, Cv).',
+        material: 'CF8M / Al-bronze / duplex SS', dims: [D('Disc Ø', pid - 8), D('Bore (= pipe ID)', pid, 'mm', S('port_d'))],
+      }));
+      parts.push(P('taper_pins', 'Disc taper pins', 'bolt', [cyl('z', 4, sd * 1.5, [0, pid * 0.25, 0]), cyl('z', 4, sd * 1.5, [0, -pid * 0.25, 0])], {
+        group: 'Trim', stage: 2, qty: 2, fn: 'Lock the disc to the shaft (pin-less splined designs also exist).', material: '316 SS',
+      }));
+      parts.push(P('shaft_lower', 'Lower shaft', 'steel', [cyl('y', sd / 2, f.bcd / 2, [0, -f.bcd / 4, 0])], {
+        group: 'Trim', stage: 2, ex: [0, -U * 4, 0], fn: 'Supports the disc on its lower axis.', material: '17-4PH / 410 SS',
+      }));
+      parts.push(P('bushings', 'Shaft bushings', 'seat', [ring('y', sd / 2, sd / 2 + 4, sd, [0, f.bcd / 2 - f.bolt + sd / 2, 0])], {
+        group: 'Trim', stage: 2, fn: 'Bearings supporting the shaft in the body neck.', material: 'PTFE-lined / bronze',
+      }));
+      parts.push(P('shaft_upper', 'Upper shaft', 'steel', [cyl('y', sd / 2, v.body_h + v.bonnet_h + 30, [0, (v.body_h + v.bonnet_h + 30) / 2, 0])], {
+        group: 'Trim', stage: 2, fn: 'Drive shaft carrying operator torque to the disc.', material: '17-4PH / 410 SS', dims: [D('Shaft Ø', sd, 'mm', S('stem_d'))],
+      }));
+      parts.push(P('mounting_pad', 'Top plate (ISO 5211)', 'body', [
+        cyl('y', f.pipeOD * 0.2, v.bonnet_h, [0, v.body_h + v.bonnet_h / 2, 0]), box([v.ftf * 1.4, 12, v.ftf * 1.4], [0, v.body_h + v.bonnet_h - 6, 0]),
+      ], { group: 'Body', stage: 1, fn: 'Operator mounting interface (ISO 5211).', material: mat }));
+      yTop = v.body_h + v.bonnet_h;
+    }
+    operator(v, meta, parts, yTop, { sd, f, stemBase });
+    explodeValve(v, parts, U);
+    return parts;
+  }
+
+  /** Exploded layout: internals rise in a column above the body in assembly order; side parts ride along. */
+  function explodeValve(v, parts, U) {
+    const by = (id) => parts.find((p) => p.id === id);
+    const body = by('body');
+    const bb = partBox(body);
+    const manualRising = v.operator === 'handwheel' && (v.body === 'gate' || v.body === 'globe');
+    const order = {
+      globe: ['seat_ring', 'cage', 'plug', 'disc', manualRising ? null : 'stem', 'bonnet_gasket', 'bonnet', 'bonnet_bolting', 'packing', 'gland', 'gland_flange', 'gland_studs'],
+      gate: ['seat_rings', 'wedge', 'bonnet_gasket', 'bonnet', 'bonnet_bolting', 'packing', 'gland', 'gland_flange', 'gland_studs'],
+      ball: ['thrust_washer', 'stem', 'stem_seal', 'mounting_pad'],
+      butterfly: ['bushings', 'shaft_upper', 'mounting_pad'],
+    }[v.body] || [];
+    const opOrder = ['yoke', 'thrust_base', 'bracket', 'stem_ext', 'actuator_stem', 'yoke_sleeve', 'lower_casing', 'diaphragm_plate', 'diaphragm',
+      'upper_casing', 'casing_bolts', 'gearcase', 'control_unit', 'actuator', 'indicator', 'positioner', 'gearbox', 'gear_indicator',
+      'lever_head', 'lever', 'handwheel', 'hw_nut', 'stem_cover'];
+    const seen = new Set();
+    const col = [...order, ...opOrder].filter(Boolean).map(by)
+      .filter((p) => p && !seen.has(p.id) && seen.add(p.id) && !p.ex[0] && !p.ex[2] && !p.ex[1]);
+    stack(col, 'y', bb.max[1] + U * 1.5, U * 1.4);
+    if (manualRising) {
+      const st = by('stem'); const yk = by('yoke');
+      if (st) st.ex = [-(bb.max[0] - bb.min[0]) * 0.5 - U * 2, yk ? yk.ex[1] * 0.6 : U * 6, 0];
+    }
+    if (v.body === 'ball') stack([by('seats'), by('ball')].filter(Boolean), 'z', bb.max[2] + U, U, 1);
+    if (v.body === 'butterfly') {
+      const d = by('disc'); const l = by('liner'); const tp = by('taper_pins');
+      if (d) d.ex = [0, 0, bb.max[2] + U * 2];
+      if (tp) tp.ex = [0, 0, bb.max[2] + U * 5];
+      if (l) l.ex = [0, 0, -(bb.max[2] + U * 2)];
+    }
+    // side parts ride up with the actuator they belong to
+    const anchor = by('upper_casing') || by('gearcase') || by('actuator') || by('gearbox') || by('yoke');
+    if (!anchor) return;
+    const riders = ['positioner', 'positioner_bracket', 'airset', 'tubing', 'travel_indicator', 'motor', 'hw_shaft', 'declutch', 'terminal_cover',
+      'solenoid', 'input_shaft', 'coupling', 'drive_bush', 'stem_connector', 'spring', 'end_cap_l', 'end_cap_r', 'handwheel'];
+    for (const id of riders) {
+      const p = by(id);
+      if (!p || col.includes(p)) continue;
+      const k = ['drive_bush', 'stem_connector', 'coupling'].includes(id) ? 0.6 : 1;
+      p.ex = [p.ex[0], p.ex[1] + anchor.ex[1] * k, p.ex[2]];
+    }
+  }
+
+  function buildPSV(v, meta, f) {
+    const S = (k) => meta?.[k]?.src || 'estimate';
+    const parts = [];
+    const fo = R.flangeOf(v.outlet_nps, v.outlet_cls);
+    const bw = v.body_w; const nb = v.port_d; const sd = v.stem_d;
+    const stub = v.pipe_stub > 0 ? v.pipe_stub : 0;
+    const U = Math.max(30, f.od * 0.15);
+    if (stub) {
+      parts.push(P('pipe', 'Inlet / outlet pipe (reference)', 'ghost', [
+        cyl('y', f.pipeOD / 2, stub, [0, -v.cti - stub / 2 - 2, 0]), cyl('x', fo.pipeOD / 2, stub, [v.cto + stub / 2 + 2, 0, 0]),
+      ], { group: 'Reference', stage: 0 }));
+    }
+    const bp = [];
+    bodyFlanges(bp, 'y', -1, v.cti, f); bodyFlanges(bp, 'x', 1, v.cto, fo);
+    bp.push(sph(bw * 0.55, [0, 0, 0], [1, 1, 0.95]));
+    bp.push(cyl('y', f.pipeOD / 2 * 1.3, v.cti - f.t, [0, -(v.cti - f.t) / 2, 0]));
+    bp.push(cyl('x', fo.pipeOD / 2 * 1.25, v.cto - fo.t, [(v.cto - fo.t) / 2, 0, 0]));
+    bp.push(cyl('y', bw * 0.38, v.body_h - bw * 0.3, [0, bw * 0.3 + (v.body_h - bw * 0.3) / 2, 0]));
+    bp.push(cyl('y', bw * 0.5, 14, [0, v.body_h - 7, 0]));
+    const body = P('body', 'Body (angle pattern)', 'body', bp, {
+      group: 'Body', stage: 2, fn: 'Angle-pattern pressure-containing body: inlet from below through the nozzle, discharge to the side outlet.',
+      material: 'ASTM A216 WCB / A351 CF8M',
+      dims: [D('Inlet', `${npsTxt(v.nps)} CL${v.cls} RF`, '', S('nps')), D('Outlet', `${npsTxt(v.outlet_nps)} CL${v.outlet_cls} RF`, '', S('outlet_nps')),
+        D('Centre → inlet face', v.cti, 'mm', S('cti')), D('Centre → outlet face', v.cto, 'mm', S('cto')),
+        D('Inlet flange OD × thk', `${f.od} × ${f.t}`, 'mm', 'standard'), D('Outlet flange OD × thk', `${fo.od} × ${fo.t}`, 'mm', 'standard')],
+      note: 'API 526 standardises orifice letter, inlet/outlet size and centre-to-face dimensions; the inlet flange may be thicker than B16.5.',
+    });
+    parts.push(body);
+    parts.push(P('nozzle', 'Nozzle', 'trim', [cyl('y', nb / 2 + 6, v.cti + 10, [0, -v.cti / 2 + 5, 0]), ring('y', nb / 2, nb / 2 + 14, 8, [0, 10, 0])], {
+      group: 'Trim', stage: 2, ex: [0, -(v.cti + U * 4), 0],
+      fn: 'Full-nozzle inlet: the only wetted path in normal operation; its bore is the orifice area (API 526 letters D–T).',
+      material: '316 SS', dims: [D('Nozzle bore', nb, 'mm', S('port_d')), D('Orifice', 'API 526 letter (see datasheet)', '', 'estimate')],
+    }));
+    parts.push(P('adjusting_ring', 'Adjusting (blowdown) ring', 'accent', [ring('y', nb / 2 + 6, nb / 2 + 16, 14, [0, -6, 0])], {
+      group: 'Trim', stage: 2, ex: [-U * 4, -U * 2, 0], fn: 'Threaded on the nozzle; its height sets blowdown — raising it increases blowdown and lowers the reseat pressure.',
+      material: '316 SS',
+    }));
+    const col = [];
+    col.push(P('disc', 'Disc', 'trim', [cyl('y', nb / 2 + 8, 12, [0, 20, 0])], {
+      group: 'Trim', stage: 2, fn: 'Seats on the nozzle; lifts when inlet pressure × seat area exceeds the spring force (set pressure).',
+      material: '316 SS / Stellite seat', dims: [D('Disc Ø', nb + 16)],
+    }));
+    col.push(P('disc_holder', 'Disc holder', 'steel', [cyl('y', nb / 2 + 18, 36, [0, 44, 0])], {
+      group: 'Trim', stage: 2, fn: 'Carries the disc; its skirt forms the huddling chamber that gives the "pop" action.', material: '316 SS',
+    }));
+    col.push(P('guide', 'Guide', 'steel', [ring('y', nb / 2 + 19, nb / 2 + 28, v.body_h - 30, [0, 30 + (v.body_h - 30) / 2, 0])], {
+      group: 'Trim', stage: 2, fn: 'Aligns the disc holder so the disc lifts and reseats squarely.', material: '316 SS',
+    }));
+    col.push(P('bonnet_gasket', 'Bonnet gasket', 'rubber', [ring('y', nb / 2 + 28, bw * 0.45, 3, [0, v.body_h + 1.5, 0])], {
+      group: 'Bonnet', stage: 1, fn: 'Seals the body-to-bonnet joint (the bonnet sees back-pressure).', material: 'Graphite / spiral-wound',
+    }));
+    const yb = v.body_h + 3;
+    const bh = v.bonnet_h;
+    col.push(P('lower_washer', 'Lower spring washer', 'steel', [cyl('y', bw * 0.22, 10, [0, yb + 22, 0])], { group: 'Bonnet', stage: 1, fn: 'Lower spring button; bears on the spindle.', material: 'Carbon steel' }));
+    col.push(P('spring', 'Spring', 'spring', [helix('y', bw * 0.17, Math.max(4, bw * 0.035), bh * 0.7, 7, [0, yb + 27 + bh * 0.35, 0])], {
+      group: 'Bonnet', stage: 1, fn: 'Its compression, set by the adjusting screw, determines the set pressure. Selected from the vendor spring chart.',
+      material: 'Chrome-alloy steel (high temperature: tungsten / Inconel)', dims: [D('Coil height ≈', bh * 0.7)],
+    }));
+    col.push(P('upper_washer', 'Upper spring washer', 'steel', [cyl('y', bw * 0.22, 10, [0, yb + 32 + bh * 0.7, 0])], { group: 'Bonnet', stage: 1, fn: 'Upper spring button; loaded by the adjusting screw.', material: 'Carbon steel' }));
+    col.push(P('bonnet', 'Bonnet', 'act', [lathe('y', [
+      [0, bw * 0.2], [0, bw * 0.5], [16, bw * 0.5], ...fil(16, bw * 0.38, 30, bw * 0.36).slice(1, 2), [16, bw * 0.42], [bh - 10, bw * 0.27, 1], ...fil(bh - 10, bw * 0.27, bh + 16, bw * 0.16).slice(1), [bh + 16, 0],
+    ], [0, yb, 0]), plate([bw * 0.36, bw * 0.24, 1.2], [0, yb + 16 + bh * 0.42, bw * 0.36], 'z', plateLines(v, 'SAFETY VALVE'))], {
+      group: 'Bonnet', stage: 0, fn: 'Encloses the spring. Closed bonnet for toxic or back-pressure service; open (yoke) bonnet for steam.',
+      material: 'WCB / CF8M', dims: [D('Bonnet height', bh, 'mm', S('bonnet_h'))],
+    }));
+    col.push(P('bonnet_studs', 'Bonnet studs & nuts', 'bolt', circle('y', bw * 0.43, 6, [0, 0, 0]).flatMap((p) => studNut('y', [p[0], 0, p[2]], yb - 14, yb + 16, 10).filter((_, i) => i !== 1 && i !== 2)), {
+      group: 'Bonnet', stage: 0, qty: 6, fn: 'Clamp the bonnet to the body.', material: 'ASTM A193 B7 / A194 2H',
+    }));
+    const ys = yb + 16 + bh;
+    col.push(P('adjusting_screw', 'Adjusting screw & lock nut', 'steel', [cyl('y', sd * 0.6, 70, [0, ys + 20, 0]), cyl('y', sd * 0.9, 12, [0, ys + 6, 0])], {
+      group: 'Bonnet', stage: 0, fn: 'Compresses the spring to set the pressure; the lock nut holds the setting (sealed after testing).', material: '416 SS',
+    }));
+    col.push(P('cap', v.psv_lever ? 'Lifting lever cap' : 'Screwed cap (gas-tight)', 'act', [
+      lathe('y', [[0, 0], [0, bw * 0.21], [44, bw * 0.2], ...fil(44, bw * 0.2, 60, 0).slice(1)], [0, ys, 0]), hex('y', bw * 0.23, 14, [0, ys + 7, 0]),
+      ...(v.psv_lever ? [box([bw * 1.1, 14, 22], [bw * 0.4, ys + 45, 0]), sph(14, [bw * 0.95, ys + 45, 0])] : []),
+    ], {
+      group: 'Bonnet', stage: 0, fn: v.psv_lever ? 'The lever lets operators lift the disc manually for testing (required on air, steam and hot water by ASME VIII).'
+        : 'Covers the adjusting screw; sealed to prevent tampering.', material: 'Carbon steel',
+    }));
+    parts.push(...col);
+    parts.push(P('spindle', 'Spindle', 'steel', [cyl('y', sd / 2, ys - 50, [0, 50 + (ys - 50) / 2, 0])], {
+      group: 'Trim', stage: 1, ex: [U * 5, U * 3, 0], fn: 'Transmits the spring load to the disc holder; also carries the lifting lever load.', material: '416 SS',
+      dims: [D('Diameter', sd, 'mm', S('stem_d'))],
+    }));
+    stack(col, 'y', partBox(body).max[1] + U * 1.5, U * 1.3);
+    parts.push(flangeBolting('bolting_in', 'Inlet flange studs & nuts', 'y', -1, v.cti, f, U * 2));
+    parts.push(flangeBolting('bolting_out', 'Outlet flange studs & nuts', 'x', 1, v.cto, fo, U * 2));
+    return parts;
+  }
+
+  // ───────────────────────── cabinet ─────────────────────────
+  function buildCabinet(v) {
+    const out = [];
+    const { w, h, d } = v; const ph = v.plinth_h; const n = Math.max(1, Math.round(v.bays));
+    const totalW = w * n; const x0 = -totalW / 2;
+    const post = 40; const skin = 2; const E = Math.max(250, d * 0.6);
+    const G1 = 'Enclosure'; const G2 = 'Interior';
+    out.push(P('plinth', 'Plinth (base frame)', 'plinth', [box([totalW, ph, d], [0, ph / 2, -d / 2])], {
+      group: G1, stage: 0, ex: [0, -E * 0.6, 0], fn: 'Raises the enclosure for bottom cable entry and protects it from floor washing; bolted to the floor / cable trench frame.',
+      material: 'Sheet steel, RAL 7022', dims: [D('Height', ph, 'mm', 'user')],
+    }));
+    const frame = []; const roof = []; const rear = []; const doors = []; const handles = []; const louvers = [];
+    const plates = []; const modules = []; const rails = []; const eyes = []; const gland = []; const fans = [];
+    const yb = ph;
+    for (let b = 0; b < n; b++) {
+      const cx = x0 + w * b + w / 2;
+      for (const sx of [-1, 1]) for (const sz of [0, 1]) frame.push(box([post, h, post], [cx + sx * (w / 2 - post / 2), yb + h / 2, -post / 2 - sz * (d - post)]));
+      frame.push(box([w, post, d], [cx, yb + post / 2, -d / 2]), box([w, post, d], [cx, yb + h - post / 2, -d / 2]));
+      roof.push(rbox([w + 4, 6, d + 4], [cx, yb + h + 3, -d / 2], 3));
+      rear.push(box([w - 4, h - 4, v.rear_door ? 20 : skin], [cx, yb + h / 2, -d - (v.rear_door ? 10 : 1)]));
+      if (v.mounting_plate) plates.push(box([w - 2 * post - 20, h - 2 * post - 60, 3], [cx, yb + h / 2, -d + 60]));
+      const mrows = Math.max(0, Math.round(v.modules));
+      for (let m = 0; m < mrows; m++) {
+        const my = yb + post + 120 + m * ((h - 2 * post - 240) / Math.max(1, mrows - 1));
+        rails.push(box([w - 2 * post - 60, 35, 8], [cx, my, -d + 66]));
+        const nmod = Math.floor((w - 2 * post - 80) / 45);
+        for (let k = 0; k < nmod; k++) modules.push(box([40, 110, 110], [cx - (w - 2 * post - 80) / 2 + 22 + k * 45, my + 75, -d + 120]));
+      }
+      if (v.gland_plate) gland.push(box([w - 2 * post - 40, 4, d - 2 * post - 80], [cx, yb + 2, -d / 2]));
+      if (v.fan) fans.push(box([w * 0.35, 60, w * 0.35], [cx, yb + h + 33, -d / 2]));
+      if (v.lifting_eyes) {
+        for (const sx of [-1, 1]) for (const sz of [0, 1]) {
+          eyes.push(tor(22, 6, 'z', [cx + sx * (w / 2 - 60), yb + h + 30, -60 - sz * (d - 120)]), cyl('y', 8, 20, [cx + sx * (w / 2 - 60), yb + h + 8, -60 - sz * (d - 120)]));
+        }
+      }
+      const nd = Number(v.doors); const dw = (w - 4) / nd; const dt = 22; const ang = (v.door_open || 0) * Math.PI / 180;
+      for (let k = 0; k < nd; k++) {
+        const hingeLeft = nd === 1 ? true : k === 0;
+        const hx = hingeLeft ? cx - (w - 4) / 2 + k * dw : cx - (w - 4) / 2 + (k + 1) * dw;
+        const s = hingeLeft ? 1 : -1;
+        const th = s > 0 ? -ang : ang;
+        const rot = (lx, lz) => [hx + lx * Math.cos(th) + lz * Math.sin(th), -lx * Math.sin(th) + lz * Math.cos(th)];
+        const c0 = rot(s * dw / 2, dt / 2);
+        doors.push(rbox([dw - 4, h - 4, dt], [c0[0], yb + h / 2, c0[1]], 4, { ry: th }));
+        for (const hy of [0.12, 0.5, 0.88]) doors.push(cyl('y', 7, 60, [hx, yb + h * hy, 6]));
+        if (b === 0 && k === 0) { const np = rot(s * dw / 2, dt + 1.2); doors.push(plate([180, 56, 1.5], [np[0], yb + h - 140, np[1]], 'z', [v.tag || 'CABINET', `${v.w} x ${v.h} x ${v.d}`, 'SYSTEM CABINET'], { ry: th })); }
+        const hp = rot(s * (dw - 50), dt + 15);
+        handles.push(rbox([22, 170, 26], [hp[0], yb + h * 0.55, hp[1]], 8, { ry: th }));
+        if (v.louvers) for (const ly of [0.12, 0.85]) {
+          const lp = rot(s * dw / 2, dt + 3); const lw = Math.min(320, dw * 0.5);
+          louvers.push(rbox([lw, 260, 8], [lp[0], yb + h * ly, lp[1]], 6, { ry: th }));
+          for (let q = 0; q < 8; q++) { const lq = rot(s * dw / 2, dt + 8); louvers.push(rbox([lw - 30, 8, 5], [lq[0], yb + h * ly - 105 + q * 30, lq[1]], 2, { ry: th, look: 'plinth' })); }
+        }
+      }
+    }
+    const env = `${totalW} × ${h} × ${d}`;
+    out.push(P('frame', 'Frame', 'cabframe', frame, { group: G1, stage: 2, fn: 'Welded / bolted profile frame carrying all panels and the internal mounting system.', material: 'Sheet steel 2 mm', dims: [D('Envelope W × H × D', env, 'mm', 'user')] }));
+    out.push(P('side_panel_l', 'Side panel (left)', 'cab', [box([skin, h, d], [x0 + skin / 2, yb + h / 2, -d / 2])], { group: G1, stage: 1, ex: [-E, 0, 0], fn: 'Removable end panel; omitted between bayed enclosures.', material: 'Sheet steel 1.5 mm, RAL 7035' }));
+    out.push(P('side_panel_r', 'Side panel (right)', 'cab', [box([skin, h, d], [x0 + totalW - skin / 2, yb + h / 2, -d / 2])], { group: G1, stage: 1, ex: [E, 0, 0], fn: 'Removable end panel; omitted between bayed enclosures.', material: 'Sheet steel 1.5 mm, RAL 7035' }));
+    out.push(P('roof', 'Roof plate', 'cab', roof, { group: G1, stage: 1, ex: [0, E, 0], fn: 'Top cover; cable entry / fan cut-outs optional.', material: 'Sheet steel 1.5 mm' }));
+    out.push(P('rear', v.rear_door ? 'Rear door' : 'Rear panel', 'cab', rear, { group: G1, stage: 1, ex: [0, 0, -E], fn: 'Rear access for termination and maintenance.', material: 'Sheet steel 2 mm' }));
+    out.push(P('doors', 'Front door(s)', 'door', doors, {
+      group: G1, stage: 0, ex: [0, 0, E], qty: Number(v.doors) * n,
+      fn: 'Hinged front access; 130° hinges are typical. The swing radius must fit inside the maintenance clearance.',
+      material: 'Sheet steel 2 mm, RAL 7035, IP54/55 gasket', dims: [D('Door width', (w - 4) / Number(v.doors)), D('Opening angle', v.door_open, '°', 'user')],
+    }));
+    out.push(P('handles', 'Handles & locks', 'bolt', handles, { group: G1, stage: 0, ex: [0, 0, E * 1.25], fn: 'Comfort handle with 3-point locking rod system.', material: 'Zinc die-cast' }));
+    if (louvers.length) out.push(P('louvers', 'Louvres / filter fans', 'cabframe', louvers, { group: G1, stage: 0, ex: [0, 0, E * 1.4], fn: 'Ventilation path for heat dissipation; filter mats keep dust out.', material: 'ABS / steel' }));
+    if (plates.length) out.push(P('mounting_plate', 'Mounting plate', 'plate', plates, { group: G2, stage: 1, ex: [0, 0, E * 0.55], fn: 'Galvanised plate for DIN rails, ducts and components.', material: 'Galvanised steel 3 mm', dims: [D('Plate W × H', `${w - 2 * post - 20} × ${h - 2 * post - 60}`)] }));
+    if (rails.length) out.push(P('din_rails', 'DIN rails & wiring duct', 'steel', rails, { group: G2, stage: 2, ex: [0, 0, E * 0.85], fn: 'TS35 rails and slotted duct for terminals and I/O.', material: 'Steel / PVC' }));
+    if (modules.length) out.push(P('modules', 'I/O modules & terminals', 'tx', modules, { group: G2, stage: 2, ex: [0, 0, E * 1.1], fn: 'Control system I/O cards, marshalling terminals, barriers / isolators.', material: '—' }));
+    if (gland.length) out.push(P('gland_plate', 'Gland plate', 'bolt', gland, { group: G1, stage: 1, ex: [0, -E * 0.3, 0], fn: 'Removable plate drilled on site for cable glands.', material: 'Aluminium / steel' }));
+    if (fans.length) out.push(P('fan', 'Roof fan', 'accent', fans, { group: G1, stage: 0, ex: [0, E * 1.3, 0], fn: 'Forced ventilation (exhaust) for high heat loads.', material: 'Steel housing' }));
+    if (eyes.length) out.push(P('lifting_eyes', 'Lifting eye bolts', 'bolt', eyes, { group: G1, stage: 0, ex: [0, E * 1.5, 0], qty: 4 * n, fn: 'Crane lifting points; remove and plug after installation.', material: 'Forged steel, M12' }));
+    if (v.clearance > 0) {
+      out.push(P('clearance', `Front maintenance clearance ${v.clearance}`, 'clear', [box([totalW, h + ph, v.clearance], [0, (h + ph) / 2, v.clearance / 2 + 1])], {
+        group: 'Reference', stage: 0, fn: 'Layout check: nothing may intrude into this volume.',
+      }));
+    }
+    return out;
+  }
+
+  // ───────────────────────── instrument hook-up ─────────────────────────
+  function polylineTube(points, r) {
+    const prims = [];
+    for (let i = 0; i < points.length - 1; i++) prims.push(tube(points[i], points[i + 1], r));
+    for (let i = 1; i < points.length - 1; i++) prims.push(sph(r * 1.25, points[i]));
+    return prims;
+  }
+
+  function smallValve(id, name, at, axis, size, ex) {
+    const hwAxis = axis === 'y' ? 'z' : 'y';
+    const top = along(hwAxis, size * 0.9, at);
+    return [P(id, name, 'body', [
+      box(axis === 'x' ? [size * 1.5, size * 0.8, size * 0.8] : axis === 'y' ? [size * 0.8, size * 1.5, size * 0.8] : [size * 0.8, size * 0.8, size * 1.5], at),
+      cyl(hwAxis, 6, size * 0.9, along(hwAxis, size * 0.45, at)),
+    ], { group: 'Valves', stage: 1, ex, fn: 'Primary isolation at the process tap (gate / globe / ball), rated to the piping class.', material: 'A105 / F316' }),
+    handwheelPart(`${id}_hw`, top, size * 1.2, hwAxis, { name: `${name} handle`, group: 'Valves', ex })];
+  }
+
+  function buildHookup(v) {
+    const out = [];
+    const procOD = R.pipeOD[R.nearestNps(Math.min(12, v.proc_nps))] * (v.proc_nps > 12 ? v.proc_nps / 12 : 1);
+    const pr = procOD / 2; const yP = v.pipe_el; const to = v.tube_od / 2;
+    const dp = v.inst !== 'PT';
+    const span = 1800 + (dp ? v.tap_sep : 0);
+    const E = 300;
+    if (v.inst === 'LT_DP') {
+      out.push(P('vessel', 'Vessel shell (reference)', 'ghost', [box([2400, v.tap_sep + 1200, 20], [0, yP - v.tap_sep / 2, -pr - 210])], { group: 'Reference', stage: 0 }));
+    } else {
+      out.push(P('process_pipe', 'Process pipe (reference)', 'ghost', [cyl('x', pr, span, [0, yP, 0])], { group: 'Reference', stage: 0, dims: [D('Size', npsTxt(v.proc_nps), '', 'user')] }));
+      if (dp) {
+        const f = R.flangeOf(Math.min(12, v.proc_nps), 300);
+        out.push(P('orifice', 'Orifice flange set & plate', 'flange', [
+          cyl('x', f.od / 2, f.t * 1.4, [-f.t * 0.75, yP, 0]), cyl('x', f.od / 2, f.t * 1.4, [f.t * 0.75, yP, 0]), cyl('x', f.od / 2 - 8, 4, [0, yP, 0]),
+        ], {
+          group: 'Process', stage: 0, fn: 'Primary element: the plate creates the differential pressure; flange taps 1" each side (ISO 5167 / ASME MFC-3M).',
+          material: 'A105 flanges, 316 SS plate', dims: [D('Flange', `CL300 WN, OD ${f.od}`, '', 'standard')],
+        }));
+      }
+    }
+    const dir = { top: [0, 1, 0], side: [0, 0, 1], bottom: [0, -1, 0], side45: [0, Math.SQRT1_2, Math.SQRT1_2] }[v.tap] || [0, 0, 1];
+    const taps = [];
+    if (v.inst === 'PT') taps.push({ name: '', at: [0, yP, 0] });
+    else if (v.inst === 'LT_DP') taps.push({ name: 'HP', at: [0, yP - v.tap_sep, -pr - 200] }, { name: 'LP', at: [0, yP, -pr - 200] });
+    else { const s = Math.max(40, v.tap_sep / 2); taps.push({ name: 'HP', at: [-s, yP, 0] }, { name: 'LP', at: [s, yP, 0] }); }
+    const tapDir = v.inst === 'LT_DP' ? [0, 0, 1] : dir;
+    const rTap = v.inst === 'LT_DP' ? 0 : pr;
+    const below = v.service !== 'gas';
+    let txBase;
+    if (v.mount === 'stand') {
+      out.push(P('stand', '2" pipe stand', 'cabframe', [
+        box([220, 12, 220], [v.stand_dx, 6, v.stand_dz]), cyl('y', 30.15, v.stand_h, [v.stand_dx, v.stand_h / 2, v.stand_dz]),
+        cyl('y', 34, 6, [v.stand_dx, v.stand_h + 3, v.stand_dz]),
+      ], {
+        group: 'Support', stage: 0, ex: [0, -E * 0.3, 0], fn: '2" Sch 40 pipe on a base plate anchored to grating or concrete; transmitter at ~1.2–1.5 m for access.',
+        material: 'Galvanised carbon steel / 316 SS', dims: [D('Height', v.stand_h, 'mm', 'user'), D('Base plate', '220 × 220 × 12'), D('Anchors', '4 × M12')],
+      }));
+      txBase = [v.stand_dx, v.stand_h - 220, v.stand_dz + 60];
+      out.push(P('ubolt', 'Mounting bracket & U-bolts', 'bolt', [
+        box([70, 120, 8], [v.stand_dx, v.stand_h - 200, v.stand_dz + 36]),
+        tor(36, 4, 'y', [v.stand_dx, v.stand_h - 160, v.stand_dz]), tor(36, 4, 'y', [v.stand_dx, v.stand_h - 240, v.stand_dz]),
+      ], { group: 'Support', stage: 1, ex: [0, 0, E * 0.4], fn: 'Universal 2" pipe-mount bracket supplied with the transmitter.', material: '316 SS' }));
+    } else {
+      const t0 = taps[0].at;
+      txBase = [t0[0], t0[1] + (below ? -pr - 350 : pr + 250), t0[2] + 150];
+    }
+    const [mx, my, mz] = txBase;
+    const nV = { none: 0, '2V': 2, '3V': 3, '5V': 5 }[v.manifold] || 0;
+    if (nV) {
+      const prims = [rbox([dp ? 120 : 60, 70, 60], [mx, my, mz], 5)];
+      for (let i = 0; i < nV; i++) {
+        const sx = (i / Math.max(1, nV - 1) - 0.5) * (dp ? 100 : 40);
+        prims.push(cyl('z', 6, 50, [mx + sx, my - 10, mz + 55]), cyl('x', 16, 6, [mx + sx, my - 10, mz + 82]));
+      }
+      out.push(P('manifold', `${v.manifold} valve manifold`, 'body', prims, {
+        group: 'Valves', stage: 1, ex: [0, -E * 0.2, E * 0.7],
+        fn: { 2: '2-valve: block + vent/test, for gauge-pressure transmitters.', 3: '3-valve: two blocks + equalising valve, for DP transmitters.',
+          5: '5-valve: two blocks, equalise and two vent/test valves (DP). Never open the equaliser with both blocks open in service.' }[nV],
+        material: '316 SS bar stock, PTFE / graphite packing', dims: [D('Process connection', '1/2" NPT', '', 'estimate')],
+      }));
+    }
+    const ty = my + 65;
+    out.push(P('transmitter', v.inst === 'PT' ? 'Pressure transmitter' : 'Differential pressure transmitter', 'tx', [
+      rbox([dp ? 110 : 60, 50, 90], [mx, ty, mz], 6), ...[[-1, -1], [1, -1], [-1, 1], [1, 1]].map(([a, b]) => hex('y', 6, 6, [mx + a * (dp ? 40 : 20), ty + 28, mz + b * 32])),
+      lathe('y', [[0, 0], [0, 40], [70, 40, 1], ...fil(70, 40, 90, 30).slice(1), [90, 0]], [mx, ty + 25, mz]),
+      lathe('z', [[0, 0], [0, 50], [8, 52], [56, 52], [56, 0]], [mx, ty + 165, mz - 28]),
+      lathe('z', [[0, 0], [0, 54], [6, 54], [14, 50], [20, 46], [20, 0]], [mx, ty + 165, mz + 28]),
+      lathe('z', [[0, 0], [0, 54], [6, 54], [14, 50], [20, 46], [20, 0]].map(([a, b]) => [-a, b]).reverse(), [mx, ty + 165, mz - 28]),
+      plate([62, 40, 1], [mx, ty + 165, mz + 48.6], 'z', ['12.48', 'bar g', v.tag || ''], { style: 'lcd' }),
+      cyl('x', 11, 30, [mx + 58, ty + 165, mz]), hex('x', 13, 12, [mx + 72, ty + 165, mz]),
+      plate([46, 30, 1], [mx - 52.6, ty + 165, mz], '-x', [v.tag || 'TX', v.inst === 'PT' ? 'PRESSURE TX' : 'DP TX', '4-20 mA HART']),
+    ], {
+      group: 'Instrument', stage: 0, ex: [0, E * 0.8, E * 0.9],
+      fn: '4–20 mA HART transmitter: coplanar flange, sensor module and dual-compartment electronics housing with LCD.',
+      material: '316L wetted, aluminium housing, Ex d / Ex ia', dims: [D('Housing', '≈ Ø104 × 240 H')],
+    }));
+    if (v.sunshade) out.push(P('sunshade', 'Sunshade', 'cab', [box([240, 4, 260], [mx, ty + 300, mz]), box([240, 340, 4], [mx, ty + 130, mz - 130])], { group: 'Support', stage: 0, ex: [0, E * 1.6, 0], fn: 'Limits solar heating of the transmitter.', material: 'GRP / SS' }));
+    const slope = 1 / Math.max(1, v.slope);
+    taps.forEach((tp, i) => {
+      const lbl = tp.name ? ` (${tp.name})` : '';
+      const a = tp.at.map((c, j) => c + tapDir[j] * rTap);
+      const rv = a.map((c, j) => c + tapDir[j] * 70);
+      const ax = Math.abs(tapDir[1]) > 0.9 ? 'y' : 'z';
+      if (v.root_valve) out.push(...smallValve(`root_valve${i}`, `Root valve${lbl}`, rv, ax, 36, tapDir.map((d) => d * E * 0.6)));
+      const c = rv.map((x, j) => x + tapDir[j] * 70);
+      const xOff = dp ? (i === 0 ? -27 : 27) : 0;
+      const inlet = [mx + xOff, my - 15, mz - 30];
+      const d1 = Math.abs(inlet[0] - c[0]) * slope; const d2 = Math.abs(inlet[2] - c[2]) * slope;
+      const sgn = below ? 1 : -1;
+      const yH = inlet[1] + sgn * (d1 + d2);
+      const pts = [a, c];
+      if (Math.abs(yH - c[1]) > 1) pts.push([c[0], yH, c[2]]);
+      pts.push([inlet[0], yH - sgn * d1, c[2]]);
+      pts.push(inlet);
+      const len = pts.slice(1).reduce((s, p, k) => s + Math.hypot(...p.map((q, j) => q - pts[k][j])), 0);
+      out.push(P(`tubing${i}`, `Impulse tubing${lbl}`, 'tube', polylineTube(pts, to), {
+        group: 'Tubing', stage: 2, fn: `Transmits process pressure to the instrument. Slope 1:${v.slope} ${below ? 'down toward the instrument (liquid fills, gas vents back)' : 'down toward the tap (condensate drains back)'}.`,
+        material: '316 SS seamless tube, double-ferrule fittings', dims: [D('Tube OD', v.tube_od, 'mm', 'user'), D('Run length ≈', len)],
+      }));
+    });
+    if (v.drain) out.push(P('drain', below ? 'Drain valve' : 'Vent valve', 'body', [cyl('y', 8, 60, [mx, my - 65, mz - 40]), box([30, 30, 30], [mx, my - 105, mz - 40])], { group: 'Valves', stage: 1, ex: [0, -E * 0.6, 0], fn: 'Blow-down / venting point for maintenance and calibration.', material: '316 SS' }));
+    out.push(P('floor', 'Floor / grating (reference)', 'ghost', [box([span + 600, 10, 2200], [0, -5, 300])], { group: 'Reference', stage: 0 }));
+    return out;
+  }
+
+  // ───────────────────────── checks ─────────────────────────
+  function checkHookup(v) {
+    const w = [];
+    const txY = v.mount === 'stand' ? v.stand_h - 100 : (v.service === 'gas' ? v.pipe_el + 200 : v.pipe_el - 300);
+    const tapY = v.inst === 'LT_DP' ? v.pipe_el - v.tap_sep : v.pipe_el;
+    if (v.service === 'gas' && txY < tapY) w.push('Gas service with the instrument below the tap — condensate will collect in the impulse lines. Mount above the tap or close-coupled.');
+    if (v.service !== 'gas' && txY > tapY) w.push('Liquid/steam service with the instrument above the tap — gas pockets will form.');
+    if (v.service !== 'gas' && v.tap === 'top') w.push('Top tap on a liquid/steam line — gas will enter the impulse lines.');
+    if (v.service === 'gas' && v.tap === 'bottom') w.push('Bottom tap on a gas line — condensate and debris will enter the impulse lines.');
+    if (v.slope < 12) w.push(`Tubing slope 1:${v.slope} is flatter than the usual 1:12.`);
+    return w;
+  }
+  function checkCabinet(v) {
+    const w = [];
+    const dw = v.w / Number(v.doors);
+    if (v.clearance > 0 && v.clearance < dw) w.push(`Front clearance ${v.clearance} is less than the door width ${Math.round(dw)} — the door cannot open 90°.`);
+    if (v.h + v.plinth_h > 2400) w.push('Overall height > 2400 — check the transport and access route.');
+    return w;
+  }
+  function checkValve(v) {
+    const w = [];
+    if (v.body === 'psv' && v.operator !== 'spring') w.push('A PSV operator must be "spring".');
+    if (v.body !== 'psv' && v.operator === 'spring') w.push('The "spring" operator is only for PSVs.');
+    if (v.operator === 'pneumatic_rotary' && !['ball', 'butterfly'].includes(v.body)) w.push('Rotary actuators are for quarter-turn valves (ball / butterfly).');
+    if (v.operator === 'pneumatic_diaphragm' && !['globe', 'gate'].includes(v.body)) w.push('Diaphragm actuators are for linear (sliding-stem) valves.');
+    if (v.operator === 'lever' && v.nps > 6) w.push('Lever operation above 6" is impractical — consider a gearbox.');
+    if (v.body === 'gate' && v.service === 'control') w.push('Gate valves are not suitable for throttling control.');
+    return w;
+  }
+
+  // ───────────────────────── registry ─────────────────────────
+  const TYPES = {
+    valve: { label: 'Valve (CV · MOV · Manual · PSV)', params: VALVE_PARAMS, build: buildValve, fit: fitValve, checks: checkValve },
+    cabinet: { label: 'System Cabinet', params: CAB_PARAMS, build: buildCabinet, checks: checkCabinet },
+    hookup: { label: 'Instrument Hook-up', params: HOOK_PARAMS, build: buildHookup, checks: checkHookup },
+  };
+
+  const PRESETS = [
+    { id: 'cv_globe', label: 'Control valve — Globe (spring & diaphragm)', type: 'valve', set: { body: 'globe', operator: 'pneumatic_diaphragm', service: 'control' } },
+    { id: 'cv_ball', label: 'Control valve — Ball (pneumatic rotary)', type: 'valve', set: { body: 'ball', operator: 'pneumatic_rotary', service: 'control', nps: 4 } },
+    { id: 'cv_bfv', label: 'Control valve — Butterfly (pneumatic rotary)', type: 'valve', set: { body: 'butterfly', operator: 'pneumatic_rotary', service: 'control', nps: 8 } },
+    { id: 'esdv_ball', label: 'ESD valve (ESDV/SDV) — Ball, spring-return, SOV, limit switch', type: 'valve', set: { body: 'ball', operator: 'pneumatic_rotary', service: 'on_off', nps: 6, cls: '300', positioner: true } },
+    { id: 'mov_gate', label: 'MOV — Gate', type: 'valve', set: { body: 'gate', operator: 'electric', service: 'on_off', nps: 6 } },
+    { id: 'mov_globe', label: 'MOV — Globe', type: 'valve', set: { body: 'globe', operator: 'electric', service: 'on_off', nps: 4 } },
+    { id: 'mov_ball', label: 'MOV — Ball', type: 'valve', set: { body: 'ball', operator: 'electric', service: 'on_off', nps: 6 } },
+    { id: 'mov_bfv', label: 'MOV — Butterfly', type: 'valve', set: { body: 'butterfly', operator: 'electric', service: 'on_off', nps: 10 } },
+    { id: 'man_gate', label: 'Manual — Gate (OS&Y handwheel)', type: 'valve', set: { body: 'gate', operator: 'handwheel', service: 'on_off', nps: 4 } },
+    { id: 'man_globe', label: 'Manual — Globe (handwheel)', type: 'valve', set: { body: 'globe', operator: 'handwheel', service: 'on_off', nps: 3 } },
+    { id: 'man_ball', label: 'Manual — Ball (lever)', type: 'valve', set: { body: 'ball', operator: 'lever', service: 'on_off', nps: 2 } },
+    { id: 'man_bfv', label: 'Manual — Butterfly (gear)', type: 'valve', set: { body: 'butterfly', operator: 'gear', service: 'on_off', nps: 8 } },
+    { id: 'psv', label: 'PSV — Spring-loaded (angle)', type: 'valve', set: { body: 'psv', operator: 'spring', service: 'on_off', nps: 1.5, cls: '300' } },
+    { id: 'cabinet', label: 'System cabinet', type: 'cabinet', set: {} },
+    { id: 'hook_pt', label: 'Hook-up — PT on pipe stand', type: 'hookup', set: { inst: 'PT' } },
+    { id: 'hook_dpt', label: 'Hook-up — DP flow (orifice, close-coupled)', type: 'hookup', set: { inst: 'FT_DP', service: 'gas', mount: 'close_coupled', tap: 'top' } },
+    { id: 'hook_lt', label: 'Hook-up — DP level (vessel)', type: 'hookup', set: { inst: 'LT_DP', pipe_el: 3000, tap_sep: 2000, stand_h: 900, stand_dx: 0, stand_dz: 900 } },
+  ];
+
+  /** spec = { type, inputs, parts_list? } → { values, meta, parts, warnings, bbox } */
+  function build(spec) {
+    const { values, meta } = resolve(spec.type, spec.inputs || {});
+    const T = TYPES[spec.type];
+    const raw = T.build(values, meta);
+    // BOM order: by assembly group, build order within a group; reference geometry last
+    const GROUP_ORDER = ['Body', 'Trim', 'Bonnet assembly', 'Bonnet', 'Enclosure', 'Interior', 'Process', 'Instrument', 'Valves', 'Tubing', 'Support',
+      'Manual operator', 'Actuator', 'Accessories', 'Piping interface', 'Reference'];
+    const rank = (p) => { const i = GROUP_ORDER.indexOf(p.group); return ['ghost', 'clear'].includes(p.look) ? 99 : i < 0 ? 50 : i; };
+    const parts = raw.map((p, i) => [p, i]).sort((a, b) => rank(a[0]) - rank(b[0]) || (b[0].id === 'body') - (a[0].id === 'body') || a[1] - b[1]).map(([p]) => p);
+    let no = 1;
+    for (const p of parts) if (!['ghost', 'clear'].includes(p.look)) p.no = no++;
+    // a parts list read from the drawing overrides item numbers / names / materials
+    for (const row of spec.parts_list || []) {
+      const p = parts.find((x) => x.id === row.part_id);
+      if (!p) continue;
+      if (row.item_no) p.no = row.item_no;
+      if (row.material) p.dwgMaterial = row.material;
+      if (row.name) p.dwgName = row.name;
+      if (row.qty) p.dwgQty = row.qty;
+      p.dwgLinked = true;
+    }
+    // with a drawing parts list, its item numbers win: renumber the other parts after the highest one
+    if ((spec.parts_list || []).some((r) => parts.some((p) => p.dwgLinked && p.id === r.part_id))) {
+      const nums = (spec.parts_list || []).map((r) => parseInt(r.item_no, 10)).filter(Number.isFinite);   // every drawing row, linked or not
+      let next = (nums.length ? Math.max(...nums) : 0) + 1;
+      for (const p of parts) if (p.no != null && !p.dwgLinked) p.no = next++;
+      const key = (p) => (p.no == null ? 1e9 : Number.isFinite(parseInt(p.no, 10)) ? parseInt(p.no, 10) : 1e8);
+      parts.sort((a, b) => key(a) - key(b));
+    }
+    const warnings = T.checks ? T.checks(values) : [];
+    return { values, meta, parts, warnings, bbox: bboxOf(parts) };
+  }
+
+  /** All part ids / names a type can produce (for mapping a drawing parts list). */
+  function partCatalog(typeId) {
+    const seen = new Map();
+    for (const pr of PRESETS.filter((p) => p.type === typeId)) {
+      for (const p of build({ type: typeId, inputs: { ...pr.set, positioner: true, cv_handwheel: true, psv_lever: true } }).parts) {
+        if (!seen.has(p.id) && !['ghost', 'clear'].includes(p.look)) seen.set(p.id, p.name);
+      }
+    }
+    return [...seen].map(([id, name]) => ({ id, name }));
+  }
+
+  function describeSchema(typeId) {
+    return TYPES[typeId].params.map((p) => {
+      const opt = p.options ? ` [${p.options.join(' | ')}]` : '';
+      const u = p.unit ? ` (${p.unit})` : '';
+      return `- ${p.key}${u}${opt}: ${p.label}${p.desc ? ' — ' + p.desc : ''}`;
+    }).join('\n');
+  }
+
+  return { TYPES, PRESETS, resolve, build, bboxOf, partBox, describeSchema, partCatalog };
+})();
+
+if (typeof module !== 'undefined' && module.exports && false) module.exports = Anatomy;
+
+/* Anatomy-style 3D viewer — no external library (no three.js, no CDN), works offline.
+ *
+ * Follows the anatomy skill's drawing rules: orthographic (isometric by default) projection,
+ * four-tone shading from one key light tied to the camera, painter's order (faces sorted by depth),
+ * crease lines and silhouettes as fine ink, numbered balloons with callout columns.
+ * Each part is turned into planar faces once (lathes, prisms, rounded boxes, tubes, springs …),
+ * then re-projected and re-shaded every frame on a plain Canvas 2D.
+ *
+ * Interaction:
+ *   wheel in   → first explodes the assembly step by step (camera keeps everything framed);
+ *                once fully exploded, zooms toward the cursor
+ *   wheel out  → zooms back out to the framed view, then re-assembles
+ *   drag → orbit · right / shift-drag → pan · click → select · double-click → isolate
+ */
+'use strict';
+
+const AnatomyViewer = (() => {
+  const LOOK = {
+    body: { color: 0x7d8fa3, metal: 0.55, rough: 0.45 },
+    flange: { color: 0x66778a, metal: 0.6, rough: 0.4 },
+    bolt: { color: 0x3c4148, metal: 0.7, rough: 0.35 },
+    steel: { color: 0xb9c1ca, metal: 0.85, rough: 0.25 },
+    trim: { color: 0xc9a227, metal: 0.7, rough: 0.3 },
+    seat: { color: 0xe8e2d0, metal: 0.1, rough: 0.6 },
+    rubber: { color: 0x2b2d31, metal: 0.0, rough: 0.9 },
+    spring: { color: 0x3f8f5f, metal: 0.6, rough: 0.35 },
+    bore: { color: 0x15181c, metal: 0.2, rough: 0.8 },
+    act: { color: 0x2f6db5, metal: 0.25, rough: 0.5 },
+    wheel: { color: 0xc23b2a, metal: 0.2, rough: 0.5 },
+    tx: { color: 0xd9dde2, metal: 0.2, rough: 0.55 },
+    accent: { color: 0xe0a526, metal: 0.3, rough: 0.5 },
+    tube: { color: 0xb8bec6, metal: 0.8, rough: 0.25 },
+    cab: { color: 0xd6d6cf, metal: 0.1, rough: 0.7 },
+    door: { color: 0xcfd0c8, metal: 0.1, rough: 0.7 },
+    cabframe: { color: 0x9a9b95, metal: 0.3, rough: 0.6 },
+    plinth: { color: 0x3a3b3d, metal: 0.2, rough: 0.7 },
+    plate: { color: 0xe7e3d6, metal: 0.4, rough: 0.5 },
+    ghost: { color: 0x9aa5b1, metal: 0, rough: 1, opacity: 0.22 },
+    clear: { color: 0x2fae66, metal: 0, rough: 1, opacity: 0.1 },
+  };
+  /**
+   * Realistic finishes (style 'real'): painted castings with an orange-peel bump, machined and
+   * polished steel, stainless trim, bronze nuts, PTFE, rubber, painted actuators. Physically based,
+   * lit by a studio environment map — the anatomy skill's "materials on the subject, kit tones on the ground".
+   */
+  const REAL = {
+    body: { color: 0x4a525b, metal: 0.2, rough: 0.55, clear: 0.2, bump: 'cast' },
+    flange: { color: 0x4a525b, metal: 0.2, rough: 0.5, clear: 0.2, bump: 'cast' },
+    bolt: { color: 0x2b2d31, metal: 0.85, rough: 0.38 },
+    steel: { color: 0xd3d7dc, metal: 1.0, rough: 0.16, rmap: 'brushed' },
+    trim: { color: 0xc7cbcf, metal: 1.0, rough: 0.24, rmap: 'brushed' },
+    seat: { color: 0xf1eee6, metal: 0.0, rough: 0.55 },
+    rubber: { color: 0x1d1f22, metal: 0.0, rough: 0.92 },
+    spring: { color: 0x2d5f45, metal: 0.4, rough: 0.35, clear: 0.6 },
+    bore: { color: 0x101215, metal: 0.3, rough: 0.7 },
+    act: { color: 0x1d4f9a, metal: 0.1, rough: 0.4, clear: 0.6, bump: 'paint' },
+    wheel: { color: 0xa9241c, metal: 0.1, rough: 0.35, clear: 0.6 },
+    tx: { color: 0xaeb5bd, metal: 0.25, rough: 0.42, clear: 0.3, bump: 'paint' },
+    accent: { color: 0xe3a51c, metal: 0.05, rough: 0.4, clear: 0.4 },
+    bronze: { color: 0xb4823e, metal: 1.0, rough: 0.32 },
+    tube: { color: 0xd0d4d8, metal: 1.0, rough: 0.2 },
+    cab: { color: 0xd5d6d0, metal: 0.05, rough: 0.5, bump: 'paint' },
+    door: { color: 0xd2d3cc, metal: 0.05, rough: 0.48, bump: 'paint' },
+    cabframe: { color: 0x8c8e8a, metal: 0.2, rough: 0.55 },
+    plinth: { color: 0x34363a, metal: 0.1, rough: 0.7 },
+    plate: { color: 0xb8bcc1, metal: 0.85, rough: 0.42, rmap: 'brushed' },
+    glass: { color: 0x0f1a22, metal: 0.0, rough: 0.05, clear: 1.0 },
+    ghost: { color: 0x8a96a3, metal: 0, rough: 1, opacity: 0.14 },
+    clear: { color: 0x2fae66, metal: 0, rough: 1, opacity: 0.1 },
+  };
+
+  LOOK.bronze = { color: 0xb4823e, metal: 0.7, rough: 0.35 };
+  LOOK.glass = { color: 0x1a2630, metal: 0.1, rough: 0.2 };
+  LOOK.dial = { color: 0xf4f2ec, metal: 0, rough: 0.6 };
+  REAL.dial = { color: 0xf4f2ec, metal: 0, rough: 0.6 };
+
+  // ───────── procedural images (plain canvas, no library) ─────────
+  const texCache = new Map();
+  function canvasTex(key, w, h, paint) {
+    if (texCache.has(key)) return texCache.get(key);
+    const c = document.createElement('canvas'); c.width = w; c.height = h;
+    paint(c.getContext('2d'), w, h);
+    texCache.set(key, c);
+    return c;
+  }
+  function textTex(lines, style, w, h) {
+    const key = `txt|${style}|${w}x${h}|${lines.join('¦')}`;
+    return canvasTex(key, w, h, (g) => {
+      if (style === 'lcd') {
+        const gr = g.createLinearGradient(0, 0, 0, h); gr.addColorStop(0, '#0d2a2a'); gr.addColorStop(1, '#06171a');
+        g.fillStyle = gr; g.fillRect(0, 0, w, h);
+        g.fillStyle = '#7dffd6'; g.textAlign = 'center'; g.textBaseline = 'middle';
+        lines.forEach((t, i) => { g.font = `${i === 0 ? 700 : 500} ${Math.round(h / (lines.length + 1) * (i === 0 ? 0.95 : 0.6))}px monospace`; g.fillText(t, w / 2, h * (i + 0.75) / (lines.length + 0.5)); });
+        return;
+      }
+      const gr = g.createLinearGradient(0, 0, w, h); gr.addColorStop(0, '#d9dcdf'); gr.addColorStop(0.5, '#b9bdc2'); gr.addColorStop(1, '#cfd2d5');
+      g.fillStyle = gr; g.fillRect(0, 0, w, h);
+      g.strokeStyle = '#6d7276'; g.lineWidth = Math.max(2, w * 0.008); g.strokeRect(w * 0.03, h * 0.06, w * 0.94, h * 0.88);
+      g.fillStyle = '#5f6468';
+      for (const [x, y] of [[0.06, 0.15], [0.94, 0.15], [0.06, 0.85], [0.94, 0.85]]) { g.beginPath(); g.arc(w * x, h * y, h * 0.045, 0, 7); g.fill(); }
+      g.fillStyle = '#26292c'; g.textBaseline = 'middle';
+      lines.forEach((t, i) => {
+        const fs = i === 0 ? h * 0.2 : h * 0.13;
+        g.font = `${i === 0 ? 700 : 600} ${fs}px Arial, sans-serif`;
+        g.fillText(t, w * 0.11, h * (0.27 + i * (0.62 / Math.max(1, lines.length - 1 || 1))));
+      });
+    });
+  }
+  const dialTex = () => canvasTex('dial', 256, 256, (g, w) => {
+    const c = w / 2;
+    g.fillStyle = '#f4f2ec'; g.beginPath(); g.arc(c, c, c, 0, 7); g.fill();
+    g.strokeStyle = '#222';
+    for (let i = 0; i <= 40; i++) {
+      const a = Math.PI * 0.75 + i / 40 * Math.PI * 1.5; const r0 = i % 5 ? c * 0.78 : c * 0.7;
+      g.lineWidth = i % 5 ? 2 : 4; g.beginPath(); g.moveTo(c + Math.cos(a) * r0, c + Math.sin(a) * r0); g.lineTo(c + Math.cos(a) * c * 0.88, c + Math.sin(a) * c * 0.88); g.stroke();
+    }
+    g.strokeStyle = '#c0281e'; g.lineWidth = 3; g.beginPath(); g.arc(c, c, c * 0.62, Math.PI * 1.9, Math.PI * 2.25); g.stroke();
+    g.strokeStyle = '#111'; g.lineWidth = 6; g.beginPath(); g.moveTo(c, c); g.lineTo(c + Math.cos(Math.PI * 1.55) * c * 0.72, c + Math.sin(Math.PI * 1.55) * c * 0.72); g.stroke();
+    g.fillStyle = '#111'; g.beginPath(); g.arc(c, c, c * 0.07, 0, 7); g.fill();
+    g.font = `600 ${w * 0.08}px Arial`; g.textAlign = 'center'; g.fillText('bar', c, c * 1.45);
+  });
+  const haloTex = () => canvasTex('halo', 256, 256, (g, w) => {
+    const gr = g.createRadialGradient(w / 2, w / 2, 0, w / 2, w / 2, w / 2);
+    gr.addColorStop(0, 'rgba(0,0,0,0.42)'); gr.addColorStop(0.45, 'rgba(0,0,0,0.16)'); gr.addColorStop(1, 'rgba(0,0,0,0)');
+    g.fillStyle = gr; g.fillRect(0, 0, w, w);
+  });
+
+  /** cutaway section removes the front half (z > 0) of shells / housings (these looks and part ids) */
+  const CUT_LOOKS = new Set(['body', 'flange', 'act', 'cab', 'door', 'cabframe', 'plinth', 'ghost']);
+  const CUT_IDS = new Set(['cage', 'guide', 'liner', 'bonnet', 'gland', 'packing', 'body_connector', 'mounting_pad', 'thrust_base', 'lower_casing', 'upper_casing', 'gearcase']);
+  const REF = new Set(['ghost', 'clear']);
+
+  // ───────── small vector / matrix kit ─────────
+  const dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+  const add = (a, b) => [a[0] + b[0], a[1] + b[1], a[2] + b[2]];
+  const sub = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
+  const mul = (a, k) => [a[0] * k, a[1] * k, a[2] * k];
+  const cross = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
+  const unit = (a) => { const l = Math.hypot(a[0], a[1], a[2]) || 1; return [a[0] / l, a[1] / l, a[2] / l]; };
+  const I3 = [1, 0, 0, 0, 1, 0, 0, 0, 1];
+  const rotX = (a) => { const c = Math.cos(a); const s = Math.sin(a); return [1, 0, 0, 0, c, -s, 0, s, c]; };
+  const rotY = (a) => { const c = Math.cos(a); const s = Math.sin(a); return [c, 0, s, 0, 1, 0, -s, 0, c]; };
+  const rotZ = (a) => { const c = Math.cos(a); const s = Math.sin(a); return [c, -s, 0, s, c, 0, 0, 0, 1]; };
+  const mm = (A, B) => { const o = []; for (let r = 0; r < 3; r++) for (let c = 0; c < 3; c++) o.push(A[r * 3] * B[c] + A[r * 3 + 1] * B[3 + c] + A[r * 3 + 2] * B[6 + c]); return o; };
+  const mv = (M, v) => [M[0] * v[0] + M[1] * v[1] + M[2] * v[2], M[3] * v[0] + M[4] * v[1] + M[5] * v[2], M[6] * v[0] + M[7] * v[1] + M[8] * v[2]];
+  const axisM = (axis) => axis === 'x' ? rotZ(-Math.PI / 2) : axis === 'z' ? rotX(Math.PI / 2) : I3;
+  const FACE_M = { z: I3, '-z': rotY(Math.PI), x: rotY(Math.PI / 2), '-x': rotY(-Math.PI / 2), y: rotX(-Math.PI / 2) };
+  /** rotation taking +Y onto unit vector d */
+  function fromY(d) {
+    const y = [0, 1, 0]; const c = dot(y, d);
+    if (c > 0.99999) return I3;
+    if (c < -0.99999) return rotX(Math.PI);
+    const k = unit(cross(y, d)); const s = Math.sqrt(1 - c * c); const t = 1 - c;
+    const [x, yy, z] = k;
+    return [t * x * x + c, t * x * yy - s * z, t * x * z + s * yy, t * x * yy + s * z, t * yy * yy + c, t * yy * z - s * x, t * x * z - s * yy, t * yy * z + s * x, t * z * z + c];
+  }
+
+  // ───────── solids → faces ─────────
+  // A face: { p: [[x,y,z]…], n: [x,y,z], look, cr: [bool per edge] (crease lines), sil: [[edge, neighbourNormal]…],
+  //           tex: {img, tl, tr, bl}, round: true (no crease on its rim) }
+  /** profile [[s, r, smooth?]…] around local +Y; creases at every knot not marked smooth */
+  function latheFaces(prof, look, M, at, seg = 48) {
+    let pts = prof.map((p) => [p[0], Math.max(0, p[1]), p[2]]);
+    if (pts[pts.length - 1][0] < pts[0][0]) pts = pts.slice().reverse();
+    const out = []; const n = pts.length;
+    const ang = (j) => (j % seg) / seg * Math.PI * 2;
+    const V = (i, j) => { const a = ang(j); return add(mv(M, [pts[i][1] * Math.sin(a), pts[i][0], pts[i][1] * Math.cos(a)]), at); };
+    const crease = (i) => i === 0 || i === n - 1 || !pts[i][2];
+    for (let i = 0; i < n - 1; i++) {
+      const dr = pts[i + 1][1] - pts[i][1]; const ds = pts[i + 1][0] - pts[i][0];
+      if (Math.abs(dr) < 1e-6 && Math.abs(ds) < 1e-6) continue;
+      if (pts[i][1] < 1e-6 && pts[i + 1][1] < 1e-6) continue;
+      const nl = Math.hypot(dr, ds); const nr = ds / nl; const ns = -dr / nl;
+      const N = (j) => { const a = ang(j + 0.5); return unit(mv(M, [nr * Math.sin(a), ns, nr * Math.cos(a)])); };
+      for (let j = 0; j < seg; j++) {
+        const f = { p: [V(i, j), V(i, j + 1), V(i + 1, j + 1), V(i + 1, j)], n: N(j), look,
+          cr: [crease(i), false, crease(i + 1), false] };
+        f.sil = [[1, N(j + 1)], [3, N(j - 1 + seg)]];
+        out.push(f);
+      }
+    }
+    return out;
+  }
+  function boxFaces(s, look, M, at) {
+    const [w, h, d] = s.map((v) => Math.max(0.1, v) / 2);
+    const P = (x, y, z) => add(mv(M, [x * w, y * h, z * d]), at);
+    const q = (a, b, c, e, n) => ({ p: [a, b, c, e], n: unit(mv(M, n)), look, cr: [true, true, true, true] });
+    return [
+      q(P(-1, -1, 1), P(1, -1, 1), P(1, 1, 1), P(-1, 1, 1), [0, 0, 1]), q(P(1, -1, -1), P(-1, -1, -1), P(-1, 1, -1), P(1, 1, -1), [0, 0, -1]),
+      q(P(1, -1, 1), P(1, -1, -1), P(1, 1, -1), P(1, 1, 1), [1, 0, 0]), q(P(-1, -1, -1), P(-1, -1, 1), P(-1, 1, 1), P(-1, 1, -1), [-1, 0, 0]),
+      q(P(-1, 1, 1), P(1, 1, 1), P(1, 1, -1), P(-1, 1, -1), [0, 1, 0]), q(P(-1, -1, -1), P(1, -1, -1), P(1, -1, 1), P(-1, -1, 1), [0, -1, 0]),
+    ];
+  }
+  /** rounded rectangle (x-y) extruded along z with a chamfered rim */
+  function rboxFaces(s, r, look, M, at) {
+    const bev = Math.max(0, Math.min(r * 0.5, s[2] / 2 - 0.05, s[0] / 2 - 0.05, s[1] / 2 - 0.05, 3));
+    const ring = (inset) => {
+      const w = s[0] / 2 - inset; const h = s[1] / 2 - inset; const cr = Math.max(0.01, Math.min(r - inset * 0.5, w - 0.01, h - 0.01));
+      const pts = []; const st = 5;
+      for (const [cx, cy, a0] of [[w - cr, h - cr, 0], [-w + cr, h - cr, 90], [-w + cr, -h + cr, 180], [w - cr, -h + cr, 270]]) {
+        for (let k = 0; k <= st; k++) { const a = (a0 + k * 90 / st) * Math.PI / 180; pts.push([cx + cr * Math.cos(a), cy + cr * Math.sin(a)]); }
+      }
+      return pts;
+    };
+    const z1 = s[2] / 2; const rings = bev > 0.05 ? [[ring(bev), -z1], [ring(0), -z1 + bev], [ring(0), z1 - bev], [ring(bev), z1]] : [[ring(0), -z1], [ring(0), z1]];
+    const P = (xy, z) => add(mv(M, [xy[0], xy[1], z]), at);
+    const out = [];
+    for (let k = 0; k < rings.length - 1; k++) {
+      const [A, za] = rings[k]; const [B, zb] = rings[k + 1]; const m = A.length;
+      const mid = rings.length === 4 && k === 1;
+      for (let i = 0; i < m; i++) {
+        const i2 = (i + 1) % m;
+        const e = [B[i2][0] - B[i][0], B[i2][1] - B[i][1]];
+        let nl = [e[1], -e[0], 0];
+        if (!mid) { const t = sub([B[i][0], B[i][1], zb], [A[i][0], A[i][1], za]); nl = cross([e[0], e[1], 0], t); if (dot(nl, [A[i][0], A[i][1], 0]) < 0) nl = mul(nl, -1); }
+        const flat = (i % 6 === 5);   // straight run between corner arcs
+        out.push({ p: [P(A[i], za), P(A[i2], za), P(B[i2], zb), P(B[i], zb)], n: unit(mv(M, unit(nl))), look,
+          cr: [true, flat ? false : false, true, false], sil: [] });
+      }
+    }
+    const cap = (R, z, sgn) => ({ p: (sgn > 0 ? R : R.slice().reverse()).map((xy) => P(xy, z)), n: unit(mv(M, [0, 0, sgn])), look, cr: null, round: true });
+    out.push(cap(rings[0][0], -z1, -1), cap(rings[rings.length - 1][0], z1, 1));
+    return out;
+  }
+  function sphFaces(r, scale, look, at) {
+    const sc = scale || [1, 1, 1]; const out = []; const U = 28; const W = 16;
+    const P = (i, j) => { const th = i / U * Math.PI * 2; const ph = j / W * Math.PI; return [Math.sin(ph) * Math.sin(th), Math.cos(ph), Math.sin(ph) * Math.cos(th)]; };
+    for (let j = 0; j < W; j++) for (let i = 0; i < U; i++) {
+      const u = [P(i, j), P(i + 1, j), P(i + 1, j + 1), P(i, j + 1)];
+      const c = unit(u.reduce((a, b) => add(a, b), [0, 0, 0]));
+      out.push({ p: u.map((v) => add([v[0] * r * sc[0], v[1] * r * sc[1], v[2] * r * sc[2]], at)), n: unit([c[0] / sc[0], c[1] / sc[1], c[2] / sc[2]]), look, cr: null, round: true });
+    }
+    return out;
+  }
+  /** tube along a polyline of centre points */
+  function sweepFaces(path, rad, look, sides = 10, caps = true) {
+    const out = []; const rings = [];
+    let prevN = null;
+    for (let i = 0; i < path.length; i++) {
+      const T = unit(sub(path[Math.min(path.length - 1, i + 1)], path[Math.max(0, i - 1)]));
+      let N = prevN ? unit(sub(prevN, mul(T, dot(prevN, T)))) : unit(Math.abs(T[1]) < 0.9 ? cross(T, [0, 1, 0]) : cross(T, [1, 0, 0]));
+      prevN = N; const B = cross(T, N);
+      const ring = [];
+      for (let k = 0; k < sides; k++) { const a = k / sides * Math.PI * 2; const d = add(mul(N, Math.cos(a)), mul(B, Math.sin(a))); ring.push([add(path[i], mul(d, rad)), d]); }
+      rings.push(ring);
+    }
+    for (let i = 0; i < rings.length - 1; i++) for (let k = 0; k < sides; k++) {
+      const k2 = (k + 1) % sides; const A = rings[i]; const B = rings[i + 1];
+      out.push({ p: [A[k][0], A[k2][0], B[k2][0], B[k][0]], n: unit(add(A[k][1], A[k2][1])), look, cr: null, round: true,
+        sil: [[1, unit(add(A[k2][1], A[(k2 + 1) % sides][1]))], [3, unit(add(A[k][1], A[(k - 1 + sides) % sides][1]))]] });
+    }
+    if (caps) {
+      const T0 = unit(sub(path[0], path[1])); const T1 = unit(sub(path[path.length - 1], path[path.length - 2]));
+      out.push({ p: rings[0].map((v) => v[0]).reverse(), n: T0, look, cr: rings[0].map(() => true) });
+      out.push({ p: rings[rings.length - 1].map((v) => v[0]), n: T1, look, cr: rings[0].map(() => true) });
+    }
+    return out;
+  }
+  function torFaces(R, r, look, M, at) {
+    const out = []; const U = 40; const V = 12;
+    const P = (i, j) => { const u = i / U * Math.PI * 2; const v = j / V * Math.PI * 2; return [(R + r * Math.cos(v)) * Math.cos(u), (R + r * Math.cos(v)) * Math.sin(u), r * Math.sin(v)]; };
+    const Nn = (i, j) => { const u = i / U * Math.PI * 2; const v = j / V * Math.PI * 2; return [Math.cos(v) * Math.cos(u), Math.cos(v) * Math.sin(u), Math.sin(v)]; };
+    for (let i = 0; i < U; i++) for (let j = 0; j < V; j++) {
+      out.push({ p: [P(i, j), P(i + 1, j), P(i + 1, j + 1), P(i, j + 1)].map((v) => add(mv(M, v), at)), n: unit(mv(M, Nn(i + 0.5, j + 0.5))), look, cr: null, round: true });
+    }
+    return out;
+  }
+
+  function primFaces(pr, look) {
+    const at = pr.at || [0, 0, 0];
+    switch (pr.k) {
+      case 'lathe': return latheFaces(pr.pts, look, axisM(pr.axis), at, 48);
+      case 'cyl': {
+        const hh = Math.max(0.1, pr.h) / 2; const seg = pr.seg || 40;
+        let M = axisM(pr.axis); if (pr.rotY) M = mm(rotY(pr.rotY), M);
+        const f = latheFaces([[-hh, 0], [-hh, pr.r], [hh, pr.r2 ?? pr.r], [hh, 0]], look, M, at, seg);
+        if (seg <= 8) for (const x of f) { x.cr = [true, true, true, true]; x.sil = []; }
+        return f;
+      }
+      case 'ring': { const hh = Math.max(0.1, pr.h) / 2; return latheFaces([[-hh, pr.ri], [-hh, pr.ro], [hh, pr.ro], [hh, pr.ri], [-hh, pr.ri]], look, axisM(pr.axis), at, 40); }
+      case 'box': return boxFaces(pr.s, look, pr.ry ? rotY(pr.ry) : I3, at);
+      case 'rbox': return rboxFaces(pr.s, pr.r ?? 4, look, pr.ry ? rotY(pr.ry) : I3, at);
+      case 'sph': return sphFaces(pr.r, pr.scale, look, at);
+      case 'tor': return torFaces(pr.R, pr.r, look, pr.axis === 'y' ? rotX(Math.PI / 2) : pr.axis === 'x' ? rotY(Math.PI / 2) : I3, at);
+      case 'helix': {
+        const M = axisM(pr.axis); const n = Math.max(24, Math.round(pr.turns * 24)); const path = [];
+        for (let i = 0; i <= n; i++) { const t = i / n; const a = t * pr.turns * Math.PI * 2; path.push(add(mv(M, [pr.R * Math.cos(a), (t - 0.5) * pr.h, pr.R * Math.sin(a)]), at)); }
+        return sweepFaces(path, pr.r, look, 8, true);
+      }
+      case 'tube': {
+        const a = pr.a; const b = pr.b; const len = Math.hypot(...sub(b, a));
+        if (len < 1e-6) return [];
+        const hh = len / 2;
+        return latheFaces([[-hh, 0], [-hh, pr.r], [hh, pr.r], [hh, 0]], look, fromY(unit(sub(b, a))), mul(add(a, b), 0.5), 16);
+      }
+      case 'plate': {
+        const [w, h, t] = pr.s; const M = FACE_M[pr.face || 'z'];
+        const f = boxFaces([w, h, Math.max(0.2, t)], look, M, at);
+        const z = Math.max(0.2, t) / 2; const P = (x, y) => add(mv(M, [x, y, z]), at);
+        f[0].tex = { img: textTex(pr.lines || [], pr.style || 'plate', 512, Math.max(64, Math.round(512 * h / w))), tl: P(-w / 2, h / 2), tr: P(w / 2, h / 2), bl: P(-w / 2, -h / 2) };
+        f[0].look = pr.style === 'lcd' ? 'glass' : 'plate';
+        return f;
+      }
+      case 'gauge': {
+        const r = pr.r; let M = axisM(pr.axis); if (pr.flip) M = mm(M, rotX(Math.PI));
+        const f = latheFaces([[-r * 0.25, 0], [-r * 0.25, r], [r * 0.25, r, 1], [r * 0.25, r * 0.92], [r * 0.25, 0]], 'steel', M, at, 40);
+        const R = r * 0.86; const y = r * 0.252; const P = (x, z) => add(mv(M, [x, y, z]), at);
+        const circ = []; for (let i = 0; i < 40; i++) { const a = i / 40 * Math.PI * 2; circ.push(P(R * Math.sin(a), R * Math.cos(a))); }
+        f.push({ p: circ, n: unit(mv(M, [0, 1, 0])), look: 'dial', cr: null, round: true, tex: { img: dialTex(), tl: P(-R, -R), tr: P(R, -R), bl: P(-R, R) } });
+        return f;
+      }
+      case 'arrow': {
+        const L = pr.len; const W = pr.w; let M = FACE_M[pr.face || 'z']; if (pr.dir < 0) M = mm(M, rotZ(Math.PI));
+        const sh = [[-L / 2, -W * 0.22], [L * 0.18, -W * 0.22], [L * 0.18, -W / 2], [L / 2, 0], [L * 0.18, W / 2], [L * 0.18, W * 0.22], [-L / 2, W * 0.22]];
+        const P = (xy, z) => add(mv(M, [xy[0], xy[1], z]), at); const out = []; const t = pr.t;
+        // two convex pieces for the caps: shaft and head
+        const shaft = [sh[0], sh[1], sh[5], sh[6]]; const head = [sh[2], sh[3], sh[4]];
+        for (const poly of [shaft, head]) out.push({ p: poly.map((v) => P(v, t)), n: unit(mv(M, [0, 0, 1])), look, cr: poly.map(() => true) });
+        for (let i = 0; i < sh.length; i++) {
+          const a = sh[i]; const b = sh[(i + 1) % sh.length]; const e = [b[0] - a[0], b[1] - a[1]];
+          out.push({ p: [P(a, 0), P(b, 0), P(b, t), P(a, t)], n: unit(mv(M, unit([e[1], -e[0], 0]))), look, cr: [true, true, true, true] });
+        }
+        return out;
+      }
+      default: return [];
+    }
+  }
+
+  // ───────── state ─────────
+  let host; let canvas; let ctx; let overlay; let dpr = 1;
+  const opts = { edges: false, labels: 'auto', dims: false, section: false, autoExplode: true, insetRight: 0, style: 'real' };
+  const S = { parts: [], groups: new Map(), bbox: null, e: 0, eT: 0, focus: null, hovered: null, selected: null };
+  const ISO_PHI = Math.acos(1 / Math.sqrt(3));
+  const orbit = { theta: Math.PI / 4, phi: ISO_PHI, dist: 3000, target: [0, 0, 0] };
+  const goal = { dist: 3000, target: [0, 0, 0], follow: true, refit: true, fitDist: 3000 };
+  let cb = { onHover() {}, onPick() {}, onExplode() {}, onFocus() {} };
+  let dirty = true; let drawn = [];
+  const balloons = new Map();
+  const isSel = (id) => S.selected instanceof Set ? S.selected.has(id) : id === S.selected;   // valve36
+  const cam = { d: [0, 0, 1], right: [1, 0, 0], up: [0, 1, 0], k: 1, W: 600, H: 400, L: [0, 0, 1] };
+
+  function init(el, callbacks = {}) {
+    host = el; cb = { ...cb, ...callbacks };
+    canvas = document.createElement('canvas'); canvas.className = 'anat-canvas';
+    canvas.style.width = '100%'; canvas.style.height = '100%';
+    ctx = canvas.getContext('2d');
+    el.appendChild(canvas);
+    overlay = document.createElement('div'); overlay.className = 'v-overlay'; el.appendChild(overlay);
+    applyStyle();
+    bindInput(canvas);
+    if (typeof ResizeObserver !== 'undefined') new ResizeObserver(() => { resize(); goal.refit = true; }).observe(el);
+    resize();
+    loop();
+  }
+  function applyStyle() { host.classList.toggle('real', opts.style === 'real'); dirty = true; }
+  function resize() {
+    dpr = Math.min(2, window.devicePixelRatio || 1);
+    cam.W = host.clientWidth || 600; cam.H = host.clientHeight || 400;
+    canvas.width = Math.round(cam.W * dpr); canvas.height = Math.round(cam.H * dpr);
+    updateCamera();
+  }
+  function updateCamera() {
+    const { theta, phi } = orbit;
+    cam.d = [Math.sin(phi) * Math.sin(theta), Math.cos(phi), Math.sin(phi) * Math.cos(theta)];
+    let r = cross([0, 1, 0], cam.d); if (Math.hypot(...r) < 1e-6) r = [Math.cos(theta), 0, -Math.sin(theta)];
+    cam.right = unit(r); cam.up = unit(cross(cam.d, cam.right));
+    cam.k = (cam.H || 400) / orbit.dist;
+    cam.L = unit(add(add(mul(cam.right, -0.42), mul(cam.up, 0.78)), mul(cam.d, 0.62)));   // key light: upper left, toward the viewer
+    dirty = true;
+  }
+  /** world → canvas pixels (orthographic, anatomy-style) and depth (larger = nearer) */
+  function proj(p) {
+    const q = sub(p, orbit.target);
+    return [(cam.W / 2 + dot(q, cam.right) * cam.k) * dpr, (cam.H / 2 - dot(q, cam.up) * cam.k) * dpr, dot(q, cam.d)];
+  }
+  let bgCss = '#e9edf1';
+  function setBackground(css) { bgCss = css || bgCss; dirty = true; }
+
+  // ───────── model ─────────
+  const isCut = (p) => opts.section && (CUT_LOOKS.has(p.look) || CUT_IDS.has(p.id));
+  function clipZ(f) {
+    // keep z ≤ 0 (the cutaway removes the front half)
+    const out = []; const P = f.p; const n = P.length;
+    for (let i = 0; i < n; i++) {
+      const a = P[i]; const b = P[(i + 1) % n]; const ia = a[2] <= 0; const ib = b[2] <= 0;
+      if (ia) out.push(a);
+      if (ia !== ib) { const t = a[2] / (a[2] - b[2]); out.push([a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, 0]); }
+    }
+    if (out.length < 3) return null;
+    return { ...f, p: out, cr: null, sil: null, tex: out.length === n ? f.tex : null, two: true };
+  }
+  function clear() { S.groups.clear(); clearBalloons(); }
+  function show(model, { keepView = false } = {}) {
+    clear();
+    S.parts = model.parts; S.bbox = model.bbox;
+    if (S.focus && !model.parts.some((p) => p.id === S.focus)) S.focus = null;
+    for (const p of model.parts) {
+      let faces = [];
+      for (const pr of p.prims) faces.push(...primFaces(pr, pr.look || p.look));
+      if (isCut(p)) faces = faces.map(clipZ).filter(Boolean);
+      const bb = { min: [Infinity, Infinity, Infinity], max: [-Infinity, -Infinity, -Infinity] };
+      for (const f of faces) for (const v of f.p) for (let i = 0; i < 3; i++) { bb.min[i] = Math.min(bb.min[i], v[i]); bb.max[i] = Math.max(bb.max[i], v[i]); }
+      S.groups.set(p.id, { part: p, faces, bb, visible: true, off: [0, 0, 0] });
+      if (!REF.has(p.look)) makeBalloon(p);
+    }
+    applyExplode();
+    if (!keepView) { goal.follow = true; frame(true); } else if (goal.follow) goal.refit = true;
+    dirty = true;
+  }
+
+  // ───────── explode ─────────
+  const smooth = (x) => x * x * (3 - 2 * x);
+  /** stage 0 parts move first, stage 2 (internals) last */
+  const stageK = (e, stage) => smooth(Math.max(0, Math.min(1, (e - stage * 0.18) / 0.64)));
+  function applyExplode() {
+    for (const g of S.groups.values()) { const k = stageK(S.e, g.part.stage ?? 1); g.off = mul(g.part.ex || [0, 0, 0], k); }
+    dirty = true;
+  }
+  function setExplode(k, instant) {
+    S.eT = Math.max(0, Math.min(1, k));
+    goal.follow = true; goal.refit = true;
+    cb.onExplode(S.eT);
+    if (instant) { S.e = S.eT; applyExplode(); frame(true); }
+  }
+  const getExplode = () => S.eT;
+
+  function liveBox(ids) {
+    const bb = { min: [Infinity, Infinity, Infinity], max: [-Infinity, -Infinity, -Infinity], empty: true };
+    for (const [id, g] of S.groups) {
+      if (!g.visible || REF.has(g.part.look) || !g.faces.length) continue;
+      if (ids && !ids.includes(id)) continue;
+      for (let i = 0; i < 3; i++) { bb.min[i] = Math.min(bb.min[i], g.bb.min[i] + g.off[i]); bb.max[i] = Math.max(bb.max[i], g.bb.max[i] + g.off[i]); }
+      bb.empty = false;
+    }
+    return bb;
+  }
+  const corners8 = (bb) => { const o = []; for (const x of [bb.min[0], bb.max[0]]) for (const y of [bb.min[1], bb.max[1]]) for (const z of [bb.min[2], bb.max[2]]) o.push([x, y, z]); return o; };
+  function frame(instant) {
+    const bb = liveBox(S.focus ? [S.focus] : null);
+    if (bb.empty) return;
+    updateCamera();
+    const w = cam.W; const h = cam.H;
+    let x0 = Infinity; let x1 = -Infinity; let y0 = Infinity; let y1 = -Infinity;
+    for (const c of corners8(bb)) { const a = dot(c, cam.right); const b = dot(c, cam.up); x0 = Math.min(x0, a); x1 = Math.max(x1, a); y0 = Math.min(y0, b); y1 = Math.max(y1, b); }
+    const aw = Math.max(200, w - opts.insetRight);
+    const need = Math.max(y1 - y0, (x1 - x0) * h / aw) * 1.2 + 40;
+    goal.dist = need; goal.fitDist = need;
+    goal.target = mul(add(bb.min, bb.max), 0.5);
+    if (opts.insetRight) goal.target = add(goal.target, mul(cam.right, opts.insetRight / 2 * need / h));
+    if (instant) { orbit.dist = goal.dist; orbit.target = goal.target.slice(); updateCamera(); }
+  }
+  function setView(name) {
+    const v = { iso: [Math.PI / 4, ISO_PHI], iso2: [Math.PI * 0.75, ISO_PHI], front: [0, Math.PI / 2],
+      side: [Math.PI / 2, Math.PI / 2], top: [0, 0.0001], back: [Math.PI, Math.PI / 2] }[name];
+    if (!v) return;
+    [orbit.theta, orbit.phi] = v;
+    goal.follow = true; frame(true);
+  }
+  function fit() { goal.follow = true; frame(true); }
+
+  function focus(id) {
+    S.focus = id && S.focus !== id ? id : null;
+    goal.follow = true; goal.refit = true; dirty = true;
+    cb.onFocus(S.focus);
+  }
+  function setVisible(id, vis) { const g = S.groups.get(id); if (g) { g.visible = vis; dirty = true; } }
+  function setOption(k, v) {
+    opts[k] = v;
+    if (k === 'style') applyStyle();
+    if (k === 'section') show({ parts: S.parts, bbox: S.bbox }, { keepView: true });
+    if (k === 'insetRight' && goal.follow) goal.refit = true;
+    dirty = true;
+  }
+
+  // ───────── shading: anatomy four tones + material response ─────────
+  const rgbOf = (hex) => [(hex >> 16) & 255, (hex >> 8) & 255, hex & 255];
+  function lookOf(look) { return (opts.style === 'real' ? REAL[look] : LOOK[look]) || (opts.style === 'real' ? REAL.body : LOOK.body); }
+  const BANDS = [1.14, 0.96, 0.78, 0.6];
+  function shade(f, n, id, ghost) {
+    const m = ghost ? lookOf('ghost') : lookOf(f.look);
+    let c = rgbOf(m.color);
+    const s = dot(n, cam.L);
+    let out;
+    if (opts.style === 'real') {
+      const amb = 0.36 + 0.1 * n[1];
+      const dif = Math.max(0, s) * 0.72;
+      let k = amb + dif;
+      const H = unit(add(cam.L, cam.d)); const sp = Math.pow(Math.max(0, dot(n, H)), 10 + (1 - m.rough) * 50) * (0.15 + m.metal * 0.75) * (1.1 - m.rough * 0.6);
+      const rim = Math.pow(1 - Math.abs(dot(n, cam.d)), 3) * 0.12;
+      out = c.map((v) => v * k + 255 * (sp + rim));
+    } else {
+      const band = s > 0.55 ? 0 : s > 0.18 ? 1 : s > -0.2 ? 2 : 3;
+      out = c.map((v) => v * BANDS[band]);
+    }
+    if (isSel(id)) out = out.map((v, i) => v * 0.55 + [232, 120, 20][i] * 0.45);
+    else if (id === S.hovered) out = out.map((v, i) => v * 0.72 + [70, 120, 190][i] * 0.28);
+    return `rgb(${out.map((v) => Math.max(0, Math.min(255, Math.round(v)))).join(',')})`;
+  }
+
+  // ───────── render (painter's order) ─────────
+  function render() {
+    const W = canvas.width; const H = canvas.height;
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.clearRect(0, 0, W, H);
+    if (opts.style !== 'real') { ctx.fillStyle = bgCss; ctx.fillRect(0, 0, W, H); }
+    if (!S.bbox) { drawn = []; return; }
+    const real = opts.style === 'real';
+    const live = liveBox();
+    if (!live.empty) drawGround(live, real);
+    const list = [];
+    for (const [id, g] of S.groups) {
+      if (!g.visible) continue;
+      const refLook = REF.has(g.part.look);
+      const ghost = (!!S.focus && id !== S.focus) || (S.selected instanceof Set && !isSel(id));   // valve36: the rest is see-through, so a part inside (ball, seats) shows
+      for (const f of g.faces) {
+        let n = f.n; const front = dot(n, cam.d) > 0;
+        const translucent = refLook || ghost;
+        if (!front && !f.two && !translucent) continue;
+        if (!front) n = mul(n, -1);
+        const P = f.p.map((v) => proj(add(v, g.off)));
+        let z = 0; for (const q of P) z += q[2]; z /= P.length;
+        list.push({ f, P, z, id, n, back: !front, ghost, translucent, alpha: ghost ? 0.14 : refLook ? (lookOf(g.part.look).opacity ?? 0.2) : 1, g });
+      }
+    }
+    list.sort((a, b) => a.z - b.z);
+    const lineA = real ? 0.16 : (opts.edges ? 0.55 : 0.32);
+    const silA = real ? 0.38 : 0.7;
+    const lw = Math.max(0.6, 0.9 * dpr);
+    for (const it of list) {
+      const { f, P } = it;
+      ctx.globalAlpha = it.alpha;
+      ctx.beginPath(); ctx.moveTo(P[0][0], P[0][1]);
+      for (let i = 1; i < P.length; i++) ctx.lineTo(P[i][0], P[i][1]);
+      ctx.closePath();
+      let col = shade(f, it.n, it.id, it.ghost);
+      if (it.back) col = col.replace(/rgb\((\d+),(\d+),(\d+)\)/, (m, r, g, b) => `rgb(${r * 0.55 | 0},${g * 0.55 | 0},${b * 0.55 | 0})`);
+      ctx.fillStyle = col; ctx.fill();
+      if (!it.translucent) { ctx.strokeStyle = col; ctx.lineWidth = 0.7; ctx.stroke(); }   // hide anti-alias seams
+      if (f.tex && !it.back && !it.translucent) drawTex(f, it.g.off, P);
+      if (it.translucent) { ctx.globalAlpha = 1; continue; }
+      // crease lines and silhouettes (the kit's linework)
+      ctx.lineWidth = lw; ctx.strokeStyle = `rgba(18,22,28,${lineA})`;
+      ctx.beginPath(); let any = false;
+      const n = P.length;
+      if (f.cr) for (let i = 0; i < n; i++) if (f.cr[i]) { ctx.moveTo(P[i][0], P[i][1]); ctx.lineTo(P[(i + 1) % n][0], P[(i + 1) % n][1]); any = true; }
+      if (any) ctx.stroke();
+      if (f.sil && f.sil.length && !it.back) {
+        ctx.beginPath(); any = false; ctx.strokeStyle = `rgba(18,22,28,${silA})`;
+        for (const [e, n2] of f.sil) if (dot(n2, cam.d) <= 0) { ctx.moveTo(P[e][0], P[e][1]); ctx.lineTo(P[(e + 1) % n][0], P[(e + 1) % n][1]); any = true; }
+        if (any) ctx.stroke();
+      }
+    }
+    ctx.globalAlpha = 1;
+    drawn = list;
+    drawDims(live);
+  }
+  function drawTex(f, off, P) {
+    const A = proj(add(f.tex.tl, off)); const B = proj(add(f.tex.tr, off)); const C = proj(add(f.tex.bl, off));
+    const img = f.tex.img;
+    ctx.save();
+    ctx.beginPath(); ctx.moveTo(P[0][0], P[0][1]); for (let i = 1; i < P.length; i++) ctx.lineTo(P[i][0], P[i][1]); ctx.closePath(); ctx.clip();
+    ctx.setTransform((B[0] - A[0]) / img.width, (B[1] - A[1]) / img.width, (C[0] - A[0]) / img.height, (C[1] - A[1]) / img.height, A[0], A[1]);
+    const shadeK = Math.max(0.55, 0.62 + 0.45 * dot(f.n, cam.L));
+    ctx.globalAlpha = 1; ctx.drawImage(img, 0, 0);
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    if (shadeK < 1) { ctx.fillStyle = `rgba(0,0,0,${(1 - shadeK) * 0.6})`; ctx.fill(); }
+    ctx.restore();
+  }
+  /** pedestal + soft contact shadow (real), or a faint ground grid (tech) */
+  function drawGround(live, real) {
+    const b0 = S.bbox;
+    const cx = (b0.min[0] + b0.max[0]) / 2; const cz = (b0.min[2] + b0.max[2]) / 2;
+    const foot = Math.max(b0.size[0], b0.size[2]);
+    const y0 = Math.min(b0.min[1], live.min[1]) - 2;
+    if (cam.d[1] <= 0.02) return;   // seen from below: no ground
+    if (real) {
+      const R = foot * 0.62 + 40; const Hh = Math.max(14, foot * 0.04);
+      const top = []; const bot = [];
+      for (let i = 0; i < 72; i++) { const a = i / 72 * Math.PI * 2; top.push(proj([cx + R * Math.sin(a), y0, cz + R * Math.cos(a)])); bot.push(proj([cx + R * 1.03 * Math.sin(a), y0 - Hh, cz + R * 1.03 * Math.cos(a)])); }
+      // side band then the top disc
+      ctx.fillStyle = 'rgba(160,158,152,0.9)';
+      ctx.beginPath(); bot.forEach((q, i) => (i ? ctx.lineTo(q[0], q[1]) : ctx.moveTo(q[0], q[1]))); ctx.closePath(); ctx.fill();
+      for (let i = 0; i < 72; i++) {
+        const j = (i + 1) % 72; ctx.beginPath(); ctx.moveTo(top[i][0], top[i][1]); ctx.lineTo(top[j][0], top[j][1]); ctx.lineTo(bot[j][0], bot[j][1]); ctx.lineTo(bot[i][0], bot[i][1]); ctx.closePath();
+        const a = (i + 0.5) / 72 * Math.PI * 2; const s = dot([Math.sin(a), 0, Math.cos(a)], cam.L);
+        const v = Math.round(150 + 55 * Math.max(0, s)); ctx.fillStyle = `rgb(${v},${v - 2},${v - 6})`; ctx.fill(); ctx.strokeStyle = ctx.fillStyle; ctx.lineWidth = 0.7; ctx.stroke();
+      }
+      ctx.fillStyle = '#d9d7d2'; ctx.beginPath(); top.forEach((q, i) => (i ? ctx.lineTo(q[0], q[1]) : ctx.moveTo(q[0], q[1]))); ctx.closePath(); ctx.fill();
+      ctx.strokeStyle = 'rgba(18,22,28,0.25)'; ctx.lineWidth = dpr; ctx.stroke();
+      // contact shadow (halo) mapped onto the top plane
+      const s = foot * 0.66 + 30; const img = haloTex();
+      const A = proj([cx - s, y0, cz - s]); const B = proj([cx + s, y0, cz - s]); const C = proj([cx - s, y0, cz + s]);
+      ctx.save(); ctx.setTransform((B[0] - A[0]) / img.width, (B[1] - A[1]) / img.width, (C[0] - A[0]) / img.height, (C[1] - A[1]) / img.height, A[0], A[1]);
+      ctx.drawImage(img, 0, 0); ctx.restore();
+    } else {
+      const size = Math.max(...b0.size) * 2; const n = 20;
+      ctx.strokeStyle = 'rgba(136,153,170,0.22)'; ctx.lineWidth = dpr; ctx.beginPath();
+      for (let i = -n; i <= n; i++) {
+        const t = i / n * size;
+        let a = proj([cx + t, y0, cz - size]); let b = proj([cx + t, y0, cz + size]); ctx.moveTo(a[0], a[1]); ctx.lineTo(b[0], b[1]);
+        a = proj([cx - size, y0, cz + t]); b = proj([cx + size, y0, cz + t]); ctx.moveTo(a[0], a[1]); ctx.lineTo(b[0], b[1]);
+      }
+      ctx.stroke();
+    }
+  }
+  /** assembled envelope L × W × H */
+  function drawDims() {
+    if (!opts.dims || S.e > 0.02 || S.focus || !S.bbox) return;
+    const b = S.bbox; const s = b.size; const o = Math.max(...s) * 0.04;
+    const C = corners8(b);
+    ctx.strokeStyle = 'rgba(224,165,38,0.5)'; ctx.lineWidth = dpr; ctx.beginPath();
+    for (let i = 0; i < 8; i++) for (let j = i + 1; j < 8; j++) {
+      const diff = [0, 1, 2].filter((k) => C[i][k] !== C[j][k]).length;
+      if (diff === 1) { const a = proj(C[i]); const c = proj(C[j]); ctx.moveTo(a[0], a[1]); ctx.lineTo(c[0], c[1]); }
+    }
+    ctx.stroke();
+    const mk = (a, c, label) => {
+      const A = proj(a); const B = proj(c);
+      ctx.strokeStyle = '#e0a526'; ctx.lineWidth = 1.4 * dpr; ctx.beginPath(); ctx.moveTo(A[0], A[1]); ctx.lineTo(B[0], B[1]); ctx.stroke();
+      const mx = (A[0] + B[0]) / 2; const my = (A[1] + B[1]) / 2;
+      ctx.font = `600 ${12 * dpr}px system-ui, sans-serif`; const tw = ctx.measureText(label).width + 10 * dpr;
+      ctx.fillStyle = 'rgba(20,24,30,0.82)'; ctx.fillRect(mx - tw / 2, my - 9 * dpr, tw, 18 * dpr);
+      ctx.fillStyle = '#fff'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(label, mx, my + dpr);
+    };
+    mk([b.min[0], b.min[1], b.max[2] + o], [b.max[0], b.min[1], b.max[2] + o], `L ${Math.round(s[0])}`);
+    mk([b.max[0] + o, b.min[1], b.min[2]], [b.max[0] + o, b.min[1], b.max[2]], `W ${Math.round(s[2])}`);
+    mk([b.max[0] + o, b.min[1], b.max[2]], [b.max[0] + o, b.max[1], b.max[2]], `H ${Math.round(s[1])}`);
+  }
+
+  // ───────── balloons & callouts ─────────
+  let svg = null;
+  function makeBalloon(p) {
+    if (!svg) { svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg'); svg.setAttribute('class', 'v-leaders'); overlay.appendChild(svg); }
+    const dotEl = document.createElement('button');
+    dotEl.type = 'button'; dotEl.className = 'balloon'; dotEl.textContent = p.no ?? '';
+    dotEl.setAttribute('aria-label', `${p.no ?? ''} ${p.dwgName || p.name}`);
+    const label = document.createElement('button');
+    label.type = 'button'; label.className = 'callout';
+    label.innerHTML = '<b></b> <span></span>';
+    label.querySelector('b').textContent = p.no ?? '';
+    label.querySelector('span').textContent = p.dwgName || p.name;
+    const line = document.createElementNS('http://www.w3.org/2000/svg', 'polyline');
+    svg.appendChild(line);
+    for (const el of [dotEl, label]) {
+      el.addEventListener('click', (ev) => { ev.stopPropagation(); select(p.id); cb.onPick(p.id); });
+      el.addEventListener('dblclick', (ev) => { ev.stopPropagation(); focus(p.id); });
+      el.addEventListener('pointerenter', () => { S.hovered = p.id; dirty = true; });
+      el.addEventListener('pointerleave', () => { S.hovered = null; dirty = true; });
+      el.addEventListener('wheel', (ev) => { ev.preventDefault(); onWheel(ev); }, { passive: false });
+      overlay.appendChild(el);
+    }
+    balloons.set(p.id, { dot: dotEl, label, line, w: 0 });
+  }
+  function clearBalloons() {
+    for (const b of balloons.values()) { b.dot.remove(); b.label.remove(); b.line.remove(); }
+    balloons.clear();
+  }
+  function placeBalloons() {
+    const w = cam.W; const h = cam.H;
+    svg.setAttribute('width', w); svg.setAttribute('height', h);
+    const named = opts.labels === 'on' || (opts.labels === 'auto' && S.e > 0.45);
+    const dotsOn = opts.labels !== 'off' && (opts.labels === 'on' || S.e > 0.12);
+    const items = []; let xmin = Infinity; let xmax = -Infinity;
+    for (const [id, b] of balloons) {
+      const g = S.groups.get(id);
+      const vis = g && g.visible && g.faces.length && (!S.focus || S.focus === id);
+      const showDot = vis && (dotsOn || isSel(id) || id === S.hovered);
+      b.dot.style.display = showDot ? '' : 'none';
+      b.dot.classList.toggle('sel', isSel(id));
+      if (!showDot) { b.label.style.display = 'none'; b.line.style.display = 'none'; continue; }
+      const bb = { min: add(g.bb.min, g.off), max: add(g.bb.max, g.off) };
+      const c = proj(mul(add(bb.min, bb.max), 0.5)); const x = c[0] / dpr; const y = c[1] / dpr;
+      b.dot.style.transform = `translate(${x}px, ${y}px)`;
+      for (const q of corners8(bb)) { const sx = proj(q)[0] / dpr; xmin = Math.min(xmin, sx); xmax = Math.max(xmax, sx); }
+      items.push({ id, b, x, y, named: named || isSel(id) || id === S.hovered });
+    }
+    const mid = (xmin + xmax) / 2; const cols = { L: [], R: [] }; let alt = 0;
+    for (const it of items.filter((i) => i.named).sort((a, c) => a.y - c.y)) {
+      const side = it.x < mid - 6 ? 'L' : it.x > mid + 6 ? 'R' : (alt++ % 2 ? 'L' : 'R');
+      cols[side].push(it);
+    }
+    const LH = 21; const pad = 8;
+    for (const side of ['L', 'R']) {
+      const list = cols[side];
+      let y = -Infinity;
+      for (const it of list) { it.ly = Math.max(it.y, y + LH); y = it.ly; }
+      let lim = h - pad;
+      for (let i = list.length - 1; i >= 0; i--) { list[i].ly = Math.min(list[i].ly, lim); lim = list[i].ly - LH; }
+      for (const it of list) {
+        it.ly = Math.max(pad + LH / 2, it.ly);
+        const bl = it.b;
+        bl.label.style.display = '';
+        if (!bl.w) bl.w = bl.label.offsetWidth || 120;
+        let lx = side === 'L' ? xmin - 28 : xmax + 28;
+        if (side === 'L') lx = Math.max(bl.w + pad, lx); else lx = Math.min(w - bl.w - pad, lx);
+        bl.label.style.transform = side === 'L' ? `translate(${lx - bl.w}px, ${it.ly - LH / 2 + 1}px)` : `translate(${lx}px, ${it.ly - LH / 2 + 1}px)`;
+        bl.label.classList.toggle('sel', isSel(it.id));
+        bl.line.style.display = '';
+        const kx = side === 'L' ? lx + 6 : lx - 6;
+        bl.line.setAttribute('points', `${it.x},${it.y} ${kx},${it.ly} ${lx},${it.ly}`);
+        bl.line.setAttribute('class', isSel(it.id) ? 'sel' : '');
+      }
+    }
+    for (const it of items.filter((i) => !i.named)) { it.b.label.style.display = 'none'; it.b.line.style.display = 'none'; }
+  }
+
+  // ───────── input ─────────
+  function local(e) { const r = canvas.getBoundingClientRect(); return [e.clientX - r.left, e.clientY - r.top]; }
+  function worldAt(e) {
+    const [x, y] = local(e);
+    return add(add(orbit.target, mul(cam.right, (x - cam.W / 2) / cam.k)), mul(cam.up, (cam.H / 2 - y) / cam.k));
+  }
+  const MIN_VIEW = 3;   // mm of visible height at the closest zoom
+  function zoomCamera(e, f) {
+    orbit.dist = goal.dist; orbit.target = goal.target.slice(); updateCamera();
+    const before = goal.dist;
+    const nd = Math.max(MIN_VIEW, Math.min(1e6, before * f));
+    const p = worldAt(e);
+    goal.target = add(goal.target, mul(sub(p, goal.target), 1 - nd / before));
+    goal.dist = nd; goal.follow = false;
+  }
+  let detentUntil = 0;
+  function onWheel(e) {
+    if (performance.now() < detentUntil) return;
+    const steps = Math.max(-3, Math.min(3, e.deltaY / 100));
+    if (!steps) return;
+    const st = Math.abs(steps); const f = Math.exp(steps * 0.3);
+    const auto = opts.autoExplode && !S.focus;
+    if (steps < 0) {
+      if (auto && goal.follow && S.eT < 1) {
+        S.eT = Math.min(1, S.eT + 0.22 * st); goal.refit = true; cb.onExplode(S.eT);
+        if (S.eT >= 1) detentUntil = performance.now() + 250;
+      } else {
+        const wasOut = goal.dist > goal.fitDist * 1.001;
+        zoomCamera(e, f);
+        if (auto && wasOut && goal.dist <= goal.fitDist) { goal.follow = true; goal.refit = true; }
+      }
+    } else if (!goal.follow) {
+      zoomCamera(e, f);
+      if (auto && S.eT > 0 && goal.dist >= goal.fitDist) { goal.follow = true; goal.refit = true; }
+    } else if (auto && S.eT > 0) {
+      S.eT = Math.max(0, S.eT - 0.22 * st); goal.refit = true; cb.onExplode(S.eT);
+      if (S.eT <= 0) detentUntil = performance.now() + 250;
+    } else zoomCamera(e, f);
+  }
+  function bindInput(el) {
+    let drag = null; let lastClick = { t: 0, id: null };
+    el.addEventListener('contextmenu', (e) => e.preventDefault());
+    el.addEventListener('pointerdown', (e) => { drag = { x: e.clientX, y: e.clientY, btn: e.button, shift: e.shiftKey, moved: false }; try { el.setPointerCapture(e.pointerId); } catch (_) {} });
+    el.addEventListener('pointermove', (e) => {
+      if (!drag) { hoverAt(e); return; }
+      const dx = e.clientX - drag.x; const dy = e.clientY - drag.y;
+      if (Math.abs(dx) + Math.abs(dy) > 2) drag.moved = true;
+      drag.x = e.clientX; drag.y = e.clientY;
+      if (drag.btn === 2 || drag.btn === 1 || drag.shift) {
+        orbit.target = add(add(orbit.target, mul(cam.right, -dx / cam.k)), mul(cam.up, dy / cam.k));
+        goal.follow = false;
+      } else {
+        orbit.theta -= dx * 0.008;
+        orbit.phi = Math.max(0.0001, Math.min(Math.PI - 0.0001, orbit.phi - dy * 0.008));
+      }
+      goal.target = orbit.target.slice(); goal.dist = orbit.dist;
+      updateCamera();
+    });
+    el.addEventListener('pointerup', (e) => {
+      if (drag && !drag.moved && drag.btn === 0) {
+        const id = pick(e); const now = performance.now();
+        if (id && now - lastClick.t < 350 && lastClick.id === id) focus(id);
+        else { select(id); cb.onPick(id); }
+        lastClick = { t: now, id };
+      } else if (drag && drag.moved && goal.follow) goal.refit = true;
+      drag = null;
+    });
+    el.addEventListener('wheel', (e) => { e.preventDefault(); onWheel(e); }, { passive: false });
+  }
+  function inside(P, x, y) {
+    let c = false;
+    for (let i = 0, j = P.length - 1; i < P.length; j = i++) {
+      const a = P[i]; const b = P[j];
+      if ((a[1] > y) !== (b[1] > y) && x < (b[0] - a[0]) * (y - a[1]) / (b[1] - a[1]) + a[0]) c = !c;
+    }
+    return c;
+  }
+  function pick(e) {
+    const [lx, ly] = local(e); const x = lx * dpr; const y = ly * dpr;
+    for (let i = drawn.length - 1; i >= 0; i--) {
+      const it = drawn[i];
+      if (it.translucent) continue;
+      if (inside(it.P, x, y)) return it.id;
+    }
+    return null;
+  }
+  function hoverAt(e) {
+    const id = pick(e);
+    if (id !== S.hovered) { S.hovered = id; dirty = true; }
+    cb.onHover(id, e);
+  }
+  function select(id) {   // valve36: one id or a list of ids
+    S.selected = Array.isArray(id) ? (id.length ? new Set(id) : null) : id; dirty = true;
+  }
+
+  // ───────── frame loop: redraw only when something changed ─────────
+  function loop() {
+    requestAnimationFrame(loop);
+    if (Math.abs(S.e - S.eT) > 1e-4) {
+      S.e += (S.eT - S.e) * 0.16; if (Math.abs(S.e - S.eT) < 2e-3) S.e = S.eT;
+      applyExplode(); if (goal.follow) goal.refit = true;
+    }
+    if (goal.follow && goal.refit) { frame(false); goal.refit = false; }
+    const dd = goal.dist - orbit.dist; const dt = sub(goal.target, orbit.target);
+    if (Math.abs(dd) > 0.5 || dot(dt, dt) > 0.25) {
+      orbit.dist += dd * 0.22; orbit.target = add(orbit.target, mul(dt, 0.22)); updateCamera();
+    }
+    if (!dirty) return;
+    dirty = false;
+    render();
+    if (balloons.size && svg) placeBalloons();
+  }
+
+  // ───────── export ─────────
+  function tris(includeRef, fn) {
+    for (const [id, g] of S.groups) {
+      if (!g.visible) continue;
+      if (!includeRef && REF.has(g.part.look)) continue;
+      for (const f of g.faces) {
+        const P = f.p.map((v) => add(v, g.off));
+        for (let i = 1; i < P.length - 1; i++) {
+          let t = [P[0], P[i], P[i + 1]];
+          if (dot(cross(sub(t[1], t[0]), sub(t[2], t[0])), f.n) < 0) t = [t[0], t[2], t[1]];
+          fn(id, t, f.n);
+        }
+      }
+    }
+  }
+  function toSTL() {
+    const T = []; tris(false, (id, t, n) => T.push([n, ...t]));
+    const buf = new ArrayBuffer(84 + T.length * 50); const dv = new DataView(buf);
+    const head = 'IC-3D-Builder STL (mm)';
+    for (let i = 0; i < head.length; i++) dv.setUint8(i, head.charCodeAt(i));
+    dv.setUint32(80, T.length, true);
+    let o = 84;
+    for (const t of T) { for (const v of t) { dv.setFloat32(o, v[0], true); dv.setFloat32(o + 4, v[1], true); dv.setFloat32(o + 8, v[2], true); o += 12; } dv.setUint16(o, 0, true); o += 2; }
+    return new Blob([buf], { type: 'model/stl' });
+  }
+  function toOBJ(name) {
+    const L = ['# IC-3D-Builder OBJ, units mm, Y-up', `o ${name || 'item'}`];
+    let base = 1; let cur = null;
+    tris(false, (id, t) => {
+      if (id !== cur) { const p = S.groups.get(id).part; L.push(`g ${p.no ?? ''}_${id}`); cur = id; }
+      for (const v of t) L.push(`v ${v[0].toFixed(2)} ${v[1].toFixed(2)} ${v[2].toFixed(2)}`);
+      L.push(`f ${base} ${base + 1} ${base + 2}`); base += 3;
+    });
+    return new Blob([L.join('\n')], { type: 'text/plain' });
+  }
+  function toPNG() {
+    render();
+    const c = document.createElement('canvas'); c.width = canvas.width; c.height = canvas.height;
+    const g = c.getContext('2d'); g.fillStyle = opts.style === 'real' ? '#eceef0' : bgCss; g.fillRect(0, 0, c.width, c.height); g.drawImage(canvas, 0, 0);
+    return c.toDataURL('image/png');
+  }
+  const lookColor = (k) => '#' + (LOOK[k] || LOOK.body).color.toString(16).padStart(6, '0');
+
+  return { init, show, fit, setView, setExplode, getExplode, setVisible, setOption, setBackground, select, focus,
+    toSTL, toOBJ, toPNG, lookColor, state: S, opts, render: () => { dirty = true; } };
+})();
+window.AnatomyViewer = AnatomyViewer;
