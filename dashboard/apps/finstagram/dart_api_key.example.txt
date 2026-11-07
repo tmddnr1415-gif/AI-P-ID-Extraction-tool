@@ -1,0 +1,1 @@
+여기에 DART OpenAPI 인증키(40자)를 넣고 파일 이름을 dart_api_key.txt 로 바꾸세요.

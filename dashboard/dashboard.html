@@ -1398,7 +1398,7 @@ function recLabel(key, f) {
  * ===================================================================== */
 let root = null;
 /* 서버 모드: http(s):// 로 접속하면 server.py 의 REST API 사용 (폴더 선택 불필요). file:// 로 열면 폴더 모드 */
-const APP_VERSION = '2026-11-07.4';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
+const APP_VERSION = '2026-11-07.5';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
 const SERVER_URL = 'http://localhost:8080';
 // 부서원 PC 사본(file://)이 접속을 시도할 서버 — 서버가 배포 파일을 만들 때 'PC 이름 주소, IP 주소' 순으로 자동 기록함
 const DEFAULT_SERVERS = ['http://ASEUNGWOOK-B01:8080', 'http://65.3.30.234:8080'];
@@ -3535,6 +3535,7 @@ const PID_ROUTES = { pid:{ title:'P&ID 분석', port:PID_PORT, path:'/', q:'embe
   space:{ title:'ROOM SIZE 계산', port:PID_PORT, path:'/space', q:'embed=1&' },   // P&ID 서버(run_lan_service.bat · hotfix106~)의 /space
   books:{ title:'도서검토', port:PID_PORT, path:'/books/', q:'embed=1&' },       // P&ID 서버(hotfix115~)의 /books/
   ic3d:{ title:'3D 계측제어', port:PID_PORT, path:'/ic3d', q:'embed=1&' },
+  finstagram:{ title:'재무스타그램', port:8765, path:'/', q:'', off:'재무스타그램 서버가 꺼져 있습니다 — 대시보드 서버가 함께 띄웁니다. 서버 PC 운영 폴더의 finstagram.log 를 확인하세요 (켜지면 자동으로 다시 연결합니다)' },   // 2026-11-07 대시보드에 포함 (apps\finstagram\server.py, 대시보드 서버가 띄움)
   valve:{ title:'CO2 PJT · Datasheet · Ball Valve', port:PID_PORT, path:'/valve/', q:'embed=1&project=CO2%20PJT&' } };   // 실행 프로젝트 › CO2 PJT › Datasheet › Ball Valve — P&ID 서버의 /valve/ (Valve Datasheet 검토, VALVE 세션)     // 2026-11-07 세션 7 '3D 계측제어 도구' — P&ID 서버의 /ic3d (그쪽에서 만듦, 여기는 연결만)
 const PID_OFF = 'P&ID 서버가 꺼져 있습니다 — 부서장 PC 의 run_lan_service.bat 을 확인하세요 (켜지면 자동으로 다시 연결합니다)';
 // 호스트 = 지금 연결된 대시보드 서버의 호스트 (서버 모드: 이 페이지 주소, file://: 실제 접속에 성공한 서버 주소), 포트만 PID_PORT
@@ -3568,7 +3569,7 @@ async function pidConnect(key) {
   if ($('#pidwrap') !== wrap) return;                    // 확인하는 동안 다른 메뉴로 이동함
   body.innerHTML = ok
     ? `<iframe class="pidframe" src="${esc(url)}" title="${T}"></iframe>`
-    : `<div class="pidmsg"><p>${esc(PID_OFF)}</p>
+    : `<div class="pidmsg"><p>${esc(R.off || PID_OFF)}</p>
          <p class="muted">${esc(base)}</p><button class="btn pri" data-pidretry>다시 시도</button></div>`;
   if (!ok) setTimeout(() => { if ($('#pidwrap') === wrap && $('[data-pidretry]', wrap)) pidConnect(key); }, 5000);   // 그 화면에 있는 동안 5초마다 다시 확인
 }
@@ -3576,9 +3577,7 @@ async function pidConnect(key) {
 /* ---------- ROOM SIZE 계산(옛 판넬 공간확보) 등: 대시보드 서버(/apps/)의 연결 앱을 P&ID 와 같은 화면 틀(본문 전체 iframe)로 ----------
  * MODULES(카드 안 iframe)와 달리 1분 자동 갱신에도 iframe 을 다시 만들지 않는다 (편집 중인 배치가 날아가지 않게).
  * 주소 뒤 값: embed=1(앱 자체 제목줄 숨김) · user=로그인 본명(작성자 기본값) */
-const APP_ROUTES = {   // 대시보드 서버(/apps/)에서 띄우는 연결 앱 (ROOM SIZE 계산 · 도서검토는 2026-10-26 부터 P&ID 서버, PID_ROUTES)
-  finstagram:{ title:'재무스타그램', src:'/apps/finstagram/index.html' },   // 2026-11-07 대시보드에 포함해 관리 (운영 폴더 apps\finstagram\) · DART 는 서버 중계 /api/dart/… (키 = 서버 PC 키 파일)
-};
+const APP_ROUTES = {};   // 대시보드 서버(/apps/)에서 띄우는 연결 앱 — 지금은 없음 (ROOM SIZE 계산 · 도서검토는 P&ID 서버, 재무스타그램은 자기 서버 8765 — PID_ROUTES)
 const FRAME_ROUTES = k => PID_ROUTES[k] || APP_ROUTES[k];   // 본문 전체를 iframe 으로 채우는 메뉴
 function appUrl(key) {
   return `${API_BASE}${APP_ROUTES[key].src}?embed=1&user=${encodeURIComponent(user || '')}`;

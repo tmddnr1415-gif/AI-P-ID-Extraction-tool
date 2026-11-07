@@ -1371,3 +1371,12 @@ C:\Users\SAMSUNG\Desktop\Claude\                         ← 개발 폴더 (여�
 - 바뀐 곳: dashboard.html `APP_VERSION` · `APP_ROUTES` · `ROUTES` · `renderMenu` · `VOC_MENU` · `QF_MENUS` · `PZ_STATUS` / server.py `SERVER_VERSION` · `DART` `dart_key_path` `dart_key` `api_dart_status` `api_dart` · `api`('dart') · `MENUS` · `VOC_MENUS` · `main`(--dart-key) / dashboard_tools/make_patch.py `KEEP_PREFIX`.
 - 확인한 것: 임시 서버 — 키 없음 → 503 안내(기본 경로 표시), dart_key_path.txt 로 임시 키 → _status 40자 · 이 환경은 외부 인터넷이 막혀 502 'DART 서버에 연결하지 못했습니다'(정상 안내), 이상한 이름 → 404/400. 메뉴 클릭 → 파일 없음 안내. 페이지 오류 없음.
 - 회사에서 확인할 것: 서버 PC 에서 opendart.fss.or.kr 접속이 되는지(사내 방화벽), 키 파일 경로.
+
+### 2026-11-07 (APP_VERSION 2026-11-07.5 / SERVER_VERSION 2026-11-07.3) — 재무스타그램 앱 넣음 · 자기 서버로 띄움
+- 무엇을: 사용자가 올린 재무스타그램(dart_dashboard: server.py · extras.py · index.html · CLAUDE.md …)을 `apps/finstagram/` 에 넣음. 앱이 원래 자기 서버(표준 라이브러리, 8765)에서 DART · 네이버 증권 · FnGuide · Open-Meteo · 회사 IR 을 서버 쪽에서 부르므로, 바로 앞 판의 대시보드 `/api/dart` 중계는 **빼고**, 대시보드 서버가 앱 서버를 **함께 띄우는 방식**(계장 광장과 같음)으로 바꿈.
+  - 대시보드 server.py: `FIN` · `dart_key_path` · `fin_info` · `fin_loop`(30초마다 확인, 꺼지면 다시 띄움, 3번 연속 실패면 10분 쉼, 기록 `finstagram.log`) · `fin_stop` · `--fin-port`(기본 8765, 0 = 안 띄움) · `/api/info` 에 `finPort`. 띄울 때 환경변수 `PORT` · `FIN_HOST=0.0.0.0` · `DART_KEY_FILE`(키 파일 경로 — 대시보드는 키 값을 읽지 않음) · `FIN_NETS_FILE`(대시보드 사내 대역 파일).
+  - 앱 server.py(최소 수정, 앱 `APP_VERSION 2026-11-07.1`): 키 = `DART_API_KEY` → `DART_KEY_FILE` → `dart_api_key.txt`(`DART_API_KEY=…` 형식도), **키가 없어도 서버는 켜지고** 요청 때 안내 · corpCode 목록은 첫 검색 때 받음(인터넷이 없어도 켜지게) · `FIN_HOST` · **사내망 주소만 허용**(사설망 + 대시보드 대역 파일) · `/version`(대시보드 연결 확인용) · `/vendor/…` 정적 파일(상위 경로 차단) · 접속 로그 끔.
+  - 앱 index.html: CDN 4곳 → `vendor/`(echarts 5.4.3 · world.json(echarts 4.9.0) · globe.gl 2.34.1 · three-globe 2.31.1 그림 3장, npm 꾸러미에서 꺼냄, 라이선스 파일 같이).
+  - 대시보드 dashboard.html: 메뉴는 `PID_ROUTES.finstagram`({port:8765, path:'/', off:'…finstagram.log 확인'}) — P&ID 처럼 `/version` 확인 뒤 iframe. `pidConnect` 가 경로별 `off` 안내를 씀. `APP_ROUTES` 는 다시 빈 값.
+- 확인한 것: 임시 서버 — 대시보드가 앱 서버를 띄움(finstagram.log '키 있음'), `/version` · `/vendor/echarts.min.js` 200, `/vendor/../server.py` 404, 메뉴 9 재무스타그램 → iframe `:8765/` 에 검색 첫 화면 · echarts 로드됨, 페이지 오류 없음. 이 환경은 외부 인터넷이 막혀 실제 검색(DART)은 확인 못 함.
+- 회사에서 확인할 것: 서버 재시작 뒤 메뉴 재무스타그램 · Windows 방화벽이 python 8765 포트를 물으면 허용(계장 광장 8100 과 같음) · 키 파일 경로(운영 폴더 `dart_key_path.txt` 또는 `C:\Claude\keys\dart_api_key.txt`) · 서버 PC 에서 opendart.fss.or.kr · 네이버 증권 접속. IR PDF 카드는 pymupdf 가 없어 꺼짐(앱 원래 동작).
