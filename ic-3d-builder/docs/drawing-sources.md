@@ -80,3 +80,23 @@ PSV의 `cti`·`cto`는 아직 표가 없어 **추정값**입니다. API 526 표�
 | [Rosemount Hook-ups 카탈로그](https://issuu.com/lupposrv/docs/hookups) | 표준 훅업 모음 |
 
 현장 훅업은 프로젝트 표준(STD-xxx) 도면이 우선입니다. 그 도면을 이 툴에 넣으면 됩니다.
+
+## 부품 명칭·기능 근거 (anatomy 설명용)
+
+엔진(`src/anatomy.js`)의 부품 이름·기능 설명·통상 재질은 아래 공개 자료와 엔지니어링 지식으로 썼습니다.
+원문 PDF 는 이 환경에서 받지 못했으므로 문구는 직접 썼고, 벤더별 명칭과 다를 수 있습니다.
+
+| 품목 | 출처 |
+|---|---|
+| Control valve (body, bonnet, cage, plug, seat ring, packing, yoke, diaphragm actuator, spring) | [Globe valve — Wikipedia (Fisher Control Valve Handbook 링크)](https://en.wikipedia.org/wiki/Globe_valve) · [Control.com — sliding stem valve 분해](https://control.com/textbook/disassembly-of-a-sliding-stem-control-valve/) · [Control.com — sliding stem valves](https://control.com/textbook/control-valves/sliding-stem-valves/) · [Automation Forum — basic parts of control valves](https://automationforum.co/?p=1595) · [Fisher CAV4 manual](https://d1-live.emerson.com/documents/automation/instruction-manual-fisher-cav4-control-valve-en-8640910.pdf) · [Valtek Mark One](https://alphagroup.co.th/wp-content/uploads/2018/09/Control-valve-_Mark-One.pdf) |
+| PSV (nozzle, adjusting ring, disc, disc holder, guide, spindle, spring washers, adjusting screw, bonnet, cap) | [Baker Hughes — PRV Basics (Valve Magazine)](https://dam.bakerhughes.com/m/297f2f644411c808/original/PRV-Basics-1-Valve-Magazine-2023-Fall-Issue.pdf) · ASME PTC 25 용어 · 미국 특허 [8607818](https://image-ppubs.uspto.gov/dirsearch-public/print/downloadPdf/8607818) |
+| Gate (API 600: body, bonnet, wedge, seat rings, stem, gland, yoke) | [Project Materials — gate valve](https://blog.projectmaterials.com/valves/gate-valve) · [IOGP S-611 (API 600 보충)](https://www.iogp.org/bookstore/wp-content/uploads/sites/2/2023/03/Supplementary-Reqs-to-API-600-Steel-Gate-Valves-and-to-API-603-CRA-Gate-Valves-S-611v19-05.pdf) · [Bonney Forge 6" gate 2D sales drawing](https://cad.bonneyforge.com/Asset/8_-6-11-RF-WCB-GATE-LE_2D-Sales-Drawing.pdf) |
+| MOV (motor, worm gear, handwheel, declutch, thrust base, drive bush, torque switch, terminal compartment) | [Rotork 사양서 PUB002-138](https://www.rotork.com/uploads/documents-versions/44326/1/pub002-138-00-0119.pdf) · [Bettis XTE3000 데이터시트](https://emerson.com/documents/automation/data-sheet-bettis-xte3000-en-en-6002142.pdf) · [InstrumentationTools — electric actuator parts](https://instrumentationtools.com/electric-motor-actuator-parts) |
+
+## 사용자가 준 참고 링크
+
+| 링크 | 반영 |
+|---|---|
+| [thebuggeddev/anatomy](https://github.com/thebuggeddev/anatomy) | 클론해서 구조 확인. 핫스팟 점 + 콜아웃 카드 + 부품 설명 데이터 구조(id·위치·라벨·설명), 줌·단면 상호작용을 참고 (코드 복사 없음) |
+| [PyTorch KR — Image Blaster 3D](https://discuss.pytorch.kr/t/image-blaster-3d-claude/11500) | 이 환경에서 접속 불가. 검색으로 확인: World Labs Marble + fal Hunyuan3D 유료 API 로 이미지→메쉬. 치수 정확도가 없어 채택하지 않음 |
+| [Scribd — Control Valve General Arrangement Drawings](https://www.scribd.com/document/799983491/Control-Valve-General-Arrangement-Drawings) | 이 환경에서 접속 불가. 내용 미확인 — GA 도면의 Parts list(풍선 번호·부품명·재질)를 읽어 3D 부품에 연결하는 기능으로 대응 |

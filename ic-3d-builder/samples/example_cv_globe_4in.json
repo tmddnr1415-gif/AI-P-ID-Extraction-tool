@@ -1,20 +1,142 @@
 {
   "tool": "ic-3d-builder",
-  "version": 1,
-  "_comment": "예시 스펙 — 가상의 4in CL300 글로브 조절밸브 GA 도면을 읽었다고 가정한 값. 실제 벤더 치수 아님.",
+  "version": 2,
+  "_comment": "Example spec — values as if read from a fictitious 4\" CL300 globe control valve GA drawing. Not real vendor dimensions.",
   "type": "valve",
   "preset": "cv_globe",
   "inputs": {
-    "tag": { "value": "FV-1101", "src": "drawing", "evidence": "타이틀블록" },
-    "body": { "value": "globe", "src": "drawing", "evidence": "도면명 GLOBE CONTROL VALVE" },
-    "operator": { "value": "pneumatic_diaphragm", "src": "drawing", "evidence": "SPRING & DIAPHRAGM ACTUATOR" },
-    "service": { "value": "control", "src": "default" },
-    "nps": { "value": 4, "src": "drawing", "evidence": "SIZE 4\"" },
-    "cls": { "value": "300", "src": "drawing", "evidence": "ASME CL300 RF" },
-    "ftf": { "value": 368, "src": "drawing", "as_drawn": "A = 14.50 in", "evidence": "A = 14.50 in · 정면도 치수표", "confidence": "high" },
-    "act_d": { "value": 432, "src": "drawing", "evidence": "D = 17.0 in · 액추에이터 치수표", "confidence": "high" },
-    "overall_h": { "value": 1180, "src": "drawing", "evidence": "H MAX = 46.5 in · 정면도", "confidence": "medium" },
-    "positioner": { "value": true, "src": "drawing", "evidence": "DVC 포지셔너 표기" }
+    "tag": {
+      "value": "FV-1101",
+      "src": "drawing",
+      "evidence": "title block"
+    },
+    "body": {
+      "value": "globe",
+      "src": "drawing",
+      "evidence": "drawing title GLOBE CONTROL VALVE"
+    },
+    "operator": {
+      "value": "pneumatic_diaphragm",
+      "src": "drawing",
+      "evidence": "SPRING & DIAPHRAGM ACTUATOR"
+    },
+    "service": {
+      "value": "control",
+      "src": "default"
+    },
+    "nps": {
+      "value": 4,
+      "src": "drawing",
+      "evidence": "SIZE 4\""
+    },
+    "cls": {
+      "value": "300",
+      "src": "drawing",
+      "evidence": "ASME CL300 RF"
+    },
+    "ftf": {
+      "value": 368,
+      "src": "drawing",
+      "as_drawn": "A = 14.50 in",
+      "evidence": "A = 14.50 in · front view table",
+      "confidence": "high"
+    },
+    "act_d": {
+      "value": 432,
+      "src": "drawing",
+      "evidence": "D = 17.0 in · actuator table",
+      "confidence": "high"
+    },
+    "overall_h": {
+      "value": 1180,
+      "src": "drawing",
+      "evidence": "H MAX = 46.5 in · front view",
+      "confidence": "medium"
+    },
+    "positioner": {
+      "value": true,
+      "src": "drawing",
+      "evidence": "DVC positioner callout"
+    }
   },
-  "extraction": null
+  "extraction": null,
+  "parts_list": [
+    {
+      "item_no": "1",
+      "name": "BODY",
+      "material": "A216 WCC",
+      "qty": "1",
+      "part_id": "body"
+    },
+    {
+      "item_no": "2",
+      "name": "BONNET",
+      "material": "A216 WCC",
+      "qty": "1",
+      "part_id": "bonnet"
+    },
+    {
+      "item_no": "3",
+      "name": "VALVE PLUG",
+      "material": "316 SS / ALLOY 6",
+      "qty": "1",
+      "part_id": "plug"
+    },
+    {
+      "item_no": "4",
+      "name": "CAGE",
+      "material": "416 SS",
+      "qty": "1",
+      "part_id": "cage"
+    },
+    {
+      "item_no": "5",
+      "name": "SEAT RING",
+      "material": "316 SS / ALLOY 6",
+      "qty": "1",
+      "part_id": "seat_ring"
+    },
+    {
+      "item_no": "6",
+      "name": "VALVE STEM",
+      "material": "S20910",
+      "qty": "1",
+      "part_id": "stem"
+    },
+    {
+      "item_no": "7",
+      "name": "PACKING SET",
+      "material": "PTFE",
+      "qty": "1",
+      "part_id": "packing"
+    },
+    {
+      "item_no": "8",
+      "name": "GASKET",
+      "material": "GRAPHITE",
+      "qty": "1",
+      "part_id": "bonnet_gasket"
+    },
+    {
+      "item_no": "9",
+      "name": "STUD BOLT",
+      "material": "A193 B7",
+      "qty": "8",
+      "part_id": "bonnet_bolting"
+    },
+    {
+      "item_no": "10",
+      "name": "DIAPHRAGM",
+      "material": "NITRILE",
+      "qty": "1",
+      "part_id": "diaphragm"
+    },
+    {
+      "item_no": "11",
+      "name": "ACTUATOR SPRING",
+      "material": "STEEL",
+      "qty": "1",
+      "part_id": "spring"
+    }
+  ]
 }

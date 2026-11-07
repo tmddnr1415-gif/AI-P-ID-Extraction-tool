@@ -1,98 +1,107 @@
-# Anatomy 파라미터 사전
+# Anatomy parameter dictionary
 
-생성 파일 — `node ic-3d-builder/dev/spec.mjs params` 로 다시 만든다. 원본은 `ic-3d-builder/src/anatomy.js`.
+Generated — rebuild with `node ic-3d-builder/dev/spec.mjs params`. Source: `ic-3d-builder/src/anatomy.js`.
 
-## `valve` — 밸브 (CV · MOV · Manual · PSV)
+## `valve` — Valve (CV · MOV · Manual · PSV)
 
 | key | 단위 | 선택지 | 의미 |
 |---|---|---|---|
 | `tag` |  |  | Tag No. |
-| `body` |  | globe, gate, ball, butterfly, psv | 바디 형식 — globe / gate / ball / butterfly / psv(앵글형 안전밸브) |
-| `operator` |  | handwheel, lever, gear, pneumatic_diaphragm, pneumatic_rotary, electric, spring | 조작기 — handwheel, lever, gear(웜기어), pneumatic_diaphragm(CV), pneumatic_rotary(랙피니언/스카치요크), electric(MOV), spring(PSV) |
-| `service` |  | control, on_off | 용도 — control 이면 글로브 면간거리를 ISA-75.08.01 로 잡는다 |
-| `nps` | in |  | 호칭경 (inlet) |
-| `cls` |  | 150, 300 | 압력등급 (inlet) |
-| `outlet_nps` | in |  | 출구 호칭경 |
-| `outlet_cls` |  | 150, 300 | 출구 등급 |
-| `ftf` | mm |  | 면간거리 F-F — 플랜지 면과 면 사이 거리 |
-| `cti` | mm |  | 중심-입구면 (C-I) — 밸브 중심(출구 축)에서 입구 플랜지 면까지 수직거리 |
-| `cto` | mm |  | 중심-출구면 (C-O) — 밸브 중심(입구 축)에서 출구 플랜지 면까지 수평거리 |
-| `body_h` | mm |  | 바디 높이 (CL→보닛 플랜지) |
-| `body_w` | mm |  | 바디 최대폭 |
-| `bonnet_h` | mm |  | 보닛/넥 높이 — 보닛 플랜지 위 ~ 요크/조작기 장착면 (PSV 는 스프링 하우징 높이) |
-| `pipe_stub` | mm |  | 참조 배관 길이 — 0 이면 표시 안 함 |
-| `yoke_h` | mm |  | 요크/브래킷 높이 |
-| `act_d` | mm |  | 액추에이터 지름/폭 |
-| `act_h` | mm |  | 액추에이터 높이 |
-| `act_l` | mm |  | 실린더 길이 (로터리) |
-| `hw_d` | mm |  | 핸드휠 지름 |
-| `lever_l` | mm |  | 레버 길이 |
-| `stem_ext` | mm |  | 스템 노출 (Rising stem 열림) |
-| `positioner` |  | true, false | 포지셔너 |
-| `cv_handwheel` |  | true, false | 상부 수동 핸드휠 |
-| `psv_lever` |  | true, false | 리프팅 레버 |
-| `overall_h` | mm |  | 전체 높이 (CL→최상단) — 도면에 전체 높이만 있으면 여기 넣는다. 추정 높이 치수들을 이 값에 맞춰 비례 조정한다 |
+| `body` |  | globe, gate, ball, butterfly, psv | Body type — globe / gate / ball / butterfly / psv (angle-pattern spring-loaded safety valve) |
+| `operator` |  | handwheel, lever, gear, pneumatic_diaphragm, pneumatic_rotary, electric, spring | Operator — handwheel, lever, gear (worm gear), pneumatic_diaphragm (spring & diaphragm CV), pneumatic_rotary (rack & pinion / scotch yoke), electric (MOV), spring (PSV) |
+| `service` |  | control, on_off | Service — control → globe face-to-face per ISA-75.08.01 and cage-guided trim |
+| `nps` | in |  | Size NPS (inlet) |
+| `cls` |  | 150, 300 | Pressure class (inlet) |
+| `outlet_nps` | in |  | Outlet NPS |
+| `outlet_cls` |  | 150, 300 | Outlet class |
+| `bore` |  | full, reduced | Ball bore |
+| `ftf` | mm |  | Face-to-face — Flange face to flange face |
+| `cti` | mm |  | Centre to inlet face — Outlet centreline to inlet flange face (vertical) |
+| `cto` | mm |  | Centre to outlet face — Inlet centreline to outlet flange face (horizontal) |
+| `body_h` | mm |  | Body height (CL → bonnet face) |
+| `body_w` | mm |  | Body max. width |
+| `bonnet_h` | mm |  | Bonnet / neck height — Bonnet flange to yoke/operator mounting face (PSV: spring bonnet height) |
+| `port_d` | mm |  | Port / seat bore — Seat ring bore / ball bore / nozzle bore |
+| `stem_d` | mm |  | Stem / shaft diameter |
+| `pipe_stub` | mm |  | Reference pipe length — 0 = hide |
+| `yoke_h` | mm |  | Yoke / bracket height |
+| `act_d` | mm |  | Actuator diameter / width |
+| `act_h` | mm |  | Actuator height |
+| `act_l` | mm |  | Cylinder length (rotary) |
+| `hw_d` | mm |  | Handwheel diameter |
+| `lever_l` | mm |  | Lever length |
+| `stem_ext` | mm |  | Stem rise (rising stem, open) |
+| `positioner` |  | true, false | Positioner |
+| `cv_handwheel` |  | true, false | Top-mounted handwheel |
+| `psv_lever` |  | true, false | Lifting lever |
+| `overall_h` | mm |  | Overall height (CL → top) — If the drawing only gives the overall height, enter it here: estimated heights are scaled to match |
 
 ## `cabinet` — System Cabinet
 
 | key | 단위 | 선택지 | 의미 |
 |---|---|---|---|
 | `tag` |  |  | Cabinet No. |
-| `bays` |  |  | 연결 베이 수 |
-| `w` | mm |  | 폭 W (베이당) |
-| `h` | mm |  | 높이 H (플린스 제외) |
-| `d` | mm |  | 깊이 D |
-| `plinth_h` | mm |  | 플린스(베이스) 높이 |
-| `doors` |  | 1, 2 | 전면 도어 수 |
-| `rear_door` |  | true, false | 후면 도어 |
-| `door_open` | ° |  | 도어 열림각 (간섭검토) |
-| `louvers` |  | true, false | 도어 루버 |
-| `fan` |  | true, false | 루프 팬 |
-| `lifting_eyes` |  | true, false | 리프팅 아이볼트 |
-| `mounting_plate` |  | true, false | 마운팅 플레이트 |
-| `modules` |  |  | I/O·DIN 모듈 행 |
-| `gland_plate` |  | true, false | 하부 케이블 글랜드 플레이트 |
-| `clearance` | mm |  | 전면 유지보수 공간 표시 — 0 이면 표시 안 함 |
+| `bays` |  |  | Number of bays |
+| `w` | mm |  | Width W (per bay) |
+| `h` | mm |  | Height H (excl. plinth) |
+| `d` | mm |  | Depth D |
+| `plinth_h` | mm |  | Plinth height |
+| `doors` |  | 1, 2 | Front doors per bay |
+| `rear_door` |  | true, false | Rear door |
+| `door_open` | ° |  | Door opening angle |
+| `louvers` |  | true, false | Door louvres / filter fans |
+| `fan` |  | true, false | Roof fan |
+| `lifting_eyes` |  | true, false | Lifting eye bolts |
+| `mounting_plate` |  | true, false | Mounting plate |
+| `modules` |  |  | DIN rail / I/O rows |
+| `gland_plate` |  | true, false | Bottom gland plate |
+| `clearance` | mm |  | Front maintenance clearance — 0 = hide |
 
 ## `hookup` — Instrument Hook-up
 
 | key | 단위 | 선택지 | 의미 |
 |---|---|---|---|
 | `tag` |  |  | Tag No. |
-| `inst` |  | PT, DPT, LT_DP, FT_DP | 계기 — PT=압력, DPT=차압(오리피스), LT_DP=차압식 레벨(탱크 노즐 2개), FT_DP=유량(오리피스 탭) |
-| `service` |  | gas, liquid, steam | 유체 — gas=계기 위(탭 상부), liquid/steam=계기 아래(탭 측면/하부). 튜빙 기울기 방향이 바뀐다 |
-| `proc_nps` | in |  | 공정배관 호칭경 |
-| `pipe_el` | mm |  | 배관 중심 높이 (바닥 기준) |
-| `tap` |  | top, side, bottom, side45 | 탭 방향 |
-| `tap_sep` | mm |  | HP-LP 탭 간격 — DP: 오리피스 플랜지 탭 간격, LT_DP: 상·하부 노즐 고저차 |
-| `mount` |  | stand, close_coupled | 설치 |
-| `stand_h` | mm |  | 스탠드 높이 |
-| `stand_dx` | mm |  | 스탠드 위치 X (배관 축 방향) |
-| `stand_dz` | mm |  | 스탠드 위치 Z (배관에서 이격) |
-| `tube_od` | mm |  | 임펄스 튜브 OD |
-| `slope` | 1:x |  | 튜빙 기울기 — 수평 구간 최소 기울기. 1:12 가 일반적 |
-| `root_valve` |  | true, false | 루트밸브 |
-| `manifold` |  | none, 2V, 3V, 5V | 매니폴드 |
-| `drain` |  | true, false | 드레인/벤트 밸브 |
-| `sunshade` |  | true, false | 선쉐이드 |
+| `inst` |  | PT, DPT, LT_DP, FT_DP | Instrument — PT = pressure, DPT = differential pressure, LT_DP = DP level (two vessel nozzles), FT_DP = DP flow (orifice taps) |
+| `service` |  | gas, liquid, steam | Fluid — gas → instrument above tap; liquid/steam → instrument below tap |
+| `proc_nps` | in |  | Process pipe NPS |
+| `pipe_el` | mm |  | Pipe centreline elevation |
+| `tap` |  | top, side, bottom, side45 | Tap orientation |
+| `tap_sep` | mm |  | HP–LP tap separation — DP flow: orifice flange tap spacing; DP level: nozzle elevation difference |
+| `mount` |  | stand, close_coupled | Mounting |
+| `stand_h` | mm |  | Stand height |
+| `stand_dx` | mm |  | Stand offset X (along pipe) |
+| `stand_dz` | mm |  | Stand offset Z (from pipe) |
+| `tube_od` | mm |  | Impulse tube OD |
+| `slope` | 1:x |  | Tubing slope — Minimum slope of horizontal runs; 1:12 is typical |
+| `root_valve` |  | true, false | Root valve |
+| `manifold` |  | none, 2V, 3V, 5V | Manifold |
+| `drain` |  | true, false | Drain / vent valve |
+| `sunshade` |  | true, false | Sunshade |
 
 
-프리셋:
+Presets:
 ```
-cv_globe   valve    Control Valve — Globe (공압 다이어프램)
-cv_ball    valve    Control Valve — Ball (공압 로터리)
-cv_bfv     valve    Control Valve — Butterfly (공압 로터리)
+cv_globe   valve    Control valve — Globe (spring & diaphragm)
+cv_ball    valve    Control valve — Ball (pneumatic rotary)
+cv_bfv     valve    Control valve — Butterfly (pneumatic rotary)
 mov_gate   valve    MOV — Gate
 mov_globe  valve    MOV — Globe
 mov_ball   valve    MOV — Ball
 mov_bfv    valve    MOV — Butterfly
-man_gate   valve    Manual — Gate (핸드휠, Rising stem)
-man_globe  valve    Manual — Globe (핸드휠)
-man_ball   valve    Manual — Ball (레버)
-man_bfv    valve    Manual — Butterfly (기어)
-psv        valve    PSV — Spring Loaded (앵글)
-cabinet    cabinet  System Cabinet
-hook_pt    hookup   Hook-up — PT (스탠드)
-hook_dpt   hookup   Hook-up — DP 유량 (오리피스)
-hook_lt    hookup   Hook-up — DP 레벨 (탱크)
+man_gate   valve    Manual — Gate (OS&Y handwheel)
+man_globe  valve    Manual — Globe (handwheel)
+man_ball   valve    Manual — Ball (lever)
+man_bfv    valve    Manual — Butterfly (gear)
+psv        valve    PSV — Spring-loaded (angle)
+cabinet    cabinet  System cabinet
+hook_pt    hookup   Hook-up — PT on pipe stand
+hook_dpt   hookup   Hook-up — DP flow (orifice, close-coupled)
+hook_lt    hookup   Hook-up — DP level (vessel)
 ```
+
+Part catalogue (part_id — used to link a drawing parts list to 3D parts):
+
+- **valve**: `body` Body · `seat_ring` Seat ring · `cage` Cage · `plug` Valve plug · `stem` Valve stem · `bonnet_gasket` Bonnet gasket · `bonnet` Bonnet · `bonnet_bolting` Bonnet studs & nuts · `packing` Packing set · `gland` Packing follower · `gland_flange` Packing flange · `gland_studs` Packing flange studs & nuts · `yoke` Yoke · `stem_connector` Stem connector · `travel_indicator` Travel indicator & scale · `actuator_stem` Actuator stem · `lower_casing` Lower diaphragm casing · `spring` Actuator spring · `diaphragm_plate` Diaphragm plate (head) · `diaphragm` Diaphragm · `upper_casing` Upper diaphragm casing · `casing_bolts` Casing cap screws & nuts · `handwheel` Handwheel · `positioner_bracket` Positioner mounting bracket · `positioner` Digital valve positioner · `airset` Air filter regulator · `tubing` Instrument tubing · `bolting_in` Inlet flange studs & nuts · `bolting_out` Outlet flange studs & nuts · `body_connector` Body connector (end piece) · `body_bolting` Body bolting · `mounting_pad` Top flange (ISO 5211 pad) · `seats` Seats · `ball` Ball · `thrust_washer` Stem thrust washer · `stem_seal` Stem seals (O-rings / packing) · `bracket` Mounting bracket · `coupling` Drive coupling · `actuator` Actuator housing (rack & pinion) · `end_cap_l` End cap / spring cartridge (left) · `end_cap_r` End cap / spring cartridge (right) · `indicator` Visual position indicator · `solenoid` Solenoid valve (NAMUR) · `liner` Seat liner · `disc` Disc · `taper_pins` Disc taper pins · `shaft_lower` Lower shaft · `bushings` Shaft bushings · `shaft_upper` Upper shaft · `seat_rings` Seat rings · `wedge` Wedge (gate) · `thrust_base` Thrust base (type A) · `drive_bush` Drive bush (stem nut) · `gearcase` Main gearcase (worm drive) · `control_unit` Control unit & display · `motor` Motor · `declutch` Declutch lever · `hw_shaft` Handwheel shaft · `terminal_cover` Terminal compartment & cable entries · `stem_cover` Stem protection tube · `trunnion` Lower trunnion & cover · `yoke_sleeve` Yoke sleeve (stem nut) · `hw_nut` Handwheel nut · `lever_head` Wrench head & stop plate · `lever` Lever handle · `gearbox` Worm gearbox · `gear_indicator` Position indicator · `input_shaft` Input shaft · `nozzle` Nozzle · `adjusting_ring` Adjusting (blowdown) ring · `disc_holder` Disc holder · `guide` Guide · `spindle` Spindle · `lower_washer` Lower spring washer · `upper_washer` Upper spring washer · `bonnet_studs` Bonnet studs & nuts · `adjusting_screw` Adjusting screw & lock nut · `cap` Lifting lever cap
+- **cabinet**: `plinth` Plinth (base frame) · `frame` Frame · `side_panel_l` Side panel (left) · `side_panel_r` Side panel (right) · `roof` Roof plate · `rear` Rear door · `doors` Front door(s) · `handles` Handles & locks · `louvers` Louvres / filter fans · `gland_plate` Gland plate · `lifting_eyes` Lifting eye bolts · `mounting_plate` Mounting plate · `din_rails` DIN rails & wiring duct · `modules` I/O modules & terminals
+- **hookup**: `transmitter` Pressure transmitter · `manifold` 2V valve manifold · `root_valve0` Root valve · `root_valve0_hw` Root valve handle · `drain` Drain valve · `tubing0` Impulse tubing · `stand` 2" pipe stand · `ubolt` Mounting bracket & U-bolts · `orifice` Orifice flange set & plate · `root_valve1` Root valve (LP) · `root_valve1_hw` Root valve (LP) handle · `tubing1` Impulse tubing (LP)

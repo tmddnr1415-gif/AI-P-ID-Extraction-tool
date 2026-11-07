@@ -1,33 +1,61 @@
-// 모든 프리셋을 헤드리스로 렌더해 스크린샷을 남긴다. three.js 는 로컬 사본으로 대체.
-//   node dev/shots.mjs <three.min.js 경로> <출력 폴더>
+// Regression screenshots: every preset (assembled + wheel-exploded), plus info card, cutaway and isolate.
+//   node dev/shots.mjs <three.min.js> <out dir>
 import { createRequire } from 'node:module';
-const { chromium } = createRequire(import.meta.url)('playwright');
 import fs from 'node:fs'; import path from 'node:path'; import url from 'node:url';
+
+const { chromium } = createRequire(import.meta.url)('playwright');
 const [threePath, outDir] = process.argv.slice(2);
 fs.mkdirSync(outDir, { recursive: true });
-const page = await (await chromium.launch({ args: ['--use-gl=swiftshader', '--enable-unsafe-swiftshader'] })).newPage({ viewport: { width: 1400, height: 900 } });
+const browser = await chromium.launch({ args: ['--use-gl=swiftshader', '--enable-unsafe-swiftshader'] });
+const page = await browser.newPage({ viewport: { width: 1440, height: 920 } });
 const errors = [];
 page.on('pageerror', (e) => errors.push(String(e)));
 page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); });
 await page.route('**/three.min.js', (r) => r.fulfill({ body: fs.readFileSync(threePath), contentType: 'text/javascript' }));
-const file = path.resolve(path.dirname(url.fileURLToPath(import.meta.url)), '../index.html');
-await page.goto('file://' + file);
+await page.goto('file://' + path.resolve(path.dirname(url.fileURLToPath(import.meta.url)), '../index.html'));
 await page.waitForTimeout(800);
+const vp = page.locator('#viewport');
+const box = await vp.boundingBox();
+const center = { x: box.x + box.width / 2, y: box.y + box.height / 2 };
+const settle = () => page.waitForTimeout(900);
+
 const ids = await page.$$eval('#preset option', (os) => os.map((o) => o.value));
 for (const id of ids) {
-  await page.selectOption('#preset', id);
-  await page.waitForTimeout(300);
-  const info = await page.evaluate(() => ({ parts: IC3D.S.model.parts.length, size: IC3D.S.model.bbox.size.map(Math.round) }));
-  await page.locator('#viewport').screenshot({ path: `${outDir}/${id}.png` });
-  console.log(id.padEnd(10), info.parts, 'parts', info.size.join('x'));
+  await page.selectOption('#preset', id); await settle();
+  await vp.screenshot({ path: `${outDir}/${id}.png` });
+  await page.mouse.move(center.x, center.y);
+  for (let i = 0; i < 7; i++) { await page.mouse.wheel(0, -120); await page.waitForTimeout(80); }
+  await settle();
+  const e = await page.evaluate(() => Viewer.getExplode());
+  await vp.screenshot({ path: `${outDir}/${id}_x.png` });
+  const n = await page.evaluate(() => IC3D.S.model.parts.length);
+  console.log(id.padEnd(10), String(n).padStart(3), 'parts  explode', e.toFixed(2));
 }
-// 분해 + 라벨 + 내보내기
-await page.selectOption('#preset', 'mov_gate');
-await page.fill('#explode', '0.6'); await page.dispatchEvent('#explode', 'input');
-await page.check('#opt-labels'); await page.waitForTimeout(300);
-await page.locator('#viewport').screenshot({ path: `${outDir}/mov_gate_exploded.png` });
-const exp = await page.evaluate(async () => ({ stl: (await Viewer.toSTL().arrayBuffer()).byteLength, obj: (await Viewer.toOBJ('x').text()).split('\n').length }));
+
+// control valve deep-dive
+await page.selectOption('#preset', 'cv_globe'); await settle();
+await page.mouse.move(center.x, center.y);
+for (let i = 0; i < 7; i++) { await page.mouse.wheel(0, -120); await page.waitForTimeout(80); }
+await settle();
+await page.evaluate(() => IC3D.selectPart('plug', false)); await page.waitForTimeout(400);
+await vp.screenshot({ path: `${outDir}/cv_info.png` });
+// further wheel-in now zooms the camera
+for (let i = 0; i < 4; i++) { await page.mouse.wheel(0, -120); await page.waitForTimeout(60); }
+await settle();
+await vp.screenshot({ path: `${outDir}/cv_zoom.png` });
+// wheel out: back to framed, then re-assemble
+for (let i = 0; i < 14; i++) { await page.mouse.wheel(0, 120); await page.waitForTimeout(60); }
+await settle();
+console.log('after wheel-out explode', (await page.evaluate(() => Viewer.getExplode())).toFixed(2));
+await page.check('#opt-section'); await settle();
+await page.evaluate(() => IC3D.selectPart(null));
+await vp.screenshot({ path: `${outDir}/cv_section.png` });
+await page.uncheck('#opt-section');
+await page.evaluate(() => Viewer.focus('spring')); await settle();
+await vp.screenshot({ path: `${outDir}/cv_isolate.png` });
+await page.evaluate(() => Viewer.focus(null)); await settle();
+const exp = await page.evaluate(async () => ({ stl: (await Viewer.toSTL().arrayBuffer()).byteLength, objGroups: (await Viewer.toOBJ('x').text()).split('\n').filter((l) => l.startsWith('g ')).length }));
 console.log('export', exp);
 await page.screenshot({ path: `${outDir}/_full.png` });
 console.log('errors', errors);
-process.exit(0);
+await browser.close();
