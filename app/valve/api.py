@@ -27,12 +27,12 @@ from fastapi.responses import FileResponse, JSONResponse, RedirectResponse, Resp
 from starlette.concurrency import run_in_threadpool
 
 from app import paths
-from app.valve import docrev, i18n, ruleperf, checks as chkmod, revisions as revmod, exports, extract, issues as issuesmod, expert as expmod, knowledge as kbmod, location as locmod, tagrules as tagmod, material, matreview as matmod, pms as pmsmod, process as procmod, requirements as reqmod, schema, store, tbe
+from app.valve import digest, docrev, i18n, ruleperf, checks as chkmod, revisions as revmod, exports, extract, issues as issuesmod, expert as expmod, knowledge as kbmod, location as locmod, tagrules as tagmod, material, matreview as matmod, pms as pmsmod, process as procmod, requirements as reqmod, schema, store, tbe
 
 router = APIRouter()
 _JOBS: dict[str, dict] = {}
 _JLOCK = threading.Lock()
-_STATIC = {"valve.js": "application/javascript", "valve.css": "text/css"}
+_STATIC = {"valve.js": "application/javascript", "valve.css": "text/css", "anatomy.js": "application/javascript"}   # anatomy.js = valve36 valve model (session 7 engine)
 KINDS = ("datasheet", "valvelist", "process", "pms")
 
 
@@ -413,6 +413,7 @@ def warm(pid: int):
             _cached("rules", pid, lambda c: _rules_performance(c, pid), arg=dt.date.today().isoformat())
             _cached("tagging", pid, lambda c: _tagging(c, pid))
             _cached("vsum", pid, lambda c: _json(_valve_summary(c, pid)))
+            _cached("digest", pid, lambda c: _digest_body(c, pid))
             _cached("pms", pid, lambda c: _pms_body(c, pid))
             _cached("process", pid, lambda c: _process_body(c, pid))
             issues_json(pid, 1)
@@ -444,7 +445,7 @@ def _rules_fingerprint() -> str:
 
 
 _RULES_FP = _rules_fingerprint()
-VERSION = "valve34"                       # shown in Settings › 정보 and the footer; bump with every package
+VERSION = "valve36"                       # shown in Settings › 정보 and the footer; bump with every package
 
 
 @router.get("/api/valve/version")
@@ -1325,6 +1326,18 @@ def issues_json(pid: int, compact: int = 0, request: Request | None = None):
     return _gz_response(gz, etag, request)
 
 
+@router.get("/api/valve/projects/{pid}/issues/digest")
+async def issues_digest(pid: int, request: Request = None):
+    """valve35 — the comments tidied for reading: touching Data Missing on one page as one block, the same comment on
+    several tags as one Typical row (app/valve/digest.py).  Members are 'ds_id|ikey' references into /issues."""
+    return await run_in_threadpool(_cached, "digest", pid, lambda con: _digest_body(con, pid), None, request)
+
+
+def _digest_body(con, pid):
+    rows = [i for i in project_issues(con, pid) if i["type"] != "Extraction Review"]
+    return _json({"entries": digest.wire(digest.digest(rows)), "n": len(rows)})
+
+
 @router.put("/api/valve/datasheets/{dsid}/issues/{ikey:path}")
 async def issue_state(dsid: int, ikey: str, request: Request):
     """Engineer decision on a finding (valve29).  Body: {decision, reason_cat, note (= reason), conclusion,
@@ -1695,10 +1708,25 @@ def _lang_rows(rows: list[dict], lang: str) -> list[dict]:
     return [dict(i, description=i18n.pick(i.get("description"), i.get("description_ko"), lang)) for i in rows]
 
 
-def _issue_xlsx(pid, base, by, types="", dismissed=0, tag="", severity="", lang="en"):
+def _blocked(rows: list[dict]) -> list[dict]:
+    """valve35 — touching Data Missing on one page printed as ONE comment (digest.blocks); other findings unchanged."""
+    out = []
+    for u in digest.blocks(rows):
+        if u["kind"] != "block":
+            out.append(u["members"][0])
+            continue
+        m0 = u["members"][0]
+        out.append(dict(m0, ikey="BLOCK:" + m0["ikey"], description=u["description"], description_ko=u["description_ko"], bbox=u["bbox"],
+                        field=u["field"], value="(blank)", expected=u["expected"], status=u["status"] if u["status"] != "Mixed" else m0["status"],
+                        row=None, evidence=[], block_items=u["items"], block_n=len(u["members"])))
+    return out
+
+
+def _issue_xlsx(pid, base, by, types="", dismissed=0, tag="", severity="", lang="en", group=0):
     con = store.connect()
     pname = store.one(con, "SELECT name FROM project WHERE id=?", pid)["name"]
-    rows = _lang_rows(_select(project_issues(con, pid), types, dismissed, tag, severity), lang)
+    sel = _select(project_issues(con, pid), types, dismissed, tag, severity)
+    rows = _lang_rows(sel, lang)
     srcs = sorted({i["filename"] for i in rows})
     pv = _profile_ver(con, pid)
     ver = []
@@ -1708,7 +1736,8 @@ def _issue_xlsx(pid, base, by, types="", dismissed=0, tag="", severity="", lang=
             ver.append({"tag": full["tag"], "doc_no": full["doc_no"], "rev": full["rev"], "area": (full.get("location") or {}).get("area", ""),
                         "unit": (full.get("location") or {}).get("unit", ""), "verification": full["verification"]})
     ver.sort(key=lambda v: (exports.AREA_ORDER.get(v["area"], 9), v["unit"], v["tag"]))
-    return exports.issues_xlsx(rows, base, pname, by, srcs, verification=ver), len(rows), pname
+    dg = digest.digest(sel) if group else None
+    return exports.issues_xlsx(rows, base, pname, by, srcs, verification=ver, digest_entries=dg, lang=lang), len(dg) if group else len(rows), pname
 
 
 def _markup_entries(con, rows):
@@ -1808,8 +1837,9 @@ def _pms_body(con, pid):
 
 
 @router.get("/api/valve/projects/{pid}/issues.xlsx")
-async def issues_xlsx(pid: int, request: Request, types: str = "", dismissed: int = 0, tag: str = "", severity: str = "", lang: str = "en"):
-    data, n, pname = await run_in_threadpool(_issue_xlsx, pid, _base(request), _user(request), types, dismissed, tag, severity, lang)
+async def issues_xlsx(pid: int, request: Request, types: str = "", dismissed: int = 0, tag: str = "", severity: str = "", lang: str = "en",
+                      group: int = 0):
+    data, n, pname = await run_in_threadpool(_issue_xlsx, pid, _base(request), _user(request), types, dismissed, tag, severity, lang, group)
     con = store.connect()
     store.audit(con, pid, None, None, "export", None, "issues.xlsx", _user(request), f"{n} issues")
     con.commit()
@@ -1820,11 +1850,13 @@ async def issues_xlsx(pid: int, request: Request, types: str = "", dismissed: in
 
 @router.get("/api/valve/projects/{pid}/markup.pdf")
 async def issues_markup(pid: int, request: Request, types: str = "", dismissed: int = 0, tag: str = "", severity: str = "",
-                        summary: int = 1, margin: int = 1, flatten: int = 1, lang: str = "en"):
-    """Marked-up datasheet pages (issues in colour, numbered, printable) + an Issue Summary page per datasheet."""
+                        summary: int = 1, margin: int = 1, flatten: int = 1, lang: str = "en", group: int = 0):
+    """Marked-up datasheet pages (issues in colour, numbered, printable) + an Issue Summary page per datasheet.
+    group=1 (valve35): touching Data Missing on one page is one box with one comment."""
     con = store.connect()
     pname = store.one(con, "SELECT name FROM project WHERE id=?", pid)["name"]
-    rows = _lang_rows(_select(project_issues(con, pid), types, dismissed, tag, severity), lang)
+    rows = _select(project_issues(con, pid), types, dismissed, tag, severity)
+    rows = _lang_rows(_blocked(rows) if group else rows, lang)
     entries = _markup_entries(con, rows)
     data = await run_in_threadpool(exports.markup_pdf, entries, pname, "Valve Datasheet Review - Mark-up", bool(summary),
                                   bool(margin), bool(flatten))

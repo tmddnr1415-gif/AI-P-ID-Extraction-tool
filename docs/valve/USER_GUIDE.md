@@ -152,6 +152,20 @@
 - **숫자를 누르면** 그 Tag 목록이 뜨고 → Tag 를 누르면 Datasheet Review, **Valve List 에서 보기 / Issue List 에서 보기** = 그 Tag 들만 걸러 열림 (열 ▾ 필터로 풀기).
 - ⇩ Excel = 이 표가 들어 있는 Valve List Excel. ▾ = 접기(기억). 'Updated Tags'(TBE 칸 비교)는 Excel 에만 있습니다.
 
+## 10-10. 코멘트 정리 — Typical · 블럭 (valve35)
+- Issue List 위 **정리 보기** (기본) — 같은 쪽에 붙어 있는 Data Missing 은 **블럭** 한 줄('Process data missing — 13 items …'),
+  여러 Tag 에 같은 코멘트는 **Typical** 한 줄(몇 Tag 인지 · Tag 이름). 실자료 2,935건 → 276줄.
+- **▸ 상세 N건** = 묶인 지적을 바로 아래에 낱개로. 줄을 누르면 오른쪽 PDF 에 그 자리(Typical 은 첫 Tag).
+- 묶음 줄의 상태를 바꾸면 **묶인 지적 모두** 같은 결정(이유는 한 번 묻습니다).
+- **낱개 전체** = 예전처럼 한 건 한 줄.
+- Excel · Mark-up PDF 고르기 창의 **코멘트 정리**(기본 켬): Excel 맨 앞 'Comments (Typical)' 시트 + 낱개 Issue List 시트 그대로 /
+  PDF 는 블럭마다 박스 하나 · 코멘트 하나.
+
+## 10-11. 밸브 모형 (Anatomy · valve36)
+- Datasheet Review › **Data** 탭 위 **Valve Part** = 이 데이터시트 값(크기 · 압력 등급 · Bore · 구동기)으로 만든 볼밸브 입체 모형.
+- **칸을 누르면** 그 부위가 주황색, 나머지는 반투명 (몸통 안 Ball · Seat 도 보임). **모형의 부품을 누르면** 부품 설명과 관련 칸 목록 → 누르면 그 칸으로.
+- 휠 = 분해 · 확대, 끌기 = 돌려 보기, ⟲ = 처음 모습, ▾ = 접기. 치수는 참고 모양 — 크기 판정에 쓰지 않습니다.
+
 ## 11. 자주 묻는 것
 
 - **Area · Unit 은 어디서 오나?** 데이터시트 제목(QELNG NORTH / SOUTH / W15)과 P&ID 번호에서. 제목에 '(SYSTEM xx – UNIT yy)' 가 있으면 기존 플랜트 = Brownfield.

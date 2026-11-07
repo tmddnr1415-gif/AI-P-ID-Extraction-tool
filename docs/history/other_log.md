@@ -264,3 +264,14 @@
 - 원인: 내용 해시 저장본이 깨져도 같은 내용 업로드마다 재사용. 업로드 시 크기 · 해시 검증 후 다시 씀, 처리 전 해시 확인, open_pdf 재시도 + 실제 이유 표시.
 - 상태 창 ✕ · 모두 닫기 · 오류 시 자동 내려받기 안 함. 시험 +1 (1,987) · 스냅샷 0 · UI 25/25 · LINK OK. VERSION valve34.
 
+
+## 2026-11-07 · valve35 — 코멘트 정리: Typical · 블럭 · 상세보기 (사용자 요청)
+- `digest.py`: 한 쪽에 붙은 Data Missing(DM-01/02) 3개+ = 블럭 코멘트 하나 ('Process data missing — N items (…); ref. …') · 같은 코멘트 2 Tag+ = Typical 한 줄.
+- Issue List '정리 보기 | 낱개 전체' · ▸ 상세 · 묶음 일괄 결정 · Excel 'Comments (Typical)' 시트 · Mark-up PDF 블럭 박스 (group=1, 기본 켬).
+- 실자료 2,935 → 276. 판정 스냅샷 변경 0 · 시험 +2 (1,989) · UI 25/25 · 필터 · LINK OK. VERSION valve35.
+- 같은 날 답: Fugitive 카운트 = 칸 · Note · General Note 의 fugitive/ISO 15848/TA-Luft (조건부 GN 미구분 — 사용자 결정 대기).
+
+## 2026-11-07 · valve36 — 밸브 모형을 Anatomy 방식으로 (사용자 요청 "세션 7 참조")
+- 세션 7 ic-3d-builder 엔진(af748c7: refdata · anatomy · viewer)을 `app/static/valve/anatomy.js` 한 파일로(`spike/mk_anatomy.py`) — 이름 AnatomyViewer · 여러 부품 강조 + 나머지 반투명.
+- Data 탭 Valve Part: 데이터시트 크기 · CL · Bore · 구동기로 모형, 칸 → 부위 주황 · 부품 → 관련 칸. 평면 SVG 삭제.
+- 시험 +1 · 판정 변경 없음. VERSION valve36. 꾸러미는 통합 방식(오케스트레이터) 사용자 확인 대기.

@@ -449,3 +449,71 @@ def test_broken_stored_original_is_named_and_repaired_by_reupload(tmp_path, monk
     assert path.read_bytes() == data
     docs = c.get(f"/api/valve/projects/{pid}/summary").json()["documents"]
     assert next(d for d in docs if d["filename"] == "ds_A_again.pdf")["status"] == "done"
+
+
+def _dm(ds, tag, key, y, page=1, check="DM-02", ref="; ref. 98-98-PR-DTS-00023 (Note 8)", **kw):
+    return {"ds_id": ds, "tag": tag, "ikey": f"Data Missing:{key}", "type": "Data Missing", "check": check, "color": "missing",
+            "severity": "Major", "status": "Open", "key": key, "field": key.title(), "page": page, "bbox": [300, y, 400, y + 10],
+            "description": f"{key.title()}: no value{ref}. Provide value.", **kw}
+
+
+def test_comment_digest_blocks_and_typical():
+    """valve35: touching Data Missing on one page = one block comment; the same comment on several tags = one Typical row;
+    every finding stays a member; reviewer words are never merged; far-apart boxes are not one block."""
+    from app.valve import digest
+    a = [_dm(1, "T1", k, 100 + 10 * n) for n, k in enumerate(["fluid", "op_pressure", "design_pressure", "op_temp"])]
+    b = [_dm(2, "T2", k, 100 + 10 * n) for n, k in enumerate(["fluid", "op_pressure", "design_pressure", "op_temp"])]
+    far = [_dm(3, "T3", "fluid", 100), _dm(3, "T3", "op_pressure", 110), _dm(3, "T3", "op_temp", 400)]   # 3rd is far below
+    rev = [{"ds_id": d, "tag": t, "ikey": "Reviewer Comment:c1", "type": "Reviewer Comment", "comment_id": 1, "color": "comment",
+            "severity": "Major", "status": "Open", "key": "c", "field": "Mark-up", "page": 1, "bbox": None, "description": "Same words"}
+           for d, t in ((1, "T1"), (2, "T2"))]
+    rows = a + b + far + rev
+    U = digest.blocks(rows)
+    blk = [u for u in U if u["kind"] == "block"]
+    assert len(blk) == 2 and all(len(u["members"]) == 4 for u in blk)
+    assert blk[0]["description"].startswith("Process data missing — 4 items (Fluid, Op_Pressure, Design_Pressure, Op_Temp)")
+    assert "ref. 98-98-PR-DTS-00023 (Note 8)" in blk[0]["description"] and "Process Data 누락" in blk[0]["description_ko"]
+    assert blk[0]["bbox"] == [300, 100, 400, 140]
+    assert sum(1 for u in U if u["ds_id"] == 3) == 3                        # T3: not touching -> stays three
+    E = digest.digest(rows)
+    typ = [e for e in E if e["kind"] == "typical"]
+    assert any(e["of_kind"] == "block" and e["tags"] == ["T1", "T2"] and len(e["members"]) == 8 for e in typ)
+    assert sum(1 for e in E if e["type"] == "Reviewer Comment") == 2       # reviewer comments: never merged
+    assert sorted(id(m) for e in E for m in e["members"]) == sorted(id(r) for r in rows)   # nothing lost, nothing doubled
+    W = digest.wire(E)
+    assert all(isinstance(x, str) and "|" in x for w in W for x in w["m"])
+
+
+def test_comment_digest_api_and_exports(tmp_path, monkeypatch):
+    """valve35: /issues/digest references every finding once; Excel group=1 opens on 'Comments (Typical)' with the full
+    Issue List still inside; Mark-up PDF group=1 prints one comment per block."""
+    c, pid, up = _client(tmp_path, monkeypatch)
+    up("ds_A.pdf", _pdf("A", values={2: ["HOLD", "TBC"]}))
+    up("ds_B.pdf", _pdf("B", values={2: ["HOLD", "TBC"]}))
+    iss = [i for i in c.get(f"/api/valve/projects/{pid}/issues").json()["issues"] if i["type"] != "Extraction Review"]
+    D = c.get(f"/api/valve/projects/{pid}/issues/digest").json()
+    refs = [m for e in D["entries"] for m in e["m"]]
+    assert sorted(refs) == sorted(f"{i['ds_id']}|{i['ikey']}" for i in iss) and D["n"] == len(iss)
+    assert len(D["entries"]) <= len(iss)
+    r = c.get(f"/api/valve/projects/{pid}/issues.xlsx?group=1")
+    wb = openpyxl.load_workbook(io.BytesIO(r.content))
+    assert wb.sheetnames[0] == "Comments (Typical)" and "Issue List" in wb.sheetnames and wb.active.title == "Comments (Typical)"
+    assert int(r.headers["X-Count"]) == len(D["entries"])
+    assert c.get(f"/api/valve/projects/{pid}/issues.xlsx").content[:2] == b"PK"                    # default: unchanged list
+    assert "Comments (Typical)" not in openpyxl.load_workbook(io.BytesIO(c.get(f"/api/valve/projects/{pid}/issues.xlsx").content)).sheetnames
+    p = c.get(f"/api/valve/projects/{pid}/markup.pdf?group=1")
+    assert p.status_code == 200 and p.content[:4] == b"%PDF"
+
+
+def test_valve_model_is_the_anatomy_engine(tmp_path, monkeypatch):
+    """valve36: the Valve Part model is session 7's Anatomy engine (anatomy.js, no library / CDN), served with the page and
+    built from the datasheet; the PDF viewer keeps the name `Viewer`."""
+    c, pid, up = _client(tmp_path, monkeypatch)
+    page = c.get("/valve/").text
+    assert 'src="anatomy.js?v=' in page and page.index("anatomy.js") < page.index("valve.js?v=")
+    js = c.get("/valve/anatomy.js").text
+    assert "const AnatomyViewer = (() => {" in js and "const Anatomy = (() => {" in js and "const RefData = (() => {" in js
+    assert "const Viewer =" not in js and "THREE." not in js
+    assert "cdnjs" not in js and "http://" not in js.replace("http://www.w3.org", "") and "https://" not in js
+    v = (Path(__file__).resolve().parents[1] / "app/static/valve/valve.js").read_text(encoding="utf-8")
+    assert "Anatomy.build({ type: 'valve'" in v and "valveSvg" not in v and "class Viewer" in v
