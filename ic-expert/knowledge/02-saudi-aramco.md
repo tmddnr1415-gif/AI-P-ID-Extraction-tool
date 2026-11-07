@@ -29,6 +29,8 @@
 
 **Research limitation:** WebFetch was blocked for most hosts, including scribd.com mirrors, pdfcoffee.com and ask.instrumentationtools.com. All findings therefore come from search-engine snippets and summaries. The shared web-search budget ran out before the per-measurement standards (J-100/200/300/400) could be researched in depth. See Section 8, "Gaps".
 
+**Update (second research pass, November 2026):** a follow-up pass (about 37 searches) added clause-level items for SAES-J-100, J-200, J-300 and J-400, FF segment-length limits from SABP-J-900, the titles of SAES-J-602, SAES-J-905 and 34-SAMSS-911, the SAEP-302 waiver and SAEP-303 review procedures, and several standard drawing numbers. WebFetch still failed for scribd.com, pdfcoffee.com, aramco.com and the pages.dev mirror (DNS failure), so these items also come from search-result snippets of unofficial copies and are tagged **[secondary source]** unless stated otherwise. Items added in this pass are marked *(2nd pass)*.
+
 ---
 
 ## Table of contents
@@ -74,7 +76,7 @@
 | **SABP-x-nnn** (Saudi Aramco Best Practice) | Non-mandatory guidance. | SABP-J-900 (FF/hazardous-area practice), SABP-Z-002, SABP-Z-019, SABP-Z-057 (network security) and others. [secondary source] |
 | **SAIC-x-nnnn / SATIP** (Inspection Checklists / Typical Inspection Plans) | Field and QC checklists that cite the SAES/SAMSS clauses they verify. | SAIC-J-6xxx series for instrumentation, for example SAIC-J-6022 (packaged units), SAIC-J-6904 (IS systems) and SAIC-J-6806 (ESD and power supply). [secondary source] |
 | **ISS / Form 8020-nnn-ENG** (Instrument Specification Sheets) | Aramco standard data-sheet forms, numbered after the matching SAMSS. | For example, ISS 8020-611-ENG for conventional and balanced PRVs, matching 34-SAMSS-611. [secondary source] ([scribd SAEP-318](https://www.scribd.com/document/473260773/SAEP-318-pdf)) |
-| **Standard Drawings (AA-/AB-/AD- numbers)** | Standard installation details. | Hook-ups and installation details are listed in the SAES-J-001 index. [general knowledge — verify: exact drawing numbers not confirmed] |
+| **Standard Drawings (AA-/AB-/AC-/AD- numbers) and Library Drawings (DB-…)** | Standard installation details. | Hook-ups and installation details are listed in the SAES-J-001 index. Instrument-related standard drawings seen cited *(2nd pass)*: **AC-036413 / AB-036414** (orifice flange tap connections, cited by SAES-J-100 2009), **AB-036019** "Thermowell – Assembly and Detail" (cited by SAES-J-100 2020), **AB-036521** (valve bracing, cited by an SAIC inspection checklist; which SAIC was not identified). Library drawings: **DB-950046** "Instrument Piping Detail for Liquid Level Gauge Glasses" and **DB-950047** (pneumatic level instruments), both cited by SAES-J-100. SAES-J-200 refers to "Saudi Aramco Library Drawings" for typical pressure installations without naming them in the snippet. The 036xxx series therefore holds at least some instrument details, but the meaning of the AA/AB/AC/AD prefix (probably sheet size) was not confirmed. [secondary source] ([scribd J-100](https://www.scribd.com/document/494872706/SAES-J-100), [pdfcoffee J-100](https://pdfcoffee.com/saes-j-100-pdf-free.html), [scribd SAIC-J-6022](https://www.scribd.com/document/444577400/SAIC-J-6022-Rev-0), [scribd J-200](https://www.scribd.com/document/439171375/SAES-J-200-Pressure)) |
 | **GI (General Instructions)** | Corporate procedures, for example GI 2.102 on pressure testing safely and GI 1603.000 on importing communications equipment. | Indirect relevance to I&C. [secondary source] |
 | **SACS-002** | Saudi Aramco Third Party Cybersecurity Standard, published by Aramco for suppliers and contractors. | Cyber requirements on contractors and vendors. [confirmed: hosted on aramco.com] ([SACS-002](https://SaudiAramco.com/-/media/downloads/working-with-us/ccc/sacs-002-third-party-cybersecurity-standard.pdf)) |
 
@@ -94,7 +96,13 @@ Large joint-venture projects have issued project-prefixed versions of Aramco sta
 
 ### 1.5 Waivers
 
-A deviation from a mandatory SAES/SAMSS requirement needs a formal waiver. The waiver procedure is **SAEP-302** ("Instructions for Obtaining a Waiver of a Mandatory Saudi Aramco Engineering Requirement"). [general knowledge — verify] Contractors should not assume that a "comply with exceptions" vendor response is acceptable without a waiver or a formal Aramco disposition.
+A deviation from a mandatory SAES/SAMSS requirement needs a formal waiver. The waiver procedure is **SAEP-302** ("Instructions for Obtaining a Waiver of a Mandatory Saudi Aramco Engineering Requirement"). [secondary source — upgraded from general knowledge in the 2nd pass] ([scribd SAEP-302](https://www.scribd.com/document/683056429/SAEP-302), [scribd SAEP-302 older](https://www.scribd.com/document/83925264/SAEP-302)) Publicly visible points *(2nd pass)*:
+- A **waiver** is defined as a deviation from a requirement stipulated in a **Mandatory Saudi Aramco Engineering Requirement (MSAER)**. MSAERs themselves are established and maintained under **SAEP-301**. [secondary source] ([scribd SAEP-301](https://www.scribd.com/document/607475675/SAEP-301))
+- The 2005 edition says approval to deviate must be obtained **before** the non-compliance is implemented, and encourages new projects to raise waivers early, during **Project Proposal** development. It also says waivers are submitted electronically through the **SAP e-Waiver process**. [secondary source]
+- A copy carrying a 2023 copyright notice adds a prohibition on attaching confidential or sensitive documents to the waiver; the document owner shown is the **Standards Management Committee**. [secondary source]
+- Approval authorities and step-by-step workflow were not visible. [gap]
+
+Contractors should not assume that a "comply with exceptions" vendor response is acceptable without a waiver or a formal Aramco disposition. [general knowledge — verify]
 
 ---
 
@@ -107,36 +115,36 @@ Legend: **C** = confirmed, **S** = secondary source, **G** = general knowledge �
 | Number | Title (as found) | Scope (paraphrased) | Conf. | Source |
 |---|---|---|---|---|
 | SAES-J-001 | Instrumentation Index | Compiles the Aramco documents governing instrumentation design and installation; no technical requirements of its own. Revisions seen: 2003, 2008, 2011, 2013. | C | [pdfcoffee](https://pdfcoffee.com/saes-j-001-3-pdf-free.html), [scribd](https://www.scribd.com/document/476010934/SAES-J-001) |
-| SAES-J-002 | Technically Acceptable Instrument Manufacturers (older title; current status unknown) | List of technically acceptable instrument manufacturers or product lines per instrument type. Vendor evaluation now appears to run through SAEP-1400 and 9COM approvals (see §4). | S | [instrumentqcnotes blog](http://instrumentqcnotes.blogspot.com/2015/03/introduction-it-is-branch-of.html), [kishorekaruppaswamy J-002 copy](https://kishorekaruppaswamy.wordpress.com/wp-content/uploads/2011/10/saudi-arabian-engineering-standardssaes-j-002.pdf), [scribd](https://www.scribd.com/document/476010944/SAES-J-002) |
-| SAES-J-003 | Instrumentation – Basic Design Criteria | General design criteria, including environmental conditions (ambient temperature table, section 8.1 in the 2013 issue). Issues seen: 31 May 2004, 13 May 2013. | C | [scribd](https://www.scribd.com/document/553817194/SAES-J-003), [pdfcoffee](https://pdfcoffee.com/saes-j-003-pdf-free.html) |
+| SAES-J-002 | Technically Acceptable Instrument Manufacturers (older title; current status unknown) | List of technically acceptable instrument manufacturers or product lines per instrument type. A 2004 revision alert lists a **major revision dated 30 Nov 2004** (superseding 29 Feb 2004) *(2nd pass)*; no cancellation notice was found. Vendor evaluation now appears to run through SAEP-1400 and 9COM approvals (see §4). | S | [scribd ALERT-OLD](https://www.scribd.com/document/508178538/ALERT-OLD), [instrumentqcnotes blog](http://instrumentqcnotes.blogspot.com/2015/03/introduction-it-is-branch-of.html), [kishorekaruppaswamy J-002 copy](https://kishorekaruppaswamy.wordpress.com/wp-content/uploads/2011/10/saudi-arabian-engineering-standardssaes-j-002.pdf), [scribd](https://www.scribd.com/document/476010944/SAES-J-002) |
+| SAES-J-003 | Instrumentation – Basic Design Criteria | General design criteria, including environmental conditions (ambient temperature table, section 8.1 in the 2013 issue). Issues seen: 31 May 2004, 13 May 2013 (previous issue 31 Dec 2012, next planned update 6 Sep 2016) *(2nd pass)*. No later issue surfaced in search. | C | [scribd](https://www.scribd.com/document/553817194/SAES-J-003), [pdfcoffee](https://pdfcoffee.com/saes-j-003-pdf-free.html) |
 | SAES-J-004 | Instrumentation Symbols and Identification | Based on ISA-5.1, with an "Exceptions to ISA-5.1" section. Issues seen: 30 Jun 2002, 10 Dec 2011. | C | [scribd](https://www.scribd.com/document/668988283/SAES-J-004), [scribd INDX-SAES](https://www.scribd.com/document/527150981/INDX-SAES) |
 | SAES-J-005 | Instrumentation Drawings and Forms | Required instrument drawings, documents and forms. | S | [scribd J-001 2008](https://www.scribd.com/document/680621562/SAES-J-001) |
-| SAES-J-100 | Process Flow Metering (older title); a 2020 issue is cited as "Process Measurement" | Flow measurement design and selection. The October 2020 issue says instruments for ESD service must also meet SAES-J-601. References 34-SAMSS-117 (turbine meters) and 34-SAMSS-118 (PD meters). | S | [scribd J-100](https://www.scribd.com/document/494872706/SAES-J-100), [mirror J-100](https://justrite-elynox-bootcamp.pages.dev/Reference-Examples/Q-31108---Tecnicas---Riyas/RFQ-Files/SAES-J-100) |
-| SAES-J-200 | Pressure | Pressure instrumentation. | S | [scribd](https://www.scribd.com/document/494872703/Saes-j-200-Pressure), [englogs](https://englogs.com/saudi-aramco-engineering-standard-instrumentation-system/) |
-| SAES-J-300 | Level | Level instrumentation. | S | [englogs](https://englogs.com/saudi-aramco-engineering-standard-instrumentation-system/), [paktechpoint](https://paktechpoint.com/saudi-aramco-engineering-standard-for-electrical-instrumentation-and-cp/) |
-| SAES-J-400 | Temperature | Temperature instrumentation. | S | [scribd](https://www.scribd.com/document/519224174/SAES-J-400), [englogs](https://englogs.com/saudi-aramco-engineering-standard-instrumentation-system/) |
-| SAES-J-410 | not found | — | U | — |
+| SAES-J-100 | "Process Flow Metering" (2009 and 2013 issues); "Process Measurement" (2020 issue, next planned update 6 Oct 2025) | Flow measurement design and selection. The 2009 issue is written as additions/exceptions to PIP PCCFL001. The October 2020 issue says instruments for ESD service must also meet SAES-J-601. References 34-SAMSS-117 (turbine meters) and 34-SAMSS-118 (PD meters). See §3.3 for clauses. | S | [scribd J-100](https://www.scribd.com/document/494872706/SAES-J-100), [pdfcoffee J-100](https://pdfcoffee.com/saes-j-100-pdf-free.html), [mirror J-100](https://justrite-elynox-bootcamp.pages.dev/Reference-Examples/Q-31108---Tecnicas---Riyas/RFQ-Files/SAES-J-100) |
+| SAES-J-200 | Pressure | Minimum mandatory requirements for design and installation of pressure and D/P instruments, written as additions to **PIP PCCPR001**. Issues seen: 2008 (next planned update 2013), 2013 (next planned update 2018). See §3.4. | S | [scribd](https://www.scribd.com/document/494872703/Saes-j-200-Pressure), [scribd J-200 (2)](https://www.scribd.com/document/439171375/SAES-J-200-Pressure), [scribd J-200 (3)](https://www.scribd.com/document/519224007/SAES-J-200), [englogs](https://englogs.com/saudi-aramco-engineering-standard-instrumentation-system/) |
+| SAES-J-300 | Level | Level instrumentation (SAES-J-400 excludes level and points to J-300). Index issue dates 2003–2005. Companion SATIP-J-300-01 covers level installations. See §3.5. | S | [scribd INDX-SAES](https://www.scribd.com/document/527150981/INDX-SAES), [scribd J-400](https://www.scribd.com/document/519224174/SAES-J-400), [scribd SAIC-J-6022](https://www.scribd.com/document/324772531/SAIC-J-6022-Rev-0-pdf), [englogs](https://englogs.com/saudi-aramco-engineering-standard-instrumentation-system/), [paktechpoint](https://paktechpoint.com/saudi-aramco-engineering-standard-for-electrical-instrumentation-and-cp/) |
+| SAES-J-400 | Temperature | Temperature instrumentation. Issue seen: 28 Jun 2009 (next planned update 2013). See §3.6. | S | [scribd](https://www.scribd.com/document/519224174/SAES-J-400), [englogs](https://englogs.com/saudi-aramco-engineering-standard-instrumentation-system/) |
+| SAES-J-410 | not found (searched again in 2nd pass) | — | U | — |
 | SAES-J-502 | Analyzer Shelters | Analyzer shelter design. | S | [englogs](https://englogs.com/saudi-aramco-engineering-standard-instrumentation-system/) |
 | SAES-J-505 | Combustible Gas and Hydrogen Sulfide in Air Detection Systems | Fixed combustible gas and H2S detection system design. | S | [englogs](https://englogs.com/saudi-aramco-engineering-standard-instrumentation-system/) |
-| SAES-J-510 | not found (the brief suggested "analyzers"; not confirmed) | — | U | — |
+| SAES-J-510 | not found (the brief suggested "analyzers"; not confirmed; searched again in 2nd pass) | — | U | — |
 | SAES-J-600 | Pressure Relief Devices | Pressure relief devices; uses the tag "PZV" for relief valves. Issue seen: 30 Mar 2005. | C | [scribd Indx-saes Oct 2006](https://www.scribd.com/document/527150957/Indx-saes-Oct-2006), [scribd SAEP-318](https://www.scribd.com/document/473260773/SAEP-318-pdf) |
 | SAES-J-601 | Emergency Shutdown and Isolation Systems | ESD and emergency isolation (ZV) instrumentation and alarms. Issue seen: 29 Jun 2005 (previous 31 Mar 2001). Still cross-referenced by SAES-J-100 (2020) and SAES-Z-001. | C | [scribd INDX-SAES](https://www.scribd.com/document/527150981/INDX-SAES), [kishorekaruppaswamy J-601 copy](https://kishorekaruppaswamy.wordpress.com/wp-content/uploads/2011/10/saudi-arabian-engineering-standards-saes-j-601.pdf) |
-| SAES-J-602 | not found | — | U | — |
+| SAES-J-602 | Burner Management, Combustion and Waterside Control Systems for Watertube Boilers *(2nd pass)* | Boiler BMS / combustion / drum-level controls. Index dates: issue 31 Jan 2005, previous 30 Jan 2002, next planned update 1 Feb 2008. | S | [scribd INDX-SAES](https://www.scribd.com/document/527150981/INDX-SAES) |
 | SAES-J-605 | Surge Relief Protection Systems | Surge relief for pipelines and loading systems. | S | [scribd Indx-saes Oct 2006](https://www.scribd.com/document/527150957/Indx-saes-Oct-2006) |
 | SAES-J-700 | Control Valves | Control valve application and installation. Minor revision Aug 2004; later issues exist. | C | [scribd ALERT-OLD](https://www.scribd.com/document/508178538/ALERT-OLD), [scribd SAIC-L-2043](https://www.scribd.com/document/457762664/SAIC-L-2043) |
-| SAES-J-800 | not found | — | U | — |
+| SAES-J-800 | not found (searched again in 2nd pass; J-801 Control Buildings exists) | — | U | — |
 | SAES-J-801 | Control Buildings | Control building requirements, including HVAC monitoring. Issue seen: Dec 2005. | C | [scribd INDX-SAES](https://www.scribd.com/document/527150981/INDX-SAES), [scribd SAES-B-014](https://www.scribd.com/document/405891268/SAES-B-014) |
 | SAES-J-902 | Electrical Systems for Instrumentation | Design criteria for installing power and wiring systems for electrical instrumentation. Issues seen: 2013, 2017, 26 Mar 2020. | C | [scribd](https://www.scribd.com/document/426879234/SAES-J-902-pdf), [mirror](https://justrite-elynox-bootcamp.pages.dev/Reference-Examples/Q-31108---Tecnicas---Riyas/RFQ-Files/SAES-J-902) |
 | SAES-J-903 | Intrinsically Safe Systems | Design and installation of IS systems. Issue seen: 31 Jan 2005. | C | [scribd INDX-SAES](https://www.scribd.com/document/527150981/INDX-SAES), [scribd SAIC-J-6904](https://www.scribd.com/document/226927140/SAIC-J-6904-Rev-0) |
 | SAES-J-904 | FOUNDATION Fieldbus (FF) Systems | Design, specification, installation, configuration, commissioning and maintenance of FF-based control systems. | C | [pdfcoffee SAES-Z-010](https://pdfcoffee.com/saes-z-010-pdf-pdf-free.html), [Control Global](https://www.controlglobal.com/network/industrial-networks/article/11321803/foundation-fieldbus-in-hazardous-areas) |
-| SAES-J-905 | Exists (added to the J-001 index in 2011); title not confirmed | — | S (number only) | [pdfcoffee J-001](https://pdfcoffee.com/saes-j-001-3-pdf-free.html) |
+| SAES-J-905 | Instrument Asset Management Systems (IAMS) *(2nd pass)* | Minimum requirements for design, commissioning and documentation of IAMS installations; IAMS must comply with 34-SAMSS-911. Issue seen: 31 May 2011 (Instrumentation Standards Committee). | S | [pdfcoffee J-905](https://pdfcoffee.com/saes-j-905-pdf-free.html), [pdfcoffee J-001](https://pdfcoffee.com/saes-j-001-3-pdf-free.html) |
 
 ### 2.2 SAES-Z (Process control / automation)
 
 | Number | Title (as found) | Scope (paraphrased) | Conf. | Source |
 |---|---|---|---|---|
 | SAES-Z-001 | Process Control Systems | PCS (DCS/PLC-based) design. Process control networks are in scope. ESD (SAES-J-601) and SCADA (SAES-Z-004) are excluded except for their interfaces to the PCS. Source copy: draft dated 22 Jul 2012. | C | [pdfcoffee Z-001](https://pdfcoffee.com/saes-z-001-pdf-pdf-free.html), [scribd SABP-Z-019](https://www.scribd.com/document/509522885/SABP-Z-019) |
-| SAES-Z-002 | "Process Automation Systems" appears in the header of a 2006 copy; exact title unconfirmed. Possibly "Technically Acceptable Process Automation Systems". | — | S / G | [scribd Z-002](https://www.scribd.com/doc/239724008/Saes-z-002-Locked-by-Badr) |
+| SAES-Z-002 | "Process Automation Systems" appears in the header of a 2006 copy (issue 28 May 2006, next planned update 2011); exact title unconfirmed. Possibly "Technically Acceptable Process Automation Systems". | Identifies acceptable manufacturers of process automation systems. Lists are split into **Restricted Vendor Lists** (host systems: DCS, SCADA) and **Recommended Vendor Lists** (subsystems, e.g. ESD, RTU), the latter being products evaluated by P&CSD and found technically acceptable *(2nd pass)*. | S | [scribd Z-002](https://www.scribd.com/doc/239724008/Saes-z-002-Locked-by-Badr) |
 | SAES-Z-004 | Supervisory Control and Data Acquisition (SCADA) System | SCADA systems in Aramco plants and pipelines. Issue seen: 10 Nov 2013. | C | [pdfcoffee Z-004](https://pdfcoffee.com/saes-z-004-pdf-free.html) |
 | SAES-Z-010 | Process Automation Networks (also cited with a "…Connectivity" variant) | Design, installation, configuration and commissioning of plant-wide Process Automation Networks (PAN) that link the PCNs and interface to the WAN. Ethernet (IEEE 802.3) based. Issues seen: 26 Oct 2005, 24 Oct 2009. | C | [scribd Z-010](https://www.scribd.com/document/415401236/SAES-Z-010-pdf), [pdfcoffee Z-010](https://pdfcoffee.com/saes-z-010-pdf-pdf-free.html) |
 
@@ -144,8 +152,10 @@ Legend: **C** = confirmed, **S** = secondary source, **G** = general knowledge �
 
 | Number | Title (as found) | Scope (paraphrased) | Conf. | Source |
 |---|---|---|---|---|
-| 34-SAMSS-112 | not found | — | U | — |
-| 34-SAMSS-113 | not found | — | U | — |
+| 34-SAMSS-001 | Multiphase Flow Meters & Wellhead Water Cut Meters *(2nd pass)* | Multiphase metering; cited with 34-SAMSS-114 in SAEP-146. Listed in Aramco's own iKTVA instrumentation deck and sourcing lists. | C (number and title on aramco.com, seen via search snippet) | [aramco iKTVA deck](https://www.aramco.com/-/media/downloads/iktva/instrumentation.pdf), [scribd SAEP-146](https://www.scribd.com/document/473260753/SAEP-146-pdf) |
+| 34-SAMSS-010 | Title not seen *(2nd pass)* | Aramco sourcing lists tie this number to glass level gauges and to ultrasonic and vortex flowmeters; the iKTVA deck lists it with IOGP S-718 as an applicable standard. Probably a general process-instrument purchase specification. | S (number on aramco.com lists; title unknown) | [aramco iKTVA deck](https://www.aramco.com/-/media/downloads/iktva/instrumentation.pdf), [Aramco India sourcing list Jan 2024](https://india.aramco.com/-/media/aramcoindia/sourcing-list/sourcing-list-jan-2024.pdf), [Aramco India sourcing list Sep 2025](https://india.aramco.com/-/media/aramcoindia/sourcing-list/30-sept_2025-sourcing-list-aa-india.pdf), [AOC materials sourcing list](https://europe.aramco.com/-/media/aramcoaoc/pdf/aramco-materials-sourcing-list.pdf) |
+| 34-SAMSS-112 | not found (searched again in 2nd pass) | — | U | — |
+| 34-SAMSS-113 | not found (searched again in 2nd pass) | — | U | — |
 | 34-SAMSS-114 | Ultrasonic Flow Meter for Gas Custody Measurement | Gas custody USM. Issue seen: 17 Sep 2007. | S | [pdfcoffee 34-SAMSS-114](https://pdfcoffee.com/34-samss-114-pdf-free.html) |
 | 34-SAMSS-117 | Turbine meters (exact title not seen) | Cited by SAES-J-100 for turbine meters. | S | [scribd J-100](https://www.scribd.com/document/494872706/SAES-J-100) |
 | 34-SAMSS-118 | Positive displacement meters (exact title not seen) | Cited by SAES-J-100 for PD meters. | S | [scribd J-100](https://www.scribd.com/document/494872706/SAES-J-100) |
@@ -154,7 +164,7 @@ Legend: **C** = confirmed, **S** = secondary source, **G** = general knowledge �
 | 34-SAMSS-621 | ESD Systems – Hard-Wired – Solid-State (Nonprogrammable) | Solid-state hard-wired ESD logic. Excludes PLC-based ESD (34-SAMSS-623) and relay ESD (34-SAMSS-622). Issue seen: 2005. | C | [pdfcoffee 34-SAMSS-621](https://pdfcoffee.com/34-samss-621-pdf-free.html), [pdfcoffee J-001](https://pdfcoffee.com/saes-j-001-3-pdf-free.html) |
 | 34-SAMSS-622 | ESD Systems – Electromagnetic Relay | Relay-based ESD logic. | S | [pdfcoffee J-001](https://pdfcoffee.com/saes-j-001-3-pdf-free.html) |
 | 34-SAMSS-623 | Programmable controller-based ESD systems (exact title not seen) | PLC-based ESD systems, including cabinet requirements that reference 34-SAMSS-820. Minor revision late 2004. | S | [pdfcoffee 34-SAMSS-621](https://pdfcoffee.com/34-samss-621-pdf-free.html), [scribd ALERT-OLD](https://www.scribd.com/document/508178538/ALERT-OLD) |
-| 34-SAMSS-625, -627, -629 | Exist (Scribd/pdfcoffee listings); titles not confirmed | Probably the 62x control/ESD-system family. | U (title) | [pdfcoffee 625](https://pdfcoffee.com/34-samss-625pdf-pdf-free.html), [scribd 627](https://www.scribd.com/document/549908228/34-SAMSS-627), [scribd 629](https://www.scribd.com/document/549908231/34-SAMSS-629) |
+| 34-SAMSS-625, -627, -629 | Exist (Scribd/pdfcoffee listings); titles not confirmed (2nd-pass search returned nothing) | Probably the 62x control/ESD-system family. | U (title) | [pdfcoffee 625](https://pdfcoffee.com/34-samss-625pdf-pdf-free.html), [scribd 627](https://www.scribd.com/document/549908228/34-SAMSS-627), [scribd 629](https://www.scribd.com/document/549908231/34-SAMSS-629) |
 | 34-SAMSS-634 | Local emergency isolation valve (ZV) control systems (exact title not seen) | Local ZV control panels and smart ZV controllers, including partial-stroke testing. | S | [scribd 34-SAMSS-634](https://www.scribd.com/document/370514106/174038738-34-SAMSS-634-pdf) |
 | 34-SAMSS-711 | Control Valves | Control valve purchase specification. Issues seen: 4 Jan 2012, 11 Oct 2017 (next planned update Oct 2020). | C | [scribd 711](https://www.scribd.com/document/468687176/34-SAMSS-711-pdf), [Valve World](https://valve-world.net/?p=53143) |
 | 34-SAMSS-716 | Pneumatic Actuators – On-Off Service | Pneumatic actuators for on-off valves. Issue seen: 10 Aug 2009. **Not** the MOV specification. | S | [pdfcoffee 716](https://pdfcoffee.com/34-samss-716-pdf-free.html) |
@@ -164,7 +174,7 @@ Legend: **C** = confirmed, **S** = secondary source, **G** = general knowledge �
 | 34-SAMSS-821 | Instrument Control Cabinets – Outdoor | Outdoor panels and cabinets. All of 34-SAMSS-820 applies unless superseded. Issues seen: 5 Oct 2005, 22 Jul 2012. | C | [scribd 821](https://www.scribd.com/document/536743247/34-SAMSS-821), [pdfcoffee 821](https://pdfcoffee.com/34-samss-821-pdf-free.html) |
 | 34-SAMSS-831 | Instrumentation for Packaged Units | Instrumentation on pre-engineered, pre-assembled, pre-wired skid-mounted packages; not custom-engineered packages. Issue seen: 25 Mar 2021 (next planned update Mar 2024). | C | [studylib 831](https://studylib.net/doc/27696645/34-samss-831), [scribd SAIC-J-6022](https://www.scribd.com/document/324772531/SAIC-J-6022-Rev-0-pdf) |
 | 34-SAMSS-846 | Exists (Scribd/pdfcoffee listings); title not confirmed | — | U (title) | [scribd 846](https://www.scribd.com/document/549907783/34-SAMSS-846) |
-| 34-SAMSS-911 | Exists (added to the J-001 index in 2011); title not confirmed | — | S (number only) | [pdfcoffee J-001](https://pdfcoffee.com/saes-j-001-3-pdf-free.html) |
+| 34-SAMSS-911 | Instrument Asset Management Systems *(2nd pass)* | IAMS purchase specification; SAES-J-905 requires IAMS to comply with it. | S | [pdfcoffee J-905](https://pdfcoffee.com/saes-j-905-pdf-free.html), [pdfcoffee J-001](https://pdfcoffee.com/saes-j-001-3-pdf-free.html) |
 | 34-SAMSS-913 | Instrumentation and Thermocouple Cable | Instrument and thermocouple cable construction (jacket, colours and so on). Referenced by SAES-J-902. | S | [scribd QA/QC module](https://www.scribd.com/presentation/609393585/Training-Module-QA-QC), [mirror J-902](https://justrite-elynox-bootcamp.pages.dev/Reference-Examples/Q-31108---Tecnicas---Riyas/RFQ-Files/SAES-J-902) |
 
 ### 2.4 23-SAMSS (Process automation systems)
@@ -174,7 +184,7 @@ Legend: **C** = confirmed, **S** = secondary source, **G** = general knowledge �
 | 23-SAMSS-010 | Distributed Control Systems | DCS purchase specification. Tied to the process-automation Restricted Vendor List (including FF-capable DCS). | S | [scribd SAES-Z-002](https://www.scribd.com/doc/239724008/Saes-z-002-Locked-by-Badr), [scribd SAIC-J-6806](https://www.scribd.com/document/525615451/SAIC-J-6806) |
 | 23-SAMSS-020 | Supervisory Control and Data Acquisition (SCADA) Systems | SCADA purchase specification. | S | [es.scribd 23-SAMSS-020](https://es.scribd.com/document/319694317/23-SAMSS-020) |
 | 23-SAMSS-030 | Exists (Scribd listing); title not confirmed | — | U (title) | [scribd 23-SAMSS-030](https://www.scribd.com/document/585773935/23-SAMSS-030) |
-| 23-SAMSS-071 | not found | — | U | — |
+| 23-SAMSS-071 | not found (searched again in 2nd pass) | — | U | — |
 | 23-SAMSS-072 | Data Acquisition and Historization Systems | Plant historian / data acquisition. | S | [scribd SABP-Z-019](https://www.scribd.com/document/509522885/SABP-Z-019) |
 
 ### 2.5 Related SAEP / SABP / SAIC / other SAES
@@ -183,7 +193,10 @@ Legend: **C** = confirmed, **S** = secondary source, **G** = general knowledge �
 |---|---|---|---|
 | SAEP-15 | Preparation of process-automation Restricted Vendor Lists (RVL) | S | [scribd SAEP-15](https://www.scribd.com/document/429080803/SAEP-15-pdf) |
 | SAEP-99 | Process automation network security (cites SAES-Z-010) | S | [scribd Z-010](https://www.scribd.com/document/415401236/SAES-Z-010-pdf) |
-| SAEP-302 | Waiver of mandatory engineering requirements | G | — |
+| SAEP-301 | Establishing and maintaining Mandatory Saudi Aramco Engineering Requirements (MSAERs) *(2nd pass)* | S | [scribd SAEP-301](https://www.scribd.com/document/607475675/SAEP-301) |
+| SAEP-302 | Instructions for obtaining a waiver of a Mandatory Saudi Aramco Engineering Requirement (see §1.5) | S | [scribd SAEP-302](https://www.scribd.com/document/683056429/SAEP-302), [scribd SAEP-302 older](https://www.scribd.com/document/83925264/SAEP-302) |
+| SAEP-303 | Engineering reviews of project proposals and detailed design packages *(2nd pass)*. Copies dated 1 Jun 2008, 13 Dec 2011, 21 Nov 2016 | S | [scribd SAEP-303](https://www.scribd.com/document/473260763/SAEP-303-pdf), [scribd SAEP-303 (2)](https://www.scribd.com/document/397353670/SAEP-303-PDF), [pdfcoffee SAEP-303](https://pdfcoffee.com/saep-303-pdf-pdf-free.html) |
+| SAEP-12 / SAEP-14 | Project Execution Plan / Project Proposals (SAEP-14 schedules must include SAEP-303 review times) *(2nd pass)* | S | [scribd SAEP-14](https://www.scribd.com/document/661288589/SAEP-14), [scribd INDX-SAEP](https://www.scribd.com/doc/239415248/INDX-SAEP) |
 | SAEP-318 | Pressure relief valve programme (applies to RVs, which SAES-J-600 also calls PZVs) | S | [scribd SAEP-318](https://www.scribd.com/document/473260773/SAEP-318-pdf) |
 | SAEP-1400 | Instrumentation vendor technical evaluation by 9COM (Instrumentation Standards Committee) | S | [scribd SAEP-1400](https://www.scribd.com/document/398466940/SAEP-1400-pdf) |
 | SAEP-1151 (?) | Inspection requirements (slideshare "saep1151inspection-requirement") | S | [slideshare](https://www.slideshare.net/slideshow/saep1151inspection-requirementpdf/258302250) |
@@ -195,13 +208,15 @@ Legend: **C** = confirmed, **S** = secondary source, **G** = general knowledge �
 | SAES-K-002 | HVAC (monitoring per J-801, via SAIC-K-4044) | S | [pdfcoffee SAIC-K-4044](https://pdfcoffee.com/saudi-aramco-inspection-checklist-pressurized-building-hvac-requirements-saic-k-4044-30-apr-13-hvac-pdf-free.html) |
 | SAES-P-103 | Batteries and UPS Systems (referenced by J-902) | S | [scribd J-902](https://www.scribd.com/document/426879234/SAES-J-902-pdf) |
 | SAES-P-111 | Grounding (referenced by J-902) | S | [scribd J-902](https://www.scribd.com/document/426879234/SAES-J-902-pdf) |
-| SAES-T-xxx | Telecom series (for example SAES-T-101 exists); I&C-relevant titles not confirmed | U | [scribd SAES-T-101](https://www.scribd.com/document/475001025/SAES-T-101-pdf) |
+| SAES-T-xxx | Telecom series. Index document: **SAES-T-000** "Telecommunications Standards Introduction and Indices" (2007 copy). I&C-adjacent titles seen *(2nd pass)*: **SAES-T-481** In-Plant Voice Paging System; **SAES-T-625** fiber optic cable for inter-/intra-building (on-premises) use; **SAES-T-624** fiber optic test requirements (attenuation limits at 1,300/1,550 nm, cited from T-625); **SAES-T-916** communications building cable (fiber connectors per T-625 clause 5.6); **SAES-T-911** conduit system design (cites T-603 and T-628, titles not seen). Other numbers seen without titles: T-101, T-494, T-795, T-912, T-914. | S (titles from snippets of unofficial copies) | [scribd SAES-T-625](https://www.scribd.com/document/475001065/SAES-T-625-PDF), [scribd SAES-T-911](https://www.scribd.com/document/453306409/SAES-T-911), [scribd SAES-T-101](https://www.scribd.com/document/475001025/SAES-T-101-pdf), [scribd T-914](https://www.scribd.com/document/475001111/SAES-T-914-PDF), [scribd T-912](https://www.scribd.com/document/475001105/SAES-T-912-PDF) |
+| SAES-Y-301 | Custody measurement standard covering **radar tank gauging systems** (hydrocarbon custody, not general process level) *(2nd pass)* | S | [scribd SAES-Y-301](https://www.scribd.com/document/493616156/SAES-Y-301) |
+| SATIP-J-300-01 | Typical inspection plan for level instrument installations (cited by SAIC-J-6022) *(2nd pass)* | S | [scribd SAIC-J-6022](https://www.scribd.com/document/324772531/SAIC-J-6022-Rev-0-pdf) |
 | SAIC-J-6022 | Inspection checklist – packaged units (cites 34-SAMSS-831) | S | [scribd](https://www.scribd.com/document/324772531/SAIC-J-6022-Rev-0-pdf) |
 | SAIC-J-6904 | Inspection checklist – intrinsically safe systems (cites J-903) | S | [scribd](https://www.scribd.com/document/226927140/SAIC-J-6904-Rev-0) |
 | SAIC-J-6806 | Inspection checklist – ESD / power supply (cites 34-SAMSS-820) | S | [scribd](https://www.scribd.com/document/525615451/SAIC-J-6806) |
 | SAIC-J-6803, -6804, -6017, -6019, -6030, -6111 | Other J-series inspection checklists (subjects not confirmed individually) | S (numbers) | [6803](https://www.scribd.com/document/525616682/SAIC-J-6803), [6804](https://www.scribd.com/document/525616683/SAIC-J-6804), [6017](https://www.scribd.com/document/526010667/SAIC-J-6017), [6019](https://www.scribd.com/document/525219377/SAIC-J-6019), [6030](https://www.scribd.com/document/525610883/SAIC-J-6030), [6111](https://www.scribd.com/document/226926965/SAIC-J-6111-Rev-0) |
 
-**Count:** of the roughly 60 document numbers tracked above, about 20 are confirmed (number, title and scope in two or more sources), about 30 are secondary-source only, and about 12 are unverified (number or title not found). See §8.
+**Count (after the 2nd pass):** of the roughly 80 document numbers tracked above, about 21 are confirmed (number, title and scope in two or more sources, or on aramco.com), about 50 are secondary-source only, and about 10 are still unverified or title-unknown (J-410, J-510, J-800, 34-SAMSS-112/113/625/627/629/846, 23-SAMSS-030/071). See §8.
 
 ---
 
@@ -220,7 +235,9 @@ Each bullet carries its own tag and source. Where the only evidence is a cross-r
 | Outdoor, sheltered | 55 °C | 0 °C |
 | Outdoor, unsheltered (direct sun) | 65 °C | 0 °C |
 
-- The 2013 issue (13 May 2013) has an "Environmental Conditions" section (8.1 temperature). The values were not visible in public snippets, so whether they changed is not confirmed. **Always check the project revision.** [secondary source]
+- The 2013 issue (13 May 2013; previous issue 31 Dec 2012; next planned update 6 Sep 2016) has an "Environmental Conditions" section (8.1 temperature). The values were not visible in public snippets, so whether they changed is not confirmed. A targeted 2nd-pass search for the 55 °C / 65 °C values and for any 2016+ issue of SAES-J-003 found nothing. **Always check the project revision.** [secondary source] ([pdfcoffee J-003](https://pdfcoffee.com/saes-j-003-pdf-free.html))
+- Context *(2nd pass)*: the sheltered/outdoor split matches the location classes of ISA-71.01 (Class C sheltered, Class D outdoor) and IEC 60654-1, which Aramco's table probably follows; the numeric limits of those standards were not visible. [secondary source for the class names; inference for the link] ([ISA S71.01 preview](https://webstore.ansi.org/preview-pages/ISA/preview_ANSI+ISA+S71.01-1985.pdf), [IEC 60654-1 preview](https://webstore.ansi.org/preview-pages/IEC/preview_iec60654-1%7Bed2.0%7Db.img.pdf))
+- Other J-series standards point back to J-003 for ambient conditions; for example SAES-J-200 requires all pressure instruments and accessories to meet the ambient-condition requirements of SAES-J-003. [secondary source] ([scribd J-200](https://www.scribd.com/document/439171375/SAES-J-200-Pressure))
 - In practice: data sheets for outdoor electronics (transmitters, positioners, analyzers, junction-box components, field panels) must show a rated operating range that covers the 65 °C unsheltered case, or the item must be sun-shaded. LCD displays and electrolytic components are common failure points. [general knowledge — verify]
 - SAES-J-003 is also generally understood to cover humidity, dust and sand, corrosive atmosphere (the coastal/offshore marine environment of the Arabian Gulf and Red Sea), instrument air quality and units of measure. [general knowledge — verify]
 
@@ -228,7 +245,8 @@ Each bullet carries its own tag and source. Where the only evidence is a cross-r
 
 **Technically acceptable manufacturers (SAES-J-002).**
 - Older public indexes list SAES-J-002 as "Technically Acceptable Instrument Manufacturers": a list of manufacturers and models accepted per instrument type. [secondary source] ([instrumentqcnotes](http://instrumentqcnotes.blogspot.com/2015/03/introduction-it-is-branch-of.html), [englogs](https://englogs.com/saudi-aramco-engineering-standard-instrumentation-system/))
-- Current practice uses 9COM-based vendor/plant approval (SAEP-1400 for instrumentation) and RVLs for process automation systems (SAEP-15). Whether SAES-J-002 is still active or has been cancelled is **not confirmed**. See §4. [general knowledge — verify]
+- Current practice uses 9COM-based vendor/plant approval (SAEP-1400 for instrumentation) and RVLs for process automation systems (SAEP-15). Whether SAES-J-002 is still active or has been cancelled is **not confirmed**. The latest dated evidence is a **major revision of 30 Nov 2004** in an Aramco revision alert; a 2nd-pass search for a cancellation or "superseded by SAEP-1400" notice found nothing. See §4. [general knowledge — verify for the current status; secondary source for the 2004 revision] ([scribd ALERT-OLD](https://www.scribd.com/document/508178538/ALERT-OLD))
+- The parallel process-automation document, **SAES-Z-002**, works the same way: it identifies acceptable manufacturers, with Restricted lists for host systems (DCS, SCADA) and Recommended lists for subsystems (ESD, RTU). See §3.16. [secondary source] ([scribd Z-002](https://www.scribd.com/document/354870462/SAES-Z-002-LOCKED-BY-BADR-pdf))
 
 **Materials and sour service.**
 - Aramco projects normally specify 316/316L stainless steel for wetted parts, instrument tubing and fittings as a minimum. NACE MR0175/ISO 15156 compliance is required for sour (H2S) service, which is common in Saudi gas and crude handling. [general knowledge — verify: not confirmed in public excerpts]
@@ -257,12 +275,27 @@ Each bullet carries its own tag and source. Where the only evidence is a cross-r
 - **Custody / hydrocarbon measurement** in Aramco falls under a separate SAES/SAEP regime (custody transfer and hydrocarbon accounting), with meter proving and API MPMS references. Treat custody metering as outside the plain J-100 process-metering scope unless the project says otherwise. [general knowledge — verify]
 - **Market evidence:** Aramco uses venturi meters (WIKA venturis for gas exploitation), V-Cone meters (reported in OGJ), and Coriolis meters (9COM 6000002915 "Flowmeter; Coriolis Mass" appears in SAEP-1400 listings). [secondary source] ([WIKA blog](https://blog.wika.com/en/wika-insight/venturis-meet-desert-challenges/), [OGJ V-Cone](https://www.ogj.com/home/article/17216022/saudi-plants-install-v-cone-meters), [Pipeliner venturi](https://www.pipeliner.com.au/internationalnews/venturi-meters-for-saudi-aramco/), [scribd SAEP-1400](https://www.scribd.com/document/398466940/SAEP-1400-pdf))
 - **Localization:** process flowmeters, custody measurement and multiphase flowmeters are named Aramco iKTVA instrumentation opportunity areas (2022 and 2025 workshops). [confirmed] ([aramco iKTVA instrumentation deck](https://www.aramco.com/-/media/downloads/iktva/instrumentation.pdf))
-- Typical content not confirmed: orifice plate per ISO 5167 / AGA-3, beta ratio limits, minimum straight runs, tapping orientation for gas/liquid/steam, permitted meter types per service, and DP turndown limits. [general knowledge — verify]
+- **Orifice and installation clauses** *(2nd pass)*. All [secondary source], from search snippets of unofficial copies ([scribd J-100](https://www.scribd.com/document/494872706/SAES-J-100), [pdfcoffee J-100](https://pdfcoffee.com/saes-j-100-pdf-free.html), [mirror J-100 2020](https://justrite-elynox-bootcamp.pages.dev/Reference-Examples/Q-31108---Tecnicas---Riyas/RFQ-Files/SAES-J-100)):
+  - The 2009 issue is structured as additions and exceptions to **PIP PCCFL001** (Process Industry Practices, flow measurement), with clause numbers keyed to PIP sections.
+  - **Flange taps are mandatory for all orifice meter installations** (2009 issue, an *exception* to PIP 3.2.14(b)). Tap connections must follow **Standard Drawing AC-036413 or AB-036414**.
+  - **Straight runs:** the 2009 issue adds its own **Table 1** for straight-run requirements (addition to PIP 3.2.17). The 2020 issue has appendices giving minimum straight-run lengths for **orifice plates without flow conditioners per ISO 5167-2** and for **classical venturi tubes per ISO 5167-4**. Table values were not visible.
+  - The 2009 issue also requires a **flanged drop-out spool upstream** of the meter and limits the **thermowell location to no more than 20 nominal pipe diameters downstream** of the meter (as paraphrased in a search summary; check the exact wording).
+  - Orifice calculation data sheet: Aramco ISS form **3175-ENG** is used in place of the ISA S20.21 form (2009 issue).
+  - The 2020 issue cites drawing **AB-036019 "Thermowell – Assembly and Detail"**, and its revision notes mention **FEA and CFD requirements for helical thermowells** (helical-strake designs). It also cites level library drawings DB-950046 and DB-950047 (see §3.5).
+- **Still not confirmed:** beta-ratio limits (a 2nd-pass search for a d/D ≤ 0.7 limit found the value only in an unidentified non-Aramco document "GS 130-5"), flange rating rules for tap flanges, tapping orientation for gas/liquid/steam, permitted meter types per service, and DP turndown limits. [general knowledge — verify] ([scribd GS 130-5](https://www.scribd.com/document/414532387/Gs130-5))
 
 ### 3.4 Pressure (SAES-J-200)
 
-- **Title confirmed as "Pressure"** [secondary source] ([scribd J-200](https://www.scribd.com/document/494872703/Saes-j-200-Pressure)). No specific clauses surfaced publicly in this research.
-- Typical requirements found on Aramco projects, **all unconfirmed**: [general knowledge — verify]
+- **Title confirmed as "Pressure"** [secondary source] ([scribd J-200](https://www.scribd.com/document/494872703/Saes-j-200-Pressure)).
+- **Publicly visible clauses** *(2nd pass)*, all [secondary source] from snippets of the 2008 and 2013 copies ([scribd J-200 (2)](https://www.scribd.com/document/439171375/SAES-J-200-Pressure), [scribd J-200 (3)](https://www.scribd.com/document/519224007/SAES-J-200)):
+  - **Scope:** minimum mandatory requirements for the design and installation of pressure and differential-pressure (D/P) instruments, **in addition to PIP PCCPR001** (Process Industry Practice, pressure measurement criteria).
+  - **Pressure gauges shall have safety glass** (2008 issue). The snippet continues with a truncated sentence starting "Plastic…" (probably about plastic windows; wording not visible) and says **hermetically sealed switch contacts are preferable** (pressure switches).
+  - **All pulsation dampeners (snubbers), siphons, diaphragm seals and similar accessories shall be shown on the P&IDs.**
+  - Instruments and accessories must meet the **ambient-condition requirements of SAES-J-003**, and locally mounted instruments the **area-classification requirements of SAES-B-068**.
+  - Clause **4.4.1** adds requirements for **pressure transmitters in gas and vapour service** (content cut off in the snippet; probably mounting above the tap / self-draining impulse lines — unconfirmed).
+  - Typical installations are referred to **Saudi Aramco Library Drawings** (numbers not visible).
+- **Transmitter vs gauge rule** (when a transmitter is required instead of a local gauge): not found. [gap]
+- Typical requirements found on Aramco projects, **still unconfirmed**: [general knowledge — verify]
   - gauges with 316SS internals, solid-front / blow-out-back safety pattern, and a nominal 100 mm (4") dial;
   - normal operating pressure in the middle portion of the scale;
   - over-range protection or snubbers for pulsating service;
@@ -273,7 +306,15 @@ Each bullet carries its own tag and source. Where the only evidence is a cross-r
 
 ### 3.5 Level (SAES-J-300)
 
-- **Title confirmed as "Level"** [secondary source] ([englogs](https://englogs.com/saudi-aramco-engineering-standard-instrumentation-system/), [paktechpoint](https://paktechpoint.com/saudi-aramco-engineering-standard-for-electrical-instrumentation-and-cp/)). No specific clauses surfaced.
+- **Title confirmed as "Level"** [secondary source] ([englogs](https://englogs.com/saudi-aramco-engineering-standard-instrumentation-system/), [paktechpoint](https://paktechpoint.com/saudi-aramco-engineering-standard-for-electrical-instrumentation-and-cp/)). No J-300 clause text surfaced, even in the 2nd pass.
+- **Related documents** *(2nd pass)*, all [secondary source]:
+  - SAES-J-400 excludes level measurement and points to SAES-J-300. ([scribd J-400](https://www.scribd.com/document/519224174/SAES-J-400))
+  - Older J-001 indexes list level data-sheet forms **ISS 8020-312-ENG "Level Gauge Glasses"** and **ISS 8020-314-ENG "Level Instruments"**. ([pdfcoffee J-001](https://pdfcoffee.com/saes-j-001-3-pdf-free.html), [scribd J-001](https://www.scribd.com/document/680621562/SAES-J-001))
+  - Library drawings **DB-950046 "Instrument Piping Detail for Liquid Level Gauge Glasses"** and **DB-950047** (pneumatic level instruments) are cited by SAES-J-100. ([pdfcoffee J-100](https://pdfcoffee.com/saes-j-100-pdf-free.html))
+  - **SATIP-J-300-01** is the typical inspection plan for level installations (cited by SAIC-J-6022). ([scribd SAIC-J-6022](https://www.scribd.com/document/324772531/SAIC-J-6022-Rev-0-pdf))
+  - **Radar tank gauging** for hydrocarbon custody is governed by **SAES-Y-301** (custody measurement), not J-300. ([scribd SAES-Y-301](https://www.scribd.com/document/493616156/SAES-Y-301))
+  - SAEP-1400's 9COM commodity list treats "Glass: Level Gauge" and radar tank gauging as separate commodity groups, and Aramco sourcing lists tie glass level gauges to **34-SAMSS-010**. ([scribd SAEP-1400](https://www.scribd.com/document/398466940/SAEP-1400-pdf), [Aramco India sourcing list Jan 2024](https://india.aramco.com/-/media/aramcoindia/sourcing-list/sourcing-list-jan-2024.pdf))
+  - A displacer "≤ 48 in (1,200 mm) range" rule appeared in a Scribd level specification ("J-03") that does **not** name Aramco; do not attribute it to J-300. ([scribd J-03](https://www.scribd.com/document/396454916/J-03))
 - **Level measurement** is a named iKTVA opportunity (Jan 2025 workshop). [confirmed] ([aramco iKTVA deck](https://www.aramco.com/-/media/downloads/iktva/instrumentation.pdf))
 - Typical topics, **unconfirmed**: [general knowledge — verify]
   - restrictions on tubular glass gauges (use reflex/transparent or magnetic gauges);
@@ -285,12 +326,19 @@ Each bullet carries its own tag and source. Where the only evidence is a cross-r
 
 ### 3.6 Temperature (SAES-J-400)
 
-- **Title confirmed as "Temperature"** [secondary source] ([scribd J-400](https://www.scribd.com/document/519224174/SAES-J-400)). No specific clauses surfaced.
+- **Title confirmed as "Temperature"** [secondary source] ([scribd J-400](https://www.scribd.com/document/519224174/SAES-J-400)). Copy seen: issue date **28 Jun 2009**, next planned update 2013 (so certainly superseded).
+- **Publicly visible clauses** *(2nd pass)*, [secondary source] from snippets of the 2009 copy ([scribd J-400](https://www.scribd.com/document/519224174/SAES-J-400)):
+  - **Clause 5.2.2: weld-in thermowells shall only be used when ASME or Saudi Aramco standards or specifications require welded connections.** In other words, flanged (or otherwise removable) thermowells are the default.
+  - A **mechanical protection sleeve** shall be considered for temperature sensors in areas with mechanical hazards (trigger conditions truncated).
+  - Section **8.1.1** covers **filled-system** temperature instruments (the restriction itself was cut off).
+  - J-400 excludes level measurement (see SAES-J-300).
+- **Thermowell drawing and vibration:** SAES-J-100 (2020) cites **AB-036019 "Thermowell – Assembly and Detail"** and requires **FEA and CFD** for **helical (strake) thermowells**. [secondary source] ([pdfcoffee J-100](https://pdfcoffee.com/saes-j-100-pdf-free.html))
+- **ASME PTC 19.3 TW** current edition is 2016, reaffirmed 2025; it covers mechanical (stress and wake-frequency) design only. Whether J-400 cites it by name was not confirmed. [confirmed for the ASME status] ([ANSI webstore PTC 19.3 TW](https://webstore.ansi.org/standards/asme/asmeptc19tw2016r2025), [ASME PTC 19.3 TW](https://www.asme.org/codes-standards/find-codes-standards/thermowells))
 - "Temperature measurement" is a named iKTVA localization item (2022 deck). [confirmed] ([aramco iKTVA deck](https://www.aramco.com/-/media/downloads/iktva/instrumentation.pdf))
 - **Thermocouple extension cable** is covered by **34-SAMSS-913** "Instrumentation and Thermocouple Cable". A vendor (Saudi Cable) describes thermocouple extension conductors to ANSI MC96.1 / IEC 60584. [secondary source] ([scribd QA/QC module](https://www.scribd.com/presentation/609393585/Training-Module-QA-QC), [Saudi Cable special cables](https://www.saudicable.com/products/special-cables/))
 - Typical topics, **unconfirmed**: [general knowledge — verify]
-  - thermowell design to ASME PTC 19.3 TW (wake-frequency calculation);
-  - flanged thermowells in hydrocarbon service;
+  - thermowell design to ASME PTC 19.3 TW (wake-frequency calculation) — partly supported by the J-100 FEA/CFD clause above;
+  - flanged thermowells in hydrocarbon service — consistent with J-400 clause 5.2.2 above (weld-in only where welded connections are required);
   - RTD (Pt100) versus thermocouple selection;
   - minimum line size for thermowells;
   - head-mounted transmitters.
@@ -338,6 +386,8 @@ Each bullet carries its own tag and source. Where the only evidence is a cross-r
 - **SAES-Z-001** excludes ESD systems (covered by J-601) from the PCS scope except for their interfaces. **Keep the ESD system separate from the DCS.** [secondary source] ([pdfcoffee Z-001](https://pdfcoffee.com/saes-z-001-pdf-pdf-free.html))
 - **SAES-J-100 clause 4.1.2:** instruments selected for ESD service must also meet SAES-J-601. [secondary source]
 - **SIL / IEC 61508/61511:** later issues of SAES-J-601 are widely understood to require SIL determination and verification aligned with IEC 61511. Typical elements are separate sensors for ESD and control, 2oo3 voting on critical initiators, de-energize-to-trip design, and proof-test intervals. **No public excerpt confirming the SIL clauses was found.** [general knowledge — verify]
+- *(2nd pass)* Three targeted searches (J-601 + SIL/IEC 61511/2oo3; J-601 + proof-test interval; "SAEP-250" SIL) returned no Aramco text. No issue of J-601 later than 29 Jun 2005 surfaced; the project-variant **YERP-SAES-J-601** (Yanbu, referenced by YERP-SAES-B-058 issued 29 Apr 2008) shows the standard was still being adapted in 2008. The SIL determination method (risk graph vs LOPA), voting rules, proof-test intervals and the existence/number of an Aramco SIL-assessment SAEP all remain **unconfirmed**; do not quote "SAEP-250" as Aramco's SIL procedure. [secondary source for the YERP reference] ([es.scribd YERP-PE-YSS-0048](https://es.scribd.com/document/178151012/100-YER-PE-YSS-0048))
+- A separate J-60x standard covers boilers: **SAES-J-602 "Burner Management, Combustion and Waterside Control Systems for Watertube Boilers"** (31 Jan 2005 issue in the 2006 index). Use it, not J-601, for boiler BMS questions. [secondary source] ([scribd INDX-SAES](https://www.scribd.com/document/527150981/INDX-SAES))
 
 **ZV (emergency isolation valve) testing and local control (34-SAMSS-634).** [secondary source] ([scribd 34-SAMSS-634](https://www.scribd.com/document/370514106/174038738-34-SAMSS-634-pdf))
 - 34-SAMSS-634 covers local emergency isolation valve control systems, including **smart ZV controllers** with **partial-stroke testing**.
@@ -446,17 +496,24 @@ Each bullet carries its own tag and source. Where the only evidence is a cross-r
   - **Field devices in Zone 2 must be certified Ex ic** (per SAES-J-904).
   - **Wiring blocks (device couplers) in Zone 2 must be certified Ex ic.**
   - **Spur cable: FF Type A** (per J-904).
-- **Spur protection:** Aramco used **Ex nL** on FF spurs to allow live maintenance, with a planned move toward IS/Ex ic. [secondary source] ([Control Global](https://www.controlglobal.com/network/industrial-networks/article/11321803/foundation-fieldbus-in-hazardous-areas))
+- **Spur protection:** Aramco used **Ex nL** on FF spurs to allow live maintenance, with a planned move toward IS/Ex ic. The article (by Aramco engineers) states the Zone 2 scheme as **Ex nA for the trunk and Ex nL for the spurs**. [secondary source] ([Control Global](https://www.controlglobal.com/network/industrial-networks/article/11321803/foundation-fieldbus-in-hazardous-areas))
+- **Segment length and current limits** *(2nd pass)*, as summarised from the SABP-J-900 best practice (which cites J-904) [secondary source — search summary of an unofficial copy; check whether these are J-904 requirements or SABP guidance] ([scribd SABP-J-900](https://round-lake.dustinice.workers.dev:443/https/www.scribd.com/document/493616203/SABP-J-900)):
+  - **total segment length ≤ 1,900 m** (trunk plus spurs; matches the IEC 61158-2 Type A cable limit);
+  - **each spur ≤ 120 m**;
+  - wiring blocks (device couplers) with **short-circuit current limiting that clamps at about 55 mA DC** per spur.
+- **Devices per segment:** no Aramco number was found. An Aramco engineer told Control Global that Aramco has **increased the number of devices per segment as confidence in the technology grew**, without giving a figure. Generic FF/Profibus PA limits are up to 32 devices per segment, with many hosts limiting to 16. [secondary source] ([Control Global](https://www.controlglobal.com/network/industrial-networks/article/11321803/safety-foundation-fieldbus-in-hazardous-areas), [Power Magazine primer](https://www.powermag.com/a-fieldbus-primer/))
+- **Voltage margin at the furthest device:** not found in any public J-904 excerpt. [gap]
+- The YERP FF specification (which applies J-904 "except as noted") includes a section on **FF field JB segment design/loading**, but its numbers were not visible. [secondary source] ([scribd YERP FF](https://www.scribd.com/doc/142169992/192-YER-PE-I35-0011))
 - **Aramco endorsement of fieldbus:** an Aramco expatriate article, "Fieldbus: a solution for plant engineers", describes Aramco's adoption of FF. [secondary source] ([aramcoexpats](https://aramcoexpats.com/articles/fieldbus-a-solution-for-plant-engineers))
 - **DCS for FF:** process-automation RVLs list DCS vendors qualified under **23-SAMSS-010** for FF systems. [secondary source] ([scribd SAES-Z-002](https://www.scribd.com/doc/239724008/Saes-z-002-Locked-by-Badr))
 - **Project variant:** the YERP FF specification says all Saudi Aramco standards apply to FF systems except as noted. [secondary source] ([scribd YERP FF](https://www.scribd.com/doc/142169992/192-YER-PE-I35-0011))
 - Typical segment rules found on Aramco FF projects, **unconfirmed** (check against J-904): [general knowledge — verify]
-  - a maximum number of devices per segment (commonly 12 to 16 including spares, with spare capacity for future devices);
+  - a maximum number of devices per segment (commonly 12 to 16 including spares, with spare capacity for future devices; the Aramco interview above suggests the limit has been relaxed over time);
   - a maximum of one final control element per segment, or a "risk-ranking" limit on critical loops per segment;
   - **no ESD/SIF functions on FF** (ESD stays hard-wired 4–20 mA / discrete to the SIS);
   - redundant power conditioners;
   - segment voltage at the furthest device of at least 9 V with margin;
-  - maximum segment and spur lengths per IEC 61158-2;
+  - maximum segment and spur lengths per IEC 61158-2 (1,900 m / 120 m now supported by SABP-J-900, see above);
   - macrocycle loading limits;
   - FF device registration (ITK) and DD files validated against the host;
   - segment checkout with an FF diagnostic tool at commissioning;
@@ -465,7 +522,7 @@ Each bullet carries its own tag and source. Where the only evidence is a cross-r
 ### 3.16 DCS / PCS / SCADA / networks (SAES-Z-001/002/004/010, 23-SAMSS-010/020/072)
 
 - **SAES-Z-001 "Process Control Systems"** covers PCS design and **includes process control networks**. It **excludes ESD (SAES-J-601) and SCADA (SAES-Z-004) except for their interfaces to the PCS**. It also covers installation of proprietary PCS (per Z-010). Public copy: draft dated 22 Jul 2012. [confirmed] ([pdfcoffee Z-001](https://pdfcoffee.com/saes-z-001-pdf-pdf-free.html), [scribd Z-010](https://www.scribd.com/document/415401236/SAES-Z-010-pdf))
-- **SAES-Z-002:** a 2006 copy shows "Process Automation Systems" in its header. It appears to be the standard that ties process automation systems to the **Restricted Vendor List** (vendors and product lines qualified for each class of process automation equipment). The RVL is prepared under **SAEP-15**. [secondary source] ([scribd Z-002](https://www.scribd.com/doc/239724008/Saes-z-002-Locked-by-Badr), [scribd SAEP-15](https://www.scribd.com/document/429080803/SAEP-15-pdf))
+- **SAES-Z-002:** a 2006 copy (issue 28 May 2006, next planned update 2011) shows "Process Automation Systems" in its header. It identifies acceptable manufacturers of process automation systems and does not cover purchasing for SAMSS stock replenishment. Its listings are **Restricted Vendor Lists** for host systems (**DCS, SCADA**) and **Recommended Vendor Lists** for subsystems (for example **ESD, RTU**); recommended products are those evaluated by P&CSD (Process & Control Systems Department) and found technically acceptable. RVLs are prepared under **SAEP-15**. Other documents (e.g. SABP-Z-002E for compressor control) require systems to be "technically acceptable under SAES-Z-002". [secondary source; details added in 2nd pass] ([scribd Z-002](https://www.scribd.com/doc/239724008/Saes-z-002-Locked-by-Badr), [scribd Z-002 (2)](https://www.scribd.com/document/354870462/SAES-Z-002-LOCKED-BY-BADR-pdf), [scribd SAEP-15](https://www.scribd.com/document/429080803/SAEP-15-pdf), [scribd SABP-Z-002E](https://www.scribd.com/document/403474712/SABP-Z-002E-pdf))
 - **SAES-Z-004 "Supervisory Control and Data Acquisition (SCADA) System"** (10 Nov 2013 copy) applies to anyone designing new, upgraded or expanded SCADA in Aramco facilities, and refers to SAES-Z-010 for the PAN. [confirmed] ([pdfcoffee Z-004](https://pdfcoffee.com/saes-z-004-pdf-free.html))
 - **SAES-Z-010 "Process Automation Networks"** covers the plant-wide **PAN** that links the individual PCNs and provides the interface to the corporate WAN. It is based on **IEEE 802.3 (Ethernet)** (2009 issue) and applies to all process automation networks based on standard protocols. [confirmed] ([scribd Z-010](https://www.scribd.com/document/415401236/SAES-Z-010-pdf), [pdfcoffee Z-010](https://pdfcoffee.com/saes-z-010-pdf-pdf-free.html))
 - **23-SAMSS-010** is the **DCS** purchase specification and **23-SAMSS-020** the **SCADA** purchase specification. [secondary source] ([es.scribd 23-SAMSS-020](https://es.scribd.com/document/319694317/23-SAMSS-020))
@@ -548,7 +605,9 @@ Each bullet carries its own tag and source. Where the only evidence is a cross-r
   5. Issued-for-Construction (IFC).
   6. Construction, pre-commissioning and commissioning.
   7. Mechanical Completion Certificate.
-- Reviews are formal and comment-tracked. Aramco's Project Management Team (PMT) and **Consulting Services Department (CSD)** I&C specialists review against the mandatory SAES/SAMSS set. The engineering-review procedure is commonly cited as SAEP-303 (engineering reviews of project proposals and detailed design). **Number not confirmed in this research.**
+- Reviews are formal and comment-tracked. Aramco's Project Management Team (PMT) and **Consulting Services Department (CSD)** I&C specialists review against the mandatory SAES/SAMSS set.
+- **SAEP-303** is confirmed *(2nd pass)* as the procedure for **formal engineering reviews of project proposals and detailed design packages** (and other mandatory engineering documents) by Saudi Aramco reviewing organisations. Copies dated 1 Jun 2008, 13 Dec 2011 and 21 Nov 2016 circulate. **SAEP-14** (Project Proposals) requires the schedule to include the review times specified in SAEP-303; **SAEP-12** is the Project Execution Plan procedure. [secondary source] ([scribd SAEP-303](https://www.scribd.com/document/473260763/SAEP-303-pdf), [pdfcoffee SAEP-303](https://pdfcoffee.com/saep-303-pdf-pdf-free.html), [scribd SAEP-14](https://www.scribd.com/document/661288589/SAEP-14))
+- The "60% / 90%" review milestones above were **not** found in any public SAEP-303 or SAEP-14 snippet; treat them as typical project practice. [general knowledge — verify]
 - Typical I&C deliverables at each review: instrument index, data sheets (ISS), I/O list, cause & effect diagrams, SIL assessment/verification reports, control narratives, system architecture, FF segment drawings and calculations, cable schedules, hook-ups, location layouts, cabinet GAs, power/heat load calculations and control building layouts.
 
 **Vendor document review** uses Aramco's SDRL (Supplier Document Requirements List) and approval-code categories on each vendor document. [general knowledge — verify]
@@ -584,7 +643,7 @@ The comments in this list are **typical** comments compiled from public evidence
 12. **Instrument accessories not accessible from grade/platform.** SAES-J-700 and general J-series practice. [secondary source]
 13. **Data sheets on vendor forms instead of Aramco ISS forms** (8020-xxx-ENG). [secondary source for form existence; general knowledge for the comment]
 14. **Symbols and tags not per SAES-J-004** (ISA-5.1 plus Aramco exceptions), for example using SDV/XV instead of ZV, or PSV instead of PZV where the project follows Aramco tagging. [secondary source for ZV/PZV usage]
-15. **Missing waiver.** A deviation from a mandatory SAES/SAMSS accepted informally in a TBE without a SAEP-302 waiver. [general knowledge — verify]
+15. **Missing waiver.** A deviation from a mandatory SAES/SAMSS accepted informally in a TBE without a SAEP-302 waiver. SAEP-302 requires approval before the non-compliance is implemented. [secondary source for the SAEP-302 rule; general knowledge for the comment pattern]
 16. **Revision mismatch.** Designing to a Scribd copy or an outdated revision rather than the contract revision listed in the project specification. [general knowledge — verify]
 17. **Sour-service compliance not stated** (NACE MR0175/ISO 15156) for wetted parts, bolting or tubing in H2S service. [general knowledge — verify]
 18. **H2S detector accuracy or alarm settings not per 34-SAMSS-514 / SAES-J-505** (for example the ±4 ppm / ±10% accuracy). [secondary source]
@@ -592,31 +651,52 @@ The comments in this list are **typical** comments compiled from public evidence
 20. **Thermocouple extension cable not to 34-SAMSS-913** (jacket and colour coding). [secondary source]
 21. **Surge relief omitted** on pipeline/loading systems where SAES-J-605 applies. [secondary source for the standard's existence]
 22. **Inconsistent vendor compliance claims.** Vendors sometimes cite the wrong SAMSS; verify each claimed compliance against the specification's actual scope. [secondary source: Rotex example]
+23. **Orifice taps not flange taps**, or tap details not per AC-036413/AB-036414 (SAES-J-100). [secondary source] *(2nd pass)*
+24. **Weld-in thermowell** specified where no ASME/Aramco rule requires a welded connection (SAES-J-400 cl. 5.2.2); helical-strake thermowell offered without FEA/CFD justification (SAES-J-100 2020). [secondary source] *(2nd pass)*
+25. **Snubbers, siphons or diaphragm seals missing from the P&ID** (SAES-J-200). [secondary source] *(2nd pass)*
 
 ---
 
 ## 8. Gaps and open items
 
-**Documents asked about but not confirmed (number or title not found publicly):**
-- SAES-J-410, SAES-J-510, SAES-J-602, SAES-J-800: no evidence these exist. Do not cite them.
-- 34-SAMSS-112, 34-SAMSS-113: not found.
-- 23-SAMSS-071: not found (23-SAMSS-072 "Data Acquisition and Historization Systems" was found instead).
-- SAES-J-905, 34-SAMSS-911: numbers confirmed (added to the J-001 index in 2011), titles not found.
-- 34-SAMSS-625, -627, -629, -846, 23-SAMSS-030: documents exist (listings), titles not found.
-- SAES-T telecom standards relevant to I&C (for example plant telephone, CCTV, radio interfaces to the DCS): not researched; SAES-T-101 exists but its title was not confirmed.
+*Updated after the 2nd research pass (November 2026). Items resolved in that pass are listed first so the chatbot knows they have moved out of the gap list.*
 
-**Content gaps (requirements not publicly confirmable in this research):**
-- SAES-J-100 / J-200 / J-300 / J-400 technical clauses (meter selection, gauge construction, level-gauge restrictions, thermowell rules). The search budget ran out before these could be researched.
-- SAES-J-601 SIL clauses (SIL determination method, voting, proof-test intervals, separation of ESD sensors).
-- SAES-J-904 segment design limits (devices per segment, valves per segment, voltage margins, spare capacity).
+**Resolved in the 2nd pass (now [secondary source] with links in §2–§6):**
+- SAES-J-602 = Burner Management, Combustion and Waterside Control Systems for Watertube Boilers.
+- SAES-J-905 and 34-SAMSS-911 = Instrument Asset Management Systems (IAMS).
+- SAEP-302 (waiver) and SAEP-303 (engineering reviews) confirmed by number and scope; SAEP-301 (MSAERs), SAEP-12, SAEP-14 added.
+- SAES-J-100: flange taps mandatory, tap drawings AC-036413/AB-036414, own straight-run table (2009) / ISO 5167-2 and -4 appendices (2020), drop-out spool, thermowell ≤ 20 D downstream, ISS 3175-ENG, AB-036019 thermowell drawing, FEA/CFD for helical thermowells.
+- SAES-J-200: PIP PCCPR001 basis, safety-glass gauges, accessories on P&IDs, J-003 / B-068 cross-references.
+- SAES-J-400: weld-in thermowells only where welded connections are required (cl. 5.2.2); 2009 issue date.
+- SAES-J-300: related forms (ISS 8020-312/314-ENG), drawings (DB-950046/950047), SATIP-J-300-01, SAES-Y-301 for radar tank gauging.
+- SABP-J-900 FF limits: segment ≤ 1,900 m, spur ≤ 120 m, ~55 mA spur current limit.
+- SAES-Z-002 content (restricted vs recommended vendor lists).
+- 34-SAMSS-001 (multiphase meters & water-cut meters) and 34-SAMSS-010 (number only) added.
+- SAES-T documents relevant to I&C (T-000 index, T-481 paging, T-624/625 fiber, T-911 conduit, T-916 building cable).
+
+**Documents still not confirmed (number or title not found publicly):**
+- SAES-J-410, SAES-J-510, SAES-J-800: no evidence these exist after two searches. Do not cite them.
+- 34-SAMSS-112, 34-SAMSS-113, 23-SAMSS-071: not found after two searches.
+- 34-SAMSS-625, -627, -629, -846, 23-SAMSS-030: documents exist (listings), titles still not found.
+- 34-SAMSS-010: title not seen.
+- SAES-T-603 and SAES-T-628 titles; titles of T-101, T-494, T-795, T-912, T-914.
+- "SAEP-250" as an Aramco SIL procedure: not found; do not cite.
+
+**Content gaps (requirements still not publicly confirmable):**
+- SAES-J-100: orifice beta-ratio limits, tap-flange rating rules, Table 1 values, meter selection per service, DP turndown.
+- SAES-J-200: the transmitter-versus-gauge rule; clause 4.4.1 gas/vapour transmitter text; gauge dial size and over-range rules.
+- SAES-J-300: all clause text (gauge-glass restrictions, displacer limits, GWR/DP preferences, ESD-tap separation).
+- SAES-J-400: minimum line size for thermowells, insertion length, RTD vs TC selection, whether PTC 19.3 TW is cited by name.
+- SAES-J-601: SIL determination method, voting, proof-test intervals, ZV requirements, and whether any issue after 2005 exists.
+- SAES-J-904: devices per segment, valves per segment, voltage margin at the furthest device, spare capacity; whether the SABP-J-900 length limits are also J-904 requirements.
 - SAES-J-902 UPS and earthing specifics (they sit partly in SAES-P-103/P-111).
-- Current (2020s) revisions of nearly all documents. Most public copies are dated 2004–2017, and SAES-J-003's ambient table may have changed after 2004.
-- Whether SAES-J-002 is still active or has been replaced by SAEP-1400 / 9COM evaluation.
-- Exact SAES-Z-002 title.
-- Standard drawing numbers for instrument hook-ups.
-- Aramco's design review procedure number (SAEP-303?) and waiver procedure (SAEP-302?), both [general knowledge — verify].
+- SAES-J-003: whether the 2004 ambient table (35/55/65 °C) changed in 2012/2013 or later; no issue after 13 May 2013 found.
+- Whether SAES-J-002 is still active or has been replaced by SAEP-1400 / 9COM evaluation (latest evidence: 30 Nov 2004 major revision).
+- Exact SAES-Z-002 title and any revision after 2006.
+- Standard drawing prefix meaning (AA/AB/AC/AD) and a full list of instrument hook-up drawing numbers.
+- SAEP-302 approval authorities and SAEP-303 review milestones (60/90% not found).
 
-**Hosts that need allowing for deeper research:** pdfcoffee.com and ask.instrumentationtools.com were unreachable from the research session (ENOTFOUND). Scribd document text was only visible through search snippets.
+**Hosts that need allowing for deeper research:** pdfcoffee.com, ask.instrumentationtools.com, www.scribd.com, www.aramco.com and justrite-elynox-bootcamp.pages.dev were unreachable from both research sessions (ENOTFOUND). Scribd document text was only visible through search snippets. Allowing scribd.com and pdfcoffee.com would let the J-100/J-200/J-400 copies be read in full.
 
 **Recommendation for chatbot users:** for any requirement tagged [general knowledge — verify] or [secondary source], answer with the document number and ask the engineer to check the clause in the project's controlled copy. For clause-level questions, ask the user to paste the relevant clause from their licensed copy.
 
@@ -740,3 +820,36 @@ Secondary (document-sharing listings, blogs, forums; unofficial copies, used for
 - https://www.slideshare.net/slideshow/saep1151inspection-requirementpdf/258302250
 - https://www.scribd.com/presentation/726216420/KOM-for-Instrument-Calibration
 - https://justrite-elynox-bootcamp.pages.dev/Reference-Examples/Q-31108---Tecnicas---Riyas/RFQ-Files/SAES-A-202
+
+2nd-pass additions (November 2026):
+- https://pdfcoffee.com/saes-j-100-pdf-free.html
+- https://www.scribd.com/document/439171375/SAES-J-200-Pressure
+- https://www.scribd.com/document/519224007/SAES-J-200
+- https://pdfcoffee.com/saes-j-905-pdf-free.html
+- https://www.scribd.com/document/683056429/SAEP-302
+- https://www.scribd.com/document/83925264/SAEP-302
+- https://www.scribd.com/document/607475675/SAEP-301
+- https://www.scribd.com/document/473260763/SAEP-303-pdf
+- https://www.scribd.com/document/397353670/SAEP-303-PDF
+- https://pdfcoffee.com/saep-303-pdf-pdf-free.html
+- https://www.scribd.com/document/661288589/SAEP-14
+- https://www.scribd.com/doc/239415248/INDX-SAEP
+- https://www.scribd.com/document/354870462/SAES-Z-002-LOCKED-BY-BADR-pdf
+- https://www.scribd.com/document/403474712/SABP-Z-002E-pdf
+- https://www.scribd.com/document/493616156/SAES-Y-301
+- https://www.scribd.com/document/444577400/SAIC-J-6022-Rev-0
+- https://www.scribd.com/document/396454916/J-03
+- https://www.scribd.com/document/414532387/Gs130-5
+- https://www.scribd.com/document/475001065/SAES-T-625-PDF
+- https://www.scribd.com/document/453306409/SAES-T-911
+- https://www.scribd.com/document/475001111/SAES-T-914-PDF
+- https://www.scribd.com/document/475001105/SAES-T-912-PDF
+- https://india.aramco.com/-/media/aramcoindia/sourcing-list/sourcing-list-jan-2024.pdf
+- https://india.aramco.com/-/media/aramcoindia/sourcing-list/30-sept_2025-sourcing-list-aa-india.pdf
+- https://europe.aramco.com/-/media/aramcoaoc/pdf/aramco-materials-sourcing-list.pdf
+- https://www.controlglobal.com/network/industrial-networks/article/11321803/safety-foundation-fieldbus-in-hazardous-areas
+- https://www.powermag.com/a-fieldbus-primer/
+- https://webstore.ansi.org/standards/asme/asmeptc19tw2016r2025
+- https://www.asme.org/codes-standards/find-codes-standards/thermowells
+- https://webstore.ansi.org/preview-pages/ISA/preview_ANSI+ISA+S71.01-1985.pdf
+- https://webstore.ansi.org/preview-pages/IEC/preview_iec60654-1%7Bed2.0%7Db.img.pdf

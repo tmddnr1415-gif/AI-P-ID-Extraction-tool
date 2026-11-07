@@ -26,7 +26,7 @@
 2. If an engineer quotes a clause from their project copy, **their copy wins** over anything in this file.
 3. Never present a [general knowledge — verify] item as a client requirement in a deliverable or in a comment response.
 
-**Research limits.** WebFetch could not reach most hosts during this research: adnoc.ae, pdfcoffee.com, studylib.net, blogspot and pages.dev all failed DNS resolution in the sandbox. The web-search budget also ran out before the ADNOC, KOC, PDO and Aramco sections were fully researched. Most facts here therefore come from search-result summaries and snippets, not full-document reads. See §8 Gaps.
+**Research limits.** WebFetch could not reach most hosts during this research: adnoc.ae, pdfcoffee.com, studylib.net, blogspot and pages.dev all failed DNS resolution in the sandbox. The web-search budget also ran out before the ADNOC, KOC, PDO and Aramco sections were fully researched. Most facts here therefore come from search-result summaries and snippets, not full-document reads. See §8 Gaps. A short 2nd pass (November 2026) added QE-LNG document-numbering procedures, a Ras Laffan dry-bulb/wet-bulb pair, Qatar solar-resource data, KOC and PDO numbering; items from that pass are marked *(2nd pass)*.
 
 ---
 
@@ -85,6 +85,13 @@ On mega-projects, the client's corporate standards are usually turned into **pro
 - **200-51-IN-SPC-00057** — *Specification for Instrument Cables & Cable Glands*, "COMP3" project (North Field Production Sustainability, NFPS, offshore). It is a Saipem document, appearing in a third-party RFQ example set. [secondary source — title only; content not read] — [search listing](https://justrite-elynox-bootcamp.pages.dev/Reference-Examples/Q-32705---Saipem-COMP3/RFQ-Files/200-51-IN-SPC-00057_00) (host not reachable from this sandbox)
   - **Numbering pattern:** `<area/unit>-<discipline code 51?>-IN-SPC-<serial>`. Here "IN" is the instrumentation discipline and "SPC" the document type (specification). [inference — verify]
 - **Qatargas "Onshore Control and Shutdown Philosophy."** It describes the control system interfacing with the Fire & Gas System (FGS) and other subsystems. [secondary source] — [Scribd CONTROL-SD](https://www.scribd.com/document/722624967/CONTROL-SD)
+
+**QatarEnergy LNG (ex-Qatargas / RasGas) numbering procedures** *(added Nov 2026, 2nd pass)*. All [secondary source]: seen only as search snippets of files in third-party RFQ example sets (Saipem COMP2/COMP3, NFPS offshore); the host was unreachable for a full read.
+- The procedures sit in a **`PRJ-PJL-PRC-nnn`** series. Files seen: **PRJ-PJL-PRC-004** (rev 07), **PRJ-PJL-PRC-005** (rev 21) and **PRJ-PJL-PRC-008** (rev 17, *QatarEnergy LNG Equipment Numbering Philosophy*; this revision added a PRV tag structure, section 4.4.1, and covers valve and cable tags). — [PRC-005 listing](https://justrite-elynox-bootcamp.pages.dev/Reference-Examples/Q-32705---Saipem-COMP3/RFQ-Files/PRJ-PJL-PRC-005_21), [PRC-004 listing](https://justrite-elynox-bootcamp.pages.dev/Reference-Examples/Q-21699---Saipem-COMP2/RFQ-Files/PRJ-PJL-PRC-004_07), [PRC-008 listing](https://justrite-elynox-bootcamp.pages.dev/Reference-Examples/Q-32705---Saipem-COMP3/RFQ-Files/PRJ-PJL-PRC-008_17)
+- **Engineering document number** (procedure effective 12 Sep 2021): five hyphen-separated segments, **System Number – Unit Number – Discipline – Document Type – Sequence Number**. The sequence number is five characters starting at 00001, unique for each System/Unit/Discipline/Document-Type combination. Which PRC number holds this rule is not certain (most likely PRC-005).
+- **Vendor document number:** three segments, **QG contract/project number (XXXXA_YY) – purchase order number (10 digits) – sequence number (5 digits)**. The same procedure says the legacy RasGas document **RG-DFO-002 "Facilities Document Metadata"** was merged into it, which is how the RasGas numbering was absorbed.
+- **Equipment/tag numbering** (Qatargas procedure effective 11 Jan 2022): an "intelligent" scheme in which **System and Unit codes** are integral to document, drawing, equipment and component tag numbers. Stand-alone new projects that are not extensions of the existing Qatargas South or RLTO (Ras Laffan Terminal Operations) assets follow the Qatargas equipment and document numbering.
+- **Practical rule:** on a QE-LNG brownfield or NFx tie-in job, get PRJ-PJL-PRC-008 (tags) and the document-numbering procedure from the contract's applicable-documents list before building the instrument index; the instrument tag format itself was not visible in public snippets. [general knowledge — verify]
 
 **Practical rule for the chatbot.** On QE/QE-LNG projects, the documents an instrument engineer actually works to are usually these: (a) the project Instrument Design Basis/Philosophy; (b) project specifications for each equipment class (transmitters, control valves, on/off valves, analysers, cables, JBs, F&G detectors, DCS/SIS/FGS); (c) the client's Approved Manufacturers List. Corporate QE standards sit behind them in the order of precedence. [general knowledge — verify]
 
@@ -220,15 +227,17 @@ All items in this subsection are **[general knowledge — verify]** unless a lin
 | Max metal temperature in sun | **85 °C** with a design ambient of **50 °C**, from a Qatar construction specification (not a QE corporate standard) | S | [Scribd 19010 Specifications](https://www.scribd.com/document/420205335/19010-Specifications-Overall) — attribution to Qatar comes from the search summary; verify |
 | Seawater temperature | High in summer; drove a C3 booster compressor on Qatargas 1 | C | [OGJ](https://www.ogj.com/home/article/17225871/first-lng-from-north-field-overcomes-feed-start-up-problems) |
 | Typical LNG project design ambient (dry bulb, equipment) | ~**46–50 °C** max design dry bulb; minimum ~**5 °C** | U | [general knowledge — verify] |
+| NFE construction-phase cooling design point *(2nd pass)* | **48 °C dry bulb / 34 °C wet bulb** "ambient design-stress" values used by Aggreko for an NFE contractor's temporary cooling at Ras Laffan. A vendor case study, not the NFE plant design basis, but the only public Ras Laffan dry-bulb/wet-bulb pair found | S (vendor) | [Aggreko NFE case study](https://bynder.aggreko.com/m/7da79919a63f8123/original/NFE-Case-Study-Cooling.pdf) |
 | Wet-bulb / coincident humidity | High coincident humidity at coastal sites (Ras Laffan, Mesaieed) causes condensation in JBs and enclosures. Specify breathers/drains, anti-condensation heaters (where a power supply exists) or IP66 with drain plugs | U | [general knowledge — verify] |
 | Dust/sand | Shamal winds bring sandstorms and fine dust. Affects open-path gas detectors (beam-block), flame detector windows, air intakes, analyser shelters (positive pressure plus filters) | U | [general knowledge — verify] |
 | Solar radiation | Intense, ~1,000+ W/m² peak. Drives sunshade, UV-resistant cable and enclosure thermal calculations | U | [general knowledge — verify] |
+| Solar resource (climatological) *(2nd pass)* | Ground measurements from 12 Qatari stations: mean global horizontal irradiation about **5.8 kWh/m²/day (≈2,116 kWh/m²/yr)**, around **7 kWh/m²/day March–September**, clearness index about 0.64 (clear skies most of the year). Daily energy, not the instantaneous peak W/m² or a black-bulb temperature | C (peer-reviewed / QEERI) | [HBKU GHI variability study](https://elmi.hbku.edu.qa/en/publications/variability-of-measured-global-horizontal-irradiation-throughout-/), [QEERI Qatar Solar Atlas](https://hbku.edu.qa/sites/default/files/qeeri_solar_atlas.pdf) |
 | Corrosion category | Coastal/industrial. Typically treated as **ISO 12944 C5 (C5-M in older editions) or CX offshore**. Chlorides cause pitting of 316 SS under deposits, especially in tubing clamps and crevices | U | [general knowledge — verify] |
 | Seismic | Low seismicity | U | [general knowledge — verify] |
 
 **Site notes** [general knowledge — verify]:
-- **Ras Laffan Industrial City (RLIC):** northern coast, LNG (QE-LNG trains 1–14 plus NFE/NFS/NFW), Pearl GTL, Oryx GTL. Humid, saline and dusty. RLIC is administered by QatarEnergy's Industrial Cities Directorate, which issues site-wide HSE regulations such as QGL-LHH-001 above.
-- **Mesaieed Industrial City:** south-east coast, refinery, petrochemicals, fertiliser, QAFAC. Similar coastal regime.
+- **Ras Laffan Industrial City (RLIC):** north-east coast (the 458 MW Ras Laffan solar farm is located there; [QNA 2025](https://qna.org.qa/en/News-Area/Special-News/2025-7/28/qatars-solar-energy-projects-green-energy-in-heart-of-desert)), LNG (QE-LNG trains 1–14 plus NFE/NFS/NFW), Pearl GTL, Oryx GTL. Humid, saline and dusty. RLIC is administered by QatarEnergy's Industrial Cities Directorate, which issues site-wide HSE regulations such as QGL-LHH-001 above.
+- **Mesaieed Industrial City:** east coast south of Doha (site of the 417 MW Mesaieed PV plant; [QNA 2025](https://qna.org.qa/en/News-Area/Special-News/2025-7/28/qatars-solar-energy-projects-green-energy-in-heart-of-desert)), refinery, petrochemicals, fertiliser, QAFAC. Similar coastal regime.
 - **Dukhan:** west coast onshore oil field. Inland desert sites have hotter dry-bulb peaks and lower humidity than RLIC, and more dust.
 - **Offshore (North Field, Al-Shaheen, Bul Hanine, Maydan Mahzam, PS-2/PS-3):** marine atmosphere, CX corrosion class, and space/weight constraints. Expect stricter material specs (6Mo/Alloy 625 tubing, 316 SS or GRP enclosures).
 
@@ -239,18 +248,19 @@ All items in this subsection are **[general knowledge — verify]** unless a lin
 
 ### 5.3 Saudi Arabia (Saudi Aramco)
 
-- Saudi Aramco engineering standards (**SAES**), materials system specifications (**SAMSS**) and standard drawings define site conditions. The instrumentation SAES are the **SAES-J** series, e.g. SAES-J-100 (flow), SAES-J-200 (pressure), SAES-J-400 (temperature), SAES-J-600 (pressure relief), SAES-J-601 (emergency shutdown and isolation systems), SAES-J-902 (electrical systems for instrumentation). Instrument-specific SAMSS use the **34-SAMSS-xxx** range. **[general knowledge — verify all numbers; none confirmed in this research]**
+- Saudi Aramco engineering standards (**SAES**), materials system specifications (**SAMSS**) and standard drawings define site conditions. The instrumentation SAES are the **SAES-J** series, e.g. SAES-J-100 (flow), SAES-J-200 (pressure), SAES-J-400 (temperature), SAES-J-600 (pressure relief), SAES-J-601 (emergency shutdown and isolation systems), SAES-J-902 (electrical systems for instrumentation). Instrument-specific SAMSS use the **34-SAMSS-xxx** range. These numbers and titles are now confirmed or secondary-sourced with links in **knowledge file 02 (Saudi Aramco)**; use that file for Aramco questions.
+- The instrument ambient basis is **SAES-J-003**: its 2004 issue sets 35 °C (indoor air-conditioned), 55 °C (outdoor sheltered) and 65 °C (outdoor unsheltered) maximums; whether the 2013 issue changed these is unconfirmed. [secondary source — see file 02 §3.1]
 - Typical Aramco design values heard in industry: outdoor design ambient ~**50 °C** with solar-exposed surfaces higher; the Eastern Province coast (Ras Tanura, Jubail) is extremely humid; inland is very dusty. **[general knowledge — verify]**
 
 ### 5.4 Oman (PDO)
 
-- PDO uses a **DEP-based** system (Shell heritage) with its own **SP** (specification) and **PR** (procedure) documents. **[general knowledge — verify]**. No PDO SP numbers for instrumentation were confirmed in this research.
+- PDO uses a **DEP-based** system (Shell heritage) with its own **SP** (specification) and **PR** (procedure) documents. The SP/PR numbering is now confirmed by circulating copies (see §6.5). No PDO SP number for **instrumentation** was found. [secondary source for the numbering; gap for instrumentation]
 - Climate: interior desert fields (Fahud, Nimr, Marmul, Qarn Alam) have dry-bulb extremes near 50 °C, low humidity and heavy dust. The southern coast (Dhofar) has a khareef monsoon. **[general knowledge — verify]**
 
 ### 5.5 Kuwait (KOC / KNPC / KIPIC)
 
 - Kuwait has some of the highest recorded ambient temperatures in the region. Inland Mitribah's ~54 °C reading (2016) was accepted by the WMO as one of the highest reliably measured temperatures. **[general knowledge — verify]**. Project design ambient for KOC/KNPC work is typically ~**50–52 °C** with high dust loading. **[general knowledge — verify]**
-- KOC and KNPC have their own engineering standards. KOC standards have been reported with "KOC-I-…" style numbering for instrumentation. **[unverified — do not quote]**
+- KOC and KNPC have their own engineering standards. KOC instrumentation standards use a **"KOC-I-nnn"** prefix: **KOC-I-026 "KOC Standard for Process Flow Measurement"** (Rev 0, 19 Dec 2019) is the confirmed example (see §6.4). [secondary source — upgraded from unverified in the 2nd pass]
 
 ### 5.6 Cross-region design checklist for I&C (all [general knowledge — verify])
 
@@ -330,15 +340,38 @@ ADNOC's own *Instrumentation, Control and Telecom procurement opportunities* (Ma
 
 ### 6.3 Saudi Aramco (reference only)
 
-- The instrumentation SAES-J series and the **34-SAMSS** instrument material specifications are well known in the industry. Aramco also publishes a "Technically Acceptable Manufacturers/Products" style list for instruments. **[general knowledge — verify all numbers/titles]**. No Aramco document was confirmed in this research because the search budget ran out.
+- The instrumentation SAES-J series and the **34-SAMSS** instrument material specifications are well known in the industry. Aramco historically issued a "Technically Acceptable Instrument Manufacturers" standard (SAES-J-002, last seen as a 2004 revision); current vendor approval runs through 9COM plant approvals (SAEP-1400). Numbers, titles and sources are in **knowledge file 02 (Saudi Aramco)**; use that file rather than this section. [see file 02 for tags]
 
 ### 6.4 KOC / KNPC (Kuwait)
 
-- KOC has its own standards set. KNPC/KIPIC (e.g. Al-Zour refinery, Clean Fuels Project) used project specs drawing on Shell, Exxon and licensor practices. **[general knowledge — verify]**. No document numbers confirmed.
+- KOC has its own standards set. KNPC/KIPIC (e.g. Al-Zour refinery, Clean Fuels Project) used project specs drawing on Shell, Exxon and licensor practices. **[general knowledge — verify]**
+- **KOC numbering** *(2nd pass)*: `KOC-<discipline letter>-<nnn>`, with revision and date appended on circulating copies. [secondary source — unofficial copies]
+
+| Number | Title / scope | Conf. | Source |
+|---|---|---|---|
+| **KOC-I-026** (Rev 0, 19 Dec 2019) | KOC Standard for Process Flow Measurement: minimum requirements for design, selection, construction and installation of flowmeters at KOC facilities; partially supersedes older KOC documents 381/029 and 015-JH-1903 | S | [Scribd KOC-I-026](https://2.zoppoz.workers.dev:443/https/www.scribd.com/document/702513746/KOC-I-026-R0-19-12-2019) |
+| KOC-Q-014 (R2, 08 Mar 2017) | QA/QC standard (not I&C) | S | [studylib KOC-Q-014](https://www.studylib.net/doc/28042388/koc-q-014-r2-08-03-2017) |
+| KOC-P-004 (Part 10, Rev 2) | Pipeline coating (not I&C) — shows the prefix pattern | S | [Scribd KOC-P-004](https://www.scribd.com/document/648054358/Koc-p-004-Part-10-Rev-2) |
+| KOC-S-005 | "Instrumentation General Specification" per a single blog; prefix inconsistent with KOC-I- | U — do not quote | [blog](https://instrumentengineer3.blogspot.com/2025/10/introduction-in-oil-gas-petrochemical.html) |
+
+- Other KOC numbers seen in the same search (KOC-MP-014 to -016 and KOC-M-012 for valves) are not instrumentation. No KNPC instrumentation numbers were found. [secondary source]
 
 ### 6.5 PDO (Oman)
 
-- PDO uses Shell-heritage DEPs plus PDO **SP-xxxx** specifications and **ERD** (Engineering Reference Documents). **[general knowledge — verify]**. No instrumentation numbers confirmed.
+- PDO uses Shell-heritage DEPs plus PDO **SP-xxxx** specifications and **PR-xxxx** procedures. **ERD** (Engineering Reference Documents) remains **[general knowledge — verify]**; no source mentioned it in the 2nd pass.
+- **PDO SP numbers seen** *(2nd pass)*, all [secondary source] (Scribd copies; footers reference PDO's Livelink document system). None is an instrumentation specification; searches for SP-1101, SP-1105, SP-1146 and SP-1150 returned nothing:
+
+| Number | Title | Source |
+|---|---|---|
+| SP-1099 | Specification for Electrical Installation Practice (v05, Dec 2006) | [Scribd](https://www.scribd.com/document/429431786/Electrical-Installation-Requirements) |
+| SP-1171 | Quality management system specification (product and service) | [Scribd](https://www.scribd.com/document/699597904/SP-1171) |
+| SP-1177 | Specification for Welding of Class 1 Pipelines | [Scribd](https://www.scribd.com/document/411570128/SP-1177-V3-0) |
+| SP-1211 | Onshore Pipeline Engineering (rev 6.1, Aug 2022 print) | [Scribd](https://www.scribd.com/document/637278036/SP-1211) |
+| SP-1236 | Isolation Systems for Cathodically Protected Pipelines | [Scribd](https://www.scribd.com/document/563109110/SP-1236) |
+| SP-2154 | On-plot valves (MESC and non-MESC categories) | [Scribd](https://www.scribd.com/document/637278030/SP-2154) |
+| PR-1172 | Permit to Work Procedure | [Scribd](https://www.scribd.com/document/295105710/PR-1172-Permit-to-Work-Procedure) |
+
+- Practical inference: PDO instrumentation requirements are probably carried mainly by Shell DEP 32-series documents (see §6.1) plus project specifications, but this is [general knowledge — verify].
 
 ### 6.6 International standards that Gulf operator specs invariably invoke
 
@@ -409,17 +442,18 @@ These are **typical comment themes** seen on Gulf NOC and LNG project instrument
 
 **Process limitations encountered:**
 - **WebFetch was blocked** (DNS failure) for adnoc.ae, pdfcoffee.com, studylib.net, blogspot.com and pages.dev, so no full-document reads were possible. Facts depend on search-result summaries.
+- **2nd pass (Nov 2026):** WebFetch still failed for scribd.com, aramco.com and pages.dev; only about 7 searches were spent on this file.
 - **The web-search budget ran out** partway through, before the ADNOC detail, KOC, PDO, Aramco and climate searches were done. A follow-up session with more searches, or with these hosts allowed in the network settings, would let those sections be completed.
 
 **Content gaps (highest priority first):**
 1. **No public QE/QP instrumentation, F&G, SIS or telecom standard numbers were confirmed.** Only electrical, drafting, dossier and HSE "ES."/CORP numbers surfaced. "QP-STD-E&I-100" is unverified. *Next step:* ask project teams for the "Applicable QE Standards" list in any NFE/NFS/NFW ITB, or search QE tender notices on the Mushtaryat portal.
 2. **NFS/NFW MAC and DCS/SIS/F&G vendors were not found** in public sources. They may be EPC-subcontracted without a press release. *Next step:* vendor press rooms (Honeywell, Yokogawa, Emerson, ABB, Schneider/AVEVA), MEED project profiles.
-3. **Quantitative Qatar design basis** (max design dry bulb, wet bulb, black-bulb, min temperature, wind, dust, corrosion class) was only confirmed at climatological level (33–50 °C, RH to 100 %). Project design-basis numbers are [general knowledge — verify].
+3. **Quantitative Qatar design basis** (max design dry bulb, wet bulb, black-bulb, min temperature, wind, dust, corrosion class) is still only confirmed at climatological level (33–50 °C, RH to 100 %; GHI ≈ 5.8 kWh/m²/day). The only public Ras Laffan design pair is a vendor's construction-cooling point (48 °C DB / 34 °C WB). No public black-bulb, design RH or peak W/m² figure for Ras Laffan or Mesaieed was found in the 2nd pass. *Next step:* ASHRAE climatic data for Doha, or the project Site Conditions document.
 4. **ADNOC AGES-SP-04-007 to -010, -012 to -014, -016, -017** are unidentified. ADNOC site-condition numerics were not read.
 5. **Shell DEP current revisions:** all titles come from index copies that are about 10–17 years old. DEP 32.80.10.11 and 32.01.20.12 titles were not found.
-6. **Saudi Aramco SAES-J / 34-SAMSS, KOC, KNPC and PDO SP numbers**: none were confirmed.
+6. **Saudi Aramco SAES-J / 34-SAMSS** numbers are now covered in file 02. **KOC**: only KOC-I-026 (process flow measurement) found for instrumentation; the rest of the KOC-I series is unknown. **KNPC**: nothing found. **PDO**: SP/PR numbering confirmed (SP-1099, -1171, -1177, -1211, -1236, -2154; PR-1172) but **no instrumentation SP number** found; SP-1101/1105/1146/1150 not found.
 7. **QP PPML acronym and structure**: the exact meaning and how it maps to the QE-LNG AVL were not confirmed.
-8. **QE-LNG (ex-Qatargas/RasGas) document numbering**: not found publicly.
+8. **QE-LNG (ex-Qatargas/RasGas) document numbering**: partly resolved in the 2nd pass (PRJ-PJL-PRC-004/005/008 procedures; five-segment engineering document number; three-segment vendor number; RG-DFO-002 merged). Still missing: the instrument tag format inside PRJ-PJL-PRC-008, discipline and document-type code lists, and which PRC number holds the document-numbering rule. QE-LNG instrument/F&G/SIS philosophy numbers were not found.
 9. **Fieldbus vs HART at QE-LNG**: NFE public material mentions UIO, smart JBs and IAMS but not the field protocol. Whether FOUNDATION fieldbus was used on earlier Qatargas/RasGas mega-trains was not confirmed.
 
 ---
@@ -508,6 +542,26 @@ These are **typical comment themes** seen on Gulf NOC and LNG project instrument
 - Electrical Engineering Design Guide — https://www.adnoc.ae/-/media/adnoc-v2/files/specs/2021/engineering-standards-and-specifications-october14th/electrical-engineering-design-guide.ashx
 - Synchronous Motor Spec — https://www.adnoc.ae/-/media/Adnoc-v2/Files/Specs/2021/Engineering-Standards-and-Specifications-October14th/Synchronous-Motor-Specification.ashx
 - Electrical ASD Spec — https://www.adnoc.ae/-/media/adnoc-v2/files/specs/2021/engineering-standards-and-specifications-october14th/electrical-adjustable-speed-drive-system.ashx
+
+**2nd-pass additions (November 2026)**
+- QE-LNG PRJ-PJL-PRC-005 (rev 21) listing — https://justrite-elynox-bootcamp.pages.dev/Reference-Examples/Q-32705---Saipem-COMP3/RFQ-Files/PRJ-PJL-PRC-005_21
+- QE-LNG PRJ-PJL-PRC-004 (rev 07) listing — https://justrite-elynox-bootcamp.pages.dev/Reference-Examples/Q-21699---Saipem-COMP2/RFQ-Files/PRJ-PJL-PRC-004_07
+- QE-LNG PRJ-PJL-PRC-008 (rev 17) listing — https://justrite-elynox-bootcamp.pages.dev/Reference-Examples/Q-32705---Saipem-COMP3/RFQ-Files/PRJ-PJL-PRC-008_17
+- Aggreko NFE cooling case study (48 °C DB / 34 °C WB) — https://bynder.aggreko.com/m/7da79919a63f8123/original/NFE-Case-Study-Cooling.pdf
+- HBKU GHI variability study — https://elmi.hbku.edu.qa/en/publications/variability-of-measured-global-horizontal-irradiation-throughout-/
+- QEERI Qatar Solar Atlas — https://hbku.edu.qa/sites/default/files/qeeri_solar_atlas.pdf
+- QNA Qatar solar projects (RLIC / MIC locations) — https://qna.org.qa/en/News-Area/Special-News/2025-7/28/qatars-solar-energy-projects-green-energy-in-heart-of-desert
+- KOC-I-026 — https://2.zoppoz.workers.dev:443/https/www.scribd.com/document/702513746/KOC-I-026-R0-19-12-2019
+- KOC-Q-014 — https://www.studylib.net/doc/28042388/koc-q-014-r2-08-03-2017
+- KOC-P-004 — https://www.scribd.com/document/648054358/Koc-p-004-Part-10-Rev-2
+- KOC-S-005 blog (unverified) — https://instrumentengineer3.blogspot.com/2025/10/introduction-in-oil-gas-petrochemical.html
+- PDO SP-1099 — https://www.scribd.com/document/429431786/Electrical-Installation-Requirements
+- PDO SP-1171 — https://www.scribd.com/document/699597904/SP-1171
+- PDO SP-1177 — https://www.scribd.com/document/411570128/SP-1177-V3-0
+- PDO SP-1211 — https://www.scribd.com/document/637278036/SP-1211
+- PDO SP-1236 — https://www.scribd.com/document/563109110/SP-1236
+- PDO SP-2154 — https://www.scribd.com/document/637278030/SP-2154
+- PDO PR-1172 — https://www.scribd.com/document/295105710/PR-1172-Permit-to-Work-Procedure
 
 **Other**
 - IOGP S-718Q Addendum 1 — https://www.iogp.org/bookstore/wp-content/uploads/sites/2/2023/12/Quality-Reqs-for-Basic-Process-Measurement-Instruments-Addendum-1-S-718Qv2023-12.pdf
