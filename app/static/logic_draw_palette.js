@@ -246,31 +246,54 @@ function openMacDetail(key) {
   $("#dt-title").textContent = `${it.short} — 매크로`;
   const pins = (lst, side) => lst.length ? `<table class="dt-pins"><tr><th>${side}</th><th>행</th></tr>${lst.map(q => `<tr><td>${esc(q.name)}</td><td>${q.row ?? ""}</td></tr>`).join("")}</table>` : `<p class="dt-hint">없음</p>`;
   let who = ""; try { who = localStorage.getItem("pid.author") || ""; } catch (e) {}
+  const prj = targetSet();
   $("#dt-body").innerHTML = `<div class="dt-mthumb">${it.thumb}</div>
     <p class="dt-desc"><b>${esc(it.title)}</b>${it.desc ? `<br>${esc(it.desc)}` : ""}${it.desc_ko ? `<br><span class="dt-hint">${esc(it.desc_ko)}</span>` : ""}</p>
     <p class="dt-sub">${esc(it.gname)}${it.sheet ? " · Typical 시트 " + esc(it.sheet) : ""} · 입력 ${it.nin} → 출력 ${it.nout}</p>
     <div class="dt-pinwrap">${pins(it.pins_in || [], "입력 단자")}${pins(it.pins_out || [], "출력 단자")}</div>
-    <h4>내부 동작 · 고치기</h4>
-    <p class="dt-note">매크로의 안(Typical 시트)을 새 창의 작성 화면으로 엽니다 — 거기서 기호 · 선 · 단자(표의 TAG NO.)를 고치고 저장합니다.
-    ${it.did ? "이 묶음의 Typical 장이라 저장하면 이 묶음의 매크로가 바뀝니다." : "공통 Typical 사전이라 고친 뒤 '사전에 저장' 을 누르면 모든 프로젝트에 반영됩니다."}
-    시뮬레이션 중이면 그 새 창은 부모 장의 값으로 함께 돕니다.</p>
-    ${it.did ? "" : `<label class="dt-who">작성자 <input id="dt-who" value="${esc(who)}" placeholder="이름 (사전에서 꺼낼 때 남습니다)"></label>`}
-    <div class="dt-acts"><button type="button" id="dt-inside" class="pri">▣ 내부 동작 열기 · 고치기 (새 창)</button><button type="button" id="dt-place">그림에 놓기</button></div><p id="dt-msg" class="dt-hint"></p>`;
+    <h4>내부 동작 · 시뮬레이션 · 고치기</h4>
+    ${scopeNote(it, prj)}
+    ${it.did ? "" : `<label class="dt-who">작성자 <input id="dt-who" value="${esc(who)}" placeholder="이름 (고친 사람으로 남습니다)"></label>`}
+    <div class="dt-acts"><button type="button" id="dt-inside" class="pri">${it.did || !prj ? "▣ 내부 동작 열기 · 고치기 (새 창)" : "▣ 이 프로젝트에서 열기 · 고치기 (새 창)"}</button>
+      ${!it.did && prj && it.tid ? `<button type="button" id="dt-common">공통 사전을 고치기 (모든 프로젝트)</button>` : ""}
+      <button type="button" id="dt-place">그림에 놓기</button></div><p id="dt-msg" class="dt-hint"></p>`;
   $("#dt-place").onclick = () => { closeDetail(); say({ t: "pick", win: P.target, key, mode: "place" }); };
-  $("#dt-inside").onclick = async () => {
-    const w = window.open("", "_blank");                          // 누른 그 순간에 연다 (팝업 차단을 피한다)
-    let did = it.did;
-    if (!did && it.tid) {
-      const a = (($("#dt-who") || {}).value || "").trim();
-      if (!a) { if (w) w.close(); $("#dt-msg").textContent = "작성자 이름을 적어 주세요."; $("#dt-who").focus(); return; }
-      try { localStorage.setItem("pid.author", a); } catch (e) {}
-      try { const r = await fetch(`/logic/api/drawings/typicals/${encodeURIComponent(it.tid)}/open`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ author: a }) });
-        const j = await r.json(); if (!r.ok) throw new Error(j.detail || r.statusText); did = j.id; }
-      catch (e) { if (w) w.close(); $("#dt-msg").textContent = "열지 못했습니다 — " + e.message; return; }
-    }
-    if (!did) { if (w) w.close(); $("#dt-msg").textContent = "이 매크로의 Typical 시트를 찾지 못했습니다."; return; }
-    const url = `/logic/draw${location.search}#d=${did}`;
-    if (w) w.location.href = url; else window.open(url, "_blank");
-    $("#dt-msg").textContent = "새 창으로 열었습니다 — 고치고 저장하세요.";
-  };
+  $("#dt-inside").onclick = () => openInside(it, prj ? "project" : "common");
+  if ($("#dt-common")) $("#dt-common").onclick = () => openInside(it, "common");
+}
+/* L91 — 매크로를 어디에 고치나: 그림 창이 프로젝트(묶음)의 장이면 그 프로젝트에만 (Typical 장을 묶음에 들여와 거기서) ·
+   공통 사전은 따로 고르는 단추 (모든 프로젝트) */
+function targetSet() { const d = ((tgt() || {}).state || {}).doc; return d && d.set ? d : null; }
+function scopeNote(it, prj) {
+  const where = prj ? `<b>${esc(prj.project || prj.set_name || "이 프로젝트")}</b>` : "";
+  const sim = "새 창에서 ▶ 시뮬레이션을 켜고 왼쪽 표의 입력 단자 칸을 눌러 0 · 1 을 주면 매크로 안의 값과 출력이 보입니다.";
+  if (it.did) return `<p class="dt-note">이 매크로의 안(Typical 장)이 ${where || "이 묶음"} 에 있습니다 — 새 창에서 기호 · 선 · 단자를 고치고 <b>저장</b>하면
+    ${where || "이 묶음"} 의 매크로만 바뀝니다 (공통 사전 · 다른 프로젝트는 그대로).  ${sim}</p>`;
+  if (prj) return `<p class="dt-note">공통 Typical 사전의 매크로입니다.  '이 프로젝트에서 열기' 는 그 Typical 장을 ${where} 에 사본으로 들여와 엽니다 —
+    고치고 <b>저장</b>하면 ${where} 의 매크로만 바뀝니다 (공통 사전 · 다른 프로젝트는 그대로).  ${sim}</p>`;
+  return `<p class="dt-note">공통 Typical 사전의 매크로입니다 — 고친 뒤 '사전에 저장' 을 누르면 모든 프로젝트에 반영됩니다
+    (한 프로젝트에만 고치려면 그 프로젝트의 장을 열어 둔 채 두 번 누르세요).  ${sim}</p>`;
+}
+async function openInside(it, scope) {
+  const w = window.open("", "_blank");                            // 누른 그 순간에 연다 (팝업 차단을 피한다)
+  const fail = t => { if (w) w.close(); $("#dt-msg").textContent = t; };
+  let did = it.did;
+  const prj = targetSet();
+  if (!did && it.tid) {
+    const a = (($("#dt-who") || {}).value || "").trim();
+    if (!a) { fail("작성자 이름을 적어 주세요."); $("#dt-who").focus(); return; }
+    try { localStorage.setItem("pid.author", a); } catch (e) {}
+    try {
+      const url = scope === "project" && prj ? `/logic/api/drawings/sets/${encodeURIComponent(prj.set)}/sheet` : `/logic/api/drawings/typicals/${encodeURIComponent(it.tid)}/open`;
+      const body = scope === "project" && prj ? { library: it.tid, author: a } : { author: a };
+      const r = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+      const j = await r.json(); if (!r.ok) throw new Error(j.detail || r.statusText); did = j.id;
+      if (scope === "project" && prj) { say({ t: "setchanged", win: P.target }); it.did = did; }   // 그림 창이 묶음을 새로 읽어 이 매크로가 '이 묶음' 것으로
+    } catch (e) { fail("열지 못했습니다 — " + e.message); return; }
+  }
+  if (!did) { fail("이 매크로의 Typical 시트를 찾지 못했습니다."); return; }
+  const url = `/logic/draw${location.search}#d=${did}`;
+  if (w) w.location.href = url; else window.open(url, "_blank");
+  $("#dt-msg").textContent = scope === "project" && prj && !it.tid ? "새 창으로 열었습니다 — 고치고 저장하세요." :
+    scope === "project" && prj ? `새 창으로 열었습니다 — ${prj.project || prj.set_name || "이 프로젝트"} 에만 저장됩니다.` : "새 창으로 열었습니다 — 고친 뒤 '사전에 저장' 을 누르세요.";
 }

@@ -2400,7 +2400,7 @@ function renderTypCard() {
   if (c.hidden) return;
   const tid = (d.source || {}).typlib, it = (S.typList || []).find(x => x.id === tid);
   $("#typ-say").innerHTML = inLib ? `이 그림은 <b>공통 Typical</b> ${esc(d.sheet_no)} 입니다.  고친 뒤 <b>사전에 저장</b>하면 모든 프로젝트가 다음 분석부터 이것을 씁니다.${it && it.origin === "user" ? `<br>마지막 고침 — ${esc(it.edited.author)} · ${esc(it.edited.at)}` : ""}`
-    : `이 장은 이 묶음의 Typical 시트입니다.  <b>공통 사전에 더하면</b> 다른 프로젝트도 이 Typical 을 씁니다.`;
+    : `이 장은 <b>${esc(d.project || d.set_name || "이 프로젝트")}</b> 의 Typical 시트입니다${(d.source || {}).library ? " (공통 사전에서 들여온 사본)" : ""}.  <b>저장</b>하면 이 프로젝트의 매크로만 바뀝니다 — 공통 사전 · 다른 프로젝트는 그대로.<br>다른 프로젝트도 쓰게 하려면 <b>공통 사전에 더하기</b>.`;   // L91
   $("#typ-save").textContent = inLib ? "사전에 저장" : "공통 사전에 더하기";
   $("#typ-revert").hidden = !(inLib && it && it.origin === "user");
 }
@@ -3665,6 +3665,7 @@ function palChan() {
     if (m.t === "pick") palPick(m.key, m.mode);
     else if (m.t === "inside") { const mm = macroItems().find(x => "m:" + x.typ === m.key); if (mm) openMacroInside(mm); }
     else if (m.t === "cancel") placeCancel();
+    else if (m.t === "setchanged" && S.doc && S.doc.set) { S.setInfo = null; loadSet().then(() => palSyncSoon(false)); }   // L91 — 기호 창이 Typical 장을 묶음에 들여왔다
   };
   return S._pch;
 }
@@ -3694,7 +3695,7 @@ function palSync(active) {
   const one = S.sel && S.sel.size === 1 ? S.doc && S.doc.blocks.find(b => b.id === [...S.sel][0]) : null;
   const canFrom = one && !(S.sym[one.kind] || {}).note && ports(one).some(q => q[2] === "out");
   ch.postMessage({ t: "state", win: S.winId, active: !!active, at: Date.now(),
-    doc: S.doc ? { name: S.doc.name || "", sheet_no: S.doc.sheet_no || "", sim: simOn() } : null,
+    doc: S.doc ? { name: S.doc.name || "", sheet_no: S.doc.sheet_no || "", sim: simOn(), set: S.doc.set || null, set_name: S.doc.set_name || "", project: S.doc.project || "", typical: !!S.doc.typical } : null,
     sel: canFrom ? { id: one.id, name: `${(S.sym[one.kind] || {}).name || one.kind}${one.text && one.kind === "BOX" ? " " + one.text : ""}` } : null,
     placing: S.placing ? S.placing.key : null, recent: recentKeys() });
 }

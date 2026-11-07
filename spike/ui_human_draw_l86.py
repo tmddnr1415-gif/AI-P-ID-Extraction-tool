@@ -595,13 +595,74 @@ try:
             mkey = pal.evaluate("() => document.querySelector('#s-mac .pl-tile').dataset.key")
             pal.dblclick(f".pl-tile[data-key='{mkey}']"); pal.wait_for_selector("#detail:not([hidden]) .dt-pins", timeout=10000)
             mt = pal.inner_text("#dt-body")
-            chk("입력 단자" in mt and "FB_REM" in mt and "내부 동작 열기" in mt, f"매크로 두 번 누름 — 상세 (단자 · 설명 · 고치기 단추) {mt.splitlines()[0][:50]}")
+            chk("입력 단자" in mt and "FB_REM" in mt and "Typical 장)이" in mt and "L86 PUMP" in mt and "매크로만 바뀝니다" in mt,
+                f"매크로 두 번 누름 (이미 놓아 이 프로젝트에 든 MTS) — 상세 · 이 프로젝트의 장을 연다 {mt.splitlines()[0][:50]}")
+            pal.click("#dt-x")
+            # 아직 이 프로젝트에 없는 공통 사전 매크로 — '이 프로젝트에서 열기' 가 사본을 들여와 연다
+            pal.fill("#q", ""); time.sleep(0.3)
+            mkey = pg.evaluate("() => { const m = palItems().mac.find(m => !m.did && m.tid && m.nin && m.nout && /SOV|MOV|GRP/.test(m.title)) || palItems().mac.find(m => !m.did && m.tid); return m.key; }")
+            mname = pg.evaluate(f"() => palItems().mac.find(m => m.key === '{mkey}').title")
+            pal.fill("#q", mname.split()[-1][:12]); time.sleep(0.4)
+            pal.dblclick(f".pl-tile[data-key='{mkey}']"); pal.wait_for_selector("#detail:not([hidden]) .dt-pins", timeout=10000)
+            mt = pal.inner_text("#dt-body")
+            chk("이 프로젝트에서 열기" in mt and "L86 PUMP" in mt and "매크로만 바뀝니다" in mt and pal.locator("#dt-common").count() == 1,
+                f"공통 사전 매크로 {mname} 두 번 누름 — '이 프로젝트에서 열기' (기본) · '공통 사전을 고치기' 는 따로")
             pal.screenshot(path=f"{out}/16_macro_detail.png")
+            pal.locator("#dt-msg").scroll_into_view_if_needed(); time.sleep(0.2)
+            pal.screenshot(path=f"{out}/16b_macro_detail_buttons.png")
             if pal.locator("#dt-who").count(): pal.fill("#dt-who", "홍길동")
+            set_id = pg.evaluate("() => S.doc.set"); nsh0 = pg.evaluate("() => S.setInfo.sheets.length")
+            typ0 = json.loads(get("/logic/api/drawings/typicals"))["items"]
             with pal.context.expect_page() as ip: pal.click("#dt-inside")
-            inner = ip.value; inner.wait_for_function("() => typeof S !== 'undefined' && S.doc && S.doc.typical", timeout=30000)
-            chk(inner.evaluate("() => !!S.doc.typical") and inner.evaluate("() => S.doc.blocks.length") > 0, f"'내부 동작 열기 · 고치기' → 새 창에 Typical 그림 ({inner.evaluate('() => S.doc.sheet_no')} · 블록 {inner.evaluate('() => S.doc.blocks.length')}) — 고칠 수 있다")
+            inner = ip.value; inner.set_viewport_size({"width": 1500, "height": 950})
+            inner.wait_for_function("() => typeof S !== 'undefined' && S.doc && S.doc.typical && S.setInfo", timeout=30000)
+            idoc = inner.evaluate("() => ({set: S.doc.set, project: S.doc.project, sheet: S.doc.sheet_no, lib: (S.doc.source || {}).library, n: S.doc.blocks.length, id: S.id})")
+            chk(idoc["set"] == set_id and idoc["lib"] and idoc["n"] > 0, f"'이 프로젝트에서 열기' → 새 창 = 이 프로젝트 묶음의 Typical 사본 ({idoc['sheet']} · 블록 {idoc['n']} · 프로젝트 {idoc['project']})")
+            wf(pg, f"() => S.setInfo && S.setInfo.sheets.length === {nsh0 + 1}", 15000)
+            chk(True, f"그림 창의 묶음에 그 Typical 장이 더해졌다 ({nsh0} → {nsh0 + 1}장)")
+            ty_say = inner.inner_text("#typ-say")
+            chk("이 프로젝트의 매크로만" in ty_say, f"새 창 안내 — {ty_say[:60]}")
+            inner.evaluate("() => setZoom(1.25)"); inner.evaluate(HELP)
+            inner.screenshot(path=f"{out}/17_macro_inner_project.png")
+            # 시뮬레이션 — 왼쪽 표의 입력 단자 칸을 눌러 1 을 준다
+            inner.click("#simtoggle"); inner.wait_for_function("() => S.sim && S.sim.on && S.sim.res", timeout=60000)
+            def iat(x, y):
+                inner.evaluate("([x, y]) => __h.see(x, y)", [x, y]); time.sleep(0.03)
+                return inner.evaluate("([x, y]) => __h.cl(x, y)", [x, y])
+            def iforce(n, v):
+                st = inner.evaluate(f"() => {{ const e = document.querySelector('#svg .rowstub[data-n=\"{n}\"]'); return e && [+e.getAttribute('cx'), +e.getAttribute('cy')]; }}")
+                if not st: return False
+                c = iat(st[0], st[1]); inner.mouse.click(c[0], c[1]); inner.wait_for_selector("#simmenu:not([hidden])")
+                inner.click(f"#simmenu button.v{v}"); time.sleep(1.2); return True
+            on0 = inner.evaluate("() => Object.values(S.sim.values || {}).filter(v => v === 1).length")
+            rows_in = inner.evaluate("() => Object.entries(S.doc.left || {}).filter(([n, r]) => r.desc || r.kks).map(([n]) => +n).sort((a, b) => a - b)")
+            for n in rows_in[:2]: iforce(n, 1)
+            on1 = inner.evaluate("() => Object.values(S.sim.values || {}).filter(v => v === 1).length")
+            chk(on1 != on0, f"Typical 안 시뮬레이션 — 입력 단자 {rows_in[:2]}행에 1 → 1 인 선 {on0} → {on1}")
+            inner.screenshot(path=f"{out}/18_macro_inner_sim.png")
+            inner.click("#simtoggle")
+            # 고치기 — GT 하나의 시간 5초 → 10초 (기호를 눌러 속성 칸에서)
+            gt = inner.evaluate("() => { const b = S.doc.blocks.find(b => (S.sym[b.kind] || {}).time && (b.param || {}).t != null); return b && [b.id, b.x + b.w / 2, b.y + b.h / 2, b.kind, +b.param.t]; }")
+            t_new = gt[4] + 5
+            c = iat(gt[1], gt[2]); inner.mouse.click(c[0], c[1]); inner.wait_for_selector("#p-t", timeout=5000)
+            inner.fill("#p-t", str(t_new)); inner.dispatch_event("#p-t", "input"); inner.dispatch_event("#p-t", "change"); time.sleep(0.3)
+            chk(inner.evaluate(f"() => +S.doc.blocks.find(b => b.id === '{gt[0]}').param.t") == t_new and not inner.evaluate("() => document.querySelector('#save').disabled"),
+                f"Typical 안 {gt[3]} 시간 {gt[4]:g} → {t_new:g}초 고침 (저장 단추 켜짐)")
+            inner.screenshot(path=f"{out}/19_macro_inner_edit.png")
+            inner.click("#save"); inner.wait_for_function("() => !S.dirty && document.querySelector('#save').disabled", timeout=20000)
+            saved = json.loads(get(f"/logic/api/drawings/{idoc['id']}"))
+            chk(next(b for b in saved["blocks"] if b["id"] == gt[0])["param"]["t"] == t_new, f"저장 — 서버의 이 프로젝트 사본에 {t_new:g}초 ({inner.inner_text('#status')[:40]})")
+            typ1 = json.loads(get("/logic/api/drawings/typicals"))["items"]
+            same = [(a["id"], a.get("edited"), a.get("origin")) for a in typ0] == [(a["id"], a.get("edited"), a.get("origin")) for a in typ1]
+            chk(same, f"공통 Typical 사전은 그대로 ({len(typ1)}개 · 고친 기록 없음) — 다른 프로젝트에 영향 없음")
+            inner.screenshot(path=f"{out}/20_macro_inner_saved.png")
             inner.close(); pal.click("#dt-x"); pal.fill("#q", "")
+            # 다시 두 번 누르면 이제 '이 묶음' 의 장 — 사전 작성자 칸 없이 바로
+            pal.fill("#q", mname.split()[-1][:12]); time.sleep(0.6)
+            pal.dblclick(f".pl-tile[data-key='{mkey}']"); pal.wait_for_selector("#detail:not([hidden]) .dt-pins", timeout=10000)
+            mt2 = pal.inner_text("#dt-body")
+            chk("Typical 장)이" in mt2 and pal.locator("#dt-who").count() == 0, "다시 두 번 누르면 — 이 프로젝트에 있는 그 Typical 장을 바로 엽니다")
+            pal.click("#dt-x"); pal.fill("#q", "")
             lap("두 번 누름 상세")
             # ⑫ PDF · DXF
             for ext in ("pdf", "dxf"):

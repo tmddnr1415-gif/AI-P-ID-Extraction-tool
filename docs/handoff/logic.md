@@ -4,8 +4,10 @@
 
 - 작업 브랜치: `ccr-cc45909d-fjjmrb` (L83 부터 · 그 전 `claude/logic-symbol-visualization-sim-2oqbxh` 는 L82 까지 — 이 브랜치에 다 들어 있음).
   바뀌면 `docs/handoff/branches.md` · `config/release_sources.json` 같이 고침.
-- 마지막 회차: **L90** — 기호 · 매크로 창에서 두 번 누르면 상세: 기호는 설명 · 직접 해 보기(입력 → 출력 · 과정 · 시간 그림 — 작성 시뮬레이션 그대로,
-  `draw_sim.symbol_sim`), 매크로는 단자 · 설명 · 내부 동작 열기 · 고치기(기호 창에서 바로 새 창).  **다음은 L91.**
+- 마지막 회차: **L91** — 매크로 두 번 누름 → '이 프로젝트에서 열기': 공통 사전 매크로면 그 Typical 장을 묶음(프로젝트)에 사본으로 들여와
+  새 창으로 연다 · 거기서 시뮬레이션 · 고치기 · 저장 → 그 프로젝트의 매크로만 바뀜 (공통 사전은 '공통 사전을 고치기' 단추로 따로).
+  이미 들여온 매크로는 바로 그 장을 연다.  **다음은 L92.**
+- 그 앞 L90: 기호 · 매크로 창 두 번 누름 상세 — 기호는 설명 · 직접 해 보기(`draw_sim.symbol_sim`), 매크로는 단자 · 설명 · 내부 동작.
 - 그 앞 L89: 분석한 Logic 을 불러와 똑같이 그리기 정확도 95% 이상 (19VA 827장 · 되읽기 블록 99.1 · 표 99.9 · 연결 96.0 · 선 96.3 · 글 96.7 /
   직접 블록 99.6 · 표 100 · 연결 96.2) · 원본 글 · NOTE 를 그 자리에 · 접합 용접 · 분석기 파선≠상자 변 · 씨앗 판 6.
 - 정확도 다시 재기: ① 원본 PDF 를 지금 분석기로 분석하고 앱 판(`api._result`, 단자 이름 · 상수 얹음)을 JSON 으로
@@ -22,19 +24,20 @@
 - 선 묶기 규율: 같은 분석 그물 안에서만 · 묶은 뒤 연결(선 단위 그물 + 시뮬레이터 꼴)이 다르면 그 그물은 묶지 않는다.  묶은 선은 `fx` (곧게 펴기에서 붙듦).
   씨앗을 다시 만들면 `python3 spike/compact_draw_seed.py config/logic_draw_seed/<씨앗>.json.gz` (판이 하나 오른다).
 - 화면 자기검증: `PW_CHROME=<chrome> python3 spike/ui_audit_l84.py <버릴 데이터 사본> <캡처 폴더>` (지우기를 하므로 사본으로).
-  이 컨테이너에서는 `PW_CHROME=/opt/pw-browsers/chromium-1243/chrome-linux64/chrome`.
+  이 컨테이너에서는 `PW_CHROME=/opt/pw-browsers/chromium` (기본 headless-shell 이 없어 꼭 준다).
 - 기호 동작: 씨앗 827장 기호 8,550 중 못 읽은 것 294 (선 닿은 것 272) — 대부분 분석이 `UNKNOWN`·`?` 로 들인 기호 (원본 PDF 로 다시 읽어야 함).
 - 그물 감사: `python spike/audit_l83_nets.py` (시드 827장).  남은 것은 분석 결과에서 두 분석 선이 같은 자리에 겹쳐 나온 것 — 분석기(`graph.py`) 쪽 일.
 - 대시보드 하위 메뉴 "신호 처리 시뮬레이션"은 `docs/dashboard_embed.md` §3-3 프롬프트를 대시보드 세션에 줘야 선다.
 - ⚠ 회차 번호 충돌: 옛 LOGIC 세션(`bold-einstein`, 은퇴)도 L70~L72 를 썼다.  옛 기록에서 같은 번호가 두 번 나오면
   날짜와 브랜치로 구분한다.  앞으로 번호는 지금 LOGIC 작업 브랜치 하나만 매긴다.
 - **LOGIC 은 zip 을 만들지 않는다** — 커밋·푸시만 하면 PID 세션이 병합해 꾸러미에 싣는다 (`spike/pack_delta.py` 가 덜 합쳐졌으면 멈춘다).
-- 시험 돌리기: `pip install -r requirements.txt pytest httpx` 뒤 `pytest -q -m "not slow and not ui"` (약 2분 · 1637 통과).
+- 시험 돌리기: `pip install -r requirements.txt pytest httpx` 뒤 `pytest -q -m "not slow and not ui"` (약 2분 · 1655 통과).
 
 ## 최근 회차 한 줄 요약 (자세한 것은 `docs/history/logic_log.md` · 옛것은 archive 를 grep)
 
 | 회차 | 내용 |
 | --- | --- |
+| L91 | 매크로를 이 프로젝트에만 고치기 (사전 Typical → 묶음 사본 · 시뮬레이션 · 저장) · 사람 흐름 125가지 |
 | L90 | 기호 · 매크로 창 두 번 누름 상세 — 기호 해 보기(작성 시뮬레이션) · 매크로 상세 · 고치기 |
 | L89 | 분석→작도 정확도 95%↑ (827장 · 되읽기 블록 99.1 · 연결 96.0 · 선 96.3 · 글 96.7) · 원본 글 · NOTE 옮기기 · 접합 용접 · 씨앗 판 6 |
 | L88 | 기호 · 매크로를 새 창으로 (누르고 놓기 · 이어 놓기 · 끌어 놓기) · 사람 흐름 110가지 |
