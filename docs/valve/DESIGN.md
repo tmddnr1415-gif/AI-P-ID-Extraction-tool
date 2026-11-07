@@ -670,3 +670,18 @@ Note 113 · PC-01 Confirm 6(3C0K8 의 '316 SS/FHF' 2개 · API5L-X65 MOV 1500# �
 - 고침: ① `store.save_original` 이 있는 저장본의 크기 · 해시를 확인해 다르면 업로드 바이트로 다시 씀(Windows 잠금은 잠깐 기다려 다시) ② `_process` 가 읽기 전에 저장본 해시 = document.sha256 확인 — 다르면 "저장된 원본 파일이 올린 파일과 다릅니다 — 같은 파일을 한 번 더 올리면 새로 씁니다" ③ `extract.open_pdf` 는 잠깐 잡힌 파일을 4번까지 다시 열고, 실패하면 이유(없음 · 빈 파일 · PDF 아님 · 다른 프로그램이 잡음)와 원래 오류 글을 그대로 보여 줌.
 - 작업 상태 창: ✕ 닫기 · 둘 이상이면 '모두 닫기' · 오류가 있으면 결과 Excel 을 자동으로 내려받지 않음. 시험 `test_broken_stored_original_is_named_and_repaired_by_reupload`.
 
+
+### 40. valve35 — 코멘트 정리: Typical · 블럭 (사용자 요청 "코멘트가 너무 많으면 읽기 지친다")
+- 표시 · 출력만 바꾼다. 지적(판정 · 규칙 · 상태)은 그대로 — `app/valve/digest.py` 가 **보여 주는 묶음**만 만든다 (스냅샷 2,935 변경 0).
+- **블럭**: 한 Datasheet 한 쪽에서 같은 규칙(DM-01 필수 칸 · DM-02 Process Data)의 Data Missing 이 **3개 이상**이고 박스가 붙어 있으면(다음 박스 위 끝 −
+  지금까지 아래 끝 ≤ 그 쪽 박스 높이 중앙값 × 1.4) 한 코멘트: `Process data missing — 13 items (Fluid, …); ref. 98-98-PR-DTS-00023 (Note 8). Provide values.`
+  한글 `Process Data 누락 — 13개 항목 (…) — 참조 …. 값을 기입 바랍니다.` 박스 = 묶인 칸들을 감싸는 하나. 멀리 떨어진 칸은 따로.
+- **Typical**: 같은 종류 · 규칙 · 문장(블럭은 같은 항목 목록 + 같은 참조 문서)이 **2개 이상 Tag** 에 있으면 한 줄 'Typical (N Tag)' + Tag 목록.
+- 검토자 코멘트 · 검토자 수정 · 엔지니어가 고친 문장은 묶지 않는다 (자기 말).
+- 실자료 164 Tag: 지적 2,935 → **코멘트 276** (Typical 87 · 블럭 14 · 낱개 175). 블럭 164개가 Data Missing 2,527건을 덮음.
+- 화면: Issue List '정리 보기 | 낱개 전체'(기억 `issdg`) · '▸ 상세 N건' = 묶인 지적을 바로 아래 낱개로 · 묶음 줄 상태 바꾸기 = 묶인 지적 전부에 같은 결정(이유 한 번) ·
+  필터(검색 · 종류 · 열 ▾)는 낱개 지적에 걸고 그 지적을 가진 묶음만 보인다. API `GET /projects/{p}/issues/digest`(`_cached`, 멤버 = 'ds_id|ikey').
+  Datasheet Review 의 Issues 탭은 이미 같은 이유 Data Missing 을 카드 하나로 묶고 있어 그대로.
+- 출력: 고르기 창 '코멘트 정리'(기본 켬, LS `outgroup`) → `group=1`. Excel = 맨 앞 'Comments (Typical)' 시트(열린 채로) + 기존 Issue List 등 그대로 ·
+  Mark-up PDF = 블럭 하나에 박스 하나 · 번호 하나 · 코멘트 하나.
+- 시험 `test_comment_digest_blocks_and_typical` · `test_comment_digest_api_and_exports`.

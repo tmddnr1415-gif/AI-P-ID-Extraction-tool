@@ -264,3 +264,9 @@
 - 원인: 내용 해시 저장본이 깨져도 같은 내용 업로드마다 재사용. 업로드 시 크기 · 해시 검증 후 다시 씀, 처리 전 해시 확인, open_pdf 재시도 + 실제 이유 표시.
 - 상태 창 ✕ · 모두 닫기 · 오류 시 자동 내려받기 안 함. 시험 +1 (1,987) · 스냅샷 0 · UI 25/25 · LINK OK. VERSION valve34.
 
+
+## 2026-11-07 · valve35 — 코멘트 정리: Typical · 블럭 · 상세보기 (사용자 요청)
+- `digest.py`: 한 쪽에 붙은 Data Missing(DM-01/02) 3개+ = 블럭 코멘트 하나 ('Process data missing — N items (…); ref. …') · 같은 코멘트 2 Tag+ = Typical 한 줄.
+- Issue List '정리 보기 | 낱개 전체' · ▸ 상세 · 묶음 일괄 결정 · Excel 'Comments (Typical)' 시트 · Mark-up PDF 블럭 박스 (group=1, 기본 켬).
+- 실자료 2,935 → 276. 판정 스냅샷 변경 0 · 시험 +2 (1,989) · UI 25/25 · 필터 · LINK OK. VERSION valve35.
+- 같은 날 답: Fugitive 카운트 = 칸 · Note · General Note 의 fugitive/ISO 15848/TA-Luft (조건부 GN 미구분 — 사용자 결정 대기).

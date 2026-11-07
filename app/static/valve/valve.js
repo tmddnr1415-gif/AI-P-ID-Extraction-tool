@@ -155,6 +155,7 @@ async function pickTypes(title, { tag = '', preset = null, note = '', pdf = /PDF
     <div class="tplist">${r.types.map(row).join('')}</div><p class="soft" style="margin:6px 0 0">Dismissed 는 넣지 않습니다. 고른 종류는 다음 출력 때도 그대로 기억합니다.</p>
     <div class="olang"><b>코멘트 언어</b>${LANGS.map(([k, l]) => `<label><input type="radio" name="olang" value="${k}" ${outLang() === k ? 'checked' : ''}> ${l}</label>`).join('')}
       <span class="soft">· 한글은 규칙별 고정 문장 · 검토자가 쓴 코멘트는 쓴 그대로</span></div>
+    <label class="olang" style="display:flex;gap:6px;align-items:center"><input type="checkbox" id="poG" style="width:auto;flex:none;margin:0" ${LS.get('outgroup', 1) ? 'checked' : ''}> <b style="white-space:nowrap">코멘트 정리</b><span class="soft">— PDF: 한 쪽에 붙어 있는 Data Missing 을 한 박스 · 한 코멘트로 · Excel: 맨 앞에 'Comments (Typical)' 시트 (같은 코멘트는 Tag 를 모아 한 줄) · 낱개 목록도 그대로 들어감</span></label>
     ${pdf ? (o => `<div style="margin-top:8px;padding-top:6px;border-top:1px solid var(--line,#e3e6ec);display:grid;gap:4px">
       <label style="display:flex;gap:6px;align-items:center"><input type="checkbox" id="poM" style="width:auto;flex:none;margin:0" ${o.margin ? 'checked' : ''}> <b style="white-space:nowrap">코멘트를 쪽 옆에 인쇄</b><span class="soft">— 번호마다 지적 · 검토자 의견이 그 쪽 오른쪽에</span></label>
       <label style="display:flex;gap:6px;align-items:center"><input type="checkbox" id="poF" style="width:auto;flex:none;margin:0" ${o.flatten ? 'checked' : ''}> <b style="white-space:nowrap">마크업 고정</b><span class="soft">— 어느 뷰어 · 인쇄에서도 화면 그대로 (끄면 Acrobat 에서 고칠 수 있는 주석)</span></label></div>`)(LS.get('pdfopt', { margin: 1, flatten: 1 })) : ''}`;
@@ -172,6 +173,7 @@ async function pickTypes(title, { tag = '', preset = null, note = '', pdf = /PDF
   const ts = $$('input[data-ty]:checked', box).map(x => x.dataset.ty);
   if (!preset) LS.set('xtypes', ts);
   const ol = $('input[name="olang"]:checked', box); if (ol) LS.set('outlang', ol.value);
+  if ($('#poG', box)) LS.set('outgroup', $('#poG', box).checked ? 1 : 0);
   if (pdf) LS.set('pdfopt', { margin: $('#poM', box).checked ? 1 : 0, flatten: $('#poF', box).checked ? 1 : 0 });
   return ts.join(',');
 }
@@ -220,6 +222,7 @@ function virtualRows(tbody, wrap, rows, html) {
 }
 async function download(path, method = 'GET', body) {
   if (/\/(issues\.xlsx|markup\.pdf)(\?|$)/.test(path) && !/[?&]lang=/.test(path)) path += (path.includes('?') ? '&' : '?') + 'lang=' + outLang();   // valve31
+  if (/\/(issues\.xlsx|markup\.pdf)(\?|$)/.test(path) && !/[?&]group=/.test(path) && LS.get('outgroup', 1)) path += '&group=1';   // valve35: Typical · block
   const r = await api(method, path, body, true);
   const cd = r.headers.get('Content-Disposition') || '';
   const m = cd.match(/filename\*=UTF-8''([^;]+)/) || cd.match(/filename=([^;]+)/);
@@ -1224,7 +1227,19 @@ async function renderList() {
     };
   });
 }
-const IF = { type: '', sev: '', st: '', q: '', area: '', internal: false };
+const IF = { type: '', sev: '', st: '', q: '', area: '', internal: false, dg: LS.get('issdg', 1), open: new Set() };
+/* valve35 — 정리 보기: touching Data Missing on one page = one block, the same comment on several tags = one Typical row
+   (server: app/valve/digest.py).  Every finding stays; '▸ 상세' opens its rows.  Filters work on the findings themselves. */
+async function loadDigest() {
+  if (S.dgFor === S.issues && S.dg) return S.dg;
+  const r = await api('GET', `/projects/${S.pid}/issues/digest`);
+  S.dg = r.entries; S.dgFor = S.issues; S.dgIdx = new Map(S.issues.map(i => [i.ds_id + '|' + i.ikey, i]));
+  return S.dg;
+}
+function digestRows(L) {
+  const vis = new Set(L.map(i => i.ds_id + '|' + i.ikey));
+  return S.dg.map((e, k) => ({ e, k, ms: e.m.filter(x => vis.has(x)).map(x => S.dgIdx.get(x)).filter(Boolean) })).filter(g => g.ms.length);
+}
 /* valve29 — Special Requirements at a glance: Area totals (click a number to filter) + every valve × requirement, Excel */
 const RQ = { area: '', req: '', q: '' };
 const reqShort = h => ({ 'Fugitive Emission (ISO 15848)': 'Fugitive', 'NACE / Sour': 'NACE', 'Partial Stroke Test': 'PST', 'Tightness / Leakage': 'Tightness',
@@ -1284,20 +1299,40 @@ async function renderIssues(rowsOnly) {
   const types = [...new Set(all.map(i => i.type))];
   const cnt = t => all.filter(i => i.type === t && i.status !== 'Dismissed').length;
   const keepY = $('.xg-wrap', el)?.scrollTop || 0;
-  const __rows = L.map((i, n) => () => `<tr data-i="${esc(i.ds_id + '|' + i.ikey)}" class="${G.selIss === i.ikey && G.selDs === i.ds_id ? 'sel' : ''}">
+  const D = IF.dg ? (await loadDigest(), digestRows(L)) : null; IF.D = D;
+  const grpRow = g => {                                     // one Typical / block comment (a single finding keeps its own row)
+    const e = g.e, i0 = g.ms[0], typ = e.kind === 'typical', blk = e.kind === 'block' || e.of_kind === 'block', op = IF.open.has(g.k);
+    if (!typ && !blk) return issRow(i0);
+    const tags = [...new Set(g.ms.map(i => i.tag))], st = new Set(g.ms.map(decShown));
+    const sel = decSelect(`data-gst="${g.k}"`, st.size === 1 ? i0 : { status: '' }).replace('<option', st.size === 1 ? '<option' : '<option selected disabled>(섞임)</option><option');
+    return `<tr data-g="${g.k}" class="grp ${op ? 'gop' : ''} ${G.selG === g.k ? 'sel' : ''}">
+      <td class="fz" style="left:0"><b class="no ${e.color}">${g.k + 1}</b></td>
+      <td class="fz fzl" style="left:34px" title="${esc(tags.join(', '))}">${typ ? `<b class="typ">Typical</b> <small>${tags.length} Tag</small>` : `<b>${esc(i0.tag)}</b>`}</td>
+      <td>${typ ? `<small class="soft">${esc(tags.slice(0, 3).join(', '))}${tags.length > 3 ? ' …' : ''}</small>` : esc(i0.doc_no)}</td><td>${typ ? '' : esc(i0.rev)}</td>
+      <td>${typ ? '' : `${i0.sheet || ''} of ${i0.of || ''}`}</td><td>${typ ? '' : (e.page || i0.page || '')}</td>
+      <td title="${esc(e.field || '')}">${esc(e.field || '')}${blk ? ' <span class="blk">블럭</span>' : ''}</td><td>${blk ? '(blank)' : esc(i0.value || '(blank)')}</td>
+      <td>${pill(e.type.replace(/[^A-Za-z]/g, ''), e.type)}</td>
+      <td title="${esc(e.description)}">${descHTML(e)}<div><button class="ibtn dgo" data-gopen="1" title="묶인 지적을 낱개로 보기">${op ? '▾ 접기' : `▸ 상세 ${g.ms.length}건`}</button></div></td>
+      <td title="${esc(e.expected || '')}">${esc(e.expected || '')}</td><td>${pill(e.severity || i0.severity)}</td><td>${sel}</td></tr>`;
+  };
+  const issRow = (i, sub) => `<tr data-i="${esc(i.ds_id + '|' + i.ikey)}" class="${sub ? 'gsub ' : ''}${G.selIss === i.ikey && G.selDs === i.ds_id ? 'sel' : ''}">
         <td class="fz" style="left:0"><b class="no ${i.color}">${i.no}</b></td><td class="fz fzl" style="left:34px"><b>${esc(i.tag)}</b></td><td>${esc(i.doc_no)}</td><td>${esc(i.rev)}</td><td>${i.sheet || ''} of ${i.of || ''}</td><td>${i.page || ''}</td>
         <td title="${esc(i.field)}">${esc(i.field)}${i.row ? ` <small>#${i.row}</small>` : ''}</td><td title="${esc(i.value)}">${esc(i.value || '(blank)')}</td>
         <td>${pill(i.type.replace(/[^A-Za-z]/g, ''), i.type)}${i.comment_id ? '' : ` <button class="ibtn" data-icmp="1" title="어디와 다른지 나란히">⇆</button><button class="ibtn" data-iedit="1" title="코멘트 고치기 · 보완">✎${i.edited ? '•' : ''}</button>`}</td><td title="${esc(i.description)}${i.evidence?.length ? '\n근거: ' + esc(i.evidence.map(x => `${x.doc || ''}${x.page ? ' p.' + x.page : ''} ${x.where || ''}: ${String(x.text || '').slice(0, 60)}`).join(' | ')) : ''}">${descHTML(i)}</td><td title="${esc(i.expected)}">${esc(i.expected)}</td>
-        <td>${pill(i.severity)}</td><td>${decSelect(`data-ist="${esc(i.ds_id + '|' + i.ikey)}"`, i)}</td></tr>`), __fb = '<tr><td colspan="13" class="empty">조건에 맞는 지적 사항이 없습니다</td></tr>';
+        <td>${pill(i.severity)}</td><td>${decSelect(`data-ist="${esc(i.ds_id + '|' + i.ikey)}"`, i)}</td></tr>`;
+  const __rows = D ? D.flatMap(g => [() => grpRow(g), ...(IF.open.has(g.k) ? g.ms.map(i => () => issRow(i, 1)) : [])]) : L.map(i => () => issRow(i)),
+    __fb = '<tr><td colspan="13" class="empty">조건에 맞는 지적 사항이 없습니다</td></tr>';
+  const cntTxt = D ? `코멘트 ${D.length} (지적 ${L.length} / ${all.length})` : `${L.length} / ${all.length}`;
   IF.L = L;
-  if (rowsOnly && $('#ig tbody', el)) { chunkRows($('#ig tbody', el), __rows, 80, __fb); const c = $('#icnt', el); if (c) c.textContent = `${L.length} / ${all.length}`; return; }
+  if (rowsOnly && $('#ig tbody', el)) { chunkRows($('#ig tbody', el), __rows, 80, __fb); const c = $('#icnt', el); if (c) c.textContent = cntTxt; return; }
   el.innerHTML = `<div class="vh">${listTop()}<input type="search" id="iq" placeholder="Tag 검색" style="width:140px" value="${esc(IF.q)}">
       <select id="iar"><option value="">All Areas</option>${areas.map(a => `<option ${a === IF.area ? 'selected' : ''}>${esc(a)}</option>`).join('')}</select>
       <select id="it"><option value="">All Issue Types</option>${types.map(t => `<option ${t === IF.type ? 'selected' : ''} value="${esc(t)}">${esc(t)} (${cnt(t)})</option>`).join('')}</select>
       <select id="isv"><option value="">All Severity</option>${['Major', 'Minor', 'Info', 'Internal'].map(t => `<option ${t === IF.sev ? 'selected' : ''}>${t}</option>`).join('')}</select>
       <select id="ist"><option value="">All Status</option>${['Open', 'Confirmed', 'Dismissed', 'Resolved'].map(t => `<option ${t === IF.st ? 'selected' : ''}>${t}</option>`).join('')}</select>
       <label class="soft"><input type="checkbox" id="iint" ${IF.internal ? 'checked' : ''}> 추출 확인(내부)</label>
-      <span class="soft" id="icnt">${L.length} / ${all.length}</span><span class="sp"></span>
+      <span class="segtab" title="정리 보기: 같은 쪽에 붙은 Data Missing 은 한 블럭 · 여러 Tag 에 같은 코멘트는 Typical 한 줄 (▸ 상세로 낱개)"><button data-dg="1" class="${IF.dg ? 'on' : ''}">정리 보기</button><button data-dg="0" class="${IF.dg ? '' : 'on'}">낱개 전체</button></span>
+      <span class="soft" id="icnt">${cntTxt}</span><span class="sp"></span>
       <button id="ixl" title="지금 필터 그대로 · Dismissed 제외">⇩ Issue List Excel</button><button class="pri" id="ipdf" title="지금 필터 그대로 · 인쇄용 표시 + Issue Summary">⇩ Mark-up PDF</button></div>
     ${lpWrap(`<div class="xg-wrap"><table class="xg" id="ig" style="width:1500px"><colgroup>${[34, 110, 150, 40, 62, 46, 150, 150, 130, 330, 150, 64, 100].map(w => `<col style="width:${w}px">`).join('')}</colgroup>
       <thead><tr>${['No.', 'Tag Number', 'Doc. No.', 'Rev.', 'Sheet', 'Page', 'Field', 'Datasheet Value', 'Issue Type', 'Description', 'Required / Expected', 'Severity', 'Status'].map((h, n) => `<th ${n < 2 ? `class="fz ${n ? 'fzl' : ''}" style="left:${n ? 34 : 0}px"` : ''}>${h} ${xfBtn('iss', ISSKEYS[n])}</th>`).join('')}</tr></thead>
@@ -1308,6 +1343,7 @@ async function renderIssues(rowsOnly) {
   $('#iq').oninput = e => { IF.q = e.target.value; clearTimeout(IF.t); IF.t = setTimeout(re, 90); };
   $('#it').onchange = e => { IF.type = e.target.value; re(); }; $('#isv').onchange = e => { IF.sev = e.target.value; re(); }; $('#iar').onchange = e => { IF.area = e.target.value; re(); };
   $('#ist').onchange = e => { IF.st = e.target.value; re(); }; $('#iint').onchange = e => { IF.internal = e.target.checked; re(); };
+  $$('[data-dg]', el).forEach(b => b.onclick = () => { IF.dg = +b.dataset.dg; LS.set('issdg', IF.dg); renderIssues(); });
   const qNow = () => IF.q.toUpperCase().replace(/[^0-9A-Z]/g, '');     // read at click time: filters redraw rows only
   const qs = () => new URLSearchParams({ types: IF.type || (IF.internal ? [...types].join(',') : ''), severity: IF.sev, tag: qNow() || xfActive('iss') ? [...new Set(IF.L.map(i => i.tag))].join(',') : '' }).toString();
   const pick = async what => { const t = await pickTypes(`${what} — 넣을 Issue Type`, { preset: IF.type ? [IF.type] : null,
@@ -1321,6 +1357,18 @@ async function renderIssues(rowsOnly) {
   chunkRows(tb, __rows, 80, __fb);
   tb.onclick = async e => {
     if (e.target.closest('select')) return;
+    const gtr = e.target.closest('tr[data-g]');
+    if (gtr) {                                             // valve35: a Typical / block row
+      const g = (IF.D || []).find(x => x.k === +gtr.dataset.g); if (!g) return;
+      if (e.target.closest('[data-gopen]')) { IF.open.has(g.k) ? IF.open.delete(g.k) : IF.open.add(g.k); re(); return; }
+      G.selG = g.k; $$('tr.sel', tb).forEach(x => x.classList.remove('sel')); gtr.classList.add('sel');
+      const i0 = g.ms[0], u = (g.e.units || []).find(x => x.ds_id === i0.ds_id) || g.e;
+      const pages = (S.grid?.rows.find(r => r.id === i0.ds_id)?.pages) || (await api('GET', `/datasheets/${i0.ds_id}`)).pages;
+      link({ t: 'iss', id: i0.ds_id, ikey: i0.ikey, near: [] });
+      preview({ doc: i0.document_id, pages, page: u.page || i0.page, bbox: u.bbox || i0.bbox, ovs: await dsIssues(i0.ds_id),
+        label: `${g.e.kind === 'typical' ? `Typical (${new Set(g.ms.map(i => i.tag)).size} Tag) · 첫 Tag ` : ''}${i0.tag} · ${g.e.type} · ${g.e.field || ''}` });
+      return;
+    }
     const cb = e.target.closest('[data-icmp], [data-iedit]');
     if (cb) {                                              // valve29: compare with the reference · edit the comment
       const tr0 = cb.closest('tr[data-i]'), dsId0 = +tr0.dataset.i.split('|')[0], ik0 = tr0.dataset.i.slice(tr0.dataset.i.indexOf('|') + 1);
@@ -1340,6 +1388,17 @@ async function renderIssues(rowsOnly) {
   };
   tb.ondblclick = e => { const tr = e.target.closest('tr[data-i]'); if (tr) openDs(+tr.dataset.i.split('|')[0]); };
   tb.onchange = async e => {
+    const gs = e.target.closest('[data-gst]');
+    if (gs) {                                              // valve35: one decision for every finding in the Typical / block
+      const g = (IF.D || []).find(x => x.k === +gs.dataset.gst); if (!g) return;
+      const body = await askDecision(gs.value, g.ms.length, g.ms[0]); if (!body) { re(); return; }
+      for (const i of g.ms) {
+        const r = await api('PUT', `/datasheets/${i.ds_id}/issues/${encodeURIComponent(i.ikey)}`, body);
+        Object.assign(i, { status: r.status, decision: r.decision, note: body.note, reason_cat: body.reason_cat || '', conclusion: body.conclusion || '' });
+      }
+      if (body.decision === 'Modified') S.issues = null;
+      toast(`→ ${gs.value} · ${g.ms.length}건 모두`); re(); return;
+    }
     const sel = e.target.closest('[data-ist]'); if (!sel) return;
     const [dsId, ikey] = [+sel.dataset.ist.split('|')[0], sel.dataset.ist.slice(sel.dataset.ist.indexOf('|') + 1)];
     const i = S.issues.find(x => x.ds_id === dsId && x.ikey === ikey);

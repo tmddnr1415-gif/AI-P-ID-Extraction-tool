@@ -1,6 +1,6 @@
 # 인수인계 — "VALVE Datasheet 검토" 세션 (상한 15KB · 덧붙이지 말고 고쳐 쓴다)
 
-## 지금 상태 (2026-11-01 · valve29 = Phase 1 완료 + 후속 요청들)
+## 지금 상태 (2026-11-07 · valve35 — valve29 Phase 1 완료 + 후속 요청들)
 
 - ★★★ **2026-11-02 사용자: "우선 여기 개인 클로드에서 개발을 이어서 진행한다"** — 이 세션(클라우드)이 계속 개발하고 valveNN 꾸러미를 낸다. 회사 PC 는 적용만(회사에서 Valve 를 고치면 다음 꾸러미가 충돌).
   아래 2026-11-01 '회사 PC 개발' 장치(devkit · valve_deploy_to_ops)는 그대로 두되 지금은 쓰지 않는다.
@@ -28,7 +28,9 @@
 - **valve32**: 올린 문서 지우기(🗑 · 확인 창 · `valve/trash/<p>/` JSON) · 휴지통 되돌리기(같은 id) — DESIGN §37.
 - **valve33**: 첫 화면 Valve Summary 표(`/valve-summary` · `drawVsum` · `vsTags`) — DESIGN §38.
 - **valve34**: FileDataError 반복(깨진 저장본 재사용) 고침 · 저장본 해시 검증 · open_pdf 재시도/이유 · 작업 상태 창 닫기 — DESIGN §39.
-- 꾸러미: **valve34** = `out/PID_dev+ops_valve34_2026-11-02.zip` (누적). 그 전 valve33. 그 전 **valve30** = `out/PID_dev+ops_valve30_2026-11-02.zip`. 그 전 **valve29** = `out/PID_dev+ops_valve29_2026-11-01.zip`(P&ID 서버, 누적 — 이것 하나) · 대시보드 = `dashboard_patches/UPDATE_from_v16.51_VALVE2_menu.zip`(--any) ·
+- **valve35**: 코멘트 정리 — 블럭(한 쪽에 붙은 Data Missing 3개+ = 한 코멘트) · Typical(같은 코멘트 2 Tag+ = 한 줄) · ▸ 상세 · 묶음 일괄 결정 ·
+  Excel 'Comments (Typical)' 시트 · PDF 블럭 박스(`digest.py`, `/issues/digest`, `group=1`) — DESIGN §40. 판정 불변(스냅샷 0). 실자료 2,935 → 276.
+- 꾸러미: **valve35** = `out/PID_dev+ops_valve35_2026-11-07.zip` (누적). 그 전 valve34. 그 전 **valve30** = `out/PID_dev+ops_valve30_2026-11-02.zip`. 그 전 **valve29** = `out/PID_dev+ops_valve29_2026-11-01.zip`(P&ID 서버, 누적 — 이것 하나) · 대시보드 = `dashboard_patches/UPDATE_from_v16.51_VALVE2_menu.zip`(--any) ·
   회사 개발용 = `out/VALVE_devkit_valve29_2026-11-01.zip`(문서 · 점검 도구).
 - 남은 일: PERFORMANCE_REPORT.md(측정은 끝 — DESIGN §34-2 · §34-5 · other_log 수치) · Globe/Butterfly/PSV 검토(양식 · 기준 필요) · Phase 2(회사 Valve Spec · Gasket/Bolting PMS · Process DS 원본 필요) ·
   실사용 결정 쌓기(Rule Performance 정밀도) · 다른 Vendor 양식 시험.
