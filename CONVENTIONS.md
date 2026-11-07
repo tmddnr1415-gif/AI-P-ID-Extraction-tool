@@ -53,6 +53,12 @@ Windows · Edge · Python 3.11 · CDN/npm/외부 서비스 금지 (라이브러�
 - 실패하면 반쪽 업데이트를 남기지 않는 hotfix132 안전장치(자동 되돌림)는 그대로 둔다.
 - 도구 고침(`--overwrite`, base 선택)은 **업데이트 파일을 만들 때** 통합 브랜치에서 한다 — 요청 전에는 만들지 않는다.
 
+## 5-1. 통합 브랜치 = 오케스트레이터 브랜치 (2026-11-07 hotfix133 부터)
+
+`claude/trusting-cray-v68axq` 가 S2 브랜치 · 3 · 6 병합 · 4 · 5 옮김을 모두 담은 **통합 브랜치**다. 다음 꾸러미도 여기서 이어서 만든다
+(S2 브랜치를 다시 병합 → 3 · 6 병합 → 4 · 5 옮김 · `release_sources.json` imported 갱신 → `release_check.py` → `pack_delta.py --name hotfixNNN --base 97a8732 --readme … --ops`).
+만든 꾸러미는 `status/packages.json` 에 적고 `company-pc-update/<날짜>/` 에 둔다. 현황판의 '대기'는 이 꾸러미 뒤의 커밋이다.
+
 ## 6. 오케스트레이터 절차 (사용자가 "회사 업데이트 파일 만들어 줘" 할 때만)
 
 1. 7개 브랜치 fetch · 각 브랜치 끝 커밋과 인수인계의 변경점 확인

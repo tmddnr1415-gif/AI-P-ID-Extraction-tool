@@ -367,7 +367,7 @@ body.flat::after{content:"";position:fixed;inset:0;background:var(--bg);z-index:
 
   <div class="notice"><b>이 페이지의 화면은 모두 실제 프로그램입니다.</b>
     각 세션 브랜치의 코드를 그대로 띄워 찍었거나, 세션이 남긴 캡처입니다. 사진 아래에 출처를 적었습니다.
-    DASHBOARD 의 PJT 행 7개는 화면을 채우려고 넣은 예시 데이터입니다. 2단계 적용 창은 ② 통합 파일의 적용 절차를 순서대로 보여 주는 재현이며, <b>업데이트 파일 자체는 아직 만들지 않았습니다</b> (요청 때 만듭니다).</div>
+    DASHBOARD 의 PJT 행 7개는 화면을 채우려고 넣은 예시 데이터입니다. 2단계 적용 창은 ② 통합 파일의 적용 절차를 순서대로 보여 주는 재현이며, <b>업데이트 파일 2개는 2026-11-07 에 만들었습니다</b> — <span class="mono">company-pc-update/2026-11-07/</span> (회사 적용 확인 대기).</div>
 
   <nav class="steps" role="tablist">
     <button class="step" role="tab" data-step="0" aria-selected="true"><span class="n">1</span><span><span class="t">업데이트 파일 2개</span><br><span class="d">① 대시보드 · ② 통합</span></span></button>
@@ -380,7 +380,7 @@ body.flat::after{content:"";position:fixed;inset:0;background:var(--bg);z-index:
   <section class="stage on" data-stage="0">
     <div class="grid2">
       <div class="win">
-        <div class="win-bar"><span class="dots"><i></i><i></i><i></i></span><span class="path">company-pc-update-&lt;날짜&gt;\  (요청 때 생성 — 아직 없음)</span></div>
+        <div class="win-bar"><span class="dots"><i></i><i></i><i></i></span><span class="path">company-pc-update\2026-11-07\  (만듦 · 회사 적용 확인 대기)</span></div>
         <div class="tablebox" style="border:0;border-radius:0"><table id="pkgtable"></table></div>
       </div>
       <div class="card">
@@ -869,13 +869,13 @@ const ST={plan:["ok","반영 예정 · hotfix133"],same:["gray","이미 최신 �
 /* ---------- 실제 값 (2026-11-07 각 브랜치 끝 · 회사 전달 기록 재확인) ---------- */
 const TOOLS=[
  {sid:"S1",name:"DASHBOARD",session:"1. DASHBOARD 코드",menu:"📋 주간업무보고",ver:"v16.61 (회사엔 v16.58) — 3D 메뉴 · 메뉴 번호 · CO2 PJT",st:"plan",file:"①",
-  pkg:"UPDATE_any_to_v16.61.zip (어느 버전에서든 적용되는 판 · 요청 때 생성)",bytes:0,apply:"zip 풀고 APPLY.bat → 대시보드 서버 재시작 (v16.61 은 메뉴가 바뀌어 재시작 필요)",
+  pkg:"1_DASHBOARD_update_v16.61_any_2026-11-07.zip (어느 버전에서든 적용 · 20.5 MB)",bytes:0,apply:"zip 풀고 APPLY.bat → 대시보드 서버 재시작 (v16.61 은 메뉴가 바뀌어 재시작 필요)",
   path:"#home",
   what:["엑셀 ‘계장ENG그룹 주간 업무 보고’를 대체하는 부서 웹 프로그램","dashboard.html 한 파일 + server.py (Python 3.11 표준 라이브러리만)","수행 · 입찰 · 프로젝트 이슈사항 · PJT R&R · 통합 업무 · 유닛분장 · 주간회의 전달사항","v16.59: 메뉴에 3D 계측제어(/ic3d) · v16.60: 메뉴 번호 칸 · v16.61: 실행 프로젝트 › CO2 PJT (Ball Valve 연결)"],
   review:["회사엔 v16.58 (delivered.txt) — 어느 버전에서든 적용되는 판으로 만들어 v16.58 이 아니어도 v16.61 로","3D 메뉴는 PID 서버 /ic3d 가 생겨야 열림 (S2 작업 대기) — 그 전엔 ‘서버 꺼짐’ 안내"],
   shots:[["s1_home","홈 — 수행 · 입찰 PJT 집계","실제 server.py 실행 · 예시 PJT 7행"],["s1_perform","수행 PJT 보드","실제 server.py 실행 · 예시 PJT"],["lv_dash","홈 그래프 (시연 영상 캡처)","프로그램 시연 영상 세션"]]},
  {sid:"S2",name:"P&ID 검토 4",session:"2. PID 검토 4",menu:"📐 P&ID 분석",ver:"hotfix132 + 커밋 2 → hotfix133",st:"plan",file:"②",
-  pkg:"PID_dev+ops_hotfix133_<날짜>.zip (통합 · 요청 때 생성)",bytes:0,apply:"apply_to_PID_dev.bat → 확인 → apply_to_PID_ops.bat --overwrite → 포트 8000 재시작 → 상단 띠 ‘업데이트 133’",
+  pkg:"2_PID_dev+ops_hotfix133_2026-11-07.zip (통합 · 8.0 MB · 파일 579)",bytes:0,apply:"apply_to_PID_dev.bat → 확인 → apply_to_PID_ops.bat --overwrite → 포트 8000 재시작 → 상단 띠 ‘업데이트 133’",
   path:"#pid",
   what:["CAD P&ID PDF 를 넣으면 고객 Excel 서식의 계기 · 밸브 리스트","판정 근거를 도면 위에 표시 (실선 계장 · 파선 밸브 · 모서리 ● 검토 필요)","규칙은 그 도면의 범례 · NOTES · 표제란에서 읽음 — 검출에 LLM 쓰지 않음","hotfix133 에 새로: Excel ‘=’ 시작 글 안전 처리 · LOGIC 업로드 PDF 닫기"],
   review:["판독 결과는 사람 검토 전에는 확정본이 아님","글자 없는 스캔 PDF 는 DXF 로 다시 올려야 함 (도구가 안내)","hotfix132 의 회사 적용 확인 기록이 없음 → 덮어쓰기 원칙으로 131 이든 132 든 133 으로"],
@@ -917,18 +917,18 @@ const fileChip=f=>`<span class="chip ${f==="①"?"gray":"info"}">${f}</span>`;
 
 /* ---------- STEP 1 ---------- */
 $("#pkgtable").innerHTML="<thead><tr><th>파일</th><th>세션</th><th class='hide-m'>이번 회차에 들어가는 것</th><th>상태</th></tr></thead><tbody>"+
-  `<tr><td colspan="4" class="small" style="background:var(--panel2)"><b>① UPDATE_any_to_v16.61.zip</b> — DASHBOARD 개별 <span class="muted">· v16.59–61 (회사엔 v16.58) · 어느 버전에서든 적용</span></td></tr>`+
+  `<tr><td colspan="4" class="small" style="background:var(--panel2)"><b>① 1_DASHBOARD_update_v16.61_any_2026-11-07.zip</b> <span class="muted">20.5 MB</span> — DASHBOARD 개별 <span class="muted">· v16.59–61 (회사엔 v16.58) · 어느 버전에서든 적용</span></td></tr>`+
   TOOLS.filter(t=>t.file==="①").map(t=>`<tr><td>${fileChip(t.file)}</td><td><span class="chip info">${t.sid}</span> ${esc(t.name)}</td><td class="hide-m small muted">${esc(t.apply)}</td><td>${chip(t.st)}</td></tr>`).join("")+
-  `<tr><td colspan="4" class="small" style="background:var(--panel2)"><b>② PID_dev+ops_hotfix133_&lt;날짜&gt;.zip</b> — 그 외 전부 통합 <span class="muted">· 기준 = 마지막 적용 확인(2026-11-02 valve29) · 최신으로 덮어씀</span></td></tr>`+
+  `<tr><td colspan="4" class="small" style="background:var(--panel2)"><b>② 2_PID_dev+ops_hotfix133_2026-11-07.zip</b> <span class="muted">8.0 MB · 파일 579</span> — 그 외 전부 통합 <span class="muted">· 기준 97a8732 누적 · 어느 판이든 최신으로 덮어씀</span></td></tr>`+
   TOOLS.filter(t=>t.file==="②").map(t=>`<tr><td>${fileChip(t.file)}</td><td><span class="chip info">${t.sid}</span> ${esc(t.name)}</td><td class="hide-m small muted">${esc(t.pkg)}</td><td>${chip(t.st)}</td></tr>`).join("")+
-  `<tr><td colspan="4" class="small muted">+ <span class="mono">1_먼저읽기.txt</span> (덮어쓴 회사 수정 파일 목록 맨 위) · <span class="mono">MANIFEST</span> (SHA-256) · 이 시연 파일 — <b>아직 만들지 않았고, 요청할 때 만듭니다</b></td></tr></tbody>`;
+  `<tr><td colspan="4" class="small muted">+ <span class="mono">1_먼저읽기.txt</span> (덮어쓴 회사 수정 파일 목록 맨 위) · <span class="mono">MANIFEST</span> (SHA-256) · 이 시연 파일 — 시험 2,064 · 회사 PC 상태 3가지에 실제 적용해 확인</td></tr></tbody>`;
 $("#orgkids").innerHTML=TOOLS.map(t=>`<div><b>${t.sid}</b>${esc(t.name.replace(/ \(.+\)/,""))}</div>`).join("");
 
 /* ---------- STEP 2 ---------- */
 const PLAN=[
- {sid:"S1",lab:"① DASHBOARD v16.61",lines:[["","> UPDATE_any_to_v16.61\\APPLY.bat"],["m","  회사 PC 가 v16.58 이든 아니든 → v16.61 (메뉴 번호 · 3D 계측제어 · CO2 PJT)"],["","  dashboard.html · DASHBOARD_ARCHITECTURE.md 교체 · 운영 데이터는 그대로 ........ <span class='g'>완료</span>"],["y","  ! 메뉴가 바뀌어 대시보드 서버 재시작 필요"]]},
+ {sid:"S1",lab:"① DASHBOARD v16.61",lines:[["","> 1_DASHBOARD_update_v16.61_any\\APPLY.bat"],["m","  회사 PC 가 v16.58 이든 아니든 → v16.61 (메뉴 번호 · 3D 계측제어 · CO2 PJT)"],["","  dashboard.html · DASHBOARD_ARCHITECTURE.md 교체 · 운영 데이터는 그대로 ........ <span class='g'>완료</span>"],["y","  ! 메뉴가 바뀌어 대시보드 서버 재시작 필요"]]},
  {sid:"S2",lab:"② hotfix133 — 개발 사본에 먼저",lines:[
-   ["","> PID_dev+ops_hotfix133\\apply_to_PID_dev.bat"],["m","  C:\\Claude\\PID_dev — 기준 = 마지막 적용 확인(valve29 · 11-02) 뒤 바뀐 파일 전부"],["m","  회사 PC 가 hotfix131 이든 132 든 → 133 으로 (우리가 보낸 어느 판이든 덮음)"],["","  내용: P&ID(132+2) · LOGIC L87–L91 · 판넬 5커밋 · Valve valve35 · 3D /ic3d(준비되면) ........ <span class='g'>확인</span>"]]},
+   ["","> 2_PID_dev+ops_hotfix133\\apply_to_PID_dev.bat"],["m","  C:\\Claude\\PID_dev — 기준 97a8732 누적 · 파일 579"],["m","  회사 PC 가 hotfix131 이든 132 든 → 133 으로 (우리가 보낸 어느 판이든 덮음)"],["","  내용: P&ID(132+2) · LOGIC L87–L91 · 판넬 5커밋 · Valve valve35 · 3D /ic3d(준비되면) ........ <span class='g'>확인</span>"]]},
  {sid:"S6",lab:"② 회사에서 고친 파일",lines:[["y","  ! 11-01~02 회사 PC 에서 고친 app/valve/* → backup\\hotfix133_<시각>\\ 에 두고 최신으로 덮음 (--overwrite)"],["m","  1_먼저읽기 맨 위에 덮은 파일 목록 · 되돌리기는 --restore"]]},
  {sid:"S3",lab:"② 운영 폴더 적용",lines:[
    ["","> apply_to_PID_ops.bat --overwrite"],["m","  C:\\Claude\\PID (운영, 포트 8000) — 복사 중 실패하면 자동 되돌림 (hotfix132 안전장치 그대로)"],["","  PID 서버 재시작 · 상단 띠 ‘업데이트 133’ ........ <span class='g'>확인</span>"]]},
@@ -997,7 +997,7 @@ $("#issues").innerHTML=[
 $("#next").innerHTML=[
  "각 세션에서 규약 v2 확인 한마디 (1 · 2 · 4 · 6 · 7 이 ‘사용자 뜻인지’ 확인 대기)",
  "S2: PID 서버 /ic3d 주소 (S1 메뉴 v16.59 · S7 오프라인 3D 는 끝남) — S6: valve36 꾸러미는 따로 만들지 말고 통합으로",
- "사용자가 “회사 업데이트 파일 만들어 줘” → 오케스트레이터가 7개 브랜치 수집 → 통합 → 시험 → release_check → pack_delta (--overwrite 신설) → 파일 2개",
+ "✓ 2026-11-07 파일 2개 만듦 — 회사 PC 에 적용하고 “적용했다” 알려 주기 · python-docx 확인 (LOGIC System Description Word)",
  "회사 PC 적용 → “적용했다” → 기준점 갱신 → 다음 회차는 그 뒤 바뀐 것만"
 ].map(x=>`<li>${esc(x)}</li>`).join("");
 

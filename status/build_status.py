@@ -11,7 +11,6 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 ROOT = subprocess.run(['git', 'rev-parse', '--show-toplevel'], capture_output=True, text=True, check=True).stdout.strip()
 HERE = os.path.join(ROOT, 'status')
-PID = 'origin/claude/gracious-ride-26nqrf'          # 통합 파일을 만드는 기준 브랜치
 
 
 def git(*a):
@@ -45,64 +44,89 @@ def tip(ref):
 
 
 # ---- 세션별로 '최신 버전' · '회사에 나간 것' · '다음 업데이트에 들어갈 것' 을 git 에서 읽는다 -------------------
+# 2026-11-07 hotfix133 부터 통합 브랜치 = 이 오케스트레이터 브랜치(HEAD). '대기' = 마지막으로 만든 꾸러미 뒤의 커밋.
+INTEG = 'HEAD'
+
+
+def _pkgs():
+    p = os.path.join(HERE, 'packages.json')
+    return json.load(open(p, encoding='utf-8')).get('packages', []) if os.path.exists(p) else []
+
+
+def pkg(file):
+    ps = [x for x in _pkgs() if x['file'] == file]
+    return ps[-1] if ps else None
+
+
+def made(file):
+    k = pkg(file)
+    if not k:
+        return ''
+    st = f"적용 확인 {k['applied']}" if k.get('applied') else '회사 적용 확인 대기'
+    return f"{file} {k['name'].split('_20')[0]} 만듦 ({k['made'][5:]}) · {st}"
+
+
 def s1():
     b = 'origin/ccr-248a5c4d-3dji7g'
     ver = first(r"const APP_VERSION = '([^']+)'", show(b, 'dashboard/dashboard.html'))
     last = (show(b, 'dashboard_tools/delivered.txt').splitlines() or [''])[-1].split(None, 1)
     base = last[0] if last else ''
-    pend = [c for c in log(f'{base}..{b}', 'dashboard') if base] if base else []
+    k = pkg('①')
+    since = (k or {}).get('tips', {}).get('S1') or base
+    pend = log(f'{since}..{b}', 'dashboard') if since else []
     newest = first(r'dashboard v(\d+\.\d+)', '\n'.join(c['s'] for c in log(b, n=15)))       # 브랜치 최신 v (커밋 제목)
     sent = first(r"to_v(\d+\.\d+)", last[1] if len(last) > 1 else "")
     return dict(branch=b, ver=f'v{newest or sent} · 회사엔 v{sent}' if newest and newest != sent else f'v{sent} (화면 {ver})',
-                shipped=f'delivered.txt 마지막: {last[1] if len(last) > 1 else "?"}', pending=pend, file='① DASHBOARD 개별')
+                shipped=(made('①') + ' · ' if k else '') + f'delivered.txt 마지막: {last[1] if len(last) > 1 else "?"}', pending=pend, file='① DASHBOARD 개별')
 
 
 def s2():
-    b = PID
-    zips = sorted(set(re.findall(r'out/PID_dev\+ops_hotfix(\d+)_[\d-]+\.zip', git('ls-tree', '-r', '--name-only', b, 'out/'))), key=int)
-    last = zips[-1] if zips else '?'
-    added = git('log', '-1', '--format=%h', '--diff-filter=A', b, '--', f'out/PID_dev+ops_hotfix{last}_*.zip')
-    nxt = first(r'다음 꾸러미 번호: (hotfix\d+)', show(b, 'docs/handoff/pid.md'), default=f'hotfix{int(last) + 1}' if last != '?' else '?')
-    return dict(branch=b, ver=f'hotfix{last} 꾸러미 · 다음 {nxt}', shipped=f'마지막 꾸러미 hotfix{last} (회사 적용 확인 기록 없음)',
-                pending=log(f'{added}..{b}') if added else [], file='② 통합')
+    b = 'origin/claude/gracious-ride-26nqrf'
+    k = pkg('②')
+    nm = first(r'(hotfix\d+)', (k or {}).get('name', '')) or '?'
+    return dict(branch=b, ver=f'{nm} 만듦 (통합)' if k else '?', shipped=made('②') or '꾸러미 없음',
+                pending=log(f'{INTEG}..{b}'), file='② 통합 (기준 브랜치 · 통합은 오케스트레이터)')
 
 
 def s3():
     b = 'origin/ccr-cc45909d-fjjmrb'
-    pend = log(f'{PID}..{b}')
     ver = first(r'^(L\d+)', (log(b, n=1) or [{'s': ''}])[0]['s'])
-    return dict(branch=b, ver=ver, shipped='통합 브랜치에 병합된 데까지', pending=pend, file='② 통합 (병합)')
+    return dict(branch=b, ver=ver, shipped=(made('②') + f' · {ver} 까지 병합') if pkg('②') else '통합 전', pending=log(f'{INTEG}..{b}'), file='② 통합 (병합)')
 
 
 def s4():
     b = 'origin/ccr-d82d97fa-bb3ty3'
-    src = json.loads(show(PID, 'config/release_sources.json') or '{}').get('sources', {}).get('PANEL', {})
+    src = json.loads(show(INTEG, 'config/release_sources.json') or '{}').get('sources', {}).get('PANEL', {})
     imp = src.get('imported', '')
     ver = first(r'변경 이력 \((\d+)\)', '\n'.join(c['s'] for c in log(b, n=10)))
-    return dict(branch=b, ver=f'변경 이력 ({ver})' if ver else tip(b)[0], shipped=f'통합에 옮겨 온 마지막 커밋 {imp}',
+    return dict(branch=b, ver=f'변경 이력 ({ver})' if ver else tip(b)[0], shipped=(made('②') + ' · ' if pkg('②') else '') + f'옮겨 온 마지막 커밋 {imp}',
                 pending=log(f'{imp}..{b}', 'dashboard/apps/space') if imp else [], file='② 통합 (apps/space → app/static/space)')
 
 
 def s5():
     b = 'origin/claude/new-session-v23o67'
     ver = first(r"VERSION\s*=\s*'([^']+)'", show(b, 'dashboard/apps/books/index.html'))
-    same = all(git('rev-parse', f'{b}:dashboard/apps/books/{f}') == git('rev-parse', f'{PID}:app/static/books/{f}') for f in ('index.html', 'kb.js'))
-    since = git('log', '-1', '--format=%cs', PID, '--', 'app/static/books')   # 통합에 도서가 마지막으로 들어간 날
-    pend = [] if same else [c for c in log(b, 'dashboard/apps/books', 'dashboard/books_api.py', n=20) if c['d'] >= since]
-    return dict(branch=b, ver=ver, shipped='통합(PID 서버 /books)에 같은 판' if same else '통합(PID 서버 /books)과 다름',
+    same = all(git('rev-parse', f'{b}:dashboard/apps/books/{f}') == git('rev-parse', f'{INTEG}:app/static/books/{f}') for f in ('index.html', 'kb.js'))
+    src = json.loads(show(INTEG, 'config/release_sources.json') or '{}').get('sources', {}).get('BOOKS', {})
+    imp = src.get('imported', '')
+    pend = [] if same else (log(f'{imp}..{b}', 'dashboard/apps/books', 'dashboard/books_api.py') if imp else log(b, 'dashboard/apps/books', n=5))
+    return dict(branch=b, ver=ver, shipped=(made('②') + ' · ' if pkg('②') else '') + ('통합(/books)에 같은 판' if same else '통합(/books)과 다름'),
                 pending=pend, file='② 통합 (apps/books → app/static/books)')
 
 
 def s6():
     b = 'origin/ccr-efbe7e75-n915ze'
     ver = first(r'^VERSION = "([^"]+)"', show(b, 'app/valve/api.py'))
-    return dict(branch=b, ver=ver, shipped='확인된 회사 적용: valve29 (2026-11-02)', pending=log(f'{PID}..{b}'), file='② 통합 (병합 · valveNN 폐지)')
+    return dict(branch=b, ver=ver, shipped=(made('②') + f' · {ver} 병합') if pkg('②') else '확인된 회사 적용: valve29 (2026-11-02)',
+                pending=log(f'{INTEG}..{b}'), file='② 통합 (병합 · valveNN 폐지)')
 
 
 def s7():
     b = 'origin/claude/practical-newton-n6bt58'
     paths = ['app', 'ic-3d-builder', 'ic-expert', 'Agent Org Chart', 'Spec for each Item', 'data', 'output']
-    return dict(branch=b, ver=tip(b)[0], shipped='아직 회사 경로 없음 (통합 준비 중)', pending=log(b, *paths, n=20), file='② 통합 (예정: app/static/ic3d · /ic3d)')
+    why = ((pkg('②') or {}).get('left_out') or {}).get('S7', '')
+    return dict(branch=b, ver=tip(b)[0], shipped=f'이번 꾸러미에서 빠짐 — {why}' if why else '아직 회사 경로 없음 (통합 준비 중)',
+                pending=log(b, *paths, n=20), file='② 통합 (예정: app/static/ic3d · /ic3d)')
 
 
 SESS = [('S1', '1. DASHBOARD', s1), ('S2', '2. P&ID 검토', s2), ('S3', '3. LOGIC 검토', s3), ('S4', '4. PANEL (판넬 공간확보)', s4),

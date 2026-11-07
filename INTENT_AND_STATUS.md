@@ -53,8 +53,8 @@
 | 점검 기록 · 정정 | `ORCHESTRATION_STATUS.md` | 완료 |
 | **현황판 + 시연 = 한 파일** (3D 지도 · 조직도 · 목록 · 회사 PC 시연) | `status/SESSION_STATUS.html` · `build_status.py` · `template.html` · `previews/` (+ `previews/demo/`) | 완료 · 웹 링크 https://claude.ai/artifact/NR1PmYahGmVcb4zUBffptM — 별도 시연 파일(`company-pc-update/DEMO_company_pc.html` · `demo_build/`)은 없앰 |
 | 미리보기 다시 찍는 절차 · 스크립트 | `status/capture/` (README · seed · shot 스크립트) | 완료 — 세션이 끝나도 재현 가능 |
-| 덮어쓰기 도구 준비 | `company-pc-update/tools/apply_delta_overwrite.patch` · README | **패치 초안 완료 · 가짜 꾸러미 시험 통과** — 통합 때 적용 |
-| 회사 업데이트 파일 ① ② | — | **만들지 않음** (요청 때) |
+| 덮어쓰기 도구 | `company-pc-update/tools/apply_delta_overwrite.patch` → hotfix133 에 적용됨 (`spike/apply_delta.py --overwrite`) | 완료 |
+| **회사 업데이트 파일 ① ②** | `company-pc-update/2026-11-07/` (`1_먼저읽기.md` · SHA256SUMS) | **만듦 (2026-11-07)** — ① 대시보드 v16.61 any (20.5 MB) · ② 통합 hotfix133 (8.0 MB · 579 파일 · 3D 제외). 출시 점검 통과 · 회사 PC 상태 3가지 적용 검증. **회사 적용 확인 대기** |
 
 현황판 기능: 직접 계산한 3D(외부 라이브러리 없음) · 끌어 회전 · 확대 · 자동 회전 · 중심/반발/연결 힘/연결 거리 슬라이더 ·
 커밋 → 세션 → 업데이트 파일 흐름 입자 · 실제 변경 파일 124개 점 · 세션 과녁 앵커 · 확인 대기 깜빡임 · 조직도 보기 · Agent 별 미리보기 · 찾기 · 밝게/어둡게 · 휴대폰.
