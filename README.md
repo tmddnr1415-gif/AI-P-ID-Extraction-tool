@@ -12,6 +12,7 @@ P&ID 도면에서 계기(instrument) 목록을 자동으로 뽑아내는 도구 
 | 배치 실행 · 규칙을 git으로 관리 | `pid-instrument-tool/` (파이썬) | `pip install -r requirements.txt` |
 | 아무 P&ID나 빠르게 훑어보기 | `index.html` (루트) | 로컬 서버 필요 |
 | **계측제어 품목 GA 도면 → 3D** (캐비닛·훅업·CV·MOV·밸브·PSV) | `ic-3d-builder/index.html` · 스킬 `.claude/skills/ic-ga-to-3d` | 없음 (three.js CDN) |
+| **계장 전문가 챗봇** — 스펙·데이터시트 리뷰, 코드·발주처·벤더 질의 | `ic-expert/index.html` · 스킬 `.claude/skills/ic-expert` | 없음 (API 키) |
 
 `standalone.html` 두 개는 **더블클릭하면 바로 열립니다.** 서버도 파이썬도 필요 없습니다.
 

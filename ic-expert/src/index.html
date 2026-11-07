@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>I&amp;C Expert</title>
+<link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+<header class="top">
+  <div class="brand"><span class="logo">◇</span> I&amp;C Expert <small>Instrumentation &amp; control reviewer for project specs</small></div>
+  <div class="top-actions">
+    <button id="btn-export" class="ghost-btn" title="Download the conversation as Markdown">Export</button>
+    <button id="btn-new" class="ghost-btn">New chat</button>
+    <button id="btn-settings" class="ghost-btn">⚙ Settings</button>
+  </div>
+</header>
+
+<main class="layout">
+  <aside class="side">
+    <section class="card">
+      <h2>Project context</h2>
+      <label>Client / standard basis
+        <select id="ctx-client">
+          <option>Saudi Aramco (SAES / SAMSS)</option>
+          <option>QatarEnergy / QatarEnergy LNG</option>
+          <option>ADNOC</option>
+          <option>Shell DEP</option>
+          <option>KOC / KNPC</option>
+          <option>International codes only</option>
+        </select>
+      </label>
+      <label>Project / unit<input id="ctx-project" placeholder="e.g. Gas plant expansion, Train 3"></label>
+      <label>Site conditions<input id="ctx-site" placeholder="e.g. Ras Laffan, 55 °C design, coastal"></label>
+      <label>Area classification / SIL notes<input id="ctx-area" placeholder="e.g. Zone 1 IIB T3, ESD SIL 2"></label>
+      <label>Other notes<textarea id="ctx-notes" rows="3" placeholder="AVL, MAC vendor, DCS platform, fieldbus or HART, …"></textarea></label>
+    </section>
+
+    <section class="card">
+      <h2>Spec documents</h2>
+      <div id="drop" class="drop" tabindex="0" role="button">
+        <b>Drop specs / datasheets</b><br><span class="muted small">PDF · image · TXT/CSV — sent with your next message</span>
+        <input id="file" type="file" multiple hidden accept="application/pdf,image/*,.txt,.csv,.md">
+      </div>
+      <ul id="files" class="files"></ul>
+    </section>
+
+    <section class="card">
+      <h2>Knowledge</h2>
+      <label class="row-check"><input id="opt-web" type="checkbox" checked> Web search for gaps &amp; latest vendor data</label>
+      <div id="kb-list" class="small muted"></div>
+    </section>
+  </aside>
+
+  <section class="chat">
+    <div id="log" class="log" aria-live="polite">
+      <div class="welcome" id="welcome">
+        <h1>Ask the I&amp;C expert</h1>
+        <p class="muted">Paste a spec clause, attach a datasheet or describe the service. Answers state the opinion first, then the basis
+          (international code, client standard, vendor data) and what to verify. Client standards are controlled documents —
+          the expert names them but never invents clause text.</p>
+        <div class="starters" id="starters"></div>
+      </div>
+    </div>
+    <div class="composer">
+      <div class="chips" id="pending"></div>
+      <textarea id="input" rows="3" placeholder="Ask in English or Korean — e.g. “Review this control valve datasheet against Aramco practice” (Enter to send, Shift+Enter for a new line)"></textarea>
+      <div class="row">
+        <span id="status" class="small muted"></span>
+        <span class="spacer"></span>
+        <button id="btn-stop" class="ghost-btn" hidden>Stop</button>
+        <button id="btn-send" class="primary">Send</button>
+      </div>
+    </div>
+  </section>
+</main>
+
+<dialog id="dlg-settings">
+  <h2>API settings</h2>
+  <label>Anthropic API key<input id="set-key" type="password" autocomplete="off" placeholder="sk-ant-..."></label>
+  <label>Model<input id="set-model" value="claude-opus-5-5"></label>
+  <label>Effort
+    <select id="set-effort"><option>low</option><option>medium</option><option selected>high</option><option>xhigh</option><option>max</option></select>
+  </label>
+  <p class="small muted">The key stays in this browser. Messages and attachments go only to api.anthropic.com (web search runs on Anthropic's side).</p>
+  <div class="row"><button id="set-save" class="primary">Save</button><button id="set-close" class="ghost-btn">Close</button></div>
+</dialog>
+
+<script src="./kb.gen.js"></script>
+<script src="./md.js"></script>
+<script src="./chat.js"></script>
+<script src="./app.js"></script>
+</body>
+</html>

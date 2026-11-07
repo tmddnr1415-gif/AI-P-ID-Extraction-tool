@@ -1,0 +1,617 @@
+<!doctype html>
+<!-- generated file: edit ic-expert/src/ and knowledge/, then run dev/build.py -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>I&amp;C Expert</title>
+<style>
+:root {
+  --bg: #f3f4f6; --panel: #ffffff; --ink: #1d232b; --muted: #66707c; --line: #dfe3e8;
+  --accent: #2f6db5; --accent-ink: #ffffff; --user: #eaf1fb; --warn: #b5462f; --code: #f1f3f6;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #14171b; --panel: #1c2026; --ink: #e5e8ec; --muted: #98a2ad; --line: #2c323a;
+    --accent: #5a95dc; --accent-ink: #0d1117; --user: #1f2a38; --warn: #e07a62; --code: #252a31; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #14171b; --panel: #1c2026; --ink: #e5e8ec; --muted: #98a2ad; --line: #2c323a;
+  --accent: #5a95dc; --accent-ink: #0d1117; --user: #1f2a38; --warn: #e07a62; --code: #252a31; color-scheme: dark;
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+html, body { margin: 0; height: 100%; }
+body { background: var(--bg); color: var(--ink); font: 14px/1.5 system-ui, -apple-system, "Segoe UI", "Malgun Gothic", sans-serif; }
+button, select, input, textarea { font: inherit; color: inherit; }
+.muted { color: var(--muted); } .small { font-size: 12px; }
+.top { display: flex; align-items: center; justify-content: space-between; padding: 8px 16px; border-bottom: 1px solid var(--line); background: var(--panel); }
+.brand { font-weight: 650; } .brand small { font-weight: 400; color: var(--muted); margin-left: 8px; } .logo { color: var(--accent); }
+.top-actions { display: flex; gap: 8px; }
+.layout { display: grid; grid-template-columns: 320px 1fr; height: calc(100% - 45px); }
+.side { overflow: auto; padding: 12px; border-right: 1px solid var(--line); display: flex; flex-direction: column; gap: 12px; }
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 12px; }
+.card h2 { font-size: 13px; margin: 0 0 8px; }
+.card label { display: block; font-size: 12px; color: var(--muted); margin: 6px 0; }
+.card label.row-check { display: flex; gap: 6px; align-items: center; color: var(--ink); }
+select, input:not([type=checkbox]), textarea { width: 100%; background: var(--bg); border: 1px solid var(--line); border-radius: 6px; padding: 6px 8px; margin-top: 3px; }
+textarea { resize: vertical; }
+.primary { background: var(--accent); color: var(--accent-ink); border: 0; border-radius: 6px; padding: 8px 14px; font-weight: 600; cursor: pointer; }
+.primary:disabled { opacity: .5; cursor: default; }
+.ghost-btn { background: transparent; border: 1px solid var(--line); border-radius: 6px; padding: 6px 10px; cursor: pointer; }
+.drop { border: 1.5px dashed var(--line); border-radius: 8px; padding: 12px; text-align: center; cursor: pointer; }
+.drop.over { border-color: var(--accent); }
+.files { list-style: none; margin: 8px 0 0; padding: 0; }
+.files li { display: flex; justify-content: space-between; gap: 6px; font-size: 12px; padding: 3px 6px; background: var(--bg); border-radius: 5px; margin-top: 4px; }
+.files button { border: 0; background: none; cursor: pointer; color: var(--muted); }
+#kb-list ul { margin: 6px 0 0 16px; padding: 0; }
+
+.chat { display: grid; grid-template-rows: 1fr auto; min-width: 0; min-height: 0; }
+.log { overflow: auto; padding: 20px max(16px, calc((100% - 880px) / 2)); }
+.welcome h1 { font-size: 22px; margin: 24px 0 6px; }
+.starters { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 8px; margin-top: 16px; }
+.starter { text-align: left; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 10px; cursor: pointer; font-size: 13px; }
+.starter:hover { border-color: var(--accent); }
+.msg { margin: 0 0 18px; }
+.msg .who { font-size: 11px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; margin-bottom: 4px; }
+.msg.user .body { background: var(--user); border-radius: 10px; padding: 10px 14px; }
+.msg.assistant .body { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 12px 16px; }
+.body p { margin: 6px 0; } .body ul, .body ol { margin: 6px 0; padding-left: 22px; }
+.body h3, .body h4, .body h5 { margin: 12px 0 6px; font-size: 14px; }
+.body code { background: var(--code); padding: 1px 4px; border-radius: 4px; font-size: 12.5px; }
+.body pre { background: var(--code); padding: 10px; border-radius: 6px; overflow: auto; }
+.body blockquote { margin: 6px 0; padding-left: 10px; border-left: 3px solid var(--line); color: var(--muted); }
+.body .tbl { overflow: auto; margin: 8px 0; }
+.body table { border-collapse: collapse; font-size: 12.5px; min-width: 100%; }
+.body th, .body td { border: 1px solid var(--line); padding: 4px 8px; text-align: left; vertical-align: top; }
+.body th { background: var(--bg); }
+.body a { color: var(--accent); }
+.kbref { font-size: 11px; background: var(--code); border: 1px solid var(--line); border-radius: 4px; padding: 0 4px; color: var(--muted); white-space: nowrap; }
+.typing { color: var(--muted); }
+.err { color: var(--warn); white-space: pre-wrap; }
+.sources { margin-top: 6px; font-size: 12px; }
+.sources ol { margin: 4px 0; padding-left: 20px; }
+.searched { margin-top: 6px; }
+.att { margin-top: 4px; }
+.composer { border-top: 1px solid var(--line); background: var(--panel); padding: 10px max(16px, calc((100% - 880px) / 2)); }
+.composer textarea { margin: 0; }
+.composer .row { display: flex; gap: 8px; align-items: center; margin-top: 6px; }
+.spacer { flex: 1; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 6px; }
+.chip { font-size: 11px; background: var(--bg); border: 1px solid var(--line); border-radius: 999px; padding: 1px 8px; }
+dialog { border: 1px solid var(--line); border-radius: 10px; background: var(--panel); color: var(--ink); width: min(420px, 92vw); }
+dialog label { display: block; margin: 8px 0; font-size: 12px; }
+dialog .row { display: flex; gap: 8px; }
+@media (max-width: 860px) {
+  .layout { grid-template-columns: 1fr; height: auto; }
+  .side { border-right: 0; }
+  .chat { height: 80vh; }
+}
+
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="brand"><span class="logo">◇</span> I&amp;C Expert <small>Instrumentation &amp; control reviewer for project specs</small></div>
+  <div class="top-actions">
+    <button id="btn-export" class="ghost-btn" title="Download the conversation as Markdown">Export</button>
+    <button id="btn-new" class="ghost-btn">New chat</button>
+    <button id="btn-settings" class="ghost-btn">⚙ Settings</button>
+  </div>
+</header>
+
+<main class="layout">
+  <aside class="side">
+    <section class="card">
+      <h2>Project context</h2>
+      <label>Client / standard basis
+        <select id="ctx-client">
+          <option>Saudi Aramco (SAES / SAMSS)</option>
+          <option>QatarEnergy / QatarEnergy LNG</option>
+          <option>ADNOC</option>
+          <option>Shell DEP</option>
+          <option>KOC / KNPC</option>
+          <option>International codes only</option>
+        </select>
+      </label>
+      <label>Project / unit<input id="ctx-project" placeholder="e.g. Gas plant expansion, Train 3"></label>
+      <label>Site conditions<input id="ctx-site" placeholder="e.g. Ras Laffan, 55 °C design, coastal"></label>
+      <label>Area classification / SIL notes<input id="ctx-area" placeholder="e.g. Zone 1 IIB T3, ESD SIL 2"></label>
+      <label>Other notes<textarea id="ctx-notes" rows="3" placeholder="AVL, MAC vendor, DCS platform, fieldbus or HART, …"></textarea></label>
+    </section>
+
+    <section class="card">
+      <h2>Spec documents</h2>
+      <div id="drop" class="drop" tabindex="0" role="button">
+        <b>Drop specs / datasheets</b><br><span class="muted small">PDF · image · TXT/CSV — sent with your next message</span>
+        <input id="file" type="file" multiple hidden accept="application/pdf,image/*,.txt,.csv,.md">
+      </div>
+      <ul id="files" class="files"></ul>
+    </section>
+
+    <section class="card">
+      <h2>Knowledge</h2>
+      <label class="row-check"><input id="opt-web" type="checkbox" checked> Web search for gaps &amp; latest vendor data</label>
+      <div id="kb-list" class="small muted"></div>
+    </section>
+  </aside>
+
+  <section class="chat">
+    <div id="log" class="log" aria-live="polite">
+      <div class="welcome" id="welcome">
+        <h1>Ask the I&amp;C expert</h1>
+        <p class="muted">Paste a spec clause, attach a datasheet or describe the service. Answers state the opinion first, then the basis
+          (international code, client standard, vendor data) and what to verify. Client standards are controlled documents —
+          the expert names them but never invents clause text.</p>
+        <div class="starters" id="starters"></div>
+      </div>
+    </div>
+    <div class="composer">
+      <div class="chips" id="pending"></div>
+      <textarea id="input" rows="3" placeholder="Ask in English or Korean — e.g. “Review this control valve datasheet against Aramco practice” (Enter to send, Shift+Enter for a new line)"></textarea>
+      <div class="row">
+        <span id="status" class="small muted"></span>
+        <span class="spacer"></span>
+        <button id="btn-stop" class="ghost-btn" hidden>Stop</button>
+        <button id="btn-send" class="primary">Send</button>
+      </div>
+    </div>
+  </section>
+</main>
+
+<dialog id="dlg-settings">
+  <h2>API settings</h2>
+  <label>Anthropic API key<input id="set-key" type="password" autocomplete="off" placeholder="sk-ant-..."></label>
+  <label>Model<input id="set-model" value="claude-opus-5-5"></label>
+  <label>Effort
+    <select id="set-effort"><option>low</option><option>medium</option><option selected>high</option><option>xhigh</option><option>max</option></select>
+  </label>
+  <p class="small muted">The key stays in this browser. Messages and attachments go only to api.anthropic.com (web search runs on Anthropic's side).</p>
+  <div class="row"><button id="set-save" class="primary">Save</button><button id="set-close" class="ghost-btn">Close</button></div>
+</dialog>
+
+<script>/* kb.gen.js */
+/* generated by dev/build.py from knowledge/*.md — do not edit */
+const KB = [];
+
+</script>
+<script>/* md.js */
+/* Small, safe Markdown → HTML renderer for chat answers (escape first, then format).
+ * Supports headings, bold/italic, inline code, code blocks, links, bullet/numbered lists, tables, rules, quotes. */
+'use strict';
+
+const MD = (() => {
+  const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  function inline(s) {
+    let t = esc(s);
+    t = t.replace(/`([^`]+)`/g, '<code>$1</code>');
+    t = t.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+    t = t.replace(/(^|[^*])\*([^*\s][^*]*)\*/g, '$1<em>$2</em>');
+    t = t.replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>');
+    t = t.replace(/\[(KB-\d+[^\]]*)\]/g, '<span class="kbref">$1</span>');
+    return t;
+  }
+  function render(src) {
+    const lines = String(src || '').replace(/\r/g, '').split('\n');
+    const out = []; let i = 0;
+    while (i < lines.length) {
+      const l = lines[i];
+      if (/^```/.test(l)) {
+        const buf = []; i++;
+        while (i < lines.length && !/^```/.test(lines[i])) buf.push(lines[i++]);
+        i++; out.push(`<pre><code>${esc(buf.join('\n'))}</code></pre>`); continue;
+      }
+      if (/^\s*\|.*\|\s*$/.test(l) && i + 1 < lines.length && /^\s*\|?\s*:?-{2,}/.test(lines[i + 1])) {
+        const row = (r) => r.trim().replace(/^\||\|$/g, '').split('|').map((c) => c.trim());
+        const head = row(l); i += 2; const body = [];
+        while (i < lines.length && /^\s*\|.*\|\s*$/.test(lines[i])) body.push(row(lines[i++]));
+        out.push(`<div class="tbl"><table><thead><tr>${head.map((h) => `<th>${inline(h)}</th>`).join('')}</tr></thead><tbody>${
+          body.map((r) => `<tr>${r.map((c) => `<td>${inline(c)}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`);
+        continue;
+      }
+      let m;
+      if ((m = /^(#{1,4})\s+(.*)$/.exec(l))) { out.push(`<h${m[1].length + 2}>${inline(m[2])}</h${m[1].length + 2}>`); i++; continue; }
+      if (/^\s*(-{3,}|\*{3,})\s*$/.test(l)) { out.push('<hr>'); i++; continue; }
+      if (/^\s*>\s?/.test(l)) {
+        const buf = []; while (i < lines.length && /^\s*>\s?/.test(lines[i])) buf.push(lines[i++].replace(/^\s*>\s?/, ''));
+        out.push(`<blockquote>${inline(buf.join(' '))}</blockquote>`); continue;
+      }
+      if (/^\s*([-*+]|\d+[.)])\s+/.test(l)) {
+        const ordered = /^\s*\d/.test(l); const items = [];
+        while (i < lines.length && /^\s*([-*+]|\d+[.)])\s+/.test(lines[i])) {
+          let it = lines[i++].replace(/^\s*([-*+]|\d+[.)])\s+/, '');
+          while (i < lines.length && /^\s{2,}\S/.test(lines[i]) && !/^\s*([-*+]|\d+[.)])\s+/.test(lines[i])) it += ' ' + lines[i++].trim();
+          items.push(`<li>${inline(it)}</li>`);
+        }
+        out.push(ordered ? `<ol>${items.join('')}</ol>` : `<ul>${items.join('')}</ul>`); continue;
+      }
+      if (!l.trim()) { i++; continue; }
+      const buf = [l]; i++;
+      while (i < lines.length && lines[i].trim() && !/^(#{1,4}\s|```|\s*([-*+]|\d+[.)])\s+|\s*\|.*\|\s*$|\s*>)/.test(lines[i])) buf.push(lines[i++]);
+      out.push(`<p>${inline(buf.join(' '))}</p>`);
+    }
+    return out.join('\n');
+  }
+  return { render, esc };
+})();
+
+</script>
+<script>/* chat.js */
+/* Claude Messages API client for the I&C expert chat (browser, raw HTTP, streaming).
+ *
+ * - System prompt = expert persona + answer rules + the built-in knowledge base (prompt-cached).
+ * - Project context (client, site, spec files) rides in a second system block.
+ * - Server-side web search fills gaps and checks recent vendor data; citations are kept.
+ * - The full assistant content (thinking, server_tool_use, web_search_tool_result, text + citations)
+ *   is rebuilt from the stream and appended unchanged, so multi-turn history stays valid.
+ * - pause_turn is resumed automatically (up to 4 times); a server-side fallback restarts collection.
+ */
+'use strict';
+
+const ExpertAPI = (() => {
+  const API_URL = 'https://api.anthropic.com/v1/messages';
+
+  const PERSONA = `You are a senior Instrumentation & Control (I&C) lead engineer with 25+ years on oil & gas, LNG,
+refinery and petrochemical EPC projects in the Middle East — Saudi Aramco, QatarEnergy / QatarEnergy LNG, ADNOC,
+Shell-standard and KOC projects. You know field instruments, control valves, ESD/on-off valves, MOVs, PSVs,
+analyzers, F&G, machinery protection, DCS/SIS/F&G systems, cabinets, cabling, hook-ups and the vendor landscape
+(Emerson, Yokogawa, Honeywell, Bently Nevada, WIKA, Endress+Hauser, Siemens, ABB, Krohne, VEGA, Rotork, Valmet …).
+
+People bring you project specifications, datasheets, P&ID notes and questions. Act as the expert reviewer:
+give a clear opinion and a straight answer, then the basis.
+
+# Sources and honesty
+1. Use the <knowledge_base> below first. Cite it as [KB-nn §section] (nn = file number).
+2. Use web search when the knowledge base does not cover the point, when current vendor data / model status /
+   editions matter, or when the user asks. Cite web sources with the citations the tool returns.
+3. Client standards (Saudi Aramco SAES/SAMSS/SAEP, QatarEnergy, ADNOC, Shell DEP) are controlled documents.
+   Never invent clause numbers or quote text you do not have. Say what is commonly required and tell the user
+   to confirm against the project-controlled copy (name the document if known).
+4. Separate clearly: **Requirement** (code / client standard) · **Recommendation** (engineering judgement) ·
+   **Vendor data** (catalogue values — confirm with the vendor's certified datasheet).
+5. If the spec is ambiguous or data is missing (fluid, ranges, design pressure/temperature, area class, SIL),
+   say exactly what you need and give a provisional answer with the assumption stated.
+6. Safety-related topics (SIS/SIL, hazardous areas, PSVs, F&G, sour service): flag the risk and the check.
+   You support the engineer of record; you do not replace design verification or client approval.
+
+# Answer format (Markdown)
+- Start with **Answer** — 1–5 sentences, the opinion/decision.
+- Then **Basis** — bullets with citations.
+- Then **Check / risks** — what to verify, typical client review comments.
+- When reviewing a spec or datasheet, add a findings table:
+  | # | Item / clause | Spec says | Expert opinion | Basis | Severity (High/Med/Low) | Action |
+  followed by **Open questions** for the client/vendor.
+- When comparing vendors, use a table (model · key specs · approvals/SIL · fit · notes) and state that final
+  selection follows the project AVL / approved manufacturer list.
+- Reply in the user's language (Korean if they write Korean). Keep standard names, model numbers and
+  engineering terms in English. Use SI units with imperial in brackets where the project uses both.
+- Be concise; no filler. Numbers over adjectives.`;
+
+  function systemBlocks(kbText, projectCtx) {
+    const blocks = [{
+      type: 'text',
+      text: `${PERSONA}\n\n<knowledge_base>\n${kbText}\n</knowledge_base>`,
+      cache_control: { type: 'ephemeral' },
+    }];
+    if (projectCtx && projectCtx.trim()) blocks.push({ type: 'text', text: `# Current project context (from the user)\n${projectCtx}` });
+    return blocks;
+  }
+
+  async function fileBlock(file) {
+    const b64 = await new Promise((res, rej) => {
+      const r = new FileReader();
+      r.onload = () => res(String(r.result).split(',')[1]);
+      r.onerror = () => rej(r.error);
+      r.readAsDataURL(file);
+    });
+    if (file.type === 'application/pdf') {
+      return { type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: b64 }, title: file.name };
+    }
+    if (file.type.startsWith('image/')) {
+      const mt = ['image/png', 'image/jpeg', 'image/gif', 'image/webp'].includes(file.type) ? file.type : 'image/png';
+      return { type: 'image', source: { type: 'base64', media_type: mt, data: b64 } };
+    }
+    const text = await file.text();
+    return { type: 'document', source: { type: 'text', media_type: 'text/plain', data: text }, title: file.name };
+  }
+
+  /**
+   * Send the conversation; stream the reply.
+   * messages: [{role, content}] — the last one is the new user turn.
+   * onText(fullTextSoFar), onStatus(str) — UI callbacks.
+   * Returns { content (assistant blocks), usage, stopReason }.
+   */
+  async function send({ apiKey, model, effort, kbText, projectCtx, messages, webSearch, signal, onText, onStatus }) {
+    if (!apiKey) throw new Error('Enter your Anthropic API key in ⚙ Settings.');
+    let assistant = [];
+    let usage = {};
+    for (let round = 0; round < 5; round++) {
+      const body = {
+        model,
+        max_tokens: 32000,
+        stream: true,
+        thinking: { type: 'adaptive' },
+        output_config: { effort },
+        system: systemBlocks(kbText, projectCtx),
+        cache_control: { type: 'ephemeral' },
+        fallbacks: 'default',
+        messages: assistant.length ? [...messages, { role: 'assistant', content: assistant }] : messages,
+      };
+      if (webSearch) body.tools = [{ type: 'web_search_20260209', name: 'web_search', max_uses: 6 }];
+      const res = await fetch(API_URL, {
+        method: 'POST', signal, credentials: 'omit',
+        headers: {
+          'content-type': 'application/json',
+          'x-api-key': apiKey,
+          'anthropic-version': '2023-06-01',
+          'anthropic-beta': 'server-side-fallback-2026-07-01',
+          'anthropic-dangerous-direct-browser-access': 'true',
+        },
+        body: JSON.stringify(body),
+      });
+      if (!res.ok) throw new Error(await describeError(res));
+      const prior = assistant;
+      const r = await consume(res, signal, (blocks) => onText?.(textOf([...prior, ...blocks])), onStatus);
+      assistant = [...prior, ...r.blocks];
+      for (const [k, v] of Object.entries(r.usage || {})) if (typeof v === 'number') usage[k] = (usage[k] || 0) + v;
+      if (r.stopReason === 'pause_turn') { onStatus?.('Searching the web… (continuing)'); continue; }
+      if (r.stopReason === 'refusal') throw new Error('The model declined this request (refusal).');
+      return { content: assistant, usage, stopReason: r.stopReason };
+    }
+    return { content: assistant, usage, stopReason: 'pause_turn' };
+  }
+
+  const textOf = (blocks) => blocks.filter((b) => b.type === 'text').map((b) => b.text).join('');
+
+  /** rebuild complete content blocks from the SSE stream */
+  async function consume(res, signal, onBlocks, onStatus) {
+    const reader = res.body.getReader(); const dec = new TextDecoder();
+    let buf = ''; let blocks = []; let json = {}; let usage = {}; let stopReason = null;
+    for (;;) {
+      if (signal?.aborted) { await reader.cancel(); throw new DOMException('aborted', 'AbortError'); }
+      const { done, value } = await reader.read(); if (done) break;
+      buf += dec.decode(value, { stream: true });
+      let i;
+      while ((i = buf.indexOf('\n\n')) >= 0) {
+        const chunk = buf.slice(0, i); buf = buf.slice(i + 2);
+        const line = chunk.split('\n').find((l) => l.startsWith('data:')); if (!line) continue;
+        let ev; try { ev = JSON.parse(line.slice(5).trim()); } catch { continue; }
+        switch (ev.type) {
+          case 'message_start':
+            blocks = []; json = {};                 // a fallback model starts a fresh message
+            usage = { ...(ev.message?.usage || {}) };
+            break;
+          case 'content_block_start': {
+            const b = JSON.parse(JSON.stringify(ev.content_block));
+            if (b.type === 'text' && !b.text) b.text = '';
+            if (b.type === 'thinking' && b.thinking == null) b.thinking = '';
+            if (b.type === 'server_tool_use') { json[ev.index] = ''; onStatus?.('Searching the web…'); }
+            if (b.type === 'web_search_tool_result') onStatus?.(`Reading ${Array.isArray(b.content) ? b.content.length : 0} search results…`);
+            blocks[ev.index] = b;
+            break;
+          }
+          case 'content_block_delta': {
+            const b = blocks[ev.index]; const d = ev.delta; if (!b) break;
+            if (d.type === 'text_delta') { b.text += d.text; onBlocks(blocks.filter(Boolean)); }
+            else if (d.type === 'citations_delta') (b.citations ||= []).push(d.citation);
+            else if (d.type === 'thinking_delta') b.thinking += d.thinking;
+            else if (d.type === 'signature_delta') b.signature = (b.signature || '') + d.signature;
+            else if (d.type === 'input_json_delta') json[ev.index] = (json[ev.index] || '') + d.partial_json;
+            break;
+          }
+          case 'content_block_stop': {
+            const b = blocks[ev.index];
+            if (b && b.type === 'server_tool_use' && json[ev.index]) { try { b.input = JSON.parse(json[ev.index]); } catch { /* keep */ } }
+            break;
+          }
+          case 'message_delta':
+            if (ev.delta?.stop_reason) stopReason = ev.delta.stop_reason;
+            if (ev.usage) usage = { ...usage, ...ev.usage };
+            break;
+          case 'error':
+            throw new Error(ev.error?.message || 'Streaming error');
+          default:
+        }
+      }
+    }
+    return { blocks: blocks.filter(Boolean), usage, stopReason };
+  }
+
+  async function describeError(res) {
+    let msg = '';
+    try { const j = await res.json(); msg = j?.error?.message || JSON.stringify(j); } catch { msg = await res.text().catch(() => ''); }
+    const tip = { 400: 'Check the request (file type / size).', 401: 'Check the API key.', 404: 'Check the model ID.', 413: 'Attachments too large.', 429: 'Rate limited — try again shortly.', 529: 'API overloaded — try again shortly.' }[res.status];
+    return `HTTP ${res.status} — ${msg}${tip ? '\n' + tip : ''}`;
+  }
+
+  return { send, fileBlock, textOf, PERSONA };
+})();
+
+</script>
+<script>/* app.js */
+/* I&C Expert chat — UI, project context, attachments, conversation history. */
+'use strict';
+
+(() => {
+  const $ = (id) => document.getElementById(id);
+  const store = {
+    get(k, d) { try { const v = localStorage.getItem(`icx.${k}`); return v == null ? d : v; } catch { return d; } },
+    set(k, v) { try { localStorage.setItem(`icx.${k}`, v); } catch { /* storage unavailable */ } },
+  };
+
+  const STARTERS = [
+    'Review the attached control valve datasheet against Saudi Aramco practice and ISA-75 — findings table please.',
+    'DP flow transmitter vs Coriolis for a 6" fuel gas custody line at 55 °C ambient — which and why?',
+    'What does API 670 require for proximity probes on a centrifugal compressor? Compare Bently Nevada 3500 options.',
+    'Thermowell for 8 m/s hydrocarbon gas, 3/4" bore, 300 mm insertion — what checks per ASME PTC 19.3 TW-2016?',
+    'ESD valve (SDV) spec checklist for a QatarEnergy LNG project: actuator, SOV, partial stroke, closure time, fire-safe.',
+    '압력 트랜스미터 Emerson 3051S, Yokogawa EJX, Honeywell ST800 비교 — SIL 2 서비스, 사우디 아람코 프로젝트',
+  ];
+
+  const S = { messages: [], view: [], files: [], busy: false, abort: null };
+  const kbText = (typeof KB !== 'undefined' ? KB : []).map((k) => `<kb file="${k.file}" n="${k.n}">\n${k.text}\n</kb>`).join('\n\n');
+
+  // ───────── context ─────────
+  const CTX = ['client', 'project', 'site', 'area', 'notes'];
+  function initContext() {
+    for (const k of CTX) {
+      const el = $(`ctx-${k}`); el.value = store.get(`ctx.${k}`, el.value || '');
+      el.addEventListener('change', () => store.set(`ctx.${k}`, el.value));
+    }
+  }
+  function projectCtx() {
+    const v = Object.fromEntries(CTX.map((k) => [k, $(`ctx-${k}`).value.trim()]));
+    return [`Client / standard basis: ${v.client}`, v.project && `Project / unit: ${v.project}`, v.site && `Site conditions: ${v.site}`,
+      v.area && `Area classification / SIL: ${v.area}`, v.notes && `Notes: ${v.notes}`].filter(Boolean).join('\n');
+  }
+
+  // ───────── files ─────────
+  function initFiles() {
+    const drop = $('drop'); const file = $('file');
+    drop.addEventListener('click', () => file.click());
+    drop.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') file.click(); });
+    drop.addEventListener('dragover', (e) => { e.preventDefault(); drop.classList.add('over'); });
+    drop.addEventListener('dragleave', () => drop.classList.remove('over'));
+    drop.addEventListener('drop', (e) => { e.preventDefault(); drop.classList.remove('over'); addFiles(e.dataTransfer.files); });
+    file.addEventListener('change', () => { addFiles(file.files); file.value = ''; });
+  }
+  function addFiles(list) {
+    for (const f of list) {
+      if (f.size > 25 * 1024 * 1024) { setStatus(`${f.name}: larger than 25 MB`); continue; }
+      S.files.push(f);
+    }
+    renderFiles();
+  }
+  function renderFiles() {
+    const ul = $('files'); ul.innerHTML = ''; const chips = $('pending'); chips.innerHTML = '';
+    S.files.forEach((f, i) => {
+      const li = document.createElement('li');
+      li.innerHTML = `<span>${f.type === 'application/pdf' ? '📄' : f.type.startsWith('image/') ? '🖼' : '📝'} ${MD.esc(f.name)}</span>`;
+      const rm = document.createElement('button'); rm.textContent = '✕'; rm.title = 'Remove';
+      rm.onclick = () => { S.files.splice(i, 1); renderFiles(); };
+      li.appendChild(rm); ul.appendChild(li);
+      const c = document.createElement('span'); c.className = 'chip'; c.textContent = f.name; chips.appendChild(c);
+    });
+  }
+
+  // ───────── rendering ─────────
+  function addBubble(role, html, extra = '') {
+    $('welcome')?.remove();
+    const d = document.createElement('div'); d.className = `msg ${role}`;
+    d.innerHTML = `<div class="who">${role === 'user' ? 'You' : 'I&amp;C Expert'}</div><div class="body">${html}</div>${extra}`;
+    $('log').appendChild(d); d.scrollIntoView({ block: 'end' });
+    return d;
+  }
+  function sourcesHtml(content) {
+    const seen = new Map();
+    for (const b of content) {
+      if (b.type === 'text') for (const c of b.citations || []) if (c.url && !seen.has(c.url)) seen.set(c.url, c.title || c.url);
+    }
+    if (!seen.size) return '';
+    return `<details class="sources"><summary>Web sources (${seen.size})</summary><ol>${[...seen].map(([u, t]) => `<li><a href="${MD.esc(u)}" target="_blank" rel="noopener noreferrer">${MD.esc(t)}</a></li>`).join('')}</ol></details>`;
+  }
+  function searchesHtml(content) {
+    const qs = content.filter((b) => b.type === 'server_tool_use' && b.input?.query).map((b) => b.input.query);
+    return qs.length ? `<div class="searched small muted">Searched: ${qs.map((q) => `“${MD.esc(q)}”`).join(' · ')}</div>` : '';
+  }
+
+  // ───────── send ─────────
+  async function send(text) {
+    text = (text ?? $('input').value).trim();
+    if (S.busy || (!text && !S.files.length)) return;
+    $('input').value = '';
+    const files = S.files.splice(0); renderFiles();
+    const content = [];
+    for (const f of files) content.push(await ExpertAPI.fileBlock(f));
+    content.push({ type: 'text', text: text || 'Please review the attached documents.' });
+    S.messages.push({ role: 'user', content });
+    S.view.push({ role: 'user', text, files: files.map((f) => f.name) });
+    addBubble('user', MD.render(text || '_(attachments)_') + (files.length ? `<div class="att small muted">📎 ${files.map((f) => MD.esc(f.name)).join(', ')}</div>` : ''));
+
+    const bubble = addBubble('assistant', '<div class="typing">Thinking…</div>');
+    const body = bubble.querySelector('.body');
+    S.busy = true; S.abort = new AbortController();
+    $('btn-send').disabled = true; $('btn-stop').hidden = false;
+    const t0 = Date.now();
+    setStatus('Thinking…');
+    try {
+      const r = await ExpertAPI.send({
+        apiKey: store.get('key', ''), model: store.get('model', 'claude-opus-5-5'), effort: store.get('effort', 'high'),
+        kbText, projectCtx: projectCtx(), messages: S.messages, webSearch: $('opt-web').checked, signal: S.abort.signal,
+        onText: (t) => { body.innerHTML = MD.render(t); },
+        onStatus: (s) => setStatus(s),
+      });
+      S.messages.push({ role: 'assistant', content: r.content });
+      const answer = ExpertAPI.textOf(r.content);
+      S.view.push({ role: 'assistant', text: answer, sources: r.content });
+      body.innerHTML = MD.render(answer || '_(no text returned)_');
+      bubble.insertAdjacentHTML('beforeend', searchesHtml(r.content) + sourcesHtml(r.content));
+      const u = r.usage || {};
+      setStatus(`Done in ${((Date.now() - t0) / 1000).toFixed(0)} s · ${(u.input_tokens || 0) + (u.cache_read_input_tokens || 0) + (u.cache_creation_input_tokens || 0)} in (${u.cache_read_input_tokens || 0} cached) / ${u.output_tokens || 0} out tokens${r.stopReason === 'max_tokens' ? ' · answer cut off (max tokens)' : ''}`);
+    } catch (e) {
+      S.messages.pop(); S.view.pop();                    // keep history valid: drop the unanswered turn
+      if (e.name === 'AbortError') { body.innerHTML = '<p class="muted">Stopped.</p>'; setStatus('Stopped.'); }
+      else { body.innerHTML = `<p class="err">${MD.esc(e.message)}</p>`; setStatus('Error'); }
+    } finally {
+      S.busy = false; S.abort = null; $('btn-send').disabled = false; $('btn-stop').hidden = true;
+    }
+  }
+
+  function setStatus(s) { $('status').textContent = s; }
+
+  function exportMd() {
+    const L = [`# I&C Expert conversation`, '', `_${new Date().toISOString().slice(0, 16).replace('T', ' ')}_`, '', '## Project context', '', projectCtx(), ''];
+    for (const m of S.view) {
+      L.push(`## ${m.role === 'user' ? 'Question' : 'Answer'}`, '');
+      if (m.files?.length) L.push(`Attachments: ${m.files.join(', ')}`, '');
+      L.push(m.text, '');
+      if (m.sources) {
+        const urls = new Map();
+        for (const b of m.sources) if (b.type === 'text') for (const c of b.citations || []) if (c.url) urls.set(c.url, c.title || c.url);
+        if (urls.size) { L.push('Sources:', ...[...urls].map(([u, t]) => `- [${t}](${u})`), ''); }
+      }
+    }
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([L.join('\n')], { type: 'text/markdown' }));
+    a.download = `ic-expert-${Date.now()}.md`; document.body.appendChild(a); a.click(); a.remove();
+  }
+
+  function initUI() {
+    const st = $('starters');
+    for (const q of STARTERS) {
+      const b = document.createElement('button'); b.className = 'starter'; b.textContent = q;
+      b.onclick = () => { $('input').value = q; $('input').focus(); };
+      st.appendChild(b);
+    }
+    const kb = typeof KB !== 'undefined' ? KB : [];
+    $('kb-list').innerHTML = kb.length
+      ? `Built-in knowledge base (${kb.length} files, ~${Math.round(kbText.length / 4 / 1000)}k tokens):<ul>${kb.map((k) => `<li>KB-${k.n} ${MD.esc(k.title)}</li>`).join('')}</ul>`
+      : 'No built-in knowledge base found — answers rely on the model and web search.';
+    $('input').addEventListener('keydown', (e) => { if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); send(); } });
+    $('btn-send').onclick = () => send();
+    $('btn-stop').onclick = () => S.abort?.abort();
+    $('btn-new').onclick = () => { if (S.busy) return; S.messages = []; S.view = []; location.reload(); };
+    $('btn-export').onclick = exportMd;
+    $('opt-web').checked = store.get('web', '1') === '1';
+    $('opt-web').onchange = (e) => store.set('web', e.target.checked ? '1' : '0');
+    const dlg = $('dlg-settings');
+    $('btn-settings').onclick = () => {
+      $('set-key').value = store.get('key', ''); $('set-model').value = store.get('model', 'claude-opus-5-5');
+      $('set-effort').value = store.get('effort', 'high'); dlg.showModal();
+    };
+    $('set-save').onclick = () => {
+      store.set('key', $('set-key').value.trim()); store.set('model', $('set-model').value.trim() || 'claude-opus-5-5');
+      store.set('effort', $('set-effort').value); dlg.close(); setStatus('Settings saved.');
+    };
+    $('set-close').onclick = () => dlg.close();
+  }
+
+  initContext(); initFiles(); initUI();
+  window.ICX = { S, send, projectCtx };
+})();
+
+</script>
+</body>
+</html>
