@@ -1292,3 +1292,13 @@ C:\Users\SAMSUNG\Desktop\Claude\                         ← 개발 폴더 (여�
 - 사람 시야(`PV` · `selP` · `pvHtml` · `pvSvg` · `pv3`): 3D 에서 앉은 운전원(`v3pick` → `{op}`) 또는 선 사람(끌지 않고 클릭)을 누르면 옆 칸 '사람 · 시야', 2D 는 데스크를 고르면 운전원마다. [👁 시야 켬] → 큰 부채꼴(±z1 초록 · ±z2 노랑, 9 m) + 상하 쐐기(±vz1 · ±vz2), 좌우(고개 −90~+90°) · 상하(시선 −75~+45°) 막대로 조절 → 운전원 머리 · 코도 그쪽(`opYaw` · `v3dyn`, 선 사람은 `v3build`). **빨간 선 = 안전공학 기준**(몸 정면 고정): 바닥 정면(점선) · ±z1 · ±z2 · ±z3, 눈 높이에서 정상 시선 −nlos(점선) · ±vz1 · ±vz2, 각 끝에 각도 글. 판정 줄(좌우 최적/눈만/머리/기준 밖 · 상하 최적/허용/기준 밖). 2D · PDF 도면에도 같은 그림. 시야 검토 결과(PDF · Excel)는 몸 정면 기준 그대로.
 - 확인한 것: Chromium — 시야 체크 기본 꺼짐 · Phase 2 시작 → 묶음이 마우스를 따라 (위치 두 곳 캡처, 간섭 4 EA 빨강) → 간섭 자리에서 놓음 → '30 EA 배치 · 간섭 피해 3 EA 자리 옮김', 간섭 0 · 끌어 놓기 · 눌러 놓기도 간섭 0 → Phase 2 결과 PDF + DXF + HTML 3 파일 → HTML 을 따로 열어 그려짐 · 끌어 돌림 · 스크립트 오류 0 → 3D 운전원 클릭 → 시야 켬 → 좌우 +35° · 상하 −30° '머리 돌려 · 최적', 빨간 기준선 3D · 2D. 기존 시험 16 개 통과, 스크립트 오류 0.
 - 회사에서 확인할 것: 3D HTML 은 판넬이 아주 많으면 수 MB — 메일 첨부 크기 확인. 회사 PC 브라우저(Edge/Chrome)에서 WebGL 이 켜져 있어야 열림.
+
+### 2026-11-07 (53) — 판넬 공간확보: 첫 화면 Phase 1 · Phase 2 구분 · 같은 프로젝트 아래 · 자료 공유 (apps/space/index.html · server.py — SERVER_VERSION 2026-11-07.1)
+> **서버 재시작 필요** (server.py 바뀜). 대시보드 교체는 필요 없음. 배치안 형식 그대로.
+- server.py `api_space_save`: 저장 메타에 `phase`(배치안 `phase` = 2 면 2, 아니면 1) · `p2`(건축 도면 있음). 예전 저장본은 phase 없음 = Phase 1 로 봄. 최근 이력 · 프로젝트 자세히는 메타 그대로 돌려줌.
+- 첫 화면 ① 'Phase' [Phase 1 · 계획 | Phase 2 · 건축 도면](`HM.ph`, `#hmPh`), 경로 '프로젝트 › Room › Rev › Phase n'. Phase 2 를 고르면 ② 에서 Option A · B · 빈 실 · 예시는 꺼지고(`ok`) 이 룸 · Rev 최근 저장본 · 이 PC 작업 · 파일 중에서 — [배치 시작] 뒤 고른 Phase 로(`hmPhaseGo` → `phSwap`, 건축 도면이 없으면 DXF 넣기 창).
+- '저장된 프로젝트' 카드: 프로젝트마다 **Phase 1 · 계획 / Phase 2 · 건축 도면** 두 칸(`.pjph`)에 그 Phase 로 저장한 것(최근 3 · 개수), 줄마다 P1 · P2 표. 최근 저장 이력에도 P1 · P2. 줄을 누르면 저장한 Phase 로 열림.
+- 자료 공유: 두 Phase 는 한 배치안(`S.ph`)이라 어느 Phase 로 저장해도 둘 다 저장 → '최근 저장본 이어서' 는 Phase 와 상관없이 그 룸 · Rev 의 가장 최근 저장본. Phase 를 바꿀 때 `phSync`: 같은 장비(`p1` 연결)의 Tag · Description · Type · Scope 를 지금 Phase 값으로 맞춤(자리 · 방향은 Phase 마다 따로). Phase 1 에서 장비를 빼면 Phase 2 옆 칸에 '⚠ Phase 1 에서 빠진 장비 N EA' + [Phase 2 에서도 지우기].
+- 배치 화면 서버 줄: '프로젝트 › Room › Rev › Phase n'.
+- 확인한 것: Chromium + 새 server.py — 새 프로젝트 · CCR · Rev A → Phase 1 예시 배치 저장 → 첫 화면 Phase 2 → 최근 저장본 → DXF 창 → 실 영역 → 가져오기 → Phase 2 저장 → 카드에 Phase 1 (1) · Phase 2 (1) → Phase 1 열어 판넬 1 EA 빼고 저장 → Phase 2 로 열면 목록 22 / 22 · 빠진 장비 경고 → 지우기 → Phase 2 에서 Tag 고침 → Phase 1 에도 반영. 기존 시험 통과, 스크립트 오류 0.
+- 회사에서 확인할 것: server.py 교체 후 서버 다시 켜기 (안 켜면 새 저장의 Phase 가 기록 안 됨 — 모두 Phase 1 칸에 보임).
