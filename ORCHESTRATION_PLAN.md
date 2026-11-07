@@ -1,6 +1,6 @@
 # 멀티 세션 오케스트레이션 기획안
 
-> 상태: **기획안 (미실행)**. 이 문서의 어떤 명령도 아직 실행되지 않았습니다.
+> 상태: **실행 중** — Phase 0(확인)·Phase 1(규약) 완료, Phase 2(세션 지시) 진행. 3.1절이 실제 값입니다.
 > 작성일: 2026-11-07 · 저장소: `tmddnr1415-gif/AI-P-ID-Extraction-tool`
 
 ---
@@ -73,6 +73,28 @@ flowchart TD
 | S7 | 3D 계측제어 도구 개발 | 기존 | 기존 세션 브랜치 유지 | `3d-instrument/` | 3D 계측제어 도구 |
 
 > 브랜치·폴더 이름은 제안입니다. 기존 세션(S5~S7)이 이미 쓰고 있는 이름이 있으면 그것을 따릅니다.
+
+### 3.1 Phase 0 확인 결과 (2026-11-07, 실제 값 — 위 표보다 우선)
+
+7개 세션이 **모두 이미 존재**합니다("(NEW)"는 세션 제목의 일부). 새 세션은 만들지 않고 기존 세션에 지시합니다.
+저장소는 7개 모두 `tmddnr1415-gif/AI-P-ID-Extraction-tool` 하나를 씁니다.
+
+| ID | 세션 | 세션 ID | 실제 작업 브랜치 | 최근 배포물 (Phase 0 시점) |
+|---|---|---|---|---|
+| S1 | 1. DASHBOARD 코드 (NEW) | `session_016Ntz71xxniTkCj7pC8ZpXL` | `ccr-248a5c4d-3dji7g` | `dashboard_patches/UPDATE_from_v16.57_to_v16.58.zip` |
+| S2 | 2. PID 검토 4 (NEW) | `session_01Muj82H8eDSPwWi9XQC7rFh` | `claude/gracious-ride-26nqrf` | `out/PID_dev+ops_hotfix132_2026-11-05.zip` |
+| S3 | 3. Logic 검토코드 4 (NEW) | `session_01Muj82Ewiqsoeo54Ei1FzrE` | `ccr-cc45909d-fjjmrb` | 커밋된 zip 없음 (L91) |
+| S4 | 4. PANEL 코드 (NEW) | `session_01K7LLEGxyo6V5bYVwmtJfS4` | `ccr-d82d97fa-bb3ty3` | `dashboard_patch_20261107_0159.zip` (커밋 안 됨) |
+| S5 | 5. 도서 검토 | `session_014zoSs8H5yNiq8r2ATBV4YL` | `claude/new-session-v23o67` | 커밋된 zip 없음 (`booksearch/`) |
+| S6 | 6. Datasheet 자동 검토 | `session_01Muj82EMRakKAAS1HYXcE7d` | `ccr-efbe7e75-n915ze` | `out/PID_dev+ops_valve35_2026-11-07.zip` |
+| S7 | 7. 3D 계측제어 도구 개발 | `session_01Muj82FVwL2Yt5DTXGPNkcp` | `claude/practical-newton-n6bt58` | `IC_Dashboard.zip` (커밋 안 됨) |
+
+**확인된 회사 PC 조건** (`dashboard/DASHBOARD_ARCHITECTURE.md`): Windows · Edge file:// · Python 3.11 표준 라이브러리만 · CDN/npm/pip 금지 ·
+사내망 전용 · DASHBOARD 서버가 `apps\` 폴더로 다른 도구를 메뉴에 연결 · 회사 PC 기준점은 `delivered.txt`, 배포는 `UPDATE_from_A_to_B.zip`(`APPLY.bat` + `base/` + `new/`).
+
+**겹침 주의**: S2와 S6가 같은 `PID_dev+ops` 꾸러미를 각각 만들고, S1과 S4가 같은 DASHBOARD에 패치를 냅니다. 통합할 때 어느 꾸러미가 최신인지 오케스트레이터가 정합니다.
+
+**Phase 1 산출물**: [`CONVENTIONS.md`](CONVENTIONS.md) — 배포물 자리 `dist/company_pc/<SID>/`, `MANIFEST.json` 양식.
 
 ---
 
