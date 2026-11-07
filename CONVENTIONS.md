@@ -70,6 +70,11 @@ Windows · Edge · Python 3.11 · CDN/npm/외부 서비스 금지 (라이브러�
 **프론트엔드만 (2026-11-07 사용자 결정)**
 - HTML 한 파일 · HTML/CSS/JS 뿐. 서버 · DB · 외부 호출 · CDN 없음. 더블클릭으로 열리고 회사망에서도 동작한다.
 - `status/template.html` 이 프론트엔드 원본 — 데이터 없이도 혼자 열린다(빈 지도). 오케스트레이터가 git · 세션 기록에서 읽은 데이터(`window.DATA · META · PV`)를 끼워 `SESSION_STATUS.html` 을 만든다 (`build_status.py` 는 오케스트레이터 도구일 뿐, 보는 쪽엔 필요 없음).
+**변경 추적 (2026-11-07)** — 갱신할 때마다 `status/history.json` 에 스냅숏을 남기고 직전과 비교한다 (`status/track.py`).
+- 근거 순서(obsidian-daily-review 의 signal hierarchy): **git 커밋** → **세션 기록**(보고 · 상태 · 확인 필요) → **계산**(대기 건수). 추측은 적지 않는다. 세션 보고와 git 이 다르면 git 을 따른다.
+- 보기 "변경 기록": 갱신 시점별 · 세션별 변경, 점검(미리보기를 찍은 뒤 커밋이 더 생김 · 규약 v2 뒤 zip 커밋 · 오래 기다리는 확인 필요). 3D 지도에서는 지난 갱신 뒤 새 커밋이 ✦ 로 빛나고, 왼쪽 목록에 +N.
+- 미리보기를 어느 커밋에서 찍었는지 `status/previews/captured.json` 에 적는다 → 오래된 미리보기를 자동으로 잡는다.
+- 내보내기(프론트엔드만): **Obsidian Canvas** (`.canvas`, JSON Canvas — 세션 그룹 · 역할 · 업데이트 파일 보드) · **변경 기록 Markdown** (일일 리뷰 형식 · frontmatter). 참고: github.com/kriss-spy/obsidian-skills (obsidian-visuals · obsidian-daily-review).
 - **다른 세션에는 아무 요구도 하지 않는다.** 세션은 기존대로 개발 · 커밋 · 푸시만 한다. 지도는 브랜치와 세션 기록에서 읽을 수 있는 것만 보여 주며, `.claude/agents` 가 있으면 읽고 없으면 역할 Agent 기준으로 그린다.
 
 - 만들기: `git fetch origin` → 세션 상태를 `status/sessions.json` 에 갱신(list_sessions) → `python status/build_status.py`

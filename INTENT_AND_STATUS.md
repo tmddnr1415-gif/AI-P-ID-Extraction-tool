@@ -1,6 +1,6 @@
 # 사용자 의도 · 개발 현황
 
-> 기준: 2026-11-07 · 오케스트레이터 세션(`claude/trusting-cray-v68axq`) 정리
+> 기준: 2026-11-07 09:29 갱신 · 오케스트레이터 세션(`claude/trusting-cray-v68axq`) 정리
 > 관련 문서: [`ORCHESTRATION_PLAN.md`](ORCHESTRATION_PLAN.md) 기획 · [`CONVENTIONS.md`](CONVENTIONS.md) 규약 v2 · [`ORCHESTRATION_STATUS.md`](ORCHESTRATION_STATUS.md) 점검 기록
 > 현황판: https://claude.ai/artifact/NR1PmYahGmVcb4zUBffptM (`status/SESSION_STATUS.html`)
 
@@ -37,6 +37,8 @@
 | 11 | 현황판은 세컨드 브레인(옵시디언 그래프 뷰) 같은 **지도형 UI** — 왼쪽 Agent 목록, 누르면 오른쪽 상세 · 미리보기 |
 | 12 | 더 **3D 스럽고 고급스럽게**, 옵시디언 그래프 뷰 참고 (힘 그래프 · 빛 입자 · 앵커 표식) |
 | 13 | **오케스트레이션 조직도**를 볼 수 있고, 세션 안에서 **각 Agent 별 미리보기**를 가독성 있게 |
+| 14 | 시연과 세션 지도는 **하나**로 — 세션 지도는 **HTML · 프론트엔드만**, 다른 세션은 기존과 같게 |
+| 15 | 각 세션을 세션 지도에 **업데이트하고 변경사항을 추적** — obsidian-skills 참고해 개선 |
 
 ---
 

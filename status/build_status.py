@@ -7,6 +7,7 @@
 쓰는 것: status/SESSION_STATUS.html (파일 하나, 외부 라이브러리 없음)
 """
 import base64, datetime, html, json, os, re, subprocess, sys
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 ROOT = subprocess.run(['git', 'rev-parse', '--show-toplevel'], capture_output=True, text=True, check=True).stdout.strip()
 HERE = os.path.join(ROOT, 'status')
@@ -50,7 +51,9 @@ def s1():
     last = (show(b, 'dashboard_tools/delivered.txt').splitlines() or [''])[-1].split(None, 1)
     base = last[0] if last else ''
     pend = [c for c in log(f'{base}..{b}', 'dashboard') if base] if base else []
-    return dict(branch=b, ver=f'v{first(r"to_v(\d+\.\d+)", last[1] if len(last) > 1 else "")} · 화면 {ver}',
+    newest = first(r'dashboard v(\d+\.\d+)', '\n'.join(c['s'] for c in log(b, n=15)))       # 브랜치 최신 v (커밋 제목)
+    sent = first(r"to_v(\d+\.\d+)", last[1] if len(last) > 1 else "")
+    return dict(branch=b, ver=f'v{newest or sent} · 회사엔 v{sent}' if newest and newest != sent else f'v{sent} (화면 {ver})',
                 shipped=f'delivered.txt 마지막: {last[1] if len(last) > 1 else "?"}', pending=pend, file='① DASHBOARD 개별')
 
 
@@ -108,7 +111,7 @@ CAPS = {  # 미리보기 이름 — status/previews/<SID>_<n>.jpg
     'S1_1': '홈 (실제 server.py · 예시 PJT)', 'S1_2': '수행 PJT 보드', 'S2_1': 'P&ID 분석 (대시보드 안 · PID 서버)', 'S2_2': '판독 결과 — 공급 범위 표시',
     'S3_1': 'LOGIC 분석 첫 화면', 'S3_2': '신호 처리 — 계산 과정', 'S3_3': '연결 따라가기', 'S4_1': '첫 화면 Phase 1 · 2 (최신 브랜치)',
     'S4_2': '3D 배치 검토', 'S4_3': '대시보드 ROOM SIZE (지금 회사 경로)', 'S5_1': '도서검토 (대시보드 안)', 'S5_2': '답변 · 근거 도서',
-    'S6_1': 'Valve Project Dashboard', 'S6_2': 'Datasheet Review', 'S7_1': '조직도 · 에이전트', 'S7_2': 'PSV MR 초안', 'S7_3': '실물 3D — CDN 막히면 (고칠 것)'}
+    'S6_1': 'Valve Project Dashboard', 'S6_2': 'Datasheet Review', 'S7_1': '조직도 · 에이전트', 'S7_2': 'PSV MR 초안', 'S7_3': '실물 3D — 오프라인 내장 엔진 (CDN 없음)'}
 # 세션별 역할 Agent (ORCHESTRATION_PLAN.md 4장 · 세션 검토로 실제 기능에 맞춤) — (이름, 하는 일, 미리보기 키)
 ROLES = {
     'S1': [('UI Agent', 'dashboard.html 한 파일 화면 — 주간업무보고 · 유닛분장 · 세계 지도', 'S1_1'),
@@ -126,7 +129,7 @@ ROLES = {
            ('답변 Agent', '폴더 원문 인용과 학습 지식을 나눠 답변', 'S5_2')],
     'S6': [('추출 Agent', 'Ball Valve Datasheet PDF 텍스트 → 항목', 'S6_2'),
            ('교차 검증 Agent', 'Valve List · Process Data · PMS 대조 · Typical 묶기', 'S6_1')],
-    'S7': [('3D 뷰 Agent', 'Anatomy 개념 · 실물 3D (three.js 오프라인화 필요)', 'S7_3'),
+    'S7': [('3D 뷰 Agent', 'Anatomy 개념 · 실물 3D — 내장 엔진으로 오프라인 (three.js · CDN 없음)', 'S7_3'),
            ('MR · 지식 Agent', 'Item Spec · 전문가 지식베이스 · MR 초안', 'S7_2')],
 }
 AGENT_PV = {'ic-mr-writer': 'S7_2', 'ic-anatomy-viewer': 'S7_3', 'ic-anatomy-link': 'S7_3', 'ic-ga-to-3d': 'S7_3'}
@@ -174,7 +177,10 @@ def main():
                          state=s, previews=[dict(key=f[:-4], cap=CAPS.get(f[:-4], f),
                                                  date=datetime.date.fromtimestamp(os.path.getmtime(os.path.join(pv_dir, f))).isoformat()) for f in pv]))
     tpl = open(os.path.join(HERE, 'template.html'), encoding='utf-8').read()
-    meta = dict(built=datetime.datetime.now().strftime('%Y-%m-%d %H:%M'), read_at=st.get('read_at', ''), bucket=BUCKET)
+    built = datetime.datetime.now().strftime('%Y-%m-%d %H:%M')
+    import track                                   # 변경 추적 · 결정적 점검 (status/track.py)
+    hist = track.update(ROOT, HERE, data, built, st.get('read_at', ''))
+    meta = dict(built=built, read_at=st.get('read_at', ''), bucket=BUCKET, history=hist, checks=track.checks(ROOT, HERE, data))
     # 프론트엔드(template.html)는 그대로, 데이터만 window.DATA · window.META 로 끼운다
     out = tpl.replace('/*DATA*/', 'window.DATA=' + json.dumps(data, ensure_ascii=False) + ';window.META=' + json.dumps(meta, ensure_ascii=False) + ';')
     # 그림은 맨 끝에 — 앱 파일 미리보기가 큰 파일 끝을 잘라도 지도는 먼저 그려진다
@@ -189,6 +195,8 @@ def main():
     print(path, f'{len(out) / 1048576:.1f} MB')
     for x in data:
         print(f"  {x['sid']} {x['ver']:<40} 다음 업데이트 {len(x['pending'])}건")
+    new = [c for c in hist['changes'] if c['at'] == hist['latest']]
+    print(f"  스냅숏 {len(hist['snapshots'])}개 · 이번 변경 {len(new)}건 · 점검 {len(meta['checks'])}건")
 
 
 if __name__ == '__main__':

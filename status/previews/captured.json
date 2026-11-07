@@ -1,0 +1,116 @@
+{
+ "_설명": "미리보기 키 → [찍은 세션, 찍은 코드 커밋(없으면 세션이 남긴 캡처), 찍은 때, 방법]. build_status.py 가 브랜치 끝과 비교해 오래된 미리보기를 표시한다.",
+ "branches": {
+  "S1": "ccr-248a5c4d-3dji7g",
+  "S2": "claude/gracious-ride-26nqrf",
+  "S3": "ccr-cc45909d-fjjmrb",
+  "S4": "ccr-d82d97fa-bb3ty3",
+  "S5": "claude/new-session-v23o67",
+  "S6": "ccr-efbe7e75-n915ze",
+  "S7": "claude/practical-newton-n6bt58"
+ },
+ "captures": {
+  "S1_1": {
+   "sid": "S1",
+   "commit": "2de31688",
+   "at": "2026-11-07T09:25Z",
+   "how": "실제 server.py 실행"
+  },
+  "S1_2": {
+   "sid": "S1",
+   "commit": "2de31688",
+   "at": "2026-11-07T09:25Z",
+   "how": "실제 server.py 실행"
+  },
+  "S2_1": {
+   "sid": "S2",
+   "commit": "7693ad75",
+   "at": "2026-11-07T07:00Z",
+   "how": "PID 서버 실행"
+  },
+  "S2_2": {
+   "sid": "S2",
+   "commit": "",
+   "at": "2026-11-07T07:00Z",
+   "how": "시연 영상 세션 캡처"
+  },
+  "S3_1": {
+   "sid": "S2",
+   "commit": "7693ad75",
+   "at": "2026-11-07T07:00Z",
+   "how": "PID 서버(S2 코드)의 LOGIC 화면"
+  },
+  "S3_2": {
+   "sid": "S2",
+   "commit": "7693ad75",
+   "at": "2026-11-07T07:00Z",
+   "how": "PID 서버(S2 코드)의 신호 처리"
+  },
+  "S3_3": {
+   "sid": "S3",
+   "commit": "",
+   "at": "2026-11-07T07:00Z",
+   "how": "S3 브랜치 out/l70 캡처 (L70)"
+  },
+  "S4_1": {
+   "sid": "S4",
+   "commit": "",
+   "at": "2026-11-07T07:00Z",
+   "how": "S4 브랜치 reports/img 캡처"
+  },
+  "S4_2": {
+   "sid": "S4",
+   "commit": "",
+   "at": "2026-11-07T07:00Z",
+   "how": "S4 브랜치 reports/img 캡처"
+  },
+  "S4_3": {
+   "sid": "S2",
+   "commit": "7693ad75",
+   "at": "2026-11-07T07:00Z",
+   "how": "PID 서버(S2 코드)의 /space"
+  },
+  "S5_1": {
+   "sid": "S2",
+   "commit": "7693ad75",
+   "at": "2026-11-07T07:00Z",
+   "how": "PID 서버(S2 코드)의 /books"
+  },
+  "S5_2": {
+   "sid": "S5",
+   "commit": "",
+   "at": "2026-11-07T07:00Z",
+   "how": "시연 영상 세션 캡처"
+  },
+  "S6_1": {
+   "sid": "S6",
+   "commit": "522d5a7b",
+   "at": "2026-11-07T07:00Z",
+   "how": "PID 서버 + valve35 덮어쓰기"
+  },
+  "S6_2": {
+   "sid": "S6",
+   "commit": "",
+   "at": "2026-11-07T07:00Z",
+   "how": "시연 영상 세션 캡처"
+  },
+  "S7_1": {
+   "sid": "S7",
+   "commit": "af748c78",
+   "at": "2026-11-07T09:25Z",
+   "how": "file:// 실행"
+  },
+  "S7_2": {
+   "sid": "S7",
+   "commit": "af748c78",
+   "at": "2026-11-07T09:25Z",
+   "how": "file:// 실행"
+  },
+  "S7_3": {
+   "sid": "S7",
+   "commit": "af748c78",
+   "at": "2026-11-07T09:25Z",
+   "how": "file:// 실행 · 실물 3D 오프라인 (네트워크 0건)"
+  }
+ }
+}
