@@ -1302,3 +1302,13 @@ C:\Users\SAMSUNG\Desktop\Claude\                         ← 개발 폴더 (여�
 - 배치 화면 서버 줄: '프로젝트 › Room › Rev › Phase n'.
 - 확인한 것: Chromium + 새 server.py — 새 프로젝트 · CCR · Rev A → Phase 1 예시 배치 저장 → 첫 화면 Phase 2 → 최근 저장본 → DXF 창 → 실 영역 → 가져오기 → Phase 2 저장 → 카드에 Phase 1 (1) · Phase 2 (1) → Phase 1 열어 판넬 1 EA 빼고 저장 → Phase 2 로 열면 목록 22 / 22 · 빠진 장비 경고 → 지우기 → Phase 2 에서 Tag 고침 → Phase 1 에도 반영. 기존 시험 통과, 스크립트 오류 0.
 - 회사에서 확인할 것: server.py 교체 후 서버 다시 켜기 (안 켜면 새 저장의 Phase 가 기록 안 됨 — 모두 Phase 1 칸에 보임).
+
+### 2026-11-07 (54) — 판넬 공간확보 3D: 고급 조명 · 접지 그림자 · 부드러운 시점 이동 · panel-3d Skill (apps/space/index.html · .claude/skills/panel-3d/SKILL.md)
+> 서버 재시작 · 대시보드 교체 필요 없음. 배치안 형식 그대로.
+- 참고: anatomy 뷰어(github.com/thebuggeddev/anatomy, three.js) 의 조명 리그 · ACES 톤 매핑 · 프레넬 림 · contact shadow · 카메라 감속 이동 · 자동 회전, image-blaster(github.com/neilsonnn/image-blaster, Claude 스킬셋 — World Labs · FAL 유료 API 라 그대로는 못 씀) 의 '장면을 기술 조사서처럼' · '들어 옮길 수 있는 것만 따로' 규칙. **코드는 안 가져옴** — 원리만 순수 WebGL 로.
+- 셰이더 `V3_VS` · `V3_FS` 한 곳(앱 `v3init` + 3D 보기 HTML 이 `D.vs` · `D.fs` 로 같이 씀). 조명을 꼭짓점 → 화소 단위로: 선형 공간 · 반구광 · 주광(그림자 방향과 같음) · 보조광 · 반사광 · 프레넬 림 · ACES · sRGB, 먼 곳은 배경색으로 최대 28 %(`FG` · `FD`). 3D 도구줄 [고급 조명](`V3.q`, 기본 켬, `crspace.v3q`) 끄면 예전 조명(느린 PC 용).
+- 접지 그림자 `AO`(`v3build`): 판넬 · 기둥 몸체 둘레 320 mm 로 옅어지는 바닥 그늘, 투영 그림자 전에 그림.
+- 시점 단추(등각 · 정면 · 측면 · 위) · 더블클릭 = `v3tween`(520 ms 감속), 3D 보기 HTML 도 같은 이동 + 처음엔 천천히 자동 회전([자동 회전], 끌기 · 휠이면 멈춤).
+- `.claude/skills/panel-3d/SKILL.md`: 회사 Claude Code 가 3D 를 고칠 때 따를 규칙(제약 · 조명 값 · 그림자 · 카메라 · 새 물체 넣는 법 · 확인 순서).
+- 확인한 것: Chromium — 같은 시점 3 곳 전후 캡처(처음 값은 너무 밝아 낮춤), 그리기 6~10 ms, 3D HTML 새 조명으로 그려짐 · 자동 회전, 기존 3D · 시야 · 동작 시험 통과, 스크립트 오류 0.
+- 회사에서 확인할 것: 회사 PC 그래픽에서 [고급 조명] 이 느리면 끄기(기억됨).
