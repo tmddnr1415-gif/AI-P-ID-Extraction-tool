@@ -91,6 +91,7 @@
         <label><input type="checkbox" id="g-ruler" checked> 눈금자 <kbd>R</kbd></label>
         <label><input type="checkbox" id="g-align" checked> 정렬 안내선</label>
         <label><input type="checkbox" id="g-cross" checked> 십자선</label>
+        <label title="종이 전체를 작게 — 확대했을 때 누르거나 끌어 그 자리로 (Ctrl+Shift+O)"><input type="checkbox" id="g-mini" checked> 미니맵</label>
         <label title="단자 · 행 자리 · 다른 선 어디에도 닿지 않은 선 끝에 붉은 고리 (분석기 · 시뮬레이션이 잇지 않는 자리)"><input type="checkbox" id="g-loose" checked> 매달린 선 끝</label>
         <span class="dw-hint">눈금자를 누르면 가이드선 — 기호 · 선이 붙습니다</span>
         <button id="rg-clear" type="button" class="dw-mini" hidden>가이드선 지우기</button>
@@ -124,13 +125,17 @@
       </div>
     </section>
     <section class="dw-card">
-      <h3 class="stack">기호 <span class="dw-hint">누르면 LOGIC 영역 가운데에 놓입니다 · 끌어다 놓아도 됩니다</span></h3>
-      <div id="palette" class="dw-palette"></div>
+      <h3>기호 · 매크로</h3>
+      <button type="button" id="pal-open" class="dw-palopen" title="기호 · 매크로를 큰 새 창으로 (P) — 그 창에서 누르고 그림에서 놓을 자리를 누릅니다"><b>▣ 기호 · 매크로 창</b><small>새 창 — 누르고 그림에서 놓을 자리를 누르기 · 두 번 누르면 가운데 · 끌어 놓기</small></button>
+      <label class="dw-hint dw-palauto"><input type="checkbox" id="pal-auto" checked> 그림을 열면 함께 열기</label>
+      <details id="pal-inline" class="dw-inline"><summary>기호를 여기에도 펼치기</summary>
+      <input id="pal-q" class="dw-palq" placeholder="기호 찾기 — AND · 타이머 · DI · ∑ …" autocomplete="off">
+      <div id="palette" class="dw-palette"></div></details>
     </section>
     <section class="dw-card" id="macro-card">
-      <h3 class="stack">매크로 · Typical <span class="dw-hint">누르면 그림에 놓고 · <b>두 번 누르면 내부 동작</b>(새 창 · 고칠 수 있음)</span></h3>
+      <details id="mac-inline" class="dw-inline"><summary>매크로 · Typical 을 여기에도 펼치기 <span class="dw-hint">누르면 그림에 놓고 · 두 번 누르면 내부 동작</span></summary>
       <input id="macro-q" class="dw-macroq" placeholder="찾기 (MOV · SOV · MTS · GRP …)" autocomplete="off">
-      <div id="macro-list" class="dw-macros"></div>
+      <div id="macro-list" class="dw-macros"></div></details>
     </section>
     <section class="dw-card">
       <h3>시트</h3>
@@ -168,10 +173,12 @@
     <section class="dw-card dw-help">
       <h3>단축키</h3>
       <ul>
+        <li><b>P</b> 기호 · 매크로 창 · <button type="button" id="keys-btn" class="dw-mini">단축키 전부 (?)</button> <button type="button" id="find-btn" class="dw-mini">찾기 (Ctrl+F)</button></li>
+        <li><b>단자 · 행 자리에서 끌기</b> = 선 · 기호 옆 <b>＋</b> = 다음 기호 놓고 잇기 · 빈 곳 <b>두 번 누름</b> = 기호 넣기 · <b>오른쪽 누름</b> = 메뉴</li>
         <li><b>V</b> 선택 · <b>W</b> 선 · <b>D</b> 파선 · <b>H</b> 보기 · <b>Esc</b> 취소</li>
-        <li><b>Delete</b> 지우기 · <b>Ctrl+D</b> 복사 · <b>Ctrl+C / V</b> 복사 · 붙이기 (선까지) · 화살표 옮기기 (Shift 한 행)</li>
+        <li><b>Delete</b> 지우기 · <b>Ctrl+D</b> 복제 · <b>Ctrl+C / X / V</b> 복사 · 잘라내기 · 붙이기 (선까지) · <b>Ctrl+끌기</b> 복사해 옮기기 · <b>Ctrl+A</b> 모두 · 화살표 옮기기 (Shift 한 행)</li>
         <li><b>Ctrl+Z / Y</b> 되돌리기 · 다시 · <b>Ctrl+S</b> 저장</li>
-        <li><b>Ctrl+휠</b> 확대 · 표 칸 두 번 누름 = 글 고치기</li>
+        <li><b>Ctrl+휠 · Ctrl+± · Ctrl+0</b> 확대 · 맞춤 · <b>PgUp/PgDn</b> 앞 · 다음 장 · 표 칸 두 번 누름 = 글 고치기</li>
         <li><b>G</b> 모눈 · <b>R</b> 눈금자 — 화면에만 보이고 내보내기에는 없습니다</li>
         <li>FM/TO 칸의 <b>↗</b> = 그 시트 그 행으로 · 붉은 칸 = 연결 불일치 · 저장하면 상대 장의 칸을 저절로 채웁니다</li>
         <li><b>▶ 시뮬레이션</b> — 왼쪽 행 자리 · 누름단추 · 선을 눌러 1/0 · 게이트를 누르면 출력 목표 · 그리면서 고치면 바로 다시 돕니다 (묶음이면 FROM/TO · 매크로를 넘어갑니다)</li>

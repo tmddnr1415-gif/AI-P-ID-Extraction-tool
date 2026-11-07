@@ -1240,6 +1240,8 @@ def _assemble_rects(polys, rects, P, tol, dots=()):
     for p in polys:
         if len(p.segs) > 6:                 # 글자 획 (곡선을 잘게 그린 것)
             continue
+        if getattr(p, "dashed", False):     # L89 — 파선은 기호의 변이 아니다 (범례: 기호 테두리는 실선).  선 무늬로 그린 파선 신호선
+            continue                        #   넷이 네모를 둘러싸면 없는 AND(BAR_BOX)가 읽혀 연결을 가로챘다 (다시 그린 19VA BL10_P303 등 13장)
         if getattr(p, "curved", False):
             # L21 — 둥근 끝(곡선으로 그린 반원): 두 끝이 한 세로줄이면 그 줄이 상자의 변이고, 상자는 곡선이 닿는 데까지
             fe = _free_ends(p.segs)

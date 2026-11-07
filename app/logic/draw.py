@@ -1741,37 +1741,53 @@ def _aop_texts(s: dict, doc: dict, X, Y):
             doc["blocks"].append(_note_text((x0 + x1) / 2, y0 - (i + 0.8) * PIN_FS * 1.3, _txt(t, 40)))
 
 
-def from_sheet(s: dict, name: str, author: str, project: str = "") -> dict:
-    """분석한 시트 하나를 이 양식의 그림으로 — 행 글은 그대로 · 블록은 종류와 자리 · 선은 그물의 선분.
-    x 는 LOGIC 영역을 비례로, y 는 행 간격으로 옮긴다 (행 n 이 이 양식의 행 n 에 선다)."""
+def _weld(segs: list, terms: list, tol: float = 1.2) -> list:
+    """L89 — 같은 그물 안에서 선분 끝이 다른 선분(몸통 · 끝)에서 tol 안으로 비켜 서 있으면 그 선 위로 옮긴다 — 자기 축으로만
+    (가로 선분의 끝은 좌우로 · 세로 선분의 끝은 위아래로 — 선은 곧은 채).  단자 · 행 자리 끝은 그대로.
+    원본의 접합이 배율 반올림으로 0.7pt 남짓 어긋나 — 가로 행 선이 세로 선 옆에서 끝나고 연결점이 선 밖에 찍혀 —
+    그림을 PDF 로 다시 읽으면 '점 없는 교차' 로 끊겼다 (19VA CO01_P003 · FG01_P003 …).  판정 거리는 위 연결점 규칙(1.2pt)과 같다."""
+    out = [list(sg) for sg in segs]
+
+    def is_term(x, y):
+        return any(abs(x - tx) < 0.3 and abs(y - ty) < 0.3 for tx, ty in terms)
+    for i, sg in enumerate(out):
+        hz, vt = abs(sg[1] - sg[3]) < 0.2, abs(sg[0] - sg[2]) < 0.2
+        if hz == vt:
+            continue
+        for k in (0, 2):
+            ex, ey = sg[k], sg[k + 1]
+            if is_term(ex, ey):
+                continue
+            for j, og in enumerate(out):
+                if i == j:
+                    continue
+                if hz and abs(og[0] - og[2]) < 0.2:                       # 가로 끝 ↔ 세로 선분
+                    d = og[0] - ex
+                    if 0.05 < abs(d) <= tol and min(og[1], og[3]) - tol <= ey <= max(og[1], og[3]) + tol:
+                        other = sg[2 - k]
+                        if abs(og[0] - other) > 0.2:
+                            sg[k] = og[0]
+                        break
+                elif vt and abs(og[1] - og[3]) < 0.2:                     # 세로 끝 ↔ 가로 선분
+                    d = og[1] - ey
+                    if 0.05 < abs(d) <= tol and min(og[0], og[2]) - tol <= ex <= max(og[0], og[2]) + tol:
+                        other = sg[3 - k]
+                        if abs(og[1] - other) > 0.2:
+                            sg[k + 1] = og[1]
+                        break
+    return out
+
+
+def sheet_maps(s: dict) -> dict:
+    """L89 — 분석한 시트의 자리 → 이 양식의 자리 (from_sheet 와 정확도 측정이 같은 것을 쓴다).
+    x 는 LOGIC 영역을 비례로, y 는 행 간격으로 (행 1 의 가운데가 이 양식의 행 1 가운데) · 오른쪽 행 번호는 한쪽 행 수 차이만큼 민다.
+    → {"N", "No", "X", "Y", "rn", "sx", "pitch"}"""
     rows = s.get("rows") or []
     table = s.get("table") or []
     nL = max([r["n"] for r in table if r.get("n") and r["side"] == "L"] + [r["n"] for r in rows if r.get("n") and r["side"] == "L"] + [0])
     nR0 = min([r["n"] for r in table if r.get("n") and r["side"] == "R"] + [r["n"] for r in rows if r.get("n") and r["side"] == "R"] + [10 ** 6])
     No = nL if nR0 == 10 ** 6 else min(nL, nR0 - 1) if nL else nR0 - 1     # 원래 한쪽 행 수 (오른쪽 첫 행 − 1)
     N = max(N_MIN, min(N_MAX, No or N_DEFAULT))
-    doc = new_doc(name, author, project, N)
-    doc["sheet_no"] = s.get("sheet_no") or ""
-    doc["title"] = s.get("title") or ""
-    doc["doc_no"] = _txt(s.get("doc_no"), 60)
-    doc["project_name"] = _txt(s.get("project_name"), 80)
-    doc["rev"] = _txt(s.get("rev"), 10)
-
-    def rn(n):
-        """원래 행 번호 → 이 그림의 행 번호 (오른쪽 행은 No 를 빼고 N 을 더한다 — 한쪽 행 수가 다를 때 자리가 밀리지 않게)."""
-        return n if n <= No else n - No + N
-    def _rev_mark(r):
-        """개정 삼각형 안의 숫자(`2`)가 FM/TO 칸에 걸쳐 글로 읽힌 것 — 설명 · 태그 없이 한두 자리 수만 있는 칸은 신호가 아니다."""
-        v = (r.get("fm") or r.get("to") or "").strip()
-        return bool(v) and v.isdigit() and len(v) <= 2 and not (r.get("desc") or r.get("kks") or r.get("abv"))
-    for r in table:
-        n = r.get("n")
-        if not n or _rev_mark(r):
-            continue
-        if r["side"] == "L" and 1 <= n <= N:
-            doc["left"][str(n)] = {"fm": _txt(r.get("fm"), 60), "kks": _txt(r.get("kks") or r.get("abv"), 60), "desc": _txt(r.get("desc"), 60)}
-        elif r["side"] == "R" and N < rn(n) <= 2 * N:
-            doc["right"][str(rn(n))] = {"desc": _txt(r.get("desc"), 60), "kks": _txt(r.get("kks") or r.get("abv"), 60), "to": _txt(r.get("to"), 60)}
     lg = s.get("logic") or [LX0, TOP, LX1, TOP + N * PITCH]
     pitch = s.get("pitch") or PITCH
     # 행 1 의 가운데 y — 표(table)의 행 1 칸에서 (신호가 있는 행(rows)만 보면 행 1 이 비었을 때 엉뚱한 행이 기준이 되어 전체가 밀린다)
@@ -1789,6 +1805,136 @@ def from_sheet(s: dict, name: str, author: str, project: str = "") -> dict:
     def Y(y):
         return round(TOP + PITCH / 2 + (y - y1) / pitch * PITCH, 2)
 
+    def rn(n):
+        """원래 행 번호 → 이 그림의 행 번호 (오른쪽 행은 No 를 빼고 N 을 더한다 — 한쪽 행 수가 다를 때 자리가 밀리지 않게)."""
+        return n if n <= No else n - No + N
+    return {"N": N, "No": No, "X": X, "Y": Y, "rn": rn, "sx": sx, "pitch": pitch}
+
+
+def source_texts(page, s: dict, M: dict, doc: dict) -> list:
+    """L89 — 원본 쪽 LOGIC 영역에 인쇄된 글(블록 밖)을 같은 자리 · 같은 크기의 글(TEXT) 블록으로.
+    분석 결과에는 읽은 뜻만 있고 글의 자리는 없어 — 단자 이름(IN1 · FLAG) · 상수(A : 5%) · 주석 · 표시 글이 들여온 그림에서 사라지거나
+    (L85 `_aop_texts`) 규칙으로 옮긴 자리에 섰다.  원본 PDF 가 있으면 그 글을 그대로 옮긴다 — 화면 · PDF 가 원본과 같고,
+    작성 시뮬레이션 · 분석기가 같은 글을 다시 읽는다.  · 블록 상자 안 글은 기호가 그린다(뺀다) · 이미 그린 글(위 글 · 선 글)과 같으면 뺀다.
+    글 줄은 PDF 의 줄을 띄어쓰기 틈(글 높이 1.2배)에서 나눈다 — 한 줄에 멀리 떨어진 두 글(IN1 … IN2)이 한 덩이가 되지 않게."""
+    X, Y, N = M["X"], M["Y"], M["N"]
+    sy = PITCH / (M.get("pitch") or PITCH)
+    boxes = []
+    for b in (s.get("blocks") or {}).values():
+        x0, y0, x1, y1 = b["bbox"]
+        boxes.append((X(x0) - 0.5, Y(y0) - 0.5, X(x1) + 0.5, Y(y1) + 0.5))
+    # 감시 블록의 설정값 글(위 글 above)이 원본의 그 글이면 — 위 글을 거두고 원본 자리의 글로 (분석기 · 작성 시뮬레이션은 둘레 글로 읽는다)
+    nk = lambda t: re.sub(r"\s+", "", str(t or "")).upper()
+    above = [(nk((b.get("param") or {}).get("above")), b) for b in doc.get("blocks") or [] if (b.get("param") or {}).get("above")]
+    have = []                                         # 이미 그린 글 — (글, x, y)
+    for b in doc.get("blocks") or []:
+        try:
+            for t in block_geometry(b).get("texts") or []:
+                have.append((re.sub(r"\s+", "", str(t[2])).upper(), t[0], t[1]))
+        except Exception:
+            pass
+    for w in doc.get("wires") or []:
+        if w.get("label") and len(w.get("pts") or []) >= 2:
+            lx, ly = wire_label_pos(w)
+            have.append((re.sub(r"\s+", "", w["label"]).upper(), lx, ly))
+    lines = {}
+    for wd in page.get_text("words"):
+        x0, y0, x1, y1, t, bn, ln = wd[0], wd[1], wd[2], wd[3], wd[4], wd[5], wd[6]
+        if t.strip():
+            lines.setdefault((bn, ln), []).append((x0, y0, x1, y1, t))
+    out = []
+    for ws in lines.values():
+        ws.sort()
+        chunks, cur = [], [ws[0]]
+        for w in ws[1:]:
+            if w[0] - cur[-1][2] > 1.2 * max(1.0, cur[-1][3] - cur[-1][1]):
+                chunks.append(cur); cur = [w]
+            else:
+                cur.append(w)
+        chunks.append(cur)
+        for ch in chunks:
+            x0 = min(w[0] for w in ch); y0 = min(w[1] for w in ch); x1 = max(w[2] for w in ch); y1 = max(w[3] for w in ch)
+            X0, X1, Y0, Y1 = X(x0), X(x1), Y(y0), Y(y1)
+            cx, cy = (X0 + X1) / 2, (Y0 + Y1) / 2
+            if not (LX0 < cx < LX1 and TOP < cy < TOP + N * PITCH):
+                continue
+            if any(bx0 <= cx <= bx1 and by0 <= cy <= by1 for bx0, by0, bx1, by1 in boxes):
+                continue
+            text = " ".join(w[4] for w in ch)
+            key = re.sub(r"\s+", "", text).upper()
+            own = next((b for k, b in above if k == key and abs(b["x"] + b["w"] / 2 - cx) <= 3 * PITCH and -1 * PITCH <= b["y"] - cy <= 3 * PITCH), None)
+            if own is not None:
+                own["param"].pop("above", None)
+                have = [h for h in have if not (h[0] == key and abs(h[1] - (own["x"] + own["w"] / 2)) < 0.5 and abs(h[2] - (own["y"] - 0.5 * PITCH)) < 0.5)]
+                above = [(k, b) for k, b in above if b is not own]
+            elif any(k == key and abs(hx - cx) <= 1.5 * PITCH and abs(hy - cy) <= 1.5 * PITCH for k, hx, hy in have):
+                continue
+            h = max(2.5, (Y1 - Y0)) * 1.0
+            out.append({"id": "t" + uuid.uuid4().hex[:7], "kind": "TEXT", "x": round(X0 - 0.5, 2), "y": round(cy - h / 2, 2),
+                        "w": round(max(4.0, X1 - X0 + 1.0), 2), "h": round(h, 2), "text": text[:40], "label": "", "param": {}})
+    return out
+
+
+def source_notes(page, s: dict) -> list:
+    """L89 — 원본 쪽 표 아래 NOTE 글 → 그림의 장 노트 (번호는 NOTES 상자가 매긴다).
+    표 맨 아래에서 7행 안 · 줄이 LOGIC 영역 왼쪽(표의 FROM · TAG 칸 아래)에서 시작하는 글 줄.  '1.' 처럼 번호로 시작하는 줄이 새 노트이고
+    번호 없는 줄은 앞 노트에 잇는다 (두 줄로 적은 노트).  번호로 시작하는 줄이 하나도 없으면 없다 — 노트를 지어내지 않는다.
+    ('NOTE :' 머리 글은 19VA 처럼 글이 아닌 그림이기도 해 기준으로 쓰지 않는다 · 타이틀블록은 오른쪽이라 줄 시작이 LOGIC 영역 안이다.)"""
+    table = s.get("table") or []
+    lg = s.get("logic") or [LX0, TOP, LX1, TOP + N_DEFAULT * PITCH]
+    pitch = s.get("pitch") or PITCH
+    ybot = max([r["y1"] for r in table if r.get("y1") is not None] + [lg[3]])
+    lines = {}
+    for w in page.get_text("words"):
+        if ybot + 0.5 < w[1] < ybot + 7 * pitch:
+            lines.setdefault((w[5], w[6]), []).append(w)
+    notes, started = [], False
+    for ws in sorted(lines.values(), key=lambda ws: (min(w[1] for w in ws), min(w[0] for w in ws))):
+        ws.sort(key=lambda w: w[0])
+        if ws[0][0] >= lg[0]:
+            continue
+        cut = next((k for k in range(1, len(ws)) if ws[k][0] - ws[k - 1][2] > 2 * max(1.0, ws[k - 1][3] - ws[k - 1][1])), len(ws))
+        ws = ws[:cut]                                 # 멀리 떨어진 꼬리(개정 표시 글자 · 타이틀블록)는 노트가 아니다
+        toks = [w[4] for w in ws]
+        while toks and re.fullmatch(r"NOTES?|:|NOTES?:", toks[0].strip().upper()):
+            toks.pop(0)
+        if not toks:
+            continue
+        t = " ".join(toks)
+        m = re.match(r"^\(?(\d{1,2})[.)]\s*(.*)$", t)
+        if m:
+            notes.append(m.group(2).strip()); started = ws[0][0]
+        elif started is not False and ws[0][0] >= started - 1.0:   # 이어 쓴 줄은 번호 자리 오른쪽 (도면 테두리의 구역 글자 A · B 는 아니다)
+            notes[-1] = (notes[-1] + " " + t).strip()
+    return [n[:160] for n in notes if n][:20]
+
+
+def from_sheet(s: dict, name: str, author: str, project: str = "", page=None) -> dict:
+    """분석한 시트 하나를 이 양식의 그림으로 — 행 글은 그대로 · 블록은 종류와 자리 · 선은 그물의 선분.
+    x 는 LOGIC 영역을 비례로, y 는 행 간격으로 옮긴다 (행 n 이 이 양식의 행 n 에 선다 · sheet_maps)."""
+    rows = s.get("rows") or []
+    table = s.get("table") or []
+    M = sheet_maps(s)
+    N, No, X, Y, rn, sx, pitch = M["N"], M["No"], M["X"], M["Y"], M["rn"], M["sx"], M["pitch"]
+    doc = new_doc(name, author, project, N)
+    doc["sheet_no"] = s.get("sheet_no") or ""
+    doc["title"] = s.get("title") or ""
+    doc["doc_no"] = _txt(s.get("doc_no"), 60)
+    doc["project_name"] = _txt(s.get("project_name"), 80)
+    doc["rev"] = _txt(s.get("rev"), 10)
+
+    def _rev_mark(r):
+        """개정 삼각형 안의 숫자(`2`)가 FM/TO 칸에 걸쳐 글로 읽힌 것 — 설명 · 태그 없이 한두 자리 수만 있는 칸은 신호가 아니다."""
+        v = (r.get("fm") or r.get("to") or "").strip()
+        return bool(v) and v.isdigit() and len(v) <= 2 and not (r.get("desc") or r.get("kks") or r.get("abv"))
+    for r in table:
+        n = r.get("n")
+        if not n or _rev_mark(r):
+            continue
+        if r["side"] == "L" and 1 <= n <= N:
+            doc["left"][str(n)] = {"fm": _txt(r.get("fm"), 60), "kks": _txt(r.get("kks") or r.get("abv"), 60), "desc": _txt(r.get("desc"), 60)}
+        elif r["side"] == "R" and N < rn(n) <= 2 * N:
+            doc["right"][str(rn(n))] = {"desc": _txt(r.get("desc"), 60), "kks": _txt(r.get("kks") or r.get("abv"), 60), "to": _txt(r.get("to"), 60)}
     ports_by = {}
     for pt in s.get("ports") or []:
         ports_by.setdefault(pt["block"], []).append(pt)
@@ -1928,7 +2074,8 @@ def from_sheet(s: dict, name: str, author: str, project: str = "") -> dict:
         if kind == "PB":
             nb["label"] = _txt((b.get("label") or "").replace("PB", "", 1).strip(" |"), 60)
         doc["blocks"].append(nb)
-    _aop_texts(s, doc, X, Y)
+    if page is None:
+        _aop_texts(s, doc, X, Y)                     # 원본 PDF 가 없을 때만 — 있으면 끝에서 원본 글을 그대로 (source_texts)
     marks_todo = [(X((m[0] + m[2]) / 2), Y((m[1] + m[3]) / 2), m[4]) for m in (s.get("markers") or []) if len(m) == 5 and m[4] in MARK_KINDS]
     # 선 — 그물의 선분 + 교차 홉(jumps · 끊어 그린 교차의 틈을 잇는 짧은 토막) · 같은 그물 안의 T 접합에는 연결점
     port_pts = [(pt[0], pt[1]) for b in doc["blocks"] for pt in ports_of(b)]
@@ -1977,6 +2124,7 @@ def from_sheet(s: dict, name: str, author: str, project: str = "") -> dict:
                 tx, ty = min(cands, key=lambda q: abs(q[0] - tx) + abs(q[1] - ty))
             terms.append((tx, ty))
         segs = _mend(segs, terms)
+        segs = _weld(segs, terms)                     # L89 — 1pt 안팎 비켜 선 접합을 한 점으로 (연결점이 선 위에 서게)
         dots = []
         for i_, sg in enumerate(segs):
             for end in ((sg[0], sg[1]), (sg[2], sg[3])):
@@ -2034,6 +2182,11 @@ def from_sheet(s: dict, name: str, author: str, project: str = "") -> dict:
             best.setdefault("marks", []).append([round(mx, 2), round(my, 2), kind])
     # L81 — 분석기가 그 장 NOTE 로 토글이라 읽은 글자 상자(SRST …)는 그 NOTE 문장을 장 노트에 옮긴다.
     #   안 옮기면 다시 그린 장에서 '판정 못 한 블록' 이 되어 시뮬레이션이 그 매크로마다 수십 번 되풀이된다 (19VA 0009).
+    if page is not None:                             # L89 — 원본 표 아래 NOTE 글 (토글 정의 문장도 여기서 온다)
+        try:
+            doc["notes"] = source_notes(page, s)
+        except Exception:
+            pass
     notes = list(doc.get("notes") or [])
     for b in (s.get("blocks") or {}).values():
         if b.get("logic") == "toggle":
@@ -2042,6 +2195,11 @@ def from_sheet(s: dict, name: str, author: str, project: str = "") -> dict:
                 notes.append(f'OUTPUT STATE IS INVERTED BY EACH MOMENTARY TRUE SIGNAL ON "{w}"')
     if notes:
         doc["notes"] = notes[:20]
+    if page is not None:                             # L89 — 원본 쪽의 글을 그 자리에
+        try:
+            doc["blocks"].extend(source_texts(page, s, M, doc))
+        except Exception:
+            _aop_texts(s, doc, X, Y)
     doc.update(clean(doc))
     try:                                             # L84 — 토막을 연결 그대로 적은 선으로 (작도 화면을 가볍게)
         from . import draw_compact

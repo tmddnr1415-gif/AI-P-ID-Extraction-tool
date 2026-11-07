@@ -29,11 +29,47 @@ def draw_page():
     return page_stamp.page("logic_draw.html")
 
 
+@router.post("/logic/api/drawings/symbol_sim")
+def symbol_sim(body: dict = Body(default={})):
+    """L90 — 기호 하나 해 보기 (기호 · 매크로 창에서 두 번 누름): 그 기호만 든 그림을 작성 시뮬레이션으로 — 입력 · 출력 · 시간 틀 · 메모."""
+    from . import draw_sim
+    kind = str(body.get("kind") or "")
+    if kind not in draw.SYMBOLS:
+        raise HTTPException(400, "그런 기호가 없습니다.")
+    try:
+        k = int(body.get("k")) if body.get("k") is not None else None
+    except (TypeError, ValueError):
+        k = None
+    param = body.get("param") if isinstance(body.get("param"), dict) else {}
+    param = {kk: v for kk, v in param.items() if kk in ("t", "a", "b", "dominant", "above", "point")}
+    inputs = [1 if v else 0 for v in (body.get("inputs") or [])][:8] if isinstance(body.get("inputs"), list) else []
+    press = body.get("press")
+    state = body.get("state") if isinstance(body.get("state"), dict) else {}
+    return draw_sim.symbol_sim(kind, str(body.get("text") or "")[:40], param, k, inputs, state,
+                               None if press is None else (1 if press else 0), bool(body.get("noin")))
+
+
+@router.get("/logic/draw/palette")
+def draw_palette_page():
+    """L88 — 기호 · 매크로 창 (그림 창 옆에 띄워 누르면 그림 창에 놓인다 · BroadcastChannel)."""
+    return FileResponse(_static("logic_draw_palette.html"), headers={"Cache-Control": "no-store"})
+
+
 def _load(did: str) -> dict:
     try:
         return draw.load(did)
     except KeyError:
         raise HTTPException(404, "그런 그림이 없습니다.")
+
+
+def _job_pdf(job):
+    """L89 — 분석 묶음의 원본 PDF (들여오기가 LOGIC 영역 글을 옮긴다) · 없으면 None."""
+    try:
+        from . import api as A
+        p = A._dir(str(job)) / "source.pdf"
+        return p if p.exists() else None
+    except Exception:
+        return None
 
 
 def _author(v) -> str:
@@ -71,7 +107,19 @@ def create_drawing(body: dict = Body(default={})):
         s = next((s for s in res["sheets"] if s["page"] == pno), None)
         if s is None:
             raise HTTPException(404, "그 묶음에 그 쪽의 LOGIC 시트가 없습니다.")
-        doc = draw.from_sheet(s, name or (s.get("sheet_no") or f"p{pno}"), author, project)
+        page = None                                    # L89 — 원본 PDF 의 그 쪽 (LOGIC 영역 글을 그 자리에)
+        try:
+            import pymupdf
+            src_pdf = A._dir(str(job)) / "source.pdf"
+            if src_pdf.exists():
+                _pdf = pymupdf.open(str(src_pdf))
+                page = _pdf[pno - 1] if 0 < pno <= len(_pdf) else None
+        except Exception:
+            page = None
+        doc = draw.from_sheet(s, name or (s.get("sheet_no") or f"p{pno}"), author, project, page=page)
+        form = draw_sets.source_form(res)            # L89 — 묶음 들여오기와 같은 양식 (원본이 모양 게이트면 a5j · 경보는 둥근 상자 …)
+        if form:
+            doc["form"] = form
         doc["source"] = {"job": str(job), "page": pno, "sheet_no": s.get("sheet_no", "")}
     else:
         try:
@@ -113,7 +161,7 @@ def import_set(body: dict = Body(default={})):
     name = str(body.get("name") or st.get("name") or job).strip()[:80]
     project = str(body.get("project") or st.get("project") or "")[:80]
     if not body.get("async"):
-        return draw_sets.import_bundle(res, name, author, project, job)
+        return draw_sets.import_bundle(res, name, author, project, job, pdf_path=_job_pdf(job))
     # L85 — 827장이면 1분 남짓 — 뒤에서 들이고 화면은 진행(장 수)을 묻는다 (GET tasks/{id})
     import threading, uuid as _uuid
     tid = _uuid.uuid4().hex[:12]
@@ -124,7 +172,7 @@ def import_set(body: dict = Body(default={})):
 
     def run():
         try:
-            t["result"] = draw_sets.import_bundle(res, name, author, project, job, progress=prog)
+            t["result"] = draw_sets.import_bundle(res, name, author, project, job, progress=prog, pdf_path=_job_pdf(job))
             t["done"] = t["total"]
             t["state"] = "done"
         except Exception as e:  # noqa: BLE001
@@ -192,6 +240,14 @@ def get_set(sid: str, doc: str = ""):
                 ids = ids[k:k + 3] + ids[max(0, k - 2):k] + ids[k + 3:] + ids[:max(0, k - 2)]
             _compact_bg(ids)
     return out
+
+
+@router.get("/logic/api/drawings/sets/{sid}/search")
+def search_set(sid: str, q: str = "", limit: int = 300):
+    """L87 — 묶음 전체에서 찾기 (화면의 Ctrl+F · '묶음 전체').  저장된 판을 본다 — 지금 연 장의 저장 안 한 변경은 화면이 직접 찾는다."""
+    docs = _set(sid, shared=True)
+    hits = draw_sets.search(docs, str(q or "")[:80], max(1, min(1000, int(limit or 300))))
+    return {"q": q, "hits": hits, "more": len(hits) >= limit}
 
 
 _SET_CACHE: dict = {}

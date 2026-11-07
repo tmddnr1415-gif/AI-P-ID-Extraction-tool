@@ -133,7 +133,7 @@ def source_form(res: dict) -> str:
     return "a5j" if shape > text else ""
 
 
-def import_bundle(res: dict, name: str, author: str, project: str = "", job: str = "", progress=None) -> dict:
+def import_bundle(res: dict, name: str, author: str, project: str = "", job: str = "", progress=None, pdf_path=None) -> dict:
     """분석한 묶음의 모든 시트를 이 양식의 그림으로 (사전 Typical 사본은 뺀다).  매크로가 이어진 시트는 `typical`.
     progress(지금 장, 모두) — L85 · 827장이면 1분 남짓이라 화면이 진행을 보여 준다."""
     sid = new_set(name)
@@ -146,18 +146,27 @@ def import_bundle(res: dict, name: str, author: str, project: str = "", job: str
     form = source_form(res)
     docs = []
     todo = sorted(res.get("sheets") or [], key=lambda q: q["page"])
+    src = None                                        # L89 — 원본 PDF (있으면 LOGIC 영역의 글을 그 자리에 옮긴다 · draw.source_texts)
+    if pdf_path:
+        try:
+            src = pymupdf.open(str(pdf_path))
+        except Exception:
+            src = None
     for i, s in enumerate(todo):
         if progress:
             progress(i, len(todo))
         if s.get("library") or s["page"] >= library.LIB_PAGE0:
             continue
-        doc = draw.from_sheet(s, s.get("sheet_no") or f"p{s['page']}", author, project)
+        page = src[s["page"] - 1] if src is not None and 0 < s["page"] <= len(src) else None
+        doc = draw.from_sheet(s, s.get("sheet_no") or f"p{s['page']}", author, project, page=page)
         if form:
             doc["form"] = form
         doc.update({"set": sid, "set_name": _txt(name, 80) or "묶음", "order": i + 1, "typical": s["page"] in typ_pages,
                     "source": {"job": job, "page": s["page"], "sheet_no": s.get("sheet_no", "")}})
         draw.save_new(doc)
         docs.append(doc)
+    if src is not None:
+        src.close()
     return {"id": sid, "name": name, "sheets": len(docs), "typicals": sum(1 for d in docs if d["typical"])}
 
 
@@ -523,4 +532,57 @@ def learn_style(results: list, sources: list | None = None) -> dict:
         out["columns_hist"] = bins
     if pin_gap:
         out["macro_pin_gap_p"] = round(statistics.median(pin_gap), 2)
+    return out
+
+
+# ─────────────────────────── L87 — 묶음 찾기 (draw.io 의 찾기 · Ctrl+F) ───────────────────────────
+_FIELD_KO = {"fm": "FROM", "to": "TO", "kks": "TAG", "desc": "설명"}
+
+
+def _fnorm(s) -> str:
+    return re.sub(r"\s+", "", str(s if s is not None else "")).upper()
+
+
+def search(docs: list, q: str, limit: int = 300) -> list:
+    """묶음의 장들에서 글을 찾는다 — 시트 이름 · 제목 · 표 칸(TAG · 설명 · FROM · TO) · 기호 글(글 · 이름 · 위 글 · 매크로 이름 · 단자) ·
+    선 아래 글 · NOTE.  공백 · 대소문자 무시.  화면(logic_draw.js findIn)과 같은 규칙 · 장 차례대로.  → [{did, sheet_no, title, kind, where, text, n|bid|wid}]"""
+    qn = _fnorm(q)
+    out: list = []
+    if not qn:
+        return out
+    for d in sorted(docs, key=lambda d: (d.get("order") or 0, d.get("sheet_no") or "")):
+        seen = set()
+        n_rows = int(d.get("N") or draw.N_DEFAULT)
+
+        def add(h: dict, text) -> None:
+            if not text or qn not in _fnorm(text):
+                return
+            k = (h.get("kind"), h.get("n"), h.get("bid"), h.get("wid"), str(text))
+            if k in seen:
+                return
+            seen.add(k)
+            out.append({"did": d.get("id"), "sheet_no": d.get("sheet_no") or "", "title": d.get("title") or "", "text": str(text)[:80], **h})
+
+        add({"kind": "sheet", "where": "시트"}, d.get("sheet_no"))
+        add({"kind": "sheet", "where": "제목"}, d.get("title"))
+        for side in ("left", "right"):
+            rows = d.get(side) or {}
+            for n in sorted(rows, key=lambda x: int(x) if str(x).isdigit() else 0):
+                r = rows.get(n) or {}
+                shown = int(n) if side == "left" else int(n) - n_rows
+                for f in ("kks", "desc", "fm", "to"):
+                    add({"kind": "row", "n": int(n), "where": f"{'왼쪽' if side == 'left' else '오른쪽'} {shown}행 {_FIELD_KO[f]}"}, r.get(f))
+        for b in d.get("blocks") or []:
+            p = b.get("param") or {}
+            nm = (draw.SYMBOLS.get(b.get("kind")) or {}).get("name") or b.get("kind") or ""
+            for t in (b.get("text"), b.get("label"), p.get("above"), p.get("title")):
+                add({"kind": "block", "bid": b.get("id"), "where": nm}, t)
+            for pin in (p.get("pins_in") or []) + (p.get("pins_out") or []):
+                add({"kind": "block", "bid": b.get("id"), "where": nm + " 단자"}, (pin or {}).get("name"))
+        for w in d.get("wires") or []:
+            add({"kind": "wire", "wid": w.get("id"), "where": "선 아래 글"}, w.get("label"))
+        for i, t in enumerate(d.get("notes") or []):
+            add({"kind": "note", "where": f"NOTE {i + 1}"}, t)
+        if len(out) >= limit:
+            return out[:limit]
     return out
