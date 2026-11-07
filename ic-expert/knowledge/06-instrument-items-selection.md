@@ -859,8 +859,36 @@ The commonly quoted 25–30 % therefore sits inside the published range, and the
 
 ## Gaps
 
-1. **Search budget exhausted mid-research.** The following were *not* searched and rest on general knowledge (all flagged in text): MOV torque safety factors & stroke speeds; PSV pilot-operated valve limits, API 526 orifice letters, ASME accumulation percentages, bellows back-pressure limits (secondary sources conflict, 30–50 %); thermowell TW-2016 frequency-ratio limits (0.8 fn unverified), velocity collar / strake guidance; skin-TC installation practice; analyzer shelter ventilation rates; instrument-air header pressures and receiver hold-up times; cabinet spare and heat-load practice; F&G coverage targets (e.g., 90/80/60 %); gas detector alarm set points; vendor flagship model lists in `## Other vendors` (and Det-Tronics' current corporate owner).
-2. **Primary standard text not accessed.** ISO 5167-2 straight-length tables, IEC 60534-8-3, ANSI/FCI 70-2 class VI table, API MPMS 3.1B Table 1, AGA 9 performance limits, API 520 Pt II, IEC 60079-14:2024 gland rules, EN 15714-2 starts/h table, ASME PTC 19.3 TW-2016 — figures here are from secondary summaries and should be checked in the standard for any binding decision.
-3. **Unverified numbers in vendor material.** Rosemount 8800 vortex turndown differs between Emerson documents (38:1 vs 15:1); Det-Tronics X3301 range differs between documents (210 ft vs 265 ft); Micro Motion gas accuracy (±0.35 % vs ±0.25 % vs ±0.20 % enhanced) — always quote the current datasheet for the exact model code.
-4. **Not covered / thin.** Magnetic level gauge float SG limits; Annubar accuracy/turndown; VDI/VDE 3513 rotameter classes; IEC 60584 type K tolerance; Yokogawa EJA/EJX specs; clamp-on ultrasonic quantitative accuracy; turbine meter repeatability criteria (API MPMS 4.8/5.3); wet-gas and multiphase metering; acoustic leak detectors; HIPPS (API 17O / IEC 61511) beyond ESD basics; wireless instrumentation; fieldbus segment design; radiation licensing; LNG-specific cryogenic instrument practice (extended bonnets, cold-box instruments, LTD gauges).
-5. **Network.** WebFetch to several hosts was blocked (e.g., processingmagazine.com — ENOTFOUND); allowing these would permit quoting primary content more precisely.
+1. **Second pass (Nov 2026): what was covered, and how well.** These topics now carry sources, mostly secondary:
+   - MOV duty and starts/h, torque safety-factor range, ESD MOV SIL.
+   - PSV: API 526 areas, ASME accumulation, back-pressure limits, pilot limits.
+   - Thermowells: TW-2016 frequency limit, Scruton number, collars vs strakes.
+   - Skin TCs; IEC 61285 scope.
+   - F&G: set points, coverage targets, flame detector FoV.
+   - Instrument air quality, pressures and receiver sizing.
+   - Cabinets: spare, heat and IS segregation; IEC 60079-14:2024 gland changes.
+   - FF segment limits, WirelessHART vs ISA100, HIPPS, wet gas, radiometric licensing, LNG cryogenic valves.
+   - Vendor lines: E+H, Siemens, ABB, VEGA, Rotork, Valmet, Masoneilan, Samson, IMI CCI, Det-Tronics (owner: Spectrum Safety Solutions), Dräger, Servomex, Triconex, HIMA.
+2. **Still unsourced or weakly sourced after the second pass:**
+   - MOV stroke-speed conventions (e.g., 10–12 in/min).
+   - Analyser-house air-change rate: IEC 61285 §5.5.6 / §6.4.2 and IEC TR 60079-16 not read; no ACH number found.
+   - Exact low-Scruton frequency limit (fs/fn < 0.4) in PTC 19.3 TW-2016.
+   - A primary source for an H2S 10/20 ppm pair (only vendor defaults and HSE's 5 ppm example found).
+   - Instrument-air hold-up time (5–20 min) and leakage allowance.
+   - Cabinet power-supply redundancy practice; client acceptance of velocity collars.
+   - FISCO cable limits; multiphase meter uncertainty figures.
+   - Vendor lines with no source: Krohne, Flowserve, MSA, Mettler-Toledo; ABB CoriolisMaster/800xA; Siemens PCS neo; Masoneilan 21000; Samson 3241; Flowserve Valtek.
+   - All item-section "Vendors." lists.
+3. **Attribution caveats.** WebFetch could not reach several hosts (neutrium.net, blog.projectmaterials.com, cheresources.com — ENOTFOUND), so some figures were taken from search-engine summaries of those pages rather than read directly. Items marked **[verify attribution]** cite the page set the claim came from, but the exact page was not pinned down.
+4. **Primary standard text not accessed.** The following were not read; figures come from secondary summaries and should be checked in the standard before any binding decision:
+   - ISO 5167-2 straight-length tables, IEC 60534-8-3, ANSI/FCI 70-2 class VI table.
+   - API MPMS 3.1B Table 1, AGA 9 performance limits.
+   - API 520 Pt I/II (Kb figure, 3 % rule), API 521 (HIPPS, back pressure), API 526 (Q/R areas conflict between secondary tables).
+   - ASME VIII / Section XIII clause numbering.
+   - IEC 60079-14:2024 flowchart, EN 15714-2 table, ASME PTC 19.3 TW-2016, ISA-TR84.00.07-2018, IEC 61285, ISA-7.0.01.
+5. **Vendor-figure conflicts (status).**
+   - Rosemount 8800 turndown: resolved as variant-dependent (38:1 standard/CriticalProcess vs 15:1 Quad).
+   - Micro Motion gas accuracy: resolved as model-dependent (±0.25 % standard ELITE vs ±0.35 % high-capacity/older).
+   - Det-Tronics X3301 range: explained as an older (210 ft) vs current (265 ft) datasheet difference. Still confirm against the FM approval for the supplied revision.
+6. **Not covered / thin.** Magnetic level gauge float SG limits; Annubar accuracy/turndown; VDI/VDE 3513 rotameter classes; IEC 60584 type K tolerance; Yokogawa EJA/EJX specs; clamp-on ultrasonic quantitative accuracy; turbine meter repeatability (API MPMS 4.8/5.3); acoustic leak detectors; LNG tank instrumentation (LTD/rollover) and cold-box instrument practice beyond valves.
+7. **Network.** WebFetch to several hosts was blocked (processingmagazine.com, neutrium.net, blog.projectmaterials.com, cheresources.com — ENOTFOUND). Allowing these hosts would let the primary content be quoted directly.

@@ -487,15 +487,16 @@ Selection note: point IR (Searchpoint Optima Plus or its successor / Emerson poi
 
 | Category | Emerson | Honeywell | Comment |
 |---|---|---|---|
-| Pressure | Rosemount 3051S / 3051 / 2051 (sourced specs above) | SmartLine ST850 / ST800 / ST700 (verify) | Compare total probable error and stability at project conditions |
-| Temperature | 3144P, 644 (SIL 2 @ HFT0) | STT850, STT700 | — |
-| Level | 5408 (26 GHz FMCW), 5300 GWR, 2140 fork | SLG700 GWR | Honeywell non-contacting process radar: verify offering |
-| Tank gauging | 5900S (±0.5 mm, SIL 3 2-in-1), 2410 | Enraf 990 SmartRadar, 854 servo, Entis Pro | Both widely approved for custody (OIML R85) |
-| Coriolis / mag / vortex | In-house (Micro Motion, 8700, 8800) | Partner/OEM (VersaFlow/Krohne; MagneW) — verify current | Emerson broader in-house flow portfolio [opinion] |
+| Pressure | Rosemount 3051S (0.025 %, 200:1) / 3051 / 2051 (sourced §2) | SmartLine ST800 (0.0375 % std / 0.025 % opt, 100:1, exida SIL 3 capable) / ST700 (0.065 %, 100:1) (sourced §16). **No ST850 pressure model found** | Compare total probable error and stability at project conditions |
+| Temperature | 3144P, 644 (SIL 2 @ HFT0) | STT850 (±0.10 °C RTD, SIL 3 capable per exida SAEL), STT700 (±0.15 °C) | — |
+| Level | 5408 (26 GHz FMCW), 5300 GWR (≤ 345 bar / 400 °C, not simultaneous), 2140 fork | SLG700 GWR (±3 mm / 0.03 %, 50 m, SIL 2/3) | Honeywell non-contacting process radar: verify offering |
+| Tank gauging | 5900S (±0.5 mm, SIL 3 2-in-1), 2410 | Enraf 990 SmartRadar FlexLine (±0.4 mm Xtreme Precision, OIML R85), 854/954 servo, Entis Pro | Both widely approved for custody (OIML R85) |
+| Coriolis / mag / vortex | In-house (Micro Motion, 8700, 8800) | VersaFlow (Krohne-built, still listed by Honeywell, Nov 2026); MagneW — verify | Emerson broader in-house flow portfolio [opinion] |
+| Ultrasonic custody | 3414 / 3418 gas; 3814 / 3818 (LNG) liquid | Elster Q.Sonic (verify) | — |
 | Control valves | Fisher (full range + severe service) | No comparable in-house valve brand | — |
-| DCS | DeltaV (CHARMs electronic marshalling) | Experion PKS (UIO, HIVE, LEAP) | — |
-| SIS | DeltaV SIS (SLS 1508/CHARM SLS, SIL 3) | Safety Manager / SC (QMR, SIL 3) | — |
-| Wireless | WirelessHART (1410S also hosts ISA100) | ISA100 OneWireless | Protocol choice drives device choice |
+| DCS | DeltaV (CHARMs, 96 ch per CIOC) | Experion PKS (C300 PCNT05, UIO 32 ch/module, HIVE, LEAP) | — |
+| SIS | DeltaV SIS (SLS 1508 16 ch, SIL 3; CSLS 96 ch, SIL 3) | Safety Manager / SC (TÜV Rheinland SIL 3; Universal Safety I/O 32 ch) | — |
+| Wireless | WirelessHART (1410S also hosts ISA100) | OneWireless (ISA100; FDAP also serves WirelessHART devices) | Protocol choice drives device choice |
 | Asset mgmt | AMS Device Manager, ValveLink | FDM | — |
 | F&G | Rosemount 975/935/928 | Searchpoint Optima Plus, Searchline Excel, XNX, FS24X | — |
 
