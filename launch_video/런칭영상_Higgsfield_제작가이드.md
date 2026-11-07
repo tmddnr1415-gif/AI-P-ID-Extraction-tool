@@ -2,7 +2,28 @@
 
 > 대상: 임원 보고 / 런칭 · 길이: **약 100초** (오프닝 8초 + 툴 7개 × 10초 + 비전 10초 + 클로징 10초)
 > 제작 도구: Higgsfield Agent — `model=seedance_2_5`, `mode=video` (이미지 → 영상)
-> 이 zip: `images/` (생성 입력 프레임 · 타이틀 오버레이 · 원본 UI 참고) + 이 문서
+> **경량판** — Higgsfield 업로드용으로 모든 이미지를 JPG(1920×1080, 장당 200KB 이하)로 줄였습니다.
+
+## ★ 업로드용 파일 (먼저 읽기)
+
+Higgsfield Agent 에는 **zip 을 올리지 말고 `upload/` 안의 JPG 를 컷마다 한두 장씩** 올립니다.
+
+| 컷 | Start frame | End frame |
+|---|---|---|
+| 0 오프닝 | `upload/00_opening_start.jpg` | `upload/00_opening_end.jpg` |
+| 1 Dashboard | `upload/01_dashboard_start.jpg` | `upload/01_dashboard_end.jpg` |
+| 2 P&ID | `upload/02_pid_start.jpg` | `upload/02_pid_end.jpg` |
+| 3 Logic | `upload/03_logic_start.jpg` | `upload/03_logic_end.jpg` |
+| 4 Panel | `upload/04_panel_start.jpg` | `upload/04_panel_end.jpg` |
+| 5 도서검토 | `upload/05_books_start.jpg` | `upload/05_books_end.jpg` |
+| 6 Datasheet | `upload/06_datasheet_start.jpg` | `upload/06_datasheet_end.jpg` |
+| 7 계측기 3D | `upload/07_3d_start.jpg` | `upload/07_3d_end.jpg` |
+| 7.5 비전 | `upload/09_vision_start.jpg` | `upload/09_vision_end.jpg` |
+| 8 클로징 | `upload/08_closing_start.jpg` | `upload/08_closing_end.jpg` |
+
+- 이 문서 아래쪽의 `NN_xxx/start_frame` · `end_frame` 표기는 위 표의 `upload/NN_xxx_start.jpg` · `_end.jpg` 를 뜻합니다.
+- `alt_frame_*` → `edit/alt_frames/NN_xxx_alt_frame_*.jpg`, `title_overlay` → `edit/title_overlays/NN_xxx_title.png`(투명 PNG, 편집용), `reference_ui/` → `edit/reference_ui/`.
+- 그래도 올라가지 않으면: 한 번에 올리는 장수를 줄이거나(컷당 Start 1장만), 이미지를 1280×720 으로 줄여 다시 시도하세요.
 
 ---
 
