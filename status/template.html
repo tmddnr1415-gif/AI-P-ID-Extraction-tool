@@ -6,12 +6,18 @@
 <title>세션 지도</title>
 <style>
 :root{
-  --bg:#0b0e13; --panel:#12161d; --panel2:#181d26; --ink:#e6ebf2; --muted:#8a96a8; --line:#262d39;
-  --accent:#7aa2ff; --ok:#4cc488; --warn:#f0b452; --bad:#ff7b7b; --chipbg:#1d2430; --edge:rgba(160,180,210,.13); --edge-hi:rgba(200,220,255,.55);
-}
-:root[data-theme="light"]{
   --bg:#f3f5f9; --panel:#ffffff; --panel2:#f6f8fb; --ink:#1b2430; --muted:#5d6b7c; --line:#d8dee7;
   --accent:#1f4fd1; --ok:#17864b; --warn:#a86400; --bad:#c23434; --chipbg:#eef2f8; --edge:rgba(40,60,90,.14); --edge-hi:rgba(31,79,209,.6);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0b0e13; --panel:#12161d; --panel2:#181d26; --ink:#e6ebf2; --muted:#8a96a8; --line:#262d39;
+    --accent:#7aa2ff; --ok:#4cc488; --warn:#f0b452; --bad:#ff7b7b; --chipbg:#1d2430; --edge:rgba(160,180,210,.13); --edge-hi:rgba(200,220,255,.55);
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0b0e13; --panel:#12161d; --panel2:#181d26; --ink:#e6ebf2; --muted:#8a96a8; --line:#262d39;
+  --accent:#7aa2ff; --ok:#4cc488; --warn:#f0b452; --bad:#ff7b7b; --chipbg:#1d2430; --edge:rgba(160,180,210,.13); --edge-hi:rgba(200,220,255,.55);
 }
 *{box-sizing:border-box}
 html,body{margin:0;height:100%}
@@ -118,6 +124,7 @@ const $=s=>document.querySelector(s), esc=s=>String(s??"").replace(/[&<>"]/g,c=>
 const COLOR={S1:"#f59e0b",S2:"#3b82f6",S3:"#22c55e",S4:"#a855f7",S5:"#ec4899",S6:"#ef4444",S7:"#14b8a6"};
 const KIND={hub:"오케스트레이터",session:"세션 Agent",file:"업데이트 파일",pending:"다음 업데이트 커밋",recent:"최근 작업 커밋",agent:"Agent",skill:"Skill"};
 const B=k=>META.bucket[k]||["gray",k||"?"];
+const pvs=p=>(window.PV||{})[p.key]||"";
 const stDot={ok:"var(--ok)",warn:"var(--warn)",bad:"var(--bad)",info:"var(--accent)",gray:"var(--muted)"};
 const css=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
 
@@ -178,7 +185,7 @@ function draw(){
   const ink=css("--ink"),muted=css("--muted"),bg=css("--bg");
   nodes.forEach(n=>{if(!visible(n))return;const [x,y]=toS(n);const r=Math.max(2.2,n.r*Math.min(1.4,Math.max(.6,view.k)));
     let a=1;if(focus&&!focus.has(n.id))a=.25;if(query&&!match(n))a=Math.min(a,.12);ctx.globalAlpha=a;
-    ctx.fillStyle=n.type==="recent"?n.color+"99":n.color;ctx.strokeStyle=bg;ctx.lineWidth=1.5;ctx.beginPath();
+    ctx.fillStyle=n.type==="hub"?ink:(n.type==="recent"?n.color+"99":n.color);ctx.strokeStyle=bg;ctx.lineWidth=1.5;ctx.beginPath();
     if(n.type==="file"){ctx.rect(x-r,y-r,2*r,2*r);}
     else if(n.type==="agent"){ctx.moveTo(x,y-r);ctx.lineTo(x+r,y);ctx.lineTo(x,y+r);ctx.lineTo(x-r,y);ctx.closePath();}
     else if(n.type==="skill"){ctx.moveTo(x,y-r);ctx.lineTo(x+r*.95,y+r*.8);ctx.lineTo(x-r*.95,y+r*.8);ctx.closePath();}
@@ -216,7 +223,7 @@ const blocked=DATA.filter(x=>x.state.bucket==="BLOCKED").length;
 $("#stats").textContent=`세션 ${DATA.length} · 다음 업데이트 대기 ${totalPend} · 사용자 확인 필요 ${blocked} · Agent ${nodes.filter(n=>n.type==="agent").length} · Skill ${nodes.filter(n=>n.type==="skill").length} · 만든 때 ${META.built}`;
 const cnt=t=>nodes.filter(n=>n.type===t).length;
 $("#left").innerHTML=`<h4>AGENT</h4>
- <button class="item" data-id="orch"><span class="dot" style="background:#f5f1e6"></span><span class="nm">🧭 오케스트레이터</span><span class="n">${totalPend}</span></button>
+ <button class="item" data-id="orch"><span class="dot" style="background:var(--ink)"></span><span class="nm">🧭 오케스트레이터</span><span class="n">${totalPend}</span></button>
  ${DATA.map(x=>{const b=B(x.state.bucket);return `<button class="item" data-id="${x.sid}"><span class="dot" style="background:${COLOR[x.sid]}"></span><span class="nm">${esc(x.name)}</span><span class="st" title="${esc(b[1])}" style="background:${stDot[b[0]]}"></span><span class="n">${x.pending.length}</span></button>`;}).join("")}
  <h4>업데이트 파일</h4>
  <button class="item" data-id="F1"><span class="shape" style="background:#c9d4e6"></span><span class="nm">① DASHBOARD 개별</span><span class="n">${DATA.filter(x=>x.file.startsWith("①")).reduce((s,x)=>s+x.pending.length,0)}</span></button>
@@ -237,7 +244,7 @@ function detail(n){
      <div class="path">${esc(x.branch.replace("origin/",""))} @ ${esc(x.tip)} · ${esc(x.tipdate)}</div>
      <dl><dt>세션</dt><dd>${esc(x.state.title||"")}</dd><dt>버전</dt><dd>${esc(x.ver)}</dd><dt>회사 쪽</dt><dd>${esc(x.shipped)}</dd><dt>업데이트 파일</dt><dd>${esc(x.file)}</dd>${x.state.recent?`<dt>최근 보고</dt><dd>${esc(x.state.recent)}</dd>`:""}</dl>
      ${x.state.needs?`<div class="needs">⚠ 확인 필요 — ${esc(x.state.needs)}</div>`:""}
-     ${x.previews.length?`<div class="sec"><h3>미리보기 · ${x.previews.length}</h3><div class="pv">${x.previews.map((p,i)=>`<figure><img data-pv="${x.sid}:${i}" src="${p.src}" alt="${esc(p.cap)}"><figcaption>${esc(p.cap)} · ${esc(p.date)}</figcaption></figure>`).join("")}</div></div>`:""}
+     ${x.previews.length?`<div class="sec"><h3>미리보기 · ${x.previews.length}</h3><div class="pv">${x.previews.map((p,i)=>`<figure><img data-pv="${x.sid}:${i}" src="${pvs(p)}" alt="${esc(p.cap)}"><figcaption>${esc(p.cap)} · ${esc(p.date)}</figcaption></figure>`).join("")}</div></div>`:""}
      <div class="sec"><h3>다음 업데이트에 들어갈 것 · ${x.pending.length}건</h3>${clist(x.pending,x.sid)}</div>
      <div class="sec"><h3>최신 작업</h3>${clist(x.recent,x.sid)}</div>
      ${x.agents.length?`<div class="sec"><h3>Agent · Skill · ${x.agents.length}</h3><ul class="clist">${x.agents.map(a=>`<li data-go="${x.sid}:a:${esc(a.name)}"><span class="h">${a.kind==="agent"?"◆ Agent":"▲ Skill"}</span><span>${esc(a.name)}</span></li>`).join("")}</ul></div>`:""}`;}
@@ -257,7 +264,7 @@ function detail(n){
      <dl><dt>세션</dt><dd><a href="#" data-go="${n.sid}" style="color:var(--accent)">${esc(byId[n.sid].label)}</a></dd></dl>`;}
   $("#detail").innerHTML=h;
   $("#detail").querySelectorAll("[data-go]").forEach(el=>el.onclick=e=>{e.preventDefault();const t=byId[el.dataset.go];if(t)select(t,true);});
-  $("#detail").querySelectorAll("img[data-pv]").forEach(im=>im.onclick=()=>{const [sid,i]=im.dataset.pv.split(":");const p=DATA.find(x=>x.sid===sid).previews[+i];$("#lb img").src=p.src;$("#lb span").textContent=p.cap+" · "+p.date;$("#lb").classList.add("on");});
+  $("#detail").querySelectorAll("img[data-pv]").forEach(im=>im.onclick=()=>{const [sid,i]=im.dataset.pv.split(":");const p=DATA.find(x=>x.sid===sid).previews[+i];$("#lb img").src=pvs(p);$("#lb span").textContent=p.cap+" · "+p.date;$("#lb").classList.add("on");});
 }
 function select(n,center){
   sel=n; document.querySelectorAll(".item").forEach(b=>b.setAttribute("aria-current",n&&(b.dataset.id===n.id||b.dataset.id===n.sid)?"true":"false"));
@@ -271,7 +278,7 @@ document.addEventListener("keydown",e=>{if(e.key==="Escape"){if($("#lb").classLi
 
 /* ---------- list view ---------- */
 $("#cards").innerHTML=DATA.map(x=>{const b=B(x.state.bucket);return `<div class="card" data-go="${x.sid}"><div style="display:flex;justify-content:space-between;gap:6px"><b><span class="dot" style="display:inline-block;width:9px;height:9px;border-radius:50%;background:${COLOR[x.sid]};margin-right:6px"></span>${esc(x.name)}</b><span class="chip ${b[0]}">${esc(b[1])}</span></div>
- <div style="color:var(--muted);font-size:12px;margin-top:2px">${esc(x.ver)} · 대기 ${x.pending.length}건</div>${x.state.needs?`<div class="needs" style="margin:6px 0 0">⚠ ${esc(x.state.needs)}</div>`:""}${x.previews[0]?`<img src="${x.previews[0].src}" alt="">`:""}</div>`;}).join("");
+ <div style="color:var(--muted);font-size:12px;margin-top:2px">${esc(x.ver)} · 대기 ${x.pending.length}건</div>${x.state.needs?`<div class="needs" style="margin:6px 0 0">⚠ ${esc(x.state.needs)}</div>`:""}${x.previews[0]?`<img data-key="${x.previews[0].key}" src="${pvs(x.previews[0])}" alt="">`:""}</div>`;}).join("");
 document.querySelectorAll(".card").forEach(c=>c.onclick=()=>select(byId[c.dataset.go]));
 let mode="map";
 document.querySelectorAll(".seg button").forEach(b=>b.onclick=()=>{mode=b.dataset.v;document.querySelectorAll(".seg button").forEach(x=>x.setAttribute("aria-pressed",x===b));$("#listview").classList.toggle("on",mode==="list");});
@@ -280,10 +287,11 @@ document.querySelectorAll(".seg button").forEach(b=>b.onclick=()=>{mode=b.datase
 $("#q").addEventListener("input",e=>{query=e.target.value.trim().toLowerCase();});
 $("#q").addEventListener("keydown",e=>{if(e.key==="Enter"){const n=nodes.find(n=>visible(n)&&match(n)&&n.type!=="hub");if(n)select(n,true);}});
 $("#menuBtn").onclick=()=>$("#left").classList.toggle("open");
-$("#theme").onclick=()=>{const r=document.documentElement;r.dataset.theme=r.dataset.theme==="light"?"dark":"light";};
+$("#theme").onclick=()=>{const r=document.documentElement;const d=r.dataset.theme?r.dataset.theme==="dark":matchMedia("(prefers-color-scheme: dark)").matches;r.dataset.theme=d?"light":"dark";};
 
 window.addEventListener("resize",()=>{size();});
 size();fit();loop();
+window.addEventListener("pv-ready",()=>{document.querySelectorAll("img[data-key]").forEach(i=>i.src=(window.PV||{})[i.dataset.key]||"");if(sel)detail(sel);});
 })();
 </script>
 </body>

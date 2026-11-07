@@ -138,11 +138,14 @@ def main():
         s = st['sessions'].get(sid, {})
         pv = sorted(f for f in os.listdir(pv_dir) if f.startswith(sid + '_'))
         data.append(dict(sid=sid, name=name, **g, tip=h, tipdate=d, recent=log(g['branch'], n=6), agents=agents(g['branch']),
-                         state=s, previews=[dict(src=img64(os.path.join(pv_dir, f)), cap=CAPS.get(f[:-4], f),
+                         state=s, previews=[dict(key=f[:-4], cap=CAPS.get(f[:-4], f),
                                                  date=datetime.date.fromtimestamp(os.path.getmtime(os.path.join(pv_dir, f))).isoformat()) for f in pv]))
     tpl = open(os.path.join(HERE, 'template.html'), encoding='utf-8').read()
     meta = dict(built=datetime.datetime.now().strftime('%Y-%m-%d %H:%M'), read_at=st.get('read_at', ''), bucket=BUCKET)
     out = tpl.replace('/*DATA*/', 'const DATA=' + json.dumps(data, ensure_ascii=False) + ';const META=' + json.dumps(meta, ensure_ascii=False) + ';')
+    # 그림은 맨 끝에 — 앱 파일 미리보기가 큰 파일 끝을 잘라도 지도는 먼저 그려진다
+    pv = {f[:-4]: img64(os.path.join(pv_dir, f)) for f in sorted(os.listdir(pv_dir)) if f.endswith('.jpg')}
+    out = out.replace('</body>', '<script>window.PV=' + json.dumps(pv) + ';window.dispatchEvent(new Event("pv-ready"));</script>\n</body>')
     path = os.path.join(HERE, 'SESSION_STATUS.html')
     open(path, 'w', encoding='utf-8').write(out)
     print(path, f'{len(out) / 1048576:.1f} MB')

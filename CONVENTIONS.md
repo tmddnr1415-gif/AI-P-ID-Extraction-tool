@@ -69,3 +69,4 @@ Windows · Edge · Python 3.11 · CDN/npm/외부 서비스 금지 (라이브러�
 - 숫자 · 커밋은 각 브랜치(git)에서 자동으로 읽는다: ① DASHBOARD 는 `delivered.txt` 마지막 줄 이후, ② 통합은 마지막 hotfix 꾸러미 · `release_sources.json` imported · PID 브랜치에 아직 없는 커밋
 - 미리보기는 `status/previews/<SID>_<n>.jpg` — 오케스트레이터가 최신 코드를 실제로 띄워 찍어 갈아 끼운다 (날짜 표시)
 - 업데이트 파일 만들기와는 별개 — 현황판은 언제든 다시 만들 수 있다
+- 보는 곳: 웹 링크 https://claude.ai/artifact/NR1PmYahGmVcb4zUBffptM (오케스트레이터가 갱신할 때마다 같은 주소로 다시 올림). 앱의 파일 미리보기는 큰 파일 끝을 잘라 그림이 빠질 수 있다 — 지도는 보이게 그림을 파일 맨 끝에 둔다
