@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>세션 현황판</title>
+<style>
+:root{
+  --bg:#eef1f5; --panel:#fff; --panel2:#f6f8fb; --ink:#1b2430; --muted:#5d6b7c; --line:#d8dee7;
+  --accent:#1f4fd1; --accent-soft:#e3ebfc; --ok:#17864b; --ok-soft:#ddf3e6; --warn:#a86400; --warn-soft:#fdf0d9;
+  --bad:#c23434; --bad-soft:#fbe3e3; --shadow:0 1px 2px rgba(0,0,0,.06),0 4px 16px rgba(0,0,0,.06);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#11161d; --panel:#1a212b; --panel2:#151b23; --ink:#e4eaf2; --muted:#93a1b3; --line:#2b3542;
+    --accent:#7aa2ff; --accent-soft:#1d2c48; --ok:#4cc488; --ok-soft:#173326; --warn:#f0b452; --warn-soft:#3a2c12;
+    --bad:#ff7b7b; --bad-soft:#3d1c1c; --shadow:0 1px 2px rgba(0,0,0,.4),0 4px 16px rgba(0,0,0,.3);
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#11161d; --panel:#1a212b; --panel2:#151b23; --ink:#e4eaf2; --muted:#93a1b3; --line:#2b3542;
+  --accent:#7aa2ff; --accent-soft:#1d2c48; --ok:#4cc488; --ok-soft:#173326; --warn:#f0b452; --warn-soft:#3a2c12;
+  --bad:#ff7b7b; --bad-soft:#3d1c1c; --shadow:0 1px 2px rgba(0,0,0,.4),0 4px 16px rgba(0,0,0,.3);
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--bg);color:var(--ink);font:14px/1.55 "Malgun Gothic","Apple SD Gothic Neo","Noto Sans KR",system-ui,sans-serif}
+button{font:inherit;color:inherit;cursor:pointer}
+.wrap{max-width:1240px;margin:0 auto;padding:20px 16px 48px}
+header{display:flex;flex-wrap:wrap;gap:10px;justify-content:space-between;align-items:flex-end;margin-bottom:14px}
+h1{margin:0;font-size:22px}
+.sub,.muted{color:var(--muted)}.small{font-size:12.5px}
+.mono{font-family:Consolas,"D2Coding",monospace;font-size:12px}
+.btn{border:1px solid var(--line);background:var(--panel);border-radius:8px;padding:6px 11px}
+.chip{display:inline-block;border-radius:999px;padding:1px 8px;font-size:11.5px;font-weight:600;white-space:nowrap}
+.chip.ok{background:var(--ok-soft);color:var(--ok)}.chip.warn{background:var(--warn-soft);color:var(--warn)}
+.chip.bad{background:var(--bad-soft);color:var(--bad)}.chip.info{background:var(--accent-soft);color:var(--accent)}
+.chip.gray{background:var(--panel2);color:var(--muted);border:1px solid var(--line)}
+.files{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px}
+.fcard{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px 14px;box-shadow:var(--shadow)}
+.fcard b{font-size:14px}.fcard .v{font-size:22px;font-weight:700;font-variant-numeric:tabular-nums}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:10px;margin-bottom:18px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px 14px;box-shadow:var(--shadow);text-align:left;width:100%}
+.card:hover{border-color:var(--accent)}
+.card .top{display:flex;justify-content:space-between;gap:8px;align-items:center}
+.card .nm{font-weight:700}
+.card .ver{font-size:12.5px;color:var(--muted);margin:2px 0 6px}
+.card .needs{background:var(--warn-soft);border-radius:8px;padding:6px 8px;font-size:12.5px;margin-top:6px}
+.card .cnt{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}
+.thumb{display:block;width:100%;height:120px;object-fit:cover;object-position:top;border-radius:8px;border:1px solid var(--line);margin-top:8px;background:var(--panel2)}
+.detail{background:var(--panel);border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow);padding:16px;margin-bottom:14px}
+.detail h2{margin:0;font-size:18px}
+.cols{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:12px}
+.box{border:1px solid var(--line);border-radius:10px;padding:10px 12px;background:var(--panel2)}
+.box h3{margin:0 0 6px;font-size:13.5px}
+.clist{list-style:none;margin:0;padding:0;max-height:300px;overflow:auto}
+.clist li{display:grid;grid-template-columns:70px 84px 1fr;gap:6px;padding:4px 0;border-bottom:1px solid var(--line);font-size:12.5px}
+.clist li:last-child{border-bottom:0}
+.pv{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px;margin-top:12px}
+.pv figure{margin:0;border:1px solid var(--line);border-radius:10px;overflow:hidden;background:var(--panel2)}
+.pv img{display:block;width:100%;height:150px;object-fit:cover;object-position:top;cursor:zoom-in}
+.pv figcaption{font-size:12px;padding:6px 8px;display:flex;justify-content:space-between;gap:6px}
+.lb{position:fixed;inset:0;background:rgba(5,8,14,.86);display:none;align-items:center;justify-content:center;z-index:20;padding:16px;cursor:zoom-out}
+.lb.on{display:flex}.lb img{max-width:100%;max-height:100%;border-radius:6px;background:#fff}
+dl{display:grid;grid-template-columns:auto 1fr;gap:3px 10px;margin:8px 0 0;font-size:12.5px}dt{color:var(--muted)}dd{margin:0}
+.foot{color:var(--muted);font-size:12px;margin-top:16px}
+@media (max-width:760px){.files,.cols{grid-template-columns:1fr}.clist li{grid-template-columns:64px 1fr}.clist li .d{display:none}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div><h1>세션 현황판</h1><div class="sub" id="sub"></div></div>
+    <button class="btn" id="theme">◐ 화면</button>
+  </header>
+  <div class="files" id="files"></div>
+  <div class="grid" id="grid"></div>
+  <div id="details"></div>
+  <div class="foot">오케스트레이터 세션이 만듭니다 — <span class="mono">python status/build_status.py</span>. 숫자 · 커밋은 각 세션 브랜치(git), 상태 · 확인 필요는 세션 기록, 미리보기는 최신 코드를 실제로 띄워 찍은 화면입니다.</div>
+</div>
+<div class="lb" id="lb"><img alt=""></div>
+<script>
+/*DATA*/
+(function(){
+"use strict";
+const $=s=>document.querySelector(s), esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const B=k=>META.bucket[k]||["gray",k||"?"];
+$("#sub").textContent=`만든 때 ${META.built} · 세션 상태 읽은 때 ${META.read_at.replace("T"," ").slice(0,16)} UTC`;
+const pend=x=>x.pending.length;
+const f1=DATA.filter(x=>x.file.startsWith("①")), f2=DATA.filter(x=>x.file.startsWith("②"));
+$("#files").innerHTML=[["① DASHBOARD 개별 업데이트",f1],["② 통합 업데이트 (PID · LOGIC · PANEL · 도서 · Valve · 3D)",f2]].map(([t,a])=>{
+  const n=a.reduce((s,x)=>s+pend(x),0);
+  return `<div class="fcard"><b>${esc(t)}</b><div class="v">${n}<span class="small muted"> 건 대기</span></div>
+  <div class="small muted">${a.map(x=>`${x.sid} ${pend(x)}`).join(" · ")} — 요청하면 만듭니다</div></div>`;}).join("");
+$("#grid").innerHTML=DATA.map(x=>{const b=B(x.state.bucket);
+  return `<button class="card" data-sid="${x.sid}"><div class="top"><span class="nm">${esc(x.name)}</span><span class="chip ${b[0]}">${b[1]}</span></div>
+  <div class="ver">${esc(x.ver)} · 끝 커밋 ${esc(x.tip)} (${esc(x.tipdate)})</div>
+  <div class="cnt"><span class="chip ${pend(x)?"info":"gray"}">다음 업데이트 ${pend(x)}건</span><span class="chip gray">${esc(x.file)}</span></div>
+  ${x.state.needs?`<div class="needs">⚠ ${esc(x.state.needs)}</div>`:""}
+  ${x.previews[0]?`<img class="thumb" src="${x.previews[0].src}" alt="">`:""}</button>`;}).join("");
+$("#details").innerHTML=DATA.map(x=>{const b=B(x.state.bucket);
+  const li=a=>a.length?a.map(c=>`<li><span class="mono">${esc(c.h)}</span><span class="d small muted">${esc(c.d)}</span><span>${esc(c.s)}</span></li>`).join(""):'<li><span></span><span></span><span class="muted">없음</span></li>';
+  return `<section class="detail" id="d-${x.sid}"><div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;align-items:center">
+   <h2>${esc(x.name)}</h2><span class="chip ${b[0]}">${b[1]}</span></div>
+   <dl><dt>세션</dt><dd>${esc(x.state.title||"")}</dd><dt>브랜치</dt><dd class="mono">${esc(x.branch.replace("origin/",""))} @ ${esc(x.tip)} · ${esc(x.tipdate)}</dd>
+   <dt>버전</dt><dd>${esc(x.ver)}</dd><dt>회사 쪽</dt><dd>${esc(x.shipped)}</dd><dt>업데이트 파일</dt><dd>${esc(x.file)}</dd>
+   ${x.state.recent?`<dt>최근 보고</dt><dd>${esc(x.state.recent)}</dd>`:""}${x.state.needs?`<dt>확인 필요</dt><dd style="color:var(--warn)">${esc(x.state.needs)}</dd>`:""}</dl>
+   <div class="cols"><div class="box"><h3>다음 업데이트에 들어갈 것 · ${pend(x)}건</h3><ul class="clist">${li(x.pending)}</ul></div>
+   <div class="box"><h3>최신 작업 (최근 커밋)</h3><ul class="clist">${li(x.recent)}</ul></div></div>
+   <div class="pv">${x.previews.map(p=>`<figure><img src="${p.src}" alt="${esc(p.cap)}"><figcaption><span>${esc(p.cap)}</span><span class="muted">${esc(p.date)}</span></figcaption></figure>`).join("")}</div>
+  </section>`;}).join("");
+document.querySelectorAll(".card").forEach(c=>c.onclick=()=>document.getElementById("d-"+c.dataset.sid).scrollIntoView({behavior:"smooth"}));
+document.querySelectorAll(".pv img,.thumb").forEach(i=>i.addEventListener("click",e=>{if(i.classList.contains("thumb"))return;e.stopPropagation();$("#lb img").src=i.src;$("#lb").classList.add("on");}));
+$("#lb").onclick=()=>$("#lb").classList.remove("on");
+$("#theme").onclick=()=>{const r=document.documentElement;const d=r.dataset.theme?r.dataset.theme==="dark":matchMedia("(prefers-color-scheme: dark)").matches;r.dataset.theme=d?"light":"dark";};
+})();
+</script>
+</body>
+</html>

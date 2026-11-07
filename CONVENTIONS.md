@@ -60,3 +60,12 @@ Windows · Edge · Python 3.11 · CDN/npm/외부 서비스 금지 (라이브러�
 3. ① 대시보드가 바뀌었으면 S1 도구로 UPDATE zip
 4. ② S2 브랜치 기준 통합 브랜치에 3~7 을 위 표대로 싣고 → 시험 → `release_check.py` → `pack_delta.py`
 5. 두 zip 과 `1_먼저읽기` 를 사용자에게 전달 → **사용자가 회사 PC 적용을 알려 주면** 기준점 갱신
+
+## 7. 세션 현황판 — `status/SESSION_STATUS.html`
+
+오케스트레이터가 따로 만드는 HTML. 각 세션의 **최신 작업 현황 · 미리보기 · 다음 업데이트에 들어갈 것**을 한 장에 보여 준다.
+
+- 만들기: `git fetch origin` → 세션 상태를 `status/sessions.json` 에 갱신(list_sessions) → `python status/build_status.py`
+- 숫자 · 커밋은 각 브랜치(git)에서 자동으로 읽는다: ① DASHBOARD 는 `delivered.txt` 마지막 줄 이후, ② 통합은 마지막 hotfix 꾸러미 · `release_sources.json` imported · PID 브랜치에 아직 없는 커밋
+- 미리보기는 `status/previews/<SID>_<n>.jpg` — 오케스트레이터가 최신 코드를 실제로 띄워 찍어 갈아 끼운다 (날짜 표시)
+- 업데이트 파일 만들기와는 별개 — 현황판은 언제든 다시 만들 수 있다

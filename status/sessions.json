@@ -1,0 +1,27 @@
+{
+  "_설명": "오케스트레이터가 list_sessions / get_session 으로 읽은 각 세션 상태. build_status.py 가 git 정보와 합쳐 SESSION_STATUS.html 을 만든다. 갱신할 때 이 파일을 새로 쓴다.",
+  "read_at": "2026-11-07T07:17:00Z",
+  "sessions": {
+    "S1": {"id": "session_016Ntz71xxniTkCj7pC8ZpXL", "title": "1. DASHBOARD 코드 (NEW)", "bucket": "BLOCKED", "updated": "2026-11-07T07:14:55Z",
+           "recent": "dist/company_pc/S1 의 zip 사본 · MANIFEST · STATUS 를 커밋 5f2de9b 로 푸시",
+           "needs": "오케스트레이터 지시대로 zip · delivered.txt 작업을 바꾸는지, CLAUDE.md 수정 여부, dist/company_pc/S1 삭제 · 유지를 정해 주세요"},
+    "S2": {"id": "session_01Muj82H8eDSPwWi9XQC7rFh", "title": "2. PID 검토 4 (NEW)", "bucket": "BLOCKED", "updated": "2026-11-07T07:14:56Z",
+           "recent": "",
+           "needs": "새 꾸러미 규칙(오케스트레이터가 통합 · Valve 포함)이 사용자 뜻인지 확인 · /ic3d 를 만들지 · LOGIC→작도 정확도 점검을 이어 갈지"},
+    "S3": {"id": "session_01Muj82Ewiqsoeo54Ei1FzrE", "title": "3. Logic 검토코드 4 (NEW)", "bucket": "COMPLETED", "updated": "2026-11-07T07:14:49Z",
+           "recent": "L91 커밋 · 푸시 — 화면 시험 125 · 빠른 시험 1,655 통과. 통합 꾸러미에 병합 필요",
+           "needs": ""},
+    "S4": {"id": "session_01K7LLEGxyo6V5bYVwmtJfS4", "title": "4. PANEL 코드 (NEW)", "bucket": "BLOCKED", "updated": "2026-11-07T07:14:54Z",
+           "recent": "",
+           "needs": "1) dist/company_pc/S4 생성 진행 여부  2) zip 만들기를 멈추고 통합을 오케스트레이터에 맡길지"},
+    "S5": {"id": "session_014zoSs8H5yNiq8r2ATBV4YL", "title": "5. 도서 검토", "bucket": "BLOCKED", "updated": "2026-11-07T07:15:29Z",
+           "recent": "PID 사본 내용 확인 · 앱 버전 올리고 커밋 · 푸시하는 중",
+           "needs": "명령 실행(Bash) 승인 대기"},
+    "S6": {"id": "session_01Muj82EMRakKAAS1HYXcE7d", "title": "6. Datasheet 자동 검토", "bucket": "BLOCKED", "updated": "2026-11-07T07:14:56Z",
+           "recent": "valve35 zip 완성 (시험 1,989 통과 · 2,935건 비교 변경 0)",
+           "needs": "\"valveNN 꾸러미 그만, 오케스트레이터 통합으로\" 라고 답하기 · Fugitive 카운트(조건부 General Note 포함) 여부 결정"},
+    "S7": {"id": "session_01Muj82FVwL2Yt5DTXGPNkcp", "title": "7. 3D 계측제어 도구 개발", "bucket": "BLOCKED", "updated": "2026-11-07T07:14:52Z",
+           "recent": "",
+           "needs": "'진행' 이라고 답하면 시작 (또는 1~3 중 할 항목 번호)"}
+  }
+}
