@@ -263,7 +263,7 @@ const Viewer = (() => {
     ortho.left = -half * asp; ortho.right = half * asp; ortho.top = half; ortho.bottom = -half;
     ortho.position.copy(t).addScaledVector(dir, 1e4);
     const D = half / Math.tan(FOV * Math.PI / 360);
-    persp.aspect = asp; persp.near = Math.max(1, D * 0.02); persp.far = D * 50;
+    persp.aspect = asp; persp.near = Math.max(0.05, D * 0.01); persp.far = Math.max(D * 50, 2e4);
     persp.position.copy(t).addScaledVector(dir, D);
     for (const cam of [ortho, persp]) { cam.up.set(0, 1, 0); cam.lookAt(t); cam.updateProjectionMatrix(); cam.updateMatrixWorld(); }
   }
@@ -735,13 +735,43 @@ const Viewer = (() => {
     return rc.ray.intersectPlane(plane, new THREE.Vector3()) || orbit.target.clone();
   }
 
+  /**
+   * Zoom toward what is under the cursor. In perspective the orbit target is first moved, along the
+   * view ray, to the depth of the surface under the cursor (the picture does not change), so the
+   * camera closes in on that surface instead of on a plane behind it — zooming in can go right up
+   * to a nut or a nameplate.
+   */
+  const MIN_VIEW = 3;   // mm of visible height at the closest zoom
   function zoomCamera(e, f) {
+    orbit.dist = goal.dist; orbit.target.copy(goal.target); updateCamera();
+    const hit = surfaceAt(e);
+    if (hit && camera === persp) {
+      const dir = new THREE.Vector3(); persp.getWorldDirection(dir);
+      const C = persp.position.clone();
+      const depth = hit.clone().sub(C).dot(dir);
+      if (depth > persp.near * 2) {
+        const T = C.clone().addScaledVector(dir, depth);
+        const dist = 2 * depth * Math.tan(FOV * Math.PI / 360);
+        orbit.target.copy(T); orbit.dist = dist; goal.target.copy(T); goal.dist = dist; updateCamera();
+      }
+    }
     const before = goal.dist;
-    const nd = Math.max(15, Math.min(1e6, before * f));
-    const p = worldAt(e);
+    const nd = Math.max(MIN_VIEW, Math.min(1e6, before * f));
+    const p = hit || worldAt(e);
     goal.target.add(p.sub(goal.target).multiplyScalar(1 - nd / before));
     goal.dist = nd;
     goal.follow = false;
+  }
+  function surfaceAt(e) {
+    const rc = new THREE.Raycaster(); rc.setFromCamera(ndc(e), camera);
+    const meshes = [];
+    for (const g of S.groups.values()) {
+      if (!g.visible || REF.has(g.userData.part.look)) continue;
+      if (S.focus && g.name !== S.focus) continue;
+      g.traverse((o) => { if (o.isMesh) meshes.push(o); });
+    }
+    const h = rc.intersectObjects(meshes, false).find((x) => !x.object.material.clippingPlanes?.length || clipPlane.distanceToPoint(x.point) >= 0);
+    return h ? h.point.clone() : null;
   }
 
   let detentUntil = 0;
@@ -749,12 +779,12 @@ const Viewer = (() => {
     if (performance.now() < detentUntil) return;
     const steps = Math.max(-3, Math.min(3, e.deltaY / 100));
     if (!steps) return;
-    const st = Math.abs(steps); const f = Math.exp(steps * 0.18);
+    const st = Math.abs(steps); const f = Math.exp(steps * 0.3);   // ≈ 30 % closer per wheel notch
     const auto = opts.autoExplode && !S.focus;
     if (steps < 0) {                                     // wheel in
       if (auto && goal.follow && S.eT < 1) {
-        S.eT = Math.min(1, S.eT + 0.14 * st); goal.refit = true; cb.onExplode(S.eT);
-        if (S.eT >= 1) detentUntil = performance.now() + 450;   // pause so a continuous scroll stops at the full exploded view
+        S.eT = Math.min(1, S.eT + 0.22 * st); goal.refit = true; cb.onExplode(S.eT);
+        if (S.eT >= 1) detentUntil = performance.now() + 250;   // pause so a continuous scroll stops at the full exploded view
       } else {
         const wasOut = goal.dist > goal.fitDist * 1.001;
         zoomCamera(e, f);
@@ -765,8 +795,8 @@ const Viewer = (() => {
         zoomCamera(e, f);
         if (auto && S.eT > 0 && goal.dist >= goal.fitDist) { goal.follow = true; goal.refit = true; }
       } else if (auto && S.eT > 0) {
-        S.eT = Math.max(0, S.eT - 0.14 * st); goal.refit = true; cb.onExplode(S.eT);
-        if (S.eT <= 0) detentUntil = performance.now() + 450;
+        S.eT = Math.max(0, S.eT - 0.22 * st); goal.refit = true; cb.onExplode(S.eT);
+        if (S.eT <= 0) detentUntil = performance.now() + 250;
       } else {
         zoomCamera(e, f);
       }
