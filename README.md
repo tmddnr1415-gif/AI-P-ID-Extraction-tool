@@ -1,7 +1,32 @@
-# AI P&ID Extraction Tool
+# AI P&ID Extraction Tool → I&C 통합 사양 검토 멀티에이전트
 
-P&ID 도면에서 계기(instrument) 목록을 자동으로 뽑아내는 도구 모음입니다.
-결과물은 실제 플랜트 설계에 쓰이는 **안전 관련 문서**이므로, 모든 출력은 사람의 검토를 거쳐야 합니다.
+이 저장소의 기준은 해커톤 프로젝트 **「계측제어(I&C) 통합 사양 검토 멀티에이전트」**입니다
+(규칙: [`CLAUDE.md`](CLAUDE.md), 이관: [`MIGRATE.md`](MIGRATE.md)). 그 위에 지금까지 만든 도구를 반영했습니다.
+
+| 하고 싶은 일 | 여는 곳 |
+|---|---|
+| **계측제어 질의 → Item 에이전트 답변 · MR 초안 · Anatomy 3D** (주 대시보드) | `python app/server.py` → http://127.0.0.1:8790 (또는 `app/index.html` 더블클릭) |
+| 부품 단위 실물 3D (GA·치수도 → 분해·주석 3D, STL/OBJ) | 대시보드 Anatomy 탭 **실물 3D**, 단독: `ic-3d-builder/index.html` |
+| 계장 전문가 챗봇 (프로젝트별 발주처 컨텍스트, 스펙 리뷰 표) | `ic-expert/index.html` |
+| P&ID PDF → Instrument List Excel | `pid-instrument-tool/web/standalone.html` |
+
+해커톤 기준에 더한 것:
+- **Anatomy 실물 3D 모드**: 개념·시뮬레이션(Canvas) 옆에 파라메트릭 실물 3D. 사이즈·등급 연동 치수와 출처 배지,
+  휠로 분해, 부품 설명·재질 카드, 컷어웨이. 답변의 `part:*` 태그를 누르면 실물 3D 에서 그 부품이 강조됩니다
+  (`data/parts/Map_3d.json`). Ball(ESDV)·Globe·Butterfly·PSV·Transmitter·DCS/IPS 캐비닛.
+- **답변 엔진 선택**: 헤더 [답변 엔진] → 로컬 검색형(기본) 또는 Claude(LLM). LLM 도 CLAUDE.md §5 규칙
+  (근거 순위·'미확인'·간결 형식·안전 게이트·part 태그)을 그대로 따르고 Item 문서 + 전문가 지식베이스만 근거로 씁니다.
+- **전문가 지식베이스** `ic-expert/knowledge` (국제 코드, Saudi Aramco, QatarEnergy, 주요 벤더, 아이템별 선정; 출처 약 1,790개).
+- 스킬: `.claude/skills/` 의 해커톤 6종 + `ic-ga-to-3d`(도면→3D) + `ic-expert`(전문가 질의응답).
+
+```
+node app/build.mjs                                  # 대시보드 빌드 (실물 3D·LLM 지식 포함)
+NODE_PATH=$(npm root -g) node app/test_e2e.mjs      # 통합 테스트 14개
+```
+
+---
+
+## (이전) P&ID 계기 추출 도구
 
 ## 무엇을 열어야 하나
 

@@ -181,6 +181,10 @@ class H(Base):
         try:
             if u.path in ("/", "/index.html"):
                 return self.send(200, open(os.path.join(HERE, "index.html"), "rb").read(), "text/html; charset=utf-8")
+            if u.path == "/viewer-real.html":  # 실물 3D 엔진(ic-3d-builder), build.mjs 가 복사
+                p = os.path.join(HERE, "viewer-real.html")
+                if os.path.exists(p):
+                    return self.send(200, open(p, "rb").read(), "text/html; charset=utf-8")
             if u.path == "/api/fin/status":
                 return self.send(200, {"key": bool(API_KEY), "key_src": KEY_SRC, "dashboard": BENCH_OK})
             if False:

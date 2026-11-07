@@ -1,0 +1,59 @@
+{
+  "note": "Anatomy 개념 모델 부품 id → 실물 3D(ic-3d-builder 파라메트릭 엔진) 프리셋·부품 id 매핑. null = 해당 부품 없음(개념 모델로 표시). 'approx' = 대표 부품으로 근사.",
+  "engine": "ic-3d-builder/index.html (빌드 시 app/viewer-real.html 로 복사)",
+  "items": {
+    "ball-valve": {
+      "preset": "esdv_ball",
+      "parts": {
+        "process-conn": "bolting_in", "body": "body", "ball": "ball", "seat": "seats", "stem": "stem",
+        "bracket": "bracket", "actuator": "actuator", "spring": "end_cap_r", "solenoid": "solenoid",
+        "limit-switch": "positioner", "pst": "positioner", "support": null
+      }
+    },
+    "globe-valve": {
+      "preset": "cv_globe",
+      "parts": {
+        "process-conn": "bolting_in", "body": "body", "trim": "plug", "seat": "seat_ring", "bonnet": "bonnet",
+        "stem": "stem", "yoke": "yoke", "actuator": "upper_casing", "positioner": "positioner"
+      }
+    },
+    "butterfly-valve": {
+      "preset": "cv_bfv",
+      "parts": {
+        "process-conn": "mating_flanges", "body": "body", "disc": "disc", "shaft": "shaft_upper",
+        "actuator": "actuator", "positioner": "positioner"
+      }
+    },
+    "psv": {
+      "preset": "psv",
+      "parts": {
+        "process-conn": "bolting_in", "body": "body", "nozzle": "nozzle", "disc": "disc", "bonnet": "bonnet",
+        "spring": "spring", "stem": "spindle", "cap": "cap", "lever": "cap"
+      }
+    },
+    "transmitter": {
+      "preset": "hook_pt",
+      "approx": true,
+      "parts": {
+        "housing": "transmitter", "cover": "transmitter", "display": "transmitter", "sensor": "transmitter",
+        "flange": "transmitter", "manifold": "manifold", "process-conn": "root_valve0", "conduit": "transmitter"
+      }
+    },
+    "dcs": {
+      "preset": "cabinet",
+      "approx": true,
+      "parts": {
+        "cabinet": "frame", "controller": "modules", "io": "modules", "psu": "modules", "network": "din_rails",
+        "terminal": "din_rails", "hmi": null
+      }
+    },
+    "ips": {
+      "preset": "cabinet",
+      "approx": true,
+      "parts": {
+        "cabinet": "frame", "controller": "modules", "io": "modules", "psu": "modules", "network": "din_rails",
+        "bypass-panel": "doors", "esd-pb": "doors"
+      }
+    }
+  }
+}

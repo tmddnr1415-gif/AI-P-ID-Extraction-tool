@@ -175,13 +175,41 @@ for (const f of FOLDERS) {
   KB[f] = rows;
 }
 
+/* ---------------- LLM 답변 엔진용 원문(Item 문서) + ic-expert 보조 지식베이스 ---------------- */
+const RAW = {};
+for (const f of FOLDERS) {
+  const dir = join(SPEC, f); if (!existsSync(dir)) continue;
+  const kf = readdirSync(dir).find((n) => n.endsWith("_Knowledge.md"));
+  const sf = readdirSync(dir).find((n) => n.endsWith("_Integration_Spec.md"));
+  RAW[f] = { kfile: kf || null, sfile: sf || null,
+    knowledge: kf ? readFileSync(join(dir, kf), "utf8") : "", spec: sf ? readFileSync(join(dir, sf), "utf8") : "" };
+}
+// 국제 코드 + 아이템별 선정 파일만(모든 질의 공통, 캐시). 발주처·벤더 파일은 필요하면 EXPERT_FILES 에 추가.
+const EXPERT_DIR = join(ROOT, "ic-expert", "knowledge");
+const EXPERT_FILES = ["01-international-codes.md", "06-instrument-items-selection.md"];
+const EXPERT = existsSync(EXPERT_DIR) ? EXPERT_FILES.filter((n) => existsSync(join(EXPERT_DIR, n)))
+  .map((n) => ({ file: n, text: readFileSync(join(EXPERT_DIR, n), "utf8") })) : [];
+const safeJson = (o) => JSON.stringify(o).split("</").join("<\\/");
+const llmSrc = readFileSync(join(HERE, "llm.js"), "utf8")
+  .replace("/*__RAW__*/null", () => safeJson(RAW))
+  .replace("/*__EXPERT__*/null", () => safeJson(EXPERT));
+
+/* ---------------- 실물 3D 엔진(ic-3d-builder) 복사 + 부품 매핑 ---------------- */
+const REAL = join(ROOT, "ic-3d-builder", "index.html");
+if (existsSync(REAL)) writeFileSync(join(HERE, "viewer-real.html"), readFileSync(REAL));
+const MAP3D_FILE = join(ROOT, "data", "parts", "Map_3d.json");
+const MAP3D = existsSync(MAP3D_FILE) ? readFileSync(MAP3D_FILE, "utf8") : "null";
+
 const template = readFileSync(join(HERE, "template.html"), "utf8");
 const html = template
   .replace("/*__ISO_CSS__*/", k.ISO_CSS)
   .replace("<!--__FIGURE__-->", svg)
+  .replace("/*__MAP3D__*/null", () => MAP3D)
+  .replace("/*__LLM__*/", () => llmSrc)
   .replace("/*__APP__*/", () => readFileSync(join(HERE, "app.js"), "utf8"))
   .replace("/*__SPECS__*/null", () => JSON.stringify(specs))
   .replace("/*__KB__*/null", () => JSON.stringify(KB).split("</").join("<\\/"))
   .replace("/*__V3D__*/", () => readFileSync(join(HERE, "viewer3d.js"), "utf8") + ";" + readFileSync(join(HERE, "sims.js"), "utf8"))
 writeFileSync(join(HERE, "index.html"), html);
+console.log("real 3D:", existsSync(REAL) ? "app/viewer-real.html" : "없음(ic-3d-builder 미발견)", "· LLM KB:", EXPERT.map((e) => e.file).join(", ") || "없음");
 console.log("wrote app/index.html", Object.keys(specs).length, "specs, svg", svg.length, "KB", Object.entries(KB).map(([k, v]) => k + ":" + v.filter((r) => r.k === "kb").length + "/" + v.length).join(" "));

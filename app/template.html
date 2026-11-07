@@ -105,7 +105,10 @@ th{color:var(--mute);font-weight:600}
 .m ul.srcl{margin:2px 0;padding-left:18px;font-size:12px;color:var(--sub)}.m ul.srcl a{color:var(--blue2)}
 .m .tagrow{font-size:12px;color:var(--sub);margin:6px 0}.m .tagrow .tag:first-of-type{margin-left:4px}
 .m .next{margin-top:10px;font-size:12px;color:var(--sub)}.m .next .chip{margin-left:6px}.m .src a{color:var(--blue2)}
-#v3wrap{position:relative;height:430px;border:1px solid var(--line);border-radius:10px;overflow:hidden;background:#fff}
+#plist .tag.on{background:var(--blue);color:#fff;border-color:var(--blue)}
+#v3mode{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden}#v3mode button{border:0;background:transparent;padding:4px 10px;font:inherit;font-size:12.5px;cursor:pointer;color:var(--sub)}#v3mode button.on{background:var(--blue);color:#fff}
+#v3real{position:absolute;inset:0;width:100%;height:100%;border:0;display:block;background:#fff}#v3note{font-size:11.5px;color:var(--sub);margin:4px 0 0}
+#v3wrap.real{height:560px}#v3wrap{position:relative;height:430px;border:1px solid var(--line);border-radius:10px;overflow:hidden;background:#fff}
 #v3{width:100%;height:100%;display:block;touch-action:none;cursor:grab}#v3:active{cursor:grabbing}
 #v3tip{position:absolute;pointer-events:none;background:#1428A0;color:#fff;font-size:12px;padding:3px 8px;border-radius:5px;display:none;white-space:nowrap}
 #v3bar{display:flex;gap:6px;align-items:center;margin:8px 0;flex-wrap:wrap}#v3bar select{font:inherit;padding:5px 8px;border:1px solid var(--line);border-radius:7px}
@@ -142,7 +145,8 @@ th{color:var(--mute);font-weight:600}
   <span class="sp"></span>
   <button id="theme" class="btn" style="margin:0;padding:4px 11px;font-size:12.5px" title="밝은/어두운 화면 전환">🌙 어두운 화면</button>
   <span class="badge w">안전 계통: 초안, 담당자 확인 필수</span>
-  <span class="badge">지식: 웹 조사 Q&amp;A + Item Spec · 로컬 검색형 답변</span>
+  <button id="llm-btn" class="btn" style="margin:0;padding:4px 11px;font-size:12.5px" title="클릭: 로컬 검색형 ↔ Claude(LLM) 전환 · 우클릭: 저장된 API Key 삭제">답변 엔진: 로컬 검색</button>
+  <span class="badge">지식: 웹 조사 Q&amp;A + Item Spec + ic-expert 지식베이스</span>
 </header>
 
 <div id="prog">
@@ -178,8 +182,9 @@ th{color:var(--mute);font-weight:600}
     </div>
     <div class="pane" id="anap">
       <div id="v3t"></div>
-      <div id="v3bar"><select id="v3sel"></select><button class="btn" id="v3auto">자동회전 ON</button><button class="btn" id="v3x">투시(X-ray)</button><button class="btn" id="v3zi">＋</button><button class="btn" id="v3zo">－</button><button class="btn" id="v3r">리셋</button></div>
-      <div id="v3wrap"><canvas id="v3"></canvas><div id="v3tip"></div></div>
+      <div id="v3bar"><span id="v3mode" role="group" aria-label="3D 표시 방식"><button id="v3m-c" class="on" title="개념 모델 + 시뮬레이션 (Canvas)">개념·시뮬레이션</button><button id="v3m-r" title="실물 3D (파라메트릭, 사이즈·등급 연동, 휠로 분해)">실물 3D</button></span><select id="v3sel"></select><button class="btn" id="v3auto">자동회전 ON</button><button class="btn" id="v3x">투시(X-ray)</button><button class="btn" id="v3zi">＋</button><button class="btn" id="v3zo">－</button><button class="btn" id="v3r">리셋</button></div>
+      <div id="v3wrap"><canvas id="v3"></canvas><div id="v3tip"></div><iframe id="v3real" title="실물 3D (ic-3d-builder)" hidden></iframe></div>
+      <div id="v3note" hidden></div>
       <div id="simbox"></div>
       <div class="plist" id="plist"></div>
       <div class="note">드래그=회전 · 휠=확대/축소 · 우클릭/Shift 드래그=이동 · 더블클릭=리셋 · 부품 클릭/태그 클릭=점멸. 자체 생성 개념 모델이며 제조사 도면이 아님, 치수 <b>미확인</b>(data/dim, data/parts 참조).</div>
@@ -197,5 +202,7 @@ th{color:var(--mute);font-weight:600}
 </main>
 
 <script>/*__V3D__*/</script>
-<script>/*__APP__*/</script>
+<script>const MAP3D = /*__MAP3D__*/null;
+/*__LLM__*/
+/*__APP__*/</script>
 </body></html>

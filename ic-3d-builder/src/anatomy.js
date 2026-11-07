@@ -1351,6 +1351,7 @@ const Anatomy = (() => {
     { id: 'cv_globe', label: 'Control valve — Globe (spring & diaphragm)', type: 'valve', set: { body: 'globe', operator: 'pneumatic_diaphragm', service: 'control' } },
     { id: 'cv_ball', label: 'Control valve — Ball (pneumatic rotary)', type: 'valve', set: { body: 'ball', operator: 'pneumatic_rotary', service: 'control', nps: 4 } },
     { id: 'cv_bfv', label: 'Control valve — Butterfly (pneumatic rotary)', type: 'valve', set: { body: 'butterfly', operator: 'pneumatic_rotary', service: 'control', nps: 8 } },
+    { id: 'esdv_ball', label: 'ESD valve (ESDV/SDV) — Ball, spring-return, SOV, limit switch', type: 'valve', set: { body: 'ball', operator: 'pneumatic_rotary', service: 'on_off', nps: 6, cls: '300', positioner: true } },
     { id: 'mov_gate', label: 'MOV — Gate', type: 'valve', set: { body: 'gate', operator: 'electric', service: 'on_off', nps: 6 } },
     { id: 'mov_globe', label: 'MOV — Globe', type: 'valve', set: { body: 'globe', operator: 'electric', service: 'on_off', nps: 4 } },
     { id: 'mov_ball', label: 'MOV — Ball', type: 'valve', set: { body: 'ball', operator: 'electric', service: 'on_off', nps: 6 } },

@@ -152,6 +152,9 @@
 
   function selectPart(id, fromList, quiet) {
     S.selected = id;
+    if (id && !quiet && document.body.classList.contains('embed') && window.parent !== window) {
+      try { window.parent.postMessage({ type: 'ic3d-pick', part: id, preset: S.presetId }, '*'); } catch { /* host gone */ }
+    }
     if (window.THREE) Viewer.select(id);
     for (const tr of $('bom').querySelectorAll('tbody tr')) tr.classList.toggle('sel', tr.dataset.id === id);
     if (!id) { hideInfo(); return; }
@@ -391,6 +394,31 @@
   }
 
   initPresets(); initFiles(); initToolbar(); initSettings(); initViewer();
+  // ───────── embed mode: driven by a host page (I&C dashboard) via URL hash + postMessage ─────────
+  //   #embed&preset=esdv_ball      → compact layout (viewport only) on that preset
+  //   postMessage {type:'ic3d', cmd:'preset', id}          → switch preset
+  //   postMessage {type:'ic3d', cmd:'highlight', part}     → select + explode to show + pulse
+  //   postMessage {type:'ic3d', cmd:'explode', k} / {cmd:'view', name}
+  //   posts back {type:'ic3d-ready'} and {type:'ic3d-pick', part}
+  const hash = new URLSearchParams(location.hash.slice(1));
+  const embedded = hash.has('embed');
+  if (embedded) {
+    document.body.classList.add('embed');
+    const pr = hash.get('preset'); if (pr && Anatomy.PRESETS.some((p) => p.id === pr)) S.presetId = pr;
+    $('preset').value = S.presetId;
+  }
   applyPreset(S.presetId, true);
+  const post = (m) => { try { if (window.parent !== window) window.parent.postMessage(m, '*'); } catch { /* cross-origin host */ } };
+  window.addEventListener('message', (e) => {
+    const m = e.data; if (!m || m.type !== 'ic3d') return;
+    if (m.cmd === 'preset' && Anatomy.PRESETS.some((p) => p.id === m.id)) {
+      if (m.id !== S.presetId) { $('preset').value = m.id; applyPreset(m.id, true); }
+    } else if (m.cmd === 'highlight' && m.part && S.model.parts.some((p) => p.id === m.part)) {
+      selectPart(m.part, true);
+      if (window.THREE) { const el = document.getElementById('viewport'); el.classList.remove('pulse'); void el.offsetWidth; el.classList.add('pulse'); }
+    } else if (m.cmd === 'explode' && window.THREE) { Viewer.setExplode(+m.k || 0); $('explode').value = +m.k || 0; }
+    else if (m.cmd === 'view' && window.THREE) Viewer.setView(m.name);
+  });
+  post({ type: 'ic3d-ready', presets: Anatomy.PRESETS.map((p) => p.id) });
   window.IC3D = { S, loadSpec, specJSON, rebuild, selectPart };   // automation / debugging
 })();

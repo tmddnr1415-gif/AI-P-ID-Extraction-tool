@@ -16,3 +16,4 @@ skills:
 1. Item·Type, 부품 목록(`Parts_{ITEM}_{Type}.json`), 치수(`Dim_*.json`) 확인. 없으면 '미확인' 보고 후 일반 부품 id 초안 사용 여부를 오케스트레이터에 문의.
 2. `Skill` 도구로 `anatomy` 호출, 부품별 `data-part` 부여, 태그 클릭→점멸 구현.
 3. 출처 없는 치수는 표시하지 않거나 '미확인', 제조사 도면 복제 금지.
+4. 실물 3D 가 필요하면 `ic-3d-builder`(스킬 `ic-ga-to-3d`)를 쓴다: 프리셋·부품 매핑은 `data/parts/Map_3d.json`, 치수는 도면값만 'drawing' 으로 넣고 나머지는 엔진의 standard/estimate 배지를 그대로 보고한다.

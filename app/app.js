@@ -191,6 +191,13 @@ async function handle(q){
     if(fin)finAnswer(tid,q);
     for(const a of items){
       const r=mr&&!/검토|유의|기준|왜|어떻게/.test(q)?{html:`<div class="who">${esc(a.n)} 에이전트</div>${a.s?'<span class="gate">⚠ 초안, 담당자 확인 필수</span>':""}<p><b>${esc(a.n)} MR 초안</b>을 이 프로그램의 Item별 MR 포맷으로 준비했어요. 오른쪽 <b>MR 미리보기</b> 탭에서 Word(.docx)를 내려받을 수 있습니다. 값은 Datasheet 대조 전이라 노란색 <b>미확인</b>으로 표시되고, 승인란은 비워 두었습니다.</p>`}:compose(a,q,tid==="orch"?"":"direct");
+      if(LLM.on()&&!(mr&&!/검토|유의|기준|왜|어떻게/.test(q))){
+        // Claude(LLM) 답변: 같은 규칙(근거 순위·미확인·간결 형식·안전 게이트·part 태그)으로 스트리밍
+        const d=addMsg(tid,LLM.shell(a,tid==="orch"),"a");
+        const d2=tid==="orch"?addMsg(a.id,`<div class="src">오케스트레이터 경유 질의: “${esc(q)}”</div>`+LLM.shell(a,true),"a"):null;
+        LLM.answer(a,q,d.querySelector(".llm-body"),(t)=>{bindTags(d);if(d2){d2.querySelector(".llm-body").innerHTML=d.querySelector(".llm-body").innerHTML;bindTags(d2)}logLine(`LLM A[${a.n}]: ${t.length}자`)});
+        continue;
+      }
       addMsg(tid,r.html,"a");
       if(tid==="orch")addMsg(a.id,`<div class="src">오케스트레이터 경유 질의: “${esc(q)}”</div>`+r.html,"a");
     }
@@ -200,7 +207,7 @@ async function handle(q){
   }});
   await runPlan(steps);done();
 }
-function bindTags(root){root.querySelectorAll(".tag").forEach(t=>t.onclick=()=>{if(t.dataset.i){showModel(t.dataset.i,true);setTimeout(()=>V.blink(t.dataset.p),60)}});root.querySelectorAll(".chip.ask").forEach(c=>c.onclick=()=>handle(c.textContent))}
+function bindTags(root){root.querySelectorAll(".tag").forEach(t=>t.onclick=()=>{if(t.dataset.i){showModel(t.dataset.i,true);setTimeout(()=>{if(R3.on&&R3.item===t.dataset.i)r3highlight(t.dataset.i,t.dataset.p);else V.blink(t.dataset.p)},60)}});root.querySelectorAll(".chip.ask").forEach(c=>c.onclick=()=>handle(c.textContent))}
 function selTab(id){document.querySelectorAll(".tab").forEach(t=>t.classList.toggle("on",t.dataset.t===id));document.querySelectorAll(".pane").forEach(p=>p.classList.toggle("on",p.id===id));if(id==="anap")setTimeout(()=>V.kick(),30)}
 document.querySelectorAll(".tab").forEach(t=>t.onclick=()=>selTab(t.dataset.t));
 function fillMR(items,safety){
@@ -297,3 +304,41 @@ $("#finframe").addEventListener("load",()=>{try{$("#finframe").contentDocument.d
 let t0="light";try{t0=localStorage.getItem("ic-theme")||(matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light")}catch(e){}
 $("#f").onsubmit=e=>{e.preventDefault();const q=$("#q").value.trim();if(!q)return;$("#q").value="";handle(q)};
 buildOrg();showModel("ball-valve");select("orch");paint();selTab("orgp");applyTheme(t0);
+
+/* ---- 실물 3D 모드 (ic-3d-builder 파라메트릭 엔진 연동) ----
+   개념 모델(Canvas)과 같은 자리에서 전환. 매핑은 data/parts/Map_3d.json 만 사용(ic-anatomy-link 규칙).
+   실물 3D: 사이즈·등급 연동 치수, 휠로 분해, 부품 설명·재질·치수 카드, 컷어웨이. */
+const R3={on:false,ready:false,item:null,queue:[]};
+const r3frame=$("#v3real");
+function r3post(m){if(R3.ready)r3frame.contentWindow.postMessage(Object.assign({type:"ic3d"},m),"*");else R3.queue.push(m)}
+const r3map=id=>MAP3D&&MAP3D.items&&MAP3D.items[id];
+function r3show(id){
+  const mp=r3map(id);const note=$("#v3note");
+  if(!mp){note.hidden=false;note.textContent="이 Item 은 아직 실물 3D 모델이 없어 개념 모델로 표시합니다.";setMode(false,true);return false}
+  note.hidden=!mp.approx;note.textContent=mp.approx?"실물 3D 는 대표 형상으로 근사합니다(부품 매핑 approx) · 치수 출처 배지를 확인하세요.":"";
+  if(!r3frame.getAttribute("src")){R3.ready=false;r3frame.src="viewer-real.html#embed&preset="+encodeURIComponent(mp.preset)}
+  else r3post({cmd:"preset",id:mp.preset});
+  R3.item=id;return true;
+}
+function r3highlight(id,p){const mp=r3map(id);const q=mp&&mp.parts[p];if(q)r3post({cmd:"highlight",part:q});else V.blink(p)}
+function setMode(real,keepNote){
+  R3.on=real;$("#v3m-c").classList.toggle("on",!real);$("#v3m-r").classList.toggle("on",real);
+  ["#v3auto","#v3x","#v3zi","#v3zo","#v3r"].forEach(k=>{$(k).style.display=real?"none":""});
+  $("#v3").style.visibility=real?"hidden":"";r3frame.hidden=!real;$("#v3wrap").classList.toggle("real",real);$("#simbox").style.display=real?"none":"";
+  if(!keepNote&&!real)$("#v3note").hidden=true;
+  try{localStorage.setItem("ic-v3mode",real?"r":"c")}catch(e){}
+  if(!real&&V.model)$("#v3x").style.display=V.model.shell.length?"":"none";
+  if(real&&V.model)r3show(V.model.id);else V.kick();
+}
+window.addEventListener("message",e=>{const m=e.data;if(!m||e.source!==r3frame.contentWindow)return;
+  if(m.type==="ic3d-ready"){R3.ready=true;R3.queue.splice(0).forEach(r3post)}
+  if(m.type==="ic3d-pick"&&R3.item){const mp=r3map(R3.item);const hit=mp&&Object.entries(mp.parts).find(([,v])=>v===m.part);
+    document.querySelectorAll("#plist .tag").forEach(t=>t.classList.toggle("on",!!hit&&t.dataset.p===hit[0]));if(hit)logLine("3D pick "+R3.item+": "+hit[0])}});
+{const _show=showModel;showModel=function(id,open){_show(id,open);if(R3.on)r3show(id)}}
+$("#v3m-c").onclick=()=>setMode(false);$("#v3m-r").onclick=()=>setMode(true);
+{let m0="r";try{m0=localStorage.getItem("ic-v3mode")||"r"}catch(e){}if(m0==="r")setTimeout(()=>{if(V.model&&r3map(V.model.id))setMode(true)},0)}
+
+/* ---- 답변 엔진 전환: 로컬 검색형 ↔ Claude(LLM) ---- */
+{const b=$("#llm-btn");const paint=()=>{const on=LLM.on();b.textContent=on?"답변 엔진: Claude(LLM)":"답변 엔진: 로컬 검색";b.classList.toggle("p",on)};
+  b.onclick=()=>{LLM.setup();paint();logLine("답변 엔진 → "+(LLM.on()?"Claude(LLM)":"로컬 검색"))};
+  b.oncontextmenu=e=>{e.preventDefault();if(confirm("저장된 API Key 를 이 브라우저에서 지울까요?")){LLM.forgetKey();paint()}};paint()}

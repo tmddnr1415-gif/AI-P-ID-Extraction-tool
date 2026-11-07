@@ -153,6 +153,20 @@ table.bom .sw { display: inline-block; width: 9px; height: 9px; border-radius: 2
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .viewport.real { background: radial-gradient(ellipse at 50% 38%, #3a3f46 0%, #24282d 60%, #15181b 100%); } }
 :root[data-theme="dark"] .viewport.real { background: radial-gradient(ellipse at 50% 38%, #3a3f46 0%, #24282d 60%, #15181b 100%); }
 
+/* embedded in a host dashboard: viewport + toolbar only */
+body.embed .top, body.embed .panel.left, body.embed .bottom { display: none !important; }
+body.embed .layout { grid-template-columns: 1fr; height: 100%; }
+body.embed .stage { grid-template-rows: auto 1fr; }
+body.embed .toolbar { padding: 4px 8px; gap: 6px; }
+body.embed .toolbar .seg:last-child { display: none; }
+body.embed .toolbar label:has(#opt-labels), body.embed .toolbar label:has(#opt-dims), body.embed .toolbar label:has(#opt-edges),
+body.embed .toolbar label:has(#opt-style), body.embed .toolbar label:has(#opt-auto) { display: none; }
+body.embed .toolbar .seg button { padding: 4px 7px; }
+body.embed .toolbar input[type=range] { width: 90px; }
+body.embed .info { width: min(300px, calc(100% - 24px)); }
+#viewport.pulse::after { content: ''; position: absolute; inset: 0; pointer-events: none; box-shadow: inset 0 0 0 3px var(--accent); animation: ic3dpulse 1.6s ease-out 1 forwards; z-index: 5; }
+@keyframes ic3dpulse { 0% { opacity: 1; } 100% { opacity: 0; } }
+
 </style>
 </head>
 <body>
@@ -1709,6 +1723,7 @@ const Anatomy = (() => {
     { id: 'cv_globe', label: 'Control valve — Globe (spring & diaphragm)', type: 'valve', set: { body: 'globe', operator: 'pneumatic_diaphragm', service: 'control' } },
     { id: 'cv_ball', label: 'Control valve — Ball (pneumatic rotary)', type: 'valve', set: { body: 'ball', operator: 'pneumatic_rotary', service: 'control', nps: 4 } },
     { id: 'cv_bfv', label: 'Control valve — Butterfly (pneumatic rotary)', type: 'valve', set: { body: 'butterfly', operator: 'pneumatic_rotary', service: 'control', nps: 8 } },
+    { id: 'esdv_ball', label: 'ESD valve (ESDV/SDV) — Ball, spring-return, SOV, limit switch', type: 'valve', set: { body: 'ball', operator: 'pneumatic_rotary', service: 'on_off', nps: 6, cls: '300', positioner: true } },
     { id: 'mov_gate', label: 'MOV — Gate', type: 'valve', set: { body: 'gate', operator: 'electric', service: 'on_off', nps: 6 } },
     { id: 'mov_globe', label: 'MOV — Globe', type: 'valve', set: { body: 'globe', operator: 'electric', service: 'on_off', nps: 4 } },
     { id: 'mov_ball', label: 'MOV — Ball', type: 'valve', set: { body: 'ball', operator: 'electric', service: 'on_off', nps: 6 } },
@@ -3100,6 +3115,9 @@ const Extract = (() => {
 
   function selectPart(id, fromList, quiet) {
     S.selected = id;
+    if (id && !quiet && document.body.classList.contains('embed') && window.parent !== window) {
+      try { window.parent.postMessage({ type: 'ic3d-pick', part: id, preset: S.presetId }, '*'); } catch { /* host gone */ }
+    }
     if (window.THREE) Viewer.select(id);
     for (const tr of $('bom').querySelectorAll('tbody tr')) tr.classList.toggle('sel', tr.dataset.id === id);
     if (!id) { hideInfo(); return; }
@@ -3339,7 +3357,32 @@ const Extract = (() => {
   }
 
   initPresets(); initFiles(); initToolbar(); initSettings(); initViewer();
+  // ───────── embed mode: driven by a host page (I&C dashboard) via URL hash + postMessage ─────────
+  //   #embed&preset=esdv_ball      → compact layout (viewport only) on that preset
+  //   postMessage {type:'ic3d', cmd:'preset', id}          → switch preset
+  //   postMessage {type:'ic3d', cmd:'highlight', part}     → select + explode to show + pulse
+  //   postMessage {type:'ic3d', cmd:'explode', k} / {cmd:'view', name}
+  //   posts back {type:'ic3d-ready'} and {type:'ic3d-pick', part}
+  const hash = new URLSearchParams(location.hash.slice(1));
+  const embedded = hash.has('embed');
+  if (embedded) {
+    document.body.classList.add('embed');
+    const pr = hash.get('preset'); if (pr && Anatomy.PRESETS.some((p) => p.id === pr)) S.presetId = pr;
+    $('preset').value = S.presetId;
+  }
   applyPreset(S.presetId, true);
+  const post = (m) => { try { if (window.parent !== window) window.parent.postMessage(m, '*'); } catch { /* cross-origin host */ } };
+  window.addEventListener('message', (e) => {
+    const m = e.data; if (!m || m.type !== 'ic3d') return;
+    if (m.cmd === 'preset' && Anatomy.PRESETS.some((p) => p.id === m.id)) {
+      if (m.id !== S.presetId) { $('preset').value = m.id; applyPreset(m.id, true); }
+    } else if (m.cmd === 'highlight' && m.part && S.model.parts.some((p) => p.id === m.part)) {
+      selectPart(m.part, true);
+      if (window.THREE) { const el = document.getElementById('viewport'); el.classList.remove('pulse'); void el.offsetWidth; el.classList.add('pulse'); }
+    } else if (m.cmd === 'explode' && window.THREE) { Viewer.setExplode(+m.k || 0); $('explode').value = +m.k || 0; }
+    else if (m.cmd === 'view' && window.THREE) Viewer.setView(m.name);
+  });
+  post({ type: 'ic3d-ready', presets: Anatomy.PRESETS.map((p) => p.id) });
   window.IC3D = { S, loadSpec, specJSON, rebuild, selectPart };   // automation / debugging
 })();
 

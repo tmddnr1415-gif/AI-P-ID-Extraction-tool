@@ -20,5 +20,11 @@ description: 계측제어 답변의 문장에 part:* 부품 태그를 붙이고,
 4. 출력: `output/anatomy/{ITEM}_{Type}.html`.
 5. 치수 없는 값은 `미확인` 으로 표시, 제조사 도면 원본은 복제하지 않는다(링크만).
 
+## 2-1. 실물 3D (파라메트릭)
+- 밸브·PSV·Transmitter·System cabinet 은 `ic-3d-builder` 실물 3D 로도 보여준다(대시보드 Anatomy 탭 **실물 3D**).
+- 매핑은 `data/parts/Map_3d.json` 만 사용: `part:{개념 id}` → 실물 3D 프리셋·부품 id. 매핑에 없으면 개념 모델 점멸로 처리한다.
+- GA·치수도가 있으면 `ic-ga-to-3d` 스킬로 spec JSON(치수 출처: drawing/user/standard/estimate)을 만들고, 대시보드에서는 같은 엔진이 그 값을 쓴다.
+- 실물 3D 의 'standard'(표준 참고표)·'estimate'(비례 추정) 치수는 '미확인'과 같은 취급이다.
+
 ## 3. 연동 방식
 답변 태그 `part:x` → HTML 의 `data-part="x"` 요소를 점멸하는 `highlight(id)` 함수로 연결한다. 매핑은 JSON 표만 사용한다.
