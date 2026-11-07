@@ -1,6 +1,6 @@
 # 계장ENG그룹 설계 자동화 플랫폼 — 임원 런칭 영상 제작 가이드 (Higgsfield · Seedance)
 
-> 대상: 임원 보고 / 런칭 · 길이: **약 90초** (오프닝 8초 + 툴 7개 × 10초 + 클로징 10초)
+> 대상: 임원 보고 / 런칭 · 길이: **약 100초** (오프닝 8초 + 툴 7개 × 10초 + 비전 10초 + 클로징 10초)
 > 제작 도구: Higgsfield Agent — `model=seedance_2_5`, `mode=video` (이미지 → 영상)
 > 이 zip: `images/` (생성 입력 프레임 · 타이틀 오버레이 · 원본 UI 참고) + 이 문서
 
@@ -36,6 +36,7 @@ Higgsfield 는 **외부 서비스**입니다. 대시보드 운영 문서(`DASHBO
 | 5 | 도서검토 | 10s | `05_books/start_frame` → `end_frame` | 검색창 질문 → 근거 문장 · 책 페이지가 강조된 답변으로 이동 | `05_books/title_overlay` |
 | 6 | Datasheet | 10s | `06_datasheet/start_frame` → `end_frame` | 데이터시트 뷰어 → 검토 표의 강조 셀(19.6 barg)로 클로즈업 | `06_datasheet/title_overlay` |
 | 7 | 계측기 3D | 10s | `07_3d/start_frame` → `end_frame` | 컨트롤 밸브가 천천히 돌며 **부품 단위로 분해** (하이라이트 컷) | `07_3d/title_overlay` |
+| 7.5 | **비전 (지속 발전)** | 10s | `09_vision/start_frame` → `end_frame` | 7개 화면이 빛의 선으로 서로 이어지고, 연결망이 빛으로 수렴 | `09_vision/title_overlay` |
 | 8 | 클로징 | 10s | `08_closing/start_frame` → `end_frame` | 7개 화면 파노라마가 뒤로 물러나며 빛으로 수렴 → 로고 자리 | `08_closing/title_overlay` |
 
 **대체 컷(alt_frame_*)** — 10초가 단조로우면 툴마다 5초 × 2컷으로 나눠 쓰세요.
@@ -76,7 +77,8 @@ images/
 ├── 05_books/     start_frame · end_frame · title_overlay · reference_ui/
 ├── 06_datasheet/ start_frame · end_frame · alt_frame_dashboard · alt_frame_rev_compare · title_overlay · reference_ui/
 ├── 07_3d/        start_frame · end_frame · alt_frame_lineup · alt_frame_ui · title_overlay · reference_ui/ · cutouts_png/
-└── 08_closing/   start_frame · end_frame · title_overlay
+├── 08_closing/   start_frame · end_frame · title_overlay
+└── 09_vision/    start_frame · end_frame · title_overlay   (7번과 클로징 사이에 넣는 비전 컷)
 ```
 
 - `start_frame` / `end_frame` / `alt_frame_*` — **1920×1080 PNG, 생성 입력용.** 남색 스튜디오 배경 위 떠 있는 디스플레이 연출, 글자 없음.
@@ -159,6 +161,14 @@ slowly rotates, then separates into its components — actuator, yoke, bonnet, b
 floating apart in an exploded view, each part catching the light. Premium industrial product reveal.
 ```
 
+**09 비전 — 지속 발전 (10s)** · 7번(3D)과 클로징 사이
+```
+Seven floating software displays arranged in two rows. Thin glowing light lines begin to
+connect the displays to each other, forming a growing network; data pulses travel along the
+links. The camera slowly pulls back as the network brightens and gathers into a soft central
+glow, leaving clean dark space for the title. Hopeful, forward-looking mood.
+```
+
 **08 클로징 (10s)**
 ```
 A curved panorama of seven glowing software displays slowly recedes into the distance and
@@ -192,6 +202,7 @@ for the final title. Elegant, inspiring finish.
 | 5 | 부서의 기술 도서를 본문까지 찾습니다. 말하듯 물으면 어느 책 몇 쪽인지, 근거와 함께 답합니다. | 근거와 함께 답하는 검색 |
 | 6 | 밸브 데이터시트는 자동으로 검토됩니다. 리비전 변경, 공정 데이터, 배관 사양 적합성까지 — 사람은 확인이 필요한 곳만 봅니다. | Rev · Process · PMS |
 | 7 | GA 도면은 부품 단위 3D 모델이 됩니다. 컨트롤 밸브부터 MOV, PSV, 시스템 캐비닛까지 열여섯 품목. 배치와 간섭, 유지보수 공간을 미리 봅니다. | 16개 품목 · STL / OBJ |
+| 7.5 | 이 도구들은 쓸수록 정확해집니다. 사람이 검토한 내용은 규칙으로 쌓이고, 일곱 개의 도구는 하나의 데이터로 이어집니다. 반복 작업은 줄고, 품질은 높아지고, 개인의 노하우는 조직의 자산이 됩니다. | 쓸수록 더 정확해지는 플랫폼 |
 | 8 | 근거는 도면에, 판단은 사람에게. 계장ENG그룹 설계 자동화 플랫폼 — 도면에서 결정까지, 더 빠르게. | 도면에서 결정까지, 더 빠르게 |
 
 숫자 출처: P&ID "도면 58장 기준 5분 남짓"(프로그램 첫 화면 안내), Logic "50장 기준 약 40초~1분"(LOGIC 분석 안내) · "식별률 99.5%"(HRSG Logic 50장 실측 화면), 3D "16개 품목"(I&C 3D Builder 프리셋 수). 그 밖의 효과 수치는 넣지 않았습니다 — 임원 보고용 정량 효과(시간 절감 등)는 부서 실측치로 채워 넣으세요.
@@ -216,4 +227,50 @@ for the final title. Elegant, inspiring finish.
 - [ ] 컷별 2~3개 생성 후 UI 글자 일그러짐 적은 것 선택
 - [ ] 타이틀 오버레이 · 내레이션 · 음악 합성
 - [ ] 정량 효과 수치(시간 절감 등)는 부서 실측으로 확인 후 삽입
-- [ ] 최종본 길이 85~95초, 1080p
+- [ ] 최종본 길이 95~105초, 1080p
+
+---
+
+## 9. 지속 발전 시 기대 결과와 이점
+
+> 임원 보고용 요약 자료입니다. 영상 비전 컷(§1 7.5번)의 근거이며, 보고서·발표 자료에 그대로 옮겨 써도 됩니다.
+> 효과 수치는 **추정하지 않았습니다** — §9-4 의 지표로 실측해 채우는 것을 전제로 합니다.
+
+### 9-1. 왜 "쓸수록" 좋아지는가 — 구조적 이유
+
+| 이미 들어 있는 구조 | 지속 발전 시 결과 |
+|---|---|
+| 사람이 고친 값과 사유가 남고, 검토 지적이 **판독 규칙으로 누적**됨 (P&ID · Logic "가르치기", Datasheet Rule Performance) | 프로젝트를 거칠수록 자동 판정 범위가 넓어지고, 사람이 볼 곳이 줄어듦 |
+| 판정 규칙을 **그 도면의 범례 · NOTES 에서 런타임에 읽음** (외워 둔 상수를 줄여 가는 방식) | 새 프로젝트 · 새 발주처 양식에도 처음부터 적용 가능 — 확장 비용이 프로젝트마다 줄어듦 |
+| 모든 결과에 **도면 위 근거**가 행마다 남음 | 자동화 범위가 넓어져도 검증 가능성이 유지됨 — 품질 감사 · 클레임 대응 근거 |
+| 7개 도구가 **하나의 Dashboard · 같은 서버**에 있음 | 도구 간 데이터 연결(§9-2 중기)이 추가 인프라 없이 가능 |
+
+### 9-2. 단계별 발전 방향
+
+| 단계 | 내용 | 기대 결과 |
+|---|---|---|
+| **단기 — 정착** (현 단계) | 실 프로젝트 적용 확대 · 사람 검토 → 규칙 누적 · 프로젝트별 정확도 측정 | 툴별 처리 시간 단축 실측, 사용 부서원 · 프로젝트 확대 |
+| **중기 — 연결** | ① P&ID 계기 리스트 ↔ Datasheet 검토 태그 대조 ② Logic IO List ↔ P&ID 태그 교차 검증 ③ IO 수량 → 판넬 수 · ROOM SIZE 자동 산정 ④ Datasheet 치수 → 3D 모델 ⑤ 검토 근거 ↔ 도서검토 표준 · 매뉴얼 연결 | 도구 사이 **불일치를 자동 발견** — 문서 간 누락 · 오기가 설계 단계에서 걸러짐 |
+| **장기 — 플랫폼** | 프로젝트 이력 기반 지식 자산 · 입찰 물량 산출 자동화 · 신규 프로젝트 초기 설계 템플릿 · 타 그룹(배관 · 전기 등) 확장 | 입찰 대응 속도 · 정확도 향상, 설계 표준이 데이터로 축적 |
+
+### 9-3. 이점 (임원 관점)
+
+1. **시간 · 원가** — 도면 판독 · 리스트 작성 · 리비전 대조 같은 반복 업무가 자동화되어, 엔지니어가 판단 · 조율 같은 고부가 업무에 집중. 입찰 기간 내 물량 산출 · 검토 대응이 빨라짐.
+2. **품질 · 리스크** — Rev 변경, Process Data 불일치, PMS 부적합, 판넬 공간 부족을 **설계 단계에서 조기 발견** → 현장 재작업 · 설계 변경 · 클레임 위험 감소. 결과마다 근거가 남아 검증 · 감사가 쉬움.
+3. **지식 자산화** — 숙련자의 검토 노하우가 규칙 · 이력 · 도서 색인으로 남아 **개인이 아닌 조직의 역량**이 됨. 인력 이동 · 신입 온보딩 부담 감소.
+4. **표준화 · 일관성** — 같은 도면은 누가 돌려도 같은 결과(재분석 결과 동일성 보장). 프로젝트 · 담당자에 따른 품질 편차 축소.
+5. **가시성 · 협업** — 주간업무 · 프로젝트 현황 · 분석 결과가 한 Dashboard 에 모여 관리자가 진행 상황을 즉시 파악.
+6. **보안 · 통제** — 사내 서버에서 운영, P&ID 검출은 외부 AI 를 쓰지 않음 → 도면 데이터 외부 유출 없이 확장 가능.
+7. **확장성** — 범례 · 양식을 도면에서 읽는 구조라 새 발주처 · 새 프로젝트 · 다른 공종으로 넓힐 때 추가 비용이 작음.
+
+### 9-4. 성과 측정 지표 (제안)
+
+| 지표 | 측정 방법 |
+|---|---|
+| 툴별 처리 시간 (전 → 후) | 동일 도면 세트로 수작업 대비 소요 시간 비교 |
+| 사람 수정률 | 자동 결과 중 사람이 고친 칸 비율 — 프로젝트를 거치며 감소 추이 |
+| 조기 발견 건수 | Rev 변경 · 불일치 · 부적합 · 공간 부족을 설계 단계에서 잡은 건수 |
+| 재작업 · 설계 변경 건수 | 적용 프로젝트 vs 미적용 프로젝트 비교 |
+| 활용도 | 사용 부서원 수 · 적용 프로젝트 수 · 누적 규칙 수 |
+
+> 영상 내레이션(§5, 7.5번)은 위 내용을 15초 분량으로 줄인 것입니다. 실측치가 나오면 비전 컷 자막에 숫자 1~2개(예: "리스트 작성 시간 ○○% 단축")를 넣으면 임원 설득력이 크게 올라갑니다.
