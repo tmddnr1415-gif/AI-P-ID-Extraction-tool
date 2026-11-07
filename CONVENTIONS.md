@@ -67,6 +67,11 @@ Windows · Edge · Python 3.11 · CDN/npm/외부 서비스 금지 (라이브러�
 각 세션의 **최신 작업 현황 · 미리보기 · 다음 업데이트에 들어갈 것**과, **업데이트 파일 2개를 회사 PC 에 적용했을 때의 시연**을 같이 담는다.
 세션 상세의 "▶ 회사 PC 시연에서 보기" ↔ 시연의 "◎ 세션 지도에서 보기" 로 서로 오간다. 시연 그림은 `status/previews/demo/`.
 
+**프론트엔드만 (2026-11-07 사용자 결정)**
+- HTML 한 파일 · HTML/CSS/JS 뿐. 서버 · DB · 외부 호출 · CDN 없음. 더블클릭으로 열리고 회사망에서도 동작한다.
+- `status/template.html` 이 프론트엔드 원본 — 데이터 없이도 혼자 열린다(빈 지도). 오케스트레이터가 git · 세션 기록에서 읽은 데이터(`window.DATA · META · PV`)를 끼워 `SESSION_STATUS.html` 을 만든다 (`build_status.py` 는 오케스트레이터 도구일 뿐, 보는 쪽엔 필요 없음).
+- **다른 세션에는 아무 요구도 하지 않는다.** 세션은 기존대로 개발 · 커밋 · 푸시만 한다. 지도는 브랜치와 세션 기록에서 읽을 수 있는 것만 보여 주며, `.claude/agents` 가 있으면 읽고 없으면 역할 Agent 기준으로 그린다.
+
 - 만들기: `git fetch origin` → 세션 상태를 `status/sessions.json` 에 갱신(list_sessions) → `python status/build_status.py`
 - 숫자 · 커밋은 각 브랜치(git)에서 자동으로 읽는다: ① DASHBOARD 는 `delivered.txt` 마지막 줄 이후, ② 통합은 마지막 hotfix 꾸러미 · `release_sources.json` imported · PID 브랜치에 아직 없는 커밋
 - 미리보기는 `status/previews/<SID>_<n>.jpg` — 오케스트레이터가 최신 코드를 실제로 띄워 찍어 갈아 끼운다 (날짜 표시)

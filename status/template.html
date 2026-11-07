@@ -429,8 +429,11 @@ body.flat::after{content:"";position:fixed;inset:0;background:var(--bg);z-index:
 <div class="lb" id="lb"><img alt=""><span></span></div>
 <script>
 /*DATA*/
+/* 이 파일은 프론트엔드만으로 돈다 (서버 · DB · 외부 호출 없음). 데이터는 오케스트레이터가 위 자리에 window.DATA · window.META · window.PV 로 넣는다.
+   없으면 빈 지도(오케스트레이터만)로 열린다 — 프론트엔드 단독 확인용. */
 (function(){
 "use strict";
+const DATA=window.DATA||[],META=window.META||{built:"(데이터 없음 — 오케스트레이터가 넣음)",read_at:"",bucket:{}};
 const $=s=>document.querySelector(s),$$=s=>Array.from(document.querySelectorAll(s));
 const esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 const pvs=p=>(window.PV||{})[p.key]||"";
