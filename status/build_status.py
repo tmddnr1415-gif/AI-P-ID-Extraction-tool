@@ -107,6 +107,22 @@ BUCKET = {'WORKING': ('info', '작업 중'), 'BLOCKED': ('warn', '사용자 확�
           'COMPLETED': ('ok', '완료 · 대기'), 'FAILED': ('bad', '실패')}
 
 
+def agents(ref):
+    """브랜치에 정의된 실제 Agent · Skill (.claude/agents/*.md · .claude/skills/*/SKILL.md) — 이름 · 설명."""
+    out = []
+    for p in git('ls-tree', '-r', '--name-only', ref).splitlines():
+        m = re.search(r'(?:^|/)\.claude/(agents)/([^/]+)\.md$', p) or re.search(r'(?:^|/)\.claude/(skills)/([^/]+)/SKILL\.md$', p)
+        if not m:
+            continue
+        txt = show(ref, p)
+        fm = re.search(r'^---\n(.*?)\n---', txt, re.S)
+        fm = fm.group(1) if fm else ''
+        desc = first(r'^description:\s*"?(.+?)"?\s*$', fm) or first(r'^#\s*(.+)$', txt)
+        out.append(dict(kind='agent' if m.group(1) == 'agents' else 'skill', name=first(r'^name:\s*(.+)$', fm) or m.group(2),
+                        desc=desc[:400], path=p))
+    return out
+
+
 def img64(p):
     with open(p, 'rb') as f:
         return 'data:image/jpeg;base64,' + base64.b64encode(f.read()).decode()
@@ -121,7 +137,7 @@ def main():
         h, d = tip(g['branch'])
         s = st['sessions'].get(sid, {})
         pv = sorted(f for f in os.listdir(pv_dir) if f.startswith(sid + '_'))
-        data.append(dict(sid=sid, name=name, **g, tip=h, tipdate=d, recent=log(g['branch'], n=6),
+        data.append(dict(sid=sid, name=name, **g, tip=h, tipdate=d, recent=log(g['branch'], n=6), agents=agents(g['branch']),
                          state=s, previews=[dict(src=img64(os.path.join(pv_dir, f)), cap=CAPS.get(f[:-4], f),
                                                  date=datetime.date.fromtimestamp(os.path.getmtime(os.path.join(pv_dir, f))).isoformat()) for f in pv]))
     tpl = open(os.path.join(HERE, 'template.html'), encoding='utf-8').read()

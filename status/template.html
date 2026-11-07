@@ -3,116 +3,287 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>세션 현황판</title>
+<title>세션 지도</title>
 <style>
 :root{
-  --bg:#eef1f5; --panel:#fff; --panel2:#f6f8fb; --ink:#1b2430; --muted:#5d6b7c; --line:#d8dee7;
-  --accent:#1f4fd1; --accent-soft:#e3ebfc; --ok:#17864b; --ok-soft:#ddf3e6; --warn:#a86400; --warn-soft:#fdf0d9;
-  --bad:#c23434; --bad-soft:#fbe3e3; --shadow:0 1px 2px rgba(0,0,0,.06),0 4px 16px rgba(0,0,0,.06);
+  --bg:#0b0e13; --panel:#12161d; --panel2:#181d26; --ink:#e6ebf2; --muted:#8a96a8; --line:#262d39;
+  --accent:#7aa2ff; --ok:#4cc488; --warn:#f0b452; --bad:#ff7b7b; --chipbg:#1d2430; --edge:rgba(160,180,210,.13); --edge-hi:rgba(200,220,255,.55);
 }
-@media (prefers-color-scheme: dark){
-  :root:not([data-theme="light"]){
-    --bg:#11161d; --panel:#1a212b; --panel2:#151b23; --ink:#e4eaf2; --muted:#93a1b3; --line:#2b3542;
-    --accent:#7aa2ff; --accent-soft:#1d2c48; --ok:#4cc488; --ok-soft:#173326; --warn:#f0b452; --warn-soft:#3a2c12;
-    --bad:#ff7b7b; --bad-soft:#3d1c1c; --shadow:0 1px 2px rgba(0,0,0,.4),0 4px 16px rgba(0,0,0,.3);
-  }
-}
-:root[data-theme="dark"]{
-  --bg:#11161d; --panel:#1a212b; --panel2:#151b23; --ink:#e4eaf2; --muted:#93a1b3; --line:#2b3542;
-  --accent:#7aa2ff; --accent-soft:#1d2c48; --ok:#4cc488; --ok-soft:#173326; --warn:#f0b452; --warn-soft:#3a2c12;
-  --bad:#ff7b7b; --bad-soft:#3d1c1c; --shadow:0 1px 2px rgba(0,0,0,.4),0 4px 16px rgba(0,0,0,.3);
+:root[data-theme="light"]{
+  --bg:#f3f5f9; --panel:#ffffff; --panel2:#f6f8fb; --ink:#1b2430; --muted:#5d6b7c; --line:#d8dee7;
+  --accent:#1f4fd1; --ok:#17864b; --warn:#a86400; --bad:#c23434; --chipbg:#eef2f8; --edge:rgba(40,60,90,.14); --edge-hi:rgba(31,79,209,.6);
 }
 *{box-sizing:border-box}
-html,body{margin:0}
-body{background:var(--bg);color:var(--ink);font:14px/1.55 "Malgun Gothic","Apple SD Gothic Neo","Noto Sans KR",system-ui,sans-serif}
-button{font:inherit;color:inherit;cursor:pointer}
-.wrap{max-width:1240px;margin:0 auto;padding:20px 16px 48px}
-header{display:flex;flex-wrap:wrap;gap:10px;justify-content:space-between;align-items:flex-end;margin-bottom:14px}
-h1{margin:0;font-size:22px}
-.sub,.muted{color:var(--muted)}.small{font-size:12.5px}
-.mono{font-family:Consolas,"D2Coding",monospace;font-size:12px}
-.btn{border:1px solid var(--line);background:var(--panel);border-radius:8px;padding:6px 11px}
-.chip{display:inline-block;border-radius:999px;padding:1px 8px;font-size:11.5px;font-weight:600;white-space:nowrap}
-.chip.ok{background:var(--ok-soft);color:var(--ok)}.chip.warn{background:var(--warn-soft);color:var(--warn)}
-.chip.bad{background:var(--bad-soft);color:var(--bad)}.chip.info{background:var(--accent-soft);color:var(--accent)}
-.chip.gray{background:var(--panel2);color:var(--muted);border:1px solid var(--line)}
-.files{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px}
-.fcard{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px 14px;box-shadow:var(--shadow)}
-.fcard b{font-size:14px}.fcard .v{font-size:22px;font-weight:700;font-variant-numeric:tabular-nums}
-.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:10px;margin-bottom:18px}
-.card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px 14px;box-shadow:var(--shadow);text-align:left;width:100%}
+html,body{margin:0;height:100%}
+body{background:var(--bg);color:var(--ink);font:13.5px/1.5 "Malgun Gothic","Apple SD Gothic Neo","Noto Sans KR",system-ui,sans-serif;overflow:hidden}
+button,input{font:inherit;color:inherit}
+.app{display:grid;grid-template-rows:48px 1fr;height:100vh}
+.top{display:flex;align-items:center;gap:12px;padding:0 14px;border-bottom:1px solid var(--line);background:var(--panel);min-width:0}
+.top .logo{font-weight:700;font-size:15px;white-space:nowrap}
+.top .stats{color:var(--muted);font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1;min-width:0}
+.search{display:flex;align-items:center;gap:6px;background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:3px 8px}
+.search input{background:none;border:0;outline:0;width:150px}
+.seg{display:flex;background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:2px}
+.seg button{border:0;background:none;padding:3px 10px;border-radius:6px;cursor:pointer;color:var(--muted)}
+.seg button[aria-pressed="true"]{background:var(--chipbg);color:var(--ink);font-weight:600}
+.iconbtn{border:1px solid var(--line);background:var(--panel2);border-radius:8px;padding:3px 9px;cursor:pointer}
+.body{display:grid;grid-template-columns:250px 1fr auto;min-height:0}
+.left{border-right:1px solid var(--line);background:var(--panel);overflow:auto;padding:10px 8px}
+.left h4{margin:10px 8px 6px;font-size:11px;letter-spacing:.06em;color:var(--muted);font-weight:600}
+.item{display:flex;align-items:center;gap:8px;width:100%;border:0;background:none;text-align:left;padding:6px 8px;border-radius:7px;cursor:pointer}
+.item:hover{background:var(--panel2)}
+.item[aria-current="true"]{background:var(--chipbg)}
+.item .dot{width:10px;height:10px;border-radius:50%;flex:none}
+.item .nm{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.item .n{font-variant-numeric:tabular-nums;color:var(--muted);font-size:12px}
+.item .st{width:7px;height:7px;border-radius:50%;flex:none}
+.legend label{display:flex;align-items:center;gap:8px;padding:4px 8px;font-size:12.5px;cursor:pointer}
+.legend input{accent-color:var(--accent)}
+.shape{width:11px;height:11px;flex:none;display:inline-block}
+.center{position:relative;min-width:0;min-height:0}
+canvas{position:absolute;inset:0;width:100%;height:100%;cursor:grab;touch-action:none}
+canvas.dragging{cursor:grabbing}
+.tip{position:absolute;pointer-events:none;background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:7px 10px;font-size:12px;max-width:300px;box-shadow:0 6px 24px rgba(0,0,0,.35);display:none;z-index:3}
+.tip b{display:block;font-size:12.5px}
+.hint{position:absolute;left:12px;bottom:10px;font-size:11.5px;color:var(--muted);background:var(--panel);border:1px solid var(--line);border-radius:7px;padding:4px 8px}
+.listview{position:absolute;inset:0;overflow:auto;padding:14px;display:none}
+.listview.on{display:block}
+.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:10px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px;cursor:pointer;text-align:left}
 .card:hover{border-color:var(--accent)}
-.card .top{display:flex;justify-content:space-between;gap:8px;align-items:center}
-.card .nm{font-weight:700}
-.card .ver{font-size:12.5px;color:var(--muted);margin:2px 0 6px}
-.card .needs{background:var(--warn-soft);border-radius:8px;padding:6px 8px;font-size:12.5px;margin-top:6px}
-.card .cnt{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}
-.thumb{display:block;width:100%;height:120px;object-fit:cover;object-position:top;border-radius:8px;border:1px solid var(--line);margin-top:8px;background:var(--panel2)}
-.detail{background:var(--panel);border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow);padding:16px;margin-bottom:14px}
-.detail h2{margin:0;font-size:18px}
-.cols{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:12px}
-.box{border:1px solid var(--line);border-radius:10px;padding:10px 12px;background:var(--panel2)}
-.box h3{margin:0 0 6px;font-size:13.5px}
-.clist{list-style:none;margin:0;padding:0;max-height:300px;overflow:auto}
-.clist li{display:grid;grid-template-columns:70px 84px 1fr;gap:6px;padding:4px 0;border-bottom:1px solid var(--line);font-size:12.5px}
+.card img{width:100%;height:120px;object-fit:cover;object-position:top;border-radius:8px;margin-top:8px;border:1px solid var(--line)}
+.right{width:400px;border-left:1px solid var(--line);background:var(--panel);overflow:auto;display:none;position:relative}
+.right.on{display:block}
+.right .in{padding:14px 16px 24px}
+.close{position:absolute;top:10px;right:10px;border:1px solid var(--line);background:var(--panel2);border-radius:7px;width:28px;height:28px;cursor:pointer}
+.kind{display:inline-block;border:1px solid var(--line);border-radius:999px;padding:0 9px;font-size:11.5px;color:var(--muted)}
+.right h2{margin:6px 0 2px;font-size:18px;padding-right:30px}
+.chip{display:inline-block;border-radius:999px;padding:1px 8px;font-size:11.5px;font-weight:600;white-space:nowrap;background:var(--chipbg)}
+.chip.ok{color:var(--ok)}.chip.warn{color:var(--warn)}.chip.bad{color:var(--bad)}.chip.info{color:var(--accent)}
+.path{font-family:Consolas,"D2Coding",monospace;font-size:12px;background:var(--panel2);border:1px solid var(--line);border-radius:7px;padding:7px 9px;margin:8px 0;word-break:break-all}
+dl{display:grid;grid-template-columns:auto 1fr;gap:3px 10px;margin:8px 0;font-size:12.5px}dt{color:var(--muted)}dd{margin:0}
+.needs{border:1px solid color-mix(in srgb,var(--warn) 40%,transparent);color:var(--warn);border-radius:8px;padding:7px 9px;font-size:12.5px;margin:8px 0}
+.sec{margin-top:14px}
+.sec h3{font-size:12.5px;color:var(--muted);margin:0 0 6px;font-weight:600}
+.clist{list-style:none;margin:0;padding:0;border:1px solid var(--line);border-radius:8px;max-height:260px;overflow:auto}
+.clist li{display:grid;grid-template-columns:66px 1fr;gap:6px;padding:5px 8px;border-bottom:1px solid var(--line);font-size:12.5px;cursor:pointer}
+.clist li:hover{background:var(--panel2)}
 .clist li:last-child{border-bottom:0}
-.pv{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px;margin-top:12px}
-.pv figure{margin:0;border:1px solid var(--line);border-radius:10px;overflow:hidden;background:var(--panel2)}
-.pv img{display:block;width:100%;height:150px;object-fit:cover;object-position:top;cursor:zoom-in}
-.pv figcaption{font-size:12px;padding:6px 8px;display:flex;justify-content:space-between;gap:6px}
-.lb{position:fixed;inset:0;background:rgba(5,8,14,.86);display:none;align-items:center;justify-content:center;z-index:20;padding:16px;cursor:zoom-out}
-.lb.on{display:flex}.lb img{max-width:100%;max-height:100%;border-radius:6px;background:#fff}
-dl{display:grid;grid-template-columns:auto 1fr;gap:3px 10px;margin:8px 0 0;font-size:12.5px}dt{color:var(--muted)}dd{margin:0}
-.foot{color:var(--muted);font-size:12px;margin-top:16px}
-@media (max-width:760px){.files,.cols{grid-template-columns:1fr}.clist li{grid-template-columns:64px 1fr}.clist li .d{display:none}}
+.clist .h{font-family:Consolas,monospace;font-size:11.5px;color:var(--muted)}
+.pv{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.pv figure{margin:0;border:1px solid var(--line);border-radius:8px;overflow:hidden;background:var(--panel2)}
+.pv img{display:block;width:100%;height:110px;object-fit:cover;object-position:top;cursor:zoom-in}
+.pv figcaption{font-size:11.5px;padding:4px 6px;color:var(--muted)}
+.lb{position:fixed;inset:0;background:rgba(3,5,9,.88);display:none;align-items:center;justify-content:center;z-index:20;padding:16px;cursor:zoom-out;flex-direction:column;gap:8px}
+.lb.on{display:flex}.lb img{max-width:100%;max-height:calc(100% - 40px);border-radius:6px;background:#fff}.lb span{color:#cfd8e6;font-size:13px}
+table{width:100%;border-collapse:collapse;font-size:12.5px}td,th{padding:5px 6px;border-bottom:1px solid var(--line);text-align:left}th{color:var(--muted);font-weight:600}
+@media (max-width:900px){
+  .body{grid-template-columns:1fr}
+  .left{position:absolute;z-index:4;top:48px;left:0;bottom:0;width:250px;transform:translateX(-100%);transition:.2s}
+  .left.open{transform:none}
+  .right{position:fixed;left:0;right:0;bottom:0;width:auto;max-height:70vh;z-index:6;border-left:0;border-top:1px solid var(--line);border-radius:14px 14px 0 0}
+  .top{gap:6px;padding:0 8px}.top .stats{display:none}.top .logo{font-size:14px}
+  .search{min-width:0;flex:1}.search input{width:100%;min-width:0}.seg button{padding:3px 7px}
+  #menuBtn{display:inline-block!important}
+}
 </style>
 </head>
 <body>
-<div class="wrap">
-  <header>
-    <div><h1>세션 현황판</h1><div class="sub" id="sub"></div></div>
-    <button class="btn" id="theme">◐ 화면</button>
-  </header>
-  <div class="files" id="files"></div>
-  <div class="grid" id="grid"></div>
-  <div id="details"></div>
-  <div class="foot">오케스트레이터 세션이 만듭니다 — <span class="mono">python status/build_status.py</span>. 숫자 · 커밋은 각 세션 브랜치(git), 상태 · 확인 필요는 세션 기록, 미리보기는 최신 코드를 실제로 띄워 찍은 화면입니다.</div>
+<div class="app">
+  <div class="top">
+    <button class="iconbtn" id="menuBtn" style="display:none" aria-label="메뉴">☰</button>
+    <span class="logo">🧭 세션 지도</span>
+    <span class="stats" id="stats"></span>
+    <label class="search">🔍<input id="q" placeholder="찾기 (세션 · 커밋 · Agent)" aria-label="찾기"></label>
+    <div class="seg" role="group"><button data-v="map" aria-pressed="true">지도</button><button data-v="list" aria-pressed="false">목록</button></div>
+    <button class="iconbtn" id="theme" aria-label="밝게/어둡게">◐</button>
+  </div>
+  <div class="body">
+    <aside class="left" id="left"></aside>
+    <main class="center" id="center">
+      <canvas id="cv"></canvas>
+      <div class="tip" id="tip"></div>
+      <div class="hint">끌기 = 이동 · 휠 = 확대 · 점 누르기 = 상세</div>
+      <div class="listview" id="listview"><div class="cards" id="cards"></div></div>
+    </main>
+    <aside class="right" id="right"><button class="close" id="close" aria-label="닫기">✕</button><div class="in" id="detail"></div></aside>
+  </div>
 </div>
-<div class="lb" id="lb"><img alt=""></div>
+<div class="lb" id="lb"><img alt=""><span></span></div>
 <script>
 /*DATA*/
 (function(){
 "use strict";
 const $=s=>document.querySelector(s), esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const COLOR={S1:"#f59e0b",S2:"#3b82f6",S3:"#22c55e",S4:"#a855f7",S5:"#ec4899",S6:"#ef4444",S7:"#14b8a6"};
+const KIND={hub:"오케스트레이터",session:"세션 Agent",file:"업데이트 파일",pending:"다음 업데이트 커밋",recent:"최근 작업 커밋",agent:"Agent",skill:"Skill"};
 const B=k=>META.bucket[k]||["gray",k||"?"];
-$("#sub").textContent=`만든 때 ${META.built} · 세션 상태 읽은 때 ${META.read_at.replace("T"," ").slice(0,16)} UTC`;
-const pend=x=>x.pending.length;
-const f1=DATA.filter(x=>x.file.startsWith("①")), f2=DATA.filter(x=>x.file.startsWith("②"));
-$("#files").innerHTML=[["① DASHBOARD 개별 업데이트",f1],["② 통합 업데이트 (PID · LOGIC · PANEL · 도서 · Valve · 3D)",f2]].map(([t,a])=>{
-  const n=a.reduce((s,x)=>s+pend(x),0);
-  return `<div class="fcard"><b>${esc(t)}</b><div class="v">${n}<span class="small muted"> 건 대기</span></div>
-  <div class="small muted">${a.map(x=>`${x.sid} ${pend(x)}`).join(" · ")} — 요청하면 만듭니다</div></div>`;}).join("");
-$("#grid").innerHTML=DATA.map(x=>{const b=B(x.state.bucket);
-  return `<button class="card" data-sid="${x.sid}"><div class="top"><span class="nm">${esc(x.name)}</span><span class="chip ${b[0]}">${b[1]}</span></div>
-  <div class="ver">${esc(x.ver)} · 끝 커밋 ${esc(x.tip)} (${esc(x.tipdate)})</div>
-  <div class="cnt"><span class="chip ${pend(x)?"info":"gray"}">다음 업데이트 ${pend(x)}건</span><span class="chip gray">${esc(x.file)}</span></div>
-  ${x.state.needs?`<div class="needs">⚠ ${esc(x.state.needs)}</div>`:""}
-  ${x.previews[0]?`<img class="thumb" src="${x.previews[0].src}" alt="">`:""}</button>`;}).join("");
-$("#details").innerHTML=DATA.map(x=>{const b=B(x.state.bucket);
-  const li=a=>a.length?a.map(c=>`<li><span class="mono">${esc(c.h)}</span><span class="d small muted">${esc(c.d)}</span><span>${esc(c.s)}</span></li>`).join(""):'<li><span></span><span></span><span class="muted">없음</span></li>';
-  return `<section class="detail" id="d-${x.sid}"><div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;align-items:center">
-   <h2>${esc(x.name)}</h2><span class="chip ${b[0]}">${b[1]}</span></div>
-   <dl><dt>세션</dt><dd>${esc(x.state.title||"")}</dd><dt>브랜치</dt><dd class="mono">${esc(x.branch.replace("origin/",""))} @ ${esc(x.tip)} · ${esc(x.tipdate)}</dd>
-   <dt>버전</dt><dd>${esc(x.ver)}</dd><dt>회사 쪽</dt><dd>${esc(x.shipped)}</dd><dt>업데이트 파일</dt><dd>${esc(x.file)}</dd>
-   ${x.state.recent?`<dt>최근 보고</dt><dd>${esc(x.state.recent)}</dd>`:""}${x.state.needs?`<dt>확인 필요</dt><dd style="color:var(--warn)">${esc(x.state.needs)}</dd>`:""}</dl>
-   <div class="cols"><div class="box"><h3>다음 업데이트에 들어갈 것 · ${pend(x)}건</h3><ul class="clist">${li(x.pending)}</ul></div>
-   <div class="box"><h3>최신 작업 (최근 커밋)</h3><ul class="clist">${li(x.recent)}</ul></div></div>
-   <div class="pv">${x.previews.map(p=>`<figure><img src="${p.src}" alt="${esc(p.cap)}"><figcaption><span>${esc(p.cap)}</span><span class="muted">${esc(p.date)}</span></figcaption></figure>`).join("")}</div>
-  </section>`;}).join("");
-document.querySelectorAll(".card").forEach(c=>c.onclick=()=>document.getElementById("d-"+c.dataset.sid).scrollIntoView({behavior:"smooth"}));
-document.querySelectorAll(".pv img,.thumb").forEach(i=>i.addEventListener("click",e=>{if(i.classList.contains("thumb"))return;e.stopPropagation();$("#lb img").src=i.src;$("#lb").classList.add("on");}));
+const stDot={ok:"var(--ok)",warn:"var(--warn)",bad:"var(--bad)",info:"var(--accent)",gray:"var(--muted)"};
+const css=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+
+/* ---------- graph model ---------- */
+const nodes=[], edges=[], byId={};
+const add=(n)=>{nodes.push(n);byId[n.id]=n;return n;};
+const link=(a,b,len)=>edges.push({a:byId[a],b:byId[b],len});
+const totalPend=DATA.reduce((s,x)=>s+x.pending.length,0);
+add({id:"orch",type:"hub",label:"오케스트레이터",r:20,color:"#f5f1e6"});
+add({id:"F1",type:"file",label:"① DASHBOARD 개별",r:13,color:"#c9d4e6"});
+add({id:"F2",type:"file",label:"② 통합 업데이트",r:13,color:"#c9d4e6"});
+link("orch","F1",150);link("orch","F2",150);
+DATA.forEach(x=>{
+  const s=add({id:x.sid,type:"session",label:x.name,r:15,color:COLOR[x.sid],d:x});
+  link("orch",x.sid,250); link(x.sid,x.file.startsWith("①")?"F1":"F2",230);
+  const seen=new Set();
+  x.pending.forEach(c=>{seen.add(c.h);add({id:x.sid+":"+c.h,type:"pending",label:c.s,r:4.6,color:COLOR[x.sid],d:c,sid:x.sid});link(x.sid,x.sid+":"+c.h,70);});
+  x.recent.forEach(c=>{if(seen.has(c.h))return;add({id:x.sid+":"+c.h,type:"recent",label:c.s,r:3.4,color:COLOR[x.sid],d:c,sid:x.sid});link(x.sid,x.sid+":"+c.h,90);});
+  x.agents.forEach((a,i)=>{const id=x.sid+":a:"+a.name;add({id,type:a.kind,label:a.name,r:a.kind==="agent"?6.5:5.5,color:COLOR[x.sid],d:a,sid:x.sid});link(x.sid,id,110);});
+});
+const adj={};edges.forEach(e=>{(adj[e.a.id]=adj[e.a.id]||new Set()).add(e.b.id);(adj[e.b.id]=adj[e.b.id]||new Set()).add(e.a.id);});
+
+/* initial layout + settle */
+DATA.forEach((x,i)=>{const a=-Math.PI/2+i*2*Math.PI/DATA.length;const s=byId[x.sid];s.x=Math.cos(a)*260;s.y=Math.sin(a)*260;s.ang=a;});
+byId.orch.x=0;byId.orch.y=0;byId.F1.x=-90;byId.F1.y=40;byId.F2.x=90;byId.F2.y=40;
+nodes.forEach(n=>{if(n.x!==undefined)return;const p=byId[n.sid];const a=p.ang+(Math.random()-.5)*2.2;const d=60+Math.random()*70;n.x=p.x+Math.cos(a)*d;n.y=p.y+Math.sin(a)*d;});
+nodes.forEach(n=>{n.vx=0;n.vy=0;});
+function tick(alpha){
+  for(let i=0;i<nodes.length;i++){const a=nodes[i];for(let j=i+1;j<nodes.length;j++){const b=nodes[j];let dx=b.x-a.x,dy=b.y-a.y,d2=dx*dx+dy*dy+0.01;if(d2>90000)continue;
+    const big=(a.type==="session"||a.type==="hub"||a.type==="file")&&(b.type==="session"||b.type==="hub"||b.type==="file");
+    const f=(big?9000:900)/d2*alpha;const d=Math.sqrt(d2);dx/=d;dy/=d;a.vx-=dx*f;a.vy-=dy*f;b.vx+=dx*f;b.vy+=dy*f;}}
+  edges.forEach(e=>{const dx=e.b.x-e.a.x,dy=e.b.y-e.a.y,d=Math.sqrt(dx*dx+dy*dy)||1;const f=(d-e.len)*0.02*alpha;const ux=dx/d,uy=dy/d;
+    const wa=e.a.type==="hub"?0:1;e.a.vx+=ux*f*wa;e.a.vy+=uy*f*wa;e.b.vx-=ux*f;e.b.vy-=uy*f;});
+  nodes.forEach(n=>{if(n.type==="hub"||n===dragNode){n.vx=n.vy=0;return;}n.vx*=0.82;n.vy*=0.82;n.x+=n.vx;n.y+=n.vy;});
+}
+let dragNode=null;
+for(let i=0;i<500;i++) tick(1-i/600);
+
+/* ---------- canvas ---------- */
+const cv=$("#cv"),ctx=cv.getContext("2d");let W=0,H=0,dpr=1;
+const view={x:0,y:0,k:1};
+function size(){const r=cv.getBoundingClientRect();W=r.width;H=r.height;dpr=Math.max(1,window.devicePixelRatio||1);cv.width=W*dpr;cv.height=H*dpr;}
+function fit(){let x0=1e9,y0=1e9,x1=-1e9,y1=-1e9;nodes.forEach(n=>{if(!visible(n))return;x0=Math.min(x0,n.x);y0=Math.min(y0,n.y);x1=Math.max(x1,n.x);y1=Math.max(y1,n.y);});
+  const k=Math.min((W-60)/(x1-x0+1),(H-60)/(y1-y0+1),1.6);view.k=Math.max(.25,k);view.x=W/2-(x0+x1)/2*view.k;view.y=H/2-(y0+y1)/2*view.k;}
+const toS=(n)=>[n.x*view.k+view.x,n.y*view.k+view.y];
+const hidden=new Set();const visible=n=>!hidden.has(n.type);
+let sel=null,hov=null,query="";
+const match=n=>!query||(n.label+" "+(n.d&&n.d.h||"")+" "+(n.d&&n.d.desc||"")).toLowerCase().includes(query);
+function draw(){
+  ctx.setTransform(dpr,0,0,dpr,0,0);ctx.clearRect(0,0,W,H);
+  const focus=sel?new Set([sel.id,...(adj[sel.id]||[])]):null;
+  // glow per session
+  DATA.forEach(x=>{const n=byId[x.sid];const [sx,sy]=toS(n);const R=150*view.k;const g=ctx.createRadialGradient(sx,sy,0,sx,sy,R);
+    g.addColorStop(0,COLOR[x.sid]+"33");g.addColorStop(1,COLOR[x.sid]+"00");ctx.fillStyle=g;ctx.beginPath();ctx.arc(sx,sy,R,0,7);ctx.fill();});
+  const eN=css("--edge"),eH=css("--edge-hi");
+  edges.forEach(e=>{if(!visible(e.a)||!visible(e.b))return;const hi=focus&&focus.has(e.a.id)&&focus.has(e.b.id)&&(e.a===sel||e.b===sel);
+    const [ax,ay]=toS(e.a),[bx,by]=toS(e.b);ctx.strokeStyle=hi?eH:eN;ctx.lineWidth=hi?1.4:(e.a.type==="hub"||e.b.type==="file"?1.1:.7);ctx.beginPath();ctx.moveTo(ax,ay);ctx.lineTo(bx,by);ctx.stroke();});
+  const ink=css("--ink"),muted=css("--muted"),bg=css("--bg");
+  nodes.forEach(n=>{if(!visible(n))return;const [x,y]=toS(n);const r=Math.max(2.2,n.r*Math.min(1.4,Math.max(.6,view.k)));
+    let a=1;if(focus&&!focus.has(n.id))a=.25;if(query&&!match(n))a=Math.min(a,.12);ctx.globalAlpha=a;
+    ctx.fillStyle=n.type==="recent"?n.color+"99":n.color;ctx.strokeStyle=bg;ctx.lineWidth=1.5;ctx.beginPath();
+    if(n.type==="file"){ctx.rect(x-r,y-r,2*r,2*r);}
+    else if(n.type==="agent"){ctx.moveTo(x,y-r);ctx.lineTo(x+r,y);ctx.lineTo(x,y+r);ctx.lineTo(x-r,y);ctx.closePath();}
+    else if(n.type==="skill"){ctx.moveTo(x,y-r);ctx.lineTo(x+r*.95,y+r*.8);ctx.lineTo(x-r*.95,y+r*.8);ctx.closePath();}
+    else ctx.arc(x,y,r,0,7);
+    ctx.fill();ctx.stroke();
+    if(n.type==="session"&&n.d.state.bucket==="BLOCKED"){ctx.strokeStyle=css("--warn");ctx.lineWidth=2;ctx.beginPath();ctx.arc(x,y,r+4,0,7);ctx.stroke();}
+    if(n===sel||n===hov){ctx.strokeStyle=ink;ctx.lineWidth=2;ctx.beginPath();ctx.arc(x,y,r+3,0,7);ctx.stroke();}
+    const big=n.type==="session"||n.type==="hub"||n.type==="file";
+    if(big||n===sel||n===hov||(view.k>1.5&&(n.type==="agent"||n.type==="skill"))||(query&&match(n)&&n.type!=="recent")){
+      ctx.font=(big?"600 12.5px ":"11px ")+"'Malgun Gothic',system-ui,sans-serif";ctx.fillStyle=big?ink:muted;
+      const t=big?n.label:(n.type==="pending"||n.type==="recent"?n.d.h:n.label);ctx.fillText(t.length>34?t.slice(0,33)+"…":t,x+r+5,y+4);}
+    ctx.globalAlpha=1;});
+}
+let raf=0,heat=0;
+function loop(){if(heat>0){tick(.35);heat--;}draw();raf=requestAnimationFrame(loop);}
+
+/* interaction */
+const pos=e=>{const r=cv.getBoundingClientRect();return [e.clientX-r.left,e.clientY-r.top];};
+function pick(px,py){let best=null,bd=1e9;nodes.forEach(n=>{if(!visible(n))return;const [x,y]=toS(n);const d=Math.hypot(x-px,y-py);const r=Math.max(7,n.r*view.k+4);if(d<r&&d<bd){bd=d;best=n;}});return best;}
+let drag=null;
+cv.addEventListener("pointerdown",e=>{const [x,y]=pos(e);const n=pick(x,y);drag={x,y,vx:view.x,vy:view.y,n,moved:false};if(n&&n.type!=="hub")dragNode=n;cv.setPointerCapture(e.pointerId);cv.classList.add("dragging");});
+cv.addEventListener("pointermove",e=>{const [x,y]=pos(e);
+  if(drag){const dx=x-drag.x,dy=y-drag.y;if(Math.abs(dx)+Math.abs(dy)>3)drag.moved=true;
+    if(dragNode){dragNode.x=(x-view.x)/view.k;dragNode.y=(y-view.y)/view.k;heat=40;} else {view.x=drag.vx+dx;view.y=drag.vy+dy;}return;}
+  const n=pick(x,y);hov=n;const tip=$("#tip");
+  if(n){tip.style.display="block";tip.style.left=Math.min(x+14,W-310)+"px";tip.style.top=(y+14)+"px";
+    tip.innerHTML=`<b>${esc(n.type==="pending"||n.type==="recent"?n.d.s:n.label)}</b><span style="color:var(--muted)">${KIND[n.type]}${n.sid?" · "+byId[n.sid].label:""}${n.d&&n.d.h?" · "+n.d.h+" · "+n.d.d:""}</span><br><span style="color:var(--muted)">눌러서 자세히 보기</span>`;}
+  else tip.style.display="none";});
+cv.addEventListener("pointerup",e=>{cv.classList.remove("dragging");const d=drag;drag=null;dragNode=null;if(d&&!d.moved){select(d.n||null);} });
+cv.addEventListener("pointerleave",()=>{hov=null;$("#tip").style.display="none";});
+cv.addEventListener("wheel",e=>{e.preventDefault();const [x,y]=pos(e);const k=Math.max(.2,Math.min(4,view.k*Math.exp(-e.deltaY*.0015)));view.x=x-(x-view.x)*k/view.k;view.y=y-(y-view.y)*k/view.k;view.k=k;},{passive:false});
+
+/* ---------- left menu ---------- */
+const blocked=DATA.filter(x=>x.state.bucket==="BLOCKED").length;
+$("#stats").textContent=`세션 ${DATA.length} · 다음 업데이트 대기 ${totalPend} · 사용자 확인 필요 ${blocked} · Agent ${nodes.filter(n=>n.type==="agent").length} · Skill ${nodes.filter(n=>n.type==="skill").length} · 만든 때 ${META.built}`;
+const cnt=t=>nodes.filter(n=>n.type===t).length;
+$("#left").innerHTML=`<h4>AGENT</h4>
+ <button class="item" data-id="orch"><span class="dot" style="background:#f5f1e6"></span><span class="nm">🧭 오케스트레이터</span><span class="n">${totalPend}</span></button>
+ ${DATA.map(x=>{const b=B(x.state.bucket);return `<button class="item" data-id="${x.sid}"><span class="dot" style="background:${COLOR[x.sid]}"></span><span class="nm">${esc(x.name)}</span><span class="st" title="${esc(b[1])}" style="background:${stDot[b[0]]}"></span><span class="n">${x.pending.length}</span></button>`;}).join("")}
+ <h4>업데이트 파일</h4>
+ <button class="item" data-id="F1"><span class="shape" style="background:#c9d4e6"></span><span class="nm">① DASHBOARD 개별</span><span class="n">${DATA.filter(x=>x.file.startsWith("①")).reduce((s,x)=>s+x.pending.length,0)}</span></button>
+ <button class="item" data-id="F2"><span class="shape" style="background:#c9d4e6"></span><span class="nm">② 통합 업데이트</span><span class="n">${DATA.filter(x=>x.file.startsWith("②")).reduce((s,x)=>s+x.pending.length,0)}</span></button>
+ <h4>표시</h4><div class="legend">
+ ${[["session","● 세션 Agent"],["pending","● 다음 업데이트 커밋"],["recent","● 최근 작업 커밋"],["agent","◆ Agent"],["skill","▲ Skill"]].map(([t,l])=>`<label><input type="checkbox" data-t="${t}" checked ${t==="session"?"disabled":""}> ${l} <span class="n" style="margin-left:auto;color:var(--muted)">${cnt(t)}</span></label>`).join("")}
+ </div>
+ <h4>상태</h4><div class="legend" style="font-size:12px;color:var(--muted);padding:0 8px">${Object.values(META.bucket).map(b=>`<div style="display:flex;gap:6px;align-items:center;padding:2px 0"><span class="st" style="width:8px;height:8px;border-radius:50%;background:${stDot[b[0]]}"></span>${esc(b[1])}</div>`).join("")}<div style="padding:4px 0">노란 고리 = 사용자 확인 기다림</div></div>`;
+document.querySelectorAll(".item").forEach(b=>b.onclick=()=>{select(byId[b.dataset.id],true);$("#left").classList.remove("open");});
+document.querySelectorAll(".legend input[data-t]").forEach(c=>c.onchange=()=>{c.checked?hidden.delete(c.dataset.t):hidden.add(c.dataset.t);});
+
+/* ---------- detail panel ---------- */
+const clist=(a,sid)=>a.length?`<ul class="clist">${a.map(c=>`<li data-go="${sid}:${esc(c.h)}"><span class="h">${esc(c.h)}<br>${esc(c.d)}</span><span>${esc(c.s)}</span></li>`).join("")}</ul>`:'<div class="small" style="color:var(--muted)">없음</div>';
+function detail(n){
+  let h=`<span class="kind">${KIND[n.type]}</span>`;
+  if(n.type==="session"){const x=n.d,b=B(x.state.bucket);
+    h+=`<h2>${esc(x.name)}</h2><span class="chip ${b[0]}">${esc(b[1])}</span>
+     <div class="path">${esc(x.branch.replace("origin/",""))} @ ${esc(x.tip)} · ${esc(x.tipdate)}</div>
+     <dl><dt>세션</dt><dd>${esc(x.state.title||"")}</dd><dt>버전</dt><dd>${esc(x.ver)}</dd><dt>회사 쪽</dt><dd>${esc(x.shipped)}</dd><dt>업데이트 파일</dt><dd>${esc(x.file)}</dd>${x.state.recent?`<dt>최근 보고</dt><dd>${esc(x.state.recent)}</dd>`:""}</dl>
+     ${x.state.needs?`<div class="needs">⚠ 확인 필요 — ${esc(x.state.needs)}</div>`:""}
+     ${x.previews.length?`<div class="sec"><h3>미리보기 · ${x.previews.length}</h3><div class="pv">${x.previews.map((p,i)=>`<figure><img data-pv="${x.sid}:${i}" src="${p.src}" alt="${esc(p.cap)}"><figcaption>${esc(p.cap)} · ${esc(p.date)}</figcaption></figure>`).join("")}</div></div>`:""}
+     <div class="sec"><h3>다음 업데이트에 들어갈 것 · ${x.pending.length}건</h3>${clist(x.pending,x.sid)}</div>
+     <div class="sec"><h3>최신 작업</h3>${clist(x.recent,x.sid)}</div>
+     ${x.agents.length?`<div class="sec"><h3>Agent · Skill · ${x.agents.length}</h3><ul class="clist">${x.agents.map(a=>`<li data-go="${x.sid}:a:${esc(a.name)}"><span class="h">${a.kind==="agent"?"◆ Agent":"▲ Skill"}</span><span>${esc(a.name)}</span></li>`).join("")}</ul></div>`:""}`;}
+  else if(n.type==="hub"){
+    h+=`<h2>오케스트레이터</h2><div class="path">claude/trusting-cray-v68axq</div>
+     <dl><dt>할 일</dt><dd>7개 세션 점검 · 회사 업데이트 파일 2개 제작(요청 때만) · 기준점 관리</dd><dt>대기</dt><dd>다음 업데이트 ${totalPend}건</dd><dt>확인 필요</dt><dd>${blocked}개 세션</dd></dl>
+     <div class="sec"><h3>세션</h3><table><tr><th>세션</th><th>버전</th><th>대기</th><th>상태</th></tr>${DATA.map(x=>{const b=B(x.state.bucket);return `<tr data-go="${x.sid}" style="cursor:pointer"><td>${esc(x.name)}</td><td>${esc(x.ver)}</td><td>${x.pending.length}</td><td><span class="chip ${b[0]}">${esc(b[1])}</span></td></tr>`;}).join("")}</table></div>`;}
+  else if(n.type==="file"){const a=DATA.filter(x=>x.file.startsWith(n.id==="F1"?"①":"②"));
+    h+=`<h2>${esc(n.label)}</h2><div class="path">${n.id==="F1"?"UPDATE_from_vA_to_vB.zip (어느 버전에서든 적용되는 판)":"PID_dev+ops_hotfixNNN.zip (마지막 적용 확인 기준 · 최신으로 덮어씀)"}</div>
+     <dl><dt>만들 때</dt><dd>사용자가 요청할 때만</dd><dt>대기</dt><dd>${a.reduce((s,x)=>s+x.pending.length,0)}건</dd></dl>
+     <div class="sec"><h3>싣는 세션</h3><table><tr><th>세션</th><th>방법</th><th>대기</th></tr>${a.map(x=>`<tr data-go="${x.sid}" style="cursor:pointer"><td>${esc(x.name)}</td><td>${esc(x.file.replace(/^[①②] ?/,""))}</td><td>${x.pending.length}</td></tr>`).join("")}</table></div>`;}
+  else if(n.type==="pending"||n.type==="recent"){const c=n.d;
+    h+=`<h2 style="font-size:15px">${esc(c.s)}</h2><div class="path">${esc(c.h)} · ${esc(c.d)}</div>
+     <dl><dt>세션</dt><dd><a href="#" data-go="${n.sid}" style="color:var(--accent)">${esc(byId[n.sid].label)}</a></dd><dt>회사 쪽</dt><dd>${n.type==="pending"?"다음 업데이트 파일에 들어갈 변경":"이미 실렸거나 업데이트 대상 경로 밖"}</dd></dl>`;}
+  else {const a=n.d;
+    h+=`<h2>${esc(a.name)}</h2><div class="path">${esc(a.path)}</div><p style="font-size:13px">${esc(a.desc)}</p>
+     <dl><dt>세션</dt><dd><a href="#" data-go="${n.sid}" style="color:var(--accent)">${esc(byId[n.sid].label)}</a></dd></dl>`;}
+  $("#detail").innerHTML=h;
+  $("#detail").querySelectorAll("[data-go]").forEach(el=>el.onclick=e=>{e.preventDefault();const t=byId[el.dataset.go];if(t)select(t,true);});
+  $("#detail").querySelectorAll("img[data-pv]").forEach(im=>im.onclick=()=>{const [sid,i]=im.dataset.pv.split(":");const p=DATA.find(x=>x.sid===sid).previews[+i];$("#lb img").src=p.src;$("#lb span").textContent=p.cap+" · "+p.date;$("#lb").classList.add("on");});
+}
+function select(n,center){
+  sel=n; document.querySelectorAll(".item").forEach(b=>b.setAttribute("aria-current",n&&(b.dataset.id===n.id||b.dataset.id===n.sid)?"true":"false"));
+  if(!n){$("#right").classList.remove("on");setTimeout(()=>{size();},0);return;}
+  detail(n);$("#right").classList.add("on");$("#right").scrollTop=0;
+  requestAnimationFrame(()=>{size();if(center&&mode==="map"){view.x=W/2-n.x*view.k;view.y=H/2-n.y*view.k;}});
+}
+$("#close").onclick=()=>select(null);
 $("#lb").onclick=()=>$("#lb").classList.remove("on");
-$("#theme").onclick=()=>{const r=document.documentElement;const d=r.dataset.theme?r.dataset.theme==="dark":matchMedia("(prefers-color-scheme: dark)").matches;r.dataset.theme=d?"light":"dark";};
+document.addEventListener("keydown",e=>{if(e.key==="Escape"){if($("#lb").classList.contains("on"))$("#lb").classList.remove("on");else select(null);}});
+
+/* ---------- list view ---------- */
+$("#cards").innerHTML=DATA.map(x=>{const b=B(x.state.bucket);return `<div class="card" data-go="${x.sid}"><div style="display:flex;justify-content:space-between;gap:6px"><b><span class="dot" style="display:inline-block;width:9px;height:9px;border-radius:50%;background:${COLOR[x.sid]};margin-right:6px"></span>${esc(x.name)}</b><span class="chip ${b[0]}">${esc(b[1])}</span></div>
+ <div style="color:var(--muted);font-size:12px;margin-top:2px">${esc(x.ver)} · 대기 ${x.pending.length}건</div>${x.state.needs?`<div class="needs" style="margin:6px 0 0">⚠ ${esc(x.state.needs)}</div>`:""}${x.previews[0]?`<img src="${x.previews[0].src}" alt="">`:""}</div>`;}).join("");
+document.querySelectorAll(".card").forEach(c=>c.onclick=()=>select(byId[c.dataset.go]));
+let mode="map";
+document.querySelectorAll(".seg button").forEach(b=>b.onclick=()=>{mode=b.dataset.v;document.querySelectorAll(".seg button").forEach(x=>x.setAttribute("aria-pressed",x===b));$("#listview").classList.toggle("on",mode==="list");});
+
+/* search */
+$("#q").addEventListener("input",e=>{query=e.target.value.trim().toLowerCase();});
+$("#q").addEventListener("keydown",e=>{if(e.key==="Enter"){const n=nodes.find(n=>visible(n)&&match(n)&&n.type!=="hub");if(n)select(n,true);}});
+$("#menuBtn").onclick=()=>$("#left").classList.toggle("open");
+$("#theme").onclick=()=>{const r=document.documentElement;r.dataset.theme=r.dataset.theme==="light"?"dark":"light";};
+
+window.addEventListener("resize",()=>{size();});
+size();fit();loop();
 })();
 </script>
 </body>
