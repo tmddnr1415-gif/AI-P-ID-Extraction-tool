@@ -26,7 +26,7 @@ from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 BASE = os.path.dirname(os.path.abspath(__file__))
 PORT = int(os.environ.get("PORT", "8765"))
 HOST = os.environ.get("FIN_HOST", "127.0.0.1")
-APP_VERSION = "2026-11-07.1"
+APP_VERSION = "2026-11-07.2"
 DART = "https://opendart.fss.or.kr/api"
 CORP_CACHE = os.path.join(BASE, "corp_codes.json")
 
@@ -35,17 +35,33 @@ def key_file():
     return os.environ.get("DART_KEY_FILE", "").strip() or os.path.join(BASE, "dart_api_key.txt")
 
 
+KEY_NAMES = ("DART_API_KEY", "OPENDART_API_KEY", "DART_KEY", "CRTFC_KEY")
+
+
+def parse_key(text):
+    """.env 또는 키 한 줄 파일 → DART 키. DART_API_KEY= (OPENDART_API_KEY · DART_KEY · CRTFC_KEY) 줄 먼저, 없으면 키만 적힌 한 줄.
+    대시보드 server.py 의 parse_dart_key 와 같은 규칙 (고치면 둘 다)"""
+    plain = []
+    for line in (text or "").splitlines():
+        line = line.strip()
+        if not line or line.startswith("#"):
+            continue
+        m = re.match(r"(?:export\s+)?([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*)$", line)
+        if m:
+            if m.group(1).upper() in KEY_NAMES:
+                return re.sub(r"\s+#.*$", "", m.group(2)).strip().strip("\"'")
+        else:
+            plain.append(line)
+    return plain[0] if len(plain) == 1 else ""
+
+
 def load_key():
-    """키 = 환경변수 DART_API_KEY → 키 파일(DART_KEY_FILE 또는 dart_api_key.txt) 한 줄 ('DART_API_KEY=…' 도 됨). 없으면 '' (서버는 켜 두고 화면에 안내)"""
+    """키 = 환경변수 DART_API_KEY → 키 파일(DART_KEY_FILE = 운영자가 대시보드에서 지정한 .env, 또는 같은 폴더 dart_api_key.txt). 없으면 '' (서버는 켜 두고 화면에 안내)"""
     k = os.environ.get("DART_API_KEY", "").strip()
     if not k:
         try:
             with open(key_file(), encoding="utf-8-sig") as f:
-                for line in f:
-                    line = line.strip()
-                    if line and not line.startswith("#"):
-                        k = line.split("=", 1)[1].strip().strip("\"'") if "=" in line else line
-                        break
+                k = parse_key(f.read(20000))
         except OSError:
             pass
     return k

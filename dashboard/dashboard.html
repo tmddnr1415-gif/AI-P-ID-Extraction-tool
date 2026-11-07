@@ -738,6 +738,7 @@ body.pid-mode header.top .actions{display:none}   /* 분석·도구 화면: 주�
 body.pid-mode #content{flex:1;min-height:0;display:flex;flex-direction:column;padding:0}
 body.pid-mode #content>.banner{flex:none;margin:6px 16px}
 .pidwrap{flex:1;min-height:0;display:flex;flex-direction:column}
+.pidbar .finkey{margin-left:auto} .pidbar .finwarn,.finkv .finwarn{color:#c2410c} .finkv .finok{color:#15803d} .finkv th{width:130px;text-align:left} .finkv code{word-break:break-all}
 .pidbar{flex:none;display:flex;gap:6px;align-items:center;padding:4px 16px;font-size:12px;color:var(--sub);background:#fff;border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
 .pidbar a{color:var(--accent)}
 .pidbar .muted{margin-left:auto}
@@ -1398,7 +1399,7 @@ function recLabel(key, f) {
  * ===================================================================== */
 let root = null;
 /* 서버 모드: http(s):// 로 접속하면 server.py 의 REST API 사용 (폴더 선택 불필요). file:// 로 열면 폴더 모드 */
-const APP_VERSION = '2026-11-07.5';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
+const APP_VERSION = '2026-11-07.6';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
 const SERVER_URL = 'http://localhost:8080';
 // 부서원 PC 사본(file://)이 접속을 시도할 서버 — 서버가 배포 파일을 만들 때 'PC 이름 주소, IP 주소' 순으로 자동 기록함
 const DEFAULT_SERVERS = ['http://ASEUNGWOOK-B01:8080', 'http://65.3.30.234:8080'];
@@ -3553,9 +3554,31 @@ function pidUrl(key) {
 function renderPid(c, key) {
   const url = pidUrl(key), T = esc(PID_ROUTES[key].title);
   c.insertAdjacentHTML('beforeend', `<div id="pidwrap" class="pidwrap" data-route="${esc(key)}">
-    <div class="pidbar"><b>${T}</b> · <a href="${esc(url)}" target="_blank" rel="noopener">새 창으로 열기 ↗</a></div>
+    <div class="pidbar"><b>${T}</b> · <a href="${esc(url)}" target="_blank" rel="noopener">새 창으로 열기 ↗</a><span class="pidnote"></span>${key === 'finstagram' && SERVER && ADMIN && !OFFLINE ? '<button class="btn sm finkey" data-finkey title="DART API 키가 들어 있는 .env 파일 경로 지정 (운영자 전용)">⚙ DART 키(.env) 경로</button>' : ''}</div>
     <div class="pidbody"><div class="pidmsg muted">${T} 서버 연결 확인 중…</div></div></div>`);
   pidConnect(key);
+}
+/* 2026-11-07 재무스타그램 DART 키: 운영자(서버 PC)가 키가 들어 있는 .env 파일 경로를 지정 → 서버가 운영 폴더 dart_key_path.txt 에 기억하고
+ * 재무스타그램 서버를 그 키로 다시 띄움. 키 값은 화면 · 서버 응답 어디에도 나오지 않음 (있는지 · 길이만) */
+async function openFinKey() {
+  let d; try { d = await api('GET', 'admin/finkey'); } catch (e) { return toast('키 설정을 불러오지 못했습니다: ' + e.message, true); }
+  const st = d => !d.exists ? '<b class="finwarn">파일이 없습니다</b>' : !d.hasKey ? '<b class="finwarn">파일은 있지만 DART_API_KEY 를 찾지 못했습니다</b>'
+    : d.keyOk ? `<b class="finok">✓ 키 확인 (${d.keyLen}자)</b>` : `<b class="finwarn">키 길이가 ${d.keyLen}자입니다 (DART 키는 40자)</b>`;
+  const body = d => `<table class="t finkv"><tr><th>지금 경로</th><td><code>${esc(d.path)}</code> <span class="muted">(${esc(d.from)})</span></td></tr>
+      <tr><th>상태</th><td>${st(d)}</td></tr><tr><th>재무스타그램 서버</th><td>${d.running ? '켜짐' : '꺼짐 · 다시 띄우는 중일 수 있음'} · 포트 ${d.port}</td></tr></table>`;
+  openDlg(dlg, `<div class="dh"><span>⚙ 재무스타그램 DART API 키</span><button class="btn sm" data-close>닫기</button></div>
+    <div class="db"><p class="muted" style="margin-top:0">서버 PC 에 있는 <b>.env</b> 파일(또는 키만 적은 txt)의 전체 경로를 적으세요. 파일 안의 <code>DART_API_KEY=…</code> 줄을 읽습니다.
+      키 값은 이 화면 · 업데이트 파일 · 부서원 PC 어디에도 나가지 않습니다. 저장하면 재무스타그램을 새 키로 다시 띄웁니다.</p>
+      <div id="finkeyState">${body(d)}</div>
+      <label class="fl">.env 파일 경로 <input id="finkeyPath" type="text" style="width:100%" value="${esc(d.from === '기본 위치' ? '' : d.path)}" placeholder="예: C:\\Users\\백승욱\\Desktop\\해커톤\\2day\\dart_dashboard\\.env" ${d.locked ? 'disabled' : ''}></label>
+      <p class="muted">비워 두고 저장하면 기본 위치 <code>C:\\Claude\\keys\\dart_api_key.txt</code> 를 씁니다.${d.locked ? ' · 지금은 서버를 <b>--dart-key</b> 로 켜서 여기서 바꿀 수 없습니다.' : ''}</p></div>
+    <div class="df"><button class="btn" data-close>닫기</button><button class="btn pri" data-fksave ${d.locked ? 'disabled' : ''}>저장 · 다시 띄우기</button></div>`);
+  $('[data-fksave]', dlg).onclick = async () => {
+    try { d = await api('PUT', 'admin/finkey', { path:$('#finkeyPath', dlg).value.trim() }); } catch (e) { return toast(e.message, true); }
+    $('#finkeyState', dlg).innerHTML = body(d);
+    toast(d.hasKey ? '키 파일을 저장했습니다 — 재무스타그램을 다시 띄웁니다' : '경로를 저장했지만 키를 찾지 못했습니다', !d.hasKey);
+    setTimeout(async () => { try { const n = await api('GET', 'admin/finkey'); if (dlg.open && $('#finkeyState', dlg)) $('#finkeyState', dlg).innerHTML = body(n); } catch (_) {} if (route === 'finstagram') pidConnect('finstagram'); }, 2500);
+  };
 }
 // iframe 을 띄우기 전에 /version 확인 (3초, JSON 이 와야 성공). P&ID 는 대시보드 데이터를 쓰지 않으므로 대시보드 오프라인 여부와 무관
 async function pidConnect(key) {
@@ -3563,10 +3586,12 @@ async function pidConnect(key) {
   const body = $('.pidbody', wrap), base = pidBase(key), url = pidUrl(key), R = PID_ROUTES[key], T = esc(R.title);
   body.innerHTML = `<div class="pidmsg muted">${T} 서버 연결 확인 중…</div>`;
   const ctl = new AbortController(), timer = setTimeout(() => ctl.abort(), 6000);   // 분석 중이면 응답이 늦을 수 있어 넉넉히
-  let ok = false;
-  try { const r = await fetch(base + '/version', { signal:ctl.signal, cache:'no-store' }); if (r.ok) { await r.json(); ok = true; } }
+  let ok = false, ver = null;
+  try { const r = await fetch(base + '/version', { signal:ctl.signal, cache:'no-store' }); if (r.ok) { ver = await r.json(); ok = true; } }
   catch (_) {} finally { clearTimeout(timer); }
   if ($('#pidwrap') !== wrap) return;                    // 확인하는 동안 다른 메뉴로 이동함
+  const note = $('.pidnote', wrap);                        // 재무스타그램: DART 키가 없으면 머리줄에 안내 (운영자가 ⚙ 에서 .env 경로 지정)
+  if (note) note.innerHTML = key === 'finstagram' && ok && ver && ver.key === false ? ` · <b class="finwarn">⚠ DART API 키가 없습니다 — ${ADMIN ? '오른쪽 ⚙ 에서 .env 경로를 지정하세요' : '운영자(서버 PC)에게 키 설정을 요청하세요'}</b>` : '';
   body.innerHTML = ok
     ? `<iframe class="pidframe" src="${esc(url)}" title="${T}"></iframe>`
     : `<div class="pidmsg"><p>${esc(R.off || PID_OFF)}</p>
@@ -6871,7 +6896,7 @@ $('#content').onclick = e => {
   const nb = e.target.closest('[data-net]'); if (nb) return nb.dataset.net === 'sync' ? trySync(true) : nb.dataset.net === 'upd' ? askUpdate(true)
     : nb.dataset.net === 'embed' ? embedSelf(true) : nb.dataset.net === 'embedno' ? (() => { try { localStorage.setItem('dept-embed-hide', todayISO()); } catch (_) {} render(); })()
     : nb.dataset.net === 'copy' ? saveCopy() : nb.dataset.net === 'copyno' ? (() => { try { localStorage.setItem('dept-copy-hide', todayISO()); } catch (_) {} render(); })() : openQueue();
-  if (PID_ROUTES[route]) { if (e.target.closest('[data-pidretry]')) pidConnect(route); return; }
+  if (PID_ROUTES[route]) { if (e.target.closest('[data-finkey]')) return openFinKey(); if (e.target.closest('[data-pidretry]')) pidConnect(route); return; }
   if (MODULES[route] || APP_ROUTES[route]) return;
   if (route === 'board') return;
   if (DRAG?.skipClick) return;

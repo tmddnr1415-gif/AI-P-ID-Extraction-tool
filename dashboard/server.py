@@ -36,7 +36,7 @@ ID_RE = re.compile(r'^[A-Za-z0-9_\-]{1,80}$')
 WEEK_RE = re.compile(r'^\d{4}-W\d{2}$')
 MAX_BODY = 30 * 1024 * 1024
 
-SERVER_VERSION = '2026-11-07.3'
+SERVER_VERSION = '2026-11-07.4'
 ROOT = os.path.dirname(os.path.abspath(__file__))
 PORT = 8080
 ALLOW_NETS = []          # 사내망: 루프백·사설망 + 서버 IP 대역(/16, 유선·Wi-Fi 등 지금까지 쓴 대역 모두 기억) + --allow 로 추가한 대역
@@ -1717,11 +1717,13 @@ def api_space_rev_del(acc, pid, rid, rev, sup):
 # 재무스타그램은 자기 서버(apps/finstagram/server.py, 표준 라이브러리, 포트 8765)로 돈다 → 계장 광장처럼 대시보드 서버가 함께 띄우고 지킨다.
 # DART API 키는 배포물에 넣지 않는다. 서버 PC 의 키 파일 경로를 DART_KEY_FILE 로 넘긴다 (키 값은 대시보드가 읽지 않음).
 # 키 파일 위치(앞이 우선): ① server.py --dart-key 경로 ② 운영 폴더 dart_key_path.txt 안에 적은 경로 ③ C:\Claude\keys\dart_api_key.txt
-FIN = {'proc': None, 'port': 8765, 'fails': 0, 'key_arg': ''}
+FIN = {'proc': None, 'port': 8765, 'fails': 0, 'key_arg': '', 'wake': threading.Event()}
 DART_DEFAULT_KEY = r'C:\Claude\keys\dart_api_key.txt'
+DART_KEY_NAMES = ('DART_API_KEY', 'OPENDART_API_KEY', 'DART_KEY', 'CRTFC_KEY')
 
 
 def dart_key_path():
+    """키 파일(.env 등) 경로와 그 출처. 운영자가 재무스타그램 화면 ⚙ 에서 지정 → 운영 폴더 dart_key_path.txt"""
     if FIN['key_arg']:
         return FIN['key_arg'], '--dart-key'
     try:
@@ -1732,6 +1734,68 @@ def dart_key_path():
     except OSError:
         pass
     return DART_DEFAULT_KEY, '기본 위치'
+
+
+def parse_dart_key(text):
+    """.env 또는 키 한 줄 파일에서 DART 키. DART_API_KEY= (또는 OPENDART_API_KEY · DART_KEY · CRTFC_KEY) 줄을 먼저, 없으면 키만 적힌 한 줄.
+    apps/finstagram/server.py 의 parse_key 와 같은 규칙 (고치면 둘 다)"""
+    plain = []
+    for line in (text or '').splitlines():
+        line = line.strip()
+        if not line or line.startswith('#'):
+            continue
+        m = re.match(r'(?:export\s+)?([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*)$', line)
+        if m:
+            if m.group(1).upper() in DART_KEY_NAMES:
+                return re.sub(r'\s+#.*$', '', m.group(2)).strip().strip('"\'')
+        else:
+            plain.append(line)
+    return plain[0] if len(plain) == 1 else ''
+
+
+def api_finkey_get():
+    path, how = dart_key_path()
+    k = ''
+    try:
+        with open(path, encoding='utf-8-sig') as f:
+            k = parse_dart_key(f.read(20000))
+    except OSError:
+        pass
+    p = FIN['proc']
+    return {'path': path, 'from': how, 'locked': how == '--dart-key', 'exists': os.path.isfile(path), 'hasKey': bool(k), 'keyLen': len(k),
+            'keyOk': bool(re.fullmatch(r'[0-9A-Za-z]{40}', k)), 'running': bool(fin_info(FIN['port'])), 'mine': p is not None and p.poll() is None,
+            'port': FIN['port']}   # 키 값은 내보내지 않음
+
+
+def api_finkey_put(b, by):
+    if FIN['key_arg']:
+        raise ApiError(409, '서버를 --dart-key 로 켜서 여기서 바꿀 수 없습니다 (start_server.bat 의 --dart-key 를 고치세요)')
+    path = str(b.get('path') or '').strip().strip('"')
+    if path and not os.path.isabs(path):
+        raise ApiError(400, '전체 경로를 적으세요 (예: C:\\Users\\…\\.env)')
+    if path and os.path.isdir(path):
+        path = os.path.join(path, '.env')                  # 폴더를 적으면 그 안의 .env
+    with LOCK:
+        if path:
+            tmp = P('dart_key_path.txt.tmp')
+            with open(tmp, 'w', encoding='utf-8') as f:
+                f.write('# 재무스타그램 DART API 키 파일(.env) 경로 — 대시보드 재무스타그램 화면 ⚙ 에서 운영자가 지정\n' + path + '\n')
+            os.replace(tmp, P('dart_key_path.txt'))
+        else:
+            try:
+                os.remove(P('dart_key_path.txt'))
+            except OSError:
+                pass
+    log.info('재무스타그램 키 파일 경로 변경 by %s: %s', by, path or '(기본 위치)')
+    fin_restart()
+    return api_finkey_get()
+
+
+def fin_restart():
+    """새 키 파일로 재무스타그램 서버를 다시 띄움 (내가 띄운 것만 끄고, fin_loop 를 바로 깨움)"""
+    fin_stop()
+    FIN['fails'] = 0
+    FIN['wake'].set()
 
 
 def fin_info(port):
@@ -1776,7 +1840,8 @@ def fin_loop():
             log.info('재무스타그램 서버 시작: 포트 %d (PID %d) · 키 파일 %s (%s) · 기록 finstagram.log', port, FIN['proc'].pid, key, how)
         elif p is not None and p.poll() is None:
             FIN['fails'] = 0
-        time.sleep(30)
+        FIN['wake'].wait(30)                                   # 운영자가 키 경로를 바꾸면 바로 깨어남
+        FIN['wake'].clear()
 
 
 def fin_stop():
@@ -2333,6 +2398,13 @@ class Handler(BaseHTTPRequestHandler):
             if m == 'PUT':
                 acc = session_account(self.token(), False)
                 return api_perms_put(self.json_body(), acc['name'] if acc else '운영자')
+        if head == 'admin' and seg[1:] == ['finkey']:            # 재무스타그램 DART 키 파일(.env) 경로: 운영자(서버 PC)만
+            self.need_admin()
+            if m == 'GET':
+                return api_finkey_get()
+            if m == 'PUT':
+                acc = session_account(self.token(), False)
+                return api_finkey_put(self.json_body(), acc['name'] if acc else '운영자')
         if head == 'msg':
             acc = self.need_user()
             if m == 'GET' and len(seg) == 1:
