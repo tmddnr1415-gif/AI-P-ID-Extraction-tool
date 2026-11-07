@@ -472,16 +472,14 @@ Selection note: point IR (Searchpoint Optima Plus or its successor / Emerson poi
 
 ## 22. Honeywell — OneWireless, FDM, Uniformance, valve positioner, UOP
 
-All **[general knowledge — verify]**.
-
-| Product | Facts to verify |
-|---|---|
-| **OneWireless** | Industrial wireless network based on **ISA100.11a (IEC 62734)**; Wireless Device Manager (WDM); Field Device Access Points (FDAP); multi-protocol (later releases also support WirelessHART devices — verify); ISA100 transmitters XYR 6000 (legacy) and SmartLine wireless |
-| **FDM (Field Device Manager)** | Honeywell's asset-management tool (HART/FF/Profibus/ISA100), equivalent to Emerson AMS Device Manager |
-| **Uniformance PHD** | Process historian; **Uniformance Insight / Asset Sentinel** analytics |
-| **Honeywell Smart Valve Positioner** (SVP; HART/FF; e.g. "SmartLine SVP") | Digital valve positioner with diagnostics — confirm current model name; Honeywell does not own a major control-valve brand comparable to Fisher, so positioners mostly go on third-party valves |
-| **Honeywell Forge / Experion Operations Assistant** | Enterprise analytics/AI |
-| **UOP** | Process licensor; UOP "Callidus" burners/flares; UOP package units often specify instrumentation in licensor's standard specs |
+| Product | Facts | Source |
+|---|---|---|
+| **OneWireless** | ISA100 Wireless based network. **Wireless Device Manager (WDM)** = gateway, system manager and security manager; policy-based configuration, time services, over-the-air firmware upgrade; WDM (model WDMY) at **release R320** holds **ISASecure EDSA Level 1** (exida-assessed). **Field Device Access Point (FDAP)**: IEEE 802.15.4 mesh access point for **ISA100 Wireless and/or WirelessHART** field devices (FDAP3P = field-upgradable Gen3 Plus). Honeywell describes one infrastructure supporting **ISA100, WirelessHART, LoRaWAN and IEEE 802.11a/b/g/n/ac Wave 2** — this answers the earlier "WirelessHART support?" question: yes, per Honeywell. Release that added WirelessHART not identified. IEC 62734 designation and XYR 6000 legacy transmitters [general knowledge — verify] | [Honeywell WDM page](https://process.honeywell.com/us/en/products/wireless/onewireless-network/wireless-device-manager); [ISASecure – WDM certification](https://isasecure.org/news-events/honeywell-isa100-wireless-device-manager-earns-isa); [Honeywell industrial wireless](https://www.honeywell.com/us/en/solutions/industrial-wireless); [HPS wireless brochure (GES/Yodify copy)](https://ges.yodify.com/Documentation/Document/GM13nZ/hps-wireless-brochure.pdf) |
+| **FDM (Field Device Manager)** | Honeywell's asset-management tool, equivalent to Emerson AMS Device Manager [general knowledge — verify] | — |
+| **Uniformance PHD** | Process historian; Uniformance Insight / Asset Sentinel [general knowledge — verify] | — |
+| **Honeywell Smart Valve Positioner** (SVP) | Digital positioner with diagnostics; Honeywell has no control-valve brand comparable to Fisher [general knowledge — verify current model name] | — |
+| **Honeywell Forge / Experion Operations Assistant** | Enterprise analytics/AI [general knowledge — verify] | — |
+| **UOP** | Process licensor; UOP Callidus burners/flares [general knowledge — verify] | — |
 
 ---
 
