@@ -12,7 +12,7 @@
   --paper:#212830; --sheet:#2a313a; --ink:#e4e9ef; --ink-2:#9aa5b3; --line:#3d4652; --grid:#29313a; --grid-major:#36404c;
   --accent:#5b9dff; --accent-d:#3f82ea; --accent-soft:rgba(91,157,255,.16); --err:#ff6259; --warn:#f2b33d; --ok:#45d08c;
   --clear:#e3a33a; --panel-bg:#1b2128; --col:#8793a3; --navy:#3d5a8f; --door:#4dd4c6; --wall:#f2f5f8; --note:#f6c453; --snap:#ff7ad9; --margin:#b48cff;
-  --hover:#343c47; --pfill:.34; --pfill-on:.5; --ok-l:rgba(69,208,140,.14); --err-l:rgba(255,98,89,.16); --warn-l:rgba(242,179,61,.16); --toast:#0f1318;
+  --arch:#8fa3bb; --hover:#343c47; --pfill:.34; --pfill-on:.5; --ok-l:rgba(69,208,140,.14); --err-l:rgba(255,98,89,.16); --warn-l:rgba(242,179,61,.16); --toast:#0f1318;
   --f-ui:"Malgun Gothic","맑은 고딕",system-ui,sans-serif;
   --f-mono:Consolas,monospace;
   color-scheme:dark;
@@ -22,7 +22,7 @@
   --paper:#eef1f8; --sheet:#ffffff; --ink:#1b2238; --ink-2:#667089; --line:#d5dcea; --grid:#e3e8f2; --grid-major:#c3cbdc;
   --accent:#2b44c9; --accent-d:#1f33a3; --accent-soft:rgba(43,68,201,.12); --err:#d63a2f; --warn:#c77700; --ok:#168a5c;
   --clear:#d98a1c; --panel-bg:#ffffff; --col:#2a3550; --navy:#1e2a5a; --door:#0f8a80; --wall:#1b2238; --note:#b7791f; --snap:#c026d3; --margin:#7c3aed;
-  --hover:#f4f6fd; --pfill:.2; --pfill-on:.32; --ok-l:#dff4ea; --err-l:#fde8e6; --warn-l:#fff6dc; --toast:#1b2238;
+  --arch:#4b5873; --hover:#f4f6fd; --pfill:.2; --pfill-on:.32; --ok-l:#dff4ea; --err-l:#fde8e6; --warn-l:#fff6dc; --toast:#1b2238;
   color-scheme:light;
 }
 html,body{height:100%}
@@ -79,6 +79,19 @@ input[type=number]{font-family:var(--f-mono);font-variant-numeric:tabular-nums}
 .modal.fdlg .box{width:min(980px,100%);max-height:86vh;display:flex;flex-direction:column} .fdlg .fwrap{overflow:auto;flex:1;min-height:0;margin:8px 0} .fdlg td{vertical-align:top;padding:5px 6px} .fdlg tr.man td{opacity:.75} .edlg .g{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:6px 12px;margin-top:6px} .edlg .sec{margin:10px 0}
 /* Option B · Ref. PJT Layout / Option A · Equipment List 자동 배치 */
 .modal.rdlg .box{width:min(1180px,100%);height:min(84vh,820px);max-height:none}
+/* Phase 1 · 2 */
+.phase{display:inline-flex;border:1px solid var(--line);border-radius:7px;overflow:hidden;margin-right:6px}.phase button{border:0;border-radius:0;padding:4px 11px}.phase button+button{border-left:1px solid var(--line)}
+.phsec{border:1px solid var(--accent);border-radius:8px;padding:10px 10px 12px;background:var(--accent-soft)}
+.phsec .chk i,.archdlg .chk i{display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:2px}
+.arly{margin-top:4px}.arly .chk{display:flex;font-size:11.5px;margin:2px 0}
+.p2bar{height:6px;background:var(--line);border-radius:3px;overflow:hidden;margin:8px 0 4px}.p2bar i{display:block;height:100%;background:var(--ok)}
+.p2list{max-height:min(360px,40vh);overflow:auto;border:1px solid var(--line);border-radius:4px;background:var(--panel-bg);margin-top:4px}
+.p2list table{width:100%;border-collapse:collapse;font-size:11.5px}.p2list td:last-child{width:34px;text-align:center}.p2list td{padding:3px 5px;border-bottom:1px solid var(--line);white-space:nowrap;cursor:pointer}
+.p2list td.no{color:var(--ink-2);text-align:right}.p2list td.ds{max-width:84px;overflow:hidden;text-overflow:ellipsis;color:var(--ink-2)}.p2list td.sz{font-family:var(--f-mono);color:var(--ink-2)}
+.p2list tr[draggable=true]{cursor:grab}.p2list tr[draggable=true] td:last-child{color:var(--accent);font-weight:700}.p2list tr.dn td{opacity:.55}.p2list tr.dn td:last-child{color:var(--ok)}.p2list tr.on td{background:var(--accent-soft);opacity:1}
+.p2list i.sw{display:inline-block;width:8px;height:8px;border-radius:2px;margin-right:4px}
+.modal.archdlg .box{width:min(1280px,100%);height:min(90vh,900px);max-height:none}.archdlg .aw{display:grid;grid-template-columns:1fr 250px;gap:10px;flex:1;min-height:0}
+.archdlg canvas{width:100%;height:100%;border-radius:4px;cursor:crosshair;display:block;min-height:0}.archdlg .ly{overflow:auto;border:1px solid var(--line);border-radius:4px;padding:6px 8px}.archdlg .ly .chk{display:flex;font-size:12px;margin:3px 0}
 .rgrid{display:grid;grid-template-columns:330px 1fr;gap:12px;flex:1;min-height:0}
 .rlist{overflow:auto;border:1px solid var(--line);border-radius:6px;padding:6px}
 .rlist h5{margin:8px 4px 4px;font-size:12px;color:var(--accent)}.rlist h5:first-child{margin-top:2px}
@@ -314,6 +327,7 @@ svg text{font-family:var(--f-mono)}
   <div class="bar">
     <button id="bHome" title="프로젝트 고르기 · 저장 이력 첫 화면으로 (작업은 그대로 남습니다)">⌂ 첫 화면</button>
     <div class="brand">판넬 공간확보<small>Control Room · 건축 전달용</small></div>
+    <span class="phase"><button id="bPh1" class="on" title="Phase 1 — 건축 actual 도면 없이: Ref. PJT 또는 사용자 지정 배치 → PDF · CAD 출력">Phase 1 · 계획</button><button id="bPh2" title="Phase 2 — 건축이 그린 actual 배치도(DXF)를 배경으로 Phase 1 Equipment List 를 배치">Phase 2 · 건축 도면</button></span>
     <button id="bSel" class="on" title="선택 (Esc)">선택</button>
     <button id="bBox" title="박스 선택 모드 (PC는 Shift+Drag) — 끌어서 범위를 고르고, 고른 판넬을 누르고 끌면 묶음째 옮김 · 왼쪽 칸에서 일괄 속성 · 최소 이격">박스선택</button>
     <button id="bMeas" title="거리 재기: 두 점을 차례로 클릭 (Snap) — 거리 · X · Y 차이 (Esc = 끝)">📏 거리</button>
@@ -363,6 +377,7 @@ svg text{font-family:var(--f-mono)}
 
   <div class="main">
     <aside class="side">
+      <section class="sec phsec" id="phSec"></section>
       <section class="sec">
         <h3><span class="t"><span class="step-n">1</span>프로젝트 정보</span></h3>
         <div class="f">
@@ -448,6 +463,7 @@ svg text{font-family:var(--f-mono)}
       <section class="sec">
         <h3><span class="t"><span class="step-n">5</span>출력</span></h3>
         <div class="row">
+          <button class="primary" id="bPhOut" title="지금 Phase 결과: PDF(2D 도면 + 요약 · Equipment List) + CAD(DXF) 두 파일">📦 Phase 1 결과 (PDF + CAD)</button>
           <button class="primary" id="bNeed" title="건축팀용: 필요 실 크기 · 벽 이격 · 산정 조건 요약 + 2D 도면 PDF (A3 가로)">📐 필요 사이즈 내보내기 (요약 + 2D PDF)</button>
           <button id="bErgX" title="운전원 × 화면 간섭: 기준(스펙 · 조항) · 무엇 · 몇 cm · 고치려면">시야 간섭 목록 (Excel)</button>
           <button id="bErg" title="시야 검토에 적용한 인간공학 기준 (값 · 근거 표준 · 출처) + 운전원 × 대형 화면 결과 PDF (A3 가로)">👁 인간공학 기준 PDF</button>
@@ -612,6 +628,19 @@ svg text{font-family:var(--f-mono)}
     <div class="row"><button id="kClose" class="primary">닫기 (Esc)</button></div>
   </div>
 </div>
+<div class="modal archdlg" id="archdlg" hidden>
+  <div class="box">
+    <h4>🏗 Phase 2 — 건축 actual 배치도 (DXF) 넣기</h4>
+    <div class="row" style="justify-content:flex-start;align-items:center">
+      <button id="arFile" class="primary">DXF 파일 고르기</button><input type="file" id="arIn" accept=".dxf" hidden>
+      <span class="muted" id="arName">DWG 는 CAD 에서 DXF 로 저장 (SAVEAS)</span>
+      <label class="chk" style="margin-left:auto" title="DXF $INSUNITS 로 자동 — 다르면 고르기">단위<select id="arUnit"><option value="1">mm</option><option value="10">cm</option><option value="1000">m</option><option value="25.4">inch</option><option value="304.8">feet</option></select></label>
+    </div>
+    <div class="muted">끌기 = 실 영역 (꼭짓점 Snap, Alt = 끔) · 닫힌 선 클릭 = 그 실 · 휠 = 확대 · 오른쪽 끌기 = 이동 · 더블클릭 = 전체</div>
+    <div class="aw"><canvas id="arCv"></canvas><div class="ly"><b>레이어</b> <span class="muted">끈 것은 안 가져옴</span><div id="arLy"></div></div></div>
+    <div class="row" style="align-items:center"><span class="muted" id="arSel" style="margin-right:auto"></span><label class="chk" title="이 레이어의 닫힌 선(가로 · 세로 2.5 m 이하) = 기둥 → 판넬을 못 놓는 자리 · 3D 기둥">기둥 레이어<select id="arCol"></select></label><label class="chk" title="Phase 1 Equipment List 를 Phase 1 배치 모양 그대로 실 가운데에 놓고 시작"><input type="checkbox" id="arAuto">Phase 1 배치대로 놓고 시작</label><button id="arOk" class="primary" disabled>Phase 2 시작</button><button id="arCancel">닫기</button></div>
+  </div>
+</div>
 <div class="modal fdlg" id="fixdlg" hidden>
   <div class="box">
     <h4>🛠 스펙 맞추기 (시야)</h4>
@@ -768,7 +797,7 @@ function planSegs(g){
 function planDetail(g,ink){const S2=planSegs(g);return S2.lines.map(([p,q,w])=>`<line x1="${p[0]}" y1="${p[1]}" x2="${q[0]}" y2="${q[1]}" stroke="${ink}" stroke-width="${w}" vector-effect="non-scaling-stroke"/>`).join('')
   +S2.circles.map(([c,r])=>`<circle cx="${c[0]}" cy="${c[1]}" r="${r}" fill="none" stroke="${ink}" stroke-width="1.2" vector-effect="non-scaling-stroke"/>`).join('')}   // 도어 항목이 없는 예전 Type = 도어 없음
 function norm(d){(d.panels||[]).forEach(p=>{p.scope=String(p.scope??'').trim()});   // 공급 Scope (예전 파일 = 빈칸)
-  d.info=Object.assign({project:'',room:'',author:'',rev:''},d.info||{});d.room.spare=Math.max(0,+d.room.spare||0);d.room.doors=Array.isArray(d.room.doors)?d.room.doors.filter(x=>x&&'udlr'.includes(x.wall)):[];d.room.spareDir=d.room.spareDir==='y'?'y':'x';d.room.gapP=Math.max(0,+d.room.gapP||0);d.room.gapD=Math.max(0,+d.room.gapD||0);d.room.touchOK=d.room.touchOK!==false;d.room.autoFit=d.room.autoFit!==false;Object.defineProperty(d,'_fresh',{value:true,writable:true,enumerable:false});d.room.enforce=d.room.enforce!==false;d.revs=Array.isArray(d.revs)?d.revs:[];(d.types||[]).forEach(fixDoor);d.srv=d.srv&&typeof d.srv==='object'&&/^[a-z0-9]{6,32}$/.test(d.srv.pid||'')?{pid:d.srv.pid,name:String(d.srv.name||''),sid:String(d.srv.sid||''),at:String(d.srv.at||''),by:String(d.srv.by||''),rid:/^[a-z0-9]{6,32}$/.test(d.srv.rid||'')?d.srv.rid:'',rname:String(d.srv.rname||'')}:null;d.notes=Array.isArray(d.notes)?d.notes.filter(n=>n&&isFinite(n.x)&&isFinite(n.y)).map(n=>({id:n.id||uid(),x:+n.x,y:+n.y,text:String(n.text||''),by:String(n.by||''),at:String(n.at||'')})):[];d.cols=Array.isArray(d.cols)?d.cols.filter(c=>c&&isFinite(c.cx)&&isFinite(c.cy)&&c.w>0&&c.h>0).map(c=>({id:c.id||uid(),cx:+c.cx,cy:+c.cy,w:+c.w,h:+c.h})):null;return d}   // 3단계 항목이 없는 예전 파일도 열리게
+  d.info=Object.assign({project:'',room:'',author:'',rev:''},d.info||{});d.room.spare=Math.max(0,+d.room.spare||0);d.room.doors=Array.isArray(d.room.doors)?d.room.doors.filter(x=>x&&'udlr'.includes(x.wall)):[];d.room.spareDir=d.room.spareDir==='y'?'y':'x';d.room.gapP=Math.max(0,+d.room.gapP||0);d.room.gapD=Math.max(0,+d.room.gapD||0);d.room.touchOK=d.room.touchOK!==false;d.room.autoFit=d.room.autoFit!==false;Object.defineProperty(d,'_fresh',{value:true,writable:true,enumerable:false});d.room.enforce=d.room.enforce!==false;d.revs=Array.isArray(d.revs)?d.revs:[];(d.types||[]).forEach(fixDoor);d.srv=d.srv&&typeof d.srv==='object'&&/^[a-z0-9]{6,32}$/.test(d.srv.pid||'')?{pid:d.srv.pid,name:String(d.srv.name||''),sid:String(d.srv.sid||''),at:String(d.srv.at||''),by:String(d.srv.by||''),rid:/^[a-z0-9]{6,32}$/.test(d.srv.rid||'')?d.srv.rid:'',rname:String(d.srv.rname||'')}:null;d.notes=Array.isArray(d.notes)?d.notes.filter(n=>n&&isFinite(n.x)&&isFinite(n.y)).map(n=>({id:n.id||uid(),x:+n.x,y:+n.y,text:String(n.text||''),by:String(n.by||''),at:String(n.at||'')})):[];d.cols=Array.isArray(d.cols)?d.cols.filter(c=>c&&isFinite(c.cx)&&isFinite(c.cy)&&c.w>0&&c.h>0).map(c=>({id:c.id||uid(),cx:+c.cx,cy:+c.cy,w:+c.w,h:+c.h})):null;d.phase=d.phase===2&&d.arch?2:1;d.ph=d.ph&&typeof d.ph==='object'?d.ph:{};[1,2].forEach(k=>{const t=d.ph[k];if(t&&!(t.room&&Array.isArray(t.panels)))d.ph[k]=null});if(d.arch&&!(Array.isArray(d.arch.pl)&&Array.isArray(d.arch.ly)&&Array.isArray(d.arch.tx)))d.arch=null;return d}   // 3단계 항목이 없는 예전 파일도 열리게 · Phase 2(건축 도면)
 norm(S);S._fresh=false;
 let LOGIN=(Q.get('user')||'').trim();                      // 대시보드 로그인 이름 (자동값 — 저장하지 않음)
 // 서버 저장용 로그인 토큰: 대시보드 서버 화면이면 같은 주소의 localStorage, 부서원 file:// 사본이면 부모가 postMessage 로 줌
@@ -806,6 +835,8 @@ let sel=new Set();
 let mode='select';           // select | box | place | col(기둥 편집)
 let selCol=null;              // 기둥 편집에서 고른 기둥 id
 let placeType=null, placeRot=0;
+let placeItem=null;           // Phase 2: 목록에서 고른 항목(Phase 1 판넬 id) — 도면 클릭으로 놓음
+var PHOK=false;               // Phase 칸 코드가 준비됨 (그 전 refresh 에서는 안 그림)
 const show={clr:true,dim:true,lbl:true,door:true,note:true,eq:true,margin:true,cam:true,wm:true,view:true};
 let selNote=null;             // 고른 도면 노트 id
 const V={s:0.04,ox:60,oy:60};
@@ -1166,7 +1197,8 @@ function render(){v3sync();
    <pattern id="hatchM" width="${hs*1.4}" height="${hs*1.4}" patternUnits="userSpaceOnUse" patternTransform="rotate(-45)"><line x1="0" y1="0" x2="0" y2="${hs*1.4}" stroke="${C('--margin')}" stroke-width="${1/s}" opacity=".55"/></pattern>`;
   const a=toW(0,0), b=toW(vw,vh), GQ=20000, gx=Math.floor(a.x/GQ)*GQ-GQ, gy=Math.floor(a.y/GQ)*GQ-GQ;   // 격자 바탕은 20 m 단위로 넉넉히 — 화면 이동(같은 배율)이면 도면 층을 다시 안 만듦
   let g=`<rect x="${gx}" y="${gy}" width="${Math.ceil(b.x/GQ)*GQ+GQ-gx}" height="${Math.ceil(b.y/GQ)*GQ+GQ-gy}" fill="url(#gp)"/>`;
-  g+=`<rect x="0" y="0" width="${W}" height="${L}" fill="${C('--sheet')}" fill-opacity=".35" stroke="${C('--wall')}" stroke-width="3" vector-effect="non-scaling-stroke"/>`;
+  g+=PH()===2&&S.arch?`<rect x="0" y="0" width="${W}" height="${L}" fill="${C('--sheet')}" fill-opacity=".18" stroke="${acc}" stroke-width="1.5" stroke-dasharray="10 5" vector-effect="non-scaling-stroke"/>`   // Phase 2: 실 = 건축 도면에서 고른 영역 (벽은 배경)
+    :`<rect x="0" y="0" width="${W}" height="${L}" fill="${C('--sheet')}" fill-opacity=".35" stroke="${C('--wall')}" stroke-width="3" vector-effect="non-scaling-stroke"/>`;
   g+=rdSvg(C,s);   // 실 출입문
   // columns
   const cols=columns(); cols.forEach(c=>{const on=c.id&&c.id===selCol;g+=`<rect x="${c.x}" y="${c.y}" width="${c.w}" height="${c.h}" fill="${C('--col')}"${on?` stroke="${acc}" stroke-width="2.5" vector-effect="non-scaling-stroke"`:mode==='col'?` stroke="${acc}" stroke-opacity=".5" stroke-dasharray="3 2" vector-effect="non-scaling-stroke"`:''}/>`});
@@ -1284,7 +1316,7 @@ function render(){v3sync();
   {const c=show.cam&&cam3d();if(c){const sx=c.e[0]*s+V.ox,sy=c.e[1]*s+V.oy;   // 3D 카메라가 도면 화면 밖이면 가장자리에 표시 (그쪽에 있음)
     if(sx<24||sy<24||sx>vw-4||sy>vh-4){const cx=Math.min(vw-70,Math.max(80,sx)),cy=Math.min(vh-30,Math.max(36,sy)),an=Math.atan2(sy-cy,sx-cx)*180/Math.PI,ac=C('--snap');
       ru+=`<g transform="translate(${cx} ${cy})"><g transform="rotate(${an})"><path d="M14 0 L4 -7 L4 7 Z" fill="${ac}"/></g><rect x="-9" y="-6" width="12" height="12" rx="2" fill="${ac}"/><text x="0" y="20" font-size="11" fill="${ac}" text-anchor="middle" font-weight="700">3D 카메라 ${fmt(Math.hypot(c.e[0]-c.t[0],c.e[1]-c.t[1])/1000)} m</text></g>`}}}
-  svgLayers(defs,`translate(${V.ox} ${V.oy}) scale(${s})`,[gA,KB,gC,KD,KE,g,gv],gc,wm,ru);
+  svgLayers(defs,`translate(${V.ox} ${V.oy}) scale(${s})`,[gA,archSvg(),KB,gC,KD,KE,g,gv],gc,wm,ru);   // archSvg = Phase 2 건축 도면 배경
 }
 /* 2D 도면은 층으로 나눠 바뀐 층만 다시 넣음: 무늬(defs) · 도면(판넬 …) · 3D 시점 · 워터마크 · 자.
    판넬을 끌면 도면 층만, 화면 이동은 위치(transform)와 자만, 3D 를 돌리면 3D 시점 층만 — 전엔 매번 전부 다시 만들어 무거웠음 */
@@ -1588,7 +1620,7 @@ try{if(localStorage.getItem('crspace.eqfold')){$('#eqBox').classList.add('fold')
 $('#eqTbl').addEventListener('click',e=>{const tr=e.target.closest('[data-pid]');if(!tr)return;const p=S.panels.find(x=>x.id===tr.dataset.pid);if(!p)return;
   if(e.shiftKey){sel.has(p.id)?sel.delete(p.id):sel.add(p.id);buildProps();buildEq();render();return}   // Shift = 목록에서도 여러 개 고르기
   sel=new Set([p.id]);const b=geom(p).body,{w,h}=vp();V.ox=w/2-(b.x+b.w/2)*V.s;V.oy=h/2-(b.y+b.h/2)*V.s;buildProps();buildEq();render()});
-function refresh(){check();buildSummary();buildRevs();buildNotes();buildEq();updSrv();buildProps();render();if(typeof V3!=='undefined'&&V3.on){v3side();v3req()}
+function refresh(){check();buildSummary();buildRevs();buildNotes();buildEq();updSrv();buildProps();render();if(PHOK)phBuild();if(typeof V3!=='undefined'&&V3.on){v3side();v3req()}
   const n=S.types.map(t=>S.panels.filter(p=>p.type===t.id).length).join(',');
   if(n!==refresh._n){refresh._n=n;buildTypes()}
   $('#bUndo').disabled=!undo.length;$('#bRedo').disabled=!redo.length;
@@ -1604,6 +1636,7 @@ function placeGhost(w,ctrl){   // 놓을 자리 미리보기: Ctrl = 정렬 스�
   block=ENF()?violation(gh):null; showBlock(); return gh;
 }
 function makeGhost(w,raw){   // raw = 격자에 맞추지 않음 (Ctrl 정렬용)
+  if(placeItem){const it=p1Items().find(x=>x.p.id===placeItem);return it?[p2Center(it,w)]:null}   // Phase 2: 목록에서 고른 그 항목 하나
   const t=S.types.find(x=>x.id===placeType); if(!t)return null;
   const n=Math.max(1,Math.min(40,+$('#qty').value||1)), sw=placeRot%180===0, step=(sw?t.w:t.d)+Math.max(!S.room.touchOK&&+S.room.gapP>0?+S.room.gapP:0,+t.gap||0), out=[], tags=[];
   for(let i=0;i<n;i++){const tag=nextTag(t,tags);tags.push(tag);out.push({id:uid(),type:t.id,tag,desc:'',rot:placeRot,x:(raw?w.x:snapV(w.x))+(sw?i*step:0),y:(raw?w.y:snapV(w.y))+(sw?0:i*step)})}
@@ -1651,10 +1684,10 @@ function dupSel(){
 }
 function nudge(dx,dy){const ps=S.panels.filter(p=>sel.has(p.id)&&!p.lock);if(!ps.length)return;ps.forEach(p=>{p.x+=dx;p.y+=dy});guardCommit(new Set(ps.map(p=>p.id)))}
 function setMode(m){
-  mode=m; if(m!=='place'){ghost=null;block=null;guides=[];showBlock()} if(m!=='col')selCol=null; if(m!=='measure')measure=null;
+  mode=m; if(m!=='place'){ghost=null;block=null;guides=[];showBlock();if(placeItem){placeItem=null;if(PHOK)phBuild()}} if(m!=='col')selCol=null; if(m!=='measure')measure=null;
   $('#bSel').classList.toggle('on',m==='select'); $('#bBox').classList.toggle('on',m==='box'); $('#bCol').classList.toggle('on',m==='col'); $('#bNote').classList.toggle('on',m==='note'); $('#bMeas').classList.toggle('on',m==='measure');
   const t=S.types.find(x=>x.id===placeType);
-  $('#stMode').textContent=m==='place'?`배치: ${t?t.name:''}`:m==='box'?'박스 선택 — 고른 판넬을 끌면 묶음째 이동':m==='col'?'기둥 편집':m==='note'?'📌 노트':m==='measure'?'📏 거리':'선택';
+  $('#stMode').textContent=m==='place'?(placeItem?`Phase 2 놓기: ${(S.ph&&S.ph[1]&&S.ph[1].panels.find(p=>p.id===placeItem)||{}).tag||''} — 도면 클릭 (Esc = 끝)`:`배치: ${t?t.name:''}`):m==='box'?'박스 선택 — 고른 판넬을 끌면 묶음째 이동':m==='col'?'기둥 편집':m==='note'?'📌 노트':m==='measure'?'📏 거리':'선택';
   $('#stHint').textContent=m==='measure'?'두 점 클릭 = 거리 · Esc = 끝':m==='place'?'클릭 = 놓기 · R = 회전 · Esc = 끝':m==='note'?'클릭 = 노트 · Esc = 끝':m==='col'?'클릭 = 기둥 추가 · 끌기 = 이동 · Esc = 끝':m==='box'?'끌어서 고르기':'끌기 = 이동 · 휠 = 확대 · ? = 단축키';
   buildTypes(); buildProps(); render();
 }
@@ -1685,7 +1718,7 @@ svg.addEventListener('pointerdown',e=>{
   if(ptrs.size===2){const [a,b]=[...ptrs.values()];pinch={d:Math.hypot(a.x-b.x,a.y-b.y),s:V.s,mx:(a.x+b.x)/2,my:(a.y+b.y)/2,ox:V.ox,oy:V.oy};drag=null;marquee=null;return}
   const w=toW(sp.x,sp.y);
   if(e.button===1){drag={k:'pan',sx:sp.x,sy:sp.y,ox:V.ox,oy:V.oy,moved:true};return}
-  if(mode==='place'){const gh=ghost&&ghost.length?ghost:placeGhost(w,e.ctrlKey);if(gh){const v=ENF()?violation(gh):null;if(v){refuse(v);return}S.panels.push(...gh);sel=new Set(gh.map(p=>p.id));commit();ghost=placeGhost(w,e.ctrlKey);render()}return}
+  if(mode==='place'){const gh=ghost&&ghost.length?ghost:placeGhost(w,e.ctrlKey);if(gh){const v=ENF()?violation(gh):null;if(v){refuse(v);return}S.panels.push(...gh);sel=new Set(gh.map(p=>p.id));commit();if(placeItem){p2After();ghost=placeItem?placeGhost(w,e.ctrlKey):null;render();return}ghost=placeGhost(w,e.ctrlKey);render()}return}
   if(mode==='measure'){const q={x:snapV(w.x),y:snapV(w.y)};if(!measure||measure.b)measure={a:q,b:null};else measure.b=q;render();measStatus();return}
   if(mode==='note'){const n=hitNote(w);if(n){selNote=n.id;drag={k:'note',w0:w,n,ox:n.x,oy:n.y,moved:false};render()}else openNote(null,w);return}
   {const n=hitNote(w);if(n&&mode==='select'){selNote=n.id;drag={k:'note',w0:w,n,ox:n.x,oy:n.y,moved:false};render();return}}
@@ -2043,6 +2076,8 @@ function v3build(){
       for(let i=0;i<la;i++)for(let j=0;j<lo;j++){const a=P(i,j),b=P(i+1,j),cc=P(i+1,j+1),d=P(i,j+1),n=v3n([(a[0]+cc[0])/2-hx,(a[1]+cc[1])/2-hy,(a[2]+cc[2])/2-hz]);quad(T,[a,b,cc,d],skin,1,n)}}   // 머리 (정수리 1,750)
     rb(-16,100,16,135,1600,1650,skin);                                                    // 코 = 보는 방향
   }
+  if(PH()===2&&S.arch&&!S.arch.hide){const A=S.arch,ac=mix(hexRGB(cssv('--arch')),DCS?[0,0,0]:[1,1,1],.15);let n=0;   // Phase 2: 건축 도면을 바닥에 선으로 (실 밖 6 m 까지)
+    for(const q of A.pl){const l=A.ly[q[0]];if(!l||!l.on)continue;for(let k=4;k<q.length&&n<120000;k+=2,n++)seg([q[k-2],4,q[k-1]],[q[k],4,q[k+1]],ac,.75);if(q[1]&&q.length>5)seg([q[q.length-2],4,q[q.length-1]],[q[2],4,q[3]],ac,.75)}}
   // 앉은 운전원 · 결선 작업자는 움직이므로 매 화면 v3dyn() 에서 그림
   {const k=S.room.w+'x'+S.room.l+'|'+S.panels.map(p=>p.id+':'+p.x+','+p.y+','+p.r+','+p.type).join(';')+'|'+columns().map(c=>c.x+','+c.y).join(';');if(k!==V3.agK){V3.agK=k;V3.ag=null}}   // 배치가 바뀌면 작업자 다시 놓음
   V3.gd=V3.edim?gapDims():[];   // 글자에서 다시 씀
@@ -2662,7 +2697,8 @@ async function needPdf(){
       g.font=FNT(30,1);const t=`필요 실 W ${fmt(sm.rec.w)} × L ${fmt(sm.rec.h)} (벽 이격 ${fmt(m)} 포함 · 100 올림)`,tw=g.measureText(t).width;g.fillStyle='rgba(255,255,255,.9)';g.fillRect(ax,by+8,tw+20,44);g.fillStyle='#7c3aed';g.fillText(t,ax+10,by+42)}
     const x0=PG.w-side-60; let y=90; g.fillStyle='#f3f6fb';g.fillRect(x0,60,side,PG.h-200);g.strokeStyle='#c9d3e3';g.lineWidth=2;g.strokeRect(x0,60,side,PG.h-200);
     const T=(t,px,b,col='#1b2238')=>{y+=px*.95;g.font=FNT(px,b);g.fillStyle=col;g.fillText(t,x0+30,y);y+=px*.5};   // 글자 높이만큼 내려 쓰고 줄 간격
-    T('건축 전달 — 필요 사이즈',40,1);
+    T(PH()===2?'Phase 2 — 건축 도면 배치':'Phase 1 — 필요 사이즈 (건축 전달)',40,1);
+    if(PH()===2&&S.arch){const its=p1Items(),pm=p2Placed();T(`건축 도면: ${S.arch.name}`,22,0,'#475569');T(`Phase 1 Equipment 놓음 ${its.filter(it=>pm.has(it.p.id)).length} / ${its.length} EA · 실 영역 ${fmt(S.room.w)} × ${fmt(S.room.l)}`,22,0,'#475569')}
     {const r=roomId(S.info.room);T(r.std||'Room 명칭 없음',34,1,r.std?'#7c3aed':'#d63a2f');if(r.kind)T(r.kind,24,0,'#475569');if(r.fixes.length)T(`※ 입력 '${r.raw}' → 철자 고침`,20,0,'#b45309')} y+=10;
     T('필요 실 크기 (권장 내부 치수)',28,1,'#2d5bd8'); T(sm.rec?`W ${fmt(sm.rec.w)} × L ${fmt(sm.rec.h)}`:'-',52,1); T(sm.rec?`= ${(sm.rec.w*sm.rec.h/1e6).toFixed(1)} m²  (100 단위 올림)`:'',28); y+=16;
     T('벽과의 이격 (사방)',28,1,'#2d5bd8'); T(`${fmt(m)} mm 이상`,48,1); if(ws)ws.sides.forEach(sd=>T(`${sd.name}: 지금 ${fmt(sd.gap)}${sd.short?'  ⚠ 부족':''}`,26,0,sd.short?'#d33':'#333')); y+=16;
@@ -2682,7 +2718,7 @@ async function needPdf(){
     eqRows().forEach(r=>put(`   ${String(r.no).padStart(2,' ')}  ${r.p.tag}  ${r.desc}  ${r.size.replace(/×/g,'x')}${r.scope?'  ['+r.scope+']':''}`));
     pages.push(c)}
   const total=pages.length, jp=[];
-  for(let i=0;i<total;i++){const g=pages[i].getContext('2d');pgFrame(g,i+1,total);const b=await new Promise(ok=>pages[i].toBlob(ok,'image/jpeg',0.9));jp.push({data:new Uint8Array(await b.arrayBuffer()),w:PG.w,h:PG.h})}
+  for(let i=0;i<total;i++){const g=pages[i].getContext('2d');pgFrame(g,i+1,total,PH()===2?'Phase 2 건축 도면 배치':'Phase 1 필요 사이즈');const b=await new Promise(ok=>pages[i].toBlob(ok,'image/jpeg',0.9));jp.push({data:new Uint8Array(await b.arrayBuffer()),w:PG.w,h:PG.h})}
   return pdfBytes(jp,PG.pw,PG.ph);
 }
 /* 인간공학 기준 PDF: 이 배치의 시야 검토에 쓴 기준(값 · 근거 표준 · 출처)과 운전원 × 대형 화면 결과를 따로 한 파일로.
@@ -2791,11 +2827,15 @@ $('#bCsv').onclick=()=>{
 function dxfStr(s){return String(s).replace(/[^\x20-\x7e]/g,c=>'\\U+'+c.charCodeAt(0).toString(16).toUpperCase().padStart(4,'0'))}
 $('#bDxf').onclick=()=>{
   if(!preflight('DXF 출력'))return;
+  openModal('DXF 출력','단위 mm, 실 좌하단 = (0,0). Layer: CR-ROOM / COLUMN / PANEL / PANEL-FRONT / CLEARANCE / ENVELOPE / TEXT / DIM / DOOR(문짝 · 회전 궤적 ARC) / NOTE(도면 노트) / LIST(장비 번호 · Equipment List 표)'+(PH()===2&&S.arch?' / ARCH-*(Phase 2 건축 도면 배경, 원래 레이어 이름)':'')+'. '+dlNote,dxfText(),fname(PH()===2?'Phase2_Layout':'Layout','dxf'),'application/dxf');
+};
+function dxfText(){   // 지금 배치 → DXF R12 글 (Phase 2 면 건축 도면 배경도 ARCH-<레이어> 로)
   const Lr=S.room.l, o=[]; const P=(...a)=>{for(let i=0;i<a.length;i+=2)o.push(String(a[i]),String(a[i+1]))};
   const Y=y=>+(Lr-y).toFixed(1), X=x=>+(+x).toFixed(1);
   // Layer 색 = 화면(어두운 CAD) 색에 가장 가까운 ACI — 원색(빨강 · 노랑 · 자홍 · 순백)을 피해 눈부시지 않게.
   // R12 는 ACI 번호만 됨: 254 밝은 회색(벽 · 전면) · 253/8 회색(판넬 · 기둥) · 9 연회색(글자) · 43 흐린 주황(유지보수) · 161/151 파랑(필요 영역 · 치수) · 133 청록(도어) · 191 연보라(벽 이격, 화면 --margin 과 같은 색)
-  const layers=[['CR-ROOM',254],['CR-ROOMDOOR',30],['CR-COLUMN',8],['CR-PANEL',253],['CR-PANEL-FRONT',254],['CR-CLEARANCE',43],['CR-ENVELOPE',161],['CR-TEXT',9],['CR-DIM',151],['CR-DOOR',133],['CR-NOTE',31],['CR-LIST',9],['CR-MARGIN',191]];
+  const AL=PH()===2&&S.arch&&!S.arch.hide?S.arch:null, aln=l=>'ARCH-'+String(l.n).replace(/[^A-Za-z0-9_\-$]/g,'_').slice(0,40);
+  const layers=[...(AL?AL.ly.filter(l=>l.on).map(l=>[aln(l),l.c===7?8:l.c]):[]),['CR-ROOM',254],['CR-ROOMDOOR',30],['CR-COLUMN',8],['CR-PANEL',253],['CR-PANEL-FRONT',254],['CR-CLEARANCE',43],['CR-ENVELOPE',161],['CR-TEXT',9],['CR-DIM',151],['CR-DOOR',133],['CR-NOTE',31],['CR-LIST',9],['CR-MARGIN',191]];
   P(0,'SECTION',2,'HEADER',9,'$ACADVER',1,'AC1009',9,'$INSUNITS',70,4,0,'ENDSEC');
   P(0,'SECTION',2,'TABLES',0,'TABLE',2,'LTYPE',70,1,0,'LTYPE',2,'CONTINUOUS',70,0,3,'Solid line',72,65,73,0,40,'0.0',0,'ENDTAB');
   // 글자 스타일 CR-KOR = 맑은 고딕 TrueType — 기본 STANDARD(txt.shx)에는 한글 글꼴이 없어 Room 명칭 등이 ? 로 보인다
@@ -2803,6 +2843,10 @@ $('#bDxf').onclick=()=>{
   P(0,'TABLE',2,'LAYER',70,layers.length); layers.forEach(([n,c])=>P(0,'LAYER',2,n,70,0,62,c,6,'CONTINUOUS')); P(0,'ENDTAB',0,'ENDSEC');
   P(0,'SECTION',2,'ENTITIES');
   const line=(ly,x1,y1,x2,y2)=>P(0,'LINE',8,ly,10,X(x1),20,Y(y1),30,0,11,X(x2),21,Y(y2),31,0);
+  let AX=S.room.w,AY=Lr;   // 표제 · Equipment List 표는 건축 도면 밖에 (오른쪽 · 아래)
+  if(AL){AL.pl.forEach(q=>{for(let k=2;k<q.length;k+=2){if(q[k]>AX)AX=q[k];if(q[k+1]>AY)AY=q[k+1]}});AX=Math.min(AX,S.room.w+6000);AY=Math.min(AY,Lr+6000)}
+  if(AL){AL.pl.forEach(q=>{const l=AL.ly[q[0]];if(!l||!l.on)return;const ly=aln(l);P(0,'POLYLINE',8,ly,66,1,70,q[1]?1:0,10,0,20,0,30,0);for(let k=2;k<q.length;k+=2)P(0,'VERTEX',8,ly,10,X(q[k]),20,Y(q[k+1]),30,0);P(0,'SEQEND',8,ly)});   // 건축 도면 배경
+    AL.tx.forEach(([li,x,y,h,r,str,ha,va])=>{const l=AL.ly[li];if(!l||!l.on||!(h>0))return;String(str).split('\n').forEach((t,j)=>{const yy=y+j*h*1.35;P(0,'TEXT',8,aln(l),10,X(x),20,Y(yy),30,0,40,h,1,dxfStr(t),50,r||0,7,'CR-KOR',...(ha||va?[72,ha===1?1:ha===2?2:0,11,X(x),21,Y(yy),31,0,73,va===3?3:va===2?2:va===1?1:0]:[]))})})}
   const box=(ly,r)=>{if(r.w<=0||r.h<=0)return;line(ly,r.x,r.y,r.x+r.w,r.y);line(ly,r.x+r.w,r.y,r.x+r.w,r.y+r.h);line(ly,r.x+r.w,r.y+r.h,r.x,r.y+r.h);line(ly,r.x,r.y+r.h,r.x,r.y)};
   const text=(ly,x,y,h,s,rot=0)=>P(0,'TEXT',8,ly,10,X(x),20,Y(y),30,0,40,h,1,dxfStr(s),50,rot,7,'CR-KOR',72,1,11,X(x),21,Y(y),31,0,73,2);
   box('CR-ROOM',{x:0,y:0,w:S.room.w,h:S.room.l});
@@ -2835,14 +2879,14 @@ $('#bDxf').onclick=()=>{
   line('CR-DIM',0,-600,S.room.w,-600);text('CR-DIM',S.room.w/2,-850,250,'ROOM W '+fmt(S.room.w));
   line('CR-DIM',-600,0,-600,S.room.l);text('CR-DIM',-850,S.room.l/2,250,'ROOM L '+fmt(S.room.l),90);
   const textL=(ly,x,y,h,s)=>P(0,'TEXT',8,ly,10,X(x),20,Y(y),30,0,40,h,1,dxfStr(s),7,'CR-KOR');   // 왼쪽 아래 기준
-  const ty=Lr+1600, th=250;                                // 타이틀: 실 아래 (치수 글자 밑)
+  const ty=AY+1600, th=250;                                // 타이틀: 실 아래 (치수 글자 밑)
   const sm=summary();
   [`PROJECT : ${S.info.project||'-'}`,`ROOM : ${roomStd()||'-'}`,`REV : ${revOf()}   DATE : ${today()}   BY : ${author()||'-'}`,(sm.env?`REQUIRED ${fmt(sm.env.w)} x ${fmt(sm.env.h)}   ${S.room.spare>0?`SPARE ${S.room.spare}% (${S.room.spareDir==='y'?'Y':'X'})`:'SPARE 0%'}   ->   RECOMMENDED ROOM ${fmt(sm.rec.w)} x ${fmt(sm.rec.h)}`:'NO PANEL'),'CONTROL ROOM PANEL SPACE - PRELIMINARY (UNIT: mm)']
     .forEach((t,i)=>textL('CR-TEXT',0,ty+i*th*1.6,th,t));
   // Equipment List: 판넬마다 번호 원(CR-LIST) + 실 오른쪽에 표 (NO. · EQUIPMENT TAG NO. · DESCRIPTION · DIMENSION) — 화면 목록과 같은 번호
   {const EQ=eqRows(); if(EQ.length){
     EQ.forEach(r=>{const b=geom(r.p).body,R=Math.min(220,Math.min(b.w,b.h)*0.28);P(0,'CIRCLE',8,'CR-LIST',10,X(b.x+R*1.2),20,Y(b.y+b.h-R*1.2),30,0,40,R);text('CR-LIST',b.x+R*1.2,b.y+b.h-R*1.2,R*0.9,String(r.no))});
-    const x0=S.room.w+2500, cw=[700,2600,5600,1900,2800], rh=480, xs=[x0];cw.forEach(v=>xs.push(xs[xs.length-1]+v));
+    const x0=AX+2500, cw=[700,2600,5600,1900,2800], rh=480, xs=[x0];cw.forEach(v=>xs.push(xs[xs.length-1]+v));
     textL('CR-LIST',x0,-250,300,'EQUIPMENT LIST');
     const rows=[['NO.','EQUIPMENT TAG NO.','DESCRIPTION','SCOPE','DIMENSION (WxDxH)'],...EQ.map(r=>[String(r.no),r.p.tag,r.desc,r.scope||'-',r.size.replace(/×/g,'x')])];
     rows.forEach((row,i)=>{const y=i*rh;row.forEach((t,j)=>textL('CR-LIST',xs[j]+120,y+rh-150,i?190:170,t))});
@@ -2853,8 +2897,8 @@ $('#bDxf').onclick=()=>{
   S.notes.forEach((n,i)=>{P(0,'CIRCLE',8,'CR-NOTE',10,X(n.x),20,Y(n.y),30,0,40,180);text('CR-NOTE',n.x,n.y,150,'N'+(i+1));
     n.text.split('\n').forEach((t,j)=>textL('CR-NOTE',n.x+300,n.y+j*260-120,170,`${j?'':'N'+(i+1)+' '}${t}`))});
   P(0,'ENDSEC',0,'EOF');
-  openModal('DXF 출력','단위 mm, 실 좌하단 = (0,0). Layer: CR-ROOM / COLUMN / PANEL / PANEL-FRONT / CLEARANCE / ENVELOPE / TEXT / DIM / DOOR(문짝 · 회전 궤적 ARC) / NOTE(도면 노트) / LIST(장비 번호 · Equipment List 표). '+dlNote,o.join('\n'),fname('Layout','dxf'),'application/dxf');
-};
+  return o.join('\n');
+}
 $('#bSave').onclick=()=>openModal('배치안 저장','이 내용을 .json으로 저장해 두면 [불러오기]로 다시 열 수 있습니다. '+dlNote,JSON.stringify(S,null,1),fname('배치안','json'),'application/json');
 $('#bLoad').onclick=()=>$('#fLoad').click();
 /* ---------- 서버 저장: 프로젝트별 · 날짜별 이력 + 프로젝트 노트 (server.py /api/space) ---------- */
@@ -3453,6 +3497,269 @@ if(ONLY3D){try{if(window.opener)PEERS.add(window.opener)}catch(e){}
   let warned=false;setInterval(()=>{let gone=false;try{gone=!window.opener||window.opener.closed}catch(e){gone=true}
     if(gone&&!warned){warned=true;toast('2D 화면이 닫힘 — 연동이 멈추면 2D 에서 [↗ 3D 새 창]',true)}if(!gone)warned=false},2000)}
 window.addEventListener('storage',e=>{if(e.key==='crspace.v1'&&e.newValue&&e.newValue!==lastSnap){bcIn=true;try{applyRemote(e.newValue)}finally{bcIn=false}}});
+/* ---------- Phase 2: 건축 DXF 읽기 (ASCII DXF R12 ~ 2018, 라이브러리 없이) ----------
+   블록(INSERT · 중첩 · 대칭 · 배열) · 치수(*D 블록) · 속성(ATTRIB) 을 풀어 선(pl) · 글(tx) 로. 좌표 = 도면 단위 그대로 (Y 위쪽).
+   LINE · LWPOLYLINE(bulge) · POLYLINE · CIRCLE · ARC · ELLIPSE · SPLINE · SOLID · 3DFACE · LEADER · TEXT · MTEXT · ATTRIB. HATCH 는 뺌(채움). 꺼짐 · 동결 레이어는 기본 끔 */
+function dxfDecode(buf){   // 글자 코드: UTF-8 (2007~) → 아니면 CP949(예전 한글 도면, $DWGCODEPAGE ANSI_949)
+  const b=new Uint8Array(buf), head=new TextDecoder('latin1').decode(b.subarray(0,22));
+  if(/^AutoCAD Binary DXF/.test(head))throw new Error('이진(Binary) DXF 입니다 — CAD 에서 ASCII DXF 로 다시 저장하세요 (SAVEAS → DXF)');
+  if(/^AC10\d\d/.test(head))throw new Error('DWG 파일입니다 — CAD 에서 DXF 로 저장(SAVEAS → AutoCAD DXF)해서 넣으세요');
+  try{return new TextDecoder('utf-8',{fatal:true}).decode(b)}catch(e){}
+  try{return new TextDecoder('euc-kr').decode(b)}catch(e){return new TextDecoder('latin1').decode(b)}}
+function dxfRead(txt){
+  const A=txt.split(/\r\n|\r|\n/), C=[], Vv=[]; for(let i=0;i+1<A.length;i+=2){const c=parseInt(A[i],10);if(isNaN(c))continue;C.push(c);Vv.push(A[i+1])}
+  const N=C.length, num=s=>{const v=parseFloat(s);return isFinite(v)?v:0}, out={units:0,ext:null,layers:{},blocks:{},ents:[]};
+  const uni=s=>s.replace(/\\U\+([0-9A-Fa-f]{4})/g,(m,h)=>String.fromCharCode(parseInt(h,16))).replace(/%%[cC]/g,'Ø').replace(/%%[dD]/g,'°').replace(/%%[pP]/g,'±').replace(/%%[uUoO]/g,'').replace(/%%%/g,'%');
+  // 엔티티 하나 = "0 TYPE" 부터 다음 0 까지의 (코드, 값) 들
+  const ent=i=>{const t=Vv[i].trim(), e={t,g:[]};let k=i+1;for(;k<N&&C[k]!==0;k++)e.g.push([C[k],Vv[k]]);return [e,k]};
+  let i=0, sec='';
+  const cur=[];   // 지금 넣는 곳 (ENTITIES 또는 블록)
+  let blk=null;
+  while(i<N){
+    if(C[i]!==0){i++;continue}
+    const t=Vv[i].trim();
+    if(t==='SECTION'){sec=(Vv[i+1]||'').trim();i+=2;continue}
+    if(t==='ENDSEC'){sec='';i++;continue}
+    if(t==='EOF')break;
+    if(sec==='HEADER'){i++;continue}
+    if(sec==='TABLES'){
+      if(t==='LAYER'){const [e,k]=ent(i);let n='',col=7,fl=0;e.g.forEach(([c,v])=>{if(c===2)n=v.trim();else if(c===62)col=parseInt(v,10)||7;else if(c===70)fl=parseInt(v,10)||0});if(n)out.layers[n]={c:Math.abs(col)||7,off:col<0||(fl&1)===1};i=k;continue}
+      i++;continue}
+    if(sec==='BLOCKS'){
+      if(t==='BLOCK'){const [e,k]=ent(i);let n='',bx=0,by=0;e.g.forEach(([c,v])=>{if(c===2)n=v.trim();else if(c===10)bx=num(v);else if(c===20)by=num(v)});blk={n,bx,by,ents:[]};out.blocks[n]=blk;i=k;continue}
+      if(t==='ENDBLK'){blk=null;const [,k]=ent(i);i=k;continue}
+      const [e,k]=ent(i);if(blk)blk.ents.push(e);i=k;continue}
+    if(sec==='ENTITIES'){const [e,k]=ent(i);out.ents.push(e);i=k;continue}
+    i++;
+  }
+  // HEADER 값 ($INSUNITS · $EXTMIN · $EXTMAX)
+  {const hs=C.findIndex((c,j)=>c===2&&Vv[j].trim()==='HEADER');if(hs>=0)for(let j=hs;j<N&&!(C[j]===0&&Vv[j].trim()==='ENDSEC');j++){if(C[j]===9){const h=Vv[j].trim();
+    if(h==='$INSUNITS')out.units=parseInt(Vv[j+1],10)||0;
+    if(h==='$EXTMIN'||h==='$EXTMAX'){const p=[num(Vv[j+2]),num(Vv[j+4])];(out.ext=out.ext||{})[h==='$EXTMIN'?'min':'max']=p}}}}
+  out.uni=uni;
+  return out;
+}
+/* 풀기: 엔티티 → 선 · 글 (블록은 변환을 곱해 들어감). M = [a,b,c,d,e,f] : x' = a x + c y + e, y' = b x + d y + f */
+function dxfFlatten(D,opt={}){
+  const MAXV=opt.maxV||1500000, pl=[], tx=[]; let nv=0, cut=false;
+  const LY=Object.keys(D.layers), lyIdx={}; LY.forEach((n,k)=>lyIdx[n]=k);
+  const lid=n=>{if(lyIdx[n]==null){lyIdx[n]=LY.length;LY.push(n);D.layers[n]=D.layers[n]||{c:7,off:false}}return lyIdx[n]};
+  const mul=(P,Q)=>[P[0]*Q[0]+P[2]*Q[1],P[1]*Q[0]+P[3]*Q[1],P[0]*Q[2]+P[2]*Q[3],P[1]*Q[2]+P[3]*Q[3],P[0]*Q[4]+P[2]*Q[5]+P[4],P[1]*Q[4]+P[3]*Q[5]+P[5]];
+  const ap=(M,x,y)=>[M[0]*x+M[2]*y+M[4],M[1]*x+M[3]*y+M[5]];
+  const num=s=>{const v=parseFloat(s);return isFinite(v)?v:0};
+  const arcPts=(cx,cy,r,a0,a1,P)=>{let d=a1-a0;while(d<=0)d+=Math.PI*2;const n=Math.max(4,Math.min(64,Math.ceil(d/(Math.PI/24))));for(let k=0;k<=n;k++){const a=a0+d*k/n;P.push(cx+r*Math.cos(a),cy+r*Math.sin(a))}};
+  const bulgeTo=(x0,y0,x1,y1,bg,P)=>{   // bulge = tan(사잇각/4), + 반시계
+    const th=4*Math.atan(bg), L=Math.hypot(x1-x0,y1-y0); if(L<1e-9||Math.abs(bg)<1e-9){P.push(x1,y1);return}
+    const r=L/(2*Math.sin(Math.abs(th)/2)), mx=(x0+x1)/2, my=(y0+y1)/2, h=Math.sqrt(Math.max(0,r*r-L*L/4))*(Math.abs(th)>Math.PI?-1:1)*Math.sign(bg);
+    const cx=mx-h*(y1-y0)/L, cy=my+h*(x1-x0)/L, a0=Math.atan2(y0-cy,x0-cx); let d=Math.atan2(y1-cy,x1-cx)-a0;
+    if(bg>0){while(d<=0)d+=2*Math.PI}else{while(d>=0)d-=2*Math.PI}
+    const n=Math.max(2,Math.min(48,Math.ceil(Math.abs(d)/(Math.PI/24))));for(let k=1;k<=n;k++){const a=a0+d*k/n;P.push(cx+r*Math.cos(a),cy+r*Math.sin(a))}};
+  const put=(li,M,P,closed)=>{if(P.length<4||cut)return;const Q=new Array(P.length);for(let k=0;k<P.length;k+=2){const q=ap(M,P[k],P[k+1]);Q[k]=q[0];Q[k+1]=q[1]}pl.push({l:li,c:!!closed,p:Q});nv+=P.length/2;if(nv>MAXV)cut=true};
+  const mtextClean=s=>D.uni(s).replace(/\\P/g,'\n').replace(/\\[ACFHQTWfhqtw][^;\\]*;/g,'').replace(/\\S([^;]*);/g,(m,a)=>a.replace(/[#^]/,'/')).replace(/\\[LlOoKk]/g,'').replace(/\\~/g,' ').replace(/[{}]/g,'').replace(/\\\\/g,'\\');
+  const putT=(li,M,x,y,h,rot,s,ha,va)=>{if(!s||!s.trim()||cut)return;const q=ap(M,x,y),sx=Math.hypot(M[0],M[1]),sy=Math.hypot(M[2],M[3]),mr=Math.atan2(M[1],M[0])*180/Math.PI,det=M[0]*M[3]-M[1]*M[2];
+    tx.push({l:li,x:q[0],y:q[1],h:h*(sy||sx||1),r:(det<0?-rot:rot)+mr,s,ha,va})};
+  const ocs=g=>{let z=1;g.forEach(([c,v])=>{if(c===230)z=num(v)});return z<0?[-1,0,0,1,0,0]:null};   // 압출 방향 (0,0,-1) = X 대칭 (2D 도면에서 흔한 경우만)
+  function walk(ents,M,inLy,depth){
+    for(let k=0;k<ents.length&&!cut;k++){const e=ents[k], g=e.g, f=(c,d=0)=>{for(const [cc,v] of g)if(cc===c)return num(v);return d}, fs=c=>{for(const [cc,v] of g)if(cc===c)return v;return ''};
+      let ln=(fs(8)||'0').trim(); if(ln==='0'&&inLy!=null)ln=inLy; const li=lid(ln), O=ocs(g), Mo=O?mul(M,O):M, t=e.t;
+      if(t==='LINE')put(li,M,[f(10),f(20),f(11),f(21)]);
+      else if(t==='LWPOLYLINE'){const P=[],B=[];let fl=0;g.forEach(([c,v])=>{if(c===70)fl=parseInt(v,10)||0;else if(c===10){P.push(num(v),0);B.push(0)}else if(c===20)P[P.length-1]=num(v);else if(c===42)B[B.length-1]=num(v)});
+        const cl=(fl&1)===1, Q=[P[0],P[1]];for(let j=1;j<P.length/2+(cl?1:0);j++){const a=(j-1)*2,b=(j%(P.length/2))*2;bulgeTo(P[a],P[a+1],P[b],P[b+1],B[j-1],Q)}put(li,Mo,Q,cl)}
+      else if(t==='POLYLINE'){const fl=f(70);const P=[],B=[];let j=k+1;for(;j<ents.length&&ents[j].t==='VERTEX';j++){const vg=ents[j].g,vf=c=>{for(const [cc,v] of vg)if(cc===c)return num(v);return 0};let vfl=0;vg.forEach(([c,v])=>{if(c===70)vfl=parseInt(v,10)||0});if(vfl&128&&!(vfl&64))continue;P.push(vf(10),vf(20));B.push(vf(42))}
+        if(j<ents.length&&ents[j].t==='SEQEND')j++;k=j-1;if(fl&80)continue;   // 폴리페이스 · 메시는 뺌
+        const cl=(fl&1)===1,n=P.length/2;if(n<2)continue;const Q=[P[0],P[1]];for(let q=1;q<n+(cl?1:0);q++){const a=(q-1)*2,b=(q%n)*2;bulgeTo(P[a],P[a+1],P[b],P[b+1],B[q-1],Q)}put(li,Mo,Q,cl)}
+      else if(t==='CIRCLE'){const P=[];arcPts(f(10),f(20),f(40),0,Math.PI*2,P);put(li,Mo,P,true)}
+      else if(t==='ARC'){const P=[];arcPts(f(10),f(20),f(40),f(50)*Math.PI/180,f(51)*Math.PI/180,P);put(li,Mo,P)}
+      else if(t==='ELLIPSE'){const cx=f(10),cy=f(20),mx=f(11),my=f(21),ra=f(40,1),p0=f(41,0),p1=f(42,Math.PI*2),P=[];let d=p1-p0;while(d<=0)d+=Math.PI*2;const n=Math.max(8,Math.ceil(d/(Math.PI/24)));
+        for(let q=0;q<=n;q++){const a=p0+d*q/n,c=Math.cos(a),s=Math.sin(a);P.push(cx+mx*c-my*ra*s,cy+my*c+mx*ra*s)}put(li,M,P)}
+      else if(t==='SPLINE'){const cp=[],fp=[];g.forEach(([c,v])=>{if(c===10)cp.push(num(v),0);else if(c===20)cp[cp.length-1]=num(v);else if(c===11)fp.push(num(v),0);else if(c===21)fp[fp.length-1]=num(v)});put(li,M,fp.length>=4?fp:cp,(f(70)&1)===1)}
+      else if(t==='SOLID'||t==='TRACE'||t==='3DFACE'){const P=[f(10),f(20),f(11),f(21)];if(t==='3DFACE')P.push(f(12),f(22),f(13),f(23));else P.push(f(13),f(23),f(12),f(22));put(li,t==='3DFACE'?M:Mo,P,true)}
+      else if(t==='LEADER'){const P=[];g.forEach(([c,v])=>{if(c===10)P.push(num(v),0);else if(c===20)P[P.length-1]=num(v)});put(li,M,P)}
+      else if(t==='TEXT'||t==='ATTRIB'||t==='ATTDEF'){if(t==='ATTDEF')continue;if(t==='ATTRIB'&&(f(70)&1))continue;const ha=f(72),va=t==='ATTRIB'?f(74):f(73),al=ha||va;
+        putT(li,Mo,al?f(11):f(10),al?f(21):f(20),f(40,250),f(50),D.uni(fs(1)),ha===1||ha===4?1:ha===2?2:0,ha===4?2:va)}
+      else if(t==='MTEXT'){let s='';g.forEach(([c,v])=>{if(c===3)s+=v;else if(c===1)s+=v});let rot=f(50);if(g.some(([c])=>c===11))rot=Math.atan2(f(21),f(11))*180/Math.PI;const at=f(71,1)||1;
+        putT(li,Mo,f(10),f(20),f(40,250),rot,mtextClean(s),(at-1)%3,at<=3?3:at<=6?2:1)}
+      else if(t==='INSERT'||t==='DIMENSION'){
+        const B=D.blocks[fs(2).trim()]; let j=k+1; if(t==='INSERT'&&f(66)===1){for(;j<ents.length&&ents[j].t==='ATTRIB';j++)walk([ents[j]],M,ln,depth);if(j<ents.length&&ents[j].t==='SEQEND')j++;k=j-1}
+        if(!B||depth>8)continue;
+        if(t==='DIMENSION'){walk(B.ents,M,ln,depth+1);continue}   // 치수 블록은 이미 WCS 좌표
+        const sx=f(41,1)||1, sy=f(42,1)||1, r=f(50)*Math.PI/180, cs=Math.cos(r), sn=Math.sin(r), nc=Math.max(1,Math.min(50,f(70,1)||1)), nr=Math.max(1,Math.min(50,f(71,1)||1)), dc=f(44), dr=f(45);
+        for(let a=0;a<nc;a++)for(let b=0;b<nr;b++){const ox=f(10)+(a*dc*cs-b*dr*sn), oy=f(20)+(a*dc*sn+b*dr*cs);
+          const T=[cs*sx,sn*sx,-sn*sy,cs*sy,0,0]; T[4]=ox-(T[0]*B.bx+T[2]*B.by); T[5]=oy-(T[1]*B.bx+T[3]*B.by);
+          walk(B.ents,mul(O?mul(M,O):M,T),ln,depth+1)}}
+    }}
+  walk(D.ents,[1,0,0,1,0,0],null,0);
+  return {pl,tx,layers:LY.map(n=>({n,c:D.layers[n].c,off:D.layers[n].off})),cut};
+}
+const DXF_UNIT={0:['단위 없음',1],1:['inch',25.4],2:['feet',304.8],4:['mm',1],5:['cm',10],6:['m',1000]};
+/* ---------- Phase 1 · Phase 2 ----------
+   Phase 1 = 건축 actual 도면 없이 Ref. PJT 또는 사용자 지정 배치 → 결과 PDF · CAD(DXF).
+   Phase 2 = 건축이 그린 그 프로젝트의 actual 배치도(DXF)를 2D 배경으로 깔고, Phase 1 Equipment List 를 항목별로 그 도면에 배치 → PDF · CAD.
+   S.phase = 1 | 2, 쉬는 Phase 의 배치 = S.ph[n] = {room, panels, cols, notes} (Type 은 같이 씀). Phase 2 판넬.p1 = Phase 1 판넬 id (목록과 연결).
+   S.arch = 건축 도면 — 고른 실 영역 ± 6 m 안만, 실 좌상단 = (0,0) mm 로 옮긴 선 pl [레이어, 닫힘, x, y, …] · 글 tx [레이어, x, y, 높이, 각, 글, 가로맞춤, 세로맞춤] */
+function PH(){return S.phase===2?2:1}
+function phStore(){S.ph=S.ph||{};S.ph[PH()]={room:S.room,panels:S.panels,cols:S.cols,notes:S.notes}}
+function phSwap(n){
+  if(n===PH())return; if(n===2&&!S.arch)return archOpen();
+  phStore(); const t=S.ph[n]; S.ph[n]=null; if(t){S.room=t.room;S.panels=t.panels;S.cols=t.cols;S.notes=t.notes}
+  S.phase=n; sel=new Set(); selNote=null; selRD=null; if(mode==='place')setMode('select'); S._fresh=true; commit(); buildRoom(); buildTypes(); phBuild(); fit();
+  toast(n===2?`Phase 2 — 건축 도면 ${S.arch.name} 위에 배치`:'Phase 1 — 계획 배치');
+}
+function p1Items(){   // Phase 1 Equipment List (Tag 순 번호 — Phase 1 의 '장비 목록' 번호와 같음)
+  const ps=PH()===2?(S.ph&&S.ph[1]?S.ph[1].panels:[]):S.panels;
+  return ps.slice().sort((a,b)=>TAGCMP(a.tag,b.tag)).map((p,i)=>{const t=typeOf(p);return {no:i+1,p,t,desc:(p.desc||'').trim()||t.name,size:`${t.w}×${t.d}`}})}
+const p2Placed=()=>{const m=new Map();S.panels.forEach(p=>{if(p.p1)m.set(p.p1,p)});return m};
+function p2Copy(it,x,y){const {id,lock,...rest}=it.p;return {...rest,id:uid(),p1:it.p.id,x:Math.round(x),y:Math.round(y)}}
+function p2Center(it,w){const q=p2Copy(it,0,0),b=geom(q).body;q.x=snapV(w.x-b.w/2-(b.x-q.x));q.y=snapV(w.y-b.h/2-(b.y-q.y));return q}   // 커서가 몸체 가운데
+function p2PlaceRest(){   // 아직 안 놓은 항목을 Phase 1 배치 모양 그대로, 실 가운데에
+  const its=p1Items(), pm=p2Placed(), rest=its.filter(it=>!pm.has(it.p.id)); if(!rest.length)return 0;
+  const bb=unionR(its.map(it=>geom(it.p).body)), dx=Math.round((S.room.w/2-(bb.x+bb.w/2))/100)*100, dy=Math.round((S.room.l/2-(bb.y+bb.h/2))/100)*100;
+  rest.forEach(it=>S.panels.push(p2Copy(it,it.p.x+dx,it.p.y+dy))); return rest.length}
+function p2Next(){const pm=p2Placed(),it=p1Items().find(x=>!pm.has(x.p.id));return it?it.p.id:null}
+function p2Pick(id){const it=p1Items().find(x=>x.p.id===id);if(!it)return;placeItem=id;placeType=it.p.type;placeRot=it.p.rot||0;setMode('place');phBuild()}
+function p2After(){const n=p2Next();if(n)p2Pick(n);else{placeItem=null;setMode('select');toast('Phase 1 Equipment List 를 모두 놓았습니다')}phBuild()}
+/* 옆 칸 맨 위: 지금 Phase · 할 일 */
+function phBuild(){
+  const ph=PH(), el=$('#phSec'); $('#bPh1').classList.toggle('on',ph===1); $('#bPh2').classList.toggle('on',ph===2);
+  $('#bPhOut').textContent=`📦 Phase ${ph} 결과 (PDF + CAD)`; document.body.classList.toggle('ph2',ph===2);
+  if(ph===1){const n2=S.ph&&S.ph[2]?S.ph[2].panels.length:0;
+    el.innerHTML=`<h3><span class="t">Phase 1 · 계획</span><span class="pill">건축 도면 없음</span></h3>
+      <div class="muted">Ref. PJT 불러오기 또는 사용자 지정 배치 → 결과 PDF · CAD(DXF)</div>
+      <div class="row" style="margin-top:6px"><button class="primary" data-ph="out">📦 Phase 1 결과 (PDF + CAD)</button><button data-ph="go2">▶ Phase 2 — 건축 DXF</button></div>
+      ${S.arch?`<div class="muted" style="margin-top:4px">Phase 2: ${esc(S.arch.name)} · 놓음 ${n2} EA</div>`:''}`;return}
+  const a=S.arch, its=p1Items(), pm=p2Placed(), nd=its.filter(it=>pm.has(it.p.id)).length, pc=its.length?Math.round(nd/its.length*100):0;
+  el.innerHTML=`<h3><span class="t">Phase 2 · 건축 actual 배치</span><span class="pill ${nd===its.length&&its.length?'ok':'warn'}">${nd} / ${its.length}</span></h3>
+    <div class="muted" title="${esc(a.name)} · ${esc(a.at||'')} ${esc(a.by||'')}">🏗 ${esc(a.name)} · 실 ${fmt(S.room.w)} × ${fmt(S.room.l)}</div>
+    <div class="row" style="margin-top:4px;align-items:center"><button data-ph="dxf" title="다른 DXF 를 넣거나 실 영역을 다시 고름 (놓은 판넬은 그대로)">DXF · 실 영역</button>
+      <label class="chk" title="배경 도면 진하기"><input type="range" id="arAlpha" min="0.15" max="1" step="0.05" value="${a.alpha??.85}" style="width:70px">배경</label>
+      <label class="chk"><input type="checkbox" id="arShow" ${a.hide?'':'checked'}>보이기</label></div>
+    <details class="arly"><summary class="muted">레이어 ${a.ly.filter(l=>l.on).length} / ${a.ly.length}</summary>${a.ly.map((l,i)=>`<label class="chk"><input type="checkbox" data-aly="${i}" ${l.on?'checked':''}><i style="background:${aciHex(l.c)}"></i>${esc(l.n)}</label>`).join('')}</details>
+    <div class="p2bar"><i style="width:${pc}%"></i></div>
+    <div class="muted"><b>Phase 1 Equipment List</b> — 줄을 도면으로 끌거나, 누른 뒤 도면 클릭</div>
+    <div class="p2list"><table>${its.map(it=>{const q=pm.get(it.p.id),on=placeItem===it.p.id;return `<tr data-p1="${it.p.id}" class="${q?'dn':''}${on?' on':''}" ${q?'':'draggable="true"'} title="${q?'놓음 — 누르면 도면에서 고름':'끌어서 도면에 놓기 · 누르면 놓기 모드'}">
+      <td class="no">${it.no}</td><td><i class="sw" style="background:${it.t.color}"></i><b>${esc(it.p.tag)}</b></td><td class="ds">${esc(it.desc)}</td><td class="sz">${it.size}</td><td>${q?'✓':'놓기'}</td></tr>`}).join('')||'<tr><td class="muted">Phase 1 판넬이 없습니다</td></tr>'}</table></div>
+    <div class="row" style="margin-top:6px"><button data-ph="rest" ${nd===its.length?'disabled':''} title="안 놓은 것을 Phase 1 배치 모양 그대로 실 가운데에 — 그 뒤 묶음째 옮기기">남은 ${its.length-nd} EA Phase 1 배치대로</button><button data-ph="next" ${nd===its.length?'disabled':''}>다음 놓기</button></div>
+    <div class="row" style="margin-top:6px"><button class="primary" data-ph="out">📦 Phase 2 결과 (PDF + CAD)</button><button data-ph="go1">◀ Phase 1</button></div>`;
+}
+$('#phSec').addEventListener('click',e=>{const b=e.target.closest('[data-ph]');if(b){const k=b.dataset.ph;
+    if(k==='out')phExport(); else if(k==='go2')phSwap(2); else if(k==='go1')phSwap(1); else if(k==='dxf')archOpen();
+    else if(k==='rest'){const n=p2PlaceRest();if(n){commit();phBuild();toast(`${n} EA 를 Phase 1 배치대로 놓았습니다 — 박스선택으로 묶어 옮기세요`)}}
+    else if(k==='next'){const n=p2Next();if(n)p2Pick(n)}
+    return}
+  const tr=e.target.closest('[data-p1]');if(!tr)return;const id=tr.dataset.p1,q=p2Placed().get(id);
+  if(q){sel=new Set([q.id]);placeItem=null;if(mode==='place')setMode('select');buildProps();zoomSel();phBuild()}else p2Pick(id)});
+$('#phSec').addEventListener('change',e=>{const a=S.arch;if(!a)return;const t=e.target;
+  if(t.id==='arShow'){a.hide=!t.checked;commit()}else if(t.dataset.aly!=null){a.ly[+t.dataset.aly].on=t.checked;commit();phBuild()}});
+$('#phSec').addEventListener('input',e=>{if(e.target.id==='arAlpha'&&S.arch){S.arch.alpha=+e.target.value;render()}});
+$('#phSec').addEventListener('pointerup',e=>{if(e.target.id==='arAlpha'&&S.arch)commit()});
+$('#phSec').addEventListener('dragstart',e=>{const tr=e.target.closest('[data-p1]');if(!tr)return;e.dataTransfer.setData('text/x-p1',tr.dataset.p1);e.dataTransfer.effectAllowed='copy'});
+svg.addEventListener('dragover',e=>{if([...e.dataTransfer.types].includes('text/x-p1')){e.preventDefault();e.dataTransfer.dropEffect='copy'}});
+svg.addEventListener('drop',e=>{const id=e.dataTransfer.getData('text/x-p1');if(!id)return;e.preventDefault();
+  const it=p1Items().find(x=>x.p.id===id);if(!it||p2Placed().has(id))return;const sp=local(e),q=p2Center(it,toW(sp.x,sp.y)),v=ENF()?violation([q]):null;if(v)return refuse(v);
+  S.panels.push(q);sel=new Set([q.id]);commit();buildProps();phBuild()});
+$('#bPh1').onclick=()=>phSwap(1); $('#bPh2').onclick=()=>phSwap(2); $('#bPhOut').onclick=()=>phExport();
+async function phExport(){   // 지금 Phase 결과: PDF(도면 + 요약 · Equipment List) + CAD(DXF) 두 파일
+  const ph=PH(); if(!preflight(`Phase ${ph} 결과 출력`))return; toast(`Phase ${ph} 결과 PDF · DXF 를 만드는 중…`);
+  try{const nm=ph===2?'Phase2_건축배치':'Phase1_계획', pdf=await needPdf(), dx=new Blob([dxfText()],{type:'application/dxf'});
+    dlBlob(pdf,fname(nm,'pdf')); setTimeout(()=>dlBlob(dx,fname(nm,'dxf')),500);
+    toast(`Phase ${ph} 결과 — PDF ${Math.round(pdf.size/1024)} KB + CAD(DXF) ${Math.round(dx.size/1024)} KB 를 내려받았습니다${ph===2?' (건축 도면 배경 포함)':''}`)}
+  catch(e){toast('결과를 만들지 못했습니다 — '+(e&&e.message||e),true)}}
+/* 2D 배경: 건축 도면 (레이어별 켜고 끄기 · 진하기). 한 번 만든 글은 그대로 씀 */
+const ACI={1:'#ff4d4d',2:'#ffd84d',3:'#4dd96b',4:'#4dd9d9',5:'#4d7dff',6:'#e65ce6',7:'#d8dde4',8:'#8b939e',9:'#c0c6ce',30:'#ff9a3c',40:'#ffbf3c'};
+const aciHex=c=>ACI[c]||(c>=10&&c<250?`hsl(${(Math.floor(c/10)-1)*15},65%,62%)`:'#a0a8b3');
+var ARCH_C=null;
+function archSvg(){const a=S.arch; if(PH()!==2||!a||a.hide)return '';
+  const col=cssv('--arch'), key=`${a.v}|${col}|${a.ly.map(l=>l.on?1:0).join('')}|${a.alpha}`; if(ARCH_C&&ARCH_C.k===key)return ARCH_C.h;
+  let d=''; a.pl.forEach(p=>{if(!a.ly[p[0]]||!a.ly[p[0]].on)return;d+=`M${p[2]} ${p[3]}`;for(let k=4;k<p.length;k+=2)d+=`L${p[k]} ${p[k+1]}`;if(p[1])d+='Z'});
+  let t=''; a.tx.forEach(([l,x,y,h,r,s,ha,va])=>{if(!a.ly[l]||!a.ly[l].on||!(h>0))return;const L=String(s).split('\n'),lh=h*1.35,y0=va===3?0:va===2?-(L.length-1)*lh/2:-(L.length-1)*lh;
+    t+=`<text x="${x}" y="${y}" font-size="${h}" text-anchor="${ha===1?'middle':ha===2?'end':'start'}" dominant-baseline="${va===3?'hanging':va===2?'central':'alphabetic'}"${r?` transform="rotate(${-r} ${x} ${y})"`:''}>${L.map((s,i)=>`<tspan x="${x}" y="${y+y0+i*lh}">${esc(s)}</tspan>`).join('')}</text>`});
+  ARCH_C={k:key,h:`<g opacity="${a.alpha??.85}" pointer-events="none"><path d="${d}" fill="none" stroke="${col}" stroke-width="1" vector-effect="non-scaling-stroke"/><g fill="${col}" font-family="Malgun Gothic,맑은 고딕,sans-serif">${t}</g></g>`};return ARCH_C.h}
+/* 건축 DXF 넣기 창: 파일 → 미리보기(레이어 색) → 실 영역 끌기(꼭짓점 Snap) 또는 닫힌 선 클릭 → [Phase 2 시작] */
+const AR={F:null,name:'',v:{s:1,ox:0,oy:0},rect:null,drag:null,lyOn:[],snap:null};
+function archOpen(){$('#archdlg').hidden=false;AR.rect=AR.rect||null;arDraw();arState()}
+$('#arCancel').onclick=()=>{$('#archdlg').hidden=true};
+$('#arFile').onclick=()=>$('#arIn').click();
+$('#arIn').onchange=async e=>{const f=e.target.files[0];e.target.value='';if(!f)return;await arLoad(f.name,await f.arrayBuffer())};
+async function arLoad(name,buf){
+  try{const D=dxfRead(dxfDecode(buf)),F=dxfFlatten(D);if(!F.pl.length&&!F.tx.length)throw new Error('그릴 것이 없습니다 (ENTITIES 가 비어 있음)');
+    AR.F=F;AR.name=name;AR.rect=null;AR.lyOn=F.layers.map(l=>!l.off);
+    const u=DXF_UNIT[D.units];let k=u&&D.units?u[1]:1;if(!D.units){const e=arExt();if(e&&Math.max(e[2]-e[0],e[3]-e[1])<3000)k=1000}   // 단위 없음 + 작은 도면 = m 로 봄
+    $('#arUnit').value=String([1,10,1000,25.4,304.8].includes(k)?k:1);
+    $('#arName').textContent=`${name} — 선 ${F.pl.length.toLocaleString()} · 글 ${F.tx.length.toLocaleString()} · 레이어 ${F.layers.length}${F.cut?' · (너무 커서 일부만)':''} · 단위 ${u?u[0]:'?'}`;
+    arLyBuild();arColBuild();arFit();arState()}
+  catch(err){toast('DXF 를 못 읽었습니다 — '+(err&&err.message||err),true)}}
+function arExt(){const F=AR.F;if(!F)return null;let a=1e18,b=1e18,c=-1e18,d=-1e18;F.pl.forEach(p=>{if(!AR.lyOn[p.l])return;for(let k=0;k<p.p.length;k+=2){const x=p.p[k],y=p.p[k+1];if(x<a)a=x;if(x>c)c=x;if(y<b)b=y;if(y>d)d=y}});return a<c?[a,b,c,d]:null}
+function arFit(){const cv=$('#arCv'),e=arExt();if(!e)return;const w=cv.clientWidth,h=cv.clientHeight,s=Math.min((w-40)/(e[2]-e[0]),(h-40)/(e[3]-e[1]));AR.v={s,ox:(w-(e[2]-e[0])*s)/2-e[0]*s,oy:(h+(e[3]-e[1])*s)/2+e[1]*s};arDraw()}
+const arS=(x,y)=>[x*AR.v.s+AR.v.ox,-y*AR.v.s+AR.v.oy], arW=(sx,sy)=>[(sx-AR.v.ox)/AR.v.s,-(sy-AR.v.oy)/AR.v.s];
+function arLyBuild(){const F=AR.F,n=new Array(F.layers.length).fill(0);F.pl.forEach(p=>n[p.l]++);F.tx.forEach(t=>n[t.l]++);
+  $('#arLy').innerHTML=F.layers.map((l,i)=>n[i]?`<label class="chk"><input type="checkbox" data-l="${i}" ${AR.lyOn[i]?'checked':''}><i style="background:${aciHex(l.c)}"></i>${esc(l.n)} <span class="muted">${n[i]}${l.off?' · 꺼짐':''}</span></label>`:'').join('')}
+function arColBuild(){const F=AR.F,n=F.layers.map((l,i)=>F.pl.filter(p=>p.l===i&&p.c).length),d=F.layers.findIndex((l,i)=>n[i]&&/COL|기둥/i.test(l.n));
+  $('#arCol').innerHTML='<option value="-1">(없음)</option>'+F.layers.map((l,i)=>n[i]?`<option value="${i}" ${i===d?'selected':''}>${esc(l.n)}</option>`:'').join('')}
+$('#arLy').addEventListener('change',e=>{const i=e.target.dataset.l;if(i==null)return;AR.lyOn[+i]=e.target.checked;arDraw()});
+function arDraw(){const cv=$('#arCv'),dpr=window.devicePixelRatio||1,w=cv.clientWidth,h=cv.clientHeight;if(!w)return;cv.width=w*dpr;cv.height=h*dpr;const g=cv.getContext('2d');g.setTransform(dpr,0,0,dpr,0,0);g.fillStyle='#10151b';g.fillRect(0,0,w,h);
+  const F=AR.F;if(!F){g.fillStyle='#9aa5b3';g.font='14px "Malgun Gothic",sans-serif';g.textAlign='center';g.fillText('[DXF 파일 고르기] — 건축이 그린 그 프로젝트의 actual 배치도 (.dxf)',w/2,h/2);return}
+  const by={};F.pl.forEach(p=>{if(AR.lyOn[p.l])(by[p.l]=by[p.l]||[]).push(p)});
+  g.lineWidth=1;Object.entries(by).forEach(([l,ps])=>{g.strokeStyle=aciHex(F.layers[l].c);g.beginPath();ps.forEach(p=>{const q=p.p;let [x,y]=arS(q[0],q[1]);g.moveTo(x,y);for(let k=2;k<q.length;k+=2){[x,y]=arS(q[k],q[k+1]);g.lineTo(x,y)}if(p.c)g.closePath()});g.stroke()});
+  F.tx.forEach(t=>{if(!AR.lyOn[t.l])return;const px=t.h*AR.v.s;if(px<4)return;const [x,y]=arS(t.x,t.y);g.save();g.translate(x,y);g.rotate(-t.r*Math.PI/180);g.fillStyle=aciHex(F.layers[t.l].c);g.font=`${px}px "Malgun Gothic",sans-serif`;
+    g.textAlign=t.ha===1?'center':t.ha===2?'right':'left';g.textBaseline=t.va===3?'top':t.va===2?'middle':'alphabetic';String(t.s).split('\n').forEach((s,i)=>g.fillText(s,0,i*px*1.35));g.restore()});
+  const r=AR.rect;if(r){const [ax,ay]=arS(r[0],r[3]),[bx,by2]=arS(r[2],r[1]),k=+$('#arUnit').value;g.fillStyle='rgba(91,157,255,.18)';g.fillRect(ax,ay,bx-ax,by2-ay);g.strokeStyle='#5b9dff';g.lineWidth=2;g.setLineDash([8,4]);g.strokeRect(ax,ay,bx-ax,by2-ay);g.setLineDash([]);
+    const t=`실 ${fmt(Math.round((r[2]-r[0])*k))} × ${fmt(Math.round((r[3]-r[1])*k))} mm`;g.font='700 14px "Malgun Gothic",sans-serif';const tw=g.measureText(t).width+14;g.fillStyle='#5b9dff';g.fillRect(ax,ay-24,tw,22);g.fillStyle='#fff';g.textAlign='left';g.textBaseline='middle';g.fillText(t,ax+7,ay-13)}
+  if(AR.snap){const [x,y]=arS(...AR.snap);g.strokeStyle='#ff7ad9';g.lineWidth=2;g.strokeRect(x-6,y-6,12,12)}}
+function arState(){const r=AR.rect,k=+$('#arUnit').value;$('#arOk').disabled=!(AR.F&&r&&(r[2]-r[0])*k>=1000&&(r[3]-r[1])*k>=1000);
+  $('#arSel').textContent=!AR.F?'':r?`실 영역 ${fmt(Math.round((r[2]-r[0])*k))} × ${fmt(Math.round((r[3]-r[1])*k))} mm — 이 영역 ± 6 m 의 선 · 글을 가져옴`:'실 영역을 끌어서 고르세요 (실 안쪽 벽면 모서리 → 대각선 모서리)'}
+$('#arUnit').onchange=()=>{arDraw();arState()};
+function arSnapAt(sx,sy){   // Snap: 꼭짓점 · 두 선의 교점(벽 안쪽 면 모서리) · 선 위 — 가까운 것 (화면 10 px 안)
+  const F=AR.F,[wx,wy]=arW(sx,sy),R=10/AR.v.s,S2=[];let best=null,bd=R;
+  const near=(x,y)=>{const d=Math.hypot(x-wx,y-wy);if(d<bd){bd=d;best=[x,y]}};
+  F.pl.forEach(p=>{if(!AR.lyOn[p.l])return;const q=p.p,n=q.length;for(let k=0;k+3<n+(p.c?2:0);k+=2){const ax=q[k],ay=q[k+1],bx=q[(k+2)%n],by=q[(k+3)%n];
+    if(Math.min(ax,bx)>wx+R||Math.max(ax,bx)<wx-R||Math.min(ay,by)>wy+R||Math.max(ay,by)<wy-R)continue;near(ax,ay);near(bx,by);
+    const dx=bx-ax,dy=by-ay,L2=dx*dx+dy*dy;if(!L2)continue;const t=Math.max(0,Math.min(1,((wx-ax)*dx+(wy-ay)*dy)/L2)),d=Math.hypot(ax+dx*t-wx,ay+dy*t-wy);if(d<R)S2.push({ax,ay,dx,dy,d})}});
+  S2.sort((a,b)=>a.d-b.d);const T=S2.slice(0,10);
+  for(let i=0;i<T.length;i++)for(let j=i+1;j<T.length;j++){const A=T[i],B=T[j],den=A.dx*B.dy-A.dy*B.dx;if(Math.abs(den)<1e-9*Math.hypot(A.dx,A.dy)*Math.hypot(B.dx,B.dy))continue;
+    const t=((B.ax-A.ax)*B.dy-(B.ay-A.ay)*B.dx)/den;near(A.ax+A.dx*t,A.ay+A.dy*t)}
+  if(!best&&T.length){const A=T[0],L2=A.dx*A.dx+A.dy*A.dy,t=((wx-A.ax)*A.dx+(wy-A.ay)*A.dy)/L2;best=[A.ax+A.dx*t,A.ay+A.dy*t]}
+  return best}
+{const cv=$('#arCv');
+  cv.addEventListener('pointerdown',e=>{if(!AR.F)return;cv.setPointerCapture(e.pointerId);const r=cv.getBoundingClientRect(),sx=e.clientX-r.left,sy=e.clientY-r.top;
+    if(e.button!==0){AR.drag={k:'pan',sx,sy,ox:AR.v.ox,oy:AR.v.oy};return}const p=AR.snap||arW(sx,sy);AR.drag={k:'rect',a:p,sx,sy,moved:false}});
+  cv.addEventListener('pointermove',e=>{if(!AR.F)return;const r=cv.getBoundingClientRect(),sx=e.clientX-r.left,sy=e.clientY-r.top,d=AR.drag;
+    AR.snap=e.altKey?null:arSnapAt(sx,sy);
+    if(d&&d.k==='pan'){AR.v.ox=d.ox+sx-d.sx;AR.v.oy=d.oy+sy-d.sy}
+    else if(d&&d.k==='rect'){if(Math.abs(sx-d.sx)+Math.abs(sy-d.sy)>4)d.moved=true;if(d.moved){const b=AR.snap||arW(sx,sy);AR.rect=[Math.min(d.a[0],b[0]),Math.min(d.a[1],b[1]),Math.max(d.a[0],b[0]),Math.max(d.a[1],b[1])];arState()}}
+    arDraw()});
+  cv.addEventListener('pointerup',e=>{const d=AR.drag;AR.drag=null;if(!d||d.k!=='rect'||d.moved){arDraw();return}
+    const [wx,wy]=d.a;let best=null,ba=1e30;AR.F.pl.forEach(p=>{if(!p.c||!AR.lyOn[p.l])return;const q=p.p;let a=1e18,b=1e18,c=-1e18,dd=-1e18;for(let k=0;k<q.length;k+=2){a=Math.min(a,q[k]);c=Math.max(c,q[k]);b=Math.min(b,q[k+1]);dd=Math.max(dd,q[k+1])}
+      if(wx<a||wx>c||wy<b||wy>dd)return;let ins=false;for(let i=0,j=q.length-2;i<q.length;j=i,i+=2){if((q[i+1]>wy)!==(q[j+1]>wy)&&wx<(q[j]-q[i])*(wy-q[i+1])/(q[j+1]-q[i+1])+q[i])ins=!ins}
+      const ar=(c-a)*(dd-b);if(ins&&ar<ba){ba=ar;best=[a,b,c,dd]}});   // 누른 점을 품은 가장 작은 닫힌 선 = 그 실
+    if(best){AR.rect=best;arState()}arDraw()});
+  cv.addEventListener('wheel',e=>{if(!AR.F)return;e.preventDefault();const r=cv.getBoundingClientRect(),sx=e.clientX-r.left,sy=e.clientY-r.top,[wx,wy]=arW(sx,sy),k=e.deltaY<0?1.2:1/1.2;AR.v.s*=k;AR.v.ox=sx-wx*AR.v.s;AR.v.oy=sy+wy*AR.v.s;arDraw()},{passive:false});
+  cv.addEventListener('contextmenu',e=>e.preventDefault());
+  cv.addEventListener('dblclick',()=>arFit());}
+function archBuild(){   // 고른 실 영역 → S.arch (실 좌상단 = 0,0 · mm · 영역 ± 6 m 만)
+  const F=AR.F,[x0,y0,x1,y1]=AR.rect,k=+$('#arUnit').value,W=Math.round((x1-x0)*k),L=Math.round((y1-y0)*k),M=6000,X=x=>Math.round((x-x0)*k),Y=y=>Math.round((y1-y)*k);
+  const used=new Map(),li=l=>{if(!used.has(l))used.set(l,used.size);return used.get(l)},pl=[],tx=[];
+  const bx0=-M,by0=-M,bx1=W+M,by1=L+M, clip=(ax,ay,bx,by)=>{let t0=0,t1=1;const dx=bx-ax,dy=by-ay;   // 선분을 가져올 영역으로 자름 (Liang–Barsky)
+    for(const [p,q] of [[-dx,ax-bx0],[dx,bx1-ax],[-dy,ay-by0],[dy,by1-ay]]){if(p===0){if(q<0)return null}else{const r=q/p;if(p<0){if(r>t1)return null;if(r>t0)t0=r}else{if(r<t0)return null;if(r<t1)t1=r}}}
+    return [ax+dx*t0,ay+dy*t0,ax+dx*t1,ay+dy*t1,t0>0,t1<1]};
+  F.pl.forEach(p=>{if(!AR.lyOn[p.l])return;const P=[];for(let j=0;j<p.p.length;j+=2)P.push(X(p.p[j]),Y(p.p[j+1]));if(p.c&&P.length>=4)P.push(P[0],P[1]);
+    let q=null,cut=false;const end=()=>{if(q&&q.length>=6){q[0]=li(p.l);pl.push(q)}q=null};
+    for(let j=2;j<P.length;j+=2){const r=clip(P[j-2],P[j-1],P[j],P[j+1]);if(!r){cut=true;end();continue}const [ax,ay,bx,by,c0,c1]=r.map((v,i)=>i<4?Math.round(v):v);
+      if(c0||c1)cut=true;if(!q||c0){end();q=[0,0,ax,ay]}if(q[q.length-2]!==bx||q[q.length-1]!==by)q.push(bx,by);if(c1)end()}
+    if(q&&p.c&&!cut&&q.length>=8){q[1]=1;q.length-=2}end()});   // 안 잘린 닫힌 선은 그대로 닫힘
+  F.tx.forEach(t=>{if(!AR.lyOn[t.l])return;const x=X(t.x),y=Y(t.y);if(x<-M||x>W+M||y<-M||y>L+M)return;tx.push([li(t.l),x,y,Math.round(t.h*k),Math.round(t.r*10)/10,t.s,t.ha|0,t.va|0])});
+  const cl=+$('#arCol').value, cols=[], seen=new Set();   // 기둥 = 기둥 레이어의 닫힌 선 (2.5 m 이하) 중 실 안에 걸치는 것
+  if(cl>=0)F.pl.forEach(p=>{if(p.l!==cl||!p.c)return;let a=1e18,b=1e18,c=-1e18,d=-1e18;for(let j=0;j<p.p.length;j+=2){const x=X(p.p[j]),y=Y(p.p[j+1]);a=Math.min(a,x);c=Math.max(c,x);b=Math.min(b,y);d=Math.max(d,y)}
+    const w=c-a,h=d-b,key=`${a},${b},${w},${h}`;if(w<100||h<100||w>2500||h>2500||c<=0||a>=W||d<=0||b>=L||seen.has(key))return;seen.add(key);cols.push({id:uid(),cx:(a+c)/2,cy:(b+d)/2,w,h})});
+  return {cols,name:AR.name,v:Date.now(),k,src:[x0,y0,x1,y1],ly:[...used.keys()].map(l=>({n:F.layers[l].n,c:F.layers[l].c,on:true})),pl,tx,alpha:.85,by:author(),at:today()}}
+$('#arOk').onclick=()=>{const {cols,...a}=archBuild(),first=PH()===1;
+  if(first){phStore();const t=S.ph[2];S.ph[2]=null;S.phase=2;
+    if(t){S.room=t.room;S.panels=t.panels;S.cols=t.cols;S.notes=t.notes}else{S.room={...JSON.parse(JSON.stringify(S.room)),doors:[]};S.panels=[];S.notes=[]}}
+  S.arch=a;S.room.w=Math.round((a.src[2]-a.src[0])*a.k);S.room.l=Math.round((a.src[3]-a.src[1])*a.k);S.room.autoFit=false;S.room.doors=[];S.cols=cols;   // 실 = 고른 영역 · 기둥 = 건축 기둥 레이어 (판넬 못 놓는 자리) · 벽 · 문은 배경
+  let n=0;if($('#arAuto').checked)n=p2PlaceRest();
+  $('#archdlg').hidden=true;S._fresh=true;sel=new Set();commit();buildRoom();buildTypes();phBuild();fit();
+  toast(`Phase 2 — ${a.name} (선 ${a.pl.length.toLocaleString()} · 글 ${a.tx.length} · 기둥 ${cols.length}) 위에 ${n?`Phase 1 배치대로 ${n} EA 놓음`:'목록에서 끌어 놓으세요'}`)};
+PHOK=true;phBuild();
+window.crspacePhase=()=>({phase:PH(),arch:S.arch?{name:S.arch.name,pl:S.arch.pl.length,tx:S.arch.tx.length,ly:S.arch.ly.length,W:S.room.w,L:S.room.l}:null,items:p1Items().length,placed:p2Placed().size,panels:S.panels.length,arS:(x,y)=>arS(x,y)});   // Phase 확인용 (콘솔 · 시험)
 window.crspaceSpeed=()=>({build_ms:+(V3.tb||0).toFixed(2),draw_ms:+(V3.td||0).toFixed(2),panels:S.panels.length});   // 속도 확인용 (콘솔)
 window.crspacePeople=look=>(look&&(()=>{const o=look.op!=null?operators()[look.op]:V3.ag&&V3.ag.ag[look.tech||0];if(o){V3.T=[o.x,look.y||700,o.z];V3.D=look.D||5000;if(look.yaw!=null)V3.yaw=look.yaw;if(look.pitch!=null)V3.pitch=look.pitch;v3req(false)}})(),{t:+(V3.t||0).toFixed(2),anim:V3.anim!==false,tech:(V3.ag?V3.ag.ag:[]).map(a=>({x:Math.round(a.x),z:Math.round(a.z),rot:+a.rot.toFixed(2),st:a.st,crouch:+a.w.toFixed(2)})),yaw:V3.sitOn!==false?operators().map(v=>Math.round(opYaw(v))):[]});   // 3D 사람 움직임 확인용 (콘솔)
 function v3keys(){try{return V3.dock&&V3.kf}catch(e){return false}}
