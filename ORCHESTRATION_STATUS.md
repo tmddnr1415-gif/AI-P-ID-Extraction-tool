@@ -2,6 +2,11 @@
 
 > 기획: [`ORCHESTRATION_PLAN.md`](ORCHESTRATION_PLAN.md) · 규약: [`CONVENTIONS.md`](CONVENTIONS.md) · 시연: [`company-pc-update/DEMO_company_pc.html`](company-pc-update/DEMO_company_pc.html)
 
+## 결정 (2026-11-07 사용자)
+
+- 회사 업데이트 파일은 **2개**: ① DASHBOARD 개별 ② 그 외 통합 (`PID_dev+ops_hotfixNNN`) — **Valve(6) · 3D(7) 도 ②에 포함**
+- 각 세션은 개발·푸시만, 업데이트 파일은 오케스트레이터 세션에서 만든다 → [`CONVENTIONS.md`](CONVENTIONS.md) v2
+
 ## ⚠ 정정 (2026-11-07 재확인) — 아래 표·시연 HTML 보다 이 절이 우선
 
 배포 구조는 **기존과 같게**: ① DASHBOARD = 개별 업데이트 파일(`UPDATE_from_vA_to_vB.zip`, S1)
