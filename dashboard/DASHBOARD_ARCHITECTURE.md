@@ -1354,3 +1354,9 @@ C:\Users\SAMSUNG\Desktop\Claude\                         ← 개발 폴더 (여�
 - 무엇을: 왼쪽 메뉴 — 상위 메뉴 앞 이모지를 **번호 칸(1, 2, 3 …, 보이는 메뉴만 차례로)** 으로 바꾸고, 상위 메뉴를 강조(흰 글씨 15px · 위 간격 4px · 번호 칸은 반투명, 선택하면 흰 칸 + 파란 숫자). 하위 메뉴는 한 단계 흐리게(#b9c3e8). 왜: 사용자 지시 '메인 메뉴 더 하이라이트 · 이모지 대신 숫자'.
 - 바뀐 곳: dashboard.html `APP_VERSION` · `renderMenu`(`no` 번호 · 라벨 이모지 뺌) · CSS `.mi.top` `.mi .mno` `.mi.subi:not(.on)`. 메뉴 권한에 따라 숨은 메뉴는 번호를 건너뛰지 않고 차례로 매김.
 - 확인한 것: 임시 서버 — 홈 · 3D 계측제어 선택 화면 캡처, 페이지 오류 없음.
+
+### 2026-11-07 (APP_VERSION 2026-11-07.3 / SERVER_VERSION 그대로 2026-11-07.1) — VALVE 세션 메뉴 병합
+- 무엇을: VALVE 세션(브랜치 `ccr-efbe7e75-n915ze` · `claude/gracious-ride-26nqrf`, 커밋 1700284c · e39cfda2, APP_VERSION 2026-10-31.2 / 2026-11-01.1)이 v16.51 위에 넣은 **실행 프로젝트 › CO2 PJT › Datasheet › Ball Valve · Globe Valve · Butterfly Valve · PSV** 메뉴가 이 줄기(v16.52~v16.60)에 빠져 있었음 → 병합. 왜: 사용자 '실행프로젝트에 CO2 프로젝트를 추가했던 것 같은데'.
+- 바뀐 곳: dashboard.html `APP_VERSION` · `MODULES`(globev · bflyv · psv + `note`) · `renderModule`(note 표시) · `PID_ROUTES.valve`(P&ID 서버 /valve/) · `ROUTES` · `RUN_LEAVES` · `menuOf` · `NAV_LS`(runpjt · runpjt-co2 · runpjt-co2-ds) · `renderMenu`(`fold` · `runTree`, 번호 메뉴 방식에 맞춤 — 폴더 줄 `.mfold`) · `QF_MENUS` · `PZ_STATUS.valve`.
+- 확인한 것: 임시 서버 + 가짜 P&ID 서버: 실행 프로젝트 아래 CO2 PJT › Datasheet › 잎 4개, Ball Valve → `:8000/valve/?embed=1&project=CO2%20PJT&user=…` iframe, PSV → '🚧 준비 중' + 설명. 페이지 오류 없음.
+- 회사에서 확인할 것: 회사 dashboard.html 이 VALVE 판(2026-11-01.1)이면 이 업데이트의 APPLY.bat 가 덮지 않고 `.new` 로 둘 수 있음 → 그때는 `.new` 를 dashboard.html 로 바꿔 넣으면 됨(이 판에 VALVE 메뉴가 모두 들어 있음).

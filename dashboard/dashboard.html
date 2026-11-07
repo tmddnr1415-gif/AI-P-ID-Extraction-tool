@@ -48,6 +48,7 @@ body.nav-closed #burger{width:auto;padding:0 12px;font-size:14px;background:var(
 .mi.top:hover .mno{background:rgba(255,255,255,.22);color:#fff}
 .mi.top.on .mno{background:#fff;color:var(--accent)}
 .mi.subi:not(.on){color:#b9c3e8}
+.mi.mfold:not(.on){color:#dfe5ff;font-weight:600}
 .mi .ml{min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .mi .chgmark{flex:none;width:8px;margin-left:-6px;margin-right:-4px;color:#FFE066;font-weight:900;text-align:center}
 .mi .chgtag{flex:none;white-space:nowrap;margin-left:auto;font-size:10px;font-weight:700;background:#FFE066;color:#4a3a00;padding:1px 7px;border-radius:99px}
@@ -1397,7 +1398,7 @@ function recLabel(key, f) {
  * ===================================================================== */
 let root = null;
 /* 서버 모드: http(s):// 로 접속하면 server.py 의 REST API 사용 (폴더 선택 불필요). file:// 로 열면 폴더 모드 */
-const APP_VERSION = '2026-11-07.2';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
+const APP_VERSION = '2026-11-07.3';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
 const SERVER_URL = 'http://localhost:8080';
 // 부서원 PC 사본(file://)이 접속을 시도할 서버 — 서버가 배포 파일을 만들 때 'PC 이름 주소, IP 주소' 순으로 자동 기록함
 const DEFAULT_SERVERS = ['http://ASEUNGWOOK-B01:8080', 'http://65.3.30.234:8080'];
@@ -3500,12 +3501,16 @@ const boardTyping = () => route === 'board' && [...document.querySelectorAll('#b
 const MODULES = {
   bidpjt: { title:'입찰 프로젝트', src:'' },
   runpjt: { title:'실행 프로젝트', src:'' },
+  // 실행 프로젝트 › CO2 PJT › Datasheet › Ball Valve 와 같은 줄 — 검토 도구는 아직 없음 (Ball Valve 만 P&ID 서버 /valve/ 에 있음) · VALVE 세션(ccr-efbe7e75-n915ze) 2026-11-01 변경을 2026-11-07 병합
+  globev: { title:'CO2 PJT · Datasheet · Globe Valve', src:'', note:'Globe Valve Datasheet 검토 — Ball Valve 와 같은 방식(Datasheet ↔ Process Data ↔ PMS 대조 · Issue List · Mark-up)으로 연결될 예정입니다.' },
+  bflyv: { title:'CO2 PJT · Datasheet · Butterfly Valve', src:'', note:'Butterfly Valve Datasheet 검토 — Ball Valve 와 같은 방식으로 연결될 예정입니다.' },
+  psv: { title:'CO2 PJT · Datasheet · PSV', src:'', note:'PSV (Pressure Safety Valve) Datasheet 검토 — Set pressure · 용량 · API 526/520 기준 대조로 연결될 예정입니다.' },
 };
 function renderModule(c, key) {
   const m = MODULES[key];
   if (!m.src) {
     c.insertAdjacentHTML('beforeend', `<section class="card"><h2>${esc(m.title)}</h2>
-      <div class="empty" style="padding:60px 20px">🚧 준비 중입니다<br><span class="muted">이 메뉴에는 별도로 개발 중인 프로그램이 연결될 예정입니다.</span></div></section>`);
+      <div class="empty" style="padding:60px 20px">🚧 준비 중입니다<br><span class="muted">${esc(m.note || '이 메뉴에는 별도로 개발 중인 프로그램이 연결될 예정입니다.')}</span></div></section>`);
     return;
   }
   if (!SERVER || OFFLINE) {                                // 연결 프로그램은 서버가 제공하므로 온라인일 때만
@@ -3529,7 +3534,8 @@ const PID_ROUTES = { pid:{ title:'P&ID 분석', port:PID_PORT, path:'/', q:'embe
   logicdraw:{ title:'LOGIC 작성', port:PID_PORT, path:'/logic/draw', q:'' },   // LOGIC 분석의 하위 메뉴 (같은 서버 · 같은 권한 'logic')
   space:{ title:'ROOM SIZE 계산', port:PID_PORT, path:'/space', q:'embed=1&' },   // P&ID 서버(run_lan_service.bat · hotfix106~)의 /space
   books:{ title:'도서검토', port:PID_PORT, path:'/books/', q:'embed=1&' },       // P&ID 서버(hotfix115~)의 /books/
-  ic3d:{ title:'3D 계측제어', port:PID_PORT, path:'/ic3d', q:'embed=1&' } };     // 2026-11-07 세션 7 '3D 계측제어 도구' — P&ID 서버의 /ic3d (그쪽에서 만듦, 여기는 연결만)
+  ic3d:{ title:'3D 계측제어', port:PID_PORT, path:'/ic3d', q:'embed=1&' },
+  valve:{ title:'CO2 PJT · Datasheet · Ball Valve', port:PID_PORT, path:'/valve/', q:'embed=1&project=CO2%20PJT&' } };   // 실행 프로젝트 › CO2 PJT › Datasheet › Ball Valve — P&ID 서버의 /valve/ (Valve Datasheet 검토, VALVE 세션)     // 2026-11-07 세션 7 '3D 계측제어 도구' — P&ID 서버의 /ic3d (그쪽에서 만듦, 여기는 연결만)
 const PID_OFF = 'P&ID 서버가 꺼져 있습니다 — 부서장 PC 의 run_lan_service.bat 을 확인하세요 (켜지면 자동으로 다시 연결합니다)';
 // 호스트 = 지금 연결된 대시보드 서버의 호스트 (서버 모드: 이 페이지 주소, file://: 실제 접속에 성공한 서버 주소), 포트만 PID_PORT
 function pidBase(key = 'pid') {
@@ -3663,12 +3669,13 @@ function render() {
   if (route === 'home') placePlaza();
 }
 /* 메뉴 구성: 주간업무보고(홈 대시보드 + 하위 시트 9개) / P&ID 분석 / 입찰 프로젝트 / 실행 프로젝트 / 익명게시판 */
-const ROUTES = ['home', 'work', 'alloc', 'board', 'bidpjt', 'runpjt', 'pid', 'logic', 'logicdraw', 'space', 'books', 'ic3d', 'mgmt', 'mgalloc', 'mghours', 'mgwork', 'mgbday'];   // mgwork = 근로시간 관리(근태 시스템 엑셀 · 52h) · mgbday = 부서원 생일
+const ROUTES = ['home', 'work', 'alloc', 'board', 'bidpjt', 'runpjt', 'valve', 'globev', 'bflyv', 'psv', 'pid', 'logic', 'logicdraw', 'space', 'books', 'ic3d', 'mgmt', 'mgalloc', 'mghours', 'mgwork', 'mgbday'];   // mgwork = 근로시간 관리(근태 시스템 엑셀 · 52h) · mgbday = 부서원 생일
+const RUN_LEAVES = ['valve', 'globev', 'bflyv', 'psv'];   // 실행 프로젝트 › CO2 PJT › Datasheet 아래 잎 (권한 = runpjt)
 const MG_ROUTES = ['mgmt', 'mgalloc', 'mghours', 'mgwork', 'mgbday'];   // logic = LOGIC 분석 (P&ID 와 같은 방식)   // mgmt = Management 머리(→ mgalloc) · mgalloc = R&R·투입 분석(시간 병기) · mghours = 근무시간(월·주·일)   // work = 예전 통합 업무 주소 → #task 로 바꿈 · alloc = R&R·투입 분석 · bidpjt/runpjt/mgmt = MODULES(준비 중), pid = P&ID 분석
-const menuOf = r => (r === 'home' || r === 'work' || r === 'alloc' || SHEET[r]) ? 'weekly' : MG_ROUTES.includes(r) ? 'mgmt' : r === 'logicdraw' ? 'logic' : r;   // 화면(route) → 권한 메뉴 키
+const menuOf = r => (r === 'home' || r === 'work' || r === 'alloc' || SHEET[r]) ? 'weekly' : MG_ROUTES.includes(r) ? 'mgmt' : r === 'logicdraw' ? 'logic' : RUN_LEAVES.includes(r) ? 'runpjt' : r;   // 화면(route) → 권한 메뉴 키
 const validRoute = k => ROUTES.includes(k) || !!SHEET[k];
 // 하위 메뉴 접기/펼치기 상태 (브라우저에 기억, 기본 펼침)
-const NAV_LS = { weekly:'dept-nav-weekly-open', logic:'dept-nav-logic-open', mgmt:'dept-nav-mgmt-open' };
+const NAV_LS = { weekly:'dept-nav-weekly-open', logic:'dept-nav-logic-open', mgmt:'dept-nav-mgmt-open', runpjt:'dept-nav-runpjt-open', 'runpjt-co2':'dept-nav-runpjt-co2-open', 'runpjt-co2-ds':'dept-nav-runpjt-co2-ds-open' };
 const NAV_OPEN = Object.fromEntries(Object.entries(NAV_LS).map(([k, ls]) => [k, (() => { try { return localStorage.getItem(ls) !== '0'; } catch (_) { return true; } })()]));
 function renderMenu() {
   if (route === 'board' && DB.board) markBoardSeen();
@@ -3685,6 +3692,13 @@ function renderMenu() {
        <div class="mhead">${btn(head, 'top')}
          <button class="mtog" data-tog="${nav}" title="하위 메뉴 ${NAV_OPEN[nav] ? '접기' : '펼치기'}" aria-label="하위 메뉴 접기/펼치기">${NAV_OPEN[nav] ? '▾' : '▸'}</button></div>
        <div class="msub" ${NAV_OPEN[nav] ? '' : 'hidden'}>${subs.map(i => btn(i, 'subi')).join('')}</div></div>`;
+  // 실행 프로젝트 › CO2 PJT › Datasheet › 잎 4개 — 폴더(누르면 접기/펼치기) 안의 폴더. 잎만 화면을 연다. (VALVE 세션 2026-10-31 · 11-01 병합)
+  const fold = (nav, label, inner) => `<div class="mhead"><button class="mi subi mfold" data-tog="${nav}" title="${esc(label)}"><span class="ml">${NAV_OPEN[nav] ? '▾' : '▸'} ${esc(label)}</span></button></div>
+       <div class="msub" ${NAV_OPEN[nav] ? '' : 'hidden'}>${inner}</div>`;
+  const runTree = () => `<div class="mgrp ${route === 'runpjt' || RUN_LEAVES.includes(route) ? 'act' : ''}">
+       <div class="mhead">${btn({ k:'runpjt', l:'실행 프로젝트', n:'', c:0 }, 'top')}
+         <button class="mtog" data-tog="runpjt" title="하위 메뉴 ${NAV_OPEN.runpjt ? '접기' : '펼치기'}" aria-label="하위 메뉴 접기/펼치기">${NAV_OPEN.runpjt ? '▾' : '▸'}</button></div>
+       <div class="msub" ${NAV_OPEN.runpjt ? '' : 'hidden'}>${fold('runpjt-co2', 'CO2 PJT', fold('runpjt-co2-ds', 'Datasheet', [['valve', 'Ball Valve'], ['globev', 'Globe Valve'], ['bflyv', 'Butterfly Valve'], ['psv', 'PSV']].map(([k, l]) => btn({ k, l, n:'', c:0 }, 'subi')).join('')))}</div></div>`;
   // 권한이 있는 메뉴만 표시 (운영자가 ⚙ 메뉴 권한 설정에서 사용자별로 부여, Management 는 기본 비허용)
   $('#menu').innerHTML =
     (can('weekly') ? group('weekly', { k:'home', l:'주간업무보고', n:'', c:NAV_OPEN.weekly ? 0 : subNew, t:'하위 메뉴의 수정·변경된 행' }, sub, inWeekly) : '') +
@@ -3694,7 +3708,7 @@ function renderMenu() {
     (can('books') ? btn({ k:'books', l:'도서검토', n:'', c:0 }, 'top') : '') +
     (can('ic3d') ? btn({ k:'ic3d', l:'3D 계측제어', n:'', c:0 }, 'top') : '') +
     (can('bidpjt') ? btn({ k:'bidpjt', l:'입찰 프로젝트', n:'', c:0 }, 'top') : '') +
-    (can('runpjt') ? btn({ k:'runpjt', l:'실행 프로젝트', n:'', c:0 }, 'top') : '') +
+    (can('runpjt') ? runTree() : '') +
     (can('board') ? btn({ k:'board', l:'익명게시판', n:root && DB.board ? DB.board.length : '', c:root ? boardNewCount() : 0, t:'마지막 확인 이후 새 글·댓글' }, 'top') : '') +
     (can('mgmt') ? group('mgmt', { k:'mgmt', l:'Management', n:'', c:0 }, [{ k:'mgalloc', l:'R&R · 투입 분석', n:'', c:0 }, { k:'mghours', l:'근무시간 (월·주·일)', n:'', c:0 }, { k:'mgwork', l:'근로시간 관리 (52h)', n:'', c:0 }, { k:'mgbday', l:'부서원 생일', n:'', c:0 }], MG_ROUTES.includes(route)) : '');
   $('#btnPerm').hidden = !(SERVER && ADMIN && root && !OFFLINE);   // 메뉴 권한 설정: 운영자(서버 PC)만
@@ -3877,7 +3891,7 @@ function ddayChip() {
 }
 /* 2026-10-23 빠른 찾기 (Ctrl+K · 🔍 찾기): 메뉴 이름 · 모든 시트의 행(제목·내용·담당자) · 게시글 제목을 한 번에 → 누르면 그 자리로 이동 */
 const QF_MENUS = () => [['home', '📋 주간업무보고 홈'], ...SHEETS.filter(s => !s.merged).map(s => [s.key, s.label]), ['alloc', 'R&R · 투입 분석'], ['task', '통합 업무'],
-  ['pid', 'P&ID 분석'], ['logic', 'LOGIC 분석'], ['logicdraw', 'LOGIC 분석 · LOGIC 작성'], ['space', 'ROOM SIZE 계산'], ['books', '도서검토'], ['ic3d', '3D 계측제어'], ['bidpjt', '입찰 프로젝트'], ['runpjt', '실행 프로젝트'], ['board', '익명게시판'],
+  ['pid', 'P&ID 분석'], ['logic', 'LOGIC 분석'], ['logicdraw', 'LOGIC 분석 · LOGIC 작성'], ['space', 'ROOM SIZE 계산'], ['books', '도서검토'], ['ic3d', '3D 계측제어'], ['bidpjt', '입찰 프로젝트'], ['runpjt', '실행 프로젝트'], ['valve', '실행 프로젝트 · CO2 PJT · Ball Valve'], ['globev', '실행 프로젝트 · CO2 PJT · Globe Valve'], ['bflyv', '실행 프로젝트 · CO2 PJT · Butterfly Valve'], ['psv', '실행 프로젝트 · CO2 PJT · PSV'], ['board', '익명게시판'],
   ['mgalloc', 'Management · R&R 투입 분석'], ['mghours', 'Management · 근무시간'], ['mgwork', 'Management · 근로시간 관리'], ['mgbday', 'Management · 부서원 생일']]
   .filter(([k]) => can(SHEET[k] || k === 'home' || k === 'alloc' || k === 'task' ? 'weekly' : k.startsWith('mg') ? 'mgmt' : menuOf(k)));
 function qfSearch(q) {
@@ -4174,7 +4188,7 @@ function fitRecent() { const el = $('#recent'); if (!el) return; el.style.maxHei
  *  - 비회원 · 오프라인은 안내 한 줄. 메뉴 항목은 만들지 않음. 로그아웃 · 다른 사람 로그인 → 광장에서 나감(plazaOff). 광장 화면 규칙은 plaza/README_인계.md §5
  * ===================================================================== */
 const PZ = { url:'', state:'', sent:null };
-const PZ_STATUS = { pid:'P&ID 분석 중...', logic:'LOGIC 분석 중...', logicdraw:'LOGIC 작성 중...', space:'ROOM SIZE 계산 중...', books:'도서검토 중...', ic3d:'3D 계측제어 중...' };
+const PZ_STATUS = { valve:'Valve Datasheet 검토 중...', pid:'P&ID 분석 중...', logic:'LOGIC 분석 중...', logicdraw:'LOGIC 작성 중...', space:'ROOM SIZE 계산 중...', books:'도서검토 중...', ic3d:'3D 계측제어 중...' };
 const plazaPort = () => SERVER_INFO?.plazaPort || 8100;
 function plazaBase() { return pidBase().replace(/:\d+$/, ':' + plazaPort()); }
 function plazaHost() {
