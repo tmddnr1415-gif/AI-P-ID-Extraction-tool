@@ -839,7 +839,15 @@ function openExp(title,desc,fname,text){EXP={fname,text};$("#exp-t").textContent
 $("#exp-x").onclick=()=>$("#exp").classList.remove("on");
 $("#exp").onclick=e=>{if(e.target.id==="exp")$("#exp").classList.remove("on");};
 $("#exp-cp").onclick=async()=>{try{await navigator.clipboard.writeText(EXP.text);$("#exp-cp").textContent="✓ 복사됨";}catch(_){$("#exp-ta").select();document.execCommand("copy");$("#exp-cp").textContent="✓ 복사됨";}setTimeout(()=>$("#exp-cp").textContent="⧉ 복사",1500);};
-$("#exp-dl").onclick=()=>{try{const u=URL.createObjectURL(new Blob([EXP.text],{type:"text/plain;charset=utf-8"}));const a=document.createElement("a");a.href=u;a.download=EXP.fname;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),2000);}catch(_){$("#exp-d").textContent="이 화면에서는 내려받기가 막혀 있습니다 — 복사해서 쓰세요.";}};
+/* 내려받기: 웹 링크(claude.ai)에서는 downloads 기능으로, 내 PC 파일(file://)에서는 보통 내려받기로 — 둘 다 프론트엔드만 */
+$("#exp-dl").onclick=async()=>{
+  const api=(window.claude&&window.claude.use)?await window.claude.use("downloads").catch(()=>null):null;
+  if(api){const name=/\.(md|json|txt)$/.test(EXP.fname)?EXP.fname:EXP.fname+".json";
+    try{await api.save({filename:name,data:EXP.text});$("#exp-d").textContent=name.endsWith(".canvas.json")?`저장했습니다 — ${name}. 이름 끝의 .json 을 지우면 Obsidian 이 Canvas 로 엽니다.`:`저장했습니다 — ${name}`;}
+    catch(e){$("#exp-d").textContent=e&&e.code==="declined"?"저장을 취소했습니다.":"이 화면에서는 저장이 안 됩니다 — ⧉ 복사해서 쓰세요.";}
+    return;}
+  try{const u=URL.createObjectURL(new Blob([EXP.text],{type:"text/plain;charset=utf-8"}));const a=document.createElement("a");a.href=u;a.download=EXP.fname;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),2000);}
+  catch(_){$("#exp-d").textContent="이 화면에서는 내려받기가 막혀 있습니다 — ⧉ 복사해서 쓰세요.";}};
 $("#ex-canvas").onclick=exportCanvas;$("#ex-md").onclick=exportMd;
 renderOrg();renderLog();
 let mode="map";let demoOpen=null;
