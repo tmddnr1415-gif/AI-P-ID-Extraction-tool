@@ -62,7 +62,7 @@ BAT = ("@echo off\r\n"
        "for %%a in (%*) do if not \"%%~a\"==\"!FIRST!\" set \"REST=!REST! %%a\"\r\n"
        "set \"PY=%TARGET%\\.venv\\Scripts\\python.exe\"\r\n"
        "if not exist \"%PY%\" set \"PY=python\"\r\n"
-       "\"%PY%\" apply_delta.py \"%TARGET%\" !REST!\r\n"
+       "\"%PY%\" apply_delta.py \"%TARGET%\" --overwrite !REST!\r\n"
        "pause\r\n")
 
 
@@ -70,15 +70,15 @@ BAT = ("@echo off\r\n"
 # 안 바꾼다 · 그 뒤 포트 8000 의 서버만 다시 띄운다 (python 을 이름으로 끄지 않는다 — 대시보드도 python).
 OPS_BAT = ("@echo off\r\n"
            "rem Apply this update to the OPERATING folder C:\\Claude\\PID (the server the dashboard shows).\r\n"
-           "rem Only the files the server runs (app\\... and config\\...).  If any of them was changed in that folder,\r\n"
-           "rem nothing is changed at all.  Then only the server on port 8000 is restarted.\r\n"
+           "rem Only the files the server runs (app\\... and config\\...).  hotfix133 overwrite rule: a file changed in that\r\n"
+           "rem folder is backed up first and then replaced with the new version.  Then only the port 8000 server is restarted.\r\n"
            "cd /d \"%~dp0\"\r\n"
            "set PYTHONUTF8=1\r\n"
            "set \"TARGET=C:\\Claude\\PID\"\r\n"
            "if not \"%~1\"==\"\" set \"TARGET=%~1\"\r\n"
            "set \"PY=%TARGET%\\.venv\\Scripts\\python.exe\"\r\n"
            "if not exist \"%PY%\" set \"PY=python\"\r\n"
-           "\"%PY%\" apply_delta.py \"%TARGET%\" --ops --runtime --all-or-nothing\r\n"
+           "\"%PY%\" apply_delta.py \"%TARGET%\" --ops --runtime --all-or-nothing --overwrite\r\n"
            "if errorlevel 1 goto end\r\n"
            "\"%PY%\" restart_pid_server.py 8000\r\n"
            ":end\r\n"
@@ -105,6 +105,7 @@ OPS_README = ("\n운영 반영 순서 (설명서 config\\user_manual.md 의 '업
               "  ④ 화면을 새로 고쳐 오른쪽 위/아래의 업데이트 번호(예: '버전 1.0.0 · 업데이트 132 · 날짜')가 바뀌었는지 본다\n"
               "  ⑤ 문제가 있으면 rollback_PID_ops.bat — 이 꾸러미가 바꾼 파일만 원래대로\n"
               "적용이 도중에 실패하면(파일 잠김 · 디스크 부족) 자동으로 원래대로 되돌리고 멈춥니다 — 원인을 없애고 다시 실행하세요.\n"
+              "덮어쓰기 원칙(hotfix133~): 회사에서 따로 고친 파일도 backup\\<꾸러미>_<시각>\\ 에 원본을 둔 뒤 최신으로 덮습니다 — 화면 끝의 [덮어씀 - 회사에서 고친 파일] 목록을 보세요.\n"
               "운영 폴더에는 app\\ 와 config\\ 만 갱신됩니다 — 뿌리의 *.bat 와 spike\\ 의 도구는 PID_dev 에서 씁니다.\n")
 
 
