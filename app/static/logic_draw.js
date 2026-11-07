@@ -25,10 +25,10 @@ const esc = s => String(s == null ? "" : s).replace(/[&<>"']/g, c => ({ "&": "&a
 
 const S = {
   sym: null, lay: null, doc: null, id: null, dirty: false,
-  tool: "select", zoom: 1, sel: new Set(), selWire: null, undo: [], redo: [],
+  tool: "select", zoom: 1, sel: new Set(), selWire: null, selW: new Set(), undo: [], redo: [],   // L87 — selW: 함께 고른 선들
   wip: null,            // 그리는 중인 선 {pts, dashed}
   drag: null, verify: null, snap: true,
-  guide: { grid: true, ruler: true, align: true, cross: true, loose: true },   // L55 — 화면 전용 안내 (PDF · DXF 에 안 나간다)
+  guide: { grid: true, ruler: true, align: true, cross: true, loose: true, mini: true },   // L55 — 화면 전용 안내 (PDF · DXF 에 안 나간다)
   hover: null, alignLines: null,
   rg: { v: [], h: [] },  // L66 — 눈금자를 눌러 세운 가이드선 (화면 전용 · 그림마다 브라우저에 기억)
 };
@@ -232,6 +232,7 @@ function render() {
   renderProps();
   rulersSoon();
   if (simOn()) simPaint(S.sim.values || {}, S.sim.frames && S.sim.frames.length ? S.sim.frames[S.sim.frames.length - 1] : null);   // L57
+  miniSoon(true);                                                   // L87 — 미니맵
 }
 /* L66 — 선 건너뛰기 (화면에서만): 가로 토막이 다른 선의 세로 토막을 (점 없이) 가로지르면 그 자리에서 위로 볼록하게 넘는다.
    가로가 넘는다 · 연결점 · 끝 · 꺾임 가까이에서는 넘지 않는다 · 반지름 0.22 행.  PDF · DXF 는 학습한 양식 그대로 그냥 교차시킨다 —
@@ -293,7 +294,7 @@ function nodeCacheFor() {
   return S._nc;
 }
 function wireKey(w) {
-  return JSON.stringify([w.pts, !!w.dashed, w.dots || 0, w.marks || 0, w.arrow || 0, w.label || 0, S.selWire === w.id, hopsOf(w), simOn()]);
+  return JSON.stringify([w.pts, !!w.dashed, w.dots || 0, w.marks || 0, w.arrow || 0, w.label || 0, S.selWire === w.id, S.selW.has(w.id), hopsOf(w), simOn()]);
 }
 function wireNode(w) {
   const nc = nodeCacheFor(), key = wireKey(w), hit = nc.w.get(w.id);
@@ -316,7 +317,7 @@ function renderWire(wg, w) {
   const g = el("g", { "data-w": w.id }, wg), P = layout().PITCH;
   const pts = w.pts.map(p => p.join(",")).join(" ");
   el("polyline", { points: pts, class: "wirehit", "data-id": w.id }, g);
-  const hops = hopsOf(w), cls = "wire" + (w.dashed ? " dashed" : "") + (S.selWire === w.id ? " sel" : "");
+  const hops = hopsOf(w), cls = "wire" + (w.dashed ? " dashed" : "") + (S.selWire === w.id || S.selW.has(w.id) ? " sel" : "");
   const ln = hops.length ? el("path", { d: hopPath(w, hops), class: cls, "data-id": w.id }, g) : el("polyline", { points: pts, class: cls, "data-id": w.id }, g);
   (S._wireEls || (S._wireEls = {}))[w.id] = ln;
   for (const [dx, dy] of w.dots || []) el("circle", { cx: dx, cy: dy, r: 0.12 * P, class: "dot", "data-id": w.id }, g);
@@ -525,7 +526,7 @@ function buildPalette() {
     if (S.sym[kind].macro) continue;                    // 매크로는 Typical 타입마다 — 아래 '매크로' 카드
     const btn = document.createElement("button");
     btn.title = `${S.sym[kind].name} — 누르면 가운데에 놓입니다${S.sym[kind].learned ? ` · 크기는 분석한 로직 ${S.sym[kind].learned}개에서 배운 값` : ""}`;
-    btn.appendChild(paletteIcon(kind));
+    btn.appendChild(paletteIcon(kind)); btn.dataset.q = `${S.sym[kind].name} ${kind} ${S.sym[kind].text || ""}`.toUpperCase();
     const sp = document.createElement("span"); sp.textContent = S.sym[kind].name; btn.appendChild(sp);
     btn.draggable = true;
     btn.ondragstart = e => { e.dataTransfer.setData("text/kind", kind); };
@@ -538,7 +539,7 @@ function buildPalette() {
     for (const pr of S.presets) {
       const btn = document.createElement("button");
       btn.title = `${pr.name} — ${pr.hint}${pr.note ? " · 장 NOTE 에 정의 문장을 더합니다" : ""}`;
-      const ic = document.createElement("span"); ic.className = "dw-preicon"; ic.textContent = pr.text; btn.appendChild(ic);
+      const ic = document.createElement("span"); ic.className = "dw-preicon"; ic.textContent = pr.text; btn.appendChild(ic); btn.dataset.q = `${pr.name} ${pr.text} ${pr.hint || ""}`.toUpperCase();
       const sp = document.createElement("span"); sp.textContent = pr.name; btn.appendChild(sp);
       btn.draggable = true;
       btn.ondragstart = e => { e.dataTransfer.setData("text/kind", "BOX"); e.dataTransfer.setData("text/preset", pr.text); };
@@ -591,7 +592,7 @@ function addBlock(kind, cx, cy) {
   if (spec.bar && !spec.ab) setInputs(b, 2);
   if (spec.cells === 2) b.h = +(2 * L.PITCH).toFixed(2);            // L66 — 메모리 두 칸 = 두 행 → S · R 단자가 둘 다 행 가운데에                       // L66 — 막대 게이트는 입력 둘로 시작 (긴 막대가 이웃 게이트 단자에 닿지 않게) · 속성에서 늘린다
   if (!spec.note) alignPortsToRows(b);                             // L66 — 입력 둘(NAND · NOR)처럼 단자가 행 경계에 서는 것도 행 가운데로
-  pushUndo(); S.doc.blocks.push(b); unclash([b.id]); S.sel = new Set([b.id]); S.selWire = null; markDirty(); render();
+  pushUndo(); S.doc.blocks.push(b); unclash([b.id]); S.sel = new Set([b.id]); S.selWire = null; S.selW = new Set(); markDirty(); render();
 }
 
 /* ───────── 속성 ───────── */
@@ -696,7 +697,37 @@ function followStart(ids) {
     if (!a && !z) continue;
     wires.set(w.id, { w, pts0: w.pts.map(p => p.slice()), dots0: (w.dots || []).map(p => p.slice()), marks0: (w.marks || []).map(p => p.slice()), a: a && [a[0], a[1]], z: z && [z[0], z[1]] });
   }
-  return { blocks, wires };
+  // L87 — 옮겨질 선의 몸통(꺾임점 포함 · 두 끝 빼고)에 끝이 놓인 다른 선 = 갈라진 선
+  const branches = [];
+  if (wires.size) for (const o of S.doc.wires) {
+    if (wires.has(o.id) || o.pts.length < 2) continue;
+    for (const end of [0, o.pts.length - 1]) {
+      const e = o.pts[end];
+      for (const [wid, f] of wires) { const seg = onBodySeg(f.pts0, e); if (seg) { branches.push({ o, end, wid, p0: e.slice(), hz: seg.hz, opts0: o.pts.map(p => p.slice()), dots0: (o.dots || []).map(p => p.slice()) }); break; } }
+    }
+  }
+  return { blocks, wires, branches };
+}
+/* 점 e 가 꺾인 선 P 의 몸통 위인가 (두 끝은 아니다) → {hz} (그 토막이 가로인가) */
+function onBodySeg(P, e) {
+  const n = P.length; if (n < 2) return null;
+  if (Math.hypot(e[0] - P[0][0], e[1] - P[0][1]) < 0.3 || Math.hypot(e[0] - P[n - 1][0], e[1] - P[n - 1][1]) < 0.3) return null;
+  for (let i = 1; i < n; i++) { const a = P[i - 1], b = P[i];
+    if (Math.abs(a[1] - b[1]) < 0.2 && Math.abs(e[1] - a[1]) < 0.6 && e[0] >= Math.min(a[0], b[0]) - 0.3 && e[0] <= Math.max(a[0], b[0]) + 0.3) return { hz: true };
+    if (Math.abs(a[0] - b[0]) < 0.2 && Math.abs(e[0] - a[0]) < 0.6 && e[1] >= Math.min(a[1], b[1]) - 0.3 && e[1] <= Math.max(a[1], b[1]) + 0.3) return { hz: false }; }
+  return null;
+}
+/* 옮겨진 몸통 P 위에서 갈라진 끝 p0 의 새 자리 — 같은 방향 토막에서 한 축만 움직여 (가로면 위아래로 · 세로면 좌우로) · 없으면 가장 가까운 점 */
+function bodyNear(P, p0, hz) {
+  let best = null, bd = Infinity;
+  for (let i = 1; i < P.length; i++) { const a = P[i - 1], b = P[i], h = Math.abs(a[1] - b[1]) < 0.2, v = Math.abs(a[0] - b[0]) < 0.2;
+    if (hz && h && p0[0] > Math.min(a[0], b[0]) + 0.3 && p0[0] < Math.max(a[0], b[0]) - 0.3) { const d = Math.abs(a[1] - p0[1]); if (d < bd) { bd = d; best = [p0[0], a[1]]; } }
+    if (!hz && v && p0[1] > Math.min(a[1], b[1]) + 0.3 && p0[1] < Math.max(a[1], b[1]) - 0.3) { const d = Math.abs(a[0] - p0[0]); if (d < bd) { bd = d; best = [a[0], p0[1]]; } } }
+  if (best) return best;
+  for (let i = 1; i < P.length; i++) { const a = P[i - 1], b = P[i];
+    const t = Math.max(0, Math.min(1, ((p0[0] - a[0]) * (b[0] - a[0]) + (p0[1] - a[1]) * (b[1] - a[1])) / (Math.hypot(b[0] - a[0], b[1] - a[1]) ** 2 || 1)));
+    const q = [a[0] + t * (b[0] - a[0]), a[1] + t * (b[1] - a[1])], d = Math.hypot(q[0] - p0[0], q[1] - p0[1]); if (d < bd) { bd = d; best = q; } }
+  return best;
 }
 function followApply(fw) {
   if (!fw || !fw.wires.size) return [];
@@ -728,10 +759,44 @@ function followApply(fw) {
     if (f.z) { const np = newEnd(f.z, f.pts0[n - 1]); if (np) bend(n - 1, n - 2, np); }
     if (!changed) continue;
     w.pts = orthoPts(pts); out.push(wid);
+    if (f.dots0.length) {                                            // L87 — 몸통의 연결점은 새 몸통 위로 · 끝의 점은 끝을 따라
+      const m = f.pts0.length, near = (d, q) => Math.hypot(d[0] - q[0], d[1] - q[1]) < 0.6;
+      w.dots = f.dots0.map(d => { if (near(d, f.pts0[0])) return w.pts[0].slice(); if (near(d, f.pts0[m - 1])) return w.pts[w.pts.length - 1].slice();
+        const sg = onBodySeg(f.pts0, d), q = sg && bodyNear(w.pts, d, sg.hz); return q ? [+q[0].toFixed(2), +q[1].toFixed(2)] : d.slice(); });
+    }
+  }
+  // L87 — 갈라진 선의 끝을 새 몸통 위로 (연결점도 함께) — 처음 자리(opts0)에서 다시 계산해 끌기 동안 쌓이지 않게
+  for (const br of fw.branches || []) {
+    const W = fw.wires.get(br.wid); if (!W) continue;
+    const o = br.o, P = W.w.pts, moved = out.includes(br.wid);
+    const q0 = moved ? bodyNear(P, br.p0, br.hz) : br.p0; if (!q0) continue;
+    const q = [+q0[0].toFixed(2), +q0[1].toFixed(2)];
+    const pts = br.opts0.map(p => p.slice()), n = pts.length, i = br.end, j = i === 0 ? 1 : n - 2;
+    if (Math.abs(q[0] - pts[i][0]) < 0.005 && Math.abs(q[1] - pts[i][1]) < 0.005) { if (moved) continue; }
+    const segHz = Math.abs(br.opts0[i][1] - br.opts0[j][1]) < 0.05;
+    if (n > 2) { if (segHz) pts[j][1] = q[1]; else pts[j][0] = q[0]; }
+    pts[i] = q; o.pts = orthoPts(pts);
+    if (br.dots0.length) o.dots = br.dots0.map(d => Math.hypot(d[0] - br.p0[0], d[1] - br.p0[1]) < 0.6 ? q.slice() : d.slice());
+    if (!out.includes(o.id)) out.push(o.id);
   }
   return out;
 }
-function withFollow(ids, fn) { const fw = followStart(ids); fn(); return followApply(fw); }
+function withFollow(ids, fn) { const fw = followStart(ids); fn(); const out = followApply(fw); fixCrossings(fw, out); return out; }
+/* L87 — draw.io 처럼: 기호를 옮겨 따라간 선이 다른 기호 속을 새로 지나게 되면 그 선만 추천 경로로 다시 (두 끝은 그대로 · 되돌리기 한 번에 함께) */
+function crossesBlock(pts) {
+  for (const b of S.doc.blocks) { if ((S.sym[b.kind] || {}).note) continue; const bb = bboxOf(b), box = [bb[0] + 0.3, bb[1] + 0.3, bb[2] - 0.3, bb[3] - 0.3];
+    for (let i = 1; i < pts.length; i++) if (segInBox(pts[i - 1], pts[i], box)) return true; }
+  return false;
+}
+function fixCrossings(fw, ids) {
+  if (!fw || !ids || !ids.length) return 0;
+  const before = new Map(); for (const [id, f] of fw.wires) before.set(id, f.pts0); for (const br of fw.branches || []) before.set(br.o.id, br.opts0);
+  const bad = ids.filter(id => { const w = S.doc.wires.find(x => x.id === id), p0 = before.get(id); return w && p0 && crossesBlock(w.pts) && !crossesBlock(p0); });
+  if (!bad.length) return 0;
+  const n = rerouteWires(bad, { noUndo: true, quiet: true });
+  if (n) status(`옮긴 기호에 붙은 선 ${n}개가 다른 기호를 지나게 되어 경로를 다시 잡았습니다`);
+  return n;
+}
 /* 매달린 선 끝 — 단자 · 행 자리 · 다른 선의 끝 · 연결점이 찍힌 꺾임점 · 몸통 어디에도 닿지 않은 끝에 붉은 고리.
    몸통 · 꺾임점에 닿았는데 연결점이 없으면 주황 고리 (범례 G003: 점이 있어야 연결 — 분석기가 잇지 않는다).  화면에서만 · PDF · DXF 에는 없다. */
 function looseEnds() {
@@ -791,32 +856,38 @@ function renderLoose(svg) {
 /* ───────── 되돌리기 · 상태 ───────── */
 function snapshot() { return JSON.stringify({ blocks: S.doc.blocks, wires: S.doc.wires, left: S.doc.left, right: S.doc.right }); }
 function pushUndo() { S.undo.push(snapshot()); if (S.undo.length > 200) S.undo.shift(); S.redo = []; }
-function restore(js) { const d = JSON.parse(js); Object.assign(S.doc, d); S.sel = new Set(); S.selWire = null; markDirty(); render(); }
+function restore(js) { const d = JSON.parse(js); Object.assign(S.doc, d); S.sel = new Set(); S.selWire = null; S.selW = new Set(); markDirty(); render(); }
 function undo() { if (!S.undo.length) return; S.redo.push(snapshot()); restore(S.undo.pop()); }
 function redo() { if (!S.redo.length) return; S.undo.push(snapshot()); restore(S.redo.pop()); }
-function markDirty() { S.dirty = true; $("#save").disabled = false; status("저장하지 않은 변경이 있습니다"); simSoon(); }
+function markDirty() { S.dirty = true; $("#save").disabled = false; status("저장하지 않은 변경이 있습니다"); simSoon(); draftSoon(); }   // L87 — 임시 저장
 function deleteSel() {
-  if (!S.sel.size && !S.selWire) return;
+  if (!S.sel.size && !S.selWire && !S.selW.size) return;
   pushUndo();
   S.doc.blocks = S.doc.blocks.filter(b => !S.sel.has(b.id));
-  if (S.selWire) S.doc.wires = S.doc.wires.filter(w => w.id !== S.selWire);
-  S.sel = new Set(); S.selWire = null; markDirty(); render();
+  const wd = new Set(S.selW); if (S.selWire) wd.add(S.selWire);           // L87 — 함께 고른 선도
+  if (wd.size) S.doc.wires = S.doc.wires.filter(w => !wd.has(w.id));
+  S.sel = new Set(); S.selWire = null; S.selW = new Set(); markDirty(); render();
 }
 function copySel() {                     // L56 — 고른 블록과 그 사이 선을 복사 (Ctrl+C) · 붙이면 한 행 아래 (Ctrl+V)
-  const ids = new Set(S.sel); if (!ids.size) return;
+  const ids = new Set(S.sel); if (!ids.size && !S.selW.size) return;
   const blocks = S.doc.blocks.filter(b => ids.has(b.id)).map(b => JSON.parse(JSON.stringify(b)));
   const inside = (p) => blocks.some(b => p[0] >= b.x - 1 && p[0] <= b.x + b.w + 1 && p[1] >= b.y - 1 && p[1] <= b.y + b.h + 1);
-  const wires = S.doc.wires.filter(w => inside(w.pts[0]) && inside(w.pts[w.pts.length - 1])).map(w => JSON.parse(JSON.stringify(w)));
+  const wires = S.doc.wires.filter(w => S.selW.has(w.id) || (inside(w.pts[0]) && inside(w.pts[w.pts.length - 1]))).map(w => JSON.parse(JSON.stringify(w)));   // L87 — 고른 선도
   S.clip = { blocks, wires }; status(`복사 — 블록 ${blocks.length} · 선 ${wires.length} (Ctrl+V 붙이기)`);
 }
-function pasteClip() {
+function pasteClip(at) {
   if (!S.clip || !S.doc) return;
   pushUndo();
-  const L = layout(), dy = 2 * L.PITCH, nsel = new Set();
-  for (const b of S.clip.blocks) { const nb = JSON.parse(JSON.stringify(b)); nb.id = newId("b"); nb.y += dy; S.doc.blocks.push(nb); nsel.add(nb.id); }
-  for (const w of S.clip.wires) { const nw = JSON.parse(JSON.stringify(w)); nw.id = newId("w"); nw.pts = nw.pts.map(p => [p[0], p[1] + dy]); if (nw.dots) nw.dots = nw.dots.map(p => [p[0], p[1] + dy]); S.doc.wires.push(nw); }
-  S.clip = { blocks: S.clip.blocks.map(b => ({ ...b, y: b.y + dy })), wires: S.clip.wires.map(w => ({ ...w, pts: w.pts.map(p => [p[0], p[1] + dy]), dots: (w.dots || []).map(p => [p[0], p[1] + dy]) })) };
-  S.sel = nsel; S.selWire = null; markDirty(); render();
+  // L87 — 메뉴의 '여기에 붙이기' 는 누른 자리에 (행 간격 · 반 행 격자를 지켜 단자가 행 가운데에 남게) · Ctrl+V 는 두 행 아래
+  const L = layout(), P = L.PITCH; let dx = 0, dy = 2 * P;
+  if (at) { const xs = [], ys = []; for (const b of S.clip.blocks) { const bb = bboxOf(b); xs.push(bb[0]); ys.push(bb[1]); } for (const w of S.clip.wires) for (const p of w.pts) { xs.push(p[0]); ys.push(p[1]); }
+    if (xs.length) { dx = Math.round((at[0] - Math.min(...xs)) / (P / 2)) * (P / 2); dy = Math.round((at[1] - Math.min(...ys)) / P) * P; } }
+  const sh = p => [+(p[0] + dx).toFixed(2), +(p[1] + dy).toFixed(2)], mv = w => ({ ...w, pts: w.pts.map(sh), ...(w.dots ? { dots: w.dots.map(sh) } : {}), ...(w.marks ? { marks: w.marks.map(p => [...sh(p), p[2]]) } : {}) });
+  const nsel = new Set(), nws = new Set();
+  for (const b of S.clip.blocks) { const nb = JSON.parse(JSON.stringify(b)); nb.id = newId("b"); nb.x = +(nb.x + dx).toFixed(2); nb.y = +(nb.y + dy).toFixed(2); S.doc.blocks.push(nb); nsel.add(nb.id); }
+  for (const w of S.clip.wires) { const nw = JSON.parse(JSON.stringify(mv(w))); nw.id = newId("w"); S.doc.wires.push(nw); nws.add(nw.id); }
+  S.clip = { blocks: S.clip.blocks.map(b => ({ ...b, x: +(b.x + dx).toFixed(2), y: +(b.y + dy).toFixed(2) })), wires: S.clip.wires.map(mv) };
+  S.sel = nsel; S.selW = nws; S.selWire = null; markDirty(); render();
 }
 function duplicateSel() {
   if (!S.sel.size) return;
@@ -826,9 +897,11 @@ function duplicateSel() {
   S.sel = nsel; markDirty(); render();
 }
 function moveSel(dx, dy) {
-  if (!S.sel.size) return;
+  if (!S.sel.size && !S.selW.size) return;
   pushUndo();
+  const wo = wireOrig();
   withFollow([...S.sel], () => { for (const id of S.sel) { const b = S.doc.blocks.find(b => b.id === id); if (b) { b.x = +(b.x + dx).toFixed(2); b.y = +(b.y + dy).toFixed(2); } } });
+  for (const [id, o] of wo) { const w = S.doc.wires.find(x => x.id === id); if (w) shiftWire(w, o, dx, dy); }   // L87 — 함께 고른 선도 옮긴다
   markDirty(); render();
 }
 
@@ -856,6 +929,8 @@ function drawGhost() {
     el("polyline", { points: pts.map(p => p.join(",")).join(" "), class: "wipline" }, ov);
     if (S.wip.hot) el("circle", { cx: S.wip.hot[0], cy: S.wip.hot[1], r: 2.6, class: "port hot" }, ov);
   }
+  if (!S.wip && !S.drag && S.hoverPort) el("circle", { cx: S.hoverPort[0], cy: S.hoverPort[1], r: 2.4, class: "port hover" }, ov);   // L87 — 여기서 끌면 선
+  qcDraw(ov);
   if (S.drag && S.drag.marquee) { const m = S.drag.marquee; el("rect", { x: Math.min(m[0], m[2]), y: Math.min(m[1], m[3]), width: Math.abs(m[2] - m[0]), height: Math.abs(m[3] - m[1]), class: "marquee" }, ov); }
   drawAlign(ov); drawCross(ov);
 }
@@ -974,7 +1049,8 @@ function routeAStar(a, b, endKind, startKind) {
   for (const v of S.rg.v) if (v >= X0 && v <= X1) xsS.add(+v.toFixed(2));
   for (const v of S.rg.h) if (v >= Y0 && v <= Y1) ysS.add(+v.toFixed(2));
   const xs = [...xsS].filter(v => v >= Math.min(X0, a[0], b[0]) - 0.01 && v <= Math.max(X1, a[0], b[0]) + 0.01).sort((p, q) => p - q);
-  const ys = [...ysS].filter(v => v >= Math.min(Y0, a[1], b[1]) - 0.01 && v <= Math.max(Y1, a[1], b[1]) + 0.01).sort((p, q) => p - q);
+  const ys = [...ysS].filter(v => v >= Math.min(Y0, a[1], b[1]) - 0.01 && v <= Math.max(Y1, a[1], b[1]) + 0.01)
+    .filter(v => (v > L.TOP + 0.1 && v < L.bottom - 0.1) || Math.abs(v - a[1]) < 0.01 || Math.abs(v - b[1]) < 0.01).sort((p, q) => p - q);   // L87 — 표 테두리 위를 따라가지 않게
   const nx = xs.length, ny = ys.length; if (nx * ny > 40000) return null;
   // 다른 선: 가로 토막 · 세로 토막 · 끝과 꺾임점
   const hz = [], vt = [], pts = [];
@@ -1121,7 +1197,9 @@ function routePick(a, b) {
     const seen = new Set();
     const cands = list.map(path => ({ path, sc: routeScore(path, boxes, endKind) })).sort((u, v) => u.sc - v.sc)
       .filter(c => { const k = c.path.map(p => p.map(v => v.toFixed(1)).join(",")).join(" "); if (seen.has(k)) return false; seen.add(k); return true; });
-    S.wip.routes = cands.map(c => c.path);
+    // L87 — 표 위 · 아래 테두리 위(또는 밖)로 가는 후보는 뒤로 (그것밖에 없을 때만)
+    const L0 = layout(), outside = path => path.slice(1, -1).some(q => q[1] <= L0.TOP + 0.1 || q[1] >= L0.bottom - 0.1);
+    S.wip.routes = cands.filter(c => !outside(c.path)).concat(cands.filter(c => outside(c.path))).map(c => c.path);
   }
   const pick = S.wip.routes[Math.min(S.wip.ri || 0, S.wip.routes.length - 1)] || [a, b];
   return pick;                                                     // L66 — 처음 점이 바뀔 수 있다 (같은 신호 선에서 갈라짐)
@@ -1201,7 +1279,7 @@ function finishWire() {
     pushUndo();
     const pts = orthoPts(S.wip.pts.filter((p, i, a) => i === 0 || Math.hypot(p[0] - a[i - 1][0], p[1] - a[i - 1][1]) > 0.01).map(p => [+p[0].toFixed(2), +p[1].toFixed(2)]));
     if (pts.length >= 2) {
-      const w = { id: newId("w"), pts, dashed: S.tool === "dash" };
+      const w = { id: newId("w"), pts, dashed: S.wip.dashed != null ? !!S.wip.dashed : S.tool === "dash" };
       // 끝이 다른 선의 몸통에 닿으면 연결점 (범례: 점이 연결 · 몸통 교차는 연결 아님) — 사람이 그리면 저절로
       const dots = [];
       for (const e of [pts[0], pts[pts.length - 1]]) { const d = onWireBody(e, null) || onWireCorner(e); if (d) dots.push(d); }
@@ -1224,32 +1302,29 @@ function bindStage() {
     if (e.button === 1 || S.tool === "pan" || S.space) { S.drag = { pan: true, x: e.clientX, y: e.clientY, sl: $("#scroll").scrollLeft, st: $("#scroll").scrollTop }; e.preventDefault(); return; }
     if (e.button !== 0) return;
     if (simOn() && S.tool === "select" && !e.shiftKey && simClick(e, p, t)) return;   // L57 — 시뮬레이션: 행 자리 · 신호원 · 게이트 · 선을 눌러 1/0
-    if (S.tool === "wire" || S.tool === "dash") {
-      const sp = snapPt(p);
-      if (!S.wip) { S.wip = { pts: [[sp[0], sp[1]]], cur: null, startKind: sp[2] }; status("선 — 다음 점을 누르면 추천 경로(점선)가 그대로 선이 됩니다 · Tab 다른 경로 · 단자/행 자리에 닿으면 끝"); }
-      else {
-        const last = S.wip.pts[S.wip.pts.length - 1];
-        S.wip.cur = [sp[0], sp[1]]; S.wip.hot = (sp[2] === "row" || sp[2] === "port") ? sp : null;
-        const rt = routePick(last, [sp[0], sp[1]]);                                   // L59 — 추천 경로가 그대로 선이 된다
-        if (S.wip.pts.length === 1 && (Math.abs(rt[0][0] - last[0]) > 0.01 || Math.abs(rt[0][1] - last[1]) > 0.01)) S.wip.pts[0] = rt[0].slice();   // L66 — 같은 신호 선에서 갈라지는 자리부터
-        for (const q of rt.slice(1)) S.wip.pts.push(q);
-        S.wip.routes = null; S.wip.routeKey = null; S.wip.ri = 0;
-        if (sp[2] === "row" || sp[2] === "port") { finishWire(); return; }
-      }
-      drawGhost(); return;
+    if (S.tool === "wire" || S.tool === "dash" || S.wip) {          // L87 — 선택 도구에서 단자를 끌어 시작한 선도 같은 규칙으로 이어 간다
+      if (!S.wip) { const sp = snapPt(p); S.wip = { pts: [[sp[0], sp[1]]], cur: null, startKind: sp[2], dashed: S.tool === "dash" }; status("선 — 다음 점을 누르면 추천 경로(점선)가 그대로 선이 됩니다 · Tab 다른 경로 · 단자/행 자리에 닿으면 끝"); drawGhost(); return; }
+      wipClick(p); return;                                           // L59 · L66 — 추천 경로가 그대로 선이 된다 · 같은 신호 선에서 갈라지는 자리부터
     }
     // select
+    if (t.classList.contains("qc")) { e.preventDefault(); openPicker(e.clientX, e.clientY, { from: t.dataset.id, i: +t.dataset.i }); return; }   // L87 — 빠른 잇기 '＋'
     const blk = t.closest(".blk"), wire = t.classList.contains("wire") || t.classList.contains("wirehit"), vtx = t.classList.contains("vtx");
     if (vtx) { pushUndo(); S.drag = { vtx: true, id: t.dataset.id, i: +t.dataset.i }; return; }
     if (t.classList.contains("seghd")) { segDragStart(t.dataset.id, +t.dataset.i, t.dataset.ax); return; }
+    if (!e.shiftKey && !(e.ctrlKey || e.metaKey) && !t.classList.contains("cell")) { const hp = portAt(p); if (hp) { startWireAt(hp, e); return; } }   // L87 — 단자 · 행 자리에서 끌면 선
     if (blk) {
       const id = blk.dataset.id;
       if (e.shiftKey) { if (S.sel.has(id)) S.sel.delete(id); else S.sel.add(id); S.selWire = null; render(); return; }
-      if (!S.sel.has(id)) { S.sel = new Set([id]); S.selWire = null; render(); }
-      S.drag = { move: true, start: p, moved: false, orig: [...S.sel].map(id => { const b = S.doc.blocks.find(b => b.id === id); return [id, b.x, b.y]; }), fw: followStart([...S.sel]) };   // L86 — 붙은 선이 따라간다
+      if (!S.sel.has(id)) { S.sel = new Set([id]); S.selWire = null; S.selW = new Set(); render(); }
+      S.drag = { move: true, copy: !!(e.ctrlKey || e.metaKey), start: p, moved: false, orig: [...S.sel].map(id => { const b = S.doc.blocks.find(b => b.id === id); return [id, b.x, b.y]; }), fw: followStart([...S.sel]), wo: wireOrig() };   // L86 — 붙은 선이 따라간다 · L87 — 고른 선도 · Ctrl = 복사
       return;
     }
-    if (wire) { S.selWire = t.dataset.id; S.sel = new Set(); render(); return; }
+    if (wire) {
+      const id = t.dataset.id;
+      if (e.shiftKey) { if (S.selWire) S.selW.add(S.selWire); if (S.selW.has(id)) S.selW.delete(id); else S.selW.add(id); S.selWire = S.selW.size === 1 && !S.sel.size ? [...S.selW][0] : null; }   // L87 — 선도 여럿
+      else { S.selWire = id; S.selW = new Set([id]); S.sel = new Set(); }
+      render(); return;
+    }
     const gl = t.closest && t.closest(".golink");
     if (gl) {
       const side = gl.dataset.side, n = +gl.dataset.n, li = linkInfo(side, n), st = linkState(side, li);
@@ -1261,14 +1336,19 @@ function bindStage() {
       return;
     }
     if (t.classList.contains("cell") || t.classList.contains("rowstub")) return;
-    S.sel = new Set(); S.selWire = null; S.drag = { marquee: [p[0], p[1], p[0], p[1]] }; render();
+    S.sel = new Set(); S.selWire = null; S.selW = new Set(); S.drag = { marquee: [p[0], p[1], p[0], p[1]] }; render();
   });
   window.addEventListener("pointermove", e => {
     if (!S.doc) return;
     const p = svgPt(e);
     S.hover = p; if (S.guide.ruler) rulersSoon();
     if (S.wip) { const sp = snapPt(p); S.wip.cur = [sp[0], sp[1]]; S.wip.hot = (sp[2] === "row" || sp[2] === "port") ? sp : null; drawGhost(); return; }
-    if (!S.drag) { if (S.guide.cross) drawGhost(); return; }
+    if (!S.drag) {                                                   // L87 — 단자 · 행 자리 위면 파란 고리 (여기서 끌면 선)
+      const hp = (S.tool === "select" && !simOn()) ? portAt(p) : null, hk = hp ? hp[0] + "," + hp[1] : "";
+      if (hk !== (S._hpKey || "")) { S.hoverPort = hp; S._hpKey = hk; $("#stage").style.cursor = hp ? "crosshair" : S.tool === "pan" ? "grab" : S.tool === "select" ? "default" : "crosshair"; drawGhost(); }
+      else if (S.guide.cross) drawGhost();
+      return;
+    }
     if (S.drag.pan) { $("#scroll").scrollLeft = S.drag.sl - (e.clientX - S.drag.x); $("#scroll").scrollTop = S.drag.st - (e.clientY - S.drag.y); return; }
     if (S.drag.seg) { segDragMove(p, e.shiftKey); return; }
     if (S.drag.vtx) { const w = S.doc.wires.find(w => w.id === S.drag.id); if (!w) return; const sp = snapPt(p); w.pts[S.drag.i] = [+sp[0].toFixed(2), +sp[1].toFixed(2)]; S.dirty = true; const id = w.id; renderSoon(() => redrawWire(id)); return; }
@@ -1284,23 +1364,37 @@ function bindStage() {
       }
       [dx, dy] = alignMove([...S.sel], dx, dy, strong);
       if (strong && !S.drag.hinted) { S.drag.hinted = true; status("Shift — 이웃 기호 · 선에 맞춰 옮깁니다 (안내선)"); }
-      if (!S.drag.moved && raw) { S.drag.moved = true; pushUndo(); document.body.classList.add("dw-dragging"); }
+      if (!S.drag.moved && raw) { S.drag.moved = true; pushUndo(); document.body.classList.add("dw-dragging"); if (S.drag.copy) dragCopyStart(); }
       if (!S.drag.moved) return;
       for (const [id, x0, y0] of S.drag.orig) { const b = S.doc.blocks.find(b => b.id === id); if (b) { b.x = +(x0 + dx).toFixed(2); b.y = +(y0 + dy).toFixed(2); } }
-      S.dirty = true; const ids = S.drag.orig.map(o => o[0]); const wids = followApply(S.drag.fw); renderSoon(() => { redrawBlocks(ids); for (const id of wids) redrawWire(id); }); return;
+      S.dirty = true; const ids = S.drag.orig.map(o => o[0]); const wids = followApply(S.drag.fw);
+      for (const [id, o] of S.drag.wo || []) { const w = S.doc.wires.find(x => x.id === id); if (w) { shiftWire(w, o, dx, dy); wids.push(id); } }   // L87 — 함께 고른 선
+      renderSoon(() => { redrawBlocks(ids); for (const id of wids) redrawWire(id); }); return;
     }
     if (S.drag.marquee) { S.drag.marquee[2] = p[0]; S.drag.marquee[3] = p[1]; drawGhost(); }
   });
-  window.addEventListener("pointerup", () => {
+  window.addEventListener("pointerup", e => {
     if (!S.drag) return;
+    if (S.drag.wireDrag) {                                           // L87 — 단자에서 끌어 놓은 자리: 단자 · 행이면 끝 · 빈 곳이면 이어서 누른다
+      const d = S.drag; S.drag = null;
+      if (S.wip && S.hover && Math.hypot(e.clientX - d.cx, e.clientY - d.cy) > 4) wipClick(S.hover);
+      return;
+    }
     if (S.drag.marquee) {
       const m = S.drag.marquee, x0 = Math.min(m[0], m[2]), x1 = Math.max(m[0], m[2]), y0 = Math.min(m[1], m[3]), y1 = Math.max(m[1], m[3]);
-      if (x1 - x0 > 2 && y1 - y0 > 2) { S.sel = new Set(S.doc.blocks.filter(b => { const bb = bboxOf(b); return bb[0] >= x0 && bb[2] <= x1 && bb[1] >= y0 && bb[3] <= y1; }).map(b => b.id)); }
+      if (x1 - x0 > 2 && y1 - y0 > 2) {
+        S.sel = new Set(S.doc.blocks.filter(b => { const bb = bboxOf(b); return bb[0] >= x0 && bb[2] <= x1 && bb[1] >= y0 && bb[3] <= y1; }).map(b => b.id));
+        S.selW = new Set(S.doc.wires.filter(w => w.pts.length && w.pts.every(q => q[0] >= x0 && q[0] <= x1 && q[1] >= y0 && q[1] <= y1)).map(w => w.id));   // L87 — 안에 든 선도
+        S.selWire = !S.sel.size && S.selW.size === 1 ? [...S.selW][0] : null;
+        if (S.sel.size || S.selW.size) status(`고름 — 블록 ${S.sel.size} · 선 ${S.selW.size} (끌어 옮기기 · Ctrl+끌기 복사 · Delete · 오른쪽 누름 메뉴)`);
+      }
       S.drag = null; render(); return;
     }
     if (S.drag.seg) { const w = S.doc.wires.find(w => w.id === S.drag.id); if (w) { w.pts = orthoPts(w.pts); render(); } if (S.drag.moved) markDirty(); }
     if (S.drag.vtx) { const w = S.doc.wires.find(w => w.id === S.drag.id); if (w) { w.pts = orthoPts(w.pts); render(); } }   // L64 — 꺾임점을 끌어도 사선이 남지 않게
-    if (S.drag.move && S.drag.moved) { const ids = S.drag.orig.map(o => o[0]); let n = 0; withFollow(ids, () => { n = unclash(ids); }); if (n) status(`이웃 기호와 겹쳐서 ${n}개를 한 행 비켜 놓았습니다 (입력 막대가 이웃 단자에 닿으면 분석기가 선을 엉뚱한 기호에 붙입니다)`); }
+    if (S.drag.move && S.drag.moved) { const ids = S.drag.orig.map(o => o[0]); let n = 0; withFollow(ids, () => { n = unclash(ids); });
+      const fw = S.drag.fw; if (fw) fixCrossings(fw, [...fw.wires.keys(), ...(fw.branches || []).map(b => b.o.id)]);   // L87
+      if (n) status(`이웃 기호와 겹쳐서 ${n}개를 한 행 비켜 놓았습니다 (입력 막대가 이웃 단자에 닿으면 분석기가 선을 엉뚱한 기호에 붙입니다)`); }
     if ((S.drag.move && S.drag.moved) || S.drag.vtx) { markDirty(); if (S.drag.move) render(); }
     S.drag = null; S.alignLines = null; document.body.classList.remove("dw-dragging"); drawGhost(); $("#stage").style.cursor = S.tool === "pan" ? "grab" : S.tool === "select" ? "default" : "crosshair";
   });
@@ -1312,13 +1406,16 @@ function bindStage() {
     const blk = t.closest(".blk");
     if (blk && !simOn()) { const b0 = S.doc.blocks.find(b => b.id === blk.dataset.id); if (b0 && b0.kind === "MACRO") { openMacroInside(macroOfBlock(b0)); return; } }   // L79 — 매크로 두 번 누름 = 내부 동작 (새 창)
     if (blk && aopMaybe(blk.dataset.id)) { const bid = blk.dataset.id; openAopPanel(bid, e).then(ok => { if (!ok) focusBlockInput(bid); }); return; }   // L82 — 신호 처리 블록 = 입력 넣고 계산 보기
-    if (blk) focusBlockInput(blk.dataset.id);
+    if (blk) { focusBlockInput(blk.dataset.id); return; }
+    // L87 — 빈 곳 두 번 누름: 그 자리에 기호 고르개 (LOGIC 영역 · 선택 도구)
+    const L = layout(), p = svgPt(e);
+    if (S.tool === "select" && !simOn() && !t.classList.contains("wire") && !t.classList.contains("wirehit") && p[0] > L.LX0 + 1 && p[0] < L.LX1 - 1 && p[1] > L.TOP && p[1] < L.bottom) openPicker(e.clientX, e.clientY, { at: p });
   });
   function focusBlockInput(id) { const b = S.doc.blocks.find(b => b.id === id); if (!b) return; const sp = S.sym[b.kind]; const inp = $(sp.label ? "#p-label" : (sp.circle || sp.note) ? "#p-text" : sp.time ? "#p-t" : null); if (inp) { inp.focus(); inp.select(); } }
   svg.addEventListener("pointerleave", () => { S.hover = null; drawGhost(); if (S.guide.ruler) drawRulers(); });
-  $("#scroll").addEventListener("scroll", () => { if (S.guide.ruler) drawRulers(); });
-  window.addEventListener("resize", () => { if (S.guide.ruler) drawRulers(); });
-  svg.addEventListener("contextmenu", e => { if (S.wip) { e.preventDefault(); finishWire(); } });
+  $("#scroll").addEventListener("scroll", () => { if (S.guide.ruler) drawRulers(); miniSoon(false); });
+  window.addEventListener("resize", () => { if (S.guide.ruler) drawRulers(); miniSoon(false); });
+  svg.addEventListener("contextmenu", e => { if (S.wip) { e.preventDefault(); finishWire(); return; } if (simOn() || !S.doc) return; e.preventDefault(); ctxOpen(e, svgPt(e), e.target); });   // L87 — 오른쪽 누름 메뉴
   stage.addEventListener("wheel", e => {
     if (!e.ctrlKey) { wheelFlip(e); return; }
     e.preventDefault();
@@ -1335,9 +1432,23 @@ function bindStage() {
     if (!$("#modal").hidden) return;
     const L = layout();
     if (e.key === "Escape" && !$("#simmenu").hidden) { simMenuClose(); return; }
-    if (e.key === "Escape") { if (S.wip) { S.wip = null; render(); } else { S.sel = new Set(); S.selWire = null; render(); } }
+    if (e.key === "Escape" && ctxClose()) return;
+    if (e.key === "Escape" && $("#find") && !$("#find").hidden) { findClose(); return; }
+    if (e.key === "Escape") { if (S.wip) { S.wip = null; render(); } else { S.sel = new Set(); S.selWire = null; S.selW = new Set(); render(); } }
     else if (e.key === "Enter" && S.wip) { finishWire(); }
     else if (e.key === "Tab" && S.wip && S.wip.routes && S.wip.routes.length > 1) { e.preventDefault(); S.wip.ri = ((S.wip.ri || 0) + 1) % S.wip.routes.length; drawGhost(); status(`경로 ${S.wip.ri + 1}/${S.wip.routes.length}`); }
+    // L87 — draw.io 와 같은 단축키
+    else if ((e.ctrlKey || e.metaKey) && !e.shiftKey && e.key.toLowerCase() === "f") { e.preventDefault(); findOpen(); }
+    else if (e.key === "F3") { e.preventDefault(); findStep(e.shiftKey ? -1 : 1); }
+    else if ((e.ctrlKey || e.metaKey) && !e.shiftKey && e.key.toLowerCase() === "a") { e.preventDefault(); selectAll(); }
+    else if ((e.ctrlKey || e.metaKey) && !e.shiftKey && e.key.toLowerCase() === "x") { e.preventDefault(); if (S.sel.size || S.selW.size || S.selWire) { copySel(); deleteSel(); status("잘라냈습니다 — Ctrl+V 로 붙이기"); } }
+    else if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === "o") { e.preventDefault(); S.guide.mini = !S.guide.mini; if ($("#g-mini")) $("#g-mini").checked = S.guide.mini; saveGuide(); miniSoon(true); }
+    else if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === "h") { e.preventDefault(); fitZoom(); }
+    else if ((e.ctrlKey || e.metaKey) && (e.key === "=" || e.key === "+")) { e.preventDefault(); zoomBy(1.2); }
+    else if ((e.ctrlKey || e.metaKey) && e.key === "-") { e.preventDefault(); zoomBy(1 / 1.2); }
+    else if ((e.ctrlKey || e.metaKey) && e.key === "0") { e.preventDefault(); fitZoom(); }
+    else if ((e.key === "PageDown" || e.key === "PageUp") && !e.ctrlKey) { e.preventDefault(); const nb = setNeighbor(e.key === "PageDown" ? 1 : -1); if (nb) openDoc(nb.id, { flip: e.key === "PageDown" ? "next" : "prev" }); else status(e.key === "PageDown" ? "마지막 장입니다" : "첫 장입니다"); }
+    else if (e.key === "?" || e.key === "F1") { e.preventDefault(); showKeys(); }
     else if (e.key === "Delete" || e.key === "Backspace") { e.preventDefault(); deleteSel(); }
     else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "z") { e.preventDefault(); e.shiftKey ? redo() : undo(); }
     else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "y") { e.preventDefault(); redo(); }
@@ -1400,7 +1511,7 @@ function flipHint(dir, f, text) {
   S._flipHideT = setTimeout(() => { h.classList.remove("on"); S._flipAcc = 0; }, 900);
 }
 function setZoom(z) { S.zoom = Math.max(0.3, Math.min(6, z)); $("#zval").textContent = Math.round(S.zoom * 100) + "%"; const L = layout(); const svg = $("#svg"); svg.setAttribute("width", L.W * S.zoom); svg.setAttribute("height", L.H * S.zoom); drawRulers(); }
-function fitZoom() { const sc = $("#scroll"); const L = layout(); setZoom(Math.min((sc.clientWidth - 30) / L.W, (sc.clientHeight - 30) / L.H)); }
+function fitZoom() { const sc = $("#scroll"); const L = layout(); setZoom(Math.min((sc.clientWidth - 30) / L.W, (sc.clientHeight - 30) / L.H)); miniSoon(false); }
 
 
 /* ───────── 모눈종이 (L55 · 화면 전용 — 내보내기에는 없다) ─────────
@@ -1561,7 +1672,7 @@ function arrangeSel(op) {
   const need = /^dist/.test(op) ? 3 : 2;
   if (bs.length < need) { status(need === 3 ? "균등 간격 — 기호를 셋 이상 고르세요 (Shift+누름 · 끌어 묶기)" : "정렬 — 기호를 둘 이상 고르세요"); return; }
   const L = layout(), items = bs.map(b => ({ b, bb: bboxOf(b) }));
-  pushUndo(); const fw = followStart(bs.map(b => b.id));
+  pushUndo(); const fw = followStart(bs.map(b => b.id));   // 정렬 — 끝에서 fixCrossings
   const setX = (it, left) => { it.b.x = +(it.b.x + left - it.bb[0]).toFixed(2); };
   const setY = (it, top) => { it.b.y = +(it.b.y + top - it.bb[1]).toFixed(2); };
   if (op === "left") { const v = Math.min(...items.map(i => i.bb[0])); items.forEach(i => setX(i, v)); }
@@ -1580,7 +1691,7 @@ function arrangeSel(op) {
     let pos = first.bb[a + 2];
     for (const it of items.slice(1)) { pos += gap; (a ? setY : setX)(it, pos); pos += sz(it); }
   }
-  followApply(fw); markDirty(); render();
+  fixCrossings(fw, followApply(fw)); markDirty(); render();
   status({ left: "왼쪽 맞춤", right: "오른쪽 맞춤", hcenter: "가로 가운데 맞춤", top: "위 맞춤", bottom: "아래 맞춤", vcenter: "세로 중간 맞춤", disth: "가로 균등 간격", distv: "세로 균등 간격" }[op] + ` — ${bs.length}개`);
 }
 /* ───────── L66 — 눈금자 가이드선 ─────────
@@ -1912,7 +2023,7 @@ async function save() {
   try { localStorage.setItem("pid.author", who); } catch (e) {}
   try {
     const d = await put(`/logic/api/drawings/${S.id}`, { author: who, doc: docOut() });
-    S.doc = d; S.dirty = false; $("#save").disabled = true; status(`저장됨 · ${new Date().toLocaleTimeString()} · ${who}`);
+    S.doc = d; S.dirty = false; $("#save").disabled = true; draftDrop(S.id); status(`저장됨 · ${new Date().toLocaleTimeString()} · ${who}`);
     if (S.doc.set) {
       // FROM/TO 자동 잇기 — 이 장이 가리키는 상대 장의 칸을 채운다 (비어 있는 칸만 · 서버가 둘 다 저장)
       try { const r = await post(`/logic/api/drawings/sets/${S.doc.set}/autolink`, { did: S.id, author: who });
@@ -1957,9 +2068,10 @@ async function fetchDoc(id) {
 async function openDoc(id, opts) {
   opts = opts || {};
   if (S.dirty && !(await modal("저장하지 않은 변경", "<p>저장하지 않은 변경이 있습니다.  버리고 열까요?</p>"))) return;
+  if (S.dirty && S.id) draftDrop(S.id);                           // L87 — 버리기로 했으니 임시 판도
   const prev = S.doc ? { set: S.doc.set, W: layout().W, H: layout().H, zoom: S.zoom, top: $("#scroll").scrollTop, left: $("#scroll").scrollLeft } : null;
   try { S.doc = await fetchDoc(id); } catch (e) { toast(e.message); return; }
-  S.id = id; S.dirty = false; S.sel = new Set(); S.selWire = null; S.undo = []; S.redo = []; S.verify = null; $("#verify-card").hidden = true;
+  S.id = id; S.dirty = false; S.sel = new Set(); S.selWire = null; S.selW = new Set(); S.hoverPort = null; S.undo = []; S.redo = []; S.verify = null; $("#verify-card").hidden = true;
   leaveHome();
   rgLoad();
   $("#pick").value = id; $("#save").disabled = true;
@@ -1980,6 +2092,7 @@ async function openDoc(id, opts) {
   location.hash = "d=" + id + (S.mparent ? `&mparent=${S.mparent.did}:${S.mparent.bid}` : "") + (S.speer ? "&speer=1" : "");
   if (isPeerChild() && !S.peerAsked) { S.peerAsked = true; peerUp({ type: "dsheet-ask" }); }   // L64 — 연 창에 지금 시뮬레이션 값을 묻는다
   if (S.mparent && !simOn()) { toggleSim(); askParent(); }        // L59 — 새 창은 바로 시뮬레이션으로 열고 부모에게 값을 묻는다
+  await draftOffer();                                               // L87 — 이 브라우저에 남은 저장 안 한 판
 }
 function listItemSaved(d) {
   // 저장한 그림 하나만 목록에서 고친다 (이름 · 시트 · 고친 때) — 고르기 상자의 그 줄도
@@ -2105,7 +2218,7 @@ async function delDoc() {
   const v = await modal("그림 지우기", `<p><b>${esc(S.doc.name)}</b> 을 지웁니다.  기록(누가 · 언제)은 남습니다.  그림 이름을 그대로 적으세요.</p><input id="m-confirm" style="width:100%">`,
     () => $("#m-confirm").value.trim() === S.doc.name ? true : (toast("이름이 다릅니다."), false));
   if (!v) return;
-  try { await api(`/logic/api/drawings/${S.id}?author=${encodeURIComponent(who)}`, { method: "DELETE" }); S.doc = null; S.id = null; S.dirty = false; S._listAt = 0; $("#name").value = ""; $("#name").disabled = true; ["verify", "analyse", "del"].forEach(i => $("#" + i).disabled = true); $("#pdf").hidden = $("#dxf").hidden = true; status("지웠습니다"); showHome(); }
+  try { await api(`/logic/api/drawings/${S.id}?author=${encodeURIComponent(who)}`, { method: "DELETE" }); draftDrop(S.id); S.doc = null; S.id = null; S.dirty = false; S._listAt = 0; $("#name").value = ""; $("#name").disabled = true; ["verify", "analyse", "del"].forEach(i => $("#" + i).disabled = true); $("#pdf").hidden = $("#dxf").hidden = true; status("지웠습니다"); showHome(); }
   catch (e) { toast(e.message); }
 }
 
@@ -2118,7 +2231,8 @@ function homeProject() { return $("#h-project") ? $("#h-project").value : ""; }
 async function showHome() {
   if (S.dirty && !(await modal("저장하지 않은 변경", "<p>저장하지 않은 변경이 있습니다.  버리고 첫 화면으로 갈까요?</p>"))) return;
   if (simOn()) toggleSim();
-  S.doc = null; S.id = null; S.dirty = false; S.sel = new Set(); S.selWire = null; S.setInfo = null;
+  if (S.dirty && S.id) draftDrop(S.id);
+  S.doc = null; S.id = null; S.dirty = false; S.sel = new Set(); S.selWire = null; S.selW = new Set(); S.setInfo = null;
   $("#name").value = ""; $("#name").disabled = true; $("#pick").value = "";
   ["save", "verify", "analyse", "del", "simtoggle"].forEach(i => $("#" + i).disabled = true); $("#pdf").hidden = $("#dxf").hidden = true;
   $("#props-card").hidden = true; $("#verify-card").hidden = true;
@@ -2474,7 +2588,7 @@ async function addMacro(m, px, py) {
   b.x = Math.round(((px != null ? px : (L.LX0 + L.LX1) / 2) - b.w / 2) / (P / 2)) * (P / 2);
   const r0 = px != null ? Math.max(1, Math.min(L.N - n, Math.round((py - L.TOP) / P + 0.5))) : 4;   // 첫 단자가 놓은 자리의 행 가운데에
   b.y = ry(r0) - 1.6 * P - P / 2;
-  pushUndo(); S.doc.blocks.push(b); unclash([b.id]); S.sel = new Set([b.id]); S.selWire = null; markDirty(); render();
+  pushUndo(); S.doc.blocks.push(b); unclash([b.id]); S.sel = new Set([b.id]); S.selWire = null; S.selW = new Set(); markDirty(); render();
 }
 function flashRow(n) {
   const L = layout(); const y = ry(n);
@@ -2964,7 +3078,9 @@ async function init() {
   $("#snap").onchange = e => { S.snap = e.target.checked; };
   loadGuide();
   $$(".dw-arrange button").forEach(b => b.onclick = () => arrangeSel(b.dataset.op));      // L60
-  for (const k of ["grid", "ruler", "align", "cross", "loose"]) $("#g-" + k).onchange = e => { S.guide[k] = e.target.checked; saveGuide(); render(); };
+  for (const k of ["grid", "ruler", "align", "cross", "loose", "mini"]) $("#g-" + k).onchange = e => { S.guide[k] = e.target.checked; saveGuide(); render(); };
+  $("#pal-q").oninput = () => { const q = $("#pal-q").value.trim().toUpperCase(); $$("#palette button").forEach(b => { b.hidden = !!q && !(b.dataset.q || "").includes(q); }); $$("#palette .dw-palhead").forEach(h => { h.hidden = !!q; }); };   // L87
+  $("#keys-btn").onclick = showKeys; $("#find-btn").onclick = () => { if (S.doc) findOpen(); };
   $("#home-btn").onclick = showHome; $("#h-project").onchange = homeProjectChanged; $("#h-newproj").onclick = homeNewProject;
   $$("#home .hm-actions [data-act]").forEach(b => { if (b.dataset.act === "signal") b.href = "/logic/signal" + location.search; else b.onclick = () => homeAction(b.dataset.act); });
   $("#sig-link").href = "/logic/signal" + location.search;
@@ -3109,4 +3225,412 @@ function aopMaybe(id) {                       // 글자 상자(BOX)만 연산자
   if (sb) return !!sb.aop;
   const b = S.doc && S.doc.blocks.find(b => b.id === id);
   return !!b && b.kind === "BOX";
+}
+
+/* ───────── L87 — draw.io(diagrams.net) 에서 배운 작도 편의 ─────────
+   ① 단자 · 행 자리에 가져가면 파란 고리 — 누른 채 끌면 선 (도구를 바꾸지 않고)
+   ② 기호 하나를 고르면 출력 옆 '＋' — 누르면 기호 고르개 → 오른쪽 같은 행에 놓고 저절로 잇는다 (draw.io 의 파란 화살)
+   ③ 빈 곳 두 번 누름 = 그 자리에 기호 고르개 (draw.io 의 빈 곳 두 번 누름)
+   ④ 찾기 Ctrl+F — 이 장 · 묶음 전체 (TAG · 설명 · FROM/TO · 기호 글 · 선 글)
+   ⑤ 미니맵 (draw.io Outline · Ctrl+Shift+O)   ⑥ 오른쪽 누름 메뉴   ⑦ 끌어 묶기에 선도 · Ctrl+A · Ctrl+X · Ctrl+끌기 = 복사해 옮기기
+   ⑧ 임시 저장 — 고치는 판을 이 브라우저에 1초마다 남기고 다시 열면 되살릴지 묻는다 (draw.io draft)
+   ⑨ 팔레트 찾기   ⑩ 단축키 창 (? · F1)   ⑪ 선 자동 경로 다시   ⑫ Ctrl+± · Ctrl+0 · Ctrl+Shift+H · PgUp/PgDn */
+
+/* ① 단자 · 행 자리 찾기 — 화면에서 6px 안 (작은 기호는 몸통을 끌 수 있게 기호 크기의 0.3 까지만) */
+function portAt(p) {
+  if (!S.doc || !p) return null;
+  const L = layout(), tol = Math.max(1.2, Math.min(4, 6 / S.zoom));
+  let best = null, bd = Infinity;
+  for (const b of S.doc.blocks) {
+    const sp = S.sym[b.kind]; if (!sp || sp.note) continue;
+    const B = fullBox(b);
+    if (p[0] < B[0] - tol - 1 || p[0] > B[2] + tol + 1 || p[1] < B[1] - tol - 1 || p[1] > B[3] + tol + 1) continue;
+    const t = Math.min(tol, 0.3 * Math.min(b.w, b.h));
+    for (const q of ports(b)) { const d = Math.hypot(q[0] - p[0], q[1] - p[1]); if (d <= t && d < bd) { bd = d; best = [q[0], q[1], "port", b.id]; } }
+  }
+  if (!best && (Math.abs(p[0] - L.LX0) <= tol || Math.abs(p[0] - L.LX1) <= tol)) {
+    const n = rowAt(p[1]); if (n) { const y = ry(n); if (Math.abs(p[1] - y) <= tol) best = [Math.abs(p[0] - L.LX0) <= tol ? L.LX0 : L.LX1, y, "row", null]; }
+  }
+  return best;
+}
+function startWireAt(hp, e) {
+  S.wip = { pts: [[hp[0], hp[1]]], cur: null, startKind: hp[2], dashed: S.tool === "dash" };
+  S.drag = { wireDrag: true, cx: e.clientX, cy: e.clientY };
+  S.hoverPort = null; S._hpKey = "";
+  status("선 — 끌어서 단자 · 행 자리에 놓으면 이어집니다 · 빈 곳에 놓으면 계속 눌러 꺾고 Enter · 두 번 누름으로 끝 · Esc 취소");
+  drawGhost();
+}
+/* 선 그리기 중 한 번 누름 — 추천 경로를 선에 더하고, 단자 · 행 자리면 끝 (W 도구와 같은 규칙) */
+function wipClick(p) {
+  const sp = snapPt(p), last = S.wip.pts[S.wip.pts.length - 1];
+  S.wip.cur = [sp[0], sp[1]]; S.wip.hot = (sp[2] === "row" || sp[2] === "port") ? sp : null;
+  if (Math.abs(sp[0] - last[0]) < 0.01 && Math.abs(sp[1] - last[1]) < 0.01) { drawGhost(); return false; }
+  const rt = routePick(last, [sp[0], sp[1]]);
+  if (S.wip.pts.length === 1 && (Math.abs(rt[0][0] - last[0]) > 0.01 || Math.abs(rt[0][1] - last[1]) > 0.01)) S.wip.pts[0] = rt[0].slice();
+  for (const q of rt.slice(1)) S.wip.pts.push(q);
+  S.wip.routes = null; S.wip.routeKey = null; S.wip.ri = 0;
+  if (sp[2] === "row" || sp[2] === "port") { finishWire(); return true; }
+  drawGhost(); return false;
+}
+
+/* ② 빠른 잇기 손잡이 */
+function qcDraw(ov) {
+  if (S.tool !== "select" || simOn() || S.drag || S.wip || S.sel.size !== 1 || (S.selW && S.selW.size)) return;
+  const b = S.doc.blocks.find(x => x.id === [...S.sel][0]); if (!b || (S.sym[b.kind] || {}).note) return;
+  const P = layout().PITCH;
+  ports(b).filter(q => q[2] === "out").slice(0, 4).forEach((q, i) => {
+    const x = q[0] + 0.45 * P, y = q[1], r = 0.21 * P;
+    const c = el("circle", { cx: x, cy: y, r, class: "qc", "data-id": b.id, "data-i": i }, ov);
+    el("path", { d: `M${(x - 0.55 * r).toFixed(2)},${y} H${(x + 0.55 * r).toFixed(2)} M${x},${(y - 0.55 * r).toFixed(2)} V${(y + 0.55 * r).toFixed(2)}`, class: "qcplus" }, ov);
+    const tt = el("title", {}, c); tt.textContent = "다음 기호를 오른쪽에 놓고 이 출력에 잇기 — 누르면 고르기";
+  });
+}
+
+/* ②③ 기호 고르개 — 찾기 칸 · 최근 쓴 것 먼저 · ↑↓ Enter */
+const RECENT = "logic.draw.recent";
+function pickItems() {
+  const out = [];
+  for (const k in S.sym) { const sp = S.sym[k]; if (sp.macro) continue; out.push({ key: "k:" + k, kind: k, name: sp.name, text: sp.text || k, q: `${sp.name} ${k} ${sp.text || ""}`.toUpperCase() }); }
+  for (const pr of S.presets || []) out.push({ key: "p:" + pr.text, kind: pr.kind || "BOX", preset: pr, name: pr.name, text: pr.text, q: `${pr.name} ${pr.text} ${pr.hint || ""}`.toUpperCase() });
+  return out;
+}
+function recentKeys() { try { return JSON.parse(localStorage.getItem(RECENT) || "[]"); } catch (e) { return []; } }
+function recentPush(k) { try { const r = recentKeys().filter(x => x !== k); r.unshift(k); localStorage.setItem(RECENT, JSON.stringify(r.slice(0, 8))); } catch (e) {} }
+function openPicker(cx, cy, opts) {
+  pickerClose();
+  const box = document.createElement("div"); box.id = "qpick"; box.className = "dw-qpick";
+  box.innerHTML = `<div class="qp-head">${opts.from ? "다음 기호 — 오른쪽에 놓고 잇습니다" : "이 자리에 놓을 기호"}</div><input id="qpick-q" placeholder="찾기 — AND · 타이머 · DI · ∑ …" autocomplete="off"><div class="qp-list"></div>`;
+  document.body.appendChild(box);
+  const canIn = it => { const sp = S.sym[it.kind] || {}; return !sp.note && sp.logic !== "source"; };
+  const all = pickItems().filter(it => !opts.from || canIn(it)), rk = recentKeys();
+  let shown = [], hi = 0;
+  const paint = () => {
+    const q = $("#qpick-q").value.trim().toUpperCase();
+    const hits = all.filter(it => !q || it.q.includes(q));
+    const rec = q ? [] : rk.map(k => hits.find(it => it.key === k)).filter(Boolean);
+    shown = rec.concat(hits.filter(it => !rec.includes(it))).slice(0, 60); hi = Math.min(hi, Math.max(0, shown.length - 1));
+    const list = box.querySelector(".qp-list"); list.innerHTML = "";
+    shown.forEach((it, i) => {
+      const row = document.createElement("div"); row.className = "qp-it" + (i === hi ? " on" : "") + (i < rec.length ? " rec" : ""); row.dataset.i = i;
+      const ic = document.createElement("span"); ic.className = "qp-ic";
+      if (it.preset) { ic.textContent = it.text; ic.classList.add("txt"); } else ic.appendChild(paletteIcon(it.kind));
+      const nm = document.createElement("span"); nm.className = "qp-nm"; nm.textContent = it.name;
+      const tg = document.createElement("span"); tg.className = "qp-tg"; tg.textContent = i < rec.length ? "최근" : it.preset ? "글자 상자" : it.kind;
+      row.append(ic, nm, tg); list.appendChild(row);
+    });
+    if (!shown.length) list.innerHTML = `<div class="qp-none">맞는 기호가 없습니다</div>`;
+    const on = list.querySelector(".qp-it.on"); if (on) on.scrollIntoView({ block: "nearest" });
+  };
+  const choose = i => { const it = shown[i]; if (!it) return; pickerClose(); recentPush(it.key); placeItem(it, opts); };
+  box.querySelector(".qp-list").onmousedown = e => { e.preventDefault(); const r = e.target.closest(".qp-it"); if (r) choose(+r.dataset.i); };
+  const q = $("#qpick-q");
+  q.oninput = () => { hi = 0; paint(); };
+  q.onkeydown = e => {
+    if (e.isComposing) return;
+    if (e.key === "ArrowDown") { e.preventDefault(); hi = Math.min(shown.length - 1, hi + 1); paint(); }
+    else if (e.key === "ArrowUp") { e.preventDefault(); hi = Math.max(0, hi - 1); paint(); }
+    else if (e.key === "Enter") { e.preventDefault(); choose(hi); }
+    else if (e.key === "Escape") { e.preventDefault(); pickerClose(); $("#stage").focus(); }
+  };
+  paint();
+  const w = box.offsetWidth, h = box.offsetHeight;
+  box.style.left = Math.max(8, Math.min(cx + 8, window.innerWidth - w - 8)) + "px"; box.style.top = Math.max(8, Math.min(cy + 8, window.innerHeight - h - 8)) + "px";
+  q.focus();
+  S._pickOutside = e => { if (!box.contains(e.target)) pickerClose(); };
+  setTimeout(() => document.addEventListener("pointerdown", S._pickOutside, true), 0);
+}
+function pickerClose() { const b = $("#qpick"); if (b) b.remove(); if (S._pickOutside) { document.removeEventListener("pointerdown", S._pickOutside, true); S._pickOutside = null; } }
+function placeItem(it, opts) {
+  if (!S.doc) return;
+  const L = layout(), P = L.PITCH, n0 = S.doc.blocks.length;
+  if (!opts.from) {
+    const [x, y] = opts.at;
+    if (it.preset) addPreset(it.preset, x, y); else addBlock(it.kind, x, y);
+    if (S.doc.blocks.length > n0) status(`${it.name} 를 놓았습니다`);
+    return;
+  }
+  const src = S.doc.blocks.find(b => b.id === opts.from); if (!src) return;
+  const q = ports(src).filter(x => x[2] === "out")[opts.i || 0]; if (!q) return;
+  if (it.preset) addPreset(it.preset, q[0] + 4 * P, q[1]); else addBlock(it.kind, q[0] + 4 * P, q[1]);   // addBlock 이 되돌리기 점을 찍는다
+  if (S.doc.blocks.length === n0) return;
+  const b = S.doc.blocks[S.doc.blocks.length - 1], inp = () => ports(b).find(x => x[2] === "in");
+  let ip = inp(); if (!ip) { render(); return; }
+  // 첫 입력 단자를 출력과 같은 행에 · 출력에서 3행 폭 오른쪽 — 이웃 기호와 겹치면 한 행 폭씩 더 오른쪽
+  b.y = +(b.y + (q[1] - ip[1])).toFixed(2);
+  const others = S.doc.blocks.filter(x => x !== b && !(S.sym[x.kind] || {}).note).map(fullBox);
+  const hit = bb => others.some(B => B[0] < bb[2] - 0.3 && B[2] > bb[0] + 0.3 && B[1] < bb[3] - 0.3 && B[3] > bb[1] + 0.3);
+  for (let k = 0; k < 12; k++) { ip = inp(); b.x = +(b.x + (q[0] + 3 * P + k * P - ip[0])).toFixed(2); const fb = fullBox(b); if (!hit(fb) && fb[2] <= L.LX1 - 1) break; }
+  ip = inp();
+  S.doc.wires.push({ id: newId("w"), pts: orthoPts([[q[0], q[1]], [ip[0], ip[1]]]), dashed: false });
+  S.sel = new Set([b.id]); S.selWire = null; S.selW = new Set();
+  markDirty(); render();
+  status(`${S.sym[b.kind].name} 를 놓고 이었습니다 — 다시 '＋' 를 누르면 이어 갑니다`);
+}
+
+/* ④ 찾기 */
+const fnorm = s => String(s == null ? "" : s).toUpperCase().replace(/\s+/g, "");
+const FIELD_KO = { fm: "FROM", to: "TO", kks: "TAG", desc: "설명" };
+function findIn(d, q) {
+  const qn = fnorm(q), out = [], L = layout(); if (!qn) return out;
+  const add = (h, text) => { if (fnorm(text).includes(qn)) out.push({ did: d.id, sheet_no: d.sheet_no || "", title: d.title || "", text: String(text).slice(0, 80), ...h }); };
+  add({ kind: "sheet", where: "시트" }, d.sheet_no); add({ kind: "sheet", where: "제목" }, d.title);
+  for (const side of ["left", "right"]) for (const n of Object.keys(d[side] || {}).sort((a, b) => a - b)) { const r = d[side][n] || {};
+    for (const f of ["kks", "desc", "fm", "to"]) if (r[f]) add({ kind: "row", n: +n, where: `${side === "left" ? "왼쪽" : "오른쪽"} ${side === "left" ? n : n - (d.N || L.N)}행 ${FIELD_KO[f]}` }, r[f]); }
+  for (const b of d.blocks || []) { const p = b.param || {}; const nm = (S.sym[b.kind] || {}).name || b.kind;
+    for (const t of [b.text, b.label, p.above, p.title]) if (t) { add({ kind: "block", bid: b.id, where: nm }, t); }
+    for (const pin of [...(p.pins_in || []), ...(p.pins_out || [])]) if (pin.name) add({ kind: "block", bid: b.id, where: nm + " 단자" }, pin.name); }
+  for (const w of d.wires || []) if (w.label) add({ kind: "wire", wid: w.id, where: "선 아래 글" }, w.label);
+  (d.notes || []).forEach((t, i) => add({ kind: "note", where: `NOTE ${i + 1}` }, t));
+  const seen = new Set();                                          // 같은 자리 · 같은 글은 한 번
+  return out.filter(h => { const k = [h.did, h.kind, h.n, h.bid, h.wid, h.text].join("|"); if (seen.has(k)) return false; seen.add(k); return true; });
+}
+function findOpen() {
+  let p = $("#find");
+  if (!p) {
+    p = document.createElement("div"); p.id = "find"; p.className = "dw-find";
+    p.innerHTML = `<div class="fd-bar"><input id="find-q" placeholder="찾기 — TAG · 설명 · 시트 · 기호 글" autocomplete="off"><label title="묶음의 모든 장에서"><input type="checkbox" id="find-all" checked> 묶음 전체</label>
+      <button type="button" id="find-prev" title="앞 (Shift+Enter · Shift+F3)">▲</button><button type="button" id="find-next" title="다음 (Enter · F3)">▼</button><span id="find-n" class="dw-hint"></span><button type="button" id="find-x" title="닫기 (Esc)">✕</button></div><div id="find-list" class="fd-list"></div>`;
+    $("#stage").appendChild(p);
+    let t = null;
+    $("#find-q").oninput = () => { clearTimeout(t); t = setTimeout(findRun, 180); };
+    $("#find-all").onchange = findRun;
+    $("#find-q").onkeydown = e => { if (e.isComposing) return; if (e.key === "Enter" || e.key === "F3") { e.preventDefault(); findStep(e.shiftKey ? -1 : 1); } else if (e.key === "Escape") { e.preventDefault(); findClose(); } };
+    $("#find-prev").onclick = () => findStep(-1); $("#find-next").onclick = () => findStep(1); $("#find-x").onclick = findClose;
+    $("#find-list").onclick = e => { const r = e.target.closest("[data-i]"); if (r) findGo(+r.dataset.i); };
+  }
+  p.hidden = false; $("#find-all").disabled = !(S.doc && S.doc.set);
+  const q = $("#find-q"); q.focus(); q.select(); if (q.value.trim()) findRun();
+}
+function findClose() { const p = $("#find"); if (p) p.hidden = true; $("#stage").focus(); }
+async function findRun() {
+  if (!S.doc) return;
+  const q = $("#find-q").value.trim(), seq = (S._findSeq = (S._findSeq || 0) + 1);
+  let hits = findIn({ ...S.doc, ...docOut(), id: S.id }, q);
+  if (q && $("#find-all").checked && S.doc.set) {
+    $("#find-n").textContent = "찾는 중 …";
+    try { const r = await api(`/logic/api/drawings/sets/${S.doc.set}/search?q=${encodeURIComponent(q)}`); if (seq !== S._findSeq) return; hits = hits.concat((r.hits || []).filter(h => h.did !== S.id)); } catch (e) {}
+  }
+  if (seq !== S._findSeq) return;
+  S.find = { q, hits, i: -1 }; renderFind();
+}
+function renderFind() {
+  const f = S.find || { hits: [] }, list = $("#find-list"); if (!list) return;
+  const sheets = new Set(f.hits.map(h => h.did)).size;
+  $("#find-n").textContent = f.q ? (f.hits.length ? `${f.i >= 0 ? f.i + 1 + " / " : ""}${f.hits.length}${f.hits.length >= 300 ? "+" : ""} · ${sheets}장` : "없음") : "";
+  list.innerHTML = f.hits.slice(0, 300).map((h, i) => `<div class="fd-it${i === f.i ? " on" : ""}${h.did === S.id ? " here" : ""}" data-i="${i}"><b>${esc(h.sheet_no || "(이름 없음)")}</b><span class="fd-w">${esc(h.where)}</span><span class="fd-t">${esc(h.text)}</span></div>`).join("");
+  list.hidden = !f.hits.length;
+  const on = list.querySelector(".fd-it.on"); if (on) on.scrollIntoView({ block: "nearest" });
+}
+function findStep(k) { const f = S.find; if (!f || !f.hits.length) { if ($("#find") && !$("#find").hidden) findRun(); return; } findGo((f.i + k + f.hits.length) % f.hits.length); }
+async function findGo(i) {
+  const f = S.find, h = f && f.hits[i]; if (!h) return;
+  f.i = i; renderFind();
+  if (h.did !== S.id) { await openDoc(h.did); if (S.id !== h.did) return; }
+  focusHit(h);
+}
+function centerOn(x, y) {
+  const sc = $("#scroll"), r = $("#svg").getBoundingClientRect(), sr = sc.getBoundingClientRect(), L = layout(), z = r.width / L.W;
+  const px = r.left + x * z, py = r.top + y * z;
+  if (px < sr.left + 40 || px > sr.left + sc.clientWidth - 40) sc.scrollLeft += px - (sr.left + sc.clientWidth / 2);
+  if (py < sr.top + 40 || py > sr.top + sc.clientHeight - 40) sc.scrollTop += py - (sr.top + sc.clientHeight / 2);
+}
+function flashBox(bb) { const ov = overlay(); if (!ov) return; const e = el("rect", { x: bb[0] - 2, y: bb[1] - 2, width: bb[2] - bb[0] + 4, height: bb[3] - bb[1] + 4, rx: 1.5, class: "rowflash" }, ov); setTimeout(() => e.remove(), 2600); }
+function focusHit(h) {
+  if (h.kind === "block") { const b = S.doc.blocks.find(x => x.id === h.bid); if (!b) return; S.sel = new Set([b.id]); S.selWire = null; S.selW = new Set(); render(); const bb = fullBox(b); centerOn((bb[0] + bb[2]) / 2, (bb[1] + bb[3]) / 2); flashBox(bb); }
+  else if (h.kind === "row") { flashRow(h.n); const L = layout(); centerOn(h.n <= L.N ? L.LCOLS[2] : L.RCOLS[1], ry(h.n)); }
+  else if (h.kind === "wire") { const w = S.doc.wires.find(x => x.id === h.wid); if (!w) return; S.selWire = w.id; S.selW = new Set([w.id]); S.sel = new Set(); render(); centerOn(w.pts[0][0], w.pts[0][1]); }
+  status(`찾음 — ${h.sheet_no} · ${h.where} · ${h.text}`);
+}
+
+/* ⑤ 미니맵 */
+function miniSoon(full) { if (full) S._miniDirty = true; if (S._miniRaf) return; S._miniRaf = requestAnimationFrame(() => { S._miniRaf = 0; miniDraw(); }); }
+function miniDraw() {
+  let box = $("#mini");
+  const sc = $("#scroll"), show = S.doc && S.guide.mini !== false && $("#home").hidden && (sc.scrollWidth > sc.clientWidth + 4 || sc.scrollHeight > sc.clientHeight + 4);
+  if (!show) { if (box) box.hidden = true; return; }
+  const L = layout(), W = 210, H = Math.round(W * L.H / L.W), dpr = window.devicePixelRatio || 1;
+  if (!box) {
+    box = document.createElement("div"); box.id = "mini"; box.className = "dw-minimap"; box.title = "미니맵 — 누르거나 끌면 그 자리로 (Ctrl+Shift+O 로 끄기)";
+    box.innerHTML = `<canvas></canvas>`; $("#stage").appendChild(box);
+    const cv = box.querySelector("canvas");
+    const go = e => { const r = cv.getBoundingClientRect(), Lx = layout(); const X = (e.clientX - r.left) / r.width * Lx.W, Y = (e.clientY - r.top) / r.height * Lx.H;
+      const sr = sc.getBoundingClientRect(), sv = $("#svg").getBoundingClientRect(), z = sv.width / Lx.W;
+      sc.scrollLeft += sv.left + X * z - (sr.left + sc.clientWidth / 2); sc.scrollTop += sv.top + Y * z - (sr.top + sc.clientHeight / 2); };
+    cv.addEventListener("pointerdown", e => { e.preventDefault(); cv.setPointerCapture(e.pointerId); S._miniDrag = true; go(e); });
+    cv.addEventListener("pointermove", e => { if (S._miniDrag) go(e); });
+    cv.addEventListener("pointerup", () => { S._miniDrag = false; });
+  }
+  box.hidden = false;
+  const cv = box.querySelector("canvas");
+  if (cv.width !== W * dpr) { cv.width = W * dpr; cv.height = H * dpr; cv.style.width = W + "px"; cv.style.height = H + "px"; S._miniDirty = true; }
+  if (S._miniDirty || !S._miniImg || S._miniDoc !== S.doc) {
+    const off = S._miniImg || (S._miniImg = document.createElement("canvas")); off.width = cv.width; off.height = cv.height;
+    const g = off.getContext("2d"), k = W * dpr / L.W;
+    g.setTransform(k, 0, 0, k, 0, 0); g.fillStyle = "#fff"; g.fillRect(0, 0, L.W, L.H);
+    g.strokeStyle = "#c9cfdb"; g.lineWidth = 1 / k; g.strokeRect(L.LCOLS[0], L.TOP, L.RCOLS[4] - L.LCOLS[0], L.bottom - L.TOP);
+    g.beginPath(); g.moveTo(L.LX0, L.TOP); g.lineTo(L.LX0, L.bottom); g.moveTo(L.LX1, L.TOP); g.lineTo(L.LX1, L.bottom); g.stroke();
+    g.strokeStyle = "#2b3140"; g.lineWidth = 1.4 / k; g.beginPath();
+    for (const w of S.doc.wires) { const p = w.pts; if (!p.length) continue; g.moveTo(p[0][0], p[0][1]); for (let i = 1; i < p.length; i++) g.lineTo(p[i][0], p[i][1]); }
+    g.stroke();
+    g.fillStyle = "#5b7fd0";
+    for (const b of S.doc.blocks) { if ((S.sym[b.kind] || {}).note) continue; const bb = bboxOf(b); g.fillRect(bb[0], bb[1], Math.max(1.5, bb[2] - bb[0]), Math.max(1.5, bb[3] - bb[1])); }
+    S._miniDirty = false; S._miniDoc = S.doc;
+  }
+  const g = cv.getContext("2d"); g.setTransform(1, 0, 0, 1, 0, 0); g.clearRect(0, 0, cv.width, cv.height); g.drawImage(S._miniImg, 0, 0);
+  const sr = sc.getBoundingClientRect(), sv = $("#svg").getBoundingClientRect(), z = sv.width / L.W, k = W * dpr / L.W;
+  const vx = (sr.left - sv.left) / z, vy = (sr.top - sv.top) / z, vw = sc.clientWidth / z, vh = sc.clientHeight / z;
+  g.setTransform(k, 0, 0, k, 0, 0); g.fillStyle = "rgba(47, 91, 216, .12)"; g.strokeStyle = "#2f5bd8"; g.lineWidth = 2 * dpr / k;
+  g.fillRect(vx, vy, vw, vh); g.strokeRect(vx, vy, vw, vh);
+}
+
+/* ⑥ 오른쪽 누름 메뉴 */
+function ctxClose() { const m = $("#ctxmenu"); if (!m || m.hidden) return false; m.hidden = true; return true; }
+function ctxOpen(e, p, t) {
+  let m = $("#ctxmenu");
+  if (!m) { m = document.createElement("div"); m.id = "ctxmenu"; m.className = "dw-simmenu dw-ctx"; m.hidden = true; document.body.appendChild(m);
+    document.addEventListener("pointerdown", ev => { if (!m.hidden && !m.contains(ev.target)) m.hidden = true; }, true);
+    $("#scroll").addEventListener("scroll", () => { m.hidden = true; }); }
+  const blk = t.closest && t.closest(".blk"), wire = t.classList && (t.classList.contains("wire") || t.classList.contains("wirehit"));
+  if (blk && !S.sel.has(blk.dataset.id)) { S.sel = new Set([blk.dataset.id]); S.selWire = null; S.selW = new Set(); render(); }
+  else if (wire && !(S.selW.has(t.dataset.id) || S.selWire === t.dataset.id)) { S.selWire = t.dataset.id; S.selW = new Set([t.dataset.id]); S.sel = new Set(); render(); }
+  else if (!blk && !wire && (S.sel.size || S.selW.size || S.selWire)) { S.sel = new Set(); S.selW = new Set(); S.selWire = null; render(); }   // 빈 곳 — draw.io 처럼 고르기를 풀고 그림 메뉴
+  const nb = S.sel.size, nw = new Set([...S.selW, ...(S.selWire ? [S.selWire] : [])]).size, items = [];
+  const it = (t0, k, act, dis) => items.push({ t: t0, k, act, dis });
+  if (nb || nw) {
+    items.push({ h: nb && nw ? `블록 ${nb} · 선 ${nw}` : nb ? (nb === 1 ? (S.sym[(S.doc.blocks.find(b => b.id === [...S.sel][0]) || {}).kind] || {}).name || "블록" : `블록 ${nb}`) : `선 ${nw}` });
+    if (nb) { it("복사", "Ctrl+C", copySel); it("잘라내기", "Ctrl+X", () => { copySel(); deleteSel(); }); it("복제 (두 행 아래)", "Ctrl+D", duplicateSel); }
+    it("지우기", "Del", deleteSel);
+    if (nb === 1 && !nw) { const b = S.doc.blocks.find(x => x.id === [...S.sel][0]); if (b && ports(b).some(q => q[2] === "out") && !(S.sym[b.kind] || {}).note) it("다음 기호 잇기 …", "＋", () => openPicker(e.clientX, e.clientY, { from: b.id, i: 0 })); }
+    if (nb) { const ids = attachedWires([...S.sel]); if (ids.length) it(`붙은 선 ${ids.length}개 자동 경로로 다시`, "", () => rerouteWires(ids)); }
+    if (nw) { const ws = [...new Set([...S.selW, ...(S.selWire ? [S.selWire] : [])])]; it(`선 ${ws.length === 1 ? "" : ws.length + "개 "}자동 경로로 다시`, "", () => rerouteWires(ws));
+      it("실선 ↔ 파선", "", () => { pushUndo(); for (const id of ws) { const w = S.doc.wires.find(x => x.id === id); if (w) w.dashed = !w.dashed; } markDirty(); render(); }); }
+    if (nb >= 2) { it("왼쪽 맞춤", "Alt+←", () => arrangeSel("left")); it("위 맞춤", "Alt+↑", () => arrangeSel("top")); }
+    if (nb >= 3) { it("가로 균등 간격", "Alt+H", () => arrangeSel("disth")); it("세로 균등 간격", "Alt+V", () => arrangeSel("distv")); }
+  } else {
+    items.push({ h: "그림" });
+    const inLogic = p && p[0] > layout().LX0 && p[0] < layout().LX1 && p[1] > layout().TOP && p[1] < layout().bottom;
+    if (inLogic) it("여기에 기호 넣기 …", "두 번 누름", () => openPicker(e.clientX, e.clientY, { at: p }));
+    it("여기에 붙이기", "Ctrl+V", () => pasteClip(p), !S.clip);
+    it("모두 고르기", "Ctrl+A", selectAll);
+  }
+  items.push({ sep: true });
+  it("찾기", "Ctrl+F", findOpen); it("맞춤 보기", "Ctrl+0", fitZoom); it("단축키", "?", showKeys);
+  m.innerHTML = "";
+  for (const x of items) {
+    if (x.h) { const h = document.createElement("h4"); h.textContent = x.h; m.appendChild(h); continue; }
+    if (x.sep) { const s = document.createElement("hr"); m.appendChild(s); continue; }
+    const b = document.createElement("button"); b.type = "button"; b.disabled = !!x.dis;
+    b.innerHTML = `<span>${esc(x.t)}</span>${x.k ? `<kbd>${esc(x.k)}</kbd>` : ""}`;
+    b.onclick = () => { m.hidden = true; x.act(); };
+    m.appendChild(b);
+  }
+  m.hidden = false;
+  m.style.left = Math.min(e.clientX + 2, window.innerWidth - m.offsetWidth - 8) + "px"; m.style.top = Math.min(e.clientY + 2, window.innerHeight - m.offsetHeight - 8) + "px";
+}
+function attachedWires(ids) { const fw = followStart(ids); return [...fw.wires.keys()]; }
+
+/* ⑦ 선까지 고르기 · 모두 고르기 · Ctrl+끌기 복사 */
+function selectAll() { if (!S.doc) return; S.sel = new Set(S.doc.blocks.map(b => b.id)); S.selW = new Set(S.doc.wires.map(w => w.id)); S.selWire = null; render(); status(`모두 고름 — 블록 ${S.sel.size} · 선 ${S.selW.size}`); }
+function wireOrig() { const m = new Map(); for (const id of S.selW || []) { const w = S.doc.wires.find(x => x.id === id); if (w) m.set(id, { pts: w.pts.map(p => p.slice()), dots: w.dots && w.dots.map(p => p.slice()), marks: w.marks && w.marks.map(p => p.slice()) }); } return m; }
+function shiftWire(w, o, dx, dy) {
+  const sh = p => [+(p[0] + dx).toFixed(2), +(p[1] + dy).toFixed(2)];
+  w.pts = o.pts.map(sh); if (o.dots) w.dots = o.dots.map(sh); if (o.marks) w.marks = o.marks.map(p => [...sh(p), p[2]]);
+}
+function dragCopyStart() {
+  const d = S.drag, ids = new Set(d.orig.map(o => o[0]));
+  const blocks = S.doc.blocks.filter(b => ids.has(b.id));
+  const inside = p => blocks.some(b => { const B = fullBox(b); return p[0] >= B[0] - 1 && p[0] <= B[2] + 1 && p[1] >= B[1] - 1 && p[1] <= B[3] + 1; });
+  const wires = S.doc.wires.filter(w => S.selW.has(w.id) || (w.pts.length && inside(w.pts[0]) && inside(w.pts[w.pts.length - 1])));
+  const nb = [], nw = [];
+  for (const b of blocks) { const c = JSON.parse(JSON.stringify(b)); c.id = newId("b"); S.doc.blocks.push(c); nb.push(c); }
+  for (const w of wires) { const c = JSON.parse(JSON.stringify(w)); c.id = newId("w"); S.doc.wires.push(c); nw.push(c); }
+  d.orig = nb.map(b => [b.id, b.x, b.y]); d.fw = { blocks: [], wires: new Map() };
+  S.sel = new Set(nb.map(b => b.id)); S.selW = new Set(nw.map(w => w.id)); S.selWire = null;
+  d.wo = wireOrig();
+  status(`복사해 옮기는 중 — 블록 ${nb.length} · 선 ${nw.length} (Ctrl 을 누른 채 끌기 · 원본은 그대로)`);
+}
+
+/* ⑧ 임시 저장 (이 브라우저) */
+const DRAFT = "logic.draw.draft.", DRAFTS = "logic.draw.drafts";
+function draftSoon() { clearTimeout(S._draftT); S._draftT = setTimeout(draftSave, 1000); }
+function draftSave() {
+  if (!S.doc || !S.id || !S.dirty || S.mparent || isPeerChild()) return;
+  try {
+    localStorage.setItem(DRAFT + S.id, JSON.stringify({ at: Date.now(), base: S.doc.updated || 0, name: S.doc.name, doc: docOut() }));
+    const ix = JSON.parse(localStorage.getItem(DRAFTS) || "[]").filter(x => x !== S.id); ix.push(S.id);
+    while (ix.length > 30) localStorage.removeItem(DRAFT + ix.shift());
+    localStorage.setItem(DRAFTS, JSON.stringify(ix));
+  } catch (e) {}
+}
+function draftDrop(id) {
+  clearTimeout(S._draftT);
+  try { localStorage.removeItem(DRAFT + id); localStorage.setItem(DRAFTS, JSON.stringify(JSON.parse(localStorage.getItem(DRAFTS) || "[]").filter(x => x !== id))); } catch (e) {}
+}
+function draftGet(id) { try { return JSON.parse(localStorage.getItem(DRAFT + id) || "null"); } catch (e) { return null; } }
+async function draftOffer() {
+  if (!S.doc || S.mparent || isPeerChild()) return;
+  const d = draftGet(S.id); if (!d || !d.doc) return;
+  const same = (d.base || 0) === (S.doc.updated || 0);
+  const okT = $("#m-ok").textContent, noT = $("#m-cancel").textContent;
+  $("#m-ok").textContent = "되살리기"; $("#m-cancel").textContent = "버리기";
+  const v = await modal("저장하지 않은 변경 되살리기", `<p><b>${esc(d.name || S.doc.name)}</b> 을 ${fmtTime(d.at / 1000)} 에 고치다 저장하지 않은 판이 이 브라우저에 남아 있습니다
+    (블록 ${(d.doc.blocks || []).length} · 선 ${(d.doc.wires || []).length} — 지금 저장된 판은 블록 ${S.doc.blocks.length} · 선 ${S.doc.wires.length}).</p>
+    ${same ? "" : `<p class="bad">그 뒤에 이 그림이 다시 저장되었습니다 — 되살려 저장하면 그 판을 덮습니다.</p>`}<p class="dw-hint">되살리면 화면에 펼칩니다 — '저장' 을 눌러야 저장됩니다.  버리면 이 브라우저의 임시 판을 지웁니다.</p>`);
+  $("#m-ok").textContent = okT; $("#m-cancel").textContent = noT;
+  if (!v) { draftDrop(S.id); return; }
+  pushUndo();
+  for (const k of Object.keys(d.doc)) if (!["id", "set", "set_name", "order"].includes(k)) S.doc[k] = d.doc[k];
+  fillForm(); markDirty(); render(); status("되살렸습니다 — 저장을 누르면 저장됩니다");
+}
+
+/* ⑩ 단축키 창 */
+const KEYS = [
+  ["그리기", [["V", "선택"], ["W / D", "선 / 파선 도구"], ["단자 · 행 자리에서 끌기", "선 (도구를 바꾸지 않고)"], ["＋ (기호 옆)", "다음 기호를 놓고 잇기"], ["빈 곳 두 번 누름", "그 자리에 기호 넣기"], ["Tab", "선 — 다른 경로"], ["Enter · 두 번 누름", "선 끝내기"], ["Esc", "취소 · 고르기 풀기"]]],
+  ["고치기", [["Delete", "지우기"], ["Ctrl+C / X / V", "복사 · 잘라내기 · 붙이기"], ["Ctrl+D", "복제"], ["Ctrl+끌기", "복사해 옮기기"], ["Ctrl+A", "모두 고르기 (선까지)"], ["끌어 묶기", "블록 · 선 고르기"], ["Shift+누름", "더하기 · 빼기"], ["화살표 (Shift)", "반 행 (한 행) 옮기기"], ["Alt+화살표 · Alt+H/V", "맞춤 · 균등 간격"], ["Ctrl+Z / Y", "되돌리기 · 다시"], ["Ctrl+S", "저장"]]],
+  ["보기 · 찾기", [["Ctrl+F · F3", "찾기 (묶음 전체) · 다음"], ["Ctrl+휠 · Ctrl+± ", "확대 · 축소"], ["Ctrl+0 · Ctrl+Shift+H", "맞춤 보기"], ["휠 (끝에서) · PgUp/PgDn", "앞 · 다음 장"], ["Space+끌기 · H", "화면 옮기기"], ["Ctrl+Shift+O", "미니맵"], ["G · R", "모눈 · 눈금자"], ["오른쪽 누름", "메뉴"], ["? · F1", "이 창"]]],
+];
+function showKeys() {
+  const body = `<div class="dw-keys">${KEYS.map(([h, rows]) => `<div><h4>${esc(h)}</h4><table>${rows.map(([k, t]) => `<tr><td><kbd>${esc(k)}</kbd></td><td>${esc(t)}</td></tr>`).join("")}</table></div>`).join("")}</div>`;
+  const p = modal("단축키 — Logic 작성", body, null);
+  $("#m-ok").textContent = "닫기"; $("#m-cancel").hidden = true;
+  p.then(() => { $("#m-ok").textContent = "확인"; $("#m-cancel").hidden = false; });
+}
+
+/* ⑪ 선 자동 경로 다시 — 두 끝은 그대로 · 사이 길만 추천 경로(기호 · 다른 선을 피하는 A*)로 */
+function rerouteWires(ids, opt) {
+  opt = opt || {};
+  if (!S.doc || !ids.length) return 0;
+  if (!opt.noUndo) pushUndo();
+  let n = 0, skip = 0;
+  for (const id of ids) {
+    const w = S.doc.wires.find(x => x.id === id); if (!w || w.pts.length < 2) continue;
+    if (branchedFrom(w)) { skip++; continue; }                     // 다른 선이 이 선 몸통에서 갈라지면 몸통을 옮길 수 없다 (그 선이 매달린다)
+    const a = w.pts[0].slice(), z = w.pts[w.pts.length - 1].slice(), keep = S.doc.wires, sv = S.wip;
+    const ka = portAt(a), kz = portAt(z);
+    S.doc.wires = keep.filter(x => x !== w);
+    S.wip = { pts: [a.slice()], cur: z.slice(), hot: kz ? [z[0], z[1], kz[2]] : null, startKind: ka ? ka[2] : "" };
+    let rt = null; try { rt = routePick(a.slice(), z.slice()); } catch (e) { rt = null; }
+    S.wip = sv; S.doc.wires = keep;
+    if (rt && rt.length >= 2) {
+      const pts = orthoPts([a].concat(rt.slice(1, -1).map(p => p.slice())).concat([z]));
+      if (JSON.stringify(pts) !== JSON.stringify(w.pts)) { w.pts = pts; if (w.dots) w.dots = w.dots.filter(d => Math.hypot(d[0] - a[0], d[1] - a[1]) < 0.5 || Math.hypot(d[0] - z[0], d[1] - z[1]) < 0.5); n++; }
+    }
+  }
+  if (opt.quiet) return n;
+  if (n) { markDirty(); render(); } else S.undo.pop();
+  status((n ? `선 ${n}개를 자동 경로로 다시 그렸습니다 (Ctrl+Z 로 되돌림)` : "지금 경로가 이미 추천 경로입니다") + (skip ? ` · ${skip}개는 다른 선이 갈라져 나가 그대로 두었습니다` : ""));
+}
+function branchedFrom(w) {
+  const n = w.pts.length, onIt = e => { if (Math.hypot(e[0] - w.pts[0][0], e[1] - w.pts[0][1]) < 0.3 || Math.hypot(e[0] - w.pts[n - 1][0], e[1] - w.pts[n - 1][1]) < 0.3) return false;
+    for (let i = 1; i < n; i++) { const a = w.pts[i - 1], b = w.pts[i];
+      if (Math.abs(a[1] - b[1]) < 0.2 && Math.abs(e[1] - a[1]) < 0.6 && e[0] >= Math.min(a[0], b[0]) - 0.3 && e[0] <= Math.max(a[0], b[0]) + 0.3) return true;
+      if (Math.abs(a[0] - b[0]) < 0.2 && Math.abs(e[0] - a[0]) < 0.6 && e[1] >= Math.min(a[1], b[1]) - 0.3 && e[1] <= Math.max(a[1], b[1]) + 0.3) return true; }
+    return false; };
+  return S.doc.wires.some(o => o !== w && o.pts.length >= 2 && (onIt(o.pts[0]) || onIt(o.pts[o.pts.length - 1])));
+}
+/* ⑫ 화면 가운데를 두고 확대 · 축소 */
+function zoomBy(f) {
+  const sc = $("#scroll"), cx = sc.scrollLeft + sc.clientWidth / 2, cy = sc.scrollTop + sc.clientHeight / 2, z0 = S.zoom;
+  setZoom(S.zoom * f); const k = S.zoom / z0;
+  sc.scrollLeft = cx * k - sc.clientWidth / 2; sc.scrollTop = cy * k - sc.clientHeight / 2;
 }

@@ -193,6 +193,14 @@ def get_set(sid: str, doc: str = ""):
     return out
 
 
+@router.get("/logic/api/drawings/sets/{sid}/search")
+def search_set(sid: str, q: str = "", limit: int = 300):
+    """L87 — 묶음 전체에서 찾기 (화면의 Ctrl+F · '묶음 전체').  저장된 판을 본다 — 지금 연 장의 저장 안 한 변경은 화면이 직접 찾는다."""
+    docs = _set(sid, shared=True)
+    hits = draw_sets.search(docs, str(q or "")[:80], max(1, min(1000, int(limit or 300))))
+    return {"q": q, "hits": hits, "more": len(hits) >= limit}
+
+
 _SET_CACHE: dict = {}
 
 

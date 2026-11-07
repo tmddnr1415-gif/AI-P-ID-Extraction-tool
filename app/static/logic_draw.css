@@ -422,3 +422,46 @@ body.dw-homeon .dw-side, body.dw-homeon .dw-stage { display: none; }
 .hm-proj li:hover .hm-del { opacity: 1; }
 .hm-del:hover { color: #c2453f; }
 .hm-proj li.hm-more[data-more] { cursor: pointer; color: var(--blue); }
+
+/* L87 — draw.io 에서 배운 작도 편의 */
+.port.hover { fill: rgba(47, 91, 216, .18); stroke: #2f5bd8; stroke-width: .7; pointer-events: none; }
+.qc { fill: #2f5bd8; stroke: #fff; stroke-width: .35; cursor: pointer; opacity: .78; }
+.qc:hover { opacity: 1; }
+.qcplus { stroke: #fff; stroke-width: .45; fill: none; pointer-events: none; }
+.dw-qpick { position: fixed; z-index: 70; width: 290px; background: #fff; border: 1px solid var(--line); border-radius: 10px; box-shadow: 0 10px 32px rgba(0, 0, 0, .22); padding: 8px; font-size: 12px; }
+.dw-qpick .qp-head { font-size: 11px; color: #555e6e; margin: 0 2px 6px; font-weight: 600; }
+.dw-qpick input { width: 100%; box-sizing: border-box; padding: 6px 8px; border: 1px solid var(--line); border-radius: 6px; font: inherit; }
+.dw-qpick .qp-list { max-height: 300px; overflow: auto; margin-top: 6px; }
+.dw-qpick .qp-it { display: flex; align-items: center; gap: 8px; padding: 3px 6px; border-radius: 6px; cursor: pointer; }
+.dw-qpick .qp-it.on, .dw-qpick .qp-it:hover { background: #e8eefc; }
+.dw-qpick .qp-ic { width: 34px; height: 26px; flex: none; display: flex; align-items: center; justify-content: center; }
+.dw-qpick .qp-ic svg { width: 34px; height: 26px; }
+.dw-qpick .qp-ic.txt { font-size: 9px; border: 1px solid #b9c3d6; border-radius: 3px; background: #fffbe8; overflow: hidden; white-space: nowrap; }
+.dw-qpick .qp-nm { flex: 1; }
+.dw-qpick .qp-tg { font-size: 10px; color: #8a93a8; }
+.dw-qpick .qp-it.rec .qp-tg { color: #2f5bd8; }
+.dw-qpick .qp-none { color: #8a93a8; padding: 8px; }
+.dw-find { position: absolute; top: 8px; right: 14px; z-index: 6; width: 430px; background: #fff; border: 1px solid var(--line); border-radius: 10px; box-shadow: 0 8px 26px rgba(0, 0, 0, .18); font-size: 12px; }
+.dw-stage.rulers .dw-find { top: 30px; }
+.dw-find .fd-bar { display: flex; gap: 6px; align-items: center; padding: 6px 8px; }
+.dw-find .fd-bar input[type=text], .dw-find #find-q { flex: 1; min-width: 0; padding: 5px 8px; border: 1px solid var(--line); border-radius: 6px; font: inherit; }
+.dw-find .fd-bar label { white-space: nowrap; font-size: 11px; color: #555e6e; }
+.dw-find .fd-bar button { padding: 3px 7px; }
+.dw-find .fd-list { max-height: 280px; overflow: auto; border-top: 1px solid var(--line); }
+.dw-find .fd-it { display: grid; grid-template-columns: 92px 120px 1fr; gap: 6px; padding: 4px 8px; cursor: pointer; border-bottom: 1px solid #f0f2f6; }
+.dw-find .fd-it:hover, .dw-find .fd-it.on { background: #e8eefc; }
+.dw-find .fd-it.here b { color: #2f5bd8; }
+.dw-find .fd-w { color: #6a7385; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dw-find .fd-t { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dw-minimap { position: absolute; right: 16px; bottom: 16px; z-index: 5; background: #fff; border: 1px solid #b9c3d6; border-radius: 6px; box-shadow: 0 4px 16px rgba(0, 0, 0, .16); padding: 3px; line-height: 0; }
+.dw-minimap canvas { cursor: pointer; }
+.dw-ctx { min-width: 230px; }
+.dw-ctx button { display: flex; justify-content: space-between; align-items: center; gap: 12px; border: 0; background: none; margin: 0; padding: 5px 8px; }
+.dw-ctx button:hover:not(:disabled) { background: #e8eefc; }
+.dw-ctx button:disabled { color: #a9b0bf; }
+.dw-ctx button kbd, .dw-keys kbd { font-size: 10px; color: #6a7385; background: #f2f4f8; border: 1px solid #dde2ec; border-radius: 4px; padding: 0 4px; }
+.dw-ctx hr { border: 0; border-top: 1px solid var(--line); margin: 4px 2px; }
+.dw-palq { width: 100%; box-sizing: border-box; padding: 5px 8px; margin: 0 0 6px; border: 1px solid var(--line); border-radius: 6px; font: inherit; font-size: 12px; }
+.dw-keys { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; font-size: 12px; }
+.dw-keys h4 { margin: 0 0 4px; font-size: 12px; }
+.dw-keys td { padding: 2px 6px 2px 0; vertical-align: top; }
