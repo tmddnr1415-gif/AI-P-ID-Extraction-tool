@@ -11,7 +11,7 @@ import hashlib
 import json
 import time
 from fastapi import APIRouter, Body, File, Form, HTTPException, Request, UploadFile
-from fastapi.responses import JSONResponse, Response
+from fastapi.responses import FileResponse, JSONResponse, Response   # hotfix133: L88 기호 창(/logic/draw/palette)
 
 from app import page_stamp, paths
 
