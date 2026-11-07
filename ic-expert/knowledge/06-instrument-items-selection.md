@@ -607,7 +607,7 @@
 
 **Common mistakes.** Line-sized valve; size from normal flow only; no shut-off ΔP case for actuator; noise checked only at max case; flashing service in globe straight-through body with soft carbon steel; Class VI requested on high-temperature service; fail action inconsistent between P&ID, C&E and datasheet; positioner protocol not matching DCS I/O.
 
-**Vendors.** Emerson Fisher (GX, EZ, ET, Vee-Ball, Control-Disk; DVC6200), Baker Hughes Masoneilan (21000, 41005, Camflex; SVI II/SVI 1000), Flowserve Valtek (Mark One, MaxFlo; Logix 3800), Samson (3241, 3251; TROVIS 3730), IMI CCI (DRAG, severe service), IMI Orton/Truflo, Valmet/Neles (Finetrol, R-series rotary, ND9000), Koso (Kent Introl), Metso-style, Yokogawa (DCS only), Copes-Vulcan (SPX) **[general knowledge — verify]**.
+**Vendors.** Emerson Fisher (GX, EZ, ET, Vee-Ball, Control-Disk; DVC6200), Baker Hughes Masoneilan (21000, 41005, Camflex; SVI II/SVI 1000), Flowserve Valtek (Mark One, MaxFlo; Logix 3800), Samson (3241, 3251; TROVIS 3730), IMI CCI (DRAG, severe service), IMI Orton/Truflo, Valmet/Neles (Finetrol, R-series rotary, ND9000), Koso (Kent Introl), Copes-Vulcan **[general knowledge — verify]**.
 
 ---
 
@@ -674,3 +674,124 @@
 **Vendors.** Emerson (Anderson Greenwood, Crosby), Curtiss-Wright Farris, Baker Hughes Consolidated, LESER, Taylor Valve, Mercer, Spirax Sarco (utility), Fike / BS&B / Rembe (rupture discs) **[general knowledge — verify]**.
 
 ---
+
+## Cabinets: system, marshalling, instrument
+
+**Types.** System cabinets (controllers, I/O cards — DCS/SIS/F&G), marshalling cabinets (field cable termination, cross-wiring, IS barriers/isolators, fuses, relays), power distribution cabinets, network/server cabinets, field instrument cabinets/enclosures (local panels). Universal I/O (Emerson CHARMs, Honeywell UIO, Yokogawa N-IO) reduces marshalling **[general knowledge — verify]**.
+
+**Heat dissipation.** Sum per-cabinet heat load (I/O, power supplies at efficiency, barriers, relays) and check against HVAC design of the instrument equipment room/LER; cabinet internal temperature rise across fans/filters; typical design ambient 22 ± 2 °C in control room/LER with cabinet internal limit vendor-defined **[general knowledge — verify]**. Provide heat load list to HVAC early (often underestimated by 20–30 % at FEED) **[general knowledge — verify]**.
+
+**Segregation.** IS and non-IS wiring separated (IEC 60079-14 / 60079-11: ≥ 50 mm separation or partition between IS and non-IS terminals; IS terminals/cables identified light blue) **[general knowledge — verify]**; separate SIS and BPCS cabinets (IEC 61511 independence) or at least segregated sections; power (> 50 V) segregated from signal; separate AC/DC.
+
+**Power supply.** Redundant 24 VDC power supplies (N+1 or 1+1) fed from two independent UPS feeders with diode/active redundancy modules; monitoring contacts to DCS; field power fused per loop **[general knowledge — verify]**.
+
+**Spare capacity.** Common project requirement: 20 % installed spare I/O (wired to terminals) plus 20 % space for future I/O and cabinet space **[general knowledge — verify — company/project spec value]**; note the 20 % may be defined per I/O type, per card, per cabinet or per node — clarify.
+
+**Datasheet / spec must-haves.** Dimensions, IP rating (IP42 indoor typical; IP54/IP65 outdoor), front/rear access, bottom/top entry, mounting plinth, colour, earthing (IS earth bar, instrument clean earth, safety earth), lighting, socket, door switch, thermostat/fan, heat load, weight, cable glands/plates, terminal type (disconnect/fuse/knife), tagging, labels, FAT/SAT.
+
+**Common mistakes.** Heat load from vendor not updated after I/O growth; IS and non-IS terminals mixed in one rail; single power supply to SIS; no dedicated IS earth bar; spare percentage counted on channels, not on slots/cabinets.
+
+**Vendors.** Rittal, Schneider (Spacial), nVent Hoffman, Pentair, Eldon; IS interfaces: Pepperl+Fuchs (K-System, HiC), MTL/Eaton, Phoenix Contact, Turck, R. STAHL **[general knowledge — verify]**.
+
+---
+
+## Junction boxes
+
+**Types.** Single-pair (IS/non-IS), multi-pair, analogue/digital/fieldbus (with segment protectors), power. Material: GRP or 316 SS; Ex e (increased safety) for non-IS, Ex i for IS (often Ex e certified boxes used with blue IS terminals), Ex d rarely **[general knowledge — verify]**.
+
+**Rules.** Separate JBs for IS and non-IS, for SIS and BPCS, for F&G; 20 % spare terminals and spare gland entries; drain/breather; earthing stud and cable screen/earth terminals; IP66 minimum outdoor; tag & signal type labels; located at accessible height, out of fire zones or protected **[general knowledge — verify]**.
+
+**Mistakes.** Ex e box with internal components (e.g., relays) not covered by certificate; mixed IS/non-IS; screen earthed at both ends causing ground loops; insufficient gland plate space for multicore + spare.
+
+**Vendors.** R. STAHL, Eaton (CEAG/MTL), Hawke, Rose (Phoenix), Bartec, CMP, Hubbell Killark, Appleton (Emerson) **[general knowledge — verify]**.
+
+---
+
+## Cables & glands (incl. Ex d barrier glands)
+
+**Cables.** Instrument cables per IEC 60502/BS EN 50288-7 (or equivalent): individually & overall screened pairs/triads, tinned copper, PVC/XLPE insulation, SWA/braided armour, LSZH or PVC sheath; flame retardant IEC 60332-1/-3 (bunched); fire-resistant IEC 60331 for F&G, ESD valves that must operate during fire, MOV ESD, PA/GA **[general knowledge — verify]**. IS cables light blue sheath; conductor size typically 1.0–1.5 mm² (multicore 0.75–1.0 mm²) **[general knowledge — verify]**. Thermocouple extension/compensating cables per IEC 60584-3 colour codes.
+
+**Glands (IEC 60079-14).** Gland protection must match or exceed the equipment it enters ([Power & Cables — IECEx gland guide](https://www.powerandcables.com/iecex-cable-gland-selection/)). Older (pre-2013) flowchart: barrier glands required for Ex d enclosures with internal ignition source in IIC gas, or Zone 1 with enclosure volume > 2 dm³ (2 L) ([Source IEx — To barrier or not to barrier](https://www.sourceiex.com/Catalogs/To%20Barrier%20or%20Not%20to%20Barrier.pdf); [Appleton gland guide](https://www.appleton.emerson.com/documents/catalog-cable-gland-selection-guide-appleton-en-us-7436636.pdf)). Since the 2013 edition the decision hinges on cable construction (circular, compact, extruded bedding, non-hygroscopic fillers) and connected cable length ≥ 3 m; otherwise barrier glands ([Power & Cables](https://www.powerandcables.com/iecex-cable-gland-selection/)). The 2024 edition changed cable/gland selection again — check ([Element — IEC 60079-14:2024 changes](https://cdn.element.com/siteassets/media/pdfs/resources/understanding-the-changes-to-iec-60079-14-2024-edition.pdf)). Many oil & gas company specs simply mandate barrier glands on all Ex d entries regardless **[general knowledge — verify]**.
+
+**Gland datasheet fields.** Type (E1FW/A2F etc.), Ex certification (db/eb), IP66/68, armour type, cable OD range (inner/outer), thread (M20/M25, NPT), material (brass nickel-plated, SS), shroud, earth tag, sealing washer.
+
+**Common mistakes.** Thread type mismatch (NPT vs metric) between instrument and gland; non-barrier glands on IIC Ex d junction boxes in Zone 1; IP rating lost due to missing sealing washer; unused entries not closed with certified stopping plugs.
+
+**Vendors.** Cables: Prysmian, Nexans, LS Cable, Tratos, Brugg, Taihan, Ducab. Glands: CMP, Hawke (Hubbell), Peppers, Bimed, Appleton, Cooper/Eaton **[general knowledge — verify]**.
+
+---
+
+## Instrument air
+
+**Quality.** ISA-7.0.01: pressure dew point at line pressure ≥ 10 °C (18 °F) below the lowest temperature to which any part of the instrument air system is exposed, and not above 4 °C at line pressure ([Atlas Copco — instrument air quality](https://www.atlascopco.com/en-rs/compressors/air-compressor-blog/instrument-air-quality); [Air Best Practices — ISA 7.0.01](https://www.airbestpractices.com/standards/iso-and-cagi/understanding-isa70011996-instrument-air-standard)). ISA-7.0.01 is increasingly superseded in specs by ISO 8573-1 quality classes (e.g., Class 1.2.1 or 2.2.1) ([Air Best Practices](https://www.airbestpractices.com/standards/iso-and-cagi/understanding-isa70011996-instrument-air-standard)). Desert/cold sites typically specify −40 °C PDP (desiccant dryers) **[general knowledge — verify]**. Particle ≤ 40 µm (ISA 7.0.01) and oil-free (≤ 1 ppm w/w) **[general knowledge — verify]**.
+
+**System design.** Header pressure typically 7–8 barg normal, 4–5 barg minimum at consumers **[general knowledge — verify]**; receiver sized for hold-up time (e.g., 10–20 min to allow safe shutdown after compressor trip) **[general knowledge — verify]**; ring headers; sub-headers with spare take-offs (~20 %); take-offs from top of header; drain points at low points; SS 316 or galvanised CS headers, SS tubing to consumers **[general knowledge — verify]**. Header sizing via consumption list (control valve steady-state bleed + stroking transient + purge + analyzers + PSV pilots) with diversity, plus leakage allowance (e.g., 10 %) **[general knowledge — verify]**.
+
+**Consumer hook-up.** Isolation valve, filter-regulator (with gauge) per consumer, SS tubing; volume tank for fail-position or ESD valves.
+
+**Mistakes.** PDP specified at atmospheric not line pressure; no receiver hold-up calc; air consumption list ignoring ESD valve simultaneous stroking; using nitrogen backup without O2-depletion consideration in enclosed spaces.
+
+---
+
+## Hook-ups (general)
+
+- Hook-up drawings define tapping, root valve to instrument: valves, fittings, tubing, supports, and bill of materials per piping class/instrument material spec. Typical families: pressure (gas/liquid/steam), DP flow (gas above/liquid below), DP level (dry/wet leg/seal), temperature, analyser sample, pneumatic (air supply, signal), heat-traced/insulated hook-ups **[general knowledge — verify]**.
+- Impulse/process tubing: 1/2" OD SS 316, wall per pressure; compression fittings twin-ferrule (Swagelok/Parker A-Lok) — no mixing of brands; 1:12 slope (see DP section — [CR4/API RP 551](https://cr4.globalspec.com/thread/39151/impulse-tubing)); supports every ~1–1.5 m **[general knowledge — verify]**.
+- Instrument mounted on 2" stanchion, not on vibrating pipe; accessible from grade/platform (≤ ~1.5 m above walkway) **[general knowledge — verify]**.
+- Close-coupling / direct mounting preferred for SIS transmitters to reduce plugging/leak points; hot services: impulse length to cool below transmitter max T (or use seals).
+- Vents/drains routed to closed drain/flare for toxic or flammable services; DBB isolation on high-pressure/toxic.
+- Heat tracing: self-regulating electric or steam; insulation boxes (Intertec-type) for transmitters in cold climates or hot sun **[general knowledge — verify]**.
+
+**Mistakes.** Hook-up shows gas configuration for a liquid-service transmitter; piping class break at wrong point; root valve rating below line class; transmitter located above liquid taps (gas pockets).
+
+---
+
+## Other vendors
+
+*(The large DCS/SIS/automation vendors such as Emerson, Honeywell and Yokogawa are covered in other knowledge files. Model names below are from general knowledge unless linked — **verify current portfolio before quoting**; product lines are renamed/merged frequently.)*
+
+**Endress+Hauser (Switzerland/Germany).** Full field-instrument house, strong in Europe/Middle East and as main instrument vendor (MIV) on LNG and chemical projects. Flagships: Promass (Coriolis), Promag (magnetic), Prowirl 200 (vortex), Prosonic Flow (ultrasonic), t-mass (thermal); Cerabar/Deltabar (pressure/DP), Deltapilot (hydrostatic); Levelflex (GWR), Micropilot (radar), Liquiphant (forks, min density 0.5 g/cm³ ([E+H FTL51](https://www.nl.endress.com/en/field-instruments-overview/level-measurement/Vibronic-Liquiphant-FTL51))), Gammapilot (radiometric), Proservo NMS8x (servo, ±0.4 mm ([TI01248G](https://bdih-download.endress.com/files/DLA/005056A500261EDFB0FCCC9653A98A19/TI01248GEN_0824-00.pdf))) and Micropilot NMR8x with Tankvision (tank gauging); iTEMP/iTHERM (temperature); Liquiline (liquid analysis); SpectraSensors TDLAS and Kaiser Raman (gas analysis). Heartbeat Technology for in-situ verification **[general knowledge — verify]**.
+
+**Siemens.** Process instrumentation under SITRANS: SITRANS P DS III / P320 / P420 (pressure), SITRANS F (FM MAG 5000/6000, FC Coriolis, FUS/FS230 clamp-on ultrasonic — custody claims for clamp-on ([Siemens clamp-on gas custody](https://assets.new.siemens.com/siemens/assets/api/uuid:9670bb2c-83be-4c59-809a-01b79ead159b/di-pa-mi-gas-pipeline-custody-transfer-clamp-2022.pdf))), SITRANS LR/LG (radar/GWR), SITRANS LVL200 forks ([Siemens LVL200](https://cache.industry.siemens.com/dl/files/042/109765042/att_1277064/v1/sitransl_lvl200_fi01_en.pdf)), SIPART PS2 (positioner), MAXUM II (process GC), ULTRAMAT/OXYMAT/CALOMAT (gas analysers). Systems: SIMATIC PCS 7 / PCS neo, S7-1500H/F; SIMATIC Safety Integrated **[general knowledge — verify]**.
+
+**ABB.** Measurement: 266/ 2600T (pressure), ProcessMaster/AquaMaster (magnetic, FEP500 0.3 %/opt. 0.2 % ([ABB FEP500](https://library.e.abb.com/public/c4148da8f7404266a9e6dae3745d3783/DS_FEP500_EN_D.pdf))), CoriolisMaster, VortexMaster/SwirlMaster, SensyTemp (temperature), LMT magnetostrictive level, K-TEK magnetic level gauges, TZIDC/EDP300 positioners. Analytical: NGC8200 / PGC5000 GCs, AO2000 continuous gas analysers, LGR/ICOS laser analyzers, Navigator water analysers; Totalflow flow computers. Systems: 800xA, Freelance, AC 800M HI for safety **[general knowledge — verify]**.
+
+**Krohne (Germany).** Flow specialist: Optiflux (mag, 5 µS/cm min ([Krohne install guide](https://cdn.krohne.com/archive/TD_MID_INSTALL_e_72.pdf))), Optimass (Coriolis), Altosonic V12 / Optisonic (ultrasonic incl. custody liquid/gas), Optiswirl (vortex), H250 (variable area), Optiwave (radar), Optiflex (GWR), BM26 (magnetic level gauge), Optiswitch (forks ([Krohne](https://krohne.com/en/products/level-measurement/level-switches/vibration-level-switches/optiswitch-5150))). Also complete metering skids/systems (Krohne Oil & Gas, Summit flow computers) **[general knowledge — verify]**.
+
+**VEGA (Germany).** Level and pressure specialist: VEGAPULS 6X (radar, multi-frequency platform ([VEGA blog](https://www.vega.com/en/company/blog/2017/good-focusing-delivers-security))), VEGAPULS 64 (80 GHz), VEGAFLEX 8x (GWR), VEGASWING (forks), VEGABAR (pressure/hydrostatic with ceramic CERTEC cell), radiometric FIBERTRAC/SOLITRAC/MINITRAC/POINTRAC, plics modular electronics **[general knowledge — verify]**.
+
+**Rotork (UK).** Leading electric actuator vendor: IQ3 / IQT3 (intelligent multi-turn/part-turn, non-intrusive, SIL options), CK modular, SI/EH electro-hydraulic, CP/GP/RC pneumatic (scotch-yoke/rack-pinion), Fairchild regulators, Midland-ACS SOVs, YTC positioners, Bifold. Strong in MOVs for pipelines, tank farms and utilities **[general knowledge — verify]**.
+
+**Valmet / Neles (Finland; formerly Metso).** Control and on-off valves: Neles Finetrol (eccentric rotary plug), R-series segment/ball valves, Jamesbury (soft-seated ball, butterfly), Mapag (high-temperature butterfly), Neles globe valves; ND9000 intelligent positioner; ValvGuard VG9000 (SIL 3 ESD controller with PST); Neles actuators B1C/ B1J. Common for ESD/HIPPS rotary valves and pulp/paper heritage **[general knowledge — verify]**.
+
+**Baker Hughes Masoneilan (US/France/Italy).** Control valves: 21000 (globe), 41005 (cage), 28000 Varimax, Camflex (eccentric rotary), 35002 (rotary), LO-dB and VRT noise/cavitation trims ([Masoneilan noise handbook](https://dam.bakerhughes.com/m/403871c7a460561b/original/Masoneilan-Noise-Control-Handbook-English.pdf)); SVI II AP / SVI 1000 positioners, 12400 digital level transmitter/controller (displacer). Baker Hughes also owns Consolidated (PSVs) and Panametrics (ultrasonic flow, moisture analysers ([XGF868i](https://dam.bakerhughes.com/m/5fd2c2563e141dd7/original/DigitalFlow-XGF868i-Datasheet-English.pdf))) **[model list general knowledge — verify]**.
+
+**Flowserve (US).** Valtek Mark One/Mark Two (globe), MaxFlo (rotary), ShearStream, Valdisk (butterfly), Logix 3800 positioner; Valbart (trunnion ball), NAF, Durco/Atomac (lined plug valves), Worcester; Limitorque MX/QX (electric actuators), Automax; also pumps & seals. Common on refinery severe-service lists **[general knowledge — verify]**.
+
+**Samson (Germany).** Globe control valves (Series 240 – 3241, 3251, 3254; Series 250/290), rotary (3310, Pfeiffer lined valves), self-operated regulators, TROVIS 3730/3793 positioners, TROVIS SAFE 3731 (SIL positioner/PST), Leusch/AIR TORQUE/Vetec/Ringo subsidiaries. Strong in chemical/LNG utilities and Europe/Asia; document on PST and SOV architectures ([Samson PST doc](https://france.samsongroup.com/document/w02390en.pdf)) **[model list general knowledge — verify]**.
+
+**IMI Critical Engineering — IMI CCI (Switzerland/US).** Severe-service specialist: DRAG multi-stage disk-stack trim for anti-cavitation/low-noise (anti-surge, high-ΔP letdown, LNG boil-off, compressor recycle, turbine bypass), 100D/ 600D DRAG valves, VLB/ Sulzer steam conditioning, IMI Orton/Truflo/Zikesch (ball/ESD valves), IMI Z&J (high-temp slide valves), IMI Remosa (FCC) **[general knowledge — verify]**.
+
+**Det-Tronics (US; historically part of UTC/Carrier — verify current ownership).** F&G specialist: X3301 multispectrum IR flame detector (81 m n-heptane ([Det-Tronics](https://www.det-tronics.com/Content/Documents/Flame-Detection-Solutions.pdf))), X3302 (hydrogen), X5200 UV/IR, X2200 UV, PointWatch Eclipse PIRECL (point IR gas), OPECL / FlexSight LS2000 (open path ([LS2000](https://www.det-tronics.com/products/flexsight-ls2000-optical-infrared-gas-detector/))), GT3000 (toxic), Eagle Quantum Premier (EQP, FM-approved F&G controller) **[ownership and model list general knowledge — verify]**.
+
+**MSA Safety (US) incl. General Monitors.** Fixed gas & flame: Ultima X5000 / S5000 (point gas incl. XCell EC sensors), General Monitors IR400/IR5500 (point/open path), Observer-i (ultrasonic gas leak), FL4000H / FL500 (flame), Senscient ELDS (laser open path for H2S/CH4) **[general knowledge — verify]**. MSA white paper on MOS→EC H2S ([MSA](https://assetlibrary.msasafety.com/asset/d361c8b5-4f4c-4062-bd53-2ce915b32a9e/White-Paper-Upgrading-from-MOS-to-Electrochemical-Sensors-for-H2S-Gas-Detection.pdf)).
+
+**Dräger (Germany).** Polytron 8000 series (8100 EC, 8200/8310 catalytic, 8700/8720 IR), PIR 7000/7200 (point IR), Polytron Pulsar 2 (open path), Flame 1x00/2x00/3000 series (flame), REGARD 7000 controllers; also portable detectors and breathing apparatus **[general knowledge — verify]**.
+
+**Servomex (UK; Spectris).** Gas analysis specialist: paramagnetic O2 (MultiExact, SERVOPRO), zirconia (FluegasExact), NDIR/gas-filter correlation, TDLAS (SERVOTOUGH Laser 3 Plus for O2/CO/H2O/NH3), SERVOFLEX portables; trace-moisture and purity analysers for LNG/air-separation (Delta F, Hummingbird sensors) **[general knowledge — verify]**.
+
+**Mettler-Toledo / ABB analyzers (liquid analysis).** Mettler-Toledo Process Analytics: InPro pH/ORP, dissolved O2, conductivity sensors, ISM digital sensors, M400/M800 transmitters, Thornton (pure water). ABB: Navigator series, AquaMaster, TB/TBX conductivity and pH (see ABB above). Used for produced water, boiler feed water, cooling water, effluent **[general knowledge — verify]**.
+
+**Schneider Electric / Triconex (now under AVEVA/Schneider).** Triconex Tricon CX (TMR — triple modular redundant, 2oo3 voting) and Trident/Tri-GP, safety-certified to IEC 61508 SIL 3; widely used for ESD, F&G, burner management, compressor/turbine control (Triconex compressor control, formerly via Invensys/Foxboro). Foxboro EcoStruxure (I/A) DCS **[general knowledge — verify]**.
+
+**HIMA (Germany).** Independent safety-system specialist: HIMax (SIL 3, scalable redundancy, non-stop operation), HIQuad X (successor of HIQuad), HIMatrix (compact/distributed), SILworX engineering; strong on independent SIS in LNG, refineries, pipelines and rail **[general knowledge — verify]**.
+
+---
+
+## Gaps
+
+1. **Search budget exhausted mid-research.** The following were *not* searched and rest on general knowledge (all flagged in text): MOV torque safety factors & stroke speeds; PSV pilot-operated valve limits, API 526 orifice letters, ASME accumulation percentages, bellows back-pressure limits (secondary sources conflict, 30–50 %); thermowell TW-2016 frequency-ratio limits (0.8 fn unverified), velocity collar / strake guidance; skin-TC installation practice; analyzer shelter ventilation rates; instrument-air header pressures and receiver hold-up times; cabinet spare and heat-load practice; F&G coverage targets (e.g., 90/80/60 %); gas detector alarm set points; vendor flagship model lists in `## Other vendors` (and Det-Tronics' current corporate owner).
+2. **Primary standard text not accessed.** ISO 5167-2 straight-length tables, IEC 60534-8-3, ANSI/FCI 70-2 class VI table, API MPMS 3.1B Table 1, AGA 9 performance limits, API 520 Pt II, IEC 60079-14:2024 gland rules, EN 15714-2 starts/h table, ASME PTC 19.3 TW-2016 — figures here are from secondary summaries and should be checked in the standard for any binding decision.
+3. **Unverified numbers in vendor material.** Rosemount 8800 vortex turndown differs between Emerson documents (38:1 vs 15:1); Det-Tronics X3301 range differs between documents (210 ft vs 265 ft); Micro Motion gas accuracy (±0.35 % vs ±0.25 % vs ±0.20 % enhanced) — always quote the current datasheet for the exact model code.
+4. **Not covered / thin.** Magnetic level gauge float SG limits; Annubar accuracy/turndown; VDI/VDE 3513 rotameter classes; IEC 60584 type K tolerance; Yokogawa EJA/EJX specs; clamp-on ultrasonic quantitative accuracy; turbine meter repeatability criteria (API MPMS 4.8/5.3); wet-gas and multiphase metering; acoustic leak detectors; HIPPS (API 17O / IEC 61511) beyond ESD basics; wireless instrumentation; fieldbus segment design; radiation licensing; LNG-specific cryogenic instrument practice (extended bonnets, cold-box instruments, LTD gauges).
+5. **Network.** WebFetch to several hosts was blocked (e.g., processingmagazine.com — ENOTFOUND); allowing these would permit quoting primary content more precisely.
