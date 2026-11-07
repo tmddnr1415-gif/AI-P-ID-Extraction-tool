@@ -1,0 +1,579 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>회사 PC 업데이트 시연</title>
+<style>
+:root{
+  --bg:#eef1f5; --panel:#ffffff; --panel2:#f6f8fb; --ink:#1b2430; --muted:#5d6b7c; --line:#d8dee7;
+  --accent:#1f5fd6; --accent-soft:#e3ecfc; --ok:#17864b; --ok-soft:#ddf3e6; --warn:#b26a00; --warn-soft:#fdf0d9;
+  --bad:#c23434; --bad-soft:#fbe3e3; --console:#0f1620; --console-ink:#cfe3ff; --side:#1d2a3b; --side-ink:#d5deea;
+  --shadow:0 1px 2px rgba(0,0,0,.06),0 4px 16px rgba(0,0,0,.06);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#11161d; --panel:#1a212b; --panel2:#151b23; --ink:#e4eaf2; --muted:#93a1b3; --line:#2b3542;
+    --accent:#6b9cff; --accent-soft:#1d2c48; --ok:#4cc488; --ok-soft:#173326; --warn:#f0b452; --warn-soft:#3a2c12;
+    --bad:#ff7b7b; --bad-soft:#3d1c1c; --console:#090d12; --console-ink:#bcd6ff; --side:#0e141b; --side-ink:#c3cfdd;
+    --shadow:0 1px 2px rgba(0,0,0,.4),0 4px 16px rgba(0,0,0,.3);
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#11161d; --panel:#1a212b; --panel2:#151b23; --ink:#e4eaf2; --muted:#93a1b3; --line:#2b3542;
+  --accent:#6b9cff; --accent-soft:#1d2c48; --ok:#4cc488; --ok-soft:#173326; --warn:#f0b452; --warn-soft:#3a2c12;
+  --bad:#ff7b7b; --bad-soft:#3d1c1c; --console:#090d12; --console-ink:#bcd6ff; --side:#0e141b; --side-ink:#c3cfdd;
+  --shadow:0 1px 2px rgba(0,0,0,.4),0 4px 16px rgba(0,0,0,.3);
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--bg);color:var(--ink);font:14px/1.55 "Malgun Gothic","Apple SD Gothic Neo","Noto Sans KR",system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+button{font:inherit;color:inherit;cursor:pointer}
+.wrap{max-width:1180px;margin:0 auto;padding:20px 16px 48px}
+header.top{display:flex;flex-wrap:wrap;gap:12px;align-items:flex-end;justify-content:space-between;margin-bottom:14px}
+h1{font-size:22px;margin:0 0 2px;letter-spacing:-.01em}
+.sub{color:var(--muted);font-size:13px}
+.actions{display:flex;gap:8px;flex-wrap:wrap}
+.btn{border:1px solid var(--line);background:var(--panel);border-radius:8px;padding:7px 12px}
+.btn:hover{border-color:var(--accent)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+.btn.primary:hover{filter:brightness(1.08)}
+.notice{background:var(--warn-soft);color:var(--ink);border:1px solid color-mix(in srgb,var(--warn) 35%,transparent);border-radius:10px;padding:9px 12px;font-size:13px;margin-bottom:14px}
+.notice b{color:var(--warn)}
+.steps{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:14px}
+.step{display:flex;gap:10px;align-items:center;text-align:left;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:10px 12px;box-shadow:var(--shadow)}
+.step .n{flex:none;width:26px;height:26px;border-radius:50%;display:grid;place-items:center;background:var(--panel2);border:1px solid var(--line);font-weight:700;font-size:13px}
+.step .t{font-weight:600;font-size:13.5px;line-height:1.25}
+.step .d{color:var(--muted);font-size:12px;line-height:1.25}
+.step[aria-selected="true"]{border-color:var(--accent);background:var(--accent-soft)}
+.step[aria-selected="true"] .n{background:var(--accent);border-color:var(--accent);color:#fff}
+.step.done .n{background:var(--ok);border-color:var(--ok);color:#fff}
+.stage{display:none}
+.stage.on{display:block;animation:fade .25s ease}
+@keyframes fade{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+
+/* window chrome */
+.win{background:var(--panel);border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow);overflow:hidden}
+.win-bar{display:flex;align-items:center;gap:10px;padding:8px 12px;background:var(--panel2);border-bottom:1px solid var(--line);font-size:12.5px;color:var(--muted)}
+.win-bar .dots{display:flex;gap:6px}
+.win-bar .dots i{width:10px;height:10px;border-radius:50%;background:var(--line);display:block}
+.win-bar .path{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:3px 8px;font-family:Consolas,"D2Coding",monospace}
+.win-body{padding:14px}
+.grid2{display:grid;grid-template-columns:1.35fr 1fr;gap:14px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px;box-shadow:var(--shadow)}
+.card h3{margin:0 0 8px;font-size:15px}
+.muted{color:var(--muted)}
+.small{font-size:12.5px}
+
+table{width:100%;border-collapse:collapse;font-size:13px}
+th,td{padding:7px 8px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
+th{font-weight:600;color:var(--muted);font-size:12px;background:var(--panel2);position:sticky;top:0}
+tr.hl td{background:var(--accent-soft)}
+.mono{font-family:Consolas,"D2Coding",monospace;font-size:12.5px}
+.chip{display:inline-block;border-radius:999px;padding:1px 8px;font-size:11.5px;font-weight:600;white-space:nowrap}
+.chip.ok{background:var(--ok-soft);color:var(--ok)}
+.chip.warn{background:var(--warn-soft);color:var(--warn)}
+.chip.bad{background:var(--bad-soft);color:var(--bad)}
+.chip.info{background:var(--accent-soft);color:var(--accent)}
+.tablebox{max-height:360px;overflow:auto;border:1px solid var(--line);border-radius:8px}
+
+/* file list */
+.files .row{display:grid;grid-template-columns:28px 1.4fr 1.6fr 70px;gap:8px;align-items:center;padding:7px 6px;border-bottom:1px solid var(--line);font-size:13px}
+.files .row.head{color:var(--muted);font-size:12px;font-weight:600}
+.files .ico{width:22px;height:22px;border-radius:5px;display:grid;place-items:center;font-size:10px;font-weight:700;color:#fff}
+.ico.zip{background:#8a6d1e}.ico.bat{background:#3c4a5c}.ico.md{background:#4b5ec6}.ico.json{background:#2c8a7b}.ico.html{background:#c2532b}
+.files .sid{justify-self:end}
+
+/* console */
+.console{background:var(--console);color:var(--console-ink);font:12.5px/1.6 Consolas,"D2Coding",monospace;padding:14px;min-height:340px;max-height:420px;overflow:auto;border-radius:0 0 12px 12px;white-space:pre-wrap;word-break:break-all}
+.console .g{color:#5fe39a}.console .y{color:#ffd166}.console .c{color:#7fc8ff}.console .r{color:#ff8a8a}.console .w{color:#ffffff}
+.bar{height:8px;background:var(--panel2);border:1px solid var(--line);border-radius:99px;overflow:hidden}
+.bar>i{display:block;height:100%;width:0;background:var(--accent);transition:width .35s}
+.applylist{display:grid;gap:6px;margin-top:10px}
+.applylist .it{display:flex;justify-content:space-between;gap:8px;align-items:center;padding:6px 8px;border:1px solid var(--line);border-radius:8px;font-size:13px}
+
+/* dashboard mock */
+.dash{display:grid;grid-template-columns:210px 1fr;min-height:560px}
+.side{background:var(--side);color:var(--side-ink);padding:12px 8px;display:flex;flex-direction:column;gap:2px}
+.side .brand{font-weight:700;font-size:13px;padding:4px 8px 10px;color:#fff;line-height:1.3}
+.side .brand small{display:block;font-weight:400;color:var(--side-ink);opacity:.7;font-size:11px}
+.side .lbl{font-size:10.5px;letter-spacing:.08em;opacity:.55;padding:10px 8px 4px}
+.side button{all:unset;cursor:pointer;display:flex;align-items:center;gap:8px;padding:7px 9px;border-radius:7px;font-size:13px}
+.side button:hover{background:rgba(255,255,255,.07)}
+.side button[aria-current="page"]{background:rgba(107,156,255,.22);color:#fff}
+.side button .s{margin-left:auto;font-size:10.5px;opacity:.6}
+.side .new{font-size:9.5px;background:#2f7d4f;color:#fff;border-radius:4px;padding:0 4px;margin-left:auto}
+.main{padding:16px;min-width:0;background:var(--panel)}
+.main h2{margin:0 0 2px;font-size:17px}
+.main .lead{color:var(--muted);font-size:12.5px;margin-bottom:12px}
+.tbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:10px}
+.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:12px}
+.kpi{border:1px solid var(--line);border-radius:10px;padding:10px;background:var(--panel2)}
+.kpi .v{font-size:20px;font-weight:700;font-variant-numeric:tabular-nums}
+.kpi .k{font-size:12px;color:var(--muted)}
+.split{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+svg text{font-family:Consolas,"D2Coding",monospace}
+.svgbox{border:1px solid var(--line);border-radius:10px;background:var(--panel2);overflow:hidden}
+.toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%) translateY(20px);background:var(--ink);color:var(--bg);padding:9px 14px;border-radius:8px;font-size:13px;opacity:0;transition:.25s;pointer-events:none;z-index:9}
+.toast.on{opacity:1;transform:translateX(-50%)}
+.qa{display:flex;gap:8px;margin-bottom:10px}
+.qa input{flex:1;min-width:0;border:1px solid var(--line);background:var(--panel2);color:var(--ink);border-radius:8px;padding:8px 10px;font:inherit}
+.answer{border:1px solid var(--line);border-radius:10px;padding:12px;background:var(--panel2)}
+.answer .src{margin-top:8px;display:grid;gap:4px}
+.answer .src div{font-size:12.5px;border-left:3px solid var(--accent);padding-left:8px;color:var(--muted)}
+.slots{display:grid;grid-template-columns:repeat(8,1fr);gap:4px}
+.slot{all:unset;cursor:pointer;border:1px solid var(--line);border-radius:5px;height:96px;display:flex;flex-direction:column;justify-content:space-between;align-items:center;padding:5px 0;font:600 11px Consolas,monospace;background:var(--panel)}
+.slot[aria-pressed="true"]{outline:2px solid var(--accent);outline-offset:1px}
+.slot .led{width:7px;height:7px;border-radius:50%;background:var(--ok)}
+.slot.AI{background:color-mix(in srgb,#3b82f6 14%,var(--panel))}.slot.AO{background:color-mix(in srgb,#8b5cf6 14%,var(--panel))}
+.slot.DI{background:color-mix(in srgb,#10b981 14%,var(--panel))}.slot.DO{background:color-mix(in srgb,#f59e0b 16%,var(--panel))}
+.slot.SP{background:var(--panel2);color:var(--muted)}
+.cab{border:2px solid var(--line);border-radius:10px;padding:10px;background:var(--panel2)}
+.cab .rail{font-size:11px;color:var(--muted);margin:2px 0 6px}
+canvas{display:block;width:100%;touch-action:none}
+.legend{display:flex;flex-wrap:wrap;gap:10px;font-size:12px;color:var(--muted);margin-top:6px}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:4px;vertical-align:-1px}
+.sumgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:14px}
+.foot{margin-top:18px;color:var(--muted);font-size:12px}
+.org{display:grid;gap:10px}
+.org .top{justify-self:center;text-align:center;border:1px solid var(--accent);background:var(--accent-soft);border-radius:10px;padding:8px 14px;font-weight:600}
+.org .kids{display:grid;grid-template-columns:repeat(7,1fr);gap:6px}
+.org .kids div{border:1px solid var(--line);border-radius:8px;padding:6px;text-align:center;font-size:12px;background:var(--panel2)}
+.org .kids b{display:block;font-size:11px;color:var(--accent)}
+
+@media (max-width:900px){
+  .grid2,.split{grid-template-columns:1fr}
+  .dash{grid-template-columns:1fr}
+  .side{flex-direction:row;flex-wrap:wrap;gap:4px}
+  .side .lbl,.side .brand{width:100%}
+  .side button .s{display:none}
+  .kpis,.sumgrid{grid-template-columns:repeat(2,1fr)}
+  .org .kids{grid-template-columns:repeat(4,1fr)}
+}
+@media (max-width:620px){
+  .steps{grid-template-columns:repeat(2,1fr)}
+  .files .row{grid-template-columns:24px 1fr 60px}
+  .files .row .desc{display:none}
+  .slots{grid-template-columns:repeat(4,1fr)}
+  .org .kids{grid-template-columns:repeat(2,1fr)}
+  h1{font-size:19px}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div>
+      <h1>회사 PC 통합 업데이트 시연</h1>
+      <div class="sub">7개 세션의 결과물을 업데이트 파일 하나로 받아 회사 PC 에 적용하고, DASHBOARD 에서 각 도구를 여는 과정</div>
+    </div>
+    <div class="actions">
+      <button class="btn primary" id="autoplay">▶ 자동 시연</button>
+      <button class="btn" id="theme" title="밝게/어둡게">◐ 화면</button>
+    </div>
+  </header>
+
+  <div class="notice"><b>시연용 화면입니다.</b> 도구 화면은 각 세션 결과물의 기능을 대표하는 모형이며, 태그·수치는 예시 데이터입니다(Datasheet 지적 2,935→276 건은 6번 세션 valve35 기록값).
+    실제 판독·검토 결과는 안전 관련 문서이므로 사람 검토 전에는 확정본이 아닙니다.</div>
+
+  <nav class="steps" role="tablist">
+    <button class="step" role="tab" data-step="0" aria-selected="true"><span class="n">1</span><span><span class="t">업데이트 파일 도착</span><br><span class="d">zip 하나 · 7개 도구</span></span></button>
+    <button class="step" role="tab" data-step="1"><span class="n">2</span><span><span class="t">APPLY_ALL 실행</span><br><span class="d">검증 · 백업 · 적용</span></span></button>
+    <button class="step" role="tab" data-step="2"><span class="n">3</span><span><span class="t">DASHBOARD 에서 사용</span><br><span class="d">메뉴로 각 도구 열기</span></span></button>
+    <button class="step" role="tab" data-step="3"><span class="n">4</span><span><span class="t">적용 결과 요약</span><br><span class="d">버전 · 검토 필요</span></span></button>
+  </nav>
+
+  <!-- ============ STEP 1 ============ -->
+  <section class="stage on" data-stage="0">
+    <div class="grid2">
+      <div class="win">
+        <div class="win-bar"><span class="dots"><i></i><i></i><i></i></span><span class="path">C:\Claude\업데이트\company-pc-update-20261107\</span></div>
+        <div class="win-body files" id="filelist"></div>
+      </div>
+      <div class="card">
+        <h3>업데이트 파일은 어디서 만들어지나</h3>
+        <div class="org">
+          <div class="top">🧭 오케스트레이터 세션<br><span class="small muted">수집 · 검증 · 통합 패키징</span></div>
+          <div class="kids" id="orgkids"></div>
+        </div>
+        <p class="small muted" style="margin:12px 0 0">각 세션은 자기 브랜치의 <span class="mono">dist/company_pc/&lt;SID&gt;/</span> 에 배포 zip 과 MANIFEST.json 을 둡니다.
+          오케스트레이터가 이를 모아 SHA-256 을 확인하고, 겹치는 파일(S1↔S4 DASHBOARD, S2↔S6 PID 꾸러미)의 적용 순서를 정해 하나로 묶습니다.</p>
+        <p class="small muted" style="margin:8px 0 0">회사 PC 조건: Windows · Edge · Python 3.11 표준 라이브러리만 · CDN/pip 없음 · 사내망 전용 — 모든 도구가 이 안에서 열려야 합니다.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ STEP 2 ============ -->
+  <section class="stage" data-stage="1">
+    <div class="grid2">
+      <div class="win">
+        <div class="win-bar"><span class="dots"><i></i><i></i><i></i></span><span class="path">명령 프롬프트 — APPLY_ALL.bat</span></div>
+        <div class="console" id="console" aria-live="polite"></div>
+      </div>
+      <div class="card">
+        <h3>적용 진행</h3>
+        <div class="bar"><i id="pbar"></i></div>
+        <div class="small muted" id="ptext" style="margin-top:6px">대기 중 — ‘실행’을 누르세요</div>
+        <div class="applylist" id="applylist"></div>
+        <div class="tbar" style="margin-top:12px">
+          <button class="btn primary" id="runapply">▶ APPLY_ALL.bat 실행</button>
+          <button class="btn" id="gotodash" disabled>DASHBOARD 열기 →</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ STEP 3 ============ -->
+  <section class="stage" data-stage="2">
+    <div class="win">
+      <div class="win-bar"><span class="dots"><i></i><i></i><i></i></span><span class="path">Edge — file:///C:/Claude/계장ENG그룹 주간업무 Dashboard/dashboard.html</span></div>
+      <div class="dash">
+        <aside class="side" id="side">
+          <div class="brand">계장ENG그룹 주간업무 Dashboard<small>v16.58 · 서버 연결됨 ●</small></div>
+        </aside>
+        <main class="main" id="main"></main>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ STEP 4 ============ -->
+  <section class="stage" data-stage="3">
+    <div class="sumgrid">
+      <div class="kpi"><div class="v">7 / 7</div><div class="k">적용된 도구</div></div>
+      <div class="kpi"><div class="v">0</div><div class="k">적용 오류</div></div>
+      <div class="kpi"><div class="v" id="hrcount">0</div><div class="k">사람 검토 필요 항목</div></div>
+      <div class="kpi"><div class="v">1 개</div><div class="k">회사로 보낸 파일</div></div>
+    </div>
+    <div class="card">
+      <h3>도구별 적용 결과</h3>
+      <div class="tablebox" style="max-height:none"><table id="sumtable"></table></div>
+      <p class="small muted" style="margin:10px 0 0">적용이 끝나면 오케스트레이터가 각 세션에 <span class="mono">delivered.txt</span> 기준점 갱신을 요청하고, 다음 회차 업데이트는 이 기준에서 만듭니다.
+        문제가 생기면 <span class="mono">backup\20261107_0930\</span> 으로 되돌립니다(RESTORE.bat).</p>
+    </div>
+  </section>
+
+  <div class="foot">기획·규약: ORCHESTRATION_PLAN.md · CONVENTIONS.md — 이 시연 파일은 외부 라이브러리 없이 이 파일 하나로 열립니다.</div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+(function(){
+"use strict";
+const $=s=>document.querySelector(s), $$=s=>Array.from(document.querySelectorAll(s));
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+function toast(m){const t=$("#toast");t.textContent=m;t.classList.add("on");clearTimeout(toast.h);toast.h=setTimeout(()=>t.classList.remove("on"),1900);}
+
+/* ---------------- data ---------------- */
+const TOOLS=[
+ {sid:"S1",name:"DASHBOARD",ver:"v16.57 → v16.58",zip:"S1_DASHBOARD_UPDATE_from_v16.57_to_v16.58.zip",to:"(운영 폴더)",menu:"weekly",review:["주간보고 화면 서식 확인"]},
+ {sid:"S4",name:"PANEL 코드",ver:"dashboard 패치 2026-11-07 01:59",zip:"S4_PANEL_dashboard_patch_20261107_0159.zip",to:"apps\\panel",menu:"panel",review:["I/O 할당 여유율 확인"]},
+ {sid:"S2",name:"PID 검토 4",ver:"PID_dev+ops hotfix132",zip:"S2_PID_dev+ops_hotfix132.zip",to:"apps\\pid",menu:"pid",review:["판독 계기 목록 전수 대조","신뢰도 낮음 태그 확인"]},
+ {sid:"S6",name:"Datasheet 자동 검토",ver:"PID_dev+ops valve35",zip:"S6_PID_dev+ops_valve35.zip",to:"apps\\pid (valve 검토)",menu:"ds",review:["묶음 지적 276건 검토"]},
+ {sid:"S3",name:"Logic 검토 코드 4",ver:"L91",zip:"S3_LOGIC_review_L91.zip",to:"apps\\logic",menu:"logic",review:["인터록 결선 경로 확인"]},
+ {sid:"S5",name:"도서 검토",ver:"booksearch 2026-10-24",zip:"S5_BOOKS_booksearch.zip",to:"apps\\books",menu:"books",review:["답변 근거 페이지 대조"]},
+ {sid:"S7",name:"3D 계측제어 도구",ver:"IC_Dashboard 2026-11-07",zip:"S7_IC3D_IC_Dashboard.zip",to:"apps\\ic3d",menu:"ic3d",review:["3D 위치 · 태그 매핑 확인","LLM 답변 기능 사내 사용 승인"]}
+];
+const SID_ORDER=["S1","S2","S3","S4","S5","S6","S7"];
+const SID_NAME={S1:"DASHBOARD",S2:"PID 검토 4",S3:"Logic 4",S4:"PANEL",S5:"도서 검토",S6:"Datasheet",S7:"3D 계측"};
+
+/* ---------------- step 1 ---------------- */
+(function(){
+  const rows=[["bat","APPLY_ALL.bat","전체 적용 (검증 → 백업 → 순서대로 적용)","—"],
+              ["bat","RESTORE.bat","백업으로 되돌리기","—"],
+              ["md","UPDATE_GUIDE.md","한 장짜리 설치 안내 · 사람 검토 항목","—"],
+              ["json","MANIFEST.json","파일 목록 · 버전 · SHA-256","—"]];
+  TOOLS.slice().sort((a,b)=>a.sid.localeCompare(b.sid)).forEach(t=>rows.push(["zip",t.zip,t.name+" · "+t.ver,t.sid]));
+  rows.push(["html","DEMO_company_pc.html","이 시연 화면","—"]);
+  $("#filelist").innerHTML='<div class="row head"><span></span><span>이름</span><span class="desc">내용</span><span class="sid">세션</span></div>'+
+    rows.map(r=>`<div class="row"><span class="ico ${r[0]}">${r[0].toUpperCase().slice(0,3)}</span><span class="mono" style="overflow-wrap:anywhere">${esc(r[1])}</span><span class="desc muted small">${esc(r[2])}</span><span class="sid">${r[3]==="—"?'<span class="muted small">—</span>':'<span class="chip info">'+r[3]+'</span>'}</span></div>`).join("");
+  $("#orgkids").innerHTML=SID_ORDER.map(s=>`<div><b>${s}</b>${SID_NAME[s]}</div>`).join("");
+})();
+
+/* ---------------- step 2 ---------------- */
+let applied=false, applying=false;
+function renderApplyList(done){
+  $("#applylist").innerHTML=TOOLS.map((t,i)=>`<div class="it"><span><span class="chip info">${t.sid}</span> ${esc(t.name)} <span class="muted small">→ ${esc(t.to)}</span></span>${i<done?'<span class="chip ok">적용</span>':(i===done&&applying?'<span class="chip warn">진행</span>':'<span class="chip" style="background:var(--panel2);color:var(--muted)">대기</span>')}</div>`).join("");
+}
+renderApplyList(0);
+function runApply(){
+  if(applying) return Promise.resolve();
+  applying=true; applied=false; $("#gotodash").disabled=true; $("#runapply").disabled=true;
+  const con=$("#console"); con.innerHTML="";
+  const L=[
+   ['w','C:\\Claude\\업데이트\\company-pc-update-20261107> APPLY_ALL.bat'],
+   ['c','== 회사 PC 통합 업데이트 2026-11-07 =='],
+   ['','[확인] 회사 PC 기준점 (delivered.txt) ........ DASHBOARD v16.57'],
+   ['','[확인] Python 3.11 (표준 라이브러리) ........... OK'],
+   ['','[검증] MANIFEST.json  zip 7개 SHA-256 .......... '+'<span class="g">7/7 일치</span>'],
+   ['','[백업] backup\\20261107_0930\\ 현재 파일 복사 .... <span class="g">완료</span>'],
+   ['','[정지] watchdog → server.py 잠시 중지 .......... OK'],
+  ];
+  const tail=[
+   ['','[시작] server.py 재시작 (포트 8080) ............ <span class="g">정상</span>'],
+   ['','[검사] 메뉴 연결 apps\\ 6곳 ..................... <span class="g">6/6 열림</span>'],
+   ['','[검사] 외부 접속(CDN) 사용 파일 ................. <span class="g">0</span>'],
+   ['g','완료. 오류 0 · 사람 검토 필요 '+TOOLS.reduce((a,t)=>a+t.review.length,0)+'건 → UPDATE_GUIDE.md'],
+   ['w','계속하려면 아무 키나 누르십시오 . . .']
+  ];
+  const total=L.length+TOOLS.length+tail.length; let n=0;
+  const put=(cls,html)=>{const d=document.createElement("div"); if(cls) d.className=cls; d.innerHTML=html; con.appendChild(d); con.scrollTop=con.scrollHeight; n++; $("#pbar").style.width=Math.round(n/total*100)+"%";};
+  const wait=ms=>new Promise(r=>setTimeout(r,ms));
+  return (async()=>{
+    $("#ptext").textContent="적용 중…";
+    for(const [c,h] of L){ put(c,h); await wait(260); }
+    for(let i=0;i<TOOLS.length;i++){
+      const t=TOOLS[i]; renderApplyList(i);
+      put('y',`[${i+1}/7] ${t.sid} ${t.name.padEnd(12,' ')} ${t.ver}`);
+      await wait(380);
+      put('',`      → ${t.to} ........ <span class="g">적용</span>`);
+      n--; // count pair as one
+      await wait(160);
+    }
+    renderApplyList(TOOLS.length);
+    for(const [c,h] of tail){ put(c,h); await wait(280); }
+    $("#pbar").style.width="100%";
+    $("#ptext").textContent="완료 — 7개 도구 적용, 오류 0";
+    applied=true; applying=false; $("#gotodash").disabled=false; $("#runapply").disabled=false; $("#runapply").textContent="↺ 다시 실행";
+    $$(".step")[1].classList.add("done");
+  })();
+}
+$("#runapply").onclick=()=>runApply();
+$("#gotodash").onclick=()=>go(2);
+
+/* ---------------- step 3: dashboard ---------------- */
+const MENU=[
+ {lbl:"업무"},
+ {k:"weekly",t:"주간업무보고",s:"S1"},
+ {k:"pid",t:"P&ID 검토",s:"S2",n:1},
+ {k:"logic",t:"Logic 검토",s:"S3",n:1},
+ {k:"panel",t:"PANEL",s:"S4",n:1},
+ {lbl:"검토 도구"},
+ {k:"books",t:"도서 검토",s:"S5"},
+ {k:"ds",t:"Datasheet 검토",s:"S6"},
+ {k:"ic3d",t:"3D 계측제어",s:"S7",n:1},
+];
+$("#side").insertAdjacentHTML("beforeend",MENU.map(m=>m.lbl?`<div class="lbl">${m.lbl}</div>`:`<button data-k="${m.k}">${esc(m.t)}${m.n?'<span class="new">NEW</span>':''}<span class="s">${m.s}</span></button>`).join(""));
+$$("#side button").forEach(b=>b.onclick=()=>openTool(b.dataset.k));
+let stop3d=null;
+function openTool(k){
+  $$("#side button").forEach(b=>b.setAttribute("aria-current",b.dataset.k===k?"page":"false"));
+  if(stop3d){stop3d();stop3d=null;}
+  const m=$("#main"); m.innerHTML=VIEWS[k].html(); VIEWS[k].init&&VIEWS[k].init(m);
+}
+const tagRow=(cells)=>"<tr>"+cells.map(c=>`<td>${c}</td>`).join("")+"</tr>";
+const VIEWS={
+ weekly:{html:()=>`<h2>주간업무보고</h2><div class="lead">S1 · DASHBOARD v16.58 — 부서 주간업무 입력·조회 (예시 데이터)</div>
+   <div class="kpis"><div class="kpi"><div class="v">24</div><div class="k">이번 주 업무</div></div><div class="kpi"><div class="v">18</div><div class="k">완료</div></div><div class="kpi"><div class="v">4</div><div class="k">진행</div></div><div class="kpi"><div class="v">2</div><div class="k">이슈</div></div></div>
+   <div class="tablebox"><table><thead><tr><th>사업군</th><th>PJT</th><th>담당</th><th>업무</th><th>상태</th></tr></thead><tbody>
+   ${tagRow(["실행","PJT-A","담당자 1","P&ID Rev.2 계기 목록 검토","<span class='chip ok'>완료</span>"])}
+   ${tagRow(["실행","PJT-A","담당자 2","인터록 Logic 검토 의견 회신","<span class='chip warn'>진행</span>"])}
+   ${tagRow(["입찰","PJT-B","담당자 3","Valve Datasheet 사양 대조","<span class='chip ok'>완료</span>"])}
+   ${tagRow(["실행","PJT-C","담당자 1","PANEL I/O 할당표 작성","<span class='chip warn'>진행</span>"])}
+   ${tagRow(["입찰","PJT-B","담당자 4","MR 초안 (Ball Valve)","<span class='chip bad'>이슈</span>"])}
+   ${tagRow(["공통","—","담당자 2","설계 기준 도서 정리","<span class='chip ok'>완료</span>"])}
+   </tbody></table></div>`},
+
+ pid:{html:()=>`<h2>P&ID 검토 4</h2><div class="lead">S2 · 도면에서 계기를 판독해 지정 Excel 서식으로 — 틀린 곳은 사유와 함께 고쳐 규칙에 누적</div>
+   <div class="tbar"><span class="chip info">도면 P&ID-101 Rev.2</span><span class="chip ok">판독 8</span><span class="chip warn">검토 필요 2</span><span style="flex:1"></span><button class="btn" id="xls">⤓ instrument_list.xlsx</button></div>
+   <div class="split"><div class="svgbox">${pidSvg()}</div>
+   <div class="tablebox"><table><thead><tr><th>Tag</th><th>종류</th><th>Line</th><th>신뢰도</th><th>검토</th></tr></thead><tbody id="pidrows"></tbody></table></div></div>
+   <p class="small muted" style="margin:8px 0 0">도면의 계기 원을 누르면 목록에서 해당 행이 표시됩니다.</p>`,
+   init(){
+     const rows=PID_TAGS.map(t=>`<tr data-tag="${t.tag}"><td class="mono">${t.tag}</td><td>${t.type}</td><td class="mono small">${t.line}</td><td>${t.conf}%</td><td>${t.conf<80?'<span class="chip warn">사람 검토</span>':'<span class="chip ok">일치</span>'}</td></tr>`).join("");
+     $("#pidrows").innerHTML=rows;
+     const pick=tag=>{$$("#pidrows tr").forEach(r=>r.classList.toggle("hl",r.dataset.tag===tag));$$(".pidbub").forEach(g=>g.querySelector("circle").setAttribute("stroke-width",g.dataset.tag===tag?3:1.5));const r=$(`#pidrows tr[data-tag="${tag}"]`); r&&r.scrollIntoView({block:"nearest"});};
+     $$(".pidbub").forEach(g=>g.onclick=()=>pick(g.dataset.tag));
+     $$("#pidrows tr").forEach(r=>r.onclick=()=>pick(r.dataset.tag));
+     $("#xls").onclick=()=>toast("instrument_list.xlsx — 템플릿 서식 그대로 저장 (시연)");
+   }},
+
+ logic:{html:()=>`<h2>Logic 검토 4</h2><div class="lead">S3 · 인터록 로직 시뮬레이션 — 입력을 눌러 바꾸면 최종 명령까지 신호가 전파됩니다</div>
+   <div class="svgbox" id="logicbox"></div>
+   <div class="split" style="margin-top:10px"><div class="card" style="box-shadow:none"><h3 style="font-size:13.5px">최종 명령에서 거슬러 올라가기</h3><div class="small" id="trace"></div></div>
+   <div class="card" style="box-shadow:none"><h3 style="font-size:13.5px">검토 의견 (예시)</h3><div class="small muted">• PT-2002A/B/C 2oo3 투표 — Cause &amp; Effect 표와 대조 <span class="chip ok">일치</span><br>• LSHH-2001 Trip 지연 시간 도면 미표기 — <span class="chip warn">사람 검토</span><br>• SOV 매크로를 이 프로젝트 사본으로 고쳐 저장 가능 (L91)</div></div></div>`,
+   init(){LOGIC.s={l:0,a:0,b:0,c:0};drawLogic();}},
+
+ panel:{html:()=>`<h2>PANEL</h2><div class="lead">S4 · 제어 PANEL 카드 구성과 I/O 채널 할당 — 슬롯을 누르면 채널 목록</div>
+   <div class="split"><div class="cab"><div class="rail">CAB-01 · RACK 1 (앞면)</div><div class="slots" id="slots"></div>
+   <div class="legend"><span><i style="background:#3b82f6"></i>AI</span><span><i style="background:#8b5cf6"></i>AO</span><span><i style="background:#10b981"></i>DI</span><span><i style="background:#f59e0b"></i>DO</span><span><i style="background:var(--line)"></i>예비</span></div></div>
+   <div><div class="kpis" style="grid-template-columns:repeat(3,1fr)"><div class="kpi"><div class="v">112</div><div class="k">할당 채널</div></div><div class="kpi"><div class="v">16</div><div class="k">예비 채널</div></div><div class="kpi"><div class="v">12.5%</div><div class="k">여유율</div></div></div>
+   <div class="tablebox" style="max-height:250px"><table><thead><tr><th>CH</th><th>Tag</th><th>신호</th></tr></thead><tbody id="chs"></tbody></table></div></div></div>`,
+   init(){
+     const kinds=["AI","AI","AI","AO","DI","DI","DO","SP"];
+     $("#slots").innerHTML=kinds.map((k,i)=>`<button class="slot ${k}" data-i="${i}" aria-pressed="false"><span>${i+1}</span><span>${k==="SP"?"예비":k}</span><span class="led" style="${k==="SP"?"background:var(--line)":""}"></span></button>`).join("");
+     const show=i=>{const k=kinds[i];$$(".slot").forEach(s=>s.setAttribute("aria-pressed",s.dataset.i==i));
+       const sig={AI:"4-20mA",AO:"4-20mA",DI:"24VDC",DO:"24VDC"}[k];
+       const pre={AI:["FT","PT","TT","LT"],AO:["FV","LV"],DI:["ZSO","ZSC","LSHH"],DO:["XY","HS"]}[k];
+       $("#chs").innerHTML=k==="SP"?'<tr><td colspan="3" class="muted">예비 슬롯</td></tr>':Array.from({length:8},(_,c)=>`<tr><td class="mono">${i+1}-${c+1}</td><td class="mono">${c===7?'<span class="muted">예비</span>':pre[c%pre.length]+"-"+(1001+i*10+c)}</td><td>${c===7?"":sig}</td></tr>`).join("");};
+     $$(".slot").forEach(s=>s.onclick=()=>show(+s.dataset.i)); show(0);
+   }},
+
+ books:{html:()=>`<h2>도서 검토</h2><div class="lead">S5 · 설계 도서·기준 PDF 에서 개념을 찾아 근거 페이지와 함께 답변</div>
+   <div class="qa"><input id="q" value="Fail-safe 밸브 위치는 어떻게 정하나요?" aria-label="질문"><button class="btn primary" id="ask">찾기</button></div>
+   <div class="tbar" id="presets"></div><div class="answer" id="ans"></div>`,
+   init(){
+     const P=Object.keys(BOOKS);
+     $("#presets").innerHTML=P.map(p=>`<button class="btn small" data-p="${esc(p)}">${esc(p)}</button>`).join("");
+     const ask=q=>{const key=P.find(p=>q.includes(p.split(" ")[0]))||P[0];const a=BOOKS[key];
+       $("#ans").innerHTML=`<div class="small muted">개념: <span class="chip info">${a.c}</span></div><p style="margin:8px 0 0">${a.a}</p><div class="src">${a.s.map(x=>`<div>${x}</div>`).join("")}</div><div class="small" style="margin-top:8px"><span class="chip warn">사람 검토</span> 근거 페이지를 원문과 대조한 뒤 사용하세요.</div>`;};
+     $$("#presets button").forEach(b=>b.onclick=()=>{$("#q").value=b.dataset.p;ask(b.dataset.p);});
+     $("#ask").onclick=()=>ask($("#q").value); ask($("#q").value);
+   }},
+
+ ds:{html:()=>`<h2>Datasheet 자동 검토</h2><div class="lead">S6 · 계기 Datasheet 와 계기 목록을 대조해 지적 사항을 묶어서 보여 줌 (valve35)</div>
+   <div class="kpis"><div class="kpi"><div class="v">2,935</div><div class="k">개별 지적 (묶기 전)</div></div><div class="kpi"><div class="v" style="color:var(--accent)">276</div><div class="k">묶은 지적</div></div><div class="kpi"><div class="v">−90.6%</div><div class="k">검토 분량</div></div><div class="kpi"><div class="v">1,989</div><div class="k">테스트 통과</div></div></div>
+   <div class="tablebox"><table><thead><tr><th>묶음</th><th>대상</th><th>지적</th><th>건수</th><th>상태</th></tr></thead><tbody>
+   ${tagRow(["Data Missing","Ball Valve 12EA","Body Rating 칸 비어 있음","<span class='mono'>12 → 1</span>","<span class='chip warn'>사람 검토</span>"])}
+   ${tagRow(["Typical","XV Typical-A 34EA","Fail Action 이 P&ID 와 다름 (FC↔FO)","<span class='mono'>34 → 1</span>","<span class='chip bad'>불일치</span>"])}
+   ${tagRow(["Data Missing","Butterfly 8EA","Leakage Class 누락","<span class='mono'>8 → 1</span>","<span class='chip warn'>사람 검토</span>"])}
+   ${tagRow(["단건","FV-1003","Cv 계산값과 선정값 차이 18%","<span class='mono'>1</span>","<span class='chip warn'>사람 검토</span>"])}
+   ${tagRow(["Typical","Actuator Typical-B 21EA","Air Supply 압력 단위 표기","<span class='mono'>21 → 1</span>","<span class='chip ok'>수정 제안</span>"])}
+   </tbody></table></div>`},
+
+ ic3d:{html:()=>`<h2>3D 계측제어 도구</h2><div class="lead">S7 · 배관 위 계기 위치를 3D 로 — 끌어서 돌리고, 점을 누르면 태그 정보</div>
+   <div class="split"><div class="svgbox"><canvas id="c3d" height="330"></canvas></div>
+   <div><div class="card" style="box-shadow:none" id="icinfo"><h3 style="font-size:13.5px">계기를 선택하세요</h3><div class="small muted">점(●)을 누르면 태그·서비스·P&ID 연결 정보가 표시됩니다.</div></div>
+   <div class="legend"><span><i style="background:#3b82f6"></i>유량</span><span><i style="background:#ef4444"></i>압력</span><span><i style="background:#f59e0b"></i>온도</span><span><i style="background:#10b981"></i>레벨</span><span><i style="background:#8b5cf6"></i>밸브</span></div></div></div>`,
+   init(){stop3d=start3d();}}
+};
+
+/* ---- P&ID svg ---- */
+const PID_TAGS=[
+ {tag:"FT-1001",type:"Flow Transmitter",line:'4"-P-1001',conf:97,x:145,y:110,ly:175},
+ {tag:"FV-1001",type:"Control Valve",line:'4"-P-1001',conf:95,x:200,y:110,ly:165},
+ {tag:"PT-1002",type:"Pressure Transmitter",line:'4"-P-1001',conf:92,x:300,y:110,ly:175},
+ {tag:"TT-1003",type:"Temp. Transmitter",line:'3"-P-1002',conf:74,x:370,y:240,ly:300},
+ {tag:"LT-1004",type:"Level Transmitter",line:"V-101",conf:96,x:150,y:222,lx:115,ly:222},
+ {tag:"LSHH-1005",type:"Level Switch HH",line:"V-101",conf:71,x:22,y:118,lx:52,ly:165},
+ {tag:"XV-1006",type:"On/Off Valve",line:'3"-P-1002',conf:93,x:300,y:240,ly:290},
+ {tag:"PI-1007",type:"Pressure Gauge",line:'3"-P-1002',conf:88,x:420,y:240,ly:300}
+];
+function pidSvg(){
+  const col=t=>t.conf<80?"var(--warn)":"var(--accent)";
+  let s=`<svg viewBox="0 0 460 340" width="100%" role="img" aria-label="예시 P&ID 도면">
+  <rect x="45" y="150" width="70" height="140" rx="30" fill="none" stroke="var(--muted)" stroke-width="2"/><text x="58" y="225" font-size="12" fill="var(--muted)">V-101</text>
+  <path d="M115 175 H440" stroke="var(--ink)" stroke-width="2.4" fill="none"/><text x="330" y="168" font-size="10" fill="var(--muted)">4"-P-1001</text>
+  <path d="M115 265 H200 V300 H440" stroke="var(--ink)" stroke-width="2.4" fill="none"/><text x="220" y="292" font-size="10" fill="var(--muted)">3"-P-1002</text>
+  <path d="M190 165 l20 20 v-20 l-20 20 z" fill="var(--panel)" stroke="var(--ink)" stroke-width="1.6"/>
+  <path d="M290 290 l20 20 v-20 l-20 20 z" fill="var(--panel)" stroke="var(--ink)" stroke-width="1.6"/>`;
+  PID_TAGS.forEach(t=>{const [a,b]=t.tag.split("-");
+    s+=(t.lx!=null?`<line x1="${t.x+(t.lx<t.x?-18:18)}" y1="${t.y}" x2="${t.lx}" y2="${t.ly}" stroke="var(--muted)" stroke-dasharray="3 3"/>`
+                  :`<line x1="${t.x}" y1="${t.y+18}" x2="${t.x}" y2="${t.ly}" stroke="var(--muted)" stroke-dasharray="3 3"/>`)+`
+    <g class="pidbub" data-tag="${t.tag}" style="cursor:pointer"><circle cx="${t.x}" cy="${t.y}" r="18" fill="var(--panel)" stroke="${col(t)}" stroke-width="1.5"/><line x1="${t.x-18}" y1="${t.y}" x2="${t.x+18}" y2="${t.y}" stroke="${col(t)}" stroke-width="1"/>
+    <text x="${t.x}" y="${t.y-4}" font-size="${a.length>3?8:10}" text-anchor="middle" fill="var(--ink)">${a}</text><text x="${t.x}" y="${t.y+12}" font-size="9" text-anchor="middle" fill="var(--ink)">${b}</text></g>`;});
+  return s+`</svg>`;
+}
+
+/* ---- Logic ---- */
+const LOGIC={s:{}};
+function drawLogic(){
+  const s=LOGIC.s, n=s.a+s.b+s.c, vote=n>=2, cmd=(s.l||vote)?1:0;
+  const W=v=>v?"var(--bad)":"var(--ok)";
+  const inp=(k,lbl,y)=>`<g data-k="${k}" class="lin" style="cursor:pointer"><rect x="12" y="${y-15}" width="122" height="30" rx="6" fill="${s[k]?"var(--bad-soft)":"var(--ok-soft)"}" stroke="${W(s[k])}"/><text x="22" y="${y+4}" font-size="11" fill="var(--ink)">${lbl}</text><text x="118" y="${y+4}" font-size="12" font-weight="700" fill="${W(s[k])}">${s[k]}</text></g>`;
+  $("#logicbox").innerHTML=`<svg viewBox="0 0 620 250" width="100%" role="img" aria-label="인터록 로직">
+   ${inp("l","LSHH-2001",40)}${inp("a","PT-2002A",110)}${inp("b","PT-2002B",155)}${inp("c","PT-2002C",200)}
+   <path d="M134 110 H220" stroke="${W(s.a)}" stroke-width="2.5"/><path d="M134 155 H220" stroke="${W(s.b)}" stroke-width="2.5"/><path d="M134 200 H220" stroke="${W(s.c)}" stroke-width="2.5"/>
+   <rect x="220" y="92" width="74" height="126" rx="8" fill="var(--panel)" stroke="var(--ink)" stroke-width="1.6"/><text x="238" y="152" font-size="13" fill="var(--ink)">2oo3</text><text x="230" y="170" font-size="9.5" fill="var(--muted)">PSHH 투표</text>
+   <path d="M134 40 H330 V90 H360" stroke="${W(s.l)}" stroke-width="2.5" fill="none"/><path d="M294 155 H330 V120 H360" stroke="${W(vote)}" stroke-width="2.5" fill="none"/>
+   <path d="M360 80 q50 0 60 25 q-10 25 -60 25 q14 -25 0 -50z" fill="var(--panel)" stroke="var(--ink)" stroke-width="1.6"/><text x="378" y="110" font-size="12" fill="var(--ink)">OR</text>
+   <path d="M420 105 H476" stroke="${W(cmd)}" stroke-width="3"/>
+   <rect x="476" y="81" width="134" height="48" rx="8" fill="${cmd?"var(--bad-soft)":"var(--ok-soft)"}" stroke="${W(cmd)}" stroke-width="2"/><text x="488" y="101" font-size="11" fill="var(--ink)">XV-2001</text><text x="488" y="119" font-size="12" font-weight="700" fill="${W(cmd)}">${cmd?"CLOSE (Trip)":"OPEN (정상)"}</text>
+   <text x="12" y="240" font-size="10.5" fill="var(--muted)">입력 상자를 눌러 0/1 전환 · 빨강=Trip 신호 (1 = 고고 경보)</text></svg>`;
+  $$("#logicbox .lin").forEach(g=>g.onclick=()=>{s[g.dataset.k]^=1;drawLogic();});
+  const why=[];
+  if(s.l) why.push("LSHH-2001");
+  if(vote) why.push(`2oo3 ← PT-2002 ${["A","B","C"].filter((x,i)=>[s.a,s.b,s.c][i]).join("·")} (${n}/3)`);
+  $("#trace").innerHTML=cmd?`<b style="color:var(--bad)">XV-2001 CLOSE</b> ← OR ← ${why.join(" / ")}`:`<b style="color:var(--ok)">XV-2001 OPEN</b> — Trip 조건 없음${n===1?" (PT-2002 1/3 — 투표 미달)":""}. 입력을 눌러 보세요.`;
+}
+
+/* ---- Books ---- */
+const BOOKS={
+ "Fail-safe 밸브 위치":{c:"Fail-safe Position",a:"공정이 안전한 쪽으로 가도록 정합니다. 계장 공기·전원이 끊겼을 때 밸브가 닫혀야 안전하면 FC(Fail Close), 열려야 안전하면 FO(Fail Open)로 정하고, P&ID·Datasheet·Logic 에 같은 값이 적혔는지 대조합니다.",s:["사내 설계 기준 도서 · 3장 Control Valve (예시 근거)","프로젝트 Design Basis · Instrument 편 (예시 근거)"]},
+ "2oo3 투표 방식":{c:"Voting (2oo3)",a:"계기 3개 중 2개가 이상을 알릴 때 Trip 합니다. 계기 1개 고장으로 불필요하게 멈추는 일(spurious trip)과 놓치는 일을 함께 줄이는 구성입니다.",s:["사내 SIS 설계 지침 · Voting 구성 (예시 근거)"]},
+ "Leakage Class 선정":{c:"Seat Leakage Class",a:"차단이 필요한 서비스일수록 높은 등급을 씁니다. Datasheet 에 비어 있으면 6번 Datasheet 검토가 Data Missing 으로 묶어 지적합니다.",s:["Valve 사양서 작성 기준 (예시 근거)"]}
+};
+
+/* ---- 3D ---- */
+function start3d(){
+  const cv=$("#c3d"), ctx=cv.getContext("2d"); let W=0,H=0,dpr=Math.max(1,window.devicePixelRatio||1);
+  const size=()=>{W=cv.clientWidth;H=330;cv.width=W*dpr;cv.height=H*dpr;ctx.setTransform(dpr,0,0,dpr,0,0);}; size();
+  const C={F:"#3b82f6",P:"#ef4444",T:"#f59e0b",L:"#10b981",V:"#8b5cf6"};
+  const pipes=[[[-3,0,-2],[3,0,-2]],[[-3,0,0],[3,0,0]],[[-3,0,2],[3,0,2]],[[3,0,-2],[3,0,2]],[[-2,0,0],[-2,1.8,0]],[[-2,1.8,0],[1,1.8,0]]];
+  const rack=[];for(let x=-3;x<=3;x+=1.5){rack.push([[x,-1.2,-2.6],[x,-1.2,2.6]]);rack.push([[x,-1.2,-2.6],[x,0,-2.6]]);rack.push([[x,-1.2,2.6],[x,0,2.6]]);}
+  const inst=[
+   {t:"FT-1001",k:"F",p:[-1.5,0,-2],svc:"원료 공급 유량",pid:"P&ID-101"},{t:"PT-1002",k:"P",p:[0.6,0,-2],svc:"공급 압력",pid:"P&ID-101"},
+   {t:"FV-1001",k:"V",p:[1.8,0,-2],svc:"유량 제어 밸브",pid:"P&ID-101"},{t:"TT-1003",k:"T",p:[-0.4,0,0],svc:"반응기 출구 온도",pid:"P&ID-102"},
+   {t:"XV-2001",k:"V",p:[2.2,0,0],svc:"차단 밸브 (인터록)",pid:"P&ID-102"},{t:"LT-1004",k:"L",p:[-2,1.2,0],svc:"V-101 레벨",pid:"P&ID-101"},
+   {t:"PT-2002",k:"P",p:[0,1.8,0],svc:"오버헤드 압력",pid:"P&ID-103"},{t:"FT-3001",k:"F",p:[-1,0,2],svc:"제품 유량",pid:"P&ID-104"},{t:"TT-3002",k:"T",p:[1.5,0,2],svc:"제품 온도",pid:"P&ID-104"}];
+  let ry=.7, rx=.42, drag=null, sel=null, raf=0, auto=true;
+  const proj=([x,y,z])=>{const cy=Math.cos(ry),sy=Math.sin(ry),cx=Math.cos(rx),sx=Math.sin(rx);
+    let X=x*cy-z*sy, Z=x*sy+z*cy; let Y=y*cx-Z*sx; Z=y*sx+Z*cx; const f=9/(9+Z), s=Math.min(W,H)/7.2;
+    return [W/2+X*s*f, H/2+28-Y*s*f, Z, f];};
+  const css=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+  function draw(){
+    ctx.clearRect(0,0,W,H);
+    ctx.lineCap="round";
+    ctx.strokeStyle=css("--line");ctx.lineWidth=1.2;
+    rack.forEach(([a,b])=>{const A=proj(a),B=proj(b);ctx.beginPath();ctx.moveTo(A[0],A[1]);ctx.lineTo(B[0],B[1]);ctx.stroke();});
+    ctx.strokeStyle=css("--muted");ctx.lineWidth=5;
+    pipes.forEach(([a,b])=>{const A=proj(a),B=proj(b);ctx.beginPath();ctx.moveTo(A[0],A[1]);ctx.lineTo(B[0],B[1]);ctx.stroke();});
+    const pts=inst.map(i=>({i,P:proj(i.p)})).sort((a,b)=>b.P[2]-a.P[2]);
+    pts.forEach(({i,P})=>{const r=7*P[3];ctx.beginPath();ctx.arc(P[0],P[1],r+(sel===i?3:0),0,7);ctx.fillStyle=C[i.k];ctx.fill();
+      if(sel===i){ctx.lineWidth=2;ctx.strokeStyle=css("--ink");ctx.stroke();}
+      ctx.fillStyle=css("--ink");ctx.font="11px Consolas,monospace";ctx.fillText(i.t,P[0]+r+4,P[1]-r-2);i._s=P;});
+  }
+  function loop(){ if(auto&&!drag) ry+=.004; draw(); raf=requestAnimationFrame(loop);}
+  const pos=e=>{const r=cv.getBoundingClientRect();return [e.clientX-r.left,e.clientY-r.top];};
+  cv.onpointerdown=e=>{drag={p:pos(e),moved:false,ry,rx};cv.setPointerCapture(e.pointerId);};
+  cv.onpointermove=e=>{if(!drag)return;const [x,y]=pos(e);const dx=x-drag.p[0],dy=y-drag.p[1];if(Math.abs(dx)+Math.abs(dy)>3)drag.moved=true;ry=drag.ry+dx*.01;rx=Math.max(-.2,Math.min(1.3,drag.rx+dy*.01));};
+  cv.onpointerup=e=>{const d=drag;drag=null;if(d&&!d.moved){const [x,y]=pos(e);let best=null,bd=18;inst.forEach(i=>{const s=i._s;if(!s)return;const dd=Math.hypot(s[0]-x,s[1]-y);if(dd<bd){bd=dd;best=i;}});
+      if(best){sel=best;auto=false;$("#icinfo").innerHTML=`<h3 style="font-size:13.5px" class="mono">${best.t}</h3><table><tbody>${tagRow(["서비스",best.svc])}${tagRow(["P&ID",best.pid+" (S2 판독 목록과 연결)"])}${tagRow(["위치",best.p.map(v=>v.toFixed(1)).join(", ")+" m (예시)"])}${tagRow(["상태","<span class='chip warn'>현장 위치 사람 확인</span>"])}</tbody></table>`;}}};
+  window.addEventListener("resize",size);
+  loop();
+  return ()=>{cancelAnimationFrame(raf);window.removeEventListener("resize",size);};
+}
+
+/* ---------------- step 4 ---------------- */
+(function(){
+  const tr=TOOLS.slice().sort((a,b)=>a.sid.localeCompare(b.sid));
+  $("#sumtable").innerHTML=`<thead><tr><th>세션</th><th>도구</th><th>버전</th><th>설치 위치</th><th>결과</th><th>사람 검토 필요</th></tr></thead><tbody>`+
+   tr.map(t=>`<tr><td><span class="chip info">${t.sid}</span></td><td>${esc(t.name)}</td><td class="small">${esc(t.ver)}</td><td class="mono small">${esc(t.to)}</td><td><span class="chip ok">적용</span></td><td class="small">${t.review.map(esc).join("<br>")}</td></tr>`).join("")+"</tbody>";
+  $("#hrcount").textContent=TOOLS.reduce((a,t)=>a+t.review.length,0);
+})();
+
+/* ---------------- navigation ---------------- */
+let cur=0;
+function go(i){
+  cur=i;
+  $$(".step").forEach((b,j)=>b.setAttribute("aria-selected",j===i));
+  $$(".stage").forEach((s,j)=>s.classList.toggle("on",j===i));
+  if(i===2 && !$("#side button[aria-current='page']")) openTool("weekly");
+  if(i!==2 && stop3d){stop3d();stop3d=null;$$("#side button").forEach(b=>b.removeAttribute("aria-current"));}
+  if(i===3) $$(".step").forEach((b,j)=>{if(j<3)b.classList.add("done");});
+}
+$$(".step").forEach(b=>b.onclick=()=>{stopAuto();go(+b.dataset.step);});
+
+/* autoplay */
+let autoTimer=null, autoOn=false;
+const sleep=ms=>new Promise(r=>{autoTimer=setTimeout(r,ms);});
+function stopAuto(){autoOn=false;clearTimeout(autoTimer);$("#autoplay").textContent="▶ 자동 시연";}
+$("#autoplay").onclick=async()=>{
+  if(autoOn){stopAuto();return;}
+  autoOn=true;$("#autoplay").textContent="■ 멈춤";
+  go(0); await sleep(3200); if(!autoOn)return;
+  go(1); await runApply(); await sleep(1200); if(!autoOn)return;
+  go(2);
+  for(const k of ["weekly","pid","logic","panel","books","ds","ic3d"]){
+    if(!autoOn)return; openTool(k);
+    if(k==="logic"){await sleep(1400); if(!autoOn)return; LOGIC.s.a=1; drawLogic(); await sleep(1600); if(!autoOn)return; LOGIC.s.c=1; drawLogic(); await sleep(1600);}
+    else await sleep(3600);
+  }
+  if(!autoOn)return; go(3); stopAuto();
+};
+
+/* theme toggle */
+$("#theme").onclick=()=>{const r=document.documentElement;const dark=r.dataset.theme?r.dataset.theme==="dark":matchMedia("(prefers-color-scheme: dark)").matches;r.dataset.theme=dark?"light":"dark";};
+})();
+</script>
+</body>
+</html>
