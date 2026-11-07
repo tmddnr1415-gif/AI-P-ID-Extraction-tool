@@ -1,0 +1,38 @@
+{
+  "sid": "S1",
+  "session": "1. DASHBOARD 코드",
+  "branch": "ccr-248a5c4d-3dji7g",
+  "commit": "733814d3b23ceed8a0c0b0f4ebe422025e295ba6",
+  "version": "v16.58 (APP_VERSION 2026-11-05.1)",
+  "date": "2026-11-07",
+  "artifact": {
+    "path": "dist/company_pc/S1/UPDATE_from_v16.57_to_v16.58.zip",
+    "bytes": 714059,
+    "sha256": "e5c63211a3acde238490df219887861f481c6fa93080e4a2f6f810876ae1cf6c"
+  },
+  "kind": "update",
+  "base_version": "v16.57 (delivered.txt b192d99). 회사 PC 판이 다르면 dashboard_patches/1_DASHBOARD_update_v16.58_2026-11-05.zip(--any, 20MB, 어느 판에서든) 사용",
+  "install_to": "C:\\Claude\\계장ENG그룹 주간업무 Dashboard\\ (운영 폴더 = 코드+데이터 같은 폴더. 코드: dashboard.html · server.py · DASHBOARD_ARCHITECTURE.md · *.bat · plaza\\. 데이터(덮어쓰기 금지): accounts\\ data\\ history\\ trash\\ archive\\ saves\\ board\\ messages\\ files\\ backup\\ space\\ timesheets\\ worktime\\ deploy\\(서버 자동 생성). apps\\<메뉴키>\\ = 대시보드 서버(/apps/)가 정적 파일로 띄우는 자리이나 지금은 비어 있음(APP_ROUTES = {}). bidpjt · runpjt 는 대시보드 내장 메뉴(apps 아님). pid · logic · logicdraw · space(ROOM SIZE) · books(도서검토)는 apps\\ 가 아니라 P&ID 서버(run_lan_service.bat, 포트 8000)의 / · /logic · /logic/draw · /space · /books/ 로 iframe 연결(dashboard.html PID_ROUTES). 계장 광장 = plaza\\plaza_server.py, 포트 8100, 대시보드 서버가 함께 띄움.)",
+  "entry": "start_server.bat 더블클릭 → http://localhost:<포트>/ (부서원은 서버 PC 주소 또는 deploy 의 dashboard.html)",
+  "apply": "zip 풀고 APPLY.bat 실행 (운영 폴더를 *Dashboard* 로 찾음 · backup\\patch_… 에 백업 후 덮음 · 회사에서 고친 파일은 .new 로 둠). 서버 재시작 불필요(server.py 변경 없음)",
+  "depends_on": [],
+  "overlaps_with": [
+    "S4(4. PANEL 코드/ROOM SIZE): dashboard/dashboard.html PID_ROUTES.space · 메뉴 이름 · MENUS 권한 'space' — 그쪽 패치가 dashboard.html 을 포함하면 겹침",
+    "S4: dashboard/server.py space API(/api/space/*, space_* 함수) — 그쪽이 server.py 를 고치면 겹침",
+    "S4·S5: dashboard/apps/space/ · dashboard/apps/books/ · dashboard/books_api.py 는 S1 이 고치지 않음(S1 zip 에 없음)",
+    "S2(P&ID): dashboard.html PID_ROUTES · PID_PORT(8000) 경로가 바뀌면 맞춰야 함"
+  ],
+  "tests": "임시 폴더 서버(포트 8777)에서 Playwright 로 유닛분장(유닛/프로젝트별/세계지도)·상세/멤버 탭·내 업무 위젯 클릭 확인, 페이지 오류 0 · node --check 문법 통과 · make_patch [주의] 없음",
+  "human_review_needed": [
+    "회사 PC 에서 유닛분장 새 화면(밝은 머리 띠·카드·세계 지도) 표시 확인",
+    "세계 지도 날씨(open-meteo)는 선택 기능 — 사내망에서 외부 접속이 막히면 '날씨 연결 안 됨'으로 표시되는지 확인(외부 전송 금지 규칙상 기본 꺼짐)",
+    "회사 PC 실제 판이 v16.57 인지 확인(아니면 --any zip 사용)"
+  ],
+  "changes": [
+    "유닛분장: 밝은 제목 띠 · 파란 보기 전환 버튼 · 오른쪽 아래 떠 있는 버튼",
+    "조직도: 유닛별 색 머리 띠 카드, 부서원 카드에 수행·입찰·To Do 칩",
+    "오른쪽 상세 창에 [상세 | 멤버] 탭, 접속 중 초록 점",
+    "세계 지도: 남색 패널, 본사→현장 곡선, 국가 목록 [+ 더보기], 지역 PJT 누르면 정보",
+    "내 업무 위젯: 제목 2줄, 배지 색 통일, 완료 항목 접기"
+  ]
+}
