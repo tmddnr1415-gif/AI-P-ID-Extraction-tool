@@ -36,7 +36,7 @@ ID_RE = re.compile(r'^[A-Za-z0-9_\-]{1,80}$')
 WEEK_RE = re.compile(r'^\d{4}-W\d{2}$')
 MAX_BODY = 30 * 1024 * 1024
 
-SERVER_VERSION = '2026-11-07.1'
+SERVER_VERSION = '2026-11-07.2'
 ROOT = os.path.dirname(os.path.abspath(__file__))
 PORT = 8080
 ALLOW_NETS = []          # 사내망: 루프백·사설망 + 서버 IP 대역(/16, 유선·Wi-Fi 등 지금까지 쓴 대역 모두 기억) + --allow 로 추가한 대역
@@ -539,7 +539,7 @@ def board_kind(b):
 
 
 # ---- VOC (2026-10-22): 메뉴별 VOC · 실명만 · 화면 캡처/사진 첨부 (board/img/{이미지ID}.{png|jpg|gif|webp}) ----
-VOC_MENUS = ('weekly', 'pid', 'logic', 'space', 'books', 'ic3d', 'bidpjt', 'runpjt', 'board', 'mgmt', 'plaza', 'etc')
+VOC_MENUS = ('weekly', 'pid', 'logic', 'space', 'books', 'ic3d', 'bidpjt', 'runpjt', 'finstagram', 'board', 'mgmt', 'plaza', 'etc')
 IMG_ID_RE = re.compile(r'^i[0-9a-f]{8,40}$')
 IMG_MAX = 8 * 1024 * 1024
 IMG_TYPES = {'.png': 'image/png', '.jpg': 'image/jpeg', '.gif': 'image/gif', '.webp': 'image/webp'}
@@ -1713,8 +1713,79 @@ def api_space_rev_del(acc, pid, rid, rev, sup):
     log.info('공간확보 Rev 지움(휴지통): %s / %s / Rev %s · 저장 %d (%s)', d['project']['name'], r['name'], rev, n, acc['name'])
     return {'status': 'ok', 'saves': n}
 
+# ---------------------------------------------------------------- 재무스타그램 (apps/finstagram) — 금융감독원 DART(opendart.fss.or.kr) 중계
+# API 키는 배포물 · 화면에 넣지 않는다. 서버 PC 의 키 파일을 읽어 서버가 대신 붙여서 DART 에 묻는다 (브라우저에는 키가 가지 않음).
+# 키 파일 위치(앞에 있는 것이 우선): ① server.py --dart-key 경로 ② 운영 폴더 dart_key_path.txt 안에 적은 경로 ③ C:\Claude\keys\dart_api_key.txt
+# 키 파일 내용: 키 한 줄 (40자). 'DART_API_KEY=…' 처럼 적어도 됨.
+DART = {'arg': '', 'cache': {}, 'lock': threading.Lock()}
+DART_DEFAULT_KEY = r'C:\Claude\keys\dart_api_key.txt'
+DART_BASE = 'https://opendart.fss.or.kr/api/'
+DART_NAME = re.compile(r'^[A-Za-z][A-Za-z0-9_]{1,40}\.(json|xml)$')
+
+
+def dart_key_path():
+    if DART['arg']:
+        return DART['arg'], '--dart-key'
+    try:
+        with open(P('dart_key_path.txt'), encoding='utf-8-sig') as f:
+            line = next((l.strip().strip('"') for l in f if l.strip() and not l.lstrip().startswith('#')), '')
+        if line:
+            return line, 'dart_key_path.txt'
+    except OSError:
+        pass
+    return DART_DEFAULT_KEY, '기본 위치'
+
+
+def dart_key():
+    path, _ = dart_key_path()
+    try:
+        with open(path, encoding='utf-8-sig') as f:
+            for l in f:
+                l = l.strip()
+                if l and not l.startswith('#'):
+                    return l.split('=', 1)[1].strip().strip('"\'') if '=' in l else l
+    except OSError:
+        return ''
+    return ''
+
+
+def api_dart_status():
+    path, how = dart_key_path()
+    k = dart_key()
+    return {'keyFile': path, 'from': how, 'exists': os.path.isfile(path), 'hasKey': bool(k), 'keyLen': len(k)}   # 키 값은 내보내지 않음
+
+
+def api_dart(handler, name, q):
+    """GET /api/dart/<이름>.json|xml?… → DART 에 키를 붙여 그대로 전달. 같은 질문은 10분(corpCode 는 하루) 기억"""
+    if not DART_NAME.match(name):
+        raise ApiError(400, 'DART API 이름이 올바르지 않습니다')
+    key = dart_key()
+    if not key:
+        path, how = dart_key_path()
+        raise ApiError(503, f'DART API 키 파일이 없거나 비어 있습니다: {path} ({how}) — 서버 PC 에 키 파일을 두세요')
+    params = {k: v for k, v in q.items() if k != 'crtfc_key'}
+    ck = name + '?' + '&'.join(f'{k}={params[k]}' for k in sorted(params))
+    ttl = 86400 if name.startswith('corpCode') else 600
+    with DART['lock']:
+        hit = DART['cache'].get(ck)
+        if hit and time.time() - hit[0] < ttl:
+            return handler.send(200, hit[1], hit[2])
+    url = DART_BASE + name + '?' + '&'.join(f'{quote(k)}={quote(str(v))}' for k, v in {'crtfc_key': key, **params}.items())
+    try:
+        with urllib.request.urlopen(url, timeout=30) as r:
+            body, ctype = r.read(), r.headers.get('Content-Type') or 'application/octet-stream'
+    except Exception as e:
+        log.warning('DART 요청 실패 %s: %s', name, type(e).__name__)
+        raise ApiError(502, f'DART 서버에 연결하지 못했습니다 ({type(e).__name__}) — 서버 PC 의 인터넷 연결을 확인하세요')
+    with DART['lock']:
+        if len(DART['cache']) > 300:
+            DART['cache'].clear()
+        DART['cache'][ck] = (time.time(), body, ctype)
+    return handler.send(200, body, ctype)
+
+
 # ---------------------------------------------------------------- 메뉴 권한 (accounts/_perms.json) — 운영자(서버 PC)만 변경
-MENUS = [('weekly', '주간업무보고'), ('pid', 'P&ID 분석'), ('logic', 'LOGIC 분석'), ('space', 'ROOM SIZE 계산'), ('books', '도서검토'), ('ic3d', '3D 계측제어'), ('bidpjt', '입찰 프로젝트'), ('runpjt', '실행 프로젝트'),
+MENUS = [('weekly', '주간업무보고'), ('pid', 'P&ID 분석'), ('logic', 'LOGIC 분석'), ('space', 'ROOM SIZE 계산'), ('books', '도서검토'), ('ic3d', '3D 계측제어'), ('bidpjt', '입찰 프로젝트'), ('runpjt', '실행 프로젝트'), ('finstagram', '재무스타그램'),
          ('board', '익명게시판'), ('mgmt', 'Management')]
 MENU_KEYS = [k for k, _ in MENUS]
 DEFAULT_PERMS = {k: k != 'mgmt' for k in MENU_KEYS}
@@ -2231,6 +2302,12 @@ class Handler(BaseHTTPRequestHandler):
                     'host': socket.gethostname(), 'version': html_version(), 'serverVersion': SERVER_VERSION, 'urls': server_urls(), 'plazaPort': PLAZA['port'],
                     **({'net': {'ips': NET_STATE['ips'] or [], 'profiles': NET_STATE['profiles'], 'changedAt': NET_STATE['changedAt'],
                                 'allow': [str(n) for n in ALLOW_NETS]}} if self.is_admin() else {})}
+        if head == 'dart':                                          # 재무스타그램: DART 중계 (키는 서버 PC 키 파일) · 사내망 접속이면 누구나
+            if m == 'GET' and seg[1:] == ['_status']:
+                return api_dart_status()
+            if m == 'GET' and len(seg) == 2:
+                return api_dart(self, seg[1], q)
+            raise ApiError(404, '없는 경로')
         if head == 'auth':
             if m == 'POST' and seg[1:] == ['register']:
                 return api_register(self.json_body())
@@ -2614,9 +2691,11 @@ def main():
     ap.add_argument('--history-days', type=int, default=7, help='수정 이력 보관 일수 (지나면 자동 삭제)')
     ap.add_argument('--allow-sleep', action='store_true', help='서버 PC 절전 방지를 끔 (기본: 서버가 켜져 있는 동안 절전 모드 막음)')
     ap.add_argument('--allow', action='append', default=[], help='추가로 접속을 허용할 사내망 대역 (예: 65.3.0.0/16), 여러 번 지정 가능')
+    ap.add_argument('--dart-key', default='', help=r'재무스타그램 DART API 키 파일 경로 (기본: 운영 폴더 dart_key_path.txt 에 적은 경로, 없으면 C:\Claude\keys\dart_api_key.txt)')
     ap.add_argument('--plaza-port', type=int, default=8100, help='계장 광장 서버 포트 (0 = 띄우지 않음)')
     a = ap.parse_args()
     PLAZA['port'] = a.plaza_port
+    DART['arg'] = a.dart_key
 
     ROOT, PORT = os.path.abspath(a.root), a.port
     if books_api:                                         # 도서검토: 운영 폴더 books/ 를 쓰게 연결

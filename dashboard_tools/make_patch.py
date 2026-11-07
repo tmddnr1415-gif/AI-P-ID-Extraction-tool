@@ -21,6 +21,7 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 APP = 'dashboard'
 HERE = os.path.dirname(os.path.abspath(__file__))
 SKIP_PREFIX = ('deploy/', 'apps/')   # apps/ (ROOM SIZE 계산 · 도서검토 등 연결 앱) 은 다른 작업 줄기에서 zip 을 냄 → 대시보드 zip 에서 뺌 (2026-10-25 사용자 지시)
+KEEP_PREFIX = ('apps/finstagram/',)   # 예외: 재무스타그램은 대시보드에 포함해 관리 (2026-11-07 사용자 지시) → 대시보드 zip 에 넣음
 
 
 def git(*a, binary=False):
@@ -71,7 +72,7 @@ def main():
     for line in names:
         st, p = line.split('\t', 1)
         rel = p[len(APP) + 1:]
-        if rel.startswith(SKIP_PREFIX):
+        if rel.startswith(SKIP_PREFIX) and not rel.startswith(KEEP_PREFIX):
             skipped.append(rel)
         elif st == 'D':
             deleted.append(rel)

@@ -1360,3 +1360,14 @@ C:\Users\SAMSUNG\Desktop\Claude\                         ← 개발 폴더 (여�
 - 바뀐 곳: dashboard.html `APP_VERSION` · `MODULES`(globev · bflyv · psv + `note`) · `renderModule`(note 표시) · `PID_ROUTES.valve`(P&ID 서버 /valve/) · `ROUTES` · `RUN_LEAVES` · `menuOf` · `NAV_LS`(runpjt · runpjt-co2 · runpjt-co2-ds) · `renderMenu`(`fold` · `runTree`, 번호 메뉴 방식에 맞춤 — 폴더 줄 `.mfold`) · `QF_MENUS` · `PZ_STATUS.valve`.
 - 확인한 것: 임시 서버 + 가짜 P&ID 서버: 실행 프로젝트 아래 CO2 PJT › Datasheet › 잎 4개, Ball Valve → `:8000/valve/?embed=1&project=CO2%20PJT&user=…` iframe, PSV → '🚧 준비 중' + 설명. 페이지 오류 없음.
 - 회사에서 확인할 것: 회사 dashboard.html 이 VALVE 판(2026-11-01.1)이면 이 업데이트의 APPLY.bat 가 덮지 않고 `.new` 로 둘 수 있음 → 그때는 `.new` 를 dashboard.html 로 바꿔 넣으면 됨(이 판에 VALVE 메뉴가 모두 들어 있음).
+
+### 2026-11-07 (APP_VERSION 2026-11-07.4 / SERVER_VERSION 2026-11-07.2) — 재무스타그램 메뉴 · DART 중계
+- 무엇을: 메뉴 **재무스타그램**(실행 프로젝트 아래) 추가. 사용자 지시 '재무스타그램(회사 PC `C:\Users\백승욱\Desktop\해커톤\2day\dart_dashboard`)을 메뉴로 넣고 대시보드에 포함해 관리', 'API 키는 회사 PC 에 두고 그 경로를 연결'.
+  - 화면: 운영 폴더 `apps\finstagram\index.html` 을 대시보드 서버가 `/apps/finstagram/` 으로 줌 (`APP_ROUTES.finstagram`, 본문 전체 iframe). **앱 파일은 아직 받지 못함** — 파일이 없으면 '화면 파일이 서버에 아직 없습니다 · apps\finstagram 폴더 필요' 안내.
+  - DART 중계: `GET /api/dart/<이름>.json|xml?…` → 서버가 키를 붙여 `https://opendart.fss.or.kr/api/<이름>` 에 묻고 그대로 돌려줌(10분 기억, corpCode 는 하루). 키는 브라우저 · 배포물 · 로그에 나가지 않음. `GET /api/dart/_status` = 키 파일 경로 · 있는지 · 길이(값은 안 줌). 사내망 접속이면 누구나(DART 공개 자료).
+  - 키 파일 위치(앞이 우선): ① `server.py --dart-key 경로` ② 운영 폴더 `dart_key_path.txt` 안에 적은 경로 ③ `C:\Claude\keys\dart_api_key.txt`. 내용 = 키 한 줄(`DART_API_KEY=…` 도 됨).
+  - 메뉴 권한 '재무스타그램'(기본 허용) · VOC 메뉴 · 빠른 찾기.
+  - make_patch: `apps/` 는 계속 빼되 `apps/finstagram/` 은 대시보드 zip 에 넣음(`KEEP_PREFIX`).
+- 바뀐 곳: dashboard.html `APP_VERSION` · `APP_ROUTES` · `ROUTES` · `renderMenu` · `VOC_MENU` · `QF_MENUS` · `PZ_STATUS` / server.py `SERVER_VERSION` · `DART` `dart_key_path` `dart_key` `api_dart_status` `api_dart` · `api`('dart') · `MENUS` · `VOC_MENUS` · `main`(--dart-key) / dashboard_tools/make_patch.py `KEEP_PREFIX`.
+- 확인한 것: 임시 서버 — 키 없음 → 503 안내(기본 경로 표시), dart_key_path.txt 로 임시 키 → _status 40자 · 이 환경은 외부 인터넷이 막혀 502 'DART 서버에 연결하지 못했습니다'(정상 안내), 이상한 이름 → 404/400. 메뉴 클릭 → 파일 없음 안내. 페이지 오류 없음.
+- 회사에서 확인할 것: 서버 PC 에서 opendart.fss.or.kr 접속이 되는지(사내 방화벽), 키 파일 경로.
