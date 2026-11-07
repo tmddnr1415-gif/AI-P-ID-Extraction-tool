@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>I&amp;C 3D Builder</title>
+<link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+<header class="top">
+  <div class="brand"><span class="logo">◇</span> I&amp;C 3D Builder <small>GA / Dimensional Drawing → 3D</small></div>
+  <div class="top-actions">
+    <button id="btn-settings" class="ghost-btn" title="API 설정">⚙ 설정</button>
+  </div>
+</header>
+
+<main class="layout">
+  <aside class="panel left">
+    <section class="card">
+      <h2>1. 품목</h2>
+      <select id="preset"></select>
+      <p class="muted small" id="preset-note"></p>
+    </section>
+
+    <section class="card">
+      <h2>2. 도면 판독 <span class="tag">Claude</span></h2>
+      <div id="drop" class="drop" tabindex="0">
+        <b>GA / Dimensional Drawing</b><br>
+        <span class="muted small">PDF · PNG · JPG 를 끌어다 놓거나 클릭</span>
+        <input id="file" type="file" accept="application/pdf,image/*" multiple hidden>
+      </div>
+      <ul id="files" class="files"></ul>
+      <label class="small muted" for="hint">힌트 (사이즈·등급·사용할 표 행 등)</label>
+      <textarea id="hint" rows="2" placeholder="예) 4&quot; CL300 행 사용, Tag FV-1101"></textarea>
+      <div class="row">
+        <button id="btn-extract" class="primary">도면 읽어 3D 만들기</button>
+        <button id="btn-cancel" class="ghost-btn" hidden>중지</button>
+      </div>
+      <div id="status" class="status small"></div>
+    </section>
+
+    <section class="card">
+      <h2>3. 치수 파라미터</h2>
+      <div class="legend small">
+        <span class="src src-drawing">도면</span><span class="src src-user">입력</span>
+        <span class="src src-standard">표준</span><span class="src src-estimate">추정</span>
+      </div>
+      <div id="form"></div>
+      <div class="row small">
+        <button id="btn-reset" class="ghost-btn">입력 초기화</button>
+        <label class="ghost-btn file-btn">JSON 불러오기<input id="load-json" type="file" accept="application/json" hidden></label>
+      </div>
+    </section>
+
+    <section class="card" id="findings-card" hidden>
+      <h2>판독 소견</h2>
+      <div id="findings"></div>
+    </section>
+  </aside>
+
+  <section class="stage">
+    <div class="toolbar">
+      <div class="seg" role="group" aria-label="뷰">
+        <button data-view="iso">등각</button><button data-view="iso2">등각 2</button>
+        <button data-view="front">정면</button><button data-view="side">측면</button><button data-view="top">평면</button>
+      </div>
+      <label class="small">분해 <input id="explode" type="range" min="0" max="1" step="0.01" value="0"></label>
+      <label class="small"><input id="opt-labels" type="checkbox"> 라벨</label>
+      <label class="small"><input id="opt-dims" type="checkbox" checked> 외곽치수</label>
+      <label class="small"><input id="opt-edges" type="checkbox" checked> 윤곽선</label>
+      <span class="spacer"></span>
+      <div class="seg">
+        <button id="ex-stl" title="STL (mm)">STL</button><button id="ex-obj" title="OBJ (부품별 그룹)">OBJ</button>
+        <button id="ex-png">PNG</button><button id="ex-json" title="파라미터 + 출처">JSON</button>
+      </div>
+    </div>
+    <div id="viewport" class="viewport">
+      <div id="tip" class="tip" hidden></div>
+      <div id="noscene" class="noscene" hidden></div>
+    </div>
+    <div class="bottom">
+      <div class="card parts">
+        <h2>Anatomy <span class="muted small" id="parts-count"></span></h2>
+        <ul id="parts"></ul>
+      </div>
+      <div class="card summary">
+        <h2>요약</h2>
+        <div id="summary" class="small"></div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<dialog id="dlg-settings">
+  <h2>API 설정</h2>
+  <label>Anthropic API 키<input id="set-key" type="password" autocomplete="off" placeholder="sk-ant-..."></label>
+  <label>모델<input id="set-model" value="claude-opus-5-5"></label>
+  <label>Effort
+    <select id="set-effort"><option>low</option><option>medium</option><option selected>high</option><option>xhigh</option><option>max</option></select>
+  </label>
+  <p class="small muted">키는 이 브라우저에만 저장됩니다. 도면은 api.anthropic.com 으로만 전송됩니다.</p>
+  <div class="row"><button id="set-save" class="primary">저장</button><button id="set-close" class="ghost-btn">닫기</button></div>
+</dialog>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="./refdata.js"></script>
+<script src="./anatomy.js"></script>
+<script src="./viewer.js"></script>
+<script src="./extract.js"></script>
+<script src="./app.js"></script>
+</body>
+</html>

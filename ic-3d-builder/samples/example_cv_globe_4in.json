@@ -1,0 +1,20 @@
+{
+  "tool": "ic-3d-builder",
+  "version": 1,
+  "_comment": "예시 스펙 — 가상의 4in CL300 글로브 조절밸브 GA 도면을 읽었다고 가정한 값. 실제 벤더 치수 아님.",
+  "type": "valve",
+  "preset": "cv_globe",
+  "inputs": {
+    "tag": { "value": "FV-1101", "src": "drawing", "evidence": "타이틀블록" },
+    "body": { "value": "globe", "src": "drawing", "evidence": "도면명 GLOBE CONTROL VALVE" },
+    "operator": { "value": "pneumatic_diaphragm", "src": "drawing", "evidence": "SPRING & DIAPHRAGM ACTUATOR" },
+    "service": { "value": "control", "src": "default" },
+    "nps": { "value": 4, "src": "drawing", "evidence": "SIZE 4\"" },
+    "cls": { "value": "300", "src": "drawing", "evidence": "ASME CL300 RF" },
+    "ftf": { "value": 368, "src": "drawing", "as_drawn": "A = 14.50 in", "evidence": "A = 14.50 in · 정면도 치수표", "confidence": "high" },
+    "act_d": { "value": 432, "src": "drawing", "evidence": "D = 17.0 in · 액추에이터 치수표", "confidence": "high" },
+    "overall_h": { "value": 1180, "src": "drawing", "evidence": "H MAX = 46.5 in · 정면도", "confidence": "medium" },
+    "positioner": { "value": true, "src": "drawing", "evidence": "DVC 포지셔너 표기" }
+  },
+  "extraction": null
+}

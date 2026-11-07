@@ -1,0 +1,2143 @@
+<!doctype html>
+<!-- 생성 파일: ic-3d-builder/src/ 를 고치고 dev/build.py 로 다시 만드세요 -->
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>I&amp;C 3D Builder</title>
+<style>
+:root {
+  --bg: #f3f4f6; --panel: #ffffff; --ink: #1d232b; --muted: #66707c; --line: #dfe3e8;
+  --accent: #2f6db5; --accent-ink: #ffffff; --stage: #e9edf1; --warn: #b5462f;
+  --s-drawing: #1f8a4c; --s-user: #2f6db5; --s-standard: #8a6d1f; --s-estimate: #a0466e; --s-default: #7a838d;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #14171b; --panel: #1c2026; --ink: #e5e8ec; --muted: #98a2ad; --line: #2c323a;
+    --accent: #5a95dc; --accent-ink: #0d1117; --stage: #101317; --warn: #e07a62;
+    --s-drawing: #4cc184; --s-user: #6fa4e6; --s-standard: #d2b05a; --s-estimate: #db7ba6; --s-default: #8b95a0;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #14171b; --panel: #1c2026; --ink: #e5e8ec; --muted: #98a2ad; --line: #2c323a;
+  --accent: #5a95dc; --accent-ink: #0d1117; --stage: #101317; --warn: #e07a62;
+  --s-drawing: #4cc184; --s-user: #6fa4e6; --s-standard: #d2b05a; --s-estimate: #db7ba6; --s-default: #8b95a0;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; }
+body { background: var(--bg); color: var(--ink); font: 14px/1.45 system-ui, -apple-system, "Segoe UI", "Malgun Gothic", sans-serif; }
+h2 { font-size: 13px; margin: 0 0 8px; letter-spacing: .02em; display: flex; align-items: center; gap: 6px; }
+button, select, input, textarea { font: inherit; color: inherit; }
+.muted { color: var(--muted); } .small { font-size: 12px; }
+
+.top { display: flex; align-items: center; justify-content: space-between; padding: 8px 16px; border-bottom: 1px solid var(--line); background: var(--panel); }
+.brand { font-weight: 650; } .brand small { font-weight: 400; color: var(--muted); margin-left: 8px; }
+.logo { color: var(--accent); }
+
+.layout { display: grid; grid-template-columns: 360px 1fr; height: calc(100% - 45px); }
+.panel.left { overflow: auto; padding: 12px; border-right: 1px solid var(--line); display: flex; flex-direction: column; gap: 12px; }
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 12px; }
+.tag { font-size: 10px; background: var(--accent); color: var(--accent-ink); border-radius: 4px; padding: 1px 6px; }
+select, input[type=number], input[type=text], input[type=password], textarea {
+  width: 100%; background: var(--bg); border: 1px solid var(--line); border-radius: 6px; padding: 6px 8px;
+}
+textarea { resize: vertical; }
+.row { display: flex; gap: 8px; margin-top: 8px; align-items: center; flex-wrap: wrap; }
+.primary { background: var(--accent); color: var(--accent-ink); border: 0; border-radius: 6px; padding: 8px 12px; font-weight: 600; cursor: pointer; }
+.primary:disabled { opacity: .5; cursor: default; }
+.ghost-btn { background: transparent; border: 1px solid var(--line); border-radius: 6px; padding: 6px 10px; cursor: pointer; }
+.file-btn { display: inline-block; }
+.drop { border: 1.5px dashed var(--line); border-radius: 8px; padding: 14px; text-align: center; cursor: pointer; }
+.drop.over { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 8%, transparent); }
+.files { list-style: none; padding: 0; margin: 8px 0; display: flex; flex-direction: column; gap: 4px; }
+.files li { display: flex; justify-content: space-between; gap: 8px; font-size: 12px; background: var(--bg); border-radius: 6px; padding: 4px 8px; }
+.files li button { border: 0; background: none; cursor: pointer; color: var(--muted); }
+.files img { max-width: 100%; border-radius: 4px; margin-top: 4px; }
+.status { margin-top: 8px; white-space: pre-wrap; }
+.status.err { color: var(--warn); }
+
+.legend { display: flex; gap: 6px; margin-bottom: 8px; }
+.src { display: inline-block; font-size: 10px; border-radius: 4px; padding: 0 5px; color: #fff; white-space: nowrap; }
+.src-drawing { background: var(--s-drawing); } .src-user { background: var(--s-user); }
+.src-standard { background: var(--s-standard); } .src-estimate { background: var(--s-estimate); }
+.src-default, .src-none { background: var(--s-default); }
+.grp { margin: 10px 0 4px; font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; }
+.prm { display: grid; grid-template-columns: 1fr 108px 40px; gap: 6px; align-items: center; padding: 3px 0; }
+.prm label { font-size: 12px; }
+.prm .unit { color: var(--muted); font-size: 11px; }
+.prm input, .prm select { padding: 3px 6px; }
+.prm input[type=checkbox] { justify-self: start; }
+.prm .ev { grid-column: 1 / -1; font-size: 11px; color: var(--muted); margin-top: -2px; }
+.prm.inactive { display: none; }
+
+.stage { display: grid; grid-template-rows: auto 1fr 220px; min-width: 0; min-height: 0; }
+.toolbar { display: flex; gap: 10px; align-items: center; padding: 8px 12px; border-bottom: 1px solid var(--line); background: var(--panel); flex-wrap: wrap; }
+.toolbar .spacer { flex: 1; }
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; }
+.seg button { border: 0; background: transparent; padding: 5px 9px; cursor: pointer; border-right: 1px solid var(--line); font-size: 12px; }
+.seg button:last-child { border-right: 0; }
+.seg button:hover { background: var(--bg); }
+.viewport { position: relative; background: var(--stage); min-height: 0; overflow: hidden; }
+.viewport canvas { display: block; cursor: grab; }
+.tip { position: absolute; pointer-events: none; background: rgba(20, 24, 30, .9); color: #fff; padding: 6px 8px; border-radius: 6px; font-size: 12px; max-width: 260px; z-index: 3; }
+.v-label { position: absolute; left: 0; top: 0; pointer-events: none; background: color-mix(in srgb, var(--panel) 88%, transparent); border: 1px solid var(--line); border-radius: 4px; padding: 1px 6px; font-size: 11px; white-space: nowrap; z-index: 2; }
+.noscene { position: absolute; inset: 0; display: grid; place-items: center; text-align: center; padding: 24px; color: var(--muted); }
+
+.bottom { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; padding: 12px; overflow: hidden; border-top: 1px solid var(--line); }
+.bottom .card { overflow: auto; }
+#parts { list-style: none; margin: 0; padding: 0; columns: 2; column-gap: 12px; }
+#parts li { display: flex; gap: 6px; align-items: center; font-size: 12px; padding: 2px 4px; border-radius: 4px; cursor: pointer; break-inside: avoid; }
+#parts li:hover, #parts li.sel { background: var(--bg); }
+#parts .sw { width: 10px; height: 10px; border-radius: 2px; flex: none; }
+.find { font-size: 12px; padding: 4px 0; border-bottom: 1px solid var(--line); }
+.sev-high { color: var(--warn); font-weight: 600; }
+table.kv { border-collapse: collapse; width: 100%; } table.kv td { padding: 2px 6px; border-bottom: 1px solid var(--line); }
+
+dialog { border: 1px solid var(--line); border-radius: 10px; background: var(--panel); color: var(--ink); width: min(420px, 92vw); }
+dialog label { display: block; margin: 8px 0; font-size: 12px; }
+dialog::backdrop { background: rgba(0, 0, 0, .35); }
+
+@media (max-width: 900px) {
+  .layout { grid-template-columns: 1fr; height: auto; }
+  .panel.left { border-right: 0; }
+  .stage { grid-template-rows: auto 60vh auto; }
+  .bottom { grid-template-columns: 1fr; }
+  #parts { columns: 1; }
+}
+
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="brand"><span class="logo">◇</span> I&amp;C 3D Builder <small>GA / Dimensional Drawing → 3D</small></div>
+  <div class="top-actions">
+    <button id="btn-settings" class="ghost-btn" title="API 설정">⚙ 설정</button>
+  </div>
+</header>
+
+<main class="layout">
+  <aside class="panel left">
+    <section class="card">
+      <h2>1. 품목</h2>
+      <select id="preset"></select>
+      <p class="muted small" id="preset-note"></p>
+    </section>
+
+    <section class="card">
+      <h2>2. 도면 판독 <span class="tag">Claude</span></h2>
+      <div id="drop" class="drop" tabindex="0">
+        <b>GA / Dimensional Drawing</b><br>
+        <span class="muted small">PDF · PNG · JPG 를 끌어다 놓거나 클릭</span>
+        <input id="file" type="file" accept="application/pdf,image/*" multiple hidden>
+      </div>
+      <ul id="files" class="files"></ul>
+      <label class="small muted" for="hint">힌트 (사이즈·등급·사용할 표 행 등)</label>
+      <textarea id="hint" rows="2" placeholder="예) 4&quot; CL300 행 사용, Tag FV-1101"></textarea>
+      <div class="row">
+        <button id="btn-extract" class="primary">도면 읽어 3D 만들기</button>
+        <button id="btn-cancel" class="ghost-btn" hidden>중지</button>
+      </div>
+      <div id="status" class="status small"></div>
+    </section>
+
+    <section class="card">
+      <h2>3. 치수 파라미터</h2>
+      <div class="legend small">
+        <span class="src src-drawing">도면</span><span class="src src-user">입력</span>
+        <span class="src src-standard">표준</span><span class="src src-estimate">추정</span>
+      </div>
+      <div id="form"></div>
+      <div class="row small">
+        <button id="btn-reset" class="ghost-btn">입력 초기화</button>
+        <label class="ghost-btn file-btn">JSON 불러오기<input id="load-json" type="file" accept="application/json" hidden></label>
+      </div>
+    </section>
+
+    <section class="card" id="findings-card" hidden>
+      <h2>판독 소견</h2>
+      <div id="findings"></div>
+    </section>
+  </aside>
+
+  <section class="stage">
+    <div class="toolbar">
+      <div class="seg" role="group" aria-label="뷰">
+        <button data-view="iso">등각</button><button data-view="iso2">등각 2</button>
+        <button data-view="front">정면</button><button data-view="side">측면</button><button data-view="top">평면</button>
+      </div>
+      <label class="small">분해 <input id="explode" type="range" min="0" max="1" step="0.01" value="0"></label>
+      <label class="small"><input id="opt-labels" type="checkbox"> 라벨</label>
+      <label class="small"><input id="opt-dims" type="checkbox" checked> 외곽치수</label>
+      <label class="small"><input id="opt-edges" type="checkbox" checked> 윤곽선</label>
+      <span class="spacer"></span>
+      <div class="seg">
+        <button id="ex-stl" title="STL (mm)">STL</button><button id="ex-obj" title="OBJ (부품별 그룹)">OBJ</button>
+        <button id="ex-png">PNG</button><button id="ex-json" title="파라미터 + 출처">JSON</button>
+      </div>
+    </div>
+    <div id="viewport" class="viewport">
+      <div id="tip" class="tip" hidden></div>
+      <div id="noscene" class="noscene" hidden></div>
+    </div>
+    <div class="bottom">
+      <div class="card parts">
+        <h2>Anatomy <span class="muted small" id="parts-count"></span></h2>
+        <ul id="parts"></ul>
+      </div>
+      <div class="card summary">
+        <h2>요약</h2>
+        <div id="summary" class="small"></div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<dialog id="dlg-settings">
+  <h2>API 설정</h2>
+  <label>Anthropic API 키<input id="set-key" type="password" autocomplete="off" placeholder="sk-ant-..."></label>
+  <label>모델<input id="set-model" value="claude-opus-5-5"></label>
+  <label>Effort
+    <select id="set-effort"><option>low</option><option>medium</option><option selected>high</option><option>xhigh</option><option>max</option></select>
+  </label>
+  <p class="small muted">키는 이 브라우저에만 저장됩니다. 도면은 api.anthropic.com 으로만 전송됩니다.</p>
+  <div class="row"><button id="set-save" class="primary">저장</button><button id="set-close" class="ghost-btn">닫기</button></div>
+</dialog>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>/* refdata.js */
+/* 표준 치수 참고표 — 도면에서 치수를 못 읽었을 때 쓰는 기본값.
+ *
+ * ⚠ 이 표는 공개 자료와 엔지니어링 지식으로 채운 "참고값"이다. 원문 표준
+ *   (ASME B16.5 / B16.10 / ANSI/ISA-75.08.01 / API 526 / API 609)이나
+ *   벤더 Dimensional Drawing 과 대조하지 않았다. 3D 에서 이 값을 쓴 치수는
+ *   출처가 'standard' 로 표시되며, 배치 검토(간섭·공간) 용도로만 쓴다.
+ *   제작·구매용 치수로 쓰지 않는다.
+ *
+ * 단위: mm. 키: NPS(inch) 문자열.
+ */
+'use strict';
+
+const RefData = (() => {
+  const NPS = ['0.5', '0.75', '1', '1.5', '2', '3', '4', '6', '8', '10', '12'];
+  const row = (arr) => Object.fromEntries(NPS.map((k, i) => [k, arr[i]]));
+
+  // ASME B36.10 파이프 외경
+  const pipeOD = row([21.3, 26.7, 33.4, 48.3, 60.3, 88.9, 114.3, 168.3, 219.1, 273.1, 323.9]);
+
+  // ASME B16.5 RF 플랜지: 외경, 두께, 볼트원 지름, 볼트 수, 볼트 지름
+  const flange = {
+    150: {
+      od: row([89, 98, 108, 127, 152, 191, 229, 279, 343, 406, 483]),
+      t: row([9.6, 11.2, 12.7, 15.9, 17.5, 22.3, 22.3, 23.9, 27.0, 28.6, 30.2]),
+      bcd: row([60.3, 69.8, 79.4, 98.4, 120.7, 152.4, 190.5, 241.3, 298.5, 362.0, 431.8]),
+      n: row([4, 4, 4, 4, 4, 4, 8, 8, 8, 12, 12]),
+      bolt: row([12.7, 12.7, 12.7, 12.7, 15.9, 15.9, 15.9, 19.1, 19.1, 22.2, 22.2]),
+    },
+    300: {
+      od: row([95, 117, 124, 156, 165, 210, 254, 318, 381, 444, 521]),
+      t: row([12.7, 14.3, 15.9, 19.1, 20.7, 27.0, 30.2, 35.0, 39.7, 46.1, 49.3]),
+      bcd: row([66.7, 82.6, 88.9, 114.3, 127.0, 168.3, 200.0, 269.9, 330.2, 387.4, 450.8]),
+      n: row([4, 4, 4, 4, 8, 8, 8, 12, 12, 16, 16]),
+      bolt: row([12.7, 15.9, 15.9, 19.1, 15.9, 19.1, 19.1, 19.1, 22.2, 25.4, 28.6]),
+    },
+  };
+
+  // 면간거리 (Face-to-Face, RF)
+  const ftf = {
+    gate: { 150: row([108, 117, 127, 165, 178, 203, 229, 267, 292, 330, 356]),
+            300: row([140, 152, 165, 190, 216, 283, 305, 403, 419, 457, 502]) },
+    globe: { 150: row([108, 117, 127, 165, 203, 241, 292, 406, 495, 622, 698]),
+             300: row([152, 178, 203, 229, 267, 318, 356, 444, 559, 622, 711]) },
+    // 볼밸브 short pattern (B16.10) — 150/300 모두 gate 와 동일 계열
+    ball: { 150: row([108, 117, 127, 165, 178, 203, 229, 267, 292, 330, 356]),
+            300: row([140, 152, 165, 190, 216, 283, 305, 403, 419, 457, 502]) },
+    // 조절밸브 글로브 (ANSI/ISA-75.08.01 integral flanged)
+    control_globe: { 150: row([184, 184, 184, 222, 254, 298, 352, 451, 543, 673, 737]),
+                     300: row([190, 194, 197, 235, 267, 317, 368, 473, 568, 708, 775]) },
+    // 버터플라이 wafer/lug (API 609 Cat A 계열 근사) — 2" 미만은 없음
+    butterfly: { 150: row([43, 43, 43, 43, 43, 46, 52, 56, 60, 68, 78]),
+                 300: row([43, 43, 43, 43, 43, 48, 54, 59, 73, 83, 92]) },
+  };
+
+  const SOURCES = {
+    pipeOD: 'ASME B36.10M (참고값)',
+    flange: 'ASME B16.5 Class 150/300 RF (참고값)',
+    gate: 'ASME B16.10 Gate (참고값)',
+    globe: 'ASME B16.10 Globe (참고값)',
+    ball: 'ASME B16.10 Ball short pattern (참고값)',
+    control_globe: 'ANSI/ISA-75.08.01 (참고값)',
+    butterfly: 'API 609 Cat A 근사 (참고값)',
+  };
+
+  function nearestNps(nps) {
+    const v = Number(nps);
+    let best = NPS[0];
+    for (const k of NPS) if (Math.abs(Number(k) - v) < Math.abs(Number(best) - v)) best = k;
+    return best;
+  }
+
+  function cls(c) { return Number(c) >= 300 ? 300 : 150; }
+
+  /** 플랜지·파이프 치수 묶음 */
+  function flangeOf(nps, c) {
+    const k = nearestNps(nps); const f = flange[cls(c)];
+    return { od: f.od[k], t: f.t[k], bcd: f.bcd[k], n: f.n[k], bolt: f.bolt[k], pipeOD: pipeOD[k] };
+  }
+
+  function ftfOf(kind, nps, c) {
+    const t = ftf[kind]; if (!t) return null;
+    return t[cls(c)][nearestNps(nps)];
+  }
+
+  return { NPS, pipeOD, flange, ftf, SOURCES, nearestNps, flangeOf, ftfOf };
+})();
+
+if (typeof module !== 'undefined' && module.exports) module.exports = RefData;
+
+</script>
+<script>/* anatomy.js */
+/* Anatomy — 계측제어 품목을 "부품 단위"로 분해한 파라메트릭 3D 정의.
+ *
+ * 품목 하나 = 파라미터 목록 + build(파라미터) → 부품(part) 목록.
+ * 부품 = 이름 붙은 기본 도형(prim) 묶음. three.js 에 의존하지 않는 순수 데이터라
+ * 브라우저 뷰어, Node 검증 스크립트, Claude 스킬이 같은 정의를 공유한다.
+ *
+ * 좌표계: mm, Y 위쪽.
+ *   밸브     — 원점 = 배관 중심선과 밸브 중심, 배관 축 = X
+ *   캐비닛   — 원점 = 바닥 위, 첫 베이의 전면 중앙 하단. 전면 = +Z
+ *   훅업     — 원점 = 바닥(Y=0) 위, 공정배관 탭 바로 아래. 공정배관 축 = X
+ *
+ * 치수 출처(source) 는 네 가지로 추적한다.
+ *   drawing  — 도면에서 읽은 값 (Claude 판독 또는 사람이 입력하며 도면 근거 표시)
+ *   user     — 사람이 직접 고친 값
+ *   standard — RefData 표준 참고표에서 가져온 값
+ *   estimate — 비례식 추정값. 도면으로 확인되기 전까지는 형상 참고용
+ */
+'use strict';
+
+const Anatomy = (() => {
+  const R = (typeof RefData !== 'undefined') ? RefData
+    : (typeof require !== 'undefined' ? require('./refdata.js') : null);
+
+  // ───────────────────────── 기본 도형 헬퍼 ─────────────────────────
+  const cyl = (axis, r, h, at, extra = {}) => ({ k: 'cyl', axis, r, h, at, ...extra });
+  const cone = (axis, r, r2, h, at) => ({ k: 'cyl', axis, r, r2, h, at });
+  const box = (s, at, extra = {}) => ({ k: 'box', s, at, ...extra });
+  const sph = (r, at, scale) => ({ k: 'sph', r, at, ...(scale ? { scale } : {}) });
+  const tor = (R0, r, axis, at) => ({ k: 'tor', R: R0, r, axis, at });
+  const tube = (a, b, r) => ({ k: 'tube', a, b, r });
+  const part = (id, label, mat, prims, ex = [0, 0, 0], desc = '') => ({ id, label, mat, prims, ex, desc });
+  const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+
+  /** 축 방향 단위벡터 성분 */
+  const AX = { x: [1, 0, 0], y: [0, 1, 0], z: [0, 0, 1] };
+  const along = (axis, d, base = [0, 0, 0]) => base.map((b, i) => b + AX[axis][i] * d);
+  /** 축에 수직인 평면의 두 기저 */
+  const perp = { x: [[0, 1, 0], [0, 0, 1]], y: [[1, 0, 0], [0, 0, 1]], z: [[1, 0, 0], [0, 1, 0]] };
+
+  /**
+   * 플랜지 끝단 하나. face = 밸브 중심에서 플랜지 면까지 거리, sign = ±1.
+   * 플랜지 디스크 + 허브 + 볼트.
+   */
+  function flangeEnd(id, label, axis, sign, face, f, opts = {}) {
+    const prims = [];
+    const c = (d) => along(axis, sign * d);
+    prims.push(cyl(axis, f.od / 2, f.t, c(face - f.t / 2)));
+    const hubL = opts.hubL ?? f.t * 1.1;
+    prims.push(cone(axis, f.pipeOD / 2 * 1.35, f.pipeOD / 2 * 1.35, hubL, c(face - f.t - hubL / 2)));
+    const bolts = [];
+    const [u, v] = perp[axis];
+    for (let i = 0; i < f.n; i++) {
+      const a = (i + 0.5) / f.n * Math.PI * 2;
+      const off = [0, 1, 2].map((j) => (u[j] * Math.cos(a) + v[j] * Math.sin(a)) * f.bcd / 2);
+      const base = c(face - f.t / 2 + sign * f.bolt * 0.4);
+      bolts.push(cyl(axis, f.bolt / 2, f.t + f.bolt * 1.6, base.map((b, j) => b + off[j])));
+    }
+    const out = [part(`${id}`, label, 'flange', prims, along(axis, sign * 1),
+      `RF 플랜지 Ø${f.od} × t${f.t}`)];
+    out.push(part(`${id}_bolts`, `${label} 볼트`, 'bolt', bolts, along(axis, sign * 1.2),
+      `${f.n} × Ø${f.bolt} @ BCD ${f.bcd}`));
+    if (opts.stub) {
+      out.push(part(`${id}_pipe`, `${label} 배관(참조)`, 'ghost',
+        [cyl(axis, f.pipeOD / 2, opts.stub, c(face + opts.stub / 2 + 2))], along(axis, sign * 1.4),
+        '배치 참조용 배관. 범위 밖'));
+    }
+    return out;
+  }
+
+  // ───────────────────────── 파라미터 정의 ─────────────────────────
+  // p: { key, label, unit, type: 'num'|'enum'|'bool', options, default, group, when(v), std(v)→{value,src}, est(v)→value, desc }
+  //   std  : 표준표로 정해지는 값 → source 'standard'
+  //   est  : 비례 추정 → source 'estimate'
+  //   when : 이 품목 구성에서 의미 있는 파라미터인지
+
+  const BODY = ['globe', 'gate', 'ball', 'butterfly', 'psv'];
+  const OPERATOR = ['handwheel', 'lever', 'gear', 'pneumatic_diaphragm', 'pneumatic_rotary', 'electric', 'spring'];
+  const isRot = (v) => v.body === 'ball' || v.body === 'butterfly';
+  const flg = (v) => R.flangeOf(v.nps, v.cls);
+
+  const VALVE_PARAMS = [
+    { key: 'tag', label: 'Tag No.', type: 'text', default: '', group: '식별' },
+    { key: 'body', label: '바디 형식', type: 'enum', options: BODY, default: 'globe', group: '구성',
+      desc: 'globe / gate / ball / butterfly / psv(앵글형 안전밸브)' },
+    { key: 'operator', label: '조작기', type: 'enum', options: OPERATOR, default: 'pneumatic_diaphragm', group: '구성',
+      desc: 'handwheel, lever, gear(웜기어), pneumatic_diaphragm(CV), pneumatic_rotary(랙피니언/스카치요크), electric(MOV), spring(PSV)' },
+    { key: 'service', label: '용도', type: 'enum', options: ['control', 'on_off'], default: 'control', group: '구성',
+      desc: 'control 이면 글로브 면간거리를 ISA-75.08.01 로 잡는다' },
+    { key: 'nps', label: '호칭경 (inlet)', unit: 'in', type: 'num', default: 4, min: 0.5, max: 12, step: 0.25, group: '구성' },
+    { key: 'cls', label: '압력등급 (inlet)', type: 'enum', options: ['150', '300'], default: '150', group: '구성' },
+    { key: 'outlet_nps', label: '출구 호칭경', unit: 'in', type: 'num', group: '구성', when: (v) => v.body === 'psv',
+      est: (v) => R.NPS.map(Number).find((n) => n >= v.nps * 1.5) || 12 },
+    { key: 'outlet_cls', label: '출구 등급', type: 'enum', options: ['150', '300'], default: '150', group: '구성',
+      when: (v) => v.body === 'psv' },
+
+    { key: 'ftf', label: '면간거리 F-F', unit: 'mm', type: 'num', group: '바디', when: (v) => v.body !== 'psv',
+      std: (v) => {
+        const kind = v.body === 'globe' && v.service === 'control' ? 'control_globe' : v.body;
+        const val = R.ftfOf(kind, v.nps, v.cls);
+        return val ? { value: val, ref: R.SOURCES[kind] } : null;
+      },
+      desc: '플랜지 면과 면 사이 거리' },
+    { key: 'cti', label: '중심-입구면 (C-I)', unit: 'mm', type: 'num', group: '바디', when: (v) => v.body === 'psv',
+      est: (v) => Math.round(85 + 28 * v.nps), desc: '밸브 중심(출구 축)에서 입구 플랜지 면까지 수직거리' },
+    { key: 'cto', label: '중심-출구면 (C-O)', unit: 'mm', type: 'num', group: '바디', when: (v) => v.body === 'psv',
+      est: (v) => Math.round(95 + 32 * v.nps), desc: '밸브 중심(입구 축)에서 출구 플랜지 면까지 수평거리' },
+    { key: 'body_h', label: '바디 높이 (CL→보닛 플랜지)', unit: 'mm', type: 'num', group: '바디',
+      est: (v) => {
+        const f = flg(v);
+        return Math.round({ globe: 0.55 * f.od + 20, gate: 0.85 * f.od + 20, ball: 0.62 * f.od + 25,
+          butterfly: 0.55 * f.od + 60, psv: 1.0 * f.od }[v.body]);
+      } },
+    { key: 'body_w', label: '바디 최대폭', unit: 'mm', type: 'num', group: '바디',
+      est: (v) => {
+        const f = flg(v);
+        return Math.round({ globe: 0.95 * f.od, gate: 0.75 * f.od, ball: 1.0 * f.od, butterfly: 0.95 * f.od,
+          psv: 0.9 * f.od }[v.body]);
+      } },
+    { key: 'bonnet_h', label: '보닛/넥 높이', unit: 'mm', type: 'num', group: '바디',
+      est: (v) => Math.round({ globe: 70 + 25 * v.nps, gate: 90 + 45 * v.nps, ball: 40 + 12 * v.nps,
+        butterfly: 40 + 10 * v.nps, psv: 160 + 70 * v.nps }[v.body]),
+      desc: '보닛 플랜지 위 ~ 요크/조작기 장착면 (PSV 는 스프링 하우징 높이)' },
+    { key: 'pipe_stub', label: '참조 배관 길이', unit: 'mm', type: 'num', default: 150, group: '바디',
+      desc: '0 이면 표시 안 함' },
+
+    { key: 'yoke_h', label: '요크/브래킷 높이', unit: 'mm', type: 'num', group: '조작기',
+      when: (v) => ['pneumatic_diaphragm', 'pneumatic_rotary', 'electric', 'handwheel', 'gear'].includes(v.operator),
+      est: (v) => Math.round({ pneumatic_diaphragm: 150 + 45 * v.nps, pneumatic_rotary: 60 + 10 * v.nps,
+        electric: 90 + 25 * v.nps, handwheel: v.body === 'gate' ? 120 + 70 * v.nps : 60 + 20 * v.nps,
+        gear: 50 + 10 * v.nps }[v.operator] || 100) },
+    { key: 'act_d', label: '액추에이터 지름/폭', unit: 'mm', type: 'num', group: '조작기',
+      when: (v) => ['pneumatic_diaphragm', 'pneumatic_rotary', 'electric', 'gear'].includes(v.operator),
+      est: (v) => Math.round({ pneumatic_diaphragm: clamp(200 + 55 * v.nps, 220, 600),
+        pneumatic_rotary: clamp(80 + 18 * v.nps, 90, 320), electric: clamp(230 + 15 * v.nps, 240, 450),
+        gear: clamp(110 + 18 * v.nps, 120, 340) }[v.operator]) },
+    { key: 'act_h', label: '액추에이터 높이', unit: 'mm', type: 'num', group: '조작기',
+      when: (v) => ['pneumatic_diaphragm', 'electric', 'gear'].includes(v.operator),
+      est: (v) => Math.round({ pneumatic_diaphragm: clamp(110 + 30 * v.nps, 130, 380),
+        electric: clamp(300 + 18 * v.nps, 320, 560), gear: clamp(90 + 12 * v.nps, 100, 260) }[v.operator]) },
+    { key: 'act_l', label: '실린더 길이 (로터리)', unit: 'mm', type: 'num', group: '조작기',
+      when: (v) => v.operator === 'pneumatic_rotary', est: (v) => Math.round(clamp(240 + 60 * v.nps, 260, 900)) },
+    { key: 'hw_d', label: '핸드휠 지름', unit: 'mm', type: 'num', group: '조작기',
+      when: (v) => ['handwheel', 'electric', 'gear'].includes(v.operator) || (v.operator === 'pneumatic_diaphragm' && v.cv_handwheel),
+      est: (v) => Math.round(clamp(100 + 40 * v.nps, 100, 610)) },
+    { key: 'lever_l', label: '레버 길이', unit: 'mm', type: 'num', group: '조작기',
+      when: (v) => v.operator === 'lever', est: (v) => Math.round(clamp(120 + 60 * v.nps, 120, 700)) },
+    { key: 'stem_ext', label: '스템 노출 (Rising stem 열림)', unit: 'mm', type: 'num', group: '조작기',
+      when: (v) => v.operator === 'handwheel' && v.body === 'gate', est: (v) => Math.round(25.4 * v.nps * 1.05) },
+    { key: 'positioner', label: '포지셔너', type: 'bool', default: true, group: '조작기',
+      when: (v) => ['pneumatic_diaphragm', 'pneumatic_rotary'].includes(v.operator) },
+    { key: 'cv_handwheel', label: '상부 수동 핸드휠', type: 'bool', default: false, group: '조작기',
+      when: (v) => v.operator === 'pneumatic_diaphragm' },
+    { key: 'psv_lever', label: '리프팅 레버', type: 'bool', default: false, group: '조작기', when: (v) => v.body === 'psv' },
+    { key: 'overall_h', label: '전체 높이 (CL→최상단)', unit: 'mm', type: 'num', group: '검증',
+      desc: '도면에 전체 높이만 있으면 여기 넣는다. 추정 높이 치수들을 이 값에 맞춰 비례 조정한다' },
+  ];
+
+  const CAB_PARAMS = [
+    { key: 'tag', label: 'Cabinet No.', type: 'text', default: '', group: '식별' },
+    { key: 'bays', label: '연결 베이 수', type: 'num', default: 1, min: 1, max: 10, step: 1, group: '외형' },
+    { key: 'w', label: '폭 W (베이당)', unit: 'mm', type: 'num', default: 800, group: '외형' },
+    { key: 'h', label: '높이 H (플린스 제외)', unit: 'mm', type: 'num', default: 2000, group: '외형' },
+    { key: 'd', label: '깊이 D', unit: 'mm', type: 'num', default: 800, group: '외형' },
+    { key: 'plinth_h', label: '플린스(베이스) 높이', unit: 'mm', type: 'num', default: 100, group: '외형' },
+    { key: 'doors', label: '전면 도어 수', type: 'enum', options: ['1', '2'], default: '1', group: '도어',
+      est: (v) => (v.w >= 1000 ? '2' : '1') },
+    { key: 'rear_door', label: '후면 도어', type: 'bool', default: true, group: '도어' },
+    { key: 'door_open', label: '도어 열림각 (간섭검토)', unit: '°', type: 'num', default: 0, min: 0, max: 180, step: 5, group: '도어' },
+    { key: 'louvers', label: '도어 루버', type: 'bool', default: true, group: '부속' },
+    { key: 'fan', label: '루프 팬', type: 'bool', default: false, group: '부속' },
+    { key: 'lifting_eyes', label: '리프팅 아이볼트', type: 'bool', default: true, group: '부속' },
+    { key: 'mounting_plate', label: '마운팅 플레이트', type: 'bool', default: true, group: '내부' },
+    { key: 'modules', label: 'I/O·DIN 모듈 행', type: 'num', default: 4, min: 0, max: 12, step: 1, group: '내부' },
+    { key: 'gland_plate', label: '하부 케이블 글랜드 플레이트', type: 'bool', default: true, group: '부속' },
+    { key: 'clearance', label: '전면 유지보수 공간 표시', unit: 'mm', type: 'num', default: 1000, group: '검증',
+      desc: '0 이면 표시 안 함' },
+  ];
+
+  const HOOK_PARAMS = [
+    { key: 'tag', label: 'Tag No.', type: 'text', default: '', group: '식별' },
+    { key: 'inst', label: '계기', type: 'enum', options: ['PT', 'DPT', 'LT_DP', 'FT_DP'], default: 'PT', group: '구성',
+      desc: 'PT=압력, DPT=차압(오리피스), LT_DP=차압식 레벨(탱크 노즐 2개), FT_DP=유량(오리피스 탭)' },
+    { key: 'service', label: '유체', type: 'enum', options: ['gas', 'liquid', 'steam'], default: 'liquid', group: '구성',
+      desc: 'gas=계기 위(탭 상부), liquid/steam=계기 아래(탭 측면/하부). 튜빙 기울기 방향이 바뀐다' },
+    { key: 'proc_nps', label: '공정배관 호칭경', unit: 'in', type: 'num', default: 6, min: 0.5, max: 24, group: '공정' },
+    { key: 'pipe_el', label: '배관 중심 높이 (바닥 기준)', unit: 'mm', type: 'num', default: 2500, group: '공정' },
+    { key: 'tap', label: '탭 방향', type: 'enum', options: ['top', 'side', 'bottom', 'side45'], group: '공정',
+      est: (v) => (v.service === 'gas' ? 'top' : 'side') },
+    { key: 'tap_sep', label: 'HP-LP 탭 간격', unit: 'mm', type: 'num', group: '공정',
+      when: (v) => v.inst !== 'PT', est: (v) => (v.inst === 'LT_DP' ? 2000 : 110) ,
+      desc: 'DP: 오리피스 플랜지 탭 간격, LT_DP: 상·하부 노즐 고저차' },
+    { key: 'mount', label: '설치', type: 'enum', options: ['stand', 'close_coupled'], default: 'stand', group: '설치' },
+    { key: 'stand_h', label: '스탠드 높이', unit: 'mm', type: 'num', default: 1200, group: '설치', when: (v) => v.mount === 'stand' },
+    { key: 'stand_dx', label: '스탠드 위치 X (배관 축 방향)', unit: 'mm', type: 'num', default: 600, group: '설치', when: (v) => v.mount === 'stand' },
+    { key: 'stand_dz', label: '스탠드 위치 Z (배관에서 이격)', unit: 'mm', type: 'num', default: 700, group: '설치', when: (v) => v.mount === 'stand' },
+    { key: 'tube_od', label: '임펄스 튜브 OD', unit: 'mm', type: 'num', default: 12.7, group: '튜빙' },
+    { key: 'slope', label: '튜빙 기울기', unit: '1:x', type: 'num', default: 12, group: '튜빙',
+      desc: '수평 구간 최소 기울기. 1:12 가 일반적' },
+    { key: 'root_valve', label: '루트밸브', type: 'bool', default: true, group: '밸브' },
+    { key: 'manifold', label: '매니폴드', type: 'enum', options: ['none', '2V', '3V', '5V'], group: '밸브',
+      est: (v) => (v.inst === 'PT' ? '2V' : '5V') },
+    { key: 'drain', label: '드레인/벤트 밸브', type: 'bool', default: true, group: '밸브' },
+    { key: 'sunshade', label: '선쉐이드', type: 'bool', default: false, group: '부속' },
+  ];
+
+  // ───────────────────────── 값 결정 (출처 추적) ─────────────────────────
+  /**
+   * inputs: { key: { value, src, evidence? } | 원시값 }
+   * return: { values: {key: value}, meta: {key: {src, ref?, evidence?, active}} }
+   */
+  function resolve(typeId, inputs = {}) {
+    const T = TYPES[typeId];
+    const v = {}; const meta = {};
+    const get = (k) => {
+      const x = inputs[k];
+      if (x === undefined || x === null || x === '') return null;
+      if (typeof x === 'object' && 'value' in x) {
+        if (x.value === undefined || x.value === null || x.value === '') return null;
+        return x;
+      }
+      return { value: x, src: 'user' };
+    };
+    const norm = (p, val) => {
+      if (p.type === 'num') return Number(val);
+      if (p.type === 'bool') return val === true || val === 'true' || val === 1;
+      return String(val);
+    };
+    // 두 번 돈다: 1차에서 enum/bool 이 정해져야 when/est 가 맞게 계산된다.
+    for (let pass = 0; pass < 2; pass++) {
+      for (const p of T.params) {
+        const given = get(p.key);
+        if (given) {
+          v[p.key] = norm(p, given.value);
+          meta[p.key] = { src: given.src || 'user', evidence: given.evidence, confidence: given.confidence };
+          continue;
+        }
+        let s = null;
+        try { s = p.std ? p.std(v) : null; } catch { s = null; }
+        if (s && s.value != null) { v[p.key] = norm(p, s.value); meta[p.key] = { src: 'standard', ref: s.ref }; continue; }
+        let e;
+        try { e = p.est ? p.est(v) : undefined; } catch { e = undefined; }
+        if (e !== undefined && e !== null && !Number.isNaN(e)) {
+          v[p.key] = norm(p, e); meta[p.key] = { src: 'estimate' }; continue;
+        }
+        if (p.default !== undefined) { v[p.key] = norm(p, p.default); meta[p.key] = { src: 'default' }; continue; }
+        v[p.key] = undefined; meta[p.key] = { src: 'none' };
+      }
+    }
+    for (const p of T.params) meta[p.key].active = !p.when || !!p.when(v);
+    if (T.fit) T.fit(v, meta);
+    return { values: v, meta };
+  }
+
+  // ───────────────────────── 밸브 ─────────────────────────
+  /** 전체 높이만 도면에 있을 때 추정 높이 치수를 비례로 맞춘다 */
+  function fitValve(v, meta) {
+    if (!(v.overall_h > 0) || !meta.overall_h || !['drawing', 'user'].includes(meta.overall_h.src)) return;
+    const keys = ['body_h', 'bonnet_h', 'yoke_h', 'act_h', 'stem_ext'];
+    const total = estimateHeight(v);
+    if (!(total > 0)) return;
+    const fixed = keys.filter((k) => meta[k]?.active && v[k] > 0 && !['estimate'].includes(meta[k].src))
+      .reduce((s, k) => s + v[k], 0);
+    const scalable = keys.filter((k) => meta[k]?.active && v[k] > 0 && meta[k].src === 'estimate');
+    const scal = scalable.reduce((s, k) => s + v[k], 0);
+    const extra = total - fixed - scal;                 // 핸드휠 두께 등 키 밖의 높이
+    if (scal <= 0) return;
+    const k = (v.overall_h - fixed - extra) / scal;
+    if (!(k > 0.3 && k < 3)) return;                    // 터무니없는 비율이면 손대지 않는다
+    for (const key of scalable) {
+      v[key] = Math.round(v[key] * k);
+      meta[key] = { ...meta[key], src: 'estimate', ref: `전체높이 ${v.overall_h} 에 맞춰 ×${k.toFixed(2)}` };
+    }
+  }
+
+  function estimateHeight(v) {
+    const parts = buildValve(v);
+    let top = -Infinity;
+    for (const pt of parts) for (const pr of pt.prims) top = Math.max(top, primTop(pr));
+    return top;
+  }
+
+  function primTop(pr) {
+    const y = pr.at ? pr.at[1] : 0;
+    switch (pr.k) {
+      case 'cyl': return y + (pr.axis === 'y' ? pr.h / 2 : Math.max(pr.r, pr.r2 || 0));
+      case 'box': return y + pr.s[1] / 2;
+      case 'sph': return y + pr.r * (pr.scale ? pr.scale[1] : 1);
+      case 'tor': return y + (pr.axis === 'y' ? pr.r : pr.R + pr.r);
+      case 'tube': return Math.max(pr.a[1], pr.b[1]) + pr.r;
+      default: return y;
+    }
+  }
+
+  function handwheel(id, y, d, axis = 'y', at = null, label = '핸드휠') {
+    const c = at || [0, y, 0];
+    const rim = Math.max(6, d * 0.04);
+    const prims = [tor(d / 2 - rim, rim, axis, c), cyl(axis, d * 0.08, rim * 2.4, c)];
+    const [u, w] = perp[axis];
+    for (let i = 0; i < 3; i++) {
+      const a = i / 3 * Math.PI * 2;
+      const e = [0, 1, 2].map((j) => c[j] + (u[j] * Math.cos(a) + w[j] * Math.sin(a)) * (d / 2 - rim));
+      prims.push(tube(c, e, rim * 0.55));
+    }
+    return part(id, label, 'wheel', prims, [0, 1, 0], `Ø${Math.round(d)}`);
+  }
+
+  function buildValve(v) {
+    const out = [];
+    const f = R.flangeOf(v.nps, v.cls);
+    const stub = v.pipe_stub > 0 ? v.pipe_stub : 0;
+
+    if (v.body === 'psv') return buildPSV(v, f, stub);
+
+    const half = v.ftf / 2;
+    const bw = v.body_w;
+    const neckR = f.pipeOD / 2 * 1.3;
+
+    // 플랜지
+    out.push(...flangeEnd('flange_in', '입구 플랜지', 'x', -1, half, f, { stub }));
+    out.push(...flangeEnd('flange_out', '출구 플랜지', 'x', 1, half, f, { stub }));
+
+    // 바디
+    const bodyPrims = [];
+    const neckL = Math.max(5, half - f.t - f.t * 1.1);
+    if (v.body === 'globe') {
+      bodyPrims.push(sph(bw / 2, [0, 0, 0], [Math.min(1.15, (half - f.t) / (bw / 2)), 0.9, 0.9]));
+      bodyPrims.push(cyl('x', neckR, 2 * (half - f.t), [0, 0, 0]));
+      bodyPrims.push(cyl('y', bw * 0.33, v.body_h - bw * 0.2, [0, (v.body_h + bw * 0.2) / 2 - bw * 0.1, 0]));
+    } else if (v.body === 'gate') {
+      bodyPrims.push(cyl('x', neckR, 2 * (half - f.t), [0, 0, 0]));
+      bodyPrims.push(box([bw * 0.55, v.body_h + bw * 0.25, bw], [0, (v.body_h - bw * 0.25) / 2, 0]));
+      bodyPrims.push(cyl('z', bw / 2, bw * 0.55, [0, -bw * 0.05, 0]));
+    } else if (v.body === 'ball') {
+      bodyPrims.push(sph(bw / 2, [0, 0, 0], [Math.min(1, (half - f.t) / (bw / 2)), 1, 1]));
+      bodyPrims.push(cyl('x', neckR * 1.1, 2 * (half - f.t), [0, 0, 0]));
+      bodyPrims.push(cyl('y', f.pipeOD * 0.32, v.body_h - bw * 0.4, [0, bw * 0.4 + (v.body_h - bw * 0.4) / 2, 0]));
+    } else if (v.body === 'butterfly') {
+      bodyPrims.push(cyl('x', f.bcd / 2 - f.bolt, v.ftf, [0, 0, 0]));
+      bodyPrims.push(cyl('y', f.pipeOD * 0.22, v.body_h - f.bcd / 2, [0, f.bcd / 2 + (v.body_h - f.bcd / 2) / 2 - f.bolt, 0]));
+      bodyPrims.push(box([v.ftf * 1.4, 10, v.ftf * 1.4], [0, v.body_h - 5, 0]));
+    }
+    // 버터플라이는 플랜지가 배관측 → 바디 자체 플랜지를 빼고, wafer 앞뒤 메이팅 플랜지를 ghost 로
+    if (v.body === 'butterfly') {
+      out.splice(0, out.length);
+      out.push(part('mating_flanges', '메이팅 플랜지(배관측)', 'ghost', [
+        cyl('x', f.od / 2, f.t, [-half - f.t / 2, 0, 0]), cyl('x', f.od / 2, f.t, [half + f.t / 2, 0, 0]),
+        ...(stub ? [cyl('x', f.pipeOD / 2, stub, [-half - f.t - stub / 2, 0, 0]),
+          cyl('x', f.pipeOD / 2, stub, [half + f.t + stub / 2, 0, 0])] : []),
+      ], [0, 0, 0], '배관측 플랜지 — wafer 바디는 이 사이에 체결'));
+      out.push(part('disc', '디스크', 'accent', [cyl('x', f.bcd / 2 - f.bolt - 4, 6, [0, 0, 0], { rotY: Math.PI / 5 })],
+        [0, 0, 1], '회전 디스크 (일부 열림 표시)'));
+    }
+    out.push(part('body', '바디', 'body', bodyPrims, [0, 0, 0],
+      `${v.body} body, F-F ${v.ftf}`));
+
+    // 보닛 / 넥
+    let y = v.body_h;
+    if (v.body === 'globe' || v.body === 'gate') {
+      out.push(part('bonnet', '보닛', 'body', [
+        cyl('y', bw * 0.42, 14, [0, y + 7, 0]),
+        cone('y', bw * 0.3, bw * 0.2, v.bonnet_h - 14, [0, y + 14 + (v.bonnet_h - 14) / 2, 0]),
+      ], [0, 1, 0], `보닛 높이 ${v.bonnet_h}`));
+      y += v.bonnet_h;
+    } else {
+      out.push(part('bonnet', '스템 넥/마운팅 패드', 'body', [
+        cyl('y', f.pipeOD * 0.2, v.bonnet_h, [0, y + v.bonnet_h / 2, 0]),
+        box([f.pipeOD * 0.9, 12, f.pipeOD * 0.9], [0, y + v.bonnet_h - 6, 0]),
+      ], [0, 1, 0], 'ISO 5211 마운팅 패드'));
+      y += v.bonnet_h;
+    }
+    out.push(...buildOperator(v, y, f));
+    return out;
+  }
+
+  function buildOperator(v, y0, f) {
+    const out = [];
+    const op = v.operator;
+    let y = y0;
+    if (op === 'handwheel') {
+      if (v.body === 'gate') {
+        const yh = v.yoke_h;
+        out.push(part('yoke', '요크', 'body', [
+          box([18, yh, 26], [-v.hw_d * 0.18, y + yh / 2, 0]), box([18, yh, 26], [v.hw_d * 0.18, y + yh / 2, 0]),
+          box([v.hw_d * 0.45, 22, 40], [0, y + yh - 11, 0]),
+        ], [0, 1, 0]));
+        y += yh;
+        out.push(part('stem', '스템 (Rising)', 'bolt', [cyl('y', Math.max(8, f.pipeOD * 0.08), v.stem_ext + 40, [0, y + (v.stem_ext + 40) / 2, 0])],
+          [0, 1.4, 0], `열림 시 노출 ${v.stem_ext}`));
+        out.push(handwheel('handwheel', y + 25, v.hw_d));
+      } else {
+        out.push(part('stem', '스템', 'bolt', [cyl('y', 10, v.yoke_h, [0, y + v.yoke_h / 2, 0])], [0, 1, 0]));
+        out.push(handwheel('handwheel', y + v.yoke_h, v.hw_d));
+      }
+    } else if (op === 'lever') {
+      out.push(part('lever', '레버 핸들', 'wheel', [
+        cyl('y', 16, 24, [0, y + 12, 0]),
+        box([v.lever_l, 10, 34], [v.lever_l / 2 - 20, y + 30, 0]),
+        box([v.lever_l * 0.3, 22, 40], [v.lever_l * 0.82, y + 30, 0]),
+      ], [0, 1, 0], `레버 L ${v.lever_l} — 열림 시 배관 방향`));
+    } else if (op === 'gear') {
+      out.push(part('bracket', '브래킷', 'body', [cyl('y', f.pipeOD * 0.35, v.yoke_h, [0, y + v.yoke_h / 2, 0])], [0, 1, 0]));
+      y += v.yoke_h;
+      out.push(part('gearbox', '웜 기어박스', 'act', [
+        box([v.act_d, v.act_h, v.act_d * 0.8], [0, y + v.act_h / 2, 0]),
+        cyl('z', v.act_d * 0.18, v.act_d * 0.7, [0, y + v.act_h * 0.5, v.act_d * 0.75]),
+      ], [0, 1, 0.3]));
+      out.push(handwheel('handwheel', 0, v.hw_d, 'z', [0, y + v.act_h * 0.5, v.act_d * 0.4 + v.act_d * 0.7]));
+    } else if (op === 'pneumatic_diaphragm') {
+      const yh = v.yoke_h; const D = v.act_d; const H = v.act_h;
+      out.push(part('yoke', '요크', 'body', [
+        cyl('y', D * 0.16, 22, [0, y + 11, 0]),
+        box([20, yh, 30], [-D * 0.17, y + yh / 2, 0]), box([20, yh, 30], [D * 0.17, y + yh / 2, 0]),
+        cyl('y', D * 0.2, 24, [0, y + yh - 12, 0]),
+      ], [0, 1, 0], `요크 높이 ${yh}`));
+      out.push(part('stem', '스템/커넥터', 'bolt', [cyl('y', 9, yh, [0, y + yh / 2, 0]), box([40, 28, 30], [0, y + yh * 0.45, 0])], [0, 0.6, 0]));
+      if (v.positioner) {
+        out.push(part('positioner', '포지셔너', 'tx', [
+          box([110, 150, 85], [D * 0.17 + 75, y + yh * 0.55, 0]),
+          cyl('z', 34, 14, [D * 0.17 + 75, y + yh * 0.6, 48]),
+          box([90, 16, 20], [D * 0.17 + 18, y + yh * 0.55, 0]),
+        ], [1, 0, 0], '스마트 포지셔너 (요크 측면 장착)'));
+        out.push(part('airset', '에어셋/필터레귤레이터', 'tx', [
+          cyl('y', 28, 110, [D * 0.17 + 75, y + yh * 0.55 - 150, 0]),
+          cyl('y', 34, 30, [D * 0.17 + 75, y + yh * 0.55 - 80, 0]),
+        ], [1, -0.3, 0]));
+      }
+      y += yh;
+      out.push(part('actuator', '다이어프램 케이스', 'act', [
+        cone('y', D * 0.22, D / 2, H * 0.42, [0, y + H * 0.21, 0]),
+        cyl('y', D / 2 + 6, 10, [0, y + H * 0.45, 0]),
+        cone('y', D / 2, D * 0.25, H * 0.5, [0, y + H * 0.45 + 5 + H * 0.25, 0]),
+      ], [0, 1, 0], `Ø${D} × H${H}`));
+      y += H * 0.95;
+      out.push(part('act_top', '상부 커버/벤트', 'act', [cyl('y', D * 0.1, 30, [0, y + 15, 0])], [0, 1.2, 0]));
+      y += 30;
+      if (v.cv_handwheel) {
+        out.push(part('hw_stem', '핸드휠 스템', 'bolt', [cyl('y', 10, 90, [0, y + 45, 0])], [0, 1.3, 0]));
+        out.push(handwheel('handwheel', y + 90, v.hw_d));
+      }
+    } else if (op === 'pneumatic_rotary') {
+      const yh = v.yoke_h; const D = v.act_d; const L = v.act_l;
+      out.push(part('bracket', '브래킷/커플링', 'body', [
+        box([D * 0.9, yh, D * 0.9], [0, y + yh / 2, 0]),
+      ], [0, 1, 0]));
+      y += yh;
+      out.push(part('actuator', '공압 액추에이터 (랙피니언)', 'act', [
+        box([L, D * 1.05, D * 1.1], [0, y + D * 0.53, 0]),
+        cyl('x', D * 0.48, 16, [-L / 2 - 8, y + D * 0.53, 0]), cyl('x', D * 0.48, 16, [L / 2 + 8, y + D * 0.53, 0]),
+      ], [0, 1, 0], `L${L} × Ø${D}`));
+      out.push(part('indicator', '개도 표시기', 'accent', [cyl('y', D * 0.3, 30, [0, y + D * 1.05 + 15, 0])], [0, 1.3, 0]));
+      if (v.positioner) {
+        out.push(part('positioner', '포지셔너/리밋스위치 박스', 'tx', [
+          box([120, 110, 100], [0, y + D * 1.05 + 30 + 55, 0]),
+          box([30, 30, 30], [75, y + D * 1.05 + 30 + 55, 0]),
+        ], [0, 1.6, 0]));
+      }
+      out.push(part('solenoid', '솔레노이드밸브', 'tx', [box([60, 70, 50], [0, y + D * 0.5, D * 0.55 + 25])], [0, 0, 1]));
+    } else if (op === 'electric') {
+      const yh = v.yoke_h; const W = v.act_d; const H = v.act_h;
+      const rising = v.body === 'gate' || v.body === 'globe';
+      out.push(part('bracket', rising ? '요크/스러스트 베이스' : '브래킷/커플링', 'body', [
+        cyl('y', W * 0.25, yh, [0, y + yh / 2, 0]),
+        cyl('y', W * 0.34, 16, [0, y + yh - 8, 0]),
+      ], [0, 1, 0]));
+      y += yh;
+      out.push(part('actuator', '전동 액추에이터 본체', 'act', [
+        cyl('y', W * 0.38, H * 0.55, [0, y + H * 0.275, 0]),
+        box([W * 0.75, H * 0.38, W * 0.7], [0, y + H * 0.55 + H * 0.19, 0]),
+      ], [0, 1, 0], `W${W} × H${H}`));
+      out.push(part('motor', '모터', 'act', [
+        cyl('x', W * 0.24, W * 0.55, [-(W * 0.38 + W * 0.27), y + H * 0.3, 0]),
+        cyl('x', W * 0.26, 14, [-(W * 0.38 + W * 0.55), y + H * 0.3, 0]),
+      ], [-1, 0, 0], '모터 (측면)'));
+      out.push(part('control_unit', '컨트롤 유닛/로컬 조작부', 'tx', [
+        cyl('z', W * 0.3, W * 0.22, [0, y + H * 0.74, W * 0.35 + W * 0.11]),
+        cyl('z', W * 0.16, 8, [0, y + H * 0.74, W * 0.35 + W * 0.22 + 4]),
+        cyl('z', 16, 30, [-W * 0.18, y + H * 0.6, W * 0.35 + W * 0.22 + 10]),
+        cyl('z', 16, 30, [W * 0.18, y + H * 0.6, W * 0.35 + W * 0.22 + 10]),
+      ], [0, 0, 1], '디스플레이 · Local/Remote 셀렉터'));
+      out.push(handwheel('handwheel', 0, v.hw_d, 'x', [W * 0.38 + 60, y + H * 0.3, 0], '비상 핸드휠'));
+      out.push(part('hw_shaft', '핸드휠 축', 'bolt', [cyl('x', 12, 60, [W * 0.38 + 30, y + H * 0.3, 0])], [1, 0, 0]));
+      if (rising) {
+        out.push(part('stem_cover', '스템 보호관', 'bolt', [cyl('y', W * 0.1, 25.4 * v.nps * 1.05, [0, y + H * 0.93 + 25.4 * v.nps * 0.52, 0])],
+          [0, 1.4, 0], 'Rising stem 보호관'));
+      }
+      out.push(part('conduit', '케이블 엔트리', 'bolt', [
+        cyl('x', 12, 40, [W * 0.375 + 20, y + H * 0.74, -W * 0.15]),
+        cyl('x', 12, 40, [W * 0.375 + 20, y + H * 0.74, W * 0.05]),
+      ], [1, 0, 0]));
+    }
+    return out;
+  }
+
+  function buildPSV(v, f, stub) {
+    const out = [];
+    const fo = R.flangeOf(v.outlet_nps, v.outlet_cls);
+    out.push(...flangeEnd('flange_in', '입구 플랜지 (아래)', 'y', -1, v.cti, f, { stub }));
+    out.push(...flangeEnd('flange_out', '출구 플랜지 (측면)', 'x', 1, v.cto, fo, { stub }));
+    const bw = v.body_w;
+    out.push(part('body', '바디 (앵글형)', 'body', [
+      sph(bw * 0.55, [0, 0, 0], [1, 1, 0.95]),
+      cyl('y', f.pipeOD / 2 * 1.3, v.cti - f.t, [0, -(v.cti - f.t) / 2, 0]),
+      cyl('x', fo.pipeOD / 2 * 1.25, v.cto - fo.t, [(v.cto - fo.t) / 2, 0, 0]),
+      cyl('y', bw * 0.38, v.body_h - bw * 0.3, [0, bw * 0.3 + (v.body_h - bw * 0.3) / 2, 0]),
+    ], [0, 0, 0], `C-I ${v.cti} / C-O ${v.cto}`));
+    out.push(part('nozzle', '노즐/디스크(내부)', 'accent', [cyl('y', f.pipeOD * 0.32, 40, [0, -10, 0])], [0, 0, 1.2]));
+    let y = v.body_h;
+    const bh = v.bonnet_h;
+    out.push(part('bonnet', '보닛 (스프링 하우징)', 'act', [
+      cyl('y', bw * 0.5, 16, [0, y + 8, 0]),
+      cone('y', bw * 0.42, bw * 0.26, bh, [0, y + 16 + bh / 2, 0]),
+    ], [0, 1, 0], `스프링 하우징 높이 ${bh}`));
+    y += 16 + bh;
+    out.push(part('cap', v.psv_lever ? '레버 캡' : '스크루 캡', 'act', [
+      cyl('y', bw * 0.2, 60, [0, y + 30, 0]),
+      ...(v.psv_lever ? [box([bw * 1.1, 14, 22], [bw * 0.4, y + 45, 0]), sph(14, [bw * 0.95, y + 45, 0])] : []),
+    ], [0, 1.4, 0]));
+    return out;
+  }
+
+  // ───────────────────────── 캐비닛 ─────────────────────────
+  function buildCabinet(v) {
+    const out = [];
+    const { w, h, d } = v; const ph = v.plinth_h; const n = Math.max(1, Math.round(v.bays));
+    const totalW = w * n;
+    const x0 = -totalW / 2;
+    const post = 40; const skin = 2;
+    out.push(part('plinth', '플린스(베이스)', 'plinth', [box([totalW, ph, d], [0, ph / 2, -d / 2])], [0, -1, 0],
+      `H${ph}`));
+    const frame = []; const sides = []; const roof = []; const rear = []; const doors = []; const handles = [];
+    const louvers = []; const plates = []; const modules = []; const eyes = []; const gland = []; const fans = [];
+    const yb = ph;
+    for (let b = 0; b < n; b++) {
+      const cx = x0 + w * b + w / 2;
+      for (const sx of [-1, 1]) for (const sz of [0, 1]) {
+        frame.push(box([post, h, post], [cx + sx * (w / 2 - post / 2), yb + h / 2, -post / 2 - sz * (d - post)]));
+      }
+      frame.push(box([w, post, d], [cx, yb + post / 2, -d / 2]));
+      frame.push(box([w, post, d], [cx, yb + h - post / 2, -d / 2]));
+      roof.push(box([w + 4, 3, d + 4], [cx, yb + h + 1.5, -d / 2]));
+      if (v.rear_door) rear.push(box([w - 4, h - 4, 20], [cx, yb + h / 2, -d - 10]));
+      else rear.push(box([w - 4, h - 4, skin], [cx, yb + h / 2, -d - skin / 2]));
+      if (v.mounting_plate) plates.push(box([w - 2 * post - 20, h - 2 * post - 60, 3], [cx, yb + h / 2, -d + 60]));
+      const mrows = Math.max(0, Math.round(v.modules));
+      for (let m = 0; m < mrows; m++) {
+        const my = yb + post + 120 + m * ((h - 2 * post - 240) / Math.max(1, mrows - 1 || 1));
+        modules.push(box([w - 2 * post - 60, 35, 8], [cx, my, -d + 66]));           // DIN 레일/덕트
+        const nmod = Math.floor((w - 2 * post - 80) / 45);
+        for (let k = 0; k < nmod; k += 1) {
+          modules.push(box([40, 110, 110], [cx - (w - 2 * post - 80) / 2 + 22 + k * 45, my + 75, -d + 120]));
+        }
+      }
+      if (v.gland_plate) gland.push(box([w - 2 * post - 40, 4, d - 2 * post - 80], [cx, yb + 2, -d / 2]));
+      if (v.fan) fans.push(box([w * 0.35, 60, w * 0.35], [cx, yb + h + 33, -d / 2]), cyl('y', w * 0.15, 8, [cx, yb + h + 67, -d / 2]));
+      if (v.lifting_eyes) {
+        for (const sx of [-1, 1]) for (const sz of [0, 1]) {
+          eyes.push(tor(22, 6, 'z', [cx + sx * (w / 2 - 60), yb + h + 30, -60 - sz * (d - 120)]),
+            cyl('y', 8, 20, [cx + sx * (w / 2 - 60), yb + h + 8, -60 - sz * (d - 120)]));
+        }
+      }
+      // 전면 도어 (+Z 방향 열림, 경첩 축 Y)
+      const nd = Number(v.doors);
+      const dw = (w - 4) / nd; const dt = 22; const ang = (v.door_open || 0) * Math.PI / 180;
+      for (let k = 0; k < nd; k++) {
+        const hingeLeft = nd === 1 ? true : k === 0;
+        const hx = hingeLeft ? cx - (w - 4) / 2 + k * dw : cx - (w - 4) / 2 + (k + 1) * dw;
+        const s = hingeLeft ? 1 : -1;                    // 경첩에서 도어 끝 방향
+        // 경첩 축(Y) 기준 회전. 앞(+Z)으로 열린다. th 는 three.js rotation.y 와 같은 부호.
+        const th = s > 0 ? -ang : ang;
+        const rot = (lx, lz) => [hx + lx * Math.cos(th) + lz * Math.sin(th), -lx * Math.sin(th) + lz * Math.cos(th)];
+        const c0 = rot(s * dw / 2, dt / 2);
+        doors.push(box([dw - 4, h - 4, dt], [c0[0], yb + h / 2, c0[1]], { ry: th }));
+        const hpos = rot(s * (dw - 50), dt + 15);
+        handles.push(box([20, 160, 30], [hpos[0], yb + h * 0.55, hpos[1]], { ry: th }));
+        if (v.louvers) {
+          for (const ly of [0.12, 0.85]) {
+            const lp = rot(s * dw / 2, dt + 3);
+            louvers.push(box([Math.min(320, dw * 0.5), 260, 8], [lp[0], yb + h * ly, lp[1]], { ry: th }));
+          }
+        }
+      }
+    }
+    // 측판은 양 끝에만
+    sides.push(box([skin, h, d], [x0 + skin / 2, yb + h / 2, -d / 2]), box([skin, h, d], [x0 + totalW - skin / 2, yb + h / 2, -d / 2]));
+    out.push(part('frame', '프레임', 'cabframe', frame, [0, 0, 0], `${post}×${post} 포스트`));
+    out.push(part('side_panels', '측판', 'cab', sides, [0, 0, 0]));
+    out.push(part('roof', '루프', 'cab', roof, [0, 1, 0]));
+    out.push(part('rear', v.rear_door ? '후면 도어' : '후면판', 'cab', rear, [0, 0, -1]));
+    out.push(part('doors', '전면 도어', 'door', doors, [0, 0, 1], `${v.doors}도어 × ${n}베이, 열림 ${v.door_open}°`));
+    out.push(part('handles', '도어 핸들/잠금', 'bolt', handles, [0, 0, 1.2]));
+    if (louvers.length) out.push(part('louvers', '루버(필터팬)', 'accent', louvers, [0, 0, 1.3]));
+    if (plates.length) out.push(part('mounting_plate', '마운팅 플레이트', 'plate', plates, [0, 0, -0.4]));
+    if (modules.length) out.push(part('modules', 'DIN 레일·I/O 모듈', 'tx', modules, [0, 0, -0.1]));
+    if (gland.length) out.push(part('gland_plate', '글랜드 플레이트', 'bolt', gland, [0, -0.6, 0]));
+    if (fans.length) out.push(part('fan', '루프 팬', 'accent', fans, [0, 1.3, 0]));
+    if (eyes.length) out.push(part('lifting_eyes', '리프팅 아이볼트', 'bolt', eyes, [0, 1.5, 0]));
+    if (v.clearance > 0) {
+      out.push(part('clearance', `전면 유지보수 공간 ${v.clearance}`, 'clear',
+        [box([totalW, h + ph, v.clearance], [0, (h + ph) / 2, v.clearance / 2 + 1])], [0, 0, 0],
+        '배치 검토용. 다른 설비가 이 영역에 들어오면 간섭'));
+    }
+    return out;
+  }
+
+  // ───────────────────────── 계기 훅업 ─────────────────────────
+  function polylineTube(points, r) {
+    const prims = [];
+    for (let i = 0; i < points.length - 1; i++) prims.push(tube(points[i], points[i + 1], r));
+    for (let i = 1; i < points.length - 1; i++) prims.push(sph(r * 1.25, points[i]));
+    return prims;
+  }
+
+  function smallValve(id, label, at, axis, size = 40) {
+    const hwAxis = axis === 'y' ? 'z' : 'y';
+    const top = along(hwAxis, size * 0.9, at);
+    return [part(id, label, 'body', [
+      box(axis === 'x' ? [size * 1.5, size * 0.8, size * 0.8] : axis === 'y' ? [size * 0.8, size * 1.5, size * 0.8] : [size * 0.8, size * 0.8, size * 1.5], at),
+      cyl(hwAxis, 6, size * 0.9, along(hwAxis, size * 0.45, at)),
+    ], [0, 0, 0]), handwheel(`${id}_hw`, 0, size * 1.2, hwAxis, top, `${label} 핸들`)];
+  }
+
+  function buildHookup(v) {
+    const out = [];
+    const procOD = R.pipeOD[R.nearestNps(Math.min(12, v.proc_nps))] * (v.proc_nps > 12 ? v.proc_nps / 12 : 1);
+    const pr = procOD / 2; const yP = v.pipe_el; const to = v.tube_od / 2;
+    const dp = v.inst !== 'PT';
+    const span = 1800 + (dp ? v.tap_sep : 0);
+    // 공정 배관 (LT_DP 는 탱크 벽)
+    if (v.inst === 'LT_DP') {
+      out.push(part('vessel', '용기/탱크 쉘(참조)', 'ghost', [box([2400, v.tap_sep + 1200, 20], [0, yP - v.tap_sep / 2, -pr - 10 - 200])],
+        [0, 0, -1], '노즐 고저차 = tap_sep'));
+    } else {
+      out.push(part('process_pipe', '공정 배관', 'ghost', [cyl('x', pr, span, [0, yP, 0])], [0, 0, 0],
+        `NPS ${v.proc_nps}`));
+      if (dp) {
+        const f = R.flangeOf(Math.min(12, v.proc_nps), 300);
+        out.push(part('orifice', '오리피스 플랜지 세트', 'flange', [
+          cyl('x', f.od / 2, f.t * 1.4, [-f.t * 0.75, yP, 0]), cyl('x', f.od / 2, f.t * 1.4, [f.t * 0.75, yP, 0]),
+          cyl('x', f.od / 2 - 8, 4, [0, yP, 0]),
+        ], [0, 0, 0], '오리피스 플레이트 + 플랜지 탭'));
+      }
+    }
+
+    // 탭 위치들
+    const dir = { top: [0, 1, 0], side: [0, 0, 1], bottom: [0, -1, 0], side45: [0, Math.SQRT1_2, Math.SQRT1_2] }[v.tap] || [0, 0, 1];
+    const taps = [];
+    if (v.inst === 'PT') taps.push({ name: '', at: [0, yP, 0] });
+    else if (v.inst === 'LT_DP') {
+      taps.push({ name: 'HP', at: [0, yP - v.tap_sep, -pr - 200] }, { name: 'LP', at: [0, yP, -pr - 200] });
+    } else {
+      const s = Math.max(40, v.tap_sep / 2);
+      taps.push({ name: 'HP', at: [-s, yP, 0] }, { name: 'LP', at: [s, yP, 0] });
+    }
+    const tapDir = v.inst === 'LT_DP' ? [0, 0, 1] : dir;
+    const rTap = v.inst === 'LT_DP' ? 0 : pr;
+
+    // 계기 위치
+    const below = v.service !== 'gas';
+    let txBase;
+    if (v.mount === 'stand') {
+      out.push(part('stand', '2" 계기 스탠드', 'cabframe', [
+        box([220, 12, 220], [v.stand_dx, 6, v.stand_dz]),
+        cyl('y', 30.15, v.stand_h, [v.stand_dx, v.stand_h / 2, v.stand_dz]),
+        cyl('y', 34, 6, [v.stand_dx, v.stand_h + 3, v.stand_dz]),
+        ...[[-80, -80], [80, -80], [-80, 80], [80, 80]].map(([a, b]) => cyl('y', 8, 25, [v.stand_dx + a, 18, v.stand_dz + b])),
+      ], [0, -0.3, 0], `H${v.stand_h}, 베이스 220×220 앵커 4개`));
+      txBase = [v.stand_dx, v.stand_h - 220, v.stand_dz + 60];
+      out.push(part('ubolt', 'U볼트/브래킷', 'bolt', [
+        box([70, 120, 8], [v.stand_dx, v.stand_h - 200, v.stand_dz + 36]),
+        tor(36, 4, 'y', [v.stand_dx, v.stand_h - 160, v.stand_dz]), tor(36, 4, 'y', [v.stand_dx, v.stand_h - 240, v.stand_dz]),
+      ], [0, 0, 0.5]));
+    } else {
+      const t0 = taps[0].at;
+      txBase = [t0[0], t0[1] + (below ? -pr - 350 : pr + 250), t0[2] + 150];
+    }
+
+    // 매니폴드 + 트랜스미터
+    const mx = txBase[0]; const my = txBase[1]; const mz = txBase[2];
+    const nV = { none: 0, '2V': 2, '3V': 3, '5V': 5 }[v.manifold] || 0;
+    if (nV) {
+      const prims = [box([dp ? 120 : 60, 70, 60], [mx, my, mz])];
+      for (let i = 0; i < nV; i++) {
+        const sx = nV === 1 ? 0 : (i / (nV - 1) - 0.5) * (dp ? 100 : 40);
+        prims.push(cyl('z', 6, 50, [mx + sx, my - 10, mz + 55]), cyl('x', 16, 6, [mx + sx, my - 10, mz + 82]));
+      }
+      out.push(part('manifold', `${v.manifold} 매니폴드`, 'body', prims, [0, -0.5, 0.6]));
+    }
+    const ty = my + 35 + 30;
+    out.push(part('transmitter', v.inst === 'PT' ? '압력 트랜스미터' : '차압 트랜스미터', 'tx', [
+      box([dp ? 110 : 60, 50, 90], [mx, ty, mz]),                          // 코플래너 플랜지
+      cyl('y', 42, 90, [mx, ty + 25 + 45, mz]),                             // 센서 모듈
+      cyl('z', 52, 120, [mx, ty + 25 + 90 + 50, mz]),                       // 전자부 하우징
+      cyl('z', 50, 18, [mx, ty + 25 + 90 + 50, mz + 69]),                   // 디스플레이 커버
+      cyl('z', 50, 18, [mx, ty + 25 + 90 + 50, mz - 69]),
+      cyl('x', 11, 30, [mx + 58, ty + 25 + 90 + 50, mz - 20]),              // 전선관 엔트리
+    ], [0, 0.5, 0.6], v.tag || ''));
+    if (v.sunshade) {
+      out.push(part('sunshade', '선쉐이드', 'cab', [box([240, 4, 260], [mx, ty + 300, mz]), box([240, 340, 4], [mx, ty + 130, mz - 130])], [0, 1, 0]));
+    }
+
+    // 튜빙
+    const slope = 1 / Math.max(1, v.slope);
+    taps.forEach((tp, i) => {
+      const lbl = tp.name ? ` (${tp.name})` : '';
+      const a = tp.at.map((c, j) => c + tapDir[j] * rTap);                 // 배관 표면
+      const rv = a.map((c, j) => c + tapDir[j] * 70);                       // 루트밸브 위치
+      const ax = Math.abs(tapDir[1]) > 0.9 ? 'y' : 'z';
+      if (v.root_valve) out.push(...smallValve(`root_valve${i}`, `루트밸브${lbl}`, rv, ax, 36));
+      const c = rv.map((x, j) => x + tapDir[j] * 70);                       // 루트밸브 출구 니플 끝
+      const xOff = dp ? (i === 0 ? -27 : 27) : 0;
+      // 매니폴드 후면(공정 쪽)으로 들어간다. 계기 위로 지나가지 않게.
+      const inlet = [mx + xOff, my - 15, mz - 30];
+      const d1 = Math.abs(inlet[0] - c[0]) * slope;                         // X 방향 수평 구간 낙차
+      const d2 = Math.abs(inlet[2] - c[2]) * slope;                         // Z 방향 수평 구간 낙차
+      // liquid/steam: 계기 쪽으로 계속 내려간다. gas: 계기 쪽으로 계속 올라간다(응축수는 탭으로).
+      const sgn = below ? 1 : -1;
+      const yH = inlet[1] + sgn * (d1 + d2);
+      const pts = [a, c];
+      if (Math.abs(yH - c[1]) > 1) pts.push([c[0], yH, c[2]]);
+      pts.push([inlet[0], yH - sgn * d1, c[2]]);
+      pts.push(inlet);
+      out.push(part(`tubing${i}`, `임펄스 튜빙${lbl}`, 'tube', polylineTube(pts, to), [0, 0, 0],
+        `OD ${v.tube_od}, 기울기 1:${v.slope} ${below ? '계기 쪽 하향' : '탭 쪽 하향(가스)'}`));
+    });
+    if (v.drain) {
+      out.push(part('drain', below ? '드레인 밸브' : '벤트 밸브', 'body', [
+        cyl('y', 8, 60, [mx, my - 35 - 30, mz - 40]), box([30, 30, 30], [mx, my - 35 - 70, mz - 40]),
+      ], [0, -1, 0]));
+    }
+    // 바닥
+    out.push(part('floor', '바닥/그레이팅(참조)', 'ghost', [box([span + 600, 10, 2200], [0, -5, 300])], [0, -1, 0]));
+    return out;
+  }
+
+  // ───────────────────────── 설계 점검 ─────────────────────────
+  // 3D 를 만들며 같이 볼 수 있는 기본 점검. 결론이 아니라 확인할 거리.
+  function checkHookup(v) {
+    const w = [];
+    const txY = v.mount === 'stand' ? v.stand_h - 100 : (v.service === 'gas' ? v.pipe_el + 200 : v.pipe_el - 300);
+    const tapY = v.inst === 'LT_DP' ? v.pipe_el - v.tap_sep : v.pipe_el;
+    if (v.service === 'gas' && txY < tapY) w.push('가스 서비스인데 계기가 탭보다 낮습니다 — 응축수 포켓 위험. 계기를 탭 위로 올리거나 close_coupled 를 검토하세요.');
+    if (v.service !== 'gas' && txY > tapY) w.push('액체/스팀 서비스인데 계기가 탭보다 높습니다 — 기체 포켓 위험.');
+    if (v.service !== 'gas' && v.tap === 'top') w.push('액체/스팀 배관 상부 탭 — 기체가 임펄스 라인으로 들어갑니다.');
+    if (v.service === 'gas' && v.tap === 'bottom') w.push('가스 배관 하부 탭 — 응축수·이물이 임펄스 라인으로 들어갑니다.');
+    if (v.slope < 12) w.push(`튜빙 기울기 1:${v.slope} — 일반 기준(1:12)보다 완만합니다.`);
+    return w;
+  }
+  function checkCabinet(v) {
+    const w = [];
+    const dw = v.w / Number(v.doors);
+    if (v.clearance > 0 && v.clearance < dw) w.push(`전면 유지보수 공간 ${v.clearance} 이 도어 폭 ${Math.round(dw)} 보다 작습니다 — 도어 90° 개방 불가.`);
+    if (v.h + v.plinth_h > 2400) w.push('전체 높이 2400 초과 — 운송·반입 경로 확인.');
+    return w;
+  }
+  function checkValve(v) {
+    const w = [];
+    if (v.body === 'psv' && v.operator !== 'spring') w.push('PSV 조작기는 spring 이어야 합니다.');
+    if (v.body !== 'psv' && v.operator === 'spring') w.push('spring 조작기는 PSV 에만 씁니다.');
+    if (v.operator === 'pneumatic_rotary' && !['ball', 'butterfly'].includes(v.body)) w.push('로터리 액추에이터는 1/4회전 밸브(ball/butterfly)용입니다.');
+    if (v.operator === 'pneumatic_diaphragm' && !['globe', 'gate'].includes(v.body)) w.push('다이어프램 액추에이터는 직선운동 밸브(globe)용입니다.');
+    if (v.operator === 'lever' && v.nps > 6) w.push('6" 초과 레버 조작은 토크상 비현실적 — gear 검토.');
+    return w;
+  }
+
+  // ───────────────────────── 품목 레지스트리 ─────────────────────────
+  const TYPES = {
+    valve: { label: '밸브 (CV · MOV · Manual · PSV)', params: VALVE_PARAMS, build: buildValve, fit: fitValve, checks: checkValve },
+    cabinet: { label: 'System Cabinet', params: CAB_PARAMS, build: buildCabinet, checks: checkCabinet },
+    hookup: { label: 'Instrument Hook-up', params: HOOK_PARAMS, build: buildHookup, checks: checkHookup },
+  };
+
+  const PRESETS = [
+    { id: 'cv_globe', label: 'Control Valve — Globe (공압 다이어프램)', type: 'valve', set: { body: 'globe', operator: 'pneumatic_diaphragm', service: 'control' } },
+    { id: 'cv_ball', label: 'Control Valve — Ball (공압 로터리)', type: 'valve', set: { body: 'ball', operator: 'pneumatic_rotary', service: 'control', nps: 4 } },
+    { id: 'cv_bfv', label: 'Control Valve — Butterfly (공압 로터리)', type: 'valve', set: { body: 'butterfly', operator: 'pneumatic_rotary', service: 'control', nps: 8 } },
+    { id: 'mov_gate', label: 'MOV — Gate', type: 'valve', set: { body: 'gate', operator: 'electric', service: 'on_off', nps: 6 } },
+    { id: 'mov_globe', label: 'MOV — Globe', type: 'valve', set: { body: 'globe', operator: 'electric', service: 'on_off', nps: 4 } },
+    { id: 'mov_ball', label: 'MOV — Ball', type: 'valve', set: { body: 'ball', operator: 'electric', service: 'on_off', nps: 6 } },
+    { id: 'mov_bfv', label: 'MOV — Butterfly', type: 'valve', set: { body: 'butterfly', operator: 'electric', service: 'on_off', nps: 10 } },
+    { id: 'man_gate', label: 'Manual — Gate (핸드휠, Rising stem)', type: 'valve', set: { body: 'gate', operator: 'handwheel', service: 'on_off', nps: 4 } },
+    { id: 'man_globe', label: 'Manual — Globe (핸드휠)', type: 'valve', set: { body: 'globe', operator: 'handwheel', service: 'on_off', nps: 3 } },
+    { id: 'man_ball', label: 'Manual — Ball (레버)', type: 'valve', set: { body: 'ball', operator: 'lever', service: 'on_off', nps: 2 } },
+    { id: 'man_bfv', label: 'Manual — Butterfly (기어)', type: 'valve', set: { body: 'butterfly', operator: 'gear', service: 'on_off', nps: 8 } },
+    { id: 'psv', label: 'PSV — Spring Loaded (앵글)', type: 'valve', set: { body: 'psv', operator: 'spring', service: 'on_off', nps: 1.5, cls: '300' } },
+    { id: 'cabinet', label: 'System Cabinet', type: 'cabinet', set: {} },
+    { id: 'hook_pt', label: 'Hook-up — PT (스탠드)', type: 'hookup', set: { inst: 'PT' } },
+    { id: 'hook_dpt', label: 'Hook-up — DP 유량 (오리피스)', type: 'hookup', set: { inst: 'FT_DP', service: 'gas', mount: 'close_coupled', tap: 'top' } },
+    { id: 'hook_lt', label: 'Hook-up — DP 레벨 (탱크)', type: 'hookup', set: { inst: 'LT_DP', pipe_el: 3000, tap_sep: 2000, stand_h: 900, stand_dx: 0, stand_dz: 900 } },
+  ];
+
+  /** 스펙(JSON) → 부품 목록. spec = { type, inputs } */
+  function build(spec) {
+    const { values, meta } = resolve(spec.type, spec.inputs || {});
+    const T = TYPES[spec.type];
+    const parts = T.build(values);
+    const warnings = T.checks ? T.checks(values) : [];
+    return { values, meta, parts, warnings, bbox: bboxOf(parts) };
+  }
+
+  function primBox(pr) {
+    if (pr.k === 'tube') {
+      return [[0, 1, 2].map((i) => Math.min(pr.a[i], pr.b[i]) - pr.r), [0, 1, 2].map((i) => Math.max(pr.a[i], pr.b[i]) + pr.r)];
+    }
+    let e;
+    if (pr.k === 'box') {
+      const ry = pr.ry || 0;
+      const ex = Math.abs(Math.cos(ry)) * pr.s[0] / 2 + Math.abs(Math.sin(ry)) * pr.s[2] / 2;
+      const ez = Math.abs(Math.sin(ry)) * pr.s[0] / 2 + Math.abs(Math.cos(ry)) * pr.s[2] / 2;
+      e = [ex, pr.s[1] / 2, ez];
+    } else if (pr.k === 'cyl') {
+      const r = Math.max(pr.r, pr.r2 ?? pr.r);
+      e = [r, r, r]; e['xyz'.indexOf(pr.axis)] = pr.h / 2;
+    } else if (pr.k === 'sph') {
+      const s = pr.scale || [1, 1, 1]; e = s.map((k) => pr.r * k);
+    } else if (pr.k === 'tor') {
+      const o = pr.R + pr.r; e = [o, o, o]; e['xyz'.indexOf(pr.axis)] = pr.r;
+    }
+    return [pr.at.map((c, i) => c - e[i]), pr.at.map((c, i) => c + e[i])];
+  }
+
+  function bboxOf(parts, filter = (p) => p.mat !== 'ghost' && p.mat !== 'clear') {
+    const lo = [Infinity, Infinity, Infinity]; const hi = [-Infinity, -Infinity, -Infinity];
+    for (const p of parts) {
+      if (!filter(p)) continue;
+      for (const pr of p.prims) {
+        const [a, b] = primBox(pr);
+        for (let i = 0; i < 3; i++) { lo[i] = Math.min(lo[i], a[i]); hi[i] = Math.max(hi[i], b[i]); }
+      }
+    }
+    return { min: lo, max: hi, size: hi.map((h, i) => h - lo[i]) };
+  }
+
+  /** Claude 에게 줄 파라미터 사전 (스킬·앱 공용) */
+  function describeSchema(typeId) {
+    const T = TYPES[typeId];
+    return T.params.map((p) => {
+      const opt = p.options ? ` [${p.options.join(' | ')}]` : '';
+      const u = p.unit ? ` (${p.unit})` : '';
+      return `- ${p.key}${u}${opt}: ${p.label}${p.desc ? ' — ' + p.desc : ''}`;
+    }).join('\n');
+  }
+
+  return { TYPES, PRESETS, resolve, build, bboxOf, describeSchema };
+})();
+
+if (typeof module !== 'undefined' && module.exports) module.exports = Anatomy;
+
+</script>
+<script>/* viewer.js */
+/* three.js 뷰어 — Anatomy 부품 목록을 메쉬로 바꿔 보여주고 내보낸다.
+ * 의존: 전역 THREE (r128). OrbitControls 없이 직접 구현한 정사영 궤도 카메라.
+ */
+'use strict';
+
+const Viewer = (() => {
+  const MAT = {
+    body: { color: 0x7d8fa3, metal: 0.55, rough: 0.45 },
+    flange: { color: 0x66778a, metal: 0.6, rough: 0.4 },
+    bolt: { color: 0x3c4148, metal: 0.7, rough: 0.35 },
+    act: { color: 0x2f6db5, metal: 0.25, rough: 0.5 },
+    wheel: { color: 0xc23b2a, metal: 0.2, rough: 0.5 },
+    tx: { color: 0xd9dde2, metal: 0.2, rough: 0.55 },
+    accent: { color: 0xe0a526, metal: 0.3, rough: 0.5 },
+    tube: { color: 0xb8bec6, metal: 0.8, rough: 0.25 },
+    cab: { color: 0xd6d6cf, metal: 0.1, rough: 0.7 },
+    door: { color: 0xcfd0c8, metal: 0.1, rough: 0.7 },
+    cabframe: { color: 0x9a9b95, metal: 0.3, rough: 0.6 },
+    plinth: { color: 0x3a3b3d, metal: 0.2, rough: 0.7 },
+    plate: { color: 0xe7e3d6, metal: 0.4, rough: 0.5 },
+    ghost: { color: 0x9aa5b1, metal: 0, rough: 1, opacity: 0.22 },
+    clear: { color: 0x2fae66, metal: 0, rough: 1, opacity: 0.1 },
+  };
+
+  let renderer; let scene; let camera; let root; let host; let edgesOn = true;
+  let state = { parts: [], groups: new Map(), bbox: null, explode: 0, labels: false, dims: true };
+  let orbit = { theta: Math.PI / 4, phi: Math.acos(1 / Math.sqrt(3)), dist: 3000, target: new THREE.Vector3() };
+  let onHover = () => {}; let onPick = () => {};
+  let dimGroup = null; let grid = null; let hovered = null; let selected = null;
+  const labelEls = new Map();
+
+  function init(el, cbs = {}) {
+    host = el;
+    onHover = cbs.onHover || onHover; onPick = cbs.onPick || onPick;
+    renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true, alpha: true });
+    renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
+    renderer.outputEncoding = THREE.sRGBEncoding;
+    el.appendChild(renderer.domElement);
+    scene = new THREE.Scene();
+    camera = new THREE.OrthographicCamera(-1, 1, 1, -1, -1e6, 1e6);
+    scene.add(new THREE.HemisphereLight(0xffffff, 0x445566, 0.75));
+    const d1 = new THREE.DirectionalLight(0xffffff, 0.8); d1.position.set(1, 2, 1.5); scene.add(d1);
+    const d2 = new THREE.DirectionalLight(0xffffff, 0.3); d2.position.set(-1.5, 0.5, -1); scene.add(d2);
+    root = new THREE.Group(); scene.add(root);
+    bindInput(renderer.domElement);
+    new ResizeObserver(resize).observe(el);
+    resize();
+    loop();
+  }
+
+  function resize() {
+    const w = host.clientWidth || 600; const h = host.clientHeight || 400;
+    renderer.setSize(w, h, false);
+    renderer.domElement.style.width = '100%'; renderer.domElement.style.height = '100%';
+    updateCamera();
+  }
+
+  function updateCamera() {
+    if (!renderer) return;
+    const w = host.clientWidth || 600; const h = host.clientHeight || 400;
+    const half = orbit.dist / 2; const asp = w / h;
+    camera.left = -half * asp; camera.right = half * asp; camera.top = half; camera.bottom = -half;
+    const t = orbit.target;
+    camera.position.set(
+      t.x + 1e4 * Math.sin(orbit.phi) * Math.sin(orbit.theta),
+      t.y + 1e4 * Math.cos(orbit.phi),
+      t.z + 1e4 * Math.sin(orbit.phi) * Math.cos(orbit.theta));
+    camera.up.set(0, 1, 0);
+    camera.lookAt(t);
+    camera.updateProjectionMatrix();
+  }
+
+  function setBackground(css) { renderer.setClearColor(new THREE.Color(css), 1); }
+
+  // ───────── 도형 → 메쉬 ─────────
+  const matCache = new Map();
+  function material(key) {
+    if (matCache.has(key)) return matCache.get(key);
+    const m = MAT[key] || MAT.body;
+    const mat = new THREE.MeshStandardMaterial({
+      color: m.color, metalness: m.metal, roughness: m.rough,
+      transparent: m.opacity != null, opacity: m.opacity ?? 1, depthWrite: m.opacity == null,
+      side: m.opacity != null ? THREE.DoubleSide : THREE.FrontSide,
+    });
+    matCache.set(key, mat);
+    return mat;
+  }
+
+  const Y = new THREE.Vector3(0, 1, 0);
+  function axisQuat(axis) {
+    const q = new THREE.Quaternion();
+    if (axis === 'x') q.setFromAxisAngle(new THREE.Vector3(0, 0, 1), -Math.PI / 2);
+    else if (axis === 'z') q.setFromAxisAngle(new THREE.Vector3(1, 0, 0), Math.PI / 2);
+    return q;
+  }
+
+  function primMesh(pr, mat) {
+    let geo; const mesh = new THREE.Mesh(undefined, mat);
+    switch (pr.k) {
+      case 'cyl': {
+        geo = new THREE.CylinderGeometry(pr.r2 ?? pr.r, pr.r, Math.max(0.1, pr.h), 40);
+        const q = axisQuat(pr.axis);
+        if (pr.rotY) q.premultiply(new THREE.Quaternion().setFromAxisAngle(Y, pr.rotY));
+        mesh.quaternion.copy(q);
+        break;
+      }
+      case 'box':
+        geo = new THREE.BoxGeometry(...pr.s.map((v) => Math.max(0.1, v)));
+        if (pr.ry) mesh.rotation.y = pr.ry;
+        break;
+      case 'sph':
+        geo = new THREE.SphereGeometry(pr.r, 36, 24);
+        if (pr.scale) mesh.scale.set(...pr.scale);
+        break;
+      case 'tor':
+        geo = new THREE.TorusGeometry(pr.R, pr.r, 12, 48);
+        if (pr.axis === 'y') mesh.rotation.x = Math.PI / 2;
+        else if (pr.axis === 'x') mesh.rotation.y = Math.PI / 2;
+        break;
+      case 'tube': {
+        const a = new THREE.Vector3(...pr.a); const b = new THREE.Vector3(...pr.b);
+        const len = a.distanceTo(b);
+        geo = new THREE.CylinderGeometry(pr.r, pr.r, Math.max(0.1, len), 16);
+        mesh.position.copy(a.clone().add(b).multiplyScalar(0.5));
+        if (len > 0) mesh.quaternion.setFromUnitVectors(Y, b.clone().sub(a).normalize());
+        mesh.geometry = geo;
+        return mesh;
+      }
+      default: return null;
+    }
+    mesh.geometry = geo;
+    mesh.position.set(...pr.at);
+    return mesh;
+  }
+
+  function clear() {
+    for (const g of state.groups.values()) {
+      g.traverse((o) => { if (o.geometry) o.geometry.dispose(); });
+      root.remove(g);
+    }
+    state.groups.clear();
+    for (const el of labelEls.values()) el.remove();
+    labelEls.clear();
+  }
+
+  /** model = Anatomy.build() 결과 */
+  function show(model, { keepView = false } = {}) {
+    clear();
+    state.parts = model.parts; state.bbox = model.bbox;
+    for (const p of model.parts) {
+      const g = new THREE.Group(); g.name = p.id; g.userData.part = p;
+      const mat = material(p.mat);
+      for (const pr of p.prims) {
+        const m = primMesh(pr, mat); if (!m) continue;
+        m.userData.partId = p.id;
+        g.add(m);
+        if (edgesOn && !['ghost', 'clear'].includes(p.mat)) {
+          const e = new THREE.LineSegments(new THREE.EdgesGeometry(m.geometry, 35),
+            new THREE.LineBasicMaterial({ color: 0x1b1f24, transparent: true, opacity: 0.35 }));
+          e.position.copy(m.position); e.quaternion.copy(m.quaternion); e.scale.copy(m.scale);
+          e.userData.edge = true;
+          g.add(e);
+        }
+      }
+      root.add(g); state.groups.set(p.id, g);
+      if (state.labels) makeLabel(p);
+    }
+    applyExplode();
+    drawDims();
+    if (!keepView) fit();
+  }
+
+  function fit(view) {
+    const b = state.bbox; if (!b || !isFinite(b.size[0])) return;
+    orbit.target.set((b.min[0] + b.max[0]) / 2, (b.min[1] + b.max[1]) / 2, (b.min[2] + b.max[2]) / 2);
+    orbit.dist = Math.max(...b.size) * 1.3 + 150;
+    if (view) setView(view, true);
+    updateCamera();
+  }
+
+  function setView(name, silent) {
+    const iso = Math.acos(1 / Math.sqrt(3));
+    const v = { iso: [Math.PI / 4, iso], iso2: [-Math.PI / 4 + Math.PI, iso], front: [0, Math.PI / 2],
+      side: [Math.PI / 2, Math.PI / 2], top: [0, 0.0001], back: [Math.PI, Math.PI / 2] }[name];
+    if (!v) return;
+    [orbit.theta, orbit.phi] = v;
+    if (!silent) updateCamera();
+  }
+
+  function setExplode(k) { state.explode = k; applyExplode(); drawDims(); }
+  function applyExplode() {
+    const b = state.bbox; if (!b) return;
+    const s = Math.max(...b.size) * 0.35 * state.explode;
+    for (const g of state.groups.values()) {
+      const ex = g.userData.part.ex || [0, 0, 0];
+      g.position.set(ex[0] * s, ex[1] * s, ex[2] * s);
+    }
+  }
+
+  function setVisible(id, vis) { const g = state.groups.get(id); if (g) g.visible = vis; }
+  function setEdges(on) { edgesOn = on; if (state.parts.length) show({ parts: state.parts, bbox: state.bbox }, { keepView: true }); }
+  function setLabels(on) {
+    state.labels = on;
+    for (const el of labelEls.values()) el.remove();
+    labelEls.clear();
+    if (on) for (const p of state.parts) if (!['ghost', 'clear'].includes(p.mat)) makeLabel(p);
+  }
+  function setDims(on) { state.dims = on; drawDims(); }
+
+  function makeLabel(p) {
+    if (['ghost', 'clear'].includes(p.mat) || p.id.endsWith('_bolts')) return;
+    const el = document.createElement('div');
+    el.className = 'v-label'; el.textContent = p.label;
+    host.appendChild(el); labelEls.set(p.id, el);
+  }
+
+  function partCenter(id) {
+    const g = state.groups.get(id); if (!g) return null;
+    const box = new THREE.Box3().setFromObject(g);
+    return box.getCenter(new THREE.Vector3());
+  }
+
+  // ───────── 치수 박스 ─────────
+  function textSprite(text, size) {
+    const c = document.createElement('canvas'); const ctx = c.getContext('2d');
+    const fs = 44; ctx.font = `600 ${fs}px system-ui, sans-serif`;
+    const w = ctx.measureText(text).width + 24; c.width = w; c.height = fs + 20;
+    ctx.font = `600 ${fs}px system-ui, sans-serif`;
+    ctx.fillStyle = 'rgba(20,24,30,0.82)'; ctx.fillRect(0, 0, c.width, c.height);
+    ctx.fillStyle = '#ffffff'; ctx.textBaseline = 'middle'; ctx.fillText(text, 12, c.height / 2 + 2);
+    const tex = new THREE.CanvasTexture(c); tex.minFilter = THREE.LinearFilter;
+    const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, depthTest: false, transparent: true }));
+    sp.scale.set(size * c.width / c.height, size, 1);
+    sp.renderOrder = 10;
+    return sp;
+  }
+
+  function drawDims() {
+    if (dimGroup) { dimGroup.traverse((o) => { if (o.geometry) o.geometry.dispose(); if (o.material?.map) o.material.map.dispose(); }); scene.remove(dimGroup); dimGroup = null; }
+    if (grid) { scene.remove(grid); grid = null; }
+    const b0 = state.bbox; if (!b0 || !isFinite(b0.size[0])) return;
+    // 분해 상태를 반영한 실제 경계 (ghost/clear 제외)
+    const bb = new THREE.Box3();
+    for (const g of state.groups.values()) {
+      if (!g.visible || ['ghost', 'clear'].includes(g.userData.part.mat)) continue;
+      bb.expandByObject(g);
+    }
+    if (bb.isEmpty()) return;
+    const size = Math.max(...b0.size);
+    grid = new THREE.GridHelper(size * 3, 30, 0x8899aa, 0x8899aa);
+    grid.material.transparent = true; grid.material.opacity = 0.18;
+    grid.position.set((bb.min.x + bb.max.x) / 2, bb.min.y - 0.5, (bb.min.z + bb.max.z) / 2);
+    scene.add(grid);
+    if (!state.dims) return;
+    dimGroup = new THREE.Group();
+    const lm = new THREE.LineBasicMaterial({ color: 0xe0a526 });
+    const helper = new THREE.Box3Helper(bb, 0xe0a526); helper.material.transparent = true; helper.material.opacity = 0.5;
+    dimGroup.add(helper);
+    const s = bb.getSize(new THREE.Vector3());
+    const ts = size * 0.045;
+    const mk = (a, b, label, off) => {
+      const g = new THREE.BufferGeometry().setFromPoints([a, b]);
+      dimGroup.add(new THREE.Line(g, lm));
+      const sp = textSprite(label, ts); sp.position.copy(a.clone().add(b).multiplyScalar(0.5)).add(off);
+      dimGroup.add(sp);
+    };
+    const o = ts * 0.9;
+    mk(new THREE.Vector3(bb.min.x, bb.min.y, bb.max.z + o), new THREE.Vector3(bb.max.x, bb.min.y, bb.max.z + o),
+      `L ${Math.round(s.x)}`, new THREE.Vector3(0, -o, o));
+    mk(new THREE.Vector3(bb.max.x + o, bb.min.y, bb.min.z), new THREE.Vector3(bb.max.x + o, bb.min.y, bb.max.z),
+      `W ${Math.round(s.z)}`, new THREE.Vector3(o, -o, 0));
+    mk(new THREE.Vector3(bb.max.x + o, bb.min.y, bb.max.z), new THREE.Vector3(bb.max.x + o, bb.max.y, bb.max.z),
+      `H ${Math.round(s.y)}`, new THREE.Vector3(o * 2, 0, 0));
+    scene.add(dimGroup);
+  }
+
+  // ───────── 입력 ─────────
+  function bindInput(el) {
+    let drag = null;
+    el.addEventListener('contextmenu', (e) => e.preventDefault());
+    el.addEventListener('pointerdown', (e) => {
+      drag = { x: e.clientX, y: e.clientY, btn: e.button, shift: e.shiftKey, moved: false };
+      el.setPointerCapture(e.pointerId);
+    });
+    el.addEventListener('pointermove', (e) => {
+      if (!drag) { hoverAt(e); return; }
+      const dx = e.clientX - drag.x; const dy = e.clientY - drag.y;
+      if (Math.abs(dx) + Math.abs(dy) > 2) drag.moved = true;
+      drag.x = e.clientX; drag.y = e.clientY;
+      if (drag.btn === 2 || drag.btn === 1 || drag.shift) {
+        const k = orbit.dist / (host.clientHeight || 400);
+        const right = new THREE.Vector3().setFromMatrixColumn(camera.matrix, 0);
+        const up = new THREE.Vector3().setFromMatrixColumn(camera.matrix, 1);
+        orbit.target.addScaledVector(right, -dx * k).addScaledVector(up, dy * k);
+      } else {
+        orbit.theta -= dx * 0.008;
+        orbit.phi = Math.max(0.0001, Math.min(Math.PI - 0.0001, orbit.phi - dy * 0.008));
+      }
+      updateCamera();
+    });
+    el.addEventListener('pointerup', (e) => {
+      if (drag && !drag.moved && drag.btn === 0) {
+        const hit = pick(e); selected = hit; onPick(hit); highlight();
+      }
+      drag = null;
+    });
+    el.addEventListener('wheel', (e) => {
+      e.preventDefault();
+      orbit.dist *= Math.exp(e.deltaY * 0.0012);
+      orbit.dist = Math.max(20, Math.min(1e6, orbit.dist));
+      updateCamera();
+    }, { passive: false });
+  }
+
+  const ray = new THREE.Raycaster();
+  function pick(e) {
+    const r = renderer.domElement.getBoundingClientRect();
+    const m = new THREE.Vector2(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
+    ray.setFromCamera(m, camera);
+    const meshes = [];
+    for (const g of state.groups.values()) {
+      if (!g.visible || ['ghost', 'clear'].includes(g.userData.part.mat)) continue;
+      g.traverse((o) => { if (o.isMesh) meshes.push(o); });
+    }
+    const hit = ray.intersectObjects(meshes, false)[0];
+    return hit ? hit.object.userData.partId : null;
+  }
+  function hoverAt(e) {
+    const id = pick(e);
+    if (id !== hovered) { hovered = id; highlight(); onHover(id, e); }
+    else if (id) onHover(id, e);
+  }
+  function select(id) { selected = id; highlight(); }
+  function highlight() {
+    for (const [id, g] of state.groups) {
+      const on = id === hovered || id === selected;
+      g.traverse((o) => {
+        if (!o.isMesh) return;
+        if (on && !o.userData.hl) { o.userData.base = o.material; o.material = o.material.clone(); o.material.emissive = new THREE.Color(id === selected ? 0xe0a526 : 0x335577); o.material.emissiveIntensity = 0.55; o.userData.hl = true; }
+        if (!on && o.userData.hl) { o.material.dispose(); o.material = o.userData.base; o.userData.hl = false; }
+      });
+    }
+  }
+
+  function loop() {
+    requestAnimationFrame(loop);
+    renderer.render(scene, camera);
+    if (labelEls.size) {
+      const w = host.clientWidth; const h = host.clientHeight;
+      for (const [id, el] of labelEls) {
+        const g = state.groups.get(id);
+        if (!g || !g.visible) { el.style.display = 'none'; continue; }
+        const c = partCenter(id); if (!c) continue;
+        const p = c.project(camera);
+        el.style.display = '';
+        el.style.transform = `translate(${(p.x + 1) / 2 * w}px, ${(1 - p.y) / 2 * h}px) translate(-50%, -50%)`;
+      }
+    }
+  }
+
+  // ───────── 내보내기 ─────────
+  function exportMeshes(includeRef) {
+    const out = [];
+    root.updateMatrixWorld(true);
+    for (const [id, g] of state.groups) {
+      if (!g.visible) continue;
+      const mat = g.userData.part.mat;
+      if (!includeRef && ['ghost', 'clear'].includes(mat)) continue;
+      g.traverse((o) => { if (o.isMesh) out.push({ id, label: g.userData.part.label, mesh: o }); });
+    }
+    return out;
+  }
+
+  function triangles(mesh, cb) {
+    const geo = mesh.geometry; const pos = geo.attributes.position; const idx = geo.index;
+    const m = mesh.matrixWorld;
+    const v = [new THREE.Vector3(), new THREE.Vector3(), new THREE.Vector3()];
+    const n = idx ? idx.count : pos.count;
+    for (let i = 0; i < n; i += 3) {
+      for (let k = 0; k < 3; k++) {
+        const j = idx ? idx.getX(i + k) : i + k;
+        v[k].fromBufferAttribute(pos, j).applyMatrix4(m);
+      }
+      cb(v[0], v[1], v[2]);
+    }
+  }
+
+  function toSTL() {
+    const tris = [];
+    for (const { mesh } of exportMeshes(false)) triangles(mesh, (a, b, c) => tris.push([a.clone(), b.clone(), c.clone()]));
+    const buf = new ArrayBuffer(84 + tris.length * 50); const dv = new DataView(buf);
+    const head = 'IC-3D-Builder STL (mm)';
+    for (let i = 0; i < head.length; i++) dv.setUint8(i, head.charCodeAt(i));
+    dv.setUint32(80, tris.length, true);
+    let o = 84; const e1 = new THREE.Vector3(); const e2 = new THREE.Vector3();
+    for (const [a, b, c] of tris) {
+      e1.subVectors(b, a); e2.subVectors(c, a); const nrm = e1.cross(e2).normalize();
+      for (const v of [nrm, a, b, c]) { dv.setFloat32(o, v.x, true); dv.setFloat32(o + 4, v.y, true); dv.setFloat32(o + 8, v.z, true); o += 12; }
+      dv.setUint16(o, 0, true); o += 2;
+    }
+    return new Blob([buf], { type: 'model/stl' });
+  }
+
+  function toOBJ(name) {
+    const L = [`# IC-3D-Builder OBJ, units mm, Y-up`, `o ${name || 'item'}`];
+    let base = 1; let cur = null;
+    for (const { id, mesh } of exportMeshes(false)) {
+      if (id !== cur) { L.push(`g ${id}`); cur = id; }
+      const start = base; let cnt = 0; const vs = [];
+      triangles(mesh, (a, b, c) => { vs.push(a.clone(), b.clone(), c.clone()); cnt += 3; });
+      for (const v of vs) L.push(`v ${v.x.toFixed(2)} ${v.y.toFixed(2)} ${v.z.toFixed(2)}`);
+      for (let i = 0; i < cnt; i += 3) L.push(`f ${start + i} ${start + i + 1} ${start + i + 2}`);
+      base += cnt;
+    }
+    return new Blob([L.join('\n')], { type: 'text/plain' });
+  }
+
+  function toPNG() { renderer.render(scene, camera); return renderer.domElement.toDataURL('image/png'); }
+
+  const matColor = (k) => '#' + (MAT[k] || MAT.body).color.toString(16).padStart(6, '0');
+
+  return { matColor, init, show, fit, setView, setExplode, setVisible, setEdges, setLabels, setDims, setBackground, select, toSTL, toOBJ, toPNG, updateCamera };
+})();
+
+</script>
+<script>/* extract.js */
+/* GA / Dimensional Drawing → Anatomy 파라미터. Claude Messages API (브라우저 직접 호출).
+ *
+ * 원칙: 도면에 적힌 치수만 돌려받는다. 빈 칸을 표준값으로 채우는 일은 앱(RefData)이
+ * 하고 출처를 'standard' 로 남긴다. 모델이 채우면 도면값과 추정값이 섞여 구분이 안 된다.
+ */
+'use strict';
+
+const Extract = (() => {
+  const API_URL = 'https://api.anthropic.com/v1/messages';
+
+  const SCHEMA = {
+    type: 'object',
+    properties: {
+      item_type: { type: 'string', enum: ['valve', 'cabinet', 'hookup'], description: '도면 품목 분류' },
+      title_block: {
+        type: 'object',
+        properties: {
+          tag: { type: 'string' }, dwg_no: { type: 'string' }, rev: { type: 'string' },
+          vendor: { type: 'string' }, model_no: { type: 'string' }, description: { type: 'string' },
+        },
+        required: ['tag', 'dwg_no', 'rev', 'vendor', 'model_no', 'description'],
+        additionalProperties: false,
+      },
+      size_row: { type: 'string', description: '치수표가 사이즈별일 때 선택한 행과 이유. 해당 없으면 "-"' },
+      params: {
+        type: 'array',
+        description: '도면에서 직접 읽은 값만. 표준·추정으로 채우지 않는다',
+        items: {
+          type: 'object',
+          properties: {
+            key: { type: 'string', description: '파라미터 사전의 key' },
+            value: { type: 'string', description: '숫자는 mm 로 환산한 숫자만. enum 은 사전의 선택지 문자열' },
+            as_drawn: { type: 'string', description: '도면에 적힌 원문 (예: "A = 11.50 in", "Ø 356")' },
+            evidence: { type: 'string', description: '어느 뷰/표/주기에서 읽었는지' },
+            confidence: { type: 'string', enum: ['high', 'medium', 'low'] },
+          },
+          required: ['key', 'value', 'as_drawn', 'evidence', 'confidence'],
+          additionalProperties: false,
+        },
+      },
+      unmapped_dimensions: {
+        type: 'array', description: '도면에 있지만 사전 key 로 옮기지 못한 치수 (예: 볼트 길이, 노즐 방위)',
+        items: { type: 'string' },
+      },
+      review_findings: {
+        type: 'array',
+        items: {
+          type: 'object',
+          properties: {
+            severity: { type: 'string', enum: ['high', 'medium', 'low'] },
+            finding: { type: 'string' },
+          },
+          required: ['severity', 'finding'], additionalProperties: false,
+        },
+      },
+      summary: { type: 'string', description: '2~3문장 요약' },
+    },
+    required: ['item_type', 'title_block', 'size_row', 'params', 'unmapped_dimensions', 'review_findings', 'summary'],
+    additionalProperties: false,
+  };
+
+  function systemPrompt() {
+    const L = [
+      '당신은 계측제어(I&C) 품목의 General Arrangement(GA) / Dimensional Drawing 을 읽어',
+      '파라메트릭 3D 모델의 치수 파라미터로 옮기는 계장 엔지니어입니다.',
+      '',
+      '결과는 플랜트 배치·간섭 검토에 쓰입니다. 도면에 없는 치수를 만들어내면 안 됩니다.',
+      '도면에 없는 값은 params 에 넣지 마세요. 앱이 표준표로 채우고 출처를 따로 표시합니다.',
+      '',
+      '# 규칙',
+      '1. 길이는 모두 mm 숫자로 환산합니다 (inch × 25.4, 소수 1자리). as_drawn 에는 원문을 그대로 둡니다.',
+      '2. 사이즈별 치수표(A, B, C, H … 열)가 있으면 사용자 힌트의 사이즈·등급 행을 고르고 size_row 에 적습니다.',
+      '   힌트가 없고 행이 여러 개면 Tag/타이틀블록으로 판단하고, 모르겠으면 review_findings 에 high 로 남깁니다.',
+      '3. 도면의 치수 기호(A/B/H 등)를 사전 key 로 옮길 때 뷰에서 치수선이 어디를 재는지 확인합니다.',
+      '   예: 밸브 "A" 가 플랜지 면-면이면 ftf, CL 에서 최상단이면 overall_h.',
+      '4. "MAX", "APPROX", "REF" 가 붙은 치수는 confidence 를 medium 이하로 둡니다.',
+      '5. 조작기 부품(액추에이터, 핸드휠, 포지셔너)도 치수가 있으면 넣습니다.',
+      '6. 캐비닛: 플린스 높이를 본체 높이에서 분리합니다. 도면 전체 높이 = h + plinth_h.',
+      '7. 훅업: Hook-up drawing 은 대개 치수가 적습니다. 계기 종류, 매니폴드, 유체, 탭 방향 같은 구성값을 우선 읽습니다.',
+      '',
+      '# 품목별 파라미터 사전',
+    ];
+    for (const [id, T] of Object.entries(Anatomy.TYPES)) {
+      L.push('', `## item_type = ${id} (${T.label})`, Anatomy.describeSchema(id));
+    }
+    return L.join('\n');
+  }
+
+  async function fileBlock(file) {
+    const b64 = await new Promise((res, rej) => {
+      const r = new FileReader();
+      r.onload = () => res(String(r.result).split(',')[1]);
+      r.onerror = () => rej(r.error);
+      r.readAsDataURL(file);
+    });
+    if (file.type === 'application/pdf') {
+      return { type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: b64 } };
+    }
+    const mt = ['image/png', 'image/jpeg', 'image/gif', 'image/webp'].includes(file.type) ? file.type : 'image/png';
+    return { type: 'image', source: { type: 'base64', media_type: mt, data: b64 } };
+  }
+
+  async function run({ apiKey, model, effort, files, typeHint, hint, signal, onProgress }) {
+    if (!apiKey) throw new Error('⚙ 설정에서 Anthropic API 키를 넣으세요.');
+    if (!files.length) throw new Error('도면 파일을 먼저 넣으세요.');
+    const content = [];
+    for (const f of files) {
+      content.push({ type: 'text', text: `## 도면 파일: ${f.name}` });
+      content.push(await fileBlock(f));
+    }
+    content.push({
+      type: 'text',
+      text: [
+        `선택한 품목 분류: ${typeHint || '자동 판별'}`,
+        `사용자 힌트: ${hint || '(없음)'}`,
+        '위 도면에서 파라미터 사전에 해당하는 치수와 구성값을 읽어 주세요.',
+      ].join('\n'),
+    });
+
+    const body = {
+      model,
+      max_tokens: 32000,
+      stream: true,
+      thinking: { type: 'adaptive' },
+      system: [{ type: 'text', text: systemPrompt(), cache_control: { type: 'ephemeral' } }],
+      output_config: { effort, format: { type: 'json_schema', schema: SCHEMA } },
+      fallbacks: 'default',
+      messages: [{ role: 'user', content }],
+    };
+    const res = await fetch(API_URL, {
+      method: 'POST', signal, credentials: 'omit',
+      headers: {
+        'content-type': 'application/json',
+        'x-api-key': apiKey,
+        'anthropic-version': '2023-06-01',
+        'anthropic-beta': 'server-side-fallback-2026-07-01',
+        'anthropic-dangerous-direct-browser-access': 'true',
+      },
+      body: JSON.stringify(body),
+    });
+    if (!res.ok) {
+      let msg = '';
+      try { const j = await res.json(); msg = j?.error?.message || JSON.stringify(j); } catch { msg = await res.text().catch(() => ''); }
+      const hintMsg = { 401: 'API 키를 확인하세요.', 404: '모델 ID를 확인하세요.', 413: '파일이 너무 큽니다.', 429: '요청 한도 — 잠시 후 다시.', 529: 'API 과부하 — 잠시 후 다시.' }[res.status];
+      throw new Error(`HTTP ${res.status} — ${msg}${hintMsg ? '\n' + hintMsg : ''}`);
+    }
+    const { text, usage, stopReason } = await consume(res, signal, onProgress);
+    if (stopReason === 'refusal') throw new Error('모델이 이 요청을 거절했습니다 (refusal).');
+    if (stopReason === 'max_tokens') throw new Error('응답이 잘렸습니다 (max_tokens).');
+    try { return { data: JSON.parse(text), usage }; } catch { throw new Error(`JSON 해석 실패\n${text.slice(0, 300)}`); }
+  }
+
+  async function consume(res, signal, onProgress) {
+    const reader = res.body.getReader(); const dec = new TextDecoder();
+    const textBlocks = new Set(); let buf = ''; let text = ''; let usage = null; let stopReason = null;
+    for (;;) {
+      if (signal?.aborted) { await reader.cancel(); throw new DOMException('aborted', 'AbortError'); }
+      const { done, value } = await reader.read(); if (done) break;
+      buf += dec.decode(value, { stream: true });
+      let i;
+      while ((i = buf.indexOf('\n\n')) >= 0) {
+        const chunk = buf.slice(0, i); buf = buf.slice(i + 2);
+        const line = chunk.split('\n').find((l) => l.startsWith('data:')); if (!line) continue;
+        let ev; try { ev = JSON.parse(line.slice(5).trim()); } catch { continue; }
+        if (ev.type === 'message_start') {
+          // fallback 으로 다른 모델이 응답하면 새 message_start 가 온다 → 텍스트를 새로 모은다
+          text = ''; textBlocks.clear(); usage = { ...(ev.message?.usage || {}) };
+        } else if (ev.type === 'content_block_start' && ev.content_block?.type === 'text') textBlocks.add(ev.index);
+        else if (ev.type === 'content_block_delta' && ev.delta?.type === 'text_delta' && textBlocks.has(ev.index)) {
+          text += ev.delta.text; onProgress?.(text.length);
+        } else if (ev.type === 'message_delta') {
+          if (ev.delta?.stop_reason) stopReason = ev.delta.stop_reason;
+          if (ev.usage) usage = { ...(usage || {}), ...ev.usage };
+        } else if (ev.type === 'error') throw new Error(ev.error?.message || '스트리밍 오류');
+      }
+    }
+    return { text, usage, stopReason };
+  }
+
+  /** 판독 결과 → resolve() 입력 형식 */
+  function toInputs(data, typeId) {
+    const keys = new Set(Anatomy.TYPES[typeId].params.map((p) => p.key));
+    const inputs = {}; const dropped = [];
+    for (const p of data.params || []) {
+      if (!keys.has(p.key)) { dropped.push(`${p.key}=${p.value}`); continue; }
+      inputs[p.key] = { value: p.value, src: 'drawing', evidence: `${p.as_drawn} · ${p.evidence}`, confidence: p.confidence };
+    }
+    if (data.title_block?.tag && keys.has('tag') && !inputs.tag) {
+      inputs.tag = { value: data.title_block.tag, src: 'drawing', evidence: '타이틀블록' };
+    }
+    return { inputs, dropped };
+  }
+
+  return { run, toInputs, systemPrompt, SCHEMA };
+})();
+
+</script>
+<script>/* app.js */
+/* 앱 — 품목 선택, 도면 판독, 파라미터 폼, 뷰어 연결. */
+'use strict';
+
+(() => {
+  const $ = (id) => document.getElementById(id);
+  const SRC_LABEL = { drawing: '도면', user: '입력', standard: '표준', estimate: '추정', default: '기본', none: '없음' };
+
+  const store = {
+    get(k, d) { try { const v = localStorage.getItem(`ic3d.${k}`); return v == null ? d : v; } catch { return d; } },
+    set(k, v) { try { localStorage.setItem(`ic3d.${k}`, v); } catch { /* 저장 불가 환경 */ } },
+  };
+
+  const S = {
+    presetId: store.get('preset', 'cv_globe'),
+    type: 'valve',
+    inputs: {},
+    files: [],
+    extraction: null,
+    model: null,
+    abort: null,
+  };
+
+  // ───────── 품목 ─────────
+  function initPresets() {
+    const sel = $('preset');
+    const groups = { valve: '밸브', cabinet: '캐비닛', hookup: '계기 훅업' };
+    for (const [t, name] of Object.entries(groups)) {
+      const og = document.createElement('optgroup'); og.label = name;
+      for (const p of Anatomy.PRESETS.filter((x) => x.type === t)) {
+        const o = document.createElement('option'); o.value = p.id; o.textContent = p.label; og.appendChild(o);
+      }
+      sel.appendChild(og);
+    }
+    if (!Anatomy.PRESETS.some((p) => p.id === S.presetId)) S.presetId = 'cv_globe';
+    sel.value = S.presetId;
+    sel.addEventListener('change', () => applyPreset(sel.value, true));
+  }
+
+  function applyPreset(id, resetInputs) {
+    const p = Anatomy.PRESETS.find((x) => x.id === id) || Anatomy.PRESETS[0];
+    const typeChanged = p.type !== S.type;
+    S.presetId = p.id; S.type = p.type; store.set('preset', p.id);
+    if (resetInputs) {
+      S.inputs = {};
+      for (const [k, v] of Object.entries(p.set)) S.inputs[k] = { value: v, src: 'default' };
+    }
+    $('preset-note').textContent = `${Anatomy.TYPES[p.type].label} · 프리셋은 구성만 정합니다. 치수는 도면 → 입력 → 표준표 → 추정 순서로 결정됩니다.`;
+    rebuild({ refit: typeChanged || resetInputs });
+  }
+
+  // ───────── 폼 ─────────
+  function renderForm() {
+    const T = Anatomy.TYPES[S.type];
+    const { values, meta } = S.model;
+    const form = $('form'); form.innerHTML = '';
+    let grp = null;
+    for (const p of T.params) {
+      if (p.group !== grp) {
+        grp = p.group;
+        const g = document.createElement('div'); g.className = 'grp'; g.textContent = grp; form.appendChild(g);
+      }
+      const m = meta[p.key] || {};
+      const row = document.createElement('div');
+      row.className = 'prm' + (m.active ? '' : ' inactive');
+      const id = `p-${p.key}`;
+      const lab = document.createElement('label'); lab.htmlFor = id; lab.textContent = p.label;
+      if (p.desc) lab.title = p.desc;
+      let input;
+      if (p.type === 'enum') {
+        input = document.createElement('select');
+        for (const o of p.options) { const op = document.createElement('option'); op.value = o; op.textContent = o; input.appendChild(op); }
+        input.value = String(values[p.key] ?? '');
+      } else if (p.type === 'bool') {
+        input = document.createElement('input'); input.type = 'checkbox'; input.checked = !!values[p.key];
+      } else {
+        input = document.createElement('input');
+        input.type = p.type === 'num' ? 'number' : 'text';
+        if (p.step) input.step = p.step; else if (p.type === 'num') input.step = 'any';
+        if (p.min != null) input.min = p.min; if (p.max != null) input.max = p.max;
+        const v = values[p.key];
+        input.value = v == null || Number.isNaN(v) ? '' : (p.type === 'num' ? +(+v).toFixed(2) : v);
+      }
+      input.id = id;
+      input.addEventListener('change', () => {
+        let val;
+        if (p.type === 'bool') val = input.checked;
+        else val = input.value;
+        if (val === '' && p.type !== 'bool') delete S.inputs[p.key];
+        else S.inputs[p.key] = { value: val, src: 'user' };
+        rebuild({});
+      });
+      const badge = document.createElement('span');
+      badge.className = `src src-${m.src || 'none'}`;
+      badge.textContent = (p.unit ? p.unit + ' ' : '') + (SRC_LABEL[m.src] || '');
+      badge.title = [m.ref, m.evidence, m.confidence && `확신도 ${m.confidence}`].filter(Boolean).join('\n') || SRC_LABEL[m.src] || '';
+      if (m.src && m.src !== 'default') {
+        badge.style.cursor = 'pointer';
+        badge.title += '\n(클릭: 이 값 지우고 표준/추정으로 되돌리기)';
+        badge.addEventListener('click', () => { delete S.inputs[p.key]; rebuild({}); });
+      }
+      row.append(lab, input, badge);
+      if (m.src === 'drawing' && m.evidence) {
+        const ev = document.createElement('div'); ev.className = 'ev'; ev.textContent = `↳ ${m.evidence}${m.confidence ? ` (${m.confidence})` : ''}`;
+        row.appendChild(ev);
+      } else if (m.ref && m.active) {
+        const ev = document.createElement('div'); ev.className = 'ev'; ev.textContent = `↳ ${m.ref}`;
+        row.appendChild(ev);
+      }
+      form.appendChild(row);
+    }
+  }
+
+  // ───────── 빌드 ─────────
+  /** 도면/입력으로 바디·조작기가 바뀌면 프리셋 표시와 프리셋 기본값(src 'default')을 맞춘다 */
+  function syncPreset() {
+    if (S.type !== 'valve') return;
+    const val = (k) => S.inputs[k]?.value;
+    const cur = Anatomy.PRESETS.find((p) => p.id === S.presetId);
+    if (cur && cur.set.body === val('body') && cur.set.operator === val('operator')) return;
+    const p = Anatomy.PRESETS.find((x) => x.type === 'valve' && x.set.body === val('body') && x.set.operator === val('operator'));
+    if (!p) return;
+    S.presetId = p.id; $('preset').value = p.id; store.set('preset', p.id);
+    for (const [k, v] of Object.entries(p.set)) if (!S.inputs[k] || S.inputs[k].src === 'default') S.inputs[k] = { value: v, src: 'default' };
+  }
+
+  function rebuild({ refit }) {
+    syncPreset();
+    try {
+      S.model = Anatomy.build({ type: S.type, inputs: S.inputs });
+    } catch (e) {
+      console.error(e);
+      setStatus(`모델 생성 실패: ${e.message}`, true);
+      return;
+    }
+    renderForm();
+    if (window.THREE) Viewer.show(S.model, { keepView: !refit });
+    if (refit && window.THREE) { Viewer.setView('iso', true); Viewer.fit(); }
+    renderParts();
+    renderSummary();
+  }
+
+  function renderParts() {
+    const ul = $('parts'); ul.innerHTML = '';
+    const parts = S.model.parts;
+    $('parts-count').textContent = `${parts.length}개 부품`;
+    for (const p of parts) {
+      const li = document.createElement('li'); li.dataset.id = p.id;
+      const cb = document.createElement('input'); cb.type = 'checkbox'; cb.checked = true; cb.title = '표시';
+      cb.addEventListener('click', (e) => { e.stopPropagation(); Viewer.setVisible(p.id, cb.checked); });
+      const sw = document.createElement('span'); sw.className = 'sw'; sw.style.background = Viewer.matColor(p.mat);
+      if (['ghost', 'clear'].includes(p.mat)) sw.style.opacity = '0.4';
+      const t = document.createElement('span'); t.textContent = p.label; t.title = p.desc || '';
+      li.append(cb, sw, t);
+      li.addEventListener('click', () => selectPart(p.id));
+      ul.appendChild(li);
+    }
+  }
+
+  function selectPart(id) {
+    Viewer.select(id);
+    for (const li of $('parts').children) li.classList.toggle('sel', li.dataset.id === id);
+  }
+
+  function renderSummary() {
+    const { values, meta, bbox } = S.model;
+    const cnt = {};
+    for (const m of Object.values(meta)) if (m.active) cnt[m.src] = (cnt[m.src] || 0) + 1;
+    const rows = [
+      ['품목', Anatomy.PRESETS.find((p) => p.id === S.presetId)?.label || S.type],
+      ['Tag', values.tag || '-'],
+      ['외곽 (L × W × H)', bbox && isFinite(bbox.size[0]) ? bbox.size.map((v) => Math.round(v)).join(' × ') + ' mm' : '-'],
+      ['치수 출처', ['drawing', 'user', 'standard', 'estimate', 'default'].filter((k) => cnt[k]).map((k) => `${SRC_LABEL[k]} ${cnt[k]}`).join(' · ')],
+    ];
+    if (S.extraction?.title_block) {
+      const tb = S.extraction.title_block;
+      rows.push(['도면', [tb.dwg_no, tb.rev && `Rev.${tb.rev}`].filter(Boolean).join(' ') || '-']);
+      rows.push(['벤더/모델', [tb.vendor, tb.model_no].filter(Boolean).join(' / ') || '-']);
+    }
+    const tbl = rows.map(([k, v]) => `<tr><td class="muted">${esc(k)}</td><td>${esc(v)}</td></tr>`).join('');
+    const warn = cnt.estimate
+      ? `<p class="small" style="color:var(--s-estimate)">추정 치수 ${cnt.estimate}개 — 형상 참고용입니다. 도면값으로 확인되기 전에는 간섭 검토 결론에 쓰지 마세요.</p>` : '';
+    const std = cnt.standard
+      ? `<p class="small muted">표준 치수는 내장 참고표(검증 전) 값입니다. 벤더 도면이 우선입니다.</p>` : '';
+    const chk = (S.model.warnings || []).map((w) => `<p class="small sev-high">⚠ ${esc(w)}</p>`).join('');
+    $('summary').innerHTML = `<table class="kv">${tbl}</table>${chk}${warn}${std}`;
+  }
+
+  // ───────── 파일 / 판독 ─────────
+  function initFiles() {
+    const drop = $('drop'); const file = $('file');
+    drop.addEventListener('click', () => file.click());
+    drop.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') file.click(); });
+    drop.addEventListener('dragover', (e) => { e.preventDefault(); drop.classList.add('over'); });
+    drop.addEventListener('dragleave', () => drop.classList.remove('over'));
+    drop.addEventListener('drop', (e) => { e.preventDefault(); drop.classList.remove('over'); addFiles(e.dataTransfer.files); });
+    file.addEventListener('change', () => { addFiles(file.files); file.value = ''; });
+  }
+
+  function addFiles(list) {
+    for (const f of list) {
+      if (!(f.type === 'application/pdf' || f.type.startsWith('image/'))) continue;
+      if (f.size > 30 * 1024 * 1024) { setStatus(`${f.name}: 30MB 초과`, true); continue; }
+      S.files.push(f);
+    }
+    renderFiles();
+  }
+
+  function renderFiles() {
+    const ul = $('files'); ul.innerHTML = '';
+    S.files.forEach((f, i) => {
+      const li = document.createElement('li');
+      const left = document.createElement('div');
+      left.textContent = `${f.type === 'application/pdf' ? '📄' : '🖼'} ${f.name} · ${(f.size / 1024).toFixed(0)} KB`;
+      if (f.type.startsWith('image/')) {
+        const img = document.createElement('img'); img.src = URL.createObjectURL(f); img.alt = f.name; left.appendChild(img);
+      }
+      const rm = document.createElement('button'); rm.textContent = '✕'; rm.title = '빼기';
+      rm.addEventListener('click', () => { S.files.splice(i, 1); renderFiles(); });
+      li.append(left, rm); ul.appendChild(li);
+    });
+  }
+
+  async function runExtract() {
+    const btn = $('btn-extract'); const cancel = $('btn-cancel');
+    btn.disabled = true; cancel.hidden = false;
+    S.abort = new AbortController();
+    const t0 = Date.now();
+    setStatus('도면을 보내는 중…');
+    try {
+      const { data, usage } = await Extract.run({
+        apiKey: store.get('key', ''), model: store.get('model', 'claude-opus-5-5'), effort: store.get('effort', 'high'),
+        files: S.files, typeHint: S.type, hint: $('hint').value.trim(), signal: S.abort.signal,
+        onProgress: (n) => setStatus(`판독 중… 응답 ${n.toLocaleString()}자 · ${((Date.now() - t0) / 1000).toFixed(0)}s`),
+      });
+      S.extraction = data;
+      // 품목 분류가 다르면 그 분류의 첫 프리셋으로 바꾸고 구성값은 도면 것을 쓴다
+      if (data.item_type && data.item_type !== S.type) {
+        const p = Anatomy.PRESETS.find((x) => x.type === data.item_type);
+        if (p) { $('preset').value = p.id; applyPreset(p.id, true); }
+      }
+      const { inputs, dropped } = Extract.toInputs(data, S.type);
+      // 도면값이 사람이 손댄 값보다 우선하지 않도록: user 값은 남긴다
+      for (const [k, v] of Object.entries(inputs)) if (S.inputs[k]?.src !== 'user') S.inputs[k] = v;
+      rebuild({ refit: true });
+      renderFindings(data, dropped);
+      const n = Object.keys(inputs).length;
+      setStatus(`완료 — 도면에서 ${n}개 값을 읽었습니다. (${((Date.now() - t0) / 1000).toFixed(0)}s, 입력 ${usage?.input_tokens ?? '?'} / 출력 ${usage?.output_tokens ?? '?'} 토큰)`);
+    } catch (e) {
+      if (e.name === 'AbortError') setStatus('중지했습니다.');
+      else setStatus(e.message, true);
+    } finally {
+      btn.disabled = false; cancel.hidden = true; S.abort = null;
+    }
+  }
+
+  function renderFindings(data, dropped) {
+    const box = $('findings'); box.innerHTML = '';
+    $('findings-card').hidden = false;
+    const add = (html) => { const d = document.createElement('div'); d.className = 'find'; d.innerHTML = html; box.appendChild(d); };
+    if (data.summary) add(esc(data.summary));
+    if (data.size_row && data.size_row !== '-') add(`<b>사용한 치수표 행:</b> ${esc(data.size_row)}`);
+    for (const f of data.review_findings || []) add(`<span class="sev-${f.severity}">[${f.severity}]</span> ${esc(f.finding)}`);
+    if (data.unmapped_dimensions?.length) add(`<b>3D에 반영하지 않은 치수:</b> ${data.unmapped_dimensions.map(esc).join(', ')}`);
+    if (dropped?.length) add(`<b>사전에 없는 key (무시):</b> ${dropped.map(esc).join(', ')}`);
+  }
+
+  function setStatus(msg, err) { const s = $('status'); s.textContent = msg; s.classList.toggle('err', !!err); }
+  const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+
+  // ───────── 내보내기 / 불러오기 ─────────
+  function fileBase() {
+    const tag = (S.model.values.tag || S.presetId).replace(/[^\w.-]+/g, '_');
+    return `${tag}_3d`;
+  }
+  function download(blob, name) {
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+  }
+
+  function specJSON() {
+    const { values, meta, bbox } = S.model;
+    return {
+      tool: 'ic-3d-builder', version: 1,
+      type: S.type, preset: S.presetId,
+      inputs: S.inputs,
+      resolved: Object.fromEntries(Object.entries(values).map(([k, v]) => [k, { value: v, ...meta[k] }])),
+      bbox_mm: bbox,
+      extraction: S.extraction,
+      note: '출처 drawing/user 외의 값은 표준 참고표 또는 비례 추정입니다. 제작·구매 치수로 쓰지 마세요.',
+    };
+  }
+
+  function loadSpec(obj) {
+    if (!obj || !Anatomy.TYPES[obj.type]) throw new Error('type 이 valve / cabinet / hookup 중 하나여야 합니다.');
+    const preset = Anatomy.PRESETS.find((p) => p.id === obj.preset) || Anatomy.PRESETS.find((p) => p.type === obj.type);
+    S.presetId = preset.id; S.type = obj.type; $('preset').value = preset.id;
+    S.inputs = {};
+    for (const [k, v] of Object.entries(obj.inputs || {})) {
+      S.inputs[k] = (v && typeof v === 'object' && 'value' in v) ? v : { value: v, src: 'user' };
+    }
+    S.extraction = obj.extraction || null;
+    applyPreset(preset.id, false);
+    if (S.extraction) renderFindings(S.extraction, []);
+  }
+
+  function initToolbar() {
+    for (const b of document.querySelectorAll('[data-view]')) b.addEventListener('click', () => Viewer.setView(b.dataset.view));
+    $('explode').addEventListener('input', (e) => Viewer.setExplode(+e.target.value));
+    $('opt-labels').addEventListener('change', (e) => Viewer.setLabels(e.target.checked));
+    $('opt-dims').addEventListener('change', (e) => Viewer.setDims(e.target.checked));
+    $('opt-edges').addEventListener('change', (e) => Viewer.setEdges(e.target.checked));
+    $('ex-stl').addEventListener('click', () => download(Viewer.toSTL(), `${fileBase()}.stl`));
+    $('ex-obj').addEventListener('click', () => download(Viewer.toOBJ(fileBase()), `${fileBase()}.obj`));
+    $('ex-png').addEventListener('click', async () => download(await (await fetch(Viewer.toPNG())).blob(), `${fileBase()}.png`));
+    $('ex-json').addEventListener('click', () => download(new Blob([JSON.stringify(specJSON(), null, 2)], { type: 'application/json' }), `${fileBase()}.json`));
+    $('btn-reset').addEventListener('click', () => { S.extraction = null; $('findings-card').hidden = true; applyPreset(S.presetId, true); });
+    $('load-json').addEventListener('change', async (e) => {
+      const f = e.target.files[0]; e.target.value = ''; if (!f) return;
+      try { loadSpec(JSON.parse(await f.text())); setStatus(`${f.name} 불러옴`); } catch (err) { setStatus(`JSON 불러오기 실패: ${err.message}`, true); }
+    });
+    $('btn-extract').addEventListener('click', runExtract);
+    $('btn-cancel').addEventListener('click', () => S.abort?.abort());
+  }
+
+  function initSettings() {
+    const dlg = $('dlg-settings');
+    $('btn-settings').addEventListener('click', () => {
+      $('set-key').value = store.get('key', ''); $('set-model').value = store.get('model', 'claude-opus-5-5');
+      $('set-effort').value = store.get('effort', 'high'); dlg.showModal();
+    });
+    $('set-save').addEventListener('click', () => {
+      store.set('key', $('set-key').value.trim()); store.set('model', $('set-model').value.trim() || 'claude-opus-5-5');
+      store.set('effort', $('set-effort').value); dlg.close(); setStatus('설정을 저장했습니다.');
+    });
+    $('set-close').addEventListener('click', () => dlg.close());
+  }
+
+  function initViewer() {
+    if (!window.THREE) {
+      const n = $('noscene'); n.hidden = false;
+      n.textContent = '3D 엔진(three.js)을 cdnjs.cloudflare.com 에서 불러오지 못했습니다. 네트워크에서 이 주소가 막혀 있는지 확인하세요. 파라미터 편집과 JSON 저장은 계속 쓸 수 있습니다.';
+      return;
+    }
+    const tip = $('tip');
+    Viewer.init($('viewport'), {
+      onHover: (id, e) => {
+        if (!id) { tip.hidden = true; return; }
+        const p = S.model.parts.find((x) => x.id === id);
+        const r = $('viewport').getBoundingClientRect();
+        tip.hidden = false;
+        tip.innerHTML = `<b>${esc(p.label)}</b>${p.desc ? `<br>${esc(p.desc)}` : ''}`;
+        tip.style.left = `${e.clientX - r.left + 14}px`; tip.style.top = `${e.clientY - r.top + 14}px`;
+      },
+      onPick: (id) => selectPart(id),
+    });
+    const bg = () => Viewer.setBackground(getComputedStyle(document.documentElement).getPropertyValue('--stage').trim() || '#e9edf1');
+    bg();
+    window.matchMedia?.('(prefers-color-scheme: dark)').addEventListener?.('change', bg);
+  }
+
+  initPresets(); initFiles(); initToolbar(); initSettings(); initViewer();
+  applyPreset(S.presetId, true);
+  window.IC3D = { S, loadSpec, specJSON, rebuild };   // 디버깅·자동화용
+})();
+
+</script>
+</body>
+</html>
