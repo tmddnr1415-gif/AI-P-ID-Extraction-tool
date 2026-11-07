@@ -42,6 +42,12 @@ body.nav-closed #burger{width:auto;padding:0 12px;font-size:14px;background:var(
 .mgrp.act .mhead .mi:not(.on){color:#fff}
 .msub{margin:0 0 6px 10px;padding-left:8px;border-left:1px solid rgba(255,255,255,.14)}
 .mi.subi{padding:7px 10px;font-size:13px;margin:1px 0}
+/* 2026-11-07: 상위 메뉴 강조 — 번호 칸 · 흰 글씨 15px · 하위 메뉴는 한 단계 흐리게 */
+.mi.top{font-size:15px;color:#fff;letter-spacing:-.1px;padding:10px 10px;margin-top:4px}
+.mi .mno{flex:none;display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:6px;background:rgba(255,255,255,.12);color:#cfe0ff;font-size:12px;font-weight:800;font-variant-numeric:tabular-nums}
+.mi.top:hover .mno{background:rgba(255,255,255,.22);color:#fff}
+.mi.top.on .mno{background:#fff;color:var(--accent)}
+.mi.subi:not(.on){color:#b9c3e8}
 .mi .ml{min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .mi .chgmark{flex:none;width:8px;margin-left:-6px;margin-right:-4px;color:#FFE066;font-weight:900;text-align:center}
 .mi .chgtag{flex:none;white-space:nowrap;margin-left:auto;font-size:10px;font-weight:700;background:#FFE066;color:#4a3a00;padding:1px 7px;border-radius:99px}
@@ -1391,7 +1397,7 @@ function recLabel(key, f) {
  * ===================================================================== */
 let root = null;
 /* 서버 모드: http(s):// 로 접속하면 server.py 의 REST API 사용 (폴더 선택 불필요). file:// 로 열면 폴더 모드 */
-const APP_VERSION = '2026-11-07.1';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
+const APP_VERSION = '2026-11-07.2';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
 const SERVER_URL = 'http://localhost:8080';
 // 부서원 PC 사본(file://)이 접속을 시도할 서버 — 서버가 배포 파일을 만들 때 'PC 이름 주소, IP 주소' 순으로 자동 기록함
 const DEFAULT_SERVERS = ['http://ASEUNGWOOK-B01:8080', 'http://65.3.30.234:8080'];
@@ -3672,7 +3678,8 @@ function renderMenu() {
   sub.splice(sub.findIndex(i => i.k === 'unit'), 0, { k:'alloc', l:'R&R · 투입 분석', ...cntOf(['rnr', 'staffing']), t:'수정·변경된 행' });
   sub.splice(sub.findIndex(i => i.k === 'unit'), 0, { k:'task', l:'통합 업무', ...cntOf(['task']), t:'수정·변경된 행' });
   const subNew = sub.reduce((a, i) => a + i.c, 0), inWeekly = route === 'home' || route === 'work' || route === 'alloc' || !!SHEET[route];
-  const btn = (i, cls = '') => `<button class="mi ${cls} ${route === i.k ? 'on' : ''}" data-k="${i.k}">${i.c ? '<span class="chgmark">!</span>' : ''}<span class="ml" title="${esc(i.l)}">${esc(i.l)}</span>${i.c ? `<span class="chgtag" title="${i.t} ${i.c}건">!(${i.c})</span>` : ''}${i.n !== '' ? `<span class="n">${i.n}</span>` : ''}</button>`;
+  let no = 0;   // 2026-11-07: 상위 메뉴 앞 = 이모지 대신 번호 (보이는 메뉴만 1, 2, 3 …)
+  const btn = (i, cls = '') => `<button class="mi ${cls} ${route === i.k ? 'on' : ''}" data-k="${i.k}">${cls === 'top' ? `<span class="mno">${++no}</span>` : ''}${i.c ? '<span class="chgmark">!</span>' : ''}<span class="ml" title="${esc(i.l)}">${esc(i.l)}</span>${i.c ? `<span class="chgtag" title="${i.t} ${i.c}건">!(${i.c})</span>` : ''}${i.n !== '' ? `<span class="n">${i.n}</span>` : ''}</button>`;
   // 상위 메뉴 + 접기/펼치기 + 하위 메뉴 묶음
   const group = (nav, head, subs, act) => `<div class="mgrp ${act ? 'act' : ''}">
        <div class="mhead">${btn(head, 'top')}
@@ -3680,16 +3687,16 @@ function renderMenu() {
        <div class="msub" ${NAV_OPEN[nav] ? '' : 'hidden'}>${subs.map(i => btn(i, 'subi')).join('')}</div></div>`;
   // 권한이 있는 메뉴만 표시 (운영자가 ⚙ 메뉴 권한 설정에서 사용자별로 부여, Management 는 기본 비허용)
   $('#menu').innerHTML =
-    (can('weekly') ? group('weekly', { k:'home', l:'📋 주간업무보고', n:'', c:NAV_OPEN.weekly ? 0 : subNew, t:'하위 메뉴의 수정·변경된 행' }, sub, inWeekly) : '') +
-    (can('pid') ? btn({ k:'pid', l:'📐 P&ID 분석', n:'', c:0 }, 'top') : '') +
-    (can('logic') ? group('logic', { k:'logic', l:'🔀 LOGIC 분석', n:'', c:0 }, [{ k:'logicdraw', l:'LOGIC 작성', n:'', c:0 }], route === 'logic' || route === 'logicdraw') : '') +
-    (can('space') ? btn({ k:'space', l:'🗄 ROOM SIZE 계산', n:'', c:0 }, 'top') : '') +
-    (can('books') ? btn({ k:'books', l:'🌪️ 도서검토', n:'', c:0 }, 'top') : '') +
-    (can('ic3d') ? btn({ k:'ic3d', l:'🧊 3D 계측제어', n:'', c:0 }, 'top') : '') +
-    (can('bidpjt') ? btn({ k:'bidpjt', l:'📈 입찰 프로젝트', n:'', c:0 }, 'top') : '') +
-    (can('runpjt') ? btn({ k:'runpjt', l:'🏗 실행 프로젝트', n:'', c:0 }, 'top') : '') +
-    (can('board') ? btn({ k:'board', l:'💬 익명게시판', n:root && DB.board ? DB.board.length : '', c:root ? boardNewCount() : 0, t:'마지막 확인 이후 새 글·댓글' }, 'top') : '') +
-    (can('mgmt') ? group('mgmt', { k:'mgmt', l:'🛠 Management', n:'', c:0 }, [{ k:'mgalloc', l:'R&R · 투입 분석', n:'', c:0 }, { k:'mghours', l:'근무시간 (월·주·일)', n:'', c:0 }, { k:'mgwork', l:'근로시간 관리 (52h)', n:'', c:0 }, { k:'mgbday', l:'부서원 생일', n:'', c:0 }], MG_ROUTES.includes(route)) : '');
+    (can('weekly') ? group('weekly', { k:'home', l:'주간업무보고', n:'', c:NAV_OPEN.weekly ? 0 : subNew, t:'하위 메뉴의 수정·변경된 행' }, sub, inWeekly) : '') +
+    (can('pid') ? btn({ k:'pid', l:'P&ID 분석', n:'', c:0 }, 'top') : '') +
+    (can('logic') ? group('logic', { k:'logic', l:'LOGIC 분석', n:'', c:0 }, [{ k:'logicdraw', l:'LOGIC 작성', n:'', c:0 }], route === 'logic' || route === 'logicdraw') : '') +
+    (can('space') ? btn({ k:'space', l:'ROOM SIZE 계산', n:'', c:0 }, 'top') : '') +
+    (can('books') ? btn({ k:'books', l:'도서검토', n:'', c:0 }, 'top') : '') +
+    (can('ic3d') ? btn({ k:'ic3d', l:'3D 계측제어', n:'', c:0 }, 'top') : '') +
+    (can('bidpjt') ? btn({ k:'bidpjt', l:'입찰 프로젝트', n:'', c:0 }, 'top') : '') +
+    (can('runpjt') ? btn({ k:'runpjt', l:'실행 프로젝트', n:'', c:0 }, 'top') : '') +
+    (can('board') ? btn({ k:'board', l:'익명게시판', n:root && DB.board ? DB.board.length : '', c:root ? boardNewCount() : 0, t:'마지막 확인 이후 새 글·댓글' }, 'top') : '') +
+    (can('mgmt') ? group('mgmt', { k:'mgmt', l:'Management', n:'', c:0 }, [{ k:'mgalloc', l:'R&R · 투입 분석', n:'', c:0 }, { k:'mghours', l:'근무시간 (월·주·일)', n:'', c:0 }, { k:'mgwork', l:'근로시간 관리 (52h)', n:'', c:0 }, { k:'mgbday', l:'부서원 생일', n:'', c:0 }], MG_ROUTES.includes(route)) : '');
   $('#btnPerm').hidden = !(SERVER && ADMIN && root && !OFFLINE);   // 메뉴 권한 설정: 운영자(서버 PC)만
   const acct = SERVER && root;                              // 서버(또는 오프라인 보관본) 모드 = 계정 사용, 폴더 모드 = 이름만
   $('#acct').hidden = !acct; $('#whoLine').hidden = !!acct; $('#btnWho').hidden = !!acct;   // 계정 모드: 위쪽 계정 표시, 폴더 모드: 아래쪽 이름

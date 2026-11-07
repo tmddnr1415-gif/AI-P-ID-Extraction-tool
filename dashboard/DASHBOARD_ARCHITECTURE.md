@@ -1349,3 +1349,8 @@ C:\Users\SAMSUNG\Desktop\Claude\                         ← 개발 폴더 (여�
 - 무엇을: 메뉴에 **🧊 3D 계측제어** 추가 (도서검토 바로 아래). 왜: 사용자 지시 — 세션 7 '3D 계측제어 도구'를 대시보드 메뉴로 연결. 도구 자체는 그 세션에서 만들고 P&ID 서버(run_lan_service.bat, 8000)의 `/ic3d` 에 붙음. 여기서는 연결(iframe)만.
 - 바뀐 곳: dashboard.html `APP_VERSION` · `PID_ROUTES.ic3d`({ port:PID_PORT, path:'/ic3d', q:'embed=1&' }) · `ROUTES` · `renderMenu` · `QF_MENUS`(빠른 찾기) · `VOC_MENU` · `PZ_STATUS`('3D 계측제어 중...') / server.py `SERVER_VERSION` · `MENUS`(메뉴 권한 설정 열 · 기본 허용) · `VOC_MENUS`.
 - 확인한 것: 임시 서버 + 가짜 P&ID 서버(8000): 메뉴 표시 · 누르면 `http://<호스트>:8000/ic3d?embed=1&user=본명` iframe · 메뉴 권한 설정 목록에 '3D 계측제어' · 페이지 오류 없음. 회사에서 확인할 것: P&ID 서버에 `/ic3d` 가 붙은 뒤 화면이 뜨는지 (붙기 전에는 P&ID 서버의 '없는 경로' 화면이 보임). server.py 가 바뀌었으므로 서버 재시작 필요.
+
+### 2026-11-07 (APP_VERSION 2026-11-07.2 / SERVER_VERSION 그대로 2026-11-07.1)
+- 무엇을: 왼쪽 메뉴 — 상위 메뉴 앞 이모지를 **번호 칸(1, 2, 3 …, 보이는 메뉴만 차례로)** 으로 바꾸고, 상위 메뉴를 강조(흰 글씨 15px · 위 간격 4px · 번호 칸은 반투명, 선택하면 흰 칸 + 파란 숫자). 하위 메뉴는 한 단계 흐리게(#b9c3e8). 왜: 사용자 지시 '메인 메뉴 더 하이라이트 · 이모지 대신 숫자'.
+- 바뀐 곳: dashboard.html `APP_VERSION` · `renderMenu`(`no` 번호 · 라벨 이모지 뺌) · CSS `.mi.top` `.mi .mno` `.mi.subi:not(.on)`. 메뉴 권한에 따라 숨은 메뉴는 번호를 건너뛰지 않고 차례로 매김.
+- 확인한 것: 임시 서버 — 홈 · 3D 계측제어 선택 화면 캡처, 페이지 오류 없음.
