@@ -1573,6 +1573,11 @@ button:focus:not(:focus-visible){outline:none}
 @media print{#deptBot,#botPanel{display:none!important}}
 
 #botPanel .btools{display:flex;gap:4px;padding:6px 8px;background:#fff4ee;border-bottom:1px solid #f3dfd4;flex-wrap:wrap}#botPanel .btools button{border:1px solid #f0d4c6;background:#fff;color:#9a3f1d;border-radius:99px;padding:3px 9px;font-size:11.5px;font-weight:700;cursor:pointer;box-shadow:0 1px 2px rgba(0,0,0,.06)}#botPanel .btools button:hover{background:#ffe9dc}
+
+/* 2026-11-08 클로드 비서 패트리어츠 헬멧 */
+#deptBot .bbody .bhelm{position:absolute;left:16%;top:-48%;width:66%;aspect-ratio:200/155;background-position:center;background-size:contain;background-repeat:no-repeat;transform:rotate(-6deg);filter:drop-shadow(0 2px 2px rgba(0,0,0,.25));pointer-events:none}
+#deptBot{height:84px}#deptBot .bbody{bottom:6px}
+#botPanel .bph .bpa{position:relative}#botPanel .bph .bpa .bhelm{position:absolute;left:3px;top:-6px;width:26px;aspect-ratio:200/155;background-position:center;background-size:contain;background-repeat:no-repeat}
 </style>
 </head>
 <body>
@@ -1741,7 +1746,7 @@ function recLabel(key, f) {
  * ===================================================================== */
 let root = null;
 /* 서버 모드: http(s):// 로 접속하면 server.py 의 REST API 사용 (폴더 선택 불필요). file:// 로 열면 폴더 모드 */
-const APP_VERSION = '2026-11-08.17';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
+const APP_VERSION = '2026-11-08.18';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
 const SERVER_URL = 'http://localhost:8080';
 // 부서원 PC 사본(file://)이 접속을 시도할 서버 — 서버가 배포 파일을 만들 때 'PC 이름 주소, IP 주소' 순으로 자동 기록함
 const DEFAULT_SERVERS = ['http://ASEUNGWOOK-B01:8080', 'http://65.3.30.234:8080'];
@@ -4666,10 +4671,10 @@ function botWander() {
 function botInit() {
   let off = false; try { off = localStorage.getItem('dept-bot-off') === '1'; } catch (_) {}
   if (BOT.el || !root) return;
-  const el = document.createElement('div'); el.id = 'deptBot'; el.title = '클로드 비서 — 누르면 무엇이든 물어보세요'; el.innerHTML = `<span class="bbody">${BOT_SVG}</span><span class="bball">${TB_BALL}</span><span class="bq">?</span><span class="bname">클로드 비서</span>`;
+  const el = document.createElement('div'); el.id = 'deptBot'; el.title = '클로드 비서 — 누르면 무엇이든 물어보세요'; el.innerHTML = `<span class="bbody">${BOT_SVG}<i class="oc-helmimg bhelm"></i></span><span class="bball">${TB_BALL}</span><span class="bq">?</span><span class="bname">클로드 비서</span>`;
   el.style.left = (innerWidth - 150) + 'px'; el.style.top = (innerHeight - 170) + 'px'; document.body.appendChild(el); BOT.el = el; el.hidden = off;
   const p = document.createElement('div'); p.id = 'botPanel'; p.hidden = true;
-  p.innerHTML = `<div class="bph"><span class="bpa">${BOT_SVG}</span><b>클로드 비서</b><small>대시보드 안내 · 바로 이동</small><button type="button" data-bhide title="캐릭터 숨기기 (다시 보기 = 오른쪽 위 🤖)">숨기기</button><button type="button" data-bclose title="닫기">✕</button></div>
+  p.innerHTML = `<div class="bph"><span class="bpa">${BOT_SVG}<i class="oc-helmimg bhelm"></i></span><b>클로드 비서</b><small>대시보드 안내 · 바로 이동</small><button type="button" data-bhide title="캐릭터 숨기기 (다시 보기 = 오른쪽 위 🤖)">숨기기</button><button type="button" data-bclose title="닫기">✕</button></div>
     <div class="btools"><button type="button" data-bt="find">🔍 찾기</button><button type="button" data-bt="voc">📣 VOC 등록</button><button type="button" data-bt="todo">📋 내 할 일</button><button type="button" data-bt="board">💬 VOC 목록</button></div><div class="blog" id="botLog"></div><form class="bin"><input id="botIn" placeholder="예: 카타르 LNG, 내 할 일, 마감 언제" autocomplete="off" maxlength="80"><button class="btn pri sm">↵</button></form>`;
   document.body.appendChild(p); BOT.panel = p;
   el.onmouseenter = () => { BOT.hover = true; }; el.onmouseleave = () => { BOT.hover = false; };
