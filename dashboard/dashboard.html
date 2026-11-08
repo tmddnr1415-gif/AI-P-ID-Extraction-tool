@@ -1498,6 +1498,14 @@ html.dark dialog,html.dark :fullscreen{color-scheme:light}
 .acct .aav[hidden]{display:none}
 .acct .aav img,.acct .aav b{width:100%;height:100%;border-radius:50%;object-fit:cover;display:grid;place-items:center;color:#fff;font-size:16px;font-weight:800;border:2px solid #1c1a5e;box-sizing:border-box}
 body.rail #side:not(:hover):not(.peek) .acct{display:none!important}
+
+/* 2026-11-08 웹 대시보드 관례 반영: 키보드 초점 표시 · 움직임 줄이기 · 홈 한 줄 요약 · 단축키 표 */
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+button:focus:not(:focus-visible){outline:none}
+@media (prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}}
+.myline{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:-4px 2px 10px;padding:7px 12px;border-radius:12px;background:#eef0ff;color:#2b2d63;font-size:13px}
+.myline b{color:var(--accent)}.myline.ok{background:#e7f8ee;color:#166534}.myline{width:max-content;max-width:100%}
+.keyt th{width:150px;white-space:nowrap;font-family:ui-monospace,Consolas,monospace}
 </style>
 </head>
 <body>
@@ -1666,7 +1674,7 @@ function recLabel(key, f) {
  * ===================================================================== */
 let root = null;
 /* 서버 모드: http(s):// 로 접속하면 server.py 의 REST API 사용 (폴더 선택 불필요). file:// 로 열면 폴더 모드 */
-const APP_VERSION = '2026-11-08.10';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
+const APP_VERSION = '2026-11-08.11';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
 const SERVER_URL = 'http://localhost:8080';
 // 부서원 PC 사본(file://)이 접속을 시도할 서버 — 서버가 배포 파일을 만들 때 'PC 이름 주소, IP 주소' 순으로 자동 기록함
 const DEFAULT_SERVERS = ['http://ASEUNGWOOK-B01:8080', 'http://65.3.30.234:8080'];
@@ -4477,7 +4485,9 @@ function renderHome(c) {
     ['통합 업무 미종결 (기한)', todoOpen.length, 'task', '건'], ['투입인력 합계', R('staffing').length, 'staffing', '명'],
   ];
   const hr = new Date().getHours(), pct = k => { const l = live(k); return l.length ? Math.round(l.filter(isDone).length / l.length * 100) : 0; };
-  c.insertAdjacentHTML('beforeend', `<div class="hello"><h3>${hr < 12 ? '좋은 아침이에요' : hr < 18 ? '좋은 오후예요' : '좋은 저녁이에요'}, <b>${esc(AUTH?.name || user || '')}</b> 님</h3><span>이번 주 마감 <b>${esc(weekLabel(curWeek()).slice(-5, -1).replace(/(\d\d)(\d\d)/, '$1/$2'))}(수) 11:59</b></span></div>`);
+  const mt = AUTH ? myTasks() : [], mo = mt.filter(t => !t.done), mpj = mo.filter(t => t.key === 'perform' || t.key === 'bid').length;   // 2026-11-08 '나에게 필요한 것 먼저' 한 줄 요약
+  const myline = !AUTH ? '' : mo.length ? `<div class="myline">📋 <b>${esc(AUTH.name)}</b> 님 이번 주 할 일 <b>${mo.length}건</b>${mpj ? ` — 업무 현황 미작성 PJT <b>${mpj}</b>` : ''}${mo.length - mpj ? ` · 업무 알림 <b>${mo.length - mpj}</b>` : ''} <button class="btn sm" data-tbopen>목록 보기</button></div>` : mt.length ? '<div class="myline ok">✅ 이번 주 내 할 일을 모두 마쳤습니다</div>' : '';
+  c.insertAdjacentHTML('beforeend', `<div class="hello"><h3>${hr < 12 ? '좋은 아침이에요' : hr < 18 ? '좋은 오후예요' : '좋은 저녁이에요'}, <b>${esc(AUTH?.name || user || '')}</b> 님</h3><span>이번 주 마감 <b>${esc(weekLabel(curWeek()).slice(-5, -1).replace(/(\d\d)(\d\d)/, '$1/$2'))}(수) 11:59</b></span></div>${myline}`);
   c.insertAdjacentHTML('beforeend', `<div class="badges">
     <button class="badge red ${notUpd ? '' : 'zero'}" data-pop="notupd" title="눌러서 목록 보기">이번 주 미업데이트 PJT <b>${notUpd}</b></button>
     <button class="badge red ${overdue.length ? '' : 'zero'}" data-pop="overdue" title="눌러서 목록 보기">기한 지난 업무 <b>${overdue.length}</b></button>${ddayChip()}</div>
@@ -5185,7 +5195,7 @@ const cfBtn = (key, ck) => { const st = FS[key], on = !!st?.cf?.[ck], so = st?.s
 const thR = (ck, label, extra = '', key = '') => `<th data-ck="${esc(ck)}" ${key ? extra.replace(/class="([^"]*)"/, 'class="$1 cfh"').replace(/^(?![\s\S]*class=)/, 'class="cfh" ') : extra}>${label}${key ? cfBtn(key, ck) : ''}<span class="rz" title="드래그: 열 너비 조절 · 더블클릭: 기본값"></span></th>`;
 
 function tableHtml(s, recs) {
-  if (!recs.length) return '<div class="empty">표시할 행이 없습니다</div>';
+  if (!recs.length) return `<div class="empty">표시할 행이 없습니다${noEdit() || readOnly() ? '' : `<br><button class="btn pri sm" data-emptyadd style="margin-top:10px">＋ 첫 행 추가</button><br><span class="muted" style="font-size:12px">필터를 걸었다면 [필터 초기화]를 눌러 보세요</span>`}</div>`;   // 2026-11-08 빈 화면 = 할 일 하나
   const cols = visCols(s), hid = hiddenCols(s.key);
   const L = lay(s.key), cg = colgroup(L, [...cols.map(c => ({ k:c.f, w:c.w + 20 })), { k:'__act', w:170 }]);
   const hidBefore = f => { const i = s.cols.findIndex(c => c.f === f), out = []; for (let j = i - 1; j >= 0 && hid.includes(s.cols[j].f); j--) out.unshift(s.cols[j].f); return out; };
@@ -7452,6 +7462,20 @@ const setNavClosed = on => { document.body.classList.toggle('nav-closed', on); $
   try { localStorage.setItem('dept-nav-closed', on ? '1' : ''); } catch (_) {} };
 try { if (localStorage.getItem('dept-nav-closed') === '1' && innerWidth > 900) setNavClosed(true); } catch (_) {}
 $('#btnShot').onclick = () => shotToVoc();
+document.addEventListener('click', e => { if (e.target.closest('[data-emptyadd]')) $('#btnAdd')?.click(); if (e.target.closest('[data-tbopen]')) { const t = $('#taskbar [data-tb=open]'); if (t) t.click(); else toast('오른쪽 "내 업무" 창에 목록이 있습니다'); } });
+/* 2026-11-08 단축키 (웹 대시보드 관례: Ctrl+K 찾기 · / 찾기 · g 다음 글자 = 메뉴 이동 · ? = 단축키 도움말) — 입력 칸에 글 쓰는 중이면 무시 */
+const KEYNAV = { h:['home', '홈'], p:['perform', '수행'], b:['bid', '입찰'], t:['task', '통합 업무'], u:['unit', '유닛분장'], n:['notice', '주간회의 전달사항'], r:['alloc', 'R&R · 투입 분석'], f:['finstagram', '재무스타그램'], g:['board', '익명게시판'] };
+let gKey = 0;
+document.addEventListener('keydown', e => {
+  if (e.ctrlKey || e.metaKey || e.altKey || e.target.closest?.('input,textarea,select,[contenteditable]') || dlg.open || dlg2.open || document.querySelector('#authScreen')) return;
+  if (e.key === '/') { e.preventDefault(); return openFind(); }
+  if (e.key === '?') { e.preventDefault(); return openDlg(dlg, `<div class="dh"><span>⌨ 단축키</span><button class="btn sm" data-close>닫기</button></div><div class="db"><table class="t keyt">
+      <tr><th>Ctrl + K · /</th><td>찾기 (메뉴 · PJT · 업무 · 게시글)</td></tr><tr><th>F8</th><td>화면 캡처 → VOC</td></tr>
+      ${Object.entries(KEYNAV).map(([k, [, l]]) => `<tr><th>g → ${k}</th><td>${esc(l)}</td></tr>`).join('')}<tr><th>?</th><td>이 도움말</td></tr></table>
+      <p class="muted">g 를 누르고 1.5초 안에 글자를 누르세요. 글을 쓰는 칸에서는 동작하지 않습니다.</p></div>`); }
+  if (e.key === 'g') { gKey = Date.now(); return; }
+  if (gKey && Date.now() - gKey < 1500 && KEYNAV[e.key]) { gKey = 0; const [k, l] = KEYNAV[e.key]; if (validRoute(k) && can(menuOf(k))) { go(k); toast(`⌨ ${l}`); } }
+});
 /* 다크 모드 (2026-11-08): 🌙 단추 · 이 PC 에 기억 (localStorage dept-dark) */
 const setDark = on => { document.documentElement.classList.toggle('dark', on); $('#btnDark').textContent = on ? '☀️' : '🌙'; $('#btnDark').title = on ? '밝은 모드로' : '다크 모드로 (이 PC 에 기억)'; try { localStorage.setItem('dept-dark', on ? '1' : ''); } catch (_) {} };
 try { if (localStorage.getItem('dept-dark') === '1') setDark(true); } catch (_) {}
