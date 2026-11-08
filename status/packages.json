@@ -1,12 +1,46 @@
 {
-  "_설명": "오케스트레이터가 만든 회사 업데이트 파일. build_status.py 가 '다음 업데이트 대기'를 이 꾸러미 뒤의 커밋으로 센다. 회사 PC 적용 확인을 받으면 applied 를 채운다.",
-  "packages": [
-    {"file": "①", "name": "1_DASHBOARD_update_v16.61_any_2026-11-07.zip", "made": "2026-11-07 09:39", "path": "company-pc-update/2026-11-07/",
-     "sha256": "ee9a117043c18775f1cf93a05274db69b895a6346212b7ff1d3dcec8316ceeae", "applied": "",
-     "tips": {"S1": "2de31688"}},
-    {"file": "②", "name": "2_PID_dev+ops_hotfix133_2026-11-07.zip", "made": "2026-11-07 09:53", "path": "company-pc-update/2026-11-07/",
-     "sha256": "bac36bf01e0b93ef440905cdd7069798901f069964e00fa52874e659d62217f6", "applied": "", "integration_head": "fe4dd38b",
-     "tips": {"S2": "7693ad75", "S3": "4e9cfd24", "S4": "7b10d7cb", "S5": "b44ead53", "S6": "b0db9a0d"},
-     "left_out": {"S7": "PID 서버 /ic3d 주소 없음 (S2 작업 대기)"}}
-  ]
+ "_설명": "오케스트레이터가 만든 회사 업데이트 파일. build_status.py 가 '다음 업데이트 대기'를 이 꾸러미 뒤의 커밋으로 센다. 회사 PC 적용 확인을 받으면 applied 를 채운다.",
+ "packages": [
+  {
+   "file": "①",
+   "name": "1_DASHBOARD_update_v16.61_any_2026-11-07.zip",
+   "made": "2026-11-07 09:39",
+   "path": "company-pc-update/2026-11-07/",
+   "sha256": "ee9a117043c18775f1cf93a05274db69b895a6346212b7ff1d3dcec8316ceeae",
+   "applied": "",
+   "tips": {
+    "S1": "2de31688"
+   }
+  },
+  {
+   "file": "②",
+   "name": "2_PID_dev+ops_hotfix133_2026-11-07.zip",
+   "made": "2026-11-07 09:53",
+   "path": "company-pc-update/2026-11-07/",
+   "sha256": "bac36bf01e0b93ef440905cdd7069798901f069964e00fa52874e659d62217f6",
+   "applied": "",
+   "integration_head": "fe4dd38b",
+   "tips": {
+    "S2": "7693ad75",
+    "S3": "4e9cfd24",
+    "S4": "7b10d7cb",
+    "S5": "b44ead53",
+    "S6": "b0db9a0d"
+   },
+   "left_out": {
+    "S7": "PID 서버 /ic3d 주소 없음 (S2 작업 대기)"
+   }
+  },
+  {
+   "file": "①",
+   "name": "1_DASHBOARD_update_v16.96_any_2026-11-08.zip",
+   "made": "2026-11-08 22:21",
+   "path": "company-pc-update/2026-11-08/ (109MB · 저장소 밖 · 직접 전달)",
+   "sha256": "f7c688148d62265be54f7bfe491022ac07e59ff11d1bec7a030ba71ec2b45765",
+   "applied": "",
+   "tips": {
+    "S1": "68b02f59"
+   }
+  }
+ ]
 }
