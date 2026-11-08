@@ -1531,6 +1531,37 @@ button:focus:not(:focus-visible){outline:none}
 
 /* 2026-11-08 인사말 덧말 */
 .hello h3 .gx{font-size:14px;font-weight:600;color:#5b5f86;margin-left:10px;vertical-align:2px}
+
+/* ---------- 2026-11-08 클로드 비서 (돌아다니는 캐릭터 + 작은 챗봇) ---------- */
+#deptBot{position:fixed;z-index:60;width:64px;height:76px;cursor:pointer;transition:left 3s ease-in-out,top 3s ease-in-out;filter:drop-shadow(0 6px 8px rgba(40,30,80,.25));user-select:none}
+#deptBot[hidden]{display:none}
+#deptBot svg{width:64px;height:64px;display:block;animation:botBob 2.2s ease-in-out infinite}
+#deptBot.flip svg{transform:scaleX(-1)}
+#deptBot.walk svg{animation:botWalk .45s ease-in-out infinite}
+#deptBot .bspark{transform-origin:32px 13px;animation:botSpark 3s linear infinite}
+#deptBot .beye{transform-box:fill-box;transform-origin:center;animation:botBlink 4s infinite}
+#deptBot .bq{position:absolute;right:-6px;top:-10px;width:24px;height:24px;border-radius:50%;background:#4f4ce0;color:#fff;font-weight:900;display:grid;place-items:center;font-size:15px;box-shadow:0 3px 8px rgba(79,76,224,.45);transform:scale(0);transition:transform .2s}
+#deptBot:hover .bq,#deptBot.ask .bq,#deptBot.talk .bq{transform:scale(1)}#deptBot.ask .bq{animation:botQ .9s ease}
+#deptBot .bname{position:absolute;left:50%;bottom:-6px;transform:translateX(-50%);white-space:nowrap;font-size:10.5px;font-weight:800;color:#c25a35;background:#fff;border-radius:99px;padding:0 7px;box-shadow:0 2px 5px rgba(0,0,0,.15);opacity:0;transition:opacity .2s}
+#deptBot:hover .bname{opacity:1}
+@keyframes botBob{0%,100%{transform:translateY(0)}50%{transform:translateY(-4px)}}
+@keyframes botWalk{0%,100%{transform:translateY(0) rotate(-4deg)}50%{transform:translateY(-6px) rotate(4deg)}}
+@keyframes botSpark{to{transform:rotate(360deg)}}
+@keyframes botBlink{0%,92%,100%{transform:scaleY(1)}95%{transform:scaleY(.1)}}
+@keyframes botQ{0%{transform:scale(0) rotate(-40deg)}60%{transform:scale(1.4) rotate(10deg)}100%{transform:scale(1)}}
+#botPanel{position:fixed;z-index:61;width:340px;height:440px;display:flex;flex-direction:column;background:#fff;border-radius:18px;box-shadow:0 18px 50px rgba(30,30,90,.3),0 0 0 1px rgba(79,76,224,.12);overflow:hidden}
+#botPanel[hidden]{display:none}
+#botPanel .bph{display:flex;align-items:center;gap:6px;padding:9px 10px;background:linear-gradient(135deg,#e07a52,#c25a35);color:#fff}
+#botPanel .bph .bpa svg{width:30px;height:30px;display:block}#botPanel .bph b{font-size:14px;white-space:nowrap}#botPanel .bph small{font-size:11px;opacity:.85;margin-right:auto;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+#botPanel .bph button{flex:none;white-space:nowrap;border:0;background:rgba(255,255,255,.2);color:#fff;border-radius:8px;padding:3px 8px;font-size:12px;cursor:pointer}#botPanel .bph button:hover{background:rgba(255,255,255,.35)}
+#botPanel .blog{flex:1;overflow:auto;padding:10px;background:#faf8f6;display:flex;flex-direction:column;gap:8px}
+#botPanel .bmsg{display:flex;flex-direction:column;max-width:88%}#botPanel .bmsg.me{align-self:flex-end;align-items:flex-end}
+#botPanel .bb{border-radius:14px;padding:8px 11px;font-size:13px;line-height:1.5;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.08)}#botPanel .bmsg.me .bb{background:#4f4ce0;color:#fff}
+#botPanel .bmsg.bot .bb{border-top-left-radius:4px}#botPanel .bmsg.me .bb{border-top-right-radius:4px}
+#botPanel .bacts{display:flex;flex-direction:column;gap:4px;margin-top:5px}
+#botPanel .bacts button{border:1px solid #f0d4c6;background:#fff7f2;color:#9a3f1d;border-radius:10px;padding:5px 9px;font-size:12px;text-align:left;cursor:pointer}#botPanel .bacts button:hover{background:#ffe9dc}
+#botPanel .bin{display:flex;gap:6px;padding:8px;border-top:1px solid #eee}#botPanel .bin input{flex:1;border:1px solid #e3e3ef;border-radius:10px;padding:7px 10px;font-size:13px}
+@media print{#deptBot,#botPanel{display:none!important}}
 </style>
 </head>
 <body>
@@ -1699,7 +1730,7 @@ function recLabel(key, f) {
  * ===================================================================== */
 let root = null;
 /* 서버 모드: http(s):// 로 접속하면 server.py 의 REST API 사용 (폴더 선택 불필요). file:// 로 열면 폴더 모드 */
-const APP_VERSION = '2026-11-08.15';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
+const APP_VERSION = '2026-11-08.16';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
 const SERVER_URL = 'http://localhost:8080';
 // 부서원 PC 사본(file://)이 접속을 시도할 서버 — 서버가 배포 파일을 만들 때 'PC 이름 주소, IP 주소' 순으로 자동 기록함
 const DEFAULT_SERVERS = ['http://ASEUNGWOOK-B01:8080', 'http://65.3.30.234:8080'];
@@ -3933,6 +3964,7 @@ function appAuth() {
 }
 
 function render() {
+  setTimeout(botInit, 0);   // 2026-11-08 클로드 비서
   if (route === 'work') { route = 'task'; try { history.replaceState(null, '', '#task'); } catch (_) {} }
   if (route === 'mgmt') { route = 'mgalloc'; try { history.replaceState(null, '', '#mgalloc'); } catch (_) {} }   // Management 머리 → 첫 하위 메뉴   // 예전 주소 #work → 통합 업무 시트
   applyExtraCols();                                        // 사용자가 추가한 열 반영
@@ -4535,6 +4567,92 @@ function greetLine(name) {
   const tw = ([...GREET.time].reverse().find(([k]) => h >= k) || GREET.time[GREET.time.length - 1])[1];
   const extra = seed % 2 ? pick(GREET.day[dw]) : pick(GREET.season[season]);   // 날마다 요일 문장 또는 계절 문장
   return `${tw}, <b>${name}</b> 님 <small class="gx">${esc(extra)}</small>`;
+}
+
+/* ---------- 2026-11-08 비서 캐릭터(클로드 비서) — 화면을 돌아다니다 누르면 '?' 와 함께 작은 챗봇 ----------
+ * 인터넷 · 외부 AI 를 쓰지 않음 (사내 자료 밖으로 안 나감): 대시보드에 있는 모든 자료(수행 · 입찰 · 통합 업무 · 전달사항 · 유닛분장 · 게시판/VOC …)를
+ * 빠른 찾기(qfSearch)로 찾고, 자주 묻는 것(마감 · 메뉴 위치 · 기능 사용법)은 BOT_FAQ 로 답함. 답마다 [바로 이동] 단추. */
+const BOT = { el:null, panel:null, t:0, open:false, log:[] };
+const BOT_SVG = `<svg viewBox="0 0 64 64" aria-hidden="true"><defs><radialGradient id="botg" cx="40%" cy="35%" r="70%"><stop offset="0" stop-color="#f7b08f"/><stop offset=".6" stop-color="#e07a52"/><stop offset="1" stop-color="#c25a35"/></radialGradient></defs>
+  <path d="M32 3l2.2 6.4L40 8l-3.6 5.2L41 17l-6.5.3L32 23l-2.5-5.7L23 17l4.6-3.8L24 8l5.8 1.4z" fill="#ffd36b" class="bspark"/>
+  <ellipse cx="32" cy="58" rx="16" ry="3.5" fill="rgba(20,20,60,.18)"/>
+  <rect x="11" y="20" width="42" height="34" rx="17" fill="url(#botg)"/>
+  <rect x="5" y="32" width="9" height="6" rx="3" fill="#c25a35" class="barm l"/><rect x="50" y="32" width="9" height="6" rx="3" fill="#c25a35" class="barm r"/>
+  <ellipse cx="25" cy="36" rx="3.4" ry="4.4" fill="#2b1d1a" class="beye"/><ellipse cx="39" cy="36" rx="3.4" ry="4.4" fill="#2b1d1a" class="beye"/>
+  <circle cx="26.2" cy="34.4" r="1.2" fill="#fff"/><circle cx="40.2" cy="34.4" r="1.2" fill="#fff"/>
+  <path d="M27 44q5 4 10 0" stroke="#2b1d1a" stroke-width="2" fill="none" stroke-linecap="round"/>
+  <ellipse cx="19" cy="42" rx="3" ry="1.8" fill="#ff9e9e" opacity=".55"/><ellipse cx="45" cy="42" rx="3" ry="1.8" fill="#ff9e9e" opacity=".55"/></svg>`;
+const BOT_STOP = /^(어디|어디야|어디에|있어|있나|있나요|있어요|알려|알려줘|알려주세요|보여|보여줘|뭐야|뭐|무엇|어떻게|하는|하나요|해줘|좀|찾아|찾아줘|내|나|제|우리|의|은|는|이|가|을|를|에|에서|좀|요|해|돼|되나요|방법|메뉴|화면|가줘|이동|열어|열어줘)$/;
+const BOT_FAQ = [
+  [/마감|언제까지|데드라인/, () => `주간업무 마감은 매주 <b>수요일 오전 11:59</b> 입니다. 이번 주 마감은 <b>${esc(weekLabel(curWeek()).slice(-5, -1).replace(/(\d\d)(\d\d)/, '$1/$2'))}(수) 11:59</b> — 그때 자동으로 마감본이 남고 새 주가 시작돼요.`, [['미업데이트 PJT 보기', () => openPop('notupd')], ['수행 PJT', () => go('perform')]]],
+  [/할\s*일|내\s*업무|미작성|미업데이트/, () => { const mt = myTasks(), mo = mt.filter(t => !t.done); return mo.length ? `이번 주 남은 할 일이 <b>${mo.length}건</b> 있어요.<br>${mo.slice(0, 5).map(t => `· ${esc(t.label)} <span class="muted">(${esc(t.kind)})</span>`).join('<br>')}${mo.length > 5 ? '<br>…' : ''}` : '이번 주 할 일을 모두 마쳤어요 👍'; }, [['미업데이트 PJT 목록', () => openPop('notupd')], ['기한 지난 업무', () => openPop('overdue')]]],
+  [/재무|dart|다트|주가|수주/i, () => '<b>재무스타그램</b>은 왼쪽 메뉴 <b>실행 프로젝트 아래</b>에 있어요. 회사 이름을 검색하면 DART 재무제표 · 주가 · 수주현황을 보여 줍니다. 세계 지도의 [💰 삼성물산 수주현황] 도 같은 자료예요.', [['재무스타그램 열기', () => go('finstagram')]]],
+  [/지도|지구본|나라|국가|현지\s*시각/, () => '<b>유닛분장 → 세계 지도</b>에서 3D 지구본으로 PJT 위치 · 현지 시각 · LE/RE 를 봅니다. 휠 = 확대/축소, 끌기 = 돌리기.', [['세계 지도 열기', () => { go('unit'); setTimeout(() => $('[data-ocmode=map]')?.click(), 700); }]]],
+  [/조직|유닛|헬멧|포지션|쿼터백|qb|le|re\b/i, () => '<b>유닛분장</b>에서 조직도(유닛 · 프로젝트별 LE/RE · 세계 지도)를 봅니다. 사람 카드를 누르면 부서원 화면(담당 PJT · To Do · 기술공유 …)이 열려요.', [['유닛분장 열기', () => go('unit')]]],
+  [/voc|건의|불편|개선\s*요청|스크린/i, () => 'VOC 는 오른쪽 위 <b>📷 스크린 → VOC</b>(단축키 F8)로 화면을 찍어 바로 남길 수 있어요. 올라온 VOC 는 <b>익명게시판 → VOC</b> 에 모입니다.', [['VOC 쓰기', () => shotToVoc()], ['VOC 목록', () => { BS.kind = 'VOC'; go('board'); }]]],
+  [/다크|어둡|밤\s*모드/, () => '오른쪽 위 🌙 단추가 다크 모드예요. 다시 누르면 밝은 화면.', [['다크 모드 켜기/끄기', () => setDark(!document.documentElement.classList.contains('dark'))]]],
+  [/단축키|키보드|ctrl/i, () => 'Ctrl+K 또는 / = 찾기, g 다음 글자 = 메뉴 이동(g p 수행 · g u 유닛분장 …), F8 = 스크린 VOC, ? = 단축키 표.', [['단축키 표', () => document.dispatchEvent(new KeyboardEvent('keydown', { key:'?' }))]]],
+  [/메뉴\s*숨|간략|사이드/, () => '왼쪽 메뉴 위 [⇤ 간략] = 아이콘 막대, [◀ 숨기기] = 메뉴 숨김(☰ 로 다시).', []],
+  [/생일|캘린더|달력|일정/, () => '홈 오른쪽 <b>월간 캘린더</b>에 마감 · 업무 기한 · 전달사항 · 생일(👑)이 표시돼요. 날짜에 마우스를 올리면 상세.', [['홈으로', () => go('home')], ['부서원 생일', () => go('mgbday')]]],
+  [/전달\s*사항|공지|회의/, () => { const m = sortRecs(SHEET.notice, getRecs('notice'))[0]; return m ? `최신 주간회의 전달사항은 <b>${esc(flat(m.fields['제목']))}</b> (${esc(flat(m.fields['일자']))}) 이에요.` : '등록된 전달사항이 없어요.'; }, [['전달사항 보기', () => go('notice')]]],
+  [/출장|서버\s*옮|다른\s*pc|대신\s*켜/i, () => '서버를 다른 PC 로 옮길 때는: 서버를 끄고 운영 폴더 전체를 그 PC 로 복사 → 그 PC 에서 start_server.bat. 돌아오면 반대로 복사. <b>두 서버를 동시에 켜면 안 돼요</b> (자료가 갈라짐).', []],
+  [/안녕|하이|hello|hi\b|반가/i, () => `안녕하세요${AUTH ? ', ' + esc(AUTH.name) + ' 님' : ''}! 대시보드 안의 PJT · 업무 · 전달사항 · VOC 를 찾아 바로 데려다 드려요. 예: "카타르", "내 할 일", "재무스타그램 어디", "마감 언제"`, []],
+];
+const botWords = q => String(q).split(/[\s,.?!·~]+/).map(w => w.replace(/(이야|이에요|예요|인가요|은|는|이|가|을|를|에|에서|의|좀|요)$/, '')).filter(w => w.length >= 2 && !BOT_STOP.test(w));
+function botAnswer(q) {
+  const out = { html:'', acts:[] };
+  const f = BOT_FAQ.find(([re]) => re.test(q));
+  if (f) { out.html = f[1](); out.acts = f[2].map(([l, fn]) => ({ l, fn })); }
+  const seen = new Set(), hits = [];
+  for (const w of botWords(q)) for (const it of qfSearch(w)) { const k = JSON.stringify(it.act); if (seen.has(k)) continue; seen.add(k); hits.push(it); if (hits.length >= 6) break; }
+  if (hits.length) {
+    out.html += (out.html ? '<br><br>' : '') + `관련 내용을 <b>${hits.length}건</b> 찾았어요. 누르면 바로 이동합니다.`;
+    hits.forEach(it => out.acts.push({ l:(() => { const t = it.html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim(); return `${it.g} · ${(t.startsWith(it.g) ? t.slice(it.g.length) : t).trim().slice(0, 44)}`; })(), fn:() => { if (it.act.go) go(it.act.go); else if (it.act.jump) jumpTo(...it.act.jump, false); else if (it.act.board) { BS.q = botWords(q)[0] || ''; BS.kind = ''; go('board'); } } }));
+  }
+  if (!out.html) out.html = '음… 딱 맞는 걸 못 찾았어요 🤔 PJT 이름 · 사람 이름 · 메뉴 이름으로 물어봐 주세요. 예: "카타르 LNG", "박민수 To Do", "익명게시판"';
+  return out;
+}
+function botSay(who, html, acts = []) {
+  const b = $('#botLog'); if (!b) return; const d = document.createElement('div'); d.className = 'bmsg ' + who;
+  d.innerHTML = `<div class="bb">${html}</div>${acts.length ? `<div class="bacts">${acts.map((a, i) => `<button type="button" data-ba="${i}">${esc(a.l)} ›</button>`).join('')}</div>` : ''}`;
+  d.onclick = e => { const x = e.target.closest('[data-ba]'); if (x) { acts[+x.dataset.ba].fn(); botSay('me', esc(acts[+x.dataset.ba].l)); botSay('bot', '이동했어요 👉 또 궁금한 게 있으면 물어보세요.'); } };
+  b.appendChild(d); b.scrollTop = b.scrollHeight;
+}
+function botToggle(on) {
+  BOT.open = on ?? !BOT.open; const p = BOT.panel; if (!p) return;
+  p.hidden = !BOT.open; BOT.el.classList.toggle('talk', BOT.open);
+  if (BOT.open) { botDock(); if (!$('#botLog').children.length) botSay('bot', `무엇을 도와드릴까요${AUTH ? ', ' + esc(AUTH.name) + ' 님' : ''}? 대시보드 안의 PJT · 업무 · 전달사항 · VOC 를 찾아 바로 이동해 드려요.`, [{ l:'이번 주 내 할 일', fn:() => botAsk('내 할 일') }, { l:'마감 언제?', fn:() => botAsk('마감 언제') }, { l:'재무스타그램 어디?', fn:() => botAsk('재무스타그램 어디') }]);
+    setTimeout(() => $('#botIn')?.focus(), 50); }
+}
+function botAsk(q) { q = String(q || '').trim(); if (!q) return; botSay('me', esc(q)); const a = botAnswer(q); setTimeout(() => botSay('bot', a.html, a.acts), 250); }
+function botDock() { const r = BOT.el.getBoundingClientRect(), p = BOT.panel, W = 340, H = 440;
+  p.style.left = Math.max(8, Math.min(innerWidth - W - 8, r.left + r.width / 2 - W / 2)) + 'px'; p.style.top = (r.top > H + 20 ? r.top - H - 10 : Math.min(innerHeight - H - 8, r.bottom + 10)) + 'px'; }
+function botWander() {
+  clearTimeout(BOT.t); if (!BOT.el || BOT.open || BOT.hover || matchMedia('(prefers-reduced-motion: reduce)').matches) { BOT.t = setTimeout(botWander, 4000); return; }
+  const x = 280 + Math.random() * Math.max(100, innerWidth - 380), y = 140 + Math.random() * Math.max(100, innerHeight - 240), cx = parseFloat(BOT.el.style.left) || x;
+  BOT.el.classList.toggle('flip', x < cx); BOT.el.classList.add('walk');
+  BOT.el.style.left = x + 'px'; BOT.el.style.top = y + 'px';
+  setTimeout(() => BOT.el?.classList.remove('walk'), 3200);
+  BOT.t = setTimeout(botWander, 6000 + Math.random() * 6000);
+}
+function botInit() {
+  let off = false; try { off = localStorage.getItem('dept-bot-off') === '1'; } catch (_) {}
+  if (BOT.el || !root) return;
+  const el = document.createElement('div'); el.id = 'deptBot'; el.title = '클로드 비서 — 누르면 무엇이든 물어보세요'; el.innerHTML = `${BOT_SVG}<span class="bq">?</span><span class="bname">클로드 비서</span>`;
+  el.style.left = (innerWidth - 150) + 'px'; el.style.top = (innerHeight - 170) + 'px'; document.body.appendChild(el); BOT.el = el; el.hidden = off;
+  const p = document.createElement('div'); p.id = 'botPanel'; p.hidden = true;
+  p.innerHTML = `<div class="bph"><span class="bpa">${BOT_SVG}</span><b>클로드 비서</b><small>대시보드 안내 · 바로 이동</small><button type="button" data-bhide title="캐릭터 숨기기 (다시 보기 = 오른쪽 위 🤖)">숨기기</button><button type="button" data-bclose title="닫기">✕</button></div>
+    <div class="blog" id="botLog"></div><form class="bin"><input id="botIn" placeholder="예: 카타르 LNG, 내 할 일, 마감 언제" autocomplete="off" maxlength="80"><button class="btn pri sm">↵</button></form>`;
+  document.body.appendChild(p); BOT.panel = p;
+  el.onmouseenter = () => { BOT.hover = true; }; el.onmouseleave = () => { BOT.hover = false; };
+  el.onclick = () => { el.classList.add('ask'); setTimeout(() => el.classList.remove('ask'), 900); botToggle(); };
+  p.querySelector('form').onsubmit = e => { e.preventDefault(); const i = $('#botIn'); botAsk(i.value); i.value = ''; };
+  p.onclick = e => { if (e.target.closest('[data-bclose]')) botToggle(false); if (e.target.closest('[data-bhide]')) { botToggle(false); el.hidden = true; $('#btnBot').hidden = false; try { localStorage.setItem('dept-bot-off', '1'); } catch (_) {} } };
+  const tb = document.createElement('button'); tb.id = 'btnBot'; tb.className = 'btn'; tb.type = 'button'; tb.textContent = '🤖'; tb.title = '클로드 비서 다시 보기'; tb.hidden = !off;
+  tb.onclick = () => { el.hidden = false; tb.hidden = true; try { localStorage.setItem('dept-bot-off', ''); } catch (_) {} botToggle(true); };
+  $('#btnDark')?.before(tb);
+  addEventListener('keydown', e => { if (e.key === 'Escape' && BOT.open) botToggle(false); });
+  setTimeout(botWander, 2500);
 }
 function renderHome(c) {
   const R = k => getRecs(k), live = k => R(k).filter(isLive), pj = [...live('perform'), ...live('bid')];   // 종결 PJT 는 집계하지 않음
