@@ -1774,7 +1774,7 @@ function recLabel(key, f) {
  * ===================================================================== */
 let root = null;
 /* 서버 모드: http(s):// 로 접속하면 server.py 의 REST API 사용 (폴더 선택 불필요). file:// 로 열면 폴더 모드 */
-const APP_VERSION = '2026-11-08.42';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
+const APP_VERSION = '2026-11-08.43';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
 const SERVER_URL = 'http://localhost:8080';
 // 부서원 PC 사본(file://)이 접속을 시도할 서버 — 서버가 배포 파일을 만들 때 'PC 이름 주소, IP 주소' 순으로 자동 기록함
 const DEFAULT_SERVERS = ['http://ASEUNGWOOK-B01:8080', 'http://65.3.30.234:8080'];
@@ -5307,13 +5307,25 @@ const EN_FIX_TR = [   // 번역 결과(영어)
   [/\b(one|two|three|four|five|six|seven|eight|nine|ten)\s+(trillion|billion|million|thousand)\b/gi, (m, a, b) => ({ one:1, two:2, three:3, four:4, five:5, six:6, seven:7, eight:8, nine:9, ten:10 }[a.toLowerCase()]) + ' ' + b.toLowerCase()], [/(\d+(?:\.\d+)?)\s*percent\b/gi, '$1%'],
   [/\bbecome longer-term\b/gi, 'persist'], [/\bin a row\b/g, 'in a row'], [/\be-mail\b/gi, 'email'],
 ];
-const KO_PRE_KOEN = [ [/(\d+)\s*조\s*원/g, '$1 trillion won'], [/(\d+)\s*억\s*원/g, (m, a) => (a * 100) + ' million won'], [/(\d+)\s*만\s*원/g, (m, a) => (a * 10000).toLocaleString('en-US') + ' won'], [/계약서\s*초안/g, 'draft contract'], [/초안/g, 'draft'], [/학자금\s*대출/g, 'student loans'], [/전년\s*대비/g, 'year-on-year'] ];
+const koNum = (n, unit) => { const v = parseFloat(n) * { 만:1e4, 억:1e8, 조:1e12 }[unit]; return v >= 1e12 ? +(v / 1e12).toFixed(2) + ' trillion' : v >= 1e9 ? +(v / 1e9).toFixed(2) + ' billion' : v >= 1e6 ? +(v / 1e6).toFixed(2) + ' million' : Math.round(v).toLocaleString('en-US'); };
+const KO_MON = ['', 'January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+const KO_PRE_KOEN = [ [/(\d+(?:\.\d+)?)\s*(조|억|만)\s*(\d+(?:\.\d+)?)?\s*(억|만)?\s*(원|달러|명|개|톤|배럴)?/g, (m, a, u1, b, u2, w) => { let v = parseFloat(a) * { 만:1e4, 억:1e8, 조:1e12 }[u1]; if (b && u2) v += parseFloat(b) * { 만:1e4, 억:1e8, 조:1e12 }[u2]; const txt = v >= 1e12 ? +(v / 1e12).toFixed(2) + ' trillion' : v >= 1e9 ? +(v / 1e9).toFixed(2) + ' billion' : v >= 1e6 ? +(v / 1e6).toFixed(2) + ' million' : Math.round(v).toLocaleString('en-US'); return txt + ({ 원:' won', 달러:' dollars', 명:' people', 개:'', 톤:' tons', 배럴:' barrels' }[w] || ''); }],
+  [/(\d{1,2})\s*월\s*(\d{1,2})\s*일/g, (m, a, b) => `${KO_MON[+a] || a + '월'} ${+b}`], [/(\d{4})\s*년\s*(\d{1,2})\s*월/g, (m, y, mo) => `${KO_MON[+mo] || mo} ${y}`], [/계약서\s*초안/g, 'draft contract'], [/초안/g, 'draft'], [/학자금\s*대출/g, 'student loans'], [/전년\s*대비/g, 'year-on-year'] ];
 const trRep = (t, L) => L.reduce((a, [re, r]) => a.replace(re, r), t);
-function trKoFinish(out, src) {   // 영→한 마지막: 조사 받침 맞추기(바꿔 넣은 낱말 뒤) + 문장 끝 말투 통일(사양서 shall 은 '~한다' 그대로)
-  out = koJosa(out, []);
+/* 말뭉치 4,000문장 검토(Claude)에서 자주 나온 기계적 오류 — 2026-11-08 */
+const trSrcClean = t => String(t).replace(/¡°|&quot;|&#8220;|&ldquo;/g, '“').replace(/¡±|&#8221;|&rdquo;/g, '”').replace(/&#8212;|&mdash;/g, '—').replace(/&#8217;|&rsquo;/g, '’').replace(/&#8216;|&lsquo;/g, '‘').replace(/&amp;/g, '&').replace(/&nbsp;/g, ' ').replace(/\s{2,}/g, ' ');
+function trKoSpace(out) {   // 모델이 내는 붙여쓰기 · 띄어쓰기 오류
+  return out.replace(/¡°/g, '“').replace(/¡±/g, '”').replace(/&#\d+;|&[a-z]+;/g, m => ({ '&#8212;':'—', '&amp;':'&', '&quot;':'"', '&#8217;':'’' }[m] || ''))
+    .replace(/([가-힣])\s+(적인|적이|적으로)(?=[\s.,]|$)/g, '$1$2').replace(/적\s+인(?=\s)/g, '적인').replace(/([가-힣]{2,})\s+(한|된|될|되는|하는|했던|되었던)(?=\s(?![명개번달주시간차례가지]))/g, (m, a, b) => /^(또|더|아주|매우|가장|그|이|저|어떤|무슨|여러|모든|몇|한|두|세|네|다섯)$/.test(a) ? m : a + b)
+    .replace(/(에|에서|께|부터|까지|로|으로|와|과|고|며|면|함께|통해|위해|따라|대해|관해|보다|처럼|만큼|이|가|은|는|을|를|의|도)(있|없|되|됐|될|이란|이라는|이렇|이번|이후|이미|이상|이외|인한|이런|있었|있는|없는)/g, (m, a, b) => /(보|쓰|뵈|되|이)$/.test(a) && b.startsWith('이') ? m : a + ' ' + b)
+    .replace(/([가-힣])(이란|이라는)(?=\s)/g, (m, a, b) => /[가-힣]/.test(a) ? m : m).replace(/하고있/g, '하고 있').replace(/([가-힣])고있(다|습니다|는|었|으)/g, '$1고 있$2').replace(/([가-힣])해야한다/g, '$1해야 한다').replace(/([가-힣])수있(다|습니다|는|었|을)/g, '$1 수 있$2').replace(/([가-힣])수없(다|습니다|는|었)/g, '$1 수 없$2')
+    .replace(/(\d)\s*(명|개|건|대|회|년|월|일|시간|분|초|원|달러|%)(?=[\s.,)이가은는을를과와도로의에]|$)/g, '$1$2').replace(/\s+([.,!?])/g, '$1').replace(/\s{2,}/g, ' ').trim();
+}
+function trKoFinish(out, src) {   // 영→한 마지막: 띄어쓰기 → 조사 받침 맞추기(바꿔 넣은 낱말 뒤) → 문장 끝 말투 통일(사양서 shall 은 '~한다' 그대로, 그 밖은 합니다체 기본)
+  out = koJosa(trKoSpace(out), []);
   if (/\bshall\b/i.test(src)) return out;
   const sent = out.split(/(?<=[.!?])\s+/), formal = sent.filter(x => /(습니다|습니까|입니다|십시오|세요|요)[.!?]?$/.test(x.trim())).length, plain = sent.filter(x => /[가-힣]다[.!?]?$/.test(x.trim()) && !/(습니다|입니다)[.!?]?$/.test(x.trim())).length;
-  if (formal >= plain && plain) out = out.replace(/(었|았|였|했|됐|겠)다(?=[.!?](\s|$)|$)/g, '$1습니다').replace(/([가-힣])이다(?=[.!?](\s|$)|$)/g, '$1입니다').replace(/한다(?=[.!?](\s|$)|$)/g, '합니다').replace(/된다(?=[.!?](\s|$)|$)/g, '됩니다').replace(/있다(?=[.!?](\s|$)|$)/g, '있습니다').replace(/없다(?=[.!?](\s|$)|$)/g, '없습니다');
+  if ((formal >= plain || sent.length <= 2) && plain) out = out.replace(/(었|았|였|했|됐|겠)다(?=[.!?](\s|$)|$)/g, '$1습니다').replace(/([가-힣])이다(?=[.!?](\s|$)|$)/g, '$1입니다').replace(/한다(?=[.!?](\s|$)|$)/g, '합니다').replace(/된다(?=[.!?](\s|$)|$)/g, '됩니다').replace(/있다(?=[.!?](\s|$)|$)/g, '있습니다').replace(/없다(?=[.!?](\s|$)|$)/g, '없습니다');
   return out;
 }
 const trDir = t => isKo(t) ? 'koen' : 'enko';
@@ -5348,7 +5360,7 @@ async function botTranslate(text, dir, extra = '') {
   else { msg = botSay('bot', `⏳ ${label} 번역 중…`, [], true); }
   try {
     const L = await trLearnLoad(); await trSeedLoad(); TRL.last = { text, dir };
-    const sents = text.split(/(?<=[.!?。])\s+|\n+/).filter(x => x.trim()), tmAll = sents.map(x => trTM(x, dir, L)), tmHit = sents.length && tmAll.every(Boolean) ? tmAll.join(' ') : '';   // 문장 단위 메모리: 모두 맞을 때만 통째로
+    text = trSrcClean(text); const sents = text.split(/(?<=[.!?。])\s+|\n+/).filter(x => x.trim()), tmAll = sents.map(x => trTM(x, dir, L)), tmHit = sents.length && tmAll.every(Boolean) ? tmAll.join(' ') : '';   // 문장 단위 메모리: 모두 맞을 때만 통째로
     const lt = trLearnTerms(dir, L), src2 = dir === 'koen' ? trRep(lt.reduce((a, [re, rep]) => a.replace(re, rep), text), KO_PRE_KOEN) : trRep(text, EN_SIMPLE).replace(/[ \t]{2,}/g, ' ');
     const ph = dir === 'enko' ? trPh(src2) : { t:trPre(src2, dir), map:[] }; if (dir === 'enko') for (const [re, rep] of lt) ph.t = ph.t.replace(re, m => { const tok = 'ZX' + (ph.map.length + 1) + 'Q'; ph.map.push([tok, rep]); return tok; });
     const out0 = tmHit || trUnPh(await trCall('translate', dir, ph.t, p => { if (msg) msg.querySelector('.bb').innerHTML = `⏳ ${label} 번역 엔진 준비 중… ${esc(p.step)} ${p.pct}%`; }), ph.map);
