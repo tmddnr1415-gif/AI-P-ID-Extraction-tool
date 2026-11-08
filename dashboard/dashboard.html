@@ -1764,7 +1764,7 @@ function recLabel(key, f) {
  * ===================================================================== */
 let root = null;
 /* 서버 모드: http(s):// 로 접속하면 server.py 의 REST API 사용 (폴더 선택 불필요). file:// 로 열면 폴더 모드 */
-const APP_VERSION = '2026-11-08.29';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
+const APP_VERSION = '2026-11-08.30';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
 const SERVER_URL = 'http://localhost:8080';
 // 부서원 PC 사본(file://)이 접속을 시도할 서버 — 서버가 배포 파일을 만들 때 'PC 이름 주소, IP 주소' 순으로 자동 기록함
 const DEFAULT_SERVERS = ['http://ASEUNGWOOK-B01:8080', 'http://65.3.30.234:8080'];
@@ -5204,6 +5204,23 @@ function trWorker() { if (TR.w) return TR.w; const w = new Worker(TR_BASE() + 't
   w.onmessage = e => { const d = e.data || {}, h = TR.q[d.id]; if (!h) return; if (d.progress) return h.prog && h.prog(d.progress); delete TR.q[d.id]; d.ok ? h.res(d.result) : h.rej(new Error(d.error || '실패')); };
   w.onerror = e => { for (const k in TR.q) { TR.q[k].rej(new Error(e.message || '워커 오류')); delete TR.q[k]; } }; return w; }
 function trCall(type, dir, text, prog) { return new Promise((res, rej) => { const id = 't' + Date.now() + Math.random().toString(36).slice(2, 6); TR.q[id] = { res, rej, prog }; trWorker().postMessage({ id, type, dir, text }); }); }
+/* 2026-11-08 번역 전 용어 보호 (평가로 고름 — DASHBOARD_ARCHITECTURE.md 변경 이력 참고)
+ *  한→영: 원문 속 한국어 계장 용어를 영어 용어로 바꿔 넣고 번역(모델이 그대로 옮김)
+ *  영→한: 영어 용어를 자리표(ZX1Q …)로 바꿔 번역 → 번역 뒤 한국어 용어로 되돌리고 뒤 조사를 받침에 맞춤 (한글을 영어 원문에 섞으면 모델이 깨진 글자를 냄) */
+const TR_PRE = {
+  enko:[[/\bjunction box(es)?\b/gi, '정션 박스'], [/\bmarshalling cabinet(s)?\b/gi, '마샬링 캐비닛'], [/\bcable gland(s)?\b/gi, '케이블 글랜드'], [/\bthermowell(s)?\b/gi, '써모웰'], [/\bpositioner(s)?\b/gi, '포지셔너'],
+    [/\bpartial stroke test(ing)?\b/gi, '부분 행정 시험(PST)'], [/\bsafety instrumented function(s)?\b/gi, '안전계장기능(SIF)'], [/\bsafety instrumented system(s)?\b/gi, '안전계장시스템(SIS)'], [/\bcause and effect (diagram|chart|matrix)\b/gi, 'C&E 도'],
+    [/\bon-?off valve(s)?\b/gi, '차단 밸브'], [/\bloop diagram(s)?\b/gi, '루프도'], [/\binstrument index\b/gi, '인스트루먼트 인덱스'], [/\bhook-?up drawing(s)?\b/gi, '훅업 도면'],
+    [/\bhazardous area(s)?\b/gi, '위험 지역'], [/\bfield transmitter(s)?\b/gi, '현장 전송기'], [/\bfield instrument(s)?\b/gi, '현장 계기'], [/\bsite visit\b/gi, '현장 방문'], [/\banaly[sz]er shelter\b/gi, '분석기 셸터'], [/\bvendor workshop\b/gi, '벤더 공장'], [/\bLOPA study\b/gi, 'LOPA 검토'],
+    [/\bbeta ratio\b/gi, '베타비'], [/\bfinalize the design\b/gi, '설계를 확정'], [/\bthe design\b/gi, '설계'], [/\bactuator(s)?\b/gi, '액추에이터'], [/\bsolenoid valve(s)?\b/gi, '솔레노이드 밸브'], [/\blimit switch(es)?\b/gi, '리밋 스위치']],
+  koen:[[/계장\s*공기/g, 'instrument air'], [/루프도/g, 'loop diagram'], [/안전계장시스템|안전\s*계장\s*시스템/g, 'safety instrumented system'], [/조절\s*밸브/g, 'control valve'], [/정션\s*박스/g, 'junction box'], [/포지셔너/g, 'positioner'],
+    [/계기\s*데이터시트/g, 'instrument datasheet'], [/I\/O\s*리스트/g, 'I/O list'], [/첨부한\s/g, 'attached '], [/후속\s*조치/g, 'action items'], [/판넬/g, 'panel'], [/통로\s*폭/g, 'aisle width'], [/고객사/g, 'client'], [/방폭\s*지역/g, 'hazardous areas'], [/케이블\s*물량/g, 'cable quantity']],
+};
+const trPre = (t, dir) => (TR_PRE[dir] || []).reduce((a, [re, rep]) => a.replace(re, rep), t);
+function trPh(t) { const map = []; let k = 0; for (const [re, rep] of TR_PRE.enko) t = t.replace(re, (m, ...g) => { const tok = 'ZX' + (++k) + 'Q'; map.push([tok, rep]); return tok; }); return { t, map }; }
+const TR_JP = { 은:['은', '는'], 는:['은', '는'], 이:['이', '가'], 가:['이', '가'], 을:['을', '를'], 를:['을', '를'], 과:['과', '와'], 와:['과', '와'] };
+const trUnPh = (out, map) => map.reduce((a, [tok, ko]) => a.replace(new RegExp(tok + '(?:s)?\\s?(으로|로|은|는|이|가|을|를|과|와)?', 'gi'), (m, j) => { const last = ko.replace(/\([^)]*\)$/, '').slice(-1), b = hasBatchim(last);
+  if (!j) return ko; if (j === '으로' || j === '로') return ko + (!b || endsRieul(last) ? '로' : '으로'); return ko + TR_JP[j][b ? 0 : 1]; }), out).replace(/(\d)\s+월/g, '$1월').replace(/\)([가-힣]{2})/g, ') $1');
 const TR_GLOSS = {   // 번역 결과 용어 바로잡기 [찾기, 바꾸기]
   enko:[[/제어\s*밸브/g, '조절 밸브'], [/통제\s*밸브/g, '조절 밸브'], [/송신기/g, '전송기'], [/트랜스미터/g, '전송기'], [/공급\s*업체/g, '벤더(공급사)'], [/공급자/g, '벤더(공급사)'], [/원인과\s*결과\s*(다이어그램|도표|도)/g, 'Cause & Effect 도(C&E)'], [/계기\s*공기/g, '계장 공기(Instrument Air)'],
     [/기기\s*데이터\s*시트/g, '계기 데이터시트'], [/데이터\s*시트/g, '데이터시트'], [/필드\s*(계기|기기)/g, '현장 계기'], [/배전반/g, '판넬'], [/제어실/g, '제어실(Control Room)'], [/안전\s*계장\s*시스템/g, 'SIS(안전계장시스템)'], [/분산\s*제어\s*시스템/g, 'DCS'], [/비상\s*정지/g, '비상 정지(ESD)'],
@@ -5220,7 +5237,8 @@ async function botTranslate(text, dir, extra = '') {
   let msg = null; if (!TR.ready[dir]) { msg = botSay('bot', `⏳ ${label} 번역 엔진을 준비하는 중… (처음 한 번, 약 40MB)`, [], true); botFace('squint'); }
   else { msg = botSay('bot', `⏳ ${label} 번역 중…`, [], true); }
   try {
-    const out0 = await trCall('translate', dir, text, p => { if (msg) msg.querySelector('.bb').innerHTML = `⏳ ${label} 번역 엔진 준비 중… ${esc(p.step)} ${p.pct}%`; });
+    const ph = dir === 'enko' ? trPh(text) : { t:trPre(text, dir), map:[] };
+    const out0 = trUnPh(await trCall('translate', dir, ph.t, p => { if (msg) msg.querySelector('.bb').innerHTML = `⏳ ${label} 번역 엔진 준비 중… ${esc(p.step)} ${p.pct}%`; }), ph.map);
     TR.ready[dir] = true; const out = trGloss(out0, dir); botFace('happy');
     msg.querySelector('.bb').innerHTML = `🌐 <b>${label}</b>${extra}<div class="bproof">${esc(out).replace(/\n/g, '<br>')}</div><details class="btrsrc"><summary>원문 보기</summary>${esc(text).replace(/\n/g, '<br>')}</details><span class="muted" style="font-size:11px">브라우저 안에서 번역(Firefox 번역 모델 · 외부로 보내지 않음) · 기계 번역이라 전문 용어 · 숫자는 꼭 확인하세요.</span>`;
     botActs(msg, [{ l:'📋 번역 복사', fn:() => navigator.clipboard?.writeText(out).then(() => botSay('bot', '복사했어요 📋'), () => botSay('bot', '복사가 막혀 있어요 — 위 글을 드래그해 복사해 주세요.')) }, ...(dir === 'enko' ? [] : [{ l:'✍ 영문 첨삭', fn:() => botAsk('첨삭: ' + out) }])]);
