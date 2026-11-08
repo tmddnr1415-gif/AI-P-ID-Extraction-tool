@@ -1581,6 +1581,12 @@ button:focus:not(:focus-visible){outline:none}
 
 #botPanel .bdiff{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:6px}#botPanel .bdiff.one{grid-template-columns:1fr}#botPanel .bdiff>div{background:#f6f7fb;border-radius:8px;padding:5px 7px;font-size:12px;max-height:120px;overflow:auto}#botPanel .bdiff>div:last-child{background:#eefbf2}#botPanel .bdiff small{display:block;font-size:10.5px;color:#7a7d99;font-weight:700}
 #botPanel .bacts button:disabled{opacity:.45;cursor:default}
+
+#botPanel .bread{display:flex;flex-direction:column;gap:4px;margin:6px 0;max-height:220px;overflow:auto}#botPanel .bread>div{background:#f6f7fb;border-radius:8px;padding:4px 7px;font-size:12px}#botPanel .bread small{display:block;font-size:10.5px;color:#7a7d99;font-weight:700}
+
+#botPanel .btab{margin-top:6px;max-height:170px;overflow:auto;border:1px solid #e3e6f0;border-radius:8px}#botPanel .btab table{border-collapse:collapse;font-size:11px;width:100%}#botPanel .btab th,#botPanel .btab td{padding:3px 5px;border-bottom:1px solid #eef0f6;text-align:left;white-space:nowrap}#botPanel .btab th{background:#f3f4fa;position:sticky;top:0}#botPanel .btab small{display:block;padding:3px 6px;color:#7a7d99}
+#botPanel .bfiles{display:flex;flex-wrap:wrap;gap:4px;padding:4px 8px 0}#botPanel .bfiles span{background:#eef1ff;color:#3b3fb8;border-radius:99px;padding:2px 4px 2px 9px;font-size:11.5px;display:inline-flex;align-items:center;gap:2px}#botPanel .bfiles button{border:0;background:none;cursor:pointer;color:#777;font-size:11px}
+#botPanel.bdrop{outline:3px dashed #4f4ce0;outline-offset:-6px}#botPanel.bdrop .blog::after{content:'여기에 놓으면 비서가 받아요 📎';display:block;text-align:center;padding:12px;font-weight:800;color:#4f4ce0}
 </style>
 </head>
 <body>
@@ -1749,7 +1755,7 @@ function recLabel(key, f) {
  * ===================================================================== */
 let root = null;
 /* 서버 모드: http(s):// 로 접속하면 server.py 의 REST API 사용 (폴더 선택 불필요). file:// 로 열면 폴더 모드 */
-const APP_VERSION = '2026-11-08.20';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
+const APP_VERSION = '2026-11-08.23';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
 const SERVER_URL = 'http://localhost:8080';
 // 부서원 PC 사본(file://)이 접속을 시도할 서버 — 서버가 배포 파일을 만들 때 'PC 이름 주소, IP 주소' 순으로 자동 기록함
 const DEFAULT_SERVERS = ['http://ASEUNGWOOK-B01:8080', 'http://65.3.30.234:8080'];
@@ -4626,7 +4632,7 @@ const BOT_FAQ = [
   [/전달\s*사항|공지|회의/, () => { const m = sortRecs(SHEET.notice, getRecs('notice'))[0]; return m ? `최신 주간회의 전달사항은 <b>${esc(flat(m.fields['제목']))}</b> (${esc(flat(m.fields['일자']))}) 이에요.` : '등록된 전달사항이 없어요.'; }, [['전달사항 보기', () => go('notice')]]],
   [/출장|서버\s*옮|다른\s*pc|대신\s*켜/i, () => '서버를 다른 PC 로 옮길 때는: 서버를 끄고 운영 폴더 전체를 그 PC 로 복사 → 그 PC 에서 start_server.bat. 돌아오면 반대로 복사. <b>두 서버를 동시에 켜면 안 돼요</b> (자료가 갈라짐).', []],
   [/안녕|하이|hello|hi\b|반가/i, () => `안녕하세요${AUTH ? ', ' + esc(AUTH.name) + ' 님' : ''}! 대시보드 안의 PJT · 업무 · 전달사항 · VOC 를 찾아 바로 데려다 드려요. 예: "카타르", "내 할 일", "재무스타그램 어디", "마감 언제"`, []],
-  [/고치|수정\s*(하는|방법|기능|할\s*수)|편집\s*방법|바꾸는\s*법/, () => '저에게 바로 고쳐 달라고 하셔도 돼요 ✍<br>· "카타르 LNG 업무 현황에 도면 승인 완료 추가"<br>· "카타르 LNG 업무 현황 11월 착공 예정으로 수정"<br>· "카타르 LNG 변경 없음"<br>· "To Do 추가 HAZOP 자료 정리" (박민수 To Do 추가 … = 그 사람)<br>· "HAZOP 후속 조치 종결"<br>고치기 전에 바뀌는 내용을 보여 드리고, [✔ 적용] 을 누르면 저장하고 결과 화면으로 이동해요.', []],
+  [/뭐\s*할\s*수|무엇을\s*할\s*수|할\s*수\s*있는\s*(게|것|기능)|도움말|사용법|고치|수정\s*(하는|방법|기능|할\s*수)|편집\s*방법|바꾸는\s*법/, () => '저에게 바로 고쳐 달라고 하셔도 돼요 ✍<br>· "카타르 LNG 업무 현황에 도면 승인 완료 추가"<br>· "카타르 LNG 업무 현황 11월 착공 예정으로 수정"<br>· "카타르 LNG 변경 없음"<br>· "To Do 추가 HAZOP 자료 정리" (박민수 To Do 추가 … = 그 사람)<br>· "HAZOP 후속 조치 종결"<br>· "카타르 LNG PJT 주요 일정 26.3 착공으로 수정" (어느 칸이든)<br>· "입찰 추가: PJT명=베트남 신규, 사업군=발전" · "기술공유 추가: OPC UA 소개"<br>· "카타르 NFE 상세 보여줘" · "예시수행-A 삭제"<br>· "VOC 에 글 쓰기: 제목 / 내용" · "회식 글에 댓글: 참석합니다"<br>고치기 전에 바뀌는 내용을 보여 드리고, [✔ 적용] 을 누르면 저장하고 결과 화면으로 이동해요.<br><br><b>분석 메뉴 · 파일</b><br>· "Valve Datasheet 분석 결과 엑셀로 출력해줘" · "Ball Valve 결과 요약해줘"<br>· "Panel 결과 CAD로 출력해줘" (.dxf)<br>· Equipment List 를 비서 창에 끌어다 놓고 → "이걸 새로운 \"CO2 PJT\" 프로젝트 \"MCC\" 룸 \"A\" revision 으로 생성해"<br>· "수행 PJT 요약" · "입찰 엑셀로 출력"<br><br><b>계측제어 질문</b>: "PDIC-101", "오리피스 직관 길이", "SIL2 PFD", "방폭 IIC"', []],
 ];
 const botWords = q => String(q).split(/[\s,.?!·~]+/).map(w => w.replace(/(이야|이에요|예요|인가요|은|는|이|가|을|를|에|에서|의|좀|요)$/, '')).filter(w => w.length >= 2 && !BOT_STOP.test(w));
 /* 2026-11-08 '모든 내용을 학습' — 물을 때마다 대시보드 전체를 색인(BOT_IDX): 모든 시트 행(모든 칸) · 게시판/VOC 글과 댓글(익명 작성자는 안 밝힘) ·
@@ -4642,9 +4648,9 @@ const bTxt = v => flat(v).toLowerCase();
 function botIndex() {
   const idx = [], push = (e) => { e.text = (e.title + ' ' + e.text).toLowerCase(); idx.push(e); };
   for (const [k, l] of QF_MENUS()) push({ t:'메뉴', title:l, text:MENU_HELP[k] || '', sum:esc(MENU_HELP[k] || l), act:{ go:k } });
-  for (const sh of SHEETS) for (const r of getRecs(sh.key)) { const f = r.fields || {};
-    push({ t:sh.label, title:recLabel(sh.key, f), text:(sh.cols || []).map(c => flat(f[c.f])).join(' '), key:sh.key, r, act:{ jump:[sh.key, r.id, (sh.cols || [])[0]?.f] } }); }
-  for (const b of DB.board || []) push({ t:bKind(b) === 'VOC' ? 'VOC' : '게시판', title:b.title || '', text:`${b.body || ''} ${(b.comments || []).map(c => c.body).join(' ')} ${b.vmenu ? VOC_MENU[b.vmenu] || '' : ''}`, sum:esc(brief(b.body, 2, 90)), act:{ board:b.id, q:b.title } });
+  for (const sh of SHEETS) { if (!can(menuOf(sh.key))) continue; for (const r of getRecs(sh.key)) { const f = r.fields || {};
+    push({ t:sh.label, title:recLabel(sh.key, f), text:(sh.cols || []).map(c => flat(f[c.f])).join(' '), key:sh.key, r, act:{ jump:[sh.key, r.id, (sh.cols || [])[0]?.f] } }); } }
+  if (can('board')) for (const b of DB.board || []) push({ t:bKind(b) === 'VOC' ? 'VOC' : '게시판', title:b.title || '', text:`${b.body || ''} ${(b.comments || []).map(c => c.body).join(' ')} ${b.vmenu ? VOC_MENU[b.vmenu] || '' : ''}`, sum:esc(brief(b.body, 2, 90)), act:{ board:b.id, q:b.title } });
   for (const pp of unitPeople(DB.recs.unit || [])) { const pr = profOf(pp.name);
     push({ t:'부서원', title:pp.name, text:`${pp.title} ${pp.unit} ${pr?.duty || ''} ${pr?.phone || ''}`, person:pp, act:{ prof:pp.name } }); }
   for (const pd of projData()) push({ t:'LE/RE', title:pd.c.name, text:pd.mem.map(m => `${m.role} ${m.name}`).join(' '), lr:pd, act:{ go:'unit' } });
@@ -4684,8 +4690,8 @@ const botTaskFind = t => { const ws = botWords(t).map(w => w.toLowerCase()); if 
   const sc = workRecs().map(({ k, r }) => ({ k, r, it:workItem(k, r) })).filter(x => x.it.cls !== 'done').map(x => ({ ...x, s:ws.filter(w => bTxt(x.it.title).includes(w)).length })).filter(x => x.s).sort((a, b) => b.s - a.s);
   return sc[0] || null; };
 function botEdit(q) {
-  const can2 = () => !noEdit() && !readOnly() && can('weekly');
-  const deny = () => ({ html:readOnly() ? '지금은 지난 주 마감본을 보고 있어서 고칠 수 없어요. 위쪽 주 선택을 (현재)로 바꿔 주세요.' : '로그인한 부서원만 고칠 수 있어요 🔒', acts:[] });
+  const can2 = () => !noEdit() && !readOnly() && can('weekly');   // 수행 · 입찰 · 통합 업무 = 주간업무보고 권한
+  const deny = () => !can('weekly') ? { html:botDeny('perform'), acts:[] } : ({ html:readOnly() ? '지금은 지난 주 마감본을 보고 있어서 고칠 수 없어요. 위쪽 주 선택을 (현재)로 바꿔 주세요.' : '로그인한 부서원만 고칠 수 있어요 🔒', acts:[] });
   const diffBox = (a, b) => `<div class="bdiff"><div><small>지금</small>${esc(a || '(비어 있음)').replace(/\n/g, '<br>')}</div><div><small>바꾼 뒤</small>${esc(b).replace(/\n/g, '<br>')}</div></div>`;
   const done = async (key, id, f, msg) => { await loadAll(); render(); setTimeout(() => jumpTo(key, id, f, false), 300);
     const r = getRecs(key).find(x => x.id === id); botSay('bot', `✅ ${msg}<br>결과 화면으로 이동했어요 (노란 칸).${r ? `<div class="bdiff one"><div><small>저장된 내용</small>${esc(flat(r.fields[f]) || '').replace(/\n/g, '<br>')}</div></div>` : ''}`); };
@@ -4717,8 +4723,330 @@ function botEdit(q) {
   }
   return null;
 }
+
+/* 2026-11-08 클로드 비서 = 모든 메뉴 읽기 · 쓰기 전권 (단 그 사람의 메뉴 권한을 그대로 따름 — 막힌 메뉴는 '권한이 없습니다')
+ *  읽기: "<행> 상세 보여줘"(모든 칸) · 찾기 결과도 권한 있는 메뉴만
+ *  쓰기: "<행> <칸> <값> 으로 수정" · "<행> <칸> 에 <값> 추가" · "<시트> 추가: <내용>" 또는 "<시트> 추가: 칸=값, 칸=값" · "<행> 삭제"(휴지통) · "게시판/VOC 에 글 쓰기: 제목 / 내용" · "<게시글> 에 댓글: 내용"
+ *  모두 미리보기 → [✔ 적용] → 저장 → 결과 화면 이동 (저장 경로 = 일반 편집과 같음: 서버 권한 · 이력 · 충돌 확인) */
+const BOT_SHEETNAME = { 'to do':'task', 'todo':'task', '투두':'task', '할 일':'task', '할일':'task', '기술공유':'task', '그룹장 요청':'task', '일반업무':'task', '표준화':'task', '통합 업무':'task', '통합업무':'task' };
+const botSheetOf = t => { const l = String(t).toLowerCase(); for (const [k, v] of Object.entries(BOT_SHEETNAME)) if (l.includes(k)) return { key:v, type:k };
+  const sh = [...SHEETS].sort((a, b) => b.label.length - a.label.length).find(x => l.includes(x.label.toLowerCase())); return sh ? { key:sh.key } : null; };
+const botColsAll = () => { const m = new Map(); SHEETS.forEach(sh => (sh.cols || []).forEach(c => { [c.f, c.label].filter(Boolean).forEach(n => m.set(n, [...(m.get(n) || []), { key:sh.key, f:c.f }])); })); return m; };
+const botMenuName = key => { const mk = menuOf(key); return mk === 'weekly' ? '주간업무보고' : VOC_MENU[mk] || mk; };
+const botDeny = key => `🔒 <b>${esc(botMenuName(key))}</b> 메뉴 권한이 없어서 할 수 없어요. 운영자에게 메뉴 권한을 요청하세요.`;
+function botRowFind(text, keys) {                                          // 단어 점수: 제목 칸 3 · 다른 칸 1 (권한 있는 시트만)
+  const ws = botWords(text).map(w => w.toLowerCase()); if (!ws.length) return null; let best = null;
+  for (const key of keys) { const sh = SHEET[key]; if (!sh || !can(menuOf(key))) continue;
+    for (const r of getRecs(key)) { const f = r.fields || {}, tt = bTxt(f[sh.title] || recLabel(key, f)), all = (sh.cols || []).map(c => bTxt(f[c.f])).join(' ');
+      const sc = ws.reduce((a, w) => a + (tt.includes(w) ? 3 : all.includes(w) ? 1 : 0), 0) + (isLive(r) ? .5 : 0);
+      if (sc >= 1 && (!best || sc > best.s)) best = { key, r, s:sc }; } }
+  return best; }
+function botGeneral(q) {
+  const wr = () => !noEdit() && !readOnly(), denyW = () => ({ html:readOnly() ? '지금은 지난 주 마감본을 보고 있어서 고칠 수 없어요. 위쪽 주 선택을 (현재)로 바꿔 주세요.' : '로그인한 부서원만 고칠 수 있어요 🔒', acts:[] });
+  const diffBox = (a, b) => `<div class="bdiff"><div><small>지금</small>${esc(a || '(비어 있음)').replace(/\n/g, '<br>')}</div><div><small>바꾼 뒤</small>${esc(b).replace(/\n/g, '<br>')}</div></div>`;
+  const done = async (key, id, f, msg) => { await loadAll(); render(); setTimeout(() => jumpTo(key, id, f, false), 300);
+    const r = getRecs(key).find(x => x.id === id); botSay('bot', `✅ ${msg}<br>결과 화면으로 이동했어요 (노란 칸).${r && f ? `<div class="bdiff one"><div><small>저장된 ${esc(f)}</small>${esc(flat(r.fields[f]) || '').replace(/\n/g, '<br>')}</div></div>` : ''}`); };
+  const cancel = { l:'취소', fn:() => botSay('bot', '취소했어요.') };
+  const cols = botColsAll(), cre = [...cols.keys()].sort((a, b) => b.length - a.length).map(n => n.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|');
+  let m;
+  // 게시판 글 · 댓글
+  if ((m = /^(?:익명\s*)?(게시판|voc|블라블라|회식\s*제안)\s*(?:에|에다)?\s*(?:글\s*)?(?:쓰기|써|올려|등록|작성)\w*\s*[:：]?\s*(.+)$/i.exec(q))) {
+    if (!can('board')) return { html:botDeny('board'), acts:[] }; if (noEdit()) return denyW();
+    const kind = /voc/i.test(m[1]) ? 'VOC' : /회식/.test(m[1]) ? '회식제안' : '블라블라', [t, ...b] = m[2].split(/\s*\/\s*/), title = t.trim(), body = (b.join('\n') || t).trim();
+    return { html:`<b>${esc(kind)}</b> 글을 ${kind === 'VOC' ? '실명' : '익명'}으로 올릴까요?<div class="bdiff one"><div><small>${esc(title)}</small>${esc(body)}</div></div>`, keep:true,
+      acts:[{ l:'✔ 올리기', fn:async () => { try { await Board.create({ title, body, kind, mode:kind === 'VOC' ? 'real' : 'anon', nick:'' }); await loadBoard(); BS.kind = kind; go('board'); botSay('bot', `✅ ${esc(kind)} 글을 올렸어요 — 게시판으로 이동했어요.`); } catch (e) { botSay('bot', '실패: ' + esc(e.message)); } } }, cancel] };
+  }
+  if ((m = /^(.+?)\s*(?:글\s*)?에\s*댓글\s*[:：]?\s*(.+)$/.exec(q))) {
+    if (!can('board')) return { html:botDeny('board'), acts:[] }; if (noEdit()) return denyW();
+    const ws = botWords(m[1]).map(w => w.toLowerCase()), post = (DB.board || []).map(b => ({ b, s:ws.filter(w => bTxt(b.title).includes(w)).length })).filter(x => x.s).sort((a, b) => b.s - a.s)[0]?.b;
+    if (post) return { html:`<b>${esc(post.title)}</b> 글에 댓글을 달까요?<div class="bdiff one"><div><small>댓글</small>${esc(m[2])}</div></div>`, keep:true,
+      acts:[{ l:'✔ 댓글 달기', fn:async () => { try { await Board.addComment(post.id, { body:m[2].trim(), mode:'anon', nick:'' }); await loadBoard(); BS.open.add(post.id); BS.q = ''; go('board'); botSay('bot', '✅ 댓글을 달았어요 — 게시판으로 이동했어요.'); } catch (e) { botSay('bot', '실패: ' + esc(e.message)); } } }, cancel] };
+  }
+  // 칸 수정 · 추가
+  if (cre && ((m = new RegExp(`^(.*?)\\s*(${cre})\\s*(?:을|를|은|는|:)?\\s*["“]?(.+?)["”]?\\s*(?:으로|로)\\s*(?:수정|바꿔|변경|고쳐|해\\s*줘|설정)`).exec(q)) || (m = new RegExp(`^(.*?)\\s*(${cre})\\s*(?:에|:)\\s*["“]?(.+?)["”]?\\s*(추가|적어|넣어|기록|덧붙여)`).exec(q)))) {
+    const add = !!m[4], cands = cols.get(m[2]) || [], sh0 = botSheetOf(m[1]), keys = [...new Set(cands.map(c => c.key))].filter(k => !sh0 || k === sh0.key);
+    if (keys.length && keys.every(k => !can(menuOf(k)))) return { html:botDeny(keys[0]), acts:[] };
+    const x = botRowFind(m[1], keys.length ? keys : cands.map(c => c.key)); if (!x) return { html:`'${esc(m[1])}' 에 맞는 행을 못 찾았어요. 이름 일부를 넣어 주세요.`, acts:[] };
+    if (!wr()) return denyW();
+    const f = cands.find(c => c.key === x.key)?.f || m[2], cur = flat(x.r.fields[f]), nv = add ? (cur ? cur + '\n' : '') + '- ' + m[3].trim() : m[3].trim();
+    return { html:`<b>${esc(SHEET[x.key].label)} · ${esc(recLabel(x.key, x.r.fields))}</b> 의 <b>${esc(f)}</b> 을(를) 이렇게 고칠까요?${diffBox(cur, nv)}`, keep:true,
+      acts:[{ l:'✔ 적용', fn:async () => { try { const r = await saveEdit(x.key, x.r.id, { ...x.r.fields, [f]:nv }, x.r.meta.rev); if (r.status === 'conflict') return botSay('bot', '그 사이 다른 사람이 고쳐서 저장하지 않았어요. 다시 요청해 주세요.'); await done(x.key, x.r.id, f, `${esc(f)} 을(를) 고쳤어요.`); } catch (e) { botSay('bot', '저장 실패: ' + esc(e.message)); } } }, cancel] };
+  }
+  // 행 추가
+  if ((m = /^(.+?)\s*(?:에|에다)?\s*(?:새\s*)?(?:행\s*)?(?:추가|등록|만들어)\w*\s*[:：]\s*(.+)$/.exec(q)) || (m = /^(.+?)\s*(?:행\s*)?(?:추가|등록)\s+(.+)$/.exec(q))) {
+    const sh = botSheetOf(m[1]); if (sh && SHEET[sh.key]) {
+      if (!can(menuOf(sh.key))) return { html:botDeny(sh.key), acts:[] }; if (!wr()) return denyW();
+      const S2 = SHEET[sh.key], fields = {}, rest = m[2].trim(), who = AUTH?.name || user;
+      if (/=/.test(rest)) rest.split(/\s*[,，]\s*/).forEach(kv => { const [k, ...v] = kv.split('='); const c = (S2.cols || []).find(c => c.f === k.trim() || c.label === k.trim()); if (c) fields[c.f] = v.join('=').trim(); });
+      else fields[S2.key === 'task' ? '업무 내용' : S2.title] = rest;
+      if (S2.key === 'task') { fields['유형'] = fields['유형'] || ({ 'to do':'To Do List', todo:'To Do List', '투두':'To Do List', '할 일':'To Do List', '할일':'To Do List', '기술공유':'기술공유', '그룹장 요청':'그룹장 요청 사항', '일반업무':'일반업무', '표준화':'표준화 담당' }[sh.type] || 'To Do List'); fields['담당자'] = fields['담당자'] || who; }
+      else if (S2.owner && !fields[S2.owner]) fields[S2.owner] = who;
+      if (!Object.keys(fields).length) return { html:'넣을 칸을 못 알아들었어요. 예: "수행 추가: PJT명=카타르 신규, 사업군=발전"', acts:[] };
+      return { html:`<b>${esc(S2.label)}</b> 에 새 행을 만들까요?<div class="bdiff one"><div>${Object.entries(fields).map(([k, v]) => `<small>${esc(k)}</small>${esc(v)}`).join('')}</div></div>`, keep:true,
+        acts:[{ l:'✔ 추가', fn:async () => { try { const order = TOP_NEW.has(S2.key) ? Math.min(0, ...getRecs(S2.key).map(r => r.order)) - 10 : undefined; const nr = await createRecord(S2.key, fields, { order }); if (TOP_NEW.has(S2.key)) (NEW_TOP[S2.key] || (NEW_TOP[S2.key] = new Set())).add(nr.id); await done(S2.key, nr.id, S2.key === 'task' ? '업무 내용' : S2.title, `${esc(S2.label)} 에 새 행을 추가했어요.`); } catch (e) { botSay('bot', '실패: ' + esc(e.message)); } } }, cancel] };
+    }
+  }
+  // 행 삭제
+  if ((m = /^(.+?)\s*(?:행\s*)?(?:을|를)?\s*(?:삭제|지워|지우기|휴지통)/.exec(q))) {
+    const sh = botSheetOf(m[1]), x = botRowFind(m[1], sh ? [sh.key] : SHEETS.map(s2 => s2.key));
+    if (x) { if (!wr()) return denyW();
+      return { html:`⚠ <b>${esc(SHEET[x.key].label)} · ${esc(recLabel(x.key, x.r.fields))}</b> 행을 <b>삭제</b>할까요? (휴지통으로 가서 되살릴 수 있어요)`, keep:true,
+        acts:[{ l:'🗑 삭제', fn:async () => { try { await deleteRecord(x.key, x.r.id); await loadAll(); render(); go(x.key); botSay('bot', '✅ 삭제했어요 — 휴지통에서 되살릴 수 있어요.'); } catch (e) { botSay('bot', '실패: ' + esc(e.message)); } } }, cancel] }; }
+  }
+  // 상세 읽기
+  if ((m = /^(.+?)\s*(?:상세|자세히|전체\s*내용|모든\s*칸|내용)\s*(?:보여|알려|읽어|줘)/.exec(q))) {
+    const sh = botSheetOf(m[1]), x = botRowFind(m[1], sh ? [sh.key] : SHEETS.map(s2 => s2.key));
+    if (sh && !can(menuOf(sh.key))) return { html:botDeny(sh.key), acts:[] };
+    if (x) { const S2 = SHEET[x.key], f = x.r.fields;
+      return { html:`<b>${esc(S2.label)} · ${esc(recLabel(x.key, f))}</b><div class="bread">${(S2.cols || []).filter(c => flat(f[c.f]).trim()).map(c => `<div><small>${esc(c.label || c.f)}</small>${esc(flat(f[c.f])).replace(/\n/g, '<br>')}</div>`).join('')}</div><span class="muted" style="font-size:11px">최종 수정 ${esc(x.r.meta?.updatedBy || '')} ${esc(fmtTime(x.r.meta?.updatedAt))}</span>`,
+        acts:[{ l:'표에서 보기', fn:() => jumpTo(x.key, x.r.id, S2.title, false) }, ...(wr() && can(menuOf(x.key)) ? [{ l:'편집 창 열기', fn:() => openEdit(x.key, x.r.id) }] : [])] }; }
+  }
+  return null;
+}
+/* 2026-11-08 클로드 비서 = 플랜트 계측제어(I&C) 전문 지식 — 대시보드 파일 안에 넣은 지식 사전(회사 PC 는 외부 인터넷 · AI 를 쓰지 않으므로).
+ * 공개 표준 · 실무 일반 지식으로 정리 (ISA · IEC · API · NAMUR …). 표준 번호 · 값은 대표값이며, 실제 설계는 PJT 사양서 · 최신 표준판을 따를 것.
+ * [키워드(소문자 정규식), 제목, 답(HTML)] */
+const ICKB = [
+// ---- 기본 · 태그
+['isa\\s*5\\.1|태그\\s*(번호|규칙)|계기\\s*기호|instrument\\s*tag|loop\\s*number', 'ISA 5.1 계기 태그', '태그 = <b>첫 글자(측정 변수) + 뒤 글자(기능)</b> + 루프 번호. 예: <b>FT-101</b> 유량 전송기, <b>PDIC</b> 차압 지시 조절기, <b>LSHH</b> 레벨 스위치 매우 높음. 첫 글자: A 분석 · F 유량 · L 레벨 · P 압력 · T 온도 · W 무게 · S 속도 · V 진동 · Z 위치 · H 수동 · B 버너/화염 · E 전압 · I 전류 · J 전력 · K 시간. 수정자: D 차(差) · F 비(比) · Q 적산 · S 안전. 뒤 글자: T 전송 · I 지시 · R 기록 · C 조절 · V 밸브 · E 검출 · G 게이지 · S 스위치 · A 경보 · Y 변환/릴레이 · K 제어 스테이션 · H/L 높음/낮음. 기호는 ISA 5.1(필드 · 판넬 · DCS · SIS 원/사각형 구분).'],
+['4\\s*-\\s*20|아날로그\\s*신호|전류\\s*신호|live\\s*zero|namur\\s*ne\\s*43|ne43', '4–20 mA 신호', '가장 흔한 아날로그 신호. 0% = 4 mA(live zero — 단선이면 0 mA 라 고장 판별), 100% = 20 mA. NAMUR NE43: 3.8–20.5 mA 정상 범위, <b>≤3.6 mA 또는 ≥21 mA = 고장</b>. 2선식(루프 전원 24 VDC), 4선식(별도 전원). 부하 저항 한계 = (공급전압 − 계기 최소전압) / 0.022 A.'],
+['hart', 'HART 통신', '4–20 mA 위에 1200 bps FSK 디지털 신호를 얹음 → 아날로그 PV 와 동시에 진단 · 설정 · 2차 변수(SV/TV/QV) 읽기. HART 7 = 무선(WirelessHART) 포함. 멀티드롭 가능(4 mA 고정). AMS · PRM 같은 자산관리 시스템과 연결.'],
+['foundation\\s*fieldbus|\\bff\\b|h1|fieldbus', 'Foundation Fieldbus', 'FF H1 = 31.25 kbps 디지털 버스(한 세그먼트 보통 계기 8~12대). 기능 블록(AI · PID · AO)을 계기 안에서 실행 가능(Control in the Field). 설계 시 세그먼트 전압 강하 · 전류 · 스퍼 길이 계산, 터미네이터 2개, FISCO/FNICO(방폭). HSE = 100 Mbps 백본.'],
+['profibus|profinet', 'PROFIBUS / PROFINET', 'PROFIBUS DP(고속 원격 I/O · 드라이브) · PA(공정 계기, 31.25 kbps, MBP 물리층). PROFINET = 산업용 이더넷. 지멘스 계열 PLC/DCS 와 MCC · VFD 연결에 흔함.'],
+['modbus', 'Modbus', '마스터/슬레이브 프로토콜. RTU(RS-485 직렬) · TCP(이더넷). 패키지(컴프레서 · 분석기 · 전력 계통) ↔ DCS 연동에 흔함. 레지스터 맵(Holding/Input register, Coil) · 스케일 · 바이트 순서 합의가 핵심, 인터페이스 사양서(ICD)로 관리.'],
+['opc|opc\\s*ua', 'OPC / OPC UA', '서로 다른 제어 시스템 · 상위(PIMS · MES) 간 데이터 교환 표준. OPC DA(옛, DCOM) → <b>OPC UA</b>(플랫폼 독립 · 보안 · 정보 모델). 방화벽 · DMZ 와 함께 설계.'],
+// ---- 압력 · 온도
+['압력\\s*전송|pressure\\s*transmitter|\\bpt\\b|게이지\\s*압|절대\\s*압|차압\\s*전송|dp\\s*transmitter', '압력 · 차압 전송기', '게이지압(대기 기준) · 절대압 · 차압(DP). 범위 선정: 정상 운전값이 스팬의 50~75%. 다이어프램 씰(원격 씰)은 고온 · 점성 · 부식 · 위생 유체에. 매니폴드: PT = 2-way, DP = 3-way/5-way. 임펄스 라인: 액체 = 탭 아래 설치(기포 배출), 가스 = 탭 위(응축 배출), 증기 = 응축 포트.'],
+['압력\\s*계|pressure\\s*gauge|부르동|bourdon|게이지', '압력계(Gauge)', '부르동관이 일반적. 정상 압력이 눈금의 1/3~2/3 오도록 선정. 맥동 = 액체 충진(글리세린) · 스너버, 고온 증기 = 사이펀, 부식 = 다이어프램 씰. 블로우아웃 디스크 · 안전 유리(EN 837).'],
+['온도\\s*(측정|센서|계)|rtd|pt\\s*100|측온\\s*저항|thermocouple|열전대|타입\\s*k|type\\s*k|thermowell|써모웰|보호관', '온도 측정 (RTD · 열전대 · 써모웰)', '<b>RTD Pt100</b>(IEC 60751, −200~600 ℃, 정밀 · 3선/4선식) · <b>열전대</b> K(−200~1260 ℃, 범용) · J · T(저온) · E · N · R/S/B(고온, 귀금속). 열전대는 보상도선 · 냉접점 보상 필요. 써모웰: 유속에 의한 와류 공진 — <b>ASME PTC 19.3 TW</b> 웨이크 주파수 계산 필수, 삽입 길이 · 재질 · 플랜지 등급 확인. 헤드 장착 전송기로 4–20 mA/HART 출력.'],
+// ---- 유량
+['유량계\\s*(종류|선정|선택)|flow\\s*meter\\s*(type|selection)|유량\\s*측정', '유량계 선정', '<b>차압식</b>(오리피스 · 벤추리 · 노즐 · 피토 — 저렴, 압손 · 직관 필요), <b>전자기</b>(도전성 액체만, 압손 없음), <b>코리올리</b>(질량유량 · 밀도 직접, 고정밀, 대구경 비쌈), <b>와류(Vortex)</b>(증기 · 가스 · 액체, 저유속 불가), <b>초음파</b>(클램프온/인라인, 대구경 · 커스터디), <b>터빈</b>(깨끗한 저점도), <b>용적식</b>(고점도). 판단: 유체 상태 · 정확도 · 레인지어빌리티 · 압손 · 직관 길이 · 비용.'],
+['오리피스|orifice|iso\\s*5167|베타\\s*비|beta\\s*ratio', '오리피스 유량계 (ISO 5167)', '유량 ∝ √ΔP. 베타비 β = d/D 보통 0.2~0.75. 탭: 플랜지 · 코너 · D-D/2. 레인지어빌리티 약 3:1~4:1(√ 때문) — 넓히려면 DP 2대 스플릿. 상류 직관 보통 10~44D(배관 구성 · β 따라 ISO 5167-2 표), 하류 5~8D. 영구 압손 큼.'],
+['전자기\\s*유량|magnetic\\s*flow|mag\\s*meter|magmeter|electromagnetic', '전자기 유량계', '패러데이 법칙. 액체 도전율 보통 ≥5 µS/cm. 라이닝(PTFE · 고무 · 세라믹) · 전극(SS · Hastelloy · Ti) 재질 선정, 접지링, 만관 유지(수직 상향 흐름 권장). 상류 5D · 하류 2D 정도. 기체 · 탄화수소 불가.'],
+['코리올리|coriolis|질량\\s*유량', '코리올리 유량계', '진동 튜브의 위상차로 <b>질량유량</b> + 밀도 + 온도 직접 측정, ±0.1% 수준. 직관 불필요. 압손 · 대구경 비용 · 기포 혼입 주의. 커스터디 트랜스퍼 · 배합 · 화학 주입에.'],
+['와류\\s*유량|vortex', '와류(Vortex) 유량계', '블러프 바디 뒤 칼만 와류 주파수 ∝ 유속. 증기 · 가스 · 저점도 액체. 레이놀즈수 하한(저유속 측정 불가) · 진동 영향 · 직관(상류 15~35D) 주의. 온도 · 압력 보상으로 질량유량.'],
+['초음파\\s*유량|ultrasonic\\s*flow|clamp[- ]?on', '초음파 유량계', '전파시간차(transit-time, 깨끗한 유체) · 도플러(기포 · 입자). 인라인 다회선 = 가스 커스터디(AGA 9) · 대구경 물. 클램프온 = 설치 쉬움 · 정확도 낮음.'],
+// ---- 레벨
+['레벨\\s*(계|측정|전송)|level\\s*(transmitter|measurement)|레이더|radar|gwr|guided\\s*wave|변위|displacer|레벨\\s*게이지|사이트\\s*글라스|마그네틱\\s*레벨', '레벨 측정', '<b>차압(DP)</b>(밀도 보정, 밀폐 탱크 = 웻/드라이 레그 · 원격 씰) · <b>비접촉 레이더</b>(80 GHz, 증기 · 거품 영향 적음) · <b>GWR 유도파 레이더</b>(인터페이스 측정 가능) · <b>변위식</b>(Displacer — 인터페이스 · 고온고압) · <b>플로트/마그네틱 레벨 게이지</b>(현장 지시) · 초음파 · 방사선(고온 · 고점도 · 극한, 허가 필요). 분리기 인터페이스 = GWR · 변위식 · 방사선 프로파일러.'],
+// ---- 밸브
+['조절\\s*밸브|control\\s*valve|cv\\s*계산|밸브\\s*사이징|valve\\s*sizing|iec\\s*60534|isa\\s*75', '조절 밸브 · 사이징', '사이징 <b>IEC 60534 / ISA 75.01</b>: 액체 Cv = Q·√(SG/ΔP) (Q gpm, ΔP psi), 가스는 팽창계수 Y · xT 고려. 정상 유량에서 개도 60~80%, 최소 10% 이상. 초크 유동 · 캐비테이션(FL) · 플래싱 · 소음(85 dBA 기준, IEC 60534-8-3/-8-4) 확인 → 트림 선정(케이지 · 다단 감압 · 저소음). 특성: <b>Equal %</b>(대부분 공정) · <b>Linear</b>(레벨 · ΔP 일정) · Quick open(on/off).'],
+['리크\\s*클래스|leak\\s*class|fci\\s*70|누설\\s*등급|tso|tight\\s*shut', '밸브 누설 등급', '<b>ANSI/FCI 70-2</b>: Class II~VI (VI = 소프트 씰, 거품 수로 판정). 메탈 씰 조절 밸브는 보통 Class IV, 차단 기능이면 V. On-off/ESD 밸브는 API 598 · ISO 5208 Rate A(무누설) 요구가 흔함 — "TSO(tight shut-off)" 사양 확인.'],
+['액추에이터|actuator|포지셔너|positioner|fail\\s*(open|close|safe)|\\bfo\\b|\\bfc\\b|fail\\s*position|스프링\\s*리턴', '액추에이터 · 포지셔너 · Fail 위치', '공압 다이어프램(조절 밸브) · 피스톤/스코치요크(대형 on-off) · 전동(MOV) · 전기유압. <b>Fail position</b>(공기 · 신호 상실 시): FC(닫힘) · FO(열림) · FL(유지) — 공정 안전 방향으로 HAZOP 에서 결정. 디지털 포지셔너(HART · PST 부분 행정 시험 · 진단), 솔레노이드 밸브(SOV, ESD 트립), 리밋 스위치(ZSO/ZSC), 볼륨 부스터 · 퀵 배기(빠른 행정).'],
+['on[- ]?off\\s*밸브|esd\\s*밸브|esdv|xv|차단\\s*밸브|shutdown\\s*valve|sdv', 'ESD / On-off 밸브', 'SIS 가 동작시키는 차단 밸브(ESDV · SDV · XV). 볼 · 버터플라이(트리플 오프셋) · 게이트. 요구: 행정 시간(보통 수 초~), TSO 누설, Fail-safe(스프링 리턴), 내화(API 607/6FA), PST 로 위험 실패 진단, SIL 인증 부품(액추에이터 · SOV · 포지셔너).'],
+['psv|안전\\s*밸브|relief\\s*valve|api\\s*52[06]|릴리프|set\\s*pressure|설정\\s*압력', '안전 밸브(PSV)', '사이징 <b>API 520 Part I</b>(설치 = Part II), 시나리오 <b>API 521</b>(화재 · 차단 출구 · 제어 실패 · 튜브 파열 …), 오리피스 문자 D~T <b>API 526</b>. Set pressure ≤ MAWP, 축적압 10%(단일) · 16%(복수) · 21%(화재). 배압 영향 → 벨로즈 · 파일럿형. 입구 압손 ≤3%, 배출 배관 반력. 데이터시트: 유체 · 상 · 용량 · set · 배압 · 재질 · 오리피스.'],
+// ---- 분석기
+['분석기|analyzer|가스\\s*크로마|gc\\b|크로마토|o2\\s*분석|ph\\s*계|전도도|수분\\s*분석|shelter|셸터', '공정 분석기', 'GC(성분) · O2(지르코니아 · 상자성) · H2S/총황 · 수분(TDLAS · 석영) · pH/ORP/전도도 · 탁도 · CEMS(배출가스, NOx · SOx · CO · 먼지). 샘플링 시스템(감압 · 기화 · 필터 · 스트림 전환) 설계가 정확도 좌우, 지연시간 계산. 다수 분석기는 <b>분석기 셸터</b>(HVAC · 가스 감지 · 퍼지).'],
+['가스\\s*감지|gas\\s*detect|f\\s*&\\s*g|fire\\s*and\\s*gas|화염\\s*감지|flame\\s*detect|lel', 'F&G (화재 · 가스 감지)', '가연성(촉매식 · IR 점형 · 개방경로 IR, %LEL 경보 보통 20/40%) · 독성(H2S 전기화학, ppm) · 화염(UV/IR · 다중 IR) · 연기 · 열. 배치는 매핑 연구(커버리지) 기반 · ISA TR84.00.07. F&G 시스템은 SIS 와 별도 또는 통합, 보팅(2ooN) · 경보 · 소화 기동.'],
+// ---- 시스템
+['dcs|분산\\s*제어|distributed\\s*control', 'DCS', '공정 연속 제어의 중심(Yokogawa CENTUM · Honeywell Experion · Emerson DeltaV · ABB 800xA · Siemens PCS 7 등). 컨트롤러 · I/O 이중화, 오퍼레이터 콘솔(HMI), 엔지니어링 · 히스토리안. 그래픽 · 경보 · 제어 로직 · 패키지 인터페이스 · FAT/SAT.'],
+['sis|esd\\s*시스템|안전\\s*계장|safety\\s*instrumented|iec\\s*6151[18]|iec\\s*61508', 'SIS (안전 계장 시스템)', '<b>IEC 61511</b>(공정 산업, 국내 ISA 84 대응) · 61508(제품). 흐름: HAZOP → <b>LOPA/SIL 할당</b> → SRS(안전 요구 사양) → 설계(센서 · 로직 · 최종 요소, 보팅 1oo1/1oo2/2oo3) → <b>SIL 검증(PFDavg · HFT · SFF)</b> → FAT · SAT · 시운전 → 증명 시험(Proof test) 주기. SIS 는 BPCS(DCS)와 독립.'],
+['sil\\s*[1-4]|sil\\b|pfd|pfdavg|lopa|hft|sff|보팅|voting|1oo2|2oo3', 'SIL · LOPA · 보팅', 'SIL1 PFDavg 10⁻²~10⁻¹ · SIL2 10⁻³~10⁻² · SIL3 10⁻⁴~10⁻³ (저요구 모드). LOPA: 초기 사건 빈도 × 독립 보호층(IPL) PFD → 목표 위험과 비교 → 필요한 SIF 의 SIL. 보팅: 1oo2 = 안전성↑(오트립↑), 2oo2 = 가용성↑, <b>2oo3</b> = 둘 다 균형. PFDavg ≈ λDU·TI/2 (1oo1).'],
+['plc|프로그래머블|iec\\s*61131|래더|ladder|function\\s*block', 'PLC · IEC 61131-3', '패키지 · 순차 제어 · 고속 인터록에. 언어 IEC 61131-3: LD(래더) · FBD · ST · SFC · IL. 안전 PLC(TÜV SIL 인증)는 SIS 로직에. DCS 와 Modbus/Profinet/OPC 연결.'],
+['ccs|컴프레서\\s*제어|anti[- ]?surge|서지|surge|터보\\s*기계', '컴프레서 제어 · 안티서지', '원심 컴프레서는 서지선 왼쪽(저유량) 운전 시 역류 · 손상 → <b>안티서지 제어</b>: 서지 제어선(SCL) 여유를 두고 리사이클 밸브를 빠르게 열음(밸브 행정 1~2 s, 고속 컨트롤러). 성능 제어(속도 · IGV · 흡입 스로틀), 부하 분배, 진동 · 축변위 감시(API 670 MMS).'],
+['mms|진동\\s*감시|api\\s*670|축\\s*진동|bently', '기계 감시 (MMS · API 670)', '회전기 진동(근접 프로브 · 가속도계) · 축 변위(thrust) · 키페이저 · 속도 · 베어링 온도. API 670 기준, 경보 · 트립 → SIS/MCS. 과속 보호(API 670 · 612).'],
+['bms|버너\\s*관리|burner\\s*management|nfpa\\s*85|nfpa\\s*86|화염\\s*상실', '버너 관리 시스템 (BMS)', '보일러 · 히터 점화 · 퍼지 · 화염 감시 · 연료 차단의 안전 시퀀스. NFPA 85(보일러) · 86(로) · API 556(히터). 퍼지(보통 공기량 25% 이상 · 4~5회 환기), 파일럿 → 메인 점화 시험 시간, 화염 상실 시 즉시 연료 차단. SIL 평가 대상.'],
+['scada|rtu|원격\\s*감시', 'SCADA / RTU', '광역 설비(배관 · 상하수도 · 송배전) 원격 감시 · 제어. RTU · 통신(무선 · 광) · DNP3 · IEC 60870-5-104. 플랜트 DCS 와 보안 경계(DMZ).'],
+['사이버\\s*보안|cyber|iec\\s*62443|isa\\s*99|방화벽|dmz', '제어 시스템 사이버 보안', '<b>IEC 62443</b>(ISA 99): 영역(Zone) · 통로(Conduit) 분리, 보안 수준 SL, 퍼듀 모델(Level 0~4), DMZ · 방화벽 · 화이트리스트 · 패치 · 백업 · 계정 관리. 신규 PJT 에서 사이버 보안 요구가 계약 조건인 경우 많음.'],
+// ---- 방폭 · 보호
+['방폭|hazardous\\s*area|ex\\s*[deipn]|atex|iecex|zone\\s*[012]|가스\\s*그룹|iic|iib|온도\\s*등급|t[1-6]\\b|kosha|본질\\s*안전|intrinsic', '방폭 (위험 장소)', '구역: <b>Zone 0</b>(상시) · <b>1</b>(정상 운전 중 가능) · <b>2</b>(이상 시만) — IEC 60079-10-1 구역 구분도. 방폭 구조: <b>Ex d</b> 내압 · <b>Ex e</b> 안전증 · <b>Ex i</b> 본질안전(ia = Zone 0, ib) · Ex p 압력 · Ex n · Ex m. 가스 그룹 IIA(프로판) < IIB(에틸렌) < <b>IIC(수소 · 아세틸렌)</b>, 온도 등급 T1(450 ℃)~<b>T6(85 ℃)</b>. 인증 IECEx · ATEX · 국내 KCs. 본질안전 = 배리어/아이솔레이터 · 엔티티 파라미터(Uo · Io · Co · Lo) 검토.'],
+['ip\\s*\\d\\d|ip\\s*등급|방수|방진|nema', 'IP · NEMA 보호 등급', 'IEC 60529 IPxy: x = 고체(6 = 방진), y = 물(5 분사 · 6 강한 분사 · 7 일시 침수 · 8 지속 침수). 옥외 계기 보통 <b>IP66/67</b>. NEMA 4X(옥외 · 부식) ≈ IP66.'],
+// ---- 설치 · 배선
+['케이블|cable|차폐|shield|실드|트위스트|twisted|아머|armou?r|케이블\\s*스케줄', '계장 케이블', '아날로그: 트위스트 페어 · 개별 + 전체 차폐(OS/IS), 디지털 · DI 는 전체 차폐. 차폐는 <b>한쪽(보통 판넬 쪽) 접지</b>. 외장 아머(SWA · 브레이드), 난연(IEC 60332) · 내화(IEC 60331, F&G · ESD 용). 전력 케이블과 이격 · 별도 트레이. 다심 케이블 + 정션박스(JB) → 홈런 케이블 → 마샬링.'],
+['정션\\s*박스|junction\\s*box|\\bjb\\b|마샬링|marshalling|단자', '정션박스 · 마샬링', '현장 JB(Ex e/Ex i, 신호 종류 · 시스템별 분리 — IS 는 파란색), 다심 케이블로 계기실로. 계기실 마샬링 캐비닛에서 크로스와이어링 → I/O 카드. 최근 유니버설 I/O · 전자 마샬링(CHARMs 등)으로 마샬링 축소.'],
+['i/?o\\s*(list|리스트|수)|io\\s*count|ai\\b|ao\\b|di\\b|do\\b|입출력', 'I/O 리스트', 'AI(4–20 mA 입력) · AO(출력, 밸브) · DI(접점 입력, 스위치 · 상태) · DO(출력, SOV · 모터 기동) · 특수(펄스 · RTD · TC · 필드버스). 시스템(DCS/SIS/F&G)별 · 이중화 · 예비 10~20% 반영. 계기 인덱스에서 뽑아 판넬 · 캐비닛 수량 산정.'],
+['훅업|hook[- ]?up|설치\\s*상세|installation\\s*detail|임펄스\\s*라인|impulse', '훅업 · 설치 상세', '계기별 설치도(임펄스 배관 · 밸브 · 피팅 · 지지대 · 자재표). 액체 = 계기를 탭 아래, 가스 = 위, 증기 = 응축 포트 · 같은 높이 레그. 경사 1:10 이상, 동결 방지 = 히트 트레이싱 · 보온 박스.'],
+['접지|earth|ground|등전위', '계장 접지', '안전 접지(PE, 외함)와 <b>계장 신호 접지(IE/클린 접지)</b> 분리 후 한 점 연결. 차폐는 한쪽 접지. 본질안전 배리어 접지(제너 배리어 = 1 Ω 이하 전용 접지). 낙뢰 · 서지 보호(SPD) — 옥외 장거리 케이블.'],
+// ---- 문서 · 설계
+['계기\\s*인덱스|instrument\\s*index|instrument\\s*list|계기\\s*리스트', '계기 인덱스', '모든 태그의 대장: 태그 · 서비스 · P&ID · 라인/장비 · 계기 형식 · 범위 · 신호 · 시스템(DCS/SIS) · 데이터시트 · 훅업 · 루프도 · 위치 · 공급사. SPI(SmartPlant Instrumentation) 같은 DB 로 관리, 다른 모든 계장 문서의 기준.'],
+['데이터\\s*시트|datasheet|data\\s*sheet|isa\\s*20|iec\\s*62683', '계기 데이터시트', '공정 조건(유체 · 상 · 압력 · 온도 · 유량 최소/정상/최대 · 밀도 · 점도) + 계기 사양(형식 · 재질 · 연결 · 범위 · 정확도 · 출력 · 방폭 · IP · 전원). 양식 ISA 20 / IEC 62683. 공정 데이터 개정 시 Rev 추적 — 공급사 견적 · 사이징의 근거.'],
+['루프\\s*(도|다이어그램)|loop\\s*diagram|loop\\s*drawing|isa\\s*5\\.4', '루프 다이어그램 (ISA 5.4)', '한 루프의 현장 계기 → JB → 케이블 · 심선 번호 → 마샬링 단자 → I/O 카드 · 채널 → 제어 기능 까지 한 장에. 시운전 루프 체크의 기준 문서.'],
+['c\\s*&\\s*e|cause\\s*(and|&)\\s*effect|원인\\s*결과|인터록|interlock|로직\\s*(다이어그램|도)|logic\\s*diagram|isa\\s*5\\.2', 'C&E · 인터록 로직', '<b>Cause & Effect 표</b>: 행 = 원인(트립 신호 · 설정값 · 보팅), 열 = 결과(밸브 닫힘 · 펌프 정지), 교차점 = 동작. 복잡한 순차는 <b>로직 다이어그램</b>(ISA 5.2 — AND/OR/NOT · 타이머 · 래치 · 바이패스 · 리셋). 바이패스(정비/기동) 관리 · 첫 고장 표시(first-out).'],
+['p&id|피앤아이디|배관\\s*계장\\s*도|isa\\s*5\\.1\\s*기호', 'P&ID 읽기 (계장 관점)', '계기 원(필드) · 원 + 가로줄(판넬) · 원 안 사각형(DCS) · 마름모(PLC/SIS 로직) · 신호선(점선 전기 · 사선 공압 · 원 · 점선 소프트웨어 링크). 확인: 태그 · 루프 · 밸브 Fail 위치 · 인터록 번호 · SIL 표기 · 경보 설정 · 바이패스 밸브 · 드레인/벤트. 대시보드 메뉴 <b>P&ID 분석</b>에서 자동 추출을 지원.'],
+['fat|sat|공장\\s*시험|현장\\s*시험|시운전|commissioning|루프\\s*체크|loop\\s*check|pre[- ]?commissioning', 'FAT · SAT · 시운전', '<b>FAT</b>(공급사 공장 — 하드웨어 · 소프트웨어 · 로직 · 그래픽 · 통신 · 이중화 절체), <b>SAT</b>(현장 설치 후), 시운전 단계: 기계적 완공 → 사전 시운전(케이블 절연 · 연속성, 계기 교정, <b>루프 체크</b> 필드→HMI) → 기능 시험(인터록 · C&E) → 시운전/성능 시험. 펀치리스트 A/B/C 관리.'],
+['교정|calibration|zero|span|정확도|accuracy|turndown|레인지어빌리티', '교정 · 정확도', '교정 = 기준기 대비 0/25/50/75/100% 5점 상승 · 하강, 허용오차 내 확인 · 성적서. 스마트 전송기 레인지 다운 ~100:1 이지만 정확도는 스팬에 따라 악화. 정확도 표기: % of span · % of reading · % of URL 구분.'],
+// ---- 제어
+['pid|비례|적분|미분|튜닝|tuning|ziegler', 'PID 제어 · 튜닝', 'P(비례 — 이득 Kc), I(적분 — 오프셋 제거, Ti), D(미분 — 빠른 응답, 노이즈 주의). 유량 = PI(빠름, 낮은 이득), 레벨 = 평균 레벨 제어(느슨) 또는 타이트, 압력 · 온도 = PID. 튜닝: 스텝 시험 → 1차 지연 + 데드타임 모델 → IMC/Lambda 튜닝(Ziegler–Nichols 는 공격적). 와인드업 방지, 범프리스 전환.'],
+['캐스케이드|cascade|비율\\s*제어|ratio|피드포워드|feed\\s*forward|스플릿|split\\s*range|오버라이드|override|selector', '고급 제어 구성', '<b>캐스케이드</b>(외부 루프 출력 = 내부 루프 설정, 예: 온도 → 연료 유량), <b>비율</b>(연료/공기), <b>피드포워드</b>(외란 측정 보상), <b>스플릿 레인지</b>(한 출력으로 밸브 2개 — 0~50% / 50~100%), <b>오버라이드</b>(High/Low 셀렉터로 제약 우선). 복잡하면 APC/MPC.'],
+['경보\\s*관리|alarm\\s*management|isa\\s*18\\.2|eemua\\s*191|alarm\\s*flood|경보\\s*홍수', '경보 관리 (ISA 18.2)', '철학 → 식별 → 합리화(이유 · 결과 · 운전원 조치 · 대응시간 · 우선순위) → 설계(데드밴드 · 지연 · 억제) → 운영 · 감시. 목표(EEMUA 191): 정상 운전 시 운전원 1인당 시간당 ~6건 이하, 10분당 10건 넘으면 홍수.'],
+// ---- 판넬 · 전원 · 계기실
+['계기실|control\\s*room|cer|rie|판넬|캐비닛|cabinet|ups|전원\\s*공급', '계기실 · 판넬 · 전원', '중앙 제어실(CCR) + 현장 계기실(RIE/LER). 캐비닛: 시스템(DCS · SIS · F&G) · 마샬링 · 전원 분배 · 네트워크. 전원: <b>UPS 이중화</b>(보통 30분~ 백업) → 24 VDC 이중 전원 공급. 발열 · HVAC · 바닥 하중 · 케이블 진입 · 확장 여유 20%. 대시보드 메뉴 <b>ROOM SIZE 계산</b>에서 판넬 배치 · 실 크기 검토.'],
+['계기\\s*공기|instrument\\s*air|이슬점|dew\\s*point|공기\\s*공급', '계기 공기', '건조(이슬점 보통 −40 ℃@대기압 또는 최저 기온 −10 ℃ 이하) · 무유 · 무진. 공급 압력 약 5~7 barg, 리시버로 정전 · 압축기 고장 시 수 분~ 버팀. 소비량 = 포지셔너 정상 소모 + 행정 시 소모 합산.'],
+// ---- 표준 모음 · 일반
+['표준|standard|규격|api\\s*55[1-6]|어떤\\s*규격', '계장 주요 표준', 'ISA 5.1(기호 · 태그) · 5.2(로직) · 5.4(루프도) · 18.2(경보) · 84/<b>IEC 61511</b>(SIS) · 75(밸브) · <b>IEC 60534</b>(밸브 사이징) · IEC 60079(방폭) · IEC 60529(IP) · IEC 61131-3(PLC) · IEC 62443(보안) · ISO 5167(차압 유량) · API 551(공정 계측) · 552(전송) · 554(공정 제어) · 555(분석기) · 556(히터) · 670(진동) · 520/521/526(PSV) · NAMUR NE43(신호 고장) · NE107(진단 상태).'],
+['ne\\s*107|진단\\s*상태|nemar|자산\\s*관리|ams|prm|예지\\s*보전', '계기 진단 · 자산 관리', 'NAMUR NE107 상태 4가지: Failure(고장) · Function check(점검 중) · Out of specification(사양 밖) · Maintenance required(정비 필요). HART/FF 진단을 AMS · PRM 으로 모아 예지 보전, 밸브 시그니처 · PST 분석.'],
+['무선|wireless|isa\\s*100|wirelesshart', '무선 계기', 'WirelessHART · ISA 100.11a — 메시 네트워크, 배터리 수명 수 년, 감시용(비제어 · 비안전) 위주. 게이트웨이 → DCS. 회전 · 원격 · 임시 측정에 배선 비용 절감.'],
+['밸브\\s*종류|글로브|globe|버터플라이|butterfly|볼\\s*밸브|ball\\s*valve|게이트|gate\\s*valve|트리플\\s*오프셋', '밸브 종류', '<b>글로브</b>(조절 정밀, 압손 큼) · <b>볼</b>(차단 · V-포트 조절, 저압손) · <b>버터플라이</b>(대구경 · 저압, 트리플 오프셋 = 고온 · 차단) · <b>게이트</b>(차단 전용) · 체크 · 플러그. 대시보드 <b>실행 프로젝트 › CO2 PJT › Datasheet</b> 에서 Ball · Globe · Butterfly · PSV 데이터시트 검토.'],
+['co2|이산화\\s*탄소|ccs\\b|ccus|탄소\\s*포집|dense\\s*phase', 'CO2 (CCUS) 계장 특이사항', '고압 · 초임계(dense phase) CO2 = 급감압 시 줄-톰슨 냉각(저온 취성) · 드라이아이스 · 엘라스토머 폭발 감압(RGD) 주의 → 재질 · 씰 등급 확인. 수분 · 불순물(H2O · H2S · O2) 분석기, 유량 = 코리올리/초음파, PSV 배출 저온. 대시보드 CO2 PJT 메뉴 참고.'],
+['수소|hydrogen|h2\\b|암모니아|ammonia|nh3', '수소 · 암모니아 계장', '<b>수소</b>: 가스그룹 IIC · T1, 누출 쉬움 → 방폭 IIC 인증 · 금속 씰 · 감지기(촉매/열전도) 배치, 수소 취성 재질. <b>암모니아</b>: 독성 · 부식(구리 계열 금지), 감지 ppm(전기화학), 냉동 · 저장 저온. 그린 수소 · 블루 암모니아 PJT 증가.'],
+['lng|액화\\s*천연|cryogenic|극저온', 'LNG 극저온 계장', '−162 ℃: 확장 보닛(밸브) · 극저온 재질(SS316, 9% Ni) · 쿨다운 절차 · 커스터디(초음파) · 탱크 레벨 고정밀(서보 · 레이더, LTD 밀도 프로파일) · 롤오버 감시 · 저온 누출 감지(온도 센서). 냉각 박스 · 콜드박스 계기.'],
+];
+const ISA_FIRST = { A:'분석', B:'버너/화염', C:'전도도', D:'밀도', E:'전압', F:'유량', G:'게이징/위치', H:'수동', I:'전류', J:'전력', K:'시간', L:'레벨', M:'수분', N:'사용자 정의', O:'사용자 정의', P:'압력', Q:'수량/적산', R:'방사선', S:'속도/주파수', T:'온도', U:'다변수', V:'진동', W:'무게/힘', X:'기타', Y:'이벤트/상태', Z:'위치/치수' };
+const ISA_MOD = { D:'차(差)', F:'비(比)', J:'스캔', K:'변화율', M:'순간', Q:'적산', S:'안전' };
+const ISA_SUCC = { A:'경보', B:'사용자 정의', C:'조절', E:'검출 요소', G:'게이지/글라스', I:'지시', K:'제어 스테이션', L:'램프', O:'오리피스/제한', P:'시험점', Q:'적산', R:'기록', S:'스위치', T:'전송', V:'밸브/댐퍼', W:'웰', X:'기타', Y:'릴레이/변환/연산', Z:'최종 요소', H:'높음', L:'낮음', M:'중간' };
+function isaDecode(tag) {                                    // 'PDIC-101' · 'LSHH' · 'FT 2001A' → 풀이 (ISA 5.1 일반 규칙)
+  const m = /^([A-Z]{2,6})(?:[- ]?(\d{2,6}[A-Z]?))?$/.exec(String(tag).trim().toUpperCase()); if (!m) return '';
+  let L = m[1], out = [], first = L[0]; if (!ISA_FIRST[first]) return '';
+  out.push(`<b>${first}</b> = ${ISA_FIRST[first]}`); let i = 1;
+  if (L[1] && ISA_MOD[L[1]] && L.length > 2 && !(L[1] === 'S' && /^S(H|L)/.test(L.slice(1)) && L.length <= 4 && false)) { if (['D', 'F', 'Q', 'K', 'J', 'M'].includes(L[1]) || (L[1] === 'S' && /[IV]/.test(L.slice(2, 3)) === false && L.length > 3 && L[2] !== 'H' && L[2] !== 'L')) { out.push(`<b>${L[1]}</b> = ${ISA_MOD[L[1]]}(수정자)`); i = 2; } }
+  for (; i < L.length; i++) { const c = L[i]; if (ISA_SUCC[c]) out.push(`<b>${c}</b> = ${ISA_SUCC[c]}`); }
+  return `🏷 <b>${esc(m[1])}${m[2] ? '-' + esc(m[2]) : ''}</b> (ISA 5.1 일반 규칙): ${out.join(' · ')}${m[2] ? ` · 루프 번호 ${esc(m[2])}` : ''}<br><span class="muted" style="font-size:11px">PJT 마다 태그 규칙(사양서)이 다를 수 있어요.</span>`;
+}
+function icAnswer(q) {
+  const t = String(q).trim(), tag = /^[A-Za-z]{2,6}(?:[- ]?\d{2,6}[A-Za-z]?)?$/.test(t) ? isaDecode(t) : '';
+  if (tag) return { html:tag, acts:[] };
+  const l = t.toLowerCase(), hits = ICKB.map(([re, ti, a]) => ({ ti, a, s:(l.match(new RegExp(re, 'gi')) || []).length })).filter(x => x.s).sort((a, b) => b.s - a.s);
+  if (!hits.length) return null;
+  const h = hits[0];
+  return { html:`📘 <b>계측제어 · ${esc(h.ti)}</b><br>${h.a}${hits.length > 1 ? `<br><span class="muted" style="font-size:11px">관련: ${hits.slice(1, 4).map(x => esc(x.ti)).join(' · ')}</span>` : ''}`, acts:hits.slice(1, 4).map(x => ({ l:`📘 ${x.ti}`, fn:() => botSay('bot', `📘 <b>계측제어 · ${esc(x.ti)}</b><br>${x.a}`) })) };
+}
+
+/* 2026-11-08 클로드 비서 ↔ 분석 메뉴(연결 앱) 다리 — 'dash-bot' 약속 (v1, 자세한 내용 = dashboard/BOT_BRIDGE.md)
+ *  비서가 그 메뉴를 열고(iframe), postMessage 로 명령을 보냄 → 앱이 답함. 앱 쪽 받기 코드는 그 앱을 만드는 세션('2. PID 코드' 등)이 넣는다.
+ *  보냄: {type:'dash-bot', v:1, id, cmd, args, user:{name}, files:[{name, type, data:ArrayBuffer}]}
+ *  답 : {type:'dash-bot-reply', id, ok, text, table:{cols:[], rows:[[]]}, geometry:{units, entities:[…]}, files:[{name, type, data}], error}
+ *  앱 인사(선택): {type:'dash-bot-hello', cmds:['result', 'summary', 'export', 'create', …]}
+ *  cmd: result(지금 결과 표) · summary(요약) · export{format:'xlsx'|'dxf'|'pdf'|'csv'} · create{project, room, revision} (+files) · open{project, room, revision}
+ *  앱이 export 를 못 해도 result 표 · geometry 를 주면 대시보드가 엑셀(.xlsx) · CAD(.dxf) 를 직접 만들어 줌. 요약도 표만 오면 대시보드가 숫자 요약. */
+const BOT_APPS = [
+  ['valve', /ball\s*valve|볼\s*밸브|valve\s*data\s*sheet|밸브\s*데이터\s*시트|datasheet|데이터\s*시트|밸브\s*검토/i, 'Valve Datasheet(Ball Valve)'],
+  ['globev', /globe\s*valve|글로브\s*밸브/i, 'Globe Valve Datasheet'], ['bflyv', /butterfly|버터플라이/i, 'Butterfly Valve Datasheet'], ['psv', /\bpsv\b|안전\s*밸브\s*data|psv\s*data/i, 'PSV Datasheet'],
+  ['space', /panel|판넬|패널|room\s*size|룸\s*사이즈|공간\s*확보/i, 'ROOM SIZE 계산(Panel)'], ['logicdraw', /logic\s*작성|로직\s*작성/i, 'LOGIC 작성'], ['logic', /logic|로직/i, 'LOGIC 분석'],
+  ['pid', /p\s*&\s*id|피앤아이디|\bpid\b/i, 'P&ID 분석'], ['books', /도서\s*검토|도서/i, '도서검토'], ['ic3d', /3d\s*계측|ic3d/i, '3D 계측제어'], ['finstagram', /재무\s*스타그램|재무|dart/i, '재무스타그램']];
+const BOT_OUT = /출력|내보내|저장|다운|뽑|받아|받게|변환|파일로|줘|만들어/;
+const BOT_ACT = q => /엑셀|xlsx|excel/i.test(q) && BOT_OUT.test(q) ? ['export', { format:'xlsx' }] : /cad|캐드|dxf|dwg/i.test(q) && BOT_OUT.test(q) ? ['export', { format:'dxf' }] : /pdf/i.test(q) && BOT_OUT.test(q) ? ['export', { format:'pdf' }] : /csv/i.test(q) && BOT_OUT.test(q) ? ['export', { format:'csv' }]
+  : /요약|정리해|브리핑|핵심/.test(q) ? ['summary', {}] : /생성|만들어|새로\s*만|새로운|신규|등록해/.test(q) ? ['create', {}] : /결과|분석\s*(내용|값)/.test(q) ? ['result', {}] : null;
+const botDl = (blob, name) => { const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 4000); };
+function botTableXlsx(t, name) { const st = { s:ST.HEAD };
+  const sheet = { name:trunc(name, 28).replace(/[\\/?*[\]:]/g, ' '), widths:t.cols.map(() => 18), tab:false, rows:[t.cols.map(v => ({ ...st, v:String(v) })), ...t.rows.map(r => r.map(v => ({ v:v == null ? '' : String(v), s:ST.BODY })))] };
+  return buildXlsx([sheet]).blob; }
+function botDxf(g) {                                   // geometry → DXF R12 (ASCII) — 선 · 사각형 · 폴리라인 · 글자 · 원
+  const o = ['0', 'SECTION', '2', 'ENTITIES'], L = e => ['8', String(e.layer || '0').replace(/[^\w\- ]/g, '_')], P = (c, x, y) => [String(c), String(+x || 0), String(c + 10), String(+y || 0)];
+  for (const e of g.entities || []) {
+    if (e.type === 'line') o.push('0', 'LINE', ...L(e), ...P(10, e.x1, e.y1), ...P(11, e.x2, e.y2));
+    else if (e.type === 'rect' || e.type === 'poly') { const pts = e.type === 'rect' ? [[e.x, e.y], [e.x + e.w, e.y], [e.x + e.w, e.y + e.h], [e.x, e.y + e.h]] : e.points || [];
+      o.push('0', 'POLYLINE', ...L(e), '66', '1', '70', e.type === 'rect' || e.closed ? '1' : '0'); for (const [x, y] of pts) o.push('0', 'VERTEX', ...L(e), ...P(10, x, y)); o.push('0', 'SEQEND');
+      if (e.type === 'rect' && e.text) o.push('0', 'TEXT', ...L(e), ...P(10, e.x + 50, e.y + e.h / 2), '40', String(e.th || 100), '1', String(e.text)); }
+    else if (e.type === 'circle') o.push('0', 'CIRCLE', ...L(e), ...P(10, e.x, e.y), '40', String(e.r || 1));
+    else if (e.type === 'text') o.push('0', 'TEXT', ...L(e), ...P(10, e.x, e.y), '40', String(e.h || 100), '1', String(e.text || ''));
+  }
+  o.push('0', 'ENDSEC', '0', 'EOF'); return new Blob([o.join('\r\n') + '\r\n'], { type:'application/dxf' });
+}
+function botTableSum(t) {                               // 표 숫자 요약 (앱이 요약 글을 안 줄 때)
+  const n = t.rows.length, cols = t.cols.map((c, i) => { const vs = t.rows.map(r => r[i]).filter(v => v !== '' && v != null), nums = vs.map(Number).filter(Number.isFinite);
+    if (nums.length && nums.length >= vs.length * .8) return `${esc(c)}: 합 ${+nums.reduce((a, b) => a + b, 0).toFixed(2)} · 최소 ${Math.min(...nums)} · 최대 ${Math.max(...nums)}`;
+    const cnt = {}; vs.forEach(v => cnt[v] = (cnt[v] || 0) + 1); const top = Object.entries(cnt).sort((a, b) => b[1] - a[1]);
+    return top.length && top.length < n ? `${esc(c)}: ${top.slice(0, 3).map(([v, k]) => `${esc(trunc(String(v), 18))} ${k}`).join(', ')}${top.length > 3 ? ` 외 ${top.length - 3}종` : ''}` : ''; }).filter(Boolean);
+  return `행 <b>${n}개</b> · 열 ${t.cols.length}개<br>` + cols.slice(0, 8).map(x => '· ' + x).join('<br>');
+}
+const botTableHtml = (t, max = 8) => `<div class="btab"><table><thead><tr>${t.cols.slice(0, 8).map(c => `<th>${esc(c)}</th>`).join('')}</tr></thead><tbody>${t.rows.slice(0, max).map(r => `<tr>${r.slice(0, 8).map(v => `<td>${esc(trunc(String(v ?? ''), 24))}</td>`).join('')}</tr>`).join('')}</tbody></table>${t.rows.length > max ? `<small>… 외 ${t.rows.length - max}행</small>` : ''}</div>`;
+async function botFrame(key, ms = 15000) {             // 그 메뉴를 열고 iframe 이 뜰 때까지 기다림
+  if (route !== key) go(key);
+  const t0 = Date.now();
+  while (Date.now() - t0 < ms) { const f = $(`#pidwrap[data-route="${key}"] iframe.pidframe`); if (f && f.dataset.loaded) return f; await new Promise(r => setTimeout(r, 250)); }
+  return null;
+}
+document.addEventListener('load', e => { if (e.target?.classList?.contains('pidframe')) e.target.dataset.loaded = 1; }, true);
+const BOT_WAIT = {};
+addEventListener('message', e => { const d = e.data; if (!d || typeof d !== 'object') return;
+  const f = $('#pidwrap iframe.pidframe'); if (!f || e.source !== f.contentWindow) return;
+  let o = ''; try { o = new URL(f.src).origin; } catch (_) {} if (e.origin !== o) return;
+  if (d.type === 'dash-bot-hello' && Array.isArray(d.cmds)) (BOT.apps || (BOT.apps = {}))[$('#pidwrap').dataset.route] = d.cmds.map(String);
+  if (d.type === 'dash-bot-reply' && BOT_WAIT[d.id]) { BOT_WAIT[d.id](d); delete BOT_WAIT[d.id]; } });
+async function botBridge(key, cmd, args, files = [], ms = 12000) {
+  const f = await botFrame(key); if (!f) throw new Error('화면이 열리지 않았어요 (서버가 꺼져 있을 수 있어요)');
+  const id = 'b' + Date.now() + Math.random().toString(36).slice(2, 6), data = await Promise.all(files.map(async x => ({ name:x.name, type:x.type, data:await x.arrayBuffer() })));
+  const p = new Promise((res, rej) => { BOT_WAIT[id] = res; setTimeout(() => { if (BOT_WAIT[id]) { delete BOT_WAIT[id]; rej(Object.assign(new Error('noreply'), { noreply:true })); } }, ms); });
+  f.contentWindow.postMessage({ type:'dash-bot', v:1, id, cmd, args, user:{ name:AUTH?.name || user || '' }, files:data }, new URL(f.src).origin, data.map(x => x.data));
+  return p;
+}
+async function botAppRun(key, label, cmd, args, files) {
+  const nm = `${label}_${todayISO()}`, noApp = `<br><span class="muted" style="font-size:11px">${esc(label)} 화면은 열어 두었어요. 이 화면은 아직 비서 연결(dash-bot 약속)을 받지 않아요 — 그 도구 업데이트(2. PID 코드 세션)에 들어가면 바로 돼요. 지금은 화면의 버튼으로 직접 해 주세요.</span>`;
+  botFace('squint'); botSay('bot', `⏳ <b>${esc(label)}</b> 화면을 열고 요청을 보내는 중…`);
+  let r; try { r = await botBridge(key, cmd, args, files); }
+  catch (e) { botFace('dizzy'); return botSay('bot', e.noreply ? `🤔 ${esc(label)} 에서 답이 없어요.${noApp}` : '❌ ' + esc(e.message)); }
+  if (!r.ok) { botFace('dizzy'); if (/unknown|지원/i.test(r.error || '') && cmd !== 'result') return botAppFallback(key, label, cmd, args); return botSay('bot', `❌ ${esc(label)}: ${esc(r.error || '실패')}`); }
+  botFace('happy');
+  const acts = [], outs = [];
+  for (const x of r.files || []) { const b = new Blob([x.data], { type:x.type || 'application/octet-stream' }); outs.push(x.name); acts.push({ l:`⬇ ${x.name} 다시 받기`, fn:() => botDl(b, x.name) }); botDl(b, x.name); }
+  if (cmd === 'export' && !outs.length) return botAppFallback(key, label, cmd, args, r);
+  if (r.table) { acts.push({ l:'⬇ 이 표 엑셀로', fn:() => botDl(botTableXlsx(r.table, label), nm + '.xlsx') }); }
+  if (r.geometry) acts.push({ l:'⬇ CAD(.dxf)로', fn:() => botDl(botDxf(r.geometry), nm + '.dxf') });
+  const body = (r.text ? esc(r.text).replace(/\n/g, '<br>') : '') + (cmd === 'summary' && !r.text && r.table ? botTableSum(r.table) : '') + (r.table && cmd !== 'summary' ? botTableHtml(r.table) : '');
+  botSay('bot', `✅ <b>${esc(label)}</b> ${{ result:'결과', summary:'요약', export:'내보내기', create:'생성', open:'열기' }[cmd] || cmd}${outs.length ? ` — 받은 파일: ${outs.map(esc).join(', ')}` : ''}<br>${body}`, acts);
+}
+async function botAppFallback(key, label, cmd, args, got) {   // 앱이 export 를 못 하면: 결과 표 · 도형을 받아 대시보드가 직접 파일로
+  let r = got; if (!r || (!r.table && !r.geometry)) { try { r = await botBridge(key, 'result', {}); } catch (_) { r = null; } }
+  const nm = `${label}_${todayISO()}`;
+  if (args.format === 'dxf' && r?.geometry) { botDl(botDxf(r.geometry), nm + '.dxf'); return botSay('bot', `✅ ${esc(label)} 결과를 CAD(<b>${esc(nm)}.dxf</b>)로 만들었어요. AutoCAD 에서 열면 돼요.`); }
+  if (r?.table && args.format !== 'dxf' && args.format !== 'pdf') { const ext = args.format === 'csv' ? 'csv' : 'xlsx';
+    botDl(ext === 'csv' ? new Blob(['﻿' + [r.table.cols, ...r.table.rows].map(x => x.map(v => `"${String(v ?? '').replace(/"/g, '""')}"`).join(',')).join('\r\n')], { type:'text/csv' }) : botTableXlsx(r.table, label), `${nm}.${ext}`);
+    return botSay('bot', `✅ ${esc(label)} 결과 표(${r.table.rows.length}행)를 <b>${esc(nm)}.${ext}</b> 로 저장했어요.`); }
+  botSay('bot', `🤔 ${esc(label)} 에서 ${args.format ? esc(args.format.toUpperCase()) + ' 로 내보낼' : '쓸'} 결과를 받지 못했어요. 그 화면에서 분석을 먼저 돌렸는지 확인해 주세요.`);
+}
+function botApp(q) {
+  const ac = BOT_ACT(q); if (!ac) return null;
+  const ap = BOT_APPS.find(([, re]) => re.test(q)) || (ac[0] === 'create' && /룸|room|revision|리비전|레비전|\brev\b/i.test(q) ? BOT_APPS.find(x => x[0] === 'space') : null)   // 룸 · revision = ROOM SIZE 계산(Panel)
+    || (BOT.files?.length || /이걸|이거|이\s*결과|지금\s*화면/.test(q) ? BOT_APPS.find(x => x[0] === route) : null); if (!ap) return null;   // 지금 열린 분석 메뉴
+  const [key, , label] = ap, [cmd, args] = ac;
+  if (!can(menuOf(key))) return { html:`🔒 <b>${esc(label)}</b> 메뉴 권한이 없어서 할 수 없어요. 필요하면 운영자에게 권한을 요청하세요.`, acts:[] };
+  const files = BOT.files || [];
+  if (cmd === 'create') {
+    const g = re => (re.exec(q) || [])[1]?.trim() || '';
+    args.project = g(/["“'‘]([^"”'’]+)["”'’]\s*(?:프로젝트|pjt|project)/i) || g(/(?:프로젝트|pjt|project)\s*[:=]?\s*["“'‘]?([^"”'’,\s]+)/i) || g(/(\S+)\s*(?:프로젝트|pjt|project)/i);
+    args.room = g(/["“'‘]([^"”'’]+)["”'’]\s*(?:룸|room|실)(?![a-z])/i) || g(/(?:룸|room)\s*[:=]?\s*["“'‘]?([^"”'’,\s]+)/i) || g(/(\S+)\s*(?:룸|room)/i);
+    args.revision = g(/["“'‘]([^"”'’]+)["”'’]\s*(?:rev|revision|리비전|레비전)/i) || g(/(?:rev|revision|리비전)\.?\s*[:=]?\s*["“'‘]?([^"”'’,\s]+)/i) || g(/(\S+)\s*(?:revision|rev|리비전)/i);
+    for (const k of ['project', 'room', 'revision']) args[k] = args[k].replace(/^(새로운|신규|새)\s*/, '').replace(/(으로|로)$/, '');
+    const miss = [['project', '프로젝트'], ['room', '룸'], ['revision', 'revision']].filter(([k]) => !args[k]).map(x => x[1]);
+    return { html:`<b>${esc(label)}</b> 에 새로 만들까요?<div class="bread"><div><small>프로젝트</small>${esc(args.project || '—')}</div><div><small>룸</small>${esc(args.room || '—')}</div><div><small>Revision</small>${esc(args.revision || '—')}</div><div><small>파일</small>${files.length ? files.map(f => esc(f.name)).join(', ') : '<span class="muted">없음 — 비서 창에 Equipment List 를 끌어다 놓으세요</span>'}</div></div>${miss.length ? `<span class="muted" style="font-size:11px">비어 있는 것: ${miss.join(', ')} — "이름" 처럼 따옴표로 적어 주면 정확해요.</span>` : ''}`,
+      acts:[{ l:'✔ 생성 실행', fn:() => { const fs = BOT.files || []; BOT.files = []; botFileChip(); botAppRun(key, label, 'create', args, fs); } }, { l:'취소', fn:() => botSay('bot', '취소했어요.') }], keep:true };
+  }
+  return { html:`<b>${esc(label)}</b> ${esc({ result:'결과를 가져올게요', summary:'결과를 요약할게요', export:(args.format || '').toUpperCase() + ' 로 내보낼게요', open:'열게요' }[cmd] || '')}.`, acts:[], run:() => botAppRun(key, label, cmd, args, cmd === 'export' || cmd === 'summary' || cmd === 'result' ? [] : files) };
+}
+/* 대시보드 자체 시트도: "<시트> 엑셀로 출력" · "<시트> 요약" */
+function botSheetOut(q) {
+  const ac = BOT_ACT(q); if (!ac || (ac[0] !== 'export' && ac[0] !== 'summary')) return null;
+  const sh = [...SHEETS].sort((a, b) => b.label.length - a.label.length).find(s => q.includes(s.label) || q.includes(s.label.replace(/\s*PJT$/, '')) || (s.title && q.includes(s.title))); if (!sh) return null;
+  if (!can(menuOf(sh.key))) return { html:`🔒 ${esc(sh.label)} 메뉴 권한이 없어서 할 수 없어요.`, acts:[] };
+  const recs = getRecs(sh.key), cols = (sh.cols || []).map(c => c.f), t = { cols:(sh.cols || []).map(c => c.label || c.f), rows:recs.map(r => cols.map(f => flat(r.fields[f]))) };
+  if (ac[0] === 'export') { if (ac[1].format === 'dxf') return { html:`${esc(sh.label)} 는 표라서 CAD 로는 못 내보내요. 엑셀 · CSV 로 드릴게요.`, acts:[] };
+    return { html:`📊 <b>${esc(sh.label)}</b> ${recs.length}행을 엑셀로 저장할게요.`, acts:[], run:() => { botDl(botTableXlsx(t, sh.label), `계장ENG그룹 ${sh.label}_${todayISO()}.xlsx`); botSay('bot', '✅ 저장했어요 (다운로드 폴더).'); } }; }
+  const by = {}; recs.forEach(r => { const w = flat(r.fields['담당자']) || '(담당 없음)'; by[w] = (by[w] || 0) + 1; });
+  const nd = (sh.key === 'perform' || sh.key === 'bid') ? recs.filter(r => !isDone(r)) : [];
+  const late = recs.slice().sort((a, b) => String(b.meta?.updatedAt || '').localeCompare(String(a.meta?.updatedAt || ''))).slice(0, 3);
+  return { html:`📝 <b>${esc(sh.label)} 요약</b><br>· 행 <b>${recs.length}개</b><br>· 담당: ${Object.entries(by).sort((a, b) => b[1] - a[1]).slice(0, 6).map(([k, v]) => `${esc(k)} ${v}`).join(', ')}`
+    + (nd.length ? `<br>· ⏳ 금주 미작성 <b>${nd.length}</b>: ${nd.slice(0, 5).map(r => esc(recLabel(sh.key, r.fields))).join(', ')}${nd.length > 5 ? ' …' : ''}` : (sh.key === 'perform' || sh.key === 'bid') ? '<br>· ✔ 이번 주 모두 작성' : '')
+    + `<br>· 최근 수정: ${late.map(r => `${esc(trunc(recLabel(sh.key, r.fields), 22))} (${esc(r.meta?.updatedBy || '')})`).join(', ')}`,
+    acts:[{ l:`${sh.label} 표 열기`, fn:() => go(sh.key) }, { l:'⬇ 엑셀로', fn:() => botDl(botTableXlsx(t, sh.label), `계장ENG그룹 ${sh.label}_${todayISO()}.xlsx`) }] };
+}
+/* 비서 창에 파일 끌어다 놓기 / 📎 — 미리보기(엑셀 첫 시트 · CSV) 후 다음 명령에 같이 보냄 */
+async function botXlsxPeek(file) {                     // .xlsx 첫 시트 앞부분만 읽기 (브라우저 내장 압축 풀기)
+  const b = new Uint8Array(await file.arrayBuffer()), dv = new DataView(b.buffer), td = new TextDecoder();
+  let e = b.length - 22; while (e > 0 && dv.getUint32(e, true) !== 0x06054b50) e--; if (e <= 0) throw new Error('zip');
+  const n = dv.getUint16(e + 10, true); let p = dv.getUint32(e + 16, true); const ent = {};
+  for (let i = 0; i < n; i++) { const m = dv.getUint16(p + 10, true), cs = dv.getUint32(p + 20, true), nl = dv.getUint16(p + 28, true), xl = dv.getUint16(p + 30, true), cl = dv.getUint16(p + 32, true), lo = dv.getUint32(p + 42, true);
+    ent[td.decode(b.subarray(p + 46, p + 46 + nl))] = { m, cs, lo }; p += 46 + nl + xl + cl; }
+  const rd = async nm => { const x = ent[nm]; if (!x) return ''; const s = x.lo + 30 + dv.getUint16(x.lo + 26, true) + dv.getUint16(x.lo + 28, true), raw = b.subarray(s, s + x.cs);
+    if (x.m === 0) return td.decode(raw); return await new Response(new Blob([raw]).stream().pipeThrough(new DecompressionStream('deflate-raw'))).text(); };
+  const P = t => new DOMParser().parseFromString(t, 'application/xml'), ss = [...P(await rd('xl/sharedStrings.xml') || '<a/>').getElementsByTagName('si')].map(x => x.textContent);
+  const sh = Object.keys(ent).filter(k => /^xl\/worksheets\/sheet\d+\.xml$/.test(k)).sort()[0]; if (!sh) throw new Error('sheet');
+  const rows = [...P(await rd(sh)).getElementsByTagName('row')].slice(0, 400).map(r => { const out = []; for (const c of r.getElementsByTagName('c')) { const ref = c.getAttribute('r') || '', col = [...ref.replace(/\d+/g, '')].reduce((a, ch) => a * 26 + ch.charCodeAt(0) - 64, 0) - 1, v = c.getElementsByTagName('v')[0]?.textContent ?? c.textContent;
+    out[col >= 0 ? col : out.length] = c.getAttribute('t') === 's' ? ss[+v] : v; } return [...out].map(v => v ?? ''); }).filter(r => r.some(v => String(v).trim()));
+  const hi = Math.max(0, rows.findIndex(r => r.filter(v => String(v).trim()).length >= 2));
+  return { cols:rows[hi] || [], rows:rows.slice(hi + 1) };
+}
+function botFileChip() { const c = $('#botFiles'); if (!c) return; const fs = BOT.files || [];
+  c.hidden = !fs.length; c.innerHTML = fs.map((f, i) => `<span>📎 ${esc(trunc(f.name, 26))}<button type="button" data-bfx="${i}" title="빼기">✕</button></span>`).join(''); }
+async function botAddFiles(list) {
+  const fs = [...list].slice(0, 5); if (!fs.length) return; BOT.files = [...(BOT.files || []), ...fs].slice(-5); botFileChip();
+  for (const f of fs) { let pv = '';
+    try { if (/\.xlsx$/i.test(f.name)) { const t = await botXlsxPeek(f); pv = `<br>${t.rows.length}행 · 열: ${t.cols.slice(0, 8).map(c => esc(trunc(String(c), 14))).join(', ')}${botTableHtml(t, 5)}`; }
+      else if (/\.(csv|txt)$/i.test(f.name)) { const tx = (await f.text()).split(/\r?\n/).filter(Boolean), sp = tx.map(l => l.split(/,|\t/)); pv = `<br>${tx.length - 1}행${botTableHtml({ cols:sp[0] || [], rows:sp.slice(1) }, 5)}`; } } catch (_) { pv = '<br><span class="muted">미리보기는 못 했지만 그대로 보낼 수 있어요.</span>'; }
+    botSay('bot', `📎 <b>${esc(f.name)}</b> (${Math.ceil(f.size / 1024)} KB) 받았어요.${pv}<br>이제 무엇을 할지 말해 주세요. 예: <i>이걸 새로운 "CO2 PJT" 프로젝트 "MCC룸" 룸 "A" revision 으로 생성해</i>`); }
+}
 function botAnswer(q) {
-  const ed = botEdit(q); if (ed) return ed;
+  const ap = botApp(q) || botSheetOut(q); if (ap) return ap;   // 분석 메뉴 · 시트 출력 / 요약
+  const ed = botEdit(q) || botGeneral(q); if (ed) return ed;
+  const ic = BOT_FAQ.find(([re]) => re.test(q)) ? null : icAnswer(q);   // 계측제어 지식 — 대시보드 PJT · 사람이 콕 집혀 나오면 그게 먼저, 아니면 지식 답이 먼저
   const out = { html:'', acts:[] };
   const f = BOT_FAQ.find(([re]) => re.test(q));
   if (f) { out.html = f[1](); out.acts = f[2].map(([l, fn]) => ({ l, fn })); }
@@ -4738,6 +5066,8 @@ function botAnswer(q) {
     out.html += (out.html ? '<br><br>' : '') + `관련 내용 <b>${sc.length}건</b> 중 ${rest.length}건 — 누르면 바로 이동해요.`;
     rest.forEach(({ e }) => out.acts.push({ l:`${e.t} · ${trunc(e.title, 40)}${e.sum && e.t !== '부서원' ? '' : ''}`, fn:() => botRun(e.act) }));
   }
+  if (ic) { if (out.acts.length && !pe && top && top.s >= 3 * Math.max(1, ws.length - 1) && (top.e.person || top.e.key === 'perform' || top.e.key === 'bid')) out.acts.push({ l:ic.html.replace(/<[^>]+>/g, '').slice(0, 32), fn:() => botSay('bot', ic.html, ic.acts) });
+    else { out.html = ic.html + (out.html ? '<br><br><span class="muted" style="font-size:11px">대시보드 안 관련 내용 ↓</span><br>' + out.html : ''); out.acts = [...ic.acts, ...out.acts].slice(0, 8); } }
   if (!out.html) out.html = '음… 딱 맞는 걸 못 찾았어요 🤔 PJT 이름 · 사람 이름 · 메뉴 이름 · VOC 내용으로 물어봐 주세요. 예: "카타르 LNG 누가 해?", "박민수", "수행 PJT 몇 개", "판넬 VOC"';
   return out;
 }
@@ -4753,7 +5083,7 @@ function botToggle(on) {
   if (BOT.open) { botDock(); if (!$('#botLog').children.length) botSay('bot', `무엇을 도와드릴까요${AUTH ? ', ' + esc(AUTH.name) + ' 님' : ''}? 대시보드 안의 PJT · 업무 · 전달사항 · VOC 를 찾아 바로 이동해 드려요.`, [{ l:'이번 주 내 할 일', fn:() => botAsk('내 할 일') }, { l:'마감 언제?', fn:() => botAsk('마감 언제') }, { l:'재무스타그램 어디?', fn:() => botAsk('재무스타그램 어디') }]);
     setTimeout(() => $('#botIn')?.focus(), 50); }
 }
-function botAsk(q) { q = String(q || '').trim(); if (!q) return; botSay('me', esc(q)); const a = botAnswer(q); if (a.keep) a.acts.forEach(x => x.edit = true); setTimeout(() => botSay('bot', a.html, a.acts), 250); }
+function botAsk(q) { q = String(q || '').trim(); if (!q) return; botSay('me', esc(q)); const a = botAnswer(q); if (a.keep) a.acts.forEach(x => x.edit = true); setTimeout(() => { botSay('bot', a.html, a.acts); if (a.run) setTimeout(a.run, 300); }, 250); }
 function botDock() { const r = BOT.el.getBoundingClientRect(), p = BOT.panel, W = 340, H = 440;
   p.style.left = Math.max(8, Math.min(innerWidth - W - 8, r.left + r.width / 2 - W / 2)) + 'px'; p.style.top = (r.top > H + 20 ? r.top - H - 10 : Math.min(innerHeight - H - 8, r.bottom + 10)) + 'px'; }
 function botFace(f) { const b = BOT.el?.querySelector('.bface'); if (b) b.innerHTML = BOT_FACES[f] || BOT_FACES.normal; }
@@ -4778,12 +5108,19 @@ function botInit() {
   el.style.left = (innerWidth - 150) + 'px'; el.style.top = (innerHeight - 170) + 'px'; document.body.appendChild(el); BOT.el = el; el.hidden = off;
   const p = document.createElement('div'); p.id = 'botPanel'; p.hidden = true;
   p.innerHTML = `<div class="bph"><span class="bpa">${BOT_SVG}<i class="oc-helmimg bhelm"></i></span><b>클로드 비서</b><small>대시보드 안내 · 바로 이동</small><button type="button" data-bhide title="캐릭터 숨기기 (다시 보기 = 오른쪽 위 🤖)">숨기기</button><button type="button" data-bclose title="닫기">✕</button></div>
-    <div class="btools"><button type="button" data-bt="find">🔍 찾기</button><button type="button" data-bt="voc">📣 VOC 등록</button><button type="button" data-bt="todo">📋 내 할 일</button><button type="button" data-bt="board">💬 VOC 목록</button></div><div class="blog" id="botLog"></div><form class="bin"><input id="botIn" placeholder="예: 카타르 LNG, 내 할 일, 마감 언제" autocomplete="off" maxlength="80"><button class="btn pri sm">↵</button></form>`;
+    <div class="btools"><button type="button" data-bt="find">🔍 찾기</button><button type="button" data-bt="voc">📣 VOC 등록</button><button type="button" data-bt="todo">📋 내 할 일</button><button type="button" data-bt="board">💬 VOC 목록</button></div><div class="blog" id="botLog"></div><div class="bfiles" id="botFiles" hidden></div><form class="bin"><button type="button" class="btn sm" data-bfile title="파일 붙이기 (비서 창에 끌어다 놓아도 돼요)">📎</button><input type="file" id="botFile" multiple hidden><input id="botIn" placeholder="예: 카타르 LNG, PDIC-101, Panel 결과 CAD로 출력" autocomplete="off" maxlength="200"><button class="btn pri sm">↵</button></form>`;
   document.body.appendChild(p); BOT.panel = p;
   el.onmouseenter = () => { BOT.hover = true; }; el.onmouseleave = () => { BOT.hover = false; };
   el.onclick = () => { botFace('wow'); el.classList.add('ask'); setTimeout(() => el.classList.remove('ask'), 900); botToggle(); };
   p.querySelector('form').onsubmit = e => { e.preventDefault(); const i = $('#botIn'); botAsk(i.value); i.value = ''; };
+  const fin = p.querySelector('#botFile'); fin.onchange = () => { botAddFiles(fin.files); fin.value = ''; };
+  const dz = (t, on) => t.addEventListener(on ? 'dragover' : 'dragleave', e => { if (on) { if (![...(e.dataTransfer?.types || [])].includes('Files')) return; e.preventDefault(); } p.classList.toggle('bdrop', on); });
+  dz(p, true); dz(p, false); p.addEventListener('drop', e => { if (!e.dataTransfer?.files?.length) return; e.preventDefault(); p.classList.remove('bdrop'); botAddFiles(e.dataTransfer.files); });
+  el.addEventListener('dragover', e => { if ([...(e.dataTransfer?.types || [])].includes('Files')) e.preventDefault(); });
+  el.addEventListener('drop', e => { if (!e.dataTransfer?.files?.length) return; e.preventDefault(); botToggle(true); botAddFiles(e.dataTransfer.files); });
   p.onclick = e => { const bt = e.target.closest('[data-bt]')?.dataset.bt;
+    if (e.target.closest('[data-bfile]')) return fin.click();
+    const fx = e.target.closest('[data-bfx]'); if (fx) { (BOT.files || []).splice(+fx.dataset.bfx, 1); return botFileChip(); }
     if (bt === 'find') { botToggle(false); return openFind(); } if (bt === 'voc') { botToggle(false); return shotToVoc(); } if (bt === 'todo') return botAsk('내 할 일'); if (bt === 'board') { BS.kind = 'VOC'; go('board'); return botSay('bot', 'VOC 목록으로 이동했어요 📣'); }
     if (e.target.closest('[data-bclose]')) botToggle(false); if (e.target.closest('[data-bhide]')) { botToggle(false); el.hidden = true; $('#btnBot').hidden = false; try { localStorage.setItem('dept-bot-off', '1'); } catch (_) {} } };
   const tb = document.createElement('button'); tb.id = 'btnBot'; tb.className = 'btn'; tb.type = 'button'; tb.textContent = '🤖'; tb.title = '클로드 비서 다시 보기'; tb.hidden = !off;
