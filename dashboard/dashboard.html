@@ -1569,7 +1569,7 @@ button:focus:not(:focus-visible){outline:none}
 #botPanel .bmsg.bot .bb{border-top-left-radius:4px}#botPanel .bmsg.me .bb{border-top-right-radius:4px}
 #botPanel .bacts{display:flex;flex-direction:column;gap:4px;margin-top:5px}
 #botPanel .bacts button{border:1px solid #f0d4c6;background:#fff7f2;color:#9a3f1d;border-radius:10px;padding:5px 9px;font-size:12px;text-align:left;cursor:pointer}#botPanel .bacts button:hover{background:#ffe9dc}
-#botPanel .bin{display:flex;gap:6px;padding:8px;border-top:1px solid #eee}#botPanel .bin input{flex:1;border:1px solid #e3e3ef;border-radius:10px;padding:7px 10px;font-size:13px}
+#botPanel .bin{display:flex;gap:6px;padding:8px;border-top:1px solid #eee}#botPanel .bin input,#botPanel .bin textarea{flex:1;border:1px solid #e3e3ef;border-radius:10px;padding:7px 10px;font-size:13px;font-family:inherit;resize:none;line-height:1.4;max-height:160px}#botPanel .bin{align-items:flex-end}
 @media print{#deptBot,#botPanel{display:none!important}}
 
 #botPanel .btools{display:flex;gap:4px;padding:6px 8px;background:#fff4ee;border-bottom:1px solid #f3dfd4;flex-wrap:wrap}#botPanel .btools button{border:1px solid #f0d4c6;background:#fff;color:#9a3f1d;border-radius:99px;padding:3px 9px;font-size:11.5px;font-weight:700;cursor:pointer;box-shadow:0 1px 2px rgba(0,0,0,.06)}#botPanel .btools button:hover{background:#ffe9dc}
@@ -1764,7 +1764,7 @@ function recLabel(key, f) {
  * ===================================================================== */
 let root = null;
 /* 서버 모드: http(s):// 로 접속하면 server.py 의 REST API 사용 (폴더 선택 불필요). file:// 로 열면 폴더 모드 */
-const APP_VERSION = '2026-11-08.33';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
+const APP_VERSION = '2026-11-08.36';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
 const SERVER_URL = 'http://localhost:8080';
 // 부서원 PC 사본(file://)이 접속을 시도할 서버 — 서버가 배포 파일을 만들 때 'PC 이름 주소, IP 주소' 순으로 자동 기록함
 const DEFAULT_SERVERS = ['http://ASEUNGWOOK-B01:8080', 'http://65.3.30.234:8080'];
@@ -5221,6 +5221,7 @@ const TR_PRE = {
     [/\bsafety instrumented function(s)?\b/gi, '안전계장기능(SIF)'], [/\bsafety instrumented system(s)?\b/gi, '안전계장시스템(SIS)'], [/\bsafety integrity level\b/gi, '안전무결성등급(SIL)'], [/\bcause and effect (diagram|chart|matrix)(s)?\b/gi, 'C&E 도'], [/\bLOPA study\b/gi, 'LOPA 검토'], [/\bHAZOP study\b/gi, 'HAZOP 검토'], [/\bproof test(ing)?\b/gi, '검증 시험(Proof Test)'],
     [/\bfire and gas\b/gi, '화재 · 가스(F&G)'], [/\bgas detector(s)?\b/gi, '가스 감지기'], [/\bflame detector(s)?\b/gi, '불꽃 감지기'], [/\bsmoke detector(s)?\b/gi, '연기 감지기'],
     // 문서 · 업무
+    [/\bKukmin Ilbo\b/gi, '국민일보'], [/\bChosun Ilbo\b/gi, '조선일보'], [/\bJoongAng Ilbo\b/gi, '중앙일보'], [/\bDong-?A Ilbo\b/gi, '동아일보'], [/\bHankyoreh\b/gi, '한겨레'], [/\bYonhap( News Agency)?\b/gi, '연합뉴스'], [/\bKorea Herald\b/gi, '코리아헤럴드'], [/\bKorea JoongAng Daily\b/gi, '코리아중앙데일리'],
     [/\bloop diagram(s)?\b/gi, '루프도'], [/\binstrument index\b/gi, '인스트루먼트 인덱스'], [/\binstrument list\b/gi, '계기 리스트'], [/\bI\s*\/\s*O list(s)?\b/gi, 'I/O 리스트'], [/\bI\s*\/\s*O\b/g, 'I/O'], [/\bhook-?up drawing(s)?\b/gi, '훅업 도면'], [/\bhook-?up(s)?\b/gi, '훅업'], [/\binstrument data ?sheet(s)?\b/gi, '계기 데이터시트'], [/\bdata ?sheet(s)?\b/gi, '데이터시트'],
     [/\bcable block diagram(s)?\b/gi, '케이블 블록도'], [/\blocation plan(s)?\b/gi, '배치도'], [/\blayout drawing(s)?\b/gi, '배치 도면'], [/\bpanel layout\b/gi, '판넬 배치'], [/\bwiring diagram(s)?\b/gi, '결선도'], [/\btermination diagram(s)?\b/gi, '단말 결선도'], [/\bsingle line diagram(s)?\b/gi, '단선도'],
     [/\bissued for construction\b/gi, '공사용(IFC) 발행'], [/\bissued for approval\b/gi, '승인용(IFA) 발행'], [/\bissued for review\b/gi, '검토용(IFR) 발행'], [/\bfor construction\b/gi, '공사용'],
@@ -5249,7 +5250,11 @@ function trPost(out, dir, src) {
     if (spec) out = out
       .replace(/(이|가) 될 것입니다/g, '이어야 한다').replace(/일 것입니다/g, '이어야 한다').replace(/인증을 받을 것입니다/g, '인증품이어야 한다').replace(/을 가질 것입니다|를 가질 것입니다/g, '이어야 한다').replace(/의 (범위|용량)를 가져야 합니다/g, '의 $1여야 한다').replace(/를 가져야 합니다|을 가져야 합니다/g, '이어야 한다')
       .replace(/되어야 합니다/g, '해야 한다').replace(/이어야 합니다/g, '이어야 한다').replace(/해야 합니다/g, '해야 한다').replace(/충족한다/g, '만족해야 한다').replace(/충족해야 한다/g, '만족해야 한다').replace(/위치해야 한다/g, '설치해야 한다').replace(/(형|타입|유형)입니다\./g, '$1이어야 한다.').replace(/합니다\./g, '한다.').replace(/입니다\./g, '이다.');
-    return out.replace(/\s{2,}/g, ' ').replace(/\s+([.,])/g, '$1').trim();
+    out = out.replace(/\s{2,}/g, ' ').replace(/\s+([.,])/g, '$1').trim();
+    // 한국어 띄어쓰기 다듬기 (모델이 자주 틀리는 것 + 첨삭 규칙의 확실한 것)
+    out = out.replace(/([가-힣])\s*수\s*있/g, '$1 수 있').replace(/([가-힣])\s*수\s*없/g, '$1 수 없').replace(/([가-힣])고있/g, '$1고 있').replace(/(\d)\s+(백만|천만|백억|천억|억|조|만|천)(?=[\s원명개달러.,]|$)/g, '$1$2').replace(/(은|는)이(\s+(?:젊은|사람|문제|경우|회사|프로젝트|분야|일))/g, '$1 이$2').replace(/(\d)\s+(명|개|건|대|회|년|월|일|시간|분|원|주|살|세|배|곳|가지)(?=[\s.,)이가은는을를과와도로의에]|$)/g, '$1$2')
+      .replace(/([가-힣]+)\s(한|된|될|하는|되는|했던|하던)(?=\s)/g, (m, a, b) => /^(인터뷰|발표|조사|설명|요청|묘사|연기|확정|제출|승인|검토|발행|설치|공유|보고|변경|완료|진행|작성|사용|선정|발견|증가|감소|발생|시작|종료)$/.test(a) ? a + b : m).replace(/(\S)\s+될\s*수\s*있/g, (m, a) => a + ' 될 수 있').replace(/묘사\s*될/g, '묘사될');
+    return out.trim();
   }
   // koen
   const tech = /\b(valve|transmitter|instrument|system|cable|panel|junction|gauge|detector|cabinet|DCS|PLC|SIS|ESD)\b/i.test(out);
@@ -5385,7 +5390,8 @@ function botAnswer(q) {
  *  여러 일을 줄바꿈 · '그리고' · '그 다음' 으로 이어 적으면 차례로 실행하며 진행 현황 카드(⏳ → ✅ / ❌)를 채팅창에 보여 줌. 권한 없으면 예전처럼 미리보기 → [✔ 적용].
  *  새창(?bot=1): 비서만 크게 띄운 창 — 이동 · 표 하이라이트는 원래 창(opener)에 시킴. */
 const botVibe = () => !!(SERVER && (MGR() || can('bot')));
-const botSteps = q => String(q).split(/\n+|\s*(?:그리고\s*(?:나서|서)?|그\s*다음(?:에|으로)?|다음으로|이어서|->|→|;)\s+/).map(s => s.trim()).filter(s => s.length >= 2);
+const BOT_WHOLE = /^\s*(?:번역|translate|트랜스레이트|영어로|영문으로|to\s*english|한국어로|한글로|우리말로|to\s*korean|첨삭|교정|교열|맞춤법|문법|윤문|proofread|correct|grammar|번역\s*고쳐|번역\s*수정|올바른\s*번역)\s*[:：]?/i;   // 내용을 통째로 받는 명령 — 줄바꿈 · '그리고' 로 나누지 않음
+const botSteps = q => BOT_WHOLE.test(q) ? [String(q).trim()] : String(q).split(/\n+|\s*(?:그리고\s*(?:나서|서)?|그\s*다음(?:에|으로)?|다음으로|이어서|->|→|;)\s+/).map(s => s.trim()).filter(s => s.length >= 2);
 async function botRunStep(step, card, i) {
   const set = (icon, note) => { if (!card) return; const li = card.querySelectorAll('li')[i]; if (li) { li.querySelector('.bst').textContent = icon; if (note) li.querySelector('.bsn').innerHTML = note; } const b = $('#botLog'); if (b) b.scrollTop = b.scrollHeight; };
   set('⏳');
@@ -5461,11 +5467,13 @@ function botInit() {
   el.style.left = (innerWidth - 150) + 'px'; el.style.top = (innerHeight - 170) + 'px'; document.body.appendChild(el); BOT.el = el; el.hidden = off;
   const p = document.createElement('div'); p.id = 'botPanel'; p.hidden = true;
   p.innerHTML = `<div class="bph"><span class="bpa">${BOT_SVG}<i class="oc-helmimg bhelm"></i></span><b>클로드 비서</b><small>대시보드 안내 · 바로 이동</small><button type="button" data-bwin title="비서를 새창으로 (이 창은 비서가 시키는 대로 움직임)">↗</button><button type="button" data-bmax title="최대화 / 원래 크기">⛶</button><button type="button" data-bhide title="캐릭터 숨기기 (다시 보기 = 오른쪽 위 🤖)">숨기기</button><button type="button" data-bclose title="닫기">✕</button></div>
-    <div class="btools"><button type="button" data-bt="find">🔍 찾기</button><button type="button" data-bt="voc">📣 VOC 등록</button><button type="button" data-bt="todo">📋 내 할 일</button><button type="button" data-bt="board">💬 VOC 목록</button></div><div class="blog" id="botLog"></div><div class="bfiles" id="botFiles" hidden></div><form class="bin"><button type="button" class="btn sm" data-bfile title="파일 붙이기 (비서 창에 끌어다 놓아도 돼요)">📎</button><input type="file" id="botFile" multiple hidden><input id="botIn" placeholder="예: 카타르 LNG, PDIC-101, Panel 결과 CAD로 출력" autocomplete="off" maxlength="200"><button class="btn pri sm">↵</button></form>`;
+    <div class="btools"><button type="button" data-bt="find">🔍 찾기</button><button type="button" data-bt="voc">📣 VOC 등록</button><button type="button" data-bt="todo">📋 내 할 일</button><button type="button" data-bt="board">💬 VOC 목록</button></div><div class="blog" id="botLog"></div><div class="bfiles" id="botFiles" hidden></div><form class="bin"><button type="button" class="btn sm" data-bfile title="파일 붙이기 (비서 창에 끌어다 놓아도 돼요)">📎</button><input type="file" id="botFile" multiple hidden><textarea id="botIn" rows="1" placeholder="예: 카타르 LNG, PDIC-101, Panel 결과 CAD로 출력 (Shift+Enter = 줄바꿈)" autocomplete="off" maxlength="20000"></textarea><button class="btn pri sm">↵</button></form>`;
   document.body.appendChild(p); BOT.panel = p;
   el.onmouseenter = () => { BOT.hover = true; }; el.onmouseleave = () => { BOT.hover = false; };
   el.onclick = () => { botFace('wow'); el.classList.add('ask'); setTimeout(() => el.classList.remove('ask'), 900); botToggle(); };
-  p.querySelector('form').onsubmit = e => { e.preventDefault(); const i = $('#botIn'); botAsk(i.value); i.value = ''; };
+  p.querySelector('form').onsubmit = e => { e.preventDefault(); const i = $('#botIn'); botAsk(i.value); i.value = ''; i.style.height = ''; };
+  const bi = p.querySelector('#botIn'); bi.addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); p.querySelector('form').requestSubmit(); } });   // 긴 글 · 여러 줄(번역 · 바이브)
+  bi.addEventListener('input', () => { bi.style.height = ''; bi.style.height = Math.min(160, bi.scrollHeight) + 'px'; });
   const fin = p.querySelector('#botFile'); fin.onchange = () => { botAddFiles(fin.files); fin.value = ''; };
   const dz = (t, on) => t.addEventListener(on ? 'dragover' : 'dragleave', e => { if (on) { if (![...(e.dataTransfer?.types || [])].includes('Files')) return; e.preventDefault(); } p.classList.toggle('bdrop', on); });
   p.addEventListener('paste', e => { const fs = [...(e.clipboardData?.files || [])].filter(f => /^image\//.test(f.type)); if (fs.length) { e.preventDefault(); botAddFiles(fs); } });
