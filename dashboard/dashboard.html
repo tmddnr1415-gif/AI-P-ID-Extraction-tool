@@ -1760,7 +1760,7 @@ function recLabel(key, f) {
  * ===================================================================== */
 let root = null;
 /* 서버 모드: http(s):// 로 접속하면 server.py 의 REST API 사용 (폴더 선택 불필요). file:// 로 열면 폴더 모드 */
-const APP_VERSION = '2026-11-08.26';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
+const APP_VERSION = '2026-11-08.28';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
 const SERVER_URL = 'http://localhost:8080';
 // 부서원 PC 사본(file://)이 접속을 시도할 서버 — 서버가 배포 파일을 만들 때 'PC 이름 주소, IP 주소' 순으로 자동 기록함
 const DEFAULT_SERVERS = ['http://ASEUNGWOOK-B01:8080', 'http://65.3.30.234:8080'];
@@ -5193,7 +5193,7 @@ const TR_BASE = () => `${API_BASE || location.origin}/apps/translate/`;
 async function trAvail() {                                   // 번역 파일이 서버에 있는지 (한 번만)
   if (TR.avail !== null) return TR.avail;
   if (location.protocol === 'file:') return (TR.avail = false);
-  try { const r = await fetch(TR_BASE() + 'README.txt', { method:'HEAD', cache:'no-store' }); TR.avail = r.ok; } catch (_) { TR.avail = false; } return TR.avail;
+  try { const r = await fetch(TR_BASE() + 'README.txt', { cache:'no-store' }); TR.avail = r.ok; /* 서버가 HEAD 를 안 받으므로 GET */ } catch (_) { TR.avail = false; } return TR.avail;
 }
 function trWorker() { if (TR.w) return TR.w; const w = new Worker(TR_BASE() + 'translate-worker.js'); TR.w = w;
   w.onmessage = e => { const d = e.data || {}, h = TR.q[d.id]; if (!h) return; if (d.progress) return h.prog && h.prog(d.progress); delete TR.q[d.id]; d.ok ? h.res(d.result) : h.rej(new Error(d.error || '실패')); };
@@ -5203,7 +5203,7 @@ const TR_GLOSS = {   // 번역 결과 용어 바로잡기 [찾기, 바꾸기]
   enko:[[/제어\s*밸브/g, '조절 밸브'], [/통제\s*밸브/g, '조절 밸브'], [/송신기/g, '전송기'], [/트랜스미터/g, '전송기'], [/공급\s*업체/g, '벤더(공급사)'], [/공급자/g, '벤더(공급사)'], [/원인과\s*결과\s*(다이어그램|도표|도)/g, 'Cause & Effect 도(C&E)'], [/계기\s*공기/g, '계장 공기(Instrument Air)'],
     [/기기\s*데이터\s*시트/g, '계기 데이터시트'], [/데이터\s*시트/g, '데이터시트'], [/필드\s*(계기|기기)/g, '현장 계기'], [/배전반/g, '판넬'], [/제어실/g, '제어실(Control Room)'], [/안전\s*계장\s*시스템/g, 'SIS(안전계장시스템)'], [/분산\s*제어\s*시스템/g, 'DCS'], [/비상\s*정지/g, '비상 정지(ESD)'],
     [/루프\s*(다이어그램|도표)/g, '루프도'], [/배관\s*및\s*계장\s*(다이어그램|도표|도)/g, 'P&ID'], [/오리피스\s*판/g, '오리피스 플레이트'], [/열전대/g, '열전대(T/C)'], [/저항\s*온도\s*(검출기|감지기)/g, 'RTD'], [/압력\s*릴리프\s*밸브|압력\s*안전\s*밸브/g, 'PSV'], [/접합\s*상자|정션\s*박스/g, '정션 박스(JB)'],
-    [/하게되어야합니다|가되어야합니다/g, '이어야 합니다'], [/되어야합니다/g, '되어야 합니다'], [/해야합니다/g, '해야 합니다'], [/([가-힣])합니다\./g, '$1합니다.']],
+    [/닫히는\s*실패할?\s*것입니다/g, '닫힘 고장(Fail Close) 이어야 합니다'], [/열리는\s*실패할?\s*것입니다/g, '열림 고장(Fail Open) 이어야 합니다'], [/닫히는\s*실패/g, '닫힘 고장(Fail Close)'], [/열리는\s*실패/g, '열림 고장(Fail Open)'], [/의\s*손실에\s/g, ' 상실 시 '], [/꼬리표(\s*없음)?\s*:/g, '태그 번호:'], [/꼬리표/g, '태그'], [/봄\s*반환/g, '스프링 리턴'], [/압축\s*공기를\s*넣은\s*격막/g, '공압 다이어프램'], [/격막/g, '다이어프램'], [/등급\s*:/g, '압력 등급(Rating):'], [/작동기/g, '액추에이터'], [/위치\s*지정자/g, '포지셔너'], [/솔레노이드\s*판막/g, '솔레노이드 밸브'], [/판막/g, '밸브'], [/흐름/g, '유량'], [/수위/g, '레벨'], [/압력\s*변환기/g, '압력 전송기'], [/하게되어야합니다|가되어야합니다/g, '이어야 합니다'], [/되어야합니다/g, '되어야 합니다'], [/해야합니다/g, '해야 합니다'], [/([가-힣])합니다\./g, '$1합니다.']],
   koen:[[/\bpanel\s*board\b/gi, 'panel'], [/\bregulating valve\b/gi, 'control valve'], [/\badjustment valve\b/gi, 'control valve'], [/\bmeasurement and control\b/gi, 'instrumentation and control'], [/\binstrument(ation)? engineering\b/gi, 'instrumentation & control engineering'],
     [/\bdrawing approval\b/gi, 'drawing approval'], [/\bclosing position\b/gi, 'closed position'], [/\bpassage\b/gi, 'aisle'], [/\bconstruction start\b/gi, 'construction start (groundbreaking)'], [/\bbidding project\b/gi, 'bid project'], [/\bperformance project\b/gi, 'execution project'], [/\bweekly work report\b/gi, 'weekly report']],
 };
