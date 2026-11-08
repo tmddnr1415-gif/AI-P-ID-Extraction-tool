@@ -1446,3 +1446,8 @@ C:\Users\SAMSUNG\Desktop\Claude\                         ← 개발 폴더 (여�
   ④ **접근성**: 키보드로 움직일 때 초점 테두리(:focus-visible), 윈도 '애니메이션 끄기' 설정이면 모든 움직임 멈춤(prefers-reduced-motion).
 - 바뀐 곳: dashboard.html `APP_VERSION` · `tableHtml`(빈 화면) · `KEYNAV` · 문서 keydown/click · `renderHome`(myline) · CSS '웹 대시보드 관례 반영'.
 - 확인한 것: 임시 서버 — g→p #perform · g→u #unit · ? 도움말 · 프로젝트 이슈사항 빈 화면 단추 · 홈 한 줄(13건 = 미작성 PJT 5 · 알림 8), 페이지 오류 없음.
+
+### 2026-11-08 (APP_VERSION 2026-11-08.12 / SERVER_VERSION 그대로) — 단추 · 아이콘 입체감
+- 무엇을: 사용자 '모든 아이콘들에 입체감을 조금'. 단추(.btn · 주요 단추) · 배지 · 달력 · 지도 ＋/－ · 떠 있는 단추 · 메뉴 번호 칸 · 숫자 카드 › · 부서원 화면 동그라미 아이콘에 위쪽 밝은 테두리(inset) + 아래 그림자 + 은은한 세로 그라데이션, 마우스 = 1px 떠오름, 누름 = 들어감. 메뉴 · 동그라미 안 그림 아이콘은 아래 그림자(drop-shadow).
+- 바뀐 곳: dashboard.html `APP_VERSION` · CSS '단추 · 아이콘 입체감' 묶음.
+- 확인한 것: 임시 서버 — 홈 머리줄 · 배지 · 숫자 카드, 부서원 화면 동그라미 아이콘, 페이지 오류 없음.
