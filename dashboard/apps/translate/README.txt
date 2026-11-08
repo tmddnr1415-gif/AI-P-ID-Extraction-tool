@@ -12,4 +12,8 @@
   ocr\                     tesseract.js 7.0.0 + tesseract.js-core 6.1.2 (Apache-2.0) — 그림 속 글자 읽기
   ocr\lang\eng.traineddata.gz   영어 인식 데이터 (@tesseract.js-data/eng 4.0.0_best_int, MIT 패키지 / tessdata Apache-2.0)
 
+  tm-seed.json · patterns.json  배포 번역 메모리 · 자주 틀리는 표현 — 공개 한·영 병렬 말뭉치(Korean-English Park, Jungyeul Park et al. 2016,
+                           https://github.com/jungyeul/korean-parallel-corpora , CC BY-SA 3.0)의 문장을 이 엔진으로 번역한 뒤 Claude 가 검토 · 교정한 결과.
+                           같은 문장이 들어오면 교정본을 쓰고(📚 표시), 패턴은 번역 뒤 자동 적용. 부서원이 비서에게 가르친 것(서버 data/_meta/tr-learn.json)이 우선.
+
 업데이트: 대시보드 zip 에 함께 들어 있음(make_patch KEEP_PREFIX). 없으면 비서가 "번역 프로그램 파일이 서버에 없음" 이라고 알립니다.
