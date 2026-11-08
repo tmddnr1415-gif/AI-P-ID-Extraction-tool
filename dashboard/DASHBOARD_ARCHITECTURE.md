@@ -1526,3 +1526,13 @@ C:\Users\SAMSUNG\Desktop\Claude\                         ← 개발 폴더 (여�
   - `KO_HINTS2`(검토만): 경어체 혼용(합니다 · 해요 · 한다), 저희/우리, 격식 문장의 구어, 쉼표 과다(문장 60%+, KatFishNet), 느낌표 잦음, 숫자 · 날짜 · 시간 · 단위 형식 혼용, 대명사 · 지시어 잦음, 과장 어휘, '~적 N', '~것이다' 3회+, 영문 용어 단순 나열의 가운뎃점.
 - 바뀐 곳: dashboard.html `APP_VERSION` · `hasBatchim` `endsRieul` `koJosa` `KO_FIX2` `KO_HINTS2`(새) · `proofRead`(합침, 조사는 맨 뒤에).
 - 확인한 것: node 단위 시험 — '더나은 … 제공하기위해 시작되요. 판넬를 설치했읍니다. 하지 안았습니다. 다음과 같습니다: … 5 명이' → 모두 고침, '마을 · 나이 · 효과를 · 먹는 것 · 이것은' 은 그대로(오탐 없음), '일정가' → '일정이', '회의으로' → '회의로'. 임시 서버 화면 확인, 페이지 오류 없음.
+
+### 2026-11-08 (APP_VERSION 2026-11-08.26 / SERVER_VERSION 그대로) — 클로드 비서 번역(한↔영) · 그림 속 영어 읽기 → 번역 (apps/translate/, 사용자 허락)
+- 무엇을: 사용자 '한국어 · 영어 학습 기반 번역 · 이미지 속 영어 번역'. 외부 라이브러리 예외 + 시험 실행을 사용자가 허락("둘 다 허락")해 `apps/translate/` 를 새로 둠(CLAUDE.md 예외 기록).
+  - 번역: Mozilla **Firefox 번역 모델**(공개, ko-en · en-ko base-memory, 각 약 37MB .gz) + 엔진 **fxtranslate 0.5.0** wasm(MPL-2.0). 대시보드가 Web Worker(`translate-worker.js`)를 띄워 **브라우저 안에서** 번역 — 글은 서버 · 인터넷으로 가지 않음. 처음 한 번 모델을 서버에서 받음(진행률 표시, 이후 브라우저 캐시).
+  - 명령: "번역: …"(방향 자동) · "영어로: …" · "한국어로: …" · "… 번역해줘" · 40자 넘는 영어 글을 그냥 붙여 넣으면 [🌐 한국어로 번역] 단추. 결과 = 번역문 · [원문 보기] · [📋 복사] · (한→영이면) [✍ 영문 첨삭]. `TR_GLOSS` 계장 용어집으로 결과 바로잡음(제어 밸브→조절 밸브, 송신기→전송기, 공급 업체→벤더, 원인과 결과 다이어그램→C&E 도, regulating valve→control valve …).
+  - 그림: 비서 창에 그림(png · jpg …)을 끌어다 놓거나 **붙여 넣기(Ctrl+V)** → **tesseract.js 7**(Apache-2.0, eng 학습 데이터, 브라우저 안 wasm)로 영어 글자 읽기 → 읽은 글(정확도 %) → 자동으로 한국어 번역. SIMD 되는 브라우저면 simd 코어.
+  - 없을 때: 파일이 서버에 없으면 "apps\translate\ 필요" 안내, file:// 사본이면 "서버 주소로 연 대시보드에서만" 안내.
+- 바뀐 곳: dashboard.html `APP_VERSION` · `TR` `TR_BASE` `trAvail` `trWorker` `trCall` `TR_GLOSS` `trGloss` `trDir` `botTranslate` `botTrCmd` `wasmSimd` `ocrWorker` `botImage`(새) · `botSay`(요소 반환) `botActs`(새) · `botAnswer`(botTrCmd) · `botAddFiles`(그림 분기) · `botInit`(paste) · `BOT_FAQ`(도움말) · CSS. 새 폴더 `apps/translate/`(README.txt · 라이선스 파일 포함, 약 83MB). make_patch `KEEP_PREFIX` + 'apps/translate/'. CLAUDE.md 예외.
+- 확인한 것: node 에서 모델 직접 시험 — "The control valve shall fail closed on loss of instrument air." → 한국어, "이번 주 카타르 LNG 프로젝트 도면 승인이 완료되었습니다." → "This week, the Qatar LNG project drawing approval has been completed." (문장당 0.15~0.4초). 임시 서버 브라우저 시험 결과는 아래 줄 참고.
+- 회사에서 확인할 것: 회사 Chrome/Edge 에서 첫 모델 받기 시간(LAN, 약 40MB) · 메모리(탭당 약 200~300MB) · 그림 글자 읽기 정확도(캡처 글자가 작으면 낮음). 기계 번역이므로 사양서 숫자 · 전문 용어는 사람이 확인.

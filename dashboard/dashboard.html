@@ -1590,6 +1590,8 @@ button:focus:not(:focus-visible){outline:none}
 
 #botPanel .bproof{background:#fff;border:1px solid #e3e6f0;border-radius:8px;padding:6px 8px;margin-top:6px;font-size:12.5px;line-height:1.55;max-height:200px;overflow:auto;white-space:pre-wrap}#botPanel .bproof del{background:#ffe3e3;color:#b42318;text-decoration:line-through}#botPanel .bproof ins{background:#dcf5e3;color:#0a6b2f;text-decoration:none;font-weight:700}
 #botPanel .bplist{margin-top:5px;font-size:11.5px;background:#f6f7fb;border-radius:8px;padding:4px 7px}#botPanel .bplist.hint{background:#fff8e6}#botPanel .bplist small{display:block;font-size:10.5px;color:#7a7d99;font-weight:700}
+
+#botPanel .bimg img{max-width:100%;max-height:140px;border-radius:8px;border:1px solid #e3e6f0;margin:4px 0;display:block}#botPanel .btrsrc{margin-top:4px;font-size:11.5px;color:#666}#botPanel .btrsrc summary{cursor:pointer;color:#4f4ce0;font-weight:700;font-size:11px}
 </style>
 </head>
 <body>
@@ -1758,7 +1760,7 @@ function recLabel(key, f) {
  * ===================================================================== */
 let root = null;
 /* 서버 모드: http(s):// 로 접속하면 server.py 의 REST API 사용 (폴더 선택 불필요). file:// 로 열면 폴더 모드 */
-const APP_VERSION = '2026-11-08.25';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
+const APP_VERSION = '2026-11-08.26';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
 const SERVER_URL = 'http://localhost:8080';
 // 부서원 PC 사본(file://)이 접속을 시도할 서버 — 서버가 배포 파일을 만들 때 'PC 이름 주소, IP 주소' 순으로 자동 기록함
 const DEFAULT_SERVERS = ['http://ASEUNGWOOK-B01:8080', 'http://65.3.30.234:8080'];
@@ -4635,7 +4637,7 @@ const BOT_FAQ = [
   [/전달\s*사항|공지|회의/, () => { const m = sortRecs(SHEET.notice, getRecs('notice'))[0]; return m ? `최신 주간회의 전달사항은 <b>${esc(flat(m.fields['제목']))}</b> (${esc(flat(m.fields['일자']))}) 이에요.` : '등록된 전달사항이 없어요.'; }, [['전달사항 보기', () => go('notice')]]],
   [/출장|서버\s*옮|다른\s*pc|대신\s*켜/i, () => '서버를 다른 PC 로 옮길 때는: 서버를 끄고 운영 폴더 전체를 그 PC 로 복사 → 그 PC 에서 start_server.bat. 돌아오면 반대로 복사. <b>두 서버를 동시에 켜면 안 돼요</b> (자료가 갈라짐).', []],
   [/안녕|하이|hello|hi\b|반가/i, () => `안녕하세요${AUTH ? ', ' + esc(AUTH.name) + ' 님' : ''}! 대시보드 안의 PJT · 업무 · 전달사항 · VOC 를 찾아 바로 데려다 드려요. 예: "카타르", "내 할 일", "재무스타그램 어디", "마감 언제"`, []],
-  [/뭐\s*할\s*수|무엇을\s*할\s*수|할\s*수\s*있는\s*(게|것|기능)|도움말|사용법|고치|수정\s*(하는|방법|기능|할\s*수)|편집\s*방법|바꾸는\s*법/, () => '저에게 바로 고쳐 달라고 하셔도 돼요 ✍<br>· "카타르 LNG 업무 현황에 도면 승인 완료 추가"<br>· "카타르 LNG 업무 현황 11월 착공 예정으로 수정"<br>· "카타르 LNG 변경 없음"<br>· "To Do 추가 HAZOP 자료 정리" (박민수 To Do 추가 … = 그 사람)<br>· "HAZOP 후속 조치 종결"<br>· "카타르 LNG PJT 주요 일정 26.3 착공으로 수정" (어느 칸이든)<br>· "입찰 추가: PJT명=베트남 신규, 사업군=발전" · "기술공유 추가: OPC UA 소개"<br>· "카타르 NFE 상세 보여줘" · "예시수행-A 삭제"<br>· "VOC 에 글 쓰기: 제목 / 내용" · "회식 글에 댓글: 참석합니다"<br>고치기 전에 바뀌는 내용을 보여 드리고, [✔ 적용] 을 누르면 저장하고 결과 화면으로 이동해요.<br><br><b>분석 메뉴 · 파일</b><br>· "Valve Datasheet 분석 결과 엑셀로 출력해줘" · "Ball Valve 결과 요약해줘"<br>· "Panel 결과 CAD로 출력해줘" (.dxf)<br>· Equipment List 를 비서 창에 끌어다 놓고 → "이걸 새로운 \"CO2 PJT\" 프로젝트 \"MCC\" 룸 \"A\" revision 으로 생성해"<br>· "수행 PJT 요약" · "입찰 엑셀로 출력"<br><br><b>계측제어 질문</b>: "PDIC-101", "오리피스 직관 길이", "SIL2 PFD", "방폭 IIC"<br><br><b>첨삭</b>: "첨삭: 금일 회의 결과 보고 드립니다 …" · "첨삭: Please find attached the datasheet …" — 한국어 · 영어 모두, 고친 곳과 이유를 보여 줘요', []],
+  [/뭐\s*할\s*수|무엇을\s*할\s*수|할\s*수\s*있는\s*(게|것|기능)|도움말|사용법|고치|수정\s*(하는|방법|기능|할\s*수)|편집\s*방법|바꾸는\s*법/, () => '저에게 바로 고쳐 달라고 하셔도 돼요 ✍<br>· "카타르 LNG 업무 현황에 도면 승인 완료 추가"<br>· "카타르 LNG 업무 현황 11월 착공 예정으로 수정"<br>· "카타르 LNG 변경 없음"<br>· "To Do 추가 HAZOP 자료 정리" (박민수 To Do 추가 … = 그 사람)<br>· "HAZOP 후속 조치 종결"<br>· "카타르 LNG PJT 주요 일정 26.3 착공으로 수정" (어느 칸이든)<br>· "입찰 추가: PJT명=베트남 신규, 사업군=발전" · "기술공유 추가: OPC UA 소개"<br>· "카타르 NFE 상세 보여줘" · "예시수행-A 삭제"<br>· "VOC 에 글 쓰기: 제목 / 내용" · "회식 글에 댓글: 참석합니다"<br>고치기 전에 바뀌는 내용을 보여 드리고, [✔ 적용] 을 누르면 저장하고 결과 화면으로 이동해요.<br><br><b>분석 메뉴 · 파일</b><br>· "Valve Datasheet 분석 결과 엑셀로 출력해줘" · "Ball Valve 결과 요약해줘"<br>· "Panel 결과 CAD로 출력해줘" (.dxf)<br>· Equipment List 를 비서 창에 끌어다 놓고 → "이걸 새로운 \"CO2 PJT\" 프로젝트 \"MCC\" 룸 \"A\" revision 으로 생성해"<br>· "수행 PJT 요약" · "입찰 엑셀로 출력"<br><br><b>계측제어 질문</b>: "PDIC-101", "오리피스 직관 길이", "SIL2 PFD", "방폭 IIC"<br><br><b>번역</b>: "번역: The valve shall fail closed …" · "영어로: 도면 승인 완료" · 그림(캡처)을 끌어다 놓거나 붙여 넣으면 영어 글자를 읽어 번역 — 모두 브라우저 안에서(외부 전송 없음)<br><br><b>첨삭</b>: "첨삭: 금일 회의 결과 보고 드립니다 …" · "첨삭: Please find attached the datasheet …" — 한국어 · 영어 모두, 고친 곳과 이유를 보여 줘요', []],
 ];
 const botWords = q => String(q).split(/[\s,.?!·~]+/).map(w => w.replace(/(이야|이에요|예요|인가요|은|는|이|가|을|를|에|에서|의|좀|요)$/, '')).filter(w => w.length >= 2 && !BOT_STOP.test(w));
 /* 2026-11-08 '모든 내용을 학습' — 물을 때마다 대시보드 전체를 색인(BOT_IDX): 모든 시트 행(모든 칸) · 게시판/VOC 글과 댓글(익명 작성자는 안 밝힘) ·
@@ -5040,7 +5042,10 @@ async function botXlsxPeek(file) {                     // .xlsx 첫 시트 앞�
 function botFileChip() { const c = $('#botFiles'); if (!c) return; const fs = BOT.files || [];
   c.hidden = !fs.length; c.innerHTML = fs.map((f, i) => `<span>📎 ${esc(trunc(f.name, 26))}<button type="button" data-bfx="${i}" title="빼기">✕</button></span>`).join(''); }
 async function botAddFiles(list) {
-  const fs = [...list].slice(0, 5); if (!fs.length) return; BOT.files = [...(BOT.files || []), ...fs].slice(-5); botFileChip();
+  let fs = [...list].slice(0, 5); if (!fs.length) return;
+  const imgs = fs.filter(f => /^image\//.test(f.type) || /\.(png|jpe?g|gif|bmp|webp)$/i.test(f.name)); fs = fs.filter(f => !imgs.includes(f));   // 그림 = 글자 읽기 → 번역
+  for (const im of imgs) botImage(im);
+  if (!fs.length) return; BOT.files = [...(BOT.files || []), ...fs].slice(-5); botFileChip();
   for (const f of fs) { let pv = '';
     try { if (/\.xlsx$/i.test(f.name)) { const t = await botXlsxPeek(f); pv = `<br>${t.rows.length}행 · 열: ${t.cols.slice(0, 8).map(c => esc(trunc(String(c), 14))).join(', ')}${botTableHtml(t, 5)}`; }
       else if (/\.(csv|txt)$/i.test(f.name)) { const tx = (await f.text()).split(/\r?\n/).filter(Boolean), sp = tx.map(l => l.split(/,|\t/)); pv = `<br>${tx.length - 1}행${botTableHtml({ cols:sp[0] || [], rows:sp.slice(1) }, 5)}`; } } catch (_) { pv = '<br><span class="muted">미리보기는 못 했지만 그대로 보낼 수 있어요.</span>'; }
@@ -5179,6 +5184,79 @@ function proofDiffHtml(a, b) {   // 낱말 단위 차이 표시 (지움 · 추�
   while (i < n) { if (A[i].trim()) o += `<del>${esc(A[i])}</del>`; i++; } while (j < m) { o += B[j].trim() ? `<ins>${esc(B[j])}</ins>` : esc(B[j]); j++; }
   return o.replace(/\n/g, '<br>');
 }
+/* 2026-11-08 클로드 비서 번역(한↔영) · 그림 속 영어 읽기 — 브라우저 안에서만(apps/translate/, 서버 · 인터넷으로 글을 보내지 않음)
+ *  · "번역: …" · "영어로: …" · "한국어로: …" · "translate: …" · 긴 영어 글을 그냥 붙여 넣으면 [번역할까요?] 단추
+ *  · 그림(png · jpg …)을 비서 창에 끌어다 놓거나 붙여 넣으면 → 영어 글자 읽기(OCR) → 한국어 번역
+ *  · 계장 용어집 TR_GLOSS 로 번역 결과의 용어를 바로잡음(조절 밸브 · 전송기 · 벤더 …) */
+const TR = { w:null, q:{}, ready:{}, ocr:null, avail:null };
+const TR_BASE = () => `${API_BASE || location.origin}/apps/translate/`;
+async function trAvail() {                                   // 번역 파일이 서버에 있는지 (한 번만)
+  if (TR.avail !== null) return TR.avail;
+  if (location.protocol === 'file:') return (TR.avail = false);
+  try { const r = await fetch(TR_BASE() + 'README.txt', { method:'HEAD', cache:'no-store' }); TR.avail = r.ok; } catch (_) { TR.avail = false; } return TR.avail;
+}
+function trWorker() { if (TR.w) return TR.w; const w = new Worker(TR_BASE() + 'translate-worker.js'); TR.w = w;
+  w.onmessage = e => { const d = e.data || {}, h = TR.q[d.id]; if (!h) return; if (d.progress) return h.prog && h.prog(d.progress); delete TR.q[d.id]; d.ok ? h.res(d.result) : h.rej(new Error(d.error || '실패')); };
+  w.onerror = e => { for (const k in TR.q) { TR.q[k].rej(new Error(e.message || '워커 오류')); delete TR.q[k]; } }; return w; }
+function trCall(type, dir, text, prog) { return new Promise((res, rej) => { const id = 't' + Date.now() + Math.random().toString(36).slice(2, 6); TR.q[id] = { res, rej, prog }; trWorker().postMessage({ id, type, dir, text }); }); }
+const TR_GLOSS = {   // 번역 결과 용어 바로잡기 [찾기, 바꾸기]
+  enko:[[/제어\s*밸브/g, '조절 밸브'], [/통제\s*밸브/g, '조절 밸브'], [/송신기/g, '전송기'], [/트랜스미터/g, '전송기'], [/공급\s*업체/g, '벤더(공급사)'], [/공급자/g, '벤더(공급사)'], [/원인과\s*결과\s*(다이어그램|도표|도)/g, 'Cause & Effect 도(C&E)'], [/계기\s*공기/g, '계장 공기(Instrument Air)'],
+    [/기기\s*데이터\s*시트/g, '계기 데이터시트'], [/데이터\s*시트/g, '데이터시트'], [/필드\s*(계기|기기)/g, '현장 계기'], [/배전반/g, '판넬'], [/제어실/g, '제어실(Control Room)'], [/안전\s*계장\s*시스템/g, 'SIS(안전계장시스템)'], [/분산\s*제어\s*시스템/g, 'DCS'], [/비상\s*정지/g, '비상 정지(ESD)'],
+    [/루프\s*(다이어그램|도표)/g, '루프도'], [/배관\s*및\s*계장\s*(다이어그램|도표|도)/g, 'P&ID'], [/오리피스\s*판/g, '오리피스 플레이트'], [/열전대/g, '열전대(T/C)'], [/저항\s*온도\s*(검출기|감지기)/g, 'RTD'], [/압력\s*릴리프\s*밸브|압력\s*안전\s*밸브/g, 'PSV'], [/접합\s*상자|정션\s*박스/g, '정션 박스(JB)'],
+    [/하게되어야합니다|가되어야합니다/g, '이어야 합니다'], [/되어야합니다/g, '되어야 합니다'], [/해야합니다/g, '해야 합니다'], [/([가-힣])합니다\./g, '$1합니다.']],
+  koen:[[/\bpanel\s*board\b/gi, 'panel'], [/\bregulating valve\b/gi, 'control valve'], [/\badjustment valve\b/gi, 'control valve'], [/\bmeasurement and control\b/gi, 'instrumentation and control'], [/\binstrument(ation)? engineering\b/gi, 'instrumentation & control engineering'],
+    [/\bdrawing approval\b/gi, 'drawing approval'], [/\bclosing position\b/gi, 'closed position'], [/\bpassage\b/gi, 'aisle'], [/\bconstruction start\b/gi, 'construction start (groundbreaking)'], [/\bbidding project\b/gi, 'bid project'], [/\bperformance project\b/gi, 'execution project'], [/\bweekly work report\b/gi, 'weekly report']],
+};
+const trGloss = (t, dir) => (TR_GLOSS[dir] || []).reduce((a, [re, rep]) => a.replace(re, rep), t);
+const trDir = t => isKo(t) ? 'koen' : 'enko';
+async function botTranslate(text, dir, extra = '') {
+  if (!(await trAvail())) return botSay('bot', location.protocol === 'file:' ? '번역은 서버 주소(http://…:8080)로 연 대시보드에서만 돼요. file 사본에서는 안 돼요.' : '번역 프로그램 파일이 서버에 아직 없어요 — 서버 PC 운영 폴더에 <b>apps\\translate\\</b> 가 필요합니다(대시보드 업데이트 zip).');
+  const label = dir === 'enko' ? '영어 → 한국어' : '한국어 → 영어';
+  let msg = null; if (!TR.ready[dir]) { msg = botSay('bot', `⏳ ${label} 번역 엔진을 준비하는 중… (처음 한 번, 약 40MB)`, [], true); botFace('squint'); }
+  else { msg = botSay('bot', `⏳ ${label} 번역 중…`, [], true); }
+  try {
+    const out0 = await trCall('translate', dir, text, p => { if (msg) msg.querySelector('.bb').innerHTML = `⏳ ${label} 번역 엔진 준비 중… ${esc(p.step)} ${p.pct}%`; });
+    TR.ready[dir] = true; const out = trGloss(out0, dir); botFace('happy');
+    msg.querySelector('.bb').innerHTML = `🌐 <b>${label}</b>${extra}<div class="bproof">${esc(out).replace(/\n/g, '<br>')}</div><details class="btrsrc"><summary>원문 보기</summary>${esc(text).replace(/\n/g, '<br>')}</details><span class="muted" style="font-size:11px">브라우저 안에서 번역(Firefox 번역 모델 · 외부로 보내지 않음) · 기계 번역이라 전문 용어 · 숫자는 꼭 확인하세요.</span>`;
+    botActs(msg, [{ l:'📋 번역 복사', fn:() => navigator.clipboard?.writeText(out).then(() => botSay('bot', '복사했어요 📋'), () => botSay('bot', '복사가 막혀 있어요 — 위 글을 드래그해 복사해 주세요.')) }, ...(dir === 'enko' ? [] : [{ l:'✍ 영문 첨삭', fn:() => botAsk('첨삭: ' + out) }])]);
+    return out;
+  } catch (e) { botFace('dizzy'); msg.querySelector('.bb').innerHTML = '❌ 번역 실패: ' + esc(e.message) + '<br><span class="muted" style="font-size:11px">브라우저가 오래됐거나(Chrome 80 이상 필요) 메모리가 부족할 수 있어요. 새로고침 후 다시 해 보세요.</span>'; }
+}
+function botTrCmd(q) {
+  let m;
+  if ((m = /^(?:번역|translate|트랜스레이트)\s*[:：]?\s*([\s\S]{2,})$/i.exec(q))) return { html:'', acts:[], run:() => botTranslate(m[1].trim(), trDir(m[1])) };
+  if ((m = /^(?:영어로|영문으로|to\s*english)\s*[:：]?\s*([\s\S]{2,})$/i.exec(q))) return { html:'', acts:[], run:() => botTranslate(m[1].trim(), 'koen') };
+  if ((m = /^(?:한국어로|한글로|우리말로|to\s*korean)\s*[:：]?\s*([\s\S]{2,})$/i.exec(q))) return { html:'', acts:[], run:() => botTranslate(m[1].trim(), 'enko') };
+  if ((m = /^([\s\S]{2,})\s*(?:번역해\s*줘|번역해줘|번역\s*해\s*줘|번역해|을\s*번역|를\s*번역|translate)\s*[.!]?$/i.exec(q))) return { html:'', acts:[], run:() => botTranslate(m[1].trim(), trDir(m[1])) };
+  if (q.length >= 40 && !isKo(q) && (q.match(/[A-Za-z]/g) || []).length > q.length * .5 && (q.match(/\s/g) || []).length >= 6)   // 긴 영어 글을 그냥 붙여 넣음
+    return { html:'영어 글이네요. 한국어로 번역할까요? (첨삭은 "첨삭: …" 으로)', acts:[{ l:'🌐 한국어로 번역', fn:() => botTranslate(q, 'enko') }, { l:'✍ 영문 첨삭', fn:() => botAsk('첨삭: ' + q) }] };
+  return null;
+}
+/* 그림 속 영어 → 글자 읽기(OCR) → 번역 */
+const wasmSimd = () => { try { return WebAssembly.validate(new Uint8Array([0, 97, 115, 109, 1, 0, 0, 0, 1, 5, 1, 96, 0, 1, 123, 3, 2, 1, 0, 10, 10, 1, 8, 0, 65, 0, 253, 15, 253, 98, 11])); } catch (_) { return false; } };
+async function ocrWorker(onProg) {
+  if (TR.ocr) return TR.ocr;
+  if (!window.Tesseract) await new Promise((res, rej) => { const s = document.createElement('script'); s.src = TR_BASE() + 'ocr/tesseract.min.js'; s.onload = res; s.onerror = () => rej(new Error('tesseract.min.js 못 받음')); document.head.appendChild(s); });
+  const B = TR_BASE();
+  TR.ocr = await Tesseract.createWorker('eng', 1, { workerPath:B + 'ocr/worker.min.js', corePath:B + 'ocr/core/' + (wasmSimd() ? 'tesseract-core-simd-lstm.wasm.js' : 'tesseract-core-lstm.wasm.js'), langPath:B + 'ocr/lang', gzip:true, cacheMethod:'none', logger:m => onProg && onProg(m) });
+  return TR.ocr;
+}
+async function botImage(file) {
+  const url = URL.createObjectURL(file), msg = botSay('bot', `🖼 <b>${esc(file.name || '그림')}</b> 받았어요.<div class="bimg"><img src="${url}" alt=""></div>⏳ 그림 속 글자를 읽는 중… (처음 한 번은 읽기 프로그램 약 7MB 준비)`, [], true);
+  if (!(await trAvail())) { msg.querySelector('.bb').innerHTML += '<br>❌ 번역 · 글자 읽기 프로그램 파일이 서버에 없어요(apps\\translate\\).'; return; }
+  botFace('squint');
+  try {
+    const w = await ocrWorker(m => { if (m.status && m.progress != null) { const p = msg.querySelector('.bocrp'); if (p) p.textContent = `${m.status === 'recognizing text' ? '글자 읽는 중' : '준비 중'} ${Math.round(m.progress * 100)}%`; } });
+    msg.querySelector('.bb').insertAdjacentHTML('beforeend', '<div class="bocrp muted" style="font-size:11px"></div>');
+    const { data } = await w.recognize(file), text = (data.text || '').replace(/[ \t]+\n/g, '\n').replace(/\n{3,}/g, '\n\n').trim();
+    msg.querySelector('.bocrp')?.remove();
+    if (!text || (text.match(/[A-Za-z]/g) || []).length < 3) { botFace('dizzy'); msg.querySelector('.bb').innerHTML += '<br>🤔 영어 글자를 찾지 못했어요. 글자가 더 크고 선명한 그림(캡처)으로 다시 해 보세요.'; return; }
+    const conf = Math.round(data.confidence || 0);
+    msg.querySelector('.bb').innerHTML = msg.querySelector('.bb').innerHTML.replace(/⏳[^<]*/, `읽은 글 (정확도 ${conf}%)`) + `<div class="bproof" style="max-height:120px">${esc(text).replace(/\n/g, '<br>')}</div>`;
+    botActs(msg, [{ l:'📋 읽은 글 복사', fn:() => navigator.clipboard?.writeText(text).then(() => botSay('bot', '복사했어요 📋')) }, { l:'✍ 영문 첨삭', fn:() => botAsk('첨삭: ' + text) }]);
+    await botTranslate(text, 'enko', ` <span class="muted" style="font-size:11px">· 그림 ${esc(trunc(file.name || '', 20))}</span>`);
+  } catch (e) { botFace('dizzy'); msg.querySelector('.bb').innerHTML += '<br>❌ 글자 읽기 실패: ' + esc(e.message); }
+}
 function botProof(q) {
   const m = /^(?:첨삭|교정|교열|맞춤법|문법\s*(?:검사|확인)?|윤문|proofread|correct|grammar)\s*[:：]?\s*([\s\S]+)$/i.exec(q.trim()); if (!m) return null;
   const text = m[1].trim(); if (text.length < 4) return { html:'첨삭할 글을 같이 적어 주세요. 예: "첨삭: 금일 회의 결과 보고 드립니다"', acts:[] };
@@ -5192,7 +5270,7 @@ function botProof(q) {
   return { html:body, acts:r.same ? [] : [{ l:'📋 고친 글 복사', fn:() => { navigator.clipboard?.writeText(r.out).then(() => botSay('bot', '복사했어요 📋'), () => botSay('bot', '복사가 막혀 있어요 — 위 글을 드래그해 복사해 주세요.')); } }] };
 }
 function botAnswer(q) {
-  const pf = botProof(q); if (pf) return pf;   // 첨삭
+  const pf = botProof(q) || botTrCmd(q); if (pf) return pf;   // 첨삭 · 번역
   const ap = botApp(q) || botSheetOut(q); if (ap) return ap;   // 분석 메뉴 · 시트 출력 / 요약
   const ed = botEdit(q) || botGeneral(q); if (ed) return ed;
   const ic = BOT_FAQ.find(([re]) => re.test(q)) ? null : icAnswer(q);   // 계측제어 지식 — 대시보드 PJT · 사람이 콕 집혀 나오면 그게 먼저, 아니면 지식 답이 먼저
@@ -5224,7 +5302,11 @@ function botSay(who, html, acts = []) {
   const b = $('#botLog'); if (!b) return; const d = document.createElement('div'); d.className = 'bmsg ' + who;
   d.innerHTML = `<div class="bb">${html}</div>${acts.length ? `<div class="bacts">${acts.map((a, i) => `<button type="button" data-ba="${i}">${esc(a.l)} ›</button>`).join('')}</div>` : ''}`;
   d.onclick = e => { const x = e.target.closest('[data-ba]'); if (!x || d.dataset.used) return; const ac = acts[+x.dataset.ba]; botSay('me', esc(ac.l)); if (ac.edit) { d.dataset.used = 1; d.querySelectorAll('[data-ba]').forEach(b => b.disabled = true); ac.fn(); } else { ac.fn(); botSay('bot', '이동했어요 👉 또 궁금한 게 있으면 물어보세요.'); } };
-  b.appendChild(d); b.scrollTop = b.scrollHeight;
+  b.appendChild(d); b.scrollTop = b.scrollHeight; return d;
+}
+function botActs(d, acts) {   // 이미 띄운 말풍선에 단추 줄 달기(번역 · OCR 결과)
+  if (!d || !acts.length) return; d.querySelector('.bacts')?.remove(); d.insertAdjacentHTML('beforeend', `<div class="bacts">${acts.map((a, i) => `<button type="button" data-ba="${i}">${esc(a.l)} ›</button>`).join('')}</div>`);
+  d.onclick = e => { const x = e.target.closest('[data-ba]'); if (!x) return; const ac = acts[+x.dataset.ba]; botSay('me', esc(ac.l)); ac.fn(); }; const b = $('#botLog'); if (b) b.scrollTop = b.scrollHeight;
 }
 function botToggle(on) {
   BOT.open = on ?? !BOT.open; const p = BOT.panel; if (!p) return;
@@ -5264,6 +5346,7 @@ function botInit() {
   p.querySelector('form').onsubmit = e => { e.preventDefault(); const i = $('#botIn'); botAsk(i.value); i.value = ''; };
   const fin = p.querySelector('#botFile'); fin.onchange = () => { botAddFiles(fin.files); fin.value = ''; };
   const dz = (t, on) => t.addEventListener(on ? 'dragover' : 'dragleave', e => { if (on) { if (![...(e.dataTransfer?.types || [])].includes('Files')) return; e.preventDefault(); } p.classList.toggle('bdrop', on); });
+  p.addEventListener('paste', e => { const fs = [...(e.clipboardData?.files || [])].filter(f => /^image\//.test(f.type)); if (fs.length) { e.preventDefault(); botAddFiles(fs); } });
   dz(p, true); dz(p, false); p.addEventListener('drop', e => { if (!e.dataTransfer?.files?.length) return; e.preventDefault(); p.classList.remove('bdrop'); botAddFiles(e.dataTransfer.files); });
   el.addEventListener('dragover', e => { if ([...(e.dataTransfer?.types || [])].includes('Files')) e.preventDefault(); });
   el.addEventListener('drop', e => { if (!e.dataTransfer?.files?.length) return; e.preventDefault(); botToggle(true); botAddFiles(e.dataTransfer.files); });
