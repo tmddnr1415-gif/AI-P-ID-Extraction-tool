@@ -1444,6 +1444,52 @@ html.dark :is(img,video,canvas,iframe,.oc-helmimg,.pidframe,.modframe,#plazaHost
 html.dark :is(#side,.igh.team,.whero,.kpi.hero,.oc-hero2,.oc.m-map .oc-view,.oav,.pfav) :is(img,canvas,.oc-helmimg,.oav,.oc-hs,.fb,.hel,.bhat){filter:none}
 html.dark dialog,html.dark :fullscreen{color-scheme:light}
 .darkbtn{min-width:40px}
+
+/* ---------- 2026-11-08 세계 지도 3D 지구본 ---------- */
+#ocGlobe{position:absolute;inset:0;z-index:0;border-radius:inherit;overflow:hidden;background:#000}
+.oc-view.globe #ocCv,.oc-view.globe .oc-mini{display:none}
+.oc-view.globe .oc-mctl,.oc-view.globe .oc-mleg,.oc-view.globe .oc-fab{z-index:3}
+#ocGlobe .gc{display:flex;gap:6px;align-items:center;transform:translate(-50%,-120%);background:rgba(10,18,40,.82);border:1px solid rgba(255,255,255,.35);color:#fff;border-radius:10px;padding:4px 9px 4px 6px;cursor:pointer;white-space:nowrap;box-shadow:0 4px 12px rgba(0,0,0,.45);transition:transform .15s,background .15s;font-family:inherit}
+#ocGlobe .gc:hover,#ocGlobe .gc.on{background:#1d4ed8;transform:translate(-50%,-120%) scale(1.08)}
+#ocGlobe .gc .fl{font-size:16px}#ocGlobe .gc b{display:block;font-size:12px}#ocGlobe .gc small{display:block;font-size:10px;color:#cfe0ff}
+#ocGlobe .gc.run{border-left:3px solid #3b82f6}#ocGlobe .gc.bid{border-left:3px solid #f59e0b}#ocGlobe .gc.both{border-left:3px solid #a78bfa}
+#ocGlobe .gpj{position:relative;transform:translate(-6px,-6px);cursor:pointer;font-family:inherit;color:#fff}
+#ocGlobe .gpj .gdot{display:block;width:12px;height:12px;border-radius:50%;background:#3b82f6;border:2px solid #fff;box-shadow:0 0 0 4px rgba(59,130,246,.35)}
+#ocGlobe .gpj.bid .gdot{background:#f59e0b;box-shadow:0 0 0 4px rgba(245,158,11,.35)}
+#ocGlobe .gpj .gn em{font-style:normal;color:#9fc3ff;font-weight:600}
+#ocGlobe .gpj .gn{position:absolute;left:16px;top:-3px;white-space:nowrap;font-size:11px;font-weight:700;background:rgba(10,18,40,.8);border-radius:6px;padding:1px 6px;display:none}
+#ocGlobe .gpj .gd{position:absolute;left:16px;top:-6px;width:230px;background:rgba(255,255,255,.97);color:#1b2238;border-radius:12px;padding:9px 11px;box-shadow:0 10px 26px rgba(0,0,0,.45);display:none;font-size:11.5px;line-height:1.45;border-top:3px solid #3b82f6}
+#ocGlobe .gpj.bid .gd{border-top-color:#f59e0b}
+#ocGlobe .gd .gh{display:flex;gap:6px;align-items:flex-start}#ocGlobe .gd .gh b{font-size:12.5px;line-height:1.3}
+#ocGlobe .gd .gt{flex:none;font-size:10px;font-weight:800;color:#fff;background:#3b82f6;border-radius:5px;padding:0 5px}#ocGlobe .gpj.bid .gd .gt{background:#f59e0b}
+#ocGlobe .gd .gm{color:#667089;margin-top:2px}#ocGlobe .gd .glr{display:flex;flex-wrap:wrap;gap:3px;margin-top:4px}#ocGlobe .gd .glr span{background:#eef1f8;border-radius:99px;padding:0 6px;font-size:10.5px}#ocGlobe .gd .glr .le{background:#dbe7ff;color:#1d4ed8;font-weight:700}
+#ocGlobe .gd .gs{margin-top:4px;font-weight:700}#ocGlobe .gd .gs.ok{color:#15803d}#ocGlobe .gd .gs.no{color:#c2410c}#ocGlobe .gd .gw{margin-top:3px;color:#4a5370;border-top:1px dashed #e1e6f2;padding-top:3px}
+#ocGlobe[data-lod="far"] .gpj{display:none}
+#ocGlobe[data-lod="mid"] .gpj .gn{display:block}
+#ocGlobe[data-lod="mid"] .gpj:hover .gd,#ocGlobe[data-lod="mid"] .gpj.on .gd{display:block;z-index:5}
+#ocGlobe[data-lod="mid"] .gpj:hover .gn,#ocGlobe[data-lod="mid"] .gpj.on .gn{display:none}
+#ocGlobe[data-lod="near"] .gpj .gn{display:block;font-size:12px}
+#ocGlobe[data-lod="near"] .gpj:hover .gd,#ocGlobe[data-lod="near"] .gpj.on .gd{display:block;z-index:8}#ocGlobe[data-lod="near"] .gpj:hover .gn,#ocGlobe[data-lod="near"] .gpj.on .gn{display:none}
+#ocGlobe[data-lod="near"] .gc,#ocGlobe[data-lod="mid"] .gc{opacity:.9;transform:translate(-50%,-150%) scale(.85)}
+#ocGlobe .gpj:hover,#ocGlobe .gpj.on{z-index:9}
+#ocGlobe .glt,.scene-tooltip .glt{background:rgba(10,18,40,.9);color:#fff;border-radius:8px;padding:4px 8px;font-size:12px}
+.oc-view.globe::after{content:'휠 = 확대/축소 · 끌기 = 돌리기 · 가까이 갈수록 자세히';position:absolute;left:12px;top:10px;z-index:3;font-size:11.5px;color:#dbe7ff;background:rgba(10,18,40,.6);border-radius:99px;padding:3px 10px;pointer-events:none}
+
+/* 세계 지도 + 삼성물산 수주현황 */
+.oc-ordbtn.on{background:#f5b700;border-color:#e0a000;color:#3a2a00;font-weight:800}
+#ocGlobe .goc{transform:translate(-50%,0);white-space:nowrap;background:linear-gradient(135deg,#f5b700,#d48a00);color:#2b1d00;font-size:11px;font-weight:700;border-radius:99px;padding:2px 10px;box-shadow:0 3px 10px rgba(0,0,0,.45);font-family:inherit}
+#ocGlobe .gor{position:relative;transform:translate(-5px,-5px);font-family:inherit;color:#fff}
+#ocGlobe .gor .gdot{display:block;width:10px;height:10px;transform:rotate(45deg);background:#f5b700;border:2px solid #fff;box-shadow:0 0 0 3px rgba(245,183,0,.35)}
+#ocGlobe .gor .gn{position:absolute;left:14px;top:-3px;white-space:nowrap;font-size:10.5px;font-weight:700;background:rgba(60,40,0,.85);color:#ffe7a3;border-radius:6px;padding:1px 6px;display:none}
+#ocGlobe .gor .gd{position:absolute;left:14px;top:-6px;width:240px;background:#fffdf3;color:#1b2238;border-radius:12px;padding:8px 10px;box-shadow:0 10px 26px rgba(0,0,0,.45);display:none;border-top:3px solid #f5b700;font-size:11.5px}
+#ocGlobe[data-lod="far"] .gor{display:none}
+#ocGlobe[data-lod="mid"] .gor .gn{display:block}#ocGlobe[data-lod="mid"] .gor:hover .gd{display:block;z-index:6}#ocGlobe[data-lod="mid"] .gor:hover .gn{display:none}
+#ocGlobe[data-lod="near"] .gor .gn{display:block}#ocGlobe[data-lod="near"] .gor:hover .gd{display:block;z-index:8}#ocGlobe[data-lod="near"] .gor:hover .gn{display:none}
+#ocGlobe .gsrc{margin-top:4px;font-size:10px;color:#8a7a3a}
+#ocGlobe .gd .gam{margin-top:4px;background:#fff6d6;border-radius:8px;padding:3px 6px;color:#5a4300}#ocGlobe .gd .gam small{display:block;font-size:9.5px;color:#8a7a3a}
+.ord{display:flex;flex-direction:column;gap:1px;padding:6px 0;border-top:1px dashed #eadfb5;font-size:12px}.ord b{font-size:12.5px}.ord span{color:#667089;font-size:11.5px}.ord .oa{color:#5a4300}.ord .oa b{color:#b45309}
+.ordbox{background:#fffbea;border:1px solid #f3e1a0;border-radius:12px;padding:8px 12px;margin:8px 0}.ordbox h5{margin:0 0 4px;font-size:13px}.ordbox h5 small{font-weight:400;color:#8a7a3a;font-size:11px}
+.mam{margin-top:4px;font-size:11.5px;background:#fff6d6;border-radius:8px;padding:3px 8px;color:#5a4300}
 </style>
 </head>
 <body>
@@ -1612,7 +1658,7 @@ function recLabel(key, f) {
  * ===================================================================== */
 let root = null;
 /* 서버 모드: http(s):// 로 접속하면 server.py 의 REST API 사용 (폴더 선택 불필요). file:// 로 열면 폴더 모드 */
-const APP_VERSION = '2026-11-08.6';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
+const APP_VERSION = '2026-11-08.8';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
 const SERVER_URL = 'http://localhost:8080';
 // 부서원 PC 사본(file://)이 접속을 시도할 서버 — 서버가 배포 파일을 만들 때 'PC 이름 주소, IP 주소' 순으로 자동 기록함
 const DEFAULT_SERVERS = ['http://ASEUNGWOOK-B01:8080', 'http://65.3.30.234:8080'];
@@ -5575,6 +5621,7 @@ function orgHtml(recs, year) {
       <div class="oc-seg">${SEG.map(([k, l, ic]) => `<button class="${mode === k ? 'on' : ''}" data-ocmode="${k}">${ic}${l}</button>`).join('')}</div>
       ${mode === 'map' ? (() => { const all = mapProjects(), dn = all.filter(p => isDone(p.r)).length, pc = all.length ? Math.round(dn / all.length * 100) : 0;
         return `<span class="oc-prog" title="진행 중인 수행 · 입찰 PJT 중 금주 작성(변경 없음 포함) 비율">금주 작성률 <i><b style="width:${pc}%"></b></i> <strong>${pc}%</strong></span><span class="oc-chips"><span><i style="background:#64748b"></i>전체 ${all.length}</span><span><i style="background:#3b82f6"></i>수행 ${all.filter(p => p.k !== 'bid').length}</span><span><i style="background:#f59e0b"></i>입찰 ${all.filter(p => p.k === 'bid').length}</span><span><i style="background:#e0483e"></i>미작성 ${all.length - dn}</span></span>`; })() : ''}
+      ${mode === 'map' ? `<button class="btn sm oc-ordbtn ${OC.ordOn ? 'on' : ''}" data-ord title="재무스타그램(DART 사업보고서 '수주상황')에서 삼성물산 프로젝트별 수주금액 · 발주처 · 잔액을 불러와 지도에 함께 표시">💰 삼성물산 수주현황${ORD.data && !ORD.data.error ? ` <b>${ORD.data.projects.length}</b>` : ''}</button>` : ''}
       ${mode !== 'unit' ? `<div class="oc-fil">${[['', '전체'], ['perform', '수행'], ['bid', '입찰']].map(([k, l]) => `<button class="${(mode === 'map' ? OC.mapF || '' : OC.projF === '수행' ? 'perform' : OC.projF === '입찰' ? 'bid' : '') === k ? 'on' : ''}" data-mapf="${k}">${l}</button>`).join('')}</div>` : ''}
       <span class="sp"></span><div class="oc-zoom"><span class="zi">⌕</span><button data-oc="out" title="축소">−</button><b id="ocZ">100%</b><button data-oc="in" title="확대">+</button><span class="zi">⌕</span></div>
       ${AUTH ? '<button class="btn pri oc-me" data-myprof>🙋 내 정보</button>' : ''}</div>
@@ -5684,19 +5731,19 @@ function ocZoom(f, cx, cy) {
 function orgBind(el) {
   const v = $('#ocView', el); if (!v) return;
   const mi = $('#ocMi', el); mi.innerHTML = `<div class="oc-mc">${$('#ocCv', el).innerHTML}</div>`;   // 미니맵 = 조직도를 작게 복사
-  requestAnimationFrame(() => { if (OC.fit) { OC.fit = false; ocMode() === 'unit' ? ocFit(true) : ocFit(); } else ocApply(); ocMode() === 'map' ? (mapSide(OC.selC), mapTick(), wxLoad()) : ocSide(OC.sel); });
+  requestAnimationFrame(() => { if (OC.fit) { OC.fit = false; ocMode() === 'unit' ? ocFit(true) : ocFit(); } else ocApply(); ocMode() === 'map' ? (mapSide(OC.selC), mapTick(), wxLoad(), globeMount()) : ocSide(OC.sel); });
   let drag = null;
-  v.onpointerdown = e => { if (e.button !== 0 || e.target.closest('button,a,.oc-mini')) return; drag = { x:e.clientX - OC.x, y:e.clientY - OC.y }; v.setPointerCapture(e.pointerId); v.classList.add('grab'); };
+  v.onpointerdown = e => { if (e.button !== 0 || e.target.closest('button,a,.oc-mini') || v.classList.contains('globe')) return; drag = { x:e.clientX - OC.x, y:e.clientY - OC.y }; v.setPointerCapture(e.pointerId); v.classList.add('grab'); };
   v.onpointermove = e => { if (!drag) return; OC.x = e.clientX - drag.x; OC.y = e.clientY - drag.y; ocApply(); };
   v.onpointerup = v.onpointercancel = () => { drag = null; v.classList.remove('grab'); };
-  v.onwheel = e => { e.preventDefault(); const r = v.getBoundingClientRect(); ocZoom(Math.pow(1.0015, -e.deltaY), e.clientX - r.left, e.clientY - r.top); };   // 휠 = 커서 쪽 확대/축소 (구글 어스처럼)
+  v.onwheel = e => { if (v.classList.contains('globe')) return; e.preventDefault(); const r = v.getBoundingClientRect(); ocZoom(Math.pow(1.0015, -e.deltaY), e.clientX - r.left, e.clientY - r.top); };   // 휠 = 커서 쪽 확대/축소 (구글 어스처럼)
   $('#ocMini', el).onclick = e => { const r = mi.getBoundingClientRect(); OC.x = v.clientWidth / 2 - (e.clientX - r.left) / OC.m * OC.z; OC.y = v.clientHeight / 2 - (e.clientY - r.top) / OC.m * OC.z; ocApply(); };
   el.onmouseover = e => {
     if (ocMode() === 'map') { const c = e.target.closest('.oc-cv [data-ctry]')?.dataset.ctry || ''; if (c === OC.hovC) return; OC.hovC = c; return mapSide(c || OC.selC); }
     const p = e.target.closest('.oc-cv [data-prof]'); const n = p?.dataset.prof || ''; if (n === OC.hov) return; OC.hov = n; ocSide(n || OC.sel); };
   el.ondblclick = e => { const p = e.target.closest('.oc-cv [data-prof]'); if (p) { clearTimeout(OC.gpT); openProfile(p.dataset.prof); } };
 }
-document.addEventListener('fullscreenchange', () => { if ($('#ocView')) setTimeout(() => ocFit(), 120); });
+document.addEventListener('fullscreenchange', () => { if ($('#ocView')) setTimeout(() => { ocFit(); glbResize(); }, 120); });
 OC.views = {}; OC.selC = ''; OC.hovC = '';
 const ocMode = () => { try { const m = localStorage.getItem('dept-oc-mode'); return ['unit', 'proj', 'map'].includes(m) ? m : 'unit'; } catch (_) { return 'unit'; } };
 const ocBg = () => { try { const b = localStorage.getItem('dept-oc-bg'); return ['day', 'night', 'plant'].includes(b) ? b : 'plant'; } catch (_) { return 'plant'; } };
@@ -5781,6 +5828,126 @@ function worldHtml() {
     <g class="land">${Object.entries(W).map(([iso, d]) => `<path class="${fill(iso)}" d="${d}"><title>${esc(iso)}</title></path>`).join('')}</g>
     <g class="arcs">${arcs}</g><g class="mls">${lines}</g><g class="mks">${mk}</g><g class="mlbs">${lbs}</g></svg>`;
 }
+
+/* ---------- 2026-11-08 세계 지도 = 3D 지구본 (오픈소스 globe.gl · Natural Earth — 서버 /apps/globe/ 에 파일로, CDN 안 씀) ----------
+ * 휠 = 확대/축소(구글 어스처럼), 끌기 = 돌리기. 가까이 갈수록 자세히: 멀리 = 나라 이름표 · 중간 = PJT 이름 · 가까이 = PJT 카드(수행/입찰 · 사업군 · 담당 · LE/RE · 금주 작성)
+ * 나라 · PJT 를 누르면 그쪽으로 날아가고 오른쪽 목록(mapSide)이 그 나라로. 라이브러리를 못 받으면(file:// · 폴더 없음) 예전 평면 지도 그대로 */
+const GLB = { p:null, g:null, box:null, pov:null }; window.__dashGlobe = GLB;   // 점검용(콘솔에서 지구본 상태 보기)
+const ISO_N = { QA:'634', SA:'682', AE:'784', KW:'414', OM:'512', BH:'048', IQ:'368', EG:'818', DZ:'012', TM:'795', UZ:'860', KZ:'398', IN:'356', VN:'704', MY:'458', SG:'702', TH:'764', PH:'608', TW:'158',
+  JP:'392', CN:'156', AU:'036', US:'840', MX:'484', CA:'124', CL:'152', GB:'826', PL:'616', RO:'642', TR:'792', NG:'566', MZ:'508', PK:'586', BD:'050', RU:'643', KR:'410', ID:'360' };
+const glbBase = () => new URL('/apps/globe/', API_BASE || location.origin).href;
+function glbLoad() {
+  if (!SERVER || OFFLINE || location.protocol === 'file:' && !API_BASE) return Promise.reject(new Error('off'));
+  return GLB.p ||= new Promise((ok, no) => {
+    const add = src => new Promise((a, b) => { const sc = document.createElement('script'); sc.src = src; sc.onload = a; sc.onerror = b; document.head.appendChild(sc); });
+    (window.topojson ? Promise.resolve() : add(glbBase() + 'topojson-client.min.js')).then(() => window.Globe ? null : add(glbBase() + 'globe.gl.min.js'))
+      .then(() => fetch(glbBase() + 'countries-50m.json')).then(r => { if (!r.ok) throw new Error(r.status); return r.json(); })
+      .then(t => { GLB.geo = topojson.feature(t, t.objects.countries).features; ok(); }).catch(e => { GLB.p = null; no(e); });
+  });
+}
+const glbLod = alt => { const b = GLB.box; if (b) b.dataset.lod = alt > 1.2 ? 'far' : alt > .45 ? 'mid' : 'near'; };
+function glbFly(lat, lng, alt, ms = 1200) { if (GLB.g) GLB.g.pointOfView({ lat, lng, altitude:alt }, ms); }
+function glbSel(key, pid) {
+  const V = OC.map?.by.get(key); if (!V) return;
+  OC.selC = key; if (pid) OC.selP = pid; mapSide(key);
+  const cur = GLB.g?.pointOfView().altitude || 2; glbFly(V.c.lat, V.c.lon, pid ? Math.min(cur, .35) : Math.min(cur, .8));
+}
+function glbEl(d) {
+  const el = document.createElement('div'), pass = e => { const cv = GLB.box?.querySelector('canvas'); if (cv) { e.preventDefault(); cv.dispatchEvent(new WheelEvent('wheel', e)); } };
+  el.onwheel = pass; el.style.pointerEvents = 'auto';
+  if (d.t === 'oc') { el.className = 'goc'; el.innerHTML = `💰 <b>${esc(d.ko)}</b> 삼성물산 수주 ${d.os.length}건 · ${won(d.os.reduce((a, o) => a + (o.amount || 0), 0))}`; el.title = '재무스타그램 · DART 사업보고서 수주상황'; return el; }
+  if (d.t === 'o') { const o = d.o; el.className = 'gor';
+    el.innerHTML = `<i class="gdot"></i><span class="gn">${esc(trunc(o.name, 20))} · ${won(o.amount)}</span><div class="gd">${ordRow(o)}<div class="gsrc">재무스타그램 · DART 사업보고서 수주상황 (${esc(String(o.last_seen || ''))})</div></div>`;
+    return el; }
+  if (d.t === 'c') { const x = d.x, run = x.ps.filter(p => p.k !== 'bid').length, cls = run && x.ps.length - run ? 'both' : run ? 'run' : 'bid', h = lhour(x.c.tz);
+    el.className = `gc ${cls}${OC.selC === x.c.key ? ' on' : ''}`;
+    el.innerHTML = `<span class="fl">${flagOf(x.c.iso)}</span><span><b>${esc(x.c.ko)}</b><small>${x.ps.length} PJT · ${h >= 6 && h < 18 ? '☀' : '🌙'} ${ltime(x.c.tz)}</small></span>`;
+    el.title = `${x.c.ko} — 누르면 이 나라로 확대`; el.onclick = () => glbSel(x.c.key); el.onmouseenter = () => mapSide(x.c.key); el.onmouseleave = () => mapSide(OC.selC);
+    return el; }
+  const p = { ...d.p, c:d.c }, f = p.r.fields, m = glbLR(f['PJT명']), done = isDone(p.r);
+  el.className = `gpj ${p.k === 'bid' ? 'bid' : 'run'}${OC.selP === p.r.id ? ' on' : ''}`;
+  el.innerHTML = `<i class="gdot"></i><span class="gn">${esc(trunc(flat(f['PJT명']) || '(PJT명 없음)', 22))}${m.find(x => x.role === 'LE') ? `<em> · LE ${esc(m.find(x => x.role === 'LE').name)}</em>` : ''}</span>
+    <div class="gd"><div class="gh"><span class="gt">${p.k === 'bid' ? '입찰' : '수행'}</span><b>${esc(flat(f['PJT명']) || '(PJT명 없음)')}</b></div>
+      <div class="gm">${esc(cell1(f['사업군']) || '-')}${f['담당자'] ? ' · 담당 ' + esc(flat(f['담당자'])) : ''}</div>
+      ${m.length ? `<div class="glr">${m.map(x => `<span class="${x.role === 'LE' ? 'le' : ''}">${x.role} ${esc(x.name)} ${x.pct}%</span>`).join('')}</div>` : ''}
+      <div class="gs ${done ? 'ok' : 'no'}">${done ? '✔ 금주 작성' : '⏳ 금주 미작성'} · ${esc(d.c.ko)} ${ltime(d.c.tz)}</div>
+      ${(() => { const o = ordMatch(p); return o ? `<div class="gam">💰 수주금액 <b>${won(o.amount)}</b> · 잔액 ${won(o.remain)}<small>재무스타그램 '${esc(trunc(o.name, 24))}' 와 이름이 비슷 — 참고용</small></div>` : ''; })()}
+      ${brief(f['업무 현황'], 2, 90) ? `<div class="gw">${esc(brief(f['업무 현황'], 2, 90))}</div>` : ''}</div>`;
+  el.title = '누르면 오른쪽에 PJT 정보'; el.onclick = () => glbSel(d.c.key, p.r.id);
+  return el;
+}
+function ordPts() {                                           // 수주현황 켜면: 나라마다 금색 묶음 + 공사마다 금색 점(나라 중심 둘레에 펼침)
+  const D = ORD.data; if (!OC.ordOn || !D || D.error) return [];
+  const by = new Map(); D.projects.filter(o => o.active && o.exec !== '한국').forEach(o => (by.get(o.exec) || by.set(o.exec, []).get(o.exec)).push(o));
+  const out = [];
+  by.forEach((os, ko) => { const c = D.countries[ko]; if (!c) return; os.sort((a, b) => (b.amount || 0) - (a.amount || 0));
+    out.push({ t:'oc', ko, os, lat:c.lat - 2.2, lng:c.lon });
+    os.forEach((o, i) => { const a = i / os.length * 2 * Math.PI + .6, r = os.length > 1 ? 2.4 + os.length * .3 : 1.2; out.push({ t:'o', o, ko, lat:c.lat + r * Math.sin(a), lng:c.lon + r * Math.cos(a) / Math.max(.3, Math.cos(c.lat * Math.PI / 180)) }); }); });
+  return out;
+}
+function glbLR(name) { const pd = projData(); const p = pd.find(x => normName(x.c.name) === normName(name) || normName(name).includes(normName(x.c.name)) || normName(x.c.name).includes(normName(name))); return p ? p.mem : []; }
+async function globeMount() {
+  if (ocMode() !== 'map' || !$('#ocView')) return;
+  try { await glbLoad(); } catch (_) { return; }                       // 못 받으면 평면 지도 그대로
+  const v = $('#ocView'); if (!v || ocMode() !== 'map' || !OC.map) return;
+  v.classList.add('globe');
+  let box = $('#ocGlobe', v); if (!box) { box = document.createElement('div'); box.id = 'ocGlobe'; v.prepend(box); }
+  if (GLB.g && GLB.box !== box) { GLB.pov = GLB.g.pointOfView(); try { GLB.g._destructor(); } catch (_) {} GLB.g = null; }
+  GLB.box = box;
+  const vs = [...OC.map.by.values()], has = new Map();
+  vs.forEach(x => { const n = ISO_N[x.c.iso]; if (!n) return; const o = has.get(n) || { run:0, bid:0, x }; x.ps.forEach(p => o[p.k === 'bid' ? 'bid' : 'run']++); has.set(n, o); });
+  const col = id => { const o = has.get(id); return !o ? 'rgba(255,255,255,0)' : o.run && o.bid ? 'rgba(167,139,250,.42)' : o.bid ? 'rgba(245,158,11,.42)' : 'rgba(59,130,246,.42)'; };
+  const pts = []; vs.forEach(x => x.ps.forEach((p, i) => { const n = x.ps.length, a = i / n * 2 * Math.PI - Math.PI / 2, r = n > 1 ? 1.6 + n * .25 : 0;
+    pts.push({ t:'p', p, c:x.c, lat:x.c.lat + r * Math.sin(a), lng:x.c.lon + r * Math.cos(a) / Math.max(.3, Math.cos(x.c.lat * Math.PI / 180)) }); }));
+  const B = glbBase(), first = !GLB.g;
+  const g = GLB.g || (GLB.g = Globe({ animateIn:false })(box));
+  g.width(v.clientWidth).height(v.clientHeight).backgroundImageUrl(B + 'img/night-sky.png').globeImageUrl(B + 'img/earth-blue-marble.jpg').bumpImageUrl(B + 'img/earth-topology.png')
+    .showAtmosphere(true).atmosphereColor('#6aa8ff').atmosphereAltitude(.18)
+    .polygonsData(GLB.geo).polygonAltitude(f => has.has(f.id) ? .008 : .003).polygonCapColor(f => col(f.id)).polygonSideColor(() => 'rgba(0,0,0,0)').polygonStrokeColor(f => has.has(f.id) ? 'rgba(255,255,255,.75)' : 'rgba(255,255,255,.28)')
+    .polygonLabel(f => { const o = has.get(f.id); return `<div class="glt"><b>${esc(o ? o.x.c.ko : f.properties.name)}</b>${o ? `<br>수행 ${o.run} · 입찰 ${o.bid}` : ''}</div>`; })
+    .onPolygonClick(f => { const o = has.get(f.id); if (o) glbSel(o.x.c.key); })
+    .arcsData(vs.filter(x => x.c.iso !== 'KR').map(x => { const run = x.ps.filter(p => p.k !== 'bid').length; return { startLat:37, startLng:127.5, endLat:x.c.lat, endLng:x.c.lon, c:run && x.ps.length - run ? '#c4b5fd' : run ? '#93c5fd' : '#fcd34d' }; }))
+    .arcColor('c').arcStroke(.45).arcDashLength(.35).arcDashGap(.15).arcDashAnimateTime(2600).arcAltitudeAutoScale(.35)
+    .htmlElementsData([...vs.map(x => ({ t:'c', x, lat:x.c.lat, lng:x.c.lon })), ...pts, ...ordPts()]).htmlLat('lat').htmlLng('lng').htmlAltitude(d => d.t === 'c' ? .03 : .012).htmlElement(glbEl)
+    .onZoom(pov => { GLB.pov = pov; glbLod(pov.altitude); });
+  const ctl = g.controls(); ctl.autoRotate = false; ctl.zoomSpeed = 2.2; ctl.enableDamping = true;
+  if (first) g.pointOfView(GLB.pov || { lat:25, lng:85, altitude:2.1 }, 0);
+  glbLod(g.pointOfView().altitude);
+}
+function glbResize() { const v = $('#ocView'); if (GLB.g && v?.classList.contains('globe')) GLB.g.width(v.clientWidth).height(v.clientHeight); }
+addEventListener('resize', glbResize);
+
+/* ---------- 2026-11-08 세계 지도 + 재무스타그램 '삼성물산 수주현황' (DART 사업보고서 원문의 수주상황 표 · 재무스타그램 서버 /api/orders) ----------
+ * [💰 삼성물산 수주현황] 을 켜면 재무스타그램 서버(8765)에서 받아 지구본에 금색 점(공사명 · 발주처 · 계약일 · 도급액 · 잔액)으로 겹쳐 그림.
+ * 우리 PJT 와 같은 나라 · 이름 단어가 겹치는 수주 건이 있으면 PJT 카드 · 오른쪽 목록에 '수주금액' 으로 붙임 (참고용 — 이름 맞추기라 틀릴 수 있음) */
+const ORD = { p:null, data:null, at:0 }, ORD_CORP = '00149655';   // 삼성물산
+const won = v => v == null || isNaN(v) ? '-' : Math.abs(v) >= 1e12 ? (v / 1e12).toFixed(2).replace(/\.?0+$/, '') + '조원' : Math.round(v / 1e8).toLocaleString() + '억원';
+function ordLoad(force) {
+  if (ORD.data && !force && Date.now() - ORD.at < 30 * 60e3) return Promise.resolve(ORD.data);
+  return ORD.p ||= (async () => {
+    const ctl = new AbortController(), t = setTimeout(() => ctl.abort(), 90000);
+    try { const r = await fetch(`${pidBase('finstagram')}/api/orders?corp_code=${ORD_CORP}`, { signal:ctl.signal, cache:'no-store' }); const d = await r.json();
+      ORD.data = d.error ? { error:d.error } : d; }
+    catch (e) { ORD.data = { error:e.name === 'AbortError' ? '재무스타그램 응답이 늦습니다 (처음에는 사업보고서 5년치를 받느라 1~2분 걸릴 수 있음) — 잠시 뒤 다시 누르세요' : '재무스타그램 서버에 연결하지 못했습니다 — 메뉴 9 재무스타그램이 열리는지 · DART 키(⚙)를 확인하세요' }; }
+    finally { clearTimeout(t); ORD.at = Date.now(); ORD.p = null; }
+    return ORD.data;
+  })();
+}
+const ORD_CK = { '대한민국':'한국', '미국 하와이':'미국', 'UAE':'아랍에미리트' };
+const ordToks = t => String(t || '').toLowerCase().replace(/\(.*?\)/g, ' ').split(/[^0-9a-z가-힣]+/).filter(w => w.length >= 2 && !/^(pjt|project|프로젝트|공사|건설|신축|현장|사업|plant|epc|발전|발전소|복합|lng)$/.test(w));
+function ordMatch(p) {                                          // 우리 PJT → 같은 나라의 수주 건 중 이름 단어가 가장 많이 겹치는 것
+  const D = ORD.data; if (!D || D.error || !p.c) return null;
+  const ck = ORD_CK[p.c.ko] || p.c.ko, mine = ordToks(p.r.fields['PJT명']); if (!mine.length) return null;
+  let best = null, bs = 0;
+  for (const o of D.projects) { if (o.exec !== ck && o.order !== ck) continue; const ot = ordToks(o.name + ' ' + o.client), sc = mine.filter(w => ot.some(x => x.includes(w) || w.includes(x))).length; if (sc > bs) { bs = sc; best = o; } }
+  return bs ? best : null;
+}
+const ordCountry = ko => { const D = ORD.data; if (!D || D.error) return []; const ck = ORD_CK[ko] || ko; return D.projects.filter(o => o.exec === ck); };
+const ordRow = o => `<div class="ord"><b>${esc(o.name)}</b><span>${esc(o.client || '-')} · 계약 ${esc(o.date || '-')}${o.end ? ' · 완공 ' + esc(o.end) : ''}</span><span class="oa">도급액 <b>${won(o.amount)}</b> · 잔액 ${won(o.remain)}${o.active ? '' : ' · <i>최근 보고서에 없음(완료)</i>'}</span></div>`;
+function ordToggle() {
+  OC.ordOn = !OC.ordOn; render();
+  if (OC.ordOn) { toast('💰 재무스타그램에서 삼성물산 수주현황을 불러오는 중… (처음에는 1~2분)'); ordLoad().then(d => { if (d.error) toast(d.error, true); else toast(`💰 삼성물산 수주 ${d.projects.length}건 (${d.first}~${d.latest} 사업보고서)`); if (OC.ordOn && ocMode() === 'map') render(); }); }
+}
 function mapStats() {
   const all = mapProjects(), run = all.filter(p => p.k !== 'bid'), bid = all.filter(p => p.k === 'bid'), dn = all.filter(p => isDone(p.r)), cs = new Set(all.filter(p => p.c).map(p => p.c.key));
   const t = (ic, n, l, c, sub, warn) => `<div class="oc-tile${warn && n ? ' warn' : ''}" style="--c:${c}"><i>${ic}</i><div><b>${n}</b><span>${l}</span>${sub ? `<small>${sub}</small>` : ''}</div></div>`;
@@ -5827,10 +5994,12 @@ function mapSide(key) {
     <div class="mhd"><span class="mfl">${flagOf(c.iso)}</span><div><b>${esc(c.ko)}</b><span>${esc(c.tz)}</span></div></div>
     <div class="mtime"><b>${ltime(c.tz)}</b><span>${ltime(c.tz, { weekday:'short', month:'short', day:'numeric', hour:undefined, minute:undefined })} · ${lhour(c.tz) >= 6 && lhour(c.tz) < 18 ? '☀ 낮' : '🌙 밤'} · 한국과 ${(() => { const d = lhour(c.tz) - lhour('Asia/Seoul'); const x = ((d + 36) % 24) - 12; return x === 0 ? '같음' : (x > 0 ? '+' : '') + x + '시간'; })()}</span></div>
     <div class="mwx">${wxs(c.key)}</div>
+    ${OC.ordOn ? (() => { const D = ORD.data, os = ordCountry(c.ko).filter(o => o.active); return `<div class="ordbox"><h5>💰 삼성물산 수주현황 <small>재무스타그램 · DART 사업보고서</small></h5>${!D ? '<div class="muted">불러오는 중…</div>' : D.error ? `<div class="muted">${esc(D.error)}</div>` : os.length ? `<div class="muted" style="font-size:11px">${os.length}건 · 도급액 합 ${won(os.reduce((a, o) => a + (o.amount || 0), 0))} · 잔액 합 ${won(os.reduce((a, o) => a + (o.remain || 0), 0))}</div>${os.sort((a, b) => (b.amount || 0) - (a.amount || 0)).map(ordRow).join('')}` : '<div class="muted">이 나라의 진행 중 수주 건이 사업보고서에 없습니다</div>'}</div>`; })() : ''}
     <div class="mps">${V.ps.map(p => { const f = p.r.fields, m = lr(f['PJT명']);
       const open = OC.selP === p.r.id, sh = SHEETS.find(x => x.key === p.k), rows = open ? sh.cols.filter(c => !['PJT명', '종결 여부'].includes(c.f) && flat(f[c.f]).trim()).map(c => `<div class="mpf"><b>${esc(c.label || c.f)}</b><div>${esc(flat(f[c.f])).replace(/\n/g, '<br>')}</div></div>`).join('') : '';
       return `<div class="mp ${open ? 'open' : ''}" style="--c:${p.k === 'bid' ? '#f08a24' : '#2b6be6'}"><button class="mpt" data-mopen="${esc(p.r.id)}" title="누르면 PJT 정보 펼침/접음"><span class="tag ${p.k === 'bid' ? 'new' : ''}">${p.k === 'bid' ? '입찰' : '수행'}</span> <b>${esc(flat(f['PJT명']))}</b> ${isDone(p.r) ? '<span class="tag ok">금주 작성</span>' : '<span class="tag">미작성</span>'} <i class="mpa">${open ? '▲' : '▼'}</i></button>
         <div class="muted">${esc(cell1(f['사업군']) || '')}${f['담당자'] ? ' · 담당 ' + esc(flat(f['담당자'])) : ''}</div>
+        ${OC.ordOn ? (() => { const o = ordMatch({ ...p, c }); return o ? `<div class="mam">💰 수주금액 <b>${won(o.amount)}</b> · 잔액 ${won(o.remain)} <span class="muted">(재무스타그램 '${esc(trunc(o.name, 20))}' — 이름이 비슷, 참고용)</span></div>` : ''; })() : ''}
         ${m.length ? `<div class="mlr">${m.map(x => `<span class="${x.role === 'LE' ? 'le' : ''}" data-prof="${esc(x.name)}">${x.role} ${esc(x.name)} ${x.pct}%</span>`).join('')}</div>` : ''}
         ${open ? `<div class="mpd">${rows || '<div class="muted">입력된 내용이 없습니다</div>'}<div class="muted" style="font-size:11px">마지막 수정 ${esc(p.r.meta?.updatedBy || '')} ${esc((p.r.meta?.updatedAt || '').slice(0, 10))}${p.r.meta?.checkedAt ? ` · 변경 없음 확인 ${esc(p.r.meta.checkedBy || '')} ${esc(p.r.meta.checkedAt.slice(0, 10))}` : ''}</div>
           <div class="mpb"><button class="btn sm" data-mjump="${p.k}|${esc(p.r.id)}">📋 표에서 보기</button>${noEdit() ? '' : `<button class="btn sm pri" data-medit="${p.k}|${esc(p.r.id)}">✎ 편집</button>`}</div></div>` : ''}</div>`; }).join('')}</div>`;
@@ -5880,7 +6049,10 @@ function orgClick(e) {
   const ct = e.target.closest('.oc-cv [data-ctry], .oc-side [data-ctry]'); if (ct) { OC.selC = ct.dataset.ctry; OC.hovC = ''; document.querySelectorAll('.oc-cv [data-ctry], .oc-cv [data-ld], .oc-cv [data-arc]').forEach(x => x.classList.toggle('on', (x.dataset.ctry ?? x.dataset.ld ?? x.dataset.arc) === OC.selC)); const _cv = $('#ocCv'); if (_cv) mapPin(_cv); return mapSide(OC.selC); }
   const mf = e.target.closest('[data-mapf]'); if (mf) { if (ocMode() === 'map') OC.mapF = mf.dataset.mapf; else OC.projF = { perform:'수행', bid:'입찰' }[mf.dataset.mapf] || ''; OC.fit = true; return render(); }
   if (e.target.closest('[data-wxon]')) { try { localStorage.setItem('dept-wx-on', '1'); } catch (_) {} return wxLoad(true); }
+  if (e.target.closest('[data-ord]')) return ordToggle();
   const z = e.target.closest('[data-oc]');
+  if (z && GLB.g && $('#ocView')?.classList.contains('globe') && ['in', 'out', 'fit', 'one'].includes(z.dataset.oc)) { const a = z.dataset.oc, pv = GLB.g.pointOfView();   // 지구본: 확대 · 축소 · 처음 보기
+    return a === 'in' ? glbFly(pv.lat, pv.lng, Math.max(.08, pv.altitude * .6), 500) : a === 'out' ? glbFly(pv.lat, pv.lng, Math.min(4, pv.altitude * 1.6), 500) : glbFly(25, 85, 2.1); }
   if (z) { const a = z.dataset.oc; if (a === 'in') return ocZoom(1.2); if (a === 'out') return ocZoom(1 / 1.2); if (a === 'fit') return ocFit();
     if (a === 'one') { OC.z = 1; OC.x = 16; OC.y = 12; return ocApply(); }
     if (a === 'full') { const o = $('#oc'); return document.fullscreenElement ? document.exitFullscreen() : o?.requestFullscreen?.(); } }

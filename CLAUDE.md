@@ -28,6 +28,7 @@
   - **ROOM SIZE 계산** 업데이트 파일(zip)은 P&ID 와 같이 **'2. PID 코드' 세션**에서 만든다 (2026-10-25 사용자 지시). 여기서는 메뉴 이름 · 연결만.
   - **ROOM SIZE 계산 · 도서검토는 P&ID · LOGIC 과 같이 P&ID 서버(run_lan_service.bat, 8000)에서 동작** (2026-10-26 사용자 지시) → 대시보드는 `PID_ROUTES` 의 `/space` · `/books/` 로 연결만. 대시보드 zip 에 `apps/` 는 넣지 않는다(make_patch 가 뺌).
   - **예외 — 재무스타그램**(2026-11-07 사용자 지시): 대시보드에 **포함해 여기서 관리**한다. 저장소 `dashboard/apps/finstagram/` = 운영 폴더 `apps\finstagram\` (원본: 회사 PC `C:\Users\백승욱\Desktop\해커톤\2day\dart_dashboard`, 그 폴더의 CLAUDE.md 가 앱 설명). 자기 서버(server.py, 포트 8765)를 **대시보드 서버가 함께 띄움**(`fin_loop`, 계장 광장과 같은 방식), 메뉴는 `PID_ROUTES.finstagram`(port 8765). 라이브러리는 `vendor/`(CDN 안 씀). make_patch 가 대시보드 zip 에 넣음(`KEEP_PREFIX`). DART API 키는 배포물에 넣지 않는다: **운영자(서버 PC)가 재무스타그램 화면 ⚙ 에서 키가 든 .env 경로를 지정**(`/api/admin/finkey`, 운영 폴더 `dart_key_path.txt` 에 기억) → 대시보드가 그 경로를 `DART_KEY_FILE` 로 넘겨 앱 서버를 다시 띄움 (`--dart-key` 가 있으면 그것 우선, 없으면 기본 `C:\Claude\keys\dart_api_key.txt`).
+  - **예외 — 세계 지도 3D 지구본 라이브러리**(2026-11-08): `dashboard/apps/globe/` = 운영 폴더 `apps\globe\` (globe.gl · topojson-client · world-atlas 50m · 지구 그림, 오픈소스 — README.txt). 대시보드 서버가 `/apps/globe/` 로 줌, make_patch 가 대시보드 zip 에 넣음(`KEEP_PREFIX`). 없거나 file:// 이면 예전 평면 지도.
   - 대시보드는 그 도구들을 메뉴에서 **보여 주기(연결 · 출력)만** 한다 (`PID_ROUTES` · `APP_ROUTES` · 메뉴 권한 `MENUS`).
   - 다른 곳에서 낸 zip 을 회사가 적용했다고 하면, 그 zip 의 파일로 이 저장소를 맞추고(`delivered.txt` 에 기준 줄 추가) 그 위에서 이어 간다. 대시보드 파일(`dashboard.html` · `server.py`)에 그쪽 변경이 섞여 있으면 그대로 두고 함께 이어 간다.
 
