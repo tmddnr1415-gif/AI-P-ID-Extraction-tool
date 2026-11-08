@@ -588,6 +588,16 @@ table.t td.strong{font-weight:700}
 table.t td.hl,table.t tr:hover td.hl,table.t td.hl .overdue,table.t td.hl .ox{background:var(--hl);color:var(--hl-t)}
 table.t td.hl .overdue,table.t td.hl .ox{background:none}
 /* 행 상태: To do 미완료=연한 주황, 발표 완료/종료=연한 회색 */
+/* 2026-11-08 엑셀형 표 가독성: 머리글 진하게 · 줄무늬 · 제목 열 고정(가로 스크롤) · 열 종류별 옅은 색(날짜 초록 · 담당 주황 · 숫자 보라, 오른쪽 정렬) · 마우스 행 강조 */
+table.t th{background:#e9edf9;color:#263669;font-weight:700;border-bottom:2px solid #c7d0ee}
+table.t th.cdate{background:#e2f3e7;color:#1d5a35}table.t th.cown{background:#fbead3;color:#7a4b10}table.t th.cnum{background:#ece7fb;color:#4a2e8f;text-align:right}table.t th.ctext{background:#e3e8fb}
+table.t tbody tr:nth-child(even) td:not(.hl):not(.sel):not(.selrow):not(.selcol):not(.msel){background:#f7f8fd}
+table.t td.cdate:not(.hl):not(.sel):not(.selrow):not(.selcol):not(.msel){background:#f3fbf5}table.t tbody tr:nth-child(even) td.cdate:not(.hl):not(.sel):not(.selrow):not(.selcol):not(.msel){background:#ecf7ef}
+table.t td.cown:not(.hl):not(.sel):not(.selrow):not(.selcol):not(.msel){background:#fff8ec}table.t tbody tr:nth-child(even) td.cown:not(.hl):not(.sel):not(.selrow):not(.selcol):not(.msel){background:#fbf1de}
+table.t td.cnum{text-align:right;font-variant-numeric:tabular-nums}
+table.t tbody tr:hover td:not(.hl):not(.sel):not(.selrow):not(.selcol):not(.msel){background:#eaefff}
+table.t td.key,table.t th.key{position:sticky;left:0;z-index:2;box-shadow:inset -3px 0 0 #d5dcf3}table.t th.key{z-index:5}table.t td.key{font-weight:600;color:#1b2a5e}
+table.t tr.grp td{position:sticky;top:34px}
 table.t tr.r-open td:not(.hl):not(.sel):not(.selrow):not(.selcol):not(.msel){background:#FFF1E2}
 table.t tr.r-done td:not(.hl):not(.sel):not(.selrow):not(.selcol):not(.msel){background:#F0F1F4;color:#8b90a0}
 table.t tr.newrow td:not(.sel):not(.msel),table.t tr.newrow:hover td:not(.sel):not(.msel){background:var(--hl)}
@@ -1764,7 +1774,7 @@ function recLabel(key, f) {
  * ===================================================================== */
 let root = null;
 /* 서버 모드: http(s):// 로 접속하면 server.py 의 REST API 사용 (폴더 선택 불필요). file:// 로 열면 폴더 모드 */
-const APP_VERSION = '2026-11-08.40';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
+const APP_VERSION = '2026-11-08.42';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
 const SERVER_URL = 'http://localhost:8080';
 // 부서원 PC 사본(file://)이 접속을 시도할 서버 — 서버가 배포 파일을 만들 때 'PC 이름 주소, IP 주소' 순으로 자동 기록함
 const DEFAULT_SERVERS = ['http://ASEUNGWOOK-B01:8080', 'http://65.3.30.234:8080'];
@@ -5383,6 +5393,60 @@ async function botImage(file) {
     await botTranslate(text, 'enko', ` <span class="muted" style="font-size:11px">· 그림 ${esc(trunc(file.name || '', 20))}</span>`);
   } catch (e) { botFace('dizzy'); msg.querySelector('.bb').innerHTML += '<br>❌ 글자 읽기 실패: ' + esc(e.message); }
 }
+/* 2026-11-08 클로드 비서 — 대시보드 화면 기능(단추 · 메뉴 · 필터)도 말로: 전체 저장 · 금주 마감 · 휴지통 · 대기열 · CSV/엑셀 내보내기 · 인쇄 · 새로고침 · 다크 모드 · 메뉴 간략/펼침 · 지난 주 보기 ·
+ *  필터(담당자 · 내 업무만 · 진행 중/종결 · 연도) · 열 숨기기/보이기 · 변경 이력 · 쪽지 · 쪽지함 · 권한 설정(운영자) · 생일 추가 · 근무시간/시수 엑셀 올리기(끌어다 놓은 파일) · 찾기 · 메뉴 열기. 권한은 각 기능의 원래 검사(can · readOnly · ADMIN)를 그대로 탐. */
+const botUiSheet = q => { const hit = [...SHEETS].sort((a, b) => b.label.length - a.label.length).find(s => q.includes(s.label) || (s.title && q.includes(s.title)) || q.includes(s.label.replace(/\s+/g, ''))); return hit ? hit.key : (SHEET[route] ? route : null); };
+const botMenuOf = q => { const lab = l => l.replace(/[^\w가-힣&·\/ ]/g, '').trim(); const m = [...QF_MENUS()].map(([k, l]) => [k, lab(l)]).sort((a, b) => b[1].length - a[1].length).find(([k, l]) => l && (q.includes(l) || q.includes(l.replace(/\s+/g, '')))); return m ? m[0] : null; };
+const botPersonOf = q => { const ps = unitPeople(DB.recs.unit || []); for (const p of ps) if (q.includes(p.name)) return p.name; const n = /([가-힣]{2,4})\s*(?:에게|한테|님에게|님께|님한테)/.exec(q); return n ? n[1] : ''; };
+function botUI(q) {
+  const run = (html, fn) => ({ html, acts:[], run:fn }), need = (ok, msg) => ok ? null : { html:'🔒 ' + msg, acts:[] };
+  let m;
+  if (/^(전체\s*저장|모두\s*저장|저장해|save\s*all)/i.test(q)) return need(!readOnly(), '지난 주 마감본에서는 저장할 수 없어요') || run('💾 전체 저장할게요.', () => saveAll());
+  if (/금주\s*마감|이번\s*주\s*마감(해|처리)|마감\s*처리/.test(q) && !/언제|며칠|시간|까지/.test(q)) return need(MGR() || SUPER, '금주 마감은 운영자 · 그룹장만 할 수 있어요') || { html:'🔒 <b>금주 마감</b>을 실행할까요? 마감하면 이번 주 작성 내용이 마감본으로 저장돼요.', acts:[{ l:'✔ 마감 실행', fn:() => closeWeek() }, { l:'취소', fn:() => botSay('bot', '취소했어요.') }], keep:true };
+  if (/휴지통/.test(q)) return run('🗑 휴지통을 열게요. 복원할 행 옆의 [복원]을 누르세요.', () => openTrash());
+  if (/대기열|오프라인\s*(저장|목록)/.test(q)) return run('📤 오프라인 대기열을 열게요.', () => openQueue());
+  if (/csv/i.test(q) && /내보내|저장|출력|다운/.test(q)) { const k = botUiSheet(q); if (!k) return { html:'시트 이름을 같이 말해 주세요. 예: "수행 CSV 내보내기"', acts:[] }; return run(`📄 ${esc(SHEET[k].label)} 표를 CSV 로 내보낼게요.`, async () => { if (route !== k) { go(k); await new Promise(r => setTimeout(r, 500)); } exportCsv(); }); }
+  if (/(주간\s*(업무\s*)?보고|보고서|전체)\s*(를|을)?\s*엑셀/.test(q) || /엑셀\s*내보내기/.test(q)) return run('📊 주간 업무 보고 전체를 엑셀로 내보낼게요(변경된 시트 탭 파랑).', () => exportXlsx());
+  if (/인쇄|프린트|print/i.test(q)) { const k = botUiSheet(q) || botMenuOf(q); return run(`🖨 ${k && k !== route ? (SHEET[k]?.label || k) + ' 화면을 열고 ' : ''}인쇄 창을 띄울게요.`, async () => { if (k && k !== route) { go(k); await new Promise(r => setTimeout(r, 700)); } window.print(); }); }
+  if (/새로\s*고침|다시\s*불러|리로드|refresh/i.test(q)) return run('🔄 서버에서 다시 불러올게요.', async () => { await loadAll(); render(); botSay('bot', '✅ 새로 불러왔어요.'); });
+  if (/다크\s*모드|어두운\s*(모드|화면|테마)|밝은\s*(모드|화면|테마)|라이트\s*모드/.test(q)) { const on = /켜|어두운|다크\s*모드로|다크로/.test(q) && !/꺼|끄|밝은|해제/.test(q); return run(on ? '🌙 다크 모드를 켤게요.' : '☀️ 밝은 모드로 바꿀게요.', () => setDark(on)); }
+  if (/메뉴\s*(를|을)?\s*(간략|접어|줄여|아이콘)/.test(q)) return run('⇤ 왼쪽 메뉴를 간략(아이콘)으로 접을게요.', () => setNavRail(true));
+  if (/메뉴\s*(를|을)?\s*(펼|넓|원래)/.test(q)) return run('⇥ 왼쪽 메뉴를 원래대로 펼칠게요.', () => setNavRail(false));
+  if (/메뉴\s*(를|을)?\s*(숨겨|숨기)/.test(q)) return run('왼쪽 메뉴를 숨길게요(☰ 로 다시).', () => $('#sideHide')?.click());
+  if ((m = /(지난\s*주|전\s*주|저번\s*주|(\d{4})[-\s]?W(\d{1,2})|(\d{4})\s*년\s*(\d{1,2})\s*주차?)\s*(마감본|보기|로|화면)/.exec(q)) || /^(지난\s*주|전\s*주|저번\s*주)\s*(마감본)?\s*(보여|볼래|보기)/.test(q)) {
+    return run('📅 지난 주 마감본으로 바꿀게요(보기 전용).', async () => { const sel = $('#weekSel'), opts = [...sel.options].map(o => o.value).filter(v => v !== 'current'); const want = m && (m[2] || m[4]) ? opts.find(v => v.includes((m[2] || m[4]) + '-W' + String(m[3] || m[5]).padStart(2, '0'))) : opts[0];
+      if (!want) return botSay('bot', '마감본이 아직 없어요.'); sel.value = want; sel.dispatchEvent(new Event('change')); botSay('bot', `📅 <b>${esc(want)}</b> 마감본이에요. 돌아오려면 "현재 주로"`); }); }
+  if (/현재\s*주(로|차로)?\s*(돌아|보기|가|와)|이번\s*주로\s*(돌아|가)/.test(q)) return run('📅 현재 주로 돌아갈게요.', () => { const sel = $('#weekSel'); sel.value = 'current'; sel.dispatchEvent(new Event('change')); });
+  // 필터 · 보기
+  if ((m = /(.+?)\s*(?:표|시트)?\s*(?:에서|의)?\s*(?:담당자|담당)\s*([가-힣A-Za-z ]{2,12}?)\s*(?:만|으로|로)\s*(?:필터|보여|걸러|추려)/.exec(q))) { const k = botUiSheet(m[1]) || route; if (!SHEET[k]) return null; const who = m[2].trim();
+    return run(`🔎 ${esc(SHEET[k].label)} 표를 담당 <b>${esc(who)}</b> 만 보이게 할게요.`, () => { fstate(k).owner = who; if (route !== k) go(k); else render(); }); }
+  if (/내\s*(업무|것|일)만\s*(보|필터|걸러)/.test(q)) { const k = botUiSheet(q) || route; if (!SHEET[k]) return null; return run(`🔎 ${esc(SHEET[k].label)} 표에서 내 업무만 볼게요.`, () => { fstate(k).mine = true; if (route !== k) go(k); else render(); }); }
+  if (/(진행\s*중|종결(된|만)|전체)\s*(만|것만|행만)?\s*(보|필터|걸러)/.test(q)) { const k = botUiSheet(q) || route; if (!SHEET[k]) return null; const v = /종결/.test(q) ? 'closed' : /진행/.test(q) ? 'live' : '';
+    return run(`🔎 ${esc(SHEET[k].label)} 표에서 ${v === 'closed' ? '종결된 것만' : v === 'live' ? '진행 중만' : '전체를'} 볼게요.`, () => { fstate(k).closed = v; if (route !== k) go(k); else render(); }); }
+  if ((m = /(20\d\d)\s*년\s*(?:것|자료|행)?\s*(?:만)?\s*(보|필터|탭)/.exec(q))) { const k = botUiSheet(q) || route; if (!SHEET[k] || !YEAR_OF[k]) return null; return run(`📆 ${esc(SHEET[k].label)} ${m[1]}년을 볼게요.`, () => { fstate(k).year = m[1]; if (route !== k) go(k); else render(); }); }
+  if (/필터\s*(해제|초기화|지워|풀어)|전체\s*보기로/.test(q)) { const k = botUiSheet(q) || route; if (!SHEET[k]) return null; return run(`🔎 ${esc(SHEET[k].label)} 필터를 모두 풀게요.`, () => { FS[k] = null; fstate(k); if (route !== k) go(k); else render(); }); }
+  if ((m = /(.+?)\s*열\s*(?:을|를)?\s*(숨겨|숨기|감춰|보이게|보여|펼쳐|다시)/.exec(q))) { const k = botUiSheet(q) || route; if (!SHEET[k]) return null; const names = m[1].replace(/^(수행|입찰|통합 업무|유닛분장|프로젝트 이슈사항|주간회의 전달사항|R&R · 투입 분석)\s*(표|시트)?\s*(에서|의)?\s*/, '').split(/[,·]|\s*(?:와|과|랑|하고)\s*/).map(x => x.trim()).filter(Boolean);
+    const fs = names.map(n => SHEET[k].cols.find(c => c.f === n || c.label === n || (c.label || c.f).replace(/\s+/g, '') === n.replace(/\s+/g, ''))?.f).filter(Boolean); if (!fs.length) return { html:`'${esc(m[1])}' 열을 못 찾았어요. 열 이름: ${SHEET[k].cols.map(c => esc(c.label || c.f)).join(' · ')}`, acts:[] };
+    const hide = /숨|감춰/.test(m[2]); return run(`${hide ? '🙈' : '👁'} ${esc(SHEET[k].label)} 표의 <b>${fs.map(esc).join(', ')}</b> 열을 ${hide ? '숨길게요' : '다시 보일게요'}.`, () => { if (hide) hideCols(k, fs); else setHidden(k, hiddenCols(k).filter(x => !fs.includes(x))); if (route !== k) go(k); else render(); }); }
+  // 행 이력 · 편집 창
+  if ((m = /^(.+?)\s*(?:의|행|건)?\s*(변경\s*이력|이력|히스토리|수정\s*기록)\s*(보여|볼래|열어|보기)?/.exec(q))) { const x = botPjtFind(m[1]) || (() => { const t = botTaskFind(m[1]); return t ? { k:t.k, r:t.r } : null; })(); if (!x) return null;
+    return run(`🕘 <b>${esc(recLabel(x.k, x.r.fields))}</b> 의 변경 이력을 열게요.`, () => openHistory(x.k, x.r.id)); }
+  // 쪽지 · 쪽지함 · 권한 · 찾기
+  if ((m = /^([가-힣]{2,4})\s*(?:님)?\s*(?:에게|한테|께)\s*쪽지\s*[:：]?\s*([\s\S]*)$/.exec(q))) { const who = m[1], body = m[2].trim(); const u = (PRES?.users || []).find(x => x.name === who) || null;
+    if (!u) return { html:`'${esc(who)}' 님 계정을 못 찾았어요(접속한 적 있는 부서원만 보낼 수 있어요).`, acts:[] }; return run(`✉ ${esc(who)} 님에게 쪽지 창을 열게요${body ? ' (내용을 미리 넣어 둘게요)' : ''}.`, () => sendMsg(u.id, u.name, body)); }
+  if (/쪽지함|받은\s*쪽지|보낸\s*쪽지/.test(q)) return run('✉ 쪽지함을 열게요.', () => openInbox(/보낸/.test(q) ? 'sent' : 'in'));
+  if (/권한\s*(설정|관리|주|부여)/.test(q)) return need(ADMIN, '메뉴 권한 설정은 운영자(서버 PC)만 할 수 있어요') || run('⚙ 메뉴 권한 설정 창을 열게요.', () => openPerms());
+  if (/^(찾기|검색)\s*(창|열어)?$/.test(q) || /빠른\s*찾기/.test(q)) return run('🔍 빠른 찾기 창을 열게요.', () => openFind());
+  // 생일 · 업로드
+  if (/생일\s*(추가|등록|넣)/.test(q)) return need(can('mgmt'), 'Management 메뉴 권한이 없어요') || run('🎂 부서원 생일 화면에서 [＋ 한 명 추가] 창을 열게요.', async () => { if (route !== 'mgbday') { go('mgbday'); await new Promise(r => setTimeout(r, 700)); } $('[data-bdadd]')?.click(); });
+  if (/(근무\s*시간|근태)\s*(엑셀|파일)?\s*(올려|업로드|넣어)/.test(q) || /(시수|투입)\s*(엑셀|파일)?\s*(올려|업로드|넣어)/.test(q)) { const hours = /근무|근태/.test(q), fs = (BOT.files || []).filter(f => /\.xlsx$/i.test(f.name));
+    if (!can('mgmt')) return { html:'🔒 Management 메뉴 권한이 없어요.', acts:[] }; if (!fs.length) return { html:`먼저 ${hours ? '근무시간' : '시수'} 엑셀(.xlsx)을 비서 창에 끌어다 놓고 다시 말해 주세요.`, acts:[] };
+    return run(`⬆ ${hours ? '근무시간' : '시수'} 엑셀 ${fs.length}개를 ${hours ? '근무시간' : 'R&R 투입 분석'} 화면에 올릴게요.`, async () => { go(hours ? 'mghours' : 'mgalloc'); await new Promise(r => setTimeout(r, 900)); const inp = $(hours ? '#wtFile' : '#tsFile'); if (!inp) return botSay('bot', '업로드 칸을 못 찾았어요 — 화면을 열어 두었으니 직접 올려 주세요.');
+      const dt = new DataTransfer(); fs.forEach(f => dt.items.add(f)); inp.files = dt.files; inp.dispatchEvent(new Event('change', { bubbles:true })); BOT.files = []; botFileChip(); botSay('bot', `✅ 파일을 넣었어요${hours ? '' : ' — 미리보기 확인 후 [업로드] 를 누르세요'}.`); }); }
+  // 메뉴 열기
+  if ((m = /^(.+?)\s*(메뉴|화면|탭)?\s*(열어|열기|가자|가줘|이동|보여\s*줘|로\s*가)\s*[.!]?$/.exec(q))) { const k = botMenuOf(m[1]) || botUiSheet(m[1]); if (k && (SHEET[k] || ROUTES.includes(k))) { if (!can(menuOf(k))) return { html:`🔒 ${esc(QF_MENUS().find(x => x[0] === k)?.[1] || k)} 메뉴 권한이 없어요.`, acts:[] }; return run(`👉 ${esc(QF_MENUS().find(x => x[0] === k)?.[1] || SHEET[k]?.label || k)} 화면으로 갈게요.`, () => go(k)); } }
+  return null;
+}
 function botProof(q) {
   const m = /^(?:첨삭|교정|교열|맞춤법|문법\s*(?:검사|확인)?|윤문|proofread|correct|grammar)\s*[:：]?\s*([\s\S]+)$/i.exec(q.trim()); if (!m) return null;
   const text = m[1].trim(); if (text.length < 4) return { html:'첨삭할 글을 같이 적어 주세요. 예: "첨삭: 금일 회의 결과 보고 드립니다"', acts:[] };
@@ -5398,6 +5462,7 @@ function botProof(q) {
 function botAnswer(q) {
   const pf = botProof(q) || botTrLearnCmd(q) || botTrCmd(q); if (pf) return pf;   // 첨삭 · 번역 학습 · 번역
   const ap = botApp(q) || botSheetOut(q); if (ap) return ap;   // 분석 메뉴 · 시트 출력 / 요약
+  const u = botUI(q); if (u) return u;   // 화면 기능(저장 · 마감 · 휴지통 · 내보내기 · 필터 · 열 · 이력 · 쪽지 · 업로드 · 메뉴)
   const ed = botEdit(q) || botGeneral(q); if (ed) return ed;
   const ic = BOT_FAQ.find(([re]) => re.test(q)) ? null : icAnswer(q);   // 계측제어 지식 — 대시보드 PJT · 사람이 콕 집혀 나오면 그게 먼저, 아니면 지식 답이 먼저
   const out = { html:'', acts:[] };
@@ -5428,7 +5493,7 @@ function botAnswer(q) {
  *  여러 일을 줄바꿈 · '그리고' · '그 다음' 으로 이어 적으면 차례로 실행하며 진행 현황 카드(⏳ → ✅ / ❌)를 채팅창에 보여 줌. 권한 없으면 예전처럼 미리보기 → [✔ 적용].
  *  새창(?bot=1): 비서만 크게 띄운 창 — 이동 · 표 하이라이트는 원래 창(opener)에 시킴. */
 const botVibe = () => !!(SERVER && (MGR() || can('bot')));
-const BOT_WHOLE = /^\s*(?:번역|translate|트랜스레이트|영어로|영문으로|to\s*english|한국어로|한글로|우리말로|to\s*korean|첨삭|교정|교열|맞춤법|문법|윤문|proofread|correct|grammar|번역\s*고쳐|번역\s*수정|올바른\s*번역)\s*[:：]?/i;   // 내용을 통째로 받는 명령 — 줄바꿈 · '그리고' 로 나누지 않음
+const BOT_WHOLE = /^\s*(?:번역|translate|트랜스레이트|영어로|영문으로|to\s*english|한국어로|한글로|우리말로|to\s*korean|첨삭|교정|교열|맞춤법|문법|윤문|proofread|correct|grammar|번역\s*고쳐|번역\s*수정|올바른\s*번역|[가-힣]{2,4}\s*(?:님)?\s*(?:에게|한테|께)\s*쪽지)\s*[:：]?/i;   // 내용을 통째로 받는 명령 — 줄바꿈 · '그리고' 로 나누지 않음
 const botSteps = q => BOT_WHOLE.test(q) ? [String(q).trim()] : String(q).split(/\n+|\s*(?:그리고\s*(?:나서|서)?|그\s*다음(?:에|으로)?|다음으로|이어서|->|→|;)\s+/).map(s => s.trim()).filter(s => s.length >= 2);
 async function botRunStep(step, card, i) {
   const set = (icon, note) => { if (!card) return; const li = card.querySelectorAll('li')[i]; if (li) { li.querySelector('.bst').textContent = icon; if (note) li.querySelector('.bsn').innerHTML = note; } const b = $('#botLog'); if (b) b.scrollTop = b.scrollHeight; };
@@ -6197,10 +6262,12 @@ async function editAt(td) {
   if (el) { el.focus(); el.scrollIntoView({ block:'center' }); }
 }
 
+const colKind = c => /일정|일자|시작일|종료일|기한|마감|납기|날짜/.test(c.f) ? 'cdate' : /담당|책임|작성자|구성원|그룹장|PM|LE|RE/.test(c.f) ? 'cown' : /률|%|금액|시수|인원|수량|건수|비율|점수/.test(c.f) ? 'cnum' : /현황|내용|이슈|진행|Remarks|비고|설명|상세/.test(c.f) ? 'ctext' : '';
 function cellHtml(s, c, r, h) {
   const v = r.fields[c.f] ?? '', cls = [];
   if (h.has(c.f)) cls.push('hl');
   if (c.f === s.title && !c.long) cls.push('pre');
+  if (c.f === s.title) cls.push('key'); const ck = colKind(c); if (ck) cls.push(ck);   // 2026-11-08 가독성: 제목 열 고정 · 열 종류 색
   if (c.strong) cls.push('strong');
   if (!c.long && h.has(c.f) && v !== '') cls.push('addtxt');               // 한 줄 칸: 바뀐 값 전체 파란 글씨
   let inner = c.long ? fmtText(h.base === undefined ? v : markAdded(h.base?.[c.f] ?? '', v)) : esc(v);
@@ -6268,7 +6335,7 @@ function tableHtml(s, recs) {
   }
   const tail = hid.length && hid.includes(s.cols[s.cols.length - 1].f) ? (() => { const out = []; for (let j = s.cols.length - 1; j >= 0 && hid.includes(s.cols[j].f); j--) out.unshift(s.cols[j].f); return out; })() : [];
   const actMk = tail.length ? `<span class="hidmk" data-unhide="${esc(tail.join('|'))}" title="여기 숨긴 열: ${esc(tail.map(x => fieldLabel(s.key, x)).join(', '))} — 누르면 다시 보임">◂${tail.length}</span>` : '';
-  return `<div class="tw"><table class="t fx-l" data-sheet="${s.key}" style="${tableStyle(L, cg.total)}">${cg.html}<thead><tr>${cols.map(c => thR(c.f, hidMk(c.f) + esc(c.label || c.f), '', s.key)).join('')}${thR('__act', actMk + '작업', 'class="act"')}</tr></thead><tbody>${rows}</tbody></table></div>`;
+  return `<div class="tw"><table class="t fx-l" data-sheet="${s.key}" style="${tableStyle(L, cg.total)}">${cg.html}<thead><tr>${cols.map(c => thR(c.f, hidMk(c.f) + esc(c.label || c.f), `class="${[c.f === s.title ? 'key' : '', colKind(c)].filter(Boolean).join(' ')}"`, s.key)).join('')}${thR('__act', actMk + '작업', 'class="act"')}</tr></thead><tbody>${rows}</tbody></table></div>`;
 }
 
 function staffStats(r) {
