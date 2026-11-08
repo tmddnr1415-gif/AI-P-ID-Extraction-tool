@@ -1774,7 +1774,7 @@ function recLabel(key, f) {
  * ===================================================================== */
 let root = null;
 /* 서버 모드: http(s):// 로 접속하면 server.py 의 REST API 사용 (폴더 선택 불필요). file:// 로 열면 폴더 모드 */
-const APP_VERSION = '2026-11-08.43';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
+const APP_VERSION = '2026-11-08.44';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
 const SERVER_URL = 'http://localhost:8080';
 // 부서원 PC 사본(file://)이 접속을 시도할 서버 — 서버가 배포 파일을 만들 때 'PC 이름 주소, IP 주소' 순으로 자동 기록함
 const DEFAULT_SERVERS = ['http://ASEUNGWOOK-B01:8080', 'http://65.3.30.234:8080'];
@@ -5269,7 +5269,7 @@ function trPost(out, dir, src) {
   // koen
   const tech = /\b(valve|transmitter|instrument|system|cable|panel|junction|gauge|detector|cabinet|DCS|PLC|SIS|ESD)\b/i.test(out);
   if (tech && /야\s*(합니다|한다)|되어야/.test(src)) out = out.replace(/\bmust\b/g, 'shall').replace(/\bshould be\b/g, 'shall be');
-  return out.replace(/\buntil (tomorrow|today|Friday|Monday|Tuesday|Wednesday|Thursday|next week|the end of)/g, 'by $1').replace(/\bemergency stop valve/gi, 'emergency shutdown valve').replace(/\bfield trip\b/g, 'site trip').replace(/\bopinion(s)?\b/g, 'comment$1').replace(/\bdata sheet(s)?\b/gi, 'datasheet$1').replace(/\bthe (\d+(?:\.\d+)?) (rating|grade)\b/g, '$1').replace(/\bmeasurement range\b/g, 'measuring range').replace(/\ba (earthing|instrument|I\/O|ESD|RTD)\b/g, 'an $1').replace(/\bwill approve it\b/g, 'approval is expected').replace(/\bthe beginning of the next month\b/g, 'early next month').replace(/\bmust be closed within\b/g, 'shall close within').replace(/\bconstruction start\b/g, 'start of construction').trim();
+  return out.replace(/\buntil (tomorrow|today|Friday|Monday|Tuesday|Wednesday|Thursday|next week|the end of)/g, 'by $1').replace(/\bemergency stop valve/gi, 'emergency shutdown valve').replace(/\bfield trip\b/g, 'site trip').replace(/\bopinion(s)?\b/g, 'comment$1').replace(/\bdata sheet(s)?\b/gi, 'datasheet$1').replace(/\bthe (\d+(?:\.\d+)?) (rating|grade)\b/g, '$1').replace(/\bmeasurement range\b/g, 'measuring range').replace(/\ba (earthing|instrument|I\/O|ESD|RTD)\b/g, 'an $1').replace(/\bwill approve it\b/g, 'approval is expected').replace(/\bthe beginning of the next month\b/g, 'early next month').replace(/\bmust be closed within\b/g, 'shall close within').replace(/\b(\d+) days? ago\b/g, (m, d) => m).replace(/\bconstruction start\b/g, 'start of construction').trim();
 }
 const trPre = (t, dir) => (TR_PRE[dir] || []).reduce((a, [re, rep]) => a.replace(re, rep), t);
 function trPh(t) { const map = []; let k = 0; for (const [re, rep] of TR_PRE.enko) t = t.replace(re, (m, ...g) => { const tok = 'ZX' + (++k) + 'Q'; map.push([tok, typeof rep === 'function' ? rep(m, ...g) : rep.replace(/\$(\d)/g, (_, i) => g[i - 1] || '')]); return tok; }); return { t, map }; }
@@ -5303,8 +5303,16 @@ const KO_FIX_TR = [   // 번역 결과(한국어) — 모델이 자주 틀리는
   [/개인 (\d+)명/g, '$1명'], [/젊은 사람들/g, '청년들'], [/젊은이들/g, '청년들'], [/재정적 기초/g, '경제적 기반'], [/재정 기반/g, '경제적 기반'], [/게시했/g, '기록했'], [/상환 압력/g, '상환 압박'], [/독성 부채/g, '악성 부채'], [/눈덩이처럼 불어 들어/g, '눈덩이처럼 불어나'],
   [/비즈니스 대출/g, '사업 대출'], [/엔터테인먼트/g, '유흥'], [/이 회사는/g, '회사는'], [/(\d)\s*%의/g, '$1%의'],
 ];
+/* 영어 결과의 숫자 말 → 숫자 (모델이 'two hundred and fifty', 'sixteen thousand' 처럼 풀어 씀) */
+const EN_NUM = { zero:0, one:1, two:2, three:3, four:4, five:5, six:6, seven:7, eight:8, nine:9, ten:10, eleven:11, twelve:12, thirteen:13, fourteen:14, fifteen:15, sixteen:16, seventeen:17, eighteen:18, nineteen:19, twenty:20, thirty:30, forty:40, fifty:50, sixty:60, seventy:70, eighty:80, ninety:90 };
+function enWordsToDigits(t) {
+  const re = /\b((?:(?:one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety|hundred|thousand|million|billion|and)[\s-]+)*(?:one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety|hundred|thousand|million|billion))\b/gi;
+  return t.replace(re, (m) => { const ws = m.toLowerCase().split(/[\s-]+/).filter(w => w !== 'and'); if (ws.length === 1 && EN_NUM[ws[0]] !== undefined && EN_NUM[ws[0]] < 10) return m;   // 'one', 'two' 한 낱말은 그대로(a/an 대용)
+    let total = 0, cur = 0, ok = true; for (const w of ws) { if (EN_NUM[w] !== undefined) cur += EN_NUM[w]; else if (w === 'hundred') cur = (cur || 1) * 100; else if (w === 'thousand') { total += (cur || 1) * 1e3; cur = 0; } else if (w === 'million') { total += (cur || 1) * 1e6; cur = 0; } else if (w === 'billion') { total += (cur || 1) * 1e9; cur = 0; } else ok = false; }
+    if (!ok) return m; const v = total + cur; if (!v || (ws.length === 1 && /^(hundred|thousand|million|billion)$/.test(ws[0]))) return m; return v >= 1e9 && v % 1e9 === 0 ? v / 1e9 + ' billion' : v >= 1e6 && v % 1e5 === 0 ? v / 1e6 + ' million' : v.toLocaleString('en-US'); });
+}
 const EN_FIX_TR = [   // 번역 결과(영어)
-  [/\b(one|two|three|four|five|six|seven|eight|nine|ten)\s+(trillion|billion|million|thousand)\b/gi, (m, a, b) => ({ one:1, two:2, three:3, four:4, five:5, six:6, seven:7, eight:8, nine:9, ten:10 }[a.toLowerCase()]) + ' ' + b.toLowerCase()], [/(\d+(?:\.\d+)?)\s*percent\b/gi, '$1%'],
+  [/\b(one|two|three|four|five|six|seven|eight|nine|ten)\s+(trillion|billion|million|thousand)\b/gi, (m, a, b) => ({ one:1, two:2, three:3, four:4, five:5, six:6, seven:7, eight:8, nine:9, ten:10 }[a.toLowerCase()]) + ' ' + b.toLowerCase()], [/(\d+(?:\.\d+)?)\s*per\s?cent\b/gi, '$1%'], [/\b(a|one) (hundred|thousand|million|billion)\b/gi, '1 $2'],
   [/\bbecome longer-term\b/gi, 'persist'], [/\bin a row\b/g, 'in a row'], [/\be-mail\b/gi, 'email'],
 ];
 const koNum = (n, unit) => { const v = parseFloat(n) * { 만:1e4, 억:1e8, 조:1e12 }[unit]; return v >= 1e12 ? +(v / 1e12).toFixed(2) + ' trillion' : v >= 1e9 ? +(v / 1e9).toFixed(2) + ' billion' : v >= 1e6 ? +(v / 1e6).toFixed(2) + ' million' : Math.round(v).toLocaleString('en-US'); };
@@ -5319,7 +5327,7 @@ function trKoSpace(out) {   // 모델이 내는 붙여쓰기 · 띄어쓰기 오
     .replace(/([가-힣])\s+(적인|적이|적으로)(?=[\s.,]|$)/g, '$1$2').replace(/적\s+인(?=\s)/g, '적인').replace(/([가-힣]{2,})\s+(한|된|될|되는|하는|했던|되었던)(?=\s(?![명개번달주시간차례가지]))/g, (m, a, b) => /^(또|더|아주|매우|가장|그|이|저|어떤|무슨|여러|모든|몇|한|두|세|네|다섯)$/.test(a) ? m : a + b)
     .replace(/(에|에서|께|부터|까지|로|으로|와|과|고|며|면|함께|통해|위해|따라|대해|관해|보다|처럼|만큼|이|가|은|는|을|를|의|도)(있|없|되|됐|될|이란|이라는|이렇|이번|이후|이미|이상|이외|인한|이런|있었|있는|없는)/g, (m, a, b) => /(보|쓰|뵈|되|이)$/.test(a) && b.startsWith('이') ? m : a + ' ' + b)
     .replace(/([가-힣])(이란|이라는)(?=\s)/g, (m, a, b) => /[가-힣]/.test(a) ? m : m).replace(/하고있/g, '하고 있').replace(/([가-힣])고있(다|습니다|는|었|으)/g, '$1고 있$2').replace(/([가-힣])해야한다/g, '$1해야 한다').replace(/([가-힣])수있(다|습니다|는|었|을)/g, '$1 수 있$2').replace(/([가-힣])수없(다|습니다|는|었)/g, '$1 수 없$2')
-    .replace(/(\d)\s*(명|개|건|대|회|년|월|일|시간|분|초|원|달러|%)(?=[\s.,)이가은는을를과와도로의에]|$)/g, '$1$2').replace(/\s+([.,!?])/g, '$1').replace(/\s{2,}/g, ' ').trim();
+    .replace(/(\d)\s*(명|개|건|대|회|년|월|일|시간|분|초|원|달러|%|위|점|배|곳|개국|세|살|톤|달|주)(?=[\s.,)이가은는을를과와도로의에]|$)/g, '$1$2').replace(/(\d)\s+(천|백)\s*(만|억)/g, '$1$2$3').replace(/\s+([.,!?])/g, '$1').replace(/\s{2,}/g, ' ').trim();
 }
 function trKoFinish(out, src) {   // 영→한 마지막: 띄어쓰기 → 조사 받침 맞추기(바꿔 넣은 낱말 뒤) → 문장 끝 말투 통일(사양서 shall 은 '~한다' 그대로, 그 밖은 합니다체 기본)
   out = koJosa(trKoSpace(out), []);
@@ -5364,7 +5372,7 @@ async function botTranslate(text, dir, extra = '') {
     const lt = trLearnTerms(dir, L), src2 = dir === 'koen' ? trRep(lt.reduce((a, [re, rep]) => a.replace(re, rep), text), KO_PRE_KOEN) : trRep(text, EN_SIMPLE).replace(/[ \t]{2,}/g, ' ');
     const ph = dir === 'enko' ? trPh(src2) : { t:trPre(src2, dir), map:[] }; if (dir === 'enko') for (const [re, rep] of lt) ph.t = ph.t.replace(re, m => { const tok = 'ZX' + (ph.map.length + 1) + 'Q'; ph.map.push([tok, rep]); return tok; });
     const out0 = tmHit || trUnPh(await trCall('translate', dir, ph.t, p => { if (msg) msg.querySelector('.bb').innerHTML = `⏳ ${label} 번역 엔진 준비 중… ${esc(p.step)} ${p.pct}%`; }), ph.map);
-    TR.ready[dir] = true; const out = tmHit ? out0 : dir === 'enko' ? trKoFinish(trSeedPat(trRep(trPost(trGloss(out0, dir), dir, text), KO_FIX_TR), dir), text) : trSeedPat(trRep(trPost(trGloss(out0, dir), dir, text), EN_FIX_TR), dir); botFace('happy');
+    TR.ready[dir] = true; const out = tmHit ? out0 : dir === 'enko' ? trKoFinish(trSeedPat(trRep(trPost(trGloss(out0, dir), dir, text), KO_FIX_TR), dir), text) : trSeedPat(enWordsToDigits(trRep(trPost(trGloss(out0, dir), dir, text), EN_FIX_TR)), dir); botFace('happy');
     msg.querySelector('.bb').innerHTML = `🌐 <b>${label}</b>${extra}<div class="bproof">${esc(out).replace(/\n/g, '<br>')}</div><details class="btrsrc"><summary>원문 보기</summary>${esc(text).replace(/\n/g, '<br>')}</details><span class="muted" style="font-size:11px">${tmHit ? '📚 부서원이 고쳐 둔 번역이에요. · ' : ''}브라우저 안에서 번역(Firefox 번역 모델 · 외부로 보내지 않음) · 기계 번역이라 전문 용어 · 숫자는 꼭 확인하세요. 틀리면 "번역 고쳐: 올바른 번역" · "용어 등록: positioner = 포지셔너" 로 가르쳐 주세요.</span>`;
     botActs(msg, [{ l:'📋 번역 복사', fn:() => navigator.clipboard?.writeText(out).then(() => botSay('bot', '복사했어요 📋'), () => botSay('bot', '복사가 막혀 있어요 — 위 글을 드래그해 복사해 주세요.')) }, ...(dir === 'enko' ? [] : [{ l:'✍ 영문 첨삭', fn:() => botAsk('첨삭: ' + out) }])]);
     return out;
