@@ -1578,6 +1578,9 @@ button:focus:not(:focus-visible){outline:none}
 #deptBot .bbody .bhelm{position:absolute;left:16%;top:-48%;width:66%;aspect-ratio:200/155;background-position:center;background-size:contain;background-repeat:no-repeat;transform:rotate(-6deg);filter:drop-shadow(0 2px 2px rgba(0,0,0,.25));pointer-events:none}
 #deptBot{height:84px}#deptBot .bbody{bottom:6px}
 #botPanel .bph .bpa{position:relative}#botPanel .bph .bpa .bhelm{position:absolute;left:3px;top:-6px;width:26px;aspect-ratio:200/155;background-position:center;background-size:contain;background-repeat:no-repeat}
+
+#botPanel .bdiff{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:6px}#botPanel .bdiff.one{grid-template-columns:1fr}#botPanel .bdiff>div{background:#f6f7fb;border-radius:8px;padding:5px 7px;font-size:12px;max-height:120px;overflow:auto}#botPanel .bdiff>div:last-child{background:#eefbf2}#botPanel .bdiff small{display:block;font-size:10.5px;color:#7a7d99;font-weight:700}
+#botPanel .bacts button:disabled{opacity:.45;cursor:default}
 </style>
 </head>
 <body>
@@ -1746,7 +1749,7 @@ function recLabel(key, f) {
  * ===================================================================== */
 let root = null;
 /* 서버 모드: http(s):// 로 접속하면 server.py 의 REST API 사용 (폴더 선택 불필요). file:// 로 열면 폴더 모드 */
-const APP_VERSION = '2026-11-08.19';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
+const APP_VERSION = '2026-11-08.20';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
 const SERVER_URL = 'http://localhost:8080';
 // 부서원 PC 사본(file://)이 접속을 시도할 서버 — 서버가 배포 파일을 만들 때 'PC 이름 주소, IP 주소' 순으로 자동 기록함
 const DEFAULT_SERVERS = ['http://ASEUNGWOOK-B01:8080', 'http://65.3.30.234:8080'];
@@ -4623,6 +4626,7 @@ const BOT_FAQ = [
   [/전달\s*사항|공지|회의/, () => { const m = sortRecs(SHEET.notice, getRecs('notice'))[0]; return m ? `최신 주간회의 전달사항은 <b>${esc(flat(m.fields['제목']))}</b> (${esc(flat(m.fields['일자']))}) 이에요.` : '등록된 전달사항이 없어요.'; }, [['전달사항 보기', () => go('notice')]]],
   [/출장|서버\s*옮|다른\s*pc|대신\s*켜/i, () => '서버를 다른 PC 로 옮길 때는: 서버를 끄고 운영 폴더 전체를 그 PC 로 복사 → 그 PC 에서 start_server.bat. 돌아오면 반대로 복사. <b>두 서버를 동시에 켜면 안 돼요</b> (자료가 갈라짐).', []],
   [/안녕|하이|hello|hi\b|반가/i, () => `안녕하세요${AUTH ? ', ' + esc(AUTH.name) + ' 님' : ''}! 대시보드 안의 PJT · 업무 · 전달사항 · VOC 를 찾아 바로 데려다 드려요. 예: "카타르", "내 할 일", "재무스타그램 어디", "마감 언제"`, []],
+  [/고치|수정\s*(하는|방법|기능|할\s*수)|편집\s*방법|바꾸는\s*법/, () => '저에게 바로 고쳐 달라고 하셔도 돼요 ✍<br>· "카타르 LNG 업무 현황에 도면 승인 완료 추가"<br>· "카타르 LNG 업무 현황 11월 착공 예정으로 수정"<br>· "카타르 LNG 변경 없음"<br>· "To Do 추가 HAZOP 자료 정리" (박민수 To Do 추가 … = 그 사람)<br>· "HAZOP 후속 조치 종결"<br>고치기 전에 바뀌는 내용을 보여 드리고, [✔ 적용] 을 누르면 저장하고 결과 화면으로 이동해요.', []],
 ];
 const botWords = q => String(q).split(/[\s,.?!·~]+/).map(w => w.replace(/(이야|이에요|예요|인가요|은|는|이|가|을|를|에|에서|의|좀|요)$/, '')).filter(w => w.length >= 2 && !BOT_STOP.test(w));
 /* 2026-11-08 '모든 내용을 학습' — 물을 때마다 대시보드 전체를 색인(BOT_IDX): 모든 시트 행(모든 칸) · 게시판/VOC 글과 댓글(익명 작성자는 안 밝힘) ·
@@ -4669,7 +4673,52 @@ function botCount(q) {
     [/업무|할\s*일|to\s*do/i, () => `통합 업무 미종결(기한) <b>${workAll().filter(i => i.cls !== 'done' && i.cls !== 'perm').length}건</b>, 기한 지난 것 <b>${todoOverdue().length}건</b>이에요.`]].find(([re]) => re.test(q));
   return m ? m[1]() : '';
 }
+
+/* 2026-11-08 비서에게 수정 요청 → 미리보기(전 · 후) → [✔ 적용] → 저장 · 그 행으로 이동해 결과 화면을 보여 줌 (권한 · 마감본 규칙 그대로 — 저장은 일반 편집과 같은 saveEdit/createRecord)
+ *  · "<PJT> 업무 현황에 <내용> 추가"  · "<PJT> 업무 현황 <내용> 으로 수정"  · "<PJT> 변경 없음"
+ *  · "To Do 추가 <내용>" (담당 = 나, '박민수 To Do 추가 …' 면 그 사람)  · "<업무 제목> 종결" */
+const botPjtFind = t => { const ws = botWords(t).map(w => w.toLowerCase()); if (!ws.length) return null;
+  const sc = ['perform', 'bid'].flatMap(k => getRecs(k).filter(isLive).map(r => ({ k, r, s:ws.filter(w => bTxt(r.fields['PJT명']).includes(w)).length }))).filter(x => x.s).sort((a, b) => b.s - a.s);
+  return sc[0] || null; };
+const botTaskFind = t => { const ws = botWords(t).map(w => w.toLowerCase()); if (!ws.length) return null;
+  const sc = workRecs().map(({ k, r }) => ({ k, r, it:workItem(k, r) })).filter(x => x.it.cls !== 'done').map(x => ({ ...x, s:ws.filter(w => bTxt(x.it.title).includes(w)).length })).filter(x => x.s).sort((a, b) => b.s - a.s);
+  return sc[0] || null; };
+function botEdit(q) {
+  const can2 = () => !noEdit() && !readOnly() && can('weekly');
+  const deny = () => ({ html:readOnly() ? '지금은 지난 주 마감본을 보고 있어서 고칠 수 없어요. 위쪽 주 선택을 (현재)로 바꿔 주세요.' : '로그인한 부서원만 고칠 수 있어요 🔒', acts:[] });
+  const diffBox = (a, b) => `<div class="bdiff"><div><small>지금</small>${esc(a || '(비어 있음)').replace(/\n/g, '<br>')}</div><div><small>바꾼 뒤</small>${esc(b).replace(/\n/g, '<br>')}</div></div>`;
+  const done = async (key, id, f, msg) => { await loadAll(); render(); setTimeout(() => jumpTo(key, id, f, false), 300);
+    const r = getRecs(key).find(x => x.id === id); botSay('bot', `✅ ${msg}<br>결과 화면으로 이동했어요 (노란 칸).${r ? `<div class="bdiff one"><div><small>저장된 내용</small>${esc(flat(r.fields[f]) || '').replace(/\n/g, '<br>')}</div></div>` : ''}`); };
+  let m;
+  if ((m = /^(.*?)\s*업무\s*현황\s*(?:에|을|를|:)?\s*["“]?(.+?)["”]?\s*(추가|적어|써|넣어|기록)/.exec(q)) || (m = /^(.*?)\s*업무\s*현황\s*(?:을|를|:)?\s*["“]?(.+?)["”]?\s*(?:으로|로)\s*(수정|바꿔|변경)/.exec(q))) {
+    if (!can2()) return deny();
+    const x = botPjtFind(m[1]); if (!x) return { html:`'${esc(m[1])}' 에 맞는 진행 중 PJT 를 못 찾았어요. PJT 이름 일부를 넣어 주세요.`, acts:[] };
+    const cur = flat(x.r.fields['업무 현황']), add = m[2].trim(), nv = /추가|적어|써|넣어|기록/.test(m[3]) ? (cur ? cur + '\n' : '') + '- ' + add : add;
+    return { html:`<b>${x.k === 'bid' ? '입찰' : '수행'} · ${esc(flat(x.r.fields['PJT명']))}</b> 의 업무 현황을 이렇게 고칠까요?${diffBox(cur, nv)}`,
+      acts:[{ l:'✔ 적용', fn:async () => { try { const r = await saveEdit(x.k, x.r.id, { ...x.r.fields, '업무 현황':nv }, x.r.meta.rev); if (r.status === 'conflict') return botSay('bot', '그 사이 다른 사람이 고쳐서 저장하지 않았어요. 다시 요청해 주세요.'); await done(x.k, x.r.id, '업무 현황', '업무 현황을 고쳤어요.'); } catch (e) { botSay('bot', '저장 실패: ' + esc(e.message)); } } }, { l:'취소', fn:() => botSay('bot', '취소했어요.') }], keep:true };
+  }
+  if ((m = /^(.*?)\s*(변경\s*없음|바뀐\s*것\s*없|그대로)/.exec(q)) && botPjtFind(m[1])) {
+    if (!can2()) return deny();
+    const x = botPjtFind(m[1]);
+    return { html:`<b>${esc(flat(x.r.fields['PJT명']))}</b> 을(를) 이번 주 <b>'변경 없음'</b>으로 기록할까요? (내용은 그대로, 금주 작성으로 셈)`,
+      acts:[{ l:'✔ 변경 없음 기록', fn:async () => { try { await saveEdit(x.k, x.r.id, x.r.fields, x.r.meta.rev, { confirm:true }); await done(x.k, x.r.id, '업무 현황', "이번 주 '변경 없음'으로 기록했어요."); } catch (e) { botSay('bot', '실패: ' + esc(e.message)); } } }, { l:'취소', fn:() => botSay('bot', '취소했어요.') }], keep:true };
+  }
+  if ((m = /^(?:(\S+)\s*)?(?:to\s*do|투두|할\s*일)\s*(?:추가|등록)\s*[:：]?\s*(.+)$/i.exec(q))) {
+    if (!can2()) return deny();
+    const who = m[1] && unitPeople(DB.recs.unit || []).find(pp => normName(pp.name) === normName(m[1]))?.name || AUTH?.name || user, txt = m[2].trim();
+    return { html:`통합 업무에 <b>To Do</b> 를 만들까요?<div class="bdiff one"><div><small>담당 ${esc(who)}</small>${esc(txt)}</div></div>`,
+      acts:[{ l:'✔ 추가', fn:async () => { try { const nr = await createRecord('task', { '유형':'To Do List', '업무 내용':txt, '담당자':who }); (NEW_TOP.task || (NEW_TOP.task = new Set())).add(nr.id); await done('task', nr.id, '업무 내용', `${esc(who)} 님 To Do 를 추가했어요.`); } catch (e) { botSay('bot', '실패: ' + esc(e.message)); } } }, { l:'취소', fn:() => botSay('bot', '취소했어요.') }], keep:true };
+  }
+  if ((m = /^(.*?)\s*(종결|완료\s*처리|끝났어|마감\s*처리)/.exec(q)) && botTaskFind(m[1])) {
+    if (!can2()) return deny();
+    const x = botTaskFind(m[1]);
+    return { html:`업무 <b>${esc(flat(x.it.title))}</b> (${esc(x.it.w.label)}) 를 <b>🏁 종결</b> 할까요?`,
+      acts:[{ l:'✔ 종결', fn:async () => { try { await saveEdit(x.k, x.r.id, { ...x.r.fields, '종결 여부':'종결' }, x.r.meta.rev); await done(x.k, x.r.id, '종결 여부', '종결했어요.'); } catch (e) { botSay('bot', '실패: ' + esc(e.message)); } } }, { l:'취소', fn:() => botSay('bot', '취소했어요.') }], keep:true };
+  }
+  return null;
+}
 function botAnswer(q) {
+  const ed = botEdit(q); if (ed) return ed;
   const out = { html:'', acts:[] };
   const f = BOT_FAQ.find(([re]) => re.test(q));
   if (f) { out.html = f[1](); out.acts = f[2].map(([l, fn]) => ({ l, fn })); }
@@ -4695,7 +4744,7 @@ function botAnswer(q) {
 function botSay(who, html, acts = []) {
   const b = $('#botLog'); if (!b) return; const d = document.createElement('div'); d.className = 'bmsg ' + who;
   d.innerHTML = `<div class="bb">${html}</div>${acts.length ? `<div class="bacts">${acts.map((a, i) => `<button type="button" data-ba="${i}">${esc(a.l)} ›</button>`).join('')}</div>` : ''}`;
-  d.onclick = e => { const x = e.target.closest('[data-ba]'); if (x) { acts[+x.dataset.ba].fn(); botSay('me', esc(acts[+x.dataset.ba].l)); botSay('bot', '이동했어요 👉 또 궁금한 게 있으면 물어보세요.'); } };
+  d.onclick = e => { const x = e.target.closest('[data-ba]'); if (!x || d.dataset.used) return; const ac = acts[+x.dataset.ba]; botSay('me', esc(ac.l)); if (ac.edit) { d.dataset.used = 1; d.querySelectorAll('[data-ba]').forEach(b => b.disabled = true); ac.fn(); } else { ac.fn(); botSay('bot', '이동했어요 👉 또 궁금한 게 있으면 물어보세요.'); } };
   b.appendChild(d); b.scrollTop = b.scrollHeight;
 }
 function botToggle(on) {
@@ -4704,7 +4753,7 @@ function botToggle(on) {
   if (BOT.open) { botDock(); if (!$('#botLog').children.length) botSay('bot', `무엇을 도와드릴까요${AUTH ? ', ' + esc(AUTH.name) + ' 님' : ''}? 대시보드 안의 PJT · 업무 · 전달사항 · VOC 를 찾아 바로 이동해 드려요.`, [{ l:'이번 주 내 할 일', fn:() => botAsk('내 할 일') }, { l:'마감 언제?', fn:() => botAsk('마감 언제') }, { l:'재무스타그램 어디?', fn:() => botAsk('재무스타그램 어디') }]);
     setTimeout(() => $('#botIn')?.focus(), 50); }
 }
-function botAsk(q) { q = String(q || '').trim(); if (!q) return; botSay('me', esc(q)); const a = botAnswer(q); setTimeout(() => botSay('bot', a.html, a.acts), 250); }
+function botAsk(q) { q = String(q || '').trim(); if (!q) return; botSay('me', esc(q)); const a = botAnswer(q); if (a.keep) a.acts.forEach(x => x.edit = true); setTimeout(() => botSay('bot', a.html, a.acts), 250); }
 function botDock() { const r = BOT.el.getBoundingClientRect(), p = BOT.panel, W = 340, H = 440;
   p.style.left = Math.max(8, Math.min(innerWidth - W - 8, r.left + r.width / 2 - W / 2)) + 'px'; p.style.top = (r.top > H + 20 ? r.top - H - 10 : Math.min(innerHeight - H - 8, r.bottom + 10)) + 'px'; }
 function botFace(f) { const b = BOT.el?.querySelector('.bface'); if (b) b.innerHTML = BOT_FACES[f] || BOT_FACES.normal; }
