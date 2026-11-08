@@ -1587,6 +1587,9 @@ button:focus:not(:focus-visible){outline:none}
 #botPanel .btab{margin-top:6px;max-height:170px;overflow:auto;border:1px solid #e3e6f0;border-radius:8px}#botPanel .btab table{border-collapse:collapse;font-size:11px;width:100%}#botPanel .btab th,#botPanel .btab td{padding:3px 5px;border-bottom:1px solid #eef0f6;text-align:left;white-space:nowrap}#botPanel .btab th{background:#f3f4fa;position:sticky;top:0}#botPanel .btab small{display:block;padding:3px 6px;color:#7a7d99}
 #botPanel .bfiles{display:flex;flex-wrap:wrap;gap:4px;padding:4px 8px 0}#botPanel .bfiles span{background:#eef1ff;color:#3b3fb8;border-radius:99px;padding:2px 4px 2px 9px;font-size:11.5px;display:inline-flex;align-items:center;gap:2px}#botPanel .bfiles button{border:0;background:none;cursor:pointer;color:#777;font-size:11px}
 #botPanel.bdrop{outline:3px dashed #4f4ce0;outline-offset:-6px}#botPanel.bdrop .blog::after{content:'여기에 놓으면 비서가 받아요 📎';display:block;text-align:center;padding:12px;font-weight:800;color:#4f4ce0}
+
+#botPanel .bproof{background:#fff;border:1px solid #e3e6f0;border-radius:8px;padding:6px 8px;margin-top:6px;font-size:12.5px;line-height:1.55;max-height:200px;overflow:auto;white-space:pre-wrap}#botPanel .bproof del{background:#ffe3e3;color:#b42318;text-decoration:line-through}#botPanel .bproof ins{background:#dcf5e3;color:#0a6b2f;text-decoration:none;font-weight:700}
+#botPanel .bplist{margin-top:5px;font-size:11.5px;background:#f6f7fb;border-radius:8px;padding:4px 7px}#botPanel .bplist.hint{background:#fff8e6}#botPanel .bplist small{display:block;font-size:10.5px;color:#7a7d99;font-weight:700}
 </style>
 </head>
 <body>
@@ -1755,7 +1758,7 @@ function recLabel(key, f) {
  * ===================================================================== */
 let root = null;
 /* 서버 모드: http(s):// 로 접속하면 server.py 의 REST API 사용 (폴더 선택 불필요). file:// 로 열면 폴더 모드 */
-const APP_VERSION = '2026-11-08.23';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
+const APP_VERSION = '2026-11-08.24';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
 const SERVER_URL = 'http://localhost:8080';
 // 부서원 PC 사본(file://)이 접속을 시도할 서버 — 서버가 배포 파일을 만들 때 'PC 이름 주소, IP 주소' 순으로 자동 기록함
 const DEFAULT_SERVERS = ['http://ASEUNGWOOK-B01:8080', 'http://65.3.30.234:8080'];
@@ -4632,7 +4635,7 @@ const BOT_FAQ = [
   [/전달\s*사항|공지|회의/, () => { const m = sortRecs(SHEET.notice, getRecs('notice'))[0]; return m ? `최신 주간회의 전달사항은 <b>${esc(flat(m.fields['제목']))}</b> (${esc(flat(m.fields['일자']))}) 이에요.` : '등록된 전달사항이 없어요.'; }, [['전달사항 보기', () => go('notice')]]],
   [/출장|서버\s*옮|다른\s*pc|대신\s*켜/i, () => '서버를 다른 PC 로 옮길 때는: 서버를 끄고 운영 폴더 전체를 그 PC 로 복사 → 그 PC 에서 start_server.bat. 돌아오면 반대로 복사. <b>두 서버를 동시에 켜면 안 돼요</b> (자료가 갈라짐).', []],
   [/안녕|하이|hello|hi\b|반가/i, () => `안녕하세요${AUTH ? ', ' + esc(AUTH.name) + ' 님' : ''}! 대시보드 안의 PJT · 업무 · 전달사항 · VOC 를 찾아 바로 데려다 드려요. 예: "카타르", "내 할 일", "재무스타그램 어디", "마감 언제"`, []],
-  [/뭐\s*할\s*수|무엇을\s*할\s*수|할\s*수\s*있는\s*(게|것|기능)|도움말|사용법|고치|수정\s*(하는|방법|기능|할\s*수)|편집\s*방법|바꾸는\s*법/, () => '저에게 바로 고쳐 달라고 하셔도 돼요 ✍<br>· "카타르 LNG 업무 현황에 도면 승인 완료 추가"<br>· "카타르 LNG 업무 현황 11월 착공 예정으로 수정"<br>· "카타르 LNG 변경 없음"<br>· "To Do 추가 HAZOP 자료 정리" (박민수 To Do 추가 … = 그 사람)<br>· "HAZOP 후속 조치 종결"<br>· "카타르 LNG PJT 주요 일정 26.3 착공으로 수정" (어느 칸이든)<br>· "입찰 추가: PJT명=베트남 신규, 사업군=발전" · "기술공유 추가: OPC UA 소개"<br>· "카타르 NFE 상세 보여줘" · "예시수행-A 삭제"<br>· "VOC 에 글 쓰기: 제목 / 내용" · "회식 글에 댓글: 참석합니다"<br>고치기 전에 바뀌는 내용을 보여 드리고, [✔ 적용] 을 누르면 저장하고 결과 화면으로 이동해요.<br><br><b>분석 메뉴 · 파일</b><br>· "Valve Datasheet 분석 결과 엑셀로 출력해줘" · "Ball Valve 결과 요약해줘"<br>· "Panel 결과 CAD로 출력해줘" (.dxf)<br>· Equipment List 를 비서 창에 끌어다 놓고 → "이걸 새로운 \"CO2 PJT\" 프로젝트 \"MCC\" 룸 \"A\" revision 으로 생성해"<br>· "수행 PJT 요약" · "입찰 엑셀로 출력"<br><br><b>계측제어 질문</b>: "PDIC-101", "오리피스 직관 길이", "SIL2 PFD", "방폭 IIC"', []],
+  [/뭐\s*할\s*수|무엇을\s*할\s*수|할\s*수\s*있는\s*(게|것|기능)|도움말|사용법|고치|수정\s*(하는|방법|기능|할\s*수)|편집\s*방법|바꾸는\s*법/, () => '저에게 바로 고쳐 달라고 하셔도 돼요 ✍<br>· "카타르 LNG 업무 현황에 도면 승인 완료 추가"<br>· "카타르 LNG 업무 현황 11월 착공 예정으로 수정"<br>· "카타르 LNG 변경 없음"<br>· "To Do 추가 HAZOP 자료 정리" (박민수 To Do 추가 … = 그 사람)<br>· "HAZOP 후속 조치 종결"<br>· "카타르 LNG PJT 주요 일정 26.3 착공으로 수정" (어느 칸이든)<br>· "입찰 추가: PJT명=베트남 신규, 사업군=발전" · "기술공유 추가: OPC UA 소개"<br>· "카타르 NFE 상세 보여줘" · "예시수행-A 삭제"<br>· "VOC 에 글 쓰기: 제목 / 내용" · "회식 글에 댓글: 참석합니다"<br>고치기 전에 바뀌는 내용을 보여 드리고, [✔ 적용] 을 누르면 저장하고 결과 화면으로 이동해요.<br><br><b>분석 메뉴 · 파일</b><br>· "Valve Datasheet 분석 결과 엑셀로 출력해줘" · "Ball Valve 결과 요약해줘"<br>· "Panel 결과 CAD로 출력해줘" (.dxf)<br>· Equipment List 를 비서 창에 끌어다 놓고 → "이걸 새로운 \"CO2 PJT\" 프로젝트 \"MCC\" 룸 \"A\" revision 으로 생성해"<br>· "수행 PJT 요약" · "입찰 엑셀로 출력"<br><br><b>계측제어 질문</b>: "PDIC-101", "오리피스 직관 길이", "SIL2 PFD", "방폭 IIC"<br><br><b>첨삭</b>: "첨삭: 금일 회의 결과 보고 드립니다 …" · "첨삭: Please find attached the datasheet …" — 한국어 · 영어 모두, 고친 곳과 이유를 보여 줘요', []],
 ];
 const botWords = q => String(q).split(/[\s,.?!·~]+/).map(w => w.replace(/(이야|이에요|예요|인가요|은|는|이|가|을|를|에|에서|의|좀|요)$/, '')).filter(w => w.length >= 2 && !BOT_STOP.test(w));
 /* 2026-11-08 '모든 내용을 학습' — 물을 때마다 대시보드 전체를 색인(BOT_IDX): 모든 시트 행(모든 칸) · 게시판/VOC 글과 댓글(익명 작성자는 안 밝힘) ·
@@ -5043,7 +5046,105 @@ async function botAddFiles(list) {
       else if (/\.(csv|txt)$/i.test(f.name)) { const tx = (await f.text()).split(/\r?\n/).filter(Boolean), sp = tx.map(l => l.split(/,|\t/)); pv = `<br>${tx.length - 1}행${botTableHtml({ cols:sp[0] || [], rows:sp.slice(1) }, 5)}`; } } catch (_) { pv = '<br><span class="muted">미리보기는 못 했지만 그대로 보낼 수 있어요.</span>'; }
     botSay('bot', `📎 <b>${esc(f.name)}</b> (${Math.ceil(f.size / 1024)} KB) 받았어요.${pv}<br>이제 무엇을 할지 말해 주세요. 예: <i>이걸 새로운 "CO2 PJT" 프로젝트 "MCC룸" 룸 "A" revision 으로 생성해</i>`); }
 }
+/* 2026-11-08 클로드 비서 첨삭(교정) — 규칙 기반, 파일 안에서만 동작(외부 AI · 인터넷 안 씀)
+ *  · 한국어: ① 맞춤법 · 띄어쓰기 자주 틀리는 것 ② 번역투 · AI 티(참고: epoko77-ai/im-not-ai 'AI 티 분류 체계' quick 룰북, MIT — 규칙만 옮겨 적음, 코드 아님)
+ *  · 영어: 기술 문서(계장 사양서 · 메일)에서 자주 틀리는 것 — 관사 · 수 일치 · 흔한 오타 · 중복 · 긴 문장 · shall/should
+ *  고친 뒤 글(제안)과 함께, 무엇을 왜 바꿨는지 목록을 보여 줌. 의미 · 숫자 · 고유명사는 건드리지 않음. 확신이 낮은 것은 '검토' 로만 표시. */
+const KO_FIX = [   // [찾기, 바꾸기 | null(검토만), 설명, 등급(fix|hint)]
+  // 맞춤법 — 확실한 것만 자동
+  [/되요(?=[\s.,!?]|$)/g, '돼요', "'되요' → '돼요' (되어요)", 'fix'], [/됬/g, '됐', "'됬' → '됐'", 'fix'], [/안되(?=요|서|고|지만|니|면|겠)/g, '안 되', "'안되요' → '안 돼요'(부정 '안' 띄어쓰기)", 'fix'],
+  [/않\s*(돼|되)(?=[가-힣]*\s)/g, null, "'않 돼/되' — '안 돼'(부정) 인지 '않다'(보조) 인지 확인", 'hint'], [/몇일/g, '며칠', "'몇일' → '며칠'", 'fix'], [/오랫만/g, '오랜만', "'오랫만' → '오랜만'", 'fix'],
+  [/왠지(?![가-힣])/g, '왠지', '', 'skip'], [/웬지/g, '왠지', "'웬지' → '왠지'", 'fix'], [/왠만/g, '웬만', "'왠만' → '웬만'", 'fix'], [/금새/g, '금세', "'금새' → '금세'", 'fix'], [/희안/g, '희한', "'희안' → '희한'", 'fix'],
+  [/어떻해/g, '어떡해', "'어떻해' → '어떡해'", 'fix'], [/역활/g, '역할', "'역활' → '역할'", 'fix'], [/설레임/g, '설렘', "'설레임' → '설렘'", 'fix'], [/바램(?=[\s.,]|$)/g, '바람', "'바램' → '바람'", 'fix'],
+  [/할께/g, '할게', "'할께' → '할게'", 'fix'], [/할려고/g, '하려고', "'할려고' → '하려고'", 'fix'], [/할수\s*있/g, '할 수 있', "'할수' → '할 수'(의존명사 띄어쓰기)", 'fix'], [/할수\s*없/g, '할 수 없', "'할수' → '할 수'", 'fix'],
+  [/([가-힣])수\s*밖에/g, '$1 수밖에', "'~수 밖에' → '~ 수밖에'", 'fix'], [/뿐만\s*아니라/g, '뿐만 아니라', '', 'skip'], [/([가-힣])\s+뿐(?=[\s.,]|$)/g, '$1뿐', "'~ 뿐' → '~뿐'(조사)", 'fix'],
+  [/([가-힣])\s+밖에\s+(없|않|못)/g, '$1밖에 $2', "'~ 밖에 없다' → '~밖에 없다'(조사)", 'fix'], [/([가-힣])\s+(이|가|을|를|은|는|의|에|로|와|과|도|만)\s/g, null, '조사 앞 띄어쓰기 확인', 'hint'],
+  [/(\d)\s*(개|건|명|대|회|년|월|일|시간|분|%|㎜|mm|m)\s+(당|씩|째)/g, '$1$2$3', "'3개 당' → '3개당'", 'fix'], [/(\d+)\s*(년|월|일|개|건|명|대|회)\s*(간|동안)/g, '$1$2 $3', '', 'skip'],
+  [/첨부\s*드립니다/g, '첨부합니다', "'첨부 드립니다' → '첨부합니다'", 'fix'], [/확인\s*부탁\s*드립니다/g, '확인 부탁드립니다', "'부탁 드립니다' → '부탁드립니다'(한 단어)", 'fix'], [/감사\s+드립니다/g, '감사드립니다', "'감사 드립니다' → '감사드립니다'", 'fix'],
+  [/말씀\s+드립니다/g, '말씀드립니다', "'말씀 드립니다' → '말씀드립니다'", 'fix'], [/보고\s+드립니다/g, '보고드립니다', "'보고 드립니다' → '보고드립니다'", 'fix'], [/요청\s+드립니다/g, '요청드립니다', "'요청 드립니다' → '요청드립니다'", 'fix'],
+  [/회신\s+바랍니다/g, '회신 바랍니다', '', 'skip'], [/\s{2,}/g, ' ', '겹친 공백', 'fix'], [/([가-힣a-zA-Z0-9)])\s+([.,])/g, '$1$2', '문장부호 앞 공백 제거', 'fix'], [/([.,!?])(?=[가-힣A-Za-z])/g, '$1 ', '문장부호 뒤 띄우기', 'fix'],
+  // 번역투 · AI 티 (im-not-ai A·D·G·I 계열 quick 규칙) — 확실한 것만 자동, 나머지는 검토
+  [/([가-힣]+)되어진다/g, '$1된다', "이중 피동 '~되어진다' → '~된다' (A-8)", 'fix'], [/([가-힣]+)되어지(는|고|며)/g, '$1되$2', "이중 피동 '~되어지는' → '~되는' (A-8)", 'fix'], [/([가-힣]+)되어집니다/g, '$1됩니다', "이중 피동 '~되어집니다' → '~됩니다' (A-8)", 'fix'], [/([가-힣]+)되어졌/g, '$1됐', "이중 피동 '~되어졌다' → '~됐다' (A-8)", 'fix'], [/지게\s*된다/g, null, "이중 피동 '~지게 된다' — 능동 또는 단일 피동으로 (A-8)", 'hint'],
+  [/에\s*있어서?\s/g, '에서 ', "'~에 있어서' → '~에서' (A-3 번역투)", 'fix'], [/(와|과)\s*관련하여\s/g, '에 ', "'~와 관련하여' → '~에' (A-5)", 'fix'], [/에\s*기반하여\s/g, '를 바탕으로 ', "'~에 기반하여' → '~를 바탕으로'(또는 '~로') (A-6)", 'fix'],
+  [/을\s*가지고\s*있(다|습니다|음)/g, null, "'~을 가지고 있다' → '~이 있다' 또는 형용사로 (A-7 번역투)", 'hint'], [/에\s*의해\s*([가-힣]+)(된|되는|되었)/g, null, "'~에 의해 ~된' 피동 → 행위자를 주어로 (A-9)", 'hint'],
+  [/(에서의|에로의|으로의|으로부터의|로부터의|에의)\s/g, null, "이중 조사 '~에서의/~으로의' → 풀어쓰기 (A-19)", 'hint'], [/단순한\s*[가-힣\s]+(를|을)\s*넘어/g, null, "'단순한 X를 넘어 Y' → 'X만이 아니라 Y' (A-21)", 'hint'],
+  [/(결론적으로|요약하면|정리하자면|시사하는\s*바가\s*크다|주목할\s*만하다)/g, null, "AI 특유 결산 표현 — 삭제하거나 구체 결론으로 (D)", 'hint'], [/(크게|다음과\s*같이)\s*(세|네|두)\s*가지로\s*(나눌|볼)\s*수\s*있/g, null, "열거 도입구 — 빼고 바로 본론으로 (D-3)", 'hint'],
+  [/(필요한|중요한|핵심적인)\s*것은\s*[^.]{1,30}(이다|입니다)/g, null, "분열문 '중요한 것은 ~이다' → 주어-서술 직결 (D-8)", 'hint'], [/할\s*가능성이\s*있을\s*수\s*있/g, '할 수 있', "이중 완곡 '~할 가능성이 있을 수 있다' → 하나만 (G-2)", 'fix'],
+  [/(으로|로)\s*보여질\s*수\s*있/g, '$1 보일 수 있', "'보여질 수 있다' → '보일 수 있다' (G-2 · 이중 피동)", 'fix'], [/다는\s*것이다(?=[.\s]|$)/g, '다', "'~다는 것이다' → '~다' (I-3)", 'fix'],
+  [/할\s*필요가\s*있(다|습니다)/g, '해야 $1'.replace('$1', '한다'), "'~할 필요가 있다' → '~해야 한다' (I-4)", 'hint'], [/([고며서면])\s*,\s/g, '$1 ', "연결어미(-고/-며/-서/-면) 뒤 쉼표 제거 (C-11)", 'fix'],
+  [/\s즉\s/g, null, "'즉' 남발이면 '곧 · 말하자면' 으로 변주 (H)", 'hint'],
+];
+const EN_FIX = [
+  // 흔한 오타 · 철자
+  [/\bteh\b/gi, 'the', 'typo', 'fix'], [/\brecieve(d|s)?\b/gi, 'receive$1', "'recieve' → 'receive'", 'fix'], [/\bseperate(d|ly)?\b/gi, 'separate$1', "'seperate' → 'separate'", 'fix'], [/\boccur(ed|ing)\b/gi, 'occurr$1', "'occured' → 'occurred'", 'fix'],
+  [/\buntill\b/gi, 'until', "'untill' → 'until'", 'fix'], [/\bdefinately\b/gi, 'definitely', '', 'fix'], [/\bacheive/gi, 'achieve', '', 'fix'], [/\benviroment/gi, 'environment', '', 'fix'], [/\bmaintainance\b/gi, 'maintenance', "'maintainance' → 'maintenance'", 'fix'],
+  [/\bequipments\b/gi, 'equipment', "'equipments' → 'equipment' (불가산)", 'fix'], [/\binformations\b/gi, 'information', "'informations' → 'information' (불가산)", 'fix'], [/\bdatas\b/gi, 'data', "'datas' → 'data'", 'fix'], [/\bsoftwares\b/gi, 'software', "'softwares' → 'software'", 'fix'],
+  [/\badvices\b/gi, 'advice', '', 'fix'], [/\b(a|an)\s+(information|equipment|advice|feedback|evidence|progress)\b/gi, '$2', "불가산 명사 앞 관사 제거 ('an information' → 'information')", 'fix'], [/\b(monday|tuesday|wednesday|thursday|friday|saturday|sunday|january|february|march|april|june|july|august|september|october|november|december)\b/g, m => m[0].toUpperCase() + m.slice(1), '요일 · 달 이름 대문자', 'fix'], [/\bfeedbacks\b/gi, 'feedback', '', 'fix'], [/\bstaffs\b/gi, 'staff', '', 'fix'], [/\bdiscuss about\b/gi, 'discuss', "'discuss about' → 'discuss'", 'fix'], [/\bmention about\b/gi, 'mention', '', 'fix'],
+  [/\bin order to\b/gi, 'to', "'in order to' → 'to' (간결)", 'fix'], [/\bdue to the fact that\b/gi, 'because', "'due to the fact that' → 'because'", 'fix'], [/\bat this point in time\b/gi, 'now', '', 'fix'], [/\bin the event that\b/gi, 'if', "'in the event that' → 'if'", 'fix'],
+  [/\bprior to\b/gi, 'before', "'prior to' → 'before' (사양서는 'prior to' 관례 — 선택)", 'hint'], [/\butilize(d|s)?\b/gi, 'use$1', "'utilize' → 'use'", 'fix'], [/\bas per\b/gi, 'per', "'as per' → 'per' 또는 'in accordance with'", 'hint'],
+  [/\b(a)\s+(?=[aeiouAEIOU][a-z])/g, 'an ', "모음 앞 'a' → 'an'", 'fix'], [/\ban\s+(?=[^aeiouAEIOU\W][a-z]+\b)(?!hour|honest|honor|heir)/g, 'a ', "자음 앞 'an' → 'a'", 'fix'],
+  [/\b(\w+)\s+\1\b/gi, '$1', '같은 낱말 반복 (the the)', 'fix'], [/\s+([,.;:!?])/g, '$1', '문장부호 앞 공백', 'fix'], [/([,.;:!?])(?=[A-Za-z])/g, '$1 ', '문장부호 뒤 띄우기', 'fix'], [/\s{2,}/g, ' ', '겹친 공백', 'fix'],
+  [/\bi\b/g, 'I', "'i' → 'I'", 'fix'], [/(^|[.!?]\s+)([a-z])/g, (m, a, b) => a + b.toUpperCase(), '문장 첫 글자 대문자', 'fix'], [/\bcan not\b/gi, 'cannot', "'can not' → 'cannot'", 'fix'], [/\balot\b/gi, 'a lot', "'alot' → 'a lot'", 'fix'],
+  [/\bits\s+(a|the|not|very|important|required|recommended)\b/gi, "it's $1", "'its' → 'it's'(it is)", 'hint'], [/\bit's\s+(own|value|range|output|setting|position|location)\b/gi, 'its $1', "'it's' → 'its'(소유)", 'fix'],
+  [/\bless\s+(items|valves|instruments|tags|cables|points|alarms|signals)\b/gi, 'fewer $1', "'less' → 'fewer'(셀 수 있음)", 'fix'], [/\bamount of\s+(valves|instruments|tags|cables|points)\b/gi, 'number of $1', "'amount of' → 'number of'", 'fix'],
+  [/\bshould be\b/gi, null, "사양서 요구사항이면 'shall be'(의무) — 'should' 는 권고", 'hint'], [/\bwill be\s+(provided|supplied|installed|furnished)\b/gi, null, "사양서 요구사항이면 'shall be $1'", 'hint'], [/\bmust\b/gi, null, "사양서 관례는 'shall' (must 는 법규)", 'hint'],
+  [/\bplease kindly\b/gi, 'please', "'please kindly' → 'please'(중복)", 'fix'], [/\brevert back\b/gi, 'reply', "'revert back' → 'reply'", 'fix'], [/\bdo the needful\b/gi, 'take the necessary action', '', 'fix'],
+  [/\bvery unique\b/gi, 'unique', "'very unique' → 'unique'", 'fix'], [/\bfinal conclusion\b/gi, 'conclusion', '', 'fix'], [/\bfuture plan(s)?\b/gi, 'plan$1', "'future plans' → 'plans'", 'fix'], [/\bfirstly\b/gi, 'first', "'firstly' → 'first'", 'fix'],
+  [/\bimpact(s|ed)?\s+on\b/gi, null, '', 'skip'], [/\bmore better\b/gi, 'better', "'more better' → 'better'", 'fix'], [/\bbetween\s+(\w+)\s+to\s+(\w+)/gi, 'between $1 and $2', "'between A to B' → 'between A and B'", 'fix'],
+  [/\b(\d+)\s*(mm|m|kg|bar|barg|°C|degC|mA|V|Hz|%)\s*(to|-|~)\s*(\d+)\s*\2\b/g, '$1 to $4 $2', '범위 단위 한 번만 (4 to 20 mA)', 'fix'], [/\b(\d+)-(\d+)\s*mA\b/g, '$1–$2 mA', '', 'skip'],
+];
+const KO_HINTS = [   // 글 전체 보고 세는 것
+  [t => (t.match(/(을|를)\s*통해/g) || []).length >= 3, "'~를 통해' 가 3회 이상 — 일부는 '~로 · ~해서' 로 (A-2)"], [t => (t.match(/할\s*수\s*있/g) || []).length >= 4, "'~할 수 있다' 4회 이상 — 일부만 '~할 여지가 있다 · ~할 수도 있다' 로 변주 (A-10)"],
+  [t => (t.match(/(되고|지고)\s*있/g) || []).length >= 3, "'~되고 있다' 3회 이상 — 일부는 '~됐다' 로 (A-20)"], [t => (t.match(/(^|\n)\s*(또한|따라서|즉|나아가|그리고)/g) || []).length >= 3, '문두 접속사(또한 · 따라서 · 즉)가 잦음 — 1~2개로 (H)'],
+  [t => (t.match(/(에\s*대해|에\s*대한)/g) || []).length >= 4, "'~에 대해' 4회 이상 — 목적격으로 직결('X에 대해 논의' → 'X를 논의') (A-1)"], [t => (t.match(/[가-힣]\s*\([A-Za-z][A-Za-z ]+\)/g) || []).length >= 4, '한글(영어) 병기가 잦음 — 첫 등장만 병기 (B-1)'],
+  [t => { const s = t.split(/(?<=[.!?다요])\s+/).filter(x => x.trim().length > 4); return s.length >= 4 && Math.max(...s.map(x => x.length)) < 60 && s.every(x => Math.abs(x.length - s[0].length) < 15); }, '문장 길이가 고름 — 짧은 문장 1~2개 · 긴 문장 1개 섞기 (E-1)'],
+  [t => { const e = (t.match(/(습니다|입니다|ㄴ다|는다|이다)(?=[.\s]|$)/g) || []); return e.length >= 4 && new Set(e).size === 1; }, '종결어미가 모두 같음 — 다양하게 (E-2)'],
+  [t => /\*\*[^*]+\*\*/.test(t) && (t.match(/\*\*/g) || []).length >= 6, '볼드 강조가 잦음 — 핵심 1~2곳만 (J-1)'], [t => (t.match(/[—–]/g) || []).length >= 3, '대시(—) 부가 설명이 잦음 — 쉼표 · 괄호 · 별도 문장으로 (J-3)'],
+  [t => (t.match(/[\u{1F300}-\u{1FAFF}☀-➿]/gu) || []).length >= 3, '이모지가 잦음 — 보고서 · 메일이면 빼기 (C-5)'],
+];
+const EN_HINTS = [
+  [t => t.split(/(?<=[.!?])\s+/).some(s => s.split(/\s+/).length > 35), '35단어가 넘는 문장이 있음 — 둘로 나누기'], [t => (t.match(/\b(is|are|was|were|be|been)\s+\w+ed\b/gi) || []).length >= 4, '수동태가 잦음 — 주어를 밝혀 능동으로 (사양서 요구사항은 수동 허용)'],
+  [t => (t.match(/\b(very|really|quite|extremely)\b/gi) || []).length >= 3, "'very · really' 가 잦음 — 구체적인 낱말로"], [t => (t.match(/\b(shall|should|must|will)\b/gi) || []).length >= 3 && new Set((t.match(/\b(shall|should|must|will)\b/gi) || []).map(x => x.toLowerCase())).size >= 3, '요구 동사(shall · should · must · will)가 섞여 있음 — 사양서는 shall(의무) · should(권고) 로 통일'],
+  [t => /\b(I|we)\s+(think|believe|feel)\b/i.test(t) && /\b(shall|datasheet|specification|spec)\b/i.test(t), "기술 문서에 'I think · we believe' — 근거를 들어 단언으로"],
+];
+const PROOF_TERMS = [   // 계장 용어 표기 통일 (영문 → 관례 표기)
+  [/\binstrument\s*data\s*sheet\b/gi, 'instrument datasheet'], [/\bP\s*&\s*ID\b/g, 'P&ID'], [/\bp&id\b/g, 'P&ID'], [/\bHazop\b/g, 'HAZOP'], [/\bSil\s*(\d)\b/g, 'SIL $1'], [/\bsil(\d)\b/gi, 'SIL $1'], [/\bPlc\b/g, 'PLC'], [/\bDcs\b/g, 'DCS'], [/\bEsd\b/g, 'ESD'],
+  [/\bF\s*&\s*G\b/g, 'F&G'], [/\bI\s*\/\s*O\b/g, 'I/O'], [/\b4\s*[-~to]+\s*20\s*mA\b/gi, '4–20 mA'], [/\b(\d+)\s*(barg|bar g)\b/gi, '$1 barg'], [/\bdeg\.?\s*C\b/gi, '°C'], [/\bjunction\s*box(es)?\b/gi, 'junction box$1'], [/\bcause\s*&\s*effect\b/gi, 'Cause & Effect'],
+];
+const isKo = t => (t.match(/[가-힣]/g) || []).length >= (t.match(/[A-Za-z]/g) || []).length / 3;
+function proofRead(text) {
+  const ko = isKo(text), rules = ko ? KO_FIX : EN_FIX, hints = ko ? KO_HINTS : EN_HINTS, changes = [], notes = [];
+  let out = text;
+  for (const [re, rep, why, kind] of rules) { if (kind === 'skip') continue; re.lastIndex = 0; const m = out.match(re); if (!m) continue;
+    if (kind === 'fix' && rep !== null) { const before = out; out = out.replace(re, rep); if (before !== out && why) changes.push({ why, n:m.length, ex:m[0] }); }
+    else if (why) notes.push({ why, ex:m[0] }); }
+  if (!ko) for (const [re, rep] of PROOF_TERMS) { re.lastIndex = 0; const m = out.match(re); if (m && m.some(x => x !== x.replace(re, rep))) { out = out.replace(re, rep); changes.push({ why:'계장 용어 표기 통일', n:m.length, ex:m[0] }); } }
+  for (const [test, why] of hints) { try { if (test(text)) notes.push({ why }); } catch (_) {} }
+  out = out.replace(/\s+$/g, '').replace(/^\s+/g, '');
+  return { ko, out, changes, notes, same:out === text.trim() };
+}
+function proofDiffHtml(a, b) {   // 낱말 단위 차이 표시 (지움 · 추가)
+  const A = a.split(/(\s+)/), B = b.split(/(\s+)/), n = A.length, m = B.length, L = Array.from({ length:n + 1 }, () => new Uint16Array(m + 1));
+  for (let i = n - 1; i >= 0; i--) for (let j = m - 1; j >= 0; j--) L[i][j] = A[i] === B[j] ? L[i + 1][j + 1] + 1 : Math.max(L[i + 1][j], L[i][j + 1]);
+  let i = 0, j = 0, o = '';
+  while (i < n && j < m) { if (A[i] === B[j]) { o += esc(A[i]); i++; j++; } else if (L[i + 1][j] >= L[i][j + 1]) { if (A[i].trim()) o += `<del>${esc(A[i])}</del>`; i++; } else { o += B[j].trim() ? `<ins>${esc(B[j])}</ins>` : esc(B[j]); j++; } }
+  while (i < n) { if (A[i].trim()) o += `<del>${esc(A[i])}</del>`; i++; } while (j < m) { o += B[j].trim() ? `<ins>${esc(B[j])}</ins>` : esc(B[j]); j++; }
+  return o.replace(/\n/g, '<br>');
+}
+function botProof(q) {
+  const m = /^(?:첨삭|교정|교열|맞춤법|문법\s*(?:검사|확인)?|윤문|proofread|correct|grammar)\s*[:：]?\s*([\s\S]+)$/i.exec(q.trim()); if (!m) return null;
+  const text = m[1].trim(); if (text.length < 4) return { html:'첨삭할 글을 같이 적어 주세요. 예: "첨삭: 금일 회의 결과 보고 드립니다"', acts:[] };
+  const r = proofRead(text), kind = r.ko ? '한국어' : '영어';
+  const body = r.same && !r.notes.length ? `✅ <b>${kind} 첨삭</b> — 고칠 곳을 찾지 못했어요. 잘 쓰신 글이에요.`
+    : `✍ <b>${kind} 첨삭</b>${r.changes.length ? ` · 고침 ${r.changes.reduce((a, c) => a + c.n, 0)}곳` : ''}${r.notes.length ? ` · 검토 ${r.notes.length}건` : ''}
+      <div class="bproof">${proofDiffHtml(text, r.out)}</div>
+      ${r.changes.length ? `<div class="bplist"><small>고친 것</small>${r.changes.map(c => `<div>· ${esc(c.why)}${c.n > 1 ? ` ×${c.n}` : ''}</div>`).join('')}</div>` : ''}
+      ${r.notes.length ? `<div class="bplist hint"><small>검토해 보세요 (자동으로 바꾸지 않음)</small>${r.notes.map(c => `<div>· ${esc(c.why)}${c.ex ? ` <i>"${esc(trunc(c.ex, 30))}"</i>` : ''}</div>`).join('')}</div>` : ''}
+      <span class="muted" style="font-size:11px">규칙 기반 첨삭(외부 AI 안 씀) — 뜻 · 숫자 · 고유명사는 손대지 않아요. 번역투 · AI 티 규칙은 공개 룰북(im-not-ai, MIT)을 참고했어요.</span>`;
+  return { html:body, acts:r.same ? [] : [{ l:'📋 고친 글 복사', fn:() => { navigator.clipboard?.writeText(r.out).then(() => botSay('bot', '복사했어요 📋'), () => botSay('bot', '복사가 막혀 있어요 — 위 글을 드래그해 복사해 주세요.')); } }] };
+}
 function botAnswer(q) {
+  const pf = botProof(q); if (pf) return pf;   // 첨삭
   const ap = botApp(q) || botSheetOut(q); if (ap) return ap;   // 분석 메뉴 · 시트 출력 / 요약
   const ed = botEdit(q) || botGeneral(q); if (ed) return ed;
   const ic = BOT_FAQ.find(([re]) => re.test(q)) ? null : icAnswer(q);   // 계측제어 지식 — 대시보드 PJT · 사람이 콕 집혀 나오면 그게 먼저, 아니면 지식 답이 먼저
