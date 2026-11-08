@@ -1394,3 +1394,14 @@ C:\Users\SAMSUNG\Desktop\Claude\                         ← 개발 폴더 (여�
   - 내 업무 접힘: 남색 세로 탭 → **미식축구 헬멧**(직접 그린 일반 모양 — 실제 팀 로고 · NFL 표시는 넣지 않음, 은색 · 남색/빨강 줄 · 빨간 얼굴 보호대) + 왼쪽에서 **통통 튀는 공**(그림자 같이). **마우스를 올리면 공이 튀기를 멈추고 제자리 회전**. 아래 알약에 완료 수(0/13) · 접속자 · 새 쪽지. 누르면 펼침, 끌어서 옮기기 그대로. 움직임 줄이기 설정(prefers-reduced-motion)이면 멈춤.
 - 바뀐 곳: dashboard.html `APP_VERSION` · `MI_P` `MENU_IC`(새) · `renderMenu`(btn 에 `.mic` · `data-tip` · `.mdot`) · `#sideRail` 단추 · `setNavRail`(새) · `#side` pointerdown/`#menu` click/document pointerdown(peek) · `TB_HELMET` `TB_BALL`(새) · `renderTaskBar`(접힘 탭) · CSS '간략 메뉴 · 헬멧' 묶음(`body.rail …` `#taskbar .helm …` `@keyframes fbBounce fbShadow fbSpin`). 주의: 메뉴 칸에 `.dot` 클래스를 쓰면 전역 `.dot{width:9px}` 와 부딪혀서 `.mdot` 사용.
 - 확인한 것: 임시 서버 1500×950 — 간략 72px · 마우스 올림 240px · 펼침 단추로 되돌림, 아이콘 11개 가운데 정렬, 내 업무 접기 → 헬멧+공 · 마우스 올림 → 공 회전 · 누르면 다시 펼침. 페이지 오류 없음.
+
+### 2026-11-08 (APP_VERSION 2026-11-08.2 / SERVER_VERSION 그대로 2026-11-07.4) — 홈 새 모습 (시안 1번 적용)
+- 무엇을: 사용자가 시안을 보고 '적용' 지시. 홈 첫 화면에 계장 광장 · 최근 변경 이력 빼고 다 들어가게.
+  - **톤**(`<style id="homeTone">`): 남보라 그라데이션 왼쪽 메뉴(둥근 떠 있는 판, 선택 = 흰 칸) · 흰 카드 radius 18 · 보라 강조(--accent #4f4ce0) · 숫자 카드 hover 떠오름 + › 칩. 숨기기는 여백까지 밀어 완전히 숨김, 900px 이하는 기존 서랍 메뉴.
+  - **인사말** '좋은 아침이에요/오후예요/저녁이에요, 이름 님' + 이번 주 마감. **숫자 카드** 첫 칸(수행) 보라 채움, 수행 · 입찰 카드에 금주 작성률 막대(isDone/진행 PJT).
+  - **[주간회의 전달사항 | 월간 캘린더]** 를 숫자 카드 바로 아래 한 줄(`.toprow`), 그 아래 그래프 4개 한 줄(캘린더 옆).
+  - **전달사항 = Notion 페이지 느낌**(`<style id="homeNotion">`, `#npage`): 표지 띠 · 📌 · 경로 · 큰 제목 · 속성(회의일 요일 · 구분 태그 · 작성자 · 최종 수정) · 본문 전체(fmtText, 줄 hover 회색 + ⋮⋮) · 💡 이번 주 마감 · 이전 전달사항 3건(마우스 = 전체 내용 미리보기, 누르면 전달사항 메뉴) · [▾ 접기](localStorage `dept-notice-fold`, 접으면 제목 + 날짜 · 첫 줄). 카드 높이 = 화면의 약 30%(clamp 220~330px), 넘치면 안에서 스크롤.
+  - **월간 캘린더**(`CAL` `calEvents` `renderCal` `CROWN`): 생일(BD 명단, 음력 → 양력) = 날짜 위 **왕관** · 매주 수 '마감' · 주간회의 전달사항 일자 · 통합 업무/To Do/기술공유 기한(지난 것 빨강). 날짜에 마우스 = 그날 일정 상세(data-tip), 누르면 아래 목록(업무 · 전달사항 줄 = 그 메뉴로). ‹ › 달 이동 · [오늘]. 공휴일은 자료가 없어 넣지 않음.
+  - **막대 그래프 은은한 입체감**(`<script id="bar3d">`): svgBars 가 그린 rect.bar 에 좌→우 그라데이션(밝게 22% → 어둡게 20%) · 한 색 막대만 옅은 그림자 · 쌓은 막대는 틈 없이.
+- 바뀐 곳: dashboard.html `APP_VERSION` · `renderHome`(hello · kpi hero/kbar · toprow · npage · 그래프 이동 · renderCal 호출) · `CAL` `CROWN` `calEvents` `CAL_K` `renderCal` `LS_NFOLD` `NFOLD`(새) · 문서 click(data-nfold) · CSS `homeNotion` `homeTone` 묶음 · `bar3d` 스크립트.
+- 확인한 것: 임시 서버 1920×1080 · 1500×950 — 첫 화면에 게임 · 이력 빼고 다 보임, 캘린더 · 전달사항 · 입체 그래프 표시, 숨기기/☰/간략 메뉴 위치, 800px 폭 서랍 메뉴, 수행 · 유닛분장 · 게시판 화면 이동, 페이지 오류 없음.
