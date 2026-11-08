@@ -1758,7 +1758,7 @@ function recLabel(key, f) {
  * ===================================================================== */
 let root = null;
 /* 서버 모드: http(s):// 로 접속하면 server.py 의 REST API 사용 (폴더 선택 불필요). file:// 로 열면 폴더 모드 */
-const APP_VERSION = '2026-11-08.24';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
+const APP_VERSION = '2026-11-08.25';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
 const SERVER_URL = 'http://localhost:8080';
 // 부서원 PC 사본(file://)이 접속을 시도할 서버 — 서버가 배포 파일을 만들 때 'PC 이름 주소, IP 주소' 순으로 자동 기록함
 const DEFAULT_SERVERS = ['http://ASEUNGWOOK-B01:8080', 'http://65.3.30.234:8080'];
@@ -5111,13 +5111,61 @@ const PROOF_TERMS = [   // 계장 용어 표기 통일 (영문 → 관례 표기
   [/\binstrument\s*data\s*sheet\b/gi, 'instrument datasheet'], [/\bP\s*&\s*ID\b/g, 'P&ID'], [/\bp&id\b/g, 'P&ID'], [/\bHazop\b/g, 'HAZOP'], [/\bSil\s*(\d)\b/g, 'SIL $1'], [/\bsil(\d)\b/gi, 'SIL $1'], [/\bPlc\b/g, 'PLC'], [/\bDcs\b/g, 'DCS'], [/\bEsd\b/g, 'ESD'],
   [/\bF\s*&\s*G\b/g, 'F&G'], [/\bI\s*\/\s*O\b/g, 'I/O'], [/\b4\s*[-~to]+\s*20\s*mA\b/gi, '4–20 mA'], [/\b(\d+)\s*(barg|bar g)\b/gi, '$1 barg'], [/\bdeg\.?\s*C\b/gi, '°C'], [/\bjunction\s*box(es)?\b/gi, 'junction box$1'], [/\bcause\s*&\s*effect\b/gi, 'Cause & Effect'],
 ];
+/* 2026-11-08 첨삭 보강 — 참고: DaleSeo/korean-skills (MIT) grammar-checker · humanizer · style-guide 규칙(내용만 옮김, 코드 아님)
+ *  ① 조사 받침 맞추기(을/를 · 이/가 · 은/는 · 와/과 · 으로/로) ② 안/않 · 던/든 · -읍니다 · -ㄴ지/-는지 ③ 의존명사 · 부사 띄어쓰기
+ *  ④ 문장부호(쉼표 과다 · 느낌표 · 영어식 콜론 · 가운뎃점 단순 나열 · 따옴표 혼용 · 마침표 누락) ⑤ 스타일 일관성(경어체 혼용 · 저희/우리 · 숫자 · 단위 · 날짜 · 시간 형식) */
+const hasBatchim = ch => { const c = ch.charCodeAt(0); return c >= 0xAC00 && c <= 0xD7A3 && (c - 0xAC00) % 28 !== 0; };
+const endsRieul = ch => { const c = ch.charCodeAt(0); return c >= 0xAC00 && c <= 0xD7A3 && (c - 0xAC00) % 28 === 8; };
+const JOSA = [['을', '를'], ['이', '가'], ['은', '는'], ['과', '와']];   // [받침 O, 받침 X]
+function koJosa(text, changes) {   // 받침 있는 낱말 뒤의 '를 · 가 · 와 · 는' → '을 · 이 · 과 · 은', 받침 없는 낱말 뒤 '으로' → '로' 만 고침 (반대 방향은 '마을 · 나이 · 효과 · 더 나은' 처럼 낱말 일부일 수 있어 손대지 않음)
+  let n = 0;
+  const out = text.replace(/([가-힣]{2,})(를|가|와|는|으로)(?=[\s.,!?)]|$)/g, (m, w, j) => {
+    const last = w[w.length - 1], b = hasBatchim(last);
+    if (j === '으로') { if (!b || endsRieul(last)) { n++; return w + '로'; } return m; }
+    if (!b) return m;
+    if (j === '가' && /(내|네|제|누|뭔)$/.test(w)) return m; if (j === '는' && /(하|되|있|없|않|오|가|보|않|같|이|라)$/.test(w) === false && /[가-힣](다|자|나)$/.test(w) === false) { /* 받침 뒤 '는' = 관형형 어미일 수 있음('먹는 것') — 동사 어간은 보존 */ }
+    if (j === '는' && /(먹|읽|있|없|않|앉|웃|씻|받|찾|믿|남|닫|묻|걷|듣|넣|쌓|놓|잡|잇|낫|긋|붓|짓|젓|맞|맡|밟|밝|앓|끓|옮|굶|삶|신|안|감|심|막|썩|익|죽|식|맺|뽑|좁|넓|얇|높|낮|작|짧|적|좋|싫|많|같|늦|붙|솟|뻗|섞|겪|꺾|볶|깎|묶|뛰|기다리|달리|쓰이|보이|들리)$/.test(w)) return m;
+    n++; return w + ({ 를:'을', 가:'이', 와:'과', 는:'은' })[j]; });
+  if (n) changes.push({ why:"조사를 받침에 맞게 ('판넬를' → '판넬을', '일정가' → '일정이', '밸브과' 는 그대로 둠)", n });
+  return out;
+}
+const KO_FIX2 = [
+  [/않\s+(해|가|돼|되|먹|하|보|쓰)/g, '안 $1', "'않 해요' → '안 해요' (부정 부사 '안')", 'fix'], [/지\s*안(다|아요|았|습니다|고|으|는)/g, '지 않$1', "'~지 안다' → '~지 않다' (보조 '않')", 'fix'],
+  [/([가-힣])(읍니다|읍니까)/g, (m, a, b) => a + (b === '읍니다' ? '습니다' : '습니까'), "'있읍니다' → '있습니다'", 'fix'],
+  [/(좋|많|적|높|낮|크|작|길|짧|빠르|느리|어렵|쉽|같|다르)는지/g, '$1은지', "형용사 + '-ㄴ지' ('좋는지' → '좋은지')", 'fix'],
+  [/(먹|갔|했|있|보|쓰|오|살)든\s/g, '$1던 ', "과거 회상은 '던' ('갔든 곳' → '갔던 곳')", 'hint'], [/(뭐|어디|누구|언제|무엇이|어느\s*것이)던(지)?(?=[\s.,]|$)/g, '$1든$2', "선택은 '든' ('뭐던' → '뭐든')", 'fix'],
+  [/([가-힣]+[은는을를이가])것(?=[\s.,]|$)/g, null, '', 'skip'], [/([가-힣](?<![이그저무]))(것이다|것입니다|것은|것을|것도|것과)(?=[\s.,]|$)/g, '$1 $2', "의존명사 '것' 띄어쓰기 ('하는것' → '하는 것')", 'fix'],
+  [/([가-힣])만큼(?=[\s.,]|$)/g, null, '', 'skip'], [/(할|먹을|볼|갈|될|알)만큼/g, '$1 만큼', "의존명사 '만큼' 띄어쓰기", 'fix'], [/(할|먹을|볼|알)줄\s*(알|모르)/g, '$1 줄 $2', "의존명사 '줄' 띄어쓰기 ('할줄 알다' → '할 줄 알다')", 'fix'],
+  [/(매우|너무|아주|정말|정말로|너무나|상당히|조금|더)(좋|나쁘|빠르|느리|크|작|많|적|높|낮|어렵|쉽|중요)/g, '$1 $2', "부사 띄어쓰기 ('매우좋다' → '매우 좋다')", 'fix'], [/더나은/g, '더 나은', "'더나은' → '더 나은'", 'fix'],
+  [/하기위해/g, '하기 위해', "'하기위해' → '하기 위해'", 'fix'], [/([가-힣])위해(서)?(?=[\s.,]|$)/g, (m, a, b) => /기$/.test(a) ? a + ' 위해' + (b || '') : m, '', 'fix'],
+  [/(이|가|은|는|을|를)\s*,\s/g, '$1 ', "조사 바로 뒤 쉼표 제거 ('나는, 학교에' → '나는 학교에')", 'fix'], [/(만약|만일)\s([^,.]{2,20}면),\s/g, '$1 $2 ', "'만약 ~면,' 뒤 쉼표 제거 (영어식)", 'fix'],
+  [/,\s*그리고\s/g, ', ', "'A, B, 그리고 C' → 'A, B, C' (영어식 나열)", 'fix'], [/!{2,}/g, '!', '느낌표 겹침 → 하나', 'fix'], [/\?{2,}/g, '?', '물음표 겹침 → 하나', 'fix'], [/\.{4,}/g, '…', "마침표 여러 개 → '…'", 'fix'],
+  [/(같습니다|같다|입니다|합니다|방법|특징|순서|목록|내용|결과|참고|예시|예):(?=\s|$)/gm, '$1.', "영어식 콜론 ('다음과 같습니다:' → '다음과 같습니다.')", 'fix'],
+  [/(["“])([^"”']{1,40})'(?=[\s.,이라고가는을])/g, '$1$2”', '따옴표 짝 맞추기 (" … \')', 'fix'], [/'([^"”']{1,40})(["”])(?=[\s.,이라고가는을])/g, '‘$1’', '따옴표 짝 맞추기 (\' … ")', 'fix'],
+  [/([다요음임함])\s+(그래서|그리고|그러나|하지만|또한|따라서)\s/g, '$1. $2 ', "문장 끝 마침표 누락 ('좋다 그래서' → '좋다. 그래서')", 'fix'],
+  [/([A-Za-z]{2,})·([A-Za-z]{2,})·?([A-Za-z]{2,})?/g, null, "영문 용어 단순 나열엔 가운뎃점(·) 대신 쉼표 ('DCS·PLC·SIS' → 'DCS, PLC, SIS')", 'hint'],
+  [/(\d)\s+(개|명|대|건|회|년|월|일|시간|분|초|원|번|장|권|식|조|면|점|셋|set|ea)(?=[\s.,)이가은는을를과와도로]|$)/g, '$1$2', "숫자 뒤 한글 단위 붙여쓰기 ('5 명' → '5명', 보고서 관례)", 'fix'],
+  [/(\d)(kg|km|mm|cm|m|kV|V|A|mA|bar|barg|MPa|kPa|Hz|kW|MW|℃|°C|%)(?![A-Za-z])/g, (m, d, u) => u === '%' || u === '℃' || u === '°C' ? m : d + ' ' + u, "숫자와 영문 단위 사이 띄우기 ('5kg' → '5 kg', % · ℃ 는 붙임)", 'fix'],
+  [/(\d{4})\s*\.\s*(\d{1,2})\s*\.\s*(\d{1,2})\s*\.?(?=[\s(,]|$)/g, '$1.$2.$3', '날짜 점 표기 공백 제거 (2026. 11. 8 → 2026.11.8)', 'fix'],
+];
+const KO_HINTS2 = [
+  [t => { const f = (t.match(/(습니다|입니다|습니까)(?=[.!?\s]|$)/g) || []).length, h = (t.match(/(해요|예요|에요|어요|아요|죠|네요)(?=[.!?\s]|$)/g) || []).length, p = (t.match(/(ㄴ다|는다|한다|된다|이다|있다|없다)(?=[.!?\s]|$)/g) || []).length; return [f, h, p].filter(x => x).length >= 2 && f + h + p >= 3; }, '경어체가 섞여 있음(합니다체 · 해요체 · 한다체) — 문서 하나에 하나로 (보고서는 합니다체 또는 한다체)'],
+  [t => /저희/.test(t) && /우리/.test(t), "'저희' 와 '우리' 혼용 — 외부 문서는 '저희', 내부는 '우리' 로 통일"], [t => /\b(완전|대박|진짜|넘|ㅋ|ㅎ)\b|ㅋㅋ|ㅎㅎ/.test(t) && /(습니다|입니다)/.test(t), '격식 문장에 구어 · 속어(완전 · 대박 · ㅋㅋ) 섞임'],
+  [t => { const s = t.split(/(?<=[.!?])\s+/).filter(x => x.length > 6); return s.length >= 3 && s.filter(x => x.includes(',')).length / s.length > 0.6 && (t.match(/,/g) || []).length >= 4; }, '쉼표가 많음(문장 60% 이상) — 한국어는 쉼표를 적게, 긴 문장은 둘로 (KatFishNet)'],
+  [t => (t.match(/!/g) || []).length >= 3 && /(습니다|입니다|드립니다)/.test(t), '느낌표가 잦음 — 보고서 · 메일은 마침표로'],
+  [t => /\d+[명개건]/.test(t) && /(한|두|세|네|다섯)\s*(명|개|건)/.test(t), "숫자 표기 혼용('3명' 과 '두 개') — 아라비아 숫자로 통일"], [t => (t.match(/\d{4}[.-]\d{1,2}[.-]\d{1,2}/g) || []).length && (t.match(/\d{4}년\s*\d{1,2}월/g) || []).length, "날짜 형식 혼용('2026.11.08' 과 '2026년 11월') — 하나로"],
+  [t => /(오전|오후)\s*\d{1,2}시/.test(t) && /\b([01]?\d|2[0-3]):[0-5]\d\b/.test(t), "시간 형식 혼용('오후 3시' 와 '15:00') — 하나로"], [t => (t.match(/\d\s+(kg|mm|m|bar|kW)\b/g) || []).length && (t.match(/\d(kg|mm|m|bar|kW)\b/g) || []).length, "단위 띄어쓰기 혼용('5 kg' 과 '3m') — 하나로"],
+  [t => (t.match(/(그|그녀|그들|이것|그것|이러한|이와\s*같은)\s/g) || []).length >= 3, '대명사 · 지시어(그 · 이것 · 이러한)가 잦음 — 명사를 직접 쓰거나 생략'], [t => (t.match(/(혁신적|압도적|획기적|탁월|최고의|놀라운|강력한)/g) || []).length >= 2, '과장 어휘(혁신적 · 압도적 · 획기적) — 구체 수치 · 사실로'],
+  [t => (t.match(/[가-힣]+적\s[가-힣]+/g) || []).length >= 3, "'~적 N' 추상 표현이 잦음('전략적 함의') — 풀어쓰기 (F)"], [t => (t.match(/것이다(?=[.\s]|$)/g) || []).length >= 3, "'~것이다' 단정 3회 이상 — '~다' 로 (I-1)"],
+];
 const isKo = t => (t.match(/[가-힣]/g) || []).length >= (t.match(/[A-Za-z]/g) || []).length / 3;
 function proofRead(text) {
-  const ko = isKo(text), rules = ko ? KO_FIX : EN_FIX, hints = ko ? KO_HINTS : EN_HINTS, changes = [], notes = [];
+  const ko = isKo(text), rules = ko ? [...KO_FIX, ...KO_FIX2] : EN_FIX, hints = ko ? [...KO_HINTS, ...KO_HINTS2] : EN_HINTS, changes = [], notes = [];
   let out = text;
   for (const [re, rep, why, kind] of rules) { if (kind === 'skip') continue; re.lastIndex = 0; const m = out.match(re); if (!m) continue;
     if (kind === 'fix' && rep !== null) { const before = out; out = out.replace(re, rep); if (before !== out && why) changes.push({ why, n:m.length, ex:m[0] }); }
     else if (why) notes.push({ why, ex:m[0] }); }
+  if (ko) out = koJosa(out, changes);
   if (!ko) for (const [re, rep] of PROOF_TERMS) { re.lastIndex = 0; const m = out.match(re); if (m && m.some(x => x !== x.replace(re, rep))) { out = out.replace(re, rep); changes.push({ why:'계장 용어 표기 통일', n:m.length, ex:m[0] }); } }
   for (const [test, why] of hints) { try { if (test(text)) notes.push({ why }); } catch (_) {} }
   out = out.replace(/\s+$/g, '').replace(/^\s+/g, '');
@@ -5140,7 +5188,7 @@ function botProof(q) {
       <div class="bproof">${proofDiffHtml(text, r.out)}</div>
       ${r.changes.length ? `<div class="bplist"><small>고친 것</small>${r.changes.map(c => `<div>· ${esc(c.why)}${c.n > 1 ? ` ×${c.n}` : ''}</div>`).join('')}</div>` : ''}
       ${r.notes.length ? `<div class="bplist hint"><small>검토해 보세요 (자동으로 바꾸지 않음)</small>${r.notes.map(c => `<div>· ${esc(c.why)}${c.ex ? ` <i>"${esc(trunc(c.ex, 30))}"</i>` : ''}</div>`).join('')}</div>` : ''}
-      <span class="muted" style="font-size:11px">규칙 기반 첨삭(외부 AI 안 씀) — 뜻 · 숫자 · 고유명사는 손대지 않아요. 번역투 · AI 티 규칙은 공개 룰북(im-not-ai, MIT)을 참고했어요.</span>`;
+      <span class="muted" style="font-size:11px">규칙 기반 첨삭(외부 AI 안 씀) — 뜻 · 숫자 · 고유명사는 손대지 않아요. 맞춤법 · 번역투 · 스타일 규칙은 공개 룰북(im-not-ai · korean-skills, MIT)을 참고했어요.</span>`;
   return { html:body, acts:r.same ? [] : [{ l:'📋 고친 글 복사', fn:() => { navigator.clipboard?.writeText(r.out).then(() => botSay('bot', '복사했어요 📋'), () => botSay('bot', '복사가 막혀 있어요 — 위 글을 드래그해 복사해 주세요.')); } }] };
 }
 function botAnswer(q) {

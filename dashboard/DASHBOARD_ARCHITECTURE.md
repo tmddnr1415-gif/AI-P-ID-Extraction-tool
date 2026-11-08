@@ -1518,3 +1518,11 @@ C:\Users\SAMSUNG\Desktop\Claude\                         ← 개발 폴더 (여�
 - 바뀐 곳: dashboard.html `APP_VERSION` · `KO_FIX` `EN_FIX` `KO_HINTS` `EN_HINTS` `PROOF_TERMS` `proofRead` `proofDiffHtml` `botProof`(새) · `botAnswer`(먼저 botProof) · `BOT_FAQ`(도움말) · CSS `.bproof` `.bplist`.
 - 확인한 것: node 단위 시험 + 임시 서버 — 한국어 예문 고침 8곳(되요→돼요 · 몇일→며칠 · 보고 드립니다→보고드립니다 · 검토되어진다→검토된다 · 에 있어서→에서 …) · 검토 2건, 영어 예문 고침 9곳(equipments→equipment · a informations→information · the the → the · untill→until · friday→Friday · 4 to 20 mA→4–20 mA …) · 검토(should→shall) 1건, 바를 글은 '고칠 곳 없음'. 페이지 오류 없음.
 - 아직 안 넣은 것(사용자 결정 대기): **학습 모델 번역(한↔영)** — Mozilla Firefox 번역 모델(공개, ko-en · en-ko 각 약 37MB)과 엔진 `fxtranslate`(MPL-2.0, 0.4MB, WebAssembly)를 `apps/translate/` 에 넣으면 회사 PC 안에서 동작. 외부 라이브러리 예외 추가 승인 + 이 세션에서 시험 실행 허용이 필요. **이미지 속 영어 번역** — OCR `tesseract.js`(Apache-2.0, 영어 학습 데이터 약 10MB) 같은 방식. 참조 요청 중 k-skill(한국 공공 서비스 호출 — 인터넷 필요)은 폐쇄망에서 못 씀, news.hada.io 는 이 환경에서 접속 불가.
+
+### 2026-11-08 (APP_VERSION 2026-11-08.25 / SERVER_VERSION 그대로) — 첨삭 보강 (korean-skills 룰북 참고)
+- 무엇을: 사용자가 참조하라 한 **DaleSeo/korean-skills(MIT)** 의 grammar-checker · humanizer · style-guide 규칙을 첨삭에 보탬(내용만 옮김, 코드 · 외부 호출 없음).
+  - `koJosa`: 조사 받침 맞추기 — 받침 있는 낱말 뒤 '를 · 가 · 와 · 는' → '을 · 이 · 과 · 은', 받침 없는 낱말 뒤 '으로' → '로' **만**(반대 방향은 '마을 · 나이 · 효과 · 더 나은' 처럼 낱말 일부일 수 있어 손대지 않음, 동사 어간 + '는' 보존).
+  - `KO_FIX2`: 안/않('않 해요' · '~지 안았다'), -읍니다→-습니다, 형용사+'-ㄴ지'('좋는지'), 던/든, 의존명사('하는것' · '할만큼' · '할줄'), 부사 띄어쓰기('매우좋다' · '더나은' · '하기위해'), 영어식 쉼표(조사 뒤 · '만약 ~면,' · 'A, B, 그리고 C'), 느낌표 · 물음표 겹침, 영어식 콜론('다음과 같습니다:'), 따옴표 짝, 마침표 누락, 숫자+한글 단위 붙임('5 명'→'5명'), 숫자+영문 단위 띄움('5kg'→'5 kg', % · ℃ 제외), 날짜 점 표기 공백.
+  - `KO_HINTS2`(검토만): 경어체 혼용(합니다 · 해요 · 한다), 저희/우리, 격식 문장의 구어, 쉼표 과다(문장 60%+, KatFishNet), 느낌표 잦음, 숫자 · 날짜 · 시간 · 단위 형식 혼용, 대명사 · 지시어 잦음, 과장 어휘, '~적 N', '~것이다' 3회+, 영문 용어 단순 나열의 가운뎃점.
+- 바뀐 곳: dashboard.html `APP_VERSION` · `hasBatchim` `endsRieul` `koJosa` `KO_FIX2` `KO_HINTS2`(새) · `proofRead`(합침, 조사는 맨 뒤에).
+- 확인한 것: node 단위 시험 — '더나은 … 제공하기위해 시작되요. 판넬를 설치했읍니다. 하지 안았습니다. 다음과 같습니다: … 5 명이' → 모두 고침, '마을 · 나이 · 효과를 · 먹는 것 · 이것은' 은 그대로(오탐 없음), '일정가' → '일정이', '회의으로' → '회의로'. 임시 서버 화면 확인, 페이지 오류 없음.
