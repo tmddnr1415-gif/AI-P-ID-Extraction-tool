@@ -1746,7 +1746,7 @@ function recLabel(key, f) {
  * ===================================================================== */
 let root = null;
 /* 서버 모드: http(s):// 로 접속하면 server.py 의 REST API 사용 (폴더 선택 불필요). file:// 로 열면 폴더 모드 */
-const APP_VERSION = '2026-11-08.18';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
+const APP_VERSION = '2026-11-08.19';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
 const SERVER_URL = 'http://localhost:8080';
 // 부서원 PC 사본(file://)이 접속을 시도할 서버 — 서버가 배포 파일을 만들 때 'PC 이름 주소, IP 주소' 순으로 자동 기록함
 const DEFAULT_SERVERS = ['http://ASEUNGWOOK-B01:8080', 'http://65.3.30.234:8080'];
@@ -4606,7 +4606,7 @@ const botSvg = (face = 'normal') => `<svg viewBox="0 0 36 30" shape-rendering="c
   <g class="bleg b"><rect x="13" y="20" width="3" height="6" fill="#d97757"/><rect x="25" y="20" width="3" height="6" fill="#d97757"/></g>
   <g class="bface" fill="#1d1d1d">${BOT_FACES[face] || BOT_FACES.normal}</g></svg>`;
 const BOT_SVG = botSvg('normal');
-const BOT_STOP = /^(어디|어디야|어디에|있어|있나|있나요|있어요|알려|알려줘|알려주세요|보여|보여줘|뭐야|뭐|무엇|어떻게|하는|하나요|해줘|좀|찾아|찾아줘|내|나|제|우리|의|은|는|이|가|을|를|에|에서|좀|요|해|돼|되나요|방법|메뉴|화면|가줘|이동|열어|열어줘)$/;
+const BOT_STOP = /^(누가|누구|몇|개|얼마나|무슨|어떤|있는지|있니|알아|궁금|하고|뭐해|해요|하는지|현황|어디|어디야|어디에|있어|있나|있나요|있어요|알려|알려줘|알려주세요|보여|보여줘|뭐야|뭐|무엇|어떻게|하는|하나요|해줘|좀|찾아|찾아줘|내|나|제|우리|의|은|는|이|가|을|를|에|에서|좀|요|해|돼|되나요|방법|메뉴|화면|가줘|이동|열어|열어줘)$/;
 const BOT_FAQ = [
   [/^(찾기|검색)$|찾기\s*(창|열어)|검색\s*창/, () => '빠른 찾기 창을 열어 드릴게요. 메뉴 · PJT · 업무 · 게시글을 한 번에 찾습니다 (Ctrl+K 또는 / 도 같아요).', [['🔍 찾기 열기', () => { botToggle(false); openFind(); }]]],
   [/voc\s*(등록|쓰기|작성|올리)|건의\s*(하|등록)|불편\s*(신고|등록)/i, () => '화면을 찍어 VOC 를 바로 등록할 수 있어요. 지금 화면에서 고칠 곳을 고르고 내용을 쓰면 됩니다 (단축키 F8).', [['📣 VOC 등록하기', () => { botToggle(false); shotToVoc(); }], ['VOC 목록 보기', () => { BS.kind = 'VOC'; go('board'); }]]],
@@ -4625,17 +4625,71 @@ const BOT_FAQ = [
   [/안녕|하이|hello|hi\b|반가/i, () => `안녕하세요${AUTH ? ', ' + esc(AUTH.name) + ' 님' : ''}! 대시보드 안의 PJT · 업무 · 전달사항 · VOC 를 찾아 바로 데려다 드려요. 예: "카타르", "내 할 일", "재무스타그램 어디", "마감 언제"`, []],
 ];
 const botWords = q => String(q).split(/[\s,.?!·~]+/).map(w => w.replace(/(이야|이에요|예요|인가요|은|는|이|가|을|를|에|에서|의|좀|요)$/, '')).filter(w => w.length >= 2 && !BOT_STOP.test(w));
+/* 2026-11-08 '모든 내용을 학습' — 물을 때마다 대시보드 전체를 색인(BOT_IDX): 모든 시트 행(모든 칸) · 게시판/VOC 글과 댓글(익명 작성자는 안 밝힘) ·
+ * 부서원(유닛 · 직책 · 담당 · 전화 · 담당 PJT/업무) · 프로젝트별 LE/RE · 생일 · 메뉴/기능 설명. 질문 단어마다 점수(제목 3 · 내용 1)로 찾고,
+ * 사람 이름 · PJT 이름이면 그 사람/PJT 요약을, '몇 개' 질문이면 숫자를 답함. 외부로 보내지 않음. */
+const MENU_HELP = {
+  home:'홈 — 인사 · 내 할 일 · 숫자 카드 · 주간회의 전달사항 · 그래프 · 월간 캘린더 · 계장 광장 · 최근 변경 이력', perform:'수행 PJT 표 — 업무 현황을 매주 작성(마감 수 11:59), [✓ 변경 없음]', bid:'입찰 PJT 표 — 입찰 진행 현황',
+  issue:'프로젝트 이슈사항', alloc:'R&R · 투입 분석 — 부서원별 · PJT별 투입률', task:'통합 업무 — To Do · 기술공유 · 그룹장 요청 · 일반업무', unit:'유닛분장 — 조직도(헬멧 · 포지션) · 프로젝트별 LE/RE · 3D 세계 지도',
+  notice:'주간회의 전달사항', pid:'P&ID 분석 (P&ID 서버)', logic:'LOGIC 분석', logicdraw:'LOGIC 작성', space:'ROOM SIZE 계산', books:'도서검토', ic3d:'3D 계측제어', bidpjt:'입찰 프로젝트', runpjt:'실행 프로젝트 › CO2 PJT › Datasheet(Ball · Globe · Butterfly Valve · PSV)',
+  finstagram:'재무스타그램 — DART 재무제표 · 주가 · 수주현황 (운영자가 ⚙ 에서 DART 키 .env 지정)', board:'익명게시판 — 블라블라 · 회식제안 · VOC', mgalloc:'Management · R&R 투입 분석(시간)', mghours:'Management · 근무시간(월 · 주 · 일)', mgwork:'Management · 근로시간 관리(52h)', mgbday:'Management · 부서원 생일'
+};
+const bTxt = v => flat(v).toLowerCase();
+function botIndex() {
+  const idx = [], push = (e) => { e.text = (e.title + ' ' + e.text).toLowerCase(); idx.push(e); };
+  for (const [k, l] of QF_MENUS()) push({ t:'메뉴', title:l, text:MENU_HELP[k] || '', sum:esc(MENU_HELP[k] || l), act:{ go:k } });
+  for (const sh of SHEETS) for (const r of getRecs(sh.key)) { const f = r.fields || {};
+    push({ t:sh.label, title:recLabel(sh.key, f), text:(sh.cols || []).map(c => flat(f[c.f])).join(' '), key:sh.key, r, act:{ jump:[sh.key, r.id, (sh.cols || [])[0]?.f] } }); }
+  for (const b of DB.board || []) push({ t:bKind(b) === 'VOC' ? 'VOC' : '게시판', title:b.title || '', text:`${b.body || ''} ${(b.comments || []).map(c => c.body).join(' ')} ${b.vmenu ? VOC_MENU[b.vmenu] || '' : ''}`, sum:esc(brief(b.body, 2, 90)), act:{ board:b.id, q:b.title } });
+  for (const pp of unitPeople(DB.recs.unit || [])) { const pr = profOf(pp.name);
+    push({ t:'부서원', title:pp.name, text:`${pp.title} ${pp.unit} ${pr?.duty || ''} ${pr?.phone || ''}`, person:pp, act:{ prof:pp.name } }); }
+  for (const pd of projData()) push({ t:'LE/RE', title:pd.c.name, text:pd.mem.map(m => `${m.role} ${m.name}`).join(' '), lr:pd, act:{ go:'unit' } });
+  for (const b of BD.list || []) push({ t:'생일', title:`${b.name} 생일`, text:`${b.md} ${b.lunar ? '음력' : ''}`, sum:`${esc(bdName(b))} — ${esc(b.md.replace('-', '월 '))}일${b.lunar ? ' (음력)' : ''}`, act:{ go:'mgbday' } });
+  return idx;
+}
+function botRun(a, q) { if (a.go) go(a.go); else if (a.jump) jumpTo(...a.jump, false); else if (a.prof) openProfile(a.prof); else if (a.board) { BS.q = a.q || ''; BS.kind = ''; go('board'); } }
+function botPerson(e) {
+  const n = e.title, pr = profOf(n), it = personItems(n), open = k => (it[k] || []).filter(x => !x.it || x.it.cls !== 'done'), lr = projData().flatMap(pd => pd.mem.filter(m => normName(m.name) === normName(n)).map(m => `${m.role} ${pd.c.name} ${m.pct}%`));
+  const pj = [...open('perform'), ...open('bid')].map(x => flat(x.r.fields['PJT명'])), tasks = ['To Do List', '기술공유', '그룹장 요청 사항', '일반업무'].map(k => [k, open(k)]).filter(x => x[1].length);
+  return { html:`<b>👤 ${esc(n)}</b> ${esc(e.person.title || '')} · ${esc(e.person.unit || '')}<br>${pr?.duty ? '담당: ' + esc(pr.duty) + '<br>' : ''}${pr?.phone ? '☎ ' + esc(pr.phone) + '<br>' : ''}`
+    + (pj.length ? `PJT ${pj.length}: ${pj.slice(0, 4).map(esc).join(', ')}${pj.length > 4 ? ' …' : ''}<br>` : '') + (lr.length ? `LE/RE: ${lr.slice(0, 3).map(esc).join(', ')}<br>` : '')
+    + (tasks.length ? '진행 업무: ' + tasks.map(([k, xs]) => `${esc(k)} ${xs.length}`).join(' · ') : '진행 중인 업무 없음'),
+    acts:[{ l:`${n} 부서원 화면 열기`, fn:() => openProfile(n) }, ...[...open('perform'), ...open('bid')].slice(0, 3).map(x => ({ l:`${x.k === 'bid' ? '입찰' : '수행'} · ${flat(x.r.fields['PJT명'])}`, fn:() => jumpTo(x.k, x.r.id, '업무 현황', false) }))] };
+}
+function botPjt(e) {
+  const f = e.r.fields, pd = projData().find(x => normName(x.c.name).includes(normName(flat(f['PJT명'])).slice(0, 6)) || normName(flat(f['PJT명'])).includes(normName(x.c.name).slice(0, 6))), c = ctryOf(f['국가'] || f['PJT명']);
+  return { html:`<b>${e.key === 'bid' ? '📈 입찰' : '🏗 수행'} · ${esc(flat(f['PJT명']))}</b><br>${esc(cell1(f['사업군']) || '')}${f['담당자'] ? ' · 담당 ' + esc(flat(f['담당자'])) : ''}${c ? ` · ${flagOf(c.iso)} ${esc(c.ko)} 현지 ${ltime(c.tz)}` : ''}<br>`
+    + (pd ? `LE/RE: ${pd.mem.map(m => `${m.role} ${esc(m.name)} ${m.pct}%`).join(', ')}<br>` : '') + `${isDone(e.r) ? '✔ 금주 작성됨' : '⏳ 금주 미작성'} (최종 수정 ${esc(e.r.meta?.updatedBy || '')} ${esc(fmtTime(e.r.meta?.updatedAt))})`
+    + (brief(f['업무 현황'], 2, 120) ? `<br><span class="muted">${esc(brief(f['업무 현황'], 2, 120))}</span>` : ''),
+    acts:[{ l:'표에서 이 PJT 업무 현황 보기', fn:() => jumpTo(e.key, e.r.id, '업무 현황', false) }, ...(pd ? [{ l:'유닛분장에서 LE/RE 보기', fn:() => { go('unit'); setTimeout(() => $('[data-ocmode=proj]')?.click(), 700); } }] : [])] };
+}
+function botCount(q) {
+  const live = k => getRecs(k).filter(isLive).length, m = [[/수행/, () => `진행 중인 수행 PJT 는 <b>${live('perform')}개</b>예요.`], [/입찰/, () => `진행 중인 입찰 PJT 는 <b>${live('bid')}개</b>예요.`],
+    [/사람|인원|부서원|명/, () => `유닛분장 기준 부서원은 <b>${unitPeople(DB.recs.unit || []).length}명</b>이에요.`], [/voc/i, () => `VOC 글은 <b>${(DB.board || []).filter(b => bKind(b) === 'VOC').length}건</b>이에요.`],
+    [/업무|할\s*일|to\s*do/i, () => `통합 업무 미종결(기한) <b>${workAll().filter(i => i.cls !== 'done' && i.cls !== 'perm').length}건</b>, 기한 지난 것 <b>${todoOverdue().length}건</b>이에요.`]].find(([re]) => re.test(q));
+  return m ? m[1]() : '';
+}
 function botAnswer(q) {
   const out = { html:'', acts:[] };
   const f = BOT_FAQ.find(([re]) => re.test(q));
   if (f) { out.html = f[1](); out.acts = f[2].map(([l, fn]) => ({ l, fn })); }
-  const seen = new Set(), hits = [];
-  for (const w of botWords(q)) for (const it of qfSearch(w)) { const k = JSON.stringify(it.act); if (seen.has(k)) continue; seen.add(k); hits.push(it); if (hits.length >= 6) break; }
-  if (hits.length) {
-    out.html += (out.html ? '<br><br>' : '') + `관련 내용을 <b>${hits.length}건</b> 찾았어요. 누르면 바로 이동합니다.`;
-    hits.forEach(it => out.acts.push({ l:(() => { const t = it.html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim(); return `${it.g} · ${(t.startsWith(it.g) ? t.slice(it.g.length) : t).trim().slice(0, 44)}`; })(), fn:() => { if (it.act.go) go(it.act.go); else if (it.act.jump) jumpTo(...it.act.jump, false); else if (it.act.board) { BS.q = botWords(q)[0] || ''; BS.kind = ''; go('board'); } } }));
+  if (!f && /몇|얼마나|개수|건수|총/.test(q)) { const c = botCount(q); if (c) out.html = c; }
+  const idx = botIndex(), ws = botWords(q).map(w => w.toLowerCase()); if (!ws.length) return out.html ? out : { html:'무엇이든 물어보세요 🙂 PJT · 사람 · 메뉴 · VOC 내용으로 찾아 드려요.', acts:[] };
+  const sc = idx.map(e => ({ e, s:ws.reduce((a, w) => a + (e.title.toLowerCase().includes(w) ? 3 : e.text.includes(w) ? 1 : 0), 0) })).filter(x => x.s > 0).sort((a, b) => b.s - a.s);
+  const pe = idx.find(e => e.person && ws.some(w => normName(w) === normName(e.title)));   // 사람 이름을 물으면 그 사람 요약이 먼저
+  if (pe) { const s1 = botPerson(pe), bd = (BD.list || []).find(b => normName(b.name) === normName(pe.title));
+    out.html = (bd ? `🎂 ${esc(bdName(bd))} 생일은 <b>${esc(bd.md.replace('-', '월 '))}일</b>${bd.lunar ? ' (음력)' : ''}이에요.<br><br>` : '') + s1.html; out.acts = s1.acts; }
+  const top = pe ? sc.find(x => x.e === pe) : sc[0];
+  if (!f && !pe && top && top.s >= 3 * Math.max(1, ws.length - 1)) {                     // 사람 · PJT 이름을 콕 집어 물으면 요약
+    const s2 = top.e.person ? botPerson(top.e) : (top.e.key === 'perform' || top.e.key === 'bid') ? botPjt(top.e) : null;
+    if (s2) { out.html += (out.html ? '<br><br>' : '') + s2.html; out.acts.push(...s2.acts); }
   }
-  if (!out.html) out.html = '음… 딱 맞는 걸 못 찾았어요 🤔 PJT 이름 · 사람 이름 · 메뉴 이름으로 물어봐 주세요. 예: "카타르 LNG", "박민수 To Do", "익명게시판"';
+  const rest = sc.filter(x => x !== top && !(pe && x.e.person)).slice(0, pe ? 4 : 6);
+  if (rest.length) {
+    out.html += (out.html ? '<br><br>' : '') + `관련 내용 <b>${sc.length}건</b> 중 ${rest.length}건 — 누르면 바로 이동해요.`;
+    rest.forEach(({ e }) => out.acts.push({ l:`${e.t} · ${trunc(e.title, 40)}${e.sum && e.t !== '부서원' ? '' : ''}`, fn:() => botRun(e.act) }));
+  }
+  if (!out.html) out.html = '음… 딱 맞는 걸 못 찾았어요 🤔 PJT 이름 · 사람 이름 · 메뉴 이름 · VOC 내용으로 물어봐 주세요. 예: "카타르 LNG 누가 해?", "박민수", "수행 PJT 몇 개", "판넬 VOC"';
   return out;
 }
 function botSay(who, html, acts = []) {
