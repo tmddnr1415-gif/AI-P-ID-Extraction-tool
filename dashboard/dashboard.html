@@ -1528,6 +1528,9 @@ button:focus:not(:focus-visible){outline:none}
 /* 2026-11-08 그래프 입체감 더: 도넛 그림자 · 안쪽 그림자 원 */
 .donut svg circle[stroke]{filter:drop-shadow(0 3px 4px rgba(40,40,110,.28))}
 .donut svg{filter:drop-shadow(0 6px 10px rgba(40,40,110,.12))}
+
+/* 2026-11-08 인사말 덧말 */
+.hello h3 .gx{font-size:14px;font-weight:600;color:#5b5f86;margin-left:10px;vertical-align:2px}
 </style>
 </head>
 <body>
@@ -1696,7 +1699,7 @@ function recLabel(key, f) {
  * ===================================================================== */
 let root = null;
 /* 서버 모드: http(s):// 로 접속하면 server.py 의 REST API 사용 (폴더 선택 불필요). file:// 로 열면 폴더 모드 */
-const APP_VERSION = '2026-11-08.14';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
+const APP_VERSION = '2026-11-08.15';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
 const SERVER_URL = 'http://localhost:8080';
 // 부서원 PC 사본(file://)이 접속을 시도할 서버 — 서버가 배포 파일을 만들 때 'PC 이름 주소, IP 주소' 순으로 자동 기록함
 const DEFAULT_SERVERS = ['http://ASEUNGWOOK-B01:8080', 'http://65.3.30.234:8080'];
@@ -4505,6 +4508,34 @@ const OC_TEAM = [{ side:'수비', lead:'MLB', leadT:'미들 라인배커 · 수�
 const OC_POSN = { DE:'디펜시브 엔드', DT:'디펜시브 태클', OLB:'아웃사이드 라인배커', CB:'코너백', FS:'프리 세이프티', SS:'스트롱 세이프티', RB:'러닝백', WR:'와이드 리시버', TE:'타이트 엔드', C:'센터', LG:'레프트 가드', RG:'라이트 가드', LT:'레프트 태클', RT:'라이트 태클', FB:'풀백' };
 const OC_HEADSET = `<svg class="oc-hs" viewBox="0 0 60 60" aria-hidden="true"><path d="M9 31A21 21 0 0 1 51 31" fill="none" stroke="#1f2333" stroke-width="4.2" stroke-linecap="round"/><rect x="3.5" y="25" width="10" height="16" rx="4" fill="#1f2333"/><rect x="46.5" y="25" width="10" height="16" rx="4" fill="#1f2333"/><rect x="5.5" y="27.5" width="6" height="11" rx="2.5" fill="#3b4157"/><rect x="48.5" y="27.5" width="6" height="11" rx="2.5" fill="#3b4157"/><path d="M8.5 40Q9 53 25 53.5" fill="none" stroke="#1f2333" stroke-width="2.6" stroke-linecap="round"/><rect x="24" y="50" width="9" height="6.5" rx="3.2" fill="#1f2333"/><circle cx="31" cy="53.2" r="1.3" fill="#ff4d4d"/></svg>`;
 const ocGear = (t, pos, posT, lead) => `<i class="oc-helmimg"></i>${lead ? `<span class="oc-ldball"><span class="oc-ldb">${TB_BALL}</span><i></i></span>` : ''}<em class="oc-pos ${lead ? 'lead' : ''}" style="--pc:${t.col}" title="${esc(t.side)} · ${esc(pos)} = ${esc(posT)}">${esc(pos)}</em>`;
+/* 2026-11-08 인사말: 계절 · 요일 · 시간대마다 여러 문장 중 하나 (하루 동안은 같은 문장 — 날짜 + 이름으로 고름, 다음 날 바뀜) */
+const GREET = {
+  season:{
+    spring:['🌸 봄바람처럼 가벼운 하루 되세요', '🌱 새싹처럼 쑥쑥 자라는 한 주예요', '🌷 꽃 피는 계절, 좋은 소식 가득하길'],
+    summer:['☀️ 더위 조심하시고 시원하게 보내세요', '🍉 수분 보충 잊지 마세요', '🌊 여름처럼 힘차게 가 볼까요'],
+    autumn:['🍂 선선한 가을, 집중하기 좋은 날이에요', '🍁 단풍처럼 알찬 결실 맺는 한 주 되세요', '🌾 수확의 계절, 그동안의 노력이 빛나길'],
+    winter:['❄️ 추운 날씨, 따뜻하게 챙겨 입으세요', '☕ 따뜻한 차 한 잔과 함께 시작해요', '⛄ 연말까지 힘내요, 거의 다 왔어요']
+  },
+  day:[
+    ['🌙 일요일에도 출근하셨네요, 무리하지 마세요', '☀️ 주말 근무 고생 많으세요'],
+    ['💪 한 주의 시작, 월요일 힘차게!', '🚀 월요일, 이번 주 계획부터 세워 볼까요'],
+    ['🔥 화요일, 속도 붙는 날이에요', '✍ 화요일, 업무 현황 미리 써 두면 수요일이 편해요'],
+    ['⏰ 오늘 11:59 주간 마감이에요, 업무 현황 꼭 확인하세요', '📋 수요일 마감 날, 빠진 PJT 없는지 확인해요'],
+    ['🌤 목요일, 한 주의 후반전이에요', '☕ 목요일, 잠깐 쉬어 가며 해요'],
+    ['🎉 금요일! 한 주 마무리 잘 하세요', '😊 불금, 오늘도 수고 많으셨어요'],
+    ['🌙 토요일 근무 고생 많으세요', '☀️ 주말에도 수고하세요']
+  ],
+  time:[[5, '좋은 아침이에요'], [11, '좋은 점심 시간이에요'], [14, '좋은 오후예요'], [18, '좋은 저녁이에요'], [22, '늦은 시간까지 고생 많으세요']]
+};
+function greetLine(name) {
+  const d = new Date(), m = d.getMonth() + 1, h = d.getHours(), dw = d.getDay();
+  const season = m >= 3 && m <= 5 ? 'spring' : m >= 6 && m <= 8 ? 'summer' : m >= 9 && m <= 11 ? 'autumn' : 'winter';
+  let seed = 0; for (const ch of ymd(d) + name) seed = (seed * 31 + ch.charCodeAt(0)) >>> 0;
+  const pick = a => a[seed % a.length];
+  const tw = ([...GREET.time].reverse().find(([k]) => h >= k) || GREET.time[GREET.time.length - 1])[1];
+  const extra = seed % 2 ? pick(GREET.day[dw]) : pick(GREET.season[season]);   // 날마다 요일 문장 또는 계절 문장
+  return `${tw}, <b>${name}</b> 님 <small class="gx">${esc(extra)}</small>`;
+}
 function renderHome(c) {
   const R = k => getRecs(k), live = k => R(k).filter(isLive), pj = [...live('perform'), ...live('bid')];   // 종결 PJT 는 집계하지 않음
   const closedN = [...R('perform'), ...R('bid')].length - pj.length;
@@ -4521,7 +4552,7 @@ function renderHome(c) {
   const hr = new Date().getHours(), pct = k => { const l = live(k); return l.length ? Math.round(l.filter(isDone).length / l.length * 100) : 0; };
   const mt = AUTH ? myTasks() : [], mo = mt.filter(t => !t.done), mpj = mo.filter(t => t.key === 'perform' || t.key === 'bid').length;   // 2026-11-08 '나에게 필요한 것 먼저' 한 줄 요약
   const myline = !AUTH ? '' : mo.length ? `<div class="myline">📋 <b>${esc(AUTH.name)}</b> 님 이번 주 할 일 <b>${mo.length}건</b>${mpj ? ` — 업무 현황 미작성 PJT <b>${mpj}</b>` : ''}${mo.length - mpj ? ` · 업무 알림 <b>${mo.length - mpj}</b>` : ''} <button class="btn sm" data-tbopen>목록 보기</button></div>` : mt.length ? '<div class="myline ok">✅ 이번 주 내 할 일을 모두 마쳤습니다</div>' : '';
-  c.insertAdjacentHTML('beforeend', `<div class="hello"><h3>${hr < 12 ? '좋은 아침이에요' : hr < 18 ? '좋은 오후예요' : '좋은 저녁이에요'}, <b>${esc(AUTH?.name || user || '')}</b> 님</h3><span>이번 주 마감 <b>${esc(weekLabel(curWeek()).slice(-5, -1).replace(/(\d\d)(\d\d)/, '$1/$2'))}(수) 11:59</b></span></div>${myline}`);
+  c.insertAdjacentHTML('beforeend', `<div class="hello"><h3>${greetLine(esc(AUTH?.name || user || ''))}</h3><span>이번 주 마감 <b>${esc(weekLabel(curWeek()).slice(-5, -1).replace(/(\d\d)(\d\d)/, '$1/$2'))}(수) 11:59</b></span></div>${myline}`);
   c.insertAdjacentHTML('beforeend', `<div class="badges">
     <button class="badge red ${notUpd ? '' : 'zero'}" data-pop="notupd" title="눌러서 목록 보기">이번 주 미업데이트 PJT <b>${notUpd}</b></button>
     <button class="badge red ${overdue.length ? '' : 'zero'}" data-pop="overdue" title="눌러서 목록 보기">기한 지난 업무 <b>${overdue.length}</b></button>${ddayChip()}</div>
