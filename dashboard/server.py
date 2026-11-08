@@ -36,7 +36,7 @@ ID_RE = re.compile(r'^[A-Za-z0-9_\-]{1,80}$')
 WEEK_RE = re.compile(r'^\d{4}-W\d{2}$')
 MAX_BODY = 30 * 1024 * 1024
 
-SERVER_VERSION = '2026-11-08.1'
+SERVER_VERSION = '2026-11-08.2'
 ROOT = os.path.dirname(os.path.abspath(__file__))
 PORT = 8080
 ALLOW_NETS = []          # 사내망: 루프백·사설망 + 서버 IP 대역(/16, 유선·Wi-Fi 등 지금까지 쓴 대역 모두 기억) + --allow 로 추가한 대역
@@ -1893,6 +1893,41 @@ def api_perms_put(b, by):
     return api_perms_get()
 
 
+# ---------------------------------------------------------------- 클로드 비서 번역 학습 (data/_meta/tr-learn.json) — 2026-11-08
+# 부서원이 비서에게 가르친 용어(terms: 영↔한 낱말)와 고친 번역(tm: 문장 통째)을 모아 두고, 모든 부서원의 번역에 함께 씀. 외부로 나가지 않음.
+TR_LEARN_MAX = {'terms': 2000, 'tm': 3000}
+
+
+def tr_learn_path():
+    return P('data', '_meta', 'tr-learn.json')
+
+
+def api_tr_learn_get():
+    d = read_json(tr_learn_path()) or {}
+    return {'terms': d.get('terms') or [], 'tm': d.get('tm') or [], 'updatedAt': d.get('updatedAt')}
+
+
+def api_tr_learn_put(b, by):
+    """b = {kind:'term'|'tm', dir:'enko'|'koen', src, dst} 추가(같은 src 는 덮어씀) · {kind, dir, src, remove:true} 삭제"""
+    kind = b.get('kind'); d = b.get('dir'); src = str(b.get('src') or '').strip(); dst = str(b.get('dst') or '').strip()
+    if kind not in ('term', 'tm') or d not in ('enko', 'koen') or not src or (not dst and not b.get('remove')):
+        raise ApiError(400, '잘못된 요청')
+    if len(src) > 2000 or len(dst) > 2000:
+        raise ApiError(400, '너무 깁니다')
+    key = 'terms' if kind == 'term' else 'tm'
+    with LOCK:
+        f = read_json(tr_learn_path()) or {}
+        lst = [x for x in (f.get(key) or []) if not (x.get('dir') == d and x.get('src', '').lower() == src.lower())]
+        if not b.get('remove'):
+            lst.append({'dir': d, 'src': src, 'dst': dst, 'by': by, 'at': stamp()})
+        f[key] = lst[-TR_LEARN_MAX[key]:]
+        f['updatedAt'] = stamp(); f['updatedBy'] = by
+        os.makedirs(os.path.dirname(tr_learn_path()), exist_ok=True)
+        write_json(tr_learn_path(), f)
+    log.info('번역 학습 %s %s by %s', kind, src[:40], by)
+    return api_tr_learn_get()
+
+
 # ---------------------------------------------------------------- 쪽지 (messages/{ID}/in|sent/{쪽지ID}.json)
 def api_msg_list(acc):
     def box(kind):
@@ -2405,6 +2440,11 @@ class Handler(BaseHTTPRequestHandler):
             if m == 'PUT':
                 acc = session_account(self.token(), False)
                 return api_finkey_put(self.json_body(), acc['name'] if acc else '운영자')
+        if head == 'tr' and seg[1:] == ['learn']:                 # 클로드 비서 번역 학습: 보기 = 누구나, 가르치기 = 로그인
+            if m == 'GET':
+                return api_tr_learn_get()
+            if m == 'PUT':
+                return api_tr_learn_put(self.json_body(), self.need_user()['name'])
         if head == 'msg':
             acc = self.need_user()
             if m == 'GET' and len(seg) == 1:

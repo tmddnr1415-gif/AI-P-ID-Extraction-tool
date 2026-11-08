@@ -1764,7 +1764,7 @@ function recLabel(key, f) {
  * ===================================================================== */
 let root = null;
 /* 서버 모드: http(s):// 로 접속하면 server.py 의 REST API 사용 (폴더 선택 불필요). file:// 로 열면 폴더 모드 */
-const APP_VERSION = '2026-11-08.30';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
+const APP_VERSION = '2026-11-08.33';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
 const SERVER_URL = 'http://localhost:8080';
 // 부서원 PC 사본(file://)이 접속을 시도할 서버 — 서버가 배포 파일을 만들 때 'PC 이름 주소, IP 주소' 순으로 자동 기록함
 const DEFAULT_SERVERS = ['http://ASEUNGWOOK-B01:8080', 'http://65.3.30.234:8080'];
@@ -4642,7 +4642,7 @@ const BOT_FAQ = [
   [/전달\s*사항|공지|회의/, () => { const m = sortRecs(SHEET.notice, getRecs('notice'))[0]; return m ? `최신 주간회의 전달사항은 <b>${esc(flat(m.fields['제목']))}</b> (${esc(flat(m.fields['일자']))}) 이에요.` : '등록된 전달사항이 없어요.'; }, [['전달사항 보기', () => go('notice')]]],
   [/출장|서버\s*옮|다른\s*pc|대신\s*켜/i, () => '서버를 다른 PC 로 옮길 때는: 서버를 끄고 운영 폴더 전체를 그 PC 로 복사 → 그 PC 에서 start_server.bat. 돌아오면 반대로 복사. <b>두 서버를 동시에 켜면 안 돼요</b> (자료가 갈라짐).', []],
   [/안녕|하이|hello|hi\b|반가/i, () => `안녕하세요${AUTH ? ', ' + esc(AUTH.name) + ' 님' : ''}! 대시보드 안의 PJT · 업무 · 전달사항 · VOC 를 찾아 바로 데려다 드려요. 예: "카타르", "내 할 일", "재무스타그램 어디", "마감 언제"`, []],
-  [/뭐\s*할\s*수|무엇을\s*할\s*수|할\s*수\s*있는\s*(게|것|기능)|도움말|사용법|고치|수정\s*(하는|방법|기능|할\s*수)|편집\s*방법|바꾸는\s*법/, () => '저에게 바로 고쳐 달라고 하셔도 돼요 ✍<br>· "카타르 LNG 업무 현황에 도면 승인 완료 추가"<br>· "카타르 LNG 업무 현황 11월 착공 예정으로 수정"<br>· "카타르 LNG 변경 없음"<br>· "To Do 추가 HAZOP 자료 정리" (박민수 To Do 추가 … = 그 사람)<br>· "HAZOP 후속 조치 종결"<br>· "카타르 LNG PJT 주요 일정 26.3 착공으로 수정" (어느 칸이든)<br>· "입찰 추가: PJT명=베트남 신규, 사업군=발전" · "기술공유 추가: OPC UA 소개"<br>· "카타르 NFE 상세 보여줘" · "예시수행-A 삭제"<br>· "VOC 에 글 쓰기: 제목 / 내용" · "회식 글에 댓글: 참석합니다"<br>고치기 전에 바뀌는 내용을 보여 드리고, [✔ 적용] 을 누르면 저장하고 결과 화면으로 이동해요.<br><br><b>분석 메뉴 · 파일</b><br>· "Valve Datasheet 분석 결과 엑셀로 출력해줘" · "Ball Valve 결과 요약해줘"<br>· "Panel 결과 CAD로 출력해줘" (.dxf)<br>· Equipment List 를 비서 창에 끌어다 놓고 → "이걸 새로운 \"CO2 PJT\" 프로젝트 \"MCC\" 룸 \"A\" revision 으로 생성해"<br>· "수행 PJT 요약" · "입찰 엑셀로 출력"<br><br><b>계측제어 질문</b>: "PDIC-101", "오리피스 직관 길이", "SIL2 PFD", "방폭 IIC"<br><br><b>⚡ 바이브</b>(운영자가 권한을 준 사람): 확인 단추 없이 바로 실행, 여러 일을 줄바꿈이나 "그리고" 로 이어 적으면 차례로 하고 진행 현황을 보여 줘요. 위 ↗ 는 새창, ⛶ 는 최대화.<br><br><b>번역</b>: "번역: The valve shall fail closed …" · "영어로: 도면 승인 완료" · 그림(캡처)을 끌어다 놓거나 붙여 넣으면 영어 글자를 읽어 번역 — 모두 브라우저 안에서(외부 전송 없음)<br><br><b>첨삭</b>: "첨삭: 금일 회의 결과 보고 드립니다 …" · "첨삭: Please find attached the datasheet …" — 한국어 · 영어 모두, 고친 곳과 이유를 보여 줘요', []],
+  [/뭐\s*할\s*수|무엇을\s*할\s*수|할\s*수\s*있는\s*(게|것|기능)|도움말|사용법|고치|수정\s*(하는|방법|기능|할\s*수)|편집\s*방법|바꾸는\s*법/, () => '저에게 바로 고쳐 달라고 하셔도 돼요 ✍<br>· "카타르 LNG 업무 현황에 도면 승인 완료 추가"<br>· "카타르 LNG 업무 현황 11월 착공 예정으로 수정"<br>· "카타르 LNG 변경 없음"<br>· "To Do 추가 HAZOP 자료 정리" (박민수 To Do 추가 … = 그 사람)<br>· "HAZOP 후속 조치 종결"<br>· "카타르 LNG PJT 주요 일정 26.3 착공으로 수정" (어느 칸이든)<br>· "입찰 추가: PJT명=베트남 신규, 사업군=발전" · "기술공유 추가: OPC UA 소개"<br>· "카타르 NFE 상세 보여줘" · "예시수행-A 삭제"<br>· "VOC 에 글 쓰기: 제목 / 내용" · "회식 글에 댓글: 참석합니다"<br>고치기 전에 바뀌는 내용을 보여 드리고, [✔ 적용] 을 누르면 저장하고 결과 화면으로 이동해요.<br><br><b>분석 메뉴 · 파일</b><br>· "Valve Datasheet 분석 결과 엑셀로 출력해줘" · "Ball Valve 결과 요약해줘"<br>· "Panel 결과 CAD로 출력해줘" (.dxf)<br>· Equipment List 를 비서 창에 끌어다 놓고 → "이걸 새로운 \"CO2 PJT\" 프로젝트 \"MCC\" 룸 \"A\" revision 으로 생성해"<br>· "수행 PJT 요약" · "입찰 엑셀로 출력"<br><br><b>계측제어 질문</b>: "PDIC-101", "오리피스 직관 길이", "SIL2 PFD", "방폭 IIC"<br><br><b>⚡ 바이브</b>(운영자가 권한을 준 사람): 확인 단추 없이 바로 실행, 여러 일을 줄바꿈이나 "그리고" 로 이어 적으면 차례로 하고 진행 현황을 보여 줘요. 위 ↗ 는 새창, ⛶ 는 최대화.<br><br><b>번역</b>: "번역: The valve shall fail closed …" · "영어로: 도면 승인 완료" · 그림(캡처)을 끌어다 놓거나 붙여 넣으면 영어 글자를 읽어 번역 — 모두 브라우저 안에서(외부 전송 없음). 틀린 번역은 가르칠 수 있어요: "용어 등록: positioner = 포지셔너" · 번역 직후 "번역 고쳐: 올바른 번역" · "학습 목록"<br><br><b>첨삭</b>: "첨삭: 금일 회의 결과 보고 드립니다 …" · "첨삭: Please find attached the datasheet …" — 한국어 · 영어 모두, 고친 곳과 이유를 보여 줘요', []],
 ];
 const botWords = q => String(q).split(/[\s,.?!·~]+/).map(w => w.replace(/(이야|이에요|예요|인가요|은|는|이|가|을|를|에|에서|의|좀|요)$/, '')).filter(w => w.length >= 2 && !BOT_STOP.test(w));
 /* 2026-11-08 '모든 내용을 학습' — 물을 때마다 대시보드 전체를 색인(BOT_IDX): 모든 시트 행(모든 칸) · 게시판/VOC 글과 댓글(익명 작성자는 안 밝힘) ·
@@ -5208,19 +5208,59 @@ function trCall(type, dir, text, prog) { return new Promise((res, rej) => { cons
  *  한→영: 원문 속 한국어 계장 용어를 영어 용어로 바꿔 넣고 번역(모델이 그대로 옮김)
  *  영→한: 영어 용어를 자리표(ZX1Q …)로 바꿔 번역 → 번역 뒤 한국어 용어로 되돌리고 뒤 조사를 받침에 맞춤 (한글을 영어 원문에 섞으면 모델이 깨진 글자를 냄) */
 const TR_PRE = {
-  enko:[[/\bjunction box(es)?\b/gi, '정션 박스'], [/\bmarshalling cabinet(s)?\b/gi, '마샬링 캐비닛'], [/\bcable gland(s)?\b/gi, '케이블 글랜드'], [/\bthermowell(s)?\b/gi, '써모웰'], [/\bpositioner(s)?\b/gi, '포지셔너'],
-    [/\bpartial stroke test(ing)?\b/gi, '부분 행정 시험(PST)'], [/\bsafety instrumented function(s)?\b/gi, '안전계장기능(SIF)'], [/\bsafety instrumented system(s)?\b/gi, '안전계장시스템(SIS)'], [/\bcause and effect (diagram|chart|matrix)\b/gi, 'C&E 도'],
-    [/\bon-?off valve(s)?\b/gi, '차단 밸브'], [/\bloop diagram(s)?\b/gi, '루프도'], [/\binstrument index\b/gi, '인스트루먼트 인덱스'], [/\bhook-?up drawing(s)?\b/gi, '훅업 도면'],
-    [/\bhazardous area(s)?\b/gi, '위험 지역'], [/\bfield transmitter(s)?\b/gi, '현장 전송기'], [/\bfield instrument(s)?\b/gi, '현장 계기'], [/\bsite visit\b/gi, '현장 방문'], [/\banaly[sz]er shelter\b/gi, '분석기 셸터'], [/\bvendor workshop\b/gi, '벤더 공장'], [/\bLOPA study\b/gi, 'LOPA 검토'],
-    [/\bbeta ratio\b/gi, '베타비'], [/\bfinalize the design\b/gi, '설계를 확정'], [/\bthe design\b/gi, '설계'], [/\bactuator(s)?\b/gi, '액추에이터'], [/\bsolenoid valve(s)?\b/gi, '솔레노이드 밸브'], [/\blimit switch(es)?\b/gi, '리밋 스위치']],
-  koen:[[/계장\s*공기/g, 'instrument air'], [/루프도/g, 'loop diagram'], [/안전계장시스템|안전\s*계장\s*시스템/g, 'safety instrumented system'], [/조절\s*밸브/g, 'control valve'], [/정션\s*박스/g, 'junction box'], [/포지셔너/g, 'positioner'],
-    [/계기\s*데이터시트/g, 'instrument datasheet'], [/I\/O\s*리스트/g, 'I/O list'], [/첨부한\s/g, 'attached '], [/후속\s*조치/g, 'action items'], [/판넬/g, 'panel'], [/통로\s*폭/g, 'aisle width'], [/고객사/g, 'client'], [/방폭\s*지역/g, 'hazardous areas'], [/케이블\s*물량/g, 'cable quantity']],
+  enko:[   // 영→한 자리표(번역 뒤 한국어로 되돌림). 모델이 잘 옮기는 흔한 말(valve · pressure · system)은 넣지 않음
+    // 계기 · 장치
+    [/\blevel transmitter(s)?\b/gi, '레벨 전송기'], [/\btemperature transmitter(s)?\b/gi, '온도 전송기'], [/\bflow transmitter(s)?\b/gi, '유량 전송기'], [/\bpressure gauge(s)?\b/gi, '압력계'], [/\btemperature gauge(s)?\b/gi, '온도계'], [/\blevel gauge(s)?\b/gi, '레벨 게이지'],
+    [/\bguided wave radar\b/gi, '가이드 웨이브 레이더'], [/\bradar level\b/gi, '레이더 레벨'], [/\bcoriolis\b/gi, '코리올리'], [/\bvortex\b/gi, '와류'], [/\bmagnetic flow\s?meter(s)?\b/gi, '전자 유량계'], [/\bultrasonic flow\s?meter(s)?\b/gi, '초음파 유량계'], [/\bflow element(s)?\b/gi, '유량 요소(FE)'], [/\borifice plate(s)?\b/gi, '오리피스 플레이트'],
+    [/\bthermocouple(s)?\b/gi, '열전대'], [/\bthermowell(s)?\b/gi, '써모웰'], [/\bRTD(s)?\b/g, 'RTD'], [/\bpositioner(s)?\b/gi, '포지셔너'], [/\bactuator(s)?\b/gi, '액추에이터'], [/\bsolenoid valve(s)?\b/gi, '솔레노이드 밸브'], [/\blimit switch(es)?\b/gi, '리밋 스위치'], [/\bair filter regulator(s)?\b/gi, '에어 필터 레귤레이터'],
+    [/\bon-?off valve(s)?\b/gi, '차단 밸브'], [/\bshutdown valve(s)?\b/gi, '차단 밸브(SDV)'], [/\bemergency shutdown valve(s)?\b/gi, '비상 차단 밸브(ESDV)'], [/\bblowdown valve(s)?\b/gi, '블로다운 밸브(BDV)'], [/\bpressure safety valve(s)?\b/gi, 'PSV'], [/\bpressure relief valve(s)?\b/gi, '압력 릴리프 밸브'], [/\brupture dis[ck](s)?\b/gi, '파열판'],
+    [/\bpartial stroke test(ing)?\b/gi, '부분 행정 시험(PST)'],
+    [/\bjunction box(es)?\b/gi, '정션 박스'], [/\bmarshalling cabinet(s)?\b/gi, '마샬링 캐비닛'], [/\bmarshalling\b/gi, '마샬링'], [/\bsystem cabinet(s)?\b/gi, '시스템 캐비닛'], [/\bcontrol room\b/gi, '제어실'], [/\bfield auxiliary room\b/gi, '현장 보조실(FAR)'], [/\brack room\b/gi, '랙룸'], [/\banaly[sz]er shelter(s)?\b/gi, '분석기 셸터'], [/\banaly[sz]er house(s)?\b/gi, '분석기 하우스'],
+    [/\bcable tray(s)?\b/gi, '케이블 트레이'], [/\bcable gland(s)?\b/gi, '케이블 글랜드'], [/\bcable schedule\b/gi, '케이블 스케줄'], [/\bpower cable(s)?\b/gi, '전력 케이블'], [/\binstrument cable(s)?\b/gi, '계장 케이블'], [/\bsignal cable(s)?\b/gi, '신호 케이블'], [/\bmulti-?core cable(s)?\b/gi, '다심 케이블'], [/\bmulti-?pair cable(s)?\b/gi, '다쌍 케이블'], [/\bconduit(s)?\b/gi, '전선관'],
+    [/\bair supply\b/gi, '공기 공급'], [/\bhazardous area(s)?\b/gi, '위험 지역'], [/\bintrinsically safe\b/gi, '본질안전'], [/\bexplosion[- ]proof\b/gi, '내압 방폭'], [/\bflame[- ]?proof\b/gi, '내압 방폭(Ex d)'], [/\bincreased safety\b/gi, '안전증 방폭(Ex e)'],
+    [/\bsafety instrumented function(s)?\b/gi, '안전계장기능(SIF)'], [/\bsafety instrumented system(s)?\b/gi, '안전계장시스템(SIS)'], [/\bsafety integrity level\b/gi, '안전무결성등급(SIL)'], [/\bcause and effect (diagram|chart|matrix)(s)?\b/gi, 'C&E 도'], [/\bLOPA study\b/gi, 'LOPA 검토'], [/\bHAZOP study\b/gi, 'HAZOP 검토'], [/\bproof test(ing)?\b/gi, '검증 시험(Proof Test)'],
+    [/\bfire and gas\b/gi, '화재 · 가스(F&G)'], [/\bgas detector(s)?\b/gi, '가스 감지기'], [/\bflame detector(s)?\b/gi, '불꽃 감지기'], [/\bsmoke detector(s)?\b/gi, '연기 감지기'],
+    // 문서 · 업무
+    [/\bloop diagram(s)?\b/gi, '루프도'], [/\binstrument index\b/gi, '인스트루먼트 인덱스'], [/\binstrument list\b/gi, '계기 리스트'], [/\bI\s*\/\s*O list(s)?\b/gi, 'I/O 리스트'], [/\bI\s*\/\s*O\b/g, 'I/O'], [/\bhook-?up drawing(s)?\b/gi, '훅업 도면'], [/\bhook-?up(s)?\b/gi, '훅업'], [/\binstrument data ?sheet(s)?\b/gi, '계기 데이터시트'], [/\bdata ?sheet(s)?\b/gi, '데이터시트'],
+    [/\bcable block diagram(s)?\b/gi, '케이블 블록도'], [/\blocation plan(s)?\b/gi, '배치도'], [/\blayout drawing(s)?\b/gi, '배치 도면'], [/\bpanel layout\b/gi, '판넬 배치'], [/\bwiring diagram(s)?\b/gi, '결선도'], [/\btermination diagram(s)?\b/gi, '단말 결선도'], [/\bsingle line diagram(s)?\b/gi, '단선도'],
+    [/\bissued for construction\b/gi, '공사용(IFC) 발행'], [/\bissued for approval\b/gi, '승인용(IFA) 발행'], [/\bissued for review\b/gi, '검토용(IFR) 발행'], [/\bfor construction\b/gi, '공사용'],
+    [/\bsite survey\b/gi, '현장 조사'], [/\bsite visit\b/gi, '현장 방문'], [/\bvendor workshop\b/gi, '벤더 공장'], [/\bvendor(s)?\b/gi, '벤더'], [/\bsub-?contractor(s)?\b/gi, '협력사'], [/\bclient\b/gi, '고객사'], [/\blicensor\b/gi, '라이선서'],
+    [/\bfactory acceptance test\b/gi, 'FAT'], [/\bsite acceptance test\b/gi, 'SAT'], [/\bloop check(ing)?\b/gi, '루프 체크'], [/\bcommissioning\b/gi, '시운전'], [/\bpre-?commissioning\b/gi, '예비 시운전'], [/\bhandover\b/gi, '인계'], [/\bmechanical completion\b/gi, '기계적 준공(MC)'],
+    [/\bcalibration\b/gi, '교정'], [/\bnational standards?\b/gi, '국가 표준'], [/\bdial size\b/gi, '다이얼 크기'], [/\bsafety pattern\b/gi, '안전형'], [/\bbeta ratio\b/gi, '베타비'], [/\bmeeting minutes\b|\bminutes of (the )?meeting\b/gi, '회의록'],
+  ],
+  koen:[
+    [/계장\s*공기/g, 'instrument air'], [/루프도/g, 'loop diagram'], [/루프\s*체크/g, 'loop check'], [/안전계장시스템|안전\s*계장\s*시스템/g, 'safety instrumented system'], [/안전계장기능/g, 'safety instrumented function'], [/조절\s*밸브/g, 'control valve'], [/차단\s*밸브/g, 'shutdown valve'], [/비상\s*정지\s*밸브|비상\s*차단\s*밸브/g, 'emergency shutdown valve'],
+    [/정션\s*박스/g, 'junction box'], [/마샬링\s*캐비닛/g, 'marshalling cabinet'], [/포지셔너/g, 'positioner'], [/액추에이터/g, 'actuator'], [/솔레노이드\s*밸브/g, 'solenoid valve'], [/써모웰|서모웰/g, 'thermowell'], [/열전대/g, 'thermocouple'], [/압력계/g, 'pressure gauge'],
+    [/레벨\s*전송기/g, 'level transmitter'], [/온도\s*전송기/g, 'temperature transmitter'], [/압력\s*전송기/g, 'pressure transmitter'], [/유량\s*전송기/g, 'flow transmitter'], [/전송기/g, 'transmitter'], [/유량계/g, 'flow meter'],
+    [/계기\s*데이터시트/g, 'instrument datasheet'], [/데이터\s*시트/g, 'datasheet'], [/계기\s*사양서/g, 'instrument specification'], [/사양서/g, 'specification'], [/I\/O\s*리스트/g, 'I/O list'], [/인스트루먼트\s*인덱스|계기\s*인덱스/g, 'instrument index'], [/훅업\s*도면/g, 'hook-up drawing'], [/배치\s*도면|배치안/g, 'layout drawing'], [/배치도/g, 'layout'], [/결선도/g, 'wiring diagram'],
+    [/제어실/g, 'control room'], [/판넬|패널/g, 'panel'], [/통로\s*폭/g, 'aisle width'], [/케이블\s*트레이/g, 'cable tray'], [/케이블\s*물량/g, 'cable quantity'], [/접지\s*단자/g, 'earthing terminal'], [/접지/g, 'earthing'],
+    [/고객사/g, 'client'], [/발주처/g, 'owner'], [/협력사/g, 'subcontractor'], [/시공사/g, 'contractor'], [/현장\s*출장/g, 'site trip'], [/현장\s*조사/g, 'site survey'],
+    [/후속\s*조치/g, 'action items'], [/방폭\s*지역|위험\s*지역/g, 'hazardous areas'], [/첨부한\s|첨부된\s/g, 'attached '], [/회의록/g, 'meeting minutes'], [/시운전/g, 'commissioning'], [/인계/g, 'handover'], [/교정/g, 'calibration'], [/검토\s*의견/g, 'review comments'],
+    [/(\d+(?:\.\d+)*)\s*절/g, 'Section $1'], [/이중\s/g, 'dual '], [/다음\s*주/g, 'next week'], [/다음\s*달/g, 'next month'], [/이번\s*주/g, 'this week'], [/이번\s*달/g, 'this month'],
+  ],
 };
+/* 번역 뒤 다듬기 — 사양서(원문에 shall) 는 '~해야 한다' 문어체, 그 밖은 자주 틀리는 표현만 */
+function trPost(out, dir, src) {
+  if (dir === 'enko') {
+    const spec = /\bshall\b/i.test(src);
+    out = out.replace(/\s*\(\s*/g, '(').replace(/\s*\)\s*/g, ') ').replace(/\)\s+([.,])/g, ')$1').replace(/I\s*\/\s*O/g, 'I/O').replace(/(\d)\s*주\b/g, '$1주').replace(/(\d)\s+(mm|m|kg|bar|barg|mA|V|kW|%)/g, '$1 $2').replace(/할 수있는/g, '할 수 있는').replace(/첨부\s*된/g, '첨부된').replace(/업데이트\s*된/g, '업데이트된')
+      .replace(/귀하의/g, '귀사의').replace(/답변/g, '회신').replace(/빡빡하기 때문에/g, '빠듯하므로').replace(/다음 월요일/g, '다음 주 월요일').replace(/유형(입니다|이어야|이 될)/g, '형$1').replace(/크기를 조정/g, '사이징').replace(/보정/g, '교정').replace(/사이트/g, '현장').replace(/건설/g, '공사').replace(/쟁반/g, '트레이').replace(/고압선/g, '전력 케이블')
+      .replace(/\b(\d)\s*-\s*(\d+)\s*mA/g, '$1~$2 mA').replace(/(\d)\s*mAART/g, '$1 mA HART').replace(/에 의해 결정된 바와 같이/g, '에 따라 정한').replace(/에 의해 결정된/g, '에 따라 정한').replace(/를 위해 (\d+주) 연장/g, ' 기한을 $1 연장').replace(/찾으십시오/g, '확인하십시오').replace(/여유 I\/O/g, '예비 I/O').replace(/인계 ?당시/g, '인계 시점에').replace(/(\d+) ?mm의 다이얼 크기/g, '다이얼 $1 mm').replace(/도면된 것에 대한/g, '도면에 대한').replace(/피드백에 감사드립니다/g, '의견을 주시면 감사하겠습니다').replace(/악기/g, '계기').replace(/디자인을/g, '설계를').replace(/디자인이 /g, '설계가 ').replace(/디자인/g, '설계').replace(/\) (은|는|이|가|을|를|과|와|의|에|로|으로)(?=[\s.,]|$)/g, ')$1').replace(/도면 된 것에 대한/g, '도면에 대한').replace(/발행 될/g, '발행될').replace(/크기가 조정됩니다/g, '사이징해야 한다').replace(/추적 ?할 ?수 ?있는/g, '소급 가능한').replace(/재조정되었습니다/g, '다시 잡혔습니다').replace(/두 가지 엔지니어/g, '엔지니어 두 명').replace(/기한을 충족하기/g, '기한을 맞추기').replace(/라우팅됩니다/g, '포설해야 한다').replace(/의 다이얼 크기이어야/g, ' 다이얼이어야');
+    if (spec) out = out
+      .replace(/(이|가) 될 것입니다/g, '이어야 한다').replace(/일 것입니다/g, '이어야 한다').replace(/인증을 받을 것입니다/g, '인증품이어야 한다').replace(/을 가질 것입니다|를 가질 것입니다/g, '이어야 한다').replace(/의 (범위|용량)를 가져야 합니다/g, '의 $1여야 한다').replace(/를 가져야 합니다|을 가져야 합니다/g, '이어야 한다')
+      .replace(/되어야 합니다/g, '해야 한다').replace(/이어야 합니다/g, '이어야 한다').replace(/해야 합니다/g, '해야 한다').replace(/충족한다/g, '만족해야 한다').replace(/충족해야 한다/g, '만족해야 한다').replace(/위치해야 한다/g, '설치해야 한다').replace(/(형|타입|유형)입니다\./g, '$1이어야 한다.').replace(/합니다\./g, '한다.').replace(/입니다\./g, '이다.');
+    return out.replace(/\s{2,}/g, ' ').replace(/\s+([.,])/g, '$1').trim();
+  }
+  // koen
+  const tech = /\b(valve|transmitter|instrument|system|cable|panel|junction|gauge|detector|cabinet|DCS|PLC|SIS|ESD)\b/i.test(out);
+  if (tech && /야\s*(합니다|한다)|되어야/.test(src)) out = out.replace(/\bmust\b/g, 'shall').replace(/\bshould be\b/g, 'shall be');
+  return out.replace(/\buntil (tomorrow|today|Friday|Monday|Tuesday|Wednesday|Thursday|next week|the end of)/g, 'by $1').replace(/\bemergency stop valve/gi, 'emergency shutdown valve').replace(/\bfield trip\b/g, 'site trip').replace(/\bopinion(s)?\b/g, 'comment$1').replace(/\bdata sheet(s)?\b/gi, 'datasheet$1').replace(/\bthe (\d+(?:\.\d+)?) (rating|grade)\b/g, '$1').replace(/\bmeasurement range\b/g, 'measuring range').replace(/\ba (earthing|instrument|I\/O|ESD|RTD)\b/g, 'an $1').replace(/\bwill approve it\b/g, 'approval is expected').replace(/\bthe beginning of the next month\b/g, 'early next month').replace(/\bmust be closed within\b/g, 'shall close within').replace(/\bconstruction start\b/g, 'start of construction').trim();
+}
 const trPre = (t, dir) => (TR_PRE[dir] || []).reduce((a, [re, rep]) => a.replace(re, rep), t);
-function trPh(t) { const map = []; let k = 0; for (const [re, rep] of TR_PRE.enko) t = t.replace(re, (m, ...g) => { const tok = 'ZX' + (++k) + 'Q'; map.push([tok, rep]); return tok; }); return { t, map }; }
+function trPh(t) { const map = []; let k = 0; for (const [re, rep] of TR_PRE.enko) t = t.replace(re, (m, ...g) => { const tok = 'ZX' + (++k) + 'Q'; map.push([tok, typeof rep === 'function' ? rep(m, ...g) : rep.replace(/\$(\d)/g, (_, i) => g[i - 1] || '')]); return tok; }); return { t, map }; }
 const TR_JP = { 은:['은', '는'], 는:['은', '는'], 이:['이', '가'], 가:['이', '가'], 을:['을', '를'], 를:['을', '를'], 과:['과', '와'], 와:['과', '와'] };
-const trUnPh = (out, map) => map.reduce((a, [tok, ko]) => a.replace(new RegExp(tok + '(?:s)?\\s?(으로|로|은|는|이|가|을|를|과|와)?', 'gi'), (m, j) => { const last = ko.replace(/\([^)]*\)$/, '').slice(-1), b = hasBatchim(last);
-  if (!j) return ko; if (j === '으로' || j === '로') return ko + (!b || endsRieul(last) ? '로' : '으로'); return ko + TR_JP[j][b ? 0 : 1]; }), out).replace(/(\d)\s+월/g, '$1월').replace(/\)([가-힣]{2})/g, ') $1');
+const trUnPh = (out, map) => map.reduce((a, [tok, ko]) => a.replace(new RegExp('([가-힣A-Za-z0-9%)])?' + tok + '(?:s)?(?:\\s?(으로|로|은|는|이|가|을|를|과|와))?(?=([가-힣A-Za-z(]))?', 'gi'), (m, pre, j, nxt) => { const last = ko.replace(/\([^)]*\)$/, '').slice(-1), b = hasBatchim(last), lead = pre ? pre + ' ' : '', tail = nxt ? ' ' : '';
+  if (!j) return lead + ko + tail; if (j === '으로' || j === '로') return lead + ko + (!b || endsRieul(last) ? '로' : '으로') + tail; return lead + ko + TR_JP[j][b ? 0 : 1] + tail; }), out).replace(/(\d)\s+월/g, '$1월').replace(/\)([가-힣]{2})/g, ') $1').replace(/\s+(으로|로|은|는|이|가|을|를|과|와|의|에|도)(?=[\s.,]|$)/g, '$1');
 const TR_GLOSS = {   // 번역 결과 용어 바로잡기 [찾기, 바꾸기]
   enko:[[/제어\s*밸브/g, '조절 밸브'], [/통제\s*밸브/g, '조절 밸브'], [/송신기/g, '전송기'], [/트랜스미터/g, '전송기'], [/공급\s*업체/g, '벤더(공급사)'], [/공급자/g, '벤더(공급사)'], [/원인과\s*결과\s*(다이어그램|도표|도)/g, 'Cause & Effect 도(C&E)'], [/계기\s*공기/g, '계장 공기(Instrument Air)'],
     [/기기\s*데이터\s*시트/g, '계기 데이터시트'], [/데이터\s*시트/g, '데이터시트'], [/필드\s*(계기|기기)/g, '현장 계기'], [/배전반/g, '판넬'], [/제어실/g, '제어실(Control Room)'], [/안전\s*계장\s*시스템/g, 'SIS(안전계장시스템)'], [/분산\s*제어\s*시스템/g, 'DCS'], [/비상\s*정지/g, '비상 정지(ESD)'],
@@ -5231,16 +5271,36 @@ const TR_GLOSS = {   // 번역 결과 용어 바로잡기 [찾기, 바꾸기]
 };
 const trGloss = (t, dir) => (TR_GLOSS[dir] || []).reduce((a, [re, rep]) => a.replace(re, rep), t);
 const trDir = t => isKo(t) ? 'koen' : 'enko';
+/* 학습: 부서원이 가르친 용어 · 고친 번역(서버 data/_meta/tr-learn.json, 모두 함께 씀) — "용어 등록: positioner = 포지셔너" · 번역 직후 "번역 고쳐: <올바른 번역>" */
+const TRL = { data:null, at:0, last:null };
+async function trLearnLoad(force) { if (!SERVER) return TRL.data || { terms:[], tm:[] }; if (!force && TRL.data && Date.now() - TRL.at < 60000) return TRL.data; try { TRL.data = await api('GET', 'tr/learn'); TRL.at = Date.now(); } catch (_) { TRL.data = TRL.data || { terms:[], tm:[] }; } return TRL.data; }
+const reEsc = x => x.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+const trLearnTerms = (dir, L) => (L.terms || []).filter(x => x.dir === dir).map(x => [new RegExp(dir === 'enko' ? '\\b' + reEsc(x.src) + '(?:s|es)?\\b' : reEsc(x.src), dir === 'enko' ? 'gi' : 'g'), x.dst]);
+const trTM = (text, dir, L) => { const k = text.replace(/\s+/g, ' ').trim().toLowerCase(); return (L.tm || []).find(x => x.dir === dir && x.src.replace(/\s+/g, ' ').trim().toLowerCase() === k)?.dst || ''; };
+async function trLearnPut(body) { if (!SERVER) throw new Error('서버에 접속했을 때만 학습할 수 있어요'); TRL.data = await api('PUT', 'tr/learn', body); TRL.at = Date.now(); return TRL.data; }
+function botTrLearnCmd(q) {
+  let m;
+  if ((m = /^(?:용어\s*(?:등록|학습|추가)|번역\s*용어|glossary)\s*[:：]?\s*(.+?)\s*(?:=|→|->|=>|은|는)\s*(.+)$/i.exec(q))) { const a = m[1].trim(), b = m[2].trim(), dir = isKo(a) ? 'koen' : 'enko';
+    return { html:`용어를 배울게요: <b>${esc(a)}</b> → <b>${esc(b)}</b> (${dir === 'enko' ? '영→한' : '한→영'}). 앞으로 모든 부서원의 번역에서 이렇게 옮겨요.`, acts:[{ l:'✔ 등록', fn:async () => { try { await trLearnPut({ kind:'term', dir, src:a, dst:b }); botSay('bot', `✅ 배웠어요: ${esc(a)} → ${esc(b)}`); } catch (e) { botSay('bot', '❌ ' + esc(e.message)); } } }, { l:'취소', fn:() => botSay('bot', '취소했어요.') }], keep:true }; }
+  if ((m = /^(?:번역\s*(?:고쳐|수정|정정|교정)|올바른\s*번역|correct(?:ion)?)\s*[:：]?\s*(.+)$/is.exec(q))) { const fix = m[1].trim(); if (!TRL.last) return { html:'먼저 번역을 한 번 하고 나서 "번역 고쳐: <올바른 번역>" 이라고 해 주세요.', acts:[] };
+    const { text, dir } = TRL.last; return { html:`이 문장을 앞으로 이렇게 번역할게요(모든 부서원 공통):<div class="bdiff"><div><small>원문</small>${esc(text)}</div><div><small>고친 번역</small>${esc(fix)}</div></div>`, acts:[{ l:'✔ 학습', fn:async () => { try { await trLearnPut({ kind:'tm', dir, src:text, dst:fix }); botSay('bot', '✅ 배웠어요. 같은 문장은 다음부터 이 번역을 써요.'); } catch (e) { botSay('bot', '❌ ' + esc(e.message)); } } }, { l:'취소', fn:() => botSay('bot', '취소했어요.') }], keep:true }; }
+  if (/^(?:학습\s*(?:목록|내용|현황)|배운\s*(?:것|용어|번역))/.test(q)) return { html:'', acts:[], run:async () => { const L = await trLearnLoad(true); const t = L.terms || [], tm = L.tm || [];
+    botSay('bot', `📚 배운 것 — 용어 <b>${t.length}</b>개 · 고친 번역 <b>${tm.length}</b>개${t.length ? '<br>' + t.slice(-12).map(x => `· ${esc(x.src)} → ${esc(x.dst)} <small class="muted">(${esc(x.by)})</small>`).join('<br>') : ''}${tm.length ? '<br><small class="muted">최근 고친 번역: ' + esc(trunc(tm[tm.length - 1].src, 40)) + ' → ' + esc(trunc(tm[tm.length - 1].dst, 40)) + '</small>' : ''}<br><span class="muted" style="font-size:11px">지우기: "용어 삭제: positioner"</span>`); } };
+  if ((m = /^용어\s*(?:삭제|제거)\s*[:：]?\s*(.+)$/.exec(q))) { const a = m[1].trim(), dir = isKo(a) ? 'koen' : 'enko'; return { html:'', acts:[], run:async () => { try { await trLearnPut({ kind:'term', dir, src:a, remove:true }); botSay('bot', `🗑 지웠어요: ${esc(a)}`); } catch (e) { botSay('bot', '❌ ' + esc(e.message)); } } }; }
+  return null;
+}
 async function botTranslate(text, dir, extra = '') {
   if (!(await trAvail())) return botSay('bot', location.protocol === 'file:' ? '번역은 서버 주소(http://…:8080)로 연 대시보드에서만 돼요. file 사본에서는 안 돼요.' : '번역 프로그램 파일이 서버에 아직 없어요 — 서버 PC 운영 폴더에 <b>apps\\translate\\</b> 가 필요합니다(대시보드 업데이트 zip).');
   const label = dir === 'enko' ? '영어 → 한국어' : '한국어 → 영어';
   let msg = null; if (!TR.ready[dir]) { msg = botSay('bot', `⏳ ${label} 번역 엔진을 준비하는 중… (처음 한 번, 약 40MB)`, [], true); botFace('squint'); }
   else { msg = botSay('bot', `⏳ ${label} 번역 중…`, [], true); }
   try {
-    const ph = dir === 'enko' ? trPh(text) : { t:trPre(text, dir), map:[] };
-    const out0 = trUnPh(await trCall('translate', dir, ph.t, p => { if (msg) msg.querySelector('.bb').innerHTML = `⏳ ${label} 번역 엔진 준비 중… ${esc(p.step)} ${p.pct}%`; }), ph.map);
-    TR.ready[dir] = true; const out = trGloss(out0, dir); botFace('happy');
-    msg.querySelector('.bb').innerHTML = `🌐 <b>${label}</b>${extra}<div class="bproof">${esc(out).replace(/\n/g, '<br>')}</div><details class="btrsrc"><summary>원문 보기</summary>${esc(text).replace(/\n/g, '<br>')}</details><span class="muted" style="font-size:11px">브라우저 안에서 번역(Firefox 번역 모델 · 외부로 보내지 않음) · 기계 번역이라 전문 용어 · 숫자는 꼭 확인하세요.</span>`;
+    const L = await trLearnLoad(); TRL.last = { text, dir }; const tmHit = trTM(text, dir, L);
+    const lt = trLearnTerms(dir, L), src2 = dir === 'koen' ? lt.reduce((a, [re, rep]) => a.replace(re, rep), text) : text;
+    const ph = dir === 'enko' ? trPh(text) : { t:trPre(src2, dir), map:[] }; if (dir === 'enko') for (const [re, rep] of lt) ph.t = ph.t.replace(re, m => { const tok = 'ZX' + (ph.map.length + 1) + 'Q'; ph.map.push([tok, rep]); return tok; });
+    const out0 = tmHit || trUnPh(await trCall('translate', dir, ph.t, p => { if (msg) msg.querySelector('.bb').innerHTML = `⏳ ${label} 번역 엔진 준비 중… ${esc(p.step)} ${p.pct}%`; }), ph.map);
+    TR.ready[dir] = true; const out = tmHit ? out0 : trPost(trGloss(out0, dir), dir, text); botFace('happy');
+    msg.querySelector('.bb').innerHTML = `🌐 <b>${label}</b>${extra}<div class="bproof">${esc(out).replace(/\n/g, '<br>')}</div><details class="btrsrc"><summary>원문 보기</summary>${esc(text).replace(/\n/g, '<br>')}</details><span class="muted" style="font-size:11px">${tmHit ? '📚 부서원이 고쳐 둔 번역이에요. · ' : ''}브라우저 안에서 번역(Firefox 번역 모델 · 외부로 보내지 않음) · 기계 번역이라 전문 용어 · 숫자는 꼭 확인하세요. 틀리면 "번역 고쳐: 올바른 번역" · "용어 등록: positioner = 포지셔너" 로 가르쳐 주세요.</span>`;
     botActs(msg, [{ l:'📋 번역 복사', fn:() => navigator.clipboard?.writeText(out).then(() => botSay('bot', '복사했어요 📋'), () => botSay('bot', '복사가 막혀 있어요 — 위 글을 드래그해 복사해 주세요.')) }, ...(dir === 'enko' ? [] : [{ l:'✍ 영문 첨삭', fn:() => botAsk('첨삭: ' + out) }])]);
     return out;
   } catch (e) { botFace('dizzy'); msg.querySelector('.bb').innerHTML = '❌ 번역 실패: ' + esc(e.message) + '<br><span class="muted" style="font-size:11px">브라우저가 오래됐거나(Chrome 80 이상 필요) 메모리가 부족할 수 있어요. 새로고침 후 다시 해 보세요.</span>'; }
@@ -5293,7 +5353,7 @@ function botProof(q) {
   return { html:body, acts:r.same ? [] : [{ l:'📋 고친 글 복사', fn:() => { navigator.clipboard?.writeText(r.out).then(() => botSay('bot', '복사했어요 📋'), () => botSay('bot', '복사가 막혀 있어요 — 위 글을 드래그해 복사해 주세요.')); } }] };
 }
 function botAnswer(q) {
-  const pf = botProof(q) || botTrCmd(q); if (pf) return pf;   // 첨삭 · 번역
+  const pf = botProof(q) || botTrLearnCmd(q) || botTrCmd(q); if (pf) return pf;   // 첨삭 · 번역 학습 · 번역
   const ap = botApp(q) || botSheetOut(q); if (ap) return ap;   // 분석 메뉴 · 시트 출력 / 요약
   const ed = botEdit(q) || botGeneral(q); if (ed) return ed;
   const ic = BOT_FAQ.find(([re]) => re.test(q)) ? null : icAnswer(q);   // 계측제어 지식 — 대시보드 PJT · 사람이 콕 집혀 나오면 그게 먼저, 아니면 지식 답이 먼저
@@ -5334,14 +5394,14 @@ async function botRunStep(step, card, i) {
     if (a.keep && a.acts.length) {                               // 확인이 필요한 일 → 미리보기 보여 주고 바로 첫 단추(적용) 실행
       botSay('bot', a.html + '<br><span class="muted" style="font-size:11px">⚡ 바이브: 자동 실행</span>');
       await a.acts[0].fn(); await new Promise(r => setTimeout(r, 900)); set('✅', '자동 실행');
-    } else if (a.run) { botSay('bot', a.html || '⚡ 실행 중…'); await a.run(); await new Promise(r => setTimeout(r, 400)); set('✅'); }
-    else { botSay('bot', a.html, a.acts); set(/🔒|못 찾|실패|❌|🤔/.test(a.html) ? '⚠' : '✅', /🔒/.test(a.html) ? '권한 없음' : ''); }
+    } else if (a.run) { if (a.html) botSay('bot', a.html); await a.run(); await new Promise(r => setTimeout(r, 400)); set('✅'); }
+    else { if (a.html || a.acts.length) botSay('bot', a.html, a.acts); set(/🔒|못 찾|실패|❌|🤔/.test(a.html) ? '⚠' : '✅', /🔒/.test(a.html) ? '권한 없음' : ''); }
   } catch (e) { set('❌', esc(e.message || '실패')); botSay('bot', '❌ ' + esc(e.message || '실패')); }
 }
 async function botVibeRun(q) {
   const steps = botSteps(q);
   if (steps.length <= 1) { const a = botAnswer(q); if (a.keep && a.acts.length) { botSay('bot', a.html + '<br><span class="muted" style="font-size:11px">⚡ 바이브: 자동 실행</span>'); setTimeout(() => a.acts[0].fn(), 400); return; }
-    botSay('bot', a.html, a.acts); if (a.run) setTimeout(a.run, 300); return; }
+    if (a.html || a.acts.length) botSay('bot', a.html, a.acts); if (a.run) setTimeout(a.run, 300); return; }
   const card = botSay('bot', `⚡ <b>바이브 실행</b> — ${steps.length}단계 진행 현황<ol class="bsteps">${steps.map(s => `<li><span class="bst">·</span> ${esc(trunc(s, 60))} <small class="bsn"></small></li>`).join('')}</ol>`);
   botFace('squint');
   for (let i = 0; i < steps.length; i++) await botRunStep(steps[i], card, i);
@@ -5376,7 +5436,7 @@ function botToggle(on) {
 function botAsk(q) { q = String(q || '').trim(); if (!q) return; botSay('me', esc(q).replace(/\n/g, '<br>'));
   if (botVibe()) return setTimeout(() => botVibeRun(q), 250);   // 바이브 권한: 확인 없이 바로 · 여러 단계 차례로
   if (botSteps(q).length > 1) return setTimeout(() => botSay('bot', '여러 일을 한 번에 시키는 것(바이브)은 운영자가 <b>메뉴 권한 설정 › 비서 바이브</b> 를 켜 줘야 해요. 지금은 한 번에 하나씩 말해 주세요 🙂'), 250);
-  const a = botAnswer(q); if (a.keep) a.acts.forEach(x => x.edit = true); setTimeout(() => { botSay('bot', a.html, a.acts); if (a.run) setTimeout(a.run, 300); }, 250); }
+  const a = botAnswer(q); if (a.keep) a.acts.forEach(x => x.edit = true); setTimeout(() => { if (a.html || a.acts.length) botSay('bot', a.html, a.acts); if (a.run) setTimeout(a.run, 300); }, 250); }
 function botDock() { const r = BOT.el.getBoundingClientRect(), p = BOT.panel, W = 340, H = 440; if (p.classList.contains('max')) return;
   p.style.left = Math.max(8, Math.min(innerWidth - W - 8, r.left + r.width / 2 - W / 2)) + 'px'; p.style.top = (r.top > H + 20 ? r.top - H - 10 : Math.min(innerHeight - H - 8, r.bottom + 10)) + 'px'; }
 function botFace(f) { const b = BOT.el?.querySelector('.bface'); if (b) b.innerHTML = BOT_FACES[f] || BOT_FACES.normal; }
