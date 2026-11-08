@@ -1764,7 +1764,7 @@ function recLabel(key, f) {
  * ===================================================================== */
 let root = null;
 /* 서버 모드: http(s):// 로 접속하면 server.py 의 REST API 사용 (폴더 선택 불필요). file:// 로 열면 폴더 모드 */
-const APP_VERSION = '2026-11-08.36';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
+const APP_VERSION = '2026-11-08.39';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
 const SERVER_URL = 'http://localhost:8080';
 // 부서원 PC 사본(file://)이 접속을 시도할 서버 — 서버가 배포 파일을 만들 때 'PC 이름 주소, IP 주소' 순으로 자동 기록함
 const DEFAULT_SERVERS = ['http://ASEUNGWOOK-B01:8080', 'http://65.3.30.234:8080'];
@@ -5275,6 +5275,37 @@ const TR_GLOSS = {   // 번역 결과 용어 바로잡기 [찾기, 바꾸기]
     [/\bdrawing approval\b/gi, 'drawing approval'], [/\bclosing position\b/gi, 'closed position'], [/\bpassage\b/gi, 'aisle'], [/\bconstruction start\b/gi, 'construction start (groundbreaking)'], [/\bbidding project\b/gi, 'bid project'], [/\bperformance project\b/gi, 'execution project'], [/\bweekly work report\b/gi, 'weekly report']],
 };
 const trGloss = (t, dir) => (TR_GLOSS[dir] || []).reduce((a, [re, rep]) => a.replace(re, rep), t);
+/* 2026-11-08 3차: 일반 글(기사 · 메일) — 번역 전 쉬운 영어로(관용구) · 한→영 숫자 단위 · 번역 뒤 자주 틀리는 표현 (평가로 고름, 검증 문장에서 나빠지는 규칙은 뺌) */
+const EN_SIMPLE = [   // 모델이 직역해 망치는 관용 표현 → 뜻이 같은 쉬운 말
+  [/\b(take|takes|taking|taken|took)\s+on\s+(?=(?:[\w']+\s+){0,3}(?:debts?|loans?|burdens?|liabilit|responsibilit|obligation))/gi, (m, v) => ({ take:'shoulder', takes:'shoulders', taking:'shouldering', taken:'shouldered', took:'shouldered' }[v.toLowerCase()]) + ' '],
+  [/\bmake ends meet\b/gi, 'cover living expenses'], [/\btak(e|es|ing|en)\s+out\s+(a\s+)?loans?\b/gi, (m, a, b) => ({ e:'get', es:'gets', ing:'getting', en:'got' }[a.toLowerCase()]) + ' loans'], [/\btook\s+out\s+(a\s+)?loans?\b/gi, 'got loans'],
+  [/\bwent into debt\b/gi, 'fell into debt'], [/\bgo(es)? into debt\b/gi, 'fall into debt'], [/\bgoing into debt\b/gi, 'falling into debt'], [/\bindulgences\b/gi, 'luxuries'], [/\bposted (a |an )?(record )?/gi, (m, a, r) => 'recorded ' + (a || '') + (r || '')],
+  [/\bon (their|his|her|our|my|your) behalf\b/gi, 'for $1 family'], [/\bin the first place\b/gi, 'from the beginning'], [/\bsnowballed into\b/gi, 'quickly grew into'], [/\bsnowball(s|ed)?\b/gi, 'grow$1 quickly'], [/\bwhat could be described as\b/gi, ''],
+  [/\btaking on second jobs\b/gi, 'working a second job'], [/\bsecond jobs\b/gi, 'a second job'], [/\bside hustles?\b/gi, 'a side job'], [/\blaid off\b/gi, 'dismissed'], [/\blay off\b/gi, 'dismiss'], 
+  [/\bat the end of the day\b/gi, 'ultimately'], [/\bas of now\b/gi, 'currently'], [/\bkeep (me|us) posted\b/gi, 'keep $1 informed'], [/\btouch base\b/gi, 'contact'], [/\bget back to (you|me|us)\b/gi, 'reply to $1'],
+  [/\bASAP\b/g, 'as soon as possible'], [/\bFYI\b/g, 'for your information'], [/\bon the same page\b/gi, 'in agreement'], [/\bdrop the ball\b/gi, 'make a mistake'], [/\bball park\b|\bballpark\b/gi, 'approximate'], [/\bheads[- ]up\b/gi, 'advance notice'], [/\bgo ahead\b/gi, 'approval'],
+  [/\bwork(ed|ing)? around the clock\b/gi, 'work$1 day and night'], [/\bup in the air\b/gi, 'undecided'], [/\bback to square one\b/gi, 'back to the beginning'], [/\bbottleneck(s)?\b/gi, 'delay point$1'], [/\btight\b(?= (schedule|deadline))/gi, 'very short'],
+];
+const KO_FIX_TR = [   // 번역 결과(한국어) — 모델이 자주 틀리는 일반 표현
+  [/(떠담은|떠들고 나서|떠든)(\s*(후|뒤|다음))?/g, '떠안은 뒤'], [/떠거나/g, '떠안거나'], [/(빚|부채)(을|를) 짊어진 (후|뒤)/g, '빚을 떠안은 뒤'], [/(빚|부채)(을|를) 짊어진/g, '빚을 떠안은'], [/(빚|부채)(을|를) 짊어 ?져야/g, '빚을 떠안아야'], [/(빚|부채)(을|를) 짊어 ?지(고|거나|게)/g, '빚을 떠안$3'], [/짊어 져/g, '짊어져'], [/빚에 들어갔/g, '빚을 지게 됐'], [/부채에 들어갔/g, '빚을 지게 됐'], [/빚에 빠졌/g, '빚을 지게 됐'], [/부채에 빠졌/g, '빚을 지게 됐'], [/면죄부/g, '사치'], [/사치품에/g, '사치에'], [/대출을 가했/g, '대출을 받았'], [/대출을 빌렸/g, '대출을 받았'],
+  [/영업 이익/g, '영업이익'], [/중앙 은행/g, '중앙은행'], [/가계 부채/g, '가계부채'], [/(\d)\s+(분기|년도|개월|주년|시간)/g, '$1$2'], [/이익을 게시했/g, '이익을 기록했'], [/이익을 기록했습니다/g, '이익을 올렸습니다'], [/냉각 될/g, '냉각될'], [/([가-힣])을하고/g, '$1을 하고'], [/([가-힣])를하고/g, '$1를 하고'],
+  [/끝을 (맞추|만나)기 위해/g, '생계를 꾸리기 위해'], [/두 번째 일을 하고/g, '부업을 하고'], [/두 번째 일자리/g, '부업'], [/질문이 있으시면/g, '궁금한 점이 있으시면'], [/알려주세요/g, '알려 주세요'], [/알려드리게/g, '알려 드리게'], [/게 되어 기쁘게 생각합니다/g, '게 되어 기쁩니다'],
+  [/개인 (\d+)명/g, '$1명'], [/젊은 사람들/g, '청년들'], [/젊은이들/g, '청년들'], [/재정적 기초/g, '경제적 기반'], [/재정 기반/g, '경제적 기반'], [/게시했/g, '기록했'], [/상환 압력/g, '상환 압박'], [/독성 부채/g, '악성 부채'], [/눈덩이처럼 불어 들어/g, '눈덩이처럼 불어나'],
+  [/비즈니스 대출/g, '사업 대출'], [/엔터테인먼트/g, '유흥'], [/이 회사는/g, '회사는'], [/(\d)\s*%의/g, '$1%의'],
+];
+const EN_FIX_TR = [   // 번역 결과(영어)
+  [/\b(one|two|three|four|five|six|seven|eight|nine|ten)\s+(trillion|billion|million|thousand)\b/gi, (m, a, b) => ({ one:1, two:2, three:3, four:4, five:5, six:6, seven:7, eight:8, nine:9, ten:10 }[a.toLowerCase()]) + ' ' + b.toLowerCase()], [/(\d+(?:\.\d+)?)\s*percent\b/gi, '$1%'],
+  [/\bbecome longer-term\b/gi, 'persist'], [/\bin a row\b/g, 'in a row'], [/\be-mail\b/gi, 'email'],
+];
+const KO_PRE_KOEN = [ [/(\d+)\s*조\s*원/g, '$1 trillion won'], [/(\d+)\s*억\s*원/g, (m, a) => (a * 100) + ' million won'], [/(\d+)\s*만\s*원/g, (m, a) => (a * 10000).toLocaleString('en-US') + ' won'], [/계약서\s*초안/g, 'draft contract'], [/초안/g, 'draft'], [/학자금\s*대출/g, 'student loans'], [/전년\s*대비/g, 'year-on-year'] ];
+const trRep = (t, L) => L.reduce((a, [re, r]) => a.replace(re, r), t);
+function trKoFinish(out, src) {   // 영→한 마지막: 조사 받침 맞추기(바꿔 넣은 낱말 뒤) + 문장 끝 말투 통일(사양서 shall 은 '~한다' 그대로)
+  out = koJosa(out, []);
+  if (/\bshall\b/i.test(src)) return out;
+  const sent = out.split(/(?<=[.!?])\s+/), formal = sent.filter(x => /(습니다|습니까|입니다|십시오|세요|요)[.!?]?$/.test(x.trim())).length, plain = sent.filter(x => /[가-힣]다[.!?]?$/.test(x.trim()) && !/(습니다|입니다)[.!?]?$/.test(x.trim())).length;
+  if (formal >= plain && plain) out = out.replace(/(었|았|였|했|됐|겠)다(?=[.!?](\s|$)|$)/g, '$1습니다').replace(/([가-힣])이다(?=[.!?](\s|$)|$)/g, '$1입니다').replace(/한다(?=[.!?](\s|$)|$)/g, '합니다').replace(/된다(?=[.!?](\s|$)|$)/g, '됩니다').replace(/있다(?=[.!?](\s|$)|$)/g, '있습니다').replace(/없다(?=[.!?](\s|$)|$)/g, '없습니다');
+  return out;
+}
 const trDir = t => isKo(t) ? 'koen' : 'enko';
 /* 학습: 부서원이 가르친 용어 · 고친 번역(서버 data/_meta/tr-learn.json, 모두 함께 씀) — "용어 등록: positioner = 포지셔너" · 번역 직후 "번역 고쳐: <올바른 번역>" */
 const TRL = { data:null, at:0, last:null };
@@ -5301,10 +5332,10 @@ async function botTranslate(text, dir, extra = '') {
   else { msg = botSay('bot', `⏳ ${label} 번역 중…`, [], true); }
   try {
     const L = await trLearnLoad(); TRL.last = { text, dir }; const tmHit = trTM(text, dir, L);
-    const lt = trLearnTerms(dir, L), src2 = dir === 'koen' ? lt.reduce((a, [re, rep]) => a.replace(re, rep), text) : text;
-    const ph = dir === 'enko' ? trPh(text) : { t:trPre(src2, dir), map:[] }; if (dir === 'enko') for (const [re, rep] of lt) ph.t = ph.t.replace(re, m => { const tok = 'ZX' + (ph.map.length + 1) + 'Q'; ph.map.push([tok, rep]); return tok; });
+    const lt = trLearnTerms(dir, L), src2 = dir === 'koen' ? trRep(lt.reduce((a, [re, rep]) => a.replace(re, rep), text), KO_PRE_KOEN) : trRep(text, EN_SIMPLE).replace(/[ \t]{2,}/g, ' ');
+    const ph = dir === 'enko' ? trPh(src2) : { t:trPre(src2, dir), map:[] }; if (dir === 'enko') for (const [re, rep] of lt) ph.t = ph.t.replace(re, m => { const tok = 'ZX' + (ph.map.length + 1) + 'Q'; ph.map.push([tok, rep]); return tok; });
     const out0 = tmHit || trUnPh(await trCall('translate', dir, ph.t, p => { if (msg) msg.querySelector('.bb').innerHTML = `⏳ ${label} 번역 엔진 준비 중… ${esc(p.step)} ${p.pct}%`; }), ph.map);
-    TR.ready[dir] = true; const out = tmHit ? out0 : trPost(trGloss(out0, dir), dir, text); botFace('happy');
+    TR.ready[dir] = true; const out = tmHit ? out0 : dir === 'enko' ? trKoFinish(trRep(trPost(trGloss(out0, dir), dir, text), KO_FIX_TR), text) : trRep(trPost(trGloss(out0, dir), dir, text), EN_FIX_TR); botFace('happy');
     msg.querySelector('.bb').innerHTML = `🌐 <b>${label}</b>${extra}<div class="bproof">${esc(out).replace(/\n/g, '<br>')}</div><details class="btrsrc"><summary>원문 보기</summary>${esc(text).replace(/\n/g, '<br>')}</details><span class="muted" style="font-size:11px">${tmHit ? '📚 부서원이 고쳐 둔 번역이에요. · ' : ''}브라우저 안에서 번역(Firefox 번역 모델 · 외부로 보내지 않음) · 기계 번역이라 전문 용어 · 숫자는 꼭 확인하세요. 틀리면 "번역 고쳐: 올바른 번역" · "용어 등록: positioner = 포지셔너" 로 가르쳐 주세요.</span>`;
     botActs(msg, [{ l:'📋 번역 복사', fn:() => navigator.clipboard?.writeText(out).then(() => botSay('bot', '복사했어요 📋'), () => botSay('bot', '복사가 막혀 있어요 — 위 글을 드래그해 복사해 주세요.')) }, ...(dir === 'enko' ? [] : [{ l:'✍ 영문 첨삭', fn:() => botAsk('첨삭: ' + out) }])]);
     return out;

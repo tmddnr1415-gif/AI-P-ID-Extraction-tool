@@ -1572,3 +1572,13 @@ C:\Users\SAMSUNG\Desktop\Claude\                         ← 개발 폴더 (여�
 - 무엇을: 사용자가 영어 기사 두 문단(약 1,100자)을 비서로 번역 시험. ① 입력칸 `maxlength="200"` 때문에 200자에서 잘려 "fa에서 왔습니다" 로 끝남 → 입력칸을 **여러 줄 textarea**(최대 20,000자, Enter = 보내기 · Shift+Enter = 줄바꿈, 높이 자동 160px 까지)로. ② 운영자(바이브)는 줄바꿈 = 다음 일로 나눠 두 번째 문단이 따로 처리됨 → **번역 · 첨삭 · 번역 고쳐처럼 내용을 통째로 받는 명령은 나누지 않음**(`BOT_WHOLE`). ③ 모델의 띄어쓰기 실수(겪고있었습니다 · 묘사 될 수있는 · 5 백만 · 인터뷰 한 · 가족은이) 다듬기(`trPost` 영→한 끝). 신문 · 통신사 이름(국민일보 · 조선일보 · 중앙일보 · 동아일보 · 한겨레 · 연합뉴스 …) 자리표.
 - 바뀐 곳: dashboard.html `APP_VERSION` · `botInit`(textarea · Enter 처리) · `BOT_WHOLE` `botSteps` · `trPost` · `TR_PRE.enko`(신문 이름) · CSS `.bin textarea`.
 - 확인한 것: 임시 서버 — 기사 두 문단이 끝까지 번역(약 6초), 평가 점수 그대로(한→영 처음 보는 문장 82.2 · 영→한 58.8, 깨진 것 없음). 남은 한계: 일반 기사 문장의 관용 표현(take on debts → '떠담은/떠거나', indulgences → '면죄부', went into debt → '부채에 들어갔다')은 모델 한계 — "번역 고쳐: …" 로 가르치면 같은 문장은 고친 번역을 씀.
+
+### 2026-11-08 (APP_VERSION 2026-11-08.37~39 / SERVER_VERSION 그대로) — 번역 3차: 일반 글(기사 · 메일) 성능
+- 무엇을: 사용자 '더 성능을 올려라' (직전에 영어 기사 번역에서 관용 표현이 틀림). 일반 글 평가 세트를 새로 만듦 — 조정용(요청 기사 6문장 + 메일 · 경제 기사 4, 한→영 5) / **검증용(조정 때 안 본 문장, 영→한 8 · 한→영 5)**, 기준 번역 2개씩. 세 가지를 시험해 **검증 세트에서 나빠지지 않는 것만** 넣음.
+  - ① `EN_SIMPLE` 번역 전 영어 관용구 → 쉬운 말: take on debts/loans → shoulder(→ '빚을 떠안다'), take out loans → get loans, went into debt → fell into debt, indulgences → luxuries, make ends meet → cover living expenses, posted (a record profit) → recorded, on their behalf, in the first place, snowballed, second jobs, laid off, ASAP · FYI · heads-up · touch base … 검증 세트를 떨어뜨린 4개(in charge of · plunged/soared · no later than · in debt)는 뺌.
+  - ② `KO_FIX_TR` 번역 뒤 자주 틀리는 일반 표현(떠담은 → 떠안은 뒤, 부채에 들어갔 → 빚을 지게 됐, 면죄부 → 사치, 대출을 가했 → 받았, 영업 이익 → 영업이익, 3 분기 → 3분기, 게시했 → 기록했, 젊은이들 → 청년들, 끝을 맞추기 → 생계 …) + `trKoFinish`: 바꿔 넣은 낱말 뒤 조사 맞춤(`koJosa`, 기반가 → 기반이) · 문장 끝 말투를 다수에 맞춤(합니다체 글 속 '~했다.' → '~했습니다.', 사양서 shall 은 '~한다' 유지).
+  - ③ 한→영 `KO_PRE_KOEN` 숫자 단위(10조 원 → 10 trillion won, 억 · 만 원), 초안 → draft, 학자금 대출, 전년 대비 / `EN_FIX_TR` ten trillion → 10 trillion, 15 percent → 15%.
+  - ④ 되번역으로 후보 고르기(쉬운 말 O/X 두 후보를 다시 영어로 번역해 원문과 가까운 쪽) 는 시험 결과 **오히려 나빠서 넣지 않음**.
+- 결과(대시보드 화면, 4세트 85문장): 영→한 일반 조정 33.1 → **45.3**(다중 기준 56.7), 일반 검증 62.7 → **64.0**, 계장 세트 그대로(67.1 / 58.8), 용어 129/129. 한→영 일반 조정 65.5 → **70.4**, 일반 검증 64.6 → **69.6**(다중 기준 82.5), 계장 그대로(74.8 / 82.2), 처음 보는 문장 전체 다중 기준 **85.0**. 요청 기사: 떠담은 → 떠안은 뒤 · 떠거나 → 떠안거나 · 부채에 들어갔다 → 빚을 지게 됐다 · 면죄부 → 사치 · 대출을 가했습니다 → 받았습니다.
+- 바뀐 곳: dashboard.html `APP_VERSION` · `EN_SIMPLE` `KO_FIX_TR` `EN_FIX_TR` `KO_PRE_KOEN` `trRep` `trKoFinish`(새) · `botTranslate`(쉬운 말 → 학습 용어 → 자리표 → 번역 → 되돌림 → 용어집 → 다듬기 → 일반 표현 → 조사 · 말투).
+- 회사에서 확인할 것: 회사에서 실제로 번역하는 글로 써 보고, 틀리는 문장은 "번역 고쳐: …" 로 가르치기. 평가 세트 · 보고서(translate_eval3.html)는 작업 기록에만.
