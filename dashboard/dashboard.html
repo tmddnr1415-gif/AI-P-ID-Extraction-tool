@@ -1520,6 +1520,10 @@ button:focus:not(:focus-visible){outline:none}
 .mi .mic svg,.ighc .igr span,.gp-nav span{filter:drop-shadow(0 1px 1px rgba(0,0,0,.25))}
 .ighc .igr{box-shadow:0 3px 8px rgba(20,30,70,.15)}.ighc .igr>span{box-shadow:inset 0 2px 3px rgba(255,255,255,.8),inset 0 -3px 5px rgba(20,30,70,.10)}
 .kpi::after{background-image:linear-gradient(180deg,#fff,#e9e9fb)}
+
+/* 2026-11-08 홈 그래프 카드 꽉 채움 */
+.tmid .charts svg.chart.fit{width:100%;height:auto;max-height:none!important;display:block;flex:none!important}
+.tmid .charts .card .donut{align-items:center;justify-content:center;flex:1;gap:16px}
 </style>
 </head>
 <body>
@@ -1688,7 +1692,7 @@ function recLabel(key, f) {
  * ===================================================================== */
 let root = null;
 /* 서버 모드: http(s):// 로 접속하면 server.py 의 REST API 사용 (폴더 선택 불필요). file:// 로 열면 폴더 모드 */
-const APP_VERSION = '2026-11-08.12';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
+const APP_VERSION = '2026-11-08.13';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
 const SERVER_URL = 'http://localhost:8080';
 // 부서원 PC 사본(file://)이 접속을 시도할 서버 — 서버가 배포 파일을 만들 때 'PC 이름 주소, IP 주소' 순으로 자동 기록함
 const DEFAULT_SERVERS = ['http://ASEUNGWOOK-B01:8080', 'http://65.3.30.234:8080'];
@@ -4122,23 +4126,23 @@ const PJ_COL = { perform:'#2b44c9', bid:'#e8730c' };   // 그래프의 수행 ·
 const pjLegend = oth => `<span class="legend" style="display:inline-flex;margin:0 0 0 10px;font-weight:400;vertical-align:1px"><span><i style="background:${PJ_COL.perform}"></i>수행</span><span><i style="background:${PJ_COL.bid}"></i>입찰</span>${oth ? '<span><i style="background:#9aa1b5"></i>기타</span>' : ''}</span>`;
 // 그래프 칸: 마우스 = 툴팁(data-tip), 누르면 상세 목록(data-rows = 'key|id,…', 2026-10-30 VOC) — chartDetail
 const chartA = i => (i.tip ? ` data-tip="${esc(i.tip)}"` : '') + (i.rows?.length ? ` data-rows="${esc(i.rows.join(','))}"` : '');
-function svgBars(items, { horiz = false, color = PALETTE[0], fmt = v => v } = {}) {
+function svgBars(items, { horiz = false, color = PALETTE[0], fmt = v => v, W:SW = 0, H:SH = 0 } = {}) {   // W·H = 그릴 칸 크기(px) — 주면 칸을 꽉 채움 (2026-11-08)
   if (!items.length) return '<div class="empty">데이터 없음</div>';
   const max = Math.max(...items.map(i => i.v)) || 1;
   const tipA = chartA;
   if (horiz) {
-    const rh = 24, W = 520, L = 110, h = items.length * rh + 6;
+    const W = SW || 520, rh = SH ? Math.max(16, Math.min(40, (SH - 6) / items.length)) : 24, L = Math.min(110, Math.max(70, W * .24)), h = SH ? Math.max(SH, items.length * rh + 6) : items.length * rh + 6, bh = Math.min(22, rh * .64), ty = rh / 2 + 4;
     return `<svg class="chart" viewBox="0 0 ${W} ${h}" role="img">${items.map((i, k) => {
       const w = (W - L - 70) * i.v / max, y = k * rh + 4;
       if (i.parts) {                                     // 쌓은 막대 (조각마다 색 · 툴팁)
-        let x = L; const segs = i.parts.filter(p => p.v > 0).map(p => { const pw = (W - L - 70) * p.v / max, g = `<g${tipA(p)}><rect class="bar" x="${x}" y="${y + 2}" width="${Math.max(pw, 2)}" height="15" fill="${p.color}"/></g>`; x += pw; return g; }).join('');
+        let x = L; const segs = i.parts.filter(p => p.v > 0).map(p => { const pw = (W - L - 70) * p.v / max, g = `<g${tipA(p)}><rect class="bar" x="${x}" y="${y + (rh - bh) / 2}" width="${Math.max(pw, 2)}" height="${bh}" fill="${p.color}"/></g>`; x += pw; return g; }).join('');
         const lab = i.parts.map(p => `<tspan fill="${p.color}" font-weight="700">${fmt(p.v)}</tspan>`).join('<tspan fill="#9aa1b5"> + </tspan>');
-        return `<g${tipA(i)}><rect x="0" y="${y}" width="${W}" height="${rh}" fill="transparent"/><text x="${L - 8}" y="${y + 14}" text-anchor="end" font-size="12" fill="#1b2238">${esc(trunc(i.l, 12))}</text>${segs}<text x="${L + w + 6}" y="${y + 14}" font-size="12" fill="#667089">${fmt(i.v)} <tspan font-size="10.5">(${lab})</tspan></text></g>`;
+        return `<g${tipA(i)}><rect x="0" y="${y}" width="${W}" height="${rh}" fill="transparent"/><text x="${L - 8}" y="${y + ty}" text-anchor="end" font-size="12" fill="#1b2238">${esc(trunc(i.l, 12))}</text>${segs}<text x="${L + w + 6}" y="${y + ty}" font-size="12" fill="#667089">${fmt(i.v)} <tspan font-size="10.5">(${lab})</tspan></text></g>`;
       }
-      return `<g${tipA(i)}><rect x="0" y="${y}" width="${W}" height="${rh}" fill="transparent"/><text x="${L - 8}" y="${y + 14}" text-anchor="end" font-size="12" fill="#1b2238">${esc(trunc(i.l, 12))}</text><rect class="bar" x="${L}" y="${y + 2}" width="${Math.max(w, 2)}" height="15" rx="3" fill="${color}"/><text x="${L + w + 6}" y="${y + 14}" font-size="12" fill="#667089">${fmt(i.v)}</text></g>`;
+      return `<g${tipA(i)}><rect x="0" y="${y}" width="${W}" height="${rh}" fill="transparent"/><text x="${L - 8}" y="${y + ty}" text-anchor="end" font-size="12" fill="#1b2238">${esc(trunc(i.l, 12))}</text><rect class="bar" x="${L}" y="${y + (rh - bh) / 2}" width="${Math.max(w, 2)}" height="${bh}" rx="3" fill="${color}"/><text x="${L + w + 6}" y="${y + ty}" font-size="12" fill="#667089">${fmt(i.v)}</text></g>`;
     }).join('')}</svg>`;
   }
-  const W = 520, H = 230, T = 22, B = 70, bw = (W - 20) / items.length, ch = H - T - B;
+  const W = SW || 520, H = SH || 230, T = 22, B = 70, bw = (W - 20) / items.length, ch = H - T - B;
   return `<svg class="chart" viewBox="0 0 ${W} ${H}" role="img"><line x1="10" x2="${W - 10}" y1="${T + ch}" y2="${T + ch}" stroke="#d9dff0"/>${items.map((i, k) => {
     const h = ch * i.v / max, x = 10 + k * bw + bw * .18, w = bw * .64;
     let yb = T + ch;                                     // 쌓은 막대(parts): 아래에서 위로 조각마다 색 · 툴팁 (2026-10-28 수행/입찰 구분)
@@ -4147,6 +4151,18 @@ function svgBars(items, { horiz = false, color = PALETTE[0], fmt = v => v } = {}
     return `<g${tipA(i)}><rect x="${10 + k * bw}" y="0" width="${bw}" height="${H}" fill="transparent"/>${bars}<text x="${x + w / 2}" y="${T + ch - h - 5}" text-anchor="middle" font-size="11" fill="#667089">${fmt(i.v)}</text><text transform="translate(${x + w / 2},${T + ch + 12}) rotate(-35)" text-anchor="end" font-size="11" fill="#1b2238">${esc(trunc(i.l, 11))}</text></g>`;
   }).join('')}</svg>`;
 }
+/* 홈 그래프를 카드 크기에 맞춰 다시 그림 (빈 공간 없이 80% 이상 채움) — 창 크기가 바뀌어도 */
+const HOMEFIT = { list:null };
+function homeFit() {
+  const cards = [...document.querySelectorAll('.tmid .charts > .card')]; if (!HOMEFIT.list || cards.length < 4) return;
+  cards.forEach((cd, i) => { const it = HOMEFIT.list[i]; const old = cd.querySelector(':scope > svg.chart');
+    if (it && old) { const h2 = cd.querySelector('h2'), cs = getComputedStyle(cd), W = cd.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight),
+        H = cd.clientHeight - parseFloat(cs.paddingTop) - parseFloat(cs.paddingBottom) - (h2 ? h2.offsetHeight + 6 : 0);
+      if (W > 120 && H > 90) { const t = document.createElement('div'); t.innerHTML = svgBars(it[0], { ...it[1], W:Math.floor(W), H:Math.floor(H) }); const n = t.firstElementChild; n.classList.add('fit'); old.replaceWith(n); } }
+    if (!it) { const d = cd.querySelector('.donut svg'); const h2 = cd.querySelector('h2'), lg = cd.querySelector('.donut .legend');
+      if (d) { const H = cd.clientHeight - (h2 ? h2.offsetHeight : 0) - 44, W = cd.clientWidth - (lg ? lg.offsetWidth : 0) - 60, z = Math.max(130, Math.min(W, H)); d.setAttribute('width', z); d.setAttribute('height', z); } } });
+}
+let homeFitT = 0; addEventListener('resize', () => { clearTimeout(homeFitT); homeFitT = setTimeout(() => { if (route === 'home') homeFit(); }, 200); });
 function svgDonut(items) {
   const tot = items.reduce((a, i) => a + i.v, 0);
   if (!tot) return '<div class="empty">금주 업데이트된 항목이 없습니다</div>';
@@ -4574,7 +4590,8 @@ function renderHome(c) {
     fitRecent(); placePlaza();
   };
   renderCal();
-  { const tl = c.querySelector('.toprow .tmid'), ch = c.querySelector('.charts'); if (tl && ch) { tl.appendChild(ch); const tip = ch.nextElementSibling; if (tip && tip.tagName === 'P') tl.appendChild(tip); } }   // 그래프를 전달사항 아래(캘린더 옆)로 — 첫 화면에 다 보이게
+  { const tl = c.querySelector('.toprow .tmid'), ch = c.querySelector('.charts'); if (tl && ch) { tl.appendChild(ch); const tip = ch.nextElementSibling; if (tip && tip.tagName === 'P') tl.appendChild(tip); } }
+  HOMEFIT.list = [[grpItems, {}], [own, { horiz:true, color:PALETTE[4] }], null, [pjt, { color:PALETTE[2], fmt:v => v.toFixed(1) }]]; requestAnimationFrame(homeFit);   // 그래프를 전달사항 아래(캘린더 옆)로 — 첫 화면에 다 보이게
   plazaOn();
   if (DB.recent) drawRecent(); else loadRecent().then(drawRecent).catch(() => { const el = $('#recent'); if (el) el.innerHTML = '<div class="empty">이력을 읽지 못했습니다</div>'; });
 }
