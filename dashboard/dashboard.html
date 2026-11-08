@@ -1533,26 +1533,35 @@ button:focus:not(:focus-visible){outline:none}
 .hello h3 .gx{font-size:14px;font-weight:600;color:#5b5f86;margin-left:10px;vertical-align:2px}
 
 /* ---------- 2026-11-08 클로드 비서 (돌아다니는 캐릭터 + 작은 챗봇) ---------- */
-#deptBot{position:fixed;z-index:60;width:64px;height:76px;cursor:pointer;transition:left 3s ease-in-out,top 3s ease-in-out;filter:drop-shadow(0 6px 8px rgba(40,30,80,.25));user-select:none}
+#deptBot{position:fixed;z-index:60;width:78px;height:74px;cursor:pointer;transition-property:left,top;transition-timing-function:linear;user-select:none}
 #deptBot[hidden]{display:none}
-#deptBot svg{width:64px;height:64px;display:block;animation:botBob 2.2s ease-in-out infinite}
-#deptBot.flip svg{transform:scaleX(-1)}
-#deptBot.walk svg{animation:botWalk .45s ease-in-out infinite}
-#deptBot .bspark{transform-origin:32px 13px;animation:botSpark 3s linear infinite}
-#deptBot .beye{transform-box:fill-box;transform-origin:center;animation:botBlink 4s infinite}
-#deptBot .bq{position:absolute;right:-6px;top:-10px;width:24px;height:24px;border-radius:50%;background:#4f4ce0;color:#fff;font-weight:900;display:grid;place-items:center;font-size:15px;box-shadow:0 3px 8px rgba(79,76,224,.45);transform:scale(0);transition:transform .2s}
+#deptBot .bbody{position:absolute;left:8px;bottom:6px;width:58px;height:48px;filter:drop-shadow(0 4px 4px rgba(40,30,80,.25));animation:botBob 2.2s ease-in-out infinite}
+#deptBot .bbody svg{width:100%;height:100%;display:block}
+#deptBot.flip .bbody{transform:scaleX(-1)}
+#deptBot.walk .bbody{animation:botHop .35s steps(2) infinite}
+#deptBot.walk .bleg.a{animation:botLeg .35s steps(1) infinite}#deptBot.walk .bleg.b{animation:botLeg .35s steps(1) infinite reverse}
+#deptBot .barm{transform-box:fill-box;transform-origin:center}#deptBot.juggle .barm{animation:botArm .5s steps(2) infinite}
+#deptBot .bball{position:absolute;left:46px;bottom:4px;width:24px;height:16px;transition:left .3s}#deptBot .bball svg{width:100%;height:100%;display:block;transform:rotate(-20deg)}
+#deptBot.flip .bball{left:6px}
+#deptBot.walk .bball{animation:botDribble .35s ease-in-out infinite}
+#deptBot.juggle .bball{left:27px;animation:botJuggle .9s cubic-bezier(.3,0,.5,1) infinite}#deptBot.juggle .bball svg{animation:fbSpin .9s linear infinite}
+#deptBot.kick .bball{animation:botKick 1.6s ease-out infinite}
+#deptBot .bq{position:absolute;right:0;top:-8px;width:22px;height:22px;border-radius:50%;background:#4f4ce0;color:#fff;font-weight:900;display:grid;place-items:center;font-size:14px;box-shadow:0 3px 8px rgba(79,76,224,.45);transform:scale(0);transition:transform .2s}
 #deptBot:hover .bq,#deptBot.ask .bq,#deptBot.talk .bq{transform:scale(1)}#deptBot.ask .bq{animation:botQ .9s ease}
-#deptBot .bname{position:absolute;left:50%;bottom:-6px;transform:translateX(-50%);white-space:nowrap;font-size:10.5px;font-weight:800;color:#c25a35;background:#fff;border-radius:99px;padding:0 7px;box-shadow:0 2px 5px rgba(0,0,0,.15);opacity:0;transition:opacity .2s}
+#deptBot .bname{position:absolute;left:50%;bottom:-10px;transform:translateX(-50%);white-space:nowrap;font-size:10.5px;font-weight:800;color:#c25a35;background:#fff;border-radius:99px;padding:0 7px;box-shadow:0 2px 5px rgba(0,0,0,.15);opacity:0;transition:opacity .2s}
 #deptBot:hover .bname{opacity:1}
-@keyframes botBob{0%,100%{transform:translateY(0)}50%{transform:translateY(-4px)}}
-@keyframes botWalk{0%,100%{transform:translateY(0) rotate(-4deg)}50%{transform:translateY(-6px) rotate(4deg)}}
-@keyframes botSpark{to{transform:rotate(360deg)}}
-@keyframes botBlink{0%,92%,100%{transform:scaleY(1)}95%{transform:scaleY(.1)}}
+@keyframes botBob{0%,100%{translate:0 0}50%{translate:0 -3px}}
+@keyframes botHop{0%{translate:0 0}50%{translate:0 -3px}}
+@keyframes botLeg{50%{transform:translateY(-2px)}}
+@keyframes botArm{50%{transform:translateY(-3px)}}
+@keyframes botDribble{0%,100%{transform:translateY(0)}50%{transform:translateY(-10px)}}
+@keyframes botJuggle{0%,100%{transform:translateY(-34px)}50%{transform:translateY(-62px)}}
+@keyframes botKick{0%{transform:translate(0,0)}35%{transform:translate(26px,-38px)}70%{transform:translate(8px,-6px)}100%{transform:translate(0,0)}}
 @keyframes botQ{0%{transform:scale(0) rotate(-40deg)}60%{transform:scale(1.4) rotate(10deg)}100%{transform:scale(1)}}
 #botPanel{position:fixed;z-index:61;width:340px;height:440px;display:flex;flex-direction:column;background:#fff;border-radius:18px;box-shadow:0 18px 50px rgba(30,30,90,.3),0 0 0 1px rgba(79,76,224,.12);overflow:hidden}
 #botPanel[hidden]{display:none}
 #botPanel .bph{display:flex;align-items:center;gap:6px;padding:9px 10px;background:linear-gradient(135deg,#e07a52,#c25a35);color:#fff}
-#botPanel .bph .bpa svg{width:30px;height:30px;display:block}#botPanel .bph b{font-size:14px;white-space:nowrap}#botPanel .bph small{font-size:11px;opacity:.85;margin-right:auto;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+#botPanel .bph .bpa{background:#fff;border-radius:8px;padding:2px 3px}#botPanel .bph .bpa svg{width:30px;height:25px;display:block}#botPanel .bph b{font-size:14px;white-space:nowrap}#botPanel .bph small{font-size:11px;opacity:.85;margin-right:auto;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
 #botPanel .bph button{flex:none;white-space:nowrap;border:0;background:rgba(255,255,255,.2);color:#fff;border-radius:8px;padding:3px 8px;font-size:12px;cursor:pointer}#botPanel .bph button:hover{background:rgba(255,255,255,.35)}
 #botPanel .blog{flex:1;overflow:auto;padding:10px;background:#faf8f6;display:flex;flex-direction:column;gap:8px}
 #botPanel .bmsg{display:flex;flex-direction:column;max-width:88%}#botPanel .bmsg.me{align-self:flex-end;align-items:flex-end}
@@ -1562,6 +1571,8 @@ button:focus:not(:focus-visible){outline:none}
 #botPanel .bacts button{border:1px solid #f0d4c6;background:#fff7f2;color:#9a3f1d;border-radius:10px;padding:5px 9px;font-size:12px;text-align:left;cursor:pointer}#botPanel .bacts button:hover{background:#ffe9dc}
 #botPanel .bin{display:flex;gap:6px;padding:8px;border-top:1px solid #eee}#botPanel .bin input{flex:1;border:1px solid #e3e3ef;border-radius:10px;padding:7px 10px;font-size:13px}
 @media print{#deptBot,#botPanel{display:none!important}}
+
+#botPanel .btools{display:flex;gap:4px;padding:6px 8px;background:#fff4ee;border-bottom:1px solid #f3dfd4;flex-wrap:wrap}#botPanel .btools button{border:1px solid #f0d4c6;background:#fff;color:#9a3f1d;border-radius:99px;padding:3px 9px;font-size:11.5px;font-weight:700;cursor:pointer;box-shadow:0 1px 2px rgba(0,0,0,.06)}#botPanel .btools button:hover{background:#ffe9dc}
 </style>
 </head>
 <body>
@@ -1730,7 +1741,7 @@ function recLabel(key, f) {
  * ===================================================================== */
 let root = null;
 /* 서버 모드: http(s):// 로 접속하면 server.py 의 REST API 사용 (폴더 선택 불필요). file:// 로 열면 폴더 모드 */
-const APP_VERSION = '2026-11-08.16';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
+const APP_VERSION = '2026-11-08.17';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
 const SERVER_URL = 'http://localhost:8080';
 // 부서원 PC 사본(file://)이 접속을 시도할 서버 — 서버가 배포 파일을 만들 때 'PC 이름 주소, IP 주소' 순으로 자동 기록함
 const DEFAULT_SERVERS = ['http://ASEUNGWOOK-B01:8080', 'http://65.3.30.234:8080'];
@@ -4573,17 +4584,27 @@ function greetLine(name) {
  * 인터넷 · 외부 AI 를 쓰지 않음 (사내 자료 밖으로 안 나감): 대시보드에 있는 모든 자료(수행 · 입찰 · 통합 업무 · 전달사항 · 유닛분장 · 게시판/VOC …)를
  * 빠른 찾기(qfSearch)로 찾고, 자주 묻는 것(마감 · 메뉴 위치 · 기능 사용법)은 BOT_FAQ 로 답함. 답마다 [바로 이동] 단추. */
 const BOT = { el:null, panel:null, t:0, open:false, log:[] };
-const BOT_SVG = `<svg viewBox="0 0 64 64" aria-hidden="true"><defs><radialGradient id="botg" cx="40%" cy="35%" r="70%"><stop offset="0" stop-color="#f7b08f"/><stop offset=".6" stop-color="#e07a52"/><stop offset="1" stop-color="#c25a35"/></radialGradient></defs>
-  <path d="M32 3l2.2 6.4L40 8l-3.6 5.2L41 17l-6.5.3L32 23l-2.5-5.7L23 17l4.6-3.8L24 8l5.8 1.4z" fill="#ffd36b" class="bspark"/>
-  <ellipse cx="32" cy="58" rx="16" ry="3.5" fill="rgba(20,20,60,.18)"/>
-  <rect x="11" y="20" width="42" height="34" rx="17" fill="url(#botg)"/>
-  <rect x="5" y="32" width="9" height="6" rx="3" fill="#c25a35" class="barm l"/><rect x="50" y="32" width="9" height="6" rx="3" fill="#c25a35" class="barm r"/>
-  <ellipse cx="25" cy="36" rx="3.4" ry="4.4" fill="#2b1d1a" class="beye"/><ellipse cx="39" cy="36" rx="3.4" ry="4.4" fill="#2b1d1a" class="beye"/>
-  <circle cx="26.2" cy="34.4" r="1.2" fill="#fff"/><circle cx="40.2" cy="34.4" r="1.2" fill="#fff"/>
-  <path d="M27 44q5 4 10 0" stroke="#2b1d1a" stroke-width="2" fill="none" stroke-linecap="round"/>
-  <ellipse cx="19" cy="42" rx="3" ry="1.8" fill="#ff9e9e" opacity=".55"/><ellipse cx="45" cy="42" rx="3" ry="1.8" fill="#ff9e9e" opacity=".55"/></svg>`;
+window.__dashBot = { get BOT() { return BOT; }, face:f => botFace(f) };   // 점검용
+/* 픽셀 캐릭터 (사용자가 보낸 그림 결: 주황 네모 몸 · 양팔 · 다리 4개) — 표정 = 눈만 바꿈 */
+const BOT_FACES = {
+  normal:'<rect x="11" y="10" width="3" height="3"/><rect x="22" y="10" width="3" height="3"/>',
+  squint:'<path d="M10 9l4 2.5-4 2.5" fill="none" stroke="#1d1d1d" stroke-width="1.6"/><path d="M26 9l-4 2.5 4 2.5" fill="none" stroke="#1d1d1d" stroke-width="1.6"/>',
+  happy:'<path d="M10 13l2-3 2 3" fill="none" stroke="#1d1d1d" stroke-width="1.6"/><path d="M22 13l2-3 2 3" fill="none" stroke="#1d1d1d" stroke-width="1.6"/>',
+  wow:'<rect x="11" y="9" width="3" height="5"/><rect x="22" y="9" width="3" height="5"/><rect x="16.5" y="15" width="3" height="2"/>',
+  wink:'<rect x="11" y="10" width="3" height="3"/><path d="M21 11.5h5" stroke="#1d1d1d" stroke-width="1.6"/>',
+  dizzy:'<path d="M10 9l4 4M14 9l-4 4M22 9l4 4M26 9l-4 4" stroke="#1d1d1d" stroke-width="1.4"/>',
+  love:'<path d="M12.5 13.5l-2.3-2.3a1.3 1.3 0 0 1 2.3-1.3 1.3 1.3 0 0 1 2.3 1.3z" fill="#e8455b"/><path d="M23.5 13.5l-2.3-2.3a1.3 1.3 0 0 1 2.3-1.3 1.3 1.3 0 0 1 2.3 1.3z" fill="#e8455b"/>'
+};
+const botSvg = (face = 'normal') => `<svg viewBox="0 0 36 30" shape-rendering="crispEdges" aria-hidden="true">
+  <rect x="6" y="4" width="24" height="16" fill="#d97757"/><rect x="2" y="9" width="4" height="5" fill="#d97757" class="barm l"/><rect x="30" y="9" width="4" height="5" fill="#d97757" class="barm r"/>
+  <g class="bleg a"><rect x="8" y="20" width="3" height="6" fill="#d97757"/><rect x="20" y="20" width="3" height="6" fill="#d97757"/></g>
+  <g class="bleg b"><rect x="13" y="20" width="3" height="6" fill="#d97757"/><rect x="25" y="20" width="3" height="6" fill="#d97757"/></g>
+  <g class="bface" fill="#1d1d1d">${BOT_FACES[face] || BOT_FACES.normal}</g></svg>`;
+const BOT_SVG = botSvg('normal');
 const BOT_STOP = /^(어디|어디야|어디에|있어|있나|있나요|있어요|알려|알려줘|알려주세요|보여|보여줘|뭐야|뭐|무엇|어떻게|하는|하나요|해줘|좀|찾아|찾아줘|내|나|제|우리|의|은|는|이|가|을|를|에|에서|좀|요|해|돼|되나요|방법|메뉴|화면|가줘|이동|열어|열어줘)$/;
 const BOT_FAQ = [
+  [/^(찾기|검색)$|찾기\s*(창|열어)|검색\s*창/, () => '빠른 찾기 창을 열어 드릴게요. 메뉴 · PJT · 업무 · 게시글을 한 번에 찾습니다 (Ctrl+K 또는 / 도 같아요).', [['🔍 찾기 열기', () => { botToggle(false); openFind(); }]]],
+  [/voc\s*(등록|쓰기|작성|올리)|건의\s*(하|등록)|불편\s*(신고|등록)/i, () => '화면을 찍어 VOC 를 바로 등록할 수 있어요. 지금 화면에서 고칠 곳을 고르고 내용을 쓰면 됩니다 (단축키 F8).', [['📣 VOC 등록하기', () => { botToggle(false); shotToVoc(); }], ['VOC 목록 보기', () => { BS.kind = 'VOC'; go('board'); }]]],
   [/마감|언제까지|데드라인/, () => `주간업무 마감은 매주 <b>수요일 오전 11:59</b> 입니다. 이번 주 마감은 <b>${esc(weekLabel(curWeek()).slice(-5, -1).replace(/(\d\d)(\d\d)/, '$1/$2'))}(수) 11:59</b> — 그때 자동으로 마감본이 남고 새 주가 시작돼요.`, [['미업데이트 PJT 보기', () => openPop('notupd')], ['수행 PJT', () => go('perform')]]],
   [/할\s*일|내\s*업무|미작성|미업데이트/, () => { const mt = myTasks(), mo = mt.filter(t => !t.done); return mo.length ? `이번 주 남은 할 일이 <b>${mo.length}건</b> 있어요.<br>${mo.slice(0, 5).map(t => `· ${esc(t.label)} <span class="muted">(${esc(t.kind)})</span>`).join('<br>')}${mo.length > 5 ? '<br>…' : ''}` : '이번 주 할 일을 모두 마쳤어요 👍'; }, [['미업데이트 PJT 목록', () => openPop('notupd')], ['기한 지난 업무', () => openPop('overdue')]]],
   [/재무|dart|다트|주가|수주/i, () => '<b>재무스타그램</b>은 왼쪽 메뉴 <b>실행 프로젝트 아래</b>에 있어요. 회사 이름을 검색하면 DART 재무제표 · 주가 · 수주현황을 보여 줍니다. 세계 지도의 [💰 삼성물산 수주현황] 도 같은 자료예요.', [['재무스타그램 열기', () => go('finstagram')]]],
@@ -4627,27 +4648,36 @@ function botToggle(on) {
 function botAsk(q) { q = String(q || '').trim(); if (!q) return; botSay('me', esc(q)); const a = botAnswer(q); setTimeout(() => botSay('bot', a.html, a.acts), 250); }
 function botDock() { const r = BOT.el.getBoundingClientRect(), p = BOT.panel, W = 340, H = 440;
   p.style.left = Math.max(8, Math.min(innerWidth - W - 8, r.left + r.width / 2 - W / 2)) + 'px'; p.style.top = (r.top > H + 20 ? r.top - H - 10 : Math.min(innerHeight - H - 8, r.bottom + 10)) + 'px'; }
+function botFace(f) { const b = BOT.el?.querySelector('.bface'); if (b) b.innerHTML = BOT_FACES[f] || BOT_FACES.normal; }
 function botWander() {
   clearTimeout(BOT.t); if (!BOT.el || BOT.open || BOT.hover || matchMedia('(prefers-reduced-motion: reduce)').matches) { BOT.t = setTimeout(botWander, 4000); return; }
-  const x = 280 + Math.random() * Math.max(100, innerWidth - 380), y = 140 + Math.random() * Math.max(100, innerHeight - 240), cx = parseFloat(BOT.el.style.left) || x;
-  BOT.el.classList.toggle('flip', x < cx); BOT.el.classList.add('walk');
+  const W = innerWidth, H = innerHeight, m = 6, bw = 78, bh = 74, edge = Math.floor(Math.random() * 4), rnd = (a, b) => a + Math.random() * Math.max(1, b - a);
+  const [x, y] = edge === 0 ? [rnd(m, W - bw - m), m] : edge === 1 ? [rnd(m, W - bw - m), H - bh - m] : edge === 2 ? [m, rnd(m, H - bh - m)] : [W - bw - m, rnd(m, H - bh - m)];   // 위 · 아래 · 왼쪽 · 오른쪽 가장자리
+  const cx = parseFloat(BOT.el.style.left) || x, cy = parseFloat(BOT.el.style.top) || y, dist = Math.hypot(x - cx, y - cy), dur = Math.max(1.5, Math.min(6, dist / 260));
+  BOT.el.style.transitionDuration = dur + 's';
+  BOT.el.classList.toggle('flip', x < cx); BOT.el.classList.add('walk'); BOT.el.classList.remove('juggle', 'kick');
+  botFace(['normal', 'squint', 'happy', 'wink'][Math.floor(Math.random() * 4)]);
   BOT.el.style.left = x + 'px'; BOT.el.style.top = y + 'px';
-  setTimeout(() => BOT.el?.classList.remove('walk'), 3200);
-  BOT.t = setTimeout(botWander, 6000 + Math.random() * 6000);
+  setTimeout(() => { if (!BOT.el) return; BOT.el.classList.remove('walk');                     // 도착: 공 놀이 + 표정
+    const trick = ['juggle', 'kick', 'juggle', ''][Math.floor(Math.random() * 4)], face = { juggle:['happy', 'wow', 'love'], kick:['squint', 'wow', 'dizzy'], '':['normal', 'wink', 'happy'] }[trick];
+    if (trick) BOT.el.classList.add(trick); botFace(face[Math.floor(Math.random() * face.length)]); }, dur * 1000);
+  BOT.t = setTimeout(botWander, dur * 1000 + 4000 + Math.random() * 5000);
 }
 function botInit() {
   let off = false; try { off = localStorage.getItem('dept-bot-off') === '1'; } catch (_) {}
   if (BOT.el || !root) return;
-  const el = document.createElement('div'); el.id = 'deptBot'; el.title = '클로드 비서 — 누르면 무엇이든 물어보세요'; el.innerHTML = `${BOT_SVG}<span class="bq">?</span><span class="bname">클로드 비서</span>`;
+  const el = document.createElement('div'); el.id = 'deptBot'; el.title = '클로드 비서 — 누르면 무엇이든 물어보세요'; el.innerHTML = `<span class="bbody">${BOT_SVG}</span><span class="bball">${TB_BALL}</span><span class="bq">?</span><span class="bname">클로드 비서</span>`;
   el.style.left = (innerWidth - 150) + 'px'; el.style.top = (innerHeight - 170) + 'px'; document.body.appendChild(el); BOT.el = el; el.hidden = off;
   const p = document.createElement('div'); p.id = 'botPanel'; p.hidden = true;
   p.innerHTML = `<div class="bph"><span class="bpa">${BOT_SVG}</span><b>클로드 비서</b><small>대시보드 안내 · 바로 이동</small><button type="button" data-bhide title="캐릭터 숨기기 (다시 보기 = 오른쪽 위 🤖)">숨기기</button><button type="button" data-bclose title="닫기">✕</button></div>
-    <div class="blog" id="botLog"></div><form class="bin"><input id="botIn" placeholder="예: 카타르 LNG, 내 할 일, 마감 언제" autocomplete="off" maxlength="80"><button class="btn pri sm">↵</button></form>`;
+    <div class="btools"><button type="button" data-bt="find">🔍 찾기</button><button type="button" data-bt="voc">📣 VOC 등록</button><button type="button" data-bt="todo">📋 내 할 일</button><button type="button" data-bt="board">💬 VOC 목록</button></div><div class="blog" id="botLog"></div><form class="bin"><input id="botIn" placeholder="예: 카타르 LNG, 내 할 일, 마감 언제" autocomplete="off" maxlength="80"><button class="btn pri sm">↵</button></form>`;
   document.body.appendChild(p); BOT.panel = p;
   el.onmouseenter = () => { BOT.hover = true; }; el.onmouseleave = () => { BOT.hover = false; };
-  el.onclick = () => { el.classList.add('ask'); setTimeout(() => el.classList.remove('ask'), 900); botToggle(); };
+  el.onclick = () => { botFace('wow'); el.classList.add('ask'); setTimeout(() => el.classList.remove('ask'), 900); botToggle(); };
   p.querySelector('form').onsubmit = e => { e.preventDefault(); const i = $('#botIn'); botAsk(i.value); i.value = ''; };
-  p.onclick = e => { if (e.target.closest('[data-bclose]')) botToggle(false); if (e.target.closest('[data-bhide]')) { botToggle(false); el.hidden = true; $('#btnBot').hidden = false; try { localStorage.setItem('dept-bot-off', '1'); } catch (_) {} } };
+  p.onclick = e => { const bt = e.target.closest('[data-bt]')?.dataset.bt;
+    if (bt === 'find') { botToggle(false); return openFind(); } if (bt === 'voc') { botToggle(false); return shotToVoc(); } if (bt === 'todo') return botAsk('내 할 일'); if (bt === 'board') { BS.kind = 'VOC'; go('board'); return botSay('bot', 'VOC 목록으로 이동했어요 📣'); }
+    if (e.target.closest('[data-bclose]')) botToggle(false); if (e.target.closest('[data-bhide]')) { botToggle(false); el.hidden = true; $('#btnBot').hidden = false; try { localStorage.setItem('dept-bot-off', '1'); } catch (_) {} } };
   const tb = document.createElement('button'); tb.id = 'btnBot'; tb.className = 'btn'; tb.type = 'button'; tb.textContent = '🤖'; tb.title = '클로드 비서 다시 보기'; tb.hidden = !off;
   tb.onclick = () => { el.hidden = false; tb.hidden = true; try { localStorage.setItem('dept-bot-off', ''); } catch (_) {} botToggle(true); };
   $('#btnDark')?.before(tb);
