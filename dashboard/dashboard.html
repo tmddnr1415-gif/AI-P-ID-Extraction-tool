@@ -1434,6 +1434,16 @@ body.rail #side:not(:hover):not(.peek) .mgrp.act .mhead .mi.top{background:#fff;
 .igh.team .btn{background:rgba(255,255,255,.12);color:#fff;border-color:rgba(255,255,255,.3)}
 .tm-week{display:flex;align-items:center;gap:14px;margin:-2px -4px 12px;padding:9px 18px;color:#fff;background:linear-gradient(90deg,#c60c30,#e3173e 60%,rgba(198,12,48,.55));clip-path:polygon(0 0,100% 0,98.5% 100%,0 100%);border-radius:6px 0 0 6px}
 .tm-week b{font-size:15px;font-style:italic;font-weight:900}.tm-week span{font-size:12px;color:#ffe3e8}
+
+/* ---------- 2026-11-08 다크 모드: 화면 전체를 반전(색상은 그대로) → 원래 어두운 곳 · 사진 · 연결 도구 · 게임은 다시 반전해서 원래대로 ---------- */
+html.dark{filter:invert(1) hue-rotate(180deg);background:#fff}
+/* 창(dialog) · 전체 화면은 맨 위 층이라 위 반전을 받지 않음 → 따로 반전 */
+html.dark :is(dialog[open],:fullscreen){filter:invert(1) hue-rotate(180deg)}
+html.dark dialog::backdrop{background:rgba(255,255,255,.35)}
+html.dark :is(img,video,canvas,iframe,.oc-helmimg,.pidframe,.modframe,#plazaHost,.oc-hero2,#side,.igh.team,.tm-week,.oc.m-map .oc-view,.kpi.hero,.cd.today,.whero,.gp,.bhat,.oc-hs,.fb,.hel,.calcard .crown,.oav,.oc-av>img,.oc-av>b,.pfav){filter:invert(1) hue-rotate(180deg)}
+html.dark :is(#side,.igh.team,.whero,.kpi.hero,.oc-hero2,.oc.m-map .oc-view,.oav,.pfav) :is(img,canvas,.oc-helmimg,.oav,.oc-hs,.fb,.hel,.bhat){filter:none}
+html.dark dialog,html.dark :fullscreen{color-scheme:light}
+.darkbtn{min-width:40px}
 </style>
 </head>
 <body>
@@ -1463,6 +1473,7 @@ body.rail #side:not(:hover):not(.peek) .mgrp.act .mhead .mi.top{background:#fff;
     <button id="burger" title="메뉴 접기/펼치기" aria-label="메뉴">☰</button>
     <div class="ttl"><h1>계장ENG그룹 Dashboard</h1><p id="subtitle"></p></div>
     <button class="btn safebtn" id="btnSafe" hidden><i></i><span></span></button>
+    <button class="btn darkbtn" id="btnDark" type="button" title="다크 모드 켜기/끄기 (이 PC 에 기억)">🌙</button>
     <button class="btn findbtn" id="btnFind" title="메뉴 · PJT · 업무 · 게시글을 한 번에 찾아 바로 이동 (Ctrl+K)">🔍 찾기</button>
     <button class="btn shotbtn" id="btnShot" title="화면을 캡처해 범위를 고르고, 그 자리에서 바로 VOC 쓰기 (지금 화면 · 열린 창은 그대로) · 단축키 F8 · 초록 점 = 빠른 캡처 켜짐(다시 묻지 않음)">📷 스크린 → VOC</button>
     <div class="actions">
@@ -1601,7 +1612,7 @@ function recLabel(key, f) {
  * ===================================================================== */
 let root = null;
 /* 서버 모드: http(s):// 로 접속하면 server.py 의 REST API 사용 (폴더 선택 불필요). file:// 로 열면 폴더 모드 */
-const APP_VERSION = '2026-11-08.4';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
+const APP_VERSION = '2026-11-08.6';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
 const SERVER_URL = 'http://localhost:8080';
 // 부서원 PC 사본(file://)이 접속을 시도할 서버 — 서버가 배포 파일을 만들 때 'PC 이름 주소, IP 주소' 순으로 자동 기록함
 const DEFAULT_SERVERS = ['http://ASEUNGWOOK-B01:8080', 'http://65.3.30.234:8080'];
@@ -5268,8 +5279,9 @@ function foldPick(rows, n, must) {
  * 유형 = 일반업무(그룹 업무) / 표준화 담당(ITEM PO) / To Do List / 기술공유 / 그룹장 요청 사항 — 부서원이 고르고, 현황판은 유형별로 요약, 진행 사항 작성 틀도 유형별.
  * 예전 일반업무·To do·기술공유 시트는 숨김(데이터 그대로). [기존 업무 가져오기] 로 복사(ID = 'task-' + 원래 ID, 두 번 눌러도 중복 안 됨). */
 const TASK_TYPES = ['일반업무', '표준화 담당', 'To Do List', '기술공유', '그룹장 요청 사항'];
-// 2026-11-04: 일반업무 · 표준화 담당은 통합 업무 메뉴에서 뺌 → 유닛분장(조직도 · 부서원 표 · 부서원 화면)에서 부서원별로 봄. 데이터 · 내 업무 알림은 그대로
-const TASK_HIDE = new Set(['일반업무', '표준화 담당']), TASK_VIS = TASK_TYPES.filter(t => !TASK_HIDE.has(t));
+// 2026-11-04: 일반업무 · 표준화 담당은 통합 업무 메뉴에서 뺌 (2026-11-08: 일반업무는 다시 보임 — 표준화만 뺌) → 유닛분장(조직도 · 부서원 표 · 부서원 화면)에서 부서원별로 봄. 데이터 · 내 업무 알림은 그대로
+const TASK_HIDE = new Set(['표준화 담당']),   // 2026-11-08 VOC: 일반업무는 다시 통합 업무에도 보임 (부서원 화면에서 추가 · 수정 = 통합 업무에 반영)
+      TASK_VIS = TASK_TYPES.filter(t => !TASK_HIDE.has(t));
 const taskShown = r => !TASK_HIDE.has(normType(r.fields?.['유형']));
 const TASK_NEWEST = new Set(['To Do List', '기술공유', '그룹장 요청 사항']);   // 표에서 늘 최신(등록 시각)이 맨 위
 const workType = (k, r) => k === 'task' ? normType(r.fields['유형']) : ({ general:'일반업무', todo:'To Do List', techshare:'기술공유' })[k] || '';
@@ -5347,7 +5359,7 @@ function taskHero(s) {
   const have = new Set(getRecs('task').map(r => r.id));
   const legacy = readOnly() ? [] : WORK_KEYS.flatMap(k => (DB.recs[k] || []).filter(r => !have.has('task-' + r.id)));
   return `<div id="taskhero">
-    <section class="whero task-hero"><div class="wh-top"><div><h2>🚀 통합 업무</h2><p>To Do List · 기술공유 · 그룹장 요청 사항 (최신 등록이 맨 위) · <b>일반업무 · 표준화 담당은 유닛분장 → 부서원을 누르면</b> — 각자 맡은 업무의 <b>유형</b>을 고르면 유형별로 정리됩니다. 아래 표는 수행·입찰 PJT 처럼 셀 편집 · 행 추가 · 열 추가가 됩니다.</p></div></div>
+    <section class="whero task-hero"><div class="wh-top"><div><h2>🚀 통합 업무</h2><p>To Do List · 기술공유 · 그룹장 요청 사항 (최신 등록이 맨 위) · <b>표준화 담당은 유닛분장 → 부서원을 누르면</b> — 각자 맡은 업무의 <b>유형</b>을 고르면 유형별로 정리됩니다. 아래 표는 수행·입찰 PJT 처럼 셀 편집 · 행 추가 · 열 추가가 됩니다.</p></div></div>
       ${yearTabs(st.year, years, add ? '<button class="btn wadd" data-wadd>＋ 업무 추가</button>' : '')}
       <div class="wtypes"><button class="wtc ${!st.f['유형'] ? 'on' : ''}" data-tf="">전체 <b>${inY.length}</b></button>${TASK_VIS.map(t => `<button class="wtc ${st.f['유형'] === t ? 'on' : ''}" data-tf="${esc(t)}">${TT[t].icon} ${esc(t)} <b>${inY.filter(i => normType(i.f['유형']) === t).length}</b></button>`).join('')}</div>
     </section>
@@ -7259,6 +7271,10 @@ const setNavClosed = on => { document.body.classList.toggle('nav-closed', on); $
   try { localStorage.setItem('dept-nav-closed', on ? '1' : ''); } catch (_) {} };
 try { if (localStorage.getItem('dept-nav-closed') === '1' && innerWidth > 900) setNavClosed(true); } catch (_) {}
 $('#btnShot').onclick = () => shotToVoc();
+/* 다크 모드 (2026-11-08): 🌙 단추 · 이 PC 에 기억 (localStorage dept-dark) */
+const setDark = on => { document.documentElement.classList.toggle('dark', on); $('#btnDark').textContent = on ? '☀️' : '🌙'; $('#btnDark').title = on ? '밝은 모드로' : '다크 모드로 (이 PC 에 기억)'; try { localStorage.setItem('dept-dark', on ? '1' : ''); } catch (_) {} };
+try { if (localStorage.getItem('dept-dark') === '1') setDark(true); } catch (_) {}
+$('#btnDark').onclick = () => setDark(!document.documentElement.classList.contains('dark'));
 $('.ttl h1').onclick = () => go('home');   // 제목 = 주간업무보고 첫 화면 (2026-10-30 VOC)
 $('#burger').onclick =() => { if (innerWidth <= 900) document.body.classList.toggle('nav-open'); else setNavClosed(!document.body.classList.contains('nav-closed')); };
 $('#sideHide').onclick = () => { if (innerWidth <= 900) document.body.classList.remove('nav-open'); else setNavClosed(true); };
