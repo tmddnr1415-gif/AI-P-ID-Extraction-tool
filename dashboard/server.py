@@ -36,7 +36,7 @@ ID_RE = re.compile(r'^[A-Za-z0-9_\-]{1,80}$')
 WEEK_RE = re.compile(r'^\d{4}-W\d{2}$')
 MAX_BODY = 30 * 1024 * 1024
 
-SERVER_VERSION = '2026-11-07.4'
+SERVER_VERSION = '2026-11-08.1'
 ROOT = os.path.dirname(os.path.abspath(__file__))
 PORT = 8080
 ALLOW_NETS = []          # 사내망: 루프백·사설망 + 서버 IP 대역(/16, 유선·Wi-Fi 등 지금까지 쓴 대역 모두 기억) + --allow 로 추가한 대역
@@ -1856,9 +1856,9 @@ def fin_stop():
 
 # ---------------------------------------------------------------- 메뉴 권한 (accounts/_perms.json) — 운영자(서버 PC)만 변경
 MENUS = [('weekly', '주간업무보고'), ('pid', 'P&ID 분석'), ('logic', 'LOGIC 분석'), ('space', 'ROOM SIZE 계산'), ('books', '도서검토'), ('ic3d', '3D 계측제어'), ('bidpjt', '입찰 프로젝트'), ('runpjt', '실행 프로젝트'), ('finstagram', '재무스타그램'),
-         ('board', '익명게시판'), ('mgmt', 'Management')]
+         ('board', '익명게시판'), ('mgmt', 'Management'), ('bot', '비서 바이브')]   # 2026-11-08 bot = 클로드 비서 자동 실행(확인 없이 · 여러 단계) 권한, 메뉴 아님
 MENU_KEYS = [k for k, _ in MENUS]
-DEFAULT_PERMS = {k: k != 'mgmt' for k in MENU_KEYS}
+DEFAULT_PERMS = {k: k not in ('mgmt', 'bot') for k in MENU_KEYS}
 SUPER_NAMES = ('구종현',)   # 2026-10-22 그룹장: 운영자와 같은 권한 (금주 마감 · 휴지통 영구삭제 · 게시판 관리 삭제 · 모든 메뉴) — 메뉴 권한 설정(부서원 권한 주기)만 운영자   # 기본: 모두 허용, Management 만 권한 부여 필요
 
 

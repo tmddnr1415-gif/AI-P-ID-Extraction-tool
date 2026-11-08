@@ -1592,6 +1592,10 @@ button:focus:not(:focus-visible){outline:none}
 #botPanel .bplist{margin-top:5px;font-size:11.5px;background:#f6f7fb;border-radius:8px;padding:4px 7px}#botPanel .bplist.hint{background:#fff8e6}#botPanel .bplist small{display:block;font-size:10.5px;color:#7a7d99;font-weight:700}
 
 #botPanel .bimg img{max-width:100%;max-height:140px;border-radius:8px;border:1px solid #e3e6f0;margin:4px 0;display:block}#botPanel .btrsrc{margin-top:4px;font-size:11.5px;color:#666}#botPanel .btrsrc summary{cursor:pointer;color:#4f4ce0;font-weight:700;font-size:11px}
+
+#botPanel.max{left:8px!important;top:8px!important;width:calc(100vw - 16px)!important;height:calc(100vh - 16px)!important;border-radius:14px}#botPanel.max .blog{font-size:13.5px}#botPanel.max .bmsg .bb{max-width:70%}
+#botPanel .bsteps{margin:6px 0 0;padding-left:0;list-style:none;font-size:12.5px}#botPanel .bsteps li{padding:3px 0;border-bottom:1px dashed #e6e8f2}#botPanel .bsteps .bst{display:inline-block;width:18px;font-weight:800}#botPanel .bsteps .bsn{color:#7a7d99;font-size:11px}
+body.botonly #side,body.botonly header.top,body.botonly #content,body.botonly #deptBot,body.botonly #taskbar,body.botonly #plazaHost,body.botonly #wmBar{display:none!important}body.botonly{background:#eef0f7}body.botonly dialog{display:none!important}body.botonly #botPanel{left:0!important;top:0!important;width:100vw!important;height:100vh!important;border-radius:0}body.botonly #botPanel [data-bwin],body.botonly #botPanel [data-bmax],body.botonly #botPanel [data-bhide],body.botonly #botPanel [data-bclose]{display:none}
 </style>
 </head>
 <body>
@@ -1760,7 +1764,7 @@ function recLabel(key, f) {
  * ===================================================================== */
 let root = null;
 /* 서버 모드: http(s):// 로 접속하면 server.py 의 REST API 사용 (폴더 선택 불필요). file:// 로 열면 폴더 모드 */
-const APP_VERSION = '2026-11-08.28';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
+const APP_VERSION = '2026-11-08.29';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
 const SERVER_URL = 'http://localhost:8080';
 // 부서원 PC 사본(file://)이 접속을 시도할 서버 — 서버가 배포 파일을 만들 때 'PC 이름 주소, IP 주소' 순으로 자동 기록함
 const DEFAULT_SERVERS = ['http://ASEUNGWOOK-B01:8080', 'http://65.3.30.234:8080'];
@@ -1818,7 +1822,7 @@ function setPerms(p, sup) {
   return changed;
 }
 // 메뉴 키: weekly(주간업무보고+하위 시트) / pid / bidpjt / runpjt / board / mgmt. 폴더 모드·운영자는 전부 허용, 모르면 Management 만 비허용
-const can = m => { if (!SERVER || MGR()) return true; const p = PERMS || {}; return m in p ? !!p[m] : m !== 'mgmt'; };
+const can = m => { if (!SERVER || MGR()) return true; const p = PERMS || {}; return m in p ? !!p[m] : (m !== 'mgmt' && m !== 'bot'); };   // 'bot' = 비서 바이브(자동 실행) 권한, 기본 없음
 async function api(method, path, body, raw) {
   const opt = { method, cache:'no-store', headers:{} };
   if (AUTH?.token) opt.headers['X-Auth-Token'] = AUTH.token;
@@ -2987,7 +2991,7 @@ async function openPerms() {
   const cell = (r, i, m) => `<td class="pc"><input type="checkbox" data-r="${i}" data-m="${m.k}" ${r.perms[m.k] ? 'checked' : ''} aria-label="${esc(r.name)} · ${esc(m.l)}"></td>`;
   openDlg(dlg, `<div class="dh"><span>⚙ 메뉴 권한 설정</span><button class="btn sm" data-close>닫기</button></div>
     <div class="db"><p class="muted" style="margin-top:0">체크한 메뉴만 그 사용자의 왼쪽 메뉴에 보이고 사용할 수 있습니다. 운영자(이 서버 PC)는 항상 모든 메뉴를 사용합니다.
-      <b>Management</b> 는 기본적으로 권한이 없습니다.${d.updatedAt ? ` · 마지막 변경: ${esc(d.updatedBy || '')} ${fmtTime(d.updatedAt)}` : ''}</p>
+      <b>Management</b> 와 <b>비서 바이브</b>(클로드 비서가 확인 단추 없이 바로 · 여러 단계를 차례로 실행)는 기본적으로 권한이 없습니다.${d.updatedAt ? ` · 마지막 변경: ${esc(d.updatedBy || '')} ${fmtTime(d.updatedAt)}` : ''}</p>
     <div class="permwrap"><table class="t perm"><thead><tr><th>사용자</th>${d.menus.map(m => `<th class="pc">${esc(m.l)}<label class="pall"><input type="checkbox" data-all="${m.k}"> 전체</label></th>`).join('')}</tr></thead>
     <tbody>${rows.map((r, i) => `<tr class="${i ? '' : 'guest'}"><td><b>${esc(r.name)}</b> <span class="muted">${esc(r.sub)}</span></td>${d.menus.map(m => cell(r, i, m)).join('')}</tr>`).join('')}</tbody></table></div>
     ${d.users.length ? '' : '<p class="muted">아직 개설된 계정이 없습니다.</p>'}</div>
@@ -4517,6 +4521,7 @@ function taskBarClick(e) {
 }
 let JUMP = null;
 function jumpTo(key, rid, f, edit) {
+  if (botRelay({ jump:[key, rid, f, edit] })) return;   // 비서 새창이면 원래 창이 이동
   if (dlg.open && !wmParked(dlg)) dlg.close();               // 세워 둔(최소화 · 절반) 작업 창은 닫지 않음
   FS[key] = null; fstate(key).year = '';                  // 필터·연도 때문에 안 보이는 일이 없도록 초기화
   JUMP = { key, rid, f, edit };
@@ -4637,7 +4642,7 @@ const BOT_FAQ = [
   [/전달\s*사항|공지|회의/, () => { const m = sortRecs(SHEET.notice, getRecs('notice'))[0]; return m ? `최신 주간회의 전달사항은 <b>${esc(flat(m.fields['제목']))}</b> (${esc(flat(m.fields['일자']))}) 이에요.` : '등록된 전달사항이 없어요.'; }, [['전달사항 보기', () => go('notice')]]],
   [/출장|서버\s*옮|다른\s*pc|대신\s*켜/i, () => '서버를 다른 PC 로 옮길 때는: 서버를 끄고 운영 폴더 전체를 그 PC 로 복사 → 그 PC 에서 start_server.bat. 돌아오면 반대로 복사. <b>두 서버를 동시에 켜면 안 돼요</b> (자료가 갈라짐).', []],
   [/안녕|하이|hello|hi\b|반가/i, () => `안녕하세요${AUTH ? ', ' + esc(AUTH.name) + ' 님' : ''}! 대시보드 안의 PJT · 업무 · 전달사항 · VOC 를 찾아 바로 데려다 드려요. 예: "카타르", "내 할 일", "재무스타그램 어디", "마감 언제"`, []],
-  [/뭐\s*할\s*수|무엇을\s*할\s*수|할\s*수\s*있는\s*(게|것|기능)|도움말|사용법|고치|수정\s*(하는|방법|기능|할\s*수)|편집\s*방법|바꾸는\s*법/, () => '저에게 바로 고쳐 달라고 하셔도 돼요 ✍<br>· "카타르 LNG 업무 현황에 도면 승인 완료 추가"<br>· "카타르 LNG 업무 현황 11월 착공 예정으로 수정"<br>· "카타르 LNG 변경 없음"<br>· "To Do 추가 HAZOP 자료 정리" (박민수 To Do 추가 … = 그 사람)<br>· "HAZOP 후속 조치 종결"<br>· "카타르 LNG PJT 주요 일정 26.3 착공으로 수정" (어느 칸이든)<br>· "입찰 추가: PJT명=베트남 신규, 사업군=발전" · "기술공유 추가: OPC UA 소개"<br>· "카타르 NFE 상세 보여줘" · "예시수행-A 삭제"<br>· "VOC 에 글 쓰기: 제목 / 내용" · "회식 글에 댓글: 참석합니다"<br>고치기 전에 바뀌는 내용을 보여 드리고, [✔ 적용] 을 누르면 저장하고 결과 화면으로 이동해요.<br><br><b>분석 메뉴 · 파일</b><br>· "Valve Datasheet 분석 결과 엑셀로 출력해줘" · "Ball Valve 결과 요약해줘"<br>· "Panel 결과 CAD로 출력해줘" (.dxf)<br>· Equipment List 를 비서 창에 끌어다 놓고 → "이걸 새로운 \"CO2 PJT\" 프로젝트 \"MCC\" 룸 \"A\" revision 으로 생성해"<br>· "수행 PJT 요약" · "입찰 엑셀로 출력"<br><br><b>계측제어 질문</b>: "PDIC-101", "오리피스 직관 길이", "SIL2 PFD", "방폭 IIC"<br><br><b>번역</b>: "번역: The valve shall fail closed …" · "영어로: 도면 승인 완료" · 그림(캡처)을 끌어다 놓거나 붙여 넣으면 영어 글자를 읽어 번역 — 모두 브라우저 안에서(외부 전송 없음)<br><br><b>첨삭</b>: "첨삭: 금일 회의 결과 보고 드립니다 …" · "첨삭: Please find attached the datasheet …" — 한국어 · 영어 모두, 고친 곳과 이유를 보여 줘요', []],
+  [/뭐\s*할\s*수|무엇을\s*할\s*수|할\s*수\s*있는\s*(게|것|기능)|도움말|사용법|고치|수정\s*(하는|방법|기능|할\s*수)|편집\s*방법|바꾸는\s*법/, () => '저에게 바로 고쳐 달라고 하셔도 돼요 ✍<br>· "카타르 LNG 업무 현황에 도면 승인 완료 추가"<br>· "카타르 LNG 업무 현황 11월 착공 예정으로 수정"<br>· "카타르 LNG 변경 없음"<br>· "To Do 추가 HAZOP 자료 정리" (박민수 To Do 추가 … = 그 사람)<br>· "HAZOP 후속 조치 종결"<br>· "카타르 LNG PJT 주요 일정 26.3 착공으로 수정" (어느 칸이든)<br>· "입찰 추가: PJT명=베트남 신규, 사업군=발전" · "기술공유 추가: OPC UA 소개"<br>· "카타르 NFE 상세 보여줘" · "예시수행-A 삭제"<br>· "VOC 에 글 쓰기: 제목 / 내용" · "회식 글에 댓글: 참석합니다"<br>고치기 전에 바뀌는 내용을 보여 드리고, [✔ 적용] 을 누르면 저장하고 결과 화면으로 이동해요.<br><br><b>분석 메뉴 · 파일</b><br>· "Valve Datasheet 분석 결과 엑셀로 출력해줘" · "Ball Valve 결과 요약해줘"<br>· "Panel 결과 CAD로 출력해줘" (.dxf)<br>· Equipment List 를 비서 창에 끌어다 놓고 → "이걸 새로운 \"CO2 PJT\" 프로젝트 \"MCC\" 룸 \"A\" revision 으로 생성해"<br>· "수행 PJT 요약" · "입찰 엑셀로 출력"<br><br><b>계측제어 질문</b>: "PDIC-101", "오리피스 직관 길이", "SIL2 PFD", "방폭 IIC"<br><br><b>⚡ 바이브</b>(운영자가 권한을 준 사람): 확인 단추 없이 바로 실행, 여러 일을 줄바꿈이나 "그리고" 로 이어 적으면 차례로 하고 진행 현황을 보여 줘요. 위 ↗ 는 새창, ⛶ 는 최대화.<br><br><b>번역</b>: "번역: The valve shall fail closed …" · "영어로: 도면 승인 완료" · 그림(캡처)을 끌어다 놓거나 붙여 넣으면 영어 글자를 읽어 번역 — 모두 브라우저 안에서(외부 전송 없음)<br><br><b>첨삭</b>: "첨삭: 금일 회의 결과 보고 드립니다 …" · "첨삭: Please find attached the datasheet …" — 한국어 · 영어 모두, 고친 곳과 이유를 보여 줘요', []],
 ];
 const botWords = q => String(q).split(/[\s,.?!·~]+/).map(w => w.replace(/(이야|이에요|예요|인가요|은|는|이|가|을|를|에|에서|의|좀|요)$/, '')).filter(w => w.length >= 2 && !BOT_STOP.test(w));
 /* 2026-11-08 '모든 내용을 학습' — 물을 때마다 대시보드 전체를 색인(BOT_IDX): 모든 시트 행(모든 칸) · 게시판/VOC 글과 댓글(익명 작성자는 안 밝힘) ·
@@ -5298,6 +5303,42 @@ function botAnswer(q) {
   if (!out.html) out.html = '음… 딱 맞는 걸 못 찾았어요 🤔 PJT 이름 · 사람 이름 · 메뉴 이름 · VOC 내용으로 물어봐 주세요. 예: "카타르 LNG 누가 해?", "박민수", "수행 PJT 몇 개", "판넬 VOC"';
   return out;
 }
+/* 2026-11-08 클로드 비서 '바이브' — 운영자가 메뉴 권한 설정에서 [비서 바이브] 를 준 부서원(운영자 · 그룹장은 기본): 말만 하면 확인 단추 없이 바로 실행,
+ *  여러 일을 줄바꿈 · '그리고' · '그 다음' 으로 이어 적으면 차례로 실행하며 진행 현황 카드(⏳ → ✅ / ❌)를 채팅창에 보여 줌. 권한 없으면 예전처럼 미리보기 → [✔ 적용].
+ *  새창(?bot=1): 비서만 크게 띄운 창 — 이동 · 표 하이라이트는 원래 창(opener)에 시킴. */
+const botVibe = () => !!(SERVER && (MGR() || can('bot')));
+const botSteps = q => String(q).split(/\n+|\s*(?:그리고\s*(?:나서|서)?|그\s*다음(?:에|으로)?|다음으로|이어서|->|→|;)\s+/).map(s => s.trim()).filter(s => s.length >= 2);
+async function botRunStep(step, card, i) {
+  const set = (icon, note) => { if (!card) return; const li = card.querySelectorAll('li')[i]; if (li) { li.querySelector('.bst').textContent = icon; if (note) li.querySelector('.bsn').innerHTML = note; } const b = $('#botLog'); if (b) b.scrollTop = b.scrollHeight; };
+  set('⏳');
+  try {
+    const a = botAnswer(step);
+    if (a.keep && a.acts.length) {                               // 확인이 필요한 일 → 미리보기 보여 주고 바로 첫 단추(적용) 실행
+      botSay('bot', a.html + '<br><span class="muted" style="font-size:11px">⚡ 바이브: 자동 실행</span>');
+      await a.acts[0].fn(); await new Promise(r => setTimeout(r, 900)); set('✅', '자동 실행');
+    } else if (a.run) { botSay('bot', a.html || '⚡ 실행 중…'); await a.run(); await new Promise(r => setTimeout(r, 400)); set('✅'); }
+    else { botSay('bot', a.html, a.acts); set(/🔒|못 찾|실패|❌|🤔/.test(a.html) ? '⚠' : '✅', /🔒/.test(a.html) ? '권한 없음' : ''); }
+  } catch (e) { set('❌', esc(e.message || '실패')); botSay('bot', '❌ ' + esc(e.message || '실패')); }
+}
+async function botVibeRun(q) {
+  const steps = botSteps(q);
+  if (steps.length <= 1) { const a = botAnswer(q); if (a.keep && a.acts.length) { botSay('bot', a.html + '<br><span class="muted" style="font-size:11px">⚡ 바이브: 자동 실행</span>'); setTimeout(() => a.acts[0].fn(), 400); return; }
+    botSay('bot', a.html, a.acts); if (a.run) setTimeout(a.run, 300); return; }
+  const card = botSay('bot', `⚡ <b>바이브 실행</b> — ${steps.length}단계 진행 현황<ol class="bsteps">${steps.map(s => `<li><span class="bst">·</span> ${esc(trunc(s, 60))} <small class="bsn"></small></li>`).join('')}</ol>`);
+  botFace('squint');
+  for (let i = 0; i < steps.length; i++) await botRunStep(steps[i], card, i);
+  botFace('happy'); botSay('bot', `✅ ${steps.length}단계 끝났어요. 위 카드에서 각 단계 결과를 확인하세요.`);
+}
+/* 새창 · 최대화 */
+const BOT_ONLY = (() => { try { return new URLSearchParams(location.search).get('bot') === '1'; } catch (_) { return false; } })();
+function botOpenWindow() {
+  const url = location.href.replace(/\?[^#]*/, '').replace(/#.*$/, '') + '?bot=1' + (location.hash || '#home');
+  const w = window.open(url, 'deptBotWin', 'width=620,height=860,menubar=no,toolbar=no,location=no,status=no'); if (!w) return toast('팝업이 막혔습니다 — 브라우저 주소창의 팝업 허용을 눌러 주세요', true);
+  botToggle(false); toast('클로드 비서를 새창으로 열었습니다 · 그 창의 요청대로 이 창이 함께 움직여요');
+}
+if (!BOT_ONLY) addEventListener('message', e => { const d = e.data; if (!d || d.type !== 'dept-bot-go' || e.origin !== location.origin) return;   // 새창 비서 → 이 창 이동
+  try { if (d.jump) jumpTo(...d.jump); else if (d.go) go(d.go); else if (d.prof) openProfile(d.prof); } catch (_) {} });
+const botRelay = msg => { if (!BOT_ONLY || !window.opener || window.opener.closed) return false; try { window.opener.postMessage({ type:'dept-bot-go', ...msg }, location.origin); return true; } catch (_) { return false; } };
 function botSay(who, html, acts = []) {
   const b = $('#botLog'); if (!b) return; const d = document.createElement('div'); d.className = 'bmsg ' + who;
   d.innerHTML = `<div class="bb">${html}</div>${acts.length ? `<div class="bacts">${acts.map((a, i) => `<button type="button" data-ba="${i}">${esc(a.l)} ›</button>`).join('')}</div>` : ''}`;
@@ -5314,8 +5355,11 @@ function botToggle(on) {
   if (BOT.open) { botDock(); if (!$('#botLog').children.length) botSay('bot', `무엇을 도와드릴까요${AUTH ? ', ' + esc(AUTH.name) + ' 님' : ''}? 대시보드 안의 PJT · 업무 · 전달사항 · VOC 를 찾아 바로 이동해 드려요.`, [{ l:'이번 주 내 할 일', fn:() => botAsk('내 할 일') }, { l:'마감 언제?', fn:() => botAsk('마감 언제') }, { l:'재무스타그램 어디?', fn:() => botAsk('재무스타그램 어디') }]);
     setTimeout(() => $('#botIn')?.focus(), 50); }
 }
-function botAsk(q) { q = String(q || '').trim(); if (!q) return; botSay('me', esc(q)); const a = botAnswer(q); if (a.keep) a.acts.forEach(x => x.edit = true); setTimeout(() => { botSay('bot', a.html, a.acts); if (a.run) setTimeout(a.run, 300); }, 250); }
-function botDock() { const r = BOT.el.getBoundingClientRect(), p = BOT.panel, W = 340, H = 440;
+function botAsk(q) { q = String(q || '').trim(); if (!q) return; botSay('me', esc(q).replace(/\n/g, '<br>'));
+  if (botVibe()) return setTimeout(() => botVibeRun(q), 250);   // 바이브 권한: 확인 없이 바로 · 여러 단계 차례로
+  if (botSteps(q).length > 1) return setTimeout(() => botSay('bot', '여러 일을 한 번에 시키는 것(바이브)은 운영자가 <b>메뉴 권한 설정 › 비서 바이브</b> 를 켜 줘야 해요. 지금은 한 번에 하나씩 말해 주세요 🙂'), 250);
+  const a = botAnswer(q); if (a.keep) a.acts.forEach(x => x.edit = true); setTimeout(() => { botSay('bot', a.html, a.acts); if (a.run) setTimeout(a.run, 300); }, 250); }
+function botDock() { const r = BOT.el.getBoundingClientRect(), p = BOT.panel, W = 340, H = 440; if (p.classList.contains('max')) return;
   p.style.left = Math.max(8, Math.min(innerWidth - W - 8, r.left + r.width / 2 - W / 2)) + 'px'; p.style.top = (r.top > H + 20 ? r.top - H - 10 : Math.min(innerHeight - H - 8, r.bottom + 10)) + 'px'; }
 function botFace(f) { const b = BOT.el?.querySelector('.bface'); if (b) b.innerHTML = BOT_FACES[f] || BOT_FACES.normal; }
 function botWander() {
@@ -5334,11 +5378,11 @@ function botWander() {
 }
 function botInit() {
   let off = false; try { off = localStorage.getItem('dept-bot-off') === '1'; } catch (_) {}
-  if (BOT.el || !root) return;
+  if (BOT.el || !root) return; if (BOT_ONLY) { off = false; document.body.classList.add('botonly'); document.title = '클로드 비서 — 계장ENG그룹 Dashboard'; }
   const el = document.createElement('div'); el.id = 'deptBot'; el.title = '클로드 비서 — 누르면 무엇이든 물어보세요'; el.innerHTML = `<span class="bbody">${BOT_SVG}<i class="oc-helmimg bhelm"></i></span><span class="bball">${TB_BALL}</span><span class="bq">?</span><span class="bname">클로드 비서</span>`;
   el.style.left = (innerWidth - 150) + 'px'; el.style.top = (innerHeight - 170) + 'px'; document.body.appendChild(el); BOT.el = el; el.hidden = off;
   const p = document.createElement('div'); p.id = 'botPanel'; p.hidden = true;
-  p.innerHTML = `<div class="bph"><span class="bpa">${BOT_SVG}<i class="oc-helmimg bhelm"></i></span><b>클로드 비서</b><small>대시보드 안내 · 바로 이동</small><button type="button" data-bhide title="캐릭터 숨기기 (다시 보기 = 오른쪽 위 🤖)">숨기기</button><button type="button" data-bclose title="닫기">✕</button></div>
+  p.innerHTML = `<div class="bph"><span class="bpa">${BOT_SVG}<i class="oc-helmimg bhelm"></i></span><b>클로드 비서</b><small>대시보드 안내 · 바로 이동</small><button type="button" data-bwin title="비서를 새창으로 (이 창은 비서가 시키는 대로 움직임)">↗</button><button type="button" data-bmax title="최대화 / 원래 크기">⛶</button><button type="button" data-bhide title="캐릭터 숨기기 (다시 보기 = 오른쪽 위 🤖)">숨기기</button><button type="button" data-bclose title="닫기">✕</button></div>
     <div class="btools"><button type="button" data-bt="find">🔍 찾기</button><button type="button" data-bt="voc">📣 VOC 등록</button><button type="button" data-bt="todo">📋 내 할 일</button><button type="button" data-bt="board">💬 VOC 목록</button></div><div class="blog" id="botLog"></div><div class="bfiles" id="botFiles" hidden></div><form class="bin"><button type="button" class="btn sm" data-bfile title="파일 붙이기 (비서 창에 끌어다 놓아도 돼요)">📎</button><input type="file" id="botFile" multiple hidden><input id="botIn" placeholder="예: 카타르 LNG, PDIC-101, Panel 결과 CAD로 출력" autocomplete="off" maxlength="200"><button class="btn pri sm">↵</button></form>`;
   document.body.appendChild(p); BOT.panel = p;
   el.onmouseenter = () => { BOT.hover = true; }; el.onmouseleave = () => { BOT.hover = false; };
@@ -5354,12 +5398,13 @@ function botInit() {
     if (e.target.closest('[data-bfile]')) return fin.click();
     const fx = e.target.closest('[data-bfx]'); if (fx) { (BOT.files || []).splice(+fx.dataset.bfx, 1); return botFileChip(); }
     if (bt === 'find') { botToggle(false); return openFind(); } if (bt === 'voc') { botToggle(false); return shotToVoc(); } if (bt === 'todo') return botAsk('내 할 일'); if (bt === 'board') { BS.kind = 'VOC'; go('board'); return botSay('bot', 'VOC 목록으로 이동했어요 📣'); }
+    if (e.target.closest('[data-bmax]')) { p.classList.toggle('max'); if (!p.classList.contains('max')) botDock(); return; } if (e.target.closest('[data-bwin]')) return botOpenWindow();
     if (e.target.closest('[data-bclose]')) botToggle(false); if (e.target.closest('[data-bhide]')) { botToggle(false); el.hidden = true; $('#btnBot').hidden = false; try { localStorage.setItem('dept-bot-off', '1'); } catch (_) {} } };
   const tb = document.createElement('button'); tb.id = 'btnBot'; tb.className = 'btn'; tb.type = 'button'; tb.textContent = '🤖'; tb.title = '클로드 비서 다시 보기'; tb.hidden = !off;
   tb.onclick = () => { el.hidden = false; tb.hidden = true; try { localStorage.setItem('dept-bot-off', ''); } catch (_) {} botToggle(true); };
   $('#btnDark')?.before(tb);
   addEventListener('keydown', e => { if (e.key === 'Escape' && BOT.open) botToggle(false); });
-  setTimeout(botWander, 2500);
+  if (BOT_ONLY) { p.classList.add('max'); setTimeout(() => { botToggle(true); document.querySelectorAll('dialog[open]').forEach(d => { try { d.close(); } catch (_) {} }); }, 300); } else setTimeout(botWander, 2500);
 }
 function renderHome(c) {
   const R = k => getRecs(k), live = k => R(k).filter(isLive), pj = [...live('perform'), ...live('bid')];   // 종결 PJT 는 집계하지 않음
@@ -8266,7 +8311,7 @@ async function reload(quiet) {
   }
 }
 
-function go(k) { location.hash = k; document.body.classList.remove('nav-open'); }
+function go(k) { if (botRelay({ go:k })) return; location.hash = k; document.body.classList.remove('nav-open'); }
 window.addEventListener('hashchange', () => { const k = location.hash.slice(1); route = validRoute(k) ? k : 'home'; if (!JUMP || JUMP.key !== route) { SEL = null; MSEL = new Set(); ANCHOR = null; } window.scrollTo(0, 0); render(); });
 
 $('#menu').onclick = e => {
