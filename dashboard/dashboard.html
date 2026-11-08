@@ -1372,22 +1372,30 @@ body.rail #side:not(:hover):not(.peek) .mgrp.act .mhead .mi.top{background:#fff;
 .badges{margin-bottom:8px}
 .kpis{gap:10px;margin-bottom:10px}.kpi{padding:10px 14px;border-radius:14px}.kpi .v{font-size:24px;margin:0}.kpi .l{font-size:11.5px}.kpi .go{font-size:11px}.kpi::after{width:20px;height:20px;font-size:14px;top:9px;right:10px}
 .kpi .kbar{margin-top:4px;height:5px}.kpi .kpc{bottom:9px;font-size:10.5px}
-.toprow{grid-template-columns:minmax(0,1fr) clamp(300px,24vw,380px);gap:12px;margin-bottom:12px}
+/* 2026-11-08 VOC '전달사항 가로를 줄이고 나머지를 키움': [전달사항 | 그래프 2×2 | 캘린더] 세 칸, 높이 맞춤 */
+.toprow{grid-template-columns:minmax(280px,.82fr) minmax(0,1.75fr) clamp(300px,23vw,370px);gap:12px;margin-bottom:12px;align-items:stretch}
+@media (max-width:1300px){.toprow{grid-template-columns:minmax(0,1fr) clamp(300px,34vw,370px)}.toprow .tmid{grid-column:1 / -1;order:3}}
+.tmid{display:flex;flex-direction:column;gap:6px;min-width:0;min-height:0}
+@media (min-width:1301px){.toprow{height:clamp(440px,calc(100vh - 365px),780px);grid-template-rows:minmax(0,1fr)}.toprow>*{min-height:0}
+  .toprow .npage{max-height:none}.toprow .calcard{overflow:auto}
+  .tmid .charts{grid-template-rows:1fr 1fr;min-height:0}.tmid .charts .card{min-height:0;overflow:hidden;display:flex;flex-direction:column}
+  .tmid .charts .card>svg.chart,.tmid .charts .card>div{flex:1;min-height:0;max-height:none}
+  .cd{min-height:clamp(34px,calc((100vh - 560px) / 6),54px)}}
 .tleft{display:flex;flex-direction:column;gap:10px;min-width:0}
-.npage{max-height:clamp(220px,30vh,330px);display:flex;flex-direction:column}
+.npage{height:100%;max-height:clamp(380px,calc(100vh - 300px),720px);display:flex;flex-direction:column}
 .npage .ncover{flex:none;height:30px}.npage .nin{overflow:auto;padding:0 24px 10px;min-height:0}
 .npage .nicon{font-size:30px;width:40px;height:40px;margin-top:-18px}.npage h3.nt{font-size:21px;margin:0 0 6px}.npage .nhint{margin:2px 0 0;font-size:11px}
 .npage .nprops{grid-template-columns:96px 1fr;font-size:12.5px}.npage .nprops>div{padding:2px 6px}
 .npage .nbody .fx>div{font-size:13.5px;line-height:1.55;padding:1px 6px}
 .npage .ncall{padding:7px 10px;font-size:12.5px;margin:6px 0 4px}.npage .nlink{font-size:12.5px;padding:3px 6px}.npage .nsub{margin-top:6px}
 .npage.fold{max-height:none}.npage.fold .ncover{height:26px}
-.tleft .charts{grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin:0}
-.tleft .charts .card{padding:10px 12px;margin:0;border-radius:14px}
-.tleft .charts .card h2{font-size:12.5px;margin:0 0 4px;line-height:1.3}
-.tleft .charts .card h2 .pjleg,.tleft .charts .card h2 span{font-size:10.5px}
-.tleft .charts svg.chart{max-height:clamp(150px,22vh,230px);width:100%}
-.tleft .charts .donut,.tleft .charts .card>div{max-height:clamp(150px,24vh,250px)}
-.tleft>p.muted{margin:0 2px;font-size:11.5px}
+.tmid .charts{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin:0;flex:1}
+.tmid .charts .card{padding:10px 14px;margin:0;border-radius:14px}
+.tmid .charts .card h2{font-size:13.5px;margin:0 0 4px;line-height:1.3}
+.tmid .charts .card h2 .pjleg,.tmid .charts .card h2 span{font-size:11px}
+.tmid .charts svg.chart{max-height:clamp(170px,calc((100vh - 400px) / 2),300px);width:100%}
+.tmid .charts .donut,.tmid .charts .card>div{max-height:clamp(170px,calc((100vh - 380px) / 2),320px)}
+.tmid>p.muted{margin:0 2px;font-size:11.5px}
 .calcard{padding:12px 12px 10px;align-self:stretch}
 .calhd{margin-bottom:4px}.calhd h2{font-size:14px}.calhd button{height:24px;width:26px}
 .calleg{font-size:10px;gap:7px;margin-bottom:4px}
@@ -1561,7 +1569,7 @@ function recLabel(key, f) {
  * ===================================================================== */
 let root = null;
 /* 서버 모드: http(s):// 로 접속하면 server.py 의 REST API 사용 (폴더 선택 불필요). file:// 로 열면 폴더 모드 */
-const APP_VERSION = '2026-11-08.2';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
+const APP_VERSION = '2026-11-08.3';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
 const SERVER_URL = 'http://localhost:8080';
 // 부서원 PC 사본(file://)이 접속을 시도할 서버 — 서버가 배포 파일을 만들 때 'PC 이름 주소, IP 주소' 순으로 자동 기록함
 const DEFAULT_SERVERS = ['http://ASEUNGWOOK-B01:8080', 'http://65.3.30.234:8080'];
@@ -4388,6 +4396,7 @@ function renderHome(c) {
        ${all.length > 1 ? `<div class="nsub"><h4>이전 전달사항</h4>${all.slice(1, 4).map(r => `<button class="nlink" data-go="notice" data-tip="${esc(tipHtml(`${r.fields['제목'] || '(제목 없음)'} · ${isoD(r.fields['일자']) || ''}`, String(r.fields['내용'] || '').split('\n').filter(x => x.trim()).map(x => esc(x)), 20))}">📄 <u>${esc(r.fields['제목'] || '(제목 없음)')}</u><small>${esc(isoD(r.fields['일자']) || '')}</small></button>`).join('')}</div>` : ''}
        </div><div class="nfoot"><span>전달사항 ${all.length}건</span><button data-go="notice">전체 보기 →</button></div></div>`; })()}</section>
 </div>
+     <div class="tmid"></div>
      <section class="card calcard" id="calCard"></section></div>`); }
   // 차트 데이터 + 마우스 올리면 보이는 상세(툴팁)
   const tagOf = r => r.sheet === 'bid' ? '입찰' : '수행';
@@ -4437,7 +4446,7 @@ function renderHome(c) {
     fitRecent(); placePlaza();
   };
   renderCal();
-  { const tl = c.querySelector('.toprow .tleft'), ch = c.querySelector('.charts'); if (tl && ch) { tl.appendChild(ch); const tip = ch.nextElementSibling; if (tip && tip.tagName === 'P') tl.appendChild(tip); } }   // 그래프를 전달사항 아래(캘린더 옆)로 — 첫 화면에 다 보이게
+  { const tl = c.querySelector('.toprow .tmid'), ch = c.querySelector('.charts'); if (tl && ch) { tl.appendChild(ch); const tip = ch.nextElementSibling; if (tip && tip.tagName === 'P') tl.appendChild(tip); } }   // 그래프를 전달사항 아래(캘린더 옆)로 — 첫 화면에 다 보이게
   plazaOn();
   if (DB.recent) drawRecent(); else loadRecent().then(drawRecent).catch(() => { const el = $('#recent'); if (el) el.innerHTML = '<div class="empty">이력을 읽지 못했습니다</div>'; });
 }

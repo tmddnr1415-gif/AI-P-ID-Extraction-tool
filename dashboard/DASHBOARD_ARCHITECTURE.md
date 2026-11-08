@@ -1405,3 +1405,8 @@ C:\Users\SAMSUNG\Desktop\Claude\                         ← 개발 폴더 (여�
   - **막대 그래프 은은한 입체감**(`<script id="bar3d">`): svgBars 가 그린 rect.bar 에 좌→우 그라데이션(밝게 22% → 어둡게 20%) · 한 색 막대만 옅은 그림자 · 쌓은 막대는 틈 없이.
 - 바뀐 곳: dashboard.html `APP_VERSION` · `renderHome`(hello · kpi hero/kbar · toprow · npage · 그래프 이동 · renderCal 호출) · `CAL` `CROWN` `calEvents` `CAL_K` `renderCal` `LS_NFOLD` `NFOLD`(새) · 문서 click(data-nfold) · CSS `homeNotion` `homeTone` 묶음 · `bar3d` 스크립트.
 - 확인한 것: 임시 서버 1920×1080 · 1500×950 — 첫 화면에 게임 · 이력 빼고 다 보임, 캘린더 · 전달사항 · 입체 그래프 표시, 숨기기/☰/간략 메뉴 위치, 800px 폭 서랍 메뉴, 수행 · 유닛분장 · 게시판 화면 이동, 페이지 오류 없음.
+
+### 2026-11-08 (APP_VERSION 2026-11-08.3 / SERVER_VERSION 그대로) — 홈 배치: 전달사항 가로 줄이고 그래프 키움
+- 무엇을: 사용자 '주간전달사항이 너무 크다, 가로를 축소하고 다른 것들을 키워라'. 위 줄을 **[전달사항(.82fr) | 그래프 2×2(1.75fr) | 캘린더(23vw)]** 세 칸으로. 넓은 화면(1301px~)에서는 위 줄 높이 = 화면 높이 − 365px(440~780px)로 고정하고 세 칸 높이를 맞춤(전달사항 · 캘린더는 안에서 스크롤, 그래프 카드 2줄 균등). 1300px 이하는 [전달사항 | 캘린더] + 아래 그래프 2×2.
+- 바뀐 곳: dashboard.html `APP_VERSION` · `renderHome`(`.tmid` 칸 추가, 그래프를 .tmid 로 옮김) · CSS `.toprow` `.tmid` `.npage` `.cd`.
+- 확인한 것: 임시 서버 1920×1080 · 1500×950 — 계장 광장 · 이력 위까지 첫 화면에 들어옴, 페이지 오류 없음.
