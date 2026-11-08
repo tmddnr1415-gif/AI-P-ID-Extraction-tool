@@ -1490,6 +1490,14 @@ html.dark dialog,html.dark :fullscreen{color-scheme:light}
 .ord{display:flex;flex-direction:column;gap:1px;padding:6px 0;border-top:1px dashed #eadfb5;font-size:12px}.ord b{font-size:12.5px}.ord span{color:#667089;font-size:11.5px}.ord .oa{color:#5a4300}.ord .oa b{color:#b45309}
 .ordbox{background:#fffbea;border:1px solid #f3e1a0;border-radius:12px;padding:8px 12px;margin:8px 0}.ordbox h5{margin:0 0 4px;font-size:13px}.ordbox h5 small{font-weight:400;color:#8a7a3a;font-size:11px}
 .mam{margin-top:4px;font-size:11.5px;background:#fff6d6;border-radius:8px;padding:3px 8px;color:#5a4300}
+
+/* 2026-11-08 왼쪽 계정 줄 동그란 사진 */
+.acct .abtn{flex-direction:row;align-items:center;gap:10px}
+.acct .atx{display:flex;flex-direction:column;align-items:flex-start;min-width:0}
+.acct .aav{flex:none;width:40px;height:40px;border-radius:50%;padding:2px;background:linear-gradient(45deg,#f9ce34,#ee2a7b,#6228d7);display:block}
+.acct .aav[hidden]{display:none}
+.acct .aav img,.acct .aav b{width:100%;height:100%;border-radius:50%;object-fit:cover;display:grid;place-items:center;color:#fff;font-size:16px;font-weight:800;border:2px solid #1c1a5e;box-sizing:border-box}
+body.rail #side:not(:hover):not(.peek) .acct{display:none!important}
 </style>
 </head>
 <body>
@@ -1497,7 +1505,7 @@ html.dark dialog,html.dark :fullscreen{color-scheme:light}
 <aside id="side">
   <div class="logo"><b>SAMSUNG C&amp;T</b><span>계장ENG그룹</span><button id="sideRail" type="button" title="아이콘만 보이는 간략 메뉴로 (마우스를 올리거나 누르면 펼쳐짐 · 이 PC 에 기억)" aria-label="간략 메뉴">⇤ 간략</button><button id="sideHide" type="button" title="왼쪽 메뉴 숨기기 (☰ 로 다시 열기 · 이 PC 에 기억)" aria-label="메뉴 숨기기">◀ 숨기기</button></div>
   <div class="acct" id="acct" hidden>
-    <button class="abtn" id="acctBtn" aria-haspopup="menu"><span class="an"><span id="acctName"></span><i>▼</i></span><span class="as" id="acctSub"></span></button>
+    <button class="abtn" id="acctBtn" aria-haspopup="menu"><span class="aav" id="acctAv" hidden></span><span class="atx"><span class="an"><span id="acctName"></span><i>▼</i></span><span class="as" id="acctSub"></span></span></button>
     <div class="amenu" id="acctMenu" role="menu" hidden><button id="acctProf" role="menuitem"><span>🙋</span> 내 정보 (사진·전화·PJT)</button><button id="acctPw" role="menuitem"><span>🔑</span> 비밀번호 변경</button><button id="acctAct" role="menuitem"></button></div>
   </div>
   <div class="menu-title">MENU<button id="btnPerm" hidden title="메뉴 권한 설정 (운영자 전용)" aria-label="메뉴 권한 설정">⚙</button></div>
@@ -1658,7 +1666,7 @@ function recLabel(key, f) {
  * ===================================================================== */
 let root = null;
 /* 서버 모드: http(s):// 로 접속하면 server.py 의 REST API 사용 (폴더 선택 불필요). file:// 로 열면 폴더 모드 */
-const APP_VERSION = '2026-11-08.8';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
+const APP_VERSION = '2026-11-08.10';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
 const SERVER_URL = 'http://localhost:8080';
 // 부서원 PC 사본(file://)이 접속을 시도할 서버 — 서버가 배포 파일을 만들 때 'PC 이름 주소, IP 주소' 순으로 자동 기록함
 const DEFAULT_SERVERS = ['http://ASEUNGWOOK-B01:8080', 'http://65.3.30.234:8080'];
@@ -4017,6 +4025,7 @@ function renderMenu() {
   $('#acct').hidden = !acct; $('#whoLine').hidden = !!acct; $('#btnWho').hidden = !!acct;   // 계정 모드: 위쪽 계정 표시, 폴더 모드: 아래쪽 이름
   $('#whoName').textContent = user || '-';
   if (acct) {
+    $('#acctAv').hidden = !AUTH; if (AUTH) $('#acctAv').innerHTML = avHtml(AUTH.name);   // 2026-11-08 왼쪽 계정 줄에 동그란 사진 (사진 없으면 이름 첫 글자)
     $('#acctName').innerHTML = AUTH ? `${bdayToday(AUTH.name) ? HAT : ''}${esc(AUTH.name)} 님` : '비회원';   // 생일 당일 = 고깔모자
     $('#acctSub').textContent = AUTH ? `${AUTH.id} · 계장ENG그룹` : '보기 전용 · 로그인하면 편집 가능';
     $('#acctAct').innerHTML = AUTH ? '<span>⇥</span> 로그아웃' : '<span>⇥</span> 로그인 / 계정 개설';
@@ -5767,7 +5776,7 @@ function projTreeHtml() {
   const f = OC.projF || '';
   const list = ps.filter(p => !f || (p.c.kind || '기타') === f).sort((a, b) => (a.c.kind === '입찰') - (b.c.kind === '입찰'));
   const box = p => { const k = p.c.kind === '입찰' ? 'bid' : p.c.kind === '수행' ? 'run' : 'etc', col = k === 'bid' ? '#f08a24' : k === 'run' ? '#2b6be6' : '#64748b';
-    const mm = p.mem.map(m => card(m.name, `${m.role} · ${m.pct}%${tot[m.name] > 100 ? ` ⚠ 합계 ${tot[m.name]}%` : ''}`, col)).join('');
+    const mm = p.mem.map(m => card(m.name, `${m.role} · ${m.pct}%${tot[m.name] > 100 ? ` ⚠ 합계 ${tot[m.name]}%` : ''}`, col, false, ocGear({ side:p.c.kind === '입찰' ? '입찰' : '수행', col:m.role === 'LE' ? '#c60c30' : '#14285a' }, m.role, m.role === 'LE' ? `${p.c.name} 리드 엔지니어` : `${p.c.name} 담당 엔지니어`, m.role === 'LE'))).join('');   // 2026-11-08: LE · RE 도 헬멧 (LE = 공 + 금색 표시)
     return `<div class="oc-pj ${k}" style="--c:${col}"><div class="oc-pjh"><b title="${esc(p.c.name)}">${esc(p.c.name)}</b>
         <span>${p.ctry ? flagOf(p.ctry.iso) + ' ' : ''}<em>${esc(p.c.kind || '기타')}</em> · ${p.mem.length}명 · ${Math.round(p.mem.reduce((a, m) => a + m.pct, 0)) / 100}명분${p.ctry ? ` · ${esc(p.ctry.ko)}` : ''}</span></div>
       <div class="oc-pjm">${mm}</div></div>`; };

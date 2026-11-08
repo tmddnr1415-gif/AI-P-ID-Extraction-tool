@@ -1432,3 +1432,8 @@ C:\Users\SAMSUNG\Desktop\Claude\                         ← 개발 폴더 (여�
 - 무엇을 ②: 사용자 '세계지도에서 삼성물산 재무스타그램 재무현황의 각 프로젝트 수주금액과 관련 정보를 불러와라'. 지도 도구줄 **[💰 삼성물산 수주현황]** → 재무스타그램 서버(8765) `/api/orders?corp_code=00149655`(DART 사업보고서 원문 '수주상황' 표 5년치) → 지구본에 금색 ◆(공사명 · 발주처 · 계약일 · 완공 · 도급액 · 잔액), 나라별 합계 띠, 오른쪽 나라 상세에 '삼성물산 수주현황' 상자. 우리 PJT 와 같은 나라 · 이름 단어가 겹치는 수주 건이 있으면 PJT 카드 · 목록에 **수주금액 · 잔액**(참고용 — 이름 맞추기라 틀릴 수 있음, 출처 공사명 표시). 처음에는 사업보고서를 받느라 1~2분.
 - 바뀐 곳: dashboard.html `APP_VERSION` · `GLB` `ISO_N` `glbBase` `glbLoad` `glbLod` `glbFly` `glbSel` `glbEl` `glbLR` `globeMount` `glbResize` `ORD` `won` `ordLoad` `ordToks` `ordMatch` `ordCountry` `ordRow` `ordToggle` `ordPts`(새) · `orgBind`(지구본일 때 끌기/휠 넘김, 그린 뒤 globeMount) · `orgClick`(data-ord · 지구본 ＋/－/⌖) · 도구줄 · `mapSide`(수주 상자 · 수주금액) · fullscreenchange · CSS '세계 지도 3D 지구본' · '삼성물산 수주현황' / dashboard_tools/make_patch.py `KEEP_PREFIX`(apps/globe/) / 새 폴더 dashboard/apps/globe/.
 - 확인한 것: 임시 서버(소프트웨어 WebGL) — 지구본 표시 · 휠 확대(2.1 → 1.7) · 나라 누름 → 날아감 · 가까이 PJT 카드(LE/RE · 금주 작성) · 오른쪽 목록, 수주현황은 **시험용 예시 자료(이름에 [예시])** 로 화면 확인(이 환경은 DART 접속 불가). 페이지 오류 없음. 회사에서 확인할 것: 회사 PC 그래픽에서 지구본이 부드러운지, 재무스타그램 키 설정 뒤 [💰 삼성물산 수주현황] 실제 자료.
+
+### 2026-11-08 (APP_VERSION 2026-11-08.10 / SERVER_VERSION 그대로) — 왼쪽 계정 사진 · 프로젝트별 LE/RE 헬멧
+- 무엇을: 사용자 '왼쪽에 사진 동그랗게' → 왼쪽 메뉴 계정 줄(이름 왼쪽)에 동그란 사진(내 정보 사진, 없으면 이름 첫 글자 · 인스타 테두리), 간략 메뉴 막대일 때는 숨김. '프로젝트별 LE, RE 도 헬멧' → 유닛분장 [프로젝트별 LE·RE] 카드에도 헬멧 + 역할 표시(LE = 빨강 · 금색 표시 + 통통 튀는 공 / RE = 남색), 마우스 = 'PJT 리드/담당 엔지니어'.
+- 바뀐 곳: dashboard.html `APP_VERSION` · 계정 단추(`#acctAv` · `.atx`) · `renderMenu`(사진) · `projTreeHtml`(ocGear) · CSS '왼쪽 계정 줄 동그란 사진'.
+- 확인한 것: 임시 서버 — 계정 사진 표시, 프로젝트별 카드 10장 헬멧 · LE/RE, 페이지 오류 없음.
