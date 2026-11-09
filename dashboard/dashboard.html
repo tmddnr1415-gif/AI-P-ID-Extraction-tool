@@ -1820,7 +1820,7 @@ function recLabel(key, f) {
  * ===================================================================== */
 let root = null;
 /* 서버 모드: http(s):// 로 접속하면 server.py 의 REST API 사용 (폴더 선택 불필요). file:// 로 열면 폴더 모드 */
-const APP_VERSION = '2026-11-09.7';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
+const APP_VERSION = '2026-11-09.8';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
 const SERVER_URL = 'http://localhost:8080';
 // 부서원 PC 사본(file://)이 접속을 시도할 서버 — 서버가 배포 파일을 만들 때 'PC 이름 주소, IP 주소' 순으로 자동 기록함
 const DEFAULT_SERVERS = ['http://ASEUNGWOOK-B01:8080', 'http://65.3.30.234:8080'];
@@ -4020,9 +4020,20 @@ async function schUpload(files) {
   const f = [...files].find(x => /\.xlsx$/i.test(x.name)); if (!f) return toast('.xlsx 엑셀 파일을 올려 주세요', true);
   if (noEdit() || !can('runpjt')) return toast('🔒 실행 프로젝트 메뉴 권한이 있는 부서원만 올릴 수 있어요', true);
   toast(`📥 ${f.name} 읽는 중…`);
-  try { const d = await schParse(f); SCH.data = d; SCH.open.clear(); render(); await schSave(d); } catch (e) { toast('읽기 실패: ' + e.message, true); }
+  try { const d = await schParse(f); SCH.data = d; SCH.open.clear(); if (route === 'co2psr') go('co2sched'); else render(); await schSave(d); } catch (e) { toast('읽기 실패: ' + e.message, true); }
 }
 /* ---------- 화면 ---------- */
+function renderPsrUp(c) {   // 실행 프로젝트 › CO2 PJT › Schedule › PSR 업로드 (2026-11-09.8)
+  if (!SCH.loaded) { c.insertAdjacentHTML('beforeend', '<div class="card"><div class="empty">불러오는 중…</div></div>'); schLoad().then(() => { if (route === 'co2psr') render(); }); return; }
+  const d = SCH.data, canUp = !noEdit() && can('runpjt'), n = t => d ? d.items.filter(x => x.type === t).length : 0;
+  c.insertAdjacentHTML('beforeend', `<div id="schv"><section class="whero sch-hero"><div class="wh-top"><div><h2>📥 CO2 PJT · Schedule · PSR 업로드</h2>
+    <p>PSR 엑셀을 올리면 <b>구매 일정 현황판</b>이 새 일정으로 바뀌고, 모든 부서원이 같은 현황판을 봅니다. 파일은 브라우저 안에서 읽고 읽은 일정만 서버에 저장해요.</p></div></div></section>
+    <section class="card">${canUp ? `<label class="schdrop" id="schDrop"><input type="file" id="schFile" accept=".xlsx" hidden><span class="sdi">📥</span><b>PSR 엑셀(.xlsx)을 여기로 끌어다 놓거나 눌러서 고르세요</b><span class="muted">Tagged · Bulk 시트(머리글에 Seq.)의 품목별 Baseline / Forecast / Actual 일정 · 기준일(As of)을 읽어요 · 올리면 바로 현황판으로 이동</span></label>`
+      : '<div class="empty">🔒 PSR 올리기는 <b>실행 프로젝트</b> 메뉴 권한이 있는 부서원만 할 수 있어요. 운영자에게 권한을 요청하세요.</div>'}</section>
+    <section class="card"><h3 style="margin:0 0 8px">지금 올라와 있는 PSR</h3>${d ? `<table class="t" style="max-width:720px"><tr><th>파일</th><td>${esc(d.file)}</td></tr><tr><th>기준일(As of)</th><td><b>${esc(d.asOf)}</b></td></tr><tr><th>읽은 시트</th><td>${esc((d.sheets || []).join(' · '))}</td></tr><tr><th>품목</th><td>${d.items.length}개 (Tagged ${n('Tagged')} · Bulk ${n('Bulk')})</td></tr><tr><th>올린 사람</th><td>${esc(d.by || '')} · ${esc(fmtTime(d.at))}</td></tr></table>
+      <p style="margin:10px 0 0"><button class="btn pri" data-schgo>📦 구매 일정 현황판 보기</button></p>` : '<div class="empty">아직 올라온 PSR 이 없어요</div>'}</section></div>`);
+  schBind(); const g = $('#schv [data-schgo]'); if (g) g.onclick = () => go('co2sched');
+}
 function renderSched(c) {
   if (!SCH.loaded) { c.insertAdjacentHTML('beforeend', '<div class="card"><div class="empty">구매 일정 불러오는 중…</div></div>'); schLoad().then(() => { if (route === 'co2sched') render(); }); return; }
   const d = SCH.data, F = SCH.f, canUp = !noEdit() && can('runpjt');
@@ -4321,19 +4332,20 @@ function render() {
   else if (route === 'mgwork') renderWork(c);
   else if (route === 'mgbday') renderBday(c);
   else if (route === 'co2sched') renderSched(c);
+  else if (route === 'co2psr') renderPsrUp(c);
   else renderSheet(c, SHEET[route] || SHEETS[0]);
   window.scrollTo(0, sy);
   const tw2 = $('.tw'); if (tw2 && tx) { tw2.scrollLeft = tx[0]; tw2.scrollTop = tx[1]; }
   if (route === 'home') placePlaza();
 }
 /* 메뉴 구성: 주간업무보고(홈 대시보드 + 하위 시트 9개) / P&ID 분석 / 입찰 프로젝트 / 실행 프로젝트 / 익명게시판 */
-const ROUTES = ['home', 'work', 'alloc', 'board', 'bidpjt', 'runpjt', 'valve', 'globev', 'bflyv', 'psv', 'co2sched', 'finstagram', 'pid', 'logic', 'logicdraw', 'space', 'books', 'ic3d', 'mgmt', 'mgalloc', 'mghours', 'mgwork', 'mgbday'];   // mgwork = 근로시간 관리(근태 시스템 엑셀 · 52h) · mgbday = 부서원 생일
-const RUN_LEAVES = ['valve', 'globev', 'bflyv', 'psv', 'co2sched'];   // + co2sched = CO2 PJT › Schedule(구매 일정 현황판, 2026-11-09)   // 실행 프로젝트 › CO2 PJT › Datasheet 아래 잎 (권한 = runpjt)
+const ROUTES = ['home', 'work', 'alloc', 'board', 'bidpjt', 'runpjt', 'valve', 'globev', 'bflyv', 'psv', 'co2sched', 'co2psr', 'finstagram', 'pid', 'logic', 'logicdraw', 'space', 'books', 'ic3d', 'mgmt', 'mgalloc', 'mghours', 'mgwork', 'mgbday'];   // mgwork = 근로시간 관리(근태 시스템 엑셀 · 52h) · mgbday = 부서원 생일
+const RUN_LEAVES = ['valve', 'globev', 'bflyv', 'psv', 'co2sched', 'co2psr'];   // + co2sched = CO2 PJT › Schedule(구매 일정 현황판, 2026-11-09)   // 실행 프로젝트 › CO2 PJT › Datasheet 아래 잎 (권한 = runpjt)
 const MG_ROUTES = ['mgmt', 'mgalloc', 'mghours', 'mgwork', 'mgbday'];   // logic = LOGIC 분석 (P&ID 와 같은 방식)   // mgmt = Management 머리(→ mgalloc) · mgalloc = R&R·투입 분석(시간 병기) · mghours = 근무시간(월·주·일)   // work = 예전 통합 업무 주소 → #task 로 바꿈 · alloc = R&R·투입 분석 · bidpjt/runpjt/mgmt = MODULES(준비 중), pid = P&ID 분석
 const menuOf = r => (r === 'home' || r === 'work' || r === 'alloc' || SHEET[r]) ? 'weekly' : MG_ROUTES.includes(r) ? 'mgmt' : r === 'logicdraw' ? 'logic' : RUN_LEAVES.includes(r) ? 'runpjt' : r;   // 화면(route) → 권한 메뉴 키
 const validRoute = k => ROUTES.includes(k) || !!SHEET[k];
 // 하위 메뉴 접기/펼치기 상태 (브라우저에 기억, 기본 펼침)
-const NAV_LS = { weekly:'dept-nav-weekly-open', logic:'dept-nav-logic-open', mgmt:'dept-nav-mgmt-open', runpjt:'dept-nav-runpjt-open', 'runpjt-co2':'dept-nav-runpjt-co2-open', 'runpjt-co2-ds':'dept-nav-runpjt-co2-ds-open' };
+const NAV_LS = { weekly:'dept-nav-weekly-open', logic:'dept-nav-logic-open', mgmt:'dept-nav-mgmt-open', runpjt:'dept-nav-runpjt-open', 'runpjt-co2':'dept-nav-runpjt-co2-open', 'runpjt-co2-ds':'dept-nav-runpjt-co2-ds-open', 'runpjt-co2-sch':'dept-nav-runpjt-co2-sch-open' };
 const NAV_OPEN = Object.fromEntries(Object.entries(NAV_LS).map(([k, ls]) => [k, (() => { try { return localStorage.getItem(ls) !== '0'; } catch (_) { return true; } })()]));
 /* 2026-11-08 간략 메뉴(아이콘 막대) 아이콘 — 선 아이콘(currentColor) */
 const MI_P = d => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">${d}</svg>`;
@@ -4371,7 +4383,7 @@ function renderMenu() {
   const runTree = () => `<div class="mgrp ${route === 'runpjt' || RUN_LEAVES.includes(route) ? 'act' : ''}">
        <div class="mhead">${btn({ k:'runpjt', l:'실행 프로젝트', n:'', c:0 }, 'top')}
          <button class="mtog" data-tog="runpjt" title="하위 메뉴 ${NAV_OPEN.runpjt ? '접기' : '펼치기'}" aria-label="하위 메뉴 접기/펼치기">${NAV_OPEN.runpjt ? '▾' : '▸'}</button></div>
-       <div class="msub" ${NAV_OPEN.runpjt ? '' : 'hidden'}>${fold('runpjt-co2', 'CO2 PJT', fold('runpjt-co2-ds', 'Datasheet', [['valve', 'Ball Valve'], ['globev', 'Globe Valve'], ['bflyv', 'Butterfly Valve'], ['psv', 'PSV']].map(([k, l]) => btn({ k, l, n:'', c:0 }, 'subi')).join('')) + btn({ k:'co2sched', l:'Schedule', n:SCH.data ? SCH.data.items.length : '', c:0 }, 'subi'))}</div></div>`;
+       <div class="msub" ${NAV_OPEN.runpjt ? '' : 'hidden'}>${fold('runpjt-co2', 'CO2 PJT', fold('runpjt-co2-ds', 'Datasheet', [['valve', 'Ball Valve'], ['globev', 'Globe Valve'], ['bflyv', 'Butterfly Valve'], ['psv', 'PSV']].map(([k, l]) => btn({ k, l, n:'', c:0 }, 'subi')).join('')) + fold('runpjt-co2-sch', 'Schedule', btn({ k:'co2sched', l:'구매 일정 현황판', n:SCH.data ? SCH.data.items.length : '', c:0 }, 'subi') + btn({ k:'co2psr', l:'PSR 업로드', n:'', c:0 }, 'subi')))}</div></div>`;
   // 권한이 있는 메뉴만 표시 (운영자가 ⚙ 메뉴 권한 설정에서 사용자별로 부여, Management 는 기본 비허용)
   $('#menu').innerHTML =
     (can('weekly') ? group('weekly', { k:'home', l:'주간업무보고', n:'', c:NAV_OPEN.weekly ? 0 : subNew, t:'하위 메뉴의 수정·변경된 행' }, sub, inWeekly) : '') +
@@ -4578,7 +4590,7 @@ function ddayChip() {
 }
 /* 2026-10-23 빠른 찾기 (Ctrl+K · 🔍 찾기): 메뉴 이름 · 모든 시트의 행(제목·내용·담당자) · 게시글 제목을 한 번에 → 누르면 그 자리로 이동 */
 const QF_MENUS = () => [['home', '📋 주간업무보고 홈'], ...SHEETS.filter(s => !s.merged).map(s => [s.key, s.label]), ['alloc', 'R&R · 투입 분석'], ['task', '통합 업무'],
-  ['pid', 'P&ID 분석'], ['logic', 'LOGIC 분석'], ['logicdraw', 'LOGIC 분석 · LOGIC 작성'], ['space', 'ROOM SIZE 계산'], ['books', '도서검토'], ['ic3d', '3D 계측제어'], ['bidpjt', '입찰 프로젝트'], ['co2sched', '실행 프로젝트 · CO2 PJT · Schedule(구매 일정)'], ['runpjt', '실행 프로젝트'], ['valve', '실행 프로젝트 · CO2 PJT · Ball Valve'], ['globev', '실행 프로젝트 · CO2 PJT · Globe Valve'], ['bflyv', '실행 프로젝트 · CO2 PJT · Butterfly Valve'], ['psv', '실행 프로젝트 · CO2 PJT · PSV'], ['finstagram', '재무스타그램'], ['board', '익명게시판'],
+  ['pid', 'P&ID 분석'], ['logic', 'LOGIC 분석'], ['logicdraw', 'LOGIC 분석 · LOGIC 작성'], ['space', 'ROOM SIZE 계산'], ['books', '도서검토'], ['ic3d', '3D 계측제어'], ['bidpjt', '입찰 프로젝트'], ['co2sched', '실행 프로젝트 · CO2 PJT · Schedule · 구매 일정 현황판'], ['co2psr', '실행 프로젝트 · CO2 PJT · Schedule · PSR 업로드'], ['runpjt', '실행 프로젝트'], ['valve', '실행 프로젝트 · CO2 PJT · Ball Valve'], ['globev', '실행 프로젝트 · CO2 PJT · Globe Valve'], ['bflyv', '실행 프로젝트 · CO2 PJT · Butterfly Valve'], ['psv', '실행 프로젝트 · CO2 PJT · PSV'], ['finstagram', '재무스타그램'], ['board', '익명게시판'],
   ['mgalloc', 'Management · R&R 투입 분석'], ['mghours', 'Management · 근무시간'], ['mgwork', 'Management · 근로시간 관리'], ['mgbday', 'Management · 부서원 생일']]
   .filter(([k]) => can(SHEET[k] || k === 'home' || k === 'alloc' || k === 'task' ? 'weekly' : k.startsWith('mg') ? 'mgmt' : menuOf(k)));
 function qfSearch(q) {
@@ -4917,7 +4929,7 @@ const botWords = q => String(q).split(/[\s,.?!·~]+/).map(w => w.replace(/(이�
 const MENU_HELP = {
   home:'홈 — 인사 · 내 할 일 · 숫자 카드 · 주간회의 전달사항 · 그래프 · 월간 캘린더 · 계장 광장 · 최근 변경 이력', perform:'수행 PJT 표 — 업무 현황을 매주 작성(마감 수 11:59), [✓ 변경 없음]', bid:'입찰 PJT 표 — 입찰 진행 현황',
   issue:'프로젝트 이슈사항', alloc:'R&R · 투입 분석 — 부서원별 · PJT별 투입률', task:'통합 업무 — To Do · 기술공유 · 그룹장 요청 · 일반업무', unit:'유닛분장 — 조직도(헬멧 · 포지션) · 프로젝트별 LE/RE · 3D 세계 지도',
-  notice:'주간회의 전달사항', pid:'P&ID 분석 (P&ID 서버)', logic:'LOGIC 분석', logicdraw:'LOGIC 작성', space:'ROOM SIZE 계산', books:'도서검토', ic3d:'3D 계측제어', bidpjt:'입찰 프로젝트', runpjt:'실행 프로젝트 › CO2 PJT › Datasheet(Ball · Globe · Butterfly Valve · PSV) · Schedule(구매 일정 현황판)', co2sched:'CO2 PJT 구매 일정 현황판 — PSR 엑셀(Tagged · Bulk)을 올리면 MR→PO→제작→FAT→현장 도착 계획 · 전망 · 실적 · 지연',
+  notice:'주간회의 전달사항', pid:'P&ID 분석 (P&ID 서버)', logic:'LOGIC 분석', logicdraw:'LOGIC 작성', space:'ROOM SIZE 계산', books:'도서검토', ic3d:'3D 계측제어', bidpjt:'입찰 프로젝트', runpjt:'실행 프로젝트 › CO2 PJT › Datasheet(Ball · Globe · Butterfly Valve · PSV) · Schedule(구매 일정 현황판)', co2psr:'CO2 PJT › Schedule › PSR 업로드 — PSR 엑셀(.xlsx)을 끌어다 놓거나 골라서 올리면 구매 일정 현황판이 바뀜 (실행 프로젝트 권한)', co2sched:'CO2 PJT 구매 일정 현황판 — PSR 엑셀(Tagged · Bulk)을 올리면 MR→PO→제작→FAT→현장 도착 계획 · 전망 · 실적 · 지연',
   finstagram:'재무스타그램 — DART 재무제표 · 주가 · 수주현황 (운영자가 ⚙ 에서 DART 키 .env 지정)', board:'익명게시판 — 블라블라 · 회식제안 · VOC', mgalloc:'Management · R&R 투입 분석(시간)', mghours:'Management · 근무시간(월 · 주 · 일)', mgwork:'Management · 근로시간 관리(52h)', mgbday:'Management · 부서원 생일'
 };
 const bTxt = v => flat(v).toLowerCase();
@@ -5502,7 +5514,7 @@ const TR_PRE = {
     [/\bcalibration\b/gi, '교정'], [/\bnational standards?\b/gi, '국가 표준'], [/\bdial size\b/gi, '다이얼 크기'], [/\bsafety pattern\b/gi, '안전형'], [/\bbeta ratio\b/gi, '베타비'], [/\bmeeting minutes\b|\bminutes of (the )?meeting\b/gi, '회의록'],
   ],
   koen:[
-    [/계장\s*사양서/g, '계측기 사양서'], [/계장\s*도면/g, '계측기 도면'], [/계장\s*공기/g, 'instrument air'], [/루프도/g, 'loop diagram'], [/루프\s*체크/g, 'loop check'], [/안전계장시스템|안전\s*계장\s*시스템/g, 'safety instrumented system'], [/안전계장기능/g, 'safety instrumented function'], [/조절\s*밸브/g, 'control valve'], [/차단\s*밸브/g, 'shutdown valve'], [/비상\s*정지\s*밸브|비상\s*차단\s*밸브/g, 'emergency shutdown valve'],
+    [/계장\s*사양서/g, '계측기 사양서'], [/계장\s*(?:팀|파트|그룹)?\s*(?=에서|은|는|이|가|의|에|도|과|와)/g, '계측 제어 팀'], [/계장\s*도면/g, '계측기 도면'], [/계장\s*공기/g, 'instrument air'], [/루프도/g, 'loop diagram'], [/루프\s*체크/g, 'loop check'], [/안전계장시스템|안전\s*계장\s*시스템/g, 'safety instrumented system'], [/안전계장기능/g, 'safety instrumented function'], [/조절\s*밸브/g, 'control valve'], [/차단\s*밸브/g, 'shutdown valve'], [/비상\s*정지\s*밸브|비상\s*차단\s*밸브/g, 'emergency shutdown valve'],
     [/정션\s*박스/g, 'junction box'], [/마샬링\s*캐비닛/g, 'marshalling cabinet'], [/포지셔너/g, 'positioner'], [/액추에이터/g, 'actuator'], [/솔레노이드\s*밸브/g, 'solenoid valve'], [/써모웰|서모웰/g, 'thermowell'], [/열전대/g, 'thermocouple'], [/압력계/g, 'pressure gauge'],
     [/레벨\s*전송기/g, 'level transmitter'], [/온도\s*전송기/g, 'temperature transmitter'], [/압력\s*전송기/g, 'pressure transmitter'], [/유량\s*전송기/g, 'flow transmitter'], [/전송기/g, 'transmitter'], [/유량계/g, 'flow meter'],
     [/계기\s*데이터시트/g, 'instrument datasheet'], [/데이터\s*시트/g, 'datasheet'], [/계기\s*사양서/g, 'instrument specification'], [/사양서/g, 'specification'], [/I\/O\s*리스트/g, 'I/O list'], [/인스트루먼트\s*인덱스|계기\s*인덱스/g, 'instrument index'], [/훅업\s*도면/g, 'hook-up drawing'], [/배치\s*도면|배치안/g, 'layout drawing'], [/배치도/g, 'layout'], [/결선도/g, 'wiring diagram'],
@@ -5543,7 +5555,7 @@ const TR_GLOSS = {   // 번역 결과 용어 바로잡기 [찾기, 바꾸기]
     [/기기\s*데이터\s*시트/g, '계기 데이터시트'], [/데이터\s*시트/g, '데이터시트'], [/필드\s*(계기|기기)/g, '현장 계기'], [/배전반/g, '판넬'], [/제어실/g, '제어실(Control Room)'], [/안전\s*계장\s*시스템/g, 'SIS(안전계장시스템)'], [/분산\s*제어\s*시스템/g, 'DCS'], [/비상\s*정지/g, '비상 정지(ESD)'],
     [/루프\s*(다이어그램|도표)/g, '루프도'], [/배관\s*및\s*계장\s*(다이어그램|도표|도)/g, 'P&ID'], [/오리피스\s*판/g, '오리피스 플레이트'], [/열전대/g, '열전대(T/C)'], [/저항\s*온도\s*(검출기|감지기)/g, 'RTD'], [/압력\s*릴리프\s*밸브|압력\s*안전\s*밸브/g, 'PSV'], [/접합\s*상자|정션\s*박스/g, '정션 박스(JB)'],
     [/닫히는\s*실패할?\s*것입니다/g, '닫힘 고장(Fail Close) 이어야 합니다'], [/열리는\s*실패할?\s*것입니다/g, '열림 고장(Fail Open) 이어야 합니다'], [/닫히는\s*실패/g, '닫힘 고장(Fail Close)'], [/열리는\s*실패/g, '열림 고장(Fail Open)'], [/의\s*손실에\s/g, ' 상실 시 '], [/꼬리표(\s*없음)?\s*:/g, '태그 번호:'], [/꼬리표/g, '태그'], [/봄\s*반환/g, '스프링 리턴'], [/압축\s*공기를\s*넣은\s*격막/g, '공압 다이어프램'], [/격막/g, '다이어프램'], [/등급\s*:/g, '압력 등급(Rating):'], [/작동기/g, '액추에이터'], [/위치\s*지정자/g, '포지셔너'], [/솔레노이드\s*판막/g, '솔레노이드 밸브'], [/판막/g, '밸브'], [/흐름/g, '유량'], [/수위/g, '레벨'], [/압력\s*변환기/g, '압력 전송기'], [/하게되어야합니다|가되어야합니다/g, '이어야 합니다'], [/되어야합니다/g, '되어야 합니다'], [/해야합니다/g, '해야 합니다'], [/([가-힣])합니다\./g, '$1합니다.']],
-  koen:[[/\bpanel\s*board\b/gi, 'panel'], [/\bregulating valve\b/gi, 'control valve'], [/\badjustment valve\b/gi, 'control valve'], [/\bmeasurement and control\b/gi, 'instrumentation and control'], [/\binstrument(ation)? engineering\b/gi, 'instrumentation & control engineering'],
+  koen:[[/\b(?:the\s+)?measurement(?:\s+and)?\s+control team\b/gi, 'the I&C team'], [/\bLee Hyung-joon(?:'s)? professional\b/g, 'Pro Lee Hyung-joon'], [/\bpanel\s*board\b/gi, 'panel'], [/\bregulating valve\b/gi, 'control valve'], [/\badjustment valve\b/gi, 'control valve'], [/\bmeasurement and control\b/gi, 'instrumentation and control'], [/\binstrument(ation)? engineering\b/gi, 'instrumentation & control engineering'],
     [/\bdrawing approval\b/gi, 'drawing approval'], [/\bclosing position\b/gi, 'closed position'], [/\bpassage\b/gi, 'aisle'], [/\bconstruction start\b/gi, 'construction start (groundbreaking)'], [/\bbidding project\b/gi, 'bid project'], [/\bperformance project\b/gi, 'execution project'], [/\bweekly work report\b/gi, 'weekly report']],
 };
 const trGloss = (t, dir) => (TR_GLOSS[dir] || []).reduce((a, [re, rep]) => a.replace(re, rep), t);
@@ -5847,12 +5859,12 @@ function botToggle(on) {
     setTimeout(() => $('#botIn')?.focus(), 50); }
 }
 /* 2026-11-09 붙여 넣은 글(여러 줄) 끝이나 앞에 "위 내용 영어로 번역해줘" · "첨삭해줘" · "요약해줘" 가 있으면 → 나머지 글 전체에 그 일을 함 (줄마다 찾기로 흩어지지 않게) */
-const BOT_INSTR = /^(?:(?:위|아래|이|위의|아래의|다음)\s*(?:내용|글|문장|메일|문단|텍스트)?\s*(?:을|를|은|는)?\s*)?(?:(영어로|영문으로|한국어로|한글로|우리말로)\s*)?(번역|첨삭|교정|교열|맞춤법|요약|정리)\s*(?:해\s*줘|해줘|해\s*주세요|부탁해|부탁드려요|해|좀|해라|해봐)?\s*[.!]?$/;
+const BOT_INSTR = /^(?:(?:위|아래|이|위의|아래의|다음)\s*(?:내용|글|문장|메일|문단|텍스트)?\s*(?:을|를|은|는)?\s*)?(?:(영어로|영문으로|영어|영문|한국어로|한글로|우리말로|국문으로|한국어|한글|국문|in\s*english|to\s*english|english|in\s*korean|to\s*korean|korean)\s*)?(번역|영작|첨삭|교정|교열|맞춤법|요약|정리|translate)?\s*(?:해\s*줘요?|해줘|해\s*주세요|부탁(?:해요?|드려요|드립니다|합니다)?|해|좀|해라|해봐|please)?\s*[.!~]*$/i;   // 2026-11-09: 마지막 줄이 '영어로' · '한국어로' 만이어도 번역
 function botInstr(q) {
   const lines = q.split('\n').map(x => x.trim()).filter(Boolean); if (lines.length < 2) return null;
-  for (const [idx, line] of [[lines.length - 1, lines[lines.length - 1]], [0, lines[0]]]) { const m = BOT_INSTR.exec(line); if (!m || line.length > 40) continue;
-    const body = lines.filter((_, i) => i !== idx).join('\n'), lang = m[1] || '', job = m[2];
-    if (job === '번역') return { html:'', acts:[], run:() => botTranslate(body, /영어|영문/.test(lang) ? 'koen' : /한국어|한글|우리말/.test(lang) ? 'enko' : trDir(body)) };
+  for (const [idx, line] of [[lines.length - 1, lines[lines.length - 1]], [0, lines[0]]]) { const m = BOT_INSTR.exec(line); if (!m || line.length > 40 || !(m[1] || m[2])) continue;
+    const body = botUnq(lines.filter((_, i) => i !== idx).join('\n')), lang = m[1] || '', job = !m[2] || /translate|영작/i.test(m[2]) ? '번역' : m[2];
+    if (job === '번역') return { html:'', acts:[], run:() => botTranslate(body, /영어|영문|english/i.test(lang) ? 'koen' : /한국어|한글|우리말|국문|korean/i.test(lang) ? 'enko' : trDir(body)) };
     if (job === '요약' || job === '정리') return botSummary(body);
     return botProof('첨삭: ' + body) || { html:'첨삭할 글을 찾지 못했어요.', acts:[] }; }
   return null;

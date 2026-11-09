@@ -1630,3 +1630,9 @@ C:\Users\SAMSUNG\Desktop\Claude\                         ← 개발 폴더 (여�
 - 무엇을: 첨삭 규칙 추가 — '못할것' → '못할 것'(의존명사 것), '드릴께요' → '드릴게요'. 번역: '계장 사양서' → instrument specification 이 나오게 앞처리, 'next week Tuesday' → 'Tuesday next week'.
 - 바뀐 곳: dashboard.html `BOT_TAIL` · `botUnq` · `botTail` · `botWhole` (새), `botTrCmd` · `botProof` · `botSteps` · `botAsk`, `KO_FIX2`, `EN_FIX_TR`, 한→영 앞처리 표, `renderSched` 품목 칸 · `schDiscBoard` · 다가오는 일정, CSS `.snm`
 - 확인한 것: 시험 서버에서 hong(바이브)로 번역해줘 2건 · 첨삭해줘 1건 화면 확인, Schedule 화면 캡처, 콘솔 오류 없음 / 회사에서 확인할 것: 실제 PSR 파일로 이름표가 긴 품목명에서 줄바꿈이 자연스러운지.
+
+### 2026-11-09 (APP_VERSION 2026-11-09.8 / SERVER_VERSION 그대로) — v17.00
+- 무엇을: 실행 프로젝트 › CO2 PJT › **Schedule** 을 Datasheet 와 같은 단의 폴더(▾ Schedule)로 바꾸고, 그 아래 `구매 일정 현황판`(co2sched) · `PSR 업로드`(co2psr, 새 화면) 두 잎. PSR 업로드 화면 = 큰 끌어다 놓기 칸 + 지금 올라와 있는 PSR(파일 · 기준일 · 시트 · 품목 수 · 올린 사람) + 현황판 보기. 올리면 바로 현황판으로 이동. 권한 = 실행 프로젝트(runpjt), 서버 API 는 그대로(`/api/sched/co2`).
+- 무엇을: 비서 — 여러 줄 글 + 마지막(또는 첫) 줄에 `영어로` · `한국어로` · `영문` · `English` 만 적어도 번역(전에는 바이브가 줄마다 나눠 실행해 엉뚱한 검색 결과가 나옴, 회사 PC 제보). 글 앞뒤 따옴표는 떼고 번역. '계장에서/계장은 …' → I&C team 으로 번역되게 앞처리(전: 'syring'), 'Lee Hyung-joon's professional' → 'Pro Lee Hyung-joon'.
+- 바뀐 곳: dashboard.html `NAV_LS` · `runTree` · `ROUTES` · `RUN_LEAVES` · `render` · `renderPsrUp`(새) · `schUpload` · 메뉴 설명 표, `BOT_INSTR` · `botInstr`, `TR_GLOSS.koen`, 한→영 앞처리 표
+- 확인한 것: 시험 서버에서 메뉴 펼침 · PSR 업로드(파일 고르기) → 현황판 33품목 이동, 회사 제보 문장 그대로 '영어로' 번역 확인, 번역 평가 점수 그대로(한→영 82.2 · 영→한 58.8) / 회사에서 확인할 것: 부서원(비관리자, 실행 프로젝트 권한) 계정으로 PSR 업로드.
