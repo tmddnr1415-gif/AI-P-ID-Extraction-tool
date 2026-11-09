@@ -1641,3 +1641,8 @@ C:\Users\SAMSUNG\Desktop\Claude\                         ← 개발 폴더 (여�
 - 무엇을: 사용자 지시 "실행 프로젝트 → CO2 PJT 의 하위 메뉴로 Schedule" — v17.00 의 Schedule 폴더(구매 일정 현황판 · PSR 업로드 두 잎)를 없애고, **CO2 PJT 바로 아래 `📅 Schedule` 한 메뉴**(Datasheet 와 같은 단, 같은 굵기)로. 누르면 구매 일정 현황판, PSR 올리기는 현황판 위 [PSR 엑셀 새로 올리기] · 끌어다 놓기(없을 때는 큰 올리기 칸). 현황판 제목 위에 경로 '실행 프로젝트 › CO2 PJT › Schedule'. 실행 프로젝트 화면(잎)을 열면 접혀 있던 실행 프로젝트 · CO2 PJT 폴더를 자동으로 펼침. `co2psr` 화면은 남겨 둠(메뉴에는 없음, #co2psr 로만).
 - 바뀐 곳: dashboard.html `runTree` · `renderMenu`(폴더 자동 펼침) · `renderSched` 제목 · CSS `.mi.mlv2`
 - 확인한 것: 폴더를 접어 둔 상태에서 #co2sched 열기 → 자동 펼침 · Schedule 강조 화면 확인, 콘솔 오류 없음.
+
+### 2026-11-09 (APP_VERSION 2026-11-09.10 / SERVER_VERSION 그대로) — v17.02
+- 무엇을: 어느 메뉴 화면이든 열면(해시 이동 · 비서 이동 · 새로고침) 그 메뉴의 접힌 상위 폴더(주간업무보고 · LOGIC · 실행 프로젝트 › CO2 PJT · Management)를 펼치고, 선택된 메뉴가 사이드바 밖이면 가운데로 스크롤. 이미 보이면 그대로, 같은 화면에서 다시 그릴 때는 스크롤하지 않음(사용자 스크롤 방해 X). 왜: 오케스트레이터 전달 — 현황판을 열어도 사이드바가 맨 위에 머물러 CO2 PJT 하위 메뉴인 줄 몰랐음.
+- 바뀐 곳: dashboard.html `menuReveal`(새) · `MENU_SHOWN` · `renderMenu`(상위 폴더 자동 펼침)
+- 확인한 것: 1600x900, 폴더를 접어 둔 상태에서 #co2sched → Schedule 보임(scrollTop 552), #mgbday(이미 보임 → 그대로), #work, 새로고침 후 유지. 콘솔 오류 없음.

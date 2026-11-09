@@ -1820,7 +1820,7 @@ function recLabel(key, f) {
  * ===================================================================== */
 let root = null;
 /* 서버 모드: http(s):// 로 접속하면 server.py 의 REST API 사용 (폴더 선택 불필요). file:// 로 열면 폴더 모드 */
-const APP_VERSION = '2026-11-09.9';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
+const APP_VERSION = '2026-11-09.10';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
 const SERVER_URL = 'http://localhost:8080';
 // 부서원 PC 사본(file://)이 접속을 시도할 서버 — 서버가 배포 파일을 만들 때 'PC 이름 주소, IP 주소' 순으로 자동 기록함
 const DEFAULT_SERVERS = ['http://ASEUNGWOOK-B01:8080', 'http://65.3.30.234:8080'];
@@ -4362,6 +4362,13 @@ const MENU_IC = {
   board:MI_P('<path d="M4 5h16v11H9l-5 4z"/>'),
   mgmt:MI_P('<circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1"/>')
 };
+let MENU_SHOWN = '';   // 마지막으로 사이드바에서 보이게 한 화면 — 같은 화면에서 다시 그릴 때는 스크롤 안 함(사용자 스크롤 방해 X)
+function menuReveal() {   // 2026-11-09.10: 연 화면의 메뉴가 사이드바 밖이면 보이게 스크롤 (이미 보이면 그대로)
+  if (MENU_SHOWN === route) return; MENU_SHOWN = route;
+  requestAnimationFrame(() => { const m = $('#menu'), b = m && m.querySelector('.mi.on'); if (!b || !b.offsetParent) return;
+    const r = b.getBoundingClientRect(), R = m.getBoundingClientRect(); if (r.top >= R.top + 4 && r.bottom <= R.bottom - 4) return;
+    m.scrollTop += r.top - R.top - (R.height - r.height) / 2; });
+}
 function renderMenu() {
   if (route === 'board' && DB.board) markBoardSeen();
   const rs = k => k === 'task' ? getRecs(k).filter(taskShown) : getRecs(k);   // 통합 업무 수 = 메뉴에 보이는 유형만
@@ -4380,6 +4387,8 @@ function renderMenu() {
   // 실행 프로젝트 › CO2 PJT › Datasheet › 잎 4개 — 폴더(누르면 접기/펼치기) 안의 폴더. 잎만 화면을 연다. (VALVE 세션 2026-10-31 · 11-01 병합)
   const fold = (nav, label, inner) => `<div class="mhead"><button class="mi subi mfold" data-tog="${nav}" title="${esc(label)}"><span class="ml">${NAV_OPEN[nav] ? '▾' : '▸'} ${esc(label)}</span></button></div>
        <div class="msub" ${NAV_OPEN[nav] ? '' : 'hidden'}>${inner}</div>`;
+  if (route !== 'home' && (route === 'work' || route === 'alloc' || SHEET[route])) NAV_OPEN.weekly = true;   // 2026-11-09.10: 연 화면의 상위 폴더 펼침
+  if (route === 'logicdraw') NAV_OPEN.logic = true; if (MG_ROUTES.includes(route) && route !== 'mgmt') NAV_OPEN.mgmt = true;
   if (RUN_LEAVES.includes(route)) { NAV_OPEN.runpjt = true; NAV_OPEN['runpjt-co2'] = true; if (route !== 'co2sched' && route !== 'co2psr') NAV_OPEN['runpjt-co2-ds'] = true; }   // 2026-11-09.9: 잎 화면이면 상위 폴더 펼침
   const runTree = () => `<div class="mgrp ${route === 'runpjt' || RUN_LEAVES.includes(route) ? 'act' : ''}">
        <div class="mhead">${btn({ k:'runpjt', l:'실행 프로젝트', n:'', c:0 }, 'top')}
@@ -4398,6 +4407,7 @@ function renderMenu() {
     (can('finstagram') ? btn({ k:'finstagram', l:'재무스타그램', n:'', c:0 }, 'top') : '') +
     (can('board') ? btn({ k:'board', l:'익명게시판', n:root && DB.board ? DB.board.length : '', c:root ? boardNewCount() : 0, t:'마지막 확인 이후 새 글·댓글' }, 'top') : '') +
     (can('mgmt') ? group('mgmt', { k:'mgmt', l:'Management', n:'', c:0 }, [{ k:'mgalloc', l:'R&R · 투입 분석', n:'', c:0 }, { k:'mghours', l:'근무시간 (월·주·일)', n:'', c:0 }, { k:'mgwork', l:'근로시간 관리 (52h)', n:'', c:0 }, { k:'mgbday', l:'부서원 생일', n:'', c:0 }], MG_ROUTES.includes(route)) : '');
+  menuReveal();
   $('#btnPerm').hidden = !(SERVER && ADMIN && root && !OFFLINE);   // 메뉴 권한 설정: 운영자(서버 PC)만
   const acct = SERVER && root;                              // 서버(또는 오프라인 보관본) 모드 = 계정 사용, 폴더 모드 = 이름만
   $('#acct').hidden = !acct; $('#whoLine').hidden = !!acct; $('#btnWho').hidden = !!acct;   // 계정 모드: 위쪽 계정 표시, 폴더 모드: 아래쪽 이름
