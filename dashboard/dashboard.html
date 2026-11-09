@@ -1685,6 +1685,10 @@ body.botonly #side,body.botonly header.top,body.botonly #content,body.botonly #d
 .gtm.gtlg{position:static;display:inline-block;margin:0 2px 0 0;transform:rotate(45deg)}.gtlg2{margin:0 2px 0 0!important}.gtlg-plan{display:inline-block;width:18px;height:4px;border-radius:2px;background:#cbd5e1}.gtlg-next{display:inline-block;width:18px;height:10px;border-radius:3px;background:#94a3b8 repeating-linear-gradient(135deg,rgba(255,255,255,.55) 0 3px,rgba(255,255,255,.75) 3px 6px)}
 .dboard.ph-front .gtb:not(.p1){color:color-mix(in srgb,var(--pc) 75%,#334155);text-shadow:none;background:color-mix(in srgb,var(--pc) 16%,#fff);border:1px solid color-mix(in srgb,var(--pc) 35%,#fff);box-shadow:none}.dboard.ph-front .gtb:not(.p1) span{text-shadow:none}.dboard.ph-front .gtb:not(.p1) .gtpg{background:color-mix(in srgb,var(--pc) 30%,#fff)}.dboard.ph-front .gtb.p1{box-shadow:0 0 0 2px #fb923c,0 1px 2px rgba(15,23,42,.15)}
 html.dark .gtw{border-color:rgba(18,22,70,.3)}
+/* 2026-11-09 품목 이름 입체감 — 진한 남색 글씨 + 아래로 겹친 그림자(돋을새김) · 마우스 올리면 살짝 떠오름 */
+.sinm,.gtnm,.isi,.sinm1{color:#14246b;text-shadow:0 1px 0 #fff,0 1.5px 0 #c7d2fe,0 2.5px 0 rgba(67,56,202,.22),0 4px 7px rgba(30,41,99,.22);letter-spacing:-.1px;transition:transform .12s,text-shadow .12s}
+.schtab tr.srow:hover .sinm,.gtr:hover .gtnm,.isr:hover .isi{transform:translateY(-1px);color:#1e1b8a;text-decoration:none;text-shadow:0 1px 0 #fff,0 2px 0 #a5b4fc,0 3.5px 0 rgba(67,56,202,.28),0 7px 12px rgba(30,41,99,.28)}
+html.dark .sinm,html.dark .gtnm,html.dark .isi,html.dark .sinm1{text-shadow:0 1px 0 #fff,0 2px 0 #c7d2fe,0 4px 6px rgba(30,41,99,.25)}
 /* 2026-11-09 카드 크게 보기 · 크기 조절 */
 #schv section.card.schrs{resize:vertical;overflow:auto;min-height:120px;position:relative}
 #schv section.card>h2{position:relative;padding-right:84px}.schbig{position:absolute;right:0;top:-2px;border:1px solid #c7d2fe;background:#eef2ff;color:#3730a3;border-radius:8px;font:inherit;font-size:12px;font-weight:700;padding:3px 9px;cursor:pointer}.schbig:hover{background:#4f46e5;color:#fff}
@@ -1938,7 +1942,7 @@ function recLabel(key, f) {
  * ===================================================================== */
 let root = null;
 /* 서버 모드: http(s):// 로 접속하면 server.py 의 REST API 사용 (폴더 선택 불필요). file:// 로 열면 폴더 모드 */
-const APP_VERSION = '2026-11-09.20';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
+const APP_VERSION = '2026-11-09.21';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
 const SERVER_URL = 'http://localhost:8080';
 // 부서원 PC 사본(file://)이 접속을 시도할 서버 — 서버가 배포 파일을 만들 때 'PC 이름 주소, IP 주소' 순으로 자동 기록함
 const DEFAULT_SERVERS = ['http://ASEUNGWOOK-B01:8080', 'http://65.3.30.234:8080'];
