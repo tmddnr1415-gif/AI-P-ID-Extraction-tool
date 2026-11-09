@@ -1652,6 +1652,39 @@ body.botonly #side,body.botonly header.top,body.botonly #content,body.botonly #d
 .sdet td{background:#f8faff!important;padding:10px 12px!important;overflow:hidden}.sdw{overflow:auto;max-width:100%}.sdt{width:auto!important;font-size:11.5px}.sdt th,.sdt td{white-space:nowrap;padding:4px 7px!important;text-align:center}.sdt td.sl{background:#fee2e2!important}
 .sdm{display:flex;flex-wrap:wrap;gap:6px 18px;margin-top:8px;font-size:12px}.sdm small{display:block;color:var(--sub);font-size:10.5px}
 @media (max-width:1300px){.schkpis{grid-template-columns:repeat(3,1fr)}.schgrid{grid-template-columns:1fr}}
+/* 2026-11-09 v17.11 품목별 일정판 새 디자인 (gt*) */
+.gtcard h2{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap}.gtcard h2 .gtoff{margin-left:auto;margin-right:84px}.gtcard.big h2 .gtoff{margin-right:96px}
+.gttool{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:2px 0 10px}.gttool .sp{flex:1}.gttool .dbleg{margin:0;gap:12px}.gttool .dbleg span{display:inline-flex;align-items:center;gap:4px}
+.gtz{display:flex;align-items:center;gap:4px;background:#f1f5f9;border-radius:10px;padding:3px}.gtz button{border:0;background:#fff;border-radius:7px;min-width:28px;height:26px;font:inherit;font-weight:800;cursor:pointer;color:#1e293b;box-shadow:0 1px 2px rgba(15,23,42,.1);padding:0 8px}.gtz button:disabled{opacity:.35;cursor:default}.gtz span{font-size:12px;font-weight:700;color:#475569;min-width:64px;text-align:center}
+.gtw{position:relative;border:1px solid #e2e8f0;border-radius:14px;overflow:auto;background:#fff;max-height:min(72vh,900px)}.gtcard.big .gtw{max-height:calc(100vh - 170px)}
+.gtin{position:relative;min-width:100%}
+.gtr{display:grid;grid-template-columns:268px 1fr;min-height:64px;position:relative}.gtr+.gtr{border-top:1px solid #eef1f6}
+.gtbody{position:relative}.gtbody>.gtr:hover .gtt{background-color:rgba(79,70,229,.045)}.gtbody>.gtr:hover .gtl{background-color:#f5f5fe}
+.gtl{position:sticky;left:0;z-index:5;background:#fff;border-right:1px solid #e2e8f0;padding:8px 12px 8px 14px;box-shadow:inset 4px 0 0 var(--dc,#94a3b8),4px 0 8px -6px rgba(15,23,42,.18);cursor:pointer;min-width:0}
+.gtl1{display:flex;align-items:center;gap:6px;justify-content:space-between}.gtno{font-size:11.5px;font-weight:700;color:#64748b;font-variant-numeric:tabular-nums;letter-spacing:.3px}
+.gtst{font-size:10.5px;font-weight:700;color:var(--sc);background:color-mix(in srgb,var(--sc) 10%,#fff);border-radius:99px;padding:0 7px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:130px}
+.gtnm{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;font-size:13px;font-weight:800;color:#0f1f5c;line-height:1.28;margin:2px 0 4px;word-break:keep-all;overflow-wrap:anywhere}.gtl:hover .gtnm{color:#4338ca}
+.gtfo{display:flex;flex-wrap:wrap;gap:3px}.gtfo i{font-style:normal;font-size:10.5px;font-weight:800;border-radius:5px;padding:0 5px;line-height:16px}.gtfo i.r{color:#b91c1c;background:#fee2e2}.gtfo i.y{color:#a16207;background:#fef3c7}.gtfo i.g{color:#15803d;background:#dcfce7}.gtfo i.site{outline:1px dashed currentColor;outline-offset:-1px;background:#fff}
+.gtt{position:relative;min-width:0}
+.gth{position:sticky;top:0;z-index:7;min-height:52px;background:#f8fafc;border-bottom:1px solid #dbe2ec}.gth .gtl{background:#f8fafc;display:flex;align-items:flex-end;font-weight:800;color:#334155;font-size:12.5px;cursor:default;z-index:8}.gth .gtl small{margin-left:6px;color:#94a3b8}
+.gtyr,.gtmr{position:relative;height:26px}.gtyr{border-bottom:1px solid #e2e8f0}
+.gty{position:absolute;top:0;bottom:0;padding:5px 8px;font-size:12px;font-weight:800;color:#1e293b;border-left:2px solid #94a3b8;white-space:nowrap;overflow:hidden}
+.gtmh{position:absolute;top:0;bottom:0;padding:6px 0 0;text-align:center;font-size:11px;font-weight:600;color:#64748b;border-left:1px solid #e2e8f0;white-space:nowrap;overflow:hidden}.gtmh.yr{border-left:2px solid #94a3b8;color:#1e293b;font-weight:800}
+.gtnow{position:absolute;top:0;bottom:0;width:0}.gtnow b{position:absolute;bottom:3px;left:0;transform:translateX(-50%);background:#ef4444;color:#fff;font-size:10.5px;font-weight:800;border-radius:99px;padding:1px 8px;white-space:nowrap;box-shadow:0 2px 6px rgba(239,68,68,.4);z-index:2}
+.gtbg{position:absolute;top:0;bottom:0;left:268px;right:0;pointer-events:none;z-index:0}.gtbd{position:absolute;top:0;bottom:0}.gtbd.o{background:#f8fafc}.gtbd.q{border-left:1px dashed #dbe2ec}.gtbd.yr{border-left:2px solid #cbd5e1}
+.gtnowl{position:absolute;top:0;bottom:0;width:2px;margin-left:-1px;background:#ef4444;box-shadow:0 0 0 3px rgba(239,68,68,.12);z-index:3}
+.gtbody>.gtr .gtt{z-index:1}
+.gtp{position:absolute;bottom:9px;height:4px;border-radius:2px;background:#cbd5e1}
+.gtb{position:absolute;top:calc(50% - 15px);height:24px;border-radius:7px;display:flex;align-items:center;gap:4px;padding:0 6px;color:#fff;font-size:11.5px;font-weight:700;white-space:nowrap;overflow:hidden;cursor:pointer;box-sizing:border-box;border:1px solid rgba(0,0,0,.06);box-shadow:0 1px 2px rgba(15,23,42,.15);transition:transform .1s,box-shadow .1s;z-index:2;margin-right:1px}
+.gtb:hover{transform:translateY(-1px);box-shadow:0 6px 14px rgba(15,23,42,.25);z-index:6;overflow:visible}.gtb span{position:relative;overflow:hidden;text-overflow:ellipsis;text-shadow:0 1px 1px rgba(0,0,0,.18)}.gtb.tiny{padding:0 3px;font-size:10px}
+.gtb.p1{--pc:#4f46e5}.gtb.p2{--pc:#c2410c}.gtb.p3{--pc:#047857}.gtb.p4{--pc:#be185d}.gtb.p5{--pc:#6d28d9}.gtb{background:var(--pc)}
+.gtb.next,.gtb.now{color:color-mix(in srgb,var(--pc) 85%,#000);border:1.5px solid color-mix(in srgb,var(--pc) 55%,#fff);background:color-mix(in srgb,var(--pc) 14%,#fff) repeating-linear-gradient(135deg,transparent 0 6px,color-mix(in srgb,var(--pc) 12%,transparent) 6px 12px)}.gtb.next span,.gtb.now span{text-shadow:none}
+.gtpg{position:absolute;left:0;top:0;bottom:0;background:color-mix(in srgb,var(--pc) 70%,#fff);border-radius:5px 0 0 5px}.gtb.now span{color:color-mix(in srgb,var(--pc) 90%,#000)}
+.gtd{position:relative;font-style:normal;font-size:10.5px;font-weight:800;border-radius:99px;padding:0 5px;line-height:15px;background:#fff;flex:none;margin-left:auto}.gtd.r{color:#dc2626;box-shadow:0 0 0 1.5px #dc2626 inset}.gtd.y{color:#b45309;box-shadow:0 0 0 1.5px #f59e0b inset}
+.gtm{position:absolute;top:calc(50% - 22px);width:9px;height:9px;margin-left:-5px;transform:rotate(45deg);border:2px solid;background:#fff;z-index:4;pointer-events:auto}.gtm.po{border-color:#2563eb}.gtm.fat{border-color:#db2777}.gtm.site{border-color:#0f172a}.gtm.a.po{background:#2563eb}.gtm.a.fat{background:#db2777}.gtm.a.site{background:#0f172a}
+.gtm.gtlg{position:static;display:inline-block;margin:0 2px 0 0;transform:rotate(45deg)}.gtlg2{margin:0 2px 0 0!important}.gtlg-plan{display:inline-block;width:18px;height:4px;border-radius:2px;background:#cbd5e1}.gtlg-next{display:inline-block;width:18px;height:10px;border-radius:3px;background:#94a3b8 repeating-linear-gradient(135deg,rgba(255,255,255,.55) 0 3px,rgba(255,255,255,.75) 3px 6px)}
+.dboard.ph-front .gtb:not(.p1){color:color-mix(in srgb,var(--pc) 75%,#334155);text-shadow:none;background:color-mix(in srgb,var(--pc) 16%,#fff);border:1px solid color-mix(in srgb,var(--pc) 35%,#fff);box-shadow:none}.dboard.ph-front .gtb:not(.p1) span{text-shadow:none}.dboard.ph-front .gtb:not(.p1) .gtpg{background:color-mix(in srgb,var(--pc) 30%,#fff)}.dboard.ph-front .gtb.p1{box-shadow:0 0 0 2px #fb923c,0 1px 2px rgba(15,23,42,.15)}
+html.dark .gtw{border-color:rgba(18,22,70,.3)}
 /* 2026-11-09 카드 크게 보기 · 크기 조절 */
 #schv section.card.schrs{resize:vertical;overflow:auto;min-height:120px;position:relative}
 #schv section.card>h2{position:relative;padding-right:84px}.schbig{position:absolute;right:0;top:-2px;border:1px solid #c7d2fe;background:#eef2ff;color:#3730a3;border-radius:8px;font:inherit;font-size:12px;font-weight:700;padding:3px 9px;cursor:pointer}.schbig:hover{background:#4f46e5;color:#fff}
@@ -1905,7 +1938,7 @@ function recLabel(key, f) {
  * ===================================================================== */
 let root = null;
 /* 서버 모드: http(s):// 로 접속하면 server.py 의 REST API 사용 (폴더 선택 불필요). file:// 로 열면 폴더 모드 */
-const APP_VERSION = '2026-11-09.19';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
+const APP_VERSION = '2026-11-09.20';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
 const SERVER_URL = 'http://localhost:8080';
 // 부서원 PC 사본(file://)이 접속을 시도할 서버 — 서버가 배포 파일을 만들 때 'PC 이름 주소, IP 주소' 순으로 자동 기록함
 const DEFAULT_SERVERS = ['http://ASEUNGWOOK-B01:8080', 'http://65.3.30.234:8080'];
@@ -4249,27 +4282,39 @@ const SCH_PH = [['구매(MR~CBE)', 'MR', 'AWD', 'p1'], ['발주', 'AWD', 'KOM', 
 /* 2026-11-09 공종 색 — 품목 왼쪽 띠 · 공종 칩 (처음 보는 공종은 이름으로 정해진 색) */
 const SCH_DC = { 'I&C':'#2563eb', Elec:'#d97706', Mech:'#16a34a', Piping:'#0891b2', Pipeline:'#7c3aed', FF:'#dc2626', Telecom:'#db2777', Civil:'#78716c', Arch:'#a16207', HVAC:'#0d9488' };
 const schDc = dn => SCH_DC[dn] || ['#4f46e5', '#0e7490', '#b45309', '#be185d', '#15803d', '#6d28d9'][[...String(dn)].reduce((a, c) => a + c.charCodeAt(0), 0) % 6];
-function schDiscBoard(rows, asOf, disc, ph) {
+function schDiscBoard(rows, asOf, disc, ph) {   // 2026-11-09 v17.11 새 간트 디자인(웹 타임라인 도구 방식): 고정 이름 열 · 연/월 두 줄 머리 · 달마다 옅은 띠 · 진한 막대 + 흰 글씨 · 진행 중 = 기준일까지 채움 · 앞으로 = 빗금 · 계획 = 회색 가는 줄 · 마일스톤 = ◆ · 확대/축소
   if (!rows.length) return '';
   const dt = (it, k) => it.A[k] || it.F[k] || it.B[k] || '';
-  const ds = rows.flatMap(({ it }) => SCH_PH.flatMap(([, a, b]) => [dt(it, a), dt(it, b)])).filter(Boolean).sort();
+  const ds = rows.flatMap(({ it }) => SCH_PH.flatMap(([, a, b]) => [dt(it, a), dt(it, b), it.B[a] || '', it.B[b] || ''])).filter(Boolean).concat(asOf).sort();
   const t0 = ds[0].slice(0, 7) + '-01', end = ds[ds.length - 1], t1d = new Date(schD(end).getFullYear(), schD(end).getMonth() + 1, 1), t1 = t1d.toISOString().slice(0, 10);
   const span = Math.max(31, schDays(t1, t0)), X = d => Math.max(0, Math.min(100, schDays(d, t0) / span * 100));
   const months = []; for (let m = new Date(schD(t0)); m < t1d; m.setMonth(m.getMonth() + 1)) months.push(new Date(m).toISOString().slice(0, 10));
-  const step = months.length > 30 ? 3 : months.length > 18 ? 2 : 1;
-  const head = months.map((m, i) => `<span class="dbm ${i % step ? 'nol' : ''}" style="left:${X(m)}%">${i % step ? '' : (m.slice(5, 7) === '01' || i === 0 ? m.slice(0, 4) + '.' : '') + +m.slice(5, 7) + '월'}</span>`).join('');
-  const grid = months.map(m => `<i style="left:${X(m)}%"></i>`).join('');
-  const line = ({ it, k }) => { const id = it.type + '|' + it.no, blocks = SCH_PH.map(([n, a, b, c], pi) => { const s1 = dt(it, a), e1 = dt(it, b); if (!s1 || !e1 || e1 < s1) return '';
-      const done = !!it.A[b], now = !done && !!it.A[a], dl = it.B[b] ? schDays(dt(it, b), it.B[b]) : 0, w = Math.max(.5, X(e1) - X(s1));
-      const plan = it.B[a] && it.B[b] && it.B[b] >= it.B[a] ? `<i class="dbp ${c}" style="left:${X(it.B[a])}%;width:${Math.max(.3, X(it.B[b]) - X(it.B[a]))}%" title="계획 ${it.B[a]} → ${it.B[b]}"></i>` : '';   // 계획 = 아래 가는 줄
-      return plan + `<b class="dbk ${c} ${done ? 'done' : now ? 'now' : ''} ${dl > 14 ? 'lt' : dl > 0 ? 'lw' : ''} ${w < 4 ? 'tiny' : ''}" data-pb="${esc(id)}|${pi}" style="left:${X(s1)}%;width:${w}%" title="${esc(`${it.no} · ${n}: ${s1} → ${e1}${done ? ' (완료)' : now ? ' (진행 중)' : ''}${dl > 0 ? ` · 계획보다 +${dl}일` : ''} — 누르면 상세`)}"><span>${w < 6 ? SCH_PH_SHORT[pi] : n}${dl > 0 ? ` +${dl}` : done ? ' ✔' : ''}</span></b>`; }).join('');
-    const ms = [['PO', '🧾'], ['FAT', '🔍'], ['SITE', '🏁']].map(([m, ic]) => { const v = dt(it, m); return v ? `<em class="dbx ${it.A[m] ? 'a' : ''}" style="left:${X(v)}%" title="${SCH_NAME[m]} ${it.A[m] ? '실적' : '전망'} ${v}">${ic}</em>` : ''; }).join('');
-    return `<div class="dbr" style="--dc:${schDc(it.disc)}"><div class="dbl" data-schopen="${esc(it.type + '|' + it.no)}"><b>${esc(it.no)}</b><span class="sinm" title="${esc(it.item)}">${esc(it.item)}</span><span class="dbf">${k.fo.filter(f => f.st !== 'none').map(f => `<i class="${f.lv} ${f.st}" title="${esc(`${f.label} 계획 ${f.b || '-'} → ${f.a ? '실적 ' + f.a : f.f ? '전망 ' + f.f : '실적 없음'}`)}">${f.g}${f.st === 'done' ? '✔' : ''}${f.d > 0 ? ' +' + f.d : ''}</i>`).join('')}</span><small style="color:${SCH_ST[k.st][1]}">${esc(k.stage)}${k.slip ? ` · 현장 ${k.slip > 0 ? '+' : ''}${k.slip}일` : ''}</small></div><div class="dbt">${grid}${blocks}${ms}</div></div>`; };
-  return `<section class="card dboard ph-${ph || 'front'}"><h2>🔧 ${esc(disc)} · 품목별 일정판 <span class="muted">· ${rows.length}품목 · 블록 = 실적 → 전망(없으면 계획), 아래 가는 줄 = 계획 · 숫자 = 계획보다 늦은 날(빨강 15일+) · ✔ = 끝남 · 🧾 PO 🔍 FAT 🏁 현장 도착 · <b>블록을 누르면 그 단계 상세</b> · 왼쪽 이름을 누르면 아래 표에서 상세</span>
-      <button class="btn sm" data-schf="disc|${esc(disc)}" style="float:right">✕ 공종 해제</button></h2>
-    <div class="dbleg">${SCH_PH.map(([n, , , c]) => `<span><i class="${c}"></i>${n}</span>`).join('')}</div>
-    <div class="dbw"><div class="dbr dbh"><div class="dbl">품목</div><div class="dbt">${head}<i class="dbnow" style="left:${X(asOf)}%"><b>기준일</b></i></div></div>
-    ${rows.slice().sort((a, b) => (dt(a.it, 'MR') || '9').localeCompare(dt(b.it, 'MR') || '9')).map(line).join('')}<div class="dbnowl" style="--x:${X(asOf)}"></div></div></section>`;
+  const Z = [0, 60, 110, 200], z = SCH.gz || 0, ppm = Z[z], fitStep = months.length > 30 ? 3 : months.length > 18 ? 2 : 1, step = ppm ? (ppm < 50 ? 2 : 1) : fitStep;
+  const mEnd = i => i + 1 < months.length ? months[i + 1] : t1;
+  const years = []; months.forEach((m, i) => { const y = m.slice(0, 4); if (!years.length || years[years.length - 1].y !== y) years.push({ y, s:m, e:mEnd(i) }); else years[years.length - 1].e = mEnd(i); });
+  const yHead = years.map(y => `<span class="gty" style="left:${X(y.s)}%;width:${X(y.e) - X(y.s)}%">${y.y}</span>`).join('');
+  const mHead = months.map((m, i) => `<span class="gtmh ${m.slice(5, 7) === '01' ? 'yr' : ''}" style="left:${X(m)}%;width:${X(mEnd(i)) - X(m)}%">${i % step ? '' : +m.slice(5, 7) + (ppm >= 110 ? '월' : '')}</span>`).join('');
+  const bands = months.map((m, i) => `<i class="gtbd ${i % 2 ? 'o' : ''} ${m.slice(5, 7) === '01' ? 'yr' : ['04', '07', '10'].includes(m.slice(5, 7)) ? 'q' : ''}" style="left:${X(m)}%;width:${X(mEnd(i)) - X(m)}%"></i>`).join('');
+  const nowX = X(asOf);
+  const line = ({ it, k }) => { const id = it.type + '|' + it.no;
+    const bars = SCH_PH.map(([n, a, b, c], pi) => { const s1 = dt(it, a), e1 = dt(it, b); if (!s1 || !e1 || e1 < s1) return '';
+      const done = !!it.A[b], now = !done && (!!it.A[a] || s1 <= asOf), dl = it.B[b] ? schDays(dt(it, b), it.B[b]) : 0, w = Math.max(.6, X(e1) - X(s1));
+      const pg = done ? 100 : now ? Math.max(0, Math.min(100, (schDays(asOf, s1)) / Math.max(1, schDays(e1, s1)) * 100)) : 0;
+      const plan = it.B[a] && it.B[b] && it.B[b] >= it.B[a] ? `<i class="gtp" style="left:${X(it.B[a])}%;width:${Math.max(.3, X(it.B[b]) - X(it.B[a]))}%" title="${esc(n)} 계획 ${it.B[a]} → ${it.B[b]}"></i>` : '';
+      return plan + `<b class="gtb ${c} ${done ? 'done' : now ? 'now' : 'next'} ${w < 5 ? 'tiny' : ''}" data-pb="${esc(id)}|${pi}" style="left:${X(s1)}%;width:${w}%" title="${esc(`${it.no} · ${n}: ${s1} → ${e1}${done ? ' (완료)' : now ? ' (진행 중)' : ' (앞으로)'}${it.B[b] ? ` · 계획 끝 ${it.B[b]}` : ''}${dl > 0 ? ` · +${dl}일 늦음` : ''} — 누르면 상세`)}">${pg && pg < 100 ? `<i class="gtpg" style="width:${pg}%"></i>` : ''}<span>${done ? '✓ ' : ''}${w < 7 ? SCH_PH_SHORT[pi] : n}</span>${dl > 0 ? `<em class="gtd ${dl > 14 ? 'r' : 'y'}">+${dl}</em>` : ''}</b>`; }).join('');
+    const ms = [['PO', 'po'], ['FAT', 'fat'], ['SITE', 'site']].map(([m, c]) => { const v = dt(it, m); return v ? `<i class="gtm ${c} ${it.A[m] ? 'a' : ''}" style="left:${X(v)}%" title="${SCH_NAME[m]} ${it.A[m] ? '실적' : '전망'} ${v}${it.B[m] ? ' · 계획 ' + it.B[m] : ''}"></i>` : ''; }).join('');
+    const fo = k.fo.filter(f => f.st !== 'none');
+    return `<div class="gtr" style="--dc:${schDc(it.disc)}"><div class="gtl" data-schopen="${esc(id)}"><div class="gtl1"><span class="gtno">${esc(it.no)}</span><span class="gtst" style="--sc:${SCH_ST[k.st][1]}">${esc(k.stage)}</span></div><b class="gtnm" title="${esc(it.item)}">${esc(it.item)}</b>
+      <div class="gtfo">${fo.map(f => `<i class="${f.lv} ${f.st}" title="${esc(`${f.label} 계획 ${f.b || '-'} → ${f.a ? '실적 ' + f.a : f.f ? '전망 ' + f.f : '실적 없음'}`)}">${f.g}${f.st === 'done' ? '✓' : ''}${f.d > 0 ? ' +' + f.d : ''}</i>`).join('')}${k.slip ? `<i class="${k.slip > 30 ? 'r' : k.slip > 0 ? 'y' : 'g'} site">현장 ${k.slip > 0 ? '+' : ''}${k.slip}</i>` : ''}</div></div>
+      <div class="gtt">${bars}${ms}</div></div>`; };
+  const tool = `<div class="gttool"><div class="dbleg">${SCH_PH.map(([n, , , c]) => `<span><i class="${c}"></i>${n}</span>`).join('')}<span><i class="gtlg-plan"></i>계획</span><span><i class="gtlg-next"></i>앞으로(빗금)</span><span><i class="gtm po a gtlg"></i>PO</span><span><i class="gtm fat a gtlg"></i>FAT</span><span><i class="gtm site a gtlg"></i>현장 도착</span><span><em class="gtd r gtlg2">+15</em>계획보다 늦은 날</span></div>
+    <span class="sp"></span><div class="gtz"><button data-gz="-1" title="축소" ${z ? '' : 'disabled'}>−</button><span>${['맞춤', '월 크게', '월 더 크게', '주 단위'][z]}</span><button data-gz="1" title="확대" ${z >= 3 ? 'disabled' : ''}>＋</button><button data-gtoday title="기준일로 이동">◎ 기준일</button></div></div>`;
+  return `<section class="card dboard gtcard ph-${ph || 'front'}"><h2>🔧 ${esc(disc)} · 품목별 일정판 <span class="muted">· ${rows.length}품목 · 막대를 누르면 그 단계 상세 · 이름을 누르면 아래 표에서 상세</span>
+      <button class="btn sm gtoff" data-schf="disc|${esc(disc)}">✕ 공종 해제</button></h2>${tool}
+    <div class="gtw"><div class="gtin" style="${ppm ? `width:calc(268px + ${months.length * ppm}px)` : ''}">
+      <div class="gtr gth"><div class="gtl">품목 <small>${rows.length}</small></div><div class="gtt"><div class="gtyr">${yHead}</div><div class="gtmr">${mHead}</div><i class="gtnow" style="left:${nowX}%"><b>기준일 ${schFmt(asOf).slice(3)}</b></i></div></div>
+      <div class="gtbody"><div class="gtbg">${bands}<i class="gtnowl" style="left:${nowX}%"></i></div>${rows.slice().sort((a, b) => (dt(a.it, 'MR') || '9').localeCompare(dt(b.it, 'MR') || '9')).map(line).join('')}</div>
+    </div></div></section>`;
 }
 /* 2026-11-09 차트 블록 · 막대를 누르면 상세: 그 단계 안의 마일스톤마다 계획 · 전망 · 실적 · 지연 (all = 구매 전반 + 주요 단계) */
 function schPop(spec, x, y) {
@@ -4321,14 +4366,21 @@ function schCardTools(v) {
   if (!SCH.big) document.body.classList.remove('schbigon');
 }
 addEventListener('keydown', e => { if (e.key === 'Escape' && SCH.big && route === 'co2sched' && !$('#schPop')) { SCH.big = ''; render(); } });
+function schGtToday(smooth) {   // 일정판 가로 스크롤을 기준일 쪽으로
+  const w = $('#schv .gtw'), n = w?.querySelector('.gtnowl'), b = w?.querySelector('.gtbody'); if (!w || !n || !b) return;
+  const x = 268 + (b.offsetWidth - 268) * parseFloat(n.style.left) / 100; w.scrollTo({ left:Math.max(0, x - 268 - (w.clientWidth - 268) / 3), behavior:smooth ? 'smooth' : 'auto' });
+}
 function schBind() {
   const v = $('#schv'); if (!v) return; const F = SCH.f; schCardTools(v);
+  const gw = $('#schv .gtw'); if (gw) { if (SCH.gzKeep != null) { gw.scrollLeft = SCH.gzKeep * gw.scrollWidth - gw.clientWidth / 2; SCH.gzKeep = null; } else if (SCH.gz) schGtToday(false); }
   const fi = $('#schFile'); if (fi) fi.onchange = () => { schUpload(fi.files); fi.value = ''; };
   const dz = $('#schDrop'); if (dz) { dz.ondragover = e => { e.preventDefault(); dz.classList.add('on'); }; dz.ondragleave = () => dz.classList.remove('on'); dz.ondrop = e => { e.preventDefault(); dz.classList.remove('on'); schUpload(e.dataTransfer.files); }; }
   v.ondragover = e => { if ([...(e.dataTransfer?.types || [])].includes('Files')) e.preventDefault(); }; v.ondrop = e => { if (e.target.closest('#schDrop') || !e.dataTransfer?.files?.length) return; e.preventDefault(); schUpload(e.dataTransfer.files); };
   v.onclick = e => {
     const f = e.target.closest('[data-schf]'); if (f) { const [k, val] = f.dataset.schf.split('|'); if (k === 'reset') Object.assign(F, { type:'', disc:'', q:'', late:'' }); else F[k] = F[k] === val ? '' : val; return render(); }
     if (e.target.closest('[data-schxl]')) return schXlsx();
+    const gz = e.target.closest('[data-gz]'); if (gz) { const w = $('#schv .gtw'), r = w ? (w.scrollLeft + w.clientWidth / 2) / Math.max(1, w.scrollWidth) : 0; SCH.gz = Math.max(0, Math.min(3, (SCH.gz || 0) + +gz.dataset.gz)); SCH.gzKeep = r; return render(); }
+    if (e.target.closest('[data-gtoday]')) return schGtToday(true);
     const bg = e.target.closest('[data-schbig]'); if (bg) { e.stopPropagation(); SCH.big = SCH.big === bg.dataset.schbig ? '' : bg.dataset.schbig; if (!SCH.big) document.body.classList.remove('schbigon'); render(); if (!SCH.big) setTimeout(() => $(`#schv section.card[data-ck="${CSS.escape(bg.dataset.schbig)}"]`)?.scrollIntoView({ block:'start' }), 30); return; }
     if (e.target.closest('.schbigbg')) { SCH.big = ''; return render(); }
     const f2 = e.target.closest('[data-schf2]'); if (f2) { const [dn, lt] = f2.dataset.schf2.split('|'); const same = F.disc === dn && F.late === lt; F.disc = same ? '' : dn; F.late = same ? '' : lt; return render(); }
@@ -4341,7 +4393,7 @@ function schBind() {
     const o = e.target.closest('[data-schopen]'); if (o && !e.target.closest('.sdet') && e.detail > 1) return;   // 더블클릭의 두 번째 누름 — 줄 열고 닫기 안 함
     if (o && !e.target.closest('.sdet') && e.target.closest('[data-fe]') && !SCH.clickT) { SCH.clickT = setTimeout(() => { SCH.clickT = 0; o.click(); }, 260); return; }   // MR · TBE · CBE 칸: 더블클릭인지 잠깐 봄
     SCH.clickT = 0;
-    if (o && !e.target.closest('.sdet')) { const id = o.dataset.schopen, jump = o.classList.contains('ssn') || o.classList.contains('dbr') || o.classList.contains('dbl') || o.classList.contains('isr'); SCH.open.has(id) && !jump ? SCH.open.delete(id) : SCH.open.add(id); render(); if (jump) setTimeout(() => $(`#schv tr.srow[data-schopen="${CSS.escape(id)}"]`)?.scrollIntoView({ block:'center' }), 50); }
+    if (o && !e.target.closest('.sdet')) { const id = o.dataset.schopen, jump = o.classList.contains('ssn') || o.classList.contains('dbr') || o.classList.contains('dbl') || o.classList.contains('gtl') || o.classList.contains('isr'); SCH.open.has(id) && !jump ? SCH.open.delete(id) : SCH.open.add(id); render(); if (jump) setTimeout(() => $(`#schv tr.srow[data-schopen="${CSS.escape(id)}"]`)?.scrollIntoView({ block:'center' }), 50); }
   };
   v.ondblclick = e => {
     if (noEdit() || !can('runpjt')) return;
