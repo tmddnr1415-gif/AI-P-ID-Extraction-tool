@@ -1678,3 +1678,12 @@ C:\Users\SAMSUNG\Desktop\Claude\                         ← 개발 폴더 (여�
 - 바뀐 곳: server.py `DART_DEFAULT_KEYS` · `dart_key_path` · `parse_dart_key` · `read_key_text` · `api_finkey_get` / apps/finstagram/server.py `parse_key` · `read_key_text` · `load_key` / dashboard.html ⚙ 창 안내 문구
 - 확인한 것: 가짜 40자 키로 6가지 쓰는 법(중괄호 · 다른 키와 함께 · 따옴표 + 주석 · DATA_API_KEY · 키만 · export) × 두 프로그램 모두 정상, UTF-16 · UTF-8 · ANSI 파일, 기본 위치 고르기, ⚙ 응답 · /api/diag · 로그에 키 값 없음.
 - 회사에서 확인할 것: 업데이트 뒤 재무스타그램 ⚙ 창 '지금 경로' 가 C:\Claude\시크릿\.env 이고 상태 '✓ 키 확인 (40자)' 인지 → [DART 연결 점검]. (⚙ 에서 다른 경로를 지정해 둔 적이 있으면 그 경로가 우선 — 칸을 비우고 저장하면 기본 위치로)
+
+### 2026-11-09 (APP_VERSION 2026-11-09.15 / SERVER_VERSION 2026-11-09.7 / 재무스타그램 2026-11-09.3) — v17.06
+- 회사 제보: 재무스타그램 검색 → `<urlopen error [WinError 10054] 현재 연결은 원격 호스트에 의해 강제로 끊겼습니다>` (영어 원문 그대로).
+  - 원인 ① 업데이트를 적용해도 **옛 재무스타그램 프로그램이 계속 떠 있었음** — fin_loop 는 8765 에 무엇이든 떠 있으면 새로 띄우지 않았음(그래서 한국어 이유 표시도 안 나옴). → `fin_replace_stale`: 떠 있는 판(/version ver) ≠ 파일 판(APP_VERSION)이면 끔(내가 띄운 것 = fin_stop, 아니면 /api/quit → 그래도 살아 있으면 윈도 `netstat -ano` 로 8765 LISTEN PID → `tasklist` 가 python 이면 `taskkill /F`) 후 새 판을 띄움. 재무스타그램 /version 에 pid, 새 `/api/quit`(이 PC 에서만). fin_info 는 프록시를 거치지 않음.
+  - 원인 ② 10054 = 회사망이 opendart.fss.or.kr 로 바로 나가는 연결을 끊음 — 회사 PC 브라우저는 '자동 프록시 설정 스크립트(PAC)' 로 프록시를 쓰는데 파이썬 urllib 는 PAC 을 못 읽음. → 재무스타그램 `net_open`: 길 후보를 차례로 시도하고 되는 길을 기억(⚙ 지정 프록시 → 윈도 · 환경 프록시 → **윈도 레지스트리 AutoConfigURL 의 PAC 파일 안 `PROXY 주소:포트` 들** → 직접 → 직접(TLS 1.2)), 찾은 길은 주가 · 날씨에도(install_opener). 407(프록시 로그인)은 다음 길로. 다 안 되면 시도한 길마다 이유 + 할 일(⚙ 프록시 칸 · IT 요청). ⚙ '인터넷 프록시' 칸에 `.pac` 주소를 넣어도 됨. 10054 · 연결 끊김 문구 추가.
+  - /api/diag · ⚙ [DART 연결 점검] · 재무스타그램 [연결 점검] 에 판 · PAC 주소 · PAC 안 프록시 · 연결 길 · 시도한 길 표시.
+- 바뀐 곳: server.py `fin_loop` · `fin_replace_stale` · `fin_file_ver` · `fin_info` · `api_finkey_put`(PAC 주소 허용) / apps/finstagram/server.py `proxy_setting` · `is_pac` · `proxy_url` · `pac_url` · `pac_proxies` · `routes` · `net_open` · `net_reason` · `diag` · `/version` · `/api/quit` / dashboard.html `finDiagShow`, ⚙ 안내 / apps/finstagram/index.html `runDiag`
+- 확인한 것(시험 장치: 바로 끊는 서버 = 10054 흉내, 죽은 프록시 + 되는 프록시가 적힌 PAC, 가짜 DART): PAC 없음 → 두 길 모두 '회사망이 연결을 끊음(10054)' + 할 일 / PAC 있음 → 죽은 프록시 건너뛰고 되는 프록시로 검색 · 재무제표 성공 / ⚙ 칸에 .pac 주소 → 같은 결과 / 8765 에 옛 판(2026-11-07.2)이 떠 있는 채로 대시보드 서버 시작 → 끄고 새 판(2026-11-09.3) 띄움 / 윈도 netstat 출력에서 PID 고르기. 
+- 여기서 못 한 것: 윈도 taskkill 경로(이 환경은 리눅스), 실제 회사 PAC · 프록시. 회사에서: 업데이트 적용 후 **대시보드 서버를 다시 켜기**(start_server.bat) → 재무스타그램 [연결 점검] 의 '판' 이 2026-11-09.3 인지, '연결 길' · '시도한 길' 문구 확인.

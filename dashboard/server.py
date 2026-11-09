@@ -36,7 +36,7 @@ ID_RE = re.compile(r'^[A-Za-z0-9_\-]{1,80}$')
 WEEK_RE = re.compile(r'^\d{4}-W\d{2}$')
 MAX_BODY = 30 * 1024 * 1024
 
-SERVER_VERSION = '2026-11-09.6'
+SERVER_VERSION = '2026-11-09.7'
 ROOT = os.path.dirname(os.path.abspath(__file__))
 PORT = 8080
 ALLOW_NETS = []          # 사내망: 루프백·사설망 + 서버 IP 대역(/16, 유선·Wi-Fi 등 지금까지 쓴 대역 모두 기억) + --allow 로 추가한 대역
@@ -1818,8 +1818,8 @@ def api_finkey_put(b, by):
         raise ApiError(409, '서버를 --dart-key 로 켜서 여기서 바꿀 수 없습니다 (start_server.bat 의 --dart-key 를 고치세요)')
     if 'proxy' in b:                                       # 2026-11-09 프록시(선택)
         px = re.sub(r'\s+', '', str(b.get('proxy') or ''))
-        if px and not re.fullmatch(r'(https?://)?[^/\s]+(:\d{2,5})?/?', px):
-            raise ApiError(400, '프록시는 주소:포트 로 적으세요 (예: 10.0.0.1:8080 또는 http://proxy.회사.com:8080)')
+        if px and not re.fullmatch(r'(https?://)?[^/\s]+(:\d{2,5})?/?', px) and not re.fullmatch(r'(https?|file)://\S+', px):
+            raise ApiError(400, '프록시는 주소:포트 (예: 10.0.0.1:8080) 또는 PAC 스크립트 주소 (예: http://pac.회사.com/proxy.pac) 로 적으세요')
         with LOCK:
             if px:
                 with open(P('fin_proxy.txt'), 'w', encoding='utf-8') as f:
@@ -1857,9 +1857,56 @@ def fin_restart():
     FIN['wake'].set()
 
 
+def fin_file_ver(script):
+    try:
+        with open(script, encoding='utf-8') as f:
+            m = re.search(r'^APP_VERSION\s*=\s*"([^"]+)"', f.read(6000), re.M)
+        return m.group(1) if m else ''
+    except OSError:
+        return ''
+
+
+def fin_replace_stale(port, script):
+    """8765 에 떠 있는 재무스타그램이 파일보다 옛 판이면 끔 — 업데이트 zip 을 적용해도 예전 프로그램이 계속 돌던 문제 (2026-11-09).
+    내가 띄운 것 → fin_stop, 아니면 /api/quit(새 판) → 그래도 살아 있으면 윈도 netstat 로 그 포트의 python 을 찾아 taskkill"""
+    info, want = fin_info(port), fin_file_ver(script)
+    if not info or not want or info.get('ver') == want:
+        return
+    log.warning('재무스타그램: 떠 있는 판 %s ≠ 파일 %s — 끄고 새 판으로 다시 띄웁니다', info.get('ver'), want)
+    p = FIN['proc']
+    if p is not None and p.poll() is None:
+        fin_stop()
+    else:
+        try:
+            urllib.request.build_opener(urllib.request.ProxyHandler({})).open(f'http://127.0.0.1:{port}/api/quit', timeout=3).read()
+        except Exception:  # noqa
+            pass
+        for _ in range(10):
+            if not fin_info(port):
+                break
+            time.sleep(0.4)
+        if fin_info(port) and os.name == 'nt':
+            import subprocess
+            try:
+                out = subprocess.run(['netstat', '-ano', '-p', 'TCP'], capture_output=True, text=True, timeout=10, creationflags=getattr(subprocess, 'CREATE_NO_WINDOW', 0)).stdout
+                pids = {ln.split()[-1] for ln in out.splitlines() if re.search(rf'[:.]{port}\s', ln) and 'LISTEN' in ln.upper()}
+                for pid in pids:
+                    img = subprocess.run(['tasklist', '/FI', f'PID eq {pid}', '/FO', 'CSV', '/NH'], capture_output=True, text=True, timeout=10, creationflags=getattr(subprocess, 'CREATE_NO_WINDOW', 0)).stdout.lower()
+                    if 'python' in img:
+                        subprocess.run(['taskkill', '/PID', pid, '/F'], capture_output=True, timeout=10, creationflags=getattr(subprocess, 'CREATE_NO_WINDOW', 0))
+                        log.info('재무스타그램 옛 판(PID %s)을 껐습니다', pid)
+            except Exception as e:  # noqa
+                log.warning('재무스타그램 옛 판을 끄지 못했습니다: %s — 서버 PC 를 다시 켜거나 작업 관리자에서 python 을 끄세요', e)
+        for _ in range(10):
+            if not fin_info(port):
+                break
+            time.sleep(0.4)
+    FIN['fails'] = 0
+
+
 def fin_info(port):
     try:
-        with urllib.request.urlopen(f'http://127.0.0.1:{port}/version', timeout=2) as r:
+        with urllib.request.build_opener(urllib.request.ProxyHandler({})).open(f'http://127.0.0.1:{port}/version', timeout=2) as r:   # 프록시 설정과 무관하게 이 PC 로
             d = json.loads(r.read())
             return d if d.get('app') == 'finstagram' else None
     except Exception:
@@ -1873,6 +1920,8 @@ def fin_loop():
         log.info('재무스타그램: apps/finstagram/server.py 가 없어 띄우지 않음')
         return
     while True:
+        p = FIN['proc']
+        fin_replace_stale(port, script)                         # 2026-11-09 업데이트 뒤에도 옛 판이 떠 있으면 끄고 새 판으로
         p = FIN['proc']
         if (p is None or p.poll() is not None) and not fin_info(port):
             if p is not None:

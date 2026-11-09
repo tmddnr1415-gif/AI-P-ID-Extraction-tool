@@ -10,12 +10,14 @@ API 키: 환경변수 DART_API_KEY · DART_KEY_FILE(키 파일 경로) 또는 �
   메뉴 '재무스타그램' → http://<서버>:8765/ 를 iframe 으로. 사내망 주소만 접속 허용. 라이브러리는 vendor/ (CDN 안 씀).
 """
 import ipaddress
+import ssl
 import mimetypes
 import io
 import json
 import re
 import os
 import sys
+import threading
 import time
 import urllib.error
 import urllib.parse
@@ -27,7 +29,7 @@ from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 BASE = os.path.dirname(os.path.abspath(__file__))
 PORT = int(os.environ.get("PORT", "8765"))
 HOST = os.environ.get("FIN_HOST", "127.0.0.1")
-APP_VERSION = "2026-11-09.2"
+APP_VERSION = "2026-11-09.3"
 DART = os.environ.get("FIN_DART_BASE", "").strip() or "https://opendart.fss.or.kr/api"   # FIN_DART_BASE = 시험용
 CORP_CACHE = os.path.join(BASE, "corp_codes.json")
 
@@ -94,8 +96,8 @@ API_KEY = load_key()
 
 
 # ---------------------------------------------------------------- 인터넷 연결 (2026-11-09: 회사 PC 에서 검색이 조용히 실패 → 이유를 한국어로 알려 줌)
-def proxy_url():
-    """프록시: 환경변수 FIN_PROXY → 대시보드가 넘긴 FIN_PROXY_FILE(운영 폴더 fin_proxy.txt). 없으면 윈도 인터넷 설정 · HTTPS_PROXY (urllib 기본)"""
+def proxy_setting():
+    """⚙ 의 '인터넷 프록시' 칸(FIN_PROXY · fin_proxy.txt) 원문 — 프록시 주소 또는 PAC 스크립트 주소(…​.pac)"""
     v = os.environ.get("FIN_PROXY", "").strip()
     if not v:
         try:
@@ -103,9 +105,123 @@ def proxy_url():
                 v = next((ln.strip() for ln in f if ln.strip() and not ln.strip().startswith("#")), "")
         except OSError:
             v = ""
-    if v and not re.match(r"^https?://", v):
-        v = "http://" + v
     return v
+
+
+is_pac = lambda v: bool(re.search(r"\.pac(\?|$)|wpad", v or "", re.I))
+
+
+def proxy_url():
+    """프록시 주소(⚙ 칸 · FIN_PROXY). PAC 주소를 넣었으면 '' (PAC 은 pac_url 이 읽음). 없으면 윈도 인터넷 설정 · HTTPS_PROXY (urllib 기본)"""
+    v = proxy_setting()
+    if not v or is_pac(v):
+        return ""
+    return v if re.match(r"^https?://", v) else "http://" + v
+
+
+def pac_url():
+    """윈도 '자동 프록시 설정 스크립트(PAC)' 주소 — 회사 PC 는 브라우저가 이걸로 프록시를 고름(파이썬 urllib 는 못 읽음). ⚙ 칸에 .pac 주소를 넣었으면 그것, 시험용 FIN_PAC_URL"""
+    v = proxy_setting()
+    if is_pac(v):
+        return v
+    v = os.environ.get("FIN_PAC_URL", "").strip()
+    if v or os.name != "nt":
+        return v
+    try:
+        import winreg
+        with winreg.OpenKey(winreg.HKEY_CURRENT_USER, r"Software\Microsoft\Windows\CurrentVersion\Internet Settings") as k:
+            return str(winreg.QueryValueEx(k, "AutoConfigURL")[0] or "").strip()
+    except OSError:
+        return ""
+
+
+PAC = {"url": None, "proxies": [], "err": ""}
+
+
+def pac_proxies():
+    """PAC 스크립트 안의 'PROXY 주소:포트' 를 순서대로 (스크립트를 실행하지는 않고 적힌 프록시를 차례로 시도)"""
+    u = pac_url()
+    if u == PAC["url"]:
+        return PAC["proxies"]
+    PAC.update(url=u, proxies=[], err="")
+    if not u:
+        return []
+    try:
+        if re.match(r"^file:", u, re.I) or re.match(r"^[A-Za-z]:\\", u):
+            path = urllib.request.url2pathname(urllib.parse.urlparse(u).path) if u.lower().startswith("file:") else u
+            with open(path, "rb") as f:
+                txt = f.read(300000).decode("utf-8", "replace")
+        else:
+            with urllib.request.build_opener(urllib.request.ProxyHandler({})).open(u, timeout=8) as r:
+                txt = r.read(300000).decode("utf-8", "replace")
+        seen = []
+        for m in re.finditer(r"PROXY\s+([A-Za-z0-9._\-]+:\d{2,5})", txt):
+            if m.group(1) not in seen:
+                seen.append(m.group(1))
+        PAC["proxies"] = seen[:8]
+    except Exception as e:  # noqa
+        PAC["err"] = f"PAC 를 읽지 못함: {e}"
+    return PAC["proxies"]
+
+
+def _tls12():
+    c = ssl.create_default_context()
+    c.maximum_version = ssl.TLSVersion.TLSv1_2
+    return c
+
+
+def routes():
+    """인터넷에 나가는 길 후보 (앞에서부터 시도): 지정 프록시 → 윈도 · 환경 프록시 → PAC 의 프록시들 → 직접 → 직접(TLS 1.2)"""
+    out, px = [], proxy_url()
+    if px:
+        out.append((f"지정 프록시 {px}", urllib.request.build_opener(urllib.request.ProxyHandler({"http": px, "https": px}))))
+    sysp = {k: v for k, v in urllib.request.getproxies().items() if k in ("http", "https")}
+    if sysp:
+        out.append(("윈도 · 환경 프록시 " + (sysp.get("https") or sysp.get("http")), urllib.request.build_opener(urllib.request.ProxyHandler(sysp))))
+    for p in pac_proxies():
+        out.append((f"PAC 프록시 {p}", urllib.request.build_opener(urllib.request.ProxyHandler({"http": "http://" + p, "https": "http://" + p}))))
+    out.append(("직접 연결", urllib.request.build_opener(urllib.request.ProxyHandler({}))))
+    out.append(("직접 연결(TLS 1.2)", urllib.request.build_opener(urllib.request.ProxyHandler({}), urllib.request.HTTPSHandler(context=_tls12()))))
+    return out
+
+
+NET = {"how": "", "op": None, "tried": []}
+
+
+def net_open(url, timeout=30, host="opendart.fss.or.kr"):
+    """찾아 둔 길로 열고, 안 되면 후보를 차례로 시도해 되는 길을 기억(주가 · 날씨 등 extras 도 같은 길 — install_opener)"""
+    if NET["op"] is not None:
+        try:
+            with NET["op"].open(url, timeout=timeout) as r:
+                data = r.read()
+            if not NET["tried"] or not NET["tried"][-1].endswith("성공"):
+                NET["tried"] = [NET["how"] + ": 성공"]
+            return data
+        except urllib.error.HTTPError as e:
+            if e.code != 407:
+                raise
+        except Exception:  # noqa — 길이 끊김 → 다시 찾기
+            pass
+        NET.update(how="", op=None)
+    tried = []
+    for label, op in routes():
+        try:
+            with op.open(url, timeout=min(timeout, 15)) as r:
+                data = r.read()
+            NET.update(how=label, op=op, tried=tried + [f"{label}: 성공"])
+            urllib.request.install_opener(op)
+            return data
+        except urllib.error.HTTPError as e:
+            if e.code == 407:
+                tried.append(f"{label}: 프록시 로그인 필요(407)")
+                continue
+            NET.update(how=label, op=op, tried=tried + [f"{label}: 서버 응답 {e.code}"])
+            raise
+        except Exception as e:  # noqa
+            tried.append(f"{label}: {net_reason(e, host)}")
+    NET["tried"] = tried
+    raise RuntimeError(f"{host} 에 연결하지 못했습니다. 시도한 길 — " + " / ".join(tried)
+                       + " → 회사 프록시 주소를 대시보드 재무스타그램 ⚙ 의 '인터넷 프록시' 칸에 넣거나(윈도 설정 › 네트워크 › 프록시 › 설치 스크립트 주소를 브라우저로 열면 PROXY 주소가 보임), IT 에 " + host + " 허용을 요청하세요")
 
 
 def opener():
@@ -131,6 +247,8 @@ def net_reason(e, host="opendart.fss.or.kr"):
         return host + " 주소를 찾지 못했습니다 — 서버 PC 인터넷(DNS) 또는 프록시 설정 확인"
     if "timed out" in t or "10060" in t:
         return host + " 응답이 없습니다(시간 초과) — 회사망이 막았거나 프록시가 필요합니다"
+    if "10054" in t or "reset by peer" in t or "강제로 끊" in t or "ConnectionReset" in t or "EOF occurred" in t or "UNEXPECTED_EOF" in t:
+        return "회사망이 " + host + " 연결을 끊었습니다(10054) — 보통 회사 프록시를 거쳐야 하는 경우"
     if "10061" in t or "refused" in t or "10013" in t:
         return "연결이 거부되었습니다 — 회사망 방화벽 또는 프록시 설정 확인"
     return "인터넷 연결 실패: " + t[:160]
@@ -145,8 +263,9 @@ def dart_get(path, **params):
     params["crtfc_key"] = API_KEY
     url = f"{DART}/{path}?{urllib.parse.urlencode(params)}"
     try:
-        with opener().open(url, timeout=30) as r:
-            raw = r.read()
+        raw = net_open(url, 30)
+    except RuntimeError:
+        raise
     except Exception as e:  # noqa
         raise RuntimeError(net_reason(e)) from None
     head = raw[:400].lstrip()
@@ -170,13 +289,14 @@ def diag():
     k = API_KEY or load_key()
     out = {"ver": APP_VERSION, "keyFile": key_file(), "key": bool(k), "keyLen": len(k), "keyOk": bool(re.fullmatch(r"[0-9A-Za-z]{40}", k or "")),
            "proxy": proxy_url() or (lambda g: ("윈도 · 환경 설정: " + ", ".join(f"{a}={b}" for a, b in g.items())) if g else "없음(직접 연결)")({a: b for a, b in urllib.request.getproxies().items() if a in ("http", "https")}),
-           "corpCache": os.path.exists(CORP_CACHE), "corps": len(CORPS)}
+           "corpCache": os.path.exists(CORP_CACHE), "corps": len(CORPS), "pac": pac_url(), "pacProxies": pac_proxies(), "pacErr": PAC["err"]}
     t0 = time.time()
     try:
         d = json.loads(dart_get("company.json", corp_code="00126380"))
-        out.update(dart=True, msg=f"DART 접속 정상 ({d.get('corp_name', '')} 조회 {time.time() - t0:.1f}초)")
+        out.update(dart=True, msg=f"DART 접속 정상 ({d.get('corp_name', '')} 조회 {time.time() - t0:.1f}초 · 연결: {NET['how']})")
     except Exception as e:  # noqa
         out.update(dart=False, msg=str(e))
+    out["route"], out["tried"] = NET["how"], NET["tried"]
     return out
 
 
@@ -902,7 +1022,13 @@ class Handler(BaseHTTPRequestHandler):
             return self.send(403, {"error": "사내망에서만 열립니다."})
         try:
             if u.path == "/version":
-                return self.send(200, {"app": "finstagram", "ver": APP_VERSION, "key": bool(API_KEY or load_key()), "keyFile": key_file()})
+                return self.send(200, {"app": "finstagram", "ver": APP_VERSION, "pid": os.getpid(), "key": bool(API_KEY or load_key()), "keyFile": key_file()})
+            if u.path == "/api/quit":                   # 2026-11-09 대시보드가 새 판으로 바꿔 띄울 때 (이 PC 에서만)
+                if not ipaddress.ip_address(self.client_address[0].split("%")[0]).is_loopback:
+                    return self.send(403, {"error": "이 PC 에서만"})
+                self.send(200, {"bye": True})
+                threading.Timer(0.3, lambda: os._exit(0)).start()
+                return
             if u.path.startswith("/vendor/"):          # 차트 · 지구본 라이브러리와 그림 (CDN 대신)
                 base = os.path.realpath(os.path.join(BASE, "vendor"))
                 full = os.path.realpath(os.path.join(base, urllib.parse.unquote(u.path[len("/vendor/"):])))
