@@ -76,6 +76,18 @@
     "S1": "1a0687c4"
    },
    "replaces": "1_DASHBOARD_update_v17.02_any_2026-11-09.zip"
+  },
+  {
+   "file": "①",
+   "name": "1_DASHBOARD_update_v17.08_any_2026-11-09.zip",
+   "made": "2026-11-09 06:03",
+   "path": "company-pc-update/2026-11-09/ (110MB · 저장소 밖 · 직접 전달)",
+   "sha256": "43b3263f02981b846209f3c0afe2bf62f22e27c67e36596ef9da81523d83fccd",
+   "applied": "",
+   "tips": {
+    "S1": "e9e8312f"
+   },
+   "replaces": "1_DASHBOARD_update_v17.05_any_2026-11-09.zip"
   }
  ]
 }
