@@ -52,6 +52,18 @@
    "tips": {
     "S1": "5348fad3"
    }
+  },
+  {
+   "file": "①",
+   "name": "1_DASHBOARD_update_v17.02_any_2026-11-09.zip",
+   "made": "2026-11-09 02:08",
+   "path": "company-pc-update/2026-11-09/ (109MB · 저장소 밖 · 직접 전달)",
+   "sha256": "089a91aec8471e81630cb0e33c07304d35a0cf72fb39add39179baf7fc54e8a8",
+   "applied": "",
+   "tips": {
+    "S1": "5fd3cd9b"
+   },
+   "replaces": "1_DASHBOARD_update_v17.00_any_2026-11-09.zip"
   }
  ]
 }
