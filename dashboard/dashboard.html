@@ -1840,7 +1840,7 @@ function recLabel(key, f) {
  * ===================================================================== */
 let root = null;
 /* 서버 모드: http(s):// 로 접속하면 server.py 의 REST API 사용 (폴더 선택 불필요). file:// 로 열면 폴더 모드 */
-const APP_VERSION = '2026-11-09.13';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
+const APP_VERSION = '2026-11-09.14';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
 const SERVER_URL = 'http://localhost:8080';
 // 부서원 PC 사본(file://)이 접속을 시도할 서버 — 서버가 배포 파일을 만들 때 'PC 이름 주소, IP 주소' 순으로 자동 기록함
 const DEFAULT_SERVERS = ['http://ASEUNGWOOK-B01:8080', 'http://65.3.30.234:8080'];
@@ -4231,8 +4231,8 @@ async function openFinKey() {
     <div class="db"><p class="muted" style="margin-top:0">서버 PC 에 있는 <b>.env</b> 파일(또는 키만 적은 txt)의 전체 경로를 적으세요. 파일 안의 <code>DART_API_KEY=…</code> 줄을 읽습니다.
       키 값은 이 화면 · 업데이트 파일 · 부서원 PC 어디에도 나가지 않습니다. 저장하면 재무스타그램을 새 키로 다시 띄웁니다.</p>
       <div id="finkeyState">${body(d)}</div>
-      <label class="fl">.env 파일 경로 <input id="finkeyPath" type="text" style="width:100%" value="${esc(d.from === '기본 위치' ? '' : d.path)}" placeholder="예: C:\\Users\\백승욱\\Desktop\\해커톤\\2day\\dart_dashboard\\.env" ${d.locked ? 'disabled' : ''}></label>
-      <p class="muted">비워 두고 저장하면 기본 위치 <code>C:\\Claude\\keys\\dart_api_key.txt</code> 를 씁니다.${d.locked ? ' · 지금은 서버를 <b>--dart-key</b> 로 켜서 여기서 바꿀 수 없습니다.' : ''}</p>
+      <label class="fl">.env 파일 경로 <input id="finkeyPath" type="text" style="width:100%" value="${esc(d.from === '기본 위치' ? '' : d.path)}" placeholder="예: C:\\Claude\\시크릿\\.env" ${d.locked ? 'disabled' : ''}></label>
+      <p class="muted">비워 두고 저장하면 기본 위치 <code>C:\\Claude\\시크릿\\.env</code> (없으면 <code>C:\\Claude\\keys\\dart_api_key.txt</code>) 를 씁니다. 파일 안 <code>DART_API_KEY={키}</code> 처럼 중괄호 · 따옴표가 있어도 됩니다.${d.locked ? ' · 지금은 서버를 <b>--dart-key</b> 로 켜서 여기서 바꿀 수 없습니다.' : ''}</p>
       <label class="fl">인터넷 프록시 (선택 · 회사망에서 DART 가 막히면) <input id="finkeyProxy" type="text" style="width:100%" value="${esc(d.proxy || '')}" placeholder="예: 10.10.1.1:8080 — 비우면 윈도 인터넷 설정"></label>
       <p><button class="btn sm" data-fkdiag>🔎 DART 연결 점검</button> <span class="muted" style="font-size:12px">키 · 프록시 · opendart.fss.or.kr 접속을 확인하고 안 되는 이유를 알려 줍니다 (최대 30초)</span></p><div id="finkeyDiag"></div></div>
     <div class="df"><button class="btn" data-close>닫기</button><button class="btn pri" data-fksave ${d.locked ? 'disabled' : ''}>저장 · 다시 띄우기</button></div>`);

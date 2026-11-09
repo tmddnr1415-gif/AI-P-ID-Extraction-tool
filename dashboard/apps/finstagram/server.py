@@ -27,7 +27,7 @@ from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 BASE = os.path.dirname(os.path.abspath(__file__))
 PORT = int(os.environ.get("PORT", "8765"))
 HOST = os.environ.get("FIN_HOST", "127.0.0.1")
-APP_VERSION = "2026-11-09.1"
+APP_VERSION = "2026-11-09.2"
 DART = os.environ.get("FIN_DART_BASE", "").strip() or "https://opendart.fss.or.kr/api"   # FIN_DART_BASE = 시험용
 CORP_CACHE = os.path.join(BASE, "corp_codes.json")
 
@@ -40,26 +40,43 @@ KEY_NAMES = ("DART_API_KEY", "OPENDART_API_KEY", "DART_KEY", "CRTFC_KEY")
 
 
 def parse_key(text):
-    """.env 또는 키 한 줄 파일 → DART 키. DART_API_KEY= (OPENDART_API_KEY · DART_KEY · CRTFC_KEY) 줄 먼저, 없으면 키만 적힌 한 줄.
-    대시보드 server.py 의 parse_dart_key 와 같은 규칙 (고치면 둘 다)"""
-    plain = []
-    for line in (text or "").splitlines():
+    """.env 또는 키 한 줄 파일 → DART 키 (값은 이 함수 밖으로 로그 · 화면에 내보내지 않음). 2026-11-09 우선순위:
+    ① DART_API_KEY · OPENDART_API_KEY · DART_KEY · CRTFC_KEY  ② 이름에 DART · CRTFC  ③ 이름에 API_KEY 가 든 줄이 하나뿐일 때(예: DATA_API_KEY)
+    ④ 키만 적힌 한 줄 · 이름=값 한 줄. 값의 따옴표 · { } · 줄 끝 # 주석은 뗌.  대시보드 server.py 의 parse_dart_key 와 같은 규칙 (고치면 둘 다)"""
+    rows, plain = [], []
+    for line in (text or '').replace('\ufeff', '').splitlines():
         line = line.strip()
-        if not line or line.startswith("#"):
+        if not line or line.startswith('#'):
             continue
-        m = re.match(r"(?:export\s+)?([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*)$", line)
+        m = re.match(r'(?:export\s+)?([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*)$', line)
         if m:
-            name = m.group(1).upper()
-            if name in KEY_NAMES or 'API_KEY' in name or 'DART' in name or 'CRTFC' in name:   # 2026-11-09 DATA_API_KEY= 처럼 이름이 달라도 API 키 줄이면 받음
-                return re.sub(r"\s+#.*$", "", m.group(2)).strip().strip("\"'").strip("{}").strip()
+            rows.append((m.group(1).upper(), re.sub(r'\s+#.*$', '', m.group(2)).strip().strip('"\'').strip().strip('{}').strip()))
         else:
             plain.append(line)
-    if len(plain) == 1:
-        return plain[0]
-    kv = [ln for ln in (text or "").splitlines() if re.match(r"\s*(?:export\s+)?[A-Za-z_][A-Za-z0-9_]*\s*=\s*\S", ln) and not ln.strip().startswith("#")]
-    if len(kv) == 1:                                       # 이름=값 줄이 하나뿐이면 그것이 키
-        return kv[0].split("=", 1)[1].strip().strip('\"')
-    return ""
+    for pick in (lambda n: n in KEY_NAMES, lambda n: 'DART' in n or 'CRTFC' in n):
+        hit = [v for n, v in rows if pick(n) and v]
+        if hit:
+            return hit[0]
+    api = [v for n, v in rows if 'API_KEY' in n and v]
+    if len(api) == 1:
+        return api[0]
+    if len(plain) == 1 and not rows:
+        return plain[0].strip('"\'').strip('{}').strip()
+    if len(rows) == 1:
+        return rows[0][1]
+    return ''
+
+
+def read_key_text(path):
+    """키 파일 읽기 — UTF-8(BOM) · UTF-16(메모장) · ANSI 모두. 없으면 OSError"""
+    with open(path, 'rb') as f:
+        raw = f.read(20000)
+    for enc in (('utf-16',) if raw[:2] in (b'\xff\xfe', b'\xfe\xff') else ('utf-8-sig', 'cp949')):
+        try:
+            return raw.decode(enc)
+        except UnicodeDecodeError:
+            pass
+    return raw.decode('utf-8', 'replace')
 
 
 def load_key():
@@ -67,8 +84,7 @@ def load_key():
     k = os.environ.get("DART_API_KEY", "").strip()
     if not k:
         try:
-            with open(key_file(), encoding="utf-8-sig") as f:
-                k = parse_key(f.read(20000))
+            k = parse_key(read_key_text(key_file()))
         except OSError:
             pass
     return k

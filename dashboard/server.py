@@ -36,7 +36,7 @@ ID_RE = re.compile(r'^[A-Za-z0-9_\-]{1,80}$')
 WEEK_RE = re.compile(r'^\d{4}-W\d{2}$')
 MAX_BODY = 30 * 1024 * 1024
 
-SERVER_VERSION = '2026-11-09.5'
+SERVER_VERSION = '2026-11-09.6'
 ROOT = os.path.dirname(os.path.abspath(__file__))
 PORT = 8080
 ALLOW_NETS = []          # 사내망: 루프백·사설망 + 서버 IP 대역(/16, 유선·Wi-Fi 등 지금까지 쓴 대역 모두 기억) + --allow 로 추가한 대역
@@ -1716,9 +1716,11 @@ def api_space_rev_del(acc, pid, rid, rev, sup):
 # ---------------------------------------------------------------- 재무스타그램 (apps/finstagram) — 대시보드에 포함 (2026-11-07)
 # 재무스타그램은 자기 서버(apps/finstagram/server.py, 표준 라이브러리, 포트 8765)로 돈다 → 계장 광장처럼 대시보드 서버가 함께 띄우고 지킨다.
 # DART API 키는 배포물에 넣지 않는다. 서버 PC 의 키 파일 경로를 DART_KEY_FILE 로 넘긴다 (키 값은 대시보드가 읽지 않음).
-# 키 파일 위치(앞이 우선): ① server.py --dart-key 경로 ② 운영 폴더 dart_key_path.txt 안에 적은 경로 ③ C:\Claude\keys\dart_api_key.txt
+# 키 파일 위치(앞이 우선): ① server.py --dart-key 경로 ② 운영 폴더 dart_key_path.txt 안에 적은 경로 ③ C:\Claude\시크릿\.env (2026-11-09 사용자 지정) ④ 예전 기본 C:\Claude\keys\dart_api_key.txt
+#  키 값은 코드 · 배포물 · 화면 · 로그 어디에도 넣지 않음 — 실행할 때 이 파일에서만 읽음
 FIN = {'proc': None, 'port': 8765, 'fails': 0, 'key_arg': '', 'wake': threading.Event()}
-DART_DEFAULT_KEY = r'C:\Claude\keys\dart_api_key.txt'
+DART_DEFAULT_KEYS = (r'C:\Claude\시크릿\.env', r'C:\Claude\keys\dart_api_key.txt')
+DART_DEFAULT_KEY = DART_DEFAULT_KEYS[0]
 DART_KEY_NAMES = ('DART_API_KEY', 'OPENDART_API_KEY', 'DART_KEY', 'CRTFC_KEY')
 
 
@@ -1733,38 +1735,57 @@ def dart_key_path():
             return line, 'dart_key_path.txt'
     except OSError:
         pass
+    for k in DART_DEFAULT_KEYS:                            # 기본 위치: 있는 것 먼저
+        if os.path.isfile(k):
+            return k, '기본 위치'
     return DART_DEFAULT_KEY, '기본 위치'
 
 
 def parse_dart_key(text):
-    """.env 또는 키 한 줄 파일에서 DART 키. DART_API_KEY= (또는 OPENDART_API_KEY · DART_KEY · CRTFC_KEY) 줄을 먼저, 없으면 키만 적힌 한 줄.
-    apps/finstagram/server.py 의 parse_key 와 같은 규칙 (고치면 둘 다)"""
-    plain = []
-    for line in (text or '').splitlines():
+    """.env 또는 키 한 줄 파일 → DART 키 (값은 이 함수 밖으로 로그 · 화면에 내보내지 않음). 2026-11-09 우선순위:
+    ① DART_API_KEY · OPENDART_API_KEY · DART_KEY · CRTFC_KEY  ② 이름에 DART · CRTFC  ③ 이름에 API_KEY 가 든 줄이 하나뿐일 때(예: DATA_API_KEY)
+    ④ 키만 적힌 한 줄 · 이름=값 한 줄. 값의 따옴표 · { } · 줄 끝 # 주석은 뗌.  apps/finstagram/server.py 의 parse_key 와 같은 규칙 (고치면 둘 다)"""
+    rows, plain = [], []
+    for line in (text or '').replace('\ufeff', '').splitlines():
         line = line.strip()
         if not line or line.startswith('#'):
             continue
         m = re.match(r'(?:export\s+)?([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*)$', line)
         if m:
-            name = m.group(1).upper()
-            if name in DART_KEY_NAMES or 'API_KEY' in name or 'DART' in name or 'CRTFC' in name:   # 2026-11-09 DATA_API_KEY= 처럼 이름이 달라도 API 키 줄이면 받음
-                return re.sub(r'\s+#.*$', '', m.group(2)).strip().strip('"\'').strip('{}').strip()
+            rows.append((m.group(1).upper(), re.sub(r'\s+#.*$', '', m.group(2)).strip().strip('"\'').strip().strip('{}').strip()))
         else:
             plain.append(line)
-    if len(plain) == 1:
-        return plain[0]
-    kv = [ln for ln in (text or '').splitlines() if re.match(r'\s*(?:export\s+)?[A-Za-z_][A-Za-z0-9_]*\s*=\s*\S', ln) and not ln.strip().startswith('#')]
-    if len(kv) == 1:                                       # 이름=값 줄이 하나뿐이면 그것이 키
-        return kv[0].split('=', 1)[1].strip().strip("\'")
+    for pick in (lambda n: n in DART_KEY_NAMES, lambda n: 'DART' in n or 'CRTFC' in n):
+        hit = [v for n, v in rows if pick(n) and v]
+        if hit:
+            return hit[0]
+    api = [v for n, v in rows if 'API_KEY' in n and v]
+    if len(api) == 1:
+        return api[0]
+    if len(plain) == 1 and not rows:
+        return plain[0].strip('"\'').strip('{}').strip()
+    if len(rows) == 1:
+        return rows[0][1]
     return ''
+
+
+def read_key_text(path):
+    """키 파일 읽기 — UTF-8(BOM) · UTF-16(메모장) · ANSI 모두. 없으면 OSError"""
+    with open(path, 'rb') as f:
+        raw = f.read(20000)
+    for enc in (('utf-16',) if raw[:2] in (b'\xff\xfe', b'\xfe\xff') else ('utf-8-sig', 'cp949')):
+        try:
+            return raw.decode(enc)
+        except UnicodeDecodeError:
+            pass
+    return raw.decode('utf-8', 'replace')
 
 
 def api_finkey_get():
     path, how = dart_key_path()
     k = ''
     try:
-        with open(path, encoding='utf-8-sig') as f:
-            k = parse_dart_key(f.read(20000))
+        k = parse_dart_key(read_key_text(path))
     except OSError:
         pass
     p = FIN['proc']
@@ -2904,7 +2925,7 @@ def main():
     ap.add_argument('--history-days', type=int, default=7, help='수정 이력 보관 일수 (지나면 자동 삭제)')
     ap.add_argument('--allow-sleep', action='store_true', help='서버 PC 절전 방지를 끔 (기본: 서버가 켜져 있는 동안 절전 모드 막음)')
     ap.add_argument('--allow', action='append', default=[], help='추가로 접속을 허용할 사내망 대역 (예: 65.3.0.0/16), 여러 번 지정 가능')
-    ap.add_argument('--dart-key', default='', help=r'재무스타그램 DART API 키 파일 경로 (기본: 운영 폴더 dart_key_path.txt 에 적은 경로, 없으면 C:\Claude\keys\dart_api_key.txt)')
+    ap.add_argument('--dart-key', default='', help=r'재무스타그램 DART API 키 파일 경로 (기본: 운영 폴더 dart_key_path.txt 에 적은 경로, 없으면 C:\Claude\시크릿\.env)')
     ap.add_argument('--fin-port', type=int, default=8765, help='재무스타그램 서버 포트 (0 = 띄우지 않음)')
     ap.add_argument('--plaza-port', type=int, default=8100, help='계장 광장 서버 포트 (0 = 띄우지 않음)')
     a = ap.parse_args()
