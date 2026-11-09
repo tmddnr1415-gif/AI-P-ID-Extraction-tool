@@ -1689,6 +1689,15 @@ html.dark .gtw{border-color:rgba(18,22,70,.3)}
 .sinm,.gtnm,.isi,.sinm1{color:#14246b;text-shadow:0 1px 0 #fff,0 1.5px 0 #c7d2fe,0 2.5px 0 rgba(67,56,202,.22),0 4px 7px rgba(30,41,99,.22);letter-spacing:-.1px;transition:transform .12s,text-shadow .12s}
 .schtab tr.srow:hover .sinm,.gtr:hover .gtnm,.isr:hover .isi{transform:translateY(-1px);color:#1e1b8a;text-decoration:none;text-shadow:0 1px 0 #fff,0 2px 0 #a5b4fc,0 3.5px 0 rgba(67,56,202,.28),0 7px 12px rgba(30,41,99,.28)}
 html.dark .sinm,html.dark .gtnm,html.dark .isi,html.dark .sinm1{text-shadow:0 1px 0 #fff,0 2px 0 #c7d2fe,0 4px 6px rgba(30,41,99,.25)}
+/* 2026-11-09 구매 현황 보고 */
+.rptool{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:0 0 10px}.rptool .sp{flex:1}.rpsum{display:flex;gap:6px;flex-wrap:wrap}.rpsum a{font-size:12px;font-weight:700;color:#334155;background:#f1f5f9;border-radius:99px;padding:3px 10px;text-decoration:none}.rpsum a b{color:#dc2626}.rpsum a b.z{color:#16a34a}.rpsum a:hover{background:#e0e7ff}
+.rpl{margin:0;padding-left:0;list-style:none;counter-reset:rp}.rpg{counter-increment:rp;margin:0 0 12px;border:1px solid #e2e8f0;border-radius:12px;overflow:hidden}.rpg.front{border-color:#fed7aa}
+.rpgt{font-size:14px;font-weight:800;color:#0f172a;background:#f8fafc;padding:8px 12px}.rpg.front .rpgt{background:#fff7ed}.rpgt::before{content:counter(rp) '. ';color:#4f46e5}.rpgt b{color:#dc2626}.rpgt small{font-weight:500;color:#64748b;margin-left:8px}
+.rpg ul{list-style:none;margin:0;padding:0}.rpi{border-top:1px solid #eef1f6;padding:8px 12px 8px 16px;box-shadow:inset 4px 0 0 var(--dc)}.rpi::before{content:'- ';font-weight:800;color:#64748b;float:left;margin:1px 4px 0 0}
+.rph{display:flex;align-items:center;gap:6px;flex-wrap:wrap}.rpno{font-variant-numeric:tabular-nums;color:#334155}.rpd{font-style:normal;font-weight:800;border-radius:99px;padding:0 8px;font-size:12px}.rpi.r .rpd{color:#b91c1c;background:#fee2e2}.rpi.y .rpd{color:#a16207;background:#fef3c7}.rpe{margin-left:auto}
+.rpb{display:flex;flex-wrap:wrap;gap:4px 18px;margin:4px 0 0 14px;font-size:12.5px;color:#1e293b}.rpb small{display:block;font-size:10.5px;color:#64748b;font-weight:600}.rpb .rpby{margin-left:auto;align-self:flex-end;font-size:11px;color:#94a3b8}
+.rpf{display:grid;grid-template-columns:2fr 150px 2fr auto;gap:8px;align-items:end;margin:6px 0 2px 14px}.rpf label{display:flex;flex-direction:column;gap:2px;font-size:11.5px;font-weight:700;color:#475569}.rpf input{font:inherit;font-size:12.5px;padding:5px 8px;border:1px solid #c7d2fe;border-radius:7px}
+@media (max-width:900px){.rpf{grid-template-columns:1fr}}
 /* 2026-11-09 일정판 직접 조작 */
 .gtb.drag{cursor:grab;touch-action:none}.gtb.drag:active,.gtb.dragging{cursor:grabbing}.gtb.dragging{z-index:9!important;box-shadow:0 10px 24px rgba(15,23,42,.35)!important;transform:translateY(-2px);outline:2px dashed #4f46e5;outline-offset:2px;transition:none}
 .gtrz{position:absolute;right:0;top:0;bottom:0;width:9px;cursor:ew-resize;background:linear-gradient(90deg,transparent,rgba(255,255,255,.55));border-radius:0 6px 6px 0}.gtrz::after{content:'';position:absolute;right:3px;top:6px;bottom:6px;width:2px;border-left:1px solid rgba(15,23,42,.35);border-right:1px solid rgba(15,23,42,.35)}
@@ -1716,7 +1725,7 @@ body.schbigon{overflow:hidden}@keyframes schBigIn{from{transform:scale(.97);opac
 .isg{margin-bottom:10px;border-left:4px solid var(--dc);border-radius:8px;background:#fafbff}.ish{display:flex;align-items:center;gap:8px;flex-wrap:wrap;width:100%;border:0;background:color-mix(in srgb,var(--dc) 7%,#fff);border-radius:0 8px 0 0;padding:6px 8px;font:inherit;font-size:12px;color:#475569;cursor:pointer;position:sticky;top:0;z-index:1}
 .ish.on{outline:2px solid var(--dc)}.ish .isl{color:#b91c1c;font-weight:800}.ish .iso{color:#15803d;font-weight:700}.ish .pbar{flex:1;min-width:50px;height:6px;border-radius:3px;background:#e2e8f0;position:relative;overflow:hidden}.ish .pbar .pl{position:absolute;left:0;top:0;bottom:0;background:var(--dc)}
 .isr{display:grid;grid-template-columns:10px 54px minmax(0,1fr) auto;column-gap:6px;align-items:center;padding:5px 8px;border-top:1px dashed #e5e7eb;cursor:pointer;font-size:12px}.isr:hover{background:#eef2ff}
-.isr small{grid-column:3 / 5;color:#64748b;font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.isn{color:#334155;font-variant-numeric:tabular-nums}.isi{font-weight:800;color:#0f1f5c;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.isr small{grid-column:3 / 5;color:#64748b;font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.isnt{color:#7c3aed;font-weight:700}.isn{color:#334155;font-variant-numeric:tabular-nums}.isi{font-weight:800;color:#0f1f5c;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .ist{white-space:nowrap;font-weight:700;font-size:11.5px;border-radius:6px;padding:0 6px}.ist.r{color:#b91c1c;background:#fef2f2}.ist.y{color:#b45309;background:#fffbeb}.ist.g{color:#15803d;background:#f0fdf4}.ist.d{color:#0f766e;background:#f0fdfa}
 .isd{display:inline-block;width:9px;height:9px;border-radius:50%;vertical-align:-1px;margin:0 2px 0 6px}.isr .isd{margin:0}.isd.r{background:#ef4444}.isd.y{background:#f59e0b}.isd.g{background:#22c55e}.isd.d{background:#14b8a6}
 /* 2026-11-09 품목 가독성 — 이름은 크고 진하게(최대 두 줄, 마우스 = 전체), 왼쪽 공종 색 띠, 업체는 작게 회색 */
@@ -1956,7 +1965,7 @@ function recLabel(key, f) {
  * ===================================================================== */
 let root = null;
 /* 서버 모드: http(s):// 로 접속하면 server.py 의 REST API 사용 (폴더 선택 불필요). file:// 로 열면 폴더 모드 */
-const APP_VERSION = '2026-11-09.26';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
+const APP_VERSION = '2026-11-09.27';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
 const SERVER_URL = 'http://localhost:8080';
 // 부서원 PC 사본(file://)이 접속을 시도할 서버 — 서버가 배포 파일을 만들 때 'PC 이름 주소, IP 주소' 순으로 자동 기록함
 const DEFAULT_SERVERS = ['http://ASEUNGWOOK-B01:8080', 'http://65.3.30.234:8080'];
@@ -4182,11 +4191,22 @@ async function schSaveCells(id, ch) {   // ch = [{ s:'B'|'F'|'A', k:마일스톤
   base.edited = at; SCH.data = base; render();
   await schSave(base, `✅ ${it.no} 일정 ${n}칸을 저장했어요 — 모든 부서원에게 같은 현황판이 보입니다`);
 }
+/* 2026-11-09 보고 양식(주간업무보고 '업무 현황' 처럼 1. … - …): 마일스톤별 지연 품목마다 지연 사유 · 캐치업 일정 · 특이사항 입력 → it.rn[마일스톤] = { r, c, s, by, at } */
+async function schSaveNote(id, k, v) {
+  let base = SCH.data; if (SERVER && !OFFLINE) { try { const cur = await api('GET', 'sched/co2'); if (cur && cur.items) base = cur; } catch (_) {} }
+  const it = base.items.find(x => x.type + '|' + x.no === id); if (!it) return toast('품목을 찾지 못했어요', true);
+  const by = AUTH?.name || user || '', at = new Date().toISOString(); (it.rn ||= {})[k] = { ...v, by, at };
+  if (!v.r && !v.c && !v.s) delete it.rn[k];
+  (base.log ||= []).push({ at, by, id, no:it.no, item:it.item, s:'note', k, to:[v.r, v.c, v.s].filter(Boolean).join(' / ') }); if (base.log.length > 500) base.log = base.log.slice(-500);
+  base.edited = at; SCH.data = base; SCH.rnEdit = ''; render();
+  await schSave(base, `✅ ${it.no} ${SCH_NAME[k] || k} 보고 내용을 저장했어요`);
+}
 async function schUpload(files) {
   const f = [...files].find(x => /\.xlsx$/i.test(x.name)); if (!f) return toast('.xlsx 엑셀 파일을 올려 주세요', true);
   if (noEdit() || !can('runpjt')) return toast('🔒 실행 프로젝트 메뉴 권한이 있는 부서원만 올릴 수 있어요', true);
   toast(`📥 ${f.name} 읽는 중…`);
   try { const d = await schParse(f), old = SCH.data;
+    if (old) d.items.forEach(it => { const o = old.items.find(x => x.type === it.type && x.no === it.no); if (o?.rn) it.rn = o.rn; });   // 보고 메모(지연 사유 · 캐치업 · 특이사항)는 새 PSR 에도 그대로
     const eds = old ? old.items.flatMap(o => Object.keys(o.ed || {}).map(sk => [o.type + '|' + o.no, sk, o])) : [];
     if (eds.length && confirm(`화면에서 직접 입력한 일정 ${eds.length}칸이 있어요. 새 PSR 에 다시 적용할까요?\n(확인 = 직접 입력한 값 유지 · 취소 = 새 파일 값 그대로)`)) {
       eds.forEach(([id, sk, o]) => { const it = d.items.find(x => x.type + '|' + x.no === id); if (!it) return; const [s1, k1] = sk.split('.'); if (o[s1][k1]) it[s1][k1] = o[s1][k1]; else delete it[s1][k1]; (it.ed ||= {})[sk] = o.ed[sk]; });
@@ -4234,7 +4254,8 @@ function renderSched(c) {
     return { lv:k.st === 'done' ? 'd' : k.slip > 30 ? 'r' : k.slip > 0 ? 'y' : 'g', t:`${k.st === 'done' ? '✔ 현장 도착' : esc(k.stage)}${k.slip > 0 ? ` <b>현장 +${k.slip}일</b>` : ''}`, s:`구매 전반 끝${k.nextK ? ` · 다음 ${esc(SCH_NAME[k.nextK])} ${schFmt(k.nf)}` : ''}` }; };
   const sumHtml = dg.map(x => { const rs = vis.filter(v => v.it.disc === x.dn).sort((a, b) => b.k.fmax - a.k.fmax || b.k.slip - a.k.slip), fl = rs.filter(v => v.k.fmax > 0).length;
     return `<div class="isg" style="--dc:${schDc(x.dn)}"><button class="ish ${F.disc === x.dn ? 'on' : ''}" data-schf="disc|${esc(x.dn)}"><span class="sdc">${esc(x.dn)}</span><span>${x.n}품목</span><span>PO ${x.po}/${x.n}</span>${fl ? `<span class="isl">MR·TBE·CBE 지연 ${fl}</span>` : '<span class="iso">계획대로</span>'}<i class="pbar"><i class="pl" style="width:${x.po / x.n * 100}%"></i></i></button>
-      ${rs.map(v => { const b = brief(v); return `<div class="isr" data-schopen="${esc(v.it.type + '|' + v.it.no)}" title="${esc(v.it.item)}"><i class="isd ${b.lv}"></i><b class="isn">${esc(v.it.no)}</b><span class="isi">${esc(v.it.item)}</span><span class="ist ${b.lv}">${b.t}</span><small>${b.s}</small></div>`; }).join('')}</div>`; }).join('');
+      ${rs.map(v => { const b = brief(v), nt = Object.entries(v.it.rn || {}).filter(([, n]) => n.r || n.c).slice(-1)[0];   // 보고 메모(지연 사유 · 캐치업)도 상태창에
+        return `<div class="isr" data-schopen="${esc(v.it.type + '|' + v.it.no)}" title="${esc(v.it.item)}"><i class="isd ${b.lv}"></i><b class="isn">${esc(v.it.no)}</b><span class="isi">${esc(v.it.item)}</span><span class="ist ${b.lv}">${b.t}</span><small>${b.s}${nt ? ` · <b class="isnt">📝 ${esc(SCH_NAME[nt[0]] || nt[0])}${nt[1].r ? ' 사유: ' + esc(trunc(nt[1].r, 30)) : ''}${nt[1].c ? ' · 캐치업 ' + schFmt(nt[1].c) : ''}</b>` : ''}</small></div>`; }).join('')}</div>`; }).join('');
   const discHtml = dg.map(x => `<button class="ppr ${F.disc === x.dn ? 'on' : ''}" data-schf="disc|${esc(x.dn)}"><span class="ppn">${esc(x.dn)}</span><span class="pbar"><span class="pl" style="width:${x.po / dmx * 100}%"></span><span class="pe" style="width:${(x.n - x.po) / dmx * 100}%"></span></span><span class="ppv">${x.po}/${x.n}${x.late ? ` <small class="sl">지연 ${x.late}</small>` : ''}</span></button>`).join('');
   const dCell = (rs, g) => { const xs = rs.map(x => ({ x, f:x.k.fo.find(f => f.g === g) })).filter(o => o.f && o.f.st !== 'none'); if (!xs.length) return '<td class="dz n">-</td>';
     const lt = xs.filter(o => o.f.d > 0).sort((a, b) => b.f.d - a.f.d), mx = lt.length ? lt[0].f.d : 0, dn = xs.filter(o => o.f.st === 'done').length;
@@ -4244,6 +4265,21 @@ function renderSched(c) {
     return `<tr class="${F.disc === dn ? 'on' : ''}"><th data-schf="disc|${esc(dn)}">${esc(dn)}<small>${rs.length}품목</small></th>${SCH_FOCUS.map(([g]) => dCell(rs, g)).join('')}<td class="dz later ${sl.length ? (sm > 30 ? 'r' : 'y') : 'g'}"><b>${sl.length ? `늦음 ${sl.length}` : '-'}</b><span class="dzs">${sl.length ? `현장 도착 최대 +${sm}일` : '현장 도착 계획대로'}</span></td></tr>`; }).join('');
   const dzCard = `<section class="card dzcard"><h2>🎯 공종별 지연 — 계획 대비 <span class="muted">· 지금 중요한 <b>MR · TBE · CBE</b> 를 공종마다 · 칸을 누르면 그 공종 · 그 단계 늦은 품목만 · <i class="dzk r"></i>15일+ <i class="dzk y"></i>1~14일 <i class="dzk g"></i>계획대로</span></h2>
     <div class="tw"><table class="t dzt"><thead><tr><th>공종</th>${SCH_FOCUS.map(([g, , l]) => `<th class="fh">${g}<small>${l}</small></th>`).join('')}<th class="lh">설계 · 제작 · 운송<small>나중 — 현장 도착</small></th></tr></thead><tbody>${dzRows}</tbody></table></div></section>`;
+  // 📝 보고 양식 — 1. MR Issue 지연 N건 / - 품목 : 원래 기한 · 지연 사유 · 캐치업 일정 · 특이사항
+  const RPT = [['MR', 'MR Issue'], ['TBE_C', 'TBE to Company'], ['TBE_F', 'TBE 완료'], ['AWD_I', 'CBE (Award Recommendation)'], ['AWD', 'Award 승인'], ['PO', 'PO Issue'], ['KOM', 'KOM'], ['MFG_F', '제작 완료'], ['FAT', 'FAT'], ['SITE', '현장 도착']];
+  const rptG = RPT.map(([k, title]) => { const xs = vis.map(({ it }) => { const b = it.B[k], a = it.A[k], f = it.F[k]; if (!b) return null; const v = a || f, d = v ? schDays(v, b) : (b < asOf ? schDays(asOf, b) : 0), over = !a && (f || b) < asOf;
+      return d > 0 || over ? { it, k, b, a, f, d:Math.max(d, over ? schDays(asOf, f || b) : 0), over, n:it.rn?.[k] || {} } : null; }).filter(Boolean).sort((x, y) => y.d - x.d);
+    return { k, title, xs, front:SCH_FRONT.has(k) }; }).filter(g => ['MR', 'TBE_C', 'TBE_F', 'AWD_I'].includes(g.k) ? vis.some(({ it }) => it.B[g.k]) : g.xs.length && (ph === 'back' || g.k === 'AWD'));   // MR · TBE · CBE 는 늦은 것이 없어도 '계획대로' 로 보고
+  const rptLine = x => { const id = x.it.type + '|' + x.it.no, key = id + '|' + x.k, ed = SCH.rnEdit === key && canUp;
+    const st = x.a ? `실적 ${schFmt(x.a)}` : x.f ? `전망 ${schFmt(x.f)}${x.over ? ' (지남)' : ''}` : '실적 없음';
+    return `<li class="rpi ${x.d > 14 ? 'r' : 'y'}" style="--dc:${schDc(x.it.disc)}"><div class="rph"><b class="rpno">${esc(x.it.no)}</b> <b class="sinm1">${esc(x.it.item)}</b> <span class="sdc">${esc(x.it.disc)}</span><em class="rpd">+${x.d}일</em>${canUp && !ed ? `<button class="btn sm rpe" data-rne="${esc(key)}">✏ 사유 · 캐치업 입력</button>` : ''}</div>
+      ${ed ? `<div class="rpf" data-rnf="${esc(key)}"><label>지연 사유<input data-rn="r" value="${esc(x.n.r || '')}" placeholder="예: Vendor 기술 질의 회신 지연"></label><label>캐치업 일정<input data-rn="c" type="date" value="${esc(x.n.c || x.f || '')}"></label><label>특이사항<input data-rn="s" value="${esc(x.n.s || '')}" placeholder="예: 11/20 Vendor 회의 예정"></label><span><button class="btn sm" data-rnx>취소</button> <button class="btn sm pri" data-rns="${esc(key)}">💾 저장</button></span></div>`
+      : `<div class="rpb"><span><small>원래 기한</small>${schFmt(x.b)}</span><span><small>현재</small>${st}</span><span><small>지연 사유</small>${x.n.r ? esc(x.n.r) : '<i class="muted">미입력</i>'}</span><span><small>캐치업 일정</small>${x.n.c ? schFmt(x.n.c) : x.f && !x.a ? `<i class="muted">전망 ${schFmt(x.f)}</i>` : '<i class="muted">미입력</i>'}</span><span><small>특이사항</small>${x.n.s ? esc(x.n.s) : '<i class="muted">-</i>'}</span>${x.n.by ? `<span class="rpby">${esc(x.n.by)} ${esc(fmtTime(x.n.at))}</span>` : ''}</div>`}</li>`; };
+  const rptText = () => rptG.map((g, i) => `${i + 1}. ${g.title} 지연 ${g.xs.length}건${g.xs.length ? '' : ' (계획대로)'}\n` + g.xs.map(x => `- ${x.it.no} ${x.it.item} : 원래 기한 ${schFmt(x.b)}, ${x.a ? '실적 ' + schFmt(x.a) : x.f ? '전망 ' + schFmt(x.f) : '실적 없음'} (+${x.d}일)${x.n.r ? ', 지연 사유 ' + x.n.r : ''}${x.n.c ? ', 캐치업 ' + schFmt(x.n.c) : ''}${x.n.s ? ', 특이사항 ' + x.n.s : ''}`).join('\n')).join('\n\n');
+  SCH.rptText = rptText;
+  const rptCard = `<section class="card rpcard"><h2>📝 구매 현황 보고 <span class="muted">· 주간업무보고 '업무 현황' 양식 · ${ph === 'front' ? 'MR · TBE · CBE (지금 중요)' : '전체 단계'} · 계획 대비 지연 품목 · 기준일 ${esc(schFmt(asOf))}${F.disc ? ' · ' + esc(F.disc) + ' 만' : ''}</span></h2>
+    <div class="rptool"><span class="rpsum">${rptG.map((g, i) => `<a href="#rp-${g.k}" data-rpgo="${g.k}">${i + 1}. ${esc(g.title)} <b class="${g.xs.length ? '' : 'z'}">${g.xs.length}</b></a>`).join('')}</span><span class="sp"></span><button class="btn sm" data-rpcopy>📋 보고 글 복사</button><button class="btn sm" data-rpweekly title="복사한 뒤 주간업무보고 › 수행 표를 CO2 로 찾아 엶 — 업무 현황 칸에 붙여 넣으세요">📤 주간업무보고(수행)에 붙이기</button></div>
+    <ol class="rpl">${rptG.map(g => `<li id="rp-${g.k}" class="rpg ${g.front ? 'front' : ''}"><div class="rpgt">${esc(g.title)} 지연 <b>${g.xs.length}건</b> ${g.xs.length ? `<small>최대 +${g.xs[0].d}일 · 사유 입력 ${g.xs.filter(x => x.n.r).length}/${g.xs.length}</small>` : '<small class="sg">✔ 계획대로</small>'}</div><ul>${g.xs.map(rptLine).join('')}</ul></li>`).join('')}</ol></section>`;
   const soonEnd = new Date(schD(asOf).getTime() + 30 * 864e5).toISOString().slice(0, 10), soon = [];
   let pastN = 0; vis.forEach(({ it }) => SCH_KEY.forEach(k => { const f = it.F[k] || it.B[k]; if (!f || it.A[k]) return; if (f < asOf) pastN++; else if (f <= soonEnd) soon.push({ it, k, f, over:false }); }));
   soon.sort((a, b) => a.f.localeCompare(b.f));
@@ -4286,6 +4322,7 @@ function renderSched(c) {
     <div class="schph"><span>보기 단계</span><button class="${ph === 'front' ? 'on' : ''}" data-schph="front">🎯 구매 전반 <b>MR · TBE · CBE</b> <small>지금 중요</small></button><button class="${ph === 'back' ? 'on' : ''}" data-schph="back">🏭 설계 · 제작 · 운송 <small>${allFront ? '구매 전반 모두 끝남' : '나중'}</small></button>
       <span class="sp"></span><span>기준일</span><button class="${!useToday ? 'on' : ''}" data-schtoday="0">파일 ${esc(schFmt(d.asOf))}</button><button class="${useToday ? 'on' : ''}" data-schtoday="1">오늘 ${esc(schFmt(today))}</button></div>
     ${ph === 'front' ? dzCard : ''}
+    ${rptCard}
     ${F.disc ? (SCH.gtArgs = [vis, asOf, F.disc, ph], schDiscBoard(vis, asOf, F.disc, ph)) : ''}
     ${ph === 'back' ? dzCard : ''}
     <section class="card"><h2>🗂 품목별 일정 <span class="muted">· ${vis.length}품목 · 줄을 누르면 마일스톤 전체${canUp ? ' + <b>✏ 계획 · 전망 · 실적 입력</b>' : ''} · 막대: 주황 = 구매 전반(MR→CBE), 회색 = 계획, 색 = 전망, 진한 색 = 실적까지, ◆ = PO · FAT · 현장 도착</span></h2>
@@ -4479,6 +4516,12 @@ function schBind() {
   v.onclick = e => {
     const f = e.target.closest('[data-schf]'); if (f) { const [k, val] = f.dataset.schf.split('|'); if (k === 'reset') Object.assign(F, { type:'', disc:'', q:'', late:'' }); else F[k] = F[k] === val ? '' : val; return render(); }
     if (e.target.closest('[data-schxl]')) return schXlsx();
+    const rne = e.target.closest('[data-rne]'); if (rne) { SCH.rnEdit = rne.dataset.rne; render(); setTimeout(() => $('#schv [data-rnf] input')?.focus(), 30); return; }
+    if (e.target.closest('[data-rnx]')) { SCH.rnEdit = ''; return render(); }
+    const rns = e.target.closest('[data-rns]'); if (rns) { const f = rns.closest('[data-rnf]'), cut = rns.dataset.rns.split('|'), k = cut.pop(), id = cut.join('|'), g = n => f.querySelector(`[data-rn="${n}"]`).value.trim(); return schSaveNote(id, k, { r:g('r'), c:g('c'), s:g('s') }); }
+    const rpg = e.target.closest('[data-rpgo]'); if (rpg) { e.preventDefault(); $('#rp-' + rpg.dataset.rpgo)?.scrollIntoView({ block:'start', behavior:'smooth' }); return; }
+    const cp = e.target.closest('[data-rpcopy],[data-rpweekly]'); if (cp) { const t = SCH.rptText ? SCH.rptText() : ''; const done = () => { toast('📋 보고 글을 복사했어요' + (cp.dataset.rpweekly != null ? ' — 수행 표의 업무 현황 칸에 붙여 넣으세요' : '')); if (cp.dataset.rpweekly != null) { const st = fstate('perform'); st.q = 'CO2'; go('perform'); } };
+      (navigator.clipboard?.writeText(t) || Promise.reject()).then(done, () => { const ta = document.createElement('textarea'); ta.value = t; document.body.appendChild(ta); ta.select(); try { document.execCommand('copy'); } catch (_) {} ta.remove(); done(); }); return; }
     const gz = e.target.closest('[data-gz]'); if (gz) { const w = $('#schv .gtw'); if (!w) return; const d = +gz.dataset.gz; return schGtZoom(d ? (d > 0 ? 1.6 : 1 / 1.6) : 0, w.getBoundingClientRect().left + 268 + (w.clientWidth - 268) / 2); }
     if (e.target.closest('[data-gtoday]')) return schGtToday(true);
     const bg = e.target.closest('[data-schbig]'); if (bg) { e.stopPropagation(); SCH.big = SCH.big === bg.dataset.schbig ? '' : bg.dataset.schbig; if (!SCH.big) document.body.classList.remove('schbigon'); render(); if (!SCH.big) setTimeout(() => $(`#schv section.card[data-ck="${CSS.escape(bg.dataset.schbig)}"]`)?.scrollIntoView({ block:'start' }), 30); return; }
@@ -4492,6 +4535,7 @@ function schBind() {
     if (SCH.noClick) return;
     if (e.target.closest('[data-gtundo]')) { const u = SCH.undo; SCH.undo = null; if (u) { schSaveCells(u.id, u.ch); toast('↶ 되돌렸어요'); } return; }
     const pb = e.target.closest('[data-pb]'); if (pb && !e.target.closest('.sdet')) { e.stopPropagation(); return schPop(pb.dataset.pb, e.clientX, e.clientY); }
+    if (e.target.closest('.rpcard')) return;
     const o = e.target.closest('[data-schopen]'); if (o && !e.target.closest('.sdet') && e.detail > 1) return;   // 더블클릭의 두 번째 누름 — 줄 열고 닫기 안 함
     if (o && !e.target.closest('.sdet') && e.target.closest('[data-fe]') && !SCH.clickT) { SCH.clickT = setTimeout(() => { SCH.clickT = 0; o.click(); }, 260); return; }   // MR · TBE · CBE 칸: 더블클릭인지 잠깐 봄
     SCH.clickT = 0;
@@ -4507,6 +4551,7 @@ function schBind() {
     inp.onkeydown = ev => { if (ev.key === 'Enter') { ev.preventDefault(); fin(true); } else if (ev.key === 'Escape') { ev.preventDefault(); fin(false); } };
     inp.onblur = () => setTimeout(() => fin(true), 120);
   };
+  v.querySelectorAll('[data-rnf] input').forEach(i => i.onkeydown = ev => { if (ev.key === 'Enter') { ev.preventDefault(); i.closest('[data-rnf]').querySelector('[data-rns]').click(); } else if (ev.key === 'Escape') { SCH.rnEdit = ''; render(); } });
   const q = $('#schQ'); if (q) q.oninput = () => { clearTimeout(SCH.qt); SCH.qt = setTimeout(() => { F.q = q.value.trim(); render(); setTimeout(() => { const n = $('#schQ'); if (n) { n.focus(); n.setSelectionRange(n.value.length, n.value.length); } }, 0); }, 300); };
   const so = $('#schSort'); if (so) so.onchange = () => { F.sort = so.value; render(); };
   const la = $('#schLate'); if (la) la.onchange = () => { F.late = la.value; render(); };

@@ -1750,3 +1750,10 @@ C:\Users\SAMSUNG\Desktop\Claude\                         ← 개발 폴더 (여�
   - 주 · 일 단위에서는 화면 근처(앞뒤 한 화면씩)의 날짜 칸 · 주말 띠 · 마일스톤 이름표만 그림(`SCH.gtWin`), 좌우로 멀리 옮기면 그 근처를 다시 그림(멈추고 0.14초). 화면 밖 줄은 그리지 않음(`content-visibility:auto`). 다시 그릴 때 세로 스크롤 유지.
 - 바뀐 곳: dashboard.html `schGtZoom` · `schGtWheel`(onscroll) · `schGtRedraw` · `schDiscBoard`(inW 거르기 · 한계), CSS `.gtbody>.gtr` · `.gtw.zooming`
 - 확인한 것: 시험 서버에서 I&C 84품목(화면 시험용으로 늘린 자료)으로 휠 40칸 확대(일 단위) · 60칸 축소(년 · 분기) · 일 단위 좌우 이동 — 긴 멈춤(longtask) 최대 약 550ms·여러 번 → 70ms 이하, 일 단위 이름표 2184 → 690(화면 근처만). 콘솔 오류 없음.
+
+### 2026-11-09 (APP_VERSION 2026-11-09.27 / SERVER_VERSION 그대로) — v17.17 Schedule '구매 현황 보고' (주간업무보고 업무 현황 양식) · 상태창 반영
+- 사용자 지시: 스케줄 현황에 주간업무보고(수행)에 쓰는 보고 양식으로 MR · TBE 등 현황 — "1. MR issue 지연 3건 / - item 원래 기한, 지연 사유, 캐치업 일정, 특이사항 / 2. TBE to Company …", 상태창에도 반영.
+- 새 카드 📝 구매 현황 보고: 1. MR Issue · 2. TBE to Company(TBE 발주처 제출) · 3. TBE 완료 · 4. CBE(Award Recommendation) · 5. Award 승인 (설계·제작·운송 보기면 PO · KOM · 제작 완료 · FAT · 현장 도착까지). 마일스톤마다 '지연 N건'(없으면 ✔ 계획대로), 품목마다 '- No 이름 공종 +일' + 원래 기한(계획) · 현재(실적 / 전망 · 지남) · 지연 사유 · 캐치업 일정 · 특이사항 · 입력한 사람/시각. [✏ 사유 · 캐치업 입력] (Enter = 저장, Esc = 취소) → `it.rn[마일스톤] = { r 사유, c 캐치업 날짜, s 특이사항, by, at }` 서버 저장(`schSaveNote`, 기록 남김), 새 PSR 을 올려도 메모 유지. [📋 보고 글 복사] = 위 양식 그대로 글로, [📤 주간업무보고(수행)에 붙이기] = 복사 + 수행 표를 'CO2' 로 찾아 엶. 공종 필터 · 기준일(파일/오늘) 따라감.
+- 상태창(📋 공종별 품목 현황) 품목 줄에 최근 보고 메모(📝 마일스톤 사유 · 캐치업) 표시.
+- 바뀐 곳: dashboard.html `schSaveNote` · `schUpload`(rn 유지) · `renderSched`(RPT · rptG · rptLine · rptText · rptCard · 상태창 nt) · `schBind`(data-rne/rnx/rns/rpgo/rpcopy/rpweekly), CSS `.rp*` · `.isnt`
+- 확인한 것: 시연 PSR — 1. MR Issue 0건(계획대로) · 2. TBE to Company 14건 · 3. TBE 완료 20건 · 4. CBE 20건 · 5. Award 승인 20건, E0210 사유 · 캐치업 · 특이사항 입력 → 저장 · 상태창 반영, 보고 글 복사 내용, 주간업무보고 수행 표로 이동(검색 CO2). 콘솔 오류 없음.
