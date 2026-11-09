@@ -1694,6 +1694,7 @@ html.dark .sinm,html.dark .gtnm,html.dark .isi,html.dark .sinm1{text-shadow:0 1p
 .gtrz{position:absolute;right:0;top:0;bottom:0;width:9px;cursor:ew-resize;background:linear-gradient(90deg,transparent,rgba(255,255,255,.55));border-radius:0 6px 6px 0}.gtrz::after{content:'';position:absolute;right:3px;top:6px;bottom:6px;width:2px;border-left:1px solid rgba(15,23,42,.35);border-right:1px solid rgba(15,23,42,.35)}
 .gtdtip{position:fixed;z-index:4000;background:#0f172a;color:#fff;font-size:12px;border-radius:8px;padding:6px 10px;pointer-events:none;box-shadow:0 8px 20px rgba(0,0,0,.3);line-height:1.5}.gtdtip b{color:#fbbf24}
 .gthv{position:absolute;top:0;bottom:0;width:1px;border-left:1px dashed #6366f1;z-index:2}.gthv b{position:sticky;top:4px;display:inline-block;margin-left:3px;background:#4f46e5;color:#fff;font-size:10.5px;border-radius:5px;padding:0 5px}
+.gtmh.gwk{text-align:left;padding-left:3px;border-left:1px solid #e2e8f0}.gtmh.dy{padding-top:4px;line-height:1.05;font-variant-numeric:tabular-nums}.gtmh.dy small{display:block;font-size:9px;color:#94a3b8}.gtmh.we{color:#dc2626;background:#fff5f5}.gtbd.we{background:rgba(239,68,68,.06)}.gtbd.gwk{width:0;border-left:1px dotted #dbe2ec}
 .gthelp{font-size:12px;color:#475569;background:#eef2ff;border-radius:8px;padding:5px 10px;margin:-4px 0 8px}.gtundo{margin-left:6px}
 /* 2026-11-09 카드 크게 보기 · 크기 조절 */
 #schv section.card.schrs{resize:vertical;overflow:auto;min-height:120px;position:relative}
@@ -1948,7 +1949,7 @@ function recLabel(key, f) {
  * ===================================================================== */
 let root = null;
 /* 서버 모드: http(s):// 로 접속하면 server.py 의 REST API 사용 (폴더 선택 불필요). file:// 로 열면 폴더 모드 */
-const APP_VERSION = '2026-11-09.22';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
+const APP_VERSION = '2026-11-09.24';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
 const SERVER_URL = 'http://localhost:8080';
 // 부서원 PC 사본(file://)이 접속을 시도할 서버 — 서버가 배포 파일을 만들 때 'PC 이름 주소, IP 주소' 순으로 자동 기록함
 const DEFAULT_SERVERS = ['http://ASEUNGWOOK-B01:8080', 'http://65.3.30.234:8080'];
@@ -4278,7 +4279,7 @@ function renderSched(c) {
     <div class="schph"><span>보기 단계</span><button class="${ph === 'front' ? 'on' : ''}" data-schph="front">🎯 구매 전반 <b>MR · TBE · CBE</b> <small>지금 중요</small></button><button class="${ph === 'back' ? 'on' : ''}" data-schph="back">🏭 설계 · 제작 · 운송 <small>${allFront ? '구매 전반 모두 끝남' : '나중'}</small></button>
       <span class="sp"></span><span>기준일</span><button class="${!useToday ? 'on' : ''}" data-schtoday="0">파일 ${esc(schFmt(d.asOf))}</button><button class="${useToday ? 'on' : ''}" data-schtoday="1">오늘 ${esc(schFmt(today))}</button></div>
     ${ph === 'front' ? dzCard : ''}
-    ${F.disc ? schDiscBoard(vis, asOf, F.disc, ph) : ''}
+    ${F.disc ? (SCH.gtArgs = [vis, asOf, F.disc, ph], schDiscBoard(vis, asOf, F.disc, ph)) : ''}
     ${ph === 'back' ? dzCard : ''}
     <section class="card"><h2>🗂 품목별 일정 <span class="muted">· ${vis.length}품목 · 줄을 누르면 마일스톤 전체${canUp ? ' + <b>✏ 계획 · 전망 · 실적 입력</b>' : ''} · 막대: 주황 = 구매 전반(MR→CBE), 회색 = 계획, 색 = 전망, 진한 색 = 실적까지, ◆ = PO · FAT · 현장 도착</span></h2>
       <div class="fbar"><label>검색<input id="schQ" value="${esc(F.q)}" placeholder="No · 품목 · 업체 · 담당"></label><label>정렬<select id="schSort"><option value="front" ${sortK === 'front' ? 'selected' : ''}>MR · TBE · CBE 지연 큰 순</option><option value="delay" ${sortK === 'delay' ? 'selected' : ''}>현장 도착 지연 큰 순</option><option value="site" ${sortK === 'site' ? 'selected' : ''}>현장 도착 빠른 순</option><option value="no" ${sortK === 'no' ? 'selected' : ''}>번호 순</option></select></label><label>상태<select id="schLate"><option value="">전체</option>${SCH_FOCUS.map(([g]) => `<option value="f:${g}" ${F.late === 'f:' + g ? 'selected' : ''}>${g} 지연</option>`).join('')}${Object.entries(SCH_ST).map(([k, [l]]) => `<option value="${k}" ${F.late === k ? 'selected' : ''}>${l}</option>`).join('')}</select></label>${F.type || F.disc || F.q || F.late ? '<button class="btn sm" data-schf="reset|">필터 초기화</button>' : ''}<button class="btn sm" data-schxl>⬇ 엑셀로</button></div>
@@ -4296,15 +4297,28 @@ function schDiscBoard(rows, asOf, disc, ph) {   // 2026-11-09 v17.11 새 간트 
   if (!rows.length) return '';
   const dt = (it, k) => it.A[k] || it.F[k] || it.B[k] || '';
   const ds = rows.flatMap(({ it }) => SCH_PH.flatMap(([, a, b]) => [dt(it, a), dt(it, b), it.B[a] || '', it.B[b] || ''])).filter(Boolean).concat(asOf).sort();
-  const t0 = ds[0].slice(0, 7) + '-01', end = ds[ds.length - 1], t1d = new Date(schD(end).getFullYear(), schD(end).getMonth() + 1, 1), t1 = t1d.toISOString().slice(0, 10);
+  let t0d = new Date(schD(ds[0]).getFullYear(), schD(ds[0]).getMonth(), 1), end = ds[ds.length - 1], t1d = new Date(schD(end).getFullYear(), schD(end).getMonth() + 1, 1);
+  const mc = (a, b) => (b.getFullYear() - a.getFullYear()) * 12 + b.getMonth() - a.getMonth(), fit0 = Math.max(8, (SCH.gtFitW || 1200) / Math.max(1, mc(t0d, t1d)));
+  if (SCH.gppm && SCH.gppm < fit0) { const need = Math.ceil((SCH.gtFitW || 1200) / SCH.gppm) - mc(t0d, t1d), pre = Math.floor(need / 2);   // 축소 = 앞뒤로 기간을 넓혀 더 긴 시간(년 · 분기)을 보여 줌
+    t0d = new Date(t0d.getFullYear(), t0d.getMonth() - pre, 1); t1d = new Date(t1d.getFullYear(), t1d.getMonth() + need - pre, 1); }
+  const ymd0 = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-01`, t0 = ymd0(t0d), t1 = ymd0(t1d);
   const span = Math.max(31, schDays(t1, t0)), X = d => Math.max(0, Math.min(100, schDays(d, t0) / span * 100));
-  const months = []; for (let m = new Date(schD(t0)); m < t1d; m.setMonth(m.getMonth() + 1)) months.push(new Date(m).toISOString().slice(0, 10));
-  const Z = [0, 60, 110, 200], z = SCH.gz || 0, ppm = Z[z], fitStep = months.length > 30 ? 3 : months.length > 18 ? 2 : 1, step = ppm ? (ppm < 50 ? 2 : 1) : fitStep;
-  const mEnd = i => i + 1 < months.length ? months[i + 1] : t1;
+  const months = []; for (let m = new Date(t0d); m < t1d; m.setMonth(m.getMonth() + 1)) months.push(ymd0(m));
+  // 2026-11-09 휠 확대 · 축소: ppm = 한 달 너비(px). 맞춤 = 카드 너비에 맞춤. 넓힐수록 머리가 년·분기 → 년·월 → 월·주 → 월·일 로 자세해짐
+  const fitPpm = fit0, ppm = SCH.gppm && SCH.gppm >= fit0 ? SCH.gppm : 0, eff = ppm || (SCH.gppm && SCH.gppm < fit0 ? SCH.gppm : fitPpm);
+  const lv = eff < 30 ? 'yq' : eff < 110 ? 'ym' : eff < 420 ? 'mw' : 'md'; SCH.gtLv = lv; SCH.gtFit = fitPpm;
+  const mEnd = i => i + 1 < months.length ? months[i + 1] : t1, sp = (l, a, b, cls, txt) => `<span class="${cls}" style="left:${X(a)}%;width:${X(b) - X(a)}%">${txt}</span>`;
   const years = []; months.forEach((m, i) => { const y = m.slice(0, 4); if (!years.length || years[years.length - 1].y !== y) years.push({ y, s:m, e:mEnd(i) }); else years[years.length - 1].e = mEnd(i); });
-  const yHead = years.map(y => `<span class="gty" style="left:${X(y.s)}%;width:${X(y.e) - X(y.s)}%">${y.y}</span>`).join('');
-  const mHead = months.map((m, i) => `<span class="gtmh ${m.slice(5, 7) === '01' ? 'yr' : ''}" style="left:${X(m)}%;width:${X(mEnd(i)) - X(m)}%">${i % step ? '' : +m.slice(5, 7) + (ppm >= 110 ? '월' : '')}</span>`).join('');
-  const bands = months.map((m, i) => `<i class="gtbd ${i % 2 ? 'o' : ''} ${m.slice(5, 7) === '01' ? 'yr' : ['04', '07', '10'].includes(m.slice(5, 7)) ? 'q' : ''}" style="left:${X(m)}%;width:${X(mEnd(i)) - X(m)}%"></i>`).join('');
+  const addD = (d, n) => { const x = schD(d); x.setDate(x.getDate() + n); return x.toISOString().slice(0, 10); };
+  const days = (lv === 'mw' || lv === 'md') ? (() => { const out = []; for (let d = t0; d < t1; d = addD(d, 1)) out.push(d); return out; })() : [];
+  const yHead = lv === 'yq' || lv === 'ym' ? years.map(y => sp(0, y.s, y.e, 'gty', y.y + (lv === 'ym' && eff > 60 ? '년' : ''))).join('')
+    : months.map((m, i) => sp(0, m, mEnd(i), 'gty' + (m.slice(5, 7) === '01' ? ' yr' : ''), `${m.slice(0, 4)}년 ${+m.slice(5, 7)}월`)).join('');
+  const mHead = lv === 'yq' ? months.filter(m => ['01', '04', '07', '10'].includes(m.slice(5, 7)) || m === months[0]).map((m, i, a) => sp(0, m, a[i + 1] || t1, 'gtmh' + (m.slice(5, 7) === '01' ? ' yr' : ''), eff < 14 ? '' : 'Q' + Math.ceil(+m.slice(5, 7) / 3))).join('')
+    : lv === 'ym' ? months.map((m, i) => sp(0, m, mEnd(i), 'gtmh' + (m.slice(5, 7) === '01' ? ' yr' : ''), +m.slice(5, 7) + (eff >= 55 ? '월' : ''))).join('')
+    : lv === 'mw' ? days.filter(d => schD(d).getDay() === 1).map(d => sp(0, d, addD(d, 7), 'gtmh gwk', `${+d.slice(5, 7)}/${+d.slice(8)}`)).join('')
+    : days.map(d => { const w = schD(d).getDay(); return sp(0, d, addD(d, 1), `gtmh dy${w % 6 ? '' : ' we'}${d.slice(8) === '01' ? ' yr' : ''}`, `${+d.slice(8)}${eff > 900 ? `<small>${'일월화수목금토'[w]}</small>` : ''}`); }).join('');
+  const bands = months.map((m, i) => `<i class="gtbd ${i % 2 ? 'o' : ''} ${m.slice(5, 7) === '01' ? 'yr' : ['04', '07', '10'].includes(m.slice(5, 7)) ? 'q' : lv === 'mw' || lv === 'md' ? 'q' : ''}" style="left:${X(m)}%;width:${X(mEnd(i)) - X(m)}%"></i>`).join('')
+    + (lv === 'md' ? days.filter(d => schD(d).getDay() % 6 === 0).map(d => `<i class="gtbd we" style="left:${X(d)}%;width:${X(addD(d, 1)) - X(d)}%"></i>`).join('') : lv === 'mw' ? days.filter(d => schD(d).getDay() === 1).map(d => `<i class="gtbd gwk" style="left:${X(d)}%"></i>`).join('') : '');
   const nowX = X(asOf), ed = !noEdit() && can('runpjt');
   const line = ({ it, k }) => { const id = it.type + '|' + it.no;
     const bars = SCH_PH.map(([n, a, b, c], pi) => { const s1 = dt(it, a), e1 = dt(it, b); if (!s1 || !e1 || e1 < s1) return '';
@@ -4318,10 +4332,10 @@ function schDiscBoard(rows, asOf, disc, ph) {   // 2026-11-09 v17.11 새 간트 
       <div class="gtfo">${fo.map(f => `<i class="${f.lv} ${f.st}" title="${esc(`${f.label} 계획 ${f.b || '-'} → ${f.a ? '실적 ' + f.a : f.f ? '전망 ' + f.f : '실적 없음'}`)}">${f.g}${f.st === 'done' ? '✓' : ''}${f.d > 0 ? ' +' + f.d : ''}</i>`).join('')}${k.slip ? `<i class="${k.slip > 30 ? 'r' : k.slip > 0 ? 'y' : 'g'} site">현장 ${k.slip > 0 ? '+' : ''}${k.slip}</i>` : ''}</div></div>
       <div class="gtt">${bars}${ms}</div></div>`; };
   const tool = `<div class="gttool"><div class="dbleg">${SCH_PH.map(([n, , , c]) => `<span><i class="${c}"></i>${n}</span>`).join('')}<span><i class="gtlg-plan"></i>계획</span><span><i class="gtlg-next"></i>앞으로(빗금)</span><span><i class="gtm po a gtlg"></i>PO</span><span><i class="gtm fat a gtlg"></i>FAT</span><span><i class="gtm site a gtlg"></i>현장 도착</span><span><em class="gtd r gtlg2">+15</em>계획보다 늦은 날</span></div>
-    <span class="sp"></span><div class="gtz"><button data-gz="-1" title="축소" ${z ? '' : 'disabled'}>−</button><span>${['맞춤', '월 크게', '월 더 크게', '주 단위'][z]}</span><button data-gz="1" title="확대" ${z >= 3 ? 'disabled' : ''}>＋</button><button data-gtoday title="기준일로 이동">◎ 기준일</button></div>${SCH.undo ? `<button class="btn sm gtundo" data-gtundo title="${esc(SCH.undo.label)}">↶ 되돌리기</button>` : ''}</div>${ed ? '<div class="gthelp">🖐 <b>막대를 좌우로 끌면</b> 그 단계 전망 일정이 통째로 옮겨지고, <b>막대 오른쪽 끝을 끌면</b> 끝 날짜만 바뀝니다 · 놓으면 바로 저장(↶ 되돌리기) · 끝난 단계(✓)는 실적이라 고정 · 누르면 상세</div>' : ''}`;
+    <span class="sp"></span><div class="gtz"><button data-gz="-1" title="축소 (휠 아래)" ${eff <= 9 ? 'disabled' : ''}>−</button><span title="일정판 위에서 마우스 휠 = 확대 · 축소, Shift + 휠 = 좌우 이동">${{ yq:'년 · 분기', ym:'년 · 월', mw:'월 · 주', md:'월 · 일' }[lv]}${SCH.gppm ? '' : ' (맞춤)'}</span><button data-gz="1" title="확대 (휠 위)" ${eff >= 2400 ? 'disabled' : ''}>＋</button><button data-gz="0" title="카드 너비에 맞춤" ${SCH.gppm ? '' : 'disabled'}>맞춤</button><button data-gtoday title="기준일로 이동">◎ 기준일</button></div>${SCH.undo ? `<button class="btn sm gtundo" data-gtundo title="${esc(SCH.undo.label)}">↶ 되돌리기</button>` : ''}</div>${ed ? '<div class="gthelp">🖐 <b>막대를 좌우로 끌면</b> 그 단계 전망 일정이 통째로 옮겨지고, <b>막대 오른쪽 끝을 끌면</b> 끝 날짜만 바뀝니다 · 놓으면 바로 저장(↶ 되돌리기) · 끝난 단계(✓)는 실적이라 고정 · 누르면 상세 · <b>🖱 휠 = 확대/축소</b>(년 ↔ 월 ↔ 주 ↔ 일), Shift + 휠 = 좌우</div>' : ''}`;
   return `<section class="card dboard gtcard ph-${ph || 'front'}"><h2>🔧 ${esc(disc)} · 품목별 일정판 <span class="muted">· ${rows.length}품목 · 막대를 누르면 그 단계 상세 · 이름을 누르면 아래 표에서 상세</span>
       <button class="btn sm gtoff" data-schf="disc|${esc(disc)}">✕ 공종 해제</button></h2>${tool}
-    <div class="gtw" data-t0="${t0}" data-span="${span}"><div class="gtin" style="${ppm ? `width:calc(268px + ${months.length * ppm}px)` : ''}">
+    <div class="gtw" data-t0="${t0}" data-span="${span}"><div class="gtin" style="${ppm ? `width:${Math.round(268 + months.length * ppm)}px` : ''}">
       <div class="gtr gth"><div class="gtl">품목 <small>${rows.length}</small></div><div class="gtt"><div class="gtyr">${yHead}</div><div class="gtmr">${mHead}</div><i class="gtnow" style="left:${nowX}%"><b>기준일 ${schFmt(asOf).slice(3)}</b></i></div></div>
       <div class="gtbody"><div class="gtbg">${bands}<i class="gtnowl" style="left:${nowX}%"></i><i class="gthv" hidden><b></b></i></div>${rows.slice().sort((a, b) => (dt(a.it, 'MR') || '9').localeCompare(dt(b.it, 'MR') || '9')).map(line).join('')}</div>
     </div></div></section>`;
@@ -4403,20 +4417,39 @@ function schGtDrag(v) {
       toast(`${it.no} ${n} 전망 ${ch.length}개 마일스톤을 ${dd > 0 ? '+' : ''}${dd}일 옮겼어요 — ↶ 되돌리기 가능`); };
   });
 }
+/* 휠 확대 · 축소 — 마우스 아래 날짜가 제자리에 있도록 · 일정판만 다시 그림(빠름) */
+function schGtRedraw() {
+  const c = $('#schv .gtcard'); if (!c || !SCH.gtArgs) return render(); const keepH = c.style.height;
+  c.outerHTML = schDiscBoard(...SCH.gtArgs); const v = $('#schv'), n = $('#schv .gtcard'); if (keepH && !n.classList.contains('big')) n.style.height = keepH;
+  schCardTools(v); schGtDrag(v); schGtWheel();
+}
+function schGtZoom(f, cx) {   // f = 배율(0 = 맞춤), cx = 화면 x (그 자리 날짜 고정)
+  const w = $('#schv .gtw'); if (!w) return; const tw = w.querySelector('.gtin').offsetWidth - 268, r = w.getBoundingClientRect(), off = cx - r.left - 268, frac = (w.scrollLeft + off) / Math.max(1, tw), months = tw / (SCH.gppm || SCH.gtFit || 1);
+  const cur = SCH.gppm || SCH.gtFit || 40, nx = f ? Math.max(8, Math.min(2400, cur * f)) : 0; if (f && nx === cur) return;
+  SCH.gppm = nx && Math.abs(nx - (SCH.gtFit || 0)) / (SCH.gtFit || 1) < .04 ? 0 : nx;   // 맞춤 근처면 맞춤으로
+  schGtRedraw(); const w2 = $('#schv .gtw'); if (!w2) return; const tw2 = w2.querySelector('.gtin').offsetWidth - 268; w2.scrollLeft = Math.max(0, frac * tw2 - off); void months;
+}
+function schGtWheel() {
+  const w = $('#schv .gtw'); if (!w) return; if (!SCH.gppm) { const fw = Math.max(300, w.clientWidth - 268), old = SCH.gtFitW; SCH.gtFitW = fw; if (Math.abs(fw - (old || 1200)) > 40) return schGtRedraw(); }   // 맞춤 너비가 바뀌면 머리 단위 다시
+  let acc = 1, cx = 0, raf = 0;
+  w.onwheel = e => { if (e.shiftKey || e.target.closest('.gtl:not(.gth .gtl)')) return; if (Math.abs(e.deltaX) > Math.abs(e.deltaY)) return;   // Shift + 휠 · 이름 열 = 보통 스크롤
+    e.preventDefault(); acc *= Math.pow(1.0018, -e.deltaY * (e.deltaMode === 1 ? 33 : 1)); cx = e.clientX;
+    if (!raf) raf = requestAnimationFrame(() => { raf = 0; const f = acc; acc = 1; if (Math.abs(f - 1) > .01) schGtZoom(f, cx); }); };
+}
 function schGtToday(smooth) {   // 일정판 가로 스크롤을 기준일 쪽으로
   const w = $('#schv .gtw'), n = w?.querySelector('.gtnowl'), b = w?.querySelector('.gtbody'); if (!w || !n || !b) return;
   const x = 268 + (b.offsetWidth - 268) * parseFloat(n.style.left) / 100; w.scrollTo({ left:Math.max(0, x - 268 - (w.clientWidth - 268) / 3), behavior:smooth ? 'smooth' : 'auto' });
 }
 function schBind() {
   const v = $('#schv'); if (!v) return; const F = SCH.f; schCardTools(v); schGtDrag(v);
-  const gw = $('#schv .gtw'); if (gw) { if (SCH.gzKeep != null) { gw.scrollLeft = SCH.gzKeep * gw.scrollWidth - gw.clientWidth / 2; SCH.gzKeep = null; } else if (SCH.gz) schGtToday(false); }
+  schGtWheel();
   const fi = $('#schFile'); if (fi) fi.onchange = () => { schUpload(fi.files); fi.value = ''; };
   const dz = $('#schDrop'); if (dz) { dz.ondragover = e => { e.preventDefault(); dz.classList.add('on'); }; dz.ondragleave = () => dz.classList.remove('on'); dz.ondrop = e => { e.preventDefault(); dz.classList.remove('on'); schUpload(e.dataTransfer.files); }; }
   v.ondragover = e => { if ([...(e.dataTransfer?.types || [])].includes('Files')) e.preventDefault(); }; v.ondrop = e => { if (e.target.closest('#schDrop') || !e.dataTransfer?.files?.length) return; e.preventDefault(); schUpload(e.dataTransfer.files); };
   v.onclick = e => {
     const f = e.target.closest('[data-schf]'); if (f) { const [k, val] = f.dataset.schf.split('|'); if (k === 'reset') Object.assign(F, { type:'', disc:'', q:'', late:'' }); else F[k] = F[k] === val ? '' : val; return render(); }
     if (e.target.closest('[data-schxl]')) return schXlsx();
-    const gz = e.target.closest('[data-gz]'); if (gz) { const w = $('#schv .gtw'), r = w ? (w.scrollLeft + w.clientWidth / 2) / Math.max(1, w.scrollWidth) : 0; SCH.gz = Math.max(0, Math.min(3, (SCH.gz || 0) + +gz.dataset.gz)); SCH.gzKeep = r; return render(); }
+    const gz = e.target.closest('[data-gz]'); if (gz) { const w = $('#schv .gtw'); if (!w) return; const d = +gz.dataset.gz; return schGtZoom(d ? (d > 0 ? 1.6 : 1 / 1.6) : 0, w.getBoundingClientRect().left + 268 + (w.clientWidth - 268) / 2); }
     if (e.target.closest('[data-gtoday]')) return schGtToday(true);
     const bg = e.target.closest('[data-schbig]'); if (bg) { e.stopPropagation(); SCH.big = SCH.big === bg.dataset.schbig ? '' : bg.dataset.schbig; if (!SCH.big) document.body.classList.remove('schbigon'); render(); if (!SCH.big) setTimeout(() => $(`#schv section.card[data-ck="${CSS.escape(bg.dataset.schbig)}"]`)?.scrollIntoView({ block:'start' }), 30); return; }
     if (e.target.closest('.schbigbg')) { SCH.big = ''; return render(); }
