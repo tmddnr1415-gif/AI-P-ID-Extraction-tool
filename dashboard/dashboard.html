@@ -1606,6 +1606,47 @@ button:focus:not(:focus-visible){outline:none}
 #botPanel.max{left:8px!important;top:8px!important;width:calc(100vw - 16px)!important;height:calc(100vh - 16px)!important;border-radius:14px}#botPanel.max .blog{font-size:13.5px}#botPanel.max .bmsg .bb{max-width:70%}
 #botPanel .bsteps{margin:6px 0 0;padding-left:0;list-style:none;font-size:12.5px}#botPanel .bsteps li{padding:3px 0;border-bottom:1px dashed #e6e8f2}#botPanel .bsteps .bst{display:inline-block;width:18px;font-weight:800}#botPanel .bsteps .bsn{color:#7a7d99;font-size:11px}
 body.botonly #side,body.botonly header.top,body.botonly #content,body.botonly #deptBot,body.botonly #taskbar,body.botonly #plazaHost,body.botonly #wmBar{display:none!important}body.botonly{background:#eef0f7}body.botonly dialog{display:none!important}body.botonly #botPanel{left:0!important;top:0!important;width:100vw!important;height:100vh!important;border-radius:0}body.botonly #botPanel [data-bwin],body.botonly #botPanel [data-bmax],body.botonly #botPanel [data-bhide],body.botonly #botPanel [data-bclose]{display:none}
+
+/* 2026-11-09 CO2 PJT · Schedule (구매 일정 현황판) */
+.sch-hero{background:linear-gradient(120deg,#0f766e,#0e7490 55%,#1d4ed8)}.sch-hero .wh-top{align-items:center}
+.schdrop{display:flex;flex-direction:column;align-items:center;gap:6px;justify-content:center;border:2px dashed #94a3b8;border-radius:14px;padding:34px 20px;cursor:pointer;background:#f8fafc;text-align:center;color:var(--text)}
+.schdrop .sdi{font-size:34px}.schdrop.on{border-color:var(--accent);background:#eef2ff}
+.schdrop.mini{flex-direction:row;padding:9px 14px;border-color:rgba(255,255,255,.6);background:rgba(255,255,255,.14);color:#fff;white-space:nowrap}.schdrop.mini .sdi{font-size:18px}.schdrop.mini.on{background:rgba(255,255,255,.3)}
+.sch-hero .wtypes .wsep{width:1px;background:rgba(255,255,255,.35);margin:2px 6px}
+.schkpis{grid-template-columns:1.4fr repeat(5,1fr)}.schkpis .wk-main{background:linear-gradient(135deg,#0f766e,#14b8a6)}.schkpis .wkv small{font-size:13px;opacity:.7}
+.schgrid{grid-template-columns:1.25fr 1fr 1fr}
+.sfr{display:grid;grid-template-columns:86px 1fr 62px;gap:8px;align-items:center;padding:3px 4px;font-size:12px}.sfn{color:var(--sub);font-weight:600}
+.sfb{position:relative;height:14px;background:#f1f5f9;border-radius:7px;overflow:hidden}.sfb i{position:absolute;left:0;top:0;bottom:0;border-radius:7px}.sfb i.p{background:#c7d2fe}.sfb i.a{background:linear-gradient(90deg,#4f46e5,#6366f1);top:3px;bottom:3px}
+.sfv{text-align:right;font-weight:700;font-variant-numeric:tabular-nums}.sfv small{color:var(--sub);font-weight:400}
+.ppv .sl,.sl{color:#dc2626!important;font-weight:700}.sw{color:#d97706}.sg{color:#16a34a}
+.ssoon{max-height:340px;overflow:auto}.ssn{display:grid;grid-template-columns:62px 90px 1fr auto;gap:8px;align-items:center;padding:6px 8px;border-radius:8px;font-size:12px;cursor:pointer;border-bottom:1px dashed #e5e7eb}.ssn:hover{background:#f1f5ff}
+.ssn .sd{font-weight:700;font-variant-numeric:tabular-nums}.ssn .sk{color:#4338ca;font-weight:600}.ssn .si{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.ssn.over .sd{color:#dc2626}.ssn .sov{background:#fee2e2;color:#b91c1c;border-radius:99px;padding:0 7px;font-size:11px}
+.schtab{font-size:12.5px;table-layout:fixed;min-width:1180px}.schtab td,.schtab th{overflow:hidden;text-overflow:ellipsis}.schtab td.sitem{white-space:normal}.linkbtn{border:0;background:none;color:#c2410c;font-weight:700;cursor:pointer;padding:0;text-decoration:underline}.schtab td{vertical-align:middle}.schtab td small{display:block;color:var(--sub);font-size:11px;font-weight:400}.schtab tr.srow{cursor:pointer}.schtab tr.srow.open td{background:#eef2ff!important}
+.schtab .stp{display:inline-block!important;margin-left:4px;font-size:10px!important;border-radius:4px;padding:0 4px;background:#e0e7ff;color:#3730a3!important}.schtab .stp.Bulk{background:#fef3c7;color:#92400e!important}.schtab .slli{display:inline-block!important;margin-left:3px;font-size:10px!important;background:#fee2e2;color:#b91c1c!important;border-radius:4px;padding:0 4px}
+.schtab .sitem{word-break:break-word}.sstg{display:inline-block;padding:2px 9px;border-radius:99px;font-size:11.5px;font-weight:700;color:#1e3a8a;background:linear-gradient(90deg,#c7d2fe var(--p),#eef2ff var(--p));white-space:nowrap}
+.schtab th.sgh,.schtab td.sgc{position:relative;overflow:visible}
+.sgx{position:relative;height:16px}.sgx span{position:absolute;top:0;transform:translateX(-50%);font-size:10px;color:var(--sub);font-weight:400}.sgx .snow{position:absolute;top:-6px;bottom:-4px;width:2px;background:#ef4444}.sgx .snow b{display:none}
+.sgb{position:relative;height:22px}.sgb i{position:absolute;display:block}.sgb .gb{top:4px;height:5px;background:#cbd5e1;border-radius:3px}.sgb .gf{top:11px;height:7px;border-radius:4px;background:#93c5fd}.sgb .gf.late{background:#fca5a5}.sgb .gf.warn{background:#fcd34d}.sgb .gf.done{background:#86efac}
+.sgb .ga{top:11px;height:7px;border-radius:4px;background:#2563eb}.sgb .gm{top:9px;width:9px;height:9px;margin-left:-4px;transform:rotate(45deg);background:#fff;border:2px solid #64748b}.sgb .gm.a{background:#1d4ed8;border-color:#1d4ed8}
+.schtab td.sgc{background-image:linear-gradient(90deg,transparent calc(var(--now) - 1px),rgba(239,68,68,.55) calc(var(--now) - 1px),rgba(239,68,68,.55) calc(var(--now) + 1px),transparent calc(var(--now) + 1px))!important}
+.sdet td{background:#f8faff!important;padding:10px 12px!important;overflow:hidden}.sdw{overflow:auto;max-width:100%}.sdt{width:auto!important;font-size:11.5px}.sdt th,.sdt td{white-space:nowrap;padding:4px 7px!important;text-align:center}.sdt td.sl{background:#fee2e2!important}
+.sdm{display:flex;flex-wrap:wrap;gap:6px 18px;margin-top:8px;font-size:12px}.sdm small{display:block;color:var(--sub);font-size:10.5px}
+@media (max-width:1300px){.schkpis{grid-template-columns:repeat(3,1fr)}.schgrid{grid-template-columns:1fr}}
+
+/* 공종별 품목 일정판 (2026-11-09) */
+.dboard h2 .muted{font-weight:400}.dbleg{display:flex;gap:14px;flex-wrap:wrap;font-size:12px;margin:2px 0 10px;color:var(--sub)}.dbleg i{display:inline-block;width:14px;height:10px;border-radius:3px;margin-right:5px;vertical-align:-1px}
+.dbw{position:relative;border:1px solid var(--line);border-radius:12px;overflow:hidden;background:#fff}
+.dbr{display:grid;grid-template-columns:250px 1fr;border-bottom:1px solid #eef0f6;cursor:pointer;min-height:40px}.dbr:hover{background:#f8faff}.dbr.dbh{cursor:default;background:#eef1f8;min-height:30px;position:sticky;top:0;z-index:3}
+.dbl{padding:6px 10px;border-right:1px solid #e3e7f1;font-size:12px;line-height:1.3;overflow:hidden}.dbl b{color:#1e3a8a;margin-right:6px}.dbl span{color:var(--text)}.dbl small{display:block;font-size:11px;font-weight:600}.dbh .dbl{font-weight:700;color:var(--sub);display:flex;align-items:center}
+.dbt{position:relative;overflow:hidden}.dbt>i{position:absolute;top:0;bottom:0;width:1px;background:#eef0f6}.dbh .dbt>i{display:none}
+.dbm{position:absolute;top:7px;font-size:11px;color:#64748b;white-space:nowrap;transform:translateX(3px);font-weight:600}.dbm:before{content:'';position:absolute;left:-3px;top:-7px;height:30px;border-left:1px solid #d5dbea}.dbm.nol:before{border-left-color:#e8ecf4}
+.dbnow{position:absolute;top:0;bottom:0;width:0}.dbnow b{position:absolute;top:7px;left:4px;font-size:10px;color:#dc2626;white-space:nowrap}
+.dbnowl{position:absolute;top:0;bottom:0;left:calc(250px + (100% - 250px) * var(--x) / 100);width:2px;background:rgba(220,38,38,.6);pointer-events:none;z-index:2}
+.dbk{position:absolute;top:8px;height:24px;border-radius:6px;border-left:4px solid;font-size:11px;font-weight:700;display:flex;align-items:center;padding:0 6px;overflow:hidden;white-space:nowrap;box-sizing:border-box;opacity:.8}
+.dbk span{overflow:hidden;text-overflow:ellipsis}.dbk.done{opacity:1}.dbk.now{opacity:1;box-shadow:0 0 0 2px rgba(37,99,235,.35)}
+.p1{background:#e0e7ff;border-color:#4f46e5;color:#3730a3}.p2{background:#fef3c7;border-color:#d97706;color:#92400e}.p3{background:#dcfce7;border-color:#16a34a;color:#166534}.p4{background:#fce7f3;border-color:#db2777;color:#9d174d}.p5{background:#ede9fe;border-color:#7c3aed;color:#5b21b6}
+.dbleg i.p1,.dbleg i.p2,.dbleg i.p3,.dbleg i.p4,.dbleg i.p5{border-left:3px solid}
+.dbx{position:absolute;top:-1px;transform:translateX(-50%);font-style:normal;font-size:12px;z-index:1;filter:grayscale(.6);opacity:.75}.dbx.a{filter:none;opacity:1}
 </style>
 </head>
 <body>
@@ -1774,7 +1815,7 @@ function recLabel(key, f) {
  * ===================================================================== */
 let root = null;
 /* 서버 모드: http(s):// 로 접속하면 server.py 의 REST API 사용 (폴더 선택 불필요). file:// 로 열면 폴더 모드 */
-const APP_VERSION = '2026-11-09.3';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
+const APP_VERSION = '2026-11-09.6';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
 const SERVER_URL = 'http://localhost:8080';
 // 부서원 PC 사본(file://)이 접속을 시도할 서버 — 서버가 배포 파일을 만들 때 'PC 이름 주소, IP 주소' 순으로 자동 기록함
 const DEFAULT_SERVERS = ['http://ASEUNGWOOK-B01:8080', 'http://65.3.30.234:8080'];
@@ -3882,6 +3923,214 @@ const MODULES = {
   bflyv: { title:'CO2 PJT · Datasheet · Butterfly Valve', src:'', note:'Butterfly Valve Datasheet 검토 — Ball Valve 와 같은 방식으로 연결될 예정입니다.' },
   psv: { title:'CO2 PJT · Datasheet · PSV', src:'', note:'PSV (Pressure Safety Valve) Datasheet 검토 — Set pressure · 용량 · API 526/520 기준 대조로 연결될 예정입니다.' },
 };
+/* =====================================================================
+ *  2026-11-09 실행 프로젝트 › CO2 PJT › Schedule — 구매 일정 현황판 (PSR · Procurement Status Report)
+ *  PSR 엑셀(Tagged · Bulk 시트: 품목마다 Seq. = Baseline / Forecast / Actual 3줄 × 마일스톤 날짜)을 끌어다 놓거나 고르면
+ *  브라우저 안에서 읽어(외부 라이브러리 없음) → 서버(data/_meta/sched-co2.json)에 저장 → 모든 부서원이 같은 현황판을 봄.
+ *  머리글 이름으로 열을 찾으므로 열 위치가 바뀌어도 됨. 'Seq.' 머리글이 있는 시트만 읽음.
+ * ===================================================================== */
+const SCH = { data:null, loaded:false, f:{ type:'', disc:'', q:'', late:'', sort:'delay' }, open:new Set() };
+const SCH_MS = [   // [키, 짧은 이름, 머리글 맞추기(상위 · 하위 합친 이름)]
+  ['MR', 'MR', /^MR Issue(?!.*COMPANY)/i], ['RFQ', 'RFQ', /^RFQ Issue/i], ['BID', 'Bid Closing', /^Bid Closing/i],
+  ['TBE_S', 'TBE 시작', /^TBE · Start/i], ['TBE_C', 'TBE 발주처', /^TBE · TBE issue/i], ['TBE_F', 'TBE 완료', /^TBE · Finish/i],
+  ['CBE_S', 'CBE 시작', /^CBE · Start/i], ['FQ', 'Final Quote', /^CBE · Final Quote/i], ['AWD_I', 'Award Rec.', /^CBE · Award Recommendation/i], ['AWD', 'Award 승인', /^Award Recommendation Appro/i],
+  ['PO_R', 'PO 품의', /^PO Approval Request/i], ['PO', 'PO', /^PO Issue/i], ['KOM', 'KOM', /^KOM/i], ['VDLI', 'VDLI 승인', /^Approval\s+of VDLI/i],
+  ['KVD_S', 'Key V/D 시작', /^Key V\/D · Start/i], ['KVD_F', 'Key V/D 완료', /^Key V\/D · Finish/i], ['SUB', 'Sub-Order', /^Sub-Order.* · Purchase Request/i], ['ROM', '자재 입고', /^Sub-Order.* · Receipt/i],
+  ['PIM', 'PIM', /^PIM/i], ['MFG_S', '제작 시작', /^Manufacturing · Start/i], ['MFG_50', '제작 50%', /^Manufacturing · 50%/i], ['MFG_F', '제작 완료', /^Manufacturing · Finish/i],
+  ['INSP', '검사 요청', /^Inspection Request/i], ['FAT', 'FAT', /^Final Acceptance Test/i], ['SHIP50', '선적 50%', /^Shipment \(FOB\) \(50%\)/i], ['SITE50', '현장 50%', /^On Site \(50%\)/i],
+  ['SHIP', '선적(FOB)', /^Shipment \(FOB\)(?! \(50%\))/i], ['SITE', '현장 도착', /^On Site(?! \(50%\))/i],
+];
+const SCH_KEY = ['MR', 'RFQ', 'BID', 'TBE_F', 'AWD', 'PO', 'KOM', 'KVD_F', 'MFG_F', 'FAT', 'SHIP', 'SITE'];   // 현황판 단계(12)
+const SCH_NAME = Object.fromEntries(SCH_MS.map(([k, n]) => [k, n]));
+const schD = s => s ? new Date(s + 'T00:00:00') : null, schDays = (a, b) => Math.round((schD(a) - schD(b)) / 864e5);
+const schFmt = s => s ? s.slice(2).replace(/-/g, '.') : '';
+/* ---------- xlsx 읽기 (무압축/deflate zip → XML) ---------- */
+async function xlsxOpen(file) {
+  const b = new Uint8Array(await file.arrayBuffer()), dv = new DataView(b.buffer), td = new TextDecoder();
+  let e = b.length - 22; while (e > 0 && dv.getUint32(e, true) !== 0x06054b50) e--; if (e <= 0) throw new Error('엑셀(.xlsx) 파일이 아닙니다');
+  const n = dv.getUint16(e + 10, true); let p = dv.getUint32(e + 16, true); const ent = {};
+  for (let i = 0; i < n; i++) { const m = dv.getUint16(p + 10, true), cs = dv.getUint32(p + 20, true), nl = dv.getUint16(p + 28, true), xl = dv.getUint16(p + 30, true), cl = dv.getUint16(p + 32, true), lo = dv.getUint32(p + 42, true);
+    ent[td.decode(b.subarray(p + 46, p + 46 + nl))] = { m, cs, lo }; p += 46 + nl + xl + cl; }
+  const read = async nm => { const x = ent[nm]; if (!x) return ''; const s = x.lo + 30 + dv.getUint16(x.lo + 26, true) + dv.getUint16(x.lo + 28, true), raw = b.subarray(s, s + x.cs);
+    return x.m === 0 ? td.decode(raw) : await new Response(new Blob([raw]).stream().pipeThrough(new DecompressionStream('deflate-raw'))).text(); };
+  return { names:Object.keys(ent), read };
+}
+const xP = t => new DOMParser().parseFromString(t, 'application/xml');
+const colIdx = ref => [...ref.replace(/\d+/g, '')].reduce((a, ch) => a * 26 + ch.charCodeAt(0) - 64, 0) - 1;
+const xSerial = v => { const d = new Date(Date.UTC(1899, 11, 30) + Math.round(v) * 864e5); return d.toISOString().slice(0, 10); };
+async function schParse(file) {
+  const z = await xlsxOpen(file), wb = xP(await z.read('xl/workbook.xml')), rels = xP(await z.read('xl/_rels/workbook.xml.rels'));
+  const relMap = Object.fromEntries([...rels.getElementsByTagName('Relationship')].map(r => [r.getAttribute('Id'), r.getAttribute('Target').replace(/^\/?(xl\/)?/, 'xl/')]));
+  const ss = [...xP(await z.read('xl/sharedStrings.xml') || '<a/>').getElementsByTagName('si')].map(x => x.textContent);
+  const seqIdx = ss.findIndex(x => x.trim() === 'Seq.');
+  const sheets = [...wb.getElementsByTagName('sheet')].map(s => ({ name:s.getAttribute('name'), path:relMap[s.getAttribute('r:id')] || relMap[s.getAttributeNS('http://schemas.openxmlformats.org/officeDocument/2006/relationships', 'id')] }));
+  const items = [], used = []; let asOf = '';
+  const aoIdx = ss.findIndex(x => /^As of$/i.test(x.trim()));
+  if (aoIdx >= 0) for (const sh of sheets) { if (asOf || !sh.path) continue; const raw = await z.read(sh.path); const m = new RegExp(`<c r="([A-Z]+)(\\d+)"[^>]*t="s"[^>]*><v>${aoIdx}</v></c><c r="[A-Z]+\\2"[^>]*><v>(\\d+(?:\\.\\d+)?)</v>`).exec(raw); if (m && +m[3] > 20000) asOf = xSerial(+m[3]); }   // 'As of' 옆 날짜 (어느 시트든)
+  for (const sh of sheets) {
+    if (!sh.path || /회의용|발주처용|이전|^PSR_/i.test(sh.name)) continue;            // 회의 · 발주처 보고용 사본과 빈 양식은 건너뜀 (같은 품목이 겹침)
+    const raw = await z.read(sh.path); if (!raw || (seqIdx >= 0 && !raw.includes(`<v>${seqIdx}</v>`) && !raw.includes('>Seq.<'))) continue;
+    const rows = new Map();
+    for (const r of xP(raw).getElementsByTagName('row')) { const ri = +r.getAttribute('r'), arr = [];
+      for (const c of r.getElementsByTagName('c')) { const t = c.getAttribute('t'), v = c.getElementsByTagName('v')[0]?.textContent ?? c.getElementsByTagName('t')[0]?.textContent ?? '';
+        if (v === '') continue; arr[colIdx(c.getAttribute('r'))] = t === 's' ? ss[+v] : t === 'str' || t === 'inlineStr' || t === 'b' || t === 'e' ? v : +v; }
+      rows.set(ri, arr); }
+    const hr = [...rows.keys()].sort((a, b) => a - b).find(k => (rows.get(k) || []).some(v => typeof v === 'string' && v.trim() === 'Seq.')); if (!hr) continue;
+    const h1 = rows.get(hr) || [], h2 = rows.get(hr + 1) || [], ncol = Math.max(h1.length, h2.length), seqC = h1.findIndex(v => typeof v === 'string' && v.trim() === 'Seq.');
+    const lab = []; let par = '';
+    for (let i = 0; i < ncol; i++) { const a = String(h1[i] ?? '').replace(/\s+/g, ' ').trim(), s2 = String(h2[i] ?? '').replace(/\s+/g, ' ').trim(); if (a) par = a; const top = a || (s2 ? par : ''); lab[i] = top && s2 ? `${top} · ${s2}` : top || s2; }
+    const find = re => lab.findIndex(l => re.test(l)), fi = (re, after = 0) => lab.findIndex((l, i) => i >= after && re.test(l));
+    const C = { no:find(/^No\.?$/), lli:find(/^LLI/i), disc:find(/^Discipline/i), item:find(/^Item$/), buyer:find(/^PIC · Buyer/i), eng:find(/^PIC · Engineer/i), rq:find(/^Technical RQ/i), crit:find(/^Criticality/i),
+      po:find(/Awarded Vendor.* · PO No/i), vendor:find(/Awarded Vendor.* · Vendor/i), origin:find(/Awarded Vendor.* · Origin/i), tvendor:find(/Tender Stage.* · Vendor/i), qty:find(/입찰물량 · Q'?ty/i), desc:find(/입찰물량 · Description/i), remark:fi(/^Remark/i, seqC) };
+    const MS = SCH_MS.map(([k, , re]) => [k, fi(re, seqC + 1)]).filter(([, i]) => i >= 0);
+    for (const [ri, arr] of rows) for (let i = 0; i < arr.length; i++) if (typeof arr[i] === 'string' && /^As of$/i.test(arr[i].trim()) && typeof arr[i + 1] === 'number') asOf ||= xSerial(arr[i + 1]);   // 'As of' 칸
+    const type = /bulk/i.test(sh.name) ? 'Bulk' : 'Tagged'; let cur = null, cnt = 0;
+    const dv = v => typeof v === 'number' && v > 20000 && v < 80000 ? xSerial(v) : typeof v === 'string' && /^\d{2,4}-\d{1,2}-\d{1,2}$/.test(v.trim()) ? (v.trim().length === 8 ? '20' : '') + v.trim() : '';
+    for (const ri of [...rows.keys()].sort((a, b) => a - b)) { if (ri <= hr + 1) continue; const arr = rows.get(ri), seq = String(arr[seqC] ?? '').trim();
+      if (!/^(Baseline|Forecast|Actual)$/i.test(seq)) continue; const S = seq[0].toUpperCase() + seq.slice(1).toLowerCase();
+      if (S === 'Baseline' || !cur) { const g = i => i >= 0 ? String(arr[i] ?? '').replace(/\s+/g, ' ').trim() : '';
+        cur = { type, no:g(C.no), lli:g(C.lli).replace(/^-$/, ''), disc:g(C.disc) || '(공종 없음)', item:g(C.item), buyer:g(C.buyer), eng:g(C.eng).replace(/^TBD$/i, ''), rq:g(C.rq), crit:g(C.crit), po:g(C.po), vendor:g(C.vendor) || '', origin:g(C.origin), tvendor:g(C.tvendor), qty:g(C.qty), desc:g(C.desc), remark:g(C.remark), B:{}, F:{}, A:{} };
+        if (!cur.no && !cur.item) { cur = null; continue; } items.push(cur); cnt++; }
+      const box = cur[S[0]]; for (const [k, i] of MS) { const d = dv(arr[i]); if (d) box[k] = d; } }
+    used.push(`${sh.name} ${cnt}품목`);
+  }
+  if (!items.length) throw new Error("'Seq.' 머리글(Baseline / Forecast / Actual 3줄) 이 있는 시트를 찾지 못했습니다 — PSR 양식(Tagged · Bulk)인지 확인해 주세요");
+  return { items, asOf:asOf || new Date().toISOString().slice(0, 10), asOfFrom:asOf ? 'file' : 'today', file:file.name, sheets:used, at:new Date().toISOString(), by:AUTH?.name || user || '' };
+}
+/* ---------- 계산 ---------- */
+function schCalc(it, asOf) {
+  const keys = SCH_KEY.filter(k => it.B[k] || it.F[k] || it.A[k]); let last = -1;
+  keys.forEach((k, i) => { if (it.A[k]) last = i; });
+  const stage = last < 0 ? '착수 전' : SCH_NAME[keys[last]], nextK = keys[last + 1], done = it.A.SITE || (keys.length && last === keys.length - 1);
+  const nf = nextK ? it.F[nextK] || it.B[nextK] : '', over = nextK && nf && nf < asOf;
+  const siteB = it.B.SITE || it.B.SHIP, siteF = it.A.SITE || it.F.SITE || it.F.SHIP, slip = siteB && siteF ? schDays(siteF, siteB) : 0;
+  const poSlip = it.B.PO && (it.A.PO || it.F.PO) ? schDays(it.A.PO || it.F.PO, it.B.PO) : 0;
+  const st = done ? 'done' : slip > 30 ? 'late' : over ? 'over' : slip > 0 || poSlip > 14 ? 'warn' : 'ok';
+  return { keys, last, stage, nextK, nf, over, siteB, siteF, slip, poSlip, st, prog:keys.length ? (last + 1) / keys.length : 0 };
+}
+const SCH_ST = { done:['✔ 현장 도착', '#16a34a'], late:['⚠ 현장 지연', '#dc2626'], over:['⏰ 일정 지남', '#c2410c'], warn:['주의', '#d97706'], ok:['정상', '#2563eb'] };
+async function schLoad(force) { if (SCH.loaded && !force) return SCH.data; SCH.loaded = true; if (!SERVER || OFFLINE) return SCH.data; try { const d = await api('GET', 'sched/co2'); SCH.data = d && d.items ? d : null; } catch (_) {} return SCH.data; }
+async function schSave(d) { if (!SERVER || OFFLINE) return toast('서버에 접속했을 때만 저장돼요 — 지금은 이 화면에서만 보여요', true); try { await api('PUT', 'sched/co2', d); toast(`구매 일정 ${d.items.length}품목을 저장했습니다 — 모든 부서원에게 같은 현황판이 보입니다`); } catch (e) { toast('저장 실패: ' + e.message, true); } }
+async function schUpload(files) {
+  const f = [...files].find(x => /\.xlsx$/i.test(x.name)); if (!f) return toast('.xlsx 엑셀 파일을 올려 주세요', true);
+  if (noEdit() || !can('runpjt')) return toast('🔒 실행 프로젝트 메뉴 권한이 있는 부서원만 올릴 수 있어요', true);
+  toast(`📥 ${f.name} 읽는 중…`);
+  try { const d = await schParse(f); SCH.data = d; SCH.open.clear(); render(); await schSave(d); } catch (e) { toast('읽기 실패: ' + e.message, true); }
+}
+/* ---------- 화면 ---------- */
+function renderSched(c) {
+  if (!SCH.loaded) { c.insertAdjacentHTML('beforeend', '<div class="card"><div class="empty">구매 일정 불러오는 중…</div></div>'); schLoad().then(() => { if (route === 'co2sched') render(); }); return; }
+  const d = SCH.data, F = SCH.f, canUp = !noEdit() && can('runpjt');
+  const drop = `<label class="schdrop ${d ? 'mini' : ''}" id="schDrop"><input type="file" id="schFile" accept=".xlsx" hidden><span class="sdi">📥</span><b>${d ? 'PSR 엑셀 새로 올리기' : 'PSR 엑셀(.xlsx)을 여기로 끌어다 놓거나 눌러서 고르세요'}</b>${d ? '' : `<span class="muted">Tagged · Bulk 시트의 품목별 Baseline / Forecast / Actual 일정을 읽어 현황판을 만들어요 · 파일은 브라우저 안에서 읽고, 읽은 일정만 서버에 저장해 모든 부서원이 같이 봅니다</span>`}</label>`;
+  const head = `<section class="whero sch-hero"><div class="wh-top"><div><h2>📦 CO2 PJT · 구매 일정 현황판 <small style="font-weight:600;opacity:.85">PSR</small></h2>
+    <p>${d ? `기준일(As of) <b>${esc(d.asOf)}</b>${d.asOfFrom === 'today' ? ' (파일에 없어 올린 날)' : ''} · ${esc(d.file)} (${esc(d.sheets.join(' · '))}) · ${esc(d.by)} ${esc(fmtTime(d.at))} 올림` : 'MR → RFQ → TBE → CBE → PO → KOM → Key V/D → 제작 → FAT → 선적 → 현장 도착 까지 품목별 계획 · 전망 · 실적을 한눈에'}</p></div>${canUp && d ? drop : ''}</div>`;
+  if (!d) { c.insertAdjacentHTML('beforeend', `<div id="schv">${head}</section><section class="card">${canUp ? drop : '<div class="empty">아직 올라온 PSR 이 없어요 (올리기는 실행 프로젝트 권한이 있는 부서원)</div>'}</section></div>`); return schBind(); }
+  const asOf = d.asOf, all = d.items.map(it => ({ it, k:schCalc(it, asOf) }));
+  const discs = [...new Set(d.items.map(i => i.disc))].sort();
+  const vis = all.filter(({ it, k }) => (!F.type || it.type === F.type) && (!F.disc || it.disc === F.disc) && (!F.late || k.st === F.late) && (!F.q || `${it.no} ${it.item} ${it.vendor} ${it.buyer} ${it.eng} ${it.origin}`.toLowerCase().includes(F.q.toLowerCase())));
+  const cnt = st => vis.filter(x => x.k.st === st).length, poDone = vis.filter(x => x.it.A.PO).length, onsite = vis.filter(x => x.k.st === 'done').length;
+  // 조달 준수율 = 기준일까지 계획된 마일스톤 중 실적이 들어온 비율 (계획 Baseline 기준)
+  let plan = 0, act = 0; const per = SCH_KEY.map(k => { let p = 0, a = 0, f = 0; vis.forEach(({ it }) => { if (it.B[k] && it.B[k] <= asOf) { p++; if (it.A[k]) a++; } if (it.A[k]) f++; }); plan += p; act += Math.min(a, p); return { k, p, a, f }; });
+  const rate = plan ? Math.round(act / plan * 100) : 0, slips = vis.filter(x => x.k.slip).map(x => x.k.slip), avgSlip = slips.length ? Math.round(slips.reduce((a, b) => a + b, 0) / slips.length) : 0;
+  const ring = `<svg viewBox="0 0 42 42" class="wring"><circle cx="21" cy="21" r="16" fill="none" stroke="rgba(255,255,255,.25)" stroke-width="5"/><circle cx="21" cy="21" r="16" fill="none" stroke="#fff" stroke-width="5" stroke-linecap="round" stroke-dasharray="${rate * 1.005} 100.5" transform="rotate(-90 21 21)"/></svg>`;
+  const chip = (k, v, l, n) => `<button class="wtc ${F[k] === v ? 'on' : ''}" data-schf="${k}|${esc(v)}">${esc(l)} <b>${n}</b></button>`;
+  const kpi = (l, n, sub, icon, cls, f = '') => `<button class="wk ${cls} ${f && F.late === f.split('|')[1] ? 'on' : ''}" ${f ? `data-schf="${f}"` : ''}><span class="wki">${icon}</span><span class="wkl">${l}</span><span class="wkv">${n}</span><span class="wks">${sub}</span></button>`;
+  const mx = Math.max(1, ...per.map(x => Math.max(x.p, x.f)));
+  const funnel = per.map(x => `<div class="sfr" data-tip="${esc(`${SCH_NAME[x.k]} — 기준일까지 계획 ${x.p} · 그중 실적 ${Math.min(x.a, x.p)} · 실적 전체 ${x.f}`)}"><span class="sfn">${esc(SCH_NAME[x.k])}</span><span class="sfb"><i class="p" style="width:${x.p / mx * 100}%"></i><i class="a" style="width:${x.f / mx * 100}%"></i></span><span class="sfv">${x.f}<small>/${x.p}</small></span></div>`).join('');
+  const dg = discs.map(dn => { const r = vis.filter(x => x.it.disc === dn); return { dn, n:r.length, po:r.filter(x => x.it.A.PO).length, late:r.filter(x => x.k.st === 'late').length }; }).filter(x => x.n);
+  const dmx = Math.max(1, ...dg.map(x => x.n));
+  const discHtml = dg.map(x => `<button class="ppr ${F.disc === x.dn ? 'on' : ''}" data-schf="disc|${esc(x.dn)}"><span class="ppn">${esc(x.dn)}</span><span class="pbar"><span class="pl" style="width:${x.po / dmx * 100}%"></span><span class="pe" style="width:${(x.n - x.po) / dmx * 100}%"></span></span><span class="ppv">${x.po}/${x.n}${x.late ? ` <small class="sl">지연 ${x.late}</small>` : ''}</span></button>`).join('');
+  const soonEnd = new Date(schD(asOf).getTime() + 30 * 864e5).toISOString().slice(0, 10), soon = [];
+  let pastN = 0; vis.forEach(({ it }) => SCH_KEY.forEach(k => { const f = it.F[k] || it.B[k]; if (!f || it.A[k]) return; if (f < asOf) pastN++; else if (f <= soonEnd) soon.push({ it, k, f, over:false }); }));
+  soon.sort((a, b) => a.f.localeCompare(b.f));
+  const soonHtml = soon.slice(0, 14).map(s => `<div class="ssn ${s.over ? 'over' : ''}" data-schopen="${esc(s.it.type + '|' + s.it.no)}"><span class="sd">${schFmt(s.f)}</span><span class="sk">${esc(SCH_NAME[s.k])}</span><span class="si">${esc(s.it.no)} ${esc(trunc(s.it.item, 26))}</span>${s.over ? `<span class="sov">${schDays(asOf, s.f)}일 지남</span>` : ''}</div>`).join('') || '<div class="empty">기준일 뒤 30일 안에 예정된 일정이 없어요</div>';
+  // 간트: 전체 기간
+  const allD = vis.flatMap(({ it }) => [...Object.values(it.B), ...Object.values(it.F), ...Object.values(it.A)]).sort(), t0 = allD[0] || asOf, t1 = allD[allD.length - 1] || asOf;
+  const span = Math.max(30, schDays(t1, t0)), X = s => Math.max(0, Math.min(100, schDays(s, t0) / span * 100));
+  const months = []; for (let m = new Date(schD(t0).getFullYear(), schD(t0).getMonth(), 1); m <= schD(t1); m.setMonth(m.getMonth() + (span > 900 ? 6 : 3))) months.push(m.toISOString().slice(0, 10));
+  const sorted = vis.slice().sort(F.sort === 'site' ? (a, b) => (a.k.siteF || '9').localeCompare(b.k.siteF || '9') : F.sort === 'no' ? (a, b) => a.it.type.localeCompare(b.it.type) || a.it.no.localeCompare(b.it.no) : (a, b) => b.k.slip - a.k.slip || (b.k.st === 'over') - (a.k.st === 'over'));
+  const bar = (it, k) => { const s1 = it.B.MR || it.B[k.keys[0]], e1 = k.siteB, s2 = it.F.MR || it.A.MR || s1, e2 = k.siteF, la = k.last >= 0 ? it.A[k.keys[k.last]] : '';
+    return `<div class="sgb">${s1 && e1 ? `<i class="gb" style="left:${X(s1)}%;width:${Math.max(.6, X(e1) - X(s1))}%"></i>` : ''}${s2 && e2 ? `<i class="gf ${k.st}" style="left:${X(s2)}%;width:${Math.max(.6, X(e2) - X(s2))}%"></i>` : ''}${s2 && la ? `<i class="ga" style="left:${X(s2)}%;width:${Math.max(.4, X(la) - X(s2))}%"></i>` : ''}${['PO', 'FAT', 'SITE'].map(m => (it.A[m] || it.F[m]) ? `<i class="gm ${it.A[m] ? 'a' : ''}" style="left:${X(it.A[m] || it.F[m])}%" title="${SCH_NAME[m]} ${it.A[m] ? '실적' : '전망'} ${it.A[m] || it.F[m]}"></i>` : '').join('')}</div>`; };
+  const detail = it => `<tr class="sdet"><td colspan="8"><div class="sdw"><table class="t sdt"><thead><tr><th>구분</th>${SCH_MS.filter(([k]) => it.B[k] || it.F[k] || it.A[k]).map(([k, n]) => `<th>${esc(n)}</th>`).join('')}</tr></thead><tbody>${[['B', '계획'], ['F', '전망'], ['A', '실적']].map(([s, l]) => `<tr><td class="key">${l}</td>${SCH_MS.filter(([k]) => it.B[k] || it.F[k] || it.A[k]).map(([k]) => { const v = it[s][k], late = s !== 'B' && v && it.B[k] && v > it.B[k]; return `<td class="${late ? 'sl' : ''}">${schFmt(v)}</td>`; }).join('')}</tr>`).join('')}</tbody></table>
+    <div class="sdm">${[['Buyer', it.buyer], ['Engineer', it.eng], ['Technical RQ', it.rq], ['Criticality', it.crit], ['PO No', it.po], ['Vendor', [it.vendor || it.tvendor, it.origin].filter(Boolean).join(' · ')], ['입찰물량', [it.desc, it.qty].filter(Boolean).join(' ')], ['Remark', it.remark]].filter(x => x[1]).map(([a, b]) => `<span><small>${a}</small>${esc(b)}</span>`).join('')}</div></div></td></tr>`;
+  const rows = sorted.map(({ it, k }) => { const id = it.type + '|' + it.no, op = SCH.open.has(id);
+    return `<tr class="srow ${op ? 'open' : ''}" data-schopen="${esc(id)}"><td class="key"><b>${esc(it.no)}</b><small class="stp ${it.type}">${it.type === 'Bulk' ? 'B' : 'T'}</small>${it.lli ? '<small class="slli">LLI</small>' : ''}</td><td>${esc(it.disc)}</td><td class="sitem">${esc(it.item)}<small>${esc([it.vendor || it.tvendor, it.origin].filter(Boolean).join(' · ') || (it.buyer ? 'Buyer ' + it.buyer : ''))}</small></td>
+      <td><span class="sstg" style="--p:${Math.round(k.prog * 100)}%">${esc(k.stage)}</span></td><td class="${k.over ? 'sl' : ''}">${k.nextK ? `${esc(SCH_NAME[k.nextK])}<small>${schFmt(k.nf)}${k.over ? ` · ${schDays(asOf, k.nf)}일 지남` : ''}</small>` : '-'}</td>
+      <td class="cdate">${schFmt(k.siteB)}<small>→ ${schFmt(k.siteF)}</small></td><td class="cnum">${k.slip ? `<b class="${k.slip > 30 ? 'sl' : k.slip > 0 ? 'sw' : 'sg'}">${k.slip > 0 ? '+' : ''}${k.slip}일</b>` : '<span class="muted">0</span>'}<small style="color:${SCH_ST[k.st][1]}">${SCH_ST[k.st][0]}</small></td><td class="sgc">${bar(it, k)}</td></tr>${op ? detail(it) : ''}`; }).join('');
+  const nowX = X(asOf);
+  c.insertAdjacentHTML('beforeend', `<div id="schv">${head}<div class="wtypes">${chip('type', '', '전체', d.items.length)}${chip('type', 'Tagged', 'Tagged', d.items.filter(i => i.type === 'Tagged').length)}${chip('type', 'Bulk', 'Bulk', d.items.filter(i => i.type === 'Bulk').length)}<span class="wsep"></span>${discs.map(dn => chip('disc', dn, dn, d.items.filter(i => i.disc === dn).length)).join('')}</div></section>
+    <div class="wkpis schkpis"><div class="wk wk-main"><span class="wkl">조달 준수율 (기준일까지 계획 대비 실적)</span><span class="wkr">${ring}<span class="wkv">${rate}<small>%</small></span></span><span class="wks">계획 ${plan}건 중 실적 ${act}건 · 마일스톤 12단계</span></div>
+      ${kpi('PO 발행', `${poDone}<small>/${vis.length}</small>`, `PO 전 ${vis.length - poDone}품목`, '🧾', 'wk-run')}${kpi('현장 도착 지연', cnt('late'), '전망이 계획보다 30일+ 늦음 · 누르면 그 품목만', '⚠', 'wk-soon', 'late|late')}${kpi('일정 지남', cnt('over'), '다음 일정 날짜가 지났는데 실적 미입력', '⏰', 'wk-perm', 'late|over')}${kpi('주의', cnt('warn'), '현장 도착 조금 늦음 · PO 2주+ 늦음', '△', 'wk-run', 'late|warn')}${kpi('현장 도착', onsite, slips.length ? `늦는 품목 ${slips.filter(x => x > 0).length}개 · 평균 ${avgSlip >= 0 ? '+' : ''}${avgSlip}일` : '전망 = 계획', '🏁', 'wk-done')}</div>
+    <div class="wgrid schgrid"><section class="card"><h2>📊 단계별 진척 <span class="muted">· 막대 = 실적 품목 수 · 연한 막대 = 기준일까지 계획</span></h2>${funnel}<div class="wleg"><span><i style="background:#c7d2fe"></i>계획(기준일까지)</span><span><i style="background:#4f46e5"></i>실적</span></div></section>
+      <section class="card"><h2>🔧 공종별 PO 발행 <span class="muted">· 누르면 그 공종만</span></h2>${discHtml}<div class="wleg"><span><i style="background:var(--accent)"></i>PO 발행</span><span><i style="background:#c3c8d6"></i>PO 전</span></div></section>
+      <section class="card"><h2>📅 다가오는 30일 <span class="muted">· 기준일 이후 전망 일정 ${soon.length}건${pastN ? ` · 이미 지난(실적 미입력) ${pastN}건은 <button class="linkbtn" data-schf="late|over">일정 지남</button>` : ''}</span></h2><div class="ssoon">${soonHtml}</div></section></div>
+    ${F.disc ? schDiscBoard(vis, asOf, F.disc) : ''}
+    <section class="card"><h2>🗂 품목별 일정 <span class="muted">· ${vis.length}품목 · 줄을 누르면 마일스톤 전체(계획 · 전망 · 실적) · 회색 = 계획, 색 = 전망, 진한 색 = 실적까지, ◆ = PO · FAT · 현장 도착</span></h2>
+      <div class="fbar"><label>검색<input id="schQ" value="${esc(F.q)}" placeholder="No · 품목 · 업체 · 담당"></label><label>정렬<select id="schSort"><option value="delay" ${F.sort === 'delay' ? 'selected' : ''}>지연 큰 순</option><option value="site" ${F.sort === 'site' ? 'selected' : ''}>현장 도착 빠른 순</option><option value="no" ${F.sort === 'no' ? 'selected' : ''}>번호 순</option></select></label><label>상태<select id="schLate"><option value="">전체</option>${Object.entries(SCH_ST).map(([k, [l]]) => `<option value="${k}" ${F.late === k ? 'selected' : ''}>${l}</option>`).join('')}</select></label>${F.type || F.disc || F.q || F.late ? '<button class="btn sm" data-schf="reset|">필터 초기화</button>' : ''}<button class="btn sm" data-schxl>⬇ 엑셀로</button></div>
+      <div class="tw sgw"><table class="t schtab"><colgroup><col style="width:96px"><col style="width:76px"><col style="width:250px"><col style="width:104px"><col style="width:118px"><col style="width:104px"><col style="width:92px"><col></colgroup><thead><tr><th class="key">No</th><th>공종</th><th>품목 · 업체</th><th>현재 단계</th><th class="cdate">다음 일정</th><th class="cdate">현장 도착 계획→전망</th><th class="cnum">지연</th><th class="sgh"><div class="sgx">${months.map(m => `<span style="left:${X(m)}%">${m.slice(2, 7).replace('-', '.')}</span>`).join('')}<i class="snow" style="left:${nowX}%"><b>기준일</b></i></div></th></tr></thead><tbody>${rows || '<tr><td colspan="8"><div class="empty">조건에 맞는 품목이 없어요</div></td></tr>'}</tbody></table></div></section></div>`);
+  $('#schv .schtab')?.style.setProperty('--now', nowX + '%');
+  schBind();
+}
+/* 공종을 고르면: 그 공종 품목별 일정판 — 단계 블록(입찰 · 발주 · 설계/제작 · 검사/선적 · 운송)을 달력 줄에 (참고 그림처럼 연한 색 블록 + 왼쪽 진한 줄) */
+const SCH_PH = [['입찰', 'MR', 'AWD', 'p1'], ['발주', 'AWD', 'KOM', 'p2'], ['설계 · 제작', 'KOM', 'MFG_F', 'p3'], ['검사 · 선적', 'MFG_F', 'SHIP', 'p4'], ['운송', 'SHIP', 'SITE', 'p5']];
+function schDiscBoard(rows, asOf, disc) {
+  if (!rows.length) return '';
+  const dt = (it, k) => it.A[k] || it.F[k] || it.B[k] || '';
+  const ds = rows.flatMap(({ it }) => SCH_PH.flatMap(([, a, b]) => [dt(it, a), dt(it, b)])).filter(Boolean).sort();
+  const t0 = ds[0].slice(0, 7) + '-01', end = ds[ds.length - 1], t1d = new Date(schD(end).getFullYear(), schD(end).getMonth() + 1, 1), t1 = t1d.toISOString().slice(0, 10);
+  const span = Math.max(31, schDays(t1, t0)), X = d => Math.max(0, Math.min(100, schDays(d, t0) / span * 100));
+  const months = []; for (let m = new Date(schD(t0)); m < t1d; m.setMonth(m.getMonth() + 1)) months.push(new Date(m).toISOString().slice(0, 10));
+  const step = months.length > 30 ? 3 : months.length > 18 ? 2 : 1;
+  const head = months.map((m, i) => `<span class="dbm ${i % step ? 'nol' : ''}" style="left:${X(m)}%">${i % step ? '' : (m.slice(5, 7) === '01' || i === 0 ? m.slice(0, 4) + '.' : '') + +m.slice(5, 7) + '월'}</span>`).join('');
+  const grid = months.map(m => `<i style="left:${X(m)}%"></i>`).join('');
+  const line = ({ it, k }) => { const blocks = SCH_PH.map(([n, a, b, c]) => { const s1 = dt(it, a), e1 = dt(it, b); if (!s1 || !e1 || e1 < s1) return '';
+      const done = !!it.A[b], now = !done && !!it.A[a], late = it.B[b] && dt(it, b) > it.B[b];
+      return `<b class="dbk ${c} ${done ? 'done' : now ? 'now' : ''}" style="left:${X(s1)}%;width:${Math.max(.5, X(e1) - X(s1))}%" title="${esc(`${it.no} · ${n}: ${s1} → ${e1}${done ? ' (완료)' : now ? ' (진행 중)' : ''}${late ? ` · 계획 ${it.B[b]} 보다 늦음` : ''}`)}"><span>${n}${late ? ' ⚠' : ''}</span></b>`; }).join('');
+    const ms = [['PO', '🧾'], ['FAT', '🔍'], ['SITE', '🏁']].map(([m, ic]) => { const v = dt(it, m); return v ? `<em class="dbx ${it.A[m] ? 'a' : ''}" style="left:${X(v)}%" title="${SCH_NAME[m]} ${it.A[m] ? '실적' : '전망'} ${v}">${ic}</em>` : ''; }).join('');
+    return `<div class="dbr" data-schopen="${esc(it.type + '|' + it.no)}"><div class="dbl"><b>${esc(it.no)}</b><span>${esc(it.item)}</span><small style="color:${SCH_ST[k.st][1]}">${esc(k.stage)}${k.slip ? ` · 현장 ${k.slip > 0 ? '+' : ''}${k.slip}일` : ''}</small></div><div class="dbt">${grid}${blocks}${ms}</div></div>`; };
+  return `<section class="card dboard"><h2>🔧 ${esc(disc)} · 품목별 일정판 <span class="muted">· ${rows.length}품목 · 단계 블록 = 실적 → 전망(없으면 계획) · 진한 블록 = 끝난 단계 · 테두리 = 진행 중 · ⚠ = 계획보다 늦음 · 🧾 PO 🔍 FAT 🏁 현장 도착 · 줄을 누르면 아래 표에서 상세</span>
+      <button class="btn sm" data-schf="disc|${esc(disc)}" style="float:right">✕ 공종 해제</button></h2>
+    <div class="dbleg">${SCH_PH.map(([n, , , c]) => `<span><i class="${c}"></i>${n}</span>`).join('')}</div>
+    <div class="dbw"><div class="dbr dbh"><div class="dbl">품목</div><div class="dbt">${head}<i class="dbnow" style="left:${X(asOf)}%"><b>기준일</b></i></div></div>
+    ${rows.slice().sort((a, b) => (dt(a.it, 'MR') || '9').localeCompare(dt(b.it, 'MR') || '9')).map(line).join('')}<div class="dbnowl" style="--x:${X(asOf)}"></div></div></section>`;
+}
+function schBind() {
+  const v = $('#schv'); if (!v) return; const F = SCH.f;
+  const fi = $('#schFile'); if (fi) fi.onchange = () => { schUpload(fi.files); fi.value = ''; };
+  const dz = $('#schDrop'); if (dz) { dz.ondragover = e => { e.preventDefault(); dz.classList.add('on'); }; dz.ondragleave = () => dz.classList.remove('on'); dz.ondrop = e => { e.preventDefault(); dz.classList.remove('on'); schUpload(e.dataTransfer.files); }; }
+  v.ondragover = e => { if ([...(e.dataTransfer?.types || [])].includes('Files')) e.preventDefault(); }; v.ondrop = e => { if (e.target.closest('#schDrop') || !e.dataTransfer?.files?.length) return; e.preventDefault(); schUpload(e.dataTransfer.files); };
+  v.onclick = e => {
+    const f = e.target.closest('[data-schf]'); if (f) { const [k, val] = f.dataset.schf.split('|'); if (k === 'reset') Object.assign(F, { type:'', disc:'', q:'', late:'' }); else F[k] = F[k] === val ? '' : val; return render(); }
+    if (e.target.closest('[data-schxl]')) return schXlsx();
+    const o = e.target.closest('[data-schopen]'); if (o && !e.target.closest('.sdet')) { const id = o.dataset.schopen, jump = o.classList.contains('ssn') || o.classList.contains('dbr'); SCH.open.has(id) && !jump ? SCH.open.delete(id) : SCH.open.add(id); render(); if (jump) setTimeout(() => $(`#schv tr.srow[data-schopen="${CSS.escape(id)}"]`)?.scrollIntoView({ block:'center' }), 50); }
+  };
+  const q = $('#schQ'); if (q) q.oninput = () => { clearTimeout(SCH.qt); SCH.qt = setTimeout(() => { F.q = q.value.trim(); render(); setTimeout(() => { const n = $('#schQ'); if (n) { n.focus(); n.setSelectionRange(n.value.length, n.value.length); } }, 0); }, 300); };
+  const so = $('#schSort'); if (so) so.onchange = () => { F.sort = so.value; render(); };
+  const la = $('#schLate'); if (la) la.onchange = () => { F.late = la.value; render(); };
+}
+function schXlsx() {   // 현황판 표 그대로 엑셀로 (계획 · 전망 · 실적 · 지연)
+  const d = SCH.data; if (!d) return; const st = { s:ST.HEAD }, cols = ['구분', 'No', '공종', '품목', 'Buyer', 'Engineer', 'Vendor', 'Origin', '현재 단계', '다음 일정', '다음 일정 날짜', '현장 도착(계획)', '현장 도착(전망)', '지연(일)', '상태', ...SCH_KEY.flatMap(k => [`${SCH_NAME[k]} 계획`, `${SCH_NAME[k]} 전망`, `${SCH_NAME[k]} 실적`])];
+  const rows = d.items.map(it => { const k = schCalc(it, d.asOf); return [it.type, it.no, it.disc, it.item, it.buyer, it.eng, it.vendor || it.tvendor, it.origin, k.stage, k.nextK ? SCH_NAME[k.nextK] : '', k.nf, k.siteB, k.siteF, k.slip, SCH_ST[k.st][0], ...SCH_KEY.flatMap(m => [it.B[m] || '', it.F[m] || '', it.A[m] || ''])]; });
+  const sheet = { name:'구매 일정 현황', widths:cols.map((_, i) => i < 4 ? 16 : 12), tab:false, rows:[cols.map(v => ({ ...st, v })), ...rows.map(r => r.map(v => ({ v:v ?? '', s:ST.BODY })))] };
+  const { blob } = buildXlsx([sheet]), a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `CO2 PJT 구매 일정 현황_${d.asOf}.xlsx`; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 3000);
+}
+
+/* 클로드 비서: "구매 일정 지연 품목" · "PSR 현황" · "PO 몇 개 나갔어" · "J0400 일정" */
+function botSched(q) {
+  if (!/구매\s*일정|psr|조달|발주\s*현황|po\s*(발행|몇|현황)|현장\s*도착|납기|schedule|스케줄|구매\s*현황/i.test(q) && !(SCH.data && SCH.data.items.some(it => it.no && new RegExp('\\b' + it.no.replace(/[-]/g, '\\-') + '\\b', 'i').test(q)))) return null;
+  if (!can('runpjt')) return { html:'🔒 실행 프로젝트 메뉴 권한이 없어서 구매 일정을 볼 수 없어요.', acts:[] };
+  if (!SCH.loaded) return { html:'', acts:[], run:async () => { await schLoad(); const r = botSched(q); if (r) { if (r.html || r.acts.length) botSay('bot', r.html, r.acts); if (r.run) r.run(); } } };
+  const d = SCH.data; if (!d) return { html:'아직 올라온 PSR(구매 일정)이 없어요. 실행 프로젝트 › CO2 PJT › Schedule 에 PSR 엑셀을 끌어다 놓으면 현황판이 생겨요.', acts:[{ l:'Schedule 열기', fn:() => go('co2sched') }] };
+  const all = d.items.map(it => ({ it, k:schCalc(it, d.asOf) })), one = all.find(x => x.it.no && new RegExp('\\b' + x.it.no.replace(/[-]/g, '\\-') + '\\b', 'i').test(q));
+  const openOne = x => () => { SCH.open.add(x.it.type + '|' + x.it.no); go('co2sched'); setTimeout(() => $(`#schv tr.srow[data-schopen="${CSS.escape(x.it.type + '|' + x.it.no)}"]`)?.scrollIntoView({ block:'center' }), 600); };
+  if (one) { const { it, k } = one; return { html:`📦 <b>${esc(it.no)} ${esc(it.item)}</b> (${esc(it.type)} · ${esc(it.disc)})<br>지금 단계는 <b>${esc(k.stage)}</b>이고, 다음은 ${k.nextK ? `<b>${esc(SCH_NAME[k.nextK])}</b> ${esc(k.nf)}${k.over ? ` — <b style="color:#dc2626">${schDays(d.asOf, k.nf)}일 지났어요</b>` : ''}` : '없어요'}.<br>현장 도착은 계획 ${esc(k.siteB || '-')} → 전망 ${esc(k.siteF || '-')}${k.slip ? ` (<b>${k.slip > 0 ? '+' : ''}${k.slip}일</b>)` : ''}. ${it.vendor ? `업체 ${esc(it.vendor)}${it.origin ? ' · ' + esc(it.origin) : ''}.` : ''}`, acts:[{ l:'현황판에서 보기', fn:openOne(one) }] }; }
+  const late = all.filter(x => x.k.st === 'late').sort((a, b) => b.k.slip - a.k.slip), over = all.filter(x => x.k.st === 'over'), po = all.filter(x => x.it.A.PO).length;
+  const list = (xs, n = 5) => xs.slice(0, n).map(x => `· ${esc(x.it.no)} ${esc(trunc(x.it.item, 28))} — ${x.k.slip ? `현장 도착 ${x.k.slip > 0 ? '+' : ''}${x.k.slip}일` : `${esc(SCH_NAME[x.k.nextK] || '')} ${schDays(d.asOf, x.k.nf)}일 지남`}`).join('<br>');
+  const goF = v => () => { SCH.f.late = v; go('co2sched'); };
+  if (/지연|늦|밀린|delay/i.test(q)) return { html:`기준일 ${esc(d.asOf)} 기준으로 현장 도착이 30일 넘게 늦는 품목이 <b>${late.length}개</b>예요${late.length ? ':<br>' + list(late) : '.'}${over.length ? `<br><br>그리고 다음 일정이 지났는데 실적이 안 들어온 품목이 ${over.length}개 있어요.` : ''}`, acts:[{ l:'지연 품목만 보기', fn:goF('late') }, ...(over.length ? [{ l:'일정 지남 보기', fn:goF('over') }] : [])] };
+  return { html:`📦 CO2 PJT 구매 일정 (기준일 ${esc(d.asOf)}, ${d.items.length}품목)<br>PO 발행 <b>${po}</b>개 · 현장 도착 지연 <b>${late.length}</b>개 · 일정 지남 <b>${over.length}</b>개 · 현장 도착 완료 <b>${all.filter(x => x.k.st === 'done').length}</b>개${late.length ? '<br><br>가장 많이 늦는 품목:<br>' + list(late, 3) : ''}`, acts:[{ l:'현황판 열기', fn:() => go('co2sched') }, ...(late.length ? [{ l:'지연 품목만', fn:goF('late') }] : [])] };
+}
+
 function renderModule(c, key) {
   const m = MODULES[key];
   if (!m.src) {
@@ -4066,14 +4315,15 @@ function render() {
   else if (route === 'mghours') renderHours(c);
   else if (route === 'mgwork') renderWork(c);
   else if (route === 'mgbday') renderBday(c);
+  else if (route === 'co2sched') renderSched(c);
   else renderSheet(c, SHEET[route] || SHEETS[0]);
   window.scrollTo(0, sy);
   const tw2 = $('.tw'); if (tw2 && tx) { tw2.scrollLeft = tx[0]; tw2.scrollTop = tx[1]; }
   if (route === 'home') placePlaza();
 }
 /* 메뉴 구성: 주간업무보고(홈 대시보드 + 하위 시트 9개) / P&ID 분석 / 입찰 프로젝트 / 실행 프로젝트 / 익명게시판 */
-const ROUTES = ['home', 'work', 'alloc', 'board', 'bidpjt', 'runpjt', 'valve', 'globev', 'bflyv', 'psv', 'finstagram', 'pid', 'logic', 'logicdraw', 'space', 'books', 'ic3d', 'mgmt', 'mgalloc', 'mghours', 'mgwork', 'mgbday'];   // mgwork = 근로시간 관리(근태 시스템 엑셀 · 52h) · mgbday = 부서원 생일
-const RUN_LEAVES = ['valve', 'globev', 'bflyv', 'psv'];   // 실행 프로젝트 › CO2 PJT › Datasheet 아래 잎 (권한 = runpjt)
+const ROUTES = ['home', 'work', 'alloc', 'board', 'bidpjt', 'runpjt', 'valve', 'globev', 'bflyv', 'psv', 'co2sched', 'finstagram', 'pid', 'logic', 'logicdraw', 'space', 'books', 'ic3d', 'mgmt', 'mgalloc', 'mghours', 'mgwork', 'mgbday'];   // mgwork = 근로시간 관리(근태 시스템 엑셀 · 52h) · mgbday = 부서원 생일
+const RUN_LEAVES = ['valve', 'globev', 'bflyv', 'psv', 'co2sched'];   // + co2sched = CO2 PJT › Schedule(구매 일정 현황판, 2026-11-09)   // 실행 프로젝트 › CO2 PJT › Datasheet 아래 잎 (권한 = runpjt)
 const MG_ROUTES = ['mgmt', 'mgalloc', 'mghours', 'mgwork', 'mgbday'];   // logic = LOGIC 분석 (P&ID 와 같은 방식)   // mgmt = Management 머리(→ mgalloc) · mgalloc = R&R·투입 분석(시간 병기) · mghours = 근무시간(월·주·일)   // work = 예전 통합 업무 주소 → #task 로 바꿈 · alloc = R&R·투입 분석 · bidpjt/runpjt/mgmt = MODULES(준비 중), pid = P&ID 분석
 const menuOf = r => (r === 'home' || r === 'work' || r === 'alloc' || SHEET[r]) ? 'weekly' : MG_ROUTES.includes(r) ? 'mgmt' : r === 'logicdraw' ? 'logic' : RUN_LEAVES.includes(r) ? 'runpjt' : r;   // 화면(route) → 권한 메뉴 키
 const validRoute = k => ROUTES.includes(k) || !!SHEET[k];
@@ -4116,7 +4366,7 @@ function renderMenu() {
   const runTree = () => `<div class="mgrp ${route === 'runpjt' || RUN_LEAVES.includes(route) ? 'act' : ''}">
        <div class="mhead">${btn({ k:'runpjt', l:'실행 프로젝트', n:'', c:0 }, 'top')}
          <button class="mtog" data-tog="runpjt" title="하위 메뉴 ${NAV_OPEN.runpjt ? '접기' : '펼치기'}" aria-label="하위 메뉴 접기/펼치기">${NAV_OPEN.runpjt ? '▾' : '▸'}</button></div>
-       <div class="msub" ${NAV_OPEN.runpjt ? '' : 'hidden'}>${fold('runpjt-co2', 'CO2 PJT', fold('runpjt-co2-ds', 'Datasheet', [['valve', 'Ball Valve'], ['globev', 'Globe Valve'], ['bflyv', 'Butterfly Valve'], ['psv', 'PSV']].map(([k, l]) => btn({ k, l, n:'', c:0 }, 'subi')).join('')))}</div></div>`;
+       <div class="msub" ${NAV_OPEN.runpjt ? '' : 'hidden'}>${fold('runpjt-co2', 'CO2 PJT', fold('runpjt-co2-ds', 'Datasheet', [['valve', 'Ball Valve'], ['globev', 'Globe Valve'], ['bflyv', 'Butterfly Valve'], ['psv', 'PSV']].map(([k, l]) => btn({ k, l, n:'', c:0 }, 'subi')).join('')) + btn({ k:'co2sched', l:'Schedule', n:SCH.data ? SCH.data.items.length : '', c:0 }, 'subi'))}</div></div>`;
   // 권한이 있는 메뉴만 표시 (운영자가 ⚙ 메뉴 권한 설정에서 사용자별로 부여, Management 는 기본 비허용)
   $('#menu').innerHTML =
     (can('weekly') ? group('weekly', { k:'home', l:'주간업무보고', n:'', c:NAV_OPEN.weekly ? 0 : subNew, t:'하위 메뉴의 수정·변경된 행' }, sub, inWeekly) : '') +
@@ -4323,7 +4573,7 @@ function ddayChip() {
 }
 /* 2026-10-23 빠른 찾기 (Ctrl+K · 🔍 찾기): 메뉴 이름 · 모든 시트의 행(제목·내용·담당자) · 게시글 제목을 한 번에 → 누르면 그 자리로 이동 */
 const QF_MENUS = () => [['home', '📋 주간업무보고 홈'], ...SHEETS.filter(s => !s.merged).map(s => [s.key, s.label]), ['alloc', 'R&R · 투입 분석'], ['task', '통합 업무'],
-  ['pid', 'P&ID 분석'], ['logic', 'LOGIC 분석'], ['logicdraw', 'LOGIC 분석 · LOGIC 작성'], ['space', 'ROOM SIZE 계산'], ['books', '도서검토'], ['ic3d', '3D 계측제어'], ['bidpjt', '입찰 프로젝트'], ['runpjt', '실행 프로젝트'], ['valve', '실행 프로젝트 · CO2 PJT · Ball Valve'], ['globev', '실행 프로젝트 · CO2 PJT · Globe Valve'], ['bflyv', '실행 프로젝트 · CO2 PJT · Butterfly Valve'], ['psv', '실행 프로젝트 · CO2 PJT · PSV'], ['finstagram', '재무스타그램'], ['board', '익명게시판'],
+  ['pid', 'P&ID 분석'], ['logic', 'LOGIC 분석'], ['logicdraw', 'LOGIC 분석 · LOGIC 작성'], ['space', 'ROOM SIZE 계산'], ['books', '도서검토'], ['ic3d', '3D 계측제어'], ['bidpjt', '입찰 프로젝트'], ['co2sched', '실행 프로젝트 · CO2 PJT · Schedule(구매 일정)'], ['runpjt', '실행 프로젝트'], ['valve', '실행 프로젝트 · CO2 PJT · Ball Valve'], ['globev', '실행 프로젝트 · CO2 PJT · Globe Valve'], ['bflyv', '실행 프로젝트 · CO2 PJT · Butterfly Valve'], ['psv', '실행 프로젝트 · CO2 PJT · PSV'], ['finstagram', '재무스타그램'], ['board', '익명게시판'],
   ['mgalloc', 'Management · R&R 투입 분석'], ['mghours', 'Management · 근무시간'], ['mgwork', 'Management · 근로시간 관리'], ['mgbday', 'Management · 부서원 생일']]
   .filter(([k]) => can(SHEET[k] || k === 'home' || k === 'alloc' || k === 'task' ? 'weekly' : k.startsWith('mg') ? 'mgmt' : menuOf(k)));
 function qfSearch(q) {
@@ -4662,7 +4912,7 @@ const botWords = q => String(q).split(/[\s,.?!·~]+/).map(w => w.replace(/(이�
 const MENU_HELP = {
   home:'홈 — 인사 · 내 할 일 · 숫자 카드 · 주간회의 전달사항 · 그래프 · 월간 캘린더 · 계장 광장 · 최근 변경 이력', perform:'수행 PJT 표 — 업무 현황을 매주 작성(마감 수 11:59), [✓ 변경 없음]', bid:'입찰 PJT 표 — 입찰 진행 현황',
   issue:'프로젝트 이슈사항', alloc:'R&R · 투입 분석 — 부서원별 · PJT별 투입률', task:'통합 업무 — To Do · 기술공유 · 그룹장 요청 · 일반업무', unit:'유닛분장 — 조직도(헬멧 · 포지션) · 프로젝트별 LE/RE · 3D 세계 지도',
-  notice:'주간회의 전달사항', pid:'P&ID 분석 (P&ID 서버)', logic:'LOGIC 분석', logicdraw:'LOGIC 작성', space:'ROOM SIZE 계산', books:'도서검토', ic3d:'3D 계측제어', bidpjt:'입찰 프로젝트', runpjt:'실행 프로젝트 › CO2 PJT › Datasheet(Ball · Globe · Butterfly Valve · PSV)',
+  notice:'주간회의 전달사항', pid:'P&ID 분석 (P&ID 서버)', logic:'LOGIC 분석', logicdraw:'LOGIC 작성', space:'ROOM SIZE 계산', books:'도서검토', ic3d:'3D 계측제어', bidpjt:'입찰 프로젝트', runpjt:'실행 프로젝트 › CO2 PJT › Datasheet(Ball · Globe · Butterfly Valve · PSV) · Schedule(구매 일정 현황판)', co2sched:'CO2 PJT 구매 일정 현황판 — PSR 엑셀(Tagged · Bulk)을 올리면 MR→PO→제작→FAT→현장 도착 계획 · 전망 · 실적 · 지연',
   finstagram:'재무스타그램 — DART 재무제표 · 주가 · 수주현황 (운영자가 ⚙ 에서 DART 키 .env 지정)', board:'익명게시판 — 블라블라 · 회식제안 · VOC', mgalloc:'Management · R&R 투입 분석(시간)', mghours:'Management · 근무시간(월 · 주 · 일)', mgwork:'Management · 근로시간 관리(52h)', mgbday:'Management · 부서원 생일'
 };
 const bTxt = v => flat(v).toLowerCase();
@@ -5150,7 +5400,11 @@ function koJosa(text, changes) {   // 받침 있는 낱말 뒤의 '를 · 가 ·
   if (n) changes.push({ why:"조사를 받침에 맞게 ('판넬를' → '판넬을', '일정가' → '일정이', '밸브과' 는 그대로 둠)", n });
   return out;
 }
+const ACR_B = { L:1, M:1, N:1, R:1 };   // 영문 약어 끝 글자 발음에 받침(엘 · 엠 · 엔 · 알)
 const KO_FIX2 = [
+  [/\b([A-Z]{2,6})(은|는|이|가|을|를|과|와)(?=\s|[.,]|$)/g, (m, w, j) => { const b = !!ACR_B[w[w.length - 1]], pair = { 은:['은', '는'], 는:['은', '는'], 이:['이', '가'], 가:['이', '가'], 을:['을', '를'], 를:['을', '를'], 과:['과', '와'], 와:['과', '와'] }[j]; return w + pair[b ? 0 : 1]; }, "영문 약어 뒤 조사를 읽는 소리에 맞게 ('PO은' → 'PO는', 'MR는' → 'MR은')", 'fix'],
+  [/([가-힣])(는|ㄴ|은|던|할|을)건(?=\s|[.,]|$)/g, '$1$2 건', "의존명사 '건(것은)' 띄어쓰기 ('나가는건' → '나가는 건')", 'fix'],
+  [/([가-힣]{2,})\s해\s?보(입|여|이)/g, '$1해 보$2', "'무의미 해보입니다' → '무의미해 보입니다'", 'fix'],
   [/않\s+(해|가|돼|되|먹|하|보|쓰)/g, '안 $1', "'않 해요' → '안 해요' (부정 부사 '안')", 'fix'], [/지\s*안(다|아요|았|습니다|고|으|는)/g, '지 않$1', "'~지 안다' → '~지 않다' (보조 '않')", 'fix'],
   [/([가-힣])(읍니다|읍니까)/g, (m, a, b) => a + (b === '읍니다' ? '습니다' : '습니까'), "'있읍니다' → '있습니다'", 'fix'],
   [/(좋|많|적|높|낮|크|작|길|짧|빠르|느리|어렵|쉽|같|다르)는지/g, '$1은지', "형용사 + '-ㄴ지' ('좋는지' → '좋은지')", 'fix'],
@@ -5480,7 +5734,7 @@ function botProof(q) {
       <span class="muted" style="font-size:11px">규칙 기반 첨삭(외부 AI 안 씀) — 뜻 · 숫자 · 고유명사는 손대지 않아요. 맞춤법 · 번역투 · 스타일 규칙은 공개 룰북(im-not-ai · korean-skills, MIT)을 참고했어요.</span>`;
   return { html:body, acts:r.same ? [] : [{ l:'📋 고친 글 복사', fn:() => { navigator.clipboard?.writeText(r.out).then(() => botSay('bot', '복사했어요 📋'), () => botSay('bot', '복사가 막혀 있어요 — 위 글을 드래그해 복사해 주세요.')); } }] };
 }
-const BOT_CMD_RE = /추가|수정|삭제|등록|열어|열기|보여|필터|저장|마감|번역|첨삭|요약|출력|내보내|쪽지|이력|숨겨|가자|이동|만들어|생성|종결|변경\s*없음|^(?:to\s*do|투두)/i;
+const BOT_CMD_RE = /추가|수정|삭제|등록|열어|열기|보여|필터|저장|마감|번역|영어로|한국어로|한글로|첨삭|교정|요약|출력|내보내|쪽지|이력|숨겨|가자|이동|만들어|생성|종결|변경\s*없음|^(?:to\s*do|투두)/i;
 const botLooksProse = q => { const lines = q.split('\n').map(x => x.trim()).filter(Boolean); if (lines.length < 2 && q.length < 60) return false;
   const sentLike = lines.filter(l => l.length > 12 && /[.!?。]$|(다|요|니다|습니다|네요|세요|입니다|죠)[.!?]?$/.test(l) && !BOT_CMD_RE.test(l.slice(0, 12))).length;
   return sentLike >= Math.max(1, Math.ceil(lines.length * 0.6)) && !lines.some(l => l.length <= 25 && BOT_CMD_RE.test(l)); };
@@ -5492,6 +5746,7 @@ function botFreeText(q) {   // 명령이 아닌 글(메일 본문 등)을 붙여
 function botAnswer(q) {
   const pf = botProof(q) || botTrLearnCmd(q) || botTrCmd(q); if (pf) return pf;   // 첨삭 · 번역 학습 · 번역
   const ap = botApp(q) || botSheetOut(q); if (ap) return ap;   // 분석 메뉴 · 시트 출력 / 요약
+  const psr = botSched(q); if (psr) return psr;   // 구매 일정(PSR) 질문
   const u = botUI(q); if (u) return u;   // 화면 기능(저장 · 마감 · 휴지통 · 내보내기 · 필터 · 열 · 이력 · 쪽지 · 업로드 · 메뉴)
   const ed = botEdit(q) || botGeneral(q); if (ed) return ed;
   const ic = BOT_FAQ.find(([re]) => re.test(q)) ? null : icAnswer(q);   // 계측제어 지식 — 대시보드 PJT · 사람이 콕 집혀 나오면 그게 먼저, 아니면 지식 답이 먼저
@@ -5596,7 +5851,7 @@ function botSummary(body) {   // 간단 요약(외부 AI 없음): 문장 단위�
 }
 function botAsk(q) { q = String(q || '').trim(); if (!q) return; botSay('me', esc(q).replace(/\n/g, '<br>'));
   const ins = botInstr(q); if (ins) return setTimeout(() => { if (ins.html || ins.acts.length) botSay('bot', ins.html, ins.acts); if (ins.run) ins.run(); }, 250);
-  if (botLooksProse(q)) { const r = botFreeText(q); return setTimeout(() => botSay('bot', r.html, r.acts), 250); }   // 명령 없이 글만 붙여 넣음 → 줄마다 나누지 않고 되묻기
+  if (!BOT_WHOLE.test(q) && botLooksProse(q)) { const r = botFreeText(q); return setTimeout(() => botSay('bot', r.html, r.acts), 250); }   // 명령 없이 글만 붙여 넣음 → 줄마다 나누지 않고 되묻기
   if (botVibe()) return setTimeout(() => botVibeRun(q), 250);   // 바이브 권한: 확인 없이 바로 · 여러 단계 차례로
   if (botSteps(q).length > 1) return setTimeout(() => botSay('bot', '여러 일을 한 번에 시키는 것(바이브)은 운영자가 <b>메뉴 권한 설정 › 비서 바이브</b> 를 켜 줘야 해요. 지금은 한 번에 하나씩 말해 주세요 🙂'), 250);
   const a = botAnswer(q); if (a.keep) a.acts.forEach(x => x.edit = true); setTimeout(() => { if (a.html || a.acts.length) botSay('bot', a.html, a.acts); if (a.run) setTimeout(a.run, 300); }, 250); }

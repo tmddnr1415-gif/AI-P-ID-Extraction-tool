@@ -36,7 +36,7 @@ ID_RE = re.compile(r'^[A-Za-z0-9_\-]{1,80}$')
 WEEK_RE = re.compile(r'^\d{4}-W\d{2}$')
 MAX_BODY = 30 * 1024 * 1024
 
-SERVER_VERSION = '2026-11-09.1'
+SERVER_VERSION = '2026-11-09.2'
 ROOT = os.path.dirname(os.path.abspath(__file__))
 PORT = 8080
 ALLOW_NETS = []          # 사내망: 루프백·사설망 + 서버 IP 대역(/16, 유선·Wi-Fi 등 지금까지 쓴 대역 모두 기억) + --allow 로 추가한 대역
@@ -1934,6 +1934,30 @@ def api_tr_learn_put(b, by):
     return api_tr_learn_get()
 
 
+# ---------------------------------------------------------------- 실행 프로젝트 일정 현황판 (data/_meta/sched-{key}.json) — 2026-11-09
+# 화면이 PSR 엑셀을 브라우저 안에서 읽어 품목 · 일정만 JSON 으로 보냄. 원본 엑셀은 저장하지 않음.
+SCHED_KEYS = ('co2',)
+
+
+def api_sched_get(key):
+    return read_json(P('data', '_meta', f'sched-{key}.json')) or {}
+
+
+def api_sched_put(key, b, by):
+    items = b.get('items')
+    if not isinstance(items, list) or not items or len(items) > 5000:
+        raise ApiError(400, '품목 목록이 비었거나 너무 많습니다')
+    d = {k: b.get(k) for k in ('items', 'asOf', 'file', 'sheets', 'at')}
+    d['by'] = by; d['savedAt'] = stamp()
+    raw = json.dumps(d, ensure_ascii=False)
+    if len(raw) > 8_000_000:
+        raise ApiError(413, '일정 데이터가 너무 큽니다 (8MB)')
+    with LOCK:
+        write_json(P('data', '_meta', f'sched-{key}.json'), d)
+    log.info('일정 현황판 %s 저장 %d품목 by %s', key, len(items), by)
+    return {'status': 'ok', 'n': len(items)}
+
+
 # ---------------------------------------------------------------- 쪽지 (messages/{ID}/in|sent/{쪽지ID}.json)
 def api_msg_list(acc):
     def box(kind):
@@ -2446,6 +2470,14 @@ class Handler(BaseHTTPRequestHandler):
             if m == 'PUT':
                 acc = session_account(self.token(), False)
                 return api_finkey_put(self.json_body(), acc['name'] if acc else '운영자')
+        if head == 'sched' and len(seg) == 2 and seg[1] in SCHED_KEYS:   # 실행 프로젝트 일정 현황판: 보기 = 실행 프로젝트 권한, 올리기 = 로그인 + 권한
+            acc = session_account(self.token(), False)
+            if not perms_for(acc, self.is_super() or self.is_admin()).get('runpjt'):
+                raise ApiError(403, '실행 프로젝트 메뉴 권한이 없습니다')
+            if m == 'GET':
+                return api_sched_get(seg[1])
+            if m == 'PUT':
+                return api_sched_put(seg[1], self.json_body(), self.need_user()['name'])
         if head == 'tr' and seg[1:] == ['learn']:                 # 클로드 비서 번역 학습: 보기 = 누구나, 가르치기 = 로그인
             if m == 'GET':
                 return api_tr_learn_get()
