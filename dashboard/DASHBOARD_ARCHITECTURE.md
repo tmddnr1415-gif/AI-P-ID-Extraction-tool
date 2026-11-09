@@ -1757,3 +1757,8 @@ C:\Users\SAMSUNG\Desktop\Claude\                         ← 개발 폴더 (여�
 - 상태창(📋 공종별 품목 현황) 품목 줄에 최근 보고 메모(📝 마일스톤 사유 · 캐치업) 표시.
 - 바뀐 곳: dashboard.html `schSaveNote` · `schUpload`(rn 유지) · `renderSched`(RPT · rptG · rptLine · rptText · rptCard · 상태창 nt) · `schBind`(data-rne/rnx/rns/rpgo/rpcopy/rpweekly), CSS `.rp*` · `.isnt`
 - 확인한 것: 시연 PSR — 1. MR Issue 0건(계획대로) · 2. TBE to Company 14건 · 3. TBE 완료 20건 · 4. CBE 20건 · 5. Award 승인 20건, E0210 사유 · 캐치업 · 특이사항 입력 → 저장 · 상태창 반영, 보고 글 복사 내용, 주간업무보고 수행 표로 이동(검색 CO2). 콘솔 오류 없음.
+
+### 2026-11-09 (APP_VERSION 2026-11-09.28 / SERVER_VERSION 그대로) — v17.18 구매 현황 보고 표 · 보고체(~음/~임/~중)
+- 무엇을: 구매 현황 보고를 마일스톤마다 표로 — # · 품목(No + 이름, 공종 색 띠) · 공종 · 원래 기한 · 현재(실적/전망 · 지남) · 지연(+일 알약, 빨강 15일+) · 상태(✔ 늦게 완료함 / ⚠ 기한 지남 · 실적 미입력임 / ⏳ 지연 진행 중) · 지연 사유 · 캐치업 · 특이사항 · ✏(같은 줄에서 입력, Enter 저장 · Esc 취소). 머리줄 '지연 N건 발생함 (최대 +N일 · 진행 중 N건)' / '지연 없음, 계획대로 진행 중'. 보고 글 복사도 보고체: '원래 기한 26.10.04 대비 +35일 지연 중 (…)', '늦게 완료함 (실적 …)', '캐치업 : 26.11.20 완료 예정임', 캐치업이 없으면 '일정 협의 중'.
+- 바뀐 곳: dashboard.html `renderSched`(rptSt · rptHead · rptRow · rptText · rptCard) · `schBind`(입력 줄 저장 위치), CSS `.rpt` · `.rpgt` · `.rpgn` · `.rpgs` · `.rps`
+- 확인한 것: TBE to Company 14건 표, E0210 사유 · 캐치업 · 특이사항 입력 · 저장 · 상태창 반영, 복사 글. 콘솔 오류 없음.
