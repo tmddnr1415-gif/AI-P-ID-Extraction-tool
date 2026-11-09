@@ -36,7 +36,7 @@ ID_RE = re.compile(r'^[A-Za-z0-9_\-]{1,80}$')
 WEEK_RE = re.compile(r'^\d{4}-W\d{2}$')
 MAX_BODY = 30 * 1024 * 1024
 
-SERVER_VERSION = '2026-11-09.4'
+SERVER_VERSION = '2026-11-09.5'
 ROOT = os.path.dirname(os.path.abspath(__file__))
 PORT = 8080
 ALLOW_NETS = []          # 사내망: 루프백·사설망 + 서버 IP 대역(/16, 유선·Wi-Fi 등 지금까지 쓴 대역 모두 기억) + --allow 로 추가한 대역
@@ -2495,7 +2495,7 @@ class Handler(BaseHTTPRequestHandler):
         if m == 'GET' and head == 'info':
             return {'mode': 'server', 'admin': self.is_admin(), 'super': self.is_super(), 'week': iso_week(), 'root': os.path.basename(ROOT), 'auth': True,
                     'perms': perms_for(session_account(self.token(), False), self.is_super()),   # 지금 접속한 계정(없으면 비회원)의 메뉴 권한
-                    'host': socket.gethostname(), 'version': html_version(), 'serverVersion': SERVER_VERSION, 'urls': server_urls(), 'plazaPort': PLAZA['port'], 'finPort': FIN['port'],
+                    'host': socket.gethostname(), 'version': html_version(), 'serverVersion': SERVER_VERSION, 'urls': server_urls(), 'plazaPort': PLAZA['port'], 'finPort': FIN['port'], 'ocBg': os.path.isfile(P('apps', 'theme', 'oc-bg.jpg')),
                     **({'net': {'ips': NET_STATE['ips'] or [], 'profiles': NET_STATE['profiles'], 'changedAt': NET_STATE['changedAt'],
                                 'allow': [str(n) for n in ALLOW_NETS]}} if self.is_admin() else {})}
         if head == 'auth':

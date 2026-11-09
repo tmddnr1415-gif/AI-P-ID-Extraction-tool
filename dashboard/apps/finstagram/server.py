@@ -102,19 +102,19 @@ DART_ERR = {"010": "등록되지 않은 DART 키입니다 (키를 다시 확인�
             "101": "DART 에 등록되지 않은 접근입니다", "800": "DART 가 시스템 점검 중입니다", "900": "DART 쪽 알 수 없는 오류입니다", "901": "DART 키(개인정보) 보유기간이 끝났습니다 — 키를 다시 발급하세요"}
 
 
-def net_reason(e):
-    """urlopen 예외 → 사람이 읽는 이유"""
+def net_reason(e, host="opendart.fss.or.kr"):
+    """urlopen 예외 → 사람이 읽는 이유 (host = 접속하려던 곳)"""
     t = repr(getattr(e, "reason", e))
     if "CERTIFICATE_VERIFY_FAILED" in t or "SSL" in t:
-        return "보안 인증서(SSL) 확인 실패 — 회사 보안 프로그램이 HTTPS 를 검사하는 것 같습니다 (IT 에 opendart.fss.or.kr 예외 요청 또는 회사 인증서 설치)"
+        return "보안 인증서(SSL) 확인 실패 — 회사 보안 프로그램이 HTTPS 를 검사하는 것 같습니다 (IT 에 " + host + " 예외 요청 또는 회사 인증서 설치)"
     if "Tunnel connection failed" in t:
-        return "회사 프록시가 opendart.fss.or.kr 접속을 막았습니다 (" + (re.search(r"\d{3}[^'\")]*", t.split("failed:")[-1]) or [""])[0].strip() + ") — IT 에 opendart.fss.or.kr 허용 요청 또는 프록시 계정 설정"
+        return "회사 프록시가 " + host + " 접속을 막았습니다 (" + (re.search(r"\d{3}[^'\")]*", t.split("failed:")[-1]) or [""])[0].strip() + ") — IT 에 " + host + " 허용 요청 또는 프록시 계정 설정"
     if isinstance(e, urllib.error.HTTPError):
         return f"DART 서버 응답 {e.code}" + (" — 프록시 인증이 필요합니다" if e.code == 407 else "")
     if "getaddrinfo" in t or "Name or service" in t or "11001" in t or "11004" in t:
-        return "opendart.fss.or.kr 주소를 찾지 못했습니다 — 서버 PC 인터넷(DNS) 또는 프록시 설정 확인"
+        return host + " 주소를 찾지 못했습니다 — 서버 PC 인터넷(DNS) 또는 프록시 설정 확인"
     if "timed out" in t or "10060" in t:
-        return "opendart.fss.or.kr 응답이 없습니다(시간 초과) — 회사망이 막았거나 프록시가 필요합니다"
+        return host + " 응답이 없습니다(시간 초과) — 회사망이 막았거나 프록시가 필요합니다"
     if "10061" in t or "refused" in t or "10013" in t:
         return "연결이 거부되었습니다 — 회사망 방화벽 또는 프록시 설정 확인"
     return "인터넷 연결 실패: " + t[:160]
@@ -924,6 +924,10 @@ class Handler(BaseHTTPRequestHandler):
                 return self.send(200, build(q["corp_code"], q.get("year", ""), q.get("reprt", "11011"), q.get("fs", "")))
             self.send(404, {"error": "not found"})
         except Exception as e:  # noqa
+            if isinstance(e, OSError) or "urlopen error" in str(e):   # 주가(네이버) · 컨센서스 · 날씨 등 바깥 사이트 연결 실패 → 이유를 한국어로
+                host = {"/api/stock": "네이버 증권(fchart.stock.naver.com)", "/api/quarters": "컨센서스(navercomp.wisereport.co.kr)", "/api/weather": "날씨(api.open-meteo.com)",
+                        "/api/ir": "삼성물산 IR(www.samsungcnt.com)", "/api/logo": "네이버(회사 로고)"}.get(u.path, "opendart.fss.or.kr")
+                return self.send(500, {"error": net_reason(e, host)})
             self.send(500, {"error": str(e)})
 
 

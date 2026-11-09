@@ -532,11 +532,13 @@ def doc_orders(rcept_no):
 
 
 ORD_CACHE = {}
+ORD_AT = {}
 
 
 def orders(corp_code):
-    if corp_code in ORD_CACHE:
-        return ORD_CACHE[corp_code]
+    hit = ORD_CACHE.get(corp_code)
+    if hit and time.time() - ORD_AT.get(corp_code, 0) < 6 * 3600:   # 2026-11-09: 6시간마다 새로(새 사업보고서 반영 · 대시보드 세계 지도 '실시간')
+        return hit
     reps = annual_reports(corp_code)
     if not reps:
         return {"error": "사업보고서를 찾지 못했습니다."}
@@ -580,6 +582,7 @@ def orders(corp_code):
         "other_latest": {"amount": docs[str(latest)].get("other_amount"), "remain": docs[str(latest)].get("other_remain")},
     }
     ORD_CACHE[corp_code] = return_data
+    ORD_AT[corp_code] = time.time()
     return return_data
 
 
