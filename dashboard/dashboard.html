@@ -1689,6 +1689,12 @@ html.dark .gtw{border-color:rgba(18,22,70,.3)}
 .sinm,.gtnm,.isi,.sinm1{color:#14246b;text-shadow:0 1px 0 #fff,0 1.5px 0 #c7d2fe,0 2.5px 0 rgba(67,56,202,.22),0 4px 7px rgba(30,41,99,.22);letter-spacing:-.1px;transition:transform .12s,text-shadow .12s}
 .schtab tr.srow:hover .sinm,.gtr:hover .gtnm,.isr:hover .isi{transform:translateY(-1px);color:#1e1b8a;text-decoration:none;text-shadow:0 1px 0 #fff,0 2px 0 #a5b4fc,0 3.5px 0 rgba(67,56,202,.28),0 7px 12px rgba(30,41,99,.28)}
 html.dark .sinm,html.dark .gtnm,html.dark .isi,html.dark .sinm1{text-shadow:0 1px 0 #fff,0 2px 0 #c7d2fe,0 4px 6px rgba(30,41,99,.25)}
+/* 2026-11-09 일정판 직접 조작 */
+.gtb.drag{cursor:grab;touch-action:none}.gtb.drag:active,.gtb.dragging{cursor:grabbing}.gtb.dragging{z-index:9!important;box-shadow:0 10px 24px rgba(15,23,42,.35)!important;transform:translateY(-2px);outline:2px dashed #4f46e5;outline-offset:2px;transition:none}
+.gtrz{position:absolute;right:0;top:0;bottom:0;width:9px;cursor:ew-resize;background:linear-gradient(90deg,transparent,rgba(255,255,255,.55));border-radius:0 6px 6px 0}.gtrz::after{content:'';position:absolute;right:3px;top:6px;bottom:6px;width:2px;border-left:1px solid rgba(15,23,42,.35);border-right:1px solid rgba(15,23,42,.35)}
+.gtdtip{position:fixed;z-index:4000;background:#0f172a;color:#fff;font-size:12px;border-radius:8px;padding:6px 10px;pointer-events:none;box-shadow:0 8px 20px rgba(0,0,0,.3);line-height:1.5}.gtdtip b{color:#fbbf24}
+.gthv{position:absolute;top:0;bottom:0;width:1px;border-left:1px dashed #6366f1;z-index:2}.gthv b{position:sticky;top:4px;display:inline-block;margin-left:3px;background:#4f46e5;color:#fff;font-size:10.5px;border-radius:5px;padding:0 5px}
+.gthelp{font-size:12px;color:#475569;background:#eef2ff;border-radius:8px;padding:5px 10px;margin:-4px 0 8px}.gtundo{margin-left:6px}
 /* 2026-11-09 카드 크게 보기 · 크기 조절 */
 #schv section.card.schrs{resize:vertical;overflow:auto;min-height:120px;position:relative}
 #schv section.card>h2{position:relative;padding-right:84px}.schbig{position:absolute;right:0;top:-2px;border:1px solid #c7d2fe;background:#eef2ff;color:#3730a3;border-radius:8px;font:inherit;font-size:12px;font-weight:700;padding:3px 9px;cursor:pointer}.schbig:hover{background:#4f46e5;color:#fff}
@@ -1942,7 +1948,7 @@ function recLabel(key, f) {
  * ===================================================================== */
 let root = null;
 /* 서버 모드: http(s):// 로 접속하면 server.py 의 REST API 사용 (폴더 선택 불필요). file:// 로 열면 폴더 모드 */
-const APP_VERSION = '2026-11-09.21';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
+const APP_VERSION = '2026-11-09.22';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
 const SERVER_URL = 'http://localhost:8080';
 // 부서원 PC 사본(file://)이 접속을 시도할 서버 — 서버가 배포 파일을 만들 때 'PC 이름 주소, IP 주소' 순으로 자동 기록함
 const DEFAULT_SERVERS = ['http://ASEUNGWOOK-B01:8080', 'http://65.3.30.234:8080'];
@@ -4299,25 +4305,25 @@ function schDiscBoard(rows, asOf, disc, ph) {   // 2026-11-09 v17.11 새 간트 
   const yHead = years.map(y => `<span class="gty" style="left:${X(y.s)}%;width:${X(y.e) - X(y.s)}%">${y.y}</span>`).join('');
   const mHead = months.map((m, i) => `<span class="gtmh ${m.slice(5, 7) === '01' ? 'yr' : ''}" style="left:${X(m)}%;width:${X(mEnd(i)) - X(m)}%">${i % step ? '' : +m.slice(5, 7) + (ppm >= 110 ? '월' : '')}</span>`).join('');
   const bands = months.map((m, i) => `<i class="gtbd ${i % 2 ? 'o' : ''} ${m.slice(5, 7) === '01' ? 'yr' : ['04', '07', '10'].includes(m.slice(5, 7)) ? 'q' : ''}" style="left:${X(m)}%;width:${X(mEnd(i)) - X(m)}%"></i>`).join('');
-  const nowX = X(asOf);
+  const nowX = X(asOf), ed = !noEdit() && can('runpjt');
   const line = ({ it, k }) => { const id = it.type + '|' + it.no;
     const bars = SCH_PH.map(([n, a, b, c], pi) => { const s1 = dt(it, a), e1 = dt(it, b); if (!s1 || !e1 || e1 < s1) return '';
       const done = !!it.A[b], now = !done && (!!it.A[a] || s1 <= asOf), dl = it.B[b] ? schDays(dt(it, b), it.B[b]) : 0, w = Math.max(.6, X(e1) - X(s1));
       const pg = done ? 100 : now ? Math.max(0, Math.min(100, (schDays(asOf, s1)) / Math.max(1, schDays(e1, s1)) * 100)) : 0;
       const plan = it.B[a] && it.B[b] && it.B[b] >= it.B[a] ? `<i class="gtp" style="left:${X(it.B[a])}%;width:${Math.max(.3, X(it.B[b]) - X(it.B[a]))}%" title="${esc(n)} 계획 ${it.B[a]} → ${it.B[b]}"></i>` : '';
-      return plan + `<b class="gtb ${c} ${done ? 'done' : now ? 'now' : 'next'} ${w < 5 ? 'tiny' : ''}" data-pb="${esc(id)}|${pi}" style="left:${X(s1)}%;width:${w}%" title="${esc(`${it.no} · ${n}: ${s1} → ${e1}${done ? ' (완료)' : now ? ' (진행 중)' : ' (앞으로)'}${it.B[b] ? ` · 계획 끝 ${it.B[b]}` : ''}${dl > 0 ? ` · +${dl}일 늦음` : ''} — 누르면 상세`)}">${pg && pg < 100 ? `<i class="gtpg" style="width:${pg}%"></i>` : ''}<span>${done ? '✓ ' : ''}${w < 7 ? SCH_PH_SHORT[pi] : n}</span>${dl > 0 ? `<em class="gtd ${dl > 14 ? 'r' : 'y'}">+${dl}</em>` : ''}</b>`; }).join('');
+      return plan + `<b class="gtb ${c} ${done ? 'done' : now ? 'now' : 'next'} ${w < 5 ? 'tiny' : ''} ${ed && !done ? 'drag' : ''}" data-pb="${esc(id)}|${pi}" data-gs="${s1}" data-ge="${e1}" style="left:${X(s1)}%;width:${w}%" title="${esc(`${it.no} · ${n}: ${s1} → ${e1}${done ? ' (완료)' : now ? ' (진행 중)' : ' (앞으로)'}${it.B[b] ? ` · 계획 끝 ${it.B[b]}` : ''}${dl > 0 ? ` · +${dl}일 늦음` : ''} — 누르면 상세`)}">${pg && pg < 100 ? `<i class="gtpg" style="width:${pg}%"></i>` : ''}<span>${done ? '✓ ' : ''}${w < 7 ? SCH_PH_SHORT[pi] : n}</span>${dl > 0 ? `<em class="gtd ${dl > 14 ? 'r' : 'y'}">+${dl}</em>` : ''}${ed && !done ? '<i class="gtrz" title="끝 날짜 끌어서 바꾸기"></i>' : ''}</b>`; }).join('');
     const ms = [['PO', 'po'], ['FAT', 'fat'], ['SITE', 'site']].map(([m, c]) => { const v = dt(it, m); return v ? `<i class="gtm ${c} ${it.A[m] ? 'a' : ''}" style="left:${X(v)}%" title="${SCH_NAME[m]} ${it.A[m] ? '실적' : '전망'} ${v}${it.B[m] ? ' · 계획 ' + it.B[m] : ''}"></i>` : ''; }).join('');
     const fo = k.fo.filter(f => f.st !== 'none');
     return `<div class="gtr" style="--dc:${schDc(it.disc)}"><div class="gtl" data-schopen="${esc(id)}"><div class="gtl1"><span class="gtno">${esc(it.no)}</span><span class="gtst" style="--sc:${SCH_ST[k.st][1]}">${esc(k.stage)}</span></div><b class="gtnm" title="${esc(it.item)}">${esc(it.item)}</b>
       <div class="gtfo">${fo.map(f => `<i class="${f.lv} ${f.st}" title="${esc(`${f.label} 계획 ${f.b || '-'} → ${f.a ? '실적 ' + f.a : f.f ? '전망 ' + f.f : '실적 없음'}`)}">${f.g}${f.st === 'done' ? '✓' : ''}${f.d > 0 ? ' +' + f.d : ''}</i>`).join('')}${k.slip ? `<i class="${k.slip > 30 ? 'r' : k.slip > 0 ? 'y' : 'g'} site">현장 ${k.slip > 0 ? '+' : ''}${k.slip}</i>` : ''}</div></div>
       <div class="gtt">${bars}${ms}</div></div>`; };
   const tool = `<div class="gttool"><div class="dbleg">${SCH_PH.map(([n, , , c]) => `<span><i class="${c}"></i>${n}</span>`).join('')}<span><i class="gtlg-plan"></i>계획</span><span><i class="gtlg-next"></i>앞으로(빗금)</span><span><i class="gtm po a gtlg"></i>PO</span><span><i class="gtm fat a gtlg"></i>FAT</span><span><i class="gtm site a gtlg"></i>현장 도착</span><span><em class="gtd r gtlg2">+15</em>계획보다 늦은 날</span></div>
-    <span class="sp"></span><div class="gtz"><button data-gz="-1" title="축소" ${z ? '' : 'disabled'}>−</button><span>${['맞춤', '월 크게', '월 더 크게', '주 단위'][z]}</span><button data-gz="1" title="확대" ${z >= 3 ? 'disabled' : ''}>＋</button><button data-gtoday title="기준일로 이동">◎ 기준일</button></div></div>`;
+    <span class="sp"></span><div class="gtz"><button data-gz="-1" title="축소" ${z ? '' : 'disabled'}>−</button><span>${['맞춤', '월 크게', '월 더 크게', '주 단위'][z]}</span><button data-gz="1" title="확대" ${z >= 3 ? 'disabled' : ''}>＋</button><button data-gtoday title="기준일로 이동">◎ 기준일</button></div>${SCH.undo ? `<button class="btn sm gtundo" data-gtundo title="${esc(SCH.undo.label)}">↶ 되돌리기</button>` : ''}</div>${ed ? '<div class="gthelp">🖐 <b>막대를 좌우로 끌면</b> 그 단계 전망 일정이 통째로 옮겨지고, <b>막대 오른쪽 끝을 끌면</b> 끝 날짜만 바뀝니다 · 놓으면 바로 저장(↶ 되돌리기) · 끝난 단계(✓)는 실적이라 고정 · 누르면 상세</div>' : ''}`;
   return `<section class="card dboard gtcard ph-${ph || 'front'}"><h2>🔧 ${esc(disc)} · 품목별 일정판 <span class="muted">· ${rows.length}품목 · 막대를 누르면 그 단계 상세 · 이름을 누르면 아래 표에서 상세</span>
       <button class="btn sm gtoff" data-schf="disc|${esc(disc)}">✕ 공종 해제</button></h2>${tool}
-    <div class="gtw"><div class="gtin" style="${ppm ? `width:calc(268px + ${months.length * ppm}px)` : ''}">
+    <div class="gtw" data-t0="${t0}" data-span="${span}"><div class="gtin" style="${ppm ? `width:calc(268px + ${months.length * ppm}px)` : ''}">
       <div class="gtr gth"><div class="gtl">품목 <small>${rows.length}</small></div><div class="gtt"><div class="gtyr">${yHead}</div><div class="gtmr">${mHead}</div><i class="gtnow" style="left:${nowX}%"><b>기준일 ${schFmt(asOf).slice(3)}</b></i></div></div>
-      <div class="gtbody"><div class="gtbg">${bands}<i class="gtnowl" style="left:${nowX}%"></i></div>${rows.slice().sort((a, b) => (dt(a.it, 'MR') || '9').localeCompare(dt(b.it, 'MR') || '9')).map(line).join('')}</div>
+      <div class="gtbody"><div class="gtbg">${bands}<i class="gtnowl" style="left:${nowX}%"></i><i class="gthv" hidden><b></b></i></div>${rows.slice().sort((a, b) => (dt(a.it, 'MR') || '9').localeCompare(dt(b.it, 'MR') || '9')).map(line).join('')}</div>
     </div></div></section>`;
 }
 /* 2026-11-09 차트 블록 · 막대를 누르면 상세: 그 단계 안의 마일스톤마다 계획 · 전망 · 실적 · 지연 (all = 구매 전반 + 주요 단계) */
@@ -4370,12 +4376,39 @@ function schCardTools(v) {
   if (!SCH.big) document.body.classList.remove('schbigon');
 }
 addEventListener('keydown', e => { if (e.key === 'Escape' && SCH.big && route === 'co2sched' && !$('#schPop')) { SCH.big = ''; render(); } });
+/* 2026-11-09 일정판 직접 조작: 막대 끌기 = 그 단계 안 (실적 없는) 마일스톤 전망을 같은 날수만큼 옮김, 오른쪽 끝 끌기 = 끝 마일스톤 전망만, 놓으면 저장 + 되돌리기 · 마우스 위치 날짜 안내선 */
+function schGtDrag(v) {
+  const w = $('#schv .gtw'); if (!w) return; const t0 = w.dataset.t0, span = +w.dataset.span, body = w.querySelector('.gtbody'), hv = w.querySelector('.gthv');
+  const trackW = () => (body.querySelector('.gtr .gtt')?.offsetWidth || 1), addD = (d, n) => { const x = schD(d); x.setDate(x.getDate() + n); return x.toISOString().slice(0, 10); };
+  body.onpointermove = e => { if (SCH.gdrag || !hv) return; const t = body.querySelector('.gtr .gtt'); if (!t) return; const r = t.getBoundingClientRect(); if (e.clientX < r.left) { hv.hidden = true; return; }
+    const days = Math.round((e.clientX - r.left) / r.width * span); hv.hidden = false; hv.style.left = (e.clientX - r.left) / r.width * 100 + '%'; hv.querySelector('b').textContent = schFmt(addD(t0, days)); };
+  body.onpointerleave = () => { if (hv) hv.hidden = true; };
+  body.querySelectorAll('.gtb.drag').forEach(bar => bar.onpointerdown = e => {
+    if (e.button) return; const rz = !!e.target.closest('.gtrz'), sx = e.clientX, L0 = parseFloat(bar.style.left), W0 = parseFloat(bar.style.width), ppd = trackW() / span;
+    let dd = 0, moved = false; try { bar.setPointerCapture(e.pointerId); } catch (_) {} SCH.gdrag = true;
+    const tip = document.createElement('div'); tip.className = 'gtdtip'; document.body.appendChild(tip);
+    bar.onpointermove = ev => { const dx = ev.clientX - sx; if (!moved && Math.abs(dx) < 4) return; moved = true; bar.classList.add('dragging'); dd = Math.round(dx / ppd);
+      const pct = dd / span * 100; if (rz) bar.style.width = Math.max(.6, W0 + pct) + '%'; else bar.style.left = L0 + pct + '%';
+      const s2 = rz ? bar.dataset.gs : addD(bar.dataset.gs, dd), e2 = addD(bar.dataset.ge, dd);
+      tip.innerHTML = `${rz ? '끝 날짜' : '단계 옮기기'} <b>${dd > 0 ? '+' : ''}${dd}일</b><br>${schFmt(s2)} → ${schFmt(e2)}`; tip.style.left = ev.clientX + 14 + 'px'; tip.style.top = ev.clientY + 14 + 'px'; };
+    bar.onpointerup = bar.onpointercancel = ev => { bar.onpointermove = bar.onpointerup = bar.onpointercancel = null; tip.remove(); SCH.gdrag = false; try { bar.releasePointerCapture(ev.pointerId); } catch (_) {}
+      if (!moved) return; SCH.noClick = true; setTimeout(() => { SCH.noClick = false; }, 50);
+      if (!dd) { bar.style.left = L0 + '%'; bar.style.width = W0 + '%'; bar.classList.remove('dragging'); return; }
+      const [id, pi] = [bar.dataset.pb.slice(0, bar.dataset.pb.lastIndexOf('|')), +bar.dataset.pb.slice(bar.dataset.pb.lastIndexOf('|') + 1)], it = SCH.data.items.find(x => x.type + '|' + x.no === id); if (!it) return render();
+      const order = SCH_MS.map(m => m[0]), [n, a, b] = SCH_PH[pi], ks = rz ? [b] : order.slice(order.indexOf(a) + 1, order.indexOf(b) + 1);   // 옮기기: 시작 마일스톤은 앞 단계 끝이라 그대로 두고 그 뒤부터
+      const ch = ks.filter(k => !it.A[k] && (it.F[k] || it.B[k])).map(k => ({ s:'F', k, v:addD(it.F[k] || it.B[k], dd), old:it.F[k] || '' }));
+      if (!ch.length) { toast('옮길 수 있는 전망 일정이 없어요 (실적이 들어간 마일스톤은 고정)', true); return render(); }
+      SCH.undo = { id, label:`${it.no} ${n} ${dd > 0 ? '+' : ''}${dd}일 되돌리기`, ch:ch.map(c => ({ s:'F', k:c.k, v:c.old })) };
+      schSaveCells(id, ch.map(({ s, k, v }) => ({ s, k, v })));
+      toast(`${it.no} ${n} 전망 ${ch.length}개 마일스톤을 ${dd > 0 ? '+' : ''}${dd}일 옮겼어요 — ↶ 되돌리기 가능`); };
+  });
+}
 function schGtToday(smooth) {   // 일정판 가로 스크롤을 기준일 쪽으로
   const w = $('#schv .gtw'), n = w?.querySelector('.gtnowl'), b = w?.querySelector('.gtbody'); if (!w || !n || !b) return;
   const x = 268 + (b.offsetWidth - 268) * parseFloat(n.style.left) / 100; w.scrollTo({ left:Math.max(0, x - 268 - (w.clientWidth - 268) / 3), behavior:smooth ? 'smooth' : 'auto' });
 }
 function schBind() {
-  const v = $('#schv'); if (!v) return; const F = SCH.f; schCardTools(v);
+  const v = $('#schv'); if (!v) return; const F = SCH.f; schCardTools(v); schGtDrag(v);
   const gw = $('#schv .gtw'); if (gw) { if (SCH.gzKeep != null) { gw.scrollLeft = SCH.gzKeep * gw.scrollWidth - gw.clientWidth / 2; SCH.gzKeep = null; } else if (SCH.gz) schGtToday(false); }
   const fi = $('#schFile'); if (fi) fi.onchange = () => { schUpload(fi.files); fi.value = ''; };
   const dz = $('#schDrop'); if (dz) { dz.ondragover = e => { e.preventDefault(); dz.classList.add('on'); }; dz.ondragleave = () => dz.classList.remove('on'); dz.ondrop = e => { e.preventDefault(); dz.classList.remove('on'); schUpload(e.dataTransfer.files); }; }
@@ -4393,6 +4426,8 @@ function schBind() {
     const eb = e.target.closest('[data-schedit]'); if (eb) { SCH.edit = eb.dataset.schedit; return render(); }
     if (e.target.closest('[data-schcancel]')) { SCH.edit = ''; return render(); }
     const sv = e.target.closest('[data-schsave]'); if (sv) { sv.disabled = true; return schEditSave(sv.dataset.schsave); }
+    if (SCH.noClick) return;
+    if (e.target.closest('[data-gtundo]')) { const u = SCH.undo; SCH.undo = null; if (u) { schSaveCells(u.id, u.ch); toast('↶ 되돌렸어요'); } return; }
     const pb = e.target.closest('[data-pb]'); if (pb && !e.target.closest('.sdet')) { e.stopPropagation(); return schPop(pb.dataset.pb, e.clientX, e.clientY); }
     const o = e.target.closest('[data-schopen]'); if (o && !e.target.closest('.sdet') && e.detail > 1) return;   // 더블클릭의 두 번째 누름 — 줄 열고 닫기 안 함
     if (o && !e.target.closest('.sdet') && e.target.closest('[data-fe]') && !SCH.clickT) { SCH.clickT = setTimeout(() => { SCH.clickT = 0; o.click(); }, 260); return; }   // MR · TBE · CBE 칸: 더블클릭인지 잠깐 봄
