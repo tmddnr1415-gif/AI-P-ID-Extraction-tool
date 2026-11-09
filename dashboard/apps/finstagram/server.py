@@ -17,6 +17,7 @@ import re
 import os
 import sys
 import time
+import urllib.error
 import urllib.parse
 import urllib.request
 import zipfile
@@ -26,8 +27,8 @@ from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 BASE = os.path.dirname(os.path.abspath(__file__))
 PORT = int(os.environ.get("PORT", "8765"))
 HOST = os.environ.get("FIN_HOST", "127.0.0.1")
-APP_VERSION = "2026-11-07.2"
-DART = "https://opendart.fss.or.kr/api"
+APP_VERSION = "2026-11-09.1"
+DART = os.environ.get("FIN_DART_BASE", "").strip() or "https://opendart.fss.or.kr/api"   # FIN_DART_BASE = 시험용
 CORP_CACHE = os.path.join(BASE, "corp_codes.json")
 
 
@@ -76,16 +77,91 @@ def load_key():
 API_KEY = load_key()
 
 
+# ---------------------------------------------------------------- 인터넷 연결 (2026-11-09: 회사 PC 에서 검색이 조용히 실패 → 이유를 한국어로 알려 줌)
+def proxy_url():
+    """프록시: 환경변수 FIN_PROXY → 대시보드가 넘긴 FIN_PROXY_FILE(운영 폴더 fin_proxy.txt). 없으면 윈도 인터넷 설정 · HTTPS_PROXY (urllib 기본)"""
+    v = os.environ.get("FIN_PROXY", "").strip()
+    if not v:
+        try:
+            with open(os.environ.get("FIN_PROXY_FILE", "") or os.path.join(BASE, "proxy.txt"), encoding="utf-8-sig") as f:
+                v = next((ln.strip() for ln in f if ln.strip() and not ln.strip().startswith("#")), "")
+        except OSError:
+            v = ""
+    if v and not re.match(r"^https?://", v):
+        v = "http://" + v
+    return v
+
+
+def opener():
+    px = proxy_url()
+    return urllib.request.build_opener(urllib.request.ProxyHandler({"http": px, "https": px})) if px else urllib.request.build_opener()
+
+
+DART_ERR = {"010": "등록되지 않은 DART 키입니다 (키를 다시 확인하세요)", "011": "사용할 수 없는 DART 키입니다", "012": "DART 에서 이 PC 의 IP 접근을 막았습니다",
+            "020": "DART 요청 한도(하루 2만 건)를 넘었습니다 — 내일 다시", "021": "DART 조회 가능 회사 수를 넘었습니다", "100": "DART 요청 값이 잘못되었습니다",
+            "101": "DART 에 등록되지 않은 접근입니다", "800": "DART 가 시스템 점검 중입니다", "900": "DART 쪽 알 수 없는 오류입니다", "901": "DART 키(개인정보) 보유기간이 끝났습니다 — 키를 다시 발급하세요"}
+
+
+def net_reason(e):
+    """urlopen 예외 → 사람이 읽는 이유"""
+    t = repr(getattr(e, "reason", e))
+    if "CERTIFICATE_VERIFY_FAILED" in t or "SSL" in t:
+        return "보안 인증서(SSL) 확인 실패 — 회사 보안 프로그램이 HTTPS 를 검사하는 것 같습니다 (IT 에 opendart.fss.or.kr 예외 요청 또는 회사 인증서 설치)"
+    if "Tunnel connection failed" in t:
+        return "회사 프록시가 opendart.fss.or.kr 접속을 막았습니다 (" + (re.search(r"\d{3}[^'\")]*", t.split("failed:")[-1]) or [""])[0].strip() + ") — IT 에 opendart.fss.or.kr 허용 요청 또는 프록시 계정 설정"
+    if isinstance(e, urllib.error.HTTPError):
+        return f"DART 서버 응답 {e.code}" + (" — 프록시 인증이 필요합니다" if e.code == 407 else "")
+    if "getaddrinfo" in t or "Name or service" in t or "11001" in t or "11004" in t:
+        return "opendart.fss.or.kr 주소를 찾지 못했습니다 — 서버 PC 인터넷(DNS) 또는 프록시 설정 확인"
+    if "timed out" in t or "10060" in t:
+        return "opendart.fss.or.kr 응답이 없습니다(시간 초과) — 회사망이 막았거나 프록시가 필요합니다"
+    if "10061" in t or "refused" in t or "10013" in t:
+        return "연결이 거부되었습니다 — 회사망 방화벽 또는 프록시 설정 확인"
+    return "인터넷 연결 실패: " + t[:160]
+
+
 def dart_get(path, **params):
     global API_KEY
     if not API_KEY:
         API_KEY = load_key()          # 서버를 켠 뒤에 키 파일을 두어도 바로 쓰게
     if not API_KEY:
-        raise RuntimeError(f"DART API 키가 없습니다 — 서버 PC 의 키 파일을 확인하세요: {key_file()}")
+        raise RuntimeError(f"DART API 키가 없습니다 — 대시보드 재무스타그램 화면 ⚙ 에서 키 파일(.env) 경로를 지정하세요 (지금: {key_file()})")
     params["crtfc_key"] = API_KEY
     url = f"{DART}/{path}?{urllib.parse.urlencode(params)}"
-    with urllib.request.urlopen(url, timeout=30) as r:
-        return r.read()
+    try:
+        with opener().open(url, timeout=30) as r:
+            raw = r.read()
+    except Exception as e:  # noqa
+        raise RuntimeError(net_reason(e)) from None
+    head = raw[:400].lstrip()
+    st = None
+    if head[:1] == b"{":
+        m = re.search(rb'"status"\s*:\s*"(\d+)"', head)
+        st = m and m.group(1).decode()
+    elif head[:5] == b"<?xml" or head[:8] == b"<result>":
+        m = re.search(rb"<status>(\d+)</status>", head)
+        st = m and m.group(1).decode()
+    if st in DART_ERR:
+        raise RuntimeError(f"{DART_ERR[st]} (DART {st})")
+    if path.endswith(".xml") and path in ("corpCode.xml", "document.xml", "fnlttXbrl.xml") and raw[:2] != b"PK" and st and st != "000":
+        m = re.search(rb"<message>(.*?)</message>", raw[:2000], re.S)
+        raise RuntimeError(f"DART 응답 {st}: {(m.group(1).decode('utf-8', 'replace') if m else '')}")
+    return raw
+
+
+def diag():
+    """연결 점검 — 키 유무(값은 숨김) · 프록시 · DART 접속 · 회사 목록 캐시"""
+    k = API_KEY or load_key()
+    out = {"ver": APP_VERSION, "keyFile": key_file(), "key": bool(k), "keyLen": len(k), "keyOk": bool(re.fullmatch(r"[0-9A-Za-z]{40}", k or "")),
+           "proxy": proxy_url() or (lambda g: ("윈도 · 환경 설정: " + ", ".join(f"{a}={b}" for a, b in g.items())) if g else "없음(직접 연결)")({a: b for a, b in urllib.request.getproxies().items() if a in ("http", "https")}),
+           "corpCache": os.path.exists(CORP_CACHE), "corps": len(CORPS)}
+    t0 = time.time()
+    try:
+        d = json.loads(dart_get("company.json", corp_code="00126380"))
+        out.update(dart=True, msg=f"DART 접속 정상 ({d.get('corp_name', '')} 조회 {time.time() - t0:.1f}초)")
+    except Exception as e:  # noqa
+        out.update(dart=False, msg=str(e))
+    return out
 
 
 # ---------------------------------------------------------------- 회사 코드
@@ -821,6 +897,8 @@ class Handler(BaseHTTPRequestHandler):
             if u.path in ("/", "/index.html"):
                 with open(os.path.join(BASE, "index.html"), "rb") as f:
                     return self.send(200, f.read(), "text/html; charset=utf-8")
+            if u.path == "/api/diag":
+                return self.send(200, diag())
             if u.path == "/api/search":
                 return self.send(200, search(q.get("q", "")))
             if u.path == "/api/segments":
@@ -850,5 +928,7 @@ class Handler(BaseHTTPRequestHandler):
 
 
 if __name__ == "__main__":
+    if proxy_url():
+        urllib.request.install_opener(opener())   # extras(주가 · 날씨 …)도 같은 프록시
     print(f"재무스타그램 실행 중: http://localhost:{PORT} (주소 {HOST}) · 키 {'있음' if API_KEY else '없음 — ' + key_file()}", flush=True)
     ThreadingHTTPServer((HOST, PORT), Handler).serve_forever()

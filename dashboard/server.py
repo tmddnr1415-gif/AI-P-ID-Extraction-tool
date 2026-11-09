@@ -36,7 +36,7 @@ ID_RE = re.compile(r'^[A-Za-z0-9_\-]{1,80}$')
 WEEK_RE = re.compile(r'^\d{4}-W\d{2}$')
 MAX_BODY = 30 * 1024 * 1024
 
-SERVER_VERSION = '2026-11-09.2'
+SERVER_VERSION = '2026-11-09.4'
 ROOT = os.path.dirname(os.path.abspath(__file__))
 PORT = 8080
 ALLOW_NETS = []          # 사내망: 루프백·사설망 + 서버 IP 대역(/16, 유선·Wi-Fi 등 지금까지 쓴 대역 모두 기억) + --allow 로 추가한 대역
@@ -1770,12 +1770,44 @@ def api_finkey_get():
     p = FIN['proc']
     return {'path': path, 'from': how, 'locked': how == '--dart-key', 'exists': os.path.isfile(path), 'hasKey': bool(k), 'keyLen': len(k),
             'keyOk': bool(re.fullmatch(r'[0-9A-Za-z]{40}', k)), 'running': bool(fin_info(FIN['port'])), 'mine': p is not None and p.poll() is None,
-            'port': FIN['port']}   # 키 값은 내보내지 않음
+            'port': FIN['port'], 'proxy': fin_proxy()}   # 키 값은 내보내지 않음
+
+
+def fin_proxy():
+    """재무스타그램이 인터넷(DART · 주가)에 나갈 때 쓸 프록시 (운영 폴더 fin_proxy.txt, 비우면 윈도 인터넷 설정) — 2026-11-09"""
+    try:
+        with open(P('fin_proxy.txt'), encoding='utf-8-sig') as f:
+            return next((ln.strip() for ln in f if ln.strip() and not ln.strip().startswith('#')), '')
+    except OSError:
+        return ''
+
+
+def api_findiag():
+    """재무스타그램 서버의 /api/diag (DART 접속 점검) 를 대신 불러 줌 — 운영자 ⚙ 화면용"""
+    try:
+        op = urllib.request.build_opener(urllib.request.ProxyHandler({}))
+        with op.open(f"http://127.0.0.1:{FIN['port']}/api/diag", timeout=45) as r:
+            return json.loads(r.read())
+    except Exception as e:  # noqa
+        raise ApiError(502, f'재무스타그램 서버에 닿지 못했습니다: {e}')
 
 
 def api_finkey_put(b, by):
     if FIN['key_arg']:
         raise ApiError(409, '서버를 --dart-key 로 켜서 여기서 바꿀 수 없습니다 (start_server.bat 의 --dart-key 를 고치세요)')
+    if 'proxy' in b:                                       # 2026-11-09 프록시(선택)
+        px = re.sub(r'\s+', '', str(b.get('proxy') or ''))
+        if px and not re.fullmatch(r'(https?://)?[^/\s]+(:\d{2,5})?/?', px):
+            raise ApiError(400, '프록시는 주소:포트 로 적으세요 (예: 10.0.0.1:8080 또는 http://proxy.회사.com:8080)')
+        with LOCK:
+            if px:
+                with open(P('fin_proxy.txt'), 'w', encoding='utf-8') as f:
+                    f.write('# 재무스타그램 인터넷 프록시 — 대시보드 재무스타그램 화면 ⚙ 에서 운영자가 지정\n' + px + '\n')
+            else:
+                try:
+                    os.remove(P('fin_proxy.txt'))
+                except OSError:
+                    pass
     path = str(b.get('path') or '').strip().strip('"')
     if path and not os.path.isabs(path):
         raise ApiError(400, '전체 경로를 적으세요 (예: C:\\Users\\…\\.env)')
@@ -1839,7 +1871,7 @@ def fin_loop():
             errf = open(P('finstagram.log'), 'ab')
             errf.write(f"\n--- {datetime.datetime.now():%Y-%m-%d %H:%M:%S} 시작 (포트 {port} · 키 파일 {key} [{how}])\n".encode('utf-8'))
             errf.flush()
-            env = {**os.environ, 'PYTHONIOENCODING': 'utf-8', 'PORT': str(port), 'FIN_HOST': '0.0.0.0', 'DART_KEY_FILE': key, 'FIN_NETS_FILE': nets_file()}
+            env = {**os.environ, 'PYTHONIOENCODING': 'utf-8', 'PORT': str(port), 'FIN_HOST': '0.0.0.0', 'DART_KEY_FILE': key, 'FIN_NETS_FILE': nets_file(), 'FIN_PROXY_FILE': P('fin_proxy.txt')}
             FIN['proc'] = subprocess.Popen([sys.executable, script], cwd=P('apps', 'finstagram'), creationflags=getattr(subprocess, 'CREATE_NO_WINDOW', 0), env=env,
                                            stdin=subprocess.DEVNULL, stdout=errf, stderr=errf)
             errf.close()
@@ -2251,6 +2283,9 @@ class ApiError(Exception):
         super().__init__(msg); self.code = code; self.msg = msg
 
 
+APP_GZ = {}   # apps/ 글자 파일 gzip 기억 (경로, ETag) → bytes
+
+
 class Handler(BaseHTTPRequestHandler):
     server_version = 'DeptDashboard/1.0'
     protocol_version = 'HTTP/1.1'
@@ -2298,7 +2333,8 @@ class Handler(BaseHTTPRequestHandler):
         self.send_response(code)
         self.send_header('Content-Type', ctype)
         self.send_header('Content-Length', str(len(data)))
-        self.send_header('Cache-Control', 'no-store')
+        if 'Cache-Control' not in (extra or {}):
+            self.send_header('Cache-Control', 'no-store')
         for k, v in (extra or {}).items():
             self.send_header(k, v)
         self.cors()
@@ -2373,7 +2409,7 @@ class Handler(BaseHTTPRequestHandler):
             log.exception('처리 오류')
             self.send(500, {'error': f'서버 오류: {e}'})
 
-    def send_app_file(self, rel):
+    def send_app_file(self, rel):  # noqa: C901
         """apps/ 아래 파일만 제공 (상위 폴더 접근 차단). 폴더면 index.html"""
         base = os.path.realpath(P('apps'))
         full = os.path.realpath(os.path.join(base, rel))
@@ -2384,10 +2420,35 @@ class Handler(BaseHTTPRequestHandler):
         if not os.path.isfile(full):
             raise ApiError(404, '없는 파일')
         ctype = mimetypes.guess_type(full)[0] or 'application/octet-stream'
-        if ctype.startswith('text/') or ctype in ('application/javascript', 'application/json'):
+        texty = ctype.startswith('text/') or ctype in ('application/javascript', 'application/json')
+        if texty:
             ctype += '; charset=utf-8'
+        # 2026-11-09 속도: 예전엔 no-store 라 지구본(4.5MB) · 번역 모델(75MB)을 열 때마다 다시 받았음 → 브라우저가 기억(ETag),
+        # 바뀌었는지만 묻고(304) 같으면 안 받음. 업데이트로 파일이 바뀌면 크기 · 시각이 달라져 새로 받음. 글자 파일(js · json)은 gzip 으로 줄여 보냄
+        st = os.stat(full)
+        tag = '"%x-%x"' % (st.st_size, int(st.st_mtime))
+        cache = {'Cache-Control': 'private, max-age=3600, must-revalidate', 'ETag': tag}
+        if self.headers.get('If-None-Match') == tag:
+            self.send_response(304)
+            for k, v in cache.items():
+                self.send_header(k, v)
+            self.cors()
+            self.end_headers()
+            return
         with open(full, 'rb') as f:
-            self.send(200, f.read(), ctype)
+            data = f.read()
+        if texty and len(data) > 2048 and 'gzip' in (self.headers.get('Accept-Encoding') or ''):
+            key = (full, tag)
+            gz = APP_GZ.get(key)
+            if gz is None:
+                import gzip
+                gz = gzip.compress(data, 6)
+                if len(APP_GZ) > 40:
+                    APP_GZ.clear()
+                APP_GZ[key] = gz
+            data, cache['Content-Encoding'] = gz, 'gzip'
+            cache['Vary'] = 'Accept-Encoding'
+        self.send(200, data, ctype, cache)
 
     def need_admin(self):
         if not self.is_admin():
@@ -2470,6 +2531,9 @@ class Handler(BaseHTTPRequestHandler):
             if m == 'PUT':
                 acc = session_account(self.token(), False)
                 return api_finkey_put(self.json_body(), acc['name'] if acc else '운영자')
+        if head == 'admin' and seg[1:] == ['findiag'] and m == 'GET':   # 2026-11-09 재무스타그램 DART 연결 점검 (운영자)
+            self.need_admin()
+            return api_findiag()
         if head == 'sched' and len(seg) == 2 and seg[1] in SCHED_KEYS:   # 실행 프로젝트 일정 현황판: 보기 = 실행 프로젝트 권한, 올리기 = 로그인 + 권한
             acc = session_account(self.token(), False)
             if not perms_for(acc, self.is_super() or self.is_admin()).get('runpjt'):

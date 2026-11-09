@@ -247,17 +247,18 @@ let current = null, charts = [], ddItems = [], ddIdx = -1, timer;
 ['삼성물산','삼성전자','SK하이닉스','현대자동차','NAVER','카카오'].forEach(n=>{
   const b=document.createElement('button');b.className='story';
   b.innerHTML=`<div class="ring"><span>${n[0]}</span></div>${n}`;
-  b.onclick=async()=>{const r=await (await fetch('/api/search?q='+encodeURIComponent(n))).json();if(r[0])pick(r[0]);};
+  b.onclick=()=>searchPick(n);
   $('#chips').appendChild(b);
 });
 
+{ const q0 = new URLSearchParams(location.search).get('q'); if (q0) setTimeout(() => { $('#q').value = q0; searchPick(q0); }, 50); }
 $('#q').addEventListener('input', e => {
   clearTimeout(timer);
   const v = e.target.value.trim();
   if (!v) return hideDD();
   timer = setTimeout(async () => {
-    ddItems = await (await fetch('/api/search?q=' + encodeURIComponent(v))).json();
-    ddIdx = -1; renderDD();
+    const r = await apiSearch(v); if (r.error) { ddItems = []; return showErr(r.error); }
+    ddItems = r; ddIdx = -1; renderDD();
   }, 150);
 });
 $('#q').addEventListener('keydown', e => {
@@ -278,6 +279,16 @@ function renderDD() {
   dd.style.display = 'block';
   dd.querySelectorAll('[data-i]').forEach(el => el.onclick = () => pick(ddItems[+el.dataset.i]));
 }
+/* 2026-11-09: 검색 실패를 조용히 넘기지 않고 이유 + 연결 점검을 보여 줌 · ?q=회사명 으로 열면 바로 검색 (대시보드 클로드 비서) */
+async function apiSearch(q) { try { const r = await fetch('/api/search?q=' + encodeURIComponent(q)); const j = await r.json(); return Array.isArray(j) ? j : { error:j.error || ('응답 ' + r.status) }; } catch (e) { return { error:'재무스타그램 서버에 닿지 못했습니다: ' + e.message }; } }
+async function searchPick(n) { const r = await apiSearch(n); if (r.error) return showErr(r.error); if (!r.length) return showErr(`'${n}' 으로 찾은 회사가 없습니다.`); pick(r[0]); }
+function showErr(msg) { hideDD(); const main = $('#main'); let box = $('#finErr'); if (!box) { main.insertAdjacentHTML('afterbegin', '<div id="finErr" class="err" style="margin-bottom:12px"></div>'); box = $('#finErr'); }
+  box.innerHTML = `⚠ 검색이 안 됩니다 — ${esc(msg)} <button id="finDiagBtn" style="margin-left:8px;cursor:pointer;border-radius:8px;border:1px solid currentColor;background:none;color:inherit;padding:2px 10px;font-weight:600">연결 점검</button><div id="finDiag" style="font-weight:400;margin-top:6px"></div>`;
+  $('#finDiagBtn').onclick = runDiag; }
+async function runDiag() { const el = $('#finDiag'); if (!el) return; el.textContent = 'DART 접속을 확인하는 중… (최대 30초)';
+  try { const d = await (await fetch('/api/diag')).json();
+    el.innerHTML = `<table style="border-collapse:collapse;font-size:12.5px">${[['DART 키', d.key ? (d.keyOk ? `있음 (${d.keyLen}자 ✓)` : `있음 (${d.keyLen}자 — DART 키는 40자)`) : '없음 — 대시보드 ⚙ 에서 .env 경로 지정'], ['키 파일', d.keyFile], ['프록시', d.proxy], ['DART 접속', (d.dart ? '✅ ' : '❌ ') + d.msg], ['회사 목록', d.corpCache ? '받아 둠' : '아직 못 받음(처음 검색 때 DART 에서 약 13MB)']].map(([a, b]) => `<tr><th style="text-align:left;padding:2px 10px 2px 0;white-space:nowrap">${a}</th><td style="text-align:left;word-break:break-all">${esc(b)}</td></tr>`).join('')}</table>`;
+  } catch (e) { el.textContent = '점검 실패: ' + e.message; } }
 function hideDD(){ $('#dd').style.display='none'; ddItems=[]; }
 function pick(c){ current = c; $('#q').value = c.corp_name; hideDD(); load(); }
 
@@ -288,7 +299,7 @@ async function load() {
   const p = new URLSearchParams({corp_code: current.corp_code, year: $('#year').value, reprt: $('#reprt').value, fs: $('#fs').value});
   try {
     const d = await (await fetch('/api/fin?' + p)).json();
-    render(d);
+    render(d); if (d.error) showErr(d.error);
   } catch (e) {
     main.innerHTML = `<div class="err">불러오기 실패: ${esc(e.message)}</div>`;
   }

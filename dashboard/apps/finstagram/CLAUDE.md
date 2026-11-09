@@ -84,3 +84,8 @@ python server.py                          # → http://localhost:8765
 
 - 서버 수정 후에는 서버 재시작(모듈 캐시). 브라우저 확인은 `pick(검색결과)` 후 15~20초 대기(XBRL·원문·IR PDF 첫 다운로드).
 - 확인용 회사: 삼성물산(`00149655`, 028260 — 수주·IR 모두 지원), 삼성전자(`00126380`, 005930 — 사업부문 DX/DS/SDC/Harman).
+
+## 2026-11-09 연결 문제 진단
+- `dart_get` 이 인터넷 · DART 오류를 한국어 이유로 바꿔 던짐(`net_reason`, `DART_ERR`). `/api/diag` = 키 유무 · 프록시 · DART 접속 시험. 화면은 검색 실패 시 빨간 상자 + [연결 점검].
+- 프록시: `FIN_PROXY` 또는 `FIN_PROXY_FILE`(대시보드 운영 폴더 `fin_proxy.txt`, ⚙ 창에서 입력). 없으면 윈도 인터넷 설정 · HTTPS_PROXY (urllib 기본, PAC 자동 설정은 못 읽음).
+- `?q=회사명` 으로 열면 바로 검색(대시보드 클로드 비서가 씀). `FIN_DART_BASE` = 시험용 DART 주소.

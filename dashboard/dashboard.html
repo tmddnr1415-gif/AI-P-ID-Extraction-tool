@@ -1453,6 +1453,15 @@ html.dark dialog::backdrop{background:rgba(255,255,255,.35)}
 html.dark :is(img,video,canvas,iframe,.oc-helmimg,.pidframe,.modframe,#plazaHost,.oc-hero2,#side,.igh.team,.tm-week,.oc.m-map .oc-view,.kpi.hero,.cd.today,.whero,.gp,.bhat,.oc-hs,.fb,.hel,.calcard .crown,.oav,.oc-av>img,.oc-av>b,.pfav){filter:invert(1) hue-rotate(180deg)}
 html.dark :is(#side,.igh.team,.whero,.kpi.hero,.oc-hero2,.oc.m-map .oc-view,.oav,.pfav) :is(img,canvas,.oc-helmimg,.oav,.oc-hs,.fb,.hel,.bhat){filter:none}
 html.dark dialog,html.dark :fullscreen{color-scheme:light}
+/* 2026-11-09 다크모드 가독성 — 화면 전체를 뒤집는 방식이라 '뒤집기 전' 색으로 적음: 어두운 테두리 → 밝은 선, 흰 그림자 → 검은 그림자.
+ * 카드(창)가 바탕보다 살짝 밝게 떠 보이고, 윗변에 얇은 빛 · 바깥에 은은한 빛을 둬 반투명 유리 같은 입체감 */
+html.dark{--bg:#fbfbfe;--card:#e9ebf4;--line:rgba(18,22,70,.30);--shadow:0 0 0 1px rgba(18,22,70,.30),inset 0 1px 0 rgba(0,0,40,.38),0 12px 30px rgba(0,0,40,.16)}
+html.dark body{background:radial-gradient(1200px 600px at 70% -10%,#eef0fa,transparent 70%),var(--bg)}
+html.dark :is(.card,.kpi:not(.hero),.wk,.panel,.qcard,.calcard,.agi,.ssn,.schtab,.dbw,.tblwrap,.sheetwrap,section.card){border:1px solid rgba(18,22,70,.30)!important;box-shadow:inset 0 1px 0 rgba(0,0,40,.38),0 12px 30px rgba(0,0,40,.16)!important}
+html.dark :is(.card,.kpi:not(.hero),.wk){background:linear-gradient(180deg,#e0e3ef 0%,#eaecf5 38%,#eef0f7 100%)!important}
+html.dark :is(input,select,textarea){border-color:rgba(18,22,70,.38)!important;background:#f4f5fa}
+html.dark :is(.whero,.kpi.hero,.oc-hero2){filter:invert(1) hue-rotate(180deg) saturate(.8) brightness(.94)!important;box-shadow:0 0 0 1px rgba(255,255,255,.14),inset 0 1px 0 rgba(255,255,255,.22),0 12px 30px rgba(0,0,0,.45)!important}
+html.dark #side{box-shadow:0 0 0 1px rgba(255,255,255,.10),0 14px 34px rgba(0,0,0,.5)!important}
 .darkbtn{min-width:40px}
 
 /* ---------- 2026-11-08 세계 지도 3D 지구본 ---------- */
@@ -1596,7 +1605,7 @@ button:focus:not(:focus-visible){outline:none}
 
 #botPanel .btab{margin-top:6px;max-height:170px;overflow:auto;border:1px solid #e3e6f0;border-radius:8px}#botPanel .btab table{border-collapse:collapse;font-size:11px;width:100%}#botPanel .btab th,#botPanel .btab td{padding:3px 5px;border-bottom:1px solid #eef0f6;text-align:left;white-space:nowrap}#botPanel .btab th{background:#f3f4fa;position:sticky;top:0}#botPanel .btab small{display:block;padding:3px 6px;color:#7a7d99}
 #botPanel .bfiles{display:flex;flex-wrap:wrap;gap:4px;padding:4px 8px 0}#botPanel .bfiles span{background:#eef1ff;color:#3b3fb8;border-radius:99px;padding:2px 4px 2px 9px;font-size:11.5px;display:inline-flex;align-items:center;gap:2px}#botPanel .bfiles button{border:0;background:none;cursor:pointer;color:#777;font-size:11px}
-#botPanel.bdrop{outline:3px dashed #4f4ce0;outline-offset:-6px}#botPanel.bdrop .blog::after{content:'여기에 놓으면 비서가 받아요 📎';display:block;text-align:center;padding:12px;font-weight:800;color:#4f4ce0}
+body.bdragging{user-select:none}body.bdragging iframe{pointer-events:none}body.bdragging #botPanel{will-change:left,top;transition:none}#botPanel.bdrop{outline:3px dashed #4f4ce0;outline-offset:-6px}#botPanel.bdrop .blog::after{content:'여기에 놓으면 비서가 받아요 📎';display:block;text-align:center;padding:12px;font-weight:800;color:#4f4ce0}
 
 #botPanel .bproof{background:#fff;border:1px solid #e3e6f0;border-radius:8px;padding:6px 8px;margin-top:6px;font-size:12.5px;line-height:1.55;max-height:200px;overflow:auto;white-space:pre-wrap}#botPanel .bproof del{background:#ffe3e3;color:#b42318;text-decoration:line-through}#botPanel .bproof ins{background:#dcf5e3;color:#0a6b2f;text-decoration:none;font-weight:700}
 #botPanel .bplist{margin-top:5px;font-size:11.5px;background:#f6f7fb;border-radius:8px;padding:4px 7px}#botPanel .bplist.hint{background:#fff8e6}#botPanel .bplist small{display:block;font-size:10.5px;color:#7a7d99;font-weight:700}
@@ -1820,7 +1829,7 @@ function recLabel(key, f) {
  * ===================================================================== */
 let root = null;
 /* 서버 모드: http(s):// 로 접속하면 server.py 의 REST API 사용 (폴더 선택 불필요). file:// 로 열면 폴더 모드 */
-const APP_VERSION = '2026-11-09.10';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
+const APP_VERSION = '2026-11-09.11';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
 const SERVER_URL = 'http://localhost:8080';
 // 부서원 PC 사본(file://)이 접속을 시도할 서버 — 서버가 배포 파일을 만들 때 'PC 이름 주소, IP 주소' 순으로 자동 기록함
 const DEFAULT_SERVERS = ['http://ASEUNGWOOK-B01:8080', 'http://65.3.30.234:8080'];
@@ -4187,9 +4196,10 @@ function pidBase(key = 'pid') {
   if (host.includes(':') && !host.startsWith('[')) host = `[${host}]`;   // IPv6
   return `http://${host}:${PID_ROUTES[key]?.port || PID_PORT}`;
 }
+let FIN_Q = '';   // 2026-11-09 비서가 재무스타그램을 열 때 바로 검색할 회사 (iframe ?q=)
 function pidUrl(key) {
   const R = PID_ROUTES[key] || PID_ROUTES.pid;
-  return `${pidBase(key)}${R.path}?${R.q}user=${encodeURIComponent(user || '')}`;   // P&ID: /?embed=1&user=본명 · LOGIC: /logic?user=본명 (비회원은 빈 값)   // 로그인한 본명 (비회원은 빈 값)
+  return `${pidBase(key)}${R.path}?${R.q}user=${encodeURIComponent(user || '')}${key === 'finstagram' && FIN_Q ? '&q=' + encodeURIComponent(FIN_Q) : ''}`;   // P&ID: /?embed=1&user=본명 · LOGIC: /logic?user=본명 (비회원은 빈 값)   // 로그인한 본명 (비회원은 빈 값)
 }
 function renderPid(c, key) {
   const url = pidUrl(key), T = esc(PID_ROUTES[key].title);
@@ -4205,21 +4215,30 @@ async function openFinKey() {
   const st = d => !d.exists ? '<b class="finwarn">파일이 없습니다</b>' : !d.hasKey ? '<b class="finwarn">파일은 있지만 DART_API_KEY 를 찾지 못했습니다</b>'
     : d.keyOk ? `<b class="finok">✓ 키 확인 (${d.keyLen}자)</b>` : `<b class="finwarn">키 길이가 ${d.keyLen}자입니다 (DART 키는 40자)</b>`;
   const body = d => `<table class="t finkv"><tr><th>지금 경로</th><td><code>${esc(d.path)}</code> <span class="muted">(${esc(d.from)})</span></td></tr>
-      <tr><th>상태</th><td>${st(d)}</td></tr><tr><th>재무스타그램 서버</th><td>${d.running ? '켜짐' : '꺼짐 · 다시 띄우는 중일 수 있음'} · 포트 ${d.port}</td></tr></table>`;
+      <tr><th>상태</th><td>${st(d)}</td></tr><tr><th>재무스타그램 서버</th><td>${d.running ? '켜짐' : '꺼짐 · 다시 띄우는 중일 수 있음'} · 포트 ${d.port}</td></tr><tr><th>프록시</th><td>${d.proxy ? `<code>${esc(d.proxy)}</code>` : '없음 (윈도 인터넷 설정을 따름)'}</td></tr></table>`;
   openDlg(dlg, `<div class="dh"><span>⚙ 재무스타그램 DART API 키</span><button class="btn sm" data-close>닫기</button></div>
     <div class="db"><p class="muted" style="margin-top:0">서버 PC 에 있는 <b>.env</b> 파일(또는 키만 적은 txt)의 전체 경로를 적으세요. 파일 안의 <code>DART_API_KEY=…</code> 줄을 읽습니다.
       키 값은 이 화면 · 업데이트 파일 · 부서원 PC 어디에도 나가지 않습니다. 저장하면 재무스타그램을 새 키로 다시 띄웁니다.</p>
       <div id="finkeyState">${body(d)}</div>
       <label class="fl">.env 파일 경로 <input id="finkeyPath" type="text" style="width:100%" value="${esc(d.from === '기본 위치' ? '' : d.path)}" placeholder="예: C:\\Users\\백승욱\\Desktop\\해커톤\\2day\\dart_dashboard\\.env" ${d.locked ? 'disabled' : ''}></label>
-      <p class="muted">비워 두고 저장하면 기본 위치 <code>C:\\Claude\\keys\\dart_api_key.txt</code> 를 씁니다.${d.locked ? ' · 지금은 서버를 <b>--dart-key</b> 로 켜서 여기서 바꿀 수 없습니다.' : ''}</p></div>
+      <p class="muted">비워 두고 저장하면 기본 위치 <code>C:\\Claude\\keys\\dart_api_key.txt</code> 를 씁니다.${d.locked ? ' · 지금은 서버를 <b>--dart-key</b> 로 켜서 여기서 바꿀 수 없습니다.' : ''}</p>
+      <label class="fl">인터넷 프록시 (선택 · 회사망에서 DART 가 막히면) <input id="finkeyProxy" type="text" style="width:100%" value="${esc(d.proxy || '')}" placeholder="예: 10.10.1.1:8080 — 비우면 윈도 인터넷 설정"></label>
+      <p><button class="btn sm" data-fkdiag>🔎 DART 연결 점검</button> <span class="muted" style="font-size:12px">키 · 프록시 · opendart.fss.or.kr 접속을 확인하고 안 되는 이유를 알려 줍니다 (최대 30초)</span></p><div id="finkeyDiag"></div></div>
     <div class="df"><button class="btn" data-close>닫기</button><button class="btn pri" data-fksave ${d.locked ? 'disabled' : ''}>저장 · 다시 띄우기</button></div>`);
+  $('[data-fkdiag]', dlg).onclick = () => finDiagShow($('#finkeyDiag', dlg));
   $('[data-fksave]', dlg).onclick = async () => {
-    try { d = await api('PUT', 'admin/finkey', { path:$('#finkeyPath', dlg).value.trim() }); } catch (e) { return toast(e.message, true); }
+    try { d = await api('PUT', 'admin/finkey', { path:$('#finkeyPath', dlg).value.trim(), proxy:$('#finkeyProxy', dlg).value.trim() }); } catch (e) { return toast(e.message, true); }
     $('#finkeyState', dlg).innerHTML = body(d);
     toast(d.hasKey ? '키 파일을 저장했습니다 — 재무스타그램을 다시 띄웁니다' : '경로를 저장했지만 키를 찾지 못했습니다', !d.hasKey);
+    $('#finkeyDiag', dlg).innerHTML = '';
     setTimeout(async () => { try { const n = await api('GET', 'admin/finkey'); if (dlg.open && $('#finkeyState', dlg)) $('#finkeyState', dlg).innerHTML = body(n); } catch (_) {} if (route === 'finstagram') pidConnect('finstagram'); }, 2500);
   };
 }
+async function finDiagShow(el) {   // 2026-11-09 DART 연결 점검 결과
+  el.innerHTML = '<span class="muted">확인하는 중…</span>';
+  try { const g = await api('GET', 'admin/findiag');
+    el.innerHTML = `<div class="${g.dart ? 'finok' : 'finwarn'}" style="font-weight:700;margin:6px 0">${g.dart ? '✅ ' : '❌ '}${esc(g.msg)}</div><span class="muted" style="font-size:12px">키 ${g.key ? g.keyLen + '자' + (g.keyOk ? ' ✓' : ' (40자가 아님)') : '없음'} · 프록시 ${esc(g.proxy)} · 회사 목록 ${g.corpCache ? '받아 둠' : '아직 없음'}</span>`;
+  } catch (e) { el.innerHTML = `<div class="finwarn">❌ ${esc(e.message)}</div>`; } }
 // iframe 을 띄우기 전에 /version 확인 (3초, JSON 이 와야 성공). P&ID 는 대시보드 데이터를 쓰지 않으므로 대시보드 오프라인 여부와 무관
 async function pidConnect(key) {
   const wrap = $('#pidwrap'); if (!wrap || wrap.dataset.route !== key) return;
@@ -4920,7 +4939,7 @@ const BOT_FAQ = [
   [/voc\s*(등록|쓰기|작성|올리)|건의\s*(하|등록)|불편\s*(신고|등록)/i, () => '화면을 찍어 VOC 를 바로 등록할 수 있어요. 지금 화면에서 고칠 곳을 고르고 내용을 쓰면 됩니다 (단축키 F8).', [['📣 VOC 등록하기', () => { botToggle(false); shotToVoc(); }], ['VOC 목록 보기', () => { BS.kind = 'VOC'; go('board'); }]]],
   [/마감|언제까지|데드라인/, () => `주간업무 마감은 매주 <b>수요일 오전 11:59</b> 입니다. 이번 주 마감은 <b>${esc(weekLabel(curWeek()).slice(-5, -1).replace(/(\d\d)(\d\d)/, '$1/$2'))}(수) 11:59</b> — 그때 자동으로 마감본이 남고 새 주가 시작돼요.`, [['미업데이트 PJT 보기', () => openPop('notupd')], ['수행 PJT', () => go('perform')]]],
   [/할\s*일|내\s*업무|미작성|미업데이트/, () => { const mt = myTasks(), mo = mt.filter(t => !t.done); return mo.length ? `이번 주 남은 할 일이 <b>${mo.length}건</b> 있어요.<br>${mo.slice(0, 5).map(t => `· ${esc(t.label)} <span class="muted">(${esc(t.kind)})</span>`).join('<br>')}${mo.length > 5 ? '<br>…' : ''}` : '이번 주 할 일을 모두 마쳤어요 👍'; }, [['미업데이트 PJT 목록', () => openPop('notupd')], ['기한 지난 업무', () => openPop('overdue')]]],
-  [/재무|dart|다트|주가|수주/i, () => '<b>재무스타그램</b>은 왼쪽 메뉴 <b>실행 프로젝트 아래</b>에 있어요. 회사 이름을 검색하면 DART 재무제표 · 주가 · 수주현황을 보여 줍니다. 세계 지도의 [💰 삼성물산 수주현황] 도 같은 자료예요.', [['재무스타그램 열기', () => go('finstagram')]]],
+  [/재무|dart|다트|주가|수주/i, () => '<b>재무스타그램</b>은 왼쪽 메뉴 <b>9 재무스타그램</b>이에요. "재무스타그램 삼성물산 검색" 처럼 말하면 제가 바로 찾아 요약해 드려요. 회사 이름을 검색하면 DART 재무제표 · 주가 · 수주현황을 보여 줍니다. 세계 지도의 [💰 삼성물산 수주현황] 도 같은 자료예요.', [['재무스타그램 열기', () => go('finstagram')]]],
   [/지도|지구본|나라|국가|현지\s*시각/, () => '<b>유닛분장 → 세계 지도</b>에서 3D 지구본으로 PJT 위치 · 현지 시각 · LE/RE 를 봅니다. 휠 = 확대/축소, 끌기 = 돌리기.', [['세계 지도 열기', () => { go('unit'); setTimeout(() => $('[data-ocmode=map]')?.click(), 700); }]]],
   [/조직|유닛|헬멧|포지션|쿼터백|qb|le|re\b/i, () => '<b>유닛분장</b>에서 조직도(유닛 · 프로젝트별 LE/RE · 세계 지도)를 봅니다. 사람 카드를 누르면 부서원 화면(담당 PJT · To Do · 기술공유 …)이 열려요.', [['유닛분장 열기', () => go('unit')]]],
   [/voc|건의|불편|개선\s*요청|스크린/i, () => 'VOC 는 오른쪽 위 <b>📷 스크린 → VOC</b>(단축키 F8)로 화면을 찍어 바로 남길 수 있어요. 올라온 VOC 는 <b>익명게시판 → VOC</b> 에 모입니다.', [['VOC 쓰기', () => shotToVoc()], ['VOC 목록', () => { BS.kind = 'VOC'; go('board'); }]]],
@@ -5774,8 +5793,73 @@ function botFreeText(q) {   // 명령이 아닌 글(메일 본문 등)을 붙여
   return { html:`글을 주셨네요 (${n}자). 어떻게 해 드릴까요? 아래에서 고르거나, 글 끝에 "위 내용 영어로 번역해줘" 처럼 적어 주셔도 돼요.`,
     acts:[{ l:ko ? '🌐 영어로 번역' : '🌐 한국어로 번역', fn:() => botTranslate(q, ko ? 'koen' : 'enko') }, { l:'✍ 첨삭(맞춤법 · 표현)', fn:() => botAsk('첨삭: ' + q) }, { l:'📝 요약', fn:() => { const r = botSummary(q); botSay('bot', r.html, r.acts); } }, { l:'📣 VOC 로 등록', fn:() => botAsk('VOC 글 쓰기: ' + trunc(q.split('\n')[0], 30) + ' / ' + q) }] };
 }
+/* 2026-11-09 "재무스타그램 삼성물산 검색" → 비서가 직접 재무스타그램 서버에 물어 요약을 보여 주고, "이동할까요?" (권한 · 서버 상태 · DART 오류도 그대로 알려 줌) */
+const FIN_STRIP = /재무\s*스타\s*그램|재무\s*(?:제표|현황|정보)|dart|다트|(?:재무|실적|검색|조회|찾아|찾아봐|보여|알려|열어|실행|회사|기업)(?:\s*(?:해|해서))?(?:\s*(?:줘|주세요|줘요|봐))?(?=\s|$)|(?:에서|에|의|로|으로|을|를|좀)(?=\s|$)/gi;
+function botFin(q) {
+  if (!/재무\s*스타\s*그램|(재무|dart|다트|실적).*(검색|조회|찾아|보여|알려)|(검색|조회|찾아|보여|알려).*(재무|dart|다트)/i.test(q)) return null;
+  const name = q.replace(FIN_STRIP, ' ').replace(/[?!.~,"'“”]/g, ' ').replace(/\s+/g, ' ').trim();
+  if (!name || name.length < 2) return null;   // 회사 이름 없음 → 메뉴 안내(FAQ)
+  if (!can('finstagram')) return { html:'🔒 재무스타그램 메뉴 권한이 없어요. 운영자에게 요청하세요.', acts:[] };
+  const open = () => { FIN_Q = name; go('finstagram'); setTimeout(() => { FIN_Q = ''; }, 4000); };
+  return { html:'', acts:[], run:async () => {
+    const msg = botSay('bot', `📈 재무스타그램에서 <b>${esc(name)}</b> 찾는 중…`, [], true), bb = msg.querySelector('.bb'), B = pidBase('finstagram');
+    const get = async (path, ms) => { const c = new AbortController(), t = setTimeout(() => c.abort(), ms); try { const r = await fetch(B + path, { signal:c.signal }); const j = await r.json(); if (j && j.error && !Array.isArray(j) && !j.company) throw new Error(j.error); return j; } finally { clearTimeout(t); } };
+    try {
+      const hits = await get('/api/search?q=' + encodeURIComponent(name), 60000);
+      if (!hits.length) { bb.innerHTML = `🤔 재무스타그램에서 <b>${esc(name)}</b> 회사를 찾지 못했어요. 이름을 다시 확인해 주세요.`; return; }
+      const c = hits[0]; bb.innerHTML = `📈 <b>${esc(c.corp_name)}</b>${c.stock_code ? ` (${esc(c.stock_code)})` : ''} 찾았어요 — DART 재무제표 불러오는 중… (처음엔 10~20초)`;
+      const d = await get(`/api/fin?corp_code=${encodeURIComponent(c.corp_code)}`, 90000), k = d.key || {}, sm = d.summary || {};
+      const won = v => v == null ? '-' : Math.abs(v) >= 1e12 ? (v / 1e12).toFixed(1) + '조' : Math.round(v / 1e8).toLocaleString() + '억';
+      const row = (l, a) => k[a] ? `<tr><th>${l}</th><td>${won(k[a][0])}</td><td class="muted">${won(k[a][1])}</td></tr>` : '';
+      bb.innerHTML = d.error ? `📈 <b>${esc(c.corp_name)}</b> — ${esc(d.error)}`
+        : `📈 <b>${esc(c.corp_name)}</b> · ${esc(d.year)}년 ${esc(d.reprt_name || '')} (${esc(d.fs_name || '')})${sm.headline ? `<br><b>${esc(sm.headline)}</b>` : ''}
+          <table class="t" style="margin:6px 0;font-size:12.5px"><tr><th></th><th>${esc(d.year)}</th><th class="muted">${esc(+d.year - 1)}</th></tr>${row('매출', 'revenue')}${row('영업이익', 'operating_income')}${row('순이익', 'net_income')}${row('자산', 'assets')}${row('부채', 'liabilities')}</table>
+          ${(sm.lines || []).slice(0, 3).map(x => '· ' + esc(typeof x === 'string' ? x : x.text || '')).join('<br>')}<br><br>재무스타그램 화면으로 <b>이동할까요?</b> (차트 · 주가 · 수주 현황까지 보여 줘요)`;
+      botActs(msg, [{ l:'✅ 네, 이동', fn:open }, { l:'아니요, 여기서 볼게요', fn:() => botSay('bot', '알겠어요 🙂 필요하면 "재무스타그램 열어줘" 라고 하세요.') }]);
+    } catch (e) {
+      const m = e.name === 'AbortError' ? '응답이 너무 오래 걸려요' : /Failed to fetch|NetworkError|Load failed/.test(e.message) ? '재무스타그램 서버(포트 ' + PID_ROUTES.finstagram.port + ')에 닿지 못했어요 — 대시보드 서버가 함께 띄우는데 꺼져 있을 수 있어요' : e.message;
+      bb.innerHTML = `❌ 재무스타그램 검색 실패 — ${esc(m)}${MGR() || ADMIN ? '<br><span class="muted" style="font-size:11px">운영자: 재무스타그램 화면 ⚙ › DART 연결 점검 으로 이유를 볼 수 있어요</span>' : ''}`;
+      botActs(msg, [{ l:'재무스타그램 열기', fn:open }]);
+    }
+  } };
+}
+/* 2026-11-09 "주간업무보고에서 수행에서 CO2 PJT 내 담당 현황 띄워줘" → 그 표로 이동 + 내용 검색 걸기 + (하나면) 그 행으로.
+ *  주간업무보고 안에서 '실행' = '수행' 표(실행 프로젝트 메뉴와 구분: '실행 프로젝트' · Schedule · Datasheet 는 그 메뉴로) */
+const NAV_VERB = /띄워|띄우|보여|열어|찾아|검색|이동|가\s*줘|가자|켜\s*줘|나오게|보자|볼래|조회/;
+const NAV_SHEET = [['perform', /수행|(?:주간\s*업무|주간업무보고)[\s\S]*실행(?!\s*프로젝트)/], ['bid', /입찰(?!\s*프로젝트)/], ['task', /통합\s*업무/], ['issue', /이슈/], ['rnr', /R&R|알앤알/i], ['general', /일반\s*업무/],
+  ['unit', /유닛\s*분장/], ['techshare', /기술\s*공유/], ['todo', /to\s*do|투두|할\s*일\s*목록/i], ['staffing', /투입\s*인력/], ['notice', /전달\s*사항|주간\s*회의/]];
+const NAV_STOP = /주간\s*업무\s*보고|주간업무|수행|실행|입찰|통합\s*업무|이슈\s*사항|이슈|일반\s*업무|유닛\s*분장|기술\s*공유|전달\s*사항|주간\s*회의|투입\s*인력|to\s*do\s*list|to\s*do|표|시트|화면|메뉴|목록|현황|담당(?:자)?|업무|내용|관련|정보|프로젝트|(?:띄워|띄우|보여|열어|찾아|검색|이동|가|켜|나오게|보|조회)(?:\s*(?:해|서|줘|주세요|줘요|봐|자|래))*(?=\s|$)|(?:에서|에|의|로|으로|을|를|좀|내|중|만|은|는|이|가)(?=\s|$)/gi;
+const NAV_SKIP = /담당(?:자)?\s*\S+\s*(?:만|으로|로)\s*(?:필터|보여|걸러|추려)|내\s*(?:업무|것|일)만|진행\s*중\s*만|종결(?:된|만)|필터|열\s*(?:을|를)?\s*(?:숨|감추|감춰|보이게|펼)|인쇄|프린트|내보내|엑셀|csv|저장|마감|휴지통|20\d\d\s*년|추가|등록|수정|삭제|바꿔|고쳐|변경|종결\s*처리|몇|얼마|언제|지연|늦/i;   // 화면 기능 · 고치기 · 질문은 다른 처리로
+function botNav(q) {
+  if (!NAV_VERB.test(q) || q.length > 80 || NAV_SKIP.test(q)) return null;
+  if (/실행\s*프로젝트|CO2\s*PJT/i.test(q) && !/주간\s*업무|수행/.test(q)) {   // 실행 프로젝트 메뉴
+    if (!/열어|띄워|이동|가\s*줘|가자|켜/.test(q)) return null;   // '보여줘 · 찾아줘' 는 구매 일정 답(botSched) 쪽
+    const k = /schedule|스케줄|일정|구매|psr/i.test(q) ? 'co2sched' : /globe/i.test(q) ? 'globev' : /butterfly|버터/i.test(q) ? 'bflyv' : /psv/i.test(q) ? 'psv' : /ball|볼\s*밸브|datasheet|데이터\s*시트/i.test(q) ? 'valve' : 'co2sched';
+    if (!can('runpjt')) return { html:'🔒 실행 프로젝트 메뉴 권한이 없어요.', acts:[] };
+    return { html:`📂 실행 프로젝트 › CO2 PJT › ${k === 'co2sched' ? 'Schedule(구매 일정 현황판)' : 'Datasheet › ' + ({ valve:'Ball Valve', globev:'Globe Valve', bflyv:'Butterfly Valve', psv:'PSV' }[k])} 를 열게요.`, acts:[], run:() => go(k) };
+  }
+  const hit = NAV_SHEET.find(([, re]) => re.test(q)); if (!hit) return null;
+  const k = hit[0], sh = SHEET[k]; if (!sh) return null;
+  if (!can(menuOf(k))) return { html:`🔒 ${esc(sh.label)} 메뉴 권한이 없어요.`, acts:[] };
+  const recs = getRecs(k), txt = r => JSON.stringify(Object.values(r.fields || {})).toLowerCase();
+  const toks = q.replace(NAV_STOP, ' ').replace(/[?!.,~"'“”]/g, ' ').split(/\s+/).map(w => w.trim()).filter(w => w.length >= 2 || /^[A-Za-z0-9]$/.test(w));
+  const useful = toks.map(w => ({ w, n:recs.filter(r => txt(r).includes(w.toLowerCase())).length })).filter(x => x.n > 0);
+  let term = '', rows = recs;
+  if (useful.length) { const all = useful.map(x => x.w).join(' '), both = recs.filter(r => useful.every(x => txt(r).includes(x.w.toLowerCase())));   // 모두 맞는 행 우선, 없으면 가장 좁히는 낱말 하나
+    if (both.length) { rows = both; term = useful.length === 1 ? useful[0].w : useful.sort((a, b) => a.n - b.n)[0].w; } else { const b = useful.sort((a, b) => a.n - b.n)[0]; term = b.w; rows = recs.filter(r => txt(r).includes(b.w.toLowerCase())); } void all; }
+  const missed = toks.filter(w => !useful.some(x => x.w === w));
+  const isWeekly = menuOf(k) === 'weekly', path = (isWeekly ? '주간업무보고 › ' : '') + sh.label;
+  const note = /실행/.test(q) && k === 'perform' ? '<br><span class="muted" style="font-size:11px">주간업무보고의 \'실행\' 은 <b>수행</b> 표로 봤어요 (실행 프로젝트 메뉴는 "실행 프로젝트 Schedule 열어줘")</span>' : '';
+  const html = term ? `📋 <b>${esc(path)}</b> 표에서 <b>'${esc(term)}'</b> 로 찾은 ${rows.length}건을 보여 드릴게요.${missed.length ? ` <span class="muted">(표에 없는 말은 뺐어요: ${esc(missed.join(' · '))})</span>` : ''}${note}`
+    : `📋 <b>${esc(path)}</b> 표를 열게요${toks.length ? ` — 표에서 <b>${esc(toks.join(' '))}</b> 를(을) 찾지 못해 검색은 걸지 않았어요` : ''}.${note}`;
+  const acts = term ? rows.slice(0, 5).map(r => ({ l:`${sh.label} · ${trunc(recLabel(k, r.fields || {}), 40)}`, fn:() => jumpTo(k, r.id, (sh.cols || [])[0]?.f, false) })) : [];
+  if (term) acts.push({ l:'검색 풀기', fn:() => { fstate(k).q = ''; if (route === k) render(); else go(k); } });
+  return { html, acts, run:async () => { const st = fstate(k); st.q = term; if (term) { st.closed = ''; st.mine = false; st.owner = ''; } if (route !== k) go(k); else render();
+    await new Promise(r => setTimeout(r, 300)); const t = $('#content table'); if (t && term) t.scrollIntoView({ block:'start', behavior:'smooth' }); } };
+}
 function botAnswer(q) {
-  const pf = botProof(q) || botTrLearnCmd(q) || botTrCmd(q); if (pf) return pf;   // 첨삭 · 번역 학습 · 번역
+  const pf = botProof(q) || botTrLearnCmd(q) || botTrCmd(q); if (pf) return pf;
+  const fin = botFin(q) || botNav(q); if (fin) return fin;   // 재무스타그램 회사 검색 · 메뉴(표) 이동 + 검색(botNav)
   const ap = botApp(q) || botSheetOut(q); if (ap) return ap;   // 분석 메뉴 · 시트 출력 / 요약
   const psr = botSched(q); if (psr) return psr;   // 구매 일정(PSR) 질문
   const u = botUI(q); if (u) return u;   // 화면 기능(저장 · 마감 · 휴지통 · 내보내기 · 필터 · 열 · 이력 · 쪽지 · 업로드 · 메뉴)
@@ -5830,7 +5914,7 @@ async function botRunStep(step, card, i) {
     if (a.keep && a.acts.length) {                               // 확인이 필요한 일 → 미리보기 보여 주고 바로 첫 단추(적용) 실행
       botSay('bot', a.html + '<br><span class="muted" style="font-size:11px">⚡ 바이브: 자동 실행</span>');
       await a.acts[0].fn(); await new Promise(r => setTimeout(r, 900)); set('✅', '자동 실행');
-    } else if (a.run) { if (a.html) botSay('bot', a.html); await a.run(); await new Promise(r => setTimeout(r, 400)); set('✅'); }
+    } else if (a.run) { if (a.html || a.acts.length) botSay('bot', a.html, a.acts); await a.run(); await new Promise(r => setTimeout(r, 400)); set('✅'); }
     else { if (a.html || a.acts.length) botSay('bot', a.html, a.acts); set(/🔒|못 찾|실패|❌|🤔/.test(a.html) ? '⚠' : '✅', /🔒/.test(a.html) ? '권한 없음' : ''); }
   } catch (e) { set('❌', esc(e.message || '실패')); botSay('bot', '❌ ' + esc(e.message || '실패')); }
 }
@@ -5928,8 +6012,14 @@ function botInit() {
   bi.addEventListener('input', () => { bi.style.height = ''; bi.style.height = Math.min(160, bi.scrollHeight) + 'px'; });
   try { const sz = JSON.parse(localStorage.getItem('dept-bot-size') || 'null'); if (sz && sz.w >= 280 && sz.h >= 300) { p.style.width = Math.min(innerWidth - 16, sz.w) + 'px'; p.style.height = Math.min(innerHeight - 16, sz.h) + 'px'; } } catch (_) {}   // 크기 기억
   new ResizeObserver(() => { if (p.hidden || p.classList.contains('max')) return; try { localStorage.setItem('dept-bot-size', JSON.stringify({ w:p.offsetWidth, h:p.offsetHeight })); } catch (_) {} }).observe(p);
-  const hd = p.querySelector('.bph'); hd.addEventListener('mousedown', e => { if (e.target.closest('button') || p.classList.contains('max')) return; const sx = e.clientX - p.offsetLeft, sy = e.clientY - p.offsetTop; p.dataset.moved = 1; document.body.style.userSelect = 'none';   // 머리줄 끌어서 이동
-    const mv = ev => { p.style.left = Math.max(0, Math.min(innerWidth - 60, ev.clientX - sx)) + 'px'; p.style.top = Math.max(0, Math.min(innerHeight - 40, ev.clientY - sy)) + 'px'; }, up = () => { removeEventListener('mousemove', mv); removeEventListener('mouseup', up); document.body.style.userSelect = ''; }; addEventListener('mousemove', mv); addEventListener('mouseup', up); });
+  // 머리줄 끌어서 이동 — 2026-11-09: 포인터 붙잡기(setPointerCapture)로 재무스타그램 · P&ID 같은 iframe 위를 지나가도 놓치지 않게, 그리는 건 화면 새로 고칠 때 한 번(rAF)
+  const hd = p.querySelector('.bph'); hd.style.touchAction = 'none';
+  hd.addEventListener('pointerdown', e => { if (e.button || e.target.closest('button') || p.classList.contains('max')) return; e.preventDefault();
+    const sx = e.clientX - p.offsetLeft, sy = e.clientY - p.offsetTop; let nx = p.offsetLeft, ny = p.offsetTop, raf = 0; p.dataset.moved = 1;
+    document.body.classList.add('bdragging'); try { hd.setPointerCapture(e.pointerId); } catch (_) {}
+    const draw = () => { raf = 0; p.style.left = nx + 'px'; p.style.top = ny + 'px'; };
+    hd.onpointermove = ev => { nx = Math.max(0, Math.min(innerWidth - 60, ev.clientX - sx)); ny = Math.max(0, Math.min(innerHeight - 40, ev.clientY - sy)); if (!raf) raf = requestAnimationFrame(draw); };
+    hd.onpointerup = hd.onpointercancel = ev => { hd.onpointermove = hd.onpointerup = hd.onpointercancel = null; if (raf) { cancelAnimationFrame(raf); draw(); } document.body.classList.remove('bdragging'); try { hd.releasePointerCapture(ev.pointerId); } catch (_) {} }; });
   const fin = p.querySelector('#botFile'); fin.onchange = () => { botAddFiles(fin.files); fin.value = ''; };
   const dz = (t, on) => t.addEventListener(on ? 'dragover' : 'dragleave', e => { if (on) { if (![...(e.dataTransfer?.types || [])].includes('Files')) return; e.preventDefault(); } p.classList.toggle('bdrop', on); });
   p.addEventListener('paste', e => { const fs = [...(e.clipboardData?.files || [])].filter(f => /^image\//.test(f.type)); if (fs.length) { e.preventDefault(); botAddFiles(fs); } });
@@ -7230,7 +7320,7 @@ function ocZoom(f, cx, cy) {
 function orgBind(el) {
   const v = $('#ocView', el); if (!v) return;
   const mi = $('#ocMi', el); mi.innerHTML = `<div class="oc-mc">${$('#ocCv', el).innerHTML}</div>`;   // 미니맵 = 조직도를 작게 복사
-  requestAnimationFrame(() => { if (OC.fit) { OC.fit = false; ocMode() === 'unit' ? ocFit(true) : ocFit(); } else ocApply(); ocMode() === 'map' ? (mapSide(OC.selC), mapTick(), wxLoad(), globeMount()) : ocSide(OC.sel); });
+  requestAnimationFrame(() => { if (OC.fit) { OC.fit = false; ocMode() === 'unit' ? ocFit(true) : ocFit(); } else ocApply(); ocMode() === 'map' ? (mapSide(OC.selC), mapTick(), wxLoad(), globeMount()) : (ocSide(OC.sel), glbPrefetch()); });
   let drag = null;
   v.onpointerdown = e => { if (e.button !== 0 || e.target.closest('button,a,.oc-mini') || v.classList.contains('globe')) return; drag = { x:e.clientX - OC.x, y:e.clientY - OC.y }; v.setPointerCapture(e.pointerId); v.classList.add('grab'); };
   v.onpointermove = e => { if (!drag) return; OC.x = e.clientX - drag.x; OC.y = e.clientY - drag.y; ocApply(); };
@@ -7335,6 +7425,18 @@ const GLB = { p:null, g:null, box:null, pov:null }; window.__dashGlobe = GLB;   
 const ISO_N = { QA:'634', SA:'682', AE:'784', KW:'414', OM:'512', BH:'048', IQ:'368', EG:'818', DZ:'012', TM:'795', UZ:'860', KZ:'398', IN:'356', VN:'704', MY:'458', SG:'702', TH:'764', PH:'608', TW:'158',
   JP:'392', CN:'156', AU:'036', US:'840', MX:'484', CA:'124', CL:'152', GB:'826', PL:'616', RO:'642', TR:'792', NG:'566', MZ:'508', PK:'586', BD:'050', RU:'643', KR:'410', ID:'360' };
 const glbBase = () => new URL('/apps/globe/', API_BASE || location.origin).href;
+let GLB_SKY = '';
+function glbSky() {   // 2026-11-09 별 하늘을 그 자리에서 그림(예전 night-sky.png 0.9MB 대신) — 구글 어스처럼 검은 우주 + 작은 별
+  if (GLB_SKY) return GLB_SKY;
+  const W = 4096, H = 2048, c = document.createElement('canvas'); c.width = W; c.height = H; const x = c.getContext('2d');   // 하늘 공에 넓게 펴지므로 크게 · 별은 아주 작게
+  x.fillStyle = '#02040c'; x.fillRect(0, 0, W, H);
+  let seed = 7; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+  for (let i = 0; i < 2600; i++) { const big = rnd() < .04; x.globalAlpha = big ? .9 : .25 + rnd() * .55; x.fillStyle = rnd() < .18 ? '#cfe0ff' : rnd() < .08 ? '#ffe9c4' : '#ffffff'; x.fillRect(rnd() * W, rnd() * H, big ? 2 : 1, big ? 2 : 1); }
+  return GLB_SKY = c.toDataURL('image/png');
+}
+/* 미리 받기: 유닛분장 화면에 들어오면 쉬는 틈에 지구본 파일을 받아 둠 → 세계 지도를 누르면 바로 */
+function glbPrefetch() { if (GLB.pre || glbOff() || !SERVER || OFFLINE) return; GLB.pre = 1; const go2 = () => { if (!glbWebgl()) return; glbLoad().catch(() => {}); ['img/earth-blue-marble.jpg', 'img/earth-topology.png'].forEach(f => fetch(glbBase() + f).catch(() => {})); };
+  (window.requestIdleCallback || (f => setTimeout(f, 1500)))(go2, { timeout:6000 }); }
 function glbLoad() {
   if (!SERVER || OFFLINE || location.protocol === 'file:' && !API_BASE) return Promise.reject(new Error('off'));
   return GLB.p ||= new Promise((ok, no) => {
@@ -7400,29 +7502,42 @@ async function globeMount() {
   const pts = []; vs.forEach(x => x.ps.forEach((p, i) => { const n = x.ps.length, a = i / n * 2 * Math.PI - Math.PI / 2, r = n > 1 ? 1.6 + n * .25 : 0;
     pts.push({ t:'p', p, c:x.c, lat:x.c.lat + r * Math.sin(a), lng:x.c.lon + r * Math.cos(a) / Math.max(.3, Math.cos(x.c.lat * Math.PI / 180)) }); }));
   const B = glbBase(), first = !GLB.g;
+  if (first) GLB.ready = false;
   const g = GLB.g || (GLB.g = Globe({ animateIn:false })(box));
-  g.width(v.clientWidth).height(v.clientHeight).backgroundImageUrl(B + 'img/night-sky.png').globeImageUrl(B + 'img/earth-blue-marble.jpg')
-    .showAtmosphere(true).atmosphereColor('#6aa8ff').atmosphereAltitude(.15)
-    .polygonsData(GLB.geo).polygonAltitude(f => has.has(f.id) ? .008 : .003).polygonCapColor(f => col(f.id)).polygonSideColor(() => 'rgba(0,0,0,0)').polygonStrokeColor(f => has.has(f.id) ? 'rgba(255,255,255,.75)' : 'rgba(255,255,255,.28)')
+  // 2026-11-09 속도 · 구글 어스 느낌: 나라 경계는 PJT 가 있는 나라만 3D 로 만듦(예전 240개 전부 → 처음 켤 때 가장 오래 걸리던 부분), 별 하늘은 그 자리에서, 지형 요철(bump)은 다 뜬 뒤
+  const geo = GLB.geo.filter(f => has.has(f.id));
+  g.width(v.clientWidth).height(v.clientHeight).backgroundImageUrl(glbSky()).globeImageUrl(B + 'img/earth-blue-marble.jpg')
+    .showAtmosphere(true).atmosphereColor('#7fb6ff').atmosphereAltitude(.17)
+    .onGlobeReady(() => { GLB.ready = true; const w = GLB.readyWait; GLB.readyWait = null; if (w) w(); setTimeout(() => { if (GLB.g === g) { try { g.bumpImageUrl(B + 'img/earth-topology.png'); } catch (_) {} glbWake(); } }, 1200); })
+    .polygonsData(geo).polygonAltitude(f => has.has(f.id) ? .008 : .003).polygonCapColor(f => col(f.id)).polygonSideColor(() => 'rgba(0,0,0,0)').polygonStrokeColor(f => has.has(f.id) ? 'rgba(255,255,255,.75)' : 'rgba(255,255,255,.28)')
     .polygonLabel(f => { const o = has.get(f.id); return `<div class="glt"><b>${esc(o ? o.x.c.ko : f.properties.name)}</b>${o ? `<br>수행 ${o.run} · 입찰 ${o.bid}` : ''}</div>`; })
     .onPolygonClick(f => { const o = has.get(f.id); if (o) glbSel(o.x.c.key); })
     .arcsData(vs.filter(x => x.c.iso !== 'KR').map(x => { const run = x.ps.filter(p => p.k !== 'bid').length; return { startLat:37, startLng:127.5, endLat:x.c.lat, endLng:x.c.lon, c:run && x.ps.length - run ? '#c4b5fd' : run ? '#93c5fd' : '#fcd34d' }; }))
     .arcColor('c').arcStroke(.45).arcDashLength(.35).arcDashGap(.15).arcDashAnimateTime(2600).arcAltitudeAutoScale(.35)
-    .htmlElementsData([...vs.map(x => ({ t:'c', x, lat:x.c.lat, lng:x.c.lon })), ...pts, ...ordPts()]).htmlLat('lat').htmlLng('lng').htmlAltitude(d => d.t === 'c' ? .03 : .012).htmlElement(glbEl)
-    .onZoom(pov => { GLB.pov = pov; glbLod(pov.altitude); });
+    .htmlLat('lat').htmlLng('lng').htmlAltitude(d => d.t === 'c' ? .03 : .012).htmlElement(glbEl)
+    .onZoom(pov => { GLB.pov = pov; glbLod(pov.altitude); glbHtml(); });
+  GLB.html = { cs:vs.map(x => ({ t:'c', x, lat:x.c.lat, lng:x.c.lon })), pts, ord:ordPts() }; GLB.htmlLod = '';
   const ctl = g.controls(); ctl.autoRotate = false; ctl.zoomSpeed = 2.2; ctl.enableDamping = true;
   if (first) { try { g.renderer().setPixelRatio(Math.min(1, devicePixelRatio || 1)); } catch (_) {} ['pointerdown', 'pointermove', 'wheel', 'touchstart'].forEach(ev => box.addEventListener(ev, () => glbWake(), { passive:true })); ctl.addEventListener?.('change', () => glbWake(1500)); GLB.paused = false; glbWake(4000); glbFpsCheck(g, box); }
-  if (first) g.pointOfView(GLB.pov || { lat:25, lng:85, altitude:2.1 }, 0);
-  glbLod(g.pointOfView().altitude);
+  if (first) { const to = GLB.pov || { lat:25, lng:85, altitude:2.1 }; if (GLB.pov) g.pointOfView(to, 0); else { g.pointOfView({ ...to, altitude:3.4 }, 0); setTimeout(() => { if (GLB.g === g) glbFly(to.lat, to.lng, to.altitude, 1600); }, 300); } }   // 처음엔 멀리서 다가오며(구글 어스처럼)
+  glbLod(g.pointOfView().altitude); glbHtml(true);
 }
-function glbKill() { if (!GLB.g) return; try { GLB.pov = GLB.g.pointOfView(); } catch (_) {} try { GLB.g.pauseAnimation(); GLB.g._destructor(); } catch (_) {} GLB.g = null; GLB.box = null; clearTimeout(GLB.idle); }
+function glbHtml(force) {   // 고도에 따라 이름표 묶음 바꾸기 — 멀리(far): 나라 · 수주 묶음만 / 가까이: PJT 카드 · 수주 점까지
+  const g = GLB.g, H = GLB.html; if (!g || !H) return; const lod = GLB.box?.dataset.lod === 'far' ? 'far' : 'near'; if (!force && lod === GLB.htmlLod) return; GLB.htmlLod = lod;
+  g.htmlElementsData(lod === 'far' ? [...H.cs, ...H.ord.filter(d => d.t === 'oc')] : [...H.cs, ...H.pts, ...H.ord]);
+}
+function glbKill() { GLB.ready = false; GLB.readyWait = null; if (!GLB.g) return; try { GLB.pov = GLB.g.pointOfView(); } catch (_) {} try { GLB.g.pauseAnimation(); GLB.g._destructor(); } catch (_) {} GLB.g = null; GLB.box = null; clearTimeout(GLB.idle); }
 /* 2026-11-09 성능: 그래픽 가속이 없거나 느린 PC 는 평면 지도로(자동 판단 · 기억), 지구본은 만질 때만 그리고 2.5초 뒤 멈춤(아크 점선 애니메이션도 멈춤), 픽셀 비율 1, 요철 지도 생략 */
-const glbOff = () => { try { return localStorage.getItem('dept-globe-off') === '1'; } catch (_) { return false; } };
-const glbSetOff = on => { try { on ? localStorage.setItem('dept-globe-off', '1') : localStorage.removeItem('dept-globe-off'); } catch (_) {} };
+// 2026-11-09: 사용자가 [🌍 3D ↔ 🗺 평면] 으로 고른 것만 이 PC 에 기억(dept-globe-flat). 느려서 자동으로 평면이 된 것은 이 창에서만(다음에 다시 시도) — 예전 자동 기억(dept-globe-off)은 지움
+try { localStorage.removeItem('dept-globe-off'); } catch (_) {}
+const glbOff = () => { try { return localStorage.getItem('dept-globe-flat') === '1' || sessionStorage.getItem('dept-globe-auto') === '1'; } catch (_) { return false; } };
+const glbSetOff = (on, auto) => { try { if (auto) { sessionStorage.setItem('dept-globe-auto', '1'); return; } sessionStorage.removeItem('dept-globe-auto'); on ? localStorage.setItem('dept-globe-flat', '1') : localStorage.removeItem('dept-globe-flat'); } catch (_) {} };
 function glbWebgl() { try { const c = document.createElement('canvas'); const gl = c.getContext('webgl2') || c.getContext('webgl'); if (!gl) return false; const dbg = gl.getExtension('WEBGL_debug_renderer_info'); const r = dbg ? String(gl.getParameter(dbg.UNMASKED_RENDERER_WEBGL)) : ''; return !/swiftshader|software|llvmpipe/i.test(r); } catch (_) { return false; } }
 function glbWake(ms = 2500) { const g = GLB.g; if (!g) return; if (GLB.paused) { try { g.resumeAnimation(); } catch (_) {} GLB.paused = false; } clearTimeout(GLB.idle); GLB.idle = setTimeout(() => { if (GLB.g) { try { GLB.g.pauseAnimation(); } catch (_) {} GLB.paused = true; } }, ms); }
-function glbFpsCheck(g, box) {   // 켠 뒤 2초 동안 프레임 수 — 8 미만이면 이 PC 에서는 평면 지도로
-  let n = 0; const s = performance.now(); const f = () => { n++; if (performance.now() - s < 2000) requestAnimationFrame(f); else if (GLB.g === g && n < 16) { glbKill(); glbSetOff(true); const v = $('#ocView'); v?.classList.remove('globe'); box.remove(); toast('이 PC 는 3D 지구본이 느려서 평면 지도로 보여 드려요 (세계 지도 › [3D 지구본] 단추로 다시 켤 수 있어요)'); } }; requestAnimationFrame(f);
+function glbFpsCheck(g, box) {   // 켠 뒤 2초 동안 프레임 수 — 8 미만이면 이 PC 에서는 평면 지도로 (2026-11-09: 준비 끝나고 1초 뒤부터 잼 · 그동안 계속 그리게)
+  if (GLB.noFps) return;   // 점검(시험)용: 소프트웨어 그래픽에서도 지구본 유지
+  if (!GLB.ready) { GLB.readyWait = () => setTimeout(() => { glbWake(3500); glbFpsCheck(g, box); }, 1000); return; }
+  let n = 0; const s = performance.now(); const f = () => { n++; if (performance.now() - s < 2000) requestAnimationFrame(f); else if (GLB.g === g && n < 16) { glbKill(); glbSetOff(true, true); const v = $('#ocView'); v?.classList.remove('globe'); box.remove(); toast('이 PC 는 3D 지구본이 느려서 평면 지도로 보여 드려요 (세계 지도 › [3D 지구본] 단추로 다시 켤 수 있어요)'); } }; requestAnimationFrame(f);
 }
 function glbResize() { const v = $('#ocView'); if (GLB.g && v?.classList.contains('globe')) { GLB.g.width(v.clientWidth).height(v.clientHeight); glbWake(); } }
 addEventListener('resize', glbResize);
