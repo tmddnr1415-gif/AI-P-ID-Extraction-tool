@@ -1623,3 +1623,10 @@ C:\Users\SAMSUNG\Desktop\Claude\                         ← 개발 폴더 (여�
 - 바뀐 곳: dashboard.html `APP_VERSION` · `SCH` `SCH_MS` `SCH_KEY` `SCH_PH` `xlsxOpen` `schParse` `schCalc` `schLoad` `schSave` `schUpload` `renderSched` `schDiscBoard` `schBind` `schXlsx` `botSched`(새) · `ROUTES` `RUN_LEAVES` 메뉴 `runTree` `render` `QF_MENUS` `MENU_HELP` · `botAnswer` `botAsk` `BOT_CMD_RE` `ACR_B` `KO_FIX2` · CSS. server.py `SERVER_VERSION` `SCHED_KEYS` `api_sched_get` `api_sched_put` · 라우트 `sched/{key}`.
 - 확인한 것: 임시 서버 — 회사 PSR 파일 끌어놓기 → 89품목(Tagged 48 · Bulk 41) · 기준일 2026-11-02 · 서버 저장 · 새로고침 뒤 유지, 시연용 예시 PSR(임의 데이터 33품목, 작업 기록에만) → 카드 · 표 · 상세 · I&C · Mech 일정판 화면 확인, 비서 "구매 일정 지연 품목" · "J0400 일정 어때?" 답, 메일 붙여넣기 + "위 영어로 번역" → 영어 4문장, "첨삭해줘" → PO는 · 나가는 건 · 무의미해 보입니다, "한국어로: The vendor shall …" → 번역. 번역 평가 점수 변화 없음. 페이지 오류 없음.
 - 회사에서 확인할 것: 서버 재시작(server.py 바뀜). 회사 PSR 을 올려 기준일 · 품목 수 확인. '현장 도착 지연' 기준(30일) · '일정 지남' 카드가 실제 운영(Actual 입력 시점)과 맞는지.
+
+### 2026-11-09 (APP_VERSION 2026-11-09.7 / SERVER_VERSION 그대로) — v16.99
+- 무엇을: 클로드 비서에 글 뒤에 명령을 붙여도 알아듣게 함 — `"…" 번역해줘` · `"…" 영어로 번역해 주세요` · `… 한국어로 번역 부탁해요` · `"…" 첨삭해줘`. 따옴표(" “ ” ' ‘ ’ 「 」)는 떼고 번역/첨삭. 바이브에서도 글 속 '그리고' · 줄바꿈으로 쪼개지 않음. '위 내용 번역해줘' 는 예전처럼 botInstr 가 처리.
+- 무엇을: Schedule 품목 이름을 굵은 남색 이름표(입체 그림자 · 그라데이션)로 강조 — 품목표 · 공종별 일정판 · 다가오는 일정 목록 (`.snm`).
+- 무엇을: 첨삭 규칙 추가 — '못할것' → '못할 것'(의존명사 것), '드릴께요' → '드릴게요'. 번역: '계장 사양서' → instrument specification 이 나오게 앞처리, 'next week Tuesday' → 'Tuesday next week'.
+- 바뀐 곳: dashboard.html `BOT_TAIL` · `botUnq` · `botTail` · `botWhole` (새), `botTrCmd` · `botProof` · `botSteps` · `botAsk`, `KO_FIX2`, `EN_FIX_TR`, 한→영 앞처리 표, `renderSched` 품목 칸 · `schDiscBoard` · 다가오는 일정, CSS `.snm`
+- 확인한 것: 시험 서버에서 hong(바이브)로 번역해줘 2건 · 첨삭해줘 1건 화면 확인, Schedule 화면 캡처, 콘솔 오류 없음 / 회사에서 확인할 것: 실제 PSR 파일로 이름표가 긴 품목명에서 줄바꿈이 자연스러운지.

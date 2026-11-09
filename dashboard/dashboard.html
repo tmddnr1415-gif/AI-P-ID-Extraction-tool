@@ -1634,6 +1634,11 @@ body.botonly #side,body.botonly header.top,body.botonly #content,body.botonly #d
 @media (max-width:1300px){.schkpis{grid-template-columns:repeat(3,1fr)}.schgrid{grid-template-columns:1fr}}
 
 /* 공종별 품목 일정판 (2026-11-09) */
+/* 2026-11-09 품목 이름 강조 — 굵게 · 진한 남색 · 살짝 떠 있는 이름표(입체) */
+.snm{display:inline-block;font-weight:800;font-size:12.5px;color:#14246b;letter-spacing:-.1px;padding:1px 8px 2px;border-radius:7px;border:1px solid #c7d2fe;background:linear-gradient(180deg,#ffffff 0%,#eef2ff 60%,#dfe5ff 100%);box-shadow:0 1px 0 #fff inset,0 -1px 0 rgba(67,56,202,.12) inset,0 1px 2px rgba(30,58,138,.18);text-shadow:0 1px 0 #fff;line-height:1.35}
+.schtab .snm{max-width:100%;white-space:normal;word-break:break-word}.schtab tr.srow:hover .snm,.schtab tr.srow.open .snm{border-color:#818cf8;background:linear-gradient(180deg,#fff,#e0e7ff);box-shadow:0 1px 0 #fff inset,0 2px 5px rgba(67,56,202,.25)}
+.dbl span.snm{color:#14246b;font-size:12px;padding:0 6px 1px}.ssn .si .snm{font-size:12px;padding:0 6px;font-weight:700}
+
 .dboard h2 .muted{font-weight:400}.dbleg{display:flex;gap:14px;flex-wrap:wrap;font-size:12px;margin:2px 0 10px;color:var(--sub)}.dbleg i{display:inline-block;width:14px;height:10px;border-radius:3px;margin-right:5px;vertical-align:-1px}
 .dbw{position:relative;border:1px solid var(--line);border-radius:12px;overflow:hidden;background:#fff}
 .dbr{display:grid;grid-template-columns:250px 1fr;border-bottom:1px solid #eef0f6;cursor:pointer;min-height:40px}.dbr:hover{background:#f8faff}.dbr.dbh{cursor:default;background:#eef1f8;min-height:30px;position:sticky;top:0;z-index:3}
@@ -1815,7 +1820,7 @@ function recLabel(key, f) {
  * ===================================================================== */
 let root = null;
 /* 서버 모드: http(s):// 로 접속하면 server.py 의 REST API 사용 (폴더 선택 불필요). file:// 로 열면 폴더 모드 */
-const APP_VERSION = '2026-11-09.6';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
+const APP_VERSION = '2026-11-09.7';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
 const SERVER_URL = 'http://localhost:8080';
 // 부서원 PC 사본(file://)이 접속을 시도할 서버 — 서버가 배포 파일을 만들 때 'PC 이름 주소, IP 주소' 순으로 자동 기록함
 const DEFAULT_SERVERS = ['http://ASEUNGWOOK-B01:8080', 'http://65.3.30.234:8080'];
@@ -4043,7 +4048,7 @@ function renderSched(c) {
   const soonEnd = new Date(schD(asOf).getTime() + 30 * 864e5).toISOString().slice(0, 10), soon = [];
   let pastN = 0; vis.forEach(({ it }) => SCH_KEY.forEach(k => { const f = it.F[k] || it.B[k]; if (!f || it.A[k]) return; if (f < asOf) pastN++; else if (f <= soonEnd) soon.push({ it, k, f, over:false }); }));
   soon.sort((a, b) => a.f.localeCompare(b.f));
-  const soonHtml = soon.slice(0, 14).map(s => `<div class="ssn ${s.over ? 'over' : ''}" data-schopen="${esc(s.it.type + '|' + s.it.no)}"><span class="sd">${schFmt(s.f)}</span><span class="sk">${esc(SCH_NAME[s.k])}</span><span class="si">${esc(s.it.no)} ${esc(trunc(s.it.item, 26))}</span>${s.over ? `<span class="sov">${schDays(asOf, s.f)}일 지남</span>` : ''}</div>`).join('') || '<div class="empty">기준일 뒤 30일 안에 예정된 일정이 없어요</div>';
+  const soonHtml = soon.slice(0, 14).map(s => `<div class="ssn ${s.over ? 'over' : ''}" data-schopen="${esc(s.it.type + '|' + s.it.no)}"><span class="sd">${schFmt(s.f)}</span><span class="sk">${esc(SCH_NAME[s.k])}</span><span class="si">${esc(s.it.no)} <b class="snm">${esc(trunc(s.it.item, 26))}</b></span>${s.over ? `<span class="sov">${schDays(asOf, s.f)}일 지남</span>` : ''}</div>`).join('') || '<div class="empty">기준일 뒤 30일 안에 예정된 일정이 없어요</div>';
   // 간트: 전체 기간
   const allD = vis.flatMap(({ it }) => [...Object.values(it.B), ...Object.values(it.F), ...Object.values(it.A)]).sort(), t0 = allD[0] || asOf, t1 = allD[allD.length - 1] || asOf;
   const span = Math.max(30, schDays(t1, t0)), X = s => Math.max(0, Math.min(100, schDays(s, t0) / span * 100));
@@ -4054,7 +4059,7 @@ function renderSched(c) {
   const detail = it => `<tr class="sdet"><td colspan="8"><div class="sdw"><table class="t sdt"><thead><tr><th>구분</th>${SCH_MS.filter(([k]) => it.B[k] || it.F[k] || it.A[k]).map(([k, n]) => `<th>${esc(n)}</th>`).join('')}</tr></thead><tbody>${[['B', '계획'], ['F', '전망'], ['A', '실적']].map(([s, l]) => `<tr><td class="key">${l}</td>${SCH_MS.filter(([k]) => it.B[k] || it.F[k] || it.A[k]).map(([k]) => { const v = it[s][k], late = s !== 'B' && v && it.B[k] && v > it.B[k]; return `<td class="${late ? 'sl' : ''}">${schFmt(v)}</td>`; }).join('')}</tr>`).join('')}</tbody></table>
     <div class="sdm">${[['Buyer', it.buyer], ['Engineer', it.eng], ['Technical RQ', it.rq], ['Criticality', it.crit], ['PO No', it.po], ['Vendor', [it.vendor || it.tvendor, it.origin].filter(Boolean).join(' · ')], ['입찰물량', [it.desc, it.qty].filter(Boolean).join(' ')], ['Remark', it.remark]].filter(x => x[1]).map(([a, b]) => `<span><small>${a}</small>${esc(b)}</span>`).join('')}</div></div></td></tr>`;
   const rows = sorted.map(({ it, k }) => { const id = it.type + '|' + it.no, op = SCH.open.has(id);
-    return `<tr class="srow ${op ? 'open' : ''}" data-schopen="${esc(id)}"><td class="key"><b>${esc(it.no)}</b><small class="stp ${it.type}">${it.type === 'Bulk' ? 'B' : 'T'}</small>${it.lli ? '<small class="slli">LLI</small>' : ''}</td><td>${esc(it.disc)}</td><td class="sitem">${esc(it.item)}<small>${esc([it.vendor || it.tvendor, it.origin].filter(Boolean).join(' · ') || (it.buyer ? 'Buyer ' + it.buyer : ''))}</small></td>
+    return `<tr class="srow ${op ? 'open' : ''}" data-schopen="${esc(id)}"><td class="key"><b>${esc(it.no)}</b><small class="stp ${it.type}">${it.type === 'Bulk' ? 'B' : 'T'}</small>${it.lli ? '<small class="slli">LLI</small>' : ''}</td><td>${esc(it.disc)}</td><td class="sitem"><b class="snm">${esc(it.item)}</b><small>${esc([it.vendor || it.tvendor, it.origin].filter(Boolean).join(' · ') || (it.buyer ? 'Buyer ' + it.buyer : ''))}</small></td>
       <td><span class="sstg" style="--p:${Math.round(k.prog * 100)}%">${esc(k.stage)}</span></td><td class="${k.over ? 'sl' : ''}">${k.nextK ? `${esc(SCH_NAME[k.nextK])}<small>${schFmt(k.nf)}${k.over ? ` · ${schDays(asOf, k.nf)}일 지남` : ''}</small>` : '-'}</td>
       <td class="cdate">${schFmt(k.siteB)}<small>→ ${schFmt(k.siteF)}</small></td><td class="cnum">${k.slip ? `<b class="${k.slip > 30 ? 'sl' : k.slip > 0 ? 'sw' : 'sg'}">${k.slip > 0 ? '+' : ''}${k.slip}일</b>` : '<span class="muted">0</span>'}<small style="color:${SCH_ST[k.st][1]}">${SCH_ST[k.st][0]}</small></td><td class="sgc">${bar(it, k)}</td></tr>${op ? detail(it) : ''}`; }).join('');
   const nowX = X(asOf);
@@ -4087,7 +4092,7 @@ function schDiscBoard(rows, asOf, disc) {
       const done = !!it.A[b], now = !done && !!it.A[a], late = it.B[b] && dt(it, b) > it.B[b];
       return `<b class="dbk ${c} ${done ? 'done' : now ? 'now' : ''}" style="left:${X(s1)}%;width:${Math.max(.5, X(e1) - X(s1))}%" title="${esc(`${it.no} · ${n}: ${s1} → ${e1}${done ? ' (완료)' : now ? ' (진행 중)' : ''}${late ? ` · 계획 ${it.B[b]} 보다 늦음` : ''}`)}"><span>${n}${late ? ' ⚠' : ''}</span></b>`; }).join('');
     const ms = [['PO', '🧾'], ['FAT', '🔍'], ['SITE', '🏁']].map(([m, ic]) => { const v = dt(it, m); return v ? `<em class="dbx ${it.A[m] ? 'a' : ''}" style="left:${X(v)}%" title="${SCH_NAME[m]} ${it.A[m] ? '실적' : '전망'} ${v}">${ic}</em>` : ''; }).join('');
-    return `<div class="dbr" data-schopen="${esc(it.type + '|' + it.no)}"><div class="dbl"><b>${esc(it.no)}</b><span>${esc(it.item)}</span><small style="color:${SCH_ST[k.st][1]}">${esc(k.stage)}${k.slip ? ` · 현장 ${k.slip > 0 ? '+' : ''}${k.slip}일` : ''}</small></div><div class="dbt">${grid}${blocks}${ms}</div></div>`; };
+    return `<div class="dbr" data-schopen="${esc(it.type + '|' + it.no)}"><div class="dbl"><b>${esc(it.no)}</b><span class="snm">${esc(it.item)}</span><small style="color:${SCH_ST[k.st][1]}">${esc(k.stage)}${k.slip ? ` · 현장 ${k.slip > 0 ? '+' : ''}${k.slip}일` : ''}</small></div><div class="dbt">${grid}${blocks}${ms}</div></div>`; };
   return `<section class="card dboard"><h2>🔧 ${esc(disc)} · 품목별 일정판 <span class="muted">· ${rows.length}품목 · 단계 블록 = 실적 → 전망(없으면 계획) · 진한 블록 = 끝난 단계 · 테두리 = 진행 중 · ⚠ = 계획보다 늦음 · 🧾 PO 🔍 FAT 🏁 현장 도착 · 줄을 누르면 아래 표에서 상세</span>
       <button class="btn sm" data-schf="disc|${esc(disc)}" style="float:right">✕ 공종 해제</button></h2>
     <div class="dbleg">${SCH_PH.map(([n, , , c]) => `<span><i class="${c}"></i>${n}</span>`).join('')}</div>
@@ -5403,6 +5408,8 @@ function koJosa(text, changes) {   // 받침 있는 낱말 뒤의 '를 · 가 ·
 const ACR_B = { L:1, M:1, N:1, R:1 };   // 영문 약어 끝 글자 발음에 받침(엘 · 엠 · 엔 · 알)
 const KO_FIX2 = [
   [/\b([A-Z]{2,6})(은|는|이|가|을|를|과|와)(?=\s|[.,]|$)/g, (m, w, j) => { const b = !!ACR_B[w[w.length - 1]], pair = { 은:['은', '는'], 는:['은', '는'], 이:['이', '가'], 가:['이', '가'], 을:['을', '를'], 를:['을', '를'], 과:['과', '와'], 와:['과', '와'] }[j]; return w + pair[b ? 0 : 1]; }, "영문 약어 뒤 조사를 읽는 소리에 맞게 ('PO은' → 'PO는', 'MR는' → 'MR은')", 'fix'],
+  [/(^|[\s("“'])(할|볼|될|올|갈|줄|쓸|먹을|있을|없을|같을|못할|하는|되는|있는|없는|된)것(?=\s|[.,]|$|[이을은도만])/g, '$1$2 것', "의존명사 '것' 띄어쓰기 ('못할것' → '못할 것')", 'fix'],
+  [/(드릴|할|갈|올|볼|줄|될|해\s?줄|해\s?드릴)께(?=요|\s|$|[.,!])/g, '$1게', "'-ㄹ께요' → '-ㄹ게요' ('드릴께요' → '드릴게요')", 'fix'],
   [/([가-힣])(는|ㄴ|은|던|할|을)건(?=\s|[.,]|$)/g, '$1$2 건', "의존명사 '건(것은)' 띄어쓰기 ('나가는건' → '나가는 건')", 'fix'],
   [/([가-힣]{2,})\s해\s?보(입|여|이)/g, '$1해 보$2', "'무의미 해보입니다' → '무의미해 보입니다'", 'fix'],
   [/않\s+(해|가|돼|되|먹|하|보|쓰)/g, '안 $1', "'않 해요' → '안 해요' (부정 부사 '안')", 'fix'], [/지\s*안(다|아요|았|습니다|고|으|는)/g, '지 않$1', "'~지 안다' → '~지 않다' (보조 '않')", 'fix'],
@@ -5495,7 +5502,7 @@ const TR_PRE = {
     [/\bcalibration\b/gi, '교정'], [/\bnational standards?\b/gi, '국가 표준'], [/\bdial size\b/gi, '다이얼 크기'], [/\bsafety pattern\b/gi, '안전형'], [/\bbeta ratio\b/gi, '베타비'], [/\bmeeting minutes\b|\bminutes of (the )?meeting\b/gi, '회의록'],
   ],
   koen:[
-    [/계장\s*공기/g, 'instrument air'], [/루프도/g, 'loop diagram'], [/루프\s*체크/g, 'loop check'], [/안전계장시스템|안전\s*계장\s*시스템/g, 'safety instrumented system'], [/안전계장기능/g, 'safety instrumented function'], [/조절\s*밸브/g, 'control valve'], [/차단\s*밸브/g, 'shutdown valve'], [/비상\s*정지\s*밸브|비상\s*차단\s*밸브/g, 'emergency shutdown valve'],
+    [/계장\s*사양서/g, '계측기 사양서'], [/계장\s*도면/g, '계측기 도면'], [/계장\s*공기/g, 'instrument air'], [/루프도/g, 'loop diagram'], [/루프\s*체크/g, 'loop check'], [/안전계장시스템|안전\s*계장\s*시스템/g, 'safety instrumented system'], [/안전계장기능/g, 'safety instrumented function'], [/조절\s*밸브/g, 'control valve'], [/차단\s*밸브/g, 'shutdown valve'], [/비상\s*정지\s*밸브|비상\s*차단\s*밸브/g, 'emergency shutdown valve'],
     [/정션\s*박스/g, 'junction box'], [/마샬링\s*캐비닛/g, 'marshalling cabinet'], [/포지셔너/g, 'positioner'], [/액추에이터/g, 'actuator'], [/솔레노이드\s*밸브/g, 'solenoid valve'], [/써모웰|서모웰/g, 'thermowell'], [/열전대/g, 'thermocouple'], [/압력계/g, 'pressure gauge'],
     [/레벨\s*전송기/g, 'level transmitter'], [/온도\s*전송기/g, 'temperature transmitter'], [/압력\s*전송기/g, 'pressure transmitter'], [/유량\s*전송기/g, 'flow transmitter'], [/전송기/g, 'transmitter'], [/유량계/g, 'flow meter'],
     [/계기\s*데이터시트/g, 'instrument datasheet'], [/데이터\s*시트/g, 'datasheet'], [/계기\s*사양서/g, 'instrument specification'], [/사양서/g, 'specification'], [/I\/O\s*리스트/g, 'I/O list'], [/인스트루먼트\s*인덱스|계기\s*인덱스/g, 'instrument index'], [/훅업\s*도면/g, 'hook-up drawing'], [/배치\s*도면|배치안/g, 'layout drawing'], [/배치도/g, 'layout'], [/결선도/g, 'wiring diagram'],
@@ -5568,7 +5575,7 @@ function enWordsToDigits(t) {
 }
 const EN_FIX_TR = [   // 번역 결과(영어)
   [/\b(one|two|three|four|five|six|seven|eight|nine|ten)\s+(trillion|billion|million|thousand)\b/gi, (m, a, b) => ({ one:1, two:2, three:3, four:4, five:5, six:6, seven:7, eight:8, nine:9, ten:10 }[a.toLowerCase()]) + ' ' + b.toLowerCase()], [/(\d+(?:\.\d+)?)\s*per\s?cent\b/gi, '$1%'], [/\b(a|one) (hundred|thousand|million|billion)\b/gi, '1 $2'],
-  [/\bbecome longer-term\b/gi, 'persist'], [/\bin a row\b/g, 'in a row'], [/\be-mail\b/gi, 'email'],
+  [/\b(?:by\s+)?next week (Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday)\b/g, (m, d) => (/^by/.test(m) ? 'by ' : '') + d + ' next week'], [/\bthis week (Monday|Tuesday|Wednesday|Thursday|Friday)\b/g, 'this $1'], [/\bbecome longer-term\b/gi, 'persist'], [/\bin a row\b/g, 'in a row'], [/\be-mail\b/gi, 'email'],
 ];
 const koNum = (n, unit) => { const v = parseFloat(n) * { 만:1e4, 억:1e8, 조:1e12 }[unit]; return v >= 1e12 ? +(v / 1e12).toFixed(2) + ' trillion' : v >= 1e9 ? +(v / 1e9).toFixed(2) + ' billion' : v >= 1e6 ? +(v / 1e6).toFixed(2) + ' million' : Math.round(v).toLocaleString('en-US'); };
 const KO_MON = ['', 'January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
@@ -5638,7 +5645,7 @@ function botTrCmd(q) {
   if ((m = /^(?:번역|translate|트랜스레이트)\s*[:：]?\s*([\s\S]{2,})$/i.exec(q))) return { html:'', acts:[], run:() => botTranslate(m[1].trim(), trDir(m[1])) };
   if ((m = /^(?:영어로|영문으로|to\s*english)\s*[:：]?\s*([\s\S]{2,})$/i.exec(q))) return { html:'', acts:[], run:() => botTranslate(m[1].trim(), 'koen') };
   if ((m = /^(?:한국어로|한글로|우리말로|to\s*korean)\s*[:：]?\s*([\s\S]{2,})$/i.exec(q))) return { html:'', acts:[], run:() => botTranslate(m[1].trim(), 'enko') };
-  if ((m = /^([\s\S]{2,})\s*(?:번역해\s*줘|번역해줘|번역\s*해\s*줘|번역해|을\s*번역|를\s*번역|translate)\s*[.!]?$/i.exec(q))) return { html:'', acts:[], run:() => botTranslate(m[1].trim(), trDir(m[1])) };
+  const t = botTail(q); if (t && t.kind === 'tr') return { html:'', acts:[], run:() => botTranslate(t.text, t.dir || trDir(t.text)) };   // "…" 번역해줘 · "…" 영어로 번역해 주세요
   if (q.length >= 40 && !isKo(q) && (q.match(/[A-Za-z]/g) || []).length > q.length * .5 && (q.match(/\s/g) || []).length >= 6)   // 긴 영어 글을 그냥 붙여 넣음
     return { html:'영어 글이네요. 한국어로 번역할까요? (첨삭은 "첨삭: …" 으로)', acts:[{ l:'🌐 한국어로 번역', fn:() => botTranslate(q, 'enko') }, { l:'✍ 영문 첨삭', fn:() => botAsk('첨삭: ' + q) }] };
   return null;
@@ -5723,6 +5730,7 @@ function botUI(q) {
   return null;
 }
 function botProof(q) {
+  const t = botTail(q); if (t && t.kind === 'pr') q = '첨삭: ' + t.text;   // "…" 첨삭해줘
   const m = /^(?:첨삭|교정|교열|맞춤법|문법\s*(?:검사|확인)?|윤문|proofread|correct|grammar)\s*[:：]?\s*([\s\S]+)$/i.exec(q.trim()); if (!m) return null;
   const text = m[1].trim(); if (text.length < 4) return { html:'첨삭할 글을 같이 적어 주세요. 예: "첨삭: 금일 회의 결과 보고 드립니다"', acts:[] };
   const r = proofRead(text), kind = r.ko ? '한국어' : '영어';
@@ -5781,7 +5789,16 @@ function botAnswer(q) {
  *  새창(?bot=1): 비서만 크게 띄운 창 — 이동 · 표 하이라이트는 원래 창(opener)에 시킴. */
 const botVibe = () => !!(SERVER && (MGR() || can('bot')));
 const BOT_WHOLE = /^\s*(?:번역|translate|트랜스레이트|영어로|영문으로|to\s*english|한국어로|한글로|우리말로|to\s*korean|첨삭|교정|교열|맞춤법|문법|윤문|proofread|correct|grammar|번역\s*고쳐|번역\s*수정|올바른\s*번역|[가-힣]{2,4}\s*(?:님)?\s*(?:에게|한테|께)\s*쪽지)\s*[:：]?/i;   // 내용을 통째로 받는 명령 — 줄바꿈 · '그리고' 로 나누지 않음
-const botSteps = q => BOT_WHOLE.test(q) ? [String(q).trim()] : String(q).split(/\n+|\s*(?:그리고\s*(?:나서|서)?|그\s*다음(?:에|으로)?|다음으로|이어서|->|→|;)\s+/).map(s => s.trim()).filter(s => s.length >= 2);
+const BOT_TAIL = /^([\s\S]*?)\s*(?:(?:을|를|좀|이거|이걸|이것을|이\s*문장)\s*)*(?:(한국어|한글|우리말|국문|영어|영문|english|korean)\s*(?:로|으로)?\s*)?(번역|translate|첨삭|교정|맞춤법\s*(?:검사)?|문법\s*(?:검사)?)\s*(?:좀\s*)?(?:해\s*(?:줘요?|주세요|줄래요?|봐|주실래요?|주시겠어요\??)|부탁(?:해요?|드려요|드립니다|합니다)?|해|하기)?\s*[.!?~]*\s*$/i;
+const botUnq = s => String(s).trim().replace(/^[\s"“”'‘’「『`]+|[\s"“”'‘’」』`]+$/g, '').trim();
+function botTail(q) {   // 글 + 끝에 명령: "…" 번역해줘 · … 를 영어로 번역해 주세요 · "…" 첨삭해줘
+  const m = BOT_TAIL.exec(String(q || '')); if (!m) return null;
+  const text = botUnq(m[1].replace(/[\s,:：]*(?:을|를)?\s*$/, '')); if (text.length < 2 || /^(?:위|아래|윗|이|그|앞)\s*(?:의\s*)?(?:내용|글|문장|메일|것|거)?$/.test(text)) return null;
+  const pr = !/번역|translate/i.test(m[3]), d = m[2] ? (/한국|한글|우리|국문|korean/i.test(m[2]) ? 'enko' : 'koen') : '';
+  return { kind:pr ? 'pr' : 'tr', dir:d, text };
+}
+const botWhole = q => BOT_WHOLE.test(q) || !!botTail(q);
+const botSteps = q => botWhole(q) ? [String(q).trim()] : String(q).split(/\n+|\s*(?:그리고\s*(?:나서|서)?|그\s*다음(?:에|으로)?|다음으로|이어서|->|→|;)\s+/).map(s => s.trim()).filter(s => s.length >= 2);
 async function botRunStep(step, card, i) {
   const set = (icon, note) => { if (!card) return; const li = card.querySelectorAll('li')[i]; if (li) { li.querySelector('.bst').textContent = icon; if (note) li.querySelector('.bsn').innerHTML = note; } const b = $('#botLog'); if (b) b.scrollTop = b.scrollHeight; };
   set('⏳');
@@ -5851,7 +5868,7 @@ function botSummary(body) {   // 간단 요약(외부 AI 없음): 문장 단위�
 }
 function botAsk(q) { q = String(q || '').trim(); if (!q) return; botSay('me', esc(q).replace(/\n/g, '<br>'));
   const ins = botInstr(q); if (ins) return setTimeout(() => { if (ins.html || ins.acts.length) botSay('bot', ins.html, ins.acts); if (ins.run) ins.run(); }, 250);
-  if (!BOT_WHOLE.test(q) && botLooksProse(q)) { const r = botFreeText(q); return setTimeout(() => botSay('bot', r.html, r.acts), 250); }   // 명령 없이 글만 붙여 넣음 → 줄마다 나누지 않고 되묻기
+  if (!botWhole(q) && botLooksProse(q)) { const r = botFreeText(q); return setTimeout(() => botSay('bot', r.html, r.acts), 250); }   // 명령 없이 글만 붙여 넣음 → 줄마다 나누지 않고 되묻기
   if (botVibe()) return setTimeout(() => botVibeRun(q), 250);   // 바이브 권한: 확인 없이 바로 · 여러 단계 차례로
   if (botSteps(q).length > 1) return setTimeout(() => botSay('bot', '여러 일을 한 번에 시키는 것(바이브)은 운영자가 <b>메뉴 권한 설정 › 비서 바이브</b> 를 켜 줘야 해요. 지금은 한 번에 하나씩 말해 주세요 🙂'), 250);
   const a = botAnswer(q); if (a.keep) a.acts.forEach(x => x.edit = true); setTimeout(() => { if (a.html || a.acts.length) botSay('bot', a.html, a.acts); if (a.run) setTimeout(a.run, 300); }, 250); }
