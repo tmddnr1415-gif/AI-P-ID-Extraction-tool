@@ -1568,9 +1568,9 @@ button:focus:not(:focus-visible){outline:none}
 @keyframes botJuggle{0%,100%{transform:translateY(-34px)}50%{transform:translateY(-62px)}}
 @keyframes botKick{0%{transform:translate(0,0)}35%{transform:translate(26px,-38px)}70%{transform:translate(8px,-6px)}100%{transform:translate(0,0)}}
 @keyframes botQ{0%{transform:scale(0) rotate(-40deg)}60%{transform:scale(1.4) rotate(10deg)}100%{transform:scale(1)}}
-#botPanel{position:fixed;z-index:61;width:340px;height:440px;display:flex;flex-direction:column;background:#fff;border-radius:18px;box-shadow:0 18px 50px rgba(30,30,90,.3),0 0 0 1px rgba(79,76,224,.12);overflow:hidden}
+#botPanel{position:fixed;z-index:61;width:340px;height:440px;min-width:280px;min-height:300px;max-width:100vw;max-height:100vh;resize:both;display:flex;flex-direction:column;background:#fff;border-radius:18px;box-shadow:0 18px 50px rgba(30,30,90,.3),0 0 0 1px rgba(79,76,224,.12);overflow:hidden}
 #botPanel[hidden]{display:none}
-#botPanel .bph{display:flex;align-items:center;gap:6px;padding:9px 10px;background:linear-gradient(135deg,#e07a52,#c25a35);color:#fff}
+#botPanel .bph{display:flex;align-items:center;gap:6px;padding:9px 10px;background:linear-gradient(135deg,#e07a52,#c25a35);color:#fff;cursor:move}#botPanel.max{resize:none}#botPanel::after{content:'';position:absolute;right:3px;bottom:3px;width:12px;height:12px;border-right:2px solid #c9ccdd;border-bottom:2px solid #c9ccdd;pointer-events:none;border-radius:0 0 4px 0}
 #botPanel .bph .bpa{background:#fff;border-radius:8px;padding:2px 3px}#botPanel .bph .bpa svg{width:30px;height:25px;display:block}#botPanel .bph b{font-size:14px;white-space:nowrap}#botPanel .bph small{font-size:11px;opacity:.85;margin-right:auto;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
 #botPanel .bph button{flex:none;white-space:nowrap;border:0;background:rgba(255,255,255,.2);color:#fff;border-radius:8px;padding:3px 8px;font-size:12px;cursor:pointer}#botPanel .bph button:hover{background:rgba(255,255,255,.35)}
 #botPanel .blog{flex:1;overflow:auto;padding:10px;background:#faf8f6;display:flex;flex-direction:column;gap:8px}
@@ -1774,7 +1774,7 @@ function recLabel(key, f) {
  * ===================================================================== */
 let root = null;
 /* 서버 모드: http(s):// 로 접속하면 server.py 의 REST API 사용 (폴더 선택 불필요). file:// 로 열면 폴더 모드 */
-const APP_VERSION = '2026-11-08.44';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
+const APP_VERSION = '2026-11-09.3';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
 const SERVER_URL = 'http://localhost:8080';
 // 부서원 PC 사본(file://)이 접속을 시도할 서버 — 서버가 배포 파일을 만들 때 'PC 이름 주소, IP 주소' 순으로 자동 기록함
 const DEFAULT_SERVERS = ['http://ASEUNGWOOK-B01:8080', 'http://65.3.30.234:8080'];
@@ -4009,6 +4009,7 @@ function appAuth() {
 
 function render() {
   setTimeout(botInit, 0);   // 2026-11-08 클로드 비서
+  if (GLB.g && !(GLB.box && GLB.box.isConnected)) glbKill();   // 2026-11-09 다른 메뉴로 가면 지구본 그리기를 완전히 멈춤(떼어진 캔버스가 계속 돌며 전체를 느리게 하던 문제)
   if (route === 'work') { route = 'task'; try { history.replaceState(null, '', '#task'); } catch (_) {} }
   if (route === 'mgmt') { route = 'mgalloc'; try { history.replaceState(null, '', '#mgalloc'); } catch (_) {} }   // Management 머리 → 첫 하위 메뉴   // 예전 주소 #work → 통합 업무 시트
   applyExtraCols();                                        // 사용자가 추가한 열 반영
@@ -5246,7 +5247,7 @@ const TR_PRE = {
     [/계기\s*데이터시트/g, 'instrument datasheet'], [/데이터\s*시트/g, 'datasheet'], [/계기\s*사양서/g, 'instrument specification'], [/사양서/g, 'specification'], [/I\/O\s*리스트/g, 'I/O list'], [/인스트루먼트\s*인덱스|계기\s*인덱스/g, 'instrument index'], [/훅업\s*도면/g, 'hook-up drawing'], [/배치\s*도면|배치안/g, 'layout drawing'], [/배치도/g, 'layout'], [/결선도/g, 'wiring diagram'],
     [/제어실/g, 'control room'], [/판넬|패널/g, 'panel'], [/통로\s*폭/g, 'aisle width'], [/케이블\s*트레이/g, 'cable tray'], [/케이블\s*물량/g, 'cable quantity'], [/접지\s*단자/g, 'earthing terminal'], [/접지/g, 'earthing'],
     [/고객사/g, 'client'], [/발주처/g, 'owner'], [/협력사/g, 'subcontractor'], [/시공사/g, 'contractor'], [/현장\s*출장/g, 'site trip'], [/현장\s*조사/g, 'site survey'],
-    [/후속\s*조치/g, 'action items'], [/방폭\s*지역|위험\s*지역/g, 'hazardous areas'], [/첨부한\s|첨부된\s/g, 'attached '], [/회의록/g, 'meeting minutes'], [/시운전/g, 'commissioning'], [/인계/g, 'handover'], [/교정/g, 'calibration'], [/검토\s*의견/g, 'review comments'],
+    [/후속\s*조치/g, 'action items'], [/(PO|MR|PR|RFQ|ITB|TBE|CBE|VPIS|IFC)(은|는|이|가)?\s*하나로\s*(나가도|나가는|나가면|나가야|발행되)/g, (m, d, j, v) => `${d} ${v.startsWith('나가도') ? 'may be issued as one' : 'is issued as one'}`], [/별도\s*(PO|MR|PR|RFQ)(로|으로)\s*(작성해서|작성하여|작성해)?\s*(나가는|발행되는|나가면)/g, 'issued as a separate $1 '], [/(PO|MR|PR)(이|가)\s*틀린데/g, '$1 is wrong but'], [/쪼개(라는|어서|서|야)/g, (m, a) => ({ 라는:'split into separate ', 어서:'split and ', 서:'split and ', 야:'should be split ' }[a])], [/발주\s*(가|를|이)?\s*나가/g, 'the purchase order is issued'], [/전기\s*\/\s*통신/g, 'electrical/telecommunication'], [/방폭\s*지역|위험\s*지역/g, 'hazardous areas'], [/첨부한\s|첨부된\s/g, 'attached '], [/회의록/g, 'meeting minutes'], [/시운전/g, 'commissioning'], [/인계/g, 'handover'], [/교정/g, 'calibration'], [/검토\s*의견/g, 'review comments'],
     [/(\d+(?:\.\d+)*)\s*절/g, 'Section $1'], [/이중\s/g, 'dual '], [/다음\s*주/g, 'next week'], [/다음\s*달/g, 'next month'], [/이번\s*주/g, 'this week'], [/이번\s*달/g, 'this month'],
   ],
 };
@@ -5479,6 +5480,15 @@ function botProof(q) {
       <span class="muted" style="font-size:11px">규칙 기반 첨삭(외부 AI 안 씀) — 뜻 · 숫자 · 고유명사는 손대지 않아요. 맞춤법 · 번역투 · 스타일 규칙은 공개 룰북(im-not-ai · korean-skills, MIT)을 참고했어요.</span>`;
   return { html:body, acts:r.same ? [] : [{ l:'📋 고친 글 복사', fn:() => { navigator.clipboard?.writeText(r.out).then(() => botSay('bot', '복사했어요 📋'), () => botSay('bot', '복사가 막혀 있어요 — 위 글을 드래그해 복사해 주세요.')); } }] };
 }
+const BOT_CMD_RE = /추가|수정|삭제|등록|열어|열기|보여|필터|저장|마감|번역|첨삭|요약|출력|내보내|쪽지|이력|숨겨|가자|이동|만들어|생성|종결|변경\s*없음|^(?:to\s*do|투두)/i;
+const botLooksProse = q => { const lines = q.split('\n').map(x => x.trim()).filter(Boolean); if (lines.length < 2 && q.length < 60) return false;
+  const sentLike = lines.filter(l => l.length > 12 && /[.!?。]$|(다|요|니다|습니다|네요|세요|입니다|죠)[.!?]?$/.test(l) && !BOT_CMD_RE.test(l.slice(0, 12))).length;
+  return sentLike >= Math.max(1, Math.ceil(lines.length * 0.6)) && !lines.some(l => l.length <= 25 && BOT_CMD_RE.test(l)); };
+function botFreeText(q) {   // 명령이 아닌 글(메일 본문 등)을 붙여 넣었을 때 — 대화하듯 되묻기
+  const ko = isKo(q), n = q.length;
+  return { html:`글을 주셨네요 (${n}자). 어떻게 해 드릴까요? 아래에서 고르거나, 글 끝에 "위 내용 영어로 번역해줘" 처럼 적어 주셔도 돼요.`,
+    acts:[{ l:ko ? '🌐 영어로 번역' : '🌐 한국어로 번역', fn:() => botTranslate(q, ko ? 'koen' : 'enko') }, { l:'✍ 첨삭(맞춤법 · 표현)', fn:() => botAsk('첨삭: ' + q) }, { l:'📝 요약', fn:() => { const r = botSummary(q); botSay('bot', r.html, r.acts); } }, { l:'📣 VOC 로 등록', fn:() => botAsk('VOC 글 쓰기: ' + trunc(q.split('\n')[0], 30) + ' / ' + q) }] };
+}
 function botAnswer(q) {
   const pf = botProof(q) || botTrLearnCmd(q) || botTrCmd(q); if (pf) return pf;   // 첨삭 · 번역 학습 · 번역
   const ap = botApp(q) || botSheetOut(q); if (ap) return ap;   // 분석 메뉴 · 시트 출력 / 요약
@@ -5499,14 +5509,16 @@ function botAnswer(q) {
     const s2 = top.e.person ? botPerson(top.e) : (top.e.key === 'perform' || top.e.key === 'bid') ? botPjt(top.e) : null;
     if (s2) { out.html += (out.html ? '<br><br>' : '') + s2.html; out.acts.push(...s2.acts); }
   }
-  const rest = sc.filter(x => x !== top && !(pe && x.e.person)).slice(0, pe ? 4 : 6);
+  const wantFind = /찾|검색|어디|보여|열어|목록|리스트|관련/.test(q), longText = q.length >= 60 && (q.match(/[.!?。]|다\s|요\s|니다/g) || []).length >= 2;
+  if (longText && !f && !(top && top.s >= 3 * Math.max(1, ws.length - 1))) return botFreeText(q);   // 글을 그냥 붙여 넣음 → 무엇을 할지 묻기
+  const rest = sc.filter(x => x !== top && !(pe && x.e.person)).slice(0, wantFind ? 6 : out.acts.length ? 2 : 3);
   if (rest.length) {
-    out.html += (out.html ? '<br><br>' : '') + `관련 내용 <b>${sc.length}건</b> 중 ${rest.length}건 — 누르면 바로 이동해요.`;
+    out.html += (out.html ? '<br><br>' : '') + (out.acts.length ? `이것도 관련 있어 보여요 👇` : `이런 게 있어요 — 누르면 그 자리로 가요.`);
     rest.forEach(({ e }) => out.acts.push({ l:`${e.t} · ${trunc(e.title, 40)}${e.sum && e.t !== '부서원' ? '' : ''}`, fn:() => botRun(e.act) }));
   }
   if (ic) { if (out.acts.length && !pe && top && top.s >= 3 * Math.max(1, ws.length - 1) && (top.e.person || top.e.key === 'perform' || top.e.key === 'bid')) out.acts.push({ l:ic.html.replace(/<[^>]+>/g, '').slice(0, 32), fn:() => botSay('bot', ic.html, ic.acts) });
     else { out.html = ic.html + (out.html ? '<br><br><span class="muted" style="font-size:11px">대시보드 안 관련 내용 ↓</span><br>' + out.html : ''); out.acts = [...ic.acts, ...out.acts].slice(0, 8); } }
-  if (!out.html) out.html = '음… 딱 맞는 걸 못 찾았어요 🤔 PJT 이름 · 사람 이름 · 메뉴 이름 · VOC 내용으로 물어봐 주세요. 예: "카타르 LNG 누가 해?", "박민수", "수행 PJT 몇 개", "판넬 VOC"';
+  if (!out.html) { if (q.length >= 25) return botFreeText(q); out.html = `음, '${esc(trunc(q, 30))}' 은(는) 대시보드에서 못 찾았어요 🤔 PJT · 사람 · 메뉴 · VOC 이름으로 다시 물어봐 주시거나, 글을 붙여 넣고 "번역해줘" · "첨삭해줘" 라고 해 보세요.`; }
   return out;
 }
 /* 2026-11-08 클로드 비서 '바이브' — 운영자가 메뉴 권한 설정에서 [비서 바이브] 를 준 부서원(운영자 · 그룹장은 기본): 말만 하면 확인 단추 없이 바로 실행,
@@ -5549,7 +5561,7 @@ const botRelay = msg => { if (!BOT_ONLY || !window.opener || window.opener.close
 function botSay(who, html, acts = []) {
   const b = $('#botLog'); if (!b) return; const d = document.createElement('div'); d.className = 'bmsg ' + who;
   d.innerHTML = `<div class="bb">${html}</div>${acts.length ? `<div class="bacts">${acts.map((a, i) => `<button type="button" data-ba="${i}">${esc(a.l)} ›</button>`).join('')}</div>` : ''}`;
-  d.onclick = e => { const x = e.target.closest('[data-ba]'); if (!x || d.dataset.used) return; const ac = acts[+x.dataset.ba]; botSay('me', esc(ac.l)); if (ac.edit) { d.dataset.used = 1; d.querySelectorAll('[data-ba]').forEach(b => b.disabled = true); ac.fn(); } else { ac.fn(); botSay('bot', '이동했어요 👉 또 궁금한 게 있으면 물어보세요.'); } };
+  d.onclick = e => { const x = e.target.closest('[data-ba]'); if (!x || d.dataset.used) return; const ac = acts[+x.dataset.ba]; botSay('me', esc(ac.l)); if (ac.edit) { d.dataset.used = 1; d.querySelectorAll('[data-ba]').forEach(b => b.disabled = true); ac.fn(); } else { ac.fn(); } };
   b.appendChild(d); b.scrollTop = b.scrollHeight; return d;
 }
 function botActs(d, acts) {   // 이미 띄운 말풍선에 단추 줄 달기(번역 · OCR 결과)
@@ -5562,11 +5574,33 @@ function botToggle(on) {
   if (BOT.open) { botDock(); if (!$('#botLog').children.length) botSay('bot', `무엇을 도와드릴까요${AUTH ? ', ' + esc(AUTH.name) + ' 님' : ''}? 대시보드 안의 PJT · 업무 · 전달사항 · VOC 를 찾아 바로 이동해 드려요.`, [{ l:'이번 주 내 할 일', fn:() => botAsk('내 할 일') }, { l:'마감 언제?', fn:() => botAsk('마감 언제') }, { l:'재무스타그램 어디?', fn:() => botAsk('재무스타그램 어디') }]);
     setTimeout(() => $('#botIn')?.focus(), 50); }
 }
+/* 2026-11-09 붙여 넣은 글(여러 줄) 끝이나 앞에 "위 내용 영어로 번역해줘" · "첨삭해줘" · "요약해줘" 가 있으면 → 나머지 글 전체에 그 일을 함 (줄마다 찾기로 흩어지지 않게) */
+const BOT_INSTR = /^(?:(?:위|아래|이|위의|아래의|다음)\s*(?:내용|글|문장|메일|문단|텍스트)?\s*(?:을|를|은|는)?\s*)?(?:(영어로|영문으로|한국어로|한글로|우리말로)\s*)?(번역|첨삭|교정|교열|맞춤법|요약|정리)\s*(?:해\s*줘|해줘|해\s*주세요|부탁해|부탁드려요|해|좀|해라|해봐)?\s*[.!]?$/;
+function botInstr(q) {
+  const lines = q.split('\n').map(x => x.trim()).filter(Boolean); if (lines.length < 2) return null;
+  for (const [idx, line] of [[lines.length - 1, lines[lines.length - 1]], [0, lines[0]]]) { const m = BOT_INSTR.exec(line); if (!m || line.length > 40) continue;
+    const body = lines.filter((_, i) => i !== idx).join('\n'), lang = m[1] || '', job = m[2];
+    if (job === '번역') return { html:'', acts:[], run:() => botTranslate(body, /영어|영문/.test(lang) ? 'koen' : /한국어|한글|우리말/.test(lang) ? 'enko' : trDir(body)) };
+    if (job === '요약' || job === '정리') return botSummary(body);
+    return botProof('첨삭: ' + body) || { html:'첨삭할 글을 찾지 못했어요.', acts:[] }; }
+  return null;
+}
+function botSummary(body) {   // 간단 요약(외부 AI 없음): 문장 단위로 핵심 문장 고르기 — 숫자 · 날짜 · 요청 표현이 있는 문장 우선, 최대 3문장
+  const sents = body.replace(/\n+/g, ' ').split(/(?<=[.!?。다요])\s+/).map(x => x.trim()).filter(x => x.length > 6);
+  if (sents.length <= 2) return { html:`📝 짧은 글이라 그대로가 요약이에요:<div class="bproof">${esc(body).replace(/\n/g, '<br>')}</div>`, acts:[] };
+  const score = x => (x.match(/\d/g) || []).length * 2 + (/부탁|요청|확인|필요|해야|예정|완료|지연|문제|결정|중요|shall|must|please|need|deadline|issue/i.test(x) ? 4 : 0) + Math.min(x.length, 80) / 40;
+  const top = sents.map((x, i) => ({ x, i, s:score(x) })).sort((a, b) => b.s - a.s).slice(0, 3).sort((a, b) => a.i - b.i).map(o => o.x);
+  const isKoT = isKo(body), ask = /부탁|요청|확인\s*부탁|please|could you|kindly/i.test(body);
+  return { html:`📝 <b>요약</b> (${sents.length}문장 → ${top.length}문장${ask ? ' · 요청이 들어 있는 글' : ''})<div class="bproof">${top.map(t => '· ' + esc(t)).join('<br>')}</div><span class="muted" style="font-size:11px">핵심 문장을 골라 보여 드린 것이라 문맥은 원문을 확인해 주세요.</span>`,
+    acts:[{ l:isKoT ? '🌐 영어로 번역' : '🌐 한국어로 번역', fn:() => botTranslate(body, isKoT ? 'koen' : 'enko') }, { l:'✍ 첨삭', fn:() => botAsk('첨삭: ' + body) }] };
+}
 function botAsk(q) { q = String(q || '').trim(); if (!q) return; botSay('me', esc(q).replace(/\n/g, '<br>'));
+  const ins = botInstr(q); if (ins) return setTimeout(() => { if (ins.html || ins.acts.length) botSay('bot', ins.html, ins.acts); if (ins.run) ins.run(); }, 250);
+  if (botLooksProse(q)) { const r = botFreeText(q); return setTimeout(() => botSay('bot', r.html, r.acts), 250); }   // 명령 없이 글만 붙여 넣음 → 줄마다 나누지 않고 되묻기
   if (botVibe()) return setTimeout(() => botVibeRun(q), 250);   // 바이브 권한: 확인 없이 바로 · 여러 단계 차례로
   if (botSteps(q).length > 1) return setTimeout(() => botSay('bot', '여러 일을 한 번에 시키는 것(바이브)은 운영자가 <b>메뉴 권한 설정 › 비서 바이브</b> 를 켜 줘야 해요. 지금은 한 번에 하나씩 말해 주세요 🙂'), 250);
   const a = botAnswer(q); if (a.keep) a.acts.forEach(x => x.edit = true); setTimeout(() => { if (a.html || a.acts.length) botSay('bot', a.html, a.acts); if (a.run) setTimeout(a.run, 300); }, 250); }
-function botDock() { const r = BOT.el.getBoundingClientRect(), p = BOT.panel, W = 340, H = 440; if (p.classList.contains('max')) return;
+function botDock() { const p = BOT.panel; if (p.classList.contains('max') || p.dataset.moved) return; const r = BOT.el.getBoundingClientRect(), W = p.offsetWidth || 340, H = p.offsetHeight || 440;
   p.style.left = Math.max(8, Math.min(innerWidth - W - 8, r.left + r.width / 2 - W / 2)) + 'px'; p.style.top = (r.top > H + 20 ? r.top - H - 10 : Math.min(innerHeight - H - 8, r.bottom + 10)) + 'px'; }
 function botFace(f) { const b = BOT.el?.querySelector('.bface'); if (b) b.innerHTML = BOT_FACES[f] || BOT_FACES.normal; }
 function botWander() {
@@ -5597,6 +5631,10 @@ function botInit() {
   p.querySelector('form').onsubmit = e => { e.preventDefault(); const i = $('#botIn'); botAsk(i.value); i.value = ''; i.style.height = ''; };
   const bi = p.querySelector('#botIn'); bi.addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); p.querySelector('form').requestSubmit(); } });   // 긴 글 · 여러 줄(번역 · 바이브)
   bi.addEventListener('input', () => { bi.style.height = ''; bi.style.height = Math.min(160, bi.scrollHeight) + 'px'; });
+  try { const sz = JSON.parse(localStorage.getItem('dept-bot-size') || 'null'); if (sz && sz.w >= 280 && sz.h >= 300) { p.style.width = Math.min(innerWidth - 16, sz.w) + 'px'; p.style.height = Math.min(innerHeight - 16, sz.h) + 'px'; } } catch (_) {}   // 크기 기억
+  new ResizeObserver(() => { if (p.hidden || p.classList.contains('max')) return; try { localStorage.setItem('dept-bot-size', JSON.stringify({ w:p.offsetWidth, h:p.offsetHeight })); } catch (_) {} }).observe(p);
+  const hd = p.querySelector('.bph'); hd.addEventListener('mousedown', e => { if (e.target.closest('button') || p.classList.contains('max')) return; const sx = e.clientX - p.offsetLeft, sy = e.clientY - p.offsetTop; p.dataset.moved = 1; document.body.style.userSelect = 'none';   // 머리줄 끌어서 이동
+    const mv = ev => { p.style.left = Math.max(0, Math.min(innerWidth - 60, ev.clientX - sx)) + 'px'; p.style.top = Math.max(0, Math.min(innerHeight - 40, ev.clientY - sy)) + 'px'; }, up = () => { removeEventListener('mousemove', mv); removeEventListener('mouseup', up); document.body.style.userSelect = ''; }; addEventListener('mousemove', mv); addEventListener('mouseup', up); });
   const fin = p.querySelector('#botFile'); fin.onchange = () => { botAddFiles(fin.files); fin.value = ''; };
   const dz = (t, on) => t.addEventListener(on ? 'dragover' : 'dragleave', e => { if (on) { if (![...(e.dataTransfer?.types || [])].includes('Files')) return; e.preventDefault(); } p.classList.toggle('bdrop', on); });
   p.addEventListener('paste', e => { const fs = [...(e.clipboardData?.files || [])].filter(f => /^image\//.test(f.type)); if (fs.length) { e.preventDefault(); botAddFiles(fs); } });
@@ -6788,7 +6826,7 @@ function orgHtml(recs, year) {
       ${mode === 'map' ? (() => { const all = mapProjects(), dn = all.filter(p => isDone(p.r)).length, pc = all.length ? Math.round(dn / all.length * 100) : 0;
         return `<span class="oc-prog" title="진행 중인 수행 · 입찰 PJT 중 금주 작성(변경 없음 포함) 비율">금주 작성률 <i><b style="width:${pc}%"></b></i> <strong>${pc}%</strong></span><span class="oc-chips"><span><i style="background:#64748b"></i>전체 ${all.length}</span><span><i style="background:#3b82f6"></i>수행 ${all.filter(p => p.k !== 'bid').length}</span><span><i style="background:#f59e0b"></i>입찰 ${all.filter(p => p.k === 'bid').length}</span><span><i style="background:#e0483e"></i>미작성 ${all.length - dn}</span></span>`; })() : ''}
       ${mode === 'map' ? `<button class="btn sm oc-ordbtn ${OC.ordOn ? 'on' : ''}" data-ord title="재무스타그램(DART 사업보고서 '수주상황')에서 삼성물산 프로젝트별 수주금액 · 발주처 · 잔액을 불러와 지도에 함께 표시">💰 삼성물산 수주현황${ORD.data && !ORD.data.error ? ` <b>${ORD.data.projects.length}</b>` : ''}</button>` : ''}
-      ${mode !== 'unit' ? `<div class="oc-fil">${[['', '전체'], ['perform', '수행'], ['bid', '입찰']].map(([k, l]) => `<button class="${(mode === 'map' ? OC.mapF || '' : OC.projF === '수행' ? 'perform' : OC.projF === '입찰' ? 'bid' : '') === k ? 'on' : ''}" data-mapf="${k}">${l}</button>`).join('')}</div>` : ''}
+      ${mode !== 'unit' ? `<div class="oc-fil">${[['', '전체'], ['perform', '수행'], ['bid', '입찰']].map(([k, l]) => `<button class="${(mode === 'map' ? OC.mapF || '' : OC.projF === '수행' ? 'perform' : OC.projF === '입찰' ? 'bid' : '') === k ? 'on' : ''}" data-mapf="${k}">${l}</button>`).join('')}${mode === 'map' ? `<button class="${glbOff() ? '' : 'on'}" data-glb3d title="3D 지구본 ↔ 평면 지도 (느린 PC 는 평면이 가벼워요 · 이 PC 에 기억)">${glbOff() ? '🗺 평면' : '🌍 3D'}</button>` : ''}</div>` : ''}
       <span class="sp"></span><div class="oc-zoom"><span class="zi">⌕</span><button data-oc="out" title="축소">−</button><b id="ocZ">100%</b><button data-oc="in" title="확대">+</button><span class="zi">⌕</span></div>
       ${AUTH ? '<button class="btn pri oc-me" data-myprof>🙋 내 정보</button>' : ''}</div>
     <div class="oc-main"><div class="oc-view" id="ocView" title="휠 = 확대/축소 · 끌어서 이동">
@@ -7012,7 +7050,7 @@ function glbLoad() {
   });
 }
 const glbLod = alt => { const b = GLB.box; if (b) b.dataset.lod = alt > 1.2 ? 'far' : alt > .45 ? 'mid' : 'near'; };
-function glbFly(lat, lng, alt, ms = 1200) { if (GLB.g) GLB.g.pointOfView({ lat, lng, altitude:alt }, ms); }
+function glbFly(lat, lng, alt, ms = 1200) { if (GLB.g) { glbWake(ms + 2000); GLB.g.pointOfView({ lat, lng, altitude:alt }, ms); } }
 function glbSel(key, pid) {
   const V = OC.map?.by.get(key); if (!V) return;
   OC.selC = key; if (pid) OC.selP = pid; mapSide(key);
@@ -7054,6 +7092,7 @@ function ordPts() {                                           // 수주현황 �
 function glbLR(name) { const pd = projData(); const p = pd.find(x => normName(x.c.name) === normName(name) || normName(name).includes(normName(x.c.name)) || normName(x.c.name).includes(normName(name))); return p ? p.mem : []; }
 async function globeMount() {
   if (ocMode() !== 'map' || !$('#ocView')) return;
+  if (glbOff() || !glbWebgl()) return;                                  // 평면 지도로(느린 PC · 그래픽 가속 없음 · 사용자가 끔)
   try { await glbLoad(); } catch (_) { return; }                       // 못 받으면 평면 지도 그대로
   const v = $('#ocView'); if (!v || ocMode() !== 'map' || !OC.map) return;
   v.classList.add('globe');
@@ -7067,8 +7106,8 @@ async function globeMount() {
     pts.push({ t:'p', p, c:x.c, lat:x.c.lat + r * Math.sin(a), lng:x.c.lon + r * Math.cos(a) / Math.max(.3, Math.cos(x.c.lat * Math.PI / 180)) }); }));
   const B = glbBase(), first = !GLB.g;
   const g = GLB.g || (GLB.g = Globe({ animateIn:false })(box));
-  g.width(v.clientWidth).height(v.clientHeight).backgroundImageUrl(B + 'img/night-sky.png').globeImageUrl(B + 'img/earth-blue-marble.jpg').bumpImageUrl(B + 'img/earth-topology.png')
-    .showAtmosphere(true).atmosphereColor('#6aa8ff').atmosphereAltitude(.18)
+  g.width(v.clientWidth).height(v.clientHeight).backgroundImageUrl(B + 'img/night-sky.png').globeImageUrl(B + 'img/earth-blue-marble.jpg')
+    .showAtmosphere(true).atmosphereColor('#6aa8ff').atmosphereAltitude(.15)
     .polygonsData(GLB.geo).polygonAltitude(f => has.has(f.id) ? .008 : .003).polygonCapColor(f => col(f.id)).polygonSideColor(() => 'rgba(0,0,0,0)').polygonStrokeColor(f => has.has(f.id) ? 'rgba(255,255,255,.75)' : 'rgba(255,255,255,.28)')
     .polygonLabel(f => { const o = has.get(f.id); return `<div class="glt"><b>${esc(o ? o.x.c.ko : f.properties.name)}</b>${o ? `<br>수행 ${o.run} · 입찰 ${o.bid}` : ''}</div>`; })
     .onPolygonClick(f => { const o = has.get(f.id); if (o) glbSel(o.x.c.key); })
@@ -7077,10 +7116,20 @@ async function globeMount() {
     .htmlElementsData([...vs.map(x => ({ t:'c', x, lat:x.c.lat, lng:x.c.lon })), ...pts, ...ordPts()]).htmlLat('lat').htmlLng('lng').htmlAltitude(d => d.t === 'c' ? .03 : .012).htmlElement(glbEl)
     .onZoom(pov => { GLB.pov = pov; glbLod(pov.altitude); });
   const ctl = g.controls(); ctl.autoRotate = false; ctl.zoomSpeed = 2.2; ctl.enableDamping = true;
+  if (first) { try { g.renderer().setPixelRatio(Math.min(1, devicePixelRatio || 1)); } catch (_) {} ['pointerdown', 'pointermove', 'wheel', 'touchstart'].forEach(ev => box.addEventListener(ev, () => glbWake(), { passive:true })); ctl.addEventListener?.('change', () => glbWake(1500)); GLB.paused = false; glbWake(4000); glbFpsCheck(g, box); }
   if (first) g.pointOfView(GLB.pov || { lat:25, lng:85, altitude:2.1 }, 0);
   glbLod(g.pointOfView().altitude);
 }
-function glbResize() { const v = $('#ocView'); if (GLB.g && v?.classList.contains('globe')) GLB.g.width(v.clientWidth).height(v.clientHeight); }
+function glbKill() { if (!GLB.g) return; try { GLB.pov = GLB.g.pointOfView(); } catch (_) {} try { GLB.g.pauseAnimation(); GLB.g._destructor(); } catch (_) {} GLB.g = null; GLB.box = null; clearTimeout(GLB.idle); }
+/* 2026-11-09 성능: 그래픽 가속이 없거나 느린 PC 는 평면 지도로(자동 판단 · 기억), 지구본은 만질 때만 그리고 2.5초 뒤 멈춤(아크 점선 애니메이션도 멈춤), 픽셀 비율 1, 요철 지도 생략 */
+const glbOff = () => { try { return localStorage.getItem('dept-globe-off') === '1'; } catch (_) { return false; } };
+const glbSetOff = on => { try { on ? localStorage.setItem('dept-globe-off', '1') : localStorage.removeItem('dept-globe-off'); } catch (_) {} };
+function glbWebgl() { try { const c = document.createElement('canvas'); const gl = c.getContext('webgl2') || c.getContext('webgl'); if (!gl) return false; const dbg = gl.getExtension('WEBGL_debug_renderer_info'); const r = dbg ? String(gl.getParameter(dbg.UNMASKED_RENDERER_WEBGL)) : ''; return !/swiftshader|software|llvmpipe/i.test(r); } catch (_) { return false; } }
+function glbWake(ms = 2500) { const g = GLB.g; if (!g) return; if (GLB.paused) { try { g.resumeAnimation(); } catch (_) {} GLB.paused = false; } clearTimeout(GLB.idle); GLB.idle = setTimeout(() => { if (GLB.g) { try { GLB.g.pauseAnimation(); } catch (_) {} GLB.paused = true; } }, ms); }
+function glbFpsCheck(g, box) {   // 켠 뒤 2초 동안 프레임 수 — 8 미만이면 이 PC 에서는 평면 지도로
+  let n = 0; const s = performance.now(); const f = () => { n++; if (performance.now() - s < 2000) requestAnimationFrame(f); else if (GLB.g === g && n < 16) { glbKill(); glbSetOff(true); const v = $('#ocView'); v?.classList.remove('globe'); box.remove(); toast('이 PC 는 3D 지구본이 느려서 평면 지도로 보여 드려요 (세계 지도 › [3D 지구본] 단추로 다시 켤 수 있어요)'); } }; requestAnimationFrame(f);
+}
+function glbResize() { const v = $('#ocView'); if (GLB.g && v?.classList.contains('globe')) { GLB.g.width(v.clientWidth).height(v.clientHeight); glbWake(); } }
 addEventListener('resize', glbResize);
 
 /* ---------- 2026-11-08 세계 지도 + 재무스타그램 '삼성물산 수주현황' (DART 사업보고서 원문의 수주상황 표 · 재무스타그램 서버 /api/orders) ----------
@@ -7213,6 +7262,7 @@ function orgClick(e) {
   const md = e.target.closest('[data-ocmode]'); if (md) { if (md.dataset.ocmode === ocMode()) return; OC.views[ocMode()] = { z:OC.z, x:OC.x, y:OC.y }; try { localStorage.setItem('dept-oc-mode', md.dataset.ocmode); } catch (_) {} const sv = OC.views[md.dataset.ocmode]; OC.key = ''; render(); if (sv) { Object.assign(OC, sv); OC.fit = false; ocApply(); } return; }
   const bg = e.target.closest('[data-ocbg]'); if (bg) { try { localStorage.setItem('dept-oc-bg', bg.dataset.ocbg); } catch (_) {} const o = $('#oc'); o.className = o.className.replace(/bg-\w+/, 'bg-' + bg.dataset.ocbg); o.querySelectorAll('[data-ocbg]').forEach(b => b.classList.toggle('on', b === bg)); return; }
   const ct = e.target.closest('.oc-cv [data-ctry], .oc-side [data-ctry]'); if (ct) { OC.selC = ct.dataset.ctry; OC.hovC = ''; document.querySelectorAll('.oc-cv [data-ctry], .oc-cv [data-ld], .oc-cv [data-arc]').forEach(x => x.classList.toggle('on', (x.dataset.ctry ?? x.dataset.ld ?? x.dataset.arc) === OC.selC)); const _cv = $('#ocCv'); if (_cv) mapPin(_cv); return mapSide(OC.selC); }
+  const g3 = e.target.closest('[data-glb3d]'); if (g3) { const off = !glbOff(); glbSetOff(off); if (off) { glbKill(); $('#ocView')?.classList.remove('globe'); $('#ocGlobe')?.remove(); } OC.fit = true; return render(); }
   const mf = e.target.closest('[data-mapf]'); if (mf) { if (ocMode() === 'map') OC.mapF = mf.dataset.mapf; else OC.projF = { perform:'수행', bid:'입찰' }[mf.dataset.mapf] || ''; OC.fit = true; return render(); }
   if (e.target.closest('[data-wxon]')) { try { localStorage.setItem('dept-wx-on', '1'); } catch (_) {} return wxLoad(true); }
   if (e.target.closest('[data-ord]')) return ordToggle();

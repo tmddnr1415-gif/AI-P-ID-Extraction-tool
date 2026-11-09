@@ -48,11 +48,17 @@ def parse_key(text):
             continue
         m = re.match(r"(?:export\s+)?([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*)$", line)
         if m:
-            if m.group(1).upper() in KEY_NAMES:
-                return re.sub(r"\s+#.*$", "", m.group(2)).strip().strip("\"'")
+            name = m.group(1).upper()
+            if name in KEY_NAMES or 'API_KEY' in name or 'DART' in name or 'CRTFC' in name:   # 2026-11-09 DATA_API_KEY= 처럼 이름이 달라도 API 키 줄이면 받음
+                return re.sub(r"\s+#.*$", "", m.group(2)).strip().strip("\"'").strip("{}").strip()
         else:
             plain.append(line)
-    return plain[0] if len(plain) == 1 else ""
+    if len(plain) == 1:
+        return plain[0]
+    kv = [ln for ln in (text or "").splitlines() if re.match(r"\s*(?:export\s+)?[A-Za-z_][A-Za-z0-9_]*\s*=\s*\S", ln) and not ln.strip().startswith("#")]
+    if len(kv) == 1:                                       # 이름=값 줄이 하나뿐이면 그것이 키
+        return kv[0].split("=", 1)[1].strip().strip('\"')
+    return ""
 
 
 def load_key():
