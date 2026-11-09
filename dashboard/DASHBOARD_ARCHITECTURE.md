@@ -1701,3 +1701,9 @@ C:\Users\SAMSUNG\Desktop\Claude\                         ← 개발 폴더 (여�
 - 무엇을: 품목 이름을 테두리 이름표 대신 크고 진한 글씨(13.5px · 800, 최대 두 줄 · 마우스 = 전체 이름), 품목 칸 왼쪽에 공종 색 띠, 공종은 같은 색 칩, 업체는 아래 작은 회색(🏭 업체 · 나라 / 👤 Buyer), 품목 칸 넓힘(230 → 270px), 줄 간격 · 줄 구분선 · 마우스 올림 강조, No 아래 Tagged/Bulk · LLI. 공종 일정판 이름 · 다가오는 30일 목록도 같은 방식(공종 색 점).
 - 바뀐 곳: dashboard.html `SCH_DC` · `schDc`(공종 색, 모르는 공종은 이름으로 정해진 색), `renderSched` 품목 줄 · 다가오는 일정, `schDiscBoard` 이름 칸, CSS `.sinm` · `.sven` · `.sdc` · `.schtab td.sitem` · `.dbl`
 - 확인한 것: 품목표 · I&C 일정판 화면, 콘솔 오류 없음.
+
+### 2026-11-09 (APP_VERSION 2026-11-09.18 / SERVER_VERSION 그대로) — v17.09 Schedule 더블클릭 입력 · 공종별 품목 현황 요약
+- 더블클릭 입력: 품목 상세 표의 계획 · 전망 · 실적 칸을 더블클릭하면 그 자리에서 날짜 칸으로 바뀜(Enter · 다른 곳 누름 = 저장, Esc = 취소). 품목표의 MR · TBE · CBE 칸을 더블클릭하면 그 마일스톤의 계획 · 전망 · 실적 작은 입력 창(`schCellPop`). 한 번 누름(줄 열기)은 그대로 — MR · TBE · CBE 칸은 더블클릭과 구분하려고 0.26초 기다림. 저장은 모두 `schSaveCells`(서버 최신 판에 그 칸만 반영 · 기록 남김). 권한 = 실행 프로젝트 · 편집 가능.
+- 공종별 품목 현황 요약 카드(예전 '공종별 PO 발행' 자리): 공종마다 머리(품목 수 · PO 발행 · MR·TBE·CBE 지연 수 · PO 막대, 누르면 그 공종만) + 품목 한 줄씩(상태 점 · No · 이름 · 지금 단계 '+지연일' · 전망/다음 일정), 늦은 것부터, 품목을 누르면 표에서 상세.
+- 바뀐 곳: dashboard.html `schSaveCells` · `schEditSave` · `schCellPop` · `schBind`(ondblclick · 클릭 구분) · `renderSched`(fcell · 상세 칸 data-sc · 요약 카드 brief/sumHtml), CSS `.sce` · `.scp` · `.isg` · `.isr`
+- 확인한 것: 상세 칸 더블클릭 → 입력 → Enter → 서버 저장 · 기록, MR/TBE/CBE 칸 더블클릭 → 입력 창, 한 번 누름 = 줄 열기, 요약 카드 화면. 콘솔 오류 없음.

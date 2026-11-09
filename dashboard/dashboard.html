@@ -1652,6 +1652,14 @@ body.botonly #side,body.botonly header.top,body.botonly #content,body.botonly #d
 .sdet td{background:#f8faff!important;padding:10px 12px!important;overflow:hidden}.sdw{overflow:auto;max-width:100%}.sdt{width:auto!important;font-size:11.5px}.sdt th,.sdt td{white-space:nowrap;padding:4px 7px!important;text-align:center}.sdt td.sl{background:#fee2e2!important}
 .sdm{display:flex;flex-wrap:wrap;gap:6px 18px;margin-top:8px;font-size:12px}.sdm small{display:block;color:var(--sub);font-size:10.5px}
 @media (max-width:1300px){.schkpis{grid-template-columns:repeat(3,1fr)}.schgrid{grid-template-columns:1fr}}
+/* 2026-11-09 공종별 품목 현황 요약 */
+.iscard{display:flex;flex-direction:column;min-height:0}.isw{max-height:430px;overflow:auto;margin:0 -4px;padding:0 4px}
+.isg{margin-bottom:10px;border-left:4px solid var(--dc);border-radius:8px;background:#fafbff}.ish{display:flex;align-items:center;gap:8px;flex-wrap:wrap;width:100%;border:0;background:color-mix(in srgb,var(--dc) 7%,#fff);border-radius:0 8px 0 0;padding:6px 8px;font:inherit;font-size:12px;color:#475569;cursor:pointer;position:sticky;top:0;z-index:1}
+.ish.on{outline:2px solid var(--dc)}.ish .isl{color:#b91c1c;font-weight:800}.ish .iso{color:#15803d;font-weight:700}.ish .pbar{flex:1;min-width:50px;height:6px;border-radius:3px;background:#e2e8f0;position:relative;overflow:hidden}.ish .pbar .pl{position:absolute;left:0;top:0;bottom:0;background:var(--dc)}
+.isr{display:grid;grid-template-columns:10px 54px minmax(0,1fr) auto;column-gap:6px;align-items:center;padding:5px 8px;border-top:1px dashed #e5e7eb;cursor:pointer;font-size:12px}.isr:hover{background:#eef2ff}
+.isr small{grid-column:3 / 5;color:#64748b;font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.isn{color:#334155;font-variant-numeric:tabular-nums}.isi{font-weight:800;color:#0f1f5c;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ist{white-space:nowrap;font-weight:700;font-size:11.5px;border-radius:6px;padding:0 6px}.ist.r{color:#b91c1c;background:#fef2f2}.ist.y{color:#b45309;background:#fffbeb}.ist.g{color:#15803d;background:#f0fdf4}.ist.d{color:#0f766e;background:#f0fdfa}
+.isd{display:inline-block;width:9px;height:9px;border-radius:50%;vertical-align:-1px;margin:0 2px 0 6px}.isr .isd{margin:0}.isd.r{background:#ef4444}.isd.y{background:#f59e0b}.isd.g{background:#22c55e}.isd.d{background:#14b8a6}
 /* 2026-11-09 품목 가독성 — 이름은 크고 진하게(최대 두 줄, 마우스 = 전체), 왼쪽 공종 색 띠, 업체는 작게 회색 */
 .schtab td.sitem{box-shadow:inset 4px 0 0 var(--dc,#94a3b8);padding-left:12px!important}
 .sinm{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;font-size:13.5px;font-weight:800;color:#0f1f5c;line-height:1.3;letter-spacing:-.15px;word-break:keep-all;overflow-wrap:anywhere}
@@ -1682,6 +1690,9 @@ body.botonly #side,body.botonly header.top,body.botonly #content,body.botonly #d
 .schtab.ph-front td.slater{opacity:.6;font-size:12px}.schtab.ph-back td.sfc{opacity:.65}.schtab td.slater small{display:block}.schtab td small b{color:#dc2626}
 .schtab tbody tr.srow:nth-child(4n+1) td:not(.sfc){background:#fbfcff}.schtab tr.srow.fdone td.key b::after{content:' ✔';color:#16a34a;font-size:11px}
 .sgb .gfe{top:1px;height:20px;border-radius:5px;opacity:.28;background:#fb923c}.sgb .gfe.r{background:#ef4444}.sgb .gfe.y{background:#f59e0b}.sgb .gfe.g{background:#22c55e}
+.sdt td.sce{cursor:cell}.sdt td.sce:hover{outline:2px solid #a5b4fc;outline-offset:-2px;background:#eef2ff!important}.sdt td.editing{padding:1px 2px!important;outline:2px solid #4f46e5;outline-offset:-2px}.sdt td.editing input{width:122px;font:inherit;font-size:11.5px;border:0;background:#fff}
+.schtab td.sfc[data-fe]{cursor:cell}.schtab td.sfc[data-fe]:hover{outline:2px solid #fdba74;outline-offset:-2px}
+.scp .scpg{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:4px 0 6px}.scp .scpg label{display:flex;flex-direction:column;gap:3px;font-weight:700;font-size:12px;color:#475569}.scp .scpg input{font:inherit;padding:4px 6px;border:1px solid #cbd5e1;border-radius:6px}
 .sedh{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:8px;font-size:12.5px}.sedh .sp{flex:1}.sedh b{font-size:13.5px;color:#14246b}
 .sdt th.sdf{background:#ffedd5!important;color:#9a3412}.sdt td.sdf{background:#fff7ed}.sdt tr.sdd td{border-top:2px solid #e2e8f0}.sedm{color:#7c3aed;font-style:normal;font-size:9px;margin-left:2px;vertical-align:super}
 .sedt input[type=date]{width:118px;font:inherit;font-size:11.5px;padding:2px 3px;border:1px solid #cbd5e1;border-radius:5px;background:#fff}.sedt td.sed input{border-color:#7c3aed;box-shadow:0 0 0 1px #7c3aed}.sedt td{padding:3px 4px!important}
@@ -1886,7 +1897,7 @@ function recLabel(key, f) {
  * ===================================================================== */
 let root = null;
 /* 서버 모드: http(s):// 로 접속하면 server.py 의 REST API 사용 (폴더 선택 불필요). file:// 로 열면 폴더 모드 */
-const APP_VERSION = '2026-11-09.17';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
+const APP_VERSION = '2026-11-09.18';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
 const SERVER_URL = 'http://localhost:8080';
 // 부서원 PC 사본(file://)이 접속을 시도할 서버 — 서버가 배포 파일을 만들 때 'PC 이름 주소, IP 주소' 순으로 자동 기록함
 const DEFAULT_SERVERS = ['http://ASEUNGWOOK-B01:8080', 'http://65.3.30.234:8080'];
@@ -4100,7 +4111,9 @@ async function schSave(d, msg) { if (!SERVER || OFFLINE) return toast('서버에
 /* 2026-11-09 사용자가 화면에서 계획 · 전망 · 실적 입력: 서버의 최신 판을 받아 그 품목만 고쳐 저장(다른 사람이 고친 것을 덮지 않게) · 고친 칸 표시(it.ed) · 기록(d.log, 최근 500) */
 async function schEditSave(id) {
   const box = $(`#schv tr.sdet[data-sedit="${CSS.escape(id)}"]`); if (!box) return;
-  const ch = [...box.querySelectorAll('input[data-se]')].map(i => { const [s, k] = i.dataset.se.split('|'); return { s, k, v:i.value }; });
+  return schSaveCells(id, [...box.querySelectorAll('input[data-se]')].map(i => { const [s, k] = i.dataset.se.split('|'); return { s, k, v:i.value }; }));
+}
+async function schSaveCells(id, ch) {   // ch = [{ s:'B'|'F'|'A', k:마일스톤, v:'YYYY-MM-DD' 또는 '' }] — 표 더블클릭 · 입력 창 · 팝업 모두 여기로
   let base = SCH.data; if (SERVER && !OFFLINE) { try { const cur = await api('GET', 'sched/co2'); if (cur && cur.items) base = cur; } catch (_) {} }
   const it = base.items.find(x => x.type + '|' + x.no === id); if (!it) return toast('품목을 찾지 못했어요 (PSR 이 새로 올라왔을 수 있어요)', true);
   const by = AUTH?.name || user || '', at = new Date().toISOString(), log = base.log || (base.log = []); let n = 0;
@@ -4156,6 +4169,13 @@ function renderSched(c) {
   const funnel = per.map(x => `<div class="sfr ${['MR', 'RFQ', 'BID', 'TBE_F'].includes(x.k) ? 'ffront' : ''}" data-tip="${esc(`${SCH_NAME[x.k]} — 기준일까지 계획 ${x.p} · 그중 실적 ${Math.min(x.a, x.p)} · 실적 전체 ${x.f}`)}"><span class="sfn">${esc(SCH_NAME[x.k])}</span><span class="sfb"><i class="p" style="width:${x.p / mx * 100}%"></i><i class="a" style="width:${x.f / mx * 100}%"></i></span><span class="sfv">${x.f}<small>/${x.p}</small></span></div>`).join('');
   const dg = discs.map(dn => { const r = vis.filter(x => x.it.disc === dn); return { dn, n:r.length, po:r.filter(x => x.it.A.PO).length, late:r.filter(x => x.k.st === 'late').length }; }).filter(x => x.n);
   const dmx = Math.max(1, ...dg.map(x => x.n));
+  // 2026-11-09 공종별 품목 현황 요약 — 공종마다 품목 한 줄씩(상태 점 · 짧은 요약), 늦은 것부터
+  const brief = ({ it, k }) => { const g = k.fo.find(f => f.st === 'over' || f.st === 'doing' || f.st === 'todo');
+    if (g) return { lv:g.st === 'over' || g.d > 14 ? 'r' : g.d > 0 ? 'y' : 'g', t:`${g.g} ${g.st === 'over' ? '지남' : g.st === 'doing' ? '진행' : '예정'}${g.d > 0 ? ` <b>+${g.d}일</b>` : ''}`, s:`${g.st === 'todo' ? '계획' : '전망'} ${schFmt(g.f || g.b)}${k.nextK ? ` · 다음 ${esc(SCH_NAME[k.nextK])} ${schFmt(k.nf)}` : ''}` };
+    return { lv:k.st === 'done' ? 'd' : k.slip > 30 ? 'r' : k.slip > 0 ? 'y' : 'g', t:`${k.st === 'done' ? '✔ 현장 도착' : esc(k.stage)}${k.slip > 0 ? ` <b>현장 +${k.slip}일</b>` : ''}`, s:`구매 전반 끝${k.nextK ? ` · 다음 ${esc(SCH_NAME[k.nextK])} ${schFmt(k.nf)}` : ''}` }; };
+  const sumHtml = dg.map(x => { const rs = vis.filter(v => v.it.disc === x.dn).sort((a, b) => b.k.fmax - a.k.fmax || b.k.slip - a.k.slip), fl = rs.filter(v => v.k.fmax > 0).length;
+    return `<div class="isg" style="--dc:${schDc(x.dn)}"><button class="ish ${F.disc === x.dn ? 'on' : ''}" data-schf="disc|${esc(x.dn)}"><span class="sdc">${esc(x.dn)}</span><span>${x.n}품목</span><span>PO ${x.po}/${x.n}</span>${fl ? `<span class="isl">MR·TBE·CBE 지연 ${fl}</span>` : '<span class="iso">계획대로</span>'}<i class="pbar"><i class="pl" style="width:${x.po / x.n * 100}%"></i></i></button>
+      ${rs.map(v => { const b = brief(v); return `<div class="isr" data-schopen="${esc(v.it.type + '|' + v.it.no)}" title="${esc(v.it.item)}"><i class="isd ${b.lv}"></i><b class="isn">${esc(v.it.no)}</b><span class="isi">${esc(v.it.item)}</span><span class="ist ${b.lv}">${b.t}</span><small>${b.s}</small></div>`; }).join('')}</div>`; }).join('');
   const discHtml = dg.map(x => `<button class="ppr ${F.disc === x.dn ? 'on' : ''}" data-schf="disc|${esc(x.dn)}"><span class="ppn">${esc(x.dn)}</span><span class="pbar"><span class="pl" style="width:${x.po / dmx * 100}%"></span><span class="pe" style="width:${(x.n - x.po) / dmx * 100}%"></span></span><span class="ppv">${x.po}/${x.n}${x.late ? ` <small class="sl">지연 ${x.late}</small>` : ''}</span></button>`).join('');
   const dCell = (rs, g) => { const xs = rs.map(x => ({ x, f:x.k.fo.find(f => f.g === g) })).filter(o => o.f && o.f.st !== 'none'); if (!xs.length) return '<td class="dz n">-</td>';
     const lt = xs.filter(o => o.f.d > 0).sort((a, b) => b.f.d - a.f.d), mx = lt.length ? lt[0].f.d : 0, dn = xs.filter(o => o.f.st === 'done').length;
@@ -4178,19 +4198,20 @@ function renderSched(c) {
   const bar = (it, k) => { const s1 = it.B.MR || it.B[k.keys[0]], e1 = k.siteB, s2 = it.F.MR || it.A.MR || s1, e2 = k.siteF, la = k.last >= 0 ? it.A[k.keys[k.last]] : '';
     const fs = it.A.MR || it.F.MR || it.B.MR, fk = k.fo[2].k || k.fo[1].k, fe = fk ? it.A[fk] || it.F[fk] || it.B[fk] : '';
     return `<div class="sgb" data-pb="${esc(it.type + '|' + it.no)}|all" title="누르면 일정 상세">${fs && fe && fe >= fs ? `<i class="gfe ${k.fmax > 14 ? 'r' : k.fmax > 0 ? 'y' : 'g'}" style="left:${X(fs)}%;width:${Math.max(.8, X(fe) - X(fs))}%" title="구매 전반 MR → CBE ${fs} → ${fe}${k.fmax ? ` · 계획보다 최대 +${k.fmax}일` : ''}"></i>` : ''}${s1 && e1 ? `<i class="gb" style="left:${X(s1)}%;width:${Math.max(.6, X(e1) - X(s1))}%"></i>` : ''}${s2 && e2 ? `<i class="gf ${k.st}" style="left:${X(s2)}%;width:${Math.max(.6, X(e2) - X(s2))}%"></i>` : ''}${s2 && la ? `<i class="ga" style="left:${X(s2)}%;width:${Math.max(.4, X(la) - X(s2))}%"></i>` : ''}${['PO', 'FAT', 'SITE'].map(m => (it.A[m] || it.F[m]) ? `<i class="gm ${it.A[m] ? 'a' : ''}" style="left:${X(it.A[m] || it.F[m])}%" title="${SCH_NAME[m]} ${it.A[m] ? '실적' : '전망'} ${it.A[m] || it.F[m]}"></i>` : '').join('')}</div>`; };
-  const fcell = f => f.st === 'none' ? '<td class="sfc n"><span class="muted">-</span></td>'
-    : `<td class="sfc ${f.lv} ${f.st}" title="${esc(`${f.label} — 계획 ${f.b || '-'} · 전망 ${f.f || '-'} · 실적 ${f.a || '-'}`)}"><b>${f.st === 'done' ? '✔' : f.st === 'over' ? '⚠' : '⏳'} ${f.d > 0 ? '+' + f.d + '일' : f.d < 0 ? f.d + '일' : f.st === 'done' ? '정시' : '계획대로'}</b><small>${f.st === 'done' ? '실적 ' + schFmt(f.a) : f.st === 'over' ? (f.f ? '전망 ' + schFmt(f.f) + ' 지남' : '계획 ' + schFmt(f.b) + ' 지남') : f.st === 'doing' ? '전망 ' + schFmt(f.f) : '계획 ' + schFmt(f.b)}</small></td>`;
+  const fcell = (f, it) => { const fe = canUp ? ` data-fe="${esc(it.type + '|' + it.no)}|${f.g}"` : '', tip = canUp ? ' · 더블클릭 = 입력' : '';
+    return f.st === 'none' ? `<td class="sfc n"${fe} title="${esc(f.g + tip)}"><span class="muted">-</span></td>`
+    : `<td class="sfc ${f.lv} ${f.st}"${fe} title="${esc(`${f.label} — 계획 ${f.b || '-'} · 전망 ${f.f || '-'} · 실적 ${f.a || '-'}${tip}`)}"><b>${f.st === 'done' ? '✔' : f.st === 'over' ? '⚠' : '⏳'} ${f.d > 0 ? '+' + f.d + '일' : f.d < 0 ? f.d + '일' : f.st === 'done' ? '정시' : '계획대로'}</b><small>${f.st === 'done' ? '실적 ' + schFmt(f.a) : f.st === 'over' ? (f.f ? '전망 ' + schFmt(f.f) + ' 지남' : '계획 ' + schFmt(f.b) + ' 지남') : f.st === 'doing' ? '전망 ' + schFmt(f.f) : '계획 ' + schFmt(f.b)}</small></td>`; };
   const msOf = it => SCH_MS.filter(([k]) => it.B[k] || it.F[k] || it.A[k]);
   const editRow = it => { const id = it.type + '|' + it.no, last = (d.log || []).filter(l => l.id === id).slice(-1)[0];
     return `<tr class="sdet sedit" data-sedit="${esc(id)}"><td colspan="9"><div class="sedh"><b>✏ ${esc(it.no)} ${esc(it.item)} — 계획 · 전망 · 실적 입력</b><span class="muted">날짜를 고르거나 지우세요 · 주황 칸 = 지금 중요한 구매 전반(MR ~ CBE) · 저장하면 모든 부서원에게 같은 현황판${last ? ` · 최근 입력 ${esc(last.by)} ${esc(fmtTime(last.at))}` : ''}</span><span class="sp"></span><button class="btn sm" data-schcancel>취소</button><button class="btn sm pri" data-schsave="${esc(id)}">💾 저장</button></div>
       <div class="sdw"><table class="t sdt sedt"><thead><tr><th>구분</th>${SCH_MS.map(([k, n]) => `<th class="${SCH_FRONT.has(k) ? 'sdf' : ''}">${esc(n)}</th>`).join('')}</tr></thead><tbody>${[['B', '계획'], ['F', '전망'], ['A', '실적']].map(([s1, l]) => `<tr><td class="key">${l}</td>${SCH_MS.map(([k]) => `<td class="${SCH_FRONT.has(k) ? 'sdf' : ''} ${it.ed?.[s1 + '.' + k] ? 'sed' : ''}"><input type="date" data-se="${s1}|${k}" value="${esc(it[s1][k] || '')}"></td>`).join('')}</tr>`).join('')}</tbody></table></div></td></tr>`; };
-  const detail = it => SCH.edit === it.type + '|' + it.no && canUp ? editRow(it) : `<tr class="sdet"><td colspan="9"><div class="sedh"><b>${esc(it.no)} ${esc(it.item)}</b><span class="muted">주황 = 구매 전반(MR ~ CBE) · 빨간 글씨 = 계획보다 늦음 · ● = 화면에서 직접 입력한 칸</span><span class="sp"></span>${canUp ? `<button class="btn sm pri" data-schedit="${esc(it.type + '|' + it.no)}">✏ 계획 · 전망 · 실적 입력</button>` : ''}</div>`
-    + `<div class="sdw"><table class="t sdt"><thead><tr><th>구분</th>${msOf(it).map(([k, n]) => `<th class="${SCH_FRONT.has(k) ? 'sdf' : ''}">${esc(n)}</th>`).join('')}</tr></thead><tbody>${[['B', '계획'], ['F', '전망'], ['A', '실적']].map(([s1, l]) => `<tr><td class="key">${l}</td>${msOf(it).map(([k]) => { const v = it[s1][k], late = s1 !== 'B' && v && it.B[k] && v > it.B[k]; return `<td class="${SCH_FRONT.has(k) ? 'sdf' : ''} ${late ? 'sl' : ''}">${schFmt(v)}${it.ed?.[s1 + '.' + k] ? '<i class="sedm" title="화면에서 입력">●</i>' : ''}</td>`; }).join('')}</tr>`).join('')}
+  const detail = it => SCH.edit === it.type + '|' + it.no && canUp ? editRow(it) : `<tr class="sdet"><td colspan="9"><div class="sedh"><b>${esc(it.no)} ${esc(it.item)}</b><span class="muted">주황 = 구매 전반(MR ~ CBE) · 빨간 글씨 = 계획보다 늦음 · ● = 화면에서 직접 입력한 칸${canUp ? ' · <b>날짜 칸을 더블클릭하면 바로 입력</b>(Enter = 저장 · Esc = 취소)' : ''}</span><span class="sp"></span>${canUp ? `<button class="btn sm pri" data-schedit="${esc(it.type + '|' + it.no)}">✏ 계획 · 전망 · 실적 입력</button>` : ''}</div>`
+    + `<div class="sdw"><table class="t sdt"><thead><tr><th>구분</th>${msOf(it).map(([k, n]) => `<th class="${SCH_FRONT.has(k) ? 'sdf' : ''}">${esc(n)}</th>`).join('')}</tr></thead><tbody>${[['B', '계획'], ['F', '전망'], ['A', '실적']].map(([s1, l]) => `<tr><td class="key">${l}</td>${msOf(it).map(([k]) => { const v = it[s1][k], late = s1 !== 'B' && v && it.B[k] && v > it.B[k]; return `<td class="${SCH_FRONT.has(k) ? 'sdf' : ''} ${late ? 'sl' : ''} ${canUp ? 'sce' : ''}" ${canUp ? `data-sc="${esc(it.type + '|' + it.no)}|${s1}|${k}" title="${esc(SCH_NAME[k])} ${l} — 더블클릭하면 입력"` : ''}>${schFmt(v)}${it.ed?.[s1 + '.' + k] ? '<i class="sedm" title="화면에서 입력">●</i>' : ''}</td>`; }).join('')}</tr>`).join('')}
       <tr class="sdd"><td class="key">지연</td>${msOf(it).map(([k]) => { const v = it.A[k] || it.F[k], dd = v && it.B[k] ? schDays(v, it.B[k]) : null; return `<td class="${SCH_FRONT.has(k) ? 'sdf' : ''}">${dd == null ? '' : dd > 0 ? `<b class="sl">+${dd}</b>` : dd < 0 ? `<span class="sg">${dd}</span>` : '<span class="muted">0</span>'}</td>`; }).join('')}</tr></tbody></table></div>
     <div class="sdm">${[['Buyer', it.buyer], ['Engineer', it.eng], ['Technical RQ', it.rq], ['Criticality', it.crit], ['PO No', it.po], ['Vendor', [it.vendor || it.tvendor, it.origin].filter(Boolean).join(' · ')], ['입찰물량', [it.desc, it.qty].filter(Boolean).join(' ')], ['Remark', it.remark]].filter(x => x[1]).map(([a, b]) => `<span><small>${a}</small>${esc(b)}</span>`).join('')}</div></td></tr>`;
   const rows = sorted.map(({ it, k }) => { const id = it.type + '|' + it.no, op = SCH.open.has(id);
     return `<tr class="srow ${op ? 'open' : ''} ${k.front ? 'fdone' : ''}" data-schopen="${esc(id)}" style="--dc:${schDc(it.disc)}"><td class="key"><b>${esc(it.no)}</b><small class="stp ${it.type}">${it.type === 'Bulk' ? 'Bulk' : 'Tagged'}</small>${it.lli ? '<small class="slli">LLI</small>' : ''}</td><td><span class="sdc">${esc(it.disc)}</span></td><td class="sitem"><b class="sinm" title="${esc(it.item)}">${esc(it.item)}</b><small class="sven">${it.vendor || it.tvendor ? '🏭 ' + esc([it.vendor || it.tvendor, it.origin].filter(Boolean).join(' · ')) : it.buyer ? '👤 Buyer ' + esc(it.buyer) : ''}</small></td>
-      ${k.fo.map(fcell).join('')}<td class="${k.over ? 'sl' : ''}"><span class="sstg" style="--p:${Math.round(k.prog * 100)}%">${esc(k.stage)}</span>${k.nextK ? `<small>다음 ${esc(SCH_NAME[k.nextK])} ${schFmt(k.nf)}${k.over ? ` · <b>${schDays(asOf, k.nf)}일 지남</b>` : ''}</small>` : ''}</td>
+      ${k.fo.map(f => fcell(f, it)).join('')}<td class="${k.over ? 'sl' : ''}"><span class="sstg" style="--p:${Math.round(k.prog * 100)}%">${esc(k.stage)}</span>${k.nextK ? `<small>다음 ${esc(SCH_NAME[k.nextK])} ${schFmt(k.nf)}${k.over ? ` · <b>${schDays(asOf, k.nf)}일 지남</b>` : ''}</small>` : ''}</td>
       <td class="slater">${schFmt(k.siteB)} → ${schFmt(k.siteF)}<small>${k.slip ? `<b class="${k.slip > 30 ? 'sl' : k.slip > 0 ? 'sw' : 'sg'}">${k.slip > 0 ? '+' : ''}${k.slip}일</b> ` : ''}<span style="color:${SCH_ST[k.st][1]}">${SCH_ST[k.st][0]}</span></small></td><td class="sgc">${bar(it, k)}</td></tr>${op ? detail(it) : ''}`; }).join('');
   const nowX = X(asOf);
   c.insertAdjacentHTML('beforeend', `<div id="schv">${head}<div class="wtypes">${chip('type', '', '전체', d.items.length)}${chip('type', 'Tagged', 'Tagged', d.items.filter(i => i.type === 'Tagged').length)}${chip('type', 'Bulk', 'Bulk', d.items.filter(i => i.type === 'Bulk').length)}<span class="wsep"></span>${discs.map(dn => chip('disc', dn, dn, d.items.filter(i => i.disc === dn).length)).join('')}</div></section>
@@ -4201,7 +4222,7 @@ function renderSched(c) {
           + kpi('현장 도착 지연', cnt('late'), '나중 단계(설계 · 제작 · 운송) · 30일+', '🏭', 'wk-later', 'late|late')
         : `${kpi('PO 발행', `${poDone}<small>/${vis.length}</small>`, `PO 전 ${vis.length - poDone}품목`, '🧾', 'wk-run')}${kpi('현장 도착 지연', cnt('late'), '전망이 계획보다 30일+ 늦음 · 누르면 그 품목만', '⚠', 'wk-soon', 'late|late')}${kpi('일정 지남', cnt('over'), '다음 일정 날짜가 지났는데 실적 미입력', '⏰', 'wk-perm', 'late|over')}${kpi('주의', cnt('warn'), '현장 도착 조금 늦음 · PO 2주+ 늦음', '△', 'wk-run', 'late|warn')}${kpi('현장 도착', onsite, slips.length ? `늦는 품목 ${slips.filter(x => x > 0).length}개 · 평균 ${avgSlip >= 0 ? '+' : ''}${avgSlip}일` : '전망 = 계획', '🏁', 'wk-done')}`}</div>
     <div class="wgrid schgrid"><section class="card"><h2>📊 단계별 진척 <span class="muted">· 막대 = 실적 품목 수 · 연한 막대 = 기준일까지 계획</span></h2>${funnel}<div class="wleg"><span><i style="background:#c7d2fe"></i>계획(기준일까지)</span><span><i style="background:#4f46e5"></i>실적</span></div></section>
-      <section class="card"><h2>🔧 공종별 PO 발행 <span class="muted">· 누르면 그 공종만</span></h2>${discHtml}<div class="wleg"><span><i style="background:var(--accent)"></i>PO 발행</span><span><i style="background:#c3c8d6"></i>PO 전</span></div></section>
+      <section class="card iscard"><h2>📋 공종별 품목 현황 <span class="muted">· 품목마다 지금 단계 한 줄 · 늦은 것부터 · <i class="isd r"></i>늦음 <i class="isd y"></i>조금 늦음 <i class="isd g"></i>계획대로 · 공종 이름 = 그 공종만 · 품목 = 표에서 상세</span></h2><div class="isw">${sumHtml || '<div class="empty">품목이 없어요</div>'}</div></section>
       <section class="card"><h2>📅 다가오는 30일 <span class="muted">· 기준일 이후 전망 일정 ${soon.length}건${pastN ? ` · 이미 지난(실적 미입력) ${pastN}건은 <button class="linkbtn" data-schf="late|over">일정 지남</button>` : ''}</span></h2><div class="ssoon">${soonHtml}</div></section></div>
     <div class="schph"><span>보기 단계</span><button class="${ph === 'front' ? 'on' : ''}" data-schph="front">🎯 구매 전반 <b>MR · TBE · CBE</b> <small>지금 중요</small></button><button class="${ph === 'back' ? 'on' : ''}" data-schph="back">🏭 설계 · 제작 · 운송 <small>${allFront ? '구매 전반 모두 끝남' : '나중'}</small></button>
       <span class="sp"></span><span>기준일</span><button class="${!useToday ? 'on' : ''}" data-schtoday="0">파일 ${esc(schFmt(d.asOf))}</button><button class="${useToday ? 'on' : ''}" data-schtoday="1">오늘 ${esc(schFmt(today))}</button></div>
@@ -4263,6 +4284,22 @@ function schPop(spec, x, y) {
     const ed = e.target.closest('[data-popedit]'), op = e.target.closest('[data-popopen]'); if (!ed && !op) return; close();
     SCH.open.add(id); if (ed) SCH.edit = id; render(); setTimeout(() => $(`#schv tr.srow[data-schopen="${CSS.escape(id)}"]`)?.scrollIntoView({ block:'center', behavior:'smooth' }), 60); };
 }
+function schCellPop(spec, x, y) {   // 품목표 MR · TBE · CBE 칸 더블클릭 — 그 단계 마일스톤의 계획 · 전망 · 실적
+  $('#schPop')?.remove(); const cut = spec.split('|'), g = cut.pop(), id = cut.join('|'), it = SCH.data?.items.find(v => v.type + '|' + v.no === id); if (!it) return;
+  const [, ks, label] = SCH_FOCUS.find(f => f[0] === g), k = ks.find(m => it.B[m] || it.F[m] || it.A[m]) || ks[0];
+  const pop = document.createElement('div'); pop.id = 'schPop'; pop.className = 'schpop scp';
+  pop.innerHTML = `<div class="sph"><b>${esc(it.no)}</b> <span class="sinm1">${esc(it.item)}</span><button data-popx title="닫기">✕</button></div><div class="spt">${esc(g)} · ${esc(SCH_NAME[k])} 입력</div>
+    <div class="scpg">${[['B', '계획'], ['F', '전망'], ['A', '실적']].map(([s1, l]) => `<label>${l}<input type="date" data-se="${s1}|${k}" value="${esc(it[s1][k] || '')}"></label>`).join('')}</div>
+    <div class="spf"><span class="muted">실적을 넣으면 지연은 실적 − 계획 으로 바뀜 · Enter = 저장 · Esc = 닫기</span><button class="btn sm" data-popx>취소</button><button class="btn sm pri" data-popsave>💾 저장</button></div>`;
+  document.body.appendChild(pop);
+  const W = pop.offsetWidth, H = pop.offsetHeight; pop.style.left = Math.max(8, Math.min(innerWidth - W - 8, x - 40)) + 'px'; pop.style.top = Math.max(8, Math.min(innerHeight - H - 8, y + 14)) + 'px';
+  const close = () => { pop.remove(); removeEventListener('pointerdown', out, true); }, out = e => { if (!pop.contains(e.target)) close(); };
+  setTimeout(() => addEventListener('pointerdown', out, true), 0);
+  const save = () => { const ch = [...pop.querySelectorAll('input[data-se]')].map(i => { const [s1, k1] = i.dataset.se.split('|'); return { s:s1, k:k1, v:i.value }; }); close(); schSaveCells(id, ch); };
+  pop.onclick = e => { if (e.target.closest('[data-popx]')) return close(); if (e.target.closest('[data-popsave]')) return save(); };
+  pop.onkeydown = e => { if (e.key === 'Enter') { e.preventDefault(); save(); } else if (e.key === 'Escape') close(); };
+  pop.querySelector(it.A[k] ? 'input[data-se^="A"]' : it.F[k] ? 'input[data-se^="F"]' : 'input[data-se^="A"]')?.focus();
+}
 function schBind() {
   const v = $('#schv'); if (!v) return; const F = SCH.f;
   const fi = $('#schFile'); if (fi) fi.onchange = () => { schUpload(fi.files); fi.value = ''; };
@@ -4278,7 +4315,20 @@ function schBind() {
     if (e.target.closest('[data-schcancel]')) { SCH.edit = ''; return render(); }
     const sv = e.target.closest('[data-schsave]'); if (sv) { sv.disabled = true; return schEditSave(sv.dataset.schsave); }
     const pb = e.target.closest('[data-pb]'); if (pb && !e.target.closest('.sdet')) { e.stopPropagation(); return schPop(pb.dataset.pb, e.clientX, e.clientY); }
-    const o = e.target.closest('[data-schopen]'); if (o && !e.target.closest('.sdet')) { const id = o.dataset.schopen, jump = o.classList.contains('ssn') || o.classList.contains('dbr') || o.classList.contains('dbl'); SCH.open.has(id) && !jump ? SCH.open.delete(id) : SCH.open.add(id); render(); if (jump) setTimeout(() => $(`#schv tr.srow[data-schopen="${CSS.escape(id)}"]`)?.scrollIntoView({ block:'center' }), 50); }
+    const o = e.target.closest('[data-schopen]'); if (o && !e.target.closest('.sdet') && e.detail > 1) return;   // 더블클릭의 두 번째 누름 — 줄 열고 닫기 안 함
+    if (o && !e.target.closest('.sdet') && e.target.closest('[data-fe]') && !SCH.clickT) { SCH.clickT = setTimeout(() => { SCH.clickT = 0; o.click(); }, 260); return; }   // MR · TBE · CBE 칸: 더블클릭인지 잠깐 봄
+    SCH.clickT = 0;
+    if (o && !e.target.closest('.sdet')) { const id = o.dataset.schopen, jump = o.classList.contains('ssn') || o.classList.contains('dbr') || o.classList.contains('dbl') || o.classList.contains('isr'); SCH.open.has(id) && !jump ? SCH.open.delete(id) : SCH.open.add(id); render(); if (jump) setTimeout(() => $(`#schv tr.srow[data-schopen="${CSS.escape(id)}"]`)?.scrollIntoView({ block:'center' }), 50); }
+  };
+  v.ondblclick = e => {
+    if (noEdit() || !can('runpjt')) return;
+    const fe = e.target.closest('[data-fe]'); if (fe) { clearTimeout(SCH.clickT); SCH.clickT = 0; e.preventDefault(); return schCellPop(fe.dataset.fe, e.clientX, e.clientY); }
+    const td = e.target.closest('td[data-sc]'); if (!td || td.querySelector('input')) return;
+    const spec = td.dataset.sc, cut = spec.split('|'), k = cut.pop(), s1 = cut.pop(), id = cut.join('|'), it = SCH.data.items.find(x => x.type + '|' + x.no === id); if (!it) return;
+    const old = it[s1][k] || ''; td.classList.add('editing'); td.innerHTML = `<input type="date" value="${esc(old)}">`; const inp = td.querySelector('input'); inp.focus(); try { inp.showPicker?.(); } catch (_) {}
+    let done = false; const fin = save => { if (done) return; done = true; if (save && inp.value !== old) schSaveCells(id, [{ s:s1, k, v:inp.value }]); else render(); };
+    inp.onkeydown = ev => { if (ev.key === 'Enter') { ev.preventDefault(); fin(true); } else if (ev.key === 'Escape') { ev.preventDefault(); fin(false); } };
+    inp.onblur = () => setTimeout(() => fin(true), 120);
   };
   const q = $('#schQ'); if (q) q.oninput = () => { clearTimeout(SCH.qt); SCH.qt = setTimeout(() => { F.q = q.value.trim(); render(); setTimeout(() => { const n = $('#schQ'); if (n) { n.focus(); n.setSelectionRange(n.value.length, n.value.length); } }, 0); }, 300); };
   const so = $('#schSort'); if (so) so.onchange = () => { F.sort = so.value; render(); };
