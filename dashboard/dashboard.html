@@ -1652,6 +1652,14 @@ body.botonly #side,body.botonly header.top,body.botonly #content,body.botonly #d
 .sdet td{background:#f8faff!important;padding:10px 12px!important;overflow:hidden}.sdw{overflow:auto;max-width:100%}.sdt{width:auto!important;font-size:11.5px}.sdt th,.sdt td{white-space:nowrap;padding:4px 7px!important;text-align:center}.sdt td.sl{background:#fee2e2!important}
 .sdm{display:flex;flex-wrap:wrap;gap:6px 18px;margin-top:8px;font-size:12px}.sdm small{display:block;color:var(--sub);font-size:10.5px}
 @media (max-width:1300px){.schkpis{grid-template-columns:repeat(3,1fr)}.schgrid{grid-template-columns:1fr}}
+/* 2026-11-09 카드 크게 보기 · 크기 조절 */
+#schv section.card.schrs{resize:vertical;overflow:auto;min-height:120px;position:relative}
+#schv section.card>h2{position:relative;padding-right:84px}.schbig{position:absolute;right:0;top:-2px;border:1px solid #c7d2fe;background:#eef2ff;color:#3730a3;border-radius:8px;font:inherit;font-size:12px;font-weight:700;padding:3px 9px;cursor:pointer}.schbig:hover{background:#4f46e5;color:#fff}
+#schv section.card.big{position:fixed!important;inset:16px!important;z-index:2500;height:auto!important;max-height:none!important;margin:0!important;resize:none;overflow:auto;box-shadow:0 0 0 100vmax rgba(15,23,42,.55),0 24px 60px rgba(0,0,0,.4);animation:schBigIn .16s ease-out}
+#schv section.card.big .isw,#schv section.card.big .ssoon{max-height:none}#schv section.card.big .schbig{background:#4f46e5;color:#fff;font-size:13px;padding:5px 12px}
+#schv section.card.big .sfr{grid-template-columns:120px 1fr 80px;font-size:14px;padding:6px 4px}#schv section.card.big .sfb{height:20px}
+#schv section.card.big .isr{font-size:13.5px;padding:7px 10px}#schv section.card.big .dbr{min-height:56px}
+body.schbigon{overflow:hidden}@keyframes schBigIn{from{transform:scale(.97);opacity:.4}to{transform:none;opacity:1}}
 /* 2026-11-09 공종별 품목 현황 요약 */
 .iscard{display:flex;flex-direction:column;min-height:0}.isw{max-height:430px;overflow:auto;margin:0 -4px;padding:0 4px}
 .isg{margin-bottom:10px;border-left:4px solid var(--dc);border-radius:8px;background:#fafbff}.ish{display:flex;align-items:center;gap:8px;flex-wrap:wrap;width:100%;border:0;background:color-mix(in srgb,var(--dc) 7%,#fff);border-radius:0 8px 0 0;padding:6px 8px;font:inherit;font-size:12px;color:#475569;cursor:pointer;position:sticky;top:0;z-index:1}
@@ -1897,7 +1905,7 @@ function recLabel(key, f) {
  * ===================================================================== */
 let root = null;
 /* 서버 모드: http(s):// 로 접속하면 server.py 의 REST API 사용 (폴더 선택 불필요). file:// 로 열면 폴더 모드 */
-const APP_VERSION = '2026-11-09.18';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
+const APP_VERSION = '2026-11-09.19';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
 const SERVER_URL = 'http://localhost:8080';
 // 부서원 PC 사본(file://)이 접속을 시도할 서버 — 서버가 배포 파일을 만들 때 'PC 이름 주소, IP 주소' 순으로 자동 기록함
 const DEFAULT_SERVERS = ['http://ASEUNGWOOK-B01:8080', 'http://65.3.30.234:8080'];
@@ -4300,14 +4308,29 @@ function schCellPop(spec, x, y) {   // 품목표 MR · TBE · CBE 칸 더블클�
   pop.onkeydown = e => { if (e.key === 'Enter') { e.preventDefault(); save(); } else if (e.key === 'Escape') close(); };
   pop.querySelector(it.A[k] ? 'input[data-se^="A"]' : it.F[k] ? 'input[data-se^="F"]' : 'input[data-se^="A"]')?.focus();
 }
+/* 2026-11-09 각 현황 카드: ⛶ = 크게 보기(화면 가득, Esc · 다시 누름 = 원래대로) · 오른쪽 아래 모서리를 끌어 높이 조절(이 PC 에 기억) */
+const SCH_SZ = (() => { try { return JSON.parse(localStorage.getItem('dept-sch-size') || '{}'); } catch (_) { return {}; } })();
+function schCardTools(v) {
+  v.querySelectorAll('section.card').forEach(c => { const h = c.querySelector(':scope > h2, :scope > .dbh2'); if (!h) return;
+    const key = (h.firstChild?.textContent || h.textContent).trim().replace(/\s+/g, ' ').slice(0, 24); c.dataset.ck = key; c.classList.add('schrs');
+    if (SCH_SZ[key] && SCH.big !== key) c.style.height = SCH_SZ[key] + 'px';
+    if (!h.querySelector('[data-schbig]')) h.insertAdjacentHTML('beforeend', `<button class="schbig" data-schbig="${esc(key)}" title="${SCH.big === key ? '원래 크기로 (Esc)' : '크게 보기'}">${SCH.big === key ? '✕ 닫기' : '⛶ 크게'}</button>`);
+    if (SCH.big === key) { c.classList.add('big'); document.body.classList.add('schbigon'); }
+    if (!c._ro && window.ResizeObserver) { let t = 0; c._ro = new ResizeObserver(() => { if (c.classList.contains('big') || !c.style.height) return; clearTimeout(t); t = setTimeout(() => { SCH_SZ[key] = Math.round(c.offsetHeight); try { localStorage.setItem('dept-sch-size', JSON.stringify(SCH_SZ)); } catch (_) {} }, 400); }); c._ro.observe(c); }
+    c.onmouseup = () => { if (!c.classList.contains('big') && Math.abs(c.offsetHeight - (c._h0 || c.offsetHeight)) > 2) c.style.height = c.offsetHeight + 'px'; c._h0 = c.offsetHeight; }; c._h0 = c.offsetHeight; });
+  if (!SCH.big) document.body.classList.remove('schbigon');
+}
+addEventListener('keydown', e => { if (e.key === 'Escape' && SCH.big && route === 'co2sched' && !$('#schPop')) { SCH.big = ''; render(); } });
 function schBind() {
-  const v = $('#schv'); if (!v) return; const F = SCH.f;
+  const v = $('#schv'); if (!v) return; const F = SCH.f; schCardTools(v);
   const fi = $('#schFile'); if (fi) fi.onchange = () => { schUpload(fi.files); fi.value = ''; };
   const dz = $('#schDrop'); if (dz) { dz.ondragover = e => { e.preventDefault(); dz.classList.add('on'); }; dz.ondragleave = () => dz.classList.remove('on'); dz.ondrop = e => { e.preventDefault(); dz.classList.remove('on'); schUpload(e.dataTransfer.files); }; }
   v.ondragover = e => { if ([...(e.dataTransfer?.types || [])].includes('Files')) e.preventDefault(); }; v.ondrop = e => { if (e.target.closest('#schDrop') || !e.dataTransfer?.files?.length) return; e.preventDefault(); schUpload(e.dataTransfer.files); };
   v.onclick = e => {
     const f = e.target.closest('[data-schf]'); if (f) { const [k, val] = f.dataset.schf.split('|'); if (k === 'reset') Object.assign(F, { type:'', disc:'', q:'', late:'' }); else F[k] = F[k] === val ? '' : val; return render(); }
     if (e.target.closest('[data-schxl]')) return schXlsx();
+    const bg = e.target.closest('[data-schbig]'); if (bg) { e.stopPropagation(); SCH.big = SCH.big === bg.dataset.schbig ? '' : bg.dataset.schbig; if (!SCH.big) document.body.classList.remove('schbigon'); render(); if (!SCH.big) setTimeout(() => $(`#schv section.card[data-ck="${CSS.escape(bg.dataset.schbig)}"]`)?.scrollIntoView({ block:'start' }), 30); return; }
+    if (e.target.closest('.schbigbg')) { SCH.big = ''; return render(); }
     const f2 = e.target.closest('[data-schf2]'); if (f2) { const [dn, lt] = f2.dataset.schf2.split('|'); const same = F.disc === dn && F.late === lt; F.disc = same ? '' : dn; F.late = same ? '' : lt; return render(); }
     const phb = e.target.closest('[data-schph]'); if (phb) { F.phase = phb.dataset.schph; F.sort = ''; return render(); }
     const tdb = e.target.closest('[data-schtoday]'); if (tdb) { F.today = tdb.dataset.schtoday === '1'; return render(); }

@@ -1707,3 +1707,8 @@ C:\Users\SAMSUNG\Desktop\Claude\                         ← 개발 폴더 (여�
 - 공종별 품목 현황 요약 카드(예전 '공종별 PO 발행' 자리): 공종마다 머리(품목 수 · PO 발행 · MR·TBE·CBE 지연 수 · PO 막대, 누르면 그 공종만) + 품목 한 줄씩(상태 점 · No · 이름 · 지금 단계 '+지연일' · 전망/다음 일정), 늦은 것부터, 품목을 누르면 표에서 상세.
 - 바뀐 곳: dashboard.html `schSaveCells` · `schEditSave` · `schCellPop` · `schBind`(ondblclick · 클릭 구분) · `renderSched`(fcell · 상세 칸 data-sc · 요약 카드 brief/sumHtml), CSS `.sce` · `.scp` · `.isg` · `.isr`
 - 확인한 것: 상세 칸 더블클릭 → 입력 → Enter → 서버 저장 · 기록, MR/TBE/CBE 칸 더블클릭 → 입력 창, 한 번 누름 = 줄 열기, 요약 카드 화면. 콘솔 오류 없음.
+
+### 2026-11-09 (APP_VERSION 2026-11-09.19 / SERVER_VERSION 그대로) — v17.10 Schedule 카드 크게 보기 · 크기 조절
+- 무엇을: Schedule 의 각 현황 카드(단계별 진척 · 공종별 품목 현황 · 다가오는 30일 · 공종별 지연 · 공종 일정판 · 품목별 일정)에 [⛶ 크게] — 화면 가득 크게(글자 · 막대도 조금 크게, 목록 높이 제한 없음), [✕ 닫기] · Esc · 바깥 누름 = 원래대로. 카드 오른쪽 아래 모서리를 끌어 높이 조절, 높이는 이 PC 에 기억(`dept-sch-size`, 다시 그려도 유지).
+- 바뀐 곳: dashboard.html `schCardTools` · `SCH_SZ` · `SCH.big` · `schBind`(data-schbig), Esc 처리, CSS `#schv section.card.schrs` · `.big` · `.schbig`
+- 확인한 것: 카드 5개에 단추, 공종별 품목 현황 · I&C 일정판 크게 → Esc 로 닫힘, 높이 300px 로 바꾼 뒤 다시 그려도 유지. 콘솔 오류 없음.
