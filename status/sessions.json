@@ -1,13 +1,13 @@
 {
  "_설명": "오케스트레이터가 list_sessions / get_session 으로 읽은 각 세션 상태. build_status.py 가 git 정보와 합쳐 SESSION_STATUS.html 을 만든다. 갱신할 때 이 파일을 새로 쓴다.",
- "read_at": "2026-11-08T22:19:00Z",
+ "read_at": "2026-11-09T01:30:00Z",
  "sessions": {
   "S1": {
    "id": "session_016Ntz71xxniTkCj7pC8ZpXL",
    "title": "1. DASHBOARD 코드 (NEW)",
    "bucket": "COMPLETED",
    "updated": "2026-11-08T11:21:44Z",
-   "recent": "v16.62~v16.96 — 메뉴 번호 · 홈 손질 · 클로드 비서(첨삭 · 브라우저 안 번역 · 그림 글자 읽기) · 엑셀형 표. 번역 점수 영→한 51.8 · 한→영 69.5 (목표 90 미달)",
+   "recent": "v16.97~v17.00 — CO2 PJT › Schedule(구매 일정 현황판 · PSR 업로드) · 비서 번역/첨삭/요약 보강 · 느린 PC 평면 지도",
    "needs": ""
   },
   "S2": {

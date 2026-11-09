@@ -74,7 +74,7 @@ def s1():
     k = pkg('①')
     since = (k or {}).get('tips', {}).get('S1') or base
     pend = log(f'{since}..{b}', 'dashboard') if since else []
-    newest = first(r'dashboard v(\d+\.\d+)', '\n'.join(c['s'] for c in log(b, n=15)))       # 브랜치 최신 v (커밋 제목)
+    newest = first(r'(?i)dashboard v(\d+\.\d+)', '\n'.join(c['s'] for c in log(b, n=15)))       # 브랜치 최신 v (커밋 제목)
     sent = first(r"to_v(\d+\.\d+)", last[1] if len(last) > 1 else "")
     return dict(branch=b, ver=f'v{newest or sent} · 회사엔 v{sent}' if newest and newest != sent else f'v{sent} (화면 {ver})',
                 shipped=(made('①') + ' · ' if k else '') + f'delivered.txt 마지막: {last[1] if len(last) > 1 else "?"}', pending=pend, file='① DASHBOARD 개별')
