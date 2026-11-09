@@ -1767,3 +1767,9 @@ C:\Users\SAMSUNG\Desktop\Claude\                         ← 개발 폴더 (여�
 - 무엇을: 표 글자 12.5 → 14px(품목 이름 14.5px 굵게, 머리 13px, 날짜 14px 굵게, 지연 알약 13.5px), 줄 간격 · 칸 여백 넓힘, 마일스톤 제목 16px · 번호 칸 크게, 표 너비 100% + 열 너비 다시 나눔(지연 사유 24% · 특이사항 17% · 상태 176px), 행 구분선 진하게.
 - 바뀐 곳: dashboard.html `rptCard` colgroup, CSS '구매 현황 보고 글자 크기 · 가독성 조율'
 - 확인한 것: TBE to Company 표 화면, 콘솔 오류 없음.
+
+### 2026-11-09 (APP_VERSION 2026-11-09.31 / SERVER_VERSION 그대로) — v17.20 필터
+- 구매 현황 보고 필터 줄: 검색(No · 품목 · 업체 · 사유 · 특이사항) · 마일스톤 · 상태(⏳ 지연 진행 중 / ⚠ 기한 지남 · 실적 미입력 / ✔ 늦게 완료함) · 지연 크기(15일 이상 / 30일 초과 / 14일 이하) · 공종 · 사유 입력(미입력만 / 입력됨만) · [✕ 필터 해제] · 건수. 필터 중엔 빈 마일스톤 숨김, 보고 글 복사도 필터 결과대로(`SCH.rf`, `rfOk`).
+- 품목별 일정 표 필터 줄에 공종 · 구분(Tagged/Bulk) 선택 추가(기존 검색 · 정렬 · 상태와 함께).
+- 바뀐 곳: dashboard.html `renderSched`(RF · rfOk · rfBar · fbar), `schBind`(select[data-rf] · input[data-rf=q] · data-rfx · #schDisc · #schType), CSS `.rpflt` · `.rpfc`
+- 확인한 것: 보고 74건 → 진행 중 8 → +15일 5 → Mech 3, 검색 TRANSMITTER 6, 사유 입력됨 1 / 품목표 Mech + Tagged 6품목. 콘솔 오류 없음.

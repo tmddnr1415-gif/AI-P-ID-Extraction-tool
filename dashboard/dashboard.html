@@ -1708,6 +1708,9 @@ html.dark .sinm,html.dark .gtnm,html.dark .isi,html.dark .sinm1{text-shadow:0 1p
 .rpb{display:flex;flex-wrap:wrap;gap:4px 18px;margin:4px 0 0 14px;font-size:12.5px;color:#1e293b}.rpb small{display:block;font-size:10.5px;color:#64748b;font-weight:600}.rpb .rpby{margin-left:auto;align-self:flex-end;font-size:11px;color:#94a3b8}
 .rpf{display:grid;grid-template-columns:2fr 150px 2fr auto;gap:8px;align-items:end;margin:6px 0 2px 14px}.rpf label{display:flex;flex-direction:column;gap:2px;font-size:11.5px;font-weight:700;color:#475569}.rpf input{font:inherit;font-size:12.5px;padding:5px 8px;border:1px solid #c7d2fe;border-radius:7px}
 @media (max-width:900px){.rpf{grid-template-columns:1fr}}
+.rpflt{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:0 0 12px;padding:8px 10px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px}
+.rpflt label{display:flex;align-items:center;gap:6px;font-size:14px}.rpflt input,.rpflt select{font:inherit;font-size:13px;padding:5px 9px;border:1px solid #cbd5e1;border-radius:8px;background:#fff}.rpflt input{width:230px}.rpflt select{max-width:200px}
+.rpflt select:not([value=""]){}.rpfc{margin-left:auto;font-size:13px;font-weight:700;color:#475569}
 /* 2026-11-09 구매 현황 보고 글자 크기 · 가독성 조율 */
 .rpcard .rpgt{font-size:16px;padding:11px 14px}.rpcard .rpgn{width:26px;height:26px;font-size:14px;border-radius:8px}.rpcard .rpgs{font-size:13.5px;padding:2px 12px}.rpcard .rpgt small{font-size:12.5px}
 .rpcard .rpsum a{font-size:13px;padding:4px 12px}
@@ -1989,7 +1992,7 @@ function recLabel(key, f) {
  * ===================================================================== */
 let root = null;
 /* 서버 모드: http(s):// 로 접속하면 server.py 의 REST API 사용 (폴더 선택 불필요). file:// 로 열면 폴더 모드 */
-const APP_VERSION = '2026-11-09.29';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
+const APP_VERSION = '2026-11-09.31';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
 const SERVER_URL = 'http://localhost:8080';
 // 부서원 PC 사본(file://)이 접속을 시도할 서버 — 서버가 배포 파일을 만들 때 'PC 이름 주소, IP 주소' 순으로 자동 기록함
 const DEFAULT_SERVERS = ['http://ASEUNGWOOK-B01:8080', 'http://65.3.30.234:8080'];
@@ -4291,9 +4294,22 @@ function renderSched(c) {
     <div class="tw"><table class="t dzt"><thead><tr><th>공종</th>${SCH_FOCUS.map(([g, , l]) => `<th class="fh">${g}<small>${l}</small></th>`).join('')}<th class="lh">설계 · 제작 · 운송<small>나중 — 현장 도착</small></th></tr></thead><tbody>${dzRows}</tbody></table></div></section>`;
   // 📝 보고 양식 — 1. MR Issue 지연 N건 / - 품목 : 원래 기한 · 지연 사유 · 캐치업 일정 · 특이사항
   const RPT = [['MR', 'MR Issue'], ['TBE_C', 'TBE to Company'], ['TBE_F', 'TBE 완료'], ['AWD_I', 'CBE (Award Recommendation)'], ['AWD', 'Award 승인'], ['PO', 'PO Issue'], ['KOM', 'KOM'], ['MFG_F', '제작 완료'], ['FAT', 'FAT'], ['SITE', '현장 도착']];
+  // 보고 필터(2026-11-09): 상태 · 지연 크기 · 공종 · 사유 입력 · 검색 · 마일스톤
+  const RF = SCH.rf ||= { st:'', lv:'', disc:'', note:'', q:'', ms:'' };
+  const rfOk = x => (!RF.st || (RF.st === 'done' ? !!x.a : RF.st === 'over' ? !x.a && x.over : !x.a && !x.over)) && (!RF.lv || (RF.lv === 'r' ? x.d > 14 : RF.lv === 'y' ? x.d <= 14 : x.d > 30))
+    && (!RF.disc || x.it.disc === RF.disc) && (!RF.note || (RF.note === 'no' ? !x.n.r : !!x.n.r)) && (!RF.q || `${x.it.no} ${x.it.item} ${x.it.vendor || ''} ${x.n.r || ''} ${x.n.s || ''}`.toLowerCase().includes(RF.q.toLowerCase()));
   const rptG = RPT.map(([k, title]) => { const xs = vis.map(({ it }) => { const b = it.B[k], a = it.A[k], f = it.F[k]; if (!b) return null; const v = a || f, d = v ? schDays(v, b) : (b < asOf ? schDays(asOf, b) : 0), over = !a && (f || b) < asOf;
-      return d > 0 || over ? { it, k, b, a, f, d:Math.max(d, over ? schDays(asOf, f || b) : 0), over, n:it.rn?.[k] || {} } : null; }).filter(Boolean).sort((x, y) => y.d - x.d);
-    return { k, title, xs, front:SCH_FRONT.has(k) }; }).filter(g => ['MR', 'TBE_C', 'TBE_F', 'AWD_I'].includes(g.k) ? vis.some(({ it }) => it.B[g.k]) : g.xs.length && (ph === 'back' || g.k === 'AWD'));   // MR · TBE · CBE 는 늦은 것이 없어도 '계획대로' 로 보고
+      return d > 0 || over ? { it, k, b, a, f, d:Math.max(d, over ? schDays(asOf, f || b) : 0), over, n:it.rn?.[k] || {} } : null; }).filter(Boolean).filter(rfOk).sort((x, y) => y.d - x.d);
+    return { k, title, xs, front:SCH_FRONT.has(k) }; }).filter(g => (!RF.ms || g.k === RF.ms) && (['MR', 'TBE_C', 'TBE_F', 'AWD_I'].includes(g.k) ? vis.some(({ it }) => it.B[g.k]) : g.xs.length && (ph === 'back' || g.k === 'AWD')));
+  const rfOn = Object.values(RF).some(Boolean); if (rfOn) for (let i = rptG.length - 1; i >= 0; i--) if (!rptG[i].xs.length) rptG.splice(i, 1);   // 필터 중엔 빈 마일스톤 숨김
+  const sel = (k, opts) => `<select data-rf="${k}">${opts.map(([v, l]) => `<option value="${esc(v)}" ${RF[k] === v ? 'selected' : ''}>${esc(l)}</option>`).join('')}</select>`;
+  const rfBar = `<div class="rpflt"><label>🔎<input data-rf="q" value="${esc(RF.q)}" placeholder="No · 품목 · 업체 · 사유 검색"></label>
+    ${sel('ms', [['', '마일스톤 전체'], ...RPT.filter(([k]) => ph === 'back' || SCH_FRONT.has(k) || k === 'AWD').map(([k, t]) => [k, t])])}
+    ${sel('st', [['', '상태 전체'], ['doing', '⏳ 지연 진행 중'], ['over', '⚠ 기한 지남 · 실적 미입력'], ['done', '✔ 늦게 완료함']])}
+    ${sel('lv', [['', '지연 크기 전체'], ['r', '15일 이상'], ['x', '30일 초과'], ['y', '14일 이하']])}
+    ${sel('disc', [['', '공종 전체'], ...discs.map(d => [d, d])])}
+    ${sel('note', [['', '사유 입력 전체'], ['no', '사유 미입력만'], ['yes', '사유 입력됨만']])}
+    ${rfOn ? '<button class="btn sm" data-rfx>✕ 필터 해제</button>' : ''}<span class="rpfc">${rptG.reduce((a, g) => a + g.xs.length, 0)}건${rfOn ? ' (필터 적용)' : ''}</span></div>${rfOn && !rptG.length ? '<div class="empty">필터에 맞는 지연 품목이 없어요</div>' : ''}`;   // MR · TBE · CBE 는 늦은 것이 없어도 '계획대로' 로 보고
   // 표 + 보고체(~음 · ~임 · ~중) — 2026-11-09 사용자 지시
   const rptSt = x => x.a ? '<span class="rps d">✔ 늦게 완료함</span>' : x.over ? '<span class="rps o">⚠ 기한 지남 · 실적 미입력임</span>' : '<span class="rps g">⏳ 지연 진행 중</span>';
   const rptHead = g => g.xs.length ? `지연 ${g.xs.length}건 발생함 (최대 +${g.xs[0].d}일 · 진행 중 ${g.xs.filter(x => !x.a).length}건)` : '지연 없음, 계획대로 진행 중';
@@ -4306,7 +4322,8 @@ function renderSched(c) {
   SCH.rptText = rptText;
   const rptCard = `<section class="card rpcard"><h2>📝 구매 현황 보고 <span class="muted">· 주간업무보고 '업무 현황' 양식 · ${ph === 'front' ? 'MR · TBE · CBE (지금 중요)' : '전체 단계'} · 계획 대비 지연 품목 · 기준일 ${esc(schFmt(asOf))}${F.disc ? ' · ' + esc(F.disc) + ' 만' : ''}</span></h2>
     <div class="rptool"><span class="rpsum">${rptG.map((g, i) => `<a href="#rp-${g.k}" data-rpgo="${g.k}">${i + 1}. ${esc(g.title)} <b class="${g.xs.length ? '' : 'z'}">${g.xs.length}</b></a>`).join('')}</span><span class="sp"></span><button class="btn sm" data-rpcopy>📋 보고 글 복사</button><button class="btn sm" data-rpweekly title="복사한 뒤 주간업무보고 › 수행 표를 CO2 로 찾아 엶 — 업무 현황 칸에 붙여 넣으세요">📤 주간업무보고(수행)에 붙이기</button></div>
-    ${rptG.map((g, gi) => `<div id="rp-${g.k}" class="rpg ${g.front ? 'front' : ''}"><div class="rpgt"><span class="rpgn">${gi + 1}</span>${esc(g.title)} <span class="rpgs ${g.xs.length ? '' : 'ok'}">${rptHead(g)}</span>${g.xs.length ? `<small>사유 입력 ${g.xs.filter(x => x.n.r).length}/${g.xs.length}</small>` : ''}</div>
+    ${rfBar}
+    ${rptG.map((g, gi) => `<div id="rp-${g.k}" class="rpg ${g.front ? 'front' : ''}"><div class="rpgt"><span class="rpgn">${gi + 1}</span>${esc(g.title)} <span class="rpgs ${g.xs.length ? '' : 'ok'}">${g.xs.length || !rfOn ? rptHead(g) : '필터에 맞는 품목 없음'}</span>${g.xs.length ? `<small>사유 입력 ${g.xs.filter(x => x.n.r).length}/${g.xs.length}</small>` : ''}</div>
       ${g.xs.length ? `<div class="tw"><table class="t rpt"><colgroup><col style="width:40px"><col style="width:280px"><col style="width:80px"><col style="width:90px"><col style="width:96px"><col style="width:84px"><col style="width:176px"><col style="width:24%"><col style="width:96px"><col style="width:17%"><col style="width:52px"></colgroup>
         <thead><tr><th>#</th><th>품목</th><th>공종</th><th>원래 기한</th><th>현재</th><th>지연</th><th>상태</th><th>지연 사유</th><th>캐치업</th><th>특이사항</th><th></th></tr></thead><tbody>${g.xs.map(rptRow).join('')}</tbody></table></div>` : ''}</div>`).join('')}</section>`;
   const soonEnd = new Date(schD(asOf).getTime() + 30 * 864e5).toISOString().slice(0, 10), soon = [];
@@ -4355,7 +4372,7 @@ function renderSched(c) {
     ${F.disc ? (SCH.gtArgs = [vis, asOf, F.disc, ph], schDiscBoard(vis, asOf, F.disc, ph)) : ''}
     ${ph === 'back' ? dzCard : ''}
     <section class="card"><h2>🗂 품목별 일정 <span class="muted">· ${vis.length}품목 · 줄을 누르면 마일스톤 전체${canUp ? ' + <b>✏ 계획 · 전망 · 실적 입력</b>' : ''} · 막대: 주황 = 구매 전반(MR→CBE), 회색 = 계획, 색 = 전망, 진한 색 = 실적까지, ◆ = PO · FAT · 현장 도착</span></h2>
-      <div class="fbar"><label>검색<input id="schQ" value="${esc(F.q)}" placeholder="No · 품목 · 업체 · 담당"></label><label>정렬<select id="schSort"><option value="front" ${sortK === 'front' ? 'selected' : ''}>MR · TBE · CBE 지연 큰 순</option><option value="delay" ${sortK === 'delay' ? 'selected' : ''}>현장 도착 지연 큰 순</option><option value="site" ${sortK === 'site' ? 'selected' : ''}>현장 도착 빠른 순</option><option value="no" ${sortK === 'no' ? 'selected' : ''}>번호 순</option></select></label><label>상태<select id="schLate"><option value="">전체</option>${SCH_FOCUS.map(([g]) => `<option value="f:${g}" ${F.late === 'f:' + g ? 'selected' : ''}>${g} 지연</option>`).join('')}${Object.entries(SCH_ST).map(([k, [l]]) => `<option value="${k}" ${F.late === k ? 'selected' : ''}>${l}</option>`).join('')}</select></label>${F.type || F.disc || F.q || F.late ? '<button class="btn sm" data-schf="reset|">필터 초기화</button>' : ''}<button class="btn sm" data-schxl>⬇ 엑셀로</button></div>
+      <div class="fbar"><label>검색<input id="schQ" value="${esc(F.q)}" placeholder="No · 품목 · 업체 · 담당"></label><label>정렬<select id="schSort"><option value="front" ${sortK === 'front' ? 'selected' : ''}>MR · TBE · CBE 지연 큰 순</option><option value="delay" ${sortK === 'delay' ? 'selected' : ''}>현장 도착 지연 큰 순</option><option value="site" ${sortK === 'site' ? 'selected' : ''}>현장 도착 빠른 순</option><option value="no" ${sortK === 'no' ? 'selected' : ''}>번호 순</option></select></label><label>상태<select id="schLate"><option value="">전체</option>${SCH_FOCUS.map(([g]) => `<option value="f:${g}" ${F.late === 'f:' + g ? 'selected' : ''}>${g} 지연</option>`).join('')}${Object.entries(SCH_ST).map(([k, [l]]) => `<option value="${k}" ${F.late === k ? 'selected' : ''}>${l}</option>`).join('')}</select></label><label>공종<select id="schDisc"><option value="">전체</option>${discs.map(dn => `<option ${F.disc === dn ? 'selected' : ''}>${esc(dn)}</option>`).join('')}</select></label><label>구분<select id="schType"><option value="">전체</option>${['Tagged', 'Bulk'].map(t => `<option ${F.type === t ? 'selected' : ''}>${t}</option>`).join('')}</select></label>${F.type || F.disc || F.q || F.late ? '<button class="btn sm" data-schf="reset|">필터 초기화</button>' : ''}<button class="btn sm" data-schxl>⬇ 엑셀로</button></div>
       <div class="tw sgw"><table class="t schtab ph-${ph}"><colgroup><col style="width:86px"><col style="width:78px"><col style="width:270px"><col style="width:104px"><col style="width:104px"><col style="width:104px"><col style="width:150px"><col style="width:130px"><col></colgroup><thead><tr class="sgrp"><th colspan="3"></th><th colspan="3" class="gfront">🎯 구매 전반 — 계획 대비 지연 <small>${ph === 'front' ? '지금 중요' : '끝난 단계'}</small></th><th></th><th class="gback">🏭 나중 단계 <small>${ph === 'front' ? '설계·제작·운송' : '지금'}</small></th><th></th></tr><tr><th class="key">No</th><th>공종</th><th>품목 · 업체</th>${SCH_FOCUS.map(([g, , l]) => `<th class="fh">${g}<small>${l}</small></th>`).join('')}<th>현재 단계 · 다음</th><th class="lh">현장 도착 계획→전망</th><th class="sgh"><div class="sgx">${months.map(m => `<span style="left:${X(m)}%">${m.slice(2, 7).replace('-', '.')}</span>`).join('')}<i class="snow" style="left:${nowX}%"><b>기준일</b></i></div></th></tr></thead><tbody>${rows || '<tr><td colspan="9"><div class="empty">조건에 맞는 품목이 없어요</div></td></tr>'}</tbody></table></div></section></div>`);
   $('#schv .schtab')?.style.setProperty('--now', nowX + '%');
   schBind();
@@ -4548,6 +4565,7 @@ function schBind() {
     const rne = e.target.closest('[data-rne]'); if (rne) { SCH.rnEdit = rne.dataset.rne; render(); setTimeout(() => $('#schv [data-rnf] input')?.focus(), 30); return; }
     if (e.target.closest('[data-rnx]')) { SCH.rnEdit = ''; return render(); }
     const rns = e.target.closest('[data-rns]'); if (rns) { const f = rns.closest('tr').querySelector('[data-rnf]'), cut = rns.dataset.rns.split('|'), k = cut.pop(), id = cut.join('|'), g = n => f.querySelector(`[data-rn="${n}"]`).value.trim(); return schSaveNote(id, k, { r:g('r'), c:g('c'), s:g('s') }); }
+    if (e.target.closest('[data-rfx]')) { SCH.rf = null; return render(); }
     const rpg = e.target.closest('[data-rpgo]'); if (rpg) { e.preventDefault(); $('#rp-' + rpg.dataset.rpgo)?.scrollIntoView({ block:'start', behavior:'smooth' }); return; }
     const cp = e.target.closest('[data-rpcopy],[data-rpweekly]'); if (cp) { const t = SCH.rptText ? SCH.rptText() : ''; const done = () => { toast('📋 보고 글을 복사했어요' + (cp.dataset.rpweekly != null ? ' — 수행 표의 업무 현황 칸에 붙여 넣으세요' : '')); if (cp.dataset.rpweekly != null) { const st = fstate('perform'); st.q = 'CO2'; go('perform'); } };
       (navigator.clipboard?.writeText(t) || Promise.reject()).then(done, () => { const ta = document.createElement('textarea'); ta.value = t; document.body.appendChild(ta); ta.select(); try { document.execCommand('copy'); } catch (_) {} ta.remove(); done(); }); return; }
@@ -4580,10 +4598,13 @@ function schBind() {
     inp.onkeydown = ev => { if (ev.key === 'Enter') { ev.preventDefault(); fin(true); } else if (ev.key === 'Escape') { ev.preventDefault(); fin(false); } };
     inp.onblur = () => setTimeout(() => fin(true), 120);
   };
+  v.querySelectorAll('select[data-rf]').forEach(el => el.onchange = () => { SCH.rf[el.dataset.rf] = el.value; render(); });
+  const rq = v.querySelector('input[data-rf=q]'); if (rq) rq.oninput = () => { clearTimeout(SCH.rqT); SCH.rqT = setTimeout(() => { SCH.rf.q = rq.value.trim(); render(); setTimeout(() => { const n = $('#schv input[data-rf=q]'); if (n) { n.focus(); n.setSelectionRange(n.value.length, n.value.length); } }, 0); }, 300); };
   v.querySelectorAll('[data-rnf] input').forEach(i => i.onkeydown = ev => { if (ev.key === 'Enter') { ev.preventDefault(); i.closest('tr').querySelector('[data-rns]').click(); } else if (ev.key === 'Escape') { SCH.rnEdit = ''; render(); } });
   const q = $('#schQ'); if (q) q.oninput = () => { clearTimeout(SCH.qt); SCH.qt = setTimeout(() => { F.q = q.value.trim(); render(); setTimeout(() => { const n = $('#schQ'); if (n) { n.focus(); n.setSelectionRange(n.value.length, n.value.length); } }, 0); }, 300); };
   const so = $('#schSort'); if (so) so.onchange = () => { F.sort = so.value; render(); };
   const la = $('#schLate'); if (la) la.onchange = () => { F.late = la.value; render(); };
+  const sd = $('#schDisc'); if (sd) sd.onchange = () => { F.disc = sd.value; render(); }; const sty = $('#schType'); if (sty) sty.onchange = () => { F.type = sty.value; render(); };
 }
 function schXlsx() {   // 현황판 표 그대로 엑셀로 (계획 · 전망 · 실적 · 지연)
   const d = SCH.data; if (!d) return; const asOfX = SCH.f.today ? new Date().toISOString().slice(0, 10) : d.asOf, st = { s:ST.HEAD }, cols = ['구분', 'No', '공종', '품목', 'Buyer', 'Engineer', 'Vendor', 'Origin', '현재 단계', '다음 일정', '다음 일정 날짜', '현장 도착(계획)', '현장 도착(전망)', '지연(일)', '상태', 'MR 지연(일)', 'TBE 지연(일)', 'CBE 지연(일)', ...SCH_KEY.flatMap(k => [`${SCH_NAME[k]} 계획`, `${SCH_NAME[k]} 전망`, `${SCH_NAME[k]} 실적`])];
