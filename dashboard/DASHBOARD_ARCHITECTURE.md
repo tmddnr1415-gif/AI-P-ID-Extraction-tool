@@ -1636,3 +1636,8 @@ C:\Users\SAMSUNG\Desktop\Claude\                         ← 개발 폴더 (여�
 - 무엇을: 비서 — 여러 줄 글 + 마지막(또는 첫) 줄에 `영어로` · `한국어로` · `영문` · `English` 만 적어도 번역(전에는 바이브가 줄마다 나눠 실행해 엉뚱한 검색 결과가 나옴, 회사 PC 제보). 글 앞뒤 따옴표는 떼고 번역. '계장에서/계장은 …' → I&C team 으로 번역되게 앞처리(전: 'syring'), 'Lee Hyung-joon's professional' → 'Pro Lee Hyung-joon'.
 - 바뀐 곳: dashboard.html `NAV_LS` · `runTree` · `ROUTES` · `RUN_LEAVES` · `render` · `renderPsrUp`(새) · `schUpload` · 메뉴 설명 표, `BOT_INSTR` · `botInstr`, `TR_GLOSS.koen`, 한→영 앞처리 표
 - 확인한 것: 시험 서버에서 메뉴 펼침 · PSR 업로드(파일 고르기) → 현황판 33품목 이동, 회사 제보 문장 그대로 '영어로' 번역 확인, 번역 평가 점수 그대로(한→영 82.2 · 영→한 58.8) / 회사에서 확인할 것: 부서원(비관리자, 실행 프로젝트 권한) 계정으로 PSR 업로드.
+
+### 2026-11-09 (APP_VERSION 2026-11-09.9 / SERVER_VERSION 그대로) — v17.01
+- 무엇을: 사용자 지시 "실행 프로젝트 → CO2 PJT 의 하위 메뉴로 Schedule" — v17.00 의 Schedule 폴더(구매 일정 현황판 · PSR 업로드 두 잎)를 없애고, **CO2 PJT 바로 아래 `📅 Schedule` 한 메뉴**(Datasheet 와 같은 단, 같은 굵기)로. 누르면 구매 일정 현황판, PSR 올리기는 현황판 위 [PSR 엑셀 새로 올리기] · 끌어다 놓기(없을 때는 큰 올리기 칸). 현황판 제목 위에 경로 '실행 프로젝트 › CO2 PJT › Schedule'. 실행 프로젝트 화면(잎)을 열면 접혀 있던 실행 프로젝트 · CO2 PJT 폴더를 자동으로 펼침. `co2psr` 화면은 남겨 둠(메뉴에는 없음, #co2psr 로만).
+- 바뀐 곳: dashboard.html `runTree` · `renderMenu`(폴더 자동 펼침) · `renderSched` 제목 · CSS `.mi.mlv2`
+- 확인한 것: 폴더를 접어 둔 상태에서 #co2sched 열기 → 자동 펼침 · Schedule 강조 화면 확인, 콘솔 오류 없음.
