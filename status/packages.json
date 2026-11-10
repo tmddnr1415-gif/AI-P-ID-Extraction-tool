@@ -149,6 +149,19 @@
     "S1": "b8b22c65"
    },
    "replaces": "1_DASHBOARD_update_v17.26_from_v17.21_2026-11-10.zip"
+  },
+  {
+   "file": "①",
+   "name": "1_DASHBOARD_update_v17.33_from_v17.21_2026-11-10.zip",
+   "made": "2026-11-10 04:58",
+   "path": "company-pc-update/2026-11-10/ (1.3MB · 저장소에 있음)",
+   "sha256": "7d26967005445b52b8d4ccddad15740a53bca70e075df2b5bdb724d389be3011",
+   "applied": "",
+   "base": "v17.21 (13ab4109) — 마지막 적용 확인 판",
+   "tips": {
+    "S1": "b64d6e19"
+   },
+   "replaces": "1_DASHBOARD_update_v17.27_from_v17.21_2026-11-10.zip"
   }
  ]
 }
