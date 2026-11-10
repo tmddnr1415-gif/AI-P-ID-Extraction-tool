@@ -1158,6 +1158,90 @@
      ]
     }
    }
+  },
+  {
+   "at": "2026-11-10 00:39",
+   "read_at": "2026-11-10T00:38:00Z",
+   "s": {
+    "S1": {
+     "branch": "origin/ccr-248a5c4d-3dji7g",
+     "tip": "1eca13f6",
+     "ver": "v17.26 · 회사엔 v17.21",
+     "bucket": "COMPLETED",
+     "needs": "",
+     "recent": "v17.22~v17.26 — Schedule 달력(일정 · 특이사항 입력 · 부서원 공유 · PSR 마일스톤) · 내 업무에 일정 · 보고 접기 · 막대 미리보기",
+     "pending": []
+    },
+    "S2": {
+     "branch": "origin/claude/gracious-ride-26nqrf",
+     "tip": "7693ad75",
+     "ver": "hotfix133 만듦 (통합)",
+     "bucket": "BLOCKED",
+     "needs": "새 꾸러미 규칙(오케스트레이터가 통합 · Valve 포함)이 사용자 뜻인지 확인 · /ic3d 를 만들지 · LOGIC→작도 정확도 점검을 이어 갈지",
+     "recent": "",
+     "pending": []
+    },
+    "S3": {
+     "branch": "origin/ccr-cc45909d-fjjmrb",
+     "tip": "4e9cfd24",
+     "ver": "L91",
+     "bucket": "COMPLETED",
+     "needs": "",
+     "recent": "L91 커밋 · 푸시 — 화면 시험 125 · 빠른 시험 1,655 통과. 통합 꾸러미에 병합 필요",
+     "pending": []
+    },
+    "S4": {
+     "branch": "origin/ccr-d82d97fa-bb3ty3",
+     "tip": "7b10d7cb",
+     "ver": "변경 이력 (55)",
+     "bucket": "BLOCKED",
+     "needs": "1) dist/company_pc/S4 생성 진행 여부  2) zip 만들기를 멈추고 통합을 오케스트레이터에 맡길지",
+     "recent": "",
+     "pending": []
+    },
+    "S5": {
+     "branch": "origin/claude/new-session-v23o67",
+     "tip": "b44ead53",
+     "ver": "2026-11-07.1",
+     "bucket": "COMPLETED",
+     "needs": "",
+     "recent": "규약 v2 수용 — VERSION 2026-11-07.1 (b44ead5) 은 다음 통합 때 app/static/books 로 이동. dist/company_pc/S5 zip 은 삭제 요청이 없어 그대로 둠",
+     "pending": []
+    },
+    "S6": {
+     "branch": "origin/ccr-efbe7e75-n915ze",
+     "tip": "b0db9a0d",
+     "ver": "valve36",
+     "bucket": "BLOCKED",
+     "needs": "회사 PC 용 꾸러미 방식 결정 — 따로 \"valve36 꾸러미 만들어\" 또는 오케스트레이터 통합 진행",
+     "recent": "valve36 — Datasheet Review 의 밸브 모형을 세션 7 Anatomy 방식(오프라인 엔진)으로 교체해 커밋 · 푸시. 회사 PC 용 zip 은 만들지 않음",
+     "pending": []
+    },
+    "S7": {
+     "branch": "origin/claude/practical-newton-n6bt58",
+     "tip": "af748c78",
+     "ver": "af748c78",
+     "bucket": "COMPLETED",
+     "needs": "",
+     "recent": "인터넷을 끈 상태에서 대시보드 · 3D 조립/분해 화면 확인 (af748c7)",
+     "pending": [
+      "af748c78",
+      "da8df461",
+      "c0dd7d0b",
+      "077cba5e",
+      "144e6604",
+      "8b0b1023",
+      "19d7aa3a",
+      "1fd96028",
+      "b99fb62a",
+      "ad3bbe35",
+      "05909503",
+      "963d2857",
+      "f408556e",
+      "64a829be"
+     ]
+    }
+   }
   }
  ],
  "changes": [
@@ -2130,6 +2214,72 @@
    "kind": "report",
    "sig": "세션 기록",
    "text": "세션 보고 — v17.21 — 설계 관리(MR·RFQ·TBE) 기준 요약 · 보고 표 엑셀식 필터 · 더블클릭 입력 · 열 너비"
+  },
+  {
+   "at": "2026-11-10 00:39",
+   "prev": "2026-11-10 00:16",
+   "sid": "S1",
+   "kind": "commit",
+   "sig": "git",
+   "h": "1eca13f6",
+   "d": "2026-11-10",
+   "text": "Dashboard v17.26: Schedule 달력 일정을 내 업무에 추가"
+  },
+  {
+   "at": "2026-11-10 00:39",
+   "prev": "2026-11-10 00:16",
+   "sid": "S1",
+   "kind": "commit",
+   "sig": "git",
+   "h": "006c11c2",
+   "d": "2026-11-10",
+   "text": "Dashboard v17.25: Schedule 달력 작게 · 일정/특이사항 입력"
+  },
+  {
+   "at": "2026-11-10 00:39",
+   "prev": "2026-11-10 00:16",
+   "sid": "S1",
+   "kind": "commit",
+   "sig": "git",
+   "h": "30b58ad9",
+   "d": "2026-11-10",
+   "text": "Dashboard v17.24: 일정 입력 달력은 Schedule 에만 (첫 화면 달력과 분리) · PSR 마일스톤 표시"
+  },
+  {
+   "at": "2026-11-10 00:39",
+   "prev": "2026-11-10 00:16",
+   "sid": "S1",
+   "kind": "commit",
+   "sig": "git",
+   "h": "92f58ffd",
+   "d": "2026-11-10",
+   "text": "Dashboard v17.23: 달력 일정 입력(공유 · 함께 · 나만 보기) · 접속 시 나의 예정 일정"
+  },
+  {
+   "at": "2026-11-10 00:39",
+   "prev": "2026-11-10 00:16",
+   "sid": "S1",
+   "kind": "commit",
+   "sig": "git",
+   "h": "fd74509b",
+   "d": "2026-11-10",
+   "text": "Dashboard v17.22: 일정판 확대 월까지 · 막대 마우스 미리보기 · 구매 현황 보고 접기/펼치기"
+  },
+  {
+   "at": "2026-11-10 00:39",
+   "prev": "2026-11-10 00:16",
+   "sid": "S1",
+   "kind": "version",
+   "sig": "git",
+   "text": "버전 v17.21 · 회사엔 v17.20 → v17.26 · 회사엔 v17.21"
+  },
+  {
+   "at": "2026-11-10 00:39",
+   "prev": "2026-11-10 00:16",
+   "sid": "S1",
+   "kind": "report",
+   "sig": "세션 기록",
+   "text": "세션 보고 — v17.22~v17.26 — Schedule 달력(일정 · 특이사항 입력 · 부서원 공유 · PSR 마일스톤) · 내 업무에 일정 · 보고 접기 · 막대 미리보기"
   }
  ]
 }
