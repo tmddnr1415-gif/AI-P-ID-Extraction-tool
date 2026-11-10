@@ -35,7 +35,9 @@ FIRST_BASE = "97a8732"            # out/PID_source_2026-10-08_r3.zip 을 만든 
 SKIP = ("out/", "data/", "app/_data/",
         # hotfix132 — 대시보드 세션 몫 (CLAUDE.md §3: 대시보드 zip 은 대시보드 쪽에서).  VALVE 라인을 병합하며 함께 들어온
         # 대시보드 기록 · 옛 대시보드 업데이트 zip(약 230MB)이 P&ID 꾸러미에 실리던 것.  dashboard_apps/ 는 예전부터 실음.
-        "dashboard/", "dashboard_patches/", "dashboard_tools/")
+        "dashboard/", "dashboard_patches/", "dashboard_tools/",
+        # hotfix134 — 오케스트레이터 기록(회사 업데이트 zip 보관 · 현황판 · 미리보기 그림)은 P&ID 서버에 필요 없음 (약 41MB 가 실리던 것)
+        "company-pc-update/", "status/")
 
 
 def company_owned() -> tuple:
