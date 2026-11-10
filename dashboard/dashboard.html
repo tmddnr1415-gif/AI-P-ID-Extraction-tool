@@ -1747,7 +1747,10 @@ html.dark .sinm,html.dark .gtnm,html.dark .isi,html.dark .sinm1{text-shadow:0 1p
 .rpt td.rpdt{font-size:14px;font-weight:600;color:#1e293b}.rpt td.rpdt b{font-weight:800;color:#0f172a}
 /* 2026-11-10 이전 PSR 대비 변경 = 노랑 음영 · 파랑 글씨 / 캐치업 = 노랑 음영 · 파랑 굵은 입체 글씨(사용자 재지시) */
 .pchg{background:#fef08a!important;color:#1d4ed8!important;font-weight:800}span.pchg{border-radius:4px;padding:0 3px;box-shadow:inset 0 0 0 1px #facc15}td.pchg{box-shadow:inset 0 0 0 1px #facc15}
-.pchg b,.pchg small,.sfc .pchg{color:#1d4ed8!important}.pchgi{display:inline-block;margin-left:6px;background:#fef08a;color:#1d4ed8;font-weight:700;border-radius:6px;padding:0 8px;font-size:12px}.pchgi b{color:#1d4ed8}
+.pchg b,.pchg small,.sfc .pchg{color:#1d4ed8!important}.rpt td.rpdt small.cubad{color:#b91c1c;font-weight:800}.rpt td.rpdt small.cuok{color:#15803d;font-weight:700}.rpt td.rpdt small.cudd{color:#1d4ed8;font-weight:700}
+.rptodo{display:inline-flex;gap:6px;flex-wrap:wrap;margin-left:8px}.rptd{border:1px solid #cbd5e1;background:#f8fafc;border-radius:999px;padding:2px 10px;font-size:12px;cursor:pointer;color:#334155}.rptd b{color:#c2410c}.rptd.bad{border-color:#fca5a5;background:#fef2f2;color:#b91c1c}.rptd.bad b{color:#b91c1c}.rptd.on{background:#4f46e5;border-color:#4f46e5;color:#fff}.rptd.on b{color:#fff}
+button.pchgi{border:0;cursor:pointer;font-family:inherit}button.pchgi.on{box-shadow:0 0 0 2px #1d4ed8}.pchgi .pup{color:#b91c1c}.pchgi .pdn{color:#15803d}
+.pchgi{display:inline-block;margin-left:6px;background:#fef08a;color:#1d4ed8;font-weight:700;border-radius:6px;padding:0 8px;font-size:12px}.pchgi b{color:#1d4ed8}
 .pnew{display:inline-block;margin-left:3px;background:#fef08a;color:#1d4ed8;font-weight:800;border-radius:4px;padding:0 4px;font-size:10px;box-shadow:inset 0 0 0 1px #facc15}
 .rpt td.rpcur,.rpt td.rpcur b{color:#0f172a!important}/* 2026-11-10 사용자 지시: '현재' 날짜는 음영 · 색 없이 검정 */
 .rpt td.rpdt b.rpcu{display:inline-block;background:#fef08a;color:#1d4ed8;font-weight:900;font-size:15px;letter-spacing:.2px;border-radius:5px;padding:1px 6px;box-shadow:inset 0 0 0 1px #facc15,0 2px 3px rgba(161,98,7,.25);text-shadow:0 1px 0 #fff,1px 2px 2px rgba(30,64,175,.3)}.rpt td.rpdt small{font-size:11.5px;font-weight:500;margin-top:1px}
@@ -2031,7 +2034,7 @@ function recLabel(key, f) {
  * ===================================================================== */
 let root = null;
 /* 서버 모드: http(s):// 로 접속하면 server.py 의 REST API 사용 (폴더 선택 불필요). file:// 로 열면 폴더 모드 */
-const APP_VERSION = '2026-11-10.14';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
+const APP_VERSION = '2026-11-10.15';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
 const SERVER_URL = 'http://localhost:8080';
 // 부서원 PC 사본(file://)이 접속을 시도할 서버 — 서버가 배포 파일을 만들 때 'PC 이름 주소, IP 주소' 순으로 자동 기록함
 const DEFAULT_SERVERS = ['http://ASEUNGWOOK-B01:8080', 'http://65.3.30.234:8080'];
@@ -4162,7 +4165,7 @@ const schD = s => s ? new Date(s + 'T00:00:00') : null, schDays = (a, b) => Math
 const schFmt = s => s ? s.slice(2).replace(/-/g, '.') : '';
 // 2026-11-10 새 PSR 의 이전 값 대비 변경 칸 — 노랑 음영 · 파랑 글씨(.pchg), 마우스를 올리면 이전 값
 const schChg = (it, s1, k) => it.chg && (s1 + '.' + k) in it.chg;
-const schChgT = (it, s1, k) => schChg(it, s1, k) ? `이전 PSR ${({ B:'계획', F:'전망', A:'실적' })[s1]} ${schFmt(it.chg[s1 + '.' + k]) || '(빈칸)'} → ${schFmt(it[s1][k]) || '(빈칸)'}` : '';
+const schChgT = (it, s1, k) => schChg(it, s1, k) ? `이전 PSR ${({ B:'계획', F:'전망', A:'실적' })[s1]} ${schFmt(it.chg[s1 + '.' + k]) || '(빈칸)'} → ${schFmt(it[s1][k]) || '(빈칸)'}${it.chg[s1 + '.' + k] && it[s1][k] ? ((dd => ` (${dd > 0 ? '▲ ' + dd + '일 늦어짐' : '▼ ' + -dd + '일 당겨짐'})`)(schDays(it[s1][k], it.chg[s1 + '.' + k]))) : ''}` : '';
 const schChgW = (it, s1, k, html) => schChg(it, s1, k) ? `<span class="pchg" title="${esc(schChgT(it, s1, k))}">${html}</span>` : html;
 /* ---------- xlsx 읽기 (무압축/deflate zip → XML) ---------- */
 async function xlsxOpen(file) {
@@ -4307,13 +4310,14 @@ function renderSched(c) {
   const d = SCH.data, F = SCH.f, canUp = !noEdit() && can('runpjt');
   const drop = `<label class="schdrop ${d ? 'mini' : ''}" id="schDrop"><input type="file" id="schFile" accept=".xlsx" hidden><span class="sdi">📥</span><b>${d ? 'PSR 엑셀 새로 올리기' : 'PSR 엑셀(.xlsx)을 여기로 끌어다 놓거나 눌러서 고르세요'}</b>${d ? '' : `<span class="muted">Tagged · Bulk 시트의 품목별 Baseline / Forecast / Actual 일정을 읽어 현황판을 만들어요 · 파일은 브라우저 안에서 읽고, 읽은 일정만 서버에 저장해 모든 부서원이 같이 봅니다</span>`}</label>`;
   const head = `<section class="whero sch-hero"><div class="wh-top"><div><div style="font-size:12px;font-weight:600;opacity:.8;margin-bottom:2px">실행 프로젝트 › CO2 PJT › Schedule</div><h2>📦 CO2 PJT Schedule · 구매 일정 현황판 <small style="font-weight:600;opacity:.85">PSR</small></h2>
-    <p>${d ? `기준일(As of) <b>${esc(d.asOf)}</b>${d.asOfFrom === 'today' ? ' (파일에 없어 올린 날)' : ''} · ${esc(d.file)} (${esc(d.sheets.join(' · '))}) · ${esc(d.by)} ${esc(fmtTime(d.at))} 올림${d.prev ? ` <span class="pchgi" title="이전 PSR ${esc(d.prev.file)} (기준일 ${esc(d.prev.asOf)}) 대비">🟨 이전 PSR 대비 변경 <b>${d.prev.nc}</b>칸${d.prev.ni ? ` · 새 품목 <b>${d.prev.ni}</b>개` : ''}</span>` : ''}` : 'MR → RFQ → TBE → CBE → PO → KOM → Key V/D → 제작 → FAT → 선적 → 현장 도착 까지 품목별 계획 · 전망 · 실적을 한눈에'}</p></div>${canUp && d ? drop : ''}</div>`;
+    <p>${d ? `기준일(As of) <b>${esc(d.asOf)}</b>${d.asOfFrom === 'today' ? ' (파일에 없어 올린 날)' : ''} · ${esc(d.file)} (${esc(d.sheets.join(' · '))}) · ${esc(d.by)} ${esc(fmtTime(d.at))} 올림${d.prev ? (() => { let up = 0, dn = 0, n = 0, items = 0; d.items.forEach(it => { const ks = Object.keys(it.chg || {}); if (ks.length || it.isNew) items++; ks.forEach(sk => { n++; const [s1, k1] = sk.split('.'), o = it.chg[sk], v = it[s1][k1]; if (o && v) v > o ? up++ : dn++; }); });   // 2026-11-10 개정 간 추이: 늦어짐 ▲ · 당겨짐 ▼ · 누르면 바뀐 품목만
+      return ` <button class="pchgi ${SCH.f.late === 'chg' ? 'on' : ''}" data-schf="late|chg" title="이전 PSR ${esc(d.prev.file)} (기준일 ${esc(d.prev.asOf)}) 대비 — 누르면 바뀐 품목만 보기 / 다시 누르면 전체">🟨 이전 PSR 대비 변경 <b>${n}</b>칸 · 품목 <b>${items}</b>개${up || dn ? ` · <b class="pup">▲ 늦어짐 ${up}</b> · <b class="pdn">▼ 당겨짐 ${dn}</b>` : ''}${d.prev.ni ? ` · 새 품목 <b>${d.prev.ni}</b>개` : ''}</button>`; })() : ''}` : 'MR → RFQ → TBE → CBE → PO → KOM → Key V/D → 제작 → FAT → 선적 → 현장 도착 까지 품목별 계획 · 전망 · 실적을 한눈에'}</p></div>${canUp && d ? drop : ''}</div>`;
   if (!d) { c.insertAdjacentHTML('beforeend', `<div id="schv">${head}</section><section class="card">${canUp ? drop : '<div class="empty">아직 올라온 PSR 이 없어요 (올리기는 실행 프로젝트 권한이 있는 부서원)</div>'}</section></div>`); return schBind(); }
   const today = new Date().toISOString().slice(0, 10), useToday = F.today ?? !!(d.edited && d.edited.slice(0, 10) > d.asOf), asOf = useToday ? today : d.asOf, all = d.items.map(it => ({ it, k:schCalc(it, asOf) }));
   const discs = [...new Set(d.items.map(i => i.disc))].sort();
   const allFront = all.every(x => x.k.front), ph = F.phase || (allFront ? 'back' : 'front');   // 설계 관리이 다 끝나면 설계 · 제작 · 운송 쪽을 앞으로
-  const lateOk = k => !F.late || (F.late.startsWith('f:') ? k.flate.includes(F.late.slice(2)) : k.st === F.late);
-  const vis = all.filter(({ it, k }) => (!F.type || it.type === F.type) && (!F.disc || it.disc === F.disc) && lateOk(k) && (!F.q || `${it.no} ${it.item} ${it.vendor} ${it.buyer} ${it.eng} ${it.origin}`.toLowerCase().includes(F.q.toLowerCase())));
+  const lateOk = (k, it) => !F.late || (F.late === 'chg' ? !!(it && (it.isNew || (it.chg && Object.keys(it.chg).length))) : F.late.startsWith('f:') ? k.flate.includes(F.late.slice(2)) : k.st === F.late);
+  const vis = all.filter(({ it, k }) => (!F.type || it.type === F.type) && (!F.disc || it.disc === F.disc) && lateOk(k, it) && (!F.q || `${it.no} ${it.item} ${it.vendor} ${it.buyer} ${it.eng} ${it.origin}`.toLowerCase().includes(F.q.toLowerCase())));
   const cnt = st => vis.filter(x => x.k.st === st).length, poDone = vis.filter(x => x.it.A.PO).length, onsite = vis.filter(x => x.k.st === 'done').length;
   // 조달 준수율 = 기준일까지 계획된 마일스톤 중 실적이 들어온 비율 (계획 Baseline 기준)
   let plan = 0, act = 0; const per = SCH_KEY.map(k => { let p = 0, a = 0, f = 0; vis.forEach(({ it }) => { if (it.B[k] && it.B[k] <= asOf) { p++; if (it.A[k]) a++; } if (it.A[k]) f++; }); plan += p; act += Math.min(a, p); return { k, p, a, f }; });
@@ -4347,7 +4351,7 @@ function renderSched(c) {
   // 보고 필터(2026-11-09): 상태 · 지연 크기 · 공종 · 사유 입력 · 검색 · 마일스톤
   const RF = SCH.rf ||= { st:'', lv:'', disc:'', note:'', q:'', ms:'' };
   const rfOk = x => (!RF.st || (RF.st === 'done' ? !!x.a : RF.st === 'over' ? !x.a && x.over : !x.a && !x.over)) && (!RF.lv || (RF.lv === 'r' ? x.d > 14 : RF.lv === 'y' ? x.d <= 14 : x.d > 30))
-    && (!RF.disc || x.it.disc === RF.disc) && (!RF.note || (RF.note === 'no' ? !x.n.r : !!x.n.r)) && (!RF.q || `${x.it.no} ${x.it.item} ${x.it.vendor || ''} ${x.n.r || ''} ${x.n.s || ''}`.toLowerCase().includes(RF.q.toLowerCase()));
+    && (!RF.disc || x.it.disc === RF.disc) && (!RF.note || (RF.note === 'no' ? !x.n.r : RF.note === 'cuno' ? !x.a && !x.n.c : RF.note === 'cuover' ? !x.a && !!x.n.c && x.n.c < asOf : !!x.n.r)) && (!RF.q || `${x.it.no} ${x.it.item} ${x.it.vendor || ''} ${x.n.r || ''} ${x.n.s || ''}`.toLowerCase().includes(RF.q.toLowerCase()));
   // 2026-11-10 표 열 정의 — 엑셀식 열 필터(머리 ▾) · 너비 조절(머리 오른쪽 끝 끌기, 이 PC 에 기억) · 셀 더블클릭 = 바로 입력
   const RC = [['n', '#', 40], ['item', '품목', 250], ['disc', '공종', 78], ['b', '원래 기한', 96, 'date'], ['cur', '현재', 96, 'date'], ['d', '지연', 74], ['st', '상태', 150], ['r', '지연 사유', 320, 'text'], ['c', '캐치업', 96, 'date'], ['s', '특이사항', 260, 'text']];
   const RCW = (() => { try { return JSON.parse(localStorage.getItem('dept-rpt-colw') || '{}'); } catch (_) { return {}; } })();
@@ -4363,7 +4367,7 @@ function renderSched(c) {
       return d > 0 || over ? { it, k, b, a, f, d:Math.max(d, over ? schDays(asOf, f || b) : 0), over, n:it.rn?.[k] || {} } : null; }).filter(Boolean).filter(rfOk).sort((x, y) => y.d - x.d);
     xs.forEach((x, i) => x.i0 = i + 1);   // # = 지연 큰 순 번호(정렬해도 그대로)
     return { k, title, all:xs, xs:rsSort(xs.filter(cfOk)), front:SCH_FRONT.has(k) }; }).filter(g => (!RF.ms || g.k === RF.ms) && (SCH_FRONT.has(g.k) ? vis.some(({ it }) => it.B[g.k]) : g.xs.length && ph === 'back'));
-  SCH.rptAll = rptG.flatMap(g => g.all); SCH.rptCv = cv;
+  SCH.rptAll = rptG.flatMap(g => g.all); SCH.rptCv = cv; SCH.rptG = rptG; SCH.rptAsOf = asOf;
   const rfOn = Object.values(RF).some(Boolean) || Object.values(CF).some(Boolean); if (rfOn) for (let i = rptG.length - 1; i >= 0; i--) if (!rptG[i].xs.length) rptG.splice(i, 1);   // 필터 중엔 빈 마일스톤 숨김
   const sel = (k, opts) => `<select data-rf="${k}">${opts.map(([v, l]) => `<option value="${esc(v)}" ${RF[k] === v ? 'selected' : ''}>${esc(l)}</option>`).join('')}</select>`;
   const rfBar = `<div class="rpflt"><label>🔎<input data-rf="q" value="${esc(RF.q)}" placeholder="No · 품목 · 업체 · 사유 검색"></label>
@@ -4371,21 +4375,24 @@ function renderSched(c) {
     ${sel('st', [['', '상태 전체'], ['doing', '⏳ 지연 진행 중'], ['over', '⚠ 기한 지남 · 실적 미입력'], ['done', '✔ 늦게 완료함']])}
     ${sel('lv', [['', '지연 크기 전체'], ['r', '15일 이상'], ['x', '30일 초과'], ['y', '14일 이하']])}
     ${sel('disc', [['', '공종 전체'], ...discs.map(d => [d, d])])}
-    ${sel('note', [['', '사유 입력 전체'], ['no', '사유 미입력만'], ['yes', '사유 입력됨만']])}
+    ${sel('note', [['', '사유 · 캐치업 전체'], ['no', '사유 미입력만'], ['yes', '사유 입력됨만'], ['cuno', '캐치업 미입력(진행 중)만'], ['cuover', '⚠ 캐치업 지남만']])}
     ${rfOn ? '<button class="btn sm" data-rfx>✕ 필터 해제</button>' : ''}<span class="muted" style="font-size:12px">열 머리 ▾ = 엑셀식 필터 · 머리 오른쪽 끝 끌기 = 열 너비${canUp ? ' · <b>셀 더블클릭 = 바로 입력</b> · <b>우클릭 = 글자색 · 굵게 · 기울임</b>' : ''}</span><span class="rpfc">${rptG.reduce((a, g) => a + g.xs.length, 0)}건${rfOn ? ' (필터 적용)' : ''}</span></div>${rfOn && !rptG.length ? '<div class="empty">필터에 맞는 지연 품목이 없어요</div>' : ''}`;   // MR · RFQ · TBE 는 늦은 것이 없어도 '계획대로' 로 보고
   // 표 + 보고체(~음 · ~임 · ~중) — 2026-11-09 사용자 지시
   const rptSt = x => x.a ? '<span class="rps d">✔ 늦게 완료함</span>' : x.over ? '<span class="rps o">⚠ 기한 지남 · 실적 미입력임</span>' : '<span class="rps g">⏳ 지연 진행 중</span>';
   const rptHead = g => g.xs.length ? `지연 ${g.xs.length}건 발생함 (최대 +${Math.max(...g.xs.map(x => x.d))}일 · 진행 중 ${g.xs.filter(x => !x.a).length}건)` : '지연 없음, 계획대로 진행 중';
   // 2026-11-10 사용자 지시: 칸마다 글자색 · 굵게 · 기울임을 사용자가 바꿈 (우클릭 → 서식 창) — it.rfm['MR|cur'] = { c:'#색', b:1, i:1 }, 모든 부서원에게 같게
+  // 2026-11-10 캐치업 추적: 실적 없이 캐치업 날짜가 지나면 ⚠, 남았으면 D-N, 실적이 캐치업 안이면 ✔ 만회
+  const cuSt = x => { if (!x.n.c) return ''; if (x.a) return x.a <= x.n.c ? '<small class="cuok">✔ 만회함</small>' : `<small class="cubad" title="실적이 캐치업 날짜보다 늦음">+${schDays(x.a, x.n.c)}일 늦음</small>`; const dd = schDays(x.n.c, asOf); return dd < 0 ? `<small class="cubad" title="캐치업 날짜가 지났는데 실적 없음">⚠ ${-dd}일 지남</small>` : `<small class="cudd">D-${dd}</small>`; };
   const rptRow = (x, i) => { const id = x.it.type + '|' + x.it.no, ed = canUp ? ' data-rc' : '', cell = (c, html, cls = '') => { const f = x.it.rfm?.[x.k + '|' + c], fc = f ? `${f.c ? ' rfc' : ''}${f.b ? ' rfb' : ''}${f.i ? ' rfi' : ''}` : '';
       return `<td class="${cls}${fc}" data-cc="${c}"${f?.c ? ` style="--rfc:${esc(f.c)}"` : ''}${canUp && ['b', 'cur', 'r', 'c', 's'].includes(c) ? ` data-rc="${c}" title="더블클릭 = 입력 · 우클릭 = 글자 서식"` : canUp ? ' title="우클릭 = 글자 서식"' : ''}>${html}</td>`; };
     return `<tr class="${x.d > 14 ? 'r' : 'y'} ${x.a ? 'done' : ''}" data-rk="${esc(id + '|' + x.k)}" style="--dc:${schDc(x.it.disc)}">${cell('n', x.i0 || i + 1, 'rpn')}${cell('item', `<b class="rpno">${esc(x.it.no)}</b><b class="sinm1">${esc(x.it.item)}</b>`, 'rpit')}${cell('disc', `<span class="sdc">${esc(x.it.disc)}</span>`)}
       ${cell('b', schChgW(x.it, 'B', x.k, schFmt(x.b)), 'rpdt')}${cell('cur', x.a ? `<b>${schFmt(x.a)}</b><small>실적</small>` : x.f ? `${schFmt(x.f)}<small>전망${x.over ? ' · 지남' : ''}</small>` : '<small>실적 없음</small>', 'rpdt rpcur')}${cell('d', `<em class="rpd">+${x.d}일</em>`, 'rpdd')}${cell('st', rptSt(x), 'rpst')}
-      ${cell('r', x.n.r ? rtShow(x.n.r, x.n.rH) : '<i>미입력</i>', 'rptx')}${cell('c', x.n.c ? `<b class="rpcu">${schFmt(x.n.c)}</b>` : '<i>미입력</i>', 'rpdt')}${cell('s', x.n.s ? rtShow(x.n.s, x.n.sH) : '<i>-</i>', 'rptx')}</tr>`; void ed; };
+      ${cell('r', x.n.r ? rtShow(x.n.r, x.n.rH) : '<i>미입력</i>', 'rptx')}${cell('c', x.n.c ? `<b class="rpcu">${schFmt(x.n.c)}</b>${cuSt(x)}` : '<i>미입력</i>', 'rpdt')}${cell('s', x.n.s ? rtShow(x.n.s, x.n.sH) : '<i>-</i>', 'rptx')}</tr>`; void ed; };
   const rptText = () => rptG.map((g, i) => `${i + 1}. ${g.title} : ${rptHead(g)}` + g.xs.map(x => `\n - ${x.it.no} ${x.it.item} : 원래 기한 ${schFmt(x.b)} 대비 +${x.d}일 ${x.a ? '늦게 완료함 (실적 ' + schFmt(x.a) + ')' : x.over ? '지연 중 (기한 지났으나 실적 미입력임)' : '지연 중 (전망 ' + schFmt(x.f) + ')'}${x.n.r ? `\n   · 지연 사유 : ${x.n.r.replace(/\n/g, '\n     ')}` : ''}${x.n.c ? `\n   · 캐치업 : ${schFmt(x.n.c)} 완료 예정임` : !x.a ? '\n   · 캐치업 : 일정 협의 중' : ''}${x.n.s ? `\n   · 특이사항 : ${x.n.s.replace(/\n/g, '\n     ')}` : ''}`).join('')).join('\n\n');
   SCH.rptText = rptText;
   const rptCard = `<section class="card rpcard"><h2>📝 구매 현황 보고 <span class="muted">· 주간업무보고 '업무 현황' 양식 · ${ph === 'front' ? 'MR · RFQ · TBE (지금 중요)' : '전체 단계'} · 계획 대비 지연 품목 · 기준일 ${esc(schFmt(asOf))}${F.disc ? ' · ' + esc(F.disc) + ' 만' : ''}</span></h2>
-    <div class="rptool"><span class="rpsum">${rptG.map((g, i) => `<a href="#rp-${g.k}" data-rpgo="${g.k}">${i + 1}. ${esc(g.title)} <b class="${g.xs.length ? '' : 'z'}">${g.xs.length}</b></a>`).join('')}</span><span class="sp"></span><button class="btn sm" data-rpall="1">▾ 모두 펼치기</button><button class="btn sm" data-rpall="0">▸ 모두 접기</button><button class="btn sm" data-rpcopy>📋 보고 글 복사</button><button class="btn sm" data-rpweekly title="복사한 뒤 주간업무보고 › 수행 표를 CO2 로 찾아 엶 — 업무 현황 칸에 붙여 넣으세요">📤 주간업무보고(수행)에 붙이기</button></div>
+    <div class="rptool"><span class="rpsum">${rptG.map((g, i) => `<a href="#rp-${g.k}" data-rpgo="${g.k}">${i + 1}. ${esc(g.title)} <b class="${g.xs.length ? '' : 'z'}">${g.xs.length}</b></a>`).join('')}</span><span class="rptodo">${(() => { const A = SCH.rptAll || [], n1 = A.filter(x => !x.n.r).length, n2 = A.filter(x => !x.a && !x.n.c).length, n3 = A.filter(x => !x.a && x.n.c && x.n.c < asOf).length, ch = (v, l, n, c) => n ? `<button class="rptd ${c} ${RF.note === v ? 'on' : ''}" data-rfnote="${v}" title="누르면 그것만 · 다시 누르면 전체">${l} <b>${n}</b></button>` : '';
+      return ch('no', '사유 미입력', n1, '') + ch('cuno', '캐치업 미입력', n2, '') + ch('cuover', '⚠ 캐치업 지남', n3, 'bad'); })()}</span><span class="sp"></span><button class="btn sm" data-rpxls title="지금 보이는 보고 표를 엑셀 파일로">⬇ 엑셀로</button><button class="btn sm" data-rpall="1">▾ 모두 펼치기</button><button class="btn sm" data-rpall="0">▸ 모두 접기</button><button class="btn sm" data-rpcopy>📋 보고 글 복사</button><button class="btn sm" data-rpweekly title="복사한 뒤 주간업무보고 › 수행 표를 CO2 로 찾아 엶 — 업무 현황 칸에 붙여 넣으세요">📤 주간업무보고(수행)에 붙이기</button></div>
     ${rfBar}
     ${rptG.map((g, gi) => { const op = (SCH.rpOpen ||= new Set()).has(g.k); return `<div id="rp-${g.k}" class="rpg ${g.front ? 'front' : ''} ${op ? 'open' : ''}"><div class="rpgt" data-rptog="${g.k}" title="${op ? '접기' : '펼치기'}"><span class="rptg">${g.xs.length ? (op ? '▾' : '▸') : ''}</span><span class="rpgn">${gi + 1}</span>${esc(g.title)} <span class="rpgs ${g.xs.length ? '' : 'ok'}">${g.xs.length || !rfOn ? rptHead(g) : '필터에 맞는 품목 없음'}</span>${g.xs.length ? `<small>사유 입력 ${g.xs.filter(x => x.n.r).length}/${g.xs.length} · ${op ? '▾ 접기' : '▸ 펼치기'}</small>` : ''}</div>
       ${g.xs.length && op ? `<div class="tw"><table class="t rpt" style="width:${RC.reduce((a, [c, , w]) => a + (RCW[c] || w), 0)}px"><colgroup>${RC.map(([c, , w]) => `<col data-ck="${c}" style="width:${RCW[c] || w}px">`).join('')}</colgroup>
@@ -4756,6 +4763,8 @@ function schBind() {
     const rt = e.target.closest('[data-rptog]'); if (rt) { const k = rt.dataset.rptog, S2 = SCH.rpOpen ||= new Set(); S2.has(k) ? S2.delete(k) : S2.add(k); return render(); }
     const ra = e.target.closest('[data-rpall]'); if (ra) { SCH.rpOpen = new Set(ra.dataset.rpall === '1' ? [...v.querySelectorAll('[data-rptog]')].map(x => x.dataset.rptog) : []); return render(); }
     const rpg = e.target.closest('[data-rpgo]'); if (rpg) { e.preventDefault(); (SCH.rpOpen ||= new Set()).add(rpg.dataset.rpgo); render(); $('#rp-' + rpg.dataset.rpgo)?.scrollIntoView({ block:'start', behavior:'smooth' }); return; }
+    const rfn = e.target.closest('[data-rfnote]'); if (rfn) { const R = SCH.rf ||= { st:'', lv:'', disc:'', note:'', q:'', ms:'' }; R.note = R.note === rfn.dataset.rfnote ? '' : rfn.dataset.rfnote; (SCH.rpOpen ||= new Set()); if (R.note) (SCH.rptG || []).forEach(g => SCH.rpOpen.add(g.k)); return render(); }
+    if (e.target.closest('[data-rpxls]')) return schRptXlsx();
     const cp = e.target.closest('[data-rpcopy],[data-rpweekly]'); if (cp) { const t = SCH.rptText ? SCH.rptText() : ''; const done = () => { toast('📋 보고 글을 복사했어요' + (cp.dataset.rpweekly != null ? ' — 수행 표의 업무 현황 칸에 붙여 넣으세요' : '')); if (cp.dataset.rpweekly != null) { const st = fstate('perform'); st.q = 'CO2'; go('perform'); } };
       (navigator.clipboard?.writeText(t) || Promise.reject()).then(done, () => { const ta = document.createElement('textarea'); ta.value = t; document.body.appendChild(ta); ta.select(); try { document.execCommand('copy'); } catch (_) {} ta.remove(); done(); }); return; }
     const gz = e.target.closest('[data-gz]'); if (gz) { const w = $('#schv .gtw'); if (!w) return; const d = +gz.dataset.gz; return schGtZoom(d ? (d > 0 ? 1.5 : 1 / 1.5) : 0, w.getBoundingClientRect().left + 268 + (w.clientWidth - 268) / 2); }
@@ -4800,6 +4809,16 @@ function schBind() {
   const so = $('#schSort'); if (so) so.onchange = () => { F.sort = so.value; render(); };
   const la = $('#schLate'); if (la) la.onchange = () => { F.late = la.value; render(); };
   const sd = $('#schDisc'); if (sd) sd.onchange = () => { F.disc = sd.value; render(); }; const sty = $('#schType'); if (sty) sty.onchange = () => { F.type = sty.value; render(); };
+}
+function schRptXlsx() {   // 2026-11-10 구매 현황 보고 표(지금 필터 · 정렬 그대로)를 엑셀로
+  const G = SCH.rptG || [], d = SCH.data; if (!d || !G.length) return toast('내보낼 보고 표가 없어요', true); const asOf = SCH.rptAsOf || d.asOf;
+  const cols = ['마일스톤', '#', 'No', '품목', '공종', '원래 기한', '현재', '실적/전망', '지연(일)', '상태', '지연 사유', '캐치업', '캐치업 상태', '특이사항'], st = { s:ST.HEAD };
+  const rows = G.flatMap(g => g.xs.map(x => [g.title, x.i0, x.it.no, x.it.item, x.it.disc, x.b, x.a || x.f || '', x.a ? '실적' : x.f ? '전망' : '', x.d, x.a ? '늦게 완료함' : x.over ? '기한 지남 · 실적 미입력' : '지연 진행 중', x.n.r || '', x.n.c || '',
+    !x.n.c ? (x.a ? '' : '미입력') : x.a ? (x.a <= x.n.c ? '만회함' : `캐치업보다 +${schDays(x.a, x.n.c)}일`) : x.n.c < asOf ? `캐치업 ${schDays(asOf, x.n.c)}일 지남` : `D-${schDays(x.n.c, asOf)}`, x.n.s || '']));
+  if (!rows.length) return toast('지연 품목이 없어요', true);
+  const sheet = { name:'구매 현황 보고', widths:[22, 5, 10, 34, 10, 12, 12, 9, 9, 22, 46, 12, 18, 40], tab:false, rows:[cols.map(v => ({ ...st, v })), ...rows.map(r => r.map(v => ({ v:v ?? '', s:ST.BODY })))] };
+  const { blob } = buildXlsx([sheet]), a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `CO2 PJT 구매 현황 보고_${asOf}.xlsx`; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 3000);
+  toast(`⬇ 보고 표 ${rows.length}건을 엑셀로 저장했어요`);
 }
 function schXlsx() {   // 현황판 표 그대로 엑셀로 (계획 · 전망 · 실적 · 지연)
   const d = SCH.data; if (!d) return; const asOfX = SCH.f.today ? new Date().toISOString().slice(0, 10) : d.asOf, st = { s:ST.HEAD }, cols = ['구분', 'No', '공종', '품목', 'Buyer', 'Engineer', 'Vendor', 'Origin', '현재 단계', '다음 일정', '다음 일정 날짜', '현장 도착(계획)', '현장 도착(전망)', '지연(일)', '상태', 'MR 지연(일)', 'TBE 지연(일)', 'CBE 지연(일)', ...SCH_KEY.flatMap(k => [`${SCH_NAME[k]} 계획`, `${SCH_NAME[k]} 전망`, `${SCH_NAME[k]} 실적`])];
