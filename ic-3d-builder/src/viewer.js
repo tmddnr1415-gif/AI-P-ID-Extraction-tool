@@ -423,29 +423,37 @@ const Viewer = (() => {
   }
   const getExplode = () => S.eT;
 
-  function liveBox(ids) {
+  /** bounds of the visible parts; atTarget = where they will be once the explode animation ends */
+  function liveBox(ids, atTarget) {
     const bb = { min: [Infinity, Infinity, Infinity], max: [-Infinity, -Infinity, -Infinity], empty: true };
     for (const [id, g] of S.groups) {
       if (!g.visible || REF.has(g.part.look) || !g.faces.length) continue;
       if (ids && !ids.includes(id)) continue;
-      for (let i = 0; i < 3; i++) { bb.min[i] = Math.min(bb.min[i], g.bb.min[i] + g.off[i]); bb.max[i] = Math.max(bb.max[i], g.bb.max[i] + g.off[i]); }
+      const off = atTarget ? mul(g.part.ex || [0, 0, 0], stageK(S.eT, g.part.stage ?? 1)) : g.off;
+      for (let i = 0; i < 3; i++) { bb.min[i] = Math.min(bb.min[i], g.bb.min[i] + off[i]); bb.max[i] = Math.max(bb.max[i], g.bb.max[i] + off[i]); }
       bb.empty = false;
     }
     return bb;
   }
   const corners8 = (bb) => { const o = []; for (const x of [bb.min[0], bb.max[0]]) for (const y of [bb.min[1], bb.max[1]]) for (const z of [bb.min[2], bb.max[2]]) o.push([x, y, z]); return o; };
   function frame(instant) {
-    const bb = liveBox(S.focus ? [S.focus] : null);
+    // fit where the parts are going (not where the animation currently is), so a fast scroll
+    // never leaves exploded parts outside the picture
+    const bb = liveBox(S.focus ? [S.focus] : null, true);
     if (bb.empty) return;
     updateCamera();
     const w = cam.W; const h = cam.H;
+    // named callouts sit in a column either side of the model: keep that room free
+    const named = !S.focus && (opts.labels === 'on' || (opts.labels === 'auto' && S.eT > 0.45));
+    const side = named ? Math.min(150, w * 0.26) : 0;
     let x0 = Infinity; let x1 = -Infinity; let y0 = Infinity; let y1 = -Infinity;
     for (const c of corners8(bb)) { const a = dot(c, cam.right); const b = dot(c, cam.up); x0 = Math.min(x0, a); x1 = Math.max(x1, a); y0 = Math.min(y0, b); y1 = Math.max(y1, b); }
-    const aw = Math.max(200, w - opts.insetRight);
-    const need = Math.max(y1 - y0, (x1 - x0) * h / aw) * 1.2 + 40;
+    const aw = Math.max(160, w - opts.insetRight - side * 2);
+    const need = Math.max((y1 - y0) * 1.12, (x1 - x0) * h / aw * 1.06) + 30;
     goal.dist = need; goal.fitDist = need;
     goal.target = mul(add(bb.min, bb.max), 0.5);
     if (opts.insetRight) goal.target = add(goal.target, mul(cam.right, opts.insetRight / 2 * need / h));
+    goal.target = add(goal.target, mul(cam.up, -0.02 * need));   // a little head-room under the toolbar
     if (instant) { orbit.dist = goal.dist; orbit.target = goal.target.slice(); updateCamera(); }
   }
   function setView(name) {
@@ -467,7 +475,7 @@ const Viewer = (() => {
     opts[k] = v;
     if (k === 'style') applyStyle();
     if (k === 'section') show({ parts: S.parts, bbox: S.bbox }, { keepView: true });
-    if (k === 'insetRight' && goal.follow) goal.refit = true;
+    if ((k === 'insetRight' || k === 'labels') && goal.follow) goal.refit = true;
     dirty = true;
   }
 
@@ -691,7 +699,7 @@ const Viewer = (() => {
         bl.label.style.display = '';
         if (!bl.w) bl.w = bl.label.offsetWidth || 120;
         let lx = side === 'L' ? xmin - 28 : xmax + 28;
-        if (side === 'L') lx = Math.max(bl.w + pad, lx); else lx = Math.min(w - bl.w - pad, lx);
+        if (side === 'L') lx = Math.max(bl.w + pad, Math.min(lx, w * 0.5 - 20)); else lx = Math.min(w - bl.w - pad, Math.max(lx, w * 0.5 + 20));
         bl.label.style.transform = side === 'L' ? `translate(${lx - bl.w}px, ${it.ly - LH / 2 + 1}px)` : `translate(${lx}px, ${it.ly - LH / 2 + 1}px)`;
         bl.label.classList.toggle('sel', it.id === S.selected);
         bl.line.style.display = '';
@@ -711,6 +719,7 @@ const Viewer = (() => {
   }
   const MIN_VIEW = 3;   // mm of visible height at the closest zoom
   function zoomCamera(e, f) {
+    if (goal.follow) frame(false);
     orbit.dist = goal.dist; orbit.target = goal.target.slice(); updateCamera();
     const before = goal.dist;
     const nd = Math.max(MIN_VIEW, Math.min(1e6, before * f));
@@ -728,7 +737,7 @@ const Viewer = (() => {
     if (steps < 0) {
       if (auto && goal.follow && S.eT < 1) {
         S.eT = Math.min(1, S.eT + 0.22 * st); goal.refit = true; cb.onExplode(S.eT);
-        if (S.eT >= 1) detentUntil = performance.now() + 250;
+        if (S.eT >= 1) detentUntil = performance.now() + 450;
       } else {
         const wasOut = goal.dist > goal.fitDist * 1.001;
         zoomCamera(e, f);

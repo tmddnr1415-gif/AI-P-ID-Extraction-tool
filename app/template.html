@@ -108,7 +108,7 @@ th{color:var(--mute);font-weight:600}
 #plist .tag.on{background:var(--blue);color:#fff;border-color:var(--blue)}
 #v3mode{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden}#v3mode button{border:0;background:transparent;padding:4px 10px;font:inherit;font-size:12.5px;cursor:pointer;color:var(--sub)}#v3mode button.on{background:var(--blue);color:#fff}
 #v3real{position:absolute;inset:0;width:100%;height:100%;border:0;display:block;background:#fff}#v3note{font-size:11.5px;color:var(--sub);margin:4px 0 0}
-#v3wrap.real{height:560px}#v3wrap{position:relative;height:430px;border:1px solid var(--line);border-radius:10px;overflow:hidden;background:#fff}
+#v3wrap.real{height:clamp(340px,calc(100vh - 330px),720px)}#v3wrap{position:relative;height:430px;border:1px solid var(--line);border-radius:10px;overflow:hidden;background:#fff}
 #v3{width:100%;height:100%;display:block;touch-action:none;cursor:grab}#v3:active{cursor:grabbing}
 #v3tip{position:absolute;pointer-events:none;background:#1428A0;color:#fff;font-size:12px;padding:3px 8px;border-radius:5px;display:none;white-space:nowrap}
 #v3bar{display:flex;gap:6px;align-items:center;margin:8px 0;flex-wrap:wrap}#v3bar select{font:inherit;padding:5px 8px;border:1px solid var(--line);border-radius:7px}
@@ -203,6 +203,7 @@ th{color:var(--mute);font-weight:600}
 
 <script>/*__V3D__*/</script>
 <script>const MAP3D = /*__MAP3D__*/null;
+const VIEWER_HTML = /*__VIEWER__*/null;   /* 실물 3D 엔진 전체(단일 파일로 동작하도록 내장) */
 /*__LLM__*/
 /*__APP__*/</script>
 </body></html>

@@ -39,7 +39,8 @@ await page.waitForTimeout(400);
 const real = await page.evaluate(() => ({ on: R3.on, src: document.getElementById("v3real").getAttribute("src"), hidden: document.getElementById("v3real").hidden }));
 check("Ball Valve → 실물 3D(esdv_ball) 기본 표시", real.on && /preset=esdv_ball/.test(real.src || "") && !real.hidden);
 await page.waitForFunction(() => R3.ready, null, { timeout: 15000 });
-const fr = page.frames().find((f) => f.url().includes("viewer-real.html"));
+const fr = page.frames().find((f) => f !== page.mainFrame() && (f.url().startsWith("blob:") || f.url().includes("viewer-real.html")));
+check("실물 3D 가 index.html 한 파일에 내장(Blob)", !!fr && fr.url().startsWith("blob:"));
 check("실물 3D 프레임 로드(embed)", !!fr && await fr.evaluate(() => document.body.classList.contains("embed") && IC3D.S.presetId === "esdv_ball"));
 // 태그 클릭 → 3D 부품 선택
 await page.evaluate(() => { const t = document.querySelector('#plist .tag[data-p="solenoid"]'); t.click(); });

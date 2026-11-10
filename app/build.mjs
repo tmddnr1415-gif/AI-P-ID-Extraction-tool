@@ -205,6 +205,7 @@ const html = template
   .replace("/*__ISO_CSS__*/", k.ISO_CSS)
   .replace("<!--__FIGURE__-->", svg)
   .replace("/*__MAP3D__*/null", () => MAP3D)
+  .replace("/*__VIEWER__*/null", () => existsSync(REAL) ? safeJson(readFileSync(REAL, "utf8")).split("<!--").join("<\\!--") : "null")
   .replace("/*__LLM__*/", () => llmSrc)
   .replace("/*__APP__*/", () => readFileSync(join(HERE, "app.js"), "utf8"))
   .replace("/*__SPECS__*/null", () => JSON.stringify(specs))

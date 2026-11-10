@@ -376,12 +376,12 @@
     const tip = $('tip');
     Viewer.init($('viewport'), {
       onHover: (id, e) => {
-        if (!id) { tip.hidden = true; return; }
+        if (!id || id === S.selected) { tip.hidden = true; return; }
         const p = S.model.parts.find((x) => x.id === id); if (!p) return;
         const r = $('viewport').getBoundingClientRect();
         tip.hidden = false;
         tip.innerHTML = `<b>${esc(p.no ?? '')} · ${esc(p.dwgName || p.name)}</b>${p.fn ? `<br>${esc(p.fn.length > 140 ? p.fn.slice(0, 140) + '…' : p.fn)}` : ''}`;
-        tip.style.left = `${e.clientX - r.left + 14}px`; tip.style.top = `${e.clientY - r.top + 14}px`;
+        tip.style.left = `${Math.max(4, Math.min(e.clientX - r.left + 14, r.width - tip.offsetWidth - 6))}px`; tip.style.top = `${Math.max(4, Math.min(e.clientY - r.top + 14, r.height - tip.offsetHeight - 6))}px`;
       },
       onPick: (id) => selectPart(id, false),
       onExplode: (k) => { $('explode').value = k; $('hint-bar').hidden = k > 0.05; },
@@ -401,6 +401,7 @@
   //   postMessage {type:'ic3d', cmd:'explode', k} / {cmd:'view', name}
   //   posts back {type:'ic3d-ready'} and {type:'ic3d-pick', part}
   const hash = new URLSearchParams(location.hash.slice(1));
+  if (!location.hash && /^ic3d-embed/.test(window.name || '')) { hash.set('embed', '1'); const pn = window.name.split(':')[1]; if (pn) hash.set('preset', pn); }
   const embedded = hash.has('embed');
   if (embedded) {
     document.body.classList.add('embed');

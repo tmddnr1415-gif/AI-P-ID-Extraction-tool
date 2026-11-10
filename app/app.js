@@ -316,7 +316,11 @@ function r3show(id){
   const mp=r3map(id);const note=$("#v3note");
   if(!mp){note.hidden=false;note.textContent="이 Item 은 아직 실물 3D 모델이 없어 개념 모델로 표시합니다.";setMode(false,true);return false}
   note.hidden=!mp.approx;note.textContent=mp.approx?"실물 3D 는 대표 형상으로 근사합니다(부품 매핑 approx) · 치수 출처 배지를 확인하세요.":"";
-  if(!r3frame.getAttribute("src")){R3.ready=false;r3frame.src="viewer-real.html#embed&preset="+encodeURIComponent(mp.preset)}
+  if(!r3frame.getAttribute("src")){R3.ready=false;r3frame.name="ic3d-embed:"+mp.preset;
+    /* 엔진을 이 파일 안에 내장(Blob) — viewer-real.html 이 옆에 없어도, 인터넷이 없어도 열린다 */
+    let u=null;try{if(VIEWER_HTML)u=URL.createObjectURL(new Blob([VIEWER_HTML],{type:"text/html"}))}catch(e){}
+    r3frame.src=(u||"viewer-real.html")+"#embed&preset="+encodeURIComponent(mp.preset);
+    clearTimeout(R3.t);R3.t=setTimeout(()=>{if(!R3.ready&&R3.on){note.hidden=false;note.textContent="실물 3D 를 열지 못해 개념 모델로 표시합니다(브라우저가 내장 프레임을 막았을 수 있습니다. Chrome·Edge 최신 버전 권장).";setMode(false,true)}},6000)}
   else r3post({cmd:"preset",id:mp.preset});
   R3.item=id;return true;
 }
