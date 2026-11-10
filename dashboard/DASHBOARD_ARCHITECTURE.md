@@ -1789,3 +1789,11 @@ C:\Users\SAMSUNG\Desktop\Claude\                         ← 개발 폴더 (여�
 - 구매 현황 보고: 마일스톤마다 접기 · 펼치기(머리 줄 누름), **처음엔 모두 접힘**, [▾ 모두 펼치기] · [▸ 모두 접기], 위 요약 칩을 누르면 그 마일스톤을 펼치고 이동(`SCH.rpOpen`).
 - 바뀐 곳: dashboard.html `SCH_GSTEPS` · `SCH_GMAX` · `schPopBody` · `schHover` · `schPop` · `schGtDrag`(onpointerover/move/leave) · `renderSched`(rptCard 접기) · `schBind`(data-rptog · data-rpall · data-rpgo), CSS `.gthov` · `.rptg` · `.rpgt[data-rptog]`
 - 확인한 것: 보고 처음 표 0개 → TBE to Company 펼침 1 → 모두 펼침 3 → 모두 접기 0, 휠 12칸 확대 = 년 · 월에서 멈춤, J0730 구매 막대 마우스 → 미리보기 카드. 콘솔 오류 없음.
+
+### 2026-11-10 (APP_VERSION 2026-11-10.3 / SERVER_VERSION 2026-11-10.1) — v17.23 달력 일정 입력 · 나의 예정 일정
+- 무엇을: 홈 달력에서 날짜마다 일정 입력(예: 11/11 14:00 'Globe Valve TBE — Emerson 과 회의'). 날짜 더블클릭 또는 아래 [＋ M/D 일정 추가] → 창: 날짜 ~ 끝 날짜(여러 날) · 시간 · 일정 · 함께하는 사람(부서원 이름 자동 완성, 쉼표) · 장소 · 상대 · 메모 · 나만 보기. 저장하면 모든 부서원 달력에 보임(나만 보기는 본인만). 달력 점 = 하늘색 '내 일정'(내가 쓰거나 함께하는 사람) · 청록 '부서 일정', 날짜를 누르면 목록(시간 · 장소 · 함께 · 쓴 사람 · 메모), 내 일정을 누르면 고치기 · 지우기(쓴 사람 또는 운영자).
+- 접속(로그인 · 화면 열기)하면 오른쪽 아래 **'○○님의 예정 일정'** 카드 — 오늘부터 2주 안의 내 일정(내가 쓴 것 + 함께하는 사람에 내 이름), 오늘/내일/날짜 · 시간 · 장소 · 함께 · 등록한 사람, 누르면 달력 그 날로, [오늘 그만 보기] · [＋ 일정 추가].
+- 서버: `/api/cal` GET(나만 보기는 본인만) · POST(로그인) · `/api/cal/{id}` PUT · DELETE(쓴 사람 또는 운영자), 저장 `data/_meta/cal-events.json`(`api_cal_get` · `api_cal_save` · `api_cal_del` · `cal_clean`).
+- 바뀐 곳: dashboard.html `CEV` · `cevLoad` · `cevMine` · `cevOn` · `cevDlg` · `cevMyCard` · `calEvents`(사용자 일정) · `CAL_K`(my · ev) · `renderCal`(목록 · 추가 단추 · 더블클릭 · 고치기) · `afterAuth` · 시작(o.warm 아닐 때), CSS `.ev-my` · `.ev-ev` · `.cevf` · `.cevmy` / server.py 위 함수 · 라우트 `cal`
+- 확인한 것: 11/11 더블클릭 → 일정 저장(함께 홍길동 · 이영희, 메모), 11/13~14 여러 날 일정, 달력 점 · 목록, 새로고침 → 예정 일정 카드(내일 14:00 · 11/13), /api/cal 저장 내용. 콘솔 오류 없음.
+- 회사에서: 서버 버전이 바뀌므로 업데이트 뒤 대시보드 서버 다시 켜기.

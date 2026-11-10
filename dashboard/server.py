@@ -36,7 +36,7 @@ ID_RE = re.compile(r'^[A-Za-z0-9_\-]{1,80}$')
 WEEK_RE = re.compile(r'^\d{4}-W\d{2}$')
 MAX_BODY = 30 * 1024 * 1024
 
-SERVER_VERSION = '2026-11-09.8'
+SERVER_VERSION = '2026-11-10.1'
 ROOT = os.path.dirname(os.path.abspath(__file__))
 PORT = 8080
 ALLOW_NETS = []          # 사내망: 루프백·사설망 + 서버 IP 대역(/16, 유선·Wi-Fi 등 지금까지 쓴 대역 모두 기억) + --allow 로 추가한 대역
@@ -2041,6 +2041,69 @@ def api_tr_learn_put(b, by):
 SCHED_KEYS = ('co2',)
 
 
+# ---------------------------------------------------------------- 부서 달력 일정 (data/_meta/cal-events.json) — 2026-11-10
+CAL_FILE = ('data', '_meta', 'cal-events.json')
+
+
+def cal_clean(b):
+    d = str(b.get('date') or '')[:10]
+    if not re.fullmatch(r'\d{4}-\d{2}-\d{2}', d):
+        raise ApiError(400, '날짜(YYYY-MM-DD)가 필요합니다')
+    t = str(b.get('title') or '').strip()[:200]
+    if not t:
+        raise ApiError(400, '일정 내용을 적어 주세요')
+    tm = str(b.get('time') or '').strip()[:5]
+    if tm and not re.fullmatch(r'\d{2}:\d{2}', tm):
+        tm = ''
+    end = str(b.get('end') or '')[:10]
+    if end and (not re.fullmatch(r'\d{4}-\d{2}-\d{2}', end) or end < d):
+        end = ''
+    people = [str(x).strip()[:20] for x in (b.get('people') or []) if str(x).strip()][:30]
+    return {'date': d, 'end': end, 'time': tm, 'title': t, 'place': str(b.get('place') or '').strip()[:100],
+            'memo': str(b.get('memo') or '').strip()[:500], 'people': people, 'priv': bool(b.get('priv'))}
+
+
+def api_cal_get(me):
+    evs = (read_json(P(*CAL_FILE)) or {}).get('events') or []
+    return {'events': [e for e in evs if not e.get('priv') or e.get('by') == me]}   # 나만 보기 일정은 쓴 사람에게만
+
+
+def api_cal_save(eid, b, me, admin):
+    with LOCK:
+        d = read_json(P(*CAL_FILE)) or {}
+        evs = d.get('events') or []
+        if eid:
+            e = next((x for x in evs if x.get('id') == eid), None)
+            if not e:
+                raise ApiError(404, '일정을 찾지 못했습니다')
+            if e.get('by') != me and not admin:
+                raise ApiError(403, '쓴 사람(또는 운영자)만 고칠 수 있습니다')
+            e.update(cal_clean(b), editedAt=stamp())
+        else:
+            if len(evs) > 5000:
+                evs = evs[-4000:]
+            e = {'id': 'ev' + str(int(time.time() * 1000)) + str(len(evs) % 97), **cal_clean(b), 'by': me, 'at': stamp()}
+            evs.append(e)
+        d['events'] = evs
+        write_json(P(*CAL_FILE), d)
+    log.info('달력 일정 %s %s %s by %s', '수정' if eid else '추가', e['date'], e['title'][:30], me)
+    return {'status': 'ok', 'event': e}
+
+
+def api_cal_del(eid, me, admin):
+    with LOCK:
+        d = read_json(P(*CAL_FILE)) or {}
+        evs = d.get('events') or []
+        e = next((x for x in evs if x.get('id') == eid), None)
+        if not e:
+            raise ApiError(404, '일정을 찾지 못했습니다')
+        if e.get('by') != me and not admin:
+            raise ApiError(403, '쓴 사람(또는 운영자)만 지울 수 있습니다')
+        d['events'] = [x for x in evs if x is not e]
+        write_json(P(*CAL_FILE), d)
+    return {'status': 'ok'}
+
+
 def api_sched_get(key):
     return read_json(P('data', '_meta', f'sched-{key}.json')) or {}
 
@@ -2604,6 +2667,18 @@ class Handler(BaseHTTPRequestHandler):
         if head == 'admin' and seg[1:] == ['findiag'] and m == 'GET':   # 2026-11-09 재무스타그램 DART 연결 점검 (운영자)
             self.need_admin()
             return api_findiag()
+        if head == 'cal':                                          # 부서 달력 일정: 보기 = 누구나(나만 보기는 본인), 쓰기 = 로그인
+            acc = session_account(self.token(), False)
+            me = acc['name'] if acc else ''
+            if m == 'GET' and len(seg) == 1:
+                return api_cal_get(me)
+            if m == 'POST' and len(seg) == 1:
+                return api_cal_save('', self.json_body(), self.need_user()['name'], self.is_admin())
+            if len(seg) == 2 and re.fullmatch(r'ev\d{1,20}', seg[1]):
+                if m == 'PUT':
+                    return api_cal_save(seg[1], self.json_body(), self.need_user()['name'], self.is_admin())
+                if m == 'DELETE':
+                    return api_cal_del(seg[1], self.need_user()['name'], self.is_admin())
         if head == 'sched' and len(seg) == 2 and seg[1] in SCHED_KEYS:   # 실행 프로젝트 일정 현황판: 보기 = 실행 프로젝트 권한, 올리기 = 로그인 + 권한
             acc = session_account(self.token(), False)
             if not perms_for(acc, self.is_super() or self.is_admin()).get('runpjt'):
