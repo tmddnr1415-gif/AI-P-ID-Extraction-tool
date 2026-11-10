@@ -182,6 +182,19 @@
     "S7": "PID 서버 /ic3d 주소 없음 (S2 작업 대기)"
    },
    "note": "valve37 = S5 패치를 S6 valve36 위에 적용 (440a3bb1)"
+  },
+  {
+   "file": "①",
+   "name": "1_DASHBOARD_update_v17.36_from_v17.21_2026-11-11.zip",
+   "made": "2026-11-11 07:58",
+   "path": "company-pc-update/2026-11-11/ (1.3MB · 저장소에 있음)",
+   "sha256": "bf0622cf0fa31717b18d5057cf6db23f4efaea4d4b549b019942e9bf0cd0ccb8",
+   "applied": "",
+   "base": "v17.21 (13ab4109) — 마지막 적용 확인 판",
+   "tips": {
+    "S1": "183c6bf9"
+   },
+   "replaces": "1_DASHBOARD_update_v17.33_from_v17.21_2026-11-10.zip"
   }
  ]
 }
