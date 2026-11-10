@@ -1728,7 +1728,7 @@ html.dark .sinm,html.dark .gtnm,html.dark .isi,html.dark .sinm1{text-shadow:0 1p
 .rpflt select:not([value=""]){}.rpfc{margin-left:auto;font-size:13px;font-weight:700;color:#475569}
 .rpt{table-layout:fixed}.rpt th{position:relative;padding-right:22px!important;overflow:hidden;text-overflow:ellipsis}.rpt th .rcfb{position:absolute;right:8px;top:50%;transform:translateY(-50%);border:1px solid #cbd5e1;background:#fff;border-radius:5px;font-size:10px;line-height:14px;padding:0 3px;cursor:pointer;color:#475569}
 .rpt th.rso{cursor:pointer;user-select:none}.rpt th.rso:hover{background:#eef2ff}.rpt th .rsa{font-style:normal;font-size:10px;color:#a3acbd;margin-left:3px}.rpt th.rso.on{color:#3730a3}.rpt th.rso.on .rsa{color:#4f46e5;font-size:11px}
-.rpt tbody td.rfc.rfc,.rpt tbody td.rfc.rfc *,.rfprev.rfc span{color:var(--rfc)!important}.rpt tbody td.rfb.rfb,.rpt tbody td.rfb.rfb *,.rfprev.rfb span{font-weight:900!important}.rpt tbody td.rfi.rfi,.rpt tbody td.rfi.rfi *,.rfprev.rfi span{font-style:italic!important}
+.rpt tbody td.rfc.rfc,.rpt tbody td.rfc.rfc :not(.rte,.rte *,.rtx [style]),.rfprev.rfc span{color:var(--rfc)!important}.rpt tbody td.rfb.rfb,.rpt tbody td.rfb.rfb :not(.rte,.rte *,.rtx [style]),.rfprev.rfb span{font-weight:900!important}.rpt tbody td.rfi.rfi,.rpt tbody td.rfi.rfi :not(.rte,.rte *,.rtx [style]),.rfprev.rfi span{font-style:italic!important}
 .schpop.rfpop{width:340px}.rfpop .rfrow{display:flex;align-items:center;gap:6px;padding:8px 0 0;flex-wrap:wrap}.rfsw{width:26px;height:26px;border-radius:50%;border:2px solid #fff;box-shadow:0 0 0 1px #cbd5e1;cursor:pointer;background:#fff;font-weight:800;color:#334155;font-size:12px}.rfsw.on{box-shadow:0 0 0 3px #4f46e5}.rfcus{display:inline-flex;align-items:center;gap:2px;cursor:pointer;font-size:16px}.rfcus input{width:28px;height:24px;border:0;padding:0;background:none;cursor:pointer}
 .rfprev{margin:10px 0 0;padding:8px 10px;border:1px dashed #cbd5e1;border-radius:8px;font-size:14px;color:#0f172a;background:#f8fafc}
 .rpt th.cfon{background:#e0e7ff!important;color:#3730a3!important}.rpt th.cfon .rcfb{background:#4f46e5;color:#fff;border-color:#4f46e5}
@@ -1753,7 +1753,12 @@ html.dark .sinm,html.dark .gtnm,html.dark .isi,html.dark .sinm1{text-shadow:0 1p
 .rpt td.rpdt b.rpcu{display:inline-block;background:#fef08a;color:#1d4ed8;font-weight:900;font-size:15px;letter-spacing:.2px;border-radius:5px;padding:1px 6px;box-shadow:inset 0 0 0 1px #facc15,0 2px 3px rgba(161,98,7,.25);text-shadow:0 1px 0 #fff,1px 2px 2px rgba(30,64,175,.3)}.rpt td.rpdt small{font-size:11.5px;font-weight:500;margin-top:1px}
 .rpt .rpd{font-size:13.5px;padding:2px 9px;font-variant-numeric:tabular-nums}
 .rpt .rps{font-size:12.5px;padding:3px 9px;border-radius:7px}
-.rpt td.rptx{font-size:13.5px;color:#0f172a}.rpt td i{font-size:12.5px}
+.rpt td.rptx{font-size:13.5px;color:#0f172a}
+.rpt .rtx{white-space:pre-wrap;line-height:1.45}.rpt td.rprt{overflow:visible!important;position:relative;z-index:5}.rte{position:relative;background:#fff;border:2px solid #4f46e5;border-radius:10px;box-shadow:0 10px 30px rgba(15,23,42,.22);padding:6px}
+.rtb{display:flex;align-items:center;gap:4px;flex-wrap:wrap;padding-bottom:6px;border-bottom:1px solid #e2e8f0}.rtb button{min-width:28px;height:26px;border:1px solid #cbd5e1;background:#f8fafc;border-radius:6px;cursor:pointer;font-size:13px;color:#0f172a}.rtb button:hover{background:#e0e7ff}
+.rtb .rtsw{min-width:20px;width:20px;height:20px;border-radius:50%;border:2px solid #fff;box-shadow:0 0 0 1px #cbd5e1}.rtsep{width:1px;height:18px;background:#e2e8f0;margin:0 2px}
+.rted{min-height:76px;max-height:260px;overflow:auto;padding:8px 6px;font-size:14px;line-height:1.5;color:#0f172a;outline:none;white-space:pre-wrap;word-break:break-word;font-weight:500;font-style:normal}
+.rtf{display:flex;align-items:center;gap:6px;padding-top:6px;border-top:1px solid #e2e8f0;font-size:11.5px;color:#64748b}.rtf span{flex:1}.rpt td i{font-size:12.5px}
 .rpt tbody tr td{border-bottom:1px solid #e5e9f2}.rpt tbody tr:last-child td{border-bottom:0}
 .rpt td.rpf input{font-size:13.5px;padding:6px 9px}
 .rpt .rpe{font-size:13px;padding:4px 8px}
@@ -2026,7 +2031,7 @@ function recLabel(key, f) {
  * ===================================================================== */
 let root = null;
 /* 서버 모드: http(s):// 로 접속하면 server.py 의 REST API 사용 (폴더 선택 불필요). file:// 로 열면 폴더 모드 */
-const APP_VERSION = '2026-11-10.13';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
+const APP_VERSION = '2026-11-10.14';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
 const SERVER_URL = 'http://localhost:8080';
 // 부서원 PC 사본(file://)이 접속을 시도할 서버 — 서버가 배포 파일을 만들 때 'PC 이름 주소, IP 주소' 순으로 자동 기록함
 const DEFAULT_SERVERS = ['http://ASEUNGWOOK-B01:8080', 'http://65.3.30.234:8080'];
@@ -4261,7 +4266,9 @@ async function schSaveCells(id, ch) {   // ch = [{ s:'B'|'F'|'A', k:마일스톤
 async function schSaveNote(id, k, v) {
   let base = SCH.data; if (SERVER && !OFFLINE) { try { const cur = await api('GET', 'sched/co2'); if (cur && cur.items) base = cur; } catch (_) {} }
   const it = base.items.find(x => x.type + '|' + x.no === id); if (!it) return toast('품목을 찾지 못했어요', true);
-  const by = AUTH?.name || user || '', at = new Date().toISOString(); (it.rn ||= {})[k] = { ...v, by, at };
+  const by = AUTH?.name || user || '', at = new Date().toISOString(), pv = it.rn?.[k] || {};
+  ['r', 's'].forEach(f => { if (v[f + 'H'] === undefined && pv[f + 'H'] && pv[f] === v[f]) v[f + 'H'] = pv[f + 'H']; if (!v[f + 'H']) delete v[f + 'H']; });   // 서식(rH · sH)은 글이 그대로면 유지
+  (it.rn ||= {})[k] = { ...v, by, at };
   if (!v.r && !v.c && !v.s) delete it.rn[k];
   (base.log ||= []).push({ at, by, id, no:it.no, item:it.item, s:'note', k, to:[v.r, v.c, v.s].filter(Boolean).join(' / ') }); if (base.log.length > 500) base.log = base.log.slice(-500);
   base.edited = at; SCH.data = base; SCH.rnEdit = ''; render();
@@ -4374,8 +4381,8 @@ function renderSched(c) {
       return `<td class="${cls}${fc}" data-cc="${c}"${f?.c ? ` style="--rfc:${esc(f.c)}"` : ''}${canUp && ['b', 'cur', 'r', 'c', 's'].includes(c) ? ` data-rc="${c}" title="더블클릭 = 입력 · 우클릭 = 글자 서식"` : canUp ? ' title="우클릭 = 글자 서식"' : ''}>${html}</td>`; };
     return `<tr class="${x.d > 14 ? 'r' : 'y'} ${x.a ? 'done' : ''}" data-rk="${esc(id + '|' + x.k)}" style="--dc:${schDc(x.it.disc)}">${cell('n', x.i0 || i + 1, 'rpn')}${cell('item', `<b class="rpno">${esc(x.it.no)}</b><b class="sinm1">${esc(x.it.item)}</b>`, 'rpit')}${cell('disc', `<span class="sdc">${esc(x.it.disc)}</span>`)}
       ${cell('b', schChgW(x.it, 'B', x.k, schFmt(x.b)), 'rpdt')}${cell('cur', x.a ? `<b>${schFmt(x.a)}</b><small>실적</small>` : x.f ? `${schFmt(x.f)}<small>전망${x.over ? ' · 지남' : ''}</small>` : '<small>실적 없음</small>', 'rpdt rpcur')}${cell('d', `<em class="rpd">+${x.d}일</em>`, 'rpdd')}${cell('st', rptSt(x), 'rpst')}
-      ${cell('r', x.n.r ? esc(x.n.r) : '<i>미입력</i>', 'rptx')}${cell('c', x.n.c ? `<b class="rpcu">${schFmt(x.n.c)}</b>` : '<i>미입력</i>', 'rpdt')}${cell('s', x.n.s ? esc(x.n.s) : '<i>-</i>', 'rptx')}</tr>`; void ed; };
-  const rptText = () => rptG.map((g, i) => `${i + 1}. ${g.title} : ${rptHead(g)}` + g.xs.map(x => `\n - ${x.it.no} ${x.it.item} : 원래 기한 ${schFmt(x.b)} 대비 +${x.d}일 ${x.a ? '늦게 완료함 (실적 ' + schFmt(x.a) + ')' : x.over ? '지연 중 (기한 지났으나 실적 미입력임)' : '지연 중 (전망 ' + schFmt(x.f) + ')'}${x.n.r ? `\n   · 지연 사유 : ${x.n.r}` : ''}${x.n.c ? `\n   · 캐치업 : ${schFmt(x.n.c)} 완료 예정임` : !x.a ? '\n   · 캐치업 : 일정 협의 중' : ''}${x.n.s ? `\n   · 특이사항 : ${x.n.s}` : ''}`).join('')).join('\n\n');
+      ${cell('r', x.n.r ? rtShow(x.n.r, x.n.rH) : '<i>미입력</i>', 'rptx')}${cell('c', x.n.c ? `<b class="rpcu">${schFmt(x.n.c)}</b>` : '<i>미입력</i>', 'rpdt')}${cell('s', x.n.s ? rtShow(x.n.s, x.n.sH) : '<i>-</i>', 'rptx')}</tr>`; void ed; };
+  const rptText = () => rptG.map((g, i) => `${i + 1}. ${g.title} : ${rptHead(g)}` + g.xs.map(x => `\n - ${x.it.no} ${x.it.item} : 원래 기한 ${schFmt(x.b)} 대비 +${x.d}일 ${x.a ? '늦게 완료함 (실적 ' + schFmt(x.a) + ')' : x.over ? '지연 중 (기한 지났으나 실적 미입력임)' : '지연 중 (전망 ' + schFmt(x.f) + ')'}${x.n.r ? `\n   · 지연 사유 : ${x.n.r.replace(/\n/g, '\n     ')}` : ''}${x.n.c ? `\n   · 캐치업 : ${schFmt(x.n.c)} 완료 예정임` : !x.a ? '\n   · 캐치업 : 일정 협의 중' : ''}${x.n.s ? `\n   · 특이사항 : ${x.n.s.replace(/\n/g, '\n     ')}` : ''}`).join('')).join('\n\n');
   SCH.rptText = rptText;
   const rptCard = `<section class="card rpcard"><h2>📝 구매 현황 보고 <span class="muted">· 주간업무보고 '업무 현황' 양식 · ${ph === 'front' ? 'MR · RFQ · TBE (지금 중요)' : '전체 단계'} · 계획 대비 지연 품목 · 기준일 ${esc(schFmt(asOf))}${F.disc ? ' · ' + esc(F.disc) + ' 만' : ''}</span></h2>
     <div class="rptool"><span class="rpsum">${rptG.map((g, i) => `<a href="#rp-${g.k}" data-rpgo="${g.k}">${i + 1}. ${esc(g.title)} <b class="${g.xs.length ? '' : 'z'}">${g.xs.length}</b></a>`).join('')}</span><span class="sp"></span><button class="btn sm" data-rpall="1">▾ 모두 펼치기</button><button class="btn sm" data-rpall="0">▸ 모두 접기</button><button class="btn sm" data-rpcopy>📋 보고 글 복사</button><button class="btn sm" data-rpweekly title="복사한 뒤 주간업무보고 › 수행 표를 CO2 로 찾아 엶 — 업무 현황 칸에 붙여 넣으세요">📤 주간업무보고(수행)에 붙이기</button></div>
@@ -4557,9 +4564,46 @@ function schColFilter(c, btn) {
   pop.querySelector('.cfq').focus();
 }
 /* 보고 표 셀 더블클릭 입력 — 날짜(원래 기한 = 계획 · 현재 = 오늘까지면 실적, 뒤면 전망 · 캐치업) / 글(지연 사유 · 특이사항). 저장하면 같은 품목의 모든 화면(표 · 일정판 · 상태창 · 보고)에 반영 */
+/* 2026-11-10 사용자 지시: 지연 사유 · 특이사항 = 줄바꿈 되는 입력 + 글씨 서식(굵게 · 기울임 · 밑줄 · 색). 글 = n.r / n.s (보고 글 · 검색용 평문), 서식 = n.rH / n.sH (허용한 태그만) */
+const RT_OK = new Set(['B', 'STRONG', 'I', 'EM', 'U', 'BR', 'DIV', 'P', 'SPAN', 'FONT']);
+function rtClean(html) {   // 붙여넣기 · 입력 HTML 에서 허용한 태그 · 색 · 굵기 · 기울임 · 밑줄만 남김
+  const box = document.createElement('div'); box.innerHTML = html;
+  const walk = el => [...el.childNodes].forEach(n => { if (n.nodeType === 3) return; if (n.nodeType !== 1 || !RT_OK.has(n.tagName)) { if (n.nodeType === 1) { walk(n); n.replaceWith(...n.childNodes); } else n.remove(); return; }
+    const st = n.style || {}, col = n.getAttribute('color') || st.color || '', fw = st.fontWeight, fs = st.fontStyle, td = st.textDecorationLine || st.textDecoration || '';
+    [...n.attributes].forEach(a => n.removeAttribute(a.name));
+    if (n.tagName === 'FONT') { const sp = document.createElement('span'); sp.append(...n.childNodes); n.replaceWith(sp); n = sp; }
+    if (/^(#[0-9a-f]{3,8}|rgb\([\d\s,.%]+\))$/i.test(col.trim())) n.style.color = col.trim();
+    if (/bold|[6-9]00/.test(fw || '')) n.style.fontWeight = '800'; if (/italic/.test(fs || '')) n.style.fontStyle = 'italic'; if (/underline/.test(td)) n.style.textDecoration = 'underline';
+    if (n.tagName === 'P') { const d = document.createElement('div'); d.append(...n.childNodes); n.replaceWith(d); n = d; } walk(n); });
+  walk(box); return box.innerHTML.replace(/(<br>\s*)+$/, '').trim();
+}
+const rtShow = (txt, html) => html ? `<div class="rtx">${rtClean(html)}</div>` : `<div class="rtx">${esc(txt).replace(/\n/g, '<br>')}</div>`;
+const RT_COL = [['#0f172a', '검정'], ['#dc2626', '빨강'], ['#1d4ed8', '파랑'], ['#16a34a', '초록'], ['#ea580c', '주황'], ['#7c3aed', '보라'], ['#64748b', '회색']];
+function schRptRich(td, it, id, k, c, n) {
+  const oldT = n[c] || '', oldH = n[c + 'H'] || '', W = Math.max(td.offsetWidth, 300);
+  td.classList.add('rpedit', 'rprt'); td.innerHTML = `<div class="rte" style="min-width:${W}px"><div class="rtb">
+      <button data-rt="bold" title="굵게 (Ctrl+B)"><b>B</b></button><button data-rt="italic" title="기울임 (Ctrl+I)"><i>I</i></button><button data-rt="underline" title="밑줄 (Ctrl+U)"><u>U</u></button><span class="rtsep"></span>
+      ${RT_COL.map(([v, l]) => `<button class="rtsw" data-rtc="${v}" title="${l}" style="background:${v}"></button>`).join('')}<span class="rtsep"></span><button data-rt="removeFormat" title="서식 지우기">✕서식</button></div>
+    <div class="rted" contenteditable="true">${oldH ? rtClean(oldH) : esc(oldT).replace(/\n/g, '<br>')}</div>
+    <div class="rtf"><span>Enter = 줄바꿈 · <b>Ctrl+Enter</b> = 저장 · Esc = 취소 · 글자를 고른 뒤 서식</span><button class="btn sm" data-rtx>취소</button><button class="btn sm pri" data-rts>💾 저장</button></div></div>`;
+  const ed = td.querySelector('.rted'), box = td.querySelector('.rte'); ed.focus(); const r = document.createRange(); r.selectNodeContents(ed); r.collapse(false); getSelection().removeAllRanges(); getSelection().addRange(r);
+  try { document.execCommand('styleWithCSS', false, true); } catch (_) {}
+  let done = false; const fin = save => { if (done) return; done = true; if (!save) return render();
+    const html = rtClean(ed.innerHTML), txt = ed.innerText.replace(/\u00a0/g, ' ').replace(/\n{3,}/g, '\n\n').trim(), plain = !/<(b|strong|i|em|u|span)[\s>]/i.test(html);
+    if (txt === oldT.trim() && (plain ? !oldH : html === oldH)) return render();
+    return schSaveNote(id, k, { r:n.r || '', c:n.c || '', s:n.s || '', rH:n.rH || '', sH:n.sH || '', [c]:txt, [c + 'H']:txt && !plain ? html : '' }); };
+  box.onmousedown = e => { if (e.target.closest('button')) e.preventDefault(); };   // 서식 버튼을 눌러도 고른 글자 유지
+  box.onclick = e => { const b = e.target.closest('button'); if (!b) return; e.stopPropagation();
+    if (b.dataset.rt) document.execCommand(b.dataset.rt, false, null); else if (b.dataset.rtc) document.execCommand('foreColor', false, b.dataset.rtc); else if (b.matches('[data-rts]')) return fin(true); else if (b.matches('[data-rtx]')) return fin(false); ed.focus(); };
+  box.ondblclick = e => e.stopPropagation();
+  ed.onkeydown = e => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); fin(true); } else if (e.key === 'Escape') { e.preventDefault(); fin(false); } else if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); document.execCommand('insertLineBreak'); } };
+  ed.onpaste = e => { e.preventDefault(); const h = e.clipboardData.getData('text/html'), t = e.clipboardData.getData('text/plain'); if (h) document.execCommand('insertHTML', false, rtClean(h)); else document.execCommand('insertText', false, t); };
+  box.addEventListener('focusout', e => { if (!box.contains(e.relatedTarget)) setTimeout(() => { if (!box.contains(document.activeElement)) fin(true); }, 150); });
+}
 function schRptEdit(td) {
-  if (td.querySelector('input')) return; const c = td.dataset.rc, rk = td.closest('tr').dataset.rk, cut = rk.split('|'), k = cut.pop(), id = cut.join('|'), it = SCH.data.items.find(x => x.type + '|' + x.no === id); if (!it) return;
+  if (td.querySelector('input, .rte')) return; const c = td.dataset.rc, rk = td.closest('tr').dataset.rk, cut = rk.split('|'), k = cut.pop(), id = cut.join('|'), it = SCH.data.items.find(x => x.type + '|' + x.no === id); if (!it) return;
   const n = it.rn?.[k] || {}, isD = ['b', 'cur', 'c'].includes(c), old = c === 'b' ? it.B[k] || '' : c === 'cur' ? it.A[k] || it.F[k] || '' : c === 'c' ? n.c || '' : c === 'r' ? n.r || '' : n.s || '';
+  if (!isD) return schRptRich(td, it, id, k, c, n);
   td.classList.add('rpedit'); td.innerHTML = `<input type="${isD ? 'date' : 'text'}" value="${esc(old)}">`; const inp = td.querySelector('input'); inp.focus(); if (!isD) inp.select();
   let done = false; const fin = save => { if (done) return; done = true; const v = inp.value.trim(); if (!save || v === old) return render();
     if (c === 'b') return schSaveCells(id, [{ s:'B', k, v }]);

@@ -1848,3 +1848,8 @@ C:\Users\SAMSUNG\Desktop\Claude\                         ← 개발 폴더 (여�
 - 무엇을: 실행 프로젝트 › CO2 PJT › Datasheet 의 Globe Valve · Butterfly Valve · PSV 를 '준비 중' 대신 P&ID 서버의 `/valve/` 화면(`kind=globe|butterfly|psv`)으로 연결. 화면은 세션 5 valve37 이 만듦(브랜치 claude/new-session-v23o67 커밋 3d46af2c, dist/valve_kinds/dashboard_valve_menus.patch 내용 그대로). MODULES 의 '준비 중' 항목은 남겨 둠(PID_ROUTES 가 먼저 잡힘).  왜: 오케스트레이터 세션 경유 사용자 요청.
 - 바뀐 곳: dashboard.html `PID_ROUTES` (globev · bflyv · psv)
 - 확인한 것: P&ID 서버(8000) 꺼진 상태에서 네 메뉴 모두 Ball Valve 와 같은 PID_OFF 안내, '새 창으로 열기' 주소에 kind= 붙음 / 회사에서 확인할 것: P&ID 서버가 valve37 판일 때 세 메뉴가 각 밸브 종류로 열리는지.
+
+### 2026-11-10 (APP_VERSION 2026-11-10.14 / SERVER_VERSION 그대로) — v17.34 지연 사유 · 특이사항 줄바꿈 + 글씨 서식
+- 무엇을: 구매 현황 보고의 지연 사유 · 특이사항 칸을 더블클릭하면 여러 줄 입력창(Enter = 줄바꿈, Ctrl+Enter = 저장, Esc = 취소, 밖을 누르면 저장). 위쪽 도구줄로 고른 글자만 **굵게 · 기울임 · 밑줄 · 색(7가지)** · 서식 지우기. 표에도 줄바꿈 · 서식 그대로 보임. 붙여넣은 글도 허용한 서식만 남김. 보고 글 복사는 평문(줄바꿈은 들여쓰기 맞춰).  왜: 사용자 지시 ("더블클릭하고 입력칸의 열바꿈되게하고 … 글씨 서식 바꿀수잇게해").
+- 바뀐 곳: dashboard.html 새 `RT_OK` · `rtClean`(허용 태그 b/i/u/br/div/span + color · 굵기 · 기울임 · 밑줄만) · `rtShow` · `RT_COL` · `schRptRich` / `schRptEdit`(글 칸은 schRptRich) · `schSaveNote`(rH · sH 유지 규칙) · `rptRow` r · s 칸 · `rptText` · CSS `.rte/.rtb/.rted/.rtf/.rtx`. 저장 = it.rn[마일스톤].r · s (평문, 검색 · 필터 · 복사용) + rH · sH (서식 HTML, 서식 없으면 안 둠)
+- 확인한 것: 3줄 입력 + 일부 글자 빨강 굵게 · 파랑 기울임 → 저장 → 새로고침 후 줄바꿈 · 서식 유지, 콘솔 오류 없음 / 회사에서 확인할 것: 회사 Edge 에서 서식 버튼 동작.
