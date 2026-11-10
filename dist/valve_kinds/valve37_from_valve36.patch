@@ -1,0 +1,1663 @@
+From 98d391ee9911f84ef093cb78b8e3e847149290fa Mon Sep 17 00:00:00 2001
+From: tmddnr1415-gif <tmddnr1415@gmail.com>
+Date: Tue, 10 Nov 2026 04:32:05 +0000
+Subject: [PATCH] =?UTF-8?q?valve37:=20Globe=20=C2=B7=20Butterfly=20=C2=B7?=
+ =?UTF-8?q?=20PSV=20datasheets=20on=20the=20Ball=20Valve=20screen=20(=3Fki?=
+ =?UTF-8?q?nd=3D)?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+- Form 101 Control Valve (Globe / Butterfly CV): rows re-filed by block caption + heading (same label, different
+  meaning per block), Max/Min value split, sheet 2 sizing lines, form 000 notes sheet, draft document number
+- Form 701 Pressure Relief Valve: new reader — underline slots, sub-labels, 'A / B / C' items, unit slots
+- Code 80 On/Off printed with the title block at the bottom + notes-only sheet 2 (Butterfly On/Off)
+- project kind from the menu (?kind=globe|butterfly|psv -> '<project> · <Kind>'): Ball projects run exactly as
+  before; other kinds get their own required-field list and skip Ball-only rules (n/a with the reason)
+- datasheet family read from the sheet; a sheet put in another kind's menu is kept and the user is told
+- tests/test_valve_kinds.py (synthetic forms, API rules, Ball unchanged, real samples via VALVE_KIND_SAMPLES)
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_014zoSs8H5yNiq8r2ATBV4YL
+---
+ app/static/valve/valve.js |  52 +++-
+ app/valve/api.py          |  52 +++-
+ app/valve/checks.py       |   5 +-
+ app/valve/extract.py      |  27 ++-
+ app/valve/forms_ext.py    | 490 ++++++++++++++++++++++++++++++++++++++
+ app/valve/issues.py       |   2 +-
+ app/valve/schema.py       | 310 ++++++++++++++++++++++++
+ docs/valve/VALVE_KINDS.md |  69 ++++++
+ tests/test_valve_kinds.py | 375 +++++++++++++++++++++++++++++
+ 9 files changed, 1363 insertions(+), 19 deletions(-)
+ create mode 100644 app/valve/forms_ext.py
+ create mode 100644 docs/valve/VALVE_KINDS.md
+ create mode 100644 tests/test_valve_kinds.py
+
+diff --git a/app/static/valve/valve.js b/app/static/valve/valve.js
+index 96f97f28..da31fcc9 100644
+--- a/app/static/valve/valve.js
++++ b/app/static/valve/valve.js
+@@ -6,6 +6,19 @@
+ (() => {
+ 'use strict';
+ const Q = new URLSearchParams(location.search);
++// valve37 — one screen for every valve kind: ?kind=globe|butterfly|psv opens the project '<project> · <Kind>' (its own
++// uploads · Process Data · review), the Ball menu (no kind) works exactly as before.
++const KIND_NAMES = { ball: 'Ball Valve', globe: 'Globe Valve', butterfly: 'Butterfly Valve', psv: 'PSV' };
++const VKIND = KIND_NAMES[(Q.get('kind') || '').toLowerCase()] ? (Q.get('kind') || '').toLowerCase() : 'ball';
++const KIND_NAME = KIND_NAMES[VKIND];
++function wantProject() {
++  const p = Q.get('project');
++  if (VKIND === 'ball') return p;
++  const base = (p || 'CO2 PJT').replace(/\s*·\s*(Globe Valve|Butterfly Valve|PSV)$/, '');
++  return `${base} · ${KIND_NAME}`;
++}
++{ const cb = document.querySelectorAll('#crumb b'); if (cb.length > 1) cb[cb.length - 1].textContent = KIND_NAME;
++  if (VKIND !== 'ball') document.title = `${KIND_NAME} Datasheet Review`; }
+ const LS = {
+   get(k, d) { try { const v = localStorage.getItem('valve.' + k); return v === null ? d : JSON.parse(v); } catch (_) { return d; } },
+   set(k, v) { try { localStorage.setItem('valve.' + k, JSON.stringify(v)); } catch (_) {} },
+@@ -337,8 +350,9 @@ const VIEWS = ['dash', 'docs', 'list', 'review', 'rev', 'proc', 'pms', 'rules',
+ const STATUSES = ['Not Reviewed', 'Under Review', 'Accepted', 'Rejected', 'Commented', 'Resolved'];
+ const NOT_PROCESS = new Set(['body_size', 'rating', 'body_material', 'ball_material', 'seat_material', 'seal_material', 'stem_material',
+   'bolting_gasket', 'packing_material', 'packing_type', 'connections', 'line_size_inlet', 'line_size_outlet', 'piping_class', 'pipe_material']);
+-const SECTION_NAMES = { general: 'General Information', process: 'Process Data', mechanical: 'Valve Mechanical Data',
+-  actuator: 'Actuator', special: 'Special Requirements', accessories: 'Accessories' };
++const SECTION_NAMES = { general: 'General Information', basis: 'Design Basis', process: 'Process Data', mechanical: 'Valve Mechanical Data',
++  trim: 'Valve Trim', material: 'Materials', sizing: 'Sizing', actuator: 'Actuator', positioner: 'Positioner',
++  special: 'Special Requirements', accessories: 'Accessories' };
+ 
+ /* ── PDF viewer (server-rendered pages + overlays in PDF points) ───────── */
+ const pageInfo = {};
+@@ -730,7 +744,7 @@ addEventListener('hashchange', () => { const v = location.hash.slice(1); if (v &
+ 
+ async function loadProjects() {
+   S.projects = (await api('GET', '/projects')).projects;
+-  const want = Q.get('project');
++  const want = wantProject();
+   let p = want ? S.projects.find(x => x.name === want) : null;
+   if (want && !p) { p = await api('POST', '/projects', { name: want }); S.projects.push(p); }
+   if (!p) p = S.projects.find(x => x.id === LS.get('pid')) || S.projects[0];
+@@ -902,7 +916,7 @@ function renderDash() {
+     ['PMS Review', s.has_pms ? (k.pms_review ?? 0) : null, '#e07a5f', 'list:issues:PMS Review'], ['Process Mismatch', s.has_process ? (k.process_mismatch ?? 0) : null, '#f2730d', 'list:issues:Process Mismatch'],
+     ['Revision Change', k.revision_changes ?? 0, '#e0b400', 'list:issues:Revision Change']];
+   const cmax = Math.max(1, ...cats.map(c => c[1] || 0));
+-  el.innerHTML = `<div class="vh"><h2>Project Dashboard</h2><span class="soft">${esc(s.project.name)} · Ball Valve Datasheet</span><span class="sp"></span>
++  el.innerHTML = `<div class="vh"><h2>Project Dashboard</h2><span class="soft">${esc(s.project.name)} · ${KIND_NAME} Datasheet</span><span class="sp"></span>
+       <button data-go="docs">자료 올리기</button><button class="pri" data-go="review">Datasheet Review 열기</button></div>
+     ${refDocs(s.latest_docs || {})}
+     ${!k.datasheets ? `<div class="banner info">아직 데이터시트가 없습니다 — <b>Document Management</b> 에서 Datasheet PDF · Valve List · Process Data · PMS 를 올리세요.</div>` : ''}
+@@ -1620,6 +1634,26 @@ function hintsInit() {                                   // '?' in the top bar:
+   host.prepend(ln); host.prepend(pw); host.prepend(nw);
+ }
+ function setTab(t) { W.tab = t; LS.set('wtab', t); $$('#wtabs button').forEach(b => { b.classList.toggle('on', b.dataset.t === t); if (b.dataset.t === t) b.scrollIntoView({ inline: 'nearest', block: 'nearest' }); }); drawRight(); }
++/* valve37 — a Control Valve sheet 2 (Form 101): process and sizing lines as one Max · Nor · Min table (click a cell = its place) */
++function caseTable(d) {
++  if (d.form !== '101') return '';
++  const rows = {}, order = [];
++  d.fields.forEach(f => { const m = f.key.match(/^(.*)\.(max|nor|min)$/); if (!m) return;
++    if (!rows[m[1]]) { rows[m[1]] = { name: (f.display || f.label).replace(/ \((Max|Nor|Min)\)$/, ''), unit: f.unit, sec: f.section, c: {} }; order.push(m[1]); }
++    rows[m[1]].c[m[2]] = f; if (f.unit) rows[m[1]].unit = f.unit; });
++  if (!order.length) return '';
++  const cell = f => f ? `<td class="click ${W.selField === f.key ? 'on' : ''}" data-k="${esc(f.key)}">${esc((f.edited_value ?? f.value) || '')}</td>` : '<td></td>';
++  return `<div class="sect"><h4>Process / Sizing — Max · Nor · Min <span class="soft" style="font-weight:400">(sheet 2)</span></h4>
++    <table class="t"><thead><tr><th>Item</th><th>Unit</th><th>Max</th><th>Nor</th><th>Min</th></tr></thead><tbody>
++    ${order.map(k => { const r = rows[k]; return `<tr${r.sec === 'sizing' ? ' class="soft"' : ''}><td>${esc(r.name)}${r.sec === 'sizing' ? ' <small>sizing</small>' : ''}</td><td>${esc(r.unit || '')}</td>${cell(r.c.max)}${cell(r.c.nor)}${cell(r.c.min)}</tr>`; }).join('')}
++    </tbody></table></div>`;
++}
++/* valve37 — a sheet put in another kind's menu: say so (it is kept and reviewed with this menu's rules) */
++function kindBanner(d) {
++  if (!d.family || !d.kind || d.family === d.kind) return '';
++  if (d.kind === 'ball' && d.family === 'butterfly' && !['101', '701'].includes(d.form)) return '';
++  return `<div class="banner info"><b>${esc(KIND_NAMES[d.family] || d.family)} 데이터시트</b> — 이 화면은 ${esc(KIND_NAMES[d.kind])} 메뉴입니다. 그 종류의 검토 규칙으로 보려면 ${esc(KIND_NAMES[d.family] || d.family)} 메뉴에 올려 주세요.</div>`;
++}
+ function fieldLine(f) {
+   const v = f.edited_value ?? f.value, ref = f.ref, part = partOf(f.key);
+   const st = f.status === 'ok' ? '' : f.status === 'blank' ? pill('NotFound', 'Not Found') : f.status === 'review' ? pill('ReviewRequired', 'Review') : pill('placeholder', 'VTA/NA');
+@@ -1769,8 +1803,9 @@ function drawRight() {
+       <div class="sect"><h4>Review Required</h4>${d.fields.filter(f => f.status === 'review' && f.edited_value == null).map(fieldLine).join('') || '<div class="soft">없음</div>'}</div>`;
+   } else if (W.tab === 'data') {
+     const secs = {};
+-    d.fields.forEach(f => { if (f.section === 'process' && f.key.includes('.')) return; (secs[f.section] ||= []).push(f); });
+-    h = `<div class="vpart ${LS.get('vpart', 1) ? '' : 'min'}" id="vpart"><div id="fsrc" class="fsrc"></div><div class="vph"><b>Valve Part</b><span class="soft">칸 ↔ 부위 · Anatomy</span><span class="sp"></span><button id="vfit" title="처음 모습 (조립 · 맞춤)">⟲</button><button id="vpt" title="그림 접기/펼치기">${LS.get('vpart', 1) ? '▾' : '▸'}</button></div><div id="vanat"></div><div class="vpcap" id="vpcap"></div></div>`
++    d.fields.forEach(f => { if ((f.section === 'process' || f.section === 'sizing') && /\.(max|nor|min)$/.test(f.key)) return; (secs[f.section] ||= []).push(f); });
++    h = `<div class="vpart ${LS.get('vpart', 1) ? '' : 'min'}" id="vpart"${(d.kind || 'ball') !== 'ball' ? ' style="display:none"' : ''}><div id="fsrc" class="fsrc"></div><div class="vph"><b>Valve Part</b><span class="soft">칸 ↔ 부위 · Anatomy</span><span class="sp"></span><button id="vfit" title="처음 모습 (조립 · 맞춤)">⟲</button><button id="vpt" title="그림 접기/펼치기">${LS.get('vpart', 1) ? '▾' : '▸'}</button></div><div id="vanat"></div><div class="vpcap" id="vpcap"></div></div>`
++      + kindBanner(d) + caseTable(d)
+       + Object.keys(SECTION_NAMES).filter(s => secs[s]).map(s => `<div class="sect"><h4>${SECTION_NAMES[s]}</h4>${secs[s].map(fieldLine).join('')}</div>`).join('');
+   } else if (W.tab === 'proc') {
+     const P = d.process, ex = ['body_size', 'rating', 'body_material', 'ball_material', 'seat_material', 'piping_class'].map(k => F[k]).filter(Boolean);
+@@ -1872,6 +1907,7 @@ function drawRight() {
+ const MAT_LV = { Action: ['bad', '조치 필요 — 문서 한계를 넘음'], Confirm: ['warn', '확인 필요 — 조건부 허용'], Note: ['soft', '참고 — 검토 기록'] };
+ function matList(d) {                                  // material review (matreview.py): rule · comment · basis · evidence
+   const L = d.material_review || [];
++  if ((d.kind || 'ball') !== 'ball' && !L.length) return `<div class="empty">${esc(KIND_NAMES[d.kind] || '')} 데이터시트에는 Ball Valve 전용 규칙(재질 MR · 설계 VR · 액세서리 AC · 다른 데이터시트 대비 PC · PMS Ball 품목)을 적용하지 않습니다.<br>필수 칸 · HOLD/TBC · 문서 안 모순 · Notes 참조 · Process Data · Revision 검토는 Ball 과 같습니다.</div>`;
+   if (!L.length) return '<div class="empty">검토 의견이 없습니다 — 규칙에 필요한 값(재질 · 설계온도 · PMS Class …)이 문서에 있을 때만 의견을 냅니다.</div>';
+   const grp = r => r.startsWith('MR') ? '재질' : r.startsWith('VR') ? '설계' : r.startsWith('TG') ? 'Tag 번호' : '다른 데이터시트 대비';
+   const ev = x => { const t = esc(x.where) + (x.text ? ` <span class="soft">${esc(String(x.text).slice(0, 90))}</span>` : '');
+@@ -2434,7 +2470,7 @@ async function popCmp() {                                  // the compare view i
+     <div id="modal" hidden><div class="mbox"><h3 id="mTitle"></h3><div id="mBody"></div><div class="mact" id="mAct"></div></div></div>`;
+   $('#plink').onchange = e => LS.set('linkon', e.target.checked ? 1 : 0); modalDrag();
+   S.projects = (await api('GET', '/projects')).projects;
+-  const want = Q.get('project'), p = (want && S.projects.find(x => x.name === want)) || S.projects.find(x => x.id === LS.get('pid')) || S.projects[0];
++  const want = wantProject(), p = (want && S.projects.find(x => x.name === want)) || S.projects.find(x => x.id === LS.get('pid')) || S.projects[0];
+   S.pid = p?.id;
+   let cur = { id: +Q.get('ds'), ikey: Q.get('ikey') };
+   const show = async () => {
+@@ -2492,7 +2528,7 @@ async function popPdf() {                                  // the light PDF wind
+   $('#plink').onchange = e => LS.set('linkon', e.target.checked ? 1 : 0); modalDrag();
+   $('#pprev').onclick = () => link({ t: 'nav', d: -1 }); $('#pnext').onclick = () => link({ t: 'nav', d: 1 });
+   S.projects = (await api('GET', '/projects')).projects;
+-  const want = Q.get('project'), p = (want && S.projects.find(x => x.name === want)) || S.projects.find(x => x.id === LS.get('pid')) || S.projects[0];
++  const want = wantProject(), p = (want && S.projects.find(x => x.name === want)) || S.projects.find(x => x.id === LS.get('pid')) || S.projects[0];
+   S.pid = p?.id; S.view = 'review'; W.tab = 'pop';                  // the workbench's mark-up functions work here unchanged
+   const V = W.viewer = new Viewer($('#popv'), { tools: true,
+     onMark: addMark, onMarkChange: changeMark, onMarkErase: eraseMark, onMarkCmd: markCmd,
+diff --git a/app/valve/api.py b/app/valve/api.py
+index 71796beb..1219bc6b 100644
+--- a/app/valve/api.py
++++ b/app/valve/api.py
+@@ -296,6 +296,34 @@ def _job(jid, **kw):
+         _JOBS[jid].update(kw)
+ 
+ 
++_KIND_CACHE: dict[int, str] = {}
++
++
++def _proj_kind(con, pid) -> str:
++    """valve37: 'ball' · 'globe' · 'butterfly' · 'psv' — from the project name the menu opened ('CO2 PJT · Globe Valve')."""
++    if pid not in _KIND_CACHE:
++        r = store.one(con, "SELECT name FROM project WHERE id=?", pid)
++        _KIND_CACHE[pid] = schema.project_kind(r["name"] if r else "")
++    return _KIND_CACHE[pid]
++
++
++def _kind_warning(name: str, kind: str, dss: list) -> str:
++    """Datasheets of another valve kind than the menu they were put in (they are kept; the user is told where they belong)."""
++    other = {}
++    for ds in dss:
++        fam = ds.get("family") or ""
++        if not fam or fam == kind:
++            continue
++        if kind == "ball" and fam == "butterfly" and ds.get("form") not in ("101", "701"):
++            continue                                         # an On/Off butterfly (Form 80) is reviewed in the Ball menu as before
++        other[fam] = other.get(fam, 0) + 1
++    if not other:
++        return ""
++    parts = [f"{schema.KINDS[f]} {n}장" for f, n in sorted(other.items())]
++    return (f"{name}: {' · '.join(parts)} 은(는) 이 메뉴({schema.KINDS[kind]})가 아닌 다른 밸브 종류입니다 — 저장은 했지만 "
++            f"그 종류의 메뉴에 올려야 그 종류의 검토 규칙으로 봅니다")
++
++
+ def _process(jid: str, pid: int, items: list[tuple[int, str, str, Path]], by: str):
+     con = store.connect()
+     total = sum(max(1, it[4]) for it in items)
+@@ -321,7 +349,7 @@ def _process(jid: str, pid: int, items: list[tuple[int, str, str, Path]], by: st
+                 new_ids = []
+                 with store._LOCK:
+                     for ds in dss:
+-                        ds["form"] = "102" if any(r.get("row", 0) > 61 for r in ds["fields"].values()) else "on/off"
++                        ds["form"] = ds.get("form") or ("102" if any(r.get("row", 0) > 61 for r in ds["fields"].values()) else "on/off")
+                         dup = store.one(con, "SELECT id, document_id FROM datasheet WHERE project_id=? AND tag_key=? AND rev=?"
+                                              " AND document_id IN (SELECT id FROM document WHERE sha256=(SELECT sha256 FROM"
+                                              " document WHERE id=?))", pid, ds["tag_key"], ds["rev"], doc_id)
+@@ -343,6 +371,9 @@ def _process(jid: str, pid: int, items: list[tuple[int, str, str, Path]], by: st
+                     con.commit()
+                 if n_scan:
+                     _job(jid, warn=f"{name}: 글자층이 없는 쪽 {n_scan}장 (스캔본) — 이 판에서는 읽지 못했습니다")
++                kw = _kind_warning(name, _proj_kind(con, pid), dss)   # valve37
++                if kw:
++                    _job(jid, warn=kw)
+                 _carry_over(con, pid, new_ids, by, jid)        # valve26: Rev B inherits what Rev A's review decided
+             elif kind == "valvelist":
+                 data = path.read_bytes()
+@@ -445,7 +476,7 @@ def _rules_fingerprint() -> str:
+ 
+ 
+ _RULES_FP = _rules_fingerprint()
+-VERSION = "valve36"                       # shown in Settings › 정보 and the footer; bump with every package
++VERSION = "valve37"                       # shown in Settings › 정보 and the footer; bump with every package
+ 
+ 
+ @router.get("/api/valve/version")
+@@ -843,6 +874,8 @@ def _ds_full(con, dsid, deep=True, pv=None):
+     d["doc_title"] = (gn or {}).get("title", "")
+     d["area"] = pmsmod.area_of_title(d["doc_title"])
+     F0 = {f["key"]: f for f in fs}
++    d["kind"] = _proj_kind(con, d["project_id"])          # valve37: which menu (rule set) this project belongs to
++    d["family"] = schema.family(d.get("form") or "", F0, d.get("title", ""), d["tag"])   # what the sheet says it is
+     title = locmod.title_for(d["doc_no"], docs_info)
+     if not title:                                        # e.g. a one-sheet revision without cover: the same Doc. No. in another upload
+         for o in store.rows(con, "SELECT info FROM document WHERE project_id=? AND id<>? AND info IS NOT NULL", d["project_id"], d["document_id"]):
+@@ -980,17 +1013,21 @@ def _ds_deep(con, d, dsid):
+     fs = d["fields"]
+     pms, pdoc = _pms_for(con, d["project_id"])
+     F = {f["key"]: f for f in fs}
+-    d["pms"] = pmsmod.check(F, pms, d["area"], d["notes"]) if pms else None
++    ball = (d.get("kind") or "ball") == "ball"           # valve37: Ball-only rules (PMS ball items · MR · VR · AC · PC) run in Ball projects
++    d["pms"] = pmsmod.check(F, pms, d["area"], d["notes"]) if pms and ball else None
+     d["pms_doc"] = pdoc
+     d["requirements"] = reqmod.find(d, d["general_notes"])
+     proc, procdoc = _process_for(con, d["project_id"])
+     d["process"] = procmod.check(d, proc) if proc else None
+     d["process_doc"] = procdoc
+     cls = pmsmod.find_class(pms, schema.effective(F.get("piping_class")), schema.effective(F.get("line_no")), d["area"])[0] if pms else None
+-    d["material_review"] = matmod.review(d, d["general_notes"], cls, d["process"],
+-                                         ((proc or {}).get("by_tag") or {}).get(d["tag_key"]), d["requirements"])
+-    d["material_review"] += expmod.review(d, d["general_notes"], cls, d["process"], ((proc or {}).get("by_tag") or {}).get(d["tag_key"]),
+-                                          d["requirements"], _peers_for(con, d["project_id"]))
++    if ball:
++        d["material_review"] = matmod.review(d, d["general_notes"], cls, d["process"],
++                                             ((proc or {}).get("by_tag") or {}).get(d["tag_key"]), d["requirements"])
++        d["material_review"] += expmod.review(d, d["general_notes"], cls, d["process"], ((proc or {}).get("by_tag") or {}).get(d["tag_key"]),
++                                              d["requirements"], _peers_for(con, d["project_id"]))
++    else:
++        d["material_review"] = []
+     d["material_review"] += tagmod.check(_tag_item(d), _tags_for(con, d["project_id"]))
+     prev = None
+     i = next((n for n, r in enumerate(d["revisions"]) if r["id"] == d["id"]), 0)
+@@ -1020,6 +1057,7 @@ def _ds_deep(con, d, dsid):
+                                                                                    (d.get("location") or {}).get("unit") or "")), None)
+     T = matmod.proc_value(F, d["process"], "design_temp")
+     d["verification"] = chkmod.report(d["issues"], {
++        "kind": d.get("kind") or "ball",
+         "has_pms": pms is not None, "pms_class": bool(cls), "piping_class": pcls,
+         "has_process": proc is not None, "pd_row": bool(((proc or {}).get("by_tag") or {}).get(d["tag_key"])),
+         "design_temp": T["v"] if T else None, "has_prev": i > 0,
+diff --git a/app/valve/checks.py b/app/valve/checks.py
+index 3964f555..76b8e09c 100644
+--- a/app/valve/checks.py
++++ b/app/valve/checks.py
+@@ -67,6 +67,7 @@ REGISTRY = [
+     ("REV-01", "Changes vs previous revision", "Revision", "prev"),
+ ]
+ GROUPS = ["Datasheet", "PMS", "Process", "Material", "Design", "Peer", "Tag", "Revision"]
++BALL_ONLY = {"PMS", "Material", "Design", "Accessory", "Peer"}   # valve37: written for ball valves (PMS ball items, MR/VR/AC/PC)
+ TITLE = {c[0]: c[1] for c in REGISTRY}
+ 
+ # valve29 — rule version and source.  Every rule starts at version 1 (= the logic shipped in valve28).  A rule changes
+@@ -95,6 +96,8 @@ def rule_of(check: str) -> str:
+ 
+ def _na_reason(need: str, ctx: dict) -> str | None:
+     """Why a check could not run, or None when it could."""
++    if ctx.get("kind", "ball") != "ball" and ctx.get("_group") in BALL_ONLY:   # valve37
++        return "Ball Valve rule — not applied to this valve kind"
+     for n in need.split("+"):
+         if n == "class":
+             if not ctx.get("has_pms"):
+@@ -136,7 +139,7 @@ def report(issues: list[dict], ctx: dict) -> dict:
+         if n:
+             out.append({"id": cid, "title": title, "group": group, "status": "fail", "reason": "", "findings": n})
+             continue
+-        why = _na_reason(need, ctx)
++        why = _na_reason(need, dict(ctx, _group=group) if ctx.get("kind", "ball") != "ball" else ctx)
+         out.append({"id": cid, "title": title, "group": group, "status": "n/a" if why else "pass", "reason": why or "", "findings": 0})
+     s = {"pass": sum(1 for c in out if c["status"] == "pass"), "fail": sum(1 for c in out if c["status"] == "fail"),
+          "na": sum(1 for c in out if c["status"] == "n/a")}
+diff --git a/app/valve/extract.py b/app/valve/extract.py
+index 1abd0efd..ecd8b357 100644
+--- a/app/valve/extract.py
++++ b/app/valve/extract.py
+@@ -26,7 +26,12 @@ from app.valve import schema
+ 
+ # valve29: recorded on every datasheet read (source traceability). Bump when the reading logic changes —
+ # the last change to how cells are found was valve22 (robustness round), so this reader is "extract-v22".
+-PARSER_VERSION = "extract-v22"
++PARSER_VERSION = "extract-v37"     # valve37: Forms 101 / 701 · Code 80 with a bottom title block · notes-only sheets (forms_ext)
++
++
++def _forms():
++    from app.valve import forms_ext                       # Globe · Butterfly · PSV forms (valve37) — lazy, no import cycle
++    return forms_ext
+ 
+ _DOC_RE = re.compile(r"\b\d{2,3}-\d{2}-IN-DTS-\d{5}\b")
+ _LOOSE_DOC = re.compile(r"\d{2,3}-\d{2}-[A-Z]{2}-[A-Z]{2,4}-\d{1,6}")   # as printed, typos included
+@@ -263,8 +268,14 @@ def read_page(page, page_no: int):
+     if not words:
+         return {"page": page_no, "scanned": True}
+     cols = _number_columns(words)
++    fk = _forms().form_no(words, page)                      # 'Form No : 101 / 701' (valve37)
++    if fk == "701" and len(cols) == 1:
++        return _forms().read_page_701(page, page_no, words, cols[0])
+     if len(cols) >= 2 or (len(cols) == 1 and _colon_rows(words, cols[0])):
+-        return read_page_102(page, page_no, words, cols)
++        sh = read_page_102(page, page_no, words, cols)
++        if fk == "101" and len(cols) >= 2:
++            _forms().fix_101(page, sh, words, cols)
++        return sh
+     nums = _row_numbers(words, page.rect.width)
+     if not nums:
+         return read_notes_page(page, page_no, words)
+@@ -306,6 +317,8 @@ def read_page(page, page_no: int):
+         return ""
+ 
+     hdr = _header(page, words, min(w[1] for w in nums) - 2)
++    if hdr["sheet"] is None and not hdr["doc_no"]:           # valve37: the same form with its title block at the bottom
++        _forms().apply_footer(page, words, hdr, max(ys) + pitch / 2)
+     rows, used = [], set(id(w) for w in nums)
+     for i, nw in enumerate(nums):
+         y = ys[i]
+@@ -816,6 +829,11 @@ def read_pdf(path: str, progress=None):
+             page.set_rotation(0)
+         rp, k = _normalised(page)
+         sh = read_page(rp, i + 1)
++        if sh is None and sheets:                            # valve37: a notes-only next sheet of the datasheet before it
++            sh = _forms().read_continuation(rp, i + 1, _visible(rp.get_text("words"), _hidden_boxes(rp)), sheets[-1])
++        elif (sh and sh.get("form") == "process-table" and sheets and sheets[-1].get("form") == "101"
++              and schema.norm_tag(sh.get("tag")) == schema.norm_tag(sheets[-1].get("tag"))):
++            _forms().fix_101_sheet2(sh, sheets[-1])
+         mat = None
+         if rot:
+             page.set_rotation(rot)
+@@ -880,6 +898,8 @@ def group_datasheets(result: dict):
+         if pr and pr != cur["doc_no"] and sh.get("sheet") and not sh.get("continuation"):   # another number than sheet 1
+             cur.setdefault("sheet_doc_mismatch", []).append({"page": sh["page"], "sheet": sh.get("sheet"), "printed": pr})
+         cur["sheets"].append([sh["page"], sh.get("sheet"), sh.get("of")])     # PDF page -> 'Sheet x of y' on the form
++        if sh.get("form") in ("101", "701") and not cur.get("form"):
++            cur["form"] = sh["form"]                         # valve37: Control Valve / Pressure Relief Valve form
+         for r in sh["rows"]:
+             r = dict(r, page=sh["page"])
+             cur["rows"].append(r)
+@@ -893,6 +913,9 @@ def group_datasheets(result: dict):
+             cur["notes"].append(dict(n, page=sh["page"]))
+     for ds in out:
+         ds["valve_type"] = schema.valve_type(ds["tag"])
++        ds["family"] = schema.family(ds.get("form") or "", ds["fields"], ds.get("title", ""), ds["tag"])   # valve37
++        if ds["family"] == "butterfly" and "ball_material" in ds["fields"]:
++            ds["fields"]["ball_material"]["display"] = "Disc Material"
+         gn = result["docs"].get(ds["doc_no"], {}).get("general_notes", {})
+         ds["process_ref"] = process_reference(ds["notes"], gn)
+         for r in ds["fields"].values():                     # 'General Note - 8' / 'Note-1' -> the note it points at
+diff --git a/app/valve/forms_ext.py b/app/valve/forms_ext.py
+new file mode 100644
+index 00000000..5df871a5
+--- /dev/null
++++ b/app/valve/forms_ext.py
+@@ -0,0 +1,490 @@
++"""valve37 — more datasheet forms for the Globe · Butterfly · PSV menus (deterministic, no OCR / LLM).
++
++  Form 101  Control Valve (Globe CV · Butterfly CV) — sheet 1 is laid out like Form 102 (two numbered columns, 'Label : value',
++            bold values) and is read by extract.read_page_102; this module re-files its rows by block caption + heading,
++            because the same label means different things in different blocks (Positioner 'Manufacturer', Solenoid 'Tag No',
++            Position-transmitter 'Rating', Paint 'Handwheel' …).  Sheet 2 is the Max/Nor/Min process + sizing table
++            (extract.read_process_table); its sizing lines go to their own section.  Sheet 3 is the notes page (form 000).
++  Form 701  Pressure Relief Valve — one numbered column 1-50, bold values on short underlines (1-3 per row), small sub-labels
++            ('Type' · 'Action' · 'Size' · 'Rating' …) before a slot.  read_page_701 reads it slot by slot.
++  Code 80   On/Off valve (the Ball form) printed with its title block at the BOTTOM of the page and a notes-only sheet 2.
++
++Every number used here is measured on the page itself (rules, underlines, number column, text height) — no coordinates are fixed.
++Nothing here runs for the forms the Ball module already reads (Form 80 with the title block on top, Form 102, process tables).
++"""
++from __future__ import annotations
++
++import re
++
++from app.valve import schema
++
++_FORM_NO = re.compile(r"Form\s*No\s*[:.]?\s*(\d{3})\b", re.I)
++_UNITS = {"bar-g", "barg", "bar(g)", "bar", "bara", "bar(a)", "bar-a", "psi", "psig", "psia", "kpa", "kpag", "mpa", "mpag", "ºc", "°c",
++          "degc", "ºf", "°f", "kg/m3", "kg/m³", "cp", "%", "kg/h", "kg/hr", "t/h", "nm3/h", "m3/h", "mm2", "mm²", "in2", "in²", "n", "kn",
++          "in", "mm", "g/mol", "kg/kmol"}
++
++
++def _ex():
++    from app.valve import extract                         # extract imports this module lazily — no import cycle
++    return extract
++
++
++def form_no(words, page) -> str | None:
++    """'Form No : 101' / 'Form No: 701' printed above the title block (top fifth of the page)."""
++    top = [w for w in words if w[3] < page.rect.height * 0.2]
++    m = _FORM_NO.search(" ".join(w[4] for w in sorted(top, key=lambda w: (round(w[1]), w[0]))))
++    return m.group(1) if m else None
++
++
++def _spans(page):
++    ex = _ex()
++    out = []
++    for b in page.get_text("dict")["blocks"]:
++        for ln in b.get("lines", []):
++            for sp in ln["spans"]:
++                t = sp["text"].strip()
++                if t:
++                    x0, y0, x1, y1 = sp["bbox"]
++                    out.append({"x0": x0, "y0": y0, "x1": x1, "y1": y1, "text": t, "size": sp["size"],
++                                "bold": bool(sp["flags"] & 16) or "Bold" in sp["font"]})
++    return ex._visible(out, ex._hidden_boxes(page), box=lambda s: (s["x0"], s["y0"], s["x1"], s["y1"]), text=lambda s: s["text"])
++
++
++def _status(key_hit: bool, value: str) -> str:
++    if not key_hit:
++        return "review" if value else "blank"
++    if not value:
++        return "blank"
++    return "placeholder" if schema.norm_label(value) in schema.PLACEHOLDERS else "ok"
++
++
++def _header_doc_only(page, words, top_y, hdr, tag="", pid=""):
++    """Forms 101 / 701: the document number is the one printed in the DOCUMENT/DRAWING NO. cell of the title block.
++    extract._header falls back to any number-like text on the page (the P&ID number) — wrong here: a PSV prints its
++    tag in that cell, a draft prints 'XX-XX-XX-XXX-XXXXX'.  Keep the header number only when it is printed in the block."""
++    ex = _ex()
++    head = " ".join(w[4] for w in words if w[3] <= top_y + 1)
++    m = ex._DOC_RE.search(head) or ex._ANY_DOC_RE.search(head)
++    if m and (not pid or schema.norm_tag(m.group(0)) != schema.norm_tag(pid)):
++        hdr["doc_no"] = m.group(0)
++    else:
++        hdr["doc_no"] = ""
++    return hdr
++
++
++# ── Form 101 sheet 1 ─────────────────────────────────────────────────────────────────────────────────────────
++
++def _bands(page, x_a, x_b):
++    hz = sorted({round(y, 1) for y in _ex()._horizontals(page, x_a, x_b)})
++    return [(a, b) for a, b in zip(hz, hz[1:]) if b - a > 4]
++
++
++def fix_101(page, sh, words, cols):
++    """Re-file the rows read_page_102 found on a Form 101 sheet 1: block caption by the ruled band the row sits in,
++    keys by (label, block, heading); split 'Max / Min' values; notes boxes under the table; document number."""
++    spans = _spans(page)
++    row_pos = {}                                            # row number -> (column index, y)
++    for ci, col in enumerate(cols):
++        for w in col:
++            row_pos.setdefault(int(w[4]), (ci, (w[1] + w[3]) / 2))
++    blocks = []
++    for ci, col in enumerate(cols):
++        x_num1 = max(w[2] for w in col)
++        letters = [s for s in spans if x_num1 + 1 <= s["x0"] <= x_num1 + 22 and len(s["text"]) <= 2 and s["text"][:1].isalpha()]
++        bands = _bands(page, x_num1 + 4, x_num1 + 16)
++        cap = []
++        for a, b in bands:
++            t = "".join(s["text"] for s in sorted(letters, key=lambda s: s["y0"]) if a <= (s["y0"] + s["y1"]) / 2 <= b)
++            cap.append((a, b, t))
++        blocks.append(cap)
++
++    def block_of(n):
++        ci, y = row_pos.get(n, (None, None))
++        if ci is None:
++            return ""
++        return next((t for a, b, t in blocks[ci] if a <= y <= b), "")
++
++    ctx, last_block = "", None
++    for r in sorted(sh["rows"], key=lambda r: (r["row"], (r.get("label_bbox") or [0])[0])):
++        blk = block_of(r["row"]) or r.get("group", "")
++        if blk != last_block:
++            ctx, last_block = "", blk
++        if schema.norm_label(r["label"]) == "type of position indication":
++            ctx = "POSIND"
++        r["group"] = blk
++        hit = schema.lookup_101(r["label"], blk, r.get("heading", ""), ctx if schema.norm_label(r["label"]) != "type of position indication" else "")
++        if hit:
++            key, sec, disp = hit
++            if key == "notes_row":
++                b = schema._blk(blk).lower()[:10] or "row"
++                key, disp = f"notes_{b}", f"Notes ({blk.title() or 'row'})"
++            r["key"], r["section"], r["display"] = key, sec, disp
++            r["status"] = _status(True, r["value"])
++        _tidy_value(r)
++    extra = []
++    for r in list(sh["rows"]):                             # 'Max / Min' and 'size / size' cells -> one field each
++        extra += _split_pair(r)
++    sh["rows"] += extra
++    pid = next((r["value"] for r in sh["rows"] if r["key"] == "pid_no"), "")
++    first_top = min(w[1] for c in cols for w in c)
++    _header_doc_only(page, words, first_top - 2, sh, pid=pid)
++    last_y = max(w[3] for c in cols for w in c)
++    sh["notes"] = (sh.get("notes") or []) + _notes_boxes(page, words, last_y)
++    sh["form"] = "101"
++    return sh
++
++
++_QUOTE = re.compile(r"(['‘’`])\s*(\w{1,3})\s*(['‘’`])")
++
++
++def _tidy_value(r):
++    if r["key"] == "ex_type" and r["value"]:                 # "Ex / ' / d / ' / / Ex ‘n’" -> "Ex 'd' / Ex ‘n’"
++        v = re.sub(r"\s*/\s*", " ", r["value"])
++        v = _QUOTE.sub(r"\1\2\3", v)
++        v = re.sub(r"\s+", " ", v).strip()
++        v = re.sub(r"(?<!or)(?<!and)\s+(?=Ex\b)", " / ", v)   # a list of types, not 'Ex n or Ex ec'
++        r["value"] = re.sub(r"(?:\s*/\s*){2,}", " / ", v).strip(" /")
++
++
++_PAIRS = {"design_pressure": ("design_pressure_min", "Design Pressure (Min)"),
++          "design_temp": ("design_temp_min", "Design Temperature (Min)"),
++          "ia_op_pressure": ("ia_op_pressure_min", "Instrument Air Operating Pressure (Min)"),
++          "body_size": ("body_size_2", "Valve Size (2nd value)")}
++
++
++def _split_pair(r):
++    """'98 / bar-g' -> 98 (unit bar-g) · '195 / -30 / ºC' -> 195 and Min -30 · '1.5 / (VTA) / in' -> 1.5 and 2nd value VTA."""
++    if r["key"] not in _PAIRS or not r["value"] or "/" not in r["value"]:
++        return []
++    parts = []
++    for p in r["value"].split("/"):
++        p = p.strip()
++        w = p.split()
++        if len(w) > 1 and schema.norm_label(w[-1]) in _UNITS:  # '4.5  bar-g' -> value 4.5 · unit bar-g
++            parts += [" ".join(w[:-1]), w[-1]]
++        else:
++            parts.append(p)
++    units = [p for p in parts if schema.norm_label(p) in _UNITS]
++    vals = [p for p in parts if p and p not in units]
++    if units and not r.get("unit"):
++        r["unit"] = units[0]
++    if not vals:
++        r["value"] = ""
++        r["status"] = "blank"
++        return []
++    r["value"] = vals[0]
++    r["status"] = _status(True, r["value"])
++    if len(vals) < 2:
++        return []
++    k2, d2 = _PAIRS[r["key"]]
++    v2 = vals[1].strip("()")
++    return [dict(r, key=k2, display=d2, value=v2, status=_status(True, v2))]
++
++
++def fix_101_sheet2(sh, prev):
++    """Form 101 sheet 2: sizing lines -> section 'sizing'; lines printed across Max/Nor/Min -> one value; header number
++    as on sheet 1 (a draft prints no document number)."""
++    keep, spans = [], {}
++    for r in sh["rows"]:
++        m = re.match(r"^(.*) \((Max|Nor|Min)\)$", r.get("label") or "")
++        if not m:
++            keep.append(r)
++            continue
++        base, case = schema.norm_label(m.group(1)), m.group(2).lower()
++        if base in schema.SIZING_101:
++            k, disp = schema.SIZING_101[base]
++            keep.append(dict(r, key=f"{k}.{case}", section="sizing", display=f"{disp} ({m.group(2)})",
++                             status="ok" if r["value"] else "blank"))
++        elif base in schema.SPAN_101:
++            spans.setdefault(base, []).append(r)
++        elif r["key"].rsplit(".", 1)[0] in schema.PROPS_101:
++            keep.append(dict(r, section="sizing"))             # phase-dependent property: not 'missing' when blank
++        else:
++            keep.append(r)
++    for base, rs in spans.items():
++        k, disp = schema.SPAN_101[base]
++        order = {"max": 0, "nor": 1, "min": 2}
++        rs.sort(key=lambda r: order[r["key"].rsplit(".", 1)[-1]])
++        txt = " ".join(r["value"] for r in rs if r["value"])
++        parts = [p for p in re.split(r"\s+", txt) if p and p != "/"]
++        units = [p for p in parts if schema.norm_label(p) in _UNITS]
++        vals = [p for p in parts if p not in units]
++        bbs = [r["bbox"] for r in rs if r["value"] and r.get("bbox")]
++        bb = [min(b[0] for b in bbs), min(b[1] for b in bbs), max(b[2] for b in bbs), max(b[3] for b in bbs)] if bbs else rs[0].get("bbox")
++        v = " / ".join(vals)
++        keep.append(dict(rs[0], key=k, section="sizing", display=disp, label=rs[0]["label"].rsplit(" (", 1)[0],
++                         value=v, unit=(units[0] if units else rs[0].get("unit", "")), bbox=bb, status="ok" if v else "blank"))
++    sh["rows"] = keep
++    if prev:
++        sh["doc_no"] = prev.get("doc_no", sh.get("doc_no", ""))
++    sh["form"] = "101"
++    return sh
++
++
++def _notes_boxes(page, words, y_from):
++    """'Common Notes :' / 'Individual Notes :' boxes under the numbered table (Forms 101 · 701)."""
++    ex = _ex()
++    below = [w for w in words if w[1] > y_from + 2]
++    labs = {w[4].rstrip(":").lower(): w for w in below if w[4].rstrip(":").lower() in ("common", "individual")}
++    if not labs:
++        return []
++    cut = labs["individual"][0] - 2 if "individual" in labs else page.rect.width
++    top = min(w[3] for w in labs.values())
++    foot = [w for w in below if re.fullmatch(r"form", w[4], re.I)]          # 'form 101_R9.02' footer stamp
++    bottom = min((w[1] for w in foot), default=page.rect.height) - 1
++    out = []
++    for name, x_a, x_b in (("Common Notes", 0, cut), ("", cut, page.rect.width)):
++        body = [w for w in below if top < (w[1] + w[3]) / 2 < bottom and x_a <= w[0] < x_b
++                and w[4].rstrip(":").lower() not in ("common", "individual", "notes")]
++        for n in ex._numbered(body):
++            out.append(dict(n, section=name) if name else n)
++    return out
++
++
++# ── Form 701 (Pressure Relief Valve) ─────────────────────────────────────────────────────────────────────────
++
++def _underlines(page, x_from):
++    out = []
++    for dr in page.get_drawings():
++        for it in dr["items"]:
++            if it[0] == "re":
++                r = it[1]
++                if r.height < 1.5 and r.width > 8 and r.x0 >= x_from - 2:
++                    out.append((r.x0, r.x1, (r.y0 + r.y1) / 2))
++            elif it[0] == "l":
++                a, b = it[1], it[2]
++                if abs(a.y - b.y) < 0.6 and abs(a.x - b.x) > 8 and min(a.x, b.x) >= x_from - 2:
++                    out.append((min(a.x, b.x), max(a.x, b.x), (a.y + b.y) / 2))
++    return out
++
++
++def read_page_701(page, page_no, words, col):
++    ex = _ex()
++    spans = _spans(page)
++    nums = sorted(col, key=lambda w: w[1])
++    x_num1 = max(w[2] for w in nums)
++    ys = [(w[1] + w[3]) / 2 for w in nums]
++    pitch = sorted(b - a for a, b in zip(ys, ys[1:]))[len(ys) // 2]
++    y_top, y_bot = min(w[1] for w in nums), max(w[3] for w in nums)
++    # the label column ends at the first vertical rule that runs the whole numbered table, well right of the numbers
++    vert = ex._verticals(page)
++    cover = sorted({round(x, 1) for x, a, b in vert if a <= y_top + 2 and b >= y_bot - 2 and x > x_num1 + pitch * 4})
++    x_val0 = cover[0] if cover else page.rect.width * 0.32
++    x_right = cover[-1] if len(cover) > 1 else page.rect.width
++    lines = [u for u in _underlines(page, x_val0) if u[1] <= x_right + 2 and y_top - 2 <= u[2] <= y_bot + pitch]   # the table only
++    # the page's value-slot grid: underline starts that recur on several rows (merged when closer than a label word),
++    # used for a multi-item row printed without underlines ('Adjusting Rings / Spring / Bellows')
++    clusters = []
++    for x in sorted(round(a, 1) for a, b, uy in lines):
++        if clusters and x - clusters[-1][-1] < pitch * 3.5:
++            clusters[-1].append(x)
++        else:
++            clusters.append([x])
++    grid = [c[0] for c in clusters if len(c) >= 3]
++    hdr = ex._header(page, words, y_top - 2)
++    rows, prev_label = [], ""
++    for i, nw in enumerate(nums):
++        n, y = int(nw[4]), ys[i]
++        y0, y1 = y - pitch / 2, y + pitch / 2
++        rs = [s for s in spans if y0 <= (s["y0"] + s["y1"]) / 2 < y1 and s["x0"] > x_num1 + 1]
++        lab_sp = [s for s in rs if s["x0"] < x_val0 - 4 and not s["bold"] and not (len(s["text"]) <= 2 and s["text"][:1].isalpha())
++                  and s["text"] != "/"]                     # caption letters and the '/' of 'S / S' are not the label
++        right = sorted([s for s in rs if (s["x0"] >= x_val0 - 4 or s["bold"]) and s["text"] != "/"], key=lambda s: s["x0"])   # '/' between slots
++        label = " ".join(s["text"] for s in sorted(lab_sp, key=lambda s: s["x0"])).strip()
++        segs = sorted({(round(a, 1), round(b, 1)) for a, b, uy in lines if y - pitch * 0.15 <= uy <= y + pitch * 0.85})
++        merged = []
++        for a, b in segs:
++            if merged and a <= merged[-1][1] + 1:
++                merged[-1] = (merged[-1][0], max(b, merged[-1][1]))
++            else:
++                merged.append((a, b))
++        subs = [s for s in right if not s["bold"] and schema.norm_label(s["text"]).rstrip(":") in schema.SUB_701]
++        label0 = " ".join(s["text"] for s in sorted(lab_sp, key=lambda s: s["x0"])).strip() or prev_label
++        nkeys = len((schema.lookup_701(label0) or ([1],))[0])
++        if not merged and len(subs) >= 2:                     # no underlines: each sub-label opens a slot
++            xs = [s["x0"] for s in subs]
++            merged = [(a, (xs[j + 1] - 1) if j + 1 < len(xs) else x_right) for j, a in enumerate(xs)]
++        elif not merged and nkeys > 1 and len(grid) >= 2:     # no underlines, several items: the page's slot grid
++            merged = [(a, (grid[j + 1] - 1) if j + 1 < len(grid) else x_right) for j, a in enumerate(grid)]
++        slots = [{"x0": a, "x1": b, "vals": [], "sub": ""} for a, b in merged] or [{"x0": x_val0, "x1": x_right, "vals": [], "sub": ""}]
++        for s in right:
++            word = schema.norm_label(s["text"]).rstrip(":")
++            cx = (s["x0"] + s["x1"]) / 2
++            if not s["bold"] and word in schema.SUB_701:
++                nxt = [sl for sl in slots if sl["x0"] >= s["x0"] - 3] or slots[-1:]
++                nxt[0]["sub"] = schema.SUB_701[word]
++                continue
++            inside = [sl for sl in slots if sl["x0"] - 4 <= cx <= sl["x1"] + 4]
++            tgt = inside[0] if inside else min(slots, key=lambda sl: min(abs(cx - sl["x0"]), abs(cx - sl["x1"])))
++            tgt["vals"].append(s)
++        if not label and not any(sl["vals"] for sl in slots) and not any(sl["sub"] for sl in slots):
++            continue
++        if not label and prev_label and any(sl["sub"] for sl in slots):
++            label = prev_label                                 # 'Pilot' prints once for its Type/Action and Sensing/Vent rows
++        prev_label = label or prev_label
++        hit = schema.lookup_701(label)
++        lab_bb = ex._bbox([(s["x0"], s["y0"], s["x1"], s["y1"]) for s in lab_sp])
++        texts = [" ".join(v["text"] for v in sl["vals"]).strip() for sl in slots]
++        # a slot holding only a unit (bar-g · ºC · kg/m³) belongs to the value slot before it
++        units = [""] * len(slots)
++        keep = []
++        for k, sl in enumerate(slots):
++            if texts[k] and schema.norm_label(texts[k]) in _UNITS:
++                tgt = keep[-1] if keep else None
++                if tgt is not None:
++                    units[tgt] = texts[k]
++                else:
++                    units[k] = texts[k]
++                    keep.append(k)
++                    texts[k] = ""
++                continue
++            keep.append(k)
++        if hit:
++            keys, sec, disps = hit
++        else:
++            slug = re.sub(r"[^a-z0-9]+", "_", schema.norm_label(label)).strip("_") or f"row{n}"
++            keys, sec, disps = [f"x.{slug}"], "general", [label or f"Row {n}"]
++        multi = len(keys) > 1
++        for j, k in enumerate(keep):
++            sl = slots[k]
++            if multi:
++                if j >= len(keys):
++                    if not texts[k]:
++                        continue                               # an unused slot beyond the printed items
++                    key, disp = f"raw.{n}.{j}", f"{label} ({j + 1})"
++                else:
++                    key, disp = keys[j], disps[j]
++            elif sl["sub"]:
++                key, disp = schema.SUBKEY_701.get((keys[0], sl["sub"]), (f"{keys[0]}_{sl['sub']}", f"{disps[0]} {sl['sub'].title()}"))
++            elif j == 0:
++                key, disp = keys[0], disps[0]
++            else:
++                if not texts[k]:
++                    continue                                   # an empty extra slot of a one-item row (unit / 2nd case)
++                key, disp = f"{keys[0]}_{j + 1}", f"{disps[0]} ({j + 1})"
++            v = texts[k]
++            vb = ex._bbox([(x["x0"], x["y0"], x["x1"], x["y1"]) for x in sl["vals"]]) if v else [round(sl["x0"], 1), round(y0, 1), round(sl["x1"], 1), round(y1, 1)]
++            ok = bool(hit) and not key.startswith("raw.")
++            rows.append({"row": n, "group": "", "label": label, "key": key, "section": sec, "display": disp, "value": v,
++                         "unit": units[k], "bbox": vb, "label_bbox": lab_bb, "status": _status(ok, v)})
++    tag = next((r["value"] for r in rows if r["key"] == "tag" and r["value"]), "")
++    pid = next((r["value"] for r in rows if r["key"] == "pid_no"), "")
++    _header_doc_only(page, words, y_top - 2, hdr, tag=tag, pid=pid)
++    if tag and schema.norm_tag(hdr["doc_no"]) == schema.norm_tag(tag):
++        hdr["doc_no"] = ""
++    notes = _notes_boxes(page, words, y_bot)
++    return {"page": page_no, **hdr, "tag": tag, "rows": rows, "notes": notes, "form": "701",
++            "row_range": [int(nums[0][4]), int(nums[-1][4])]}
++
++
++# ── title block at the bottom (Code 80 printed by another project) ───────────────────────────────────────────
++
++def footer(page, words, y_from):
++    """'… Sheet 1 of 2 · Code: 80 · Dwg. No.: xxxxx · Rev.:A' and revision lines in a block under the table."""
++    ex = _ex()
++    low = [w for w in words if w[1] >= y_from]
++    out = {}
++    if not low:
++        return out
++    def right_num(lab):
++        cy = (lab[1] + lab[3]) / 2
++        n = sorted((w for w in low if w[0] > lab[2] and w[1] <= cy <= w[3] and w[4].isdigit()), key=lambda w: w[0])
++        return int(n[0][4]) if n else None
++    for lab in (w for w in low if w[4].lower() == "sheet"):
++        sh = right_num(lab)
++        ofw = next((w for w in low if w[4].lower() == "of" and w[1] <= (lab[1] + lab[3]) / 2 <= w[3] and w[0] > lab[2]), None)
++        of = right_num(ofw) if ofw else None
++        if sh and of:
++            out["sheet"], out["of"] = sh, of
++            break
++    for w in low:
++        m = re.match(r"^Rev\.?:?([0-9A-Z]{1,2})$", w[4])
++        if m:
++            out["rev"] = m.group(1)
++        if w[4].lower().startswith("rev") and w[4].endswith(":"):
++            cy = (w[1] + w[3]) / 2
++            nx = sorted((v for v in low if v[0] > w[2] and abs((v[1] + v[3]) / 2 - cy) < 3), key=lambda v: v[0])
++            if nx and re.fullmatch(r"[0-9A-Z]{1,2}", nx[0][4]):
++                out["rev"] = nx[0][4]
++    txt = " ".join(w[4] for w in sorted(low, key=lambda w: (round(w[1]), w[0])))
++    m = re.search(r"Code\s*:\s*(\d+)", txt)
++    if m:
++        out["code"] = m.group(1)
++    m = ex._DOC_RE.search(txt) or ex._ANY_DOC_RE.search(txt)
++    out["doc_no"] = m.group(0) if m else ""
++    if "DATA SHEET" in txt.upper():
++        t = re.search(r"DATA SHEET\s+([A-Z /&-]+?VALVE)", txt.upper())
++        out["title"] = ("DATA SHEET " + t.group(1)).strip() if t else "DATA SHEET"
++    hist = []
++    for ln in ex._lines(low):
++        s = " ".join(w[4] for w in ln)
++        mm = re.match(r"^([0-9A-Z]{1,2})\s+(\S+)\s+(\d{1,2}/\d{1,2}/\d{4})\s+(.+)", s)
++        if mm and "Print" not in s:
++            desc = re.sub(r"\s+(Sheet\s+\d+\s+of\s+\d+|Code\s*:|Dwg\.).*$", "", mm.group(4)).strip()   # same text line as the block cells
++            hist.append(" ".join([mm.group(1), mm.group(2), mm.group(3), desc]))
++            if out.get("rev") == mm.group(1):
++                out["date"] = mm.group(3)
++    out["rev_history"] = sorted(set(hist))
++    if not out.get("date") and hist:
++        out["date"] = hist[-1].split()[2]
++    return out
++
++
++def apply_footer(page, words, hdr, y_from):
++    ft = footer(page, words, y_from)
++    for k in ("sheet", "of", "rev", "date", "title", "doc_no"):
++        if ft.get(k) and not hdr.get(k):
++            hdr[k] = ft[k]
++    if ft.get("rev_history") and not hdr.get("rev_history"):
++        hdr["rev_history"] = ft["rev_history"]
++    return hdr
++
++
++# ── a notes-only continuation sheet (Code 80 sheet 2 · Form 101/701 'form 000' notes sheet) ─────────────────
++
++def read_continuation(page, page_no, words, prev):
++    """Only when the previous datasheet page says more sheets follow and THIS page prints the next sheet number of the same
++    count (and, when it prints a tag, the same tag).  Anything else is left to the caller (cover, index, general notes)."""
++    ex = _ex()
++    if not prev or not prev.get("of") or not prev.get("sheet") or prev["sheet"] >= prev["of"]:
++        return None
++    tag_w = [w for w in words if w[4] == "Tag" or w[4].startswith("Tag")]
++    ind = next((w for w in words if w[4].lower().startswith("individual")), None)
++    top_y = (tag_w[0][1] if tag_w else ind[1] if ind else page.rect.height * 0.15) - 1
++    hdr = ex._header(page, words, top_y)
++    if hdr.get("sheet") is None:
++        apply_footer(page, words, hdr, page.rect.height * 0.7)
++    if hdr.get("sheet") != prev["sheet"] + 1 or (hdr.get("of") and hdr["of"] != prev["of"]):
++        return None
++    tag = ""
++    for w in tag_w:                                          # 'Tag No.   98FV  980011' (no colon on this form)
++        cy = (w[1] + w[3]) / 2
++        line = sorted((v for v in words if abs((v[1] + v[3]) / 2 - cy) < 3 and v[0] > w[2]), key=lambda v: v[0])
++        line = [v for v in line if v[4] not in (":", "No.", "No", "No.:", "Number", "Number:")]
++        if line:
++            tag = " ".join(v[4] for v in line[:3])
++            break
++    if tag and schema.norm_tag(tag) != schema.norm_tag(prev.get("tag", "")) and not schema.norm_tag(prev.get("tag", "")).startswith(schema.norm_tag(tag)):
++        return None
++    labels = [w for w in words if w[4].rstrip(":").lower() in ("notes", "individual", "common")]
++    if not labels:
++        return None
++    start = min(w[3] for w in labels)
++    foot = [w for w in words if w[1] > page.rect.height * 0.6 and re.fullmatch(r"(Code:|Revision|form|Sheet)", w[4], re.I)]
++    bottom = min((w[1] for w in foot), default=page.rect.height) - 1
++    low_notes = [w for w in words if w[4].rstrip(":").lower() == "notes" and w[1] > start + 20 and w[1] < bottom   # a 2nd 'Notes:' caption
++                 and not any(c[4].lower().startswith("common") and abs(c[1] - w[1]) < 3 for c in words)]                # (not 'Common Notes')
++    bottom = min([bottom] + [w[1] - 1 for w in low_notes])
++    com = next((w for w in words if w[4].rstrip(":").lower() == "common" and w[1] > start), None)
++    out = []
++    parts = [("", start, com[1] - 1 if com else bottom)] + ([("Common Notes", com[3], bottom)] if com else [])
++    for name, a, b in parts:
++        body = [w for w in words if a < (w[1] + w[3]) / 2 < b and w[4].rstrip(":").lower() not in ("individual", "common")
++                and not (w[4].rstrip(":").lower() == "notes" and w[0] < page.rect.width * 0.3 and (w[1] + w[3]) / 2 < a + 12)]
++        for nt in ex._numbered(body):
++            out.append(dict(nt, section=name) if name else nt)
++    if not out:
++        return None
++    hdr["doc_no"] = prev.get("doc_no", "")
++    return {"page": page_no, **hdr, "tag": prev.get("tag", ""), "rows": [], "notes": out,
++            "form": prev.get("form"), "continuation": True}
+diff --git a/app/valve/issues.py b/app/valve/issues.py
+index e5bce3af..fc693ec5 100644
+--- a/app/valve/issues.py
++++ b/app/valve/issues.py
+@@ -134,7 +134,7 @@ def compute(ds: dict, general_notes: dict | None = None, pms: dict | None = None
+     if pref is None:                                         # stored datasheets from before valve03: look again
+         from app.valve.extract import process_reference
+         pref = process_reference(ds.get("notes"), general_notes)
+-    for k in REQUIRED:
++    for k in schema.REQUIRED_BY_KIND.get(ds.get("kind") or "ball", REQUIRED):   # valve37: Globe · Butterfly · PSV lists
+         f = F.get(k)
+         if not f:
+             continue                                         # not on this form: cannot be missing from it
+diff --git a/app/valve/schema.py b/app/valve/schema.py
+index 6c1427d4..a04940b4 100644
+--- a/app/valve/schema.py
++++ b/app/valve/schema.py
+@@ -124,6 +124,14 @@ _L = [
+     ("tubing", "tubing", "accessories", "Tubing"),
+     ("fitting", "fitting", "accessories", "Fitting"),
+     ("opened", "ls_opened", "accessories", "Limit Switch Opened"),
++    # valve37 — the same On/Off form (Code 80) as printed for butterfly valves of another project
++    ("line n°", "line_no", "general", "Line Number"),
++    ("valve power failure position", "fail_position", "actuator", "Valve Fail Safe Position"),
++    ("seat trim material", "seat_material", "mechanical", "Seat Material"),
++    ("seat seal material", "seal_material", "mechanical", "Seal Material"),
++    ("buffer tank", "buffer_vessel", "accessories", "Buffer Vessel (Volume Tank)"),
++    ("tank mini pressure sizing", "vessel_min_pressure", "accessories", "Vessel Min Pressure Sizing"),
++    ("effective capacity", "psv_capacity", "accessories", "PSV Effective Capacity"),
+ ]
+ 
+ 
+@@ -264,3 +272,305 @@ def effective(f: dict | None) -> str:
+     if isinstance(ref, dict) and ref.get("value"):
+         return ref["value"]
+     return f.get("value") or ""
++
++
++
++# ── valve37: valve kinds — Ball (the original module) · Globe · Butterfly · PSV ─────────────────────────────
++# A project opened from the Globe / Butterfly / PSV menu is named '<project> · <Kind>' (valve.js ?kind=).  The kind
++# of the PROJECT decides which review rules run (a Ball project runs exactly what it ran before); the kind of each
++# DATASHEET (family) is read from the sheet itself and only used to say when a sheet was put in the wrong menu.
++KINDS = {"ball": "Ball Valve", "globe": "Globe Valve", "butterfly": "Butterfly Valve", "psv": "PSV"}
++
++
++def project_kind(name: str) -> str:
++    """'CO2 PJT · Globe Valve' -> 'globe'.  Anything else (all projects made before valve37) -> 'ball'."""
++    n = (name or "").strip().lower()
++    for k, disp in KINDS.items():
++        if k != "ball" and n.endswith("· " + disp.lower()):
++            return k
++    return "ball"
++
++
++def family(form: str, fields: dict, title: str = "", tag: str = "") -> str:
++    """What the datasheet itself says it is: 'ball' · 'globe' · 'butterfly' · 'psv' · '' (cannot tell).
++    Read from the form and the sheet's own words (Valve Type / Body Type / Instrument Type / title) — not from the
++    tag letters alone (a Form 101 control valve is 'FV' whether globe or butterfly)."""
++    def val(k):
++        f = fields.get(k) or {}
++        return str(f.get("value") or "")
++    t = " ".join([title or "", val("body_type"), val("instrument_type"), val("psv_type")]).lower()
++    if form == "701" or re.search(r"relief valve|safety valve|safety relief", (title or "").lower()):
++        return "psv"
++    if "butterfly" in t or re.search(r"\b(triple|double)\s*offset\b", t):
++        return "butterfly"
++    if "globe" in t:
++        return "globe"
++    if "ball" in t:
++        return "ball"
++    vt = valve_type(tag)
++    if vt in ("PSV", "PRV", "SRV", "PVRV", "PVSV") and form != "101":
++        return "psv"
++    return ""
++
++
++# ── Form 101 (Control Valve: Globe / Butterfly CV) ─────────────────────────────────────────────────────────
++# Same page layout as Form 102 (two numbered columns, 'Label : value', bold values) but many labels repeat in several
++# blocks (Manufacturer · Model · Size · Tag No · Notes · Handwheel · Rating · Material).  The block is the vertical caption
++# band the row sits in (TAG · VALVE GEN. · GENERAL DESIGN DATA · POSITNR. · BODY/BONNET · VALVE TRIM · ACTUATOR · PAINT ·
++# VALVE ACC. · PNEUMATIC ACC. · ELECTRICAL ACC.), and inside a block the last bare caption row (heading: 'Instrument Air
++# Supply' · 'Enclosure' · 'Air Set' · 'Volume Tank' · 'Solenoid Valve' · 'Colour') or the 'Type of Position Indication' row.
++# (label, block word or None, heading word or None, key, section, display) — first match wins.
++_L101 = [
++    ("tag no.", "TAG", None, "tag", "general", "Tag Number"),
++    ("instrument type", None, None, "instrument_type", "general", "Instrument Type"),
++    ("pid no.", None, None, "pid_no", "general", "P&ID Number"),
++    ("valve type", None, None, "body_type", "mechanical", "Valve Type"),
++    ("service", "TAG", None, "service", "general", "Service Description"),
++    ("valve service", None, None, "valve_function", "general", "Valve Service"),
++    ("package", None, None, "package", "general", "Package"),
++    ("quantity tags", None, None, "qty", "general", "Quantity"),
++    ("manufacturer name", None, None, "manufacturer", "general", "Manufacturer"),
++    ("model no", None, None, "model", "general", "Model Number"),
++    ("ser no.", None, None, "serial_no", "general", "Serial No."),
++    ("air failure action", None, None, "fail_position", "actuator", "Air Failure Action"),
++    ("max. shut off pressure", None, None, "max_dp_closed", "process", "Max. Shut Off Pressure"),
++    ("leakage class", None, None, "leakage_class", "mechanical", "Leakage Class"),
++    ("material corrosion requirement", None, None, "corrosion_req", "mechanical", "Material Corrosion Requirement"),
++    ("line no.", None, None, "line_no", "general", "Line Number"),
++    ("line size", None, None, "line_size_inlet", "mechanical", "Line Size"),
++    ("schedule", None, None, "line_schedule", "mechanical", "Schedule"),
++    ("serviceclass", None, None, "piping_class", "mechanical", "Piping Class"),
++    ("service class", None, None, "piping_class", "mechanical", "Piping Class"),
++    ("insulation thickness", None, None, "pipe_insulation", "mechanical", "Insulation Thickness"),
++    ("design pressure", None, None, "design_pressure", "process", "Design Pressure"),
++    ("design temperature", None, None, "design_temp", "process", "Design Temperature"),
++    ("notes for line", None, None, "line_notes", "general", "Notes for Line"),
++    ("mechanical design pressure", "ACTUAT", None, "act_design_pressure", "actuator", "Actuator Mechanical Design Pressure"),
++    ("mechanical design pressure", None, "AIR", "ia_design_pressure", "accessories", "Instrument Air Mech. Design Pressure"),
++    ("operating pressure(max/min)", None, None, "ia_op_pressure", "accessories", "Instrument Air Operating Pressure (Max/Min)"),
++    ("operating pressure (max/min)", None, None, "ia_op_pressure", "accessories", "Instrument Air Operating Pressure (Max/Min)"),
++    ("dew point temperature", None, None, "ia_dew_point", "accessories", "Instrument Air Dew Point"),
++    ("class", None, None, "area_class", "special", "Hazardous Area Class"),
++    ("type", "GENERAL", None, "ex_type", "special", "Ex Protection Type"),
++    ("certificate", None, None, "ex_certificate", "special", "Ex Certificate"),
++    ("weather protection", None, None, "ingress", "special", "Weather Protection"),
++    ("positioner type", None, None, "positioner", "positioner", "Positioner Type"),
++    ("manufacturer", "POS", None, "pos_manufacturer", "positioner", "Positioner Manufacturer"),
++    ("model", "POS", None, "pos_model", "positioner", "Positioner Model"),
++    ("input signal type", None, None, "pos_signal", "positioner", "Positioner Input Signal"),
++    ("gauges", "POS", None, "pos_gauges", "positioner", "Positioner Gauges"),
++    ("bypass", None, None, "pos_bypass", "positioner", "Positioner Bypass"),
++    ("body size", None, None, "body_size", "mechanical", "Valve Size"),
++    ("rating", "BODY", None, "rating", "mechanical", "Pressure Rating"),
++    ("conn type", None, None, "connections", "mechanical", "End Connection"),
++    ("end conn type", None, None, "connections", "mechanical", "End Connection"),
++    ("conn. type", None, None, "connections", "mechanical", "End Connection"),
++    ("flange face finish", None, None, "flange_finish", "mechanical", "Flange Face Finish"),
++    ("face to face dimension", None, None, "face_to_face", "mechanical", "Face to Face Dimension"),
++    ("body/bonnet material", None, None, "body_material", "mechanical", "Body / Bonnet Material"),
++    ("type of bonnet", None, None, "bonnet_type", "mechanical", "Bonnet Type"),
++    ("flow direction", None, None, "flow_direction", "mechanical", "Flow Direction"),
++    ("corrosion allowance", None, None, "corrosion_allowance", "mechanical", "Corrosion Allowance"),
++    ("gasket material", None, None, "gasket_material", "mechanical", "Gasket Material"),
++    ("packing mat.", None, None, "packing_material", "mechanical", "Packing Material"),
++    ("packing material", None, None, "packing_material", "mechanical", "Packing Material"),
++    ("trim type", None, None, "trim_type", "trim", "Trim Type"),
++    ("size", "TRIM", None, "trim_size", "trim", "Trim Size"),
++    ("trim construction", None, None, "trim_construction", "trim", "Trim Construction"),
++    ("rated cv", None, None, "rated_cv", "trim", "Rated Cv"),
++    ("rated travel", None, None, "rated_travel", "trim", "Rated Travel"),
++    ("characteristic", None, None, "flow_char", "trim", "Flow Characteristic"),
++    ("plug / ball / disc", None, None, "ball_material", "trim", "Plug / Ball / Disc Material"),
++    ("seat", "TRIM", None, "seat_material", "trim", "Seat Material"),
++    ("cage / guide", None, None, "cage_material", "trim", "Cage / Guide Material"),
++    ("stem", "TRIM", None, "stem_material", "trim", "Stem Material"),
++    ("manuf.", "ACTUAT", None, "act_manufacturer", "actuator", "Actuator Manufacturer"),
++    ("model", "ACTUAT", None, "act_model", "actuator", "Actuator Model"),
++    ("type of actuator", None, None, "act_type", "actuator", "Actuator Type"),
++    ("size", "ACTUAT", None, "act_size", "actuator", "Actuator Size"),
++    ("case", None, None, "act_material", "actuator", "Actuator Case Material"),
++    ("yoke", "ACTUAT", None, "act_yoke_material", "actuator", "Actuator Yoke Material"),
++    ("stem", "ACTUAT", None, "act_stem_material", "actuator", "Actuator Stem Material"),
++    ("actuator force design pressure", None, None, "act_force_pressure", "actuator", "Actuator Force Design Pressure"),
++    ("required air supply pressure", None, None, "act_air_supply", "actuator", "Required Air Supply Pressure"),
++    ("stroke speed", None, None, "stroke_time_s", "actuator", "Stroke Speed"),
++    ("travel indicator", None, None, "travel_indicator", "actuator", "Travel Indicator"),
++    ("orientation", None, None, "act_orientation", "actuator", "Actuator Orientation"),
++    ("painting system", None, None, "painting", "special", "Painting System"),
++    ("body", "PAINT", None, "paint_body", "special", "Paint Colour — Body"),
++    ("yoke", "PAINT", None, "paint_yoke", "special", "Paint Colour — Yoke"),
++    ("actuator", "PAINT", None, "paint_actuator", "special", "Paint Colour — Actuator"),
++    ("handwheel", "PAINT", None, "paint_handwheel", "special", "Paint Colour — Handwheel"),
++    ("lubricator / isolation valve", None, None, "lubricator", "accessories", "Lubricator / Isolation Valve"),
++    ("lubricant material", None, None, "lubricant", "accessories", "Lubricant Material"),
++    ("handwheel", None, None, "handwheel", "accessories", "Handwheel"),
++    ("mechanical valve stopper", None, None, "valve_stopper", "accessories", "Mechanical Valve Stopper"),
++    ("air tube material", None, None, "tubing", "accessories", "Air Tube Material"),
++    ("size", "PNEU", None, "tubing_size", "accessories", "Air Tube Size"),
++    ("fitting type", None, None, "fitting", "accessories", "Fitting Type"),
++    ("mat", None, None, "fitting_material", "accessories", "Fitting Material"),
++    ("min.size and connection", None, None, "act_air_connection", "accessories", "Air Supply Min. Size and Connection"),
++    ("air failure lock-up valve", None, None, "lockup_valve", "accessories", "Air Failure Lock-Up Valve"),
++    ("set", None, None, "lockup_set", "accessories", "Lock-Up Valve Set"),
++    ("manufacturer", None, "AIRSET", "afr_manufacturer", "accessories", "Air Set Manufacturer"),
++    ("model", None, "AIRSET", "afr_model", "accessories", "Air Set Model"),
++    ("filter / gauges", None, None, "afr", "accessories", "Air Filter Regulator / Gauges"),
++    ("tag no.", None, "VOLUME", "vt_tag", "accessories", "Volume Tank Tag No."),
++    ("volume tank code", None, None, "vt_code", "accessories", "Volume Tank Code"),
++    ("basis of volume", None, None, "vt_basis", "accessories", "Volume Tank Basis of Volume"),
++    ("material", None, "VOLUME", "vt_material", "accessories", "Volume Tank Material"),
++    ("check valve", None, None, "vt_check_valve", "accessories", "Volume Tank Check Valve"),
++    ("electrical connection", None, None, "elec_connection", "accessories", "Electrical Connection"),
++    ("external terminal box", None, None, "terminal_box", "accessories", "External Terminal Box"),
++    ("type of position indication", None, None, "pos_ind_type", "accessories", "Type of Position Indication"),
++    ("tag no", None, "POSIND", "pos_tx_tag", "accessories", "Position Indication Tag No."),
++    ("quantity", None, "POSIND", "pos_tx_qty", "accessories", "Position Indication Quantity"),
++    ("type", None, "POSIND", "pos_tx_signal", "accessories", "Position Indication Signal"),
++    ("manuf.", None, "POSIND", "pos_tx_manufacturer", "accessories", "Position Indication Manufacturer"),
++    ("model", None, "POSIND", "pos_tx_model", "accessories", "Position Indication Model"),
++    ("contact type", None, "POSIND", "pos_tx_contact", "accessories", "Position Indication Contact Type"),
++    ("rating", None, "POSIND", "pos_tx_ingress", "accessories", "Position Indication Rating"),
++    ("actuation points", None, "POSIND", "pos_tx_points", "accessories", "Position Indication Actuation Points"),
++    ("tag no", None, "SOLENOID", "sov_tag", "accessories", "Solenoid Valve Tag No."),
++    ("manuf.", None, "SOLENOID", "sov_manufacturer", "accessories", "Solenoid Valve Manufacturer"),
++    ("model", None, "SOLENOID", "sov_model", "accessories", "Solenoid Valve Model"),
++    ("power supply", None, "SOLENOID", "sov_power_supply", "accessories", "Solenoid Valve Power Supply"),
++    ("energ act", None, None, "sov_energize", "accessories", "Solenoid Valve Energize Action"),
++    ("body mat", None, None, "sov_body_material", "accessories", "Solenoid Valve Body Material"),
++    ("man reset", None, None, "manual_reset", "accessories", "Solenoid Valve Manual Reset"),
++    ("coil insulation class", None, None, "sov_coil_class", "accessories", "Solenoid Coil Insulation Class"),
++    ("notes", None, None, "notes_row", "general", "Notes (row)"),
++]
++
++
++def _blk(group: str) -> str:
++    return re.sub(r"[^A-Z]", "", (group or "").upper())
++
++
++def lookup_101(label: str, group: str, heading: str = "", ctx: str = ""):
++    """(key, section, display) for a Form 101 row.  group = block caption, heading = last bare caption, ctx = 'POSIND'
++    after the 'Type of Position Indication' row of the ELECTRICAL ACC. block."""
++    n = norm_label(label).rstrip(" :.") if norm_label(label).endswith(":") else norm_label(label)
++    b = _blk(group)
++    h = _blk(heading) + ("POSIND" if ctx == "POSIND" else "")
++    if "AIRSET" in h.replace(" ", ""):
++        h += "AIRSET"
++    for lab, gw, hw, key, sec, disp in _L101:
++        if n != lab and n.rstrip(".") != lab.rstrip("."):
++            continue
++        if gw and gw not in b and not (gw == "POS" and ("POSITNR" in b or "POSTNR" in b or "POSITIONER" in b)):
++            continue
++        if hw and hw not in h:
++            continue
++        return key, sec, disp
++    return None
++
++
++# Form 101 sheet 2 (Process / Sizing calculation data, rows × Unit · Max · Nor · Min): sizing results go to their own
++# section so a blank sizing line is not a 'missing process data' finding; rows printed across all three cases are one value.
++SIZING_101 = {"process case": ("case", "Process Case"), "case description": ("case_desc", "Case Description"),
++              "superheat temperature": ("superheat", "Superheat Temperature"), "flash ratio": ("flash_ratio", "Flash Ratio"),
++              "fl(liquid pressure recovery factor)": ("fl", "FL (Liquid Pressure Recovery Factor)"),
++              "xt(pressure drop ratio factor)": ("xt", "Xt (Pressure Drop Ratio Factor)"),
++              "start-up flow (min / nor / max)": ("startup_flow", "Start-up Flow"), "calculated cv": ("calc_cv", "Calculated Cv"),
++              "required cv": ("req_cv", "Required Cv"), "travel of valve": ("travel", "Travel of Valve"),
++              "predict spl": ("spl_pred", "Predicted SPL"), "allowable spl": ("spl_allow", "Allowable SPL")}
++# fluid properties on sheet 2 that only one phase needs (gas: MW · k · Z; liquid: vapour · critical pressure; viscosity) —
++# kept, shown, compared with Process Data, but not a 'missing process data' finding when blank
++PROPS_101 = {"mol_weight", "cp_cv", "z_factor", "vapor_pressure", "critical_pressure", "viscosity"}
++SPAN_101 = {"max. shut off pressure": ("sz_shutoff", "Max. Shut Off Pressure (sheet 2)"),
++            "design pressure": ("sz_design_pressure", "Design Pressure (sheet 2)"),
++            "design temperature": ("sz_design_temp", "Design Temperature (sheet 2)")}
++
++
++# ── Form 701 (Pressure Relief Valve) ───────────────────────────────────────────────────────────────────────
++# One numbered column (1-50); bold values on short underlines (1-3 slots per row); small sub-labels before a slot
++# ('Type' · 'Action' · 'Sensing' · 'Vent' · 'Tightness' · 'Size' · 'Rating' · 'Inlet' · 'Outlet').  A label written
++# 'A / B / C' gives one key per slot.  (normalised label) -> (keys for the slots, section, display names)
++_L701 = {
++    "tag no.": (["tag"], "general", ["Tag Number"]),
++    "service": (["service"], "general", ["Service Description"]),
++    "p&id no./line no./equipment no.": (["pid_no", "line_no", "equipment_no"], "general", ["P&ID Number", "Line Number", "Equipment No."]),
++    "service class": (["piping_class"], "mechanical", ["Piping Class"]),
++    "quantity tags": (["qty"], "general", ["Quantity"]),
++    "code & standard": (["code_standard"], "basis", ["Code & Standard"]),
++    "governing case": (["governing_case"], "basis", ["Governing Case"]),
++    "api 526 compliance": (["api526"], "basis", ["API 526 Compliance"]),
++    "type": (["psv_type"], "mechanical", ["Valve Type"]),
++    "nozzle": (["nozzle_type"], "mechanical", ["Nozzle"]),
++    "bonnet type": (["bonnet_type"], "mechanical", ["Bonnet Type"]),
++    "pilot": (["pilot"], "mechanical", ["Pilot"]),
++    "seat": (["seat"], "mechanical", ["Seat"]),
++    "inlet": (["inlet"], "mechanical", ["Inlet"]),
++    "outlet": (["outlet"], "mechanical", ["Outlet"]),
++    "body / bonnet / seat (nozzle)": (["body_material", "bonnet_material", "nozzle_material"], "material",
++                                      ["Body Material", "Bonnet Material", "Seat (Nozzle) Material"]),
++    "piston / resilient seal / guide": (["disc_material", "resilient_seal", "guide_material"], "material",
++                                        ["Piston / Disc Material", "Resilient Seal", "Guide Material"]),
++    "adjusting rings / spring / bellows": (["rings_material", "spring_material", "bellows_material"], "material",
++                                           ["Adjusting Rings Material", "Spring Material", "Bellows Material"]),
++    "body / internal / seat": (["pilot_body_material", "pilot_internal_material", "pilot_seat_material"], "material",
++                               ["Pilot Body Material", "Pilot Internal Material", "Pilot Seat Material"]),
++    "diaphragm / tubing and fitting / spring": (["pilot_diaphragm", "pilot_tubing", "pilot_spring"], "material",
++                                                ["Pilot Diaphragm", "Pilot Tubing and Fitting", "Pilot Spring"]),
++    "filter body / filter element": (["filter_body", "filter_element"], "material", ["Filter Body", "Filter Element"]),
++    "fluid / phase": (["fluid", "fluid_state"], "process", ["Fluid", "Phase"]),
++    "max. relieving flow rate": (["relieving_flow"], "process", ["Max. Relieving Flow Rate"]),
++    "operating pressure": (["op_pressure"], "process", ["Operating Pressure"]),
++    "set pressure": (["set_pressure"], "process", ["Set Pressure"]),
++    "cold differential set": (["cdtp"], "process", ["Cold Differential Test Pressure"]),
++    "operating temperature": (["op_temp"], "process", ["Operating Temperature"]),
++    "relief temperature": (["relief_temp"], "process", ["Relief Temperature"]),
++    "allowable over pressure": (["overpressure"], "process", ["Allowable Over Pressure"]),
++    "blowdown": (["blowdown"], "process", ["Blowdown"]),
++    "superimposed back pressure": (["sbp"], "process", ["Superimposed Back Pressure"]),
++    "constant / variable": (["sbp_constant", "sbp_variable"], "process", ["Back Pressure — Constant", "Back Pressure — Variable"]),
++    "max. back pressure": (["max_bp"], "process", ["Max. Back Pressure"]),
++    "molecular weight": (["mol_weight"], "process", ["Molecular Weight"]),
++    "density @ rt": (["density"], "process", ["Density @ RT"]),
++    "viscosity @ rt": (["viscosity"], "process", ["Viscosity @ RT"]),
++    "compressibility factor": (["z_factor"], "process", ["Compressibility Factor"]),
++    "specific heat ratio": (["cp_cv"], "process", ["Specific Heat Ratio"]),
++    "design pressure": (["design_pressure"], "process", ["Design Pressure"]),
++    "design temperature": (["design_temp"], "process", ["Design Temperature"]),
++    "calculated area": (["calc_area"], "sizing", ["Calculated Area"]),
++    "selected area": (["selected_area"], "sizing", ["Selected Area"]),
++    "orifice designation": (["orifice"], "sizing", ["Orifice Designation"]),
++    "reaction force": (["reaction_force"], "sizing", ["Reaction Force"]),
++    "cap / lifting lever / test gag": (["cap_type", "lifting_lever", "test_gag"], "accessories", ["Cap", "Lifting Lever", "Test Gag"]),
++    "bug screen / external filter": (["bug_screen", "ext_filter"], "accessories", ["Bug Screen", "External Filter"]),
++    "back flow preventer / field test conn.": (["backflow_preventer", "field_test_conn"], "accessories",
++                                               ["Back Flow Preventer", "Field Test Connection"]),
++    "manufacturer": (["manufacturer"], "general", ["Manufacturer"]),
++    "model no.": (["model"], "general", ["Model Number"]),
++}
++# sub-label words printed small before a value slot -> key suffix (Pilot Type · Seat Tightness · Inlet Size …)
++SUB_701 = {"type": "type", "action": "action", "sensing": "sensing", "vent": "vent", "tightness": "tightness",
++           "size": "size", "rating": "rating", "inlet": "inlet", "outlet": "outlet"}
++# what a sub-labelled slot of a row is called: (row key, sub word) -> (key, display)
++SUBKEY_701 = {("pilot", "type"): ("pilot_type", "Pilot Type"), ("pilot", "action"): ("pilot_action", "Pilot Action"),
++              ("pilot", "sensing"): ("pilot_sensing", "Pilot Sensing"), ("pilot", "vent"): ("pilot_vent", "Pilot Vent"),
++              ("seat", "type"): ("seat_type", "Seat Type"), ("seat", "tightness"): ("seat_tightness", "Seat Tightness"),
++              ("inlet", "size"): ("inlet_size", "Inlet Size"), ("inlet", "rating"): ("inlet_rating", "Inlet Rating"),
++              ("inlet", "type"): ("inlet_facing", "Inlet Connection Type"), ("outlet", "size"): ("outlet_size", "Outlet Size"),
++              ("outlet", "rating"): ("outlet_rating", "Outlet Rating"), ("outlet", "type"): ("outlet_facing", "Outlet Connection Type"),
++              ("piping_class", "inlet"): ("piping_class", "Piping Class (Inlet)"),
++              ("piping_class", "outlet"): ("piping_class_outlet", "Piping Class (Outlet)")}
++
++
++def lookup_701(label: str):
++    n = norm_label(label).rstrip(" :")
++    return _L701.get(n)
++
++
++# fields a reviewer expects on each kind of sheet (Data Missing when present on the form but empty) — Ball keeps issues.REQUIRED
++REQUIRED_BY_KIND = {
++    "globe": ["tag", "service", "pid_no", "line_no", "piping_class", "body_size", "rating", "body_type", "connections",
++              "body_material", "ball_material", "seat_material", "stem_material", "act_type", "fail_position", "leakage_class",
++              "flow_char", "positioner", "pos_signal"],
++    "butterfly": ["tag", "service", "pid_no", "line_no", "piping_class", "body_size", "rating", "body_type", "connections",
++                  "body_material", "ball_material", "seat_material", "stem_material", "act_type", "fail_position", "leakage_class"],
++    "psv": ["tag", "service", "pid_no", "piping_class", "psv_type", "inlet_size", "inlet_rating", "outlet_size", "outlet_rating",
++            "orifice", "body_material", "nozzle_material", "disc_material", "spring_material"],
++    # (PSV process items — fluid · set pressure · relieving flow · design P/T … — are checked by the PROCESS DATA rule)
++}
+diff --git a/docs/valve/VALVE_KINDS.md b/docs/valve/VALVE_KINDS.md
+new file mode 100644
+index 00000000..553f4bc4
+--- /dev/null
++++ b/docs/valve/VALVE_KINDS.md
+@@ -0,0 +1,69 @@
++# valve37 — Globe · Butterfly · PSV 데이터시트 검토 (Ball Valve 와 같은 화면)
++
++기준판: valve36 (`ccr-efbe7e75-n915ze` b0db9a0d). 만든 곳: S5 세션(2026-11-10, 사용자 요청 — 회사 PC 가 아니라 클라우드에서 개발해 오케스트레이터 통합본으로 전달).
++
++## 1. 무엇이 되나
++
++대시보드 **실행 프로젝트 › CO2 PJT › Datasheet › Globe Valve · Butterfly Valve · PSV** 메뉴가 Ball Valve 와 같은 화면(`/valve/?kind=globe|butterfly|psv`)을 연다.
++사용자는 Ball 과 똑같이 Datasheet PDF 여러 개(각 수십 장) · Process Data · (선택) PMS · Valve List 를 드래그앤드롭한다.
++
++| 양식 | 어떤 밸브 | 읽는 방법 |
++|---|---|---|
++| **Code 80** On/Off (Ball 과 같은 양식) | Butterfly On/Off (SDV · XV …) | 기존 괘선 칸 읽기 + 라벨 7개 추가 · **쪽 아래 제목란**(Sheet · Rev · Revision 줄) · **Notes 만 있는 2쪽** 연결 |
++| **Form 101** Control Valve | Globe CV · Butterfly CV | 1쪽 = Form 102 와 같은 2단 'Label : value' → 기존 `read_page_102` 로 읽고 `forms_ext.fix_101` 이 **묶음(세로 글자 띠) · 소제목**으로 다시 분류 · 2쪽 Max/Nor/Min 표의 Sizing 행 · 3쪽 Notes(form 000) |
++| **Form 701** Pressure Relief Valve | PSV | 새 `forms_ext.read_page_701` — 번호 1~50 한 열, 굵은 값, **밑줄 = 값 칸**, 작은 부제(Type · Action · Size · Rating …), 'A / B / C' 라벨은 칸마다 다른 키, 단위 칸(bar-g · ºC)은 앞 값의 단위 |
++
++판정 원칙은 Ball 과 같다 — OCR · LLM 없음, 그 쪽에서 잰 괘선 · 밑줄 · 번호 열 · 글자 크기만 사용, 문서에 없는 값은 만들지 않음(빈칸 / review).
++
++## 2. 메뉴 = 프로젝트 공간 · 규칙 묶음
++
++- `?kind=globe` 이면 프로젝트 이름이 `CO2 PJT · Globe Valve` (없으면 만든다). 업로드 · Process Data · 검토 상태가 Ball 과 섞이지 않는다.
++- 규칙은 **프로젝트의 종류**로 고른다 (`schema.project_kind`). Ball 프로젝트(이름에 접미사 없음 = valve36 까지의 모든 프로젝트)는 **지금과 똑같이** 돈다.
++- Globe · Butterfly · PSV 프로젝트: 필수 칸(DM-01)은 `schema.REQUIRED_BY_KIND`, 빈 Process Data(DM-02) · HOLD/TBC · 문서 안 모순(DE) · Notes 참조 · Revision · Process Data 비교 · Tag 규칙은 Ball 과 같다.
++  Ball 전용 규칙(PMS Ball 품목 · MR 재질 · VR 설계 · AC 액세서리 · PC 동료 비교)은 돌리지 않고 Checks 탭에 'Ball Valve rule — not applied to this valve kind' 로 n/a 표시.
++- 데이터시트마다 시트가 스스로 말하는 종류(`family`: Valve Type / Body Type / Instrument Type / 제목 / 양식)를 읽어, 다른 메뉴에 올린 시트는 저장하되 업로드 경고와 화면 안내 띠로 알린다.
++
++## 3. 바뀐 파일
++
++| 파일 | 내용 |
++|---|---|
++| `app/valve/forms_ext.py` (새) | `form_no` · `fix_101` · `fix_101_sheet2` · `read_page_701` · `footer`/`apply_footer` · `read_continuation` |
++| `app/valve/schema.py` | Code 80 라벨 7개 · `KINDS` · `project_kind` · `family` · `_L101`/`lookup_101` · `SIZING_101`/`SPAN_101`/`PROPS_101` · `_L701`/`SUB_701`/`SUBKEY_701`/`lookup_701` · `REQUIRED_BY_KIND` |
++| `app/valve/extract.py` | `PARSER_VERSION extract-v37` · Form 701/101 연결 · 쪽 아래 제목란 · Notes 만 있는 다음 쪽 · Form 101 2쪽 · `ds["form"]`/`ds["family"]` |
++| `app/valve/api.py` | `VERSION valve37` · `_proj_kind` · 종류별 규칙 · 다른 메뉴 경고 · `d["kind"]`/`d["family"]` · `ds["form"]` 유지 |
++| `app/valve/issues.py` | DM-01 필수 칸을 종류별로 |
++| `app/valve/checks.py` | `BALL_ONLY` 묶음 → 다른 종류에서 n/a(이유 표시) |
++| `app/static/valve/valve.js` | `?kind=` · 프로젝트 이름 · 머리 · 칸 묶음(Design Basis · Valve Trim · Materials · Sizing · Positioner) · Form 101 Max/Nor/Min 표 · 다른 메뉴 안내 띠 · Ball 3D 모형은 Ball 메뉴에서만 · Expert 탭 안내 |
++| `tests/test_valve_kinds.py` (새) | 합성 PDF 3종(PSV 701 · CV 101 · Code 80 아래 제목란) · 도우미 · API 종류별 규칙 · Ball 프로젝트 불변 · 실자료(`VALVE_KIND_SAMPLES`) |
++
++## 4. 시험 · 실측 (2026-11-10)
++
++- `pytest tests/test_valve*.py tests/test_tagged_valves.py tests/test_hotfix58_valve_tag_star.py` — **181 통과**(valve36 173 + 새 8) · 저장소 전체 1,995 통과(실패 1 = Logic 시험의 python-docx 미설치, 무관).
++- 샘플 4종(사용자 제공, 저장소에 넣지 않음) — 지금 코드 → valve37:
++
++| 샘플 | 읽힘(ok) | 미등록 라벨 | Notes | 쪽 묶음 |
++|---|---|---|---|---|
++| Butterfly On/Off (Code 80) | 47 → 50 /91 | 7 → 0 | 0 → 9 | Sheet · Rev 못 읽음 → 1/2 · 2/2 · Rev A |
++| Globe CV (Form 101) | 1쪽 65 → 67 | 68+45 → 0 | 0 → 6 | 3쪽 모두 한 Tag |
++| Butterfly CV (Form 101) | 61 /120 | 68+45 → 0 | — (샘플 2쪽) | 문서번호 오인(P&ID 번호) → 빈칸 |
++| PSV (Form 701) | **2 → 34** /80 (나머지는 실제 빈칸 · VTA) | 79 → 0 (review 1 = 라벨보다 많은 값 칸) | 0 → 5 | 1/2 · 2/2 |
++
++- 15쪽 혼합 PDF(표지 + Globe 3쪽 + Butterfly CV 2쪽(3쪽 빠짐) + PSV + Butterfly On/Off + PSV + Globe) → 데이터시트 6개, 경계 · Notes 모두 정확.
++- 실제 지적 예: Globe 샘플 1쪽 Service 'GLOB VLV' ↔ 2쪽 'GLOBE VLV' → Data Error(DE-06).
++
++## 5. 사람이 확인할 것
++
++1. 실제 프로젝트 PDF(각 수십 장)로 첫 적용 후 Tag 수 · 쪽 묶음 · 칸 값을 몇 장 눈으로 대조 (샘플은 양식마다 1~2 장뿐).
++2. 종류별 필수 칸 목록(`REQUIRED_BY_KIND`)과 Ball 전용 규칙 제외가 회사 기준과 맞는지 — Globe/PSV 전용 규칙(Cv · Travel · SPL · API 526 Orifice · Back Pressure)은 아직 없음(다음 단계).
++3. Process Data 는 Ball 과 같은 'Process Data for On-Off Valve' 표 양식을 읽는다. Control Valve · PSV 전용 표가 따로 있으면 그 양식이 필요.
++4. Valve List(TBE) 채우기는 Ball 양식 기준 — 다른 종류는 Tool format Excel 만.
++
++## 6. 대시보드 연결 (S1 DASHBOARD 파일)
++
++`dashboard/dashboard.html` 의 `PID_ROUTES` 에 세 줄 추가(`PID_ROUTES` 가 `MODULES` 보다 먼저 보이므로 '준비 중' 대신 이 화면이 열림) + `APP_VERSION` 올림:
++
++```js
++  globev:{ title:'CO2 PJT · Datasheet · Globe Valve', port:PID_PORT, path:'/valve/', q:'embed=1&project=CO2%20PJT&kind=globe&' },
++  bflyv:{ title:'CO2 PJT · Datasheet · Butterfly Valve', port:PID_PORT, path:'/valve/', q:'embed=1&project=CO2%20PJT&kind=butterfly&' },
++  psv:{ title:'CO2 PJT · Datasheet · PSV', port:PID_PORT, path:'/valve/', q:'embed=1&project=CO2%20PJT&kind=psv&' },
++```
+diff --git a/tests/test_valve_kinds.py b/tests/test_valve_kinds.py
+new file mode 100644
+index 00000000..06082e37
+--- /dev/null
++++ b/tests/test_valve_kinds.py
+@@ -0,0 +1,375 @@
++"""valve37 — Globe · Butterfly · PSV datasheets (forms 101 · 701 · Code 80 with a bottom title block).
++
++Synthetic pages that copy the layouts of the client samples (no client file in the repository).  With
++VALVE_KIND_SAMPLES=<folder> holding globe_cv.pdf · bfv_cv.pdf · bfv_onoff.pdf · psv.pdf the real samples are read too.
++"""
++from __future__ import annotations
++
++import os
++import time
++from pathlib import Path
++
++import pymupdf
++import pytest
++
++from app.valve import api, extract, forms_ext, schema
++
++BLACK = (0, 0, 0)
++
++
++def _ul(pg, a, b, y):                                       # a value underline (thin filled rectangle), as on Form 701
++    pg.draw_rect(pymupdf.Rect(a, y + 2.2, b, y + 2.8), color=BLACK, fill=BLACK, width=0)
++
++
++# ── Form 701 (PSV) ─────────────────────────────────────────────────────────────────────────────────────────
++
++S1, S2, S3 = (224, 301), (352, 428), (458, 571)
++W1, W2, W3 = (196, 301), (324, 428), (450, 555)
++PSV_ROWS = [  # (label, [(sub or None, value, bold, x) ...], underlines)
++    ("Tag No.", [(None, "98PRV 980001A", 1, 240)], [(196, 370)]),
++    ("Service", [(None, "RELIEF GAS FR K-1", 1, 240)], [(196, 560)]),
++    ("P&ID No./Line No./Equipment No.", [(None, "00-00-PR-PID-00001", 1, 200), (None, "/", 0, 310), (None, 'L100-6"(A1)', 1, 330),
++                                         (None, "/", 0, 440), (None, "-", 1, 500)], [W1, W2, W3]),
++    ("Service Class", [("Inlet", "YC0KL", 1, 240), ("Outlet", "YC0KL-N", 1, 370)], [S1, S2]),
++    ("Quantity Tags", [(None, "1 No.", 1, 250)], [(196, 370)]),
++    ("Code & Standard", [(None, "API 520, 526 & ASME SEC VIII", 1, 210)], [(196, 370)]),
++    ("Type", [(None, "Conventional", 1, 250)], [(196, 370)]),
++    ("Seat", [("Type", "Soft Seat", 1, 244), ("Tightness", "As per API 527", 1, 360)], []),   # no underlines on this row
++    ("Inlet", [("Size", '3"', 1, 258), ("Rating", "600#", 1, 378), ("Type", "RF Flange", 1, 497)], [S1, S2, S3]),
++    ("Outlet", [("Size", '4"', 1, 258), ("Rating", "150#", 1, 378), ("Type", "RF Flange", 1, 497)], []),
++    ("Body / Bonnet / Seat (Nozzle)", [(None, "A216-WCB", 1, 220), (None, "A216-WCB", 1, 345), (None, "316 SS", 1, 480)], [W1, W2, W3]),
++    ("Adjusting Rings / Spring / Bellows", [(None, "VTA", 1, 240), (None, "Carbon Steel", 1, 337), (None, "N/A", 1, 494)], []),
++    ("Fluid / Phase", [(None, "Flare gas", 1, 220), (None, "Gas", 1, 360)], [W1, W2]),
++    ("Set Pressure", [(None, "45", 1, 240), (None, "bar-g", 1, 365)], [W1, W2]),
++    ("Operating Pressure", [(None, "bar-g", 1, 365)], [W1, W2]),
++    ("Max. Relieving Flow Rate", [(None, "12000", 1, 240), (None, "kg/h", 1, 365)], [W1, W2]),
++    ("Design Pressure", [(None, "50", 1, 240)], [W1, W2, W3]),
++    ("Calculated Area", [(None, "1.20", 1, 240)], [W1]),
++    ("Selected Area", [(None, "1.29", 1, 240)], [W1]),
++    ("Orifice Designation", [(None, "J", 1, 255)], [(196, 370)]),
++    ("Cap / Lifting Lever / Test Gag", [(None, "Screwed", 1, 220), (None, "Not Required", 1, 345), (None, "Not Required", 1, 480)], [W1, W2, W3]),
++    ("Manufacturer", [(None, "VTA", 1, 255)], [(196, 370)]),
++]
++
++
++def _psv_page(doc, sheet=1, of=2, tag="98PRV 980001A"):
++    pg = doc.new_page(width=595, height=842)
++    pg.insert_text((45, 70), "Form No : 701", fontsize=9)
++    pg.insert_text((240, 125), "Pressure Relief Valve", fontsize=15, fontname="hebo")
++    pg.insert_text((450, 120), "DOCUMENT NO.", fontsize=8)
++    pg.insert_text((470, 140), tag, fontsize=9, fontname="hebo")
++    pg.insert_text((450, 190), f"SHEET {sheet} OF {of}", fontsize=8)
++    pg.insert_text((450, 210), "REV.", fontsize=8)
++    pg.insert_text((520, 210), "A", fontsize=8)
++    return pg
++
++
++def make_psv_pdf() -> bytes:
++    doc = pymupdf.open()
++    pg = _psv_page(doc)
++    y0, p = 260, 11.25
++    y_end = y0 + p * len(PSV_ROWS) + 4
++    for x in (43, 61.5, 77.2, 186.8, 573):
++        pg.draw_line((x, y0 - 4), (x, y_end), width=0.75)
++    for i, ch in enumerate("TAG"):                           # vertical caption letters left of the labels
++        pg.insert_text((64, y0 + 4 + i * 4.5), ch, fontsize=4.5)
++    for i, (lab, vals, uls) in enumerate(PSV_ROWS):
++        y = y0 + i * p + 8
++        pg.insert_text((50 if i < 9 else 46, y), str(i + 1), fontsize=8)
++        pg.insert_text((81, y), lab, fontsize=8)
++        for sub, v, bold, x in vals:
++            if sub:
++                sx = {S1[0]: 196, S2[0]: 324, S3[0]: 434}
++                sxx = min(sx.values(), key=lambda a: abs(a - x + 40))
++                pg.insert_text((sxx, y), sub, fontsize=5.5)
++            pg.insert_text((x, y), v, fontsize=8, fontname="hebo" if bold else "helv")
++        for a, b in uls:
++            _ul(pg, a, b, y)
++    pg2 = _psv_page(doc, 2, 2)
++    pg2.insert_text((150, 300), "Tag No.", fontsize=8)
++    pg2.insert_text((300, 300), "98PRV 980001A", fontsize=8, fontname="hebo")
++    pg2.insert_text((45, 320), "Individual Notes :", fontsize=8)
++    pg2.insert_text((45, 340), "1. Vendor shall provide Cold Differential Test Pressure (CDTP).", fontsize=8, fontname="hebo")
++    pg2.insert_text((45, 355), "2. Bolt and Nuts Material : ASTM A193-B7M / A194-2HM", fontsize=8, fontname="hebo")
++    pg2.insert_text((45, 600), "Common Notes :", fontsize=8)
++    pg2.insert_text((45, 620), "1. Painting as per project specification.", fontsize=8)
++    return doc.tobytes()
++
++
++def test_psv_form_701(tmp_path):
++    p = tmp_path / "psv.pdf"
++    p.write_bytes(make_psv_pdf())
++    res = extract.read_pdf(str(p))
++    dss = extract.group_datasheets(res)
++    assert len(dss) == 1
++    d = dss[0]
++    F = {k: f["value"] for k, f in d["fields"].items()}
++    U = {k: f["unit"] for k, f in d["fields"].items()}
++    assert d["form"] == "701" and d["family"] == "psv" and d["pages"] == [1, 2]
++    assert F["tag"] == "98PRV 980001A" and F["service"] == "RELIEF GAS FR K-1"
++    assert (F["pid_no"], F["line_no"], F["equipment_no"]) == ("00-00-PR-PID-00001", 'L100-6"(A1)', "-")   # '/' between slots dropped
++    assert (F["piping_class"], F["piping_class_outlet"]) == ("YC0KL", "YC0KL-N")
++    assert (F["seat_type"], F["seat_tightness"]) == ("Soft Seat", "As per API 527")       # sub-labels open slots (no underline)
++    assert (F["inlet_size"], F["inlet_rating"], F["inlet_facing"]) == ('3"', "600#", "RF Flange")
++    assert (F["outlet_size"], F["outlet_rating"], F["outlet_facing"]) == ('4"', "150#", "RF Flange")
++    assert (F["body_material"], F["bonnet_material"], F["nozzle_material"]) == ("A216-WCB", "A216-WCB", "316 SS")
++    assert (F["rings_material"], F["spring_material"], F["bellows_material"]) == ("VTA", "Carbon Steel", "N/A")   # page slot grid
++    assert (F["fluid"], F["fluid_state"]) == ("Flare gas", "Gas")
++    assert F["set_pressure"] == "45" and U["set_pressure"] == "bar-g"                    # unit slot -> the value before it
++    assert F["op_pressure"] == "" and U["op_pressure"] == "bar-g"
++    assert F["relieving_flow"] == "12000" and U["relieving_flow"] == "kg/h"
++    assert F["orifice"] == "J" and F["calc_area"] == "1.20" and F["selected_area"] == "1.29"
++    assert (F["cap_type"], F["lifting_lever"], F["test_gag"]) == ("Screwed", "Not Required", "Not Required")
++    assert "design_pressure_2" not in F and "tag_2" not in F                              # empty extra slots make no field
++    assert not any(k.startswith(("x.", "raw.")) for k in F)
++    assert d["doc_no"] == ""                                                               # the DOCUMENT NO. cell holds the tag
++    texts = [n["text"] for n in d["notes"]]
++    assert len(texts) == 3 and "CDTP" in texts[0] and d["notes"][2].get("section") == "Common Notes"
++
++
++# ── Form 101 (Control Valve) ───────────────────────────────────────────────────────────────────────────────
++
++C1 = [("TAG", [("Tag No.", "01FV 9401"), ("PID No.", "01-09-PR-PID-00004"), ("Service", "FR ABS OVHD GAS"), ("Valve Type", "Globe Control Valve")]),
++      ("VALVEGEN", [("Manufacturer Name", "VTA"), ("Air Failure Action", "Close"), ("Leakage Class", "ANSI IV")]),
++      ("GENERAL", [("Line No.", "AG1441-24\"(1C3AS1)"), ("ServiceClass", "1C3AS1"), ("Design Pressure", ["98", "/", "bar-g"]),
++                   ("Instrument Air Supply", None), ("Mechanical Design Pressure", "10 barg"),
++                   ("Operating Pressure(Max/Min)", ["7.5", "/", "4.5", "bar-g"]), ("Type", "Ex 'd'")]),
++      ("POSITNR", [("Positioner Type", "Smart HART"), ("Manufacturer", "Fisher"), ("Model", "DVC6200")]),
++      ("BODY", [("Body Size", "3"), ("Rating", "600#"), ("Body/Bonnet Material", "A216-WCB")]),
++      ("TRIM", [("Trim Type", "Cage"), ("Size", "3\""), ("Rated Cv", "120"), ("Characteristic", "Equal %"),
++                ("Plug / Ball / Disc", "316 SS"), ("Seat", "316 SS"), ("Stem", "17-4PH")])]
++C2 = [("ACTUATOR", [("Manuf.", "Emerson"), ("Model", "667"), ("Type of Actuator", "Spring-diaphragm"), ("Size", "40"), ("Yoke", "CS"),
++                    ("Stroke Speed", "VTA")]),
++      ("PAINT", [("Painting System", "Gen Note-9"), ("Body", "RAL 7035"), ("Handwheel", "RAL 1003")]),
++      ("VALACC", [("Handwheel", "Yes"), ("Lubricant Material", "VTA"), ("Mechanical Valve Stopper", "N/A")]),
++      ("PNEUMATIC", [("Air Tube Material", "SS316"), ("Size", "1/2\""), ("Air Set", None), ("Manufacturer", "Bellofram"),
++                     ("Volume Tank", None), ("Tag No.", "N/A")]),
++      ("ELECTRICAL", [("Solenoid Valve", None), ("Tag No", "01SY 9401"), ("Power Supply", "24 VDC"),
++                      ("Type of Position Indication", "Position Transmitter"), ("Tag No", "01ZT 9401"), ("Rating", "IP66"),
++                      ("Model", "3051"), ("Manuf.", "Rosemount")])]
++
++
++def _column(pg, blocks, n0, x_num, y0, p):
++    y, n = y0, n0
++    x_lab = x_num + 26
++    pg.draw_line((x_num - 8, y - 9), (x_num + 22, y - 9), width=0.5)
++    for cap, rows in blocks:
++        top = y - 9
++        for lab, val in rows:
++            pg.insert_text((x_num - (5 if n < 10 else 9 if n < 100 else 13), y), str(n), fontsize=8)
++            if val is None:
++                pg.insert_text((x_lab, y), lab, fontsize=8)                        # a bare caption row (heading)
++            else:
++                pg.insert_text((x_lab, y), f"{lab} :", fontsize=8)
++                x = x_lab + pymupdf.get_text_length(f"{lab} : ", fontsize=8)
++                for v in (val if isinstance(val, list) else [val]):
++                    bold = v != "/"
++                    pg.insert_text((x, y), v, fontsize=8, fontname="hebo" if bold else "helv")
++                    x += pymupdf.get_text_length(v + " ", fontname="hebo" if bold else "helv", fontsize=8) + 2
++            y += p
++            n += 1
++        bottom = y - 9
++        for i, ch in enumerate(cap[: max(1, int((bottom - top) / 4.6) - 1)]):
++            pg.insert_text((x_num + 6, top + 6 + i * 4.6), ch, fontsize=4.2)
++        pg.draw_line((x_num - 8, bottom), (x_num + 22, bottom), width=0.5)
++    return n
++
++
++def make_cv_pdf() -> bytes:
++    doc = pymupdf.open()
++    pg = doc.new_page(width=595, height=842)
++    pg.insert_text((45, 70), "Form No : 101", fontsize=9)
++    pg.insert_text((260, 125), "Control Valve", fontsize=15, fontname="hebo")
++    pg.insert_text((450, 120), "DOCUMENT NO.", fontsize=8)
++    pg.insert_text((460, 140), "01-09-IN-DTS-00001", fontsize=9, fontname="hebo")
++    pg.insert_text((450, 190), "SHEET 1 OF 1", fontsize=8)
++    pg.insert_text((450, 210), "REV.", fontsize=8)
++    pg.insert_text((520, 210), "A", fontsize=8)
++    n1 = _column(pg, C1, 1, 58, 270, 11.2)
++    _column(pg, C2, 53, 330, 270, 11.2)
++    assert n1 > 20
++    return doc.tobytes()
++
++
++def test_control_valve_form_101(tmp_path):
++    p = tmp_path / "cv.pdf"
++    p.write_bytes(make_cv_pdf())
++    d = extract.group_datasheets(extract.read_pdf(str(p)))[0]
++    F = {k: f["value"] for k, f in d["fields"].items()}
++    assert d["form"] == "101" and d["family"] == "globe"
++    # the same printed label means different things in different blocks
++    assert F["pos_manufacturer"] == "Fisher" and F["pos_model"] == "DVC6200"
++    assert F["act_manufacturer"] == "Emerson" and F["act_model"] == "667" and F["act_size"] == "40"
++    assert F["trim_size"] == '3"' and F["rated_cv"] == "120" and F["flow_char"] == "Equal %"
++    assert F["paint_body"] == "RAL 7035" and F["paint_handwheel"] == "RAL 1003" and F["handwheel"] == "Yes"
++    assert F["tubing"] == "SS316" and F["tubing_size"] == '1/2"' and F["afr_manufacturer"] == "Bellofram" and F["vt_tag"] == "N/A"
++    assert F["sov_tag"] == "01SY 9401" and F["sov_power_supply"] == "24 VDC"
++    assert F["pos_tx_tag"] == "01ZT 9401" and F["pos_tx_ingress"] == "IP66" and F["pos_tx_model"] == "3051"
++    assert F["rating"] == "600#" and F["tag"] == "01FV 9401"                               # not the transmitter's 'Rating' / tags
++    assert F["design_pressure"] == "98" and d["fields"]["design_pressure"]["unit"] == "bar-g"
++    assert F["ia_design_pressure"] == "10 barg" and F["ia_op_pressure"] == "7.5" and F["ia_op_pressure_min"] == "4.5"
++    assert "op_pressure" not in F                                                         # instrument air, not process pressure
++    assert F["ex_type"] == "Ex 'd'"
++
++
++def test_form_101_helpers():
++    r = {"key": "ex_type", "value": "Ex / ' / d / ' / / Ex ‘n’ / Ex ‘ec’"}
++    forms_ext._tidy_value(r)
++    assert r["value"] == "Ex 'd' / Ex ‘n’ / Ex ‘ec’"
++    r = {"key": "ex_type", "value": "Ex ‘n’ or Ex ‘ec’"}
++    forms_ext._tidy_value(r)
++    assert r["value"] == "Ex ‘n’ or Ex ‘ec’"
++    r = {"key": "design_temp", "value": "195 / -30 / ºC", "unit": "", "status": "ok"}
++    extra = forms_ext._split_pair(r)
++    assert (r["value"], r["unit"], extra[0]["key"], extra[0]["value"]) == ("195", "ºC", "design_temp_min", "-30")
++    sh = {"rows": [{"label": f"Calculated CV ({c})", "key": f"x.calculated_cv.{c.lower()}", "value": v, "unit": "", "bbox": None,
++                    "section": "process", "status": "ok"} for c, v in (("Max", "90"), ("Nor", "70"), ("Min", ""))]
++                  + [{"label": f"Design Pressure ({c})", "key": f"x.design_pressure.{c.lower()}", "value": v, "unit": "",
++                      "bbox": [10, 10, 20, 20] if v else None, "section": "process", "status": "ok"}
++                     for c, v in (("Max", "98"), ("Nor", "/"), ("Min", "bar-g"))]}
++    forms_ext.fix_101_sheet2(sh, {"doc_no": "D-1"})
++    k = {r["key"]: r for r in sh["rows"]}
++    assert k["calc_cv.max"]["section"] == "sizing" and k["calc_cv.max"]["value"] == "90"
++    assert k["sz_design_pressure"]["value"] == "98" and k["sz_design_pressure"]["unit"] == "bar-g"
++
++
++# ── Code 80 with the title block at the bottom + a notes-only sheet 2 (Butterfly On/Off) ─────────────────────
++
++X_NUM, X_L1, X_L2, X_V, X_MID, X_R = 122, 136, 222, 313, 438, 572
++BFV_ROWS = [(1, ["Tag No.", "Item No."], ["53SDV090093", "VTA"]), (2, ["Service"], ["AGAS FR 53-C0933"]),
++            (3, ["PID No."], ["QCS-53-09-PR-DR-PI-406"]), (4, ["Line N°"], ['P53093520-32"(1C6AS-A)']),
++            (5, ["Piping class"], ["1C6AS-A"]), (6, ["Body Size", "Body Type"], ['32"', "Triple Offset-Butterfly Valve"]),
++            (7, ["Connections", "Rating"], ["RF", "150#"]), (8, ["Body material"], ["CS ASTM A216-WCB"]),
++            (9, ["Ball / Disc Material"], ["SS 316"]), (10, ["Seat Trim Material", "Seat Seal Material"], ["SS 316", "SS 316"]),
++            (11, ["Valve Power Failure position"], ["Fail close"]), (12, ["Bolting / Gasket"], ["Note-1"])]
++
++
++def _footer(pg, sheet):
++    pg.insert_text((50, 770), "A    AS    8/4/2026    Issued for Inter-Discipline Check", fontsize=7)
++    pg.insert_text((330, 760), "DATA SHEET", fontsize=7)
++    pg.insert_text((325, 770), "ON / OFF VALVE", fontsize=7)
++    pg.insert_text((440, 785), "Sheet", fontsize=7)
++    pg.insert_text((500, 785), str(sheet), fontsize=7)
++    pg.insert_text((530, 785), "of", fontsize=7)
++    pg.insert_text((550, 785), "2", fontsize=7)
++    pg.insert_text((320, 800), "Code: 80", fontsize=7)
++    pg.insert_text((400, 800), "Dwg. No.: xxxxx", fontsize=7)
++    pg.insert_text((540, 800), "Rev.:A", fontsize=7)
++
++
++def make_bfv_pdf() -> bytes:
++    doc = pymupdf.open()
++    pg = doc.new_page(width=595, height=842)
++    y = 80
++    for no, labels, vals in BFV_ROWS:
++        pg.draw_rect(pymupdf.Rect(43, y, X_R, y + 12), width=0.5)
++        for x in [X_NUM, X_L1, X_V, X_R] + ([X_L2, X_MID] if len(labels) == 2 else []):
++            pg.draw_line((x, y), (x, y + 12), width=0.5)
++        pg.insert_text((X_NUM + 4, y + 9), str(no), fontsize=7)
++        for i, lab in enumerate(labels):
++            pg.insert_text(([X_L1 + 3, X_L2 + 3][i], y + 9), lab, fontsize=7)
++        for i, v in enumerate(vals):
++            pg.insert_text(([X_V + 3, X_MID + 3] if len(labels) == 2 else [X_V + 3])[i], v, fontsize=7) if False else \
++                pg.insert_text((([X_V + 3, X_MID + 3] if len(labels) == 2 else [X_V + 3])[i], y + 9), v, fontsize=7)
++        y += 12
++    _footer(pg, 1)
++    pg2 = doc.new_page(width=595, height=842)
++    pg2.insert_text((50, 80), "Notes:", fontsize=7)
++    pg2.insert_text((50, 95), "1. Gasket shall be SPIRAL WOUND, 316 SS, CL600.", fontsize=7)
++    pg2.insert_text((50, 105), "Stud Bolt Material: CR-MO A193-B7M.", fontsize=7)
++    pg2.insert_text((50, 115), "2. Position Transmitter with 24V DC and 4-20 mA HART.", fontsize=7)
++    _footer(pg2, 2)
++    return doc.tobytes()
++
++
++def test_code80_bottom_title_block_and_notes_sheet(tmp_path):
++    p = tmp_path / "bfv.pdf"
++    p.write_bytes(make_bfv_pdf())
++    res = extract.read_pdf(str(p))
++    dss = extract.group_datasheets(res)
++    assert len(dss) == 1 and not res["other_pages"]
++    d = dss[0]
++    assert d["pages"] == [1, 2] and d["rev"] == "A" and d["sheets"] == [[1, 1, 2], [2, 2, 2]]
++    assert d["family"] == "butterfly" and d["fields"]["ball_material"]["display"] == "Disc Material"
++    F = {k: f["value"] for k, f in d["fields"].items()}
++    assert F["line_no"].startswith("P53093520") and F["fail_position"] == "Fail close"
++    assert F["seat_material"] == "SS 316" and F["seal_material"] == "SS 316"
++    assert [n["no"] for n in d["notes"]] == [1, 2] and "Stud Bolt" in d["notes"][0]["text"]
++    assert d["fields"]["bolting_gasket"]["ref"]["no"] == 1                                # 'Note-1' resolves to sheet 2
++
++
++def test_kind_helpers():
++    assert schema.project_kind("CO2 PJT") == "ball" and schema.project_kind("CO2 PJT · Globe Valve") == "globe"
++    assert schema.project_kind("X · PSV") == "psv" and schema.project_kind("X · Butterfly Valve") == "butterfly"
++    fam = lambda form, **kw: schema.family(form, {k: {"value": v} for k, v in kw.items()})   # noqa: E731
++    assert fam("101", body_type="Butterfly Control Valve - Triple Offset") == "butterfly"
++    assert fam("101", instrument_type="Air Actuated CV (Globe) E/P positioner") == "globe"
++    assert fam("on/off", body_type="Ball (Full Bore) - Floating") == "ball"
++    assert fam("701") == "psv"
++    assert schema.lookup_101("Manufacturer", "POSTNR.") [0] == "pos_manufacturer"
++    assert schema.lookup_101("Tag No", "ELECTRICALACC.", "Solenoid Valve")[0] == "sov_tag"
++    assert schema.lookup_101("Tag No", "ELECTRICALACC.", "Solenoid Valve", "POSIND")[0] == "pos_tx_tag"
++
++
++# ── the menus: one project per kind, Ball-only rules stay in Ball projects ───────────────────────────────────
++
++def _client(tmp_path, monkeypatch):
++    monkeypatch.setenv("PID_DATA_DIR", str(tmp_path / "data"))
++    api._KIND_CACHE.clear()
++    from fastapi import FastAPI
++    from fastapi.testclient import TestClient
++    app = FastAPI()
++    app.include_router(api.router)
++    return TestClient(app)
++
++
++def _upload(c, pid, name, data):
++    j = c.post(f"/api/valve/projects/{pid}/upload", data={"kind": "datasheet"},
++               files=[("files", (name, data, "application/pdf"))], headers={"X-Author": "t"}).json()
++    for _ in range(150):
++        st = c.get(f"/api/valve/jobs/{j['id']}").json()
++        if st["status"] == "done":
++            return st
++        time.sleep(0.1)
++    raise AssertionError("upload did not finish")
++
++
++def test_kind_projects_and_rules(tmp_path, monkeypatch):
++    c = _client(tmp_path, monkeypatch)
++    pid = c.post("/api/valve/projects", json={"name": "CO2 PJT · PSV"}).json()["id"]
++    st = _upload(c, pid, "psv.pdf", make_psv_pdf())
++    assert not st["warn"]
++    st = _upload(c, pid, "cv.pdf", make_cv_pdf())
++    assert "Globe Valve 1장" in st["warn"]                                                 # put in the wrong menu: said, kept
++    s = c.get(f"/api/valve/projects/{pid}/summary").json()
++    assert s["kpi"]["datasheets"] == 2
++    psv = next(c.get(f"/api/valve/datasheets/{t['id']}").json() for t in s["tags"] if t["tag"].startswith("98PRV"))
++    assert psv["kind"] == "psv" and psv["family"] == "psv" and psv["form"] == "701"
++    assert psv["material_review"] == [] and psv["pms"] is None
++    ball_only = [x for x in psv["verification"]["checks"] if x["group"] in ("Material", "Design", "PMS")]
++    assert ball_only and all(x["status"] == "n/a" and "Ball Valve rule" in x["reason"] for x in ball_only)
++    miss = {i["key"] for i in psv["issues"] if i["type"] == "Data Missing"}
++    assert "op_pressure" in miss                                                          # blank PROCESS DATA item, once
++    assert len([i for i in psv["issues"] if i["ikey"] == "Data Missing:op_pressure"]) == 1
++
++
++def test_ball_project_unchanged_kind(tmp_path, monkeypatch):
++    c = _client(tmp_path, monkeypatch)
++    pid = c.post("/api/valve/projects", json={"name": "CO2 PJT"}).json()["id"]
++    from tests.test_valve import make_pdf
++    _upload(c, pid, "ds.pdf", make_pdf())
++    s = c.get(f"/api/valve/projects/{pid}/summary").json()
++    d = c.get(f"/api/valve/datasheets/{s['tags'][0]['id']}").json()
++    assert d["kind"] == "ball" and d["family"] == "ball"
++    assert not any("Ball Valve rule" in (x.get("reason") or "") for x in d["verification"]["checks"])
++
++
++@pytest.mark.skipif(not os.environ.get("VALVE_KIND_SAMPLES"), reason="client sample files are not in the repository")
++def test_real_kind_samples():
++    D = Path(os.environ["VALVE_KIND_SAMPLES"])
++    want = {"globe_cv.pdf": ("101", "globe", 3, 6), "bfv_cv.pdf": ("101", "butterfly", 2, 0),
++            "bfv_onoff.pdf": (None, "butterfly", 2, 9), "psv.pdf": ("701", "psv", 2, 5)}
++    for name, (form, fam, pages, notes) in want.items():
++        d = extract.group_datasheets(extract.read_pdf(str(D / name)))[0]
++        assert (d.get("form"), d["family"], len(d["pages"]), len(d["notes"])) == (form, fam, pages, notes), name
++        assert not [k for k in d["fields"] if k.startswith("x.")], name
+-- 
+2.43.0
+
