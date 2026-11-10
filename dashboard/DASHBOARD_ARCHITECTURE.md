@@ -1813,3 +1813,8 @@ C:\Users\SAMSUNG\Desktop\Claude\                         ← 개발 폴더 (여�
 - 무엇을: Schedule 달력에서 쓴 내 일정(내가 썼거나 함께하는 사람에 내 이름, 특이사항 제외)을 오른쪽 '📌 내 업무' 목록과 내 업무 팝업에 '📅 일정' 으로 추가 — 지난 7일 ~ 앞으로 14일, 날짜가 지나면 완료, 설명 = 오늘/내일/날짜 · 시간 · 끝 날짜 · 장소 · 등록한 사람. 누르면 Schedule 달력 그 날로 이동. 실행 프로젝트 권한이 있는 부서원만. 일정을 불러오거나 저장하면 내 업무 목록 바로 갱신.
 - 바뀐 곳: dashboard.html `myTasks`(__cev) · `startTask`(__cev) · `cevLoad`(renderTaskBar)
 - 확인한 것: 내 업무 15 → 19건(일정 4건 미완료), 내 업무의 일정 누름 → #co2sched 달력 11/11. 콘솔 오류 없음.
+
+### 2026-11-10 (APP_VERSION 2026-11-10.7 / SERVER_VERSION 2026-11-10.3) — v17.27 Schedule 달력 공종 필터
+- 무엇을: Schedule 상단 공종(I&C · Mech · Elec …)을 누르면 Schedule 달력도 그 공종만 — PSR 마일스톤은 그 공종 품목만(구분 Tagged/Bulk 도), 사용자 일정 · 특이사항은 그 공종 것만. 일정의 공종 = 입력 창의 '공종' 칸(기본 = 지금 고른 공종, '공통 · 전체' 가능), 비어 있으면 글 속 품목 번호(예: J0730 → I&C) 또는 공종 이름으로 판단(`cevDisc`). 달력 제목에 '🔧 I&C 만 ✕'(누르면 해제), 목록에 '🔧 공종' 표시. 서버 `cal_clean` 에 disc.
+- 바뀐 곳: dashboard.html `cevDisc` · `calEvents`(sch 거르기) · `renderCal`(제목) · `cevDlg`(공종 칸), CSS `.calfd` / server.py `cal_clean`
+- 확인한 것: 11/18 I&C · Mech 일정 2건 → I&C 고르면 1건, 11/12 특이사항(J0730) I&C 로 남고 Elec PO 마일스톤 숨김, ✕ 로 해제. 콘솔 오류 없음.

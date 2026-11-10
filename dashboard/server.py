@@ -36,7 +36,7 @@ ID_RE = re.compile(r'^[A-Za-z0-9_\-]{1,80}$')
 WEEK_RE = re.compile(r'^\d{4}-W\d{2}$')
 MAX_BODY = 30 * 1024 * 1024
 
-SERVER_VERSION = '2026-11-10.2'
+SERVER_VERSION = '2026-11-10.3'
 ROOT = os.path.dirname(os.path.abspath(__file__))
 PORT = 8080
 ALLOW_NETS = []          # 사내망: 루프백·사설망 + 서버 IP 대역(/16, 유선·Wi-Fi 등 지금까지 쓴 대역 모두 기억) + --allow 로 추가한 대역
@@ -2061,7 +2061,7 @@ def cal_clean(b):
     people = [str(x).strip()[:20] for x in (b.get('people') or []) if str(x).strip()][:30]
     return {'date': d, 'end': end, 'time': tm, 'title': t, 'place': str(b.get('place') or '').strip()[:100],
             'memo': str(b.get('memo') or '').strip()[:500], 'people': people, 'priv': bool(b.get('priv')),
-            'kind': 'note' if b.get('kind') == 'note' else 'ev'}   # 2026-11-10 ev = 일정 · note = 특이사항
+            'kind': 'note' if b.get('kind') == 'note' else 'ev', 'disc': str(b.get('disc') or '').strip()[:20]}   # disc = 공종(Schedule 상단 공종 필터)   # 2026-11-10 ev = 일정 · note = 특이사항
 
 
 def api_cal_get(me):
