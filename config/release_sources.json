@@ -27,6 +27,15 @@
       ],
       "imported": "b44ead53",
       "_설명": "도서 화면은 병합이 아니라 dashboard/apps/books → app/static/books 로 옮겨 온다 (판넬과 같은 방식). 옮겨 온 마지막 커밋을 imported 에 적는다."
+    },
+    "VALVE_KINDS": {
+      "branch": "claude/new-session-v23o67",
+      "session": "5. 도서 검토 (valve37 — 사용자 요청으로 S5 가 만든 Valve 확장)",
+      "paths": [
+        "dist/valve_kinds"
+      ],
+      "imported": "3d46af2c",
+      "_설명": "2026-11-10 valve37(Globe · Butterfly · PSV)은 S5 가 S6 valve36 위 패치로 냈다 → 오케스트레이터가 git am 으로 적용(440a3bb1). S5 가 dist/valve_kinds 를 다시 내면 여기서 걸린다. Valve 원본 담당은 그대로 S6(VALVE)."
     }
   },
   "pending": {
