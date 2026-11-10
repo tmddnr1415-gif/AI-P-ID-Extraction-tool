@@ -1773,3 +1773,13 @@ C:\Users\SAMSUNG\Desktop\Claude\                         ← 개발 폴더 (여�
 - 품목별 일정 표 필터 줄에 공종 · 구분(Tagged/Bulk) 선택 추가(기존 검색 · 정렬 · 상태와 함께).
 - 바뀐 곳: dashboard.html `renderSched`(RF · rfOk · rfBar · fbar), `schBind`(select[data-rf] · input[data-rf=q] · data-rfx · #schDisc · #schType), CSS `.rpflt` · `.rpfc`
 - 확인한 것: 보고 74건 → 진행 중 8 → +15일 5 → Mech 3, 검색 TRANSMITTER 6, 사유 입력됨 1 / 품목표 Mech + Tagged 6품목. 콘솔 오류 없음.
+
+### 2026-11-10 (APP_VERSION 2026-11-10.1 / SERVER_VERSION 그대로) — v17.21 Schedule 설계 관리 포인트 · 보고 표 엑셀식 · 확대/축소 렉
+- 사용자 지시 6: 설계 단의 지연 관리 포인트 = **MR · RFQ · TBE 발주처(to Company) · TBE 완료** — 첫 화면 요약(KPI 4칸 · 공종별 지연 표 · 품목표 칸 · 공종별 품목 현황 · 구매 현황 보고 기본 마일스톤)을 이 4개 기준으로(`SCH_FOCUS` · `SCH_FRONT` 바꿈, CBE · Award 는 설계·제작·운송 보기에서만). 화면 글 'MR · TBE · CBE' → 'MR · RFQ · TBE', '구매 전반' → '설계 관리'.
+- 1 확대 · 축소 렉: 정해진 단계만(한 달 8 · 14 · 24 · 45 · 80 · 140 · 240 · 420px = 년 ↔ 일, 하루 최대 약 14px), 휠 한 칸 = 한 단계, 다 그린 뒤 0.2초 지나야 다음 단계(느린 PC 에서 쌓이지 않음), 다시 그릴 때 카드 전체가 아니라 도구 줄 · 일정판 안쪽만 바꿈(`schGtRedraw`, `.gtw{contain:content}`), 마일스톤 이름표는 일 단위(또는 주 단위 크게)에서만 · 화면 근처(0.5 + 1 + 0.5 화면)만. 시험(84품목): 한 단계 약 70~110ms(소프트웨어 그래픽), 화면 가운데 날짜 유지.
+- 2 구매 현황 보고 표: 열 머리마다 ▾ 엑셀식 필터(검색 · 모두 선택 · 값별 체크 · 건수, 적용 중인 열은 파란 머리) — 품목 · 공종 · 원래 기한 · 현재 · 지연 · 상태 · 지연 사유 · 캐치업 · 특이사항. 필터 해제 단추로 모두 풂(`SCH.cf`, `schColFilter`, `rcfb`/`data-rcf` — 시트 표의 `.cfb` 와 이름이 겹쳐 따로).
+- 3 열 너비: 날짜(원래 기한 · 현재 · 캐치업) 96px 로 통일, 지연 사유 320px · 특이사항 260px 로 넓게. 표 너비 = 열 합(넘치면 가로 스크롤).
+- 4 셀 더블클릭 = 그 자리 입력(Enter 저장 · Esc 취소 · 다른 곳 누름 = 저장): 원래 기한 = 계획(B), 현재 = 오늘까지 날짜면 실적(A) · 뒤면 전망(F, 실적 지움), 캐치업 · 지연 사유 · 특이사항 = 보고 메모(rn). 저장은 같은 품목 데이터 하나라 품목표 · 일정판 · 상태창 · 보고에 모두 반영, 품목 상세에도 '📝 마일스톤 보고' 표시(`schRptEdit`). ✏ 열은 없앰.
+- 5 열 너비 조절: 머리 오른쪽 끝을 끌면 그 열(모든 마일스톤 표 함께), 이 PC 에 기억(`dept-rpt-colw`).
+- 바뀐 곳: dashboard.html `SCH_FOCUS` · `SCH_FRONT` · `SCH_GSTEPS` · `schGtZoom` · `schGtWheel` · `schGtRedraw` · `schColFilter` · `schRptEdit` · `renderSched`(RC · cv · CF · rptRow · rptCard · KPI · 품목표 colgroup) · `schBind`(data-rz · data-rc 더블클릭 · data-rcf), CSS `.rpt` · `.rcfb` · `.rpz` · `.cfp` · `.gtw`
+- 확인한 것: KPI MR 0/33 · RFQ 12/33 · TBE 제출 14/33 · TBE 완료 20/33, 보고 공종 열 필터 I&C → 18건, 지연 사유 · 캐치업 더블클릭 입력 → 서버 저장, 사유 열 너비 +120 → 모든 표 반영 · 기억, 확대 · 축소 렉 측정. 콘솔 오류 없음.
