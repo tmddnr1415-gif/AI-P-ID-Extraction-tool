@@ -36,7 +36,7 @@ ID_RE = re.compile(r'^[A-Za-z0-9_\-]{1,80}$')
 WEEK_RE = re.compile(r'^\d{4}-W\d{2}$')
 MAX_BODY = 30 * 1024 * 1024
 
-SERVER_VERSION = '2026-11-10.3'
+SERVER_VERSION = '2026-11-10.4'
 ROOT = os.path.dirname(os.path.abspath(__file__))
 PORT = 8080
 ALLOW_NETS = []          # 사내망: 루프백·사설망 + 서버 IP 대역(/16, 유선·Wi-Fi 등 지금까지 쓴 대역 모두 기억) + --allow 로 추가한 대역
@@ -2113,7 +2113,7 @@ def api_sched_put(key, b, by):
     items = b.get('items')
     if not isinstance(items, list) or not items or len(items) > 5000:
         raise ApiError(400, '품목 목록이 비었거나 너무 많습니다')
-    d = {k: b.get(k) for k in ('items', 'asOf', 'asOfFrom', 'file', 'sheets', 'at', 'log', 'edited')}   # 2026-11-09 log · edited = 화면에서 직접 입력한 기록
+    d = {k: b.get(k) for k in ('items', 'asOf', 'asOfFrom', 'file', 'sheets', 'at', 'log', 'edited', 'prev')}   # 2026-11-09 log · edited = 화면에서 직접 입력한 기록 · 2026-11-10 prev = 이전 PSR 대비 변경 요약
     d['by'] = by; d['savedAt'] = stamp()
     raw = json.dumps(d, ensure_ascii=False)
     if len(raw) > 8_000_000:

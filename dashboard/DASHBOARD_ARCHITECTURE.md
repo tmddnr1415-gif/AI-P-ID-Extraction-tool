@@ -1818,3 +1818,8 @@ C:\Users\SAMSUNG\Desktop\Claude\                         ← 개발 폴더 (여�
 - 무엇을: Schedule 상단 공종(I&C · Mech · Elec …)을 누르면 Schedule 달력도 그 공종만 — PSR 마일스톤은 그 공종 품목만(구분 Tagged/Bulk 도), 사용자 일정 · 특이사항은 그 공종 것만. 일정의 공종 = 입력 창의 '공종' 칸(기본 = 지금 고른 공종, '공통 · 전체' 가능), 비어 있으면 글 속 품목 번호(예: J0730 → I&C) 또는 공종 이름으로 판단(`cevDisc`). 달력 제목에 '🔧 I&C 만 ✕'(누르면 해제), 목록에 '🔧 공종' 표시. 서버 `cal_clean` 에 disc.
 - 바뀐 곳: dashboard.html `cevDisc` · `calEvents`(sch 거르기) · `renderCal`(제목) · `cevDlg`(공종 칸), CSS `.calfd` / server.py `cal_clean`
 - 확인한 것: 11/18 I&C · Mech 일정 2건 → I&C 고르면 1건, 11/12 특이사항(J0730) I&C 로 남고 Elec PO 마일스톤 숨김, ✕ 로 해제. 콘솔 오류 없음.
+
+### 2026-11-10 (APP_VERSION 2026-11-10.8 / SERVER_VERSION 2026-11-10.4) — v17.28 PSR 변경 표시 · 캐치업 강조
+- 무엇을: 새 PSR 을 올리면 이전 PSR 대비 바뀐 계획 · 전망 · 실적 칸을 **노랑 음영 + 파랑 글씨**(`.pchg`)로 표시, 마우스를 올리면 "이전 PSR 전망 26.07.19 → 26.07.28". 이전에 없던 품목은 `NEW` 표. 머리글에 "🟨 이전 PSR 대비 변경 N칸 · 새 품목 M개". 화면에서 직접 고친 칸은 변경 표시를 지움(● 표시로 바뀜). 구매 현황 보고의 캐치업 날짜는 붉은 굵은 입체 글씨(`.rpcu`).  왜: 사용자 지시.
+- 바뀐 곳: dashboard.html `schUpload`(it.chg · it.isNew · d.prev 계산) · `schSaveCells`(고친 칸 chg 삭제) · `schChg`/`schChgT`/`schChgW` 새 함수 · `renderSched` 의 `fcell` · 품목 상세표 · `rptRow` · CSS / server.py `api_sched_put` (`prev` 저장)
+- 확인한 것: 예시 PSR → 날짜 54칸 바꾼 PSR 순서로 올려 54칸 표시, 품목표 · 상세 · 보고표 캡처, 캐치업 2건 입력 후 붉은 굵은 글씨 확인, 콘솔 오류 없음 / 회사에서 확인할 것: 실제 PSR 개정판 업로드 시 변경 칸 수가 맞는지.
