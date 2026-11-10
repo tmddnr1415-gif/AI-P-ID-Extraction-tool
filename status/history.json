@@ -1410,6 +1410,90 @@
      ]
     }
    }
+  },
+  {
+   "at": "2026-11-10 05:09",
+   "read_at": "2026-11-10T05:10:00Z",
+   "s": {
+    "S1": {
+     "branch": "origin/ccr-248a5c4d-3dji7g",
+     "tip": "b64d6e19",
+     "ver": "v17.33 · 회사엔 v17.21",
+     "bucket": "COMPLETED",
+     "needs": "",
+     "recent": "v17.28~v17.33 — PSR 변경 칸 표시 · 보고 표 정렬 · 캐치업 색 · 칸 글자 서식(우클릭) · Globe/Butterfly/PSV 메뉴 → /valve/?kind=",
+     "pending": []
+    },
+    "S2": {
+     "branch": "origin/claude/gracious-ride-26nqrf",
+     "tip": "7693ad75",
+     "ver": "hotfix134 만듦 (통합)",
+     "bucket": "BLOCKED",
+     "needs": "새 꾸러미 규칙(오케스트레이터가 통합 · Valve 포함)이 사용자 뜻인지 확인 · /ic3d 를 만들지 · LOGIC→작도 정확도 점검을 이어 갈지",
+     "recent": "",
+     "pending": []
+    },
+    "S3": {
+     "branch": "origin/ccr-cc45909d-fjjmrb",
+     "tip": "4e9cfd24",
+     "ver": "L91",
+     "bucket": "COMPLETED",
+     "needs": "",
+     "recent": "L91 커밋 · 푸시 — 화면 시험 125 · 빠른 시험 1,655 통과. 통합 꾸러미에 병합 필요",
+     "pending": []
+    },
+    "S4": {
+     "branch": "origin/ccr-d82d97fa-bb3ty3",
+     "tip": "7b10d7cb",
+     "ver": "변경 이력 (55)",
+     "bucket": "BLOCKED",
+     "needs": "1) dist/company_pc/S4 생성 진행 여부  2) zip 만들기를 멈추고 통합을 오케스트레이터에 맡길지",
+     "recent": "",
+     "pending": []
+    },
+    "S5": {
+     "branch": "origin/claude/new-session-v23o67",
+     "tip": "3d46af2c",
+     "ver": "2026-11-07.1",
+     "bucket": "COMPLETED",
+     "needs": "",
+     "recent": "valve37 (3d46af2c · dist/valve_kinds) — Globe · Butterfly · PSV 데이터시트 검토. S6 valve36 위 패치 + 대시보드 메뉴 패치. 다음 ② 통합본에 실어 달라는 요청",
+     "pending": []
+    },
+    "S6": {
+     "branch": "origin/ccr-efbe7e75-n915ze",
+     "tip": "b0db9a0d",
+     "ver": "valve36",
+     "bucket": "BLOCKED",
+     "needs": "회사 PC 용 꾸러미 방식 결정 — 따로 \"valve36 꾸러미 만들어\" 또는 오케스트레이터 통합 진행",
+     "recent": "valve36 — Datasheet Review 의 밸브 모형을 세션 7 Anatomy 방식(오프라인 엔진)으로 교체해 커밋 · 푸시. 회사 PC 용 zip 은 만들지 않음",
+     "pending": []
+    },
+    "S7": {
+     "branch": "origin/claude/practical-newton-n6bt58",
+     "tip": "af748c78",
+     "ver": "af748c78",
+     "bucket": "COMPLETED",
+     "needs": "",
+     "recent": "인터넷을 끈 상태에서 대시보드 · 3D 조립/분해 화면 확인 (af748c7)",
+     "pending": [
+      "af748c78",
+      "da8df461",
+      "c0dd7d0b",
+      "077cba5e",
+      "144e6604",
+      "8b0b1023",
+      "19d7aa3a",
+      "1fd96028",
+      "b99fb62a",
+      "ad3bbe35",
+      "05909503",
+      "963d2857",
+      "f408556e",
+      "64a829be"
+     ]
+    }
+   }
   }
  ],
  "changes": [
@@ -2492,6 +2576,90 @@
    "kind": "report",
    "sig": "세션 기록",
    "text": "세션 보고 — valve37 (3d46af2c · dist/valve_kinds) — Globe · Butterfly · PSV 데이터시트 검토. S6 valve36 위 패치 + 대시보드 메뉴 패치. 다음 ② 통합본에 실어 달라는 요청"
+  },
+  {
+   "at": "2026-11-10 05:09",
+   "prev": "2026-11-10 04:34",
+   "sid": "S1",
+   "kind": "commit",
+   "sig": "git",
+   "h": "b64d6e19",
+   "d": "2026-11-10",
+   "text": "Dashboard v17.33: Globe · Butterfly · PSV 메뉴를 P&ID 서버 /valve/ (kind=) 로 연결"
+  },
+  {
+   "at": "2026-11-10 05:09",
+   "prev": "2026-11-10 04:34",
+   "sid": "S1",
+   "kind": "commit",
+   "sig": "git",
+   "h": "13e201f0",
+   "d": "2026-11-10",
+   "text": "Dashboard v17.32: 구매 현황 보고 칸 글자색 · 굵게 · 기울임 (우클릭)"
+  },
+  {
+   "at": "2026-11-10 05:09",
+   "prev": "2026-11-10 04:34",
+   "sid": "S1",
+   "kind": "commit",
+   "sig": "git",
+   "h": "07423a5f",
+   "d": "2026-11-10",
+   "text": "Dashboard v17.31: 구매 현황 보고 '현재' 날짜는 검정으로만"
+  },
+  {
+   "at": "2026-11-10 05:09",
+   "prev": "2026-11-10 04:34",
+   "sid": "S1",
+   "kind": "commit",
+   "sig": "git",
+   "h": "c8a37463",
+   "d": "2026-11-10",
+   "text": "Dashboard v17.30: 캐치업 날짜 노랑 음영 · 파랑 글씨"
+  },
+  {
+   "at": "2026-11-10 05:09",
+   "prev": "2026-11-10 04:34",
+   "sid": "S1",
+   "kind": "commit",
+   "sig": "git",
+   "h": "fd6b44f2",
+   "d": "2026-11-10",
+   "text": "Dashboard v17.29: 구매 현황 보고 표 머리글 누르면 오름/내림차순"
+  },
+  {
+   "at": "2026-11-10 05:09",
+   "prev": "2026-11-10 04:34",
+   "sid": "S1",
+   "kind": "commit",
+   "sig": "git",
+   "h": "2cf2b822",
+   "d": "2026-11-10",
+   "text": "Dashboard v17.28: PSR 재업로드 시 이전 값 대비 변경 칸 표시 · 캐치업 날짜 강조"
+  },
+  {
+   "at": "2026-11-10 05:09",
+   "prev": "2026-11-10 04:34",
+   "sid": "S1",
+   "kind": "version",
+   "sig": "git",
+   "text": "버전 v17.27 · 회사엔 v17.21 → v17.33 · 회사엔 v17.21"
+  },
+  {
+   "at": "2026-11-10 05:09",
+   "prev": "2026-11-10 04:34",
+   "sid": "S1",
+   "kind": "report",
+   "sig": "세션 기록",
+   "text": "세션 보고 — v17.28~v17.33 — PSR 변경 칸 표시 · 보고 표 정렬 · 캐치업 색 · 칸 글자 서식(우클릭) · Globe/Butterfly/PSV 메뉴 → /valve/?kind="
+  },
+  {
+   "at": "2026-11-10 05:09",
+   "prev": "2026-11-10 04:34",
+   "sid": "S2",
+   "kind": "version",
+   "sig": "git",
+   "text": "버전 hotfix133 만듦 (통합) → hotfix134 만듦 (통합)"
   }
  ]
 }
