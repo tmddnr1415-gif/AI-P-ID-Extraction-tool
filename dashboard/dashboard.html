@@ -1746,6 +1746,7 @@ html.dark .sinm,html.dark .gtnm,html.dark .isi,html.dark .sinm1{text-shadow:0 1p
 .pchg{background:#fef08a!important;color:#1d4ed8!important;font-weight:800}span.pchg{border-radius:4px;padding:0 3px;box-shadow:inset 0 0 0 1px #facc15}td.pchg{box-shadow:inset 0 0 0 1px #facc15}
 .pchg b,.pchg small,.sfc .pchg{color:#1d4ed8!important}.pchgi{display:inline-block;margin-left:6px;background:#fef08a;color:#1d4ed8;font-weight:700;border-radius:6px;padding:0 8px;font-size:12px}.pchgi b{color:#1d4ed8}
 .pnew{display:inline-block;margin-left:3px;background:#fef08a;color:#1d4ed8;font-weight:800;border-radius:4px;padding:0 4px;font-size:10px;box-shadow:inset 0 0 0 1px #facc15}
+.rpt td.rpcur,.rpt td.rpcur b{color:#0f172a!important}/* 2026-11-10 사용자 지시: '현재' 날짜는 음영 · 색 없이 검정 */
 .rpt td.rpdt b.rpcu{display:inline-block;background:#fef08a;color:#1d4ed8;font-weight:900;font-size:15px;letter-spacing:.2px;border-radius:5px;padding:1px 6px;box-shadow:inset 0 0 0 1px #facc15,0 2px 3px rgba(161,98,7,.25);text-shadow:0 1px 0 #fff,1px 2px 2px rgba(30,64,175,.3)}.rpt td.rpdt small{font-size:11.5px;font-weight:500;margin-top:1px}
 .rpt .rpd{font-size:13.5px;padding:2px 9px;font-variant-numeric:tabular-nums}
 .rpt .rps{font-size:12.5px;padding:3px 9px;border-radius:7px}
@@ -2022,7 +2023,7 @@ function recLabel(key, f) {
  * ===================================================================== */
 let root = null;
 /* 서버 모드: http(s):// 로 접속하면 server.py 의 REST API 사용 (폴더 선택 불필요). file:// 로 열면 폴더 모드 */
-const APP_VERSION = '2026-11-10.10';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
+const APP_VERSION = '2026-11-10.11';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
 const SERVER_URL = 'http://localhost:8080';
 // 부서원 PC 사본(file://)이 접속을 시도할 서버 — 서버가 배포 파일을 만들 때 'PC 이름 주소, IP 주소' 순으로 자동 기록함
 const DEFAULT_SERVERS = ['http://ASEUNGWOOK-B01:8080', 'http://65.3.30.234:8080'];
@@ -4367,7 +4368,7 @@ function renderSched(c) {
   const rptHead = g => g.xs.length ? `지연 ${g.xs.length}건 발생함 (최대 +${Math.max(...g.xs.map(x => x.d))}일 · 진행 중 ${g.xs.filter(x => !x.a).length}건)` : '지연 없음, 계획대로 진행 중';
   const rptRow = (x, i) => { const id = x.it.type + '|' + x.it.no, ed = canUp ? ' data-rc' : '', cell = (c, html, cls = '') => `<td class="${cls}"${canUp && ['b', 'cur', 'r', 'c', 's'].includes(c) ? ` data-rc="${c}" title="더블클릭 = 입력"` : ''}>${html}</td>`;
     return `<tr class="${x.d > 14 ? 'r' : 'y'} ${x.a ? 'done' : ''}" data-rk="${esc(id + '|' + x.k)}" style="--dc:${schDc(x.it.disc)}"><td class="rpn">${x.i0 || i + 1}</td><td class="rpit"><b class="rpno">${esc(x.it.no)}</b><b class="sinm1">${esc(x.it.item)}</b></td><td><span class="sdc">${esc(x.it.disc)}</span></td>
-      ${cell('b', schChgW(x.it, 'B', x.k, schFmt(x.b)), 'rpdt')}${cell('cur', x.a ? `${schChgW(x.it, 'A', x.k, `<b>${schFmt(x.a)}</b>`)}<small>실적</small>` : x.f ? `${schChgW(x.it, 'F', x.k, schFmt(x.f))}<small>전망${x.over ? ' · 지남' : ''}</small>` : `${schChg(x.it, 'A', x.k) || schChg(x.it, 'F', x.k) ? `<span class="pchg" title="${esc([schChgT(x.it, 'A', x.k), schChgT(x.it, 'F', x.k)].filter(Boolean).join('\n'))}">지워짐</span>` : ''}<small>실적 없음</small>`, 'rpdt')}<td class="rpdd"><em class="rpd">+${x.d}일</em></td><td class="rpst">${rptSt(x)}</td>
+      ${cell('b', schChgW(x.it, 'B', x.k, schFmt(x.b)), 'rpdt')}${cell('cur', x.a ? `<b>${schFmt(x.a)}</b><small>실적</small>` : x.f ? `${schFmt(x.f)}<small>전망${x.over ? ' · 지남' : ''}</small>` : '<small>실적 없음</small>', 'rpdt rpcur')}<td class="rpdd"><em class="rpd">+${x.d}일</em></td><td class="rpst">${rptSt(x)}</td>
       ${cell('r', x.n.r ? esc(x.n.r) : '<i>미입력</i>', 'rptx')}${cell('c', x.n.c ? `<b class="rpcu">${schFmt(x.n.c)}</b>` : '<i>미입력</i>', 'rpdt')}${cell('s', x.n.s ? esc(x.n.s) : '<i>-</i>', 'rptx')}</tr>`; void ed; };
   const rptText = () => rptG.map((g, i) => `${i + 1}. ${g.title} : ${rptHead(g)}` + g.xs.map(x => `\n - ${x.it.no} ${x.it.item} : 원래 기한 ${schFmt(x.b)} 대비 +${x.d}일 ${x.a ? '늦게 완료함 (실적 ' + schFmt(x.a) + ')' : x.over ? '지연 중 (기한 지났으나 실적 미입력임)' : '지연 중 (전망 ' + schFmt(x.f) + ')'}${x.n.r ? `\n   · 지연 사유 : ${x.n.r}` : ''}${x.n.c ? `\n   · 캐치업 : ${schFmt(x.n.c)} 완료 예정임` : !x.a ? '\n   · 캐치업 : 일정 협의 중' : ''}${x.n.s ? `\n   · 특이사항 : ${x.n.s}` : ''}`).join('')).join('\n\n');
   SCH.rptText = rptText;
