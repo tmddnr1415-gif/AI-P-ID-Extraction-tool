@@ -1861,3 +1861,14 @@ C:\Users\SAMSUNG\Desktop\Claude\                         ← 개발 폴더 (여�
   3. 구매 현황 보고 `⬇ 엑셀로` — 지금 필터 · 정렬 그대로 xlsx (마일스톤 · 품목 · 기한 · 현재 · 지연 · 상태 · 사유 · 캐치업 · 캐치업 상태 · 특이사항).
 - 바뀐 곳: dashboard.html `renderSched`(`lateOk` · 머리글 pchgi · `cuSt` · `rfOk` · rptool 칩) · `schChgT` · 새 `schRptXlsx` · `schBind`(`data-rfnote` · `data-rpxls`) · CSS
 - 확인한 것: 변경 품목만 33 → 18, 캐치업 과거/미래 입력 후 D-18 · 7일 지남 · 만회함 표시, 칩 필터 1건, xlsx 53행 열 확인, 콘솔 오류 없음 / 회사에서 확인할 것: 없음.
+
+### 2026-11-10 (APP_VERSION 2026-11-10.16 / SERVER_VERSION 2026-11-10.5) — v17.36 Schedule 품목에서 Datasheet 검토(세션 6) 값 보기
+- 무엇을: Schedule 품목 상세(줄을 눌러 펼침)에, 품목 이름으로 밸브 종류를 알아내(BALL → Ball · GLOBE → Globe · BUTTERFLY → Butterfly · PSV/SAFETY/RELIEF VALVE → PSV, 여러 개면 모두) 그 종류의 **Datasheet 검토 값**을 붙임:
+  - 머리: 프로젝트('CO2 PJT' / 'CO2 PJT · Globe Valve' …) · 최신 Rev 기준 Tag 수 · 검토 완료 · 미결 Issue(Major) · 읽은 시각 · ↻ 다시 읽기 · 검토 화면 ↗
+  - **타입별 × Area별 수량 표**(행 = Valve Type, 열 = Area North·South·Brownfield·W15 순, 합계) — 숫자 · 타입 · Area 를 누르면 그 Tag 만
+  - **Tag 값 · 속성 표**: Tag · Type · Area · Unit · Rev · 검토 상태 · Issue + Service · Size · Rating · Body Type · Connections · Body Material · Piping Class · Actuator · Fail Position · Manufacturer · Model (☑ 모든 속성 열 = 검토 화면 Grid 의 모든 열), 값 검색, 검토 필요 값은 주황, 30개씩 더 보기
+  - 아직 그 종류 프로젝트가 없으면 안내, P&ID 서버가 꺼져 있으면 안내.
+- 왜: 사용자 지시 ("세션 6 Datasheet 검토에서 값을 불러와서 해당 item 의 값 또는 속성을 볼수잇게하고 그 값에는 타입별 수량 area별 수량이 보이도록").
+- 어떻게: P&ID 서버는 다른 포트에서 브라우저가 /api/valve 를 직접 부르는 것을 막아 두었으므로(CORS 없음), 대시보드 서버에 **읽기 전용 중계** `GET /api/vds/…` 를 둠 — 허용 경로 3개(`projects` · `projects/{id}/valve-summary` · `projects/{id}/grid`)만, 같은 PC `127.0.0.1:8000`(PID_PORT)으로, 실행 프로젝트(runpjt) 권한 필요, 결과는 저장하지 않음. 세션 6 쪽 코드는 고치지 않음.
+- 바뀐 곳: dashboard.html 새 `VDS_KIND` · `VDS_COLS` · `vdsKinds` · `vdsLoad` · `vdsPaint` · `vdsBlock`, 품목 상세 `detail`, `schBind`(`data-vdsf` · `data-vdsre` · `data-vdsgo` · `data-vdsmore` · `oninput` · `onchange`), CSS `.vds*` / server.py 새 `PID_PORT` · `VDS_PATHS` · `api_vds_get`, `api()` 의 `vds` 분기
+- 확인한 것: 가짜 P&ID 서버(46 Tag · 4타입 · 4 Area)로 수량표 · 필터 · 검색(입력 중 커서 유지) · 모든 속성 열, Globe 프로젝트 없음 안내, 서버 꺼짐 안내, 콘솔 오류 없음 / 회사에서 확인할 것: 실제 P&ID 서버(valve36/37)에서 프로젝트 이름이 'CO2 PJT' 인지, Tag 수 · Area 가 검토 화면 Valve Summary 와 같은지.

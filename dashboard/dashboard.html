@@ -1731,6 +1731,12 @@ html.dark .sinm,html.dark .gtnm,html.dark .isi,html.dark .sinm1{text-shadow:0 1p
 .rpt tbody td.rfc.rfc,.rpt tbody td.rfc.rfc :not(.rte,.rte *,.rtx [style]),.rfprev.rfc span{color:var(--rfc)!important}.rpt tbody td.rfb.rfb,.rpt tbody td.rfb.rfb :not(.rte,.rte *,.rtx [style]),.rfprev.rfb span{font-weight:900!important}.rpt tbody td.rfi.rfi,.rpt tbody td.rfi.rfi :not(.rte,.rte *,.rtx [style]),.rfprev.rfi span{font-style:italic!important}
 .schpop.rfpop{width:340px}.rfpop .rfrow{display:flex;align-items:center;gap:6px;padding:8px 0 0;flex-wrap:wrap}.rfsw{width:26px;height:26px;border-radius:50%;border:2px solid #fff;box-shadow:0 0 0 1px #cbd5e1;cursor:pointer;background:#fff;font-weight:800;color:#334155;font-size:12px}.rfsw.on{box-shadow:0 0 0 3px #4f46e5}.rfcus{display:inline-flex;align-items:center;gap:2px;cursor:pointer;font-size:16px}.rfcus input{width:28px;height:24px;border:0;padding:0;background:none;cursor:pointer}
 .rfprev{margin:10px 0 0;padding:8px 10px;border:1px dashed #cbd5e1;border-radius:8px;font-size:14px;color:#0f172a;background:#f8fafc}
+.vds{margin-top:12px;border:1px solid #c7d2fe;border-radius:12px;background:linear-gradient(180deg,#f5f7ff,#fff);padding:10px 12px}.vdsh{display:flex;align-items:center;gap:8px;flex-wrap:wrap}.vdsh b{font-size:14.5px;color:#312e81}.vdsh .muted{font-size:12px}
+.vdsg{display:grid;grid-template-columns:max-content minmax(0,1fr);gap:14px;margin-top:8px;align-items:start}@media (max-width:1100px){.vdsg{grid-template-columns:1fr}}.vdsl{font-weight:700;font-size:12.5px;color:#334155;margin-bottom:4px}
+.vdsm{font-size:12.5px;width:auto!important;min-width:0!important;table-layout:auto!important}.vdst td,.vdst th{padding:4px 9px!important;vertical-align:middle}.vdst small{display:inline!important;margin:0!important;color:#64748b}.vdst td.key b{letter-spacing:0}.vdsm th,.vdsm td{text-align:center;padding:4px 8px!important}.vdsm td.key{text-align:left}.vdsm .vdt{font-weight:800;color:#0f172a}.vdsm tr.vdtot td{border-top:2px solid #c7d2fe;background:#eef2ff}
+.vdc{border:0;background:none;cursor:pointer;font:inherit;color:#1e293b;padding:1px 6px;border-radius:6px}.vdc:hover{background:#e0e7ff}.vdc.n{font-weight:800;color:#4338ca}.vdc.on{background:#4f46e5;color:#fff}
+.vdsbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:4px;font-size:12px}.vdsbar input[data-vdsq]{width:240px;margin-left:4px}.vdsall{display:inline-flex;align-items:center;gap:4px;cursor:pointer}
+.vdsw{max-height:360px;overflow:auto;border:1px solid #e2e8f0;border-radius:8px}.vdst{font-size:12px;white-space:nowrap}.vdst thead th{position:sticky;top:0;background:#eef2ff;z-index:1}.vdst td.vdrv{background:#fff7ed;color:#c2410c}.vdst-s{font-size:11px;padding:0 6px;border-radius:5px;background:#f1f5f9}.vdst-s.ok{background:#dcfce7;color:#15803d}
 .rpt th.cfon{background:#e0e7ff!important;color:#3730a3!important}.rpt th.cfon .rcfb{background:#4f46e5;color:#fff;border-color:#4f46e5}
 .rpz{position:absolute;right:0;top:0;bottom:0;width:6px;cursor:col-resize;z-index:2}.rpz:hover{background:rgba(79,70,229,.35)}
 .rpt td[data-rc]{cursor:cell}.rpt td[data-rc]:hover{outline:2px solid #a5b4fc;outline-offset:-2px}.rpt td.rpedit{padding:2px 4px!important;outline:2px solid #4f46e5;outline-offset:-2px}.rpt td.rpedit input{width:100%;font:inherit;font-size:13.5px;border:0;background:#fff;padding:4px 2px}
@@ -2034,7 +2040,7 @@ function recLabel(key, f) {
  * ===================================================================== */
 let root = null;
 /* 서버 모드: http(s):// 로 접속하면 server.py 의 REST API 사용 (폴더 선택 불필요). file:// 로 열면 폴더 모드 */
-const APP_VERSION = '2026-11-10.15';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
+const APP_VERSION = '2026-11-10.16';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
 const SERVER_URL = 'http://localhost:8080';
 // 부서원 PC 사본(file://)이 접속을 시도할 서버 — 서버가 배포 파일을 만들 때 'PC 이름 주소, IP 주소' 순으로 자동 기록함
 const DEFAULT_SERVERS = ['http://ASEUNGWOOK-B01:8080', 'http://65.3.30.234:8080'];
@@ -4421,7 +4427,7 @@ function renderSched(c) {
   const detail = it => SCH.edit === it.type + '|' + it.no && canUp ? editRow(it) : `<tr class="sdet"><td colspan="10"><div class="sedh"><b>${esc(it.no)} ${esc(it.item)}</b><span class="muted">주황 = 설계 관리(MR ~ TBE) · 빨간 글씨 = 계획보다 늦음 · ● = 화면에서 직접 입력한 칸${canUp ? ' · <b>날짜 칸을 더블클릭하면 바로 입력</b>(Enter = 저장 · Esc = 취소)' : ''}</span><span class="sp"></span>${canUp ? `<button class="btn sm pri" data-schedit="${esc(it.type + '|' + it.no)}">✏ 계획 · 전망 · 실적 입력</button>` : ''}</div>`
     + `<div class="sdw"><table class="t sdt"><thead><tr><th>구분</th>${msOf(it).map(([k, n]) => `<th class="${SCH_FRONT.has(k) ? 'sdf' : ''}">${esc(n)}</th>`).join('')}</tr></thead><tbody>${[['B', '계획'], ['F', '전망'], ['A', '실적']].map(([s1, l]) => `<tr><td class="key">${l}</td>${msOf(it).map(([k]) => { const v = it[s1][k], late = s1 !== 'B' && v && it.B[k] && v > it.B[k]; const cg = schChg(it, s1, k); return `<td class="${SCH_FRONT.has(k) ? 'sdf' : ''} ${late ? 'sl' : ''} ${canUp ? 'sce' : ''} ${cg ? 'pchg' : ''}" ${canUp || cg ? `${canUp ? `data-sc="${esc(it.type + '|' + it.no)}|${s1}|${k}" ` : ''}title="${esc(SCH_NAME[k])} ${l}${cg ? ' · ' + esc(schChgT(it, s1, k)) : ''}${canUp ? ' — 더블클릭하면 입력' : ''}"` : ''}>${schFmt(v)}${it.ed?.[s1 + '.' + k] ? '<i class="sedm" title="화면에서 입력">●</i>' : ''}</td>`; }).join('')}</tr>`).join('')}
       <tr class="sdd"><td class="key">지연</td>${msOf(it).map(([k]) => { const v = it.A[k] || it.F[k], dd = v && it.B[k] ? schDays(v, it.B[k]) : null; return `<td class="${SCH_FRONT.has(k) ? 'sdf' : ''}">${dd == null ? '' : dd > 0 ? `<b class="sl">+${dd}</b>` : dd < 0 ? `<span class="sg">${dd}</span>` : '<span class="muted">0</span>'}</td>`; }).join('')}</tr></tbody></table></div>
-    <div class="sdm">${[['Buyer', it.buyer], ['Engineer', it.eng], ['Technical RQ', it.rq], ['Criticality', it.crit], ['PO No', it.po], ['Vendor', [it.vendor || it.tvendor, it.origin].filter(Boolean).join(' · ')], ['입찰물량', [it.desc, it.qty].filter(Boolean).join(' ')], ['Remark', it.remark], ...Object.entries(it.rn || {}).map(([mk, nn]) => [`📝 ${SCH_NAME[mk] || mk} 보고`, [nn.r && '사유 ' + nn.r, nn.c && '캐치업 ' + schFmt(nn.c), nn.s && '특이 ' + nn.s].filter(Boolean).join(' · ')])].filter(x => x[1]).map(([a, b]) => `<span><small>${a}</small>${esc(b)}</span>`).join('')}</div></td></tr>`;
+    <div class="sdm">${[['Buyer', it.buyer], ['Engineer', it.eng], ['Technical RQ', it.rq], ['Criticality', it.crit], ['PO No', it.po], ['Vendor', [it.vendor || it.tvendor, it.origin].filter(Boolean).join(' · ')], ['입찰물량', [it.desc, it.qty].filter(Boolean).join(' ')], ['Remark', it.remark], ...Object.entries(it.rn || {}).map(([mk, nn]) => [`📝 ${SCH_NAME[mk] || mk} 보고`, [nn.r && '사유 ' + nn.r, nn.c && '캐치업 ' + schFmt(nn.c), nn.s && '특이 ' + nn.s].filter(Boolean).join(' · ')])].filter(x => x[1]).map(([a, b]) => `<span><small>${a}</small>${esc(b)}</span>`).join('')}</div>${vdsKinds(it).map(kd => `<div class="vds" data-vk="${kd}">${vdsBlock(kd)}</div>`).join('')}</td></tr>`;
   const rows = sorted.map(({ it, k }) => { const id = it.type + '|' + it.no, op = SCH.open.has(id);
     return `<tr class="srow ${op ? 'open' : ''} ${k.front ? 'fdone' : ''}" data-schopen="${esc(id)}" style="--dc:${schDc(it.disc)}"><td class="key"><b>${esc(it.no)}</b><small class="stp ${it.type}">${it.type === 'Bulk' ? 'Bulk' : 'Tagged'}</small>${it.lli ? '<small class="slli">LLI</small>' : ''}${it.isNew ? '<small class="pnew" title="이전 PSR 에 없던 새 품목">NEW</small>' : ''}</td><td><span class="sdc">${esc(it.disc)}</span></td><td class="sitem"><b class="sinm" title="${esc(it.item)}">${esc(it.item)}</b><small class="sven">${it.vendor || it.tvendor ? '🏭 ' + esc([it.vendor || it.tvendor, it.origin].filter(Boolean).join(' · ')) : it.buyer ? '👤 Buyer ' + esc(it.buyer) : ''}</small></td>
       ${k.fo.map(f => fcell(f, it)).join('')}<td class="${k.over ? 'sl' : ''}"><span class="sstg" style="--p:${Math.round(k.prog * 100)}%">${esc(k.stage)}</span>${k.nextK ? `<small>다음 ${esc(SCH_NAME[k.nextK])} ${schFmt(k.nf)}${k.over ? ` · <b>${schDays(asOf, k.nf)}일 지남</b>` : ''}</small>` : ''}</td>
@@ -4619,6 +4625,46 @@ function schRptEdit(td) {
   inp.onkeydown = e => { if (e.key === 'Enter') { e.preventDefault(); fin(true); } else if (e.key === 'Escape') { e.preventDefault(); fin(false); } };
   inp.onblur = () => setTimeout(() => fin(true), 120);
 }
+/* ---------- 2026-11-10 Datasheet 검토(세션 6) 값 — Schedule 품목 상세에서 그 밸브 종류의 Tag 값 · 속성 + 타입별 · Area 별 수량 ----------
+   P&ID 서버의 /api/valve (프로젝트 'CO2 PJT' · 'CO2 PJT · Globe Valve' …) 를 대시보드 서버(/api/vds)가 대신 읽어 옴. 읽기만. */
+const VDS_KIND = [['ball', 'Ball Valve', /ball/i, 'valve'], ['globe', 'Globe Valve', /globe/i, 'globev'], ['butterfly', 'Butterfly Valve', /butterfly|b\.?f\.?v/i, 'bflyv'], ['psv', 'PSV', /\bpsv\b|safety\s*valve|relief\s*valve|\bprv\b/i, 'psv']];
+const VDS_PJT = 'CO2 PJT', VDS_COLS = ['service', 'body_size', 'rating', 'body_type', 'connections', 'body_material', 'piping_class', 'act_type', 'fail_position', 'manufacturer', 'model'];
+const vdsKinds = it => VDS_KIND.filter(([, , rx]) => rx.test(`${it.item} ${it.desc || ''}`)).map(([k]) => k);
+function vdsLoad(kd, force) {
+  const V = SCH.vds ||= {}; if (V[kd] && !force && (V[kd].st === 'load' || Date.now() - V[kd].at < 5 * 60e3)) return;
+  V[kd] = { st:'load', at:Date.now() }; vdsPaint(kd);
+  (async () => { try {
+    const [, disp] = VDS_KIND.find(x => x[0] === kd), want = kd === 'ball' ? VDS_PJT : `${VDS_PJT} · ${disp}`;
+    const ps = (await api('GET', 'vds/projects')).projects || [], pj = ps.find(p => p.name === want) || (kd === 'ball' ? ps.find(p => p.name.startsWith(VDS_PJT) && !/·/.test(p.name)) : null);
+    if (!pj) { V[kd] = { st:'none', at:Date.now(), want }; return vdsPaint(kd); }
+    const [sum, grid] = await Promise.all([api('GET', `vds/projects/${pj.id}/valve-summary`), api('GET', `vds/projects/${pj.id}/grid`)]);
+    V[kd] = { st:'ok', at:Date.now(), pj, sum, grid };
+  } catch (e) { V[kd] = { st:'err', at:Date.now(), msg:e.message }; } vdsPaint(kd); })();
+}
+function vdsPaint(kd) { document.querySelectorAll(`#schv .vds[data-vk="${kd}"]`).forEach(el => el.innerHTML = vdsBlock(kd)); }
+function vdsBlock(kd) {
+  const [, disp, , route] = VDS_KIND.find(x => x[0] === kd), V = (SCH.vds ||= {})[kd], F = ((SCH.vdsF ||= {})[kd] ||= { type:'', area:'', q:'', all:false, n:30 });
+  const head = (sub, tools = '') => `<div class="vdsh"><b>📑 ${esc(disp)} Datasheet 검토</b><span class="muted">${sub}</span><span class="sp"></span>${tools}<button class="btn sm" data-vdsre="${kd}" title="P&ID 서버에서 다시 읽기">↻</button><button class="btn sm" data-vdsgo="${route}" title="Datasheet 검토 화면 열기">검토 화면 ↗</button></div>`;
+  if (!V) { setTimeout(() => vdsLoad(kd), 0); return head('불러오는 중…'); }
+  if (V.st === 'load') return head('P&ID 서버에서 불러오는 중…');
+  if (V.st === 'err') return head(`<span class="sl">${esc(V.msg)}</span>`);
+  if (V.st === 'none') return head(`아직 '${esc(V.want)}' 프로젝트에 올린 Datasheet 가 없어요 — 검토 화면에서 PDF 를 올리면 여기에 나옵니다`);
+  const T = V.sum.tags || [], rows = new Map((V.grid.rows || []).map(r => [r.tag, r])), cols = (V.grid.columns || []).filter(c => c.key !== 'valve_type' && (F.all || VDS_COLS.includes(c.key)));
+  const types = V.sum.types?.length ? V.sum.types : [...new Set(T.map(t => t.type))], areas = [...new Set(T.map(t => t.area))].sort((a, b) => ((AO => (AO[a] ?? 9) - (AO[b] ?? 9))({ North:0, South:1, Brownfield:2, W15:3 })) || a.localeCompare(b));
+  const cnt = (ty, ar) => T.filter(t => (!ty || t.type === ty) && (!ar || t.area === ar)).length;
+  const on = (ty, ar) => F.type === ty && F.area === ar ? 'on' : '';
+  const mx = `<table class="t vdsm"><thead><tr><th>타입 \\ Area</th>${areas.map(a => `<th><button class="vdc ${on('', a)}" data-vdsf="${kd}||${esc(a)}">${esc(a)}</button></th>`).join('')}<th>합계</th></tr></thead><tbody>
+    ${types.map(ty => `<tr><td class="key"><button class="vdc ${on(ty, '')}" data-vdsf="${kd}|${esc(ty)}|">${esc(ty)}</button></td>${areas.map(a => { const n = cnt(ty, a); return `<td>${n ? `<button class="vdc n ${on(ty, a)}" data-vdsf="${kd}|${esc(ty)}|${esc(a)}">${n}</button>` : '<span class="muted">-</span>'}</td>`; }).join('')}<td class="vdt">${cnt(ty, '')}</td></tr>`).join('')}
+    <tr class="vdtot"><td class="key"><button class="vdc ${on('', '')}" data-vdsf="${kd}||">합계</button></td>${areas.map(a => `<td class="vdt">${cnt('', a)}</td>`).join('')}<td class="vdt">${T.length}</td></tr></tbody></table>`;
+  const q = F.q.toLowerCase(), sel = T.filter(t => (!F.type || t.type === F.type) && (!F.area || t.area === F.area) && (!q || `${t.tag} ${t.type} ${t.area} ${t.unit} ${Object.values(rows.get(t.tag)?.cells || {}).map(c => c.v).join(' ')}`.toLowerCase().includes(q)));
+  const done = T.filter(t => /accepted|resolved/i.test(t.status || '')).length, open = T.reduce((a, t) => a + (t.open || 0), 0), major = T.reduce((a, t) => a + (t.major || 0), 0);
+  const tb = `<div class="vdsbar"><label>🔎<input data-vdsq="${kd}" value="${esc(F.q)}" placeholder="Tag · 값 검색 (예: 150#, SS316, FC)"></label><span class="muted">${F.type || F.area ? `<b>${esc([F.type, F.area].filter(Boolean).join(' · '))}</b> · ` : ''}${sel.length}개 Tag</span><span class="sp"></span><label class="vdsall"><input type="checkbox" data-vdsall="${kd}" ${F.all ? 'checked' : ''}> 모든 속성 열</label></div>
+    <div class="vdsw"><table class="t vdst"><thead><tr><th>Tag</th><th>Type</th><th>Area</th><th>Unit</th><th>Rev</th><th>검토</th><th>Issue</th>${cols.map(c => `<th>${esc(c.title)}</th>`).join('')}</tr></thead><tbody>
+    ${sel.slice(0, F.n).map(t => { const r = rows.get(t.tag), ce = r?.cells || {}; return `<tr><td class="key"><b>${esc(t.tag)}</b></td><td>${esc(t.type)}</td><td>${esc(t.area)}</td><td>${esc(t.unit || '')}</td><td>${esc(t.rev || '')}</td><td><span class="vdst-s ${/accepted|resolved/i.test(t.status || '') ? 'ok' : ''}">${esc(t.status || '-')}</span></td><td>${t.open ? `<b class="${t.major ? 'sl' : ''}">${t.open}${t.major ? ` (Major ${t.major})` : ''}</b>` : '<span class="muted">0</span>'}</td>${cols.map(c => { const x = ce[c.key]; return `<td class="${x?.st === 'review' ? 'vdrv' : ''}" title="${x?.st === 'review' ? '검토 필요 값' : ''}">${x ? esc(String(x.v ?? '')) + (x.u ? ` <small>${esc(x.u)}</small>` : '') : ''}</td>`; }).join('')}</tr>`; }).join('')}
+    </tbody></table></div>${sel.length > F.n ? `<button class="btn sm" data-vdsmore="${kd}">▾ ${sel.length - F.n}개 더 보기</button>` : ''}`;
+  return head(`프로젝트 '${esc(V.pj.name)}' · 최신 Rev 기준 Tag <b>${T.length}</b>개 · 검토 완료 ${done} · 미결 Issue ${open}${major ? ` (Major ${major})` : ''} · ${esc(fmtTime(new Date(V.at).toISOString()))} 읽음`)
+    + `<div class="vdsg"><div><div class="vdsl">타입별 · Area별 수량 <span class="muted">(숫자를 누르면 그 Tag 만)</span></div>${mx}</div><div class="vdsr"><div class="vdsl">Tag 값 · 속성</div>${tb}</div></div>`;
+}
 /* 2026-11-10 보고 표 칸 글자 서식(색 · 굵게 · 기울임) — 우클릭 창. 저장은 서버의 최신 판에 그 칸만 고쳐서 */
 const SCH_FCOL = [['', '기본'], ['#0f172a', '검정'], ['#dc2626', '빨강'], ['#1d4ed8', '파랑'], ['#16a34a', '초록'], ['#ea580c', '주황'], ['#7c3aed', '보라'], ['#64748b', '회색']];
 function schFmtPop(td, x, y) {
@@ -4763,6 +4809,10 @@ function schBind() {
     const rt = e.target.closest('[data-rptog]'); if (rt) { const k = rt.dataset.rptog, S2 = SCH.rpOpen ||= new Set(); S2.has(k) ? S2.delete(k) : S2.add(k); return render(); }
     const ra = e.target.closest('[data-rpall]'); if (ra) { SCH.rpOpen = new Set(ra.dataset.rpall === '1' ? [...v.querySelectorAll('[data-rptog]')].map(x => x.dataset.rptog) : []); return render(); }
     const rpg = e.target.closest('[data-rpgo]'); if (rpg) { e.preventDefault(); (SCH.rpOpen ||= new Set()).add(rpg.dataset.rpgo); render(); $('#rp-' + rpg.dataset.rpgo)?.scrollIntoView({ block:'start', behavior:'smooth' }); return; }
+    const vf = e.target.closest('[data-vdsf]'); if (vf) { const [kd, ty, ar] = vf.dataset.vdsf.split('|'), F = SCH.vdsF[kd]; const same = F.type === ty && F.area === ar; F.type = same ? '' : ty; F.area = same ? '' : ar; F.n = 30; return vdsPaint(kd); }
+    const vre = e.target.closest('[data-vdsre]'); if (vre) return vdsLoad(vre.dataset.vdsre, true);
+    const vgo = e.target.closest('[data-vdsgo]'); if (vgo) return go(vgo.dataset.vdsgo);
+    const vmo = e.target.closest('[data-vdsmore]'); if (vmo) { SCH.vdsF[vmo.dataset.vdsmore].n += 100; return vdsPaint(vmo.dataset.vdsmore); }
     const rfn = e.target.closest('[data-rfnote]'); if (rfn) { const R = SCH.rf ||= { st:'', lv:'', disc:'', note:'', q:'', ms:'' }; R.note = R.note === rfn.dataset.rfnote ? '' : rfn.dataset.rfnote; (SCH.rpOpen ||= new Set()); if (R.note) (SCH.rptG || []).forEach(g => SCH.rpOpen.add(g.k)); return render(); }
     if (e.target.closest('[data-rpxls]')) return schRptXlsx();
     const cp = e.target.closest('[data-rpcopy],[data-rpweekly]'); if (cp) { const t = SCH.rptText ? SCH.rptText() : ''; const done = () => { toast('📋 보고 글을 복사했어요' + (cp.dataset.rpweekly != null ? ' — 수행 표의 업무 현황 칸에 붙여 넣으세요' : '')); if (cp.dataset.rpweekly != null) { const st = fstate('perform'); st.q = 'CO2'; go('perform'); } };
@@ -4790,6 +4840,9 @@ function schBind() {
     try { h.setPointerCapture(e.pointerId); } catch (_) {} document.body.classList.add('bdragging');
     h.onpointermove = ev => { const w = Math.max(40, Math.round(w0 + ev.clientX - sx)); cols.forEach(col => col.style.width = w + 'px'); tabs.forEach((t, i) => t.style.width = (t0[i] + w - w0) + 'px'); };
     h.onpointerup = () => { h.onpointermove = h.onpointerup = null; document.body.classList.remove('bdragging'); let o = {}; try { o = JSON.parse(localStorage.getItem('dept-rpt-colw') || '{}'); } catch (_) {} o[c] = parseFloat(cols[0].style.width); try { localStorage.setItem('dept-rpt-colw', JSON.stringify(o)); } catch (_) {} }; });
+  v.oninput = e => { const qi = e.target.closest('[data-vdsq]'); if (!qi) return; const kd = qi.dataset.vdsq, pos = qi.selectionStart; SCH.vdsF[kd].q = qi.value; SCH.vdsF[kd].n = 30; vdsPaint(kd);
+    const ni = document.querySelector(`#schv [data-vdsq="${kd}"]`); if (ni) { ni.focus(); try { ni.setSelectionRange(pos, pos); } catch (_) {} } };
+  v.onchange = e => { const ca = e.target.closest('[data-vdsall]'); if (ca) { SCH.vdsF[ca.dataset.vdsall].all = ca.checked; vdsPaint(ca.dataset.vdsall); } };
   v.oncontextmenu = e => { const td = e.target.closest('.rpt tbody td[data-cc]'); if (!td || noEdit() || !can('runpjt') || td.querySelector('input')) return; e.preventDefault(); schFmtPop(td, e.clientX, e.clientY); };
   v.ondblclick = e => {
     if (noEdit() || !can('runpjt')) return;
