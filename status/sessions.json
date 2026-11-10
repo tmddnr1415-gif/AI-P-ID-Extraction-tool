@@ -1,6 +1,6 @@
 {
  "_설명": "오케스트레이터가 list_sessions / get_session 으로 읽은 각 세션 상태. build_status.py 가 git 정보와 합쳐 SESSION_STATUS.html 을 만든다. 갱신할 때 이 파일을 새로 쓴다.",
- "read_at": "2026-11-10T00:53:00Z",
+ "read_at": "2026-11-10T04:34:00Z",
  "sessions": {
   "S1": {
    "id": "session_016Ntz71xxniTkCj7pC8ZpXL",
@@ -38,8 +38,8 @@
    "id": "session_014zoSs8H5yNiq8r2ATBV4YL",
    "title": "5. 도서 검토",
    "bucket": "COMPLETED",
-   "updated": "2026-11-07T09:02:46Z",
-   "recent": "규약 v2 수용 — VERSION 2026-11-07.1 (b44ead5) 은 다음 통합 때 app/static/books 로 이동. dist/company_pc/S5 zip 은 삭제 요청이 없어 그대로 둠",
+   "updated": "2026-11-10T04:33:20Z",
+   "recent": "valve37 (3d46af2c · dist/valve_kinds) — Globe · Butterfly · PSV 데이터시트 검토. S6 valve36 위 패치 + 대시보드 메뉴 패치. 다음 ② 통합본에 실어 달라는 요청",
    "needs": ""
   },
   "S6": {
