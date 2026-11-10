@@ -67,6 +67,7 @@ REGISTRY = [
     ("REV-01", "Changes vs previous revision", "Revision", "prev"),
 ]
 GROUPS = ["Datasheet", "PMS", "Process", "Material", "Design", "Peer", "Tag", "Revision"]
+BALL_ONLY = {"PMS", "Material", "Design", "Accessory", "Peer"}   # valve37: written for ball valves (PMS ball items, MR/VR/AC/PC)
 TITLE = {c[0]: c[1] for c in REGISTRY}
 
 # valve29 — rule version and source.  Every rule starts at version 1 (= the logic shipped in valve28).  A rule changes
@@ -95,6 +96,8 @@ def rule_of(check: str) -> str:
 
 def _na_reason(need: str, ctx: dict) -> str | None:
     """Why a check could not run, or None when it could."""
+    if ctx.get("kind", "ball") != "ball" and ctx.get("_group") in BALL_ONLY:   # valve37
+        return "Ball Valve rule — not applied to this valve kind"
     for n in need.split("+"):
         if n == "class":
             if not ctx.get("has_pms"):
@@ -136,7 +139,7 @@ def report(issues: list[dict], ctx: dict) -> dict:
         if n:
             out.append({"id": cid, "title": title, "group": group, "status": "fail", "reason": "", "findings": n})
             continue
-        why = _na_reason(need, ctx)
+        why = _na_reason(need, dict(ctx, _group=group) if ctx.get("kind", "ball") != "ball" else ctx)
         out.append({"id": cid, "title": title, "group": group, "status": "n/a" if why else "pass", "reason": why or "", "findings": 0})
     s = {"pass": sum(1 for c in out if c["status"] == "pass"), "fail": sum(1 for c in out if c["status"] == "fail"),
          "na": sum(1 for c in out if c["status"] == "n/a")}

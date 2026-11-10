@@ -134,7 +134,7 @@ def compute(ds: dict, general_notes: dict | None = None, pms: dict | None = None
     if pref is None:                                         # stored datasheets from before valve03: look again
         from app.valve.extract import process_reference
         pref = process_reference(ds.get("notes"), general_notes)
-    for k in REQUIRED:
+    for k in schema.REQUIRED_BY_KIND.get(ds.get("kind") or "ball", REQUIRED):   # valve37: Globe · Butterfly · PSV lists
         f = F.get(k)
         if not f:
             continue                                         # not on this form: cannot be missing from it

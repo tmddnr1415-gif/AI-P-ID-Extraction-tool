@@ -296,6 +296,34 @@ def _job(jid, **kw):
         _JOBS[jid].update(kw)
 
 
+_KIND_CACHE: dict[int, str] = {}
+
+
+def _proj_kind(con, pid) -> str:
+    """valve37: 'ball' · 'globe' · 'butterfly' · 'psv' — from the project name the menu opened ('CO2 PJT · Globe Valve')."""
+    if pid not in _KIND_CACHE:
+        r = store.one(con, "SELECT name FROM project WHERE id=?", pid)
+        _KIND_CACHE[pid] = schema.project_kind(r["name"] if r else "")
+    return _KIND_CACHE[pid]
+
+
+def _kind_warning(name: str, kind: str, dss: list) -> str:
+    """Datasheets of another valve kind than the menu they were put in (they are kept; the user is told where they belong)."""
+    other = {}
+    for ds in dss:
+        fam = ds.get("family") or ""
+        if not fam or fam == kind:
+            continue
+        if kind == "ball" and fam == "butterfly" and ds.get("form") not in ("101", "701"):
+            continue                                         # an On/Off butterfly (Form 80) is reviewed in the Ball menu as before
+        other[fam] = other.get(fam, 0) + 1
+    if not other:
+        return ""
+    parts = [f"{schema.KINDS[f]} {n}장" for f, n in sorted(other.items())]
+    return (f"{name}: {' · '.join(parts)} 은(는) 이 메뉴({schema.KINDS[kind]})가 아닌 다른 밸브 종류입니다 — 저장은 했지만 "
+            f"그 종류의 메뉴에 올려야 그 종류의 검토 규칙으로 봅니다")
+
+
 def _process(jid: str, pid: int, items: list[tuple[int, str, str, Path]], by: str):
     con = store.connect()
     total = sum(max(1, it[4]) for it in items)
@@ -321,7 +349,7 @@ def _process(jid: str, pid: int, items: list[tuple[int, str, str, Path]], by: st
                 new_ids = []
                 with store._LOCK:
                     for ds in dss:
-                        ds["form"] = "102" if any(r.get("row", 0) > 61 for r in ds["fields"].values()) else "on/off"
+                        ds["form"] = ds.get("form") or ("102" if any(r.get("row", 0) > 61 for r in ds["fields"].values()) else "on/off")
                         dup = store.one(con, "SELECT id, document_id FROM datasheet WHERE project_id=? AND tag_key=? AND rev=?"
                                              " AND document_id IN (SELECT id FROM document WHERE sha256=(SELECT sha256 FROM"
                                              " document WHERE id=?))", pid, ds["tag_key"], ds["rev"], doc_id)
@@ -343,6 +371,9 @@ def _process(jid: str, pid: int, items: list[tuple[int, str, str, Path]], by: st
                     con.commit()
                 if n_scan:
                     _job(jid, warn=f"{name}: 글자층이 없는 쪽 {n_scan}장 (스캔본) — 이 판에서는 읽지 못했습니다")
+                kw = _kind_warning(name, _proj_kind(con, pid), dss)   # valve37
+                if kw:
+                    _job(jid, warn=kw)
                 _carry_over(con, pid, new_ids, by, jid)        # valve26: Rev B inherits what Rev A's review decided
             elif kind == "valvelist":
                 data = path.read_bytes()
@@ -445,7 +476,7 @@ def _rules_fingerprint() -> str:
 
 
 _RULES_FP = _rules_fingerprint()
-VERSION = "valve36"                       # shown in Settings › 정보 and the footer; bump with every package
+VERSION = "valve37"                       # shown in Settings › 정보 and the footer; bump with every package
 
 
 @router.get("/api/valve/version")
@@ -843,6 +874,8 @@ def _ds_full(con, dsid, deep=True, pv=None):
     d["doc_title"] = (gn or {}).get("title", "")
     d["area"] = pmsmod.area_of_title(d["doc_title"])
     F0 = {f["key"]: f for f in fs}
+    d["kind"] = _proj_kind(con, d["project_id"])          # valve37: which menu (rule set) this project belongs to
+    d["family"] = schema.family(d.get("form") or "", F0, d.get("title", ""), d["tag"])   # what the sheet says it is
     title = locmod.title_for(d["doc_no"], docs_info)
     if not title:                                        # e.g. a one-sheet revision without cover: the same Doc. No. in another upload
         for o in store.rows(con, "SELECT info FROM document WHERE project_id=? AND id<>? AND info IS NOT NULL", d["project_id"], d["document_id"]):
@@ -980,17 +1013,21 @@ def _ds_deep(con, d, dsid):
     fs = d["fields"]
     pms, pdoc = _pms_for(con, d["project_id"])
     F = {f["key"]: f for f in fs}
-    d["pms"] = pmsmod.check(F, pms, d["area"], d["notes"]) if pms else None
+    ball = (d.get("kind") or "ball") == "ball"           # valve37: Ball-only rules (PMS ball items · MR · VR · AC · PC) run in Ball projects
+    d["pms"] = pmsmod.check(F, pms, d["area"], d["notes"]) if pms and ball else None
     d["pms_doc"] = pdoc
     d["requirements"] = reqmod.find(d, d["general_notes"])
     proc, procdoc = _process_for(con, d["project_id"])
     d["process"] = procmod.check(d, proc) if proc else None
     d["process_doc"] = procdoc
     cls = pmsmod.find_class(pms, schema.effective(F.get("piping_class")), schema.effective(F.get("line_no")), d["area"])[0] if pms else None
-    d["material_review"] = matmod.review(d, d["general_notes"], cls, d["process"],
-                                         ((proc or {}).get("by_tag") or {}).get(d["tag_key"]), d["requirements"])
-    d["material_review"] += expmod.review(d, d["general_notes"], cls, d["process"], ((proc or {}).get("by_tag") or {}).get(d["tag_key"]),
-                                          d["requirements"], _peers_for(con, d["project_id"]))
+    if ball:
+        d["material_review"] = matmod.review(d, d["general_notes"], cls, d["process"],
+                                             ((proc or {}).get("by_tag") or {}).get(d["tag_key"]), d["requirements"])
+        d["material_review"] += expmod.review(d, d["general_notes"], cls, d["process"], ((proc or {}).get("by_tag") or {}).get(d["tag_key"]),
+                                              d["requirements"], _peers_for(con, d["project_id"]))
+    else:
+        d["material_review"] = []
     d["material_review"] += tagmod.check(_tag_item(d), _tags_for(con, d["project_id"]))
     prev = None
     i = next((n for n, r in enumerate(d["revisions"]) if r["id"] == d["id"]), 0)
@@ -1020,6 +1057,7 @@ def _ds_deep(con, d, dsid):
                                                                                    (d.get("location") or {}).get("unit") or "")), None)
     T = matmod.proc_value(F, d["process"], "design_temp")
     d["verification"] = chkmod.report(d["issues"], {
+        "kind": d.get("kind") or "ball",
         "has_pms": pms is not None, "pms_class": bool(cls), "piping_class": pcls,
         "has_process": proc is not None, "pd_row": bool(((proc or {}).get("by_tag") or {}).get(d["tag_key"])),
         "design_temp": T["v"] if T else None, "has_prev": i > 0,
