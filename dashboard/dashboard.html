@@ -1369,7 +1369,13 @@ body.rail #side:not(:hover):not(.peek) .mgrp.act .mhead .mi.top{background:#fff;
 @keyframes crBob{0%,100%{transform:translateX(-50%) rotate(-8deg) translateY(0)}50%{transform:translateX(-50%) rotate(6deg) translateY(-2px)}}
 .cd .evs{display:flex;justify-content:center;gap:3px;margin-top:5px;flex-wrap:wrap}.cd .evs i{width:7px;height:7px;border-radius:50%}
 .cd .ec{display:block;margin-top:3px;font-size:10px;font-weight:700;border-radius:6px;padding:1px 0}
-.ev-ms{background:#6366f1}.ev-mso{background:#f97316}.schcal{margin-bottom:16px}.schcal .calg{max-width:none}
+.ev-ms{background:#6366f1}.ev-mso{background:#f97316}.schcal{margin-bottom:16px;display:grid;grid-template-columns:minmax(330px,460px) 1fr;column-gap:18px;align-items:start;padding:12px 14px 10px!important}
+.schcal .calhd,.schcal .calleg{grid-column:1 / -1}.schcal .calhd h2{font-size:15px}.schcal .calleg{font-size:11px;margin-bottom:4px}
+.schcal .calg{gap:3px}.schcal .cd{min-height:34px!important;padding:4px 1px 2px!important;border-radius:7px}.schcal .cd .dn{font-size:11.5px}.schcal .cd .evs{margin-top:1px}.schcal .cd .evs i{width:5px;height:5px}.schcal .cd .ec{font-size:8.5px}.schcal .wd{font-size:11px}
+.schcal .calag{grid-column:2;grid-row:3 / span 2;max-height:300px;overflow:auto;border-left:1px solid #e2e8f0;padding-left:14px;margin:0}.schcal .calag h4{margin-top:0}
+.cevadd2{display:flex;gap:6px;margin-top:6px}.cevadd2 .cevadd{flex:1;margin:0}.cevtop{margin-right:6px}
+.ev-nte{background:#8b5cf6}.cevk{display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-bottom:10px}.cevk button{border:1px solid #cbd5e1;background:#f8fafc;border-radius:99px;padding:5px 14px;font:inherit;font-weight:700;cursor:pointer}.cevk button.on{background:#4f46e5;border-color:#4f46e5;color:#fff}.cevk .muted{font-size:11.5px}
+@media (max-width:900px){.schcal{grid-template-columns:1fr}.schcal .calag{grid-column:1;grid-row:auto;border:0;padding:0}}
 .ev-my{background:#0ea5e9}.ev-ev{background:#14b8a6}.agi.agev{cursor:pointer}.agi .agm{color:#6d28d9!important}.cevadd{margin-top:6px;width:100%}
 .cevf .fl{display:flex;flex-direction:column;gap:3px;margin-bottom:10px;font-weight:700;font-size:13px}.cevf input:not([type=checkbox]),.cevf textarea{font:inherit;font-size:14px;padding:7px 10px;border:1px solid #cbd5e1;border-radius:8px;width:100%;box-sizing:border-box}.cevf .cevd{display:flex;gap:6px;align-items:center}.cevf .cevd input{width:auto}
 .cevmy{position:fixed;right:22px;bottom:22px;z-index:1500;width:360px;max-height:60vh;display:flex;flex-direction:column;background:#fff;border-radius:16px;box-shadow:0 18px 50px rgba(15,23,42,.3),0 0 0 1px rgba(14,165,233,.25);overflow:hidden;animation:schBigIn .2s ease-out}
@@ -2010,7 +2016,7 @@ function recLabel(key, f) {
  * ===================================================================== */
 let root = null;
 /* 서버 모드: http(s):// 로 접속하면 server.py 의 REST API 사용 (폴더 선택 불필요). file:// 로 열면 폴더 모드 */
-const APP_VERSION = '2026-11-10.4';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
+const APP_VERSION = '2026-11-10.5';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
 const SERVER_URL = 'http://localhost:8080';
 // 부서원 PC 사본(file://)이 접속을 시도할 서버 — 서버가 배포 파일을 만들 때 'PC 이름 주소, IP 주소' 순으로 자동 기록함
 const DEFAULT_SERVERS = ['http://ASEUNGWOOK-B01:8080', 'http://65.3.30.234:8080'];
@@ -5409,26 +5415,28 @@ function cevLoad(force) { if (!SERVER || OFFLINE) { CEV.loaded = true; return Pr
   return CEV.p ||= api('GET', 'cal').then(d => { CEV.list = d.events || []; CEV.loaded = true; return CEV.list; }).catch(() => { CEV.loaded = true; return CEV.list; }).finally(() => { CEV.p = null; }); }
 const cevMine = e => user && (normName(e.by) === normName(user) || (e.people || []).some(p => normName(p) === normName(user)));
 const cevOn = (e, key) => key >= e.date && key <= (e.end || e.date);
-function cevDlg(date, ev) {   // 일정 추가 · 수정 창
-  if (!AUTH) return toast('로그인해야 일정을 쓸 수 있어요', true); const e = ev || { date, time:'', title:'', place:'', memo:'', people:[], priv:false, end:'' };
+function cevDlg(date, ev, kind) {   // 일정 · 특이사항 추가 · 수정 창
+  if (!AUTH) return toast('로그인해야 일정을 쓸 수 있어요', true); const e = ev || { date, time:'', title:'', place:'', memo:'', people:[], priv:false, end:'', kind:kind || 'ev' };
   const names = unitPeople(DB.recs.unit || []).map(p => p.name);
-  openDlg(dlg, `<div class="dh"><span>📅 ${ev ? '일정 고치기' : '일정 추가'}</span><button class="btn sm" data-close>닫기</button></div>
-    <div class="db cevf"><label class="fl">날짜<span class="cevd"><input type="date" id="cevDate" value="${esc(e.date)}"> ~ <input type="date" id="cevEnd" value="${esc(e.end || '')}" title="여러 날이면 끝 날짜"> <input type="time" id="cevTime" value="${esc(e.time || '')}" title="시간(선택)"></span></label>
-      <label class="fl">일정 <input id="cevTitle" value="${esc(e.title)}" placeholder="예: Globe Valve TBE — Emerson 과 회의" maxlength="200"></label>
+  openDlg(dlg, `<div class="dh"><span>📅 ${ev ? '고치기' : '추가'} — ${esc(e.date.slice(5).replace('-', '/'))}</span><button class="btn sm" data-close>닫기</button></div>
+    <div class="db cevf"><div class="cevk"><button type="button" data-cevk="ev" class="${e.kind !== 'note' ? 'on' : ''}">📅 일정</button><button type="button" data-cevk="note" class="${e.kind === 'note' ? 'on' : ''}">📝 특이사항</button><span class="muted">특이사항 = 그날 있었던 일 · 메모 (예: Vendor 도면 회신 지연 통보 받음)</span></div>
+      <label class="fl">날짜<span class="cevd"><input type="date" id="cevDate" value="${esc(e.date)}"> ~ <input type="date" id="cevEnd" value="${esc(e.end || '')}" title="여러 날이면 끝 날짜"> <input type="time" id="cevTime" value="${esc(e.time || '')}" title="시간(선택)"></span></label>
+      <label class="fl"><span id="cevTl">${e.kind === 'note' ? '특이사항' : '일정'}</span> <input id="cevTitle" value="${esc(e.title)}" placeholder="${e.kind === 'note' ? '예: J0730 Vendor 도면 회신 2주 지연 통보' : '예: Globe Valve TBE — Emerson 과 회의'}" maxlength="200"></label>
       <label class="fl">함께하는 사람 <input id="cevPeople" list="cevNames" value="${esc((e.people || []).join(', '))}" placeholder="이름을 쉼표로 (예: 홍길동, 이영희) — 그 사람의 '나의 예정 일정' 에도 뜸"><datalist id="cevNames">${names.map(n => `<option value="${esc(n)}">`).join('')}</datalist></label>
       <label class="fl">장소 · 상대 <input id="cevPlace" value="${esc(e.place || '')}" placeholder="예: 본사 12층 회의실 / Emerson Korea"></label>
       <label class="fl">메모 <textarea id="cevMemo" rows="3" placeholder="준비물 · 안건 등">${esc(e.memo || '')}</textarea></label>
       <label class="chk"><input type="checkbox" id="cevPriv" ${e.priv ? 'checked' : ''}> 나만 보기 (다른 부서원에게는 안 보임)</label></div>
     <div class="df">${ev ? '<button class="btn bad" data-cevdel style="margin-right:auto">🗑 지우기</button>' : ''}<button class="btn" data-close>취소</button><button class="btn pri" data-cevsave>💾 저장</button></div>`);
-  $('#cevTitle', dlg).focus();
+  $('#cevTitle', dlg).focus(); let kd = e.kind === 'note' ? 'note' : 'ev';
   dlg.onclick = async x => { if (x.target.closest('[data-close]')) return dlg.close();
+    const kb = x.target.closest('[data-cevk]'); if (kb) { kd = kb.dataset.cevk; dlg.querySelectorAll('[data-cevk]').forEach(b => b.classList.toggle('on', b === kb)); $('#cevTl', dlg).textContent = kd === 'note' ? '특이사항' : '일정'; $('#cevTitle', dlg).placeholder = kd === 'note' ? '예: J0730 Vendor 도면 회신 2주 지연 통보' : '예: Globe Valve TBE — Emerson 과 회의'; return $('#cevTitle', dlg).focus(); }
     if (x.target.closest('[data-cevdel]')) { if (!confirm('이 일정을 지울까요?')) return; try { await api('DELETE', 'cal/' + ev.id); } catch (er) { return toast(er.message, true); } dlg.close(); await cevLoad(true); toast('🗑 일정을 지웠어요'); return render(); }
     if (!x.target.closest('[data-cevsave]')) return;
     const body = { date:$('#cevDate', dlg).value, end:$('#cevEnd', dlg).value, time:$('#cevTime', dlg).value, title:$('#cevTitle', dlg).value.trim(), people:$('#cevPeople', dlg).value.split(/[,·]+/).map(v => v.trim()).filter(Boolean),
-      place:$('#cevPlace', dlg).value.trim(), memo:$('#cevMemo', dlg).value.trim(), priv:$('#cevPriv', dlg).checked };
+      place:$('#cevPlace', dlg).value.trim(), memo:$('#cevMemo', dlg).value.trim(), priv:$('#cevPriv', dlg).checked, kind:kd };
     if (!body.title) return toast('일정 내용을 적어 주세요', true);
     try { await api(ev ? 'PUT' : 'POST', 'cal' + (ev ? '/' + ev.id : ''), body); } catch (er) { return toast('저장 실패: ' + er.message, true); }
-    dlg.close(); await cevLoad(true); CAL2.sel = body.date; toast(`📅 ${body.date.slice(5).replace('-', '/')} 일정을 저장했어요 — 모든 부서원 달력에 보입니다${body.priv ? ' (나만 보기)' : ''}`); render(); };
+    dlg.close(); await cevLoad(true); CAL2.sel = body.date; toast(`${kd === 'note' ? '📝' : '📅'} ${body.date.slice(5).replace('-', '/')} ${kd === 'note' ? '특이사항' : '일정'}을 저장했어요 — Schedule 달력에서 모든 부서원에게 보입니다${body.priv ? ' (나만 보기)' : ''}`); render(); };
   $('#cevTitle', dlg).onkeydown = k => { if (k.key === 'Enter') { k.preventDefault(); dlg.querySelector('[data-cevsave]').click(); } };
 }
 /* 접속하면 '나의 예정 일정' — 오늘부터 14일, 내가 쓰거나 함께하는 사람에 들어간 일정 (오른쪽 아래 카드, 오늘 그만 보기) */
@@ -5453,7 +5461,7 @@ function calEvents(y, m, mode = 'home') {                                  // m:
     const key = ymd(d);
     if (mode !== 'sch') bdOn(d).forEach(b => add(key, { k:'bd', t:'🎂', l:`${bdName(b)} 생일`, s:b.lunar ? `음력 ${b.md.replace('-', '/')}` : '' }));
     if (d.getDay() === 3 && mode !== 'sch') add(key, { k:'dl', t:'11:59', l:'주간업무 마감', s:'수요일 오전 11:59 자동 마감 → 마감본으로 남음' });
-    if (mode === 'sch') { CEV.list.filter(e => cevOn(e, key)).forEach(e => add(key, { k:cevMine(e) ? 'my' : 'ev', t:e.time || (e.end && e.end !== e.date ? `~${+e.end.slice(5, 7)}/${+e.end.slice(8)}` : '일정'), l:e.title, s:[e.place, (e.people || []).length ? '함께: ' + e.people.join(', ') : '', `${e.by}${e.priv ? ' · 🔒나만' : ''}`].filter(Boolean).join(' · '), ev:e }));
+    if (mode === 'sch') { CEV.list.filter(e => cevOn(e, key)).forEach(e => add(key, { k:e.kind === 'note' ? 'nte' : cevMine(e) ? 'my' : 'ev', t:e.kind === 'note' ? '📝 특이' : e.time || (e.end && e.end !== e.date ? `~${+e.end.slice(5, 7)}/${+e.end.slice(8)}` : '일정'), l:e.title, s:[e.place, (e.people || []).length ? '함께: ' + e.people.join(', ') : '', `${e.by}${e.priv ? ' · 🔒나만' : ''}`].filter(Boolean).join(' · '), ev:e }));
       continue; }   // Schedule 달력: 사용자 일정만(+ 아래 PSR 마일스톤) — 생일 · 주간 마감 · 전달사항 · 업무 기한은 첫 화면 달력에만
   }
   if (mode === 'sch') {   // PSR 설계 관리 마일스톤(MR · RFQ · TBE 제출 · TBE 완료) + PO · FAT · 현장 도착 — 실적 없으면 전망(없으면 계획) 날짜에
@@ -5467,7 +5475,7 @@ function calEvents(y, m, mode = 'home') {                                  // m:
     .forEach(i => add(i.end, { k:i.cls === 'late' ? 'late' : 'wk', t:'기한', l:recLabel(i.key, i.f), s:`${i.w.label} · ${i.st}${flat(i.personRaw) ? ' · ' + flat(i.personRaw) : ''}`, go:i.key }));
   return out;
 }
-const CAL_K = { my:['ev-my', '내 일정'], ev:['ev-ev', '부서원 일정'], ms:['ev-ms', 'PSR 실적'], mso:['ev-mso', 'PSR 예정 · 전망'], bd:['ev-bd', '생일'], dl:['ev-dl', '주간 마감'], nt:['ev-nt', '주간회의 전달사항'], wk:['ev-wk', '업무 기한'], late:['ev-late', '기한 지남'] };
+const CAL_K = { my:['ev-my', '내 일정'], ev:['ev-ev', '부서원 일정'], nte:['ev-nte', '특이사항'], ms:['ev-ms', 'PSR 실적'], mso:['ev-mso', 'PSR 예정 · 전망'], bd:['ev-bd', '생일'], dl:['ev-dl', '주간 마감'], nt:['ev-nt', '주간회의 전달사항'], wk:['ev-wk', '업무 기한'], late:['ev-late', '기한 지남'] };
 function renderCal(mode = 'home') {   // 2026-11-10: home = 주간업무보고 첫 화면(부서 공용 — 사용자 일정 없음) · sch = 실행 프로젝트 › CO2 PJT › Schedule 달력(사용자 일정 + PSR 설계 관리 마일스톤)
   if (mode === 'home' && $('#schCalCard')) renderCal('sch');
   const sch = mode === 'sch', CAL = sch ? CAL2 : CAL1, el = $(sch ? '#schCalCard' : '#calCard'); if (!el) return;
@@ -5482,15 +5490,15 @@ function renderCal(mode = 'home') {   // 2026-11-10: home = 주간업무보고 �
     return `<button class="cd ${d.getMonth() !== CAL.m ? 'out' : ''} ${k === today ? 'today' : ''} ${k === CAL.sel ? 'sel' : ''} ${d.getDay() === 0 || hn ? 'sun' : d.getDay() === 6 ? 'sat' : ''} ${hn ? 'hol' : hs ? 'hsoft' : ''}" data-cday="${k}" ${tip || hn || hs ? `data-tip="${esc(tip || tipHtml(`${d.getMonth() + 1}월 ${d.getDate()}일`, [`🇰🇷 <b>${esc(hn || hs)}</b>`], 2))}"` : ''}>
       ${bd ? CROWN : ''}<span class="dn">${d.getDate()}</span>${hn || hs ? `<span class="ec hn" title="${esc(hn || hs)}">${esc(hsh)}</span>` : ''}${dl ? '<span class="ec dl">마감</span>' : ''}<span class="evs">${rest.slice(0, 4).map(e => `<i class="${CAL_K[e.k][0]}"></i>`).join('')}</span></button>`; };
   const sel = ev[CAL.sel] || [], sd = new Date(CAL.sel);
-  el.innerHTML = `<div class="calhd"><h2>${sch ? '📅 CO2 PJT Schedule 달력' : '📅 계장ENG그룹'} ${CAL.y}년 ${CAL.m + 1}월</h2><span class="sp"></span><button data-cal="-1" title="이전 달">‹</button><button class="today" data-cal="0">오늘</button><button data-cal="1" title="다음 달">›</button></div>
-    <div class="calleg">${Object.entries(CAL_K).filter(([k]) => sch ? ['my', 'ev', 'ms', 'mso'].includes(k) : !['my', 'ev', 'ms', 'mso'].includes(k)).map(([, [c, l]]) => `<span><i class="${c}"></i>${l}</span>`).join('')}${sch ? '<span>날짜 더블클릭 = 일정 추가</span>' : '<span>👑 = 생일자</span>'}</div>
+  el.innerHTML = `<div class="calhd"><h2>${sch ? '📅 CO2 PJT Schedule 달력' : '📅 계장ENG그룹'} ${CAL.y}년 ${CAL.m + 1}월</h2><span class="sp"></span>${sch && AUTH ? `<button class="btn sm pri cevtop" data-cevadd="${esc(CAL.sel)}">＋ 일정 추가</button>` : ''}<button data-cal="-1" title="이전 달">‹</button><button class="today" data-cal="0">오늘</button><button data-cal="1" title="다음 달">›</button></div>
+    <div class="calleg">${Object.entries(CAL_K).filter(([k]) => sch ? ['my', 'ev', 'nte', 'ms', 'mso'].includes(k) : !['my', 'ev', 'nte', 'ms', 'mso'].includes(k)).map(([, [c, l]]) => `<span><i class="${c}"></i>${l}</span>`).join('')}${sch ? '<span>날짜 더블클릭 = 일정 · 특이사항 쓰기</span>' : '<span>👑 = 생일자</span>'}</div>
     <div class="calg">${'일월화수목금토'.split('').map((w, i) => `<div class="wd ${i === 0 ? 'sun' : i === 6 ? 'sat' : ''}">${w}</div>`).join('')}${cells.map(cell).join('')}</div>
     <div class="calag"><h4>${sd.getMonth() + 1}월 ${sd.getDate()}일 (${'일월화수목금토'[sd.getDay()]})${HOL_NAME[CAL.sel] || HOL_SOFT[CAL.sel.slice(5)] ? ` <span class="calhol">🇰🇷 ${esc(HOL_NAME[CAL.sel] || HOL_SOFT[CAL.sel.slice(5)])}</span>` : ''} <small>${sel.length ? `일정 ${sel.length}건` : '일정 없음'}</small></h4>
       ${sel.map(e => `<div class="agi ${e.ev || e.ms ? 'agev' : ''}" ${e.ms ? `data-calms="${esc(e.ms)}" title="누르면 품목 상세"` : ''} ${e.go ? `data-go="${e.go}"` : ''} ${e.ev ? `data-cevid="${esc(e.ev.id)}" title="${normName(e.ev.by) === normName(user) || ADMIN ? '누르면 고치기 · 지우기' : esc(e.ev.memo || '')}"` : ''}><span class="k ${CAL_K[e.k][0]}"></span><span class="t">${esc(e.t)}</span><span class="x">${e.k === 'bd' ? '👑 ' : ''}${esc(e.l)}${e.s ? `<small>${esc(e.s)}</small>` : ''}${e.ev?.memo ? `<small class="agm">📝 ${esc(trunc(e.ev.memo, 60))}</small>` : ''}</span></div>`).join('') || '<div class="muted" style="font-size:12px">날짜를 누르면 그날 일정이 여기에 나옵니다</div>'}
-      ${sch && AUTH ? `<button class="btn sm cevadd" data-cevadd="${esc(CAL.sel)}">＋ ${sd.getMonth() + 1}/${sd.getDate()} 일정 추가</button>` : sch ? '<div class="muted" style="font-size:11.5px;margin-top:4px">로그인하면 일정을 추가할 수 있어요</div>' : ''}</div>`;
+      ${sch && AUTH ? `<div class="cevadd2"><button class="btn sm cevadd" data-cevadd="${esc(CAL.sel)}">📅 ${sd.getMonth() + 1}/${sd.getDate()} 일정 추가</button><button class="btn sm cevadd" data-cevadd="${esc(CAL.sel)}" data-cevkind="note">📝 특이사항 쓰기</button></div>` : sch ? '<div class="muted" style="font-size:11.5px;margin-top:4px">로그인하면 일정을 추가할 수 있어요</div>' : ''}</div>`;
   el.ondblclick = e => { const c = e.target.closest('[data-cday]'); if (c && AUTH && sch) { CAL.sel = c.dataset.cday; cevDlg(c.dataset.cday); } };   // 날짜 더블클릭 = 그날 일정 추가
   el.onclick = e => { const b = e.target.closest('[data-cal]'), c = e.target.closest('[data-cday]');
-    const ad = e.target.closest('[data-cevadd]'); if (ad) return cevDlg(ad.dataset.cevadd);
+    const ad = e.target.closest('[data-cevadd]'); if (ad) return cevDlg(ad.dataset.cevadd, null, ad.dataset.cevkind);
     const ms = e.target.closest('[data-calms]'); if (ms) { const id = ms.dataset.calms; SCH.open.add(id); render(); setTimeout(() => $(`#schv tr.srow[data-schopen="${CSS.escape(id)}"]`)?.scrollIntoView({ block:'center', behavior:'smooth' }), 80); return; }
     if (c && AUTH && sch && (e.detail >= 2 || CAL.lastC === c.dataset.cday && Date.now() - CAL.lastT < 450)) { CAL.sel = c.dataset.cday; return cevDlg(c.dataset.cday); }   // 날짜 더블클릭 = 일정 추가 (첫 클릭에 달력을 다시 그려도 잡히게)
     if (c) { CAL.lastC = c.dataset.cday; CAL.lastT = Date.now(); }

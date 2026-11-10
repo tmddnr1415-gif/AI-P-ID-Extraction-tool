@@ -1803,3 +1803,8 @@ C:\Users\SAMSUNG\Desktop\Claude\                         ← 개발 폴더 (여�
 - 무엇을: 실행 프로젝트 › CO2 PJT › Schedule 화면에 '📅 CO2 PJT Schedule 달력' 카드(보기 단계 위) — 사용자 일정(내 일정 · 부서원 일정, 날짜 더블클릭 · [＋ 일정 추가] · 고치기 · 지우기) + PSR 마일스톤(설계 관리 MR · RFQ · TBE 제출 · TBE 완료 + PO · FAT · 현장 도착: 실적 = 남색, 예정 · 전망 = 주황, '지남(실적 없음)' · 계획 대비 +일, 누르면 그 품목 상세). 생일 · 주간 마감 · 전달사항 · 업무 기한은 넣지 않음. 첫 화면 달력은 예전 그대로(사용자 일정 · 추가 단추 · 더블클릭 없음). '나의 예정 일정' 카드는 실행 프로젝트 권한이 있는 부서원에게만, 누르면 Schedule 달력 그 날로.
 - 바뀐 곳: dashboard.html `renderCal(mode)`(home · sch, 달력 상태 `CAL1` · `CAL2`) · `calEvents(y, m, mode)` · `CAL_K`(ms · mso) · `renderSched`(#schCalCard) · `cevMyCard` · `cevDlg`, CSS `.ev-ms` · `.ev-mso` · `.schcal`
 - 확인한 것: 첫 화면 11/11 = 주간업무 마감만 · 더블클릭해도 창 안 뜸, 예정 일정 카드 → Schedule 달력 11/11 일정, Schedule 달력 더블클릭 → 추가 창, PSR 마일스톤 점. 콘솔 오류 없음.
+
+### 2026-11-10 (APP_VERSION 2026-11-10.5 / SERVER_VERSION 2026-11-10.2) — v17.25 Schedule 달력 작게 · 일정 / 특이사항
+- 무엇을: Schedule 달력을 작게(왼쪽 달력 최대 460px · 칸 높이 34px, 오른쪽에 그날 목록 — 카드 높이 약 560 → 275px), 머리에 [＋ 일정 추가], 목록 아래 [📅 일정 추가] · [📝 특이사항 쓰기]. 날짜 더블클릭 창에서 **📅 일정 / 📝 특이사항** 고르기(특이사항 = 그날 있었던 일 · 메모, 보라 점 · '📝 특이'). 서버 `cal_clean` 에 kind(ev · note).
+- 바뀐 곳: dashboard.html `cevDlg(date, ev, kind)` · `calEvents`(nte) · `CAL_K` · `renderCal`(머리 단추 · 아래 단추 2개), CSS `.schcal` 다시 · `.cevadd2` · `.cevk` · `.ev-nte` / server.py `cal_clean`
+- 확인한 것: 11/12 더블클릭 → 특이사항 'J0730 Vendor 도면 회신 2주 지연 통보' 저장 → 그날 목록에 📝 특이 + PSR PO 마일스톤, 카드 높이 275px. 콘솔 오류 없음.
