@@ -1728,6 +1728,9 @@ html.dark .sinm,html.dark .gtnm,html.dark .isi,html.dark .sinm1{text-shadow:0 1p
 .rpflt select:not([value=""]){}.rpfc{margin-left:auto;font-size:13px;font-weight:700;color:#475569}
 .rpt{table-layout:fixed}.rpt th{position:relative;padding-right:22px!important;overflow:hidden;text-overflow:ellipsis}.rpt th .rcfb{position:absolute;right:8px;top:50%;transform:translateY(-50%);border:1px solid #cbd5e1;background:#fff;border-radius:5px;font-size:10px;line-height:14px;padding:0 3px;cursor:pointer;color:#475569}
 .rpt th.rso{cursor:pointer;user-select:none}.rpt th.rso:hover{background:#eef2ff}.rpt th .rsa{font-style:normal;font-size:10px;color:#a3acbd;margin-left:3px}.rpt th.rso.on{color:#3730a3}.rpt th.rso.on .rsa{color:#4f46e5;font-size:11px}
+.rpt tbody td.rfc.rfc,.rpt tbody td.rfc.rfc *,.rfprev.rfc span{color:var(--rfc)!important}.rpt tbody td.rfb.rfb,.rpt tbody td.rfb.rfb *,.rfprev.rfb span{font-weight:900!important}.rpt tbody td.rfi.rfi,.rpt tbody td.rfi.rfi *,.rfprev.rfi span{font-style:italic!important}
+.schpop.rfpop{width:340px}.rfpop .rfrow{display:flex;align-items:center;gap:6px;padding:8px 0 0;flex-wrap:wrap}.rfsw{width:26px;height:26px;border-radius:50%;border:2px solid #fff;box-shadow:0 0 0 1px #cbd5e1;cursor:pointer;background:#fff;font-weight:800;color:#334155;font-size:12px}.rfsw.on{box-shadow:0 0 0 3px #4f46e5}.rfcus{display:inline-flex;align-items:center;gap:2px;cursor:pointer;font-size:16px}.rfcus input{width:28px;height:24px;border:0;padding:0;background:none;cursor:pointer}
+.rfprev{margin:10px 0 0;padding:8px 10px;border:1px dashed #cbd5e1;border-radius:8px;font-size:14px;color:#0f172a;background:#f8fafc}
 .rpt th.cfon{background:#e0e7ff!important;color:#3730a3!important}.rpt th.cfon .rcfb{background:#4f46e5;color:#fff;border-color:#4f46e5}
 .rpz{position:absolute;right:0;top:0;bottom:0;width:6px;cursor:col-resize;z-index:2}.rpz:hover{background:rgba(79,70,229,.35)}
 .rpt td[data-rc]{cursor:cell}.rpt td[data-rc]:hover{outline:2px solid #a5b4fc;outline-offset:-2px}.rpt td.rpedit{padding:2px 4px!important;outline:2px solid #4f46e5;outline-offset:-2px}.rpt td.rpedit input{width:100%;font:inherit;font-size:13.5px;border:0;background:#fff;padding:4px 2px}
@@ -2023,7 +2026,7 @@ function recLabel(key, f) {
  * ===================================================================== */
 let root = null;
 /* 서버 모드: http(s):// 로 접속하면 server.py 의 REST API 사용 (폴더 선택 불필요). file:// 로 열면 폴더 모드 */
-const APP_VERSION = '2026-11-10.11';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
+const APP_VERSION = '2026-11-10.12';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
 const SERVER_URL = 'http://localhost:8080';
 // 부서원 PC 사본(file://)이 접속을 시도할 서버 — 서버가 배포 파일을 만들 때 'PC 이름 주소, IP 주소' 순으로 자동 기록함
 const DEFAULT_SERVERS = ['http://ASEUNGWOOK-B01:8080', 'http://65.3.30.234:8080'];
@@ -4269,7 +4272,7 @@ async function schUpload(files) {
   if (noEdit() || !can('runpjt')) return toast('🔒 실행 프로젝트 메뉴 권한이 있는 부서원만 올릴 수 있어요', true);
   toast(`📥 ${f.name} 읽는 중…`);
   try { const d = await schParse(f), old = SCH.data;
-    if (old) d.items.forEach(it => { const o = old.items.find(x => x.type === it.type && x.no === it.no); if (o?.rn) it.rn = o.rn; });   // 보고 메모(지연 사유 · 캐치업 · 특이사항)는 새 PSR 에도 그대로
+    if (old) d.items.forEach(it => { const o = old.items.find(x => x.type === it.type && x.no === it.no); if (o?.rn) it.rn = o.rn; if (o?.rfm) it.rfm = o.rfm; });   // 보고 메모(지연 사유 · 캐치업 · 특이사항)는 새 PSR 에도 그대로
     const eds = old ? old.items.flatMap(o => Object.keys(o.ed || {}).map(sk => [o.type + '|' + o.no, sk, o])) : [];
     if (eds.length && confirm(`화면에서 직접 입력한 일정 ${eds.length}칸이 있어요. 새 PSR 에 다시 적용할까요?\n(확인 = 직접 입력한 값 유지 · 취소 = 새 파일 값 그대로)`)) {
       eds.forEach(([id, sk, o]) => { const it = d.items.find(x => x.type + '|' + x.no === id); if (!it) return; const [s1, k1] = sk.split('.'); if (o[s1][k1]) it[s1][k1] = o[s1][k1]; else delete it[s1][k1]; (it.ed ||= {})[sk] = o.ed[sk]; });
@@ -4362,13 +4365,15 @@ function renderSched(c) {
     ${sel('lv', [['', '지연 크기 전체'], ['r', '15일 이상'], ['x', '30일 초과'], ['y', '14일 이하']])}
     ${sel('disc', [['', '공종 전체'], ...discs.map(d => [d, d])])}
     ${sel('note', [['', '사유 입력 전체'], ['no', '사유 미입력만'], ['yes', '사유 입력됨만']])}
-    ${rfOn ? '<button class="btn sm" data-rfx>✕ 필터 해제</button>' : ''}<span class="muted" style="font-size:12px">열 머리 ▾ = 엑셀식 필터 · 머리 오른쪽 끝 끌기 = 열 너비${canUp ? ' · <b>셀 더블클릭 = 바로 입력</b>' : ''}</span><span class="rpfc">${rptG.reduce((a, g) => a + g.xs.length, 0)}건${rfOn ? ' (필터 적용)' : ''}</span></div>${rfOn && !rptG.length ? '<div class="empty">필터에 맞는 지연 품목이 없어요</div>' : ''}`;   // MR · RFQ · TBE 는 늦은 것이 없어도 '계획대로' 로 보고
+    ${rfOn ? '<button class="btn sm" data-rfx>✕ 필터 해제</button>' : ''}<span class="muted" style="font-size:12px">열 머리 ▾ = 엑셀식 필터 · 머리 오른쪽 끝 끌기 = 열 너비${canUp ? ' · <b>셀 더블클릭 = 바로 입력</b> · <b>우클릭 = 글자색 · 굵게 · 기울임</b>' : ''}</span><span class="rpfc">${rptG.reduce((a, g) => a + g.xs.length, 0)}건${rfOn ? ' (필터 적용)' : ''}</span></div>${rfOn && !rptG.length ? '<div class="empty">필터에 맞는 지연 품목이 없어요</div>' : ''}`;   // MR · RFQ · TBE 는 늦은 것이 없어도 '계획대로' 로 보고
   // 표 + 보고체(~음 · ~임 · ~중) — 2026-11-09 사용자 지시
   const rptSt = x => x.a ? '<span class="rps d">✔ 늦게 완료함</span>' : x.over ? '<span class="rps o">⚠ 기한 지남 · 실적 미입력임</span>' : '<span class="rps g">⏳ 지연 진행 중</span>';
   const rptHead = g => g.xs.length ? `지연 ${g.xs.length}건 발생함 (최대 +${Math.max(...g.xs.map(x => x.d))}일 · 진행 중 ${g.xs.filter(x => !x.a).length}건)` : '지연 없음, 계획대로 진행 중';
-  const rptRow = (x, i) => { const id = x.it.type + '|' + x.it.no, ed = canUp ? ' data-rc' : '', cell = (c, html, cls = '') => `<td class="${cls}"${canUp && ['b', 'cur', 'r', 'c', 's'].includes(c) ? ` data-rc="${c}" title="더블클릭 = 입력"` : ''}>${html}</td>`;
-    return `<tr class="${x.d > 14 ? 'r' : 'y'} ${x.a ? 'done' : ''}" data-rk="${esc(id + '|' + x.k)}" style="--dc:${schDc(x.it.disc)}"><td class="rpn">${x.i0 || i + 1}</td><td class="rpit"><b class="rpno">${esc(x.it.no)}</b><b class="sinm1">${esc(x.it.item)}</b></td><td><span class="sdc">${esc(x.it.disc)}</span></td>
-      ${cell('b', schChgW(x.it, 'B', x.k, schFmt(x.b)), 'rpdt')}${cell('cur', x.a ? `<b>${schFmt(x.a)}</b><small>실적</small>` : x.f ? `${schFmt(x.f)}<small>전망${x.over ? ' · 지남' : ''}</small>` : '<small>실적 없음</small>', 'rpdt rpcur')}<td class="rpdd"><em class="rpd">+${x.d}일</em></td><td class="rpst">${rptSt(x)}</td>
+  // 2026-11-10 사용자 지시: 칸마다 글자색 · 굵게 · 기울임을 사용자가 바꿈 (우클릭 → 서식 창) — it.rfm['MR|cur'] = { c:'#색', b:1, i:1 }, 모든 부서원에게 같게
+  const rptRow = (x, i) => { const id = x.it.type + '|' + x.it.no, ed = canUp ? ' data-rc' : '', cell = (c, html, cls = '') => { const f = x.it.rfm?.[x.k + '|' + c], fc = f ? `${f.c ? ' rfc' : ''}${f.b ? ' rfb' : ''}${f.i ? ' rfi' : ''}` : '';
+      return `<td class="${cls}${fc}" data-cc="${c}"${f?.c ? ` style="--rfc:${esc(f.c)}"` : ''}${canUp && ['b', 'cur', 'r', 'c', 's'].includes(c) ? ` data-rc="${c}" title="더블클릭 = 입력 · 우클릭 = 글자 서식"` : canUp ? ' title="우클릭 = 글자 서식"' : ''}>${html}</td>`; };
+    return `<tr class="${x.d > 14 ? 'r' : 'y'} ${x.a ? 'done' : ''}" data-rk="${esc(id + '|' + x.k)}" style="--dc:${schDc(x.it.disc)}">${cell('n', x.i0 || i + 1, 'rpn')}${cell('item', `<b class="rpno">${esc(x.it.no)}</b><b class="sinm1">${esc(x.it.item)}</b>`, 'rpit')}${cell('disc', `<span class="sdc">${esc(x.it.disc)}</span>`)}
+      ${cell('b', schChgW(x.it, 'B', x.k, schFmt(x.b)), 'rpdt')}${cell('cur', x.a ? `<b>${schFmt(x.a)}</b><small>실적</small>` : x.f ? `${schFmt(x.f)}<small>전망${x.over ? ' · 지남' : ''}</small>` : '<small>실적 없음</small>', 'rpdt rpcur')}${cell('d', `<em class="rpd">+${x.d}일</em>`, 'rpdd')}${cell('st', rptSt(x), 'rpst')}
       ${cell('r', x.n.r ? esc(x.n.r) : '<i>미입력</i>', 'rptx')}${cell('c', x.n.c ? `<b class="rpcu">${schFmt(x.n.c)}</b>` : '<i>미입력</i>', 'rpdt')}${cell('s', x.n.s ? esc(x.n.s) : '<i>-</i>', 'rptx')}</tr>`; void ed; };
   const rptText = () => rptG.map((g, i) => `${i + 1}. ${g.title} : ${rptHead(g)}` + g.xs.map(x => `\n - ${x.it.no} ${x.it.item} : 원래 기한 ${schFmt(x.b)} 대비 +${x.d}일 ${x.a ? '늦게 완료함 (실적 ' + schFmt(x.a) + ')' : x.over ? '지연 중 (기한 지났으나 실적 미입력임)' : '지연 중 (전망 ' + schFmt(x.f) + ')'}${x.n.r ? `\n   · 지연 사유 : ${x.n.r}` : ''}${x.n.c ? `\n   · 캐치업 : ${schFmt(x.n.c)} 완료 예정임` : !x.a ? '\n   · 캐치업 : 일정 협의 중' : ''}${x.n.s ? `\n   · 특이사항 : ${x.n.s}` : ''}`).join('')).join('\n\n');
   SCH.rptText = rptText;
@@ -4563,6 +4568,34 @@ function schRptEdit(td) {
   inp.onkeydown = e => { if (e.key === 'Enter') { e.preventDefault(); fin(true); } else if (e.key === 'Escape') { e.preventDefault(); fin(false); } };
   inp.onblur = () => setTimeout(() => fin(true), 120);
 }
+/* 2026-11-10 보고 표 칸 글자 서식(색 · 굵게 · 기울임) — 우클릭 창. 저장은 서버의 최신 판에 그 칸만 고쳐서 */
+const SCH_FCOL = [['', '기본'], ['#0f172a', '검정'], ['#dc2626', '빨강'], ['#1d4ed8', '파랑'], ['#16a34a', '초록'], ['#ea580c', '주황'], ['#7c3aed', '보라'], ['#64748b', '회색']];
+function schFmtPop(td, x, y) {
+  $('#schPop')?.remove(); const c = td.dataset.cc, rk = td.closest('tr').dataset.rk, cut = rk.split('|'), k = cut.pop(), id = cut.join('|'), it = SCH.data?.items.find(v => v.type + '|' + v.no === id); if (!it) return;
+  const fk = k + '|' + c, f = { ...(it.rfm?.[fk] || {}) }, th = td.closest('table').querySelectorAll('thead th')[td.cellIndex], cn = th ? th.firstChild?.textContent || '' : c;
+  const pop = document.createElement('div'); pop.id = 'schPop'; pop.className = 'schpop rfpop';
+  const draw = () => { pop.innerHTML = `<div class="sph"><b>${esc(it.no)}</b> <span class="sinm1">${esc(cn)} 글자 서식</span><button data-popx title="닫기">✕</button></div>
+    <div class="rfrow">${SCH_FCOL.map(([v, l]) => `<button class="rfsw ${(f.c || '') === v ? 'on' : ''}" data-rfcol="${v}" title="${l}" style="${v ? `background:${v}` : ''}">${v ? '' : 'A'}</button>`).join('')}<label class="rfcus" title="다른 색 고르기">🎨<input type="color" value="${esc(f.c || '#0f172a')}"></label></div>
+    <div class="rfrow"><button class="btn sm ${f.b ? 'pri' : ''}" data-rfb style="font-weight:900">B 굵게</button><button class="btn sm ${f.i ? 'pri' : ''}" data-rfi style="font-style:italic">I 기울임</button><span class="sp"></span><button class="btn sm" data-rfclr>서식 지우기</button></div>
+    <div class="rfprev ${f.c ? 'rfc' : ''} ${f.b ? 'rfb' : ''} ${f.i ? 'rfi' : ''}" style="${f.c ? `--rfc:${esc(f.c)}` : ''}"><span>미리보기 — ${esc(td.innerText.split('\n')[0].slice(0, 30) || '글자')}</span></div>
+    <div class="spf"><span class="muted">모든 부서원 화면에 같게 보임</span><button class="btn sm" data-popx>취소</button><button class="btn sm pri" data-popsave>💾 적용</button></div>`; };
+  draw(); document.body.appendChild(pop);
+  const W = pop.offsetWidth, H = pop.offsetHeight; pop.style.left = Math.max(8, Math.min(innerWidth - W - 8, x - 20)) + 'px'; pop.style.top = Math.max(8, Math.min(innerHeight - H - 8, y + 10)) + 'px';
+  const close = () => { pop.remove(); removeEventListener('pointerdown', out, true); removeEventListener('keydown', key, true); }, out = e => { if (!pop.contains(e.target)) close(); };
+  const key = e => { if (e.key === 'Escape') close(); else if (e.key === 'Enter') { e.preventDefault(); save(); } }, save = () => { close(); schSaveFmt(id, fk, f); };
+  setTimeout(() => { addEventListener('pointerdown', out, true); addEventListener('keydown', key, true); }, 0);
+  pop.onclick = e => { const t = e.target.closest('button'); if (!t) return;
+    if (t.matches('[data-popx]')) return close(); if (t.matches('[data-popsave]')) return save();
+    if (t.matches('[data-rfcol]')) f.c = t.dataset.rfcol; else if (t.matches('[data-rfb]')) f.b = f.b ? 0 : 1; else if (t.matches('[data-rfi]')) f.i = f.i ? 0 : 1; else if (t.matches('[data-rfclr]')) { f.c = ''; f.b = 0; f.i = 0; } draw(); };
+  pop.oninput = e => { if (e.target.type === 'color') { f.c = e.target.value; const pv = pop.querySelector('.rfprev'); pv.classList.add('rfc'); pv.style.setProperty('--rfc', f.c); pop.querySelectorAll('.rfsw').forEach(b => b.classList.remove('on')); } };
+}
+async function schSaveFmt(id, fk, f) {
+  let base = SCH.data; if (SERVER && !OFFLINE) { try { const cur = await api('GET', 'sched/co2'); if (cur && cur.items) base = cur; } catch (_) {} }
+  const it = base.items.find(x => x.type + '|' + x.no === id); if (!it) return toast('품목을 찾지 못했어요', true);
+  const v = { ...(f.c ? { c:f.c } : {}), ...(f.b ? { b:1 } : {}), ...(f.i ? { i:1 } : {}) };
+  if (Object.keys(v).length) (it.rfm ||= {})[fk] = v; else if (it.rfm) { delete it.rfm[fk]; if (!Object.keys(it.rfm).length) delete it.rfm; }
+  SCH.data = base; render(); await schSave(base, `🎨 ${it.no} 글자 서식을 저장했어요`);
+}
 function schCellPop(spec, x, y) {   // 품목표 MR · RFQ · TBE 칸 더블클릭 — 그 단계 마일스톤의 계획 · 전망 · 실적
   $('#schPop')?.remove(); const cut = spec.split('|'), g = cut.pop(), id = cut.join('|'), it = SCH.data?.items.find(v => v.type + '|' + v.no === id); if (!it) return;
   const [, ks, label] = SCH_FOCUS.find(f => f[0] === g), k = ks.find(m => it.B[m] || it.F[m] || it.A[m]) || ks[0];
@@ -4704,6 +4737,7 @@ function schBind() {
     try { h.setPointerCapture(e.pointerId); } catch (_) {} document.body.classList.add('bdragging');
     h.onpointermove = ev => { const w = Math.max(40, Math.round(w0 + ev.clientX - sx)); cols.forEach(col => col.style.width = w + 'px'); tabs.forEach((t, i) => t.style.width = (t0[i] + w - w0) + 'px'); };
     h.onpointerup = () => { h.onpointermove = h.onpointerup = null; document.body.classList.remove('bdragging'); let o = {}; try { o = JSON.parse(localStorage.getItem('dept-rpt-colw') || '{}'); } catch (_) {} o[c] = parseFloat(cols[0].style.width); try { localStorage.setItem('dept-rpt-colw', JSON.stringify(o)); } catch (_) {} }; });
+  v.oncontextmenu = e => { const td = e.target.closest('.rpt tbody td[data-cc]'); if (!td || noEdit() || !can('runpjt') || td.querySelector('input')) return; e.preventDefault(); schFmtPop(td, e.clientX, e.clientY); };
   v.ondblclick = e => {
     if (noEdit() || !can('runpjt')) return;
     const rc = e.target.closest('.rpt td[data-rc]'); if (rc) { e.preventDefault(); return schRptEdit(rc); }
