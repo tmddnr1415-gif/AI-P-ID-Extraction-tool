@@ -1808,3 +1808,8 @@ C:\Users\SAMSUNG\Desktop\Claude\                         ← 개발 폴더 (여�
 - 무엇을: Schedule 달력을 작게(왼쪽 달력 최대 460px · 칸 높이 34px, 오른쪽에 그날 목록 — 카드 높이 약 560 → 275px), 머리에 [＋ 일정 추가], 목록 아래 [📅 일정 추가] · [📝 특이사항 쓰기]. 날짜 더블클릭 창에서 **📅 일정 / 📝 특이사항** 고르기(특이사항 = 그날 있었던 일 · 메모, 보라 점 · '📝 특이'). 서버 `cal_clean` 에 kind(ev · note).
 - 바뀐 곳: dashboard.html `cevDlg(date, ev, kind)` · `calEvents`(nte) · `CAL_K` · `renderCal`(머리 단추 · 아래 단추 2개), CSS `.schcal` 다시 · `.cevadd2` · `.cevk` · `.ev-nte` / server.py `cal_clean`
 - 확인한 것: 11/12 더블클릭 → 특이사항 'J0730 Vendor 도면 회신 2주 지연 통보' 저장 → 그날 목록에 📝 특이 + PSR PO 마일스톤, 카드 높이 275px. 콘솔 오류 없음.
+
+### 2026-11-10 (APP_VERSION 2026-11-10.6 / SERVER_VERSION 그대로) — v17.26 Schedule 일정 → 내 업무
+- 무엇을: Schedule 달력에서 쓴 내 일정(내가 썼거나 함께하는 사람에 내 이름, 특이사항 제외)을 오른쪽 '📌 내 업무' 목록과 내 업무 팝업에 '📅 일정' 으로 추가 — 지난 7일 ~ 앞으로 14일, 날짜가 지나면 완료, 설명 = 오늘/내일/날짜 · 시간 · 끝 날짜 · 장소 · 등록한 사람. 누르면 Schedule 달력 그 날로 이동. 실행 프로젝트 권한이 있는 부서원만. 일정을 불러오거나 저장하면 내 업무 목록 바로 갱신.
+- 바뀐 곳: dashboard.html `myTasks`(__cev) · `startTask`(__cev) · `cevLoad`(renderTaskBar)
+- 확인한 것: 내 업무 15 → 19건(일정 4건 미완료), 내 업무의 일정 누름 → #co2sched 달력 11/11. 콘솔 오류 없음.

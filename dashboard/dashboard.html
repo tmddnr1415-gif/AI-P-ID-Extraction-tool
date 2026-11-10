@@ -2016,7 +2016,7 @@ function recLabel(key, f) {
  * ===================================================================== */
 let root = null;
 /* 서버 모드: http(s):// 로 접속하면 server.py 의 REST API 사용 (폴더 선택 불필요). file:// 로 열면 폴더 모드 */
-const APP_VERSION = '2026-11-10.5';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
+const APP_VERSION = '2026-11-10.6';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
 const SERVER_URL = 'http://localhost:8080';
 // 부서원 PC 사본(file://)이 접속을 시도할 서버 — 서버가 배포 파일을 만들 때 'PC 이름 주소, IP 주소' 순으로 자동 기록함
 const DEFAULT_SERVERS = ['http://ASEUNGWOOK-B01:8080', 'http://65.3.30.234:8080'];
@@ -5265,6 +5265,12 @@ function myTasks() {
   // 매달: 직전 달 시수 입력 파일 올리기 — 그 달 1~7일(첫째 주)에 표시, 올리기 전까지는 첫째 주가 지나도 '미완료'로 남음
   if (TS_DUE && TS_DUE.who === AUTH?.id && (TS_DUE.month === tsDueMonth()) && (!TS_DUE.done || new Date().getDate() <= 7))
     out.push({ key:'alloc', rid:'ts', f:'__ts', kind:'⏱ 시수', label:`${+TS_DUE.month.slice(5)}월 시수 입력 파일 올리기`, sub:TS_DUE.done ? `${TS_DUE.month} 시수 올림` : `${TS_DUE.month} 월말 시수 파일 → R&R · 투입 분석에서 업로드`, done:TS_DUE.done });
+  // 2026-11-10 Schedule 달력에서 쓴 내 일정(내가 썼거나 함께하는 사람에 내 이름) — 지난 7일 ~ 앞으로 14일. 날짜가 지나면 완료, 누르면 Schedule 달력 그 날로
+  if (can('runpjt')) { const td = todayISO(), from = new Date(Date.now() - 7 * 864e5).toISOString().slice(0, 10), to = new Date(Date.now() + 14 * 864e5).toISOString().slice(0, 10);
+    CEV.list.filter(e => e.kind !== 'note' && cevMine(e) && (e.end || e.date) >= from && e.date <= to).sort((a, b) => (a.date + (a.time || '')).localeCompare(b.date + (b.time || '')))
+      .forEach(e => { const end = e.end || e.date, dd = Math.round((new Date(e.date + 'T00:00:00') - new Date(td + 'T00:00:00')) / 864e5);
+        out.push({ key:'co2sched', rid:e.id, f:'__cev', kind:'📅 일정', label:e.title, done:end < td,
+          sub:`${dd === 0 ? '오늘' : dd === 1 ? '내일' : dd < 0 && end >= td ? '진행 중' : e.date.slice(5).replace('-', '/')}${e.time ? ' ' + e.time : ''}${e.end && e.end !== e.date ? ' ~ ' + e.end.slice(5).replace('-', '/') : ''}${e.place ? ' · ' + e.place : ''}${normName(e.by) !== normName(user) ? ' · ' + e.by + ' 님 등록' : ''} · Schedule 달력` }); }); }
   return out.sort((a, b) => a.done - b.done);             // 미완료가 위
 }
 // 직전 달(YYYY-MM)과 내 시수 업로드 여부 — 서버 시수 목록(로그인 사용자 누구나 볼 수 있음, 비율 단위)에서 내 ID·그 달이 있는지
@@ -5317,6 +5323,8 @@ function openTaskPopup() {
 }
 function startTask(id) {
   const [k, rid, f] = id.split('|');
+  if (f === '__cev') { const e = CEV.list.find(x => x.id === rid); TB.shown = true; TB.active = id; if (dlg.open && !wmParked(dlg)) dlg.close(); if (e) { CAL2.sel = e.date; const d = new Date(e.date + 'T00:00:00'); CAL2.y = d.getFullYear(); CAL2.m = d.getMonth(); }
+    if (route !== 'co2sched') go('co2sched'); else renderCal('sch'); setTimeout(() => $('#schCalCard')?.scrollIntoView({ block:'center', behavior:'smooth' }), 400); return renderTaskBar(); }   // Schedule 일정 → 달력 그 날
   if (f === '__ts') { TB.shown = true; TB.active = id; if (dlg.open && !wmParked(dlg)) dlg.close(); if (route !== 'alloc') location.hash = 'alloc'; setTimeout(() => openTsUpload(), 400); return renderTaskBar(); }
   if (f === '__ack') { ackTask(id); TB.active = id; return jumpTo(k, rid, SHEET[k]?.title || '업무 내용', false); }   // 🔔 알림: 확인완료 + 그 업무 행으로 이동만 (편집 창은 열지 않음)
   TB.shown = true; TB.active = id;
@@ -5412,7 +5420,7 @@ const CROWN = '<svg class="crown" viewBox="0 0 24 18" aria-label="생일"><path 
 /* 2026-11-10 사용자 일정(부서 달력): 날짜마다 일정 입력 · 함께하는 사람 · 장소 · 메모 · 나만 보기, 서버 /api/cal 저장(모두 공유), 접속하면 '나의 예정 일정' 카드 */
 const CEV = { list:[], loaded:false, p:null };
 function cevLoad(force) { if (!SERVER || OFFLINE) { CEV.loaded = true; return Promise.resolve(CEV.list); } if (CEV.loaded && !force) return Promise.resolve(CEV.list);
-  return CEV.p ||= api('GET', 'cal').then(d => { CEV.list = d.events || []; CEV.loaded = true; return CEV.list; }).catch(() => { CEV.loaded = true; return CEV.list; }).finally(() => { CEV.p = null; }); }
+  return CEV.p ||= api('GET', 'cal').then(d => { CEV.list = d.events || []; CEV.loaded = true; if (TB.shown) renderTaskBar(); return CEV.list; }).catch(() => { CEV.loaded = true; return CEV.list; }).finally(() => { CEV.p = null; }); }
 const cevMine = e => user && (normName(e.by) === normName(user) || (e.people || []).some(p => normName(p) === normName(user)));
 const cevOn = (e, key) => key >= e.date && key <= (e.end || e.date);
 function cevDlg(date, ev, kind) {   // 일정 · 특이사항 추가 · 수정 창
