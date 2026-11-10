@@ -1369,6 +1369,7 @@ body.rail #side:not(:hover):not(.peek) .mgrp.act .mhead .mi.top{background:#fff;
 @keyframes crBob{0%,100%{transform:translateX(-50%) rotate(-8deg) translateY(0)}50%{transform:translateX(-50%) rotate(6deg) translateY(-2px)}}
 .cd .evs{display:flex;justify-content:center;gap:3px;margin-top:5px;flex-wrap:wrap}.cd .evs i{width:7px;height:7px;border-radius:50%}
 .cd .ec{display:block;margin-top:3px;font-size:10px;font-weight:700;border-radius:6px;padding:1px 0}
+.ev-ms{background:#6366f1}.ev-mso{background:#f97316}.schcal{margin-bottom:16px}.schcal .calg{max-width:none}
 .ev-my{background:#0ea5e9}.ev-ev{background:#14b8a6}.agi.agev{cursor:pointer}.agi .agm{color:#6d28d9!important}.cevadd{margin-top:6px;width:100%}
 .cevf .fl{display:flex;flex-direction:column;gap:3px;margin-bottom:10px;font-weight:700;font-size:13px}.cevf input:not([type=checkbox]),.cevf textarea{font:inherit;font-size:14px;padding:7px 10px;border:1px solid #cbd5e1;border-radius:8px;width:100%;box-sizing:border-box}.cevf .cevd{display:flex;gap:6px;align-items:center}.cevf .cevd input{width:auto}
 .cevmy{position:fixed;right:22px;bottom:22px;z-index:1500;width:360px;max-height:60vh;display:flex;flex-direction:column;background:#fff;border-radius:16px;box-shadow:0 18px 50px rgba(15,23,42,.3),0 0 0 1px rgba(14,165,233,.25);overflow:hidden;animation:schBigIn .2s ease-out}
@@ -2009,7 +2010,7 @@ function recLabel(key, f) {
  * ===================================================================== */
 let root = null;
 /* 서버 모드: http(s):// 로 접속하면 server.py 의 REST API 사용 (폴더 선택 불필요). file:// 로 열면 폴더 모드 */
-const APP_VERSION = '2026-11-10.3';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
+const APP_VERSION = '2026-11-10.4';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
 const SERVER_URL = 'http://localhost:8080';
 // 부서원 PC 사본(file://)이 접속을 시도할 서버 — 서버가 배포 파일을 만들 때 'PC 이름 주소, IP 주소' 순으로 자동 기록함
 const DEFAULT_SERVERS = ['http://ASEUNGWOOK-B01:8080', 'http://65.3.30.234:8080'];
@@ -4390,6 +4391,7 @@ function renderSched(c) {
     <div class="wgrid schgrid"><section class="card"><h2>📊 단계별 진척 <span class="muted">· 막대 = 실적 품목 수 · 연한 막대 = 기준일까지 계획</span></h2>${funnel}<div class="wleg"><span><i style="background:#c7d2fe"></i>계획(기준일까지)</span><span><i style="background:#4f46e5"></i>실적</span></div></section>
       <section class="card iscard"><h2>📋 공종별 품목 현황 <span class="muted">· 품목마다 지금 단계 한 줄 · 늦은 것부터 · <i class="isd r"></i>늦음 <i class="isd y"></i>조금 늦음 <i class="isd g"></i>계획대로 · 공종 이름 = 그 공종만 · 품목 = 표에서 상세</span></h2><div class="isw">${sumHtml || '<div class="empty">품목이 없어요</div>'}</div></section>
       <section class="card"><h2>📅 다가오는 30일 <span class="muted">· 기준일 이후 전망 일정 ${soon.length}건${pastN ? ` · 이미 지난(실적 미입력) ${pastN}건은 <button class="linkbtn" data-schf="late|over">일정 지남</button>` : ''}</span></h2><div class="ssoon">${soonHtml}</div></section></div>
+    <section class="card calcard schcal" id="schCalCard"></section>
     <div class="schph"><span>보기 단계</span><button class="${ph === 'front' ? 'on' : ''}" data-schph="front">🎯 설계 관리 <b>MR · RFQ · TBE</b> <small>지금 중요</small></button><button class="${ph === 'back' ? 'on' : ''}" data-schph="back">🏭 설계 · 제작 · 운송 <small>${allFront ? '설계 관리 모두 끝남' : '나중'}</small></button>
       <span class="sp"></span><span>기준일</span><button class="${!useToday ? 'on' : ''}" data-schtoday="0">파일 ${esc(schFmt(d.asOf))}</button><button class="${useToday ? 'on' : ''}" data-schtoday="1">오늘 ${esc(schFmt(today))}</button></div>
     ${ph === 'front' ? dzCard : ''}
@@ -4400,6 +4402,7 @@ function renderSched(c) {
       <div class="fbar"><label>검색<input id="schQ" value="${esc(F.q)}" placeholder="No · 품목 · 업체 · 담당"></label><label>정렬<select id="schSort"><option value="front" ${sortK === 'front' ? 'selected' : ''}>MR · RFQ · TBE 지연 큰 순</option><option value="delay" ${sortK === 'delay' ? 'selected' : ''}>현장 도착 지연 큰 순</option><option value="site" ${sortK === 'site' ? 'selected' : ''}>현장 도착 빠른 순</option><option value="no" ${sortK === 'no' ? 'selected' : ''}>번호 순</option></select></label><label>상태<select id="schLate"><option value="">전체</option>${SCH_FOCUS.map(([g]) => `<option value="f:${g}" ${F.late === 'f:' + g ? 'selected' : ''}>${g} 지연</option>`).join('')}${Object.entries(SCH_ST).map(([k, [l]]) => `<option value="${k}" ${F.late === k ? 'selected' : ''}>${l}</option>`).join('')}</select></label><label>공종<select id="schDisc"><option value="">전체</option>${discs.map(dn => `<option ${F.disc === dn ? 'selected' : ''}>${esc(dn)}</option>`).join('')}</select></label><label>구분<select id="schType"><option value="">전체</option>${['Tagged', 'Bulk'].map(t => `<option ${F.type === t ? 'selected' : ''}>${t}</option>`).join('')}</select></label>${F.type || F.disc || F.q || F.late ? '<button class="btn sm" data-schf="reset|">필터 초기화</button>' : ''}<button class="btn sm" data-schxl>⬇ 엑셀로</button></div>
       <div class="tw sgw"><table class="t schtab ph-${ph}"><colgroup><col style="width:86px"><col style="width:78px"><col style="width:270px"><col style="width:96px"><col style="width:96px"><col style="width:96px"><col style="width:96px"><col style="width:150px"><col style="width:130px"><col></colgroup><thead><tr class="sgrp"><th colspan="3"></th><th colspan="4" class="gfront">🎯 설계 관리 — 계획 대비 지연 <small>${ph === 'front' ? '지금 중요' : '끝난 단계'}</small></th><th></th><th class="gback">🏭 나중 단계 <small>${ph === 'front' ? '설계·제작·운송' : '지금'}</small></th><th></th></tr><tr><th class="key">No</th><th>공종</th><th>품목 · 업체</th>${SCH_FOCUS.map(([g, , l]) => `<th class="fh">${g}<small>${l}</small></th>`).join('')}<th>현재 단계 · 다음</th><th class="lh">현장 도착 계획→전망</th><th class="sgh"><div class="sgx">${months.map(m => `<span style="left:${X(m)}%">${m.slice(2, 7).replace('-', '.')}</span>`).join('')}<i class="snow" style="left:${nowX}%"><b>기준일</b></i></div></th></tr></thead><tbody>${rows || '<tr><td colspan="10"><div class="empty">조건에 맞는 품목이 없어요</div></td></tr>'}</tbody></table></div></section></div>`);
   $('#schv .schtab')?.style.setProperty('--now', nowX + '%');
+  renderCal('sch');
   schBind();
 }
 /* 공종을 고르면: 그 공종 품목별 일정판 — 단계 블록(입찰 · 발주 · 설계/제작 · 검사/선적 · 운송)을 달력 줄에 (참고 그림처럼 연한 색 블록 + 왼쪽 진한 줄) */
@@ -5398,7 +5401,7 @@ function jumpTo(key, rid, f, edit) {
 }
 
 /* 2026-11-08 홈: 계장ENG그룹 월간 캘린더 — 생일(👑) · 주간 마감(수 11:59) · 주간회의 전달사항 · 업무 기한(통합 업무 · To Do · 기술공유 발표) */
-const CAL = { y:0, m:0, sel:'' };
+const CAL1 = { y:0, m:0, sel:'' }, CAL2 = { y:0, m:0, sel:'' }, CAL = CAL1;   // CAL1 = 첫 화면 · CAL2 = Schedule 달력
 const CROWN = '<svg class="crown" viewBox="0 0 24 18" aria-label="생일"><path d="M2 15 L3.5 4 L8.5 9 L12 2 L15.5 9 L20.5 4 L22 15 Z" fill="#f7b731" stroke="#b7791f" stroke-width="1.1" stroke-linejoin="round"/><rect x="2" y="14.5" width="20" height="3" rx="1" fill="#e0a21b"/><circle cx="12" cy="9.5" r="1.4" fill="#e25555"/><circle cx="7" cy="11" r="1.1" fill="#4f4ce0"/><circle cx="17" cy="11" r="1.1" fill="#4f4ce0"/></svg>';
 /* 2026-11-10 사용자 일정(부서 달력): 날짜마다 일정 입력 · 함께하는 사람 · 장소 · 메모 · 나만 보기, 서버 /api/cal 저장(모두 공유), 접속하면 '나의 예정 일정' 카드 */
 const CEV = { list:[], loaded:false, p:null };
@@ -5425,66 +5428,75 @@ function cevDlg(date, ev) {   // 일정 추가 · 수정 창
       place:$('#cevPlace', dlg).value.trim(), memo:$('#cevMemo', dlg).value.trim(), priv:$('#cevPriv', dlg).checked };
     if (!body.title) return toast('일정 내용을 적어 주세요', true);
     try { await api(ev ? 'PUT' : 'POST', 'cal' + (ev ? '/' + ev.id : ''), body); } catch (er) { return toast('저장 실패: ' + er.message, true); }
-    dlg.close(); await cevLoad(true); CAL.sel = body.date; toast(`📅 ${body.date.slice(5).replace('-', '/')} 일정을 저장했어요 — 모든 부서원 달력에 보입니다${body.priv ? ' (나만 보기)' : ''}`); render(); };
+    dlg.close(); await cevLoad(true); CAL2.sel = body.date; toast(`📅 ${body.date.slice(5).replace('-', '/')} 일정을 저장했어요 — 모든 부서원 달력에 보입니다${body.priv ? ' (나만 보기)' : ''}`); render(); };
   $('#cevTitle', dlg).onkeydown = k => { if (k.key === 'Enter') { k.preventDefault(); dlg.querySelector('[data-cevsave]').click(); } };
 }
 /* 접속하면 '나의 예정 일정' — 오늘부터 14일, 내가 쓰거나 함께하는 사람에 들어간 일정 (오른쪽 아래 카드, 오늘 그만 보기) */
 function cevMyCard(force) {
-  if (!user || !AUTH) return; const today = todayISO(), endD = new Date(Date.now() + 14 * 864e5).toISOString().slice(0, 10);
+  if (!user || !AUTH || !can('runpjt')) return; const today = todayISO(), endD = new Date(Date.now() + 14 * 864e5).toISOString().slice(0, 10);
   try { if (!force && localStorage.getItem('dept-cev-hide') === today + '|' + user) return; } catch (_) {}
   const mine = CEV.list.filter(e => cevMine(e) && (e.end || e.date) >= today && e.date <= endD).sort((a, b) => (a.date + (a.time || '')).localeCompare(b.date + (b.time || '')));
   $('#cevMy')?.remove(); if (!mine.length && !force) return;
   const dd = d => { const x = new Date(d + 'T00:00:00'), n = Math.round((x - new Date(today + 'T00:00:00')) / 864e5); return n <= 0 ? '오늘' : n === 1 ? '내일' : `${x.getMonth() + 1}/${x.getDate()}(${'일월화수목금토'[x.getDay()]})`; };
   const c = document.createElement('div'); c.id = 'cevMy'; c.className = 'cevmy';
-  c.innerHTML = `<div class="cmh"><b>📅 ${esc(user)}님의 예정 일정</b><small>오늘부터 2주</small><button data-cmx title="닫기">✕</button></div>
+  c.innerHTML = `<div class="cmh"><b>📅 ${esc(user)}님의 예정 일정</b><small>Schedule 달력 · 오늘부터 2주</small><button data-cmx title="닫기">✕</button></div>
     <div class="cml">${mine.map(e => `<div class="cmi ${e.date <= today ? 'now' : ''}" data-cmgo="${esc(e.date)}"><span class="cmd">${dd(e.date)}${e.time ? `<small>${esc(e.time)}</small>` : ''}</span><span class="cmt"><b>${esc(e.title)}</b><small>${[e.place, (e.people || []).filter(p => normName(p) !== normName(user)).join(', ') && '함께: ' + (e.people || []).filter(p => normName(p) !== normName(user)).join(', '), normName(e.by) !== normName(user) && e.by + ' 님이 등록'].filter(Boolean).map(esc).join(' · ')}</small></span></div>`).join('') || '<div class="muted" style="padding:8px">2주 안에 예정된 일정이 없어요</div>'}</div>
     <div class="cmf"><label class="chk"><input type="checkbox" data-cmhide> 오늘 그만 보기</label><button class="btn sm" data-cmadd>＋ 일정 추가</button></div>`;
   document.body.appendChild(c);
   c.onclick = e => { if (e.target.closest('[data-cmx]')) return c.remove(); if (e.target.closest('[data-cmadd]')) return cevDlg(today);
-    const g = e.target.closest('[data-cmgo]'); if (g) { CAL.sel = g.dataset.cmgo; const d = new Date(CAL.sel + 'T00:00:00'); CAL.y = d.getFullYear(); CAL.m = d.getMonth(); if (route !== 'home') go('home'); else renderCal(); setTimeout(() => $('#calCard')?.scrollIntoView({ block:'center', behavior:'smooth' }), 200); } };
+    const g = e.target.closest('[data-cmgo]'); if (g) { CAL2.sel = g.dataset.cmgo; const d = new Date(CAL2.sel + 'T00:00:00'); CAL2.y = d.getFullYear(); CAL2.m = d.getMonth(); if (route !== 'co2sched') go('co2sched'); else renderCal('sch'); setTimeout(() => $('#schCalCard')?.scrollIntoView({ block:'center', behavior:'smooth' }), 400); } };   // Schedule 달력으로
   c.querySelector('[data-cmhide]').onchange = e => { try { e.target.checked ? localStorage.setItem('dept-cev-hide', today + '|' + user) : localStorage.removeItem('dept-cev-hide'); } catch (_) {} if (e.target.checked) c.remove(); };
 }
-function calEvents(y, m) {                                  // m: 0~11 → { 'YYYY-MM-DD': [{k, t, l, s, go}] }
+function calEvents(y, m, mode = 'home') {                                  // m: 0~11 → { 'YYYY-MM-DD': [{k, t, l, s, go}] }
   const out = {}, add = (d, e) => (out[d] || (out[d] = [])).push(e), first = new Date(y, m, 1), last = new Date(y, m + 1, 0);
   for (let d = new Date(first); d <= last; d.setDate(d.getDate() + 1)) {
     const key = ymd(d);
-    bdOn(d).forEach(b => add(key, { k:'bd', t:'🎂', l:`${bdName(b)} 생일`, s:b.lunar ? `음력 ${b.md.replace('-', '/')}` : '' }));
-    if (d.getDay() === 3) add(key, { k:'dl', t:'11:59', l:'주간업무 마감', s:'수요일 오전 11:59 자동 마감 → 마감본으로 남음' });
-    CEV.list.filter(e => cevOn(e, key)).forEach(e => add(key, { k:cevMine(e) ? 'my' : 'ev', t:e.time || (e.end && e.end !== e.date ? `~${+e.end.slice(5, 7)}/${+e.end.slice(8)}` : '일정'), l:e.title, s:[e.place, (e.people || []).length ? '함께: ' + e.people.join(', ') : '', `${e.by}${e.priv ? ' · 🔒나만' : ''}`].filter(Boolean).join(' · '), ev:e }));
+    if (mode !== 'sch') bdOn(d).forEach(b => add(key, { k:'bd', t:'🎂', l:`${bdName(b)} 생일`, s:b.lunar ? `음력 ${b.md.replace('-', '/')}` : '' }));
+    if (d.getDay() === 3 && mode !== 'sch') add(key, { k:'dl', t:'11:59', l:'주간업무 마감', s:'수요일 오전 11:59 자동 마감 → 마감본으로 남음' });
+    if (mode === 'sch') { CEV.list.filter(e => cevOn(e, key)).forEach(e => add(key, { k:cevMine(e) ? 'my' : 'ev', t:e.time || (e.end && e.end !== e.date ? `~${+e.end.slice(5, 7)}/${+e.end.slice(8)}` : '일정'), l:e.title, s:[e.place, (e.people || []).length ? '함께: ' + e.people.join(', ') : '', `${e.by}${e.priv ? ' · 🔒나만' : ''}`].filter(Boolean).join(' · '), ev:e }));
+      continue; }   // Schedule 달력: 사용자 일정만(+ 아래 PSR 마일스톤) — 생일 · 주간 마감 · 전달사항 · 업무 기한은 첫 화면 달력에만
+  }
+  if (mode === 'sch') {   // PSR 설계 관리 마일스톤(MR · RFQ · TBE 제출 · TBE 완료) + PO · FAT · 현장 도착 — 실적 없으면 전망(없으면 계획) 날짜에
+    const mk = ymd(first).slice(0, 7), td = todayISO();
+    (SCH.data?.items || []).forEach(it => [...SCH_FRONT, 'PO', 'FAT', 'SITE'].forEach(k => { const a = it.A[k], v = a || it.F[k] || it.B[k]; if (!v || v.slice(0, 7) !== mk) return; const dd = it.B[k] ? schDays(v, it.B[k]) : 0;
+      add(v, { k:a ? 'ms' : 'mso', t:SCH_NAME[k], l:`${it.no} ${it.item}`, s:`${a ? '실적' : it.F[k] ? '전망' : '계획'} ${schFmt(v)}${dd > 0 ? ` · 계획보다 +${dd}일` : ''}${!a && v < td ? ' · 지남(실적 없음)' : ''} · ${it.disc}`, ms:it.type + '|' + it.no }); }));
+    return out;
   }
   getRecs('notice').forEach(r => { const d = isoD(r.fields['일자']); if (d && d.slice(0, 7) === ymd(first).slice(0, 7)) add(d, { k:'nt', t:'회의', l:flat(r.fields['제목']) || '주간회의 전달사항', s:flat(r.fields['내용']).slice(0, 60), go:'notice' }); });
   workAll().filter(i => i.end && i.cls !== 'done' && i.cls !== 'perm' && i.end.slice(0, 7) === ymd(first).slice(0, 7))
     .forEach(i => add(i.end, { k:i.cls === 'late' ? 'late' : 'wk', t:'기한', l:recLabel(i.key, i.f), s:`${i.w.label} · ${i.st}${flat(i.personRaw) ? ' · ' + flat(i.personRaw) : ''}`, go:i.key }));
   return out;
 }
-const CAL_K = { my:['ev-my', '내 일정'], ev:['ev-ev', '부서 일정'], bd:['ev-bd', '생일'], dl:['ev-dl', '주간 마감'], nt:['ev-nt', '주간회의 전달사항'], wk:['ev-wk', '업무 기한'], late:['ev-late', '기한 지남'] };
-function renderCal() {
-  const el = $('#calCard'); if (!el) return;
-  if (!BD.loaded && SERVER && !OFFLINE && !CAL.bdTried) { CAL.bdTried = true; loadBirthdays().then(renderCal); }
-  if (!CEV.loaded && !CEV.p) cevLoad().then(renderCal);
+const CAL_K = { my:['ev-my', '내 일정'], ev:['ev-ev', '부서원 일정'], ms:['ev-ms', 'PSR 실적'], mso:['ev-mso', 'PSR 예정 · 전망'], bd:['ev-bd', '생일'], dl:['ev-dl', '주간 마감'], nt:['ev-nt', '주간회의 전달사항'], wk:['ev-wk', '업무 기한'], late:['ev-late', '기한 지남'] };
+function renderCal(mode = 'home') {   // 2026-11-10: home = 주간업무보고 첫 화면(부서 공용 — 사용자 일정 없음) · sch = 실행 프로젝트 › CO2 PJT › Schedule 달력(사용자 일정 + PSR 설계 관리 마일스톤)
+  if (mode === 'home' && $('#schCalCard')) renderCal('sch');
+  const sch = mode === 'sch', CAL = sch ? CAL2 : CAL1, el = $(sch ? '#schCalCard' : '#calCard'); if (!el) return;
+  if (!BD.loaded && SERVER && !OFFLINE && !CAL.bdTried) { CAL.bdTried = true; loadBirthdays().then(() => renderCal(mode)); }
+  if (sch && !CEV.loaded && !CEV.p) cevLoad().then(() => renderCal(mode));
   const now = new Date(); if (!CAL.y) { CAL.y = now.getFullYear(); CAL.m = now.getMonth(); CAL.sel = ymd(now); }
-  const ev = calEvents(CAL.y, CAL.m), start = new Date(CAL.y, CAL.m, 1 - new Date(CAL.y, CAL.m, 1).getDay()), today = ymd(now);
+  const ev = calEvents(CAL.y, CAL.m, mode), start = new Date(CAL.y, CAL.m, 1 - new Date(CAL.y, CAL.m, 1).getDay()), today = ymd(now);
   const cells = []; for (let i = 0; i < 42; i++) { const d = new Date(start); d.setDate(start.getDate() + i); if (i >= 35 && d.getMonth() !== CAL.m) break; cells.push(d); }
   const cell = d => { const k = ymd(d), es = d.getMonth() === CAL.m ? (ev[k] || []) : [], bd = es.some(e => e.k === 'bd'), dl = es.find(e => e.k === 'dl'), rest = es.filter(e => e.k !== 'bd' && e.k !== 'dl');
-    const tip = es.length ? tipHtml(`${d.getMonth() + 1}월 ${d.getDate()}일 (${'일월화수목금토'[d.getDay()]})`, es.map(e => `<span style="color:${{ bd:'#ffd36b', dl:'#ffb877', nt:'#d3a8ff', wk:'#b9b8ff', late:'#ff9b9b' }[e.k]}">●</span> ${e.k === 'bd' ? '👑 ' : ''}<b>${esc(e.l)}</b>${e.s ? ` <span class="tm">· ${esc(e.s)}</span>` : ''}`), 8) : '';
+    const tip = es.length ? tipHtml(`${d.getMonth() + 1}월 ${d.getDate()}일 (${'일월화수목금토'[d.getDay()]})`, es.slice(0, 10).map(e => `<span style="color:${{ my:'#7dd3fc', ev:'#5eead4', ms:'#a5b4fc', mso:'#fdba74', bd:'#ffd36b', dl:'#ffb877', nt:'#d3a8ff', wk:'#b9b8ff', late:'#ff9b9b' }[e.k]}">●</span> ${e.k === 'bd' ? '👑 ' : ''}<b>${esc(e.l)}</b>${e.s ? ` <span class="tm">· ${esc(e.s)}</span>` : ''}`), 8) : '';
     const hn = HOL_NAME[k], hs = !hn && HOL_SOFT[k.slice(5)], hsh = (hn || hs || '').split(' · ')[0].replace(/\s*\(.*\)$/, '').replace('대체공휴일', '대체휴일').replace(' 연휴', '');
     return `<button class="cd ${d.getMonth() !== CAL.m ? 'out' : ''} ${k === today ? 'today' : ''} ${k === CAL.sel ? 'sel' : ''} ${d.getDay() === 0 || hn ? 'sun' : d.getDay() === 6 ? 'sat' : ''} ${hn ? 'hol' : hs ? 'hsoft' : ''}" data-cday="${k}" ${tip || hn || hs ? `data-tip="${esc(tip || tipHtml(`${d.getMonth() + 1}월 ${d.getDate()}일`, [`🇰🇷 <b>${esc(hn || hs)}</b>`], 2))}"` : ''}>
       ${bd ? CROWN : ''}<span class="dn">${d.getDate()}</span>${hn || hs ? `<span class="ec hn" title="${esc(hn || hs)}">${esc(hsh)}</span>` : ''}${dl ? '<span class="ec dl">마감</span>' : ''}<span class="evs">${rest.slice(0, 4).map(e => `<i class="${CAL_K[e.k][0]}"></i>`).join('')}</span></button>`; };
   const sel = ev[CAL.sel] || [], sd = new Date(CAL.sel);
-  el.innerHTML = `<div class="calhd"><h2>📅 계장ENG그룹 ${CAL.y}년 ${CAL.m + 1}월</h2><span class="sp"></span><button data-cal="-1" title="이전 달">‹</button><button class="today" data-cal="0">오늘</button><button data-cal="1" title="다음 달">›</button></div>
-    <div class="calleg">${Object.values(CAL_K).map(([c, l]) => `<span><i class="${c}"></i>${l}</span>`).join('')}<span>👑 = 생일자</span></div>
+  el.innerHTML = `<div class="calhd"><h2>${sch ? '📅 CO2 PJT Schedule 달력' : '📅 계장ENG그룹'} ${CAL.y}년 ${CAL.m + 1}월</h2><span class="sp"></span><button data-cal="-1" title="이전 달">‹</button><button class="today" data-cal="0">오늘</button><button data-cal="1" title="다음 달">›</button></div>
+    <div class="calleg">${Object.entries(CAL_K).filter(([k]) => sch ? ['my', 'ev', 'ms', 'mso'].includes(k) : !['my', 'ev', 'ms', 'mso'].includes(k)).map(([, [c, l]]) => `<span><i class="${c}"></i>${l}</span>`).join('')}${sch ? '<span>날짜 더블클릭 = 일정 추가</span>' : '<span>👑 = 생일자</span>'}</div>
     <div class="calg">${'일월화수목금토'.split('').map((w, i) => `<div class="wd ${i === 0 ? 'sun' : i === 6 ? 'sat' : ''}">${w}</div>`).join('')}${cells.map(cell).join('')}</div>
     <div class="calag"><h4>${sd.getMonth() + 1}월 ${sd.getDate()}일 (${'일월화수목금토'[sd.getDay()]})${HOL_NAME[CAL.sel] || HOL_SOFT[CAL.sel.slice(5)] ? ` <span class="calhol">🇰🇷 ${esc(HOL_NAME[CAL.sel] || HOL_SOFT[CAL.sel.slice(5)])}</span>` : ''} <small>${sel.length ? `일정 ${sel.length}건` : '일정 없음'}</small></h4>
-      ${sel.map(e => `<div class="agi ${e.ev ? 'agev' : ''}" ${e.go ? `data-go="${e.go}"` : ''} ${e.ev ? `data-cevid="${esc(e.ev.id)}" title="${normName(e.ev.by) === normName(user) || ADMIN ? '누르면 고치기 · 지우기' : esc(e.ev.memo || '')}"` : ''}><span class="k ${CAL_K[e.k][0]}"></span><span class="t">${esc(e.t)}</span><span class="x">${e.k === 'bd' ? '👑 ' : ''}${esc(e.l)}${e.s ? `<small>${esc(e.s)}</small>` : ''}${e.ev?.memo ? `<small class="agm">📝 ${esc(trunc(e.ev.memo, 60))}</small>` : ''}</span></div>`).join('') || '<div class="muted" style="font-size:12px">날짜를 누르면 그날 일정이 여기에 나옵니다</div>'}
-      ${AUTH ? `<button class="btn sm cevadd" data-cevadd="${esc(CAL.sel)}">＋ ${sd.getMonth() + 1}/${sd.getDate()} 일정 추가</button>` : '<div class="muted" style="font-size:11.5px;margin-top:4px">로그인하면 일정을 추가할 수 있어요</div>'}</div>`;
-  el.ondblclick = e => { const c = e.target.closest('[data-cday]'); if (c && AUTH) { CAL.sel = c.dataset.cday; cevDlg(c.dataset.cday); } };   // 날짜 더블클릭 = 그날 일정 추가
+      ${sel.map(e => `<div class="agi ${e.ev || e.ms ? 'agev' : ''}" ${e.ms ? `data-calms="${esc(e.ms)}" title="누르면 품목 상세"` : ''} ${e.go ? `data-go="${e.go}"` : ''} ${e.ev ? `data-cevid="${esc(e.ev.id)}" title="${normName(e.ev.by) === normName(user) || ADMIN ? '누르면 고치기 · 지우기' : esc(e.ev.memo || '')}"` : ''}><span class="k ${CAL_K[e.k][0]}"></span><span class="t">${esc(e.t)}</span><span class="x">${e.k === 'bd' ? '👑 ' : ''}${esc(e.l)}${e.s ? `<small>${esc(e.s)}</small>` : ''}${e.ev?.memo ? `<small class="agm">📝 ${esc(trunc(e.ev.memo, 60))}</small>` : ''}</span></div>`).join('') || '<div class="muted" style="font-size:12px">날짜를 누르면 그날 일정이 여기에 나옵니다</div>'}
+      ${sch && AUTH ? `<button class="btn sm cevadd" data-cevadd="${esc(CAL.sel)}">＋ ${sd.getMonth() + 1}/${sd.getDate()} 일정 추가</button>` : sch ? '<div class="muted" style="font-size:11.5px;margin-top:4px">로그인하면 일정을 추가할 수 있어요</div>' : ''}</div>`;
+  el.ondblclick = e => { const c = e.target.closest('[data-cday]'); if (c && AUTH && sch) { CAL.sel = c.dataset.cday; cevDlg(c.dataset.cday); } };   // 날짜 더블클릭 = 그날 일정 추가
   el.onclick = e => { const b = e.target.closest('[data-cal]'), c = e.target.closest('[data-cday]');
     const ad = e.target.closest('[data-cevadd]'); if (ad) return cevDlg(ad.dataset.cevadd);
-    if (c && AUTH && (e.detail >= 2 || CAL.lastC === c.dataset.cday && Date.now() - CAL.lastT < 450)) { CAL.sel = c.dataset.cday; return cevDlg(c.dataset.cday); }   // 날짜 더블클릭 = 일정 추가 (첫 클릭에 달력을 다시 그려도 잡히게)
+    const ms = e.target.closest('[data-calms]'); if (ms) { const id = ms.dataset.calms; SCH.open.add(id); render(); setTimeout(() => $(`#schv tr.srow[data-schopen="${CSS.escape(id)}"]`)?.scrollIntoView({ block:'center', behavior:'smooth' }), 80); return; }
+    if (c && AUTH && sch && (e.detail >= 2 || CAL.lastC === c.dataset.cday && Date.now() - CAL.lastT < 450)) { CAL.sel = c.dataset.cday; return cevDlg(c.dataset.cday); }   // 날짜 더블클릭 = 일정 추가 (첫 클릭에 달력을 다시 그려도 잡히게)
     if (c) { CAL.lastC = c.dataset.cday; CAL.lastT = Date.now(); }
     const ei = e.target.closest('[data-cevid]'); if (ei) { const ev = CEV.list.find(x => x.id === ei.dataset.cevid); if (ev && (normName(ev.by) === normName(user) || ADMIN)) return cevDlg(ev.date, ev); if (ev) return toast(`${ev.title} — ${ev.by} 님 일정 (쓴 사람만 고칠 수 있어요)${ev.memo ? ' · ' + ev.memo : ''}`); }
-    if (b) { const v = +b.dataset.cal; if (!v) { const n = new Date(); CAL.y = n.getFullYear(); CAL.m = n.getMonth(); CAL.sel = ymd(n); } else { const d = new Date(CAL.y, CAL.m + v, 1); CAL.y = d.getFullYear(); CAL.m = d.getMonth(); } return renderCal(); }
-    if (c) { CAL.sel = c.dataset.cday; const d = new Date(CAL.sel); if (d.getMonth() !== CAL.m) { CAL.y = d.getFullYear(); CAL.m = d.getMonth(); } return renderCal(); } };
+    if (b) { const v = +b.dataset.cal; if (!v) { const n = new Date(); CAL.y = n.getFullYear(); CAL.m = n.getMonth(); CAL.sel = ymd(n); } else { const d = new Date(CAL.y, CAL.m + v, 1); CAL.y = d.getFullYear(); CAL.m = d.getMonth(); } return renderCal(mode); }
+    if (c) { CAL.sel = c.dataset.cday; const d = new Date(CAL.sel); if (d.getMonth() !== CAL.m) { CAL.y = d.getFullYear(); CAL.m = d.getMonth(); } return renderCal(mode); } };
 }
 
 const LS_NFOLD = 'dept-notice-fold', NFOLD = () => { try { return localStorage.getItem(LS_NFOLD) === '1'; } catch (_) { return false; } };

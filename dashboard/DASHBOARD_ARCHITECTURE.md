@@ -1797,3 +1797,9 @@ C:\Users\SAMSUNG\Desktop\Claude\                         ← 개발 폴더 (여�
 - 바뀐 곳: dashboard.html `CEV` · `cevLoad` · `cevMine` · `cevOn` · `cevDlg` · `cevMyCard` · `calEvents`(사용자 일정) · `CAL_K`(my · ev) · `renderCal`(목록 · 추가 단추 · 더블클릭 · 고치기) · `afterAuth` · 시작(o.warm 아닐 때), CSS `.ev-my` · `.ev-ev` · `.cevf` · `.cevmy` / server.py 위 함수 · 라우트 `cal`
 - 확인한 것: 11/11 더블클릭 → 일정 저장(함께 홍길동 · 이영희, 메모), 11/13~14 여러 날 일정, 달력 점 · 목록, 새로고침 → 예정 일정 카드(내일 14:00 · 11/13), /api/cal 저장 내용. 콘솔 오류 없음.
 - 회사에서: 서버 버전이 바뀌므로 업데이트 뒤 대시보드 서버 다시 켜기.
+
+### 2026-11-10 (APP_VERSION 2026-11-10.4 / SERVER_VERSION 그대로) — v17.24 일정 달력은 Schedule 에만
+- 사용자 지시: 일정 입력 달력은 Schedule 메뉴에만, 주간업무보고 첫 화면 달력(부서 공용)과 연동하지 않음.
+- 무엇을: 실행 프로젝트 › CO2 PJT › Schedule 화면에 '📅 CO2 PJT Schedule 달력' 카드(보기 단계 위) — 사용자 일정(내 일정 · 부서원 일정, 날짜 더블클릭 · [＋ 일정 추가] · 고치기 · 지우기) + PSR 마일스톤(설계 관리 MR · RFQ · TBE 제출 · TBE 완료 + PO · FAT · 현장 도착: 실적 = 남색, 예정 · 전망 = 주황, '지남(실적 없음)' · 계획 대비 +일, 누르면 그 품목 상세). 생일 · 주간 마감 · 전달사항 · 업무 기한은 넣지 않음. 첫 화면 달력은 예전 그대로(사용자 일정 · 추가 단추 · 더블클릭 없음). '나의 예정 일정' 카드는 실행 프로젝트 권한이 있는 부서원에게만, 누르면 Schedule 달력 그 날로.
+- 바뀐 곳: dashboard.html `renderCal(mode)`(home · sch, 달력 상태 `CAL1` · `CAL2`) · `calEvents(y, m, mode)` · `CAL_K`(ms · mso) · `renderSched`(#schCalCard) · `cevMyCard` · `cevDlg`, CSS `.ev-ms` · `.ev-mso` · `.schcal`
+- 확인한 것: 첫 화면 11/11 = 주간업무 마감만 · 더블클릭해도 창 안 뜸, 예정 일정 카드 → Schedule 달력 11/11 일정, Schedule 달력 더블클릭 → 추가 창, PSR 마일스톤 점. 콘솔 오류 없음.
