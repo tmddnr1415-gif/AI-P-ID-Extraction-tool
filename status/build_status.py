@@ -76,6 +76,9 @@ def s1():
     pend = log(f'{since}..{b}', 'dashboard') if since else []
     newest = first(r'(?i)dashboard v(\d+\.\d+)', '\n'.join(c['s'] for c in log(b, n=15)))       # 브랜치 최신 v (커밋 제목)
     sent = first(r"to_v(\d+\.\d+)", last[1] if len(last) > 1 else "")
+    ap = [x for x in _pkgs() if x['file'] == '①' and x.get('applied')]          # 회사 적용 확인이 오면 그 판이 회사 판 (2026-11-10)
+    if ap:
+        sent = first(r'_v(\d+\.\d+)_', ap[-1]['name']) or sent
     return dict(branch=b, ver=f'v{newest or sent} · 회사엔 v{sent}' if newest and newest != sent else f'v{sent} (화면 {ver})',
                 shipped=(made('①') + ' · ' if k else '') + f'delivered.txt 마지막: {last[1] if len(last) > 1 else "?"}', pending=pend, file='① DASHBOARD 개별')
 

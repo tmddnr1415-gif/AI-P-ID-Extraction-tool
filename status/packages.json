@@ -107,11 +107,23 @@
    "made": "2026-11-10 08:22",
    "path": "company-pc-update/2026-11-10/ (110MB · 저장소 밖 · 직접 전달)",
    "sha256": "7abbaf30bcbee07a25eaf928d00f349bb55ce10416758839a186186bf87c669d",
-   "applied": "",
+   "applied": "2026-11-10 (사용자: \"회사에 17.20 적용했다\")",
    "tips": {
     "S1": "78d356da"
    },
    "replaces": "1_DASHBOARD_update_v17.15_any_2026-11-09.zip"
+  },
+  {
+   "file": "①",
+   "name": "1_DASHBOARD_update_v17.21_from_v17.20_2026-11-10.zip",
+   "made": "2026-11-10 00:15",
+   "path": "company-pc-update/2026-11-10/ (1.2MB · 저장소에 있음)",
+   "sha256": "6dc79003d5b8a164c837fbac0cd1700f651e743d89e88b20c07a499acfd074f8",
+   "applied": "",
+   "base": "v17.20 (78d356da)",
+   "tips": {
+    "S1": "13ab4109"
+   }
   }
  ]
 }
