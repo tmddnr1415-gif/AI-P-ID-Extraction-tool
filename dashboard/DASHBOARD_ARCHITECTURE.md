@@ -1843,3 +1843,8 @@ C:\Users\SAMSUNG\Desktop\Claude\                         ← 개발 폴더 (여�
 - 무엇을: 구매 현황 보고 표의 칸을 **우클릭**하면 글자 서식 창 — 색(기본 · 검정 · 빨강 · 파랑 · 초록 · 주황 · 보라 · 회색 + 🎨 아무 색), B 굵게, I 기울임, 서식 지우기, 미리보기. 적용하면 서버에 저장돼 모든 부서원에게 같게 보이고 새 PSR 을 올려도 유지. 실행 프로젝트 권한(runpjt)이 있는 부서원만.  왜: 사용자 지시 ("글자색은 사용자가 변경할수있도록 또한 굵게, 기울기도 가능하도록").
 - 바뀐 곳: dashboard.html `rptRow`(모든 칸 `data-cc` · 서식 class `rfc/rfb/rfi` · `--rfc`) · 새 `SCH_FCOL` · `schFmtPop` · `schSaveFmt` · `schBind` 의 `oncontextmenu` · `schUpload`(it.rfm 이어받기) · CSS. 저장 위치 = items[].rfm['MR|cur'] = {c,b,i} (server.py 는 items 를 그대로 저장하므로 수정 없음)
 - 확인한 것: 4칸에 색 · 굵게 · 기울임 적용 → 계산된 글자색/굵기/기울임 확인, 새로고침 후 유지, 콘솔 오류 없음 / 회사에서 확인할 것: 없음.
+
+### 2026-11-10 (APP_VERSION 2026-11-10.13 / SERVER_VERSION 그대로) — v17.33 Globe · Butterfly · PSV 메뉴 연결
+- 무엇을: 실행 프로젝트 › CO2 PJT › Datasheet 의 Globe Valve · Butterfly Valve · PSV 를 '준비 중' 대신 P&ID 서버의 `/valve/` 화면(`kind=globe|butterfly|psv`)으로 연결. 화면은 세션 5 valve37 이 만듦(브랜치 claude/new-session-v23o67 커밋 3d46af2c, dist/valve_kinds/dashboard_valve_menus.patch 내용 그대로). MODULES 의 '준비 중' 항목은 남겨 둠(PID_ROUTES 가 먼저 잡힘).  왜: 오케스트레이터 세션 경유 사용자 요청.
+- 바뀐 곳: dashboard.html `PID_ROUTES` (globev · bflyv · psv)
+- 확인한 것: P&ID 서버(8000) 꺼진 상태에서 네 메뉴 모두 Ball Valve 와 같은 PID_OFF 안내, '새 창으로 열기' 주소에 kind= 붙음 / 회사에서 확인할 것: P&ID 서버가 valve37 판일 때 세 메뉴가 각 밸브 종류로 열리는지.
