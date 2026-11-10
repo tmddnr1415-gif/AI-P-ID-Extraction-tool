@@ -1783,3 +1783,9 @@ C:\Users\SAMSUNG\Desktop\Claude\                         ← 개발 폴더 (여�
 - 5 열 너비 조절: 머리 오른쪽 끝을 끌면 그 열(모든 마일스톤 표 함께), 이 PC 에 기억(`dept-rpt-colw`).
 - 바뀐 곳: dashboard.html `SCH_FOCUS` · `SCH_FRONT` · `SCH_GSTEPS` · `schGtZoom` · `schGtWheel` · `schGtRedraw` · `schColFilter` · `schRptEdit` · `renderSched`(RC · cv · CF · rptRow · rptCard · KPI · 품목표 colgroup) · `schBind`(data-rz · data-rc 더블클릭 · data-rcf), CSS `.rpt` · `.rcfb` · `.rpz` · `.cfp` · `.gtw`
 - 확인한 것: KPI MR 0/33 · RFQ 12/33 · TBE 제출 14/33 · TBE 완료 20/33, 보고 공종 열 필터 I&C → 18건, 지연 사유 · 캐치업 더블클릭 입력 → 서버 저장, 사유 열 너비 +120 → 모든 표 반영 · 기억, 확대 · 축소 렉 측정. 콘솔 오류 없음.
+
+### 2026-11-10 (APP_VERSION 2026-11-10.2 / SERVER_VERSION 그대로) — v17.22 확대는 월까지 · 막대 미리보기 · 보고 접기
+- 일정판 확대 단계를 월 단위까지만(한 달 8 · 14 · 24 · 45 · 75 · 105px — 년 ↔ 월). 일 · 주 단위에서 렉이 있어 없앰. 대신 **막대에 마우스를 올리면 미리보기 카드**(그 단계 마일스톤별 계획 · 전망 · 실적 · 지연 + 보고 메모, 마우스를 따라감, 누르면 고정 팝업 · 입력)(`schPopBody` 공용 · `schHover`).
+- 구매 현황 보고: 마일스톤마다 접기 · 펼치기(머리 줄 누름), **처음엔 모두 접힘**, [▾ 모두 펼치기] · [▸ 모두 접기], 위 요약 칩을 누르면 그 마일스톤을 펼치고 이동(`SCH.rpOpen`).
+- 바뀐 곳: dashboard.html `SCH_GSTEPS` · `SCH_GMAX` · `schPopBody` · `schHover` · `schPop` · `schGtDrag`(onpointerover/move/leave) · `renderSched`(rptCard 접기) · `schBind`(data-rptog · data-rpall · data-rpgo), CSS `.gthov` · `.rptg` · `.rpgt[data-rptog]`
+- 확인한 것: 보고 처음 표 0개 → TBE to Company 펼침 1 → 모두 펼침 3 → 모두 접기 0, 휠 12칸 확대 = 년 · 월에서 멈춤, J0730 구매 막대 마우스 → 미리보기 카드. 콘솔 오류 없음.

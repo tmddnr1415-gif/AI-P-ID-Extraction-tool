@@ -1692,6 +1692,7 @@ html.dark .sinm,html.dark .gtnm,html.dark .isi,html.dark .sinm1{text-shadow:0 1p
 /* 2026-11-09 구매 현황 보고 */
 .rpg{margin:0 0 14px;border:1px solid #e2e8f0;border-radius:12px;overflow:hidden;background:#fff}.rpg.front{border-color:#fed7aa}
 .rpgt{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:14px;font-weight:800;color:#0f172a;background:#f8fafc;padding:9px 12px;border-bottom:1px solid #e2e8f0}.rpg.front .rpgt{background:#fff7ed;border-color:#fed7aa}
+.rpgt[data-rptog]{cursor:pointer;user-select:none}.rpgt[data-rptog]:hover{filter:brightness(.97)}.rptg{width:14px;color:#475569;font-size:13px}.rpg:not(.open) .rpgt{border-bottom:0}
 .rpgn{display:inline-grid;place-items:center;width:22px;height:22px;border-radius:7px;background:#4f46e5;color:#fff;font-size:12px}.rpgs{font-size:12.5px;font-weight:700;color:#b91c1c;background:#fee2e2;border-radius:99px;padding:1px 10px}.rpgs.ok{color:#15803d;background:#dcfce7}.rpgt small{margin-left:auto;font-weight:600;color:#64748b;font-size:11.5px}
 .rpt{table-layout:fixed;font-size:12.5px;min-width:1100px;margin:0}.rpt th{background:#f1f5f9!important;font-size:11.5px;color:#475569;text-align:center;white-space:nowrap}.rpt td{vertical-align:middle;padding:6px 8px!important;border-bottom:1px solid #eef1f6}
 .rpt tbody tr:nth-child(even) td{background:#fbfcff}.rpt tbody tr:hover td{background:#f5f7ff}.rpt td.rpn{text-align:center;color:#94a3b8;font-weight:700}
@@ -1732,6 +1733,8 @@ html.dark .sinm,html.dark .gtnm,html.dark .isi,html.dark .sinm1{text-shadow:0 1p
 .rpt tbody tr td{border-bottom:1px solid #e5e9f2}.rpt tbody tr:last-child td{border-bottom:0}
 .rpt td.rpf input{font-size:13.5px;padding:6px 9px}
 .rpt .rpe{font-size:13px;padding:4px 8px}
+/* 2026-11-10 막대 미리보기 */
+.gthov{pointer-events:none;width:auto;min-width:300px;max-width:440px;padding:9px 11px;z-index:3500;box-shadow:0 14px 34px rgba(15,23,42,.28)}.gthov table{font-size:12px}.gthov .hvf{font-size:10.5px;color:#94a3b8;margin-top:5px;text-align:right}.gthov .hvn{font-size:12px;color:#6d28d9;margin-top:5px}
 /* 2026-11-09 일정판 직접 조작 */
 .gtb.drag{cursor:grab;touch-action:none}.gtb.drag:active,.gtb.dragging{cursor:grabbing}.gtb.dragging{z-index:9!important;box-shadow:0 10px 24px rgba(15,23,42,.35)!important;transform:translateY(-2px);outline:2px dashed #4f46e5;outline-offset:2px;transition:none}
 .gtrz{position:absolute;right:0;top:0;bottom:0;width:9px;cursor:ew-resize;background:linear-gradient(90deg,transparent,rgba(255,255,255,.55));border-radius:0 6px 6px 0}.gtrz::after{content:'';position:absolute;right:3px;top:6px;bottom:6px;width:2px;border-left:1px solid rgba(15,23,42,.35);border-right:1px solid rgba(15,23,42,.35)}
@@ -1999,7 +2002,7 @@ function recLabel(key, f) {
  * ===================================================================== */
 let root = null;
 /* 서버 모드: http(s):// 로 접속하면 server.py 의 REST API 사용 (폴더 선택 불필요). file:// 로 열면 폴더 모드 */
-const APP_VERSION = '2026-11-10.1';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
+const APP_VERSION = '2026-11-10.2';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
 const SERVER_URL = 'http://localhost:8080';
 // 부서원 PC 사본(file://)이 접속을 시도할 서버 — 서버가 배포 파일을 만들 때 'PC 이름 주소, IP 주소' 순으로 자동 기록함
 const DEFAULT_SERVERS = ['http://ASEUNGWOOK-B01:8080', 'http://65.3.30.234:8080'];
@@ -4336,11 +4339,11 @@ function renderSched(c) {
   const rptText = () => rptG.map((g, i) => `${i + 1}. ${g.title} : ${rptHead(g)}` + g.xs.map(x => `\n - ${x.it.no} ${x.it.item} : 원래 기한 ${schFmt(x.b)} 대비 +${x.d}일 ${x.a ? '늦게 완료함 (실적 ' + schFmt(x.a) + ')' : x.over ? '지연 중 (기한 지났으나 실적 미입력임)' : '지연 중 (전망 ' + schFmt(x.f) + ')'}${x.n.r ? `\n   · 지연 사유 : ${x.n.r}` : ''}${x.n.c ? `\n   · 캐치업 : ${schFmt(x.n.c)} 완료 예정임` : !x.a ? '\n   · 캐치업 : 일정 협의 중' : ''}${x.n.s ? `\n   · 특이사항 : ${x.n.s}` : ''}`).join('')).join('\n\n');
   SCH.rptText = rptText;
   const rptCard = `<section class="card rpcard"><h2>📝 구매 현황 보고 <span class="muted">· 주간업무보고 '업무 현황' 양식 · ${ph === 'front' ? 'MR · RFQ · TBE (지금 중요)' : '전체 단계'} · 계획 대비 지연 품목 · 기준일 ${esc(schFmt(asOf))}${F.disc ? ' · ' + esc(F.disc) + ' 만' : ''}</span></h2>
-    <div class="rptool"><span class="rpsum">${rptG.map((g, i) => `<a href="#rp-${g.k}" data-rpgo="${g.k}">${i + 1}. ${esc(g.title)} <b class="${g.xs.length ? '' : 'z'}">${g.xs.length}</b></a>`).join('')}</span><span class="sp"></span><button class="btn sm" data-rpcopy>📋 보고 글 복사</button><button class="btn sm" data-rpweekly title="복사한 뒤 주간업무보고 › 수행 표를 CO2 로 찾아 엶 — 업무 현황 칸에 붙여 넣으세요">📤 주간업무보고(수행)에 붙이기</button></div>
+    <div class="rptool"><span class="rpsum">${rptG.map((g, i) => `<a href="#rp-${g.k}" data-rpgo="${g.k}">${i + 1}. ${esc(g.title)} <b class="${g.xs.length ? '' : 'z'}">${g.xs.length}</b></a>`).join('')}</span><span class="sp"></span><button class="btn sm" data-rpall="1">▾ 모두 펼치기</button><button class="btn sm" data-rpall="0">▸ 모두 접기</button><button class="btn sm" data-rpcopy>📋 보고 글 복사</button><button class="btn sm" data-rpweekly title="복사한 뒤 주간업무보고 › 수행 표를 CO2 로 찾아 엶 — 업무 현황 칸에 붙여 넣으세요">📤 주간업무보고(수행)에 붙이기</button></div>
     ${rfBar}
-    ${rptG.map((g, gi) => `<div id="rp-${g.k}" class="rpg ${g.front ? 'front' : ''}"><div class="rpgt"><span class="rpgn">${gi + 1}</span>${esc(g.title)} <span class="rpgs ${g.xs.length ? '' : 'ok'}">${g.xs.length || !rfOn ? rptHead(g) : '필터에 맞는 품목 없음'}</span>${g.xs.length ? `<small>사유 입력 ${g.xs.filter(x => x.n.r).length}/${g.xs.length}</small>` : ''}</div>
-      ${g.xs.length ? `<div class="tw"><table class="t rpt" style="width:${RC.reduce((a, [c, , w]) => a + (RCW[c] || w), 0)}px"><colgroup>${RC.map(([c, , w]) => `<col data-ck="${c}" style="width:${RCW[c] || w}px">`).join('')}</colgroup>
-        <thead><tr>${RC.map(([c, l]) => `<th class="${CF[c] ? 'cfon' : ''}">${l}${c === 'n' ? '' : `<button class="rcfb" data-rcf="${c}" title="${esc(l)} 필터">▾</button>`}<i class="rpz" data-rz="${c}" title="끌어서 열 너비"></i></th>`).join('')}</tr></thead><tbody>${g.xs.map(rptRow).join('')}</tbody></table></div>` : ''}</div>`).join('')}</section>`;
+    ${rptG.map((g, gi) => { const op = (SCH.rpOpen ||= new Set()).has(g.k); return `<div id="rp-${g.k}" class="rpg ${g.front ? 'front' : ''} ${op ? 'open' : ''}"><div class="rpgt" data-rptog="${g.k}" title="${op ? '접기' : '펼치기'}"><span class="rptg">${g.xs.length ? (op ? '▾' : '▸') : ''}</span><span class="rpgn">${gi + 1}</span>${esc(g.title)} <span class="rpgs ${g.xs.length ? '' : 'ok'}">${g.xs.length || !rfOn ? rptHead(g) : '필터에 맞는 품목 없음'}</span>${g.xs.length ? `<small>사유 입력 ${g.xs.filter(x => x.n.r).length}/${g.xs.length} · ${op ? '▾ 접기' : '▸ 펼치기'}</small>` : ''}</div>
+      ${g.xs.length && op ? `<div class="tw"><table class="t rpt" style="width:${RC.reduce((a, [c, , w]) => a + (RCW[c] || w), 0)}px"><colgroup>${RC.map(([c, , w]) => `<col data-ck="${c}" style="width:${RCW[c] || w}px">`).join('')}</colgroup>
+        <thead><tr>${RC.map(([c, l]) => `<th class="${CF[c] ? 'cfon' : ''}">${l}${c === 'n' ? '' : `<button class="rcfb" data-rcf="${c}" title="${esc(l)} 필터">▾</button>`}<i class="rpz" data-rz="${c}" title="끌어서 열 너비"></i></th>`).join('')}</tr></thead><tbody>${g.xs.map(rptRow).join('')}</tbody></table></div>` : ''}</div>`; }).join('')}</section>`;
   const soonEnd = new Date(schD(asOf).getTime() + 30 * 864e5).toISOString().slice(0, 10), soon = [];
   let pastN = 0; vis.forEach(({ it }) => SCH_KEY.forEach(k => { const f = it.F[k] || it.B[k]; if (!f || it.A[k]) return; if (f < asOf) pastN++; else if (f <= soonEnd) soon.push({ it, k, f, over:false }); }));
   soon.sort((a, b) => a.f.localeCompare(b.f));
@@ -4449,7 +4452,7 @@ function schDiscBoard(rows, asOf, disc, ph) {   // 2026-11-09 v17.11 새 간트 
       <div class="gtfo">${fo.map(f => `<i class="${f.lv} ${f.st}" title="${esc(`${f.label} 계획 ${f.b || '-'} → ${f.a ? '실적 ' + f.a : f.f ? '전망 ' + f.f : '실적 없음'}`)}">${f.g}${f.st === 'done' ? '✓' : ''}${f.d > 0 ? ' +' + f.d : ''}</i>`).join('')}${k.slip ? `<i class="${k.slip > 30 ? 'r' : k.slip > 0 ? 'y' : 'g'} site">현장 ${k.slip > 0 ? '+' : ''}${k.slip}</i>` : ''}</div></div>
       <div class="gtt">${bars}${ms}${det}</div></div>`; };
   const tool = `<div class="gttool"><div class="dbleg">${SCH_PH.map(([n, , , c]) => `<span><i class="${c}"></i>${n}</span>`).join('')}<span><i class="gtlg-plan"></i>계획</span><span><i class="gtlg-next"></i>앞으로(빗금)</span><span><i class="gtm po a gtlg"></i>PO</span><span><i class="gtm fat a gtlg"></i>FAT</span><span><i class="gtm site a gtlg"></i>현장 도착</span><span><em class="gtd r gtlg2">+15</em>계획보다 늦은 날</span></div>
-    <span class="sp"></span><div class="gtz"><button data-gz="-1" title="축소 (휠 아래)" ${eff <= 9 ? 'disabled' : ''}>−</button><span title="일정판 위에서 마우스 휠 = 확대 · 축소, Shift + 휠 = 좌우 이동">${{ yq:'년 · 분기', ym:'년 · 월', mw:'월 · 주', md:'월 · 일' }[lv]}${SCH.gppm ? '' : ' (맞춤)'}</span><button data-gz="1" title="확대 (휠 위)" ${eff >= SCH.gtMax - 1 ? 'disabled' : ''}>＋</button><button data-gz="0" title="카드 너비에 맞춤" ${SCH.gppm ? '' : 'disabled'}>맞춤</button><button data-gtoday title="기준일로 이동">◎ 기준일</button></div>${SCH.undo ? `<button class="btn sm gtundo" data-gtundo title="${esc(SCH.undo.label)}">↶ 되돌리기</button>` : ''}</div>${ed ? '<div class="gthelp">🖐 <b>막대를 좌우로 끌면</b> 그 단계 전망 일정이 통째로 옮겨지고, <b>막대 오른쪽 끝을 끌면</b> 끝 날짜만 바뀝니다 · 놓으면 바로 저장(↶ 되돌리기) · 끝난 단계(✓)는 실적이라 고정 · 누르면 상세 · <b>🖱 휠 = 확대/축소</b>(년 ↔ 월 ↔ 주 ↔ 일 · 주/일 단위에서는 마일스톤 하나하나 표시), Shift + 휠 = 좌우</div>' : ''}`;
+    <span class="sp"></span><div class="gtz"><button data-gz="-1" title="축소 (휠 아래)" ${eff <= 9 ? 'disabled' : ''}>−</button><span title="일정판 위에서 마우스 휠 = 확대 · 축소, Shift + 휠 = 좌우 이동">${{ yq:'년 · 분기', ym:'년 · 월', mw:'월 · 주', md:'월 · 일' }[lv]}${SCH.gppm ? '' : ' (맞춤)'}</span><button data-gz="1" title="확대 (휠 위)" ${eff >= SCH.gtMax - 1 ? 'disabled' : ''}>＋</button><button data-gz="0" title="카드 너비에 맞춤" ${SCH.gppm ? '' : 'disabled'}>맞춤</button><button data-gtoday title="기준일로 이동">◎ 기준일</button></div>${SCH.undo ? `<button class="btn sm gtundo" data-gtundo title="${esc(SCH.undo.label)}">↶ 되돌리기</button>` : ''}</div>${ed ? '<div class="gthelp">🖐 <b>막대를 좌우로 끌면</b> 그 단계 전망 일정이 통째로 옮겨지고, <b>막대 오른쪽 끝을 끌면</b> 끝 날짜만 바뀝니다 · 놓으면 바로 저장(↶ 되돌리기) · 끝난 단계(✓)는 실적이라 고정 · 누르면 상세 · <b>🖱 휠 = 확대/축소</b>(년 ↔ 월), Shift + 휠 = 좌우 · <b>막대에 마우스 = 상세 미리보기</b></div>' : ''}`;
   return `<section class="card dboard gtcard ph-${ph || 'front'}"><h2>🔧 ${esc(disc)} · 품목별 일정판 <span class="muted">· ${rows.length}품목 · 막대를 누르면 그 단계 상세 · 이름을 누르면 아래 표에서 상세</span>
       <button class="btn sm gtoff" data-schf="disc|${esc(disc)}">✕ 공종 해제</button></h2>${tool}
     <div class="gtw" data-t0="${t0}" data-span="${span}"><div class="gtin" style="${ppm ? `width:${Math.round(268 + months.length * ppm)}px` : ''}">
@@ -4458,7 +4461,25 @@ function schDiscBoard(rows, asOf, disc, ph) {   // 2026-11-09 v17.11 새 간트 
     </div></div></section>`;
 }
 /* 2026-11-09 차트 블록 · 막대를 누르면 상세: 그 단계 안의 마일스톤마다 계획 · 전망 · 실적 · 지연 (all = 설계 관리 + 주요 단계) */
+function schPopBody(spec) {   // 막대 상세 표(클릭 팝업 · 마우스 미리보기 공용)
+  const [id, pi] = [spec.slice(0, spec.lastIndexOf('|')), spec.slice(spec.lastIndexOf('|') + 1)], d = SCH.data, it = d?.items.find(v => v.type + '|' + v.no === id); if (!it) return '';
+  const order = SCH_MS.map(m => m[0]), has = k => it.B[k] || it.F[k] || it.A[k];
+  let ks, title; if (pi === 'all') { ks = [...SCH_FRONT, 'AWD', 'PO', 'KOM', 'KVD_F', 'MFG_F', 'FAT', 'SHIP', 'SITE'].filter(has); title = '전체 일정'; }
+  else { const [n, a, b] = SCH_PH[+pi], i0 = order.indexOf(a), i1 = order.indexOf(b); ks = order.slice(i0, i1 + 1).filter(has); title = n; }
+  const asOf = d.asOf, row = k => { const b = it.B[k], f = it.F[k], a = it.A[k], v = a || f, dd = v && b ? schDays(v, b) : (!a && b && b < asOf ? schDays(asOf, b) : null);
+    return `<tr class="${SCH_FRONT.has(k) ? 'pf' : ''}"><th>${esc(SCH_NAME[k])}</th><td>${schFmt(b) || '-'}</td><td>${schFmt(f) || '-'}</td><td>${a ? `<b>${schFmt(a)}</b>` : '<span class="muted">-</span>'}</td><td>${dd == null ? '' : dd > 0 ? `<b class="${dd > 14 ? 'sl' : 'sw'}">+${dd}일</b>` : dd < 0 ? `<span class="sg">${dd}일</span>` : '<span class="sg">정시</span>'}</td></tr>`; };
+  const nt = Object.entries(it.rn || {}).filter(([k]) => ks.includes(k)).map(([k, n]) => `<div class="hvn">📝 ${esc(SCH_NAME[k] || k)} — ${[n.r && '사유 ' + esc(n.r), n.c && '캐치업 ' + schFmt(n.c), n.s && esc(n.s)].filter(Boolean).join(' · ')}</div>`).join('');
+  return `<div class="sph"><b>${esc(it.no)}</b> <span class="sinm1">${esc(it.item)}</span></div><div class="spt">${esc(title)} · ${esc(it.disc)}${it.vendor || it.tvendor ? ' · ' + esc(it.vendor || it.tvendor) : ''}</div>
+    <table class="t"><thead><tr><th>마일스톤</th><th>계획</th><th>전망</th><th>실적</th><th>지연</th></tr></thead><tbody>${ks.map(row).join('') || '<tr><td colspan="5" class="muted">날짜 없음</td></tr>'}</tbody></table>${nt}`;
+}
+function schHover(bar, x, y) {   // 막대에 마우스 = 미리보기(누를 필요 없음, 마우스 따라감)
+  let h = $('#gtHover'); if (!bar) { if (h) h.hidden = true; return; }
+  if (!h) { h = document.createElement('div'); h.id = 'gtHover'; h.className = 'schpop gthov'; document.body.appendChild(h); }
+  if (h.dataset.spec !== bar.dataset.pb) { h.dataset.spec = bar.dataset.pb; h.innerHTML = schPopBody(bar.dataset.pb) + '<div class="hvf">누르면 고정 · 입력</div>'; }
+  h.hidden = false; const W = h.offsetWidth, H = h.offsetHeight; h.style.left = (x + 16 + W > innerWidth ? x - W - 12 : x + 16) + 'px'; h.style.top = Math.max(8, Math.min(innerHeight - H - 8, y + 14)) + 'px';
+}
 function schPop(spec, x, y) {
+  $('#gtHover') && ($('#gtHover').hidden = true);
   $('#schPop')?.remove(); const [id, pi] = [spec.slice(0, spec.lastIndexOf('|')), spec.slice(spec.lastIndexOf('|') + 1)], d = SCH.data, it = d?.items.find(v => v.type + '|' + v.no === id); if (!it) return;
   const order = SCH_MS.map(m => m[0]), has = k => it.B[k] || it.F[k] || it.A[k];
   let ks, title;
@@ -4538,12 +4559,14 @@ addEventListener('keydown', e => { if (e.key === 'Escape' && SCH.big && route ==
 function schGtDrag(v) {
   const w = $('#schv .gtw'); if (!w) return; const t0 = w.dataset.t0, span = +w.dataset.span, body = w.querySelector('.gtbody'), hv = w.querySelector('.gthv');
   const trackW = () => (body.querySelector('.gtr .gtt')?.offsetWidth || 1), addD = (d, n) => { const x = schD(d); x.setDate(x.getDate() + n); return x.toISOString().slice(0, 10); };
-  body.onpointermove = e => { if (SCH.gdrag || !hv) return; const t = body.querySelector('.gtr .gtt'); if (!t) return; const r = t.getBoundingClientRect(); if (e.clientX < r.left) { hv.hidden = true; return; }
+  body.onpointerover = e => { if (SCH.gdrag) return; const b = e.target.closest('.gtb[data-pb],.gtm'); const bar = b?.closest('[data-pb]') || (b && b.parentElement.querySelector('.gtb[data-pb]')); schHover(e.target.closest('.gtb[data-pb]'), e.clientX, e.clientY); void bar; };
+  body.onpointerleave = () => { schHover(null); if (hv) hv.hidden = true; };
+  body.onpointermove = e => { const hb = e.target.closest('.gtb[data-pb]'); if (hb && !SCH.gdrag) schHover(hb, e.clientX, e.clientY); else if (!hb) schHover(null); if (SCH.gdrag || !hv) return; const t = body.querySelector('.gtr .gtt'); if (!t) return; const r = t.getBoundingClientRect(); if (e.clientX < r.left) { hv.hidden = true; return; }
     const days = Math.round((e.clientX - r.left) / r.width * span); hv.hidden = false; hv.style.left = (e.clientX - r.left) / r.width * 100 + '%'; hv.querySelector('b').textContent = schFmt(addD(t0, days)); };
-  body.onpointerleave = () => { if (hv) hv.hidden = true; };
+
   body.querySelectorAll('.gtb.drag').forEach(bar => bar.onpointerdown = e => {
     if (e.button) return; const rz = !!e.target.closest('.gtrz'), sx = e.clientX, L0 = parseFloat(bar.style.left), W0 = parseFloat(bar.style.width), ppd = trackW() / span;
-    let dd = 0, moved = false; try { bar.setPointerCapture(e.pointerId); } catch (_) {} SCH.gdrag = true;
+    let dd = 0, moved = false; try { bar.setPointerCapture(e.pointerId); } catch (_) {} SCH.gdrag = true; schHover(null);
     const tip = document.createElement('div'); tip.className = 'gtdtip'; document.body.appendChild(tip);
     bar.onpointermove = ev => { const dx = ev.clientX - sx; if (!moved && Math.abs(dx) < 4) return; moved = true; bar.classList.add('dragging'); dd = Math.round(dx / ppd);
       const pct = dd / span * 100; if (rz) bar.style.width = Math.max(.6, W0 + pct) + '%'; else bar.style.left = L0 + pct + '%';
@@ -4572,7 +4595,8 @@ function schGtRedraw() {   // 2026-11-10: 카드 전체를 바꾸지 않고 도�
 }
 /* 2026-11-10 확대 · 축소 = 정해진 단계만(년 ↔ 일), 휠 한 칸 = 한 단계, 0.2초에 한 번만 다시 그림 — 회사 PC 렉 · '응답 없음' 대책.
  *  단계(한 달 너비 px): 8 년 · 14 년 · 24 년·분기 · 45 년·월 · 80 년·월 · 140 월·주 · 240 월·주 · 420 월·일(하루 약 14px, 가장 확대) */
-const SCH_GSTEPS = [8, 14, 24, 45, 80, 140, 240, 420], SCH_GMAX = 420, SCH_GWMAX = 26000, SCH_GMIN = 8;
+const SCH_GSTEPS = [8, 14, 24, 45, 75, 105], SCH_GMAX = 105,   // 2026-11-10: 월 단위까지만(일 단위는 회사 PC 렉) — 자세한 날짜는 막대에 마우스 = 미리보기
+  SCH_GSTEPS_OLD = 0, SCH_GWMAX = 26000, SCH_GMIN = 8;
 function schGtZoom(f, cx) {   // f > 1 = 한 단계 확대, f < 1 = 한 단계 축소, 0 = 맞춤. cx = 그 자리 날짜 고정
   const w = $('#schv .gtw'); if (!w) return; const tw = w.querySelector('.gtin').offsetWidth - 268, r = w.getBoundingClientRect(), off = Math.max(0, cx - r.left - 268), frac = (w.scrollLeft + off) / Math.max(1, tw);
   const fit = SCH.gtFit || 40, max = Math.min(SCH.gtMax || SCH_GMAX, SCH_GMAX), cur = SCH.gppm || fit;
@@ -4614,7 +4638,9 @@ function schBind() {
     const rns = e.target.closest('[data-rns]'); if (rns) { const f = rns.closest('tr').querySelector('[data-rnf]'), cut = rns.dataset.rns.split('|'), k = cut.pop(), id = cut.join('|'), g = n => f.querySelector(`[data-rn="${n}"]`).value.trim(); return schSaveNote(id, k, { r:g('r'), c:g('c'), s:g('s') }); }
     if (e.target.closest('[data-rfx]')) { SCH.rf = null; SCH.cf = {}; return render(); }
     const cfb = e.target.closest('[data-rcf]'); if (cfb) { e.stopPropagation(); return schColFilter(cfb.dataset.rcf, cfb); }
-    const rpg = e.target.closest('[data-rpgo]'); if (rpg) { e.preventDefault(); $('#rp-' + rpg.dataset.rpgo)?.scrollIntoView({ block:'start', behavior:'smooth' }); return; }
+    const rt = e.target.closest('[data-rptog]'); if (rt) { const k = rt.dataset.rptog, S2 = SCH.rpOpen ||= new Set(); S2.has(k) ? S2.delete(k) : S2.add(k); return render(); }
+    const ra = e.target.closest('[data-rpall]'); if (ra) { SCH.rpOpen = new Set(ra.dataset.rpall === '1' ? [...v.querySelectorAll('[data-rptog]')].map(x => x.dataset.rptog) : []); return render(); }
+    const rpg = e.target.closest('[data-rpgo]'); if (rpg) { e.preventDefault(); (SCH.rpOpen ||= new Set()).add(rpg.dataset.rpgo); render(); $('#rp-' + rpg.dataset.rpgo)?.scrollIntoView({ block:'start', behavior:'smooth' }); return; }
     const cp = e.target.closest('[data-rpcopy],[data-rpweekly]'); if (cp) { const t = SCH.rptText ? SCH.rptText() : ''; const done = () => { toast('📋 보고 글을 복사했어요' + (cp.dataset.rpweekly != null ? ' — 수행 표의 업무 현황 칸에 붙여 넣으세요' : '')); if (cp.dataset.rpweekly != null) { const st = fstate('perform'); st.q = 'CO2'; go('perform'); } };
       (navigator.clipboard?.writeText(t) || Promise.reject()).then(done, () => { const ta = document.createElement('textarea'); ta.value = t; document.body.appendChild(ta); ta.select(); try { document.execCommand('copy'); } catch (_) {} ta.remove(); done(); }); return; }
     const gz = e.target.closest('[data-gz]'); if (gz) { const w = $('#schv .gtw'); if (!w) return; const d = +gz.dataset.gz; return schGtZoom(d ? (d > 0 ? 1.5 : 1 / 1.5) : 0, w.getBoundingClientRect().left + 268 + (w.clientWidth - 268) / 2); }
