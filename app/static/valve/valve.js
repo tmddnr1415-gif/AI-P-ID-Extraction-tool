@@ -6,6 +6,19 @@
 (() => {
 'use strict';
 const Q = new URLSearchParams(location.search);
+// valve37 — one screen for every valve kind: ?kind=globe|butterfly|psv opens the project '<project> · <Kind>' (its own
+// uploads · Process Data · review), the Ball menu (no kind) works exactly as before.
+const KIND_NAMES = { ball: 'Ball Valve', globe: 'Globe Valve', butterfly: 'Butterfly Valve', psv: 'PSV' };
+const VKIND = KIND_NAMES[(Q.get('kind') || '').toLowerCase()] ? (Q.get('kind') || '').toLowerCase() : 'ball';
+const KIND_NAME = KIND_NAMES[VKIND];
+function wantProject() {
+  const p = Q.get('project');
+  if (VKIND === 'ball') return p;
+  const base = (p || 'CO2 PJT').replace(/\s*·\s*(Globe Valve|Butterfly Valve|PSV)$/, '');
+  return `${base} · ${KIND_NAME}`;
+}
+{ const cb = document.querySelectorAll('#crumb b'); if (cb.length > 1) cb[cb.length - 1].textContent = KIND_NAME;
+  if (VKIND !== 'ball') document.title = `${KIND_NAME} Datasheet Review`; }
 const LS = {
   get(k, d) { try { const v = localStorage.getItem('valve.' + k); return v === null ? d : JSON.parse(v); } catch (_) { return d; } },
   set(k, v) { try { localStorage.setItem('valve.' + k, JSON.stringify(v)); } catch (_) {} },
@@ -340,8 +353,9 @@ const VIEWS = ['dash', 'docs', 'list', 'review', 'rev', 'proc', 'pms', 'rules', 
 const STATUSES = ['Not Reviewed', 'Under Review', 'Accepted', 'Rejected', 'Commented', 'Resolved'];
 const NOT_PROCESS = new Set(['body_size', 'rating', 'body_material', 'ball_material', 'seat_material', 'seal_material', 'stem_material',
   'bolting_gasket', 'packing_material', 'packing_type', 'connections', 'line_size_inlet', 'line_size_outlet', 'piping_class', 'pipe_material']);
-const SECTION_NAMES = { general: 'General Information', process: 'Process Data', mechanical: 'Valve Mechanical Data',
-  actuator: 'Actuator', special: 'Special Requirements', accessories: 'Accessories' };
+const SECTION_NAMES = { general: 'General Information', basis: 'Design Basis', process: 'Process Data', mechanical: 'Valve Mechanical Data',
+  trim: 'Valve Trim', material: 'Materials', sizing: 'Sizing', actuator: 'Actuator', positioner: 'Positioner',
+  special: 'Special Requirements', accessories: 'Accessories' };
 
 /* ── PDF viewer (server-rendered pages + overlays in PDF points) ───────── */
 const pageInfo = {};
@@ -744,7 +758,7 @@ addEventListener('hashchange', () => { const v = location.hash.slice(1); if (v &
 
 async function loadProjects() {
   S.projects = (await api('GET', '/projects')).projects;
-  const want = Q.get('project');
+  const want = wantProject();
   let p = want ? S.projects.find(x => x.name === want) : null;
   if (want && !p) { p = await api('POST', '/projects', { name: want }); S.projects.push(p); }
   if (!p) p = S.projects.find(x => x.id === LS.get('pid')) || S.projects[0];
@@ -916,7 +930,7 @@ function renderDash() {
     ['PMS Review', s.has_pms ? (k.pms_review ?? 0) : null, '#e07a5f', 'list:issues:PMS Review'], ['Process Mismatch', s.has_process ? (k.process_mismatch ?? 0) : null, '#f2730d', 'list:issues:Process Mismatch'],
     ['Revision Change', k.revision_changes ?? 0, '#e0b400', 'list:issues:Revision Change']];
   const cmax = Math.max(1, ...cats.map(c => c[1] || 0));
-  el.innerHTML = `<div class="vh"><h2>Project Dashboard</h2><span class="soft">${esc(s.project.name)} · Ball Valve Datasheet</span><span class="sp"></span>
+  el.innerHTML = `<div class="vh"><h2>Project Dashboard</h2><span class="soft">${esc(s.project.name)} · ${KIND_NAME} Datasheet</span><span class="sp"></span>
       <button data-go="docs">자료 올리기</button><button class="pri" data-go="review">Datasheet Review 열기</button></div>
     ${refDocs(s.latest_docs || {})}
     ${!k.datasheets ? `<div class="banner info">아직 데이터시트가 없습니다 — <b>Document Management</b> 에서 Datasheet PDF · Valve List · Process Data · PMS 를 올리세요.</div>` : ''}
@@ -1682,6 +1696,26 @@ function hintsInit() {                                   // '?' in the top bar: 
   host.prepend(ln); host.prepend(pw); host.prepend(nw);
 }
 function setTab(t) { W.tab = t; LS.set('wtab', t); $$('#wtabs button').forEach(b => { b.classList.toggle('on', b.dataset.t === t); if (b.dataset.t === t) b.scrollIntoView({ inline: 'nearest', block: 'nearest' }); }); drawRight(); }
+/* valve37 — a Control Valve sheet 2 (Form 101): process and sizing lines as one Max · Nor · Min table (click a cell = its place) */
+function caseTable(d) {
+  if (d.form !== '101') return '';
+  const rows = {}, order = [];
+  d.fields.forEach(f => { const m = f.key.match(/^(.*)\.(max|nor|min)$/); if (!m) return;
+    if (!rows[m[1]]) { rows[m[1]] = { name: (f.display || f.label).replace(/ \((Max|Nor|Min)\)$/, ''), unit: f.unit, sec: f.section, c: {} }; order.push(m[1]); }
+    rows[m[1]].c[m[2]] = f; if (f.unit) rows[m[1]].unit = f.unit; });
+  if (!order.length) return '';
+  const cell = f => f ? `<td class="click ${W.selField === f.key ? 'on' : ''}" data-k="${esc(f.key)}">${esc((f.edited_value ?? f.value) || '')}</td>` : '<td></td>';
+  return `<div class="sect"><h4>Process / Sizing — Max · Nor · Min <span class="soft" style="font-weight:400">(sheet 2)</span></h4>
+    <table class="t"><thead><tr><th>Item</th><th>Unit</th><th>Max</th><th>Nor</th><th>Min</th></tr></thead><tbody>
+    ${order.map(k => { const r = rows[k]; return `<tr${r.sec === 'sizing' ? ' class="soft"' : ''}><td>${esc(r.name)}${r.sec === 'sizing' ? ' <small>sizing</small>' : ''}</td><td>${esc(r.unit || '')}</td>${cell(r.c.max)}${cell(r.c.nor)}${cell(r.c.min)}</tr>`; }).join('')}
+    </tbody></table></div>`;
+}
+/* valve37 — a sheet put in another kind's menu: say so (it is kept and reviewed with this menu's rules) */
+function kindBanner(d) {
+  if (!d.family || !d.kind || d.family === d.kind) return '';
+  if (d.kind === 'ball' && d.family === 'butterfly' && !['101', '701'].includes(d.form)) return '';
+  return `<div class="banner info"><b>${esc(KIND_NAMES[d.family] || d.family)} 데이터시트</b> — 이 화면은 ${esc(KIND_NAMES[d.kind])} 메뉴입니다. 그 종류의 검토 규칙으로 보려면 ${esc(KIND_NAMES[d.family] || d.family)} 메뉴에 올려 주세요.</div>`;
+}
 function fieldLine(f) {
   const v = f.edited_value ?? f.value, ref = f.ref, part = partOf(f.key);
   const st = f.status === 'ok' ? '' : f.status === 'blank' ? pill('NotFound', 'Not Found') : f.status === 'review' ? pill('ReviewRequired', 'Review') : pill('placeholder', 'VTA/NA');
@@ -1831,8 +1865,9 @@ function drawRight() {
       <div class="sect"><h4>Review Required</h4>${d.fields.filter(f => f.status === 'review' && f.edited_value == null).map(fieldLine).join('') || '<div class="soft">없음</div>'}</div>`;
   } else if (W.tab === 'data') {
     const secs = {};
-    d.fields.forEach(f => { if (f.section === 'process' && f.key.includes('.')) return; (secs[f.section] ||= []).push(f); });
-    h = `<div class="vpart ${LS.get('vpart', 1) ? '' : 'min'}" id="vpart"><div id="fsrc" class="fsrc"></div><div class="vph"><b>Valve Part</b><span class="soft">칸 ↔ 부위 · Anatomy</span><span class="sp"></span><button id="vfit" title="처음 모습 (조립 · 맞춤)">⟲</button><button id="vpt" title="그림 접기/펼치기">${LS.get('vpart', 1) ? '▾' : '▸'}</button></div><div id="vanat"></div><div class="vpcap" id="vpcap"></div></div>`
+    d.fields.forEach(f => { if ((f.section === 'process' || f.section === 'sizing') && /\.(max|nor|min)$/.test(f.key)) return; (secs[f.section] ||= []).push(f); });
+    h = `<div class="vpart ${LS.get('vpart', 1) ? '' : 'min'}" id="vpart"${(d.kind || 'ball') !== 'ball' ? ' style="display:none"' : ''}><div id="fsrc" class="fsrc"></div><div class="vph"><b>Valve Part</b><span class="soft">칸 ↔ 부위 · Anatomy</span><span class="sp"></span><button id="vfit" title="처음 모습 (조립 · 맞춤)">⟲</button><button id="vpt" title="그림 접기/펼치기">${LS.get('vpart', 1) ? '▾' : '▸'}</button></div><div id="vanat"></div><div class="vpcap" id="vpcap"></div></div>`
+      + kindBanner(d) + caseTable(d)
       + Object.keys(SECTION_NAMES).filter(s => secs[s]).map(s => `<div class="sect"><h4>${SECTION_NAMES[s]}</h4>${secs[s].map(fieldLine).join('')}</div>`).join('');
   } else if (W.tab === 'proc') {
     const P = d.process, ex = ['body_size', 'rating', 'body_material', 'ball_material', 'seat_material', 'piping_class'].map(k => F[k]).filter(Boolean);
@@ -1934,6 +1969,7 @@ function drawRight() {
 const MAT_LV = { Action: ['bad', '조치 필요 — 문서 한계를 넘음'], Confirm: ['warn', '확인 필요 — 조건부 허용'], Note: ['soft', '참고 — 검토 기록'] };
 function matList(d) {                                  // material review (matreview.py): rule · comment · basis · evidence
   const L = d.material_review || [];
+  if ((d.kind || 'ball') !== 'ball' && !L.length) return `<div class="empty">${esc(KIND_NAMES[d.kind] || '')} 데이터시트에는 Ball Valve 전용 규칙(재질 MR · 설계 VR · 액세서리 AC · 다른 데이터시트 대비 PC · PMS Ball 품목)을 적용하지 않습니다.<br>필수 칸 · HOLD/TBC · 문서 안 모순 · Notes 참조 · Process Data · Revision 검토는 Ball 과 같습니다.</div>`;
   if (!L.length) return '<div class="empty">검토 의견이 없습니다 — 규칙에 필요한 값(재질 · 설계온도 · PMS Class …)이 문서에 있을 때만 의견을 냅니다.</div>';
   const grp = r => r.startsWith('MR') ? '재질' : r.startsWith('VR') ? '설계' : r.startsWith('TG') ? 'Tag 번호' : '다른 데이터시트 대비';
   const ev = x => { const t = esc(x.where) + (x.text ? ` <span class="soft">${esc(String(x.text).slice(0, 90))}</span>` : '');
@@ -2498,7 +2534,7 @@ async function popCmp() {                                  // the compare view i
     <div id="modal" hidden><div class="mbox"><h3 id="mTitle"></h3><div id="mBody"></div><div class="mact" id="mAct"></div></div></div>`;
   $('#plink').onchange = e => LS.set('linkon', e.target.checked ? 1 : 0); modalDrag();
   S.projects = (await api('GET', '/projects')).projects;
-  const want = Q.get('project'), p = (want && S.projects.find(x => x.name === want)) || S.projects.find(x => x.id === LS.get('pid')) || S.projects[0];
+  const want = wantProject(), p = (want && S.projects.find(x => x.name === want)) || S.projects.find(x => x.id === LS.get('pid')) || S.projects[0];
   S.pid = p?.id;
   let cur = { id: +Q.get('ds'), ikey: Q.get('ikey') };
   const show = async () => {
@@ -2556,7 +2592,7 @@ async function popPdf() {                                  // the light PDF wind
   $('#plink').onchange = e => LS.set('linkon', e.target.checked ? 1 : 0); modalDrag();
   $('#pprev').onclick = () => link({ t: 'nav', d: -1 }); $('#pnext').onclick = () => link({ t: 'nav', d: 1 });
   S.projects = (await api('GET', '/projects')).projects;
-  const want = Q.get('project'), p = (want && S.projects.find(x => x.name === want)) || S.projects.find(x => x.id === LS.get('pid')) || S.projects[0];
+  const want = wantProject(), p = (want && S.projects.find(x => x.name === want)) || S.projects.find(x => x.id === LS.get('pid')) || S.projects[0];
   S.pid = p?.id; S.view = 'review'; W.tab = 'pop';                  // the workbench's mark-up functions work here unchanged
   const V = W.viewer = new Viewer($('#popv'), { tools: true,
     onMark: addMark, onMarkChange: changeMark, onMarkErase: eraseMark, onMarkCmd: markCmd,

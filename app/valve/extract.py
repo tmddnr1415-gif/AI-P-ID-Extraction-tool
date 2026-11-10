@@ -26,7 +26,12 @@ from app.valve import schema
 
 # valve29: recorded on every datasheet read (source traceability). Bump when the reading logic changes —
 # the last change to how cells are found was valve22 (robustness round), so this reader is "extract-v22".
-PARSER_VERSION = "extract-v22"
+PARSER_VERSION = "extract-v37"     # valve37: Forms 101 / 701 · Code 80 with a bottom title block · notes-only sheets (forms_ext)
+
+
+def _forms():
+    from app.valve import forms_ext                       # Globe · Butterfly · PSV forms (valve37) — lazy, no import cycle
+    return forms_ext
 
 _DOC_RE = re.compile(r"\b\d{2,3}-\d{2}-IN-DTS-\d{5}\b")
 _LOOSE_DOC = re.compile(r"\d{2,3}-\d{2}-[A-Z]{2}-[A-Z]{2,4}-\d{1,6}")   # as printed, typos included
@@ -263,8 +268,14 @@ def read_page(page, page_no: int):
     if not words:
         return {"page": page_no, "scanned": True}
     cols = _number_columns(words)
+    fk = _forms().form_no(words, page)                      # 'Form No : 101 / 701' (valve37)
+    if fk == "701" and len(cols) == 1:
+        return _forms().read_page_701(page, page_no, words, cols[0])
     if len(cols) >= 2 or (len(cols) == 1 and _colon_rows(words, cols[0])):
-        return read_page_102(page, page_no, words, cols)
+        sh = read_page_102(page, page_no, words, cols)
+        if fk == "101" and len(cols) >= 2:
+            _forms().fix_101(page, sh, words, cols)
+        return sh
     nums = _row_numbers(words, page.rect.width)
     if not nums:
         return read_notes_page(page, page_no, words)
@@ -306,6 +317,8 @@ def read_page(page, page_no: int):
         return ""
 
     hdr = _header(page, words, min(w[1] for w in nums) - 2)
+    if hdr["sheet"] is None and not hdr["doc_no"]:           # valve37: the same form with its title block at the bottom
+        _forms().apply_footer(page, words, hdr, max(ys) + pitch / 2)
     rows, used = [], set(id(w) for w in nums)
     for i, nw in enumerate(nums):
         y = ys[i]
@@ -837,6 +850,11 @@ def read_pdf(path: str, progress=None):
             page.set_rotation(0)
         rp, k = _normalised(page)
         sh = read_page(rp, i + 1)
+        if sh is None and sheets:                            # valve37: a notes-only next sheet of the datasheet before it
+            sh = _forms().read_continuation(rp, i + 1, _visible(rp.get_text("words"), _hidden_boxes(rp)), sheets[-1])
+        elif (sh and sh.get("form") == "process-table" and sheets and sheets[-1].get("form") == "101"
+              and schema.norm_tag(sh.get("tag")) == schema.norm_tag(sheets[-1].get("tag"))):
+            _forms().fix_101_sheet2(sh, sheets[-1])
         mat = None
         if rot:
             page.set_rotation(rot)
@@ -901,6 +919,8 @@ def group_datasheets(result: dict):
         if pr and pr != cur["doc_no"] and sh.get("sheet") and not sh.get("continuation"):   # another number than sheet 1
             cur.setdefault("sheet_doc_mismatch", []).append({"page": sh["page"], "sheet": sh.get("sheet"), "printed": pr})
         cur["sheets"].append([sh["page"], sh.get("sheet"), sh.get("of")])     # PDF page -> 'Sheet x of y' on the form
+        if sh.get("form") in ("101", "701") and not cur.get("form"):
+            cur["form"] = sh["form"]                         # valve37: Control Valve / Pressure Relief Valve form
         for r in sh["rows"]:
             r = dict(r, page=sh["page"])
             cur["rows"].append(r)
@@ -914,6 +934,9 @@ def group_datasheets(result: dict):
             cur["notes"].append(dict(n, page=sh["page"]))
     for ds in out:
         ds["valve_type"] = schema.valve_type(ds["tag"])
+        ds["family"] = schema.family(ds.get("form") or "", ds["fields"], ds.get("title", ""), ds["tag"])   # valve37
+        if ds["family"] == "butterfly" and "ball_material" in ds["fields"]:
+            ds["fields"]["ball_material"]["display"] = "Disc Material"
         gn = result["docs"].get(ds["doc_no"], {}).get("general_notes", {})
         ds["process_ref"] = process_reference(ds["notes"], gn)
         for r in ds["fields"].values():                     # 'General Note - 8' / 'Note-1' -> the note it points at
