@@ -5749,7 +5749,7 @@ def offline_shell():
             continue
         # hmi/ (92KB · DCS 화면 /dcs 의 필수 셋 hmi.css · hmi.js · hmi_symbols.js) 는 뺀 적이 있으나 다시 담는다 — 없으면
         # DCS 를 온라인에서 한 번도 안 연 PC 의 절전모드 DCS 가 스타일·스크립트 없이 뜬다.
-        if rel.startswith(("books/vendor/", "valve/", "img/teach/", "img/r-")):
+        if rel.startswith(("books/vendor/", "valve/", "img/teach/", "img/r-", "ic3d/")):   # ic3d — 1.8MB · 화면은 /ic3d/ 로 연다
             continue
         urls.append("/static/" + rel)
     return {"urls": urls, "update": (version.update_info() or {}).get("name")}
@@ -5915,6 +5915,8 @@ from app import space as _space                      # 판넬 공간확보 — /
 app.include_router(_space.router)
 from app import books as _books                      # 계장도서검토 — /books · /api/books (hotfix115 · 같은 서버 · 판정과 무관)
 app.include_router(_books.router)
+from app import ic3d as _ic3d                        # 3D 계측제어 — /ic3d (세션 7 화면을 옮겨 옴 · 대시보드 iframe · 판정과 무관)
+app.include_router(_ic3d.router)
 from app.valve import api as _valve_api               # Valve Datasheet 검토 — /valve · /api/valve (실행 프로젝트 › CO2 PJT › Datasheet › Ball Valve)
 app.include_router(_valve_api.router)
 if PRODUCT.get("plaza", True):                       # hotfix132 — config/product.json 에 "plaza": false 를 적으면 붙이지 않는다 (메뉴·띠에는 넣지 않는다)

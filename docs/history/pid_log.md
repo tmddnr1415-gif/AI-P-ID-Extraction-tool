@@ -55,3 +55,11 @@
 - 적용: verdict_export · revision_export · excel_out(우리가 쓰는 칸만 · 발주처 양식의 수식은 그대로) ·
   logic/report · review · grouptest (LOGIC 세션 파일 — `ws.append(` → `xlsx_safe.append(ws, ` 기계적 치환, 병합 때 충돌 주의).
 - 시험 `tests/test_hotfix133_xlsx_safe.py` · 빠른 전체 2,199 통과.
+
+## 2026-11-11 — 3D 계측제어 /ic3d 연결 · 규약 v2 반영 (사용자 지시)
+- 세션 7 `claude/practical-newton-n6bt58` 865f9297 의 `app/index.html`(1.59MB · 3D 엔진 내장) · `viewer-real.html` → `app/static/ic3d/` (그대로 복사).
+  `app/ic3d.py`: `/ic3d` → `/ic3d/` 307(질의 유지) · `/ic3d/` 는 index.html 그대로(공통 띠 없음) · `/ic3d/viewer-real.html` · 그 밖 404.
+  `/offline/shell` 에서 ic3d 제외(1.8MB).  release_sources `sources.IC3D`(paths · imported 865f9297).  release_check · smoke_screens 에 /ic3d/.
+- 확인: Playwright 로 127.0.0.1 밖 요청을 모두 막고 열기(embed · 일반 · 1366폭) — 외부 요청 0 · 콘솔 오류 0 · Anatomy › 실물 3D 캔버스 그려짐.
+  LLM 답변 엔진(api.anthropic.com)은 사용자가 키를 넣고 켤 때만 · 재무(/api/fin) 는 이 서버에 없어 "응답 못 받음(미확인)" 으로 끝남.
+- 규약 v2: CLAUDE.md §3 · handoff 고쳐 씀 — 꾸러미는 오케스트레이터만, 이 세션은 개발·커밋·푸시만.

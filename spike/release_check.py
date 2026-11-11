@@ -36,7 +36,7 @@ STATIC = ROOT / "app" / "static"
 SMOKE_JS = ROOT / "spike" / "smoke_screens.js"
 
 SMOKE_PATHS = ("/", "/logic", "/logic/draw", "/logic/test", "/logic/commission", "/logic/signal",
-               "/space", "/space?view=3d", "/dcs", "/books/", "/version", "/help/manual", "/running")
+               "/space", "/space?view=3d", "/dcs", "/books/", "/ic3d/", "/version", "/help/manual", "/running")
 # --strict 에서 실패로 보는 '자료가 없어 건너뜀' 사유 (회사 PC 에는 도면·결과가 있어야 한다)
 STRICT_WORDS = ("PDF", "pdf", "결과 json", "워크북", "sample", "도면")
 QUIET_ENV = {"PID_PAGE_WARM": "0", "PID_RENDER_POOL": "0", "PID_LOGIC_WARM": "0", "PID_ROWS_WARM": "0",
