@@ -56,9 +56,11 @@ async function api(method, path, body, raw) {
   let r;
   try { r = await fetch('/api/valve' + path, opt); } catch (e) { throw new Error('서버에 닿지 못했습니다 — P&ID 서버(8000)가 켜져 있는지 확인하세요'); }
   if (method !== 'GET' && r.ok) { const m = path.match(/^\/datasheets\/(\d+)/); link({ t: 'changed', id: m ? +m[1] : null }); }   // other windows refresh
-  if (raw) { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r; }
+  const why = j => (j.error || j.detail || '') + (j.log ? ` — 기록: ${j.log}` : '');   // valve37: the server's reason, not a bare status
+  if (raw) { if (!r.ok) { const j = await r.json().catch(() => ({})); throw new Error(why(j) || `HTTP ${r.status}`); } return r; }
   const j = await r.json().catch(() => ({}));
-  if (!r.ok) throw new Error(j.error || `HTTP ${r.status}`);
+  if (!r.ok) throw new Error(why(j) || `HTTP ${r.status}${r.status >= 500 ? ' — P&ID 서버 창(검은 창)의 마지막 글을 보내 주세요' : ''}`);
+  if (j && j.review_error && !api.warned?.[path]) { (api.warned ||= {})[path] = 1; setTimeout(() => toast(`이 Tag 의 검토 계산에 실패해 지적 없이 열었습니다 — ${j.review_error}${j.review_error_log ? ' · 기록: ' + j.review_error_log : ''}`, 1), 50); }
   return j;
 }
 function toast(msg, bad) {

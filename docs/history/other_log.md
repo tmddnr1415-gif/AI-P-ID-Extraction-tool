@@ -275,3 +275,7 @@
 - 세션 7 ic-3d-builder 엔진(af748c7: refdata · anatomy · viewer)을 `app/static/valve/anatomy.js` 한 파일로(`spike/mk_anatomy.py`) — 이름 AnatomyViewer · 여러 부품 강조 + 나머지 반투명.
 - Data 탭 Valve Part: 데이터시트 크기 · CL · Bore · 구동기로 모형, 칸 → 부위 주황 · 부품 → 관련 칸. 평면 SVG 삭제.
 - 시험 +1 · 판정 변경 없음. VERSION valve36. 꾸러미는 통합 방식(오케스트레이터) 사용자 확인 대기.
+
+## 2026-11-11 · valve37 — 회사 PC 'HTTP 500' (PDF 새 창 ds=74)
+- 여기 같은 자료로는 열림 → 회사 자료에서 그 Tag 검토 계산 예외로 추정. 검토 실패 Tag 도 PDF · 칸은 열리게(review_error), /valve 모든 예외 JSON + 로그 파일.
+- 원인 확인은 회사 PC 로그(`valve\logs\errors_*.log`) 대기. VERSION valve37.

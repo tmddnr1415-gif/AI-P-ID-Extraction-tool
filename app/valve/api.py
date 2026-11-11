@@ -15,6 +15,7 @@ import hashlib
 import io
 import json
 import re
+import sqlite3
 import threading
 import traceback
 import uuid
@@ -23,13 +24,46 @@ from urllib.parse import quote, unquote
 
 import pymupdf
 from fastapi import APIRouter, File, Form, Request, UploadFile
+from fastapi.exceptions import RequestValidationError
+from fastapi.routing import APIRoute
+from starlette.exceptions import HTTPException as _HTTPException
 from fastapi.responses import FileResponse, JSONResponse, RedirectResponse, Response
 from starlette.concurrency import run_in_threadpool
 
 from app import paths
 from app.valve import digest, docrev, i18n, ruleperf, checks as chkmod, revisions as revmod, exports, extract, issues as issuesmod, expert as expmod, knowledge as kbmod, location as locmod, tagrules as tagmod, material, matreview as matmod, pms as pmsmod, process as procmod, requirements as reqmod, schema, store, tbe
 
-router = APIRouter()
+def _log_error(where: str) -> str:
+    """valve37 — the full traceback of an unexpected server error goes to <data>/valve/logs/errors_YYYYMMDD.log (call inside
+    `except`); the screen gets the error name, message and this path instead of a bare 'HTTP 500'."""
+    try:
+        d = store.root() / "logs"
+        d.mkdir(parents=True, exist_ok=True)
+        p = d / f"errors_{dt.date.today():%Y%m%d}.log"
+        with p.open("a", encoding="utf-8") as fh:
+            fh.write(f"\n=== {dt.datetime.now():%Y-%m-%d %H:%M:%S} · {where} · {VERSION}\n{traceback.format_exc()}")
+        return str(p)
+    except Exception:                                       # noqa: BLE001  (a log that cannot be written must not hide the error)
+        return ""
+
+
+class _SafeRoute(APIRoute):
+    """Every /valve route: an unexpected error answers JSON {error, log} (status 500) — the screens print the reason."""
+    def get_route_handler(self):
+        h = super().get_route_handler()
+
+        async def run(request: Request):
+            try:
+                return await h(request)
+            except (_HTTPException, RequestValidationError, sqlite3.OperationalError):
+                raise                                       # their own handlers (404 · 422 · DB busy 503)
+            except Exception as e:                          # noqa: BLE001
+                log = _log_error(f"{request.method} {request.url.path}")
+                return JSONResponse({"error": f"서버 오류 — {type(e).__name__}: {str(e)[:300]}", "log": log}, status_code=500)
+        return run
+
+
+router = APIRouter(route_class=_SafeRoute)
 _JOBS: dict[str, dict] = {}
 _JLOCK = threading.Lock()
 _STATIC = {"valve.js": "application/javascript", "valve.css": "text/css", "anatomy.js": "application/javascript"}   # anatomy.js = valve36 valve model (session 7 engine)
@@ -888,7 +922,13 @@ def _ds_full(con, dsid, deep=True, pv=None):
         d["process_ref"] = extract.process_reference(d.get("notes"), d.get("general_notes"))
     if not deep:
         return d
-    d = _ds_deep(con, d, dsid)
+    try:
+        d = _ds_deep(con, d, dsid)
+    except Exception as e:                                   # noqa: BLE001  valve37: one datasheet the rules trip on must not
+        log = _log_error(f"datasheet {dsid} ({d.get('tag_key')}) review")   # stop the PDF, the lists or the other tags —
+        d.update(issues=[], material_review=[], pms=None, pms_doc=None, requirements=[], process=None, process_doc=None,
+                 rev_review=None, verification=None, review_error=f"{type(e).__name__}: {str(e)[:300]}", review_error_log=log)
+        return _with_history(con, d)                         # not cached: the next request tries again
     slim = _slim_deep({k: v for k, v in d.items() if k != "history"})    # the audit trail is cheap to re-read and big to keep (valve22)
     _DEEP_CACHE[dsid] = (ver, slim)
     try:
@@ -1085,7 +1125,7 @@ def knowledge_base():
 
 @router.get("/api/valve/datasheets/{dsid}")
 def datasheet(dsid: int):
-    d = _ds_full(store.connect(), dsid)
+    d = _ds_full(store.connect(), dsid)                      # valve37: a failing review comes back as review_error (PDF still opens)
     return _json(_fat(d)) if d else _err("없는 데이터시트", 404)
 
 

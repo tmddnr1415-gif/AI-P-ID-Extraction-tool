@@ -699,3 +699,11 @@ Note 113 · PC-01 Confirm 6(3C0K8 의 '316 SS/FHF' 2개 · API5L-X65 MOV 1500# �
   부품 → 칸: 모형의 부품을 누르면 그 부품 설명(엔진의 fn) + 그 부위를 다루는 칸 목록(누르면 그 칸으로).
 - 휠 = 분해 → 확대, 끌기 = 돌려 보기, ⟲ = 처음 모습. 캔버스 하나를 세션 내내 다시 붙여 씀(탭을 바꿔도 새로 만들지 않음).
 - 시험 `test_valve_model_is_the_anatomy_engine`.
+
+### 42. valve37 — 회사 PC 'HTTP 500' (PDF 새 창 · ds=74) — 실제 이유를 보이고 PDF 는 열리게
+- 사진: 새 창 `?pop=pdf&ds=74` 에 빨간 'HTTP 500' 만, 메인 PDF 도 '1 / 0'. 같은 주소 · 같은 자료로 여기서는 열림 → 회사 자료에서 그 Tag 의 검토 계산(규칙)이 예외.
+  화면은 서버 답이 JSON 이 아니라 이유 없이 'HTTP 500' 만 보였다.
+- 고침: ① `_ds_full` 의 검토 계산(`_ds_deep`)이 예외면 그 Tag 만 지적 없이(issues=[] · pms/process=None) `review_error` 를 붙여 돌려줌 — PDF · 칸 · 다른 Tag ·
+  목록은 그대로, 캐시하지 않아 다음 요청에 다시 계산. ② `/valve` 모든 경로(`_SafeRoute`): 예상 못 한 예외 → JSON `{error: '서버 오류 — 종류: 내용', log}` (404 · 422 · DB 잠김 503 은 그대로).
+  ③ 전체 traceback 은 `<data>\valve\logs\errors_YYYYMMDD.log`. ④ 화면: 오류 글 + 기록 파일 위치, 검토 실패 Tag 는 알림 한 번.
+- 원인 자체는 그 로그로 찾는다 (회사 PC 에서 로그 파일 내용을 받아 고침). 시험 `test_a_failing_review_still_opens_the_datasheet`.
