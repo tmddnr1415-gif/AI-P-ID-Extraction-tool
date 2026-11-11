@@ -76,6 +76,20 @@ check("페이지 오류 없음", errors.length === 0);
 check("외부 네트워크 요청 없음(LLM 제외)", net.length === 0);
 check("3D 엔진 내장(three.js·CDN 미사용)", await fr.evaluate(() => typeof THREE === "undefined" && !!window.Viewer && document.querySelectorAll("script[src]").length === 0));
 if (shot) await page.screenshot({ path: shot });
+
+// 3) 좁은 화면(노트북 · 대시보드 안 프레임): 오른쪽 칸이 사라지지 않고 전환 버튼으로 실물 3D 가 보인다
+const np = await browser.newPage({ viewport: { width: 832, height: 560 } });
+await np.context().route(/^(https?|wss?):/, (r) => r.abort());
+await np.goto("file://" + path.join(here, "index.html")); await np.waitForTimeout(600);
+await np.click('#nview button[data-v="right"]'); await np.click('.tab[data-t="anap"]');
+await np.waitForFunction(() => R3.ready, null, { timeout: 15000 });
+const nb = await (await np.$("#v3real")).boundingBox();
+check("832x560: 실물 3D 가 화면 안에 표시", !!nb && nb.width > 300 && nb.height > 200 && nb.y + nb.height <= 561);
+const nfr = np.frames().find((f) => f !== np.mainFrame() && f.url().startsWith("blob:"));
+await np.mouse.move(nb.x + nb.width / 2, nb.y + nb.height / 2);
+for (let i = 0; i < 40; i++) { await np.mouse.wheel(0, 120); await np.waitForTimeout(20); }
+await np.waitForTimeout(600);
+check("휠 축소 한계(맞춤 크기의 0.5배)", await nfr.evaluate(() => { const c = document.querySelector("canvas"); const g = c.getContext("2d").getImageData(0, 0, c.width, c.height).data; let n = 0; for (let i = 3; i < g.length; i += 4) if (g[i] > 200) n++; return n / (c.width * c.height) > 0.02; }));
 await browser.close();
 if (errors.length) console.log(errors);
 if (net.length) console.log(net);

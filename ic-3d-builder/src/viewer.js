@@ -722,7 +722,7 @@ const Viewer = (() => {
     if (goal.follow) frame(false);
     orbit.dist = goal.dist; orbit.target = goal.target.slice(); updateCamera();
     const before = goal.dist;
-    const nd = Math.max(MIN_VIEW, Math.min(1e6, before * f));
+    const nd = Math.max(MIN_VIEW, Math.min(Math.max(goal.fitDist * 2, MIN_VIEW), before * f));   // zoom-out stops at half the fitted size
     const p = worldAt(e);
     goal.target = add(goal.target, mul(sub(p, goal.target), 1 - nd / before));
     goal.dist = nd; goal.follow = false;

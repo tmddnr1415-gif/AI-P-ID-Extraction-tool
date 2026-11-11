@@ -208,7 +208,9 @@ async function handle(q){
   await runPlan(steps);done();
 }
 function bindTags(root){root.querySelectorAll(".tag").forEach(t=>t.onclick=()=>{if(t.dataset.i){showModel(t.dataset.i,true);setTimeout(()=>{if(R3.on&&R3.item===t.dataset.i)r3highlight(t.dataset.i,t.dataset.p);else V.blink(t.dataset.p)},60)}});root.querySelectorAll(".chip.ask").forEach(c=>c.onclick=()=>handle(c.textContent))}
-function selTab(id){document.querySelectorAll(".tab").forEach(t=>t.classList.toggle("on",t.dataset.t===id));document.querySelectorAll(".pane").forEach(p=>p.classList.toggle("on",p.id===id));if(id==="anap")setTimeout(()=>V.kick(),30)}
+function nview(v){document.body.classList.toggle("show-right",v==="right");document.querySelectorAll("#nview button").forEach(b=>b.classList.toggle("on",b.dataset.v===v));if(v==="right"&&document.querySelector(".tab.on")?.dataset.t==="anap")setTimeout(()=>{try{V.kick()}catch(e){}},60)}
+document.querySelectorAll("#nview button").forEach(b=>b.onclick=()=>nview(b.dataset.v));
+function selTab(id,quiet){if(!quiet)nview("right");document.querySelectorAll(".tab").forEach(t=>t.classList.toggle("on",t.dataset.t===id));document.querySelectorAll(".pane").forEach(p=>p.classList.toggle("on",p.id===id));if(id==="anap")setTimeout(()=>V.kick(),30)}
 document.querySelectorAll(".tab").forEach(t=>t.onclick=()=>selTab(t.dataset.t));
 function fillMR(items,safety){
   const rows=items.flatMap(a=>(SPECS[a.f]?.items||[]).slice(0,6).map(t=>`<tr><td>${a.n}</td><td>${esc(t)}</td><td style="background:#FFF6B0">미확인</td><td>${esc(SPECS[a.f].file)}</td></tr>`)).join("");
@@ -303,7 +305,7 @@ $("#theme").onclick=()=>applyTheme(document.documentElement.dataset.theme==="dar
 $("#finframe").addEventListener("load",()=>{try{$("#finframe").contentDocument.documentElement.dataset.theme=document.documentElement.dataset.theme||"light"}catch(e){}});
 let t0="light";try{t0=localStorage.getItem("ic-theme")||(matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light")}catch(e){}
 $("#f").onsubmit=e=>{e.preventDefault();const q=$("#q").value.trim();if(!q)return;$("#q").value="";handle(q)};
-buildOrg();showModel("ball-valve");select("orch");paint();selTab("orgp");applyTheme(t0);
+buildOrg();showModel("ball-valve");select("orch");paint();selTab("orgp",true);applyTheme(t0);
 
 /* ---- 실물 3D 모드 (ic-3d-builder 파라메트릭 엔진 연동) ----
    개념 모델(Canvas)과 같은 자리에서 전환. 매핑은 data/parts/Map_3d.json 만 사용(ic-anatomy-link 규칙).

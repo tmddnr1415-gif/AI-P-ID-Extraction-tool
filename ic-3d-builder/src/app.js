@@ -152,6 +152,7 @@
 
   function selectPart(id, fromList, quiet) {
     S.selected = id;
+    $('tip').hidden = true;
     if (id && !quiet && document.body.classList.contains('embed') && window.parent !== window) {
       try { window.parent.postMessage({ type: 'ic3d-pick', part: id, preset: S.presetId }, '*'); } catch { /* host gone */ }
     }
@@ -415,6 +416,7 @@
     if (m.cmd === 'preset' && Anatomy.PRESETS.some((p) => p.id === m.id)) {
       if (m.id !== S.presetId) { $('preset').value = m.id; applyPreset(m.id, true); }
     } else if (m.cmd === 'highlight' && m.part && S.model.parts.some((p) => p.id === m.part)) {
+      if (window.Viewer) Viewer.fit();   // a tag click always brings the whole model back into view
       selectPart(m.part, true);
       if (window.Viewer) { const el = document.getElementById('viewport'); el.classList.remove('pulse'); void el.offsetWidth; el.classList.add('pulse'); }
     } else if (m.cmd === 'explode' && window.Viewer) { Viewer.setExplode(+m.k || 0); $('explode').value = +m.k || 0; }

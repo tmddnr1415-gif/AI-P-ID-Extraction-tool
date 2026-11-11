@@ -2522,7 +2522,7 @@ const Viewer = (() => {
     if (goal.follow) frame(false);
     orbit.dist = goal.dist; orbit.target = goal.target.slice(); updateCamera();
     const before = goal.dist;
-    const nd = Math.max(MIN_VIEW, Math.min(1e6, before * f));
+    const nd = Math.max(MIN_VIEW, Math.min(Math.max(goal.fitDist * 2, MIN_VIEW), before * f));   // zoom-out stops at half the fitted size
     const p = worldAt(e);
     goal.target = add(goal.target, mul(sub(p, goal.target), 1 - nd / before));
     goal.dist = nd; goal.follow = false;
@@ -3039,6 +3039,7 @@ const Extract = (() => {
 
   function selectPart(id, fromList, quiet) {
     S.selected = id;
+    $('tip').hidden = true;
     if (id && !quiet && document.body.classList.contains('embed') && window.parent !== window) {
       try { window.parent.postMessage({ type: 'ic3d-pick', part: id, preset: S.presetId }, '*'); } catch { /* host gone */ }
     }
@@ -3302,6 +3303,7 @@ const Extract = (() => {
     if (m.cmd === 'preset' && Anatomy.PRESETS.some((p) => p.id === m.id)) {
       if (m.id !== S.presetId) { $('preset').value = m.id; applyPreset(m.id, true); }
     } else if (m.cmd === 'highlight' && m.part && S.model.parts.some((p) => p.id === m.part)) {
+      if (window.Viewer) Viewer.fit();   // a tag click always brings the whole model back into view
       selectPart(m.part, true);
       if (window.Viewer) { const el = document.getElementById('viewport'); el.classList.remove('pulse'); void el.offsetWidth; el.classList.add('pulse'); }
     } else if (m.cmd === 'explode' && window.Viewer) { Viewer.setExplode(+m.k || 0); $('explode').value = +m.k || 0; }

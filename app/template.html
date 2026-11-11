@@ -137,7 +137,22 @@ th{color:var(--mute);font-weight:600}
 :root[data-theme="dark"] .logo{color:#8FA2FF}:root[data-theme="dark"] .badge{background:#1E2747;color:#AFC0FF}:root[data-theme="dark"] .badge.w{background:var(--warnbg);color:var(--warn)}
 :root[data-theme="dark"] #mrbox td[style]{background:#4A4214!important}
 :root[data-theme="dark"] .iso-svg{background:#fff}
-@media(max-width:1100px){main{grid-template-columns:200px 6px 1fr 0 0}section.right,#sp2{display:none}}
+#nview{display:none;gap:6px;padding:6px 12px;background:var(--bg,#f5f6f8);border-bottom:1px solid var(--line);flex:none}
+#nview button{flex:1;padding:7px 10px;border:1px solid var(--line);border-radius:8px;background:#fff;color:inherit;font:inherit;font-size:13px;font-weight:600;cursor:pointer}
+#nview button.on{background:#1428a0;border-color:#1428a0;color:#fff}
+:root[data-theme="dark"] #nview{background:var(--hdr)}:root[data-theme="dark"] #nview button:not(.on){background:var(--card);border-color:var(--line)}
+/* 좁은 화면(노트북·대시보드 안 프레임): 오른쪽 칸을 숨기지 않고 [질의·답변 | 패널] 전환으로 보여 준다 */
+@media(max-width:1100px){
+  #nview{display:flex}
+  main{grid-template-columns:minmax(120px,170px) minmax(0,1fr)}
+  #sp1,#sp2{display:none}
+  section.right{display:none;border-left:0}
+  body.show-right section.chat{display:none}
+  body.show-right section.right{display:flex}
+  header{gap:8px;padding:0 10px}header .badge{display:none}header .logo small{display:none}
+  #v3wrap.real{height:clamp(240px,calc(100vh - 300px),720px)}
+}
+@media(max-width:640px){main{grid-template-columns:minmax(0,1fr)}aside#agents{display:none}}
 </style></head>
 <body>
 <header>
@@ -153,6 +168,11 @@ th{color:var(--mute);font-weight:600}
   <div class="lab" id="plab">대기 중 · 질의를 입력하세요</div>
   <div class="bar" id="bar"><i id="barfill"></i></div>
   <div class="pct"><b id="ppct">0%</b> · <span id="peta">예상 -</span></div>
+</div>
+
+<div id="nview" role="tablist" aria-label="화면 전환">
+  <button type="button" data-v="chat" class="on">질의·답변</button>
+  <button type="button" data-v="right">조직도 · Anatomy(3D) · MR · 재무 · 로그</button>
 </div>
 
 <main>

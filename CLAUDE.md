@@ -67,6 +67,6 @@ Anatomy 부품 맵(Parts_*.json), 회사 MR 양식·승인 조항, 재무제표 
 
 ## 8. 실행
 - 대시보드: `python app/server.py` → http://127.0.0.1:8790 (빌드: `node app/build.mjs` — 실물 3D 를 고쳤으면 먼저 `python3 ic-3d-builder/dev/build.py`). 파일로 열면 재무 기능만 비활성.
-- 통합 테스트: `NODE_PATH=$(npm root -g) node app/test_e2e.mjs` (실물 3D 전환·부품 강조·LLM 답변 규칙·외부 네트워크 차단·단일 파일 내장 17개 검사, API 는 가짜 스트림).
+- 통합 테스트: `NODE_PATH=$(npm root -g) node app/test_e2e.mjs` (실물 3D 전환·부품 강조·LLM 답변 규칙·외부 네트워크 차단·단일 파일 내장·좁은 화면 19개 검사, API 는 가짜 스트림).
 - 지식 베이스: `Spec for each Item/{Item}/*_Knowledge.md`(웹 조사 Q&A, 출처 URL 포함) + `*_Integration_Spec.md`.
 - 공시 재무제표: '공시 재무제표 대시보드'(../현장회의록_요약/dart_dashboard) UI를 /fin/ 에 그대로 올리고 채팅과 BroadcastChannel 로 연동. DART 키는 서버 코드가 환경변수 DART_API_KEY → .env → 벤치마크 키 파일 순으로 읽는다(사람·에이전트는 열지 않음).
