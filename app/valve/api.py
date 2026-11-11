@@ -57,6 +57,9 @@ class _SafeRoute(APIRoute):
                 return await h(request)
             except (_HTTPException, RequestValidationError, sqlite3.OperationalError):
                 raise                                       # their own handlers (404 · 422 · DB busy 503)
+            except extract.StoredPdfError as e:             # valve38: the stored original cannot be opened
+                log = _log_error(f"{request.method} {request.url.path} · stored copy {e.diag}")
+                return JSONResponse({"error": str(e), "code": "stored_pdf", "diag": e.diag, "log": log}, status_code=409)
             except Exception as e:                          # noqa: BLE001
                 log = _log_error(f"{request.method} {request.url.path}")
                 return JSONResponse({"error": f"서버 오류 — {type(e).__name__}: {str(e)[:300]}", "log": log}, status_code=500)
@@ -216,10 +219,12 @@ def _summary(pid: int):
     issues = {r["datasheet_id"]: r["n"] for r in store.rows(
         con, "SELECT datasheet_id, COUNT(*) AS n FROM field WHERE status IN ('review') AND edited_value IS NULL"
              " AND datasheet_id IN (SELECT id FROM datasheet WHERE project_id=?) GROUP BY datasheet_id", pid)}
-    docs = store.rows(con, "SELECT id, kind, filename, pages, uploaded_by, uploaded_at, status, error, info FROM document"
+    docs = store.rows(con, "SELECT id, kind, filename, pages, uploaded_by, uploaded_at, status, error, info, path, sha256 FROM document"
                            " WHERE project_id=? ORDER BY id DESC", pid)
     for d in docs:
         d["info"] = store.unJ(d["info"], {})
+        d["stored_ok"] = _stored_ok(d.pop("path"), d.pop("sha256"))     # valve38: '원본 손상 — 다시 올리기'
+
     vl = next((d for d in docs if d["kind"] == "valvelist" and d["status"] == "done"), None)
     vl_tags = set()
     if vl:
@@ -341,8 +346,7 @@ def _process(jid: str, pid: int, items: list[tuple[int, str, str, Path]], by: st
             con.commit()
             row = store.one(con, "SELECT sha256 FROM document WHERE id=?", doc_id)     # valve34: the stored copy is the upload
             if row and row.get("sha256") and Path(path).exists() and not store.file_ok(Path(path), row["sha256"]):
-                raise extract.PdfError("서버에 저장된 원본 파일이 올린 파일과 다릅니다(손상 · 잘림) — 같은 파일을 한 번 더 올리면 "
-                                       "저장본을 새로 씁니다")
+                raise extract.StoredPdfError(extract.STORED_MSG, store.diagnose(path, row["sha256"]))
             if kind == "datasheet":
                 def prog(i, n, base=done):
                     _job(jid, done=base + i, msg=f"{name} · {i}/{n} 쪽")
@@ -402,7 +406,7 @@ def _process(jid: str, pid: int, items: list[tuple[int, str, str, Path]], by: st
                 store.audit(con, pid, None, None, "upload", None, name, by, "pms")
                 con.commit()
             else:                                        # process data tables -> {data}/valve/process/<doc>.json (process.read_process_data)
-                if path.suffix.lower() != ".pdf":
+                if Path(name).suffix.lower() != ".pdf":          # valve38: by the uploaded name (stored copy is .bin)
                     raise extract.PdfError("Process Data 는 PDF 만 읽습니다 — Excel 은 보관만 됩니다 (PDF 로 올려 주세요)")
                 parsed = procmod.read_process_data(str(path))
                 store.write_json(store.root() / "process" / f"{doc_id}.json", parsed)
@@ -429,6 +433,39 @@ def _process(jid: str, pid: int, items: list[tuple[int, str, str, Path]], by: st
 _WARMING: set = set()
 
 
+_STORED_OK: dict[tuple, bool] = {}
+
+
+def _stored_ok(path, sha) -> bool:
+    """The stored copy still holds the uploaded bytes (hash checked once per file version)."""
+    try:
+        st = Path(path).stat()
+    except (OSError, TypeError):
+        return False
+    k = (str(path), st.st_mtime_ns, st.st_size)
+    if k not in _STORED_OK:
+        _STORED_OK[k] = store.file_ok(Path(path), sha) if sha else True
+    return _STORED_OK[k]
+
+
+_MIGRATED = []
+
+
+def migrate_stored() -> dict | None:
+    """valve38: once per server start — stored '.pdf' copies that are still good move to '.bin' (store.migrate_originals)."""
+    if _MIGRATED:
+        return None
+    _MIGRATED.append(1)
+    try:
+        r = store.migrate_originals(store.connect())
+    except Exception:                                        # noqa: BLE001  (never stops the server; the reason is logged)
+        _log_error("migrate stored originals")
+        return None
+    if r["moved"] or r["broken"]:
+        print(f"[valve] stored originals → .bin: {r['moved']} moved · broken {r['broken'] or 'none'}", flush=True)
+    return r
+
+
 def warm(pid: int):
     """Compute every datasheet's review once, in a background thread, so the first screen never waits (valve20)."""
     if pid in _WARMING:
@@ -436,6 +473,7 @@ def warm(pid: int):
 
     def run():
         _WARMING.add(pid)
+        migrate_stored()
         try:
             con = store.connect()
             project_issues(con, pid)
@@ -479,7 +517,7 @@ def _rules_fingerprint() -> str:
 
 
 _RULES_FP = _rules_fingerprint()
-VERSION = "valve37"                       # shown in Settings › 정보 and the footer; bump with every package
+VERSION = "valve38"                       # shown in Settings › 정보 and the footer; bump with every package
 
 
 @router.get("/api/valve/version")
@@ -558,6 +596,7 @@ async def upload(pid: int, request: Request, kind: str = Form(...), files: list[
             skipped.append(f"{name} — {kind} 칸에는 {' · '.join(ok)} 만 넣을 수 있습니다")
             continue
         sha, path = store.save_original(data, name)
+        store.repoint_originals(con, sha, path)              # valve38: older rows with these bytes read the fresh copy
         pages = 0
         if ext == ".pdf":
             try:
@@ -747,7 +786,7 @@ def _process_for(con, pid):
     """(parsed Process Data, document row) of the project's newest Process Data PDF, or (None, None)."""
     doc = store.one(con, "SELECT id, filename, path FROM document WHERE project_id=? AND kind='process' AND status='done'"
                          " ORDER BY id DESC", pid)
-    if not doc or not str(doc["path"]).lower().endswith(".pdf"):
+    if not doc or not str(doc["filename"]).lower().endswith(".pdf"):     # valve38: stored copy is .bin
         return None, None
     if doc["id"] not in _PROC_CACHE:
         p = store.root() / "process" / f"{doc['id']}.json"
@@ -1529,13 +1568,13 @@ _RENDER_LOCK = threading.Lock()
 
 def _render(doc_id: int, page: int, zoom: float) -> bytes:
     con = store.connect()
-    d = store.one(con, "SELECT path FROM document WHERE id=?", doc_id)
+    d = store.one(con, "SELECT path, sha256 FROM document WHERE id=?", doc_id)
     if not d:
         raise FileNotFoundError("문서 없음")
     cache = store.root() / "cache" / f"{doc_id}_{page}_{int(zoom * 100)}.png"
     if cache.exists():
         return cache.read_bytes()
-    with _RENDER_LOCK, pymupdf.open(d["path"]) as pdf:
+    with _RENDER_LOCK, extract.open_stored(d["path"], d["sha256"]) as pdf:
         if not 1 <= page <= pdf.page_count:
             raise IndexError("쪽 번호가 범위 밖입니다")
         png = pdf[page - 1].get_pixmap(matrix=pymupdf.Matrix(zoom, zoom), alpha=False).tobytes("png")
@@ -1551,16 +1590,18 @@ async def page_png(doc_id: int, page: int, zoom: float = 2.0):
         png = await run_in_threadpool(_render, doc_id, page, zoom)
     except (FileNotFoundError, IndexError) as e:
         return _err(str(e), 404)
+    except extract.StoredPdfError as e:
+        return JSONResponse({"error": str(e), "code": "stored_pdf", "diag": e.diag, "log": _log_error(f"page png {doc_id} · {e.diag}")}, status_code=409)
     return Response(png, media_type="image/png", headers={"Cache-Control": "private, max-age=3600"})
 
 
 @router.get("/api/valve/documents/{doc_id}/pageinfo")
 def page_info(doc_id: int):
     con = store.connect()
-    d = store.one(con, "SELECT path, pages FROM document WHERE id=?", doc_id)
+    d = store.one(con, "SELECT path, pages, sha256 FROM document WHERE id=?", doc_id)
     if not d:
         return _err("없는 문서", 404)
-    with pymupdf.open(d["path"]) as pdf:
+    with extract.open_stored(d["path"], d["sha256"]) as pdf:
         sizes = [[round(p.rect.width, 1), round(p.rect.height, 1)] for p in pdf]
     return {"pages": len(sizes), "sizes": sizes}
 
@@ -1568,11 +1609,11 @@ def page_info(doc_id: int):
 @router.get("/api/valve/documents/{doc_id}/search")
 def page_search(doc_id: int, q: str, page: int | None = None):
     con = store.connect()
-    d = store.one(con, "SELECT path FROM document WHERE id=?", doc_id)
+    d = store.one(con, "SELECT path, sha256 FROM document WHERE id=?", doc_id)
     if not d or not q.strip():
         return {"hits": []}
     hits = []
-    with pymupdf.open(d["path"]) as pdf:
+    with extract.open_stored(d["path"], d["sha256"]) as pdf:
         rng = [page - 1] if page else range(pdf.page_count)
         for i in rng:
             for r in pdf[i].search_for(q.strip())[:50]:
@@ -1585,10 +1626,14 @@ def page_search(doc_id: int, q: str, page: int | None = None):
 @router.get("/api/valve/documents/{doc_id}/file")
 def doc_file(doc_id: int):
     con = store.connect()
-    d = store.one(con, "SELECT path, filename FROM document WHERE id=?", doc_id)
+    d = store.one(con, "SELECT path, filename, sha256 FROM document WHERE id=?", doc_id)
     if not d:
         return _err("없는 문서", 404)
-    return FileResponse(d["path"], filename=d["filename"], content_disposition_type="inline")
+    pdf = str(d["filename"]).lower().endswith(".pdf")
+    if pdf and not store.diagnose(d["path"]).get("pdf_header"):     # valve38: never hand out a copy that is no longer a PDF
+        raise extract.StoredPdfError(extract.STORED_MSG, store.diagnose(d["path"], d["sha256"]))
+    return FileResponse(d["path"], filename=d["filename"], content_disposition_type="inline",
+                        media_type="application/pdf" if pdf else None)
 
 
 # ── Valve List grid (latest revision per tag) ─────────────────────────────────
@@ -1654,13 +1699,13 @@ async def markup_pdf(request: Request):
     """Body: {document_id, pages?: [n…] (only these pages, in order), items: [{page, bbox, category, title, text}]}."""
     body = await request.json()
     con = store.connect()
-    d = store.one(con, "SELECT path, filename, project_id FROM document WHERE id=?", body.get("document_id"))
+    d = store.one(con, "SELECT path, filename, project_id, sha256 FROM document WHERE id=?", body.get("document_id"))
     if not d:
         return _err("없는 문서", 404)
     items = body.get("items") or []
 
     def make():
-        with pymupdf.open(d["path"]) as pdf:
+        with extract.open_stored(d["path"], d["sha256"]) as pdf:
             for it in items:
                 pno, bb = int(it.get("page") or 0), it.get("bbox")
                 if not (1 <= pno <= pdf.page_count) or not bb:

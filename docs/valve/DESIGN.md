@@ -707,3 +707,18 @@ Note 113 · PC-01 Confirm 6(3C0K8 의 '316 SS/FHF' 2개 · API5L-X65 MOV 1500# �
   목록은 그대로, 캐시하지 않아 다음 요청에 다시 계산. ② `/valve` 모든 경로(`_SafeRoute`): 예상 못 한 예외 → JSON `{error: '서버 오류 — 종류: 내용', log}` (404 · 422 · DB 잠김 503 은 그대로).
   ③ 전체 traceback 은 `<data>\valve\logs\errors_YYYYMMDD.log`. ④ 화면: 오류 글 + 기록 파일 위치, 검토 실패 Tag 는 알림 한 번.
 - 원인 자체는 그 로그로 찾는다 (회사 PC 에서 로그 파일 내용을 받아 고침). 시험 `test_a_failing_review_still_opens_the_datasheet`.
+
+### 43. valve38 — 회사 PC 'PDF 가 뜨지 않는다' 의 진짜 원인: 저장된 원본 PDF 를 열 수 없음
+- 회사 `logs\server.log`: `page_info … pymupdf.FileDataError: Failed to open file '…\_data\valve\files\26c26a50aa4f1ab2.pdf'`. 이 이름(내용 해시)은 여기 실자료
+  Datasheet.pdf 와 같은 바이트 — 올릴 때는 열렸고(456쪽) 저장된 뒤 열리지 않음. 잘림은 pymupdf 가 복구하므로(오케스트레이터 재현) **내용이 PDF 가 아닌 것으로 바뀐**
+  쪽 — 회사 문서보안(DRM)이 `*.pdf` 저장본을 바꾸는 것으로 추정(확인 전). valve34 의 '다시 올려도 같은 오류' 와 같은 계열로 보인다.
+- 고침: ① 저장본을 `<해시>.bin` 으로(`store.stored_ext`), 모든 읽기는 `filetype="pdf"` (pms · docrev · extract.open_pdf · open_stored) — 확장자 기준 보안 정책이면 다시 안 생김.
+  ② 서버 시작 때 한 번 `migrate_originals`: 아직 멀쩡한 `.pdf` 저장본 → `.bin` 복사 · 해시 확인 · 문서 경로 바꿈 · 옛 파일 지움. 깨진 것은 그대로 두고 보고.
+  ③ 다시 올리면 `repoint_originals` — 같은 바이트의 옛 문서들도 새 저장본을 읽음(Tag · 지적 · 결정 그대로).
+  ④ 저장본을 못 열면 pageinfo · page png · search · file · mark-up 이 409 `{code:'stored_pdf', error, diag, log}` — diag = 크기 · 올린 파일과 같은지(sha256) ·
+  PDF 머리(%PDF) · 앞 32바이트(hex · 글자, 내용은 싣지 않음). 뷰어(작업대 · 새 창)에 안내 + 'Document Management 열기' + 자세히. Document Management 에 '⚠ 원본 손상 — 같은 파일 다시 올리기'.
+  프로젝트 Mark-up PDF 는 그 Tag 만 빼고 앞쪽에 'Not included' 쪽.
+- 'Server stopped … Restarting in 10 seconds' (run_lan_service.bat): uvicorn 프로세스가 끝났을 때만 찍힌다. 경로 예외(FileDataError)는 FastAPI 가 잡아 500 으로
+  답할 뿐 서버를 끝내지 않는다 — 그 창이 'server.log 끝' 을 보여 주므로 마지막 traceback 이 같이 보인 것. 멈춤은 업데이트 재시작 · 창 닫기 쪽.
+- 확인: 실자료 사본에서 Datasheet 저장본을 DRM 흉내 바이트로 바꿈 → 뷰어 · 새 창 안내 · 목록 표시 · 같은 Datasheet.pdf 다시 올림 → 옛 문서 #4 가 .bin 을 읽어 456쪽.
+  시험 `test_stored_original_not_a_pdf_any_more` · `test_stored_pdf_copies_move_to_bin`.

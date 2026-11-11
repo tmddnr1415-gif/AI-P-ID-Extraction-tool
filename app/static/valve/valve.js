@@ -44,9 +44,10 @@ async function api(method, path, body, raw) {
   try { r = await fetch('/api/valve' + path, opt); } catch (e) { throw new Error('서버에 닿지 못했습니다 — P&ID 서버(8000)가 켜져 있는지 확인하세요'); }
   if (method !== 'GET' && r.ok) { const m = path.match(/^\/datasheets\/(\d+)/); link({ t: 'changed', id: m ? +m[1] : null }); }   // other windows refresh
   const why = j => (j.error || j.detail || '') + (j.log ? ` — 기록: ${j.log}` : '');   // valve37: the server's reason, not a bare status
-  if (raw) { if (!r.ok) { const j = await r.json().catch(() => ({})); throw new Error(why(j) || `HTTP ${r.status}`); } return r; }
+  const fail = (j, m) => { const e = new Error(m); e.data = j; return e; };            // valve38: the screen can read code · diag
+  if (raw) { if (!r.ok) { const j = await r.json().catch(() => ({})); throw fail(j, why(j) || `HTTP ${r.status}`); } return r; }
   const j = await r.json().catch(() => ({}));
-  if (!r.ok) throw new Error(why(j) || `HTTP ${r.status}${r.status >= 500 ? ' — P&ID 서버 창(검은 창)의 마지막 글을 보내 주세요' : ''}`);
+  if (!r.ok) throw fail(j, why(j) || `HTTP ${r.status}${r.status >= 500 ? ' — P&ID 서버 창(검은 창)의 마지막 글을 보내 주세요' : ''}`);
   if (j && j.review_error && !api.warned?.[path]) { (api.warned ||= {})[path] = 1; setTimeout(() => toast(`이 Tag 의 검토 계산에 실패해 지적 없이 열었습니다 — ${j.review_error}${j.review_error_log ? ' · 기록: ' + j.review_error_log : ''}`, 1), 50); }
   return j;
 }
@@ -344,6 +345,14 @@ const SECTION_NAMES = { general: 'General Information', process: 'Process Data',
 
 /* ── PDF viewer (server-rendered pages + overlays in PDF points) ───────── */
 const pageInfo = {};
+function brokenPdfHTML(e) {                          // valve38: the PDF cannot be shown — say why and where to fix it
+  const d = e?.data || {}, g = d.diag || {};
+  const det = d.code === 'stored_pdf' ? `<details><summary>자세히 (원인 확인용 — 파일 내용은 싣지 않음)</summary><div class="mono">파일 ${esc(g.file || '')} · 있음 ${g.exists ? '예' : '아니오'}
+    ${g.size != null ? ` · 크기 ${g.size.toLocaleString()} B` : ''}${g.sha_match != null ? ` · 올린 파일과 같음 ${g.sha_match ? '예' : '<b>아니오</b>'}` : ''} · PDF 머리 ${g.pdf_header ? '예' : '<b>아니오</b>'}
+    <br>앞 32바이트: ${esc(g.head_hex || '')}<br>글자: ${esc(g.head_txt || '')}${d.log ? `<br>기록 파일: ${esc(d.log)}` : ''}</div></details>` : '';
+  return `<div class="vbroken"><b>PDF 를 보여 줄 수 없습니다</b><p>${esc(d.code === 'stored_pdf' ? '서버에 저장된 원본 PDF 를 열 수 없습니다. Document Management 에서 같은 파일을 다시 올리면 저장본을 새로 씁니다 — Tag · 지적 · 검토 기록은 그대로입니다.' : e?.message || '')}</p>
+    ${d.code === 'stored_pdf' ? `<button class="pri" onclick="(window.opener && window.opener.location.pathname === location.pathname ? window.opener : window).location.hash = 'docs'">Document Management 열기</button>` : ''}${det}</div>`;
+}
 async function sizes(docId) { return pageInfo[docId] ||= (await api('GET', `/documents/${docId}/pageinfo`)).sizes; }
 class Viewer {
   constructor(host, opts = {}) {
@@ -415,7 +424,9 @@ class Viewer {
     if (!on && this.tool !== 'select') this.setTool('select');
   }
   async load(docId, pages) {
-    this.docId = docId; this.pages = pages; this.size = await sizes(docId);
+    this.docId = docId; this.pages = pages;
+    try { this.size = await sizes(docId); }
+    catch (e) { delete pageInfo[docId]; $('.tot', this.host).textContent = '/ 0'; this.stage.innerHTML = brokenPdfHTML(e); return; }   // valve38
     $('.tot', this.host).textContent = `/ ${pages.length}`;
     this.render();
   }
@@ -980,7 +991,7 @@ function renderDocs() {
     ${docs.map(d => `<tr><td>${d.id}</td><td>${esc(KIND[d.kind]?.[0] || d.kind)}</td><td><b>${esc(d.filename)}</b></td><td>${d.pages || '-'}</td>
       <td>${d.kind === 'datasheet' && d.info ? `${d.info.datasheets ?? '-'} datasheets${d.info.scanned_pages ? ` · <span style="color:var(--bad)">스캔 쪽 ${d.info.scanned_pages}</span>` : ''}` :
         d.kind === 'valvelist' && d.info?.sheets ? d.info.sheets.filter(s => s.kind === 'appendix').map(s => `${esc(s.sheet)} (${s.tags.length})`).join(' · ') : esc(d.info?.note || '')}</td>
-      <td>${pill(d.status === 'done' ? 'ok' : d.status === 'error' ? 'bad' : 'UnderReview', d.status)}${d.error ? `<div style="color:var(--bad)">${esc(d.error)}</div>` : ''}</td>
+      <td>${pill(d.status === 'done' ? 'ok' : d.status === 'error' ? 'bad' : 'UnderReview', d.status)}${d.error ? `<div style="color:var(--bad)">${esc(d.error)}</div>` : ''}${d.stored_ok === false ? `<div class="stbad" title="서버에 저장된 원본이 올린 파일과 달라 열리지 않습니다 — 같은 파일을 위 칸에 다시 올리면 저장본을 새로 씁니다 (Tag · 지적 · 검토 기록은 그대로)">⚠ 원본 손상 — 같은 파일 다시 올리기</div>` : ''}</td>
       <td>${esc(d.uploaded_by)}</td><td class="mono">${esc((d.uploaded_at || '').replace('T', ' ').slice(0, 16))}</td>
       <td>${d.status === 'error' ? `<button data-retry="${d.id}">재처리</button>` : d.kind === 'datasheet' && d.status === 'done' ? `<button data-retry="${d.id}" title="개선된 읽기로 다시 읽습니다 — 검토자 수정 · 의견 · Mark-up · 상태는 그대로">다시 읽기</button>` : ''}${d.kind !== 'valvelist' ? ` <a href="/api/valve/documents/${d.id}/file" target="_blank">원본</a>` : ''}${d.status === 'queued' || d.status === 'running' ? '' : ` <button class="ghost ddel" data-del="${d.id}" title="이 문서를 프로젝트에서 지웁니다 — 휴지통에서 되돌릴 수 있음">🗑</button>`}</td></tr>`).join('') || '<tr><td colspan="9" class="empty">아직 없습니다</td></tr>'}
     </tbody></table></div><div id="trashc"></div>`;

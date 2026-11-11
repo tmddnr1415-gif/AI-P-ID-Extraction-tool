@@ -214,12 +214,44 @@ def file_ok(p: Path, sha: str, size: int | None = None) -> bool:
         return False
 
 
+def stored_ext(filename: str) -> str:
+    """valve38: a PDF original is stored as '.bin' — on the company PC the stored '<hash>.pdf' copy no longer opened
+    (pymupdf FileDataError) although the same bytes opened at upload: something on that PC changes files named *.pdf
+    after they are written (document security / DRM suspected).  The bytes are the same; every reader opens it as PDF
+    explicitly (filetype='pdf').  Excel files keep their extension (openpyxl reads by extension)."""
+    ext = Path(filename).suffix.lower()[:6] or ".bin"
+    return ".bin" if ext == ".pdf" else ext
+
+
+def diagnose(p, sha: str | None = None, size: int | None = None) -> dict:
+    """What the stored copy looks like now — size, whether it still holds the uploaded bytes, its first 32 bytes
+    (hex + printable).  Only the head bytes: never the document's content."""
+    p = Path(p)
+    out = {"file": p.name, "exists": p.exists()}
+    if not out["exists"]:
+        return out
+    try:
+        out["size"] = p.stat().st_size
+        with open(p, "rb") as f:
+            head = f.read(32)
+        out["head_hex"] = head.hex(" ")
+        out["head_txt"] = "".join(chr(b) if 32 <= b < 127 else "." for b in head)
+        out["pdf_header"] = head.startswith(b"%PDF")
+        if size is not None:
+            out["expected_size"] = size
+        if sha:
+            out["sha_match"] = file_ok(p, sha)
+    except OSError as e:
+        out["read_error"] = f"{type(e).__name__}: {e}"
+    return out
+
+
 def save_original(data: bytes, filename: str) -> tuple[str, Path]:
     """Store bytes once under their hash.  An existing file with the same hash is kept — unless it no longer holds those
     bytes (valve34: a damaged or truncated copy was reused for every later upload of the same file, so every re-upload
     failed the same way); then it is written again from the upload."""
     sha = hashlib.sha256(data).hexdigest()
-    ext = Path(filename).suffix.lower()[:6] or ".bin"
+    ext = stored_ext(filename)
     p = root() / "files" / f"{sha[:16]}{ext}"
     p.parent.mkdir(parents=True, exist_ok=True)
     if not p.exists() or not file_ok(p, sha, len(data)):
@@ -234,6 +266,49 @@ def save_original(data: bytes, filename: str) -> tuple[str, Path]:
                     raise
                 time.sleep(0.5 * (k + 1))
     return sha, p
+
+
+def repoint_originals(con, sha: str, path) -> int:
+    """valve38: every document with these bytes reads the fresh stored copy (a re-upload repairs the older rows too —
+    their datasheets, mark-ups and decisions stay as they are)."""
+    with _LOCK:
+        n = con.execute("UPDATE document SET path=? WHERE sha256=? AND path<>?", (str(path), sha, str(path))).rowcount
+        con.commit()
+    return n
+
+
+def migrate_originals(con) -> dict:
+    """valve38: stored '<hash>.pdf' copies that still hold the uploaded bytes are copied to '<hash>.bin' and the documents
+    re-pointed (the old copy is removed only after the new one is verified).  A copy that no longer holds its bytes is
+    left untouched — it is reported, and a re-upload of the same file writes a good one."""
+    out = {"moved": 0, "broken": [], "kept": 0}
+    rows = con.execute("SELECT DISTINCT sha256, path FROM document WHERE lower(path) LIKE '%.pdf'").fetchall()
+    for sha, path in rows:
+        p = Path(path)
+        if not p.exists() or p.parent != root() / "files":
+            out["kept"] += 1
+            continue
+        if not file_ok(p, sha):
+            out["broken"].append(p.name)
+            continue
+        q = p.with_suffix(".bin")
+        try:
+            if not (q.exists() and file_ok(q, sha)):
+                tmp = q.with_suffix(".bin.part")
+                tmp.write_bytes(p.read_bytes())
+                tmp.replace(q)
+            if not file_ok(q, sha):
+                out["broken"].append(q.name)
+                continue
+            repoint_originals(con, sha, q)
+            try:
+                p.unlink()
+            except OSError:
+                pass                                         # held by another program: harmless, nothing reads it any more
+            out["moved"] += 1
+        except OSError:
+            out["kept"] += 1
+    return out
 
 
 # ── datasheets ─────────────────────────────────────────────────────────────────

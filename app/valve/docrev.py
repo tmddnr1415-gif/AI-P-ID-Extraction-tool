@@ -68,7 +68,7 @@ def rev_table(page) -> dict | None:
 def read(path) -> dict:
     out = {"doc_no": "", "rev": "", "date": "", "desc": "", "header_rev": "", "parts": []}
     try:
-        doc = pymupdf.open(path)
+        doc = pymupdf.open(path, filetype="pdf")         # valve38: stored copies are '.bin'
     except Exception:                                       # noqa: BLE001  (unreadable file: nothing to show, nothing invented)
         return out
     try:
