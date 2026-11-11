@@ -517,3 +517,28 @@ def test_valve_model_is_the_anatomy_engine(tmp_path, monkeypatch):
     assert "cdnjs" not in js and "http://" not in js.replace("http://www.w3.org", "") and "https://" not in js
     v = (Path(__file__).resolve().parents[1] / "app/static/valve/valve.js").read_text(encoding="utf-8")
     assert "Anatomy.build({ type: 'valve'" in v and "valveSvg" not in v and "class Viewer" in v
+
+
+def test_a_failing_review_still_opens_the_datasheet(tmp_path, monkeypatch):
+    """valve37 (회사 PC 'HTTP 500'): a datasheet the rules trip on still opens (PDF · fields) with review_error and a log
+    file; the lists keep working; any other unexpected route error answers JSON {error, log}, not a bare 500."""
+    from tests.test_valve_revision import api              # the module object _client's router runs on (other tests reload app.*)
+    c, pid, up = _client(tmp_path, monkeypatch)
+    up("ds_A.pdf", _pdf("A"))
+    dsid = c.get(f"/api/valve/projects/{pid}/summary").json()["tags"][0]["id"]
+    api._DEEP_CACHE.clear()
+    monkeypatch.setattr(api, "_deep_disk", lambda _id: None)
+
+    def boom(con, d, i):
+        raise KeyError("pms_item")
+    monkeypatch.setattr(api, "_ds_deep", boom)
+    monkeypatch.setattr(api, "VERSION", "test-boom")         # cache key: a background warm-up result cannot be served here
+    r = c.get(f"/api/valve/datasheets/{dsid}")
+    d = r.json()
+    assert r.status_code == 200 and d["pages"] and d["fields"] and d["issues"] == []
+    assert d["review_error"] == "KeyError: 'pms_item'" and Path(d["review_error_log"]).read_text(encoding="utf-8").count("KeyError")
+    assert c.get(f"/api/valve/projects/{pid}/issues").status_code == 200
+    monkeypatch.setattr(api, "_fat", lambda d: 1 / 0)
+    e = c.get(f"/api/valve/datasheets/{dsid}")
+    assert e.status_code == 500 and "ZeroDivisionError" in e.json()["error"] and e.json()["log"].endswith(".log")
+    assert c.get("/api/valve/datasheets/999999").status_code == 404
