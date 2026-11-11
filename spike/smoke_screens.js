@@ -16,7 +16,7 @@ fs.mkdirSync(out, { recursive: true });
 // [이름, 주소, 띠가 있어야 하나]
 const PAGES = [['pid', '/', true], ['logic', '/logic', true], ['logic_draw', '/logic/draw', true], ['logic_test', '/logic/test', true],
   ['logic_commission', '/logic/commission', true], ['logic_signal', '/logic/signal', true], ['space', '/space', true],
-  ['space3d', '/space?view=3d', true], ['dcs', '/dcs', true], ['books', '/books/', true], ['valve', '/valve/', false],
+  ['space3d', '/space?view=3d', true], ['dcs', '/dcs', true], ['books', '/books/', true], ['ic3d', '/ic3d/', false], ['valve', '/valve/', false],
   ['plaza', '/plaza', false]];
 
 function withEmbed(p) {

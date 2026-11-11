@@ -13,6 +13,16 @@
       ],
       "imported": "68c402c6",
       "_설명": "판넬 화면은 병합이 아니라 dashboard/apps/space → app/static/space 로 옮겨 온다. 옮겨 온 마지막 커밋을 imported 에 적는다."
+    },
+    "IC3D": {
+      "branch": "claude/practical-newton-n6bt58",
+      "session": "7. 3D 계측제어 도구 개발",
+      "paths": [
+        "app/index.html",
+        "app/viewer-real.html"
+      ],
+      "imported": "865f9297",
+      "_설명": "3D 화면은 병합이 아니라 app/index.html · app/viewer-real.html → app/static/ic3d 로 옮겨 온다 (판넬 · 도서와 같은 방식 · 2026-11-11). 세션 7 의 app/server.py(재무 · LLM)는 가져오지 않는다. 서버 주소 /ic3d (app/ic3d.py). 옮겨 온 마지막 커밋을 imported 에 적는다."
     }
   },
   "company_owned": {

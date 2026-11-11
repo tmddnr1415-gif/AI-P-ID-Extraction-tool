@@ -10,7 +10,7 @@
 | --- | --- | --- |
 | `2. PID 검토 …` | `docs/handoff/branches.md` 참고 | `docs/handoff/pid.md` |
 | `3. Logic 검토코드 …` | 〃 | `docs/handoff/logic.md` |
-| VALVE Datasheet 검토 — ★ 2026-11-02 사용자: **우선 개인(클라우드 VALVE) 세션에서 계속 개발** · 회사 PC 는 valveNN 적용만 | `ccr-efbe7e75-n915ze` | `docs/handoff/valve.md` |
+| VALVE Datasheet 검토 (6) — 개인(클라우드 VALVE) 세션에서 개발 · 규약 v2 부터 통합 꾸러미에 실림 | `ccr-efbe7e75-n915ze` | `docs/handoff/valve.md` |
 | 그 밖 (DASHBOARD · PANEL · 시연 영상 …) | 〃 | `docs/handoff/branches.md` · `dashboard/` 규칙은 `docs/handoff/dashboard_rules.md` |
 
 - 브랜치 지도(어느 세션이 어느 브랜치인지 · 옛 브랜치)는 **`docs/handoff/branches.md` 하나**에 있습니다.
@@ -35,18 +35,17 @@
 4. 회차가 길어지면(꾸러미 2~3개를 냈거나 대화가 아주 길면) **인수인계 파일을 갱신하고 새 세션으로 넘기라고 사용자에게 말합니다.**
 5. 사용자 보고는 계장 엔지니어(개발 비전공)가 읽습니다 — "무엇이 달라졌나 · 어디서 보나 · 무엇을 더 해야 하나" 만, 쉬운 말로.
 
-## 3. 업데이트 꾸러미(zip) 규칙
+## 3. 업데이트 꾸러미(zip) 규칙 — ★ 규약 v2 (2026-11-07 사용자 결정)
 
-- ★ **개발 담당 (2026-11-01 사용자 결정)**: 대시보드 · P&ID · LOGIC · PANEL = 개인 Claude Code 가 개발하고 zip 을 보낸다.
-  **Valve 분석 툴(`app/valve` · `app/static/valve`) = VALVE 세션 전용** — 2026-11-02 부터 다시 개인(클라우드 VALVE) 세션이 개발하고 `PID_dev+ops_valveNN` 을 낸다(회사 PC 는 적용만).
-  P&ID hotfix 꾸러미는 Valve 경로를 싣지 않는다 (`config/release_sources.json` `company_owned` · `spike/pack_delta.py` 가 뺀다 · 시험 `tests/test_company_owned.py`).
-
-- **P&ID · LOGIC · 판넬 공간확보 · 도서검토** 의 `PID_dev+ops_hotfixNNN` zip 은 **PID 브랜치**에서만 만듭니다.
-  대시보드 본체·광장 zip 은 대시보드 쪽에서 만듭니다.
-- 만들기 전에 **다른 세션의 최신 브랜치를 병합**합니다.  `spike/pack_delta.py` 가 `config/release_sources.json`
-  에 적힌 브랜치를 확인하고 **덜 합쳐졌으면 멈춥니다** (hotfix127 이 새 LOGIC 변경을 빠뜨린 일 때문).
-  세션을 새로 열어 브랜치가 바뀌면 **`config/release_sources.json` 과 `docs/handoff/branches.md` 를 같이** 고칩니다.
-- 만드는 법·적용 순서는 `docs/handoff/pid.md` §꾸러미.
+- **회사 업데이트 zip 은 오케스트레이터 세션만 만든다** (브랜치 `claude/trusting-cray-v68axq` · 규약 원문
+  `git show origin/claude/trusting-cray-v68axq:CONVENTIONS.md`).  ① 대시보드 · ② 통합 `PID_dev+ops_hotfixNNN`
+  (P&ID · LOGIC · PANEL · 도서 · Valve · 3D 전부 — valveNN 따로 꾸러미는 폐지).
+- **각 세션(이 P&ID 세션 포함)은 개발 · 시험 · 자기 브랜치 커밋 · 푸시 · 인수인계 갱신만** 합니다.
+  zip 만들기 · hotfix 번호 매기기 · 다른 세션 브랜치 병합은 하지 않습니다 (번호는 오케스트레이터가 매김).
+- 회사에 보일 변경점은 인수인계 문서에 한 줄씩 남깁니다 (통합본의 `1_먼저읽기` 를 거기서 모은다).
+- 다른 세션 화면을 이 서버에 옮겨 오는 일(판넬 · 도서 · 3D `/ic3d`)은 사용자가 시킬 때만 하고, 옮긴 커밋을
+  `config/release_sources.json` 의 `imported` 에 적습니다.  `spike/release_check.py` · `pack_delta.py` 는 오케스트레이터가 씁니다.
+- 회사 PC 제약: Windows · Edge · Python 3.11 · CDN/외부 서비스 금지 · 사내 자료 외부 전송 금지 · API 키를 넣지 않는다.
 
 ## 4. 진행 원칙 (요약 — 근거는 `docs/state_and_roadmap.md` §3·§9)
 
