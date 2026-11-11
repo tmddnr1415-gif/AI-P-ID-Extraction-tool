@@ -1872,3 +1872,11 @@ C:\Users\SAMSUNG\Desktop\Claude\                         ← 개발 폴더 (여�
 - 어떻게: P&ID 서버는 다른 포트에서 브라우저가 /api/valve 를 직접 부르는 것을 막아 두었으므로(CORS 없음), 대시보드 서버에 **읽기 전용 중계** `GET /api/vds/…` 를 둠 — 허용 경로 3개(`projects` · `projects/{id}/valve-summary` · `projects/{id}/grid`)만, 같은 PC `127.0.0.1:8000`(PID_PORT)으로, 실행 프로젝트(runpjt) 권한 필요, 결과는 저장하지 않음. 세션 6 쪽 코드는 고치지 않음.
 - 바뀐 곳: dashboard.html 새 `VDS_KIND` · `VDS_COLS` · `vdsKinds` · `vdsLoad` · `vdsPaint` · `vdsBlock`, 품목 상세 `detail`, `schBind`(`data-vdsf` · `data-vdsre` · `data-vdsgo` · `data-vdsmore` · `oninput` · `onchange`), CSS `.vds*` / server.py 새 `PID_PORT` · `VDS_PATHS` · `api_vds_get`, `api()` 의 `vds` 분기
 - 확인한 것: 가짜 P&ID 서버(46 Tag · 4타입 · 4 Area)로 수량표 · 필터 · 검색(입력 중 커서 유지) · 모든 속성 열, Globe 프로젝트 없음 안내, 서버 꺼짐 안내, 콘솔 오류 없음 / 회사에서 확인할 것: 실제 P&ID 서버(valve36/37)에서 프로젝트 이름이 'CO2 PJT' 인지, Tag 수 · Area 가 검토 화면 Valve Summary 와 같은지.
+
+### 2026-11-11 (APP_VERSION 2026-11-11.1 / SERVER_VERSION 2026-11-11.1) — v17.37 P&ID 서버가 옛 판일 때 날 JSON 대신 안내
+- 무엇을: 3D 계측제어 등 P&ID 서버 화면을 iframe 에 열기 전에 그 주소가 P&ID 서버에 있는지 확인. 없으면 `{"detail":"없는 주소입니다"}` 대신 "⚠ P&ID 서버가 옛 판입니다 (지금 업데이트 134) — 이 화면은 ② 통합 업데이트 hotfix135 이상에서 열립니다" + 다시 시도 · 그래도 열기.
+  - 판단 1: P&ID `/version` 의 `update.rev`(없으면 name 의 숫자) < 메뉴의 `minRev` (ic3d 135 · Globe/Butterfly/PSV 134).
+  - 판단 2: 대시보드 서버 `GET /api/pidprobe?p=<경로>` 가 같은 PC P&ID 서버에 그 경로를 물어 상태 번호만 돌려줌 → 404 면 옛 판 (minRev 없는 books · space · logic 등도). 내용은 읽지 않음. file:// 이거나 다른 PC 면 판단 1만.
+- 왜: 오케스트레이터 경유 사용자 지시(2026-11-11, 회사 PC 사진) — 회사 P&ID 서버 hotfix134 에서 '6 3D 계측제어' 가 날 JSON 만 보임.
+- 바뀐 곳: dashboard.html `PID_ROUTES`(minRev) · `pidConnect` · 클릭 처리(`data-pidforce`) / server.py 새 `api_pid_probe` · `api()` 의 `pidprobe`
+- 확인한 것: 가짜 P&ID 서버 rev134 → ic3d · books 안내(그래도 열기 = iframe), valve · globev · psv 정상 iframe / rev135 → 다섯 메뉴 모두 iframe, 콘솔 오류 없음 / 회사에서 확인할 것: hotfix134 에서 3D 계측제어 안내, hotfix135 적용 후 정상.

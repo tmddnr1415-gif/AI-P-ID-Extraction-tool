@@ -36,7 +36,7 @@ ID_RE = re.compile(r'^[A-Za-z0-9_\-]{1,80}$')
 WEEK_RE = re.compile(r'^\d{4}-W\d{2}$')
 MAX_BODY = 30 * 1024 * 1024
 
-SERVER_VERSION = '2026-11-10.5'
+SERVER_VERSION = '2026-11-11.1'
 ROOT = os.path.dirname(os.path.abspath(__file__))
 PORT = 8080
 ALLOW_NETS = []          # 사내망: 루프백·사설망 + 서버 IP 대역(/16, 유선·Wi-Fi 등 지금까지 쓴 대역 모두 기억) + --allow 로 추가한 대역
@@ -2124,6 +2124,19 @@ def api_vds_get(sub):
         raise ApiError(503, 'P&ID 서버(Datasheet 검토)가 꺼져 있습니다 — 부서장 PC 의 run_lan_service.bat 을 확인하세요')
 
 
+def api_pid_probe(path):
+    """2026-11-11 P&ID 서버에 그 화면 주소가 있는지 상태 번호만 (옛 판이면 404) — 대시보드가 iframe 에 날 JSON 대신 안내를 보이려고. 내용은 읽지 않음"""
+    if not re.fullmatch(r'/[A-Za-z0-9_\-/]{0,80}', path or ''):
+        raise ApiError(400, '잘못된 경로')
+    try:
+        with urllib.request.build_opener(urllib.request.ProxyHandler({})).open(f'http://127.0.0.1:{PID_PORT}{path}', timeout=5) as r:
+            return {'status': r.status}
+    except urllib.error.HTTPError as e:
+        return {'status': e.code}
+    except Exception:
+        return {'status': 0}                                   # 이 PC 에 P&ID 서버가 없거나 꺼짐 — 판단 못 함
+
+
 def api_sched_get(key):
     return read_json(P('data', '_meta', f'sched-{key}.json')) or {}
 
@@ -2699,6 +2712,8 @@ class Handler(BaseHTTPRequestHandler):
                     return api_cal_save(seg[1], self.json_body(), self.need_user()['name'], self.is_admin())
                 if m == 'DELETE':
                     return api_cal_del(seg[1], self.need_user()['name'], self.is_admin())
+        if head == 'pidprobe' and m == 'GET' and len(seg) == 1:   # 2026-11-11 P&ID 서버 화면 주소 확인 (상태 번호만)
+            return api_pid_probe(str(q.get('p') or ''))
         if head == 'vds' and m == 'GET':                         # 2026-11-10 Datasheet 검토 값 읽기 (실행 프로젝트 권한)
             acc = session_account(self.token(), False)
             if not perms_for(acc, self.is_super() or self.is_admin()).get('runpjt'):
