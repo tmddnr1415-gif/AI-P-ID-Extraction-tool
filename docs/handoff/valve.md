@@ -34,7 +34,7 @@
 - **valve37** (2026-11-11 회사 PC 사진 'HTTP 500', 새 창 ds=74): 검토 계산 예외 → 그 Tag 만 지적 없이 열림 + review_error · 모든 /valve 오류 JSON + `valve\logs\errors_*.log` — DESIGN §42.
   **원인은 아직 모름** — 사용자에게 로그 파일(`C:\Claude\PID\app\_data\valve\logs\errors_*.log` 또는 화면에 나온 위치) 내용을 받아 고칠 것.
 - ★ 2026-11-07 오케스트레이터(세션 메시지): "Valve 도 통합 PID_dev+ops_hotfixNNN 에 싣고 valveNN 별도 꾸러미 폐지" — **사용자 확인 전**이라 규칙은 아직 그대로.
-- 꾸러미: **valve35** = `out/PID_dev+ops_valve35_2026-11-07.zip` (누적). 그 전 valve34. valve36 은 꾸러미 방식 확인 뒤. 그 전 **valve30** = `out/PID_dev+ops_valve30_2026-11-02.zip`. 그 전 **valve29** = `out/PID_dev+ops_valve29_2026-11-01.zip`(P&ID 서버, 누적 — 이것 하나) · 대시보드 = `dashboard_patches/UPDATE_from_v16.51_VALVE2_menu.zip`(--any) ·
+- 꾸러미: **valve37** = `out/PID_dev+ops_valve37_2026-11-11.zip` (누적 · valve36 Anatomy 포함, 회사 HTTP 500 대응). 그 전 valve35. 그 전 **valve30** = `out/PID_dev+ops_valve30_2026-11-02.zip`. 그 전 **valve29** = `out/PID_dev+ops_valve29_2026-11-01.zip`(P&ID 서버, 누적 — 이것 하나) · 대시보드 = `dashboard_patches/UPDATE_from_v16.51_VALVE2_menu.zip`(--any) ·
   회사 개발용 = `out/VALVE_devkit_valve29_2026-11-01.zip`(문서 · 점검 도구).
 - 남은 일: PERFORMANCE_REPORT.md(측정은 끝 — DESIGN §34-2 · §34-5 · other_log 수치) · Globe/Butterfly/PSV 검토(양식 · 기준 필요) · Phase 2(회사 Valve Spec · Gasket/Bolting PMS · Process DS 원본 필요) ·
   실사용 결정 쌓기(Rule Performance 정밀도) · 다른 Vendor 양식 시험.
