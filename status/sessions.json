@@ -1,6 +1,6 @@
 {
  "_설명": "오케스트레이터가 list_sessions / get_session 으로 읽은 각 세션 상태. build_status.py 가 git 정보와 합쳐 SESSION_STATUS.html 을 만든다. 갱신할 때 이 파일을 새로 쓴다.",
- "read_at": "2026-11-11T00:20:00Z",
+ "read_at": "2026-11-11T02:05:00Z",
  "sessions": {
   "S1": {
    "id": "session_016Ntz71xxniTkCj7pC8ZpXL",
@@ -13,10 +13,10 @@
   "S2": {
    "id": "session_01Muj82H8eDSPwWi9XQC7rFh",
    "title": "2. PID 검토 4 (NEW)",
-   "bucket": "BLOCKED",
-   "updated": "2026-11-07T07:14:56Z",
-   "recent": "",
-   "needs": "새 꾸러미 규칙(오케스트레이터가 통합 · Valve 포함)이 사용자 뜻인지 확인 · /ic3d 를 만들지 · LOGIC→작도 정확도 점검을 이어 갈지"
+   "bucket": "COMPLETED",
+   "updated": "2026-11-11T01:54:00Z",
+   "recent": "29b6072e — P&ID 서버 /ic3d 연결(세션 7 3D 화면 옮겨 옴) · 규약 v2 를 CLAUDE.md · 인수인계에 반영",
+   "needs": ""
   },
   "S3": {
    "id": "session_01Muj82Ewiqsoeo54Ei1FzrE",
@@ -55,8 +55,8 @@
    "title": "7. 3D 계측제어 도구 개발",
    "bucket": "COMPLETED",
    "updated": "2026-11-11T00:14:50Z",
-   "recent": "865f9297 — 좁은 폭(≤1100px)에서도 오른쪽 칸을 [질의·답변 | 조직도·Anatomy(3D)…] 전환으로 표시 · 휠 축소 한계 0.5배. 대시보드 안 1366 · 1600 에서 실물 3D 확인",
-   "needs": "P&ID 서버 /ic3d 주소(S2 작업 중) — 그 뒤 hotfix135 에 실림"
+   "recent": "865f9297 — 좁은 폭에서도 3D 칸 · 휠 축소 한계. hotfix135 로 회사 업데이트에 처음 실림",
+   "needs": ""
   }
  }
 }

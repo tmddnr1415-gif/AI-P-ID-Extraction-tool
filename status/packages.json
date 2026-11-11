@@ -195,6 +195,24 @@
     "S1": "183c6bf9"
    },
    "replaces": "1_DASHBOARD_update_v17.33_from_v17.21_2026-11-10.zip"
+  },
+  {
+   "file": "②",
+   "name": "2_PID_dev+ops_hotfix135_2026-11-11.zip",
+   "made": "2026-11-11 11:00",
+   "path": "company-pc-update/2026-11-11/ (8.6MB · 저장소에 있음)",
+   "sha256": "fd7f15c80bcdb550a5743060925a2babbd0c7325666344bbc2a442b6906b739c",
+   "applied": "",
+   "integration_head": "19db75c7",
+   "tips": {
+    "S2": "29b6072e",
+    "S3": "4e9cfd24",
+    "S4": "7b10d7cb",
+    "S5": "3d46af2c",
+    "S6": "b0db9a0d",
+    "S7": "865f9297"
+   },
+   "note": "3D 계측제어 /ic3d 처음 포함 (S7 865f9297 → app/static/ic3d)"
   }
  ]
 }
