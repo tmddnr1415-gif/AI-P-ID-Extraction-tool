@@ -1,6 +1,6 @@
 {
  "_설명": "오케스트레이터가 list_sessions / get_session 으로 읽은 각 세션 상태. build_status.py 가 git 정보와 합쳐 SESSION_STATUS.html 을 만든다. 갱신할 때 이 파일을 새로 쓴다.",
- "read_at": "2026-11-10T22:58:00Z",
+ "read_at": "2026-11-11T00:20:00Z",
  "sessions": {
   "S1": {
    "id": "session_016Ntz71xxniTkCj7pC8ZpXL",
@@ -54,9 +54,9 @@
    "id": "session_01Muj82FVwL2Yt5DTXGPNkcp",
    "title": "7. 3D 계측제어 도구 개발",
    "bucket": "COMPLETED",
-   "updated": "2026-11-10T21:49:34Z",
-   "recent": "cb4f4972 — 실물 3D 단일 파일 내장 · 분해 시 전체 프레이밍 · 작은 화면 대응. 대시보드 안(폭 1100px 미만)에서는 3D 칸이 숨음",
-   "needs": "P&ID 서버 /ic3d 주소(S2) · 좁은 폭에서 3D 칸 보이기"
+   "updated": "2026-11-11T00:14:50Z",
+   "recent": "865f9297 — 좁은 폭(≤1100px)에서도 오른쪽 칸을 [질의·답변 | 조직도·Anatomy(3D)…] 전환으로 표시 · 휠 축소 한계 0.5배. 대시보드 안 1366 · 1600 에서 실물 3D 확인",
+   "needs": "P&ID 서버 /ic3d 주소(S2 작업 중) — 그 뒤 hotfix135 에 실림"
   }
  }
 }
