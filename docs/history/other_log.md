@@ -279,3 +279,8 @@
 ## 2026-11-11 · valve37 — 회사 PC 'HTTP 500' (PDF 새 창 ds=74)
 - 여기 같은 자료로는 열림 → 회사 자료에서 그 Tag 검토 계산 예외로 추정. 검토 실패 Tag 도 PDF · 칸은 열리게(review_error), /valve 모든 예외 JSON + 로그 파일.
 - 원인 확인은 회사 PC 로그(`valve\logs\errors_*.log`) 대기. VERSION valve37.
+
+## 2026-11-11 · valve38 — 회사 PC PDF 안 뜸: 저장된 원본 PDF 를 열 수 없음 (오케스트레이터가 회사 server.log 전달)
+- 원인 = `files\26c26a50aa4f1ab2.pdf`(여기 Datasheet.pdf 와 같은 해시) 를 pymupdf 가 못 엶 — 저장 뒤 내용이 바뀜(DRM 추정). valve37 의 '검토 규칙' 추정은 틀렸음.
+- 저장본 .bin + filetype=pdf · 시작 때 옮김 · 다시 올리면 옛 문서 복구 · 409 stored_pdf 진단 · 뷰어 · 목록 표시 · Mark-up 은 그 Tag 만 뺌.
+- 시험 +2 (1,993) · 스냅샷 0 · UI 25/25. zip 없음(오케스트레이터 hotfix 로 묶음).

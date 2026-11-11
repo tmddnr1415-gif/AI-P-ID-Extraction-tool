@@ -752,19 +752,40 @@ class PdfError(ValueError):
     """A PDF this reader cannot use — the message says why, in words the user can act on."""
 
 
-def open_pdf(path: str):
+class StoredPdfError(PdfError):
+    """valve38: the server's stored copy of an uploaded PDF cannot be opened (diag = store.diagnose)."""
+    def __init__(self, msg: str, diag: dict | None = None):
+        super().__init__(msg)
+        self.diag = diag or {}
+
+
+STORED_MSG = ("서버에 저장된 원본 PDF 를 열 수 없습니다 — Document Management 에서 같은 파일을 다시 올리면 저장본을 새로 씁니다"
+              " (Tag · 지적 · 검토 기록은 그대로)")
+
+
+def open_stored(path: str, sha: str | None = None):
+    """Open the stored copy of an uploaded PDF (.pdf or .bin).  Failing that: StoredPdfError with the diagnosis."""
+    try:
+        return open_pdf(path, tries=2)
+    except PdfError as e:
+        from app.valve import store
+        raise StoredPdfError(f"{STORED_MSG} · {e}", store.diagnose(path, sha)) from e
+
+
+def open_pdf(path: str, tries: int = 4):
     """Open a stored PDF.  A file another program holds for a moment (antivirus scan right after the upload, a viewer)
     is tried again before giving up; the error names what actually failed (valve34 — 'FileDataError' alone said nothing)."""
     import os
     import time
     last = None
-    for k in range(4):
+    for k in range(tries):
         try:
-            doc = pymupdf.open(path)
+            doc = pymupdf.open(path, filetype="pdf")           # valve38: stored copies are '.bin
             break
         except Exception as e:                               # noqa: BLE001
             last = e
-            time.sleep(0.6 * (k + 1))
+            if k < tries - 1:
+                time.sleep(0.6 * (k + 1))
     else:
         size = os.path.getsize(path) if os.path.exists(path) else None
         why = "파일이 없습니다" if size is None else "빈 파일입니다" if size == 0 else \

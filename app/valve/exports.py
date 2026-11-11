@@ -24,6 +24,8 @@ import pymupdf
 from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
 from openpyxl.utils import get_column_letter
 
+from app.valve import extract
+
 RGB = {"error": (0.86, 0.15, 0.15), "missing": (1.0, 0.55, 0.0), "process": (0.95, 0.45, 0.05), "revision": (0.95, 0.76, 0.0),
        "comment": (0.18, 0.40, 0.90), "extract": (0.48, 0.30, 0.86), "material": (0.05, 0.55, 0.55)}
 HEXFILL = {"error": "FBE3E1", "missing": "FFE8CC", "process": "FFE0C2", "revision": "FFF4C2", "comment": "E3ECFD", "extract": "EFE6FB", "material": "D9F2F2"}
@@ -704,7 +706,7 @@ def markup_pdf(entries: list[dict], project: str, title: str = "Valve Datasheet 
     (off = editable annotations for Acrobat / Bluebeam)."""
     """entries: [{path, pages, tag, doc_no, rev, filename, issues}] in output order."""
     out = pymupdf.open()
-    toc, srcs = [], {}
+    toc, srcs, skipped = [], {}, []
     if len(entries) > 1:                                   # cover: counts per tag
         rows = "".join(
             f"<tr><td>{html.escape(e['tag'])}</td><td>{html.escape(e['doc_no'])}</td><td>{html.escape(e['rev'])}</td>"
@@ -723,7 +725,13 @@ def markup_pdf(entries: list[dict], project: str, title: str = "Valve Datasheet 
         out.insert_pdf(cover)
         toc.append([1, "Cover - issue counts", 1])
     for e in entries:
-        src = srcs.get(e["path"]) or srcs.setdefault(e["path"], pymupdf.open(e["path"]))
+        if e["path"] not in srcs:
+            try:
+                srcs[e["path"]] = extract.open_stored(e["path"])
+            except extract.PdfError:                         # valve38: a broken stored copy skips that tag, not the whole file
+                skipped.append(e["tag"])
+                continue
+        src = srcs[e["path"]]
         # valve29: each datasheet is built in its own small document and appended once.  Working on the growing output
         # re-loaded a page per annotation from an ever larger page tree (500 tags: 182 s, quadratic) — same pages, same marks.
         sub = pymupdf.open()
@@ -771,6 +779,12 @@ def markup_pdf(entries: list[dict], project: str, title: str = "Valve Datasheet 
             out.insert_pdf(s)
     for d in srcs.values():
         d.close()
+    if skipped:                                              # valve38: say which tags are missing and why — not silently
+        note = _story_pages(f"<h2>Not included</h2><p>The server's stored copy of the original PDF could not be opened for: "
+                            f"{html.escape(', '.join(skipped))}.</p><p>Upload the same datasheet file again in Document Management "
+                            "(the stored copy is rewritten; tags, findings and decisions stay).</p>")
+        out.insert_pdf(note, start_at=0)
+        toc = [[lv, t, pg + note.page_count] for lv, t, pg in toc]
     if out.page_count == 0:
         out.new_page()
         out[0].insert_text((72, 72), "No issues selected.", fontsize=12)

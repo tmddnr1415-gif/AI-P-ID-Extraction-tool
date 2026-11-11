@@ -444,7 +444,7 @@ def test_broken_stored_original_is_named_and_repaired_by_reupload(tmp_path, monk
         if j["status"] == "done":
             break
         _t.sleep(0.05)
-    assert j["errors"] and "저장된 원본 파일이 올린 파일과 다릅니다" in j["errors"][0]["error"]
+    assert j["errors"] and "저장된 원본 PDF 를 열 수 없습니다" in j["errors"][0]["error"]   # valve38 wording
     up("ds_A_again.pdf", data)                                              # same bytes → the stored copy is rewritten
     assert path.read_bytes() == data
     docs = c.get(f"/api/valve/projects/{pid}/summary").json()["documents"]
@@ -542,3 +542,62 @@ def test_a_failing_review_still_opens_the_datasheet(tmp_path, monkeypatch):
     e = c.get(f"/api/valve/datasheets/{dsid}")
     assert e.status_code == 500 and "ZeroDivisionError" in e.json()["error"] and e.json()["log"].endswith(".log")
     assert c.get("/api/valve/datasheets/999999").status_code == 404
+
+
+def test_stored_original_not_a_pdf_any_more(tmp_path, monkeypatch):
+    """valve38 (회사 PC: stored '<hash>.pdf' → pymupdf FileDataError, a security program suspected): the stored copy is
+    '.bin'; when it is no longer the upload every reader answers 409 with the reason and a head-bytes diagnosis (never a
+    bare 500), Document Management marks it, exports skip only that tag, and uploading the same file again repairs it."""
+    from tests.test_valve_revision import api
+    from app.valve import store
+    c, pid, up = _client(tmp_path, monkeypatch)
+    data = _pdf("A")
+    up("ds_A.pdf", data)
+    doc = c.get(f"/api/valve/projects/{pid}/summary").json()["documents"][0]
+    row = store.one(store.connect(), "SELECT id, path, sha256 FROM document WHERE id=?", doc["id"])
+    assert row["path"].endswith(".bin") and doc["stored_ok"] is True
+    assert c.get(f"/api/valve/documents/{row['id']}/pageinfo").json()["pages"] == 1
+    assert c.get(f"/api/valve/documents/{row['id']}/file").headers["content-type"] == "application/pdf"
+
+    Path(row["path"]).write_bytes(b"\x00DRM-ENCRYPTED" + bytes(200))          # what the company PC's copy looks like
+    api._BODY.clear()
+    for u in ("pageinfo", "page/1.png?zoom=1.7", "search?q=Tag", "file"):
+        r = c.get(f"/api/valve/documents/{row['id']}/{u}")
+        j = r.json()
+        assert r.status_code == 409 and j["code"] == "stored_pdf" and "다시 올리면" in j["error"], u
+        assert j["diag"]["pdf_header"] is False and j["diag"]["sha_match"] is False and j["diag"]["head_hex"].startswith("00 44 52 4d")
+        assert Path(j["log"]).exists()
+    assert c.get(f"/api/valve/projects/{pid}/summary").json()["documents"][0]["stored_ok"] is False
+    dsid = c.get(f"/api/valve/projects/{pid}/summary").json()["tags"][0]["id"]
+    assert c.get(f"/api/valve/datasheets/{dsid}").status_code == 200        # tag · fields · findings still open
+    m = c.get(f"/api/valve/projects/{pid}/markup.pdf")
+    assert m.status_code == 200 and b"%PDF" in m.content[:8]
+
+    up("ds_A_again.pdf", data)                                               # the same bytes once more
+    api._BODY.clear()
+    assert c.get(f"/api/valve/documents/{row['id']}/pageinfo").status_code == 200   # the OLD document reads the fresh copy
+    assert all(d["stored_ok"] for d in c.get(f"/api/valve/projects/{pid}/summary").json()["documents"])
+
+
+def test_stored_pdf_copies_move_to_bin(tmp_path, monkeypatch):
+    """valve38: once per start, good legacy '<hash>.pdf' copies are copied to '.bin', verified, re-pointed; a broken one
+    is left as it is and reported."""
+    from app.valve import store
+    c, pid, up = _client(tmp_path, monkeypatch)
+    up("ds_A.pdf", _pdf("A"))
+    up("ds_B.pdf", _pdf("B"))
+    con = store.connect()
+    rows = store.rows(con, "SELECT id, path, sha256 FROM document ORDER BY id")
+    legacy = []
+    for r in rows:                                                            # make them look like a pre-valve38 install
+        p = Path(r["path"]).with_suffix(".pdf")
+        Path(r["path"]).replace(p)
+        con.execute("UPDATE document SET path=? WHERE id=?", (str(p), r["id"]))
+        legacy.append(p)
+    con.commit()
+    legacy[1].write_bytes(b"not a pdf")
+    res = store.migrate_originals(con)
+    assert res["moved"] == 1 and res["broken"] == [legacy[1].name]
+    after = store.rows(con, "SELECT path FROM document ORDER BY id")
+    assert after[0]["path"].endswith(".bin") and Path(after[0]["path"]).exists() and not legacy[0].exists()
+    assert after[1]["path"] == str(legacy[1]) and legacy[1].exists()

@@ -108,7 +108,7 @@ def area_of_title(title: str) -> str:
 
 def read_pms(path: str, progress=None) -> dict:
     areas: dict[str, dict] = {}
-    with pymupdf.open(path) as doc:
+    with pymupdf.open(path, filetype="pdf") as doc:   # valve38: stored copies are '.bin'
         for i, page in enumerate(doc):
             if progress:
                 progress(i + 1, doc.page_count)
