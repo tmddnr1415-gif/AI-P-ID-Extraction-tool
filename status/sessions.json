@@ -1,6 +1,6 @@
 {
  "_설명": "오케스트레이터가 list_sessions / get_session 으로 읽은 각 세션 상태. build_status.py 가 git 정보와 합쳐 SESSION_STATUS.html 을 만든다. 갱신할 때 이 파일을 새로 쓴다.",
- "read_at": "2026-11-11T02:05:00Z",
+ "read_at": "2026-11-11T03:10:00Z",
  "sessions": {
   "S1": {
    "id": "session_016Ntz71xxniTkCj7pC8ZpXL",
@@ -14,8 +14,8 @@
    "id": "session_01Muj82H8eDSPwWi9XQC7rFh",
    "title": "2. PID 검토 4 (NEW)",
    "bucket": "COMPLETED",
-   "updated": "2026-11-11T01:54:00Z",
-   "recent": "29b6072e — P&ID 서버 /ic3d 연결(세션 7 3D 화면 옮겨 옴) · 규약 v2 를 CLAUDE.md · 인수인계에 반영",
+   "updated": "2026-11-11T01:59:32Z",
+   "recent": "6caae532 — LOGIC 분석→그리기 변환 왕복 정확도 검사 기록(30장 · 코드 변경 없음) · 29b6072e /ic3d 연결",
    "needs": ""
   },
   "S3": {
@@ -45,10 +45,10 @@
   "S6": {
    "id": "session_01Muj82EMRakKAAS1HYXcE7d",
    "title": "6. Datasheet 자동 검토",
-   "bucket": "BLOCKED",
-   "updated": "2026-11-07T09:20:54Z",
-   "recent": "valve36 — Datasheet Review 의 밸브 모형을 세션 7 Anatomy 방식(오프라인 엔진)으로 교체해 커밋 · 푸시. 회사 PC 용 zip 은 만들지 않음",
-   "needs": "회사 PC 용 꾸러미 방식 결정 — 따로 \"valve36 꾸러미 만들어\" 또는 오케스트레이터 통합 진행"
+   "bucket": "COMPLETED",
+   "updated": "2026-11-11T03:00:01Z",
+   "recent": "987ae10c — 회사 ds=74 HTTP 500: 검토 규칙이 멈춰도 Datasheet(PDF · 칸)는 열리고 이유 표시 · /valve 오류 JSON + errors_날짜.log. (따로 만든 valve37 zip 은 규약 v2 로 hotfix136 에 흡수)",
+   "needs": "회사 PC 에서 ds=74 다시 열어 결과 · 오류 log 보내기"
   },
   "S7": {
    "id": "session_01Muj82FVwL2Yt5DTXGPNkcp",

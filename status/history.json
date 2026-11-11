@@ -1751,6 +1751,92 @@
      ]
     }
    }
+  },
+  {
+   "at": "2026-11-11 03:07",
+   "read_at": "2026-11-11T03:10:00Z",
+   "s": {
+    "S1": {
+     "branch": "origin/ccr-248a5c4d-3dji7g",
+     "tip": "183c6bf9",
+     "ver": "v17.36 · 회사엔 v17.21",
+     "bucket": "COMPLETED",
+     "needs": "",
+     "recent": "v17.34~v17.36 — 사유/특이사항 여러 줄 · 서식 · 캐치업 추적 · PSR 개정 추이 · 보고 엑셀 · Schedule 품목에 Datasheet 검토 값",
+     "pending": []
+    },
+    "S2": {
+     "branch": "origin/claude/gracious-ride-26nqrf",
+     "tip": "6caae532",
+     "ver": "hotfix136 만듦 (통합)",
+     "bucket": "COMPLETED",
+     "needs": "",
+     "recent": "6caae532 — LOGIC 분석→그리기 변환 왕복 정확도 검사 기록(30장 · 코드 변경 없음) · 29b6072e /ic3d 연결",
+     "pending": []
+    },
+    "S3": {
+     "branch": "origin/ccr-cc45909d-fjjmrb",
+     "tip": "4e9cfd24",
+     "ver": "L91",
+     "bucket": "COMPLETED",
+     "needs": "",
+     "recent": "L91 커밋 · 푸시 — 화면 시험 125 · 빠른 시험 1,655 통과. 통합 꾸러미에 병합 필요",
+     "pending": []
+    },
+    "S4": {
+     "branch": "origin/ccr-d82d97fa-bb3ty3",
+     "tip": "7b10d7cb",
+     "ver": "변경 이력 (55)",
+     "bucket": "BLOCKED",
+     "needs": "1) dist/company_pc/S4 생성 진행 여부  2) zip 만들기를 멈추고 통합을 오케스트레이터에 맡길지",
+     "recent": "",
+     "pending": []
+    },
+    "S5": {
+     "branch": "origin/claude/new-session-v23o67",
+     "tip": "3d46af2c",
+     "ver": "2026-11-07.1",
+     "bucket": "COMPLETED",
+     "needs": "",
+     "recent": "valve37 (3d46af2c · dist/valve_kinds) — Globe · Butterfly · PSV 데이터시트 검토. S6 valve36 위 패치 + 대시보드 메뉴 패치. 다음 ② 통합본에 실어 달라는 요청",
+     "pending": []
+    },
+    "S6": {
+     "branch": "origin/ccr-efbe7e75-n915ze",
+     "tip": "ddde4ea0",
+     "ver": "valve37",
+     "bucket": "COMPLETED",
+     "needs": "회사 PC 에서 ds=74 다시 열어 결과 · 오류 log 보내기",
+     "recent": "987ae10c — 회사 ds=74 HTTP 500: 검토 규칙이 멈춰도 Datasheet(PDF · 칸)는 열리고 이유 표시 · /valve 오류 JSON + errors_날짜.log. (따로 만든 valve37 zip 은 규약 v2 로 hotfix136 에 흡수)",
+     "pending": []
+    },
+    "S7": {
+     "branch": "origin/claude/practical-newton-n6bt58",
+     "tip": "865f9297",
+     "ver": "865f9297",
+     "bucket": "COMPLETED",
+     "needs": "",
+     "recent": "865f9297 — 좁은 폭에서도 3D 칸 · 휠 축소 한계. hotfix135 로 회사 업데이트에 처음 실림",
+     "pending": [
+      "865f9297",
+      "cb4f4972",
+      "af748c78",
+      "da8df461",
+      "c0dd7d0b",
+      "077cba5e",
+      "144e6604",
+      "8b0b1023",
+      "19d7aa3a",
+      "1fd96028",
+      "b99fb62a",
+      "ad3bbe35",
+      "05909503",
+      "963d2857",
+      "f408556e",
+      "64a829be"
+     ]
+    }
+   }
   }
  ],
  "changes": [
@@ -3115,6 +3201,84 @@
    "kind": "report",
    "sig": "세션 기록",
    "text": "세션 보고 — 865f9297 — 좁은 폭에서도 3D 칸 · 휠 축소 한계. hotfix135 로 회사 업데이트에 처음 실림"
+  },
+  {
+   "at": "2026-11-11 03:07",
+   "prev": "2026-11-11 02:02",
+   "sid": "S2",
+   "kind": "commit",
+   "sig": "git",
+   "h": "6caae532",
+   "d": "2026-11-11",
+   "text": "기록: LOGIC 분석→그리기 변환 왕복 정확도 검사 (30장 · 코드 변경 없음)"
+  },
+  {
+   "at": "2026-11-11 03:07",
+   "prev": "2026-11-11 02:02",
+   "sid": "S2",
+   "kind": "version",
+   "sig": "git",
+   "text": "버전 hotfix135 만듦 (통합) → hotfix136 만듦 (통합)"
+  },
+  {
+   "at": "2026-11-11 03:07",
+   "prev": "2026-11-11 02:02",
+   "sid": "S2",
+   "kind": "report",
+   "sig": "세션 기록",
+   "text": "세션 보고 — 6caae532 — LOGIC 분석→그리기 변환 왕복 정확도 검사 기록(30장 · 코드 변경 없음) · 29b6072e /ic3d 연결"
+  },
+  {
+   "at": "2026-11-11 03:07",
+   "prev": "2026-11-11 02:02",
+   "sid": "S6",
+   "kind": "commit",
+   "sig": "git",
+   "h": "ddde4ea0",
+   "d": "2026-11-11",
+   "text": "valve37 package: out/PID_dev+ops_valve37_2026-11-11.zip"
+  },
+  {
+   "at": "2026-11-11 03:07",
+   "prev": "2026-11-11 02:02",
+   "sid": "S6",
+   "kind": "commit",
+   "sig": "git",
+   "h": "987ae10c",
+   "d": "2026-11-11",
+   "text": "valve37: a datasheet whose review fails still opens (PDF, fields) with the reason; every /valve error answers JSON with a log file"
+  },
+  {
+   "at": "2026-11-11 03:07",
+   "prev": "2026-11-11 02:02",
+   "sid": "S6",
+   "kind": "version",
+   "sig": "git",
+   "text": "버전 valve36 → valve37"
+  },
+  {
+   "at": "2026-11-11 03:07",
+   "prev": "2026-11-11 02:02",
+   "sid": "S6",
+   "kind": "state",
+   "sig": "세션 기록",
+   "text": "상태 BLOCKED → COMPLETED"
+  },
+  {
+   "at": "2026-11-11 03:07",
+   "prev": "2026-11-11 02:02",
+   "sid": "S6",
+   "kind": "needs",
+   "sig": "세션 기록",
+   "text": "확인 필요 — 회사 PC 에서 ds=74 다시 열어 결과 · 오류 log 보내기"
+  },
+  {
+   "at": "2026-11-11 03:07",
+   "prev": "2026-11-11 02:02",
+   "sid": "S6",
+   "kind": "report",
+   "sig": "세션 기록",
+   "text": "세션 보고 — 987ae10c — 회사 ds=74 HTTP 500: 검토 규칙이 멈춰도 Datasheet(PDF · 칸)는 열리고 이유 표시 · /valve 오류 JSON + errors_날짜.log. (따로 만든 valve37 zip 은 규약 v2 로 hotfix136 에 흡수)"
   }
  ]
 }
