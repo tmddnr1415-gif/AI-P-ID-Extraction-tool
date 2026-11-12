@@ -270,6 +270,13 @@ def sheet(sid: int):
     pid = r["project_id"]
     _, hist = _latest(_sheet_rows(con, pid, r["kind"]))
     sh, rv = reviewed(con, pid, r)
+    rows = _cells(sh)
+    return _j(dict(_brief(con, pid, r, hist), title=sh.get("title"), title_block=sh.get("title_block"), identify=sh.get("identify"),
+                   rows=rows, review=rv["rows"], canonical=rv["canonical"], rules=instreview.RULES, rule_ver=instreview.RULE_VER))
+
+
+def _cells(sh: dict) -> list[dict]:
+    """Every numbered row of the sheet's form with what was read and where (page · value cell)."""
     card = instrument.cards()[sh["form_id"]]
     rows = []
     for it in card["items"]:
@@ -280,8 +287,46 @@ def sheet(sid: int):
         rows.append({"no": key, "label": it["label"], "section": it.get("section") or "", "std_key": it.get("std_key"),
                      "value": got.get("value", ""), "sub": got.get("sub") or {}, "page": got.get("page") or it.get("page"),
                      "bbox": got.get("bbox"), "process": bool(it.get("process"))})
-    return _j(dict(_brief(con, pid, r, hist), title=sh.get("title"), title_block=sh.get("title_block"), identify=sh.get("identify"),
-                   rows=rows, review=rv["rows"], canonical=rv["canonical"], rules=instreview.RULES, rule_ver=instreview.RULE_VER))
+    return rows
+
+
+def _markup_response(con, pid, sheet_rows, name, flatten):
+    from app.valve import instmarkup
+    entries = []
+    for r in sheet_rows:
+        doc = store.one(con, "SELECT path FROM document WHERE id=?", r["document_id"])
+        if not doc:
+            continue
+        sh, rv = reviewed(con, pid, r)
+        entries.append({"path": doc["path"], "sheet": sh, "rows": _cells(sh), "findings": rv["rows"], "tag": r["tag"],
+                        "kind": KIND_NAMES.get(r["kind"], r["kind"]), "doc_no": r["doc_no"], "rev": r["rev"]})
+    if not entries:
+        return Response('{"error":"표시할 Datasheet 가 없습니다"}', status_code=404, media_type="application/json")
+    p = store.one(con, "SELECT name FROM project WHERE id=?", pid)
+    data = instmarkup.build(entries, (p or {}).get("name", ""), flatten=bool(flatten))
+    return Response(data, media_type="application/pdf", headers={"Content-Disposition": f"attachment; filename={name}"})
+
+
+@router.get("/api/valve/inst/sheets/{sid}/markup.pdf")
+def sheet_markup(sid: int, flatten: int = 0):
+    """This datasheet with every finding marked in the PDF: shaded cell + arrow callout with the reason."""
+    con = con_ready()
+    r = store.one(con, "SELECT s.*, d.filename FROM inst_sheet s LEFT JOIN document d ON d.id=s.document_id WHERE s.id=?", sid)
+    if not r:
+        return Response('{"error":"없는 Datasheet"}', status_code=404, media_type="application/json")
+    safe = re.sub(r"[^0-9A-Za-z._-]+", "_", r["tag"])
+    return _markup_response(con, r["project_id"], [r], f"{safe}_Rev{r['rev'] or '-'}_markup.pdf", flatten)
+
+
+@router.get("/api/valve/projects/{pid}/inst/markup.pdf")
+def project_markup(pid: int, kind: str = "", flatten: int = 0, all: int = 0):
+    """All latest datasheets (of one kind) that have findings — one PDF, summary page first."""
+    con = con_ready()
+    latest, _ = _latest(_sheet_rows(con, pid, kind))
+    rows = sorted(latest.values(), key=lambda r: (ORDER.index(r["kind"]) if r["kind"] in ORDER else 99, r["tag_key"]))
+    if not all:
+        rows = [r for r in rows if reviewed(con, pid, r)[1]["issues"]]
+    return _markup_response(con, pid, rows, f"instrument_markup{'_' + kind if kind else ''}.pdf", flatten)
 
 
 @router.put("/api/valve/inst/sheets/{sid}/status")

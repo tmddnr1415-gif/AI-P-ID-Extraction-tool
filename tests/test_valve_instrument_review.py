@@ -64,3 +64,30 @@ def test_scenario_all_forms_planted_errors(tmp_path):
     assert t["expected"] >= 70 and t["missed"] == 0 and t["extra"] == 0, [f for f in out["forms"] if f["missed"] or f["extra"]]
     assert out["list"]["missed"] == [] and out["list"]["extra"] == []
     assert out["summary_total"]["tags"] == 28 and out["summary_total"]["ok_tags"] == 14
+
+
+def test_markup_pdf_shading_and_callouts(tmp_path, monkeypatch):
+    """Findings go INTO the PDF: a shaded Square on the cell + a FreeText callout (leader line + arrow) with the reason."""
+    import pymupdf
+    import valve_inst_scenario as SC
+    SC.main([str(tmp_path / "scen"), "--keep"])
+    monkeypatch.setenv("PID_DATA_DIR", str(tmp_path / "scen" / "data"))
+    from fastapi.testclient import TestClient
+    from app.main import app
+    c = TestClient(app)
+    rows = c.get("/api/valve/projects/1/inst/sheets?kind=pt").json()["rows"]
+    bad = next(r for r in rows if r["tag"].endswith("B"))
+    r = c.get(f"/api/valve/inst/sheets/{bad['id']}/markup.pdf")
+    assert r.status_code == 200 and r.headers["content-type"] == "application/pdf"
+    d = pymupdf.open("pdf", r.content)
+    pg = d[0]
+    ann = list(pg.annots())
+    calls = [a for a in ann if a.type[1] == "FreeText"]
+    shades = [a for a in ann if a.type[1] == "Square" and "shading" in a.info["subject"]]
+    assert len(calls) == bad["issues"] and len(shades) >= bad["issues"] - 1
+    xr = calls[0].xref
+    assert d.xref_get_key(xr, "IT")[1] == "/FreeTextCallout" and d.xref_get_key(xr, "LE")[1] == "/OpenArrow"
+    assert any("IN-LL-02" in a.info["subject"] for a in calls)
+    assert pg.rect.width > 595 + 200                       # widened for the callout column
+    allp = c.get("/api/valve/projects/1/inst/markup.pdf")
+    assert allp.status_code == 200 and pymupdf.open("pdf", allp.content).get_toc()[0][1] == "Summary"

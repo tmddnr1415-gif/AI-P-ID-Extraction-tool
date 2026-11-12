@@ -27,7 +27,7 @@ async function renderBoard() {
   const used = s.kinds.filter(k => k.tags);
   const maxI = Math.max(1, ...s.kinds.map(k => k.missing + k.mismatch + k.review));
   el.innerHTML = `<div class="vh"><h2>Instrument 현황판</h2><span class="soft">${esc(S.sum?.project?.name || '')} · 계기 Type 별 Datasheet 검토 현황</span><span class="sp"></span>
-      <button data-g="docs">자료 올리기</button><button data-req>필수 칸 확인</button><a class="btnlink" href="/api/valve/projects/${S.pid}/inst/review.xlsx" download>⇩ 검토 결과 Excel</a>
+      <button data-g="docs">자료 올리기</button><button data-req>필수 칸 확인</button><a class="btnlink" href="/api/valve/projects/${S.pid}/inst/markup.pdf" download title="지적이 있는 Datasheet 전부 — 칸 음영 + 화살표 설명선(이유)">⇩ Mark-up PDF</a><a class="btnlink" href="/api/valve/projects/${S.pid}/inst/review.xlsx" download>⇩ 검토 결과 Excel</a>
       <button class="pri" data-g="ireview">Instrument Review 열기</button></div>
     <div class="irefs">${ref('Process Data (PDS)', R.pds, 'Document Management › Process Data')}${ref('PMS', R.pms, 'Document Management › PMS')}
       ${ref(`Process Line List${R.n_lines ? ` (${R.n_lines} Line)` : ''}`, R.linelist, 'Document Management › Process Line List')}${ref('Instrument Index', R.instrument_index, 'Document Management › Instrument Index · IO List')}${ref('IO List', R.io_list, 'Document Management › Instrument Index · IO List')}</div>
@@ -94,6 +94,7 @@ async function renderReview() {
   el.classList.add('full');
   const chips = `<div class="ichips"><button data-kind="" class="${!I.kind ? 'on' : ''}">전체</button>${I.kinds.map(k => `<button data-kind="${k.kind}" class="${I.kind === k.kind ? 'on' : ''} ${I.counts[k.kind] ? '' : 'z'}" title="${esc(k.name)} · 양식 ${k.form_id}">${esc(k.kind.toUpperCase())}<small>${I.counts[k.kind] || 0}</small></button>`).join('')}</div>`;
   el.innerHTML = `<div class="ivh"><b>Instrument Review</b><span class="soft">${I.kind ? esc(kname(I.kind)) : '모든 종류'}</span>${chips}<span class="sp"></span>
+      <a class="btnlink" href="/api/valve/projects/${S.pid}/inst/markup.pdf${I.kind ? `?kind=${I.kind}` : ''}" download title="지적이 있는 Datasheet 전부 — 칸 음영 + 화살표 설명선(이유), Acrobat 에서 고칠 수 있음">⇩ Mark-up PDF</a>
       <a class="btnlink" href="/api/valve/projects/${S.pid}/inst/review.xlsx${I.kind ? `?kind=${I.kind}` : ''}" download>⇩ Excel</a></div>
     <div class="wb iwb"><div class="wb-left"><input class="iq" placeholder="Tag 찾기" value="${esc(I.filt)}"><div class="itags" id="itags"></div></div>
       <div class="wb-center" id="iview"></div><div class="wb-right"><div class="tabs" id="itabs">${[['find', '검토 결과'], ['vals', '읽은 값'], ['rev', 'Rev · 문서']].map(([k, l]) => `<button data-t="${k}" class="${I.tab === k ? 'on' : ''}">${l}</button>`).join('')}</div><div class="rbody" id="ibody"></div></div></div>`;
@@ -137,7 +138,7 @@ function drawRight() {
   const d = I.d, b = $('#ibody'); if (!d || !b) return;
   const head = `<div class="ihead"><b>${esc(d.tag)}</b> ${pill(d.status)} <span class="soft">${esc(kname(d.kind))} · 양식 ${esc(d.form_id)}</span>
     <div class="soft">${esc(d.doc_no || '(문서번호 못 읽음)')} · Rev ${esc(d.rev || '-')}${d.rev_date ? ' · ' + esc(d.rev_date) : ''}${d.test_data ? ' · <b class="tst">TEST DATA</b>' : ''}</div>
-    <div class="ist"><select id="ists">${['Not Reviewed', 'Under Review', 'Accepted', 'Rejected', 'Commented', 'Resolved'].map(s => `<option ${s === d.status ? 'selected' : ''}>${s}</option>`).join('')}</select></div></div>`;
+    <div class="ist"><a class="btnlink" href="/api/valve/inst/sheets/${d.id}/markup.pdf" download title="이 Datasheet 에 지적을 표시한 PDF — 칸 음영 + 화살표 설명선(이유)">⇩ 이 Tag Mark-up PDF</a> <select id="ists">${['Not Reviewed', 'Under Review', 'Accepted', 'Rejected', 'Commented', 'Resolved'].map(s => `<option ${s === d.status ? 'selected' : ''}>${s}</option>`).join('')}</select></div></div>`;
   if (I.tab === 'find') {
     const sec = GROUPS.map(([p, l]) => {
       const rs = d.review.map((f, i) => [f, i]).filter(([f]) => f.rule.startsWith(p));

@@ -300,4 +300,4 @@
 - 문서 관리에 칸 3개 (Instrument Datasheet · Process Line List · Instrument Index/IO List). 현황판 = 계기 Type 14종 카드 · 지적 수 · Rev · TEST 표시.
 - 양식 80 카드: 한 줄에 라벨 둘(Operating Pressure | Design Pressure)인 행 28개에 칸 나눔 `pair_cells` (빈 양식의 세로 줄로 학습) → 실제 빈 양식 61/61.
 - 오류 심은 시험(`spike/valve_inst_scenario.py`): 74/74 찾음 · 정상 Tag 지적 0 · List 29/29. Valve 스냅숏 2,935 변경 0 · UI 감사 25/25.
-
+- (추가) Instrument Mark-up PDF: 지적 칸 음영 + 화살표 설명선(이유) 을 PDF 주석으로 — `app/valve/instmarkup.py` · 시험 1건.
