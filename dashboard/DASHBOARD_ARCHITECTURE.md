@@ -1887,3 +1887,8 @@ C:\Users\SAMSUNG\Desktop\Claude\                         ← 개발 폴더 (여�
 - 바뀐 곳: dashboard.html 새 `INST_KINDS` · `INST_ROUTES`, `PID_ROUTES`(inst · inst<kind>) · `ROUTES` · `RUN_LEAVES` · `NAV_LS`/`NAV_OPEN`(runpjt-co2-inst 처음 접힘) · `renderMenu` runTree · CSS `.minst`
 - 확인한 것: 가짜 P&ID 서버 rev134 → 옛 판 안내(hotfix138), rev138 → iframe 주소 kind=all/pt/onoff, 메뉴 접힘/펼침, 콘솔 오류 없음 / 회사에서 확인할 것: hotfix138 적용 후 각 메뉴가 그 계기 종류로 열리는지.
 - ⚠ 주의(통합 시): valve40 의 valve.js 는 `kind` 가 'valve' 가 아니면 모두 Instrument 화면으로 보냄 → S5 valve37 의 Globe · Butterfly · PSV 메뉴(`kind=globe|butterfly|psv`, 프로젝트 이름 접미사 방식)와 충돌. 두 판을 합칠 때 P&ID 쪽에서 구분 필요 (대시보드는 고치지 않음).
+
+### 2026-11-12 (APP_VERSION 2026-11-12.2 / SERVER_VERSION 그대로) — v17.39 Instrument List · IO List 메뉴
+- 무엇을: '▸ Instrument' 폴더에 📋 Instrument List(`kind=instindex`) · 📋 IO List(`kind=iolist`) 추가 — 순서 📊 현황판 · Instrument List · IO List · Item 13개. 같은 /valve/ 화면, minRev 138, 권한 runpjt.  왜: 오케스트레이터 경유 (세션 6 valve40 c0f4cd8c 가 Item 별 메뉴로 나누며 주소 2개 추가).
+- 바뀐 곳: dashboard.html `INST_KINDS` · runTree 아이콘(`.minl`)
+- 확인한 것: 가짜 P&ID rev138 에서 두 메뉴 iframe 주소 kind=instindex / iolist, 메뉴 순서, 콘솔 오류 없음 / 회사에서 확인할 것: hotfix138 적용 후 두 화면.

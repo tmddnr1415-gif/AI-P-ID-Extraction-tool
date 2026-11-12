@@ -90,7 +90,7 @@ body.nav-closed #burger{width:auto;padding:0 12px;font-size:14px;background:var(
 @keyframes fbSpin{from{transform:rotate(-20deg)}to{transform:rotate(340deg)}}
 @media (prefers-reduced-motion:reduce){#taskbar .helm .fbb,#taskbar .helm .fbs,#taskbar .tbtab.helm:hover .fb{animation:none}}
 
-.mi.mfold:not(.on){color:#dfe5ff;font-weight:600}.mi.minst .ml::before{content:'📊 '}.mi.mlv2:not(.on){color:#dfe5ff;font-weight:600}.mi.mlv2 .ml::before{content:'📅 ';font-weight:400}
+.mi.mfold:not(.on){color:#dfe5ff;font-weight:600}.mi.minst .ml::before{content:'📊 '}.mi.minl .ml::before{content:'📋 '}.mi.mlv2:not(.on){color:#dfe5ff;font-weight:600}.mi.mlv2 .ml::before{content:'📅 ';font-weight:400}
 .mi .ml{min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .mi .chgmark{flex:none;width:8px;margin-left:-6px;margin-right:-4px;color:#FFE066;font-weight:900;text-align:center}
 .mi .chgtag{flex:none;white-space:nowrap;margin-left:auto;font-size:10px;font-weight:700;background:#FFE066;color:#4a3a00;padding:1px 7px;border-radius:99px}
@@ -2040,7 +2040,7 @@ function recLabel(key, f) {
  * ===================================================================== */
 let root = null;
 /* 서버 모드: http(s):// 로 접속하면 server.py 의 REST API 사용 (폴더 선택 불필요). file:// 로 열면 폴더 모드 */
-const APP_VERSION = '2026-11-12.1';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
+const APP_VERSION = '2026-11-12.2';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
 const SERVER_URL = 'http://localhost:8080';
 // 부서원 PC 사본(file://)이 접속을 시도할 서버 — 서버가 배포 파일을 만들 때 'PC 이름 주소, IP 주소' 순으로 자동 기록함
 const DEFAULT_SERVERS = ['http://ASEUNGWOOK-B01:8080', 'http://65.3.30.234:8080'];
@@ -4919,7 +4919,7 @@ const PID_PORT = 8000;                                   // P&ID 추출 도구 �
 //  - pid   = P&ID 추출 도구 (uvicorn, 8000) — 입찰/실행 구분은 P&ID 화면에서 프로젝트마다 선택
 //  - logic = LOGIC 검토 — P&ID 추출 도구와 **같은 서버(8000)** 의 `/logic` 화면 (P&ID 도구 hotfix89 부터 결합, 브랜치 claude/logic-review-design-pd2z75)
 // q = 주소 뒤 값 (user 는 둘 다 같은 로그인 이름 — LOGIC 은 메모 작성자로 씀), off = 서버가 꺼졌을 때 안내 (둘 다 같은 P&ID 서버)
-const INST_KINDS = [['all', '현황판'], ['ft', 'FT'], ['pt', 'PT / PDT'], ['lt', 'LT'], ['gwr', 'GWR'], ['tt', 'TT'], ['tg', 'TG'], ['pg', 'PG'], ['dpg', 'DPG'], ['mlg', 'Mag. Level Gauge'], ['ro', 'RO'], ['analyzer', 'Analyzer'], ['cv', 'Control Valve'], ['onoff', 'On-Off Valve']];   // 2026-11-12 Instrument 메뉴 (키 = valve40 inst_api ORDER, PSV 는 Valve 쪽 PSV 메뉴)
+const INST_KINDS = [['all', '현황판'], ['instindex', 'Instrument List'], ['iolist', 'IO List'], ['ft', 'FT'], ['pt', 'PT / PDT'], ['lt', 'LT'], ['gwr', 'GWR'], ['tt', 'TT'], ['tg', 'TG'], ['pg', 'PG'], ['dpg', 'DPG'], ['mlg', 'Mag. Level Gauge'], ['ro', 'RO'], ['analyzer', 'Analyzer'], ['cv', 'Control Valve'], ['onoff', 'On-Off Valve']];   // 2026-11-12 Instrument 메뉴 (키 = valve40 inst_api ORDER, PSV 는 Valve 쪽 PSV 메뉴)
 const INST_ROUTES = INST_KINDS.map(([k]) => k === 'all' ? 'inst' : 'inst' + k);
 const PID_ROUTES = { pid:{ title:'P&ID 분석', port:PID_PORT, path:'/', q:'embed=1&' },
   logic:{ title:'LOGIC 분석', port:PID_PORT, path:'/logic', q:'' },
@@ -5171,7 +5171,7 @@ function renderMenu() {
   const runTree = () => `<div class="mgrp ${route === 'runpjt' || RUN_LEAVES.includes(route) ? 'act' : ''}">
        <div class="mhead">${btn({ k:'runpjt', l:'실행 프로젝트', n:'', c:0 }, 'top')}
          <button class="mtog" data-tog="runpjt" title="하위 메뉴 ${NAV_OPEN.runpjt ? '접기' : '펼치기'}" aria-label="하위 메뉴 접기/펼치기">${NAV_OPEN.runpjt ? '▾' : '▸'}</button></div>
-       <div class="msub" ${NAV_OPEN.runpjt ? '' : 'hidden'}>${fold('runpjt-co2', 'CO2 PJT', fold('runpjt-co2-ds', 'Datasheet', [['valve', 'Ball Valve'], ['globev', 'Globe Valve'], ['bflyv', 'Butterfly Valve'], ['psv', 'PSV']].map(([k, l]) => btn({ k, l, n:'', c:0 }, 'subi')).join('') + fold('runpjt-co2-inst', 'Instrument', INST_KINDS.map(([k, l], i) => btn({ k:INST_ROUTES[i], l, n:'', c:0 }, 'subi' + (k === 'all' ? ' minst' : ''))).join(''))) + btn({ k:'co2sched', l:'Schedule', n:SCH.data ? SCH.data.items.length : '', c:0 }, 'subi mlv2'))}</div></div>`;
+       <div class="msub" ${NAV_OPEN.runpjt ? '' : 'hidden'}>${fold('runpjt-co2', 'CO2 PJT', fold('runpjt-co2-ds', 'Datasheet', [['valve', 'Ball Valve'], ['globev', 'Globe Valve'], ['bflyv', 'Butterfly Valve'], ['psv', 'PSV']].map(([k, l]) => btn({ k, l, n:'', c:0 }, 'subi')).join('') + fold('runpjt-co2-inst', 'Instrument', INST_KINDS.map(([k, l], i) => btn({ k:INST_ROUTES[i], l, n:'', c:0 }, 'subi' + (k === 'all' ? ' minst' : k === 'instindex' || k === 'iolist' ? ' minl' : ''))).join(''))) + btn({ k:'co2sched', l:'Schedule', n:SCH.data ? SCH.data.items.length : '', c:0 }, 'subi mlv2'))}</div></div>`;
   // 권한이 있는 메뉴만 표시 (운영자가 ⚙ 메뉴 권한 설정에서 사용자별로 부여, Management 는 기본 비허용)
   $('#menu').innerHTML =
     (can('weekly') ? group('weekly', { k:'home', l:'주간업무보고', n:'', c:NAV_OPEN.weekly ? 0 : subNew, t:'하위 메뉴의 수정·변경된 행' }, sub, inWeekly) : '') +
