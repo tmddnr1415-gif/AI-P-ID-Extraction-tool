@@ -2652,7 +2652,7 @@ loadProjects().then(async () => {
     return;
   }
   const ik = (Q.get('kind') || '').toLowerCase();       // valve40: ?kind=ft … → Instrument; ball · globe · butterfly · psv · valve stay here (valve37)
-  if (ik === 'all' || INST_KINDS.has(ik)) { go(ik === 'all' ? 'inst' : 'ireview', false); return; }
+  if (ik === 'all' || INST_KINDS.has(ik) || (+Q.get('sheet') && !Q.get('ds'))) { go(ik === 'all' ? 'inst' : 'ireview', false); return; }
   if (ik === 'instindex' || ik === 'iolist') { go('ilist', false); return; }       // valve40: Instrument List · IO List menus
   go((location.hash.slice(1) || LS.get('view', 'dash')).split('?')[0], false);
 })
