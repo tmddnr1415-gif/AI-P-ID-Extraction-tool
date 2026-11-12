@@ -16,8 +16,7 @@
   **심은 오류 74/74 · 정상 Tag 지적 0 · List 29/29** (카드로 그린 쪽 · 실제 빈 양식 둘 다). pytest `tests/test_valve_instrument_{forms,reader,review}.py`.
 - 아직: 사용자에게 필수 칸 목록 확정 받기 · 실제 채워진 Instrument Datasheet / List 로 검증(지금은 시험 자료뿐) · 605 등 일부 표제란 Rev 를 시험 작성기가 못 씀(읽기 문제 아님) ·
   Valve 쪽 Tag 와 Instrument 쪽 CV/On-Off/PSV 는 따로 집계(합치기는 사용자 결정) · 꾸러미 valve40 zip 아직 안 만듦.
-- 원본 위치(컨테이너 · 커밋 금지): `/tmp/forms/` — 새 세션이면 사용자에게 다시 올려 달라고 합니다.
-- 지킬 것: Valve 스냅숏 2,935 · 변경 0 (`spike/valve_snapshot_diff.py check out/valve29/snapshot_valve30.json`, 8000=/tmp/vt_shot) · UI 감사 25/25 (8002=/tmp/vt_ui) · 전체 pytest.
+- 원본(커밋 금지): `/tmp/forms/` — 새 세션이면 다시 올려 달라고 함. 지킬 것: Valve 스냅숏 2,935 · 변경 0 (`spike/valve_snapshot_diff.py check out/valve29/snapshot_valve30.json`, 8000=/tmp/vt_shot) · UI 감사 25/25 (8002=/tmp/vt_ui) · 전체 pytest.
 
 ## 지금 상태 (2026-11-07 · valve35 — valve29 Phase 1 완료 + 후속 요청들)
 
