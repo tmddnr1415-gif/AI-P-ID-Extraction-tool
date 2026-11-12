@@ -432,12 +432,17 @@ async function renderReg() {
   const el = $('#v-ireg');
   el.innerHTML = '<div class="vh"><h2>Document · Revision</h2></div><div class="soft">불러오는 중…</div>';
   const d = await api('GET', `/docreg?project=${encodeURIComponent(S.sum?.project?.name || '')}`);
-  const mine = MODE === 'item' ? I.kind : '';
-  if (I.rgk === undefined) I.rgk = mine;                    // an item page starts on its own datasheets (+ reference documents)
-  const q = (I.rgq || '').toUpperCase(), fk = I.rgk, fp = I.rgp;
-  const kindsIn = [...new Map(d.rows.filter(r => r.group === 'Datasheet').map(r => [r.kind, r.kind_name])).entries()];
-  const rows = d.rows.filter(r => (r.group !== 'Datasheet' || !fk || r.kind === fk) && (!fp || r.pending) && (!q || [r.tag, r.doc_no, r.kind_name, r.latest.file].join(' ').toUpperCase().includes(q)));
+  // same filters as the dashboard's 문서 · Revision 현황: group chips (one) + Item chips (several, OR) + 검토 대기
+  const ORDER = ['ball', 'globe', 'butterfly', 'psv', 'ft', 'pt', 'lt', 'gwr', 'tt', 'tg', 'pg', 'dpg', 'mlg', 'ro', 'analyzer', 'cv', 'onoff', 'valvelist', 'instindex', 'iolist', 'pms', 'pds', 'linelist'];
+  const CHIP = { ball: 'Ball', globe: 'Globe', butterfly: 'Butterfly', psv: 'PSV', analyzer: 'AT', onoff: 'On-Off', valvelist: 'Valve List', instindex: 'Instrument Index', iolist: 'IO List', pms: 'PMS', pds: 'PDS', linelist: 'Line List' };
+  if (!I.rgi) I.rgi = new Set(MODE === 'item' ? [I.kind] : []);                 // an item page starts on its own item
+  const q = (I.rgq || '').toUpperCase(), fg = I.rgg || '', fp = I.rgp, fi = I.rgi;
+  const inG = r => !fg || r.group === fg;
+  const rows = d.rows.filter(r => inG(r) && (!fi.size || fi.has(r.kind)) && (!fp || r.pending) && (!q || [r.tag, r.doc_no, r.kind_name, r.latest.file].join(' ').toUpperCase().includes(q)));
   const n = { ds: rows.filter(r => r.group === 'Datasheet').length, pend: rows.filter(r => r.pending).length };
+  const gchips = ['Datasheet', 'List', 'PMS', 'Process Data', 'Line List'].map(g => `<button data-rgg="${g}" class="${fg === g ? 'on' : ''}">${g}<b>${d.rows.filter(r => r.group === g).length}</b></button>`).join('');
+  const ichips = ORDER.map(k => { const rs = d.rows.filter(r => r.kind === k && inG(r)); if (!rs.length) return ''; const pd = rs.filter(r => r.pending).length;
+    return `<button data-rgi="${k}" class="${fi.has(k) ? 'on' : ''}">${esc(CHIP[k] || k.toUpperCase())}<b>${rs.length}</b>${pd ? `<em title="검토 대기 ${pd}">${pd}</em>` : ''}</button>`; }).join('');
   const link = r => { const L = r.link, u = new URL(location.href); u.searchParams.set('project', L.project); u.hash = '';
     ['kind', 'sheet', 'ds'].forEach(k => u.searchParams.delete(k));
     if (L.sheet) { u.searchParams.set('kind', L.kind); u.searchParams.set('sheet', L.sheet); } else if (L.ds) { if (L.kind !== 'ball') u.searchParams.set('kind', L.kind); u.searchParams.set('ds', L.ds); u.hash = 'review'; }
@@ -445,19 +450,21 @@ async function renderReg() {
     return u.toString(); };
   el.innerHTML = `<div class="vh"><h2>Document · Revision</h2><span class="soft">${esc(d.project)} · 입력된 최신 Rev 와 검토된 최신 Rev (검토 완료 = ${d.done_status.join(' · ')})</span><span class="sp"></span>
       <input class="tq" placeholder="Tag · Doc No · 파일 찾기" value="${esc(I.rgq || '')}"></div>
-    <div class="ilhead"><select id="rgk"><option value="">Datasheet 전체 (${d.counts.datasheets})</option>${kindsIn.map(([k, nm]) => `<option value="${k}" ${k === fk ? 'selected' : ''}>${esc(nm)}</option>`).join('')}</select>
-      <div class="ilc"><button data-rgp class="${fp ? 'on' : ''}"><span class="ir ir-rev"><i>?</i>검토 대기</span><b>${n.pend}</b></button></div>
-      <span class="soft">Datasheet ${n.ds} · 참조 문서 ${rows.length - n.ds}</span></div>
+    <div class="rchips"><button data-rgg="" class="${fg ? '' : 'on'}">전체<b>${d.rows.length}</b></button>${gchips}<button data-rgp class="pend ${fp ? 'on' : ''}">⏳ 검토 대기<b>${d.rows.filter(r => r.pending).length}</b></button>
+      <span class="soft">표시 ${rows.length} · Datasheet ${n.ds} · 검토 대기 ${n.pend}</span></div>
+    <div class="rchips item"><button data-rgi="" class="${fi.size ? '' : 'on'}">Item 전체</button>${ichips}</div>
     <div class="card" style="padding:0;overflow:auto"><table class="t itbl"><thead><tr><th>구분</th><th>종류</th><th>Doc. No.</th><th>Tag</th><th>입력된 최신 Rev</th><th>Rev 날짜</th><th>파일</th><th>올린 날 · 사람</th>
       <th>검토된 최신 Rev</th><th>상태</th><th>검토한 날 · 사람</th><th>Rev 이력</th></tr></thead><tbody>
       ${rows.map(r => { const L = r.latest, R = r.reviewed; return `<tr class="link ${r.pending ? 'r-rev' : ''}" data-href="${esc(link(r))}"><td>${esc(r.group)}</td><td>${esc(r.kind_name)}</td><td>${esc(r.doc_no || '—')}</td><td><b>${esc(r.tag || '')}</b></td>
         <td><b>${esc(L.rev || '—')}</b></td><td>${esc(L.date || '')}</td><td title="${esc(L.file)}">${esc(L.file || '')}</td><td>${esc((L.uploaded_at || '').replace('T', ' ').slice(0, 16))} · ${esc(L.uploaded_by || '')}</td>
         <td>${r.group !== 'Datasheet' ? '<span class="soft">—</span>' : R ? `<b>${esc(R.rev || '-')}</b>` : '<span class="ir ir-rev"><i>?</i>검토 대기</span>'}${R && r.pending ? ' <span class="ir ir-rev"><i>?</i>새 Rev 검토 대기</span>' : ''}</td>
         <td>${r.group === 'Datasheet' ? pill(R ? R.status : L.status || 'Not Reviewed') : ''}</td><td>${R ? `${esc((R.reviewed_at || '').replace('T', ' ').slice(0, 16))} · ${esc(R.reviewed_by || '')}` : ''}</td><td>${esc((r.revs || []).join(' → '))}</td></tr>`; }).join('') || '<tr><td colspan="12" class="empty">문서가 없습니다</td></tr>'}</tbody></table></div>`;
-  $('#rgk').onchange = e => { I.rgk = e.target.value; renderReg(); };
+
   $('.tq', el).onchange = e => { I.rgq = e.target.value; renderReg(); };
   el.onclick = e => {
     if (e.target.closest('[data-rgp]')) { I.rgp = !I.rgp; renderReg(); return; }
+    const g = e.target.closest('[data-rgg]'); if (g) { I.rgg = g.dataset.rgg; I.rgi = new Set(); renderReg(); return; }        // a new group clears the Item choice
+    const c = e.target.closest('[data-rgi]'); if (c) { const k = c.dataset.rgi; if (!k) I.rgi = new Set(); else if (I.rgi.has(k)) I.rgi.delete(k); else I.rgi.add(k); renderReg(); return; }
     const r = e.target.closest('[data-href]'); if (r && !e.target.closest('select, input')) location.href = r.dataset.href;
   };
 }

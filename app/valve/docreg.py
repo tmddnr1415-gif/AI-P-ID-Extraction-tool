@@ -62,7 +62,7 @@ def _ds_row(con, cache, group_rows: list[dict], kind: str, kind_name: str, link,
         r = done[-1]
         a = audit_where(r)
         rv = {"rev": r["rev"] or "", "status": r[status_key], "reviewed_at": a.get("at", ""), "reviewed_by": a.get("by", "")}
-    return {"group": "Datasheet", "kind": kind, "kind_name": kind_name, "doc_no": top["doc_no"] or "", "title": top.get("title") or "", "tag": top["tag"],
+    return {"group": "Datasheet", "side": "valve" if status_key == "review_status" else "instrument", "kind": kind, "kind_name": kind_name, "doc_no": top["doc_no"] or "", "title": top.get("title") or "", "tag": top["tag"],
             "latest": {"rev": top["rev"] or "", "date": top.get("rev_date") or "", "file": d.get("filename", ""), "uploaded_at": d.get("uploaded_at", ""),
                        "uploaded_by": d.get("uploaded_by", ""), "status": top[status_key]},
             "reviewed": rv, "revs": [r["rev"] or "" for r in revs], "pending": bool(not rv or rv["rev"] != (top["rev"] or "")),
