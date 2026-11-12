@@ -131,6 +131,34 @@ def read_page(page, page_no: int) -> dict | None:
             "rows": [r for r in rows if r["tag_key"]]}
 
 
+_TAG_TXT = re.compile(r"(?<![A-Z0-9])(\d{1,4})\s*-?\s*([A-Z]{1,6})\s*[-–]?\s*(\d{2,6}[A-Z]?)(?![A-Z0-9])")
+
+
+def text_tags(text: str) -> set[str]:
+    """valve39: tag numbers written in free text, matched the way schema.norm_tag does: '98FV100' · '98FV-100' ·
+    '98FV 100' · '98FV -100' → '98FV100'.  Used only to look up tags we already have — never to create one."""
+    return {a + b + c for a, b, c in _TAG_TXT.findall((text or "").upper())}
+
+
+def scan(path: str) -> dict:
+    """valve39 — the Process Data PDF page by page: tags written on each page (any form, also a one-tag-per-sheet PDS the
+    table reader does not read) and the zone each page names.  {"v", "tag_pages": {tag: first page}, "zone_by_page"}."""
+    from app.valve import location
+    doc = extract.open_pdf(path)
+    tag_pages, zones = {}, {}
+    try:
+        for i, page in enumerate(doc):
+            t = page.get_text()
+            for k in text_tags(t):
+                tag_pages.setdefault(k, i + 1)
+            z = location.zone_of_text(t)
+            if z:
+                zones[str(i + 1)] = z
+    finally:
+        doc.close()
+    return {"v": 1, "tag_pages": tag_pages, "zone_by_page": zones}
+
+
 def read_process_data(path: str) -> dict:
     doc = extract.open_pdf(path)
     pages, rows, dn = [], [], ""

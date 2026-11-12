@@ -166,6 +166,13 @@
 - **칸을 누르면** 그 부위가 주황색, 나머지는 반투명 (몸통 안 Ball · Seat 도 보임). **모형의 부품을 누르면** 부품 설명과 관련 칸 목록 → 누르면 그 칸으로.
 - 휠 = 분해 · 확대, 끌기 = 돌려 보기, ⟲ = 처음 모습, ▾ = 접기. 치수는 참고 모양 — 크기 판정에 쓰지 않습니다.
 
+## 10-12. Process Data 대조 · 문서 Rev · 구역 (valve39 · 첫 화면)
+- **Process Data 에 없는 Tag** (빨강) = Datasheet 는 있는데 올린 PDS 에 Tag 가 없음. 98FV100 · 98FV-100 · 98FV 100 · 98FV -100 은 같은 Tag 로 봅니다.
+  누르면 목록 — 앞자리 0 만 다른 번호(85XV0114)가 PDS 에 있으면 '비슷한 번호' 로 쪽과 함께 보여 줍니다.
+- **PDS 에 Tag 는 있으나 표로 못 읽음** (주황) = 값 대조(Process Mismatch)는 하지 못한 Tag. **PDS 표에서 읽음** (초록) = 값까지 대조한 Tag.
+- 오른쪽 **구역** 단추 (North · South · North Brownfield · South Brownfield · W15) = 구역별 Tag 수 — 누르면 그 Tag 들.
+- 아래 두 표 = 올린 **Datasheet 문서** 와 **PDS** 마다 Rev · 날짜 · 구역 · Tag 수. ▾ = 접기.
+
 ## 11. 자주 묻는 것
 
 - **Area · Unit 은 어디서 오나?** 데이터시트 제목(QELNG NORTH / SOUTH / W15)과 P&ID 번호에서. 제목에 '(SYSTEM xx – UNIT yy)' 가 있으면 기존 플랜트 = Brownfield.

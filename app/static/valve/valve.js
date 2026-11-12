@@ -761,7 +761,7 @@ async function refresh() {
   S.sum = await api('GET', `/projects/${S.pid}/summary`); S.sumStamp = Date.now(); S.issues = null; S.reqs = null; S.grid = null; S.pmsRows = null; S.procRows = null;
   $('#navfoot').innerHTML = `${esc(S.sum.project.name)} · Tag ${S.sum.kpi.tags} · DS ${S.sum.kpi.datasheets}<br>${esc(USER || '이름 없음')} <span class="soft" id="navver"></span>`;
   if (!S.ver) api('GET', '/version').then(v => { S.ver = v.version; const x = $('#navver'); if (x) x.textContent = '· ' + v.version; }).catch(() => {}); else { const x = $('#navver'); if (x) x.textContent = '· ' + S.ver; }
-  S.vsum = null;
+  S.vsum = null; S.cov = null;
   RENDER[S.view]?.();
   warmClient();
 }
@@ -921,6 +921,7 @@ function renderDash() {
     ${!k.datasheets ? `<div class="banner info">아직 데이터시트가 없습니다 — <b>Document Management</b> 에서 Datasheet PDF · Valve List · Process Data · PMS 를 올리세요.</div>` : ''}
     <div class="kpis">${tiles.map(([l, n, ic, bg, v, sub, ac]) => `<div class="kpi ${ac && n ? 'warn' : ''}" data-go="${v}" tabindex="0" style="--ac:${ac || 'var(--blue)'}"><div class="ic" style="background:${bg}">${ic}</div>
       <div class="l">${l}</div><div class="n ${n === null ? 'na' : ''}">${n === null ? (sub || '—') : n}</div></div>`).join('')}</div>
+    ${k.datasheets ? '<div class="card cov" id="cov"><h3>Process Data 대조 · 문서 Rev · 구역</h3><div class="soft">불러오는 중…</div></div>' : ''}
     ${k.datasheets ? '<div class="card vsum" id="vsum"><h3>Valve Summary</h3><div class="soft">불러오는 중…</div></div>' : ''}
     <div class="dashrow">
       <div class="card"><h3>Review Status by Tag</h3><div class="donut">${donut(STATUSES.map(st => ({ n: by[st] || 0, c: cols[st] })))}
@@ -943,7 +944,52 @@ function renderDash() {
         ${s.activity.map(a => `<tr ${a.datasheet_id ? `class="click" data-ds="${a.datasheet_id}"` : ''}><td class="mono nw" title="${esc(a.at)}">${esc(a.at.replace('T', ' ').slice(5, 16))}</td><td class="nw">${esc(a.tag || '-')}</td>
           <td>${esc(a.action)}${a.field_key ? ' · ' + esc(a.field_key) : ''}${a.after && a.action !== 'comment' ? ` <span class="soft">→ ${esc(String(a.after).slice(0, 40))}</span>` : ''}</td><td class="nw">${esc(a.by)}</td></tr>`).join('') || '<tr><td colspan="4" class="empty">기록이 없습니다</td></tr>'}</tbody></table></div>
     </div>`;
-  drawVsum();
+  drawVsum(); drawCov();
+}
+/* valve39 — first screen: Datasheet tags the uploaded Process Data does not have (tags compared without spaces / hyphens:
+   98FV100 = 98FV-100 = 98FV 100 = 98FV -100), and the revision and zone of every loaded Datasheet document and PDS. */
+const ZONE_C = { North: '#2f5bd8', South: '#0f7a43', 'North Brownfield': '#7a4ec9', 'South Brownfield': '#b5651d', W15: '#c23b6a', '(미기재)': '#8a93a6' };
+const zoneChip = z => z ? z.split(' · ').map(x => `<span class="zchip" style="--zc:${ZONE_C[x] || '#8a93a6'}">${esc(x)}</span>`).join(' ') : '<span class="soft">—</span>';
+async function drawCov() {
+  const box = $('#cov'); if (!box) return;
+  if (!S.cov) { try { S.cov = await api('GET', `/projects/${S.pid}/coverage`); } catch (e) { box.innerHTML = `<h3>Process Data 대조</h3><div class="soft">${esc(e.message)}</div>`; return; } }
+  const C = S.cov, open = LS.get('cov_open', 1), T = C.tags;
+  const miss = T.filter(t => !t.pds), txt = T.filter(t => t.pds === 'text'), tab = T.filter(t => t.pds === 'table');
+  const stat = (n, l, kind, tip) => `<button class="covn ${kind}" data-cov="${kind}" title="${esc(tip)}"><b>${n}</b><span>${l}</span></button>`;
+  box.classList.toggle('closed', !open);
+  box.innerHTML = `<div class="vsbar"><h3>Process Data 대조 · 문서 Rev · 구역 <span class="soft" style="font-weight:400">Datasheet Tag ${T.length} · 최신 Revision</span></h3><span class="sp"></span>
+      <button id="covtog" title="접기 / 펼치기">${open ? '▾' : '▸'}</button></div>
+    ${open ? `<div class="covtop">
+      <div class="covstats">${C.has_pds ? stat(miss.length, 'Process Data 에 없는 Tag', 'miss', 'Datasheet 에는 있는데 올린 Process Data(PDS)에 그 Tag 가 없음 — 공백 · 하이픈 무시 (98FV100 = 98FV-100 = 98FV 100)')
+          + stat(txt.length, 'PDS 에 Tag 는 있으나 표로 못 읽음', 'text', 'PDS 글에는 Tag 가 있지만 이 PDS 양식은 표로 읽지 못해 값 대조(Process Mismatch)는 하지 않은 Tag')
+          + stat(tab.length, 'PDS 표에서 읽음 (값 대조함)', 'table', 'PDS 표에서 그 Tag 의 값을 읽어 Datasheet 와 대조한 Tag')
+        : '<div class="banner info" style="margin:0">Process Data(PDS)를 아직 올리지 않았습니다 — Document Management 에서 올리면 Datasheet Tag 와 대조합니다.</div>'}</div>
+      <div class="zones">${Object.entries(C.zones).filter(([, n]) => n).map(([z, n]) => `<button class="zbtn" data-zone="${esc(z)}" style="--zc:${ZONE_C[z] || '#8a93a6'}" title="이 구역 Tag 보기"><span>${esc(z)}</span><b>${n}</b></button>`).join('')}</div></div>
+    <div class="covgrid">
+      <div><h4>Datasheet 문서 <span class="soft">${C.ds_docs.length}</span></h4><div class="covwrap"><table class="t"><thead><tr><th>Doc. No.</th><th>Rev.</th><th>Rev 날짜</th><th>구역</th><th>Tag</th></tr></thead><tbody>
+        ${C.ds_docs.map(d => `<tr class="click" data-cdoc="${esc(d.doc_no)}"><td class="mono">${esc(d.doc_no)}</td><td><b>${esc(d.rev)}</b></td><td class="nw">${esc(d.date)}</td><td>${zoneChip(d.zone)}</td><td>${d.tags}</td></tr>`).join('')}</tbody></table></div></div>
+      <div><h4>Process Data (PDS) <span class="soft">${C.pds_docs.length ? C.pds_docs.map(p => esc(p.filename)).join(' · ') : '없음'}</span></h4><div class="covwrap"><table class="t"><thead><tr><th>Doc. No.</th><th>Rev.</th><th>Rev 날짜</th><th>구역</th><th>Tag</th></tr></thead><tbody>
+        ${C.pds_docs.map(p => (p.parts.length ? p.parts : [{ doc_no: p.doc_no || p.filename, rev: p.rev, date: p.date, zone: p.zone, tags: p.text_tags }]).map(r => `<tr><td class="mono">${esc(r.doc_no)}${r.page ? ` <small class="soft">p.${r.page}</small>` : ''}</td><td><b>${esc(r.rev || '—')}</b></td><td class="nw">${esc(r.date || '')}</td><td title="${esc(r.zone_note || '')}">${zoneChip(r.zone)}${r.zone_note ? '<sup class="soft">*</sup>' : ''}</td><td>${r.tags}</td></tr>`).join('')
+          + (p.error ? `<tr><td colspan="5" style="color:var(--bad)">${esc(p.filename)}: ${esc(p.error)}</td></tr>` : '')).join('') || '<tr><td colspan="5" class="empty">올린 PDS 없음</td></tr>'}</tbody></table></div></div>
+    </div><div class="soft vsnote">구역 = 데이터시트 · PDS 표지 제목(QELNG NORTH / SOUTH / W15)과 'SYSTEM nn – UNIT nn'(기존 설비 = Brownfield)에서 읽음. Rev = 문서 자체의 Revision 표 · 같은 문서에 Rev 가 섞이면 (Tag 수). PDS 'Tag' = 그 PDS 쪽들에 적힌 Tag 수. * = PDS 표지에는 North/South 만 있어 같은 번호 Datasheet 의 Brownfield 를 따름.</div>` : ''}`;
+  const recs = L => { const V = new Map((S.vsum?.tags || []).map(t => [t.id, t])); return L.map(t => V.get(t.id) ? { ...V.get(t.id), area: t.zone || '(미기재)' } : { id: t.id, tag: t.tag, type: t.type, rev: t.rev, area: t.zone, unit: '', open: 0, major: 0, status: '' }); };
+  box.onclick = e => {
+    if (e.target.closest('#covtog')) { LS.set('cov_open', open ? 0 : 1); drawCov(); return; }
+    const z = e.target.closest('[data-zone]'); if (z) { const L = T.filter(t => (t.zone || '(미기재)') === z.dataset.zone); vsTags(recs(L), z.dataset.zone); return; }
+    const d = e.target.closest('[data-cdoc]'); if (d) { vsTags(recs(T.filter(t => t.doc_no === d.dataset.cdoc)), d.dataset.cdoc); return; }
+    const c = e.target.closest('[data-cov]'); if (!c) return;
+    if (c.dataset.cov === 'miss') covMissing(miss, recs);
+    else vsTags(recs(c.dataset.cov === 'text' ? txt : tab), c.querySelector('span').textContent);
+  };
+}
+function covMissing(L, recs) {                      // the tags the PDS does not have — with a look-alike number when there is one
+  const html = `<div class="vstags"><table class="t"><thead><tr><th>Tag</th><th>구역</th><th>Datasheet Doc.</th><th>Rev</th><th>PDS 에 비슷한 번호 (확인 필요)</th></tr></thead><tbody>
+    ${L.map(t => `<tr class="click" data-vtag="${t.id}"><td><b>${esc(t.tag)}</b></td><td>${zoneChip(t.zone)}</td><td class="mono">${esc(t.doc_no)}</td><td>${esc(t.rev)}</td>
+      <td>${t.near?.length ? t.near.map(n => `<b>${esc(n.tag)}</b>${n.page ? ` <small class="soft">p.${n.page}</small>` : ''}`).join(', ') : '<span class="soft">없음</span>'}</td></tr>`).join('') || '<tr><td colspan="5" class="empty">없음 — 모든 Tag 가 PDS 에 있습니다</td></tr>'}</tbody></table></div>
+    <p class="soft" style="margin:6px 0 0">공백 · 하이픈은 무시하고 비교합니다 (98FV100 = 98FV-100 = 98FV 100 = 98FV -100). 앞자리 0 만 다른 번호(85XV114 ↔ 85XV0114)는 같다고 보지 않고 '비슷한 번호' 로 보여 줍니다.</p>`;
+  const p = modal(`Process Data 에 없는 Tag · ${L.length}`, html, [['닫기', null], ['Valve List 에서 보기', 'grid', 1]], 'vstags');
+  $('#mBody').onclick = e => { const tr = e.target.closest('[data-vtag]'); if (tr) { $('#mAct button')?.click(); openDs(+tr.dataset.vtag); } };
+  p.then(r => { if (r !== 'grid') return; xfClear('grid'); xfState('grid').f.tag = new Set(L.map(t => t.tag)); G.mode = 'grid'; go('list'); });
 }
 function dashTagRows(tags, max) {          // Review Status Table: problems first; the big view (⤢) shows every tag
   return tags.slice().sort((a, b) => (b.problems - a.problems) || (b.issues - a.issues) || a.tag_key.localeCompare(b.tag_key)).slice(0, max).map(t => `<tr class="click" data-ds="${t.id}"><td><b>${esc(t.tag_key)}</b></td><td>${esc(t.valve_type)}</td>

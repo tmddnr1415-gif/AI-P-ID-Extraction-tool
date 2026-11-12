@@ -284,3 +284,8 @@
 - 원인 = `files\26c26a50aa4f1ab2.pdf`(여기 Datasheet.pdf 와 같은 해시) 를 pymupdf 가 못 엶 — 저장 뒤 내용이 바뀜(DRM 추정). valve37 의 '검토 규칙' 추정은 틀렸음.
 - 저장본 .bin + filetype=pdf · 시작 때 옮김 · 다시 올리면 옛 문서 복구 · 409 stored_pdf 진단 · 뷰어 · 목록 표시 · Mark-up 은 그 Tag 만 뺌.
 - 시험 +2 (1,993) · 스냅샷 0 · UI 25/25. zip 없음(오케스트레이터 hotfix 로 묶음).
+
+## 2026-11-12 · valve39 — 첫 화면 Process Data 대조 · 문서 Rev · 구역 (사용자 요청, 회사 PC 사진)
+- PDS 에 없는 Tag (norm_tag: 공백 · 하이픈 무시) · PDS 글에만 있음(표로 못 읽음) · 표에서 읽음 / 앞 0 차이는 '비슷한 번호'. 실자료 164: 없음 1(85XV114 ↔ PDS 85XV0114) · 글 97 · 표 66.
+- 구역 North · South · North/South Brownfield · W15 (location.zone) · Datasheet 문서 · PDS(PR-DTS) 마다 Rev · 날짜 · 구역 · Tag.
+- 시험 +1 · 판정 변경 없음. VERSION valve39.

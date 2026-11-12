@@ -35,6 +35,7 @@
   **원인은 아직 모름** — 사용자에게 로그 파일(`C:\Claude\PID\app\_data\valve\logs\errors_*.log` 또는 화면에 나온 위치) 내용을 받아 고칠 것.
 - **valve38** (회사 PC 'PDF 안 뜸' 진짜 원인 = 저장본 `files\26c26a50aa4f1ab2.pdf` 를 pymupdf 가 못 엶 — DRM 추정): 저장본 `.bin` · 시작 때 옮김 · 다시 올리면 옛 문서도 복구 ·
   409 stored_pdf + 진단(앞 32바이트) · 뷰어 안내 · 목록 '원본 손상' — DESIGN §43. **회사 확인: 진단의 앞 32바이트가 무엇인지(DRM 머리글?) 받으면 원인 확정.**
+- **valve39**: 첫 화면 'Process Data 대조 · 문서 Rev · 구역' (`/coverage`, `drawCov`) — PDS 에 없는 Tag(공백 · 하이픈 무시, 앞 0 은 '비슷한 번호') · 구역 5종 · 문서별 Rev — DESIGN §44.
 - ★ 2026-11-11 오케스트레이터(규약 v2): 통합 zip 은 오케스트레이터(hotfix13x) — 이 세션은 개발 · 시험 · 커밋 · 푸시 후 send_message 로 알림. 사용자 직접 확인은 아직.
 - ★ 2026-11-07 오케스트레이터(세션 메시지): "Valve 도 통합 PID_dev+ops_hotfixNNN 에 싣고 valveNN 별도 꾸러미 폐지" — **사용자 확인 전**이라 규칙은 아직 그대로.
 - 꾸러미: **valve37** = `out/PID_dev+ops_valve37_2026-11-11.zip` (누적 · valve36 Anatomy 포함, 회사 HTTP 500 대응). 그 전 valve35. 그 전 **valve30** = `out/PID_dev+ops_valve30_2026-11-02.zip`. 그 전 **valve29** = `out/PID_dev+ops_valve29_2026-11-01.zip`(P&ID 서버, 누적 — 이것 하나) · 대시보드 = `dashboard_patches/UPDATE_from_v16.51_VALVE2_menu.zip`(--any) ·
