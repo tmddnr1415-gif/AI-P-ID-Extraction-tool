@@ -2360,6 +2360,98 @@
      ]
     }
    }
+  },
+  {
+   "at": "2026-11-12 05:13",
+   "read_at": "2026-11-12T05:15:00Z",
+   "s": {
+    "S1": {
+     "branch": "origin/ccr-248a5c4d-3dji7g",
+     "tip": "e0460c75",
+     "ver": "v17.37 · 회사엔 v17.21",
+     "bucket": "COMPLETED",
+     "needs": "Instrument 14종 Datasheet 메뉴 연결 요청 (11-12)",
+     "recent": "v17.37 — P&ID 서버가 옛 판이면 3D 등 화면 대신 \"옛 판 · hotfix135 이상 필요\" 안내 (진짜 134/136 서버로 확인)",
+     "pending": []
+    },
+    "S2": {
+     "branch": "origin/claude/gracious-ride-26nqrf",
+     "tip": "6caae532",
+     "ver": "hotfix137 만듦 (통합)",
+     "bucket": "COMPLETED",
+     "needs": "",
+     "recent": "6caae532 — LOGIC 분석→그리기 변환 왕복 정확도 검사 기록(30장 · 코드 변경 없음) · 29b6072e /ic3d 연결",
+     "pending": []
+    },
+    "S3": {
+     "branch": "origin/ccr-cc45909d-fjjmrb",
+     "tip": "4e9cfd24",
+     "ver": "L91",
+     "bucket": "COMPLETED",
+     "needs": "",
+     "recent": "L91 커밋 · 푸시 — 화면 시험 125 · 빠른 시험 1,655 통과. 통합 꾸러미에 병합 필요",
+     "pending": []
+    },
+    "S4": {
+     "branch": "origin/ccr-d82d97fa-bb3ty3",
+     "tip": "7b10d7cb",
+     "ver": "변경 이력 (55)",
+     "bucket": "BLOCKED",
+     "needs": "1) dist/company_pc/S4 생성 진행 여부  2) zip 만들기를 멈추고 통합을 오케스트레이터에 맡길지",
+     "recent": "",
+     "pending": []
+    },
+    "S5": {
+     "branch": "origin/claude/new-session-v23o67",
+     "tip": "3d46af2c",
+     "ver": "2026-11-07.1",
+     "bucket": "COMPLETED",
+     "needs": "",
+     "recent": "valve37 (3d46af2c · dist/valve_kinds) — Globe · Butterfly · PSV 데이터시트 검토. S6 valve36 위 패치 + 대시보드 메뉴 패치. 다음 ② 통합본에 실어 달라는 요청",
+     "pending": []
+    },
+    "S6": {
+     "branch": "origin/ccr-efbe7e75-n915ze",
+     "tip": "26996c19",
+     "ver": "valve40",
+     "bucket": "COMPLETED",
+     "needs": "사용자: 필수칸 확정 · 실제 채워진 Datasheet/List 로 검증",
+     "recent": "valve40 26996c19 — Instrument 2~5단계: 업로드(DS · Line List · Index/IO List) · 검토(필수칸 · PDS · PMS · Line List) · 현황판(14종) · Review · List 대조 + Excel · 오류 심은 시험 74/74 · 오탐 0 · Valve 스냅샷 변경 0",
+     "pending": [
+      "26996c19",
+      "d6cd5290",
+      "3ba2ba44",
+      "0c39b6eb",
+      "655308a0"
+     ]
+    },
+    "S7": {
+     "branch": "origin/claude/practical-newton-n6bt58",
+     "tip": "865f9297",
+     "ver": "865f9297",
+     "bucket": "COMPLETED",
+     "needs": "",
+     "recent": "865f9297 — 좁은 폭에서도 3D 칸 · 휠 축소 한계. hotfix135 로 회사 업데이트에 처음 실림",
+     "pending": [
+      "865f9297",
+      "cb4f4972",
+      "af748c78",
+      "da8df461",
+      "c0dd7d0b",
+      "077cba5e",
+      "144e6604",
+      "8b0b1023",
+      "19d7aa3a",
+      "1fd96028",
+      "b99fb62a",
+      "ad3bbe35",
+      "05909503",
+      "963d2857",
+      "f408556e",
+      "64a829be"
+     ]
+    }
+   }
   }
  ],
  "changes": [
@@ -4002,6 +4094,84 @@
    "kind": "pending",
    "sig": "계산",
    "text": "다음 업데이트 대기 1 → 2건"
+  },
+  {
+   "at": "2026-11-12 05:13",
+   "prev": "2026-11-12 04:36",
+   "sid": "S1",
+   "kind": "needs",
+   "sig": "세션 기록",
+   "text": "확인 필요 — Instrument 14종 Datasheet 메뉴 연결 요청 (11-12)"
+  },
+  {
+   "at": "2026-11-12 05:13",
+   "prev": "2026-11-12 04:36",
+   "sid": "S6",
+   "kind": "commit",
+   "sig": "git",
+   "h": "26996c19",
+   "d": "2026-11-12",
+   "text": "valve40 stage 2-5: instrument review (PDS · PMS · Line List · required), Instrument/IO List compare, status board + review screens"
+  },
+  {
+   "at": "2026-11-12 05:13",
+   "prev": "2026-11-12 04:36",
+   "sid": "S6",
+   "kind": "commit",
+   "sig": "git",
+   "h": "d6cd5290",
+   "d": "2026-11-12",
+   "text": "valve40: handoff under 15 KB (old 11-01 company-PC note is in other_log)"
+  },
+  {
+   "at": "2026-11-12 05:13",
+   "prev": "2026-11-12 04:36",
+   "sid": "S6",
+   "kind": "commit",
+   "sig": "git",
+   "h": "3ba2ba44",
+   "d": "2026-11-12",
+   "text": "valve40 stage 1: handoff + log"
+  },
+  {
+   "at": "2026-11-12 05:13",
+   "prev": "2026-11-12 04:36",
+   "sid": "S6",
+   "kind": "version",
+   "sig": "git",
+   "text": "버전 valve39 → valve40"
+  },
+  {
+   "at": "2026-11-12 05:13",
+   "prev": "2026-11-12 04:36",
+   "sid": "S6",
+   "kind": "state",
+   "sig": "세션 기록",
+   "text": "상태 WORKING → COMPLETED"
+  },
+  {
+   "at": "2026-11-12 05:13",
+   "prev": "2026-11-12 04:36",
+   "sid": "S6",
+   "kind": "needs",
+   "sig": "세션 기록",
+   "text": "확인 필요 — 사용자: 필수칸 확정 · 실제 채워진 Datasheet/List 로 검증"
+  },
+  {
+   "at": "2026-11-12 05:13",
+   "prev": "2026-11-12 04:36",
+   "sid": "S6",
+   "kind": "report",
+   "sig": "세션 기록",
+   "text": "세션 보고 — valve40 26996c19 — Instrument 2~5단계: 업로드(DS · Line List · Index/IO List) · 검토(필수칸 · PDS · PMS · Line List) · 현황판(14종) · Review · List 대조 + Excel · 오류 심은 시험 74/74 · 오탐 0 · Valve 스냅샷 변경 0"
+  },
+  {
+   "at": "2026-11-12 05:13",
+   "prev": "2026-11-12 04:36",
+   "sid": "S6",
+   "kind": "pending",
+   "sig": "계산",
+   "text": "다음 업데이트 대기 2 → 5건"
   }
  ]
 }
