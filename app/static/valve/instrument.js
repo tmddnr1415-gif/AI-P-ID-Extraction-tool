@@ -32,9 +32,9 @@ function buildMenu() {
   const code = () => (I.kind === 'analyzer' ? 'AT' : I.kind === 'onoff' ? 'On-Off' : I.kind.toUpperCase());
   const M = MODE === 'item' ? [['idash', '▦', 'Dashboard'], ['docs', '▤', 'Document Management'], ['itags', '☷', `${code()} List`], ['ireview', '◧', 'Datasheet Review'],
     ['irev', '⇆', 'Revision Comparison'], ['iproc', '∿', 'Process Data Verification'], ['ipms', '⛭', 'PMS Compliance'], ['iline', '≡', 'Line List Check'],
-    ['ilists', '☰', 'Instrument List · IO List'], ['iexport', '⇩', 'Reports & Export'], ['isettings', '⚙', 'Settings']]
-    : MODE === 'all' ? [['inst', '▥', 'Instrument 현황판'], ['docs', '▤', 'Document Management'], ['iexport', '⇩', 'Reports & Export']]
-      : [['ilist', I.list === 'io_list' ? '⇄' : '☰', pageName()], ['docs', '▤', 'Document Management']];
+    ['ilists', '☰', 'Instrument List · IO List'], ['ireg', '❐', 'Document · Revision'], ['iexport', '⇩', 'Reports & Export'], ['isettings', '⚙', 'Settings']]
+    : MODE === 'all' ? [['inst', '▥', 'Instrument 현황판'], ['docs', '▤', 'Document Management'], ['ireg', '❐', 'Document · Revision'], ['iexport', '⇩', 'Reports & Export']]
+      : [['ilist', I.list === 'io_list' ? '⇄' : '☰', pageName()], ['docs', '▤', 'Document Management'], ['ireg', '❐', 'Document · Revision']];
   window.INST_VIEWS = M.map(m => m[0]);
   $('#menu').innerHTML = M.map(([v, ic, l]) => `<button data-v="${v}"><i>${ic}</i>${l}</button>`).join('');
   for (const [v] of M) if (!$('#v-' + v)) { const sec = document.createElement('section'); sec.className = 'view'; sec.id = 'v-' + v; $('#views').append(sec); }
@@ -427,8 +427,43 @@ async function renderSettings() {
     await api('PUT', `/projects/${S.pid}/inst/required`, { form_id: kk.form_id, keys }); I.rows = null; toast(`필수 칸 ${keys.length}개 저장 — 누락 판정에 바로 반영`); renderSettings(); };
 }
 
+/* ── Document · Revision — the same register the dashboard shows (GET /api/valve/docreg) ───────────────── */
+async function renderReg() {
+  const el = $('#v-ireg');
+  el.innerHTML = '<div class="vh"><h2>Document · Revision</h2></div><div class="soft">불러오는 중…</div>';
+  const d = await api('GET', `/docreg?project=${encodeURIComponent(S.sum?.project?.name || '')}`);
+  const mine = MODE === 'item' ? I.kind : '';
+  if (I.rgk === undefined) I.rgk = mine;                    // an item page starts on its own datasheets (+ reference documents)
+  const q = (I.rgq || '').toUpperCase(), fk = I.rgk, fp = I.rgp;
+  const kindsIn = [...new Map(d.rows.filter(r => r.group === 'Datasheet').map(r => [r.kind, r.kind_name])).entries()];
+  const rows = d.rows.filter(r => (r.group !== 'Datasheet' || !fk || r.kind === fk) && (!fp || r.pending) && (!q || [r.tag, r.doc_no, r.kind_name, r.latest.file].join(' ').toUpperCase().includes(q)));
+  const n = { ds: rows.filter(r => r.group === 'Datasheet').length, pend: rows.filter(r => r.pending).length };
+  const link = r => { const L = r.link, u = new URL(location.href); u.searchParams.set('project', L.project); u.hash = '';
+    ['kind', 'sheet', 'ds'].forEach(k => u.searchParams.delete(k));
+    if (L.sheet) { u.searchParams.set('kind', L.kind); u.searchParams.set('sheet', L.sheet); } else if (L.ds) { if (L.kind !== 'ball') u.searchParams.set('kind', L.kind); u.searchParams.set('ds', L.ds); u.hash = 'review'; }
+    else if (L.view) { if (L.kind !== 'ball') u.searchParams.set('kind', L.kind); u.hash = L.view; } else u.searchParams.set('kind', L.kind);
+    return u.toString(); };
+  el.innerHTML = `<div class="vh"><h2>Document · Revision</h2><span class="soft">${esc(d.project)} · 입력된 최신 Rev 와 검토된 최신 Rev (검토 완료 = ${d.done_status.join(' · ')})</span><span class="sp"></span>
+      <input class="tq" placeholder="Tag · Doc No · 파일 찾기" value="${esc(I.rgq || '')}"></div>
+    <div class="ilhead"><select id="rgk"><option value="">Datasheet 전체 (${d.counts.datasheets})</option>${kindsIn.map(([k, nm]) => `<option value="${k}" ${k === fk ? 'selected' : ''}>${esc(nm)}</option>`).join('')}</select>
+      <div class="ilc"><button data-rgp class="${fp ? 'on' : ''}"><span class="ir ir-rev"><i>?</i>검토 대기</span><b>${n.pend}</b></button></div>
+      <span class="soft">Datasheet ${n.ds} · 참조 문서 ${rows.length - n.ds}</span></div>
+    <div class="card" style="padding:0;overflow:auto"><table class="t itbl"><thead><tr><th>구분</th><th>종류</th><th>Doc. No.</th><th>Tag</th><th>입력된 최신 Rev</th><th>Rev 날짜</th><th>파일</th><th>올린 날 · 사람</th>
+      <th>검토된 최신 Rev</th><th>상태</th><th>검토한 날 · 사람</th><th>Rev 이력</th></tr></thead><tbody>
+      ${rows.map(r => { const L = r.latest, R = r.reviewed; return `<tr class="link ${r.pending ? 'r-rev' : ''}" data-href="${esc(link(r))}"><td>${esc(r.group)}</td><td>${esc(r.kind_name)}</td><td>${esc(r.doc_no || '—')}</td><td><b>${esc(r.tag || '')}</b></td>
+        <td><b>${esc(L.rev || '—')}</b></td><td>${esc(L.date || '')}</td><td title="${esc(L.file)}">${esc(L.file || '')}</td><td>${esc((L.uploaded_at || '').replace('T', ' ').slice(0, 16))} · ${esc(L.uploaded_by || '')}</td>
+        <td>${r.group !== 'Datasheet' ? '<span class="soft">—</span>' : R ? `<b>${esc(R.rev || '-')}</b>` : '<span class="ir ir-rev"><i>?</i>검토 대기</span>'}${R && r.pending ? ' <span class="ir ir-rev"><i>?</i>새 Rev 검토 대기</span>' : ''}</td>
+        <td>${r.group === 'Datasheet' ? pill(R ? R.status : L.status || 'Not Reviewed') : ''}</td><td>${R ? `${esc((R.reviewed_at || '').replace('T', ' ').slice(0, 16))} · ${esc(R.reviewed_by || '')}` : ''}</td><td>${esc((r.revs || []).join(' → '))}</td></tr>`; }).join('') || '<tr><td colspan="12" class="empty">문서가 없습니다</td></tr>'}</tbody></table></div>`;
+  $('#rgk').onchange = e => { I.rgk = e.target.value; renderReg(); };
+  $('.tq', el).onchange = e => { I.rgq = e.target.value; renderReg(); };
+  el.onclick = e => {
+    if (e.target.closest('[data-rgp]')) { I.rgp = !I.rgp; renderReg(); return; }
+    const r = e.target.closest('[data-href]'); if (r && !e.target.closest('select, input')) location.href = r.dataset.href;
+  };
+}
+
 buildMenu();
-const RUN = { inst: renderBoard, ireview: renderReview, ilist: renderLists, idash: renderItemDash, iexport: renderExport, itags: renderTags, irev: renderRev,
+const RUN = { ireg: renderReg, inst: renderBoard, ireview: renderReview, ilist: renderLists, idash: renderItemDash, iexport: renderExport, itags: renderTags, irev: renderRev,
   iproc: () => renderCheck('iproc'), ipms: () => renderCheck('ipms'), iline: () => renderCheck('iline'), ilists: renderItemLists, isettings: renderSettings };
 window.INST = { render(v) { paintBrand(); (RUN[v] || renderBoard)().catch(e => { console.error(e); toast(e.message, 1); }); } };
 })();
