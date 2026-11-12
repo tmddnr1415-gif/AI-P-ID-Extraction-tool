@@ -1,0 +1,73 @@
+{
+ "card_version": "form-card-v1",
+ "source": "blank form PDF — text layer and rules only (spike/valve_form_learn.py); values are not in the blank form",
+ "form_id": "801",
+ "title": "Temperature Transmitter",
+ "printed_title": "Temperature Transmitter",
+ "item_kind": "tt",
+ "form_no_printed": "801",
+ "footer_tag": "801_R2.00",
+ "footer_tags": [
+  {"page": 1, "tag": "801_R2.00"}
+ ],
+ "revision_tag": "form 801_R2.00",
+ "page_size": "A4",
+ "pages": 1,
+ "page_roles": [
+  {"page": 1, "role": "items", "rows": [1, 30], "block": 1}
+ ],
+ "identify": [
+  {"kind": "text", "regex": "Form\\s+No\\s*:\\s*801\\b"},
+  {"kind": "text", "regex": "form\\s+801_R2\\.00"},
+  {"kind": "text", "regex": "Temperature\\s+Transmitter"},
+  {"kind": "file_name", "regex": "(?:^|[^0-9])801(?:[-_ .]|$)"},
+  {"kind": "label", "text": "Environmental Data"},
+  {"kind": "label", "text": "Data Configuration"},
+  {"kind": "label", "text": "Type of Input Signal"},
+  {"kind": "section", "text": "INPUT"}
+ ],
+ "blocks": [
+  {"block": 1, "pages": [1], "first": 1, "last": 30, "n_items": 30, "sections": ["TAG", "GENERAL", "INPUT", "OUTPUT", "MFR"]}
+ ],
+ "items": [
+  {"no": 1, "block": 1, "label": "Tag No.", "section": "TAG", "section_printed": "TAG", "page": 1, "label_bbox": [80.9, 160.0, 108.5, 169.0], "value_bbox": [186.7, 158.9, 572.9, 170.1], "subcols": [], "std_key": "tag", "process": false, "role": "item"},
+  {"no": 2, "block": 1, "label": "P&ID No.", "section": "TAG", "section_printed": "TAG", "page": 1, "label_bbox": [80.9, 171.3, 114.4, 180.3], "value_bbox": [186.7, 170.1, 572.9, 181.4], "subcols": [], "std_key": "pid_no", "process": false, "role": "item"},
+  {"no": 3, "block": 1, "label": "Service", "section": "TAG", "section_printed": "TAG", "page": 1, "label_bbox": [80.9, 182.4, 107.7, 191.4], "value_bbox": [186.7, 181.4, 572.9, 192.4], "subcols": [], "std_key": "service", "process": false, "role": "item"},
+  {"no": 4, "block": 1, "label": "Quantity Tags", "section": "TAG", "section_printed": "TAG", "page": 1, "label_bbox": [80.9, 193.4, 129.9, 202.3], "value_bbox": [186.7, 192.4, 572.9, 203.7], "subcols": [], "std_key": "tag_qty", "process": false, "role": "item", "value_cells": [[186.7, 196.4], [196.4, 370.4], [370.4, 572.9]]},
+  {"no": 5, "block": 1, "label": "Environmental Data", "section": "GENERAL", "section_printed": "GENERAL", "page": 1, "label_bbox": [80.9, 205.4, 151.4, 214.3], "value_bbox": [186.7, 203.7, 572.9, 215.1], "subcols": [], "std_key": "environmental_data", "process": false, "role": "item"},
+  {"no": 6, "block": 1, "label": "Ambient Temperature", "section": "GENERAL", "section_printed": "GENERAL", "page": 1, "label_bbox": [87.7, 216.3, 164.7, 225.3], "value_bbox": [186.7, 215.1, 572.9, 226.4], "subcols": ["Max.", "Min"], "std_key": "ambient_temperature", "process": false, "role": "item", "parent": 5},
+  {"no": 7, "block": 1, "label": "Relative Humidity", "section": "GENERAL", "section_printed": "GENERAL", "page": 1, "label_bbox": [87.7, 227.4, 150.2, 236.4], "value_bbox": [186.7, 226.4, 572.9, 237.4], "subcols": [], "std_key": "relative_humidity", "process": false, "role": "item", "parent": 5},
+  {"no": 8, "block": 1, "label": "Instrument Range", "section": "GENERAL", "section_printed": "GENERAL", "page": 1, "label_bbox": [80.9, 238.7, 144.9, 247.7], "value_bbox": [186.7, 237.4, 572.9, 248.7], "subcols": [], "std_key": "instrument_range", "process": false, "role": "item"},
+  {"no": 9, "block": 1, "label": "Calibration Range", "section": "GENERAL", "section_printed": "GENERAL", "page": 1, "label_bbox": [80.9, 250.4, 145.0, 259.3], "value_bbox": [186.7, 248.7, 572.9, 260.1], "subcols": [], "std_key": "calibration_range", "process": false, "role": "item"},
+  {"no": 10, "block": 1, "label": "Mounting", "section": "GENERAL", "section_printed": "GENERAL", "page": 1, "label_bbox": [80.9, 261.6, 113.8, 270.6], "value_bbox": [186.7, 260.1, 572.9, 271.4], "subcols": [], "std_key": "mounting", "process": false, "role": "item"},
+  {"no": 11, "block": 1, "label": "Data Configuration", "section": "GENERAL", "section_printed": "GENERAL", "page": 1, "label_bbox": [80.9, 272.4, 147.7, 281.4], "value_bbox": [186.7, 271.4, 572.9, 282.8], "subcols": [], "std_key": "data_configuration", "process": false, "role": "item"},
+  {"no": 12, "block": 1, "label": "Electrical Power Supply", "section": "GENERAL", "section_printed": "GENERAL", "page": 1, "label_bbox": [80.9, 283.7, 165.3, 292.7], "value_bbox": [186.7, 282.8, 572.9, 294.0], "subcols": [], "std_key": "power_supply", "process": false, "role": "item"},
+  {"no": 13, "block": 1, "label": "Enclosure Type :", "section": "GENERAL", "section_printed": "GENERAL", "page": 1, "label_bbox": [80.9, 295.0, 140.5, 304.0], "value_bbox": [186.7, 294.0, 572.9, 305.5], "subcols": ["Class"], "std_key": "enclosure", "process": false, "role": "item"},
+  {"no": 14, "block": 1, "label": "Hazardous Protection", "section": "GENERAL", "section_printed": "GENERAL", "page": 1, "label_bbox": [87.7, 306.6, 164.9, 315.6], "value_bbox": [186.7, 305.5, 572.9, 317.1], "subcols": ["Type", "Certificate"], "std_key": "hazardous_area", "process": false, "role": "item", "parent": 13},
+  {"no": 15, "block": 1, "label": "Weather Protection", "section": "GENERAL", "section_printed": "GENERAL", "page": 1, "label_bbox": [90.0, 318.3, 159.0, 327.3], "value_bbox": [186.7, 317.1, 572.9, 328.2], "subcols": [], "std_key": "weather_protection", "process": false, "role": "item", "parent": 13},
+  {"no": 16, "block": 1, "label": "Housing Material", "section": "GENERAL", "section_printed": "GENERAL", "page": 1, "label_bbox": [80.9, 329.4, 141.0, 338.4], "value_bbox": [186.7, 328.2, 572.9, 339.0], "subcols": [], "std_key": "housing_material", "process": false, "role": "item"},
+  {"no": 17, "block": 1, "label": "Accuracy", "section": "GENERAL", "section_printed": "GENERAL", "page": 1, "label_bbox": [80.9, 340.7, 114.1, 349.7], "value_bbox": [186.7, 339.0, 572.9, 350.1], "subcols": [], "std_key": "accuracy", "process": false, "role": "item"},
+  {"no": 18, "block": 1, "label": "Painting", "section": "GENERAL", "section_printed": "GENERAL", "page": 1, "label_bbox": [80.9, 351.6, 109.9, 360.6], "value_bbox": [186.7, 350.1, 572.9, 361.4], "subcols": [], "std_key": "painting", "process": false, "role": "item"},
+  {"no": 19, "block": 1, "label": "Accessories :", "section": "GENERAL", "section_printed": "GENERAL", "page": 1, "label_bbox": [80.9, 362.4, 128.9, 371.4], "value_bbox": [186.7, 361.4, 572.9, 372.4], "subcols": [], "std_key": "accessories", "process": false, "role": "item"},
+  {"no": 20, "block": 1, "label": "Indicator", "section": "GENERAL", "section_printed": "GENERAL", "page": 1, "label_bbox": [87.7, 373.7, 118.6, 382.7], "value_bbox": [186.7, 372.4, 572.9, 383.7], "subcols": [], "std_key": "indicator", "process": false, "role": "item", "parent": 19},
+  {"no": 21, "block": 1, "label": "Mounting Bracket", "section": "GENERAL", "section_printed": "GENERAL", "page": 1, "label_bbox": [87.7, 385.0, 150.2, 394.0], "value_bbox": [186.7, 383.7, 572.9, 395.1], "subcols": [], "std_key": "mounting_bracket", "process": false, "role": "item", "value_cells": [[186.7, 196.4], [196.4, 572.9]], "parent": 19},
+  {"no": 22, "block": 1, "label": "Code & Standard", "section": "INPUT", "section_printed": "INPUT", "page": 1, "label_bbox": [80.9, 396.6, 142.5, 405.6], "value_bbox": [186.7, 395.1, 572.9, 406.4], "subcols": [], "std_key": "code_and_standard", "process": false, "role": "item"},
+  {"no": 23, "block": 1, "label": "Type of Input Signal", "section": "INPUT", "section_printed": "INPUT", "page": 1, "label_bbox": [80.9, 407.4, 151.9, 416.4], "value_bbox": [186.7, 406.4, 572.9, 417.8], "subcols": [], "std_key": "type_of_input_signal", "process": false, "role": "item"},
+  {"no": 24, "block": 1, "label": "Electrical Connection", "section": "INPUT", "section_printed": "INPUT", "page": 1, "label_bbox": [80.9, 418.7, 156.5, 427.7], "value_bbox": [186.7, 417.8, 572.9, 429.0], "subcols": [], "std_key": "elec_connection", "process": false, "role": "item", "value_cells": [[186.7, 196.4], [196.4, 370.4], [370.4, 572.9]]},
+  {"no": 25, "block": 1, "label": "Output Signal", "section": "OUTPUT", "section_printed": "OUTPUT", "page": 1, "label_bbox": [80.9, 430.7, 129.6, 439.7], "value_bbox": [186.7, 429.0, 572.9, 440.1], "subcols": [], "std_key": "output_signal", "process": false, "role": "item"},
+  {"no": 26, "block": 1, "label": "Protocol", "section": "OUTPUT", "section_printed": "OUTPUT", "page": 1, "label_bbox": [80.9, 441.6, 110.4, 450.6], "value_bbox": [186.7, 440.1, 572.9, 451.4], "subcols": [], "std_key": "protocol", "process": false, "role": "item"},
+  {"no": 27, "block": 1, "label": "Burn-out Function", "section": "OUTPUT", "section_printed": "OUTPUT", "page": 1, "label_bbox": [80.9, 452.4, 144.7, 461.4], "value_bbox": [186.7, 451.4, 572.9, 462.8], "subcols": [], "std_key": "burn_out_function", "process": false, "role": "item"},
+  {"no": 28, "block": 1, "label": "Electrical Connection", "section": "OUTPUT", "section_printed": "OUTPUT", "page": 1, "label_bbox": [80.9, 463.7, 156.5, 472.7], "value_bbox": [186.7, 462.8, 572.9, 474.6], "subcols": [], "std_key": "output_elec_connection", "process": false, "role": "item", "value_cells": [[186.7, 196.4], [196.4, 370.4], [370.4, 572.9]]},
+  {"no": 29, "block": 1, "label": "Manufacturer", "section": "MFR", "section_printed": "MFR", "page": 1, "label_bbox": [80.9, 475.7, 128.1, 484.7], "value_bbox": [186.7, 474.6, 572.9, 486.2], "subcols": [], "std_key": "manufacturer", "process": false, "role": "item"},
+  {"no": 30, "block": 1, "label": "Model No.", "section": "MFR", "section_printed": "MFR", "page": 1, "label_bbox": [80.9, 486.6, 117.3, 495.6], "value_bbox": [186.7, 486.2, 572.9, 497.5], "subcols": [], "std_key": "model", "process": false, "role": "item", "value_cells": [[186.7, 196.4], [196.4, 370.4], [370.4, 572.9]]}
+ ],
+ "notes_region": [
+  {"kind": "common", "page": 1, "bbox": [47.2, 624.3, 573.3, 806.2]},
+  {"kind": "individual", "page": 1, "bbox": [311.9, 624.3, 573.3, 806.2]}
+ ],
+ "required": {"status": "suggested — to be confirmed by the user", "keys": ["tag", "service", "pid_no", "manufacturer", "model"]},
+ "tag_key_rule": "match tags by uppercase with spaces, hyphens and underscores removed (FT-1001A = FT 1001 A → FT1001A)",
+ "numbering": {"gaps": {"1": []}, "duplicates": {"1": []}, "allowed_gaps": {}},
+ "ambiguous": [],
+ "notes": []
+}
