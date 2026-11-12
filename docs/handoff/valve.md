@@ -9,7 +9,7 @@
   API `inst_api.py`(표 `inst_sheet`, 업로드 종류 instrument · linelist · instlist, `/inst/summary · sheets · listcmp(.xlsx) · review.xlsx · required`) ·
   화면 `app/static/valve/instrument.js`(Instrument 현황판 · Instrument Review · List 대조, `?kind=pt`) · valve.js 는 `window.VALVE` 다리만.
 - **Mark-up PDF** `instmarkup.py`: 칸 음영 + 영어 설명선(Callout) · 오른쪽 여백 1→n · `/inst/sheets/{id}/markup.pdf` · `/inst/markup.pdf?kind=`.
-- **메뉴**: INSTRUMENT 목록은 대시보드에. `/valve?kind=<item>` = 그 Item 전용 메뉴(Dashboard · Docs · Review · Export) · `all` 현황판 · `instindex|iolist` List (`instrument.js buildMenu`). Valve 페이지엔 Instrument 메뉴 없음.
+- **메뉴**: INSTRUMENT 목록은 대시보드에. `/valve?kind=<item>` = Valve 같은 전용 메뉴 11개(List · Rev 비교 · PDS · PMS · Line List · Lists …; `/inst/findings?group=` · `/inst/compare`) · `all` 현황판 · `instindex|iolist` List.
 - **valve37(440a3bb1) 들어옴**: ball·globe·butterfly·psv·valve → Valve 화면. PSV 는 Valve 가 맡음.
 - Line No 칸 없는 양식은 PDS 의 Line No · Class 로 Line List 를 찾음. 필수 칸 = 카드 제안값 → 현황판 '필수 칸 확인'에서 사용자가 확정(프로젝트 설정 `inst.required`).
 - 시험: `spike/valve_inst_scenario.py <dir> [--forms /tmp/forms] [--keep]` — 14종 × (정상 Tag · 오류 심은 Tag) + 시험 PDS/PMS/Line List/Index/IO →

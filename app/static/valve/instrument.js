@@ -23,11 +23,15 @@ function pageUrl(kind, sheet) {                             // another Instrumen
 }
 function buildMenu() {
   if (!MODE) return;
-  const M = MODE === 'item' ? [['idash', '▦', 'Dashboard'], ['docs', '▤', 'Document Management'], ['ireview', '◧', 'Datasheet Review'], ['iexport', '⇩', 'Reports & Export']]
+  const code = () => (I.kind === 'analyzer' ? 'AT' : I.kind === 'onoff' ? 'On-Off' : I.kind.toUpperCase());
+  const M = MODE === 'item' ? [['idash', '▦', 'Dashboard'], ['docs', '▤', 'Document Management'], ['itags', '☷', `${code()} List`], ['ireview', '◧', 'Datasheet Review'],
+    ['irev', '⇆', 'Revision Comparison'], ['iproc', '∿', 'Process Data Verification'], ['ipms', '⛭', 'PMS Compliance'], ['iline', '≡', 'Line List Check'],
+    ['ilists', '☰', 'Instrument List · IO List'], ['iexport', '⇩', 'Reports & Export'], ['isettings', '⚙', 'Settings']]
     : MODE === 'all' ? [['inst', '▥', 'Instrument 현황판'], ['docs', '▤', 'Document Management'], ['iexport', '⇩', 'Reports & Export']]
       : [['ilist', I.list === 'io_list' ? '⇄' : '☰', pageName()], ['docs', '▤', 'Document Management']];
   window.INST_VIEWS = M.map(m => m[0]);
   $('#menu').innerHTML = M.map(([v, ic, l]) => `<button data-v="${v}"><i>${ic}</i>${l}</button>`).join('');
+  for (const [v] of M) if (!$('#v-' + v)) { const sec = document.createElement('section'); sec.className = 'view'; sec.id = 'v-' + v; $('#views').append(sec); }
   paintBrand();
 }
 function paintBrand() {
@@ -307,7 +311,117 @@ async function renderExport() {
   el.onclick = e => { if (e.target.closest('[data-req]')) { const kk = (I.kinds || []).find(x => x.kind === I.kind); if (MODE === 'item' && kk) LS.set('inst.reqform', kk.form_id); kinds().then(reqDialog); } };
 }
 
+/* ── item page › <Item> List — every tag with its main values ─────────────────────────── */
+async function itemRows() {
+  if (!I.rows || I.rowsKind !== I.kind || I.rowsPid !== S.pid) { I.rows = (await api('GET', `/projects/${S.pid}/inst/sheets?kind=${I.kind}`)).rows; I.rowsKind = I.kind; I.rowsPid = S.pid; }
+  return I.rows;
+}
+const openTag = id => { I.sel = +id; V.go('ireview'); };
+const badges = r => { const c = r.counts; return r.issues ? `${c.Mismatch ? rp('Mismatch', c.Mismatch) : ''}${c.Missing ? rp('Missing', c.Missing) : ''}${c['Review Required'] ? rp('Review Required', c['Review Required']) : ''}` : '<span class="ir ir-ok"><i>✓</i>지적 없음</span>'; };
+async function renderTags() {
+  const el = $('#v-itags'); await kinds();
+  const rows = await itemRows(), q = (I.tq || '').toUpperCase();
+  const show = rows.filter(r => !q || [r.tag, r.service, r.doc_no, r.piping_class, r.line_no].join(' ').toUpperCase().includes(q));
+  el.innerHTML = `<div class="vh"><h2>${esc(pageName())} — List</h2><span class="soft">최신 Rev 기준 Tag ${rows.length}개 · 줄을 누르면 Datasheet Review</span><span class="sp"></span>
+      <input class="tq" placeholder="Tag · Service · Line 찾기" value="${esc(I.tq || '')}"><a class="btnlink" href="/api/valve/projects/${S.pid}/inst/review.xlsx?kind=${I.kind}" download>⇩ Excel</a></div>
+    <div class="card" style="padding:0;overflow:auto"><table class="t itbl"><thead><tr><th>Tag</th><th>Service</th><th>Doc No</th><th>Rev</th><th>P&amp;ID</th><th>Pipe Class</th><th>Line No</th><th>Fluid</th>
+      <th>Oper. P</th><th>Design P</th><th>Design T</th><th>Range</th><th>Manufacturer</th><th>Model</th><th>검토 결과</th><th>Status</th></tr></thead><tbody>
+      ${show.map(r => { const v = r.vals || {}; return `<tr class="link" data-open="${r.id}"><td><b>${esc(r.tag)}</b>${r.test_data ? '<span class="tst">TEST</span>' : ''}</td><td>${esc(r.service || '')}</td><td>${esc(r.doc_no || '')}</td><td>${esc(r.rev || '-')}</td>
+        <td>${esc(v.pid_no || '')}</td><td>${esc(r.piping_class || '')}</td><td>${esc(r.line_no || '')}</td><td>${esc([v.fluid, v.phase].filter(Boolean).join(' / '))}</td><td>${esc(v.op_pressure || '')}</td><td>${esc(v.design_pressure || '')}</td>
+        <td>${esc(v.design_temp || '')}</td><td>${esc(v.range || '')}</td><td>${esc(v.manufacturer || '')}</td><td>${esc(v.model || '')}</td><td>${badges(r)}</td><td>${pill(r.status)}</td></tr>`; }).join('') || '<tr><td colspan="16" class="empty">Datasheet 가 없습니다 — Document Management 에 올리세요</td></tr>'}</tbody></table></div>`;
+  $('.tq', el).oninput = e => { I.tq = e.target.value; clearTimeout(renderTags.t); renderTags.t = setTimeout(() => renderTags().then(() => { const i = $('#v-itags .tq'); i.focus(); i.setSelectionRange(i.value.length, i.value.length); }), 200); };
+  el.onclick = e => { const o = e.target.closest('[data-open]'); if (o) openTag(o.dataset.open); };
+}
+
+/* ── item page › Process Data Verification · PMS Compliance · Line List Check ─────────── */
+const CHECK = { iproc: ['pds', 'Process Data Verification', 'Process Data (PDS)', 'Tag 로 PDS 행을 찾아 유체 · 상 · 압력 · 온도 · 밀도 · 유량을 비교합니다. PDS 에 Tag 가 없으면 \'없음\'.'],
+  ipms: ['pms', 'PMS Compliance', 'PMS', 'Pipe Class 가 PMS 에 있는지 · Rating 이 Flange Class 와 같은지 봅니다.'],
+  iline: ['line', 'Line List Check', 'Process Line List', 'Line No 로 Line List 줄을 찾아 Pipe Class · Design P/T · Size 를 봅니다. Line 의 Design 이 Datasheet 보다 높으면 지적.'] };
+async function renderCheck(view) {
+  const [grp, title, refName, help] = CHECK[view], el = $('#v-' + view); await kinds();
+  el.innerHTML = `<div class="vh"><h2>${title}</h2></div><div class="soft">불러오는 중…</div>`;
+  const d = await api('GET', `/projects/${S.pid}/inst/findings?kind=${I.kind}&group=${grp}`);
+  const f = I.cf?.[view] || '', order = ['Mismatch', 'Missing', 'Review Required', '없음', 'Datasheet Blank', 'OK'];
+  const rows = d.rows.filter(x => f ? x.result === f : true).sort((a, b) => order.indexOf(a.result) - order.indexOf(b.result) || a.tag.localeCompare(b.tag));
+  const kpi = order.filter(r => d.counts[r]).map(r => `<button data-cf="${r}" class="${f === r ? 'on' : ''}">${rp(r)}<b>${d.counts[r]}</b></button>`).join('');
+  el.innerHTML = `<div class="vh"><h2>${title}</h2><span class="soft">${esc(pageName())} · Tag ${d.tags}</span><span class="sp"></span><button data-g="docs">자료 올리기</button></div>
+    <div class="irefs"><div class="iref ${d.ref ? 'on' : ''}"><b>기준 문서 — ${refName}</b><span>${d.ref ? esc(d.ref) : '아직 없음 — Document Management 에 올리세요'}</span></div><div class="iref"><b>무엇을 보나</b><span>${help}</span></div></div>
+    <div class="ilhead"><div class="ilc">${kpi || '<span class="soft">검사 결과 없음</span>'}</div>${f ? '<button data-cf="">전체 보기</button>' : ''}</div>
+    <div class="card" style="padding:0;overflow:auto"><table class="t itbl"><thead><tr><th>결과</th><th>Tag</th><th>Rev</th><th>항목</th><th>Datasheet</th><th>${refName}</th><th>이유</th><th>출처</th><th>Rule</th></tr></thead><tbody>
+      ${rows.map(x => `<tr class="link r-${(RES[x.result] || ['na'])[0]}" data-open="${x.sheet_id}"><td>${rp(x.result)}</td><td><b>${esc(x.tag)}</b></td><td>${esc(x.rev || '-')}</td><td>${esc(x.item)}</td><td>${esc(x.ds || '—')}</td><td>${esc(x.ref || '—')}</td>
+        <td class="soft">${esc(x.reason)}${x.human ? ' · <b>사람 확인</b>' : ''}</td><td class="soft">${esc(x.source || '')}</td><td class="soft" title="${esc(d.rules[x.rule] || '')}">${esc(x.rule)}</td></tr>`).join('') || '<tr><td colspan="9" class="empty">해당 줄이 없습니다</td></tr>'}</tbody></table></div>`;
+  el.onclick = e => {
+    const g = e.target.closest('[data-g]'); if (g) { V.go(g.dataset.g); return; }
+    const b = e.target.closest('[data-cf]'); if (b) { (I.cf ||= {})[view] = f === b.dataset.cf ? '' : b.dataset.cf; renderCheck(view); return; }
+    const o = e.target.closest('[data-open]'); if (o) openTag(o.dataset.open);
+  };
+}
+
+/* ── item page › Instrument List · IO List (this item's tags) ─────────────────────────── */
+async function renderItemLists() {
+  const el = $('#v-ilists'); await kinds();
+  const L = I.il2 || 'instrument_index', lname = L === 'io_list' ? 'IO List' : 'Instrument Index', io = L === 'io_list';
+  el.innerHTML = `<div class="vh"><h2>Instrument List · IO List</h2></div><div class="soft">불러오는 중…</div>`;
+  const d = await api('GET', `/projects/${S.pid}/inst/listcmp?list=${L}`), info = d.lists[L];
+  const rows = d.rows.filter(x => x.kind === I.kind), recs = d.records.filter(r => r.ds_kind === I.kind);
+  const c = {}; rows.forEach(x => { c[x.result] = (c[x.result] || 0) + 1; });
+  const f = I.il2f || '', show = rows.filter(x => f ? x.result === f : x.result !== 'OK');
+  el.innerHTML = `<div class="vh"><h2>Instrument List · IO List</h2><span class="soft">${esc(pageName())} 의 Tag 만 · 기준 = Datasheet</span><span class="sp"></span>
+      <a class="btnlink" href="${pageUrl(io ? 'iolist' : 'instindex')}" title="모든 Item 이 들어 있는 List 전체 화면">List 전체 보기 →</a><a class="btnlink" href="/api/valve/projects/${S.pid}/inst/listcmp.xlsx?list=${L}" download>⇩ Excel</a></div>
+    <div class="ilhead"><div class="tabs ltabs"><button data-l2="instrument_index" class="${io ? '' : 'on'}">Instrument List</button><button data-l2="io_list" class="${io ? 'on' : ''}">IO List</button></div>
+      <span class="soft">${info ? esc([info.files.join(' · '), info.rev ? 'Rev ' + info.rev : '', 'Tag ' + info.tags].filter(Boolean).join(' · ')) : '아직 없음 — Document Management › Instrument Index · IO List'}</span>
+      <div class="ilc">${['누락', '값 다름', 'OK'].map(r => `<button data-l2f="${r}" class="${f === r ? 'on' : ''}">${rp(r)}<b>${c[r] || 0}</b></button>`).join('')}</div></div>
+    <div class="card" style="padding:0;overflow:auto"><h3 style="padding:10px 12px 0">Datasheet 대조</h3><table class="t itbl"><thead><tr><th>결과</th><th>Tag</th><th>항목</th><th>Datasheet</th><th>${lname}</th><th>이유</th><th>Rule</th></tr></thead><tbody>
+      ${show.map(x => `<tr class="link" data-open="${x.sheet_id}"><td>${rp(x.result)}</td><td><b>${esc(x.tag)}</b></td><td>${esc(x.field)}</td><td>${esc(x.ds)}</td><td>${esc(x.lst)}</td><td class="soft">${esc(x.reason)}</td><td class="soft">${esc(x.rule)}</td></tr>`).join('') || `<tr><td colspan="7" class="empty">${info ? '차이 없음' : 'List 가 없습니다'}</td></tr>`}</tbody></table></div>
+    <div class="card" style="padding:0;overflow:auto"><h3 style="padding:10px 12px 0">${lname} 내용 <small class="soft">— 이 Item 의 Tag ${recs.length}개</small></h3><table class="t itbl"><thead><tr><th>Tag</th><th>Loop</th><th>Type</th><th>Service</th><th>P&amp;ID</th><th>Line</th><th>Range</th>
+      ${io ? '<th>IO</th><th>Logic</th>' : '<th>Datasheet No</th><th>Manufacturer</th><th>Model</th>'}<th>대조</th><th>p.</th></tr></thead><tbody>
+      ${recs.map(r => `<tr class="link" data-open="${r.sheet_id}"><td><b>${esc(r.tag)}</b></td><td>${esc(r.loop || '')}</td><td>${esc(r.inst_type || '')}</td><td>${esc(r.service || '')}</td><td>${esc(r.pid_no || '')}</td><td>${esc(r.line_no || '')}</td><td>${esc(r.range || '')}</td>
+        ${io ? `<td>${esc(r.io_typical || '')}</td><td>${esc(r.logic_no || '')}</td>` : `<td>${esc(r.datasheet_no || '')}</td><td>${esc(r.manufacturer || '')}</td><td>${esc(r.model || '')}</td>`}
+        <td>${r.findings ? `<span class="ir ir-bad"><i>!</i>${r.findings}</span>` : '<span class="ir ir-ok"><i>✓</i>OK</span>'}</td><td class="soft">${r.page || ''}</td></tr>`).join('') || '<tr><td colspan="12" class="empty">이 Item 의 Tag 가 List 에 없습니다</td></tr>'}</tbody></table></div>`;
+  el.onclick = e => {
+    const t = e.target.closest('[data-l2]'); if (t) { I.il2 = t.dataset.l2; I.il2f = ''; renderItemLists(); return; }
+    const b = e.target.closest('[data-l2f]'); if (b) { I.il2f = f === b.dataset.l2f ? '' : b.dataset.l2f; renderItemLists(); return; }
+    const o = e.target.closest('[data-open]'); if (o && o.dataset.open !== 'null') openTag(o.dataset.open);
+  };
+}
+
+/* ── item page › Revision Comparison ──────────────────────────────────────────────────── */
+async function renderRev() {
+  const el = $('#v-irev'); await kinds();
+  const rows = (await itemRows()).filter(r => (r.revs || []).length > 1);
+  if (!rows.length) { el.innerHTML = `<div class="vh"><h2>Revision Comparison</h2><span class="soft">${esc(pageName())}</span></div><div class="card"><div class="empty">Revision 이 2개 이상인 Tag 가 아직 없습니다.<br><span class="soft">같은 Tag 의 새 Rev Datasheet 를 올리면 줄 단위로 바뀐 값을 보여 줍니다.</span></div></div>`; return; }
+  const cur = rows.find(r => r.id === I.rvTag) || rows[0], revs = cur.revs, nw = revs.find(x => x.id === I.rvNew) || revs[revs.length - 1], pv = revs.find(x => x.id === I.rvPrev && x.id !== nw.id) || revs[Math.max(0, revs.indexOf(nw) - 1)];
+  const d = await api('GET', `/inst/compare?prev=${pv.id}&new=${nw.id}`);
+  const opt = (sel) => revs.map(x => `<option value="${x.id}" ${x.id === sel.id ? 'selected' : ''}>Rev ${esc(x.rev || '-')} ${esc(x.date || '')}</option>`).join('');
+  el.innerHTML = `<div class="vh"><h2>Revision Comparison</h2><span class="soft">${esc(pageName())} · Rev 가 2개 이상인 Tag ${rows.length}개</span></div>
+    <div class="ilhead"><select id="rvt">${rows.map(r => `<option value="${r.id}" ${r.id === cur.id ? 'selected' : ''}>${esc(r.tag)} (${r.revs.length} Rev)</option>`).join('')}</select>
+      <span class="soft">이전</span><select id="rvp">${opt(pv)}</select><span class="soft">→ 새</span><select id="rvn">${opt(nw)}</select><span class="ir ir-rev"><i>?</i>바뀐 줄 <b>${d.rows.length}</b></span></div>
+    <div class="card" style="padding:0;overflow:auto"><table class="t itbl"><thead><tr><th>No</th><th>항목</th><th>Rev ${esc(pv.rev || '-')}</th><th>Rev ${esc(nw.rev || '-')}</th><th>변경</th></tr></thead><tbody>
+      ${d.rows.map(x => `<tr><td class="soft">${esc(x.no)}</td><td>${esc(x.label)}</td><td>${esc(x.prev || '—')}</td><td><b>${esc(x.new || '—')}</b></td><td>${pill(x.change)}</td></tr>`).join('') || '<tr><td colspan="5" class="empty">두 Rev 의 값이 같습니다</td></tr>'}</tbody></table></div>`;
+  $('#rvt').onchange = e => { I.rvTag = +e.target.value; I.rvNew = I.rvPrev = null; renderRev(); };
+  $('#rvp').onchange = e => { I.rvPrev = +e.target.value; renderRev(); };
+  $('#rvn').onchange = e => { I.rvNew = +e.target.value; renderRev(); };
+}
+
+/* ── item page › Settings ─────────────────────────────────────────────────────────────── */
+async function renderSettings() {
+  const el = $('#v-isettings'); const ks = await kinds(), kk = ks.find(x => x.kind === I.kind), cur = await api('GET', `/projects/${S.pid}/inst/required`);
+  const on = new Set(cur.confirmed[kk.form_id] || kk.required), ok = !!cur.confirmed[kk.form_id];
+  const fields = kk.fields.filter((f, i, a) => a.findIndex(y => y.key === f.key) === i);
+  el.innerHTML = `<div class="vh"><h2>Settings</h2><span class="soft">${esc(pageName())} · Form ${esc(kk.form_id)}</span></div>
+    <div class="card"><h3>필수 칸 <small class="soft">— 비어 있으면 '누락' 으로 지적하는 칸 · ${ok ? '<b style="color:var(--ok)">이 프로젝트에서 확정됨</b>' : '<b>양식 카드의 제안값 (확정 전)</b>'}</small><span class="sp"></span><button class="pri" id="rqsave">저장</button></h3>
+      <div class="rqlist wide">${fields.map(f => `<label><input type="checkbox" data-rk="${esc(f.key)}" ${on.has(f.key) ? 'checked' : ''}> ${f.no}. ${esc(f.label)}</label>`).join('')}</div></div>
+    <div class="card"><h3>검토 기준 <small class="soft">IN-1.0</small></h3><table class="t"><tbody>
+      <tr><td>Process Data</td><td>Tag 로 PDS 행을 찾아 유체 · 상 · 압력 · 온도 · 밀도 · 유량 비교 (Max/Nor/Min 중 하나와 1 % 안이면 같음), 없으면 '없음'</td></tr>
+      <tr><td>PMS</td><td>Pipe Class → PMS Class · Flange Rating</td></tr>
+      <tr><td>Line List</td><td>Line No → Pipe Class · Design P/T · Size. Line 의 Design 이 Datasheet 보다 높으면 지적 (Line No 칸이 없는 양식은 PDS 의 Line No)</td></tr>
+      <tr><td>Item 규칙</td><td>같은 Datasheet 안의 값끼리만 — 사람 확인 표시</td></tr></tbody></table></div>`;
+  $('#rqsave').onclick = async () => { const keys = $$('#v-isettings [data-rk]').filter(x => x.checked).map(x => x.dataset.rk);
+    await api('PUT', `/projects/${S.pid}/inst/required`, { form_id: kk.form_id, keys }); I.rows = null; toast(`필수 칸 ${keys.length}개 저장 — 누락 판정에 바로 반영`); renderSettings(); };
+}
+
 buildMenu();
-const RUN = { inst: renderBoard, ireview: renderReview, ilist: renderLists, idash: renderItemDash, iexport: renderExport };
+const RUN = { inst: renderBoard, ireview: renderReview, ilist: renderLists, idash: renderItemDash, iexport: renderExport, itags: renderTags, irev: renderRev,
+  iproc: () => renderCheck('iproc'), ipms: () => renderCheck('ipms'), iline: () => renderCheck('iline'), ilists: renderItemLists, isettings: renderSettings };
 window.INST = { render(v) { paintBrand(); (RUN[v] || renderBoard)().catch(e => { console.error(e); toast(e.message, 1); }); } };
 })();

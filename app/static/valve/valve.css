@@ -796,3 +796,9 @@ tr.link:hover td { background: #f5f8ff; }
 .itbl thead th { position: sticky; top: 0; background: #f3f5f9; }
 .iex { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 10px 2px; border-bottom: 1px solid #eef1f6; } .iex:last-child { border-bottom: 0; }
 .iex b { font-size: 13.5px; } .iex .soft { font-size: 12px; margin-top: 2px; }
+.vh .tq { width: 220px; }
+.itbl td { white-space: nowrap; max-width: 300px; overflow: hidden; text-overflow: ellipsis; } .itbl td.soft { white-space: normal; min-width: 180px; }
+.itbl tr.r-bad td:first-child { box-shadow: inset 3px 0 0 var(--bad); } .itbl tr.r-miss td:first-child { box-shadow: inset 3px 0 0 #f0a43a; } .itbl tr.r-rev td:first-child { box-shadow: inset 3px 0 0 #e8c547; }
+.ilhead select { padding: 4px 8px; }
+.rqlist.wide { grid-template-columns: repeat(3, 1fr); max-height: none; font-size: 12.5px; gap: 4px 16px; }
+#menu { overflow-y: auto; }

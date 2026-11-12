@@ -89,5 +89,14 @@ def test_markup_pdf_shading_and_callouts(tmp_path, monkeypatch):
     assert d.xref_get_key(xr, "IT")[1] == "/FreeTextCallout" and d.xref_get_key(xr, "LE")[1] == "/OpenArrow"
     assert any("IN-LL-02" in a.info["subject"] for a in calls)
     assert pg.rect.width > 595 + 200                       # widened for the callout column
+    # item screens: one reference at a time (PDS · PMS · Line List) + revision compare
+    f = c.get("/api/valve/projects/1/inst/findings?kind=pt&group=pds").json()
+    assert f["ref"] == "TEST_PDS.pdf" and f["counts"].get("Mismatch") == 1 and all(x["rule"].startswith("IN-PDS") for x in f["rows"])
+    ll = c.get("/api/valve/projects/1/inst/findings?kind=pt&group=line").json()
+    assert {x["rule"] for x in ll["rows"] if x["result"] == "Mismatch"} == {"IN-LL-01", "IN-LL-02", "IN-LL-03"}
+    good = next(r for r in rows if r["tag"].endswith("A"))
+    cmp_ = c.get(f"/api/valve/inst/compare?prev={good['id']}&new={bad['id']}").json()
+    assert any(x["std_key"] == "piping_class" and x["change"] == "Modified" for x in cmp_["rows"])
+    assert bad["vals"]["design_pressure"] and "area" in bad
     allp = c.get("/api/valve/projects/1/inst/markup.pdf")
     assert allp.status_code == 200 and pymupdf.open("pdf", allp.content).get_toc()[0][1] == "Summary"

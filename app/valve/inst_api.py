@@ -206,7 +206,12 @@ def _brief(con, pid, r, hist) -> dict:
             "rev_date": r["rev_date"], "file": r.get("filename"), "document_id": r["document_id"], "pages": json.loads(r["pages"] or "[]"),
             "test_data": bool(r["test_data"]), "status": r["status"], "service": (instrument.values(sh).get("service") or {}).get("value", ""),
             "counts": rv["counts"], "issues": rv["issues"], "in_pds": rv["in_pds"], "revs": hist.get(r["tag_key"], []),
-            "piping_class": C.get("piping_class", ""), "line_no": C.get("line_no", "")}
+            "piping_class": C.get("piping_class", ""), "line_no": C.get("line_no", ""),
+            "vals": {"pid_no": (vals.get("pid_no") or {}).get("value", ""), "fluid": C.get("fluid", ""), "phase": C.get("fluid_state", ""),
+                     "op_pressure": (C.get("op_pressure") or {}).get("text", ""), "design_pressure": (C.get("design_pressure") or {}).get("text", ""),
+                     "op_temp": (C.get("op_temp") or {}).get("text", ""), "design_temp": (C.get("design_temp") or {}).get("text", ""),
+                     "range": (C.get("range") or {}).get("text", ""), "manufacturer": (vals.get("manufacturer") or {}).get("value", ""),
+                     "model": (vals.get("model") or {}).get("value", "") or next((v for v in ((vals.get("model") or {}).get("sub") or {}).values() if v), "")}}
 
 
 # ── endpoints ─────────────────────────────────────────────────────────────────────────────────────────────────
@@ -263,6 +268,53 @@ def sheets(pid: int, kind: str = ""):
     con = con_ready()
     latest, hist = _latest(_sheet_rows(con, pid, kind))
     return _j({"rows": [_brief(con, pid, r, hist) for r in sorted(latest.values(), key=lambda r: r["tag_key"])]})
+
+
+GROUPS = {"req": "IN-REQ", "pds": "IN-PDS", "pms": "IN-PMS", "line": "IN-LL", "item": "IN-ITM"}
+
+
+@router.get("/api/valve/projects/{pid}/inst/findings")
+def findings(pid: int, kind: str = "", group: str = ""):
+    """Every check row of the latest datasheets of one item, for one reference (pds · pms · line · req · item) —
+    the item's Process Data Verification · PMS Compliance · Line List screens."""
+    con = con_ready()
+    latest, _ = _latest(_sheet_rows(con, pid, kind))
+    pre = GROUPS.get(group, "")
+    out, cnt = [], {}
+    for r in sorted(latest.values(), key=lambda r: r["tag_key"]):
+        _, rv = reviewed(con, pid, r)
+        for x in rv["rows"]:
+            if pre and not x["rule"].startswith(pre):
+                continue
+            out.append({"sheet_id": r["id"], "tag": r["tag"], "rev": r["rev"], "kind": r["kind"], "rule": x["rule"], "item": x["item"], "key": x["key"],
+                        "ds": str(x["ds"] or ""), "ref": str(x["ref"] or ""), "result": x["result"], "reason": x["reason"], "source": x["source"],
+                        "human": bool(x.get("human"))})
+            cnt[x["result"]] = cnt.get(x["result"], 0) + 1
+    ctx = context(con, pid)
+    ref = {"pds": ctx["pds_ref"], "pms": ctx["pms_ref"], "line": ctx["ll_ref"]}.get(group)
+    return _j({"rows": out, "counts": cnt, "tags": len(latest), "ref": (ref or {}).get("filename", ""), "rules": instreview.RULES})
+
+
+@router.get("/api/valve/inst/compare")
+def compare(prev: int, new: int):
+    """Row-by-row difference of two revisions of one tag (values as read)."""
+    con = con_ready()
+    a = store.one(con, "SELECT * FROM inst_sheet WHERE id=?", prev)
+    b = store.one(con, "SELECT * FROM inst_sheet WHERE id=?", new)
+    if not a or not b:
+        return Response('{"error":"없는 Datasheet"}', status_code=404, media_type="application/json")
+    ca, cb = {r["no"]: r for r in _cells(json.loads(a["sheet"]))}, {r["no"]: r for r in _cells(json.loads(b["sheet"]))}
+    txt = lambda r: " ".join([r.get("value", "")] + [f"{k}: {v}" for k, v in (r.get("sub") or {}).items()]).strip() if r else ""   # noqa: E731
+    rows = []
+    for no in list(cb) + [k for k in ca if k not in cb]:
+        x, y = txt(ca.get(no)), txt(cb.get(no))
+        if x == y:
+            continue
+        r = cb.get(no) or ca.get(no)
+        rows.append({"no": no, "label": r["label"], "section": r.get("section", ""), "std_key": r.get("std_key"), "prev": x, "new": y,
+                     "change": "Added" if not x else "Deleted" if not y else "Modified", "page": r.get("page"), "bbox": r.get("bbox")})
+    return _j({"prev": {"id": a["id"], "rev": a["rev"], "doc_no": a["doc_no"], "date": a["rev_date"]},
+               "new": {"id": b["id"], "rev": b["rev"], "doc_no": b["doc_no"], "date": b["rev_date"]}, "tag": b["tag"], "rows": rows})
 
 
 @router.get("/api/valve/inst/sheets/{sid}")
