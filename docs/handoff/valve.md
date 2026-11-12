@@ -26,8 +26,6 @@
 
 - ★★★ **2026-11-02 사용자: "우선 여기 개인 클로드에서 개발을 이어서 진행한다"** — 이 세션(클라우드)이 계속 개발하고 valveNN 꾸러미를 낸다. 회사 PC 는 적용만(회사에서 Valve 를 고치면 다음 꾸러미가 충돌).
   아래 2026-11-01 '회사 PC 개발' 장치(devkit · valve_deploy_to_ops)는 그대로 두되 지금은 쓰지 않는다.
-- (옛) 2026-11-01 사용자 결정: Valve 분석 툴은 회사 PC Claude Code 가 개발한다. 클라우드 · 개인 세션은 `app/valve` · `app/static/valve` · `tests/test_valve*` · `docs/valve` 를
-  고치지 않고 꾸러미에도 싣지 않는다(`config/release_sources.json` company_owned · `spike/pack_delta.py`). 회사 쪽 운영 반영 = `spike/valve_deploy_to_ops.bat`(시험 → 백업 → Valve 만 복사 → 8000 재시작) · 되돌리기 `valve_rollback_ops.bat`.
 
 - 작업 브랜치: `ccr-efbe7e75-n915ze` (PID hotfix131 · DASHBOARD v16.51 병합 위). **회사 PC 에서 이어 갈 때는 `docs/handoff/VALVE_COMPANY_START.md`** (폴더 · 지시문).
 - 무엇: 대시보드 **실행 프로젝트 › CO2 PJT › Datasheet › Ball Valve** = P&ID 서버(8000) `/valve/`. 같은 줄에 Globe Valve · Butterfly Valve · PSV 메뉴(준비 중 화면, `dashboard.html MODULES`).
