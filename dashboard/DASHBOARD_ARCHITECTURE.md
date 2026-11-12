@@ -1931,3 +1931,8 @@ C:\Users\SAMSUNG\Desktop\Claude\                         ← 개발 폴더 (여�
 ### 2026-11-12 (APP_VERSION 2026-11-12.8 / SERVER_VERSION 그대로) — v17.45 문서 · Revision 현황이 세션 6 docreg 를 씀
 - 무엇을: 세션 6 b3123fa3 의 `GET /api/valve/docreg?project=CO2 PJT` 에 맞춤 — `pending`(검토 대기) 그대로 사용, `open` 이 없으면 '-', PMS · PDS · Line List · Valve List 의 link.view(pms · proc · docs · list) → 세션 6 화면 그 메뉴로(`PID_ONCE` 에 '#view' → `pidUrl` 끝에 #), 표 머리글이 Doc. No. 칸 아래로 가려지던 것.
 - 확인한 것: 실제 세션 6 서버(b3123fa3)로 33건 · 간이 집계 표시 사라짐 · 시험 Datasheet 2개 Accepted 로 바꾸니 검토된 최신 A · Accepted · 시각 표시 · 검토 대기 28 → 26 · PMS '열기' → /valve/?…&project=CO2%20PJT…#pms, 콘솔 오류 없음 / 회사에서 확인할 것: 실제 PMS · PDS · List 의 Doc. No. · Rev 가 채워지는지(시험 문서는 개정표가 없어 '-').
+
+### 2026-11-12 (APP_VERSION 2026-11-12.9 / SERVER_VERSION 그대로) — v17.46 문서 · Revision 현황 Item 별 필터
+- 무엇을: 사용자 지시 "Item 별로 필터할 수 있도록 필터 기능 추가, 6번에도 공지" → 구분 칩 아래에 **Item 칩 줄**(Ball · Globe · Butterfly · PSV · FT … On-Off · Valve List · Instrument Index · IO List · PMS · PDS · Line List 순, 개수 + 노랑 = 검토 대기 수). 누르면 그 Item 만, **여러 개 함께** 고를 수 있음, '전체' = 해제. 구분을 바꾸면 Item 선택 초기화. 예전 '종류' 드롭다운은 칩으로 바뀜. 엑셀도 필터 그대로.
+- 바뀐 곳: dashboard.html `renderDocReg`(`F.ks` · `KO` 순서 · `.dri` 칩) · `drBind`(`data-dri`) · CSS
+- 확인한 것: 실제 세션 6 서버(d11a0dad)로 PT + DPG + PMS 고르면 5건, PT 빼면 3건, 콘솔 오류 없음. 세션 6 에 같은 필터를 Document · Revision 화면에 넣도록 알림.
