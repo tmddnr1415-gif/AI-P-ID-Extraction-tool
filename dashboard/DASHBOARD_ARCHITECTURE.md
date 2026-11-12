@@ -1916,3 +1916,7 @@ C:\Users\SAMSUNG\Desktop\Claude\                         ← 개발 폴더 (여�
   Instrument List · IO List 는 세션 6 화면(kind=instindex · iolist) 그대로 — Valve Tag 도 대조에 넣는 것은 세션 6 에 요청.
 - 바뀐 곳: dashboard.html runTree(Datasheet 머리 3개 + INSTRUMENT 에서 all · instindex · iolist 뺌) · `renderRunHub(c, dsOnly)` · `ROUTES`/`RUN_LEAVES`(dshub) · 폴더 자동 펼침
 - 확인한 것: 실제 세션 6 서버(ae484423)로 메뉴 순서 · Datasheet 현황판 · Instrument List 열림, 콘솔 오류 없음.
+
+### 2026-11-12 (APP_VERSION 2026-11-12.6 / SERVER_VERSION 그대로) — v17.43 Instrument List · IO List 제목
+- 무엇을: 두 화면 머리 제목을 'CO2 PJT · Datasheet · Instrument List / IO List' 로 (v17.42 에서 Datasheet 바로 아래로 옮김). 세션 6 1247cc8e 로 두 대조에 Valve Tag(Ball · Globe · Butterfly · PSV 최신 Rev)도 들어감 — 주소 그대로라 대시보드 변경은 제목만.
+- 확인한 것: 실제 세션 6 서버(1247cc8e)로 Instrument List '대조한 Datasheet: Instrument 28 Tag · Valve 0 Tag' 표시 (시험 자료엔 Valve Datasheet 없음).

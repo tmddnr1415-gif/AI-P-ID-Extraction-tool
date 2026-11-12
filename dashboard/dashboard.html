@@ -2047,7 +2047,7 @@ function recLabel(key, f) {
  * ===================================================================== */
 let root = null;
 /* 서버 모드: http(s):// 로 접속하면 server.py 의 REST API 사용 (폴더 선택 불필요). file:// 로 열면 폴더 모드 */
-const APP_VERSION = '2026-11-12.5';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
+const APP_VERSION = '2026-11-12.6';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
 const SERVER_URL = 'http://localhost:8080';
 // 부서원 PC 사본(file://)이 접속을 시도할 서버 — 서버가 배포 파일을 만들 때 'PC 이름 주소, IP 주소' 순으로 자동 기록함
 const DEFAULT_SERVERS = ['http://ASEUNGWOOK-B01:8080', 'http://65.3.30.234:8080'];
@@ -5006,7 +5006,7 @@ const PID_ROUTES = { pid:{ title:'P&ID 분석', port:PID_PORT, path:'/', q:'embe
   bflyv:{ title:'CO2 PJT · Datasheet · Butterfly Valve', port:PID_PORT, path:'/valve/', q:'embed=1&project=CO2%20PJT&kind=butterfly&', minRev:134 },
   psv:{ title:'CO2 PJT · Datasheet · PSV', port:PID_PORT, path:'/valve/', q:'embed=1&project=CO2%20PJT&kind=psv&', minRev:134 },
   // 2026-11-12 Instrument Datasheet 자동 검토 (세션 6 valve40) — 같은 /valve/ 화면에 ?kind=<계기 종류> (kind=all = Instrument 현황판). ② 통합 hotfix138 부터
-  ...Object.fromEntries(INST_KINDS.map(([k, l]) => [k === 'all' ? 'inst' : 'inst' + k, { title:`CO2 PJT · Datasheet · Instrument · ${l}`, port:PID_PORT, path:'/valve/', q:`embed=1&project=CO2%20PJT&kind=${k}&`, minRev:138 }])) };   // 실행 프로젝트 › CO2 PJT › Datasheet › Ball Valve — P&ID 서버의 /valve/ (Valve Datasheet 검토, VALVE 세션)     // 2026-11-07 세션 7 '3D 계측제어 도구' — P&ID 서버의 /ic3d (그쪽에서 만듦, 여기는 연결만)
+  ...Object.fromEntries(INST_KINDS.map(([k, l]) => [k === 'all' ? 'inst' : 'inst' + k, { title:['instindex', 'iolist'].includes(k) ? `CO2 PJT · Datasheet · ${l}` : `CO2 PJT · Datasheet · Instrument · ${l}`, port:PID_PORT, path:'/valve/', q:`embed=1&project=CO2%20PJT&kind=${k}&`, minRev:138 }])) };   // 실행 프로젝트 › CO2 PJT › Datasheet › Ball Valve — P&ID 서버의 /valve/ (Valve Datasheet 검토, VALVE 세션)     // 2026-11-07 세션 7 '3D 계측제어 도구' — P&ID 서버의 /ic3d (그쪽에서 만듦, 여기는 연결만)
 const PID_OFF = 'P&ID 서버가 꺼져 있습니다 — 부서장 PC 의 run_lan_service.bat 을 확인하세요 (켜지면 자동으로 다시 연결합니다)';
 // 호스트 = 지금 연결된 대시보드 서버의 호스트 (서버 모드: 이 페이지 주소, file://: 실제 접속에 성공한 서버 주소), 포트만 PID_PORT
 function pidBase(key = 'pid') {
