@@ -1,6 +1,6 @@
 # Instrument Datasheet 자동 검토 — 기획안 (2026-11-12)
 
-> 상태: **기획안 (아직 만들지 않음)** · 작성: 오케스트레이터 · 근거: 사용자가 준 양식 15종 · Instrument Index 양식 · Process Line List 2개 + 지금 있는 Valve Datasheet 자동 검토(세션 6, valve39)
+> 상태: **개발 시작 (2026-11-12 사용자: "지금 전달받은 자료로 구축하고 개발한다 · 모든 Datasheet 에서 Process Data 의 기준은 PDS" · IO List · Instrument List 는 추후)** · 담당 6 세션 · 양식 파일은 저장소에 올리지 않음 — 사용자가 6 세션에 직접 올림 · 작성: 오케스트레이터 · 근거: 사용자가 준 양식 15종 · Instrument Index 양식 · Process Line List 2개 + 지금 있는 Valve Datasheet 자동 검토(세션 6, valve39)
 
 ## 1. 사용자 의도
 
