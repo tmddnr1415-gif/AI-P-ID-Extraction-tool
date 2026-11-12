@@ -8,10 +8,11 @@ if (!V) return;
 const { S, Q, LS, api, esc, pill, toast, $, $$ } = V;
 const QK = (Q.get('kind') || '').toLowerCase();
 const QSHEET = +Q.get('sheet') || 0;                  // deep link: ?kind=pt&sheet=<id> (or ?sheet=<id> alone)
-const I = { kinds: null, kind: V.INST_KINDS.has(QK) ? QK : LS.get('inst.kind', 'ft') || 'ft', list: QK === 'iolist' ? 'io_list' : QK === 'instindex' ? 'instrument_index' : LS.get('inst.list', 'instrument_index'), ltab: 'cmp', rows: null, sel: null, d: null, tab: 'find', filt: '', lfilt: '' };
+const I = { showOk: LS.get('inst.showok', false), kinds: null, kind: V.INST_KINDS.has(QK) ? QK : LS.get('inst.kind', 'ft') || 'ft', list: QK === 'iolist' ? 'io_list' : QK === 'instindex' ? 'instrument_index' : LS.get('inst.list', 'instrument_index'), ltab: 'cmp', rows: null, sel: null, d: null, tab: 'find', filt: '', lfilt: '' };
 const RES = { 'Mismatch': ['bad', '값 다름'], 'Missing': ['miss', '누락'], 'Review Required': ['rev', '확인 필요'], '없음': ['na', '없음'], 'Datasheet Blank': ['na', 'DS 비어 있음'], 'OK': ['ok', 'OK'],
   '값 다름': ['bad', '값 다름'], '누락': ['miss', '누락'], 'List 에만': ['lo', 'List 에만'] };
-const rp = r => `<span class="ir ir-${(RES[r] || ['na'])[0]}">${esc((RES[r] || [, r])[1])}</span>`;
+const RICO = { bad: '✕', miss: '◌', rev: '?', ok: '✓', na: '–', lo: '≡' };
+const rp = (r, n) => { const c = (RES[r] || ['na'])[0]; return `<span class="ir ir-${c}"><i>${RICO[c]}</i>${esc((RES[r] || [, r])[1])}${n === undefined ? '' : ` <b>${n}</b>`}</span>`; };
 const GROUPS = [['IN-REQ', '필수 칸'], ['IN-PDS', 'Process Data (PDS)'], ['IN-PMS', 'PMS'], ['IN-LL', 'Process Line List'], ['IN-ITM', 'Item 규칙 (사람 확인)']];
 // valve37: these valves are reviewed on the Valve screens (?kind=) — the Instrument card points there
 const VALVE_MENU = { cv: [['globe', 'Globe'], ['butterfly', 'Butterfly']], onoff: [['ball', 'Ball']], psv: [['psv', 'PSV']] };
@@ -39,18 +40,22 @@ async function renderBoard() {
       ${ref(`Process Line List${R.n_lines ? ` (${R.n_lines} Line)` : ''}`, R.linelist, 'Document Management › Process Line List')}${ref('Instrument Index', R.instrument_index, 'Document Management › Instrument Index · IO List')}${ref('IO List', R.io_list, 'Document Management › Instrument Index · IO List')}</div>
     ${!t.tags ? '<div class="banner info">아직 Instrument Datasheet 가 없습니다 — <b>Document Management › Instrument Datasheet PDF</b> 에 올리면 양식(FT · PT · LT · TT · PG · PSV …)을 알아보고 Tag 별로 검토합니다.</div>' : ''}
     ${t.test ? `<div class="banner warn">시험 자료(TEST DATA 도장) ${t.test}개 Tag 가 들어 있습니다 — 실제 Datasheet 가 아닙니다.</div>` : ''}
-    <div class="kpis">${tile('Item 종류', used.length + ' / ' + s.kinds.length, '', '자료가 있는 계기 종류 / 양식 카드 수')}${tile('Tag', t.tags, '', '최신 Rev 기준 Tag 수')}${tile('Datasheet', t.sheets, '', '읽은 Datasheet (모든 Rev)')}
+    ${t.tags ? `<div class="isum ${t.tags === t.ok_tags ? 'allok' : ''}"><div class="big"><b>${t.ok_tags}</b><span>/ ${t.tags} Tag</span></div>
+      <div class="txt"><b>${t.tags === t.ok_tags ? '모든 Tag 에 지적이 없습니다' : `${t.tags - t.ok_tags}개 Tag 에 확인할 지적이 있습니다`}</b>
+        <span>지적 없음 ${t.ok_tags} · 지적 있음 ${t.tags - t.ok_tags} — ${rp('Mismatch', t.mismatch)}${rp('Missing', t.missing)}${rp('Review Required', t.review)}</span></div>
+      <div class="prog" title="지적 없는 Tag 비율"><i style="width:${Math.round(100 * t.ok_tags / t.tags)}%"></i></div><div class="pct">${Math.round(100 * t.ok_tags / t.tags)}%</div></div>` : ''}
+    <div class="kpis ikpis">${tile('Item 종류', used.length + ' / ' + s.kinds.length, '', '자료가 있는 계기 종류 / 양식 카드 수')}${tile('Tag', t.tags, '', '최신 Rev 기준 Tag 수')}${tile('Datasheet', t.sheets, '', '읽은 Datasheet (모든 Rev)')}
       ${tile('지적 없음', t.ok_tags, 'okk', '지적이 하나도 없는 Tag')}${tile('누락', t.missing, t.missing ? 'warn' : '', '필수 칸이 빈 곳 (IN-REQ-01)')}${tile('값 다름', t.mismatch, t.mismatch ? 'warn' : '', 'PDS · PMS · Line List · Item 규칙과 다름')}
       ${tile('확인 필요', t.review, '', '단위 · 기준이 불명확하거나 PMS/Line 에서 정확히 찾지 못함')}${tile('PDS 없음', t.not_in_pds, '', 'Process Data 에 Tag 가 없는 수')}</div>
     <div class="card"><h3>계기 Type 별 현황 <small class="soft">— 칸을 누르면 그 종류의 Review 가 열립니다</small></h3>
       <div class="itypes">${s.kinds.map(k => {
         const iss = k.missing + k.mismatch + k.review, pct = k.tags ? Math.round(100 * k.ok_tags / k.tags) : 0;
         const revs = Object.entries(k.revs).sort().map(([r, n]) => `Rev ${esc(r)} ${n}`).join(' · ');
-        return `<div class="itype ${k.tags ? '' : 'none'}" data-k="${k.kind}" tabindex="0" title="${esc(k.name)} — 양식 ${k.form_id}">
+        return `<div class="itype ${k.tags ? (iss ? 'has' : 'clean') : 'none'}" data-k="${k.kind}" tabindex="0" title="${esc(k.name)} — 양식 ${k.form_id}">
           <div class="ih"><span class="ico">${ICON[k.kind] || '•'}</span><b>${esc(k.kind.toUpperCase())}</b><span class="soft">${esc(k.name)}</span></div>
           <div class="inum"><b>${k.tags}</b><span>Tag</span>${k.sheets !== k.tags ? `<small class="soft">DS ${k.sheets}</small>` : ''}</div>
           <div class="ibar" title="지적 없는 Tag ${k.ok_tags}/${k.tags}"><i style="width:${pct}%"></i></div>
-          <div class="icnt">${k.tags ? `<span class="ir ir-miss">누락 ${k.missing}</span><span class="ir ir-bad">값 다름 ${k.mismatch}</span><span class="ir ir-rev">확인 ${k.review}</span>${k.not_in_pds ? `<span class="ir ir-na">PDS 없음 ${k.not_in_pds}</span>` : ''}` : '<span class="soft">자료 없음</span>'}</div>
+          <div class="icnt">${!k.tags ? '<span class="soft">자료 없음</span>' : !iss ? rp('OK') + '<span class="soft">지적 없음</span>' : `${k.mismatch ? rp('Mismatch', k.mismatch) : ''}${k.missing ? rp('Missing', k.missing) : ''}${k.review ? rp('Review Required', k.review) : ''}`}${k.tags && k.not_in_pds ? `<span class="ir ir-na"><i>–</i>PDS 없음 <b>${k.not_in_pds}</b></span>` : ''}</div>
           <div class="soft irev">${revs || '&nbsp;'}${k.test ? ' · <b class="tst">TEST</b>' : ''}</div>${VALVE_MENU[k.kind] ? `<div class="ivm">${valveLink(k.kind)}</div>` : ''}</div>`;
       }).join('')}</div></div>
     <div class="grid2"><div class="card"><h3>Type 별 지적 수</h3><div class="ichart">${s.kinds.filter(k => k.tags).map(k => {
@@ -123,7 +128,7 @@ function drawTags() {
     const c = r.counts;
     return `<div class="itag ${r.id === I.sel ? 'on' : ''}" data-id="${r.id}"><div><b>${esc(r.tag)}</b>${r.test_data ? '<span class="tst">TEST</span>' : ''}<span class="sp"></span><small>Rev ${esc(r.rev || '-')}</small></div>
       <div class="soft">${esc(r.kind.toUpperCase())} · ${esc((r.service || '').slice(0, 30))}</div>
-      <div>${r.issues ? `${c.Missing ? `<span class="ir ir-miss">${c.Missing}</span>` : ''}${c.Mismatch ? `<span class="ir ir-bad">${c.Mismatch}</span>` : ''}${c['Review Required'] ? `<span class="ir ir-rev">${c['Review Required']}</span>` : ''}` : '<span class="ir ir-ok">지적 없음</span>'}${r.in_pds ? '' : '<span class="ir ir-na">PDS 없음</span>'}</div></div>`;
+      <div>${r.issues ? `${c.Mismatch ? rp('Mismatch', c.Mismatch) : ''}${c.Missing ? rp('Missing', c.Missing) : ''}${c['Review Required'] ? rp('Review Required', c['Review Required']) : ''}` : '<span class="ir ir-ok"><i>✓</i>지적 없음</span>'}${r.in_pds ? '' : '<span class="ir ir-na"><i>–</i>PDS 없음</span>'}</div></div>`;
   }).join('') || '<div class="empty">없음</div>';
   $('#itags').onclick = e => { const t = e.target.closest('[data-id]'); if (t) openSheet(+t.dataset.id); };
 }
@@ -151,16 +156,22 @@ function drawRight() {
     <div class="soft">${esc(d.doc_no || '(문서번호 못 읽음)')} · Rev ${esc(d.rev || '-')}${d.rev_date ? ' · ' + esc(d.rev_date) : ''}${d.test_data ? ' · <b class="tst">TEST DATA</b>' : ''}</div>
     <div class="ist"><a class="btnlink" href="/api/valve/inst/sheets/${d.id}/markup.pdf" download title="이 Datasheet 에 지적을 표시한 PDF — 칸 음영 + 화살표 설명선(이유)">⇩ 이 Tag Mark-up PDF</a> <select id="ists">${['Not Reviewed', 'Under Review', 'Accepted', 'Rejected', 'Commented', 'Resolved'].map(s => `<option ${s === d.status ? 'selected' : ''}>${s}</option>`).join('')}</select></div></div>`;
   if (I.tab === 'find') {
+    const isBad = f => ['Mismatch', 'Missing', 'Review Required'].includes(f.result);
+    const card = ([f, i]) => `
+        <div class="ifind ${I.selKey === f.key ? 'sel' : ''} r-${(RES[f.result] || ['na'])[0]}" data-key="${esc(f.key)}"><div><span class="no">${i + 1}</span>${rp(f.result)} <b>${esc(f.item)}</b><span class="sp"></span><small class="soft" title="${esc(d.rules[f.rule] || '')}">${esc(f.rule)}</small></div>
+          ${isBad(f) ? `<div class="cmp"><span>Datasheet</span><b>${esc(f.ds || '—')}</b><span>기준</span><b>${esc(f.ref || '—')}</b></div>
+          <div class="why">${esc(f.reason)}${f.human ? ' · <b>사람 확인</b>' : ''}</div><div class="src">${esc(f.source || '')}</div>` : `<div class="okline">${esc(f.ds || '—')} <span class="soft">= ${esc(f.ref || '—')}</span></div>`}</div>`;
+    const n = { Mismatch: 0, Missing: 0, 'Review Required': 0 }; d.review.forEach(f => { if (isBad(f)) n[f.result]++; });
+    const tot = n.Mismatch + n.Missing + n['Review Required'];
+    const strip = `<div class="istrip ${tot ? '' : 'ok'}">${tot ? `<b>지적 ${tot}건</b>${n.Mismatch ? rp('Mismatch', n.Mismatch) : ''}${n.Missing ? rp('Missing', n.Missing) : ''}${n['Review Required'] ? rp('Review Required', n['Review Required']) : ''}` : '<b>✓ 지적 없음</b>'}<span class="sp"></span><label title="같다고 확인된 항목도 펼쳐 보기"><input type="checkbox" id="iok" ${I.showOk ? 'checked' : ''}> OK 항목 보기</label></div>`;
     const sec = GROUPS.map(([p, l]) => {
       const rs = d.review.map((f, i) => [f, i]).filter(([f]) => f.rule.startsWith(p));
       if (!rs.length) return '';
-      const bad = rs.filter(([f]) => ['Mismatch', 'Missing', 'Review Required'].includes(f.result)).length;
-      return `<div class="igrp"><h4>${l} <span class="soft">${rs.length}</span>${bad ? `<span class="ir ir-bad">${bad}</span>` : '<span class="ir ir-ok">OK</span>'}</h4>${rs.map(([f, i]) => `
-        <div class="ifind ${I.selKey === f.key ? 'sel' : ''} r-${(RES[f.result] || ['na'])[0]}" data-key="${esc(f.key)}"><div><span class="no">${i + 1}</span>${rp(f.result)} <b>${esc(f.item)}</b><span class="sp"></span><small class="soft" title="${esc(d.rules[f.rule] || '')}">${esc(f.rule)}</small></div>
-          <div class="cmp"><span>Datasheet</span><b>${esc(f.ds || '—')}</b><span>기준</span><b>${esc(f.ref || '—')}</b></div>
-          <div class="soft">${esc(f.reason)}${f.human ? ' · <b>사람 확인</b>' : ''}</div><div class="src">${esc(f.source || '')}</div></div>`).join('')}</div>`;
+      const bad = rs.filter(([f]) => isBad(f)), ok = rs.filter(([f]) => !isBad(f));
+      return `<div class="igrp ${bad.length ? '' : 'allok'}"><h4>${l}${bad.length ? `<span class="ir ir-bad"><i>!</i>지적 <b>${bad.length}</b></span>` : '<span class="ir ir-ok"><i>✓</i>OK</span>'}<span class="soft cnt">${ok.length ? `같음 ${ok.length}` : ''}</span></h4>${bad.map(card).join('')}${I.showOk ? ok.map(card).join('') : ''}</div>`;
     }).join('');
-    b.innerHTML = head + (sec || '<div class="empty">검토할 기준 문서가 없습니다</div>');
+    b.innerHTML = head + strip + (sec || '<div class="empty">검토할 기준 문서가 없습니다</div>');
+    const ck = $('#iok'); if (ck) ck.onchange = () => { I.showOk = ck.checked; LS.set('inst.showok', I.showOk); drawRight(); };
   } else if (I.tab === 'vals') {
     let s0 = '';
     b.innerHTML = head + `<table class="t ivals"><tbody>${d.rows.map(r => {

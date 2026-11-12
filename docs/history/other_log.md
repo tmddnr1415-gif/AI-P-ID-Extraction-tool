@@ -302,3 +302,4 @@
 - 오류 심은 시험(`spike/valve_inst_scenario.py`): 74/74 찾음 · 정상 Tag 지적 0 · List 29/29. Valve 스냅숏 2,935 변경 0 · UI 감사 25/25.
 - (추가) Instrument Mark-up PDF: 지적 칸 음영 + 화살표 설명선(이유) 을 PDF 주석으로 — `app/valve/instmarkup.py` · 시험 1건.
 - (추가) valve37 cherry-pick + `?kind=` 화면 나누기 (Valve 4종 ↔ Instrument 13종) · pytest 2,081 · 스냅숏 변경 0 · UI 25/25.
+- (추가) Instrument 화면 가독성: 맨 위 한 줄 결론(지적 없는 Tag n/N · 진행 막대) · 상태 = 아이콘+글자+색 · 검토 결과는 지적 먼저, OK 는 접기('OK 항목 보기') · 표 줄 간격 · 줄무늬 · 고정 머리글.
