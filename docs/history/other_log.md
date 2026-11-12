@@ -289,3 +289,8 @@
 - PDS 에 없는 Tag (norm_tag: 공백 · 하이픈 무시) · PDS 글에만 있음(표로 못 읽음) · 표에서 읽음 / 앞 0 차이는 '비슷한 번호'. 실자료 164: 없음 1(85XV114 ↔ PDS 85XV0114) · 글 97 · 표 66.
 - 구역 North · South · North/South Brownfield · W15 (location.zone) · Datasheet 문서 · PDS(PR-DTS) 마다 Rev · 날짜 · 구역 · Tag.
 - 시험 +1 · 판정 변경 없음. VERSION valve39.
+
+## 2026-11-12 · valve40 1단계 — Instrument 양식 카드 14종 + 공통 번호칸 읽기기 (사용자 지시 · 기획안 v2)
+- 빈 양식 14종 → `app/valve/forms/*.json` (번호 1..N 빠짐 0) · `app/valve/instrument.py` 양식 식별 · 하위칸 · 표제란 · 다중 Tag 분리.
+- 시험 PDF 생성기 `spike/valve_make_test_ds.py` (TEST DATA 표시 · 원본은 저장소 밖). 실제 빈 양식 시험: 11종 100% · 3종 96~98%.
+- 시험 +75 · 기존 Valve 판정 변경 없음. 다음: 2단계 (화면 · 업로드 · 필수칸 · PDS · PMS · Line List).
