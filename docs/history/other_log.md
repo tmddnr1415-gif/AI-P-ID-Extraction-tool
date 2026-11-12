@@ -303,3 +303,4 @@
 - (추가) Instrument Mark-up PDF: 지적 칸 음영 + 화살표 설명선(이유) 을 PDF 주석으로 — `app/valve/instmarkup.py` · 시험 1건.
 - (추가) valve37 cherry-pick + `?kind=` 화면 나누기 (Valve 4종 ↔ Instrument 13종) · pytest 2,081 · 스냅숏 변경 0 · UI 25/25.
 - (추가) Instrument 화면 가독성: 맨 위 한 줄 결론(지적 없는 Tag n/N · 진행 막대) · 상태 = 아이콘+글자+색 · 검토 결과는 지적 먼저, OK 는 접기('OK 항목 보기') · 표 줄 간격 · 줄무늬 · 고정 머리글.
+- (추가) Item 페이지 메뉴 11개 (`/inst/findings` · `/inst/compare`) · List 대조에 Valve Tag 포함 (`valve_rows`) · 문서 · Revision 대장 `GET /api/valve/docreg?project=` (`app/valve/docreg.py`, 대시보드 '문서 · Revision 현황' 용, 읽기만).

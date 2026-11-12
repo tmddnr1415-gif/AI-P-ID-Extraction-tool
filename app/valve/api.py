@@ -2436,3 +2436,5 @@ def extracted_csv(pid: int):
 
 from app.valve import inst_api  # noqa: E402  valve40 — Instrument datasheet review (same project spaces · own table)
 router.include_router(inst_api.router)
+from app.valve import docreg  # noqa: E402  valve40 — document · revision register (read-only, for the dashboard)
+router.include_router(docreg.router)

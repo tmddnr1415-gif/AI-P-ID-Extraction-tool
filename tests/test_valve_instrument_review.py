@@ -109,5 +109,14 @@ def test_markup_pdf_shading_and_callouts(tmp_path, monkeypatch):
     lc = c.get("/api/valve/projects/1/inst/listcmp?list=instrument_index").json()
     vr = [x for x in lc["rows"] if x.get("valve_ds")]
     assert lc["n_valve"] >= 1 and lc["n_inst"] == 28 and vr and vr[0]["kind"] == "ball" and vr[0]["rule"] == "LIST-00" and vr[0]["result"] == "누락"
+    # document · revision register: latest uploaded vs latest reviewed, Valve + Instrument + reference documents
+    c.put(f"/api/valve/inst/sheets/{good['id']}/status", json={"status": "Accepted"}, headers={"X-Author": "tester"})
+    reg = c.get("/api/valve/docreg?project=TEST%20INSTRUMENT").json()
+    by = {(r["kind"], r["tag"]): r for r in reg["rows"]}
+    g = by[("pt", good["tag"])]
+    assert g["reviewed"]["rev"] == g["latest"]["rev"] == "A" and g["reviewed"]["reviewed_by"] == "tester" and not g["pending"] and g["link"]["sheet"] == good["id"]
+    assert by[("pt", bad["tag"])]["pending"] and by[("pt", bad["tag"])]["reviewed"] is None
+    assert any(r["kind"] == "ball" and r["link"].get("ds") for r in reg["rows"])
+    assert {"instindex", "iolist", "pms", "pds", "linelist"} <= {r["kind"] for r in reg["rows"]} and reg["counts"]["reviewed"] == 1
     allp = c.get("/api/valve/projects/1/inst/markup.pdf")
     assert allp.status_code == 200 and pymupdf.open("pdf", allp.content).get_toc()[0][1] == "Summary"
