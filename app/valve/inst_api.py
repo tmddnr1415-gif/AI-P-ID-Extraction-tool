@@ -343,7 +343,9 @@ def summary(pid: int):
     latest, hist = _latest(rows)
     ctx = context(con, pid)
     per = {k: {"kind": k, "name": KIND_NAMES[k], "form_id": instrument.kinds().get(k), "sheets": 0, "tags": 0, "revs": {},
-               "issues": 0, "missing": 0, "mismatch": 0, "review": 0, "not_in_pds": 0, "ok_tags": 0, "test": 0, "status": {}} for k in ORDER}
+               "issues": 0, "missing": 0, "mismatch": 0, "review": 0, "not_in_pds": 0, "ok_tags": 0, "test": 0, "status": {},
+               "reviewed": 0, "issue_tags": 0, "pending": 0, "closed": 0, "dismissed": 0} for k in ORDER}
+    cats = {g: 0 for g in CATEGORY}
     for r in rows:
         if r["kind"] in per:
             per[r["kind"]]["sheets"] += 1
@@ -362,13 +364,34 @@ def summary(pid: int):
         p["ok_tags"] += 1 if rv["issues"] == 0 else 0
         p["test"] += 1 if r["test_data"] else 0
         p["status"][r["status"]] = p["status"].get(r["status"], 0) + 1
+        done = r["status"] in ("Accepted", "Resolved") or bool(r.get("review_code"))   # review finished: status or a code given
+        p["reviewed"] += 1 if done else 0
+        p["pending"] += 0 if done else 1
+        p["issue_tags"] += 1 if rv["issues"] else 0
+        p["closed"] += rv["counts"].get("Closed", 0)
+        p["dismissed"] += rv["counts"].get("Dismissed", 0)
+        for x in rv["rows"]:
+            if x["result"] in (instreview.MISMATCH, instreview.MISSING, instreview.REVIEW):
+                cats[category(x["rule"])] += 1
     L = ctx["lists"]
     refs = {"pds": (ctx["pds_ref"] or {}).get("filename"), "pms": (ctx["pms_ref"] or {}).get("filename"),
             "linelist": (ctx["ll_ref"] or {}).get("filename"), "n_lines": len((ctx["ll"] or {}).get("lines", [])),
             "instrument_index": " · ".join(L.get("instrument_index", {}).get("files", [])), "io_list": " · ".join(L.get("io_list", {}).get("files", [])),
             "required_confirmed": sorted(ctx["required"])}
-    tot = {k: sum(p[k] for p in per.values()) for k in ("sheets", "tags", "issues", "missing", "mismatch", "review", "not_in_pds", "ok_tags", "test")}
-    return _j({"kinds": [per[k] for k in ORDER], "total": tot, "refs": refs})
+    tot = {k: sum(p[k] for p in per.values()) for k in ("sheets", "tags", "issues", "missing", "mismatch", "review", "not_in_pds", "ok_tags", "test",
+                                                         "reviewed", "issue_tags", "pending", "closed", "dismissed")}
+    return _j({"kinds": [per[k] for k in ORDER], "total": tot, "refs": refs, "categories": cats, "at": store.now()})
+
+
+CATEGORY = {"Process Data": "IN-PDS", "Line List": "IN-LL", "PMS": "IN-PMS", "Required Field": "IN-REQ", "Open Item": "IN-OPN",
+            "Sizing (CV · PSV)": ("IN-CV", "IN-PSV"), "Item Rule": ("IN-ITM", "IN-UNIT")}
+
+
+def category(rule: str) -> str:
+    for name, pre in CATEGORY.items():
+        if rule.startswith(pre if isinstance(pre, tuple) else (pre,)):
+            return name
+    return "Item Rule"
 
 
 @router.get("/api/valve/projects/{pid}/inst/sheets")
@@ -600,10 +623,15 @@ def progress(pid: int, kind: str = "", weeks: int = 12):
     for i in range(weeks - 1, -1, -1):
         y, w, _ = (today - dt.timedelta(weeks=i)).isocalendar()
         keys.append((y, w))
-    ser = {k: {"week": f"{k[0]}-W{k[1]:02d}", "received": 0, "decisions": 0, "codes": 0, "closed": 0} for k in keys}
-    for r in store.rows(con, f"SELECT s.created_at t FROM inst_sheet s WHERE s.project_id=?{ksql}", pid, *kargs):
-        if wk(r["t"]) in ser:
-            ser[wk(r["t"])]["received"] += 1
+    ser = {k: {"week": f"{k[0]}-W{k[1]:02d}", "received": 0, "decisions": 0, "codes": 0, "closed": 0, "issues": 0, "open": 0} for k in keys}
+    for r in store.rows(con, f"SELECT {_LIGHT} FROM inst_sheet s WHERE s.project_id=?{ksql}", pid, *kargs):
+        w = wk(r["created_at"])
+        if w not in ser:
+            continue
+        ser[w]["received"] += 1
+        _, rv = reviewed(con, pid, r)                      # findings raised on the datasheets received that week, and still open now
+        ser[w]["issues"] += sum(1 for x in rv["rows"] if x["result"] in (instreview.MISMATCH, instreview.MISSING, instreview.REVIEW, "Closed", "Dismissed"))
+        ser[w]["open"] += rv["issues"]
     for r in store.rows(con, f"SELECT d.at t FROM inst_decision d JOIN inst_sheet s ON s.id=d.sheet_id WHERE s.project_id=?{ksql}", pid, *kargs):
         if wk(r["t"]) in ser:
             ser[wk(r["t"])]["decisions"] += 1

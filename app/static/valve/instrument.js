@@ -64,53 +64,99 @@ const kname = k => (I.kinds || []).find(x => x.kind === k)?.name || k;
 
 /* ── Instrument 현황판 — every item kind at a glance ─────────────────────────────── */
 async function renderBoard() {
+  /* Instrument 현황판 — answer first (4 KPI cards) · three analysis cards (status · weekly trend · category) · type panel +
+     type cards (By Type / By Area, search, filters, export, print).  Everything is the project's own data. */
   const el = $('#v-inst');
-  el.innerHTML = '<div class="vh"><h2>Instrument 현황판</h2></div><div class="soft">불러오는 중…</div>';
+  el.innerHTML = '<div class="vh"><h2>Instrument Datasheet Review Dashboard</h2></div><div class="soft">불러오는 중…</div>';
   await kinds();
-  const s = await api('GET', `/projects/${S.pid}/inst/summary`), t = s.total, R = s.refs;
-  const ref = (l, v, hint) => `<div class="iref ${v ? 'on' : ''}" title="${esc(v || hint)}"><b>${l}</b><span>${v ? esc(v.length > 46 ? v.slice(0, 44) + '…' : v) : '없음'}</span></div>`;
-  const tile = (l, n, cls, tip) => `<div class="kpi ${cls || ''}" title="${esc(tip || '')}"><div class="l">${l}</div><div class="n">${n}</div></div>`;
-  const used = s.kinds.filter(k => k.tags);
-  const maxI = Math.max(1, ...s.kinds.map(k => k.missing + k.mismatch + k.review));
-  el.innerHTML = `<div class="vh"><h2>Instrument 현황판</h2><span class="soft">${esc(S.sum?.project?.name || '')} · 계기 Type 별 Datasheet 검토 현황</span><span class="sp"></span>
-      <button data-g="docs">자료 올리기</button><button data-req>필수 칸 확인</button><a class="btnlink" href="/api/valve/projects/${S.pid}/inst/markup.pdf" download title="지적이 있는 Datasheet 전부 — 칸 음영 + 화살표 설명선(이유)">⇩ Mark-up PDF</a><a class="btnlink" href="/api/valve/projects/${S.pid}/inst/review.xlsx" download>⇩ 검토 결과 Excel</a>
-</div>
-    <div class="irefs">${ref('Process Data (PDS)', R.pds, 'Document Management › Process Data')}${ref('PMS', R.pms, 'Document Management › PMS')}
-      ${ref(`Process Line List${R.n_lines ? ` (${R.n_lines} Line)` : ''}`, R.linelist, 'Document Management › Process Line List')}${ref('Instrument Index', R.instrument_index, 'Document Management › Instrument Index · IO List')}${ref('IO List', R.io_list, 'Document Management › Instrument Index · IO List')}</div>
-    ${!t.tags ? '<div class="banner info">아직 Instrument Datasheet 가 없습니다 — <b>Document Management › Instrument Datasheet PDF</b> 에 올리면 양식(FT · PT · LT · TT · PG · PSV …)을 알아보고 Tag 별로 검토합니다.</div>' : ''}
-    ${t.test ? `<div class="banner warn">시험 자료(TEST DATA 도장) ${t.test}개 Tag 가 들어 있습니다 — 실제 Datasheet 가 아닙니다.</div>` : ''}
-    ${t.tags ? `<div class="isum ${t.tags === t.ok_tags ? 'allok' : ''}"><div class="big"><b>${t.ok_tags}</b><span>/ ${t.tags} Tag</span></div>
-      <div class="txt"><b>${t.tags === t.ok_tags ? '모든 Tag 에 지적이 없습니다' : `${t.tags - t.ok_tags}개 Tag 에 확인할 지적이 있습니다`}</b>
-        <span>지적 없음 ${t.ok_tags} · 지적 있음 ${t.tags - t.ok_tags} — ${rp('Mismatch', t.mismatch)}${rp('Missing', t.missing)}${rp('Review Required', t.review)}</span></div>
-      <div class="prog" title="지적 없는 Tag 비율"><i style="width:${Math.round(100 * t.ok_tags / t.tags)}%"></i></div><div class="pct">${Math.round(100 * t.ok_tags / t.tags)}%</div></div>` : ''}
-    <div class="kpis ikpis">${tile('Item 종류', used.length + ' / ' + s.kinds.length, '', '자료가 있는 계기 종류 / 양식 카드 수')}${tile('Tag', t.tags, '', '최신 Rev 기준 Tag 수')}${tile('Datasheet', t.sheets, '', '읽은 Datasheet (모든 Rev)')}
-      ${tile('지적 없음', t.ok_tags, 'okk', '지적이 하나도 없는 Tag')}${tile('누락', t.missing, t.missing ? 'warn' : '', '필수 칸이 빈 곳 (IN-REQ-01)')}${tile('값 다름', t.mismatch, t.mismatch ? 'warn' : '', 'PDS · PMS · Line List · Item 규칙과 다름')}
-      ${tile('확인 필요', t.review, '', '단위 · 기준이 불명확하거나 PMS/Line 에서 정확히 찾지 못함')}${tile('PDS 없음', t.not_in_pds, '', 'Process Data 에 Tag 가 없는 수')}</div>
-    <div class="card"><h3>계기 Type 별 현황 <small class="soft">— 칸을 누르면 그 종류의 Review 가 열립니다</small></h3>
-      <div class="itypes">${s.kinds.map(k => {
-        const iss = k.missing + k.mismatch + k.review, pct = k.tags ? Math.round(100 * k.ok_tags / k.tags) : 0;
-        const revs = Object.entries(k.revs).sort().map(([r, n]) => `Rev ${esc(r)} ${n}`).join(' · ');
-        return `<div class="itype ${k.tags ? (iss ? 'has' : 'clean') : 'none'}" data-k="${k.kind}" tabindex="0" title="${esc(k.name)} — 양식 ${k.form_id}">
-          <div class="ih"><span class="ico">${ICON[k.kind] || '•'}</span><b>${esc(k.kind.toUpperCase())}</b><span class="soft">${esc(k.name)}</span></div>
-          <div class="inum"><b>${k.tags}</b><span>Tag</span>${k.sheets !== k.tags ? `<small class="soft">DS ${k.sheets}</small>` : ''}</div>
-          <div class="ibar" title="지적 없는 Tag ${k.ok_tags}/${k.tags}"><i style="width:${pct}%"></i></div>
-          <div class="icnt">${!k.tags ? '<span class="soft">자료 없음</span>' : !iss ? rp('OK') + '<span class="soft">지적 없음</span>' : `${k.mismatch ? rp('Mismatch', k.mismatch) : ''}${k.missing ? rp('Missing', k.missing) : ''}${k.review ? rp('Review Required', k.review) : ''}`}${k.tags && k.not_in_pds ? `<span class="ir ir-na"><i>–</i>PDS 없음 <b>${k.not_in_pds}</b></span>` : ''}</div>
-          <div class="soft irev">${revs || '&nbsp;'}${k.test ? ' · <b class="tst">TEST</b>' : ''}</div>${VALVE_MENU[k.kind] ? `<div class="ivm">${valveLink(k.kind)}</div>` : ''}</div>`;
-      }).join('')}</div></div>
-    <div id="iprog0"></div>
-    <div class="grid2"><div class="card"><h3>Type 별 지적 수</h3><div class="ichart">${s.kinds.filter(k => k.tags).map(k => {
-        const w = x => (100 * x / maxI).toFixed(1);
-        return `<div class="icr" data-k="${k.kind}"><span class="il">${esc(k.kind.toUpperCase())}</span><span class="ib"><i class="m" style="width:${w(k.missing)}%"></i><i class="b" style="width:${w(k.mismatch)}%"></i><i class="r" style="width:${w(k.review)}%"></i></span><span class="iv">${k.missing + k.mismatch + k.review}</span></div>`;
-      }).join('') || '<div class="soft">자료 없음</div>'}<div class="ileg"><i class="m"></i>누락 <i class="b"></i>값 다름 <i class="r"></i>확인 필요</div></div></div>
-      <div class="card"><h3>검토 기준 <small class="soft">IN-1.0</small></h3><table class="t"><tbody>
-        <tr><td>필수 칸</td><td>양식 카드의 필수 목록 (${R.required_confirmed.length ? `확인된 양식 ${R.required_confirmed.map(esc).join(' · ')}` : '<b>제안값 — 사용자 확인 전</b>'})</td></tr>
-        <tr><td>Process Data</td><td>Tag 로 PDS 행을 찾아 유체 · 상 · 압력 · 온도 · 밀도 · 유량 비교, 없으면 '없음'</td></tr>
-        <tr><td>PMS</td><td>Pipe Class → PMS Class · Flange Rating</td></tr>
-        <tr><td>Line List</td><td>Line No → Pipe Class · Design P/T · Size. <b>Line 의 Design 이 Datasheet 보다 높으면 지적</b> (Line No 칸이 없는 양식은 PDS 의 Line No)</td></tr>
-        <tr><td>Item 규칙</td><td>같은 Datasheet 안의 값끼리만 (PT/PG Range ↔ 운전압력 · PSV Set ↔ Design) — 사람 확인 표시</td></tr></tbody></table></div></div>`;
-  progressCard('').then(h => { const x = $('#iprog0'); if (x) x.innerHTML = h; }).catch(() => {});
+  const [s, pr] = await Promise.all([api('GET', `/projects/${S.pid}/inst/summary`), api('GET', `/projects/${S.pid}/inst/progress?weeks=8`).catch(() => null)]);
+  const t = s.total, R = s.refs, P = n => (t.tags ? Math.round(100 * n / t.tags * 10) / 10 : 0);
+  const B = I.board || (I.board = { by: 'type', q: '', st: '', area: '', sel: '' });
+  const wk = pr ? pr.weeks : [], last = wk[wk.length - 1] || { received: 0 }, prev = wk[wk.length - 2] || { received: 0 };
+  const kpi = (cls, icon, label, n, sub, go) => `<div class="bk ${cls}" ${go ? `data-gok="${go}"` : ''}><span class="bki">${icon}</span><div><div class="bkl">${label}</div><div class="bkn">${n}${sub ? `<small>${sub}</small>` : ''}</div></div>${go ? '<span class="bkgo">›</span>' : ''}</div>`;
+  const donut = (parts, center, sub) => {                  // SVG ring: one arc per part
+    const tot = parts.reduce((a, p) => a + p[1], 0) || 1; let a0 = -Math.PI / 2;
+    const arcs = parts.filter(p => p[1]).map(([, n, c]) => { const a1 = a0 + 2 * Math.PI * n / tot - 0.0001, L = a1 - a0 > Math.PI ? 1 : 0;
+      const pt = a => [60 + 46 * Math.cos(a), 60 + 46 * Math.sin(a)], [x0, y0] = pt(a0), [x1, y1] = pt(a1); a0 = a1 + 0.0001;
+      return `<path d="M${x0} ${y0} A46 46 0 ${L} 1 ${x1} ${y1}" stroke="${c}" stroke-width="15" fill="none"/>`; }).join('');
+    return `<svg viewBox="0 0 120 120" class="bdonut"><circle cx="60" cy="60" r="46" stroke="#eef1f6" stroke-width="15" fill="none"/>${arcs}
+      <text x="60" y="58" text-anchor="middle" font-size="19" font-weight="700" fill="#1b2333">${center}</text><text x="60" y="75" text-anchor="middle" font-size="9.5" fill="#5b6475">${sub}</text></svg>`; };
+  const legend = rows => `<div class="blg">${rows.map(([l, n, c, extra]) => `<div><i style="background:${c}"></i><span>${l}</span><b>${n}</b>${extra ? `<em>${extra}</em>` : ''}</div>`).join('')}</div>`;
+  // status overview
+  const stParts = [['검토 완료', t.reviewed, '#1aa35a'], ['대기 · 지적 없음', Math.max(0, t.pending - Math.min(t.pending, t.issue_tags)), '#2f6fe0'], ['지적 있음', Math.min(t.pending, t.issue_tags), '#f08a24']];
+  // weekly trend (issues raised on the datasheets received that week · still open now)
+  const tmax = Math.max(1, ...wk.map(w => w.issues || 0));
+  const trend = wk.map(w => `<div class="tw"><div class="tb"><i class="a" style="height:${Math.round((w.issues || 0) / tmax * 100)}%"><b>${w.issues || ''}</b></i><i class="o" style="height:${Math.round((w.open || 0) / tmax * 100)}%"><b>${w.open || ''}</b></i></div><span>${w.week.slice(5)}</span></div>`).join('');
+  // categories
+  const CC = ['#2f6fe0', '#f08a24', '#1aa35a', '#8b5cf6', '#e4b400', '#d9443a', '#64748b'];
+  const cats = Object.entries(s.categories || {}).filter(([, n]) => n).sort((a, b) => b[1] - a[1]);
+  const csum = cats.reduce((a, [, n]) => a + n, 0) || 1;
+  // type list + cards
+  const kinds_ = s.kinds.filter(k => !B.st || (B.st === 'issue' ? k.issue_tags : B.st === 'pending' ? k.pending : B.st === 'done' ? k.reviewed : true));
+  const q = (B.q || '').toUpperCase();
+  const shown = kinds_.filter(k => !q || (k.kind + ' ' + k.name).toUpperCase().includes(q));
+  const code = k => k === 'analyzer' ? 'AT' : k === 'onoff' ? 'ON-OFF' : k.toUpperCase();
+  const card = k => { const pct = k.tags ? Math.round(100 * k.reviewed / k.tags) : 0, tone = !k.tags ? 'none' : k.issue_tags ? 'has' : 'clean';
+    const revs = Object.entries(k.revs).sort().map(([r, n]) => `Rev ${esc(r)}${n > 1 ? `·${n}` : ''}`).join(' ');
+    return `<div class="bt ${tone} ${B.sel === k.kind ? 'sel' : ''}" data-k="${k.kind}" tabindex="0" title="${esc(k.name)} — Form ${k.form_id}">
+      <div class="bth"><b>${code(k.kind)}</b><span>${esc(k.name)}</span><em>›</em></div>
+      <div class="btn"><b>${k.issue_tags}</b><span>/ ${k.tags} Tag</span><small>지적 있는 Tag</small></div>
+      <div class="btb"><i style="width:${pct}%"></i></div>
+      <div class="btc">${k.tags ? `<span class="ir ir-ok"><i>✓</i>검토완료 <b>${k.reviewed}</b></span>${k.issue_tags ? `<span class="ir ir-miss"><i>!</i>이슈 <b>${k.issue_tags}</b></span>` : ''}${k.pending - k.issue_tags > 0 ? `<span class="ir ir-na">대기 <b>${k.pending - Math.min(k.pending, k.issue_tags)}</b></span>` : ''}` : '<span class="soft">자료 없음</span>'}</div>
+      <div class="btf"><span>${revs || '&nbsp;'}</span>${k.test ? '<span class="tst">TEST</span>' : ''}${VALVE_MENU[k.kind] ? `<span class="ivm">${valveLink(k.kind)}</span>` : ''}</div></div>`; };
+  let grid;
+  if (B.by === 'area') {                                    // By Area: tags grouped by the area found for them (P&ID · doc no · tag)
+    const rows = (I.allRows && I.allRowsPid === S.pid) ? I.allRows : (I.allRows = (await api('GET', `/projects/${S.pid}/inst/sheets`)).rows, I.allRowsPid = S.pid, I.allRows);
+    const areas = {};
+    rows.filter(r => (!q || (r.tag + ' ' + r.kind + ' ' + (r.service || '')).toUpperCase().includes(q)) && (!B.st || (B.st === 'issue' ? r.issues : B.st === 'done' ? (['Accepted', 'Resolved'].includes(r.status) || r.review_code) : B.st === 'pending' ? !(['Accepted', 'Resolved'].includes(r.status) || r.review_code) : true)))
+      .forEach(r => { const a = r.area || 'Area 미상'; (areas[a] ||= []).push(r); });
+    const order = ['North', 'South', 'North Brownfield', 'South Brownfield', 'W15'];
+    grid = Object.entries(areas).sort((a, b) => ((order.indexOf(a[0]) + 1 || 99) - (order.indexOf(b[0]) + 1 || 99))).map(([a, rs]) => {
+      const iss = rs.filter(r => r.issues).length, done = rs.filter(r => ['Accepted', 'Resolved'].includes(r.status) || r.review_code).length;
+      const byk = {}; rs.forEach(r => { byk[r.kind] = (byk[r.kind] || 0) + 1; });
+      return `<div class="bt ${iss ? 'has' : 'clean'} area"><div class="bth"><b>${esc(a)}</b><span>${rs.length} Tag</span></div>
+        <div class="btn"><b>${iss}</b><span>/ ${rs.length} Tag</span><small>지적 있는 Tag</small></div><div class="btb"><i style="width:${rs.length ? Math.round(100 * done / rs.length) : 0}%"></i></div>
+        <div class="btc">${Object.entries(byk).map(([k, n]) => `<button class="bchip" data-k="${k}">${code(k)} <b>${n}</b></button>`).join('')}</div></div>`; }).join('') || '<div class="empty">Tag 가 없습니다</div>';
+  } else grid = shown.map(card).join('') || '<div class="empty">조건에 맞는 종류가 없습니다</div>';
+  const used = s.kinds.filter(k => k.tags).length, pctDone = P(t.reviewed);
+  el.innerHTML = `<div class="bhead"><div><h2>Instrument Datasheet Review Dashboard</h2><div class="soft">${esc(S.sum?.project?.name || '')} · Instrument Datasheet 검토 · Issue 추적</div></div><span class="sp"></span>
+      <span class="soft bat">계산 ${esc((s.at || '').replace('T', ' ').slice(0, 16))}</span><button class="ghost" data-act="refresh" title="다시 계산">⟳</button>
+      <button data-g="docs">자료 올리기</button><button data-req>필수 칸 확인</button></div>
+    <div class="irefs">${[['Process Data (PDS)', R.pds], ['PMS', R.pms], [`Process Line List${R.n_lines ? ` (${R.n_lines})` : ''}`, R.linelist], ['Instrument Index', R.instrument_index], ['IO List', R.io_list]]
+      .map(([l, v]) => `<div class="iref ${v ? 'on' : ''}" title="${esc(v || '없음')}"><b>${l}</b><span>${v ? esc(v.length > 40 ? v.slice(0, 38) + '…' : v) : '없음'}</span></div>`).join('')}</div>
+    ${!t.tags ? '<div class="banner info">아직 Instrument Datasheet 가 없습니다 — <b>Document Management › Instrument Datasheet PDF</b> 에 올리세요.</div>' : ''}
+    ${t.test ? `<div class="banner warn">시험 자료(TEST DATA 도장) ${t.test}개 Tag — 실제 Datasheet 가 아닙니다.</div>` : ''}
+    <div class="bkpis">
+      ${kpi('b1', '⧉', 'Total Tags', t.tags, last.received - prev.received ? `<span class="${last.received >= prev.received ? 'up' : 'dn'}">${last.received >= prev.received ? '↑' : '↓'} ${Math.abs(last.received - prev.received)}</span> 지난주 대비` : `${used} / ${s.kinds.length} 종류`)}
+      ${kpi('b2', '!', 'Issues Found', t.issues, `지적 있는 Tag ${t.issue_tags} (${P(t.issue_tags)}%)`, 'issue')}
+      ${kpi('b3', '✓', 'Reviewed', t.reviewed, `(${pctDone}%)`, 'done')}
+      ${kpi('b4', '◷', 'Pending Review', t.pending, `종결 ${t.closed} · 무시 ${t.dismissed}`, 'pending')}
+      <div class="bact"><a class="bbtn" href="/api/valve/projects/${S.pid}/inst/markup.pdf" download>⇩ Mark-up PDF</a><a class="bbtn ghost2" href="/api/valve/projects/${S.pid}/inst/crs.xlsx" download>⇩ CRS</a>
+        <a class="bbtn ghost2" href="/api/valve/projects/${S.pid}/inst/review.xlsx" download>⇩ 검토 결과 Excel</a></div></div>
+    <div class="bana">
+      <div class="card"><h3>◔ Review Status Overview</h3><div class="bdw">${donut(stParts.map(([l, n, c]) => [l, n, c]), `${pctDone}%`, 'Reviewed')}${legend(stParts.map(([l, n, c]) => [l, n, c]))}</div></div>
+      <div class="card"><h3>▥ Issues Trend <small class="soft">— 그 주에 받은 Datasheet 의 지적 · 지금 남은 지적</small></h3>
+        <div class="btr">${trend || '<div class="soft">자료 없음</div>'}</div><div class="ileg"><i style="background:#2f6fe0"></i>지적 발생 <i style="background:#f08a24"></i>남은 지적</div></div>
+      <div class="card"><h3>◕ Issue by Category</h3><div class="bdw">${donut(cats.map(([l, n], i) => [l, n, CC[i % CC.length]]), t.issues, 'Total')}
+        ${legend(cats.map(([l, n], i) => [l, n, CC[i % CC.length], `${Math.round(100 * n / csum)}%`]))}</div></div></div>
+    <div class="bbar"><div class="seg"><button data-by="type" class="${B.by === 'type' ? 'on' : ''}">▦ By Type</button><button data-by="area" class="${B.by === 'area' ? 'on' : ''}">⌖ By Area</button></div>
+      <input class="bq" placeholder="Tag · Type · Service 찾기" value="${esc(B.q)}">
+      <select data-f="st"><option value="">All Status</option><option value="issue" ${B.st === 'issue' ? 'selected' : ''}>지적 있음</option><option value="pending" ${B.st === 'pending' ? 'selected' : ''}>검토 대기</option><option value="done" ${B.st === 'done' ? 'selected' : ''}>검토 완료</option></select>
+      <span class="sp"></span><a class="btnlink ghost2" href="/api/valve/projects/${S.pid}/inst/review.xlsx" download>⇩ Export</a><button class="ghost2" data-act="print">⎙ Print</button></div>
+    <div class="bmain">
+      <aside class="bside"><div class="bsh"><b>Instrument Type</b><span class="soft">${s.kinds.length} Types</span></div>
+        ${s.kinds.map(k => `<button class="bsi ${B.sel === k.kind ? 'on' : ''} ${k.tags ? '' : 'z'}" data-k="${k.kind}"><b>${code(k.kind)}</b><span>${esc(k.name)}</span><em>${k.tags}</em></button>`).join('')}</aside>
+      <section class="bgrid-wrap"><div class="bgh"><b>${B.by === 'area' ? 'Area' : `${shown.length} / ${s.kinds.length}`}</b><span class="soft">${B.by === 'area' ? 'Area 별 Tag 검토 현황' : 'Type 별 Tag 검토 현황'}</span>
+          <span class="ir ir-ok"><i>✓</i>검토완료 <b>${t.reviewed}</b></span><span class="ir ir-rev"><i>◷</i>미검토 <b>${t.pending}</b></span><span class="ir ir-bad"><i>!</i>이슈 <b>${t.issue_tags}</b></span>
+          <span class="sp"></span><div class="bpg"><i style="width:${pctDone}%"></i></div><b>${pctDone}%</b></div>
+        <div class="bgrid">${grid}</div></section></div>`;
+  const qi = $('.bq', el); qi.oninput = e => { B.q = e.target.value; clearTimeout(renderBoard.t); renderBoard.t = setTimeout(() => renderBoard().then(() => { const x = $('#v-inst .bq'); x.focus(); x.setSelectionRange(x.value.length, x.value.length); }), 250); };
+  $('select[data-f="st"]', el).onchange = e => { B.st = e.target.value; renderBoard(); };
   el.onclick = e => {
     if (e.target.closest('.vlink')) return;
+    const by = e.target.closest('[data-by]'); if (by) { B.by = by.dataset.by; renderBoard(); return; }
+    const gk = e.target.closest('[data-gok]'); if (gk) { B.st = gk.dataset.gok; renderBoard(); return; }
+    const a = e.target.closest('[data-act]'); if (a) { if (a.dataset.act === 'print') window.print(); else { I.allRows = null; renderBoard(); } return; }
     const k = e.target.closest('[data-k]'); if (k) { location.href = pageUrl(k.dataset.k); return; }      // each item is its own page
     const g = e.target.closest('[data-g]'); if (g) { V.go(g.dataset.g); return; }
     if (e.target.closest('[data-req]')) reqDialog();
