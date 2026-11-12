@@ -90,7 +90,7 @@ body.nav-closed #burger{width:auto;padding:0 12px;font-size:14px;background:var(
 @keyframes fbSpin{from{transform:rotate(-20deg)}to{transform:rotate(340deg)}}
 @media (prefers-reduced-motion:reduce){#taskbar .helm .fbb,#taskbar .helm .fbs,#taskbar .tbtab.helm:hover .fb{animation:none}}
 
-.mi.mfold:not(.on){color:#dfe5ff;font-weight:600}.mi.mlv2:not(.on){color:#dfe5ff;font-weight:600}.mi.mlv2 .ml::before{content:'📅 ';font-weight:400}
+.mi.mfold:not(.on){color:#dfe5ff;font-weight:600}.mi.minst .ml::before{content:'📊 '}.mi.mlv2:not(.on){color:#dfe5ff;font-weight:600}.mi.mlv2 .ml::before{content:'📅 ';font-weight:400}
 .mi .ml{min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .mi .chgmark{flex:none;width:8px;margin-left:-6px;margin-right:-4px;color:#FFE066;font-weight:900;text-align:center}
 .mi .chgtag{flex:none;white-space:nowrap;margin-left:auto;font-size:10px;font-weight:700;background:#FFE066;color:#4a3a00;padding:1px 7px;border-radius:99px}
@@ -2040,7 +2040,7 @@ function recLabel(key, f) {
  * ===================================================================== */
 let root = null;
 /* 서버 모드: http(s):// 로 접속하면 server.py 의 REST API 사용 (폴더 선택 불필요). file:// 로 열면 폴더 모드 */
-const APP_VERSION = '2026-11-11.1';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
+const APP_VERSION = '2026-11-12.1';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
 const SERVER_URL = 'http://localhost:8080';
 // 부서원 PC 사본(file://)이 접속을 시도할 서버 — 서버가 배포 파일을 만들 때 'PC 이름 주소, IP 주소' 순으로 자동 기록함
 const DEFAULT_SERVERS = ['http://ASEUNGWOOK-B01:8080', 'http://65.3.30.234:8080'];
@@ -4919,6 +4919,8 @@ const PID_PORT = 8000;                                   // P&ID 추출 도구 �
 //  - pid   = P&ID 추출 도구 (uvicorn, 8000) — 입찰/실행 구분은 P&ID 화면에서 프로젝트마다 선택
 //  - logic = LOGIC 검토 — P&ID 추출 도구와 **같은 서버(8000)** 의 `/logic` 화면 (P&ID 도구 hotfix89 부터 결합, 브랜치 claude/logic-review-design-pd2z75)
 // q = 주소 뒤 값 (user 는 둘 다 같은 로그인 이름 — LOGIC 은 메모 작성자로 씀), off = 서버가 꺼졌을 때 안내 (둘 다 같은 P&ID 서버)
+const INST_KINDS = [['all', '현황판'], ['ft', 'FT'], ['pt', 'PT / PDT'], ['lt', 'LT'], ['gwr', 'GWR'], ['tt', 'TT'], ['tg', 'TG'], ['pg', 'PG'], ['dpg', 'DPG'], ['mlg', 'Mag. Level Gauge'], ['ro', 'RO'], ['analyzer', 'Analyzer'], ['cv', 'Control Valve'], ['onoff', 'On-Off Valve']];   // 2026-11-12 Instrument 메뉴 (키 = valve40 inst_api ORDER, PSV 는 Valve 쪽 PSV 메뉴)
+const INST_ROUTES = INST_KINDS.map(([k]) => k === 'all' ? 'inst' : 'inst' + k);
 const PID_ROUTES = { pid:{ title:'P&ID 분석', port:PID_PORT, path:'/', q:'embed=1&' },
   logic:{ title:'LOGIC 분석', port:PID_PORT, path:'/logic', q:'' },
   logicdraw:{ title:'LOGIC 작성', port:PID_PORT, path:'/logic/draw', q:'' },   // LOGIC 분석의 하위 메뉴 (같은 서버 · 같은 권한 'logic')
@@ -4930,7 +4932,9 @@ const PID_ROUTES = { pid:{ title:'P&ID 분석', port:PID_PORT, path:'/', q:'embe
   // 2026-11-10 valve37 (세션 5) — Globe · Butterfly · PSV 도 P&ID 서버의 같은 /valve/ 화면(?kind=). PID_ROUTES 가 MODULES 보다 먼저 잡혀 '준비 중' 대신 열림
   globev:{ title:'CO2 PJT · Datasheet · Globe Valve', port:PID_PORT, path:'/valve/', q:'embed=1&project=CO2%20PJT&kind=globe&', minRev:134 },
   bflyv:{ title:'CO2 PJT · Datasheet · Butterfly Valve', port:PID_PORT, path:'/valve/', q:'embed=1&project=CO2%20PJT&kind=butterfly&', minRev:134 },
-  psv:{ title:'CO2 PJT · Datasheet · PSV', port:PID_PORT, path:'/valve/', q:'embed=1&project=CO2%20PJT&kind=psv&', minRev:134 } };   // 실행 프로젝트 › CO2 PJT › Datasheet › Ball Valve — P&ID 서버의 /valve/ (Valve Datasheet 검토, VALVE 세션)     // 2026-11-07 세션 7 '3D 계측제어 도구' — P&ID 서버의 /ic3d (그쪽에서 만듦, 여기는 연결만)
+  psv:{ title:'CO2 PJT · Datasheet · PSV', port:PID_PORT, path:'/valve/', q:'embed=1&project=CO2%20PJT&kind=psv&', minRev:134 },
+  // 2026-11-12 Instrument Datasheet 자동 검토 (세션 6 valve40) — 같은 /valve/ 화면에 ?kind=<계기 종류> (kind=all = Instrument 현황판). ② 통합 hotfix138 부터
+  ...Object.fromEntries(INST_KINDS.map(([k, l]) => [k === 'all' ? 'inst' : 'inst' + k, { title:`CO2 PJT · Datasheet · Instrument · ${l}`, port:PID_PORT, path:'/valve/', q:`embed=1&project=CO2%20PJT&kind=${k}&`, minRev:138 }])) };   // 실행 프로젝트 › CO2 PJT › Datasheet › Ball Valve — P&ID 서버의 /valve/ (Valve Datasheet 검토, VALVE 세션)     // 2026-11-07 세션 7 '3D 계측제어 도구' — P&ID 서버의 /ic3d (그쪽에서 만듦, 여기는 연결만)
 const PID_OFF = 'P&ID 서버가 꺼져 있습니다 — 부서장 PC 의 run_lan_service.bat 을 확인하세요 (켜지면 자동으로 다시 연결합니다)';
 // 호스트 = 지금 연결된 대시보드 서버의 호스트 (서버 모드: 이 페이지 주소, file://: 실제 접속에 성공한 서버 주소), 포트만 PID_PORT
 function pidBase(key = 'pid') {
@@ -5113,14 +5117,14 @@ function render() {
   if (route === 'home') placePlaza();
 }
 /* 메뉴 구성: 주간업무보고(홈 대시보드 + 하위 시트 9개) / P&ID 분석 / 입찰 프로젝트 / 실행 프로젝트 / 익명게시판 */
-const ROUTES = ['home', 'work', 'alloc', 'board', 'bidpjt', 'runpjt', 'valve', 'globev', 'bflyv', 'psv', 'co2sched', 'co2psr', 'finstagram', 'pid', 'logic', 'logicdraw', 'space', 'books', 'ic3d', 'mgmt', 'mgalloc', 'mghours', 'mgwork', 'mgbday'];   // mgwork = 근로시간 관리(근태 시스템 엑셀 · 52h) · mgbday = 부서원 생일
-const RUN_LEAVES = ['valve', 'globev', 'bflyv', 'psv', 'co2sched', 'co2psr'];   // + co2sched = CO2 PJT › Schedule(구매 일정 현황판, 2026-11-09)   // 실행 프로젝트 › CO2 PJT › Datasheet 아래 잎 (권한 = runpjt)
+const ROUTES = ['home', 'work', 'alloc', 'board', 'bidpjt', 'runpjt', 'valve', 'globev', 'bflyv', 'psv', ...INST_ROUTES, 'co2sched', 'co2psr', 'finstagram', 'pid', 'logic', 'logicdraw', 'space', 'books', 'ic3d', 'mgmt', 'mgalloc', 'mghours', 'mgwork', 'mgbday'];   // mgwork = 근로시간 관리(근태 시스템 엑셀 · 52h) · mgbday = 부서원 생일
+const RUN_LEAVES = ['valve', 'globev', 'bflyv', 'psv', ...INST_ROUTES, 'co2sched', 'co2psr'];   // + co2sched = CO2 PJT › Schedule(구매 일정 현황판, 2026-11-09)   // 실행 프로젝트 › CO2 PJT › Datasheet 아래 잎 (권한 = runpjt)
 const MG_ROUTES = ['mgmt', 'mgalloc', 'mghours', 'mgwork', 'mgbday'];   // logic = LOGIC 분석 (P&ID 와 같은 방식)   // mgmt = Management 머리(→ mgalloc) · mgalloc = R&R·투입 분석(시간 병기) · mghours = 근무시간(월·주·일)   // work = 예전 통합 업무 주소 → #task 로 바꿈 · alloc = R&R·투입 분석 · bidpjt/runpjt/mgmt = MODULES(준비 중), pid = P&ID 분석
 const menuOf = r => (r === 'home' || r === 'work' || r === 'alloc' || SHEET[r]) ? 'weekly' : MG_ROUTES.includes(r) ? 'mgmt' : r === 'logicdraw' ? 'logic' : RUN_LEAVES.includes(r) ? 'runpjt' : r;   // 화면(route) → 권한 메뉴 키
 const validRoute = k => ROUTES.includes(k) || !!SHEET[k];
 // 하위 메뉴 접기/펼치기 상태 (브라우저에 기억, 기본 펼침)
-const NAV_LS = { weekly:'dept-nav-weekly-open', logic:'dept-nav-logic-open', mgmt:'dept-nav-mgmt-open', runpjt:'dept-nav-runpjt-open', 'runpjt-co2':'dept-nav-runpjt-co2-open', 'runpjt-co2-ds':'dept-nav-runpjt-co2-ds-open', 'runpjt-co2-sch':'dept-nav-runpjt-co2-sch-open' };
-const NAV_OPEN = Object.fromEntries(Object.entries(NAV_LS).map(([k, ls]) => [k, (() => { try { return localStorage.getItem(ls) !== '0'; } catch (_) { return true; } })()]));
+const NAV_LS = { weekly:'dept-nav-weekly-open', logic:'dept-nav-logic-open', mgmt:'dept-nav-mgmt-open', runpjt:'dept-nav-runpjt-open', 'runpjt-co2':'dept-nav-runpjt-co2-open', 'runpjt-co2-ds':'dept-nav-runpjt-co2-ds-open', 'runpjt-co2-inst':'dept-nav-runpjt-co2-inst-open', 'runpjt-co2-sch':'dept-nav-runpjt-co2-sch-open' };
+const NAV_OPEN = Object.fromEntries(Object.entries(NAV_LS).map(([k, ls]) => [k, (() => { try { const v = localStorage.getItem(ls); return k === 'runpjt-co2-inst' ? v === '1' : v !== '0'; } catch (_) { return k !== 'runpjt-co2-inst'; } })()]));   // Instrument 묶음은 처음엔 접힘 (메뉴가 길어서)
 /* 2026-11-08 간략 메뉴(아이콘 막대) 아이콘 — 선 아이콘(currentColor) */
 const MI_P = d => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">${d}</svg>`;
 const MENU_IC = {
@@ -5163,11 +5167,11 @@ function renderMenu() {
        <div class="msub" ${NAV_OPEN[nav] ? '' : 'hidden'}>${inner}</div>`;
   if (route !== 'home' && (route === 'work' || route === 'alloc' || SHEET[route])) NAV_OPEN.weekly = true;   // 2026-11-09.10: 연 화면의 상위 폴더 펼침
   if (route === 'logicdraw') NAV_OPEN.logic = true; if (MG_ROUTES.includes(route) && route !== 'mgmt') NAV_OPEN.mgmt = true;
-  if (RUN_LEAVES.includes(route)) { NAV_OPEN.runpjt = true; NAV_OPEN['runpjt-co2'] = true; if (route !== 'co2sched' && route !== 'co2psr') NAV_OPEN['runpjt-co2-ds'] = true; }   // 2026-11-09.9: 잎 화면이면 상위 폴더 펼침
+  if (RUN_LEAVES.includes(route)) { NAV_OPEN.runpjt = true; NAV_OPEN['runpjt-co2'] = true; if (route !== 'co2sched' && route !== 'co2psr') NAV_OPEN['runpjt-co2-ds'] = true; if (INST_ROUTES.includes(route)) NAV_OPEN['runpjt-co2-inst'] = true; }   // 2026-11-09.9: 잎 화면이면 상위 폴더 펼침
   const runTree = () => `<div class="mgrp ${route === 'runpjt' || RUN_LEAVES.includes(route) ? 'act' : ''}">
        <div class="mhead">${btn({ k:'runpjt', l:'실행 프로젝트', n:'', c:0 }, 'top')}
          <button class="mtog" data-tog="runpjt" title="하위 메뉴 ${NAV_OPEN.runpjt ? '접기' : '펼치기'}" aria-label="하위 메뉴 접기/펼치기">${NAV_OPEN.runpjt ? '▾' : '▸'}</button></div>
-       <div class="msub" ${NAV_OPEN.runpjt ? '' : 'hidden'}>${fold('runpjt-co2', 'CO2 PJT', fold('runpjt-co2-ds', 'Datasheet', [['valve', 'Ball Valve'], ['globev', 'Globe Valve'], ['bflyv', 'Butterfly Valve'], ['psv', 'PSV']].map(([k, l]) => btn({ k, l, n:'', c:0 }, 'subi')).join('')) + btn({ k:'co2sched', l:'Schedule', n:SCH.data ? SCH.data.items.length : '', c:0 }, 'subi mlv2'))}</div></div>`;
+       <div class="msub" ${NAV_OPEN.runpjt ? '' : 'hidden'}>${fold('runpjt-co2', 'CO2 PJT', fold('runpjt-co2-ds', 'Datasheet', [['valve', 'Ball Valve'], ['globev', 'Globe Valve'], ['bflyv', 'Butterfly Valve'], ['psv', 'PSV']].map(([k, l]) => btn({ k, l, n:'', c:0 }, 'subi')).join('') + fold('runpjt-co2-inst', 'Instrument', INST_KINDS.map(([k, l], i) => btn({ k:INST_ROUTES[i], l, n:'', c:0 }, 'subi' + (k === 'all' ? ' minst' : ''))).join(''))) + btn({ k:'co2sched', l:'Schedule', n:SCH.data ? SCH.data.items.length : '', c:0 }, 'subi mlv2'))}</div></div>`;
   // 권한이 있는 메뉴만 표시 (운영자가 ⚙ 메뉴 권한 설정에서 사용자별로 부여, Management 는 기본 비허용)
   $('#menu').innerHTML =
     (can('weekly') ? group('weekly', { k:'home', l:'주간업무보고', n:'', c:NAV_OPEN.weekly ? 0 : subNew, t:'하위 메뉴의 수정·변경된 행' }, sub, inWeekly) : '') +

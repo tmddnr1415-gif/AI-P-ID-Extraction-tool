@@ -1880,3 +1880,10 @@ C:\Users\SAMSUNG\Desktop\Claude\                         ← 개발 폴더 (여�
 - 왜: 오케스트레이터 경유 사용자 지시(2026-11-11, 회사 PC 사진) — 회사 P&ID 서버 hotfix134 에서 '6 3D 계측제어' 가 날 JSON 만 보임.
 - 바뀐 곳: dashboard.html `PID_ROUTES`(minRev) · `pidConnect` · 클릭 처리(`data-pidforce`) / server.py 새 `api_pid_probe` · `api()` 의 `pidprobe`
 - 확인한 것: 가짜 P&ID 서버 rev134 → ic3d · books 안내(그래도 열기 = iframe), valve · globev · psv 정상 iframe / rev135 → 다섯 메뉴 모두 iframe, 콘솔 오류 없음 / 회사에서 확인할 것: hotfix134 에서 3D 계측제어 안내, hotfix135 적용 후 정상.
+
+### 2026-11-12 (APP_VERSION 2026-11-12.1 / SERVER_VERSION 그대로) — v17.38 Instrument Datasheet 검토 메뉴 연결
+- 무엇을: 실행 프로젝트 › CO2 PJT › Datasheet 아래(Valve 4개 다음)에 **▸ Instrument** 하위 폴더(처음엔 접힘, 그 화면을 열면 자동 펼침) — 📊 현황판(`kind=all`) · FT · PT / PDT · LT · GWR · TT · TG · PG · DPG · Mag. Level Gauge · RO · Analyzer · Control Valve · On-Off Valve(`kind=ft|pt|lt|gwr|tt|tg|pg|dpg|mlg|ro|analyzer|cv|onoff`). 모두 P&ID 서버 `/valve/?embed=1&project=CO2 PJT&kind=…` (세션 6 valve40 `instrument.js` · valve.js 의 `?kind=` 처리, kind=all → Instrument 현황판). minRev 138 (그 전 판이면 v17.37 안내). 권한 = runpjt. Instrument PSV(kind=psv)는 Valve 쪽 PSV 메뉴와 키가 겹쳐 메뉴에 넣지 않음.
+- 왜: 오케스트레이터 경유 사용자 지시 (Instrument Datasheet 자동 검토 화면이 세션 6 valve40 에 생김).
+- 바뀐 곳: dashboard.html 새 `INST_KINDS` · `INST_ROUTES`, `PID_ROUTES`(inst · inst<kind>) · `ROUTES` · `RUN_LEAVES` · `NAV_LS`/`NAV_OPEN`(runpjt-co2-inst 처음 접힘) · `renderMenu` runTree · CSS `.minst`
+- 확인한 것: 가짜 P&ID 서버 rev134 → 옛 판 안내(hotfix138), rev138 → iframe 주소 kind=all/pt/onoff, 메뉴 접힘/펼침, 콘솔 오류 없음 / 회사에서 확인할 것: hotfix138 적용 후 각 메뉴가 그 계기 종류로 열리는지.
+- ⚠ 주의(통합 시): valve40 의 valve.js 는 `kind` 가 'valve' 가 아니면 모두 Instrument 화면으로 보냄 → S5 valve37 의 Globe · Butterfly · PSV 메뉴(`kind=globe|butterfly|psv`, 프로젝트 이름 접미사 방식)와 충돌. 두 판을 합칠 때 P&ID 쪽에서 구분 필요 (대시보드는 고치지 않음).
