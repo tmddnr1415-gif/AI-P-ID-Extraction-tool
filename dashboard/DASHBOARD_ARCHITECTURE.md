@@ -1901,3 +1901,10 @@ C:\Users\SAMSUNG\Desktop\Claude\                         ← 개발 폴더 (여�
 - 데이터: 세션 6 valve40(ec7d1548~) `/api/valve/projects/{pid}/inst/summary` · `/inst/sheets?kind=` (행에 area · unit · loc_basis 추가됨) — 대시보드 서버 `/api/vds` 중계에 두 경로 추가(+ kind 쿼리, 소문자 12자). 5분 캐시(세션 6 측정: 0.04 s 이하).
 - 바뀐 곳: dashboard.html `INST_KINDS`(표기) · `PID_ONCE` · `pidUrl` · `renderPid` · 새 `HUB_VALVE` · `hubLoad` · `renderRunHub` · `instBody` · `VDS_KIND`(계기 11종) · `vdsLoad` · `vdsBlock` · runTree(`fold(…, hub)`, VALVE 폴더) · 메뉴 클릭(`data-hub`) · `ROUTES`/`RUN_LEAVES`(co2pjt) · CSS `.hb*` `.vdtag` `.minsti` / server.py `VDS_PATHS` · `api_vds_get(kind)`
 - 확인한 것: 가짜 P&ID(Valve 2 프로젝트 · 계기 14종 · Area 일부 빈 값)로 현황판 · 메뉴 펼침 · Area/Piping Class 두 경우 · Tag ↗ 주소(kind=pt&sheet=0) · 콘솔 오류 없음 / 회사에서 확인할 것: hotfix138 + 대시보드 서버 재시작 후 현황판 숫자가 Instrument 현황판 · Valve Summary 와 같은지.
+
+### 2026-11-12 (APP_VERSION 2026-11-12.4 / SERVER_VERSION 그대로) — v17.41 실제 세션 6 서버(valve40 ae484423)로 확인 · 계기 블록 버그 2개
+- 무엇을: 세션 6 브랜치(ccr-efbe7e75-n915ze ae484423)를 임시 폴더에 띄우고 세션 6 시험 자료(spike/valve_inst_scenario.py, 계기 14종 × 2 Tag, 심은 오류 74/74)로 대시보드 전체를 돌려 봄 (저장소에는 병합하지 않음). 드러난 것:
+  1. `/inst/sheets` 의 `counts` 이름이 `Missing` · `Mismatch` · `Review Required` (가짜 서버의 소문자와 다름) → Schedule 계기 블록의 누락 · 불일치 · 검토 필요가 늘 0 이던 것 고침 (두 꼴 모두 읽음).
+  2. Tag 가 `71PT9100A` 처럼 Unit 숫자로 시작 → 타입을 못 읽어 '기타' 로 묶이던 것 고침 (앞 숫자 떼고 PT).
+- 바뀐 곳: dashboard.html `instBody` (`tp` · `CK`/`cc`)
+- 확인한 것: 실제 서버로 CO2 PJT 현황판(계기 13종 숫자 = /inst/summary) · Instrument 현황판 · PT 페이지(세션 6 전용 메뉴 Dashboard · Document Management · Datasheet Review · Reports & Export) · Instrument List · IO List · Ball Valve · Schedule PT 블록(71PT9100B 누락 1 · 불일치 5 · 검토 필요 1) · Tag ↗ → `kind=pt&sheet=22` 로 그 Tag 검토 화면, 콘솔 오류 없음 / 회사에서 확인할 것: 실제 Datasheet 로 Area 가 채워지는지(시험 자료는 Area 비어 Piping Class 로 나눔).

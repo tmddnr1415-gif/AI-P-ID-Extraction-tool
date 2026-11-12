@@ -2047,7 +2047,7 @@ function recLabel(key, f) {
  * ===================================================================== */
 let root = null;
 /* 서버 모드: http(s):// 로 접속하면 server.py 의 REST API 사용 (폴더 선택 불필요). file:// 로 열면 폴더 모드 */
-const APP_VERSION = '2026-11-12.3';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
+const APP_VERSION = '2026-11-12.4';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
 const SERVER_URL = 'http://localhost:8080';
 // 부서원 PC 사본(file://)이 접속을 시도할 서버 — 서버가 배포 파일을 만들 때 'PC 이름 주소, IP 주소' 순으로 자동 기록함
 const DEFAULT_SERVERS = ['http://ASEUNGWOOK-B01:8080', 'http://65.3.30.234:8080'];
@@ -4720,14 +4720,14 @@ function vdsBlock(kd) {
 }
 // Instrument 블록: 타입 = Tag 앞 글자(PT · PDT · PIT …), Area = 세션 6 이 area 를 주면 그것, 없으면 Piping Class 로 나눔
 function instBody(kd, R, F) {
-  const tp = r => (String(r.tag || '').match(/^[A-Z]+/) || ['기타'])[0], hasA = R.some(r => r.area), ax = r => (hasA ? r.area : r.piping_class) || (hasA ? 'Area 미상' : '(Class 없음)'), axN = hasA ? 'Area' : 'Piping Class';   // area = 세션 6 location 규칙 (빈 값 = Area 미상), 하나도 없으면 Piping Class
+  const tp = r => (String(r.tag || '').toUpperCase().replace(/^[\d\s-]+/, '').match(/^[A-Z]+/) || ['기타'])[0] /* 71PT9100A → PT (앞 숫자 = Unit) */, hasA = R.some(r => r.area), ax = r => (hasA ? r.area : r.piping_class) || (hasA ? 'Area 미상' : '(Class 없음)'), axN = hasA ? 'Area' : 'Piping Class';   // area = 세션 6 location 규칙 (빈 값 = Area 미상), 하나도 없으면 Piping Class
   const types = [...new Set(R.map(tp))].sort(), areas = [...new Set(R.map(ax))].sort((a, b) => ((O => (O[a] ?? 9) - (O[b] ?? 9))({ North:0, South:1, 'North Brownfield':2, 'South Brownfield':3, Brownfield:4, W15:5, 'Area 미상':9 })) || a.localeCompare(b));
   const cnt = (ty, ar) => R.filter(r => (!ty || tp(r) === ty) && (!ar || ax(r) === ar)).length, on = (ty, ar) => F.type === ty && F.area === ar ? 'on' : '';
   const mx = `<table class="t vdsm"><thead><tr><th>타입 \\ ${axN}</th>${areas.map(a => `<th><button class="vdc ${on('', a)}" data-vdsf="${kd}||${esc(a)}">${esc(a)}</button></th>`).join('')}<th>합계</th></tr></thead><tbody>
     ${types.map(ty => `<tr><td class="key"><button class="vdc ${on(ty, '')}" data-vdsf="${kd}|${esc(ty)}|">${esc(ty)}</button></td>${areas.map(a => { const n = cnt(ty, a); return `<td>${n ? `<button class="vdc n ${on(ty, a)}" data-vdsf="${kd}|${esc(ty)}|${esc(a)}">${n}</button>` : '<span class="muted">-</span>'}</td>`; }).join('')}<td class="vdt">${cnt(ty, '')}</td></tr>`).join('')}
     <tr class="vdtot"><td class="key"><button class="vdc ${on('', '')}" data-vdsf="${kd}||">합계</button></td>${areas.map(a => `<td class="vdt">${cnt('', a)}</td>`).join('')}<td class="vdt">${R.length}</td></tr></tbody></table>`;
   const q = F.q.toLowerCase(), sel = R.filter(r => (!F.type || tp(r) === F.type) && (!F.area || ax(r) === F.area) && (!q || `${r.tag} ${r.service} ${r.line_no} ${r.piping_class} ${r.area || ''}`.toLowerCase().includes(q)));
-  const C = r => r.counts || {}, cc = (r, k) => +(C(r)[k] || 0);
+  const C = r => r.counts || {}, CK = { missing:['Missing', 'missing'], mismatch:['Mismatch', 'mismatch'], review:['Review Required', 'review'] }, cc = (r, k) => CK[k].reduce((a, x) => a + (+(C(r)[x] || 0)), 0);   // 세션 6 counts 이름 = Missing · Mismatch · Review Required
   const tb = `<div class="vdsbar"><label>🔎<input data-vdsq="${kd}" value="${esc(F.q)}" placeholder="Tag · Service · Line 검색"></label><span class="muted">${F.type || F.area ? `<b>${esc([F.type, F.area].filter(Boolean).join(' · '))}</b> · ` : ''}${sel.length}개 Tag</span></div>
     <div class="vdsw"><table class="t vdst"><thead><tr><th>Tag</th><th>타입</th>${hasA ? '<th>Area</th>' : ''}<th>Service</th><th>Line No</th><th>Piping Class</th><th>Rev</th><th>검토</th><th>누락</th><th>불일치</th><th>검토 필요</th><th>PDS</th></tr></thead><tbody>
     ${sel.slice(0, F.n).map(r => `<tr><td class="key"><button class="vdtag" data-vdstag="inst${kd}|sheet|${r.id}" title="검토 화면에서 이 Tag 열기">${esc(r.tag)} ↗</button>${r.test_data ? ' <small class="vdtest">시험</small>' : ''}</td><td>${esc(tp(r))}</td>${hasA ? `<td>${esc(r.area || 'Area 미상')}${r.unit ? ` <small>U${esc(r.unit)}</small>` : ''}</td>` : ''}<td>${esc(r.service || '')}</td><td>${esc(r.line_no || '')}</td><td>${esc(r.piping_class || '')}</td><td>${esc(r.rev || '')}</td>
