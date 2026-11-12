@@ -1908,3 +1908,11 @@ C:\Users\SAMSUNG\Desktop\Claude\                         ← 개발 폴더 (여�
   2. Tag 가 `71PT9100A` 처럼 Unit 숫자로 시작 → 타입을 못 읽어 '기타' 로 묶이던 것 고침 (앞 숫자 떼고 PT).
 - 바뀐 곳: dashboard.html `instBody` (`tp` · `CK`/`cc`)
 - 확인한 것: 실제 서버로 CO2 PJT 현황판(계기 13종 숫자 = /inst/summary) · Instrument 현황판 · PT 페이지(세션 6 전용 메뉴 Dashboard · Document Management · Datasheet Review · Reports & Export) · Instrument List · IO List · Ball Valve · Schedule PT 블록(71PT9100B 누락 1 · 불일치 5 · 검토 필요 1) · Tag ↗ → `kind=pt&sheet=22` 로 그 Tag 검토 화면, 콘솔 오류 없음 / 회사에서 확인할 것: 실제 Datasheet 로 Area 가 채워지는지(시험 자료는 Area 비어 Piping Class 로 나눔).
+
+### 2026-11-12 (APP_VERSION 2026-11-12.5 / SERVER_VERSION 그대로) — v17.42 Datasheet 현황판 · Instrument List · IO List 를 Datasheet 바로 아래로
+- 무엇을: 사용자 지시 "Instrument 현황판, Instrument List, IO List 는 CO2 PJT 와 Datasheet 상위 메뉴에 있어야 하고 Valve 와 Instrument 를 모두 아울러야 한다" →
+  메뉴 = CO2 PJT › Datasheet › 📊 Datasheet 현황판 · 📋 Instrument List · 📋 IO List · ▸ VALVE (4) · ▸ INSTRUMENT (계기 Type 13개만).
+  'Datasheet 현황판'(`#dshub`) = 대시보드 화면 (CO2 PJT 현황판의 Datasheet 부분 = VALVE 4종 + INSTRUMENT 13종, PSR 빼고). 세션 6 Instrument 현황판(kind=all)은 현황판 안 '📊 계기 상세 현황' 버튼으로.
+  Instrument List · IO List 는 세션 6 화면(kind=instindex · iolist) 그대로 — Valve Tag 도 대조에 넣는 것은 세션 6 에 요청.
+- 바뀐 곳: dashboard.html runTree(Datasheet 머리 3개 + INSTRUMENT 에서 all · instindex · iolist 뺌) · `renderRunHub(c, dsOnly)` · `ROUTES`/`RUN_LEAVES`(dshub) · 폴더 자동 펼침
+- 확인한 것: 실제 세션 6 서버(ae484423)로 메뉴 순서 · Datasheet 현황판 · Instrument List 열림, 콘솔 오류 없음.
