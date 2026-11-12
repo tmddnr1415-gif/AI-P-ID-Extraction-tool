@@ -1892,3 +1892,12 @@ C:\Users\SAMSUNG\Desktop\Claude\                         ← 개발 폴더 (여�
 - 무엇을: '▸ Instrument' 폴더에 📋 Instrument List(`kind=instindex`) · 📋 IO List(`kind=iolist`) 추가 — 순서 📊 현황판 · Instrument List · IO List · Item 13개. 같은 /valve/ 화면, minRev 138, 권한 runpjt.  왜: 오케스트레이터 경유 (세션 6 valve40 c0f4cd8c 가 Item 별 메뉴로 나누며 주소 2개 추가).
 - 바뀐 곳: dashboard.html `INST_KINDS` · runTree 아이콘(`.minl`)
 - 확인한 것: 가짜 P&ID rev138 에서 두 메뉴 iframe 주소 kind=instindex / iolist, 메뉴 순서, 콘솔 오류 없음 / 회사에서 확인할 것: hotfix138 적용 후 두 화면.
+
+### 2026-11-12 (APP_VERSION 2026-11-12.3 / SERVER_VERSION 2026-11-12.1) — v17.40 CO2 PJT 현황판 · VALVE/INSTRUMENT 메뉴 · Schedule 계기 블록 (세션 6 과 합의)
+- 무엇을 (세션 6 '6. Datasheet 자동 검토' 와 send_message 로 합의 · 사용자에게 샘플 사진 확인 후 적용):
+  1. **메뉴**: Datasheet › ▸ VALVE (Ball · Globe · Butterfly · PSV) / ▸ INSTRUMENT (Instrument 현황판 · Instrument List · IO List · FT · Flow Transmitter … On-Off Valve — 이름 · 순서 = 세션 6 valve 페이지 왼쪽 메뉴, 긴 이름은 두 줄). PSV 는 VALVE 쪽만.
+  2. **CO2 PJT 현황판**(`#co2pjt`, 사용자 지시: CO2 PJT 메뉴를 누르면 나옴 — 처음 누르면 현황판 + 폴더 펼침): Datasheet 검토 현황(VALVE 4종 Tag · 검토 완료 · 미결/Major, INSTRUMENT 13종 Tag · 지적 · 누락/불일치/검토 필요 막대 · PDS 없음, 합계에서 CV · On-Off · PSV 제외 = Valve 쪽에서 셈) + 구매 일정(PSR) 요약. 칸을 누르면 그 메뉴.
+  3. **Schedule 품목 상세 계기 블록**: PSR 품목 이름으로 계기 종류(FT · PT · LT · GWR · MLG · TT · TG · PG · DPG · RO · Analyzer) → 타입(Tag 앞 글자) × Area(North · South · North/South Brownfield · W15 · Area 미상, Area 정보가 없으면 Piping Class) 수량 + Tag 검토 결과(누락 · 불일치 · 검토 필요 · PDS). **Tag ↗** = 검토 화면의 그 Tag (계기 `&sheet=<id>`, 밸브 `&ds=<id>`, `PID_ONCE`).
+- 데이터: 세션 6 valve40(ec7d1548~) `/api/valve/projects/{pid}/inst/summary` · `/inst/sheets?kind=` (행에 area · unit · loc_basis 추가됨) — 대시보드 서버 `/api/vds` 중계에 두 경로 추가(+ kind 쿼리, 소문자 12자). 5분 캐시(세션 6 측정: 0.04 s 이하).
+- 바뀐 곳: dashboard.html `INST_KINDS`(표기) · `PID_ONCE` · `pidUrl` · `renderPid` · 새 `HUB_VALVE` · `hubLoad` · `renderRunHub` · `instBody` · `VDS_KIND`(계기 11종) · `vdsLoad` · `vdsBlock` · runTree(`fold(…, hub)`, VALVE 폴더) · 메뉴 클릭(`data-hub`) · `ROUTES`/`RUN_LEAVES`(co2pjt) · CSS `.hb*` `.vdtag` `.minsti` / server.py `VDS_PATHS` · `api_vds_get(kind)`
+- 확인한 것: 가짜 P&ID(Valve 2 프로젝트 · 계기 14종 · Area 일부 빈 값)로 현황판 · 메뉴 펼침 · Area/Piping Class 두 경우 · Tag ↗ 주소(kind=pt&sheet=0) · 콘솔 오류 없음 / 회사에서 확인할 것: hotfix138 + 대시보드 서버 재시작 후 현황판 숫자가 Instrument 현황판 · Valve Summary 와 같은지.

@@ -36,7 +36,7 @@ ID_RE = re.compile(r'^[A-Za-z0-9_\-]{1,80}$')
 WEEK_RE = re.compile(r'^\d{4}-W\d{2}$')
 MAX_BODY = 30 * 1024 * 1024
 
-SERVER_VERSION = '2026-11-11.1'
+SERVER_VERSION = '2026-11-12.1'
 ROOT = os.path.dirname(os.path.abspath(__file__))
 PORT = 8080
 ALLOW_NETS = []          # 사내망: 루프백·사설망 + 서버 IP 대역(/16, 유선·Wi-Fi 등 지금까지 쓴 대역 모두 기억) + --allow 로 추가한 대역
@@ -2108,13 +2108,13 @@ def api_cal_del(eid, me, admin):
 # 2026-11-10 Datasheet 검토(세션 6 · P&ID 서버 /api/valve) 값을 Schedule 품목에서 보기 — 같은 PC 의 P&ID 서버에 읽기만 대신 물어 옴
 # (P&ID 서버는 다른 포트에서 브라우저가 직접 부르는 것을 막아 둠) · 허용 경로 3개만 · 회사 밖으로 나가지 않음
 PID_PORT = 8000
-VDS_PATHS = (re.compile(r'projects'), re.compile(r'projects/\d{1,9}/(valve-summary|grid)'))
+VDS_PATHS = (re.compile(r'projects'), re.compile(r'projects/\d{1,9}/(valve-summary|grid)'), re.compile(r'projects/\d{1,9}/inst/(summary|sheets)'))   # 2026-11-12 + Instrument (valve40)
 
 
-def api_vds_get(sub):
+def api_vds_get(sub, kind=''):
     if not any(rx.fullmatch(sub) for rx in VDS_PATHS):
         raise ApiError(400, '허용하지 않는 경로')
-    url = f'http://127.0.0.1:{PID_PORT}/api/valve/{sub}'
+    url = f'http://127.0.0.1:{PID_PORT}/api/valve/{sub}' + (f'?kind={kind}' if kind and re.fullmatch(r'[a-z]{1,12}', kind) else '')
     try:
         with urllib.request.build_opener(urllib.request.ProxyHandler({})).open(url, timeout=25) as r:   # 프록시 설정과 무관하게 이 PC 로
             return json.loads(r.read().decode('utf-8'))
@@ -2718,7 +2718,7 @@ class Handler(BaseHTTPRequestHandler):
             acc = session_account(self.token(), False)
             if not perms_for(acc, self.is_super() or self.is_admin()).get('runpjt'):
                 raise ApiError(403, '실행 프로젝트 메뉴 권한이 없습니다')
-            return api_vds_get('/'.join(seg[1:]))
+            return api_vds_get('/'.join(seg[1:]), str(q.get('kind') or ''))
         if head == 'sched' and len(seg) == 2 and seg[1] in SCHED_KEYS:   # 실행 프로젝트 일정 현황판: 보기 = 실행 프로젝트 권한, 올리기 = 로그인 + 권한
             acc = session_account(self.token(), False)
             if not perms_for(acc, self.is_super() or self.is_admin()).get('runpjt'):
