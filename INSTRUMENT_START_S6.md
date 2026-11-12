@@ -1,16 +1,16 @@
 # 6. Datasheet 자동 검토 세션 — Instrument 검토 개발 시작 지시 (2026-11-12 · 사용자)
 
-> 이 파일은 **사용자가 6 세션에 직접 주는 지시**입니다. 첨부: 빈 양식 PDF 15종 · Process Line List 엑셀 2개 (사용자가 함께 올림).
+> 이 파일은 **사용자가 6 세션에 직접 주는 지시**입니다. 첨부: 빈 양식 PDF 15종(Instrument Index 포함) · Process Line List 엑셀 2개 · **IO List PDF** (사용자가 함께 올림).
 
 ## 먼저 읽을 것
 
 1. `docs/handoff/valve.md` — 지금 판 **valve39** (브랜치 `ccr-efbe7e75-n915ze`) 에서 이어서 개발
-2. `git show origin/claude/trusting-cray-v68axq:INSTRUMENT_REVIEW_PLAN.md` — 기획안 (2장 양식 조사 · 3~6장 할 일 · 단계)
+2. `git show origin/claude/trusting-cray-v68axq:INSTRUMENT_REVIEW_PLAN.md` — **기획안 v2** (기준표 · 입력 양식 · List 대조 규칙 · 화면 · 단계 1~5) ★ 이것대로 개발
 3. `git show origin/claude/trusting-cray-v68axq:CONVENTIONS.md` — 규약 v2: **개발 · 시험 · 커밋 · 푸시만**, zip · 번호 매기기는 오케스트레이터
 
 ## 사용자 결정
 
-- **IO List · Instrument List 는 나중에 준다** — 지금은 만들지 않는다.
+- **IO List · Instrument List 도 PDF** — 그 기준으로 개발한다. 대조의 기준은 **Datasheet** (Datasheet → List: 누락 · 값 다름 · List 에만 있음).
 - **지금 받은 자료로 구축하고 개발한다.**
 - **모든 Datasheet 에서 Process Data 의 기준은 PDS 다.**
 
@@ -38,7 +38,8 @@
 4. **공통 검토** — 빠진 칸(카드의 필수 칸) · PMS(Class → Rating · 재질) · **Process Line List 대조**(Datasheet Line No. → Pipe Class · Design P·T · Size; Line 의 Design 이 Datasheet 보다 높으면 지적). Item 별 규칙은 근거 있는 것만 · 사람 확인 표시.
 5. **값이 채워진 Datasheet 는 아직 없다** — 빈 양식에 시험 값을 써 넣은 시험 PDF 로 시험한다. 판정 값은 지어내지 않는다 (시험 자료임을 표시).
 6. **화면** — 같은 /valve 화면에 Item kind 추가 (프로젝트 공간 분리 · valve37 방식). Document Management 에 Process Line List 칸.
-7. **지금 Valve 결과는 그대로** (판정 스냅샷 2,935 · 회귀 시험).
+7. **Instrument List · IO List (PDF) 읽기 + Datasheet 기준 대조** — 기획안 v2 3-2 · 4장 · 단계 3~4 ('List 대조' 보기 · Excel).
+8. **지금 Valve 결과는 그대로** (판정 스냅샷 2,935 · 회귀 시험).
 
 ## 알릴 것 (오케스트레이터 세션 `session_01Muj82FygSCFAVRooofwhVK` 에 send_message)
 
