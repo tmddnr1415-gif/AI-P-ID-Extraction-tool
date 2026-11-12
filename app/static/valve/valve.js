@@ -11,6 +11,7 @@ const Q = new URLSearchParams(location.search);
 const KIND_NAMES = { ball: 'Ball Valve', globe: 'Globe Valve', butterfly: 'Butterfly Valve', psv: 'PSV' };
 const VKIND = KIND_NAMES[(Q.get('kind') || '').toLowerCase()] ? (Q.get('kind') || '').toLowerCase() : 'ball';
 const KIND_NAME = KIND_NAMES[VKIND];
+const INST_KINDS = new Set(['ft', 'pt', 'lt', 'gwr', 'tt', 'tg', 'pg', 'dpg', 'mlg', 'ro', 'analyzer', 'cv', 'onoff']);   // valve40 Instrument screens (PSV = Valve screen)
 function wantProject() {
   const p = Q.get('project');
   if (VKIND === 'ball') return p;
@@ -747,7 +748,7 @@ function go(v, push = true) {
   if (!VIEWS.includes(v)) v = 'dash';
   S.view = v;
   $$('#menu button').forEach(b => b.classList.toggle('on', b.dataset.v === v));
-  const cb = $('#crumb > b:last-child'); if (cb) cb.textContent = ['inst', 'ireview', 'ilist'].includes(v) ? 'Instrument' : 'Ball Valve';   // valve40
+  const cb = $('#crumb > b:last-child'); if (cb) cb.textContent = ['inst', 'ireview', 'ilist'].includes(v) ? 'Instrument' : KIND_NAME;   // valve40
   $$('.view').forEach(s => s.classList.toggle('on', s.id === 'v-' + v));
   if (push && location.hash !== '#' + v) history.replaceState(null, '', location.pathname + location.search + '#' + v);
   LS.set('view', v);
@@ -2423,7 +2424,7 @@ function renderSettings() {
 }
 const RENDER = { dash: renderDash, docs: renderDocs, list: renderList, review: renderReview, rev: renderRev, proc: renderProc, pms: renderPms, rules: renderRules, export: renderExport, settings: renderSettings,
   inst: () => window.INST?.render('inst'), ireview: () => window.INST?.render('ireview'), ilist: () => window.INST?.render('ilist') };   // valve40: instrument.js
-window.VALVE = { S, Q, LS, api, esc, pill, toast, modal, go, Viewer, $, $$, USER };   // valve40: what instrument.js uses
+window.VALVE = { S, Q, LS, api, esc, pill, toast, modal, go, Viewer, $, $$, USER, INST_KINDS };   // valve40: what instrument.js uses
 for (const k of Object.keys(RENDER)) { const f = RENDER[k]; RENDER[k] = () => { if (!S.sum) return; Promise.resolve(f()).catch(e => { console.error(e); toast(e.message, 1); }); }; }
 
 /* ── keyboard ─────────────────────────────────────────────────────────── */
@@ -2650,7 +2651,8 @@ loadProjects().then(async () => {
     else if (page) W.viewer?.goPage(page);
     return;
   }
-  if (Q.get('kind') && Q.get('kind') !== 'valve') { go(Q.get('kind') === 'all' ? 'inst' : 'ireview', false); return; }   // valve40: ?kind=ft …
+  const ik = (Q.get('kind') || '').toLowerCase();       // valve40: ?kind=ft … → Instrument; ball · globe · butterfly · psv · valve stay here (valve37)
+  if (ik === 'all' || INST_KINDS.has(ik)) { go(ik === 'all' ? 'inst' : 'ireview', false); return; }
   go((location.hash.slice(1) || LS.get('view', 'dash')).split('?')[0], false);
 })
   .catch(e => { document.querySelector('#views').innerHTML = `<div class="empty" style="color:var(--bad)">${esc(e.message)}</div>`; });

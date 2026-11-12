@@ -6,11 +6,16 @@
 const V = window.VALVE;
 if (!V) return;
 const { S, Q, LS, api, esc, pill, toast, $, $$ } = V;
-const I = { kinds: null, kind: Q.get('kind') && !['valve', 'all'].includes(Q.get('kind')) ? Q.get('kind') : LS.get('inst.kind', ''), rows: null, sel: null, d: null, tab: 'find', filt: '', lfilt: '' };
+const QK = (Q.get('kind') || '').toLowerCase();
+const I = { kinds: null, kind: V.INST_KINDS.has(QK) ? QK : LS.get('inst.kind', ''), rows: null, sel: null, d: null, tab: 'find', filt: '', lfilt: '' };
 const RES = { 'Mismatch': ['bad', '값 다름'], 'Missing': ['miss', '누락'], 'Review Required': ['rev', '확인 필요'], '없음': ['na', '없음'], 'Datasheet Blank': ['na', 'DS 비어 있음'], 'OK': ['ok', 'OK'],
   '값 다름': ['bad', '값 다름'], '누락': ['miss', '누락'], 'List 에만': ['lo', 'List 에만'] };
 const rp = r => `<span class="ir ir-${(RES[r] || ['na'])[0]}">${esc((RES[r] || [, r])[1])}</span>`;
 const GROUPS = [['IN-REQ', '필수 칸'], ['IN-PDS', 'Process Data (PDS)'], ['IN-PMS', 'PMS'], ['IN-LL', 'Process Line List'], ['IN-ITM', 'Item 규칙 (사람 확인)']];
+// valve37: these valves are reviewed on the Valve screens (?kind=) — the Instrument card points there
+const VALVE_MENU = { cv: [['globe', 'Globe'], ['butterfly', 'Butterfly']], onoff: [['ball', 'Ball']], psv: [['psv', 'PSV']] };
+const valveLink = k => { const base = (S.sum?.project?.name || 'CO2 PJT').replace(/\s*·\s*(Globe Valve|Butterfly Valve|PSV)$/, '');
+  return (VALVE_MENU[k] || []).map(([vk, l]) => `<a class="vlink" href="/valve/?project=${encodeURIComponent(base)}${vk === 'ball' ? '' : '&kind=' + vk}" target="_top" title="Valve 화면의 ${l} 메뉴에서 검토 (Valve 규칙 · Anatomy)">→ Valve ${l}</a>`).join(' '); };
 const ICON = { ft: '≋', pt: '⊙', lt: '▤', gwr: '▥', tt: '🌡', tg: '◔', pg: '◉', dpg: '◎', mlg: '▮', ro: '⊘', analyzer: '⚗', cv: '⧓', onoff: '⧗', psv: '⇑' };
 
 async function kinds() { if (!I.kinds) I.kinds = await api('GET', '/inst/kinds'); return I.kinds; }
@@ -45,7 +50,7 @@ async function renderBoard() {
           <div class="inum"><b>${k.tags}</b><span>Tag</span>${k.sheets !== k.tags ? `<small class="soft">DS ${k.sheets}</small>` : ''}</div>
           <div class="ibar" title="지적 없는 Tag ${k.ok_tags}/${k.tags}"><i style="width:${pct}%"></i></div>
           <div class="icnt">${k.tags ? `<span class="ir ir-miss">누락 ${k.missing}</span><span class="ir ir-bad">값 다름 ${k.mismatch}</span><span class="ir ir-rev">확인 ${k.review}</span>${k.not_in_pds ? `<span class="ir ir-na">PDS 없음 ${k.not_in_pds}</span>` : ''}` : '<span class="soft">자료 없음</span>'}</div>
-          <div class="soft irev">${revs || '&nbsp;'}${k.test ? ' · <b class="tst">TEST</b>' : ''}</div></div>`;
+          <div class="soft irev">${revs || '&nbsp;'}${k.test ? ' · <b class="tst">TEST</b>' : ''}</div>${VALVE_MENU[k.kind] ? `<div class="ivm">${valveLink(k.kind)}</div>` : ''}</div>`;
       }).join('')}</div></div>
     <div class="grid2"><div class="card"><h3>Type 별 지적 수</h3><div class="ichart">${s.kinds.filter(k => k.tags).map(k => {
         const w = x => (100 * x / maxI).toFixed(1);
@@ -58,6 +63,7 @@ async function renderBoard() {
         <tr><td>Line List</td><td>Line No → Pipe Class · Design P/T · Size. <b>Line 의 Design 이 Datasheet 보다 높으면 지적</b> (Line No 칸이 없는 양식은 PDS 의 Line No)</td></tr>
         <tr><td>Item 규칙</td><td>같은 Datasheet 안의 값끼리만 (PT/PG Range ↔ 운전압력 · PSV Set ↔ Design) — 사람 확인 표시</td></tr></tbody></table></div></div>`;
   el.onclick = e => {
+    if (e.target.closest('.vlink')) return;
     const k = e.target.closest('[data-k]'); if (k) { I.kind = k.dataset.k; LS.set('inst.kind', I.kind); I.rows = null; I.sel = null; V.go('ireview'); return; }
     const g = e.target.closest('[data-g]'); if (g) { V.go(g.dataset.g); return; }
     if (e.target.closest('[data-req]')) reqDialog();

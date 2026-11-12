@@ -737,3 +737,4 @@ table.t.vsumt td.vk { text-align: left; white-space: nowrap; }
 tr.link { cursor: pointer; }
 tr.link:hover td { background: #f5f8ff; }
 .rqlist { display: grid; grid-template-columns: 1fr 1fr; gap: 2px 12px; max-height: 50vh; overflow: auto; margin-top: 8px; font-size: 12px; }
+.ivm { font-size: 11px; } .ivm .vlink { color: var(--blue); text-decoration: none; margin-right: 6px; } .ivm .vlink:hover { text-decoration: underline; }
