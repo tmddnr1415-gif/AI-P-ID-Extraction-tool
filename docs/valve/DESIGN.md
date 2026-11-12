@@ -722,3 +722,14 @@ Note 113 · PC-01 Confirm 6(3C0K8 의 '316 SS/FHF' 2개 · API5L-X65 MOV 1500# �
   답할 뿐 서버를 끝내지 않는다 — 그 창이 'server.log 끝' 을 보여 주므로 마지막 traceback 이 같이 보인 것. 멈춤은 업데이트 재시작 · 창 닫기 쪽.
 - 확인: 실자료 사본에서 Datasheet 저장본을 DRM 흉내 바이트로 바꿈 → 뷰어 · 새 창 안내 · 목록 표시 · 같은 Datasheet.pdf 다시 올림 → 옛 문서 #4 가 .bin 을 읽어 456쪽.
   시험 `test_stored_original_not_a_pdf_any_more` · `test_stored_pdf_copies_move_to_bin`.
+
+### 44. valve39 — 첫 화면 'Process Data 대조 · 문서 Rev · 구역' (사용자 요청, 회사 PC 사진)
+- **Process Data 에 없는 Tag**: 최신 Revision Datasheet Tag 를 올린 모든 Process Data PDF 와 대조. 비교는 `schema.norm_tag`(공백 · 하이픈 무시: 98FV100 = 98FV-100 = 98FV 100 = 98FV -100).
+  PDS 표(`process.read_process_data` by_tag)에서 읽은 Tag = '값 대조함', PDS 글에만 있는 Tag(`process.scan` — 쪽마다 글에서 Tag 번호, 이 양식은 표로 못 읽음) = '있으나 표로 못 읽음',
+  둘 다 없으면 '없음'. 앞자리 0 만 다른 번호(85XV114 ↔ PDS 85XV0114)는 같다고 하지 않고 '비슷한 번호 (확인 필요)' 로 보여 줌.
+  실자료 164 Tag: 없음 1 (85XV114 — PDS p.51 에 85XV0114) · 글에만 97 · 표 66. 지적(Process Mismatch · 검증 항목)은 바꾸지 않음.
+- **구역** = North · South · North Brownfield · South Brownfield · W15 (`location.zone` — Brownfield 에 Site 를 붙임; Area 열 · 필터 · Excel 의 'Brownfield' 값은 그대로).
+  PDS 는 쪽 글(`zone_of_text`: QELNG NORTH / SOUTH / W15 · SYSTEM nn – UNIT nn), 표지에 North/South 만 있으면 같은 번호(예 01-09) Datasheet 의 Brownfield 를 따름(* 표시 · 이유 툴팁).
+- **문서 Rev**: Datasheet 문서마다 Rev(섞이면 Rev 별 Tag 수) · 날짜 · 구역 · Tag 수 / PDS(Process Data 안의 PR-DTS 마다) Rev · 날짜 · 구역 · 그 쪽들의 Tag 수.
+- API `GET /projects/{p}/coverage` (`_cached`, warm). PDS 쪽 읽기는 업로드당 한 번 `document.info['pds_scan']`. 화면: 숫자 · 구역 · 문서 줄을 누르면 Tag 목록 → Datasheet / Valve List.
+- 시험 `test_process_data_tag_cover_and_zones`.

@@ -69,8 +69,9 @@ class _SafeRoute(APIRoute):
 router = APIRouter(route_class=_SafeRoute)
 _JOBS: dict[str, dict] = {}
 _JLOCK = threading.Lock()
-_STATIC = {"valve.js": "application/javascript", "valve.css": "text/css", "anatomy.js": "application/javascript"}   # anatomy.js = valve36 valve model (session 7 engine)
-KINDS = ("datasheet", "valvelist", "process", "pms")
+_STATIC = {"valve.js": "application/javascript", "valve.css": "text/css", "anatomy.js": "application/javascript",
+           "instrument.js": "application/javascript"}   # valve40: Instrument review screens   # anatomy.js = valve36 valve model (session 7 engine)
+KINDS = ("datasheet", "valvelist", "process", "pms", "instrument", "linelist", "instlist")   # valve40: + Instrument review
 
 
 def _user(request: Request) -> str:
@@ -436,6 +437,12 @@ def _process(jid: str, pid: int, items: list[tuple[int, str, str, Path]], by: st
                 con.execute("UPDATE document SET status='done', info=? WHERE id=?", (store.J(info), doc_id))
                 store.audit(con, pid, None, None, "upload", None, name, by, "pms")
                 con.commit()
+            elif kind in ("instrument", "linelist", "instlist"):    # valve40: Instrument datasheet review (app/valve/inst_api.py)
+                _job(jid, msg=f"{name} · 읽는 중")
+                info = inst_api.process_doc(con, pid, doc_id, kind, name, Path(path), by)
+                con.execute("UPDATE document SET status='done', info=? WHERE id=?", (store.J(info), doc_id))
+                store.audit(con, pid, None, None, "upload", None, name, by, kind)
+                con.commit()
             else:                                        # process data tables -> {data}/valve/process/<doc>.json (process.read_process_data)
                 if Path(name).suffix.lower() != ".pdf":          # valve38: by the uploaded name (stored copy is .bin)
                     raise extract.PdfError("Process Data 는 PDF 만 읽습니다 — Excel 은 보관만 됩니다 (PDF 로 올려 주세요)")
@@ -516,6 +523,7 @@ def warm(pid: int):
             _cached("rules", pid, lambda c: _rules_performance(c, pid), arg=dt.date.today().isoformat())
             _cached("tagging", pid, lambda c: _tagging(c, pid))
             _cached("vsum", pid, lambda c: _json(_valve_summary(c, pid)))
+            _cached("coverage", pid, lambda c: _json(_coverage(c, pid)))
             _cached("digest", pid, lambda c: _digest_body(c, pid))
             _cached("pms", pid, lambda c: _pms_body(c, pid))
             _cached("process", pid, lambda c: _process_body(c, pid))
@@ -548,7 +556,7 @@ def _rules_fingerprint() -> str:
 
 
 _RULES_FP = _rules_fingerprint()
-VERSION = "valve38"                       # shown in Settings › 정보 and the footer; bump with every package
+VERSION = "valve40"                       # shown in Settings › 정보 and the footer; bump with every package
 
 
 @router.get("/api/valve/version")
@@ -622,7 +630,7 @@ async def upload(pid: int, request: Request, kind: str = Form(...), files: list[
         name = Path(f.filename or "file").name
         ext = Path(name).suffix.lower()
         ok = {"datasheet": (".pdf",), "valvelist": (".xlsx", ".xlsm", ".xls"), "process": (".pdf", ".xlsx", ".xls"),
-              "pms": (".pdf",)}[kind]
+              "pms": (".pdf",), "instrument": (".pdf",), "linelist": (".xlsx", ".xlsm"), "instlist": (".pdf",)}[kind]
         if ext not in ok:
             skipped.append(f"{name} — {kind} 칸에는 {' · '.join(ok)} 만 넣을 수 있습니다")
             continue
@@ -2159,6 +2167,118 @@ async def rule_change_update(cid: int, request: Request):
     return {"ok": True, "status": st}
 
 
+@router.get("/api/valve/projects/{pid}/coverage")
+async def coverage(pid: int, request: Request):
+    """valve39 — first screen: which Datasheet tags the uploaded Process Data does not have, and the revision and zone
+    (North · South · North / South Brownfield · W15) of every loaded Datasheet document and process datasheet (PDS)."""
+    return await run_in_threadpool(_cached, "coverage", pid, lambda con: _json(_coverage(con, pid)), None, request)
+
+
+def _pds_scan(con, d) -> dict:
+    """Tags and zones of one Process Data PDF — read once per upload, kept in document.info['pds_scan']."""
+    info = store.unJ(d.get("info"), {}) if isinstance(d.get("info"), str) else (d.get("info") or {})
+    sc = info.get("pds_scan")
+    if sc and sc.get("v") == 1:
+        return sc
+    try:
+        sc = procmod.scan(d["path"])
+    except extract.PdfError:
+        return {"v": 0, "tag_pages": {}, "zone_by_page": {}, "error": "PDF 를 열 수 없습니다"}
+    info["pds_scan"] = sc
+    with store._LOCK:
+        con.execute("UPDATE document SET info=? WHERE id=?", (json.dumps(info, ensure_ascii=False), d["id"]))
+        con.commit()
+    return sc
+
+
+def _loose_tag(k: str) -> tuple | None:
+    """'85XV0114' and '85XV114' → the same loose key (unit · letters · loop number without leading zeros · suffix)."""
+    m = re.fullmatch(r"(\d+)([A-Z]+)(\d+)([A-Z]*)", k or "")
+    return (m.group(1), m.group(2), int(m.group(3)), m.group(4)) if m else None
+
+
+def _coverage(con, pid) -> dict:
+    latest = _latest(store.rows(con, "SELECT id, tag_key, rev FROM datasheet WHERE project_id=?", pid))
+    pdocs = store.rows(con, "SELECT id, filename, path, info, uploaded_at FROM document WHERE project_id=? AND kind='process' AND status='done'"
+                            " ORDER BY id DESC", pid)
+    pds_docs, table_tags, text_where = [], {}, {}
+    for d in pdocs:
+        if not str(d["filename"]).lower().endswith(".pdf"):
+            continue
+        info = store.unJ(d["info"], {}) or {}
+        pj = store.root() / "process" / f"{d['id']}.json"
+        try:
+            parsed = json.loads(pj.read_text(encoding="utf-8")) if pj.exists() else {}
+        except (OSError, ValueError):
+            parsed = {}
+        for k in (parsed.get("by_tag") or {}):
+            table_tags.setdefault(k, d["filename"])
+        sc = _pds_scan(con, d)
+        for k, pg in (sc.get("tag_pages") or {}).items():
+            text_where.setdefault(k, (d["filename"], pg))
+        zb = sc.get("zone_by_page") or {}
+        rv = info.get("rev") or {}
+        parts = rv.get("parts") or []
+        tag_pages = sc.get("tag_pages") or {}
+        rows = []
+        for i, p in enumerate(parts):                         # one row per process datasheet inside the annexure
+            end = parts[i + 1]["page"] if i + 1 < len(parts) else 10 ** 6
+            zs = sorted({z for pg, z in zb.items() if p["page"] <= int(pg) < end})
+            rows.append({"doc_no": p["doc_no"], "rev": p.get("rev", ""), "date": p.get("date", ""), "page": p["page"],
+                         "zone": " · ".join(zs), "tags": sum(1 for pg in tag_pages.values() if p["page"] <= pg < end)})
+        pds_docs.append({"filename": d["filename"], "uploaded_at": d["uploaded_at"], "doc_no": rv.get("doc_no", "") or parsed.get("doc_no", ""),
+                         "rev": rv.get("rev", "") or rv.get("header_rev", ""), "date": rv.get("date", ""),
+                         "zone": " · ".join(sorted(set(zb.values()))), "table_tags": len(parsed.get("by_tag") or {}),
+                         "text_tags": len(tag_pages), "parts": rows, "error": sc.get("error", "")})
+    tags, docs = [], {}
+    loose = {}                                               # '85XV0114' ~ '85XV114': only SUGGESTED (leading zeros are not the user's rule)
+    for k in set(table_tags) | set(text_where):
+        lk = _loose_tag(k)
+        if lk:
+            loose.setdefault(lk, []).append(k)
+    meta = {r["id"]: r for r in store.rows(con, "SELECT id, doc_no, rev, rev_date, tag, valve_type FROM datasheet WHERE project_id=?", pid)}
+    for d in latest.values():
+        x = _ds_full(con, d["id"], deep=False) or {}
+        m = meta.get(d["id"], {})
+        z = locmod.zone(x.get("location"))
+        k = d["tag_key"]
+        where = "table" if k in table_tags else "text" if k in text_where else ""
+        tags.append({"id": d["id"], "tag": k, "tag_raw": m.get("tag", ""), "type": m.get("valve_type", ""), "doc_no": m.get("doc_no", ""),
+                     "rev": m.get("rev", ""), "zone": z, "pds": where,
+                     "pds_file": table_tags.get(k) or (text_where.get(k) or ("",))[0], "pds_page": (text_where.get(k) or ("", None))[1],
+                     "near": [{"tag": n, "page": (text_where.get(n) or ("", None))[1]} for n in loose.get(_loose_tag(k), []) if n != k] if not where else []})
+        g = docs.setdefault(m.get("doc_no", ""), {"doc_no": m.get("doc_no", ""), "revs": {}, "dates": set(), "zones": {}, "tags": 0})
+        g["tags"] += 1
+        g["revs"][m.get("rev", "")] = g["revs"].get(m.get("rev", ""), 0) + 1
+        if m.get("rev_date"):
+            g["dates"].add(m["rev_date"])
+        g["zones"][z] = g["zones"].get(z, 0) + 1
+    ds_docs = [{"doc_no": g["doc_no"], "rev": " · ".join(f"{r}" + (f" ({n})" if len(g["revs"]) > 1 else "") for r, n in sorted(g["revs"].items(), key=lambda kv: store.rev_key(kv[0]))),
+                "date": ", ".join(sorted(g["dates"], key=lambda s: docrev.parse_date(s) or dt.date.min)[-2:]),
+                "zone": " · ".join(z or "(미기재)" for z in sorted(g["zones"], key=lambda z: (locmod.ZONES + [""]).index(z) if z in locmod.ZONES or z == "" else 9)),
+                "tags": g["tags"]} for g in docs.values()]
+    pre = {}                                                 # 'NN-NN' of a Datasheet document → its zone
+    for r in ds_docs:
+        m = re.match(r"^(\d+-\d+)-", r["doc_no"] or "")
+        if m and "Brownfield" in r["zone"] and " · " not in r["zone"]:
+            pre[m.group(1)] = r["zone"]
+    for p in pds_docs:                                       # a PDS page says 'QELNG NORTH' only: the same unit's datasheet says Brownfield
+        for r in p["parts"]:
+            m = re.match(r"^(\d+-\d+)-", r["doc_no"] or "")
+            z = pre.get(m.group(1)) if m else None
+            if z and r["zone"] and z.startswith(r["zone"]) and r["zone"] != z:
+                r["zone"], r["zone_note"] = z, f"PDS 표지에는 {r['zone']} 만 — 같은 번호({m.group(1)}) Datasheet 가 {z}"
+    order = {z: i for i, z in enumerate(locmod.ZONES)}
+    ds_docs.sort(key=lambda r: (order.get(r["zone"].split(" · ")[0], 9), r["doc_no"]))
+    zones = {z: 0 for z in locmod.ZONES}
+    for t in tags:
+        zones[t["zone"] or "(미기재)"] = zones.get(t["zone"] or "(미기재)", 0) + 1
+    tags.sort(key=lambda t: (order.get(t["zone"], 9), t["tag"]))
+    return {"has_pds": bool(pds_docs), "pds_docs": pds_docs, "ds_docs": ds_docs, "zones": zones, "tags": tags,
+            "missing": sum(1 for t in tags if not t["pds"]) if pds_docs else None,
+            "text_only": sum(1 for t in tags if t["pds"] == "text")}
+
+
 @router.get("/api/valve/projects/{pid}/valve-summary")
 def valve_summary(pid: int, request: Request):
     """valve33 — first screen 'Valve Summary': one small record per tag (newest revision); the screen groups them
@@ -2312,3 +2432,7 @@ def extracted_csv(pid: int):
                         f["edited_value"] or "", f["edited_by"] or "", f["status"], f["page"], x["filename"]])
     return Response("﻿" + buf.getvalue(), media_type="text/csv",
                     headers={"Content-Disposition": "attachment; filename=extracted_fields.csv"})
+
+
+from app.valve import inst_api  # noqa: E402  valve40 — Instrument datasheet review (same project spaces · own table)
+router.include_router(inst_api.router)

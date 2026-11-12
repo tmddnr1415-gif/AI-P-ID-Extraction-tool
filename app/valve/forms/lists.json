@@ -1,0 +1,842 @@
+{
+ "note": "headers only — no data rows (2-3 example Line No. strings at most)",
+ "tag_key_rule": "uppercase, spaces / hyphens / underscores removed (FT-1001A = FT 1001 A)",
+ "instrument_index": {
+  "file_hint": "Instrument_Index.pdf",
+  "title": "Instrument Index",
+  "page_size": "842x595 pt",
+  "orientation": "landscape",
+  "paper": "A4",
+  "pages": 1,
+  "header_rows": 4,
+  "columns": [
+   {
+    "x0": 18.4,
+    "x1": 39.0,
+    "lines": [
+     "Rev."
+    ],
+    "header": "Rev."
+   },
+   {
+    "x0": 39.0,
+    "x1": 189.6,
+    "lines": [
+     "Tag No.",
+     "Loop No.",
+     "Instrument Type",
+     "Service"
+    ],
+    "header": "Tag No. / Loop No. / Instrument Type / Service"
+   },
+   {
+    "x0": 189.6,
+    "x1": 272.2,
+    "lines": [
+     "P&ID No.",
+     "Line No.",
+     "Equipment No.",
+     "LOCATION"
+    ],
+    "header": "P&ID No. / Line No. / Equipment No. / LOCATION"
+   },
+   {
+    "x0": 272.2,
+    "x1": 324.0,
+    "lines": [
+     "FLUID",
+     "PHASE",
+     "AREA"
+    ],
+    "header": "FLUID / PHASE / AREA"
+   },
+   {
+    "x0": 324.0,
+    "x1": 390.7,
+    "lines": [
+     "SYSTEM IN",
+     "SIGNAL IN",
+     "SYSTEM IN LOCATION",
+     "BUILDING.:"
+    ],
+    "header": "SYSTEM IN / SIGNAL IN / SYSTEM IN LOCATION / BUILDING.:"
+   },
+   {
+    "x0": 390.7,
+    "x1": 462.6,
+    "lines": [
+     "SYSTEM OUT",
+     "SIGNAL OUT",
+     "SYSTEM OUT LOCATION",
+     "BUILDING.:"
+    ],
+    "header": "SYSTEM OUT / SIGNAL OUT / SYSTEM OUT LOCATION / BUILDING.:"
+   },
+   {
+    "x0": 462.6,
+    "x1": 498.6,
+    "lines": [
+     "RANGE",
+     "Min",
+     "Max",
+     "ENG. Unit"
+    ],
+    "header": "RANGE / Min / Max / ENG. Unit"
+   },
+   {
+    "x0": 498.6,
+    "x1": 569.9,
+    "lines": [
+     "LOCATION DWG.",
+     "PROCESS HOOK-UP",
+     "PNEUMATIC HOOK-UP",
+     "INSTALLATION DWG."
+    ],
+    "header": "LOCATION DWG. / PROCESS HOOK-UP / PNEUMATIC HOOK-UP / INSTALLATION DWG."
+   },
+   {
+    "x0": 569.9,
+    "x1": 640.4,
+    "lines": [
+     "SCOPE",
+     "DATASHEET NO.",
+     "REQ. NO."
+    ],
+    "header": "SCOPE / DATASHEET NO. / REQ. NO."
+   },
+   {
+    "x0": 640.4,
+    "x1": 699.0,
+    "lines": [
+     "MANUFACTURER",
+     "MODEL NO."
+    ],
+    "header": "MANUFACTURER / MODEL NO."
+   },
+   {
+    "x0": 699.0,
+    "x1": 821.5,
+    "lines": [
+     "Remark1",
+     "Remark2"
+    ],
+    "header": "Remark1 / Remark2"
+   }
+  ],
+  "not_read": [],
+  "title_block_fields": [
+   "Domain",
+   "Plant",
+   "Area",
+   "Unit",
+   "Document No.",
+   "Revision No.",
+   "Revision Date.",
+   "By",
+   "Page",
+   "Print Date"
+  ],
+  "note": "title-block values (site / domain names) are not recorded"
+ },
+ "io_list": {
+  "file_hint": "IO_List.pdf",
+  "title": "IO LIST",
+  "page_size": "842x595 pt",
+  "orientation": "landscape",
+  "paper": "A4",
+  "pages": 1,
+  "header_rows": 5,
+  "columns": [
+   {
+    "x0": 18.4,
+    "x1": 39.0,
+    "lines": [
+     "REV."
+    ],
+    "header": "REV."
+   },
+   {
+    "x0": 39.0,
+    "x1": 189.6,
+    "lines": [
+     "TAG NO.",
+     "LOOP NO.",
+     "INSTRUMENT TYPE",
+     "SERVICE"
+    ],
+    "header": "TAG NO. / LOOP NO. / INSTRUMENT TYPE / SERVICE"
+   },
+   {
+    "x0": 189.6,
+    "x1": 277.4,
+    "lines": [
+     "P&ID NO.",
+     "LINE NO.",
+     "EQUIPMENT NO.",
+     "LOCATION"
+    ],
+    "header": "P&ID NO. / LINE NO. / EQUIPMENT NO. / LOCATION"
+   },
+   {
+    "x0": 277.4,
+    "x1": 345.0,
+    "lines": [
+     "IO TYPICAL",
+     "REDUNDANT I/O (Y/N)",
+     "IS / NON-IS"
+    ],
+    "header": "IO TYPICAL / REDUNDANT I/O (Y/N) / IS / NON-IS"
+   },
+   {
+    "x0": 345.0,
+    "x1": 412.4,
+    "lines": [
+     "SYSTEM IN",
+     "SIGNAL IN",
+     "SYSTEM IN LOCATION",
+     "BUILDING.:"
+    ],
+    "header": "SYSTEM IN / SIGNAL IN / SYSTEM IN LOCATION / BUILDING.:"
+   },
+   {
+    "x0": 412.4,
+    "x1": 486.7,
+    "lines": [
+     "SYSTEM OUT",
+     "SIGNAL OUT",
+     "SYSTEM OUT LOCATION",
+     "BUILDING.:"
+    ],
+    "header": "SYSTEM OUT / SIGNAL OUT / SYSTEM OUT LOCATION / BUILDING.:"
+   },
+   {
+    "x0": 486.7,
+    "x1": 549.0,
+    "lines": [
+     "LOOP POWERED",
+     "EXTERNALLY",
+     "POWERED",
+     "POWER SUPPLY"
+    ],
+    "header": "LOOP POWERED / EXTERNALLY / POWERED / POWER SUPPLY"
+   },
+   {
+    "x0": 549.0,
+    "x1": 582.0,
+    "lines": [
+     "RANGE",
+     "MIN",
+     "MAX",
+     "ENG.",
+     "UNIT"
+    ],
+    "header": "RANGE / MIN / MAX / ENG. / UNIT"
+   },
+   {
+    "x0": 582.0,
+    "x1": 633.0,
+    "lines": [
+     "LOGIC NO."
+    ],
+    "header": "LOGIC NO."
+   },
+   {
+    "x0": 633.0,
+    "x1": 726.7,
+    "lines": [
+     "JB WIRING DWG NO.:",
+     "INTERCONNECTION DWG NO.:",
+     "LOOP DRAWING NO.:"
+    ],
+    "header": "JB WIRING DWG NO.: / INTERCONNECTION DWG NO.: / LOOP DRAWING NO.:"
+   },
+   {
+    "x0": 726.7,
+    "x1": 821.5,
+    "lines": [
+     "REMARK1",
+     "REMARK2"
+    ],
+    "header": "REMARK1 / REMARK2"
+   }
+  ],
+  "not_read": [],
+  "title_block_fields": [
+   "Domain",
+   "Plant",
+   "Area",
+   "Unit",
+   "Document No.",
+   "Revision No.",
+   "Revision Date.",
+   "By",
+   "Page",
+   "Print Date"
+  ],
+  "note": "title-block values (site / domain names) are not recorded"
+ },
+ "process_line_list": {
+  "north": {
+   "file_hint": "98-98-PR-LIS-00002_0001_B.xlsx",
+   "sheets": [
+    "COVER SHT",
+    "NORTH_CO2_LINE_LIST"
+   ],
+   "tables": [
+    {
+     "sheet": "COVER SHT",
+     "role": "cover / no line table"
+    },
+    {
+     "sheet": "NORTH_CO2_LINE_LIST",
+     "header_rows": [
+      7,
+      9
+     ],
+     "first_data_row": 10,
+     "n_data_rows": 3,
+     "notes_block_row": 120,
+     "sheet_max_row": 165,
+     "columns": [
+      {
+       "col": "A",
+       "header": "LINE NUMBER",
+       "parts": [
+        "LINE NUMBER"
+       ]
+      },
+      {
+       "col": "B",
+       "header": "REVISION",
+       "parts": [
+        "REVISION"
+       ]
+      },
+      {
+       "col": "C",
+       "header": "SERVICE",
+       "parts": [
+        "SERVICE"
+       ]
+      },
+      {
+       "col": "D",
+       "header": "SERIAL NO.",
+       "parts": [
+        "SERIAL NO."
+       ]
+      },
+      {
+       "col": "E",
+       "header": "LINE SIZE / MM",
+       "parts": [
+        "LINE SIZE",
+        "MM"
+       ]
+      },
+      {
+       "col": "F",
+       "header": "LINE SIZE / INCH",
+       "parts": [
+        "LINE SIZE",
+        "INCH"
+       ]
+      },
+      {
+       "col": "G",
+       "header": "PIPE CLASS",
+       "parts": [
+        "PIPE CLASS"
+       ]
+      },
+      {
+       "col": "H",
+       "header": "P&ID NUMBER",
+       "parts": [
+        "P&ID NUMBER"
+       ]
+      },
+      {
+       "col": "I",
+       "header": "FROM",
+       "parts": [
+        "FROM"
+       ]
+      },
+      {
+       "col": "J",
+       "header": "TO",
+       "parts": [
+        "TO"
+       ]
+      },
+      {
+       "col": "K",
+       "header": "FLUID PHASE",
+       "parts": [
+        "FLUID PHASE"
+       ]
+      },
+      {
+       "col": "L",
+       "header": "FLUID DENSITY / KG / M3",
+       "parts": [
+        "FLUID DENSITY",
+        "KG / M3"
+       ]
+      },
+      {
+       "col": "M",
+       "header": "DESIGN CONDITIONS / PRESSURE / BARG",
+       "parts": [
+        "DESIGN CONDITIONS",
+        "PRESSURE",
+        "BARG"
+       ]
+      },
+      {
+       "col": "N",
+       "header": "DESIGN CONDITIONS / TEMPERATURE (MAX.) / DEG C",
+       "parts": [
+        "DESIGN CONDITIONS",
+        "TEMPERATURE (MAX.)",
+        "DEG C"
+       ]
+      },
+      {
+       "col": "O",
+       "header": "DESIGN CONDITIONS / TEMPERATURE (MIN.) / DEG C",
+       "parts": [
+        "DESIGN CONDITIONS",
+        "TEMPERATURE (MIN.)",
+        "DEG C"
+       ]
+      },
+      {
+       "col": "P",
+       "header": "OPERATING CONDITIONS / PRESSURE / BARG",
+       "parts": [
+        "OPERATING CONDITIONS",
+        "PRESSURE",
+        "BARG"
+       ]
+      },
+      {
+       "col": "Q",
+       "header": "OPERATING CONDITIONS / TEMPERATURE / DEG C",
+       "parts": [
+        "OPERATING CONDITIONS",
+        "TEMPERATURE",
+        "DEG C"
+       ]
+      },
+      {
+       "col": "R",
+       "header": "STRESS ANALYSIS / ( Y / N )",
+       "parts": [
+        "STRESS ANALYSIS",
+        "( Y / N )"
+       ]
+      },
+      {
+       "col": "S",
+       "header": "STRESS ANALYSIS / CALCULATION / SYSTEM NO.",
+       "parts": [
+        "STRESS ANALYSIS",
+        "CALCULATION / SYSTEM NO."
+       ]
+      },
+      {
+       "col": "T",
+       "header": "TEST MEDIUM",
+       "parts": [
+        "TEST MEDIUM"
+       ]
+      },
+      {
+       "col": "U",
+       "header": "TEST PRESSURE / BARG",
+       "parts": [
+        "TEST PRESSURE",
+        "BARG"
+       ]
+      },
+      {
+       "col": "V",
+       "header": "INSULATION TYPE",
+       "parts": [
+        "INSULATION TYPE"
+       ]
+      },
+      {
+       "col": "W",
+       "header": "INSULATION THICKNESS / MM",
+       "parts": [
+        "INSULATION THICKNESS",
+        "MM"
+       ]
+      },
+      {
+       "col": "X",
+       "header": "ELECTRIC TRACE / ( Y / N )",
+       "parts": [
+        "ELECTRIC TRACE",
+        "( Y / N )"
+       ]
+      },
+      {
+       "col": "Y",
+       "header": "PWHT",
+       "parts": [
+        "PWHT"
+       ]
+      },
+      {
+       "col": "Z",
+       "header": "HARDNESS",
+       "parts": [
+        "HARDNESS"
+       ]
+      },
+      {
+       "col": "AA",
+       "header": "NDE REQUIREMENT / BUTT WELDS",
+       "parts": [
+        "NDE REQUIREMENT",
+        "BUTT WELDS"
+       ]
+      },
+      {
+       "col": "AB",
+       "header": "NDE REQUIREMENT / FILLET WELDS",
+       "parts": [
+        "NDE REQUIREMENT",
+        "FILLET WELDS"
+       ]
+      },
+      {
+       "col": "AC",
+       "header": "NDE REQUIREMENT / BRANCH WELDS",
+       "parts": [
+        "NDE REQUIREMENT",
+        "BRANCH WELDS"
+       ]
+      },
+      {
+       "col": "AD",
+       "header": "NDE REQUIREMENT / ATTACH. WELDS",
+       "parts": [
+        "NDE REQUIREMENT",
+        "ATTACH. WELDS"
+       ]
+      },
+      {
+       "col": "AE",
+       "header": "REMARKS",
+       "parts": [
+        "REMARKS"
+       ]
+      }
+     ],
+     "example_line_no": [
+      "AG1442-24\"(1C3AS-A)E(47.25)",
+      "AG1443-40\"(1C3AS-A)E(46.10)",
+      "AG1444-40\"-(1C3AS-A)E(46.10)"
+     ]
+    }
+   ]
+  },
+  "south": {
+   "file_hint": "999-98-PR-LIS-00002_0001_B.xlsx",
+   "sheets": [
+    "COVER SHT",
+    "SOUTH_CO2_LINE_LIST1"
+   ],
+   "tables": [
+    {
+     "sheet": "COVER SHT",
+     "role": "cover / no line table"
+    },
+    {
+     "sheet": "SOUTH_CO2_LINE_LIST1",
+     "header_rows": [
+      7,
+      9
+     ],
+     "first_data_row": 10,
+     "n_data_rows": 4,
+     "notes_block_row": 405,
+     "sheet_max_row": 556,
+     "columns": [
+      {
+       "col": "A",
+       "header": "LINE NUMBER",
+       "parts": [
+        "LINE NUMBER"
+       ]
+      },
+      {
+       "col": "B",
+       "header": "REVISION",
+       "parts": [
+        "REVISION"
+       ]
+      },
+      {
+       "col": "C",
+       "header": "SERVICE",
+       "parts": [
+        "SERVICE"
+       ]
+      },
+      {
+       "col": "D",
+       "header": "SERIAL NO.",
+       "parts": [
+        "SERIAL NO."
+       ]
+      },
+      {
+       "col": "E",
+       "header": "LINE SIZE / MM",
+       "parts": [
+        "LINE SIZE",
+        "MM"
+       ]
+      },
+      {
+       "col": "F",
+       "header": "LINE SIZE / INCH",
+       "parts": [
+        "LINE SIZE",
+        "INCH"
+       ]
+      },
+      {
+       "col": "G",
+       "header": "PIPE CLASS",
+       "parts": [
+        "PIPE CLASS"
+       ]
+      },
+      {
+       "col": "H",
+       "header": "P&ID NUMBER",
+       "parts": [
+        "P&ID NUMBER"
+       ]
+      },
+      {
+       "col": "I",
+       "header": "FROM",
+       "parts": [
+        "FROM"
+       ]
+      },
+      {
+       "col": "J",
+       "header": "TO",
+       "parts": [
+        "TO"
+       ]
+      },
+      {
+       "col": "K",
+       "header": "FLUID PHASE",
+       "parts": [
+        "FLUID PHASE"
+       ]
+      },
+      {
+       "col": "L",
+       "header": "FLUID DENSITY / KG / M3",
+       "parts": [
+        "FLUID DENSITY",
+        "KG / M3"
+       ]
+      },
+      {
+       "col": "M",
+       "header": "DESIGN CONDITIONS / PRESSURE / BARG",
+       "parts": [
+        "DESIGN CONDITIONS",
+        "PRESSURE",
+        "BARG"
+       ]
+      },
+      {
+       "col": "N",
+       "header": "DESIGN CONDITIONS / TEMPERATURE (MAX.) / DEG C",
+       "parts": [
+        "DESIGN CONDITIONS",
+        "TEMPERATURE (MAX.)",
+        "DEG C"
+       ]
+      },
+      {
+       "col": "O",
+       "header": "DESIGN CONDITIONS / TEMPERATURE (MIN.) / DEG C",
+       "parts": [
+        "DESIGN CONDITIONS",
+        "TEMPERATURE (MIN.)",
+        "DEG C"
+       ]
+      },
+      {
+       "col": "P",
+       "header": "OPERATING CONDITIONS / PRESSURE / BARG",
+       "parts": [
+        "OPERATING CONDITIONS",
+        "PRESSURE",
+        "BARG"
+       ]
+      },
+      {
+       "col": "Q",
+       "header": "OPERATING CONDITIONS / TEMPERATURE / DEG C",
+       "parts": [
+        "OPERATING CONDITIONS",
+        "TEMPERATURE",
+        "DEG C"
+       ]
+      },
+      {
+       "col": "R",
+       "header": "STRESS ANALYSIS / ( Y / N )",
+       "parts": [
+        "STRESS ANALYSIS",
+        "( Y / N )"
+       ]
+      },
+      {
+       "col": "S",
+       "header": "STRESS ANALYSIS / CALCULATION / SYSTEM NO.",
+       "parts": [
+        "STRESS ANALYSIS",
+        "CALCULATION / SYSTEM NO."
+       ]
+      },
+      {
+       "col": "T",
+       "header": "TEST MEDIUM",
+       "parts": [
+        "TEST MEDIUM"
+       ]
+      },
+      {
+       "col": "U",
+       "header": "TEST PRESSURE / BARG",
+       "parts": [
+        "TEST PRESSURE",
+        "BARG"
+       ]
+      },
+      {
+       "col": "V",
+       "header": "INSULATION TYPE",
+       "parts": [
+        "INSULATION TYPE"
+       ]
+      },
+      {
+       "col": "W",
+       "header": "INSULATION THICKNESS / MM",
+       "parts": [
+        "INSULATION THICKNESS",
+        "MM"
+       ]
+      },
+      {
+       "col": "X",
+       "header": "ELECTRIC TRACE / ( Y / N )",
+       "parts": [
+        "ELECTRIC TRACE",
+        "( Y / N )"
+       ]
+      },
+      {
+       "col": "Y",
+       "header": "PWHT",
+       "parts": [
+        "PWHT"
+       ]
+      },
+      {
+       "col": "Z",
+       "header": "HARDNESS",
+       "parts": [
+        "HARDNESS"
+       ]
+      },
+      {
+       "col": "AA",
+       "header": "NDE REQUIREMENT / BUTT WELDS",
+       "parts": [
+        "NDE REQUIREMENT",
+        "BUTT WELDS"
+       ]
+      },
+      {
+       "col": "AB",
+       "header": "NDE REQUIREMENT / FILLET WELDS",
+       "parts": [
+        "NDE REQUIREMENT",
+        "FILLET WELDS"
+       ]
+      },
+      {
+       "col": "AC",
+       "header": "NDE REQUIREMENT / BRANCH WELDS",
+       "parts": [
+        "NDE REQUIREMENT",
+        "BRANCH WELDS"
+       ]
+      },
+      {
+       "col": "AD",
+       "header": "NDE REQUIREMENT / ATTACH. WELDS",
+       "parts": [
+        "NDE REQUIREMENT",
+        "ATTACH. WELDS"
+       ]
+      },
+      {
+       "col": "AE",
+       "header": "REMARKS",
+       "parts": [
+        "REMARKS"
+       ]
+      }
+     ],
+     "example_line_no": [
+      "12DHC-1001-2\"-1C3AS2-A-N",
+      "19GSO-1182-24\"-1C3AS2-A-E",
+      "29GSO-1542-24\"-1C3AS2-A-E"
+     ]
+    }
+   ]
+  }
+ },
+ "process_data_sample": {
+  "file_hint": "Process_Data_.pdf",
+  "pages": 61,
+  "page_sizes": {
+   "595x842": 1,
+   "1191x842": 54,
+   "1190x842": 6
+  },
+  "table_titles": {
+   "Process Data for On-Off Valve": 20,
+   "Process Data for Motor Operated Valve": 3,
+   "Process Data for Control Valve": 1,
+   "Process Data for Pressure Relief Valve": 2
+  },
+  "header_lines_sample": [
+   "Flow Maximum Operating Design Operating Design Molecular Density at Viscosity Upstream/downstream max Upstream/downstream max Operating Time Operating Time",
+   "rate Pressure Drop Temperature Temperature Pressure Pressure Weight T&P at T&P pressure difference for opening pressure difference for Closing (Opening) (Closing)",
+   "Sr no. Tag Number SPI Tag Location Quantity PID No Valve type Line No Line Size Valve Size Valve Bore Class Pipe Service Fluid Process Phase Fluid Normal Position Safety Position Required Tightness Actutaor/ Driver type Notes Remarks",
+   "m3/h bar °C °C bar(g) bar(g) kg/kmol kg/m³ cP bar bar second second"
+  ],
+  "layout": "cover page (A4 portrait) + notes page, then A3-landscape tables: 3 header lines + 1 unit line, one row per tag numbered by 'Sr no.'; read by app/valve/process.py"
+ }
+}

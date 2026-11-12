@@ -29,6 +29,30 @@ def title_for(doc_no: str, docs: dict) -> str:
     return ""
 
 
+ZONES = ["North", "South", "North Brownfield", "South Brownfield", "W15"]
+
+
+def zone(loc: dict | None) -> str:
+    """valve39: one label for the first screen — North · South · North Brownfield · South Brownfield · W15 ('' = not stated).
+    Brownfield keeps its site (the datasheets say 'QELNG South Brownfield System 19')."""
+    loc = loc or {}
+    if loc.get("area") == "Brownfield":
+        return f"{loc['site']} Brownfield" if loc.get("site") in ("North", "South") else "Brownfield"
+    return loc.get("area") or ""
+
+
+def zone_of_text(text: str) -> str:
+    """Zone named on a document page (a process datasheet title block): the first of NORTH / SOUTH / W15, Brownfield when
+    the page names an existing plant 'SYSTEM nn - UNIT nn' or says brownfield.  '' when the page says none."""
+    t = (text or "").upper()
+    hits = sorted((t.find(w), s) for w, s in (("QELNG NORTH", "North"), ("QELNG SOUTH", "South"), ("W15", "W15")) if w in t)
+    if not hits:
+        hits = sorted((t.find(w), s) for w, s in ((" NORTH", "North"), (" SOUTH", "South")) if w in t)
+    site = hits[0][1] if hits else ""
+    brown = bool(_SYS_UNIT.search(text or "")) or "BROWNFIELD" in t.replace(" ", "").replace("-", "")
+    return zone({"area": "Brownfield" if brown else site, "site": site})
+
+
 def locate(doc_no: str = "", title: str = "", pid_no: str = "", tag: str = "", notes_text: str = "") -> dict:
     t = (title or "").upper()
     site = "North" if "NORTH" in t else "South" if "SOUTH" in t else "W15" if "W15" in t else ""

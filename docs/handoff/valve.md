@@ -1,11 +1,27 @@
 # 인수인계 — "VALVE Datasheet 검토" 세션 (상한 15KB · 덧붙이지 말고 고쳐 쓴다)
 
+## ★ 진행 중 — Instrument Datasheet 검토 (2026-11-12 사용자 지시 · 기획안 v2) — valve40
+
+- 지시 원문: `git show origin/claude/trusting-cray-v68axq:INSTRUMENT_REVIEW_PLAN.md` · `CONVENTIONS.md`. 결정: List 는 PDF · 기준 = Datasheet → List ·
+  Process 기준 = PDS · **원본(빈 양식 · Line List · List PDF) 저장소 금지 · 발주처/프로젝트 이름 금지** · 단계마다 오케스트레이터(session_01Muj82FygSCFAVRooofwhVK) 한 줄 · 사용자에게 스크린샷.
+- **1~5단계 들어감 (valve40)**: 카드 `app/valve/forms/*.json`(80 은 두 칸 행 `pair_cells`) · 읽기 `instrument.py` · 검토 `instreview.py`(IN-REQ/PDS/PMS/LL/ITM, Rule 표는 모듈 머리) ·
+  Line List `linelist.py`(머리글 글자로 열 찾음 · 크기는 '"' 로 inch 판별 = South 뒤바뀜 대응 · Line No 전체 → 앞부분) · List `instlists.py`(LIST-00/01/02) ·
+  API `inst_api.py`(표 `inst_sheet`, 업로드 종류 instrument · linelist · instlist, `/inst/summary · sheets · listcmp(.xlsx) · review.xlsx · required`) ·
+  화면 `app/static/valve/instrument.js`(Instrument 현황판 · Instrument Review · List 대조, `?kind=pt`) · valve.js 는 `window.VALVE` 다리만.
+- **Mark-up PDF**: `instmarkup.py` — 칸 음영 + 영어 화살표 설명선(FreeTextCallout, 편집 가능) · 오른쪽 여백 1→n. `/inst/sheets/{id}/markup.pdf` · `/inst/markup.pdf?kind=`.
+- **valve37(440a3bb1) 들어옴**: `?kind=` ball·globe·butterfly·psv·valve → Valve 화면 · 계기 13종 → Instrument · all → 현황판. PSV 는 Valve 화면이 맡음(현황판 CV/On-Off/PSV 칸 = Valve 메뉴 링크).
+- Line No 칸이 없는 양식(FT/PT/LT…)은 PDS 행의 Line No · Pipe Class 로 Line List 를 찾음 (이유에 적음). 필수 칸 = 카드 제안값 → 현황판 '필수 칸 확인'에서 사용자가 확정(프로젝트 설정 `inst.required`).
+- 시험: `spike/valve_inst_scenario.py <dir> [--forms /tmp/forms] [--keep]` — 14종 × (정상 Tag · 오류 심은 Tag) + 시험 PDS/PMS/Line List/Index/IO →
+  **심은 오류 74/74 · 정상 Tag 지적 0 · List 29/29** (카드로 그린 쪽 · 실제 빈 양식 둘 다). pytest `tests/test_valve_instrument_{forms,reader,review}.py`.
+- 아직: 사용자에게 필수 칸 목록 확정 받기 · 실제 채워진 Instrument Datasheet / List 로 검증(지금은 시험 자료뿐) · 605 등 일부 표제란 Rev 를 시험 작성기가 못 씀(읽기 문제 아님) ·
+  Valve 쪽 Tag 와 Instrument 쪽 CV/On-Off/PSV 는 따로 집계(합치기는 사용자 결정) · 꾸러미 valve40 zip 아직 안 만듦.
+- 원본 위치(컨테이너 · 커밋 금지): `/tmp/forms/` — 새 세션이면 사용자에게 다시 올려 달라고 합니다.
+- 지킬 것: Valve 스냅숏 2,935 · 변경 0 (`spike/valve_snapshot_diff.py check out/valve29/snapshot_valve30.json`, 8000=/tmp/vt_shot) · UI 감사 25/25 (8002=/tmp/vt_ui) · 전체 pytest.
+
 ## 지금 상태 (2026-11-07 · valve35 — valve29 Phase 1 완료 + 후속 요청들)
 
 - ★★★ **2026-11-02 사용자: "우선 여기 개인 클로드에서 개발을 이어서 진행한다"** — 이 세션(클라우드)이 계속 개발하고 valveNN 꾸러미를 낸다. 회사 PC 는 적용만(회사에서 Valve 를 고치면 다음 꾸러미가 충돌).
   아래 2026-11-01 '회사 PC 개발' 장치(devkit · valve_deploy_to_ops)는 그대로 두되 지금은 쓰지 않는다.
-- (옛) 2026-11-01 사용자 결정: Valve 분석 툴은 회사 PC Claude Code 가 개발한다. 클라우드 · 개인 세션은 `app/valve` · `app/static/valve` · `tests/test_valve*` · `docs/valve` 를
-  고치지 않고 꾸러미에도 싣지 않는다(`config/release_sources.json` company_owned · `spike/pack_delta.py`). 회사 쪽 운영 반영 = `spike/valve_deploy_to_ops.bat`(시험 → 백업 → Valve 만 복사 → 8000 재시작) · 되돌리기 `valve_rollback_ops.bat`.
 
 - 작업 브랜치: `ccr-efbe7e75-n915ze` (PID hotfix131 · DASHBOARD v16.51 병합 위). **회사 PC 에서 이어 갈 때는 `docs/handoff/VALVE_COMPANY_START.md`** (폴더 · 지시문).
 - 무엇: 대시보드 **실행 프로젝트 › CO2 PJT › Datasheet › Ball Valve** = P&ID 서버(8000) `/valve/`. 같은 줄에 Globe Valve · Butterfly Valve · PSV 메뉴(준비 중 화면, `dashboard.html MODULES`).
@@ -35,6 +51,7 @@
   **원인은 아직 모름** — 사용자에게 로그 파일(`C:\Claude\PID\app\_data\valve\logs\errors_*.log` 또는 화면에 나온 위치) 내용을 받아 고칠 것.
 - **valve38** (회사 PC 'PDF 안 뜸' 진짜 원인 = 저장본 `files\26c26a50aa4f1ab2.pdf` 를 pymupdf 가 못 엶 — DRM 추정): 저장본 `.bin` · 시작 때 옮김 · 다시 올리면 옛 문서도 복구 ·
   409 stored_pdf + 진단(앞 32바이트) · 뷰어 안내 · 목록 '원본 손상' — DESIGN §43. **회사 확인: 진단의 앞 32바이트가 무엇인지(DRM 머리글?) 받으면 원인 확정.**
+- **valve39**: 첫 화면 'Process Data 대조 · 문서 Rev · 구역' (`/coverage`, `drawCov`) — PDS 에 없는 Tag(공백 · 하이픈 무시, 앞 0 은 '비슷한 번호') · 구역 5종 · 문서별 Rev — DESIGN §44.
 - ★ 2026-11-11 오케스트레이터(규약 v2): 통합 zip 은 오케스트레이터(hotfix13x) — 이 세션은 개발 · 시험 · 커밋 · 푸시 후 send_message 로 알림. 사용자 직접 확인은 아직.
 - ★ 2026-11-07 오케스트레이터(세션 메시지): "Valve 도 통합 PID_dev+ops_hotfixNNN 에 싣고 valveNN 별도 꾸러미 폐지" — **사용자 확인 전**이라 규칙은 아직 그대로.
 - 꾸러미: **valve37** = `out/PID_dev+ops_valve37_2026-11-11.zip` (누적 · valve36 Anatomy 포함, 회사 HTTP 500 대응). 그 전 valve35. 그 전 **valve30** = `out/PID_dev+ops_valve30_2026-11-02.zip`. 그 전 **valve29** = `out/PID_dev+ops_valve29_2026-11-01.zip`(P&ID 서버, 누적 — 이것 하나) · 대시보드 = `dashboard_patches/UPDATE_from_v16.51_VALVE2_menu.zip`(--any) ·

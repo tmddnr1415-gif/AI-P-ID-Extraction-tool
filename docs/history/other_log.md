@@ -284,3 +284,21 @@
 - 원인 = `files\26c26a50aa4f1ab2.pdf`(여기 Datasheet.pdf 와 같은 해시) 를 pymupdf 가 못 엶 — 저장 뒤 내용이 바뀜(DRM 추정). valve37 의 '검토 규칙' 추정은 틀렸음.
 - 저장본 .bin + filetype=pdf · 시작 때 옮김 · 다시 올리면 옛 문서 복구 · 409 stored_pdf 진단 · 뷰어 · 목록 표시 · Mark-up 은 그 Tag 만 뺌.
 - 시험 +2 (1,993) · 스냅샷 0 · UI 25/25. zip 없음(오케스트레이터 hotfix 로 묶음).
+
+## 2026-11-12 · valve39 — 첫 화면 Process Data 대조 · 문서 Rev · 구역 (사용자 요청, 회사 PC 사진)
+- PDS 에 없는 Tag (norm_tag: 공백 · 하이픈 무시) · PDS 글에만 있음(표로 못 읽음) · 표에서 읽음 / 앞 0 차이는 '비슷한 번호'. 실자료 164: 없음 1(85XV114 ↔ PDS 85XV0114) · 글 97 · 표 66.
+- 구역 North · South · North/South Brownfield · W15 (location.zone) · Datasheet 문서 · PDS(PR-DTS) 마다 Rev · 날짜 · 구역 · Tag.
+- 시험 +1 · 판정 변경 없음. VERSION valve39.
+
+## 2026-11-12 · valve40 1단계 — Instrument 양식 카드 14종 + 공통 번호칸 읽기기 (사용자 지시 · 기획안 v2)
+- 빈 양식 14종 → `app/valve/forms/*.json` (번호 1..N 빠짐 0) · `app/valve/instrument.py` 양식 식별 · 하위칸 · 표제란 · 다중 Tag 분리.
+- 시험 PDF 생성기 `spike/valve_make_test_ds.py` (TEST DATA 표시 · 원본은 저장소 밖). 실제 빈 양식 시험: 11종 100% · 3종 96~98%.
+- 시험 +75 · 기존 Valve 판정 변경 없음. 다음: 2단계 (화면 · 업로드 · 필수칸 · PDS · PMS · Line List).
+
+## 2026-11-12 · valve40 2~5단계 — Instrument 검토 화면 · PDS · PMS · Line List · List 대조
+- 새 모듈: `instreview.py`(Rule IN-REQ-01 · IN-PDS-00/01 · IN-PMS-01/02 · IN-LL-00~05 · IN-ITM-01/02) · `linelist.py` · `instlists.py` · `inst_api.py` · 화면 `instrument.js`.
+- 문서 관리에 칸 3개 (Instrument Datasheet · Process Line List · Instrument Index/IO List). 현황판 = 계기 Type 14종 카드 · 지적 수 · Rev · TEST 표시.
+- 양식 80 카드: 한 줄에 라벨 둘(Operating Pressure | Design Pressure)인 행 28개에 칸 나눔 `pair_cells` (빈 양식의 세로 줄로 학습) → 실제 빈 양식 61/61.
+- 오류 심은 시험(`spike/valve_inst_scenario.py`): 74/74 찾음 · 정상 Tag 지적 0 · List 29/29. Valve 스냅숏 2,935 변경 0 · UI 감사 25/25.
+- (추가) Instrument Mark-up PDF: 지적 칸 음영 + 화살표 설명선(이유) 을 PDF 주석으로 — `app/valve/instmarkup.py` · 시험 1건.
+- (추가) valve37 cherry-pick + `?kind=` 화면 나누기 (Valve 4종 ↔ Instrument 13종) · pytest 2,081 · 스냅숏 변경 0 · UI 25/25.

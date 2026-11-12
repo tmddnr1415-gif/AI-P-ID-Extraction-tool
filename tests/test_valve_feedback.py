@@ -601,3 +601,23 @@ def test_stored_pdf_copies_move_to_bin(tmp_path, monkeypatch):
     after = store.rows(con, "SELECT path FROM document ORDER BY id")
     assert after[0]["path"].endswith(".bin") and Path(after[0]["path"]).exists() and not legacy[0].exists()
     assert after[1]["path"] == str(legacy[1]) and legacy[1].exists()
+
+
+def test_process_data_tag_cover_and_zones(tmp_path, monkeypatch):
+    """valve39: tags are compared without spaces / hyphens (98FV100 = 98FV-100 = 98FV 100 = 98FV -100); a leading-zero
+    variant is only suggested; zones are North · South · North / South Brownfield · W15; the first-screen answer works
+    without a Process Data upload."""
+    from app.valve import location, process
+    from tests.test_valve_revision import api
+    assert process.text_tags("98FV100 · 98FV-100, 98FV 100 and 98FV -100") == {"98FV100"}
+    assert process.text_tags("Tag 315MOV980004 / 00XV 921 / 85XV0114") == {"315MOV980004", "00XV921", "85XV0114"}
+    assert api._loose_tag("85XV0114") == api._loose_tag("85XV114") != api._loose_tag("85XV1114")
+    assert location.zone({"area": "Brownfield", "site": "South"}) == "South Brownfield"
+    assert location.zone({"area": "North", "site": "North"}) == "North" and location.zone({}) == ""
+    assert location.zone_of_text("FOR CO2 SEQUESTRATION IN QELNG SOUTH (SYSTEM 999 - UNIT 19)") == "South Brownfield"
+    assert location.zone_of_text("CO2 SEQUESTRATION W15 INJECTION AREA") == "W15" and location.zone_of_text("no place") == ""
+    c, pid, up = _client(tmp_path, monkeypatch)
+    up("ds_A.pdf", _pdf("A"))
+    C = c.get(f"/api/valve/projects/{pid}/coverage").json()
+    assert C["has_pds"] is False and C["missing"] is None and len(C["tags"]) == 1 and C["ds_docs"][0]["tags"] == 1
+    assert set(locmod_z for locmod_z in C["zones"]) >= {"North", "South", "North Brownfield", "South Brownfield", "W15"}
