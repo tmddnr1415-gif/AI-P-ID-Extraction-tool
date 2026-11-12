@@ -90,7 +90,7 @@ body.nav-closed #burger{width:auto;padding:0 12px;font-size:14px;background:var(
 @keyframes fbSpin{from{transform:rotate(-20deg)}to{transform:rotate(340deg)}}
 @media (prefers-reduced-motion:reduce){#taskbar .helm .fbb,#taskbar .helm .fbs,#taskbar .tbtab.helm:hover .fb{animation:none}}
 
-.mi.mfold:not(.on){color:#dfe5ff;font-weight:600}.mi.minst .ml::before{content:'📊 '}.mi.minsti{height:auto;min-height:30px;padding-top:4px;padding-bottom:4px}.mi.minsti .ml{white-space:normal!important;overflow:visible!important;text-overflow:clip!important;font-size:12.5px;line-height:1.25}.mi.minl .ml::before{content:'📋 '}.mi.mlv2:not(.on){color:#dfe5ff;font-weight:600}.mi.mlv2 .ml::before{content:'📅 ';font-weight:400}
+.mi.mfold:not(.on){color:#dfe5ff;font-weight:600}.mi.minst .ml::before{content:'📊 '}.mi.minsti{height:auto;min-height:30px;padding-top:4px;padding-bottom:4px}.mi.minsti .ml{white-space:normal!important;overflow:visible!important;text-overflow:clip!important;font-size:12.5px;line-height:1.25}.mi.minl .ml::before{content:'📋 '}.mi.mdoc .ml::before{content:'📚 '}.mi.mlv2:not(.on){color:#dfe5ff;font-weight:600}.mi.mlv2 .ml::before{content:'📅 ';font-weight:400}
 .mi .ml{min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .mi .chgmark{flex:none;width:8px;margin-left:-6px;margin-right:-4px;color:#FFE066;font-weight:900;text-align:center}
 .mi .chgtag{flex:none;white-space:nowrap;margin-left:auto;font-size:10px;font-weight:700;background:#FFE066;color:#4a3a00;padding:1px 7px;border-radius:99px}
@@ -1731,6 +1731,10 @@ html.dark .sinm,html.dark .gtnm,html.dark .isi,html.dark .sinm1{text-shadow:0 1p
 .rpt tbody td.rfc.rfc,.rpt tbody td.rfc.rfc :not(.rte,.rte *,.rtx [style]),.rfprev.rfc span{color:var(--rfc)!important}.rpt tbody td.rfb.rfb,.rpt tbody td.rfb.rfb :not(.rte,.rte *,.rtx [style]),.rfprev.rfb span{font-weight:900!important}.rpt tbody td.rfi.rfi,.rpt tbody td.rfi.rfi :not(.rte,.rte *,.rtx [style]),.rfprev.rfi span{font-style:italic!important}
 .schpop.rfpop{width:340px}.rfpop .rfrow{display:flex;align-items:center;gap:6px;padding:8px 0 0;flex-wrap:wrap}.rfsw{width:26px;height:26px;border-radius:50%;border:2px solid #fff;box-shadow:0 0 0 1px #cbd5e1;cursor:pointer;background:#fff;font-weight:800;color:#334155;font-size:12px}.rfsw.on{box-shadow:0 0 0 3px #4f46e5}.rfcus{display:inline-flex;align-items:center;gap:2px;cursor:pointer;font-size:16px}.rfcus input{width:28px;height:24px;border:0;padding:0;background:none;cursor:pointer}
 .rfprev{margin:10px 0 0;padding:8px 10px;border:1px dashed #cbd5e1;border-radius:8px;font-size:14px;color:#0f172a;background:#f8fafc}
+.drchips{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px}.drc{border:1px solid #cbd5e1;background:#f8fafc;border-radius:999px;padding:3px 12px;font:inherit;font-size:12.5px;cursor:pointer;color:#334155}.drc b{color:#3730a3}.drc.z{opacity:.5}.drc.on{background:#4f46e5;border-color:#4f46e5;color:#fff}.drc.on b{color:#fff}.drc.warn{border-color:#fcd34d;background:#fffbeb}.drc.warn.on{background:#d97706;border-color:#d97706}
+.vdsw.drw{max-height:calc(100vh - 300px);min-height:300px}.drt td{vertical-align:top}.drrev b{font-size:13.5px}.vdst .drrev small{display:block!important;color:#64748b;font-size:11px;line-height:1.3}.drok{color:#15803d}.drno{color:#b45309;font-weight:700;font-size:12px}.drwait{color:#b45309!important;font-weight:700}
+.drrevs span{display:inline-block;margin:0 3px 2px 0;padding:0 5px;border-radius:4px;background:#f1f5f9;font-size:11.5px;color:#475569}.drrevs span.cur{background:#4f46e5;color:#fff;font-weight:800}.drrevs span.rv{background:#dcfce7;color:#15803d;font-weight:800}
+.drt tr.drpend td{background:#fffbeb}.drg{display:inline-block;font-size:11px;font-weight:800;border-radius:5px;padding:1px 7px;background:#e0e7ff;color:#3730a3}.drg.g1{background:#dcfce7;color:#166534}.drg.g2{background:#fee2e2;color:#991b1b}.drg.g3{background:#fef3c7;color:#92400e}.drg.g4{background:#e0f2fe;color:#075985}
 .hbsec{margin-top:8px}.hbh{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-weight:800;font-size:13px;color:#312e81;letter-spacing:.5px;margin:6px 0}.hbh .muted{font-weight:500;letter-spacing:0}
 .hbg{display:grid;gap:10px}.hbg.v{grid-template-columns:repeat(auto-fill,minmax(210px,1fr))}.hbg.i{grid-template-columns:repeat(auto-fill,minmax(150px,1fr))}
 .vdtag{border:0;background:none;padding:0;font:inherit;font-weight:800;color:#3730a3;cursor:pointer}.vdtag:hover{text-decoration:underline}
@@ -2047,7 +2051,7 @@ function recLabel(key, f) {
  * ===================================================================== */
 let root = null;
 /* 서버 모드: http(s):// 로 접속하면 server.py 의 REST API 사용 (폴더 선택 불필요). file:// 로 열면 폴더 모드 */
-const APP_VERSION = '2026-11-12.6';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
+const APP_VERSION = '2026-11-12.7';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
 const SERVER_URL = 'http://localhost:8080';
 // 부서원 PC 사본(file://)이 접속을 시도할 서버 — 서버가 배포 파일을 만들 때 'PC 이름 주소, IP 주소' 순으로 자동 기록함
 const DEFAULT_SERVERS = ['http://ASEUNGWOOK-B01:8080', 'http://65.3.30.234:8080'];
@@ -4670,6 +4674,80 @@ function renderRunHub(c, dsOnly) {
       ${d ? `<div class="hbg v">${late.map(([g, n]) => tile('co2sched', g + ' 지연', `${n}<small> 품목</small>`, n ? '누르면 Schedule' : '계획대로', n ? 'mid' : 'ok')).join('')}${tile('co2sched', '설계 관리 완료', `${kk.filter(k => k.front).length}<small>/${kk.length}</small>`, 'MR · RFQ · TBE 모두 실적', 'ok')}</div>` : `<button class="btn" data-hgo="co2sched">Schedule 열기</button>`}</section>`}</div>`);
   const v = $('#hubv'); v.onclick = e => { const g = e.target.closest('[data-hgo]'); if (g) return go(g.dataset.hgo); if (e.target.closest('[data-hre]')) { SCH.hub = {}; hubLoad(true); render(); } };
 }
+/* ---------- 2026-11-12 문서 · Revision 현황 (#dsdocs): CO2 PJT 의 모든 Datasheet · List · PMS · Process Data · Line List — 입력된 최신 Rev 와 검토된 최신 Rev · Doc. No.
+   데이터 = 세션 6 GET /api/valve/docreg?project=CO2 PJT (사용자 지시로 세션 6 에 요청한 경로). 없으면(옛 판) summary · inst/sheets 로 대신 만듦(검토된 Rev 는 최신이 검토 완료일 때만) */
+const DR_GROUPS = ['Datasheet', 'List', 'PMS', 'Process Data', 'Line List'];
+const drDone = st => !!st && /accept|resolv|review(ed)?\b|approv|완료|closed/i.test(st) && !/not\s*review|미검토|pending/i.test(st);
+async function docRegLoad(force) {
+  const D = SCH.docs ||= {}; if (D.st === 'load' || (!force && D.at && Date.now() - D.at < 5 * 60e3)) return;
+  D.st = 'load'; if (route === 'dsdocs') render();
+  try {
+    let rows, src = 'docreg';
+    try { rows = (await api('GET', `vds/docreg?project=${encodeURIComponent(VDS_PJT)}`)).rows; } catch (e) { if (!/404|허용|없는/.test(e.message)) throw e; }
+    if (!Array.isArray(rows)) { src = 'fallback'; rows = await docRegFallback(); }
+    Object.assign(D, { st:'ok', at:Date.now(), rows, src });
+  } catch (e) { Object.assign(D, { st:'err', at:Date.now(), msg:e.message }); }
+  if (route === 'dsdocs') render();
+}
+async function docRegFallback() {   // 세션 6 docreg 가 없을 때: 프로젝트마다 summary(문서 · Valve Tag) + inst/sheets(계기)
+  const ps = ((await api('GET', 'vds/projects')).projects || []).filter(p => p.name === VDS_PJT || p.name.startsWith(VDS_PJT + ' · ')), out = [], seen = new Set();
+  const kindOf = n => n === VDS_PJT ? 'ball' : (HUB_VALVE.find(([k, d]) => n === `${VDS_PJT} · ${d}`) || ['ball'])[0];
+  const DK = { pms:['PMS', 'pms', 'PMS'], process:['Process Data', 'pds', 'Process Data (PDS)'], valvelist:['List', 'valvelist', 'Valve List'], linelist:['Line List', 'linelist', 'Process Line List'], instlist:['List', 'instlist', 'Instrument / IO List'] };
+  for (const pj of ps) {
+    const sm = await api('GET', `vds/projects/${pj.id}/summary`).catch(() => null); if (!sm) continue; const vk = kindOf(pj.name), vn = (HUB_VALVE.find(x => x[0] === vk) || [])[1] || vk;
+    for (const d of sm.documents || []) { const m = DK[d.kind]; if (!m || d.status !== 'done') continue; const rv = (d.info || {}).rev || {}, key = m[1] + '|' + (rv.doc_no || d.filename); if (seen.has(key)) { const r = out.find(x => x._k === key); if (r && rv.rev && !r.revs.includes(rv.rev)) r.revs.push(rv.rev); continue; } seen.add(key);
+      const nm = d.kind === 'instlist' ? (/io/i.test(d.filename) ? 'IO List' : 'Instrument Index') : m[2];
+      out.push({ _k:key, group:m[0], kind:d.kind === 'instlist' ? (/io/i.test(d.filename) ? 'iolist' : 'instindex') : m[1], kind_name:nm, doc_no:rv.doc_no || '', title:d.filename, latest:{ rev:rv.header_rev || rv.rev || '', date:rv.date || '', file:d.filename, uploaded_at:d.uploaded_at, uploaded_by:d.uploaded_by }, reviewed:null, revs:rv.rev ? [rv.rev] : [], link:{ kind:d.kind === 'instlist' ? (/io/i.test(d.filename) ? 'iolist' : 'instindex') : vk } }); }
+    for (const t of sm.tags || []) out.push({ group:'Datasheet', kind:vk, kind_name:vn, doc_no:t.doc_no || '', tag:t.tag, latest:{ rev:t.rev || '', date:'', file:'', uploaded_at:t.created_at || '' }, reviewed:drDone(t.review_status) ? { rev:t.rev, status:t.review_status } : null, status:t.review_status, revs:t.revs || [t.rev], open:t.problems || 0, link:{ project:pj.name, kind:vk, ds:t.id } });
+    if (pj.name === VDS_PJT) { const ir = (await api('GET', `vds/projects/${pj.id}/inst/sheets`).catch(() => ({}))).rows || [];
+      for (const r of ir) out.push({ group:'Datasheet', kind:r.kind, kind_name:(INST_KINDS.find(x => x[0] === r.kind) || [])[1] || (r.kind === 'psv' ? 'PSV (Instrument 슬롯)' : String(r.kind).toUpperCase()), doc_no:r.doc_no || '', tag:r.tag, latest:{ rev:r.rev || '', date:r.rev_date || '', file:r.file || '' }, reviewed:drDone(r.status) ? { rev:r.rev, status:r.status } : null, status:r.status, revs:(r.revs || []).map(x => x.rev), open:r.issues || 0, test:r.test_data, link:{ kind:r.kind, sheet:r.id } }); }
+  }
+  return out;
+}
+function drOpen(l) { if (!l) return; const r = l.kind === 'ball' || !l.kind ? 'valve' : { globe:'globev', butterfly:'bflyv', psv:'psv' }[l.kind] || (INST_KINDS.some(x => x[0] === l.kind) ? (l.kind === 'all' ? 'inst' : 'inst' + l.kind) : 'valve');
+  PID_ONCE[r] = l.sheet ? `sheet=${encodeURIComponent(l.sheet)}&` : l.ds ? `ds=${encodeURIComponent(l.ds)}&` : ''; go(r); }
+function renderDocReg(c) {
+  const D = SCH.docs ||= {}, F = SCH.docsF ||= { g:'', k:'', q:'', pend:false }; if (!D.at && D.st !== 'load') docRegLoad();
+  const head = `<section class="whero sch-hero"><div class="wh-top"><div><div style="font-size:12px;font-weight:600;opacity:.8;margin-bottom:2px">실행 프로젝트 › CO2 PJT › Datasheet</div><h2>📚 문서 · Revision 현황</h2>
+      <p>Datasheet · List · PMS · Process Data · Line List — <b>입력된 최신</b> Rev 와 <b>검토된 최신</b> Rev · Doc. No. 를 한눈에 (세션 6 Datasheet 자동 검토)</p></div><div><button class="btn sm" data-drx title="지금 보이는 표를 엑셀로">⬇ 엑셀로</button> <button class="btn sm" data-drre>↻ 새로 읽기</button></div></div></section>`;
+  if (D.st !== 'ok') { c.insertAdjacentHTML('beforeend', `<div id="drv">${head}<section class="card"><div class="empty">${D.st === 'err' ? `<span class="sl">${esc(D.msg)}</span>` : 'P&ID 서버(Datasheet 검토)에서 불러오는 중…'}</div></section></div>`); return drBind(); }
+  const R = D.rows, pend = r => r.group === 'Datasheet' ? (!r.reviewed || r.reviewed.rev !== r.latest?.rev) : false, kinds = [...new Map(R.filter(r => !F.g || r.group === F.g).map(r => [r.kind, r.kind_name])).entries()];
+  const q = F.q.toLowerCase(), sel = R.filter(r => (!F.g || r.group === F.g) && (!F.k || r.kind === F.k) && (!F.pend || pend(r)) && (!q || `${r.doc_no} ${r.tag || ''} ${r.kind_name} ${r.title || ''} ${r.latest?.file || ''}`.toLowerCase().includes(q)))
+    .sort((a, b) => DR_GROUPS.indexOf(a.group) - DR_GROUPS.indexOf(b.group) || String(a.kind_name).localeCompare(b.kind_name) || String(a.doc_no || a.tag).localeCompare(b.doc_no || b.tag));
+  SCH.docsSel = sel;
+  const cnt = g => R.filter(r => r.group === g).length, npend = R.filter(pend).length;
+  const chips = `<div class="drchips"><button class="drc ${!F.g ? 'on' : ''}" data-drg="">전체 <b>${R.length}</b></button>${DR_GROUPS.map(g => `<button class="drc ${F.g === g ? 'on' : ''} ${cnt(g) ? '' : 'z'}" data-drg="${g}">${g} <b>${cnt(g)}</b></button>`).join('')}
+    <button class="drc warn ${F.pend ? 'on' : ''}" data-drp title="입력된 최신 Rev 가 아직 검토되지 않은 Datasheet">⏳ 검토 대기 <b>${npend}</b></button></div>`;
+  const tb = sel.slice(0, 1500).map(r => { const L = r.latest || {}, V = r.reviewed, p = pend(r);
+    return `<tr class="${p ? 'drpend' : ''}"><td><span class="drg g${DR_GROUPS.indexOf(r.group)}">${esc(r.group)}</span></td><td>${esc(r.kind_name || r.kind)}</td><td class="key">${esc(r.doc_no || '-')}</td><td>${r.tag ? `<b>${esc(r.tag)}</b>` : ''}${r.test ? ' <small class="vdtest">시험</small>' : ''}</td>
+      <td class="drrev"><b>${esc(L.rev || '-')}</b><small>${esc([L.date, L.file].filter(Boolean).join(' · '))}${L.uploaded_at ? `<br>올림 ${esc(String(L.uploaded_at).slice(0, 16).replace('T', ' '))}${L.uploaded_by ? ' · ' + esc(L.uploaded_by) : ''}` : ''}</small></td>
+      <td class="drrev">${V ? `<b class="drok">${esc(V.rev || '-')}</b><small>${esc([V.status, V.reviewed_at && String(V.reviewed_at).slice(0, 16).replace('T', ' '), V.reviewed_by].filter(Boolean).join(' · '))}</small>` : r.group === 'Datasheet' ? '<span class="drno">검토 전</span>' : '<span class="muted">-</span>'}${p && V ? '<small class="drwait">⏳ 최신 Rev 검토 대기</small>' : ''}</td>
+      <td class="drrevs">${(r.revs || []).map(x => `<span class="${x === L.rev ? 'cur' : x === V?.rev ? 'rv' : ''}">${esc(x)}</span>`).join('')}</td><td>${r.open ? `<b class="sl">${r.open}</b>` : '<span class="muted">0</span>'}</td>
+      <td>${r.link ? `<button class="btn sm" data-dro="${esc(JSON.stringify(r.link))}">열기 ↗</button>` : ''}</td></tr>`; }).join('');
+  c.insertAdjacentHTML('beforeend', `<div id="drv">${head}<section class="card">${chips}
+    <div class="vdsbar"><label>🔎<input data-drq value="${esc(F.q)}" placeholder="Doc. No. · Tag · 파일 검색"></label><select data-drk><option value="">종류 전체</option>${kinds.map(([k, n]) => `<option value="${esc(k)}" ${F.k === k ? 'selected' : ''}>${esc(n || k)}</option>`).join('')}</select>
+      <span class="muted">${sel.length}건${D.src === 'fallback' ? ' · <span title="세션 6 의 /docreg 가 아직 없어 summary · inst/sheets 로 만듦 — 검토된 Rev 는 최신 Rev 가 검토 완료일 때만">⚠ 간이 집계(세션 6 docreg 준비 전)</span>' : ''} · ${esc(fmtTime(new Date(D.at).toISOString()))} 읽음</span></div>
+    <div class="vdsw drw"><table class="t vdst drt"><thead><tr><th>구분</th><th>종류</th><th>Doc. No.</th><th>Tag</th><th>입력된 최신 Rev</th><th>검토된 최신 Rev</th><th>Rev 이력</th><th>미결</th><th></th></tr></thead><tbody>${tb || '<tr><td colspan="9" class="empty">조건에 맞는 문서가 없어요</td></tr>'}</tbody></table></div></section></div>`);
+  drBind();
+}
+function drBind() {
+  const v = $('#drv'); if (!v) return; const F = SCH.docsF;
+  v.onclick = e => { const t = e.target;
+    if (t.closest('[data-drre]')) { SCH.docs = {}; return docRegLoad(true); }
+    if (t.closest('[data-drx]')) return drXlsx();
+    const g = t.closest('[data-drg]'); if (g) { F.g = g.dataset.drg; F.k = ''; return render(); }
+    if (t.closest('[data-drp]')) { F.pend = !F.pend; return render(); }
+    const o = t.closest('[data-dro]'); if (o) return drOpen(JSON.parse(o.dataset.dro)); };
+  const qi = $('[data-drq]', v); if (qi) qi.oninput = () => { const pos = qi.selectionStart; F.q = qi.value; render(); const n = $('#drv [data-drq]'); if (n) { n.focus(); try { n.setSelectionRange(pos, pos); } catch (_) {} } };
+  const ks = $('[data-drk]', v); if (ks) ks.onchange = () => { F.k = ks.value; render(); };
+}
+function drXlsx() {
+  const R = SCH.docsSel || []; if (!R.length) return toast('내보낼 문서가 없어요', true); const st = { s:ST.HEAD };
+  const cols = ['구분', '종류', 'Doc. No.', 'Tag', '입력된 최신 Rev', 'Rev 날짜', '파일', '올린 날', '검토된 최신 Rev', '검토 상태', 'Rev 이력', '미결'];
+  const rows = R.map(r => [r.group, r.kind_name || r.kind, r.doc_no || '', r.tag || '', r.latest?.rev || '', r.latest?.date || '', r.latest?.file || '', String(r.latest?.uploaded_at || '').slice(0, 16), r.reviewed?.rev || '', r.reviewed?.status || r.status || '', (r.revs || []).join(', '), r.open || 0]);
+  const sheet = { name:'문서 Revision 현황', widths:[12, 22, 24, 16, 12, 14, 30, 16, 12, 16, 16, 8], tab:false, rows:[cols.map(v => ({ ...st, v })), ...rows.map(r => r.map(v => ({ v:v ?? '', s:ST.BODY })))] };
+  const { blob } = buildXlsx([sheet]), a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `CO2 PJT 문서 Revision 현황_${todayISO()}.xlsx`; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 3000);
+}
 /* ---------- 2026-11-10 Datasheet 검토(세션 6) 값 — Schedule 품목 상세에서 그 밸브 종류의 Tag 값 · 속성 + 타입별 · Area 별 수량 ----------
    P&ID 서버의 /api/valve (프로젝트 'CO2 PJT' · 'CO2 PJT · Globe Valve' …) 를 대시보드 서버(/api/vds)가 대신 읽어 옴. 읽기만. */
 const VDS_KIND = [['ball', 'Ball Valve', /ball/i, 'valve'], ['globe', 'Globe Valve', /globe/i, 'globev'], ['butterfly', 'Butterfly Valve', /butterfly|b\.?f\.?v/i, 'bflyv'], ['psv', 'PSV', /\bpsv\b|safety\s*valve|relief\s*valve|\bprv\b/i, 'psv']];
@@ -5177,7 +5255,8 @@ function render() {
   if (route === 'home') renderHome(c); else if (route === 'board') renderBoard(c);
   else if (PID_ROUTES[route]) renderPid(c, route);
   else if (APP_ROUTES[route]) renderApp(c, route);
-  else if (route === 'co2pjt' || route === 'dshub') renderRunHub(c, route === 'dshub');   // dshub = Datasheet 현황판 (Valve · Instrument 함께, PSR 빼고)   // 2026-11-12 사용자 지시: CO2 PJT 메뉴 = 현황판
+  else if (route === 'co2pjt' || route === 'dshub') renderRunHub(c, route === 'dshub');
+  else if (route === 'dsdocs') renderDocReg(c);   // dshub = Datasheet 현황판 (Valve · Instrument 함께, PSR 빼고)   // 2026-11-12 사용자 지시: CO2 PJT 메뉴 = 현황판
   else if (MODULES[route]) renderModule(c, route);
   else if (route === 'alloc') renderAlloc(c);
   else if (route === 'mgalloc') renderAlloc(c, true);
@@ -5192,8 +5271,8 @@ function render() {
   if (route === 'home') placePlaza();
 }
 /* 메뉴 구성: 주간업무보고(홈 대시보드 + 하위 시트 9개) / P&ID 분석 / 입찰 프로젝트 / 실행 프로젝트 / 익명게시판 */
-const ROUTES = ['home', 'work', 'alloc', 'board', 'bidpjt', 'runpjt', 'co2pjt', 'dshub', 'valve', 'globev', 'bflyv', 'psv', ...INST_ROUTES, 'co2sched', 'co2psr', 'finstagram', 'pid', 'logic', 'logicdraw', 'space', 'books', 'ic3d', 'mgmt', 'mgalloc', 'mghours', 'mgwork', 'mgbday'];   // mgwork = 근로시간 관리(근태 시스템 엑셀 · 52h) · mgbday = 부서원 생일
-const RUN_LEAVES = ['co2pjt', 'dshub', 'valve', 'globev', 'bflyv', 'psv', ...INST_ROUTES, 'co2sched', 'co2psr'];   // + co2sched = CO2 PJT › Schedule(구매 일정 현황판, 2026-11-09)   // 실행 프로젝트 › CO2 PJT › Datasheet 아래 잎 (권한 = runpjt)
+const ROUTES = ['home', 'work', 'alloc', 'board', 'bidpjt', 'runpjt', 'co2pjt', 'dshub', 'dsdocs', 'valve', 'globev', 'bflyv', 'psv', ...INST_ROUTES, 'co2sched', 'co2psr', 'finstagram', 'pid', 'logic', 'logicdraw', 'space', 'books', 'ic3d', 'mgmt', 'mgalloc', 'mghours', 'mgwork', 'mgbday'];   // mgwork = 근로시간 관리(근태 시스템 엑셀 · 52h) · mgbday = 부서원 생일
+const RUN_LEAVES = ['co2pjt', 'dshub', 'dsdocs', 'valve', 'globev', 'bflyv', 'psv', ...INST_ROUTES, 'co2sched', 'co2psr'];   // + co2sched = CO2 PJT › Schedule(구매 일정 현황판, 2026-11-09)   // 실행 프로젝트 › CO2 PJT › Datasheet 아래 잎 (권한 = runpjt)
 const MG_ROUTES = ['mgmt', 'mgalloc', 'mghours', 'mgwork', 'mgbday'];   // logic = LOGIC 분석 (P&ID 와 같은 방식)   // mgmt = Management 머리(→ mgalloc) · mgalloc = R&R·투입 분석(시간 병기) · mghours = 근무시간(월·주·일)   // work = 예전 통합 업무 주소 → #task 로 바꿈 · alloc = R&R·투입 분석 · bidpjt/runpjt/mgmt = MODULES(준비 중), pid = P&ID 분석
 const menuOf = r => (r === 'home' || r === 'work' || r === 'alloc' || SHEET[r]) ? 'weekly' : MG_ROUTES.includes(r) ? 'mgmt' : r === 'logicdraw' ? 'logic' : RUN_LEAVES.includes(r) ? 'runpjt' : r;   // 화면(route) → 권한 메뉴 키
 const validRoute = k => ROUTES.includes(k) || !!SHEET[k];
@@ -5246,7 +5325,7 @@ function renderMenu() {
   const runTree = () => `<div class="mgrp ${route === 'runpjt' || RUN_LEAVES.includes(route) ? 'act' : ''}">
        <div class="mhead">${btn({ k:'runpjt', l:'실행 프로젝트', n:'', c:0 }, 'top')}
          <button class="mtog" data-tog="runpjt" title="하위 메뉴 ${NAV_OPEN.runpjt ? '접기' : '펼치기'}" aria-label="하위 메뉴 접기/펼치기">${NAV_OPEN.runpjt ? '▾' : '▸'}</button></div>
-       <div class="msub" ${NAV_OPEN.runpjt ? '' : 'hidden'}>${fold('runpjt-co2', 'CO2 PJT', fold('runpjt-co2-ds', 'Datasheet', [['dshub', 'Datasheet 현황판', ' minst'], ['instinstindex', 'Instrument List', ' minl'], ['instiolist', 'IO List', ' minl']].map(([k, l, c]) => btn({ k, l, n:'', c:0 }, 'subi minsti' + c)).join('') + fold('runpjt-co2-valve', 'VALVE', [['valve', 'Ball Valve'], ['globev', 'Globe Valve'], ['bflyv', 'Butterfly Valve'], ['psv', 'PSV']].map(([k, l]) => btn({ k, l, n:'', c:0 }, 'subi')).join('')) + fold('runpjt-co2-inst', 'INSTRUMENT', INST_KINDS.map(([k, l], i) => ['all', 'instindex', 'iolist'].includes(k) ? '' : btn({ k:INST_ROUTES[i], l, n:'', c:0 }, 'subi minsti')).join(''))) + btn({ k:'co2sched', l:'Schedule', n:SCH.data ? SCH.data.items.length : '', c:0 }, 'subi mlv2'), 'co2pjt')}</div></div>`;
+       <div class="msub" ${NAV_OPEN.runpjt ? '' : 'hidden'}>${fold('runpjt-co2', 'CO2 PJT', fold('runpjt-co2-ds', 'Datasheet', [['dshub', 'Datasheet 현황판', ' minst'], ['dsdocs', '문서 · Revision 현황', ' mdoc'], ['instinstindex', 'Instrument List', ' minl'], ['instiolist', 'IO List', ' minl']].map(([k, l, c]) => btn({ k, l, n:'', c:0 }, 'subi minsti' + c)).join('') + fold('runpjt-co2-valve', 'VALVE', [['valve', 'Ball Valve'], ['globev', 'Globe Valve'], ['bflyv', 'Butterfly Valve'], ['psv', 'PSV']].map(([k, l]) => btn({ k, l, n:'', c:0 }, 'subi')).join('')) + fold('runpjt-co2-inst', 'INSTRUMENT', INST_KINDS.map(([k, l], i) => ['all', 'instindex', 'iolist'].includes(k) ? '' : btn({ k:INST_ROUTES[i], l, n:'', c:0 }, 'subi minsti')).join(''))) + btn({ k:'co2sched', l:'Schedule', n:SCH.data ? SCH.data.items.length : '', c:0 }, 'subi mlv2'), 'co2pjt')}</div></div>`;
   // 권한이 있는 메뉴만 표시 (운영자가 ⚙ 메뉴 권한 설정에서 사용자별로 부여, Management 는 기본 비허용)
   $('#menu').innerHTML =
     (can('weekly') ? group('weekly', { k:'home', l:'주간업무보고', n:'', c:NAV_OPEN.weekly ? 0 : subNew, t:'하위 메뉴의 수정·변경된 행' }, sub, inWeekly) : '') +

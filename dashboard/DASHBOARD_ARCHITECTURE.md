@@ -1920,3 +1920,10 @@ C:\Users\SAMSUNG\Desktop\Claude\                         ← 개발 폴더 (여�
 ### 2026-11-12 (APP_VERSION 2026-11-12.6 / SERVER_VERSION 그대로) — v17.43 Instrument List · IO List 제목
 - 무엇을: 두 화면 머리 제목을 'CO2 PJT · Datasheet · Instrument List / IO List' 로 (v17.42 에서 Datasheet 바로 아래로 옮김). 세션 6 1247cc8e 로 두 대조에 Valve Tag(Ball · Globe · Butterfly · PSV 최신 Rev)도 들어감 — 주소 그대로라 대시보드 변경은 제목만.
 - 확인한 것: 실제 세션 6 서버(1247cc8e)로 Instrument List '대조한 Datasheet: Instrument 28 Tag · Valve 0 Tag' 표시 (시험 자료엔 Valve Datasheet 없음).
+
+### 2026-11-12 (APP_VERSION 2026-11-12.7 / SERVER_VERSION 2026-11-12.2) — v17.44 📚 문서 · Revision 현황 (Datasheet 현황판과 같은 레벨)
+- 무엇을: 사용자 지시 "CO2 의 모든 입력된 최신, 검토된 최신 Datasheet, List, PMS 의 Revision, Doc. No. 등을 한눈에 볼 수 있는 메뉴를 현황판과 같은 레벨로 · 세션 6 에 알리고 세션 6 도 맞게 동작" →
+  CO2 PJT › Datasheet › 📚 문서 · Revision 현황(`#dsdocs`). 문서마다 한 줄: 구분(Datasheet · List · PMS · Process Data · Line List) · 종류 · Doc. No. · Tag · **입력된 최신 Rev**(날짜 · 파일 · 올린 날/사람) · **검토된 최신 Rev**(상태 · 날/사람) · Rev 이력(최신 = 파랑, 검토된 = 초록) · 미결 · 열기↗(그 Tag 검토 화면). 구분 칩 · ⏳ 검토 대기(입력된 최신 ≠ 검토된 최신) · 종류 · 검색 · ⬇ 엑셀.
+- 세션 6 계약(send_message 로 요청): `GET /api/valve/docreg?project=CO2 PJT` → rows[{group, kind, kind_name, doc_no, title, tag, latest{rev,date,file,uploaded_at,uploaded_by}, reviewed{rev,status,reviewed_at,reviewed_by}|null, revs[], open, link{project,kind,ds|sheet}}]. 대시보드는 이것을 먼저 쓰고, 없으면(404) 간이 집계 = 프로젝트마다 `/summary`(documents · tags) + `/inst/sheets` (검토된 Rev 는 최신이 검토 완료일 때만, 화면에 '⚠ 간이 집계' 표시).
+- 바뀐 곳: dashboard.html 새 `DR_GROUPS` · `drDone` · `docRegLoad` · `docRegFallback` · `drOpen` · `renderDocReg` · `drBind` · `drXlsx`, runTree(📚), `ROUTES`/`RUN_LEAVES`(dsdocs), CSS `.dr*` / server.py `VDS_PATHS`(+ docreg · projects/{id}/summary) · `api_vds_get(project)`
+- 확인한 것: 실제 세션 6 서버(1247cc8e, docreg 없음 → 간이 집계)로 33건(Datasheet 28 · List 2 · PMS 1 · Process Data 1 · Line List 1) · 검토 대기 28 · 칩 필터 · 엑셀 · 열기 → `kind=dpg&sheet=6`, 콘솔 오류 없음 / 할 것: 세션 6 docreg 가 오면 실제 서버로 다시 확인.
