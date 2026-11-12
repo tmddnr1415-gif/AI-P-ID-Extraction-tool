@@ -371,7 +371,10 @@ async def required_put(pid: int, request: Request):
     return _j({"ok": True, "confirmed": cur})
 
 
-def listcmp_rows(con, pid) -> dict:
+LIST_NAMES = {"instrument_index": "Instrument Index", "io_list": "IO List"}
+
+
+def listcmp_rows(con, pid, only: str = "") -> dict:
     ctx = context(con, pid)
     latest, _ = _latest(_sheet_rows(con, pid))
     ds_rows = []
@@ -385,19 +388,27 @@ def listcmp_rows(con, pid) -> dict:
                                    "range": rng.get("text", ""), "datasheet_no": r["doc_no"], "manufacturer": g("manufacturer"),
                                    "model": g("model") or next((v for k, v in ((vals.get("model") or {}).get("sub") or {}).items() if v), "")}})
     out = []
-    names = {"instrument_index": "Instrument Index", "io_list": "IO List"}
-    for k, nm in names.items():
-        out += instlists.compare(ds_rows, ctx["lists"].get(k), nm)
+    for k, nm in LIST_NAMES.items():
+        if not only or only == k:
+            out += instlists.compare(ds_rows, ctx["lists"].get(k), nm)
+    has_ds = {d["tag_key"]: d for d in ds_rows}
     cnt = {}
     for x in out:
         cnt.setdefault(x["list"], {}).setdefault(x["result"], 0)
         cnt[x["list"]][x["result"]] += 1
-    return {"rows": out, "counts": cnt, "lists": {k: {"files": v["files"], "rev": v["rev"], "tags": len(v["by_tag"])} for k, v in ctx["lists"].items()}}
+    recs = []
+    if only and ctx["lists"].get(only):                    # the list itself, as read (one row per tag) + is there a datasheet
+        for tk, r in sorted(ctx["lists"][only]["by_tag"].items()):
+            d = has_ds.get(tk)
+            recs.append(dict({k: v for k, v in r.items() if k not in ("bbox",)}, ds_kind=d["kind"] if d else "", sheet_id=d["sheet_id"] if d else None,
+                             findings=sum(1 for x in out if instrument.tag_key(x["tag"]) == tk and x["result"] not in ("OK",))))
+    return {"rows": out, "counts": cnt, "records": recs, "only": only,
+            "lists": {k: {"files": v["files"], "rev": v["rev"], "doc_no": v.get("doc_no", ""), "tags": len(v["by_tag"])} for k, v in ctx["lists"].items()}}
 
 
 @router.get("/api/valve/projects/{pid}/inst/listcmp")
-def listcmp(pid: int):
-    return _j(listcmp_rows(con_ready(), pid))
+def listcmp(pid: int, list: str = ""):
+    return _j(listcmp_rows(con_ready(), pid, list if list in LIST_NAMES else ""))
 
 
 def _xlsx(sheets: list[tuple[str, list[str], list[list]]]) -> bytes:
@@ -429,13 +440,20 @@ def _xlsx(sheets: list[tuple[str, list[str], list[list]]]) -> bytes:
 
 
 @router.get("/api/valve/projects/{pid}/inst/listcmp.xlsx")
-def listcmp_xlsx(pid: int):
-    d = listcmp_rows(con_ready(), pid)
+def listcmp_xlsx(pid: int, list: str = ""):
+    d = listcmp_rows(con_ready(), pid, list if list in LIST_NAMES else "")
     head = ["List", "Rule", "Tag", "Kind", "Item", "Datasheet", "List value", "Result", "Reason", "List page"]
     rows = [[x["list"], x["rule"], x["tag"], KIND_NAMES.get(x["kind"], x["kind"]), x["field"], x["ds"], x["lst"], x["result"], x["reason"], x.get("page")] for x in d["rows"]]
-    data = _xlsx([("List 대조", head, rows)])
+    sheets = [("List 대조", head, rows)]
+    if d["records"]:
+        rh = ["Tag", "Loop", "Type", "Service", "P&ID", "Line", "Range", "Datasheet No", "Manufacturer", "Model", "IO", "Datasheet", "Findings", "Page"]
+        sheets.append(("List 내용", rh, [[r.get("tag"), r.get("loop"), r.get("inst_type"), r.get("service"), r.get("pid_no"), r.get("line_no"),
+                                          r.get("range"), r.get("datasheet_no"), r.get("manufacturer"), r.get("model"), r.get("io_typical"),
+                                          KIND_NAMES.get(r["ds_kind"], "없음") if r["ds_kind"] else "없음", r["findings"], r.get("page")] for r in d["records"]]))
+    data = _xlsx(sheets)
+    nm = {"instrument_index": "instrument_index", "io_list": "io_list"}.get(d["only"], "instrument_list")
     return Response(data, media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                    headers={"Content-Disposition": "attachment; filename=instrument_list_compare.xlsx"})
+                    headers={"Content-Disposition": f"attachment; filename={nm}_compare.xlsx"})
 
 
 @router.get("/api/valve/projects/{pid}/inst/review.xlsx")

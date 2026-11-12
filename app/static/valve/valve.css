@@ -738,3 +738,11 @@ tr.link { cursor: pointer; }
 tr.link:hover td { background: #f5f8ff; }
 .rqlist { display: grid; grid-template-columns: 1fr 1fr; gap: 2px 12px; max-height: 50vh; overflow: auto; margin-top: 8px; font-size: 12px; }
 .ivm { font-size: 11px; } .ivm .vlink { color: var(--blue); text-decoration: none; margin-right: 6px; } .ivm .vlink:hover { text-decoration: underline; }
+.navsub { margin: 6px 10px 1px; font-size: 10px; letter-spacing: .06em; text-transform: uppercase; color: #6f80a8; }
+#menu button.ik { padding: 3px 10px 3px 18px; font-size: 12px; }
+#menu button.ik i { font-size: 11px; }
+.ivh .ikt { font-size: 15px; font-weight: 700; } .ivh .ikt small { font-weight: 400; color: var(--soft); margin-left: 6px; font-size: 12px; }
+.ilhead { display: flex; align-items: center; gap: 14px; margin-bottom: 10px; flex-wrap: wrap; }
+.ilhead .ltabs { background: transparent; border: 0; padding: 0; }
+.ilhead .ilc { display: flex; gap: 8px; }
+.ilhead .ilc button { display: flex; align-items: center; gap: 6px; } .ilhead .ilc button.on { border-color: var(--blue); box-shadow: 0 0 0 1px var(--blue); }
