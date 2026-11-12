@@ -16,6 +16,12 @@ const ITEM_LABEL = { ft: 'FT · Flow Transmitter', pt: 'PT · Pressure / DP Tx',
   tg: 'TG · Temperature Gauge', pg: 'PG · Pressure Gauge', dpg: 'DPG · DP Gauge', mlg: 'MLG · Mag. Level Gauge', ro: 'RO · Restriction Orifice',
   analyzer: 'AT · Analyzer', cv: 'CV · Control Valve', onoff: 'On-Off Valve', psv: 'PSV' };
 const pageName = () => MODE === 'all' ? 'Instrument 현황판' : MODE === 'list' ? (I.list === 'io_list' ? 'IO List' : 'Instrument List') : (ITEM_LABEL[I.kind] || I.kind.toUpperCase());
+const VK = { ball: 'Ball', globe: 'Globe', butterfly: 'Butterfly', psv: 'PSV' };
+const kindLabel = k => VK[k] ? `${VK[k]} Valve`.replace('PSV Valve', 'PSV') : (k || '').toUpperCase();
+function valveUrl(project, ds) {                            // a Valve tag: the Valve review screen of its project
+  const u = new URL(location.href); u.searchParams.delete('kind'); u.searchParams.delete('sheet'); u.searchParams.set('project', project); u.searchParams.set('ds', ds); u.hash = 'review';
+  return u.toString();
+}
 function pageUrl(kind, sheet) {                             // another Instrument page (same project · user · embed)
   const u = new URL(location.href); u.searchParams.set('kind', kind); u.searchParams.delete('ds'); u.hash = '';
   if (sheet) u.searchParams.set('sheet', sheet); else u.searchParams.delete('sheet');
@@ -245,24 +251,25 @@ async function renderLists() {
     if (I.ltab === 'cmp') {
       const rows = d.rows.filter(x => I.lfilt ? x.result === I.lfilt : x.result !== 'OK');
       body = `<div class="card" style="padding:0;overflow:auto"><table class="t"><thead><tr><th>결과</th><th>Tag</th><th>Item</th><th>항목</th><th>Datasheet</th><th>${lname}</th><th>이유</th><th>Rule</th></tr></thead><tbody>
-        ${rows.map(x => `<tr ${x.sheet_id ? `data-sid="${x.sheet_id}" data-sk="${x.kind}" class="link"` : ''}><td>${rp(x.result)}</td><td><b>${esc(x.tag)}</b></td><td>${esc((x.kind || '').toUpperCase())}</td><td>${esc(x.field)}</td>
+        ${rows.map(x => `<tr ${x.sheet_id ? `data-sid="${x.sheet_id}" data-sk="${x.kind}" class="link"` : x.valve_ds ? `data-vds="${x.valve_ds}" data-vp="${esc(x.valve_project)}" class="link"` : ''}><td>${rp(x.result)}</td><td><b>${esc(x.tag)}</b></td><td>${esc(kindLabel(x.kind))}</td><td>${esc(x.field)}</td>
           <td>${esc(x.ds)}</td><td>${esc(x.lst)}</td><td class="soft">${esc(x.reason)}</td><td class="soft">${esc(x.rule)}</td></tr>`).join('') || '<tr><td colspan="8" class="empty">차이 없음</td></tr>'}</tbody></table></div>`;
     } else {
       const io = L === 'io_list';
       body = `<div class="card" style="padding:0;overflow:auto"><table class="t"><thead><tr><th>Tag</th><th>Loop</th><th>Type</th><th>Service</th><th>P&amp;ID</th><th>Line</th><th>Range</th>
         ${io ? '<th>IO</th><th>Logic</th>' : '<th>Datasheet No</th><th>Manufacturer</th><th>Model</th>'}<th>Datasheet</th><th>대조</th><th>p.</th></tr></thead><tbody>
-        ${d.records.map(r => `<tr ${r.sheet_id ? `data-sid="${r.sheet_id}" data-sk="${r.ds_kind}" class="link"` : ''}><td><b>${esc(r.tag)}</b></td><td>${esc(r.loop || '')}</td><td>${esc(r.inst_type || '')}</td><td>${esc(r.service || '')}</td>
+        ${d.records.map(r => `<tr ${r.sheet_id ? `data-sid="${r.sheet_id}" data-sk="${r.ds_kind}" class="link"` : r.valve_ds ? `data-vds="${r.valve_ds}" data-vp="${esc(r.valve_project)}" class="link"` : ''}><td><b>${esc(r.tag)}</b></td><td>${esc(r.loop || '')}</td><td>${esc(r.inst_type || '')}</td><td>${esc(r.service || '')}</td>
           <td>${esc(r.pid_no || '')}</td><td>${esc(r.line_no || '')}</td><td>${esc(r.range || '')}</td>
           ${io ? `<td>${esc(r.io_typical || '')}</td><td>${esc(r.logic_no || '')}</td>` : `<td>${esc(r.datasheet_no || '')}</td><td>${esc(r.manufacturer || '')}</td><td>${esc(r.model || '')}</td>`}
-          <td>${r.ds_kind ? esc(r.ds_kind.toUpperCase()) : '<span class="ir ir-lo">없음</span>'}</td><td>${r.findings ? `<span class="ir ir-bad">${r.findings}</span>` : '<span class="ir ir-ok">OK</span>'}</td><td class="soft">${r.page || ''}</td></tr>`).join('')}</tbody></table></div>`;
+          <td>${r.ds_kind ? esc(kindLabel(r.ds_kind)) : '<span class="ir ir-lo"><i>≡</i>없음</span>'}</td><td>${r.findings ? `<span class="ir ir-bad">${r.findings}</span>` : '<span class="ir ir-ok">OK</span>'}</td><td class="soft">${r.page || ''}</td></tr>`).join('')}</tbody></table></div>`;
     }
-    el.innerHTML = head + `<div class="ilhead"><div class="tabs ltabs">${tabs}</div><div class="ilc">${kpi}</div></div>` + body;
+    el.innerHTML = head + `<div class="ilhead"><div class="tabs ltabs">${tabs}</div><div class="ilc">${kpi}</div><span class="soft">대조한 Datasheet: Instrument ${d.n_inst} Tag · Valve ${d.n_valve} Tag (Ball · Globe · Butterfly · PSV)</span></div>` + body;
   }
   el.onclick = e => {
     const g = e.target.closest('[data-g]'); if (g) { V.go(g.dataset.g); return; }
     const t = e.target.closest('[data-lt]'); if (t) { I.ltab = t.dataset.lt; renderLists(); return; }
     const b = e.target.closest('[data-lf]'); if (b) { I.lfilt = I.lfilt === b.dataset.lf ? '' : b.dataset.lf; I.ltab = 'cmp'; renderLists(); return; }
-    const r = e.target.closest('[data-sid]'); if (r) location.href = pageUrl(r.dataset.sk || I.kind, r.dataset.sid);
+    const r = e.target.closest('[data-sid]'); if (r) { location.href = pageUrl(r.dataset.sk || I.kind, r.dataset.sid); return; }
+    const v = e.target.closest('[data-vds]'); if (v) location.href = valveUrl(v.dataset.vp, v.dataset.vds);
   };
 }
 

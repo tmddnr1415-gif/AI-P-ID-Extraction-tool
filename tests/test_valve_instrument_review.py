@@ -98,5 +98,16 @@ def test_markup_pdf_shading_and_callouts(tmp_path, monkeypatch):
     cmp_ = c.get(f"/api/valve/inst/compare?prev={good['id']}&new={bad['id']}").json()
     assert any(x["std_key"] == "piping_class" and x["change"] == "Modified" for x in cmp_["rows"])
     assert bad["vals"]["design_pressure"] and "area" in bad
+    # Instrument List / IO List cover Valve tags too: a Valve datasheet of the same project that the list does not have
+    import time
+    from tests.test_valve import make_pdf
+    j = c.post("/api/valve/projects/1/upload", data={"kind": "datasheet"}, files=[("files", ("ds.pdf", make_pdf()))]).json()
+    for _ in range(300):
+        if c.get(f"/api/valve/jobs/{j['id']}").json()["status"] == "done":
+            break
+        time.sleep(0.1)
+    lc = c.get("/api/valve/projects/1/inst/listcmp?list=instrument_index").json()
+    vr = [x for x in lc["rows"] if x.get("valve_ds")]
+    assert lc["n_valve"] >= 1 and lc["n_inst"] == 28 and vr and vr[0]["kind"] == "ball" and vr[0]["rule"] == "LIST-00" and vr[0]["result"] == "누락"
     allp = c.get("/api/valve/projects/1/inst/markup.pdf")
     assert allp.status_code == 200 and pymupdf.open("pdf", allp.content).get_toc()[0][1] == "Summary"

@@ -428,6 +428,33 @@ async def required_put(pid: int, request: Request):
 
 
 LIST_NAMES = {"instrument_index": "Instrument Index", "io_list": "IO List"}
+VALVE_KINDS = {"ball": "Ball Valve", "globe": "Globe Valve", "butterfly": "Butterfly Valve", "psv": "PSV"}
+
+
+def valve_rows(con, pid) -> list[dict]:
+    """The Valve datasheets of this project and of its kind projects ('<name> · Globe Valve' …), newest revision per tag —
+    so the Instrument List / IO List comparison covers Valve and Instrument together (user 2026-11-12)."""
+    from app.valve import schema
+    me = store.one(con, "SELECT name FROM project WHERE id=?", pid)
+    if not me:
+        return []
+    base = re.sub(r"\s*·\s*(Globe Valve|Butterfly Valve|PSV)$", "", me["name"])
+    out = []
+    for p in store.rows(con, "SELECT id, name FROM project"):
+        if re.sub(r"\s*·\s*(Globe Valve|Butterfly Valve|PSV)$", "", p["name"]) != base:
+            continue
+        vk = schema.project_kind(p["name"])
+        dss = store.rows(con, "SELECT id, tag, tag_key, rev, doc_no FROM datasheet WHERE project_id=?", p["id"])
+        latest = {}
+        for d in sorted(dss, key=lambda d: (store.rev_key(d["rev"]), d["id"])):
+            latest[d["tag_key"]] = d
+        for d in latest.values():
+            fs = {f["key"]: store.field_value(f) for f in store.rows(
+                con, "SELECT key, value, edited_value FROM field WHERE datasheet_id=? AND key IN ('service','pid_no','line_no','fluid','manufacturer','model')", d["id"])}
+            out.append({"tag": d["tag"], "tag_key": instrument.tag_key(d["tag"]), "kind": vk, "sheet_id": None, "valve_ds": d["id"], "valve_project": p["name"],
+                        "values": {"service": fs.get("service", ""), "pid_no": fs.get("pid_no", ""), "line_no": fs.get("line_no", ""), "fluid": fs.get("fluid", ""),
+                                   "range": "", "datasheet_no": d["doc_no"] or "", "manufacturer": fs.get("manufacturer", ""), "model": fs.get("model", "")}})
+    return out
 
 
 def listcmp_rows(con, pid, only: str = "") -> dict:
@@ -443,11 +470,19 @@ def listcmp_rows(con, pid, only: str = "") -> dict:
                         "values": {"service": g("service"), "pid_no": g("pid_no"), "line_no": C.get("line_no", ""), "fluid": C.get("fluid", ""),
                                    "range": rng.get("text", ""), "datasheet_no": r["doc_no"], "manufacturer": g("manufacturer"),
                                    "model": g("model") or next((v for k, v in ((vals.get("model") or {}).get("sub") or {}).items() if v), "")}})
+    inst_keys = {d["tag_key"] for d in ds_rows}
+    vrows = [v for v in valve_rows(con, pid) if v["tag_key"] not in inst_keys]     # a tag read on both sides: the Instrument sheet stands
+    ds_rows += vrows
+    vmap = {v["tag_key"]: v for v in vrows}
     out = []
     for k, nm in LIST_NAMES.items():
         if not only or only == k:
             out += instlists.compare(ds_rows, ctx["lists"].get(k), nm)
     has_ds = {d["tag_key"]: d for d in ds_rows}
+    for x in out:                                          # a Valve tag opens on the Valve screen (?ds=)
+        v = vmap.get(instrument.tag_key(x["tag"]))
+        if v:
+            x["valve_ds"], x["valve_project"] = v["valve_ds"], v["valve_project"]
     cnt = {}
     for x in out:
         cnt.setdefault(x["list"], {}).setdefault(x["result"], 0)
@@ -457,8 +492,9 @@ def listcmp_rows(con, pid, only: str = "") -> dict:
         for tk, r in sorted(ctx["lists"][only]["by_tag"].items()):
             d = has_ds.get(tk)
             recs.append(dict({k: v for k, v in r.items() if k not in ("bbox",)}, ds_kind=d["kind"] if d else "", sheet_id=d["sheet_id"] if d else None,
+                             valve_ds=d.get("valve_ds") if d else None, valve_project=d.get("valve_project") if d else None,
                              findings=sum(1 for x in out if instrument.tag_key(x["tag"]) == tk and x["result"] not in ("OK",))))
-    return {"rows": out, "counts": cnt, "records": recs, "only": only,
+    return {"rows": out, "counts": cnt, "records": recs, "only": only, "n_inst": len(inst_keys), "n_valve": len(vrows),
             "lists": {k: {"files": v["files"], "rev": v["rev"], "doc_no": v.get("doc_no", ""), "tags": len(v["by_tag"])} for k, v in ctx["lists"].items()}}
 
 
@@ -499,13 +535,13 @@ def _xlsx(sheets: list[tuple[str, list[str], list[list]]]) -> bytes:
 def listcmp_xlsx(pid: int, list: str = ""):
     d = listcmp_rows(con_ready(), pid, list if list in LIST_NAMES else "")
     head = ["List", "Rule", "Tag", "Kind", "Item", "Datasheet", "List value", "Result", "Reason", "List page"]
-    rows = [[x["list"], x["rule"], x["tag"], KIND_NAMES.get(x["kind"], x["kind"]), x["field"], x["ds"], x["lst"], x["result"], x["reason"], x.get("page")] for x in d["rows"]]
+    rows = [[x["list"], x["rule"], x["tag"], KIND_NAMES.get(x["kind"]) or VALVE_KINDS.get(x["kind"], x["kind"]), x["field"], x["ds"], x["lst"], x["result"], x["reason"], x.get("page")] for x in d["rows"]]
     sheets = [("List 대조", head, rows)]
     if d["records"]:
         rh = ["Tag", "Loop", "Type", "Service", "P&ID", "Line", "Range", "Datasheet No", "Manufacturer", "Model", "IO", "Datasheet", "Findings", "Page"]
         sheets.append(("List 내용", rh, [[r.get("tag"), r.get("loop"), r.get("inst_type"), r.get("service"), r.get("pid_no"), r.get("line_no"),
                                           r.get("range"), r.get("datasheet_no"), r.get("manufacturer"), r.get("model"), r.get("io_typical"),
-                                          KIND_NAMES.get(r["ds_kind"], "없음") if r["ds_kind"] else "없음", r["findings"], r.get("page")] for r in d["records"]]))
+                                          (KIND_NAMES.get(r["ds_kind"]) or VALVE_KINDS.get(r["ds_kind"], r["ds_kind"])) if r["ds_kind"] else "없음", r["findings"], r.get("page")] for r in d["records"]]))
     data = _xlsx(sheets)
     nm = {"instrument_index": "instrument_index", "io_list": "io_list"}.get(d["only"], "instrument_list")
     return Response(data, media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
