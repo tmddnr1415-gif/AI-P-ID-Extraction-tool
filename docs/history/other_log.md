@@ -294,3 +294,10 @@
 - 빈 양식 14종 → `app/valve/forms/*.json` (번호 1..N 빠짐 0) · `app/valve/instrument.py` 양식 식별 · 하위칸 · 표제란 · 다중 Tag 분리.
 - 시험 PDF 생성기 `spike/valve_make_test_ds.py` (TEST DATA 표시 · 원본은 저장소 밖). 실제 빈 양식 시험: 11종 100% · 3종 96~98%.
 - 시험 +75 · 기존 Valve 판정 변경 없음. 다음: 2단계 (화면 · 업로드 · 필수칸 · PDS · PMS · Line List).
+
+## 2026-11-12 · valve40 2~5단계 — Instrument 검토 화면 · PDS · PMS · Line List · List 대조
+- 새 모듈: `instreview.py`(Rule IN-REQ-01 · IN-PDS-00/01 · IN-PMS-01/02 · IN-LL-00~05 · IN-ITM-01/02) · `linelist.py` · `instlists.py` · `inst_api.py` · 화면 `instrument.js`.
+- 문서 관리에 칸 3개 (Instrument Datasheet · Process Line List · Instrument Index/IO List). 현황판 = 계기 Type 14종 카드 · 지적 수 · Rev · TEST 표시.
+- 양식 80 카드: 한 줄에 라벨 둘(Operating Pressure | Design Pressure)인 행 28개에 칸 나눔 `pair_cells` (빈 양식의 세로 줄로 학습) → 실제 빈 양식 61/61.
+- 오류 심은 시험(`spike/valve_inst_scenario.py`): 74/74 찾음 · 정상 Tag 지적 0 · List 29/29. Valve 스냅숏 2,935 변경 0 · UI 감사 25/25.
+

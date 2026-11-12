@@ -336,7 +336,7 @@ function xfDecorate(root = document) { $$('table.t:not([data-xfdata]):not([data-
 new MutationObserver(() => { cancelAnimationFrame(xfDecorate._r); xfDecorate._r = requestAnimationFrame(() => xfDecorate()); })
   .observe(document.body, { childList: true, subtree: true });
 
-const VIEWS = ['dash', 'docs', 'list', 'review', 'rev', 'proc', 'pms', 'rules', 'export', 'settings'];
+const VIEWS = ['dash', 'docs', 'list', 'review', 'rev', 'proc', 'pms', 'rules', 'export', 'settings', 'inst', 'ireview', 'ilist'];   // valve40: + Instrument
 const STATUSES = ['Not Reviewed', 'Under Review', 'Accepted', 'Rejected', 'Commented', 'Resolved'];
 const NOT_PROCESS = new Set(['body_size', 'rating', 'body_material', 'ball_material', 'seat_material', 'seal_material', 'stem_material',
   'bolting_gasket', 'packing_material', 'packing_type', 'connections', 'line_size_inlet', 'line_size_outlet', 'piping_class', 'pipe_material']);
@@ -733,6 +733,7 @@ function go(v, push = true) {
   if (!VIEWS.includes(v)) v = 'dash';
   S.view = v;
   $$('#menu button').forEach(b => b.classList.toggle('on', b.dataset.v === v));
+  const cb = $('#crumb > b:last-child'); if (cb) cb.textContent = ['inst', 'ireview', 'ilist'].includes(v) ? 'Instrument' : 'Ball Valve';   // valve40
   $$('.view').forEach(s => s.classList.toggle('on', s.id === 'v-' + v));
   if (push && location.hash !== '#' + v) history.replaceState(null, '', location.pathname + location.search + '#' + v);
   LS.set('view', v);
@@ -1023,7 +1024,9 @@ document.addEventListener('click', e => {
 
 /* ── 2. Document Management ───────────────────────────────────────────── */
 const KIND = { datasheet: ['Valve Datasheet PDF', '필수', '.pdf', true], valvelist: ['Valve List (TBE)', '선택', '.xlsx,.xlsm,.xls', false],
-  process: ['Process Data', '선택', '.pdf,.xlsx,.xls', true], pms: ['Piping Material Spec (PMS)', '선택', '.pdf', false] };
+  process: ['Process Data', '선택', '.pdf,.xlsx,.xls', true], pms: ['Piping Material Spec (PMS)', '선택', '.pdf', false],
+  instrument: ['Instrument Datasheet PDF', '선택', '.pdf', true], linelist: ['Process Line List', '선택', '.xlsx,.xlsm', true],
+  instlist: ['Instrument Index · IO List', '선택', '.pdf', true] };          // valve40: Instrument review (FT · PT · LT · TT · PG · PSV …)
 function renderDocs() {
   const el = $('#v-docs'), docs = S.sum.documents;
   el.innerHTML = `<div class="vh"><h2>Document Management</h2><span class="soft">원본은 서버에 그대로 보관되고 절대 덮어쓰지 않습니다.</span></div>
@@ -2382,7 +2385,9 @@ function renderSettings() {
   $('#sd3').onchange = e => { document.body.classList.toggle('d3', e.target.checked); LS.set('flat', !e.target.checked); };
   $('#sreset').onclick = () => { ['wbw', 'wbpx', 'wbc', 'gorder', 'gw', 'zoom', 'mkbar', 'vpart', 'rcsync', 'wtab'].forEach(k => LS.set(k, null)); toast('처음대로 — 화면을 다시 엽니다'); setTimeout(() => location.reload(), 600); };
 }
-const RENDER = { dash: renderDash, docs: renderDocs, list: renderList, review: renderReview, rev: renderRev, proc: renderProc, pms: renderPms, rules: renderRules, export: renderExport, settings: renderSettings };
+const RENDER = { dash: renderDash, docs: renderDocs, list: renderList, review: renderReview, rev: renderRev, proc: renderProc, pms: renderPms, rules: renderRules, export: renderExport, settings: renderSettings,
+  inst: () => window.INST?.render('inst'), ireview: () => window.INST?.render('ireview'), ilist: () => window.INST?.render('ilist') };   // valve40: instrument.js
+window.VALVE = { S, Q, LS, api, esc, pill, toast, modal, go, Viewer, $, $$, USER };   // valve40: what instrument.js uses
 for (const k of Object.keys(RENDER)) { const f = RENDER[k]; RENDER[k] = () => { if (!S.sum) return; Promise.resolve(f()).catch(e => { console.error(e); toast(e.message, 1); }); }; }
 
 /* ── keyboard ─────────────────────────────────────────────────────────── */
@@ -2609,6 +2614,7 @@ loadProjects().then(async () => {
     else if (page) W.viewer?.goPage(page);
     return;
   }
+  if (Q.get('kind') && Q.get('kind') !== 'valve') { go(Q.get('kind') === 'all' ? 'inst' : 'ireview', false); return; }   // valve40: ?kind=ft …
   go((location.hash.slice(1) || LS.get('view', 'dash')).split('?')[0], false);
 })
   .catch(e => { document.querySelector('#views').innerHTML = `<div class="empty" style="color:var(--bad)">${esc(e.message)}</div>`; });

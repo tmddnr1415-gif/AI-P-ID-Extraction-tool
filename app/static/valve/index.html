@@ -25,6 +25,10 @@
     <button data-v="rules"><i>◎</i>Rule Performance</button>
     <button data-v="export"><i>⇩</i>Reports &amp; Export</button>
     <button data-v="settings"><i>⚙</i>Settings</button>
+    <div class="navsec">Instrument</div>
+    <button data-v="inst"><i>▥</i>Instrument 현황판</button>
+    <button data-v="ireview"><i>◨</i>Instrument Review</button>
+    <button data-v="ilist"><i>☰</i>List 대조</button>
   </nav>
   <div class="navfoot" id="navfoot"></div>
 </aside>
@@ -48,11 +52,15 @@
     <section class="view" id="v-rules"></section>
     <section class="view" id="v-export"></section>
     <section class="view" id="v-settings"></section>
+    <section class="view" id="v-inst"></section>
+    <section class="view" id="v-ireview"></section>
+    <section class="view" id="v-ilist"></section>
   </div>
 </div>
 <div id="toast"></div>
 <div id="modal" hidden><div class="mbox"><h3 id="mTitle"></h3><div id="mBody"></div><div class="mact" id="mAct"></div></div></div>
 <script src="anatomy.js"></script>
 <script src="valve.js"></script>
+<script src="instrument.js"></script>
 </body>
 </html>

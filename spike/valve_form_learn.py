@@ -692,8 +692,42 @@ def learn(path):
     req = [k for k in SUGGESTED_REQUIRED if k in present]
     req += [r["std_key"] for r in items if r["process"] and r["std_key"] not in req]
     card["required"]["keys"] = req
+    pair_cells(card, doc)
     doc.close()
     return card
+
+
+def pair_cells(card, doc):
+    """Rows with two labels side by side ('Operating Pressure | Design Pressure' on form 80): the second label starts
+    at the left edge of the value area, and the value area is split by a rule into the first label's cell and the
+    second label's cell.  Record both cells (main · sub) from the blank form's own rules."""
+    vrules = {pn + 1: rules(doc[pn])[0] for pn in range(doc.page_count)}
+    for it in card["items"]:
+        sls = [z for z in it.get("sublabels") or [] if isinstance(z, dict) and z.get("bbox") and z["text"].strip(" )(")]
+        vb = it.get("value_bbox")
+        if not sls or not vb or sls[0]["bbox"][0] - vb[0] > 10:
+            continue
+        y, s2 = (vb[1] + vb[3]) / 2, max(z["bbox"][2] for z in sls)
+        xs = sorted(x for x, a, b in vrules.get(it.get("page", 1), []) if a - 0.5 <= y <= b + 0.5)
+        near = [x for x in xs if s2 < x < s2 + 120]
+        if not near:
+            continue
+        edges = []                                         # value-area boundaries; a double rule is one boundary
+        for x in [x for x in xs if x > s2] + [vb[2]]:
+            if edges and x - edges[-1][1] < 6:
+                edges[-1][1] = x
+            else:
+                edges.append([x, x])
+        if len(sls) == 1:                                   # two cells: split at the boundary nearest the middle
+            if len(edges) < 3:
+                continue
+            mid = (edges[0][1] + vb[2]) / 2
+            k = min(range(1, len(edges) - 1), key=lambda i: abs(edges[i][0] - mid))
+            edges = [edges[0], edges[k], edges[-1]]
+        if len(edges) != len(sls) + 2:                      # one cell per label, or nothing is recorded
+            continue
+        cells = [[round(a[1] + 1, 1), round(b[0] - 1, 1)] for a, b in zip(edges, edges[1:])]
+        it["pair_cells"] = {"main": cells[0], "subs": {z["text"]: c for z, c in zip(sls, cells[1:])}}
 
 
 # ── lists ───────────────────────────────────────────────────────────────────────────────────────────────────

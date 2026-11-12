@@ -1,26 +1,20 @@
 # 인수인계 — "VALVE Datasheet 검토" 세션 (상한 15KB · 덧붙이지 말고 고쳐 쓴다)
 
-## ★ 진행 중 — Instrument Datasheet 검토 (2026-11-12 사용자 지시 · 기획안 v2)
+## ★ 진행 중 — Instrument Datasheet 검토 (2026-11-12 사용자 지시 · 기획안 v2) — valve40
 
-- 지시 원문: 기획안 v2 = `git show origin/claude/trusting-cray-v68axq:INSTRUMENT_REVIEW_PLAN.md` · 규약 v2 = 같은 브랜치 `CONVENTIONS.md`.
-  사용자 결정: IO List · Instrument List 는 PDF · 비교 기준은 Datasheet (→ List: 누락 · 값 다름 · List 에만) · Process Data 기준 = PDS ·
-  지금 받은 자료로 개발 · **원본(빈 양식 · Line List · List PDF)은 저장소에 올리지 않음 · 발주처 · 프로젝트 이름 금지** ·
-  단계 끝마다 오케스트레이터(session_01Muj82FygSCFAVRooofwhVK)에 "푸시 · 커밋 · 된 것 · 다음" · 사용자에게 진행 스크린샷(SendUserFile).
-- **1단계 끝 (커밋 0c39b6eb)**: `app/valve/forms/*.json` 양식 카드 14종 (`docs/valve/INSTRUMENT_FORMS.md`) ·
-  `app/valve/instrument.py` (identify_text · read_pdf · split_tags · values · tag_key) · `spike/valve_make_test_ds.py`
-  (빈 양식 또는 카드로 그린 가짜 쪽에 'TEST DATA' 시험값) · 시험 `tests/test_valve_instrument_{forms,reader}.py`.
-  실제 빈 양식 + 시험값: 11종 전 칸 · 80/101/203 은 96~98% (80 의 13번 체크칸 · 101 의 인쇄된 단위 %·dBA · 203 의 Max/Min 두 칸).
-  표제란 Doc No 는 203 · 5063 · 606(표제란 없음) 에서 못 읽음 → 파일 이름 · 쪽 글로 보충 필요.
-- kind 키: ft 313 · pt 601 · lt 506 · gwr 5063 · tt 801 · tg 803 · pg 605 · dpg 606 · mlg 505 · ro 310 · analyzer 203 · cv 101 · onoff 80 · psv 701.
-- 원본 위치(컨테이너 · 커밋 금지): `/tmp/forms/` (빈 양식 14 · Instrument_Index.pdf · IO_List.pdf · Process_Data_.pdf · Line List xlsx 2) ·
-  같은 파일이 `/root/.claude/uploads/c19518cc-…/`. 새 세션이면 사용자에게 다시 올려 달라고 합니다.
-- **다음 = 2단계**: ① 저장: Instrument Datasheet 업로드 → instrument.read_pdf → 표 `inst_sheet`(project · form · kind · tag · rev · values json · page)
-  ② `/valve/?kind=…` 메뉴에 Item 추가 (valve37 화면 틀 · 프로젝트 공간 분리) · 첫 화면 Item 별 수
-  ③ 필수칸 누락 (카드 `required` 는 '제안' — 사용자 확인 받기) ④ PDS 대조 (Tag 없으면 '없음' · P·T · 유체 · 상 · 밀도 · 유량)
-  ⑤ PMS (Class → Rating · 재질) ⑥ Document Management 에 Process Line List 칸 (xlsx: 헤더 7~9행 · A Line No → G Class · E/F Size · M Design P · N/O Design T;
-  South 는 E/F 가 뒤바뀜 · North/South Line No 형식 다름) — Line 의 Design 이 Datasheet 보다 높으면 지적.
-  3단계 List 읽기(`forms/lists.json` 머리글) · 4단계 'List 대조' 화면 + Excel · 5단계 Item 규칙(근거 있을 때만 · 사람 확인 표시).
-- 지킬 것: Valve 스냅숏 2,935 · 변경 0 (`spike/valve_snapshot_diff.py check out/valve29/snapshot_valve30.json`) · 전체 pytest.
+- 지시 원문: `git show origin/claude/trusting-cray-v68axq:INSTRUMENT_REVIEW_PLAN.md` · `CONVENTIONS.md`. 결정: List 는 PDF · 기준 = Datasheet → List ·
+  Process 기준 = PDS · **원본(빈 양식 · Line List · List PDF) 저장소 금지 · 발주처/프로젝트 이름 금지** · 단계마다 오케스트레이터(session_01Muj82FygSCFAVRooofwhVK) 한 줄 · 사용자에게 스크린샷.
+- **1~5단계 들어감 (valve40)**: 카드 `app/valve/forms/*.json`(80 은 두 칸 행 `pair_cells`) · 읽기 `instrument.py` · 검토 `instreview.py`(IN-REQ/PDS/PMS/LL/ITM, Rule 표는 모듈 머리) ·
+  Line List `linelist.py`(머리글 글자로 열 찾음 · 크기는 '"' 로 inch 판별 = South 뒤바뀜 대응 · Line No 전체 → 앞부분) · List `instlists.py`(LIST-00/01/02) ·
+  API `inst_api.py`(표 `inst_sheet`, 업로드 종류 instrument · linelist · instlist, `/inst/summary · sheets · listcmp(.xlsx) · review.xlsx · required`) ·
+  화면 `app/static/valve/instrument.js`(Instrument 현황판 · Instrument Review · List 대조, `?kind=pt`) · valve.js 는 `window.VALVE` 다리만.
+- Line No 칸이 없는 양식(FT/PT/LT…)은 PDS 행의 Line No · Pipe Class 로 Line List 를 찾음 (이유에 적음). 필수 칸 = 카드 제안값 → 현황판 '필수 칸 확인'에서 사용자가 확정(프로젝트 설정 `inst.required`).
+- 시험: `spike/valve_inst_scenario.py <dir> [--forms /tmp/forms] [--keep]` — 14종 × (정상 Tag · 오류 심은 Tag) + 시험 PDS/PMS/Line List/Index/IO →
+  **심은 오류 74/74 · 정상 Tag 지적 0 · List 29/29** (카드로 그린 쪽 · 실제 빈 양식 둘 다). pytest `tests/test_valve_instrument_{forms,reader,review}.py`.
+- 아직: 사용자에게 필수 칸 목록 확정 받기 · 실제 채워진 Instrument Datasheet / List 로 검증(지금은 시험 자료뿐) · 605 등 일부 표제란 Rev 를 시험 작성기가 못 씀(읽기 문제 아님) ·
+  Valve 쪽 Tag 와 Instrument 쪽 CV/On-Off/PSV 는 따로 집계(합치기는 사용자 결정) · 꾸러미 valve40 zip 아직 안 만듦.
+- 원본 위치(컨테이너 · 커밋 금지): `/tmp/forms/` — 새 세션이면 사용자에게 다시 올려 달라고 합니다.
+- 지킬 것: Valve 스냅숏 2,935 · 변경 0 (`spike/valve_snapshot_diff.py check out/valve29/snapshot_valve30.json`, 8000=/tmp/vt_shot) · UI 감사 25/25 (8002=/tmp/vt_ui) · 전체 pytest.
 
 ## 지금 상태 (2026-11-07 · valve35 — valve29 Phase 1 완료 + 후속 요청들)
 

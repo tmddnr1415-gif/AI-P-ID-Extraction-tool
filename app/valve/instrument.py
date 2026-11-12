@@ -182,7 +182,12 @@ def read_items_page(page, card: dict, block: int, card_page: int | None = None) 
             hb = by_no[it["subcols_from"]]["value_bbox"]
             hdr = [w for w in words if _in(w, (hb[0] + dx, hb[1] + dy, hb[2] + dx, hb[3] + dy))]
         sls = [x for x in (it.get("sublabels") or []) if isinstance(x, dict) and x.get("bbox")]
-        if sls:                                             # a second label printed in the same row ('Tag No. … Item No.')
+        pc = it.get("pair_cells")
+        if sls and pc:                                      # two labels side by side, each with its own cell (form 80)
+            cell = lambda c: [w for w in words if c[0] + dx - 1 <= (w[0] + w[2]) / 2 <= c[1] + dx + 1 and box[1] - 0.5 <= (w[1] + w[3]) / 2 <= box[3] + 0.5 and w[4] not in _JUNK]   # noqa: E731
+            sub = {t: _join(cell(c)) for t, c in pc["subs"].items()}
+            ws = cell(pc["main"])
+        elif sls:                                           # a second label printed in the same row ('Tag No. … Item No.')
             sub = {x["text"]: _join([w for w in ws if w[0] >= x["bbox"][2] + dx - 1 and w[4] not in _JUNK
                                      and all(w[0] < y["bbox"][0] + dx for y in sls if y["bbox"][0] > x["bbox"][0])]) for x in sls}
             ws = [w for w in ws if w[0] < min(x["bbox"][0] for x in sls) + dx]
@@ -277,6 +282,10 @@ def read_pdf(path: str, filename: str = "") -> dict:
             by = {v["std_key"]: v for v in sh["rows"].values() if v.get("std_key")}
             raw = (by.get("tag") or {}).get("value", "")
             sh["tag_raw"] = raw
+            if not raw.strip() and by.get("tag"):                # the Tag row's only value sits after its second caption (form 80 'Item No.')
+                subs = [v for v in (by["tag"].get("sub") or {}).values() if v.strip()]
+                raw = subs[0] if len(subs) == 1 else ""
+                sh["tag_raw"] = raw
             sh["tags"] = split_tags(raw, (by.get("tag_qty") or {}).get("value", ""))
             sh["test_data"] = "TEST DATA" in " ".join(doc[p - 1].get_text() for p in sh["pages"][:1]).upper()
         return {"pages": len(doc), "sheets": sheets, "forms": forms}

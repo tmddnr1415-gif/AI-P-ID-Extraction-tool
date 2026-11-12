@@ -53,6 +53,14 @@ def synthetic(card: dict) -> pymupdf.Document:
                 pg.draw_rect(pymupdf.Rect(vb), color=(0.6, 0.6, 0.6), width=0.3)
                 pg.insert_text((max(20, (it.get("label_bbox") or vb)[0] - 24), vb[3] - 2), str(it["no"]), fontsize=6)
                 subs = it.get("subcols") or []
+                sls = [z for z in (it.get("sublabels") or []) if isinstance(z, dict) and z.get("bbox")]
+                for z in sls:                                    # a second caption in the row: where the form prints it
+                    pg.insert_text((z["bbox"][0], z["bbox"][3] - 1.5), z["text"], fontsize=6.5)
+                if sls:
+                    subs = []
+                if it.get("pair_cells"):                         # the rules that split a two-label row
+                    for x in [it["pair_cells"]["main"][0] - 1] + [c[0] - 1 for c in it["pair_cells"]["subs"].values()]:
+                        pg.draw_line((x, vb[1]), (x, vb[3]), color=(0.6, 0.6, 0.6), width=0.3)
                 if subs and (it.get("role") == "header" or not it.get("subcols_from")):
                     span = (vb[2] - vb[0]) / len(subs)
                     for k, s in enumerate(subs):
@@ -80,6 +88,13 @@ def fill(doc: pymupdf.Document, card: dict, vals: dict, font: float = 6.5) -> py
             if it.get("subcols_from"):
                 hdr = next((i for i in card["items"] if i["no"] == it["subcols_from"] and i.get("block") == it.get("block")), None)
             for s, x in v.items():
+                pc = it.get("pair_cells")
+                if s == "_":                                     # the row's own value (before its second label)
+                    pg.insert_text(((pc["main"][0] if pc else vb[0]) + 3, y), str(x), fontsize=font, color=(0, 0, 0.55))
+                    continue
+                if pc and s in pc["subs"]:
+                    pg.insert_text((pc["subs"][s][0] + 3, y), str(x), fontsize=font, color=(0, 0, 0.55))
+                    continue
                 if hdr and hdr.get("value_bbox"):
                     hb = hdr["value_bbox"]
                     caps = [w for w in words if w[4].lower() == s.lower() and hb[1] - 2 <= (w[1] + w[3]) / 2 <= hb[3] + 2]
@@ -97,7 +112,8 @@ def fill(doc: pymupdf.Document, card: dict, vals: dict, font: float = 6.5) -> py
                         x0 = line[hit + len(parts) - 1][2] + 4 if hit is not None else vb[0] + subs.index(s) * (vb[2] - vb[0]) / len(subs) + 3
                     pg.insert_text((x0, y), str(x), fontsize=font, color=(0, 0, 0.55))
         else:
-            pg.insert_text((vb[0] + 3, y), str(v), fontsize=font, color=(0, 0, 0.55))
+            x0 = it["pair_cells"]["main"][0] if it.get("pair_cells") else vb[0]
+            pg.insert_text((x0 + 3, y), str(v), fontsize=font, color=(0, 0, 0.55))
     t = vals.get("title") or {}
     pg = doc[first - 1]
     words = pg.get_text("words")

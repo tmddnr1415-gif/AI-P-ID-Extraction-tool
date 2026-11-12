@@ -69,8 +69,9 @@ class _SafeRoute(APIRoute):
 router = APIRouter(route_class=_SafeRoute)
 _JOBS: dict[str, dict] = {}
 _JLOCK = threading.Lock()
-_STATIC = {"valve.js": "application/javascript", "valve.css": "text/css", "anatomy.js": "application/javascript"}   # anatomy.js = valve36 valve model (session 7 engine)
-KINDS = ("datasheet", "valvelist", "process", "pms")
+_STATIC = {"valve.js": "application/javascript", "valve.css": "text/css", "anatomy.js": "application/javascript",
+           "instrument.js": "application/javascript"}   # valve40: Instrument review screens   # anatomy.js = valve36 valve model (session 7 engine)
+KINDS = ("datasheet", "valvelist", "process", "pms", "instrument", "linelist", "instlist")   # valve40: + Instrument review
 
 
 def _user(request: Request) -> str:
@@ -405,6 +406,12 @@ def _process(jid: str, pid: int, items: list[tuple[int, str, str, Path]], by: st
                 con.execute("UPDATE document SET status='done', info=? WHERE id=?", (store.J(info), doc_id))
                 store.audit(con, pid, None, None, "upload", None, name, by, "pms")
                 con.commit()
+            elif kind in ("instrument", "linelist", "instlist"):    # valve40: Instrument datasheet review (app/valve/inst_api.py)
+                _job(jid, msg=f"{name} · 읽는 중")
+                info = inst_api.process_doc(con, pid, doc_id, kind, name, Path(path), by)
+                con.execute("UPDATE document SET status='done', info=? WHERE id=?", (store.J(info), doc_id))
+                store.audit(con, pid, None, None, "upload", None, name, by, kind)
+                con.commit()
             else:                                        # process data tables -> {data}/valve/process/<doc>.json (process.read_process_data)
                 if Path(name).suffix.lower() != ".pdf":          # valve38: by the uploaded name (stored copy is .bin)
                     raise extract.PdfError("Process Data 는 PDF 만 읽습니다 — Excel 은 보관만 됩니다 (PDF 로 올려 주세요)")
@@ -518,7 +525,7 @@ def _rules_fingerprint() -> str:
 
 
 _RULES_FP = _rules_fingerprint()
-VERSION = "valve39"                       # shown in Settings › 정보 and the footer; bump with every package
+VERSION = "valve40"                       # shown in Settings › 정보 and the footer; bump with every package
 
 
 @router.get("/api/valve/version")
@@ -592,7 +599,7 @@ async def upload(pid: int, request: Request, kind: str = Form(...), files: list[
         name = Path(f.filename or "file").name
         ext = Path(name).suffix.lower()
         ok = {"datasheet": (".pdf",), "valvelist": (".xlsx", ".xlsm", ".xls"), "process": (".pdf", ".xlsx", ".xls"),
-              "pms": (".pdf",)}[kind]
+              "pms": (".pdf",), "instrument": (".pdf",), "linelist": (".xlsx", ".xlsm"), "instlist": (".pdf",)}[kind]
         if ext not in ok:
             skipped.append(f"{name} — {kind} 칸에는 {' · '.join(ok)} 만 넣을 수 있습니다")
             continue
@@ -2387,3 +2394,7 @@ def extracted_csv(pid: int):
                         f["edited_value"] or "", f["edited_by"] or "", f["status"], f["page"], x["filename"]])
     return Response("﻿" + buf.getvalue(), media_type="text/csv",
                     headers={"Content-Disposition": "attachment; filename=extracted_fields.csv"})
+
+
+from app.valve import inst_api  # noqa: E402  valve40 — Instrument datasheet review (same project spaces · own table)
+router.include_router(inst_api.router)
