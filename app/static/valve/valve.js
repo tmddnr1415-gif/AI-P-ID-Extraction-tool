@@ -747,7 +747,7 @@ function mkSvg(m, hs) {
 function go(v, push = true) {
   if (!VIEWS.includes(v)) v = 'dash';
   S.view = v;
-  $$('#menu button').forEach(b => b.classList.toggle('on', b.dataset.v === v));
+  $$('#menu button').forEach(b => b.classList.toggle('on', b.dataset.v === v && !b.dataset.ik && !b.dataset.il));   // item / list buttons: instrument.js marks them
   const cb = $('#crumb > b:last-child'); if (cb) cb.textContent = ['inst', 'ireview', 'ilist'].includes(v) ? 'Instrument' : KIND_NAME;   // valve40
   $$('.view').forEach(s => s.classList.toggle('on', s.id === 'v-' + v));
   if (push && location.hash !== '#' + v) history.replaceState(null, '', location.pathname + location.search + '#' + v);
@@ -2653,6 +2653,7 @@ loadProjects().then(async () => {
   }
   const ik = (Q.get('kind') || '').toLowerCase();       // valve40: ?kind=ft … → Instrument; ball · globe · butterfly · psv · valve stay here (valve37)
   if (ik === 'all' || INST_KINDS.has(ik)) { go(ik === 'all' ? 'inst' : 'ireview', false); return; }
+  if (ik === 'instindex' || ik === 'iolist') { go('ilist', false); return; }       // valve40: Instrument List · IO List menus
   go((location.hash.slice(1) || LS.get('view', 'dash')).split('?')[0], false);
 })
   .catch(e => { document.querySelector('#views').innerHTML = `<div class="empty" style="color:var(--bad)">${esc(e.message)}</div>`; });

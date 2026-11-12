@@ -8,15 +8,15 @@
   Line List `linelist.py`(머리글 글자로 열 찾음 · 크기는 '"' 로 inch 판별 = South 뒤바뀜 대응 · Line No 전체 → 앞부분) · List `instlists.py`(LIST-00/01/02) ·
   API `inst_api.py`(표 `inst_sheet`, 업로드 종류 instrument · linelist · instlist, `/inst/summary · sheets · listcmp(.xlsx) · review.xlsx · required`) ·
   화면 `app/static/valve/instrument.js`(Instrument 현황판 · Instrument Review · List 대조, `?kind=pt`) · valve.js 는 `window.VALVE` 다리만.
-- **Mark-up PDF**: `instmarkup.py` — 칸 음영 + 영어 화살표 설명선(FreeTextCallout, 편집 가능) · 오른쪽 여백 1→n. `/inst/sheets/{id}/markup.pdf` · `/inst/markup.pdf?kind=`.
+- **Mark-up PDF** `instmarkup.py`: 칸 음영 + 영어 설명선(Callout) · 오른쪽 여백 1→n · `/inst/sheets/{id}/markup.pdf` · `/inst/markup.pdf?kind=`.
+- **메뉴**: INSTRUMENT › 현황판 · Instrument List · IO List (`?kind=instindex|iolist`) · ITEM 13개 각자 메뉴(`data-ik`).
 - **valve37(440a3bb1) 들어옴**: `?kind=` ball·globe·butterfly·psv·valve → Valve 화면 · 계기 13종 → Instrument · all → 현황판. PSV 는 Valve 화면이 맡음(현황판 CV/On-Off/PSV 칸 = Valve 메뉴 링크).
-- Line No 칸이 없는 양식(FT/PT/LT…)은 PDS 행의 Line No · Pipe Class 로 Line List 를 찾음 (이유에 적음). 필수 칸 = 카드 제안값 → 현황판 '필수 칸 확인'에서 사용자가 확정(프로젝트 설정 `inst.required`).
+- Line No 칸 없는 양식은 PDS 의 Line No · Class 로 Line List 를 찾음. 필수 칸 = 카드 제안값 → 현황판 '필수 칸 확인'에서 사용자가 확정(프로젝트 설정 `inst.required`).
 - 시험: `spike/valve_inst_scenario.py <dir> [--forms /tmp/forms] [--keep]` — 14종 × (정상 Tag · 오류 심은 Tag) + 시험 PDS/PMS/Line List/Index/IO →
   **심은 오류 74/74 · 정상 Tag 지적 0 · List 29/29** (카드로 그린 쪽 · 실제 빈 양식 둘 다). pytest `tests/test_valve_instrument_{forms,reader,review}.py`.
 - 아직: 사용자에게 필수 칸 목록 확정 받기 · 실제 채워진 Instrument Datasheet / List 로 검증(지금은 시험 자료뿐) · 605 등 일부 표제란 Rev 를 시험 작성기가 못 씀(읽기 문제 아님) ·
   Valve 쪽 Tag 와 Instrument 쪽 CV/On-Off/PSV 는 따로 집계(합치기는 사용자 결정) · 꾸러미 valve40 zip 아직 안 만듦.
-- 원본 위치(컨테이너 · 커밋 금지): `/tmp/forms/` — 새 세션이면 사용자에게 다시 올려 달라고 합니다.
-- 지킬 것: Valve 스냅숏 2,935 · 변경 0 (`spike/valve_snapshot_diff.py check out/valve29/snapshot_valve30.json`, 8000=/tmp/vt_shot) · UI 감사 25/25 (8002=/tmp/vt_ui) · 전체 pytest.
+- 원본(커밋 금지): `/tmp/forms/` — 새 세션이면 다시 올려 달라고 함. 지킬 것: Valve 스냅숏 2,935 · 변경 0 (`spike/valve_snapshot_diff.py check out/valve29/snapshot_valve30.json`, 8000=/tmp/vt_shot) · UI 감사 25/25 (8002=/tmp/vt_ui) · 전체 pytest.
 
 ## 지금 상태 (2026-11-07 · valve35 — valve29 Phase 1 완료 + 후속 요청들)
 

@@ -7,7 +7,7 @@ const V = window.VALVE;
 if (!V) return;
 const { S, Q, LS, api, esc, pill, toast, $, $$ } = V;
 const QK = (Q.get('kind') || '').toLowerCase();
-const I = { kinds: null, kind: V.INST_KINDS.has(QK) ? QK : LS.get('inst.kind', ''), rows: null, sel: null, d: null, tab: 'find', filt: '', lfilt: '' };
+const I = { kinds: null, kind: V.INST_KINDS.has(QK) ? QK : LS.get('inst.kind', 'ft') || 'ft', list: QK === 'iolist' ? 'io_list' : QK === 'instindex' ? 'instrument_index' : LS.get('inst.list', 'instrument_index'), ltab: 'cmp', rows: null, sel: null, d: null, tab: 'find', filt: '', lfilt: '' };
 const RES = { 'Mismatch': ['bad', '값 다름'], 'Missing': ['miss', '누락'], 'Review Required': ['rev', '확인 필요'], '없음': ['na', '없음'], 'Datasheet Blank': ['na', 'DS 비어 있음'], 'OK': ['ok', 'OK'],
   '값 다름': ['bad', '값 다름'], '누락': ['miss', '누락'], 'List 에만': ['lo', 'List 에만'] };
 const rp = r => `<span class="ir ir-${(RES[r] || ['na'])[0]}">${esc((RES[r] || [, r])[1])}</span>`;
@@ -98,8 +98,9 @@ async function renderReview() {
   }
   if (!I.counts || I.countsPid !== S.pid) { const s = await api('GET', `/projects/${S.pid}/inst/summary`); I.counts = Object.fromEntries(s.kinds.map(k => [k.kind, k.tags])); I.countsPid = S.pid; }
   el.classList.add('full');
-  const chips = `<div class="ichips"><button data-kind="" class="${!I.kind ? 'on' : ''}">전체</button>${I.kinds.map(k => `<button data-kind="${k.kind}" class="${I.kind === k.kind ? 'on' : ''} ${I.counts[k.kind] ? '' : 'z'}" title="${esc(k.name)} · 양식 ${k.form_id}">${esc(k.kind.toUpperCase())}<small>${I.counts[k.kind] || 0}</small></button>`).join('')}</div>`;
-  el.innerHTML = `<div class="ivh"><b>Instrument Review</b><span class="soft">${I.kind ? esc(kname(I.kind)) : '모든 종류'}</span>${chips}<span class="sp"></span>
+  const chips = '' && `<div class="ichips"><button data-kind="" class="${!I.kind ? 'on' : ''}">전체</button>${I.kinds.map(k => `<button data-kind="${k.kind}" class="${I.kind === k.kind ? 'on' : ''} ${I.counts[k.kind] ? '' : 'z'}" title="${esc(k.name)} · 양식 ${k.form_id}">${esc(k.kind.toUpperCase())}<small>${I.counts[k.kind] || 0}</small></button>`).join('')}</div>`;
+  const kk = (I.kinds || []).find(x => x.kind === I.kind);
+  el.innerHTML = `<div class="ivh"><span class="ikt">${esc(I.kind ? (I.kind === 'analyzer' ? 'AT' : I.kind.toUpperCase()) : 'Instrument')}<small>${I.kind ? esc(kname(I.kind)) + (kk ? ` · Form ${esc(kk.form_id)}` : '') : '모든 종류'} · Tag ${I.rows.length}</small></span>${chips}<span class="sp"></span>
       <a class="btnlink" href="/api/valve/projects/${S.pid}/inst/markup.pdf${I.kind ? `?kind=${I.kind}` : ''}" download title="지적이 있는 Datasheet 전부 — 칸 음영 + 화살표 설명선(이유), Acrobat 에서 고칠 수 있음">⇩ Mark-up PDF</a>
       <a class="btnlink" href="/api/valve/projects/${S.pid}/inst/review.xlsx${I.kind ? `?kind=${I.kind}` : ''}" download>⇩ Excel</a></div>
     <div class="wb iwb"><div class="wb-left"><input class="iq" placeholder="Tag 찾기" value="${esc(I.filt)}"><div class="itags" id="itags"></div></div>
@@ -107,7 +108,6 @@ async function renderReview() {
   I.viewer = new V.Viewer($('#iview'), { onOverlay: o => { if (o.key) { I.selKey = o.key; drawRight(); } } });
   drawTags();
   $('.iq', el).oninput = e => { I.filt = e.target.value; drawTags(); };
-  $('.ichips', el).onclick = e => { const b = e.target.closest('[data-kind]'); if (!b) return; I.kind = b.dataset.kind; LS.set('inst.kind', I.kind); I.sel = null; renderReview(); };
   $('#itabs').onclick = e => { const b = e.target.closest('[data-t]'); if (!b) return; I.tab = b.dataset.t; $$('#itabs button').forEach(x => x.classList.toggle('on', x === b)); drawRight(); };
   const want = I.rows.find(r => r.id === I.sel) || I.rows[0];
   if (want) await openSheet(want.id); else { $('#ibody').innerHTML = '<div class="empty">이 종류의 Datasheet 가 없습니다.</div>'; $('#iview .stage').innerHTML = '<div class="empty" style="color:#fff">Document Management 에 Instrument Datasheet PDF 를 올리세요.</div>'; }
@@ -178,28 +178,55 @@ function drawRight() {
   };
 }
 
-/* ── List 대조 — Datasheet → Instrument Index · IO List ───────────────────────────── */
+/* ── Instrument List · IO List — one screen each: comparison with the datasheets + the list as read ─────────── */
 async function renderLists() {
-  const el = $('#v-ilist');
-  el.innerHTML = '<div class="vh"><h2>List 대조</h2></div><div class="soft">불러오는 중…</div>';
+  const el = $('#v-ilist'), L = I.list, nm = L === 'io_list' ? 'IO List' : 'Instrument List', lname = L === 'io_list' ? 'IO List' : 'Instrument Index';
+  el.innerHTML = `<div class="vh"><h2>${nm}</h2></div><div class="soft">불러오는 중…</div>`;
   await kinds();
-  const d = await api('GET', `/projects/${S.pid}/inst/listcmp`);
-  const names = { instrument_index: 'Instrument Index', io_list: 'IO List' };
-  const box = (k, nm) => { const L = d.lists[k], c = d.counts[nm] || {};
-    return `<div class="card ilbox"><h3>${nm}</h3>${L ? `<div class="soft">${esc(L.files.join(' · '))} · Rev ${esc(L.rev || '-')} · Tag ${L.tags}</div>
-      <div class="ilc">${['누락', '값 다름', 'List 에만', 'OK'].map(r => `<button data-lf="${nm}|${r}" class="${I.lfilt === nm + '|' + r ? 'on' : ''}">${rp(r)}<b>${c[r] || 0}</b></button>`).join('')}</div>` : '<div class="soft">아직 없음 — Document Management › Instrument Index · IO List 에 PDF 를 올리세요.</div>'}</div>`; };
-  const rows = d.rows.filter(x => !I.lfilt || `${x.list}|${x.result}` === I.lfilt).filter(x => I.lfilt || x.result !== 'OK');
-  el.innerHTML = `<div class="vh"><h2>List 대조</h2><span class="soft">기준 = Datasheet → List (누락 · 값 다름 · List 에만)</span><span class="sp"></span>
-      <a class="btnlink" href="/api/valve/projects/${S.pid}/inst/listcmp.xlsx" download>⇩ Excel</a></div>
-    <div class="grid2">${box('instrument_index', names.instrument_index)}${box('io_list', names.io_list)}</div>
-    <div class="card" style="padding:0;overflow:auto"><table class="t"><thead><tr><th>List</th><th>결과</th><th>Tag</th><th>Kind</th><th>항목</th><th>Datasheet</th><th>List</th><th>이유</th><th>Rule</th></tr></thead><tbody>
-      ${rows.map(x => `<tr ${x.sheet_id ? `data-sid="${x.sheet_id}" class="link"` : ''}><td>${esc(x.list)}</td><td>${rp(x.result)}</td><td><b>${esc(x.tag)}</b></td><td>${esc((x.kind || '').toUpperCase())}</td><td>${esc(x.field)}</td>
-        <td>${esc(x.ds)}</td><td>${esc(x.lst)}</td><td class="soft">${esc(x.reason)}</td><td class="soft">${esc(x.rule)}</td></tr>`).join('') || '<tr><td colspan="9" class="empty">차이 없음</td></tr>'}</tbody></table></div>`;
+  const d = await api('GET', `/projects/${S.pid}/inst/listcmp?list=${L}`);
+  const info = d.lists[L], c = d.counts[lname] || {};
+  const tabs = [['cmp', 'Datasheet 대조'], ['rec', 'List 내용']].map(([k, l]) => `<button data-lt="${k}" class="${I.ltab === k ? 'on' : ''}">${l}</button>`).join('');
+  const head = `<div class="vh"><h2>${nm}</h2><span class="soft">${info ? esc([info.files.join(' · '), info.doc_no, info.rev ? 'Rev ' + info.rev : '', 'Tag ' + info.tags].filter(Boolean).join(' · ')) : '아직 없음'}</span><span class="sp"></span>
+      <button data-g="docs">자료 올리기</button><a class="btnlink" href="/api/valve/projects/${S.pid}/inst/listcmp.xlsx?list=${L}" download>⇩ Excel</a></div>`;
+  if (!info) {
+    el.innerHTML = head + `<div class="card"><div class="empty">${nm} PDF 가 없습니다 — <b>Document Management › Instrument Index · IO List</b> 에 올리면 Tag 별로 읽고 Datasheet 와 대조합니다 (기준 = Datasheet: 누락 · 값 다름 · List 에만).</div></div>`;
+  } else {
+    const kpi = ['누락', '값 다름', 'List 에만', 'OK'].map(r => `<button data-lf="${r}" class="${I.lfilt === r ? 'on' : ''}">${rp(r)}<b>${c[r] || 0}</b></button>`).join('');
+    let body;
+    if (I.ltab === 'cmp') {
+      const rows = d.rows.filter(x => I.lfilt ? x.result === I.lfilt : x.result !== 'OK');
+      body = `<div class="card" style="padding:0;overflow:auto"><table class="t"><thead><tr><th>결과</th><th>Tag</th><th>Item</th><th>항목</th><th>Datasheet</th><th>${lname}</th><th>이유</th><th>Rule</th></tr></thead><tbody>
+        ${rows.map(x => `<tr ${x.sheet_id ? `data-sid="${x.sheet_id}" data-sk="${x.kind}" class="link"` : ''}><td>${rp(x.result)}</td><td><b>${esc(x.tag)}</b></td><td>${esc((x.kind || '').toUpperCase())}</td><td>${esc(x.field)}</td>
+          <td>${esc(x.ds)}</td><td>${esc(x.lst)}</td><td class="soft">${esc(x.reason)}</td><td class="soft">${esc(x.rule)}</td></tr>`).join('') || '<tr><td colspan="8" class="empty">차이 없음</td></tr>'}</tbody></table></div>`;
+    } else {
+      const io = L === 'io_list';
+      body = `<div class="card" style="padding:0;overflow:auto"><table class="t"><thead><tr><th>Tag</th><th>Loop</th><th>Type</th><th>Service</th><th>P&amp;ID</th><th>Line</th><th>Range</th>
+        ${io ? '<th>IO</th><th>Logic</th>' : '<th>Datasheet No</th><th>Manufacturer</th><th>Model</th>'}<th>Datasheet</th><th>대조</th><th>p.</th></tr></thead><tbody>
+        ${d.records.map(r => `<tr ${r.sheet_id ? `data-sid="${r.sheet_id}" data-sk="${r.ds_kind}" class="link"` : ''}><td><b>${esc(r.tag)}</b></td><td>${esc(r.loop || '')}</td><td>${esc(r.inst_type || '')}</td><td>${esc(r.service || '')}</td>
+          <td>${esc(r.pid_no || '')}</td><td>${esc(r.line_no || '')}</td><td>${esc(r.range || '')}</td>
+          ${io ? `<td>${esc(r.io_typical || '')}</td><td>${esc(r.logic_no || '')}</td>` : `<td>${esc(r.datasheet_no || '')}</td><td>${esc(r.manufacturer || '')}</td><td>${esc(r.model || '')}</td>`}
+          <td>${r.ds_kind ? esc(r.ds_kind.toUpperCase()) : '<span class="ir ir-lo">없음</span>'}</td><td>${r.findings ? `<span class="ir ir-bad">${r.findings}</span>` : '<span class="ir ir-ok">OK</span>'}</td><td class="soft">${r.page || ''}</td></tr>`).join('')}</tbody></table></div>`;
+    }
+    el.innerHTML = head + `<div class="ilhead"><div class="tabs ltabs">${tabs}</div><div class="ilc">${kpi}</div></div>` + body;
+  }
   el.onclick = e => {
-    const b = e.target.closest('[data-lf]'); if (b) { I.lfilt = I.lfilt === b.dataset.lf ? '' : b.dataset.lf; renderLists(); return; }
-    const r = e.target.closest('[data-sid]'); if (r) { I.sel = +r.dataset.sid; I.kind = ''; I.rows = null; V.go('ireview'); }
+    const g = e.target.closest('[data-g]'); if (g) { V.go(g.dataset.g); return; }
+    const t = e.target.closest('[data-lt]'); if (t) { I.ltab = t.dataset.lt; renderLists(); return; }
+    const b = e.target.closest('[data-lf]'); if (b) { I.lfilt = I.lfilt === b.dataset.lf ? '' : b.dataset.lf; I.ltab = 'cmp'; renderLists(); return; }
+    const r = e.target.closest('[data-sid]'); if (r) { I.sel = +r.dataset.sid; I.kind = r.dataset.sk || I.kind; I.rows = null; V.go('ireview'); }
   };
 }
 
-window.INST = { render(v) { (v === 'inst' ? renderBoard() : v === 'ireview' ? renderReview() : renderLists()).catch(e => { console.error(e); toast(e.message, 1); }); } };
+/* left menu: one entry per item and per list (like the Valve kinds) */
+function markMenu(v) {
+  $$('#menu button[data-ik]').forEach(b => b.classList.toggle('on', v === 'ireview' && b.dataset.ik === I.kind));
+  $$('#menu button[data-il]').forEach(b => b.classList.toggle('on', v === 'ilist' && b.dataset.il === I.list));
+}
+$('#menu').addEventListener('click', e => {                 // capture: set the item / list before the view renders
+  const b = e.target.closest('button'); if (!b) return;
+  if (b.dataset.ik) { if (I.kind !== b.dataset.ik) { I.kind = b.dataset.ik; I.sel = null; I.rows = null; } LS.set('inst.kind', I.kind); }
+  if (b.dataset.il) { I.list = b.dataset.il; LS.set('inst.list', I.list); I.lfilt = ''; }
+}, true);
+
+window.INST = { render(v) { markMenu(v); (v === 'inst' ? renderBoard() : v === 'ireview' ? renderReview() : renderLists()).catch(e => { console.error(e); toast(e.message, 1); }); } };
 })();
