@@ -1732,7 +1732,7 @@ html.dark .sinm,html.dark .gtnm,html.dark .isi,html.dark .sinm1{text-shadow:0 1p
 .schpop.rfpop{width:340px}.rfpop .rfrow{display:flex;align-items:center;gap:6px;padding:8px 0 0;flex-wrap:wrap}.rfsw{width:26px;height:26px;border-radius:50%;border:2px solid #fff;box-shadow:0 0 0 1px #cbd5e1;cursor:pointer;background:#fff;font-weight:800;color:#334155;font-size:12px}.rfsw.on{box-shadow:0 0 0 3px #4f46e5}.rfcus{display:inline-flex;align-items:center;gap:2px;cursor:pointer;font-size:16px}.rfcus input{width:28px;height:24px;border:0;padding:0;background:none;cursor:pointer}
 .rfprev{margin:10px 0 0;padding:8px 10px;border:1px dashed #cbd5e1;border-radius:8px;font-size:14px;color:#0f172a;background:#f8fafc}
 .drchips{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px}.drc{border:1px solid #cbd5e1;background:#f8fafc;border-radius:999px;padding:3px 12px;font:inherit;font-size:12.5px;cursor:pointer;color:#334155}.drc b{color:#3730a3}.drc.z{opacity:.5}.drc.on{background:#4f46e5;border-color:#4f46e5;color:#fff}.drc.on b{color:#fff}.drc.warn{border-color:#fcd34d;background:#fffbeb}.drc.warn.on{background:#d97706;border-color:#d97706}
-.vdsw.drw{max-height:calc(100vh - 300px);min-height:300px}.drt td{vertical-align:top}.drrev b{font-size:13.5px}.vdst .drrev small{display:block!important;color:#64748b;font-size:11px;line-height:1.3}.drok{color:#15803d}.drno{color:#b45309;font-weight:700;font-size:12px}.drwait{color:#b45309!important;font-weight:700}
+.vdsw.drw{max-height:calc(100vh - 300px);min-height:300px}.drt thead th{z-index:4!important}.drt td{vertical-align:top}.drrev b{font-size:13.5px}.vdst .drrev small{display:block!important;color:#64748b;font-size:11px;line-height:1.3}.drok{color:#15803d}.drno{color:#b45309;font-weight:700;font-size:12px}.drwait{color:#b45309!important;font-weight:700}
 .drrevs span{display:inline-block;margin:0 3px 2px 0;padding:0 5px;border-radius:4px;background:#f1f5f9;font-size:11.5px;color:#475569}.drrevs span.cur{background:#4f46e5;color:#fff;font-weight:800}.drrevs span.rv{background:#dcfce7;color:#15803d;font-weight:800}
 .drt tr.drpend td{background:#fffbeb}.drg{display:inline-block;font-size:11px;font-weight:800;border-radius:5px;padding:1px 7px;background:#e0e7ff;color:#3730a3}.drg.g1{background:#dcfce7;color:#166534}.drg.g2{background:#fee2e2;color:#991b1b}.drg.g3{background:#fef3c7;color:#92400e}.drg.g4{background:#e0f2fe;color:#075985}
 .hbsec{margin-top:8px}.hbh{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-weight:800;font-size:13px;color:#312e81;letter-spacing:.5px;margin:6px 0}.hbh .muted{font-weight:500;letter-spacing:0}
@@ -2051,7 +2051,7 @@ function recLabel(key, f) {
  * ===================================================================== */
 let root = null;
 /* 서버 모드: http(s):// 로 접속하면 server.py 의 REST API 사용 (폴더 선택 불필요). file:// 로 열면 폴더 모드 */
-const APP_VERSION = '2026-11-12.7';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
+const APP_VERSION = '2026-11-12.8';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
 const SERVER_URL = 'http://localhost:8080';
 // 부서원 PC 사본(file://)이 접속을 시도할 서버 — 서버가 배포 파일을 만들 때 'PC 이름 주소, IP 주소' 순으로 자동 기록함
 const DEFAULT_SERVERS = ['http://ASEUNGWOOK-B01:8080', 'http://65.3.30.234:8080'];
@@ -4705,13 +4705,13 @@ async function docRegFallback() {   // 세션 6 docreg 가 없을 때: 프로젝
   return out;
 }
 function drOpen(l) { if (!l) return; const r = l.kind === 'ball' || !l.kind ? 'valve' : { globe:'globev', butterfly:'bflyv', psv:'psv' }[l.kind] || (INST_KINDS.some(x => x[0] === l.kind) ? (l.kind === 'all' ? 'inst' : 'inst' + l.kind) : 'valve');
-  PID_ONCE[r] = l.sheet ? `sheet=${encodeURIComponent(l.sheet)}&` : l.ds ? `ds=${encodeURIComponent(l.ds)}&` : ''; go(r); }
+  PID_ONCE[r] = (l.sheet ? `sheet=${encodeURIComponent(l.sheet)}&` : l.ds ? `ds=${encodeURIComponent(l.ds)}&` : '') + (l.view ? '#' + l.view : ''); go(r); }   // view = 세션 6 화면 안 메뉴(pms · proc · docs · list)
 function renderDocReg(c) {
   const D = SCH.docs ||= {}, F = SCH.docsF ||= { g:'', k:'', q:'', pend:false }; if (!D.at && D.st !== 'load') docRegLoad();
   const head = `<section class="whero sch-hero"><div class="wh-top"><div><div style="font-size:12px;font-weight:600;opacity:.8;margin-bottom:2px">실행 프로젝트 › CO2 PJT › Datasheet</div><h2>📚 문서 · Revision 현황</h2>
       <p>Datasheet · List · PMS · Process Data · Line List — <b>입력된 최신</b> Rev 와 <b>검토된 최신</b> Rev · Doc. No. 를 한눈에 (세션 6 Datasheet 자동 검토)</p></div><div><button class="btn sm" data-drx title="지금 보이는 표를 엑셀로">⬇ 엑셀로</button> <button class="btn sm" data-drre>↻ 새로 읽기</button></div></div></section>`;
   if (D.st !== 'ok') { c.insertAdjacentHTML('beforeend', `<div id="drv">${head}<section class="card"><div class="empty">${D.st === 'err' ? `<span class="sl">${esc(D.msg)}</span>` : 'P&ID 서버(Datasheet 검토)에서 불러오는 중…'}</div></section></div>`); return drBind(); }
-  const R = D.rows, pend = r => r.group === 'Datasheet' ? (!r.reviewed || r.reviewed.rev !== r.latest?.rev) : false, kinds = [...new Map(R.filter(r => !F.g || r.group === F.g).map(r => [r.kind, r.kind_name])).entries()];
+  const R = D.rows, pend = r => typeof r.pending === 'boolean' ? r.pending : r.group === 'Datasheet' ? (!r.reviewed || r.reviewed.rev !== r.latest?.rev) : false, kinds = [...new Map(R.filter(r => !F.g || r.group === F.g).map(r => [r.kind, r.kind_name])).entries()];
   const q = F.q.toLowerCase(), sel = R.filter(r => (!F.g || r.group === F.g) && (!F.k || r.kind === F.k) && (!F.pend || pend(r)) && (!q || `${r.doc_no} ${r.tag || ''} ${r.kind_name} ${r.title || ''} ${r.latest?.file || ''}`.toLowerCase().includes(q)))
     .sort((a, b) => DR_GROUPS.indexOf(a.group) - DR_GROUPS.indexOf(b.group) || String(a.kind_name).localeCompare(b.kind_name) || String(a.doc_no || a.tag).localeCompare(b.doc_no || b.tag));
   SCH.docsSel = sel;
@@ -4722,7 +4722,7 @@ function renderDocReg(c) {
     return `<tr class="${p ? 'drpend' : ''}"><td><span class="drg g${DR_GROUPS.indexOf(r.group)}">${esc(r.group)}</span></td><td>${esc(r.kind_name || r.kind)}</td><td class="key">${esc(r.doc_no || '-')}</td><td>${r.tag ? `<b>${esc(r.tag)}</b>` : ''}${r.test ? ' <small class="vdtest">시험</small>' : ''}</td>
       <td class="drrev"><b>${esc(L.rev || '-')}</b><small>${esc([L.date, L.file].filter(Boolean).join(' · '))}${L.uploaded_at ? `<br>올림 ${esc(String(L.uploaded_at).slice(0, 16).replace('T', ' '))}${L.uploaded_by ? ' · ' + esc(L.uploaded_by) : ''}` : ''}</small></td>
       <td class="drrev">${V ? `<b class="drok">${esc(V.rev || '-')}</b><small>${esc([V.status, V.reviewed_at && String(V.reviewed_at).slice(0, 16).replace('T', ' '), V.reviewed_by].filter(Boolean).join(' · '))}</small>` : r.group === 'Datasheet' ? '<span class="drno">검토 전</span>' : '<span class="muted">-</span>'}${p && V ? '<small class="drwait">⏳ 최신 Rev 검토 대기</small>' : ''}</td>
-      <td class="drrevs">${(r.revs || []).map(x => `<span class="${x === L.rev ? 'cur' : x === V?.rev ? 'rv' : ''}">${esc(x)}</span>`).join('')}</td><td>${r.open ? `<b class="sl">${r.open}</b>` : '<span class="muted">0</span>'}</td>
+      <td class="drrevs">${(r.revs || []).map(x => `<span class="${x === L.rev ? 'cur' : x === V?.rev ? 'rv' : ''}">${esc(x)}</span>`).join('')}</td><td>${r.open == null ? '<span class="muted">-</span>' : r.open ? `<b class="sl">${r.open}</b>` : '<span class="muted">0</span>'}</td>
       <td>${r.link ? `<button class="btn sm" data-dro="${esc(JSON.stringify(r.link))}">열기 ↗</button>` : ''}</td></tr>`; }).join('');
   c.insertAdjacentHTML('beforeend', `<div id="drv">${head}<section class="card">${chips}
     <div class="vdsbar"><label>🔎<input data-drq value="${esc(F.q)}" placeholder="Doc. No. · Tag · 파일 검색"></label><select data-drk><option value="">종류 전체</option>${kinds.map(([k, n]) => `<option value="${esc(k)}" ${F.k === k ? 'selected' : ''}>${esc(n || k)}</option>`).join('')}</select>
@@ -5097,8 +5097,8 @@ function pidBase(key = 'pid') {
 let FIN_Q = '';   // 2026-11-09 비서가 재무스타그램을 열 때 바로 검색할 회사 (iframe ?q=)
 function pidUrl(key) {
   const R = PID_ROUTES[key] || PID_ROUTES.pid;
-  const w = document.querySelector('#pidwrap'), once = (w && w.dataset.route === key ? w.dataset.once : PID_ONCE[key]) || '';   // 2026-11-12 Tag 바로가기 (sheet=<id> · ds=<id>) — 그 화면을 열 때 한 번만
-  return `${pidBase(key)}${R.path}?${R.q}${once}user=${encodeURIComponent(user || '')}${key === 'finstagram' && FIN_Q ? '&q=' + encodeURIComponent(FIN_Q) : ''}`;   // P&ID: /?embed=1&user=본명 · LOGIC: /logic?user=본명 (비회원은 빈 값)   // 로그인한 본명 (비회원은 빈 값)
+  const w = document.querySelector('#pidwrap'), once0 = (w && w.dataset.route === key ? w.dataset.once : PID_ONCE[key]) || '', [once, hash = ''] = once0.split('#');   // 2026-11-12 Tag 바로가기 (sheet=<id> · ds=<id>) — 그 화면을 열 때 한 번만
+  return `${pidBase(key)}${R.path}?${R.q}${once}user=${encodeURIComponent(user || '')}${key === 'finstagram' && FIN_Q ? '&q=' + encodeURIComponent(FIN_Q) : ''}${hash ? '#' + hash : ''}`;   // P&ID: /?embed=1&user=본명 · LOGIC: /logic?user=본명 (비회원은 빈 값)   // 로그인한 본명 (비회원은 빈 값)
 }
 function renderPid(c, key) {
   const url = pidUrl(key), T = esc(PID_ROUTES[key].title);
