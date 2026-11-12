@@ -198,7 +198,11 @@ def reviewed(con, pid, r) -> dict:
 def _brief(con, pid, r, hist) -> dict:
     sh, rv = reviewed(con, pid, r)
     C = rv["canonical"]
-    return {"id": r["id"], "tag": r["tag"], "kind": r["kind"], "form_id": r["form_id"], "doc_no": r["doc_no"], "rev": r["rev"],
+    from app.valve import location
+    vals = instrument.values(sh)
+    loc = location.locate(doc_no=r["doc_no"] or "", pid_no=(vals.get("pid_no") or {}).get("value", ""), tag=r["tag"])   # same rule as the Valve tags
+    return {"area": location.zone(loc), "unit": loc.get("unit") or "", "loc_basis": loc.get("basis") or "",
+            "id": r["id"], "tag": r["tag"], "kind": r["kind"], "form_id": r["form_id"], "doc_no": r["doc_no"], "rev": r["rev"],
             "rev_date": r["rev_date"], "file": r.get("filename"), "document_id": r["document_id"], "pages": json.loads(r["pages"] or "[]"),
             "test_data": bool(r["test_data"]), "status": r["status"], "service": (instrument.values(sh).get("service") or {}).get("value", ""),
             "counts": rv["counts"], "issues": rv["issues"], "in_pds": rv["in_pds"], "revs": hist.get(r["tag_key"], []),

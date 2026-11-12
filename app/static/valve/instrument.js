@@ -7,6 +7,7 @@ const V = window.VALVE;
 if (!V) return;
 const { S, Q, LS, api, esc, pill, toast, $, $$ } = V;
 const QK = (Q.get('kind') || '').toLowerCase();
+const QSHEET = +Q.get('sheet') || 0;                  // deep link: ?kind=pt&sheet=<id> (or ?sheet=<id> alone)
 const I = { kinds: null, kind: V.INST_KINDS.has(QK) ? QK : LS.get('inst.kind', 'ft') || 'ft', list: QK === 'iolist' ? 'io_list' : QK === 'instindex' ? 'instrument_index' : LS.get('inst.list', 'instrument_index'), ltab: 'cmp', rows: null, sel: null, d: null, tab: 'find', filt: '', lfilt: '' };
 const RES = { 'Mismatch': ['bad', '값 다름'], 'Missing': ['miss', '누락'], 'Review Required': ['rev', '확인 필요'], '없음': ['na', '없음'], 'Datasheet Blank': ['na', 'DS 비어 있음'], 'OK': ['ok', 'OK'],
   '값 다름': ['bad', '값 다름'], '누락': ['miss', '누락'], 'List 에만': ['lo', 'List 에만'] };
@@ -93,6 +94,10 @@ async function reqDialog() {
 async function renderReview() {
   const el = $('#v-ireview');
   await kinds();
+  if (QSHEET && !I.deep) {                                 // open that datasheet once, on its item's screen
+    I.deep = 1; I.sel = QSHEET;
+    try { const d0 = await api('GET', `/inst/sheets/${QSHEET}`); if (d0.kind !== I.kind) { I.kind = d0.kind; I.rows = null; } markMenu('ireview'); } catch (_) { /* not found: the item's first tag */ }
+  }
   if (!I.rows || I.rowsKind !== I.kind || I.rowsPid !== S.pid) {
     I.rows = (await api('GET', `/projects/${S.pid}/inst/sheets${I.kind ? `?kind=${I.kind}` : ''}`)).rows; I.rowsKind = I.kind; I.rowsPid = S.pid;
   }
