@@ -443,6 +443,7 @@ def _process(jid: str, pid: int, items: list[tuple[int, str, str, Path]], by: st
                 con.execute("UPDATE document SET status='done', info=? WHERE id=?", (store.J(info), doc_id))
                 store.audit(con, pid, None, None, "upload", None, name, by, kind)
                 con.commit()
+                inst_api.invalidate(pid)                       # committed: the next Instrument read sees the new rows
             else:                                        # process data tables -> {data}/valve/process/<doc>.json (process.read_process_data)
                 if Path(name).suffix.lower() != ".pdf":          # valve38: by the uploaded name (stored copy is .bin)
                     raise extract.PdfError("Process Data 는 PDF 만 읽습니다 — Excel 은 보관만 됩니다 (PDF 로 올려 주세요)")

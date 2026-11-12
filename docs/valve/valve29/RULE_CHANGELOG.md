@@ -13,7 +13,7 @@
 
 ## valve40 — Instrument 규칙 새로 추가 (IN-1.0 · Valve 판정은 그대로)
 
-Instrument Datasheet 전용 규칙 (`app/valve/instreview.py` · `instlists.py`). Valve 의 기존 Rule 은 하나도 바뀌지 않음 (스냅숏 2,935 · 변경 0).
+Instrument Datasheet 전용 규칙 (`app/valve/instreview.py` · `instlists.py`). 엔지니어 결정(확인 · 문구 수정 · 무시+이유)은 판정을 바꾸지 않고 위에 얹힘 — 무시한 지적은 수 · PDF · CRS 에서 빠지고 감사 기록에 남음. Valve 의 기존 Rule 은 하나도 바뀌지 않음 (스냅숏 2,935 · 변경 0).
 
 | Rule | 내용 | 기준 문서 |
 |---|---|---|
@@ -22,6 +22,8 @@ Instrument Datasheet 전용 규칙 (`app/valve/instreview.py` · `instlists.py`)
 | IN-PMS-01 · 02 | Pipe Class 가 PMS 에 없음 · Rating ≠ Flange Class | PMS |
 | IN-LL-00 ~ 05 | Line 없음 · Class 다름 · Line Design P / T(max) 가 Datasheet 보다 높음 · T(min) 이 낮음 · Size 다름 | Process Line List |
 | IN-ITM-01 · 02 | PT/PG/DPG Range 상한 < 최대 운전압력 · PSV Set > Design (같은 Datasheet 값끼리 · 사람 확인) | 같은 Datasheet |
+| IN-OPN-01 | 값에 HOLD · TBA · TBC · TBD 가 남아 있음 → 확인 필요 (valve40 추가) | 같은 Datasheet |
+| IN-UNIT-01 | 운전압 · 설계압의 게이지/절대 기준이 다름 → 확인 필요 · 사람 확인 (valve40 추가) | 같은 Datasheet |
 | LIST-00 · 01 · 02 | Datasheet → Instrument Index / IO List: 누락 · 값 다름 · List 에만 | Index · IO List |
 
 ## valve29 에서 바뀐 것과 바뀌지 않은 것

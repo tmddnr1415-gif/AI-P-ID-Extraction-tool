@@ -120,3 +120,75 @@ def test_markup_pdf_shading_and_callouts(tmp_path, monkeypatch):
     assert {"instindex", "iolist", "pms", "pds", "linelist"} <= {r["kind"] for r in reg["rows"]} and reg["counts"]["reviewed"] == 1
     allp = c.get("/api/valve/projects/1/inst/markup.pdf")
     assert allp.status_code == 200 and pymupdf.open("pdf", allp.content).get_toc()[0][1] == "Summary"
+
+
+def test_engineer_decisions_codes_crs_and_open_items(tmp_path, monkeypatch):
+    """Dismiss / modify / confirm a finding, carry it to the next Rev, review code + suggestion, CRS Excel, HOLD rule."""
+    import io
+    import time
+    import openpyxl
+    import pymupdf
+    import valve_inst_scenario as SC
+    import valve_make_test_ds as M
+    from app.valve import instrument
+    SC.main([str(tmp_path / "scen"), "--keep"])
+    monkeypatch.setenv("PID_DATA_DIR", str(tmp_path / "scen" / "data"))
+    from fastapi.testclient import TestClient
+    from app.main import app
+    c = TestClient(app)
+    H = {"X-Author": "engineer"}
+    bad = next(r for r in c.get("/api/valve/projects/1/inst/sheets?kind=pt").json()["rows"] if r["tag"].endswith("B"))
+    d = c.get(f"/api/valve/inst/sheets/{bad['id']}").json()
+    assert d["suggested_code"] == "2" and d["review_code"] == "" and [x["code"] for x in d["codes"]] == ["1", "2", "3", "4", "5"]
+    open_ = [x for x in d["review"] if x["result"] in ("Mismatch", "Missing", "Review Required")]
+    n0 = d["issues"]
+    pms = next(x for x in open_ if x["rule"] == "IN-PMS-01")
+    # dismiss needs a reason
+    assert c.put(f"/api/valve/inst/sheets/{bad['id']}/decisions", json={"fkey": pms["fkey"], "decision": "Dismissed"}, headers=H).status_code == 400
+    assert c.put(f"/api/valve/inst/sheets/{bad['id']}/decisions", json={"fkey": pms["fkey"], "decision": "Dismissed", "reason_cat": "Project specification exception"}, headers=H).status_code == 200
+    ll = next(x for x in open_ if x["rule"] == "IN-LL-02")
+    c.put(f"/api/valve/inst/sheets/{bad['id']}/decisions", json={"fkey": ll["fkey"], "decision": "Modified", "text": "Design pressure shall be 3.5 barg min. per line list."}, headers=H)
+    pds = next(x for x in open_ if x["rule"] == "IN-PDS-01")
+    c.put(f"/api/valve/inst/sheets/{bad['id']}/decisions", json={"fkey": pds["fkey"], "decision": "Confirmed"}, headers=H)
+    d = c.get(f"/api/valve/inst/sheets/{bad['id']}").json()
+    by = {x.get("fkey"): x for x in d["review"]}
+    assert by[pms["fkey"]]["result"] == "Dismissed" and d["issues"] == n0 - 1
+    assert by[ll["fkey"]]["reason"].startswith("Design pressure shall") and by[pds["fkey"]]["decision"]["decision"] == "Confirmed"
+    # review code
+    assert c.put(f"/api/valve/inst/sheets/{bad['id']}/code", json={"code": "9"}, headers=H).status_code == 400
+    assert c.put(f"/api/valve/inst/sheets/{bad['id']}/code", json={"code": "2"}, headers=H).json()["review_code"] == "2"
+    # mark-up PDF: dismissed finding left out, modified wording used
+    pg = pymupdf.open("pdf", c.get(f"/api/valve/inst/sheets/{bad['id']}/markup.pdf").content)[0]
+    texts = [a.info["content"] for a in pg.annots() if a.type[1] == "FreeText"]
+    assert len(texts) == d["issues"] and not any("[IN-PMS-01]" in t for t in texts) and any("Design pressure shall be 3.5" in t for t in texts)
+    # CRS: one row per open comment, engineer wording, code
+    wb = openpyxl.load_workbook(io.BytesIO(c.get("/api/valve/projects/1/inst/crs.xlsx?kind=pt").content))
+    ws = wb["CRS"]
+    hdr = [x.value for x in ws[3]]
+    rows = [dict(zip(hdr, [x.value for x in r])) for r in ws.iter_rows(min_row=4) if r[0].value]
+    mine = [r for r in rows if r["Tag"] == bad["tag"]]
+    assert len(mine) == d["issues"] and all(r["Review Code"].startswith("2") for r in mine)
+    assert any(r["Comment (EN)"].startswith("Design pressure shall") for r in mine) and not any(r["Rule"] == "IN-PMS-01" for r in mine)
+    assert "Vendor Reply" in hdr and wb["Review Codes"].max_row >= 3
+    # a Rev B of the same tag (still wrong) inherits the decisions, marked with their origin; HOLD left in a cell → IN-OPN-01
+    card = instrument.cards()["601"]
+    rows_b = SC.build_sheet(card, "pt", bad["tag"], "TEST SERVICE PT", True, "manufacturer")
+    rows_b[1]["21"] = "HOLD"
+    doc = M.synthetic(card)
+    for blk, rv in rows_b.items():
+        M.fill(doc, dict(card, items=[i for i in card["items"] if i["block"] == blk]), {"rows": rv, "title": {"doc_no": "TEST-IN-DS-601B", "rev": "B"}})
+    j = c.post("/api/valve/projects/1/upload", data={"kind": "instrument"}, files=[("files", ("revb.pdf", doc.tobytes()))]).json()
+    for _ in range(300):
+        if c.get(f"/api/valve/jobs/{j['id']}").json()["status"] == "done":
+            break
+        time.sleep(0.1)
+    nb = next(r for r in c.get("/api/valve/projects/1/inst/sheets?kind=pt").json()["rows"] if r["tag"] == bad["tag"])
+    assert nb["rev"] == "B" and nb["id"] != bad["id"]
+    db = c.get(f"/api/valve/inst/sheets/{nb['id']}").json()
+    byb = {x.get("fkey"): x for x in db["review"]}
+    assert byb[pms["fkey"]]["result"] == "Dismissed" and byb[pms["fkey"]]["decision"]["origin"] == "Rev A"
+    assert any(x["rule"] == "IN-OPN-01" and x["result"] == "Review Required" for x in db["review"])
+    # project review-code set
+    assert c.put("/api/valve/projects/1/inst/codes", json={"codes": [{"code": "A", "label": "Approved"}, {"code": "A", "label": "x"}]}, headers=H).status_code == 400
+    assert c.put("/api/valve/projects/1/inst/codes", json={"codes": [{"code": "A", "label": "Approved"}, {"code": "B", "label": "Approved with comments"}]}, headers=H).status_code == 200
+    assert [x["code"] for x in c.get("/api/valve/projects/1/inst/codes").json()["codes"]] == ["A", "B"]

@@ -46,6 +46,8 @@ RULE_EN = {
     "IN-LL-05": "Line size differs from the Process Line List.",
     "IN-ITM-01": "Range upper value is below the max. operating pressure.",
     "IN-ITM-02": "Set pressure is above the design pressure.",
+    "IN-OPN-01": "Open item (HOLD / TBA / TBC / TBD) is left on the datasheet. Please confirm the value.",
+    "IN-UNIT-01": "Operating and design pressures use different gauge/absolute bases. Please check.",
 }
 REVIEW_EN = {"IN-PDS-01": "Cannot be compared automatically (unit or gauge/absolute basis unclear). Please verify.",
              "IN-PMS-01": "Pipe class could not be matched exactly in the PMS. Please confirm.",
@@ -53,19 +55,23 @@ REVIEW_EN = {"IN-PDS-01": "Cannot be compared automatically (unit or gauge/absol
              "IN-LL-01": "Pipe class differs only in its suffix from the Process Line List. Please confirm.",
              "IN-LL-02": "Design pressure cannot be compared (blank, unit unclear or absolute basis). Please verify.",
              "IN-LL-03": "Design temperature cannot be compared (blank or unit unclear). Please verify."}
-REF_EN = {"IN-REQ": "Required", "IN-PDS": "PDS", "IN-PMS": "PMS", "IN-LL": "Line List", "IN-ITM": "Same datasheet"}
+REF_EN = {"IN-REQ": "Required", "IN-PDS": "PDS", "IN-PMS": "PMS", "IN-LL": "Line List", "IN-ITM": "Same datasheet", "IN-OPN": "Expected", "IN-UNIT": "Expected"}
+WORD_EN_EXTRA = {"확정 값": "Firm value", "같은 기준": "Same basis"}
 WORD_EN = {"없음": "Not found", "필수": "Required", "같은 Datasheet": "Same datasheet", "행": " row", "양식": "Form", "카드": "card"}
 
 
 def _en(s: str) -> str:
     """Korean fixed words of the review rows → English; anything else non-ASCII is dropped (values stay as read)."""
     s = str(s or "")
-    for k, v in WORD_EN.items():
+    for k, v in list(WORD_EN_EXTRA.items()) + list(WORD_EN.items()):
         s = s.replace(k, v)
     return "".join(c if ord(c) < 0x2E80 else "" for c in s).replace("  ", " ").strip()
 
 
 def reason_en(f: dict) -> str:
+    d = f.get("decision") or {}
+    if d.get("decision") == "Modified" and d.get("text") and all(ord(c) < 0x2E80 for c in d["text"]):
+        return d["text"]                                   # the engineer's own wording, when it is in English
     r = str(f.get("reason") or "")
     if r and all(ord(c) < 0x2E80 for c in r):            # the rule already said it in English (numbers · PMS text)
         return r
@@ -94,6 +100,10 @@ def _target(rows: list[dict], key: str):
              "range": ("range", "range_adj_range", "calibration_range", "range_set_at", "element_range"),
              "design_pressure": ("design_pressure", "op_pressure"), "design_temp": ("design_temp", "op_temp"),
              "op_pressure": ("op_pressure", "upstream_pressure"), "op_temp": ("op_temp", "temperature")}
+    if (key or "").startswith("row:"):                    # an open item on a row without a standard key
+        r = next((x for x in rows if x.get("no") == key[4:] and x.get("bbox")), None)
+        if r:
+            return r["page"], r["bbox"], ""
     for k in (key,) + alias.get(key, ()):
         r = next((x for x in rows if k and x.get("std_key") == k and x.get("bbox")), None)
         if r:

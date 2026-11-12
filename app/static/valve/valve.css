@@ -808,3 +808,11 @@ tr.link:hover td { background: #f5f8ff; }
 .rchips button.on { background: var(--blue); border-color: var(--blue); color: #fff; } .rchips button.on b { color: #dfe7ff; }
 .rchips button em { font-style: normal; min-width: 16px; height: 16px; border-radius: 8px; background: #f2c744; color: #4a3800; font-size: 10.5px; font-weight: 700; display: inline-grid; place-items: center; padding: 0 4px; }
 .rchips button.pend { border-color: #e6cf7a; } .rchips.item button { padding: 2px 9px; font-size: 11.5px; }
+.icode { display: flex; align-items: center; gap: 6px; margin-top: 6px; flex-wrap: wrap; } .icode select { font-weight: 600; }
+.iacts { display: flex; gap: 4px; margin-top: 2px; } .iacts button { padding: 1px 8px; font-size: 11.5px; } .iacts button.on { background: var(--ok-bg); border-color: #9fd3b2; color: #0c6234; }
+.idec { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; font-size: 11.5px; }
+.ifind.r-na { opacity: .75; background: #fafbfc; } .dismissed { font-size: 11.5px; padding: 2px 4px; }
+.iqrow { display: flex; align-items: center; gap: 6px; margin: 8px 8px 2px; } .iqrow .iq { margin: 0; flex: 1; } .iqrow label { font-size: 11.5px; white-space: nowrap; display: flex; gap: 3px; align-items: center; }
+.ikeys { font-size: 10.5px; padding: 0 10px 6px; }
+.icd { font-size: 10.5px; font-weight: 700; padding: 0 5px; border-radius: 3px; background: #e8edf9; color: #2f4aa6; margin-right: 4px; }
+.iqrow { flex-wrap: wrap; } .iqrow .iq { min-width: 120px; }

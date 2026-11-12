@@ -13,6 +13,8 @@
   IN-LL-05   line size differs from the Line List
   IN-ITM-01  (pressure/level/flow transmitters, gauges) range upper value below the max operating pressure — 사람 확인
   IN-ITM-02  (PSV) set pressure above the design pressure — 사람 확인
+  IN-OPN-01  a cell still says HOLD · TBA · TBC · TBD (open item left on the datasheet)
+  IN-UNIT-01 gauge and absolute pressure mixed in the same datasheet (operating vs design) — 사람 확인
 
 Every row says where the reference value came from (document · page / sheet · row) and what both sides say.  A value
 that is not on the page is never made up: the row is 'Review Required' or 'Datasheet Blank' with the reason.
@@ -41,7 +43,10 @@ RULES = {
     "IN-LL-05": "Line Size 가 Line List 와 다름",
     "IN-ITM-01": "Range 상한이 최대 운전압력보다 낮음 (사람 확인)",
     "IN-ITM-02": "Set Pressure 가 Design Pressure 보다 높음 (사람 확인)",
+    "IN-OPN-01": "HOLD · TBA · TBC · TBD 가 남아 있음 (미결 항목)",
+    "IN-UNIT-01": "같은 Datasheet 안에서 게이지압 · 절대압이 섞여 있음 (사람 확인)",
 }
+_OPEN = re.compile(r"(?<![A-Z])(HOLD|TBA|TBC|TBD|T\.B\.A\.?|T\.B\.C\.?|T\.B\.D\.?)(?![A-Z])", re.I)
 _WORDS = {"equipment_no": ("equipment",), "vessel_no": ("vessel",), "line_size": ("size",), "fluid_state": ("phase",),
           "design_pressure": ("design pressure", "pressure"), "design_temp": ("design temp", "temperature"), "line_no": ("line no", "line number")}
 SEVERITY = {MISMATCH: "Major", MISSING: "Minor", REVIEW: "Review", NOT_IN: "Info", BLANK: "Info", OK: ""}
@@ -398,6 +403,34 @@ def item_rules(sheet: dict, C: dict) -> list[dict]:
     return out
 
 
+def open_items(sheet: dict) -> list[dict]:
+    """IN-OPN-01: every row whose value (or a sub-column) still says HOLD / TBA / TBC / TBD."""
+    out = []
+    card = {f"{it['block']}.{it['no']}" if it["block"] != 1 else str(it["no"]): it for it in instrument.cards()[sheet["form_id"]]["items"]}
+    for no, v in sheet.get("rows", {}).items():
+        texts = [v.get("value") or ""] + [f"{k}: {x}" for k, x in (v.get("sub") or {}).items() if x]
+        hit = next((t for t in texts if _OPEN.search(t)), None)
+        if not hit:
+            continue
+        it = card.get(no) or {}
+        key = v.get("std_key") or it.get("std_key") or f"row:{no}"
+        out.append(_row("IN-OPN-01", f"{no}. {v.get('label') or it.get('label', '')}", hit.strip(), "확정 값", REVIEW,
+                        f"'{_OPEN.search(hit).group(1).upper()}' 로 남아 있음 — 값이 정해지면 다음 Rev 에 반영 필요", "같은 Datasheet", key, v.get("page")))
+    return out
+
+
+def unit_basis(C: dict) -> list[dict]:
+    """IN-UNIT-01: operating pressure in gauge and design pressure in absolute (or the other way) on one datasheet."""
+    a, b = C.get("op_pressure") or {}, C.get("design_pressure") or {}
+    if not a.get("unit") or not b.get("unit"):
+        return []
+    ba, bb = procmod.unit_of(a["unit"])[1], procmod.unit_of(b["unit"])[1]
+    if ba and bb and ba != bb:
+        return [_row("IN-UNIT-01", "Pressure basis", f"Oper. {a['unit']} · Design {b['unit']}", "같은 기준", REVIEW,
+                     "운전압과 설계압의 게이지/절대 기준이 다름 — 비교 · 확인 필요", "같은 Datasheet", "design_pressure", human=True)]
+    return []
+
+
 def review(sheet: dict, tag: str, ctx: dict) -> dict:
     """All rows for one tag of one sheet.  ctx: {pds, pds_ref, pms, pms_ref, ll, ll_ref, area, required{form:[keys]}}."""
     vals = instrument.values(sheet)
@@ -416,6 +449,8 @@ def review(sheet: dict, tag: str, ctx: dict) -> dict:
     rows += pms_check(C, ctx.get("pms"), ctx.get("pms_ref"), ctx.get("area", ""))
     rows += line_check(C, ctx.get("ll"), ctx.get("ll_ref"))
     rows += item_rules(sheet, C)
+    rows += open_items(sheet)
+    rows += unit_basis(C)
     n = {r: sum(1 for x in rows if x["result"] == r) for r in (MISMATCH, MISSING, REVIEW, NOT_IN, BLANK, OK)}
     return {"canonical": C, "rows": rows, "counts": n,
             "issues": sum(1 for x in rows if x["result"] in (MISMATCH, MISSING, REVIEW)),

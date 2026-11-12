@@ -304,3 +304,11 @@
 - (추가) valve37 cherry-pick + `?kind=` 화면 나누기 (Valve 4종 ↔ Instrument 13종) · pytest 2,081 · 스냅숏 변경 0 · UI 25/25.
 - (추가) Instrument 화면 가독성: 맨 위 한 줄 결론(지적 없는 Tag n/N · 진행 막대) · 상태 = 아이콘+글자+색 · 검토 결과는 지적 먼저, OK 는 접기('OK 항목 보기') · 표 줄 간격 · 줄무늬 · 고정 머리글.
 - (추가) Item 페이지 메뉴 11개 (`/inst/findings` · `/inst/compare`) · List 대조에 Valve Tag 포함 (`valve_rows`) · 문서 · Revision 대장 `GET /api/valve/docreg?project=` (`app/valve/docreg.py`, 대시보드 '문서 · Revision 현황' 용, 읽기만).
+
+## 2026-11-12 · valve40 — 엔지니어 검토 도구 보강 (웹 조사 + 엔지니어 관점)
+- 조사: EPC Vendor 문서는 Review Code(예 1 Rejected … 5 Information) + CRS 로 돌려줌 · Bluebeam 식 지적마다 상태 · 흔한 Datasheet 오류(설계압을 운전압으로, Range 미포함, HOLD/TBA 잔존).
+- 지적마다 엔지니어 결정(확인 · 문구 수정 · 무시+이유) → 수 · Mark-up PDF · CRS 에 반영, 같은 Tag 새 Rev 로 이어받음(Rev A 에서 이어받음 표시).
+- Datasheet 마다 Review Code (프로젝트 설정, 남은 지적으로 제안 — 코드 뜻 글자로 맞춤) · CRS Excel (Vendor Reply · Close-out 빈 칸).
+- 새 규칙 IN-OPN-01 (HOLD/TBA/TBC/TBD) · IN-UNIT-01 (게이지/절대 섞임). 14종 시나리오 74/74 · 오탐 0 그대로.
+- 키보드 J/K · N/P · C/E/X · '/' 와 '지적만' 필터. 성능(1,450 DS): 현황판 0.53→0.03 s(재방문) · CRS 7→0.5 s · 검토 Excel 8.5→1.4 s.
+
