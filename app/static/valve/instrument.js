@@ -49,7 +49,7 @@ function paintBrand() {
 }
 
 const RES = { 'Mismatch': ['bad', '값 다름'], 'Missing': ['miss', '누락'], 'Review Required': ['rev', '확인 필요'], '없음': ['na', '없음'], 'Datasheet Blank': ['na', 'DS 비어 있음'], 'OK': ['ok', 'OK'],
-  '값 다름': ['bad', '값 다름'], '누락': ['miss', '누락'], 'List 에만': ['lo', 'List 에만'], 'Dismissed': ['na', '무시함'] };
+  '값 다름': ['bad', '값 다름'], '누락': ['miss', '누락'], 'List 에만': ['lo', 'List 에만'], 'Dismissed': ['na', '무시함'], 'Closed': ['ok', '종결'] };
 const RICO = { bad: '✕', miss: '◌', rev: '?', ok: '✓', na: '–', lo: '≡' };
 const rp = (r, n) => { const c = (RES[r] || ['na'])[0]; return `<span class="ir ir-${c}"><i>${RICO[c]}</i>${esc((RES[r] || [, r])[1])}${n === undefined ? '' : ` <b>${n}</b>`}</span>`; };
 const GROUPS = [['IN-REQ', '필수 칸'], ['IN-PDS', 'Process Data (PDS)'], ['IN-PMS', 'PMS'], ['IN-LL', 'Process Line List'], ['IN-ITM', 'Item 규칙 (사람 확인)']];
@@ -97,6 +97,7 @@ async function renderBoard() {
           <div class="icnt">${!k.tags ? '<span class="soft">자료 없음</span>' : !iss ? rp('OK') + '<span class="soft">지적 없음</span>' : `${k.mismatch ? rp('Mismatch', k.mismatch) : ''}${k.missing ? rp('Missing', k.missing) : ''}${k.review ? rp('Review Required', k.review) : ''}`}${k.tags && k.not_in_pds ? `<span class="ir ir-na"><i>–</i>PDS 없음 <b>${k.not_in_pds}</b></span>` : ''}</div>
           <div class="soft irev">${revs || '&nbsp;'}${k.test ? ' · <b class="tst">TEST</b>' : ''}</div>${VALVE_MENU[k.kind] ? `<div class="ivm">${valveLink(k.kind)}</div>` : ''}</div>`;
       }).join('')}</div></div>
+    <div id="iprog0"></div>
     <div class="grid2"><div class="card"><h3>Type 별 지적 수</h3><div class="ichart">${s.kinds.filter(k => k.tags).map(k => {
         const w = x => (100 * x / maxI).toFixed(1);
         return `<div class="icr" data-k="${k.kind}"><span class="il">${esc(k.kind.toUpperCase())}</span><span class="ib"><i class="m" style="width:${w(k.missing)}%"></i><i class="b" style="width:${w(k.mismatch)}%"></i><i class="r" style="width:${w(k.review)}%"></i></span><span class="iv">${k.missing + k.mismatch + k.review}</span></div>`;
@@ -107,6 +108,7 @@ async function renderBoard() {
         <tr><td>PMS</td><td>Pipe Class → PMS Class · Flange Rating</td></tr>
         <tr><td>Line List</td><td>Line No → Pipe Class · Design P/T · Size. <b>Line 의 Design 이 Datasheet 보다 높으면 지적</b> (Line No 칸이 없는 양식은 PDS 의 Line No)</td></tr>
         <tr><td>Item 규칙</td><td>같은 Datasheet 안의 값끼리만 (PT/PG Range ↔ 운전압력 · PSV Set ↔ Design) — 사람 확인 표시</td></tr></tbody></table></div></div>`;
+  progressCard('').then(h => { const x = $('#iprog0'); if (x) x.innerHTML = h; }).catch(() => {});
   el.onclick = e => {
     if (e.target.closest('.vlink')) return;
     const k = e.target.closest('[data-k]'); if (k) { location.href = pageUrl(k.dataset.k); return; }      // each item is its own page
@@ -222,21 +224,22 @@ function drawRight() {
   if (I.tab === 'find') {
     const isBad = f => ['Mismatch', 'Missing', 'Review Required'].includes(f.result);
     const DEC = { Confirmed: ['ok', '✓ 확인 — Vendor 에 지적'], Modified: ['rev', '✎ 문구 수정'], Dismissed: ['na', '✕ 무시'] };
+    const replyLine = f => { const y = f.reply; if (!y) return ''; return `<div class="irep ${y.status === 'Closed' ? 'cl' : ''}"><b>Vendor 회신</b>${y.date ? ` <span class="soft">${esc(y.date)}</span>` : ''} · <span class="ir ir-${y.status === 'Closed' ? 'ok' : 'rev'}">${y.status === 'Closed' ? '✓ Closed' : 'Open'}</span>${y.closed_by ? ` <span class="soft">${esc(y.closed_by)}</span>` : ''}${y.reply ? `<div>${esc(y.reply)}</div>` : ''}</div>`; };
     const decLine = f => { const x = f.decision; if (!x) return ''; const [c, l] = DEC[x.decision] || ['na', x.decision];
       return `<div class="idec"><span class="ir ir-${c}">${l}</span><span class="soft">${esc(x.by || '')} · ${esc((x.at || '').replace('T', ' ').slice(0, 16))}${x.origin ? ` · <b>${esc(x.origin)} 에서 이어받음</b>` : ''}${x.reason_cat || x.reason ? ` · ${esc([x.reason_cat, x.reason].filter(Boolean).join(': '))}` : ''}</span></div>`; };
     const acts = f => (isBad(f) || f.result === 'Dismissed') ? `<div class="iacts" data-fk="${esc(f.fkey || '')}">${f.result === 'Dismissed' ? '<button data-dec="Open">되돌리기</button>' : `<button data-dec="Confirmed" class="${f.decision?.decision === 'Confirmed' ? 'on' : ''}" title="Vendor 에 보낼 지적으로 확정 (C)">✓ 확인</button><button data-dec="Modified" title="지적 문구를 고쳐 씀 (E)">✎ 문구</button><button data-dec="Dismissed" title="지적이 아님 — 이유를 남김 (X)">✕ 무시</button>${f.decision ? '<button data-dec="Open" class="ghost" title="결정 지우기">↺</button>' : ''}`}</div>` : '';
     const card = ([f, i]) => `
         <div class="ifind ${I.selKey === f.key ? 'sel' : ''} r-${(RES[f.result] || ['na'])[0]}" data-key="${esc(f.key)}"><div><span class="no">${i + 1}</span>${rp(f.result)} <b>${esc(f.item)}</b><span class="sp"></span><small class="soft" title="${esc(d.rules[f.rule] || '')}">${esc(f.rule)}</small></div>
           ${isBad(f) ? `<div class="cmp"><span>Datasheet</span><b>${esc(f.ds || '—')}</b><span>기준</span><b>${esc(f.ref || '—')}</b></div>
-          <div class="why">${esc(f.reason)}${f.human ? ' · <b>사람 확인</b>' : ''}</div><div class="src">${esc(f.source || '')}</div>${decLine(f)}${acts(f)}` : f.result === 'Dismissed' ? `<div class="okline">${esc(f.ds || '—')} <span class="soft">/ ${esc(f.ref || '—')}</span></div>${decLine(f)}${acts(f)}` : `<div class="okline">${esc(f.ds || '—')} <span class="soft">= ${esc(f.ref || '—')}</span></div>`}</div>`;
+          <div class="why">${esc(f.reason)}${f.human ? ' · <b>사람 확인</b>' : ''}</div><div class="src">${esc(f.source || '')}</div>${decLine(f)}${replyLine(f)}${acts(f)}` : (f.result === 'Dismissed' || f.result === 'Closed') ? `<div class="okline">${esc(f.ds || '—')} <span class="soft">/ ${esc(f.ref || '—')}</span></div>${decLine(f)}${replyLine(f)}${acts(f)}` : `<div class="okline">${esc(f.ds || '—')} <span class="soft">= ${esc(f.ref || '—')}</span></div>`}</div>`;
     const n = { Mismatch: 0, Missing: 0, 'Review Required': 0 }; d.review.forEach(f => { if (isBad(f)) n[f.result]++; });
     const tot = n.Mismatch + n.Missing + n['Review Required'];
     const strip = `<div class="istrip ${tot ? '' : 'ok'}">${tot ? `<b>지적 ${tot}건</b>${n.Mismatch ? rp('Mismatch', n.Mismatch) : ''}${n.Missing ? rp('Missing', n.Missing) : ''}${n['Review Required'] ? rp('Review Required', n['Review Required']) : ''}` : '<b>✓ 지적 없음</b>'}<span class="sp"></span><label title="같다고 확인된 항목도 펼쳐 보기"><input type="checkbox" id="iok" ${I.showOk ? 'checked' : ''}> OK 항목 보기</label></div>`;
     const sec = GROUPS.map(([p, l]) => {
       const rs = d.review.map((f, i) => [f, i]).filter(([f]) => f.rule.startsWith(p));
       if (!rs.length) return '';
-      const bad = rs.filter(([f]) => isBad(f)), ok = rs.filter(([f]) => !isBad(f) && f.result !== 'Dismissed'), dis = rs.filter(([f]) => f.result === 'Dismissed');
-      return `<div class="igrp ${bad.length ? '' : 'allok'}"><h4>${l}${bad.length ? `<span class="ir ir-bad"><i>!</i>지적 <b>${bad.length}</b></span>` : '<span class="ir ir-ok"><i>✓</i>OK</span>'}<span class="soft cnt">${ok.length ? `같음 ${ok.length}` : ''}</span></h4>${bad.map(card).join('')}${I.showOk ? dis.map(card).join('') + ok.map(card).join('') : dis.length ? `<div class="soft dismissed">무시한 지적 ${dis.length} — 'OK 항목 보기' 로 펼침</div>` : ''}</div>`;
+      const bad = rs.filter(([f]) => isBad(f)), ok = rs.filter(([f]) => !isBad(f) && f.result !== 'Dismissed' && f.result !== 'Closed'), dis = rs.filter(([f]) => f.result === 'Dismissed' || f.result === 'Closed');
+      return `<div class="igrp ${bad.length ? '' : 'allok'}"><h4>${l}${bad.length ? `<span class="ir ir-bad"><i>!</i>지적 <b>${bad.length}</b></span>` : '<span class="ir ir-ok"><i>✓</i>OK</span>'}<span class="soft cnt">${ok.length ? `같음 ${ok.length}` : ''}</span></h4>${bad.map(card).join('')}${I.showOk ? dis.map(card).join('') + ok.map(card).join('') : dis.length ? `<div class="soft dismissed">무시 · 종결한 지적 ${dis.length} — 'OK 항목 보기' 로 펼침</div>` : ''}</div>`;
     }).join('');
     b.innerHTML = head + strip + (sec || '<div class="empty">검토할 기준 문서가 없습니다</div>');
     const ck = $('#iok'); if (ck) ck.onchange = () => { I.showOk = ck.checked; LS.set('inst.showok', I.showOk); drawRight(); };
@@ -319,6 +322,20 @@ async function renderLists() {
   };
 }
 
+/* ── review progress by week (received · decisions · codes · closed) + open comments now ──────────────── */
+async function progressCard(kind) {
+  const d = await api('GET', `/projects/${S.pid}/inst/progress?weeks=12${kind ? `&kind=${kind}` : ''}`);
+  const W = d.weeks, max = Math.max(1, ...W.map(w => Math.max(w.received, w.decisions, w.codes, w.closed)));
+  const S_ = [['received', '받은 Datasheet', '#8aa4d6'], ['decisions', '엔지니어 결정', '#2f5bd8'], ['codes', 'Review Code', '#7a52c7'], ['closed', '종결 (Vendor 회신)', '#1aa35a']];
+  const H = 110;                                           // HTML bars: labels keep their shape at any width
+  const bars = W.map(w => `<div class="pw" title="${w.week}"><div class="pb">${S_.map(([k, , c]) => `<i style="height:${Math.round(w[k] / max * H)}px;background:${c}" title="${w.week} · ${k} ${w[k]}"></i>`).join('')}</div><span>${w.week.slice(6)}</span></div>`).join('');
+  const codes = (d.codes || []).map(c => d.now.codes[c.code] ? `<span class="ir ir-na" title="${esc(c.label)}"><b>${esc(c.code)}</b> ${esc(c.label)} <b>${d.now.codes[c.code]}</b></span>` : '').join('');
+  return `<div class="card iprog"><h3>검토 진행 <small class="soft">— 최근 12주 · 주별</small></h3>
+    <div class="iprog-now"><span>남은 지적 <b>${d.now.open}</b></span><span>종결 <b>${d.now.closed}</b></span><span>무시 <b>${d.now.dismissed}</b></span><span>Review Code 미정 <b>${d.now.no_code}</b> / ${d.now.tags}</span>${codes}</div>
+    <div class="pchart"><em>${max}</em>${bars}</div>
+    <div class="ileg">${S_.map(([, l, c]) => `<i style="background:${c}"></i>${l}`).join(' ')}</div></div>`;
+}
+
 /* ── item page › Dashboard — this item only ───────────────────────────────────────────── */
 async function renderItemDash() {
   const el = $('#v-idash');
@@ -339,6 +356,7 @@ async function renderItemDash() {
       <div class="txt"><b>${k.tags === k.ok_tags ? '모든 Tag 에 지적이 없습니다' : `${k.tags - k.ok_tags}개 Tag 에 확인할 지적이 있습니다`}</b>
         <span>${rp('Mismatch', k.mismatch)}${rp('Missing', k.missing)}${rp('Review Required', k.review)}</span></div>
       <div class="prog"><i style="width:${Math.round(100 * k.ok_tags / k.tags)}%"></i></div><div class="pct">${Math.round(100 * k.ok_tags / k.tags)}%</div></div>
+    <div id="iprog"></div>
     <div class="kpis ikpis six">${tile('Tag', k.tags)}${tile('Datasheet', k.sheets)}${tile('지적 없음', k.ok_tags, 'okk')}${tile('값 다름', k.mismatch, k.mismatch ? 'warn' : '')}${tile('누락', k.missing, k.missing ? 'warn' : '')}${tile('PDS 없음', k.not_in_pds)}</div>
     <div class="card" style="padding:0;overflow:auto"><table class="t itbl"><thead><tr><th>Tag</th><th>Service</th><th>Rev</th><th>Area</th><th>Unit</th><th>Pipe Class</th><th>Line No</th><th>검토 결과</th><th>PDS</th><th>Status</th></tr></thead><tbody>
       ${rows.map(r => { const c = r.counts; return `<tr class="link" data-open="${r.id}"><td><b>${esc(r.tag)}</b>${r.test_data ? '<span class="tst">TEST</span>' : ''}</td><td>${esc(r.service || '')}</td><td>${esc(r.rev || '-')}</td><td>${esc(r.area || '')}</td><td>${esc(r.unit || '')}</td>
@@ -349,6 +367,7 @@ async function renderItemDash() {
     const g = e.target.closest('[data-g]'); if (g) { V.go(g.dataset.g); return; }
     const o = e.target.closest('[data-open]'); if (o) { I.sel = +o.dataset.open; V.go('ireview'); }
   };
+  progressCard(I.kind).then(h => { const x = $('#iprog'); if (x) x.innerHTML = h; }).catch(() => {});
 }
 
 /* ── Reports & Export ─────────────────────────────────────────────────────────────────── */
@@ -361,7 +380,12 @@ async function renderExport() {
       ${row('검토 결과 Excel', 'Tag 별 요약 + 지적 목록 (Rule · Datasheet 값 · 기준 값 · 이유 · 출처)', `/api/valve/projects/${S.pid}/inst/review.xlsx${q}`)}
       ${row('Instrument List 대조 Excel', 'Datasheet → Instrument Index: 누락 · 값 다름 · List 에만 + List 내용', `/api/valve/projects/${S.pid}/inst/listcmp.xlsx?list=instrument_index`)}
       ${row('IO List 대조 Excel', 'Datasheet → IO List: 누락 · 값 다름 · List 에만 + List 내용', `/api/valve/projects/${S.pid}/inst/listcmp.xlsx?list=io_list`)}</div>
+    <div class="card"><div class="iex"><div><b>Vendor 회신 CRS 올리기</b><div class="soft">위 CRS 에 Vendor Reply · Status(Open / Closed) 를 채워 돌려받은 파일 — 줄마다 지적에 붙고, Closed 는 남은 지적에서 빠집니다 (같은 Rev 에만)</div><div id="crsres" class="soft"></div></div><label class="btnlink">⇧ CRS 올리기<input type="file" id="crsup" accept=".xlsx" hidden></label></div></div>
     <div class="card"><div class="iex"><div><b>필수 칸 확인</b><div class="soft">양식 카드가 제안한 필수 칸을 이 프로젝트 기준으로 확정합니다 (누락 판정에 쓰임)</div></div><button data-req>열기</button></div></div>`;
+  $('#crsup').onchange = async e => { const f = e.target.files[0]; if (!f) return; const fd = new FormData(); fd.append('file', f);
+    try { const r = await api('POST', `/projects/${S.pid}/inst/crs`, fd); I.rows = null;
+      $('#crsres').innerHTML = `<b>${esc(f.name)}</b> — ${r.rows}줄 · 맞춘 ${r.matched} · 회신 ${r.replies} · Closed ${r.closed}${r.unmatched.length ? ` · <span style="color:var(--bad)">못 맞춘 ${r.unmatched.length}: ${esc(r.unmatched.slice(0, 5).join(', '))}</span>` : ''}`; toast('CRS 회신 반영'); }
+    catch (err) { toast(err.message, 1); } e.target.value = ''; };
   el.onclick = e => { if (e.target.closest('[data-req]')) { const kk = (I.kinds || []).find(x => x.kind === I.kind); if (MODE === 'item' && kk) LS.set('inst.reqform', kk.form_id); kinds().then(reqDialog); } };
 }
 

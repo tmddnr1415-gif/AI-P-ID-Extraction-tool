@@ -12,7 +12,7 @@ import re
 import time
 from pathlib import Path
 
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, File, Request, UploadFile
 from fastapi.responses import Response
 
 from app.valve import instlists, instreview, instrument, linelist, store
@@ -25,6 +25,8 @@ CREATE TABLE IF NOT EXISTS inst_sheet (id INTEGER PRIMARY KEY, project_id INTEGE
 CREATE INDEX IF NOT EXISTS inst_tag ON inst_sheet(project_id, tag_key);
 CREATE TABLE IF NOT EXISTS inst_decision (sheet_id INTEGER, fkey TEXT, decision TEXT, reason_cat TEXT, reason TEXT, text TEXT,
   by TEXT, at TEXT, PRIMARY KEY (sheet_id, fkey));
+CREATE TABLE IF NOT EXISTS inst_reply (sheet_id INTEGER, fkey TEXT, reply TEXT, reply_date TEXT, status TEXT, closed_by TEXT,
+  file TEXT, by TEXT, at TEXT, PRIMARY KEY (sheet_id, fkey));
 """
 # valve40 — engineer decisions on a finding (Bluebeam-style status per comment).  'Dismissed' takes the finding out of the
 # counts, the mark-up PDF and the CRS; 'Modified' replaces the comment wording; 'Confirmed' keeps it as a comment to the vendor.
@@ -170,7 +172,8 @@ def _ver(con, pid) -> tuple:
     b = store.one(con, "SELECT COUNT(*) n, MAX(id) m FROM inst_sheet WHERE project_id=?", pid)
     s = store.one(con, "SELECT value FROM project_setting WHERE project_id=? AND key='inst.required'", pid)
     dd = store.one(con, "SELECT COUNT(*) n, MAX(at) m FROM inst_decision WHERE sheet_id IN (SELECT id FROM inst_sheet WHERE project_id=?)", pid)
-    return (a["n"], a["m"], b["n"], b["m"], (s or {}).get("value"), dd["n"], dd["m"])
+    rr = store.one(con, "SELECT COUNT(*) n, MAX(at) m FROM inst_reply WHERE sheet_id IN (SELECT id FROM inst_sheet WHERE project_id=?)", pid)
+    return (a["n"], a["m"], b["n"], b["m"], (s or {}).get("value"), dd["n"], dd["m"], rr["n"], rr["m"])
 
 
 def _ck(pid):
@@ -241,6 +244,7 @@ def apply_decisions(con, r, rv):
     """Overlay the engineer's decisions; a tag's newer revision inherits the decisions of its older ones (same fkey),
     marked with the revision they came from.  Dismissed findings leave the counts."""
     own = {d["fkey"]: d for d in store.rows(con, "SELECT * FROM inst_decision WHERE sheet_id=?", r["id"])}
+    replies = {d["fkey"]: d for d in store.rows(con, "SELECT * FROM inst_reply WHERE sheet_id=?", r["id"])}   # this revision only
     older = store.rows(con, "SELECT id, rev FROM inst_sheet WHERE project_id=? AND tag_key=? AND id<>?", r["project_id"], r["tag_key"], r["id"])
     older = [o for o in older if store.rev_key(o["rev"]) < store.rev_key(r["rev"])]
     inherited = {}
@@ -252,6 +256,11 @@ def apply_decisions(con, r, rv):
             continue
         d = own.get(fkey(x)) or inherited.get(fkey(x))
         x["fkey"] = fkey(x)
+        rp_ = replies.get(x["fkey"])
+        if rp_:
+            x["reply"] = {"reply": rp_["reply"], "date": rp_["reply_date"], "status": rp_["status"], "closed_by": rp_["closed_by"], "file": rp_["file"], "at": rp_["at"]}
+            if rp_["status"] == "Closed" and not (d and d["decision"] == "Dismissed"):
+                x["result_tool"], x["result"] = x["result"], "Closed"
         if not d:
             continue
         x["decision"] = {"decision": d["decision"], "reason_cat": d["reason_cat"], "reason": d["reason"], "text": d["text"],
@@ -261,7 +270,7 @@ def apply_decisions(con, r, rv):
         if d["decision"] == "Dismissed":
             x["result_tool"], x["result"] = x["result"], "Dismissed"
     n = {k: sum(1 for x in rv["rows"] if x["result"] == k) for k in (instreview.MISMATCH, instreview.MISSING, instreview.REVIEW,
-                                                                    instreview.NOT_IN, instreview.BLANK, instreview.OK, "Dismissed")}
+                                                                    instreview.NOT_IN, instreview.BLANK, instreview.OK, "Dismissed", "Closed")}
     rv["counts"] = n
     rv["issues"] = n[instreview.MISMATCH] + n[instreview.MISSING] + n[instreview.REVIEW]
     n = rv["counts"]
@@ -500,6 +509,127 @@ async def codes_put(pid: int, request: Request):
     return _j({"ok": True, "codes": cs})
 
 
+_CLOSED = {"closed", "close", "accepted", "resolved", "agreed", "done", "종결", "완료"}
+
+
+def read_crs(data: bytes) -> list[dict]:
+    """Rows of a returned CRS (our own layout; the vendor may add rows above or reorder columns): Ref · Tag · Rule ·
+    Field · Vendor Reply · Reply Date · Status · Closed by — found by the header captions, not by position."""
+    import openpyxl
+    wb = openpyxl.load_workbook(io.BytesIO(data), data_only=True)
+    ws = wb["CRS"] if "CRS" in wb.sheetnames else wb.worksheets[0]
+    hdr, cols = None, {}
+    for i, row in enumerate(ws.iter_rows(min_row=1, max_row=15, values_only=True), 1):
+        caps = [str(v or "").strip().lower() for v in row]
+        if "vendor reply" in caps and ("tag" in caps or any(c.startswith("ref") for c in caps)):
+            hdr = i
+            for j, c in enumerate(caps):
+                key = {"tag": "tag", "rule": "rule", "field": "field", "vendor reply": "reply", "reply date": "date", "status": "status",
+                       "closed by": "closed_by"}.get(c) or ("ref" if c.startswith("ref") else None)
+                if key and key not in cols:
+                    cols[key] = j
+            break
+    if not hdr:
+        raise ValueError("CRS 머리글(Vendor Reply · Tag · Ref)을 찾지 못했습니다 — 이 도구에서 내려받은 CRS 를 고쳐 올려 주세요")
+    out = []
+    for row in ws.iter_rows(min_row=hdr + 1, values_only=True):
+        g = lambda k: ("" if cols.get(k) is None or cols[k] >= len(row) or row[cols[k]] is None else str(row[cols[k]]).strip())   # noqa: E731
+        if not any(g(k) for k in ("ref", "tag")):
+            continue
+        out.append({k: g(k) for k in ("ref", "tag", "rule", "field", "reply", "date", "status", "closed_by")})
+    return out
+
+
+@router.post("/api/valve/projects/{pid}/inst/crs")
+async def crs_import(pid: int, request: Request, file: UploadFile = File(...)):
+    """A returned CRS: vendor replies and Open / Closed per comment.  Matched by the Ref column (sheet id | finding key),
+    else by Tag + Rule + Field on the newest revision.  Replies belong to that revision (a new Rev starts open again)."""
+    from app.valve import api
+    by = api._user(request)
+    try:
+        rows = read_crs(await file.read())
+    except Exception as e:                                # noqa: BLE001
+        return Response(json.dumps({"error": str(e)}, ensure_ascii=False), status_code=400, media_type="application/json")
+    con = con_ready()
+    latest, _ = _latest(_sheet_rows(con, pid))
+    by_tag = {r["tag_key"]: r for r in latest.values()}
+    ids = {r["id"] for r in store.rows(con, "SELECT id FROM inst_sheet WHERE project_id=?", pid)}
+    n = {"rows": len(rows), "matched": 0, "replies": 0, "closed": 0, "unmatched": []}
+    for x in rows:
+        sid, fk = None, None
+        if "|" in x["ref"]:
+            a, b = x["ref"].split("|", 1)
+            if a.isdigit() and int(a) in ids:
+                sid, fk = int(a), b
+        if sid is None and x["tag"]:
+            r = by_tag.get(instrument.tag_key(x["tag"]))
+            if r:
+                _, rv = reviewed(con, pid, r)
+                hit = next((f for f in rv["rows"] if f.get("fkey") and f["rule"] == x["rule"] and f["item"] == x["field"]), None)
+                if hit:
+                    sid, fk = r["id"], hit["fkey"]
+        if sid is None:
+            n["unmatched"].append(f"{x['tag']} {x['rule']} {x['field']}".strip())
+            continue
+        st = "Closed" if x["status"].lower() in _CLOSED else "Open"
+        if not x["reply"] and st == "Open":
+            n["matched"] += 1
+            continue
+        con.execute("INSERT OR REPLACE INTO inst_reply(sheet_id, fkey, reply, reply_date, status, closed_by, file, by, at) VALUES (?,?,?,?,?,?,?,?,?)",
+                    (sid, fk, x["reply"], x["date"], st, x["closed_by"], file.filename, by, store.now()))
+        n["matched"] += 1
+        n["replies"] += 1 if x["reply"] else 0
+        n["closed"] += 1 if st == "Closed" else 0
+    store.audit(con, pid, None, "inst.crs", "inst-crs-import", None, file.filename, by, f"{n['replies']} replies · {n['closed']} closed")
+    con.commit()
+    invalidate(pid)
+    n["unmatched"] = n["unmatched"][:20]
+    return _j(n)
+
+
+@router.get("/api/valve/projects/{pid}/inst/progress")
+def progress(pid: int, kind: str = "", weeks: int = 12):
+    """Review progress by ISO week: datasheets received · engineer decisions · review codes set · comments closed,
+    plus today's open comments and code distribution (latest revision of each tag)."""
+    import datetime as dt
+    con = con_ready()
+    ksql, kargs = (" AND s.kind=?", [kind]) if kind else ("", [])
+    wk = lambda t: dt.date.fromisoformat(t[:10]).isocalendar()[:2] if t and len(t) >= 10 else None   # noqa: E731
+    today = dt.date.fromisoformat(store.now()[:10])
+    keys = []
+    for i in range(weeks - 1, -1, -1):
+        y, w, _ = (today - dt.timedelta(weeks=i)).isocalendar()
+        keys.append((y, w))
+    ser = {k: {"week": f"{k[0]}-W{k[1]:02d}", "received": 0, "decisions": 0, "codes": 0, "closed": 0} for k in keys}
+    for r in store.rows(con, f"SELECT s.created_at t FROM inst_sheet s WHERE s.project_id=?{ksql}", pid, *kargs):
+        if wk(r["t"]) in ser:
+            ser[wk(r["t"])]["received"] += 1
+    for r in store.rows(con, f"SELECT d.at t FROM inst_decision d JOIN inst_sheet s ON s.id=d.sheet_id WHERE s.project_id=?{ksql}", pid, *kargs):
+        if wk(r["t"]) in ser:
+            ser[wk(r["t"])]["decisions"] += 1
+    for r in store.rows(con, f"SELECT p.at t FROM inst_reply p JOIN inst_sheet s ON s.id=p.sheet_id WHERE p.status='Closed' AND s.project_id=?{ksql}", pid, *kargs):
+        if wk(r["t"]) in ser:
+            ser[wk(r["t"])]["closed"] += 1
+    codes_set = store.rows(con, "SELECT a.at t, a.field_key f FROM audit a WHERE a.project_id=? AND a.action='inst-code'", pid)
+    kind_of = {f"inst:{r['id']}": r["kind"] for r in store.rows(con, "SELECT id, kind FROM inst_sheet WHERE project_id=?", pid)}
+    for r in codes_set:
+        if (not kind or kind_of.get(r["f"]) == kind) and wk(r["t"]) in ser:
+            ser[wk(r["t"])]["codes"] += 1
+    latest, _ = _latest(_sheet_rows(con, pid, kind))
+    now = {"tags": len(latest), "open": 0, "closed": 0, "dismissed": 0, "codes": {}, "no_code": 0}
+    for r in latest.values():
+        _, rv = reviewed(con, pid, r)
+        now["open"] += rv["issues"]
+        now["closed"] += rv["counts"].get("Closed", 0)
+        now["dismissed"] += rv["counts"].get("Dismissed", 0)
+        c = r.get("review_code") or ""
+        if c:
+            now["codes"][c] = now["codes"].get(c, 0) + 1
+        else:
+            now["no_code"] += 1
+    return _j({"weeks": [ser[k] for k in keys], "now": now, "codes": codes_for(con, pid)})
+
+
 @router.get("/api/valve/projects/{pid}/inst/crs.xlsx")
 def crs_xlsx(pid: int, kind: str = ""):
     """Comment Resolution Sheet — what goes back to the vendor: one row per open (not dismissed) finding, the engineer's
@@ -510,12 +640,12 @@ def crs_xlsx(pid: int, kind: str = ""):
     codes = {c["code"]: c["label"] for c in codes_for(con, pid)}
     p = store.one(con, "SELECT name FROM project WHERE id=?", pid)
     head = ["No", "Doc. No.", "Rev", "Tag", "Item", "Form", "Page", "Field", "Comment (EN)", "Comment (KO)", "Datasheet value", "Reference value",
-            "Reference document", "Rule", "Result", "Engineer decision", "Comment by", "Date", "Review Code", "Vendor Reply", "Reply Date", "Status", "Closed by"]
+            "Reference document", "Rule", "Result", "Engineer decision", "Comment by", "Date", "Review Code", "Vendor Reply", "Reply Date", "Status", "Closed by", "Ref (do not edit)"]
     rows, summ, n = [], [], 0
     for r in sorted(latest.values(), key=lambda r: (ORDER.index(r["kind"]) if r["kind"] in ORDER else 99, r["tag_key"])):
         _, rv = reviewed(con, pid, r)
         code = r.get("review_code") or ""
-        open_ = [x for x in rv["rows"] if x["result"] in (instreview.MISMATCH, instreview.MISSING, instreview.REVIEW)]
+        open_ = [x for x in rv["rows"] if x["result"] in (instreview.MISMATCH, instreview.MISSING, instreview.REVIEW, "Closed")]
         summ.append([r["tag"], KIND_NAMES.get(r["kind"], r["kind"]), r["doc_no"], r["rev"], len(open_), code, codes.get(code, ""),
                      rv.get("suggested_code", ""), codes.get(rv.get("suggested_code", ""), ""), r["status"]])
         for x in open_:
@@ -525,7 +655,8 @@ def crs_xlsx(pid: int, kind: str = ""):
             rows.append([n, r["doc_no"], r["rev"], r["tag"], KIND_NAMES.get(r["kind"], r["kind"]), r["form_id"], x.get("page") or "", x["item"],
                          en, x["reason"], str(x["ds"] or ""), str(x["ref"] or ""), x.get("source") or "", x["rule"], x["result"],
                          (d.get("decision") or "Open") + (f" ({d['origin']})" if d.get("origin") else ""), d.get("by") or "", (d.get("at") or "")[:10],
-                         f"{code} {codes.get(code, '')}".strip(), "", "", "Open", ""])
+                         f"{code} {codes.get(code, '')}".strip(), (x.get("reply") or {}).get("reply", ""), (x.get("reply") or {}).get("date", ""),
+                         (x.get("reply") or {}).get("status", "Open") or "Open", (x.get("reply") or {}).get("closed_by", ""), f"{r['id']}|{x['fkey']}"])
     import io as _io
     import openpyxl
     from openpyxl.styles import Alignment, Font, PatternFill
@@ -545,10 +676,15 @@ def crs_xlsx(pid: int, kind: str = ""):
         for c in ws[col][3:]:
             c.alignment = wrap
     widths = {"A": 6, "B": 22, "C": 6, "D": 16, "E": 22, "F": 7, "G": 6, "H": 26, "I": 60, "J": 50, "K": 26, "L": 26, "M": 30, "N": 11,
-              "O": 15, "P": 18, "Q": 14, "R": 11, "S": 26, "T": 40, "U": 11, "V": 9, "W": 12}
+              "O": 15, "P": 18, "Q": 14, "R": 11, "S": 26, "T": 40, "U": 11, "V": 9, "W": 12, "X": 14}
     for col, w in widths.items():
         ws.column_dimensions[col].width = w
     ws.freeze_panes = "E4"
+    from openpyxl.worksheet.datavalidation import DataValidation
+    dv = DataValidation(type="list", formula1='"Open,Closed"', allow_blank=True)   # the vendor / engineer picks, does not type
+    ws.add_data_validation(dv)
+    if ws.max_row >= 4:
+        dv.add(f"V4:V{ws.max_row}")
     ws.auto_filter.ref = f"A3:{openpyxl.utils.get_column_letter(len(head))}{max(3, ws.max_row)}"
     ws2 = wb.create_sheet("Review Codes")
     ws2.append(["Tag", "Item", "Doc. No.", "Rev", "Open comments", "Code", "Code meaning", "Suggested", "Suggested meaning", "Review status"])

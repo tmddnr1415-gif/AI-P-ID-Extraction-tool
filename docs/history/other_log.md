@@ -311,4 +311,4 @@
 - Datasheet 마다 Review Code (프로젝트 설정, 남은 지적으로 제안 — 코드 뜻 글자로 맞춤) · CRS Excel (Vendor Reply · Close-out 빈 칸).
 - 새 규칙 IN-OPN-01 (HOLD/TBA/TBC/TBD) · IN-UNIT-01 (게이지/절대 섞임). 14종 시나리오 74/74 · 오탐 0 그대로.
 - 키보드 J/K · N/P · C/E/X · '/' 와 '지적만' 필터. 성능(1,450 DS): 현황판 0.53→0.03 s(재방문) · CRS 7→0.5 s · 검토 Excel 8.5→1.4 s.
-
+- (추가) 다음 라운드: `instcalc.py` Control Valve IEC 60534-2-1 (Rated/계산 Cv · 기체 Cv 재계산 · Choked/공동현상/Flashing · 소음) · PSV API 526/520/521 · CRS 회신 올리기(Ref 열로 맞춤, 없으면 Tag+Rule+Field) · 주별 검토 진행 그래프.

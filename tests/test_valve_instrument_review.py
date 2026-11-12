@@ -192,3 +192,102 @@ def test_engineer_decisions_codes_crs_and_open_items(tmp_path, monkeypatch):
     assert c.put("/api/valve/projects/1/inst/codes", json={"codes": [{"code": "A", "label": "Approved"}, {"code": "A", "label": "x"}]}, headers=H).status_code == 400
     assert c.put("/api/valve/projects/1/inst/codes", json={"codes": [{"code": "A", "label": "Approved"}, {"code": "B", "label": "Approved with comments"}]}, headers=H).status_code == 200
     assert [x["code"] for x in c.get("/api/valve/projects/1/inst/codes").json()["codes"]] == ["A", "B"]
+
+
+def _sheet_from(fid, rows_by_block, tmp_path, name):
+    import valve_make_test_ds as M
+    from app.valve import instrument
+    card = instrument.cards()[fid]
+    doc = M.synthetic(card)
+    for blk, rv in rows_by_block.items():
+        M.fill(doc, dict(card, items=[i for i in card["items"] if i["block"] == blk]), {"rows": rv, "title": {"doc_no": "TEST-" + fid, "rev": "A"}})
+    p = tmp_path / name
+    doc.save(p)
+    return instrument.read_pdf(str(p), name)["sheets"][0]
+
+
+def test_control_valve_sizing_checks(tmp_path):
+    """Form 101 read back from a PDF: rated Cv vs calculated, gas Cv recomputed per IEC 60534-2-1, choked flow, noise."""
+    from app.valve import instcalc, instreview, instrument
+    cv, x, choked = instcalc.gas_cv(10000, 10, 8, 313.15, 44, 1.3, 0.95, 0.7)
+    assert abs(cv - 68.35) < 0.1 and abs(x - 0.2) < 1e-9 and not choked
+    mk = lambda mx, nr, mn, u: {"Max": mx, "Nor": nr, "Min": mn, "Unit": u}   # noqa: E731
+    sh = _sheet_from("101", {
+        1: {"1": "71FV-0001", "46": "100"},
+        2: {"8": mk("Vapor", "Vapor", "Vapor", ""), "10": mk("10000", "8000", "800", "kg/h"), "11": mk("8.99", "8.99", "8.99", "barg"),
+            "12": mk("6.99", "6.99", "6.99", "barg"), "13": mk("40", "40", "40", "degC"), "15": mk("44", "44", "44", ""),
+            "17": mk("1.3", "1.3", "1.3", ""), "18": mk("0.95", "0.95", "0.95", ""), "24": mk("0.7", "0.7", "0.7", ""),
+            "26": mk("95", "55", "4", ""), "31": "92 dBA", "32": "85 dBA"}}, tmp_path, "cv.pdf")
+    assert sh["form_id"] == "101"
+    rows = instcalc.cv_checks(instrument.values(sh))
+    by = {}
+    for r in rows:
+        by.setdefault(r["rule"], []).append(r)
+    assert any(r["result"] == instreview.REVIEW and "90" not in r["reason"] and "여유" in r["reason"] for r in by["IN-CV-01"])   # 95 % of rated
+    assert any("Min Cv" in r["item"] for r in by["IN-CV-01"])                                                               # 4 % of rated
+    mx = next(r for r in by["IN-CV-02"] if "Max" in r["item"])
+    assert mx["result"] == instreview.REVIEW and "68." in mx["ref"]                                                          # 95 vs 68.3 recomputed
+    assert by["IN-CV-04"][0]["result"] == instreview.MISMATCH                                                               # 92 > 85 dBA
+    assert all(r["human"] for r in rows)
+
+
+def test_psv_api526_checks(tmp_path):
+    from app.valve import instcalc, instreview, instrument
+    sh = _sheet_from("701", {1: {"1": "71PSV-0001", "9": "Conventional", "26": "10 barg", "30": "25 %", "34": "2 barg",
+                                 "42": "1.5 in2", "43": "1.287 in2", "44": "1 1/2 J 2"}}, tmp_path, "psv.pdf")
+    assert sh["form_id"] == "701"
+    vals = instrument.values(sh)
+    rows = instcalc.psv_checks(vals, instreview.canonical(vals))
+    res = {r["rule"]: r["result"] for r in rows}
+    assert res == {"IN-PSV-01": instreview.OK, "IN-PSV-02": instreview.MISMATCH, "IN-PSV-03": instreview.REVIEW, "IN-PSV-04": instreview.REVIEW}
+    assert instcalc.API526["J"] == 1.287 and instcalc._area_in2({"value": "830 mm2"}) == 830 / 645.16
+
+
+def test_crs_round_trip_and_progress(tmp_path, monkeypatch):
+    """CRS out → vendor fills Reply / Status → CRS in: replies attach to the comments, Closed leaves the open count;
+    weekly progress counts decisions and closed comments."""
+    import io
+    import openpyxl
+    import valve_inst_scenario as SC
+    SC.main([str(tmp_path / "scen"), "--keep"])
+    monkeypatch.setenv("PID_DATA_DIR", str(tmp_path / "scen" / "data"))
+    from fastapi.testclient import TestClient
+    from app.main import app
+    c = TestClient(app)
+    H = {"X-Author": "engineer"}
+    bad = next(r for r in c.get("/api/valve/projects/1/inst/sheets?kind=ft").json()["rows"] if r["tag"].endswith("B"))
+    n0 = bad["issues"]
+    d = c.get(f"/api/valve/inst/sheets/{bad['id']}").json()
+    f0 = next(x for x in d["review"] if x["result"] == "Mismatch")
+    c.put(f"/api/valve/inst/sheets/{bad['id']}/decisions", json={"fkey": f0["fkey"], "decision": "Confirmed"}, headers=H)
+    wb = openpyxl.load_workbook(io.BytesIO(c.get("/api/valve/projects/1/inst/crs.xlsx?kind=ft").content))
+    ws = wb["CRS"]
+    hdr = [x.value for x in ws[3]]
+    col = {h: i + 1 for i, h in enumerate(hdr)}
+    mine = [r for r in range(4, ws.max_row + 1) if ws.cell(r, col["Tag"]).value == bad["tag"]]
+    assert len(mine) == n0 and all("|" in ws.cell(r, col["Ref (do not edit)"]).value for r in mine)
+    ws.cell(mine[0], col["Vendor Reply"], "Agreed. Corrected in Rev B.")
+    ws.cell(mine[0], col["Status"], "Closed")
+    ws.cell(mine[1], col["Vendor Reply"], "Disagree — see calc note.")
+    ws.cell(mine[1], col["Ref (do not edit)"], "")                      # vendor wiped the ref: matched by Tag + Rule + Field
+    ws.insert_rows(1)                                                   # and added a line on top
+    b = io.BytesIO()
+    wb.save(b)
+    r = c.post("/api/valve/projects/1/inst/crs", files={"file": ("crs_reply.xlsx", b.getvalue())}, headers=H).json()
+    assert r["matched"] >= 2 and r["replies"] == 2 and r["closed"] == 1 and not r["unmatched"]
+    nb = next(x for x in c.get("/api/valve/projects/1/inst/sheets?kind=ft").json()["rows"] if x["id"] == bad["id"])
+    assert nb["issues"] == n0 - 1 and nb["counts"]["Closed"] == 1
+    d = c.get(f"/api/valve/inst/sheets/{bad['id']}").json()
+    replies = [x["reply"] for x in d["review"] if x.get("reply")]
+    assert {y["status"] for y in replies} == {"Closed", "Open"} and any(y["reply"].startswith("Disagree") for y in replies)
+    # the next CRS shows the replies; the mark-up PDF leaves the closed one out
+    ws2 = openpyxl.load_workbook(io.BytesIO(c.get("/api/valve/projects/1/inst/crs.xlsx?kind=ft").content))["CRS"]
+    vals = [[x.value for x in row] for row in ws2.iter_rows(min_row=4)]
+    assert any("Agreed. Corrected in Rev B." in (v[col["Vendor Reply"] - 1] or "") and v[col["Status"] - 1] == "Closed" for v in vals)
+    # a file that is not a CRS
+    bad_file = io.BytesIO()
+    openpyxl.Workbook().save(bad_file)
+    assert c.post("/api/valve/projects/1/inst/crs", files={"file": ("x.xlsx", bad_file.getvalue())}).status_code == 400
+    pr = c.get("/api/valve/projects/1/inst/progress?kind=ft").json()
+    assert len(pr["weeks"]) == 12 and pr["weeks"][-1]["decisions"] >= 1 and pr["weeks"][-1]["closed"] == 1 and pr["weeks"][-1]["received"] == 2
+    assert pr["now"]["closed"] == 1 and pr["now"]["no_code"] == 2

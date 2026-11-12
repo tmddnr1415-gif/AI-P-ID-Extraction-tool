@@ -48,6 +48,14 @@ RULE_EN = {
     "IN-ITM-02": "Set pressure is above the design pressure.",
     "IN-OPN-01": "Open item (HOLD / TBA / TBC / TBD) is left on the datasheet. Please confirm the value.",
     "IN-UNIT-01": "Operating and design pressures use different gauge/absolute bases. Please check.",
+    "IN-CV-01": "Calculated Cv against rated Cv: insufficient capacity or margin, or low opening at minimum flow (IEC 60534).",
+    "IN-CV-02": "Cv recalculated from the process data per IEC 60534-2-1 differs from the datasheet value by more than 10 %.",
+    "IN-CV-03": "Choked flow / cavitation / flashing expected (IEC 60534-2-1). Please confirm trim selection.",
+    "IN-CV-04": "Predicted noise exceeds the allowable level. Please confirm noise treatment.",
+    "IN-PSV-01": "Selected area does not match the API 526 effective area of the orifice designation.",
+    "IN-PSV-02": "Required relief area exceeds the selected orifice area (API 526). Larger orifice required.",
+    "IN-PSV-03": "Back pressure exceeds 10 % of set pressure for a conventional valve (API 520). Consider balanced bellows or pilot type.",
+    "IN-PSV-04": "Allowable overpressure exceeds 21 % (API 521 fire case limit).",
 }
 REVIEW_EN = {"IN-PDS-01": "Cannot be compared automatically (unit or gauge/absolute basis unclear). Please verify.",
              "IN-PMS-01": "Pipe class could not be matched exactly in the PMS. Please confirm.",
@@ -55,7 +63,7 @@ REVIEW_EN = {"IN-PDS-01": "Cannot be compared automatically (unit or gauge/absol
              "IN-LL-01": "Pipe class differs only in its suffix from the Process Line List. Please confirm.",
              "IN-LL-02": "Design pressure cannot be compared (blank, unit unclear or absolute basis). Please verify.",
              "IN-LL-03": "Design temperature cannot be compared (blank or unit unclear). Please verify."}
-REF_EN = {"IN-REQ": "Required", "IN-PDS": "PDS", "IN-PMS": "PMS", "IN-LL": "Line List", "IN-ITM": "Same datasheet", "IN-OPN": "Expected", "IN-UNIT": "Expected"}
+REF_EN = {"IN-REQ": "Required", "IN-PDS": "PDS", "IN-PMS": "PMS", "IN-LL": "Line List", "IN-ITM": "Same datasheet", "IN-OPN": "Expected", "IN-UNIT": "Expected", "IN-CV": "Check", "IN-PSV": "Check"}
 WORD_EN_EXTRA = {"확정 값": "Firm value", "같은 기준": "Same basis"}
 WORD_EN = {"없음": "Not found", "필수": "Required", "같은 Datasheet": "Same datasheet", "행": " row", "양식": "Form", "카드": "card"}
 

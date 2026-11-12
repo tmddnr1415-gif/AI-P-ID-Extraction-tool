@@ -45,6 +45,14 @@ RULES = {
     "IN-ITM-02": "Set Pressure 가 Design Pressure 보다 높음 (사람 확인)",
     "IN-OPN-01": "HOLD · TBA · TBC · TBD 가 남아 있음 (미결 항목)",
     "IN-UNIT-01": "같은 Datasheet 안에서 게이지압 · 절대압이 섞여 있음 (사람 확인)",
+    "IN-CV-01": "Rated Cv 대비 계산 Cv (Max > Rated · 여유 10 % 미만 · Min < 10 %) — IEC 60534 (사람 확인)",
+    "IN-CV-02": "공정 값으로 다시 계산한 기체 Cv 가 Datasheet 계산 Cv 와 10 % 넘게 다름 — IEC 60534-2-1 (사람 확인)",
+    "IN-CV-03": "Choked flow · 공동현상 · Flashing — IEC 60534-2-1 (사람 확인)",
+    "IN-CV-04": "예상 소음이 허용치 초과 / 허용치 없이 85 dBA 초과 (사람 확인)",
+    "IN-PSV-01": "선택 면적이 API 526 Orifice 표준 면적과 다름 (사람 확인)",
+    "IN-PSV-02": "필요 면적이 선택 면적보다 큼 — API 526 (사람 확인)",
+    "IN-PSV-03": "Conventional PSV 의 배압이 Set 의 10 % 초과 — API 520 (사람 확인)",
+    "IN-PSV-04": "허용 초과압이 21 % 초과 — API 521 (사람 확인)",
 }
 _OPEN = re.compile(r"(?<![A-Z])(HOLD|TBA|TBC|TBD|T\.B\.A\.?|T\.B\.C\.?|T\.B\.D\.?)(?![A-Z])", re.I)
 _WORDS = {"equipment_no": ("equipment",), "vessel_no": ("vessel",), "line_size": ("size",), "fluid_state": ("phase",),
@@ -385,7 +393,13 @@ def line_check(C: dict, ll: dict | None, ref: dict | None) -> list[dict]:
 
 def item_rules(sheet: dict, C: dict) -> list[dict]:
     """Rules of one item kind — only where the datasheet itself gives both values; always marked for a human."""
+    from app.valve import instcalc
     out, kind = [], sheet["kind"]
+    vals = instrument.values(sheet)
+    if kind == "cv":
+        out += instcalc.cv_checks(vals)                    # IEC 60534-2-1 sizing cross-checks
+    if kind == "psv":
+        out += instcalc.psv_checks(vals, C)                # API 526 / 520 / 521
     if kind in ("pt", "pg", "dpg") and C.get("range") and C.get("op_pressure"):
         r, op = _press_bar(C["range"]), _press_bar(C["op_pressure"])
         if r[0] is not None and op[0] is not None and r[2] == op[2]:
