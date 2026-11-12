@@ -791,3 +791,8 @@ tr.link:hover td { background: #f5f8ff; }
 .ivh .ikt { font-size: 17px; } .ivh .ikt small { font-size: 12.5px; color: #4b5565; }
 @media (max-width: 1500px) { .ikpis { grid-template-columns: repeat(4, minmax(0, 1fr)); } .isum { grid-template-columns: auto 1fr 44px; } .isum .prog { display: none; } }
 .ikpis .kpi { display: flex; flex-direction: column; gap: 2px; } .ikpis .kpi .l { white-space: nowrap; }
+.ikpis.six { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+.itbl td, .itbl th { padding: 8px 10px; font-size: 12.5px; } .itbl tbody tr:nth-child(even) td { background: #fafbfd; } .itbl tbody tr.link:hover td { background: #eef3ff; }
+.itbl thead th { position: sticky; top: 0; background: #f3f5f9; }
+.iex { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 10px 2px; border-bottom: 1px solid #eef1f6; } .iex:last-child { border-bottom: 0; }
+.iex b { font-size: 13.5px; } .iex .soft { font-size: 12px; margin-top: 2px; }

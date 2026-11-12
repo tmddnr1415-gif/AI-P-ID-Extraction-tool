@@ -350,7 +350,7 @@ function xfDecorate(root = document) { $$('table.t:not([data-xfdata]):not([data-
 new MutationObserver(() => { cancelAnimationFrame(xfDecorate._r); xfDecorate._r = requestAnimationFrame(() => xfDecorate()); })
   .observe(document.body, { childList: true, subtree: true });
 
-const VIEWS = ['dash', 'docs', 'list', 'review', 'rev', 'proc', 'pms', 'rules', 'export', 'settings', 'inst', 'ireview', 'ilist'];   // valve40: + Instrument
+const VIEWS = ['dash', 'docs', 'list', 'review', 'rev', 'proc', 'pms', 'rules', 'export', 'settings', 'inst', 'ireview', 'ilist', 'idash', 'iexport'];   // valve40: + Instrument
 const STATUSES = ['Not Reviewed', 'Under Review', 'Accepted', 'Rejected', 'Commented', 'Resolved'];
 const NOT_PROCESS = new Set(['body_size', 'rating', 'body_material', 'ball_material', 'seat_material', 'seal_material', 'stem_material',
   'bolting_gasket', 'packing_material', 'packing_type', 'connections', 'line_size_inlet', 'line_size_outlet', 'piping_class', 'pipe_material']);
@@ -746,9 +746,11 @@ function mkSvg(m, hs) {
 /* ── navigation ────────────────────────────────────────────────────────── */
 function go(v, push = true) {
   if (!VIEWS.includes(v)) v = 'dash';
+  if (window.INST_VIEWS) { if (!window.INST_VIEWS.includes(v)) v = window.INST_VIEWS[0]; }          // an Instrument page shows only its own menu
+  else if (['inst', 'ireview', 'ilist', 'idash', 'iexport'].includes(v)) v = 'dash';              // the Valve page has no Instrument screens
   S.view = v;
   $$('#menu button').forEach(b => b.classList.toggle('on', b.dataset.v === v && !b.dataset.ik && !b.dataset.il));   // item / list buttons: instrument.js marks them
-  const cb = $('#crumb > b:last-child'); if (cb) cb.textContent = ['inst', 'ireview', 'ilist'].includes(v) ? 'Instrument' : KIND_NAME;   // valve40
+  const cb = $('#crumb > b:last-child'); if (cb) cb.textContent = window.INST_CRUMB || KIND_NAME;   // valve40
   $$('.view').forEach(s => s.classList.toggle('on', s.id === 'v-' + v));
   if (push && location.hash !== '#' + v) history.replaceState(null, '', location.pathname + location.search + '#' + v);
   LS.set('view', v);
@@ -2423,7 +2425,8 @@ function renderSettings() {
   $('#sreset').onclick = () => { ['wbw', 'wbpx', 'wbc', 'gorder', 'gw', 'zoom', 'mkbar', 'vpart', 'rcsync', 'wtab'].forEach(k => LS.set(k, null)); toast('처음대로 — 화면을 다시 엽니다'); setTimeout(() => location.reload(), 600); };
 }
 const RENDER = { dash: renderDash, docs: renderDocs, list: renderList, review: renderReview, rev: renderRev, proc: renderProc, pms: renderPms, rules: renderRules, export: renderExport, settings: renderSettings,
-  inst: () => window.INST?.render('inst'), ireview: () => window.INST?.render('ireview'), ilist: () => window.INST?.render('ilist') };   // valve40: instrument.js
+  inst: () => window.INST?.render('inst'), ireview: () => window.INST?.render('ireview'), ilist: () => window.INST?.render('ilist'),
+  idash: () => window.INST?.render('idash'), iexport: () => window.INST?.render('iexport') };   // valve40: instrument.js
 window.VALVE = { S, Q, LS, api, esc, pill, toast, modal, go, Viewer, $, $$, USER, INST_KINDS };   // valve40: what instrument.js uses
 for (const k of Object.keys(RENDER)) { const f = RENDER[k]; RENDER[k] = () => { if (!S.sum) return; Promise.resolve(f()).catch(e => { console.error(e); toast(e.message, 1); }); }; }
 
@@ -2652,8 +2655,7 @@ loadProjects().then(async () => {
     return;
   }
   const ik = (Q.get('kind') || '').toLowerCase();       // valve40: ?kind=ft … → Instrument; ball · globe · butterfly · psv · valve stay here (valve37)
-  if (ik === 'all' || INST_KINDS.has(ik) || (+Q.get('sheet') && !Q.get('ds'))) { go(ik === 'all' ? 'inst' : 'ireview', false); return; }
-  if (ik === 'instindex' || ik === 'iolist') { go('ilist', false); return; }       // valve40: Instrument List · IO List menus
+  if (window.INST_VIEWS) { go(+Q.get('sheet') ? 'ireview' : window.INST_VIEWS[0], false); return; }   // an Instrument page (instrument.js set its menu)
   go((location.hash.slice(1) || LS.get('view', 'dash')).split('?')[0], false);
 })
   .catch(e => { document.querySelector('#views').innerHTML = `<div class="empty" style="color:var(--bad)">${esc(e.message)}</div>`; });
