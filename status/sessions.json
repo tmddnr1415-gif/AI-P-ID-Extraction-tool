@@ -1,13 +1,13 @@
 {
  "_설명": "오케스트레이터가 list_sessions / get_session 으로 읽은 각 세션 상태. build_status.py 가 git 정보와 합쳐 SESSION_STATUS.html 을 만든다. 갱신할 때 이 파일을 새로 쓴다.",
- "read_at": "2026-11-12T05:46:00Z",
+ "read_at": "2026-11-12T06:07:00Z",
  "sessions": {
   "S1": {
    "id": "session_016Ntz71xxniTkCj7pC8ZpXL",
    "title": "1. DASHBOARD 코드 (NEW)",
    "bucket": "COMPLETED",
-   "updated": "2026-11-12T05:45:12Z",
-   "recent": "v17.39 06fc6cb3 — ▸ Instrument 폴더: 현황판 · Instrument List · IO List · Item 13개 (minRev 138)",
+   "updated": "2026-11-12T06:06:01Z",
+   "recent": "v17.40 5b47379a — CO2 PJT 현황판(VALVE 4종 · INSTRUMENT 13종 검토 현황 + PSR 요약) · Datasheet › ▸VALVE / ▸INSTRUMENT · Schedule 품목에 계기 블록. server.py 바뀜",
    "needs": ""
   },
   "S2": {
