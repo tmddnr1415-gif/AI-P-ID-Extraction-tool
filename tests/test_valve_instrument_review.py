@@ -291,3 +291,26 @@ def test_crs_round_trip_and_progress(tmp_path, monkeypatch):
     pr = c.get("/api/valve/projects/1/inst/progress?kind=ft").json()
     assert len(pr["weeks"]) == 12 and pr["weeks"][-1]["decisions"] >= 1 and pr["weeks"][-1]["closed"] == 1 and pr["weeks"][-1]["received"] == 2
     assert pr["now"]["closed"] == 1 and pr["now"]["no_code"] == 2
+
+
+def test_area_rule_from_tag_prefix():
+    """Area learned from the project's own documents: a prefix used on one area decides it; a prefix used on two sites is
+    split by the document / P&ID system number; no evidence → no area (with the reason)."""
+    from app.valve import arearule as A
+    ev = ([{"tag": "98BDV 980002", "doc_no": "98-51-IN-DTS-00002", "zone": "North"}] * 3
+          + [{"tag": "98XV 980010", "doc_no": "999-98-IN-DTS-00002", "zone": "South"}] * 2
+          + [{"tag": "315MOV 980004", "doc_no": "315-51-IN-DTS-00010", "zone": "W15"},
+             {"tag": "19XV 122", "doc_no": "999-19-IN-DTS-00061", "zone": "South Brownfield"},
+             {"doc_no": "03-02-PR-DTS-00002", "zone": "North"},
+             {"doc_no": "999-98-PR-DTS-00023", "zone": "North · South"}])          # a document naming two areas: no evidence
+    r = A.learn(ev)
+    assert r["prefix"]["98"] == {"North": 3, "South": 2} and r["prefix"]["315"] == {"W15": 1}
+    assert A.area_for(r, "315FT-0001")[0] == "W15" and A.area_for(r, "19PT-11")[0] == "South Brownfield"
+    assert A.area_for(r, "98PT-1001", doc_no="98-51-IN-DTS-00009")[0] == "North"
+    assert A.area_for(r, "98PT-1001", pid_no="999-98-PR-PID-00012")[0] == "South"
+    z, why = A.area_for(r, "98PT-1001")
+    assert z == "" and "가를 수 없음" in why
+    assert A.area_for(r, "03TT-1")[0] == "North"                                     # unit number leading the documents
+    assert A.area_for(r, "71PT-9100") == ("", "Tag 앞 '71' 의 Area 근거가 없음")
+    rows = {x["prefix"]: x for x in A.table(r)}
+    assert rows["98"]["by_system"] == {"98": "North", "999": "South"} and rows["315"]["area"] == "W15"

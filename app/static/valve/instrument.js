@@ -111,7 +111,10 @@ async function renderBoard() {
     rows.filter(r => (!q || (r.tag + ' ' + r.kind + ' ' + (r.service || '')).toUpperCase().includes(q)) && (!B.st || (B.st === 'issue' ? r.issues : B.st === 'done' ? (['Accepted', 'Resolved'].includes(r.status) || r.review_code) : B.st === 'pending' ? !(['Accepted', 'Resolved'].includes(r.status) || r.review_code) : true)))
       .forEach(r => { const a = r.area || 'Area 미상'; (areas[a] ||= []).push(r); });
     const order = ['North', 'South', 'North Brownfield', 'South Brownfield', 'W15'];
-    grid = Object.entries(areas).sort((a, b) => ((order.indexOf(a[0]) + 1 || 99) - (order.indexOf(b[0]) + 1 || 99))).map(([a, rs]) => {
+    const ar = await api('GET', `/projects/${S.pid}/inst/arearule`).catch(() => ({ rows: [], evidence: 0 }));
+    const ruleCard = `<div class="arule"><b>Tag 앞 번호 → Area 규칙</b> <span class="soft">프로젝트 Valve Datasheet · PDS 의 표제에서 찾음 (근거 ${ar.evidence}건) — 한 번호가 여러 Area 에 쓰이면 문서 / P&ID 번호 앞자리로 가름</span>
+      <div class="arr">${ar.rows.map(r => `<span class="${r.area ? '' : 'asplit'}" title="${esc(Object.entries(r.areas).map(([z, n]) => `${z} ${n}`).join(' · '))}"><b>${esc(r.prefix)}</b> → ${esc(r.rule)}</span>`).join('') || '<span class="soft">근거 없음 — Valve Datasheet · Process Data 를 올리면 찾습니다</span>'}</div></div>`;
+    grid = ruleCard + Object.entries(areas).sort((a, b) => ((order.indexOf(a[0]) + 1 || 99) - (order.indexOf(b[0]) + 1 || 99))).map(([a, rs]) => {
       const iss = rs.filter(r => r.issues).length, done = rs.filter(r => ['Accepted', 'Resolved'].includes(r.status) || r.review_code).length;
       const byk = {}; rs.forEach(r => { byk[r.kind] = (byk[r.kind] || 0) + 1; });
       return `<div class="bt ${iss ? 'has' : 'clean'} area"><div class="bth"><b>${esc(a)}</b><span>${rs.length} Tag</span></div>

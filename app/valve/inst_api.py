@@ -199,13 +199,45 @@ def context(con, pid) -> dict:
     pms, pms_ref = api._pms_for(con, pid)
     ll, ll_ref = _merged_linelist(con, pid)
     ctx = {"pds": pds, "pds_ref": pds_ref, "pms": pms, "pms_ref": pms_ref, "ll": ll, "ll_ref": ll_ref,
-           "lists": _lists(con, pid), "required": _required(con, pid)}
+           "lists": _lists(con, pid), "required": _required(con, pid), "arearule": area_rule(con, pid)}
     _CTX[_ck(pid)] = (v, ctx, {}, now)
     return ctx
 
 
 _LIGHT = ("s.id, s.project_id, s.document_id, s.form_id, s.kind, s.tag, s.tag_key, s.doc_no, s.rev, s.rev_date, s.pages, s.test_data,"
           " s.status, s.created_at, s.review_code")
+
+
+def area_rule(con, pid) -> dict:
+    """Area by the tag's leading number, learned from the project family's Valve datasheets and Process Data parts
+    (their areas come from the documents' own titles — the Valve first screen).  app/valve/arearule.py."""
+    from app.valve import api, arearule, docreg
+    me = store.one(con, "SELECT name FROM project WHERE id=?", pid)
+    if not me:
+        return {}
+    base = docreg.base_name(me["name"])
+    ev = []
+    for p in store.rows(con, "SELECT id, name FROM project"):
+        if docreg.base_name(p["name"]) != base:
+            continue
+        try:
+            cov = api._coverage(con, p["id"])
+        except Exception:                                  # noqa: BLE001 — no evidence from a project that cannot be read
+            continue
+        ev += [{"tag": t["tag"], "doc_no": t.get("doc_no", ""), "zone": t.get("zone", "")} for t in cov.get("tags", [])]
+        ev += [{"doc_no": x["doc_no"], "zone": x.get("zone", "")} for x in cov.get("ds_docs", [])]
+        for d in cov.get("pds_docs", []):
+            ev += [{"doc_no": x.get("doc_no", ""), "zone": x.get("zone", "")} for x in d.get("parts", [])]
+    return arearule.learn(ev)
+
+
+@router.get("/api/valve/projects/{pid}/inst/arearule")
+def arearule_get(pid: int):
+    """The learned 'tag prefix → area' rule, for the engineer to see (and judge) before trusting the By Area view."""
+    from app.valve import arearule
+    con = con_ready()
+    r = context(con, pid)["arearule"]
+    return _j({"rows": arearule.table(r), "systems": r.get("system", {}), "evidence": r.get("n", 0)})
 
 
 def _sheet_rows(con, pid, kind: str = ""):
@@ -307,8 +339,12 @@ def _brief(con, pid, r, hist) -> dict:
     C = rv["canonical"]
     from app.valve import location
     vals = instrument.values(sh)
-    loc = location.locate(doc_no=r["doc_no"] or "", pid_no=(vals.get("pid_no") or {}).get("value", ""), tag=r["tag"])   # same rule as the Valve tags
-    return {"area": location.zone(loc), "unit": loc.get("unit") or "", "loc_basis": loc.get("basis") or "",
+    from app.valve import arearule
+    pidno = (vals.get("pid_no") or {}).get("value", "")
+    loc = location.locate(doc_no=r["doc_no"] or "", pid_no=pidno, tag=r["tag"])
+    area, why = arearule.area_for(context(con, pid).get("arearule") or {}, r["tag"], r["doc_no"] or "", pidno)   # tag prefix rule
+    area = area or location.zone(loc)
+    return {"area": area, "unit": loc.get("unit") or "", "loc_basis": why or loc.get("basis") or "",
             "id": r["id"], "tag": r["tag"], "kind": r["kind"], "form_id": r["form_id"], "doc_no": r["doc_no"], "rev": r["rev"],
             "rev_date": r["rev_date"], "file": r.get("filename"), "document_id": r["document_id"], "pages": json.loads(r["pages"] or "[]"),
             "test_data": bool(r["test_data"]), "status": r["status"], "service": (instrument.values(sh).get("service") or {}).get("value", ""),
