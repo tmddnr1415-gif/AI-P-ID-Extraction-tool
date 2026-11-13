@@ -366,3 +366,10 @@
   `arearule.resolve`: Site = DTS No. → 표제(North=QN … 문서 번호로 배움) → Tag 규칙 · Brownfield 는 표에 그 Site 의 Brownfield 묶음이 있을 때만 · Train = 메모 첫 낱말.
   실자료: QN 74 · QN Brownfield N1 2 · N2 2 · QN Brownfield(Train 미상: 00·08) 3 · QS 76(표제 'South Brownfield' 7개는 QS + 사유) · W15 7. 판정 변화 0.
   Area 정렬: QN → QS → W15 (`exports.AREA_ORDER`). 시험 +1.
+
+- (추가 · 사용자 'PDF 를 넣으면 해당 도서의 Area 를 적게 · North 도서 → North 우선, Brownfield 규칙 Tag 는 North Brownfield, 아니면 Greenfield North ·
+  South 는 Brownfield 없음 · North 를 넣어도 South 로 읽는 문제') Document Management 에 '이 도서의 Area' (문서에서 읽기 / 규칙 표 DTS 줄의 이름 North · South · W15)
+  → `document.area` (새 칸) · 올린 뒤 표의 Area 칸에서 바꿈 (`PUT /documents/{id}/area`, 다시 올릴 필요 없음).
+  `arearule.resolve`: 올린 도서의 Area → DTS No. → 표제 → 규칙 표 줄. **학습한 추정(Loop 번호 앞 두 자리 98-◦-00/01… = South)은 Site 를 정하지 않음** — 이것이
+  North Tag 를 South 로 읽던 길. 라벨: Brownfield 묶음이 있는 Site 는 'QN Brownfield N1' / 'QN Greenfield', 없는 Site 는 'QS' · 'W15'.
+  기본 표 DTS 줄에 이름 ('DTS 98 | QN | | North'). 실자료: QN Greenfield 74 · QN Brownfield N1 2 · N2 2 · (Train 미상) 3 · QS 76 · W15 7. 시험 +1 · 전체 2,096.

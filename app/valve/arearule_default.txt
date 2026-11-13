@@ -1,7 +1,7 @@
 1. Site — DTS No. 앞 번호
-DTS 98 | QN
-DTS 999 | QS
-DTS 315 | W15
+DTS 98 | QN | | North
+DTS 999 | QS | | South
+DTS 315 | W15 | | W15
 QS: 98GTD- / 98SD- / 98HD- / 98MAC-
 W15: 315GE83xxxxC
 2. Brownfield QN (Area 컬럼: QG1 / QG2 / QG3&4 BROWNFIELD)

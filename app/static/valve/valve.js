@@ -1072,19 +1072,23 @@ function renderDocs() {
   const docs = S.sum.documents.filter(d => REFPAGE ? REF_KINDS.includes(d.kind) : !d.shared && mine.includes(d.kind));   // this page's own files
   el.innerHTML = `<div class="vh"><h2>${REFPAGE ? '공통 자료' : 'Document Management'}</h2><span class="soft">${REFPAGE ? 'PDS · PMS · Line List · Instrument Index · IO List — 여기 한 곳에서만 올리고, 모든 Valve 종류 · Instrument Type 검토가 같은 자료를 씁니다.' : '원본은 서버에 그대로 보관되고 절대 덮어쓰지 않습니다.'}</span></div>
     ${REFPAGE ? '' : refCard(S.sum.documents)}
+    ${mine.some(k => k === 'datasheet' || k === 'instrument') ? `<div class="darea"><b>이 도서의 Area</b> <select id="upArea" title="올리는 PDF 가 어느 Area 의 도서인지 — 정하면 그 Area 가 먼저 (DTS No. · 표제보다), 그 안에서 Tag 규칙으로 Brownfield / Greenfield">
+      <option value="">문서에서 읽기 (DTS No. · 표제)</option>${areaNames().map(a => `<option ${LS.get('upArea', '') === a ? 'selected' : ''}>${esc(a)}</option>`).join('')}</select>
+      <span class="soft">예: North 도서 → North 안에서 Brownfield 규칙 Tag 는 'Brownfield', 아니면 'Greenfield' · South · W15 는 Brownfield 없음. 올린 뒤에도 아래 표에서 바꿀 수 있습니다.</span></div>` : ''}
     <div class="drops">${Object.entries(KIND).filter(([k]) => mine.includes(k)).map(([k, [t, req, acc, multi]]) => `<label class="drop" data-k="${k}">
       <b>${t} <span class="${req === '필수' ? 'req' : 'opt'}">${req}</span></b><small>${acc.replace(/,/g, ' · ')}${multi ? ' · 여러 개' : ''}</small>
       <div class="soft" style="margin-top:6px">여기에 놓거나 <u>파일 선택</u></div><input type="file" hidden accept="${acc}" ${multi ? 'multiple' : ''}></label>`).join('')}</div>
     ${REFPAGE ? `<div class="banner info">새 Revision 을 올리면 가장 새 것으로 모든 검토가 다시 계산됩니다 (이전 것은 기록으로 남음 · 휴지통에서 되돌리기 가능). Line List · Instrument Index · IO List 는 여러 파일을 올리면 합쳐 씁니다.</div>` : mine.includes('datasheet') ? `<div class="banner info">Valve Datasheet 는 수십~수백 장을 한 번에 넣어도 됩니다 (개별 PDF · 병합 PDF 모두). Tag 번호로 나누고, 같은 Tag 의 새 Revision 은 이전 판과 따로 보관됩니다.
       Valve List 는 <b>.xlsx</b> 를 그대로 고칩니다 (.xls 는 회사 PC 의 Excel 로 자동 변환 · 안 되면 Excel 에서 .xlsx 로 저장해 넣으세요).</div>` : ''}
     <div id="jobs"></div>
-    <div class="card"><h3>Uploaded Documents (${docs.length})</h3><table class="t"><thead><tr><th>#</th><th>Kind</th><th>File</th><th>Pages</th><th>Result</th><th>Status</th><th>By</th><th>Uploaded</th><th></th></tr></thead><tbody>
-    ${docs.map(d => `<tr><td>${d.id}</td><td>${esc(KIND[d.kind]?.[0] || d.kind)}</td><td><b>${esc(d.filename)}</b></td><td>${d.pages || '-'}</td>
+    <div class="card"><h3>Uploaded Documents (${docs.length})</h3><table class="t"><thead><tr><th>#</th><th>Kind</th><th>File</th><th title="이 도서의 Area — 바꾸면 새로고침 때 모든 현황판에 반영">Area</th><th>Pages</th><th>Result</th><th>Status</th><th>By</th><th>Uploaded</th><th></th></tr></thead><tbody>
+    ${docs.map(d => `<tr><td>${d.id}</td><td>${esc(KIND[d.kind]?.[0] || d.kind)}</td><td><b>${esc(d.filename)}</b></td>
+      <td>${d.kind === 'datasheet' || d.kind === 'instrument' ? `<select class="dareasel" data-darea="${d.id}"><option value="">자동</option>${[...new Set([...areaNames(), d.area].filter(Boolean))].map(a => `<option ${d.area === a ? 'selected' : ''}>${esc(a)}</option>`).join('')}</select>` : ''}</td><td>${d.pages || '-'}</td>
       <td>${d.kind === 'datasheet' && d.info ? `${d.info.datasheets ?? '-'} datasheets${d.info.scanned_pages ? ` · <span style="color:var(--bad)">스캔 쪽 ${d.info.scanned_pages}</span>` : ''}` :
         d.kind === 'valvelist' && d.info?.sheets ? d.info.sheets.filter(s => s.kind === 'appendix').map(s => `${esc(s.sheet)} (${s.tags.length})`).join(' · ') : esc(d.info?.note || '')}</td>
       <td>${pill(d.status === 'done' ? 'ok' : d.status === 'error' ? 'bad' : 'UnderReview', d.status)}${d.error ? `<div style="color:var(--bad)">${esc(d.error)}</div>` : ''}${d.stored_ok === false ? `<div class="stbad" title="서버에 저장된 원본이 올린 파일과 달라 열리지 않습니다 — 같은 파일을 위 칸에 다시 올리면 저장본을 새로 씁니다 (Tag · 지적 · 검토 기록은 그대로)">⚠ 원본 손상 — 같은 파일 다시 올리기</div>` : ''}</td>
       <td>${esc(d.uploaded_by)}</td><td class="mono">${esc((d.uploaded_at || '').replace('T', ' ').slice(0, 16))}</td>
-      <td>${d.status === 'error' ? `<button data-retry="${d.id}">재처리</button>` : d.kind === 'datasheet' && d.status === 'done' ? `<button data-retry="${d.id}" title="개선된 읽기로 다시 읽습니다 — 검토자 수정 · 의견 · Mark-up · 상태는 그대로">다시 읽기</button>` : ''}${d.kind !== 'valvelist' ? ` <a href="/api/valve/documents/${d.id}/file" target="_blank">원본</a>` : ''}${d.status === 'queued' || d.status === 'running' ? '' : ` <button class="ghost ddel" data-del="${d.id}" title="이 문서를 프로젝트에서 지웁니다 — 휴지통에서 되돌릴 수 있음">🗑</button>`}</td></tr>`).join('') || '<tr><td colspan="9" class="empty">아직 없습니다</td></tr>'}
+      <td>${d.status === 'error' ? `<button data-retry="${d.id}">재처리</button>` : d.kind === 'datasheet' && d.status === 'done' ? `<button data-retry="${d.id}" title="개선된 읽기로 다시 읽습니다 — 검토자 수정 · 의견 · Mark-up · 상태는 그대로">다시 읽기</button>` : ''}${d.kind !== 'valvelist' ? ` <a href="/api/valve/documents/${d.id}/file" target="_blank">원본</a>` : ''}${d.status === 'queued' || d.status === 'running' ? '' : ` <button class="ghost ddel" data-del="${d.id}" title="이 문서를 프로젝트에서 지웁니다 — 휴지통에서 되돌릴 수 있음">🗑</button>`}</td></tr>`).join('') || '<tr><td colspan="10" class="empty">아직 없습니다</td></tr>'}
     </tbody></table></div><div id="trashc"></div>`;
   (S.jobEls || []).filter(b => b.isConnected || !b.dataset.gone).forEach(b => $('#jobs').append(b));
   jobsBar();
@@ -1096,7 +1100,12 @@ function renderDocs() {
     d.ondragleave = () => d.classList.remove('over');
     d.ondrop = e => { e.preventDefault(); d.classList.remove('over'); upload(d.dataset.k, [...e.dataTransfer.files]); };
   });
-  if (REFPAGE && window.INST?.refAreaCard) window.INST.refAreaCard(el);   // valve40: the Area rule table too
+  if (REFPAGE && window.INST?.refAreaCard) window.INST.refAreaCard(el);
+  $('#upArea') && ($('#upArea').onchange = e => LS.set('upArea', e.target.value));
+  $$('[data-darea]', el).forEach(sel => sel.onchange = async () => {        // valve40: the document's Area, no re-upload
+    try { await api('PUT', `/documents/${sel.dataset.darea}/area`, { area: sel.value }); toast(`Area = ${sel.value || '자동 (문서에서 읽기)'} — 새로고침하면 모든 현황판에 반영됩니다`); await refresh(); }
+    catch (e) { toast(e.message, 1); } });
+  if (!S.areaNames) loadAreaNames().then(() => { if ($('#v-docs')?.isConnected && $('#upArea, [data-darea]')) renderDocs(); });   // valve40: the Area rule table too
   $$('[data-retry]', el).forEach(b => b.onclick = async () => { try { watch(await api('POST', `/documents/${b.dataset.retry}/retry`)); } catch (e) { toast(e.message, 1); } });
   $$('[data-del]', el).forEach(b => b.onclick = () => deleteDoc(+b.dataset.del));
 }
@@ -1132,9 +1141,16 @@ async function drawTrash() {
     try { const r = await api('POST', `/projects/${S.pid}/trash/${encodeURIComponent(b.dataset.restore)}/restore`); toast(`되돌렸습니다 — ${r.filename}`); await refresh(); }
     catch (e) { toast(e.message, 1); } });
 }
+/* valve40 — the Area names a user can give a document: the sites of the Area rule table ('DTS 98 | QN | | North') */
+function areaNames() { return S.areaNames || []; }
+async function loadAreaNames() {
+  try { const ar = await api('GET', `/projects/${S.pid}/inst/arearule`); S.areaNames = [...new Set((ar.table || []).filter(x => x.doc).map(x => (x.note || x.site || '').split(/\s+/)[0]).filter(Boolean))]; }
+  catch (_) { S.areaNames = []; }
+}
 async function upload(kind, files) {
   if (!files.length) return;
   const fd = new FormData(); fd.append('kind', kind); files.forEach(f => fd.append('files', f));
+  if ((kind === 'datasheet' || kind === 'instrument') && $('#upArea')?.value) fd.append('area', $('#upArea').value);
   try { const j = await api('POST', `/projects/${S.pid}/upload`, fd); if (j.skipped?.length) toast(j.skipped.join(' / '), 1); watch(j); }
   catch (e) { toast(e.message, 1); }
 }

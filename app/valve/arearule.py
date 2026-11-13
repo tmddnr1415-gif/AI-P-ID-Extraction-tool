@@ -357,13 +357,16 @@ def site_map(rule: dict) -> dict:
     for r in (rule or {}).get("table", []):
         if r.get("doc"):
             m[r["site"]] = r["site"]
+            if r.get("note"):                                 # 'DTS 98 | QN | | North' — the site's name in words
+                m.setdefault(r["note"].split()[0], r["site"])
             z = _one((rule.get("system") or {}).get(r["doc"]))
             if z:
                 m.setdefault(z.split()[0], r["site"])
     return m
 
 
-def resolve(rule: dict, tag: str, doc_no: str = "", pid_no: str = "", doc_zone: str = "", index_sub: str = "") -> dict:
+def resolve(rule: dict, tag: str, doc_no: str = "", pid_no: str = "", doc_zone: str = "", index_sub: str = "",
+            doc_area: str = "") -> dict:
     """{label, site, brown, train, sub, unit, basis} — label 'QN' · 'QN Brownfield N1' · 'QS' · 'W15'; '' when the table has
     no DTS rows (then the older area words stay).  Site: the DTS No. → else the datasheet title → else the tag rule.
     Brownfield only in a site the table gives a 'Brownfield <site>' group; the train = the first word of that row's note."""
@@ -379,7 +382,13 @@ def resolve(rule: dict, tag: str, doc_no: str = "", pid_no: str = "", doc_zone: 
     why, site = [], ""
     sy = system(doc_no)
     d = next((r for r in docs if r["doc"] == sy), None)
-    if d:
+    if doc_area:                                              # valve40 (user 2026-11-13): the Area set when the PDF was uploaded
+        site = smap.get(doc_area, "") or smap.get(doc_area.split()[0], "") or (doc_area if doc_area in codes else "")
+        if site:
+            why.append(f"올린 도서의 Area = {doc_area}")
+    if site:
+        pass
+    elif d:
         site = d["site"]
         why.append(f"DTS No. '{sy}-…' = {site}")
     elif doc_zone and doc_zone != "Brownfield":
@@ -390,10 +399,8 @@ def resolve(rule: dict, tag: str, doc_no: str = "", pid_no: str = "", doc_zone: 
         site = next((x for x in row["subs"] if x in codes), "") or next((c for c in codes if re.search(rf"\b{re.escape(c)}\b", row["group"] or "")), "")
         if site:
             why.append(f"Tag 규칙 '{', '.join(row['patterns'])}' = {site}")
-    if not site and C["area"]:
-        site = smap.get(C["area"].split()[0], "") or next((c for c in codes if re.search(rf"\b{re.escape(c)}\b", C["area"])), "")
-        if site:
-            why.append(C["basis"])
+    # valve40: a site is never decided by a learned guess (the loop digits of other tags read a North tag as South) —
+    # only by the uploaded Area, the DTS No., the datasheet title or a row of the rule table
     brown_sites = {c for c in codes for r in rows if not r.get("doc") and "BROWNFIELD" in (r["group"] or "").upper()
                    and re.search(rf"\b{re.escape(c)}\b", r["group"])}
     says = ("BROWNFIELD" in (doc_zone or "").upper()) or bool(row and "BROWNFIELD" in (row["group"] or "").upper())
@@ -405,8 +412,15 @@ def resolve(rule: dict, tag: str, doc_no: str = "", pid_no: str = "", doc_zone: 
         why.append(f"Brownfield: Tag 규칙 '{', '.join(row['patterns'])}'" + (f" · {row['note']}" if row.get("note") else ""))
     elif brown:
         why.append(f"Brownfield: Datasheet 표제 = {doc_zone}")
+    elif site in brown_sites:
+        why.append("Brownfield 규칙 Tag 아님 → Greenfield")
     elif says and site and site not in brown_sites:
         why.append(f"{'표제' if 'BROWNFIELD' in (doc_zone or '').upper() else 'Tag 규칙'}는 Brownfield — {site} 에는 Brownfield 구분 없음 (규칙 표)")
-    label = site + ((" Brownfield" + (f" {train}" if train else "")) if brown else "")
+    if brown:
+        label = f"{site} Brownfield" + (f" {train}" if train else "")
+    elif site in brown_sites:                                 # a site that has Brownfield: the rest of it is Greenfield
+        label = f"{site} Greenfield"
+    else:
+        label = site
     return {"label": label, "site": site, "brown": brown, "train": train, "sub": "" if C["sub"] in codes else C["sub"], "unit": C["unit"],
             "basis": " · ".join(x for x in why if x), "note": C["note"]}

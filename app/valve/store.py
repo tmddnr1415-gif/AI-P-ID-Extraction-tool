@@ -132,6 +132,7 @@ def backup(keep: int = 7) -> Path | None:
 
 
 _ADDED = {"datasheet": [("sheets", "TEXT"), ("parser_version", "TEXT")],
+          "document": [("area", "TEXT")],                   # valve40: the Area the user gives the uploaded document
           "comment": [("page", "INTEGER"), ("bbox", "TEXT"), ("category", "TEXT DEFAULT 'comment'"),
                       ("deleted", "INTEGER DEFAULT 0"), ("kind", "TEXT"), ("points", "TEXT"), ("style", "TEXT"),
                       ("origin", "TEXT")],                   # valve26: 'Rev A' when copied from the previous revision
