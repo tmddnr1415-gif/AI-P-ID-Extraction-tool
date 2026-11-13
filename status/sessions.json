@@ -1,14 +1,14 @@
 {
  "_설명": "오케스트레이터가 list_sessions / get_session 으로 읽은 각 세션 상태. build_status.py 가 git 정보와 합쳐 SESSION_STATUS.html 을 만든다. 갱신할 때 이 파일을 새로 쓴다.",
- "read_at": "2026-11-13T07:11:00Z",
+ "read_at": "2026-11-13T07:12:00Z",
  "sessions": {
   "S1": {
    "id": "session_016Ntz71xxniTkCj7pC8ZpXL",
    "title": "1. DASHBOARD 코드 (NEW)",
    "bucket": "COMPLETED",
-   "updated": "2026-11-13T01:53:37Z",
-   "recent": "v17.47 e01a7b4e — 공통 자료 메뉴 · CO2 PJT 현황판 · 문서/Rev 현황 · Schedule 계기 블록",
-   "needs": "S6 Area 값 낱말 변경(North/South → QN/QS) 대시보드 영향 확인 요청 (11-13)"
+   "updated": "2026-11-13T07:11:39Z",
+   "recent": "v17.48 c7041153 — Schedule Valve · 계기 블록 Area 순서 QN · QN Brownfield N1 · N2 · QS · W15 (현황판은 변경 없음)",
+   "needs": ""
   },
   "S2": {
    "id": "session_01Muj82H8eDSPwWi9XQC7rFh",
