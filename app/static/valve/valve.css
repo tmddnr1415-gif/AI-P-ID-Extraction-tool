@@ -909,3 +909,13 @@ tr.link:hover td { background: #f5f8ff; }
 /* valve40 — damaged stored PDF: shown from the pictures drawn earlier */
 .vfb { position: sticky; top: 0; z-index: 5; margin: 0 auto 8px; max-width: 760px; padding: 6px 12px; border-radius: 8px;
   background: #fff7e0; color: #7a4b00; border: 1px solid #f0c36d; font-size: 12.5px; text-align: center; cursor: help }
+
+/* valve40 — Area rule table editor */
+.argrid { font-size: 12.5px; margin: 8px 0 }
+.argrid input { width: 100%; box-sizing: border-box; padding: 3px 6px; border: 1px solid var(--line, #d7dbe3); border-radius: 5px; font: inherit }
+.argrid td { padding: 3px 4px }
+#armode { margin: 4px 0 }
+#armode button.on { background: var(--acc, #2563eb); color: #fff }
+.argrid { table-layout: fixed; width: 100% }
+.argrid th:nth-child(1) { width: 17% } .argrid th:nth-child(2) { width: 17% } .argrid th:nth-child(3) { width: 24% }
+.argrid th:nth-child(4) { width: 7% } .argrid th:nth-child(6) { width: 44px }
