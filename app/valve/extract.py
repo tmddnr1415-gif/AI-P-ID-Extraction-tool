@@ -761,8 +761,8 @@ class StoredPdfError(PdfError):
         self.diag = diag or {}
 
 
-STORED_MSG = ("서버에 저장된 원본 PDF 를 열 수 없습니다 — Document Management 에서 같은 파일을 다시 올리면 저장본을 새로 씁니다"
-              " (Tag · 지적 · 검토 기록은 그대로)")
+STORED_MSG = ("서버에 저장된 원본 PDF 를 열 수 없습니다 — 읽은 값 · 지적 · 검토 기록은 그대로입니다 (다시 올릴 필요 없음)."
+              " 쪽 그림을 보려면 같은 파일을 Document Management 에 다시 올리면 저장본을 새로 씁니다")
 
 
 def open_stored(path: str, sha: str | None = None):

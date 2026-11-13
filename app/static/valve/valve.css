@@ -905,3 +905,7 @@ tr.link:hover td { background: #f5f8ff; }
 .alearn summary { cursor: pointer; color: var(--soft, #6b7280); font-size: 12px; margin-top: 6px }
 .bsub { display: flex; flex-wrap: wrap; gap: 4px 10px; font-size: 12px; margin: 2px 0 4px; color: var(--ink2, #374151) }
 .bsub b { color: var(--acc, #2563eb) }
+
+/* valve40 — damaged stored PDF: shown from the pictures drawn earlier */
+.vfb { position: sticky; top: 0; z-index: 5; margin: 0 auto 8px; max-width: 760px; padding: 6px 12px; border-radius: 8px;
+  background: #fff7e0; color: #7a4b00; border: 1px solid #f0c36d; font-size: 12.5px; text-align: center; cursor: help }
