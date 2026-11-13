@@ -263,6 +263,36 @@
     "S7": "865f9297"
    },
    "note": "S6 valve38 — 저장본 PDF 못 열면 안내 · 진단 · 다시 올리기 복구 · 저장본 .bin (회사 FileDataError)"
+  },
+  {
+   "file": "①",
+   "name": "1_DASHBOARD_update_v17.47_from_v17.21_2026-11-13.zip",
+   "made": "2026-11-13 11:10",
+   "path": "company-pc-update/2026-11-13/ (1.4MB · 저장소에 있음)",
+   "sha256": "077a0d0646eb7fd51fab2c92b7f53378ae6d07ca14c03d1d8f6fc3cd55fde663",
+   "applied": "",
+   "base": "v17.21 (13ab4109) — 회사 판",
+   "tips": {
+    "S1": "e01a7b4e"
+   }
+  },
+  {
+   "file": "②",
+   "name": "2_PID_dev+ops_hotfix138_2026-11-13.zip",
+   "made": "2026-11-13 11:05",
+   "path": "company-pc-update/2026-11-13/ (8.8MB · 저장소에 있음)",
+   "sha256": "fb61644344339c64d25148cb3ad0ef88eaf7fe501244ada134e5a6a497a9c456",
+   "applied": "",
+   "integration_head": "f8e102b7",
+   "tips": {
+    "S2": "6caae532",
+    "S3": "4e9cfd24",
+    "S4": "7b10d7cb",
+    "S5": "3d46af2c",
+    "S6": "49be281e",
+    "S7": "865f9297"
+   },
+   "note": "Instrument Datasheet 검토(valve40) · valve38 · 39 · pack_delta --full-history 고침"
   }
  ]
 }
