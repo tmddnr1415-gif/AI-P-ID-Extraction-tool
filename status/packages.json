@@ -412,6 +412,19 @@
    },
    "replaces": "6_DASHBOARD_update_v17.48_from_v17.47_2026-11-13.zip",
    "note": "v17.50 — Area 순서 QN Greenfield · 구매 현황 지연만 · RFQ 알람 없음 · 일정판 접힘 · PSR 업로드가 수기 덮어씀"
+  },
+  {
+   "file": "①",
+   "name": "9_DASHBOARD_update_v17.52_from_v17.47_2026-11-13.zip",
+   "made": "2026-11-13 20:05",
+   "path": "company-pc-update/2026-11-13/ (1.3MB · 저장소에 있음)",
+   "sha256": "6a12c18770adabaf0d9f7a7d2021ffe1e634a0c4814fbed86a58598e3ff12dc9",
+   "applied": "",
+   "tips": {
+    "S1": "3e764a5f"
+   },
+   "replaces": "8_DASHBOARD_update_v17.50_from_v17.47_2026-11-13.zip",
+   "note": "v17.52 — v17.50 + 구매 현황 보고 일정 연기 열 · 지연은 전망 기준"
   }
  ]
 }
