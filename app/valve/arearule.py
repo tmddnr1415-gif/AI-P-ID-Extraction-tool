@@ -64,7 +64,7 @@ def wild(tag: str) -> str:
 
 
 def same_sub(a: str, b: str) -> bool:
-    """'QG1' = 'QG1 BROWNFIELD' (one names the other's start) · 'QG1' ≠ 'QG2'."""
+    """'AG1' = 'AG1 BROWNFIELD' (one names the other's start) · 'AG1' ≠ 'AG2'."""
     x, y = _norm(a), _norm(b)
     return bool(x and y) and (x == y or x.startswith(y) or y.startswith(x))
 
