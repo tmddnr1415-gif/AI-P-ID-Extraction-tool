@@ -993,7 +993,7 @@ async function drawCov() {
       <div><h4>Process Data (PDS) <span class="soft">${C.pds_docs.length ? C.pds_docs.map(p => esc(p.filename)).join(' · ') : '없음'}</span></h4><div class="covwrap"><table class="t"><thead><tr><th>Doc. No.</th><th>Rev.</th><th>Rev 날짜</th><th>구역</th><th>Tag</th></tr></thead><tbody>
         ${C.pds_docs.map(p => (p.parts.length ? p.parts : [{ doc_no: p.doc_no || p.filename, rev: p.rev, date: p.date, zone: p.zone, tags: p.text_tags }]).map(r => `<tr><td class="mono">${esc(r.doc_no)}${r.page ? ` <small class="soft">p.${r.page}</small>` : ''}</td><td><b>${esc(r.rev || '—')}</b></td><td class="nw">${esc(r.date || '')}</td><td title="${esc(r.zone_note || '')}">${zoneChip(r.zone)}${r.zone_note ? '<sup class="soft">*</sup>' : ''}</td><td>${r.tags}</td></tr>`).join('')
           + (p.error ? `<tr><td colspan="5" style="color:var(--bad)">${esc(p.filename)}: ${esc(p.error)}</td></tr>` : '')).join('') || '<tr><td colspan="5" class="empty">올린 PDS 없음</td></tr>'}</tbody></table></div></div>
-    </div><div class="soft vsnote">구역 = 데이터시트 · PDS 표지 제목(QELNG NORTH / SOUTH / W15)과 'SYSTEM nn – UNIT nn'(기존 설비 = Brownfield)에서 읽음. Rev = 문서 자체의 Revision 표 · 같은 문서에 Rev 가 섞이면 (Tag 수). PDS 'Tag' = 그 PDS 쪽들에 적힌 Tag 수. * = PDS 표지에는 North/South 만 있어 같은 번호 Datasheet 의 Brownfield 를 따름.</div>` : ''}`;
+    </div><div class="soft vsnote">구역 = 데이터시트 · PDS 표지 제목(QELNG NORTH / SOUTH / W15)과 'SYSTEM nn – UNIT nn'(기존 설비 = Brownfield)에서 읽음 · 제목에 없으면 Area 규칙 표(${refLink('공통 자료에서 고치기')}). Rev = 문서 자체의 Revision 표 · 같은 문서에 Rev 가 섞이면 (Tag 수). PDS 'Tag' = 그 PDS 쪽들에 적힌 Tag 수. * = PDS 표지에는 North/South 만 있어 같은 번호 Datasheet 의 Brownfield 를 따름.</div>` : ''}`;
   const recs = L => { const V = new Map((S.vsum?.tags || []).map(t => [t.id, t])); return L.map(t => V.get(t.id) ? { ...V.get(t.id), area: t.zone || '(미기재)' } : { id: t.id, tag: t.tag, type: t.type, rev: t.rev, area: t.zone, unit: '', open: 0, major: 0, status: '' }); };
   box.onclick = e => {
     if (e.target.closest('#covtog')) { LS.set('cov_open', open ? 0 : 1); drawCov(); return; }
@@ -1096,6 +1096,7 @@ function renderDocs() {
     d.ondragleave = () => d.classList.remove('over');
     d.ondrop = e => { e.preventDefault(); d.classList.remove('over'); upload(d.dataset.k, [...e.dataTransfer.files]); };
   });
+  if (REFPAGE && window.INST?.refAreaCard) window.INST.refAreaCard(el);   // valve40: the Area rule table too
   $$('[data-retry]', el).forEach(b => b.onclick = async () => { try { watch(await api('POST', `/documents/${b.dataset.retry}/retry`)); } catch (e) { toast(e.message, 1); } });
   $$('[data-del]', el).forEach(b => b.onclick = () => deleteDoc(+b.dataset.del));
 }

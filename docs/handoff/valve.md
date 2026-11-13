@@ -12,7 +12,7 @@
 - **메뉴**: INSTRUMENT 목록은 대시보드에. `/valve?kind=<item>` = Valve 같은 전용 메뉴 11개(List · Rev 비교 · PDS · PMS · Line List · Lists …; `/inst/findings?group=` · `/inst/compare`) · `all` 현황판 · `instindex|iolist` List.
 - **valve37(440a3bb1) 들어옴**: ball·globe·butterfly·psv·valve → Valve 화면. PSV 는 Valve 가 맡음.
 - **공통 자료 `?kind=refdocs`** (11-13): PDS · PMS · Line List · Lists 는 여기서만 → 기준 프로젝트(`api.ref_pid`)에 1벌, 모든 검토가 씀. 페이지별 올리기는 `window.DOC_KINDS`.
-- **Area 규칙 표** (11-13): By Area '규칙 표 넣기' → family 설정 `inst.arearule.table` · 규칙 표 → Index AREA → 문서 학습(`arearule.classify`) · 행별 Index 대조 n/n. 채운 Index 아직 없음.
+- **Area 규칙 표** (11-13): 기본값 `app/valve/arearule_default.txt` · 공통 자료/By Area 에서 표 편집 → family 설정 `inst.arearule.table` · 규칙 표 → Index AREA → 문서 학습(`arearule.classify`) · 행별 Index 대조 n/n. 채운 Index 아직 없음.
 - **11-13 회사 서버 재시작 대응**: 손상 보관본은 MuPDF 에 안 넘김(`store.stored_good`) · `extract.PDF_LOCK` · warm-up 1개씩 · `VALVE_WARMUP=0` · `logs/crash_*.log` · Datasheet JSON(`dsjson.py`) · Valve 화면도 Area 규칙.
 - Line No 칸 없는 양식은 PDS 의 Line No 로 Line List. 필수 칸 = 카드 제안값 → 현황판 '필수 칸 확인'에서 사용자가 확정(프로젝트 설정 `inst.required`).
 - 시험: `spike/valve_inst_scenario.py <dir> [--forms /tmp/forms] [--keep]` — 14종 × (정상 Tag · 오류 심은 Tag) + 시험 PDS/PMS/Line List/Index/IO →

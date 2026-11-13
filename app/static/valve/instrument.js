@@ -126,7 +126,7 @@ async function renderBoard() {
         <td class="mono">${esc(x.patterns.join(', '))}</td><td>${esc(x.subs.map(s => x.sub_n?.[s] ? `${s} (${x.sub_n[s]})` : s).join(', '))}${x.subs.length > 1 ? ' <span class="asplit" title="한 접두어가 두 Area — Tag 별로 Instrument Index AREA 로 가름">Index 로 가름</span>' : ''}</td>
         <td>${esc(x.unit || '')}</td><td class="soft">${esc(x.note || '')}</td><td>${chk(x)}</td></tr>`).join('')).join('')}</tbody></table>`
       : '<div class="soft" style="margin:6px 0">아직 규칙 표가 없습니다 — <b>규칙 표 넣기</b>로 Brownfield · Greenfield 접두어 표를 붙여 넣으면 그 기준으로 다시 나눕니다.</div>';
-    const ruleCard = `<div class="arule"><div class="arh"><b>Area 규칙 (Tag 접두어)</b><span class="soft">규칙 표 → Instrument Index AREA → 문서에서 배운 규칙 순서로 정함 · Index ${ar.index_rows || 0}줄 · 문서 근거 ${ar.evidence}건</span><span class="sp"></span><button class="ghost2" data-act="arearule">✎ 규칙 표 ${groups.length ? '고치기' : '넣기'}</button></div>
+    const ruleCard = `<div class="arule"><div class="arh"><b>Area 규칙 (Tag 접두어)</b><span class="soft">규칙 표 → Instrument Index AREA → 문서에서 배운 규칙 순서로 정함 · Index ${ar.index_rows || 0}줄 · 문서 근거 ${ar.evidence}건</span><span class="sp"></span><span class="soft">${ar.source === 'default' ? '기본값' : '고친 표'}</span><button class="ghost2" data-act="arearule">✎ 규칙 표 고치기</button></div>
       ${tbl}
       <details class="alearn"><summary>문서에서 배운 규칙 (Valve Datasheet · PDS 표제 · Instrument Index AREA)</summary><div class="arr">${ar.rows.map(r => `<span class="${r.area ? '' : 'asplit'}" title="${esc(Object.entries(r.areas).map(([z, n]) => `${z} ${n}`).join(' · '))}${Object.keys(r.subs || {}).length ? ' · Index AREA: ' + esc(Object.entries(r.subs).map(([z, n]) => `${z} ${n}`).join(' · ')) : ''}"><b>${esc(r.prefix)}</b> → ${esc(r.rule || Object.keys(r.subs || {}).join(' · ') || '-')}</span>`).join('') || '<span class="soft">근거 없음 — Valve Datasheet · Process Data · Instrument Index 를 올리면 찾습니다</span>'}</div></details></div>`;
     grid = ruleCard + Object.entries(areas).sort((a, b) => ((order.indexOf(a[0]) + 1 || 99) - (order.indexOf(b[0]) + 1 || 99))).map(([a, rs]) => {
@@ -183,18 +183,72 @@ async function renderBoard() {
   };
 }
 
-/* valve40 — paste the project's Area rule table (kept once per project family; every tag is re-classified on save) */
-async function areaDialog() {
-  const r = await V.modal('Area 규칙 표 — Tag 접두어 → Area · Unit', `<div class="soft" style="margin-bottom:6px">Excel · 문서의 표를 그대로 붙여 넣으세요. 읽는 모양:
-    <br>· 묶음 줄 <span class="mono">2. Brownfield QN (…)</span> — 아래 줄들의 Area 묶음
-    <br>· 표 <span class="mono">Tag 접두어 | 건수 | Area 컬럼 | Unit | 메모</span> (탭 · | · 두 칸 띄움 모두) — 접두어 여러 개는 <span class="mono">1, 2</span>, 한 접두어가 두 Area 면 <span class="mono">X-TR1 (17), X-TR3 (7)</span>
-    <br>· 줄 <span class="mono">QS: 98GTD- / 98SD-</span> — Tag 앞부분이 이것이면 그 Area · <span class="mono">315GE83xxxxC</span> 의 x 는 아무 글자
-    <br>규칙 표가 가장 먼저, 그다음 Instrument Index 의 AREA 칸, 그다음 문서에서 배운 규칙으로 정합니다. 모든 Valve · Instrument 화면이 같은 표를 씁니다.</div>
-    <textarea name="text" rows="16" style="width:100%;font:12px/1.45 var(--mono, monospace)" placeholder="2. Brownfield …&#10;Tag 접두어	Area	Unit	메모">${esc(I.arText || '')}</textarea>`,
-    [['취소', null], ['저장하고 다시 나누기', 'form', 1]], 'arearule');
+/* valve40 — the project's Area rule table: a default ships with the program (user 2026-11-13); the engineer edits it row by
+   row (or pastes a whole table) — kept once per project family; on save every Valve and Instrument board re-labels its tags. */
+function arRowsToText(rows) {
+  const groups = [];
+  rows.forEach(r => { let g = groups.find(x => x.g === r.group); if (!g) groups.push(g = { g: r.group, rows: [] }); g.rows.push(r); });
+  groups.sort((a, b) => (a.g ? 1 : 0) - (b.g ? 1 : 0));                 // rows without a group first (a group line governs what follows)
+  let n = 0;
+  return groups.map(g => (g.g ? `${++n}. ${g.g}\n` : '') + g.rows.map(r => [r.patterns, r.subs, r.unit, r.note].map(x => (x || '').replace(/\|/g, '/')).join(' | ')).join('\n')).join('\n') + '\n';
+}
+function arGridRow(r = {}) {
+  return `<tr><td><input data-f="group" list="argrp" value="${esc(r.group || '')}" placeholder="예: Brownfield QN"></td>
+    <td><input data-f="patterns" class="mono" value="${esc(r.patterns || '')}" placeholder="52, 53 · 98GTD"></td>
+    <td><input data-f="subs" value="${esc(r.subs || '')}" placeholder="QG3&4 · A (17), B (7)"></td>
+    <td><input data-f="unit" class="mono" value="${esc(r.unit || '')}" style="width:52px"></td>
+    <td><input data-f="note" value="${esc(r.note || '')}"></td><td><button class="ghost" data-ardel title="이 줄 지우기">✕</button></td></tr>`;
+}
+async function areaDialog(after) {
+  const ar = await api('GET', `/projects/${S.pid}/inst/arearule`);
+  const rows = (ar.table || []).map(x => ({ group: x.group, patterns: x.patterns.join(', '), subs: x.subs.map(s => x.sub_n?.[s] ? `${s} (${x.sub_n[s]})` : s).join(', '), unit: x.unit, note: x.note }));
+  const grp = [...new Set(rows.map(r => r.group).filter(Boolean))];
+  const p = V.modal(`Area 규칙 표 — ${ar.source === 'default' ? '기본값 사용 중' : '이 프로젝트에서 고친 표'}`, `<div class="soft" style="margin-bottom:6px">
+      Tag 앞부분 → Area(묶음 · Sub) · Unit. <b>규칙 표 → Instrument Index AREA → 문서에서 배운 규칙</b> 순서로 정하고, 모든 Valve · Instrument 현황판이 같은 표를 씁니다.
+      접두어 여러 개는 <span class="mono">1, 2</span> · 문자까지는 <span class="mono">98GTD</span> · 한 접두어가 두 Area 면 <span class="mono">A (17), B (7)</span> (Tag 마다 Index AREA 로 가름).</div>
+    <div class="seg" id="armode"><button data-m="grid" class="on">표로 고치기</button><button data-m="text">글로 붙여넣기</button></div>
+    <div id="argrid"><table class="t argrid"><thead><tr><th>묶음 (Area)</th><th>Tag 접두어</th><th>Sub-area</th><th>Unit</th><th>메모</th><th></th></tr></thead>
+      <tbody>${rows.map(arGridRow).join('')}</tbody></table><datalist id="argrp">${grp.map(g => `<option value="${esc(g)}">`).join('')}</datalist>
+      <button class="ghost" id="aradd">＋ 줄 추가</button></div>
+    <div id="artext" hidden><textarea rows="16" style="width:100%;font:12px/1.45 var(--mono, monospace)">${esc(ar.text || '')}</textarea>
+      <div class="soft">묶음 줄 <span class="mono">2. Brownfield QN (…)</span> · 표 <span class="mono">Tag 접두어 | 건수 | Area | Unit | 메모</span> (탭 · | · 두 칸) · 줄 <span class="mono">QS: 98GTD- / 98SD-</span></div></div>`,
+    [['취소', null], ...(ar.source === 'project' ? [['기본값으로 되돌리기', 'reset']] : []), ['저장하고 다시 나누기', 'save', 1]], 'arearule');
+  const body = $('#mBody');
+  const mb = $('.mbox'); if (mb) { mb.style.width = 'min(1180px, 96vw)'; mb.style.maxWidth = '96vw'; }
+  let mode = 'grid';
+  body.onclick = e => {
+    const m = e.target.closest('#armode [data-m]');
+    if (m) {
+      if (m.dataset.m === 'text' && mode === 'grid') $('#artext textarea').value = arRowsToText(gridRows());
+      mode = m.dataset.m; $$('#armode button').forEach(b => b.classList.toggle('on', b === m));
+      $('#argrid').hidden = mode !== 'grid'; $('#artext').hidden = mode !== 'text'; return;
+    }
+    if (e.target.closest('#aradd')) { $('.argrid tbody').insertAdjacentHTML('beforeend', arGridRow({ group: grp[grp.length - 1] || '' })); return; }
+    const d = e.target.closest('[data-ardel]'); if (d) d.closest('tr').remove();
+  };
+  const gridRows = () => $$('.argrid tbody tr').map(tr => Object.fromEntries($$('[data-f]', tr).map(i => [i.dataset.f, i.value.trim()]))).filter(r => r.patterns);
+  const r = await p;
   if (!r) return;
-  try { await api('PUT', `/projects/${S.pid}/inst/arearule`, { text: r.text }); toast('규칙 표를 저장했습니다 — 모든 Tag 를 다시 나눴습니다'); I.allRows = null; renderBoard(); }
-  catch (e) { toast(e.message, 1); }
+  try {
+    if (r === 'reset') await api('PUT', `/projects/${S.pid}/inst/arearule`, { reset: true });
+    else await api('PUT', `/projects/${S.pid}/inst/arearule`, { text: mode === 'grid' ? arRowsToText(gridRows()) : $('#artext textarea').value });
+    toast(r === 'reset' ? '기본 규칙 표로 되돌렸습니다 — 모든 Tag 를 다시 나눴습니다' : '규칙 표를 저장했습니다 — 모든 Valve · Instrument 현황판의 Area 가 새로고침 때 바뀝니다');
+    I.allRows = null;
+    (after || renderBoard)();
+  } catch (e) { toast(e.message, 1); }
+}
+/* 공통 자료 page: the rule table is shared reference data too */
+async function refAreaCard(host) {
+  const ar = await api('GET', `/projects/${S.pid}/inst/arearule`).catch(() => null);
+  if (!ar || !host) return;
+  const box = document.createElement('div'); box.className = 'card arule'; box.style.marginTop = '12px';
+  box.innerHTML = `<div class="arh"><b>Area 규칙 표 (Tag 접두어 → Area · Unit)</b><span class="soft">${ar.source === 'default' ? '기본값 사용 중' : '이 프로젝트에서 고친 표'} · ${(ar.table || []).length}줄 · 모든 Valve · Instrument 현황판이 씀</span>
+    <span class="sp"></span><button class="ghost2" data-arx>✎ 고치기</button></div>
+    <table class="t atbl"><thead><tr><th>묶음</th><th>Tag 접두어</th><th>Area (Sub)</th><th>Unit</th><th>메모</th></tr></thead><tbody>
+    ${(ar.table || []).map(x => `<tr><td>${esc(x.group || '')}${x.area && x.area !== x.group ? ` <span class="soft">= ${esc(x.area)}</span>` : ''}</td><td class="mono">${esc(x.patterns.join(', '))}</td>
+      <td>${esc(x.subs.join(', '))}</td><td>${esc(x.unit || '')}</td><td class="soft">${esc(x.note || '')}</td></tr>`).join('') || '<tr><td colspan="5" class="empty">규칙 없음</td></tr>'}</tbody></table>`;
+  host.append(box);
+  $('[data-arx]', box).onclick = () => areaDialog(() => { box.remove(); refAreaCard(host); });
 }
 
 async function reqDialog() {
@@ -630,5 +684,5 @@ async function renderReg() {
 buildMenu();
 const RUN = { ireg: renderReg, inst: renderBoard, ireview: renderReview, ilist: renderLists, idash: renderItemDash, iexport: renderExport, itags: renderTags, irev: renderRev,
   iproc: () => renderCheck('iproc'), ipms: () => renderCheck('ipms'), iline: () => renderCheck('iline'), ilists: renderItemLists, isettings: renderSettings };
-window.INST = { render(v) { paintBrand(); (RUN[v] || renderBoard)().catch(e => { console.error(e); toast(e.message, 1); }); } };
+window.INST = { refAreaCard, render(v) { paintBrand(); (RUN[v] || renderBoard)().catch(e => { console.error(e); toast(e.message, 1); }); } };
 })();

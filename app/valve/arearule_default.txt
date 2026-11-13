@@ -1,0 +1,16 @@
+QS: 98GTD- / 98SD- / 98HD- / 98MAC-
+W15: 315GE83xxxxC
+2. Brownfield QN (Area 컬럼: QG1 / QG2 / QG3&4 BROWNFIELD)
+Tag 접두어 | 건수 | Area 컬럼 | Unit | Exhibit 6 대응
+1, 2 | 20 / 20 | QG1 | 09 | N1 SRU Train 1, 2
+24, 25 | 26 / 26 | QG2 | 09 | N2 Train 4, 5
+20 | 10 | QG2 | 33 | N2 Unit-33 Degasser
+52 | 52 | QG3&4 | 09 | N3 Train 6
+53 | 52 | QG3&4 | 09 | N4 Train 7
+50 | 10 | QG3&4 | 33 | N3/4 Unit-33 Degasser
+3. Brownfield QS
+Tag 접두어 | 건수 | Area 컬럼 | Unit | Exhibit 6 / DEC 대응
+19 | 44 | QGS-TR1 | 19 | S1 Train 1 SRU
+29 | 44 | QGS-TR2 | 29 | S1 Train 2 SRU
+39 | 43 | QGS-TR3 | 39 | S2 Train 3 SRU
+84 | 24 | QGS-TR1 (17), QGS-TR3 (7) | 84 | Unit-84 Flare (S1 / S2)

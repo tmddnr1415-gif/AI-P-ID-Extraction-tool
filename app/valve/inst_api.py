@@ -260,7 +260,8 @@ def area_rule_cached(con, pid) -> dict:
     q = ",".join("?" * len(fam))
     v = (tuple(store.one(con, f"SELECT COUNT(*) n, MAX(id) m FROM document WHERE project_id IN ({q}) AND status='done'", *fam).values())
          + tuple(store.one(con, f"SELECT COUNT(*) n, MAX(id) m FROM datasheet WHERE project_id IN ({q})", *fam).values())
-         + ((store.one(con, "SELECT at FROM project_setting WHERE project_id=? AND key='inst.arearule.table'", fam[0]) or {}).get("at"),))
+         + ((store.one(con, "SELECT at FROM project_setting WHERE project_id=? AND key='inst.arearule.table'", fam[0]) or {}).get("at"),
+            AREA_DEFAULT.stat().st_mtime_ns if AREA_DEFAULT.exists() else 0))
     k = (str(store.root()), fam[0])
     hit = _AR.get(k)
     if hit and hit[0] == v:
@@ -276,11 +277,27 @@ def area_rule_cached(con, pid) -> dict:
     return r
 
 
-def area_table_text(con, pid) -> str:
-    """The engineer's area rule table (pasted on the By Area screen) — kept once per project family, like 공통 자료."""
+AREA_DEFAULT = Path(__file__).with_name("arearule_default.txt")
+
+
+def area_default_text() -> str:
+    """valve40 (user 2026-11-13: '규칙 표를 기본값으로 미리 넣어둬라'): the Brownfield / Greenfield tag table the user gave —
+    used by every project until someone edits it (then the project's own copy; '기본값으로 되돌리기' removes that copy)."""
+    try:
+        return AREA_DEFAULT.read_text(encoding="utf-8")
+    except OSError:
+        return ""
+
+
+def area_table(con, pid) -> tuple[str, str]:
+    """(text, 'project' | 'default') — the family's own table when one was saved (even empty), else the default."""
     from app.valve import api
     r = store.one(con, "SELECT value FROM project_setting WHERE project_id=? AND key='inst.arearule.table'", api.ref_pid(con, pid))
-    return (r or {}).get("value") or ""
+    return ((r.get("value") or ""), "project") if r else (area_default_text(), "default")
+
+
+def area_table_text(con, pid) -> str:
+    return area_table(con, pid)[0]
 
 
 @router.get("/api/valve/projects/{pid}/inst/arearule")
@@ -289,8 +306,9 @@ def arearule_get(pid: int):
     from app.valve import arearule
     con = con_ready()
     r = context(con, pid)["arearule"]
+    text, src = area_table(con, pid)
     return _j({"rows": arearule.table(r), "systems": r.get("system", {}), "evidence": r.get("n", 0), "index_rows": r.get("n_index", 0),
-               "table": arearule.check_table(r), "text": area_table_text(con, pid)})
+               "table": arearule.check_table(r), "text": text, "source": src, "default_text": area_default_text()})
 
 
 @router.put("/api/valve/projects/{pid}/inst/arearule")
@@ -298,6 +316,14 @@ async def arearule_put(pid: int, request: Request):
     """Save the engineer's rule table (pasted text).  Every tag is re-classified on the next read."""
     from app.valve import api, arearule
     body = await request.json()
+    if body.get("reset"):                                    # back to the default table (the project's copy removed)
+        con = con_ready()
+        rp = api.ref_pid(con, pid)
+        con.execute("DELETE FROM project_setting WHERE project_id=? AND key='inst.arearule.table'", (rp,))
+        store.audit(con, rp, None, "inst.arearule.table", "inst-arearule", None, "default", api._user(request), "")
+        con.commit()
+        invalidate_family()
+        return arearule_get(pid)
     text = str(body.get("text") or "")
     rows = arearule.parse_table(text)
     if text.strip() and not rows:

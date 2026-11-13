@@ -314,7 +314,8 @@ def test_area_rule_from_tag_prefix():
     assert A.area_for(r, "98PT-1001", pid_no="999-98-PR-PID-00012")[0] == "South"
     z, why = A.area_for(r, "98PT-1001")
     assert z == "" and "가를 수 없음" in why
-    assert A.area_for(r, "03TT-1")[0] == "North"                                     # unit number leading the documents
+    z, why = A.area_for(r, "03TT-1")                                                 # unit number leading the documents:
+    assert z == "" and "Site North" in why and A.classify(r, "03TT-1")["site"] == "North"   # a site-only title is not 'Greenfield North'
     assert A.area_for(r, "71PT-9100") == ("", "Tag 앞 '71' 의 Area 근거가 없음")
     rows = {x["prefix"]: x for x in A.table(r)}
     assert rows["98"]["by_system"] == {"98": "North", "999": "South"} and rows["315"]["area"] == "W15"
@@ -410,6 +411,22 @@ Tag 접두어\t건수\tArea 컬럼\tUnit\tExhibit 6 대응
     cl = TestClient(app)
     base = cl.post("/api/valve/projects", json={"name": "TEST AREA"}).json()["id"]
     globe = cl.post("/api/valve/projects", json={"name": "TEST AREA · Globe Valve"}).json()["id"]
+    d0 = cl.get(f"/api/valve/projects/{globe}/inst/arearule").json()          # valve40: the default table until edited
+    assert d0["source"] == "default" and len(d0["table"]) >= 10 and d0["text"] == d0["default_text"]
     assert cl.put(f"/api/valve/projects/{globe}/inst/arearule", json={"text": "nothing here"}).status_code == 400
     j = cl.put(f"/api/valve/projects/{globe}/inst/arearule", json={"text": text}).json()
     assert len(j["table"]) == 6 and cl.get(f"/api/valve/projects/{base}/inst/arearule").json()["text"] == text
+    assert j["source"] == "project"
+    r = cl.put(f"/api/valve/projects/{base}/inst/arearule", json={"reset": True}).json()          # back to the default
+    assert r["source"] == "default" and r["text"] == d0["default_text"]
+
+
+def test_default_area_rule_table_applies_without_editing():
+    """valve40 (user 2026-11-13: '규칙 표를 기본값으로 미리 넣어둬라'): the shipped table is read and used as is — a tag
+    with prefix 52 takes that row's Brownfield group, sub-area and Unit (not the tag's own number)."""
+    from app.valve import arearule as A, inst_api
+    rows = A.parse_table(inst_api.area_default_text())
+    row52 = next(r for r in rows if "52" in r["patterns"])
+    c = A.classify(A.learn([], rows), "52SDV-090001")
+    assert (c["area"], c["sub"], c["unit"]) == (row52["group"], row52["sub"], row52["unit"]) and "Brownfield" in c["area"]
+    assert c["unit"] != "52" and all(r["patterns"] for r in rows)

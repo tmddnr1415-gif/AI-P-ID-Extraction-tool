@@ -676,7 +676,7 @@ def test_valve_area_from_the_family_area_rule(tmp_path, monkeypatch):
     text = "2. Brownfield XN\nTag 접두어 | Area 컬럼 | Unit | 메모\n0 | AG0 | 09 | Train 0\n"
     assert c.put(f"/api/valve/projects/{pid}/inst/arearule", json={"text": text}).status_code == 200
     t = c.get(f"/api/valve/projects/{pid}/valve-summary").json()["tags"][0]
-    assert (t["area"], t["sub_area"], t["unit"]) == ("Brownfield XN", "AG0", "00") and "규칙 표" in t["area_basis"]
+    assert (t["area"], t["sub_area"], t["unit"]) == ("Brownfield XN", "AG0", "09") and "규칙 표" in t["area_basis"]   # table Unit, not the tag's '00'
     s = c.get(f"/api/valve/projects/{pid}/summary").json()
     assert [a["area"] for a in s["by_area"]] == ["Brownfield XN"]
     rows = c.get(f"/api/valve/projects/{pid}/issues").json()["issues"]
