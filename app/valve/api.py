@@ -1604,17 +1604,16 @@ def _area_fn(con, pid):
         area, site = out.get("area") or "", out.get("site") or ""
         if not area and A["area"]:
             out["area"], out["area_basis"] = A["area"], A["basis"]
-        elif area == "Brownfield" and not site and A["area"]:
-            s = "North" if "NORTH" in A["area"].upper() else "South" if "SOUTH" in A["area"].upper() else ""
-            if s:
-                out["site"], out["area_basis"] = s, A["basis"]
+        elif area == "Brownfield" and not site and A["site"]:
+            out["area_basis"] = A["basis"]
         else:
-            out["area_basis"] = "문서 표제" if area else ""
+            out["area_basis"] = "문서 표제" if area else A["basis"]
+        if not site and A["site"]:                       # valve40: the site the rule (or the document number) says
+            out["site"] = A["site"]
         if A["sub"]:
             out["sub_area"] = A["sub"]
-            out.setdefault("area_basis", A["basis"])
-        if not out.get("unit") and A["unit"]:
-            out["unit"] = A["unit"]
+        if A["unit"] and (not out.get("unit") or out.get("unit") == arearule.prefix(tag_key or "")):
+            out["unit"] = A["unit"]                      # the rule table's Unit, not the tag's leading number
         return out
     return fill
 

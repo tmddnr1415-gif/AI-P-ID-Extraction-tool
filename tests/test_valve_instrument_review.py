@@ -314,7 +314,8 @@ def test_area_rule_from_tag_prefix():
     assert A.area_for(r, "98PT-1001", pid_no="999-98-PR-PID-00012")[0] == "South"
     z, why = A.area_for(r, "98PT-1001")
     assert z == "" and "가를 수 없음" in why
-    assert A.area_for(r, "03TT-1")[0] == "North"                                     # unit number leading the documents
+    z, why = A.area_for(r, "03TT-1")                                                 # unit number leading the documents:
+    assert z == "" and "Site North" in why and A.classify(r, "03TT-1")["site"] == "North"   # a site-only title is not 'Greenfield North'
     assert A.area_for(r, "71PT-9100") == ("", "Tag 앞 '71' 의 Area 근거가 없음")
     rows = {x["prefix"]: x for x in A.table(r)}
     assert rows["98"]["by_system"] == {"98": "North", "999": "South"} and rows["315"]["area"] == "W15"

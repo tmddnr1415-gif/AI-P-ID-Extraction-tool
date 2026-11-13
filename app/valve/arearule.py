@@ -214,6 +214,9 @@ def _deep(rule: dict, tag: str, what: str) -> tuple[str, str]:
     return "", ""
 
 
+SITES = ("North", "South")                                  # a site alone (Greenfield or Brownfield not said)
+
+
 def area_for(rule: dict, tag: str, doc_no: str = "", pid_no: str = "") -> tuple[str, str]:
     """(area, basis) for one tag from the documents' evidence; ('', why) when the evidence does not decide."""
     if not rule or not rule.get("n"):
@@ -236,10 +239,14 @@ def area_for(rule: dict, tag: str, doc_no: str = "", pid_no: str = "") -> tuple[
         return z, f"Tag '{kk}' = {z}" + (f" ('{p}' 는 {' · '.join(pc)} 에 다 쓰임)" if pc else "")
     if not pc and p and _one(rule["system"].get(p)):        # the unit number also leads the documents ('03-02-PR-DTS-…')
         z = _one(rule["system"][p])
+        if z in SITES:                                       # valve40: a title naming only the site says nothing of Brownfield
+            return "", f"Tag 앞 '{p}' = 문서 번호 '{p}-…' 의 Site {z} — Brownfield 여부 근거 없음 (규칙 표로 정하기)"
         return z, f"Tag 앞 '{p}' = 문서 번호 '{p}-…' 의 {z}"
     if not pc:
         s = system(pid_no) or system(doc_no)
         z = _one(rule["system"].get(s)) if s else ""
+        if z in SITES:
+            return "", f"Tag 앞 '{p}' 는 근거 없음 · 번호 '{s}-…' 의 Site {z} — Brownfield 여부 근거 없음"
         if z:
             return z, f"Tag 앞 '{p}' 는 근거 없음 · 번호 '{s}-…' = {z}"
         return "", f"Tag 앞 '{p}' 의 Area 근거가 없음" if p else ""
@@ -277,8 +284,13 @@ def classify(rule: dict, tag: str, doc_no: str = "", pid_no: str = "", index_sub
         area, b = area_for(rule, tag, doc_no, pid_no)
         if b:
             why.append(b)
+    au = area.upper()
+    site = "North" if "NORTH" in au else "South" if "SOUTH" in au else ""
+    if not site:                                             # only the site is known ('Site North — Brownfield 여부 근거 없음')
+        m = re.search(r"Site (North|South)", " ".join(why))
+        site = m.group(1) if m else ""
     return {"area": area, "sub": sub, "unit": (row or {}).get("unit", ""), "basis": " · ".join(x for x in why if x),
-            "note": (row or {}).get("note", "")}
+            "note": (row or {}).get("note", ""), "site": site}
 
 
 # ── for the screen ─────────────────────────────────────────────────────────────────────────────────────────────────

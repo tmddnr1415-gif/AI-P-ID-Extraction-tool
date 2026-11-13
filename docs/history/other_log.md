@@ -350,3 +350,6 @@
 - 시험 3개 추가 (Valve Area 규칙 · JSON · Instrument JSON). 전체 2,090 통과.
 - (추가) 손상 저장본 = 예전 쪽 그림(`cache/<doc>_<page>_<zoom>.png`)으로 보기 + 안내 줄 '원본 손상 · 예전 쪽 그림 — 값 · 검토 그대로, 다시 올릴 필요 없음'.
   쪽 크기는 `document.info.page_sizes` 에 보관(없으면 그림 크기로 계산). 그림 없는 쪽만 409. 시험 `test_damaged_stored_copy_shown_from_earlier_page_pictures`. 전체 2,092.
+- (추가 · 회사 사진 Butterfly: Tag 52 · 53 이 'North' · Unit 52/53) 원인: 규칙 표 없이, 표제가 'NORTH' 만 말하는 PDS 문서 번호 '52-…'/'53-…' 로 추정 → Greenfield 처럼 보임.
+  고침: 그런 추정은 Site 만(North) + 'Brownfield 여부 근거 없음 (규칙 표로 정하기)'. 규칙 표가 있으면 52·53 → North Brownfield · QG3&4 · Unit 09.
+  규칙 표 Unit 이 Tag 앞 번호로 짐작한 Unit 을 대신함 · 규칙으로 Area 를 채우면 Site 도 채움.
