@@ -10,6 +10,8 @@ Valve · Instrument
   (칸 값 · 단위 · 쪽 · 위치 · 상태 · 검토자 수정 · Notes · Rev 표 · 원본 이름 · 올린 사람/때). 문서별 묶음은 _documents 폴더.
   - 서버를 켤 때 이미 들어 있는 Datasheet 도 빠진 것만 JSON 으로 씁니다 → 다시 올리지 않아도 됩니다.
   - 검토 · 현황판 · 대조는 DB · JSON 으로 돌아 보관 PDF 가 깨져도 그대로 보입니다 (새로고침).
+- 보관 PDF 가 깨졌으면 예전에 서버가 그려 둔 쪽 그림으로 PDF 를 보여 줍니다 (다시 올리지 않아도 됨 · '그림으로 보는 중' 표시).
+  그림이 남아 있지 않은 쪽만 '원본 손상' — 그 문서만 골라 다시 올리면 됩니다.
 - Area 규칙대로 Tag Area 를 채웁니다: Valve Summary · By Area · Issue 목록 · Excel · Valve List · 특수요구사항 표.
   순서 = 규칙 표 → Instrument Index AREA → Tag 앞 번호. 데이터시트 제목에 Area 가 있으면 그대로, 없거나 'Brownfield' 만이면 규칙 값 + 출처.
   ★ 회사 PC 에서 한 번: Dashboard › By Area 의 [규칙 표 넣기] 에 Brownfield 구역 표를 붙여 넣어야 '(not stated)' 가 채워집니다
