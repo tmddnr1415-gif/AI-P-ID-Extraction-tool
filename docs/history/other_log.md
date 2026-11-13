@@ -321,3 +321,11 @@
 - 올린 뒤 `inst_api.invalidate_family()` + family 전체 warm.
 - 화면: `?kind=refdocs` '공통 자료' 페이지(4칸) · 각 페이지 Document Management 는 자기 자료만(`window.DOC_KINDS`) + 공통 자료 카드(읽기 전용 · 링크) · 'Document Management 에 올리세요' 안내 → 공통 자료 링크. List 페이지의 Document Management 메뉴 뺌.
 - 시험 `test_shared_reference_documents_one_place_for_the_family`. 스냅샷 2,935 · 변화 0 · UI 25/25.
+
+### 2026-11-13 VALVE — Brownfield Tag 규칙으로 Area 재분류 · 학습
+- 사용자 사진(회사 PC 분석): Brownfield QN/QS 접두어 → Area 컬럼 · Unit · Exhibit 6. 표 값은 저장소에 넣지 않음 — 프로젝트 설정으로 붙여 넣음.
+- `arearule.py`: `parse_table`(묶음 줄 · 탭/|/두 칸 표 · 'XS: 98GTD- / …' 줄 · `X (17), Y (7)` 나뉨) · `classify`(규칙 표 → Index AREA → 문서 학습) · `check_table`(Index 대조 n/n) ·
+  깊은 키(접두어+문자, +번호 앞 2자리, `98*98` 아무 문자) · `num_eq`('1' = '01') · 묶음 별칭(규칙 표 'Brownfield QN' = 문서 표제 'North Brownfield').
+- 실자료: 98 은 Loop 번호 앞 두 자리로 갈림 (98-◦-98… North · 00/01/10/11/30/31… South). 업로드된 Instrument Index 는 빈 양식이라 Index AREA 학습은 시험 자료로만 확인.
+- `inst_api`: PUT/GET `/inst/arearule`(text · table · index_rows) · `_brief` 에 `sub_area` · `area_note` · Unit(규칙 표). 화면: By Area 규칙 표 카드 · 붙여넣기 창 · Area 카드에 Sub-area 개수.
+- 시험 `test_area_rule_table_and_index_area`. 스냅샷 2,935 · 변화 0 · UI 25/25.

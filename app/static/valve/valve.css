@@ -894,3 +894,14 @@ tr.link:hover td { background: #f5f8ff; }
 .rs.on > b { color: var(--ok, #15803d) }
 .rs.on > b::before { content: '✓ ' }
 .rs span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
+
+/* valve40 — Area rule table (By Area) */
+.arule .arh { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap }
+.arule .arh .sp { flex: 1 }
+.atbl { margin: 8px 0 4px; font-size: 12.5px }
+.atbl .agrp td { background: var(--bg2, #f3f5f9); padding-top: 6px }
+.atbl .aok { color: var(--ok, #15803d); font-weight: 700 }
+.atbl .abad { color: var(--bad, #c62828); font-weight: 700; cursor: help }
+.alearn summary { cursor: pointer; color: var(--soft, #6b7280); font-size: 12px; margin-top: 6px }
+.bsub { display: flex; flex-wrap: wrap; gap: 4px 10px; font-size: 12px; margin: 2px 0 4px; color: var(--ink2, #374151) }
+.bsub b { color: var(--acc, #2563eb) }

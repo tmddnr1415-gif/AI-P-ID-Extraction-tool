@@ -354,3 +354,58 @@ def test_shared_reference_documents_one_place_for_the_family(tmp_path, monkeypat
         assert api._process_for(con, p)[0] is not None
         assert inst_api._merged_linelist(con, p)[0] is not None   # and so does every Instrument type
     assert not c.get(f"/api/valve/projects/{alone}/summary").json()["has_process"]     # another family does not
+
+
+def test_area_rule_table_and_index_area(tmp_path, monkeypatch):
+    """valve40 (user 2026-11-13): the engineer's pasted rule table (section = group · 'Tag 접두어 | 건수 | Area | Unit | 메모' ·
+    'XS: 98GTD- / 98SD-' lines) and the Instrument Index AREA column re-classify tags into area · sub-area · unit; each table row
+    is checked against the Index rows it covers.  Area names here are made up."""
+    from app.valve import arearule as A
+    text = """1. Greenfield
+  o XS: 98GTD- / 98SD-
+  o W15: 315GE83xxxxC
+2. Brownfield XN (Area 컬럼: AG1 / AG2)
+Tag 접두어\t건수\tArea 컬럼\tUnit\tExhibit 6 대응
+1, 2\t20 / 20\tAG1\t09\tN1 Train 1, 2
+20\t10\tAG2\t33\tN2 Degasser
+3. Brownfield XS
+| Tag 접두어 | 건수 | Area 컬럼 | Unit | 메모 |
+|---|---|---|---|---|
+| 19 | 44 | AGS-TR1 | 19 | S1 Train 1 |
+| 84 | 24 | AGS-TR1 (17), AGS-TR3 (7) | 84 | Flare |
+"""
+    rows = A.parse_table(text)
+    assert [(r["group"], r["patterns"], r["subs"], r["unit"]) for r in rows] == [
+        ("Greenfield", ["98GTD", "98SD"], ["XS"], ""), ("Greenfield", ["315GE83"], ["W15"], ""),
+        ("Brownfield XN", ["1", "2"], ["AG1"], "09"), ("Brownfield XN", ["20"], ["AG2"], "33"),
+        ("Brownfield XS", ["19"], ["AGS-TR1"], "19"), ("Brownfield XS", ["84"], ["AGS-TR1", "AGS-TR3"], "84")]
+    assert rows[-1]["sub_n"] == {"AGS-TR1": 17, "AGS-TR3": 7} and rows[2]["note"] == "N1 Train 1, 2"
+    ev = [{"tag": "1-ZLS-090975", "sub": "AG1 BROWNFIELD"}, {"tag": "2-ZLS-090975", "sub": "AG1 BROWNFIELD"},
+          {"tag": "2-ZT-090976", "sub": "AG2 BROWNFIELD"},                                     # an Index row the table disagrees with
+          {"tag": "84PT-001", "sub": "AGS-TR3"}, {"tag": "71PT-1", "sub": "AX9"},
+          {"tag": "01XV-1", "zone": "North Brownfield", "doc_no": "02-08-IN-1"}, {"tag": "19XV-1", "zone": "South Brownfield"},
+          {"tag": "71XV-1", "zone": "North"}]
+    r = A.learn(ev, rows)
+    assert r["alias"] == {"Brownfield XN": "North Brownfield", "Brownfield XS": "South Brownfield"}     # '1' = '01'
+    c = A.classify(r, "1-ZLS-090999")
+    assert (c["area"], c["sub"], c["unit"], c["note"]) == ("North Brownfield", "AG1", "09", "N1 Train 1, 2")
+    assert A.classify(r, "15PT-1")["area"] == "" and A.classify(r, "19PT-9")["sub"] == "AGS-TR1"
+    c = A.classify(r, "84PT-001", index_sub="AGS-TR3")                                         # the Index decides the split row
+    assert (c["area"], c["sub"]) == ("South Brownfield", "AGS-TR3") and "Index AREA" in c["basis"]
+    assert A.classify(r, "84PT-999")["sub"] == "" and "가를 수 없음" in A.classify(r, "84PT-999")["basis"]
+    assert A.classify(r, "98GTD-1001")["sub"] == "XS" and A.classify(r, "98GTDX-1")["sub"] != "XS"   # whole letter group only
+    assert A.classify(r, "315GE83001C")["sub"] == "W15"
+    c = A.classify(r, "71PT-2")                                                                 # no table row: learned from the Index
+    assert (c["area"], c["sub"]) == ("North", "AX9")
+    chk = {tuple(x["patterns"]): x for x in A.check_table(r)}
+    assert (chk[("1", "2")]["n_ok"], chk[("1", "2")]["n_index"], chk[("1", "2")]["other"]) == (2, 3, {"AG2 BROWNFIELD": 1})
+    # through the API: saved once per family, read back, every tag re-classified
+    monkeypatch.setenv("PID_DATA_DIR", str(tmp_path / "data"))
+    from fastapi.testclient import TestClient
+    from app.main import app
+    cl = TestClient(app)
+    base = cl.post("/api/valve/projects", json={"name": "TEST AREA"}).json()["id"]
+    globe = cl.post("/api/valve/projects", json={"name": "TEST AREA · Globe Valve"}).json()["id"]
+    assert cl.put(f"/api/valve/projects/{globe}/inst/arearule", json={"text": "nothing here"}).status_code == 400
+    j = cl.put(f"/api/valve/projects/{globe}/inst/arearule", json={"text": text}).json()
+    assert len(j["table"]) == 6 and cl.get(f"/api/valve/projects/{base}/inst/arearule").json()["text"] == text

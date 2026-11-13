@@ -176,7 +176,8 @@ def _ver(con, pid) -> tuple:
     from app.valve import api
     a = store.one(con, "SELECT COUNT(*) n, MAX(id) m FROM document WHERE project_id IN (?,?) AND status='done'", pid, api.ref_pid(con, pid))
     b = store.one(con, "SELECT COUNT(*) n, MAX(id) m FROM inst_sheet WHERE project_id=?", pid)
-    s = store.one(con, "SELECT value FROM project_setting WHERE project_id=? AND key='inst.required'", pid)
+    s = store.one(con, "SELECT group_concat(key || length(value) || at) value FROM project_setting WHERE project_id IN (?,?)"
+                       " AND key IN ('inst.required', 'inst.arearule.table')", pid, api.ref_pid(con, pid))
     dd = store.one(con, "SELECT COUNT(*) n, MAX(at) m FROM inst_decision WHERE sheet_id IN (SELECT id FROM inst_sheet WHERE project_id=?)", pid)
     rr = store.one(con, "SELECT COUNT(*) n, MAX(at) m FROM inst_reply WHERE sheet_id IN (SELECT id FROM inst_sheet WHERE project_id=?)", pid)
     return (a["n"], a["m"], b["n"], b["m"], (s or {}).get("value"), dd["n"], dd["m"], rr["n"], rr["m"])
@@ -241,7 +242,16 @@ def area_rule(con, pid) -> dict:
         ev += [{"doc_no": x["doc_no"], "zone": x.get("zone", "")} for x in cov.get("ds_docs", [])]
         for d in cov.get("pds_docs", []):
             ev += [{"doc_no": x.get("doc_no", ""), "zone": x.get("zone", "")} for x in d.get("parts", [])]
-    return arearule.learn(ev)
+    idx = (_lists(con, pid).get("instrument_index") or {}).get("by_tag", {})          # valve40: the Index AREA column, per tag
+    ev += [{"tag": x.get("tag", ""), "sub": x.get("area", "")} for x in idx.values() if x.get("area")]
+    return arearule.learn(ev, arearule.parse_table(area_table_text(con, pid)))
+
+
+def area_table_text(con, pid) -> str:
+    """The engineer's area rule table (pasted on the By Area screen) — kept once per project family, like 공통 자료."""
+    from app.valve import api
+    r = store.one(con, "SELECT value FROM project_setting WHERE project_id=? AND key='inst.arearule.table'", api.ref_pid(con, pid))
+    return (r or {}).get("value") or ""
 
 
 @router.get("/api/valve/projects/{pid}/inst/arearule")
@@ -250,7 +260,28 @@ def arearule_get(pid: int):
     from app.valve import arearule
     con = con_ready()
     r = context(con, pid)["arearule"]
-    return _j({"rows": arearule.table(r), "systems": r.get("system", {}), "evidence": r.get("n", 0)})
+    return _j({"rows": arearule.table(r), "systems": r.get("system", {}), "evidence": r.get("n", 0), "index_rows": r.get("n_index", 0),
+               "table": arearule.check_table(r), "text": area_table_text(con, pid)})
+
+
+@router.put("/api/valve/projects/{pid}/inst/arearule")
+async def arearule_put(pid: int, request: Request):
+    """Save the engineer's rule table (pasted text).  Every tag is re-classified on the next read."""
+    from app.valve import api, arearule
+    body = await request.json()
+    text = str(body.get("text") or "")
+    rows = arearule.parse_table(text)
+    if text.strip() and not rows:
+        return Response('{"error":"규칙 줄을 찾지 못했습니다 — \'Tag 접두어 | Area | Unit | 메모\' 표나 \'QS: 98GTD- / 98SD-\' 줄로 넣어 주세요"}',
+                        status_code=400, media_type="application/json")
+    con = con_ready()
+    rp = api.ref_pid(con, pid)
+    con.execute("INSERT OR REPLACE INTO project_setting(project_id, key, value, by, at) VALUES (?,?,?,?,?)",
+                (rp, "inst.arearule.table", text, api._user(request), store.now()))
+    store.audit(con, rp, None, "inst.arearule.table", "inst-arearule", None, f"{len(rows)} rows", api._user(request), "")
+    con.commit()
+    invalidate_family()
+    return arearule_get(pid)
 
 
 def _sheet_rows(con, pid, kind: str = ""):
@@ -355,9 +386,12 @@ def _brief(con, pid, r, hist) -> dict:
     from app.valve import arearule
     pidno = (vals.get("pid_no") or {}).get("value", "")
     loc = location.locate(doc_no=r["doc_no"] or "", pid_no=pidno, tag=r["tag"])
-    area, why = arearule.area_for(context(con, pid).get("arearule") or {}, r["tag"], r["doc_no"] or "", pidno)   # tag prefix rule
-    area = area or location.zone(loc)
-    return {"area": area, "unit": loc.get("unit") or "", "loc_basis": why or loc.get("basis") or "",
+    ctx = context(con, pid)
+    isub = ((ctx.get("lists", {}).get("instrument_index") or {}).get("by_tag", {}).get(r["tag_key"]) or {}).get("area", "")
+    A = arearule.classify(ctx.get("arearule") or {}, r["tag"], r["doc_no"] or "", pidno, isub)    # table · Index AREA · tag prefix rule
+    area = A["area"] or location.zone(loc)
+    return {"area": area, "sub_area": A["sub"], "unit": A["unit"] or loc.get("unit") or "", "area_note": A["note"],
+            "loc_basis": A["basis"] or loc.get("basis") or "",
             "id": r["id"], "tag": r["tag"], "kind": r["kind"], "form_id": r["form_id"], "doc_no": r["doc_no"], "rev": r["rev"],
             "rev_date": r["rev_date"], "file": r.get("filename"), "document_id": r["document_id"], "pages": json.loads(r["pages"] or "[]"),
             "test_data": bool(r["test_data"]), "status": r["status"], "service": (instrument.values(sh).get("service") or {}).get("value", ""),

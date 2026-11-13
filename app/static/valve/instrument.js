@@ -114,13 +114,27 @@ async function renderBoard() {
     rows.filter(r => (!q || (r.tag + ' ' + r.kind + ' ' + (r.service || '')).toUpperCase().includes(q)) && (!B.st || (B.st === 'issue' ? r.issues : B.st === 'done' ? (['Accepted', 'Resolved'].includes(r.status) || r.review_code) : B.st === 'pending' ? !(['Accepted', 'Resolved'].includes(r.status) || r.review_code) : true)))
       .forEach(r => { const a = r.area || 'Area 미상'; (areas[a] ||= []).push(r); });
     const order = ['North', 'South', 'North Brownfield', 'South Brownfield', 'W15'];
-    const ar = await api('GET', `/projects/${S.pid}/inst/arearule`).catch(() => ({ rows: [], evidence: 0 }));
-    const ruleCard = `<div class="arule"><b>Tag 앞 번호 → Area 규칙</b> <span class="soft">프로젝트 Valve Datasheet · PDS 의 표제에서 찾음 (근거 ${ar.evidence}건) — 한 번호가 여러 Area 에 쓰이면 문서 / P&ID 번호 앞자리로 가름</span>
-      <div class="arr">${ar.rows.map(r => `<span class="${r.area ? '' : 'asplit'}" title="${esc(Object.entries(r.areas).map(([z, n]) => `${z} ${n}`).join(' · '))}"><b>${esc(r.prefix)}</b> → ${esc(r.rule)}</span>`).join('') || '<span class="soft">근거 없음 — Valve Datasheet · Process Data 를 올리면 찾습니다</span>'}</div></div>`;
+    const ar = await api('GET', `/projects/${S.pid}/inst/arearule`).catch(() => ({ rows: [], evidence: 0, table: [], index_rows: 0 }));
+    I.arText = ar.text || '';
+    /* valve40 (user 2026-11-13): the engineer's rule table (Brownfield · Greenfield …) first, each row checked against the
+       Instrument Index rows it covers ('20 / 20'); then what the documents taught (Valve DS · PDS titles · Index AREA). */
+    const chk = x => !x.n_index ? '<span class="soft" title="Instrument Index 에 이 접두어의 Tag 가 없음">Index 없음</span>'
+      : `<span class="${x.n_ok === x.n_index ? 'aok' : 'abad'}" title="${esc(Object.entries(x.other || {}).map(([a, n]) => `다른 AREA: ${a} ${n}`).join(' · ') || 'Index AREA 와 모두 같음')}${x.examples?.length ? ' — 예: ' + esc(x.examples.join(', ')) : ''}">${x.n_ok} / ${x.n_index}</span>`;
+    const groups = []; (ar.table || []).forEach(x => { let g = groups.find(y => y.g === x.group); if (!g) groups.push(g = { g: x.group, area: x.area, rows: [] }); g.rows.push(x); });
+    const tbl = groups.length ? `<table class="t atbl"><thead><tr><th>Tag 접두어</th><th>Area (Sub)</th><th>Unit</th><th>메모</th><th title="규칙이 덮는 Instrument Index 줄 중 AREA 가 규칙과 같은 줄">Index 대조</th></tr></thead><tbody>
+      ${groups.map(g => `<tr class="agrp"><td colspan="5"><b>${esc(g.g || '(묶음 없음)')}</b>${g.area && g.area !== g.g ? ` <span class="soft">= ${esc(g.area)} (문서 표제)</span>` : ''}</td></tr>` + g.rows.map(x => `<tr>
+        <td class="mono">${esc(x.patterns.join(', '))}</td><td>${esc(x.subs.map(s => x.sub_n?.[s] ? `${s} (${x.sub_n[s]})` : s).join(', '))}${x.subs.length > 1 ? ' <span class="asplit" title="한 접두어가 두 Area — Tag 별로 Instrument Index AREA 로 가름">Index 로 가름</span>' : ''}</td>
+        <td>${esc(x.unit || '')}</td><td class="soft">${esc(x.note || '')}</td><td>${chk(x)}</td></tr>`).join('')).join('')}</tbody></table>`
+      : '<div class="soft" style="margin:6px 0">아직 규칙 표가 없습니다 — <b>규칙 표 넣기</b>로 Brownfield · Greenfield 접두어 표를 붙여 넣으면 그 기준으로 다시 나눕니다.</div>';
+    const ruleCard = `<div class="arule"><div class="arh"><b>Area 규칙 (Tag 접두어)</b><span class="soft">규칙 표 → Instrument Index AREA → 문서에서 배운 규칙 순서로 정함 · Index ${ar.index_rows || 0}줄 · 문서 근거 ${ar.evidence}건</span><span class="sp"></span><button class="ghost2" data-act="arearule">✎ 규칙 표 ${groups.length ? '고치기' : '넣기'}</button></div>
+      ${tbl}
+      <details class="alearn"><summary>문서에서 배운 규칙 (Valve Datasheet · PDS 표제 · Instrument Index AREA)</summary><div class="arr">${ar.rows.map(r => `<span class="${r.area ? '' : 'asplit'}" title="${esc(Object.entries(r.areas).map(([z, n]) => `${z} ${n}`).join(' · '))}${Object.keys(r.subs || {}).length ? ' · Index AREA: ' + esc(Object.entries(r.subs).map(([z, n]) => `${z} ${n}`).join(' · ')) : ''}"><b>${esc(r.prefix)}</b> → ${esc(r.rule || Object.keys(r.subs || {}).join(' · ') || '-')}</span>`).join('') || '<span class="soft">근거 없음 — Valve Datasheet · Process Data · Instrument Index 를 올리면 찾습니다</span>'}</div></details></div>`;
     grid = ruleCard + Object.entries(areas).sort((a, b) => ((order.indexOf(a[0]) + 1 || 99) - (order.indexOf(b[0]) + 1 || 99))).map(([a, rs]) => {
       const iss = rs.filter(r => r.issues).length, done = rs.filter(r => ['Accepted', 'Resolved'].includes(r.status) || r.review_code).length;
       const byk = {}; rs.forEach(r => { byk[r.kind] = (byk[r.kind] || 0) + 1; });
-      return `<div class="bt ${iss ? 'has' : 'clean'} area"><div class="bth"><b>${esc(a)}</b><span>${rs.length} Tag</span></div>
+      const bys = {}; rs.forEach(r => { const k = r.sub_area || '(Sub 미상)'; bys[k] = (bys[k] || 0) + 1; });
+      const subs = Object.keys(bys).length > 1 || !bys['(Sub 미상)'] ? `<div class="bsub">${Object.entries(bys).sort().map(([k, n]) => `<span class="${k === '(Sub 미상)' ? 'soft' : ''}">${esc(k)} <b>${n}</b></span>`).join('')}</div>` : '';
+      return `<div class="bt ${iss ? 'has' : 'clean'} area"><div class="bth"><b>${esc(a)}</b><span>${rs.length} Tag</span></div>${subs}
         <div class="btn"><b>${iss}</b><span>/ ${rs.length} Tag</span><small>지적 있는 Tag</small></div><div class="btb"><i style="width:${rs.length ? Math.round(100 * done / rs.length) : 0}%"></i></div>
         <div class="btc">${Object.entries(byk).map(([k, n]) => `<button class="bchip" data-k="${k}">${code(k)} <b>${n}</b></button>`).join('')}</div></div>`; }).join('') || '<div class="empty">Tag 가 없습니다</div>';
   } else grid = shown.map(card).join('') || '<div class="empty">조건에 맞는 종류가 없습니다</div>';
@@ -162,11 +176,25 @@ async function renderBoard() {
     if (e.target.closest('.vlink')) return;
     const by = e.target.closest('[data-by]'); if (by) { B.by = by.dataset.by; renderBoard(); return; }
     const gk = e.target.closest('[data-gok]'); if (gk) { B.st = gk.dataset.gok; renderBoard(); return; }
-    const a = e.target.closest('[data-act]'); if (a) { if (a.dataset.act === 'print') window.print(); else { I.allRows = null; renderBoard(); } return; }
+    const a = e.target.closest('[data-act]'); if (a) { if (a.dataset.act === 'print') window.print(); else if (a.dataset.act === 'arearule') areaDialog(); else { I.allRows = null; renderBoard(); } return; }
     const k = e.target.closest('[data-k]'); if (k) { location.href = pageUrl(k.dataset.k); return; }      // each item is its own page
     const g = e.target.closest('[data-g]'); if (g) { V.go(g.dataset.g); return; }
     if (e.target.closest('[data-req]')) reqDialog();
   };
+}
+
+/* valve40 — paste the project's Area rule table (kept once per project family; every tag is re-classified on save) */
+async function areaDialog() {
+  const r = await V.modal('Area 규칙 표 — Tag 접두어 → Area · Unit', `<div class="soft" style="margin-bottom:6px">Excel · 문서의 표를 그대로 붙여 넣으세요. 읽는 모양:
+    <br>· 묶음 줄 <span class="mono">2. Brownfield QN (…)</span> — 아래 줄들의 Area 묶음
+    <br>· 표 <span class="mono">Tag 접두어 | 건수 | Area 컬럼 | Unit | 메모</span> (탭 · | · 두 칸 띄움 모두) — 접두어 여러 개는 <span class="mono">1, 2</span>, 한 접두어가 두 Area 면 <span class="mono">X-TR1 (17), X-TR3 (7)</span>
+    <br>· 줄 <span class="mono">QS: 98GTD- / 98SD-</span> — Tag 앞부분이 이것이면 그 Area · <span class="mono">315GE83xxxxC</span> 의 x 는 아무 글자
+    <br>규칙 표가 가장 먼저, 그다음 Instrument Index 의 AREA 칸, 그다음 문서에서 배운 규칙으로 정합니다. 모든 Valve · Instrument 화면이 같은 표를 씁니다.</div>
+    <textarea name="text" rows="16" style="width:100%;font:12px/1.45 var(--mono, monospace)" placeholder="2. Brownfield …&#10;Tag 접두어	Area	Unit	메모">${esc(I.arText || '')}</textarea>`,
+    [['취소', null], ['저장하고 다시 나누기', 'form', 1]], 'arearule');
+  if (!r) return;
+  try { await api('PUT', `/projects/${S.pid}/inst/arearule`, { text: r.text }); toast('규칙 표를 저장했습니다 — 모든 Tag 를 다시 나눴습니다'); I.allRows = null; renderBoard(); }
+  catch (e) { toast(e.message, 1); }
 }
 
 async function reqDialog() {
@@ -411,7 +439,7 @@ async function renderItemDash() {
     <div id="iprog"></div>
     <div class="kpis ikpis six">${tile('Tag', k.tags)}${tile('Datasheet', k.sheets)}${tile('지적 없음', k.ok_tags, 'okk')}${tile('값 다름', k.mismatch, k.mismatch ? 'warn' : '')}${tile('누락', k.missing, k.missing ? 'warn' : '')}${tile('PDS 없음', k.not_in_pds)}</div>
     <div class="card" style="padding:0;overflow:auto"><table class="t itbl"><thead><tr><th>Tag</th><th>Service</th><th>Rev</th><th>Area</th><th>Unit</th><th>Pipe Class</th><th>Line No</th><th>검토 결과</th><th>PDS</th><th>Status</th></tr></thead><tbody>
-      ${rows.map(r => { const c = r.counts; return `<tr class="link" data-open="${r.id}"><td><b>${esc(r.tag)}</b>${r.test_data ? '<span class="tst">TEST</span>' : ''}</td><td>${esc(r.service || '')}</td><td>${esc(r.rev || '-')}</td><td>${esc(r.area || '')}</td><td>${esc(r.unit || '')}</td>
+      ${rows.map(r => { const c = r.counts; return `<tr class="link" data-open="${r.id}"><td><b>${esc(r.tag)}</b>${r.test_data ? '<span class="tst">TEST</span>' : ''}</td><td>${esc(r.service || '')}</td><td>${esc(r.rev || '-')}</td><td title="${esc(r.loc_basis || '')}">${esc(r.area || '')}${r.sub_area ? ` <span class="soft">· ${esc(r.sub_area)}</span>` : ''}</td><td>${esc(r.unit || '')}</td>
         <td>${esc(r.piping_class || '')}</td><td>${esc(r.line_no || '')}</td>
         <td>${r.issues ? `${c.Mismatch ? rp('Mismatch', c.Mismatch) : ''}${c.Missing ? rp('Missing', c.Missing) : ''}${c['Review Required'] ? rp('Review Required', c['Review Required']) : ''}` : '<span class="ir ir-ok"><i>✓</i>지적 없음</span>'}</td>
         <td>${r.in_pds ? '<span class="ir ir-ok"><i>✓</i>있음</span>' : '<span class="ir ir-na"><i>–</i>없음</span>'}</td><td>${pill(r.status)}</td></tr>`; }).join('')}</tbody></table></div>` : ''}`;

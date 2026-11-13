@@ -11,7 +11,8 @@
 - 결정 `inst_decision` · Code `inst.codes` · CRS 내보내기/회신(`inst_reply`) · `/inst/progress` · `instcalc.py`(IN-CV IEC 60534 · IN-PSV API 526).
 - **메뉴**: INSTRUMENT 목록은 대시보드에. `/valve?kind=<item>` = Valve 같은 전용 메뉴 11개(List · Rev 비교 · PDS · PMS · Line List · Lists …; `/inst/findings?group=` · `/inst/compare`) · `all` 현황판 · `instindex|iolist` List.
 - **valve37(440a3bb1) 들어옴**: ball·globe·butterfly·psv·valve → Valve 화면. PSV 는 Valve 가 맡음.
-- **공통 자료 `?kind=refdocs`** (2026-11-13): PDS · PMS · Line List · Index/IO List 는 여기서만 올림 → family 기준 프로젝트(`api.ref_pid`)에 1벌 · 모든 Valve/Instrument 검토가 씀. 각 페이지 Document Management 는 `window.DOC_KINDS` 만.
+- **공통 자료 `?kind=refdocs`** (11-13): PDS · PMS · Line List · Lists 는 여기서만 → 기준 프로젝트(`api.ref_pid`)에 1벌, 모든 검토가 씀. 페이지별 올리기는 `window.DOC_KINDS`.
+- **Area 규칙 표** (11-13): By Area '규칙 표 넣기' → family 설정 `inst.arearule.table` · 규칙 표 → Index AREA → 문서 학습(`arearule.classify`) · 행별 Index 대조 n/n. 채운 Index 아직 없음.
 - Line No 칸 없는 양식은 PDS 의 Line No 로 Line List. 필수 칸 = 카드 제안값 → 현황판 '필수 칸 확인'에서 사용자가 확정(프로젝트 설정 `inst.required`).
 - 시험: `spike/valve_inst_scenario.py <dir> [--forms /tmp/forms] [--keep]` — 14종 × (정상 Tag · 오류 심은 Tag) + 시험 PDS/PMS/Line List/Index/IO →
   **심은 오류 74/74 · 정상 Tag 지적 0 · List 29/29** (카드로 그린 쪽 · 실제 빈 양식 둘 다). pytest `tests/test_valve_instrument_{forms,reader,review}.py`.
@@ -100,6 +101,6 @@
 ## 다음에 할 일
 
 1. 회사 적용 확인: .xls 자동 변환(Excel COM)이 되는지, 456쪽 처리 시간, 화면 글꼴, Mark-up 도구(Edge)와 내보낸 PDF 를 Acrobat 에서 열어 보기.
-2. **Phase 2** (지시서 §2 · §4 · §5): PMS Gasket · Bolting 대조 · 프로젝트 기준 문서 등록 · Rule Source 연결 · 문서 간 교차 검증 · Document Hierarchy. 필요한 자료: API5L-X65 PMS · 정식 Process DS · Tag Numbering Procedure · 회사 Valve Spec.
-4. 재질 · 설계 검토: 회사 재질 · 밸브 엔지니어에게 MR(§14.3) · VR(§15) 규칙과 `BALL_VALVE_KNOWLEDGE.md` 를 보여 회사 사양 값(Floating 한계 · 시트 한계 · PST 정책)으로 맞추고, 기준(시트 한계 · B8M CL.2 해석 · 316 60 °C 문구)을 확인받기. Process Data 에 최저 설계온도가 생기면 저온(MR-04)을 온도로도.
+2. **Phase 2** (지시서 §2 · §4 · §5): PMS Gasket · Bolting 대조 · 프로젝트 기준 문서 등록 · Rule Source 연결 · 문서 간 교차 검증 · Document Hierarchy. 자료: API5L-X65 PMS · 정식 Process DS · Tag Numbering Procedure · Valve Spec.
+4. 재질 · 설계 검토: MR(§14.3) · VR(§15) · `BALL_VALVE_KNOWLEDGE.md` 를 회사 엔지니어에게 보여 사양 값(Floating · 시트 한계 · PST)과 기준(B8M CL.2 · 316 60 °C)을 확인받기. 최저 설계온도가 생기면 MR-04 를 온도로도.
 3. 받은 PDF 에 이미 있는 주석(설계사 Mark-up) 읽어 오기 · 1366×768 노트북에서 작업대 사용감 확인.
