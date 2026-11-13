@@ -13,6 +13,8 @@
   IN-LL-05   line size differs from the Line List
   IN-ITM-01  (pressure/level/flow transmitters, gauges) range upper value below the max operating pressure — 사람 확인
   IN-ITM-02  (PSV) set pressure above the design pressure — 사람 확인
+  IN-OPN-01  a cell still says HOLD · TBA · TBC · TBD (open item left on the datasheet)
+  IN-UNIT-01 gauge and absolute pressure mixed in the same datasheet (operating vs design) — 사람 확인
 
 Every row says where the reference value came from (document · page / sheet · row) and what both sides say.  A value
 that is not on the page is never made up: the row is 'Review Required' or 'Datasheet Blank' with the reason.
@@ -41,7 +43,18 @@ RULES = {
     "IN-LL-05": "Line Size 가 Line List 와 다름",
     "IN-ITM-01": "Range 상한이 최대 운전압력보다 낮음 (사람 확인)",
     "IN-ITM-02": "Set Pressure 가 Design Pressure 보다 높음 (사람 확인)",
+    "IN-OPN-01": "HOLD · TBA · TBC · TBD 가 남아 있음 (미결 항목)",
+    "IN-UNIT-01": "같은 Datasheet 안에서 게이지압 · 절대압이 섞여 있음 (사람 확인)",
+    "IN-CV-01": "Rated Cv 대비 계산 Cv (Max > Rated · 여유 10 % 미만 · Min < 10 %) — IEC 60534 (사람 확인)",
+    "IN-CV-02": "공정 값으로 다시 계산한 기체 Cv 가 Datasheet 계산 Cv 와 10 % 넘게 다름 — IEC 60534-2-1 (사람 확인)",
+    "IN-CV-03": "Choked flow · 공동현상 · Flashing — IEC 60534-2-1 (사람 확인)",
+    "IN-CV-04": "예상 소음이 허용치 초과 / 허용치 없이 85 dBA 초과 (사람 확인)",
+    "IN-PSV-01": "선택 면적이 API 526 Orifice 표준 면적과 다름 (사람 확인)",
+    "IN-PSV-02": "필요 면적이 선택 면적보다 큼 — API 526 (사람 확인)",
+    "IN-PSV-03": "Conventional PSV 의 배압이 Set 의 10 % 초과 — API 520 (사람 확인)",
+    "IN-PSV-04": "허용 초과압이 21 % 초과 — API 521 (사람 확인)",
 }
+_OPEN = re.compile(r"(?<![A-Z])(HOLD|TBA|TBC|TBD|T\.B\.A\.?|T\.B\.C\.?|T\.B\.D\.?)(?![A-Z])", re.I)
 _WORDS = {"equipment_no": ("equipment",), "vessel_no": ("vessel",), "line_size": ("size",), "fluid_state": ("phase",),
           "design_pressure": ("design pressure", "pressure"), "design_temp": ("design temp", "temperature"), "line_no": ("line no", "line number")}
 SEVERITY = {MISMATCH: "Major", MISSING: "Minor", REVIEW: "Review", NOT_IN: "Info", BLANK: "Info", OK: ""}
@@ -380,7 +393,13 @@ def line_check(C: dict, ll: dict | None, ref: dict | None) -> list[dict]:
 
 def item_rules(sheet: dict, C: dict) -> list[dict]:
     """Rules of one item kind — only where the datasheet itself gives both values; always marked for a human."""
+    from app.valve import instcalc
     out, kind = [], sheet["kind"]
+    vals = instrument.values(sheet)
+    if kind == "cv":
+        out += instcalc.cv_checks(vals)                    # IEC 60534-2-1 sizing cross-checks
+    if kind == "psv":
+        out += instcalc.psv_checks(vals, C)                # API 526 / 520 / 521
     if kind in ("pt", "pg", "dpg") and C.get("range") and C.get("op_pressure"):
         r, op = _press_bar(C["range"]), _press_bar(C["op_pressure"])
         if r[0] is not None and op[0] is not None and r[2] == op[2]:
@@ -396,6 +415,34 @@ def item_rules(sheet: dict, C: dict) -> list[dict]:
                             "Set Pressure 가 Design Pressure 보다 높음 — 보호 대상 설계압력 확인" if res == MISMATCH else "Set ≤ Design",
                             "같은 Datasheet", "set_pressure", human=True))
     return out
+
+
+def open_items(sheet: dict) -> list[dict]:
+    """IN-OPN-01: every row whose value (or a sub-column) still says HOLD / TBA / TBC / TBD."""
+    out = []
+    card = {f"{it['block']}.{it['no']}" if it["block"] != 1 else str(it["no"]): it for it in instrument.cards()[sheet["form_id"]]["items"]}
+    for no, v in sheet.get("rows", {}).items():
+        texts = [v.get("value") or ""] + [f"{k}: {x}" for k, x in (v.get("sub") or {}).items() if x]
+        hit = next((t for t in texts if _OPEN.search(t)), None)
+        if not hit:
+            continue
+        it = card.get(no) or {}
+        key = v.get("std_key") or it.get("std_key") or f"row:{no}"
+        out.append(_row("IN-OPN-01", f"{no}. {v.get('label') or it.get('label', '')}", hit.strip(), "확정 값", REVIEW,
+                        f"'{_OPEN.search(hit).group(1).upper()}' 로 남아 있음 — 값이 정해지면 다음 Rev 에 반영 필요", "같은 Datasheet", key, v.get("page")))
+    return out
+
+
+def unit_basis(C: dict) -> list[dict]:
+    """IN-UNIT-01: operating pressure in gauge and design pressure in absolute (or the other way) on one datasheet."""
+    a, b = C.get("op_pressure") or {}, C.get("design_pressure") or {}
+    if not a.get("unit") or not b.get("unit"):
+        return []
+    ba, bb = procmod.unit_of(a["unit"])[1], procmod.unit_of(b["unit"])[1]
+    if ba and bb and ba != bb:
+        return [_row("IN-UNIT-01", "Pressure basis", f"Oper. {a['unit']} · Design {b['unit']}", "같은 기준", REVIEW,
+                     "운전압과 설계압의 게이지/절대 기준이 다름 — 비교 · 확인 필요", "같은 Datasheet", "design_pressure", human=True)]
+    return []
 
 
 def review(sheet: dict, tag: str, ctx: dict) -> dict:
@@ -416,6 +463,8 @@ def review(sheet: dict, tag: str, ctx: dict) -> dict:
     rows += pms_check(C, ctx.get("pms"), ctx.get("pms_ref"), ctx.get("area", ""))
     rows += line_check(C, ctx.get("ll"), ctx.get("ll_ref"))
     rows += item_rules(sheet, C)
+    rows += open_items(sheet)
+    rows += unit_basis(C)
     n = {r: sum(1 for x in rows if x["result"] == r) for r in (MISMATCH, MISSING, REVIEW, NOT_IN, BLANK, OK)}
     return {"canonical": C, "rows": rows, "counts": n,
             "issues": sum(1 for x in rows if x["result"] in (MISMATCH, MISSING, REVIEW)),

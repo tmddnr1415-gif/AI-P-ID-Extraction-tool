@@ -8,10 +8,53 @@ if (!V) return;
 const { S, Q, LS, api, esc, pill, toast, $, $$ } = V;
 const QK = (Q.get('kind') || '').toLowerCase();
 const QSHEET = +Q.get('sheet') || 0;                  // deep link: ?kind=pt&sheet=<id> (or ?sheet=<id> alone)
-const I = { kinds: null, kind: V.INST_KINDS.has(QK) ? QK : LS.get('inst.kind', 'ft') || 'ft', list: QK === 'iolist' ? 'io_list' : QK === 'instindex' ? 'instrument_index' : LS.get('inst.list', 'instrument_index'), ltab: 'cmp', rows: null, sel: null, d: null, tab: 'find', filt: '', lfilt: '' };
+const I = { showOk: LS.get('inst.showok', false), kinds: null, kind: V.INST_KINDS.has(QK) ? QK : LS.get('inst.kind', 'ft') || 'ft', list: QK === 'iolist' ? 'io_list' : QK === 'instindex' ? 'instrument_index' : LS.get('inst.list', 'instrument_index'), ltab: 'cmp', rows: null, sel: null, d: null, tab: 'find', filt: '', lfilt: '' };
+/* One Instrument page = one dashboard menu entry: ?kind=<item> · ?kind=all (현황판) · ?kind=instindex|iolist (Lists).
+   The page gets its OWN side menu, like a Valve kind page; the Valve page itself has no Instrument entries. */
+const MODE = QK === 'refdocs' ? 'ref' : QK === 'all' ? 'all' : (QK === 'instindex' || QK === 'iolist') ? 'list' : (V.INST_KINDS.has(QK) || (QSHEET && !Q.get('ds'))) ? 'item' : '';
+const ITEM_LABEL = { ft: 'FT · Flow Transmitter', pt: 'PT · Pressure / DP Tx', lt: 'LT · Level Tx (DP)', gwr: 'GWR · Level Tx (Radar)', tt: 'TT · Temperature Tx',
+  tg: 'TG · Temperature Gauge', pg: 'PG · Pressure Gauge', dpg: 'DPG · DP Gauge', mlg: 'MLG · Mag. Level Gauge', ro: 'RO · Restriction Orifice',
+  analyzer: 'AT · Analyzer', cv: 'CV · Control Valve', onoff: 'On-Off Valve', psv: 'PSV' };
+const pageName = () => MODE === 'ref' ? '공통 자료' : MODE === 'all' ? 'Instrument 현황판' : MODE === 'list' ? (I.list === 'io_list' ? 'IO List' : 'Instrument List') : (ITEM_LABEL[I.kind] || I.kind.toUpperCase());
+const VK = { ball: 'Ball', globe: 'Globe', butterfly: 'Butterfly', psv: 'PSV' };
+const kindLabel = k => VK[k] ? `${VK[k]} Valve`.replace('PSV Valve', 'PSV') : (k || '').toUpperCase();
+function valveUrl(project, ds) {                            // a Valve tag: the Valve review screen of its project
+  const u = new URL(location.href); u.searchParams.delete('kind'); u.searchParams.delete('sheet'); u.searchParams.set('project', project); u.searchParams.set('ds', ds); u.hash = 'review';
+  return u.toString();
+}
+function pageUrl(kind, sheet) {                             // another Instrument page (same project · user · embed)
+  const u = new URL(location.href); u.searchParams.set('kind', kind); u.searchParams.delete('ds'); u.hash = '';
+  if (sheet) u.searchParams.set('sheet', sheet); else u.searchParams.delete('sheet');
+  return u.toString();
+}
+function buildMenu() {
+  if (!MODE) return;
+  const code = () => (I.kind === 'analyzer' ? 'AT' : I.kind === 'onoff' ? 'On-Off' : I.kind.toUpperCase());
+  const M = MODE === 'item' ? [['idash', '▦', 'Dashboard'], ['docs', '▤', 'Document Management'], ['itags', '☷', `${code()} List`], ['ireview', '◧', 'Datasheet Review'],
+    ['irev', '⇆', 'Revision Comparison'], ['iproc', '∿', 'Process Data Verification'], ['ipms', '⛭', 'PMS Compliance'], ['iline', '≡', 'Line List Check'],
+    ['ilists', '☰', 'Instrument List · IO List'], ['ireg', '❐', 'Document · Revision'], ['iexport', '⇩', 'Reports & Export'], ['isettings', '⚙', 'Settings']]
+    : MODE === 'all' ? [['inst', '▥', 'Instrument 현황판'], ['docs', '▤', 'Document Management'], ['ireg', '❐', 'Document · Revision'], ['iexport', '⇩', 'Reports & Export']]
+      : MODE === 'ref' ? [['docs', '◫', '공통 자료']]
+        : [['ilist', I.list === 'io_list' ? '⇄' : '☰', pageName()], ['ireg', '❐', 'Document · Revision']];      // the List PDFs are entered on 공통 자료
+  window.INST_VIEWS = M.map(m => m[0]);
+  // valve40: each page uploads only its own files; the shared references (PDS · PMS · Line List · Lists) only on 공통 자료
+  window.DOC_KINDS = MODE === 'ref' ? V.REF_KINDS : MODE === 'list' ? [] : ['instrument'];
+  $('#menu').innerHTML = M.map(([v, ic, l]) => `<button data-v="${v}"><i>${ic}</i>${l}</button>`).join('');
+  for (const [v] of M) if (!$('#v-' + v)) { const sec = document.createElement('section'); sec.className = 'view'; sec.id = 'v-' + v; $('#views').append(sec); }
+  paintBrand();
+}
+function paintBrand() {
+  if (!MODE) return;
+  window.INST_CRUMB = pageName();
+  const sm = $('#nav .brand small'); if (sm) sm.textContent = pageName();
+  document.title = MODE === 'ref' ? '공통 자료 — Valve · Instrument Review' : `${pageName()} — Instrument Review`;
+  const cb = $('#crumb > b:last-child'); if (cb) cb.textContent = pageName();
+}
+
 const RES = { 'Mismatch': ['bad', '값 다름'], 'Missing': ['miss', '누락'], 'Review Required': ['rev', '확인 필요'], '없음': ['na', '없음'], 'Datasheet Blank': ['na', 'DS 비어 있음'], 'OK': ['ok', 'OK'],
-  '값 다름': ['bad', '값 다름'], '누락': ['miss', '누락'], 'List 에만': ['lo', 'List 에만'] };
-const rp = r => `<span class="ir ir-${(RES[r] || ['na'])[0]}">${esc((RES[r] || [, r])[1])}</span>`;
+  '값 다름': ['bad', '값 다름'], '누락': ['miss', '누락'], 'List 에만': ['lo', 'List 에만'], 'Dismissed': ['na', '무시함'], 'Closed': ['ok', '종결'] };
+const RICO = { bad: '✕', miss: '◌', rev: '?', ok: '✓', na: '–', lo: '≡' };
+const rp = (r, n) => { const c = (RES[r] || ['na'])[0]; return `<span class="ir ir-${c}"><i>${RICO[c]}</i>${esc((RES[r] || [, r])[1])}${n === undefined ? '' : ` <b>${n}</b>`}</span>`; };
 const GROUPS = [['IN-REQ', '필수 칸'], ['IN-PDS', 'Process Data (PDS)'], ['IN-PMS', 'PMS'], ['IN-LL', 'Process Line List'], ['IN-ITM', 'Item 규칙 (사람 확인)']];
 // valve37: these valves are reviewed on the Valve screens (?kind=) — the Instrument card points there
 const VALVE_MENU = { cv: [['globe', 'Globe'], ['butterfly', 'Butterfly']], onoff: [['ball', 'Ball']], psv: [['psv', 'PSV']] };
@@ -24,51 +67,134 @@ const kname = k => (I.kinds || []).find(x => x.kind === k)?.name || k;
 
 /* ── Instrument 현황판 — every item kind at a glance ─────────────────────────────── */
 async function renderBoard() {
+  /* Instrument 현황판 — answer first (4 KPI cards) · three analysis cards (status · weekly trend · category) · type panel +
+     type cards (By Type / By Area, search, filters, export, print).  Everything is the project's own data. */
   const el = $('#v-inst');
-  el.innerHTML = '<div class="vh"><h2>Instrument 현황판</h2></div><div class="soft">불러오는 중…</div>';
+  el.innerHTML = '<div class="vh"><h2>Instrument Datasheet Review Dashboard</h2></div><div class="soft">불러오는 중…</div>';
   await kinds();
-  const s = await api('GET', `/projects/${S.pid}/inst/summary`), t = s.total, R = s.refs;
-  const ref = (l, v, hint) => `<div class="iref ${v ? 'on' : ''}" title="${esc(v || hint)}"><b>${l}</b><span>${v ? esc(v.length > 46 ? v.slice(0, 44) + '…' : v) : '없음'}</span></div>`;
-  const tile = (l, n, cls, tip) => `<div class="kpi ${cls || ''}" title="${esc(tip || '')}"><div class="l">${l}</div><div class="n">${n}</div></div>`;
-  const used = s.kinds.filter(k => k.tags);
-  const maxI = Math.max(1, ...s.kinds.map(k => k.missing + k.mismatch + k.review));
-  el.innerHTML = `<div class="vh"><h2>Instrument 현황판</h2><span class="soft">${esc(S.sum?.project?.name || '')} · 계기 Type 별 Datasheet 검토 현황</span><span class="sp"></span>
-      <button data-g="docs">자료 올리기</button><button data-req>필수 칸 확인</button><a class="btnlink" href="/api/valve/projects/${S.pid}/inst/markup.pdf" download title="지적이 있는 Datasheet 전부 — 칸 음영 + 화살표 설명선(이유)">⇩ Mark-up PDF</a><a class="btnlink" href="/api/valve/projects/${S.pid}/inst/review.xlsx" download>⇩ 검토 결과 Excel</a>
-      <button class="pri" data-g="ireview">Instrument Review 열기</button></div>
-    <div class="irefs">${ref('Process Data (PDS)', R.pds, 'Document Management › Process Data')}${ref('PMS', R.pms, 'Document Management › PMS')}
-      ${ref(`Process Line List${R.n_lines ? ` (${R.n_lines} Line)` : ''}`, R.linelist, 'Document Management › Process Line List')}${ref('Instrument Index', R.instrument_index, 'Document Management › Instrument Index · IO List')}${ref('IO List', R.io_list, 'Document Management › Instrument Index · IO List')}</div>
-    ${!t.tags ? '<div class="banner info">아직 Instrument Datasheet 가 없습니다 — <b>Document Management › Instrument Datasheet PDF</b> 에 올리면 양식(FT · PT · LT · TT · PG · PSV …)을 알아보고 Tag 별로 검토합니다.</div>' : ''}
-    ${t.test ? `<div class="banner warn">시험 자료(TEST DATA 도장) ${t.test}개 Tag 가 들어 있습니다 — 실제 Datasheet 가 아닙니다.</div>` : ''}
-    <div class="kpis">${tile('Item 종류', used.length + ' / ' + s.kinds.length, '', '자료가 있는 계기 종류 / 양식 카드 수')}${tile('Tag', t.tags, '', '최신 Rev 기준 Tag 수')}${tile('Datasheet', t.sheets, '', '읽은 Datasheet (모든 Rev)')}
-      ${tile('지적 없음', t.ok_tags, 'okk', '지적이 하나도 없는 Tag')}${tile('누락', t.missing, t.missing ? 'warn' : '', '필수 칸이 빈 곳 (IN-REQ-01)')}${tile('값 다름', t.mismatch, t.mismatch ? 'warn' : '', 'PDS · PMS · Line List · Item 규칙과 다름')}
-      ${tile('확인 필요', t.review, '', '단위 · 기준이 불명확하거나 PMS/Line 에서 정확히 찾지 못함')}${tile('PDS 없음', t.not_in_pds, '', 'Process Data 에 Tag 가 없는 수')}</div>
-    <div class="card"><h3>계기 Type 별 현황 <small class="soft">— 칸을 누르면 그 종류의 Review 가 열립니다</small></h3>
-      <div class="itypes">${s.kinds.map(k => {
-        const iss = k.missing + k.mismatch + k.review, pct = k.tags ? Math.round(100 * k.ok_tags / k.tags) : 0;
-        const revs = Object.entries(k.revs).sort().map(([r, n]) => `Rev ${esc(r)} ${n}`).join(' · ');
-        return `<div class="itype ${k.tags ? '' : 'none'}" data-k="${k.kind}" tabindex="0" title="${esc(k.name)} — 양식 ${k.form_id}">
-          <div class="ih"><span class="ico">${ICON[k.kind] || '•'}</span><b>${esc(k.kind.toUpperCase())}</b><span class="soft">${esc(k.name)}</span></div>
-          <div class="inum"><b>${k.tags}</b><span>Tag</span>${k.sheets !== k.tags ? `<small class="soft">DS ${k.sheets}</small>` : ''}</div>
-          <div class="ibar" title="지적 없는 Tag ${k.ok_tags}/${k.tags}"><i style="width:${pct}%"></i></div>
-          <div class="icnt">${k.tags ? `<span class="ir ir-miss">누락 ${k.missing}</span><span class="ir ir-bad">값 다름 ${k.mismatch}</span><span class="ir ir-rev">확인 ${k.review}</span>${k.not_in_pds ? `<span class="ir ir-na">PDS 없음 ${k.not_in_pds}</span>` : ''}` : '<span class="soft">자료 없음</span>'}</div>
-          <div class="soft irev">${revs || '&nbsp;'}${k.test ? ' · <b class="tst">TEST</b>' : ''}</div>${VALVE_MENU[k.kind] ? `<div class="ivm">${valveLink(k.kind)}</div>` : ''}</div>`;
-      }).join('')}</div></div>
-    <div class="grid2"><div class="card"><h3>Type 별 지적 수</h3><div class="ichart">${s.kinds.filter(k => k.tags).map(k => {
-        const w = x => (100 * x / maxI).toFixed(1);
-        return `<div class="icr" data-k="${k.kind}"><span class="il">${esc(k.kind.toUpperCase())}</span><span class="ib"><i class="m" style="width:${w(k.missing)}%"></i><i class="b" style="width:${w(k.mismatch)}%"></i><i class="r" style="width:${w(k.review)}%"></i></span><span class="iv">${k.missing + k.mismatch + k.review}</span></div>`;
-      }).join('') || '<div class="soft">자료 없음</div>'}<div class="ileg"><i class="m"></i>누락 <i class="b"></i>값 다름 <i class="r"></i>확인 필요</div></div></div>
-      <div class="card"><h3>검토 기준 <small class="soft">IN-1.0</small></h3><table class="t"><tbody>
-        <tr><td>필수 칸</td><td>양식 카드의 필수 목록 (${R.required_confirmed.length ? `확인된 양식 ${R.required_confirmed.map(esc).join(' · ')}` : '<b>제안값 — 사용자 확인 전</b>'})</td></tr>
-        <tr><td>Process Data</td><td>Tag 로 PDS 행을 찾아 유체 · 상 · 압력 · 온도 · 밀도 · 유량 비교, 없으면 '없음'</td></tr>
-        <tr><td>PMS</td><td>Pipe Class → PMS Class · Flange Rating</td></tr>
-        <tr><td>Line List</td><td>Line No → Pipe Class · Design P/T · Size. <b>Line 의 Design 이 Datasheet 보다 높으면 지적</b> (Line No 칸이 없는 양식은 PDS 의 Line No)</td></tr>
-        <tr><td>Item 규칙</td><td>같은 Datasheet 안의 값끼리만 (PT/PG Range ↔ 운전압력 · PSV Set ↔ Design) — 사람 확인 표시</td></tr></tbody></table></div></div>`;
+  const [s, pr] = await Promise.all([api('GET', `/projects/${S.pid}/inst/summary`), api('GET', `/projects/${S.pid}/inst/progress?weeks=8`).catch(() => null)]);
+  const t = s.total, R = s.refs, P = n => (t.tags ? Math.round(100 * n / t.tags * 10) / 10 : 0);
+  const B = I.board || (I.board = { by: 'type', q: '', st: '', area: '', sel: '' });
+  const wk = pr ? pr.weeks : [], last = wk[wk.length - 1] || { received: 0 }, prev = wk[wk.length - 2] || { received: 0 };
+  const kpi = (cls, icon, label, n, sub, go) => `<div class="bk ${cls}" ${go ? `data-gok="${go}"` : ''}><span class="bki">${icon}</span><div><div class="bkl">${label}</div><div class="bkn">${n}${sub ? `<small>${sub}</small>` : ''}</div></div>${go ? '<span class="bkgo">›</span>' : ''}</div>`;
+  const donut = (parts, center, sub) => {                  // SVG ring: one arc per part
+    const tot = parts.reduce((a, p) => a + p[1], 0) || 1; let a0 = -Math.PI / 2;
+    const arcs = parts.filter(p => p[1]).map(([, n, c]) => { const a1 = a0 + 2 * Math.PI * n / tot - 0.0001, L = a1 - a0 > Math.PI ? 1 : 0;
+      const pt = a => [60 + 46 * Math.cos(a), 60 + 46 * Math.sin(a)], [x0, y0] = pt(a0), [x1, y1] = pt(a1); a0 = a1 + 0.0001;
+      return `<path d="M${x0} ${y0} A46 46 0 ${L} 1 ${x1} ${y1}" stroke="${c}" stroke-width="15" fill="none"/>`; }).join('');
+    return `<svg viewBox="0 0 120 120" class="bdonut"><circle cx="60" cy="60" r="46" stroke="#eef1f6" stroke-width="15" fill="none"/>${arcs}
+      <text x="60" y="58" text-anchor="middle" font-size="19" font-weight="700" fill="#1b2333">${center}</text><text x="60" y="75" text-anchor="middle" font-size="9.5" fill="#5b6475">${sub}</text></svg>`; };
+  const legend = rows => `<div class="blg">${rows.map(([l, n, c, extra]) => `<div><i style="background:${c}"></i><span>${l}</span><b>${n}</b>${extra ? `<em>${extra}</em>` : ''}</div>`).join('')}</div>`;
+  // status overview
+  const stParts = [['검토 완료', t.reviewed, '#1aa35a'], ['대기 · 지적 없음', Math.max(0, t.pending - Math.min(t.pending, t.issue_tags)), '#2f6fe0'], ['지적 있음', Math.min(t.pending, t.issue_tags), '#f08a24']];
+  // weekly trend (issues raised on the datasheets received that week · still open now)
+  const tmax = Math.max(1, ...wk.map(w => w.issues || 0));
+  const trend = wk.map(w => `<div class="tw"><div class="tb"><i class="a" style="height:${Math.round((w.issues || 0) / tmax * 100)}%"><b>${w.issues || ''}</b></i><i class="o" style="height:${Math.round((w.open || 0) / tmax * 100)}%"><b>${w.open || ''}</b></i></div><span>${w.week.slice(5)}</span></div>`).join('');
+  // categories
+  const CC = ['#2f6fe0', '#f08a24', '#1aa35a', '#8b5cf6', '#e4b400', '#d9443a', '#64748b'];
+  const cats = Object.entries(s.categories || {}).filter(([, n]) => n).sort((a, b) => b[1] - a[1]);
+  const csum = cats.reduce((a, [, n]) => a + n, 0) || 1;
+  // type list + cards
+  const kinds_ = s.kinds.filter(k => !B.st || (B.st === 'issue' ? k.issue_tags : B.st === 'pending' ? k.pending : B.st === 'done' ? k.reviewed : true));
+  const q = (B.q || '').toUpperCase();
+  const shown = kinds_.filter(k => !q || (k.kind + ' ' + k.name).toUpperCase().includes(q));
+  const code = k => k === 'analyzer' ? 'AT' : k === 'onoff' ? 'ON-OFF' : k.toUpperCase();
+  const card = k => { const pct = k.tags ? Math.round(100 * k.reviewed / k.tags) : 0, tone = !k.tags ? 'none' : k.issue_tags ? 'has' : 'clean';
+    const revs = Object.entries(k.revs).sort().map(([r, n]) => `Rev ${esc(r)}${n > 1 ? `·${n}` : ''}`).join(' ');
+    return `<div class="bt ${tone} ${B.sel === k.kind ? 'sel' : ''}" data-k="${k.kind}" tabindex="0" title="${esc(k.name)} — Form ${k.form_id}">
+      <div class="bth"><b>${code(k.kind)}</b><span>${esc(k.name)}</span><em>›</em></div>
+      <div class="btn"><b>${k.issue_tags}</b><span>/ ${k.tags} Tag</span><small>지적 있는 Tag</small></div>
+      <div class="btb"><i style="width:${pct}%"></i></div>
+      <div class="btc">${k.tags ? `<span class="ir ir-ok"><i>✓</i>검토완료 <b>${k.reviewed}</b></span>${k.issue_tags ? `<span class="ir ir-miss"><i>!</i>이슈 <b>${k.issue_tags}</b></span>` : ''}${k.pending - k.issue_tags > 0 ? `<span class="ir ir-na">대기 <b>${k.pending - Math.min(k.pending, k.issue_tags)}</b></span>` : ''}` : '<span class="soft">자료 없음</span>'}</div>
+      <div class="btf"><span>${revs || '&nbsp;'}</span>${k.test ? '<span class="tst">TEST</span>' : ''}${VALVE_MENU[k.kind] ? `<span class="ivm">${valveLink(k.kind)}</span>` : ''}</div></div>`; };
+  let grid;
+  if (B.by === 'area') {                                    // By Area: tags grouped by the area found for them (P&ID · doc no · tag)
+    const rows = (I.allRows && I.allRowsPid === S.pid) ? I.allRows : (I.allRows = (await api('GET', `/projects/${S.pid}/inst/sheets`)).rows, I.allRowsPid = S.pid, I.allRows);
+    const areas = {};
+    rows.filter(r => (!q || (r.tag + ' ' + r.kind + ' ' + (r.service || '')).toUpperCase().includes(q)) && (!B.st || (B.st === 'issue' ? r.issues : B.st === 'done' ? (['Accepted', 'Resolved'].includes(r.status) || r.review_code) : B.st === 'pending' ? !(['Accepted', 'Resolved'].includes(r.status) || r.review_code) : true)))
+      .forEach(r => { const a = r.area || 'Area 미상'; (areas[a] ||= []).push(r); });
+    const order = ['North', 'South', 'North Brownfield', 'South Brownfield', 'W15'];
+    const ar = await api('GET', `/projects/${S.pid}/inst/arearule`).catch(() => ({ rows: [], evidence: 0, table: [], index_rows: 0 }));
+    I.arText = ar.text || '';
+    /* valve40 (user 2026-11-13): the engineer's rule table (Brownfield · Greenfield …) first, each row checked against the
+       Instrument Index rows it covers ('20 / 20'); then what the documents taught (Valve DS · PDS titles · Index AREA). */
+    const chk = x => !x.n_index ? '<span class="soft" title="Instrument Index 에 이 접두어의 Tag 가 없음">Index 없음</span>'
+      : `<span class="${x.n_ok === x.n_index ? 'aok' : 'abad'}" title="${esc(Object.entries(x.other || {}).map(([a, n]) => `다른 AREA: ${a} ${n}`).join(' · ') || 'Index AREA 와 모두 같음')}${x.examples?.length ? ' — 예: ' + esc(x.examples.join(', ')) : ''}">${x.n_ok} / ${x.n_index}</span>`;
+    const groups = []; (ar.table || []).forEach(x => { let g = groups.find(y => y.g === x.group); if (!g) groups.push(g = { g: x.group, area: x.area, rows: [] }); g.rows.push(x); });
+    const tbl = groups.length ? `<table class="t atbl"><thead><tr><th>Tag 접두어</th><th>Area (Sub)</th><th>Unit</th><th>메모</th><th title="규칙이 덮는 Instrument Index 줄 중 AREA 가 규칙과 같은 줄">Index 대조</th></tr></thead><tbody>
+      ${groups.map(g => `<tr class="agrp"><td colspan="5"><b>${esc(g.g || '(묶음 없음)')}</b>${g.area && g.area !== g.g ? ` <span class="soft">= ${esc(g.area)} (문서 표제)</span>` : ''}</td></tr>` + g.rows.map(x => `<tr>
+        <td class="mono">${esc(x.patterns.join(', '))}</td><td>${esc(x.subs.map(s => x.sub_n?.[s] ? `${s} (${x.sub_n[s]})` : s).join(', '))}${x.subs.length > 1 ? ' <span class="asplit" title="한 접두어가 두 Area — Tag 별로 Instrument Index AREA 로 가름">Index 로 가름</span>' : ''}</td>
+        <td>${esc(x.unit || '')}</td><td class="soft">${esc(x.note || '')}</td><td>${chk(x)}</td></tr>`).join('')).join('')}</tbody></table>`
+      : '<div class="soft" style="margin:6px 0">아직 규칙 표가 없습니다 — <b>규칙 표 넣기</b>로 Brownfield · Greenfield 접두어 표를 붙여 넣으면 그 기준으로 다시 나눕니다.</div>';
+    const ruleCard = `<div class="arule"><div class="arh"><b>Area 규칙 (Tag 접두어)</b><span class="soft">규칙 표 → Instrument Index AREA → 문서에서 배운 규칙 순서로 정함 · Index ${ar.index_rows || 0}줄 · 문서 근거 ${ar.evidence}건</span><span class="sp"></span><button class="ghost2" data-act="arearule">✎ 규칙 표 ${groups.length ? '고치기' : '넣기'}</button></div>
+      ${tbl}
+      <details class="alearn"><summary>문서에서 배운 규칙 (Valve Datasheet · PDS 표제 · Instrument Index AREA)</summary><div class="arr">${ar.rows.map(r => `<span class="${r.area ? '' : 'asplit'}" title="${esc(Object.entries(r.areas).map(([z, n]) => `${z} ${n}`).join(' · '))}${Object.keys(r.subs || {}).length ? ' · Index AREA: ' + esc(Object.entries(r.subs).map(([z, n]) => `${z} ${n}`).join(' · ')) : ''}"><b>${esc(r.prefix)}</b> → ${esc(r.rule || Object.keys(r.subs || {}).join(' · ') || '-')}</span>`).join('') || '<span class="soft">근거 없음 — Valve Datasheet · Process Data · Instrument Index 를 올리면 찾습니다</span>'}</div></details></div>`;
+    grid = ruleCard + Object.entries(areas).sort((a, b) => ((order.indexOf(a[0]) + 1 || 99) - (order.indexOf(b[0]) + 1 || 99))).map(([a, rs]) => {
+      const iss = rs.filter(r => r.issues).length, done = rs.filter(r => ['Accepted', 'Resolved'].includes(r.status) || r.review_code).length;
+      const byk = {}; rs.forEach(r => { byk[r.kind] = (byk[r.kind] || 0) + 1; });
+      const bys = {}; rs.forEach(r => { const k = r.sub_area || '(Sub 미상)'; bys[k] = (bys[k] || 0) + 1; });
+      const subs = Object.keys(bys).length > 1 || !bys['(Sub 미상)'] ? `<div class="bsub">${Object.entries(bys).sort().map(([k, n]) => `<span class="${k === '(Sub 미상)' ? 'soft' : ''}">${esc(k)} <b>${n}</b></span>`).join('')}</div>` : '';
+      return `<div class="bt ${iss ? 'has' : 'clean'} area"><div class="bth"><b>${esc(a)}</b><span>${rs.length} Tag</span></div>${subs}
+        <div class="btn"><b>${iss}</b><span>/ ${rs.length} Tag</span><small>지적 있는 Tag</small></div><div class="btb"><i style="width:${rs.length ? Math.round(100 * done / rs.length) : 0}%"></i></div>
+        <div class="btc">${Object.entries(byk).map(([k, n]) => `<button class="bchip" data-k="${k}">${code(k)} <b>${n}</b></button>`).join('')}</div></div>`; }).join('') || '<div class="empty">Tag 가 없습니다</div>';
+  } else grid = shown.map(card).join('') || '<div class="empty">조건에 맞는 종류가 없습니다</div>';
+  const used = s.kinds.filter(k => k.tags).length, pctDone = P(t.reviewed);
+  el.innerHTML = `<div class="bhead"><div><h2>Instrument Datasheet Review Dashboard</h2><div class="soft">${esc(S.sum?.project?.name || '')} · Instrument Datasheet 검토 · Issue 추적</div></div><span class="sp"></span>
+      <span class="soft bat">계산 ${esc((s.at || '').replace('T', ' ').slice(0, 16))}</span><button class="ghost" data-act="refresh" title="다시 계산">⟳</button>
+      <button data-g="docs">자료 올리기</button><button data-req>필수 칸 확인</button></div>
+    <div class="irefs">${[['Process Data (PDS)', R.pds], ['PMS', R.pms], [`Process Line List${R.n_lines ? ` (${R.n_lines})` : ''}`, R.linelist], ['Instrument Index', R.instrument_index], ['IO List', R.io_list]]
+      .map(([l, v]) => `<div class="iref ${v ? 'on' : ''}" title="${esc(v || '없음')}"><b>${l}</b><span>${v ? esc(v.length > 40 ? v.slice(0, 38) + '…' : v) : '없음'}</span></div>`).join('')}</div>
+    ${!t.tags ? '<div class="banner info">아직 Instrument Datasheet 가 없습니다 — <b>Document Management › Instrument Datasheet PDF</b> 에 올리세요.</div>' : ''}
+    ${t.test ? `<div class="banner warn">시험 자료(TEST DATA 도장) ${t.test}개 Tag — 실제 Datasheet 가 아닙니다.</div>` : ''}
+    <div class="bkpis">
+      ${kpi('b1', '⧉', 'Total Tags', t.tags, last.received - prev.received ? `<span class="${last.received >= prev.received ? 'up' : 'dn'}">${last.received >= prev.received ? '↑' : '↓'} ${Math.abs(last.received - prev.received)}</span> 지난주 대비` : `${used} / ${s.kinds.length} 종류`)}
+      ${kpi('b2', '!', 'Issues Found', t.issues, `지적 있는 Tag ${t.issue_tags} (${P(t.issue_tags)}%)`, 'issue')}
+      ${kpi('b3', '✓', 'Reviewed', t.reviewed, `(${pctDone}%)`, 'done')}
+      ${kpi('b4', '◷', 'Pending Review', t.pending, `종결 ${t.closed} · 무시 ${t.dismissed}`, 'pending')}
+      <div class="bact"><a class="bbtn" href="/api/valve/projects/${S.pid}/inst/markup.pdf" download>⇩ Mark-up PDF</a><a class="bbtn ghost2" href="/api/valve/projects/${S.pid}/inst/crs.xlsx" download>⇩ CRS</a>
+        <a class="bbtn ghost2" href="/api/valve/projects/${S.pid}/inst/review.xlsx" download>⇩ 검토 결과 Excel</a></div></div>
+    <div class="bana">
+      <div class="card"><h3>◔ Review Status Overview</h3><div class="bdw">${donut(stParts.map(([l, n, c]) => [l, n, c]), `${pctDone}%`, 'Reviewed')}${legend(stParts.map(([l, n, c]) => [l, n, c]))}</div></div>
+      <div class="card"><h3>▥ Issues Trend <small class="soft">— 그 주에 받은 Datasheet 의 지적 · 지금 남은 지적</small></h3>
+        <div class="btr">${trend || '<div class="soft">자료 없음</div>'}</div><div class="ileg"><i style="background:#2f6fe0"></i>지적 발생 <i style="background:#f08a24"></i>남은 지적</div></div>
+      <div class="card"><h3>◕ Issue by Category</h3><div class="bdw">${donut(cats.map(([l, n], i) => [l, n, CC[i % CC.length]]), t.issues, 'Total')}
+        ${legend(cats.map(([l, n], i) => [l, n, CC[i % CC.length], `${Math.round(100 * n / csum)}%`]))}</div></div></div>
+    <div class="bbar"><div class="seg"><button data-by="type" class="${B.by === 'type' ? 'on' : ''}">▦ By Type</button><button data-by="area" class="${B.by === 'area' ? 'on' : ''}">⌖ By Area</button></div>
+      <input class="bq" placeholder="Tag · Type · Service 찾기" value="${esc(B.q)}">
+      <select data-f="st"><option value="">All Status</option><option value="issue" ${B.st === 'issue' ? 'selected' : ''}>지적 있음</option><option value="pending" ${B.st === 'pending' ? 'selected' : ''}>검토 대기</option><option value="done" ${B.st === 'done' ? 'selected' : ''}>검토 완료</option></select>
+      <span class="sp"></span><a class="btnlink ghost2" href="/api/valve/projects/${S.pid}/inst/review.xlsx" download>⇩ Export</a><button class="ghost2" data-act="print">⎙ Print</button></div>
+    <div class="bmain">
+      <aside class="bside"><div class="bsh"><b>Instrument Type</b><span class="soft">${s.kinds.length} Types</span></div>
+        ${s.kinds.map(k => `<button class="bsi ${B.sel === k.kind ? 'on' : ''} ${k.tags ? '' : 'z'}" data-k="${k.kind}"><b>${code(k.kind)}</b><span>${esc(k.name)}</span><em>${k.tags}</em></button>`).join('')}</aside>
+      <section class="bgrid-wrap"><div class="bgh"><b>${B.by === 'area' ? 'Area' : `${shown.length} / ${s.kinds.length}`}</b><span class="soft">${B.by === 'area' ? 'Area 별 Tag 검토 현황' : 'Type 별 Tag 검토 현황'}</span>
+          <span class="ir ir-ok"><i>✓</i>검토완료 <b>${t.reviewed}</b></span><span class="ir ir-rev"><i>◷</i>미검토 <b>${t.pending}</b></span><span class="ir ir-bad"><i>!</i>이슈 <b>${t.issue_tags}</b></span>
+          <span class="sp"></span><div class="bpg"><i style="width:${pctDone}%"></i></div><b>${pctDone}%</b></div>
+        <div class="bgrid">${grid}</div></section></div>`;
+  const qi = $('.bq', el); qi.oninput = e => { B.q = e.target.value; clearTimeout(renderBoard.t); renderBoard.t = setTimeout(() => renderBoard().then(() => { const x = $('#v-inst .bq'); x.focus(); x.setSelectionRange(x.value.length, x.value.length); }), 250); };
+  $('select[data-f="st"]', el).onchange = e => { B.st = e.target.value; renderBoard(); };
   el.onclick = e => {
     if (e.target.closest('.vlink')) return;
-    const k = e.target.closest('[data-k]'); if (k) { I.kind = k.dataset.k; LS.set('inst.kind', I.kind); I.rows = null; I.sel = null; V.go('ireview'); return; }
+    const by = e.target.closest('[data-by]'); if (by) { B.by = by.dataset.by; renderBoard(); return; }
+    const gk = e.target.closest('[data-gok]'); if (gk) { B.st = gk.dataset.gok; renderBoard(); return; }
+    const a = e.target.closest('[data-act]'); if (a) { if (a.dataset.act === 'print') window.print(); else if (a.dataset.act === 'arearule') areaDialog(); else { I.allRows = null; renderBoard(); } return; }
+    const k = e.target.closest('[data-k]'); if (k) { location.href = pageUrl(k.dataset.k); return; }      // each item is its own page
     const g = e.target.closest('[data-g]'); if (g) { V.go(g.dataset.g); return; }
     if (e.target.closest('[data-req]')) reqDialog();
   };
+}
+
+/* valve40 — paste the project's Area rule table (kept once per project family; every tag is re-classified on save) */
+async function areaDialog() {
+  const r = await V.modal('Area 규칙 표 — Tag 접두어 → Area · Unit', `<div class="soft" style="margin-bottom:6px">Excel · 문서의 표를 그대로 붙여 넣으세요. 읽는 모양:
+    <br>· 묶음 줄 <span class="mono">2. Brownfield QN (…)</span> — 아래 줄들의 Area 묶음
+    <br>· 표 <span class="mono">Tag 접두어 | 건수 | Area 컬럼 | Unit | 메모</span> (탭 · | · 두 칸 띄움 모두) — 접두어 여러 개는 <span class="mono">1, 2</span>, 한 접두어가 두 Area 면 <span class="mono">X-TR1 (17), X-TR3 (7)</span>
+    <br>· 줄 <span class="mono">QS: 98GTD- / 98SD-</span> — Tag 앞부분이 이것이면 그 Area · <span class="mono">315GE83xxxxC</span> 의 x 는 아무 글자
+    <br>규칙 표가 가장 먼저, 그다음 Instrument Index 의 AREA 칸, 그다음 문서에서 배운 규칙으로 정합니다. 모든 Valve · Instrument 화면이 같은 표를 씁니다.</div>
+    <textarea name="text" rows="16" style="width:100%;font:12px/1.45 var(--mono, monospace)" placeholder="2. Brownfield …&#10;Tag 접두어	Area	Unit	메모">${esc(I.arText || '')}</textarea>`,
+    [['취소', null], ['저장하고 다시 나누기', 'form', 1]], 'arearule');
+  if (!r) return;
+  try { await api('PUT', `/projects/${S.pid}/inst/arearule`, { text: r.text }); toast('규칙 표를 저장했습니다 — 모든 Tag 를 다시 나눴습니다'); I.allRows = null; renderBoard(); }
+  catch (e) { toast(e.message, 1); }
 }
 
 async function reqDialog() {
@@ -96,7 +222,7 @@ async function renderReview() {
   await kinds();
   if (QSHEET && !I.deep) {                                 // open that datasheet once, on its item's screen
     I.deep = 1; I.sel = QSHEET;
-    try { const d0 = await api('GET', `/inst/sheets/${QSHEET}`); if (d0.kind !== I.kind) { I.kind = d0.kind; I.rows = null; } markMenu('ireview'); } catch (_) { /* not found: the item's first tag */ }
+    try { const d0 = await api('GET', `/inst/sheets/${QSHEET}`); if (d0.kind !== I.kind) { I.kind = d0.kind; I.rows = null; } paintBrand(); } catch (_) { /* not found: the item's first tag */ }
   }
   if (!I.rows || I.rowsKind !== I.kind || I.rowsPid !== S.pid) {
     I.rows = (await api('GET', `/projects/${S.pid}/inst/sheets${I.kind ? `?kind=${I.kind}` : ''}`)).rows; I.rowsKind = I.kind; I.rowsPid = S.pid;
@@ -108,22 +234,23 @@ async function renderReview() {
   el.innerHTML = `<div class="ivh"><span class="ikt">${esc(I.kind ? (I.kind === 'analyzer' ? 'AT' : I.kind.toUpperCase()) : 'Instrument')}<small>${I.kind ? esc(kname(I.kind)) + (kk ? ` · Form ${esc(kk.form_id)}` : '') : '모든 종류'} · Tag ${I.rows.length}</small></span>${chips}<span class="sp"></span>
       <a class="btnlink" href="/api/valve/projects/${S.pid}/inst/markup.pdf${I.kind ? `?kind=${I.kind}` : ''}" download title="지적이 있는 Datasheet 전부 — 칸 음영 + 화살표 설명선(이유), Acrobat 에서 고칠 수 있음">⇩ Mark-up PDF</a>
       <a class="btnlink" href="/api/valve/projects/${S.pid}/inst/review.xlsx${I.kind ? `?kind=${I.kind}` : ''}" download>⇩ Excel</a></div>
-    <div class="wb iwb"><div class="wb-left"><input class="iq" placeholder="Tag 찾기" value="${esc(I.filt)}"><div class="itags" id="itags"></div></div>
+    <div class="wb iwb"><div class="wb-left"><div class="iqrow"><input class="iq" placeholder="Tag 찾기 ( / )" value="${esc(I.filt)}"><label title="지적이 남은 Tag 만"><input type="checkbox" id="ionly" ${I.onlyIss ? 'checked' : ''}> 지적만</label></div><div class="ikeys soft">J/K Tag · N/P 지적 · C 확인 · E 문구 · X 무시</div><div class="itags" id="itags"></div></div>
       <div class="wb-center" id="iview"></div><div class="wb-right"><div class="tabs" id="itabs">${[['find', '검토 결과'], ['vals', '읽은 값'], ['rev', 'Rev · 문서']].map(([k, l]) => `<button data-t="${k}" class="${I.tab === k ? 'on' : ''}">${l}</button>`).join('')}</div><div class="rbody" id="ibody"></div></div></div>`;
   I.viewer = new V.Viewer($('#iview'), { onOverlay: o => { if (o.key) { I.selKey = o.key; drawRight(); } } });
   drawTags();
   $('.iq', el).oninput = e => { I.filt = e.target.value; drawTags(); };
+  $('#ionly').onchange = e => { I.onlyIss = e.target.checked; drawTags(); };
   $('#itabs').onclick = e => { const b = e.target.closest('[data-t]'); if (!b) return; I.tab = b.dataset.t; $$('#itabs button').forEach(x => x.classList.toggle('on', x === b)); drawRight(); };
   const want = I.rows.find(r => r.id === I.sel) || I.rows[0];
   if (want) await openSheet(want.id); else { $('#ibody').innerHTML = '<div class="empty">이 종류의 Datasheet 가 없습니다.</div>'; $('#iview .stage').innerHTML = '<div class="empty" style="color:#fff">Document Management 에 Instrument Datasheet PDF 를 올리세요.</div>'; }
 }
 function drawTags() {
   const q = (I.filt || '').toUpperCase().replace(/[\s_-]/g, '');
-  $('#itags').innerHTML = I.rows.filter(r => !q || r.tag.toUpperCase().replace(/[\s_-]/g, '').includes(q)).map(r => {
+  $('#itags').innerHTML = I.rows.filter(r => (!q || r.tag.toUpperCase().replace(/[\s_-]/g, '').includes(q)) && (!I.onlyIss || r.issues)).map(r => {
     const c = r.counts;
-    return `<div class="itag ${r.id === I.sel ? 'on' : ''}" data-id="${r.id}"><div><b>${esc(r.tag)}</b>${r.test_data ? '<span class="tst">TEST</span>' : ''}<span class="sp"></span><small>Rev ${esc(r.rev || '-')}</small></div>
+    return `<div class="itag ${r.id === I.sel ? 'on' : ''}" data-id="${r.id}"><div><b>${esc(r.tag)}</b>${r.test_data ? '<span class="tst">TEST</span>' : ''}<span class="sp"></span>${r.review_code ? `<span class="icd" title="Review Code">${esc(r.review_code)}</span>` : ''}<small>Rev ${esc(r.rev || '-')}</small></div>
       <div class="soft">${esc(r.kind.toUpperCase())} · ${esc((r.service || '').slice(0, 30))}</div>
-      <div>${r.issues ? `${c.Missing ? `<span class="ir ir-miss">${c.Missing}</span>` : ''}${c.Mismatch ? `<span class="ir ir-bad">${c.Mismatch}</span>` : ''}${c['Review Required'] ? `<span class="ir ir-rev">${c['Review Required']}</span>` : ''}` : '<span class="ir ir-ok">지적 없음</span>'}${r.in_pds ? '' : '<span class="ir ir-na">PDS 없음</span>'}</div></div>`;
+      <div>${r.issues ? `${c.Mismatch ? rp('Mismatch', c.Mismatch) : ''}${c.Missing ? rp('Missing', c.Missing) : ''}${c['Review Required'] ? rp('Review Required', c['Review Required']) : ''}` : '<span class="ir ir-ok"><i>✓</i>지적 없음</span>'}${r.in_pds ? '' : '<span class="ir ir-na"><i>–</i>PDS 없음</span>'}</div></div>`;
   }).join('') || '<div class="empty">없음</div>';
   $('#itags').onclick = e => { const t = e.target.closest('[data-id]'); if (t) openSheet(+t.dataset.id); };
 }
@@ -134,7 +261,7 @@ async function openSheet(id) {
   await I.viewer.load(I.d.document_id, I.d.pages);
   paintOv(); drawRight();
 }
-function rowOf(key) { return (I.d?.rows || []).find(r => r.std_key === key && r.bbox) || null; }
+function rowOf(key) { if ((key || '').startsWith('row:')) return (I.d?.rows || []).find(r => r.no === key.slice(4) && r.bbox) || null; return (I.d?.rows || []).find(r => r.std_key === key && r.bbox) || null; }
 function paintOv() {
   const cat = { Mismatch: 'error', Missing: 'missing', 'Review Required': 'missing' };
   const ov = [];
@@ -145,22 +272,57 @@ function paintOv() {
   });
   I.viewer.setOverlays(ov);
 }
+async function reloadSheet() {                             // after a decision / code: same tag, fresh counts everywhere
+  const keep = I.selKey; I.d = await api('GET', `/inst/sheets/${I.d.id}`); I.selKey = keep;
+  const r = (I.rows || []).find(x => x.id === I.d.id); if (r) Object.assign(r, { counts: I.d.counts, issues: I.d.issues, review_code: I.d.review_code, suggested_code: I.d.suggested_code, status: I.d.status });
+  drawTags(); paintOv(); drawRight();
+}
+async function setCode(code) { await api('PUT', `/inst/sheets/${I.d.id}/code`, { code }); toast(`Review Code ${code || '미정'} 저장`); await reloadSheet(); }
+async function decide(fk, dec) {
+  if (!fk) return;
+  let body = { fkey: fk, decision: dec };
+  if (dec === 'Dismissed' || dec === 'Modified') {
+    const f = I.d.review.find(x => x.fkey === fk) || {};
+    const html = `${dec === 'Modified' ? `<div class="soft">Vendor 에 보낼 문구 (Mark-up PDF · CRS 에 이 글이 나갑니다 — 영어로 쓰면 PDF 설명선에도 그대로)</div><textarea name="text" rows="4" style="width:100%">${esc(f.decision?.text || f.reason || '')}</textarea>` : ''}
+      <div class="soft" style="margin-top:6px">이유</div><select name="reason_cat"><option value="">— 선택 —</option>${(I.d.reasons || []).map(r => `<option>${esc(r)}</option>`).join('')}</select>
+      <input name="reason" placeholder="자세한 이유 (기록에 남음)" style="width:100%;margin-top:6px" value="${esc(f.decision?.reason || '')}">`;
+    const r = await V.modal(dec === 'Modified' ? '지적 문구 수정' : '이 지적 무시', html, [['취소', null], [dec === 'Modified' ? '저장' : '무시', 'form', 1]]);
+    if (!r) return;
+    if (dec === 'Dismissed' && !r.reason_cat && !r.reason) { toast('무시하려면 이유가 필요합니다', 1); return; }
+    body = Object.assign(body, r);
+  }
+  await api('PUT', `/inst/sheets/${I.d.id}/decisions`, body);
+  toast({ Confirmed: '확인 — Vendor 에 지적으로 남김', Modified: '문구 수정 저장', Dismissed: '무시 — 지적 수 · PDF · CRS 에서 빠짐', Open: '결정 지움' }[dec]);
+  await reloadSheet();
+}
 function drawRight() {
   const d = I.d, b = $('#ibody'); if (!d || !b) return;
   const head = `<div class="ihead"><b>${esc(d.tag)}</b> ${pill(d.status)} <span class="soft">${esc(kname(d.kind))} · 양식 ${esc(d.form_id)}</span>
     <div class="soft">${esc(d.doc_no || '(문서번호 못 읽음)')} · Rev ${esc(d.rev || '-')}${d.rev_date ? ' · ' + esc(d.rev_date) : ''}${d.test_data ? ' · <b class="tst">TEST DATA</b>' : ''}</div>
-    <div class="ist"><a class="btnlink" href="/api/valve/inst/sheets/${d.id}/markup.pdf" download title="이 Datasheet 에 지적을 표시한 PDF — 칸 음영 + 화살표 설명선(이유)">⇩ 이 Tag Mark-up PDF</a> <select id="ists">${['Not Reviewed', 'Under Review', 'Accepted', 'Rejected', 'Commented', 'Resolved'].map(s => `<option ${s === d.status ? 'selected' : ''}>${s}</option>`).join('')}</select></div></div>`;
+    <div class="ist"><a class="btnlink" href="/api/valve/inst/sheets/${d.id}/markup.pdf" download title="이 Datasheet 에 지적을 표시한 PDF — 칸 음영 + 화살표 설명선(이유)">⇩ 이 Tag Mark-up PDF</a> <select id="ists">${['Not Reviewed', 'Under Review', 'Accepted', 'Rejected', 'Commented', 'Resolved'].map(s => `<option ${s === d.status ? 'selected' : ''}>${s}</option>`).join('')}</select></div></div>
+    <div class="icode"><span class="soft">Review Code</span><select id="icode"><option value="">— 미정 —</option>${(d.codes || []).map(c => `<option value="${esc(c.code)}" ${c.code === d.review_code ? 'selected' : ''}>${esc(c.code)} · ${esc(c.label)}</option>`).join('')}</select>${d.suggested_code && d.suggested_code !== d.review_code ? `<button class="ghost" data-sugg="${esc(d.suggested_code)}" title="남은 지적으로 계산한 제안 — 눌러 적용">제안 ${esc(d.suggested_code)} · ${esc((d.codes || []).find(c => c.code === d.suggested_code)?.label || '')}</button>` : ''}</div>`;
   if (I.tab === 'find') {
+    const isBad = f => ['Mismatch', 'Missing', 'Review Required'].includes(f.result);
+    const DEC = { Confirmed: ['ok', '✓ 확인 — Vendor 에 지적'], Modified: ['rev', '✎ 문구 수정'], Dismissed: ['na', '✕ 무시'] };
+    const replyLine = f => { const y = f.reply; if (!y) return ''; return `<div class="irep ${y.status === 'Closed' ? 'cl' : ''}"><b>Vendor 회신</b>${y.date ? ` <span class="soft">${esc(y.date)}</span>` : ''} · <span class="ir ir-${y.status === 'Closed' ? 'ok' : 'rev'}">${y.status === 'Closed' ? '✓ Closed' : 'Open'}</span>${y.closed_by ? ` <span class="soft">${esc(y.closed_by)}</span>` : ''}${y.reply ? `<div>${esc(y.reply)}</div>` : ''}</div>`; };
+    const decLine = f => { const x = f.decision; if (!x) return ''; const [c, l] = DEC[x.decision] || ['na', x.decision];
+      return `<div class="idec"><span class="ir ir-${c}">${l}</span><span class="soft">${esc(x.by || '')} · ${esc((x.at || '').replace('T', ' ').slice(0, 16))}${x.origin ? ` · <b>${esc(x.origin)} 에서 이어받음</b>` : ''}${x.reason_cat || x.reason ? ` · ${esc([x.reason_cat, x.reason].filter(Boolean).join(': '))}` : ''}</span></div>`; };
+    const acts = f => (isBad(f) || f.result === 'Dismissed') ? `<div class="iacts" data-fk="${esc(f.fkey || '')}">${f.result === 'Dismissed' ? '<button data-dec="Open">되돌리기</button>' : `<button data-dec="Confirmed" class="${f.decision?.decision === 'Confirmed' ? 'on' : ''}" title="Vendor 에 보낼 지적으로 확정 (C)">✓ 확인</button><button data-dec="Modified" title="지적 문구를 고쳐 씀 (E)">✎ 문구</button><button data-dec="Dismissed" title="지적이 아님 — 이유를 남김 (X)">✕ 무시</button>${f.decision ? '<button data-dec="Open" class="ghost" title="결정 지우기">↺</button>' : ''}`}</div>` : '';
+    const card = ([f, i]) => `
+        <div class="ifind ${I.selKey === f.key ? 'sel' : ''} r-${(RES[f.result] || ['na'])[0]}" data-key="${esc(f.key)}"><div><span class="no">${i + 1}</span>${rp(f.result)} <b>${esc(f.item)}</b><span class="sp"></span><small class="soft" title="${esc(d.rules[f.rule] || '')}">${esc(f.rule)}</small></div>
+          ${isBad(f) ? `<div class="cmp"><span>Datasheet</span><b>${esc(f.ds || '—')}</b><span>기준</span><b>${esc(f.ref || '—')}</b></div>
+          <div class="why">${esc(f.reason)}${f.human ? ' · <b>사람 확인</b>' : ''}</div><div class="src">${esc(f.source || '')}</div>${decLine(f)}${replyLine(f)}${acts(f)}` : (f.result === 'Dismissed' || f.result === 'Closed') ? `<div class="okline">${esc(f.ds || '—')} <span class="soft">/ ${esc(f.ref || '—')}</span></div>${decLine(f)}${replyLine(f)}${acts(f)}` : `<div class="okline">${esc(f.ds || '—')} <span class="soft">= ${esc(f.ref || '—')}</span></div>`}</div>`;
+    const n = { Mismatch: 0, Missing: 0, 'Review Required': 0 }; d.review.forEach(f => { if (isBad(f)) n[f.result]++; });
+    const tot = n.Mismatch + n.Missing + n['Review Required'];
+    const strip = `<div class="istrip ${tot ? '' : 'ok'}">${tot ? `<b>지적 ${tot}건</b>${n.Mismatch ? rp('Mismatch', n.Mismatch) : ''}${n.Missing ? rp('Missing', n.Missing) : ''}${n['Review Required'] ? rp('Review Required', n['Review Required']) : ''}` : '<b>✓ 지적 없음</b>'}<span class="sp"></span><label title="같다고 확인된 항목도 펼쳐 보기"><input type="checkbox" id="iok" ${I.showOk ? 'checked' : ''}> OK 항목 보기</label></div>`;
     const sec = GROUPS.map(([p, l]) => {
       const rs = d.review.map((f, i) => [f, i]).filter(([f]) => f.rule.startsWith(p));
       if (!rs.length) return '';
-      const bad = rs.filter(([f]) => ['Mismatch', 'Missing', 'Review Required'].includes(f.result)).length;
-      return `<div class="igrp"><h4>${l} <span class="soft">${rs.length}</span>${bad ? `<span class="ir ir-bad">${bad}</span>` : '<span class="ir ir-ok">OK</span>'}</h4>${rs.map(([f, i]) => `
-        <div class="ifind ${I.selKey === f.key ? 'sel' : ''} r-${(RES[f.result] || ['na'])[0]}" data-key="${esc(f.key)}"><div><span class="no">${i + 1}</span>${rp(f.result)} <b>${esc(f.item)}</b><span class="sp"></span><small class="soft" title="${esc(d.rules[f.rule] || '')}">${esc(f.rule)}</small></div>
-          <div class="cmp"><span>Datasheet</span><b>${esc(f.ds || '—')}</b><span>기준</span><b>${esc(f.ref || '—')}</b></div>
-          <div class="soft">${esc(f.reason)}${f.human ? ' · <b>사람 확인</b>' : ''}</div><div class="src">${esc(f.source || '')}</div></div>`).join('')}</div>`;
+      const bad = rs.filter(([f]) => isBad(f)), ok = rs.filter(([f]) => !isBad(f) && f.result !== 'Dismissed' && f.result !== 'Closed'), dis = rs.filter(([f]) => f.result === 'Dismissed' || f.result === 'Closed');
+      return `<div class="igrp ${bad.length ? '' : 'allok'}"><h4>${l}${bad.length ? `<span class="ir ir-bad"><i>!</i>지적 <b>${bad.length}</b></span>` : '<span class="ir ir-ok"><i>✓</i>OK</span>'}<span class="soft cnt">${ok.length ? `같음 ${ok.length}` : ''}</span></h4>${bad.map(card).join('')}${I.showOk ? dis.map(card).join('') + ok.map(card).join('') : dis.length ? `<div class="soft dismissed">무시 · 종결한 지적 ${dis.length} — 'OK 항목 보기' 로 펼침</div>` : ''}</div>`;
     }).join('');
-    b.innerHTML = head + (sec || '<div class="empty">검토할 기준 문서가 없습니다</div>');
+    b.innerHTML = head + strip + (sec || '<div class="empty">검토할 기준 문서가 없습니다</div>');
+    const ck = $('#iok'); if (ck) ck.onchange = () => { I.showOk = ck.checked; LS.set('inst.showok', I.showOk); drawRight(); };
   } else if (I.tab === 'vals') {
     let s0 = '';
     b.innerHTML = head + `<table class="t ivals"><tbody>${d.rows.map(r => {
@@ -173,8 +335,11 @@ function drawRight() {
       <div class="igrp"><h4>양식 식별</h4><div class="soft">점수 ${d.identify?.score} · ${esc((d.identify?.why || []).join(' · '))}<br>다음 후보 ${esc(d.identify?.runner_up || '-')} (${d.identify?.runner_up_score ?? '-'})</div></div>
       <div class="igrp"><h4>원본</h4><a href="/api/valve/documents/${d.document_id}/file" target="_blank">${esc(d.file || '')}</a> · 쪽 ${d.pages.join(', ')}</div>`;
   }
+  const icode = $('#icode'); if (icode) icode.onchange = async e => { await setCode(e.target.value); };
   $('#ists').onchange = async e => { await api('PUT', `/inst/sheets/${d.id}/status`, { status: e.target.value }); d.status = e.target.value; const r = I.rows.find(x => x.id === d.id); if (r) r.status = d.status; toast('상태 저장'); drawRight(); };
   b.onclick = e => {
+    const sg = e.target.closest('[data-sugg]'); if (sg) { setCode(sg.dataset.sugg); return; }
+    const db = e.target.closest('[data-dec]'); if (db) { decide(db.closest('[data-fk]').dataset.fk, db.dataset.dec); return; }
     const o = e.target.closest('[data-open]'); if (o) { openSheet(+o.dataset.open); return; }
     const f = e.target.closest('[data-key]'); if (!f || !f.dataset.key) return;
     I.selKey = f.dataset.key; const r = rowOf(I.selKey) || (I.selKey.startsWith('line') ? rowOf('line_no') : null);
@@ -182,6 +347,20 @@ function drawRight() {
     if (r) I.viewer.focus(r.page, r.bbox, r.label);
   };
 }
+
+/* keyboard: J/K next/prev tag · N/P next/prev finding · C confirm · E edit wording · X dismiss · / search */
+addEventListener('keydown', e => {
+  if (S.view !== 'ireview' || !I.d || e.ctrlKey || e.metaKey || e.altKey || !$('#modal').hidden || e.target.closest?.('input, textarea, select')) return;
+  const k = e.key.toLowerCase();
+  const vis = $$('#itags .itag').map(x => +x.dataset.id), at = vis.indexOf(I.d.id);
+  if (k === 'j' || k === 'k') { const n = vis[at + (k === 'j' ? 1 : -1)]; if (n) { e.preventDefault(); openSheet(n).then(() => $(`#itags .itag[data-id="${n}"]`)?.scrollIntoView({ block: 'nearest' })); } return; }
+  if (k === '/') { e.preventDefault(); $('#v-ireview .iq')?.focus(); return; }
+  const cards = $$('#ibody .ifind').filter(c => c.querySelector('.iacts [data-dec="Confirmed"]'));
+  const cur = cards.findIndex(c => c.classList.contains('sel'));
+  if (k === 'n' || k === 'p') { const c = cards[cur < 0 ? 0 : Math.max(0, Math.min(cards.length - 1, cur + (k === 'n' ? 1 : -1)))]; if (c) { e.preventDefault(); c.click(); c.scrollIntoView({ block: 'nearest' }); } return; }
+  const dec = { c: 'Confirmed', e: 'Modified', x: 'Dismissed' }[k];
+  if (dec && cur >= 0) { e.preventDefault(); decide(cards[cur].querySelector('[data-fk]').dataset.fk, dec); }
+});
 
 /* ── Instrument List · IO List — one screen each: comparison with the datasheets + the list as read ─────────── */
 async function renderLists() {
@@ -192,7 +371,7 @@ async function renderLists() {
   const info = d.lists[L], c = d.counts[lname] || {};
   const tabs = [['cmp', 'Datasheet 대조'], ['rec', 'List 내용']].map(([k, l]) => `<button data-lt="${k}" class="${I.ltab === k ? 'on' : ''}">${l}</button>`).join('');
   const head = `<div class="vh"><h2>${nm}</h2><span class="soft">${info ? esc([info.files.join(' · '), info.doc_no, info.rev ? 'Rev ' + info.rev : '', 'Tag ' + info.tags].filter(Boolean).join(' · ')) : '아직 없음'}</span><span class="sp"></span>
-      <button data-g="docs">자료 올리기</button><a class="btnlink" href="/api/valve/projects/${S.pid}/inst/listcmp.xlsx?list=${L}" download>⇩ Excel</a></div>`;
+      ${V.refLink('List 올리기 · 바꾸기 (공통 자료) →')}<a class="btnlink" href="/api/valve/projects/${S.pid}/inst/listcmp.xlsx?list=${L}" download>⇩ Excel</a></div>`;
   if (!info) {
     el.innerHTML = head + `<div class="card"><div class="empty">${nm} PDF 가 없습니다 — <b>Document Management › Instrument Index · IO List</b> 에 올리면 Tag 별로 읽고 Datasheet 와 대조합니다 (기준 = Datasheet: 누락 · 값 다름 · List 에만).</div></div>`;
   } else {
@@ -201,37 +380,255 @@ async function renderLists() {
     if (I.ltab === 'cmp') {
       const rows = d.rows.filter(x => I.lfilt ? x.result === I.lfilt : x.result !== 'OK');
       body = `<div class="card" style="padding:0;overflow:auto"><table class="t"><thead><tr><th>결과</th><th>Tag</th><th>Item</th><th>항목</th><th>Datasheet</th><th>${lname}</th><th>이유</th><th>Rule</th></tr></thead><tbody>
-        ${rows.map(x => `<tr ${x.sheet_id ? `data-sid="${x.sheet_id}" data-sk="${x.kind}" class="link"` : ''}><td>${rp(x.result)}</td><td><b>${esc(x.tag)}</b></td><td>${esc((x.kind || '').toUpperCase())}</td><td>${esc(x.field)}</td>
+        ${rows.map(x => `<tr ${x.sheet_id ? `data-sid="${x.sheet_id}" data-sk="${x.kind}" class="link"` : x.valve_ds ? `data-vds="${x.valve_ds}" data-vp="${esc(x.valve_project)}" class="link"` : ''}><td>${rp(x.result)}</td><td><b>${esc(x.tag)}</b></td><td>${esc(kindLabel(x.kind))}</td><td>${esc(x.field)}</td>
           <td>${esc(x.ds)}</td><td>${esc(x.lst)}</td><td class="soft">${esc(x.reason)}</td><td class="soft">${esc(x.rule)}</td></tr>`).join('') || '<tr><td colspan="8" class="empty">차이 없음</td></tr>'}</tbody></table></div>`;
     } else {
       const io = L === 'io_list';
       body = `<div class="card" style="padding:0;overflow:auto"><table class="t"><thead><tr><th>Tag</th><th>Loop</th><th>Type</th><th>Service</th><th>P&amp;ID</th><th>Line</th><th>Range</th>
         ${io ? '<th>IO</th><th>Logic</th>' : '<th>Datasheet No</th><th>Manufacturer</th><th>Model</th>'}<th>Datasheet</th><th>대조</th><th>p.</th></tr></thead><tbody>
-        ${d.records.map(r => `<tr ${r.sheet_id ? `data-sid="${r.sheet_id}" data-sk="${r.ds_kind}" class="link"` : ''}><td><b>${esc(r.tag)}</b></td><td>${esc(r.loop || '')}</td><td>${esc(r.inst_type || '')}</td><td>${esc(r.service || '')}</td>
+        ${d.records.map(r => `<tr ${r.sheet_id ? `data-sid="${r.sheet_id}" data-sk="${r.ds_kind}" class="link"` : r.valve_ds ? `data-vds="${r.valve_ds}" data-vp="${esc(r.valve_project)}" class="link"` : ''}><td><b>${esc(r.tag)}</b></td><td>${esc(r.loop || '')}</td><td>${esc(r.inst_type || '')}</td><td>${esc(r.service || '')}</td>
           <td>${esc(r.pid_no || '')}</td><td>${esc(r.line_no || '')}</td><td>${esc(r.range || '')}</td>
           ${io ? `<td>${esc(r.io_typical || '')}</td><td>${esc(r.logic_no || '')}</td>` : `<td>${esc(r.datasheet_no || '')}</td><td>${esc(r.manufacturer || '')}</td><td>${esc(r.model || '')}</td>`}
-          <td>${r.ds_kind ? esc(r.ds_kind.toUpperCase()) : '<span class="ir ir-lo">없음</span>'}</td><td>${r.findings ? `<span class="ir ir-bad">${r.findings}</span>` : '<span class="ir ir-ok">OK</span>'}</td><td class="soft">${r.page || ''}</td></tr>`).join('')}</tbody></table></div>`;
+          <td>${r.ds_kind ? esc(kindLabel(r.ds_kind)) : '<span class="ir ir-lo"><i>≡</i>없음</span>'}</td><td>${r.findings ? `<span class="ir ir-bad">${r.findings}</span>` : '<span class="ir ir-ok">OK</span>'}</td><td class="soft">${r.page || ''}</td></tr>`).join('')}</tbody></table></div>`;
     }
-    el.innerHTML = head + `<div class="ilhead"><div class="tabs ltabs">${tabs}</div><div class="ilc">${kpi}</div></div>` + body;
+    el.innerHTML = head + `<div class="ilhead"><div class="tabs ltabs">${tabs}</div><div class="ilc">${kpi}</div><span class="soft">대조한 Datasheet: Instrument ${d.n_inst} Tag · Valve ${d.n_valve} Tag (Ball · Globe · Butterfly · PSV)</span></div>` + body;
   }
   el.onclick = e => {
     const g = e.target.closest('[data-g]'); if (g) { V.go(g.dataset.g); return; }
     const t = e.target.closest('[data-lt]'); if (t) { I.ltab = t.dataset.lt; renderLists(); return; }
     const b = e.target.closest('[data-lf]'); if (b) { I.lfilt = I.lfilt === b.dataset.lf ? '' : b.dataset.lf; I.ltab = 'cmp'; renderLists(); return; }
-    const r = e.target.closest('[data-sid]'); if (r) { I.sel = +r.dataset.sid; I.kind = r.dataset.sk || I.kind; I.rows = null; V.go('ireview'); }
+    const r = e.target.closest('[data-sid]'); if (r) { location.href = pageUrl(r.dataset.sk || I.kind, r.dataset.sid); return; }
+    const v = e.target.closest('[data-vds]'); if (v) location.href = valveUrl(v.dataset.vp, v.dataset.vds);
   };
 }
 
-/* left menu: one entry per item and per list (like the Valve kinds) */
-function markMenu(v) {
-  $$('#menu button[data-ik]').forEach(b => b.classList.toggle('on', v === 'ireview' && b.dataset.ik === I.kind));
-  $$('#menu button[data-il]').forEach(b => b.classList.toggle('on', v === 'ilist' && b.dataset.il === I.list));
+/* ── review progress by week (received · decisions · codes · closed) + open comments now ──────────────── */
+async function progressCard(kind) {
+  const d = await api('GET', `/projects/${S.pid}/inst/progress?weeks=12${kind ? `&kind=${kind}` : ''}`);
+  const W = d.weeks, max = Math.max(1, ...W.map(w => Math.max(w.received, w.decisions, w.codes, w.closed)));
+  const S_ = [['received', '받은 Datasheet', '#8aa4d6'], ['decisions', '엔지니어 결정', '#2f5bd8'], ['codes', 'Review Code', '#7a52c7'], ['closed', '종결 (Vendor 회신)', '#1aa35a']];
+  const H = 110;                                           // HTML bars: labels keep their shape at any width
+  const bars = W.map(w => `<div class="pw" title="${w.week}"><div class="pb">${S_.map(([k, , c]) => `<i style="height:${Math.round(w[k] / max * H)}px;background:${c}" title="${w.week} · ${k} ${w[k]}"></i>`).join('')}</div><span>${w.week.slice(6)}</span></div>`).join('');
+  const codes = (d.codes || []).map(c => d.now.codes[c.code] ? `<span class="ir ir-na" title="${esc(c.label)}"><b>${esc(c.code)}</b> ${esc(c.label)} <b>${d.now.codes[c.code]}</b></span>` : '').join('');
+  return `<div class="card iprog"><h3>검토 진행 <small class="soft">— 최근 12주 · 주별</small></h3>
+    <div class="iprog-now"><span>남은 지적 <b>${d.now.open}</b></span><span>종결 <b>${d.now.closed}</b></span><span>무시 <b>${d.now.dismissed}</b></span><span>Review Code 미정 <b>${d.now.no_code}</b> / ${d.now.tags}</span>${codes}</div>
+    <div class="pchart"><em>${max}</em>${bars}</div>
+    <div class="ileg">${S_.map(([, l, c]) => `<i style="background:${c}"></i>${l}`).join(' ')}</div></div>`;
 }
-$('#menu').addEventListener('click', e => {                 // capture: set the item / list before the view renders
-  const b = e.target.closest('button'); if (!b) return;
-  if (b.dataset.ik) { if (I.kind !== b.dataset.ik) { I.kind = b.dataset.ik; I.sel = null; I.rows = null; } LS.set('inst.kind', I.kind); }
-  if (b.dataset.il) { I.list = b.dataset.il; LS.set('inst.list', I.list); I.lfilt = ''; }
-}, true);
 
-window.INST = { render(v) { markMenu(v); (v === 'inst' ? renderBoard() : v === 'ireview' ? renderReview() : renderLists()).catch(e => { console.error(e); toast(e.message, 1); }); } };
+/* ── item page › Dashboard — this item only ───────────────────────────────────────────── */
+async function renderItemDash() {
+  const el = $('#v-idash');
+  el.innerHTML = `<div class="vh"><h2>${esc(pageName())}</h2></div><div class="soft">불러오는 중…</div>`;
+  await kinds();
+  const [s, sh] = await Promise.all([api('GET', `/projects/${S.pid}/inst/summary`), api('GET', `/projects/${S.pid}/inst/sheets?kind=${I.kind}`)]);
+  const k = s.kinds.find(x => x.kind === I.kind) || { tags: 0, ok_tags: 0, missing: 0, mismatch: 0, review: 0, not_in_pds: 0, sheets: 0, test: 0, revs: {} };
+  const R = s.refs, rows = sh.rows; I.rows = rows; I.rowsKind = I.kind; I.rowsPid = S.pid;
+  const ref = (l, v) => `<div class="iref ${v ? 'on' : ''}" title="${esc(v || '')}"><b>${l}</b><span>${v ? esc(v.length > 40 ? v.slice(0, 38) + '…' : v) : '없음'}</span></div>`;
+  const tile = (l, n, cls) => `<div class="kpi ${cls || ''}"><div class="l">${l}</div><div class="n">${n}</div></div>`;
+  const kk = (I.kinds || []).find(x => x.kind === I.kind);
+  el.innerHTML = `<div class="vh"><h2>${esc(pageName())}</h2><span class="soft">${esc(S.sum?.project?.name || '')}${kk ? ` · Form ${esc(kk.form_id)}` : ''} · Datasheet 검토 현황</span><span class="sp"></span>
+      <button data-g="docs">자료 올리기</button><button class="pri" data-g="ireview">Datasheet Review 열기</button></div>
+    <div class="irefs">${ref('Process Data (PDS)', R.pds)}${ref('PMS', R.pms)}${ref('Process Line List', R.linelist)}${ref('Instrument Index', R.instrument_index)}${ref('IO List', R.io_list)}</div>
+    ${!k.tags ? `<div class="banner info">아직 ${esc(pageName())} Datasheet 가 없습니다 — <b>Document Management › Instrument Datasheet PDF</b> 에 올리면 양식을 알아보고 Tag 별로 검토합니다.</div>` : ''}
+    ${k.test ? `<div class="banner warn">시험 자료(TEST DATA 도장) ${k.test}개 Tag — 실제 Datasheet 가 아닙니다.</div>` : ''}
+    ${k.tags ? `<div class="isum ${k.tags === k.ok_tags ? 'allok' : ''}"><div class="big"><b>${k.ok_tags}</b><span>/ ${k.tags} Tag</span></div>
+      <div class="txt"><b>${k.tags === k.ok_tags ? '모든 Tag 에 지적이 없습니다' : `${k.tags - k.ok_tags}개 Tag 에 확인할 지적이 있습니다`}</b>
+        <span>${rp('Mismatch', k.mismatch)}${rp('Missing', k.missing)}${rp('Review Required', k.review)}</span></div>
+      <div class="prog"><i style="width:${Math.round(100 * k.ok_tags / k.tags)}%"></i></div><div class="pct">${Math.round(100 * k.ok_tags / k.tags)}%</div></div>
+    <div id="iprog"></div>
+    <div class="kpis ikpis six">${tile('Tag', k.tags)}${tile('Datasheet', k.sheets)}${tile('지적 없음', k.ok_tags, 'okk')}${tile('값 다름', k.mismatch, k.mismatch ? 'warn' : '')}${tile('누락', k.missing, k.missing ? 'warn' : '')}${tile('PDS 없음', k.not_in_pds)}</div>
+    <div class="card" style="padding:0;overflow:auto"><table class="t itbl"><thead><tr><th>Tag</th><th>Service</th><th>Rev</th><th>Area</th><th>Unit</th><th>Pipe Class</th><th>Line No</th><th>검토 결과</th><th>PDS</th><th>Status</th></tr></thead><tbody>
+      ${rows.map(r => { const c = r.counts; return `<tr class="link" data-open="${r.id}"><td><b>${esc(r.tag)}</b>${r.test_data ? '<span class="tst">TEST</span>' : ''}</td><td>${esc(r.service || '')}</td><td>${esc(r.rev || '-')}</td><td title="${esc(r.loc_basis || '')}">${esc(r.area || '')}${r.sub_area ? ` <span class="soft">· ${esc(r.sub_area)}</span>` : ''}</td><td>${esc(r.unit || '')}</td>
+        <td>${esc(r.piping_class || '')}</td><td>${esc(r.line_no || '')}</td>
+        <td>${r.issues ? `${c.Mismatch ? rp('Mismatch', c.Mismatch) : ''}${c.Missing ? rp('Missing', c.Missing) : ''}${c['Review Required'] ? rp('Review Required', c['Review Required']) : ''}` : '<span class="ir ir-ok"><i>✓</i>지적 없음</span>'}</td>
+        <td>${r.in_pds ? '<span class="ir ir-ok"><i>✓</i>있음</span>' : '<span class="ir ir-na"><i>–</i>없음</span>'}</td><td>${pill(r.status)}</td></tr>`; }).join('')}</tbody></table></div>` : ''}`;
+  el.onclick = e => {
+    const g = e.target.closest('[data-g]'); if (g) { V.go(g.dataset.g); return; }
+    const o = e.target.closest('[data-open]'); if (o) { I.sel = +o.dataset.open; V.go('ireview'); }
+  };
+  progressCard(I.kind).then(h => { const x = $('#iprog'); if (x) x.innerHTML = h; }).catch(() => {});
+}
+
+/* ── Reports & Export ─────────────────────────────────────────────────────────────────── */
+async function renderExport() {
+  const el = $('#v-iexport'), q = MODE === 'item' ? `?kind=${I.kind}` : '', nm = pageName();
+  const row = (t, d, href) => `<div class="iex"><div><b>${t}</b><div class="soft">${d}</div></div><a class="btnlink" href="${href}" download>⇩ 내려받기</a></div>`;
+  el.innerHTML = `<div class="vh"><h2>Reports &amp; Export</h2><span class="soft">${esc(nm)}</span></div>
+    <div class="card">${row('Mark-up PDF', '지적이 있는 Datasheet 에 칸 음영 + 영어 화살표 설명선(이유)을 PDF 주석으로 — Acrobat 에서 편집 가능', `/api/valve/projects/${S.pid}/inst/markup.pdf${q}`)}
+      ${row('CRS — Comment Resolution Sheet', 'Vendor 에 보내는 지적 목록: 무시한 지적은 빠지고, 고친 문구 · Review Code · 빈 Vendor Reply / Close-out 칸', `/api/valve/projects/${S.pid}/inst/crs.xlsx${q}`)}
+      ${row('검토 결과 Excel', 'Tag 별 요약 + 지적 목록 (Rule · Datasheet 값 · 기준 값 · 이유 · 출처)', `/api/valve/projects/${S.pid}/inst/review.xlsx${q}`)}
+      ${row('Instrument List 대조 Excel', 'Datasheet → Instrument Index: 누락 · 값 다름 · List 에만 + List 내용', `/api/valve/projects/${S.pid}/inst/listcmp.xlsx?list=instrument_index`)}
+      ${row('IO List 대조 Excel', 'Datasheet → IO List: 누락 · 값 다름 · List 에만 + List 내용', `/api/valve/projects/${S.pid}/inst/listcmp.xlsx?list=io_list`)}</div>
+    <div class="card"><div class="iex"><div><b>Vendor 회신 CRS 올리기</b><div class="soft">위 CRS 에 Vendor Reply · Status(Open / Closed) 를 채워 돌려받은 파일 — 줄마다 지적에 붙고, Closed 는 남은 지적에서 빠집니다 (같은 Rev 에만)</div><div id="crsres" class="soft"></div></div><label class="btnlink">⇧ CRS 올리기<input type="file" id="crsup" accept=".xlsx" hidden></label></div></div>
+    <div class="card"><div class="iex"><div><b>필수 칸 확인</b><div class="soft">양식 카드가 제안한 필수 칸을 이 프로젝트 기준으로 확정합니다 (누락 판정에 쓰임)</div></div><button data-req>열기</button></div></div>`;
+  $('#crsup').onchange = async e => { const f = e.target.files[0]; if (!f) return; const fd = new FormData(); fd.append('file', f);
+    try { const r = await api('POST', `/projects/${S.pid}/inst/crs`, fd); I.rows = null;
+      $('#crsres').innerHTML = `<b>${esc(f.name)}</b> — ${r.rows}줄 · 맞춘 ${r.matched} · 회신 ${r.replies} · Closed ${r.closed}${r.unmatched.length ? ` · <span style="color:var(--bad)">못 맞춘 ${r.unmatched.length}: ${esc(r.unmatched.slice(0, 5).join(', '))}</span>` : ''}`; toast('CRS 회신 반영'); }
+    catch (err) { toast(err.message, 1); } e.target.value = ''; };
+  el.onclick = e => { if (e.target.closest('[data-req]')) { const kk = (I.kinds || []).find(x => x.kind === I.kind); if (MODE === 'item' && kk) LS.set('inst.reqform', kk.form_id); kinds().then(reqDialog); } };
+}
+
+/* ── item page › <Item> List — every tag with its main values ─────────────────────────── */
+async function itemRows() {
+  if (!I.rows || I.rowsKind !== I.kind || I.rowsPid !== S.pid) { I.rows = (await api('GET', `/projects/${S.pid}/inst/sheets?kind=${I.kind}`)).rows; I.rowsKind = I.kind; I.rowsPid = S.pid; }
+  return I.rows;
+}
+const openTag = id => { I.sel = +id; V.go('ireview'); };
+const badges = r => { const c = r.counts; return r.issues ? `${c.Mismatch ? rp('Mismatch', c.Mismatch) : ''}${c.Missing ? rp('Missing', c.Missing) : ''}${c['Review Required'] ? rp('Review Required', c['Review Required']) : ''}` : '<span class="ir ir-ok"><i>✓</i>지적 없음</span>'; };
+async function renderTags() {
+  const el = $('#v-itags'); await kinds();
+  const rows = await itemRows(), q = (I.tq || '').toUpperCase();
+  const show = rows.filter(r => !q || [r.tag, r.service, r.doc_no, r.piping_class, r.line_no].join(' ').toUpperCase().includes(q));
+  el.innerHTML = `<div class="vh"><h2>${esc(pageName())} — List</h2><span class="soft">최신 Rev 기준 Tag ${rows.length}개 · 줄을 누르면 Datasheet Review</span><span class="sp"></span>
+      <input class="tq" placeholder="Tag · Service · Line 찾기" value="${esc(I.tq || '')}"><a class="btnlink" href="/api/valve/projects/${S.pid}/inst/review.xlsx?kind=${I.kind}" download>⇩ Excel</a></div>
+    <div class="card" style="padding:0;overflow:auto"><table class="t itbl"><thead><tr><th>Tag</th><th>Service</th><th>Doc No</th><th>Rev</th><th>P&amp;ID</th><th>Pipe Class</th><th>Line No</th><th>Fluid</th>
+      <th>Oper. P</th><th>Design P</th><th>Design T</th><th>Range</th><th>Manufacturer</th><th>Model</th><th>검토 결과</th><th>Code</th><th>Status</th></tr></thead><tbody>
+      ${show.map(r => { const v = r.vals || {}; return `<tr class="link" data-open="${r.id}"><td><b>${esc(r.tag)}</b>${r.test_data ? '<span class="tst">TEST</span>' : ''}</td><td>${esc(r.service || '')}</td><td>${esc(r.doc_no || '')}</td><td>${esc(r.rev || '-')}</td>
+        <td>${esc(v.pid_no || '')}</td><td>${esc(r.piping_class || '')}</td><td>${esc(r.line_no || '')}</td><td>${esc([v.fluid, v.phase].filter(Boolean).join(' / '))}</td><td>${esc(v.op_pressure || '')}</td><td>${esc(v.design_pressure || '')}</td>
+        <td>${esc(v.design_temp || '')}</td><td>${esc(v.range || '')}</td><td>${esc(v.manufacturer || '')}</td><td>${esc(v.model || '')}</td><td>${badges(r)}</td><td>${r.review_code ? `<b>${esc(r.review_code)}</b>` : `<span class="soft" title="제안">(${esc(r.suggested_code || '')})</span>`}</td><td>${pill(r.status)}</td></tr>`; }).join('') || '<tr><td colspan="17" class="empty">Datasheet 가 없습니다 — Document Management 에 올리세요</td></tr>'}</tbody></table></div>`;
+  $('.tq', el).oninput = e => { I.tq = e.target.value; clearTimeout(renderTags.t); renderTags.t = setTimeout(() => renderTags().then(() => { const i = $('#v-itags .tq'); i.focus(); i.setSelectionRange(i.value.length, i.value.length); }), 200); };
+  el.onclick = e => { const o = e.target.closest('[data-open]'); if (o) openTag(o.dataset.open); };
+}
+
+/* ── item page › Process Data Verification · PMS Compliance · Line List Check ─────────── */
+const CHECK = { iproc: ['pds', 'Process Data Verification', 'Process Data (PDS)', 'Tag 로 PDS 행을 찾아 유체 · 상 · 압력 · 온도 · 밀도 · 유량을 비교합니다. PDS 에 Tag 가 없으면 \'없음\'.'],
+  ipms: ['pms', 'PMS Compliance', 'PMS', 'Pipe Class 가 PMS 에 있는지 · Rating 이 Flange Class 와 같은지 봅니다.'],
+  iline: ['line', 'Line List Check', 'Process Line List', 'Line No 로 Line List 줄을 찾아 Pipe Class · Design P/T · Size 를 봅니다. Line 의 Design 이 Datasheet 보다 높으면 지적.'] };
+async function renderCheck(view) {
+  const [grp, title, refName, help] = CHECK[view], el = $('#v-' + view); await kinds();
+  el.innerHTML = `<div class="vh"><h2>${title}</h2></div><div class="soft">불러오는 중…</div>`;
+  const d = await api('GET', `/projects/${S.pid}/inst/findings?kind=${I.kind}&group=${grp}`);
+  const f = I.cf?.[view] || '', order = ['Mismatch', 'Missing', 'Review Required', '없음', 'Datasheet Blank', 'OK'];
+  const rows = d.rows.filter(x => f ? x.result === f : true).sort((a, b) => order.indexOf(a.result) - order.indexOf(b.result) || a.tag.localeCompare(b.tag));
+  const kpi = order.filter(r => d.counts[r]).map(r => `<button data-cf="${r}" class="${f === r ? 'on' : ''}">${rp(r)}<b>${d.counts[r]}</b></button>`).join('');
+  el.innerHTML = `<div class="vh"><h2>${title}</h2><span class="soft">${esc(pageName())} · Tag ${d.tags}</span><span class="sp"></span>${V.refLink('공통 자료 열기 →')}</div>
+    <div class="irefs"><div class="iref ${d.ref ? 'on' : ''}"><b>기준 문서 — ${refName}</b><span>${d.ref ? esc(d.ref) : `아직 없음 — ${V.refLink('공통 자료에서 올리세요 →')}`}</span></div><div class="iref"><b>무엇을 보나</b><span>${help}</span></div></div>
+    <div class="ilhead"><div class="ilc">${kpi || '<span class="soft">검사 결과 없음</span>'}</div>${f ? '<button data-cf="">전체 보기</button>' : ''}</div>
+    <div class="card" style="padding:0;overflow:auto"><table class="t itbl"><thead><tr><th>결과</th><th>Tag</th><th>Rev</th><th>항목</th><th>Datasheet</th><th>${refName}</th><th>이유</th><th>출처</th><th>Rule</th></tr></thead><tbody>
+      ${rows.map(x => `<tr class="link r-${(RES[x.result] || ['na'])[0]}" data-open="${x.sheet_id}"><td>${rp(x.result)}</td><td><b>${esc(x.tag)}</b></td><td>${esc(x.rev || '-')}</td><td>${esc(x.item)}</td><td>${esc(x.ds || '—')}</td><td>${esc(x.ref || '—')}</td>
+        <td class="soft">${esc(x.reason)}${x.human ? ' · <b>사람 확인</b>' : ''}</td><td class="soft">${esc(x.source || '')}</td><td class="soft" title="${esc(d.rules[x.rule] || '')}">${esc(x.rule)}</td></tr>`).join('') || '<tr><td colspan="9" class="empty">해당 줄이 없습니다</td></tr>'}</tbody></table></div>`;
+  el.onclick = e => {
+    const g = e.target.closest('[data-g]'); if (g) { V.go(g.dataset.g); return; }
+    const b = e.target.closest('[data-cf]'); if (b) { (I.cf ||= {})[view] = f === b.dataset.cf ? '' : b.dataset.cf; renderCheck(view); return; }
+    const o = e.target.closest('[data-open]'); if (o) openTag(o.dataset.open);
+  };
+}
+
+/* ── item page › Instrument List · IO List (this item's tags) ─────────────────────────── */
+async function renderItemLists() {
+  const el = $('#v-ilists'); await kinds();
+  const L = I.il2 || 'instrument_index', lname = L === 'io_list' ? 'IO List' : 'Instrument Index', io = L === 'io_list';
+  el.innerHTML = `<div class="vh"><h2>Instrument List · IO List</h2></div><div class="soft">불러오는 중…</div>`;
+  const d = await api('GET', `/projects/${S.pid}/inst/listcmp?list=${L}`), info = d.lists[L];
+  const rows = d.rows.filter(x => x.kind === I.kind), recs = d.records.filter(r => r.ds_kind === I.kind);
+  const c = {}; rows.forEach(x => { c[x.result] = (c[x.result] || 0) + 1; });
+  const f = I.il2f || '', show = rows.filter(x => f ? x.result === f : x.result !== 'OK');
+  el.innerHTML = `<div class="vh"><h2>Instrument List · IO List</h2><span class="soft">${esc(pageName())} 의 Tag 만 · 기준 = Datasheet</span><span class="sp"></span>
+      <a class="btnlink" href="${pageUrl(io ? 'iolist' : 'instindex')}" title="모든 Item 이 들어 있는 List 전체 화면">List 전체 보기 →</a><a class="btnlink" href="/api/valve/projects/${S.pid}/inst/listcmp.xlsx?list=${L}" download>⇩ Excel</a></div>
+    <div class="ilhead"><div class="tabs ltabs"><button data-l2="instrument_index" class="${io ? '' : 'on'}">Instrument List</button><button data-l2="io_list" class="${io ? 'on' : ''}">IO List</button></div>
+      <span class="soft">${info ? esc([info.files.join(' · '), info.rev ? 'Rev ' + info.rev : '', 'Tag ' + info.tags].filter(Boolean).join(' · ')) : '아직 없음 — Document Management › Instrument Index · IO List'}</span>
+      <div class="ilc">${['누락', '값 다름', 'OK'].map(r => `<button data-l2f="${r}" class="${f === r ? 'on' : ''}">${rp(r)}<b>${c[r] || 0}</b></button>`).join('')}</div></div>
+    <div class="card" style="padding:0;overflow:auto"><h3 style="padding:10px 12px 0">Datasheet 대조</h3><table class="t itbl"><thead><tr><th>결과</th><th>Tag</th><th>항목</th><th>Datasheet</th><th>${lname}</th><th>이유</th><th>Rule</th></tr></thead><tbody>
+      ${show.map(x => `<tr class="link" data-open="${x.sheet_id}"><td>${rp(x.result)}</td><td><b>${esc(x.tag)}</b></td><td>${esc(x.field)}</td><td>${esc(x.ds)}</td><td>${esc(x.lst)}</td><td class="soft">${esc(x.reason)}</td><td class="soft">${esc(x.rule)}</td></tr>`).join('') || `<tr><td colspan="7" class="empty">${info ? '차이 없음' : 'List 가 없습니다'}</td></tr>`}</tbody></table></div>
+    <div class="card" style="padding:0;overflow:auto"><h3 style="padding:10px 12px 0">${lname} 내용 <small class="soft">— 이 Item 의 Tag ${recs.length}개</small></h3><table class="t itbl"><thead><tr><th>Tag</th><th>Loop</th><th>Type</th><th>Service</th><th>P&amp;ID</th><th>Line</th><th>Range</th>
+      ${io ? '<th>IO</th><th>Logic</th>' : '<th>Datasheet No</th><th>Manufacturer</th><th>Model</th>'}<th>대조</th><th>p.</th></tr></thead><tbody>
+      ${recs.map(r => `<tr class="link" data-open="${r.sheet_id}"><td><b>${esc(r.tag)}</b></td><td>${esc(r.loop || '')}</td><td>${esc(r.inst_type || '')}</td><td>${esc(r.service || '')}</td><td>${esc(r.pid_no || '')}</td><td>${esc(r.line_no || '')}</td><td>${esc(r.range || '')}</td>
+        ${io ? `<td>${esc(r.io_typical || '')}</td><td>${esc(r.logic_no || '')}</td>` : `<td>${esc(r.datasheet_no || '')}</td><td>${esc(r.manufacturer || '')}</td><td>${esc(r.model || '')}</td>`}
+        <td>${r.findings ? `<span class="ir ir-bad"><i>!</i>${r.findings}</span>` : '<span class="ir ir-ok"><i>✓</i>OK</span>'}</td><td class="soft">${r.page || ''}</td></tr>`).join('') || '<tr><td colspan="12" class="empty">이 Item 의 Tag 가 List 에 없습니다</td></tr>'}</tbody></table></div>`;
+  el.onclick = e => {
+    const t = e.target.closest('[data-l2]'); if (t) { I.il2 = t.dataset.l2; I.il2f = ''; renderItemLists(); return; }
+    const b = e.target.closest('[data-l2f]'); if (b) { I.il2f = f === b.dataset.l2f ? '' : b.dataset.l2f; renderItemLists(); return; }
+    const o = e.target.closest('[data-open]'); if (o && o.dataset.open !== 'null') openTag(o.dataset.open);
+  };
+}
+
+/* ── item page › Revision Comparison ──────────────────────────────────────────────────── */
+async function renderRev() {
+  const el = $('#v-irev'); await kinds();
+  const rows = (await itemRows()).filter(r => (r.revs || []).length > 1);
+  if (!rows.length) { el.innerHTML = `<div class="vh"><h2>Revision Comparison</h2><span class="soft">${esc(pageName())}</span></div><div class="card"><div class="empty">Revision 이 2개 이상인 Tag 가 아직 없습니다.<br><span class="soft">같은 Tag 의 새 Rev Datasheet 를 올리면 줄 단위로 바뀐 값을 보여 줍니다.</span></div></div>`; return; }
+  const cur = rows.find(r => r.id === I.rvTag) || rows[0], revs = cur.revs, nw = revs.find(x => x.id === I.rvNew) || revs[revs.length - 1], pv = revs.find(x => x.id === I.rvPrev && x.id !== nw.id) || revs[Math.max(0, revs.indexOf(nw) - 1)];
+  const d = await api('GET', `/inst/compare?prev=${pv.id}&new=${nw.id}`);
+  const opt = (sel) => revs.map(x => `<option value="${x.id}" ${x.id === sel.id ? 'selected' : ''}>Rev ${esc(x.rev || '-')} ${esc(x.date || '')}</option>`).join('');
+  el.innerHTML = `<div class="vh"><h2>Revision Comparison</h2><span class="soft">${esc(pageName())} · Rev 가 2개 이상인 Tag ${rows.length}개</span></div>
+    <div class="ilhead"><select id="rvt">${rows.map(r => `<option value="${r.id}" ${r.id === cur.id ? 'selected' : ''}>${esc(r.tag)} (${r.revs.length} Rev)</option>`).join('')}</select>
+      <span class="soft">이전</span><select id="rvp">${opt(pv)}</select><span class="soft">→ 새</span><select id="rvn">${opt(nw)}</select><span class="ir ir-rev"><i>?</i>바뀐 줄 <b>${d.rows.length}</b></span></div>
+    <div class="card" style="padding:0;overflow:auto"><table class="t itbl"><thead><tr><th>No</th><th>항목</th><th>Rev ${esc(pv.rev || '-')}</th><th>Rev ${esc(nw.rev || '-')}</th><th>변경</th></tr></thead><tbody>
+      ${d.rows.map(x => `<tr><td class="soft">${esc(x.no)}</td><td>${esc(x.label)}</td><td>${esc(x.prev || '—')}</td><td><b>${esc(x.new || '—')}</b></td><td>${pill(x.change)}</td></tr>`).join('') || '<tr><td colspan="5" class="empty">두 Rev 의 값이 같습니다</td></tr>'}</tbody></table></div>`;
+  $('#rvt').onchange = e => { I.rvTag = +e.target.value; I.rvNew = I.rvPrev = null; renderRev(); };
+  $('#rvp').onchange = e => { I.rvPrev = +e.target.value; renderRev(); };
+  $('#rvn').onchange = e => { I.rvNew = +e.target.value; renderRev(); };
+}
+
+/* ── item page › Settings ─────────────────────────────────────────────────────────────── */
+async function renderSettings() {
+  const el = $('#v-isettings'); const ks = await kinds(), kk = ks.find(x => x.kind === I.kind), cur = await api('GET', `/projects/${S.pid}/inst/required`), codes = await api('GET', `/projects/${S.pid}/inst/codes`);
+  const on = new Set(cur.confirmed[kk.form_id] || kk.required), ok = !!cur.confirmed[kk.form_id];
+  const fields = kk.fields.filter((f, i, a) => a.findIndex(y => y.key === f.key) === i);
+  el.innerHTML = `<div class="vh"><h2>Settings</h2><span class="soft">${esc(pageName())} · Form ${esc(kk.form_id)}</span></div>
+    <div class="card"><h3>필수 칸 <small class="soft">— 비어 있으면 '누락' 으로 지적하는 칸 · ${ok ? '<b style="color:var(--ok)">이 프로젝트에서 확정됨</b>' : '<b>양식 카드의 제안값 (확정 전)</b>'}</small><span class="sp"></span><button class="pri" id="rqsave">저장</button></h3>
+      <div class="rqlist wide">${fields.map(f => `<label><input type="checkbox" data-rk="${esc(f.key)}" ${on.has(f.key) ? 'checked' : ''}> ${f.no}. ${esc(f.label)}</label>`).join('')}</div></div>
+    <div class="card"><h3>Review Code <small class="soft">— 프로젝트마다 다름 · 이 프로젝트의 Vendor 문서 절차에 맞게 고치세요 (CRS · 제안 코드에 쓰임)</small><span class="sp"></span><button id="cdsave">저장</button></h3>
+      <textarea id="cdtext" rows="6" style="width:100%;font-family:monospace">${esc(codes.codes.map(c => `${c.code} = ${c.label}`).join('\n'))}</textarea>
+      <div class="soft">한 줄에 하나: <code>코드 = 뜻</code> · 기본값은 공개된 예시 (1 Rejected · 2 Revise and Resubmit · 3 Approved with Comments · 4 Approved · 5 Information Only). 제안 코드는 남은 지적이 '값 다름' 이면 2, '누락 · 확인 필요' 만이면 3, 없으면 4 — 코드 뜻을 바꾸면 제안도 그 번호를 따릅니다.</div></div>
+    <div class="card"><h3>검토 기준 <small class="soft">IN-1.0</small></h3><table class="t"><tbody>
+      <tr><td>Process Data</td><td>Tag 로 PDS 행을 찾아 유체 · 상 · 압력 · 온도 · 밀도 · 유량 비교 (Max/Nor/Min 중 하나와 1 % 안이면 같음), 없으면 '없음'</td></tr>
+      <tr><td>미결 항목</td><td>값에 HOLD · TBA · TBC · TBD 가 남아 있으면 '확인 필요' (IN-OPN-01)</td></tr>
+      <tr><td>압력 기준</td><td>운전압 · 설계압의 게이지/절대 기준이 다르면 '확인 필요' (IN-UNIT-01)</td></tr>
+      <tr><td>PMS</td><td>Pipe Class → PMS Class · Flange Rating</td></tr>
+      <tr><td>Line List</td><td>Line No → Pipe Class · Design P/T · Size. Line 의 Design 이 Datasheet 보다 높으면 지적 (Line No 칸이 없는 양식은 PDS 의 Line No)</td></tr>
+      <tr><td>Item 규칙</td><td>같은 Datasheet 안의 값끼리만 — 사람 확인 표시</td></tr></tbody></table></div>`;
+  $('#cdsave').onclick = async () => { const cs = $('#cdtext').value.split('\n').map(l => l.split('=')).filter(x => x.length >= 2).map(([c, ...l]) => ({ code: c.trim(), label: l.join('=').trim() }));
+    try { await api('PUT', `/projects/${S.pid}/inst/codes`, { codes: cs }); toast(`Review Code ${cs.length}개 저장`); renderSettings(); } catch (e) { toast(e.message, 1); } };
+  $('#rqsave').onclick = async () => { const keys = $$('#v-isettings [data-rk]').filter(x => x.checked).map(x => x.dataset.rk);
+    await api('PUT', `/projects/${S.pid}/inst/required`, { form_id: kk.form_id, keys }); I.rows = null; toast(`필수 칸 ${keys.length}개 저장 — 누락 판정에 바로 반영`); renderSettings(); };
+}
+
+/* ── Document · Revision — the same register the dashboard shows (GET /api/valve/docreg) ───────────────── */
+async function renderReg() {
+  const el = $('#v-ireg');
+  el.innerHTML = '<div class="vh"><h2>Document · Revision</h2></div><div class="soft">불러오는 중…</div>';
+  const d = await api('GET', `/docreg?project=${encodeURIComponent(S.sum?.project?.name || '')}`);
+  // same filters as the dashboard's 문서 · Revision 현황: group chips (one) + Item chips (several, OR) + 검토 대기
+  const ORDER = ['ball', 'globe', 'butterfly', 'psv', 'ft', 'pt', 'lt', 'gwr', 'tt', 'tg', 'pg', 'dpg', 'mlg', 'ro', 'analyzer', 'cv', 'onoff', 'valvelist', 'instindex', 'iolist', 'pms', 'pds', 'linelist'];
+  const CHIP = { ball: 'Ball', globe: 'Globe', butterfly: 'Butterfly', psv: 'PSV', analyzer: 'AT', onoff: 'On-Off', valvelist: 'Valve List', instindex: 'Instrument Index', iolist: 'IO List', pms: 'PMS', pds: 'PDS', linelist: 'Line List' };
+  if (!I.rgi) I.rgi = new Set(MODE === 'item' ? [I.kind] : []);                 // an item page starts on its own item
+  const q = (I.rgq || '').toUpperCase(), fg = I.rgg || '', fp = I.rgp, fi = I.rgi;
+  const inG = r => !fg || r.group === fg;
+  const rows = d.rows.filter(r => inG(r) && (!fi.size || fi.has(r.kind)) && (!fp || r.pending) && (!q || [r.tag, r.doc_no, r.kind_name, r.latest.file].join(' ').toUpperCase().includes(q)));
+  const n = { ds: rows.filter(r => r.group === 'Datasheet').length, pend: rows.filter(r => r.pending).length };
+  const gchips = ['Datasheet', 'List', 'PMS', 'Process Data', 'Line List'].map(g => `<button data-rgg="${g}" class="${fg === g ? 'on' : ''}">${g}<b>${d.rows.filter(r => r.group === g).length}</b></button>`).join('');
+  const ichips = ORDER.map(k => { const rs = d.rows.filter(r => r.kind === k && inG(r)); if (!rs.length) return ''; const pd = rs.filter(r => r.pending).length;
+    return `<button data-rgi="${k}" class="${fi.has(k) ? 'on' : ''}">${esc(CHIP[k] || k.toUpperCase())}<b>${rs.length}</b>${pd ? `<em title="검토 대기 ${pd}">${pd}</em>` : ''}</button>`; }).join('');
+  const link = r => { const L = r.link, u = new URL(location.href); u.searchParams.set('project', L.project); u.hash = '';
+    ['kind', 'sheet', 'ds'].forEach(k => u.searchParams.delete(k));
+    if (L.sheet) { u.searchParams.set('kind', L.kind); u.searchParams.set('sheet', L.sheet); } else if (L.ds) { if (L.kind !== 'ball') u.searchParams.set('kind', L.kind); u.searchParams.set('ds', L.ds); u.hash = 'review'; }
+    else if (L.view) { if (L.kind !== 'ball') u.searchParams.set('kind', L.kind); u.hash = L.view; } else u.searchParams.set('kind', L.kind);
+    return u.toString(); };
+  el.innerHTML = `<div class="vh"><h2>Document · Revision</h2><span class="soft">${esc(d.project)} · 입력된 최신 Rev 와 검토된 최신 Rev (검토 완료 = ${d.done_status.join(' · ')})</span><span class="sp"></span>
+      <input class="tq" placeholder="Tag · Doc No · 파일 찾기" value="${esc(I.rgq || '')}"></div>
+    <div class="rchips"><button data-rgg="" class="${fg ? '' : 'on'}">전체<b>${d.rows.length}</b></button>${gchips}<button data-rgp class="pend ${fp ? 'on' : ''}">⏳ 검토 대기<b>${d.rows.filter(r => r.pending).length}</b></button>
+      <span class="soft">표시 ${rows.length} · Datasheet ${n.ds} · 검토 대기 ${n.pend}</span></div>
+    <div class="rchips item"><button data-rgi="" class="${fi.size ? '' : 'on'}">Item 전체</button>${ichips}</div>
+    <div class="card" style="padding:0;overflow:auto"><table class="t itbl"><thead><tr><th>구분</th><th>종류</th><th>Doc. No.</th><th>Tag</th><th>입력된 최신 Rev</th><th>Rev 날짜</th><th>파일</th><th>올린 날 · 사람</th>
+      <th>검토된 최신 Rev</th><th>상태</th><th>검토한 날 · 사람</th><th>Rev 이력</th></tr></thead><tbody>
+      ${rows.map(r => { const L = r.latest, R = r.reviewed; return `<tr class="link ${r.pending ? 'r-rev' : ''}" data-href="${esc(link(r))}"><td>${esc(r.group)}</td><td>${esc(r.kind_name)}</td><td>${esc(r.doc_no || '—')}</td><td><b>${esc(r.tag || '')}</b></td>
+        <td><b>${esc(L.rev || '—')}</b></td><td>${esc(L.date || '')}</td><td title="${esc(L.file)}">${esc(L.file || '')}</td><td>${esc((L.uploaded_at || '').replace('T', ' ').slice(0, 16))} · ${esc(L.uploaded_by || '')}</td>
+        <td>${r.group !== 'Datasheet' ? '<span class="soft">—</span>' : R ? `<b>${esc(R.rev || '-')}</b>` : '<span class="ir ir-rev"><i>?</i>검토 대기</span>'}${R && r.pending ? ' <span class="ir ir-rev"><i>?</i>새 Rev 검토 대기</span>' : ''}</td>
+        <td>${r.group === 'Datasheet' ? pill(R ? R.status : L.status || 'Not Reviewed') : ''}</td><td>${R ? `${esc((R.reviewed_at || '').replace('T', ' ').slice(0, 16))} · ${esc(R.reviewed_by || '')}` : ''}</td><td>${esc((r.revs || []).join(' → '))}</td></tr>`; }).join('') || '<tr><td colspan="12" class="empty">문서가 없습니다</td></tr>'}</tbody></table></div>`;
+
+  $('.tq', el).onchange = e => { I.rgq = e.target.value; renderReg(); };
+  el.onclick = e => {
+    if (e.target.closest('[data-rgp]')) { I.rgp = !I.rgp; renderReg(); return; }
+    const g = e.target.closest('[data-rgg]'); if (g) { I.rgg = g.dataset.rgg; I.rgi = new Set(); renderReg(); return; }        // a new group clears the Item choice
+    const c = e.target.closest('[data-rgi]'); if (c) { const k = c.dataset.rgi; if (!k) I.rgi = new Set(); else if (I.rgi.has(k)) I.rgi.delete(k); else I.rgi.add(k); renderReg(); return; }
+    const r = e.target.closest('[data-href]'); if (r && !e.target.closest('select, input')) location.href = r.dataset.href;
+  };
+}
+
+buildMenu();
+const RUN = { ireg: renderReg, inst: renderBoard, ireview: renderReview, ilist: renderLists, idash: renderItemDash, iexport: renderExport, itags: renderTags, irev: renderRev,
+  iproc: () => renderCheck('iproc'), ipms: () => renderCheck('ipms'), iline: () => renderCheck('iline'), ilists: renderItemLists, isettings: renderSettings };
+window.INST = { render(v) { paintBrand(); (RUN[v] || renderBoard)().catch(e => { console.error(e); toast(e.message, 1); }); } };
 })();

@@ -72,6 +72,40 @@ _JLOCK = threading.Lock()
 _STATIC = {"valve.js": "application/javascript", "valve.css": "text/css", "anatomy.js": "application/javascript",
            "instrument.js": "application/javascript"}   # valve40: Instrument review screens   # anatomy.js = valve36 valve model (session 7 engine)
 KINDS = ("datasheet", "valvelist", "process", "pms", "instrument", "linelist", "instlist")   # valve40: + Instrument review
+# valve40 (user 2026-11-13): the reference documents are entered in ONE place and shared by every review of the project family
+# (Ball '<name>' · '<name> · Globe Valve' · '· Butterfly Valve' · '· PSV' · all Instrument types) — kept on the base project.
+REF_KINDS = ("process", "pms", "linelist", "instlist")
+_KIND_SUFFIX = re.compile(r"\s*·\s*(Globe Valve|Butterfly Valve|PSV)$")
+
+
+def ref_pid(con, pid) -> int:
+    """The project that holds the shared reference documents: the family's base project ('CO2 PJT' for
+    'CO2 PJT · Globe Valve').  A project without a base project keeps its own."""
+    me = store.one(con, "SELECT name FROM project WHERE id=?", pid)
+    if not me:
+        return pid
+    base = _KIND_SUFFIX.sub("", me["name"].strip())
+    if base == me["name"].strip():
+        return pid
+    b = store.one(con, "SELECT id FROM project WHERE name=?", base)
+    return b["id"] if b else pid
+
+
+def family(con, pid) -> list[int]:
+    """Every project that shares the reference documents of pid's family (the base project first)."""
+    rp = ref_pid(con, pid)
+    return [rp] + [r["id"] for r in store.rows(con, "SELECT id FROM project WHERE id<>? ORDER BY id", rp) if ref_pid(con, r["id"]) == rp]
+
+
+def _ref_doc(con, pid, kind, cols="id, filename, path"):
+    """Newest done reference document of a kind: the shared one (base project) first, else one uploaded before
+    valve40 into this project itself."""
+    rp = ref_pid(con, pid)
+    for q in ((rp,) if rp == pid else (rp, pid)):
+        d = store.one(con, f"SELECT {cols} FROM document WHERE project_id=? AND kind=? AND status='done' ORDER BY id DESC", q, kind)
+        if d:
+            return d
+    return None
 
 
 def _user(request: Request) -> str:
@@ -90,9 +124,10 @@ _BODY: dict[tuple, tuple] = {}               # (screen, pid, arg) -> (version, e
 def _wver(con, pid) -> tuple:
     """Everything a project screen can depend on: commits made by this server (store.WRITES) + the database's own
     newest rows, so a write by another process (a script on the same data folder) is also seen."""
-    r = con.execute("SELECT (SELECT COALESCE(MAX(id),0) FROM audit WHERE project_id=?), (SELECT COUNT(*) || ':' || COALESCE(MAX(id),0) || ':' || "
-                    "COALESCE(SUM(status='done'),0) FROM document WHERE project_id=?), (SELECT COUNT(*) FROM datasheet WHERE project_id=?)",
-                    (pid, pid, pid)).fetchone()
+    rp = ref_pid(con, pid)
+    r = con.execute("SELECT (SELECT COALESCE(MAX(id),0) FROM audit WHERE project_id IN (?,?)), (SELECT COUNT(*) || ':' || COALESCE(MAX(id),0) || ':' || "
+                    "COALESCE(SUM(status='done'),0) FROM document WHERE project_id IN (?,?)), (SELECT COUNT(*) FROM datasheet WHERE project_id=?)",
+                    (pid, rp, pid, rp, pid)).fetchone()
     return (store.WRITES[0],) + tuple(r)
 
 
@@ -222,6 +257,13 @@ def _summary(pid: int):
              " AND datasheet_id IN (SELECT id FROM datasheet WHERE project_id=?) GROUP BY datasheet_id", pid)}
     docs = store.rows(con, "SELECT id, kind, filename, pages, uploaded_by, uploaded_at, status, error, info, path, sha256 FROM document"
                            " WHERE project_id=? ORDER BY id DESC", pid)
+    rp = ref_pid(con, pid)
+    if rp != pid:                           # valve40: the family's shared reference documents (entered on the 공통 자료 menu)
+        sh = store.rows(con, "SELECT id, kind, filename, pages, uploaded_by, uploaded_at, status, error, info, path, sha256 FROM document"
+                             f" WHERE project_id=? AND kind IN ({','.join('?' * len(REF_KINDS))}) ORDER BY id DESC", rp, *REF_KINDS)
+        for d in sh:
+            d["shared"] = True
+        docs = sorted(docs + sh, key=lambda d: -d["id"])
     for d in docs:
         d["info"] = store.unJ(d["info"], {})
         d["stored_ok"] = _stored_ok(d.pop("path"), d.pop("sha256"))     # valve38: '원본 손상 — 다시 올리기'
@@ -443,6 +485,7 @@ def _process(jid: str, pid: int, items: list[tuple[int, str, str, Path]], by: st
                 con.execute("UPDATE document SET status='done', info=? WHERE id=?", (store.J(info), doc_id))
                 store.audit(con, pid, None, None, "upload", None, name, by, kind)
                 con.commit()
+                inst_api.invalidate(pid)                       # committed: the next Instrument read sees the new rows
             else:                                        # process data tables -> {data}/valve/process/<doc>.json (process.read_process_data)
                 if Path(name).suffix.lower() != ".pdf":          # valve38: by the uploaded name (stored copy is .bin)
                     raise extract.PdfError("Process Data 는 PDF 만 읽습니다 — Excel 은 보관만 됩니다 (PDF 로 올려 주세요)")
@@ -466,6 +509,11 @@ def _process(jid: str, pid: int, items: list[tuple[int, str, str, Path]], by: st
         _auto_export(jid, pid, _JOBS[jid]["base"], by)
     _job(jid, status="done", msg="끝", total=total, done=total)
     warm(pid)
+    if any(it[1] in REF_KINDS for it in items):           # valve40: a shared reference changed → every family review recomputes
+        inst_api.invalidate_family()
+        for q in family(con, pid):
+            if q != pid:
+                warm(q)
 
 
 _WARMING: set = set()
@@ -624,6 +672,8 @@ async def upload(pid: int, request: Request, kind: str = Form(...), files: list[
     con = store.connect()
     if not store.one(con, "SELECT id FROM project WHERE id=?", pid):
         return _err("없는 프로젝트", 404)
+    if kind in REF_KINDS:                    # valve40: one shared copy per project family (the 공통 자료 menu)
+        pid = ref_pid(con, pid)
     items, skipped = [], []
     for f in files:
         data = await f.read()
@@ -815,7 +865,8 @@ _PROC_CACHE: dict[int, dict] = {}
 def _doc_ref(con, pid, kind, doc) -> dict:
     """valve29: the reference document a check used — the newest upload of its kind — and the earlier uploads, so the
     engineer sees WHICH Process Data / PMS a finding was checked against when a revised one has been loaded."""
-    vs = store.rows(con, "SELECT id, filename, uploaded_at FROM document WHERE project_id=? AND kind=? AND status='done' ORDER BY id DESC", pid, kind)
+    vs = store.rows(con, "SELECT id, filename, uploaded_at FROM document WHERE project_id IN (?,?) AND kind=? AND status='done' ORDER BY id DESC",
+                    pid, ref_pid(con, pid), kind)
     me = next((v for v in vs if v["id"] == doc["id"]), {"id": doc["id"], "filename": doc["filename"], "uploaded_at": ""})
     return {"id": doc["id"], "filename": doc["filename"], "uploaded_at": me.get("uploaded_at") or "", "kind": kind,
             "earlier": [v for v in vs if v["id"] != doc["id"]][:5]}
@@ -823,8 +874,7 @@ def _doc_ref(con, pid, kind, doc) -> dict:
 
 def _process_for(con, pid):
     """(parsed Process Data, document row) of the project's newest Process Data PDF, or (None, None)."""
-    doc = store.one(con, "SELECT id, filename, path FROM document WHERE project_id=? AND kind='process' AND status='done'"
-                         " ORDER BY id DESC", pid)
+    doc = _ref_doc(con, pid, "process")
     if not doc or not str(doc["filename"]).lower().endswith(".pdf"):     # valve38: stored copy is .bin
         return None, None
     if doc["id"] not in _PROC_CACHE:
@@ -839,8 +889,7 @@ def _process_for(con, pid):
 
 def _pms_for(con, pid):
     """(parsed PMS, document row) of the project's newest PMS upload, or (None, None)."""
-    doc = store.one(con, "SELECT id, filename, path FROM document WHERE project_id=? AND kind='pms' AND status='done'"
-                         " ORDER BY id DESC", pid)
+    doc = _ref_doc(con, pid, "pms")
     if not doc:
         return None, None
     if doc["id"] not in _PMS_CACHE:
@@ -866,7 +915,7 @@ def _profile_ver(con, pid) -> tuple:
     (PMS / Process Data uploads) and the VALUE edits (peer / tag learning).  Issue states, comments and review
     statuses are per datasheet and do not move this."""
     return (tuple(store.one(con, "SELECT COUNT(*) n, MAX(id) m FROM datasheet WHERE project_id=?", pid).values())
-            + tuple(store.one(con, "SELECT COUNT(*) n, MAX(id) m FROM document WHERE project_id=? AND status='done'", pid).values())
+            + tuple(store.one(con, "SELECT COUNT(*) n, MAX(id) m FROM document WHERE project_id IN (?,?) AND status='done'", pid, ref_pid(con, pid)).values())
             + (store.one(con, "SELECT MAX(id) m FROM audit WHERE project_id=? AND action IN ('edit','revert','re-read','upload')", pid)["m"],))
 
 
@@ -2199,8 +2248,8 @@ def _loose_tag(k: str) -> tuple | None:
 
 def _coverage(con, pid) -> dict:
     latest = _latest(store.rows(con, "SELECT id, tag_key, rev FROM datasheet WHERE project_id=?", pid))
-    pdocs = store.rows(con, "SELECT id, filename, path, info, uploaded_at FROM document WHERE project_id=? AND kind='process' AND status='done'"
-                            " ORDER BY id DESC", pid)
+    pdocs = store.rows(con, "SELECT id, filename, path, info, uploaded_at FROM document WHERE project_id IN (?,?) AND kind='process' AND status='done'"
+                            " ORDER BY id DESC", pid, ref_pid(con, pid))
     pds_docs, table_tags, text_where = [], {}, {}
     for d in pdocs:
         if not str(d["filename"]).lower().endswith(".pdf"):
@@ -2436,3 +2485,5 @@ def extracted_csv(pid: int):
 
 from app.valve import inst_api  # noqa: E402  valve40 — Instrument datasheet review (same project spaces · own table)
 router.include_router(inst_api.router)
+from app.valve import docreg  # noqa: E402  valve40 — document · revision register (read-only, for the dashboard)
+router.include_router(docreg.router)
