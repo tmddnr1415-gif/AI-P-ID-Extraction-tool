@@ -46,8 +46,8 @@
    "id": "session_01Muj82EMRakKAAS1HYXcE7d",
    "title": "6. Datasheet 자동 검토",
    "bucket": "COMPLETED",
-   "updated": "2026-11-13T08:33:52Z",
-   "recent": "ffe18972 — 올린 도서 Area → DTS No. → 표제 → 규칙 표 · QN Greenfield. hotfix143 로 회사 업데이트에 실림",
+   "updated": "2026-11-13T09:06:20Z",
+   "recent": "39adafb6 — 새 DB 를 여러 스레드가 동시에 열 때 database is locked 고침(회사 첫 시작에도 해당) · warm-up 대기열 순서 의존 고침. 회사 미전달 (hotfix143 은 ffe18972 까지) · 다음 꾸러미에",
    "needs": "회사: hotfix143 적용 뒤 stored PDF check 줄 사진 · S1: AREA_ORD 에 QN Greenfield"
   },
   "S7": {
