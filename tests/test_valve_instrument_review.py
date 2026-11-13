@@ -430,3 +430,22 @@ def test_default_area_rule_table_applies_without_editing():
     c = A.classify(A.learn([], rows), "52SDV-090001")
     assert (c["area"], c["sub"], c["unit"]) == (row52["group"], row52["sub"], row52["unit"]) and "Brownfield" in c["area"]
     assert c["unit"] != "52" and all(r["patterns"] for r in rows)
+
+
+def test_area_datasheet_first_then_tag_rule(monkeypatch):
+    """valve40 (user 2026-11-13: 'Area 는 우선 입력되는 Datasheet 기준, 식별되지 않으면 Tag 규칙'): the area a datasheet names
+    stays; a title naming only the site keeps that site and takes Brownfield from the rule table; nothing named → the rule."""
+    from app.valve import api, arearule as A, inst_api, location
+    assert location.zone_of_text("SERVICE: NORTH FLARE KO DRUM", strict=True) == ""             # a service is not an area
+    assert location.zone_of_text("QELNG NORTH  SYSTEM 09 - UNIT 09", strict=True) == "North Brownfield"
+    rule = A.learn([], A.parse_table("2. Brownfield XN\n52 | AG3 | 09 | Train 6\n"))
+    rule["alias"] = {"Brownfield XN": "North Brownfield"}
+    monkeypatch.setattr(inst_api, "area_rule_cached", lambda con, pid: rule)
+    monkeypatch.setattr(inst_api, "_lists", lambda con, pid: {})
+    fill = api._area_fn(None, 1)
+    a = fill("52SDV090001", {"area": "W15", "site": "W15", "unit": "52"})                       # the datasheet says W15: stays
+    assert a["area"] == "W15" and a["area_basis"] == "Datasheet 표제" and a["unit"] == "09"
+    a = fill("52SDV090001", {"area": "North", "site": "North", "unit": ""})                     # site only → Brownfield from the table
+    assert (a["area"], a["site"], a["sub_area"]) == ("Brownfield", "North", "AG3") and "Datasheet 표제 = North" in a["area_basis"]
+    a = fill("52SDV090001", {"area": "", "site": "", "unit": ""})                               # nothing named → the rule
+    assert (a["area"], a["site"]) == ("Brownfield", "North") and "규칙 표" in a["area_basis"]

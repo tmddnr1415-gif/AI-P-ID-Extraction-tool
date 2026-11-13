@@ -1604,10 +1604,16 @@ def _area_fn(con, pid):
         area, site = out.get("area") or "", out.get("site") or ""
         if not area and A["area"]:
             out["area"], out["area_basis"] = A["area"], A["basis"]
+            m = re.fullmatch(r"(North|South) Brownfield", A["area"])
+            if m:                                        # the Valve screens' own form: Area 'Brownfield' + Site
+                out["area"], out["site"] = "Brownfield", m.group(1)
         elif area == "Brownfield" and not site and A["site"]:
-            out["area_basis"] = A["basis"]
+            out["area_basis"] = f"Datasheet 표제 = Brownfield · Site = {A['basis']}"
+        elif area in ("North", "South") and A["site"] == area and "BROWNFIELD" in A["area"].upper():
+            out["area"] = "Brownfield"                   # the title names only the site; the rule table says it is Brownfield
+            out["area_basis"] = f"Datasheet 표제 = {area} · Brownfield = {A['basis']}"
         else:
-            out["area_basis"] = "문서 표제" if area else A["basis"]
+            out["area_basis"] = "Datasheet 표제" if area else A["basis"]
         if not site and A["site"]:                       # valve40: the site the rule (or the document number) says
             out["site"] = A["site"]
         if A["sub"]:

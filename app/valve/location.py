@@ -41,12 +41,13 @@ def zone(loc: dict | None) -> str:
     return loc.get("area") or ""
 
 
-def zone_of_text(text: str) -> str:
+def zone_of_text(text: str, strict: bool = False) -> str:
     """Zone named on a document page (a process datasheet title block): the first of NORTH / SOUTH / W15, Brownfield when
-    the page names an existing plant 'SYSTEM nn - UNIT nn' or says brownfield.  '' when the page says none."""
+    the page names an existing plant 'SYSTEM nn - UNIT nn' or says brownfield.  '' when the page says none.
+    strict (valve40, an instrument datasheet page): only the plant names — a bare 'NORTH' may be part of a service."""
     t = (text or "").upper()
     hits = sorted((t.find(w), s) for w, s in (("QELNG NORTH", "North"), ("QELNG SOUTH", "South"), ("W15", "W15")) if w in t)
-    if not hits:
+    if not hits and not strict:
         hits = sorted((t.find(w), s) for w, s in ((" NORTH", "North"), (" SOUTH", "South")) if w in t)
     site = hits[0][1] if hits else ""
     brown = bool(_SYS_UNIT.search(text or "")) or "BROWNFIELD" in t.replace(" ", "").replace("-", "")
