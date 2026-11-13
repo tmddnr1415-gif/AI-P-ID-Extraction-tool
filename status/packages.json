@@ -399,6 +399,19 @@
    },
    "replaces": "6_PID_dev+ops_hotfix142_2026-11-13.zip",
    "note": "142 + 올린 도서 Area 먼저 · 짐작값은 Site 결정에 안 씀 · QN Greenfield"
+  },
+  {
+   "file": "①",
+   "name": "8_DASHBOARD_update_v17.50_from_v17.47_2026-11-13.zip",
+   "made": "2026-11-13 19:45",
+   "path": "company-pc-update/2026-11-13/ (1.3MB · 저장소에 있음)",
+   "sha256": "8c7951fbcdfab1353710273d4a443dfd15f072eef215d90f5d3b25a2147b0bf7",
+   "applied": "",
+   "tips": {
+    "S1": "cf67f3a0"
+   },
+   "replaces": "6_DASHBOARD_update_v17.48_from_v17.47_2026-11-13.zip",
+   "note": "v17.50 — Area 순서 QN Greenfield · 구매 현황 지연만 · RFQ 알람 없음 · 일정판 접힘 · PSR 업로드가 수기 덮어씀"
   }
  ]
 }
