@@ -1936,3 +1936,13 @@ C:\Users\SAMSUNG\Desktop\Claude\                         ← 개발 폴더 (여�
 - 무엇을: 사용자 지시 "Item 별로 필터할 수 있도록 필터 기능 추가, 6번에도 공지" → 구분 칩 아래에 **Item 칩 줄**(Ball · Globe · Butterfly · PSV · FT … On-Off · Valve List · Instrument Index · IO List · PMS · PDS · Line List 순, 개수 + 노랑 = 검토 대기 수). 누르면 그 Item 만, **여러 개 함께** 고를 수 있음, '전체' = 해제. 구분을 바꾸면 Item 선택 초기화. 예전 '종류' 드롭다운은 칩으로 바뀜. 엑셀도 필터 그대로.
 - 바뀐 곳: dashboard.html `renderDocReg`(`F.ks` · `KO` 순서 · `.dri` 칩) · `drBind`(`data-dri`) · CSS
 - 확인한 것: 실제 세션 6 서버(d11a0dad)로 PT + DPG + PMS 고르면 5건, PT 빼면 3건, 콘솔 오류 없음. 세션 6 에 같은 필터를 Document · Revision 화면에 넣도록 알림.
+
+### 2026-11-13 (APP_VERSION 2026-11-13.1 / SERVER_VERSION 2026-11-13.1) — v17.47 세션 6 변경(86fc51dc ~ 49be281e) 반영
+- 무엇을: 사용자 지시 "6 세션 수정된 사항 모두 확인하고 세션 1 업데이트가 필요하면 해라" → 세션 6 최신(49be281e)을 띄워 확인하고 반영:
+  1. **📂 공통 자료** 메뉴(`#dsref` → `/valve/?…&kind=refdocs`, minRev 138) — Datasheet › 현황판 · 문서 · Revision 현황 다음. PDS · PMS · Line List · Instrument Index/IO List 는 여기서만 올림(6721b591).
+  2. **Datasheet 현황판 / CO2 PJT 현황판**: 계기 Type 칸마다 '검토 n · 대기 n · 지적 n', 머리에 검토 완료 · 대기 · 종결 · 무시 합계(/inst/summary reviewed · pending · closed · dismissed), 아래에 **지적 분류**(categories) 막대 · **주별 검토 진행**(/inst/progress weeks: 받은 DS · 남은 지적 · 결정/종결) — 세션 6 Instrument 현황판과 같은 숫자.
+  3. **Schedule 계기 블록**: Area 옆 sub_area, **Code** 열(review_code, 없으면 '제안 n' = suggested_code, 기본 코드 이름 툴팁).
+  4. 간이 집계(docreg 없는 옛 판)에서 공통 자료(`shared: true`)를 프로젝트마다 다시 세지 않음.
+  - counts 의 Dismissed · Closed 는 지적 수에서 이미 빠져 나오므로 대시보드 계산 변경 없음.
+- 바뀐 곳: dashboard.html `PID_ROUTES.dsref` · runTree(📂) · `ROUTES`/`RUN_LEAVES` · `hubLoad`(progress) · 새 `hubExtra` · `renderRunHub` · `instBody`(sub_area · Code) · `RC_NAME` · `docRegFallback` · CSS(`.hbq*` — 홈 그래프 `.hbx` 와 이름이 겹쳐 hbq 로) / server.py `VDS_PATHS`(+ inst/progress · inst/codes)
+- 확인한 것: 실제 세션 6 서버(49be281e, 시험 자료)로 공통 자료 화면(올린 문서 5개) · 현황판 분류 막대 · 주별 W46 · Schedule PT Code '제안 4 / 제안 2', 콘솔 오류 없음.
