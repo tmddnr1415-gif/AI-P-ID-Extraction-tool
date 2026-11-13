@@ -357,3 +357,12 @@
   (사용자 사진 그대로 · 잘린 첫 줄은 넣지 않음). family 에 고친 표가 없으면 기본값, 고치면 그 family 의 표(`inst.arearule.table`), '기본값으로 되돌리기'.
   편집: 공통 자료 페이지 'Area 규칙 표' 카드 + Instrument By Area — 줄 단위 표 편집(묶음 · 접두어 · Sub · Unit · 메모 · ＋줄 · ✕) / 글 붙여넣기.
   저장 → 감사 기록 → Valve · Instrument 캐시 버전이 바뀌어 새로고침 때 모든 현황판 Area 다시 라벨링. 시험 +1. 전체 2,093.
+- (추가 · 사용자 'Area 는 우선 입력되는 Datasheet 기준, 식별 안 되면 Tag 규칙') Instrument: 읽을 때 첫 쪽 표제의 Area(`instrument.page_zone` —
+  'QELNG NORTH/SOUTH' · W15 · 'SYSTEM nn – UNIT nn' · Brownfield, 엄격: 서비스명의 'NORTH' 는 안 셈)를 `title_block.zone` 에 보관, 옛 시트는 보관본이 멀쩡할 때 한 번 읽어 채움.
+  `_brief`: Datasheet Area → 없을 때만 규칙(규칙 표 → Index AREA → 학습). 표제가 Site 만 말하면 Site 유지 + Brownfield 여부만 규칙 표에서 (Valve · Instrument 같음).
+  Valve 는 규칙으로 채운 'North Brownfield' 를 화면 형식 Area 'Brownfield' + Site 'North' 로. 규칙 캐시 버전에 표 내용 포함. 시험 +1. 전체 통과.
+- (추가 · 사용자 'DTS No. 98 · 999 · 315 → QN · QS · W15, 그 안에서 Brownfield Tag 면 QN 의 Brownfield N1 · QS · W15 는 Brownfield 없음')
+  기본 규칙 표에 'DTS 98 | QN' · 'DTS 999 | QS' · 'DTS 315 | W15' 줄 (표에서 고칠 수 있음) · 사진의 'Brownfield QS' 묶음은 'QS'(Brownfield 없음)로.
+  `arearule.resolve`: Site = DTS No. → 표제(North=QN … 문서 번호로 배움) → Tag 규칙 · Brownfield 는 표에 그 Site 의 Brownfield 묶음이 있을 때만 · Train = 메모 첫 낱말.
+  실자료: QN 74 · QN Brownfield N1 2 · N2 2 · QN Brownfield(Train 미상: 00·08) 3 · QS 76(표제 'South Brownfield' 7개는 QS + 사유) · W15 7. 판정 변화 0.
+  Area 정렬: QN → QS → W15 (`exports.AREA_ORDER`). 시험 +1.

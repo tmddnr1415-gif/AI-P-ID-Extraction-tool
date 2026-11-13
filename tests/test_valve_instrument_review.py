@@ -430,3 +430,41 @@ def test_default_area_rule_table_applies_without_editing():
     c = A.classify(A.learn([], rows), "52SDV-090001")
     assert (c["area"], c["sub"], c["unit"]) == (row52["group"], row52["sub"], row52["unit"]) and "Brownfield" in c["area"]
     assert c["unit"] != "52" and all(r["patterns"] for r in rows)
+
+
+def test_area_datasheet_first_then_tag_rule(monkeypatch):
+    """valve40 (user 2026-11-13: 'Area 는 우선 입력되는 Datasheet 기준, 식별되지 않으면 Tag 규칙'): the area a datasheet names
+    stays; a title naming only the site keeps that site and takes Brownfield from the rule table; nothing named → the rule."""
+    from app.valve import api, arearule as A, inst_api, location
+    assert location.zone_of_text("SERVICE: NORTH FLARE KO DRUM", strict=True) == ""             # a service is not an area
+    assert location.zone_of_text("QELNG NORTH  SYSTEM 09 - UNIT 09", strict=True) == "North Brownfield"
+    rule = A.learn([], A.parse_table("2. Brownfield XN\n52 | AG3 | 09 | Train 6\n"))
+    rule["alias"] = {"Brownfield XN": "North Brownfield"}
+    monkeypatch.setattr(inst_api, "area_rule_cached", lambda con, pid: rule)
+    monkeypatch.setattr(inst_api, "_lists", lambda con, pid: {})
+    fill = api._area_fn(None, 1)
+    a = fill("52SDV090001", {"area": "W15", "site": "W15", "unit": "52"})                       # the datasheet says W15: stays
+    assert a["area"] == "W15" and a["area_basis"] == "Datasheet 표제" and a["unit"] == "09"
+    a = fill("52SDV090001", {"area": "North", "site": "North", "unit": ""})                     # site only → Brownfield from the table
+    assert (a["area"], a["site"], a["sub_area"]) == ("Brownfield", "North", "AG3") and "Datasheet 표제 = North" in a["area_basis"]
+    a = fill("52SDV090001", {"area": "", "site": "", "unit": ""})                               # nothing named → the rule
+    assert (a["area"], a["site"]) == ("Brownfield", "North") and "규칙 표" in a["area_basis"]
+
+
+def test_site_from_dts_no_and_brownfield_train():
+    """valve40 (user 2026-11-13: 'DTS No. 98 · 999 · 315 → QN · QS · W15, 그 안에서 Brownfield Tag 면 QN 의 Brownfield N1 ·
+    QS · W15 는 Brownfield 없음'): site from the DTS No. (rule table rows), else the datasheet title, else the tag rule;
+    Brownfield only where the table has a Brownfield group for that site, the train = the first word of the row's note."""
+    from app.valve import arearule as A
+    text = ("1. Site\nDTS 98 | XN\nDTS 999 | XS\nDTS 315 | W15\nXS: 98GTD-\n2. Brownfield XN\n1, 2 | AG1 | 09 | N1 Train 1, 2\n"
+            "52 | AG3 | 09 | N3 Train 6\n3. XS (no Brownfield)\n19 | AGS-TR1 | 19 | S1 Train 1\n")
+    ev = [{"tag": "98XV-1", "doc_no": "98-51-IN-DTS-1", "zone": "North"}, {"tag": "98XV-2", "doc_no": "999-98-IN-DTS-1", "zone": "South"}]
+    r = A.learn(ev, A.parse_table(text))
+    L = lambda *a: A.resolve(r, *a)["label"]                                          # noqa: E731
+    assert L("98XV-5", "98-51-IN-DTS-9") == "XN" and L("98XV-6", "999-98-IN-DTS-9") == "XS" and L("315MOV-2", "315-51-IN-DTS-2") == "W15"
+    assert L("01XV-7", "02-08-IN-DTS-3", "", "North Brownfield") == "XN Brownfield N1"       # title site North = XN · train N1
+    assert L("52SDV-1", "98-51-IN-DTS-7") == "XN Brownfield N3"                                # DTS XN · Brownfield by the tag rule
+    x = A.resolve(r, "19XV-1", "999-19-IN-DTS-61", "", "South Brownfield")                     # XS has no Brownfield
+    assert x["label"] == "XS" and x["sub"] == "AGS-TR1" and "Brownfield 구분 없음" in x["basis"]
+    assert L("98GTD-1") == "XS" and L("52SDV-090001") == "XN Brownfield N3"                     # no DTS No.: the tag rule
+    assert A.resolve(A.learn([], A.parse_table("2. Brownfield XN\n52 | AG3 | 09 | N3\n")), "52SDV-1")["label"] == ""   # no DTS rows: older words

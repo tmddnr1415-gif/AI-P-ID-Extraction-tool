@@ -75,6 +75,8 @@ _HEAD = {"pattern": ("tag", "접두어", "prefix", "pattern", "패턴"), "sub": 
 _SECTION = re.compile(r"^\s*(?:\d+[.)]|#+)\s*(.+?)\s*(?:\(.*)?$")
 _LABEL = re.compile(r"^\s*(?:[-*•o◦·]\s+)?([A-Za-z0-9&][\w&\- ]{0,20}?)\s*:\s*(.+)$")
 _SUBN = re.compile(r"\s*\((\d+)\)\s*")
+_DTS = re.compile(r"^\s*DTS\s*(?:NO\.?)?\s*[:#]?\s*(\d{2,4})\s*-?\s*$", re.I)
+_TRAIN = re.compile(r"^([A-Z]{1,2}\d+(?:/\d+)?)\b")
 
 
 def _cells(line: str) -> list[str]:
@@ -106,6 +108,11 @@ def parse_table(text: str) -> list[dict]:
             continue
         cells = _cells(line)
         low = [c.lower() for c in cells]
+        md = _DTS.match(cells[0]) if cells else None
+        if md and len(cells) >= 2 and cells[1].strip():         # 'DTS 98 | QN' — the datasheet's DTS No. names the site
+            rows.append({"doc": md.group(1), "site": cells[1].strip(), "patterns": [f"DTS {md.group(1)}"], "subs": [cells[1].strip()],
+                         "sub_n": {}, "sub": "", "unit": "", "note": cells[3] if len(cells) > 3 else "", "group": group, "count": ""})
+            continue
         if len(cells) >= 2 and any(any(h in c for h in _HEAD["pattern"]) for c in low) and any(any(h in c for h in _HEAD["sub"]) for c in low):
             cols = {}
             for i, c in enumerate(low):
@@ -142,6 +149,8 @@ def _row_for(table: list[dict], tag: str):
     ks, nt = keys(tag), _norm(tag)
     best, bl = None, 0
     for r in table or []:
+        if r.get("doc"):
+            continue
         for p in r["patterns"]:
             hit = num_eq(p, ks[0]) if (ks and p.isdigit()) else (nt.startswith(p) and (p[-1].isdigit() or len(nt) == len(p) or not nt[len(p)].isalpha()))
             if hit and len(p) > bl:
@@ -191,6 +200,8 @@ def learn(evidence: list[dict], table: list[dict] | None = None) -> dict:
     # the engineer's groups ('Brownfield QS') named as the documents name them ('South Brownfield') when they agree
     alias = collections.defaultdict(collections.Counter)
     for r in rule["table"]:
+        if r.get("doc"):
+            continue
         for p in r["patterns"]:
             zs = {_one(v) for k, v in rule["prefix"].items() if num_eq(k, p)} if p.isdigit() else {_one(rule["key"].get(p))}
             z = zs.pop() if len(zs) == 1 else ""
@@ -327,9 +338,75 @@ def check_table(rule: dict) -> list[dict]:
     """Each row of the engineer's table against the Index rows it covers: '20 / 20' = 20 of the 20 listed tags agree."""
     out = []
     for r in (rule or {}).get("table", []):
+        if r.get("doc"):
+            out.append(dict(r, area=r["site"], n_index=0, n_ok=0, other={}, examples=[]))
+            continue
         hit = [(t, s) for t, s in rule.get("index", []) if _row_for([r], t)]
         ok = [x for x in hit if any(same_sub(x[1], s) for s in r["subs"])]
         other = collections.Counter(s for t, s in hit if not any(same_sub(s, x) for x in r["subs"]))
         out.append(dict(r, area=rule.get("alias", {}).get(r["group"], r["group"]), n_index=len(hit), n_ok=len(ok),
                         other=dict(other.most_common(5)), examples=[t for t, _ in hit if (t, _) not in ok][:5]))
     return out
+
+
+# ── valve40 (user 2026-11-13): Site from the DTS No. · Brownfield + train inside a site that has Brownfield ─────────────
+def site_map(rule: dict) -> dict:
+    """What the documents call a site ('North' · 'South' · 'W15') → the table's site code ('QN' · 'QS' · 'W15'), learned
+    from the DTS rows and the documents' own areas by document number ('98-…' documents say North and DTS 98 = QN)."""
+    m = {}
+    for r in (rule or {}).get("table", []):
+        if r.get("doc"):
+            m[r["site"]] = r["site"]
+            z = _one((rule.get("system") or {}).get(r["doc"]))
+            if z:
+                m.setdefault(z.split()[0], r["site"])
+    return m
+
+
+def resolve(rule: dict, tag: str, doc_no: str = "", pid_no: str = "", doc_zone: str = "", index_sub: str = "") -> dict:
+    """{label, site, brown, train, sub, unit, basis} — label 'QN' · 'QN Brownfield N1' · 'QS' · 'W15'; '' when the table has
+    no DTS rows (then the older area words stay).  Site: the DTS No. → else the datasheet title → else the tag rule.
+    Brownfield only in a site the table gives a 'Brownfield <site>' group; the train = the first word of that row's note."""
+    rule = rule or {}
+    rows = rule.get("table") or []
+    docs = [r for r in rows if r.get("doc")]
+    if not docs:
+        return {"label": "", "site": "", "brown": False, "train": "", "sub": "", "unit": "", "basis": ""}
+    codes = {r["site"] for r in docs}
+    smap = site_map(rule)
+    C = classify(rule, tag, doc_no, pid_no, index_sub)
+    row = _row_for(rows, tag)
+    why, site = [], ""
+    sy = system(doc_no)
+    d = next((r for r in docs if r["doc"] == sy), None)
+    if d:
+        site = d["site"]
+        why.append(f"DTS No. '{sy}-…' = {site}")
+    elif doc_zone and doc_zone != "Brownfield":
+        site = smap.get(doc_zone.split()[0], "")
+        if site:
+            why.append(f"Datasheet 표제 = {doc_zone}")
+    if not site and row:                                      # the tag rule: a row naming a site, or its group
+        site = next((x for x in row["subs"] if x in codes), "") or next((c for c in codes if re.search(rf"\b{re.escape(c)}\b", row["group"] or "")), "")
+        if site:
+            why.append(f"Tag 규칙 '{', '.join(row['patterns'])}' = {site}")
+    if not site and C["area"]:
+        site = smap.get(C["area"].split()[0], "") or next((c for c in codes if re.search(rf"\b{re.escape(c)}\b", C["area"])), "")
+        if site:
+            why.append(C["basis"])
+    brown_sites = {c for c in codes for r in rows if not r.get("doc") and "BROWNFIELD" in (r["group"] or "").upper()
+                   and re.search(rf"\b{re.escape(c)}\b", r["group"])}
+    says = ("BROWNFIELD" in (doc_zone or "").upper()) or bool(row and "BROWNFIELD" in (row["group"] or "").upper())
+    brown = bool(site) and site in brown_sites and says
+    train = ""
+    if brown and row:
+        m = _TRAIN.match((row.get("note") or "").strip())
+        train = m.group(1) if m else ""
+        why.append(f"Brownfield: Tag 규칙 '{', '.join(row['patterns'])}'" + (f" · {row['note']}" if row.get("note") else ""))
+    elif brown:
+        why.append(f"Brownfield: Datasheet 표제 = {doc_zone}")
+    elif says and site and site not in brown_sites:
+        why.append(f"{'표제' if 'BROWNFIELD' in (doc_zone or '').upper() else 'Tag 규칙'}는 Brownfield — {site} 에는 Brownfield 구분 없음 (규칙 표)")
+    label = site + ((" Brownfield" + (f" {train}" if train else "")) if brown else "")
+    return {"label": label, "site": site, "brown": brown, "train": train, "sub": "" if C["sub"] in codes else C["sub"], "unit": C["unit"],
+            "basis": " · ".join(x for x in why if x), "note": C["note"]}

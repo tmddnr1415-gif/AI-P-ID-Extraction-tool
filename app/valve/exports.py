@@ -42,7 +42,16 @@ def pdf_link(base: str, i: dict) -> str:
 
 # ── Summary pivot (shared by the Issue List and the Valve List) ───────────────────
 
-AREA_ORDER = {"North": 0, "South": 1, "Brownfield": 2, "North Brownfield": 2.1, "South Brownfield": 2.2, "W15": 3}
+class _AreaOrder(dict):
+    """valve40: also the site labels of the area rule table ('QN' · 'QN Brownfield N1' · 'QS' · 'W15') — QN, then QS, then W15."""
+    def get(self, k, d=None):
+        if k in self:
+            return self[k]
+        k = k or ""
+        return 0.5 if k.startswith("QN") else 1.5 if k.startswith("QS") else 3 if k.startswith("W15") else d
+
+
+AREA_ORDER = _AreaOrder({"North": 0, "South": 1, "Brownfield": 2, "North Brownfield": 2.1, "South Brownfield": 2.2, "W15": 3})
 
 
 def summary_sheet(wb, title: str, heading: str, recs: list[dict], cat_name: str, cats: list[str], index: int | None = None,

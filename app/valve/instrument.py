@@ -212,6 +212,13 @@ def _right_of(words, cap: str, width: float = 160) -> str:
     return _join([w for w in ws if w[4] not in ("!", ":")])
 
 
+def page_zone(page) -> str:
+    """valve40 (user 2026-11-13: 'Area 는 우선 입력되는 Datasheet 기준'): the area the datasheet page itself names —
+    'QELNG NORTH / SOUTH', 'W15', 'SYSTEM nn – UNIT nn' / 'Brownfield' (location.zone_of_text, strict).  '' = not named."""
+    from app.valve import location
+    return location.zone_of_text(page.get_text(), strict=True)
+
+
 def title_block(page) -> dict:
     words = page.get_text("words")
     out = {"rev": _right_of(words, "REV"), "date": _right_of(words, "DATE", 110)}
@@ -276,7 +283,7 @@ def _read_pdf(doc, filename: str = "") -> dict:
             got = read_items_page(page, card, best["block"], best["page"])
             if best["page"] == roles[0]["page"] or not sheets or sheets[-1]["form_id"] != fid:
                 sheets.append({"form_id": fid, "kind": card["item_kind"], "title": card.get("title", ""), "pages": [],
-                               "identify": ident, "title_block": title_block(page), "rows": {}, "shift": got["shift"]})
+                               "identify": ident, "title_block": dict(title_block(page), zone=page_zone(page)), "rows": {}, "shift": got["shift"]})
             sh = sheets[-1]
             sh["pages"].append(i + 1)
             for no, v in got["rows"].items():

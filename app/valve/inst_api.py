@@ -261,10 +261,10 @@ def area_rule_cached(con, pid) -> dict:
     v = (tuple(store.one(con, f"SELECT COUNT(*) n, MAX(id) m FROM document WHERE project_id IN ({q}) AND status='done'", *fam).values())
          + tuple(store.one(con, f"SELECT COUNT(*) n, MAX(id) m FROM datasheet WHERE project_id IN ({q})", *fam).values())
          + ((store.one(con, "SELECT at FROM project_setting WHERE project_id=? AND key='inst.arearule.table'", fam[0]) or {}).get("at"),
-            AREA_DEFAULT.stat().st_mtime_ns if AREA_DEFAULT.exists() else 0))
+            AREA_DEFAULT.stat().st_mtime_ns if AREA_DEFAULT.exists() else 0, hash(area_table_text(con, pid))))
     k = (str(store.root()), fam[0])
     hit = _AR.get(k)
-    if hit and hit[0] == v:
+    if hit and hit[0] == v and "table" in hit[1]:
         return hit[1]
     if getattr(_AR_TL, "busy", False):
         return {}
@@ -307,6 +307,8 @@ def arearule_get(pid: int):
     con = con_ready()
     r = context(con, pid)["arearule"]
     text, src = area_table(con, pid)
+    if "table" not in r or (text.strip() and not r["table"]):   # never show a rule built without its table
+        r = area_rule(con, pid)
     return _j({"rows": arearule.table(r), "systems": r.get("system", {}), "evidence": r.get("n", 0), "index_rows": r.get("n_index", 0),
                "table": arearule.check_table(r), "text": text, "source": src, "default_text": area_default_text()})
 
@@ -364,6 +366,30 @@ def reviewed(con, pid, r) -> dict:
         apply_decisions(con, r, rv)
         memo[r["id"]] = (sh, rv)
     return memo[r["id"]]
+
+
+def _doc_zone(con, r, sh) -> str:
+    """The area the datasheet page names (read with the sheet, 'title_block.zone').  A sheet read before valve40 gets it once
+    from its stored PDF — only when that copy is intact (store.stored_good) — and keeps it."""
+    tb = sh.get("title_block") or {}
+    if "zone" in tb:
+        return tb["zone"] or ""
+    z = ""
+    d = store.one(con, "SELECT path FROM document WHERE id=?", r.get("document_id"))
+    pages = json.loads(r.get("pages") or "[]") if isinstance(r.get("pages"), str) else (r.get("pages") or [])
+    if d and d.get("path") and store.stored_good(d["path"])[0]:
+        from app.valve import extract
+        try:
+            with extract.PDF_LOCK, extract.open_pdf(d["path"], tries=1) as doc:
+                z = instrument.page_zone(doc[(pages[0] if pages else 1) - 1])
+        except Exception:                                    # noqa: BLE001  (no page → nothing named)
+            z = ""
+    tb["zone"] = z
+    sh["title_block"] = tb
+    with store._LOCK:
+        con.execute("UPDATE inst_sheet SET sheet=? WHERE id=?", (json.dumps(sh, ensure_ascii=False), r["id"]))
+        con.commit()
+    return z
 
 
 def fkey(x: dict) -> str:
@@ -444,9 +470,26 @@ def _brief(con, pid, r, hist) -> dict:
     ctx = context(con, pid)
     isub = ((ctx.get("lists", {}).get("instrument_index") or {}).get("by_tag", {}).get(r["tag_key"]) or {}).get("area", "")
     A = arearule.classify(ctx.get("arearule") or {}, r["tag"], r["doc_no"] or "", pidno, isub)    # table · Index AREA · tag prefix rule
-    area = A["area"] or location.zone(loc)
-    return {"area": area, "sub_area": A["sub"], "unit": A["unit"] or loc.get("unit") or "", "area_note": A["note"],
-            "loc_basis": A["basis"] or loc.get("basis") or "",
+    dz = _doc_zone(con, r, sh)          # valve40 (user 2026-11-13): the datasheet first, the tag rule only when it names none
+    R = arearule.resolve(ctx.get("arearule") or {}, r["tag"], r["doc_no"] or "", pidno, dz, isub)
+    if R["label"]:                                           # QN · QN Brownfield N1 · QS · W15 (DTS No. → site)
+        unit = loc.get("unit") if loc.get("unit") and "tag prefix" not in (loc.get("basis") or "") else (R["unit"] or loc.get("unit") or "")
+        place = {"area": R["label"], "site": R["site"], "sub_area": R["sub"], "unit": unit, "area_note": R["note"],
+                 "area_source": "dts" if "DTS No." in R["basis"] else ("datasheet" if dz else "rule"), "loc_basis": R["basis"]}
+    else:
+        if dz:
+            area = dz
+            if dz == "Brownfield" and A["site"]:             # the sheet says Brownfield, the rule says which site
+                area = f"{A['site']} Brownfield"
+            elif dz in ("North", "South") and A["site"] == dz and "BROWNFIELD" in A["area"].upper():
+                area = f"{dz} Brownfield"                    # the sheet names only the site; the rule table says Brownfield
+            basis = f"Datasheet 표제 = {dz}" + (f" · {A['basis']}" if area != dz else "")
+        else:
+            area, basis = A["area"] or location.zone(loc), A["basis"] or loc.get("basis") or ""
+        unit = loc.get("unit") if loc.get("unit") and "tag prefix" not in (loc.get("basis") or "") else (A["unit"] or loc.get("unit") or "")
+        place = {"area": area, "site": A["site"], "sub_area": A["sub"], "unit": unit, "area_note": A["note"],
+                 "area_source": "datasheet" if dz else ("rule" if A["area"] else ""), "loc_basis": basis}
+    return {**place,
             "id": r["id"], "tag": r["tag"], "kind": r["kind"], "form_id": r["form_id"], "doc_no": r["doc_no"], "rev": r["rev"],
             "rev_date": r["rev_date"], "file": r.get("filename"), "document_id": r["document_id"], "pages": json.loads(r["pages"] or "[]"),
             "test_data": bool(r["test_data"]), "status": r["status"], "service": (instrument.values(sh).get("service") or {}).get("value", ""),

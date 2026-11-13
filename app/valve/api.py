@@ -1600,14 +1600,29 @@ def _area_fn(con, pid):
         out = dict(loc or {})
         if not rule:
             return out
-        A = arearule.classify(rule, tag_key or "", doc_no or "", pid_no or "", (idx.get(tag_key) or {}).get("area", ""))
+        isub = (idx.get(tag_key) or {}).get("area", "")
+        R = arearule.resolve(rule, tag_key or "", doc_no or "", pid_no or "", locmod.zone(loc), isub)
+        if R["label"]:                                   # valve40 (user 2026-11-13): QN · QN Brownfield N1 · QS · W15
+            out.update(area=R["label"], site=R["site"], area_basis=R["basis"])
+            if R["sub"]:
+                out["sub_area"] = R["sub"]
+            if R["unit"] and (not out.get("unit") or out.get("unit") == arearule.prefix(tag_key or "")):
+                out["unit"] = R["unit"]
+            return out
+        A = arearule.classify(rule, tag_key or "", doc_no or "", pid_no or "", isub)
         area, site = out.get("area") or "", out.get("site") or ""
         if not area and A["area"]:
             out["area"], out["area_basis"] = A["area"], A["basis"]
+            m = re.fullmatch(r"(North|South) Brownfield", A["area"])
+            if m:                                        # the Valve screens' own form: Area 'Brownfield' + Site
+                out["area"], out["site"] = "Brownfield", m.group(1)
         elif area == "Brownfield" and not site and A["site"]:
-            out["area_basis"] = A["basis"]
+            out["area_basis"] = f"Datasheet 표제 = Brownfield · Site = {A['basis']}"
+        elif area in ("North", "South") and A["site"] == area and "BROWNFIELD" in A["area"].upper():
+            out["area"] = "Brownfield"                   # the title names only the site; the rule table says it is Brownfield
+            out["area_basis"] = f"Datasheet 표제 = {area} · Brownfield = {A['basis']}"
         else:
-            out["area_basis"] = "문서 표제" if area else A["basis"]
+            out["area_basis"] = "Datasheet 표제" if area else A["basis"]
         if not site and A["site"]:                       # valve40: the site the rule (or the document number) says
             out["site"] = A["site"]
         if A["sub"]:
@@ -1634,7 +1649,7 @@ def _by_area(irows, latest, loc_of):
         e = out.setdefault(i.get("area_name") or "(not stated)", {"area": i.get("area_name") or "(not stated)", "tags": 0, "issues": 0, "major": 0, "units": set()})
         e["issues"] += 1
         e["major"] += i["severity"] == "Major"
-    return [dict(e, units=sorted(e["units"])) for e in sorted(out.values(), key=lambda e: order.get(e["area"], 9))]
+    return [dict(e, units=sorted(e["units"])) for e in sorted(out.values(), key=lambda e: (order.get(e["area"], 2.5), e["area"]))]
 
 
 def _issue_counts(rows):
@@ -2594,7 +2609,7 @@ def _valve_summary(con, pid) -> dict:
                     "new": (x.get("tag_key") not in vl_tags) if vl else None,
                     "revs": len(x.get("revisions") or []),
                     "req": [h for h in heads if cells.get(h) and not str(cells[h]).startswith("Not Required")]})
-    out.sort(key=lambda t: (exports.AREA_ORDER.get(t["area"], 9), t["site"], t["unit"], t["tag"]))
+    out.sort(key=lambda t: (exports.AREA_ORDER.get(t["area"], 2.5), t["site"], t["unit"], t["tag"]))
     order = ["ESDV", "SDV", "BDV", "XV", "MOV"]
     types = [c for c in order if any(t["type"] == c for t in out)] + sorted({t["type"] for t in out} - set(order))
     reqs = [h for h in heads if any(h in t["req"] for t in out)]
@@ -2618,7 +2633,7 @@ def _req_rows(con, pid) -> dict:
                      "area": loc.get("area") or "(not stated)", "site": loc.get("site") or "", "unit": loc.get("unit") or "", "cells": cells,
                      "sub_area": loc.get("sub_area", ""), "area_basis": loc.get("area_basis", ""),
                      "on": [h for h in heads if cells.get(h) and not str(cells[h]).startswith("Not Required")]})
-    tags.sort(key=lambda t: (exports.AREA_ORDER.get(t["area"], 9), t["site"], t["unit"], t["tag"]))
+    tags.sort(key=lambda t: (exports.AREA_ORDER.get(t["area"], 2.5), t["site"], t["unit"], t["tag"]))
     used = [h for h in heads if any(h in t["on"] or t["cells"].get(h) for t in tags)]
 
     def group(key):
