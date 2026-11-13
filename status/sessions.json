@@ -47,8 +47,8 @@
    "title": "6. Datasheet 자동 검토",
    "bucket": "COMPLETED",
    "updated": "2026-11-13T08:33:52Z",
-   "recent": "99f26adc — 올릴 때 도서 Area 지정(문서에서 읽기 / North · South · W15 · 표에서 바꿈) → DTS No. → 표제 → 규칙 표 · 학습 추정은 Site 결정에 안 씀(South 오판 고침) · 라벨 QN Greenfield / QN Brownfield N1·N2 / QS / W15. 회사 미전달 (hotfix142 는 709467e3 까지)",
-   "needs": "S1: 대시보드 Area 라벨 QN → QN Greenfield 맞추기 · 사용자 요청 시 hotfix143"
+   "recent": "ffe18972 — 올린 도서 Area → DTS No. → 표제 → 규칙 표 · QN Greenfield. hotfix143 로 회사 업데이트에 실림",
+   "needs": "회사: hotfix143 적용 뒤 stored PDF check 줄 사진 · S1: AREA_ORD 에 QN Greenfield"
   },
   "S7": {
    "id": "session_01Muj82FVwL2Yt5DTXGPNkcp",
