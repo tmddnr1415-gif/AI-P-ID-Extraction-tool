@@ -1955,3 +1955,13 @@ C:\Users\SAMSUNG\Desktop\Claude\                         ← 개발 폴더 (여�
 ### 2026-11-13 (APP_VERSION 2026-11-13.3 / SERVER_VERSION 그대로) — v17.49 Area 'QN Greenfield'
 - 무엇을: 세션 6 99f26adc — Brownfield 가 아닌 QN Tag 의 Area 가 'QN' → 'QN Greenfield'. `AREA_ORD` 맨 앞에 'QN Greenfield' 추가 (순서 QN Greenfield · QN · QN Brownfield N1 · N2 · QN Brownfield · QS · W15).
 - 바뀐 곳: dashboard.html `AREA_ORD`
+
+### 2026-11-13 (APP_VERSION 2026-11-13.4 / SERVER_VERSION 그대로) — v17.50 Schedule: 지연 중만 · RFQ 알람 없음 · 일정판 접힘 · PSR 이 수기 입력 덮어씀
+- 무엇을 (사용자 지시, 회사 화면 사진과 함께):
+  1. **지연 중인 것만**: 구매 현황 보고에 실적이 있는(늦게 끝난) 품목은 뺌 — 묶음 제목 '지연 중 N건 (최대 +N일 · 기한 지남 N건)', 상태 필터에서 '늦게 완료함' 뺌.
+  2. **RFQ = 구매 역무 → 지연 알람 없음**: 보고 묶음에서 RFQ Issue 뺌, KPI 'RFQ 지연' · 공종별 지연 표 RFQ 열 뺌, 지연 계산(fmax · flate · 설계 관리 완료)에서 RFQ 뺌, 다음 단계가 RFQ 일 때 '일정 지남' 안 띄움, 일정판 칩 RFQ 회색. CO2 PJT 현황판 PSR 요약도 MR · TBE 만.
+  3. **품목별 일정판(간트) 기본 접힘** — '▸ 펼치기' / '▾ 접기' (SCH.gtOpen).
+  4. **품목별 일정 표 하이라이트 = MR · TBE 발주처 · TBE 완료만** — RFQ 열 머리 회색 '구매 역무', 칸은 날짜만(색 · ⚠ 없음). 품목 상세 표 주황(SCH_FRONT)에서도 RFQ 뺌.
+  5. **PSR 업로드가 수기 입력을 덮어씀** — 예전 '직접 입력 값 다시 적용할까요?' 물음 없앰, 새 파일 값 그대로(바뀐 칸은 노랑 변경 표시로 보임), 직접 입력 ● 표시 지움, 입력 기록(log) · 보고 메모(사유 · 캐치업 · 특이사항) · 글자 서식은 그대로 이어감.
+- 바뀐 곳: dashboard.html `schFocus`(RFQ noAlarm) · `schCalc` · `SCH_FRONT`(RFQ 뺌) · 새 `SCH_ALARM` · KPI · 공종별 지연 표 · `fcell` · 표 머리 · 일정판(`data-gttog`, 접힌 카드) · 보고 `RPT`/`rptG`/`rptHead`/상태 필터 · `schUpload` · 팝업 · 달력 마일스톤 목록(RFQ 날짜는 그대로 보임) · 문구 'MR · TBE' · CSS
+- 확인한 것: 시험 PSR 4품목(MR 지연 진행 · MR 늦게 완료 + RFQ 지연 · TBE 완료 지남 · 정상)으로 KPI(MR · TBE 제출 · TBE 완료), 보고 MR 1건(늦게 완료한 J0820 빠짐) · TBE 제출 2 · TBE 완료 4, 일정판 접힘/펼침, RFQ 칸 회색 날짜, 콘솔 오류 없음 / 회사에서 확인할 것: 실제 PSR 다시 올려 수기 입력 칸이 파일 값으로 바뀌는지(여기서는 PSR 엑셀 시험 파일이 없어 업로드는 코드 확인만).
