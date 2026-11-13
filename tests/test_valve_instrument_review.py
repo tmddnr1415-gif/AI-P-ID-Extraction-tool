@@ -449,3 +449,22 @@ def test_area_datasheet_first_then_tag_rule(monkeypatch):
     assert (a["area"], a["site"], a["sub_area"]) == ("Brownfield", "North", "AG3") and "Datasheet 표제 = North" in a["area_basis"]
     a = fill("52SDV090001", {"area": "", "site": "", "unit": ""})                               # nothing named → the rule
     assert (a["area"], a["site"]) == ("Brownfield", "North") and "규칙 표" in a["area_basis"]
+
+
+def test_site_from_dts_no_and_brownfield_train():
+    """valve40 (user 2026-11-13: 'DTS No. 98 · 999 · 315 → QN · QS · W15, 그 안에서 Brownfield Tag 면 QN 의 Brownfield N1 ·
+    QS · W15 는 Brownfield 없음'): site from the DTS No. (rule table rows), else the datasheet title, else the tag rule;
+    Brownfield only where the table has a Brownfield group for that site, the train = the first word of the row's note."""
+    from app.valve import arearule as A
+    text = ("1. Site\nDTS 98 | XN\nDTS 999 | XS\nDTS 315 | W15\nXS: 98GTD-\n2. Brownfield XN\n1, 2 | AG1 | 09 | N1 Train 1, 2\n"
+            "52 | AG3 | 09 | N3 Train 6\n3. XS (no Brownfield)\n19 | AGS-TR1 | 19 | S1 Train 1\n")
+    ev = [{"tag": "98XV-1", "doc_no": "98-51-IN-DTS-1", "zone": "North"}, {"tag": "98XV-2", "doc_no": "999-98-IN-DTS-1", "zone": "South"}]
+    r = A.learn(ev, A.parse_table(text))
+    L = lambda *a: A.resolve(r, *a)["label"]                                          # noqa: E731
+    assert L("98XV-5", "98-51-IN-DTS-9") == "XN" and L("98XV-6", "999-98-IN-DTS-9") == "XS" and L("315MOV-2", "315-51-IN-DTS-2") == "W15"
+    assert L("01XV-7", "02-08-IN-DTS-3", "", "North Brownfield") == "XN Brownfield N1"       # title site North = XN · train N1
+    assert L("52SDV-1", "98-51-IN-DTS-7") == "XN Brownfield N3"                                # DTS XN · Brownfield by the tag rule
+    x = A.resolve(r, "19XV-1", "999-19-IN-DTS-61", "", "South Brownfield")                     # XS has no Brownfield
+    assert x["label"] == "XS" and x["sub"] == "AGS-TR1" and "Brownfield 구분 없음" in x["basis"]
+    assert L("98GTD-1") == "XS" and L("52SDV-090001") == "XN Brownfield N3"                     # no DTS No.: the tag rule
+    assert A.resolve(A.learn([], A.parse_table("2. Brownfield XN\n52 | AG3 | 09 | N3\n")), "52SDV-1")["label"] == ""   # no DTS rows: older words

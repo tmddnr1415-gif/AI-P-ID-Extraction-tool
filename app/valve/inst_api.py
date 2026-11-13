@@ -471,18 +471,25 @@ def _brief(con, pid, r, hist) -> dict:
     isub = ((ctx.get("lists", {}).get("instrument_index") or {}).get("by_tag", {}).get(r["tag_key"]) or {}).get("area", "")
     A = arearule.classify(ctx.get("arearule") or {}, r["tag"], r["doc_no"] or "", pidno, isub)    # table · Index AREA · tag prefix rule
     dz = _doc_zone(con, r, sh)          # valve40 (user 2026-11-13): the datasheet first, the tag rule only when it names none
-    if dz:
-        area = dz
-        if dz == "Brownfield" and A["site"]:                 # the sheet says Brownfield, the rule says which site
-            area = f"{A['site']} Brownfield"
-        elif dz in ("North", "South") and A["site"] == dz and "BROWNFIELD" in A["area"].upper():
-            area = f"{dz} Brownfield"                        # the sheet names only the site; the rule table says Brownfield
-        basis = f"Datasheet 표제 = {dz}" + (f" · {A['basis']}" if area != dz else "")
+    R = arearule.resolve(ctx.get("arearule") or {}, r["tag"], r["doc_no"] or "", pidno, dz, isub)
+    if R["label"]:                                           # QN · QN Brownfield N1 · QS · W15 (DTS No. → site)
+        unit = loc.get("unit") if loc.get("unit") and "tag prefix" not in (loc.get("basis") or "") else (R["unit"] or loc.get("unit") or "")
+        place = {"area": R["label"], "site": R["site"], "sub_area": R["sub"], "unit": unit, "area_note": R["note"],
+                 "area_source": "dts" if "DTS No." in R["basis"] else ("datasheet" if dz else "rule"), "loc_basis": R["basis"]}
     else:
-        area, basis = A["area"] or location.zone(loc), A["basis"] or loc.get("basis") or ""
-    unit = loc.get("unit") if loc.get("unit") and "tag prefix" not in (loc.get("basis") or "") else (A["unit"] or loc.get("unit") or "")
-    return {"area": area, "sub_area": A["sub"], "unit": unit, "area_note": A["note"], "area_source": "datasheet" if dz else ("rule" if A["area"] else ""),
-            "loc_basis": basis,
+        if dz:
+            area = dz
+            if dz == "Brownfield" and A["site"]:             # the sheet says Brownfield, the rule says which site
+                area = f"{A['site']} Brownfield"
+            elif dz in ("North", "South") and A["site"] == dz and "BROWNFIELD" in A["area"].upper():
+                area = f"{dz} Brownfield"                    # the sheet names only the site; the rule table says Brownfield
+            basis = f"Datasheet 표제 = {dz}" + (f" · {A['basis']}" if area != dz else "")
+        else:
+            area, basis = A["area"] or location.zone(loc), A["basis"] or loc.get("basis") or ""
+        unit = loc.get("unit") if loc.get("unit") and "tag prefix" not in (loc.get("basis") or "") else (A["unit"] or loc.get("unit") or "")
+        place = {"area": area, "site": A["site"], "sub_area": A["sub"], "unit": unit, "area_note": A["note"],
+                 "area_source": "datasheet" if dz else ("rule" if A["area"] else ""), "loc_basis": basis}
+    return {**place,
             "id": r["id"], "tag": r["tag"], "kind": r["kind"], "form_id": r["form_id"], "doc_no": r["doc_no"], "rev": r["rev"],
             "rev_date": r["rev_date"], "file": r.get("filename"), "document_id": r["document_id"], "pages": json.loads(r["pages"] or "[]"),
             "test_data": bool(r["test_data"]), "status": r["status"], "service": (instrument.values(sh).get("service") or {}).get("value", ""),

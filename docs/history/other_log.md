@@ -361,3 +361,8 @@
   'QELNG NORTH/SOUTH' · W15 · 'SYSTEM nn – UNIT nn' · Brownfield, 엄격: 서비스명의 'NORTH' 는 안 셈)를 `title_block.zone` 에 보관, 옛 시트는 보관본이 멀쩡할 때 한 번 읽어 채움.
   `_brief`: Datasheet Area → 없을 때만 규칙(규칙 표 → Index AREA → 학습). 표제가 Site 만 말하면 Site 유지 + Brownfield 여부만 규칙 표에서 (Valve · Instrument 같음).
   Valve 는 규칙으로 채운 'North Brownfield' 를 화면 형식 Area 'Brownfield' + Site 'North' 로. 규칙 캐시 버전에 표 내용 포함. 시험 +1. 전체 통과.
+- (추가 · 사용자 'DTS No. 98 · 999 · 315 → QN · QS · W15, 그 안에서 Brownfield Tag 면 QN 의 Brownfield N1 · QS · W15 는 Brownfield 없음')
+  기본 규칙 표에 'DTS 98 | QN' · 'DTS 999 | QS' · 'DTS 315 | W15' 줄 (표에서 고칠 수 있음) · 사진의 'Brownfield QS' 묶음은 'QS'(Brownfield 없음)로.
+  `arearule.resolve`: Site = DTS No. → 표제(North=QN … 문서 번호로 배움) → Tag 규칙 · Brownfield 는 표에 그 Site 의 Brownfield 묶음이 있을 때만 · Train = 메모 첫 낱말.
+  실자료: QN 74 · QN Brownfield N1 2 · N2 2 · QN Brownfield(Train 미상: 00·08) 3 · QS 76(표제 'South Brownfield' 7개는 QS + 사유) · W15 7. 판정 변화 0.
+  Area 정렬: QN → QS → W15 (`exports.AREA_ORDER`). 시험 +1.

@@ -1,3 +1,7 @@
+1. Site — DTS No. 앞 번호
+DTS 98 | QN
+DTS 999 | QS
+DTS 315 | W15
 QS: 98GTD- / 98SD- / 98HD- / 98MAC-
 W15: 315GE83xxxxC
 2. Brownfield QN (Area 컬럼: QG1 / QG2 / QG3&4 BROWNFIELD)
@@ -8,7 +12,7 @@ Tag 접두어 | 건수 | Area 컬럼 | Unit | Exhibit 6 대응
 52 | 52 | QG3&4 | 09 | N3 Train 6
 53 | 52 | QG3&4 | 09 | N4 Train 7
 50 | 10 | QG3&4 | 33 | N3/4 Unit-33 Degasser
-3. Brownfield QS
+3. QS (Brownfield 없음 · QS · W15 는 Brownfield 구분이 없음)
 Tag 접두어 | 건수 | Area 컬럼 | Unit | Exhibit 6 / DEC 대응
 19 | 44 | QGS-TR1 | 19 | S1 Train 1 SRU
 29 | 44 | QGS-TR2 | 29 | S1 Train 2 SRU
