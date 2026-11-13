@@ -3157,6 +3157,92 @@
      ]
     }
    }
+  },
+  {
+   "at": "2026-11-13 04:31",
+   "read_at": "2026-11-13T04:55:00Z",
+   "s": {
+    "S1": {
+     "branch": "origin/ccr-248a5c4d-3dji7g",
+     "tip": "e01a7b4e",
+     "ver": "v17.47 (화면 2026-11-13.1)",
+     "bucket": "COMPLETED",
+     "needs": "",
+     "recent": "v17.47 e01a7b4e — 공통 자료 메뉴 · CO2 PJT 현황판 · 문서/Rev 현황 · Schedule 계기 블록",
+     "pending": []
+    },
+    "S2": {
+     "branch": "origin/claude/gracious-ride-26nqrf",
+     "tip": "6caae532",
+     "ver": "hotfix140 만듦 (통합)",
+     "bucket": "COMPLETED",
+     "needs": "",
+     "recent": "6caae532 — LOGIC 분석→그리기 변환 왕복 정확도 검사 기록(30장 · 코드 변경 없음) · 29b6072e /ic3d 연결",
+     "pending": []
+    },
+    "S3": {
+     "branch": "origin/ccr-cc45909d-fjjmrb",
+     "tip": "4e9cfd24",
+     "ver": "L91",
+     "bucket": "COMPLETED",
+     "needs": "",
+     "recent": "L91 커밋 · 푸시 — 화면 시험 125 · 빠른 시험 1,655 통과. 통합 꾸러미에 병합 필요",
+     "pending": []
+    },
+    "S4": {
+     "branch": "origin/ccr-d82d97fa-bb3ty3",
+     "tip": "7b10d7cb",
+     "ver": "변경 이력 (55)",
+     "bucket": "BLOCKED",
+     "needs": "1) dist/company_pc/S4 생성 진행 여부  2) zip 만들기를 멈추고 통합을 오케스트레이터에 맡길지",
+     "recent": "",
+     "pending": []
+    },
+    "S5": {
+     "branch": "origin/claude/new-session-v23o67",
+     "tip": "3d46af2c",
+     "ver": "2026-11-07.1",
+     "bucket": "COMPLETED",
+     "needs": "",
+     "recent": "valve37 (3d46af2c · dist/valve_kinds) — Globe · Butterfly · PSV 데이터시트 검토. S6 valve36 위 패치 + 대시보드 메뉴 패치. 다음 ② 통합본에 실어 달라는 요청",
+     "pending": []
+    },
+    "S6": {
+     "branch": "origin/ccr-efbe7e75-n915ze",
+     "tip": "cc5af77a",
+     "ver": "valve40",
+     "bucket": "COMPLETED",
+     "needs": "회사: hotfix140 적용 뒤 stored PDF check 줄 사진 · By Area 규칙 표 넣기",
+     "recent": "cc5af77a · a212ed06 — Datasheet JSON 저장 · Area 규칙 · 깨진 PDF 를 쪽 그림으로 (→ hotfix140)",
+     "pending": []
+    },
+    "S7": {
+     "branch": "origin/claude/practical-newton-n6bt58",
+     "tip": "865f9297",
+     "ver": "865f9297",
+     "bucket": "COMPLETED",
+     "needs": "",
+     "recent": "865f9297 — 좁은 폭에서도 3D 칸 · 휠 축소 한계. hotfix135 로 회사 업데이트에 처음 실림",
+     "pending": [
+      "865f9297",
+      "cb4f4972",
+      "af748c78",
+      "da8df461",
+      "c0dd7d0b",
+      "077cba5e",
+      "144e6604",
+      "8b0b1023",
+      "19d7aa3a",
+      "1fd96028",
+      "b99fb62a",
+      "ad3bbe35",
+      "05909503",
+      "963d2857",
+      "f408556e",
+      "64a829be"
+     ]
+    }
+   }
   }
  ],
  "changes": [
@@ -5431,6 +5517,58 @@
    "kind": "report",
    "sig": "세션 기록",
    "text": "세션 보고 — e7c70ead — 깨진 보관 PDF 를 열지 않음 · PDF 잠금 · warm-up 차례로 · faulthandler · VALVE_WARMUP (→ hotfix139)"
+  },
+  {
+   "at": "2026-11-13 04:31",
+   "prev": "2026-11-13 04:10",
+   "sid": "S2",
+   "kind": "version",
+   "sig": "git",
+   "text": "버전 hotfix139 만듦 (통합) → hotfix140 만듦 (통합)"
+  },
+  {
+   "at": "2026-11-13 04:31",
+   "prev": "2026-11-13 04:10",
+   "sid": "S6",
+   "kind": "commit",
+   "sig": "git",
+   "h": "cc5af77a",
+   "d": "2026-11-13",
+   "text": "valve40: a damaged stored PDF is shown from the page pictures drawn earlier — no re-upload needed"
+  },
+  {
+   "at": "2026-11-13 04:31",
+   "prev": "2026-11-13 04:10",
+   "sid": "S6",
+   "kind": "commit",
+   "sig": "git",
+   "h": "a212ed06",
+   "d": "2026-11-13",
+   "text": "valve40: Valve screens take Area from the family area rule · every datasheet read saved as JSON"
+  },
+  {
+   "at": "2026-11-13 04:31",
+   "prev": "2026-11-13 04:10",
+   "sid": "S6",
+   "kind": "state",
+   "sig": "세션 기록",
+   "text": "상태 WORKING → COMPLETED"
+  },
+  {
+   "at": "2026-11-13 04:31",
+   "prev": "2026-11-13 04:10",
+   "sid": "S6",
+   "kind": "needs",
+   "sig": "세션 기록",
+   "text": "확인 필요 — 회사: hotfix140 적용 뒤 stored PDF check 줄 사진 · By Area 규칙 표 넣기"
+  },
+  {
+   "at": "2026-11-13 04:31",
+   "prev": "2026-11-13 04:10",
+   "sid": "S6",
+   "kind": "report",
+   "sig": "세션 기록",
+   "text": "세션 보고 — cc5af77a · a212ed06 — Datasheet JSON 저장 · Area 규칙 · 깨진 PDF 를 쪽 그림으로 (→ hotfix140)"
   }
  ]
 }
