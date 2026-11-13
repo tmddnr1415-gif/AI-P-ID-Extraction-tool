@@ -731,3 +731,29 @@ def test_damaged_stored_copy_shown_from_earlier_page_pictures(tmp_path, monkeypa
     assert c.get(f"/api/valve/documents/{row['id']}/page/2.png?zoom=2").status_code in (404, 409)
     dsid = c.get(f"/api/valve/projects/{pid}/summary").json()["tags"][0]["id"]
     assert c.get(f"/api/valve/datasheets/{dsid}").status_code == 200
+
+
+
+def test_uploaded_document_area_comes_first(tmp_path, monkeypatch):
+    """valve40 (user 2026-11-13: 'PDF 를 넣으면 해당 도서의 Area 를 적게 해라 · North 도서 → North 우선, 그 안에서 Brownfield 규칙
+    Tag 는 North Brownfield, 아니면 Greenfield North · South 는 Brownfield 없음'): the Area given at upload decides the site;
+    it can be changed later (no re-upload) and every board re-labels."""
+    import time
+    from app.valve import store
+    c, pid, _ = _client(tmp_path, monkeypatch)
+    j = c.post(f"/api/valve/projects/{pid}/upload", data={"kind": "datasheet", "area": "South"},
+               files=[("files", ("ds_A.pdf", _pdf("A"), "application/pdf"))]).json()
+    for _ in range(200):
+        if c.get(f"/api/valve/jobs/{j['id']}").json()["status"] == "done":
+            break
+        time.sleep(0.05)
+    doc = store.one(store.connect(), "SELECT id, area FROM document WHERE project_id=?", pid)
+    assert doc["area"] == "South"
+    t = c.get(f"/api/valve/projects/{pid}/valve-summary").json()["tags"][0]
+    site_s = t["site"]
+    assert t["area"] == site_s and "Brownfield" not in t["area"] and "올린 도서의 Area = South" in t["area_basis"]
+    assert c.put(f"/api/valve/documents/{doc['id']}/area", json={"area": "North"}).json()["area"] == "North"
+    t = c.get(f"/api/valve/projects/{pid}/valve-summary").json()["tags"][0]
+    assert t["area"].endswith("Greenfield") and t["site"] != site_s                         # tag 00… is not a Brownfield-rule tag
+    assert {i["area_name"] for i in c.get(f"/api/valve/projects/{pid}/issues").json()["issues"]} == {t["area"]}
+    assert c.get(f"/api/valve/projects/{pid}/summary").json()["documents"][0]["area"] == "North"

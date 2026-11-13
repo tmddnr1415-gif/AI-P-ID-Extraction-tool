@@ -256,7 +256,7 @@ def _summary(pid: int):
     issues = {r["datasheet_id"]: r["n"] for r in store.rows(
         con, "SELECT datasheet_id, COUNT(*) AS n FROM field WHERE status IN ('review') AND edited_value IS NULL"
              " AND datasheet_id IN (SELECT id FROM datasheet WHERE project_id=?) GROUP BY datasheet_id", pid)}
-    docs = store.rows(con, "SELECT id, kind, filename, pages, uploaded_by, uploaded_at, status, error, info, path, sha256 FROM document"
+    docs = store.rows(con, "SELECT id, kind, filename, pages, uploaded_by, uploaded_at, status, error, info, path, sha256, area FROM document"
                            " WHERE project_id=? ORDER BY id DESC", pid)
     rp = ref_pid(con, pid)
     if rp != pid:                           # valve40: the family's shared reference documents (entered on the 공통 자료 menu)
@@ -281,8 +281,8 @@ def _summary(pid: int):
     ic = _issue_counts(irows)
     pv = _profile_ver(con, pid)
     fill = _area_fn(con, pid)                                          # valve40: the family area rule fills what titles do not say
-    loc_of = {d["id"]: fill(d["tag_key"], (_ds_full(con, d["id"], pv=pv) or {}).get("location") or {}, d.get("doc_no", ""))
-              for d in latest.values()}
+    loc_of = {d["id"]: fill(d["tag_key"], (_ds_full(con, d["id"], pv=pv) or {}).get("location") or {}, d.get("doc_no", ""),
+                            doc_id=d.get("document_id")) for d in latest.values()}
     ver = {"pass": 0, "fail": 0, "na": 0, "total": 0, "tags": 0, "na_reasons": {}}
     for d in latest.values():                                         # valve28: verification coverage of the project
         v = (_ds_full(con, d["id"], pv=pv) or {}).get("verification")
@@ -796,9 +796,10 @@ def warm_all():
 
 
 @router.post("/api/valve/projects/{pid}/upload")
-async def upload(pid: int, request: Request, kind: str = Form(...), files: list[UploadFile] = File(...)):
+async def upload(pid: int, request: Request, kind: str = Form(...), files: list[UploadFile] = File(...), area: str = Form("")):
     if kind not in KINDS:
         return _err("자료 종류가 잘못됐습니다")
+    area = (area or "").strip()[:40]                     # valve40: the document's Area as the user gives it (North · South · W15)
     by = _user(request)
     con = store.connect()
     if not store.one(con, "SELECT id FROM project WHERE id=?", pid):
@@ -830,8 +831,8 @@ async def upload(pid: int, request: Request, kind: str = Form(...), files: list[
                 skipped.append(f"{name} — 암호가 걸린 PDF 입니다. 암호를 풀어 저장한 뒤 다시 올려 주세요")
                 continue
         cur = con.execute("INSERT INTO document(project_id, kind, filename, sha256, path, pages, uploaded_by, uploaded_at,"
-                          " status) VALUES (?,?,?,?,?,?,?,?,'queued')",
-                          (pid, kind, name, sha, str(path), pages, by, store.now()))
+                          " status, area) VALUES (?,?,?,?,?,?,?,?,'queued',?)",
+                          (pid, kind, name, sha, str(path), pages, by, store.now(), area or None))
         items.append((cur.lastrowid, kind, name, path, pages))
     con.commit()
     if not items:
@@ -841,6 +842,24 @@ async def upload(pid: int, request: Request, kind: str = Form(...), files: list[
                   "msg": "", "file": "", "errors": [], "skipped": skipped, "warn": "", "base": _base(request), "exports": []}
     threading.Thread(target=_process, args=(jid, pid, items, by), daemon=True).start()
     return _JOBS[jid]
+
+
+@router.put("/api/valve/documents/{doc_id}/area")
+async def doc_area(doc_id: int, request: Request):
+    """valve40: set / change the Area of an uploaded document ('' = read it from the document) — no re-upload; every
+    board re-labels its tags on the next refresh."""
+    body = await request.json()
+    area = str(body.get("area") or "").strip()[:40]
+    con = store.connect()
+    d = store.one(con, "SELECT id, project_id, filename, area FROM document WHERE id=?", doc_id)
+    if not d:
+        return _err("없는 문서", 404)
+    with store._LOCK:
+        con.execute("UPDATE document SET area=? WHERE id=?", (area or None, doc_id))
+        store.audit(con, d["project_id"], None, "document.area", "doc-area", d.get("area") or "", area, _user(request), d["filename"])
+        con.commit()
+    inst_api.invalidate_family()
+    return {"ok": True, "id": doc_id, "area": area}
 
 
 @router.get("/api/valve/jobs/{jid}")
@@ -1570,7 +1589,7 @@ def project_issues(con, pid) -> list[dict]:
     fill = _area_fn(con, pid)
     for d in sorted(latest.values(), key=lambda d: d["tag_key"]):
         x = _ds_full(con, d["id"], pv=pv)
-        L = fill(x["tag_key"], x["location"], x.get("doc_no", ""))
+        L = fill(x["tag_key"], x["location"], x.get("doc_no", ""), doc_id=x.get("document_id"))
         for i in x["issues"]:                                # the row IS the cached finding (tag fields added in place):
             i.update(ds_id=x["id"], tag=x["tag_key"], tag_raw=x["tag"], valve_type=x["valve_type"],   # no second copy of
                      area_name=L.get("area", ""), site=L.get("site", ""), plant_unit=L.get("unit", ""), sub_area=L.get("sub_area", ""),
@@ -1592,16 +1611,20 @@ def _area_fn(con, pid):
     try:
         rule = inst_api.area_rule_cached(con, pid)
         idx = (inst_api._lists(con, pid).get("instrument_index") or {}).get("by_tag", {})
+        try:
+            dareas = {r["id"]: r["area"] for r in store.rows(con, "SELECT id, area FROM document WHERE project_id=? AND area IS NOT NULL", pid)}
+        except Exception:                                    # noqa: BLE001  (no document table / no connection: no given Areas)
+            dareas = {}
     except Exception:                                        # noqa: BLE001  (no rule → the documents' own areas)
         _log_error("area rule")
-        rule, idx = {}, {}
+        rule, idx, dareas = {}, {}, {}
 
-    def fill(tag_key, loc, doc_no="", pid_no=""):
+    def fill(tag_key, loc, doc_no="", pid_no="", doc_id=None):
         out = dict(loc or {})
         if not rule:
             return out
         isub = (idx.get(tag_key) or {}).get("area", "")
-        R = arearule.resolve(rule, tag_key or "", doc_no or "", pid_no or "", locmod.zone(loc), isub)
+        R = arearule.resolve(rule, tag_key or "", doc_no or "", pid_no or "", locmod.zone(loc), isub, dareas.get(doc_id) or "")
         if R["label"]:                                   # valve40 (user 2026-11-13): QN · QN Brownfield N1 · QS · W15
             out.update(area=R["label"], site=R["site"], area_basis=R["basis"])
             if R["sub"]:
@@ -2021,7 +2044,7 @@ def _grid(con, pid):
             if f:
                 cells[k] = {"v": store.field_value(f), "u": f["unit"] or "", "id": f["id"], "st": f["status"],
                             "ed": f["edited_value"] is not None, "p": f["page"], "b": store.unJ(f["bbox"])}
-        loc = fill(m["tag_key"], (_ds_full(con, i, pv=pv) or {}).get("location") or {}, m["doc_no"])
+        loc = fill(m["tag_key"], (_ds_full(con, i, pv=pv) or {}).get("location") or {}, m["doc_no"], doc_id=m.get("document_id"))
         rows_.append({"id": i, "tag": m["tag_key"], "tag_raw": m["tag"], "valve_type": m["valve_type"], "rev": m["rev"],
                       "area": loc.get("area", ""), "site": loc.get("site", ""), "unit": loc.get("unit", ""),
                       "sub_area": loc.get("sub_area", ""), "area_basis": loc.get("area_basis", ""), "doc_no": m["doc_no"], "status": m["review_status"], "notes": notes.get(i, 0),
@@ -2597,7 +2620,7 @@ def _valve_summary(con, pid) -> dict:
     fill = _area_fn(con, pid)
     for d in latest.values():
         x = _ds_full(con, d["id"], pv=pv) or {}
-        loc = fill(x.get("tag_key"), x.get("location") or {}, x.get("doc_no", ""))
+        loc = fill(x.get("tag_key"), x.get("location") or {}, x.get("doc_no", ""), doc_id=x.get("document_id"))
         iss = [i for i in x.get("issues") or [] if i["type"] in issuesmod.CONTRACTOR_TYPES and i.get("status") != "Dismissed"]
         cells = reqmod.columns(x.get("requirements") or [])
         out.append({"id": x.get("id"), "tag": x.get("tag_key"), "type": x.get("valve_type") or "(other)", "rev": x.get("rev"),
@@ -2628,7 +2651,7 @@ def _req_rows(con, pid) -> dict:
     for d in latest.values():
         x = _ds_full(con, d["id"], pv=pv) or {}
         cells = reqmod.columns(x.get("requirements") or [])
-        loc = fill(x.get("tag_key"), x.get("location") or {}, x.get("doc_no", ""))
+        loc = fill(x.get("tag_key"), x.get("location") or {}, x.get("doc_no", ""), doc_id=x.get("document_id"))
         tags.append({"ds_id": x.get("id"), "tag": x.get("tag_key"), "valve_type": x.get("valve_type"), "rev": x.get("rev"), "doc_no": x.get("doc_no"),
                      "area": loc.get("area") or "(not stated)", "site": loc.get("site") or "", "unit": loc.get("unit") or "", "cells": cells,
                      "sub_area": loc.get("sub_area", ""), "area_basis": loc.get("area_basis", ""),

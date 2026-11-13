@@ -456,12 +456,16 @@ def test_site_from_dts_no_and_brownfield_train():
     QS · W15 는 Brownfield 없음'): site from the DTS No. (rule table rows), else the datasheet title, else the tag rule;
     Brownfield only where the table has a Brownfield group for that site, the train = the first word of the row's note."""
     from app.valve import arearule as A
-    text = ("1. Site\nDTS 98 | XN\nDTS 999 | XS\nDTS 315 | W15\nXS: 98GTD-\n2. Brownfield XN\n1, 2 | AG1 | 09 | N1 Train 1, 2\n"
+    text = ("1. Site\nDTS 98 | XN | | North\nDTS 999 | XS | | South\nDTS 315 | W15 | | W15\nXS: 98GTD-\n2. Brownfield XN\n1, 2 | AG1 | 09 | N1 Train 1, 2\n"
             "52 | AG3 | 09 | N3 Train 6\n3. XS (no Brownfield)\n19 | AGS-TR1 | 19 | S1 Train 1\n")
     ev = [{"tag": "98XV-1", "doc_no": "98-51-IN-DTS-1", "zone": "North"}, {"tag": "98XV-2", "doc_no": "999-98-IN-DTS-1", "zone": "South"}]
     r = A.learn(ev, A.parse_table(text))
     L = lambda *a: A.resolve(r, *a)["label"]                                          # noqa: E731
-    assert L("98XV-5", "98-51-IN-DTS-9") == "XN" and L("98XV-6", "999-98-IN-DTS-9") == "XS" and L("315MOV-2", "315-51-IN-DTS-2") == "W15"
+    assert L("98XV-5", "98-51-IN-DTS-9") == "XN Greenfield" and L("98XV-6", "999-98-IN-DTS-9") == "XS" and L("315MOV-2", "315-51-IN-DTS-2") == "W15"
+    # valve40 (user 2026-11-13: the Area given when the PDF is uploaded comes first — 'North 를 넣어도 South 로 읽는 문제')
+    assert L("98XV-6", "999-98-IN-DTS-9", "", "", "", "North") == "XN Greenfield" and L("52SDV-1", "999-1", "", "", "", "North") == "XN Brownfield N3"
+    assert L("52SDV-1", "98-51-IN-DTS-7", "", "", "", "South") == "XS"                      # South has no Brownfield
+    assert L("98XV-010001") == ""                                                              # a learned guess never decides the site
     assert L("01XV-7", "02-08-IN-DTS-3", "", "North Brownfield") == "XN Brownfield N1"       # title site North = XN · train N1
     assert L("52SDV-1", "98-51-IN-DTS-7") == "XN Brownfield N3"                                # DTS XN · Brownfield by the tag rule
     x = A.resolve(r, "19XV-1", "999-19-IN-DTS-61", "", "South Brownfield")                     # XS has no Brownfield

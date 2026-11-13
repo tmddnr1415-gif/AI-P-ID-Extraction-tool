@@ -471,7 +471,8 @@ def _brief(con, pid, r, hist) -> dict:
     isub = ((ctx.get("lists", {}).get("instrument_index") or {}).get("by_tag", {}).get(r["tag_key"]) or {}).get("area", "")
     A = arearule.classify(ctx.get("arearule") or {}, r["tag"], r["doc_no"] or "", pidno, isub)    # table · Index AREA · tag prefix rule
     dz = _doc_zone(con, r, sh)          # valve40 (user 2026-11-13): the datasheet first, the tag rule only when it names none
-    R = arearule.resolve(ctx.get("arearule") or {}, r["tag"], r["doc_no"] or "", pidno, dz, isub)
+    da = (store.one(con, "SELECT area FROM document WHERE id=?", r.get("document_id")) or {}).get("area") or ""
+    R = arearule.resolve(ctx.get("arearule") or {}, r["tag"], r["doc_no"] or "", pidno, dz, isub, da)
     if R["label"]:                                           # QN · QN Brownfield N1 · QS · W15 (DTS No. → site)
         unit = loc.get("unit") if loc.get("unit") and "tag prefix" not in (loc.get("basis") or "") else (R["unit"] or loc.get("unit") or "")
         place = {"area": R["label"], "site": R["site"], "sub_area": R["sub"], "unit": unit, "area_note": R["note"],
