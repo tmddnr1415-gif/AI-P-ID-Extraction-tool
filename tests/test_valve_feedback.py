@@ -662,3 +662,49 @@ def test_damaged_stored_copy_never_reaches_mupdf_and_warmup_is_safe(tmp_path, mo
     monkeypatch.setenv("VALVE_WARMUP", "0")
     api.warm(pid)
     assert not api._WARM_QUEUE and not api.warm_enabled()
+
+
+def test_valve_area_from_the_family_area_rule(tmp_path, monkeypatch):
+    """valve40 (company PC 2026-11-13: Butterfly Valve Summary Area '(not stated)' for every tag): a tag whose datasheet
+    title names no area takes it from the family's area rule table, with the source; the review itself is unchanged.
+    Made-up area names."""
+    c, pid, up = _client(tmp_path, monkeypatch)
+    up("ds_A.pdf", _pdf("A"))
+    before = c.get(f"/api/valve/projects/{pid}/valve-summary").json()["tags"][0]
+    issues0 = sorted(i["ikey"] for i in c.get(f"/api/valve/projects/{pid}/issues").json()["issues"])
+    assert before["tag"].startswith("00") and before["sub_area"] == "" and not before.get("area_basis")
+    text = "2. Brownfield XN\nTag 접두어 | Area 컬럼 | Unit | 메모\n0 | AG0 | 09 | Train 0\n"
+    assert c.put(f"/api/valve/projects/{pid}/inst/arearule", json={"text": text}).status_code == 200
+    t = c.get(f"/api/valve/projects/{pid}/valve-summary").json()["tags"][0]
+    assert (t["area"], t["sub_area"], t["unit"]) == ("Brownfield XN", "AG0", "00") and "규칙 표" in t["area_basis"]
+    s = c.get(f"/api/valve/projects/{pid}/summary").json()
+    assert [a["area"] for a in s["by_area"]] == ["Brownfield XN"]
+    rows = c.get(f"/api/valve/projects/{pid}/issues").json()["issues"]
+    assert {i["area_name"] for i in rows} == {"Brownfield XN"} and {i["sub_area"] for i in rows} == {"AG0"}
+    assert sorted(i["ikey"] for i in rows) == issues0                     # the findings themselves did not move
+
+
+def test_datasheet_json_files(tmp_path, monkeypatch):
+    """valve40 (user 2026-11-13: '입력되는 datasheet 를 json 파일로 저장'): every datasheet read is written as
+    <data>/valve/datasheets/<project>/<kind>/<Tag>__<Rev>.json (+ one bundle per PDF) with every cell, its page and box,
+    the notes and the source file's sha256; the review keeps working when the stored PDF is damaged."""
+    import json
+    from app.valve import store
+    c, pid, up = _client(tmp_path, monkeypatch)
+    up("ds_A.pdf", _pdf("A"))
+    base = store.root() / "datasheets" / "P" / "ball"
+    f = sorted(base.glob("*__A.json"))
+    assert len(f) == 1
+    j = json.loads(f[0].read_text(encoding="utf-8"))
+    assert j["format"] == "valve-datasheet" and j["rev"] == "A" and j["source"]["filename"] == "ds_A.pdf" and len(j["source"]["sha256"]) == 64
+    cell = next(x for x in j["cells"] if x["value"])
+    assert cell["page"] == 1 and len(cell["bbox"]) == 4 and j["notes"]
+    b = json.loads(next((base / "_documents").glob("*__ds_A.json")).read_text(encoding="utf-8"))
+    assert b["count"] == 1 and b["datasheets"][0]["tag"] == j["tag"]
+    dsid = c.get(f"/api/valve/projects/{pid}/summary").json()["tags"][0]["id"]
+    assert c.get(f"/api/valve/datasheets/{dsid}/json").json()["tag"] == j["tag"]
+    f[0].unlink()
+    assert c.post(f"/api/valve/projects/{pid}/export-json").json()["written"] == 2 and f[0].exists()
+    row = store.one(store.connect(), "SELECT path FROM document WHERE project_id=?", pid)
+    Path(row["path"]).write_bytes(b"\x00DRM" + bytes(64))               # the stored PDF damaged: the review still answers
+    assert c.get(f"/api/valve/datasheets/{dsid}").status_code == 200

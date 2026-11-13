@@ -42,7 +42,7 @@ def pdf_link(base: str, i: dict) -> str:
 
 # ── Summary pivot (shared by the Issue List and the Valve List) ───────────────────
 
-AREA_ORDER = {"North": 0, "South": 1, "Brownfield": 2, "W15": 3}
+AREA_ORDER = {"North": 0, "South": 1, "Brownfield": 2, "North Brownfield": 2.1, "South Brownfield": 2.2, "W15": 3}
 
 
 def summary_sheet(wb, title: str, heading: str, recs: list[dict], cat_name: str, cats: list[str], index: int | None = None,

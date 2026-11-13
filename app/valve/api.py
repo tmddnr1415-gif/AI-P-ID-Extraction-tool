@@ -32,7 +32,7 @@ from fastapi.responses import FileResponse, JSONResponse, RedirectResponse, Resp
 from starlette.concurrency import run_in_threadpool
 
 from app import paths
-from app.valve import digest, docrev, i18n, ruleperf, checks as chkmod, revisions as revmod, exports, extract, issues as issuesmod, expert as expmod, knowledge as kbmod, location as locmod, tagrules as tagmod, material, matreview as matmod, pms as pmsmod, process as procmod, requirements as reqmod, schema, store, tbe
+from app.valve import digest, docrev, dsjson, i18n, ruleperf, checks as chkmod, revisions as revmod, exports, extract, issues as issuesmod, expert as expmod, knowledge as kbmod, location as locmod, tagrules as tagmod, material, matreview as matmod, pms as pmsmod, process as procmod, requirements as reqmod, schema, store, tbe
 
 def _log_error(where: str) -> str:
     """valve37 — the full traceback of an unexpected server error goes to <data>/valve/logs/errors_YYYYMMDD.log (call inside
@@ -280,7 +280,9 @@ def _summary(pid: int):
     irows = project_issues(con, pid) if latest else []
     ic = _issue_counts(irows)
     pv = _profile_ver(con, pid)
-    loc_of = {d["id"]: ((_ds_full(con, d["id"], pv=pv) or {}).get("location") or {}) for d in latest.values()}
+    fill = _area_fn(con, pid)                                          # valve40: the family area rule fills what titles do not say
+    loc_of = {d["id"]: fill(d["tag_key"], (_ds_full(con, d["id"], pv=pv) or {}).get("location") or {}, d.get("doc_no", ""))
+              for d in latest.values()}
     ver = {"pass": 0, "fail": 0, "na": 0, "total": 0, "tags": 0, "na_reasons": {}}
     for d in latest.values():                                         # valve28: verification coverage of the project
         v = (_ds_full(con, d["id"], pv=pv) or {}).get("verification")
@@ -504,6 +506,11 @@ def _process(jid: str, pid: int, items: list[tuple[int, str, str, Path]], by: st
             con.commit()
             with _JLOCK:
                 _JOBS[jid]["errors"].append({"file": name, "error": str(e)[:300], "trace": traceback.format_exc()[-800:]})
+        if kind in ("datasheet", "instrument"):          # valve40: what was read, as JSON files (dsjson.py)
+            try:
+                dsjson.write_document(con, doc_id)
+            except Exception:                            # noqa: BLE001  (never fails the upload; the reason is logged)
+                _log_error("datasheet json")
         done += max(1, pages)
         _job(jid, done=done)
     if any(it[1] == "datasheet" for it in items) and _JOBS[jid].get("base") is not None:
@@ -636,9 +643,41 @@ def warm(pid: int):
     threading.Thread(target=_warm_worker, daemon=True, name="valve-warm").start()
 
 
+_JSON_ONCE = threading.Lock()
+_JSON_DONE: list = []
+
+
+def _export_json():
+    """valve40: once per start — every datasheet already read gets its JSON file (only the missing ones)."""
+    with _JSON_ONCE:                                         # the start-up hook can fire twice (router in two apps)
+        if _JSON_DONE:
+            return
+        _JSON_DONE.append(1)
+    try:
+        r = dsjson.export_all(store.connect())
+        if r["written"]:
+            print(f"[valve] datasheet JSON: {r['written']} files written → {r['folder']}", flush=True)
+    except Exception:                                        # noqa: BLE001
+        _log_error("datasheet json export")
+
+
+@router.get("/api/valve/datasheets/{dsid}/json")
+def datasheet_json(dsid: int):
+    """The datasheet as read (cells · page · bbox · notes · source file · sha256) — the same content as its JSON file."""
+    r = dsjson.valve_record(store.connect(), dsid)
+    return JSONResponse(r) if r else _err("없는 데이터시트", 404)
+
+
+@router.post("/api/valve/projects/{pid}/export-json")
+def export_json(pid: int):
+    """Write (again) the JSON file of every datasheet of this project — the reviewer's current edits included."""
+    return dsjson.export_all(store.connect(), only_missing=False, pid=pid)
+
+
 @router.on_event("startup")
 async def _startup_warm():
     _crash_log()
+    threading.Thread(target=_export_json, daemon=True, name="valve-json").start()
     if not warm_enabled():
         print("[valve] warm-up off (VALVE_WARMUP=0) — screens compute on first open", flush=True)
         threading.Thread(target=migrate_stored, daemon=True, name="valve-migrate").start()
@@ -1520,18 +1559,21 @@ ISSUE_STATUSES = ["Open", "Confirmed", "Dismissed", "Resolved"]
 def project_issues(con, pid) -> list[dict]:
     """Issues of the newest revision of every tag, with tag · doc · file on each row.  Cached until the next write
     (every write leaves an audit row, so the newest audit id is the version)."""
-    ver = (con.execute("SELECT COALESCE(MAX(id),0) FROM audit WHERE project_id=?", (pid,)).fetchone()[0],
-           con.execute("SELECT COUNT(*) FROM document WHERE project_id=?", (pid,)).fetchone()[0])
+    rp = ref_pid(con, pid)
+    ver = (con.execute("SELECT COALESCE(MAX(id),0) FROM audit WHERE project_id IN (?,?)", (pid, rp)).fetchone()[0],
+           con.execute("SELECT COUNT(*) FROM document WHERE project_id IN (?,?)", (pid, rp)).fetchone()[0])
     hit = _ISSUE_CACHE.get(pid)
     if hit and hit[0] == ver:
         return hit[1]
     latest = _latest(store.rows(con, "SELECT id, tag_key, rev FROM datasheet WHERE project_id=?", pid))
     out, pv = [], _profile_ver(con, pid)
+    fill = _area_fn(con, pid)
     for d in sorted(latest.values(), key=lambda d: d["tag_key"]):
         x = _ds_full(con, d["id"], pv=pv)
+        L = fill(x["tag_key"], x["location"], x.get("doc_no", ""))
         for i in x["issues"]:                                # the row IS the cached finding (tag fields added in place):
             i.update(ds_id=x["id"], tag=x["tag_key"], tag_raw=x["tag"], valve_type=x["valve_type"],   # no second copy of
-                     area_name=x["location"]["area"], site=x["location"]["site"], plant_unit=x["location"]["unit"],   # 17k dicts
+                     area_name=L.get("area", ""), site=L.get("site", ""), plant_unit=L.get("unit", ""), sub_area=L.get("sub_area", ""),
                      doc_no=x["doc_no"], rev=x["rev"], document_id=x["document_id"], filename=x["filename"],
                      review_status=x["review_status"])
             out.append(i)
@@ -1541,9 +1583,45 @@ def project_issues(con, pid) -> list[dict]:
     return out
 
 
+def _area_fn(con, pid):
+    """valve40 (company PC 2026-11-13: Valve Summary Area '(not stated)' for tags whose datasheet title names no site) —
+    for the screens and Excel only: the area the documents state stays; where they state none (or only 'Brownfield'),
+    the family's area rule fills it (rule table → the tag's Instrument Index AREA → learned tag prefix), with its source;
+    the sub-area is added.  The review itself (peer groups · findings) keeps the document-stated location."""
+    from app.valve import arearule
+    try:
+        rule = inst_api.area_rule_cached(con, pid)
+        idx = (inst_api._lists(con, pid).get("instrument_index") or {}).get("by_tag", {})
+    except Exception:                                        # noqa: BLE001  (no rule → the documents' own areas)
+        _log_error("area rule")
+        rule, idx = {}, {}
+
+    def fill(tag_key, loc, doc_no="", pid_no=""):
+        out = dict(loc or {})
+        if not rule:
+            return out
+        A = arearule.classify(rule, tag_key or "", doc_no or "", pid_no or "", (idx.get(tag_key) or {}).get("area", ""))
+        area, site = out.get("area") or "", out.get("site") or ""
+        if not area and A["area"]:
+            out["area"], out["area_basis"] = A["area"], A["basis"]
+        elif area == "Brownfield" and not site and A["area"]:
+            s = "North" if "NORTH" in A["area"].upper() else "South" if "SOUTH" in A["area"].upper() else ""
+            if s:
+                out["site"], out["area_basis"] = s, A["basis"]
+        else:
+            out["area_basis"] = "문서 표제" if area else ""
+        if A["sub"]:
+            out["sub_area"] = A["sub"]
+            out.setdefault("area_basis", A["basis"])
+        if not out.get("unit") and A["unit"]:
+            out["unit"] = A["unit"]
+        return out
+    return fill
+
+
 def _by_area(irows, latest, loc_of):
     """Dashboard card: tags · open issues · Major per Area (North · South · Brownfield · W15)."""
-    order = {"North": 0, "South": 1, "Brownfield": 2, "W15": 3}
+    order = exports.AREA_ORDER
     out = {}
     for d in latest.values():
         a = loc_of.get(d["id"], {}).get("area") or "(not stated)"
@@ -1867,6 +1945,7 @@ def _grid(con, pid):
     notes = {d["id"]: len(store.unJ(store.one(con, "SELECT notes FROM datasheet WHERE id=?", d["id"])["notes"], []))
              for d in latest.values()}
     rows_ = []
+    fill = _area_fn(con, pid)                            # valve40: area rule for tags whose title names no area
     for i in ids:
         m, fs = meta[i], by.get(i, {})
         cells = {}
@@ -1877,10 +1956,10 @@ def _grid(con, pid):
             if f:
                 cells[k] = {"v": store.field_value(f), "u": f["unit"] or "", "id": f["id"], "st": f["status"],
                             "ed": f["edited_value"] is not None, "p": f["page"], "b": store.unJ(f["bbox"])}
-        loc = (_ds_full(con, i, pv=pv) or {}).get("location") or {}
+        loc = fill(m["tag_key"], (_ds_full(con, i, pv=pv) or {}).get("location") or {}, m["doc_no"])
         rows_.append({"id": i, "tag": m["tag_key"], "tag_raw": m["tag"], "valve_type": m["valve_type"], "rev": m["rev"],
                       "area": loc.get("area", ""), "site": loc.get("site", ""), "unit": loc.get("unit", ""),
-                      "doc_no": m["doc_no"], "status": m["review_status"], "notes": notes.get(i, 0),
+                      "sub_area": loc.get("sub_area", ""), "area_basis": loc.get("area_basis", ""), "doc_no": m["doc_no"], "status": m["review_status"], "notes": notes.get(i, 0),
                       "document_id": m["document_id"], "page": store.unJ(m["pages"], [None])[0],
                       "pages": store.unJ(m["pages"], []), "cells": cells})
     rows_.sort(key=lambda r: r["tag"])
@@ -2450,13 +2529,15 @@ def _valve_summary(con, pid) -> dict:
         vl_tags |= {schema.norm_tag(t) for t in sh.get("tags", [])}
     heads = [h for _, h in reqmod.COLUMNS]
     out = []
+    fill = _area_fn(con, pid)
     for d in latest.values():
         x = _ds_full(con, d["id"], pv=pv) or {}
-        loc = x.get("location") or {}
+        loc = fill(x.get("tag_key"), x.get("location") or {}, x.get("doc_no", ""))
         iss = [i for i in x.get("issues") or [] if i["type"] in issuesmod.CONTRACTOR_TYPES and i.get("status") != "Dismissed"]
         cells = reqmod.columns(x.get("requirements") or [])
         out.append({"id": x.get("id"), "tag": x.get("tag_key"), "type": x.get("valve_type") or "(other)", "rev": x.get("rev"),
                     "area": loc.get("area") or "(not stated)", "site": loc.get("site") or "", "unit": loc.get("unit") or "",
+                    "sub_area": loc.get("sub_area", ""), "area_basis": loc.get("area_basis", ""),
                     "status": x.get("review_status"), "open": len(iss),
                     "major": sum(1 for i in iss if i.get("severity") == "Major"),
                     "action": any(m.get("level") == "Action" for m in x.get("material_review") or []),
@@ -2478,12 +2559,14 @@ def _req_rows(con, pid) -> dict:
     pv = _profile_ver(con, pid)
     heads = [h for _, h in reqmod.COLUMNS]
     tags = []
+    fill = _area_fn(con, pid)
     for d in latest.values():
         x = _ds_full(con, d["id"], pv=pv) or {}
         cells = reqmod.columns(x.get("requirements") or [])
-        loc = x.get("location") or {}
+        loc = fill(x.get("tag_key"), x.get("location") or {}, x.get("doc_no", ""))
         tags.append({"ds_id": x.get("id"), "tag": x.get("tag_key"), "valve_type": x.get("valve_type"), "rev": x.get("rev"), "doc_no": x.get("doc_no"),
                      "area": loc.get("area") or "(not stated)", "site": loc.get("site") or "", "unit": loc.get("unit") or "", "cells": cells,
+                     "sub_area": loc.get("sub_area", ""), "area_basis": loc.get("area_basis", ""),
                      "on": [h for h in heads if cells.get(h) and not str(cells[h]).startswith("Not Required")]})
     tags.sort(key=lambda t: (exports.AREA_ORDER.get(t["area"], 9), t["site"], t["unit"], t["tag"]))
     used = [h for h in heads if any(h in t["on"] or t["cells"].get(h) for t in tags)]

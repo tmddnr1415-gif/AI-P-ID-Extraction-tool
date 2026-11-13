@@ -165,7 +165,7 @@ def learn(evidence: list[dict], table: list[dict] | None = None) -> dict:
             for k in ks[1:] + ([w] if w else []):
                 SK[k][s] += 1
             index.append((e["tag"], s))
-        if not z or " · " in z:                           # a document naming several areas is no evidence for one
+        if not z or " · " in z or z.startswith("("):       # several areas / '(not stated)' is no evidence for one
             continue
         p, sy = prefix(e.get("tag", "")), system(e.get("doc_no", ""))
         if p:
