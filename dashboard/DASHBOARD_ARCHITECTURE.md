@@ -1951,3 +1951,7 @@ C:\Users\SAMSUNG\Desktop\Claude\                         ← 개발 폴더 (여�
 - 무엇을: 세션 6 709467e3 — Area 값이 QN · QN Brownfield N1 · QN Brownfield N2 · QN Brownfield · QS · W15 로 바뀜 → Schedule Valve · 계기 블록의 Area 열 순서를 공통 `AREA_ORD`(QN → QS → W15, 예전 North · South · Brownfield 도 뒤에 남김, 'Area 미상' 맨 끝)로.
 - 바뀐 곳: dashboard.html 새 `AREA_ORD` · `areaOrd`, `vdsBlock` · `instBody` 정렬
 - 확인한 것: 정렬 W15 · Area 미상 · QS · QN Brownfield N2 · QN · QN Brownfield N1 → QN > QN Brownfield N1 > QN Brownfield N2 > QS > W15 > Area 미상, 콘솔 오류 없음.
+
+### 2026-11-13 (APP_VERSION 2026-11-13.3 / SERVER_VERSION 그대로) — v17.49 Area 'QN Greenfield'
+- 무엇을: 세션 6 99f26adc — Brownfield 가 아닌 QN Tag 의 Area 가 'QN' → 'QN Greenfield'. `AREA_ORD` 맨 앞에 'QN Greenfield' 추가 (순서 QN Greenfield · QN · QN Brownfield N1 · N2 · QN Brownfield · QS · W15).
+- 바뀐 곳: dashboard.html `AREA_ORD`

@@ -2055,7 +2055,7 @@ function recLabel(key, f) {
  * ===================================================================== */
 let root = null;
 /* 서버 모드: http(s):// 로 접속하면 server.py 의 REST API 사용 (폴더 선택 불필요). file:// 로 열면 폴더 모드 */
-const APP_VERSION = '2026-11-13.2';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
+const APP_VERSION = '2026-11-13.3';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
 const SERVER_URL = 'http://localhost:8080';
 // 부서원 PC 사본(file://)이 접속을 시도할 서버 — 서버가 배포 파일을 만들 때 'PC 이름 주소, IP 주소' 순으로 자동 기록함
 const DEFAULT_SERVERS = ['http://ASEUNGWOOK-B01:8080', 'http://65.3.30.234:8080'];
@@ -4768,8 +4768,8 @@ function drXlsx() {
 /* ---------- 2026-11-10 Datasheet 검토(세션 6) 값 — Schedule 품목 상세에서 그 밸브 종류의 Tag 값 · 속성 + 타입별 · Area 별 수량 ----------
    P&ID 서버의 /api/valve (프로젝트 'CO2 PJT' · 'CO2 PJT · Globe Valve' …) 를 대시보드 서버(/api/vds)가 대신 읽어 옴. 읽기만. */
 const VDS_KIND = [['ball', 'Ball Valve', /ball/i, 'valve'], ['globe', 'Globe Valve', /globe/i, 'globev'], ['butterfly', 'Butterfly Valve', /butterfly|b\.?f\.?v/i, 'bflyv'], ['psv', 'PSV', /\bpsv\b|safety\s*valve|relief\s*valve|\bprv\b/i, 'psv']];
-// 2026-11-13 세션 6 709467e3: Area 이름 = QN · QN Brownfield N1 · QN Brownfield N2 · QN Brownfield · QS · W15 (예전 North · South · Brownfield 도 계속 순서대로)
-const AREA_ORD = ['QN', 'QN Brownfield N1', 'QN Brownfield N2', 'QN Brownfield', 'QS', 'QS Brownfield', 'W15', 'North', 'South', 'North Brownfield', 'South Brownfield', 'Brownfield'];
+// 2026-11-13 세션 6 709467e3 · 99f26adc: Area 이름 = QN Greenfield · QN · QN Brownfield N1 · QN Brownfield N2 · QN Brownfield · QS · W15 (예전 North · South · Brownfield 도 계속 순서대로)
+const AREA_ORD = ['QN Greenfield', 'QN', 'QN Brownfield N1', 'QN Brownfield N2', 'QN Brownfield', 'QS', 'QS Brownfield', 'W15', 'North', 'South', 'North Brownfield', 'South Brownfield', 'Brownfield'];
 const areaOrd = a => { const i = AREA_ORD.indexOf(a); return i < 0 ? (/미상|not stated/i.test(a) ? 99 : 50) : i; };
 const VDS_PJT = 'CO2 PJT', VDS_COLS = ['service', 'body_size', 'rating', 'body_type', 'connections', 'body_material', 'piping_class', 'act_type', 'fail_position', 'manufacturer', 'model'];
 // 2026-11-12 Instrument (valve40) — PSR 품목 이름 → 계기 종류. CV · On-Off · PSV 는 Valve 쪽(위) 만 씀 (이중 집계 안 함)
