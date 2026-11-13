@@ -314,3 +314,43 @@ def test_area_rule_from_tag_prefix():
     assert A.area_for(r, "71PT-9100") == ("", "Tag 앞 '71' 의 Area 근거가 없음")
     rows = {x["prefix"]: x for x in A.table(r)}
     assert rows["98"]["by_system"] == {"98": "North", "999": "South"} and rows["315"]["area"] == "W15"
+
+
+def test_shared_reference_documents_one_place_for_the_family(tmp_path, monkeypatch):
+    """valve40 (user 2026-11-13): PDS · PMS · Line List · Lists are entered once (공통 자료) and every Valve kind and Instrument
+    type of the project family reviews against them — an upload from a Globe page lands on the family's base project."""
+    import time
+    import valve_inst_scenario as SC
+    monkeypatch.setenv("PID_DATA_DIR", str(tmp_path / "data"))
+    from fastapi.testclient import TestClient
+    from app.main import app
+    from app.valve import api, inst_api, store
+    c = TestClient(app)
+    base = c.post("/api/valve/projects", json={"name": "TEST FAMILY"}).json()["id"]
+    globe = c.post("/api/valve/projects", json={"name": "TEST FAMILY · Globe Valve"}).json()["id"]
+    psv = c.post("/api/valve/projects", json={"name": "TEST FAMILY · PSV"}).json()["id"]
+    alone = c.post("/api/valve/projects", json={"name": "OTHER · Globe Valve"}).json()["id"]
+    con = store.connect()
+    assert [api.ref_pid(con, p) for p in (base, globe, psv, alone)] == [base, base, base, alone]
+    assert sorted(api.family(con, globe)) == sorted([base, globe, psv])
+    SC.write_pds(tmp_path / "pds.pdf", [{"tag": "71PT-9001A", "op": "10.5", "dp": "19.6", "dt": "85"}])
+    SC.write_linelist(tmp_path / "ll.xlsx")
+
+    def up(pid, kind, f):
+        r = c.post(f"/api/valve/projects/{pid}/upload", data={"kind": kind}, files=[("files", (f.name, f.read_bytes()))]).json()
+        for _ in range(300):
+            if c.get(f"/api/valve/jobs/{r['id']}").json()["status"] == "done":
+                return
+            time.sleep(0.05)
+    up(globe, "process", tmp_path / "pds.pdf")                    # entered from a Globe page …
+    up(base, "linelist", tmp_path / "ll.xlsx")
+    rows = store.rows(con, "SELECT project_id, kind FROM document ORDER BY id")
+    assert [(r["project_id"], r["kind"]) for r in rows] == [(base, "process"), (base, "linelist")]      # … kept once, on the base project
+    for p in (base, globe, psv):                                  # every Valve kind sees both
+        s = c.get(f"/api/valve/projects/{p}/summary").json()
+        assert s["has_process"], p
+        kinds = {d["kind"]: d.get("shared", False) for d in s["documents"]}
+        assert kinds == {"process": p != base, "linelist": p != base}
+        assert api._process_for(con, p)[0] is not None
+        assert inst_api._merged_linelist(con, p)[0] is not None   # and so does every Instrument type
+    assert not c.get(f"/api/valve/projects/{alone}/summary").json()["has_process"]     # another family does not

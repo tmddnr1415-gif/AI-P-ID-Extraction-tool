@@ -313,3 +313,11 @@
 - 키보드 J/K · N/P · C/E/X · '/' 와 '지적만' 필터. 성능(1,450 DS): 현황판 0.53→0.03 s(재방문) · CRS 7→0.5 s · 검토 Excel 8.5→1.4 s.
 - (추가) 다음 라운드: `instcalc.py` Control Valve IEC 60534-2-1 (Rated/계산 Cv · 기체 Cv 재계산 · Choked/공동현상/Flashing · 소음) · PSV API 526/520/521 · CRS 회신 올리기(Ref 열로 맞춤, 없으면 Tag+Rule+Field) · 주별 검토 진행 그래프.
 - (추가) Area = Tag 앞 번호 규칙 (`arearule.py`): 프로젝트 Valve DS · PDS 표제의 Area 로 배움 → 실자료 근거 198건: 00·01·02·08·24·25 North Brownfield · 19·29·39·84·85 South Brownfield · 315 W15 · 98 은 North/South 둘 다 → 문서/P&ID 번호 '98-…' North · '999-…' South. 코드에 표를 박지 않음. `/inst/arearule` · 현황판 By Area 에 규칙 표시.
+
+### 2026-11-13 VALVE — 공통 자료 (PDS · PMS · Line List · Instrument Index · IO List 한 곳 입력)
+- 사용자: "PDS Line list io list inst list 는 한곳의 메뉴에서만 입력 · 모든 valve, inst type 별 검토에 공통".
+- `api.ref_pid` / `family` / `_ref_doc` / `REF_KINDS`: 기준 프로젝트('<이름>' — ' · Globe Valve' 등 뗀 것)에 1벌 보관, 다른 kind 페이지에서 올려도 그리로 감.
+  `_process_for` · `_pms_for` · `_doc_ref` · `_coverage` · `_summary`(shared 표시) · `_wver` · `_profile_ver` · `inst_api._docs` · `_ver` 가 기준 프로젝트 문서를 봄. 옛 업로드(자기 프로젝트)도 그대로 읽힘.
+- 올린 뒤 `inst_api.invalidate_family()` + family 전체 warm.
+- 화면: `?kind=refdocs` '공통 자료' 페이지(4칸) · 각 페이지 Document Management 는 자기 자료만(`window.DOC_KINDS`) + 공통 자료 카드(읽기 전용 · 링크) · 'Document Management 에 올리세요' 안내 → 공통 자료 링크. List 페이지의 Document Management 메뉴 뺌.
+- 시험 `test_shared_reference_documents_one_place_for_the_family`. 스냅샷 2,935 · 변화 0 · UI 25/25.

@@ -119,7 +119,12 @@ def process_doc(con, pid: int, doc_id: int, kind: str, name: str, path: Path, by
 
 # ── project context: PDS · PMS · Line List · Lists ─────────────────────────────────────────────────────────────
 def _docs(con, pid, kind):
-    return store.rows(con, "SELECT id, filename, uploaded_at, info FROM document WHERE project_id=? AND kind=? AND status='done' ORDER BY id", pid, kind)
+    """valve40: Line List · Instrument Index · IO List are shared by the project family (the 공통 자료 menu keeps them on the
+    base project); older uploads into this project itself still count (oldest first → the newest wins)."""
+    from app.valve import api
+    rp = api.ref_pid(con, pid)
+    return store.rows(con, "SELECT id, filename, uploaded_at, info FROM document WHERE project_id IN (?,?) AND kind=? AND status='done' ORDER BY id",
+                      pid, rp, kind)
 
 
 def _load(sub: str, doc_id: int):
@@ -168,7 +173,8 @@ def _required(con, pid) -> dict:
 
 
 def _ver(con, pid) -> tuple:
-    a = store.one(con, "SELECT COUNT(*) n, MAX(id) m FROM document WHERE project_id=? AND status='done'", pid)
+    from app.valve import api
+    a = store.one(con, "SELECT COUNT(*) n, MAX(id) m FROM document WHERE project_id IN (?,?) AND status='done'", pid, api.ref_pid(con, pid))
     b = store.one(con, "SELECT COUNT(*) n, MAX(id) m FROM inst_sheet WHERE project_id=?", pid)
     s = store.one(con, "SELECT value FROM project_setting WHERE project_id=? AND key='inst.required'", pid)
     dd = store.one(con, "SELECT COUNT(*) n, MAX(at) m FROM inst_decision WHERE sheet_id IN (SELECT id FROM inst_sheet WHERE project_id=?)", pid)
@@ -183,6 +189,13 @@ def _ck(pid):
 def invalidate(pid):
     """A write (decision · code · status · settings · upload) — the next read recomputes."""
     _CTX.pop(_ck(pid), None)
+
+
+def invalidate_family():
+    """A shared reference document changed (공통 자료) — every project of this data folder recomputes."""
+    root = str(store.root())
+    for k in [k for k in _CTX if k[0] == root]:
+        _CTX.pop(k, None)
 
 
 def context(con, pid) -> dict:

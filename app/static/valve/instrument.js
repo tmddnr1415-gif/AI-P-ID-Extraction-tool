@@ -11,11 +11,11 @@ const QSHEET = +Q.get('sheet') || 0;                  // deep link: ?kind=pt&she
 const I = { showOk: LS.get('inst.showok', false), kinds: null, kind: V.INST_KINDS.has(QK) ? QK : LS.get('inst.kind', 'ft') || 'ft', list: QK === 'iolist' ? 'io_list' : QK === 'instindex' ? 'instrument_index' : LS.get('inst.list', 'instrument_index'), ltab: 'cmp', rows: null, sel: null, d: null, tab: 'find', filt: '', lfilt: '' };
 /* One Instrument page = one dashboard menu entry: ?kind=<item> · ?kind=all (현황판) · ?kind=instindex|iolist (Lists).
    The page gets its OWN side menu, like a Valve kind page; the Valve page itself has no Instrument entries. */
-const MODE = QK === 'all' ? 'all' : (QK === 'instindex' || QK === 'iolist') ? 'list' : (V.INST_KINDS.has(QK) || (QSHEET && !Q.get('ds'))) ? 'item' : '';
+const MODE = QK === 'refdocs' ? 'ref' : QK === 'all' ? 'all' : (QK === 'instindex' || QK === 'iolist') ? 'list' : (V.INST_KINDS.has(QK) || (QSHEET && !Q.get('ds'))) ? 'item' : '';
 const ITEM_LABEL = { ft: 'FT · Flow Transmitter', pt: 'PT · Pressure / DP Tx', lt: 'LT · Level Tx (DP)', gwr: 'GWR · Level Tx (Radar)', tt: 'TT · Temperature Tx',
   tg: 'TG · Temperature Gauge', pg: 'PG · Pressure Gauge', dpg: 'DPG · DP Gauge', mlg: 'MLG · Mag. Level Gauge', ro: 'RO · Restriction Orifice',
   analyzer: 'AT · Analyzer', cv: 'CV · Control Valve', onoff: 'On-Off Valve', psv: 'PSV' };
-const pageName = () => MODE === 'all' ? 'Instrument 현황판' : MODE === 'list' ? (I.list === 'io_list' ? 'IO List' : 'Instrument List') : (ITEM_LABEL[I.kind] || I.kind.toUpperCase());
+const pageName = () => MODE === 'ref' ? '공통 자료' : MODE === 'all' ? 'Instrument 현황판' : MODE === 'list' ? (I.list === 'io_list' ? 'IO List' : 'Instrument List') : (ITEM_LABEL[I.kind] || I.kind.toUpperCase());
 const VK = { ball: 'Ball', globe: 'Globe', butterfly: 'Butterfly', psv: 'PSV' };
 const kindLabel = k => VK[k] ? `${VK[k]} Valve`.replace('PSV Valve', 'PSV') : (k || '').toUpperCase();
 function valveUrl(project, ds) {                            // a Valve tag: the Valve review screen of its project
@@ -34,8 +34,11 @@ function buildMenu() {
     ['irev', '⇆', 'Revision Comparison'], ['iproc', '∿', 'Process Data Verification'], ['ipms', '⛭', 'PMS Compliance'], ['iline', '≡', 'Line List Check'],
     ['ilists', '☰', 'Instrument List · IO List'], ['ireg', '❐', 'Document · Revision'], ['iexport', '⇩', 'Reports & Export'], ['isettings', '⚙', 'Settings']]
     : MODE === 'all' ? [['inst', '▥', 'Instrument 현황판'], ['docs', '▤', 'Document Management'], ['ireg', '❐', 'Document · Revision'], ['iexport', '⇩', 'Reports & Export']]
-      : [['ilist', I.list === 'io_list' ? '⇄' : '☰', pageName()], ['docs', '▤', 'Document Management'], ['ireg', '❐', 'Document · Revision']];
+      : MODE === 'ref' ? [['docs', '◫', '공통 자료']]
+        : [['ilist', I.list === 'io_list' ? '⇄' : '☰', pageName()], ['ireg', '❐', 'Document · Revision']];      // the List PDFs are entered on 공통 자료
   window.INST_VIEWS = M.map(m => m[0]);
+  // valve40: each page uploads only its own files; the shared references (PDS · PMS · Line List · Lists) only on 공통 자료
+  window.DOC_KINDS = MODE === 'ref' ? V.REF_KINDS : MODE === 'list' ? [] : ['instrument'];
   $('#menu').innerHTML = M.map(([v, ic, l]) => `<button data-v="${v}"><i>${ic}</i>${l}</button>`).join('');
   for (const [v] of M) if (!$('#v-' + v)) { const sec = document.createElement('section'); sec.className = 'view'; sec.id = 'v-' + v; $('#views').append(sec); }
   paintBrand();
@@ -44,7 +47,7 @@ function paintBrand() {
   if (!MODE) return;
   window.INST_CRUMB = pageName();
   const sm = $('#nav .brand small'); if (sm) sm.textContent = pageName();
-  document.title = `${pageName()} — Instrument Review`;
+  document.title = MODE === 'ref' ? '공통 자료 — Valve · Instrument Review' : `${pageName()} — Instrument Review`;
   const cb = $('#crumb > b:last-child'); if (cb) cb.textContent = pageName();
 }
 
@@ -340,7 +343,7 @@ async function renderLists() {
   const info = d.lists[L], c = d.counts[lname] || {};
   const tabs = [['cmp', 'Datasheet 대조'], ['rec', 'List 내용']].map(([k, l]) => `<button data-lt="${k}" class="${I.ltab === k ? 'on' : ''}">${l}</button>`).join('');
   const head = `<div class="vh"><h2>${nm}</h2><span class="soft">${info ? esc([info.files.join(' · '), info.doc_no, info.rev ? 'Rev ' + info.rev : '', 'Tag ' + info.tags].filter(Boolean).join(' · ')) : '아직 없음'}</span><span class="sp"></span>
-      <button data-g="docs">자료 올리기</button><a class="btnlink" href="/api/valve/projects/${S.pid}/inst/listcmp.xlsx?list=${L}" download>⇩ Excel</a></div>`;
+      ${V.refLink('List 올리기 · 바꾸기 (공통 자료) →')}<a class="btnlink" href="/api/valve/projects/${S.pid}/inst/listcmp.xlsx?list=${L}" download>⇩ Excel</a></div>`;
   if (!info) {
     el.innerHTML = head + `<div class="card"><div class="empty">${nm} PDF 가 없습니다 — <b>Document Management › Instrument Index · IO List</b> 에 올리면 Tag 별로 읽고 Datasheet 와 대조합니다 (기준 = Datasheet: 누락 · 값 다름 · List 에만).</div></div>`;
   } else {
@@ -471,8 +474,8 @@ async function renderCheck(view) {
   const f = I.cf?.[view] || '', order = ['Mismatch', 'Missing', 'Review Required', '없음', 'Datasheet Blank', 'OK'];
   const rows = d.rows.filter(x => f ? x.result === f : true).sort((a, b) => order.indexOf(a.result) - order.indexOf(b.result) || a.tag.localeCompare(b.tag));
   const kpi = order.filter(r => d.counts[r]).map(r => `<button data-cf="${r}" class="${f === r ? 'on' : ''}">${rp(r)}<b>${d.counts[r]}</b></button>`).join('');
-  el.innerHTML = `<div class="vh"><h2>${title}</h2><span class="soft">${esc(pageName())} · Tag ${d.tags}</span><span class="sp"></span><button data-g="docs">자료 올리기</button></div>
-    <div class="irefs"><div class="iref ${d.ref ? 'on' : ''}"><b>기준 문서 — ${refName}</b><span>${d.ref ? esc(d.ref) : '아직 없음 — Document Management 에 올리세요'}</span></div><div class="iref"><b>무엇을 보나</b><span>${help}</span></div></div>
+  el.innerHTML = `<div class="vh"><h2>${title}</h2><span class="soft">${esc(pageName())} · Tag ${d.tags}</span><span class="sp"></span>${V.refLink('공통 자료 열기 →')}</div>
+    <div class="irefs"><div class="iref ${d.ref ? 'on' : ''}"><b>기준 문서 — ${refName}</b><span>${d.ref ? esc(d.ref) : `아직 없음 — ${V.refLink('공통 자료에서 올리세요 →')}`}</span></div><div class="iref"><b>무엇을 보나</b><span>${help}</span></div></div>
     <div class="ilhead"><div class="ilc">${kpi || '<span class="soft">검사 결과 없음</span>'}</div>${f ? '<button data-cf="">전체 보기</button>' : ''}</div>
     <div class="card" style="padding:0;overflow:auto"><table class="t itbl"><thead><tr><th>결과</th><th>Tag</th><th>Rev</th><th>항목</th><th>Datasheet</th><th>${refName}</th><th>이유</th><th>출처</th><th>Rule</th></tr></thead><tbody>
       ${rows.map(x => `<tr class="link r-${(RES[x.result] || ['na'])[0]}" data-open="${x.sheet_id}"><td>${rp(x.result)}</td><td><b>${esc(x.tag)}</b></td><td>${esc(x.rev || '-')}</td><td>${esc(x.item)}</td><td>${esc(x.ds || '—')}</td><td>${esc(x.ref || '—')}</td>

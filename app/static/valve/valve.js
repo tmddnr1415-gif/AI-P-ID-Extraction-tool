@@ -835,7 +835,7 @@ function splitPanes(el, key, viewers) {
 function refDocs(L) {
   const up = x => x?.uploaded_at ? `올린 날 ${esc(x.uploaded_at.slice(0, 10))}` : '';
   const revs = o => Object.entries(o || {}).map(([r, n]) => `Rev ${esc(r)} <b>${n}</b>`).join(' · ');
-  const none = (t, what) => `<div class="card refdoc none"><h3>${t}</h3><div class="soft">${what} 없음 — Document Management 에서 올리세요</div></div>`;
+  const none = (t, what) => `<div class="card refdoc none"><h3>${t}</h3><div class="soft">${what} 없음 — ${refLink('공통 자료에서 올리세요 →')}</div></div>`;
   const D = L.datasheet, P = L.process, M = L.pms;
   const ds = D ? `<div class="card refdoc" title="Tag 마다 가장 새 Revision 기준 · 날짜 = 그 Revision 의 개정표 날짜"><h3>Datasheet</h3>
       <div class="rd1"><span class="rdrev">${revs(D.by_rev)}</span></div>
@@ -982,7 +982,7 @@ async function drawCov() {
       <div class="covstats">${C.has_pds ? stat(miss.length, 'Process Data 에 없는 Tag', 'miss', 'Datasheet 에는 있는데 올린 Process Data(PDS)에 그 Tag 가 없음 — 공백 · 하이픈 무시 (98FV100 = 98FV-100 = 98FV 100)')
           + stat(txt.length, 'PDS 에 Tag 는 있으나 표로 못 읽음', 'text', 'PDS 글에는 Tag 가 있지만 이 PDS 양식은 표로 읽지 못해 값 대조(Process Mismatch)는 하지 않은 Tag')
           + stat(tab.length, 'PDS 표에서 읽음 (값 대조함)', 'table', 'PDS 표에서 그 Tag 의 값을 읽어 Datasheet 와 대조한 Tag')
-        : '<div class="banner info" style="margin:0">Process Data(PDS)를 아직 올리지 않았습니다 — Document Management 에서 올리면 Datasheet Tag 와 대조합니다.</div>'}</div>
+        : `<div class="banner info" style="margin:0">Process Data(PDS)를 아직 올리지 않았습니다 — ${refLink('공통 자료')}에 올리면 Datasheet Tag 와 대조합니다.</div>`}</div>
       <div class="zones">${Object.entries(C.zones).filter(([, n]) => n).map(([z, n]) => `<button class="zbtn" data-zone="${esc(z)}" style="--zc:${ZONE_C[z] || '#8a93a6'}" title="이 구역 Tag 보기"><span>${esc(z)}</span><b>${n}</b></button>`).join('')}</div></div>
     <div class="covgrid">
       <div><h4>Datasheet 문서 <span class="soft">${C.ds_docs.length}</span></h4><div class="covwrap"><table class="t"><thead><tr><th>Doc. No.</th><th>Rev.</th><th>Rev 날짜</th><th>구역</th><th>Tag</th></tr></thead><tbody>
@@ -1045,14 +1045,35 @@ const KIND = { datasheet: ['Valve Datasheet PDF', '필수', '.pdf', true], valve
   process: ['Process Data', '선택', '.pdf,.xlsx,.xls', true], pms: ['Piping Material Spec (PMS)', '선택', '.pdf', false],
   instrument: ['Instrument Datasheet PDF', '선택', '.pdf', true], linelist: ['Process Line List', '선택', '.xlsx,.xlsm', true],
   instlist: ['Instrument Index · IO List', '선택', '.pdf', true] };          // valve40: Instrument review (FT · PT · LT · TT · PG · PSV …)
+/* valve40 (user 2026-11-13) — PDS · PMS · Line List · Instrument Index · IO List are entered in ONE menu (공통 자료 · ?kind=refdocs)
+   and every Valve kind and Instrument type of the project family reviews against them (server: api.ref_pid).  A page's
+   Document Management takes only its own files: window.DOC_KINDS (instrument.js) — the Valve pages: Datasheet · Valve List. */
+const REF_KINDS = ['process', 'pms', 'linelist', 'instlist'];
+const baseName = () => (S.sum?.project?.name || Q.get('project') || 'CO2 PJT').replace(/\s*·\s*(Globe Valve|Butterfly Valve|PSV)$/, '');
+function refUrl() {
+  const u = new URL(location.href); ['ds', 'sheet', 'key', 'page'].forEach(k => u.searchParams.delete(k));
+  u.searchParams.set('project', baseName()); u.searchParams.set('kind', 'refdocs'); u.hash = '';
+  return u.toString();
+}
+const refLink = (t = '공통 자료 열기 →') => `<a class="reflink" href="${esc(refUrl())}">${t}</a>`;
+function refCard(docs) {                              // read-only: what every review of this family stands on
+  const by = k => docs.filter(d => d.kind === k && d.status === 'done');
+  return `<div class="card refshare"><h3>공통 자료 <span class="soft" style="font-weight:400">— 모든 Valve · Instrument 검토가 함께 씁니다 · 올리기 · 바꾸기는 한 곳에서만</span><span class="sp"></span>${refLink('공통 자료에서 올리기 · 바꾸기 →')}</h3>
+    <div class="rsgrid">${REF_KINDS.map(k => { const x = by(k); return `<div class="rs ${x.length ? 'on' : ''}"><b>${esc(KIND[k][0])}</b>${x.length
+      ? x.slice(0, 3).map(d => `<span title="${esc(d.info?.note || '')}">${esc(d.filename)} <i class="soft">${esc((d.uploaded_at || '').slice(0, 10))}</i></span>`).join('') + (x.length > 3 ? `<span class="soft">외 ${x.length - 3}개</span>` : '')
+      : '<span class="soft">아직 없음</span>'}</div>`; }).join('')}</div></div>`;
+}
 function renderDocs() {
-  const el = $('#v-docs'), docs = S.sum.documents;
-  el.innerHTML = `<div class="vh"><h2>Document Management</h2><span class="soft">원본은 서버에 그대로 보관되고 절대 덮어쓰지 않습니다.</span></div>
-    <div class="drops">${Object.entries(KIND).map(([k, [t, req, acc, multi]]) => `<label class="drop" data-k="${k}">
+  const el = $('#v-docs'), REFPAGE = window.DOC_KINDS && window.DOC_KINDS.join() === REF_KINDS.join();
+  const mine = window.DOC_KINDS || ['datasheet', 'valvelist'];
+  const docs = S.sum.documents.filter(d => REFPAGE ? REF_KINDS.includes(d.kind) : !d.shared && mine.includes(d.kind));   // this page's own files
+  el.innerHTML = `<div class="vh"><h2>${REFPAGE ? '공통 자료' : 'Document Management'}</h2><span class="soft">${REFPAGE ? 'PDS · PMS · Line List · Instrument Index · IO List — 여기 한 곳에서만 올리고, 모든 Valve 종류 · Instrument Type 검토가 같은 자료를 씁니다.' : '원본은 서버에 그대로 보관되고 절대 덮어쓰지 않습니다.'}</span></div>
+    ${REFPAGE ? '' : refCard(S.sum.documents)}
+    <div class="drops">${Object.entries(KIND).filter(([k]) => mine.includes(k)).map(([k, [t, req, acc, multi]]) => `<label class="drop" data-k="${k}">
       <b>${t} <span class="${req === '필수' ? 'req' : 'opt'}">${req}</span></b><small>${acc.replace(/,/g, ' · ')}${multi ? ' · 여러 개' : ''}</small>
       <div class="soft" style="margin-top:6px">여기에 놓거나 <u>파일 선택</u></div><input type="file" hidden accept="${acc}" ${multi ? 'multiple' : ''}></label>`).join('')}</div>
-    <div class="banner info">Valve Datasheet 는 수십~수백 장을 한 번에 넣어도 됩니다 (개별 PDF · 병합 PDF 모두). Tag 번호로 나누고, 같은 Tag 의 새 Revision 은 이전 판과 따로 보관됩니다.
-      Valve List 는 <b>.xlsx</b> 를 그대로 고칩니다 (.xls 는 회사 PC 의 Excel 로 자동 변환 · 안 되면 Excel 에서 .xlsx 로 저장해 넣으세요).</div>
+    ${REFPAGE ? `<div class="banner info">새 Revision 을 올리면 가장 새 것으로 모든 검토가 다시 계산됩니다 (이전 것은 기록으로 남음 · 휴지통에서 되돌리기 가능). Line List · Instrument Index · IO List 는 여러 파일을 올리면 합쳐 씁니다.</div>` : mine.includes('datasheet') ? `<div class="banner info">Valve Datasheet 는 수십~수백 장을 한 번에 넣어도 됩니다 (개별 PDF · 병합 PDF 모두). Tag 번호로 나누고, 같은 Tag 의 새 Revision 은 이전 판과 따로 보관됩니다.
+      Valve List 는 <b>.xlsx</b> 를 그대로 고칩니다 (.xls 는 회사 PC 의 Excel 로 자동 변환 · 안 되면 Excel 에서 .xlsx 로 저장해 넣으세요).</div>` : ''}
     <div id="jobs"></div>
     <div class="card"><h3>Uploaded Documents (${docs.length})</h3><table class="t"><thead><tr><th>#</th><th>Kind</th><th>File</th><th>Pages</th><th>Result</th><th>Status</th><th>By</th><th>Uploaded</th><th></th></tr></thead><tbody>
     ${docs.map(d => `<tr><td>${d.id}</td><td>${esc(KIND[d.kind]?.[0] || d.kind)}</td><td><b>${esc(d.filename)}</b></td><td>${d.pages || '-'}</td>
@@ -1877,7 +1898,7 @@ function drawRight() {
     const P = d.process, ex = ['body_size', 'rating', 'body_material', 'ball_material', 'seat_material', 'piping_class'].map(k => F[k]).filter(Boolean);
     const pf = d.fields.filter(f => f.section === 'process' && !NOT_PROCESS.has(f.key) && !f.key.includes('.'));
     h = !d.process_doc
-      ? `<div class="banner info"><b>Not Evaluated</b> — Process Data 문서가 아직 없습니다. Document Management 에 Process Data PDF(Annexure 7 'Process Data for On-Off Valve' 표)를 올리면 Tag 로 연결해 공정 항목만 비교합니다.</div>
+      ? `<div class="banner info"><b>Not Evaluated</b> — Process Data 문서가 아직 없습니다. ${refLink('공통 자료')}에 Process Data PDF(Annexure 7 'Process Data for On-Off Valve' 표)를 올리면 Tag 로 연결해 공정 항목만 비교합니다.</div>
         <table class="t"><thead><tr><th>Parameter</th><th>Datasheet</th><th>Unit</th><th>Result</th><th>p.</th></tr></thead><tbody>
         ${pf.map(f => `<tr class="click" data-k="${esc(f.key)}"><td>${esc(f.display)}</td><td>${esc((f.edited_value ?? f.value) || 'Not Found')}</td><td>${esc(f.unit)}</td><td>${pill('NotEvaluated', 'Not Evaluated')}</td><td>${f.page}</td></tr>`).join('') || '<tr><td colspan="5" class="empty">공정 항목 없음</td></tr>'}</tbody></table>`
       : `<p>Process Data <b>${esc(d.process_doc.filename)}</b> · Tag 로 연결${d.process_ref ? ` · <span class="soft">Datasheet 가 Process DS 를 참조 (${esc(d.process_ref.where)})</span>` : ''}</p>
@@ -1890,7 +1911,7 @@ function drawRight() {
       <table class="t"><tbody>${ex.map(f => `<tr class="click" data-k="${esc(f.key)}"><td>${esc(f.display)}</td><td>${esc(f.edited_value ?? f.value)}</td><td>${pill('Excluded', 'N/A (Excluded)')}</td></tr>`).join('')}</tbody></table>
       <p class="soft hint">Valve Size · Rating · Material · Piping Class 는 Process Data 검증에서 비교하지 않습니다 (Datasheet · PMS 기준으로 관리).</p></div>`;
   } else if (W.tab === 'pms') {
-    h = !d.pms ? `<div class="empty">PMS 문서가 아직 없습니다 — Document Management 에 Piping Material Specification PDF 를 올리면<br>Piping Class 의 Rating · NACE · Trim · Body · Seat 를 이 데이터시트와 비교합니다.</div>`
+    h = !d.pms ? `<div class="empty">PMS 문서가 아직 없습니다 — ${refLink('공통 자료')}에 Piping Material Specification PDF 를 올리면<br>Piping Class 의 Rating · NACE · Trim · Body · Seat 를 이 데이터시트와 비교합니다.</div>`
       : `<p>Piping Class <b>${esc(val('piping_class') || 'Not Found')}</b> · PMS ${esc(d.area || '지역 미상')} · <span class="soft">${esc(d.pms_doc?.filename || '')}</span></p>
       <table class="t"><thead><tr><th>Item</th><th>PMS Requirement</th><th>Datasheet</th><th>Result</th><th>PMS p.</th></tr></thead><tbody>
       ${d.pms.map(r => `<tr class="click" data-k="${esc(r.key)}" title="${esc(r.reason)}"><td>${esc(r.item)}</td><td title="${esc(r.req)}">${esc(r.req)}</td><td title="${esc(r.ds)}">${esc(r.ds)}</td><td>${pill(r.result.replace(/[^A-Za-z]/g, ''), r.result)}<div class="soft" style="font-size:11px">${esc(r.reason)}</div></td><td>${r.pms_page ? `<a href="#" data-pmsp="${r.pms_page}" data-pmsb="${esc(JSON.stringify(r.pms_bbox))}">${r.pms_page}</a>` : ''}</td></tr>`).join('')}</tbody></table>
@@ -2195,7 +2216,7 @@ async function renderProc() {
   const el = $('#v-proc'); el.classList.add('full');
   if (!S.sum.has_process) {
     el.classList.remove('full');
-    el.innerHTML = `<div class="vh"><h2>Process Data Verification</h2>${pill('NotEvaluated', 'Not Evaluated')}</div><div class="card"><div class="empty">Process Data PDF 가 없습니다 — Document Management 에 올리면 Tag 별로 공정 값을 비교합니다.<span class="hint soft"><br>공정 항목만(유체 · 상 · 압력 · 온도 · 차압 · 유량 · 작동 시간 · Fail 위치 · 기밀 · Line/P&amp;ID). Valve Size · Rating · Material · Piping Class 는 비교하지 않음. 단위 · 기준이 불명확하면 Review Required.</span></div></div>`;
+    el.innerHTML = `<div class="vh"><h2>Process Data Verification</h2>${pill('NotEvaluated', 'Not Evaluated')}</div><div class="card"><div class="empty">Process Data PDF 가 없습니다 — ${refLink('공통 자료')}에 올리면 Tag 별로 공정 값을 비교합니다.<span class="hint soft"><br>공정 항목만(유체 · 상 · 압력 · 온도 · 차압 · 유량 · 작동 시간 · Fail 위치 · 기밀 · Line/P&amp;ID). Valve Size · Rating · Material · Piping Class 는 비교하지 않음. 단위 · 기준이 불명확하면 Review Required.</span></div></div>`;
     return;
   }
   if (!S.procRows) { el.innerHTML = '<div class="empty">Process Data 와 비교하는 중…</div>'; const r = await api('GET', `/projects/${S.pid}/process`); S.procRows = r.rows; S.procRows.forEach((x, n) => { x._n = n; }); S.procDoc = r.process_doc; }
@@ -2233,7 +2254,7 @@ async function renderProc() {
 }
 async function renderPms() {
   const el = $('#v-pms'); el.classList.add('full');
-  if (!S.sum.has_pms) { el.classList.remove('full'); el.innerHTML = `<div class="vh"><h2>PMS Compliance</h2></div><div class="card"><div class="empty">PMS PDF 가 없습니다 — Document Management 에 올리면 모든 Tag 를 Piping Class 와 비교합니다.</div></div>`; return; }
+  if (!S.sum.has_pms) { el.classList.remove('full'); el.innerHTML = `<div class="vh"><h2>PMS Compliance</h2></div><div class="card"><div class="empty">PMS PDF 가 없습니다 — ${refLink('공통 자료')}에 올리면 모든 Tag 를 Piping Class 와 비교합니다.</div></div>`; return; }
   if (!S.pmsRows) { el.innerHTML = '<div class="empty">PMS 와 비교하는 중…</div>'; const r = await api('GET', `/projects/${S.pid}/pms`); S.pmsRows = r.rows; S.pmsRows.forEach((x, n) => { x._n = n; }); S.pmsDoc = r.pms_doc; }
   const P = S.pmsF ||= { res: '', q: '', item: '' };
   const q = P.q.toUpperCase().replace(/[^0-9A-Z]/g, '');
@@ -2427,7 +2448,7 @@ function renderSettings() {
 }
 const RENDER = { dash: renderDash, docs: renderDocs, list: renderList, review: renderReview, rev: renderRev, proc: renderProc, pms: renderPms, rules: renderRules, export: renderExport, settings: renderSettings,
   ...Object.fromEntries(INSTV.map(n => [n, () => window.INST?.render(n)])) };   // valve40: instrument.js
-window.VALVE = { S, Q, LS, api, esc, pill, toast, modal, go, Viewer, $, $$, USER, INST_KINDS };   // valve40: what instrument.js uses
+window.VALVE = { S, Q, LS, api, esc, pill, toast, modal, go, Viewer, $, $$, USER, INST_KINDS, refUrl, refLink, REF_KINDS };   // valve40: what instrument.js uses
 for (const k of Object.keys(RENDER)) { const f = RENDER[k]; RENDER[k] = () => { if (!S.sum) return; Promise.resolve(f()).catch(e => { console.error(e); toast(e.message, 1); }); }; }
 
 /* ── keyboard ─────────────────────────────────────────────────────────── */

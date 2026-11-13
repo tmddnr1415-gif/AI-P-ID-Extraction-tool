@@ -11,6 +11,7 @@
 - 결정 `inst_decision` · Code `inst.codes` · CRS 내보내기/회신(`inst_reply`) · `/inst/progress` · `instcalc.py`(IN-CV IEC 60534 · IN-PSV API 526).
 - **메뉴**: INSTRUMENT 목록은 대시보드에. `/valve?kind=<item>` = Valve 같은 전용 메뉴 11개(List · Rev 비교 · PDS · PMS · Line List · Lists …; `/inst/findings?group=` · `/inst/compare`) · `all` 현황판 · `instindex|iolist` List.
 - **valve37(440a3bb1) 들어옴**: ball·globe·butterfly·psv·valve → Valve 화면. PSV 는 Valve 가 맡음.
+- **공통 자료 `?kind=refdocs`** (2026-11-13): PDS · PMS · Line List · Index/IO List 는 여기서만 올림 → family 기준 프로젝트(`api.ref_pid`)에 1벌 · 모든 Valve/Instrument 검토가 씀. 각 페이지 Document Management 는 `window.DOC_KINDS` 만.
 - Line No 칸 없는 양식은 PDS 의 Line No 로 Line List. 필수 칸 = 카드 제안값 → 현황판 '필수 칸 확인'에서 사용자가 확정(프로젝트 설정 `inst.required`).
 - 시험: `spike/valve_inst_scenario.py <dir> [--forms /tmp/forms] [--keep]` — 14종 × (정상 Tag · 오류 심은 Tag) + 시험 PDS/PMS/Line List/Index/IO →
   **심은 오류 74/74 · 정상 Tag 지적 0 · List 29/29** (카드로 그린 쪽 · 실제 빈 양식 둘 다). pytest `tests/test_valve_instrument_{forms,reader,review}.py`.
@@ -40,7 +41,7 @@
 - **valve30 (2026-11-02, 회사 PC 사진 피드백)**: 입체 화면에서 PDF 도구줄 · Mark-up 줄 버튼이 흰 바탕 흰 글씨 → 어두운 버튼 유지 · Ctrl+휠 = PDF 확대/축소(마우스 자리 중심, `Viewer.zoomAt`) ·
   PMS/Process 아래 미리보기 높이 · 좌우 폭 끌어서 조절(`splitPanes`, LS 기억) · 미리보기 화질(그림 = 화면 픽셀 × 1.25, 최대 4배) · PMS Bore 지적 문구에 PMS 품목 · 크기 범위(28건 문구만).
   판정 스냅샷은 `out/valve29/snapshot_valve30.json`(2,935) 기준.
-- **valve31**: 코멘트 한글 · 영어(`i18n.py` 규칙별 고정 틀 · `description_ko`) · 화면 표시 언어 · Excel/PDF 출력 언어(lang=en|ko|both). **새 규칙 문장을 만들면 `i18n.RULES` 에 한국어 틀도 추가**하고 `tests/test_valve_i18n.py` SAMPLES 에 한 줄.
+- **valve31**: 코멘트 한/영(`i18n.py`) · 출력 lang=en|ko|both. **새 규칙 문장 → `i18n.RULES` 한국어 틀 + `tests/test_valve_i18n.py` SAMPLES 한 줄.**
 - **valve32**: 올린 문서 지우기(🗑 · 확인 창 · `valve/trash/<p>/` JSON) · 휴지통 되돌리기(같은 id) — DESIGN §37.
 - **valve33**: 첫 화면 Valve Summary 표(`/valve-summary` · `drawVsum` · `vsTags`) — DESIGN §38.
 - **valve34**: FileDataError 반복(깨진 저장본 재사용) 고침 · 저장본 해시 검증 · open_pdf 재시도/이유 · 작업 상태 창 닫기 — DESIGN §39.
@@ -54,7 +55,7 @@
 - **valve39**: 첫 화면 'Process Data 대조 · 문서 Rev · 구역' (`/coverage`, `drawCov`) — PDS 에 없는 Tag(공백 · 하이픈 무시, 앞 0 은 '비슷한 번호') · 구역 5종 · 문서별 Rev — DESIGN §44.
 - ★ 2026-11-11 오케스트레이터(규약 v2): 통합 zip 은 오케스트레이터(hotfix13x) — 이 세션은 개발 · 시험 · 커밋 · 푸시 후 send_message 로 알림. 사용자 직접 확인은 아직.
 - ★ 2026-11-07 오케스트레이터(세션 메시지): "Valve 도 통합 PID_dev+ops_hotfixNNN 에 싣고 valveNN 별도 꾸러미 폐지" — **사용자 확인 전**이라 규칙은 아직 그대로.
-- 꾸러미: **valve37** = `out/PID_dev+ops_valve37_2026-11-11.zip` (누적 · valve36 Anatomy 포함, 회사 HTTP 500 대응). 그 전 valve35. 그 전 **valve30** = `out/PID_dev+ops_valve30_2026-11-02.zip`. 그 전 **valve29** = `out/PID_dev+ops_valve29_2026-11-01.zip`(P&ID 서버, 누적 — 이것 하나) · 대시보드 = `dashboard_patches/UPDATE_from_v16.51_VALVE2_menu.zip`(--any) ·
+- 꾸러미: **valve37** = `out/PID_dev+ops_valve37_2026-11-11.zip` (누적 · valve36 Anatomy 포함). 그 전 valve35 · valve30 · valve29 · 대시보드 = `dashboard_patches/UPDATE_from_v16.51_VALVE2_menu.zip`(--any) ·
   회사 개발용 = `out/VALVE_devkit_valve29_2026-11-01.zip`(문서 · 점검 도구).
 - 남은 일: PERFORMANCE_REPORT.md(측정은 끝 — DESIGN §34-2 · §34-5 · other_log 수치) · Globe/Butterfly/PSV 검토(양식 · 기준 필요) · Phase 2(회사 Valve Spec · Gasket/Bolting PMS · Process DS 원본 필요) ·
   실사용 결정 쌓기(Rule Performance 정밀도) · 다른 Vendor 양식 시험.

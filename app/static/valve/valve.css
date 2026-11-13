@@ -881,3 +881,16 @@ tr.link:hover td { background: #f5f8ff; }
 .arule .arr { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; } .arule .arr span { background: #fff; border: 1px solid #dfe5f1; border-radius: 12px; padding: 1px 9px; }
 .arule .arr span.asplit { border-color: #f0c98b; background: #fffaf0; }
 .arule .arr { align-items: flex-start; } .arule .arr span { white-space: nowrap; display: inline-block; flex: none; line-height: 1.6; }
+
+/* valve40 — 공통 자료 (shared reference documents) */
+.reflink { color: var(--acc, #2563eb); font-weight: 600; text-decoration: none; white-space: nowrap }
+.reflink:hover { text-decoration: underline }
+.refshare { margin-bottom: 12px; border-left: 4px solid var(--acc, #2563eb) }
+.refshare h3 { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap }
+.refshare h3 .sp { flex: 1 }
+.rsgrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 8px }
+.rs { display: flex; flex-direction: column; gap: 3px; padding: 8px 10px; border: 1px solid var(--line, #e5e7eb); border-radius: 8px; font-size: 12.5px; min-width: 0 }
+.rs > b { font-size: 12px; color: var(--soft, #6b7280) }
+.rs.on > b { color: var(--ok, #15803d) }
+.rs.on > b::before { content: '✓ ' }
+.rs span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
