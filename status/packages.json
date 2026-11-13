@@ -282,7 +282,7 @@
    "made": "2026-11-13 11:05",
    "path": "company-pc-update/2026-11-13/ (8.8MB · 저장소에 있음)",
    "sha256": "fb61644344339c64d25148cb3ad0ef88eaf7fe501244ada134e5a6a497a9c456",
-   "applied": "2026-11-13 (사용자: \"회사 PC 에 적용했다\")",
+   "applied": "2026-11-13 적용 → 서버 재시작 반복 (rollback 권고) · hotfix139 로 대체",
    "integration_head": "f8e102b7",
    "tips": {
     "S2": "6caae532",
@@ -293,6 +293,24 @@
     "S7": "865f9297"
    },
    "note": "Instrument Datasheet 검토(valve40) · valve38 · 39 · pack_delta --full-history 고침"
+  },
+  {
+   "file": "②",
+   "name": "3_PID_dev+ops_hotfix139_2026-11-13.zip",
+   "made": "2026-11-13 13:20",
+   "path": "company-pc-update/2026-11-13/ (8.8MB · 저장소에 있음)",
+   "sha256": "ff0bcc7c5f469c93528befc5f9adb45437357f86cfb93c3f26e06d58f9130667",
+   "applied": "",
+   "integration_head": "f8fd11ec",
+   "tips": {
+    "S2": "6caae532",
+    "S3": "4e9cfd24",
+    "S4": "7b10d7cb",
+    "S5": "3d46af2c",
+    "S6": "e7c70ead",
+    "S7": "865f9297"
+   },
+   "note": "회사 hotfix138 서버 재시작 반복 고침 (깨진 보관 PDF 를 열지 않음)"
   }
  ]
 }
