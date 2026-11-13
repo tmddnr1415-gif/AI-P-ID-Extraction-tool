@@ -330,6 +330,25 @@
    },
    "replaces": "3_PID_dev+ops_hotfix139_2026-11-13.zip",
    "note": "139 + Datasheet JSON · Area 규칙 · 깨진 PDF 를 쪽 그림으로"
+  },
+  {
+   "file": "②",
+   "name": "5_PID_dev+ops_hotfix141_2026-11-13.zip",
+   "made": "2026-11-13 15:20",
+   "path": "company-pc-update/2026-11-13/ (8.9MB · 저장소에 있음)",
+   "sha256": "05e57b87fb773627b612d26c4876dab1ac4f525acfd6464644d402ec7bfa28f6",
+   "applied": "",
+   "integration_head": "f2cf8845",
+   "tips": {
+    "S2": "6caae532",
+    "S3": "4e9cfd24",
+    "S4": "7b10d7cb",
+    "S5": "3d46af2c",
+    "S6": "017574ca",
+    "S7": "865f9297"
+   },
+   "replaces": "4_PID_dev+ops_hotfix140_2026-11-13.zip",
+   "note": "140 + Area 규칙 표 기본값 · 편집 · 제목만으로 Brownfield 짐작 안 함"
   }
  ]
 }
