@@ -280,7 +280,9 @@ def main() -> int:
         # 기준과 HEAD 사이에 저장소가 거친 판 전부 — 앞 꾸러미를 이미 적용한 PID_dev 도 "우리가 보낸 판"
         # 으로 알아보고 덮는다 (회사에서 고친 판만 충돌).  그래서 꾸러미를 건너뛰어도, 차례로 적용해도 된다.
         known = []
-        for c in git("log", "--format=%H", f"{base}..HEAD", "--", p).splitlines():
+        # hotfix138: --full-history -m — 통합 브랜치 쪽 판(병합 전 · 병합 커밋)도 센다.  기본 log 는 병합에서 한쪽 부모만
+        # 따라가 hotfix134~137 의 valve.js · api.py 를 빼먹어, 회사 판을 '회사에서 고친 파일' 로 잘못 표시했다.
+        for c in dict.fromkeys(git("log", "--full-history", "-m", "--format=%H", f"{base}..HEAD", "--", p).splitlines()):
             b = blob(c, p)
             if b is not None and h(b) not in known:
                 known.append(h(b))
@@ -298,7 +300,7 @@ def main() -> int:
         if blob("HEAD", p) is not None:
             continue
         known = []
-        for c in git("log", "--format=%H", f"{base}..HEAD", "--", p).splitlines():
+        for c in dict.fromkeys(git("log", "--full-history", "-m", "--format=%H", f"{base}..HEAD", "--", p).splitlines()):
             for rev in (c, c + "~1"):
                 b = blob(rev, p)
                 if b is not None and h(b) not in known:
