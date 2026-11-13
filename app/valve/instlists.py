@@ -125,8 +125,14 @@ def read_page(page, kind: str) -> dict:
 
 
 def read_pdf(path: str) -> dict:
+    from app.valve import extract
+    with extract.PDF_LOCK:
+        return _read_pdf(path, extract)
+
+
+def _read_pdf(path: str, extract) -> dict:
     out = {"kind": "", "records": [], "pages": 0, "doc_no": "", "rev": ""}
-    with pymupdf.open(path, filetype="pdf") as doc:
+    with extract.open_pdf(path, tries=1) as doc:
         out["pages"] = doc.page_count
         for page in doc:
             text = page.get_text()

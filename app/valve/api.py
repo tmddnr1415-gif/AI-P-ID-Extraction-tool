@@ -14,6 +14,7 @@ import gzip
 import hashlib
 import io
 import json
+import os
 import re
 import sqlite3
 import threading
@@ -548,45 +549,136 @@ def migrate_stored() -> dict | None:
         _log_error("migrate stored originals")
         return None
     if r["moved"] or r["broken"]:
-        print(f"[valve] stored originals → .bin: {r['moved']} moved · broken {r['broken'] or 'none'}", flush=True)
+        print(f"[valve] stored originals → .bin: {r['moved']} moved · broken {len(r['broken'])} {r['broken'][:5] or 'none'}", flush=True)
+    try:                                                     # valve40: every stored PDF checked once (hash) before anything opens it
+        paths = [x[0] for x in store.connect().execute("SELECT DISTINCT path FROM document WHERE lower(filename) LIKE '%.pdf'").fetchall() if x[0]]
+        bad = [q for q in paths if Path(q).exists() and not store.stored_good(q)[0]]
+        print(f"[valve] stored PDF check: {len(paths) - len(bad)} good · {len(bad)} damaged (not opened)", flush=True)
+    except Exception:                                        # noqa: BLE001
+        _log_error("stored PDF check")
+    for pth, dg in list(store.BAD_SEEN.items())[:3]:       # valve40: what a damaged copy looks like now (head bytes only)
+        print(f"[valve]   손상 저장본 {dg.get('file')} · {dg.get('size')} B · 앞 32바이트 {dg.get('head_hex', '')[:95]} '{dg.get('head_txt', '')}'", flush=True)
+    if r["broken"]:
+        print("[valve]   손상 저장본은 열지 않습니다 (서버를 지키기 위해) — 화면에 '원본 손상 — 같은 파일 다시 올리기'", flush=True)
     return r
 
 
-def warm(pid: int):
-    """Compute every datasheet's review once, in a background thread, so the first screen never waits (valve20)."""
-    if pid in _WARMING:
-        return
+def warm_enabled() -> bool:
+    """valve40 safety switch: VALVE_WARMUP=0 (environment) turns the background warm-up off — every screen still works,
+    its first open computes."""
+    return os.environ.get("VALVE_WARMUP", "1").strip().lower() not in ("0", "off", "no", "false")
 
-    def run():
-        _WARMING.add(pid)
-        migrate_stored()
-        try:
-            con = store.connect()
-            project_issues(con, pid)
-            _project_pms(con, pid)
-            _project_process(con, pid)
-            _cached("summary", pid, lambda c: _summary(pid))             # valve29: the first click of every screen
-            _cached("grid", pid, lambda c: _json(_grid(c, pid)))         # after a restart is ready too
-            _cached("requirements", pid, lambda c: _json(_req_rows(c, pid)))
-            _cached("rules", pid, lambda c: _rules_performance(c, pid), arg=dt.date.today().isoformat())
-            _cached("tagging", pid, lambda c: _tagging(c, pid))
-            _cached("vsum", pid, lambda c: _json(_valve_summary(c, pid)))
-            _cached("coverage", pid, lambda c: _json(_coverage(c, pid)))
-            _cached("digest", pid, lambda c: _digest_body(c, pid))
-            _cached("pms", pid, lambda c: _pms_body(c, pid))
-            _cached("process", pid, lambda c: _process_body(c, pid))
-            issues_json(pid, 1)
-        except Exception as e:                           # noqa: BLE001  (warming must never break the server)
-            print(f"[valve] warm-up of project {pid} failed: {e}")
-        finally:
-            _WARMING.discard(pid)
-            _trim()
-    threading.Thread(target=run, daemon=True, name=f"valve-warm-{pid})").start()
+
+def _warm_steps(pid: int):
+    con = store.connect()
+    return [("issues", lambda: project_issues(con, pid)), ("pms", lambda: _project_pms(con, pid)),
+            ("process", lambda: _project_process(con, pid)),
+            ("summary", lambda: _cached("summary", pid, lambda c: _summary(pid))),             # valve29: the first click
+            ("grid", lambda: _cached("grid", pid, lambda c: _json(_grid(c, pid)))),           # after a restart is ready too
+            ("requirements", lambda: _cached("requirements", pid, lambda c: _json(_req_rows(c, pid)))),
+            ("rules", lambda: _cached("rules", pid, lambda c: _rules_performance(c, pid), arg=dt.date.today().isoformat())),
+            ("tagging", lambda: _cached("tagging", pid, lambda c: _tagging(c, pid))),
+            ("vsum", lambda: _cached("vsum", pid, lambda c: _json(_valve_summary(c, pid)))),
+            ("coverage", lambda: _cached("coverage", pid, lambda c: _json(_coverage(c, pid)))),
+            ("digest", lambda: _cached("digest", pid, lambda c: _digest_body(c, pid))),
+            ("pms-view", lambda: _cached("pms", pid, lambda c: _pms_body(c, pid))),
+            ("process-view", lambda: _cached("process", pid, lambda c: _process_body(c, pid))),
+            ("issue-list", lambda: issues_json(pid, 1))]
+
+
+_WARM_QUEUE: list[int] = []
+_WARM_QLOCK = threading.Lock()
+
+
+def _warm_one(pid: int):
+    """One project, step by step, each step logged (valve40: a native crash leaves 'which project · which step' behind)."""
+    _WARMING.add(pid)
+    try:
+        for name, step in _warm_steps(pid):
+            _warn_log(f"warm p{pid} {name}")
+            try:
+                step()
+            except Exception as e:                       # noqa: BLE001  (one step must not stop the others)
+                print(f"[valve] warm-up p{pid} {name} failed: {type(e).__name__}: {str(e)[:160]}", flush=True)
+        _warn_log(f"warm p{pid} done")
+    finally:
+        _WARMING.discard(pid)
+        _trim()
+
+
+def _warm_worker():
+    migrate_stored()
+    while True:
+        with _WARM_QLOCK:
+            if not _WARM_QUEUE:
+                _WARM_THREAD.clear()
+                return
+            pid = _WARM_QUEUE.pop(0)
+        _warm_one(pid)
+
+
+_WARM_THREAD: list = []
+
+
+def warm(pid: int):
+    """Compute every datasheet's review once, in the background, so the first screen never waits (valve20).
+    valve40: ONE worker thread takes the projects in turn (five projects warming at once on the company PC opened damaged
+    files side by side and the server died natively)."""
+    if not warm_enabled():
+        return
+    with _WARM_QLOCK:
+        if pid in _WARMING or pid in _WARM_QUEUE:
+            return
+        _WARM_QUEUE.append(pid)
+        if _WARM_THREAD:
+            return
+        _WARM_THREAD.append(1)
+    threading.Thread(target=_warm_worker, daemon=True, name="valve-warm").start()
 
 
 @router.on_event("startup")
 async def _startup_warm():
+    _crash_log()
+    if not warm_enabled():
+        print("[valve] warm-up off (VALVE_WARMUP=0) — screens compute on first open", flush=True)
+        threading.Thread(target=migrate_stored, daemon=True, name="valve-migrate").start()
+        return
     threading.Thread(target=warm_all, daemon=True, name="valve-warm-all").start()
+
+
+_CRASH = []
+
+
+def _crash_log():
+    """valve40: a native crash (MuPDF) ends the process without a Python traceback — faulthandler writes the stack of
+    every thread to <data>/logs/crash_<date>.log so the next start shows where it died."""
+    if _CRASH:
+        return
+    try:
+        import faulthandler
+        d = store.root() / "logs"
+        d.mkdir(parents=True, exist_ok=True)
+        f = open(d / f"crash_{dt.date.today().isoformat()}.log", "a", encoding="utf-8")   # noqa: SIM115 — kept open for the process
+        f.write(f"\n=== server start {dt.datetime.now().isoformat(timespec='seconds')} ===\n")
+        f.flush()
+        faulthandler.enable(file=f, all_threads=True)
+        _CRASH.append(f)
+        runs = (d / f"crash_{dt.date.today().isoformat()}.log").read_text(encoding="utf-8", errors="replace").split("=== server start")
+        if len(runs) > 2 and "Fatal Python error" in runs[-2]:                # the run before this one died natively
+            print(f"[valve] 지난번 서버가 비정상 종료됨 — {d / f'crash_{dt.date.today().isoformat()}.log'} 에 멈춘 위치가 있습니다", flush=True)
+    except Exception as e:                                   # noqa: BLE001
+        print(f"[valve] crash log not set: {e}", flush=True)
+
+
+def _warn_log(msg: str):
+    """One line per warm-up step in <data>/logs/warmup.log (the last line = where a crash happened)."""
+    try:
+        d = store.root() / "logs"
+        d.mkdir(parents=True, exist_ok=True)
+        with open(d / "warmup.log", "a", encoding="utf-8") as f:
+            f.write(f"{dt.datetime.now().isoformat(timespec='seconds')} {msg}\n")
+    except OSError:
+        pass
 
 
 def _rules_fingerprint() -> str:
@@ -689,7 +781,7 @@ async def upload(pid: int, request: Request, kind: str = Form(...), files: list[
         pages = 0
         if ext == ".pdf":
             try:
-                with pymupdf.open(stream=data, filetype="pdf") as d:
+                with extract.PDF_LOCK, pymupdf.open(stream=data, filetype="pdf") as d:
                     locked = d.needs_pass and not d.authenticate("")
                     pages = d.page_count
             except Exception:                            # noqa: BLE001
@@ -882,7 +974,11 @@ def _process_for(con, pid):
         if not p.exists():                               # uploaded before the Phase 3 engine (valve01~06): read it now
             if not Path(doc["path"]).exists():
                 return None, None
-            store.write_json(p, procmod.read_process_data(doc["path"]))
+            try:
+                store.write_json(p, procmod.read_process_data(doc["path"]))
+            except extract.PdfError as e:                # valve40: a damaged stored copy = no Process Data (never a 500)
+                print(f"[valve] Process Data {doc['filename']} not read: {e}", flush=True)
+                return None, None
         _PROC_CACHE[doc["id"]] = json.loads(p.read_text(encoding="utf-8"))
     return _PROC_CACHE[doc["id"]], _doc_ref(con, pid, "process", doc)
 
@@ -897,11 +993,18 @@ def _pms_for(con, pid):
         if not p.exists():                               # uploaded before PMS reading existed (valve01): read it now
             if not Path(doc["path"]).exists():
                 return None, None
-            store.write_json(p, pmsmod.read_pms(doc["path"]))
+            try:
+                store.write_json(p, pmsmod.read_pms(doc["path"]))
+            except extract.PdfError as e:                # valve40: a damaged stored copy = no PMS (never a 500)
+                print(f"[valve] PMS {doc['filename']} not read: {e}", flush=True)
+                return None, None
         P = json.loads(p.read_text(encoding="utf-8"))
         if P.get("v", 1) < pmsmod.READER_VERSION and Path(doc["path"]).exists():   # read before valve10: no P-T / notes yet
-            P = pmsmod.read_pms(doc["path"])
-            store.write_json(p, P)
+            try:
+                P = pmsmod.read_pms(doc["path"])
+                store.write_json(p, P)
+            except extract.PdfError:                     # damaged copy: keep the older reading
+                pass
         _PMS_CACHE[doc["id"]] = P
     return _PMS_CACHE[doc["id"]], _doc_ref(con, pid, "pms", doc)
 
@@ -1658,7 +1761,7 @@ def compare_api(prev: int, new: int):
 
 # ── PDF pages ───────────────────────────────────────────────────────────────────
 
-_RENDER_LOCK = threading.Lock()
+_RENDER_LOCK = extract.PDF_LOCK                 # valve40: one MuPDF user at a time (also warm-up · uploads · exports)
 
 
 def _render(doc_id: int, page: int, zoom: float) -> bytes:
@@ -1691,6 +1794,7 @@ async def page_png(doc_id: int, page: int, zoom: float = 2.0):
 
 
 @router.get("/api/valve/documents/{doc_id}/pageinfo")
+@extract.pdf_locked
 def page_info(doc_id: int):
     con = store.connect()
     d = store.one(con, "SELECT path, pages, sha256 FROM document WHERE id=?", doc_id)
@@ -1702,6 +1806,7 @@ def page_info(doc_id: int):
 
 
 @router.get("/api/valve/documents/{doc_id}/search")
+@extract.pdf_locked
 def page_search(doc_id: int, q: str, page: int | None = None):
     con = store.connect()
     d = store.one(con, "SELECT path, sha256 FROM document WHERE id=?", doc_id)
@@ -1800,7 +1905,7 @@ async def markup_pdf(request: Request):
     items = body.get("items") or []
 
     def make():
-        with extract.open_stored(d["path"], d["sha256"]) as pdf:
+        with extract.PDF_LOCK, extract.open_stored(d["path"], d["sha256"]) as pdf:
             for it in items:
                 pno, bb = int(it.get("page") or 0), it.get("bbox")
                 if not (1 <= pno <= pdf.page_count) or not bb:

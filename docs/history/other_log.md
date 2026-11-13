@@ -329,3 +329,13 @@
 - 실자료: 98 은 Loop 번호 앞 두 자리로 갈림 (98-◦-98… North · 00/01/10/11/30/31… South). 업로드된 Instrument Index 는 빈 양식이라 Index AREA 학습은 시험 자료로만 확인.
 - `inst_api`: PUT/GET `/inst/arearule`(text · table · index_rows) · `_brief` 에 `sub_area` · `area_note` · Unit(규칙 표). 화면: By Area 규칙 표 카드 · 붙여넣기 창 · Area 카드에 Sub-area 개수.
 - 시험 `test_area_rule_table_and_index_area`. 스냅샷 2,935 · 변화 0 · UI 25/25.
+
+### 2026-11-13 VALVE — 회사 PC 서버 재시작 반복 (MuPDF 네이티브 종료) 막기
+- 오케스트레이터 전달: 시작 warm-up 이 프로젝트 5개를 동시에 돌며 손상된 보관 PDF 를 열다 MuPDF 단에서 프로세스가 죽음 (traceback 없음).
+- `store.stored_good`: 파일 없음 · 0 B · '%PDF' 없음 · 올린 파일 해시와 다름 → **MuPDF 에 절대 넘기지 않음** (경로 · mtime · 크기로 캐시). `extract.open_pdf` 가 먼저 확인,
+  직접 `pymupdf.open` 하던 docrev · pms · instrument · instlists 도 open_pdf 로.
+- `extract.PDF_LOCK` (RLock) + `@pdf_locked`: 읽기 · 화면 렌더 · Mark-up · 업로드 확인 모두 한 줄로 (MuPDF 스레드 비안전).
+- warm-up: 작업 스레드 1개가 프로젝트를 차례로 · 단계마다 `<자료>/valve/logs/warmup.log` 한 줄 · `VALVE_WARMUP=0` 이면 끔.
+- `faulthandler` → `<자료>/valve/logs/crash_날짜.log` (네이티브 충돌 스택), 다음 시작 때 알림. 시작 보고: 'stored PDF check: n good · m damaged (not opened)' + 손상본 앞 32바이트.
+- 손상 Process Data · PMS → '없음' 처리 (500 아님). 재현: 실자료 복사본 PDF 5개 중 3개 손상 → 서버 유지 · MuPDF 오류 0 · 화면 200 · PDF 쪽 409.
+- 시험 `test_damaged_stored_copy_never_reaches_mupdf_and_warmup_is_safe`. 전체 2,089 통과 · 스냅샷 2,935/0 · UI 25/25.

@@ -140,6 +140,7 @@ def text_tags(text: str) -> set[str]:
     return {a + b + c for a, b, c in _TAG_TXT.findall((text or "").upper())}
 
 
+@extract.pdf_locked
 def scan(path: str) -> dict:
     """valve39 — the Process Data PDF page by page: tags written on each page (any form, also a one-tag-per-sheet PDS the
     table reader does not read) and the zone each page names.  {"v", "tag_pages": {tag: first page}, "zone_by_page"}."""
@@ -159,6 +160,7 @@ def scan(path: str) -> dict:
     return {"v": 1, "tag_pages": tag_pages, "zone_by_page": zones}
 
 
+@extract.pdf_locked
 def read_process_data(path: str) -> dict:
     doc = extract.open_pdf(path)
     pages, rows, dn = [], [], ""

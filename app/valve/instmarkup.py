@@ -214,6 +214,7 @@ def cover(entries: list[dict], project: str) -> pymupdf.Document:
     return d
 
 
+@extract.pdf_locked
 def build(entries: list[dict], project: str, flatten: bool = False) -> bytes:
     """entries: [{path, sheet, rows, findings, tag, kind, doc_no, rev}] → PDF bytes."""
     out = pymupdf.open()
