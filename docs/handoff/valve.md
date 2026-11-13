@@ -13,6 +13,7 @@
 - **valve37(440a3bb1) 들어옴**: ball·globe·butterfly·psv·valve → Valve 화면. PSV 는 Valve 가 맡음.
 - **공통 자료 `?kind=refdocs`** (11-13): PDS · PMS · Line List · Lists 는 여기서만 → 기준 프로젝트(`api.ref_pid`)에 1벌, 모든 검토가 씀. 페이지별 올리기는 `window.DOC_KINDS`.
 - **Area 규칙 표** (11-13): By Area '규칙 표 넣기' → family 설정 `inst.arearule.table` · 규칙 표 → Index AREA → 문서 학습(`arearule.classify`) · 행별 Index 대조 n/n. 채운 Index 아직 없음.
+- **11-13 회사 서버 재시작 대응**: 손상 보관본은 MuPDF 에 안 넘김(`store.stored_good`) · `extract.PDF_LOCK` · warm-up 1개씩 · `VALVE_WARMUP=0` · `logs/crash_*.log` · Datasheet JSON(`dsjson.py`) · Valve 화면도 Area 규칙.
 - Line No 칸 없는 양식은 PDS 의 Line No 로 Line List. 필수 칸 = 카드 제안값 → 현황판 '필수 칸 확인'에서 사용자가 확정(프로젝트 설정 `inst.required`).
 - 시험: `spike/valve_inst_scenario.py <dir> [--forms /tmp/forms] [--keep]` — 14종 × (정상 Tag · 오류 심은 Tag) + 시험 PDS/PMS/Line List/Index/IO →
   **심은 오류 74/74 · 정상 Tag 지적 0 · List 29/29** (카드로 그린 쪽 · 실제 빈 양식 둘 다). pytest `tests/test_valve_instrument_{forms,reader,review}.py`.
@@ -39,9 +40,7 @@
 - 매 회차 끝 점검: `pytest -q`(1,906 통과) · `tests/ -k valve`(108) · `valve_eval --check` · `valve_sim --n 3000` · `valve_mutate` · `valve_rev_sim --n 300` · `valve_snapshot_diff check` ·
   `node spike/valve_ui_audit.cjs`(25/25) · `valve_link_check.cjs` · `valve_filter_check.cjs` · 속도 `valve_speed.cjs`(동작 60개, 최장 멈춤 ≤ 0.37 s).
 - ✅ **회사 적용 확인 (2026-11-02 사용자)**: valve29 · 대시보드 VALVE2 메뉴 zip · devkit 모두 적용. 이후 Valve 는 회사 PC 가 원본.
-- **valve30 (2026-11-02, 회사 PC 사진 피드백)**: 입체 화면에서 PDF 도구줄 · Mark-up 줄 버튼이 흰 바탕 흰 글씨 → 어두운 버튼 유지 · Ctrl+휠 = PDF 확대/축소(마우스 자리 중심, `Viewer.zoomAt`) ·
-  PMS/Process 아래 미리보기 높이 · 좌우 폭 끌어서 조절(`splitPanes`, LS 기억) · 미리보기 화질(그림 = 화면 픽셀 × 1.25, 최대 4배) · PMS Bore 지적 문구에 PMS 품목 · 크기 범위(28건 문구만).
-  판정 스냅샷은 `out/valve29/snapshot_valve30.json`(2,935) 기준.
+- **valve30**: PDF 도구줄 대비 · Ctrl+휠 확대 · 미리보기 크기 조절(`splitPanes`) · 화질. 판정 스냅샷 = `out/valve29/snapshot_valve30.json`(2,935).
 - **valve31**: 코멘트 한/영(`i18n.py`) · 출력 lang=en|ko|both. **새 규칙 문장 → `i18n.RULES` 한국어 틀 + `tests/test_valve_i18n.py` SAMPLES 한 줄.**
 - **valve32**: 올린 문서 지우기(🗑 · 확인 창 · `valve/trash/<p>/` JSON) · 휴지통 되돌리기(같은 id) — DESIGN §37.
 - **valve33**: 첫 화면 Valve Summary 표(`/valve-summary` · `drawVsum` · `vsTags`) — DESIGN §38.

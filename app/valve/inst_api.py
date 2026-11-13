@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import io
 import json
+import threading
 import re
 import time
 from pathlib import Path
@@ -213,7 +214,7 @@ def context(con, pid) -> dict:
     pms, pms_ref = api._pms_for(con, pid)
     ll, ll_ref = _merged_linelist(con, pid)
     ctx = {"pds": pds, "pds_ref": pds_ref, "pms": pms, "pms_ref": pms_ref, "ll": ll, "ll_ref": ll_ref,
-           "lists": _lists(con, pid), "required": _required(con, pid), "arearule": area_rule(con, pid)}
+           "lists": _lists(con, pid), "required": _required(con, pid), "arearule": area_rule_cached(con, pid)}
     _CTX[_ck(pid)] = (v, ctx, {}, now)
     return ctx
 
@@ -245,6 +246,34 @@ def area_rule(con, pid) -> dict:
     idx = (_lists(con, pid).get("instrument_index") or {}).get("by_tag", {})          # valve40: the Index AREA column, per tag
     ev += [{"tag": x.get("tag", ""), "sub": x.get("area", "")} for x in idx.values() if x.get("area")]
     return arearule.learn(ev, arearule.parse_table(area_table_text(con, pid)))
+
+
+_AR: dict = {}
+_AR_TL = threading.local()
+
+
+def area_rule_cached(con, pid) -> dict:
+    """The family's area rule, recomputed only when a family document / datasheet / the rule table changes (valve40: the
+    Valve screens use it too).  Re-entry while it is being built (the evidence reads the Valve coverage) returns {}."""
+    from app.valve import api
+    fam = api.family(con, pid)
+    q = ",".join("?" * len(fam))
+    v = (tuple(store.one(con, f"SELECT COUNT(*) n, MAX(id) m FROM document WHERE project_id IN ({q}) AND status='done'", *fam).values())
+         + tuple(store.one(con, f"SELECT COUNT(*) n, MAX(id) m FROM datasheet WHERE project_id IN ({q})", *fam).values())
+         + ((store.one(con, "SELECT at FROM project_setting WHERE project_id=? AND key='inst.arearule.table'", fam[0]) or {}).get("at"),))
+    k = (str(store.root()), fam[0])
+    hit = _AR.get(k)
+    if hit and hit[0] == v:
+        return hit[1]
+    if getattr(_AR_TL, "busy", False):
+        return {}
+    _AR_TL.busy = True
+    try:
+        r = area_rule(con, pid)
+    finally:
+        _AR_TL.busy = False
+    _AR[k] = (v, r)
+    return r
 
 
 def area_table_text(con, pid) -> str:
@@ -1049,3 +1078,11 @@ def review_xlsx(pid: int, kind: str = ""):
                   ("Findings", head, rows)])
     return Response(data, media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                     headers={"Content-Disposition": f"attachment; filename=instrument_review{'_' + kind if kind else ''}.xlsx"})
+
+
+@router.get("/api/valve/inst/sheets/{sid}/json")
+def inst_sheet_json(sid: int):
+    """valve40: the Instrument datasheet as read — the same content as its JSON file (dsjson.py)."""
+    from app.valve import dsjson
+    r = dsjson.inst_record(con_ready(), sid)
+    return _j(r) if r else Response('{"error":"없는 Datasheet"}', status_code=404, media_type="application/json")

@@ -138,6 +138,10 @@ def test_engineer_decisions_codes_crs_and_open_items(tmp_path, monkeypatch):
     c = TestClient(app)
     H = {"X-Author": "engineer"}
     bad = next(r for r in c.get("/api/valve/projects/1/inst/sheets?kind=pt").json()["rows"] if r["tag"].endswith("B"))
+    import json as _json                                                      # valve40: every sheet read is a JSON file too
+    jf = sorted((tmp_path / "scen" / "data" / "valve" / "datasheets").glob("*/pt/*.json"))
+    assert jf and _json.loads(jf[0].read_text(encoding="utf-8"))["format"] == "instrument-datasheet"
+    assert c.get(f"/api/valve/inst/sheets/{bad['id']}/json").json()["tag"] == bad["tag"]
     d = c.get(f"/api/valve/inst/sheets/{bad['id']}").json()
     assert d["suggested_code"] == "2" and d["review_code"] == "" and [x["code"] for x in d["codes"]] == ["1", "2", "3", "4", "5"]
     open_ = [x for x in d["review"] if x["result"] in ("Mismatch", "Missing", "Review Required")]

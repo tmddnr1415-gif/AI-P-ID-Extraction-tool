@@ -339,3 +339,12 @@
 - `faulthandler` → `<자료>/valve/logs/crash_날짜.log` (네이티브 충돌 스택), 다음 시작 때 알림. 시작 보고: 'stored PDF check: n good · m damaged (not opened)' + 손상본 앞 32바이트.
 - 손상 Process Data · PMS → '없음' 처리 (500 아님). 재현: 실자료 복사본 PDF 5개 중 3개 손상 → 서버 유지 · MuPDF 오류 0 · 화면 200 · PDF 쪽 409.
 - 시험 `test_damaged_stored_copy_never_reaches_mupdf_and_warmup_is_safe`. 전체 2,089 통과 · 스냅샷 2,935/0 · UI 25/25.
+
+### 2026-11-13 VALVE — Valve 화면 Area 규칙 · Datasheet JSON 저장 (오케스트레이터 전달 사용자 지시)
+- Area: Valve Summary · 대시보드 By Area · Issue 행/Excel · Valve List · 특수요구사항 표에 family Area 규칙(`api._area_fn` → `inst_api.area_rule_cached`) 적용.
+  문서 표제가 말한 Area 는 그대로, 없거나 'Brownfield' 만이면 규칙(규칙 표 → Index AREA → 학습)으로 채움 + `sub_area` · `area_basis`(출처). 검토 자체(동료 그룹 · 지적)는 문서 표제 그대로 → 스냅샷 2,935/0.
+  학습이 '(not stated)' 를 Area 로 세던 것 고침.
+- JSON: `dsjson.py` — `<자료>/valve/datasheets/<프로젝트>/<kind>/<Tag>__<Rev>.json` (칸 값 · 단위 · 쪽 · bbox · 상태 · 검토자 수정 · Notes · Rev 표 · 원본 이름 · sha256 · 올린 사람/때)
+  + `_documents/<문서id>__<파일>.json`. 업로드 · 다시 읽기 때 씀, 서버 시작 때 빠진 것만 씀, `POST /projects/{pid}/export-json` 다시 씀, `GET /datasheets/{id}/json` · `/inst/sheets/{id}/json`.
+  검토는 원래 DB · 파싱 JSON 으로 돎 — PDF 는 쪽 보기 · Mark-up 에만 (손상 PDF 여도 검토 200 확인).
+- 시험 3개 추가 (Valve Area 규칙 · JSON · Instrument JSON). 전체 2,090 통과.

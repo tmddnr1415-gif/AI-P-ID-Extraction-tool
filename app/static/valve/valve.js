@@ -907,7 +907,7 @@ async function drawVsum() {
 }
 function vsTags(L, title) {                   // the tags behind one number
   const html = `<div class="vstags"><table class="t"><thead><tr><th>Tag</th><th>Type</th><th>Rev</th><th>Area · Unit</th><th>Open</th><th>Major</th><th>Status</th></tr></thead><tbody>
-    ${L.map(t => `<tr class="click" data-vtag="${t.id}"><td><b>${esc(t.tag)}</b></td><td>${esc(t.type)}</td><td>${esc(t.rev)}</td><td>${esc(t.area)} · ${esc(t.unit)}</td>
+    ${L.map(t => `<tr class="click" data-vtag="${t.id}"><td><b>${esc(t.tag)}</b></td><td>${esc(t.type)}</td><td>${esc(t.rev)}</td><td title="${esc(t.area_basis || '')}">${esc(t.area)}${t.sub_area ? ` <span class="soft">· ${esc(t.sub_area)}</span>` : ''} · ${esc(t.unit)}</td>
       <td>${t.open || ''}</td><td>${t.major || ''}</td><td>${pill(t.status)}</td></tr>`).join('')}</tbody></table></div>
     <p class="soft" style="margin:6px 0 0">Tag 를 누르면 Datasheet Review 로 · 아래 단추는 목록 화면에서 이 ${L.length}개 Tag 만 걸러 보여 줍니다 (열 필터 ▾ 로 풀 수 있음).</p>`;
   const p = modal(`${title} · Tag ${L.length}`, html, [['닫기', null], ['Issue List 에서 보기', 'iss'], ['Valve List 에서 보기', 'grid', 1]], 'vstags');
@@ -1362,7 +1362,7 @@ async function renderReq() {
       ...Object.fromEntries(cols.map(h => [h, t => !t.cells[h] ? '' : t.on.includes(h) ? 'Required' : 'Not Required'])) }, () => renderReq());
   const num = (n, a, h) => n ? `<button class="rqn ${RQ.area === a && RQ.req === h ? 'on' : ''}" data-ra="${esc(a)}" data-rr="${esc(h)}" title="${esc(a || '전체')} · ${esc(h)} — 이 Tag 들만">${n}</button>` : '<span class="soft">·</span>';
   const keepY = $('.xg-wrap', el)?.scrollTop || 0;
-  const rows = L.map((t, n) => () => `<tr data-id="${t.ds_id}"><td class="fz" style="left:0">${n + 1}</td><td class="fz fzl" style="left:34px"><b>${esc(t.tag)}</b></td><td>${esc(t.area)}</td><td>${esc(t.unit)}</td><td>${esc(t.valve_type)}</td><td>${t.on.length}</td>
+  const rows = L.map((t, n) => () => `<tr data-id="${t.ds_id}"><td class="fz" style="left:0">${n + 1}</td><td class="fz fzl" style="left:34px"><b>${esc(t.tag)}</b></td><td title="${esc(t.area_basis || '')}">${esc(t.area)}${t.sub_area ? ` <span class="soft">· ${esc(t.sub_area)}</span>` : ''}</td><td>${esc(t.unit)}</td><td>${esc(t.valve_type)}</td><td>${t.on.length}</td>
     ${cols.map(h => { const v = t.cells[h] || ''; const on = t.on.includes(h); return `<td class="${on ? 'rqon' : v ? 'rqno' : ''}" title="${esc(h)}: ${esc(v)}">${reqCell(v, on)}</td>`; }).join('')}</tr>`);
   el.innerHTML = `<div class="vh">${listTop()}<input type="search" id="rqq" placeholder="Tag 검색" value="${esc(RQ.q)}" style="width:150px">
       <span class="soft">${RQ.area || RQ.req ? `거른 것: <b>${esc(RQ.area || '전체 Area')}</b> · <b>${esc(RQ.req ? reqShort(RQ.req) : '모든 요구사항')}</b> <button id="rqclr">지우기</button> · ` : ''}${L.length} / ${R.tags.length} Tag</span>
