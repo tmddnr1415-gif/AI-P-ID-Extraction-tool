@@ -349,6 +349,37 @@
    },
    "replaces": "4_PID_dev+ops_hotfix140_2026-11-13.zip",
    "note": "140 + Area 규칙 표 기본값 · 편집 · 제목만으로 Brownfield 짐작 안 함"
+  },
+  {
+   "file": "②",
+   "name": "6_PID_dev+ops_hotfix142_2026-11-13.zip",
+   "made": "2026-11-13 17:05",
+   "path": "company-pc-update/2026-11-13/ (8.9MB · 저장소에 있음)",
+   "sha256": "518a8c8bd387730ca723ab7b6e1a3e46df4a83fc203e67bdbca6197f330f1c13",
+   "applied": "",
+   "integration_head": "9b97eb3e",
+   "tips": {
+    "S2": "6caae532",
+    "S3": "4e9cfd24",
+    "S4": "7b10d7cb",
+    "S5": "3d46af2c",
+    "S6": "709467e3",
+    "S7": "865f9297"
+   },
+   "replaces": "5_PID_dev+ops_hotfix141_2026-11-13.zip",
+   "note": "141 + Area: DTS No. → Datasheet 제목 → Tag 규칙 · QN(Brownfield N1/N2) · QS · W15"
+  },
+  {
+   "file": "①",
+   "name": "6_DASHBOARD_update_v17.48_from_v17.47_2026-11-13.zip",
+   "made": "2026-11-13 17:05",
+   "path": "company-pc-update/2026-11-13/ (1.3MB · 저장소에 있음)",
+   "sha256": "8a9b67e5f260dd789bac302254edb63af371bdee66e58aed9104208dec538a50",
+   "applied": "",
+   "tips": {
+    "S1": "c7041153"
+   },
+   "note": "v17.48 — Area 순서 QN · QS · W15 (v17.47 위에)"
   }
  ]
 }
