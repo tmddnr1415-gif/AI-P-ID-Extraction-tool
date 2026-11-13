@@ -2055,7 +2055,7 @@ function recLabel(key, f) {
  * ===================================================================== */
 let root = null;
 /* 서버 모드: http(s):// 로 접속하면 server.py 의 REST API 사용 (폴더 선택 불필요). file:// 로 열면 폴더 모드 */
-const APP_VERSION = '2026-11-13.1';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
+const APP_VERSION = '2026-11-13.2';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
 const SERVER_URL = 'http://localhost:8080';
 // 부서원 PC 사본(file://)이 접속을 시도할 서버 — 서버가 배포 파일을 만들 때 'PC 이름 주소, IP 주소' 순으로 자동 기록함
 const DEFAULT_SERVERS = ['http://ASEUNGWOOK-B01:8080', 'http://65.3.30.234:8080'];
@@ -4768,6 +4768,9 @@ function drXlsx() {
 /* ---------- 2026-11-10 Datasheet 검토(세션 6) 값 — Schedule 품목 상세에서 그 밸브 종류의 Tag 값 · 속성 + 타입별 · Area 별 수량 ----------
    P&ID 서버의 /api/valve (프로젝트 'CO2 PJT' · 'CO2 PJT · Globe Valve' …) 를 대시보드 서버(/api/vds)가 대신 읽어 옴. 읽기만. */
 const VDS_KIND = [['ball', 'Ball Valve', /ball/i, 'valve'], ['globe', 'Globe Valve', /globe/i, 'globev'], ['butterfly', 'Butterfly Valve', /butterfly|b\.?f\.?v/i, 'bflyv'], ['psv', 'PSV', /\bpsv\b|safety\s*valve|relief\s*valve|\bprv\b/i, 'psv']];
+// 2026-11-13 세션 6 709467e3: Area 이름 = QN · QN Brownfield N1 · QN Brownfield N2 · QN Brownfield · QS · W15 (예전 North · South · Brownfield 도 계속 순서대로)
+const AREA_ORD = ['QN', 'QN Brownfield N1', 'QN Brownfield N2', 'QN Brownfield', 'QS', 'QS Brownfield', 'W15', 'North', 'South', 'North Brownfield', 'South Brownfield', 'Brownfield'];
+const areaOrd = a => { const i = AREA_ORD.indexOf(a); return i < 0 ? (/미상|not stated/i.test(a) ? 99 : 50) : i; };
 const VDS_PJT = 'CO2 PJT', VDS_COLS = ['service', 'body_size', 'rating', 'body_type', 'connections', 'body_material', 'piping_class', 'act_type', 'fail_position', 'manufacturer', 'model'];
 // 2026-11-12 Instrument (valve40) — PSR 품목 이름 → 계기 종류. CV · On-Off · PSV 는 Valve 쪽(위) 만 씀 (이중 집계 안 함)
 VDS_KIND.push(...[['ft', 'FT (Flow)', /flow\s*(meter|transmitter|element)|coriolis|vortex|\bFT\b/i], ['pt', 'PT / PDT', /pressure\s*(\/\s*dp\s*)?transmitter|dp\s*transmitter|\bPDT\b|\bPT\b/i],
@@ -4798,7 +4801,7 @@ function vdsBlock(kd) {
   if (V.st === 'none') return head(`아직 '${esc(V.want)}' 프로젝트에 올린 Datasheet 가 없어요 — 검토 화면에서 PDF 를 올리면 여기에 나옵니다`);
   if (V.inst) return head(`프로젝트 '${esc(V.pj.name)}' · 최신 Rev 기준 Tag <b>${V.inst.length}</b>개 · 지적 ${V.inst.reduce((a, r) => a + (r.issues || 0), 0)} · ${esc(fmtTime(new Date(V.at).toISOString()))} 읽음`) + instBody(kd, V.inst, F);
   const T = V.sum.tags || [], rows = new Map((V.grid.rows || []).map(r => [r.tag, r])), cols = (V.grid.columns || []).filter(c => c.key !== 'valve_type' && (F.all || VDS_COLS.includes(c.key)));
-  const types = V.sum.types?.length ? V.sum.types : [...new Set(T.map(t => t.type))], areas = [...new Set(T.map(t => t.area))].sort((a, b) => ((AO => (AO[a] ?? 9) - (AO[b] ?? 9))({ North:0, South:1, Brownfield:2, W15:3 })) || a.localeCompare(b));
+  const types = V.sum.types?.length ? V.sum.types : [...new Set(T.map(t => t.type))], areas = [...new Set(T.map(t => t.area))].sort((a, b) => (areaOrd(a) - areaOrd(b)) || a.localeCompare(b));
   const cnt = (ty, ar) => T.filter(t => (!ty || t.type === ty) && (!ar || t.area === ar)).length;
   const on = (ty, ar) => F.type === ty && F.area === ar ? 'on' : '';
   const mx = `<table class="t vdsm"><thead><tr><th>타입 \\ Area</th>${areas.map(a => `<th><button class="vdc ${on('', a)}" data-vdsf="${kd}||${esc(a)}">${esc(a)}</button></th>`).join('')}<th>합계</th></tr></thead><tbody>
@@ -4817,7 +4820,7 @@ const RC_NAME = { 1:'Rejected', 2:'Revise and Resubmit', 3:'Approved with Commen
 // Instrument 블록: 타입 = Tag 앞 글자(PT · PDT · PIT …), Area = 세션 6 이 area 를 주면 그것, 없으면 Piping Class 로 나눔
 function instBody(kd, R, F) {
   const tp = r => (String(r.tag || '').toUpperCase().replace(/^[\d\s-]+/, '').match(/^[A-Z]+/) || ['기타'])[0] /* 71PT9100A → PT (앞 숫자 = Unit) */, hasA = R.some(r => r.area), ax = r => (hasA ? r.area : r.piping_class) || (hasA ? 'Area 미상' : '(Class 없음)'), axN = hasA ? 'Area' : 'Piping Class';   // area = 세션 6 location 규칙 (빈 값 = Area 미상), 하나도 없으면 Piping Class
-  const types = [...new Set(R.map(tp))].sort(), areas = [...new Set(R.map(ax))].sort((a, b) => ((O => (O[a] ?? 9) - (O[b] ?? 9))({ North:0, South:1, 'North Brownfield':2, 'South Brownfield':3, Brownfield:4, W15:5, 'Area 미상':9 })) || a.localeCompare(b));
+  const types = [...new Set(R.map(tp))].sort(), areas = [...new Set(R.map(ax))].sort((a, b) => (areaOrd(a) - areaOrd(b)) || a.localeCompare(b));
   const cnt = (ty, ar) => R.filter(r => (!ty || tp(r) === ty) && (!ar || ax(r) === ar)).length, on = (ty, ar) => F.type === ty && F.area === ar ? 'on' : '';
   const mx = `<table class="t vdsm"><thead><tr><th>타입 \\ ${axN}</th>${areas.map(a => `<th><button class="vdc ${on('', a)}" data-vdsf="${kd}||${esc(a)}">${esc(a)}</button></th>`).join('')}<th>합계</th></tr></thead><tbody>
     ${types.map(ty => `<tr><td class="key"><button class="vdc ${on(ty, '')}" data-vdsf="${kd}|${esc(ty)}|">${esc(ty)}</button></td>${areas.map(a => { const n = cnt(ty, a); return `<td>${n ? `<button class="vdc n ${on(ty, a)}" data-vdsf="${kd}|${esc(ty)}|${esc(a)}">${n}</button>` : '<span class="muted">-</span>'}</td>`; }).join('')}<td class="vdt">${cnt(ty, '')}</td></tr>`).join('')}

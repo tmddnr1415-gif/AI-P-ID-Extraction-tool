@@ -1946,3 +1946,8 @@ C:\Users\SAMSUNG\Desktop\Claude\                         ← 개발 폴더 (여�
   - counts 의 Dismissed · Closed 는 지적 수에서 이미 빠져 나오므로 대시보드 계산 변경 없음.
 - 바뀐 곳: dashboard.html `PID_ROUTES.dsref` · runTree(📂) · `ROUTES`/`RUN_LEAVES` · `hubLoad`(progress) · 새 `hubExtra` · `renderRunHub` · `instBody`(sub_area · Code) · `RC_NAME` · `docRegFallback` · CSS(`.hbq*` — 홈 그래프 `.hbx` 와 이름이 겹쳐 hbq 로) / server.py `VDS_PATHS`(+ inst/progress · inst/codes)
 - 확인한 것: 실제 세션 6 서버(49be281e, 시험 자료)로 공통 자료 화면(올린 문서 5개) · 현황판 분류 막대 · 주별 W46 · Schedule PT Code '제안 4 / 제안 2', 콘솔 오류 없음.
+
+### 2026-11-13 (APP_VERSION 2026-11-13.2 / SERVER_VERSION 그대로) — v17.48 Area 이름 QN · QS · W15
+- 무엇을: 세션 6 709467e3 — Area 값이 QN · QN Brownfield N1 · QN Brownfield N2 · QN Brownfield · QS · W15 로 바뀜 → Schedule Valve · 계기 블록의 Area 열 순서를 공통 `AREA_ORD`(QN → QS → W15, 예전 North · South · Brownfield 도 뒤에 남김, 'Area 미상' 맨 끝)로.
+- 바뀐 곳: dashboard.html 새 `AREA_ORD` · `areaOrd`, `vdsBlock` · `instBody` 정렬
+- 확인한 것: 정렬 W15 · Area 미상 · QS · QN Brownfield N2 · QN · QN Brownfield N1 → QN > QN Brownfield N1 > QN Brownfield N2 > QS > W15 > Area 미상, 콘솔 오류 없음.
