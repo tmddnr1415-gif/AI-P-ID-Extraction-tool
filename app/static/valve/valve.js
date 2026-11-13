@@ -369,7 +369,8 @@ function brokenPdfHTML(e) {                          // valve38: the PDF cannot 
   return `<div class="vbroken"><b>PDF 를 보여 줄 수 없습니다</b><p>${esc(d.code === 'stored_pdf' ? '서버에 저장된 원본 PDF 를 열 수 없습니다. Document Management 에서 같은 파일을 다시 올리면 저장본을 새로 씁니다 — Tag · 지적 · 검토 기록은 그대로입니다.' : e?.message || '')}</p>
     ${d.code === 'stored_pdf' ? `<button class="pri" onclick="(window.opener && window.opener.location.pathname === location.pathname ? window.opener : window).location.hash = 'docs'">Document Management 열기</button>` : ''}${det}</div>`;
 }
-async function sizes(docId) { return pageInfo[docId] ||= (await api('GET', `/documents/${docId}/pageinfo`)).sizes; }
+const pageFb = {};                                    // valve40: damaged stored copy → pictures drawn earlier
+async function sizes(docId) { if (!pageInfo[docId]) { const j = await api('GET', `/documents/${docId}/pageinfo`); pageInfo[docId] = j.sizes; pageFb[docId] = j.fallback || null; } return pageInfo[docId]; }
 class Viewer {
   constructor(host, opts = {}) {
     this.host = host; this.opts = opts; this.zoom = LS.get('zoom', 1.15); this.pages = []; this.docId = null;
@@ -445,6 +446,8 @@ class Viewer {
     catch (e) { delete pageInfo[docId]; $('.tot', this.host).textContent = '/ 0'; this.stage.innerHTML = brokenPdfHTML(e); return; }   // valve38
     $('.tot', this.host).textContent = `/ ${pages.length}`;
     this.render();
+    const fb = pageFb[docId];
+    if (fb) this.stage.insertAdjacentHTML('afterbegin', `<div class="vfb" title="${esc(fb.message)}">⚠ 원본 손상 · 예전 쪽 그림으로 보는 중 (${fb.cached_pages.length}쪽) — 값 · 검토는 그대로, 다시 올릴 필요 없음</div>`);
   }
   imgZoom() {                                 // valve30: picture pixels ≥ 1.25 × screen pixels (was ≈ 1.0 — soft text in previews)
     const need = this.zoom * 1.3333 * (window.devicePixelRatio || 1) * 1.25;

@@ -708,3 +708,26 @@ def test_datasheet_json_files(tmp_path, monkeypatch):
     row = store.one(store.connect(), "SELECT path FROM document WHERE project_id=?", pid)
     Path(row["path"]).write_bytes(b"\x00DRM" + bytes(64))               # the stored PDF damaged: the review still answers
     assert c.get(f"/api/valve/datasheets/{dsid}").status_code == 200
+
+
+def test_damaged_stored_copy_shown_from_earlier_page_pictures(tmp_path, monkeypatch):
+    """valve40 (user 2026-11-13: '이전에 입력된 pdf 를 새로 또 올려줘야 하나? 이전 걸로 새로고침하면 반영되도록'): when the
+    stored copy is damaged, the pages drawn earlier are shown (page sizes kept in the document) with a notice; values,
+    findings and the review stay; only a page never drawn answers 409."""
+    from tests.test_valve_revision import api
+    from app.valve import store
+    c, pid, up = _client(tmp_path, monkeypatch)
+    up("ds_A.pdf", _pdf("A"))
+    row = store.one(store.connect(), "SELECT id, path FROM document WHERE project_id=?", pid)
+    info = c.get(f"/api/valve/documents/{row['id']}/pageinfo").json()
+    png = c.get(f"/api/valve/documents/{row['id']}/page/1.png?zoom=2").content
+    assert png[:4] == b"\x89PNG" and "fallback" not in info
+    Path(row["path"]).write_bytes(b"\x00DRM-ENC" + bytes(300))
+    api._BODY.clear()
+    j = c.get(f"/api/valve/documents/{row['id']}/pageinfo").json()
+    assert j["sizes"] == info["sizes"] and j["fallback"]["cached_pages"] == [1] and "다시 올릴 필요가 없습니다" in j["fallback"]["message"]
+    r = c.get(f"/api/valve/documents/{row['id']}/page/1.png?zoom=3")             # another zoom: the nearest picture drawn earlier
+    assert r.status_code == 200 and r.content == png
+    assert c.get(f"/api/valve/documents/{row['id']}/page/2.png?zoom=2").status_code in (404, 409)
+    dsid = c.get(f"/api/valve/projects/{pid}/summary").json()["tags"][0]["id"]
+    assert c.get(f"/api/valve/datasheets/{dsid}").status_code == 200

@@ -1842,6 +1842,26 @@ def compare_api(prev: int, new: int):
 _RENDER_LOCK = extract.PDF_LOCK                 # valve40: one MuPDF user at a time (also warm-up · uploads · exports)
 
 
+def _cached_pngs(doc_id: int) -> dict[int, list[tuple[int, Path]]]:
+    """valve40: page pictures drawn earlier ({data}/valve/cache/<doc>_<page>_<zoom×100>.png) — kept, never trimmed."""
+    out: dict[int, list] = {}
+    for f in (store.root() / "cache").glob(f"{doc_id}_*_*.png"):
+        try:
+            _, p, z = f.stem.split("_")
+            out.setdefault(int(p), []).append((int(z), f))
+        except ValueError:
+            continue
+    return out
+
+
+def _png_wh(b: bytes) -> tuple[int, int]:
+    return int.from_bytes(b[16:20], "big"), int.from_bytes(b[20:24], "big")
+
+
+FALLBACK_MSG = ("원본 PDF 저장본이 손상돼(회사 보안 프로그램 의심) 예전에 그려 둔 쪽 그림으로 보여 줍니다 — 읽은 값 · 지적 · 검토 기록은 모두 그대로이며"
+                " 다시 올릴 필요가 없습니다. 그림이 없는 쪽만 보이지 않습니다 (그 문서만 같은 파일을 다시 올리면 됩니다).")
+
+
 def _render(doc_id: int, page: int, zoom: float) -> bytes:
     con = store.connect()
     d = store.one(con, "SELECT path, sha256 FROM document WHERE id=?", doc_id)
@@ -1850,6 +1870,16 @@ def _render(doc_id: int, page: int, zoom: float) -> bytes:
     cache = store.root() / "cache" / f"{doc_id}_{page}_{int(zoom * 100)}.png"
     if cache.exists():
         return cache.read_bytes()
+    try:
+        return _render_pdf(d, page, zoom, cache)
+    except extract.StoredPdfError:
+        old = sorted(_cached_pngs(doc_id).get(page, []), key=lambda x: abs(x[0] - zoom * 100))   # valve40: the picture drawn earlier
+        if old:
+            return old[0][1].read_bytes()
+        raise
+
+
+def _render_pdf(d, page, zoom, cache) -> bytes:
     with _RENDER_LOCK, extract.open_stored(d["path"], d["sha256"]) as pdf:
         if not 1 <= page <= pdf.page_count:
             raise IndexError("쪽 번호가 범위 밖입니다")
@@ -1875,11 +1905,32 @@ async def page_png(doc_id: int, page: int, zoom: float = 2.0):
 @extract.pdf_locked
 def page_info(doc_id: int):
     con = store.connect()
-    d = store.one(con, "SELECT path, pages, sha256 FROM document WHERE id=?", doc_id)
+    d = store.one(con, "SELECT path, pages, sha256, info FROM document WHERE id=?", doc_id)
     if not d:
         return _err("없는 문서", 404)
-    with extract.open_stored(d["path"], d["sha256"]) as pdf:
-        sizes = [[round(p.rect.width, 1), round(p.rect.height, 1)] for p in pdf]
+    info = store.unJ(d["info"], {}) or {}
+    try:
+        with extract.open_stored(d["path"], d["sha256"]) as pdf:
+            sizes = [[round(p.rect.width, 1), round(p.rect.height, 1)] for p in pdf]
+    except extract.StoredPdfError:                   # valve40: the stored copy is damaged — the sizes kept, or the old pictures
+        have = _cached_pngs(doc_id)
+        sizes = info.get("page_sizes") or []
+        if not sizes and have:
+            n = max(int(d["pages"] or 0), max(have))
+            known = {}
+            for p, zs in have.items():
+                z, f = zs[0]
+                w, h = _png_wh(f.read_bytes()[:24])
+                known[p] = [round(w * 100 / z, 1), round(h * 100 / z, 1)]
+            first = next(iter(known.values()))
+            sizes = [known.get(i, first) for i in range(1, n + 1)]
+        if not sizes or not have:
+            raise
+        return {"pages": len(sizes), "sizes": sizes, "fallback": {"cached_pages": sorted(have), "message": FALLBACK_MSG}}
+    if info.get("page_sizes") != sizes:                  # valve40: kept, so a damaged copy later still knows its page sizes
+        with store._LOCK:
+            con.execute("UPDATE document SET info=? WHERE id=?", (json.dumps(dict(info, page_sizes=sizes), ensure_ascii=False), doc_id))
+            con.commit()
     return {"pages": len(sizes), "sizes": sizes}
 
 

@@ -348,3 +348,5 @@
   + `_documents/<문서id>__<파일>.json`. 업로드 · 다시 읽기 때 씀, 서버 시작 때 빠진 것만 씀, `POST /projects/{pid}/export-json` 다시 씀, `GET /datasheets/{id}/json` · `/inst/sheets/{id}/json`.
   검토는 원래 DB · 파싱 JSON 으로 돎 — PDF 는 쪽 보기 · Mark-up 에만 (손상 PDF 여도 검토 200 확인).
 - 시험 3개 추가 (Valve Area 규칙 · JSON · Instrument JSON). 전체 2,090 통과.
+- (추가) 손상 저장본 = 예전 쪽 그림(`cache/<doc>_<page>_<zoom>.png`)으로 보기 + 안내 줄 '원본 손상 · 예전 쪽 그림 — 값 · 검토 그대로, 다시 올릴 필요 없음'.
+  쪽 크기는 `document.info.page_sizes` 에 보관(없으면 그림 크기로 계산). 그림 없는 쪽만 409. 시험 `test_damaged_stored_copy_shown_from_earlier_page_pictures`. 전체 2,092.
