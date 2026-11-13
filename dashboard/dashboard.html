@@ -2056,7 +2056,7 @@ function recLabel(key, f) {
  * ===================================================================== */
 let root = null;
 /* 서버 모드: http(s):// 로 접속하면 server.py 의 REST API 사용 (폴더 선택 불필요). file:// 로 열면 폴더 모드 */
-const APP_VERSION = '2026-11-13.5';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
+const APP_VERSION = '2026-11-13.6';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
 const SERVER_URL = 'http://localhost:8080';
 // 부서원 PC 사본(file://)이 접속을 시도할 서버 — 서버가 배포 파일을 만들 때 'PC 이름 주소, IP 주소' 순으로 자동 기록함
 const DEFAULT_SERVERS = ['http://ASEUNGWOOK-B01:8080', 'http://65.3.30.234:8080'];
@@ -4378,7 +4378,7 @@ function renderSched(c) {
   // 2026-11-10 표 열 정의 — 엑셀식 열 필터(머리 ▾) · 너비 조절(머리 오른쪽 끝 끌기, 이 PC 에 기억) · 셀 더블클릭 = 바로 입력
   const RC = [['n', '#', 40], ['item', '품목', 250], ['disc', '공종', 78], ['b', '원래 기한', 96, 'date'], ['cur', '현재', 96, 'date'], ['p', '일정 연기', 84], ['d', '지연', 74], ['st', '상태', 150], ['r', '지연 사유', 320, 'text'], ['c', '캐치업', 96, 'date'], ['s', '특이사항', 260, 'text']];
   const RCW = (() => { try { return JSON.parse(localStorage.getItem('dept-rpt-colw') || '{}'); } catch (_) { return {}; } })();
-  const stLbl = x => x.a ? '늦게 완료함' : x.over ? '기한 지남 · 실적 미입력' : '일정 연기 · 진행 중';
+  const stLbl = x => x.a ? '늦게 완료함' : x.over ? '전망 지남 · 실적 미입력' : '일정 연기 · 진행 중';
   const cv = (x, c) => c === 'item' ? `${x.it.no} ${x.it.item}` : c === 'disc' ? x.it.disc : c === 'b' ? schFmt(x.b) : c === 'cur' ? (x.a ? schFmt(x.a) : x.f ? schFmt(x.f) : '(없음)') : c === 'p' ? (x.post > 0 ? `+${x.post}일` : '-') : c === 'd' ? (x.d > 0 ? `+${x.d}일` : '-') : c === 'st' ? stLbl(x)
     : c === 'r' ? (x.n.r || '(미입력)') : c === 'c' ? (x.n.c ? schFmt(x.n.c) : '(미입력)') : c === 's' ? (x.n.s || '(없음)') : '';
   // 2026-11-10 사용자 지시: 머리글(# · 품목 · 공종 · 날짜 · 지연 · 상태 · 사유 · 캐치업 · 특이사항) 누르면 오름 → 내림 → 원래 순서. 빈 값은 늘 맨 아래
@@ -4387,7 +4387,7 @@ function renderSched(c) {
     return (typeof a === 'number' ? a - b : String(a).localeCompare(String(b), 'ko', { numeric:true })) * RS.dir || x.i0 - y.i0; });
   const CF = SCH.cf ||= {}, cfOk = x => Object.entries(CF).every(([c, vals]) => !vals || vals.includes(cv(x, c)));
   const rptG = RPT.map(([k, title]) => { const xs = vis.map(({ it }) => { const b = it.B[k], a = it.A[k], f = it.F[k]; if (!b || a) return null;   /* 2026-11-13 사용자 지시: 지연 중인 것만 (늦게 끝난 것은 뺌) */
-      const post = f ? schDays(f, b) : 0, ref = f || b, over = ref < asOf, late = over ? schDays(asOf, ref) : 0;   /* 2026-11-13: 일정 연기(파랑) = 전망 − 계획 · 지연(빨강) = 기준일 − 전망(전망 없으면 계획) */
+      const post = f ? schDays(f, b) : 0, over = !!f && f < asOf, late = over ? schDays(asOf, f) : 0;   /* 2026-11-13 사용자 지시: 일정 연기(파랑) = 전망 − 계획 · 지연(빨강) = 기준일 − 전망 — 지연은 전망 기준으로만 (전망 없으면 지연 아님) */
       return post > 0 || late > 0 ? { it, k, b, a, f, post, d:late, tot:Math.max(post, late), over, n:it.rn?.[k] || {} } : null; }).filter(Boolean).filter(rfOk).sort((x, y) => y.d - x.d || y.post - x.post);
     xs.forEach((x, i) => x.i0 = i + 1);   // # = 지연 큰 순 번호(정렬해도 그대로)
     return { k, title, all:xs, xs:rsSort(xs.filter(cfOk)), front:SCH_FRONT.has(k) }; }).filter(g => (!RF.ms || g.k === RF.ms) && (SCH_FRONT.has(g.k) ? vis.some(({ it }) => it.B[g.k]) : g.xs.length && ph === 'back'));
@@ -4396,13 +4396,13 @@ function renderSched(c) {
   const sel = (k, opts) => `<select data-rf="${k}">${opts.map(([v, l]) => `<option value="${esc(v)}" ${RF[k] === v ? 'selected' : ''}>${esc(l)}</option>`).join('')}</select>`;
   const rfBar = `<div class="rpflt"><label>🔎<input data-rf="q" value="${esc(RF.q)}" placeholder="No · 품목 · 업체 · 사유 검색"></label>
     ${sel('ms', [['', '마일스톤 전체'], ...RPT.filter(([k]) => ph === 'back' || SCH_FRONT.has(k)).map(([k, t]) => [k, t])])}
-    ${sel('st', [['', '상태 전체'], ['doing', '⏳ 일정 연기 · 진행 중'], ['over', '⚠ 기한 지남(지연) · 실적 미입력']])}
+    ${sel('st', [['', '상태 전체'], ['doing', '⏳ 일정 연기 · 진행 중'], ['over', '⚠ 전망 지남(지연) · 실적 미입력']])}
     ${sel('lv', [['', '지연 크기 전체'], ['r', '15일 이상'], ['x', '30일 초과'], ['y', '14일 이하']])}
     ${sel('disc', [['', '공종 전체'], ...discs.map(d => [d, d])])}
     ${sel('note', [['', '사유 · 캐치업 전체'], ['no', '사유 미입력만'], ['yes', '사유 입력됨만'], ['cuno', '캐치업 미입력(진행 중)만'], ['cuover', '⚠ 캐치업 지남만']])}
     ${rfOn ? '<button class="btn sm" data-rfx>✕ 필터 해제</button>' : ''}<span class="muted" style="font-size:12px">열 머리 ▾ = 엑셀식 필터 · 머리 오른쪽 끝 끌기 = 열 너비${canUp ? ' · <b>셀 더블클릭 = 바로 입력</b> · <b>우클릭 = 글자색 · 굵게 · 기울임</b>' : ''}</span><span class="rpfc">${rptG.reduce((a, g) => a + g.xs.length, 0)}건${rfOn ? ' (필터 적용)' : ''}</span></div>${rfOn && !rptG.length ? '<div class="empty">필터에 맞는 지연 품목이 없어요</div>' : ''}`;   // MR · RFQ · TBE 는 늦은 것이 없어도 '계획대로' 로 보고
   // 표 + 보고체(~음 · ~임 · ~중) — 2026-11-09 사용자 지시
-  const rptSt = x => x.a ? '<span class="rps d">✔ 늦게 완료함</span>' : x.over ? '<span class="rps o">⚠ 기한 지남 · 실적 미입력임</span>' : '<span class="rps p">⏳ 일정 연기 · 진행 중</span>';
+  const rptSt = x => x.a ? '<span class="rps d">✔ 늦게 완료함</span>' : x.over ? '<span class="rps o">⚠ 전망 지남 · 실적 미입력임</span>' : '<span class="rps p">⏳ 일정 연기 · 진행 중</span>';
   const rptHead = g => g.xs.length ? (() => { const P = g.xs.filter(x => x.post > 0), L = g.xs.filter(x => x.d > 0); return `${g.xs.length}건 — ${P.length ? `일정 연기 ${P.length}건 (최대 +${Math.max(...P.map(x => x.post))}일)` : ''}${P.length && L.length ? ' · ' : ''}${L.length ? `지연 ${L.length}건 (최대 +${Math.max(...L.map(x => x.d))}일)` : ''}`; })() : '지연 없음, 계획대로 진행 중';
   // 2026-11-10 사용자 지시: 칸마다 글자색 · 굵게 · 기울임을 사용자가 바꿈 (우클릭 → 서식 창) — it.rfm['MR|cur'] = { c:'#색', b:1, i:1 }, 모든 부서원에게 같게
   // 2026-11-10 캐치업 추적: 실적 없이 캐치업 날짜가 지나면 ⚠, 남았으면 D-N, 실적이 캐치업 안이면 ✔ 만회
@@ -4410,9 +4410,9 @@ function renderSched(c) {
   const rptRow = (x, i) => { const id = x.it.type + '|' + x.it.no, ed = canUp ? ' data-rc' : '', cell = (c, html, cls = '') => { const f = x.it.rfm?.[x.k + '|' + c], fc = f ? `${f.c ? ' rfc' : ''}${f.b ? ' rfb' : ''}${f.i ? ' rfi' : ''}` : '';
       return `<td class="${cls}${fc}" data-cc="${c}"${f?.c ? ` style="--rfc:${esc(f.c)}"` : ''}${canUp && ['b', 'cur', 'r', 'c', 's'].includes(c) ? ` data-rc="${c}" title="더블클릭 = 입력 · 우클릭 = 글자 서식"` : canUp ? ' title="우클릭 = 글자 서식"' : ''}>${html}</td>`; };
     return `<tr class="${x.tot > 14 ? 'r' : 'y'} ${x.a ? 'done' : ''}" data-rk="${esc(id + '|' + x.k)}" style="--dc:${schDc(x.it.disc)}">${cell('n', x.i0 || i + 1, 'rpn')}${cell('item', `<b class="rpno">${esc(x.it.no)}</b><b class="sinm1">${esc(x.it.item)}</b>`, 'rpit')}${cell('disc', `<span class="sdc">${esc(x.it.disc)}</span>`)}
-      ${cell('b', schChgW(x.it, 'B', x.k, schFmt(x.b)), 'rpdt')}${cell('cur', x.a ? `<b>${schFmt(x.a)}</b><small>실적</small>` : x.f ? `${schFmt(x.f)}<small>전망${x.over ? ' · 지남' : ''}</small>` : '<small>실적 없음</small>', 'rpdt rpcur')}${cell('p', x.post > 0 ? `<em class="rpp" title="계획 ${esc(schFmt(x.b))} → 전망 ${esc(schFmt(x.f))}">+${x.post}일</em>` : '<span class="muted">-</span>', 'rpdd')}${cell('d', x.d > 0 ? `<em class="rpd" title="${x.f ? '전망' : '계획'} ${esc(schFmt(x.f || x.b))} 이 지났는데 실적 없음">+${x.d}일</em>` : '<span class="muted">-</span>', 'rpdd')}${cell('st', rptSt(x), 'rpst')}
+      ${cell('b', schChgW(x.it, 'B', x.k, schFmt(x.b)), 'rpdt')}${cell('cur', x.a ? `<b>${schFmt(x.a)}</b><small>실적</small>` : x.f ? `${schFmt(x.f)}<small>전망${x.over ? ' · 지남' : ''}</small>` : '<small>실적 없음</small>', 'rpdt rpcur')}${cell('p', x.post > 0 ? `<em class="rpp" title="계획 ${esc(schFmt(x.b))} → 전망 ${esc(schFmt(x.f))}">+${x.post}일</em>` : '<span class="muted">-</span>', 'rpdd')}${cell('d', x.d > 0 ? `<em class="rpd" title="전망 ${esc(schFmt(x.f))} 이 지났는데 실적 없음">+${x.d}일</em>` : '<span class="muted">-</span>', 'rpdd')}${cell('st', rptSt(x), 'rpst')}
       ${cell('r', x.n.r ? rtShow(x.n.r, x.n.rH) : '<i>미입력</i>', 'rptx')}${cell('c', x.n.c ? `<b class="rpcu">${schFmt(x.n.c)}</b>${cuSt(x)}` : '<i>미입력</i>', 'rpdt')}${cell('s', x.n.s ? rtShow(x.n.s, x.n.sH) : '<i>-</i>', 'rptx')}</tr>`; void ed; };
-  const rptText = () => rptG.map((g, i) => `${i + 1}. ${g.title} : ${rptHead(g)}` + g.xs.map(x => `\n - ${x.it.no} ${x.it.item} : 원래 기한 ${schFmt(x.b)}${x.f ? ` → 전망 ${schFmt(x.f)}` : ''}${x.post > 0 ? ` (+${x.post}일 연기됨)` : ''}${x.d > 0 ? ` · ${x.f ? '전망' : '기한'} 지나 +${x.d}일 지연 중임 (실적 미입력)` : ' · 진행 중'}${x.n.r ? `\n   · 지연 사유 : ${x.n.r.replace(/\n/g, '\n     ')}` : ''}${x.n.c ? `\n   · 캐치업 : ${schFmt(x.n.c)} 완료 예정임` : !x.a ? '\n   · 캐치업 : 일정 협의 중' : ''}${x.n.s ? `\n   · 특이사항 : ${x.n.s.replace(/\n/g, '\n     ')}` : ''}`).join('')).join('\n\n');
+  const rptText = () => rptG.map((g, i) => `${i + 1}. ${g.title} : ${rptHead(g)}` + g.xs.map(x => `\n - ${x.it.no} ${x.it.item} : 원래 기한 ${schFmt(x.b)}${x.f ? ` → 전망 ${schFmt(x.f)}` : ''}${x.post > 0 ? ` (+${x.post}일 연기됨)` : ''}${x.d > 0 ? ` · 전망 지나 +${x.d}일 지연 중임 (실적 미입력)` : ' · 진행 중'}${x.n.r ? `\n   · 지연 사유 : ${x.n.r.replace(/\n/g, '\n     ')}` : ''}${x.n.c ? `\n   · 캐치업 : ${schFmt(x.n.c)} 완료 예정임` : !x.a ? '\n   · 캐치업 : 일정 협의 중' : ''}${x.n.s ? `\n   · 특이사항 : ${x.n.s.replace(/\n/g, '\n     ')}` : ''}`).join('')).join('\n\n');
   SCH.rptText = rptText;
   const rptCard = `<section class="card rpcard"><h2>📝 구매 현황 보고 <span class="muted">· 주간업무보고 '업무 현황' 양식 · ${ph === 'front' ? 'MR · TBE 발주처 · TBE 완료 (지금 중요)' : '전체 단계'} · 계획 대비 지연 품목 · 기준일 ${esc(schFmt(asOf))}${F.disc ? ' · ' + esc(F.disc) + ' 만' : ''}</span></h2>
     <div class="rptool"><span class="rpsum">${rptG.map((g, i) => `<a href="#rp-${g.k}" data-rpgo="${g.k}">${i + 1}. ${esc(g.title)} <b class="${g.xs.length ? '' : 'z'}">${g.xs.length}</b></a>`).join('')}</span><span class="rptodo">${(() => { const A = SCH.rptAll || [], n1 = A.filter(x => !x.n.r).length, n2 = A.filter(x => !x.a && !x.n.c).length, n3 = A.filter(x => !x.a && x.n.c && x.n.c < asOf).length, ch = (v, l, n, c) => n ? `<button class="rptd ${c} ${RF.note === v ? 'on' : ''}" data-rfnote="${v}" title="누르면 그것만 · 다시 누르면 전체">${l} <b>${n}</b></button>` : '';
@@ -5041,7 +5041,7 @@ function schBind() {
 function schRptXlsx() {   // 2026-11-10 구매 현황 보고 표(지금 필터 · 정렬 그대로)를 엑셀로
   const G = SCH.rptG || [], d = SCH.data; if (!d || !G.length) return toast('내보낼 보고 표가 없어요', true); const asOf = SCH.rptAsOf || d.asOf;
   const cols = ['마일스톤', '#', 'No', '품목', '공종', '원래 기한', '현재', '실적/전망', '일정 연기(일)', '지연(일)', '상태', '지연 사유', '캐치업', '캐치업 상태', '특이사항'], st = { s:ST.HEAD };
-  const rows = G.flatMap(g => g.xs.map(x => [g.title, x.i0, x.it.no, x.it.item, x.it.disc, x.b, x.a || x.f || '', x.a ? '실적' : x.f ? '전망' : '', x.post || '', x.d || '', x.a ? '늦게 완료함' : x.over ? '기한 지남 · 실적 미입력' : '일정 연기 · 진행 중', x.n.r || '', x.n.c || '',
+  const rows = G.flatMap(g => g.xs.map(x => [g.title, x.i0, x.it.no, x.it.item, x.it.disc, x.b, x.a || x.f || '', x.a ? '실적' : x.f ? '전망' : '', x.post || '', x.d || '', x.a ? '늦게 완료함' : x.over ? '전망 지남 · 실적 미입력' : '일정 연기 · 진행 중', x.n.r || '', x.n.c || '',
     !x.n.c ? (x.a ? '' : '미입력') : x.a ? (x.a <= x.n.c ? '만회함' : `캐치업보다 +${schDays(x.a, x.n.c)}일`) : x.n.c < asOf ? `캐치업 ${schDays(asOf, x.n.c)}일 지남` : `D-${schDays(x.n.c, asOf)}`, x.n.s || '']));
   if (!rows.length) return toast('지연 품목이 없어요', true);
   const sheet = { name:'구매 현황 보고', widths:[22, 5, 10, 34, 10, 12, 12, 9, 11, 9, 22, 46, 12, 18, 40], tab:false, rows:[cols.map(v => ({ ...st, v })), ...rows.map(r => r.map(v => ({ v:v ?? '', s:ST.BODY })))] };
