@@ -699,6 +699,7 @@ def _comment_page(items: list[dict], head: str, size) -> pymupdf.Document:
     return pymupdf.open("pdf", buf.getvalue())
 
 
+@extract.pdf_locked
 def markup_pdf(entries: list[dict], project: str, title: str = "Valve Datasheet Review — Mark-up",
                summary_pages: bool = True, margin: bool = True, flatten: bool = True) -> bytes:
     """valve25: margin — each page carries its numbered comments (program + reviewer) printed beside it;

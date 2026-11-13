@@ -20,6 +20,8 @@ from __future__ import annotations
 import re
 from collections import Counter
 
+import threading
+
 import pymupdf
 
 from app.valve import schema
@@ -772,11 +774,33 @@ def open_stored(path: str, sha: str | None = None):
         raise StoredPdfError(f"{STORED_MSG} · {e}", store.diagnose(path, sha)) from e
 
 
+# valve40 (company PC 2026-11-13): MuPDF is not thread-safe and a damaged file can kill the process natively — every
+# read of a file goes through open_pdf (checks the file first) and runs under this one lock (pdf_locked).
+PDF_LOCK = threading.RLock()
+
+
+def pdf_locked(fn):
+    """Run a whole read / render of PDFs under PDF_LOCK (one MuPDF user at a time)."""
+    import functools
+
+    @functools.wraps(fn)
+    def run(*a, **k):
+        with PDF_LOCK:
+            return fn(*a, **k)
+    return run
+
+
 def open_pdf(path: str, tries: int = 4):
     """Open a stored PDF.  A file another program holds for a moment (antivirus scan right after the upload, a viewer)
-    is tried again before giving up; the error names what actually failed (valve34 — 'FileDataError' alone said nothing)."""
+    is tried again before giving up; the error names what actually failed (valve34 — 'FileDataError' alone said nothing).
+    valve40: a file that is not a PDF any more, or a stored copy whose bytes no longer match the upload, is never handed
+    to MuPDF (store.stored_good)."""
     import os
     import time
+    from app.valve import store
+    good, why = store.stored_good(path)
+    if not good:
+        raise PdfError(f"PDF 를 열지 않았습니다 — {why}")
     last = None
     for k in range(tries):
         try:
@@ -837,6 +861,7 @@ def _place(box, k, mat):
     return [round(v, 1) for v in (r.x0, r.y0, r.x1, r.y1)]
 
 
+@pdf_locked
 def read_pdf(path: str, progress=None):
     doc = open_pdf(path)
     sheets, other, docs = [], [], {}

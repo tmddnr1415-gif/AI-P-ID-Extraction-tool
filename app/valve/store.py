@@ -214,6 +214,48 @@ def file_ok(p: Path, sha: str, size: int | None = None) -> bool:
         return False
 
 
+_GOOD: dict[tuple, tuple[bool, str]] = {}
+BAD_SEEN: dict[str, dict] = {}                              # path → diagnosis, for the start-up report and /health
+
+
+def stored_good(path) -> tuple[bool, str]:
+    """valve40 (company PC 2026-11-13: the server restarted in a loop — MuPDF died natively on damaged stored copies during
+    warm-up).  Before ANY reader hands a file to MuPDF: it exists, is not empty, has a PDF header, and — for a stored
+    original — still holds exactly the uploaded bytes (sha256 of its document row).  Checked once per (path, mtime, size)."""
+    p = Path(path)
+    try:
+        st = p.stat()
+    except (OSError, TypeError, ValueError):
+        return False, "파일이 없습니다"
+    k = (str(p), st.st_mtime_ns, st.st_size)
+    if k in _GOOD:
+        return _GOOD[k]
+    r = (True, "")
+    if st.st_size == 0:
+        r = (False, "빈 파일입니다")
+    else:
+        try:
+            with open(p, "rb") as f:
+                head = f.read(1024)
+        except OSError as e:
+            head, r = b"", (False, f"읽을 수 없습니다 ({type(e).__name__})")
+        if r[0] and b"%PDF" not in head:
+            r = (False, "PDF 내용이 아닙니다 — 저장본이 바뀌었습니다 (보안 프로그램 의심)")
+        if r[0] and p.parent == root() / "files":
+            try:
+                c = sqlite3.connect(str(root() / "valve.db"), timeout=30)
+                row = c.execute("SELECT sha256 FROM document WHERE path=? AND sha256<>'' LIMIT 1", (str(p),)).fetchone()
+                c.close()
+            except sqlite3.Error:
+                row = None
+            if row and not file_ok(p, row[0], None):
+                r = (False, "저장본이 올린 파일과 다릅니다 (원본 손상 — 같은 파일 다시 올리기)")
+    if not r[0]:
+        BAD_SEEN[str(p)] = dict(diagnose(p), why=r[1])
+    _GOOD[k] = r
+    return r
+
+
 def stored_ext(filename: str) -> str:
     """valve38: a PDF original is stored as '.bin' — on the company PC the stored '<hash>.pdf' copy no longer opened
     (pymupdf FileDataError) although the same bytes opened at upload: something on that PC changes files named *.pdf
@@ -290,6 +332,7 @@ def migrate_originals(con) -> dict:
             continue
         if not file_ok(p, sha):
             out["broken"].append(p.name)
+            BAD_SEEN[str(p)] = dict(diagnose(p, None, None), why="저장본이 올린 파일과 다릅니다")
             continue
         q = p.with_suffix(".bin")
         try:

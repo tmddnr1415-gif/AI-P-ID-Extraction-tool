@@ -248,8 +248,12 @@ def split_tags(raw: str, qty: str = "") -> list[str]:
 
 def read_pdf(path: str, filename: str = "") -> dict:
     """Every datasheet in the PDF: one sheet per items page 1 (a block-2 page joins the sheet before it)."""
-    import pymupdf
-    doc = pymupdf.open(path, filetype="pdf")
+    from app.valve import extract
+    with extract.PDF_LOCK:
+        return _read_pdf(extract.open_pdf(path, tries=1), filename)
+
+
+def _read_pdf(doc, filename: str = "") -> dict:
     try:
         sheets, forms = [], {}
         for i, page in enumerate(doc):

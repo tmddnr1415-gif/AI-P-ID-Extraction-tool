@@ -621,3 +621,44 @@ def test_process_data_tag_cover_and_zones(tmp_path, monkeypatch):
     C = c.get(f"/api/valve/projects/{pid}/coverage").json()
     assert C["has_pds"] is False and C["missing"] is None and len(C["tags"]) == 1 and C["ds_docs"][0]["tags"] == 1
     assert set(locmod_z for locmod_z in C["zones"]) >= {"North", "South", "North Brownfield", "South Brownfield", "W15"}
+
+
+def test_damaged_stored_copy_never_reaches_mupdf_and_warmup_is_safe(tmp_path, monkeypatch):
+    """valve40 (company PC 2026-11-13: the server restarted in a loop — MuPDF died natively on damaged stored copies while
+    five projects warmed at once): a stored copy whose bytes no longer match the upload — even one that still starts with
+    '%PDF' — is never handed to MuPDF by any reader; warm-up takes projects one at a time, logs each step, and
+    VALVE_WARMUP=0 turns it off."""
+    import threading
+    import pymupdf
+    from tests.test_valve_revision import api
+    from app.valve import docrev, extract, pms, process, store
+    c, pid, up = _client(tmp_path, monkeypatch)
+    data = _pdf("A")
+    up("ds_A.pdf", data)
+    row = store.one(store.connect(), "SELECT id, path, sha256 FROM document WHERE project_id=? ORDER BY id DESC", pid)
+    bad = data[:-40] + b"%%EOF garbage after the end" + bytes(13)               # still '%PDF…', different bytes
+    Path(row["path"]).write_bytes(bad)
+    opened = []
+    real = pymupdf.open
+    monkeypatch.setattr(pymupdf, "open", lambda *a, **k: opened.append(a[:1]) or real(*a, **k))
+    assert store.stored_good(row["path"])[0] is False and "다릅니다" in store.stored_good(row["path"])[1]
+    for read in (docrev.read, process.scan, lambda p: pms.read_pms(p)):
+        try:
+            read(row["path"])
+        except extract.PdfError as e:
+            assert "열지 않았습니다" in str(e)
+    assert c.get(f"/api/valve/documents/{row['id']}/pageinfo").status_code == 409
+    assert not [a for a in opened if a and str(a[0]) == row["path"]]                  # MuPDF never saw the damaged copy
+    assert row["path"] in store.BAD_SEEN and store.BAD_SEEN[row["path"]]["head_txt"].startswith("%PDF")
+    # warm-up: one worker, every step logged; the switch turns it off
+    api.warm(pid)
+    for _ in range(200):
+        if not api._WARM_THREAD and pid not in api._WARMING:
+            break
+        threading.Event().wait(0.05)
+    log = (store.root() / "logs" / "warmup.log").read_text(encoding="utf-8")
+    assert f"warm p{pid} issues" in log and f"warm p{pid} done" in log
+    assert sum(1 for t in threading.enumerate() if t.name.startswith("valve-warm-")) == 0
+    monkeypatch.setenv("VALVE_WARMUP", "0")
+    api.warm(pid)
+    assert not api._WARM_QUEUE and not api.warm_enabled()

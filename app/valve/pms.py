@@ -16,7 +16,7 @@ import re
 
 import pymupdf
 
-from app.valve import material, schema
+from app.valve import extract, material, schema
 
 _CLASS = re.compile(r"Class:\s*([0-9A-Z]{2,8})\b")
 _ITEM = re.compile(r"^(P[A-Z0-9]{8,})\n([\d.]+)\n-\n([\d.]+)\n(.+)$", re.S)
@@ -106,9 +106,10 @@ def area_of_title(title: str) -> str:
     return "QS" if "SOUTH" in t else "QN" if ("NORTH" in t or "W15" in t) else ""
 
 
+@extract.pdf_locked
 def read_pms(path: str, progress=None) -> dict:
     areas: dict[str, dict] = {}
-    with pymupdf.open(path, filetype="pdf") as doc:   # valve38: stored copies are '.bin'
+    with extract.open_pdf(path, tries=1) as doc:      # valve40: checked first · stored copies are '.bin'
         for i, page in enumerate(doc):
             if progress:
                 progress(i + 1, doc.page_count)

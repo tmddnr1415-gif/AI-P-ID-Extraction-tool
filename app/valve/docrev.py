@@ -17,6 +17,8 @@ import re
 
 import pymupdf
 
+from app.valve import extract
+
 _MON = {m: i for i, m in enumerate(("jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"), 1)}
 _DATE = re.compile(r"^(\d{1,2})[/.\-]([A-Za-z]{3}|\d{1,2})[/.\-](\d{2}|\d{4})$")
 _REVTOK = re.compile(r"^(?:\d{1,2}|[A-Z])$")
@@ -65,10 +67,11 @@ def rev_table(page) -> dict | None:
     return {k: best[k] for k in ("rev", "date", "desc")}
 
 
+@extract.pdf_locked
 def read(path) -> dict:
     out = {"doc_no": "", "rev": "", "date": "", "desc": "", "header_rev": "", "parts": []}
     try:
-        doc = pymupdf.open(path, filetype="pdf")         # valve38: stored copies are '.bin'
+        doc = extract.open_pdf(path, tries=1)            # valve40: checked first (never a damaged copy) · stored copies are '.bin'
     except Exception:                                       # noqa: BLE001  (unreadable file: nothing to show, nothing invented)
         return out
     try:
