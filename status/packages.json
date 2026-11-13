@@ -270,7 +270,7 @@
    "made": "2026-11-13 11:10",
    "path": "company-pc-update/2026-11-13/ (1.4MB · 저장소에 있음)",
    "sha256": "077a0d0646eb7fd51fab2c92b7f53378ae6d07ca14c03d1d8f6fc3cd55fde663",
-   "applied": "",
+   "applied": "2026-11-13 (사용자: \"회사 PC 에 적용했다\")",
    "base": "v17.21 (13ab4109) — 회사 판",
    "tips": {
     "S1": "e01a7b4e"
@@ -282,7 +282,7 @@
    "made": "2026-11-13 11:05",
    "path": "company-pc-update/2026-11-13/ (8.8MB · 저장소에 있음)",
    "sha256": "fb61644344339c64d25148cb3ad0ef88eaf7fe501244ada134e5a6a497a9c456",
-   "applied": "",
+   "applied": "2026-11-13 (사용자: \"회사 PC 에 적용했다\")",
    "integration_head": "f8e102b7",
    "tips": {
     "S2": "6caae532",
