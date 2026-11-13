@@ -1978,3 +1978,8 @@ C:\Users\SAMSUNG\Desktop\Claude\                         ← 개발 폴더 (여�
 - 무엇을: 사용자 지시 "지연은 전망 기준으로만 표현한다" → 구매 현황 보고의 지연(빨강) = 전망일이 지났는데 실적 없는 날수만. 전망이 없는 품목(계획만)은 계획이 지나도 지연으로 세지 않음. 상태 · 필터 · 엑셀 · 보고 글 문구 '기한 지남' → '전망 지남'.
 - 바뀐 곳: dashboard.html `rptG`(over · late = 전망만) · `rptRow` 툴팁 · `rptText` · `rptSt` · `stLbl` · 상태 필터 · `schRptXlsx`
 - 확인한 것: 시험 PSR 로 TBE 완료 묶음 지연 2건(전망 지난 J3430 · J0710) 그대로, 콘솔 오류 없음.
+
+### 2026-11-13 (APP_VERSION 2026-11-13.7 / SERVER_VERSION 그대로) — v17.53 메뉴 끌어다 놓기
+- 무엇을: 사용자 지시 "메뉴는 마우스로 끌어다 놓으면 이동할 수 있도록, 또한 그 하위 상위로 옮길 수도 있도록" → 왼쪽 메뉴의 단추 · 묶음(주간업무보고 · LOGIC · 실행 프로젝트 · Management) · 폴더(CO2 PJT · Datasheet · VALVE · INSTRUMENT)를 끌어서 위(앞) · 아래(뒤)에 놓거나, 묶음/폴더 머리 가운데에 놓으면 그 안으로. 상위 메뉴를 하위로, 하위 메뉴를 맨 위 레벨로도. 노랑 선 = 놓일 자리, 노랑 점선 상자 = 그 안으로. 상위 번호(1, 2, 3 …)는 새 순서로 다시 매김. 배치는 이 PC · 이 계정에 기억(localStorage `dept-menu-layout:<계정>`), 메뉴 아래 '↺ 메뉴 배치 원래대로'. 권한 · 화면 주소는 그대로(보이는 자리만). 간략 메뉴(아이콘 막대)에서는 끌기 안 됨.
+- 바뀐 곳: dashboard.html `renderMenu`(group · fold · runTree 에 data-node, fold 를 .mfg 로 감쌈) · 새 `MLK` · `mlLoad` · `mlNode` · `mlHold` · `menuLayoutApply` · `menuLayoutSave` · 끌기 IIFE · CSS(.dnd-* · .mreset · 옮긴 단추 모양)
+- 확인한 것: IO List → VALVE 안, P&ID 분석(상위) → CO2 PJT 안 Schedule 다음, 문서 · Revision 현황 → 다른 자리, Datasheet 폴더 → 맨 위 레벨 · 새로고침 후 유지 · ↺ 원래대로, 콘솔 오류 없음.

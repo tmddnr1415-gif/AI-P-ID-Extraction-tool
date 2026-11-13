@@ -29,6 +29,9 @@ body.nav-closed #burger{width:auto;padding:0 12px;font-size:14px;background:var(
 .logo span{font-size:13px;color:#aab6ee}
 .menu-title{padding:16px 18px 6px;font-size:11px;letter-spacing:2px;color:#8a98d8}
 #menu{flex:1;overflow:auto;padding:0 8px}
+#menu .dnd-b{box-shadow:inset 0 3px 0 #facc15}#menu .dnd-a{box-shadow:inset 0 -3px 0 #facc15}#menu .dnd-i{outline:2px dashed #facc15;outline-offset:-2px;background:rgba(250,204,21,.15)}#menu .dnd-src{opacity:.45}
+#menu .msub .mi.top{font-size:13px;padding:7px 10px;margin-top:1px;font-weight:600}#menu .msub .mi.top .mno,#menu .msub .mi.top .mic{display:none}#menu > .mi.mroot{font-weight:700;color:#fff}#menu > .mfg > .mhead .mfold{font-size:14.5px;font-weight:700;color:#fff;padding:10px 10px;margin-top:4px}
+.mreset{margin:4px 12px;border:1px dashed rgba(255,255,255,.3);background:none;color:#aab6ee;border-radius:8px;padding:3px 8px;font-size:11.5px;cursor:pointer}.mreset:hover{color:#fff;border-color:#fff}
 .mi{display:flex;align-items:center;gap:8px;width:100%;padding:10px 12px;margin:2px 0;border:0;border-radius:8px;background:none;color:#dfe5ff;text-align:left}
 .mi:hover{background:var(--navy-2)}
 .mi.on{background:var(--accent);color:#fff;font-weight:700}
@@ -2056,7 +2059,7 @@ function recLabel(key, f) {
  * ===================================================================== */
 let root = null;
 /* 서버 모드: http(s):// 로 접속하면 server.py 의 REST API 사용 (폴더 선택 불필요). file:// 로 열면 폴더 모드 */
-const APP_VERSION = '2026-11-13.6';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
+const APP_VERSION = '2026-11-13.7';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
 const SERVER_URL = 'http://localhost:8080';
 // 부서원 PC 사본(file://)이 접속을 시도할 서버 — 서버가 배포 파일을 만들 때 'PC 이름 주소, IP 주소' 순으로 자동 기록함
 const DEFAULT_SERVERS = ['http://ASEUNGWOOK-B01:8080', 'http://65.3.30.234:8080'];
@@ -5329,6 +5332,47 @@ function menuReveal() {   // 2026-11-09.10: 연 화면의 메뉴가 사이드바
     const r = b.getBoundingClientRect(), R = m.getBoundingClientRect(); if (r.top >= R.top + 4 && r.bottom <= R.bottom - 4) return;
     m.scrollTop += r.top - R.top - (R.height - r.height) / 2; });
 }
+/* ---------- 2026-11-13 사용자 지시: 메뉴를 마우스로 끌어다 놓아 순서 · 위치(하위 ↔ 상위) 바꾸기 ----------
+   노드 = 메뉴 단추(k:<화면>) · 묶음(g:<nav>, 상위 메뉴 + 하위) · 폴더(f:<nav>, CO2 PJT · Datasheet …). 담는 곳 = 메뉴 맨 위(root) · 묶음/폴더의 하위.
+   배치는 이 PC · 이 계정에 기억(localStorage) — 권한 · 화면 주소는 그대로, 보이는 자리만 바뀜. ↺ 로 원래대로. */
+const MLK = () => 'dept-menu-layout:' + (AUTH?.id || user || '');
+const mlLoad = () => { try { return JSON.parse(localStorage.getItem(MLK()) || 'null'); } catch (_) { return null; } };
+const mlNode = (m, id) => m.querySelector(`[data-node="${CSS.escape(id)}"]`);
+const mlHold = (m, id) => id === 'root' ? m : mlNode(m, id)?.querySelector(':scope > .msub');
+function menuLayoutApply() {
+  const m = $('#menu'); if (!m) return;
+  m.querySelectorAll('.mi[data-k]').forEach(b => { if (!b.closest('.mhead')?.parentElement?.matches('.mgrp')) b.dataset.node = 'k:' + b.dataset.k; b.draggable = true; });
+  m.querySelectorAll('.mfold').forEach(b => b.draggable = true);
+  const L = mlLoad();
+  if (L) Object.entries(L).forEach(([cid, ids]) => { const h = mlHold(m, cid); if (!h) return; const rest = [...h.children];
+    ids.map(id => mlNode(m, id)).filter(n => n && !n.contains(h)).forEach(n => h.appendChild(n));
+    rest.filter(n => n.parentElement === h && !ids.includes(n.dataset.node)).forEach(n => h.appendChild(n)); });
+  let no = 0; m.querySelectorAll(':scope > .mi.top .mno, :scope > .mgrp > .mhead > .mi.top .mno').forEach(x => x.textContent = ++no);
+  m.querySelectorAll(':scope > .mi.subi').forEach(b => b.classList.add('mroot'));
+  let rb = $('#menuReset'); if (!rb) { rb = document.createElement('button'); rb.id = 'menuReset'; rb.className = 'mreset'; rb.textContent = '↺ 메뉴 배치 원래대로'; rb.title = '끌어다 옮긴 메뉴 순서 · 위치를 처음대로'; rb.onclick = () => { try { localStorage.removeItem(MLK()); } catch (_) {} renderMenu(); toast('메뉴 배치를 원래대로 돌렸어요'); }; m.after(rb); }
+  rb.hidden = !L;
+}
+function menuLayoutSave() {
+  const m = $('#menu'), L = {}, kids = h => [...h.children].map(n => n.dataset.node).filter(Boolean);
+  L.root = kids(m); m.querySelectorAll('[data-node^="g:"], [data-node^="f:"]').forEach(n => { const h = n.querySelector(':scope > .msub'); if (h) L[n.dataset.node] = kids(h); });
+  try { localStorage.setItem(MLK(), JSON.stringify(L)); } catch (_) {}
+}
+(() => {   // 끌기 · 놓기 (메뉴 영역에 한 번만 연결)
+  let drag = null; const clr = () => document.querySelectorAll('#menu .dnd-b, #menu .dnd-a, #menu .dnd-i').forEach(x => x.classList.remove('dnd-b', 'dnd-a', 'dnd-i'));
+  const nodeOf = el => { const b = el.closest('.mi[data-k], .mfold'); if (!b) return null; return b.dataset.node ? b : b.closest('[data-node]'); };
+  const headOf = n => n.matches('.mi') ? n : n.querySelector(':scope > .mhead');
+  const where = (n, e) => { const r = headOf(n).getBoundingClientRect(), y = (e.clientY - r.top) / r.height, box = !n.matches('.mi'); return box && y > .3 && y < .7 ? 'in' : y < .5 ? 'b' : 'a'; };
+  document.addEventListener('DOMContentLoaded', () => {}, { once:true });
+  const M = () => $('#menu');
+  window.addEventListener('dragstart', e => { const m = M(); if (!m || !m.contains(e.target) || document.body.classList.contains('rail')) return; const n = nodeOf(e.target); if (!n) return;
+    drag = n; e.dataTransfer.effectAllowed = 'move'; try { e.dataTransfer.setData('text/plain', n.dataset.node); } catch (_) {} n.classList.add('dnd-src'); });
+  window.addEventListener('dragover', e => { if (!drag) return; const t = e.target.closest && nodeOf(e.target); clr(); if (!t || t === drag || drag.contains(t)) return; e.preventDefault(); headOf(t).classList.add('dnd-' + { b:'b', a:'a', in:'i' }[where(t, e)]); });
+  window.addEventListener('drop', e => { if (!drag) return; const t = e.target.closest && nodeOf(e.target); clr(); if (!t || t === drag || drag.contains(t)) return; e.preventDefault();
+    const w = where(t, e); if (w === 'in') { const h = t.querySelector(':scope > .msub'); h.hidden = false; h.appendChild(drag); const nav = t.dataset.node.slice(2); if (nav in NAV_OPEN) { NAV_OPEN[nav] = true; try { localStorage.setItem(NAV_LS[nav], '1'); } catch (_) {} } }
+    else t.parentElement.insertBefore(drag, w === 'b' ? t : t.nextSibling);
+    menuLayoutSave(); drag.classList.remove('dnd-src'); drag = null; renderMenu(); toast('메뉴를 옮겼어요 — 이 PC 에 기억 (↺ 로 원래대로)'); });
+  window.addEventListener('dragend', () => { clr(); if (drag) drag.classList.remove('dnd-src'); drag = null; });
+})();
 function renderMenu() {
   if (route === 'board' && DB.board) markBoardSeen();
   const rs = k => k === 'task' ? getRecs(k).filter(taskShown) : getRecs(k);   // 통합 업무 수 = 메뉴에 보이는 유형만
@@ -5340,17 +5384,17 @@ function renderMenu() {
   let no = 0;   // 2026-11-07: 상위 메뉴 앞 = 이모지 대신 번호 (보이는 메뉴만 1, 2, 3 …) · 2026-11-08: 간략 메뉴용 아이콘(.mic, 펼친 메뉴에서는 숨김)
   const btn = (i, cls = '') => `<button class="mi ${cls} ${route === i.k ? 'on' : ''} ${cls === 'top' && i.c ? 'mdot' : ''}" data-k="${i.k}" ${cls === 'top' ? `data-tip="${esc(i.l)}"` : ''}>${cls === 'top' ? `<span class="mic">${MENU_IC[i.k] || MENU_IC.home}</span><span class="mno">${++no}</span>` : ''}${i.c ? '<span class="chgmark">!</span>' : ''}<span class="ml" title="${esc(i.l)}">${esc(i.l)}</span>${i.c ? `<span class="chgtag" title="${i.t} ${i.c}건">!(${i.c})</span>` : ''}${i.n !== '' ? `<span class="n">${i.n}</span>` : ''}</button>`;
   // 상위 메뉴 + 접기/펼치기 + 하위 메뉴 묶음
-  const group = (nav, head, subs, act) => `<div class="mgrp ${act ? 'act' : ''}">
+  const group = (nav, head, subs, act) => `<div class="mgrp ${act ? 'act' : ''}" data-node="g:${nav}">
        <div class="mhead">${btn(head, 'top')}
          <button class="mtog" data-tog="${nav}" title="하위 메뉴 ${NAV_OPEN[nav] ? '접기' : '펼치기'}" aria-label="하위 메뉴 접기/펼치기">${NAV_OPEN[nav] ? '▾' : '▸'}</button></div>
        <div class="msub" ${NAV_OPEN[nav] ? '' : 'hidden'}>${subs.map(i => btn(i, 'subi')).join('')}</div></div>`;
   // 실행 프로젝트 › CO2 PJT › Datasheet › 잎 4개 — 폴더(누르면 접기/펼치기) 안의 폴더. 잎만 화면을 연다. (VALVE 세션 2026-10-31 · 11-01 병합)
-  const fold = (nav, label, inner, hub) => `<div class="mhead"><button class="mi subi mfold ${hub && route === hub ? 'on' : ''}" data-tog="${nav}" ${hub ? `data-hub="${hub}"` : ''} title="${esc(label)}${hub ? ' — 누르면 현황판' : ''}"><span class="ml">${NAV_OPEN[nav] ? '▾' : '▸'} ${esc(label)}</span></button></div>
-       <div class="msub" ${NAV_OPEN[nav] ? '' : 'hidden'}>${inner}</div>`;
+  const fold = (nav, label, inner, hub) => `<div class="mfg" data-node="f:${nav}"><div class="mhead"><button class="mi subi mfold ${hub && route === hub ? 'on' : ''}" data-tog="${nav}" ${hub ? `data-hub="${hub}"` : ''} title="${esc(label)}${hub ? ' — 누르면 현황판' : ''}"><span class="ml">${NAV_OPEN[nav] ? '▾' : '▸'} ${esc(label)}</span></button></div>
+       <div class="msub" ${NAV_OPEN[nav] ? '' : 'hidden'}>${inner}</div></div>`;
   if (route !== 'home' && (route === 'work' || route === 'alloc' || SHEET[route])) NAV_OPEN.weekly = true;   // 2026-11-09.10: 연 화면의 상위 폴더 펼침
   if (route === 'logicdraw') NAV_OPEN.logic = true; if (MG_ROUTES.includes(route) && route !== 'mgmt') NAV_OPEN.mgmt = true;
   if (RUN_LEAVES.includes(route)) { NAV_OPEN.runpjt = true; NAV_OPEN['runpjt-co2'] = true; if (route !== 'co2sched' && route !== 'co2psr' && route !== 'co2pjt') NAV_OPEN['runpjt-co2-ds'] = true; if (INST_ROUTES.includes(route) && !['inst', 'instinstindex', 'instiolist'].includes(route)) NAV_OPEN['runpjt-co2-inst'] = true; else if (['valve', 'globev', 'bflyv', 'psv'].includes(route)) NAV_OPEN['runpjt-co2-valve'] = true; }   // 2026-11-09.9: 잎 화면이면 상위 폴더 펼침
-  const runTree = () => `<div class="mgrp ${route === 'runpjt' || RUN_LEAVES.includes(route) ? 'act' : ''}">
+  const runTree = () => `<div class="mgrp ${route === 'runpjt' || RUN_LEAVES.includes(route) ? 'act' : ''}" data-node="g:runpjt">
        <div class="mhead">${btn({ k:'runpjt', l:'실행 프로젝트', n:'', c:0 }, 'top')}
          <button class="mtog" data-tog="runpjt" title="하위 메뉴 ${NAV_OPEN.runpjt ? '접기' : '펼치기'}" aria-label="하위 메뉴 접기/펼치기">${NAV_OPEN.runpjt ? '▾' : '▸'}</button></div>
        <div class="msub" ${NAV_OPEN.runpjt ? '' : 'hidden'}>${fold('runpjt-co2', 'CO2 PJT', fold('runpjt-co2-ds', 'Datasheet', [['dshub', 'Datasheet 현황판', ' minst'], ['dsdocs', '문서 · Revision 현황', ' mdoc'], ['dsref', '공통 자료', ' mref'], ['instinstindex', 'Instrument List', ' minl'], ['instiolist', 'IO List', ' minl']].map(([k, l, c]) => btn({ k, l, n:'', c:0 }, 'subi minsti' + c)).join('') + fold('runpjt-co2-valve', 'VALVE', [['valve', 'Ball Valve'], ['globev', 'Globe Valve'], ['bflyv', 'Butterfly Valve'], ['psv', 'PSV']].map(([k, l]) => btn({ k, l, n:'', c:0 }, 'subi')).join('')) + fold('runpjt-co2-inst', 'INSTRUMENT', INST_KINDS.map(([k, l], i) => ['all', 'instindex', 'iolist'].includes(k) ? '' : btn({ k:INST_ROUTES[i], l, n:'', c:0 }, 'subi minsti')).join(''))) + btn({ k:'co2sched', l:'Schedule', n:SCH.data ? SCH.data.items.length : '', c:0 }, 'subi mlv2'), 'co2pjt')}</div></div>`;
@@ -5367,6 +5411,7 @@ function renderMenu() {
     (can('finstagram') ? btn({ k:'finstagram', l:'재무스타그램', n:'', c:0 }, 'top') : '') +
     (can('board') ? btn({ k:'board', l:'익명게시판', n:root && DB.board ? DB.board.length : '', c:root ? boardNewCount() : 0, t:'마지막 확인 이후 새 글·댓글' }, 'top') : '') +
     (can('mgmt') ? group('mgmt', { k:'mgmt', l:'Management', n:'', c:0 }, [{ k:'mgalloc', l:'R&R · 투입 분석', n:'', c:0 }, { k:'mghours', l:'근무시간 (월·주·일)', n:'', c:0 }, { k:'mgwork', l:'근로시간 관리 (52h)', n:'', c:0 }, { k:'mgbday', l:'부서원 생일', n:'', c:0 }], MG_ROUTES.includes(route)) : '');
+  menuLayoutApply();
   menuReveal();
   $('#btnPerm').hidden = !(SERVER && ADMIN && root && !OFFLINE);   // 메뉴 권한 설정: 운영자(서버 PC)만
   const acct = SERVER && root;                              // 서버(또는 오프라인 보관본) 모드 = 계정 사용, 폴더 모드 = 이름만
