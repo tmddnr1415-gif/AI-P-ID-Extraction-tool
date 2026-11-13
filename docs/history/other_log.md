@@ -373,3 +373,5 @@
   `arearule.resolve`: 올린 도서의 Area → DTS No. → 표제 → 규칙 표 줄. **학습한 추정(Loop 번호 앞 두 자리 98-◦-00/01… = South)은 Site 를 정하지 않음** — 이것이
   North Tag 를 South 로 읽던 길. 라벨: Brownfield 묶음이 있는 Site 는 'QN Brownfield N1' / 'QN Greenfield', 없는 Site 는 'QS' · 'W15'.
   기본 표 DTS 줄에 이름 ('DTS 98 | QN | | North'). 실자료: QN Greenfield 74 · QN Brownfield N1 2 · N2 2 · (Train 미상) 3 · QS 76 · W15 7. 시험 +1 · 전체 2,096.
+- (추가 · 오케스트레이터가 알린 가끔 실패) 새 DB 를 여러 스레드가 동시에 열 때 'database is locked': busy_timeout 을 먼저, WAL 전환은 첫 사용 잠금 안에서 1번
+  (재현 40회 중 3회 → 0회 · 회사 첫 시작에도 해당). warm-up 대기열이 자료 폴더를 기억 — 폴더가 바뀌면(시험) 그 일을 건너뜀. 전체 2,096 두 번 통과.

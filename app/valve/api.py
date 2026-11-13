@@ -593,15 +593,17 @@ def _warm_steps(pid: int):
             ("issue-list", lambda: issues_json(pid, 1))]
 
 
-_WARM_QUEUE: list[int] = []
+_WARM_QUEUE: list[tuple[int, str]] = []          # (project, data folder)
 _WARM_QLOCK = threading.Lock()
 
 
-def _warm_one(pid: int):
+def _warm_one(pid: int, root: str = ""):
     """One project, step by step, each step logged (valve40: a native crash leaves 'which project · which step' behind)."""
     _WARMING.add(pid)
     try:
         for name, step in _warm_steps(pid):
+            if root and str(store.root()) != root:          # the data folder changed meanwhile (tests): not this folder's work
+                return
             _warn_log(f"warm p{pid} {name}")
             try:
                 step()
@@ -620,8 +622,9 @@ def _warm_worker():
             if not _WARM_QUEUE:
                 _WARM_THREAD.clear()
                 return
-            pid = _WARM_QUEUE.pop(0)
-        _warm_one(pid)
+            pid, root = _WARM_QUEUE.pop(0)
+        if str(store.root()) == root:
+            _warm_one(pid, root)
 
 
 _WARM_THREAD: list = []
@@ -634,9 +637,10 @@ def warm(pid: int):
     if not warm_enabled():
         return
     with _WARM_QLOCK:
-        if pid in _WARMING or pid in _WARM_QUEUE:
+        root = str(store.root())
+        if pid in _WARMING or (pid, root) in _WARM_QUEUE:
             return
-        _WARM_QUEUE.append(pid)
+        _WARM_QUEUE.append((pid, root))
         if _WARM_THREAD:
             return
         _WARM_THREAD.append(1)

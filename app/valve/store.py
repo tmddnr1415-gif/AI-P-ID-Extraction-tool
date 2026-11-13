@@ -96,11 +96,11 @@ def connect() -> sqlite3.Connection:
     path = str(root() / "valve.db")
     con = sqlite3.connect(path, timeout=30, check_same_thread=False, factory=_Con)
     con.row_factory = sqlite3.Row
-    con.execute("PRAGMA journal_mode=WAL")
-    con.execute("PRAGMA busy_timeout=30000")
+    con.execute("PRAGMA busy_timeout=30000")                 # valve40: wait first — then the WAL switch below never fails 'locked'
     if path not in _READY:
         with _READY_LOCK:                                    # first use of a NEW database: the warm-up thread and the first
             if path not in _READY:                           # request must not both add the same columns (valve29 fix)
+                con.execute("PRAGMA journal_mode=WAL")       # kept in the file: once per process is enough (valve40)
                 con.executescript(_SCHEMA)
                 _migrate(con)
                 _READY.add(path)
