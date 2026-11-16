@@ -36,7 +36,7 @@ ID_RE = re.compile(r'^[A-Za-z0-9_\-]{1,80}$')
 WEEK_RE = re.compile(r'^\d{4}-W\d{2}$')
 MAX_BODY = 30 * 1024 * 1024
 
-SERVER_VERSION = '2026-11-16.2'
+SERVER_VERSION = '2026-11-16.3'
 ROOT = os.path.dirname(os.path.abspath(__file__))
 PORT = 8080
 ALLOW_NETS = []          # 사내망: 루프백·사설망 + 서버 IP 대역(/16, 유선·Wi-Fi 등 지금까지 쓴 대역 모두 기억) + --allow 로 추가한 대역
@@ -2139,6 +2139,19 @@ def api_pid_probe(path):
         return {'status': 0}                                   # 이 PC 에 P&ID 서버가 없거나 꺼짐 — 판단 못 함
 
 
+def api_kitauth(ids):
+    """2026-11-16 운영자 부재 파일(대리인용 · 부서원용)에 넣을 오프라인 로그인 확인값.
+    파일마다 새 kitSalt — 확인값 v = sha256(kitSalt + 계정 해시) 만 내보냄(계정 해시 · 비밀번호는 내보내지 않음).
+    브라우저는 입력한 비밀번호로 같은 PBKDF2(salt, iter) 를 계산해 v 와 비교. ids 를 주면 그 계정만(대리인), 없으면 전원(부서원용)"""
+    want = {x.strip().lower() for x in ids.split(',') if x.strip()}
+    kit = os.urandom(16).hex()
+    users = [{'id': a['id'], 'name': a['name'], 'salt': a['salt'], 'iter': a.get('iter', PW_ITER),
+              'v': hashlib.sha256((kit + a['hash']).encode()).hexdigest()}
+             for a in all_accounts() if a.get('hash') and a.get('salt') and (not want or a['id'] in want)]
+    log.info('운영자 부재 파일 확인값 발급: %s명', len(users))
+    return {'kitSalt': kit, 'users': users}
+
+
 def api_sched_get(key):
     return read_json(P('data', '_meta', f'sched-{key}.json')) or {}
 
@@ -2707,6 +2720,9 @@ class Handler(BaseHTTPRequestHandler):
             if m == 'PUT':
                 acc = session_account(self.token(), False)
                 return api_finkey_put(self.json_body(), acc['name'] if acc else '운영자')
+        if head == 'admin' and seg[1:] == ['kitauth'] and m == 'GET':   # 2026-11-16 운영자 부재 파일: 오프라인 로그인 확인값 (운영자만)
+            self.need_admin()
+            return api_kitauth(str(q.get('ids') or ''))
         if head == 'admin' and seg[1:] == ['findiag'] and m == 'GET':   # 2026-11-09 재무스타그램 DART 연결 점검 (운영자)
             self.need_admin()
             return api_findiag()

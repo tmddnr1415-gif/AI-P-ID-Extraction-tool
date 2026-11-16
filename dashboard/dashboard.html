@@ -808,7 +808,9 @@ body.pid-mode #content>.banner{flex:none;margin:6px 16px}
 .pidframe{flex:1;display:block;width:100%;height:100%;border:0;background:#fff}
 .pidmsg{margin:auto;text-align:center;padding:40px}
 /* 서버 연결 / 오프라인 */
-.netbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.banner.netbar.trip{background:#e0f2fe!important;border-color:#7dd3fc!important;color:#075985!important}
+.netbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.banner.netbar.trip.kitm{background:#ede9fe!important;border-color:#c4b5fd!important;color:#4c1d95!important}
+.kitlock{position:fixed;inset:0;z-index:9999;background:rgba(15,23,42,.72);display:flex;align-items:center;justify-content:center}.kitbox{background:#fff;border-radius:16px;padding:22px 26px;width:min(400px,92vw);display:flex;flex-direction:column;gap:10px;box-shadow:0 20px 60px rgba(0,0,0,.4)}.kitbox h2{margin:0;font-size:18px}.kitbox label{display:flex;flex-direction:column;gap:3px;font-size:13px;font-weight:700}.kitbox input{padding:8px 10px;border:1px solid #cbd5e1;border-radius:8px;font:inherit}.kiterr{color:#b91c1c;font-size:12.5px;min-height:1em;margin:0}
+.okit section{border:1px solid var(--line);border-radius:12px;padding:10px 14px;margin:10px 0}.okit h3{margin:0 0 6px;font-size:15px}.okit h3 small{font-weight:500;color:var(--muted,#64748b);font-size:12px}.okit .muted{font-size:12.5px}.banner.netbar.trip{background:#e0f2fe!important;border-color:#7dd3fc!important;color:#075985!important}
 .netbar .sp{flex:1}
 .netbar a.btn{text-decoration:none}
 .net{font-size:12px;font-weight:700}
@@ -1933,7 +1935,7 @@ body.schbigon{overflow:hidden}@keyframes schBigIn{from{transform:scale(.97);opac
       <button class="btn" id="btnXlsx">엑셀 내보내기</button>
       <button class="btn" id="btnPrint">인쇄</button>
       <button class="btn" id="btnQueue" title="오프라인 대기열 보기·내보내기·가져오기">대기열</button>
-      <button class="btn" id="btnTrip" hidden title="출장 가는 부서원용 오프라인 파일 만들기 · 출장자가 보낸 입력 파일 반영">✈ 출장용 파일</button>
+      <button class="btn" id="btnTrip" hidden title="출장용 · 운영자 부재용 오프라인 파일 만들기 · 받은 파일 반영">✈ 오프라인 파일</button>
     </div>
   </header>
   <div id="content"></div>
@@ -2060,7 +2062,7 @@ function recLabel(key, f) {
  * ===================================================================== */
 let root = null;
 /* 서버 모드: http(s):// 로 접속하면 server.py 의 REST API 사용 (폴더 선택 불필요). file:// 로 열면 폴더 모드 */
-const APP_VERSION = '2026-11-16.4';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
+const APP_VERSION = '2026-11-16.5';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
 const SERVER_URL = 'http://localhost:8080';
 // 부서원 PC 사본(file://)이 접속을 시도할 서버 — 서버가 배포 파일을 만들 때 'PC 이름 주소, IP 주소' 순으로 자동 기록함
 const DEFAULT_SERVERS = ['http://ASEUNGWOOK-B01:8080', 'http://65.3.30.234:8080'];
@@ -2522,33 +2524,104 @@ async function withSnap(html) {
    ③ 운영자: [✈ 출장용 파일] → [받은 입력 파일 반영] → 서버에 그 사람 이름으로 반영 (서버는 운영자 PC 에서 올릴 때만 원래 작성자 이름을 받아 줌 · 충돌하면 비교 창)
    비밀번호 · 로그인 토큰은 파일에 넣지 않음 — 이름표는 '누가 쓴 입력인지' 표시용 */
 const TRIP_TAG = ['<scr' + 'ipt id="deptTrip" type="application/json">', '</scr' + 'ipt>'];
-let TRIP = null;
-function tripLoad() { try { const t = document.getElementById('deptTrip')?.textContent; return t ? JSON.parse(t) : null; } catch (_) { return null; } }
+const KIT_TAG = ['<scr' + 'ipt id="deptKit" type="application/json">', '</scr' + 'ipt>'];      // 2026-11-16 운영자 부재 파일 (대리인 마스터 · 부서원용)
+const KQ_TAG = ['<scr' + 'ipt id="deptKitQ" type="application/json">', '</scr' + 'ipt>'];      // 대리인 파일 안에 넣은 취합 입력
+let TRIP = null, KIT = null;
+const tagLoad = id => { try { const t = document.getElementById(id)?.textContent; return t ? JSON.parse(t) : null; } catch (_) { return null; } };
+function tripLoad() { return tagLoad('deptTrip'); }
+const tagStrip = (html, T) => html.replace(new RegExp(T[0] + '[^<]*' + T[1].replace('/', '\\/') + '\\n?', 'g'), '');
+const tagPut = (html, T, obj) => { html = tagStrip(html, T); const blk = T[0] + JSON.stringify(obj).replace(/</g, '\\u003c') + T[1] + '\n', i = html.lastIndexOf('</body>'); return i < 0 ? html + blk : html.slice(0, i) + blk + html.slice(i); };
+const dlFile = (text, name, type = 'text/html') => { const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([text], { type })); a.download = name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 5000); };
+async function freshHtml() { await loadAll(); await cacheSave(); return withSnap(await newHtml()); }   // 지금 서버 데이터가 든 dashboard
+/* ---------- ✈ 오프라인 파일 (출장용 + 운영자 부재) — 한 창에서 만들기 · 반영 ----------
+   출장용: 부서원 누구나 → 한 사람 이름표 파일(비밀번호 없이 그 이름으로 입력) → 그 사람이 보낸 입력 파일(json)을 받은 부서원이 반영
+   운영자 부재(운영자만, 출장 전에): ① 대리인용(마스터) = 지정 대리인만 ID · 비밀번호로 들어감, 부서원 · 출장자 파일을 가져와 취합 · 저장
+     ② 부서원용 = 부서원 누구나 ID · 비밀번호로 들어가 입력 → [💾 저장] = 대리인에게 보낼 파일 → ③ 운영자가 돌아와 대리인 파일(html 또는 json)을 반영 = 각자 이름으로 서버에
+   오프라인 비밀번호 확인: 서버가 파일마다 새 kitSalt 로 만든 확인값 v = sha256(kitSalt + 계정 해시) 만 넣음 (비밀번호 · 계정 해시는 넣지 않음) */
 async function openTrip() {
   let users = []; try { const r = await api('GET', 'profiles'); users = (Array.isArray(r) ? r : r.profiles || r.users || []).filter(u => u && u.id && u.name).sort((a, b) => a.name.localeCompare(b.name, 'ko')); } catch (e) { return toast('부서원 목록을 불러오지 못했습니다: ' + e.message, true); }
-  openDlg(dlg, `<div class="dh"><span>✈ 출장용 오프라인 파일</span><button class="btn sm" data-close>닫기</button></div>
-    <div class="db"><p style="margin-top:0">사내망 밖(해외 출장 등)에서 서버에 못 들어가는 부서원이 <b>파일 하나로 열어 입력</b>하고, 입력한 것을 파일로 돌려보내면 <b>받은 사람(누구든)</b>이 여기서 대시보드에 반영합니다.</p>
-      <h3 style="margin:12px 0 6px">① 보낼 파일 만들기</h3>
-      <label class="fl">부서원 <select id="tripWho">${users.map(u => `<option value="${esc(u.id)}" data-name="${esc(u.name)}">${esc(u.name)} (${esc(u.id)})</option>`).join('')}</select></label>
-      <p class="muted" style="font-size:12.5px">지금 서버의 데이터가 들어간 <b>dashboard 파일</b>을 받습니다 → 메일 · 메신저로 그 부서원에게 보내세요. 그 사람은 파일을 열기만 하면 서버 없이 보고 · 입력할 수 있습니다 (비밀번호는 들어가지 않음).</p>
-      <p><button class="btn pri" id="tripMake">⬇ 출장용 파일 만들기</button></p>
-      <h3 style="margin:16px 0 6px">② 받은 입력 파일 반영</h3>
-      <p class="muted" style="font-size:12.5px">출장자가 보낸 <b>대기열_이름_날짜.json</b> 을 고르면 서버에 <b>그 사람(출장자) 이름으로</b> 덮어써 반영합니다 — 이력에는 '반영: 내 이름' 이 함께 남습니다. 그사이 서버에서 같은 행을 누가 고쳤으면 비교 창이 뜹니다.</p>
-      <p><input type="file" id="tripFile" accept=".json,application/json" hidden><button class="btn" id="tripImp">📥 받은 입력 파일 고르기</button></p></div>
-    <div class="df"><button class="btn" data-close>닫기</button></div>`);
+  const opt = users.map(u => `<option value="${esc(u.id)}" data-name="${esc(u.name)}">${esc(u.name)} (${esc(u.id)})</option>`).join('');
+  openDlg(dlg, `<div class="dh"><span>✈ 오프라인 파일 — 출장 · 운영자 부재</span><button class="btn sm" data-close>닫기</button></div>
+    <div class="db okit"><p style="margin-top:0" class="muted">사내망 밖(출장)이거나 서버(운영자 PC)가 꺼져 있는 동안에도 <b>파일로 열어 입력</b>하고, 나중에 서버에 <b>각자 이름으로</b> 반영합니다. 비밀번호는 파일에 들어가지 않습니다.</p>
+      <section><h3>✈ 출장용 파일 <small>부서원 누구나</small></h3>
+        <label class="fl">출장자 <select id="tripWho">${opt}</select></label> <button class="btn pri" id="tripMake">⬇ 출장용 파일 만들기</button>
+        <p class="muted">받은 사람은 파일을 열기만 하면 서버 없이 그 이름으로 입력 → [📤 보낼 파일 만들기] → 돌려받아 아래 [받은 파일 반영].</p></section>
+      ${ADMIN ? `<section><h3>🗝 운영자 부재 파일 <small>운영자(서버 PC) · 출장 · 휴가 전에</small></h3>
+        <label class="fl">대리인 <select id="kitWho">${opt}</select></label>
+        <p><button class="btn pri" id="kitMaster">⬇ 대리인용 파일 (마스터)</button> <button class="btn" id="kitMember">⬇ 부서원용 파일</button></p>
+        <p class="muted">대리인용 = <b>지정 대리인만</b> ID · 비밀번호로 열림, 부서원 · 출장자 파일을 가져와 취합하고 [💾 저장] 으로 취합본을 받음 → 운영자가 돌아오면 그 파일을 아래에서 반영.<br>
+          부서원용 = <b>부서원 누구나</b> ID · 비밀번호로 열림 → 입력 → [💾 저장] = 대리인에게 보낼 파일. 두 파일 모두 지금 서버 데이터가 들어 있음.</p></section>` : ''}
+      <section><h3>📥 받은 파일 반영 <small>서버가 켜져 있을 때</small></h3>
+        <p class="muted">출장자 · 부서원이 보낸 <b>입력 파일(.json)</b> 또는 대리인이 보낸 <b>대리인용 파일(.html, 취합본)</b> 을 고르면 서버에 <b>쓴 사람 이름으로</b> 덮어써 반영합니다(이력에 '✈ 반영: 내 이름'). 같은 행을 그사이 누가 고쳤으면 비교 창.</p>
+        <p><input type="file" id="tripFile" accept=".json,.html,.htm,application/json,text/html" multiple hidden><button class="btn" id="tripImp">📥 받은 파일 고르기 (여러 개 가능)</button></p></section></div>
+    <div class="df"><button class="btn" data-close>닫기</button></div>`, true);
   dlg.onclick = e => { if (e.target.closest('[data-close]')) dlg.close(); };
-  $('#tripMake', dlg).onclick = async () => { const o = $('#tripWho', dlg).selectedOptions[0]; if (!o) return; await tripMake(o.value, o.dataset.name); };
+  const pick = id => { const o = $(id, dlg).selectedOptions[0]; return o ? [o.value, o.dataset.name] : []; };
+  $('#tripMake', dlg).onclick = async () => { const [id, name] = pick('#tripWho'); if (id) await tripMake(id, name); };
+  if (ADMIN) { $('#kitMaster', dlg).onclick = () => kitMake('master', ...pick('#kitWho')); $('#kitMember', dlg).onclick = () => kitMake('member', ...pick('#kitWho')); }
   $('#tripImp', dlg).onclick = () => $('#tripFile', dlg).click();
-  $('#tripFile', dlg).onchange = async e => { const f = e.target.files[0]; if (!f) return; if (!AUTH) return toast('먼저 로그인하세요', true); dlg.close(); await importQueue(f, true); };
+  $('#tripFile', dlg).onchange = async e => { const fs = [...e.target.files]; if (!fs.length) return; if (!AUTH) return toast('먼저 로그인하세요', true); dlg.close(); for (const f of fs) await importQueue(f, true); };
 }
 async function tripMake(id, name) {
-  let html; try { await loadAll(); await cacheSave(); html = await withSnap(await newHtml()); } catch (e) { return toast('파일을 만들지 못했습니다: ' + e.message, true); }
-  html = html.replace(new RegExp(TRIP_TAG[0] + '[^<]*' + TRIP_TAG[1].replace('/', '\\/') + '\\n?', 'g'), '');
-  const blk = TRIP_TAG[0] + JSON.stringify({ id, name, at:stamp(), by:AUTH?.name || user || '운영자', server:API_BASE || location.origin }).replace(/</g, '\\u003c') + TRIP_TAG[1] + '\n', i = html.lastIndexOf('</body>');
-  html = i < 0 ? html + blk : html.slice(0, i) + blk + html.slice(i);
-  const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([html], { type:'text/html' })); a.download = `대시보드_출장_${safeName(name)}_${todayISO()}.html`;
-  document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 5000);
-  toast(`✈ ${name} 님용 출장 파일을 받았습니다 — 다운로드 폴더의 파일을 그 부서원에게 보내세요`);
+  let html; try { html = await freshHtml(); } catch (e) { return toast('파일을 만들지 못했습니다: ' + e.message, true); }
+  html = tagPut(tagPut(tagStrip(html, KQ_TAG), KIT_TAG, null), TRIP_TAG, { id, name, at:stamp(), by:AUTH?.name || user || '', server:API_BASE || location.origin });
+  html = tagStrip(html, KIT_TAG);
+  dlFile(html, `대시보드_출장_${safeName(name)}_${todayISO()}.html`);
+  toast(`✈ ${name} 님용 출장 파일을 받았습니다 — 다운로드 폴더의 파일을 그 사람에게 보내세요`);
+}
+async function kitMake(mode, id, name) {
+  if (!id) return; let html, au;
+  try { au = await api('GET', 'admin/kitauth?ids=' + (mode === 'master' ? encodeURIComponent(id) : '')); html = await freshHtml(); } catch (e) { return toast('파일을 만들지 못했습니다: ' + e.message, true); }
+  const kitId = 'kit-' + Date.now().toString(36);
+  const kit = { mode, kitId, proxy:{ id, name }, at:stamp(), by:AUTH?.name || '운영자', server:API_BASE || location.origin, kitSalt:au.kitSalt, users:au.users.map(({ id, name, salt, iter, v }) => ({ id, name, salt, iter, v })) };
+  html = tagPut(tagStrip(tagStrip(html, TRIP_TAG), KQ_TAG), KIT_TAG, kit);
+  dlFile(html, mode === 'master' ? `대시보드_운영자부재_대리인용_${safeName(name)}_${todayISO()}.html` : `대시보드_운영자부재_부서원용_${todayISO()}.html`);
+  toast(mode === 'master' ? `🗝 대리인(${name}) 전용 파일을 받았습니다 — 대리인에게만 보내세요` : '👥 부서원용 파일을 받았습니다 — 부서원 모두에게 보내세요 (각자 ID · 비밀번호로 열림)');
+}
+/* 오프라인 로그인 (운영자 부재 파일): 브라우저에서 PBKDF2(비밀번호, salt, iter) → sha256(kitSalt + 그 값) = v 이면 통과 */
+const hexB = h => new Uint8Array(h.match(/../g).map(x => parseInt(x, 16))), bHex = b => [...new Uint8Array(b)].map(x => x.toString(16).padStart(2, '0')).join('');
+async function kitVerify(u, pw) {
+  const k = await crypto.subtle.importKey('raw', new TextEncoder().encode(pw), 'PBKDF2', false, ['deriveBits']);
+  const h = bHex(await crypto.subtle.deriveBits({ name:'PBKDF2', salt:hexB(u.salt), iterations:u.iter || 200000, hash:'SHA-256' }, k, 256));
+  return bHex(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(KIT.kitSalt + h))) === u.v;
+}
+function kitLogin() {   // 잠금 화면: 대리인용 = 지정 대리인만, 부서원용 = 명단 누구나
+  return new Promise(res => {
+    const w = document.createElement('div'); w.className = 'kitlock';
+    w.innerHTML = `<form class="kitbox"><h2>${KIT.mode === 'master' ? '🗝 운영자 부재 · 대리인용' : '👥 운영자 부재 · 부서원용'}</h2>
+      <p class="muted">${KIT.mode === 'master' ? `지정 대리인 <b>${esc(KIT.proxy.name)}</b> 님만 들어갈 수 있습니다.` : '부서원 누구나 대시보드 ID · 비밀번호로 들어갑니다.'}<br>데이터 기준 ${esc(fmtTime(KIT.at) || '-')} · 서버 없이 이 PC 에 보관</p>
+      <label>ID <input name="id" autocomplete="username" required></label><label>비밀번호 <input name="pw" type="password" autocomplete="current-password" required></label>
+      <p class="kiterr"></p><button class="btn pri">들어가기</button></form>`;
+    document.body.appendChild(w); const f = w.querySelector('form'), fi = w.querySelector('[name=id]'), fp = w.querySelector('[name=pw]'); fi.focus();
+    f.onsubmit = async e => { e.preventDefault(); const id = fi.value.trim().toLowerCase(), u = KIT.users.find(x => x.id === id), er = w.querySelector('.kiterr');
+      if (KIT.mode === 'master' && id !== KIT.proxy.id) { er.textContent = '이 파일은 지정 대리인만 열 수 있습니다'; return; }
+      er.textContent = '확인 중…'; let ok = false; try { ok = !!u && await kitVerify(u, fp.value); } catch (x) { er.textContent = '이 브라우저에서 확인할 수 없습니다: ' + x.message; return; }
+      if (!ok) { er.textContent = 'ID 또는 비밀번호가 맞지 않습니다'; fp.value = ''; return; }
+      w.remove(); res(u); };
+  });
+}
+async function kitBoot() {   // 파일 열기 오프라인 분기에서: 운영자 부재 파일이면 로그인 → 그 이름으로 입력. 대리인 파일 안 취합 입력도 이 PC 대기열로
+  const q = tagLoad('deptKitQ'); if (q?.ops?.length) { const have = new Set(QUEUE.map(o => o.uid)); const add = q.ops.filter(o => o?.uid && !have.has(o.uid)); if (add.length) { QUEUE.push(...add); await queueSave(); } }
+  const u = await kitLogin(); AUTH = null; user = u.name; GUEST = false; return u;
+}
+async function kitSave(asJson) {   // 저장: 부서원용 = 대리인에게 보낼 입력 파일(json) / 대리인용 = 취합본을 이 대리인 파일(html) 안에 써 넣음(다시 열어도 그대로 · 운영자에게 이 파일) — 안 되면 json
+  if (KIT?.mode !== 'master') return exportQueue(`입력_${safeName(user)}_${todayISO()}`);
+  const data = { type:'dept-dashboard-queue', version:1, kitId:KIT.kitId, exportedAt:stamp(), exportedBy:user, ops:QUEUE };
+  if (!asJson && 'showOpenFilePicker' in window) {
+    try {
+      let h = null; try { h = await kv('readonly', st => st.get('kitself')); } catch (_) {}
+      if (h && (await h.queryPermission({ mode:'readwrite' })) !== 'granted' && (await h.requestPermission({ mode:'readwrite' })) !== 'granted') h = null;
+      if (!h) { await ask('💾 대리인 파일에 저장', `<p style="margin-top:0">처음 한 번만 <b>지금 열려 있는 대리인용 파일</b>(${esc(decodeURIComponent(location.pathname.split('/').pop()))})을 골라 주세요. 그 파일 안에 취합본을 써 넣습니다 — 다음부터는 바로 저장됩니다.</p>`, [{ id:'ok', label:'파일 고르기', cls:'pri' }]);
+        [h] = await window.showOpenFilePicker({ types:[{ description:'대시보드 대리인용 파일', accept:{ 'text/html':['.html', '.htm'] } }] }); if ((await h.requestPermission({ mode:'readwrite' })) !== 'granted') throw new Error('쓰기 허락이 없습니다'); }
+      const txt = await (await h.getFile()).text(), m = txt.match(/<script id="deptKit" type="application\/json">([^<]*)<\/script>/);
+      if (!m || JSON.parse(m[1]).kitId !== KIT.kitId) { try { await kv('readwrite', st => st.delete('kitself')); } catch (_) {} throw new Error('고른 파일이 이 대리인용 파일이 아닙니다'); }
+      const w = await h.createWritable(); await w.write(tagPut(txt, KQ_TAG, data)); await w.close();
+      try { await kv('readwrite', st => st.put(h, 'kitself')); } catch (_) {}
+      return toast(`💾 취합본 ${QUEUE.length}건을 대리인 파일(${h.name})에 저장했습니다 — 운영자가 돌아오면 이 파일을 보내세요`);
+    } catch (e) { if (e.name === 'AbortError') return; toast('파일에 저장하지 못해 취합본을 따로 받습니다: ' + e.message, true); }
+  }
+  dlFile(JSON.stringify(data, null, 2), `대리인취합_${safeName(KIT.proxy.name)}_${todayISO()}.json`, 'application/json');
+  toast(`⬇ 취합본 ${QUEUE.length}건을 파일(json)로 받았습니다 — 운영자에게 이 파일을 보내세요`);
 }
 function snapLoad() { try { const t = document.getElementById('deptSnap')?.textContent; return t ? JSON.parse(t) : null; } catch (_) { return null; } }
 async function saveCopy() {                                 // [내 PC 사본 받기]: 서버의 최신 파일 + 지금 보관본 → dashboard.html 내려받기
@@ -2922,17 +2995,19 @@ function openQueue() {
   $('#qFile').onchange = e => { const f = e.target.files[0]; if (f) importQueue(f); };
   $('#qSync').onclick = async () => { dlg.close(); await trySync(true); };
 }
-function exportQueue() {
-  const d = new Date(), data = { type:'dept-dashboard-queue', version:1, exportedAt:stamp(), exportedBy:user, ops:QUEUE };
+function exportQueue(base) {
+  const d = new Date(), data = { type:'dept-dashboard-queue', version:1, exportedAt:stamp(), exportedBy:user, ...(KIT ? { kitId:KIT.kitId } : {}), ops:QUEUE };
   const a = document.createElement('a');
   a.href = URL.createObjectURL(new Blob([JSON.stringify(data, null, 2)], { type:'application/json' }));
-  a.download = `대기열_${safeName(user)}_${todayISO()}_${pad(d.getHours())}${pad(d.getMinutes())}.json`;
+  a.download = `${typeof base === 'string' ? base : `대기열_${safeName(user)}_${todayISO()}`}_${pad(d.getHours())}${pad(d.getMinutes())}.json`;
   a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 3000);
   toast(`대기열 ${QUEUE.length}건을 파일로 내보냈습니다`);
 }
 async function importQueue(file, trip) {   // trip: 출장자 입력 파일 → 다른 사람 이름 행도 이 PC 에서 그 이름으로 반영(op.trip)
   try {
-    const d = JSON.parse(await file.text());
+    const txt = await file.text(); let d;
+    if (/^\s*</.test(txt)) { const m = txt.match(/<script id="deptKitQ" type="application\/json">([^<]*)<\/script>/); if (!m) throw new Error('취합된 입력이 없는 대시보드 파일입니다 (대리인이 [💾 저장] 으로 받은 파일인지 확인)'); d = JSON.parse(m[1]); }   // 2026-11-16 대리인용(취합) html
+    else d = JSON.parse(txt);
     if (d.type !== 'dept-dashboard-queue' || !Array.isArray(d.ops)) throw new Error('대기열 파일이 아닙니다');
     const have = new Set(QUEUE.map(o => o.uid));
     const add = d.ops.filter(o => o && o.uid && !have.has(o.uid) && SHEET[o.key] && OPNAME[o.op] && /^[A-Za-z0-9_\-]{1,80}$/.test(o.id));
@@ -5286,7 +5361,14 @@ function render() {
   if (!root) return renderWelcome(c);
   const sy = window.scrollY, tw = $('.tw'), tx = tw ? [tw.scrollLeft, tw.scrollTop] : null;   // 자동 갱신 시 스크롤 위치 유지
   let banners = '';
-  if (OFFLINE && TRIP) banners += `<div class="banner netbar trip">✈ <b>출장 오프라인 입력 · ${esc(TRIP.name)} 님</b> · 데이터 ${fmtTime(TRIP.at) || '-'} 기준 · 입력 <b>${QUEUE.length}</b>건
+  if (OFFLINE && KIT) banners += KIT.mode === 'master'
+    ? `<div class="banner netbar trip kitm">🗝 <b>운영자 부재 · 대리인용(마스터) · ${esc(user)} 님</b> · 데이터 ${fmtTime(KIT.at) || '-'} 기준 · 취합 입력 <b>${QUEUE.length}</b>건 (${new Set(QUEUE.map(o => o.by)).size}명)
+      <span class="muted">— 부서원 · 출장자가 보낸 파일을 [📥 가져오기] 로 모으고 [💾 저장] 으로 이 파일에 취합본을 써 넣으세요. 운영자가 돌아오면 이 파일(또는 [⬇ 취합본 받기] 파일)을 보내면 서버에 각자 이름으로 반영됩니다</span>
+      <span class="sp"></span><input type="file" id="kitIn" accept=".json,.html,.htm" multiple hidden><button class="btn sm" data-net="kitin">📥 부서원 · 출장자 파일 가져오기</button><button class="btn sm pri" data-net="kitsave">💾 저장 (이 대리인 파일에)</button><button class="btn sm" data-net="kitjson" title="운영자에게 보낼 취합본만 따로 (json)">⬇ 취합본 받기</button><button class="btn sm" data-net="queue">입력 목록</button></div>`
+    : `<div class="banner netbar trip">👥 <b>운영자 부재 · 부서원용 · ${esc(user)} 님</b> · 데이터 ${fmtTime(KIT.at) || '-'} 기준 · 내 입력 <b>${QUEUE.filter(o => o.by === user).length}</b>건
+      <span class="muted">— 입력은 이 PC 에 보관됩니다. 다 쓰면 [💾 저장] → 받은 파일을 대리인 <b>${esc(KIT.proxy.name)}</b> 님에게 보내세요</span>
+      <span class="sp"></span><button class="btn sm pri" data-net="kitsave" ${QUEUE.length ? '' : 'disabled'}>💾 저장 (대리인에게 보낼 파일)</button><button class="btn sm" data-net="queue">입력 목록</button></div>`;
+  else if (OFFLINE && TRIP) banners += `<div class="banner netbar trip">✈ <b>출장 오프라인 입력 · ${esc(TRIP.name)} 님</b> · 데이터 ${fmtTime(TRIP.at) || '-'} 기준 · 입력 <b>${QUEUE.length}</b>건
       <span class="muted">— 입력한 내용은 이 PC 에 보관됩니다. 다 쓰면 [📤 보낼 파일 만들기] → 그 파일을 이 파일을 준 부서원에게 보내세요 (그 사람이 대시보드에 반영)</span>
       <span class="sp"></span><button class="btn sm pri" data-net="tripx" ${QUEUE.length ? '' : 'disabled'}>📤 보낼 파일 만들기</button><button class="btn sm" data-net="queue">입력 목록</button></div>`;
   else if (OFFLINE) banners += `<div class="banner bad netbar">📴 <b>오프라인 · ${fmtTime(OFFLINE_AT) || '-'} 기준</b> (이 PC에 보관된 최신본) · 대기 <b>${QUEUE.length}</b>건
@@ -5464,7 +5546,8 @@ function renderMenu() {
     $('#acctAv').hidden = !AUTH; if (AUTH) $('#acctAv').innerHTML = avHtml(AUTH.name);   // 2026-11-08 왼쪽 계정 줄에 동그란 사진 (사진 없으면 이름 첫 글자)
     $('#acctName').innerHTML = AUTH ? `${bdayToday(AUTH.name) ? HAT : ''}${esc(AUTH.name)} 님` : '비회원';   // 생일 당일 = 고깔모자
     $('#acctSub').textContent = AUTH ? `${AUTH.id} · 계장ENG그룹` : '보기 전용 · 로그인하면 편집 가능';
-    if (TRIP && !AUTH) { $('#acctName').innerHTML = `✈ ${esc(TRIP.name)} 님`; $('#acctSub').textContent = '출장 오프라인 입력 · 서버 없이 보관'; }   // 2026-11-16 출장용 파일
+    if (KIT && OFFLINE && !AUTH) { $('#acctName').innerHTML = `${KIT.mode === 'master' ? '🗝' : '👥'} ${esc(user)} 님`; $('#acctSub').textContent = KIT.mode === 'master' ? '운영자 부재 · 대리인(마스터)' : '운영자 부재 · 부서원용 (오프라인)'; }
+    else if (TRIP && !AUTH) { $('#acctName').innerHTML = `✈ ${esc(TRIP.name)} 님`; $('#acctSub').textContent = '출장 오프라인 입력 · 서버 없이 보관'; }   // 2026-11-16 출장용 파일
     $('#acctAct').innerHTML = AUTH ? '<span>⇥</span> 로그아웃' : '<span>⇥</span> 로그인 / 계정 개설';
     $('#acctProf').hidden = !AUTH; $('#acctPw').hidden = !AUTH || OFFLINE;
   }
@@ -10170,7 +10253,7 @@ $('#content').onclick = e => {
   const ba = e.target.closest('[data-bact]'); if (ba) return boardAction(ba);
   const nb = e.target.closest('[data-net]'); if (nb) return nb.dataset.net === 'sync' ? trySync(true) : nb.dataset.net === 'upd' ? askUpdate(true)
     : nb.dataset.net === 'embed' ? embedSelf(true) : nb.dataset.net === 'embedno' ? (() => { try { localStorage.setItem('dept-embed-hide', todayISO()); } catch (_) {} render(); })()
-    : nb.dataset.net === 'tripx' ? exportQueue() : nb.dataset.net === 'copy' ? saveCopy() : nb.dataset.net === 'copyno' ? (() => { try { localStorage.setItem('dept-copy-hide', todayISO()); } catch (_) {} render(); })() : openQueue();
+    : nb.dataset.net === 'tripx' ? exportQueue() : nb.dataset.net === 'kitsave' ? kitSave() : nb.dataset.net === 'kitjson' ? kitSave(true) : nb.dataset.net === 'kitin' ? (() => { const i = $('#kitIn'); i.onchange = async () => { for (const f of [...i.files]) await importQueue(f, true); render(); }; i.click(); })() : nb.dataset.net === 'copy' ? saveCopy() : nb.dataset.net === 'copyno' ? (() => { try { localStorage.setItem('dept-copy-hide', todayISO()); } catch (_) {} render(); })() : openQueue();
   if (PID_ROUTES[route]) { if (e.target.closest('[data-finkey]')) return openFinKey(); if (e.target.closest('[data-pidforce]')) { const w = $('#pidwrap'); if (w) w.dataset.force = '1'; return pidConnect(route); } if (e.target.closest('[data-pidretry]')) pidConnect(route); return; }
   if (MODULES[route] || APP_ROUTES[route]) return;
   if (route === 'board') return;
@@ -10403,7 +10486,9 @@ setInterval(() => { if (SERVER && root && (OFFLINE || QUEUE.length) && !boardTyp
     if (c) {
       OFFLINE = true; root = { name:'오프라인 (이 PC 보관본)' };
       if (AUTH) user = AUTH.name; else { user = ''; GUEST = true; }   // 오프라인: 마지막 로그인 계정으로 (서버 연결 시 토큰 재확인), 없으면 보기 전용
-      const tp = tripLoad(); if (tp && tp.name && (!AUTH || AUTH.name !== tp.name)) { TRIP = tp; AUTH = null; user = tp.name; GUEST = false; }   // 2026-11-16 출장용 파일: 그 사람 이름으로 오프라인 입력
+      KIT = tagLoad('deptKit');
+      if (KIT?.users) await kitBoot();   // 2026-11-16 운영자 부재 파일: ID · 비밀번호로 들어가 그 이름으로 입력 (대리인용 = 지정 대리인만)
+      else { const tp = tripLoad(); if (tp && tp.name && (!AUTH || AUTH.name !== tp.name)) { TRIP = tp; AUTH = null; user = tp.name; GUEST = false; } }   // 2026-11-16 출장용 파일: 그 사람 이름으로 오프라인 입력
       try { await loadAll(); } catch (e) { toast(e.message, true); }
       render(); showMyTodo(); bdayCheck(); if (BLOCKED) toast(BLOCKED, true); return;   // 오프라인으로 연 파일: 보관 명단으로 생일 팝업
     }
