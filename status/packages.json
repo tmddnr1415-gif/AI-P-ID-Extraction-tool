@@ -438,6 +438,19 @@
    },
    "replaces": "9_DASHBOARD_update_v17.52_from_v17.47_2026-11-13.zip",
    "note": "v17.57 — 메뉴 끌어 놓기 · 통합 업무/유닛분장 · 출장용 오프라인 파일 (server.py 바뀜 → 서버 재시작)"
+  },
+  {
+   "file": "①",
+   "name": "2_DASHBOARD_update_v17.58_from_v17.47_2026-11-16.zip",
+   "made": "2026-11-16 12:55",
+   "path": "company-pc-update/2026-11-16/ (1.4MB · 저장소에 있음)",
+   "sha256": "100b446427e58187a1220bbd1a409978c9517337ad39dac1f917483b1d2274fd",
+   "applied": "",
+   "tips": {
+    "S1": "eaa38e5e"
+   },
+   "replaces": "1_DASHBOARD_update_v17.57_from_v17.47_2026-11-16.zip",
+   "note": "v17.58 — v17.57 + 운영자 부재 오프라인 파일 (server.py 바뀜 → 서버 재시작)"
   }
  ]
 }
