@@ -425,6 +425,19 @@
    },
    "replaces": "8_DASHBOARD_update_v17.50_from_v17.47_2026-11-13.zip",
    "note": "v17.52 — v17.50 + 구매 현황 보고 일정 연기 열 · 지연은 전망 기준"
+  },
+  {
+   "file": "①",
+   "name": "1_DASHBOARD_update_v17.57_from_v17.47_2026-11-16.zip",
+   "made": "2026-11-16 12:30",
+   "path": "company-pc-update/2026-11-16/ (1.4MB · 저장소에 있음)",
+   "sha256": "e44345abda5d194bf9874f04fb38390f109214db81ad7bb5f6c12b9b383a70e3",
+   "applied": "",
+   "tips": {
+    "S1": "46e5a133"
+   },
+   "replaces": "9_DASHBOARD_update_v17.52_from_v17.47_2026-11-13.zip",
+   "note": "v17.57 — 메뉴 끌어 놓기 · 통합 업무/유닛분장 · 출장용 오프라인 파일 (server.py 바뀜 → 서버 재시작)"
   }
  ]
 }
