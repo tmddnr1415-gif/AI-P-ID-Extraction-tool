@@ -451,6 +451,19 @@
    },
    "replaces": "1_DASHBOARD_update_v17.57_from_v17.47_2026-11-16.zip",
    "note": "v17.58 — v17.57 + 운영자 부재 오프라인 파일 (server.py 바뀜 → 서버 재시작)"
+  },
+  {
+   "file": "①",
+   "name": "3_DASHBOARD_update_v17.59_from_v17.47_2026-11-16.zip",
+   "made": "2026-11-16 14:05",
+   "path": "company-pc-update/2026-11-16/ (1.4MB · 저장소에 있음)",
+   "sha256": "6bbf9a47b852766af013a3bbe71834543664ba6bf06a8439695e73ec4b6442c4",
+   "applied": "",
+   "tips": {
+    "S1": "c7b90b06"
+   },
+   "replaces": "2_DASHBOARD_update_v17.58_from_v17.47_2026-11-16.zip",
+   "note": "v17.59 — 오프라인 파일 반영 오류('취합된 입력이 없는 대시보드 파일') 고침 · 비밀번호 목록 안내"
   }
  ]
 }
