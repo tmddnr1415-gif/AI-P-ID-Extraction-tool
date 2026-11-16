@@ -1933,7 +1933,7 @@ body.schbigon{overflow:hidden}@keyframes schBigIn{from{transform:scale(.97);opac
       <button class="btn" id="btnXlsx">엑셀 내보내기</button>
       <button class="btn" id="btnPrint">인쇄</button>
       <button class="btn" id="btnQueue" title="오프라인 대기열 보기·내보내기·가져오기">대기열</button>
-      <button class="btn" id="btnTrip" hidden title="운영자: 출장 가는 부서원용 오프라인 파일 만들기 · 받은 입력 파일 반영">✈ 출장용 파일</button>
+      <button class="btn" id="btnTrip" hidden title="출장 가는 부서원용 오프라인 파일 만들기 · 출장자가 보낸 입력 파일 반영">✈ 출장용 파일</button>
     </div>
   </header>
   <div id="content"></div>
@@ -2060,7 +2060,7 @@ function recLabel(key, f) {
  * ===================================================================== */
 let root = null;
 /* 서버 모드: http(s):// 로 접속하면 server.py 의 REST API 사용 (폴더 선택 불필요). file:// 로 열면 폴더 모드 */
-const APP_VERSION = '2026-11-16.3';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
+const APP_VERSION = '2026-11-16.4';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
 const SERVER_URL = 'http://localhost:8080';
 // 부서원 PC 사본(file://)이 접속을 시도할 서버 — 서버가 배포 파일을 만들 때 'PC 이름 주소, IP 주소' 순으로 자동 기록함
 const DEFAULT_SERVERS = ['http://ASEUNGWOOK-B01:8080', 'http://65.3.30.234:8080'];
@@ -2516,7 +2516,8 @@ async function withSnap(html) {
   return i < 0 ? html + blk : html.slice(0, i) + blk + html.slice(i);
 }
 /* ---------- 2026-11-16 사용자 지시: 해외 출장 등 사내망 밖에서 서버 없이 입력 → 운영자가 파일로 주고받기 ----------
-   ① 운영자(서버 PC) [✈ 출장용 파일] → 부서원 고름 → 지금 데이터가 든 dashboard 파일(+ 그 사람 이름 표) 내려받기 → 메일 등으로 전달
+   (2026-11-16 개정: 운영자뿐 아니라 로그인한 부서원 누구나 만들기 · 반영)
+   ① 부서원 [✈ 출장용 파일] → 부서원 고름 → 지금 데이터가 든 dashboard 파일(+ 그 사람 이름 표) 내려받기 → 메일 등으로 전달
    ② 출장자: 그 파일을 열면 서버 연결 없이 그 사람 이름으로 입력(오프라인 대기열) → [📤 보낼 파일 만들기] → 운영자에게 전달
    ③ 운영자: [✈ 출장용 파일] → [받은 입력 파일 반영] → 서버에 그 사람 이름으로 반영 (서버는 운영자 PC 에서 올릴 때만 원래 작성자 이름을 받아 줌 · 충돌하면 비교 창)
    비밀번호 · 로그인 토큰은 파일에 넣지 않음 — 이름표는 '누가 쓴 입력인지' 표시용 */
@@ -2524,21 +2525,21 @@ const TRIP_TAG = ['<scr' + 'ipt id="deptTrip" type="application/json">', '</scr'
 let TRIP = null;
 function tripLoad() { try { const t = document.getElementById('deptTrip')?.textContent; return t ? JSON.parse(t) : null; } catch (_) { return null; } }
 async function openTrip() {
-  let users = []; try { users = (await api('GET', 'admin/perms')).users || []; } catch (e) { return toast('부서원 목록을 불러오지 못했습니다: ' + e.message, true); }
+  let users = []; try { const r = await api('GET', 'profiles'); users = (Array.isArray(r) ? r : r.profiles || r.users || []).filter(u => u && u.id && u.name).sort((a, b) => a.name.localeCompare(b.name, 'ko')); } catch (e) { return toast('부서원 목록을 불러오지 못했습니다: ' + e.message, true); }
   openDlg(dlg, `<div class="dh"><span>✈ 출장용 오프라인 파일</span><button class="btn sm" data-close>닫기</button></div>
-    <div class="db"><p style="margin-top:0">사내망 밖(해외 출장 등)에서 서버에 못 들어가는 부서원이 <b>파일 하나로 열어 입력</b>하고, 입력한 것을 파일로 돌려보내면 여기서 서버에 반영합니다.</p>
+    <div class="db"><p style="margin-top:0">사내망 밖(해외 출장 등)에서 서버에 못 들어가는 부서원이 <b>파일 하나로 열어 입력</b>하고, 입력한 것을 파일로 돌려보내면 <b>받은 사람(누구든)</b>이 여기서 대시보드에 반영합니다.</p>
       <h3 style="margin:12px 0 6px">① 보낼 파일 만들기</h3>
       <label class="fl">부서원 <select id="tripWho">${users.map(u => `<option value="${esc(u.id)}" data-name="${esc(u.name)}">${esc(u.name)} (${esc(u.id)})</option>`).join('')}</select></label>
       <p class="muted" style="font-size:12.5px">지금 서버의 데이터가 들어간 <b>dashboard 파일</b>을 받습니다 → 메일 · 메신저로 그 부서원에게 보내세요. 그 사람은 파일을 열기만 하면 서버 없이 보고 · 입력할 수 있습니다 (비밀번호는 들어가지 않음).</p>
       <p><button class="btn pri" id="tripMake">⬇ 출장용 파일 만들기</button></p>
       <h3 style="margin:16px 0 6px">② 받은 입력 파일 반영</h3>
-      <p class="muted" style="font-size:12.5px">출장자가 보낸 <b>대기열_이름_날짜.json</b> 을 고르면 서버에 <b>그 사람 이름으로</b> 반영합니다. 그사이 서버에서 같은 행을 누가 고쳤으면 비교 창이 뜹니다. (운영자가 로그인한 상태여야 함)</p>
+      <p class="muted" style="font-size:12.5px">출장자가 보낸 <b>대기열_이름_날짜.json</b> 을 고르면 서버에 <b>그 사람(출장자) 이름으로</b> 덮어써 반영합니다 — 이력에는 '반영: 내 이름' 이 함께 남습니다. 그사이 서버에서 같은 행을 누가 고쳤으면 비교 창이 뜹니다.</p>
       <p><input type="file" id="tripFile" accept=".json,application/json" hidden><button class="btn" id="tripImp">📥 받은 입력 파일 고르기</button></p></div>
     <div class="df"><button class="btn" data-close>닫기</button></div>`);
   dlg.onclick = e => { if (e.target.closest('[data-close]')) dlg.close(); };
   $('#tripMake', dlg).onclick = async () => { const o = $('#tripWho', dlg).selectedOptions[0]; if (!o) return; await tripMake(o.value, o.dataset.name); };
   $('#tripImp', dlg).onclick = () => $('#tripFile', dlg).click();
-  $('#tripFile', dlg).onchange = async e => { const f = e.target.files[0]; if (!f) return; if (!AUTH) return toast('운영자 계정으로 먼저 로그인하세요', true); dlg.close(); await importQueue(f); await trySync(true); };
+  $('#tripFile', dlg).onchange = async e => { const f = e.target.files[0]; if (!f) return; if (!AUTH) return toast('먼저 로그인하세요', true); dlg.close(); await importQueue(f, true); };
 }
 async function tripMake(id, name) {
   let html; try { await loadAll(); await cacheSave(); html = await withSnap(await newHtml()); } catch (e) { return toast('파일을 만들지 못했습니다: ' + e.message, true); }
@@ -2616,7 +2617,7 @@ function diffTable(a, b, la, lb) {
   return `<div class="chg" style="font-weight:700"><span></span><span>${la}</span><span>${lb}</span></div>` +
     (ks.map(k => `<div class="chg"><b>${esc(k)}</b><pre class="b">${esc(x[k] ?? '')}</pre><pre class="a">${esc(y[k] ?? '')}</pre></div>`).join('') || '<p class="muted">내용 차이 없음</p>');
 }
-const pxBy = op => ADMIN && op.by && AUTH && op.by !== AUTH.name ? { proxyBy:true } : {};   // 서버가 운영자 PC 에서만 원래 작성자 이름을 받아 줌
+const pxBy = op => op.trip && op.by && AUTH && op.by !== AUTH.name ? { proxyBy:true } : {};   // 서버가 원래 작성자(출장자) 이름을 받아 주고 올린 사람은 이력 via 로
 async function syncOp(op, force) {                       // force: [예 (덮어쓰기)] — 충돌해도 묻지 않고 내 것으로
   const label = `${esc(SHEET[op.key]?.label || op.key)} · <b>${esc(recLabel(op.key, op.fields || op.baseFields || {}))}</b>`;
   const choose = (title, body) => ask(title, body, [{ id:'mine', label:'내 것으로 덮어쓰기', cls:'pri' }, { id:'server', label:'서버 것 유지' }, { id:'later', label:'나중에' }]);
@@ -2670,7 +2671,7 @@ async function trySync(manual) {
     const was = OFFLINE; OFFLINE = false;
     if (was) root = { name:serverLabel() };
     let up = 0, later = 0;
-    const mayUp = op => AUTH && (!op.by || op.by === AUTH.name || ADMIN);   // 2026-11-16: 운영자(서버 PC)는 받은 출장 입력(다른 사람 이름)도 그 사람 이름으로 반영
+    const mayUp = op => AUTH && (!op.by || op.by === AUTH.name || op.trip);   // 2026-11-16: 출장자에게서 받은 입력(op.trip)은 받은 부서원이 그 사람 이름으로 반영
     const mine = QUEUE.filter(mayUp);
     let mode = 'each';
     if (mine.length) {                                     // 서버가 다시 켜짐 → 꺼져 있을 때 쓴 내용을 덮어쓸지 먼저 물음
@@ -2929,12 +2930,13 @@ function exportQueue() {
   a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 3000);
   toast(`대기열 ${QUEUE.length}건을 파일로 내보냈습니다`);
 }
-async function importQueue(file) {
+async function importQueue(file, trip) {   // trip: 출장자 입력 파일 → 다른 사람 이름 행도 이 PC 에서 그 이름으로 반영(op.trip)
   try {
     const d = JSON.parse(await file.text());
     if (d.type !== 'dept-dashboard-queue' || !Array.isArray(d.ops)) throw new Error('대기열 파일이 아닙니다');
     const have = new Set(QUEUE.map(o => o.uid));
     const add = d.ops.filter(o => o && o.uid && !have.has(o.uid) && SHEET[o.key] && OPNAME[o.op] && /^[A-Za-z0-9_\-]{1,80}$/.test(o.id));
+    if (trip) add.forEach(o => { if (o.by && o.by !== AUTH?.name) o.trip = true; });
     QUEUE.push(...add); await queueSave();
     dlg.close();
     toast(`${d.exportedBy || ''} 대기열 ${add.length}건을 가져왔습니다${add.length < d.ops.length ? ` (중복·잘못된 ${d.ops.length - add.length}건 제외)` : ''}`);
@@ -3594,7 +3596,7 @@ async function openHistory(key, id) {
   const body = note + (!entries.length ? '<div class="empty">최근 7일간 저장된 이력이 없습니다</div>' : entries.map((e, i) => {
     const [lbl, cls] = ACT[e.action] || [e.action, ''];
     const chg = (e.changed || []).map(p => { const a = flatten(e.before || {})[p], b = flatten(e.after || {})[p]; return `<div class="chg"><b>${esc(p)}</b><pre class="b">${esc(a ?? '')}</pre><pre class="a">${esc(b ?? '')}</pre></div>`; }).join('');
-    return `<div class="hist"><div class="hh"><span class="tag ${cls}">${lbl}</span><b>${esc(e.by)}</b><span class="muted">${fmtTime(e.at)}</span>${e.after && !noEdit() ? `<button class="btn sm" data-restore="${i}" style="margin-left:auto">이 시점 내용으로 되돌리기</button>` : ''}</div>${chg || (e.action === 'delete' ? '<span class="muted">휴지통으로 이동</span>' : '')}</div>`;
+    return `<div class="hist"><div class="hh"><span class="tag ${cls}">${lbl}</span><b>${esc(e.by)}</b>${e.via ? `<span class="tag" title="출장 오프라인 입력을 이 사람이 받아 반영">✈ 반영: ${esc(e.via)}</span>` : ''}<span class="muted">${fmtTime(e.at)}</span>${e.after && !noEdit() ? `<button class="btn sm" data-restore="${i}" style="margin-left:auto">이 시점 내용으로 되돌리기</button>` : ''}</div>${chg || (e.action === 'delete' ? '<span class="muted">휴지통으로 이동</span>' : '')}</div>`;
   }).join(''));
   $('.db', dlg).innerHTML = body;
 }
@@ -5285,7 +5287,7 @@ function render() {
   const sy = window.scrollY, tw = $('.tw'), tx = tw ? [tw.scrollLeft, tw.scrollTop] : null;   // 자동 갱신 시 스크롤 위치 유지
   let banners = '';
   if (OFFLINE && TRIP) banners += `<div class="banner netbar trip">✈ <b>출장 오프라인 입력 · ${esc(TRIP.name)} 님</b> · 데이터 ${fmtTime(TRIP.at) || '-'} 기준 · 입력 <b>${QUEUE.length}</b>건
-      <span class="muted">— 입력한 내용은 이 PC 에 보관됩니다. 다 쓰면 [📤 보낼 파일 만들기] → 그 파일을 운영자에게 보내세요 (운영자가 서버에 반영)</span>
+      <span class="muted">— 입력한 내용은 이 PC 에 보관됩니다. 다 쓰면 [📤 보낼 파일 만들기] → 그 파일을 이 파일을 준 부서원에게 보내세요 (그 사람이 대시보드에 반영)</span>
       <span class="sp"></span><button class="btn sm pri" data-net="tripx" ${QUEUE.length ? '' : 'disabled'}>📤 보낼 파일 만들기</button><button class="btn sm" data-net="queue">입력 목록</button></div>`;
   else if (OFFLINE) banners += `<div class="banner bad netbar">📴 <b>오프라인 · ${fmtTime(OFFLINE_AT) || '-'} 기준</b> (이 PC에 보관된 최신본) · 대기 <b>${QUEUE.length}</b>건
       <span class="muted">— 수정 내용은 이 PC에 보관되었다가 서버가 연결되면 자동 업로드됩니다 (30초마다 재연결 시도)</span>
@@ -5454,7 +5456,7 @@ function renderMenu() {
   menuLayoutApply();
   menuReveal();
   $('#btnPerm').hidden = !(SERVER && ADMIN && root && !OFFLINE);   // 메뉴 권한 설정: 운영자(서버 PC)만
-  $('#btnTrip').hidden = !(SERVER && ADMIN && root && !OFFLINE);   // 2026-11-16 출장용 오프라인 파일: 운영자(서버 PC)만
+  $('#btnTrip').hidden = !(SERVER && root && !OFFLINE && AUTH && can('weekly'));   // 2026-11-16 출장용 오프라인 파일: 로그인한 부서원 누구나 (만들기 · 받은 입력 반영)
   const acct = SERVER && root;                              // 서버(또는 오프라인 보관본) 모드 = 계정 사용, 폴더 모드 = 이름만
   $('#acct').hidden = !acct; $('#whoLine').hidden = !!acct; $('#btnWho').hidden = !!acct;   // 계정 모드: 위쪽 계정 표시, 폴더 모드: 아래쪽 이름
   $('#whoName').textContent = user || '-';

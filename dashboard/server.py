@@ -36,7 +36,7 @@ ID_RE = re.compile(r'^[A-Za-z0-9_\-]{1,80}$')
 WEEK_RE = re.compile(r'^\d{4}-W\d{2}$')
 MAX_BODY = 30 * 1024 * 1024
 
-SERVER_VERSION = '2026-11-16.1'
+SERVER_VERSION = '2026-11-16.2'
 ROOT = os.path.dirname(os.path.abspath(__file__))
 PORT = 8080
 ALLOW_NETS = []          # 사내망: 루프백·사설망 + 서버 IP 대역(/16, 유선·Wi-Fi 등 지금까지 쓴 대역 모두 기억) + --allow 로 추가한 대역
@@ -224,7 +224,7 @@ def api_create(key, body):
         rec = {'id': rid, 'sheet': key, 'order': order, 'fields': fields,
                'meta': {'createdBy': by, 'createdAt': now, 'updatedBy': by, 'updatedAt': now, 'rev': 1}}
         write_json(path, rec)
-        add_history(key, rid, {'action': 'create', 'by': by, 'at': now, 'label': rec_label(key, fields),
+        add_history(key, rid, {'action': 'create', 'by': by, **({'via': body['via']} if body.get('via') else {}), 'at': now, 'label': rec_label(key, fields),
                                'before': None, 'after': fields, 'changed': list(flatten(fields))})
     return {'status': 'ok', 'rec': rec}
 
@@ -262,7 +262,7 @@ def api_update(key, rid, body):
         rec = {**cur, 'fields': nf, 'meta': {**m0, 'updatedBy': by, 'updatedAt': now,
                                               'rev': m0.get('rev', 1) + 1, 'changes': changes, 'orig': orig, 'origSince': since}}
         write_json(path, rec)
-        add_history(key, rid, {'action': 'overwrite' if (force and mismatch) else action, 'by': by, 'at': now,
+        add_history(key, rid, {'action': 'overwrite' if (force and mismatch) else action, 'by': by, **({'via': body['via']} if body.get('via') else {}), 'at': now,
                                'label': rec_label(key, nf), 'before': cur['fields'], 'after': nf, 'changed': changed,
                                'prevBy': cur['meta'].get('updatedBy'), 'prevAt': cur['meta'].get('updatedAt')})
     return {'status': 'ok', 'rec': rec}
@@ -2640,11 +2640,13 @@ class Handler(BaseHTTPRequestHandler):
         """쓰기 요청 본문 + 수정자 = 로그인 계정의 본명 (브라우저가 보낸 by 는 무시). 해당 메뉴 권한도 확인"""
         name = self.need_menu(menu)['name']
         b = self.json_body()
-        # 2026-11-16 출장자 오프라인 입력 반영: 운영자(서버 PC)가 받은 대기열 파일을 올릴 때만 원래 작성자 이름 그대로 (실제 계정 본명일 때만)
+        # 2026-11-16 출장자 오프라인 입력 반영: 부서원(로그인 · 메뉴 권한)이 출장자에게서 받은 입력 파일을 올리면 원래 작성자(출장자) 이름 그대로
+        #   (실제 계정 본명일 때만) · 올린 사람은 이력에 via 로 남김
         pb = str(b.get('by') or '')
-        if b.get('proxyBy') and self.is_admin() and pb and pb != name and any(a.get('name') == pb for a in all_accounts()):
-            log.info('대리 반영 (출장 오프라인 입력): %s ← 운영자 %s', pb, name)
-            return {**b, 'by': pb}
+        if b.get('proxyBy') and pb and pb != name and any(a.get('name') == pb for a in all_accounts()):
+            log.info('대리 반영 (출장 오프라인 입력): %s ← %s', pb, name)
+            return {**b, 'by': pb, 'via': name}
+        b.pop('via', None)
         return {**b, 'by': name}
 
     def need_menu(self, menu, touch=True):
