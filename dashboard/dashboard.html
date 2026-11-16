@@ -2059,7 +2059,7 @@ function recLabel(key, f) {
  * ===================================================================== */
 let root = null;
 /* 서버 모드: http(s):// 로 접속하면 server.py 의 REST API 사용 (폴더 선택 불필요). file:// 로 열면 폴더 모드 */
-const APP_VERSION = '2026-11-13.7';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
+const APP_VERSION = '2026-11-16.1';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
 const SERVER_URL = 'http://localhost:8080';
 // 부서원 PC 사본(file://)이 접속을 시도할 서버 — 서버가 배포 파일을 만들 때 'PC 이름 주소, IP 주소' 순으로 자동 기록함
 const DEFAULT_SERVERS = ['http://ASEUNGWOOK-B01:8080', 'http://65.3.30.234:8080'];
@@ -6021,7 +6021,7 @@ const botWords = q => String(q).split(/[\s,.?!·~]+/).map(w => w.replace(/(이�
  * 사람 이름 · PJT 이름이면 그 사람/PJT 요약을, '몇 개' 질문이면 숫자를 답함. 외부로 보내지 않음. */
 const MENU_HELP = {
   home:'홈 — 인사 · 내 할 일 · 숫자 카드 · 주간회의 전달사항 · 그래프 · 월간 캘린더 · 계장 광장 · 최근 변경 이력', perform:'수행 PJT 표 — 업무 현황을 매주 작성(마감 수 11:59), [✓ 변경 없음]', bid:'입찰 PJT 표 — 입찰 진행 현황',
-  issue:'프로젝트 이슈사항', alloc:'R&R · 투입 분석 — 부서원별 · PJT별 투입률', task:'통합 업무 — To Do · 기술공유 · 그룹장 요청 · 일반업무', unit:'유닛분장 — 조직도(헬멧 · 포지션) · 프로젝트별 LE/RE · 3D 세계 지도',
+  issue:'프로젝트 이슈사항', alloc:'R&R · 투입 분석 — 부서원별 · PJT별 투입률', task:'통합 업무 — To Do · 기술공유 · 그룹장 요청', unit:'유닛분장 — 조직도(헬멧 · 포지션) · 프로젝트별 LE/RE · 3D 세계 지도',
   notice:'주간회의 전달사항', pid:'P&ID 분석 (P&ID 서버)', logic:'LOGIC 분석', logicdraw:'LOGIC 작성', space:'ROOM SIZE 계산', books:'도서검토', ic3d:'3D 계측제어', bidpjt:'입찰 프로젝트', runpjt:'실행 프로젝트 › CO2 PJT › Datasheet(Ball · Globe · Butterfly Valve · PSV) · Schedule(구매 일정 현황판)', co2psr:'CO2 PJT › Schedule › PSR 업로드 — PSR 엑셀(.xlsx)을 끌어다 놓거나 골라서 올리면 구매 일정 현황판이 바뀜 (실행 프로젝트 권한)', co2sched:'CO2 PJT 구매 일정 현황판 — PSR 엑셀(Tagged · Bulk)을 올리면 MR→PO→제작→FAT→현장 도착 계획 · 전망 · 실적 · 지연',
   finstagram:'재무스타그램 — DART 재무제표 · 주가 · 수주현황 (운영자가 ⚙ 에서 DART 키 .env 지정)', board:'익명게시판 — 블라블라 · 회식제안 · VOC', mgalloc:'Management · R&R 투입 분석(시간)', mghours:'Management · 근무시간(월 · 주 · 일)', mgwork:'Management · 근로시간 관리(52h)', mgbday:'Management · 부서원 생일'
 };
@@ -7978,7 +7978,7 @@ function foldPick(rows, n, must) {
  * 예전 일반업무·To do·기술공유 시트는 숨김(데이터 그대로). [기존 업무 가져오기] 로 복사(ID = 'task-' + 원래 ID, 두 번 눌러도 중복 안 됨). */
 const TASK_TYPES = ['일반업무', '표준화 담당', 'To Do List', '기술공유', '그룹장 요청 사항'];
 // 2026-11-04: 일반업무 · 표준화 담당은 통합 업무 메뉴에서 뺌 (2026-11-08: 일반업무는 다시 보임 — 표준화만 뺌) → 유닛분장(조직도 · 부서원 표 · 부서원 화면)에서 부서원별로 봄. 데이터 · 내 업무 알림은 그대로
-const TASK_HIDE = new Set(['표준화 담당']),   // 2026-11-08 VOC: 일반업무는 다시 통합 업무에도 보임 (부서원 화면에서 추가 · 수정 = 통합 업무에 반영)
+const TASK_HIDE = new Set(['일반업무', '표준화 담당']),   // 2026-11-16 사용자 지시: 통합 업무 = To Do List · 기술공유 · 그룹장 요청 사항만, 일반업무는 다시 유닛분장 부서원별로 (2026-11-08 VOC 로 보였던 것 되돌림)
       TASK_VIS = TASK_TYPES.filter(t => !TASK_HIDE.has(t));
 const taskShown = r => !TASK_HIDE.has(normType(r.fields?.['유형']));
 const TASK_NEWEST = new Set(['To Do List', '기술공유', '그룹장 요청 사항']);   // 표에서 늘 최신(등록 시각)이 맨 위

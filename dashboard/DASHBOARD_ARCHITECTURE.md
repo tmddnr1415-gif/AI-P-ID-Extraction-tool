@@ -1983,3 +1983,8 @@ C:\Users\SAMSUNG\Desktop\Claude\                         ← 개발 폴더 (여�
 - 무엇을: 사용자 지시 "메뉴는 마우스로 끌어다 놓으면 이동할 수 있도록, 또한 그 하위 상위로 옮길 수도 있도록" → 왼쪽 메뉴의 단추 · 묶음(주간업무보고 · LOGIC · 실행 프로젝트 · Management) · 폴더(CO2 PJT · Datasheet · VALVE · INSTRUMENT)를 끌어서 위(앞) · 아래(뒤)에 놓거나, 묶음/폴더 머리 가운데에 놓으면 그 안으로. 상위 메뉴를 하위로, 하위 메뉴를 맨 위 레벨로도. 노랑 선 = 놓일 자리, 노랑 점선 상자 = 그 안으로. 상위 번호(1, 2, 3 …)는 새 순서로 다시 매김. 배치는 이 PC · 이 계정에 기억(localStorage `dept-menu-layout:<계정>`), 메뉴 아래 '↺ 메뉴 배치 원래대로'. 권한 · 화면 주소는 그대로(보이는 자리만). 간략 메뉴(아이콘 막대)에서는 끌기 안 됨.
 - 바뀐 곳: dashboard.html `renderMenu`(group · fold · runTree 에 data-node, fold 를 .mfg 로 감쌈) · 새 `MLK` · `mlLoad` · `mlNode` · `mlHold` · `menuLayoutApply` · `menuLayoutSave` · 끌기 IIFE · CSS(.dnd-* · .mreset · 옮긴 단추 모양)
 - 확인한 것: IO List → VALVE 안, P&ID 분석(상위) → CO2 PJT 안 Schedule 다음, 문서 · Revision 현황 → 다른 자리, Datasheet 폴더 → 맨 위 레벨 · 새로고침 후 유지 · ↺ 원래대로, 콘솔 오류 없음.
+
+### 2026-11-16 (APP_VERSION 2026-11-16.1 / SERVER_VERSION 그대로) — v17.54 통합 업무 = To Do · 기술공유 · 그룹장 요청만
+- 무엇을: 사용자 지시 "To Do List, 기술공유, 그룹장 요청사항만 통합업무에 놔두고 일반업무는 유닛분장에서 각 담당자별 확인 가능하게" → `TASK_HIDE` 에 '일반업무' 다시 넣음(2026-11-08 VOC 로 보이게 했던 것 되돌림). 통합 업무의 유형 칩 · 요약 카드 · 표 · 메뉴 건수 · '+ 업무 추가' 유형 고르기에서 일반업무 빠짐. 일반업무 자료는 그대로 — 유닛분장 → 부서원을 누르면 그 사람 화면의 '일반업무' 탭에서 보기 · 추가 · 수정(같은 통합 업무 자료). 내 업무 알림은 그대로.
+- 바뀐 곳: dashboard.html `TASK_HIDE` · 찾기 설명 문구
+- 확인한 것: 통합 업무 유형 칩 = 전체 · To Do List · 기술공유 · 그룹장 요청 사항, 업무 추가 유형 = To Do · 기술공유 · 그룹장 요청, 콘솔 오류 없음.
