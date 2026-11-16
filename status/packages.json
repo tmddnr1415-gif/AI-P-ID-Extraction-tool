@@ -464,6 +464,19 @@
    },
    "replaces": "2_DASHBOARD_update_v17.58_from_v17.47_2026-11-16.zip",
    "note": "v17.59 — 오프라인 파일 반영 오류('취합된 입력이 없는 대시보드 파일') 고침 · 비밀번호 목록 안내"
+  },
+  {
+   "file": "①",
+   "name": "4_DASHBOARD_update_v17.60_from_v17.47_2026-11-16.zip",
+   "made": "2026-11-16 15:20",
+   "path": "company-pc-update/2026-11-16/ (1.4MB · 저장소에 있음)",
+   "sha256": "fa0010fb9d5501582bb574503731e358ad26cdf7fc6ab119b9e432e9bbd70ac7",
+   "applied": "",
+   "tips": {
+    "S1": "a85c1b61"
+   },
+   "replaces": "3_DASHBOARD_update_v17.59_from_v17.47_2026-11-16.zip",
+   "note": "v17.60 — 구매 현황 보고 엑셀 보고서 양식 (시트 2장)"
   }
  ]
 }
