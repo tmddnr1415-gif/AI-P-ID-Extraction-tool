@@ -8057,7 +8057,7 @@ function taskHero(s) {
   const have = new Set(getRecs('task').map(r => r.id));
   const legacy = readOnly() ? [] : WORK_KEYS.flatMap(k => (DB.recs[k] || []).filter(r => !have.has('task-' + r.id)));
   return `<div id="taskhero">
-    <section class="whero task-hero"><div class="wh-top"><div><h2>🚀 통합 업무</h2><p>To Do List · 기술공유 · 그룹장 요청 사항 (최신 등록이 맨 위) · <b>표준화 담당은 유닛분장 → 부서원을 누르면</b> — 각자 맡은 업무의 <b>유형</b>을 고르면 유형별로 정리됩니다. 아래 표는 수행·입찰 PJT 처럼 셀 편집 · 행 추가 · 열 추가가 됩니다.</p></div></div>
+    <section class="whero task-hero"><div class="wh-top"><div><h2>🚀 통합 업무</h2><p>To Do List · 기술공유 · 그룹장 요청 사항 (최신 등록이 맨 위) · <b>일반업무 · 표준화 담당은 유닛분장 → 부서원을 누르면</b> — 각자 맡은 업무의 <b>유형</b>을 고르면 유형별로 정리됩니다. 아래 표는 수행·입찰 PJT 처럼 셀 편집 · 행 추가 · 열 추가가 됩니다.</p></div></div>
       ${yearTabs(st.year, years, add ? '<button class="btn wadd" data-wadd>＋ 업무 추가</button>' : '')}
       <div class="wtypes"><button class="wtc ${!st.f['유형'] ? 'on' : ''}" data-tf="">전체 <b>${inY.length}</b></button>${TASK_VIS.map(t => `<button class="wtc ${st.f['유형'] === t ? 'on' : ''}" data-tf="${esc(t)}">${TT[t].icon} ${esc(t)} <b>${inY.filter(i => normType(i.f['유형']) === t).length}</b></button>`).join('')}</div>
     </section>
