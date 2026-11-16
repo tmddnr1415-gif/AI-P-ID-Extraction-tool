@@ -36,7 +36,7 @@ ID_RE = re.compile(r'^[A-Za-z0-9_\-]{1,80}$')
 WEEK_RE = re.compile(r'^\d{4}-W\d{2}$')
 MAX_BODY = 30 * 1024 * 1024
 
-SERVER_VERSION = '2026-11-13.1'
+SERVER_VERSION = '2026-11-16.1'
 ROOT = os.path.dirname(os.path.abspath(__file__))
 PORT = 8080
 ALLOW_NETS = []          # 사내망: 루프백·사설망 + 서버 IP 대역(/16, 유선·Wi-Fi 등 지금까지 쓴 대역 모두 기억) + --allow 로 추가한 대역
@@ -2639,7 +2639,13 @@ class Handler(BaseHTTPRequestHandler):
     def body_by(self, menu='weekly'):
         """쓰기 요청 본문 + 수정자 = 로그인 계정의 본명 (브라우저가 보낸 by 는 무시). 해당 메뉴 권한도 확인"""
         name = self.need_menu(menu)['name']
-        return {**self.json_body(), 'by': name}
+        b = self.json_body()
+        # 2026-11-16 출장자 오프라인 입력 반영: 운영자(서버 PC)가 받은 대기열 파일을 올릴 때만 원래 작성자 이름 그대로 (실제 계정 본명일 때만)
+        pb = str(b.get('by') or '')
+        if b.get('proxyBy') and self.is_admin() and pb and pb != name and any(a.get('name') == pb for a in all_accounts()):
+            log.info('대리 반영 (출장 오프라인 입력): %s ← 운영자 %s', pb, name)
+            return {**b, 'by': pb}
+        return {**b, 'by': name}
 
     def need_menu(self, menu, touch=True):
         """로그인 + 메뉴 권한 (운영자가 accounts/_perms.json 으로 부여)"""
