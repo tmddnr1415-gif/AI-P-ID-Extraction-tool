@@ -2069,7 +2069,7 @@ function recLabel(key, f) {
  * ===================================================================== */
 let root = null;
 /* 서버 모드: http(s):// 로 접속하면 server.py 의 REST API 사용 (폴더 선택 불필요). file:// 로 열면 폴더 모드 */
-const APP_VERSION = '2026-11-16.6';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
+const APP_VERSION = '2026-11-16.7';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
 const SERVER_URL = 'http://localhost:8080';
 // 부서원 PC 사본(file://)이 접속을 시도할 서버 — 서버가 배포 파일을 만들 때 'PC 이름 주소, IP 주소' 순으로 자동 기록함
 const DEFAULT_SERVERS = ['http://ASEUNGWOOK-B01:8080', 'http://65.3.30.234:8080'];
@@ -4534,7 +4534,7 @@ function renderSched(c) {
   SCH.rptText = rptText;
   const rptCard = `<section class="card rpcard"><h2>📝 구매 현황 보고 <span class="muted">· 주간업무보고 '업무 현황' 양식 · ${ph === 'front' ? 'MR · TBE 발주처 · TBE 완료 (지금 중요)' : '전체 단계'} · 계획 대비 지연 품목 · 기준일 ${esc(schFmt(asOf))}${F.disc ? ' · ' + esc(F.disc) + ' 만' : ''}</span></h2>
     <div class="rptool"><span class="rpsum">${rptG.map((g, i) => `<a href="#rp-${g.k}" data-rpgo="${g.k}">${i + 1}. ${esc(g.title)} <b class="${g.xs.length ? '' : 'z'}">${g.xs.length}</b></a>`).join('')}</span><span class="rptodo">${(() => { const A = SCH.rptAll || [], n1 = A.filter(x => !x.n.r).length, n2 = A.filter(x => !x.a && !x.n.c).length, n3 = A.filter(x => !x.a && x.n.c && x.n.c < asOf).length, ch = (v, l, n, c) => n ? `<button class="rptd ${c} ${RF.note === v ? 'on' : ''}" data-rfnote="${v}" title="누르면 그것만 · 다시 누르면 전체">${l} <b>${n}</b></button>` : '';
-      return ch('no', '사유 미입력', n1, '') + ch('cuno', '캐치업 미입력', n2, '') + ch('cuover', '⚠ 캐치업 지남', n3, 'bad'); })()}</span><span class="sp"></span><button class="btn sm" data-rpxls title="지금 보이는 보고 표를 엑셀 파일로">⬇ 엑셀로</button><button class="btn sm" data-rpall="1">▾ 모두 펼치기</button><button class="btn sm" data-rpall="0">▸ 모두 접기</button><button class="btn sm" data-rpcopy>📋 보고 글 복사</button><button class="btn sm" data-rpweekly title="복사한 뒤 주간업무보고 › 수행 표를 CO2 로 찾아 엶 — 업무 현황 칸에 붙여 넣으세요">📤 주간업무보고(수행)에 붙이기</button></div>
+      return ch('no', '사유 미입력', n1, '') + ch('cuno', '캐치업 미입력', n2, '') + ch('cuover', '⚠ 캐치업 지남', n3, 'bad'); })()}</span><span class="sp"></span><button class="btn sm" data-rpxls title="지금 보이는 보고 표(필터 · 정렬 그대로)를 보고서 양식 엑셀로 — 색 · 글자 크기 · 열 너비 맞춤 + 필터용 목록 시트">⬇ 엑셀 보고서</button><button class="btn sm" data-rpall="1">▾ 모두 펼치기</button><button class="btn sm" data-rpall="0">▸ 모두 접기</button><button class="btn sm" data-rpcopy>📋 보고 글 복사</button><button class="btn sm" data-rpweekly title="복사한 뒤 주간업무보고 › 수행 표를 CO2 로 찾아 엶 — 업무 현황 칸에 붙여 넣으세요">📤 주간업무보고(수행)에 붙이기</button></div>
     ${rfBar}
     ${rptG.map((g, gi) => { const op = (SCH.rpOpen ||= new Set()).has(g.k); return `<div id="rp-${g.k}" class="rpg ${g.front ? 'front' : ''} ${op ? 'open' : ''}"><div class="rpgt" data-rptog="${g.k}" title="${op ? '접기' : '펼치기'}"><span class="rptg">${g.xs.length ? (op ? '▾' : '▸') : ''}</span><span class="rpgn">${gi + 1}</span>${esc(g.title)} <span class="rpgs ${g.xs.length ? '' : 'ok'}">${g.xs.length || !rfOn ? rptHead(g) : '필터에 맞는 품목 없음'}</span>${g.xs.length ? `<small>사유 입력 ${g.xs.filter(x => x.n.r).length}/${g.xs.length} · ${op ? '▾ 접기' : '▸ 펼치기'}</small>` : ''}</div>
       ${g.xs.length && op ? `<div class="tw"><table class="t rpt" style="width:${RC.reduce((a, [c, , w]) => a + (RCW[c] || w), 0)}px"><colgroup>${RC.map(([c, , w]) => `<col data-ck="${c}" style="width:${RCW[c] || w}px">`).join('')}</colgroup>
@@ -5156,15 +5156,35 @@ function schBind() {
   const la = $('#schLate'); if (la) la.onchange = () => { F.late = la.value; render(); };
   const sd = $('#schDisc'); if (sd) sd.onchange = () => { F.disc = sd.value; render(); }; const sty = $('#schType'); if (sty) sty.onchange = () => { F.type = sty.value; render(); };
 }
-function schRptXlsx() {   // 2026-11-10 구매 현황 보고 표(지금 필터 · 정렬 그대로)를 엑셀로
-  const G = SCH.rptG || [], d = SCH.data; if (!d || !G.length) return toast('내보낼 보고 표가 없어요', true); const asOf = SCH.rptAsOf || d.asOf;
-  const cols = ['마일스톤', '#', 'No', '품목', '공종', '원래 기한', '현재', '실적/전망', '일정 연기(일)', '지연(일)', '상태', '지연 사유', '캐치업', '캐치업 상태', '특이사항'], st = { s:ST.HEAD };
-  const rows = G.flatMap(g => g.xs.map(x => [g.title, x.i0, x.it.no, x.it.item, x.it.disc, x.b, x.a || x.f || '', x.a ? '실적' : x.f ? '전망' : '', x.post || '', x.d || '', x.a ? '늦게 완료함' : x.over ? '전망 지남 · 실적 미입력' : '일정 연기 · 진행 중', x.n.r || '', x.n.c || '',
-    !x.n.c ? (x.a ? '' : '미입력') : x.a ? (x.a <= x.n.c ? '만회함' : `캐치업보다 +${schDays(x.a, x.n.c)}일`) : x.n.c < asOf ? `캐치업 ${schDays(asOf, x.n.c)}일 지남` : `D-${schDays(x.n.c, asOf)}`, x.n.s || '']));
-  if (!rows.length) return toast('지연 품목이 없어요', true);
-  const sheet = { name:'구매 현황 보고', widths:[22, 5, 10, 34, 10, 12, 12, 9, 11, 9, 22, 46, 12, 18, 40], tab:false, rows:[cols.map(v => ({ ...st, v })), ...rows.map(r => r.map(v => ({ v:v ?? '', s:ST.BODY })))] };
-  const { blob } = buildXlsx([sheet]), a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `CO2 PJT 구매 현황 보고_${asOf}.xlsx`; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 3000);
-  toast(`⬇ 보고 표 ${rows.length}건을 엑셀로 저장했어요`);
+function schRptXlsx() {   // 2026-11-10 구매 현황 보고 표(지금 필터 · 정렬 그대로)를 엑셀로 — 2026-11-16 사용자 지시: 서식 · 글자색 · 크기 · 셀 너비 보기 좋게
+  const G = (SCH.rptG || []).filter(g => g.xs.length), d = SCH.data; if (!d || !G.length) return toast('내보낼 보고 표가 없어요', true); const asOf = SCH.rptAsOf || d.asOf;
+  const COLS = [['#', 5], ['No', 9], ['품목', 30], ['공종', 7], ['원래 기한', 11], ['현재(전망 · 실적)', 13], ['일정 연기', 9], ['지연', 8], ['상태', 24], ['지연 사유', 44], ['캐치업', 11], ['캐치업 상태', 13], ['특이사항', 38]];
+  const N = COLS.length, L = colL(N - 1), C = (v, s) => ({ v:v ?? '', s }), fmt = x => x ? schFmt(x) : '';
+  const lines = (t, w) => String(t || '').split('\n').reduce((a, ln) => a + Math.max(1, Math.ceil([...ln].reduce((n, ch) => n + (ch.charCodeAt(0) > 255 ? 2 : 1), 0) / (w * 1.15))), 0);   // 한글 = 2칸
+  const cuSt = x => !x.n.c ? (x.a ? '' : '미입력') : x.a ? (x.a <= x.n.c ? '✔ 만회함' : `캐치업보다 +${schDays(x.a, x.n.c)}일`) : x.n.c < asOf ? `⚠ ${schDays(asOf, x.n.c)}일 지남` : `D-${schDays(x.n.c, asOf)}`;
+  const rows = [], H = [], M = [];
+  const total = G.reduce((a, g) => a + g.xs.length, 0);
+  rows.push([C(`CO2 PJT 구매 현황 보고 — 설계 관리 지연 (MR · TBE)`, ST.T_TITLE), ...Array(N - 1).fill(C('', ST.T_TITLE))]); H.push(26); M.push(`A1:${L}1`);
+  rows.push([C(`기준일 ${asOf} · ${total}건 · 일정 연기 = 전망 − 원래 기한(파랑) · 지연 = 기준일 − 전망(빨강, 전망이 지났는데 실적 없음) · 출력 ${todayISO()} ${user || ''}`, ST.T_NOTE), ...Array(N - 1).fill(C('', ST.T_NOTE))]); H.push(18); M.push(`A2:${L}2`);
+  rows.push(COLS.map(([h]) => C(h, ST.T_HEAD))); H.push(22);
+  G.forEach((g, gi) => {
+    const P = g.xs.filter(x => x.post > 0), Lt = g.xs.filter(x => x.d > 0), r0 = rows.length + 1;
+    rows.push([C(`${gi + 1}. ${g.title}  —  ${g.xs.length}건${P.length ? ` · 일정 연기 ${P.length}건 (최대 +${Math.max(...P.map(x => x.post))}일)` : ''}${Lt.length ? ` · 지연 ${Lt.length}건 (최대 +${Math.max(...Lt.map(x => x.d))}일)` : ''}`, ST.T_GRP), ...Array(N - 1).fill(C('', ST.T_GRP))]); H.push(20); M.push(`A${r0}:${L}${r0}`);
+    g.xs.forEach((x, i) => {
+      const z = i % 2 ? ST.T_ZEBRA : ST.BODY, stTxt = x.a ? '늦게 완료함' : x.over ? '⚠ 전망 지남 · 실적 미입력' : '⏳ 일정 연기 · 진행 중';
+      const row = [C(x.i0 || i + 1, ST.T_DATE), C(x.it.no, ST.T_BOLD), C(x.it.item, ST.T_BOLD), C(x.it.disc, ST.T_DATE), C(fmt(x.b), ST.T_DATE), C(`${fmt(x.a || x.f)}${x.a ? ' 실적' : x.f ? ' 전망' : ''}`, ST.T_DATE),
+        C(x.post > 0 ? `+${x.post}일` : '-', x.post > 0 ? ST.T_POST : ST.T_DATE), C(x.d > 0 ? `+${x.d}일` : '-', x.d > 0 ? ST.T_LATE : ST.T_DATE), C(stTxt, x.over ? ST.T_ST_LATE : ST.T_ST_POST),
+        C(x.n.r || '', z), C(x.n.c ? fmt(x.n.c) : '미입력', x.n.c ? ST.T_CU : ST.T_DATE), C(cuSt(x), /지남|늦음|보다/.test(cuSt(x)) ? ST.T_ST_LATE : ST.T_DATE), C(x.n.s || '', z)];
+      rows.push(row); H.push(Math.min(160, Math.max(20, 15 * Math.max(lines(x.it.item, 30), lines(x.n.r, 44), lines(x.n.s, 38)) + 4)));
+    });
+  });
+  // 두 번째 시트: 한 줄 목록 (정렬 · 필터용)
+  const FL = ['마일스톤', '#', 'No', '품목', '공종', '원래 기한', '현재', '실적/전망', '일정 연기(일)', '지연(일)', '상태', '지연 사유', '캐치업', '캐치업 상태', '특이사항'];
+  const flat = G.flatMap(g => g.xs.map(x => [g.title, x.i0, x.it.no, x.it.item, x.it.disc, x.b, x.a || x.f || '', x.a ? '실적' : x.f ? '전망' : '', x.post || '', x.d || '', x.a ? '늦게 완료함' : x.over ? '전망 지남 · 실적 미입력' : '일정 연기 · 진행 중', x.n.r || '', x.n.c || '', cuSt(x), x.n.s || '']));
+  const sheets = [{ name:'구매 현황 보고', widths:COLS.map(c => c[1]), rows, heights:H, merges:M, freeze:3, landscape:true, grid:false },
+    { name:'목록 (필터용)', widths:[18, 5, 9, 30, 7, 11, 11, 8, 10, 8, 20, 44, 11, 13, 38], rows:[FL.map(h => C(h, ST.T_HEAD)), ...flat.map(r => r.map((v, i) => C(v, [8, 9].includes(i) && v ? (i === 8 ? ST.T_POST : ST.T_LATE) : [1, 4, 5, 6, 7, 12, 13].includes(i) ? ST.T_DATE : ST.BODY)))], heights:[22], freeze:1, filter:`A1:${colL(FL.length - 1)}${flat.length + 1}`, landscape:true }];
+  const { blob } = buildXlsx(sheets), a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `CO2 PJT 구매 현황 보고_${asOf}.xlsx`; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 3000);
+  toast(`⬇ 보고 표 ${total}건을 엑셀로 저장했어요 (보고 양식 + 필터용 목록)`);
 }
 function schXlsx() {   // 현황판 표 그대로 엑셀로 (계획 · 전망 · 실적 · 지연)
   const d = SCH.data; if (!d) return; const asOfX = SCH.f.today ? new Date().toISOString().slice(0, 10) : d.asOf, st = { s:ST.HEAD }, cols = ['구분', 'No', '공종', '품목', 'Buyer', 'Engineer', 'Vendor', 'Origin', '현재 단계', '다음 일정', '다음 일정 날짜', '현장 도착(계획)', '현장 도착(전망)', '지연(일)', '상태', 'MR 지연(일)', 'TBE 지연(일)', 'CBE 지연(일)', ...SCH_KEY.flatMap(k => [`${SCH_NAME[k]} 계획`, `${SCH_NAME[k]} 전망`, `${SCH_NAME[k]} 실적`])];
@@ -10043,7 +10063,8 @@ const XL = {                       // 기존 엑셀 컬럼 순서 / 구분 행
   unit:    { cols:['연도','유닛','그룹장','구성원','담당'] },
 };
 // 셀 스타일 번호 (styles.xml 의 cellXfs 순서와 일치)
-const ST = { HEAD:1, BODY:2, CHG:3, GRP:4, LE:5, CTR:6, CHGC:7, CHGLE:8, CHGB:9, CHGBC:10 };
+const ST = { HEAD:1, BODY:2, CHG:3, GRP:4, LE:5, CTR:6, CHGC:7, CHGLE:8, CHGB:9, CHGBC:10,
+  T_TITLE:11, T_GRP:12, T_HEAD:13, T_DATE:14, T_POST:15, T_LATE:16, T_ST_LATE:17, T_ST_POST:18, T_CU:19, T_NOTE:20, T_ZEBRA:21, T_BOLD:22 };   // 2026-11-16 보고서용
 
 const CRC_T = (() => { const t = new Uint32Array(256); for (let n = 0; n < 256; n++) { let c = n; for (let k = 0; k < 8; k++) c = c & 1 ? 0xEDB88320 ^ (c >>> 1) : c >>> 1; t[n] = c >>> 0; } return t; })();
 const crc32 = b => { let c = 0xFFFFFFFF; for (let i = 0; i < b.length; i++) c = CRC_T[(c ^ b[i]) & 255] ^ (c >>> 8); return (c ^ 0xFFFFFFFF) >>> 0; };
@@ -10092,24 +10113,26 @@ function xlCell(r, c, cell) {
   }
   return `<c r="${ref}" s="${s}" t="inlineStr"><is><t xml:space="preserve">${xesc(String(v).slice(0, 32000))}</t></is></c>`;
 }
-function xlSheetXml(sh) {
-  const rows = sh.rows.map((row, i) => `<row r="${i + 1}">${row.map((cell, c) => xlCell(i + 1, c, cell)).join('')}</row>`).join('');
+function xlSheetXml(sh) {   // sh: rows · widths · tab · (2026-11-16) heights[] · merges[] · freeze(행 수) · filter('A3:O20') · landscape · grid:false
+  const H = sh.heights || [], rows = sh.rows.map((row, i) => `<row r="${i + 1}"${H[i] ? ` ht="${H[i]}" customHeight="1"` : ''}>${row.map((cell, c) => xlCell(i + 1, c, cell)).join('')}</row>`).join(''), fz = sh.freeze ?? 1;
   return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">` +
-    `<sheetPr>${sh.tab ? '<tabColor rgb="FF0070C0"/>' : ''}</sheetPr>` +
-    `<sheetViews><sheetView workbookViewId="0"><pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/><selection pane="bottomLeft" activeCell="A2" sqref="A2"/></sheetView></sheetViews>` +
+    `<sheetPr>${sh.tab ? '<tabColor rgb="FF0070C0"/>' : ''}${sh.landscape ? '<pageSetUpPr fitToPage="1"/>' : ''}</sheetPr>` +
+    `<sheetViews><sheetView workbookViewId="0"${sh.grid === false ? ' showGridLines="0"' : ''}>${fz ? `<pane ySplit="${fz}" topLeftCell="A${fz + 1}" activePane="bottomLeft" state="frozen"/><selection pane="bottomLeft" activeCell="A${fz + 1}" sqref="A${fz + 1}"/>` : ''}</sheetView></sheetViews>` +
     `<sheetFormatPr defaultRowHeight="15"/><cols>${sh.widths.map((w, i) => `<col min="${i + 1}" max="${i + 1}" width="${w}" customWidth="1"/>`).join('')}</cols>` +
-    `<sheetData>${rows}</sheetData></worksheet>`;
+    `<sheetData>${rows}</sheetData>` + (sh.filter ? `<autoFilter ref="${sh.filter}"/>` : '') + (sh.merges?.length ? `<mergeCells count="${sh.merges.length}">${sh.merges.map(m => `<mergeCell ref="${m}"/>`).join('')}</mergeCells>` : '') +
+    (sh.landscape ? '<pageMargins left="0.4" right="0.4" top="0.5" bottom="0.5" header="0.2" footer="0.2"/><pageSetup paperSize="9" orientation="landscape" fitToWidth="1" fitToHeight="0"/>' : '') + `</worksheet>`;
 }
 const XL_STYLES = (() => {
   const font = (b, red) => `<font>${b ? '<b/>' : ''}<sz val="10"/>${red ? `<color rgb="${red === 'blue' ? 'FF0050D0' : 'FFD00000'}"/>` : ''}<name val="맑은 고딕"/><family val="3"/><charset val="129"/></font>`;
+  const fontX = (b, sz, rgb, it) => `<font>${b ? '<b/>' : ''}${it ? '<i/>' : ''}<sz val="${sz}"/>${rgb ? `<color rgb="${rgb}"/>` : ''}<name val="맑은 고딕"/><family val="3"/><charset val="129"/></font>`;   // 2026-11-16 보고서용
   const fill = rgb => `<fill><patternFill patternType="solid"><fgColor rgb="${rgb}"/><bgColor indexed="64"/></patternFill></fill>`;
-  const xf = (font, fill, wrapH) => `<xf numFmtId="0" fontId="${font}" fillId="${fill}" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment ${wrapH} wrapText="1"/></xf>`;
+  const xf = (font, fill, wrapH, bd = 1) => `<xf numFmtId="0" fontId="${font}" fillId="${fill}" borderId="${bd}" xfId="0" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment ${wrapH} wrapText="1"/></xf>`;
   return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">` +
-    `<fonts count="4">${font(0, 0)}${font(1, 0)}${font(0, 1)}${font(0, 'blue')}</fonts>` +
-    `<fills count="5"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill>${fill('FFD9E1F2')}${fill('FFFFF176')}${fill('FFEEF1F8')}</fills>` +
+    `<fonts count="10">${font(0, 0)}${font(1, 0)}${font(0, 1)}${font(0, 'blue')}${fontX(1, 15, 'FF1E3A8A')}${fontX(1, 10, 'FFFFFFFF')}${fontX(1, 10, 'FF1D4ED8')}${fontX(1, 10, 'FFB91C1C')}${fontX(0, 9, 'FF64748B', 1)}${fontX(1, 11, 'FF312E81')}</fonts>` +
+    `<fills count="11"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill>${fill('FFD9E1F2')}${fill('FFFFF176')}${fill('FFEEF1F8')}${fill('FF3730A3')}${fill('FFDBEAFE')}${fill('FFFEE2E2')}${fill('FFF8FAFC')}${fill('FFFEF08A')}${fill('FFE0E7FF')}</fills>` +
     `<borders count="2"><border><left/><right/><top/><bottom/><diagonal/></border><border>${['left', 'right', 'top', 'bottom'].map(k => `<${k} style="thin"><color rgb="FFBFBFBF"/></${k}>`).join('')}<diagonal/></border></borders>` +
     `<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>` +
-    `<cellXfs count="11"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>` +
+    `<cellXfs count="23"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>` +
     xf(1, 2, 'horizontal="center" vertical="center"') +      // 1 헤더
     xf(0, 0, 'vertical="top"') +                              // 2 본문
     xf(0, 3, 'vertical="top"') +                              // 3 수정된 셀 (노란 음영)
@@ -10120,6 +10143,19 @@ const XL_STYLES = (() => {
     xf(2, 3, 'horizontal="center" vertical="top"') +          // 8 수정된 LE 셀 (노란 음영 + 붉은 글씨)
     xf(3, 3, 'vertical="top"') +                              // 9 수정된 한 줄 값 (노란 음영 + 파란 글씨)
     xf(3, 3, 'horizontal="center" vertical="top"') +          // 10 수정된 숫자 (노란 음영 + 파란 글씨, 가운데)
+    // 2026-11-16 보고서용 (ST.T_*)
+    xf(4, 0, 'vertical="center"', 0) +                        // 11 제목 (굵게 15 · 남색)
+    xf(9, 10, 'vertical="center"') +                          // 12 묶음 제목 행 (연보라 바탕 · 굵게)
+    xf(5, 5, 'horizontal="center" vertical="center"') +      // 13 표 머리 (남색 바탕 · 흰 굵은 글씨)
+    xf(0, 0, 'horizontal="center" vertical="top"') +          // 14 날짜 · 가운데
+    xf(6, 6, 'horizontal="center" vertical="top"') +          // 15 일정 연기 (연파랑 바탕 · 파랑 굵게)
+    xf(7, 7, 'horizontal="center" vertical="top"') +          // 16 지연 (연빨강 바탕 · 빨강 굵게)
+    xf(7, 0, 'horizontal="center" vertical="top"') +          // 17 상태: 전망 지남 (빨강 굵게)
+    xf(6, 0, 'horizontal="center" vertical="top"') +          // 18 상태: 일정 연기 (파랑 굵게)
+    xf(6, 9, 'horizontal="center" vertical="top"') +          // 19 캐치업 (노랑 바탕 · 파랑 굵게)
+    xf(8, 0, 'vertical="center"', 0) +                        // 20 작은 설명 (회색 기울임)
+    xf(0, 8, 'vertical="top"') +                              // 21 본문 (얇은 줄무늬)
+    xf(1, 0, 'vertical="top"') +                              // 22 굵은 본문 (품목)
     `</cellXfs><cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles></styleSheet>`;
 })();
 
