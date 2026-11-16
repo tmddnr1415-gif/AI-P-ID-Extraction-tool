@@ -117,7 +117,7 @@ header.top{position:sticky;top:0;z-index:20;background:var(--bg);padding:16px 24
 .oc-bar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px}.oc-ttl b{font-size:16px;display:block}.oc-ttl span{font-size:12px;color:var(--sub)}
 .oc-zoom{display:inline-flex;align-items:center;border:1px solid var(--line);border-radius:10px;background:#fff;overflow:hidden}.oc-zoom button{border:0;background:none;width:30px;height:30px;font-size:16px}.oc-zoom button:hover{background:#eef2ff}.oc-zoom b{min-width:52px;text-align:center;font-size:13px}
 .oc-main{display:flex;gap:12px}.oc:fullscreen .oc-main{flex:1;min-height:0}
-.oc-view{position:relative;flex:1;min-width:0;height:max(560px,calc(100vh - 330px));overflow:hidden;border-radius:14px;background:#fff radial-gradient(#dfe5f2 1px,transparent 1.3px) 0 0/18px 18px;border:1px solid var(--line);cursor:grab;touch-action:none}
+.oc-view:not(.globe){cursor:default!important}.oc-view.grab{cursor:grabbing!important}.oc-view{position:relative;flex:1;min-width:0;height:max(560px,calc(100vh - 330px));overflow:hidden;border-radius:14px;background:#fff radial-gradient(#dfe5f2 1px,transparent 1.3px) 0 0/18px 18px;border:1px solid var(--line);cursor:grab;touch-action:none}
 .oc:fullscreen .oc-view{height:auto}.oc-view.grab{cursor:grabbing}
 .oc-cv{position:absolute;left:0;top:0;transform-origin:0 0;padding:20px 24px 30px;width:max-content}
 .oc-top{display:flex;justify-content:center;gap:16px;position:relative;padding-bottom:30px}
@@ -2059,7 +2059,7 @@ function recLabel(key, f) {
  * ===================================================================== */
 let root = null;
 /* 서버 모드: http(s):// 로 접속하면 server.py 의 REST API 사용 (폴더 선택 불필요). file:// 로 열면 폴더 모드 */
-const APP_VERSION = '2026-11-16.1';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
+const APP_VERSION = '2026-11-16.2';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
 const SERVER_URL = 'http://localhost:8080';
 // 부서원 PC 사본(file://)이 접속을 시도할 서버 — 서버가 배포 파일을 만들 때 'PC 이름 주소, IP 주소' 순으로 자동 기록함
 const DEFAULT_SERVERS = ['http://ASEUNGWOOK-B01:8080', 'http://65.3.30.234:8080'];
@@ -8278,7 +8278,7 @@ function orgHtml(recs, year) {
       ${mode !== 'unit' ? `<div class="oc-fil">${[['', '전체'], ['perform', '수행'], ['bid', '입찰']].map(([k, l]) => `<button class="${(mode === 'map' ? OC.mapF || '' : OC.projF === '수행' ? 'perform' : OC.projF === '입찰' ? 'bid' : '') === k ? 'on' : ''}" data-mapf="${k}">${l}</button>`).join('')}${mode === 'map' ? `<button class="${glbOff() ? '' : 'on'}" data-glb3d title="3D 지구본 ↔ 평면 지도 (느린 PC 는 평면이 가벼워요 · 이 PC 에 기억)">${glbOff() ? '🗺 평면' : '🌍 3D'}</button>` : ''}</div>` : ''}
       <span class="sp"></span><div class="oc-zoom"><span class="zi">⌕</span><button data-oc="out" title="축소">−</button><b id="ocZ">100%</b><button data-oc="in" title="확대">+</button><span class="zi">⌕</span></div>
       ${AUTH ? '<button class="btn pri oc-me" data-myprof>🙋 내 정보</button>' : ''}</div>
-    <div class="oc-main"><div class="oc-view" id="ocView" title="휠 = 확대/축소 · 끌어서 이동">
+    <div class="oc-main"><div class="oc-view" id="ocView" title="${mode === 'map' ? '휠 = 확대/축소 · 끌어서 이동' : '휠 = 위아래 · Shift+휠 = 좌우 · Ctrl+휠 = 확대/축소 · 끌어서 이동 · 사람을 누르면 그 부서원 화면'}">
         <div class="oc-cv" id="ocCv">${inner}</div>
         <div class="oc-mini" id="ocMini" title="누르면 그곳으로 이동"><b>✥ Overview</b><div class="oc-mi" id="ocMi"></div><i id="ocMr"></i></div>
         ${mode === 'map' ? `<div class="oc-sam" id="ocSam"></div><div class="oc-mctl"><button data-oc="in" title="확대">＋</button><button data-oc="out" title="축소">－</button></div>
@@ -8381,15 +8381,26 @@ function ocZoom(f, cx, cy) {
   const nz = Math.max(.25, Math.min(ocMode() === 'map' ? 10 : 2, OC.z * f)); cx ??= v.clientWidth / 2; cy ??= v.clientHeight / 2;
   OC.x = cx - (cx - OC.x) * nz / OC.z; OC.y = cy - (cy - OC.y) * nz / OC.z; OC.z = nz; ocApply();
 }
+function ocClamp(v) {   // 조직도가 화면 밖으로 다 나가지 않게 (가장자리 40px 은 남김)
+  const cv = $('#ocCv'); if (!cv || ocMode() === 'map') return; const W = cv.offsetWidth * OC.z, H = cv.offsetHeight * OC.z, vw = v.clientWidth, vh = v.clientHeight, m = 40;
+  OC.x = W <= vw ? Math.min(Math.max(OC.x, m - W + 0), vw - m) : Math.min(m, Math.max(OC.x, vw - W - m));
+  OC.y = H <= vh ? Math.min(Math.max(OC.y, m - H), vh - m) : Math.min(m, Math.max(OC.y, vh - H - m));
+}
 function orgBind(el) {
   const v = $('#ocView', el); if (!v) return;
   const mi = $('#ocMi', el); mi.innerHTML = `<div class="oc-mc">${$('#ocCv', el).innerHTML}</div>`;   // 미니맵 = 조직도를 작게 복사
   requestAnimationFrame(() => { if (OC.fit) { OC.fit = false; ocMode() === 'unit' ? ocFit(true) : ocFit(); } else ocApply(); ocMode() === 'map' ? (mapSide(OC.selC), mapTick(), wxLoad(), globeMount(), samTick()) : (ocSide(OC.sel), glbPrefetch()); });
   let drag = null;
-  v.onpointerdown = e => { if (e.button !== 0 || e.target.closest('button,a,.oc-mini') || v.classList.contains('globe')) return; drag = { x:e.clientX - OC.x, y:e.clientY - OC.y }; v.setPointerCapture(e.pointerId); v.classList.add('grab'); };
-  v.onpointermove = e => { if (!drag) return; OC.x = e.clientX - drag.x; OC.y = e.clientY - drag.y; ocApply(); };
-  v.onpointerup = v.onpointercancel = () => { drag = null; v.classList.remove('grab'); };
-  v.onwheel = e => { if (v.classList.contains('globe')) return; e.preventDefault(); const r = v.getBoundingClientRect(); ocZoom(Math.pow(1.0015, -e.deltaY), e.clientX - r.left, e.clientY - r.top); };   // 휠 = 커서 쪽 확대/축소 (구글 어스처럼)
+  // 2026-11-16 사용자 지시: 끌기는 5px 이상 움직였을 때만 시작(그냥 누르면 사람 · 단추 클릭이 그대로) · 끌고 난 뒤 클릭은 무시
+  v.onpointerdown = e => { if (e.button !== 0 || (e.target.closest('button,a,.oc-mini') && !e.target.closest('.oc-cv [data-prof]')) || v.classList.contains('globe')) return; drag = { sx:e.clientX, sy:e.clientY, x:e.clientX - OC.x, y:e.clientY - OC.y, on:false, id:e.pointerId }; };
+  v.onpointermove = e => { if (!drag) return; if (!drag.on) { if (Math.hypot(e.clientX - drag.sx, e.clientY - drag.sy) < 5) return; drag.on = true; try { v.setPointerCapture(drag.id); } catch (_) {} v.classList.add('grab'); }
+    OC.x = e.clientX - drag.x; OC.y = e.clientY - drag.y; ocClamp(v); ocApply(); };
+  v.onpointerup = v.onpointercancel = () => { if (drag?.on) { OC.noClick = Date.now(); } drag = null; v.classList.remove('grab'); };
+  // 2026-11-16 사용자 지시: 유닛분장(조직도 · PJT) = 마우스 휠로 위아래 이동 · Shift+휠 = 좌우 · Ctrl+휠 = 확대/축소 / 세계 지도는 그대로 휠 = 확대
+  v.onwheel = e => { if (v.classList.contains('globe')) return; e.preventDefault(); const r = v.getBoundingClientRect();
+    if (ocMode() === 'map' || e.ctrlKey || e.metaKey) return ocZoom(Math.pow(1.0015, -e.deltaY), e.clientX - r.left, e.clientY - r.top);
+    const d = e.deltaMode === 1 ? 40 : e.deltaMode === 2 ? v.clientHeight : 1;
+    if (e.shiftKey) OC.x -= (e.deltaY || e.deltaX) * d; else { OC.y -= e.deltaY * d; OC.x -= e.deltaX * d; } ocClamp(v); ocApply(); };
   $('#ocMini', el).onclick = e => { const r = mi.getBoundingClientRect(); OC.x = v.clientWidth / 2 - (e.clientX - r.left) / OC.m * OC.z; OC.y = v.clientHeight / 2 - (e.clientY - r.top) / OC.m * OC.z; ocApply(); };
   el.onmouseover = e => {
     if (ocMode() === 'map') { const c = e.target.closest('.oc-cv [data-ctry]')?.dataset.ctry || ''; if (c === OC.hovC) return; OC.hovC = c; return mapSide(c || OC.selC); }
@@ -8787,8 +8798,9 @@ function orgClick(e) {
   const med = e.target.closest('[data-medit]'); if (med) { const [k, id] = med.dataset.medit.split('|'); return openEdit(k, id); }
   const mj = e.target.closest('[data-mjump]'); if (mj) { const [k, id] = mj.dataset.mjump.split('|'); return jumpTo(k, id, '업무 현황', false); }
   const sx = e.target.closest('.oc-side [data-prof]'); if (sx) return openProfile(sx.dataset.prof);
+  if (OC.noClick && Date.now() - OC.noClick < 250) return;   // 끌기 끝난 직후 클릭은 무시
   const p = e.target.closest('.oc-cv [data-prof]');
-  if (p) { OC.sel = p.dataset.prof; OC.hov = ''; document.querySelectorAll('.oc-cv .oc-p').forEach(x => x.classList.toggle('on', x.dataset.prof === OC.sel)); ocSide(OC.sel); clearTimeout(OC.gpT); if (p.querySelector('.oc-pos') && e.detail === 1) { const nm = OC.sel; OC.gpT = setTimeout(() => openProfile(nm), 280); } return; }   // 한 번 누름 = 선수 화면(두 번 누름이면 취소 → 부서원 화면)
+  if (p) { OC.sel = p.dataset.prof; OC.hov = ''; document.querySelectorAll('.oc-cv .oc-p').forEach(x => x.classList.toggle('on', x.dataset.prof === OC.sel)); ocSide(OC.sel); clearTimeout(OC.gpT); if (e.detail === 1) { const nm = OC.sel; OC.gpT = setTimeout(() => openProfile(nm), 280); } return; }   // 2026-11-16: 한 번 누름 = 바로 그 부서원 화면 (예전엔 팀 선수만, 나머지는 두 번 눌러야 했음)
 }
 async function iecRegister(year) {                          // 기본 IEC 명단을 유닛분장 표의 행으로 등록 (그다음부터 표·조직도에서 고침)
   if (noEdit()) return toast('로그인하면 등록할 수 있습니다', true);
