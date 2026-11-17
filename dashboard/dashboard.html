@@ -2086,7 +2086,7 @@ function recLabel(key, f) {
  * ===================================================================== */
 let root = null;
 /* 서버 모드: http(s):// 로 접속하면 server.py 의 REST API 사용 (폴더 선택 불필요). file:// 로 열면 폴더 모드 */
-const APP_VERSION = '2026-11-17.1';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
+const APP_VERSION = '2026-11-17.2';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
 const SERVER_URL = 'http://localhost:8080';
 // 부서원 PC 사본(file://)이 접속을 시도할 서버 — 서버가 배포 파일을 만들 때 'PC 이름 주소, IP 주소' 순으로 자동 기록함
 const DEFAULT_SERVERS = ['http://ASEUNGWOOK-B01:8080', 'http://65.3.30.234:8080'];
@@ -2883,7 +2883,6 @@ function copyTip() {
 /* 파일 사본 자동 보관: 서버에 연결될 때 몇 시간마다 이 dashboard.html 파일 안의 보관본도 조용히 새로 씀
    → 브라우저가 보관본을 지워도(닫을 때 지우기 · 다른 브라우저) 서버가 꺼졌을 때 이 파일로 열림.
    한 번 [💾 자동 보관 켜기]로 이 파일 쓰기를 허락받으면(Edge: '방문할 때마다 허용') 다음부터 묻지 않음 */
-const EMBED_MS = 10 * 60e3;                                // 2026-11-04: 로그인 중 10분마다 (바뀐 것이 없으면 6시간마다)
 let EMBED_ASK = false;
 const embedAt = () => { try { return +localStorage.getItem('dept-embed-at') || 0; } catch (_) { return 0; } };
 async function embedSelf(manual) {
@@ -2897,9 +2896,8 @@ async function embedSelf(manual) {
     if (h && h.name !== fname) h = null;
     if (h) { let pm = await h.queryPermission({ mode:'readwrite' }); if (pm !== 'granted' && manual) pm = await h.requestPermission({ mode:'readwrite' }); if (pm !== 'granted') h = null; }
     if (h && !(await isSelfFile(h))) { h = null; try { await kv('readwrite', st => st.delete('self')); } catch (_) {} }   // 기억한 파일이 다른 폴더의 것 → 쓰지 않음
-    if (!h && !manual) {                                    // 허락이 없으면: 이 파일 안 보관본이 없거나 3일 넘었을 때만 배너로 물음
-      const sa = Date.parse(snapLoad()?.savedAt || '') || 0;
-      if (Date.now() - Math.max(sa, embedAt()) > 3 * 864e5) { EMBED_ASK = true; render(); }
+    if (!h && !manual) {                                    // 2026-11-17: 허락이 없으면 바로 배너로 한 번 물음(예전: 3일 지나서) — 허락해야 끌 때 묻지 않고 자동 저장
+      if (!EMBED_ASK) { EMBED_ASK = true; render(); }
       return false;
     }
     if (!await cacheLoad()) await cacheSave();
@@ -2924,28 +2922,30 @@ function latestChange() {
   (DB.board || []).forEach(p => { t(p.updatedAt); t(p.createdAt); }); t(DB.state?.lastClosedAt);
   return m;
 }
-function autoEmbed() {
-  if (!AUTH || location.protocol !== 'file:') return;        // 파일 사본 · 로그인한 동안만
-  const age = Date.now() - embedAt();
-  if (age >= EMBED_MS && (latestChange() > embedAt() || age >= 6 * 3600e3)) embedSelf(false);
+/* 2026-11-17 v17.62 사용자 지시 "끌 때 묻지 말고 그냥 최신을 저장": 바뀐 내용이 있으면 30초 안에 파일 안 보관본도 자동 저장(예전: 10분마다)
+   + 창을 숨기거나(다른 창 · 최소화) 닫기 시작할 때도 바로 저장. 끌 때 '나가시겠습니까 · 저장할까요?' 는 묻지 않음 */
+let EMBED_BUSY = false;
+async function autoEmbed(now) {
+  if (!AUTH || location.protocol !== 'file:' || EMBED_BUSY) return;   // 파일 사본 · 로그인한 동안만
+  const age = Date.now() - embedAt(), changed = latestChange() > embedAt();
+  if (changed ? (now || age >= 30e3) : age >= 6 * 3600e3) { EMBED_BUSY = true; try { await embedSelf(false); } finally { EMBED_BUSY = false; } }
 }
+addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') autoEmbed(true); });
+addEventListener('pagehide', () => autoEmbed(true));
+/* 다시 연 뒤 파일 쓰기 허락이 '물어보기'로 돌아가 있으면: 처음 누르는 순간 한 번 허락을 다시 받음 (Edge: '방문할 때마다 허용' 을 고르면 다음부터 안 물음) */
+addEventListener('pointerdown', async function regrant() {
+  if (location.protocol !== 'file:') return removeEventListener('pointerdown', regrant, true);
+  if (!AUTH || !SERVER || OFFLINE) return;
+  removeEventListener('pointerdown', regrant, true);
+  try {
+    const h = await kv('readonly', st => st.get('self'));
+    if (h && h.name === selfName() && await h.queryPermission({ mode:'readwrite' }) === 'prompt' && await h.requestPermission({ mode:'readwrite' }) === 'granted') { EMBED_ASK = false; autoEmbed(true); }
+  } catch (_) {}
+}, true);
 /* 나갈 때(창 닫기 · 새로고침): 마지막 파일 보관 뒤에 바뀐 내용이 있으면 브라우저 '나가시겠습니까?' → [취소]를 누르면 '최신 내용으로 저장할까요? 예/아니요'
    (브라우저가 닫히는 순간에는 저장 창 · 파일 쓰기를 할 수 없어서, 머무르기를 고른 다음에 묻는다) */
 let UNLOAD_OK = false;
-addEventListener('beforeunload', e => {
-  if (UNLOAD_OK || location.protocol !== 'file:' || !SERVER || OFFLINE || !AUTH || !root || latestChange() <= embedAt()) return;
-  e.preventDefault(); e.returnValue = '';
-  setTimeout(askSaveOnExit, 0);                               // '머무르기(취소)'를 골랐을 때만 실행됨 — 나가면 실행되지 않음
-});
-async function askSaveOnExit() {
-  if (dlg2.open) return;
-  const last = embedAt();
-  const c = await ask('💾 최신 내용으로 저장할까요?', `<p style="margin-top:0">${last ? `마지막 파일 보관(<b>${fmtTime(new Date(last).toISOString())}</b>)` : '파일 보관'} 뒤에 바뀐 내용이 있습니다.</p>
-    <p class="muted" style="margin-bottom:0">[예] = 이 dashboard.html 파일 안에 지금 내용을 저장 → 서버가 꺼져도 최신으로 열림. 저장한 뒤 창을 닫으세요.</p>`,
-    [{ id:'yes', label:'예 (저장)', cls:'pri' }, { id:'no', label:'아니요' }]);
-  if (c === 'yes') { if (await embedSelf(true)) { UNLOAD_OK = true; toast('저장했습니다 — 이제 창을 닫으셔도 됩니다'); } }
-  else if (c === 'no') { UNLOAD_OK = true; toast('저장하지 않았습니다 — 창을 닫으셔도 됩니다'); }
-}
+// 2026-11-17 v17.62: 끌 때 묻지 않음 — 위 autoEmbed 가 바뀔 때마다 · 창을 숨길 때 저장해 둠 (이 PC 브라우저 보관본은 늘 최신)
 /* 오프라인 보관 상태 (오른쪽 위 초록/빨강 표시)
    파일로 연 경우: 이번 접속에서 브라우저 보관본 저장 + 이 파일 안 보관본이 하루 안 → 초록 (브라우저 보관본이 지워져도 파일로 열림)
    주소로 연 경우: 서버가 꺼지면 주소는 안 열림 → 하루 안에 [내 PC 사본 받기] 했으면 초록 */
@@ -5451,7 +5451,7 @@ function render() {
       <span class="muted">서버 폴더의 <b>allow_firewall.bat</b> 를 마우스 오른쪽 → [관리자 권한으로 실행] (권한이 없으면 IT 에 'TCP ${esc(location.port || '8080')} 인바운드 허용' 요청)</span></div>`;
     if (NET.changedAt) banners += `<div class="banner">📡 서버 PC 의 IP 가 바뀌었습니다 (${fmtTime(NET.changedAt)} · 유선 LAN ↔ Wi-Fi 등) — 지금 주소 <b>${esc((NET.ips || []).join(', ') || '-')}</b>. 부서원 파일은 PC 이름과 예전에 연결됐던 주소를 차례로 시도합니다. 안 되면 부서원 화면 왼쪽 아래 [서버 주소 설정]에 <b>http://${esc((NET.ips || [])[0] || '')}:${esc(location.port || '8080')}</b></div>`;
   }
-  if (embedTip()) banners += `<div class="banner netbar">💾 <b>서버가 꺼져도 이 파일로 열리게</b> 이 dashboard.html 파일 안에도 데이터를 보관해 둘까요? (한 번만 허락 — 저장 창이 뜨면 지금 연 <b>${esc(selfName())}</b> 를 고르고 [저장] · Edge 가 물으면 '방문할 때마다 허용')
+  if (embedTip()) banners += `<div class="banner netbar">💾 <b>끌 때 묻지 않고 자동 저장 · 서버가 꺼져도 이 파일로 최신이 열리게</b> 이 dashboard.html 파일 안에도 데이터를 보관해 둘까요? (한 번만 허락 — 저장 창이 뜨면 지금 연 <b>${esc(selfName())}</b> 를 고르고 [저장] · Edge 가 물으면 '방문할 때마다 허용')
       <span class="sp"></span><button class="btn sm pri" data-net="embed">💾 자동 보관 켜기</button><button class="btn sm" data-net="embedno">오늘은 그만</button></div>`;
   if (copyTip()) banners += `<div class="banner netbar">💡 지금은 주소(<b>${esc(location.host)}</b>)로 열었습니다 — <b>서버가 꺼지면 이 주소는 열리지 않습니다.</b> [📥 내 PC 사본 받기]로 받은 파일을 바탕화면에 두고 그 파일로 열면, 서버가 꺼져도 마지막 데이터로 볼 수 있습니다.
       <span class="sp"></span><button class="btn sm pri" data-net="copy">📥 내 PC 사본 받기</button><button class="btn sm" data-net="copyno">오늘은 그만</button></div>`;
@@ -10612,7 +10612,7 @@ async function startOnline() {
   presenceStart();
   if (QUEUE.length) await trySync(false);                   // 지난번에 못 올린 오프라인 수정이 있으면 '덮어쓸까요?' 후 업로드
   askUpdate();                                             // 새 버전이 있으면 '교체하세요'
-  setTimeout(autoEmbed, 4000); setInterval(autoEmbed, 60e3);   // 파일 사본: 로그인 중 10분마다 파일 안 보관본도 갱신 (1분마다 확인)
+  setTimeout(autoEmbed, 4000); setInterval(autoEmbed, 15e3);   // 파일 사본: 로그인 중 10분마다 파일 안 보관본도 갱신 (1분마다 확인)
 }
 async function initFolderMode() {
   render();
