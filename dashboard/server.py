@@ -36,7 +36,7 @@ ID_RE = re.compile(r'^[A-Za-z0-9_\-]{1,80}$')
 WEEK_RE = re.compile(r'^\d{4}-W\d{2}$')
 MAX_BODY = 30 * 1024 * 1024
 
-SERVER_VERSION = '2026-11-16.3'
+SERVER_VERSION = '2026-11-17.1'
 ROOT = os.path.dirname(os.path.abspath(__file__))
 PORT = 8080
 ALLOW_NETS = []          # 사내망: 루프백·사설망 + 서버 IP 대역(/16, 유선·Wi-Fi 등 지금까지 쓴 대역 모두 기억) + --allow 로 추가한 대역
@@ -2449,12 +2449,22 @@ def ip_allowed(ip):
     return a.is_loopback or a.is_private or a.is_link_local or any(a in n for n in ALLOW_NETS)
 
 
+_html_ver = (None, '')
+
+
 def html_version():
-    """운영 폴더 dashboard.html 의 APP_VERSION (부서원 사본과 비교해 새 버전 안내)"""
+    """운영 폴더 dashboard.html 의 APP_VERSION (부서원 사본과 비교해 새 버전 안내)
+    2026-11-17: 예전엔 앞 200,000 글자만 읽었는데 파일이 커져 버전 줄이 그 뒤(약 33만 번째)로 밀림 → 늘 '' → 부서원 사본에 새 버전 안내가 안 뜸.
+    → 파일 전체에서 찾고, 파일이 바뀌지 않았으면 기억해 둔 값을 씀"""
+    global _html_ver
     try:
-        with open(P('dashboard.html'), encoding='utf-8') as f:
-            m = re.search(r"const APP_VERSION = '([^']+)'", f.read(200000))
-        return m[1] if m else ''
+        st = os.stat(P('dashboard.html'))
+        key = (st.st_size, st.st_mtime)
+        if _html_ver[0] != key:
+            with open(P('dashboard.html'), encoding='utf-8') as f:
+                m = re.search(r"const APP_VERSION = '([^']+)'", f.read())
+            _html_ver = (key, m[1] if m else '')
+        return _html_ver[1]
     except OSError:
         return ''
 

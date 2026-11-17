@@ -2,6 +2,23 @@
 <html lang="ko">
 <head>
 <meta charset="UTF-8">
+<script id="deptBoot">/* 2026-11-17 v17.61 옛 파일 자동 새 버전: 부서원 PC 의 옛 dashboard.html 이 서버의 새 버전을 알아채면(아래 liveSwap) 표시를 남기고 다시 열림
+   → 여기서(가장 먼저) 서버의 새 dashboard.html 을 받아 그것으로 화면을 그리고, 이 파일의 옛 내용은 읽지 않음. 같은 파일 주소라 로그인 · 보관본 · 못 올린 입력은 그대로 */
+(function () {
+  try {
+    if (location.protocol !== 'file:' || window.__deptLive) return;
+    var s = JSON.parse(sessionStorage.getItem('dept-live') || 'null');
+    sessionStorage.removeItem('dept-live');                  // 한 번만 (실패하면 옛 파일 그대로 열림)
+    if (!s || !s.base || !s.to || Date.now() - s.at > 60000) return;
+    var x = new XMLHttpRequest(); x.open('GET', s.base + '/dashboard.html', false); x.send();
+    var t = x.status === 200 ? x.responseText : '', m = t.match(new RegExp('const APP_' + "VERSION = '([^']+)'"));   // 글자를 나눠 둠: 이 줄이 버전 줄로 읽히지 않게
+    if (!m || m[1] !== s.to) return;
+    window.__deptLive = { from:s.from, to:m[1], base:s.base };
+    sessionStorage.setItem('dept-live-ok', m[1]);
+    document.write(t.replace(/^\s*<!DOCTYPE[^>]*>/i, '') + '<plaintext hidden style="display:none">');   // 뒤의 옛 내용은 글자로 묶여 실행되지 않음
+  } catch (e) {}
+})();
+</script>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>계장ENG그룹 Dashboard</title>
 <style>
@@ -2069,7 +2086,7 @@ function recLabel(key, f) {
  * ===================================================================== */
 let root = null;
 /* 서버 모드: http(s):// 로 접속하면 server.py 의 REST API 사용 (폴더 선택 불필요). file:// 로 열면 폴더 모드 */
-const APP_VERSION = '2026-11-16.7';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
+const APP_VERSION = '2026-11-17.1';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
 const SERVER_URL = 'http://localhost:8080';
 // 부서원 PC 사본(file://)이 접속을 시도할 서버 — 서버가 배포 파일을 만들 때 'PC 이름 주소, IP 주소' 순으로 자동 기록함
 const DEFAULT_SERVERS = ['http://ASEUNGWOOK-B01:8080', 'http://65.3.30.234:8080'];
@@ -2831,6 +2848,10 @@ async function askUpdate(manual) {
     [{ id:'yes', label:'예 (교체)', cls:'pri' }, { id:'no', label:'나중에' }]);
   if (c === 'yes') await replaceSelf(html);
 }
+async function liveFix() {                                   // 새 버전으로 열린 옛 파일 → 파일 자체도 새 버전으로 (처음 한 번 저장 창)
+  let html; try { html = await newHtml(); } catch (e) { return toast('새 버전을 받지 못했습니다: ' + e.message, true); }
+  await replaceSelf(html);
+}
 async function replaceSelf(html) {
   const fname = selfName();
   if (!('showSaveFilePicker' in window)) return saveCopy();
@@ -2969,6 +2990,32 @@ function embedTip() {
   if (!EMBED_ASK || !SERVER || OFFLINE || NEWVER || !root || FRAME_ROUTES(route)) return false;
   try { return localStorage.getItem('dept-embed-hide') !== todayISO(); } catch (_) { return true; }
 }
+/* 2026-11-17 v17.61 사용자 지시 "부서원이 옛 파일 안 쓰게 자동으로": 파일(file://)로 열었는데 서버에 새 버전이 있으면 묻지 않고
+   ① 이 파일 쓰기 허락이 있으면(한 번 [교체] · [자동 보관 켜기] 한 PC) 파일을 조용히 새 버전으로 덮고 다시 엶
+   ② 허락이 없으면 이번에는 서버의 새 버전으로 엶(위 deptBoot) + 배너 [이 파일도 바꾸기] — 한 번 누르면 다음부터 ①로 */
+async function liveSwap() {
+  if (!NEWVER || location.protocol !== 'file:' || window.__deptLive || OFFLINE) return false;
+  try {                                                       // 바로 전에 해 봤는데 안 됐으면(옛 브라우저 등) 되풀이하지 않고 예전처럼 안내만
+    const t = JSON.parse(sessionStorage.getItem('dept-live-try') || 'null');
+    if (t && t.to === NEWVER && Date.now() - t.at < 120000 && sessionStorage.getItem('dept-live-ok') !== NEWVER) return false;
+    sessionStorage.setItem('dept-live-try', JSON.stringify({ to:NEWVER, at:Date.now() }));
+  } catch (_) { return false; }
+  try {
+    const h = await kv('readonly', st => st.get('self'));
+    if (h && h.name === selfName() && await h.queryPermission({ mode:'readwrite' }) === 'granted' && await isSelfFile(h)) {
+      const html = await newHtml(), to = (html.match(/const APP_VERSION = '([^']+)'/) || [])[1] || '';
+      if (to === NEWVER) {
+        await selfWrite(h, await withSnap(html));
+        try { localStorage.setItem('dept-embed-at', String(Date.now())); sessionStorage.setItem('dept-upd', JSON.stringify({ to, at:Date.now() })); } catch (_) {}
+        UNLOAD_OK = true; location.reload(); return true;
+      }
+    }
+  } catch (_) {}
+  try { sessionStorage.setItem('dept-live', JSON.stringify({ base:API_BASE, to:NEWVER, from:APP_VERSION, at:Date.now() })); } catch (_) { return false; }
+  UNLOAD_OK = true; location.reload(); return true;
+}
+const LIVE = (() => { try { return location.protocol === 'file:' && window.__deptLive && window.__deptLive.to === APP_VERSION ? window.__deptLive : null; } catch (_) { return null; } })();
+let LIVE_DONE = false;                                        // 이번에 파일도 바꿨으면 배너 숨김
 function checkVersion(info) { NEWVER = info.version && info.version !== APP_VERSION && location.protocol === 'file:' ? info.version : ''; }
 const serverLabel = () => `${(API_BASE || location.origin).replace(/^https?:\/\//, '')} (서버${ADMIN ? ' · 관리자' : SUPER ? ' · 그룹장 권한' : ''})`;
 
@@ -5408,6 +5455,8 @@ function render() {
       <span class="sp"></span><button class="btn sm pri" data-net="embed">💾 자동 보관 켜기</button><button class="btn sm" data-net="embedno">오늘은 그만</button></div>`;
   if (copyTip()) banners += `<div class="banner netbar">💡 지금은 주소(<b>${esc(location.host)}</b>)로 열었습니다 — <b>서버가 꺼지면 이 주소는 열리지 않습니다.</b> [📥 내 PC 사본 받기]로 받은 파일을 바탕화면에 두고 그 파일로 열면, 서버가 꺼져도 마지막 데이터로 볼 수 있습니다.
       <span class="sp"></span><button class="btn sm pri" data-net="copy">📥 내 PC 사본 받기</button><button class="btn sm" data-net="copyno">오늘은 그만</button></div>`;
+  if (LIVE && !LIVE_DONE && !NEWVER && SERVER && !OFFLINE) banners += `<div class="banner netbar">🆕 이 PC 의 dashboard.html 은 옛 버전(${esc(LIVE.from)})이라 <b>서버의 새 버전(${esc(LIVE.to)})으로 자동으로 열었습니다.</b> 서버가 꺼졌을 때도 새 버전으로 열리게 파일도 바꿔 두세요 (한 번만 — 다음부터는 자동으로 바뀝니다).
+      <span class="sp"></span><button class="btn sm pri" data-net="liveupd">이 파일도 바꾸기</button></div>`;
   if (NEWVER) banners += `<div class="banner netbar">🆕 새 버전의 대시보드(${esc(NEWVER)})가 있습니다. 내 PC의 dashboard.html 을 새 파일로 바꿔 주세요.
       <span class="sp"></span><button class="btn sm pri" data-net="upd">지금 교체</button><a class="btn sm" href="${esc(API_BASE)}/dashboard.html?download=1">새 버전 다운로드</a></div>`;
   if (readOnly() && !FRAME_ROUTES(route)) banners += `<div class="banner">📌 <b>${esc(weekLabel(view.week))}</b> 마감본(읽기 전용) — ${view.arch?.auto ? `<b>수요일 오전 11:59 기준</b> 데이터` : `마감 시각 ${fmtTime(view.arch?.closedAt)} 기준 데이터`} · ${esc(view.arch?.closedBy || '')}</div>`;
@@ -10288,7 +10337,7 @@ $('#content').onclick = e => {
   const pp = e.target.closest('[data-pop]'); if (pp) return openPop(pp.dataset.pop);
   const g = e.target.closest('[data-go]'); if (g) return go(g.dataset.go);
   const ba = e.target.closest('[data-bact]'); if (ba) return boardAction(ba);
-  const nb = e.target.closest('[data-net]'); if (nb) return nb.dataset.net === 'sync' ? trySync(true) : nb.dataset.net === 'upd' ? askUpdate(true)
+  const nb = e.target.closest('[data-net]'); if (nb) return nb.dataset.net === 'sync' ? trySync(true) : nb.dataset.net === 'upd' ? askUpdate(true) : nb.dataset.net === 'liveupd' ? liveFix()
     : nb.dataset.net === 'embed' ? embedSelf(true) : nb.dataset.net === 'embedno' ? (() => { try { localStorage.setItem('dept-embed-hide', todayISO()); } catch (_) {} render(); })()
     : nb.dataset.net === 'tripx' ? kitSave() : nb.dataset.net === 'kitsave' ? kitSave() : nb.dataset.net === 'kitjson' ? kitSave(true) : nb.dataset.net === 'kitin' ? (() => { const i = $('#kitIn'); i.onchange = async () => { for (const f of [...i.files]) await importQueue(f, true); render(); }; i.click(); })() : nb.dataset.net === 'copy' ? saveCopy() : nb.dataset.net === 'copyno' ? (() => { try { localStorage.setItem('dept-copy-hide', todayISO()); } catch (_) {} render(); })() : openQueue();
   if (PID_ROUTES[route]) { if (e.target.closest('[data-finkey]')) return openFinKey(); if (e.target.closest('[data-pidforce]')) { const w = $('#pidwrap'); if (w) w.dataset.force = '1'; return pidConnect(route); } if (e.target.closest('[data-pidretry]')) pidConnect(route); return; }
@@ -10512,7 +10561,7 @@ setInterval(() => { if (SERVER && root && (OFFLINE || QUEUE.length) && !boardTyp
     // 설정한 주소가 있으면 그 주소만, 없으면 PC 이름 주소 → IP 주소 순으로 시도
     API_BASE = normUrl(DEFAULT_SERVERS[0] || '');
     info = await findServer();                               // 설정한 주소 → 기본 주소(PC 이름 · IP) → 예전에 연결됐던 주소 모두 동시에
-    if (info && info.mode === 'server') { ADMIN = !!info.admin; SERVER_INFO = info; setPerms(info.perms, info.super); checkVersion(info); root = { name:serverLabel() }; await startOnline(); return; }
+    if (info && info.mode === 'server') { ADMIN = !!info.admin; SERVER_INFO = info; setPerms(info.perms, info.super); checkVersion(info); if (await liveSwap()) return; root = { name:serverLabel() }; await startOnline(); return; }
     let c = await cacheLoad(); const sn = snapLoad();
     if (sn && (!c || String(sn.savedAt || '') > String(c.savedAt || ''))) {   // 파일 안에 넣어 둔 보관본이 더 새것이거나 브라우저 보관본이 없으면 그것으로
       try { await kv('readwrite', s => s.put(sn, 'cache')); } catch (_) {}
