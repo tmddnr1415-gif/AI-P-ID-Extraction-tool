@@ -357,7 +357,7 @@ const NOT_PROCESS = new Set(['body_size', 'rating', 'body_material', 'ball_mater
   'bolting_gasket', 'packing_material', 'packing_type', 'connections', 'line_size_inlet', 'line_size_outlet', 'piping_class', 'pipe_material']);
 const SECTION_NAMES = { general: 'General Information', basis: 'Design Basis', process: 'Process Data', mechanical: 'Valve Mechanical Data',
   trim: 'Valve Trim', material: 'Materials', sizing: 'Sizing', actuator: 'Actuator', positioner: 'Positioner',
-  special: 'Special Requirements', accessories: 'Accessories' };
+  special: 'Special Requirements', accessories: 'Accessories', purchase: 'Purchase' };
 
 /* ── PDF viewer (server-rendered pages + overlays in PDF points) ───────── */
 const pageInfo = {};

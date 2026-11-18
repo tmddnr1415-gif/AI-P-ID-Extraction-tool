@@ -28,7 +28,7 @@ from app.valve import schema
 
 # valve29: recorded on every datasheet read (source traceability). Bump when the reading logic changes —
 # the last change to how cells are found was valve22 (robustness round), so this reader is "extract-v22".
-PARSER_VERSION = "extract-v37"     # valve37: Forms 101 / 701 · Code 80 with a bottom title block · notes-only sheets (forms_ext)
+PARSER_VERSION = "extract-v41"     # valve41: ISA-20 INSTRUMENT SPECIFICATION sheets (form_isa) · v37: Forms 101 / 701 · Code 80 bottom title block
 
 
 def _forms():
@@ -273,6 +273,10 @@ def read_page(page, page_no: int):
     fk = _forms().form_no(words, page)                      # 'Form No : 101 / 701' (valve37)
     if fk == "701" and len(cols) == 1:
         return _forms().read_page_701(page, page_no, words, cols[0])
+    if fk is None and len(cols) >= 2:                       # valve41: ISA-20 'INSTRUMENT SPECIFICATION' (ruled cells, no colons)
+        from app.valve import form_isa
+        if form_isa.is_isa(page, words, cols):
+            return form_isa.read_page(page, page_no, words, cols)
     if len(cols) >= 2 or (len(cols) == 1 and _colon_rows(words, cols[0])):
         sh = read_page_102(page, page_no, words, cols)
         if fk == "101" and len(cols) >= 2:
@@ -944,7 +948,7 @@ def group_datasheets(result: dict):
         if pr and pr != cur["doc_no"] and sh.get("sheet") and not sh.get("continuation"):   # another number than sheet 1
             cur.setdefault("sheet_doc_mismatch", []).append({"page": sh["page"], "sheet": sh.get("sheet"), "printed": pr})
         cur["sheets"].append([sh["page"], sh.get("sheet"), sh.get("of")])     # PDF page -> 'Sheet x of y' on the form
-        if sh.get("form") in ("101", "701") and not cur.get("form"):
+        if sh.get("form") in ("101", "701", "ISA20") and not cur.get("form"):
             cur["form"] = sh["form"]                         # valve37: Control Valve / Pressure Relief Valve form
         for r in sh["rows"]:
             r = dict(r, page=sh["page"])

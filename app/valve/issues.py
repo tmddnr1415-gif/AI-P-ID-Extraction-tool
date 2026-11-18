@@ -179,6 +179,8 @@ def compute(ds: dict, general_notes: dict | None = None, pms: dict | None = None
         v = _v(f)
         if not v.strip() or not _OPEN.search(v) or _LEGEND.search(v):
             continue
+        if f.get("section") == "purchase":                   # valve41: PO number · price · serial 'TBC' is not a design HOLD
+            continue
         refd = [hold_notes[int(m)] for m in _HOLD_REF.findall(v) if int(m) in hold_notes]
         add("Open Item", f["key"], f"'{_cut(v, 50)}' on HOLD/TBC"
             + "".join(f" (HOLD {h['no']}: {_cut(h['text'], 60)})" for h in refd) + ". Release and give value.",

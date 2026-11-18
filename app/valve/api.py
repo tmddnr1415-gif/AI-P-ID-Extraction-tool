@@ -446,7 +446,27 @@ def _process(jid: str, pid: int, items: list[tuple[int, str, str, Path]], by: st
                         if dup:
                             continue
                         new_ids.append(store.insert_datasheet(con, pid, doc_id, ds))
-                    info = {"datasheets": len(dss), "tags": sorted({d["tag"] for d in dss}),
+                    # valve41: what an OLDER reading of this same file left and this reading no longer gives — a datasheet
+                    # without a tag (a form the reader did not know), or the same tag under another revision (read from
+                    # the wrong cell) — goes, unless a reviewer has worked on it (decision · comment · status)
+                    keep = {(d["tag_key"], d["rev"]) for d in dss}
+                    if any(d["tag_key"] for d in dss):
+                        stale = []
+                        for r in store.rows(con, "SELECT id, tag_key, rev, review_status FROM datasheet WHERE document_id=?", doc_id):
+                            if (r["tag_key"] or "", r["rev"]) in keep:
+                                continue
+                            used = (r["review_status"] or "Not Reviewed") != "Not Reviewed" or con.execute(
+                                "SELECT (SELECT COUNT(*) FROM issue_state WHERE datasheet_id=?) + (SELECT COUNT(*) FROM comment WHERE datasheet_id=?)",
+                                (r["id"], r["id"])).fetchone()[0]
+                            if not used or not (r["tag_key"] or ""):
+                                stale.append(r["id"])
+                        if stale:
+                            q = ",".join("?" * len(stale))
+                            for t in ("field", "comment", "issue_state"):
+                                con.execute(f"DELETE FROM {t} WHERE datasheet_id IN ({q})", stale)
+                            con.execute(f"DELETE FROM datasheet WHERE id IN ({q})", stale)
+                            store.audit(con, pid, None, None, "re-read", None, name, by, f"{len(stale)} datasheets of an older reading removed (read again: {len(dss)} tags)")
+                    info = {"datasheets": len(dss), "reader": extract.PARSER_VERSION, "tags": sorted({d["tag"] for d in dss}),
                             "docs": {k: {"title": v.get("title"), "rev": v.get("rev"),
                                          "general_notes": v.get("general_notes", {})} for k, v in res["docs"].items()},
                             "scanned_pages": n_scan}
@@ -658,11 +678,36 @@ def _export_json():
             return
         _JSON_DONE.append(1)
     try:
+        _auto_reread()
+    except Exception:                                        # noqa: BLE001
+        _log_error("auto re-read")
+    try:
         r = dsjson.export_all(store.connect())
         if r["written"]:
             print(f"[valve] datasheet JSON: {r['written']} files written → {r['folder']}", flush=True)
     except Exception:                                        # noqa: BLE001
         _log_error("datasheet json export")
+
+
+def _auto_reread():
+    """valve41 (user 2026-11-13: '다시 올리지 않고 새로고침하면 반영'): a document an OLDER reader could not read — it left a
+    datasheet without a tag — is read again once by this reader at server start (stored copy intact only).  Tried once per
+    reader version; review decisions of tagged datasheets stay (refresh_datasheet)."""
+    con = store.connect()
+    docs = store.rows(con, "SELECT DISTINCT d.id, d.project_id, d.kind, d.filename, d.path, d.pages, d.info FROM document d"
+                           " JOIN datasheet s ON s.document_id=d.id WHERE COALESCE(s.tag_key,'')='' AND d.kind='datasheet' AND d.status='done'")
+    for d in docs:
+        info = store.unJ(d["info"], {}) or {}
+        if info.get("reader") == extract.PARSER_VERSION or not d["path"] or not store.stored_good(d["path"])[0]:
+            continue
+        jid = "auto" + uuid.uuid4().hex[:8]
+        _JOBS[jid] = {"id": jid, "status": "running", "done": 0, "total": max(1, d["pages"] or 1), "msg": "", "file": "",
+                      "errors": [], "skipped": [], "warn": "", "base": None, "exports": []}
+        print(f"[valve] reading again with the new reader: {d['filename']} (a datasheet without a tag was left by an older reader)", flush=True)
+        _process(jid, d["project_id"], [(d["id"], d["kind"], d["filename"], Path(d["path"]), d["pages"] or 0)], "auto re-read")
+        n = store.one(con, "SELECT COUNT(*) n FROM datasheet WHERE document_id=?", d["id"])["n"]
+        print(f"[valve]   → {n} datasheets", flush=True)
+        _JOBS.pop(jid, None)
 
 
 @router.get("/api/valve/datasheets/{dsid}/json")
@@ -739,7 +784,7 @@ def _rules_fingerprint() -> str:
 
 
 _RULES_FP = _rules_fingerprint()
-VERSION = "valve40"                       # shown in Settings › 정보 and the footer; bump with every package
+VERSION = "valve41"                       # shown in Settings › 정보 and the footer; bump with every package
 
 
 @router.get("/api/valve/version")

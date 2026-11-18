@@ -359,9 +359,17 @@ def site_map(rule: dict) -> dict:
             m[r["site"]] = r["site"]
             if r.get("note"):                                 # 'DTS 98 | QN | | North' — the site's name in words
                 m.setdefault(r["note"].split()[0], r["site"])
-            z = _one((rule.get("system") or {}).get(r["doc"]))
-            if z:
-                m.setdefault(z.split()[0], r["site"])
+            # valve41: what the documents numbered '<doc>-…' call their site — the first word of their areas ('South' of
+            # 'South' and 'South Brownfield' alike; company PC: a mix of the two left 'South' unmapped → a 'South' row
+            # beside 'QS')
+            first = collections.Counter()
+            for z, n in ((rule.get("system") or {}).get(r["doc"]) or {}).items():
+                if z and not z.startswith("("):
+                    first[z.split()[0]] += n
+            if first:
+                w, n = first.most_common(1)[0]
+                if n >= 0.8 * sum(first.values()):
+                    m.setdefault(w, r["site"])
     return m
 
 

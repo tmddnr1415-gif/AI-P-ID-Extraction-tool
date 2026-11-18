@@ -375,3 +375,22 @@
   기본 표 DTS 줄에 이름 ('DTS 98 | QN | | North'). 실자료: QN Greenfield 74 · QN Brownfield N1 2 · N2 2 · (Train 미상) 3 · QS 76 · W15 7. 시험 +1 · 전체 2,096.
 - (추가 · 오케스트레이터가 알린 가끔 실패) 새 DB 를 여러 스레드가 동시에 열 때 'database is locked': busy_timeout 을 먼저, WAL 전환은 첫 사용 잠금 안에서 1번
   (재현 40회 중 3회 → 0회 · 회사 첫 시작에도 해당). warm-up 대기열이 자료 폴더를 기억 — 폴더가 바뀌면(시험) 그 일을 건너뜀. 전체 2,096 두 번 통과.
+
+### 2026-11-18 VALVE valve41 — South Control Valve · Regulator 도서가 안 읽히던 것 (ISA-20 'INSTRUMENT SPECIFICATION' 양식)
+- 회사 사진(Globe Valve): 'QS (other) 1' · PCV 4개가 'South' 와 'QS' 로 따로. 사용자 첨부 2권(40쪽 Control Valve · 16쪽 Self-actuated Regulator)으로 재현:
+  40쪽 도서가 **Tag 없는 Datasheet 1개**, Regulator 는 Tag 만 있고 값 거의 없음.
+- 원인: 두 도서는 Valve 리더가 아는 양식(Form 101/102 = 'Label : value')이 아니라 ISA-20 식 양식 — 번호 줄 2열(1-55 · 56-83), 콜론 없음,
+  라벨·값이 같은 글꼴, 칸마다 괘선, 표제는 아래. read_page_102 가 콜론 있는 줄 6개만 읽음.
+- `app/valve/form_isa.py` (새 파일): 괘선으로 칸을 읽음 — 블록(1-30 전체 폭 · 31-55 · 56-83)의 라벨/값 경계 = 그 블록 줄 대부분을 지나는 세로선,
+  칸 = 줄을 지나는 세로선 사이. 라벨은 (라벨, 블록 제목)으로 key (MFR · Model · Type 이 Body/Actuator/Positioner/Solenoid/Switches/Air set 마다 다름).
+  'Ambient Temperature: | Min. | Max.' · 'Line Size and Schedule | Inlet | Outlet' = 제목 + 두 부분(값 공간 가운데 선으로 가름), 단위만 든 칸은 앞 값의 단위,
+  공정 줄 = 'Units | @Max | @Norm | @Min' 머리줄 아래 4칸(flow.max …), '4 in 80' = Size + Schedule, 'RF,1500#' = Connection + Rating. 표제는 footer().
+  `extract.read_page` 가 'Form No' 없고 번호 열 2개 + 표 아래 'INSTRUMENT SPECIFICATION' 이면 이 리더로. Sheet 2(Notes)는 기존 read_continuation.
+  PARSER_VERSION extract-v41 · VERSION valve41.
+- 결과(첨부 2권): 15 + 4 = 19 Tag (FV 1 · LV 8 · PV 5 · TV 1 · PCV 4), Tag 당 120여 칸, 모르는 라벨 0, Area QS. 지적 148 = 공정 값 빈칸 144(도서 Hold 1 과 일치) ·
+  Valve Size 빈칸 2(Hold 3 의 98FV-010 · 98PV-025B) · Note 9 HOLD 2.
+- 다시 올리지 않게: 서버 시작 때 **Tag 없는 Datasheet 를 남긴 문서**를 새 리더로 한 번 다시 읽음(`_auto_reread`, 보관본 멀쩡할 때 · 리더 판마다 1번 · `document.info.reader`).
+  다시 읽을 때 같은 파일의 옛 읽기가 남긴 것(Tag 없음 · 같은 Tag 다른 Rev)은 검토자가 손대지 않았으면 지움.
+- Area: 표제의 'South' ↔ 규칙 표 'QS' 를 잇는 학습이 '999-…' 문서에 South 와 South Brownfield 가 섞이면 실패 → 첫 낱말로 배움 (사진의 'South' 4 · 'QS' 5 가 한 줄로).
+- 검토: PURCHASE 칸(PO 번호 · 가격 · Serial 'TBC')은 Open Item 아님 · 상(phase)에 따라 빈칸인 물성(Z · 점도 · 비열비 · 증기압)은 'Data Missing' 아님(Form 101 과 같음).
+- 시험 `tests/test_valve_form_isa.py` (가짜 값으로 그린 양식 2개). Ball 456쪽 읽기 결과 옛 코드와 동일(17,471 칸) · 판정 2,935/0 · UI 25/25 · 전체 2,098.

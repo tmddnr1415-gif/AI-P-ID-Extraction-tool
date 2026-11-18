@@ -22,6 +22,7 @@ SECTIONS = [
     ("actuator", "Actuator"),
     ("special", "Special Requirements"),
     ("accessories", "Accessories"),
+    ("purchase", "Purchase"),                              # valve41: ISA-20 sheet — PO number · price · serial (not reviewed)
 ]
 
 # normalised label -> (key, section, display name)
