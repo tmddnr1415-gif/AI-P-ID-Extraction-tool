@@ -47,8 +47,8 @@
    "title": "6. Datasheet 자동 검토",
    "bucket": "COMPLETED",
    "updated": "2026-11-18T06:12:22Z",
-   "recent": "ffe3c721 valve41 — South ISA 양식 읽기 + 모든 타입 공통 안전망(읽지 못한 쪽 · INDEX Tag 대조 · Document Management 빨간 표시) · DB 잠금 고침 포함. 회사 미전달 — 사용자 요청 시 hotfix144",
-   "needs": "사용자: hotfix144 만들지 결정"
+   "recent": "ffe3c721 valve41 — South ISA 양식 · 읽지 못한 쪽 · INDEX 대조. hotfix144 로 회사 업데이트에 실림",
+   "needs": "회사: hotfix144 적용 뒤 South 도서 Tag · 일부 못 읽음 표시 확인"
   },
   "S7": {
    "id": "session_01Muj82FVwL2Yt5DTXGPNkcp",
