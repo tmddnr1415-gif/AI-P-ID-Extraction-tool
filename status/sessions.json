@@ -14,9 +14,9 @@
    "id": "session_01Muj82H8eDSPwWi9XQC7rFh",
    "title": "2. PID 검토 4 (NEW)",
    "bucket": "COMPLETED",
-   "updated": "2026-11-11T01:59:32Z",
-   "recent": "6caae532 — LOGIC 분석→그리기 변환 왕복 정확도 검사 기록(30장 · 코드 변경 없음) · 29b6072e /ic3d 연결",
-   "needs": ""
+   "updated": "2026-11-18T06:52:45Z",
+   "recent": "470aabf3 — 회사 증상 \"P&ID 결과에서 List 는 나오는데 도면이 안 나옴\" 고침 (장 그림이 무거운 PDF 읽기 뒤에 줄 서던 것 분리 · 늦으면 안내 · [다시 받기]). 회사 미전달 — 사용자 요청 시 hotfix145",
+   "needs": "사용자: hotfix145 만들지 결정"
   },
   "S3": {
    "id": "session_01Muj82Ewiqsoeo54Ei1FzrE",
