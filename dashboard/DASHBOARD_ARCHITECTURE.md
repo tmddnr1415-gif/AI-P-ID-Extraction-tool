@@ -2066,3 +2066,8 @@ C:\Users\SAMSUNG\Desktop\Claude\                         ← 개발 폴더 (여�
   - 이 PC 브라우저 보관본(IndexedDB)은 예전처럼 늘 최신 — 파일 안 보관본은 브라우저 보관본이 지워졌을 때를 위한 것.
 - 바뀐 곳: dashboard.html `autoEmbed`(now 인자 · EMBED_BUSY) · `embedSelf`(허락 없을 때 바로 배너) · visibilitychange / pagehide / pointerdown(regrant) · 배너 문구 · `startOnline` 주기 / `EMBED_MS` · `askSaveOnExit` · beforeunload 삭제
 - 확인한 것: file:// 사본으로 로그인 → 배너 바로 뜸, 창 닫기 때 확인 창 0개, 콘솔 오류 없음. 회사에서 확인할 것: [자동 보관 켜기] 후 입력 → 30초 뒤 · 창 닫기 전 파일 수정 시각이 바뀌는지(저장 창은 시험 환경에서 못 띄움).
+
+### 2026-11-18 (APP_VERSION 2026-11-18.1 / SERVER_VERSION 그대로) — v17.63 수행 · 입찰 '작업' 열도 숨기기
+- 무엇을: 사용자 지시 "주간업무보고 수행, 입찰에서 작업 열도 숨기기 가능하게". 예전 열 숨기기(2026-10-22, 나에게만 · 이 PC)는 데이터 열만 됐음 → 작업 열 머리에 🙈 버튼, 누르면 작업 열(편집 · 이력 · 삭제 버튼 칸)이 사라짐. 다시 보이기 = 표 위 '숨긴 열' 줄의 [작업 ✕] / [모두 보이기], 또는 마지막 열 머리의 ◂ 표시. 숨김 목록에 `'__act'` 로 저장.
+- 바뀐 곳: dashboard.html `hiddenCols` · `hideCols`(`__act` 허용) · `fieldLabel`('작업') · `tableHtml`(colgroup · 머리 · 행 · 묶음 줄 colspan · 끝 ◂ 표시) · 클릭 `[data-hideact]`
+- 확인한 것: 시험 행 1개씩 넣은 수행 · 입찰에서 숨기기 → 작업 칸 0 · '숨긴 열 1개 작업' 표시 → 다시 보이기 복원, 콘솔 오류 없음.

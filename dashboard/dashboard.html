@@ -2086,7 +2086,7 @@ function recLabel(key, f) {
  * ===================================================================== */
 let root = null;
 /* 서버 모드: http(s):// 로 접속하면 server.py 의 REST API 사용 (폴더 선택 불필요). file:// 로 열면 폴더 모드 */
-const APP_VERSION = '2026-11-17.2';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
+const APP_VERSION = '2026-11-18.1';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
 const SERVER_URL = 'http://localhost:8080';
 // 부서원 PC 사본(file://)이 접속을 시도할 서버 — 서버가 배포 파일을 만들 때 'PC 이름 주소, IP 주소' 순으로 자동 기록함
 const DEFAULT_SERVERS = ['http://ASEUNGWOOK-B01:8080', 'http://65.3.30.234:8080'];
@@ -7808,6 +7808,7 @@ const purgeStrike = v => String(v || '').replace(/^[ \t]*~~(?:(?!~~)[^\n])*~~[ \
 
 /* ---------- 셀 선택 (십자 하이라이트) / 선택 셀의 행·열 크기 조절 / 키보드 이동 ---------- */
 function fieldLabel(key, f) {
+  if (f === '__act') return '작업';
   if (f.startsWith('배정.')) return getCols().find(c => c.id === f.slice(3))?.name || f;
   return SHEET[key].cols?.find(c => c.f === f)?.label || f;
 }
@@ -7991,7 +7992,7 @@ function cellHtml(s, c, r, h) {
 const LS_HIDE = 'dept-hidecols', HIDE_SHEETS = new Set(['perform', 'bid']);
 let HIDE = {}; try { HIDE = JSON.parse(localStorage.getItem(LS_HIDE) || '{}') || {}; } catch (_) {}
 const hideUser = () => normName(user) || '_';
-const hiddenCols = key => HIDE_SHEETS.has(key) ? ((HIDE[hideUser()] || {})[key] || []).filter(f => SHEET[key]?.cols.some(c => c.f === f)) : [];
+const hiddenCols = key => HIDE_SHEETS.has(key) ? ((HIDE[hideUser()] || {})[key] || []).filter(f => f === '__act' || SHEET[key]?.cols.some(c => c.f === f)) : [];   // 2026-11-18 '__act' = 작업 열
 function setHidden(key, list) {
   const u = hideUser(); HIDE[u] = { ...(HIDE[u] || {}), [key]: [...new Set(list)] };
   try { localStorage.setItem(LS_HIDE, JSON.stringify(HIDE)); } catch (_) {}
@@ -7999,7 +8000,7 @@ function setHidden(key, list) {
 }
 function hideCols(key, fs) {
   const s = SHEET[key]; if (!s || !HIDE_SHEETS.has(key)) return;
-  fs = fs.filter(f => f && f !== s.title && s.cols.some(c => c.f === f));        // 제목 열(PJT명)은 숨기지 않음
+  fs = fs.filter(f => f && f !== s.title && (f === '__act' || s.cols.some(c => c.f === f)));        // 제목 열(PJT명)은 숨기지 않음 · 작업 열(__act)은 숨김 가능
   if (!fs.length) return toast(`'${s.title}' 열은 숨길 수 없습니다 — 다른 열을 고르세요`, true);
   setHidden(key, [...hiddenCols(key), ...fs]);
   toast(`${fs.map(f => fieldLabel(key, f)).join(', ')} 열을 숨겼습니다 (나에게만 · 표 위 '숨긴 열'에서 다시 보이기)`);
@@ -8026,19 +8027,19 @@ const thR = (ck, label, extra = '', key = '') => `<th data-ck="${esc(ck)}" ${key
 
 function tableHtml(s, recs) {
   if (!recs.length) return `<div class="empty">표시할 행이 없습니다${noEdit() || readOnly() ? '' : `<br><button class="btn pri sm" data-emptyadd style="margin-top:10px">＋ 첫 행 추가</button><br><span class="muted" style="font-size:12px">필터를 걸었다면 [필터 초기화]를 눌러 보세요</span>`}</div>`;   // 2026-11-08 빈 화면 = 할 일 하나
-  const cols = visCols(s), hid = hiddenCols(s.key);
-  const L = lay(s.key), cg = colgroup(L, [...cols.map(c => ({ k:c.f, w:c.w + 20 })), { k:'__act', w:170 }]);
+  const cols = visCols(s), hid = hiddenCols(s.key), actHid = hid.includes('__act');   // 2026-11-18 v17.63 수행 · 입찰: 작업 열도 숨기기
+  const L = lay(s.key), cg = colgroup(L, [...cols.map(c => ({ k:c.f, w:c.w + 20 })), ...(actHid ? [] : [{ k:'__act', w:170 }])]);
   const hidBefore = f => { const i = s.cols.findIndex(c => c.f === f), out = []; for (let j = i - 1; j >= 0 && hid.includes(s.cols[j].f); j--) out.unshift(s.cols[j].f); return out; };
   const hidMk = f => { const h = hidBefore(f); return h.length ? `<span class="hidmk" data-unhide="${esc(h.join('|'))}" title="여기 숨긴 열: ${esc(h.map(x => fieldLabel(s.key, x)).join(', '))} — 누르면 다시 보임">◂${h.length}</span>` : ''; };
   let last = null, rows = '';
   for (const r of recs) {
-    if (s.group && r.fields[s.group] !== last) { last = r.fields[s.group]; rows += `<tr class="grp"><td colspan="${cols.length + 1}">${s.key === 'task' ? `<span style="color:${ttOf(last).color}">${ttOf(last).icon}</span> ${esc(last || '유형 미지정')}` : esc(last || '(미분류)')}</td></tr>`; }
+    if (s.group && r.fields[s.group] !== last) { last = r.fields[s.group]; rows += `<tr class="grp"><td colspan="${cols.length + (actHid ? 0 : 1)}">${s.key === 'task' ? `<span style="color:${ttOf(last).color}">${ttOf(last).icon}</span> ${esc(last || '유형 미지정')}` : esc(last || '(미분류)')}</td></tr>`; }
     const h = hlOf(r); h.base = baseFieldsOf(r);
-    rows += `<tr ${rowAttr(L, r)}>${cols.map(c => cellHtml(s, c, r, h)).join('')}${actCell(s.key, r)}</tr>`;
+    rows += `<tr ${rowAttr(L, r)}>${cols.map(c => cellHtml(s, c, r, h)).join('')}${actHid ? '' : actCell(s.key, r)}</tr>`;
   }
-  const tail = hid.length && hid.includes(s.cols[s.cols.length - 1].f) ? (() => { const out = []; for (let j = s.cols.length - 1; j >= 0 && hid.includes(s.cols[j].f); j--) out.unshift(s.cols[j].f); return out; })() : [];
+  const tail = [...(hid.length && hid.includes(s.cols[s.cols.length - 1].f) ? (() => { const out = []; for (let j = s.cols.length - 1; j >= 0 && hid.includes(s.cols[j].f); j--) out.unshift(s.cols[j].f); return out; })() : []), ...(actHid ? ['__act'] : [])];
   const actMk = tail.length ? `<span class="hidmk" data-unhide="${esc(tail.join('|'))}" title="여기 숨긴 열: ${esc(tail.map(x => fieldLabel(s.key, x)).join(', '))} — 누르면 다시 보임">◂${tail.length}</span>` : '';
-  return `<div class="tw"><table class="t fx-l" data-sheet="${s.key}" style="${tableStyle(L, cg.total)}">${cg.html}<thead><tr>${cols.map(c => thR(c.f, hidMk(c.f) + esc(c.label || c.f), `class="${[c.f === s.title ? 'key' : '', colKind(c)].filter(Boolean).join(' ')}"`, s.key)).join('')}${thR('__act', actMk + '작업', 'class="act"')}</tr></thead><tbody>${rows}</tbody></table></div>`;
+  return `<div class="tw"><table class="t fx-l" data-sheet="${s.key}" style="${tableStyle(L, cg.total)}">${cg.html}<thead><tr>${cols.map((c, i) => thR(c.f, hidMk(c.f) + esc(c.label || c.f) + (actHid && i === cols.length - 1 ? ' ' + actMk : ''), `class="${[c.f === s.title ? 'key' : '', colKind(c)].filter(Boolean).join(' ')}"`, s.key)).join('')}${actHid ? '' : thR('__act', actMk + '작업' + (HIDE_SHEETS.has(s.key) ? ' <span class="hidmk" data-hideact title="작업 열 숨기기 (나에게만 · 표 위 \'숨긴 열\'에서 다시 보이기)">🙈</span>' : ''), 'class="act"')}</tr></thead><tbody>${rows}</tbody></table></div>`;
 }
 
 function staffStats(r) {
@@ -10348,6 +10349,7 @@ $('#content').onclick = e => {
   if (hth && hth.dataset.ck !== '__act' && !e.target.closest('.cfb,.rz,[data-unhide]') && hth.closest('table').querySelector(`col[data-ck="${CSS.escape(hth.dataset.ck)}"]`)) { selectLines(hth.closest('table'), 'col', hth.dataset.ck, e); return; }
   const atd = e.target.closest('#tarea td.act');
   if (atd && !e.target.closest('button,.rh')) { selectLines(atd.closest('table'), 'row', atd.closest('tr'), e); return; }
+  if (e.target.closest('[data-hideact]') && SHEET[route]) { e.stopPropagation(); hideCols(route, ['__act']); return; }
   const uh = e.target.closest('[data-unhide]');
   if (uh && SHEET[route]) { e.stopPropagation(); const v = uh.dataset.unhide; setHidden(route, v === '*' ? [] : hiddenCols(route).filter(f => !v.split('|').includes(f))); return; }
   const td = e.target.closest('td[data-rid]');
