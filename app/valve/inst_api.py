@@ -101,6 +101,8 @@ def process_doc(con, pid: int, doc_id: int, kind: str, name: str, path: Path, by
         unk = max(0, int(res.get("pages") or 0) - sum(len(sh["pages"]) for sh in res["sheets"]))
         note = " · ".join(f"{KIND_NAMES.get(k, k)} {n}장" for k, n in forms.items()) or "알아본 양식 없음"
         return {"datasheets": len(res["sheets"]), "tags": tags, "forms": forms, "unidentified_pages": unk,
+                "unread_pages": res.get("unread_pages") or [],
+                "index": extract_index_check(res.get("index_tags") or {}, [instrument.tag_key(t) for t in tags]),
                 "note": f"Instrument Datasheet {len(res['sheets'])}장 · Tag {len(tags)}개 — {note}"}
     if kind == "linelist":
         parsed = linelist.read(Path(path).read_bytes(), name)
@@ -1156,3 +1158,8 @@ def inst_sheet_json(sid: int):
     from app.valve import dsjson
     r = dsjson.inst_record(con_ready(), sid)
     return _j(r) if r else Response('{"error":"없는 Datasheet"}', status_code=404, media_type="application/json")
+
+
+def extract_index_check(index: dict, keys) -> dict | None:
+    from app.valve import extract
+    return extract.index_check(index, keys)

@@ -429,7 +429,7 @@ def _process(jid: str, pid: int, items: list[tuple[int, str, str, Path]], by: st
                 n_scan = sum(1 for o in res["other_pages"] if o.get("kind") == "scanned")
                 n_bad = sum(1 for o in res["other_pages"] if o.get("kind") == "damaged")
                 if n_bad:
-                    _job(jid, warn=f"{name}: 손상된 파일 — 복구해 읽었지만 {n_bad}쪽은 글자를 찾지 못했습니다. 원본 파일을 다시 받아 올려 주세요")
+                    _job_warn(jid, f"{name}: 손상된 파일 — 복구해 읽었지만 {n_bad}쪽은 글자를 찾지 못했습니다. 원본 파일을 다시 받아 올려 주세요")
                 new_ids = []
                 with store._LOCK:
                     for ds in dss:
@@ -446,7 +446,29 @@ def _process(jid: str, pid: int, items: list[tuple[int, str, str, Path]], by: st
                         if dup:
                             continue
                         new_ids.append(store.insert_datasheet(con, pid, doc_id, ds))
-                    info = {"datasheets": len(dss), "tags": sorted({d["tag"] for d in dss}),
+                    # valve41: what an OLDER reading of this same file left and this reading no longer gives — a datasheet
+                    # without a tag (a form the reader did not know), or the same tag under another revision (read from
+                    # the wrong cell) — goes, unless a reviewer has worked on it (decision · comment · status)
+                    keep = {(d["tag_key"], d["rev"]) for d in dss}
+                    if any(d["tag_key"] for d in dss):
+                        stale = []
+                        for r in store.rows(con, "SELECT id, tag_key, rev, review_status FROM datasheet WHERE document_id=?", doc_id):
+                            if (r["tag_key"] or "", r["rev"]) in keep:
+                                continue
+                            used = (r["review_status"] or "Not Reviewed") != "Not Reviewed" or con.execute(
+                                "SELECT (SELECT COUNT(*) FROM issue_state WHERE datasheet_id=?) + (SELECT COUNT(*) FROM comment WHERE datasheet_id=?)",
+                                (r["id"], r["id"])).fetchone()[0]
+                            if not used or not (r["tag_key"] or ""):
+                                stale.append(r["id"])
+                        if stale:
+                            q = ",".join("?" * len(stale))
+                            for t in ("field", "comment", "issue_state"):
+                                con.execute(f"DELETE FROM {t} WHERE datasheet_id IN ({q})", stale)
+                            con.execute(f"DELETE FROM datasheet WHERE id IN ({q})", stale)
+                            store.audit(con, pid, None, None, "re-read", None, name, by, f"{len(stale)} datasheets of an older reading removed (read again: {len(dss)} tags)")
+                    unread = extract.unread_pages(res, dss)      # valve41: a form the reader does not know is said out loud
+                    idx = extract.index_check(res.get("index_tags") or {}, [d["tag_key"] for d in dss])   # the document's own tag list
+                    info = {"datasheets": len(dss), "reader": extract.PARSER_VERSION, "unread_pages": unread, "index": idx, "tags": sorted({d["tag"] for d in dss}),
                             "docs": {k: {"title": v.get("title"), "rev": v.get("rev"),
                                          "general_notes": v.get("general_notes", {})} for k, v in res["docs"].items()},
                             "scanned_pages": n_scan}
@@ -454,10 +476,14 @@ def _process(jid: str, pid: int, items: list[tuple[int, str, str, Path]], by: st
                     store.audit(con, pid, None, None, "upload", None, name, by, f"{len(dss)} datasheets")
                     con.commit()
                 if n_scan:
-                    _job(jid, warn=f"{name}: 글자층이 없는 쪽 {n_scan}장 (스캔본) — 이 판에서는 읽지 못했습니다")
+                    _job_warn(jid, f"{name}: 글자층이 없는 쪽 {n_scan}장 (스캔본) — 이 판에서는 읽지 못했습니다")
+                if unread:
+                    _job_warn(jid, _unread_msg(name, unread))
+                if idx and idx["missing"]:
+                    _job_warn(jid, _index_msg(name, idx))
                 kw = _kind_warning(name, _proj_kind(con, pid), dss)   # valve37
                 if kw:
-                    _job(jid, warn=kw)
+                    _job_warn(jid, kw)
                 _carry_over(con, pid, new_ids, by, jid)        # valve26: Rev B inherits what Rev A's review decided
             elif kind == "valvelist":
                 data = path.read_bytes()
@@ -485,6 +511,10 @@ def _process(jid: str, pid: int, items: list[tuple[int, str, str, Path]], by: st
             elif kind in ("instrument", "linelist", "instlist"):    # valve40: Instrument datasheet review (app/valve/inst_api.py)
                 _job(jid, msg=f"{name} · 읽는 중")
                 info = inst_api.process_doc(con, pid, doc_id, kind, name, Path(path), by)
+                if kind == "instrument" and (info.get("unread_pages") or not info.get("datasheets")):
+                    _job_warn(jid, _unread_msg(name, info.get("unread_pages") or [], none=not info.get("datasheets")))
+                if kind == "instrument" and (info.get("index") or {}).get("missing"):
+                    _job_warn(jid, _index_msg(name, info["index"]))
                 con.execute("UPDATE document SET status='done', info=? WHERE id=?", (store.J(info), doc_id))
                 store.audit(con, pid, None, None, "upload", None, name, by, kind)
                 con.commit()
@@ -593,15 +623,17 @@ def _warm_steps(pid: int):
             ("issue-list", lambda: issues_json(pid, 1))]
 
 
-_WARM_QUEUE: list[int] = []
+_WARM_QUEUE: list[tuple[int, str]] = []          # (project, data folder)
 _WARM_QLOCK = threading.Lock()
 
 
-def _warm_one(pid: int):
+def _warm_one(pid: int, root: str = ""):
     """One project, step by step, each step logged (valve40: a native crash leaves 'which project · which step' behind)."""
     _WARMING.add(pid)
     try:
         for name, step in _warm_steps(pid):
+            if root and str(store.root()) != root:          # the data folder changed meanwhile (tests): not this folder's work
+                return
             _warn_log(f"warm p{pid} {name}")
             try:
                 step()
@@ -620,8 +652,9 @@ def _warm_worker():
             if not _WARM_QUEUE:
                 _WARM_THREAD.clear()
                 return
-            pid = _WARM_QUEUE.pop(0)
-        _warm_one(pid)
+            pid, root = _WARM_QUEUE.pop(0)
+        if str(store.root()) == root:
+            _warm_one(pid, root)
 
 
 _WARM_THREAD: list = []
@@ -634,9 +667,10 @@ def warm(pid: int):
     if not warm_enabled():
         return
     with _WARM_QLOCK:
-        if pid in _WARMING or pid in _WARM_QUEUE:
+        root = str(store.root())
+        if pid in _WARMING or (pid, root) in _WARM_QUEUE:
             return
-        _WARM_QUEUE.append(pid)
+        _WARM_QUEUE.append((pid, root))
         if _WARM_THREAD:
             return
         _WARM_THREAD.append(1)
@@ -654,11 +688,59 @@ def _export_json():
             return
         _JSON_DONE.append(1)
     try:
+        _auto_reread()
+    except Exception:                                        # noqa: BLE001
+        _log_error("auto re-read")
+    try:
         r = dsjson.export_all(store.connect())
         if r["written"]:
             print(f"[valve] datasheet JSON: {r['written']} files written → {r['folder']}", flush=True)
     except Exception:                                        # noqa: BLE001
         _log_error("datasheet json export")
+
+
+def _job_warn(jid, msg):
+    """Add a warning to the job box (several can apply to one upload)."""
+    with _JLOCK:
+        j = _JOBS.get(jid)
+        if j is not None:
+            j["warn"] = (j.get("warn") + " / " if j.get("warn") else "") + msg
+
+
+def _unread_msg(name, unread, none=False) -> str:
+    pages = ", ".join(str(u["page"]) for u in unread[:12]) + (" …" if len(unread) > 12 else "")
+    head = f"{name}: 읽은 Datasheet 가 없습니다 — " if none else f"{name}: "
+    if not unread:
+        return head + "아는 양식의 쪽을 찾지 못했습니다. 이 파일을 개발 쪽에 보내 주세요"
+    return (head + f"{len(unread)}쪽은 프로그램이 아는 양식이 아니어서 읽지 못했습니다 (쪽 {pages} · {unread[0]['why']}). "
+            "값 · 지적이 빠져 있으니 이 파일을 개발 쪽에 보내 주세요")
+
+
+def _index_msg(name, idx) -> str:
+    m = idx["missing"]
+    return (f"{name}: 도서의 INDEX(LIST OF TAGS)에 Tag {idx['listed']}개가 있는데 {idx['read']}개만 읽었습니다 — 빠진 Tag {len(m)}개: "
+            + ", ".join(m[:10]) + (" …" if len(m) > 10 else "") + ". 그 쪽의 양식을 확인해 주세요")
+
+
+def _auto_reread():
+    """valve41 (user 2026-11-13: '다시 올리지 않고 새로고침하면 반영'): a document an OLDER reader could not read — it left a
+    datasheet without a tag — is read again once by this reader at server start (stored copy intact only).  Tried once per
+    reader version; review decisions of tagged datasheets stay (refresh_datasheet)."""
+    con = store.connect()
+    docs = store.rows(con, "SELECT DISTINCT d.id, d.project_id, d.kind, d.filename, d.path, d.pages, d.info FROM document d"
+                           " JOIN datasheet s ON s.document_id=d.id WHERE COALESCE(s.tag_key,'')='' AND d.kind='datasheet' AND d.status='done'")
+    for d in docs:
+        info = store.unJ(d["info"], {}) or {}
+        if info.get("reader") == extract.PARSER_VERSION or not d["path"] or not store.stored_good(d["path"])[0]:
+            continue
+        jid = "auto" + uuid.uuid4().hex[:8]
+        _JOBS[jid] = {"id": jid, "status": "running", "done": 0, "total": max(1, d["pages"] or 1), "msg": "", "file": "",
+                      "errors": [], "skipped": [], "warn": "", "base": None, "exports": []}
+        print(f"[valve] reading again with the new reader: {d['filename']} (a datasheet without a tag was left by an older reader)", flush=True)
+        _process(jid, d["project_id"], [(d["id"], d["kind"], d["filename"], Path(d["path"]), d["pages"] or 0)], "auto re-read")
+        n = store.one(con, "SELECT COUNT(*) n FROM datasheet WHERE document_id=?", d["id"])["n"]
+        print(f"[valve]   → {n} datasheets", flush=True)
+        _JOBS.pop(jid, None)
 
 
 @router.get("/api/valve/datasheets/{dsid}/json")
@@ -735,7 +817,7 @@ def _rules_fingerprint() -> str:
 
 
 _RULES_FP = _rules_fingerprint()
-VERSION = "valve40"                       # shown in Settings › 정보 and the footer; bump with every package
+VERSION = "valve41"                       # shown in Settings › 정보 and the footer; bump with every package
 
 
 @router.get("/api/valve/version")

@@ -28,7 +28,7 @@ from app.valve import schema
 
 # valve29: recorded on every datasheet read (source traceability). Bump when the reading logic changes —
 # the last change to how cells are found was valve22 (robustness round), so this reader is "extract-v22".
-PARSER_VERSION = "extract-v37"     # valve37: Forms 101 / 701 · Code 80 with a bottom title block · notes-only sheets (forms_ext)
+PARSER_VERSION = "extract-v41"     # valve41: ISA-20 INSTRUMENT SPECIFICATION sheets (form_isa) · v37: Forms 101 / 701 · Code 80 bottom title block
 
 
 def _forms():
@@ -273,6 +273,10 @@ def read_page(page, page_no: int):
     fk = _forms().form_no(words, page)                      # 'Form No : 101 / 701' (valve37)
     if fk == "701" and len(cols) == 1:
         return _forms().read_page_701(page, page_no, words, cols[0])
+    if fk is None and len(cols) >= 2:                       # valve41: ISA-20 'INSTRUMENT SPECIFICATION' (ruled cells, no colons)
+        from app.valve import form_isa
+        if form_isa.is_isa(page, words, cols):
+            return form_isa.read_page(page, page_no, words, cols)
     if len(cols) >= 2 or (len(cols) == 1 and _colon_rows(words, cols[0])):
         sh = read_page_102(page, page_no, words, cols)
         if fk == "101" and len(cols) >= 2:
@@ -864,7 +868,7 @@ def _place(box, k, mat):
 @pdf_locked
 def read_pdf(path: str, progress=None):
     doc = open_pdf(path)
-    sheets, other, docs = [], [], {}
+    sheets, other, docs, index = [], [], {}, {}
     cont_doc = None
     damaged = bool(getattr(doc, "is_repaired", False))
     for i, page in enumerate(doc):
@@ -890,6 +894,7 @@ def read_pdf(path: str, progress=None):
             for n in sh.get("notes", []):
                 n["bbox"] = _place(n.get("bbox"), k, mat)
         if sh and not sh.get("scanned"):
+            sh["rows_printed"] = form_rows(rp)               # valve41: row numbers the page prints (unread check)
             sheets.append(sh)
             continue
         if sh and sh.get("scanned") and damaged:
@@ -901,7 +906,10 @@ def read_pdf(path: str, progress=None):
         text = page.get_text()
         m = re.search(r"Doc\. No\.:\s*\n?\s*(\S+)", text)
         dn = m.group(1) if m else cont_doc
-        other.append({"page": i + 1, "kind": "document", "doc_no": dn or ""})
+        # valve41: a page with the document header ('Doc. No.:' cover · index · notes pages) is not a datasheet form page
+        other.append({"page": i + 1, "kind": "document", "doc_no": dn or "", "form_rows": 0 if m else form_rows(rp)})
+        for k, raw in index_tags(rp).items():                # the document's own 'INDEX (LIST OF TAGS)'
+            index.setdefault(k, {"tag": raw, "page": i + 1})
         if dn:
             d = docs.setdefault(dn, {"pages": [], "text": "", "title": ""})
             d["pages"].append(i + 1)
@@ -922,7 +930,94 @@ def read_pdf(path: str, progress=None):
         d["rev"] = rv.group(1) if rv else ""
         del d["text"]
     doc.close()
-    return {"pages": len(sheets) + len(other), "sheets": sheets, "other_pages": other, "docs": docs, "damaged": damaged}
+    return {"pages": len(sheets) + len(other), "sheets": sheets, "other_pages": other, "docs": docs, "damaged": damaged,
+            "index_tags": index}
+
+
+_IDX_TAG = re.compile(r"^\d{0,3}[A-Z]{1,6}\d{2,}[A-Z]?$")
+
+
+def index_tags(page) -> dict:
+    """{tag key: tag as printed} of an 'INDEX (LIST OF TAGS)' page: the cells under the 'Tag No.' caption of a table whose
+    captions also name a serial / page column.  {} for any other page."""
+    words = page.get_text("words")
+    if not any(w[4].upper() == "TAG" for w in words):       # (a continued index page repeats the captions, not the word INDEX)
+        return {}
+    out = {}
+    for tw in (w for w in words if w[4].upper() == "TAG"):
+        cy = (tw[1] + tw[3]) / 2
+        line = sorted((w for w in words if abs((w[1] + w[3]) / 2 - cy) < 4), key=lambda w: w[0])
+        caps = " ".join(w[4].upper() for w in line)
+        if not re.search(r"S\.?\s*NO|SR", caps) or "PAGE" not in caps and "REV" not in caps:
+            continue
+        nxt = next((w for w in line if w[0] > tw[2] + 2 and w[4].upper() not in ("NO.", "NO", "NUMBER")), None)
+        prev = [w for w in line if w[2] < tw[0] - 2]
+        xa = (max(w[2] for w in prev) + tw[0]) / 2 if prev else tw[0] - 20
+        xb = nxt[0] - 2 if nxt else tw[2] + 120
+        rows, serial = {}, set()
+        for w in words:
+            yk = round((w[1] + w[3]) / 2 / 3)
+            if w[1] > tw[3] and xa <= (w[0] + w[2]) / 2 < xb:
+                rows.setdefault(yk, []).append(w)
+            elif w[1] > tw[3] and w[2] <= xa and w[4].isdigit():
+                serial.add(yk)                               # the S No. cell of that row
+        for yk, ws in rows.items():
+            if not ({yk - 1, yk, yk + 1} & serial):          # a table row has its serial number (not the page footer)
+                continue
+            raw = " ".join(w[4] for w in sorted(ws, key=lambda w: w[0]))
+            k = schema.norm_tag(raw)
+            if _IDX_TAG.match(k):
+                out.setdefault(k, raw)
+    return out
+
+
+def form_rows(page) -> int:
+    """How many numbered rows with a label the page prints in its row-number column(s) (0 = not a datasheet form page)."""
+    words = _visible(page.get_text("words"), _hidden_boxes(page))
+    cols = _number_columns(words)
+    nums = [w for c in cols for w in c] if cols else _row_numbers(words, page.rect.width)
+    ids = {id(w) for w in nums}
+    n = 0
+    for w in nums:                                           # only rows that print something beside their number
+        cy = (w[1] + w[3]) / 2
+        if any(id(v) not in ids and abs((v[1] + v[3]) / 2 - cy) < 3 and w[2] < v[0] < w[2] + 200 for v in words):
+            n += 1
+    return n
+
+
+# valve41 (user 2026-11-18: '이런 문제가 다른 타입에는 없나?'): a form no reader knows must never pass silently.
+UNREAD_SHARE = 0.4                                          # a numbered form page of which less than this share of rows was read
+
+
+def unread_pages(result: dict, datasheets: list) -> list[dict]:
+    """Pages that look like datasheet forms but were not really read: [{page, why}].
+    · a numbered form page left as a 'document' page (no reader took it)
+    · a form page of which only a few of its printed rows gave a field (a layout the reader does not know)
+    · a datasheet without a tag"""
+    out = {}
+    for o in result.get("other_pages", []):
+        if o.get("kind") == "document" and (o.get("form_rows") or 0) >= 20:
+            out[o["page"]] = "번호 줄이 있는 양식인데 읽은 리더가 없음"
+    for sh in result.get("sheets", []):
+        n = sh.get("rows_printed") or 0
+        got = len({r.get("row") for r in sh.get("rows", []) if r.get("row") is not None})
+        if n >= 20 and got < n * UNREAD_SHARE:
+            out[sh["page"]] = f"양식의 번호 줄 {n}개 중 {got}개만 읽힘 — 모르는 양식"
+    for d in datasheets:
+        if not d.get("tag_key"):
+            for pg in d.get("pages", []):
+                out.setdefault(pg, "Tag 를 찾지 못함")
+    return [{"page": p, "why": w} for p, w in sorted(out.items())]
+
+
+def index_check(index: dict, tag_keys) -> dict | None:
+    """The document's own tag list against the tags read: {listed, read, missing: [tag …], extra: [tag key …]} — None when
+    the document prints no index."""
+    if not index:
+        return None
+    got = {k for k in tag_keys if k}
+    return {"listed": len(index), "read": len(got & set(index)),
+            "missing": [index[k]["tag"] for k in sorted(set(index) - got)], "extra": sorted(got - set(index))}
 
 
 def group_datasheets(result: dict):
@@ -944,7 +1039,7 @@ def group_datasheets(result: dict):
         if pr and pr != cur["doc_no"] and sh.get("sheet") and not sh.get("continuation"):   # another number than sheet 1
             cur.setdefault("sheet_doc_mismatch", []).append({"page": sh["page"], "sheet": sh.get("sheet"), "printed": pr})
         cur["sheets"].append([sh["page"], sh.get("sheet"), sh.get("of")])     # PDF page -> 'Sheet x of y' on the form
-        if sh.get("form") in ("101", "701") and not cur.get("form"):
+        if sh.get("form") in ("101", "701", "ISA20") and not cur.get("form"):
             cur["form"] = sh["form"]                         # valve37: Control Valve / Pressure Relief Valve form
         for r in sh["rows"]:
             r = dict(r, page=sh["page"])

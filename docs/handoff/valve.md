@@ -14,6 +14,7 @@
 - **공통 자료 `?kind=refdocs`** (11-13): PDS · PMS · Line List · Lists 는 여기서만 → 기준 프로젝트(`api.ref_pid`)에 1벌, 모든 검토가 씀. 페이지별 올리기는 `window.DOC_KINDS`.
 - **Area** (11-13): 올린 도서 Area(`document.area`) → DTS No.(규칙 표 'DTS 98 | QN | | North') → 표제 → 규칙 표 줄 (`arearule.resolve`, 학습 추정은 Site 안 정함). 라벨 QN Brownfield N1 · QN Greenfield · QS · W15. 기본 표 `arearule_default.txt` · 편집 = 공통 자료.
 - **11-13 회사 서버 재시작 대응**: 손상 보관본은 MuPDF 에 안 넘김(`store.stored_good`) · `extract.PDF_LOCK` · warm-up 1개씩 · `VALVE_WARMUP=0` · `logs/crash_*.log` · Datasheet JSON(`dsjson.py`) · Valve 화면도 Area 규칙.
+- **valve41 (11-18)**: ISA-20 'INSTRUMENT SPECIFICATION' 양식(South CV · Regulator) = `form_isa.py`(괘선 칸 읽기) · 시작 때 Tag 없는 DS 문서 자동 다시 읽기(`_auto_reread`) · 실 South 2권 = 19 Tag. 모르는 양식 안전망: `unread_pages` · INDEX 대조 → 작업 창 · 문서 표 경고.
 - Line No 칸 없는 양식은 PDS 의 Line No 로 Line List. 필수 칸 = 카드 제안값 → 현황판 '필수 칸 확인'에서 사용자가 확정(프로젝트 설정 `inst.required`).
 - 시험: `spike/valve_inst_scenario.py <dir> [--forms /tmp/forms] [--keep]` — 14종 × (정상 Tag · 오류 심은 Tag) + 시험 PDS/PMS/Line List/Index/IO →
   **심은 오류 74/74 · 정상 Tag 지적 0 · List 29/29** (카드로 그린 쪽 · 실제 빈 양식 둘 다). pytest `tests/test_valve_instrument_{forms,reader,review}.py`.
@@ -42,9 +43,7 @@
 - ✅ **회사 적용 확인 (2026-11-02 사용자)**: valve29 · 대시보드 VALVE2 메뉴 zip · devkit 모두 적용. 이후 Valve 는 회사 PC 가 원본.
 - **valve30**: PDF 도구줄 대비 · Ctrl+휠 확대 · 미리보기 크기 조절(`splitPanes`) · 화질. 판정 스냅샷 = `out/valve29/snapshot_valve30.json`(2,935).
 - **valve31**: 코멘트 한/영(`i18n.py`) · 출력 lang=en|ko|both. **새 규칙 문장 → `i18n.RULES` 한국어 틀 + `tests/test_valve_i18n.py` SAMPLES 한 줄.**
-- **valve32**: 올린 문서 지우기(🗑 · 확인 창 · `valve/trash/<p>/` JSON) · 휴지통 되돌리기(같은 id) — DESIGN §37.
-- **valve33**: 첫 화면 Valve Summary 표(`/valve-summary` · `drawVsum` · `vsTags`) — DESIGN §38.
-- **valve34**: FileDataError 반복(깨진 저장본 재사용) 고침 · 저장본 해시 검증 · open_pdf 재시도/이유 · 작업 상태 창 닫기 — DESIGN §39.
+- **valve32~34**: 문서 지우기 · 휴지통(§37) · Valve Summary 표(§38) · 저장본 해시 검증 · open_pdf 재시도(§39) — DESIGN 참고.
 - **valve35**: 코멘트 정리 — 블럭(한 쪽에 붙은 Data Missing 3개+ = 한 코멘트) · Typical(같은 코멘트 2 Tag+ = 한 줄) · ▸ 상세 · 묶음 일괄 결정 ·
   Excel 'Comments (Typical)' 시트 · PDF 블럭 박스(`digest.py`, `/issues/digest`, `group=1`) — DESIGN §40. 판정 불변(스냅샷 0). 실자료 2,935 → 276.
 - **valve36**: 밸브 모형 = 세션 7 Anatomy 엔진(`app/static/valve/anatomy.js`, `spike/mk_anatomy.py` 로 묶음 · 오프라인) — 칸 ↔ 부위 양방향 · DESIGN §41.
