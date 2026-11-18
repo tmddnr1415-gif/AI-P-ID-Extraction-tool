@@ -477,6 +477,19 @@
    },
    "replaces": "3_DASHBOARD_update_v17.59_from_v17.47_2026-11-16.zip",
    "note": "v17.60 — 구매 현황 보고 엑셀 보고서 양식 (시트 2장)"
+  },
+  {
+   "file": "①",
+   "name": "1_DASHBOARD_update_v17.64_from_v17.47_2026-11-18.zip",
+   "made": "2026-11-18 09:50",
+   "path": "company-pc-update/2026-11-18/ (1.4MB · 저장소에 있음)",
+   "sha256": "45eb54f7b9eeec68ffc8ac4846362bdce02456283a682f0391b769963cdf0e66",
+   "applied": "",
+   "tips": {
+    "S1": "bf9d3173"
+   },
+   "replaces": "4_DASHBOARD_update_v17.60_from_v17.47_2026-11-16.zip",
+   "note": "v17.64 — 부서원 화면 새 버전 안내 고침 · 자동 교체 · 자동 저장 · 배율 % (server.py 바뀜 → 서버 재시작)"
   }
  ]
 }
