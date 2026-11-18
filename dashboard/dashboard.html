@@ -1045,6 +1045,10 @@ table.t td.act .by{display:block;margin-top:6px;font-size:11px;color:var(--sub);
 .hidbar b{color:var(--accent-d)}
 .hidbar button{border:1px solid #c9d1ef;background:#fff;border-radius:12px;padding:2px 9px;font-size:12px;cursor:pointer}
 .hidbar button:hover{background:#e8edff}
+/* 2026-11-18 확대 · 축소 배율 표시 */
+.zbadge{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%) scale(.9);z-index:50;pointer-events:none;background:rgba(20,28,60,.78);color:#fff;font-size:26px;font-weight:700;line-height:1;padding:12px 22px;border-radius:12px;opacity:0;transition:opacity .25s,transform .25s}
+.zbadge.on{opacity:1;transform:translate(-50%,-50%) scale(1)}
+.gtz .gtpct{margin-left:4px;color:var(--accent-d);font-weight:700}
 table.t th .hidmk{display:inline-block;margin-right:4px;padding:0 4px;border-radius:4px;background:#e1e6fb;color:var(--accent-d);font-size:10px;cursor:pointer}
 table.t th.cfh.colpick,table.t td.colpick{box-shadow:inset 0 0 0 9999px rgba(43,68,201,.10)}
 /* 투입인력 매트릭스 */
@@ -2086,7 +2090,7 @@ function recLabel(key, f) {
  * ===================================================================== */
 let root = null;
 /* 서버 모드: http(s):// 로 접속하면 server.py 의 REST API 사용 (폴더 선택 불필요). file:// 로 열면 폴더 모드 */
-const APP_VERSION = '2026-11-18.1';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
+const APP_VERSION = '2026-11-18.2';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
 const SERVER_URL = 'http://localhost:8080';
 // 부서원 PC 사본(file://)이 접속을 시도할 서버 — 서버가 배포 파일을 만들 때 'PC 이름 주소, IP 주소' 순으로 자동 기록함
 const DEFAULT_SERVERS = ['http://ASEUNGWOOK-B01:8080', 'http://65.3.30.234:8080'];
@@ -4698,7 +4702,7 @@ function schDiscBoard(rows, asOf, disc, ph) {   // 2026-11-09 v17.11 새 간트 
       <div class="gtfo">${fo.map(f => `<i class="${f.lv} ${f.noAlarm ? 'na' : f.st}" title="${esc(`${f.label} 계획 ${f.b || '-'} → ${f.a ? '실적 ' + f.a : f.f ? '전망 ' + f.f : '실적 없음'}`)}">${f.g}${f.st === 'done' ? '✓' : ''}${f.d > 0 ? ' +' + f.d : ''}</i>`).join('')}${k.slip ? `<i class="${k.slip > 30 ? 'r' : k.slip > 0 ? 'y' : 'g'} site">현장 ${k.slip > 0 ? '+' : ''}${k.slip}</i>` : ''}</div></div>
       <div class="gtt">${bars}${ms}${det}</div></div>`; };
   const tool = `<div class="gttool"><div class="dbleg">${SCH_PH.map(([n, , , c]) => `<span><i class="${c}"></i>${n}</span>`).join('')}<span><i class="gtlg-plan"></i>계획</span><span><i class="gtlg-next"></i>앞으로(빗금)</span><span><i class="gtm po a gtlg"></i>PO</span><span><i class="gtm fat a gtlg"></i>FAT</span><span><i class="gtm site a gtlg"></i>현장 도착</span><span><em class="gtd r gtlg2">+15</em>계획보다 늦은 날</span></div>
-    <span class="sp"></span><div class="gtz"><button data-gz="-1" title="축소 (휠 아래)" ${eff <= 9 ? 'disabled' : ''}>−</button><span title="일정판 위에서 마우스 휠 = 확대 · 축소, Shift + 휠 = 좌우 이동">${{ yq:'년 · 분기', ym:'년 · 월', mw:'월 · 주', md:'월 · 일' }[lv]}${SCH.gppm ? '' : ' (맞춤)'}</span><button data-gz="1" title="확대 (휠 위)" ${eff >= SCH.gtMax - 1 ? 'disabled' : ''}>＋</button><button data-gz="0" title="카드 너비에 맞춤" ${SCH.gppm ? '' : 'disabled'}>맞춤</button><button data-gtoday title="기준일로 이동">◎ 기준일</button></div>${SCH.undo ? `<button class="btn sm gtundo" data-gtundo title="${esc(SCH.undo.label)}">↶ 되돌리기</button>` : ''}</div>${ed ? '<div class="gthelp">🖐 <b>막대를 좌우로 끌면</b> 그 단계 전망 일정이 통째로 옮겨지고, <b>막대 오른쪽 끝을 끌면</b> 끝 날짜만 바뀝니다 · 놓으면 바로 저장(↶ 되돌리기) · 끝난 단계(✓)는 실적이라 고정 · 누르면 상세 · <b>🖱 휠 = 확대/축소</b>(년 ↔ 월), Shift + 휠 = 좌우 · <b>막대에 마우스 = 상세 미리보기</b></div>' : ''}`;
+    <span class="sp"></span><div class="gtz"><button data-gz="-1" title="축소 (휠 아래)" ${eff <= 9 ? 'disabled' : ''}>−</button><span title="일정판 위에서 마우스 휠 = 확대 · 축소, Shift + 휠 = 좌우 이동">${{ yq:'년 · 분기', ym:'년 · 월', mw:'월 · 주', md:'월 · 일' }[lv]}${SCH.gppm ? '' : ' (맞춤)'} <b class="gtpct">${Math.round(eff / fitPpm * 100)}%</b></span><button data-gz="1" title="확대 (휠 위)" ${eff >= SCH.gtMax - 1 ? 'disabled' : ''}>＋</button><button data-gz="0" title="카드 너비에 맞춤" ${SCH.gppm ? '' : 'disabled'}>맞춤</button><button data-gtoday title="기준일로 이동">◎ 기준일</button></div>${SCH.undo ? `<button class="btn sm gtundo" data-gtundo title="${esc(SCH.undo.label)}">↶ 되돌리기</button>` : ''}</div>${ed ? '<div class="gthelp">🖐 <b>막대를 좌우로 끌면</b> 그 단계 전망 일정이 통째로 옮겨지고, <b>막대 오른쪽 끝을 끌면</b> 끝 날짜만 바뀝니다 · 놓으면 바로 저장(↶ 되돌리기) · 끝난 단계(✓)는 실적이라 고정 · 누르면 상세 · <b>🖱 휠 = 확대/축소</b>(년 ↔ 월), Shift + 휠 = 좌우 · <b>막대에 마우스 = 상세 미리보기</b></div>' : ''}`;
   return `<section class="card dboard gtcard ph-${ph || 'front'}"><h2><button class="btn sm" data-gttog>▾ 접기</button> 🔧 ${esc(disc)} · 품목별 일정판 <span class="muted">· ${rows.length}품목 · 막대를 누르면 그 단계 상세 · 이름을 누르면 아래 표에서 상세</span>
       <button class="btn sm gtoff" data-schf="disc|${esc(disc)}">✕ 공종 해제</button></h2>${tool}
     <div class="gtw" data-t0="${t0}" data-span="${span}"><div class="gtin" style="${ppm ? `width:${Math.round(268 + months.length * ppm)}px` : ''}">
@@ -5111,6 +5115,7 @@ function schGtZoom(f, cx) {   // f > 1 = 한 단계 확대, f < 1 = 한 단계 �
   SCH.gppm = nx && Math.abs(nx - fit) / fit < .1 ? 0 : nx;
   const vw = w.clientWidth - 268, newTw = SCH.gppm && SCH.gppm >= fit ? (SCH.gtMonths || 1) * SCH.gppm : vw, st = (frac * newTw - off) / newTw, vf = vw / newTw; SCH.gtWin = [st - vf * .5, st + vf * 1.5];
   schGtRedraw(); const w2 = $('#schv .gtw'); if (!w2) return; const tw2 = w2.querySelector('.gtin').offsetWidth - 268; w2.scrollLeft = Math.max(0, frac * tw2 - off);
+  const pc = w2.closest('.gtcard')?.querySelector('.gtpct'); if (pc) zoomBadge(w2.parentElement, parseFloat(pc.textContent));   // 맞춤 = 100%
 }
 function schGtWheel() {
   const w = $('#schv .gtw'); if (!w) return;
@@ -8574,10 +8579,16 @@ function ocFit(widthOnly) {                             // 전체 보기 = 가�
   OC.z = Math.max(.25, Math.min(1, widthOnly ? (sw - 24) / W : Math.min((sw - 24) / W, (sh - 24) / H)));
   OC.x = (sw - W * OC.z) / 2; OC.y = widthOnly ? 8 : Math.max(12, (sh - H * OC.z) / 2); ocApply();
 }
+/* 2026-11-18 v17.64 사용자 지시 "휠로 줌인 · 줌아웃하면 100% 처럼 % 로 화면 배율 표기": 확대 · 축소할 때 그 화면 가운데에 배율을 잠깐(1초) 크게 보여 줌 */
+function zoomBadge(host, pct) {
+  if (!host) return; let b = host.querySelector(':scope > .zbadge');
+  if (!b) { b = document.createElement('div'); b.className = 'zbadge'; if (getComputedStyle(host).position === 'static') host.style.position = 'relative'; host.appendChild(b); }
+  b.textContent = Math.round(pct) + '%'; b.classList.add('on'); clearTimeout(b._t); b._t = setTimeout(() => b.classList.remove('on'), 1000);
+}
 function ocZoom(f, cx, cy) {
   const v = $('#ocView'); if (!v) return;
   const nz = Math.max(.25, Math.min(ocMode() === 'map' ? 10 : 2, OC.z * f)); cx ??= v.clientWidth / 2; cy ??= v.clientHeight / 2;
-  OC.x = cx - (cx - OC.x) * nz / OC.z; OC.y = cy - (cy - OC.y) * nz / OC.z; OC.z = nz; ocApply();
+  OC.x = cx - (cx - OC.x) * nz / OC.z; OC.y = cy - (cy - OC.y) * nz / OC.z; OC.z = nz; ocApply(); zoomBadge(v, OC.z * 100);
 }
 function ocClamp(v) {   // 조직도가 화면 밖으로 다 나가지 않게 (가장자리 40px 은 남김)
   const cv = $('#ocCv'); if (!cv || ocMode() === 'map') return; const W = cv.offsetWidth * OC.z, H = cv.offsetHeight * OC.z, vw = v.clientWidth, vh = v.clientHeight, m = 40;
