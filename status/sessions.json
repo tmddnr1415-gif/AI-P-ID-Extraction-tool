@@ -46,8 +46,8 @@
    "id": "session_01Muj82EMRakKAAS1HYXcE7d",
    "title": "6. Datasheet 자동 검토",
    "bucket": "COMPLETED",
-   "updated": "2026-11-18T06:00:15Z",
-   "recent": "b36772b1 valve41 — South ISA-20 INSTRUMENT SPECIFICATION 양식 읽기(Control Valve · Regulator) · Tag 없는 문서 자동 다시 읽기 · South/QS 따로 나오던 것 고침 · (39adafb6 DB 잠금 고침 포함). 회사 미전달 — 사용자 요청 시 hotfix144",
+   "updated": "2026-11-18T06:12:22Z",
+   "recent": "ffe3c721 valve41 — South ISA 양식 읽기 + 모든 타입 공통 안전망(읽지 못한 쪽 · INDEX Tag 대조 · Document Management 빨간 표시) · DB 잠금 고침 포함. 회사 미전달 — 사용자 요청 시 hotfix144",
    "needs": "사용자: hotfix144 만들지 결정"
   },
   "S7": {
