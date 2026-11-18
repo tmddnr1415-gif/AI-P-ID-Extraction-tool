@@ -257,17 +257,23 @@ def read_pdf(path: str, filename: str = "") -> dict:
     """Every datasheet in the PDF: one sheet per items page 1 (a block-2 page joins the sheet before it)."""
     from app.valve import extract
     with extract.PDF_LOCK:
-        return _read_pdf(extract.open_pdf(path, tries=1), filename)
+        return _read_pdf(extract.open_pdf(path, tries=1), filename or Path(path).name)
 
 
 def _read_pdf(doc, filename: str = "") -> dict:
+    from app.valve import extract
     try:
-        sheets, forms = [], {}
+        sheets, forms, unread, index = [], {}, [], {}
         for i, page in enumerate(doc):
             text = page.get_text()
-            ident = identify_text(text, filename or Path(path).name)
+            for k, raw in extract.index_tags(page).items():      # valve41: the document's own 'INDEX (LIST OF TAGS)'
+                index.setdefault(k, {"tag": raw, "page": i + 1})
+            ident = identify_text(text, filename)
             fid = ident["form_id"]
             if not fid:
+                n = 0 if "Doc. No.:" in text and "Doc. Title:" in text else extract.form_rows(page)   # valve41: never silent
+                if n >= 20:
+                    unread.append({"page": i + 1, "why": f"번호 줄 {n}개인 양식인데 아는 양식(카드)이 아님"})
                 continue
             card = cards()[fid]
             roles = [r for r in card.get("page_roles", []) if r.get("role") == "items"]
@@ -299,7 +305,7 @@ def _read_pdf(doc, filename: str = "") -> dict:
                 sh["tag_raw"] = raw
             sh["tags"] = split_tags(raw, (by.get("tag_qty") or {}).get("value", ""))
             sh["test_data"] = "TEST DATA" in " ".join(doc[p - 1].get_text() for p in sh["pages"][:1]).upper()
-        return {"pages": len(doc), "sheets": sheets, "forms": forms}
+        return {"pages": len(doc), "sheets": sheets, "forms": forms, "unread_pages": unread, "index_tags": index}
     finally:
         doc.close()
 

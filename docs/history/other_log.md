@@ -394,3 +394,8 @@
 - Area: 표제의 'South' ↔ 규칙 표 'QS' 를 잇는 학습이 '999-…' 문서에 South 와 South Brownfield 가 섞이면 실패 → 첫 낱말로 배움 (사진의 'South' 4 · 'QS' 5 가 한 줄로).
 - 검토: PURCHASE 칸(PO 번호 · 가격 · Serial 'TBC')은 Open Item 아님 · 상(phase)에 따라 빈칸인 물성(Z · 점도 · 비열비 · 증기압)은 'Data Missing' 아님(Form 101 과 같음).
 - 시험 `tests/test_valve_form_isa.py` (가짜 값으로 그린 양식 2개). Ball 456쪽 읽기 결과 옛 코드와 동일(17,471 칸) · 판정 2,935/0 · UI 25/25 · 전체 2,098.
+- (추가 · 사용자 '이런 문제가 다른 타입에는 없나?') 확인: Instrument 로 모르는 양식을 올리면 초록 'done' · Tag 0 · 작은 글씨 '알아본 양식 없음' 뿐 — 같은 약점.
+  안전망(모든 타입): ① `extract.unread_pages` — 번호 줄 양식 쪽인데 읽힌 줄이 40% 미만(정상 92~100% · 못 읽은 South 8%) · Tag 없는 DS · 리더가 안 잡은 양식 쪽
+  ② `extract.index_tags` / `index_check` — 도서의 'INDEX (LIST OF TAGS)' 와 읽은 Tag 대조 (실 Ball 164/164 · South 15/15 · 4/4) ③ Instrument: 카드가 모르는 번호 줄 양식 쪽 + INDEX 대조.
+  결과는 작업 창 경고(여러 경고 이어 붙임 `_job_warn`) + `document.info.unread_pages` · `.index` + Document Management 빨간 '일부 못 읽음' / '✓ INDEX n Tag 모두 읽음'.
+  아직 확인 못 한 것: Instrument 14종은 빈 양식만 봤음(채운 실물 0) · Butterfly/PSV 의 South 도서. 시험 +2 · 전체 2,100.

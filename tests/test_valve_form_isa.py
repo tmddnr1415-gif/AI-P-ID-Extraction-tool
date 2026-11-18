@@ -177,3 +177,74 @@ def test_isa20_upload_reread_and_review(tmp_path, monkeypatch):
     wait(c.post(f"/api/valve/documents/{doc}/retry").json())
     rows = store.rows(con, "SELECT tag_key, rev FROM datasheet WHERE document_id=? ORDER BY tag_key", doc)
     assert [(r["tag_key"], r["rev"]) for r in rows] == [("71FV900", "B"), ("71LV901", "B")]
+
+
+def _with_index(tags=("71FV -900", "71LV -901"), listed=("71FV -900", "71LV -901", "71PV -999")):
+    """The same document with its 'INDEX (LIST OF TAGS)' page in front (one listed tag has no datasheet in the file)."""
+    doc = pymupdf.open()
+    p = doc.new_page(width=595, height=842)
+    for x, s in ((60, "Doc. No.:"), (110, "777-71-IN-DTS-00001"), (60 + 300, "Rev. B")):
+        p.insert_text((x, 40), s, fontsize=8)
+    p.insert_text((60, 55), "Doc. Title:", fontsize=8)
+    p.insert_text((60, 66), "DATA SHEET FOR TEST VALVE", fontsize=8)
+    p.insert_text((60, 90), "1. INDEX (LIST OF TAGS)", fontsize=9)
+    for x, s in ((60, "S No."), (110, "Tag No."), (220, "Rev No."), (300, "Page no"), (380, "Remarks")):
+        p.insert_text((x, 110), s, fontsize=8)
+    for i, t in enumerate(listed):
+        for x, s in ((64, str(i + 1)), (110, t), (228, "B"), (306, str(2 + 2 * i))):
+            p.insert_text((x, 124 + 12 * i), s, fontsize=8)
+    p.insert_text((260, 820), "Page 1 of 9", fontsize=8)
+    for i, t in enumerate(tags):
+        _sheet(doc, t, size="4" if i == 0 else "2")
+    data = doc.tobytes()
+    doc.close()
+    return data
+
+
+def test_unknown_form_and_index_never_pass_silently(tmp_path, monkeypatch):
+    """valve41 (user 2026-11-18: '이런 문제가 다른 타입에는 없나?'): whatever the type, a form no reader knows is reported —
+    form pages of which only a few rows were read, a datasheet without a tag, and every tag the document's own INDEX lists
+    but no datasheet gave."""
+    from app.valve import extract, form_isa, instrument
+    f = tmp_path / "isa_idx.pdf"
+    f.write_bytes(_with_index())
+    r = extract.read_pdf(str(f))
+    ds = extract.group_datasheets(r)
+    assert extract.unread_pages(r, ds) == []                                               # read well: nothing to report
+    ix = extract.index_check(r["index_tags"], [d["tag_key"] for d in ds])
+    assert (ix["listed"], ix["read"], ix["missing"]) == (3, 2, ["71PV -999"])              # the index lists a tag the file lacks
+    monkeypatch.setattr(form_isa, "is_isa", lambda *a, **k: False)                         # as if the reader did not know the sheet
+    r = extract.read_pdf(str(f))
+    ds = extract.group_datasheets(r)
+    un = extract.unread_pages(r, ds)
+    assert [u["page"] for u in un][:2] == [2, 4] and "개만 읽힘" in un[0]["why"]
+    assert len(extract.index_check(r["index_tags"], [d["tag_key"] for d in ds])["missing"]) == 3
+    res = instrument.read_pdf(str(f), "isa_idx.pdf")                                       # the Instrument cards do not know it either
+    assert res["sheets"] == [] and [u["page"] for u in res["unread_pages"]] == [2, 4] and len(res["index_tags"]) == 3
+
+
+def test_unread_warning_reaches_the_job_and_the_document(tmp_path, monkeypatch):
+    monkeypatch.setenv("PID_DATA_DIR", str(tmp_path / "data"))
+    from fastapi import FastAPI
+    from fastapi.testclient import TestClient
+    from app.valve import api
+    app = FastAPI()
+    app.include_router(api.router)
+    c = TestClient(app)
+    pid = c.post("/api/valve/projects", json={"name": "T2"}).json()["id"]
+
+    def up(kind):
+        j = c.post(f"/api/valve/projects/{pid}/upload", data={"kind": kind}, files=[("files", (f"{kind}.pdf", _with_index(), "application/pdf"))]).json()
+        for _ in range(400):
+            s = c.get(f"/api/valve/jobs/{j['id']}").json()
+            if s["status"] == "done":
+                return s
+            time.sleep(0.05)
+        raise AssertionError("job did not finish")
+    s = up("datasheet")                                                                    # Valve: read, but the index lists one more tag
+    assert "INDEX" in s["warn"] and "71PV -999" in s["warn"]
+    s = up("instrument")                                                                   # Instrument: no card knows this form
+    assert "읽은 Datasheet 가 없습니다" in s["warn"] and "INDEX" in s["warn"]
+    docs = {d["kind"]: d["info"] for d in c.get(f"/api/valve/projects/{pid}/summary").json()["documents"]}
+    assert docs["datasheet"]["index"]["missing"] == ["71PV -999"] and docs["datasheet"]["unread_pages"] == []
+    assert docs["instrument"]["datasheets"] == 0 and [u["page"] for u in docs["instrument"]["unread_pages"]] == [2, 4]

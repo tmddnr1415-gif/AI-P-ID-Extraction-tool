@@ -1066,6 +1066,16 @@ function refCard(docs) {                              // read-only: what every r
       ? x.slice(0, 3).map(d => `<span title="${esc(d.info?.note || '')}">${esc(d.filename)} <i class="soft">${esc((d.uploaded_at || '').slice(0, 10))}</i></span>`).join('') + (x.length > 3 ? `<span class="soft">외 ${x.length - 3}개</span>` : '')
       : '<span class="soft">아직 없음</span>'}</div>`; }).join('')}</div></div>`;
 }
+/* valve41 — a form the readers do not know never passes silently: pages not read (info.unread_pages) or no datasheet at all */
+function unreadOf(d) {
+  if (d.status !== 'done' || !(d.kind === 'datasheet' || d.kind === 'instrument')) return '';
+  const u = d.info?.unread_pages || [], none = d.info && d.info.datasheets === 0, ix = d.info?.index;
+  if (ix?.missing?.length && !u.length && !none)
+    return `도서 INDEX 의 Tag ${ix.listed}개 중 ${ix.read}개만 읽음 — 빠진 Tag: ${ix.missing.slice(0, 8).join(', ')}${ix.missing.length > 8 ? ' …' : ''}`;
+  if (!u.length && !none) return '';
+  const pg = u.slice(0, 8).map(x => x.page).join(', ') + (u.length > 8 ? ' …' : '');
+  return (none ? '읽은 Datasheet 없음 — ' : '') + (u.length ? `모르는 양식 ${u.length}쪽 (p.${pg}) — 값 · 지적이 빠짐 · 파일을 개발 쪽에 보내 주세요` : '아는 양식을 찾지 못함 · 파일을 개발 쪽에 보내 주세요');
+}
 function renderDocs() {
   const el = $('#v-docs'), REFPAGE = window.DOC_KINDS && window.DOC_KINDS.join() === REF_KINDS.join();
   const mine = window.DOC_KINDS || ['datasheet', 'valvelist'];
@@ -1084,9 +1094,9 @@ function renderDocs() {
     <div class="card"><h3>Uploaded Documents (${docs.length})</h3><table class="t"><thead><tr><th>#</th><th>Kind</th><th>File</th><th title="이 도서의 Area — 바꾸면 새로고침 때 모든 현황판에 반영">Area</th><th>Pages</th><th>Result</th><th>Status</th><th>By</th><th>Uploaded</th><th></th></tr></thead><tbody>
     ${docs.map(d => `<tr><td>${d.id}</td><td>${esc(KIND[d.kind]?.[0] || d.kind)}</td><td><b>${esc(d.filename)}</b></td>
       <td>${d.kind === 'datasheet' || d.kind === 'instrument' ? `<select class="dareasel" data-darea="${d.id}"><option value="">자동</option>${[...new Set([...areaNames(), d.area].filter(Boolean))].map(a => `<option ${d.area === a ? 'selected' : ''}>${esc(a)}</option>`).join('')}</select>` : ''}</td><td>${d.pages || '-'}</td>
-      <td>${d.kind === 'datasheet' && d.info ? `${d.info.datasheets ?? '-'} datasheets${d.info.scanned_pages ? ` · <span style="color:var(--bad)">스캔 쪽 ${d.info.scanned_pages}</span>` : ''}` :
+      <td>${d.info?.index && !d.info.index.missing.length ? `<span class="ixok" title="도서의 INDEX (LIST OF TAGS) 에 적힌 Tag 를 모두 읽었습니다">✓ INDEX ${d.info.index.listed} Tag 모두 읽음</span> · ` : ''}${d.kind === 'datasheet' && d.info ? `${d.info.datasheets ?? '-'} datasheets${d.info.scanned_pages ? ` · <span style="color:var(--bad)">스캔 쪽 ${d.info.scanned_pages}</span>` : ''}` :
         d.kind === 'valvelist' && d.info?.sheets ? d.info.sheets.filter(s => s.kind === 'appendix').map(s => `${esc(s.sheet)} (${s.tags.length})`).join(' · ') : esc(d.info?.note || '')}</td>
-      <td>${pill(d.status === 'done' ? 'ok' : d.status === 'error' ? 'bad' : 'UnderReview', d.status)}${d.error ? `<div style="color:var(--bad)">${esc(d.error)}</div>` : ''}${d.stored_ok === false ? `<div class="stbad" title="서버에 저장된 원본이 올린 파일과 달라 열리지 않습니다 — 같은 파일을 위 칸에 다시 올리면 저장본을 새로 씁니다 (Tag · 지적 · 검토 기록은 그대로)">⚠ 원본 손상 — 같은 파일 다시 올리기</div>` : ''}</td>
+      <td>${pill(d.status === 'done' ? (unreadOf(d) ? 'bad' : 'ok') : d.status === 'error' ? 'bad' : 'UnderReview', d.status === 'done' && unreadOf(d) ? '일부 못 읽음' : d.status)}${unreadOf(d) ? `<div class="stbad" title="${esc((d.info?.unread_pages || []).slice(0, 30).map(u => 'p.' + u.page + ' ' + u.why).join('\n'))}">⚠ ${esc(unreadOf(d))}</div>` : ''}${d.error ? `<div style="color:var(--bad)">${esc(d.error)}</div>` : ''}${d.stored_ok === false ? `<div class="stbad" title="서버에 저장된 원본이 올린 파일과 달라 열리지 않습니다 — 같은 파일을 위 칸에 다시 올리면 저장본을 새로 씁니다 (Tag · 지적 · 검토 기록은 그대로)">⚠ 원본 손상 — 같은 파일 다시 올리기</div>` : ''}</td>
       <td>${esc(d.uploaded_by)}</td><td class="mono">${esc((d.uploaded_at || '').replace('T', ' ').slice(0, 16))}</td>
       <td>${d.status === 'error' ? `<button data-retry="${d.id}">재처리</button>` : d.kind === 'datasheet' && d.status === 'done' ? `<button data-retry="${d.id}" title="개선된 읽기로 다시 읽습니다 — 검토자 수정 · 의견 · Mark-up · 상태는 그대로">다시 읽기</button>` : ''}${d.kind !== 'valvelist' ? ` <a href="/api/valve/documents/${d.id}/file" target="_blank">원본</a>` : ''}${d.status === 'queued' || d.status === 'running' ? '' : ` <button class="ghost ddel" data-del="${d.id}" title="이 문서를 프로젝트에서 지웁니다 — 휴지통에서 되돌릴 수 있음">🗑</button>`}</td></tr>`).join('') || '<tr><td colspan="10" class="empty">아직 없습니다</td></tr>'}
     </tbody></table></div><div id="trashc"></div>`;

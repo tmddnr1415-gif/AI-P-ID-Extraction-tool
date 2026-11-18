@@ -14,7 +14,7 @@
 - **공통 자료 `?kind=refdocs`** (11-13): PDS · PMS · Line List · Lists 는 여기서만 → 기준 프로젝트(`api.ref_pid`)에 1벌, 모든 검토가 씀. 페이지별 올리기는 `window.DOC_KINDS`.
 - **Area** (11-13): 올린 도서 Area(`document.area`) → DTS No.(규칙 표 'DTS 98 | QN | | North') → 표제 → 규칙 표 줄 (`arearule.resolve`, 학습 추정은 Site 안 정함). 라벨 QN Brownfield N1 · QN Greenfield · QS · W15. 기본 표 `arearule_default.txt` · 편집 = 공통 자료.
 - **11-13 회사 서버 재시작 대응**: 손상 보관본은 MuPDF 에 안 넘김(`store.stored_good`) · `extract.PDF_LOCK` · warm-up 1개씩 · `VALVE_WARMUP=0` · `logs/crash_*.log` · Datasheet JSON(`dsjson.py`) · Valve 화면도 Area 규칙.
-- **valve41 (11-18)**: ISA-20 'INSTRUMENT SPECIFICATION' 양식(South CV · Regulator) = `form_isa.py`(괘선 칸 읽기) · 시작 때 Tag 없는 DS 문서 자동 다시 읽기(`_auto_reread`) · 실 South 2권 = 19 Tag.
+- **valve41 (11-18)**: ISA-20 'INSTRUMENT SPECIFICATION' 양식(South CV · Regulator) = `form_isa.py`(괘선 칸 읽기) · 시작 때 Tag 없는 DS 문서 자동 다시 읽기(`_auto_reread`) · 실 South 2권 = 19 Tag. 모르는 양식 안전망: `unread_pages` · INDEX 대조 → 작업 창 · 문서 표 경고.
 - Line No 칸 없는 양식은 PDS 의 Line No 로 Line List. 필수 칸 = 카드 제안값 → 현황판 '필수 칸 확인'에서 사용자가 확정(프로젝트 설정 `inst.required`).
 - 시험: `spike/valve_inst_scenario.py <dir> [--forms /tmp/forms] [--keep]` — 14종 × (정상 Tag · 오류 심은 Tag) + 시험 PDS/PMS/Line List/Index/IO →
   **심은 오류 74/74 · 정상 Tag 지적 0 · List 29/29** (카드로 그린 쪽 · 실제 빈 양식 둘 다). pytest `tests/test_valve_instrument_{forms,reader,review}.py`.
