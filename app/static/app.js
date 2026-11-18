@@ -2138,6 +2138,10 @@ function snapshotView() {
                  legend: $("#legend-bar") ? $("#legend-bar").innerHTML : "",
                  legendHidden: $("#legend-bar") ? $("#legend-bar").classList.contains("hidden") : true,
                  jobName: $("#job-name").textContent, jobMeta: $("#job-meta").textContent };
+  // 2026-11-18 — 보던 자리(스크롤)도 둔다.  배율만 되살리고 자리를 안 되살려, 확대한 채 직전/현재를 오가면 도면이
+  // 왼쪽 위 빈 구석만 보였다 ("도면이 안 나온다").
+  const st = $("#stage");
+  snap._scroll = st ? [st.scrollLeft, st.scrollTop] : null;
   S.viewCache[S.job.id] = snap;
 }
 
@@ -2229,6 +2233,11 @@ async function switchView(jobId) {
   // 같은 도면번호의 장으로 — 없으면 그 결과의 첫 장
   const page = (want && S.pages.find(p => p.drawing_no === want))
     || (snap ? S.page : null) || S.pages.find(p => (p.layers && Object.keys(p.layers).length)) || S.pages[0];
+  if (snap) {
+    // 같은 장으로 돌아오면 보던 자리 그대로 · 다른 장이면(상대 결과에서 장을 옮겼다) 자리를 모르므로 창에 맞춘다
+    if (page && snap.page && page.page_no === snap.page.page_no && snap._scroll && S.zoom) S.pendingScroll = snap._scroll;
+    else { S.pendingScroll = null; S.zoom = null; }
+  }
   if (page) showPage(page);
   S.lastSwitchMs = Math.round(performance.now() - t0);
   const note = $("#rev-switch .rs-note");
@@ -5135,7 +5144,7 @@ function setFull(on) {
   // 브라우저 전체화면도 청한다 (주소줄·탭이 사라진다).  대시보드 iframe 처럼 허락되지 않은 곳에서는
   // 조용히 실패하고 화면 안 전체화면만 된다 — 편집은 어느 쪽이든 같다.
   try {
-    if (on && !document.fullscreenElement && document.documentElement.requestFullscreen)
+    if (on && document.fullscreenEnabled && !document.fullscreenElement && document.documentElement.requestFullscreen)
       document.documentElement.requestFullscreen().catch(() => {});
     else if (!on && document.fullscreenElement && document.exitFullscreen)
       document.exitFullscreen().catch(() => {});
@@ -7679,6 +7688,11 @@ function showPage(page) {
     sheetWait(null);                        // 그림이 왔다 — '받는 중' 안내를 지운다
     // 2026-11-18 — 그림이 오기 전에 [맞춤] 을 누르면 배율이 무한대가 되어 그 뒤 모든 장이 어긋났다 (유한한 값만 믿는다)
     if (S.zoom && Number.isFinite(S.zoom)) applyZoom(); else fit();
+    if (S.pendingScroll) {                  // 직전/현재 전환 — 보던 자리로 (switchView)
+      const st = $("#stage");
+      void st.scrollWidth;                 // 확대한 크기를 먼저 계산시킨다 — 안 하면 스크롤 범위가 아직 0 이라 자리가 무시된다
+      st.scrollLeft = S.pendingScroll[0]; st.scrollTop = S.pendingScroll[1]; S.pendingScroll = null;
+    }
     drawOverlay();
     // A selection made from the grid was waiting for this page to arrive.
     if (S.pending) { const k = S.pending; S.pending = null; select(k, true); }

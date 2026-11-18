@@ -81,3 +81,14 @@ def test_viewer_says_it_is_waiting_and_guards_zoom():
     assert "pre.onload = () => setTimeout(go, 800);" in js
     css = paths.resource("app", "static", "styles.css").read_text(encoding="utf-8")
     assert ".sheet-err.wait" in css
+
+
+def test_rev_switch_restores_where_you_were():
+    """직전/현재 결과를 오갈 때 배율과 함께 보던 자리도 되살린다 (확대한 채 돌아오면 왼쪽 위 빈 구석만 보이던 것)."""
+    from app import paths
+    js = paths.resource("app", "static", "app.js").read_text(encoding="utf-8")
+    assert "snap._scroll = st ? [st.scrollLeft, st.scrollTop] : null;" in js
+    assert "S.pendingScroll = snap._scroll" in js
+    i = js.index("if (S.pendingScroll) {")
+    block = js[i:i + 400]
+    assert "void st.scrollWidth;" in block and block.index("void st.scrollWidth;") < block.index("st.scrollLeft = S.pendingScroll[0]")
