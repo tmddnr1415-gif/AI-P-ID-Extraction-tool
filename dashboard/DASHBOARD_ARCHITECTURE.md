@@ -2228,3 +2228,18 @@ C:\Users\SAMSUNG\Desktop\Claude\                         ← 개발 폴더 (여�
   - 서버: 목록 요약에 `ord` 추가(옛 서버에서도 순서가 남게 메모는 `x` 에도 같은 값을 넣음).
 - 바뀐 곳: dashboard.html `mmOrd` · `mmOrdSave` · `mmReorder` · `mmTrash` · `mmPurge` · 카드 끌기 IIFE · 빈 곳 클릭 처리 · 줄 손잡이 IIFE(`#mmBh` `#mmBl`) · 휠 단추 끌기 · `mmZoomFit` · `mmShown`(manual) · `mmDrawList`(draggable · 🗑) · `mmDrawTrash` / server.py `MEMO_META`(+ord)
 - 확인한 것: D>C>B>A 에서 D 를 B 아래로 → C>B>D>A · 새로 열어도 유지, 카드 🗑 → 휴지통 1 · '약 24시간 뒤 완전 삭제' → 서버 파일의 지운 시각을 이틀 전으로 바꾸고 열면 자동으로 없어짐, 같은 줄 오른쪽 · 빈 줄 클릭 = 커서(상자 없음) · 왼쪽 여백 · 아래 빈 곳 클릭 = 글 상자 · 안 쓰고 나가면 사라짐, 첫째 줄을 셋째 줄 아래로 끌기, 300% 에서 종이 3048px(칸 1016) · Shift+휠 600 · 휠 단추 끌기 +300 · 100% 로 돌아오면 가로 스크롤 없음, 콘솔 오류 없음. **서버 재시작 필요.**
+
+### 2026-11-19 (APP_VERSION 2026-11-19.16 / SERVER_VERSION 2026-11-19.5) — v17.81 내 메모장: 그림 자유롭게 옮기기 · 이 PC 와 dashboard.html 파일에도 보관 · 메모 공유
+- 무엇을: 사용자 지시 "복붙 이미지도 옮길 수 있도록 / 메모장은 사용하는 부서원의 dashboard.html 에 내용이 모두 저장 기록되고 부서원 PC 에 저장되어 날아가지 않도록 / 각 사용자의 메모장은 각 사용자만 · 단, 공유하면 다른 사람이 공유받을 수 있도록".
+  - **그림 옮기기**: 본문 그림을 그냥 끌면 '떠 있는 그림'(`pg.notes` 의 `k:'img'`)이 되어 아무 데나 놓임(그림 메뉴 [✥ 자유롭게 옮기기] 도 같음). 다시 끌어 옮기기 · 오른쪽 아래 모서리로 크기 · ↩ = 본문 줄로 되돌리기 · ✕ 지우기.
+  - **이 PC 보관**(`MML`, 브라우저 보관함 kv `memo:{계정}`): 메모를 저장 · 열 때마다 전체 내용을 이 PC 에도 둠 + 접속하면 아직 안 받은 메모를 뒤에서 받아 둠.
+    · 서버가 꺼졌거나 끊기면 이 PC 것으로 **열고 고칠 수 있음**(상태 '이 PC 에 저장됨') → 다시 연결되면 자동으로 올림(그 사이 서버 것이 바뀌었으면 덮지 않고 '(오프라인에서 고친 사본)' 으로).
+    · 서버에는 없고 이 PC 에만 있는 메모가 있으면 왼쪽에 "이 PC 에만 남아 있는 메모 N개 [서버에 다시 올리기] [이 PC 에서 지우기]" — 서버 PC 자료가 날아갔을 때 되살림.
+  - **dashboard.html 파일 안에도**: 부서원 사본 파일을 쓰는 자동 보관(`embedSelf`) · 새 버전 교체 · [내 PC 사본 받기] 때 `<script id="deptMemo">` 에 내 메모 전체(계정별, 최대 약 40MB)를 같이 넣음(`withMemo`). 메모를 고치면 파일 보관도 다시 씀(`latestChange` 에 `MM.chg`). 브라우저 보관함이 지워져도 그 파일로 열고 로그인하면 파일 안 메모가 되살아남. **출장용 · 운영자 부재용 파일에는 넣지 않음**(`freshHtml` 은 그대로, `selfHtml` 은 `deptMemo` 제외).
+    ※ 파일 · 브라우저 보관함의 메모는 암호화되지 않음 → 그 dashboard.html 을 남에게 주면 내 메모가 같이 감. 남에게 줄 파일은 [✈ 오프라인 파일] 로 만들 것.
+  - **공유**: 메모 위쪽 [👥 공유] → 부서원을 고르거나 '모두에게' → 받는 사람의 내 메모장 › **👥 공유받은 메모** 에 읽기 전용으로 보임(그림 · 첨부 · 펜 · 메모지 포함, 주인이 고치면 바뀐 내용이 보임, 공유를 끄면 사라짐). [⧉ 내 메모로 복사] 로 내 것으로 만들어 고칠 수 있음(첨부 파일은 원본에).
+    서버: `pg.share`(계정 ID 목록 또는 `['*']`) · 목록 파일 `notes/_shared.json` · `GET /api/memo/shared` · `/api/memo/shared/{주인}/{메모}` · `/api/memo/sf/{주인}/{메모}/{파일}` — 매번 그 메모의 공유 대상인지 확인(아니면 404). 공유하지 않은 메모는 예전처럼 본인만.
+- 바뀐 곳: dashboard.html `MML` · `mmlLoad` · `mmlPut` · `mmlKeep` · `mmlSyncUp` · `mmLost` · `withMemo` · `mmOn`/`mmNet` · `mmLoad` · `mmSave` · `mmOpen` · `renderMemo`(오프라인) · `memoTick` · `mmShareDlg` · `mmSharedLoad` · `mmSharedOpen` · `mmSharedCopy` · `mmImgFloat` · 그림 끌기 IIFE · `mmNoteHtml`(img) · `mmDrawSide` · `mmDrawList`(shared) · `mmDrawMain`(공유 단추 · 읽기 전용 띠) · `mmBlob` · `selfHtml` · `latestChange` · `embedSelf` · `replaceSelf` · `liveSwap` · `saveCopy`
+  / server.py `memo_share_to` · `memo_share_set` · `memo_shared_ok` · `api_memo_shared_list` · `api_memo_shared_get` · `/api/memo/shared` · `/api/memo/sf` · `MEMO_META`(+share)
+- 확인한 것: 붙여 넣은 그림을 끌어 본문 밖 자리로 → 다시 끌어 옮김, 김철수가 이영희에게 공유 → 이영희 '공유받은 메모 1' · 읽기 전용(편집 줄 없음 · 그림 보임) · 내 메모로 복사 → 고칠 수 있음, 홍길동은 0건 · 직접 요청 404, 공유 끄면 이영희 0건, 메모 요청을 막고 고침 → '이 PC 에 저장됨' → 다시 열면 서버에 올라감, [내 PC 사본 받기] 파일에 내 메모 21개(232KB), 서버에서 메모 2개를 지운 뒤 보관함이 빈 새 브라우저에서 그 파일로 열어 로그인 → '이 PC 에만 남아 있는 메모 2개' → 다시 올리기 → 서버에 복원, 콘솔 오류 없음. **서버 재시작 필요.**
+  회사에서 확인할 것: 사본 파일(file://)에서 [자동 보관 켜기] 뒤 메모를 고치면 파일 크기가 늘어나는지(파일 쓰기는 시험 환경에서 못 함).

@@ -36,7 +36,7 @@ ID_RE = re.compile(r'^[A-Za-z0-9_\-]{1,80}$')
 WEEK_RE = re.compile(r'^\d{4}-W\d{2}$')
 MAX_BODY = 30 * 1024 * 1024
 
-SERVER_VERSION = '2026-11-19.4'
+SERVER_VERSION = '2026-11-19.5'
 ROOT = os.path.dirname(os.path.abspath(__file__))
 PORT = 8080
 ALLOW_NETS = []          # 사내망: 루프백·사설망 + 서버 IP 대역(/16, 유선·Wi-Fi 등 지금까지 쓴 대역 모두 기억) + --allow 로 추가한 대역
@@ -2181,7 +2181,7 @@ MEMO_PAGE_MAX = 12 * 1024 * 1024
 MEMO_QUOTA = 500 * 1024 * 1024
 MEMO_VER_KEEP = 20
 MEMO_VER_GAP = 600
-MEMO_META = ('id', 'kind', 'sec', 'title', 'icon', 'color', 'tags', 'pin', 'lock', 'deleted', 'float', 'x', 'y', 'w', 'h', 'fx', 'fy', 'text', 'todos', 'files', 'date', 'lh', 'ord', 'createdAt', 'updatedAt')
+MEMO_META = ('id', 'kind', 'sec', 'title', 'icon', 'color', 'tags', 'pin', 'lock', 'deleted', 'float', 'x', 'y', 'w', 'h', 'fx', 'fy', 'text', 'todos', 'files', 'date', 'lh', 'ord', 'share', 'createdAt', 'updatedAt')
 MEMO_FILE_TYPES = {'.pdf': 'application/pdf', '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.gif': 'image/gif', '.webp': 'image/webp',
                    '.txt': 'text/plain; charset=utf-8', '.csv': 'text/csv; charset=utf-8', '.md': 'text/plain; charset=utf-8'}
 
@@ -2266,6 +2266,7 @@ def api_memo_put(acc, pid, raw):
                     except OSError:
                         pass
         write_json(path, pg)
+        memo_share_set(acc, pg)
     return {'status': 'ok', 'updatedAt': now, 'createdAt': pg['createdAt']}
 
 
@@ -2277,6 +2278,7 @@ def api_memo_del(acc, pid):
         except FileNotFoundError:
             pass
         shutil.rmtree(memo_dir(acc, 'ver', pid), ignore_errors=True)
+        memo_share_set(acc, {'id': pid})
     return {'status': 'ok'}
 
 
@@ -2347,6 +2349,66 @@ def api_memo_file_del(acc, fid):
             except OSError:
                 pass
     return {'status': 'ok'}
+
+
+# ----- 메모 공유 (2026-11-19): 메모 주인이 고른 부서원(또는 모두)에게 읽기 전용으로 보여 줌. notes/_shared.json = {주인ID: {메모ID: {to, title, icon, updatedAt}}}
+def memo_share_to(pg):
+    to = pg.get('share')
+    if not isinstance(to, list) or pg.get('deleted') or pg.get('kind') == 'sticky':
+        return []
+    return [str(x)[:40] for x in to if x == '*' or UID_RE.match(str(x))][:200]
+
+
+def memo_share_set(acc, pg):
+    """LOCK 안에서 부름: 공유 목록 파일을 이 메모 상태에 맞춤"""
+    path = P('notes', '_shared.json')
+    idx = read_json(path) or {}
+    mine = idx.get(acc['id']) or {}
+    to = memo_share_to(pg)
+    if to:
+        mine[pg['id']] = {'to': to, 'title': str(pg.get('title') or '')[:200], 'icon': str(pg.get('icon') or '')[:8], 'updatedAt': pg.get('updatedAt')}
+    elif pg['id'] in mine:
+        del mine[pg['id']]
+    else:
+        return
+    if mine:
+        idx[acc['id']] = mine
+    else:
+        idx.pop(acc['id'], None)
+    write_json(path, idx)
+
+
+def memo_shared_ok(acc, owner, pid):
+    """owner 의 메모 pid 가 acc 에게 공유되어 있으면 그 메모(전체)를 돌려줌"""
+    if not UID_RE.match(owner or ''):
+        raise ApiError(400, '잘못된 계정')
+    pg = read_json(P('notes', owner, 'pages', memo_pid(pid) + '.json'))
+    to = memo_share_to(pg) if pg else []
+    if not pg or not ('*' in to or acc['id'] in to):
+        raise ApiError(404, '공유가 끝났거나 없는 메모입니다')
+    return pg
+
+
+def api_memo_shared_list(acc):
+    idx = read_json(P('notes', '_shared.json')) or {}
+    out = []
+    for owner, pages in idx.items():
+        if owner == acc['id']:
+            continue
+        oa = None
+        for pid, m in (pages or {}).items():
+            to = m.get('to') or []
+            if '*' in to or acc['id'] in to:
+                oa = oa or load_account(owner) or {}
+                out.append({'owner': owner, 'ownerName': oa.get('name') or owner, 'id': pid, 'title': m.get('title'), 'icon': m.get('icon'), 'updatedAt': m.get('updatedAt')})
+    out.sort(key=lambda x: x.get('updatedAt') or '', reverse=True)
+    return {'shared': out}
+
+
+def api_memo_shared_get(acc, owner, pid):
+    pg = memo_shared_ok(acc, owner, pid)
+    oa = load_account(owner) or {}
+    return {**{k: v for k, v in pg.items() if k != 'share'}, 'ownerName': oa.get('name') or owner}
 
 
 # ---------------------------------------------------------------- 쪽지 (messages/{ID}/in|sent/{쪽지ID}.json)
@@ -2950,6 +3012,20 @@ class Handler(BaseHTTPRequestHandler):
             acc = self.need_user()
             if m == 'GET' and len(seg) == 1:
                 return api_memo_list(acc)
+            if m == 'GET' and seg[1:] == ['shared']:
+                return api_memo_shared_list(acc)
+            if m == 'GET' and len(seg) == 4 and seg[1] == 'shared':
+                return api_memo_shared_get(acc, seg[2], seg[3])
+            if m == 'GET' and len(seg) == 5 and seg[1] == 'sf':        # 공유받은 메모의 첨부: 그 메모에 실제로 들어 있는 파일만
+                pg = memo_shared_ok(acc, seg[2], seg[3])
+                if seg[4] not in (pg.get('files') or []):
+                    raise ApiError(404, '이 메모의 첨부가 아닙니다')
+                fm = memo_file({'id': seg[2]}, seg[4])
+                with open(P('notes', seg[2], 'files', fm['id'] + fm['ext']), 'rb') as f:
+                    data = f.read()
+                self.send(200, data, MEMO_FILE_TYPES.get(fm['ext'], 'application/octet-stream'),
+                          {'Content-Disposition': f"attachment; filename*=UTF-8''{quote(fm['name'])}", 'X-Content-Type-Options': 'nosniff'})
+                return None
             if m == 'PUT' and seg[1:] == ['book']:
                 return api_memo_book(acc, self.json_body())
             if len(seg) == 3 and seg[1] == 'p':
