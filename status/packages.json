@@ -606,6 +606,19 @@
    },
    "replaces": "6_DASHBOARD_update_v17.76_from_v17.47_2026-11-19.zip",
    "note": "v17.77 — 메모 확대 때 배경이 일부만 덮던 것 (회사 사진) 고침 · 화면만"
+  },
+  {
+   "file": "①",
+   "name": "8_DASHBOARD_update_v17.78_from_v17.47_2026-11-19.zip",
+   "made": "2026-11-19 12:50",
+   "path": "company-pc-update/2026-11-19/ (3.4MB · 저장소에 있음)",
+   "sha256": "cc76e36390fd2a301d3ef71b99b7525dac0e34829d08f1aafe66b69a46338941",
+   "applied": "",
+   "tips": {
+    "S1": "8f04e949"
+   },
+   "replaces": "7_DASHBOARD_update_v17.77_from_v17.47_2026-11-19.zip",
+   "note": "v17.78 — 메모장 펜 Ctrl+Z/Y · 메모지 · 글 상자 (회사 요청) · 화면만"
   }
  ]
 }
