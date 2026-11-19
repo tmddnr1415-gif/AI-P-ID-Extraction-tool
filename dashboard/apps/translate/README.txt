@@ -11,6 +11,8 @@
                            Mozilla 가 Firefox 에 내장해 배포하는 공개 모델 (mozilla/translations, MPL-2.0)
   ocr\                     tesseract.js 7.0.0 + tesseract.js-core 6.1.2 (Apache-2.0) — 그림 속 글자 읽기
   ocr\lang\eng.traineddata.gz   영어 인식 데이터 (@tesseract.js-data/eng 4.0.0_best_int, MIT 패키지 / tessdata Apache-2.0)
+  ocr\lang\kor.traineddata.gz   한국어 인식 데이터 (@tesseract.js-data/kor 1.0.0 의 4.0.0_best_int, 1.6MB, MIT 패키지 / tessdata Apache-2.0) — 2026-11-19 추가:
+                           내 메모장 '📧 메일 정리' 가 메일 화면 캡처를 한국어+영어로 읽음 (2배 확대 · 흑백 뒤 읽기, 브라우저 안에서만)
 
   tm-seed.json · patterns.json  배포 번역 메모리 · 자주 틀리는 표현 — 공개 한·영 병렬 말뭉치(Korean-English Park, Jungyeul Park et al. 2016,
                            https://github.com/jungyeul/korean-parallel-corpora , CC BY-SA 3.0)의 문장을 이 엔진으로 번역한 뒤 Claude 가 검토 · 교정한 결과.

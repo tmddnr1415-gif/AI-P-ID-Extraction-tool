@@ -1,0 +1,26 @@
+const { chromium } = require('playwright'); const { mmMail } = require('./nlp.js');
+const C = [...require('./real_cases.js'), ...require('./holdout_cases.js')]; const PREP = process.argv[2] || 'x2', BASE = process.env.BASE || 'http://127.0.0.1:8777';
+// 메일 글 → 화면 모양(머리글은 이름표 + 값, 녹스/아웃룩처럼)
+const toHtml = txt => { const L = txt.split('\n'), esc = s => s.replace(/&/g, '&amp;').replace(/</g, '&lt;'); const H = /^(보낸 사람|받는 사람|참조|보낸 날짜|제목|From|Sent|To|Cc|Subject)[:]?\s+(.*)$/; let i = 0, subj = '', rows = [];
+  if (L[0] && !H.test(L[0]) && /\[|RE|FW|요청|안내|건|공지|일정|Re:|Request|for|review|notification|question|schedule/i.test(L[0]) && L.length > 2 && H.test(L[1] || '')) { subj = L[0]; i = 1; }
+  while (i < L.length && H.test(L[i])) { const m = H.exec(L[i]); if (/^(제목|Subject)$/.test(m[1])) subj = subj || m[2]; else rows.push([m[1], m[2]]); i++; }
+  return `<div class="tb">답장 &nbsp; 전체답장 &nbsp; 전달 &nbsp; 삭제 &nbsp; 이동</div><div class="mail">${subj ? `<h1>${esc(subj)}</h1>` : ''}${rows.length ? `<div class="hd">${rows.map(([a, b]) => `<div><span>${esc(a)}</span><b style="font-weight:400">${esc(b)}</b></div>`).join('')}</div>` : ''}<div class="bd">${esc(L.slice(i).join('\n').replace(/^\n+/, ''))}</div></div>`; };
+(async () => { const b = await chromium.launch(); const p = await b.newPage({ viewport:{ width:940, height:1200 }, deviceScaleFactor:1 });
+  await p.goto(BASE + '/apps/translate/mailtest.html'); await p.waitForFunction(() => !!window.Tesseract);
+  await p.evaluate(async () => { window.W = await Tesseract.createWorker(['kor', 'eng'], 1, { workerPath:'ocr/worker.min.js', corePath:'ocr/core/tesseract-core-simd-lstm.wasm.js', langPath:'ocr/lang', gzip:true, cacheMethod:'none' }); await W.setParameters({ preserve_interword_spaces:'1' }); });
+  const sc = {}; const add = (k, ok) => { sc[k] = sc[k] || [0, 0]; sc[k][0] += ok ? 1 : 0; sc[k][1]++; }; const nz = x => String(x).toLowerCase().replace(/\s+|[:.,;]/g, '').replace(/0/g, 'o').replace(/i/g, 'l');
+  let n = 0, t0 = Date.now();
+  for (const [txt, g] of C) { await p.evaluate(h => { document.getElementById('v').innerHTML = h; }, toHtml(txt)); const el = await p.$('#v'); const png = (await el.screenshot()).toString('base64');
+    const ocr = await p.evaluate(async ([b64, prep]) => { const img = new Image(); img.src = 'data:image/png;base64,' + b64; await img.decode(); const k = /x3/.test(prep) ? 3 : /x2/.test(prep) ? 2 : /x4/.test(prep) ? 4 : 1; const c = document.createElement('canvas'); c.width = img.width * k; c.height = img.height * k; const x = c.getContext('2d'); x.imageSmoothingQuality = 'high'; x.drawImage(img, 0, 0, c.width, c.height);
+      if (prep !== 'raw') { const d = x.getImageData(0, 0, c.width, c.height), a = d.data; for (let i = 0; i < a.length; i += 4) { const v = .299 * a[i] + .587 * a[i + 1] + .114 * a[i + 2]; a[i] = a[i + 1] = a[i + 2] = v; } if (/b$/.test(prep)) { const h = new Array(256).fill(0); for (let i = 0; i < a.length; i += 4) h[a[i] | 0]++; let tot = a.length / 4, sum = 0; for (let t = 0; t < 256; t++) sum += t * h[t]; let sB = 0, wB = 0, best = 0, th = 128; for (let t = 0; t < 256; t++) { wB += h[t]; if (!wB) continue; const wF = tot - wB; if (!wF) break; sB += t * h[t]; const mB = sB / wB, mF = (sum - sB) / wF, v = wB * wF * (mB - mF) ** 2; if (v > best) { best = v; th = t; } } for (let i = 0; i < a.length; i += 4) { const v = a[i] > th ? 255 : 0; a[i] = a[i + 1] = a[i + 2] = v; } } x.putImageData(d, 0, 0); }
+      const { data } = await W.recognize(c); return { text:data.text, conf:data.confidence }; }, [png, PREP]);
+    const text = ocr.text.replace(/[ \t]+\n/g, '\n'); const r = mmMail(text, { now:new Date(2026, 10, 19, 10, 0) }); n++; const e = []; const ok = (k, c, m) => { add(k, c); if (!c) e.push(m); };
+    if (g.subj) ok('제목', nz(r.subj) === nz(g.subj), `subj "${r.subj}"`); if (g.from) ok('보낸 사람', nz(r.from.name) === nz(g.from), `from "${r.from.name}"`); if (g.date) ok('메일 날짜', r.date === g.date && (!g.time || r.time === g.time), `date ${r.date} ${r.time}`);
+    for (const [kw, due] of g.reqs || []) { const m = r.reqs.find(x => nz(x.t + ' ' + x.src).includes(nz(kw))); ok('요청 찾기', !!m, `req miss "${kw}"`); if (m && due) ok('요청 기한', m.due === due, `due "${kw}" ${m.due}≠${due}`); }
+    if (g.noReq) ok('요청 없음(공지)', r.reqs.length === 0, `false reqs: ${r.reqs.map(x => x.t).join(' / ')}`); else ok('요청 오검출 없음', r.reqs.length <= (g.reqs || []).length + 1, `extra: ${r.reqs.map(x => x.t).join(' / ')}`);
+    for (const [d, t] of g.sched || []) ok('일정', r.sched.some(x => x.due === d && (!t || x.time === t)), `sched miss ${d} ${t} got ${r.sched.map(x => x.due + ' ' + x.time).join(',')}`);
+    for (const it of g.items || []) ok('품목', r.items.includes(it), `item ${it} not in [${r.items}]`);
+    if (e.length) { console.log(`✗ #${n} (글자 확신 ${Math.round(ocr.conf)}%) ${e.join(' | ')}`); if (process.env.SHOWOCR) console.log(text.slice(0, 600) + '\n----'); }
+  }
+  let s = 0, k = 0; console.log(`\n화면 캡처 ${n}통 · 전처리 ${PREP} · ${((Date.now() - t0) / n / 1000).toFixed(1)}초/통`); for (const [key, [a, bb]] of Object.entries(sc)) { console.log(`  ${key}: ${(100 * a / bb).toFixed(1)}% (${a}/${bb})`); s += a / bb; k++; } console.log(`  평균: ${(100 * s / k).toFixed(1)}%`);
+  await b.close(); })();
