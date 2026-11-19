@@ -710,6 +710,19 @@
    },
    "replaces": "14_DASHBOARD_update_v17.87_from_v17.82_2026-11-19.zip",
    "note": "v17.88 (기준 v17.82) — 배경이 떠 있는 것 · 펜 획까지 이어짐 (회사 사진)"
+  },
+  {
+   "file": "①",
+   "name": "16_DASHBOARD_update_v17.90_from_v17.82_2026-11-19.zip",
+   "made": "2026-11-19 15:30",
+   "path": "company-pc-update/2026-11-19/ (1.6MB · 저장소에 있음)",
+   "sha256": "cc39034fd1e0d70b542ae84438212f28b542d0434d9e16f0ba9c8ddde3f1d010",
+   "applied": "",
+   "tips": {
+    "S1": "9ebb745b"
+   },
+   "replaces": "15_DASHBOARD_update_v17.88_from_v17.82_2026-11-19.zip",
+   "note": "v17.90 (기준 v17.82) — 확대해도 흰 바탕 없음 · macOS 느낌 메뉴"
   }
  ]
 }
