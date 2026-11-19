@@ -2339,3 +2339,8 @@ C:\Users\SAMSUNG\Desktop\Claude\                         ← 개발 폴더 (여�
   - **메모 화면**: 제목 줄 [👁 주석 숨기기] = 메모 위의 메모지 · 글 상자 · 떠 있는 그림 · 펜 획 층을 숨기고 본문만, 다시 누르면 보임. 이 PC 에 기억(`dept-memo-anno`). 숨긴 동안 펜 쓰기는 꺼짐. 내용은 지워지지 않음.
 - 바뀐 곳: dashboard.html `mmPdfView`(pnx) · `mmPdf`(pnx) · `mmDrawMain`(anno 단추 · 기억 적용) · 클릭 처리(anno) · CSS(`body.mm-noanno` · `.mm-pdf.nopn` · `.mm-zb.on`)
 - 확인한 것: 메모 주석 숨기기 → 메모지 · 펜 층 안 보임 → 새로 열어도 숨김 유지 → 다시 보이기, PDF 주석 창 숨기기 → 쪽 너비 1170 → 1500 → 다시 보이기 1170, 콘솔 오류 없음.
+
+### 2026-11-19 (APP_VERSION 2026-11-19.29 / SERVER_VERSION 그대로) — v17.94 내 메모장: 펜 쓰기 중 Esc = 펜 끄기
+- 무엇을: 사용자 지시 "펜을 누르고 Esc 누르면 펜 모드가 꺼지도록". 메모 위 펜 · PDF 보기의 펜 모두, Esc 한 번 = 펜 끄기(펜 줄 사라짐 · 다시 글자를 누를 수 있음). 이때는 다른 Esc 동작(크게 보기 해제 · PDF 창 닫기)은 하지 않음 — 한 번 더 Esc 를 누르면 그 동작. 펜 줄 안내에 'Esc = 펜 끄기'.
+- 바뀐 곳: dashboard.html keydown(Escape · PEN.on) · `mmInkSync`(안내 글)
+- 확인한 것: 메모 펜 켬 → Esc → 꺼짐, 크게 보기 중 펜 → Esc = 펜만 꺼지고 크게 보기 유지 → 다시 Esc = 크게 보기 해제, PDF 보기 펜 → Esc = 펜만 꺼지고 PDF 창 그대로, 콘솔 오류 없음.

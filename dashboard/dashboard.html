@@ -2373,7 +2373,7 @@ function recLabel(key, f) {
  * ===================================================================== */
 let root = null;
 /* 서버 모드: http(s):// 로 접속하면 server.py 의 REST API 사용 (폴더 선택 불필요). file:// 로 열면 폴더 모드 */
-const APP_VERSION = '2026-11-19.28';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
+const APP_VERSION = '2026-11-19.29';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
 const SERVER_URL = 'http://localhost:8080';
 // 부서원 PC 사본(file://)이 접속을 시도할 서버 — 서버가 배포 파일을 만들 때 'PC 이름 주소, IP 주소' 순으로 자동 기록함
 const DEFAULT_SERVERS = ['http://ASEUNGWOOK-B01:8080', 'http://65.3.30.234:8080'];
@@ -6730,7 +6730,7 @@ function inkBarClick(e, bar, redraw) {   // 펜 줄 공통 처리 → true 면 �
 /* ----- 메모 위에 그리기 ----- */
 function mmInkSync() {   // 편집 줄 아래 펜 줄 · 그리기 층 상태
   const host = $('#mmInkHost'), svg = $('#mmInk'), pg = MM.cur; if (!host || !svg || !pg) return;
-  host.innerHTML = PEN.on ? inkBarHtml('<span class="sp"></span><span class="muted" style="font-size:11.5px">그리는 동안에는 글자를 누를 수 없습니다</span><button data-pa="done" class="on">✓ 그리기 끝</button>') : '';
+  host.innerHTML = PEN.on ? inkBarHtml('<span class="sp"></span><span class="muted" style="font-size:11.5px">그리는 동안에는 글자를 누를 수 없습니다 · <b>Esc = 펜 끄기</b></span><button data-pa="done" class="on">✓ 그리기 끝</button>') : '';
   svg.classList.toggle('on', PEN.on); svg.classList.toggle('er', PEN.on && PEN.tool === 'erase'); $('#mmTb [data-mc="ink"]')?.classList.toggle('on', PEN.on);
   inkBind(svg, { strokes:() => MM.cur?.ink || [], set:l => { if (!MM.cur) return; MM.lastKind = 'ink'; MM.cur.ink = l; mmHistPush(true); mmPaperFit(); MM.dirty = true; mmStat('입력 중…'); clearTimeout(MM.timer); MM.timer = setTimeout(() => mmSave(), 1200); }, unit:() => 1 / mmZoom(), can:() => !MM.cur?.lock });
   inkDraw(svg, pg.ink);
@@ -6894,6 +6894,11 @@ document.addEventListener('pointerdown', e => {   // 떠 있는 그림 · 글 �
   MM.pick = el.dataset.fn; el.classList.add('picked'); if (document.activeElement?.closest?.('.fb, #mmEd')) document.activeElement.blur();
 }, true);
 document.addEventListener('keydown', e => {
+  if (e.key === 'Escape' && PEN.on) {   // 2026-11-19 v17.94 펜 쓰기 중 Esc = 펜 끄기 (메모 · PDF 보기 모두) — 그 밖의 Esc 동작(크게 보기 해제 등)은 하지 않음
+    e.preventDefault(); e.stopPropagation(); const pv = $('.mm-pv');
+    if (pv) pv.querySelector('[data-a="pen"]')?.click(); else { PEN.on = false; mmInkSync(); }
+    return toast('펜 쓰기를 껐습니다');
+  }
   if (e.key === 'Escape' && MM.place) { mmPlace(MM.place); return; }
   if (!(e.ctrlKey || e.metaKey) || e.altKey) return; const k = e.key.toLowerCase(); if (k !== 'z' && k !== 'y') return;
   const pv = $('.mm-pv'); if (pv) { if (e.target.closest?.('.pe')) return; if (k === 'z' && !e.shiftKey) { e.preventDefault(); pv.querySelector('[data-pa="undo"]')?.click() ?? pv.dispatchEvent(new CustomEvent('mm-undo')); } return; }
