@@ -2044,8 +2044,14 @@ html.dark #mmAlarm{filter:invert(1) hue-rotate(180deg)}
 .mm-ro{background:#dff8f3;border:1px solid #9be0d3;border-radius:8px;padding:4px 10px;color:#0b5c50;font-size:12.5px}.mm-lost{background:#fff7e0;border:1px solid #f1dc8a;border-radius:10px;padding:8px;font-size:12px;line-height:1.7;margin-top:8px}
 /* 글 상자 · 메모지 안의 글머리 단계 (본문과 같은 규칙) */
 .mm-fn .fb :is(ul,ol){padding-left:1.8em;margin:0}.mm-fn .fb li::marker{font-weight:600}.mm-fn .fb ul>li::marker{font-size:.72em}.mm-fn .fb ol{list-style-type:mm-n1}.mm-fn .fb ul{list-style-type:'●  '}.mm-fn .fb :is(ul,ol) ol{list-style-type:mm-n2}.mm-fn .fb :is(ul,ol) ul{list-style-type:'○  '}.mm-fn .fb :is(ul,ol) :is(ul,ol) ol{list-style-type:mm-n3}.mm-fn .fb :is(ul,ol) :is(ul,ol) ul{list-style-type:'■  '}.mm-fn .fb :is(ul,ol) :is(ul,ol) :is(ul,ol) ol{list-style-type:mm-n4}.mm-fn .fb :is(ul,ol) :is(ul,ol) :is(ul,ol) ul{list-style-type:'□  '}.mm-fn .fb :is(ul,ol) :is(ul,ol) :is(ul,ol) :is(ul,ol) ol{list-style-type:mm-n5}.mm-fn .fb :is(ul,ol) :is(ul,ol) :is(ul,ol) :is(ul,ol) ul{list-style-type:'◆  '}.mm-fn .fb :is(ul,ol) :is(ul,ol) :is(ul,ol) :is(ul,ol) :is(ul,ol) ol{list-style-type:mm-n6}.mm-fn .fb :is(ul,ol) :is(ul,ol) :is(ul,ol) :is(ul,ol) :is(ul,ol) ul{list-style-type:'◇  '}.mm-fn .fb :is(ul,ol) :is(ul,ol) :is(ul,ol) :is(ul,ol) :is(ul,ol) :is(ul,ol) ol{list-style-type:mm-n7}.mm-fn .fb :is(ul,ol) :is(ul,ol) :is(ul,ol) :is(ul,ol) :is(ul,ol) :is(ul,ol) ul{list-style-type:'–  '}.mm-fn .fb :is(ul,ol) :is(ul,ol) :is(ul,ol) :is(ul,ol) :is(ul,ol) :is(ul,ol) :is(ul,ol) ol{list-style-type:mm-n1}.mm-fn .fb :is(ul,ol) :is(ul,ol) :is(ul,ol) :is(ul,ol) :is(ul,ol) :is(ul,ol) :is(ul,ol) ul{list-style-type:'●  '}
-.mm-fn .mm-rz{position:absolute;right:-1px;bottom:-1px;width:16px;height:16px;cursor:nwse-resize;z-index:2;opacity:0;touch-action:none;background:linear-gradient(135deg,transparent 0 50%,#6b7591 50% 58%,transparent 58% 68%,#6b7591 68% 76%,transparent 76% 86%,#6b7591 86% 94%,transparent 94%);border-radius:0 0 5px 0}
-.mm-fn:hover .mm-rz,.mm-fn:focus-within .mm-rz,.mm-fn.sizing .mm-rz{opacity:.9}.mm-fn.sizing{outline:2px solid var(--accent);outline-offset:1px}.mm-fn.tb .fb{overflow:auto}
+.mm-fn .mm-rz.old{position:absolute;right:-1px;bottom:-1px;width:16px;height:16px;cursor:nwse-resize;z-index:2;opacity:0;touch-action:none;background:linear-gradient(135deg,transparent 0 50%,#6b7591 50% 58%,transparent 58% 68%,#6b7591 68% 76%,transparent 76% 86%,#6b7591 86% 94%,transparent 94%);border-radius:0 0 5px 0}
+.mm-fn .mm-h{position:absolute;z-index:3;opacity:0;touch-action:none;width:10px;height:10px;border-radius:3px;background:#fff;border:1.5px solid #4f4ce0;box-shadow:0 1px 3px rgba(0,0,0,.25);transition:opacity .12s,transform .12s}
+.mm-fn .mm-h:hover{transform:scale(1.25)}
+.mm-fn:hover .mm-h,.mm-fn.picked .mm-h,.mm-fn.sizing .mm-h,.mm-fn:focus-within .mm-h{opacity:1}
+.mm-h-nw{left:-6px;top:-6px;cursor:nwse-resize}.mm-h-n{left:calc(50% - 5px);top:-6px;cursor:ns-resize}.mm-h-ne{right:-6px;top:-6px;cursor:nesw-resize}.mm-h-e{right:-6px;top:calc(50% - 5px);cursor:ew-resize}
+.mm-h-se{right:-6px;bottom:-6px;cursor:nwse-resize}.mm-h-s{left:calc(50% - 5px);bottom:-6px;cursor:ns-resize}.mm-h-sw{left:-6px;bottom:-6px;cursor:nesw-resize}.mm-h-w{left:-6px;top:calc(50% - 5px);cursor:ew-resize}
+.mm-fn.im,.mm-fn.st{overflow:visible}.mm-fn.st .fb{border-radius:0 0 12px 3px}.mm-fn.im img{border-radius:5px}.mm-fn.im.fixh img{height:100%;object-fit:fill}
+@media print{.mm-fn .mm-h{display:none}}.mm-fn.sizing{outline:2px solid var(--accent);outline-offset:1px}.mm-fn.tb .fb{overflow:auto}
 @media print{.mm-fn .mm-rz{display:none}}
 .mm-sticky .si{position:relative;flex:none;max-height:72%;overflow:hidden;background:rgba(255,255,255,.5)}.mm-sticky .si img{width:100%;display:block;user-select:none}.mm-sticky .si button{position:absolute;right:4px;top:4px;border:0;border-radius:50%;width:20px;height:20px;background:rgba(0,0,0,.45);color:#fff;font-size:11px;cursor:pointer;opacity:0}.mm-sticky:hover .si button{opacity:1}
 .mm-sticky:has(.si) .sb{flex:1;min-height:24px}
@@ -2365,7 +2371,7 @@ function recLabel(key, f) {
  * ===================================================================== */
 let root = null;
 /* 서버 모드: http(s):// 로 접속하면 server.py 의 REST API 사용 (폴더 선택 불필요). file:// 로 열면 폴더 모드 */
-const APP_VERSION = '2026-11-19.26';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
+const APP_VERSION = '2026-11-19.27';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
 const SERVER_URL = 'http://localhost:8080';
 // 부서원 PC 사본(file://)이 접속을 시도할 서버 — 서버가 배포 파일을 만들 때 'PC 이름 주소, IP 주소' 순으로 자동 기록함
 const DEFAULT_SERVERS = ['http://ASEUNGWOOK-B01:8080', 'http://65.3.30.234:8080'];
@@ -6809,11 +6815,13 @@ async function mmPdfView(fid, name, blob) {
 /* ---------- 2026-11-19 v17.78 메모 위 아무 곳에나: 🗒 메모지 붙이기 · Ｔ 글 상자 (끌어 옮기기 · 크기 · 색) / 펜 획 Ctrl+Z · Ctrl+Y ---------- */
 const MM_NC = ['#fff2a8', '#ffd6e0', '#d3f3d8', '#d5e8ff', '#eadcff', '#ffe2c4'];
 function mmNoteTouch(kind) { if (!MM.cur) return; if (kind === 'obj') requestAnimationFrame(mmPaperFit); MM.dirty = true; MM.lastKind = kind === 'obj' ? 'obj' : 'text'; mmHistPush(kind === 'obj'); mmStat('입력 중…'); clearTimeout(MM.timer); MM.timer = setTimeout(() => mmSave(), 1200); }
+// 2026-11-19 v17.92 크기 손잡이 8개: 네 모서리 + 위 · 아래 · 왼쪽 · 오른쪽 변. 그림은 모서리 = 비율 유지(Shift = 자유), 변 = 그 방향만(늘이기)
+const MM_H8 = ['nw', 'n', 'ne', 'e', 'se', 's', 'sw', 'w'].map(d => `<i class="mm-h mm-h-${d}${d === 'se' ? ' mm-rz' : ''}" data-h="${d}" title="끌어서 크기 조절"></i>`).join('');
 function mmNoteHtml(n) {
-  if (n.k === 'img') return /^data:image\/(png|jpeg|gif|webp);base64,[A-Za-z0-9+/=]+$/.test(n.src || '') ? `<div class="mm-fn im" data-fn="${esc(n.id)}" style="left:${+n.x || 0}px;top:${+n.y || 0}px;width:${+n.w || 200}px"><div class="fh"><span class="grip" title="끌어서 옮기기 (그림을 바로 끌어도 됨)">⠿</span><button data-fin title="본문 안(글 줄)으로 다시 넣기">↩</button><button data-fx title="지우기">✕</button></div><img src="${n.src}" draggable="false"><i class="mm-rz" title="끌어서 크기 조절"></i></div>` : '';
+  if (n.k === 'img') return /^data:image\/(png|jpeg|gif|webp);base64,[A-Za-z0-9+/=]+$/.test(n.src || '') ? `<div class="mm-fn im${n.h ? ' fixh' : ''}" data-fn="${esc(n.id)}" style="left:${+n.x || 0}px;top:${+n.y || 0}px;width:${+n.w || 200}px;${n.h ? `height:${+n.h}px;` : ''}"><div class="fh"><span class="grip" title="끌어서 옮기기 (그림을 바로 끌어도 됨)">⠿</span><button data-fin title="본문 안(글 줄)으로 다시 넣기">↩</button><button data-fx title="지우기">✕</button></div><img src="${n.src}" draggable="false">${MM_H8}</div>` : '';
   const st = n.k === 'tbox';
   return `<div class="mm-fn ${st ? 'tb' : 'st'}" data-fn="${esc(n.id)}" style="left:${+n.x || 0}px;top:${+n.y || 0}px;width:${+n.w || (st ? 240 : 140)}px;${n.h ? `height:${+n.h}px;` : ''}${st ? '' : `background:${mmCol(n.c, MM_NC[0])}`}">
-    <div class="fh"><span class="grip" title="끌어서 옮기기">⠿</span>${st ? '' : MM_NC.map(c => `<button data-fc="${c}" style="background:${c}" title="색"></button>`).join('')}<button data-fx title="지우기">✕</button></div><div class="fb" contenteditable="${MM.cur?.lock ? 'false' : 'true'}" spellcheck="false">${n.html ? mmClean(n.html) : esc(n.text || '')}</div><i class="mm-rz" title="끌어서 크기 조절"></i></div>`;
+    <div class="fh"><span class="grip" title="끌어서 옮기기">⠿</span>${st ? '' : MM_NC.map(c => `<button data-fc="${c}" style="background:${c}" title="색"></button>`).join('')}<button data-fx title="지우기">✕</button></div><div class="fb" contenteditable="${MM.cur?.lock ? 'false' : 'true'}" spellcheck="false">${n.html ? mmClean(n.html) : esc(n.text || '')}</div>${MM_H8}</div>`;
 }
 function mmNotesDraw() {
   const h = $('#mmNotes'), pg = MM.cur; if (!h || !pg) return; h.innerHTML = (pg.notes || []).map(mmNoteHtml).join(''); requestAnimationFrame(mmPaperFit);
@@ -6821,11 +6829,18 @@ function mmNotesDraw() {
   h.addEventListener('input', e => { const el = e.target.closest('.mm-fn'), n = el && N(el.dataset.fn); if (!n) return; clearTimeout(h._pf); h._pf = setTimeout(mmPaperFit, 200); const fb = e.target.closest('.fb') || e.target; n.text = fb.innerText.replace(/\n$/, '').slice(0, 4000); n.html = fb.querySelector('ol,ul,b,i,u,span,font,div') ? mmClean(fb.innerHTML).slice(0, 40000) : ''; mmNoteTouch(); });
   h.addEventListener('paste', e => { if (!e.target.closest('.fb') || mmClipImgs(e.clipboardData).length) return; e.preventDefault(); e.stopPropagation(); document.execCommand('insertText', false, (e.clipboardData.getData('text/plain') || '').slice(0, 4000)); }, true);
   let rs = null;   // 2026-11-19 v17.85 오른쪽 아래 모서리(◢)를 끌어 크기 조절 — 글 상자 · 메모지 · 그림 모두
-  h.addEventListener('pointerdown', e => { const z = e.target.closest('.mm-rz'), el = z && z.closest('.mm-fn'); if (!el || MM.cur?.lock || e.button) return; e.preventDefault(); e.stopPropagation(); z.setPointerCapture(e.pointerId);
-    rs = { el, sx:e.clientX, sy:e.clientY, w:el.offsetWidth, h:el.offsetHeight, im:el.classList.contains('im'), ar:el.classList.contains('im') ? el.offsetHeight / Math.max(1, el.offsetWidth) : 0 }; el.classList.add('sizing'); }, true);
-  h.addEventListener('pointermove', e => { if (!rs) return; const zm = mmZoom(), w = Math.max(rs.im ? 40 : 80, rs.w + (e.clientX - rs.sx) / zm); rs.el.style.width = Math.round(w) + 'px';
-    if (!rs.im) rs.el.style.height = Math.round(Math.max(34, rs.h + (e.clientY - rs.sy) / zm)) + 'px'; clearTimeout(h._pf); h._pf = setTimeout(mmPaperFit, 80); });
-  const rsUp = () => { if (!rs) return; const n = N(rs.el.dataset.fn); rs.el.classList.remove('sizing'); if (n) { n.w = rs.el.offsetWidth; if (!rs.im) n.h = rs.el.offsetHeight; mmNoteTouch('obj'); } rs = null; MM.noClick = Date.now(); };
+  h.addEventListener('pointerdown', e => { const z = e.target.closest('.mm-h'), el = z && z.closest('.mm-fn'); if (!el || MM.cur?.lock || e.button) return; e.preventDefault(); e.stopPropagation(); z.setPointerCapture(e.pointerId);
+    rs = { el, d:z.dataset.h, sx:e.clientX, sy:e.clientY, x:parseFloat(el.style.left) || 0, y:parseFloat(el.style.top) || 0, w:el.offsetWidth, h:el.offsetHeight, im:el.classList.contains('im') }; rs.ar = rs.h / Math.max(1, rs.w); el.classList.add('sizing'); }, true);
+  h.addEventListener('pointermove', e => { if (!rs) return; const zm = mmZoom(), dx = (e.clientX - rs.sx) / zm, dy = (e.clientY - rs.sy) / zm, d = rs.d, minW = rs.im ? 30 : 80, minH = rs.im ? 20 : 34;
+    let w = rs.w, hh = rs.h, x = rs.x, y = rs.y;
+    if (d.includes('e')) w = rs.w + dx; if (d.includes('w')) w = rs.w - dx; if (d.includes('s')) hh = rs.h + dy; if (d.includes('n')) hh = rs.h - dy;
+    if (rs.im && d.length === 2 && !e.shiftKey) { if (Math.abs(dx) * rs.ar >= Math.abs(dy)) hh = w * rs.ar; else w = hh / rs.ar; }   // 그림 모서리 = 비율 유지
+    w = Math.max(minW, w); hh = Math.max(minH, hh);
+    if (d.includes('w')) x = Math.max(0, rs.x + rs.w - w); if (d.includes('n')) y = Math.max(0, rs.y + rs.h - hh);
+    const st = rs.el.style; st.width = Math.round(w) + 'px'; st.left = Math.round(x) + 'px'; st.top = Math.round(y) + 'px';
+    st.height = Math.round(hh) + 'px'; if (rs.im) rs.el.classList.add('fixh');   // 변 = 그 방향만 늘이기 (PowerPoint 처럼)
+    clearTimeout(h._pf); h._pf = setTimeout(mmPaperFit, 80); });
+  const rsUp = () => { if (!rs) return; const n = N(rs.el.dataset.fn), el = rs.el; el.classList.remove('sizing'); if (n) { n.w = el.offsetWidth; n.x = Math.round(parseFloat(el.style.left) || 0); n.y = Math.round(parseFloat(el.style.top) || 0); if (!rs.im || el.classList.contains('fixh')) n.h = el.offsetHeight; mmNoteTouch('obj'); } rs = null; MM.noClick = Date.now(); };
   h.addEventListener('pointerup', rsUp); h.addEventListener('pointercancel', rsUp);
   h.addEventListener('pointerdown', e => { const g = e.target.closest('.grip, .mm-fn.im > img'), el = e.target.closest('.mm-fn'); if (!g || !el || MM.cur?.lock || e.button) return; e.preventDefault(); g.setPointerCapture(e.pointerId); drag = { el, sx:e.clientX, sy:e.clientY, x:parseFloat(el.style.left), y:parseFloat(el.style.top) }; });
   h.addEventListener('pointermove', e => { if (!drag) return; const z = mmZoom(); clearTimeout(h._pf); h._pf = setTimeout(mmPaperFit, 80); drag.el.style.left = Math.max(0, drag.x + (e.clientX - drag.sx) / z) + 'px'; drag.el.style.top = Math.max(0, drag.y + (e.clientY - drag.sy) / z) + 'px'; });
