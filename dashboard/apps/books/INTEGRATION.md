@@ -62,6 +62,12 @@ const ROUTES = [ … 'space', 'books', 'mgmt', … ];
 | 보안 | 원본은 지정 폴더 **안**의 지원 형식(pdf · epub · docx · hwpx · txt · md)만, `..` 경로 · 폴더 밖 경로 거부 (시험함) |
 | API | `GET books/info · files · file?rel= · manifest · book/<id>` / `PUT books/root · book · manifest · translate-config` / `POST books/translate` |
 
+### 회사판 규칙 — 외부 번역 기본 꺼짐 (2026-11-19)
+
+회사 규칙(외부 서비스 · API 키 금지)에 맞춰 Claude 번역(api.anthropic.com)은 **기본값에서 숨고 막힌다**: 화면 엔진 목록에 없음 · 설정 칸 없음 ·
+`/api/books/translate` · `/api/books/translate-config` → 403. 회사가 허가한 경우에만 서버 PC 에 환경변수 `BOOKS_EXTERNAL_TRANSLATE=1` 을 주고 서버를 다시 켠다.
+아래 ① 은 그 경우에만 해당 — 기본 동작은 ② 브라우저 내장 번역 · ③ 용어 풀이(둘 다 PC 안, 외부 전송 없음).
+
 ### 번역 (엔진 셋 — '자동' 은 ① → ② → ③ 순으로 되는 것)
 | 엔진 | 품질 | 외부 전송 | 조건 |
 |---|---|---|---|

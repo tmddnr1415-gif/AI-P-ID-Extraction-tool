@@ -1,0 +1,233 @@
+diff --git a/app/books_api.py b/app/books_api.py
+index 99a4dedf..2638af75 100644
+--- a/app/books_api.py
++++ b/app/books_api.py
+@@ -197,16 +197,30 @@ def _migrate_secret():
+         X['write_json'](X['P']('books', 'config.json'), c)       # 두 번 — 바로 앞 판(.bak)도 키 없는 판이 되게
+ 
+ 
++# 회사판 기본값: 외부 번역(Claude · api.anthropic.com) 은 꺼짐 — 회사 규칙(CLAUDE.md §3: 외부 서비스 · API 키 금지).
++# 기본값에서는 화면에 Claude 번역이 보이지 않고 서버 경로(translate · translate-config)도 403 으로 막힌다.
++# 코드는 남겨 둔다: 회사가 허가한 경우에만 서버 PC 에서 환경변수 BOOKS_EXTERNAL_TRANSLATE=1 로 연다.
++# (브라우저 내장 번역 · 용어 풀이는 PC 안에서 돌아 외부 전송이 없으므로 그대로 쓴다)
++EXTERNAL_ENV = 'BOOKS_EXTERNAL_TRANSLATE'
++EXTERNAL_OFF_MSG = '회사판에서는 외부 번역(Claude)을 쓰지 않습니다 — 브라우저 내장 번역 · 용어 풀이를 쓰세요 (외부 서비스 · API 키 금지)'
++
++
++def external_allowed():
++    return os.environ.get(EXTERNAL_ENV, '').strip().lower() in ('1', 'true', 'yes', 'on')
++
++
+ def tr_cfg():
+     _migrate_secret()
+     t = cfg().get('translate') or {}
+     key = str(_read_secret().get('apiKey') or '').strip() or os.environ.get('ANTHROPIC_API_KEY') or ''
+-    return {'enabled': bool(t.get('enabled')) and bool(key), 'on': bool(t.get('enabled')), 'key': key, 'keySet': bool(key),
++    return {'enabled': external_allowed() and bool(t.get('enabled')) and bool(key), 'on': bool(t.get('enabled')), 'key': key, 'keySet': bool(key),
+             'model': t.get('model') or DEFAULT_MODEL, 'effort': t.get('effort') or 'low'}
+ 
+ 
+ def translate(text, src, title, by):
+     """Claude 로 한국어 번역. 같은 글(모델 · 원문)은 보관본을 돌려줌"""
++    if not external_allowed():                               # 회사판 기본: 어떤 경로로 불려도 외부로 나가지 않는다
++        raise err(403, EXTERNAL_OFF_MSG)
+     t = tr_cfg()
+     if not t['enabled']:
+         raise err(403, 'Claude 번역이 꺼져 있습니다 (운영자가 [📚 도서관] → 번역 설정에서 켤 수 있습니다)')
+@@ -266,13 +280,15 @@ def handle(h, m, seg, q):
+         c, man, r, t = cfg(), manifest(), root_dir(), tr_cfg()
+         out = {'enabled': bool(r), 'folder': os.path.basename(os.path.normpath(r)) if r else '', 'count': len(man.get('books') or []),
+                'at': man.get('at') or '', 'by': man.get('by') or '', 'canManage': can_manage(h), 'rootSet': bool(c.get('root')),
+-               'translate': {'claude': t['enabled'], 'model': t['model'] if t['enabled'] else ''}}
++               'translate': {'claude': t['enabled'], 'model': t['model'] if t['enabled'] else '', 'external': external_allowed()}}
+         if out['canManage']:
+             out.update(root=c.get('root') or '', rootOk=bool(r), managers=c.get('managers') or [])
+-        if h.is_admin():                                   # 번역 설정은 운영자(서버 PC)만 — 키 자체는 내보내지 않음
++        if h.is_admin() and external_allowed():            # 번역 설정은 운영자(서버 PC)만 — 키 자체는 내보내지 않음 · 회사판 기본은 숨김
+             out['translateCfg'] = {'on': t['on'], 'keySet': t['keySet'], 'model': t['model'], 'effort': t['effort']}
+         return out
+     if m == 'PUT' and seg == ['translate-config']:
++        if not external_allowed():
++            raise err(403, EXTERNAL_OFF_MSG)
+         if not h.is_admin():
+             raise err(403, '번역 설정은 운영자(서버 PC)만 바꿀 수 있습니다')
+         b = h.json_body()
+@@ -298,6 +314,8 @@ def handle(h, m, seg, q):
+             by = '운영자'
+         else:
+             by = h.need_user().get('name') or '?'
++        if not external_allowed():
++            raise err(403, EXTERNAL_OFF_MSG)
+         b = h.json_body()
+         return translate(b.get('text'), str(b.get('src') or '')[:20], str(b.get('title') or '')[:120], by)
+     if m == 'PUT' and seg == ['root']:                       # 공용 도서관 폴더 경로 (서버 PC 기준, 예: D:\계장도서)
+diff --git a/app/static/books/index.html b/app/static/books/index.html
+index 9dfbe8db..e4c53b12 100644
+--- a/app/static/books/index.html
++++ b/app/static/books/index.html
+@@ -347,7 +347,7 @@ body.vmode{overflow:hidden}
+  *            = 깊이(가장 관련 높은 쪽들) + 폭(다룬 쪽 비율) + 목차·제목 일치 + 분야 문맥(다른 뜻 배제)
+  *   5) 설명: 왜 관련 있는지(제목/목차/본문 분량/집중 구간/함께 다룬 주제) + 근거 구절 + 원본 쪽 미리보기
+  * ===================================================================================== */
+-const VERSION = '2026-11-07.1';
++const VERSION = '2026-11-19.1';
+ const EXTRACT_VER = 1;                 // 본문 추출 방식이 바뀌면 올림 → 다시 읽음
+ const $ = s => document.querySelector(s);
+ const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
+@@ -493,6 +493,21 @@ const THES_ADD = {
+   instrumentation: [['measuring instrument',1],['measuring instruments',1],['electrical instruments',.9],['test equipment',.7]],
+ };
+ for (const [id, add] of Object.entries(THES_ADD)) THES.find(c => c.id === id).t.push(...add);
++// 다른 나라 말로 쓴 계장 자료의 핵심 용어 (2026-11-19 보강) — 부서 폴더에 실제로 섞여 있는 언어: 베트남어 강의자료 ·
++// 포르투갈어 · 스페인어 매뉴얼 · 러시아어 문서.  한국어 · 영어로 물어도 이 말로 쓰인 책을 찾는다 (본문 찾기에만 쓰임, 너무 짧거나
++// 뜻이 여럿인 말 — 베트남어 'van' · 'mức', 포르투갈어 'vazão' · 'nível', 러시아어 'клапан' · 'расход' · 'уровень'(SIL 등급에도 씀) 단독 — 은
++// 넣지 않음: 밸브 매뉴얼의 '유량 특성' 같은 말로 엉뚱한 책이 올라옴, 2026-11-19 시뮬레이션)
++const THES_I18N = {
++  flow: [['lưu lượng',.9],['đo lưu lượng',1],['lưu lượng kế',1],['medidor de vazão',1],['caudalímetro',1],['medidor de caudal',1],['расходомер',1]],
++  level: [['đo mức',.9],['mức chất lỏng',1],['medidor de nível',1],['medición de nivel',1],['уровнемер',1]],
++  pressure: [['áp suất',.9],['đo áp suất',1],['pressão',.9],['presión',.9],['давление',.9]],
++  temperature: [['nhiệt độ',.9],['đo nhiệt độ',1],['temperatura',.8],['температура',.9]],
++  control_valve: [['van điều khiển',1],['van điều chỉnh',1],['válvula de controle',1],['válvula de control',1],['регулирующий клапан',1]],
++  positioner: [['posicionador',1],['bộ định vị',.9],['позиционер',1]],
++  // transmitter: 포르투갈어 'transmissor' 를 넣으면 포지셔너 매뉴얼이 전송기 질문 상위로 올라와 전송기 교재를 밀어냄 — 넣지 않음 (2026-11-19 시뮬레이션)
++  sensor: [['cảm biến',.9],['sensor de',.6],['датчик',.8]],
++};
++for (const [id, add] of Object.entries(THES_I18N)) THES.find(c => c.id === id)?.t.push(...add);
+ // 발전 · 플랜트 지식 베이스(kb.js) 합치기 — 개념 추가, 기존 개념에 분야 · 핵심 하위 항목 보강
+ if (window.KB) {
+   for (const c of KB.concepts) if (!THES.some(x => x.id === c.id)) THES.push({ d: 1, ...c, t: c.t.filter(([, w]) => w >= 0.4), ab: (c.ab || []).filter(([, w]) => w >= 0.5) });
+@@ -1676,6 +1691,9 @@ function hl2(text, reQ, reF, curK) {
+ const TR = { mem: new Map(), dev: {}, devState: null };
+ const TR_ENGINES = { auto: '자동 (가장 좋은 것)', claude: 'Claude 번역 (서버 경유 · 가장 정확)', device: '브라우저 내장 번역 (PC 안에서)', gloss: '용어 풀이 (원문 + 한글 용어)' };
+ const LANG_KO = { en: '영어', pt: '포르투갈어', es: '스페인어', ru: '러시아어', vi: '베트남어', de: '독일어', fr: '프랑스어', ja: '일본어', zh: '중국어', ko: '한국어' };
++// 회사판 기본: 서버가 외부 번역(Claude)을 허가하지 않으면(info.translate.external = false) Claude 를 고를 수 없게 숨긴다
++const trExternal = () => !!(SRV.on && SRV.info?.translate?.external);
++const trEngines = () => Object.entries(TR_ENGINES).filter(([k]) => k !== 'claude' || trExternal());
+ function trPref() { try { return localStorage.getItem('gyejang-books-tr') || 'auto'; } catch (_) { return 'auto'; } }
+ function setTrPref(v) { try { localStorage.setItem('gyejang-books-tr', v); } catch (_) {} }
+ function detectLang(text) {
+@@ -1744,9 +1762,10 @@ const fnv = s => { let h = 0x811c9dc5; for (let i = 0; i < s.length; i++) { h ^=
+ // 번역 하나: {engine, text|html, note} — 엔진 'auto' 면 Claude → 내장 → 용어 풀이 순으로 되는 것
+ async function translateText(text, o = {}) {
+   text = String(text || '').trim(); if (!text) throw new Error('번역할 글이 없습니다');
+-  const src = o.src || detectLang(text), want = o.engine || trPref();
++  const src = o.src || detectLang(text); let want = o.engine || trPref();
++  if (want === 'claude' && !trExternal()) want = 'auto';                       // 회사판: Claude 를 골라 두었어도 PC 안 번역으로
+   if (src === 'ko') return { engine: 'none', text, note: '이미 한국어입니다' };
+-  const order = want === 'auto' ? ['claude', 'device', 'gloss'] : [want];
++  const order = want === 'auto' ? (trExternal() ? ['claude', 'device', 'gloss'] : ['device', 'gloss']) : [want];
+   let lastErr = null;
+   for (const eng of order) {
+     if (eng === 'claude' && !(SRV.on && SRV.info?.translate?.claude)) { lastErr ||= new Error('Claude 번역이 꺼져 있습니다 (운영자 설정)'); continue; }
+@@ -1805,7 +1824,7 @@ async function showTrPop(text, left, top, B, engine) {
+   TRPOP.style.left = Math.max(8, Math.min(window.innerWidth - 480, left - 150)) + 'px';
+   TRPOP.style.top = Math.min(window.innerHeight - 160, top + 4) + 'px';
+   TRPOP.hidden = false;
+-  TRPOP.innerHTML = `<div class="tph"><b>🌐 번역</b><select data-t="eng">${Object.entries(TR_ENGINES).map(([k, v]) => `<option value="${k}" ${k === eng ? 'selected' : ''}>${v}</option>`).join('')}</select><span class="sp"></span><button data-t="x" title="닫기 (Esc)">✕</button></div>
++  TRPOP.innerHTML = `<div class="tph"><b>🌐 번역</b><select data-t="eng">${trEngines().map(([k, v]) => `<option value="${k}" ${k === eng ? 'selected' : ''}>${v}</option>`).join('')}</select><span class="sp"></span><button data-t="x" title="닫기 (Esc)">✕</button></div>
+     <div class="tpsrc">${esc(text.slice(0, 400))}${text.length > 400 ? '…' : ''}</div><div class="tpout"><span class="muted">번역 중…</span></div>
+     <div class="tpf"><span class="muted" data-t="note"></span><span class="sp"></span><button class="btn sm" data-t="cp" disabled>📋 번역 복사</button></div>`;
+   TRPOP.querySelector('[data-t="x"]').onclick = () => { TRPOP.hidden = true; };
+@@ -1892,7 +1911,7 @@ class Viewer {
+       </div>
+       <div class="flist" data-v="flist" hidden></div>
+       <div class="vrow"><div class="vbody"></div><div class="trbox" hidden>
+-        <div class="trh"><b>🌐 한국어 번역</b><select data-v="treng" title="번역 엔진">${Object.entries(TR_ENGINES).map(([k, v]) => `<option value="${k}" ${k === trPref() ? 'selected' : ''}>${v}</option>`).join('')}</select>
++        <div class="trh"><b>🌐 한국어 번역</b><select data-v="treng" title="번역 엔진">${trEngines().map(([k, v]) => `<option value="${k}" ${k === trPref() ? 'selected' : ''}>${v}</option>`).join('')}</select>
+           <span class="sp"></span><button class="btn sm" data-v="trcp" disabled title="번역문을 출처와 함께 복사">📋</button><button class="btn sm" data-v="trx" title="번역 닫기">✕</button></div>
+         <div class="trnote muted" data-v="trnote"></div><div class="trout" data-v="trout"></div></div></div>`;
+     this.$ = k => host.querySelector(`[data-v="${k}"]`); this.body = host.querySelector('.vbody'); this.trOn = false; this.trSeq = 0;
+@@ -2095,7 +2114,7 @@ new MutationObserver(async () => {
+   const el = document.querySelector('#trSet [data-tr="status"]'); if (!el || el.dataset.done) return; el.dataset.done = '1';
+   const st = await trStatusLine();
+   const dev = { available: '사용 가능', downloadable: '사용 가능 (처음 한 번 언어 모델 받기)', downloading: '언어 모델 받는 중', unavailable: '이 브라우저에서 영어 → 한국어 미지원', none: '이 브라우저에는 없음 (최신 Edge/Chrome 필요)', unknown: '확인 안 됨 (처음 번역할 때 확인)' }[st.device] || st.device;
+-  el.innerHTML = `<div>① Claude 번역 (서버 경유): <b>${st.claude ? '켜짐' : '꺼짐'}</b>${st.claude ? '' : ' — 운영자가 켤 수 있음'}</div><div>② 브라우저 내장 번역 (PC 안에서, 외부 전송 없음): <b>${esc(dev)}</b></div><div>③ 용어 풀이 (원문 + 계장 용어 한글 뜻): <b>항상 사용 가능</b></div>
++  el.innerHTML = `${trExternal() ? `<div>① Claude 번역 (서버 경유): <b>${st.claude ? '켜짐' : '꺼짐'}</b>${st.claude ? '' : ' — 운영자가 켤 수 있음'}</div>` : '<div>① Claude 번역: <b>회사판에서는 쓰지 않음</b> (외부 서비스 · API 키 금지 — 번역은 PC 안에서만)</div>'}<div>② 브라우저 내장 번역 (PC 안에서, 외부 전송 없음): <b>${esc(dev)}</b></div><div>③ 용어 풀이 (원문 + 계장 용어 한글 뜻): <b>항상 사용 가능</b></div>
+     <div style="margin-top:4px">미리보기 [🌐 번역] = 그 쪽을 원문 옆에 나란히 · 글을 끌어 고르면 [🌐 번역] 단추 · 근거 구절 옆 🌐 — 엔진 '자동' 은 ① → ② → ③ 순으로 되는 것을 씁니다.</div>`;
+ }).observe(document.body, { childList: true, subtree: true });
+ function showDict() {
+diff --git a/tests/test_books_external_off.py b/tests/test_books_external_off.py
+new file mode 100644
+index 00000000..67b8306e
+--- /dev/null
++++ b/tests/test_books_external_off.py
+@@ -0,0 +1,67 @@
++"""도서검토 — 회사판 기본값: 외부 번역(Claude · api.anthropic.com) 은 화면에서 숨고 서버 경로도 막힌다 (CLAUDE.md §3)."""
++from __future__ import annotations
++
++import shutil
++from urllib.parse import quote
++
++import pytest
++from fastapi.testclient import TestClient
++
++from app import books, books_api, paths
++from app.main import app
++
++ME = {"X-Author": quote("홍길동")}
++
++
++@pytest.fixture()
++def client(monkeypatch):
++    monkeypatch.delenv("BOOKS_EXTERNAL_TRANSLATE", raising=False)
++    shutil.rmtree(paths.data_dir() / "books", ignore_errors=True)
++    with TestClient(app) as c:
++        yield c
++    shutil.rmtree(paths.data_dir() / "books", ignore_errors=True)
++
++
++def _as_server_pc(monkeypatch):
++    monkeypatch.setattr(books, "_LOOPBACK", books._LOOPBACK | {"testclient"})
++
++
++def test_default_is_off_and_blocked(client, monkeypatch):
++    assert books_api.external_allowed() is False
++    info = client.get("/api/books/info").json()
++    assert info["translate"] == {"claude": False, "model": "", "external": False}
++    _as_server_pc(monkeypatch)                                         # 운영자(서버 PC)도
++    info = client.get("/api/books/info").json()
++    assert "translateCfg" not in info                                  # 설정 칸을 그리지 않는다
++    r = client.put("/api/books/translate-config", json={"apiKey": "sk-ant-X", "enabled": True})
++    assert r.status_code == 403 and "회사판" in r.json()["error"]
++    assert not (paths.data_dir() / "books" / "secret.json").exists()   # 키가 저장되지 않는다
++    r = client.post("/api/books/translate", json={"text": "pressure transmitter"}, headers=ME)
++    assert r.status_code == 403 and "외부 번역" in r.json()["error"]
++
++
++def test_no_name_still_401(client):
++    assert client.post("/api/books/translate", json={"text": "x"}).status_code == 401
++
++
++def test_translate_never_calls_out_when_off(monkeypatch):
++    monkeypatch.delenv("BOOKS_EXTERNAL_TRANSLATE", raising=False)
++    import urllib.request
++    monkeypatch.setattr(urllib.request, "urlopen", lambda *a, **k: (_ for _ in ()).throw(AssertionError("network")))
++    with pytest.raises(Exception) as e:
++        books_api.translate("pressure transmitter", "en", "", "t")
++    assert "회사판" in str(e.value) or getattr(e.value, "code", None) == 403
++
++
++def test_page_hides_claude_unless_allowed(client):
++    page = client.get("/books/?embed=1").text
++    assert "const trExternal = () => !!(SRV.on && SRV.info?.translate?.external);" in page
++    assert "trEngines().map" in page and "회사판에서는 쓰지 않음" in page
++
++
++def test_opened_only_by_the_env_flag(client, monkeypatch):
++    monkeypatch.setenv("BOOKS_EXTERNAL_TRANSLATE", "1")
++    _as_server_pc(monkeypatch)
++    info = client.get("/api/books/info").json()
++    assert info["translate"]["external"] is True and "translateCfg" in info
++    assert client.put("/api/books/translate-config", json={"enabled": False}).status_code == 200
+diff --git a/tests/test_wpc_server.py b/tests/test_wpc_server.py
+index 3fddbf67..c864571b 100644
+--- a/tests/test_wpc_server.py
++++ b/tests/test_wpc_server.py
+@@ -224,6 +224,7 @@ def test_books_root_refuses_broad_or_private_folders(books_dir, tmp_path, monkey
+ 
+ def test_api_key_lives_only_in_secret_file(books_dir, monkeypatch):
+     monkeypatch.setattr(books, "_LOOPBACK", books._LOOPBACK | {"testclient"})
++    monkeypatch.setenv("BOOKS_EXTERNAL_TRANSLATE", "1")          # 회사판 기본은 꺼짐 — 허가된 경우의 키 보관을 시험
+     c = TestClient(main.app)
+     key = "sk-ant-TESTKEY123"
+     r = c.put("/api/books/translate-config", json={"apiKey": key, "enabled": True})
