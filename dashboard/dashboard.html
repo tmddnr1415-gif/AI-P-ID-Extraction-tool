@@ -1949,7 +1949,7 @@ body.schbigon{overflow:hidden}@keyframes schBigIn{from{transform:scale(.97);opac
 .mm-tb button{border:0;background:none;min-width:30px;height:30px;border-radius:7px;cursor:pointer;font-size:13px;color:var(--text);padding:0 6px}
 .mm-tb button:hover{background:#dfe4f5}.mm-tb button.on{background:var(--accent-l);color:var(--accent-d)}.mm-tb .sep{width:1px;height:20px;background:var(--line);margin:0 4px}
 .mm-tb .tbl{display:flex;gap:2px;opacity:.35}.mm-tb.intbl .tbl{opacity:1}   /* 표 밖에서는 흐리게만 — 숨기면 줄 수가 바뀌어 본문이 위아래로 튐 */
-.mm-edw{flex:1;overflow:scroll;scrollbar-gutter:stable;position:relative;min-height:0;display:flex}.mm-zw{position:relative;flex:none;width:100%;min-width:min-content;min-height:100%;display:flex;flex-direction:column}.mm-ed{overflow-wrap:anywhere}
+.mm-edw{flex:1;overflow:scroll;scrollbar-gutter:stable;position:relative;min-height:0;display:block}.mm-zw{position:relative;flex:none;width:100%;min-width:min-content;min-height:100%;display:flex;flex-direction:column}.mm-ed{overflow-wrap:anywhere}
 .mm-ed{flex:1;padding:16px 26px 60px;font-size:14.5px;line-height:1.7;outline:0;color:var(--text)}
 .mm-ed:empty::before{content:'여기에 적으세요 —  /  를 치면 블록 메뉴 ·  # 제목 ·  - 목록 ·  [] 할 일 ·  > 인용  ·  그림은 붙여넣기(Ctrl+V)';color:#a8b0c4}
 .mm-ed h1{font-size:24px;margin:.7em 0 .3em}.mm-ed h2{font-size:19px;margin:.7em 0 .3em}.mm-ed h3{font-size:16px;margin:.6em 0 .2em}
@@ -2107,7 +2107,29 @@ body.mm-noanno #mmNotes,body.mm-noanno #mmInk,body.mm-noanno #mmInkHost{display:
 #mmEdw.pp.dk.bg-cream{background-color:#27231b}
 #mmEdw.pp.dk.bg-green{background-color:#0f2318;--ln:rgba(120,220,150,.16);background-image:linear-gradient(rgba(120,220,150,.32) 1px,transparent 1px),linear-gradient(90deg,rgba(120,220,150,.32) 1px,transparent 1px),linear-gradient(var(--ln) 1px,transparent 1px),linear-gradient(90deg,var(--ln) 1px,transparent 1px)}
 #mmEdw.pp.dk.bg-blue{background-color:#0b2447}
-#mmEdw.pp:is(.bg-lined,.bg-wide){background-position:0 calc(16px*var(--z))}#mmEdw.pp:is(.bg-legal,.bg-cornell){background-position:0 0,0 calc(16px*var(--z))}
+#mmEdw.pp:is(.bg-lined,.bg-wide){background-position:0 calc(16px*var(--z) + var(--phH,0px))}#mmEdw.pp:is(.bg-legal,.bg-cornell){background-position:0 0,0 calc(16px*var(--z) + var(--phH,0px))}
+/* 2026-11-19 v17.95 OneNote 모양 */
+.mm-top{padding:6px 14px 0;border-bottom:1px solid var(--line);background:linear-gradient(180deg,#f7f6fb,#efeefa)}
+.mm-rtabs{display:flex;gap:2px}.mm-rtabs button{border:0;background:none;padding:7px 14px 8px;font-size:13px;font-weight:600;color:var(--sub);border-radius:8px 8px 0 0;cursor:pointer;position:relative;transition:background .15s,color .15s}
+.mm-rtabs button:hover{background:rgba(79,76,224,.07);color:var(--text)}.mm-rtabs button.on{color:#6a1fa3;background:var(--card)}.mm-rtabs button.on::after{content:'';position:absolute;left:12px;right:12px;bottom:0;height:3px;border-radius:3px;background:#7719aa}
+.mm-rtabs button.ctx{display:none;color:#b45309}.mm-rtabs.t button.ctx{display:block}.mm-rtabs button.ctx.on{color:#b45309}.mm-rtabs button.ctx.on::after{background:#f59e0b}
+.mm-rhint{font-size:12px;color:var(--sub);align-self:center;padding-bottom:6px}
+.mm-tb[data-tab] > [data-rt]{display:none}.mm-tb[data-tab="home"] > [data-rt="home"],.mm-tb[data-tab="insert"] > [data-rt="insert"],.mm-tb[data-tab="draw"] > [data-rt="draw"],.mm-tb[data-tab="view"] > [data-rt="view"],.mm-tb[data-tab="table"] > [data-rt="table"]{display:inline-flex;align-items:center}
+.mm-tb[data-tab="table"] .tbl{opacity:1!important;gap:2px}.mm-tb .mm-rview{gap:6px;flex-wrap:wrap;max-width:100%}.mm-tb .mm-rview select{border:1px solid var(--line);border-radius:7px;padding:3px 6px;font-size:12px;background:var(--card)}.mm-tb .mm-rview .mm-zb{padding:3px 9px}
+.mm-tb{min-height:40px}
+.mm-ph{position:sticky;top:0;z-index:6;display:block;width:fit-content;max-width:min(680px,calc(100% - 24px));box-sizing:border-box;padding:14px 26px 8px;transition:transform .12s ease-out,background .2s,box-shadow .2s;border-radius:0 0 12px 12px}
+.mm-ph .tt{display:flex;align-items:center;gap:6px;border-bottom:1.5px solid rgba(110,110,140,.35);padding-bottom:3px;min-width:min(420px,60vw)}
+.mm-ph .mm-title{font-size:26px;font-weight:600;letter-spacing:-.3px;min-width:240px;max-width:560px;width:auto;flex:none;field-sizing:content;color:inherit;background:transparent}.mm-ph .mm-icon{font-size:22px}
+.mm-ph .dt{font-size:12px;color:#8a8ea3;margin-top:4px;padding-left:4px}.mm-ph .dt span{margin-left:14px}
+.mm-ph.stuck,.mm-ph.big.stuck{background:rgba(255,255,255,.82);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);box-shadow:0 6px 18px rgba(20,30,70,.12)}
+#mmEdw.dk .mm-ph,#mmEdw.bg-blue .mm-ph{color:#e8ecfa}#mmEdw.dk .mm-ph.stuck,#mmEdw.bg-blue .mm-ph.stuck{background:rgba(20,24,40,.82)}#mmEdw.dk .mm-ph .tt{border-color:rgba(200,210,255,.3)}
+.mm-ph.big{max-width:min(460px,62%);padding:10px 18px 6px}.mm-ph.big .mm-title{font-size:21px;min-width:60px;max-width:none;flex:0 1 auto;text-overflow:ellipsis}.mm-ph.big .tt{min-width:0;overflow:hidden}.mm-ph.big .mm-icon{flex:none}
+.mm-nav[data-ms]{position:relative;padding-left:18px;border-radius:0 9px 9px 0}.mm-nav[data-ms] .dot{display:none}
+.mm-nav[data-ms]::before{content:'';position:absolute;left:0;top:3px;bottom:3px;width:7px;border-radius:2px 5px 5px 2px;background:var(--sc)}
+.mm-nav[data-ms].on{background:color-mix(in srgb,var(--sc) 18%,#fff);color:var(--text);font-weight:800}
+.mm-addsec,.mm-addpg{display:flex;align-items:center;gap:6px;border:0;background:none;color:#7719aa;font-weight:700;font-size:13px;padding:8px 10px;cursor:pointer;border-radius:8px;width:100%;text-align:left}.mm-addsec:hover,.mm-addpg:hover{background:rgba(119,25,170,.07)}
+.mm-addpg{border-top:1px solid var(--line);border-radius:0;padding:10px 14px;flex:none}
+.mm-card.on{background:#e3f1e5!important;box-shadow:inset 3px 0 0 #3f9b55!important}
 .mm-gh{font-size:11px;font-weight:700;color:var(--sub);padding:8px 8px 3px;letter-spacing:.02em}
 .mm-cal{border:1px solid var(--line);border-radius:10px;padding:8px}.mm-cal .ch{display:flex;align-items:center;gap:6px;font-size:13px}.mm-cal .ch button{border:1px solid var(--line);background:var(--card);border-radius:6px;cursor:pointer;padding:1px 7px}
 .mm-cal .cw,.mm-cal .cg{display:grid;grid-template-columns:repeat(7,1fr);gap:2px;margin-top:4px;text-align:center}.mm-cal .cw span{font-size:10px;color:var(--sub)}
@@ -2373,7 +2395,7 @@ function recLabel(key, f) {
  * ===================================================================== */
 let root = null;
 /* 서버 모드: http(s):// 로 접속하면 server.py 의 REST API 사용 (폴더 선택 불필요). file:// 로 열면 폴더 모드 */
-const APP_VERSION = '2026-11-19.29';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
+const APP_VERSION = '2026-11-19.30';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
 const SERVER_URL = 'http://localhost:8080';
 // 부서원 PC 사본(file://)이 접속을 시도할 서버 — 서버가 배포 파일을 만들 때 'PC 이름 주소, IP 주소' 순으로 자동 기록함
 const DEFAULT_SERVERS = ['http://ASEUNGWOOK-B01:8080', 'http://65.3.30.234:8080'];
@@ -6096,8 +6118,9 @@ function mmDrawSide() {
     <button class="btn pri" id="mmNew" style="width:100%" title="새 메모">＋<span class="lb"> 새 메모</span></button>
     ${nv('all', '🗂', '모든 메모', live.length + mmStk().length)}${nv('note', '📝', '메모', live.length)}${nv('pin', '⭐', '즐겨찾기', live.filter(p => p.pin).length)}${nv('date', '📅', '날짜별', '')}${nv('todo', '☑', '할 일 모음', todo)}${nv('shared', '👥', '공유받은 메모', (MM.shared || []).length)}${nv('sticky', '🗒', '스티커 보드', MM.pages.filter(p => p.kind === 'sticky' && !p.deleted).length)}
     <h3>섹션<button id="mmSecAdd" title="섹션 추가">＋ 추가</button></h3>
-    ${mmSecs().map(s => `<button class="mm-nav ${MM.sec === s.id ? 'on' : ''}" data-ms="${esc(s.id)}"><span class="dot" style="background:${mmCol(s.color, '#94a3b8')}" title="${esc(s.name)}"></span><span class="lb" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(s.name)}</span><i>${live.filter(p => p.sec === s.id).length}</i><span class="more" data-msm="${esc(s.id)}" title="이름 · 색 · 삭제">⋯</span></button>`).join('') || '<div class="muted lb" style="font-size:12px;padding:2px 6px">섹션으로 메모를 묶어 보세요 (예: 회의 · PJT · 개인)</div>'}
+    ${mmSecs().map(s => `<button class="mm-nav ${MM.sec === s.id ? 'on' : ''}" data-ms="${esc(s.id)}" style="--sc:${mmCol(s.color, '#94a3b8')}"><span class="dot" style="background:${mmCol(s.color, '#94a3b8')}" title="${esc(s.name)}"></span><span class="lb" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(s.name)}</span><i>${live.filter(p => p.sec === s.id).length}</i><span class="more" data-msm="${esc(s.id)}" title="이름 · 색 · 삭제">⋯</span></button>`).join('') || '<div class="muted lb" style="font-size:12px;padding:2px 6px">섹션으로 메모를 묶어 보세요 (예: 회의 · PJT · 개인)</div>'}
     ${Object.keys(tags).length ? `<h3>태그</h3><div class="mm-tags">${Object.entries(tags).sort((a, b) => b[1] - a[1]).slice(0, 30).map(([t, n]) => `<button class="mm-tag ${MM.tag === t ? 'on' : ''}" data-mt="${esc(t)}">#${esc(t)} ${n}</button>`).join('')}</div>` : ''}
+    <button class="mm-addsec" id="mmSecAdd2" title="섹션 추가">＋ 섹션</button>
     <div style="margin-top:10px">${nv('trash', '🗑', '휴지통', MM.pages.filter(p => p.deleted).length)}</div>
     ${(MM.lost || []).length ? `<div class="mm-lost lb">💾 이 PC 에만 남아 있는 메모 <b>${MM.lost.length}</b>개<br><button class="btn sm pri" data-mlost="up">서버에 다시 올리기</button> <button class="btn sm" data-mlost="drop">이 PC 에서 지우기</button></div>` : ''}
     <div class="mm-quota">🔒 나만 보는 메모 · 이 PC 에도 보관 · ${mmSize(MM.used)} / ${mmSize(MM.quota || 1)}<b><u style="width:${Math.min(100, MM.used / (MM.quota || 1) * 100).toFixed(1)}%"></u></b></div>`;
@@ -6145,7 +6168,7 @@ function mmDrawList(soft) {
   const sec = mmSecs().find(s => s.id === MM.sec);
   const lmini = MM_UI.list === 'mini';
   el.innerHTML = `<div class="mm-lh"><div class="mm-pt"><button data-mui="list|${lmini ? 'full' : 'mini'}" title="${lmini ? '펼치기' : '제목만 보이게 간략히'}">${lmini ? '⇥' : '⇤ 간략'}</button><button data-mui="list|hide" title="이 칸 숨기기 (왼쪽 가장자리 ▶ 로 다시 보이기)">◀<span class="lb"> 숨기기</span></button></div><input class="q" id="mmQ" placeholder="${lmini ? '🔍 찾기' : '🔍 메모 찾기 (제목 · 내용 · 태그)'}" value="${esc(MM.q)}">
-    <div class="row"><b style="font-size:13px">${esc(sec ? sec.name : MM.view === 'pin' ? '즐겨찾기' : MM.view === 'date' ? '날짜별' : MM.view === 'note' ? '메모' : '모든 메모')}${MM.tag ? ' · #' + esc(MM.tag) : ''}</b><span class="sp"></span><select id="mmSort" class="sel" style="font-size:12px;padding:3px 6px"><option value="upd">최근 고친 순</option><option value="new">만든 순</option><option value="date">메모 날짜 (최근부터)</option><option value="dateasc">메모 날짜 (옛날부터)</option><option value="title">제목 순</option><option value="manual">내가 놓은 순서 (끌어서 바꿈)</option></select></div>${MM.view === 'date' ? mmCalHtml() : ''}</div><div class="mm-lb">${cards}</div>`;
+    <div class="row"><b style="font-size:13px">${esc(sec ? sec.name : MM.view === 'pin' ? '즐겨찾기' : MM.view === 'date' ? '날짜별' : MM.view === 'note' ? '메모' : '모든 메모')}${MM.tag ? ' · #' + esc(MM.tag) : ''}</b><span class="sp"></span><select id="mmSort" class="sel" style="font-size:12px;padding:3px 6px"><option value="upd">최근 고친 순</option><option value="new">만든 순</option><option value="date">메모 날짜 (최근부터)</option><option value="dateasc">메모 날짜 (옛날부터)</option><option value="title">제목 순</option><option value="manual">내가 놓은 순서 (끌어서 바꿈)</option></select></div>${MM.view === 'date' ? mmCalHtml() : ''}</div><div class="mm-lb">${cards}</div><button class="mm-addpg" data-mnew="page" title="이 목록에 새 페이지(메모)">＋ 페이지</button>`;
   $('#mmSort').value = MM.sort;
 }
 function mmDrawMain() {
@@ -6173,6 +6196,7 @@ function mmDrawMain() {
     <div id="mmInkHost"></div><div class="mm-edw" id="mmEdw"><div class="mm-zw" id="mmZw"><div class="mm-ed" id="mmEd" data-pid="${pg.id}" contenteditable="${pg.lock ? 'false' : 'true'}" spellcheck="false"></div><div class="mm-notes" id="mmNotes"></div><svg class="mm-ink" id="mmInk"></svg></div></div>
     <div class="mm-zc"><button data-mx="zo" title="축소 (Ctrl + 휠 아래)">－</button><b id="mmZl" data-mx="z1" title="100% 로">100%</b><button data-mx="zi" title="확대 (Ctrl + 휠 위)">＋</button></div><div class="mm-st" id="mmSt"></div><input type="file" id="mmFile" hidden multiple><input type="file" id="mmImg" hidden multiple accept="image/*">`;
   $('#mmEd').innerHTML = mmClean(pg.html || ''); $('#mmLh').value = pg.lh || ''; $('#mmBg').value = pg.bg || ''; $('#mmEd').className = mmEdCls(pg); if (pg._ro) { $('#mmTb').style.display = 'none'; $('.mm-meta', el).innerHTML = `<span class="mm-ro">👥 <b>${esc(pg.ownerName || pg._ro)}</b> 님이 공유한 메모 — 읽기 전용 · ${fmtTime(pg.updatedAt)} 고침</span><button class="tg" data-mx="rocopy">⧉ 내 메모로 복사</button>`; }
+  mmOneNote(el, pg);
   if ((() => { try { return localStorage.getItem('dept-memo-anno') === '0'; } catch (_) { return false; } })()) { document.body.classList.add('mm-noanno'); const ab = $('[data-mx="anno"]'); if (ab) { ab.textContent = '👁 주석 보이기'; ab.classList.add('on'); } } else document.body.classList.remove('mm-noanno');
   mmZoomSet(mmZoom(), true); mmInkSync(); MM.lastKind = ''; MM.place = ''; MM.pick = ''; mmNotesDraw(); mmHistReset();
   mmStat(pg.updatedAt ? `저장됨 ${fmtTime(pg.updatedAt)} · ${(pg.text || '').length.toLocaleString()}자` : '새 메모');
@@ -6747,13 +6771,13 @@ function mmZoomSet(z, quiet) {
 function mmZoomFit() {
   // 2026-11-19 v17.91 회사 사진: 펜 쓰기를 누르면 스크롤 막대가 깜빡깜빡 — 스크롤 막대가 생기고 없어질 때마다 칸 크기(clientWidth)가 바뀌어 다시 맞추고 → 막대가 또 바뀌는 되풀이.
   // → 막대 자리는 늘 있다고 보고(offset 크기 − 막대 두께) 계산, 막대 자리는 CSS 로 항상 비워 둠(scrollbar-gutter), 크기 감시는 바깥 크기(border-box)로 · 같은 크기면 다시 맞추지 않음
-  const zw = $('#mmZw'), ew = $('#mmEdw'); if (!zw || !ew) return; const z = mmZoom(), SB = mmSbw(), cw = Math.floor(ew.offsetWidth - SB), ch = Math.floor(ew.offsetHeight - SB); if (cw <= 0) return;
+  const zw = $('#mmZw'), ew = $('#mmEdw'); if (!zw || !ew) return; const z = mmZoom(), SB = mmSbw(), cw = Math.floor(ew.offsetWidth - SB), ph = $('#mmPh')?.offsetHeight || 0, ch = Math.floor(ew.offsetHeight - SB - ph); if (cw <= 0) return; ew.style.setProperty('--phH', ph + 'px');
   const key = cw + 'x' + ch + '@' + z; if (MM.zkey === key && zw.style.width) { mmPaperFit(); return; } MM.zkey = key;
   // 2026-11-19 v17.80: 확대(>100%)하면 글 줄바꿈은 100% 때 그대로 두고 종이가 커짐 → 좌우로도 이동(가로 스크롤 · Shift+휠 · 휠 단추 끌기). 축소(<100%)는 종이가 칸을 채움
   const lw = Math.max(cw, cw / z), want = lw * z; zw.style.width = lw + 'px'; zw.style.minHeight = (ch / z) + 'px';
   const r = zw.getBoundingClientRect(); if (r.width > 0 && Math.abs(r.width - want) > 1.5) zw.style.width = (lw * want / r.width) + 'px';
   const zh = parseFloat(zw.style.minHeight), r2 = zw.getBoundingClientRect(); if (r2.height > 0 && r2.height < ch - 1.5) zw.style.minHeight = (zh * ch / r2.height) + 'px';
-  MM.zb = { lw, lh:ch / z, wk:parseFloat(zw.style.width) / lw, hk:parseFloat(zw.style.minHeight) / (ch / z) }; mmPaperFit();
+  setTimeout(() => mmPhFollow(), 0); MM.zb = { lw, lh:ch / z, wk:parseFloat(zw.style.width) / lw, hk:parseFloat(zw.style.minHeight) / (ch / z) }; mmPaperFit();
   if (!ew._ro && window.ResizeObserver) { ew._ro = new ResizeObserver(() => { clearTimeout(ew._rt); ew._rt = setTimeout(mmZoomFit, 80); }); ew._ro.observe(ew, { box:'border-box' }); }
 }
 /* 2026-11-19 v17.88 종이(배경)가 떠 있는 그림 · 글 상자 · 메모지 · 펜 획이 있는 곳까지 늘 이어지게 — 좌우 · 위아래로 휠을 굴려도 배경이 끊기지 않음 */
@@ -7110,6 +7134,46 @@ async function mmShot() {   // 📷 화면 캡처 → 범위 고르기 → 메�
   const b = await captureRegion(); if (b === 'blocked') return toast('이 PC 에서는 브라우저 화면 캡처가 막혀 있습니다 — Win+Shift+S 로 캡처한 뒤 Ctrl+V', true); if (!b) return;
   const f = new File([b], 'screenshot.png', { type:b.type || 'image/png' }); return MM.view === 'sticky' ? mmPasteSticky([f]) : mmPasteFloat([f], [-1e5, -1e5]);
 }
+/* ---------- 2026-11-19 v17.95 OneNote 처럼: 리본 탭(홈 · 삽입 · 그리기 · 보기 · 표) · 종이 위 제목 + 날짜 · 시각 · 섹션 색 탭 · ＋ 섹션 / ＋ 페이지
+   크게 볼 때(확대 · 크게 · 좌우로 밀림)는 제목이 화면 위에 붙어 있고 마우스가 있는 쪽으로 따라옴 ---------- */
+const MM_RT = { home:'undo redo h1 h2 h3 p bold italic underline strike color hilite big small clear ul ol todo quote call code toggle hr left center right full indent outdent',
+  insert:'table link img shot note tbox file date pull col2 col3 colx', draw:'ink draw', table:'trow tcol trowx tcolx tmerge tsplit tbg tmenu teq tsort tdel' };
+const MM_RTN = [['home', '홈'], ['insert', '삽입'], ['draw', '그리기'], ['view', '보기'], ['table', '표']];
+const mmRtOf = c => Object.keys(MM_RT).find(k => MM_RT[k].split(' ').includes(c)) || 'home';
+function mmOneNote(el, pg) {
+  const tb = $('#mmTb', el), top = $('.mm-top', el), ew = $('#mmEdw', el); if (!tb || !top || !ew) return;
+  // 리본: 단추마다 탭 표시 → 고른 탭만 보임
+  let last = 'home'; [...tb.querySelectorAll(':scope > *')].forEach(n => { if (n.classList.contains('tbl')) { n.dataset.rt = 'table'; return; } const c = n.dataset.mc; if (c) last = mmRtOf(c); n.dataset.rt = c ? last : last; });
+  const view = document.createElement('span'); view.className = 'mm-rview'; view.dataset.rt = 'view';
+  ['mmLh', 'mmBg'].forEach(id => { const x = $('#' + id, el); if (x) view.appendChild(x); }); const dk = $('[data-mx="dk"]', el); if (dk) view.appendChild(dk);
+  view.insertAdjacentHTML('beforeend', '<span class="sep"></span><button data-mx="zo" title="축소">－</button><button data-mx="z1" title="100% 로">100%</button><button data-mx="zi" title="확대">＋</button><span class="sep"></span>');
+  top.querySelectorAll('.mm-zb').forEach(b => view.appendChild(b)); tb.appendChild(view);
+  // 탭 줄 (맨 위)
+  const icon = $('#mmIcon', el), title = $('#mmTitle', el);
+  top.innerHTML = `<div class="mm-rtabs">${MM_RTN.map(([k, l]) => `<button data-rtab="${k}" class="${k === 'table' ? 'ctx' : ''}">${l}</button>`).join('')}</div><span class="sp"></span><span class="mm-rhint">${esc(mmSecs().find(x => x.id === pg.sec)?.name || '')}</span>`;
+  // 종이 위 제목 + 날짜 · 시각 (OneNote 처럼)
+  const ph = document.createElement('div'); ph.className = 'mm-ph'; ph.id = 'mmPh'; const d = new Date(pg.createdAt || Date.now()), dd = mmDay(pg);
+  const dl = new Date(dd + 'T00:00:00'); ph.innerHTML = `<div class="tt"></div><div class="dt">${dl.getFullYear()}년 ${dl.getMonth() + 1}월 ${dl.getDate()}일 ${'일월화수목금토'[dl.getDay()]}요일 <span>${d.getHours() < 12 ? '오전' : '오후'} ${(d.getHours() % 12) || 12}:${pad(d.getMinutes())}</span></div>`;
+  $('.tt', ph).append(icon, title); ew.prepend(ph);
+  mmRtab(MM.rtab || (() => { try { return localStorage.getItem('dept-memo-rtab') || 'home'; } catch (_) { return 'home'; } })(), true);
+}
+function mmRtab(k, quiet) {
+  const tb = $('#mmTb'); if (!tb) return; if (k === 'table' && !tb.classList.contains('intbl')) k = 'insert'; MM.rtab = k; tb.dataset.tab = k;
+  document.querySelectorAll('.mm-rtabs [data-rtab]').forEach(b => b.classList.toggle('on', b.dataset.rtab === k));
+  if (!quiet) { try { localStorage.setItem('dept-memo-rtab', k === 'table' ? 'insert' : k); } catch (_) {} }
+  if (!quiet && k === 'draw' && !PEN.on && !MM.cur?.lock) { PEN.on = true; mmInkSync(); }   // 그리기 탭 = 바로 펜
+  if (!quiet && k !== 'draw' && PEN.on) { PEN.on = false; mmInkSync(); }
+  requestAnimationFrame(() => { MM.zkey = ''; mmZoomFit(); });
+}
+document.addEventListener('click', e => { const b = e.target.closest?.('[data-rtab]'); if (b) mmRtab(b.dataset.rtab); });
+function mmPhFollow(mx) {   // 제목이 화면 위에 붙어 있음 · 크게 볼 때는 마우스 쪽으로
+  const ph = $('#mmPh'), ew = $('#mmEdw'); if (!ph || !ew) return; const big = ew.scrollWidth > ew.clientWidth + 24 || document.body.classList.contains('mm-zen') || mmZoom() > 1.05;
+  ph.classList.toggle('big', big); if (!big) { ph.style.transform = `translateX(${ew.scrollLeft}px)`; return; }
+  const r = ew.getBoundingClientRect(), w = ph.offsetWidth, x = mx == null ? (MM.phx ?? 0) : Math.max(0, Math.min(ew.clientWidth - w - 8, mx - r.left - w / 2)); MM.phx = x;
+  ph.style.transform = `translateX(${ew.scrollLeft + x}px)`;
+}
+document.addEventListener('mousemove', e => { if (route !== 'memo' || !e.target.closest?.('#mmEdw')) return; if (!PEN.on) mmPhFollow(e.clientX); }, { passive:true });
+document.addEventListener('scroll', e => { if (e.target?.id === 'mmEdw') { mmPhFollow(); const ew = e.target; $('#mmPh')?.classList.toggle('stuck', ew.scrollTop > 4); } }, true);
 /* ---------- 이벤트 (메모장 화면 안) ---------- */
 document.addEventListener('click', async e => {
   const w = e.target.closest('#memoWrap'); if (!w) return; const t = e.target, D = s => t.closest(`[${s}]`);
@@ -7124,6 +7188,7 @@ document.addEventListener('click', async e => {
   if ((b = D('data-mv'))) { await mmFlush(); if (MM.cur?._ro || b.dataset.mv === 'shared') MM.cur = null; MM.view = b.dataset.mv; MM.sec = ''; MM.tag = ''; if (!['all', 'note', 'pin', 'date', 'shared'].includes(MM.view)) MM.cur = null; return mmDraw(); }
   if ((b = D('data-ms'))) { await mmFlush(); MM.sec = b.dataset.ms; MM.view = 'all'; return mmDraw(); }
   if ((b = D('data-mt'))) { MM.tag = MM.tag === b.dataset.mt ? '' : b.dataset.mt; if (!['all', 'note', 'pin', 'date', 'shared'].includes(MM.view)) MM.view = 'all'; return mmDraw(); }
+  if (t.closest('#mmSecAdd2')) return $('#mmSecAdd')?.click();
   if (t.closest('#mmSecAdd')) { const n = await mmAskText('섹션 추가', '섹션 이름 (예: 회의 · CO2 PJT · 개인)'); if (!n) return; const s = { id:mmId().slice(0, 8), name:n, color:MM_COL[1 + mmSecs().length % 6] }; MM.book.secs = [...mmSecs(), s]; MM.sec = s.id; MM.view = 'all'; await mmBook(); return mmDraw(); }
   if ((b = D('data-mday'))) { MM.day = MM.day === b.dataset.mday ? '' : b.dataset.mday; return mmDrawList(); }
   if ((b = D('data-mmon'))) { const k = +b.dataset.mmon, [y, m] = (MM.month || todayISO().slice(0, 7)).split('-').map(Number), d = new Date(y, m - 1 + k, 1); MM.month = k ? `${d.getFullYear()}-${pad(d.getMonth() + 1)}` : todayISO().slice(0, 7); MM.day = k ? '' : todayISO(); return mmDrawList(); }
@@ -7232,7 +7297,7 @@ document.addEventListener('paste', e => {
 document.addEventListener('wheel', e => { if (!(e.ctrlKey || e.metaKey) || !e.target.closest?.('#mmEdw')) return; e.preventDefault(); mmZoomSet(mmZoom() * Math.pow(1.0015, -e.deltaY)); }, { passive:false });   // 메모 확대 · 축소 = Ctrl + 휠 (그냥 휠은 위아래 이동)
 document.addEventListener('dragover', e => { if (e.target.closest?.('#mmEd') && e.dataTransfer?.types?.includes('Files')) e.preventDefault(); });
 document.addEventListener('drop', e => { const ed = e.target.closest?.('#mmEd'); if (!ed || !e.dataTransfer?.files?.length || MM.cur?.lock) return; e.preventDefault(); mmAddFiles([...e.dataTransfer.files]); });
-document.addEventListener('selectionchange', () => { const tb = $('#mmTb'); if (!tb) return; const s = mmSelIn(), n = s && (s.anchorNode.nodeType === 3 ? s.anchorNode.parentNode : s.anchorNode); tb.classList.toggle('intbl', !!n?.closest?.('#mmEd table') || !!$('#mmEd .mm-sel')); });
+document.addEventListener('selectionchange', () => { const tb = $('#mmTb'); if (!tb) return; const s = mmSelIn(), n = s && (s.anchorNode.nodeType === 3 ? s.anchorNode.parentNode : s.anchorNode); const inT = !!n?.closest?.('#mmEd table') || !!$('#mmEd .mm-sel'); if (inT !== tb.classList.contains('intbl')) { tb.classList.toggle('intbl', inT); document.querySelector('.mm-rtabs')?.classList.toggle('t', inT); if (inT && MM.rtab !== 'table') { MM.rtPrev = MM.rtab; mmRtab('table', true); } else if (!inT && MM.rtab === 'table') mmRtab(MM.rtPrev || 'insert', true); } });
 addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden' && MM.cur && MM.dirty) mmSave(); });
 addEventListener('beforeunload', () => { if (MM.cur && MM.dirty) mmSave(); });
 
