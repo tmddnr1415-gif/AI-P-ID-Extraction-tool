@@ -2071,6 +2071,34 @@ html.dark #mmAlarm{filter:invert(1) hue-rotate(180deg)}
 .mm-pv .pp{position:relative;margin:0 auto 12px;background:#fff;box-shadow:0 2px 12px rgba(0,0,0,.45)}.mm-pv .pp canvas{width:100%;height:100%;display:block}.mm-pv .pp>i{position:absolute;right:6px;bottom:-1px;font-size:10px;font-style:normal;color:#fff;background:rgba(0,0,0,.45);border-radius:6px 6px 0 0;padding:0 6px}
 .mm-pv .mm-inkbar{border-top:0}
 @media print{.mm-edw{overflow:visible!important;display:block}.mm-zw{zoom:1!important;width:100%!important}.mm-zc,#mmInkHost{display:none!important}}
+/* 2026-11-19 v17.89 종이 무늬를 스크롤 칸(#mmEdw) 전체에 — 확대 · 축소 · 좌우 · 위아래 어디서나 흰 바탕 없이 이어짐 (.mm-ed 의 무늬 규칙을 그대로 옮기고 크기는 배율 --z 만큼) */
+#mmEdw.pp{--z:1;font-size:calc(14.5px*var(--z));background-color:var(--card);background-attachment:local}#mmEdw.pp .mm-ed{background:transparent!important}
+#mmEdw.pp{--lh:1.7;--ln:#c9d4ee;background-attachment:local}
+#mmEdw.pp.lh-s{--lh:1.4}
+#mmEdw.pp.lh-l{--lh:2}
+#mmEdw.pp.lh-x{--lh:2.3}
+#mmEdw.pp.bg-lined,#mmEdw.pp.bg-wide,#mmEdw.pp.bg-legal,#mmEdw.pp.bg-cornell{background-image:linear-gradient(to bottom,transparent calc(100% - 1px),var(--ln) calc(100% - 1px));background-size:100% calc(var(--lh)*1em);background-clip:border-box;background-attachment:local}
+#mmEdw.pp.bg-wide{--lh:2.2}
+#mmEdw.pp.bg-wide.lh-s{--lh:1.9}
+#mmEdw.pp.bg-wide.lh-l{--lh:2.5}
+#mmEdw.pp.bg-wide.lh-x{--lh:2.8}
+#mmEdw.pp.bg-legal{background-color:#fff9c4;--ln:#9fc5e8;background-image:linear-gradient(to right,transparent calc(58px*var(--z)),#ef9a9a calc(58px*var(--z)),#ef9a9a calc(60px*var(--z)),transparent calc(60px*var(--z))),linear-gradient(to bottom,transparent calc(100% - 1px),var(--ln) calc(100% - 1px));background-size:100% 100%,100% calc(var(--lh)*1em)}
+#mmEdw.pp.bg-cornell{background-image:linear-gradient(to right,transparent calc(150px*var(--z)),#ef9a9a calc(150px*var(--z)),#ef9a9a calc(152px*var(--z)),transparent calc(152px*var(--z))),linear-gradient(to bottom,transparent calc(100% - 1px),var(--ln) calc(100% - 1px));background-size:100% 100%,100% calc(var(--lh)*1em)}
+#mmEdw.pp.bg-grid,#mmEdw.pp.bg-bgrid,#mmEdw.pp.bg-green,#mmEdw.pp.bg-blue{background-image:linear-gradient(var(--ln) 1px,transparent 1px),linear-gradient(90deg,var(--ln) 1px,transparent 1px);background-size:calc(20px*var(--z)) calc(20px*var(--z));background-attachment:local}
+#mmEdw.pp.bg-grid{--ln:#dfe6f5}
+#mmEdw.pp.bg-bgrid{--ln:#d5ddf0;background-size:calc(40px*var(--z)) calc(40px*var(--z))}
+#mmEdw.pp.bg-green{--ln:#b9e3c3;background-color:#f6fff7;background-image:linear-gradient(#8fd09f 1px,transparent 1px),linear-gradient(90deg,#8fd09f 1px,transparent 1px),linear-gradient(var(--ln) 1px,transparent 1px),linear-gradient(90deg,var(--ln) 1px,transparent 1px);background-size:calc(100px*var(--z)) calc(100px*var(--z)),calc(100px*var(--z)) calc(100px*var(--z)),calc(20px*var(--z)) calc(20px*var(--z)),calc(20px*var(--z)) calc(20px*var(--z))}
+#mmEdw.pp.bg-blue{--ln:rgba(255,255,255,.22);background-color:#1f4e8c}
+#mmEdw.pp.bg-dot{background-image:radial-gradient(circle,#b9c3df 1.2px,transparent 1.4px);background-size:calc(20px*var(--z)) calc(20px*var(--z));background-attachment:local}
+#mmEdw.pp.bg-cream{background-color:#fbf6e9}
+#mmEdw.pp.dk{background-color:#161b2b;--ln:rgba(160,180,230,.2)}
+#mmEdw.pp.dk.bg-grid,#mmEdw.pp.dk.bg-bgrid{--ln:rgba(160,180,230,.13)}
+#mmEdw.pp.dk.bg-dot{background-image:radial-gradient(circle,rgba(170,190,240,.38) 1.2px,transparent 1.4px)}
+#mmEdw.pp.dk.bg-legal{background-color:#2a2712;--ln:rgba(240,220,120,.2)}
+#mmEdw.pp.dk.bg-cream{background-color:#27231b}
+#mmEdw.pp.dk.bg-green{background-color:#0f2318;--ln:rgba(120,220,150,.16);background-image:linear-gradient(rgba(120,220,150,.32) 1px,transparent 1px),linear-gradient(90deg,rgba(120,220,150,.32) 1px,transparent 1px),linear-gradient(var(--ln) 1px,transparent 1px),linear-gradient(90deg,var(--ln) 1px,transparent 1px)}
+#mmEdw.pp.dk.bg-blue{background-color:#0b2447}
+#mmEdw.pp:is(.bg-lined,.bg-wide){background-position:0 calc(16px*var(--z))}#mmEdw.pp:is(.bg-legal,.bg-cornell){background-position:0 0,0 calc(16px*var(--z))}
 .mm-gh{font-size:11px;font-weight:700;color:var(--sub);padding:8px 8px 3px;letter-spacing:.02em}
 .mm-cal{border:1px solid var(--line);border-radius:10px;padding:8px}.mm-cal .ch{display:flex;align-items:center;gap:6px;font-size:13px}.mm-cal .ch button{border:1px solid var(--line);background:var(--card);border-radius:6px;cursor:pointer;padding:1px 7px}
 .mm-cal .cw,.mm-cal .cg{display:grid;grid-template-columns:repeat(7,1fr);gap:2px;margin-top:4px;text-align:center}.mm-cal .cw span{font-size:10px;color:var(--sub)}
@@ -2289,7 +2317,7 @@ function recLabel(key, f) {
  * ===================================================================== */
 let root = null;
 /* 서버 모드: http(s):// 로 접속하면 server.py 의 REST API 사용 (폴더 선택 불필요). file:// 로 열면 폴더 모드 */
-const APP_VERSION = '2026-11-19.23';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
+const APP_VERSION = '2026-11-19.24';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
 const SERVER_URL = 'http://localhost:8080';
 // 부서원 PC 사본(file://)이 접속을 시도할 서버 — 서버가 배포 파일을 만들 때 'PC 이름 주소, IP 주소' 순으로 자동 기록함
 const DEFAULT_SERVERS = ['http://ASEUNGWOOK-B01:8080', 'http://65.3.30.234:8080'];
@@ -5856,7 +5884,7 @@ const MM_TPL = [
 /* 2026-11-19 v17.70 메모 배경(종이 무늬): 메모마다 고름 · [기본으로] 하면 새 메모에 적용 */
 const MM_BG = [['', '흰 종이'], ['lined', '줄 노트'], ['wide', '넓은 줄 노트'], ['grid', '모눈종이'], ['bgrid', '큰 모눈종이'], ['dot', '점 격자'], ['legal', '노란 리갈 패드'], ['cream', '크림색 종이'], ['green', '초록 모눈 (방안지)'], ['blue', '청사진 (도면)'], ['cornell', '코넬 노트 (왼쪽 여백 줄)']];
 const mmBgDef = () => { try { return localStorage.getItem('dept-memo-bg') || ''; } catch (_) { return ''; } };
-const mmEdCls = pg => 'mm-ed' + (pg.lh ? ' lh-' + pg.lh : '') + (pg.bg ? ' bg-' + pg.bg : '') + (pg.dk ? ' dk' : '');   // dk = 어두운 종이 (2026-11-19 v17.71)
+const mmEdCls = pg => { const c = (pg.lh ? ' lh-' + pg.lh : '') + (pg.bg ? ' bg-' + pg.bg : '') + (pg.dk ? ' dk' : ''); const ew = document.getElementById('mmEdw'); if (ew) ew.className = 'mm-edw pp' + c; return 'mm-ed' + c; };   // dk = 어두운 종이 (2026-11-19 v17.71)
 const mmDkDef = () => { try { return localStorage.getItem('dept-memo-dk') === '1'; } catch (_) { return false; } };
 const mmCol = (v, d = '') => /^#[0-9a-f]{3,8}$/i.test(String(v || '')) ? v : d;   // 색은 #rrggbb 모양만 (공유받은 메모의 값이 CSS 로 그대로 들어가지 않게)
 const mmId = () => Array.from(crypto.getRandomValues(new Uint8Array(12)), b => 'abcdefghijklmnopqrstuvwxyz0123456789'[b % 36]).join('');
@@ -6650,7 +6678,7 @@ function mmInkSync() {   // 편집 줄 아래 펜 줄 · 그리기 층 상태
 const mmZoom = () => MM.zoom || (MM.zoom = (() => { try { return +localStorage.getItem('dept-memo-zoom') || 1; } catch (_) { return 1; } })());
 function mmZoomSet(z, quiet) {
   z = Math.max(.4, Math.min(3, Math.round(z * 100) / 100)); MM.zoom = z; try { localStorage.setItem('dept-memo-zoom', String(z)); } catch (_) {}
-  const zw = $('#mmZw'); if (zw) { zw.style.zoom = z; mmZoomFit(); }
+  const zw = $('#mmZw'); if (zw) { zw.style.zoom = z; $('#mmEdw')?.style.setProperty('--z', z); mmZoomFit(); }
   const zl = $('#mmZl'); if (zl) zl.textContent = Math.round(z * 100) + '%'; if (!quiet) zoomBadge($('#mmMain'), z * 100);
 }
 /* 2026-11-19 v17.77 회사 사진: 확대하면 배경(모눈 · 어두운 종이)이 일부만 덮임 → 확대 · 축소해도 종이가 늘 메모 칸 전체를 덮게.
