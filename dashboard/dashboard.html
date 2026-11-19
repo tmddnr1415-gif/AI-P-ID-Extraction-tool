@@ -2002,9 +2002,17 @@ body.schbigon{overflow:hidden}@keyframes schBigIn{from{transform:scale(.97);opac
 .mm-pull{display:grid;grid-template-columns:200px minmax(0,1fr);flex:1;min-height:0}.mm-pull .pc{border-right:1px solid #e1e6f2;padding:10px 12px;overflow:auto;font-size:12.5px}.mm-pull .pc label{display:block;padding:3px 0}
 .mm-pull .pr{display:flex;flex-direction:column;min-height:0}.mm-pull .prh{padding:8px 12px;border-bottom:1px solid #e1e6f2;font-size:12.5px;display:flex;gap:12px}.mm-pull #mmPr{overflow:auto;flex:1;padding:4px 8px}
 .mm-pull .row{display:flex;gap:9px;align-items:center;padding:6px 6px;border-radius:8px;font-size:13px;cursor:pointer}.mm-pull .row:hover{background:#f1f4fb}.mm-pull .row b{font-weight:600;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.mm-pull .row span{color:#667089;font-size:11.5px;white-space:nowrap}.mm-pull .row i{margin-left:auto;font-style:normal;color:#8a93ad;font-size:11.5px;white-space:nowrap}
+.mm-pt{display:flex;gap:4px;justify-content:flex-end}.mm-pt button{border:1px solid var(--line);background:var(--card);border-radius:7px;font-size:11px;padding:2px 7px;cursor:pointer;color:var(--sub);white-space:nowrap}.mm-pt button:hover{color:var(--accent-d);border-color:var(--accent)}
+.mm-nav .ic{flex:none;width:20px;text-align:center}
+#memoWrap.s-mini .mm-side{padding:8px 6px;align-items:stretch}#memoWrap.s-mini .mm-side .lb,#memoWrap.s-mini .mm-side h3,#memoWrap.s-mini .mm-side .mm-tags,#memoWrap.s-mini .mm-side .mm-quota,#memoWrap.s-mini .mm-side .more{display:none!important}
+#memoWrap.s-mini .mm-pt{flex-direction:column}#memoWrap.s-mini .mm-nav{flex-direction:column;gap:0;padding:6px 0;justify-content:center;align-items:center}#memoWrap.s-mini .mm-nav i{margin:0;font-size:10px}#memoWrap.s-mini .mm-nav .dot{width:14px;height:14px}#memoWrap.s-mini #mmNew{padding:8px 0}
+#memoWrap.s-hide .mm-side,#memoWrap.l-hide .mm-list{display:none!important}
+#memoWrap.l-mini .mm-card span,#memoWrap.l-mini .mm-card em,#memoWrap.l-mini .mm-cal,#memoWrap.l-mini .mm-lh .row b,#memoWrap.l-mini .mm-lh .lb{display:none}#memoWrap.l-mini .mm-card{padding:6px 7px}#memoWrap.l-mini .mm-card b{font-size:12.5px}#memoWrap.l-mini .mm-lh{padding:8px 6px}#memoWrap.l-mini #mmSort{width:100%}
+#mmHid{background:none!important;border:0!important;display:flex;flex-direction:column;gap:6px;overflow:visible!important}#mmHid button{border:1px solid var(--line);background:var(--card);border-radius:8px;cursor:pointer;color:var(--accent-d);font-size:11px;padding:8px 0;display:flex;flex-direction:column;align-items:center;gap:4px}#mmHid button span{writing-mode:vertical-rl;font-size:11px;color:var(--sub)}#mmHid button:hover{border-color:var(--accent)}
+body.mm-wide #mmHid,body.mm-zen #mmHid{display:none!important}
 .mm-zb{border:1px solid var(--line);background:var(--card);border-radius:8px;padding:4px 9px;font-size:12px;cursor:pointer;color:var(--sub);white-space:nowrap}.mm-zb:hover{color:var(--accent-d);border-color:var(--accent)}
-body.mm-wide #memoWrap{grid-template-columns:minmax(0,1fr)}body.mm-wide #memoWrap .mm-side,body.mm-wide #memoWrap .mm-list{display:none!important}
-body.mm-zen #memoWrap{position:fixed;inset:0;z-index:700;height:auto;min-height:0;grid-template-columns:minmax(0,1fr);padding:10px 14px;background:var(--bg)}body.mm-zen #memoWrap .mm-side,body.mm-zen #memoWrap .mm-list{display:none!important}
+body.mm-wide #memoWrap{grid-template-columns:minmax(0,1fr)!important}body.mm-wide #memoWrap .mm-side,body.mm-wide #memoWrap .mm-list{display:none!important}
+body.mm-zen #memoWrap{position:fixed;inset:0;z-index:700;height:auto;min-height:0;grid-template-columns:minmax(0,1fr)!important;padding:10px 14px;background:var(--bg)}body.mm-zen #memoWrap .mm-side,body.mm-zen #memoWrap .mm-list{display:none!important}
 body.mm-zen .mm-ed{padding-left:max(26px,calc(50% - 520px));padding-right:max(26px,calc(50% - 520px))}body.mm-zen{overflow:hidden}
 .mm-ed td.mm-sel,.mm-ed th.mm-sel{background-image:linear-gradient(rgba(43,68,201,.18),rgba(43,68,201,.18));outline:1.5px solid var(--accent);outline-offset:-1.5px}
 .mm-ed table.mm-tbn td,.mm-ed table.mm-tbn th{border-color:transparent}.mm-ed table.mm-tbn{outline:1px dashed #d5dbec}.mm-ed table.mm-tbb td,.mm-ed table.mm-tbb th{border:2px solid #4a5578}
@@ -2242,7 +2250,7 @@ function recLabel(key, f) {
  * ===================================================================== */
 let root = null;
 /* 서버 모드: http(s):// 로 접속하면 server.py 의 REST API 사용 (폴더 선택 불필요). file:// 로 열면 폴더 모드 */
-const APP_VERSION = '2026-11-19.9';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
+const APP_VERSION = '2026-11-19.10';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
 const SERVER_URL = 'http://localhost:8080';
 // 부서원 PC 사본(file://)이 접속을 시도할 서버 — 서버가 배포 파일을 만들 때 'PC 이름 주소, IP 주소' 순으로 자동 기록함
 const DEFAULT_SERVERS = ['http://ASEUNGWOOK-B01:8080', 'http://65.3.30.234:8080'];
@@ -5912,12 +5920,23 @@ function renderMemo(c) {
   c.insertAdjacentHTML('beforeend', '<div id="memoWrap"><div class="mm-side" id="mmSide"></div><div class="mm-list" id="mmList"></div><div class="mm-main" id="mmMain"><div class="mm-empty"><b>📝</b>메모장을 불러오는 중…</div></div></div>');
   mmLoad().then(ok => { if (route !== 'memo' || !$('#memoWrap')) return; if (!ok) { $('#mmMain').innerHTML = `<div class="mm-empty"><b>⚠</b>메모장을 불러오지 못했습니다<br><span class="muted">${esc(MM.err || '')}</span><br><span class="muted">서버가 새 버전인지 확인해 주세요 (서버 PC 에서 대시보드 서버를 다시 켜기)</span></div>`; return; } mmDraw(); });
 }
+/* 2026-11-19 v17.75 사용자 지시: 메모장 왼쪽 두 칸(새 메모 · 보기 목록 / 메모 찾기 · 메모 목록)도 [⇤ 간략] · [◀ 숨기기] — 이 PC 에 기억 */
+const MM_UI = (() => { try { return { side:'full', list:'full', ...JSON.parse(localStorage.getItem('dept-memo-ui') || '{}') }; } catch (_) { return { side:'full', list:'full' }; } })();
+function mmUi(pane, mode) { if (pane) { MM_UI[pane] = mode; try { localStorage.setItem('dept-memo-ui', JSON.stringify(MM_UI)); } catch (_) {} }
+  const w = $('#memoWrap'); if (!w) return; ['side', 'list'].forEach(k => ['full', 'mini', 'hide'].forEach(m => w.classList.toggle(`${k[0]}-${m}`, MM_UI[k] === m)));
+  let h = $('#mmHid'); if (!h) { h = document.createElement('div'); h.id = 'mmHid'; w.prepend(h); }
+  const noList = w.classList.contains('board') || w.classList.contains('wide');
+  h.innerHTML = (MM_UI.side === 'hide' ? '<button data-mui="side|full" title="왼쪽 보기 목록(새 메모 · 모든 메모 · 섹션) 다시 보이기">▶<span>메뉴</span></button>' : '') + (MM_UI.list === 'hide' && !noList ? '<button data-mui="list|full" title="메모 목록(메모 찾기) 다시 보이기">▶<span>목록</span></button>' : '');
+  h.style.display = h.innerHTML ? '' : 'none';
+  const cols = [h.innerHTML ? '26px' : '', MM_UI.side === 'hide' ? '' : MM_UI.side === 'mini' ? '56px' : '210px', noList || MM_UI.list === 'hide' ? '' : MM_UI.list === 'mini' ? '150px' : '270px', 'minmax(0,1fr)'].filter(Boolean);
+  w.style.gridTemplateColumns = cols.join(' ');
+}
 function mmDraw() {
   const w = $('#memoWrap'); if (!w) return;
   const board = MM.view === 'sticky', wide = MM.view === 'todo' || MM.view === 'trash';
   w.classList.toggle('board', board); w.classList.toggle('wide', wide);
   $('#mmList').style.display = board || wide ? 'none' : '';
-  mmDrawSide(); mmMenuN();
+  mmUi(); mmDrawSide(); mmMenuN();
   if (board) return mmDrawBoard(); if (MM.view === 'todo') return mmDrawTodo(); if (MM.view === 'trash') return mmDrawTrash();
   mmDrawList(); mmDrawMain();
   if (MM.openId) { const id = MM.openId; MM.openId = ''; if (MM.pages.some(p => p.id === id && !p.deleted)) mmOpen(id); }
@@ -5925,12 +5944,14 @@ function mmDraw() {
 function mmDrawSide() {
   const el = $('#mmSide'); if (!el) return; const live = mmLive(), tags = {};
   live.forEach(p => (p.tags || []).forEach(t => { tags[t] = (tags[t] || 0) + 1; }));
-  const nv = (v, ic, l, n) => `<button class="mm-nav ${MM.view === v && !MM.sec ? 'on' : ''}" data-mv="${v}">${ic} ${l}<i>${n}</i></button>`;
+  const nv = (v, ic, l, n) => `<button class="mm-nav ${MM.view === v && !MM.sec ? 'on' : ''}" data-mv="${v}" title="${l}${n !== '' ? ' ' + n : ''}"><span class="ic">${ic}</span><span class="lb">${l}</span><i>${n}</i></button>`;
   const todo = live.reduce((a, p) => a + (p.todos || []).filter(t => !t.d).length, 0);
-  el.innerHTML = `<button class="btn pri" id="mmNew" style="width:100%">＋ 새 메모</button>
+  const mini = MM_UI.side === 'mini';
+  el.innerHTML = `<div class="mm-pt"><button data-mui="side|${mini ? 'full' : 'mini'}" title="${mini ? '펼치기' : '아이콘만 보이게 간략히'}">${mini ? '⇥' : '⇤ 간략'}</button><button data-mui="side|hide" title="이 칸 숨기기 (왼쪽 가장자리 ▶ 로 다시 보이기)">◀<span class="lb"> 숨기기</span></button></div>
+    <button class="btn pri" id="mmNew" style="width:100%" title="새 메모">＋<span class="lb"> 새 메모</span></button>
     ${nv('all', '📄', '모든 메모', live.length)}${nv('pin', '⭐', '즐겨찾기', live.filter(p => p.pin).length)}${nv('date', '📅', '날짜별', '')}${nv('todo', '☑', '할 일 모음', todo)}${nv('sticky', '🗒', '스티커 보드', MM.pages.filter(p => p.kind === 'sticky' && !p.deleted).length)}
     <h3>섹션<button id="mmSecAdd" title="섹션 추가">＋ 추가</button></h3>
-    ${mmSecs().map(s => `<button class="mm-nav ${MM.sec === s.id ? 'on' : ''}" data-ms="${esc(s.id)}"><span class="dot" style="background:${esc(s.color || '#94a3b8')}"></span><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(s.name)}</span><i>${live.filter(p => p.sec === s.id).length}</i><span class="more" data-msm="${esc(s.id)}" title="이름 · 색 · 삭제">⋯</span></button>`).join('') || '<div class="muted" style="font-size:12px;padding:2px 6px">섹션으로 메모를 묶어 보세요 (예: 회의 · PJT · 개인)</div>'}
+    ${mmSecs().map(s => `<button class="mm-nav ${MM.sec === s.id ? 'on' : ''}" data-ms="${esc(s.id)}"><span class="dot" style="background:${esc(s.color || '#94a3b8')}" title="${esc(s.name)}"></span><span class="lb" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(s.name)}</span><i>${live.filter(p => p.sec === s.id).length}</i><span class="more" data-msm="${esc(s.id)}" title="이름 · 색 · 삭제">⋯</span></button>`).join('') || '<div class="muted lb" style="font-size:12px;padding:2px 6px">섹션으로 메모를 묶어 보세요 (예: 회의 · PJT · 개인)</div>'}
     ${Object.keys(tags).length ? `<h3>태그</h3><div class="mm-tags">${Object.entries(tags).sort((a, b) => b[1] - a[1]).slice(0, 30).map(([t, n]) => `<button class="mm-tag ${MM.tag === t ? 'on' : ''}" data-mt="${esc(t)}">#${esc(t)} ${n}</button>`).join('')}</div>` : ''}
     <div style="margin-top:10px">${nv('trash', '🗑', '휴지통', MM.pages.filter(p => p.deleted).length)}</div>
     <div class="mm-quota">🔒 나만 보는 메모 · ${mmSize(MM.used)} / ${mmSize(MM.quota || 1)}<b><u style="width:${Math.min(100, MM.used / (MM.quota || 1) * 100).toFixed(1)}%"></u></b></div>`;
@@ -5972,7 +5993,8 @@ function mmDrawList(soft) {
     || `<div class="mm-empty" style="padding:24px 10px"><b>🗒</b>${q || MM.tag ? '찾는 메모가 없습니다' : '아직 메모가 없습니다'}<br><span class="muted" style="font-size:12px">[＋ 새 메모] 를 눌러 시작하세요</span></div>`;
   if (soft && $('.mm-lb', el) && MM.view !== 'date') { const lb = $('.mm-lb', el), st = lb.scrollTop; lb.innerHTML = cards; lb.scrollTop = st; return; }
   const sec = mmSecs().find(s => s.id === MM.sec);
-  el.innerHTML = `<div class="mm-lh"><input class="q" id="mmQ" placeholder="🔍 메모 찾기 (제목 · 내용 · 태그)" value="${esc(MM.q)}">
+  const lmini = MM_UI.list === 'mini';
+  el.innerHTML = `<div class="mm-lh"><div class="mm-pt"><button data-mui="list|${lmini ? 'full' : 'mini'}" title="${lmini ? '펼치기' : '제목만 보이게 간략히'}">${lmini ? '⇥' : '⇤ 간략'}</button><button data-mui="list|hide" title="이 칸 숨기기 (왼쪽 가장자리 ▶ 로 다시 보이기)">◀<span class="lb"> 숨기기</span></button></div><input class="q" id="mmQ" placeholder="${lmini ? '🔍 찾기' : '🔍 메모 찾기 (제목 · 내용 · 태그)'}" value="${esc(MM.q)}">
     <div class="row"><b style="font-size:13px">${esc(sec ? sec.name : MM.view === 'pin' ? '즐겨찾기' : MM.view === 'date' ? '날짜별' : '모든 메모')}${MM.tag ? ' · #' + esc(MM.tag) : ''}</b><span class="sp"></span><select id="mmSort" class="sel" style="font-size:12px;padding:3px 6px"><option value="upd">최근 고친 순</option><option value="new">만든 순</option><option value="date">메모 날짜 (최근부터)</option><option value="dateasc">메모 날짜 (옛날부터)</option><option value="title">제목 순</option></select></div>${MM.view === 'date' ? mmCalHtml() : ''}</div><div class="mm-lb">${cards}</div>`;
   $('#mmSort').value = MM.sort;
 }
@@ -6503,6 +6525,7 @@ document.addEventListener('click', async e => {
   if (t.closest('#mmSecAdd')) { const n = await mmAskText('섹션 추가', '섹션 이름 (예: 회의 · CO2 PJT · 개인)'); if (!n) return; const s = { id:mmId().slice(0, 8), name:n, color:MM_COL[1 + mmSecs().length % 6] }; MM.book.secs = [...mmSecs(), s]; MM.sec = s.id; MM.view = 'all'; await mmBook(); return mmDraw(); }
   if ((b = D('data-mday'))) { MM.day = MM.day === b.dataset.mday ? '' : b.dataset.mday; return mmDrawList(); }
   if ((b = D('data-mmon'))) { const k = +b.dataset.mmon, [y, m] = (MM.month || todayISO().slice(0, 7)).split('-').map(Number), d = new Date(y, m - 1 + k, 1); MM.month = k ? `${d.getFullYear()}-${pad(d.getMonth() + 1)}` : todayISO().slice(0, 7); MM.day = k ? '' : todayISO(); return mmDrawList(); }
+  if ((b = D('data-mui'))) { const [k, m] = b.dataset.mui.split('|'); mmUi(k, m); mmDrawSide(); if (k === 'list') mmDrawList(); return; }
   if ((b = D('data-marr'))) return mmArrange(b.dataset.marr);
   if ((b = D('data-mcalhome'))) { const d = new Date(b.dataset.mcalhome); CAL1.y = d.getFullYear(); CAL1.m = d.getMonth(); CAL1.sel = b.dataset.mcalhome; await mmFlush(); return go('home'); }
   if ((b = D('data-mcalgo'))) { await mmFlush(); return go(b.dataset.mcalgo); }
