@@ -1999,6 +1999,10 @@ body.schbigon{overflow:hidden}@keyframes schBigIn{from{transform:scale(.97);opac
 .mm-pg{display:inline-block;background:#e8ecfc;color:#1f33a3;border-radius:6px;padding:0 6px;font-weight:700;font-size:12px;cursor:pointer;margin-right:4px;user-select:none}
 .mm-ver{display:grid;grid-template-columns:200px minmax(0,1fr);gap:10px;height:60vh}.mm-ver .vl{overflow:auto;border-right:1px solid var(--line);padding-right:6px}.mm-ver .vp{overflow:auto;padding:4px 10px}
 .mm-ver .vl button{display:block;width:100%;text-align:left;border:0;background:none;padding:7px 8px;border-radius:8px;cursor:pointer;font-size:12.5px}.mm-ver .vl button.on{background:var(--accent-l)}
+.mm-pull{display:grid;grid-template-columns:200px minmax(0,1fr);flex:1;min-height:0}.mm-pull .pc{border-right:1px solid #e1e6f2;padding:10px 12px;overflow:auto;font-size:12.5px}.mm-pull .pc label{display:block;padding:3px 0}
+.mm-pull .pr{display:flex;flex-direction:column;min-height:0}.mm-pull .prh{padding:8px 12px;border-bottom:1px solid #e1e6f2;font-size:12.5px;display:flex;gap:12px}.mm-pull #mmPr{overflow:auto;flex:1;padding:4px 8px}
+.mm-pull .row{display:flex;gap:9px;align-items:center;padding:6px 6px;border-radius:8px;font-size:13px;cursor:pointer}.mm-pull .row:hover{background:#f1f4fb}.mm-pull .row b{font-weight:600;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.mm-pull .row span{color:#667089;font-size:11.5px;white-space:nowrap}.mm-pull .row i{margin-left:auto;font-style:normal;color:#8a93ad;font-size:11.5px;white-space:nowrap}
+.mm-from{font-size:11.5px;color:#7c86a2;margin:.6em 0 2px}.mm-ed a.mm-src{font-weight:700;text-decoration:none;border-bottom:1px dashed var(--accent)}.mm-item{margin:4px 0}
 @media (max-width:1100px){#memoWrap{grid-template-columns:170px 210px minmax(0,1fr)}}
 @media print{body.mm-print #side,body.mm-print header.top,body.mm-print .banner,body.mm-print .mm-side,body.mm-print .mm-list,body.mm-print .mm-tb,body.mm-print .mm-meta,body.mm-print .mm-st,body.mm-print #mmFloat{display:none!important}
   body.mm-print #memoWrap{display:block;height:auto}body.mm-print #memoWrap>*{border:0;overflow:visible}body.mm-print .mm-ed{overflow:visible;padding:0}body.mm-print #main{margin:0;padding:0}}
@@ -2178,7 +2182,7 @@ function recLabel(key, f) {
  * ===================================================================== */
 let root = null;
 /* 서버 모드: http(s):// 로 접속하면 server.py 의 REST API 사용 (폴더 선택 불필요). file:// 로 열면 폴더 모드 */
-const APP_VERSION = '2026-11-19.1';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
+const APP_VERSION = '2026-11-19.2';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
 const SERVER_URL = 'http://localhost:8080';
 // 부서원 PC 사본(file://)이 접속을 시도할 서버 — 서버가 배포 파일을 만들 때 'PC 이름 주소, IP 주소' 순으로 자동 기록함
 const DEFAULT_SERVERS = ['http://ASEUNGWOOK-B01:8080', 'http://65.3.30.234:8080'];
@@ -5770,6 +5774,7 @@ function mmClean(html) {
       else if (k === 'href' && n.tagName === 'A') { if (/^(https?:|mailto:|#)/i.test(v.trim())) at.href = v.trim(); }
       else if (k === 'src' && n.tagName === 'IMG') { if (/^data:image\/(png|jpeg|gif|webp);base64,[A-Za-z0-9+/=\s]+$/.test(v)) at.src = v; }
       else if (['data-done', 'data-fid', 'data-name', 'data-size', 'data-pg', 'colspan', 'rowspan'].includes(k)) { if (/^[\w .()\-\[\]가-힣·,+&]{0,140}$/.test(v)) at[k] = v; }
+      else if (k === 'data-src') { if (/^[^<>"'`]{1,200}$/.test(v)) at[k] = v; }
       else if (k === 'open' && n.tagName === 'DETAILS') at.open = '';
       else if ((k === 'color' || k === 'size') && n.tagName === 'FONT') { if (css(v)) at[k] = v; }
       n.removeAttribute(a.name); });
@@ -5898,7 +5903,7 @@ function mmDrawMain() {
       ${T('ul', '•', '글머리 목록')}${T('ol', '1.', '번호 목록')}${T('todo', '☑', '할 일 (체크 상자)')}${T('quote', '❝', '인용')}${T('call', '💡', '강조 상자')}${T('code', '&lt;/&gt;', '코드 · 고정폭')}${T('toggle', '▸', '접는 글')}${T('hr', '―', '구분선')}${S}
       ${T('left', '⇤', '왼쪽 맞춤')}${T('center', '↔', '가운데 맞춤')}${T('right', '⇥', '오른쪽 맞춤')}${S}
       ${T('table', '▦', '표 넣기')}<span class="tbl">${T('trow', '+행', '아래에 행 추가')}${T('tcol', '+열', '오른쪽에 열 추가')}${T('trowx', '−행', '이 행 지우기')}${T('tcolx', '−열', '이 열 지우기')}${T('tdel', '표✕', '표 지우기')}</span>${S}
-      ${T('link', '🔗', '링크')}${T('img', '🖼', '그림 넣기 (붙여넣기 · 끌어 놓기도 됨)')}${T('draw', '✏', '손으로 그리기')}${T('file', '📎', '파일 첨부 (PDF · 문서 — PDF 는 보면서 메모)')}${T('date', '📅', '오늘 날짜 · 시각 넣기')}</div>
+      ${T('link', '🔗', '링크')}${T('img', '🖼', '그림 넣기 (붙여넣기 · 끌어 놓기도 됨)')}${T('draw', '✏', '손으로 그리기')}${T('file', '📎', '파일 첨부 (PDF · 문서 — PDF 는 보면서 메모)')}${T('date', '📅', '오늘 날짜 · 시각 넣기')}${S}<button data-mc="pull" title="다른 메뉴의 값 불러오기 (수행 · 입찰 · 이슈 · 통합 업무 · Schedule …)" style="font-weight:700;color:var(--accent-d)">📥 불러오기</button></div>
     <div class="mm-ed" id="mmEd" data-pid="${pg.id}" contenteditable="${pg.lock ? 'false' : 'true'}" spellcheck="false"></div><div class="mm-st" id="mmSt"></div><input type="file" id="mmFile" hidden multiple><input type="file" id="mmImg" hidden multiple accept="image/*">`;
   $('#mmEd').innerHTML = mmClean(pg.html || '');
   mmStat(pg.updatedAt ? `저장됨 ${fmtTime(pg.updatedAt)} · ${(pg.text || '').length.toLocaleString()}자` : '새 메모');
@@ -5962,6 +5967,7 @@ function mmCmd(c, btn) {
     case 'link': { const s = mmSelIn(), r = s && s.rangeCount ? s.getRangeAt(0).cloneRange() : null, txt = s ? String(s) : '';
       return mmAskText('🔗 링크 넣기', '주소 (https://…)', 'https://').then(u => { if (!u || !/^(https?:|mailto:)/i.test(u)) return u === null ? 0 : toast('http:// 또는 https:// 로 시작하는 주소를 넣어 주세요', true);
         ed.focus(); if (r) { const g = getSelection(); g.removeAllRanges(); g.addRange(r); } if (txt) { document.execCommand('createLink', false, u); mmTouch(); } else mmInsert(`<a href="${esc(u)}">${esc(u)}</a> `); }); }
+    case 'pull': return mmPull2();
     case 'img': return $('#mmImg').click(); case 'file': return $('#mmFile').click();
     case 'draw': return mmInk(null, url => mmInsert(`<img src="${url}"><div><br></div>`));
     case 'color': case 'hilite': { const cols = c === 'color' ? ['#0f172a', '#dc2626', '#ea580c', '#16a34a', '#1d4ed8', '#7c3aed', '#64748b'] : ['#fff176', '#ffd6a5', '#caffbf', '#9bf6ff', '#ffc6ff', '#e5e7eb', 'transparent'];
@@ -5979,7 +5985,7 @@ function mmPop(anchor, html, pick, cls = '') {   // 작은 메뉴 (바깥을 누
   return p;
 }
 /* '/' 블록 메뉴 */
-const MM_SLASH = [['h1', 'H1', '큰 제목'], ['h2', 'H2', '중간 제목'], ['h3', 'H3', '작은 제목'], ['todo', '☑', '할 일'], ['ul', '•', '글머리 목록'], ['ol', '1.', '번호 목록'], ['table', '▦', '표'], ['quote', '❝', '인용'], ['call', '💡', '강조 상자'], ['toggle', '▸', '접는 글'], ['code', '</>', '코드'], ['hr', '―', '구분선'], ['img', '🖼', '그림'], ['draw', '✏', '그리기'], ['file', '📎', '파일 첨부'], ['date', '📅', '오늘 날짜'], ['link', '🔗', '링크']];
+const MM_SLASH = [['h1', 'H1', '큰 제목'], ['h2', 'H2', '중간 제목'], ['h3', 'H3', '작은 제목'], ['todo', '☑', '할 일'], ['ul', '•', '글머리 목록'], ['ol', '1.', '번호 목록'], ['table', '▦', '표'], ['quote', '❝', '인용'], ['call', '💡', '강조 상자'], ['toggle', '▸', '접는 글'], ['code', '</>', '코드'], ['hr', '―', '구분선'], ['img', '🖼', '그림'], ['draw', '✏', '그리기'], ['file', '📎', '파일 첨부'], ['date', '📅', '오늘 날짜'], ['link', '🔗', '링크'], ['pull', '📥', '다른 메뉴 값 불러오기']];
 function mmSlash() {
   const s = mmSelIn(); const old = $('.mm-pop.slash'); if (!s || !s.isCollapsed || s.anchorNode.nodeType !== 3) return old?.remove();
   const t = s.anchorNode.textContent.slice(0, s.anchorOffset), m = /(?:^|\s)\/([^\s/]{0,10})$/.exec(t); if (!m) return old?.remove();
@@ -6152,6 +6158,71 @@ async function mmImport(files) {
     const pg = { id:mmId(), kind:'page', sec:MM.sec || '', title:f.name.replace(/\.[^.]+$/, '').slice(0, 80), icon:'📄', color:'', tags:[], html }; mmMetaOf(pg); await mmSave(pg); }
   MM.view = 'all'; mmDraw(); toast(`${files.length}개 파일을 메모로 가져왔습니다`);
 }
+/* ---------- 2026-11-19 v17.66 다른 메뉴의 값 불러오기 (📥) — 주간업무보고 시트 · CO2 PJT Schedule 의 행을 골라 표 · 목록 · 할 일로 넣음.
+   넣은 칸에는 data-src="시트|행ID|열" 이 남아 [🔄 불러온 값 새로 고침] 으로 지금 값으로 다시 맞출 수 있고, 제목(.mm-src)을 누르면 그 행으로 감 ---------- */
+const MM_SCHC = [['item', '품목'], ['disc', '공종'], ['vendor', 'Vendor'], ['F.MR', 'MR 전망'], ['F.TBE_F', 'TBE 완료 전망'], ['F.PO', 'PO 전망'], ['F.FAT', 'FAT 전망'], ['F.SITE', '현장 도착 전망'], ['B.PO', 'PO 계획'], ['B.SITE', '현장 도착 계획'], ['A.PO', 'PO 실적']];
+function mmSrcList() {
+  const l = can('weekly') ? SHEETS.filter(s => s.cols && !s.special).map(s => ({ k:s.key, label:'주간업무보고 › ' + s.label, cols:s.cols.filter(c => !c.file).map(c => [c.f, c.label || c.f]), title:s.title, owner:s.owner,
+    rows:() => (DB.recs[s.key] || []).map(r => ({ id:r.id, t:purgeStrike(r.fields[s.title] || '') || '(제목 없음)', o:s.owner ? String(r.fields[s.owner] || '') : '', sub:String(r.fields['종결 여부'] || r.fields['유형'] || r.fields['사업군'] || '') })) })) : [];
+  if (can('runpjt')) l.push({ k:'sched', label:'실행 프로젝트 › CO2 PJT Schedule (구매 일정)', cols:MM_SCHC, title:'item', owner:'', load:schLoad,
+    rows:() => (SCH.data?.items || []).map(it => ({ id:String(it.no || it.item), t:`${it.no ? it.no + '. ' : ''}${it.item || ''}`, o:it.eng || '', sub:it.disc || '' })) });
+  return l;
+}
+function mmSrcVal(k, id, f) {   // 지금 값 (없으면 null)
+  if (k === 'sched') { const it = (SCH.data?.items || []).find(x => String(x.no || x.item) === id); if (!it) return null; const m = /^([BFA])\.(\w+)$/.exec(f); return m ? (it[m[1]]?.[m[2]] || '') : String(it[f] ?? ''); }
+  const r = (DB.recs[k] || []).find(x => x.id === id); if (!r) return null; const v = r.fields[f];
+  return typeof v === 'string' ? purgeStrike(v).trim() : v == null ? '' : typeof v === 'object' ? '' : String(v);
+}
+const mmSrcHtml = v => esc(v).replace(/\n/g, '<br>') || '<br>';
+const mmSrcAttr = (k, id, f) => `data-src="${esc(`${k}|${id}|${f}`)}"`;
+async function mmPull2() {
+  const ed = mmEd(); if (!ed || MM.cur?.lock) return toast('잠긴 메모입니다 — 🔒 를 눌러 풀고 고치세요', true);
+  const srcs = mmSrcList(); if (!srcs.length) return toast('불러올 수 있는 메뉴가 없습니다 (메뉴 권한을 확인해 주세요)', true);
+  const s0 = mmSelIn(), keepR = s0 && s0.rangeCount ? s0.getRangeAt(0).cloneRange() : null;
+  const st = { src:srcs[0], q:'', mine:false, sel:new Set(), cols:new Set(), fmt:'table' };
+  const ov = document.createElement('div'); ov.className = 'mm-ov';
+  ov.innerHTML = `<div class="mm-ovb" style="width:min(980px,94vw);height:min(680px,90vh)"><div class="mm-ovh"><b>📥 다른 메뉴의 값 불러오기</b><select id="mmPs" class="sel" style="height:30px">${srcs.map((s, i) => `<option value="${i}">${esc(s.label)}</option>`).join('')}</select>
+      <input id="mmPq" class="sel" style="height:30px;width:170px" placeholder="🔍 찾기"><label style="font-size:12px"><input type="checkbox" id="mmPm"> 내 것만</label><span class="sp"></span><button data-a="x">취소</button></div>
+    <div class="mm-pull"><div class="pc"><b>넣을 열</b><div id="mmPc"></div></div><div class="pr"><div class="prh"><label><input type="checkbox" id="mmPall"> 모두 고르기</label><span class="muted" id="mmPn"></span></div><div id="mmPr"></div></div></div>
+    <div class="mm-ovh" style="border-top:1px solid #e1e6f2;border-bottom:0"><span style="font-size:12px">넣는 모양</span><button data-f="table" class="on">▦ 표</button><button data-f="list">• 목록</button><button data-f="todo">☑ 할 일</button>
+      <span class="muted" style="font-size:12px">넣은 값은 그때 값입니다 — ⋯ 더 보기 › [🔄 불러온 값 새로 고침] 으로 다시 맞춤 · 제목을 누르면 원래 행으로</span><span class="sp"></span><button data-a="ok" class="on">메모에 넣기</button></div></div>`;
+  document.body.appendChild(ov);
+  const rowsOf = () => { const q = st.q.trim().toLowerCase(); return st.src.rows().filter(r => (!q || (r.t + ' ' + r.o + ' ' + r.sub).toLowerCase().includes(q)) && (!st.mine || isMineName(r.o))); };
+  const drawRows = () => { const l = rowsOf(); $('#mmPr', ov).innerHTML = l.map(r => `<label class="row"><input type="checkbox" data-r="${esc(r.id)}" ${st.sel.has(r.id) ? 'checked' : ''}><b>${esc(r.t.split('\n')[0].slice(0, 80))}</b><span>${esc(r.sub)}</span><i>${esc(r.o.replace(/\s+/g, ' ').slice(0, 30))}</i></label>`).join('') || '<div class="mm-empty">불러올 행이 없습니다</div>';
+    $('#mmPn', ov).textContent = `${l.length}행 · 고른 것 ${st.sel.size}`; };
+  const setSrc = async i => { st.src = srcs[i]; st.sel = new Set(); if (st.src.load) { $('#mmPr', ov).innerHTML = '<div class="mm-empty">불러오는 중…</div>'; await st.src.load(); }
+    const c = st.src.cols, long = st.src.k === 'sched' ? ['item', 'disc', 'F.PO', 'F.SITE'] : c.map(x => x[0]).filter((f, j) => j < 2 || f === st.src.title || f === st.src.owner || /현황|이슈|내용|일정|기한|현안/.test(f)).slice(0, 6);
+    st.cols = new Set([st.src.title, ...long]); $('#mmPc', ov).innerHTML = c.map(([f, l]) => `<label><input type="checkbox" data-c="${esc(f)}" ${st.cols.has(f) ? 'checked' : ''} ${f === st.src.title ? 'disabled' : ''}> ${esc(l)}</label>`).join(''); drawRows(); };
+  ov.addEventListener('change', e => { const t = e.target;
+    if (t.id === 'mmPs') return setSrc(+t.value); if (t.id === 'mmPm') { st.mine = t.checked; return drawRows(); }
+    if (t.id === 'mmPall') { rowsOf().forEach(r => t.checked ? st.sel.add(r.id) : st.sel.delete(r.id)); return drawRows(); }
+    if (t.dataset.r) { t.checked ? st.sel.add(t.dataset.r) : st.sel.delete(t.dataset.r); $('#mmPn', ov).textContent = `${rowsOf().length}행 · 고른 것 ${st.sel.size}`; }
+    if (t.dataset.c) { t.checked ? st.cols.add(t.dataset.c) : st.cols.delete(t.dataset.c); } });
+  ov.addEventListener('input', e => { if (e.target.id === 'mmPq') { st.q = e.target.value; drawRows(); } });
+  ov.addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return;
+    if (b.dataset.f) { st.fmt = b.dataset.f; ov.querySelectorAll('[data-f]').forEach(x => x.classList.toggle('on', x === b)); return; }
+    if (b.dataset.a === 'x') return ov.remove(); if (b.dataset.a !== 'ok') return;
+    const S = st.src, ids = S.rows().filter(r => st.sel.has(r.id)).map(r => r.id); if (!ids.length) return toast('불러올 행을 골라 주세요', true);
+    const cols = S.cols.filter(([f]) => st.cols.has(f)), now = new Date(), rest = cols.filter(([f]) => f !== S.title);
+    const tt = id => `<a class="mm-src" href="#${S.k === 'sched' ? 'co2sched' : S.k}" ${mmSrcAttr(S.k, id, S.title)}>${esc(String(mmSrcVal(S.k, id, S.title) || '(제목 없음)').split('\n')[0])}</a>`;
+    let h = `<div class="mm-from">📥 ${esc(S.label)} · ${todayISO()} ${pad(now.getHours())}:${pad(now.getMinutes())} 기준</div>`;
+    if (st.fmt === 'table') h += `<table><tbody><tr>${cols.map(([, l]) => `<th>${esc(l)}</th>`).join('')}</tr>${ids.map(id => `<tr>${cols.map(([f]) => f === S.title ? `<td>${tt(id)}</td>` : `<td ${mmSrcAttr(S.k, id, f)}>${mmSrcHtml(mmSrcVal(S.k, id, f) ?? '')}</td>`).join('')}</tr>`).join('')}</tbody></table>`;
+    else h += ids.map(id => { const body = rest.map(([f, l]) => { const v = mmSrcVal(S.k, id, f); return v ? `<span style="color:#667089">${esc(l)}</span> <span ${mmSrcAttr(S.k, id, f)}>${mmSrcHtml(v)}</span>` : ''; }).filter(Boolean).join('<br>');
+      return st.fmt === 'todo' ? `<div class="mm-chk" data-done="0">${tt(id)}${body ? '<br>' + body : ''}</div>` : `<div class="mm-item">• ${tt(id)}${body ? '<br>' + body : ''}</div>`; }).join('');
+    ov.remove(); ed.focus(); if (keepR) { const g = getSelection(); g.removeAllRanges(); g.addRange(keepR); } mmInsert(h + '<div><br></div>'); toast(`${ids.length}행을 메모에 넣었습니다`); });
+  setSrc(0);
+}
+async function mmPullRefresh() {
+  const ed = mmEd(); if (!ed || MM.cur?.lock) return; const cells = [...ed.querySelectorAll('[data-src]')]; if (!cells.length) return toast('이 메모에는 다른 메뉴에서 불러온 값이 없습니다');
+  if (cells.some(c => c.dataset.src.startsWith('sched|')) && can('runpjt')) await schLoad(true);
+  let ch = 0, gone = 0;
+  for (const c of cells) { const [k, id, ...fr] = c.dataset.src.split('|'), f = fr.join('|'), v = mmSrcVal(k, id, f);
+    if (v === null) { gone++; c.style.color = '#b0b6c8'; c.title = '원래 행이 없어졌습니다'; continue; }
+    const nh = c.classList.contains('mm-src') ? esc(String(v || '(제목 없음)').split('\n')[0]) : mmSrcHtml(v);
+    if (c.innerHTML !== nh) { c.innerHTML = nh; c.style.backgroundColor = '#fff7c2'; ch++; } else if (c.style.backgroundColor) c.style.backgroundColor = ''; }
+  ed.querySelectorAll('.mm-from').forEach(x => { const n = new Date(); x.textContent = x.textContent.replace(/· [\d-]+ [\d:]+ 기준.*$/, `· ${todayISO()} ${pad(n.getHours())}:${pad(n.getMinutes())} 기준`); });
+  mmTouch(); toast(`불러온 값 ${cells.length}칸 확인 — 바뀐 값 ${ch}칸${ch ? ' (노란 칸)' : ''}${gone ? ` · 원래 행이 없어진 것 ${gone}칸` : ''}`);
+}
 /* ---------- 이벤트 (메모장 화면 안) ---------- */
 document.addEventListener('click', async e => {
   const w = e.target.closest('#memoWrap'); if (!w) return; const t = e.target, D = s => t.closest(`[${s}]`);
@@ -6179,8 +6250,9 @@ document.addEventListener('click', async e => {
     if (k === 'pin') { mmPull(); pg.pin = !pg.pin; MM.dirty = true; await mmSave(); mmDrawSide(); return mmDrawMain(); }
     if (k === 'lock') { mmPull(); pg.lock = !pg.lock; MM.dirty = true; await mmSave(); return mmDrawMain(); }
     if (k === 'ver') return mmVers();
-    if (k === 'more') return mmPop(b, `<button data-v="dup"><span>⧉</span>복제</button><button data-v="html"><span>⬇</span>파일로 내보내기 (.html)</button><button data-v="txt"><span>⬇</span>글자만 내보내기 (.txt)</button><button data-v="print"><span>🖨</span>인쇄 · PDF 로 저장</button><button data-v="sticky"><span>🗒</span>스티커로 붙이기</button><button data-v="del"><span>🗑</span>지우기 (휴지통으로)</button>`, async v => {
+    if (k === 'more') return mmPop(b, `<button data-v="refresh"><span>🔄</span>불러온 값 새로 고침</button><button data-v="dup"><span>⧉</span>복제</button><button data-v="html"><span>⬇</span>파일로 내보내기 (.html)</button><button data-v="txt"><span>⬇</span>글자만 내보내기 (.txt)</button><button data-v="print"><span>🖨</span>인쇄 · PDF 로 저장</button><button data-v="sticky"><span>🗒</span>스티커로 붙이기</button><button data-v="del"><span>🗑</span>지우기 (휴지통으로)</button>`, async v => {
       if (v === 'html' || v === 'txt' || v === 'print') return mmExport(v);
+      if (v === 'refresh') return mmPullRefresh();
       await mmFlush();
       if (v === 'dup') { const c = { ...JSON.parse(JSON.stringify(pg)), id:mmId(), title:(pg.title || '메모') + ' (사본)', pin:false }; delete c.updatedAt; delete c.createdAt; await mmSave(c); MM.cur = null; mmDraw(); return mmOpen(c.id); }
       if (v === 'sticky') { mmStickyNew('', (pg.title ? pg.title + '\n' : '') + (pg.text || '').slice(0, 600)); return; }
@@ -6188,6 +6260,7 @@ document.addEventListener('click', async e => {
   const ed = t.closest('#mmEd'); if (!ed) return;
   ed.querySelectorAll('img.sel').forEach(x => x.classList.remove('sel'));
   const f = t.closest('.mm-file'); if (f) { e.preventDefault(); return mmFileOpen(f); }
+  const sr = t.closest('.mm-src[data-src]'); if (sr) { e.preventDefault(); const [k, id, ...fr] = sr.dataset.src.split('|'); await mmFlush(); return k === 'sched' ? go('co2sched') : SHEET[k] ? jumpTo(k, id, fr.join('|')) : 0; }
   const a = t.closest('a[href]'); if (a) { e.preventDefault(); if (e.ctrlKey || MM.cur?.lock || confirm('링크를 열까요?\n' + a.href)) window.open(a.href, '_blank', 'noopener'); return; }
   if (t.tagName === 'IMG') { t.classList.add('sel'); if (MM.cur?.lock) return;
     return mmPop(t, `<button data-v="ink"><span>🖍</span>그림에 표시하기 (펜 · 형광펜 · 화살표 · 글자)</button><button data-v="25"><span>↔</span>크기 25%</button><button data-v="50"><span>↔</span>크기 50%</button><button data-v="100"><span>↔</span>크기 원래대로</button><button data-v="save"><span>⬇</span>그림 내려받기</button><button data-v="del"><span>🗑</span>그림 지우기</button>`, v => {
