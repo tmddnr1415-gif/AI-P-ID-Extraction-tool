@@ -580,6 +580,19 @@
    },
    "replaces": "4_DASHBOARD_update_v17.73_from_v17.47_2026-11-19.zip",
    "note": "v17.74 — 내 메모장 글머리 단계 (화면만 · v17.72 위면 서버 재시작 불필요)"
+  },
+  {
+   "file": "①",
+   "name": "6_DASHBOARD_update_v17.76_from_v17.47_2026-11-19.zip",
+   "made": "2026-11-19 11:20",
+   "path": "company-pc-update/2026-11-19/ (3.4MB · 저장소에 있음)",
+   "sha256": "c606b2b199ca1d4730ba1f096fe4ed3d5f8c14ae60b403a09c507ccd1bb85e31",
+   "applied": "",
+   "tips": {
+    "S1": "340b4cd8"
+   },
+   "replaces": "5_DASHBOARD_update_v17.74_from_v17.47_2026-11-19.zip",
+   "note": "v17.76 — 내 메모장 확대 · 펜 · PDF 보기 (pdf.js 3.11.174 동봉 · 공식판과 동일 확인)"
   }
  ]
 }
