@@ -2412,7 +2412,7 @@ function recLabel(key, f) {
  * ===================================================================== */
 let root = null;
 /* 서버 모드: http(s):// 로 접속하면 server.py 의 REST API 사용 (폴더 선택 불필요). file:// 로 열면 폴더 모드 */
-const APP_VERSION = '2026-11-19.31';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
+const APP_VERSION = '2026-11-19.32';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
 const SERVER_URL = 'http://localhost:8080';
 // 부서원 PC 사본(file://)이 접속을 시도할 서버 — 서버가 배포 파일을 만들 때 'PC 이름 주소, IP 주소' 순으로 자동 기록함
 const DEFAULT_SERVERS = ['http://ASEUNGWOOK-B01:8080', 'http://65.3.30.234:8080'];
@@ -6774,7 +6774,7 @@ function inkBarClick(e, bar, redraw) {   // 펜 줄 공통 처리 → true 면 �
 function mmInkSync() {   // 편집 줄 아래 펜 줄 · 그리기 층 상태
   const host = $('#mmInkHost'), svg = $('#mmInk'), pg = MM.cur; if (!host || !svg || !pg) return;
   host.innerHTML = PEN.on ? inkBarHtml('<span class="sp"></span><span class="muted" style="font-size:11.5px">그리는 동안에는 글자를 누를 수 없습니다 · <b>Esc = 펜 끄기</b></span><button data-pa="done" class="on">✓ 그리기 끝</button>') : '';
-  svg.classList.toggle('on', PEN.on); svg.classList.toggle('er', PEN.on && PEN.tool === 'erase'); $('#mmTb [data-mc="ink"]')?.classList.toggle('on', PEN.on);
+  svg.classList.toggle('on', PEN.on); svg.classList.toggle('er', PEN.on && PEN.tool === 'erase'); { const ib = $('#mmTb [data-mc="ink"]'); if (ib) { ib.classList.toggle('on', PEN.on); ib.textContent = PEN.on ? '🖊 펜 끄기' : '🖊 펜 쓰기'; } }   // 그리기 탭은 누르면 바로 펜이 켜지므로, 켜진 동안은 단추 이름을 '끄기' 로
   inkBind(svg, { strokes:() => MM.cur?.ink || [], set:l => { if (!MM.cur) return; MM.lastKind = 'ink'; MM.cur.ink = l; mmHistPush(true); mmPaperFit(); MM.dirty = true; mmStat('입력 중…'); clearTimeout(MM.timer); MM.timer = setTimeout(() => mmSave(), 1200); }, unit:() => 1 / mmZoom(), can:() => !MM.cur?.lock });
   inkDraw(svg, pg.ink);
 }

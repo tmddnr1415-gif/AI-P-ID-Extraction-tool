@@ -2364,3 +2364,8 @@ C:\Users\SAMSUNG\Desktop\Claude\                         ← 개발 폴더 (여�
   6. **🖌 서식 복사**: 커서 둔 글의 굵게 · 기울임 · 밑줄 · 취소선 · 글자색 · 형광색 · 크기를 따서, 끌어 고른 글에 입힘 (제목 줄에서 딸 때는 크기 빼고). Esc 취소.
 - 바뀐 곳: dashboard.html `MM_MK` · `mmMark` · `mmMarkPop` · `mmDrawMarks` · `mmTocSync` · `mmCount` · `mmFind` · `mmFindRun` · `mmFindRep` · `mmPaint` (새로), `mmMetaOf`(`pg.marks`), `mmMetaPut` · `mmlMeta`(marks), `mmCmd`, keydown(Alt+숫자 · Ctrl+F/H · Esc), `mmDraw`(view `marks`), `mmDrawSide`(nav), `mmOneNote`(목차 단추 · 건너뛰기). server.py `MEMO_META` 에 `marks` (목록에 태그 요약이 같이 오도록).
 - 확인한 것: 태그 4종 붙이기, 태그 모음 거르기 · 눌러서 그 줄로, 목차 3줄, 찾기 4곳 → 모두 바꾸기 → Ctrl+Z 로 4곳 되돌림, 서식 복사(굵게 + 빨강), 오류 없음 / 회사에서 확인할 것: 회사 Edge · Chrome 에서 Alt+숫자가 다른 프로그램(한글 입력기 등)과 겹치지 않는지, 찾기 색 표시(아주 옛 브라우저면 색 없이 고르기만 됨).
+
+### 2026-11-19 (APP_VERSION 2026-11-19.32 / SERVER_VERSION 그대로) — v17.97 그리기 탭 펜 단추 이름
+- 무엇을: [그리기] 탭을 누르면 펜이 바로 켜지는데, 거기서 '🖊 펜 쓰기' 를 누르면 (켜고 끄는 단추라) 오히려 꺼져 헷갈림 — 켜진 동안은 단추 이름을 '🖊 펜 끄기' 로. 왜: 오케스트레이터 v17.96 확인 때 지적.
+- 바뀐 곳: dashboard.html `mmInkSync`
+- 확인한 것: 그리기 탭 → 켜짐('펜 끄기'), 단추 → 꺼짐('펜 쓰기'), 다시 → 켜짐 / 회사에서 확인할 것: 없음.
