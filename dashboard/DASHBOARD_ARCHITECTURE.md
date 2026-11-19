@@ -2317,3 +2317,10 @@ C:\Users\SAMSUNG\Desktop\Claude\                         ← 개발 폴더 (여�
     · 움직임 줄이기 설정(prefers-reduced-motion)이면 애니메이션 끔.
 - 바뀐 곳: dashboard.html `<style id="macTone">`(새) · 메뉴 빛 따라가기 IIFE(`menuLayoutApply` 앞) · 간략 메뉴에서 신호등 숨김
 - 확인한 것: 첫 화면 · 메모장 · 계정 메뉴 · 새 메모 메뉴 화면 그림, 콘솔 오류 없음. 회사에서 확인할 것: Edge 에서 유리 효과 · 움직임이 버벅이지 않는지(느리면 macTone 의 backdrop-filter 를 빼면 됨).
+
+### 2026-11-19 (APP_VERSION 2026-11-19.26 / SERVER_VERSION 그대로) — v17.91 내 메모장: 펜 쓰기 때 스크롤 막대 깜빡임 고침
+- 무엇을: 사용자 "펜쓰기 누르면 좌우 상하 조절 바가 깜빡깜빡거린다". 원인: 펜 줄이 생기며 메모 칸 높이가 바뀜 → 종이 크기를 다시 맞춤 → 그 때문에 스크롤 막대가 생겼다 없어졌다 하며 칸 안쪽 크기(clientWidth · Height)가 15px 씩 바뀜 → 크기 감시(ResizeObserver)가 또 다시 맞춤 … 되풀이(Windows 의 자리 차지하는 스크롤 막대에서).
+  - 스크롤 막대 자리를 늘 두고(`overflow:scroll` · `scrollbar-gutter:stable`) 계산도 '막대가 있다고 보고' 바깥 크기 − 막대 두께(`mmSbw`, 이 PC 에서 잼)로 → 막대가 생기고 없어져도 계산 값이 그대로. 크기 감시는 바깥 크기(border-box)로, 같은 크기 · 배율이면 다시 맞추지 않음(`MM.zkey`), 종이 크기는 1px 넘게 다를 때만 바꿈.
+  - 대신 메모 칸에는 스크롤 막대가 늘 보임(깜빡이지 않음).
+- 바뀐 곳: dashboard.html `mmZoomFit` · `mmSbw`(새) · `mmPaperFit` · `mmZoomSet` · CSS `.mm-edw`
+- 확인한 것(Windows 처럼 15px 스크롤 막대를 켠 Chromium · 창 1600 / 1366 / 1920 · 배율 0.9~1.5): 고치기 전 = 펜 쓰기를 누르면 칸 안쪽 너비가 482 ↔ 497 로 바뀌고 종이 크기를 2번 다시 맞춤 → 고친 뒤 = 너비 그대로(482), 다시 맞춤 1번(펜 줄 높이만큼), 콘솔 오류 없음.

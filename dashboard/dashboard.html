@@ -1949,7 +1949,7 @@ body.schbigon{overflow:hidden}@keyframes schBigIn{from{transform:scale(.97);opac
 .mm-tb button{border:0;background:none;min-width:30px;height:30px;border-radius:7px;cursor:pointer;font-size:13px;color:var(--text);padding:0 6px}
 .mm-tb button:hover{background:#dfe4f5}.mm-tb button.on{background:var(--accent-l);color:var(--accent-d)}.mm-tb .sep{width:1px;height:20px;background:var(--line);margin:0 4px}
 .mm-tb .tbl{display:flex;gap:2px;opacity:.35}.mm-tb.intbl .tbl{opacity:1}   /* 표 밖에서는 흐리게만 — 숨기면 줄 수가 바뀌어 본문이 위아래로 튐 */
-.mm-edw{flex:1;overflow:auto;position:relative;min-height:0;display:flex}.mm-zw{position:relative;flex:none;width:100%;min-width:min-content;min-height:100%;display:flex;flex-direction:column}.mm-ed{overflow-wrap:anywhere}
+.mm-edw{flex:1;overflow:scroll;scrollbar-gutter:stable;position:relative;min-height:0;display:flex}.mm-zw{position:relative;flex:none;width:100%;min-width:min-content;min-height:100%;display:flex;flex-direction:column}.mm-ed{overflow-wrap:anywhere}
 .mm-ed{flex:1;padding:16px 26px 60px;font-size:14.5px;line-height:1.7;outline:0;color:var(--text)}
 .mm-ed:empty::before{content:'여기에 적으세요 —  /  를 치면 블록 메뉴 ·  # 제목 ·  - 목록 ·  [] 할 일 ·  > 인용  ·  그림은 붙여넣기(Ctrl+V)';color:#a8b0c4}
 .mm-ed h1{font-size:24px;margin:.7em 0 .3em}.mm-ed h2{font-size:19px;margin:.7em 0 .3em}.mm-ed h3{font-size:16px;margin:.6em 0 .2em}
@@ -2365,7 +2365,7 @@ function recLabel(key, f) {
  * ===================================================================== */
 let root = null;
 /* 서버 모드: http(s):// 로 접속하면 server.py 의 REST API 사용 (폴더 선택 불필요). file:// 로 열면 폴더 모드 */
-const APP_VERSION = '2026-11-19.25';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
+const APP_VERSION = '2026-11-19.26';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
 const SERVER_URL = 'http://localhost:8080';
 // 부서원 PC 사본(file://)이 접속을 시도할 서버 — 서버가 배포 파일을 만들 때 'PC 이름 주소, IP 주소' 순으로 자동 기록함
 const DEFAULT_SERVERS = ['http://ASEUNGWOOK-B01:8080', 'http://65.3.30.234:8080'];
@@ -6729,27 +6729,31 @@ function mmInkSync() {   // 편집 줄 아래 펜 줄 · 그리기 층 상태
 const mmZoom = () => MM.zoom || (MM.zoom = (() => { try { return +localStorage.getItem('dept-memo-zoom') || 1; } catch (_) { return 1; } })());
 function mmZoomSet(z, quiet) {
   z = Math.max(.4, Math.min(3, Math.round(z * 100) / 100)); MM.zoom = z; try { localStorage.setItem('dept-memo-zoom', String(z)); } catch (_) {}
-  const zw = $('#mmZw'); if (zw) { zw.style.zoom = z; $('#mmEdw')?.style.setProperty('--z', z); mmZoomFit(); }
+  const zw = $('#mmZw'); if (zw) { zw.style.zoom = z; $('#mmEdw')?.style.setProperty('--z', z); MM.zkey = ''; mmZoomFit(); }
   const zl = $('#mmZl'); if (zl) zl.textContent = Math.round(z * 100) + '%'; if (!quiet) zoomBadge($('#mmMain'), z * 100);
 }
 /* 2026-11-19 v17.77 회사 사진: 확대하면 배경(모눈 · 어두운 종이)이 일부만 덮임 → 확대 · 축소해도 종이가 늘 메모 칸 전체를 덮게.
    브라우저(판)마다 zoom 안에서 % 너비를 다르게 계산해서, px 로 넣고 실제 그려진 크기를 재서 맞춤. 칸 크기가 바뀔 때도 다시 맞춤 */
 function mmZoomFit() {
-  const zw = $('#mmZw'), ew = $('#mmEdw'); if (!zw || !ew) return; const z = mmZoom(), cw = ew.clientWidth, ch = ew.clientHeight; if (!cw) return;
+  // 2026-11-19 v17.91 회사 사진: 펜 쓰기를 누르면 스크롤 막대가 깜빡깜빡 — 스크롤 막대가 생기고 없어질 때마다 칸 크기(clientWidth)가 바뀌어 다시 맞추고 → 막대가 또 바뀌는 되풀이.
+  // → 막대 자리는 늘 있다고 보고(offset 크기 − 막대 두께) 계산, 막대 자리는 CSS 로 항상 비워 둠(scrollbar-gutter), 크기 감시는 바깥 크기(border-box)로 · 같은 크기면 다시 맞추지 않음
+  const zw = $('#mmZw'), ew = $('#mmEdw'); if (!zw || !ew) return; const z = mmZoom(), SB = mmSbw(), cw = Math.floor(ew.offsetWidth - SB), ch = Math.floor(ew.offsetHeight - SB); if (cw <= 0) return;
+  const key = cw + 'x' + ch + '@' + z; if (MM.zkey === key && zw.style.width) { mmPaperFit(); return; } MM.zkey = key;
   // 2026-11-19 v17.80: 확대(>100%)하면 글 줄바꿈은 100% 때 그대로 두고 종이가 커짐 → 좌우로도 이동(가로 스크롤 · Shift+휠 · 휠 단추 끌기). 축소(<100%)는 종이가 칸을 채움
   const lw = Math.max(cw, cw / z), want = lw * z; zw.style.width = lw + 'px'; zw.style.minHeight = (ch / z) + 'px';
   const r = zw.getBoundingClientRect(); if (r.width > 0 && Math.abs(r.width - want) > 1.5) zw.style.width = (lw * want / r.width) + 'px';
   const zh = parseFloat(zw.style.minHeight), r2 = zw.getBoundingClientRect(); if (r2.height > 0 && r2.height < ch - 1.5) zw.style.minHeight = (zh * ch / r2.height) + 'px';
   MM.zb = { lw, lh:ch / z, wk:parseFloat(zw.style.width) / lw, hk:parseFloat(zw.style.minHeight) / (ch / z) }; mmPaperFit();
-  if (!ew._ro && window.ResizeObserver) { ew._ro = new ResizeObserver(() => { clearTimeout(ew._rt); ew._rt = setTimeout(mmZoomFit, 60); }); ew._ro.observe(ew); }
+  if (!ew._ro && window.ResizeObserver) { ew._ro = new ResizeObserver(() => { clearTimeout(ew._rt); ew._rt = setTimeout(mmZoomFit, 80); }); ew._ro.observe(ew, { box:'border-box' }); }
 }
 /* 2026-11-19 v17.88 종이(배경)가 떠 있는 그림 · 글 상자 · 메모지 · 펜 획이 있는 곳까지 늘 이어지게 — 좌우 · 위아래로 휠을 굴려도 배경이 끊기지 않음 */
+const mmSbw = () => mmSbw.v ?? (mmSbw.v = (() => { const d = document.createElement('div'); d.style.cssText = 'position:absolute;top:-999px;width:100px;height:100px;overflow:scroll'; document.body.appendChild(d); const w = d.offsetWidth - d.clientWidth; d.remove(); return w; })());   // 이 PC 의 스크롤 막대 두께
 function mmPaperFit() {
   const zw = $('#mmZw'), B = MM.zb, pg = MM.cur; if (!zw || !B || !pg) return; let R = 0, Bt = 0;
   zw.querySelectorAll('#mmNotes .mm-fn').forEach(el => { R = Math.max(R, el.offsetLeft + el.offsetWidth); Bt = Math.max(Bt, el.offsetTop + el.offsetHeight); });
   for (const st of pg.ink || []) { const p = st.p || []; for (let i = 0; i < p.length; i += 2) { if (p[i] > R) R = p[i]; if (p[i + 1] > Bt) Bt = p[i + 1]; } }
   const w = Math.max(B.lw, R ? R + 80 : 0), h = Math.max(B.lh, Bt ? Bt + 160 : 0);
-  zw.style.width = (w * B.wk) + 'px'; zw.style.minHeight = (h * B.hk) + 'px';
+  const nw = Math.floor(w * B.wk), nh = Math.floor(h * B.hk); if (Math.abs((parseFloat(zw.style.width) || 0) - nw) > 1) zw.style.width = nw + 'px'; if (Math.abs((parseFloat(zw.style.minHeight) || 0) - nh) > 1) zw.style.minHeight = nh + 'px';
 }
 /* ----- PDF 를 메모장 안에서 보기 (pdf.js) + 그 위에 펜 ----- */
 let MM_PDFLIB = null;
