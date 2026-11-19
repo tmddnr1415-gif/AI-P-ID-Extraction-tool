@@ -13,6 +13,7 @@ nlp.js 는 dashboard/dashboard.html 안의 해석기를 그대로 읽어 씀. da
   node gen_mail.js 3000 3                합성 메일 3000통 (녹스 · 아웃룩 한/영 · Gmail · 머리글 없음, 회신 사슬 · 서명). NOISE=2 를 앞에 붙이면 오류 흉내
   node run_assist.js                     비서 명령 — 새로 쓴 자연스러운 말 53개
   node run_look.js                       불러오기 창 — 말로 모양 바꾸기 20문장
+  node run_tags.js                       계기 태그 · 표준 번호 찾기 (메일 · 메모)
   node gen_assist.js 4000 5              비서 명령 4000개 (할 일 · 질문 · 완료 · 스티커 · 메모 · 찾기 · 열기 · 불러오기 · 대시보드 질문은 넘김)
   ocr_e2e.js (+ mailtest.html)           화면 캡처 → 한국어+영어 글자 읽기 → 정리 끝단 시험 (Playwright 필요).
                                          대시보드 서버를 임시 폴더에서 띄우고 mailtest.html 을 그 서버의 apps\translate\ 에 복사한 뒤
