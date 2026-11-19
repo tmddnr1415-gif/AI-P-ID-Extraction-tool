@@ -7162,6 +7162,94 @@
      ]
     }
    }
+  },
+  {
+   "at": "2026-11-19 22:41",
+   "read_at": "2026-11-13T07:12:00Z",
+   "s": {
+    "S1": {
+     "branch": "origin/ccr-248a5c4d-3dji7g",
+     "tip": "f1c54a73",
+     "ver": "v18.02 · 회사엔 v17.82",
+     "bucket": "COMPLETED",
+     "needs": "",
+     "recent": "v18.02 f1c54a73 — 말풍선 주석 · 글 상자 본문처럼 · 끌 때 휠. 11-19 ㉑ 로 회사 업데이트 (회사 v17.82 기준)",
+     "pending": []
+    },
+    "S2": {
+     "branch": "origin/claude/gracious-ride-26nqrf",
+     "tip": "18e37e78",
+     "ver": "hotfix145 만듦 (통합)",
+     "bucket": "COMPLETED",
+     "needs": "11-19 지시: pid.md 정리 · /teach 캐시 · LOGIC 화면 iframe 자가점검 → 끝나면 보고",
+     "recent": "18e37e78 — 도면 그림 줄서기 분리 · Rev 전환 시 보던 자리. hotfix145 로 회사 업데이트에 실림",
+     "pending": []
+    },
+    "S3": {
+     "branch": "origin/ccr-cc45909d-fjjmrb",
+     "tip": "4e9cfd24",
+     "ver": "L91",
+     "bucket": "COMPLETED",
+     "needs": "사용자: 3 세션 창에서 L92 진행 승인 필요 (지시는 받음 · python-docx 누락 확인됨)",
+     "recent": "L91 커밋 · 푸시 — 화면 시험 125 · 빠른 시험 1,655 통과. 통합 꾸러미에 병합 필요",
+     "pending": []
+    },
+    "S4": {
+     "branch": "origin/ccr-d82d97fa-bb3ty3",
+     "tip": "7b10d7cb",
+     "ver": "변경 이력 (55)",
+     "bucket": "BLOCKED",
+     "needs": "11-19 지시: 멈춘 질문 답(zip 은 오케스트레이터) · panel.md 인수인계 · DXF/phase 시험 · 3D HTML 크기 안내 → 끝나면 보고",
+     "recent": "",
+     "pending": []
+    },
+    "S5": {
+     "branch": "origin/claude/new-session-v23o67",
+     "tip": "3d46af2c",
+     "ver": "2026-11-07.1",
+     "bucket": "COMPLETED",
+     "needs": "11-19 지시: books.md 인수인계 · valve_kinds 다시 적용 금지 표시 · Claude 번역 회사판 기본 꺼짐 · 레벨/유량 nDCG → 끝나면 보고",
+     "recent": "valve37 (3d46af2c · dist/valve_kinds) — Globe · Butterfly · PSV 데이터시트 검토. S6 valve36 위 패치 + 대시보드 메뉴 패치. 다음 ② 통합본에 실어 달라는 요청",
+     "pending": []
+    },
+    "S6": {
+     "branch": "origin/ccr-efbe7e75-n915ze",
+     "tip": "91fba2a1",
+     "ver": "valve41",
+     "bucket": "COMPLETED",
+     "needs": "사용자: 새 VALVE 세션 열어 valve.md 읽고 2) List 대조 보강부터 (또는 이 세션에서 계속)",
+     "recent": "91fba2a1 — valve.md 14,994 → 8,422 B (지시 1 끝 · 문서만). 2)~5) 는 인수인계 \"다음에 할 일\" 에 적어 둠 · 새 VALVE 세션에서 이어 가기 권함",
+     "pending": [
+      "91fba2a1"
+     ]
+    },
+    "S7": {
+     "branch": "origin/claude/practical-newton-n6bt58",
+     "tip": "865f9297",
+     "ver": "865f9297",
+     "bucket": "COMPLETED",
+     "needs": "11-19 지시: 회사판 빌드(API 키 · LLM · Claude 도면 읽기 빼기) · LLM 없는 GA 치수 입력 · ic3d.md 인수인계 → 끝나면 보고",
+     "recent": "865f9297 — 좁은 폭에서도 3D 칸 · 휠 축소 한계. hotfix135 로 회사 업데이트에 처음 실림",
+     "pending": [
+      "865f9297",
+      "cb4f4972",
+      "af748c78",
+      "da8df461",
+      "c0dd7d0b",
+      "077cba5e",
+      "144e6604",
+      "8b0b1023",
+      "19d7aa3a",
+      "1fd96028",
+      "b99fb62a",
+      "ad3bbe35",
+      "05909503",
+      "963d2857",
+      "f408556e",
+      "64a829be"
+     ]
+    }
+   }
   }
  ],
  "changes": [
@@ -11070,6 +11158,48 @@
    "kind": "needs",
    "sig": "세션 기록",
    "text": "확인 필요 — 11-19 지시: 회사판 빌드(API 키 · LLM · Claude 도면 읽기 빼기) · LLM 없는 GA 치수 입력 · ic3d.md 인수인계 → 끝나면 보고"
+  },
+  {
+   "at": "2026-11-19 22:41",
+   "prev": "2026-11-19 22:38",
+   "sid": "S3",
+   "kind": "needs",
+   "sig": "세션 기록",
+   "text": "확인 필요 — 사용자: 3 세션 창에서 L92 진행 승인 필요 (지시는 받음 · python-docx 누락 확인됨)"
+  },
+  {
+   "at": "2026-11-19 22:41",
+   "prev": "2026-11-19 22:38",
+   "sid": "S6",
+   "kind": "commit",
+   "sig": "git",
+   "h": "91fba2a1",
+   "d": "2026-11-19",
+   "text": "docs: VALVE handoff rewritten as one current-state page (14,994 B → 8,422 B)"
+  },
+  {
+   "at": "2026-11-19 22:41",
+   "prev": "2026-11-19 22:38",
+   "sid": "S6",
+   "kind": "needs",
+   "sig": "세션 기록",
+   "text": "확인 필요 — 사용자: 새 VALVE 세션 열어 valve.md 읽고 2) List 대조 보강부터 (또는 이 세션에서 계속)"
+  },
+  {
+   "at": "2026-11-19 22:41",
+   "prev": "2026-11-19 22:38",
+   "sid": "S6",
+   "kind": "report",
+   "sig": "세션 기록",
+   "text": "세션 보고 — 91fba2a1 — valve.md 14,994 → 8,422 B (지시 1 끝 · 문서만). 2)~5) 는 인수인계 \"다음에 할 일\" 에 적어 둠 · 새 VALVE 세션에서 이어 가기 권함"
+  },
+  {
+   "at": "2026-11-19 22:41",
+   "prev": "2026-11-19 22:38",
+   "sid": "S6",
+   "kind": "pending",
+   "sig": "계산",
+   "text": "다음 업데이트 대기 0 → 1건"
   }
  ]
 }
