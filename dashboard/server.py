@@ -36,7 +36,7 @@ ID_RE = re.compile(r'^[A-Za-z0-9_\-]{1,80}$')
 WEEK_RE = re.compile(r'^\d{4}-W\d{2}$')
 MAX_BODY = 30 * 1024 * 1024
 
-SERVER_VERSION = '2026-11-19.9'
+SERVER_VERSION = '2026-11-19.10'
 ROOT = os.path.dirname(os.path.abspath(__file__))
 PORT = 8080
 ALLOW_NETS = []          # 사내망: 루프백·사설망 + 서버 IP 대역(/16, 유선·Wi-Fi 등 지금까지 쓴 대역 모두 기억) + --allow 로 추가한 대역
@@ -2181,7 +2181,7 @@ MEMO_PAGE_MAX = 12 * 1024 * 1024
 MEMO_QUOTA = 500 * 1024 * 1024
 MEMO_VER_KEEP = 20
 MEMO_VER_GAP = 600
-MEMO_META = ('id', 'kind', 'sec', 'title', 'icon', 'color', 'tags', 'pin', 'lock', 'deleted', 'float', 'x', 'y', 'w', 'h', 'fx', 'fy', 'text', 'todos', 'marks', 'links', 'files', 'date', 'lh', 'ord', 'share', 'img', 'createdAt', 'updatedAt')
+MEMO_META = ('id', 'kind', 'sec', 'title', 'icon', 'color', 'tags', 'pin', 'lock', 'deleted', 'float', 'x', 'y', 'w', 'h', 'fx', 'fy', 'text', 'todos', 'marks', 'links', 'parent', 'ver', 'cov', 'files', 'date', 'lh', 'ord', 'share', 'img', 'createdAt', 'updatedAt')
 MEMO_FILE_TYPES = {'.pdf': 'application/pdf', '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.gif': 'image/gif', '.webp': 'image/webp',
                    '.txt': 'text/plain; charset=utf-8', '.csv': 'text/csv; charset=utf-8', '.md': 'text/plain; charset=utf-8'}
 

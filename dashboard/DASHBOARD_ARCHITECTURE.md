@@ -2422,3 +2422,15 @@ C:\Users\SAMSUNG\Desktop\Claude\                         ← 개발 폴더 (여�
   - 고친 것: 이미 할 일인 줄에서 '[] ' 를 치면 글자로 남던 것 → 지움.
 - 바뀐 곳: dashboard.html `MM_ST` · `MM_PRI` · `mmChkSt` · `mmChip` · `mmChips` · `mmChkTail` · `mmTaskForm` · `mmTaskPop` · `mmPageGet` · `mmTodoSet` · `mmTaskRows` · `mmTaskNew` · `mmTaskAdd` (새로), `mmDrawTodo`(새로 씀) · `mmTodoToggle`(→ `mmTodoSet`), `mmMetaOf`(todos 에 s · due · pri · who), `mmClean`(data-st · data-due · data-pri · data-who 허용), 체크 상자 누르기, `mmBlockMenu`(할 일 속성), `mmMd`, CSS `.mm-chk[data-chip]` · `.mm-kb` · `.mm-tc` · `.mm-tt` · `.mm-stb` 등. (마감 지남 표시는 `mm-late` — `mm-ov` 는 기존 전체 화면 덮개 이름이라 쓰면 안 됨)
 - 확인한 것: 속성 4가지 고르기 → 조각 '◐ 진행 중 · 🔴 높음 · ⚠ 11/18 · 👤 김철수', 보드 끌기(할 일 → 완료) → 메모 체크 상자도 완료, 보드에서 새 할 일 → 할 일 수신함, 표 정렬 · 마감 지남 필터, 목록 진행률, 다시 열어도 속성 유지, 오류 없음 / 회사에서 확인할 것: 할 일이 많을 때 보드 속도.
+
+### 2026-11-19 (APP_VERSION 2026-11-19.40 / SERVER_VERSION 2026-11-19.10) — v18.05 Notion 지식 관리(위키) · Notion 모양 화면
+- 무엇을: 사용자 지시 — 요즘IT 노션 글 · Notion '지식 관리 시스템' 템플릿을 "이 기능 다 구현 · 참조해서 개선 · UI 도 노션처럼". (이 작업 환경에서 yozm.wishket.com · notion.com 이 열리지 않아, Notion 위키 · 지식 관리의 대표 기능과 Notion 화면 모양을 기준으로 만듦.)
+  1. **하위 페이지**: 삽입 탭 '📄 하위 페이지' · /페이지 → 이 메모 안에 링크 한 줄 + 새 메모(`pg.parent`)가 열림. 위치 표시가 '📁 섹션 › 부모 › … › 지금' 으로 이어지고 눌러서 위로 감. 메모 이름을 바꾸면 그 메모를 가리키는 링크 글자도 다음에 열 때 바뀜(지운 메모는 흐리게 · 줄 그음).
+  2. **📑 페이지 트리**(왼쪽 메뉴): 섹션별로 메모 → 하위 페이지를 ▸ 로 펼치는 Notion 사이드바식 목록, ＋ = 그 안에 하위 페이지, 모두 펼치기 · 접기(이 PC 에 기억).
+  3. **📚 위키 (지식 관리)**(왼쪽 메뉴): 메모를 커버 · 아이콘 카드로 보는 갤러리. 섹션 = 분류 거르기, ✓ 확인됨 · ⚠ 확인 필요 거르기, 문서 찾기, 문서 · 확인됨 · 확인 필요 수, 카드에 섹션 · 태그 · 하위 수 · 할 일 진행 · '며칠 전 고침'.
+  4. **✓ 문서 확인**(Notion 위키의 '확인됨'): 제목 위에 마우스 → '✓ 문서 확인' → 1주 · 1달 · 3달 · 기한 없이. 제목 아래 '✓ 확인됨 · 이름 · ~날짜', 기한이 지나면 '⚠ 다시 확인 필요'.
+  5. **🔍 빠른 찾기 Ctrl+P**(Notion 처럼): 제목 · 내용으로 찾기(제목 앞부분 > 제목 > 내용 순), 위치(섹션 › 부모) · 내용 일부 보임, 빈 칸이면 최근 본 메모 7개 + 바로 가기. ↑↓ · Enter · Esc. (Ctrl+K 는 대시보드 전체 찾기 그대로)
+  6. **⌨ 단축키 모음 Ctrl+/** · 보기 탭 단추. 7. **Aa 작은 글씨**(보기 탭, 메모마다 `pg.small`).
+  8. **Notion 모양 화면**(`<style id="notionTone">`, 밝은 화면만): 세 칸을 한 장으로 잇고 그림자 · 테두리 줄임, 사이드바 따뜻한 회색(#f7f7f5) · 납작한 항목(회색 hover), 메모 목록 납작한 줄, Notion 글꼴 · 글자색(#37352f), 제목 32px 굵게, 탭 · 도구 줄 흰 바탕, 메뉴(팝업) Notion 그림자, 얇은 스크롤 막대. 다크 모드는 예전 그대로.
+- 바뀐 곳: dashboard.html `mmAnc` · `mmSubPage` · `mmLinkTitles` · `mmRecent` · `mmVerSt` · `mmVerDraw` · `mmDrawTree` · `mmTreeSave` · `mmDrawWiki` · `mmQF` · `mmKeys` (새로), `mmDrawSide`(빠른 찾기 · 위키 · 페이지 트리), `mmDraw`, `mmOneNote`(위치 표시 조상 · 확인 · 작은 글씨), `mmCoverDraw`(확인 단추), `mmCmd`(page), `MM_SLASH`, `mmMetaOf`(cov), 메타 목록(parent · ver · cov), keydown(Ctrl+P · Ctrl+/ — 메모장 화면에서만), CSS `notionTone`. server.py `MEMO_META` 에 parent · ver · cov.
+- 확인한 것: 하위 → 하위의 하위 만들기 · 위치 표시 3단, 확인 1달 → '✓ 확인됨 · 김철수 · ~12/19', 부모의 링크 글자 'Cv 계산식' 으로 바뀜, 트리 3단 펼치기, 위키 확인됨 거르기, Ctrl+P → 'Cv 계산' → Enter 로 열림, Ctrl+/ 창, 작은 글씨 13px, 오류 없음 / 회사에서 확인할 것: 메모가 많을 때 위키 · 트리 속도, Ctrl+P 가 브라우저 인쇄 대신 빠른 찾기로 열리는지(메모장 화면에서만).
