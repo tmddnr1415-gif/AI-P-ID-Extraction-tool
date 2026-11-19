@@ -2038,15 +2038,18 @@ html.dark #mmAlarm{filter:invert(1) hue-rotate(180deg)}
 #mmBh{position:absolute;display:none;width:16px;height:20px;line-height:20px;text-align:center;font-size:12px;color:#8b95b5;cursor:grab;border-radius:5px;user-select:none;touch-action:none;z-index:3}#mmBh:hover{background:var(--accent-l);color:var(--accent-d)}
 #mmBl{position:absolute;display:none;left:10px;right:10px;height:3px;background:var(--accent);border-radius:2px;pointer-events:none;z-index:3}.mm-ed .mm-moving{opacity:.4}
 @media print{#mmBh,#mmBl{display:none!important}}
-.mm-fn.im{resize:horizontal;overflow:hidden;min-width:40px;border:1px dashed transparent;border-radius:6px}.mm-fn.im:hover{border-color:#8b95b5}.mm-fn.im img{width:100%;display:block;cursor:grab;user-select:none;border-radius:5px}.mm-fn.im.moving{opacity:.75;box-shadow:0 10px 26px rgba(20,30,70,.35)}
+.mm-fn.im{overflow:hidden;min-width:40px;border:1px dashed transparent;border-radius:6px}.mm-fn.im:hover{border-color:#8b95b5}.mm-fn.im img{width:100%;display:block;cursor:grab;user-select:none;border-radius:5px}.mm-fn.im.moving{opacity:.75;box-shadow:0 10px 26px rgba(20,30,70,.35)}
 .mm-fn.im .fh{position:absolute;left:2px;top:2px;background:var(--card);border:1px solid var(--line);border-radius:6px;opacity:0;z-index:1}.mm-fn.im:hover .fh{opacity:1}.mm-fn.im .fh .grip{flex:none;padding:0 5px}
 .mm-ro{background:#dff8f3;border:1px solid #9be0d3;border-radius:8px;padding:4px 10px;color:#0b5c50;font-size:12.5px}.mm-lost{background:#fff7e0;border:1px solid #f1dc8a;border-radius:10px;padding:8px;font-size:12px;line-height:1.7;margin-top:8px}
 /* 글 상자 · 메모지 안의 글머리 단계 (본문과 같은 규칙) */
 .mm-fn .fb :is(ul,ol){padding-left:1.8em;margin:0}.mm-fn .fb li::marker{font-weight:600}.mm-fn .fb ul>li::marker{font-size:.72em}.mm-fn .fb ol{list-style-type:mm-n1}.mm-fn .fb ul{list-style-type:'●  '}.mm-fn .fb :is(ul,ol) ol{list-style-type:mm-n2}.mm-fn .fb :is(ul,ol) ul{list-style-type:'○  '}.mm-fn .fb :is(ul,ol) :is(ul,ol) ol{list-style-type:mm-n3}.mm-fn .fb :is(ul,ol) :is(ul,ol) ul{list-style-type:'■  '}.mm-fn .fb :is(ul,ol) :is(ul,ol) :is(ul,ol) ol{list-style-type:mm-n4}.mm-fn .fb :is(ul,ol) :is(ul,ol) :is(ul,ol) ul{list-style-type:'□  '}.mm-fn .fb :is(ul,ol) :is(ul,ol) :is(ul,ol) :is(ul,ol) ol{list-style-type:mm-n5}.mm-fn .fb :is(ul,ol) :is(ul,ol) :is(ul,ol) :is(ul,ol) ul{list-style-type:'◆  '}.mm-fn .fb :is(ul,ol) :is(ul,ol) :is(ul,ol) :is(ul,ol) :is(ul,ol) ol{list-style-type:mm-n6}.mm-fn .fb :is(ul,ol) :is(ul,ol) :is(ul,ol) :is(ul,ol) :is(ul,ol) ul{list-style-type:'◇  '}.mm-fn .fb :is(ul,ol) :is(ul,ol) :is(ul,ol) :is(ul,ol) :is(ul,ol) :is(ul,ol) ol{list-style-type:mm-n7}.mm-fn .fb :is(ul,ol) :is(ul,ol) :is(ul,ol) :is(ul,ol) :is(ul,ol) :is(ul,ol) ul{list-style-type:'–  '}.mm-fn .fb :is(ul,ol) :is(ul,ol) :is(ul,ol) :is(ul,ol) :is(ul,ol) :is(ul,ol) :is(ul,ol) ol{list-style-type:mm-n1}.mm-fn .fb :is(ul,ol) :is(ul,ol) :is(ul,ol) :is(ul,ol) :is(ul,ol) :is(ul,ol) :is(ul,ol) ul{list-style-type:'●  '}
+.mm-fn .mm-rz{position:absolute;right:-1px;bottom:-1px;width:16px;height:16px;cursor:nwse-resize;z-index:2;opacity:0;touch-action:none;background:linear-gradient(135deg,transparent 0 50%,#6b7591 50% 58%,transparent 58% 68%,#6b7591 68% 76%,transparent 76% 86%,#6b7591 86% 94%,transparent 94%);border-radius:0 0 5px 0}
+.mm-fn:hover .mm-rz,.mm-fn:focus-within .mm-rz,.mm-fn.sizing .mm-rz{opacity:.9}.mm-fn.sizing{outline:2px solid var(--accent);outline-offset:1px}.mm-fn.tb .fb{overflow:auto}
+@media print{.mm-fn .mm-rz{display:none}}
 .mm-notes{position:absolute;inset:0;pointer-events:none;overflow:visible}.mm-zw.placing,.mm-zw.placing .mm-ed{cursor:copy!important}
 .mm-fn{position:absolute;pointer-events:auto;display:flex;flex-direction:column;min-width:80px;min-height:34px;font-size:13.5px;line-height:1.5;color:#2a2f45}
-.mm-fn.st{border-radius:3px 3px 12px 3px;box-shadow:0 5px 14px rgba(30,40,80,.22);resize:both;overflow:hidden}
-.mm-fn.tb{resize:horizontal;overflow:visible;border:1px dashed transparent;border-radius:6px;color:inherit}.mm-fn.tb:hover,.mm-fn.tb:focus-within{border-color:#8b95b5;background:rgba(255,255,255,.35)}
+.mm-fn.st{border-radius:3px 3px 12px 3px;box-shadow:0 5px 14px rgba(30,40,80,.22);overflow:hidden}
+.mm-fn.tb{overflow:visible;border:1px dashed transparent;border-radius:6px;color:inherit}.mm-fn.tb:hover,.mm-fn.tb:focus-within{border-color:#8b95b5;background:rgba(255,255,255,.35)}
 .mm-fn .fh{display:flex;align-items:center;gap:3px;height:20px;padding:0 4px;flex:none}.mm-fn.st .fh{background:rgba(0,0,0,.07)}.mm-fn.tb .fh{position:absolute;left:-1px;top:-21px;background:var(--card);border:1px solid var(--line);border-radius:6px;opacity:0;transition:opacity .15s}.mm-fn.tb:hover .fh,.mm-fn.tb:focus-within .fh{opacity:1}
 .mm-fn .grip{cursor:grab;font-size:12px;color:rgba(0,0,0,.5);flex:1;user-select:none;touch-action:none}.mm-fn.tb .grip{flex:none;padding:0 6px}.mm-fn .fh button{border:1px solid rgba(0,0,0,.2);width:12px;height:12px;border-radius:50%;padding:0;cursor:pointer}
 .mm-fn .fh [data-fx]{border:0;background:none;width:auto;height:auto;font-size:11px;color:rgba(0,0,0,.55)}
@@ -2283,7 +2286,7 @@ function recLabel(key, f) {
  * ===================================================================== */
 let root = null;
 /* 서버 모드: http(s):// 로 접속하면 server.py 의 REST API 사용 (폴더 선택 불필요). file:// 로 열면 폴더 모드 */
-const APP_VERSION = '2026-11-19.19';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
+const APP_VERSION = '2026-11-19.20';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
 const SERVER_URL = 'http://localhost:8080';
 // 부서원 PC 사본(file://)이 접속을 시도할 서버 — 서버가 배포 파일을 만들 때 'PC 이름 주소, IP 주소' 순으로 자동 기록함
 const DEFAULT_SERVERS = ['http://ASEUNGWOOK-B01:8080', 'http://65.3.30.234:8080'];
@@ -6710,16 +6713,23 @@ async function mmPdfView(fid, name, blob) {
 const MM_NC = ['#fff2a8', '#ffd6e0', '#d3f3d8', '#d5e8ff', '#eadcff', '#ffe2c4'];
 function mmNoteTouch() { if (!MM.cur) return; MM.dirty = true; MM.lastKind = 'text'; mmStat('입력 중…'); clearTimeout(MM.timer); MM.timer = setTimeout(() => mmSave(), 1200); }
 function mmNoteHtml(n) {
-  if (n.k === 'img') return /^data:image\/(png|jpeg|gif|webp);base64,[A-Za-z0-9+/=]+$/.test(n.src || '') ? `<div class="mm-fn im" data-fn="${esc(n.id)}" style="left:${+n.x || 0}px;top:${+n.y || 0}px;width:${+n.w || 200}px"><div class="fh"><span class="grip" title="끌어서 옮기기 (그림을 바로 끌어도 됨)">⠿</span><button data-fin title="본문 안(글 줄)으로 다시 넣기">↩</button><button data-fx title="지우기">✕</button></div><img src="${n.src}" draggable="false"></div>` : '';
+  if (n.k === 'img') return /^data:image\/(png|jpeg|gif|webp);base64,[A-Za-z0-9+/=]+$/.test(n.src || '') ? `<div class="mm-fn im" data-fn="${esc(n.id)}" style="left:${+n.x || 0}px;top:${+n.y || 0}px;width:${+n.w || 200}px"><div class="fh"><span class="grip" title="끌어서 옮기기 (그림을 바로 끌어도 됨)">⠿</span><button data-fin title="본문 안(글 줄)으로 다시 넣기">↩</button><button data-fx title="지우기">✕</button></div><img src="${n.src}" draggable="false"><i class="mm-rz" title="끌어서 크기 조절"></i></div>` : '';
   const st = n.k === 'tbox';
   return `<div class="mm-fn ${st ? 'tb' : 'st'}" data-fn="${esc(n.id)}" style="left:${+n.x || 0}px;top:${+n.y || 0}px;width:${+n.w || (st ? 240 : 140)}px;${n.h ? `height:${+n.h}px;` : ''}${st ? '' : `background:${mmCol(n.c, MM_NC[0])}`}">
-    <div class="fh"><span class="grip" title="끌어서 옮기기">⠿</span>${st ? '' : MM_NC.map(c => `<button data-fc="${c}" style="background:${c}" title="색"></button>`).join('')}<button data-fx title="지우기">✕</button></div><div class="fb" contenteditable="${MM.cur?.lock ? 'false' : 'true'}" spellcheck="false">${n.html ? mmClean(n.html) : esc(n.text || '')}</div></div>`;
+    <div class="fh"><span class="grip" title="끌어서 옮기기">⠿</span>${st ? '' : MM_NC.map(c => `<button data-fc="${c}" style="background:${c}" title="색"></button>`).join('')}<button data-fx title="지우기">✕</button></div><div class="fb" contenteditable="${MM.cur?.lock ? 'false' : 'true'}" spellcheck="false">${n.html ? mmClean(n.html) : esc(n.text || '')}</div><i class="mm-rz" title="끌어서 크기 조절"></i></div>`;
 }
 function mmNotesDraw() {
   const h = $('#mmNotes'), pg = MM.cur; if (!h || !pg) return; h.innerHTML = (pg.notes || []).map(mmNoteHtml).join('');
   if (h._b) return; h._b = 1; let drag = null; const N = id => (MM.cur?.notes || []).find(n => n.id === id);
   h.addEventListener('input', e => { const el = e.target.closest('.mm-fn'), n = el && N(el.dataset.fn); if (!n) return; const fb = e.target.closest('.fb') || e.target; n.text = fb.innerText.replace(/\n$/, '').slice(0, 4000); n.html = fb.querySelector('ol,ul,b,i,u,span,font,div') ? mmClean(fb.innerHTML).slice(0, 40000) : ''; mmNoteTouch(); });
   h.addEventListener('paste', e => { if (!e.target.closest('.fb')) return; e.preventDefault(); e.stopPropagation(); document.execCommand('insertText', false, (e.clipboardData.getData('text/plain') || '').slice(0, 4000)); }, true);
+  let rs = null;   // 2026-11-19 v17.85 오른쪽 아래 모서리(◢)를 끌어 크기 조절 — 글 상자 · 메모지 · 그림 모두
+  h.addEventListener('pointerdown', e => { const z = e.target.closest('.mm-rz'), el = z && z.closest('.mm-fn'); if (!el || MM.cur?.lock || e.button) return; e.preventDefault(); e.stopPropagation(); z.setPointerCapture(e.pointerId);
+    rs = { el, sx:e.clientX, sy:e.clientY, w:el.offsetWidth, h:el.offsetHeight, im:el.classList.contains('im'), ar:el.classList.contains('im') ? el.offsetHeight / Math.max(1, el.offsetWidth) : 0 }; el.classList.add('sizing'); }, true);
+  h.addEventListener('pointermove', e => { if (!rs) return; const zm = mmZoom(), w = Math.max(rs.im ? 40 : 80, rs.w + (e.clientX - rs.sx) / zm); rs.el.style.width = Math.round(w) + 'px';
+    if (!rs.im) rs.el.style.height = Math.round(Math.max(34, rs.h + (e.clientY - rs.sy) / zm)) + 'px'; });
+  const rsUp = () => { if (!rs) return; const n = N(rs.el.dataset.fn); rs.el.classList.remove('sizing'); if (n) { n.w = rs.el.offsetWidth; if (!rs.im) n.h = rs.el.offsetHeight; mmNoteTouch(); } rs = null; MM.noClick = Date.now(); };
+  h.addEventListener('pointerup', rsUp); h.addEventListener('pointercancel', rsUp);
   h.addEventListener('pointerdown', e => { const g = e.target.closest('.grip, .mm-fn.im > img'), el = e.target.closest('.mm-fn'); if (!g || !el || MM.cur?.lock || e.button) return; e.preventDefault(); g.setPointerCapture(e.pointerId); drag = { el, sx:e.clientX, sy:e.clientY, x:parseFloat(el.style.left), y:parseFloat(el.style.top) }; });
   h.addEventListener('pointermove', e => { if (!drag) return; const z = mmZoom(); drag.el.style.left = Math.max(0, drag.x + (e.clientX - drag.sx) / z) + 'px'; drag.el.style.top = Math.max(0, drag.y + (e.clientY - drag.sy) / z) + 'px'; });
   const up = () => { if (!drag) return; const n = N(drag.el.dataset.fn); if (n) { n.x = Math.round(parseFloat(drag.el.style.left)); n.y = Math.round(parseFloat(drag.el.style.top)); mmNoteTouch(); } drag = null; };
