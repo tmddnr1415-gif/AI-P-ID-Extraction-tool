@@ -2111,6 +2111,9 @@ body.mm-noanno #mmNotes > :not(.tb),body.mm-noanno #mmInk,body.mm-noanno #mmInkH
 #mmEdw.pp.dk.bg-green{background-color:#0f2318;--ln:rgba(120,220,150,.16);background-image:linear-gradient(rgba(120,220,150,.32) 1px,transparent 1px),linear-gradient(90deg,rgba(120,220,150,.32) 1px,transparent 1px),linear-gradient(var(--ln) 1px,transparent 1px),linear-gradient(90deg,var(--ln) 1px,transparent 1px)}
 #mmEdw.pp.dk.bg-blue{background-color:#0b2447}
 #mmEdw.pp:is(.bg-lined,.bg-wide){background-position:0 calc(16px*var(--z) + var(--phH,0px))}#mmEdw.pp:is(.bg-legal,.bg-cornell){background-position:0 0,0 calc(16px*var(--z) + var(--phH,0px))}
+/* 2026-11-19 v18.14 왼쪽 메뉴 · 섹션 끌어 옮기기 */
+#mmSide .mm-nav.mm-drag{opacity:.6;outline:2px dashed var(--accent);outline-offset:-2px;background:var(--accent-l)!important}body.mm-sorting,body.mm-sorting *{cursor:grabbing!important;user-select:none}
+#mmSide .mm-navrst{display:block;border:0;background:none;color:#9b9a97;font-size:11px;cursor:pointer;padding:2px 9px;margin:2px 0 4px}#mmSide .mm-navrst:hover{color:var(--accent-d)}#memoWrap.s-mini #mmSide .mm-navrst{display:none}
 /* 2026-11-19 v18.11 계기 태그 풀이 · 메일 태그 · 용어 풀이 */
 .mm-tagtip{position:fixed;z-index:9800;max-width:380px;background:var(--card);color:var(--text);border:1px solid var(--line);border-radius:10px;box-shadow:0 8px 24px rgba(15,15,15,.18);padding:10px 12px;font-size:12.5px;line-height:1.55;animation:mmBubIn .12s ease-out}
 .mm-tagtip .ft{margin-top:6px;border-top:1px solid var(--line);padding-top:6px}.mm-tagtip button{border:0;background:none;color:#2383e2;cursor:pointer;font-size:12px;padding:0}
@@ -2587,7 +2590,7 @@ function recLabel(key, f) {
  * ===================================================================== */
 let root = null;
 /* 서버 모드: http(s):// 로 접속하면 server.py 의 REST API 사용 (폴더 선택 불필요). file:// 로 열면 폴더 모드 */
-const APP_VERSION = '2026-11-19.48';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
+const APP_VERSION = '2026-11-19.49';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
 const SERVER_URL = 'http://localhost:8080';
 // 부서원 PC 사본(file://)이 접속을 시도할 서버 — 서버가 배포 파일을 만들 때 'PC 이름 주소, IP 주소' 순으로 자동 기록함
 const DEFAULT_SERVERS = ['http://ASEUNGWOOK-B01:8080', 'http://65.3.30.234:8080'];
@@ -6182,8 +6185,8 @@ async function mmLoad(force) {
   if (!mmOn()) return false;
   if (MM.uid !== mmWho().id) Object.assign(MM, { uid:mmWho().id, ready:false, pages:[], book:{ secs:[] }, cur:null, dirty:false, view:'all', sec:'', tag:'', q:'', err:'' });
   if (MM.ready && !force) return true;
-  const local = () => { MM.book = { secs:MML.book?.secs || [] }; MM.pages = Object.values(MML.pages).map(mmlMeta); MM.pages.forEach(p => { if (p.kind === 'sticky') Object.assign(p, MML.pages[p.id]); }); MM.offline = true; MM.ready = true; MM.err = ''; };
-  if (!MM.loading) MM.loading = mmlLoad(mmWho().id).then(() => !mmNet() ? local() : api('GET', 'memo').then(async d => { MM.book = { secs:d.book?.secs || [] }; MM.pages = d.pages || []; MM.used = d.used || 0; MM.quota = d.quota || 0; MM.offline = false; MM.ready = true; MM.err = '';
+  const local = () => { MM.book = { secs:MML.book?.secs || [], nav:MML.book?.nav || null }; MM.pages = Object.values(MML.pages).map(mmlMeta); MM.pages.forEach(p => { if (p.kind === 'sticky') Object.assign(p, MML.pages[p.id]); }); MM.offline = true; MM.ready = true; MM.err = ''; };
+  if (!MM.loading) MM.loading = mmlLoad(mmWho().id).then(() => !mmNet() ? local() : api('GET', 'memo').then(async d => { MM.book = { secs:d.book?.secs || [], nav:d.book?.nav || MML.book?.nav || null }; MM.pages = d.pages || []; MM.used = d.used || 0; MM.quota = d.quota || 0; MM.offline = false; MM.ready = true; MM.err = '';
       MML.book = MM.book; mmlPut(); await mmlSyncUp(); mmSharedLoad().then(() => { if (route === 'memo' && $('#mmSide')) mmDrawSide(); }); setTimeout(mmPurge, 1500); })
     .catch(e => { if (e.offline && Object.keys(MML.pages).length) local(); else MM.err = e.message; })).finally(() => { MM.loading = null; });
   await MM.loading; return MM.ready;
@@ -6279,7 +6282,7 @@ function mmRefresh() {   // 저장 뒤 목록 · 왼쪽 숫자 새로 그리기 
 }
 addEventListener('pointerdown', () => { MM.down = true; }, true); addEventListener('pointerup', () => { MM.down = false; }, true); addEventListener('pointercancel', () => { MM.down = false; }, true);
 async function mmFlush() { if (MM.cur && MM.dirty) await mmSave(); }
-async function mmBook() { MML.book = { secs:mmSecs() }; mmlPut(); try { await api('PUT', 'memo/book', { secs:mmSecs() }); } catch (e) { toast('섹션 저장 실패: ' + e.message, true); } }
+async function mmBook() { MML.book = { secs:mmSecs(), nav:MM.book.nav || null }; mmlPut(); try { await api('PUT', 'memo/book', { secs:mmSecs(), nav:MM.book.nav || [] }); } catch (e) { toast('섹션 · 메뉴 순서 저장 실패: ' + e.message, true); } }
 /* ---------- 화면 ---------- */
 function renderMemo(c) {
   if (!mmOn()) { c.insertAdjacentHTML('beforeend', `<div class="card welcome"><h2>📝 내 메모장</h2><p>부서원 한 사람 한 사람의 <b>개인 메모장</b>입니다. 로그인하면 내 메모만 보입니다 (다른 부서원 · 운영자 화면에는 보이지 않습니다).</p><p class="muted">${SERVER ? '왼쪽 위 계정 칸에서 로그인하세요.' : '서버에 접속해 로그인한 뒤 쓸 수 있습니다.'}</p></div>`); return; }
@@ -6308,18 +6311,40 @@ function mmDraw() {
   mmDrawList(); mmDrawMain();
   if (MM.openId) { const id = MM.openId; MM.openId = ''; if (MM.pages.some(p => p.id === id && !p.deleted)) mmOpen(id); }
 }
+/* v18.14 왼쪽 메뉴 · 섹션 순서를 마우스로 끌어 옮김 (서버 책에 저장 → 다른 PC 에서도 같은 순서, 이 PC 에도 보관) */
+const MM_NAV0 = ['qf', 'all', 'note', 'pin', 'mail', 'wiki', 'tree', 'date', 'todo', 'marks', 'shared', 'sticky'];
+const mmNavOrd = () => { const o = (MM.book?.nav?.length ? MM.book.nav : MM_UI.nav) || []; return [...o.filter(k => MM_NAV0.includes(k)), ...MM_NAV0.filter(k => !o.includes(k))]; };
+function mmNavHtml(nv, live, todo) {
+  const g = (v, ...a) => nv(v, ...a).replace('<button class="mm-nav ', `<button data-nk="${v}" class="mm-nav mm-nvg `).replace(/title="([^"]*)"/, (q, t) => `title="${t} · 끌어서 순서 바꾸기"`);
+  const N = { qf:'<button class="mm-nav mm-qfb mm-nvg" data-nk="qf" data-mqf title="메모 빠른 찾기 (Ctrl+P) · 끌어서 순서 바꾸기"><span class="ic">🔍</span><span class="lb">빠른 찾기</span><i>Ctrl+P</i></button>',
+    all:g('all', '🗂', '모든 메모', live.length + mmStk().length), note:g('note', '📝', '메모', live.length), pin:g('pin', '⭐', '즐겨찾기', live.filter(p => p.pin).length), mail:g('mail', '📧', '메일함', live.filter(p => p.mail).length), wiki:g('wiki', '📚', '위키 (지식 관리)', live.length), tree:g('tree', '📑', '페이지 트리', ''),
+    date:g('date', '📅', '날짜별', ''), todo:g('todo', '☑', '할 일 모음', todo), marks:g('marks', '🏷', '태그 모음', live.reduce((a, p) => a + (p.marks || []).length, 0)), shared:g('shared', '👥', '공유받은 메모', (MM.shared || []).length), sticky:g('sticky', '🗒', '스티커 보드', MM.pages.filter(p => p.kind === 'sticky' && !p.deleted).length) };
+  const o = mmNavOrd(); return o.map(k => N[k]).join('') + (o.join() !== MM_NAV0.join() ? '<button class="mm-navrst" data-mnavrst title="왼쪽 메뉴 순서를 처음대로">↺ 메뉴 순서 처음대로</button>' : '');
+}
+function mmSideSort(el) {   // 마우스로 누르고 6px 넘게 움직이면 끌기 — 같은 묶음(메뉴 · 섹션) 안에서만, 놓으면 저장
+  if (el._sort) return; el._sort = true;
+  el.addEventListener('pointerdown', e => { if (e.button !== 0 || e.pointerType === 'touch' || e.target.closest('.more')) return; const it = e.target.closest('.mm-nvg, .mm-secg'); if (!it) return; const grp = it.classList.contains('mm-nvg') ? '.mm-nvg' : '.mm-secg', x0 = e.clientX, y0 = e.clientY; let on = false;
+    const move = ev => { if (!on) { if (Math.abs(ev.clientY - y0) < 6 && Math.abs(ev.clientX - x0) < 6) return; on = true; it.classList.add('mm-drag'); document.body.classList.add('mm-sorting'); }
+      ev.preventDefault(); const t = [...el.querySelectorAll(grp)].find(x => { if (x === it) return false; const r = x.getBoundingClientRect(); return ev.clientY >= r.top && ev.clientY <= r.bottom; }); if (!t) return; const r = t.getBoundingClientRect(); if (ev.clientY < r.top + r.height / 2) { if (t.previousElementSibling !== it) t.before(it); } else if (t.nextElementSibling !== it) t.after(it); };
+    const up = () => { removeEventListener('pointermove', move); removeEventListener('pointerup', up); removeEventListener('pointercancel', up); if (!on) return; it.classList.remove('mm-drag'); document.body.classList.remove('mm-sorting');
+      const stop = c => { c.stopPropagation(); c.preventDefault(); }; addEventListener('click', stop, { capture:true, once:true }); setTimeout(() => removeEventListener('click', stop, true), 0);
+      if (grp === '.mm-nvg') { const k = [...el.querySelectorAll('.mm-nvg')].map(x => x.dataset.nk); MM.book.nav = k; MM_UI.nav = k; mmUi(); }
+      else { const ids = [...el.querySelectorAll('.mm-secg')].map(x => x.dataset.ms), all = mmSecs(); MM.book.secs = [...ids.map(id => all.find(s => s.id === id)).filter(Boolean), ...all.filter(s => !ids.includes(s.id))]; }
+      mmBook(); mmDrawSide(); toast(grp === '.mm-nvg' ? '메뉴 순서를 바꿨습니다 (다른 PC 에서도 같은 순서)' : '섹션 순서를 바꿨습니다'); };
+    addEventListener('pointermove', move); addEventListener('pointerup', up); addEventListener('pointercancel', up); });
+}
+document.addEventListener('click', e => { if (!e.target.closest?.('[data-mnavrst]')) return; MM.book.nav = []; MM_UI.nav = null; mmUi(); mmBook(); mmDrawSide(); toast('메뉴 순서를 처음대로 돌렸습니다'); });
 function mmDrawSide() {
-  const el = $('#mmSide'); if (!el) return; const live = mmLive(), tags = {};
+  const el = $('#mmSide'); if (!el || document.body.classList.contains('mm-sorting')) return; mmSideSort(el); const live = mmLive(), tags = {};
   live.forEach(p => (p.tags || []).forEach(t => { tags[t] = (tags[t] || 0) + 1; }));
   const nv = (v, ic, l, n) => `<button class="mm-nav ${MM.view === v && !MM.sec ? 'on' : ''}" data-mv="${v}" title="${l}${n !== '' ? ' ' + n : ''}"><span class="ic">${ic}</span><span class="lb">${l}</span><i>${n}</i></button>`;
   const todo = live.reduce((a, p) => a + (p.todos || []).filter(t => !t.d).length, 0);
   const mini = MM_UI.side === 'mini';
   el.innerHTML = `<div class="mm-pt"><button data-mui="side|${mini ? 'full' : 'mini'}" title="${mini ? '펼치기' : '아이콘만 보이게 간략히'}">${mini ? '⇥' : '⇤ 간략'}</button><button data-mui="side|hide" title="이 칸 숨기기 (왼쪽 가장자리 ▶ 로 다시 보이기)">◀<span class="lb"> 숨기기</span></button></div>
     <button class="btn pri" id="mmNew" style="width:100%" title="새 메모">＋<span class="lb"> 새 메모</span></button>
-    <button class="mm-nav mm-qfb" data-mqf title="메모 빠른 찾기 (Ctrl+P)"><span class="ic">🔍</span><span class="lb">빠른 찾기</span><i>Ctrl+P</i></button>
-    ${nv('all', '🗂', '모든 메모', live.length + mmStk().length)}${nv('note', '📝', '메모', live.length)}${nv('pin', '⭐', '즐겨찾기', live.filter(p => p.pin).length)}${nv('mail', '📧', '메일함', live.filter(p => p.mail).length)}${nv('wiki', '📚', '위키 (지식 관리)', live.length)}${nv('tree', '📑', '페이지 트리', '')}${nv('date', '📅', '날짜별', '')}${nv('todo', '☑', '할 일 모음', todo)}${nv('marks', '🏷', '태그 모음', live.reduce((a, p) => a + (p.marks || []).length, 0))}${nv('shared', '👥', '공유받은 메모', (MM.shared || []).length)}${nv('sticky', '🗒', '스티커 보드', MM.pages.filter(p => p.kind === 'sticky' && !p.deleted).length)}
+    ${mmNavHtml(nv, live, todo)}
     <h3>섹션<button id="mmSecAdd" title="섹션 추가">＋ 추가</button></h3>
-    ${mmSecs().map(s => `<button class="mm-nav ${MM.sec === s.id ? 'on' : ''}" data-ms="${esc(s.id)}" style="--sc:${mmCol(s.color, '#94a3b8')}"><span class="dot" style="background:${mmCol(s.color, '#94a3b8')}" title="${esc(s.name)}"></span><span class="lb" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(s.name)}</span><i>${live.filter(p => p.sec === s.id).length}</i><span class="more" data-msm="${esc(s.id)}" title="이름 · 색 · 삭제">⋯</span></button>`).join('') || '<div class="muted lb" style="font-size:12px;padding:2px 6px">섹션으로 메모를 묶어 보세요 (예: 회의 · PJT · 개인)</div>'}
+    ${mmSecs().map(s => `<button class="mm-nav mm-secg ${MM.sec === s.id ? 'on' : ''}" data-ms="${esc(s.id)}" title="${esc(s.name)} · 끌어서 순서 바꾸기" style="--sc:${mmCol(s.color, '#94a3b8')}"><span class="dot" style="background:${mmCol(s.color, '#94a3b8')}" title="${esc(s.name)}"></span><span class="lb" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(s.name)}</span><i>${live.filter(p => p.sec === s.id).length}</i><span class="more" data-msm="${esc(s.id)}" title="이름 · 색 · 삭제">⋯</span></button>`).join('') || '<div class="muted lb" style="font-size:12px;padding:2px 6px">섹션으로 메모를 묶어 보세요 (예: 회의 · PJT · 개인)</div>'}
     ${Object.keys(tags).length ? `<h3>태그</h3><div class="mm-tags">${Object.entries(tags).sort((a, b) => b[1] - a[1]).slice(0, 30).map(([t, n]) => `<button class="mm-tag ${MM.tag === t ? 'on' : ''}" data-mt="${esc(t)}">#${esc(t)} ${n}</button>`).join('')}</div>` : ''}
     <button class="mm-addsec" id="mmSecAdd2" title="섹션 추가">＋ 섹션</button>
     <div style="margin-top:10px">${nv('trash', '🗑', '휴지통', MM.pages.filter(p => p.deleted).length)}</div>

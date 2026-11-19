@@ -36,7 +36,7 @@ ID_RE = re.compile(r'^[A-Za-z0-9_\-]{1,80}$')
 WEEK_RE = re.compile(r'^\d{4}-W\d{2}$')
 MAX_BODY = 30 * 1024 * 1024
 
-SERVER_VERSION = '2026-11-19.11'
+SERVER_VERSION = '2026-11-19.12'
 ROOT = os.path.dirname(os.path.abspath(__file__))
 PORT = 8080
 ALLOW_NETS = []          # 사내망: 루프백·사설망 + 서버 IP 대역(/16, 유선·Wi-Fi 등 지금까지 쓴 대역 모두 기억) + --allow 로 추가한 대역
@@ -2286,7 +2286,9 @@ def api_memo_book(acc, b):
     secs = b.get('secs')
     if not isinstance(secs, list) or len(secs) > 200:
         raise ApiError(400, '잘못된 섹션 목록')
+    nav = b.get('nav')                                            # 2026-11-19 v18.14 왼쪽 메뉴 순서
     book = {'secs': [{'id': str(x.get('id') or '')[:40], 'name': str(x.get('name') or '')[:60], 'color': str(x.get('color') or '')[:20]} for x in secs if isinstance(x, dict) and x.get('id')],
+            'nav': [str(x)[:16] for x in nav if isinstance(x, str)][:40] if isinstance(nav, list) else [],
             'updatedAt': stamp()}
     with LOCK:
         write_json(memo_dir(acc, 'book.json'), book)
