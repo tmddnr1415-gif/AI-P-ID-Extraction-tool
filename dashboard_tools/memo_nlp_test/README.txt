@@ -18,3 +18,13 @@ nlp.js 는 dashboard/dashboard.html 안의 해석기를 그대로 읽어 씀. da
   ocr_e2e.js (+ mailtest.html)           화면 캡처 → 한국어+영어 글자 읽기 → 정리 끝단 시험 (Playwright 필요).
                                          대시보드 서버를 임시 폴더에서 띄우고 mailtest.html 을 그 서버의 apps\translate\ 에 복사한 뒤
                                          BASE=http://127.0.0.1:포트 node ocr_e2e.js x2   (저장소의 apps\translate 에는 넣지 말 것)
+
+v18.12 (2026-11-19) 더함
+  ic_mail/run_ic.js [dev|test|all]      계측제어 메일 1000통 (해석기를 보지 않은 작성자가 만든 생성기 gen_ic.js — 한 448 · 영 403 · 섞음 149,
+                                         녹스 · 아웃룩 한/영 · Gmail · Lotus Notes · 머리글 없음 · 글자 인식 흉내). dev = 짝수(고칠 때 봄) · test = 홀수(한 번만 채점)
+                                         처음 만든 해석기 80.5% → 고친 뒤 test 94.7% (dev 95.3%)
+  assist_ml/run.js [blind3|holdout2]    비서 명령 (의도 + 날짜 · 시각 · 기간 · 옮기기). RULES=1 이면 규칙만, SHOW=1 이면 틀린 것
+                                         blind3 = 8명 말투 400문장 — 배우기 전 한 번 채점: v18.11 32.5% · 규칙만 55.0% · 규칙 + 분류기 88.8%
+                                         (지금은 blind3 도 배운 뒤라 그 숫자는 '처음 본 말' 점수가 아님)
+  assist_ml/train.js [--write]          의도 분류기 다시 배우기 → --write 면 dashboard.html 의 const MM_MLW 를 바꿈 (APP_VERSION 올리기)
+
