@@ -7076,6 +7076,92 @@
      ]
     }
    }
+  },
+  {
+   "at": "2026-11-19 22:38",
+   "read_at": "2026-11-13T07:12:00Z",
+   "s": {
+    "S1": {
+     "branch": "origin/ccr-248a5c4d-3dji7g",
+     "tip": "f1c54a73",
+     "ver": "v18.02 · 회사엔 v17.82",
+     "bucket": "COMPLETED",
+     "needs": "",
+     "recent": "v18.02 f1c54a73 — 말풍선 주석 · 글 상자 본문처럼 · 끌 때 휠. 11-19 ㉑ 로 회사 업데이트 (회사 v17.82 기준)",
+     "pending": []
+    },
+    "S2": {
+     "branch": "origin/claude/gracious-ride-26nqrf",
+     "tip": "18e37e78",
+     "ver": "hotfix145 만듦 (통합)",
+     "bucket": "COMPLETED",
+     "needs": "11-19 지시: pid.md 정리 · /teach 캐시 · LOGIC 화면 iframe 자가점검 → 끝나면 보고",
+     "recent": "18e37e78 — 도면 그림 줄서기 분리 · Rev 전환 시 보던 자리. hotfix145 로 회사 업데이트에 실림",
+     "pending": []
+    },
+    "S3": {
+     "branch": "origin/ccr-cc45909d-fjjmrb",
+     "tip": "4e9cfd24",
+     "ver": "L91",
+     "bucket": "COMPLETED",
+     "needs": "11-19 지시 L92: ★ python-docx 의존성 누락(Word 내보내기) · 연산 상자 글자 읽기(왕복 30/30) · 겹친 선 · 인수인계 규약 v2 → 끝나면 보고",
+     "recent": "L91 커밋 · 푸시 — 화면 시험 125 · 빠른 시험 1,655 통과. 통합 꾸러미에 병합 필요",
+     "pending": []
+    },
+    "S4": {
+     "branch": "origin/ccr-d82d97fa-bb3ty3",
+     "tip": "7b10d7cb",
+     "ver": "변경 이력 (55)",
+     "bucket": "BLOCKED",
+     "needs": "11-19 지시: 멈춘 질문 답(zip 은 오케스트레이터) · panel.md 인수인계 · DXF/phase 시험 · 3D HTML 크기 안내 → 끝나면 보고",
+     "recent": "",
+     "pending": []
+    },
+    "S5": {
+     "branch": "origin/claude/new-session-v23o67",
+     "tip": "3d46af2c",
+     "ver": "2026-11-07.1",
+     "bucket": "COMPLETED",
+     "needs": "11-19 지시: books.md 인수인계 · valve_kinds 다시 적용 금지 표시 · Claude 번역 회사판 기본 꺼짐 · 레벨/유량 nDCG → 끝나면 보고",
+     "recent": "valve37 (3d46af2c · dist/valve_kinds) — Globe · Butterfly · PSV 데이터시트 검토. S6 valve36 위 패치 + 대시보드 메뉴 패치. 다음 ② 통합본에 실어 달라는 요청",
+     "pending": []
+    },
+    "S6": {
+     "branch": "origin/ccr-efbe7e75-n915ze",
+     "tip": "ffe3c721",
+     "ver": "valve41",
+     "bucket": "COMPLETED",
+     "needs": "11-19 지시: ★ valve.md 12KB 아래 · List 대조 보강(비슷한 Tag · 단위 · IO Type · IO 대상 아님) · IN-ITM-03/04 · anatomy.js 재생성 · (여유) Valve 화면 instcalc → 끝나면 보고",
+     "recent": "ffe3c721 valve41 — South ISA 양식 · 읽지 못한 쪽 · INDEX 대조. hotfix144 로 회사 업데이트에 실림",
+     "pending": []
+    },
+    "S7": {
+     "branch": "origin/claude/practical-newton-n6bt58",
+     "tip": "865f9297",
+     "ver": "865f9297",
+     "bucket": "COMPLETED",
+     "needs": "11-19 지시: 회사판 빌드(API 키 · LLM · Claude 도면 읽기 빼기) · LLM 없는 GA 치수 입력 · ic3d.md 인수인계 → 끝나면 보고",
+     "recent": "865f9297 — 좁은 폭에서도 3D 칸 · 휠 축소 한계. hotfix135 로 회사 업데이트에 처음 실림",
+     "pending": [
+      "865f9297",
+      "cb4f4972",
+      "af748c78",
+      "da8df461",
+      "c0dd7d0b",
+      "077cba5e",
+      "144e6604",
+      "8b0b1023",
+      "19d7aa3a",
+      "1fd96028",
+      "b99fb62a",
+      "ad3bbe35",
+      "05909503",
+      "963d2857",
+      "f408556e",
+      "64a829be"
+     ]
+    }
+   }
   }
  ],
  "changes": [
@@ -10936,6 +11022,54 @@
    "kind": "report",
    "sig": "세션 기록",
    "text": "세션 보고 — v18.02 f1c54a73 — 말풍선 주석 · 글 상자 본문처럼 · 끌 때 휠. 11-19 ㉑ 로 회사 업데이트 (회사 v17.82 기준)"
+  },
+  {
+   "at": "2026-11-19 22:38",
+   "prev": "2026-11-19 12:29",
+   "sid": "S2",
+   "kind": "needs",
+   "sig": "세션 기록",
+   "text": "확인 필요 — 11-19 지시: pid.md 정리 · /teach 캐시 · LOGIC 화면 iframe 자가점검 → 끝나면 보고"
+  },
+  {
+   "at": "2026-11-19 22:38",
+   "prev": "2026-11-19 12:29",
+   "sid": "S3",
+   "kind": "needs",
+   "sig": "세션 기록",
+   "text": "확인 필요 — 11-19 지시 L92: ★ python-docx 의존성 누락(Word 내보내기) · 연산 상자 글자 읽기(왕복 30/30) · 겹친 선 · 인수인계 규약 v2 → 끝나면 보고"
+  },
+  {
+   "at": "2026-11-19 22:38",
+   "prev": "2026-11-19 12:29",
+   "sid": "S4",
+   "kind": "needs",
+   "sig": "세션 기록",
+   "text": "확인 필요 — 11-19 지시: 멈춘 질문 답(zip 은 오케스트레이터) · panel.md 인수인계 · DXF/phase 시험 · 3D HTML 크기 안내 → 끝나면 보고"
+  },
+  {
+   "at": "2026-11-19 22:38",
+   "prev": "2026-11-19 12:29",
+   "sid": "S5",
+   "kind": "needs",
+   "sig": "세션 기록",
+   "text": "확인 필요 — 11-19 지시: books.md 인수인계 · valve_kinds 다시 적용 금지 표시 · Claude 번역 회사판 기본 꺼짐 · 레벨/유량 nDCG → 끝나면 보고"
+  },
+  {
+   "at": "2026-11-19 22:38",
+   "prev": "2026-11-19 12:29",
+   "sid": "S6",
+   "kind": "needs",
+   "sig": "세션 기록",
+   "text": "확인 필요 — 11-19 지시: ★ valve.md 12KB 아래 · List 대조 보강(비슷한 Tag · 단위 · IO Type · IO 대상 아님) · IN-ITM-03/04 · anatomy.js 재생성 · (여유) Valve 화면 instcalc → 끝나면 보고"
+  },
+  {
+   "at": "2026-11-19 22:38",
+   "prev": "2026-11-19 12:29",
+   "sid": "S7",
+   "kind": "needs",
+   "sig": "세션 기록",
+   "text": "확인 필요 — 11-19 지시: 회사판 빌드(API 키 · LLM · Claude 도면 읽기 빼기) · LLM 없는 GA 치수 입력 · ic3d.md 인수인계 → 끝나면 보고"
   }
  ]
 }
