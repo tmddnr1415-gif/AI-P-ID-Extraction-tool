@@ -2029,7 +2029,20 @@ html.dark #mmAlarm{filter:invert(1) hue-rotate(180deg)}
 .mm-cal .cg button.sun{color:#dc2626}.mm-cal .cg button.sat{color:#2563eb}.mm-cal .cg button.on{color:#fff}.mm-cal .cg button em{position:absolute;left:0;right:0;bottom:1px;display:flex;gap:1.5px;justify-content:center}.mm-cal .cg button em i{width:4px;height:4px;border-radius:50%}
 .mm-cal .ce{border-top:1px solid var(--line);margin-top:6px;padding-top:6px;font-size:12px}.mm-cal .cei{display:flex;gap:5px;align-items:center;padding:2px 0;color:var(--text)}.mm-cal .cei[data-mcalgo]{cursor:pointer}.mm-cal .cei i{width:7px;height:7px;border-radius:50%;flex:none}.mm-cal .cei span{color:var(--sub);font-size:11px;white-space:nowrap}
 .mm-cols{display:flex;gap:18px;margin:.5em 0}.mm-col{flex:1;min-width:0;border:1px dashed #cfd6ea;border-radius:8px;padding:6px 10px;min-height:1.7em}
-.mm-ed.lh-s{line-height:1.4}.mm-ed.lh-l{line-height:2}.mm-ed.lh-l>div,.mm-ed.lh-l>p{margin-bottom:.35em}.mm-ed.lh-x{line-height:2.3}.mm-ed.lh-x>div,.mm-ed.lh-x>p{margin-bottom:.8em}
+.mm-ed{--lh:1.7;--ln:#c9d4ee;line-height:var(--lh);background-attachment:local}.mm-ed.lh-s{--lh:1.4}.mm-ed.lh-l{--lh:2}.mm-ed.lh-x{--lh:2.3}
+.mm-ed.bg-lined,.mm-ed.bg-wide,.mm-ed.bg-legal,.mm-ed.bg-cornell{background-image:linear-gradient(to bottom,transparent calc(100% - 1px),var(--ln) calc(100% - 1px));background-size:100% calc(var(--lh)*1em);background-origin:content-box;background-clip:border-box;background-attachment:local}
+.mm-ed.bg-wide{--lh:2.2}.mm-ed.bg-wide.lh-s{--lh:1.9}.mm-ed.bg-wide.lh-l{--lh:2.5}.mm-ed.bg-wide.lh-x{--lh:2.8}
+.mm-ed.bg-legal{background-color:#fff9c4;--ln:#9fc5e8;background-image:linear-gradient(to right,transparent 58px,#ef9a9a 58px,#ef9a9a 60px,transparent 60px),linear-gradient(to bottom,transparent calc(100% - 1px),var(--ln) calc(100% - 1px));background-size:100% 100%,100% calc(var(--lh)*1em);background-origin:border-box,content-box;padding-left:76px}
+.mm-ed.bg-cornell{background-image:linear-gradient(to right,transparent 150px,#ef9a9a 150px,#ef9a9a 152px,transparent 152px),linear-gradient(to bottom,transparent calc(100% - 1px),var(--ln) calc(100% - 1px));background-size:100% 100%,100% calc(var(--lh)*1em);background-origin:border-box,content-box}
+.mm-ed.bg-grid,.mm-ed.bg-bgrid,.mm-ed.bg-green,.mm-ed.bg-blue{background-image:linear-gradient(var(--ln) 1px,transparent 1px),linear-gradient(90deg,var(--ln) 1px,transparent 1px);background-size:20px 20px;background-attachment:local}
+.mm-ed.bg-grid{--ln:#dfe6f5}.mm-ed.bg-bgrid{--ln:#d5ddf0;background-size:40px 40px}
+.mm-ed.bg-green{--ln:#b9e3c3;background-color:#f6fff7;background-image:linear-gradient(#8fd09f 1px,transparent 1px),linear-gradient(90deg,#8fd09f 1px,transparent 1px),linear-gradient(var(--ln) 1px,transparent 1px),linear-gradient(90deg,var(--ln) 1px,transparent 1px);background-size:100px 100px,100px 100px,20px 20px,20px 20px}
+.mm-ed.bg-blue{--ln:rgba(255,255,255,.22);background-color:#1f4e8c;color:#f1f6ff}.mm-ed.bg-blue td,.mm-ed.bg-blue th{border-color:rgba(255,255,255,.6)}.mm-ed.bg-blue th{background:rgba(255,255,255,.14)}.mm-ed.bg-blue a{color:#aee0ff}.mm-ed.bg-blue blockquote{color:#d6e6ff}.mm-ed.bg-blue .mm-chk::before{background:transparent;border-color:#cfe2ff}
+.mm-ed.bg-dot{background-image:radial-gradient(circle,#b9c3df 1.2px,transparent 1.4px);background-size:20px 20px;background-attachment:local}
+.mm-ed.bg-cream{background-color:#fbf6e9}
+.mm-ed.bg-cornell{padding-left:170px}.mm-ed.bg-blue [style*="background-color"]{color:#1b2238}
+.mm-ed:is(.bg-lined,.bg-wide,.bg-legal,.bg-cornell)>:is(div,p){margin-top:0!important;margin-bottom:0!important}.mm-ed:is(.bg-lined,.bg-wide,.bg-legal,.bg-cornell) :is(h1,h2,h3){line-height:calc(var(--lh)*14.5px*2);margin:0;font-size:20px}.mm-ed:is(.bg-lined,.bg-wide,.bg-legal,.bg-cornell) h3{line-height:calc(var(--lh)*14.5px);font-size:15.5px}
+.mm-ed.lh-l>div,.mm-ed.lh-l>p{margin-bottom:.35em}.mm-ed.lh-x>div,.mm-ed.lh-x>p{margin-bottom:.8em}
 .mm-ed table.mm-teq{table-layout:fixed;width:100%}
 @media print{.mm-col{border:0}}
 .mm-from{font-size:11.5px;color:#7c86a2;margin:.6em 0 2px}.mm-ed a.mm-src{font-weight:700;text-decoration:none;border-bottom:1px dashed var(--accent)}.mm-item{margin:4px 0}
@@ -2212,7 +2225,7 @@ function recLabel(key, f) {
  * ===================================================================== */
 let root = null;
 /* 서버 모드: http(s):// 로 접속하면 server.py 의 REST API 사용 (폴더 선택 불필요). file:// 로 열면 폴더 모드 */
-const APP_VERSION = '2026-11-19.5';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
+const APP_VERSION = '2026-11-19.6';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
 const SERVER_URL = 'http://localhost:8080';
 // 부서원 PC 사본(file://)이 접속을 시도할 서버 — 서버가 배포 파일을 만들 때 'PC 이름 주소, IP 주소' 순으로 자동 기록함
 const DEFAULT_SERVERS = ['http://ASEUNGWOOK-B01:8080', 'http://65.3.30.234:8080'];
@@ -5773,6 +5786,10 @@ const MM_TPL = [
   ['검토 메모 (도면 · 문서)', '📐', () => `<table><tbody><tr><th>문서 번호</th><th>Rev.</th><th>검토 내용</th><th>조치</th></tr><tr><td><br></td><td><br></td><td><br></td><td><br></td></tr><tr><td><br></td><td><br></td><td><br></td><td><br></td></tr></tbody></table><div><br></div>`],
   ['출장 준비', '✈', () => `<h2>준비물</h2><div class="mm-chk" data-done="0">여권 · 비자</div><div class="mm-chk" data-done="0">노트북 · 충전기</div><div class="mm-chk" data-done="0">출장용 오프라인 파일</div><h2>일정</h2><div><br></div><h2>연락처</h2><div><br></div>`],
 ];
+/* 2026-11-19 v17.70 메모 배경(종이 무늬): 메모마다 고름 · [기본으로] 하면 새 메모에 적용 */
+const MM_BG = [['', '흰 종이'], ['lined', '줄 노트'], ['wide', '넓은 줄 노트'], ['grid', '모눈종이'], ['bgrid', '큰 모눈종이'], ['dot', '점 격자'], ['legal', '노란 리갈 패드'], ['cream', '크림색 종이'], ['green', '초록 모눈 (방안지)'], ['blue', '청사진 (도면)'], ['cornell', '코넬 노트 (왼쪽 여백 줄)']];
+const mmBgDef = () => { try { return localStorage.getItem('dept-memo-bg') || ''; } catch (_) { return ''; } };
+const mmEdCls = pg => 'mm-ed' + (pg.lh ? ' lh-' + pg.lh : '') + (pg.bg ? ' bg-' + pg.bg : '');
 const mmId = () => Array.from(crypto.getRandomValues(new Uint8Array(12)), b => 'abcdefghijklmnopqrstuvwxyz0123456789'[b % 36]).join('');
 const mmOn = () => !!(SERVER && !OFFLINE && AUTH);
 const mmSecs = () => MM.book.secs || [];
@@ -5949,6 +5966,7 @@ function mmDrawMain() {
     <div class="mm-meta"><select id="mmSecSel" title="섹션"><option value="">섹션 없음</option>${mmSecs().map(s => `<option value="${esc(s.id)}" ${pg.sec === s.id ? 'selected' : ''}>${esc(s.name)}</option>`).join('')}</select>
       <input type="date" id="mmDate" value="${esc(mmDay(pg))}" title="메모 날짜 — 날짜별 보기 · 날짜 정렬에 씀" ${pg.lock ? 'disabled' : ''}>
       <select id="mmLh" title="줄 · 문단 간격"><option value="s">간격 좁게</option><option value="">간격 보통</option><option value="l">간격 넓게</option><option value="x">간격 아주 넓게</option></select>
+      <select id="mmBg" title="메모 배경 (종이 무늬)">${MM_BG.map(([v, l]) => `<option value="${v}">📄 ${l}</option>`).join('')}<option value="__def">★ 지금 배경을 새 메모 기본으로</option></select>
       <input class="tags" id="mmTags" placeholder="태그 (쉼표로 구분)" value="${esc((pg.tags || []).join(', '))}">
       <button class="tg ${pg.pin ? 'on' : ''}" data-mx="pin" title="즐겨찾기 — 목록 맨 위">⭐ 즐겨찾기</button><button class="tg ${pg.lock ? 'on' : ''}" data-mx="lock" title="잠그면 실수로 고쳐지지 않음">${pg.lock ? '🔒 잠김' : '🔓 잠금'}</button>
       ${MM_COL.map(c => `<button class="cdot ${(pg.color || '') === c ? 'on' : ''}" data-mcol="${c}" style="background:${c || '#e5e9f5'}" title="색 표시"></button>`).join('')}
@@ -5960,7 +5978,7 @@ function mmDrawMain() {
       ${T('table', '▦', '표 넣기 — 칸 수 고르기')}<span class="tbl">${T('trow', '+행', '아래에 행 넣기')}${T('tcol', '+열', '오른쪽에 열 넣기')}${T('trowx', '−행', '행 지우기')}${T('tcolx', '−열', '열 지우기')}${T('tmerge', '⊞합치기', '끌어서 고른 칸 합치기')}${T('tsplit', '⊟나누기', '합친 칸 나누기')}${T('tbg', '🎨', '칸 배경색')}${T('tmenu', '표 ▾', '표 메뉴 전체 (표 안에서 마우스 오른쪽 단추로도 열림)')}${T('teq', '열=', '열 너비를 같게 · 표를 가로로 꽉 차게 (다시 누르면 풀기)')}${T('tsort', '↕정렬', '이 열 기준으로 행 정렬 (다시 누르면 반대로 · 날짜 · 숫자 · 글자)')}${T('tdel', '표✕', '표 지우기')}</span>${S}
       ${T('link', '🔗', '링크')}${T('img', '🖼', '그림 넣기 (붙여넣기 · 끌어 놓기도 됨)')}${T('draw', '✏', '손으로 그리기')}${T('file', '📎', '파일 첨부 (PDF · 문서 — PDF 는 보면서 메모)')}${T('date', '📅', '오늘 날짜 · 시각 넣기')}${S}<button data-mc="pull" title="다른 메뉴의 값 불러오기 (수행 · 입찰 · 이슈 · 통합 업무 · Schedule …)" style="font-weight:700;color:var(--accent-d)">📥 불러오기</button></div>
     <div class="mm-ed" id="mmEd" data-pid="${pg.id}" contenteditable="${pg.lock ? 'false' : 'true'}" spellcheck="false"></div><div class="mm-st" id="mmSt"></div><input type="file" id="mmFile" hidden multiple><input type="file" id="mmImg" hidden multiple accept="image/*">`;
-  $('#mmEd').innerHTML = mmClean(pg.html || ''); $('#mmLh').value = pg.lh || ''; $('#mmEd').className = 'mm-ed' + (pg.lh ? ' lh-' + pg.lh : '');
+  $('#mmEd').innerHTML = mmClean(pg.html || ''); $('#mmLh').value = pg.lh || ''; $('#mmBg').value = pg.bg || ''; $('#mmEd').className = mmEdCls(pg);
   mmStat(pg.updatedAt ? `저장됨 ${fmtTime(pg.updatedAt)} · ${(pg.text || '').length.toLocaleString()}자` : '새 메모');
   try { document.execCommand('styleWithCSS', false, true); document.execCommand('defaultParagraphSeparator', false, 'div'); } catch (_) {}
 }
@@ -5978,7 +5996,7 @@ async function mmOpen(id) {
 }
 async function mmNew(kind, tpl) {
   await mmFlush(); const now = new Date(), d = `${todayISO()} ${pad(now.getHours())}:${pad(now.getMinutes())}`;
-  const pg = { id:mmId(), kind:'page', sec:MM.sec || '', title:tpl ? `${tpl[0]} ${todayISO()}` : '', icon:tpl ? tpl[1] : '📄', color:'', tags:MM.tag ? [MM.tag] : [], pin:false, lock:false, html:tpl ? tpl[2](d) : '', date:MM.view === 'date' && MM.day ? MM.day : todayISO() };
+  const pg = { id:mmId(), kind:'page', sec:MM.sec || '', title:tpl ? `${tpl[0]} ${todayISO()}` : '', icon:tpl ? tpl[1] : '📄', color:'', tags:MM.tag ? [MM.tag] : [], pin:false, lock:false, html:tpl ? tpl[2](d) : '', date:MM.view === 'date' && MM.day ? MM.day : todayISO(), bg:mmBgDef() };
   mmMetaOf(pg); MM.cur = pg; MM.dirty = false; mmMetaPut(pg); if (!['all', 'pin', 'date'].includes(MM.view)) MM.view = 'all'; MM.q = '';
   mmDraw(); await mmSave(pg); (tpl ? $('#mmEd') : $('#mmTitle'))?.focus();
 }
@@ -6517,7 +6535,9 @@ document.addEventListener('change', async e => {
   const t = e.target; if (!t.closest?.('#memoWrap')) return;
   if (t.id === 'mmSort') { MM.sort = t.value; return mmDrawList(); }
   if (t.id === 'mmDate' && MM.cur) { MM.cur.date = t.value || todayISO(); MM.dirty = true; await mmSave(); return mmDrawList(); }
-  if (t.id === 'mmLh' && MM.cur) { MM.cur.lh = t.value; $('#mmEd').className = 'mm-ed' + (t.value ? ' lh-' + t.value : ''); MM.dirty = true; return mmSave(); }
+  if (t.id === 'mmLh' && MM.cur) { MM.cur.lh = t.value; $('#mmEd').className = mmEdCls(MM.cur); MM.dirty = true; return mmSave(); }
+  if (t.id === 'mmBg' && MM.cur) { if (t.value === '__def') { try { localStorage.setItem('dept-memo-bg', MM.cur.bg || ''); } catch (_) {} t.value = MM.cur.bg || ''; return toast(`새 메모의 기본 배경을 '${MM_BG.find(x => x[0] === (MM.cur.bg || ''))?.[1]}' 로 했습니다 (이 PC)`); }
+    MM.cur.bg = t.value; $('#mmEd').className = mmEdCls(MM.cur); MM.dirty = true; return mmSave(); }
   if (t.id === 'mmSecSel' && MM.cur) { MM.cur.sec = t.value; MM.dirty = true; await mmSave(); return mmDrawSide(); }
   if (t.id === 'mmTodoAll') { MM.todoAll = t.checked; return mmDrawTodo(); }
   if (t.dataset.mtodo) { const [id, i] = t.dataset.mtodo.split('|'); return mmTodoToggle(id, +i, t.checked); }

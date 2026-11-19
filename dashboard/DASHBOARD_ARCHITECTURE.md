@@ -2138,3 +2138,9 @@ C:\Users\SAMSUNG\Desktop\Claude\                         ← 개발 폴더 (여�
   - 한계: 대시보드(브라우저 탭)가 열려 있을 때만 알림이 뜸(꺼져 있으면 다음에 열 때 그 시점 단계가 뜸).
 - 바뀐 곳: dashboard.html `mmEvs` · `mmAllEvs` · `MM_AL` · `mmAlarmTick` · `mmAlarmShow` · `mmMetaPut` · `memoTick` · `calEvents`(k:'alarm') · `CAL_K.alarm` · `mmCalHtml` · `mmOpen`(스티커면 보드로) · CSS `#mmAlarm` `.mm-al` `.ev-alarm`
 - 확인한 것: 20분 뒤 · 10분 뒤 · 20시간 뒤 · 3일 뒤 일정을 여러 글 모양으로 적음 → 30분 전 · 15분 전 · 하루 전 카드 3개(3일 뒤 · 시간 없는 날짜 · '1/2 인치' · '3.2.1' 은 안 뜸), 홈 · 통합 업무 화면에서도 그대로, 홈 달력 그날 목록에 '⏰ 00:50 주간 회의', [확인] 1개 → 2개 남고 새로 열어도 2개, 콘솔 오류 없음.
+
+### 2026-11-19 (APP_VERSION 2026-11-19.6 / SERVER_VERSION 그대로) — v17.70 내 메모장: 메모 배경(종이 무늬) 고르기
+- 무엇을: 사용자 지시 "메모장의 배경을 모눈종이, 줄선 등 사용자가 선택할 수 있는 옵션". 메모마다 배경 칸(`pg.bg`): 흰 종이 · 줄 노트 · 넓은 줄 노트 · 모눈종이 · 큰 모눈종이 · 점 격자 · 노란 리갈 패드 · 크림색 종이 · 초록 모눈(방안지) · 청사진(도면) · 코넬 노트. [★ 지금 배경을 새 메모 기본으로] = 이 PC 에 기억(`dept-memo-bg`).
+  - 줄 노트류는 줄 간격이 글 줄 높이(`--lh`)와 맞고 글과 함께 스크롤(`background-attachment:local`). 간격(좁게 · 넓게)을 바꾸면 줄도 같이 바뀜.
+- 바뀐 곳: dashboard.html `MM_BG` · `mmBgDef` · `mmEdCls` · `mmDrawMain`(#mmBg) · change 이벤트 · `mmNew` · CSS `.mm-ed.bg-*` `--lh`
+- 확인한 것: 8가지 배경 화면 그림, 기본으로 지정 → 새 메모가 모눈종이, 다시 열어도 유지, 콘솔 오류 없음.
