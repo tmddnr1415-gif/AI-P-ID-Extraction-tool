@@ -2284,3 +2284,11 @@ C:\Users\SAMSUNG\Desktop\Claude\                         ← 개발 폴더 (여�
   - 서버: 목록 요약에 스티커 그림(`img`) 포함(스티커는 목록이 곧 내용이라).
 - 바뀐 곳: dashboard.html `MM_MP` · `mmClipImgs` · `mmPlaceAt` · `mmPasteFloat` · `mmPasteSticky` · `mmShot` · paste(capture) · keydown(포커스 없을 때 Ctrl+V → `navigator.clipboard.read`) · `mmStickyHtml`(.si) · 스티커 클릭(imgx) · 글 상자 · 스티커 글 paste(그림이면 넘김) · `mmMetaPut`/`mmlMeta`(+img) · 편집 줄 · 스티커 보드 머리 · CSS(`.mm-sticky .si`) / server.py `MEMO_META`(+img)
 - 확인한 것: 본문에 커서 + 마우스 빈 곳 → 그 자리(600,220)에 그림, 글 상자 안 · 포커스 없음에서도 붙음(3장), 끌어 옮기기 + 모서리로 420 → 322px, 스티커 보드 빈 곳 → 그림 스티커 새로 · 스티커 글 안 → 그 스티커에 그림, 새로 열어도 그림 스티커 2 · 떠 있는 그림 3 유지, 콘솔 오류 없음. 📷 화면 캡처는 시험 브라우저에 화면 공유가 없어 확인 못 함(VOC 캡처와 같은 함수). **서버 재시작 필요.**
+
+### 2026-11-19 (APP_VERSION 2026-11-19.22 / SERVER_VERSION 그대로) — v17.87 내 메모장: Delete 로 바로 지우기 · 되돌리기 30번 · 다시 하기 30번
+- 무엇을: 사용자 지시(회사 사진 — 붙인 그림 ✕ 에 '이 그림을 지울까요?' 창) "지우는 건 Delete 눌러도 되도록, 지울까요 팝업 불필요. 지우더라도 Ctrl Z 누르면 되돌리기, 되돌리기는 30번 행위 전까지, Ctrl Y 는 다시 불러오기 30번".
+  - **고르기 + Delete**: 떠 있는 그림 · 글 상자 · 메모지의 테두리 · 손잡이 · 그림을 누르면 파란 테두리로 '고름' → Delete(또는 Backspace) = 지우기. 글 상자 · 메모지 글 안을 누른 상태에서는 Delete 가 글자 지우기(예전대로).
+  - **묻지 않음**: 그림 · 글 상자 · 메모지 ✕, 스티커 그림 빼기, 펜 획 모두 지우기에서 확인 창을 없앰(대신 '지웠습니다 — Ctrl+Z 로 되돌리기' 알림). PDF 쪽 펜 지우기 · 휴지통 완전 삭제는 되돌릴 수 없어 확인 창 그대로.
+  - **되돌리기 · 다시 하기**(`MM.hist`): 메모 한 장의 상태(본문 + 떠 있는 그림 · 글 상자 · 메모지 + 펜 획)를 바뀔 때마다 기록 — 옮기기 · 크기 · 붙이기 · 지우기 · 펜 획 · 줄 끌어 옮기기는 바로, 글 입력은 0.7초 묶어서. **Ctrl+Z = 최근 30번까지 되돌리기, Ctrl+Y(또는 Ctrl+Shift+Z) = 되돌린 것 다시 하기 30번**. 상태 칸에 'N번 더 가능'. 펜 줄 ↶ ↷ 도 같은 기록. 글을 치는 중(마지막 행동이 글 입력이고 커서가 글 칸 안)이면 Ctrl+Z 는 브라우저의 글자 되돌리기. 다른 메모를 열면 기록은 새로 시작(메모마다 · 이 화면에서만).
+- 바뀐 곳: dashboard.html `MM_HMAX` · `mmSnap` · `mmHistReset` · `mmHistPush` · `mmHistGo` · `mmInkUndo`(→ 기록) · `mmNoteDel` · 고르기 pointerdown · keydown(Ctrl+Z/Y 판단 · Delete) · `mmNoteTouch(kind)` · `mmTouch` · 펜 set · 확인 창 없앰(✕ · 스티커 그림 · 펜 모두 지우기) · CSS `.mm-fn.picked`
+- 확인한 것: 그림 2 · 글 상자 1 · 펜 2획 → 그림 고르고 Delete · 다른 그림 ✕ (확인 창 0개) → Ctrl+Z 6번 = 그림 2개 복원 → 펜 2획 → 글 상자 → 그림 순으로 되돌아감 → Ctrl+Y 3번 = 다시, 붙이기/지우기 36번 뒤 Ctrl+Z 는 30번에서 멈춤('0번 더 가능'), 콘솔 오류 없음.
