@@ -516,7 +516,7 @@
    "made": "2026-11-19 10:40",
    "path": "company-pc-update/2026-11-19/ (1.5MB · 저장소에 있음)",
    "sha256": "a83b4175135b0edc8e5fefd683b9eae7b8e0282075fd4b3d01932ef19705c9a9",
-   "applied": "",
+   "applied": "적용 (회사 사진 11-19) → 점 든 ID 에서 내 메모장 잘못된 계정 · v17.72 로 대체",
    "tips": {
     "S1": "6d673505"
    },
@@ -541,6 +541,19 @@
    },
    "replaces": "2_PID_dev+ops_hotfix144_2026-11-18.zip",
    "note": "144 + S2: 도면 그림 줄서기 분리 · Rev 전환 시 보던 자리"
+  },
+  {
+   "file": "①",
+   "name": "3_DASHBOARD_update_v17.72_from_v17.47_2026-11-19.zip",
+   "made": "2026-11-19 10:50",
+   "path": "company-pc-update/2026-11-19/ (1.5MB · 저장소에 있음)",
+   "sha256": "3b2d428cdccdfdb1aeeafe55c0b6017e090a1ca48b7f46893b029c074f667ccf",
+   "applied": "",
+   "tips": {
+    "S1": "227829f2"
+   },
+   "replaces": "1_DASHBOARD_update_v17.71_from_v17.47_2026-11-19.zip",
+   "note": "v17.72 — 내 메모장 '잘못된 계정'(점 든 ID) 고침 (server.py → 서버 재시작)"
   }
  ]
 }
