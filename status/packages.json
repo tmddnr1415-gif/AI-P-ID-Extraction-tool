@@ -775,6 +775,19 @@
    },
    "replaces": "19_DASHBOARD_update_v17.96_from_v17.82_2026-11-19.zip",
    "note": "v17.99 (기준 v17.82) — 펜 끄기 단추 · 크게 볼 때 제목 · 글 위치 고침 (회사 사진)"
+  },
+  {
+   "file": "①",
+   "name": "21_DASHBOARD_update_v18.02_from_v17.82_2026-11-19.zip",
+   "made": "2026-11-19 21:35",
+   "path": "company-pc-update/2026-11-19/ (1.6MB · 저장소에 있음)",
+   "sha256": "19ef9a60e5de0d423291b308174cbc4eb22a7fdc2386ff83e9ad304d7811b8f3",
+   "applied": "",
+   "tips": {
+    "S1": "f1c54a73"
+   },
+   "replaces": "20_DASHBOARD_update_v17.99_from_v17.82_2026-11-19.zip",
+   "note": "v18.02 (기준 v17.82) — 말풍선 주석 · 글 상자 본문처럼 · 끌 때 휠"
   }
  ]
 }
