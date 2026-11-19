@@ -2412,7 +2412,7 @@ function recLabel(key, f) {
  * ===================================================================== */
 let root = null;
 /* 서버 모드: http(s):// 로 접속하면 server.py 의 REST API 사용 (폴더 선택 불필요). file:// 로 열면 폴더 모드 */
-const APP_VERSION = '2026-11-19.32';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
+const APP_VERSION = '2026-11-19.33';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
 const SERVER_URL = 'http://localhost:8080';
 // 부서원 PC 사본(file://)이 접속을 시도할 서버 — 서버가 배포 파일을 만들 때 'PC 이름 주소, IP 주소' 순으로 자동 기록함
 const DEFAULT_SERVERS = ['http://ASEUNGWOOK-B01:8080', 'http://65.3.30.234:8080'];
@@ -7186,13 +7186,11 @@ function mmRtab(k, quiet) {
   requestAnimationFrame(() => { MM.zkey = ''; mmZoomFit(); });
 }
 document.addEventListener('click', e => { const b = e.target.closest?.('[data-rtab]'); if (b) mmRtab(b.dataset.rtab); });
-function mmPhFollow(mx) {   // 제목이 화면 위에 붙어 있음 · 크게 볼 때는 마우스 쪽으로
+function mmPhFollow() {   // 제목이 화면 위에 붙어 있음 (좌우로 밀어도 화면 왼쪽에 그대로 · 마우스는 따라가지 않음)
   const ph = $('#mmPh'), ew = $('#mmEdw'); if (!ph || !ew) return; const big = ew.scrollWidth > ew.clientWidth + 24 || document.body.classList.contains('mm-zen') || mmZoom() > 1.05;
-  ph.classList.toggle('big', big); if (!big) { ph.style.transform = `translateX(${ew.scrollLeft}px)`; return; }
-  const r = ew.getBoundingClientRect(), w = ph.offsetWidth, x = mx == null ? (MM.phx ?? 0) : Math.max(0, Math.min(ew.clientWidth - w - 8, mx - r.left - w / 2)); MM.phx = x;
-  ph.style.transform = `translateX(${ew.scrollLeft + x}px)`;
+  ph.classList.toggle('big', big); ph.style.transform = `translateX(${ew.scrollLeft}px)`;
 }
-document.addEventListener('mousemove', e => { if (route !== 'memo' || !e.target.closest?.('#mmEdw')) return; if (!PEN.on) mmPhFollow(e.clientX); }, { passive:true });
+// v17.98: 제목이 마우스를 따라 움직이지 않게 (사용자 지시) — 위에 붙어 있고 좌우로 밀면 화면 왼쪽에 그대로
 document.addEventListener('scroll', e => { if (e.target?.id === 'mmEdw') { mmPhFollow(); const ew = e.target; $('#mmPh')?.classList.toggle('stuck', ew.scrollTop > 4); } }, true);
 /* ---------- 2026-11-19 v17.96 웹에서 찾아본 노트 앱(OneNote · Notion · Obsidian) 기능 더 넣기
    ① OneNote 태그 (Alt+1 할 일 · Alt+2 ⭐중요 · Alt+3 ❓질문 · Alt+4 💡아이디어 · Alt+5 ⚠확인 · Alt+6 📞연락 · Alt+0 지우기) + [🏷 태그 모음]
