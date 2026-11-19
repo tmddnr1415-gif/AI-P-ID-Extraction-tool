@@ -2281,7 +2281,7 @@ function recLabel(key, f) {
  * ===================================================================== */
 let root = null;
 /* 서버 모드: http(s):// 로 접속하면 server.py 의 REST API 사용 (폴더 선택 불필요). file:// 로 열면 폴더 모드 */
-const APP_VERSION = '2026-11-19.16';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
+const APP_VERSION = '2026-11-19.17';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
 const SERVER_URL = 'http://localhost:8080';
 // 부서원 PC 사본(file://)이 접속을 시도할 서버 — 서버가 배포 파일을 만들 때 'PC 이름 주소, IP 주소' 순으로 자동 기록함
 const DEFAULT_SERVERS = ['http://ASEUNGWOOK-B01:8080', 'http://65.3.30.234:8080'];
@@ -5660,7 +5660,7 @@ function render() {
   // P&ID 화면을 보고 있는 중의 재렌더링(1분 자동 갱신 등)은 iframe 을 그대로 두고 배너만 갱신 → 도구 작업 내용 유지
   const allowed = can(menuOf(route));                      // 메뉴 권한 (주소창으로 직접 들어와도 막음)
   memoTick();                                              // 2026-11-19 내 메모장: 띄운 스티커 · 떠날 때 저장
-  const keepMemo = route === 'memo' && mmOn() && MM.uid === AUTH.id ? $('#memoWrap') : null;   // 쓰던 메모 화면은 그대로 두고 배너만 갱신 (1분 자동 갱신에 편집기가 지워지지 않게)
+  const keepMemo = route === 'memo' && mmOn() && MM.uid === mmWho().id ? $('#memoWrap') : null;   // 쓰던 메모 화면은 그대로 두고 배너만 갱신 (1분 자동 갱신에 편집기가 지워지지 않게)
   if (keepMemo) { [...c.children].forEach(ch => { if (ch !== keepMemo) ch.remove(); }); keepMemo.insertAdjacentHTML('beforebegin', banners); return; }
   const keepPid = FRAME_ROUTES(route) && allowed ? $('#pidwrap') : null;
   if (keepPid && keepPid.dataset.route === route) {
@@ -5798,7 +5798,7 @@ function renderMenu() {
        <div class="msub" ${NAV_OPEN.runpjt ? '' : 'hidden'}>${fold('runpjt-co2', 'CO2 PJT', fold('runpjt-co2-ds', 'Datasheet', [['dshub', 'Datasheet 현황판', ' minst'], ['dsdocs', '문서 · Revision 현황', ' mdoc'], ['dsref', '공통 자료', ' mref'], ['instinstindex', 'Instrument List', ' minl'], ['instiolist', 'IO List', ' minl']].map(([k, l, c]) => btn({ k, l, n:'', c:0 }, 'subi minsti' + c)).join('') + fold('runpjt-co2-valve', 'VALVE', [['valve', 'Ball Valve'], ['globev', 'Globe Valve'], ['bflyv', 'Butterfly Valve'], ['psv', 'PSV']].map(([k, l]) => btn({ k, l, n:'', c:0 }, 'subi')).join('')) + fold('runpjt-co2-inst', 'INSTRUMENT', INST_KINDS.map(([k, l], i) => ['all', 'instindex', 'iolist'].includes(k) ? '' : btn({ k:INST_ROUTES[i], l, n:'', c:0 }, 'subi minsti')).join(''))) + btn({ k:'co2sched', l:'Schedule', n:SCH.data ? SCH.data.items.length : '', c:0 }, 'subi mlv2'), 'co2pjt')}</div></div>`;
   // 권한이 있는 메뉴만 표시 (운영자가 ⚙ 메뉴 권한 설정에서 사용자별로 부여, Management 는 기본 비허용)
   $('#menu').innerHTML =
-    (SERVER && AUTH ? btn({ k:'memo', l:'내 메모장', n:MM.ready && MM.uid === AUTH.id ? mmLive().length : 0, c:0, t:'내 메모 수 (나만 봄)' }, 'top') : '') +
+    (mmOn() ? btn({ k:'memo', l:'내 메모장', n:MM.ready && MM.uid === mmWho().id ? mmLive().length : 0, c:0, t:'내 메모 수 (나만 봄)' }, 'top') : '') +
     (can('weekly') ? group('weekly', { k:'home', l:'주간업무보고', n:'', c:NAV_OPEN.weekly ? 0 : subNew, t:'하위 메뉴의 수정·변경된 행' }, sub, inWeekly) : '') +
     (can('pid') ? btn({ k:'pid', l:'P&ID 분석', n:'', c:0 }, 'top') : '') +
     (can('logic') ? group('logic', { k:'logic', l:'LOGIC 분석', n:'', c:0 }, [{ k:'logicdraw', l:'LOGIC 작성', n:'', c:0 }], route === 'logic' || route === 'logicdraw') : '') +
@@ -5851,8 +5851,16 @@ const mmBgDef = () => { try { return localStorage.getItem('dept-memo-bg') || '';
 const mmEdCls = pg => 'mm-ed' + (pg.lh ? ' lh-' + pg.lh : '') + (pg.bg ? ' bg-' + pg.bg : '') + (pg.dk ? ' dk' : '');   // dk = 어두운 종이 (2026-11-19 v17.71)
 const mmDkDef = () => { try { return localStorage.getItem('dept-memo-dk') === '1'; } catch (_) { return false; } };
 const mmId = () => Array.from(crypto.getRandomValues(new Uint8Array(12)), b => 'abcdefghijklmnopqrstuvwxyz0123456789'[b % 36]).join('');
-const mmOn = () => !!(SERVER && AUTH);   // 메모장을 쓸 수 있음(로그인 — 서버가 꺼져 있으면 이 PC 보관본으로)
-const mmNet = () => mmOn() && !OFFLINE;   // 서버에 연결됨
+/* 2026-11-19 v17.82 사용자 지시: 메모는 서버와 무관하게 먼저 각 부서원 PC 에서 동작 · PC 에 모두 저장. 서버 연결이 필요한 것은 '공유' 뿐.
+   누구 메모장인가(mmWho): 로그인했으면 그 계정 / 서버가 꺼져 로그인이 없으면 이 PC 에서 마지막으로 쓴 계정 → 이 파일에 메모가 든 계정(하나뿐일 때) → 'local'(이 PC 임시 — 나중에 로그인하면 그 계정으로 합침) */
+function mmWho() {
+  if (AUTH) { try { if (mmWho.k !== AUTH.id) { mmWho.k = AUTH.id; localStorage.setItem('dept-memo-who', JSON.stringify({ id:AUTH.id, name:AUTH.name })); } } catch (_) {} return AUTH; }
+  if (!SERVER || !OFFLINE) return null;
+  if (!mmWho.off) { let w = null; try { w = JSON.parse(localStorage.getItem('dept-memo-who') || 'null'); } catch (_) {} if (!w?.id) { const t = tagLoad('deptMemo'), ks = t ? Object.keys(t) : []; if (ks.length === 1) w = { id:ks[0], name:t[ks[0]].name || ks[0] }; } mmWho.off = w?.id ? w : { id:'local', name:'이 PC' }; }
+  return mmWho.off;
+}
+const mmOn = () => !!(SERVER && mmWho());   // 메모장을 쓸 수 있음 (서버가 꺼져 있어도 이 PC 보관본으로)
+const mmNet = () => !!(SERVER && AUTH && !OFFLINE);   // 서버에 연결됨 (올리기 · 공유 · 판 기록)
 const mmSecs = () => MM.book.secs || [];
 const mmLive = () => MM.pages.filter(p => !p.deleted && p.kind !== 'sticky');
 const mmStk = () => MM.pages.filter(p => p.kind === 'sticky' && !p.deleted);
@@ -5860,10 +5868,10 @@ const mmEvery = () => [...mmLive(), ...mmStk()];   // 2026-11-19 v17.79 '모든 
 const mmSize = n => n > 1048576 ? (n / 1048576).toFixed(1) + 'MB' : Math.max(1, Math.round(n / 1024)) + 'KB';
 async function mmLoad(force) {
   if (!mmOn()) return false;
-  if (MM.uid !== AUTH.id) Object.assign(MM, { uid:AUTH.id, ready:false, pages:[], book:{ secs:[] }, cur:null, dirty:false, view:'all', sec:'', tag:'', q:'', err:'' });
+  if (MM.uid !== mmWho().id) Object.assign(MM, { uid:mmWho().id, ready:false, pages:[], book:{ secs:[] }, cur:null, dirty:false, view:'all', sec:'', tag:'', q:'', err:'' });
   if (MM.ready && !force) return true;
   const local = () => { MM.book = { secs:MML.book?.secs || [] }; MM.pages = Object.values(MML.pages).map(mmlMeta); MM.pages.forEach(p => { if (p.kind === 'sticky') Object.assign(p, MML.pages[p.id]); }); MM.offline = true; MM.ready = true; MM.err = ''; };
-  if (!MM.loading) MM.loading = mmlLoad(AUTH.id).then(() => !mmNet() ? local() : api('GET', 'memo').then(async d => { MM.book = { secs:d.book?.secs || [] }; MM.pages = d.pages || []; MM.used = d.used || 0; MM.quota = d.quota || 0; MM.offline = false; MM.ready = true; MM.err = '';
+  if (!MM.loading) MM.loading = mmlLoad(mmWho().id).then(() => !mmNet() ? local() : api('GET', 'memo').then(async d => { MM.book = { secs:d.book?.secs || [] }; MM.pages = d.pages || []; MM.used = d.used || 0; MM.quota = d.quota || 0; MM.offline = false; MM.ready = true; MM.err = '';
       MML.book = MM.book; mmlPut(); await mmlSyncUp(); mmSharedLoad().then(() => { if (route === 'memo' && $('#mmSide')) mmDrawSide(); }); setTimeout(mmPurge, 1500); })
     .catch(e => { if (e.offline && Object.keys(MML.pages).length) local(); else MM.err = e.message; })).finally(() => { MM.loading = null; });
   await MM.loading; return MM.ready;
@@ -5928,6 +5936,7 @@ function mmSave(pg = MM.cur, opt = {}) {   // 차례대로 한 번에 하나씩
   const snap = JSON.parse(JSON.stringify(pg));
   return MM.chain = MM.chain.then(async () => {
     const keepLocal = () => { snap.updatedAt = snap.updatedAt || pg.updatedAt; mmlKeep({ ...snap, updatedAt:pg.updatedAt }, true); mmMetaPut(pg); if (pg === MM.cur) mmStat('이 PC 에 저장됨 — 서버에 연결되면 자동으로 올립니다'); if (pg.kind !== 'sticky') mmRefresh(); };
+    mmlKeep({ ...snap, updatedAt:pg.updatedAt }, true);   // 먼저 이 PC 에 저장 → 그다음 서버(연결돼 있으면)
     if (!mmNet()) return keepLocal();
     if (pg === MM.cur) mmStat('저장 중…');
     try {
@@ -5955,8 +5964,8 @@ async function mmFlush() { if (MM.cur && MM.dirty) await mmSave(); }
 async function mmBook() { MML.book = { secs:mmSecs() }; mmlPut(); try { await api('PUT', 'memo/book', { secs:mmSecs() }); } catch (e) { toast('섹션 저장 실패: ' + e.message, true); } }
 /* ---------- 화면 ---------- */
 function renderMemo(c) {
-  if (!SERVER || !AUTH) { c.insertAdjacentHTML('beforeend', `<div class="card welcome"><h2>📝 내 메모장</h2><p>부서원 한 사람 한 사람의 <b>개인 메모장</b>입니다. 로그인하면 내 메모만 보입니다 (다른 부서원 · 운영자 화면에는 보이지 않습니다).</p><p class="muted">${SERVER ? '왼쪽 위 계정 칸에서 로그인하세요.' : '서버에 접속해 로그인한 뒤 쓸 수 있습니다.'}</p></div>`); return; }
-  if (OFFLINE) c.insertAdjacentHTML('beforeend', '<div class="banner" id="mmOffB">📴 <b>서버가 꺼져 있어 이 PC 에 보관된 메모를 보여 줍니다.</b> 고친 내용은 이 PC 에 저장되고, 서버에 연결되면 자동으로 올라갑니다. (첨부 파일 · 판 기록 · 공유는 서버에 연결됐을 때)</div>');
+  if (!mmOn()) { c.insertAdjacentHTML('beforeend', `<div class="card welcome"><h2>📝 내 메모장</h2><p>부서원 한 사람 한 사람의 <b>개인 메모장</b>입니다. 로그인하면 내 메모만 보입니다 (다른 부서원 · 운영자 화면에는 보이지 않습니다).</p><p class="muted">${SERVER ? '왼쪽 위 계정 칸에서 로그인하세요.' : '서버에 접속해 로그인한 뒤 쓸 수 있습니다.'}</p></div>`); return; }
+  if (OFFLINE) c.insertAdjacentHTML('beforeend', `<div class="banner" id="mmOffB">📴 <b>서버 없이 이 PC 의 메모장으로 동작 중 — ${esc(mmWho().name)}${mmWho().id === 'local' ? ' (로그인 전 임시 — 나중에 로그인하면 그 계정 메모장으로 합쳐집니다)' : ' 님'}</b> · 메모 · 그림 · 펜 · 첨부 모두 이 PC 에 저장됩니다. 서버가 필요한 것은 <b>공유</b>와 판 기록뿐입니다.</div>`);
   c.insertAdjacentHTML('beforeend', '<div id="memoWrap"><div class="mm-side" id="mmSide"></div><div class="mm-list" id="mmList"></div><div class="mm-main" id="mmMain"><div class="mm-empty"><b>📝</b>메모장을 불러오는 중…</div></div></div>');
   mmLoad().then(ok => { if (route !== 'memo' || !$('#memoWrap')) return; if (!ok) { $('#mmMain').innerHTML = `<div class="mm-empty"><b>⚠</b>메모장을 불러오지 못했습니다<br><span class="muted">${esc(MM.err || '')}</span><br><span class="muted">서버가 새 버전인지 확인해 주세요 (서버 PC 에서 대시보드 서버를 다시 켜기)</span></div>`; return; } mmDraw(); });
 }
@@ -6183,12 +6192,23 @@ async function mmAddFiles(files) {
     try {
       if (/^image\/(png|jpeg|gif|webp|bmp)/.test(f.type)) { mmInsert(`<img src="${await mmImgUrl(f)}">`); continue; }
       if (f.size > 28 * 1048576) { toast(`${f.name}: 28MB 가 넘는 파일은 넣을 수 없습니다`, true); continue; }
-      mmStat('파일 올리는 중… ' + f.name); const m = await api('PUT', 'memo/f?name=' + enc(f.name), undefined, await f.arrayBuffer()); MM.used += m.size;
+      const buf = await f.arrayBuffer(), fid0 = 'f' + Date.now().toString(16) + Array.from(crypto.getRandomValues(new Uint8Array(3)), x => x.toString(16).padStart(2, '0')).join(''), ext = (/\.[a-z0-9]{1,8}$/i.exec(f.name) || ['.bin'])[0].toLowerCase();
+      let m = { id:fid0, name:f.name, ext, size:f.size }, up = 1;   // 먼저 이 PC 에 넣고, 서버에 연결돼 있으면 같은 ID 로 올림
+      if (mmNet()) { mmStat('파일 올리는 중… ' + f.name); try { m = await api('PUT', `memo/f?name=${enc(f.name)}&id=${fid0}`, undefined, buf); MM.used += m.size; up = 0; } catch (e) { if (!e.offline) throw e; } }
+      await mmFileKeep(m.id, { name:m.name, ext:m.ext, size:m.size, buf, up });
       mmInsert(`<a class="mm-file" contenteditable="false" data-fid="${m.id}" data-name="${esc(m.name.replace(/[^\w .()\-\[\]가-힣·,+&]/g, '_'))}" data-size="${m.size}">${m.ext === '.pdf' ? '📕' : '📎'} ${esc(m.name)} (${mmSize(m.size)})</a>&nbsp;`);
     } catch (e) { toast(`${f.name}: ${e.message}`, true); }
   }
 }
-async function mmBlob(fid) { const ro = MM.cur?._ro, r = await fetch(API_BASE + (ro ? `/api/memo/sf/${enc(ro)}/${MM.cur.id}/${fid}` : '/api/memo/f/' + fid), { headers:{ 'X-Auth-Token':AUTH.token }, cache:'no-store' }); if (!r.ok) throw new Error((await r.json().catch(() => ({}))).error || '파일을 받지 못했습니다'); return r.blob(); }
+const mmFk = fid => `mf:${MM.uid}:${fid}`;
+async function mmFileKeep(fid, o) { try { await kv('readwrite', st => st.put(o, mmFk(fid))); } catch (_) {} }
+async function mmFilesUp() {   // 서버가 꺼져 있을 때 붙인 첨부 올리기
+  let keys = []; try { keys = (await kv('readonly', st => st.getAllKeys())).filter(k => typeof k === 'string' && k.startsWith(`mf:${MM.uid}:`)); } catch (_) { return; }
+  for (const k of keys) { try { const o = await kv('readonly', st => st.get(k)); if (!o?.up) continue; await api('PUT', `memo/f?name=${enc(o.name)}&id=${k.split(':').pop()}`, undefined, o.buf); o.up = 0; await kv('readwrite', st => st.put(o, k)); } catch (e) { if (e.offline) return; } }
+}
+async function mmBlob(fid) { const ro = MM.cur?._ro; if (!ro) { try { const o = await kv('readonly', st => st.get(mmFk(fid))); if (o?.buf) return new Blob([o.buf]); } catch (_) {} if (!mmNet()) throw new Error('이 첨부는 이 PC 에 보관된 것이 없어 서버에 연결돼야 열 수 있습니다'); }
+  const bl = await mmBlobNet(fid, ro); if (!ro && bl.size <= 28 * 1048576) { const a = $(`#mmEd .mm-file[data-fid="${fid}"]`); bl.arrayBuffer().then(buf => mmFileKeep(fid, { name:a?.dataset.name || fid, ext:'', size:bl.size, buf, up:0 })); } return bl; }
+async function mmBlobNet(fid, ro) { const r = await fetch(API_BASE + (ro ? `/api/memo/sf/${enc(ro)}/${MM.cur.id}/${fid}` : '/api/memo/f/' + fid), { headers:{ 'X-Auth-Token':AUTH.token }, cache:'no-store' }); if (!r.ok) throw new Error((await r.json().catch(() => ({}))).error || '파일을 받지 못했습니다'); return r.blob(); }
 async function mmFileOpen(a) {
   const fid = a.dataset.fid, name = a.dataset.name || 'file'; let b; try { b = await mmBlob(fid); } catch (e) { return toast(e.message, true); }
   if (/\.pdf$/i.test(name)) { await mmFlush(); try { return await mmPdfView(fid, name, b); } catch (er) { console.warn('pdf.js 로 열지 못해 브라우저 보기로', er); return mmPdf(fid, name, URL.createObjectURL(new Blob([b], { type:'application/pdf' }))); } }
@@ -6294,7 +6314,7 @@ function mmStickyBind(host, fl) {
 mmStickyBind.z = 10;
 function mmFloatSync(p, fromFloat) { const o = fromFloat ? $(`#mmBoard .mm-sticky[data-sid="${p.id}"] .sb`) : $(`#mmFloat .mm-sticky[data-sid="${p.id}"] .sb`); if (o && document.activeElement !== o) o.textContent = p.text || ''; }
 function mmFloatDraw() {
-  let h = $('#mmFloat'); const l = mmOn() && MM.ready && MM.uid === AUTH.id ? MM.pages.filter(p => p.kind === 'sticky' && p.float && !p.deleted) : [];
+  let h = $('#mmFloat'); const l = mmOn() && MM.ready && MM.uid === mmWho().id ? MM.pages.filter(p => p.kind === 'sticky' && p.float && !p.deleted) : [];
   if (!l.length) return h?.remove();
   if (!h) { h = document.createElement('div'); h.id = 'mmFloat'; document.body.appendChild(h); mmStickyBind(h, true); }
   if (h.contains(document.activeElement) && h.children.length === l.length) return;   // 쓰는 중에는 다시 그리지 않음
@@ -6305,7 +6325,7 @@ function memoTick() {   // 화면을 그릴 때마다: 띄운 스티커 불러�
   if (MM.offline && mmNet() && MM.ready && !MM.loading && !MM.dirty) { MM.ready = false; mmLoad(true).then(() => { mmFloatDraw(); if (route === 'memo' && $('#memoWrap')) { $('#mmOffB')?.remove(); mmDraw(); } }); }   // 다시 연결됨 → 서버 것으로
   if (route !== 'memo') document.body.classList.remove('mm-zen', 'mm-wide');
   if (route !== 'memo' && MM.cur && MM.dirty) mmSave();
-  if (MM.ready && MM.uid === AUTH.id) return mmFloatDraw();
+  if (MM.ready && MM.uid === mmWho().id) return mmFloatDraw();
   if (!MM.loading) mmLoad().then(() => { mmFloatDraw(); mmAlarmTick(); if ($('#calCard')) renderCal('home'); });
 }
 /* ---------- 할 일 모음 · 휴지통 · 판 기록 · 내보내기 ---------- */
@@ -6532,7 +6552,7 @@ function mmEvs(p) {   // 메모 글에서 '날짜 + 시간' 찾기 → [{ at:'YY
       out.push({ at, t:t || p.title || (p.kind === 'sticky' ? '스티커 메모' : '메모') }); DRE.lastIndex = m.index + m[0].length + tm[0].length; } }
   return out;
 }
-const mmAllEvs = () => mmOn() && MM.ready && MM.uid === AUTH.id ? MM.pages.filter(p => !p.deleted).flatMap(p => (p.evs || (p.evs = mmEvs(p))).map(e => ({ ...e, p }))) : [];
+const mmAllEvs = () => mmOn() && MM.ready && MM.uid === mmWho().id ? MM.pages.filter(p => !p.deleted).flatMap(p => (p.evs || (p.evs = mmEvs(p))).map(e => ({ ...e, p }))) : [];
 const MM_AL = [[1440, '하루 전'], [30, '30분 전'], [15, '15분 전'], [0, '지금']];
 function mmAlarmFired() { try { const o = JSON.parse(localStorage.getItem('dept-memo-alarm') || '{}'), lim = Date.now() - 4 * 864e5; Object.keys(o).forEach(k => { if (o[k] < lim) delete o[k]; }); return o; } catch (_) { return {}; } }
 function mmLeft(ms) { const m = Math.round(ms / 60000); return m <= 0 ? '지금' : m < 60 ? `${m}분 남음` : m < 1440 ? `${Math.floor(m / 60)}시간${m % 60 ? ' ' + m % 60 + '분' : ''} 남음` : `${Math.floor(m / 1440)}일 ${Math.floor(m % 1440 / 60)}시간 남음`; }
@@ -6632,12 +6652,13 @@ function mmZoomFit() {
 }
 /* ----- PDF 를 메모장 안에서 보기 (pdf.js) + 그 위에 펜 ----- */
 let MM_PDFLIB = null;
-function mmPdfLib() {
-  return MM_PDFLIB || (MM_PDFLIB = new Promise((res, rej) => { const base = API_BASE + '/apps/pdfjs/', sc = document.createElement('script'); sc.src = base + 'pdf.min.js';
-    sc.onerror = () => { MM_PDFLIB = null; rej(new Error('pdfjs 없음')); };
-    sc.onload = async () => { try { const lib = window.pdfjsLib; if (!lib) throw new Error('pdfjs 없음'); const w = await fetch(base + 'pdf.worker.min.js'); if (!w.ok) throw new Error('worker 없음');
-      lib.GlobalWorkerOptions.workerSrc = URL.createObjectURL(new Blob([await w.text()], { type:'text/javascript' })); res({ lib, base }); } catch (er) { MM_PDFLIB = null; rej(er); } };
-    document.head.appendChild(sc); }));
+function mmPdfLib() {   // pdf.js: 서버에서 받아 이 PC 에도 보관 → 서버가 꺼져도 PDF 보기 · 펜 쓰기
+  return MM_PDFLIB || (MM_PDFLIB = (async () => { const base = API_BASE + '/apps/pdfjs/'; let src = null;
+    try { if (!mmNet()) throw 0; const [a, w] = await Promise.all([fetch(base + 'pdf.min.js'), fetch(base + 'pdf.worker.min.js')]); if (!a.ok || !w.ok) throw 0; src = { lib:await a.text(), wk:await w.text() }; kv('readwrite', st => st.put(src, 'pdfjs-3.11.174')).catch(() => {}); }
+    catch (_) { try { src = await kv('readonly', st => st.get('pdfjs-3.11.174')); } catch (_) {} }
+    if (!src?.lib) throw new Error('pdfjs 없음');
+    if (!window.pdfjsLib) await new Promise((res, rej) => { const sc = document.createElement('script'); sc.src = URL.createObjectURL(new Blob([src.lib], { type:'text/javascript' })); sc.onload = res; sc.onerror = rej; document.head.appendChild(sc); });
+    const lib = window.pdfjsLib; if (!lib) throw new Error('pdfjs 없음'); lib.GlobalWorkerOptions.workerSrc = URL.createObjectURL(new Blob([src.wk], { type:'text/javascript' })); return { lib, base }; })().catch(e => { MM_PDFLIB = null; throw e; }));
 }
 async function mmPdfView(fid, name, blob) {
   const pg = MM.cur; if (!pg) return; const { lib, base } = await mmPdfLib();
@@ -6808,6 +6829,8 @@ const MEMO_TAG = ['<scr' + 'ipt id="deptMemo" type="application/json">', '</scr'
 async function mmlLoad(uid) {
   if (MML.uid === uid && MML.ok) return; MML.uid = uid; MML.pages = {}; MML.book = null; MML.ok = true;
   try { const d = await kv('readonly', st => st.get('memo:' + uid)); if (d?.pages) { MML.pages = d.pages; MML.book = d.book || null; } } catch (_) {}
+  if (uid !== 'local') try { const d = await kv('readonly', st => st.get('memo:local'));   // 로그인 전에 이 PC 에서 쓴 임시 메모 → 이 계정으로 합침
+    if (d?.pages && Object.keys(d.pages).length) { for (const p of Object.values(d.pages)) if (!MML.pages[p.id]) MML.pages[p.id] = { ...p, _dirty:1 }; await kv('readwrite', st => st.delete('memo:local')); mmlPut(); } } catch (_) {}
   try { const f = tagLoad('deptMemo')?.[uid];   // 이 dashboard.html 파일 안에 넣어 둔 것 — 브라우저 보관함이 지워졌을 때 되살림
     if (f?.pages) { let n = 0; for (const p of f.pages) { const o = MML.pages[p.id]; if (!o || (p.updatedAt || '') > (o.updatedAt || '')) { MML.pages[p.id] = p; n++; } } if (!MML.book && f.book) MML.book = f.book; if (n) mmlPut(); } } catch (_) {}
 }
@@ -6816,13 +6839,14 @@ function mmlKeep(pg, dirty) { if (!pg || pg._ro || !MML.uid) return; const c = J
 function mmlDrop(id) { if (MML.pages[id]) { delete MML.pages[id]; mmlPut(); } }
 const mmlMeta = pg => { const m = {}; ['id', 'kind', 'sec', 'title', 'icon', 'color', 'tags', 'pin', 'lock', 'deleted', 'float', 'x', 'y', 'w', 'h', 'fx', 'fy', 'text', 'todos', 'files', 'date', 'lh', 'ord', 'share', 'createdAt', 'updatedAt'].forEach(k => { if (k in pg) m[k] = pg[k]; }); return m; };
 async function withMemo(html) {   // 내 dashboard.html 파일 안에 내 메모도 넣음 (출장용 · 부재용 파일에는 안 넣음)
-  try { html = tagStrip(html, MEMO_TAG); if (!AUTH || !MML.ok || MML.uid !== AUTH.id) { const old = tagLoad('deptMemo'); return old ? tagPut(html, MEMO_TAG, old) : html; }
+  try { html = tagStrip(html, MEMO_TAG); const W = mmOn() ? mmWho() : null; if (!W || !MML.ok || MML.uid !== W.id) { const old = tagLoad('deptMemo'); return old ? tagPut(html, MEMO_TAG, old) : html; }
     const all = { ...(tagLoad('deptMemo') || {}) }, pages = Object.values(MML.pages); let size = 0; const keep = [];
     for (const p of pages.sort((a, b) => (b.updatedAt || '').localeCompare(a.updatedAt || ''))) { const n = JSON.stringify(p).length; if (size + n > 40e6) break; size += n; keep.push(p); }
-    all[AUTH.id] = { at:new Date().toISOString(), name:AUTH.name, book:MML.book, pages:keep, cut:pages.length - keep.length }; return tagPut(html, MEMO_TAG, all); } catch (_) { return html; }
+    all[W.id] = { at:new Date().toISOString(), name:W.name, book:MML.book, pages:keep, cut:pages.length - keep.length }; return tagPut(html, MEMO_TAG, all); } catch (_) { return html; }
 }
 async function mmlSyncUp() {   // 서버에 연결됐을 때: 오프라인에서 고친 것 올리기 · 서버에서 아직 안 받은 메모 받아 두기
-  const dirty = Object.values(MML.pages).filter(p => p._dirty); let up = 0;
+  setTimeout(async () => { try { if (!(await kv('readonly', st => st.get('pdfjs-3.11.174')))?.lib) { const base = API_BASE + '/apps/pdfjs/', [x, w] = await Promise.all([fetch(base + 'pdf.min.js'), fetch(base + 'pdf.worker.min.js')]); if (x.ok && w.ok) { const o = { lib:await x.text(), wk:await w.text() }; await kv('readwrite', st => st.put(o, 'pdfjs-3.11.174')); } } } catch (_) {} }, 6000);   // PDF 보기 도구를 이 PC 에 미리 받아 둠(서버가 꺼져도 PDF 위 펜)
+  await mmFilesUp(); const dirty = Object.values(MML.pages).filter(p => p._dirty); let up = 0;
   for (const p of dirty) { const pg = JSON.parse(JSON.stringify(p)); delete pg._dirty; const base = MM.pages.find(x => x.id === pg.id)?.updatedAt;
     try { const srv = base && base !== pg.updatedAt;   // 서버 것이 그 사이 바뀌었으면 덮지 않고 사본으로
       if (srv) { pg.id = mmId(); pg.title = (pg.title || '메모') + ' (오프라인에서 고친 사본)'; delete pg.updatedAt; delete pg.createdAt; mmlDrop(p.id); }
@@ -6830,7 +6854,8 @@ async function mmlSyncUp() {   // 서버에 연결됐을 때: 오프라인에서
   if (up) toast(`서버가 꺼져 있던 동안 이 PC 에서 고친 메모 ${up}개를 서버에 올렸습니다`);
   const ids = new Set(MM.pages.map(p => p.id)); MM.lost = Object.values(MML.pages).filter(p => !ids.has(p.id) && !p._dirty && !p.deleted);
   (async () => { for (const m of MM.pages.slice()) { const o = MML.pages[m.id]; if (o && o.updatedAt === m.updatedAt) continue; if (m.kind === 'sticky') { mmlKeep(m); continue; }
-    try { mmlKeep(await api('GET', 'memo/p/' + m.id)); } catch (_) { break; } await new Promise(r => setTimeout(r, 60)); } })();
+    try { mmlKeep(await api('GET', 'memo/p/' + m.id)); } catch (_) { break; } await new Promise(r => setTimeout(r, 60)); } 
+    for (const m of MM.pages.slice()) for (const fid of m.files || []) { try { if (await kv('readonly', st => st.getKey(mmFk(fid)))) continue; const bl = await mmBlobNet(fid); if (bl.size <= 28 * 1048576) await mmFileKeep(fid, { name:fid, ext:'', size:bl.size, buf:await bl.arrayBuffer(), up:0 }); } catch (e) { if (e.offline || !mmNet()) return; } await new Promise(r => setTimeout(r, 80)); } })();   // 첨부도 이 PC 에 받아 둠
   if (up && route === 'memo') mmDraw();
 }
 async function mmLost(act) { const l = MM.lost || []; if (!l.length) return;
@@ -6841,7 +6866,7 @@ async function mmLost(act) { const l = MM.lost || []; if (!l.length) return;
 /* ③ 공유 */
 async function mmShareDlg() {
   const pg = MM.cur; if (!pg || pg._ro) return; if (!mmNet()) return toast('공유는 서버에 연결됐을 때 설정할 수 있습니다', true);
-  const us = (PRES.users || []).filter(u => u.id !== AUTH.id), cur = new Set(pg.share || []), all = cur.has('*');
+  const us = (PRES.users || []).filter(u => u.id !== AUTH?.id), cur = new Set(pg.share || []), all = cur.has('*');
   openDlg(dlg, `<div class="dh">👥 메모 공유 — ${esc(pg.title || '제목 없음')}</div><div class="db"><p style="margin-top:0">고른 부서원의 내 메모장 › <b>공유받은 메모</b> 에 이 메모가 <b>읽기 전용</b>으로 보입니다. 내가 고치면 그쪽에도 바뀐 내용이 보이고, 공유를 끄면 바로 사라집니다. (그림 · 첨부 · 펜 · 메모지 포함)</p>
     <label style="display:block;font-weight:700;margin:6px 0"><input type="checkbox" id="mmShAll" ${all ? 'checked' : ''}> 부서원 모두에게</label>
     <div id="mmShList" style="max-height:300px;overflow:auto;border:1px solid var(--line);border-radius:10px;padding:6px 10px;columns:2">${us.map(u => `<label style="display:block;padding:3px 0;break-inside:avoid"><input type="checkbox" data-u="${esc(u.id)}" ${cur.has(u.id) ? 'checked' : ''}> ${esc(u.name)} <span class="muted" style="font-size:11px">${esc(u.id)}</span></label>`).join('') || '<span class="muted">다른 부서원 계정이 없습니다</span>'}</div></div>
@@ -7475,7 +7500,7 @@ function calEvents(y, m, mode = 'home') {                                  // m:
       add(v, { k:a ? 'ms' : 'mso', t:SCH_NAME[k], l:`${it.no} ${it.item}`, s:`${a ? '실적' : it.F[k] ? '전망' : '계획'} ${schFmt(v)}${dd > 0 ? ` · 계획보다 +${dd}일` : ''}${!a && v < td ? ' · 지남(실적 없음)' : ''} · ${it.disc}`, ms:it.type + '|' + it.no }); }));
     return out;
   }
-  if (mmOn() && MM.ready && MM.uid === AUTH.id) { const mk = ymd(first).slice(0, 7);   // 2026-11-19 내 메모장 연동: 내 메모(날짜 기준) — 나에게만 보임
+  if (mmOn() && MM.ready && MM.uid === mmWho().id) { const mk = ymd(first).slice(0, 7);   // 2026-11-19 내 메모장 연동: 내 메모(날짜 기준) — 나에게만 보임
     mmEvery().forEach(p => { const d = mmDay(p); if (d.slice(0, 7) === mk) add(d, { k:'memo', t:p.kind === 'sticky' ? '🗒 스티커' : '📝 메모', l:p.kind === 'sticky' ? (p.text || '').split('\n')[0].slice(0, 40) || '스티커' : p.title || '제목 없음', s:'내 메모장 (나만 보임)', go:'memo', memo:p.id }); });
     mmAllEvs().forEach(e => { if (e.at.slice(0, 7) === mk) add(e.at.slice(0, 10), { k:'alarm', t:'⏰ ' + e.at.slice(11), l:e.t, s:`내 메모 일정 · ${e.p.kind === 'sticky' ? '스티커' : e.p.title || '제목 없음'} · 하루 전 · 30분 전 · 15분 전 알림`, go:'memo', memo:e.p.id }); }); }
   getRecs('notice').forEach(r => { const d = isoD(r.fields['일자']); if (d && d.slice(0, 7) === ymd(first).slice(0, 7)) add(d, { k:'nt', t:'회의', l:flat(r.fields['제목']) || '주간회의 전달사항', s:flat(r.fields['내용']).slice(0, 60), go:'notice' }); });

@@ -36,7 +36,7 @@ ID_RE = re.compile(r'^[A-Za-z0-9_\-]{1,80}$')
 WEEK_RE = re.compile(r'^\d{4}-W\d{2}$')
 MAX_BODY = 30 * 1024 * 1024
 
-SERVER_VERSION = '2026-11-19.5'
+SERVER_VERSION = '2026-11-19.6'
 ROOT = os.path.dirname(os.path.abspath(__file__))
 PORT = 8080
 ALLOW_NETS = []          # 사내망: 루프백·사설망 + 서버 IP 대역(/16, 유선·Wi-Fi 등 지금까지 쓴 대역 모두 기억) + --allow 로 추가한 대역
@@ -2309,7 +2309,7 @@ def api_memo_vers(acc, pid, ts=''):
     return {'vers': out}
 
 
-def api_memo_file_put(acc, name, data):
+def api_memo_file_put(acc, name, data, want=''):
     name = os.path.basename(str(name or '').replace('\\', '/')).strip()[:120] or 'file'
     ext = os.path.splitext(name)[1].lower()
     if not re.fullmatch(r'\.[a-z0-9]{1,8}', ext or ''):
@@ -2321,6 +2321,8 @@ def api_memo_file_put(acc, name, data):
     with LOCK:
         fid = f"f{int(time.time() * 1000):x}{os.urandom(3).hex()}"
         d = memo_dir(acc, 'files')
+        if re.fullmatch(r'f[0-9a-f]{6,30}', want or '') and not os.path.exists(os.path.join(d, want + '.json')):
+            fid = want                                    # 서버가 꺼져 있을 때 PC 에서 먼저 붙인 첨부: PC 가 정한 ID 그대로 (메모 안의 연결이 유지되게)
         os.makedirs(d, exist_ok=True)
         tmp = os.path.join(d, fid + '.tmp')
         with open(tmp, 'wb') as f:
@@ -3038,7 +3040,7 @@ class Handler(BaseHTTPRequestHandler):
             if m == 'GET' and len(seg) in (4, 5) and seg[1] == 'p' and seg[3] == 'vers':
                 return api_memo_vers(acc, seg[2], seg[4] if len(seg) == 5 else '')
             if m == 'PUT' and seg[1:] == ['f']:
-                return api_memo_file_put(acc, q.get('name', ''), self.raw_body())
+                return api_memo_file_put(acc, q.get('name', ''), self.raw_body(), q.get('id', ''))
             if len(seg) == 3 and seg[1] == 'f':
                 if m == 'GET':
                     fm = memo_file(acc, seg[2])
