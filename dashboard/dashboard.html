@@ -2412,7 +2412,7 @@ function recLabel(key, f) {
  * ===================================================================== */
 let root = null;
 /* 서버 모드: http(s):// 로 접속하면 server.py 의 REST API 사용 (폴더 선택 불필요). file:// 로 열면 폴더 모드 */
-const APP_VERSION = '2026-11-19.34';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
+const APP_VERSION = '2026-11-19.35';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
 const SERVER_URL = 'http://localhost:8080';
 // 부서원 PC 사본(file://)이 접속을 시도할 서버 — 서버가 배포 파일을 만들 때 'PC 이름 주소, IP 주소' 순으로 자동 기록함
 const DEFAULT_SERVERS = ['http://ASEUNGWOOK-B01:8080', 'http://65.3.30.234:8080'];
@@ -6891,8 +6891,11 @@ function mmNotesDraw() {
     clearTimeout(h._pf); h._pf = setTimeout(mmPaperFit, 80); });
   const rsUp = () => { if (!rs) return; const n = N(rs.el.dataset.fn), el = rs.el; el.classList.remove('sizing'); if (n) { n.w = el.offsetWidth; n.x = Math.round(parseFloat(el.style.left) || 0); n.y = Math.round(parseFloat(el.style.top) || 0); if (!rs.im || el.classList.contains('fixh')) n.h = el.offsetHeight; mmNoteTouch('obj'); } rs = null; MM.noClick = Date.now(); };
   h.addEventListener('pointerup', rsUp); h.addEventListener('pointercancel', rsUp);
-  h.addEventListener('pointerdown', e => { const g = e.target.closest('.grip, .mm-fn.im > img'), el = e.target.closest('.mm-fn'); if (!g || !el || MM.cur?.lock || e.button) return; e.preventDefault(); g.setPointerCapture(e.pointerId); drag = { el, sx:e.clientX, sy:e.clientY, x:parseFloat(el.style.left), y:parseFloat(el.style.top) }; });
-  h.addEventListener('pointermove', e => { if (!drag) return; const z = mmZoom(); clearTimeout(h._pf); h._pf = setTimeout(mmPaperFit, 80); drag.el.style.left = Math.max(0, drag.x + (e.clientX - drag.sx) / z) + 'px'; drag.el.style.top = Math.max(0, drag.y + (e.clientY - drag.sy) / z) + 'px'; });
+  h.addEventListener('pointerdown', e => { const g = e.target.closest('.grip, .mm-fn.im > img'), el = e.target.closest('.mm-fn'); if (!g || !el || MM.cur?.lock || e.button) return; e.preventDefault(); g.setPointerCapture(e.pointerId); const ew = $('#mmEdw'); drag = { el, sx:e.clientX, sy:e.clientY, cx:e.clientX, cy:e.clientY, sl:ew?.scrollLeft || 0, st:ew?.scrollTop || 0, x:parseFloat(el.style.left), y:parseFloat(el.style.top) }; });
+  // v18.00: 끄는 중에 휠을 굴리면 종이가 위아래로 가고 그림 · 메모지도 마우스에 붙어 같이 감
+  const dragAt = () => { const z = mmZoom(), ew = $('#mmEdw'), dsx = (ew?.scrollLeft || 0) - drag.sl, dsy = (ew?.scrollTop || 0) - drag.st; clearTimeout(h._pf); h._pf = setTimeout(mmPaperFit, 80); drag.el.style.left = Math.max(0, drag.x + (drag.cx - drag.sx + dsx) / z) + 'px'; drag.el.style.top = Math.max(0, drag.y + (drag.cy - drag.sy + dsy) / z) + 'px'; };
+  document.addEventListener('scroll', e => { if (drag && e.target?.id === 'mmEdw') dragAt(); }, true);
+  h.addEventListener('pointermove', e => { if (!drag) return; drag.cx = e.clientX; drag.cy = e.clientY; dragAt(); });
   const up = () => { if (!drag) return; const n = N(drag.el.dataset.fn); if (n) { n.x = Math.round(parseFloat(drag.el.style.left)); n.y = Math.round(parseFloat(drag.el.style.top)); mmNoteTouch('obj'); } drag = null; };
   h.addEventListener('pointerup', up); h.addEventListener('pointercancel', up);
   h.addEventListener('mouseup', e => { const el = e.target.closest('.mm-fn'), n = el && N(el.dataset.fn); if (!n || drag) return; const w = el.offsetWidth, hh = el.offsetHeight; if (Math.abs(w - (n.w || 0)) > 2 || (el.style.height && Math.abs(hh - (n.h || 0)) > 2)) { n.w = w; if (el.style.height) n.h = hh; mmNoteTouch(); } });
@@ -7101,7 +7104,9 @@ function mmImgFloat(img, x, y) {
   document.addEventListener('pointermove', e => {
     if (cand && !mv && Math.hypot(e.clientX - cand.x, e.clientY - cand.y) > 8) { const r = cand.im.getBoundingClientRect(), ox = cand.x - r.left, oy = cand.y - r.top, n = mmImgFloat(cand.im); cand = null; if (!n) return; $('.mm-pop')?.remove();
       const el = $(`#mmNotes [data-fn="${n.id}"]`); if (el) { mv = { n, el, ox, oy }; el.classList.add('moving'); getSelection().removeAllRanges(); } }
-    if (mv) { e.preventDefault(); const zr = $('#mmZw').getBoundingClientRect(), z = mmZoom(); mv.el.style.left = Math.max(0, (e.clientX - mv.ox - zr.left) / z) + 'px'; mv.el.style.top = Math.max(0, (e.clientY - mv.oy - zr.top) / z) + 'px'; } });
+    if (mv) { e.preventDefault(); mv.cx = e.clientX; mv.cy = e.clientY; at(); } });
+  const at = () => { const zr = $('#mmZw').getBoundingClientRect(), z = mmZoom(); mv.el.style.left = Math.max(0, (mv.cx - mv.ox - zr.left) / z) + 'px'; mv.el.style.top = Math.max(0, (mv.cy - mv.oy - zr.top) / z) + 'px'; };
+  document.addEventListener('scroll', e => { if (mv && mv.cx != null && e.target?.id === 'mmEdw') at(); }, true);   // 끄는 중 휠 → 그림도 같이
   const up = () => { cand = null; if (!mv) return; mv.n.x = Math.round(parseFloat(mv.el.style.left)); mv.n.y = Math.round(parseFloat(mv.el.style.top)); mv.el.classList.remove('moving'); mv = null; MM.noClick = Date.now(); mmNoteTouch('obj'); };
   document.addEventListener('pointerup', up); document.addEventListener('pointercancel', up);
 })();
