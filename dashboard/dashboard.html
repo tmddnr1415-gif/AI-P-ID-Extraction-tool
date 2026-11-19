@@ -2108,6 +2108,26 @@ body.mm-noanno #mmNotes > :not(.tb),body.mm-noanno #mmInk,body.mm-noanno #mmInkH
 #mmEdw.pp.dk.bg-green{background-color:#0f2318;--ln:rgba(120,220,150,.16);background-image:linear-gradient(rgba(120,220,150,.32) 1px,transparent 1px),linear-gradient(90deg,rgba(120,220,150,.32) 1px,transparent 1px),linear-gradient(var(--ln) 1px,transparent 1px),linear-gradient(90deg,var(--ln) 1px,transparent 1px)}
 #mmEdw.pp.dk.bg-blue{background-color:#0b2447}
 #mmEdw.pp:is(.bg-lined,.bg-wide){background-position:0 calc(16px*var(--z) + var(--phH,0px))}#mmEdw.pp:is(.bg-legal,.bg-cornell){background-position:0 0,0 calc(16px*var(--z) + var(--phH,0px))}
+/* 2026-11-19 v18.03 Notion 처럼 */
+#mmBp{position:absolute;display:none;width:18px;height:20px;line-height:19px;text-align:center;font-size:16px;font-weight:300;color:#8b95b5;cursor:pointer;border-radius:5px;user-select:none;z-index:3}#mmBp:hover,#mmBh:hover{background:rgba(55,53,47,.08);color:#37352f}
+.mm-pop .mm-poph{font-size:11px;font-weight:700;color:var(--sub);padding:8px 10px 3px}.mm-pop .mm-popc{display:flex;flex-wrap:wrap;gap:2px;padding:0 6px 4px}.mm-pop .mm-popc button{width:auto;padding:4px;border-radius:6px}.mm-pop .mm-popc i{display:inline-block;width:20px;height:20px;line-height:20px;text-align:center;font-style:normal;font-weight:800;border-radius:5px}
+.mm-pop .mm-popc.cov{width:250px;padding:4px}.mm-pop .mm-popc.cov i{width:52px;height:30px;border-radius:6px}.mm-pop.blk{max-height:460px}
+.mm-bub{position:fixed;z-index:9001;display:flex;align-items:center;gap:1px;background:var(--card);border:1px solid var(--line);border-radius:10px;box-shadow:0 10px 30px rgba(15,15,30,.2),0 1px 3px rgba(15,15,30,.1);padding:3px;animation:mmBubIn .12s ease-out}
+.mm-bub button{border:0;background:none;cursor:pointer;min-width:28px;height:28px;padding:0 7px;border-radius:7px;font-size:13px;color:var(--text);white-space:nowrap}.mm-bub button:hover{background:rgba(55,53,47,.08)}.mm-bub i{width:1px;height:18px;background:var(--line);margin:0 3px}
+@keyframes mmBubIn{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+#mmEd > [data-ph]::before{content:"'/' 를 눌러 블록 넣기 · '@' 로 날짜 · 메모 · 사람";position:absolute;color:#b4b8c8;pointer-events:none;font-weight:400}#mmEd:empty::before{content:"'/' 를 눌러 블록 넣기 · '@' 로 날짜 · 메모 · 사람";color:#b4b8c8}
+#mmEdw.dk #mmEd > [data-ph]::before{color:rgba(230,236,255,.35)}
+.mm-ed > [style*="background-color"]{border-radius:4px;padding-left:4px;padding-right:4px}
+.mm-cov{height:140px;margin:0;border-radius:0;flex:none;position:relative}
+.mm-phact{display:flex;gap:4px;height:24px;margin:-4px 0 2px -6px;opacity:0;transition:opacity .15s}.mm-ph:hover .mm-phact{opacity:1}.mm-phact button{border:0;background:none;color:#8a8ea3;font-size:12px;padding:2px 7px;border-radius:5px;cursor:pointer}.mm-phact button:hover{background:rgba(55,53,47,.08);color:#37352f}
+.mm-ph.big .mm-phact{display:none}#mmEdw.dk .mm-phact button:hover{color:#fff;background:rgba(255,255,255,.1)}
+.mm-bc{display:flex;align-items:center;gap:5px;font-size:12px;color:#8a8ea3;max-width:46%;overflow:hidden;white-space:nowrap}.mm-bc button{border:0;background:none;color:inherit;cursor:pointer;padding:2px 5px;border-radius:5px;font-size:12px}.mm-bc button:hover{background:rgba(55,53,47,.08);color:#37352f}.mm-bc b{font-weight:600;color:var(--text);overflow:hidden;text-overflow:ellipsis}
+.mm-ed .mm-date,.mm-notes .mm-date{color:#787774;background:rgba(135,131,120,.12);border-radius:4px;padding:0 4px;white-space:nowrap}
+.mm-ed .mm-men,.mm-notes .mm-men{color:#337ea9;background:rgba(51,126,169,.1);border-radius:4px;padding:0 3px;font-weight:600}
+.mm-ed a.mm-pgl,.mm-notes a.mm-pgl{color:inherit;text-decoration:none;border-bottom:1px solid rgba(55,53,47,.3);font-weight:600;cursor:pointer}.mm-ed a.mm-pgl:hover{background:rgba(55,53,47,.08)}
+#mmEdw.dk .mm-ed a.mm-pgl{border-bottom-color:rgba(255,255,255,.4)}
+.mm-bl{margin-top:6px;font-size:12px;color:#8a8ea3;display:flex;flex-wrap:wrap;gap:4px;align-items:center}.mm-bl button{border:1px solid var(--line);background:var(--card);border-radius:12px;padding:1px 9px;font-size:12px;cursor:pointer;color:var(--text)}.mm-bl button:hover{border-color:var(--accent);color:var(--accent-d)}
+@media print{.mm-phact,.mm-bub,#mmBp{display:none!important}}
 /* 2026-11-19 v18.02 주석 = 말풍선 (메모지 · 주석 달기) — 본문 · 글 상자와 다른 모양 */
 .mm-fn.st{--nc:#fff2a8;background:color-mix(in srgb,var(--nc) 38%,#fff)!important;border:1px solid color-mix(in srgb,var(--nc) 70%,#8b95b5);border-left:4px solid color-mix(in srgb,var(--nc) 55%,#5b6382);border-radius:10px!important;box-shadow:0 6px 18px rgba(30,40,80,.16)!important;overflow:visible!important;color:#33384d}
 .mm-fn.st .fh{background:transparent!important;height:19px;border-bottom:1px dashed color-mix(in srgb,var(--nc) 60%,#9aa3bd)}.mm-fn.st .grip{font-size:10.5px;font-weight:700;color:#5b6382;letter-spacing:-.1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -2427,7 +2447,7 @@ function recLabel(key, f) {
  * ===================================================================== */
 let root = null;
 /* 서버 모드: http(s):// 로 접속하면 server.py 의 REST API 사용 (폴더 선택 불필요). file:// 로 열면 폴더 모드 */
-const APP_VERSION = '2026-11-19.37';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
+const APP_VERSION = '2026-11-19.38';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
 const SERVER_URL = 'http://localhost:8080';
 // 부서원 PC 사본(file://)이 접속을 시도할 서버 — 서버가 배포 파일을 만들 때 'PC 이름 주소, IP 주소' 순으로 자동 기록함
 const DEFAULT_SERVERS = ['http://ASEUNGWOOK-B01:8080', 'http://65.3.30.234:8080'];
@@ -6051,6 +6071,8 @@ function mmClean(html) {
     if (n.tagName === 'IMG' && !at.src) return n.remove();
     Object.entries(at).forEach(([k, v]) => n.setAttribute(k, v)); Object.entries(keep).forEach(([k, v]) => { n.style[k] = v; });
     if (n.tagName === 'A') { n.target = '_blank'; n.rel = 'noopener noreferrer'; if (n.classList.contains('mm-file')) n.setAttribute('contenteditable', 'false'); }
+    if (n.matches('a.mm-pgl, span.mm-date, span.mm-men')) n.setAttribute('contenteditable', 'false');   // v18.03 @ 언급 조각은 한 덩어리
+    if (n.tagName === 'SPAN' && /^(background-color: (transparent|rgba\(0, 0, 0, 0\));?)?$/.test(n.getAttribute('style') || '') && n.attributes.length <= (n.hasAttribute('style') ? 1 : 0)) { walk(n); return n.replaceWith(...n.childNodes); }   // 꾸밈 없는 껍데기 span 은 벗김
     walk(n); });
   walk(box.content); return box.innerHTML;
 }
@@ -6062,12 +6084,13 @@ function mmMetaOf(pg) {   // 목록 · 찾기 · 할 일 모음에 쓰는 요약
   pg.todos = [...d.querySelectorAll('.mm-chk')].slice(0, 300).map(x => ({ t:x.textContent.trim().slice(0, 160), d:x.dataset.done === '1' ? 1 : 0 }));
   pg.files = [...new Set([...d.querySelectorAll('.mm-file[data-fid]')].map(x => x.dataset.fid))];
   (pg.notes || []).forEach(n => { if (n.k === 'tbox' && n.html) d.insertAdjacentHTML('beforeend', '<div>' + n.html + '</div>'); });   // 글 상자도 본문처럼 (태그 모음)
+  pg.links = [...new Set([...d.querySelectorAll('a.mm-pgl[href^="#memo/"]')].map(a => a.getAttribute('href').slice(6)))].slice(0, 100);
   pg.marks = [...d.querySelectorAll(MM_MKSEL)].slice(0, 300).map(x => ({ k:MM_MK.find(m => x.classList.contains('mm-' + m[0]))[0], t:x.textContent.trim().slice(0, 160) }));
   if (pg.notes?.length) pg.text = (pg.text + '\n' + pg.notes.map(n => n.text || '').join('\n')).slice(0, 20000);   // 붙인 메모지 · 글 상자도 찾기 · 일정 인식에 포함
   return pg;
 }
 function mmMetaPut(pg) {
-  const m = {}; ['id', 'kind', 'sec', 'title', 'icon', 'color', 'tags', 'pin', 'lock', 'deleted', 'float', 'x', 'y', 'w', 'h', 'fx', 'fy', 'text', 'todos', 'marks', 'files', 'date', 'lh', 'ord', 'img', 'createdAt', 'updatedAt'].forEach(k => { if (k in pg) m[k] = pg[k]; });
+  const m = {}; ['id', 'kind', 'sec', 'title', 'icon', 'color', 'tags', 'pin', 'lock', 'deleted', 'float', 'x', 'y', 'w', 'h', 'fx', 'fy', 'text', 'todos', 'marks', 'links', 'files', 'date', 'lh', 'ord', 'img', 'createdAt', 'updatedAt'].forEach(k => { if (k in pg) m[k] = pg[k]; });
   m.evs = mmEvs(m); const i = MM.pages.findIndex(p => p.id === pg.id); if (i >= 0) MM.pages[i] = m; else MM.pages.push(m); setTimeout(mmAlarmTick, 50);
 }
 /* ---------- 저장 (자동 · 1.2초 뒤) ---------- */
@@ -6222,7 +6245,7 @@ function mmDrawMain() {
       ${MM_COL.map(c => `<button class="cdot ${(pg.color || '') === c ? 'on' : ''}" data-mcol="${c}" style="background:${c || '#e5e9f5'}" title="색 표시"></button>`).join('')}
       <button class="tg" data-mx="pull" title="수행 · 입찰 · 이슈 · 통합 업무 · Schedule 등 다른 메뉴의 값을 골라 이 메모에 넣기" style="color:var(--accent-d);font-weight:700">📥 다른 메뉴 값 불러오기</button><button class="tg" data-mx="ver" title="자동으로 남긴 이전 판 보기 · 되돌리기">🕘 판 기록</button><button class="tg" data-mx="more">⋯ 더 보기</button></div>
     <div class="mm-tb" id="mmTb">${T('undo', '↶', '실행 취소 (Ctrl+Z)')}${T('redo', '↷', '다시 실행 (Ctrl+Y)')}${S}${T('h1', 'H1', '큰 제목')}${T('h2', 'H2', '중간 제목')}${T('h3', 'H3', '작은 제목')}${T('p', '본문', '보통 글')}${S}
-      ${T('bold', '<b>B</b>', '굵게 (Ctrl+B)')}${T('italic', '<i>I</i>', '기울임 (Ctrl+I)')}${T('underline', '<u>U</u>', '밑줄 (Ctrl+U)')}${T('strike', '<s>S</s>', '취소선')}${T('sup', 'x<sup>2</sup>', '위 첨자 (Ctrl+Shift+=) — 다시 누르면 풀림')}${T('sub', 'x<sub>2</sub>', '아래 첨자 (Ctrl+=) — 다시 누르면 풀림')}${T('color', '<span style="color:#dc2626;font-weight:800">A</span>', '글자 색')}${T('hilite', '<span style="background:#fff176;padding:0 4px">A</span>', '형광펜')}${T('big', 'A+', '글자 크게')}${T('small', 'A−', '글자 작게')}${T('clear', '⌫', '서식 지우기')}${T('paint', '🖌', '서식 복사 — 글을 고른 뒤 누르고, 바꿀 글을 끌어 고르면 같은 모양으로 (Esc 취소)')}${S}
+      ${T('bold', '<b>B</b>', '굵게 (Ctrl+B)')}${T('italic', '<i>I</i>', '기울임 (Ctrl+I)')}${T('underline', '<u>U</u>', '밑줄 (Ctrl+U)')}${T('strike', '<s>S</s>', '취소선')}${T('sup', 'x²', '위 첨자 (Ctrl+Shift+=) — 다시 누르면 풀림')}${T('sub', 'x₂', '아래 첨자 (Ctrl+=) — 다시 누르면 풀림')}${T('color', '<span style="color:#dc2626;font-weight:800">A</span>', '글자 색')}${T('hilite', '<span style="background:#fff176;padding:0 4px">A</span>', '형광펜')}${T('big', 'A+', '글자 크게')}${T('small', 'A−', '글자 작게')}${T('clear', '⌫', '서식 지우기')}${T('paint', '🖌', '서식 복사 — 글을 고른 뒤 누르고, 바꿀 글을 끌어 고르면 같은 모양으로 (Esc 취소)')}${S}
       ${T('ul', '•', '글머리 목록')}${T('ol', '1.', '번호 목록')}${T('todo', '☑', '할 일 (체크 상자)')}${T('quote', '❝', '인용')}${T('call', '💡', '강조 상자')}${T('code', '&lt;/&gt;', '코드 · 고정폭')}${T('toggle', '▸', '접는 글')}${T('hr', '―', '구분선')}${T('mark', '🏷 태그', 'OneNote 태그 — 이 줄에 ⭐중요 · ❓질문 · 💡아이디어 · ⚠확인 · 📞연락 붙이기 (Alt+1~6, Alt+0 지우기) · 왼쪽 [🏷 태그 모음] 에서 모든 메모의 태그를 한곳에')}${T('find', '🔎', '이 메모 안에서 찾기 · 바꾸기 (Ctrl+F · Ctrl+H)')}${S}
       ${T('left', '⇤', '왼쪽 맞춤')}${T('center', '↔', '가운데 맞춤')}${T('right', '⇥', '오른쪽 맞춤')}${T('full', '☰', '양쪽 맞춤')}${T('indent', '→|', '들여쓰기')}${T('outdent', '|←', '내어쓰기')}${S}${T('col2', '▥2', '좌우 2단으로 나누기')}${T('col3', '▥3', '좌우 3단으로 나누기')}${T('colx', '▥✕', '단 나누기 풀기 (한 줄로)')}${S}
       ${T('table', '▦', '표 넣기 — 칸 수 고르기')}<span class="tbl">${T('trow', '+행', '아래에 행 넣기')}${T('tcol', '+열', '오른쪽에 열 넣기')}${T('trowx', '−행', '행 지우기')}${T('tcolx', '−열', '열 지우기')}${T('tmerge', '⊞합치기', '끌어서 고른 칸 합치기')}${T('tsplit', '⊟나누기', '합친 칸 나누기')}${T('tbg', '🎨', '칸 배경색')}${T('tmenu', '표 ▾', '표 메뉴 전체 (표 안에서 마우스 오른쪽 단추로도 열림)')}${T('teq', '열=', '열 너비를 같게 · 표를 가로로 꽉 차게 (다시 누르면 풀기)')}${T('tsort', '↕정렬', '이 열 기준으로 행 정렬 (다시 누르면 반대로 · 날짜 · 숫자 · 글자)')}${T('tdel', '표✕', '표 지우기')}</span>${S}
@@ -6809,7 +6832,7 @@ function mmZoomSet(z, quiet) {
 function mmZoomFit() {
   // 2026-11-19 v17.91 회사 사진: 펜 쓰기를 누르면 스크롤 막대가 깜빡깜빡 — 스크롤 막대가 생기고 없어질 때마다 칸 크기(clientWidth)가 바뀌어 다시 맞추고 → 막대가 또 바뀌는 되풀이.
   // → 막대 자리는 늘 있다고 보고(offset 크기 − 막대 두께) 계산, 막대 자리는 CSS 로 항상 비워 둠(scrollbar-gutter), 크기 감시는 바깥 크기(border-box)로 · 같은 크기면 다시 맞추지 않음
-  const zw = $('#mmZw'), ew = $('#mmEdw'); if (!zw || !ew) return; const z = mmZoom(), SB = mmSbw(), cw = Math.floor(ew.offsetWidth - SB), ph = $('#mmPh')?.offsetHeight || 0, ch = Math.floor(ew.offsetHeight - SB - ph); if (cw <= 0) return; ew.style.setProperty('--phH', ph + 'px');
+  const zw = $('#mmZw'), ew = $('#mmEdw'); if (!zw || !ew) return; const z = mmZoom(), SB = mmSbw(), cw = Math.floor(ew.offsetWidth - SB), ph = zw.offsetTop || 0, ch = Math.floor(ew.offsetHeight - SB - Math.min(ph, ew.offsetHeight * .4)); if (cw <= 0) return; ew.style.setProperty('--phH', ph + 'px');
   const key = cw + 'x' + ch + '@' + z; if (MM.zkey === key && zw.style.width) { mmPaperFit(); return; } MM.zkey = key;
   // 2026-11-19 v17.80: 확대(>100%)하면 글 줄바꿈은 100% 때 그대로 두고 종이가 커짐 → 좌우로도 이동(가로 스크롤 · Shift+휠 · 휠 단추 끌기). 축소(<100%)는 종이가 칸을 채움
   const lw = Math.max(cw, cw / z), want = lw * z; zw.style.width = lw + 'px'; zw.style.minHeight = (ch / z) + 'px';
@@ -6938,7 +6961,7 @@ document.addEventListener('click', e => {   // 자리 누르기
 /* 펜 획 되돌리기 · 다시 하기 */
 /* 2026-11-19 v17.87 되돌리기 30번 · 다시 하기 30번: 메모 본문 + 떠 있는 그림 · 글 상자 · 메모지 + 펜 획 상태를 바뀔 때마다 기록 */
 const MM_HMAX = 30;
-const mmSnap = () => { const pg = MM.cur, ed = mmEd(); if (!pg || !ed) return ''; const c = ed.cloneNode(true); c.querySelectorAll('.sel,.mm-sel,.mm-moving').forEach(x => x.classList.remove('sel', 'mm-sel', 'mm-moving')); return JSON.stringify({ h:c.innerHTML, n:pg.notes || [], k:pg.ink || [], e:[+pg.ex || 0, +pg.ey || 0] }); };
+const mmSnap = () => { const pg = MM.cur, ed = mmEd(); if (!pg || !ed) return ''; const c = ed.cloneNode(true); c.querySelectorAll('.sel,.mm-sel,.mm-moving').forEach(x => x.classList.remove('sel', 'mm-sel', 'mm-moving')); c.querySelectorAll('[data-ph]').forEach(x => x.removeAttribute('data-ph')); return JSON.stringify({ h:c.innerHTML, n:pg.notes || [], k:pg.ink || [], e:[+pg.ex || 0, +pg.ey || 0] }); };
 function mmHistReset() { MM.hist = { a:[mmSnap()], i:0, t:0, pid:MM.cur?.id }; }
 function mmHistPush(now) {
   const H = MM.hist; if (!H || H.pid !== MM.cur?.id) return; clearTimeout(H.t);
@@ -7030,16 +7053,18 @@ document.addEventListener('focusout', e => { const fn = e.target.closest?.('#mmN
 /* 쓴 글(줄 · 문단 · 표 · 그림)을 끌어서 위아래로 옮기기 — 줄 왼쪽에 나타나는 ⠿ 손잡이 */
 (() => { let cur = null, drag = null;
   const top = n => { const ed = mmEd(); while (n && n.parentNode !== ed) n = n.parentNode; return n && n.nodeType === 1 ? n : null; };
-  const handle = () => { let h = $('#mmBh'); const zw = $('#mmZw'); if (!zw) return null; if (!h || !zw.contains(h)) { h = document.createElement('div'); h.id = 'mmBh'; h.textContent = '⠿'; h.title = '끌어서 이 줄(문단 · 표 · 그림)을 위아래로 옮기기'; zw.appendChild(h); const l = document.createElement('div'); l.id = 'mmBl'; zw.appendChild(l); } return h; };
-  const place = b => { const h = handle(), zw = $('#mmZw'); if (!h) return; if (!b) { h.style.display = 'none'; return; } const z = mmZoom(), zr = zw.getBoundingClientRect(), r = b.getBoundingClientRect(), ed = mmEd(), pl = parseFloat(getComputedStyle(ed).paddingLeft) || 26;
-    h.style.display = 'block'; h.style.left = Math.max(0, (ed.getBoundingClientRect().left - zr.left) / z + pl - 20) + 'px'; h.style.top = ((r.top - zr.top) / z + 2) + 'px'; };
+  const handle = () => { let h = $('#mmBh'); const zw = $('#mmZw'); if (!zw) return null; if (!h || !zw.contains(h)) { h = document.createElement('div'); h.id = 'mmBh'; h.textContent = '⠿'; h.title = '끌기 = 이 줄(문단 · 표 · 그림)을 위아래로 옮기기 · 누르기 = 블록 메뉴 (＋ 새 블록 · 지우기 · 복제 · 바꾸기 · 색)'; zw.appendChild(h); const l = document.createElement('div'); l.id = 'mmBl'; zw.appendChild(l); } return h; };
+  const place = b => { const h = handle(), zw = $('#mmZw'); if (!h) return; if (!b) { h.style.display = 'none'; const pb = $('#mmBp'); if (pb) pb.style.display = 'none'; MM.bcur = null; return; } const z = mmZoom(), zr = zw.getBoundingClientRect(), r = b.getBoundingClientRect(), ed = mmEd(), pl = parseFloat(getComputedStyle(ed).paddingLeft) || 26;
+    h.style.display = 'block'; h.style.left = Math.max(0, (ed.getBoundingClientRect().left - zr.left) / z + pl - 20) + 'px'; h.style.top = ((r.top - zr.top) / z + 2) + 'px';
+    const pb = $('#mmBp'); if (pb) { pb.style.display = 'block'; pb.style.left = Math.max(0, parseFloat(h.style.left) - 19) + 'px'; pb.style.top = h.style.top; } MM.bcur = b; };
   document.addEventListener('mousemove', e => { if (drag) return; const ed = mmEd(); if (!ed || MM.cur?.lock || PEN.on) { if (cur) { cur = null; place(null); } return; }
-    if (e.target.id === 'mmBh') return; const b = e.target.closest?.('#mmEd') ? top(e.target) : null; if (b === cur) return; if (!b && e.target.closest?.('#mmZw')) return; cur = b; place(b); });
-  document.addEventListener('pointerdown', e => { if (e.target.id !== 'mmBh' || !cur) return; e.preventDefault(); e.target.setPointerCapture(e.pointerId); drag = { b:cur, to:null, af:false }; cur.classList.add('mm-moving'); });
-  document.addEventListener('pointermove', e => { if (!drag) return; const ed = mmEd(), zw = $('#mmZw'), l = $('#mmBl'), z = mmZoom(), zr = zw.getBoundingClientRect(); let best = null, bd = 1e9, af = false;
+    if (e.target.id === 'mmBh' || e.target.id === 'mmBp') return; const b = e.target.closest?.('#mmEd') ? top(e.target) : null; if (b === cur) return; if (!b && e.target.closest?.('#mmZw')) return; cur = b; place(b); });
+  document.addEventListener('pointerdown', e => { if (e.target.id !== 'mmBh' || !cur) return; e.preventDefault(); e.target.setPointerCapture(e.pointerId); drag = { b:cur, to:null, af:false, sx:e.clientX, sy:e.clientY, mv:false }; cur.classList.add('mm-moving'); });
+  document.addEventListener('pointermove', e => { if (!drag) return; if (!drag.mv) { if (Math.hypot(e.clientX - drag.sx, e.clientY - drag.sy) < 5) return; drag.mv = true; } const ed = mmEd(), zw = $('#mmZw'), l = $('#mmBl'), z = mmZoom(), zr = zw.getBoundingClientRect(); let best = null, bd = 1e9, af = false;
     for (const c of ed.children) { if (c === drag.b) continue; const r = c.getBoundingClientRect(), d1 = Math.abs(e.clientY - r.top), d2 = Math.abs(e.clientY - r.bottom); if (d1 < bd) { bd = d1; best = c; af = false; } if (d2 < bd) { bd = d2; best = c; af = true; } }
     drag.to = best; drag.af = af; if (best) { const r = best.getBoundingClientRect(); l.style.display = 'block'; l.style.top = (((af ? r.bottom : r.top) - zr.top) / z - 1) + 'px'; } });
   const up = () => { if (!drag) return; const d = drag; drag = null; d.b.classList.remove('mm-moving'); const l = $('#mmBl'); if (l) l.style.display = 'none';
+    if (!d.mv) { const hr = $('#mmBh').getBoundingClientRect(); return mmBlockMenu(d.b, { left:hr.left, top:hr.top, bottom:hr.bottom }); }
     if (d.to && d.to !== d.b && d.to.isConnected) { d.af ? d.to.after(d.b) : d.to.before(d.b); mmTouch(); mmHistPush(true); MM.lastKind = 'obj'; } cur = null; place(null); };
   document.addEventListener('pointerup', up); document.addEventListener('pointercancel', up);
 })();
@@ -7064,7 +7089,7 @@ async function mmlLoad(uid) {
 function mmlPut() { clearTimeout(MML.t); MML.t = setTimeout(() => { const uid = MML.uid; if (!uid) return; kv('readwrite', st => st.put({ book:MML.book, pages:MML.pages, at:Date.now() }, 'memo:' + uid)).catch(() => {}); MM.chg = Date.now(); }, 400); }
 function mmlKeep(pg, dirty) { if (!pg || pg._ro || !MML.uid) return; const c = JSON.parse(JSON.stringify(pg)); if (dirty) c._dirty = 1; else delete c._dirty; MML.pages[pg.id] = c; mmlPut(); }
 function mmlDrop(id) { if (MML.pages[id]) { delete MML.pages[id]; mmlPut(); } }
-const mmlMeta = pg => { const m = {}; ['id', 'kind', 'sec', 'title', 'icon', 'color', 'tags', 'pin', 'lock', 'deleted', 'float', 'x', 'y', 'w', 'h', 'fx', 'fy', 'text', 'todos', 'marks', 'files', 'date', 'lh', 'ord', 'share', 'img', 'createdAt', 'updatedAt'].forEach(k => { if (k in pg) m[k] = pg[k]; }); return m; };
+const mmlMeta = pg => { const m = {}; ['id', 'kind', 'sec', 'title', 'icon', 'color', 'tags', 'pin', 'lock', 'deleted', 'float', 'x', 'y', 'w', 'h', 'fx', 'fy', 'text', 'todos', 'marks', 'links', 'files', 'date', 'lh', 'ord', 'share', 'img', 'createdAt', 'updatedAt'].forEach(k => { if (k in pg) m[k] = pg[k]; }); return m; };
 async function withMemo(html) {   // 내 dashboard.html 파일 안에 내 메모도 넣음 (출장용 · 부재용 파일에는 안 넣음)
   try { html = tagStrip(html, MEMO_TAG); const W = mmOn() ? mmWho() : null; if (!W || !MML.ok || MML.uid !== W.id) { const old = tagLoad('deptMemo'); return old ? tagPut(html, MEMO_TAG, old) : html; }
     const all = { ...(tagLoad('deptMemo') || {}) }, pages = Object.values(MML.pages); let size = 0; const keep = [];
@@ -7194,11 +7219,11 @@ function mmOneNote(el, pg) {
   top.querySelectorAll('.mm-zb').forEach(b => view.appendChild(b)); tb.appendChild(view);
   // 탭 줄 (맨 위)
   const icon = $('#mmIcon', el), title = $('#mmTitle', el);
-  top.innerHTML = `<div class="mm-rtabs">${MM_RTN.map(([k, l]) => `<button data-rtab="${k}" class="${k === 'table' ? 'ctx' : ''}">${l}</button>`).join('')}</div><span class="sp"></span><span class="mm-rhint">${esc(mmSecs().find(x => x.id === pg.sec)?.name || '')}</span>`;
+  top.innerHTML = `<div class="mm-rtabs">${MM_RTN.map(([k, l]) => `<button data-rtab="${k}" class="${k === 'table' ? 'ctx' : ''}">${l}</button>`).join('')}</div><span class="sp"></span><span class="mm-rhint mm-bc">${(() => { const sc = mmSecs().find(x => x.id === pg.sec); return `<button data-bcs="${esc(pg.sec || '')}">${sc ? '📁 ' + esc(sc.name) : '🗂 모든 메모'}</button> › <b>${esc(pg.icon || '📄')} ${esc(pg.title || '제목 없음')}</b>`; })()}</span>`;
   // 종이 위 제목 + 날짜 · 시각 (OneNote 처럼)
   const ph = document.createElement('div'); ph.className = 'mm-ph'; ph.id = 'mmPh'; const d = new Date(pg.createdAt || Date.now()), dd = mmDay(pg);
   const dl = new Date(dd + 'T00:00:00'); ph.innerHTML = `<div class="tt"></div><div class="dt">${dl.getFullYear()}년 ${dl.getMonth() + 1}월 ${dl.getDate()}일 ${'일월화수목금토'[dl.getDay()]}요일 <span>${d.getHours() < 12 ? '오전' : '오후'} ${(d.getHours() % 12) || 12}:${pad(d.getMinutes())}</span></div>`;
-  $('.tt', ph).append(icon, title); ew.prepend(ph);
+  $('.tt', ph).append(icon, title); ew.prepend(ph); if (!pg._ro && !pg.lock) ph.insertAdjacentHTML('afterbegin', `<div class="mm-phact"><button data-cov="pick">🖼 커버 ${pg.cover ? '바꾸기' : '추가'}</button>${pg.cover ? '<button data-cov="">✕ 커버 지우기</button>' : ''}</div>`); mmCoverDraw(); mmBacklinks(ph);
   mmTocSync(); mmCount(); if (MM.jump?.id === pg.id) { const j = MM.jump; MM.jump = null; setTimeout(() => { const x = $('#mmEd').querySelectorAll('.mm-' + j.k)[j.i]; if (x) { x.scrollIntoView({ block:'center' }); x.classList.add('mm-flash'); setTimeout(() => x.classList.remove('mm-flash'), 1800); } }, 120); }
   mmRtab(MM.rtab || (() => { try { return localStorage.getItem('dept-memo-rtab') || 'home'; } catch (_) { return 'home'; } })(), true);
 }
@@ -7338,6 +7363,84 @@ document.addEventListener('mouseover', e => {   // 주석 ↔ 그 글 서로 밝
   const id = a.dataset.cid || a.dataset.ref; document.querySelectorAll(`#mmEd .mm-cmt[data-cid="${CSS.escape(id)}"], #mmNotes .mm-fn[data-ref="${CSS.escape(id)}"]`).forEach(x => x.classList.add('on'));
 });
 document.addEventListener('click', e => { const a = e.target.closest?.('#mmEd .mm-cmt'); if (!a || !e.altKey) return; const f = $(`#mmNotes .mm-fn[data-ref="${CSS.escape(a.dataset.cid)}"]`); if (f) { f.scrollIntoView({ block:'center', inline:'center' }); f.querySelector('.fb')?.focus(); } });
+/* ---------- 2026-11-19 v18.03 Notion 처럼: 블록 ＋ / ⠿ 메뉴(지우기 · 복제 · 바꾸기 · 색) · 글을 고르면 뜨는 서식 막대 · 커버 · @ 언급(날짜 · 메모 · 사람) · 위치 표시 · 빈 줄 안내 · 이 메모를 언급한 메모 ---------- */
+const MM_TXC = [['', '기본'], ['#787774', '회색'], ['#9f6b53', '갈색'], ['#d9730d', '주황'], ['#cb912f', '노랑'], ['#448361', '초록'], ['#337ea9', '파랑'], ['#9065b0', '보라'], ['#c14c8a', '분홍'], ['#d44c47', '빨강']];
+const MM_BGC = [['', '배경 없음'], ['#f1f1ef', '회색 배경'], ['#f4eeee', '갈색 배경'], ['#fbecdd', '주황 배경'], ['#fbf3db', '노랑 배경'], ['#edf3ec', '초록 배경'], ['#e7f3f8', '파랑 배경'], ['#f6f3f9', '보라 배경'], ['#faf1f5', '분홍 배경'], ['#fdebec', '빨강 배경']];
+const MM_TO = [['p', 'Aa', '본문'], ['h1', 'H1', '큰 제목'], ['h2', 'H2', '중간 제목'], ['h3', 'H3', '작은 제목'], ['ul', '•', '글머리 목록'], ['ol', '1.', '번호 목록'], ['todo', '☑', '할 일'], ['quote', '❝', '인용'], ['call', '💡', '강조 상자'], ['code', '</>', '코드']];
+function mmBlockMenu(b, at) {
+  if (!b || MM.cur?.lock) return; const ed = mmEd();
+  mmPop(at, `<button data-v="add"><span>＋</span>아래에 새 블록<small>/ 메뉴</small></button><button data-v="del"><span>🗑</span>지우기<small>Del</small></button><button data-v="dup"><span>⧉</span>복제</button><div class="mm-poph">바꾸기</div>${MM_TO.map(x => `<button data-v="to:${x[0]}"><span>${esc(x[1])}</span>${x[2]}</button>`).join('')}
+    <div class="mm-poph">글자 색</div><div class="mm-popc">${MM_TXC.map(c => `<button data-v="fc:${c[0]}" title="${c[1]}"><i style="color:${c[0] || 'var(--text)'}">A</i></button>`).join('')}</div>
+    <div class="mm-poph">배경</div><div class="mm-popc">${MM_BGC.map(c => `<button data-v="bg:${c[0]}" title="${c[1]}"><i style="background:${c[0] || 'transparent'};border:1px solid var(--line)">&nbsp;</i></button>`).join('')}</div>`, v => {
+    if (!b.isConnected) return; if (v === 'add') return mmAddBelow(b);
+    if (v === 'del') { const nx = b.nextElementSibling || b.previousElementSibling; b.remove(); if (!ed.firstChild) ed.innerHTML = '<div><br></div>'; if (nx) mmCaretIn(nx, true); }
+    else if (v === 'dup') { const c = b.cloneNode(true); c.querySelectorAll('[data-cid]').forEach(m => m.replaceWith(...m.childNodes)); b.after(c); }
+    else if (v.startsWith('to:')) { mmCaretIn(b.tagName === 'UL' || b.tagName === 'OL' ? b.querySelector('li') || b : b, true); return mmCmd(v.slice(3)); }
+    else if (v.startsWith('fc:')) b.style.color = v.slice(3);
+    else if (v.startsWith('bg:')) b.style.backgroundColor = v.slice(3);
+    mmTouch(); mmHistPush(true); MM.lastKind = 'obj';
+  }, 'blk');
+}
+function mmAddBelow(b) {   // ＋ = 아래에 새 블록 + '/' 메뉴
+  if (!MM.cur || MM.cur.lock) return; const ed = mmEd(); const d = document.createElement('div'); d.innerHTML = '<br>';
+  if (b && b.isConnected) b.after(d); else ed.appendChild(d); ed.focus(); mmCaretIn(d); document.execCommand('insertText', false, '/'); mmSlash();
+}
+/* 글을 고르면 위에 뜨는 서식 막대 */
+const MM_BUB = [['bold', '<b>B</b>', '굵게'], ['italic', '<i>I</i>', '기울임'], ['underline', '<u>U</u>', '밑줄'], ['strike', '<s>S</s>', '취소선'], ['sup', 'x²', '위 첨자'], ['sub', 'x₂', '아래 첨자'], ['|'], ['color', '<span style="color:#d44c47;font-weight:800">A</span>', '글자 색'], ['hilite', '<span style="background:#fff176;padding:0 3px">A</span>', '형광펜'], ['|'], ['link', '🔗', '링크'], ['cmt', '💬', '주석 달기'], ['@to', '바꾸기 ▾', '블록 바꾸기 (제목 · 목록 · 할 일 …)']];
+function mmBub() {
+  const s = getSelection(); let bb = $('#mmBub'); const host = s && s.rangeCount && !s.isCollapsed ? (s.anchorNode.nodeType === 3 ? s.anchorNode.parentElement : s.anchorNode)?.closest?.('#mmEd, #mmNotes .fb') : null;
+  if (!host || MM.cur?.lock || PEN.on || $('#mmEd .mm-sel') || route !== 'memo' || !String(s).trim()) { bb?.remove(); return; }
+  if (!bb) { bb = document.createElement('div'); bb.id = 'mmBub'; bb.className = 'mm-bub'; bb.innerHTML = MM_BUB.map(x => x[0] === '|' ? '<i></i>' : `<button data-bc="${x[0]}" title="${x[2]}">${x[1]}</button>`).join(''); document.body.appendChild(bb);
+    bb.addEventListener('mousedown', e => e.preventDefault()); bb.addEventListener('click', e => { const b = e.target.closest('[data-bc]'); if (!b) return; const c = b.dataset.bc;
+      if (c === '@to') return mmPop(b, MM_TO.map(x => `<button data-v="${x[0]}"><span>${esc(x[1])}</span>${x[2]}</button>`).join(''), v => mmCmd(v)); mmCmd(c, b); if (c === 'cmt') bb.remove(); }); }
+  const r = s.getRangeAt(0).getBoundingClientRect(); if (!r.width && !r.height) { bb.remove(); return; }
+  bb.style.left = Math.max(8, Math.min(innerWidth - bb.offsetWidth - 8, r.left + r.width / 2 - bb.offsetWidth / 2)) + 'px'; bb.style.top = (r.top - bb.offsetHeight - 8 < 8 ? r.bottom + 8 : r.top - bb.offsetHeight - 8) + 'px';
+}
+document.addEventListener('input', e => { if (e.target.id === 'mmTitle') { const b = $('.mm-bc b'); if (b) b.textContent = `${MM.cur?.icon || '📄'} ${e.target.value || '제목 없음'}`; } });   // 위치 표시의 제목도 바로
+document.addEventListener('selectionchange', () => { clearTimeout(MM.bubT); MM.bubT = setTimeout(mmBub, 160); });
+document.addEventListener('scroll', e => { if (e.target?.id === 'mmEdw') $('#mmBub')?.remove(); }, true);
+document.addEventListener('pointerdown', e => { if (MM.bubDn = e.buttons === 1 && !e.target.closest?.('#mmBub')) $('#mmBub')?.remove(); });
+/* 빈 줄 안내 (Notion 처럼, 저장되지 않음) */
+document.addEventListener('selectionchange', () => { const ed = $('#mmEd'); if (!ed) return; const s = getSelection(); let n = s?.anchorNode; document.querySelectorAll('#mmEd [data-ph]').forEach(x => x.removeAttribute('data-ph'));
+  if (!n || !ed.contains(n) || !s.isCollapsed || MM.cur?.lock) return; if (n === ed) n = ed.childNodes[s.anchorOffset] || ed.lastChild; while (n && n.parentNode !== ed) n = n.parentNode;
+  if (n?.nodeType === 1 && /^(DIV|P)$/.test(n.tagName) && !n.textContent && !n.querySelector('img,table,hr,.mm-file')) n.setAttribute('data-ph', ''); });
+/* 커버 (Notion 처럼 페이지 맨 위 그림 · 색) */
+const MM_COV = ['linear-gradient(120deg,#a1c4fd,#c2e9fb)', 'linear-gradient(120deg,#fbc2eb,#a6c1ee)', 'linear-gradient(120deg,#fddb92,#d1fdff)', 'linear-gradient(120deg,#84fab0,#8fd3f4)', 'linear-gradient(120deg,#f6d365,#fda085)', 'linear-gradient(120deg,#cfd9df,#e2ebf0)', 'linear-gradient(120deg,#667eea,#764ba2)', 'linear-gradient(120deg,#30cfd0,#330867)', 'linear-gradient(135deg,#0f2027,#203a43,#2c5364)', '#e9e5dc'];
+const mmCovCss = v => /^g\d+$/.test(v || '') ? MM_COV[+v.slice(1)] || '' : /^data:image\/(png|jpeg|webp|gif);base64,[A-Za-z0-9+/=]+$/.test(v || '') ? `center/cover no-repeat url("${v}")` : '';
+function mmCoverDraw() {
+  const ew = $('#mmEdw'), pg = MM.cur; if (!ew || !pg) return; let c = $('#mmCov'); const css = mmCovCss(pg.cover);
+  if (!css) { c?.remove(); } else { if (!c) { c = document.createElement('div'); c.id = 'mmCov'; c.className = 'mm-cov'; ew.prepend(c); } c.style.background = css; }
+  const a = $('#mmPh .mm-phact'); if (a) a.innerHTML = `<button data-cov="pick">🖼 커버 ${css ? '바꾸기' : '추가'}</button>${css ? '<button data-cov="">✕ 커버 지우기</button>' : ''}`;
+  MM.zkey = ''; requestAnimationFrame(mmZoomFit);
+}
+function mmCoverSet(v) { const pg = MM.cur; if (!pg || pg.lock) return; pg.cover = v; mmCoverDraw(); mmNoteTouch('x'); }
+document.addEventListener('click', e => {
+  const b = e.target.closest?.('[data-cov]'); if (b) { const v = b.dataset.cov; if (v !== 'pick') return mmCoverSet('');
+    return mmPop(b, `<div class="mm-popc cov">${MM_COV.map((g, i) => `<button data-v="g${i}" title="커버 ${i + 1}"><i style="background:${g}"></i></button>`).join('')}</div><button data-v="up"><span>🖼</span>내 그림 올리기 (사진 · 캡처)</button>`, v => {
+      if (v !== 'up') return mmCoverSet(v); const f = document.createElement('input'); f.type = 'file'; f.accept = 'image/*'; f.onchange = async () => { const x = f.files[0]; if (!x) return; try { mmCoverSet(await mmImgUrl(x)); } catch (_) { toast('그림을 읽지 못했습니다', true); } }; f.click(); }); }
+  const bc = e.target.closest?.('[data-bcs]'); if (bc) { MM.sec = bc.dataset.bcs; MM.view = MM.sec ? MM.view : 'all'; mmDraw(); }
+});
+/* @ 언급: 날짜 · 다른 메모 연결 · 부서원 */
+function mmAt() {
+  const s = mmSelIn(); const old = $('.mm-pop.slash'); if (!s || !s.isCollapsed || s.anchorNode.nodeType !== 3) return old?.remove();
+  const t = s.anchorNode.textContent.slice(0, s.anchorOffset), m = /(?:^|\s)@([^\s@]{0,14})$/.exec(t); if (!m) return old?.remove();
+  const q = m[1].toLowerCase(), now = new Date(), dd = k => { const d = new Date(now); d.setDate(d.getDate() + k); return d; }, nm = (() => { const d = new Date(now); d.setDate(d.getDate() + ((8 - d.getDay()) % 7 || 7)); return d; })();
+  const df = d => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} (${'일월화수목금토'[d.getDay()]})`;
+  const items = [...[['오늘', dd(0)], ['내일', dd(1)], ['모레', dd(2)], ['다음 주 월요일', nm]].filter(x => !q || x[0].includes(q) || '날짜'.includes(q)).map(x => ['d', df(x[1]), `📅 ${x[0]}`, df(x[1])]),
+    ...mmLive().filter(p => p.id !== MM.cur?.id && (!q || (p.title || '').toLowerCase().includes(q))).slice(0, 6).map(p => ['p', p.id, `${p.icon || '📄'} ${p.title || '제목 없음'}`, '메모 연결']),
+    ...(PRES.users || []).filter(u => !q || (u.name || u.id || '').toLowerCase().includes(q)).slice(0, 5).map(u => ['u', u.name || u.id, `👤 ${u.name || u.id}`, '부서원'])];
+  if (!items.length) return old?.remove(); const r = s.getRangeAt(0).getBoundingClientRect(), node = s.anchorNode, end = s.anchorOffset, start = end - m[1].length - 1;
+  return mmPop({ left:r.left, top:r.top, bottom:r.bottom }, items.map((x, i) => `<button data-v="${i}" class="${i ? '' : 'on'}">${esc(x[2])}<small>${esc(x[3])}</small></button>`).join(''), v => {
+    const x = items[+v]; try { const g = document.createRange(); g.setStart(node, start); g.setEnd(node, Math.min(end, node.length)); g.deleteContents(); const sel = getSelection(); sel.removeAllRanges(); g.collapse(true); sel.addRange(g); } catch (_) {}
+    const p = x[0] === 'p' ? mmLive().find(y => y.id === x[1]) : null; let lead = ''; try { if (start > 0 && /\s/.test(node.textContent[start - 1])) { node.deleteData(start - 1, 1); lead = '&nbsp;'; } } catch (_) {}
+    const html = lead + (x[0] === 'd' ? `<span class="mm-date" contenteditable="false">📅 ${esc(x[1])}</span>` : p ? `<a class="mm-pgl" contenteditable="false" href="#memo/${esc(p.id)}">${esc(p.icon || '📄')} ${esc(p.title || '제목 없음')}</a>` : `<span class="mm-men" contenteditable="false">@${esc(x[1])}</span>`) + '\u00a0';
+    const sel = getSelection(), rg = sel.getRangeAt(0), tp = document.createElement('template'); tp.innerHTML = html; const tail = tp.content.lastChild; rg.insertNode(tp.content); const r2 = document.createRange(); r2.setStart(tail, tail.length); r2.collapse(true); sel.removeAllRanges(); sel.addRange(r2); mmTouch();
+  }, 'slash');
+}
+function mmBacklinks(ph) {   // 이 메모를 언급(@ 연결)한 메모
+  const pg = MM.cur, l = mmLive().filter(p => p.id !== pg.id && (p.links || []).includes(pg.id)); if (!l.length) return;
+  ph.insertAdjacentHTML('beforeend', `<div class="mm-bl">↩ 이 메모를 언급한 메모 ${l.length}: ${l.slice(0, 6).map(p => `<button data-mp="${esc(p.id)}">${esc(p.icon || '📄')} ${esc(p.title || '제목 없음')}</button>`).join('')}</div>`);
+}
 /* ---------- 이벤트 (메모장 화면 안) ---------- */
 document.addEventListener('click', async e => {
   const w = e.target.closest('#memoWrap'); if (!w) return; const t = e.target, D = s => t.closest(`[${s}]`);
@@ -7400,6 +7503,7 @@ document.addEventListener('click', async e => {
   ed.querySelectorAll('img.sel').forEach(x => x.classList.remove('sel'));
   const f = t.closest('.mm-file'); if (f) { e.preventDefault(); return mmFileOpen(f); }
   const sr = t.closest('.mm-src[data-src]'); if (sr) { e.preventDefault(); const [k, id, ...fr] = sr.dataset.src.split('|'); await mmFlush(); return k === 'sched' ? go('co2sched') : SHEET[k] ? jumpTo(k, id, fr.join('|')) : 0; }
+  const pl = t.closest('a.mm-pgl[href^="#memo/"]'); if (pl) { e.preventDefault(); await mmFlush(); return mmOpen(pl.getAttribute('href').slice(6)); }
   const a = t.closest('a[href]'); if (a) { e.preventDefault(); if (e.ctrlKey || MM.cur?.lock || confirm('링크를 열까요?\n' + a.href)) window.open(a.href, '_blank', 'noopener'); return; }
   if (t.tagName === 'IMG') { t.classList.add('sel'); if (MM.cur?.lock) return;
     return mmPop(t, `<button data-v="float"><span>✥</span>자유롭게 옮기기 (그림을 바로 끌어도 됨)</button><button data-v="ink"><span>🖍</span>그림에 표시하기 (펜 · 형광펜 · 화살표 · 글자)</button><button data-v="25"><span>↔</span>크기 25%</button><button data-v="50"><span>↔</span>크기 50%</button><button data-v="100"><span>↔</span>크기 원래대로</button><button data-v="copy"><span>⧉</span>그림 복사 (Ctrl+C)</button><button data-v="save"><span>⬇</span>그림 내려받기</button><button data-v="del"><span>🗑</span>그림 지우기</button>`, v => {
@@ -7417,7 +7521,7 @@ async function mmStickyNew(col, text = '') {
 document.addEventListener('input', e => {
   const t = e.target; if (!t.closest?.('#memoWrap')) return;
   if (t.id === 'mmQ') { MM.q = t.value; return mmDrawList(true); }
-  if (t.id === 'mmEd') { MM.lastKind = 'text'; if (e.inputType === 'insertParagraph') { const b = mmBlock(); if (b?.classList.contains('mm-chk')) b.dataset.done = '0'; } mmTouch(); return void mmSlash(); }
+  if (t.id === 'mmEd') { MM.lastKind = 'text'; if (e.inputType === 'insertParagraph') { const b = mmBlock(); if (b?.classList.contains('mm-chk')) b.dataset.done = '0'; } mmTouch(); return void (mmSlash() || mmAt()); }
   if (t.id === 'mmTitle' || t.id === 'mmTags') return mmTouch();
 });
 document.addEventListener('change', async e => {

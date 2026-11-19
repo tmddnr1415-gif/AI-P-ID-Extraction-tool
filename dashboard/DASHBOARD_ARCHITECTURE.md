@@ -2400,3 +2400,16 @@ C:\Users\SAMSUNG\Desktop\Claude\                         ← 개발 폴더 (여�
   - 고친 것(원래 있던 문제): 맨 첫 줄에 블록 없이 쓴 글에서 첨자 · 굵게 뒤에 띄어쓰기를 하면 줄이 둘로 갈라지던 것 → 같은 줄의 글 · 꾸밈을 한 블록으로 묶음 (`mmBlock`).
 - 바뀐 곳: dashboard.html `mmCmt` (새로), `mmNoteHtml`(말풍선 머리 · `--nc` · `data-ref`), 메모지 색 바꾸기(`--nc`), `mmNoteDel`(밑줄 풀기), `mmCmd`(sup · sub · cmt), keydown(Ctrl+= · Ctrl+Shift+= · Ctrl+Alt+M), `mmClean`(data-cid 허용), `mmBlock`, CSS `.mm-fn.st` · `.mm-cmt` · sup/sub, `MM_RT`.
 - 확인한 것: CO₂ · 10⁶ 저장 html `<sub>2</sub>` · `<sup>6</sup>`, 'Seal Material' 골라 주석 → 밑줄 1 · 말풍선 1 · 마우스 올리면 말풍선 밝아짐, 말풍선 지우기 → 밑줄 0 · Ctrl+Z → 둘 다 돌아옴, 오류 없음 / 회사에서 확인할 것: Ctrl+= 가 브라우저 확대 대신 첨자로 되는지(메모 글 안에서만), 어둡게 배경에서 말풍선 · 밑줄 색.
+
+### 2026-11-19 (APP_VERSION 2026-11-19.38 / SERVER_VERSION 2026-11-19.9) — v18.03 Notion 기능 · UI
+- 무엇을: 사용자 지시 "노션 기능을 넣고 UI 도 개선" (참고 글 brunch.co.kr/@designerndiver/7 은 이 작업 환경에서 열리지 않아, Notion 의 대표 기능 중 아직 없던 것을 넣음 — 빗금 메뉴 · 마크다운 단축 · 접는 글 · 강조 상자 · 할 일 · 단 나누기 · 아이콘 · 양식은 이미 있음).
+  1. **블록 메뉴**: 줄 왼쪽 ⠿ 를 누르면(끌면 예전처럼 옮기기) ＋ 아래에 새 블록(/ 메뉴) · 지우기 · 복제 · 바꾸기(본문 · H1~H3 · 글머리 · 번호 · 할 일 · 인용 · 강조 상자 · 코드) · 글자 색 · 배경 색(Notion 색 9가지).
+  2. **서식 막대**: 글을 고르면 위에 굵게 · 기울임 · 밑줄 · 취소선 · 위/아래 첨자 · 글자 색 · 형광 · 링크 · 💬 주석 · 바꾸기 ▾.
+  3. **커버**: 제목 위에 마우스 → 🖼 커버 추가(그러데이션 10가지 · 내 그림 올리기) · 바꾸기 · 지우기. `pg.cover` = 'g0'~'g9' 또는 data:image (그릴 때 다시 검사).
+  4. **@ 언급**: @ 를 치면 📅 오늘 · 내일 · 모레 · 다음 주 월요일(날짜 조각), 📄 다른 메모(누르면 그 메모로), 👤 부서원. 조각은 한 덩어리(contenteditable=false).
+  5. **이 메모를 언급한 메모**(역링크): 제목 아래에 '↩ 이 메모를 언급한 메모 N' — `pg.links`(목록 요약, 서버 `MEMO_META` 에 'links').
+  6. **위치 표시**: 탭 줄 오른쪽 '📁 섹션 › 📄 제목' (섹션을 누르면 그 섹션 목록).
+  7. **빈 줄 안내**: 커서가 있는 빈 줄에 "'/' 를 눌러 블록 넣기 · '@' 로 날짜 · 메모 · 사람" (저장 안 됨, `data-ph`).
+  - 고친 것: 첨자 단추 이름 x² · x₂, 꾸밈 없는 `<span style="background-color: transparent">` 껍데기는 저장할 때 벗김(`mmClean`).
+- 바뀐 곳: dashboard.html `mmBlockMenu` · `mmAddBelow` · `mmBub` · `mmCoverDraw` · `mmCoverSet` · `mmAt` · `mmBacklinks` · `MM_TXC` · `MM_BGC` · `MM_TO` · `MM_COV` (새로), 줄 손잡이(누르기 = 메뉴), `mmOneNote`(위치 표시 · 커버 · 역링크), `mmZoomFit`(머리 높이 = `#mmZw.offsetTop`), `mmMetaOf`(links), `mmSnap`, `mmClean`, 링크 누르기(메모 연결). server.py `MEMO_META` 'links'.
+- 확인한 것: @내일 → 📅 2026-11-20 (금) 조각, @Control → 메모 연결 · 누르면 그 메모가 열리고 '이 메모를 언급한 메모' 표시, @ → 👤 김철수, 글 고르기 → 서식 막대 · 굵게, ⠿ 누르기 → 메뉴 · 노랑 배경 · H2 로 바꾸기, ＋ 아래에 새 블록 → / 메뉴, 커버 넣기, 오류 없음 / 회사에서 확인할 것: 커버 그림 크기(큰 사진은 1600px 로 줄여 저장), 서식 막대가 표 칸 고르기와 겹치지 않는지.
