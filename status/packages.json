@@ -554,6 +554,19 @@
    },
    "replaces": "1_DASHBOARD_update_v17.71_from_v17.47_2026-11-19.zip",
    "note": "v17.72 — 내 메모장 '잘못된 계정'(점 든 ID) 고침 (server.py → 서버 재시작)"
+  },
+  {
+   "file": "①",
+   "name": "4_DASHBOARD_update_v17.73_from_v17.47_2026-11-19.zip",
+   "made": "2026-11-19 10:55",
+   "path": "company-pc-update/2026-11-19/ (1.5MB · 저장소에 있음)",
+   "sha256": "930994922ac1257ccdad608490688bb04125ac389af8b786c91c6f6a5b5c36e2",
+   "applied": "",
+   "tips": {
+    "S1": "56adb319"
+   },
+   "replaces": "3_DASHBOARD_update_v17.72_from_v17.47_2026-11-19.zip",
+   "note": "v17.73 — 내 메모장 메뉴 0번 맨 위 (화면만 · v17.72 위면 서버 재시작 불필요)"
   }
  ]
 }
