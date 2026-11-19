@@ -2413,3 +2413,12 @@ C:\Users\SAMSUNG\Desktop\Claude\                         ← 개발 폴더 (여�
   - 고친 것: 첨자 단추 이름 x² · x₂, 꾸밈 없는 `<span style="background-color: transparent">` 껍데기는 저장할 때 벗김(`mmClean`).
 - 바뀐 곳: dashboard.html `mmBlockMenu` · `mmAddBelow` · `mmBub` · `mmCoverDraw` · `mmCoverSet` · `mmAt` · `mmBacklinks` · `MM_TXC` · `MM_BGC` · `MM_TO` · `MM_COV` (새로), 줄 손잡이(누르기 = 메뉴), `mmOneNote`(위치 표시 · 커버 · 역링크), `mmZoomFit`(머리 높이 = `#mmZw.offsetTop`), `mmMetaOf`(links), `mmSnap`, `mmClean`, 링크 누르기(메모 연결). server.py `MEMO_META` 'links'.
 - 확인한 것: @내일 → 📅 2026-11-20 (금) 조각, @Control → 메모 연결 · 누르면 그 메모가 열리고 '이 메모를 언급한 메모' 표시, @ → 👤 김철수, 글 고르기 → 서식 막대 · 굵게, ⠿ 누르기 → 메뉴 · 노랑 배경 · H2 로 바꾸기, ＋ 아래에 새 블록 → / 메뉴, 커버 넣기, 오류 없음 / 회사에서 확인할 것: 커버 그림 크기(큰 사진은 1600px 로 줄여 저장), 서식 막대가 표 칸 고르기와 겹치지 않는지.
+
+### 2026-11-19 (APP_VERSION 2026-11-19.39 / SERVER_VERSION 그대로) — v18.04 할 일 = Notion 할 일 데이터베이스
+- 무엇을: 사용자 지시 — Notion 의 '연결된 프로젝트 관리' 가이드 · 2022-12-15 릴리스 노트 · 할 일 목록 템플릿 · 노션 가이드 글을 "검토하고 기능 넣고 조화롭게 · 노션과 유사하게". (이 작업 환경에서 notion.com · gongysd.com 이 열리지 않아, 그 글들의 주제인 Notion 프로젝트 · 할 일 데이터베이스 기능을 기준으로 만듦.)
+  - 메모의 체크 상자 = 할 일 데이터베이스의 한 줄. 속성: **상태**(할 일 · 진행 중 · 완료), **우선순위**(높음 · 중간 · 낮음), **마감일**, **담당**(부서원). 줄 끝 빈 곳을 누르거나 ⠿ 메뉴 › '할 일 속성' 으로 고름. 속성은 줄 끝에 조각으로 보임(진행 중 = 반쯤 칠한 상자, 마감 지남 = 빨강).
+  - **할 일 모음**(왼쪽 메뉴) = 보기 3가지: **보드**(할 일 · 진행 중 · 완료 칸, 카드를 끌어 다른 칸에 놓으면 상태가 바뀜, 칸 아래 '＋ 새로 만들기' → '할 일 수신함' 메모에 한 줄), **표**(열 머리를 눌러 정렬, 칸을 눌러 속성 바꾸기, 체크 = 완료), **목록**(메모(=프로젝트)별로 묶고 진행률 막대). 필터: 전체 · 남은 일 · 👤 내 것 · ⚠ 마감 지남 · 📅 이번 주, 찾기, 정렬(마감일 · 우선순위 · 상태 · 메모 · 이름). 위에 남은 일 · 진행 중 · 마감 지남 · 완료 수와 전체 진행률.
+  - 할 일을 누르면 그 메모가 열리고 그 줄로 감. 할 일 모음에서 바꾼 것은 그 메모의 체크 상자에도 바로 반영(열려 있는 메모면 화면에서 바로, 아니면 그 메모를 고쳐 저장 · 서버가 꺼져도 이 PC 보관본으로).
+  - 고친 것: 이미 할 일인 줄에서 '[] ' 를 치면 글자로 남던 것 → 지움.
+- 바뀐 곳: dashboard.html `MM_ST` · `MM_PRI` · `mmChkSt` · `mmChip` · `mmChips` · `mmChkTail` · `mmTaskForm` · `mmTaskPop` · `mmPageGet` · `mmTodoSet` · `mmTaskRows` · `mmTaskNew` · `mmTaskAdd` (새로), `mmDrawTodo`(새로 씀) · `mmTodoToggle`(→ `mmTodoSet`), `mmMetaOf`(todos 에 s · due · pri · who), `mmClean`(data-st · data-due · data-pri · data-who 허용), 체크 상자 누르기, `mmBlockMenu`(할 일 속성), `mmMd`, CSS `.mm-chk[data-chip]` · `.mm-kb` · `.mm-tc` · `.mm-tt` · `.mm-stb` 등. (마감 지남 표시는 `mm-late` — `mm-ov` 는 기존 전체 화면 덮개 이름이라 쓰면 안 됨)
+- 확인한 것: 속성 4가지 고르기 → 조각 '◐ 진행 중 · 🔴 높음 · ⚠ 11/18 · 👤 김철수', 보드 끌기(할 일 → 완료) → 메모 체크 상자도 완료, 보드에서 새 할 일 → 할 일 수신함, 표 정렬 · 마감 지남 필터, 목록 진행률, 다시 열어도 속성 유지, 오류 없음 / 회사에서 확인할 것: 할 일이 많을 때 보드 속도.
