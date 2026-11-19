@@ -1113,10 +1113,13 @@ async function openSheet(page, opt) {
   // 그림은 풀린 뒤에 바꾼다 — 기다리는 동안은 옛 그림을 숨겨 새 시트의 선이 남의 그림 위에 서지 않게.
   // L43 — 선(#ov)도 그 장의 그림이 실제로 화면에 선 뒤에 보인다 (표 칸은 장마다 같아 표는 맞고 LOGIC 영역 선만 어긋나 보이던 것).
   const url = pageImgUrl(page);
-  const shown = () => { if (L.page !== page) return; img.style.visibility = ""; ov.style.visibility = ""; img.dataset.page = page; };
+  const shown = () => { if (L.page !== page) return; img.style.visibility = ""; ov.style.visibility = ""; img.dataset.page = page; pageNoteDone(page, url, img); };
   if (img.getAttribute("src") !== url || img.dataset.page !== String(page)) {
     img.style.visibility = "hidden"; ov.style.visibility = "hidden";
-    im.ready.then(() => {
+    pageNoteWait(page);
+    // 2026-11-19 — 그림은 다 받았는데 풀기(decode)가 답이 없는 브라우저가 있다 — 받았으면 0.8초 뒤 그냥 건다
+    const loaded = new Promise((ok) => { const go = () => setTimeout(ok, 800); if (im.complete && im.naturalWidth) go(); else im.addEventListener("load", go, { once: true }); });
+    Promise.race([im.ready, loaded]).then(() => {
       if (L.page !== page) return;
       if (img.getAttribute("src") !== url) img.src = url;
       (img.decode ? img.decode() : Promise.resolve()).catch(() => {}).then(shown);
@@ -1144,6 +1147,44 @@ async function openSheet(page, opt) {
     return;
   }
   if (L.mode === "sim" && !(opt && opt.noSim)) runSim(false, true);   // 순차 동작은 곧이어 자기 계산을 돌린다 — 두 번 보내지 않는다
+}
+
+/* 2026-11-19 — 도면 칸이 **아무 말 없이** 비어 있지 않게 (P&ID 결과 화면과 같은 규칙).  그림이 1.5초 안에 안 오면
+ * "받는 중", 20초가 넘으면 오래 걸린다는 말과 [다시 받기], 못 받았으면 서버가 말한 이유를 도면 칸 위에 띄운다. */
+const PAGE_NOTE = { t: [] };       // 안내 타이머
+function pageNote(text, kind, retryPage) {
+  let el = $("#page-note");
+  if (!el) {
+    const st = $("#stage"); if (!st) return;
+    el = document.createElement("div"); el.id = "page-note"; el.className = "lg-page-note"; el.setAttribute("role", "status");
+    st.appendChild(el);
+  }
+  el.hidden = !text;
+  el.className = "lg-page-note" + (kind ? " " + kind : "");
+  el.textContent = text || "";
+  if (text && retryPage != null) {
+    const b = document.createElement("button");
+    b.type = "button"; b.textContent = "다시 받기";
+    b.onclick = () => { SC.img.delete(retryPage); const img = $("#page"); if (img) { img.removeAttribute("src"); delete img.dataset.page; } openSheet(retryPage, { noSim: true }); };
+    el.appendChild(b);
+  }
+}
+function pageNoteWait(page) {
+  PAGE_NOTE.t.forEach(clearTimeout); PAGE_NOTE.t = [];
+  pageNote("");
+  const mine = () => L.page === page && $("#page") && $("#page").style.visibility === "hidden";
+  PAGE_NOTE.t.push(setTimeout(() => { if (mine()) pageNote("도면 그림을 받는 중입니다…", "wait"); }, 1500));
+  PAGE_NOTE.t.push(setTimeout(() => { if (mine()) pageNote("도면 그림이 오래 걸리고 있습니다 — 서버가 이 장을 처음 그리는 중이거나 응답이 없습니다. 잠시 뒤에도 그대로면", "wait", page); }, 20000));
+}
+async function pageNoteDone(page, url, img) {
+  PAGE_NOTE.t.forEach(clearTimeout); PAGE_NOTE.t = [];
+  if (img.naturalWidth > 0 || !img.complete) { pageNote(""); return; }       // 그림이 섰다 (또는 아직 받는 중 — load 가 다시 부른다)
+  let msg = "도면 그림을 불러오지 못했습니다.";
+  try {
+    const r = await fetch(url);
+    if (!r.ok) { const j = await r.json().catch(() => ({})); if (j && j.detail) msg = String(j.detail); }
+  } catch (e) { msg = "도면 그림을 불러오지 못했습니다 — 서버에 연결할 수 없습니다."; }
+  if (L.page === page) pageNote(msg, "err", page);
 }
 
 /* ------------------------------------------------------------------ 확대 · 이동 */
