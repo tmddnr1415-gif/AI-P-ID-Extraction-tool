@@ -600,7 +600,7 @@
    "made": "2026-11-19 11:40",
    "path": "company-pc-update/2026-11-19/ (3.4MB · 저장소에 있음)",
    "sha256": "c2883932184d7d3ecaf1b24c9f9dd0a0a9609e270d305ee219d5e6af8faa7303",
-   "applied": "",
+   "applied": "적용 (11-19 사용자 확인)",
    "tips": {
     "S1": "058de9c9"
    },
@@ -632,6 +632,19 @@
    },
    "replaces": "8_DASHBOARD_update_v17.78_from_v17.47_2026-11-19.zip",
    "note": "v17.79 — 모든 메모에 스티커 · 메모 보기 따로 (회사 요청) · 화면만"
+  },
+  {
+   "file": "①",
+   "name": "10_DASHBOARD_update_v17.82_from_v17.77_2026-11-19.zip",
+   "made": "2026-11-19 13:30",
+   "path": "company-pc-update/2026-11-19/ (1.6MB · 저장소에 있음)",
+   "sha256": "8935aa6e15d44ebe3e171cf46d8a2df6103193d3153dcc465410bfa90304c119",
+   "applied": "",
+   "tips": {
+    "S1": "0156d213"
+   },
+   "replaces": "9_DASHBOARD_update_v17.79_from_v17.47_2026-11-19.zip",
+   "note": "v17.82 (기준 v17.77 058de9c9 — 회사 확인) — 메모장 Ctrl+Z · 메모지 · PC 우선 · 메모 공유 (server.py → 재시작)"
   }
  ]
 }
