@@ -2056,7 +2056,7 @@ html.dark #mmAlarm{filter:invert(1) hue-rotate(180deg)}
 .mm-sticky .si{position:relative;flex:none;max-height:72%;overflow:hidden;background:rgba(255,255,255,.5)}.mm-sticky .si img{width:100%;display:block;user-select:none}.mm-sticky .si button{position:absolute;right:4px;top:4px;border:0;border-radius:50%;width:20px;height:20px;background:rgba(0,0,0,.45);color:#fff;font-size:11px;cursor:pointer;opacity:0}.mm-sticky:hover .si button{opacity:1}
 .mm-sticky:has(.si) .sb{flex:1;min-height:24px}
 .mm-fn.picked{outline:2px solid var(--accent);outline-offset:2px}.mm-fn.picked .fh,.mm-fn.picked .mm-rz{opacity:1}
-body.mm-noanno #mmNotes,body.mm-noanno #mmInk,body.mm-noanno #mmInkHost{display:none!important}.mm-zb.on{background:var(--accent-l);color:var(--accent-d);border-color:var(--accent)}
+body.mm-noanno #mmNotes > :not(.tb),body.mm-noanno #mmInk,body.mm-noanno #mmInkHost{display:none!important}.mm-zb.on{background:var(--accent-l);color:var(--accent-d);border-color:var(--accent)}
 .mm-pdf.nopn{grid-template-columns:minmax(0,1fr) 0}.mm-pdf.nopn .pn{display:none}
 .mm-notes{position:absolute;inset:0;pointer-events:none;overflow:visible}.mm-zw.placing,.mm-zw.placing .mm-ed{cursor:copy!important}
 .mm-fn{position:absolute;pointer-events:auto;display:flex;flex-direction:column;min-width:80px;min-height:34px;font-size:13.5px;line-height:1.5;color:#2a2f45}
@@ -2108,6 +2108,10 @@ body.mm-noanno #mmNotes,body.mm-noanno #mmInk,body.mm-noanno #mmInkHost{display:
 #mmEdw.pp.dk.bg-green{background-color:#0f2318;--ln:rgba(120,220,150,.16);background-image:linear-gradient(rgba(120,220,150,.32) 1px,transparent 1px),linear-gradient(90deg,rgba(120,220,150,.32) 1px,transparent 1px),linear-gradient(var(--ln) 1px,transparent 1px),linear-gradient(90deg,var(--ln) 1px,transparent 1px)}
 #mmEdw.pp.dk.bg-blue{background-color:#0b2447}
 #mmEdw.pp:is(.bg-lined,.bg-wide){background-position:0 calc(16px*var(--z) + var(--phH,0px))}#mmEdw.pp:is(.bg-legal,.bg-cornell){background-position:0 0,0 calc(16px*var(--z) + var(--phH,0px))}
+/* 2026-11-19 v18.01 본문 옮기기 손잡이 */
+.mm-edgrip{position:absolute;z-index:8;font-size:11px;line-height:18px;padding:0 7px;border-radius:6px;background:var(--card);border:1px solid var(--line);color:var(--sub);cursor:grab;user-select:none;touch-action:none;opacity:0;transition:opacity .15s}
+.mm-zw:hover > .mm-edgrip,body.mm-edmoving .mm-edgrip{opacity:.9}.mm-edgrip:hover{color:var(--accent-d);border-color:var(--accent)}body.mm-edmoving,body.mm-edmoving *{cursor:grabbing!important;user-select:none}
+body.mm-edmoving #mmEd{outline:2px dashed var(--accent);outline-offset:-2px}#mmEdw.dk .mm-edgrip{background:#1f2537;color:#c9d2ee;border-color:#3a4566}
 /* 2026-11-19 v17.96 태그 · 목차 · 찾기 · 서식 복사 */
 :is(.mm-ed,.mm-notes) :is(.mm-star,.mm-ask,.mm-idea,.mm-warn,.mm-phone)::before{display:inline-block;margin-right:6px;font-size:.92em;font-weight:400;text-decoration:none}
 .mm-ed .mm-star::before{content:'⭐'}.mm-ed .mm-ask::before{content:'❓'}.mm-ed .mm-idea::before{content:'💡'}.mm-ed .mm-warn::before{content:'⚠️'}.mm-ed .mm-phone::before{content:'📞'}
@@ -2412,7 +2416,7 @@ function recLabel(key, f) {
  * ===================================================================== */
 let root = null;
 /* 서버 모드: http(s):// 로 접속하면 server.py 의 REST API 사용 (폴더 선택 불필요). file:// 로 열면 폴더 모드 */
-const APP_VERSION = '2026-11-19.35';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
+const APP_VERSION = '2026-11-19.36';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
 const SERVER_URL = 'http://localhost:8080';
 // 부서원 PC 사본(file://)이 접속을 시도할 서버 — 서버가 배포 파일을 만들 때 'PC 이름 주소, IP 주소' 순으로 자동 기록함
 const DEFAULT_SERVERS = ['http://ASEUNGWOOK-B01:8080', 'http://65.3.30.234:8080'];
@@ -6046,6 +6050,7 @@ function mmMetaOf(pg) {   // 목록 · 찾기 · 할 일 모음에 쓰는 요약
   pg.text = mmText(pg.html).slice(0, 20000);
   pg.todos = [...d.querySelectorAll('.mm-chk')].slice(0, 300).map(x => ({ t:x.textContent.trim().slice(0, 160), d:x.dataset.done === '1' ? 1 : 0 }));
   pg.files = [...new Set([...d.querySelectorAll('.mm-file[data-fid]')].map(x => x.dataset.fid))];
+  (pg.notes || []).forEach(n => { if (n.k === 'tbox' && n.html) d.insertAdjacentHTML('beforeend', '<div>' + n.html + '</div>'); });   // 글 상자도 본문처럼 (태그 모음)
   pg.marks = [...d.querySelectorAll(MM_MKSEL)].slice(0, 300).map(x => ({ k:MM_MK.find(m => x.classList.contains('mm-' + m[0]))[0], t:x.textContent.trim().slice(0, 160) }));
   if (pg.notes?.length) pg.text = (pg.text + '\n' + pg.notes.map(n => n.text || '').join('\n')).slice(0, 20000);   // 붙인 메모지 · 글 상자도 찾기 · 일정 인식에 포함
   return pg;
@@ -6195,7 +6200,7 @@ function mmDrawMain() {
     <p class="muted" style="font-size:12.5px;line-height:1.8">노트: 제목 · 목록 · 할 일 · 표 · 그림 · 그리기 · 파일 첨부 · PDF 보며 메모<br>스티커: 색 메모지를 보드에 붙이고, 📌 로 어느 화면에서나 띄워 두기<br>자동 저장 · 이전 판 되돌리기 · 휴지통</p>
     <p><button class="btn pri" data-mnew="page">＋ 새 메모</button> <button class="btn" data-mnew="tpl">양식으로 시작</button> <button class="btn" data-mv="sticky">🗒 스티커 보드</button></p></div>`; return; }
   const T = (c, l, t) => `<button data-mc="${c}" title="${esc(t)}">${l}</button>`, S = '<span class="sep"></span>';
-  el.innerHTML = `<div class="mm-top"><button class="mm-icon" id="mmIcon" title="아이콘 바꾸기">${esc(pg.icon || '📄')}</button><input class="mm-title" id="mmTitle" placeholder="제목 없음" value="${esc(pg.title || '')}" ${pg.lock ? 'readonly' : ''}><button class="mm-zb" data-mx="anno" title="메모 위의 주석(메모지 · 글 상자 · 떠 있는 그림 · 펜 획) 숨기기 · 보이기 — 이 PC 에 기억">👁 주석 숨기기</button><button class="mm-zb" data-mx="wide" title="목록을 숨기고 메모만 넓게 (다시 누르면 되돌림)">◧ 넓게</button><button class="mm-zb" data-mx="zen" title="메모창만 화면 가득 (Esc 로 되돌림)">⤢ 크게</button></div>
+  el.innerHTML = `<div class="mm-top"><button class="mm-icon" id="mmIcon" title="아이콘 바꾸기">${esc(pg.icon || '📄')}</button><input class="mm-title" id="mmTitle" placeholder="제목 없음" value="${esc(pg.title || '')}" ${pg.lock ? 'readonly' : ''}><button class="mm-zb" data-mx="anno" title="메모 위의 주석(메모지 · 떠 있는 그림 · 펜 획) 숨기기 — 글 상자는 본문이라 그대로 · 보이기 — 이 PC 에 기억">👁 주석 숨기기</button><button class="mm-zb" data-mx="wide" title="목록을 숨기고 메모만 넓게 (다시 누르면 되돌림)">◧ 넓게</button><button class="mm-zb" data-mx="zen" title="메모창만 화면 가득 (Esc 로 되돌림)">⤢ 크게</button></div>
     <div class="mm-meta"><select id="mmSecSel" title="섹션"><option value="">섹션 없음</option>${mmSecs().map(s => `<option value="${esc(s.id)}" ${pg.sec === s.id ? 'selected' : ''}>${esc(s.name)}</option>`).join('')}</select>
       <input type="date" id="mmDate" value="${esc(mmDay(pg))}" title="메모 날짜 — 날짜별 보기 · 날짜 정렬에 씀" ${pg.lock ? 'disabled' : ''}>
       <select id="mmLh" title="줄 · 문단 간격"><option value="s">간격 좁게</option><option value="">간격 보통</option><option value="l">간격 넓게</option><option value="x">간격 아주 넓게</option></select>
@@ -6216,7 +6221,7 @@ function mmDrawMain() {
   $('#mmEd').innerHTML = mmClean(pg.html || ''); $('#mmLh').value = pg.lh || ''; $('#mmBg').value = pg.bg || ''; $('#mmEd').className = mmEdCls(pg); if (pg._ro) { $('#mmTb').style.display = 'none'; $('.mm-meta', el).innerHTML = `<span class="mm-ro">👥 <b>${esc(pg.ownerName || pg._ro)}</b> 님이 공유한 메모 — 읽기 전용 · ${fmtTime(pg.updatedAt)} 고침</span><button class="tg" data-mx="rocopy">⧉ 내 메모로 복사</button>`; }
   mmOneNote(el, pg);
   if ((() => { try { return localStorage.getItem('dept-memo-anno') === '0'; } catch (_) { return false; } })()) { document.body.classList.add('mm-noanno'); const ab = $('[data-mx="anno"]'); if (ab) { ab.textContent = '👁 주석 보이기'; ab.classList.add('on'); } } else document.body.classList.remove('mm-noanno');
-  mmZoomSet(mmZoom(), true); mmInkSync(); MM.lastKind = ''; MM.place = ''; MM.pick = ''; mmNotesDraw(); mmHistReset();
+  mmZoomSet(mmZoom(), true); mmInkSync(); MM.lastKind = ''; MM.place = ''; MM.pick = ''; mmNotesDraw(); mmEdPos(); mmCount(); mmTocSync(); mmHistReset();
   mmStat(pg.updatedAt ? `저장됨 ${fmtTime(pg.updatedAt)} · ${(pg.text || '').length.toLocaleString()}자` : '새 메모');
   try { document.execCommand('styleWithCSS', false, true); document.execCommand('defaultParagraphSeparator', false, 'div'); } catch (_) {}
 }
@@ -6804,6 +6809,7 @@ const mmSbw = () => mmSbw.v ?? (mmSbw.v = (() => { const d = document.createElem
 function mmPaperFit() {
   const zw = $('#mmZw'), B = MM.zb, pg = MM.cur; if (!zw || !B || !pg) return; let R = 0, Bt = 0;
   zw.querySelectorAll('#mmNotes .mm-fn').forEach(el => { R = Math.max(R, el.offsetLeft + el.offsetWidth); Bt = Math.max(Bt, el.offsetTop + el.offsetHeight); });
+  if (+pg.ey > 0) { const ed = $('#mmEd'); if (ed) Bt = Math.max(Bt, ed.offsetTop + ed.offsetHeight - 60); }
   for (const st of pg.ink || []) { const p = st.p || []; for (let i = 0; i < p.length; i += 2) { if (p[i] > R) R = p[i]; if (p[i + 1] > Bt) Bt = p[i + 1]; } }
   const w = Math.max(B.lw, R ? R + 80 : 0), h = Math.max(B.lh, Bt ? Bt + 160 : 0);
   const nw = Math.floor(w * B.wk), nh = Math.floor(h * B.hk); if (Math.abs((parseFloat(zw.style.width) || 0) - nw) > 1) zw.style.width = nw + 'px'; if (Math.abs((parseFloat(zw.style.minHeight) || 0) - nh) > 1) zw.style.minHeight = nh + 'px';
@@ -6918,7 +6924,7 @@ document.addEventListener('click', e => {   // 자리 누르기
 /* 펜 획 되돌리기 · 다시 하기 */
 /* 2026-11-19 v17.87 되돌리기 30번 · 다시 하기 30번: 메모 본문 + 떠 있는 그림 · 글 상자 · 메모지 + 펜 획 상태를 바뀔 때마다 기록 */
 const MM_HMAX = 30;
-const mmSnap = () => { const pg = MM.cur, ed = mmEd(); if (!pg || !ed) return ''; const c = ed.cloneNode(true); c.querySelectorAll('.sel,.mm-sel,.mm-moving').forEach(x => x.classList.remove('sel', 'mm-sel', 'mm-moving')); return JSON.stringify({ h:c.innerHTML, n:pg.notes || [], k:pg.ink || [] }); };
+const mmSnap = () => { const pg = MM.cur, ed = mmEd(); if (!pg || !ed) return ''; const c = ed.cloneNode(true); c.querySelectorAll('.sel,.mm-sel,.mm-moving').forEach(x => x.classList.remove('sel', 'mm-sel', 'mm-moving')); return JSON.stringify({ h:c.innerHTML, n:pg.notes || [], k:pg.ink || [], e:[+pg.ex || 0, +pg.ey || 0] }); };
 function mmHistReset() { MM.hist = { a:[mmSnap()], i:0, t:0, pid:MM.cur?.id }; }
 function mmHistPush(now) {
   const H = MM.hist; if (!H || H.pid !== MM.cur?.id) return; clearTimeout(H.t);
@@ -6929,7 +6935,7 @@ function mmHistGo(d) {
   const H = MM.hist, pg = MM.cur; if (!H || !pg || pg.lock || H.pid !== pg.id) return false;
   if (H.t) { clearTimeout(H.t); H.t = 0; const s = mmSnap(); if (s && s !== H.a[H.i]) { H.a = H.a.slice(0, H.i + 1); H.a.push(s); while (H.a.length > MM_HMAX + 1) H.a.shift(); H.i = H.a.length - 1; } }
   const j = H.i + d; if (j < 0 || j >= H.a.length) return false; H.i = j; const o = JSON.parse(H.a[j]);
-  mmEd().innerHTML = mmClean(o.h); pg.notes = o.n; pg.ink = o.k; MM.pick = ''; mmNotesDraw(); inkDraw($('#mmInk'), pg.ink);
+  mmEd().innerHTML = mmClean(o.h); pg.notes = o.n; pg.ink = o.k; if (o.e) { pg.ex = o.e[0]; pg.ey = o.e[1]; mmEdPos(); } MM.pick = ''; mmNotesDraw(); inkDraw($('#mmInk'), pg.ink);
   MM.dirty = true; mmStat(`${d < 0 ? '되돌림' : '다시 함'} (${d < 0 ? H.i : H.a.length - 1 - H.i}번 더 가능)`); clearTimeout(MM.timer); MM.timer = setTimeout(() => mmSave(), 1200); return true;
 }
 const mmInkUndo = redo => mmHistGo(redo ? 1 : -1);
@@ -7222,7 +7228,7 @@ document.addEventListener('click', e => {
   const f = e.target.closest?.('[data-mkf]'); if (f) { MM.mkf = f.dataset.mkf; return mmDrawMarks(); }
   const j = e.target.closest?.('[data-mkj]'); if (j) { const [id, k, i] = j.dataset.mkj.split('|'); MM.jump = { id, k, i:+i }; MM.view = 'all'; MM.cur = null; mmDraw(); mmOpen(id); }
   if (e.target.closest?.('[data-mx="toc"]')) { MM.toc = !mmTocOn(); try { localStorage.setItem('dept-memo-toc', MM.toc ? '1' : '0'); } catch (_) {} mmTocSync(); }
-  const t = e.target.closest?.('[data-toc]'); if (t) { const h = $('#mmEd')?.querySelectorAll('h1,h2,h3')[+t.dataset.toc]; if (h) { h.scrollIntoView({ block:'start', behavior:'smooth' }); h.classList.add('mm-flash'); setTimeout(() => h.classList.remove('mm-flash'), 1500); } }
+  const t = e.target.closest?.('[data-toc]'); if (t) { const h = mmHeads()[+t.dataset.toc]; if (h) { h.scrollIntoView({ block:'start', behavior:'smooth' }); h.classList.add('mm-flash'); setTimeout(() => h.classList.remove('mm-flash'), 1500); } }
 });
 /* 목차 */
 const mmTocOn = () => MM.toc ?? (MM.toc = (() => { try { return localStorage.getItem('dept-memo-toc') === '1'; } catch (_) { return false; } })());
@@ -7230,15 +7236,15 @@ function mmTocSync() {
   const main = $('#mmMain'), ed = $('#mmEd'), ew = $('#mmEdw'); let box = $('#mmToc'); document.querySelectorAll('[data-mx="toc"]').forEach(b => b.classList.toggle('on', mmTocOn()));
   if (!main || !ed || !ew || !mmTocOn()) { box?.remove(); return; }
   if (!box) { box = document.createElement('div'); box.id = 'mmToc'; box.className = 'mm-toc'; main.appendChild(box); }
-  const hs = [...ed.querySelectorAll('h1,h2,h3')]; box.style.top = (ew.offsetTop + ($('#mmPh')?.offsetHeight || 0) + 10) + 'px';
+  const hs = mmHeads(); box.style.top = (ew.offsetTop + ($('#mmPh')?.offsetHeight || 0) + 10) + 'px';
   box.innerHTML = `<b>☰ 목차</b>${hs.map((h, i) => `<button data-toc="${i}" class="l${h.tagName[1]}">${esc(h.textContent.trim() || '(빈 제목)')}</button>`).join('') || '<span class="muted">H1 · H2 · H3 제목을 쓰면 여기 나옵니다</span>'}`;
 }
 /* 글자 수 · 읽는 시간 */
 function mmCount() {
-  const ed = $('#mmEd'), dt = $('#mmPh .dt'); if (!ed || !dt) return; const t = (ed.innerText || '').replace(/\s+/g, ''); let c = $('.cnt', dt);
+  const ed = $('#mmEd'), dt = $('#mmPh .dt'); if (!ed || !dt) return; const t = (ed.innerText + [...document.querySelectorAll('#mmNotes .mm-fn.tb .fb')].map(x => x.innerText).join('')).replace(/\s+/g, ''); let c = $('.cnt', dt);
   if (!c) { c = document.createElement('span'); c.className = 'cnt'; dt.appendChild(c); } c.textContent = `${t.length.toLocaleString()}자 · 읽는 데 약 ${Math.max(1, Math.round(t.length / 500))}분`;
 }
-document.addEventListener('input', e => { if (!e.target.closest?.('#mmEd')) return; clearTimeout(MM.cntT); MM.cntT = setTimeout(() => { mmCount(); mmTocSync(); if ($('.mm-find')) mmFindRun(); }, 400); });
+document.addEventListener('input', e => { if (!e.target.closest?.('#mmEd, #mmNotes .mm-fn.tb')) return; clearTimeout(MM.cntT); MM.cntT = setTimeout(() => { mmCount(); mmTocSync(); if ($('.mm-find')) mmFindRun(); }, 400); });
 /* 찾기 · 바꾸기 */
 function mmFind(rep) {
   const ew = $('#mmEdw'); if (!ew) return; let bar = $('.mm-find');
@@ -7251,8 +7257,9 @@ function mmFind(rep) {
   q.focus(); q.select(); mmFindRun();
 }
 function mmFindRanges() {
-  const ed = $('#mmEd'), q = ($('#mmFq')?.value || '').toLowerCase(); if (!ed || !q) return []; const out = [], w = document.createTreeWalker(ed, NodeFilter.SHOW_TEXT); let n;
-  while ((n = w.nextNode())) { const t = n.nodeValue.toLowerCase(); let i = 0; while ((i = t.indexOf(q, i)) >= 0) { const r = document.createRange(); r.setStart(n, i); r.setEnd(n, i + q.length); out.push(r); i += q.length; } }
+  const ed = $('#mmEd'), q = ($('#mmFq')?.value || '').toLowerCase(); if (!ed || !q) return []; const out = [];
+  for (const root of [ed, ...document.querySelectorAll('#mmNotes .mm-fn.tb .fb')]) { const w = document.createTreeWalker(root, NodeFilter.SHOW_TEXT); let n;
+  while ((n = w.nextNode())) { const t = n.nodeValue.toLowerCase(); let i = 0; while ((i = t.indexOf(q, i)) >= 0) { const r = document.createRange(); r.setStart(n, i); r.setEnd(n, i + q.length); out.push(r); i += q.length; } } }
   return out;
 }
 function mmFindRun(scroll) {
@@ -7265,9 +7272,9 @@ function mmFindRun(scroll) {
 function mmFindGo(d) { const n = (MM.fr || []).length; if (!n) return; MM.fi = ((MM.fi || 0) + d + n) % n; mmFindRun(true); }
 function mmFindRep(all) {
   if (MM.cur?.lock) return toast('잠긴 메모입니다', true); const to = $('#mmFr')?.value ?? '', ed = $('#mmEd'); let rs = mmFindRanges(); if (!rs.length) return;
-  if (!all) rs = [rs[MM.fi || 0]]; ed.focus(); const s = getSelection();
-  for (const r of rs.reverse()) { s.removeAllRanges(); s.addRange(r); if (to) document.execCommand('insertText', false, to); else document.execCommand('delete'); }
-  mmTouch(); mmHistPush(true); toast(`${rs.length}곳 바꿈`); $('#mmFr')?.focus(); mmFindRun(true);
+  if (!all) rs = [rs[MM.fi || 0]]; const s = getSelection();
+  for (const r of rs.reverse()) { const host = r.startContainer.parentElement?.closest('#mmEd, .fb[contenteditable]'); host?.focus(); s.removeAllRanges(); s.addRange(r); if (to) document.execCommand('insertText', false, to); else document.execCommand('delete'); }
+  document.querySelectorAll('#mmNotes .mm-fn.tb .fb').forEach(fb => fb.dispatchEvent(new Event('input', { bubbles:true }))); mmTouch(); mmHistPush(true); toast(`${rs.length}곳 바꿈`); $('#mmFr')?.focus(); mmFindRun(true);
 }
 function mmFindClose() { $('.mm-find')?.remove(); try { CSS.highlights.delete('mm-find'); CSS.highlights.delete('mm-findc'); } catch (_) {} MM.fr = []; }
 /* 서식 복사 (🖌) */
@@ -7283,6 +7290,25 @@ document.addEventListener('mouseup', () => { const P = MM.paint; if (!P) return;
   ['bold', 'italic', 'underline', 'strikeThrough'].forEach(c => { let on = false; try { on = document.queryCommandState(c); } catch (_) {} if (on !== P[c]) document.execCommand(c); });
   if (P.fore) document.execCommand('foreColor', false, P.fore); if (P.back && !/rgba\(0, 0, 0, 0\)|transparent|rgb\(255, 255, 255\)/.test(P.back)) document.execCommand('hiliteColor', false, P.back); else document.execCommand('hiliteColor', false, 'transparent');
   if (P.size) document.execCommand('fontSize', false, P.size); mmTouch(); mmHistPush(true); }, 0); });
+/* ---------- 2026-11-19 v18.01 글 상자 = 본문과 같은 급 (주석 숨기기에 안 숨음 · 글자 수 · 찾기/바꾸기 · 목차 · 태그 모음에 들어감) + 본문 통째로 옮기기 ---------- */
+const mmHeads = () => [...document.querySelectorAll('#mmEd h1, #mmEd h2, #mmEd h3, #mmNotes .mm-fn.tb h1, #mmNotes .mm-fn.tb h2, #mmNotes .mm-fn.tb h3')].map(h => ({ h, y:h.getBoundingClientRect().top })).sort((a, b) => a.y - b.y).map(x => x.h);
+function mmEdPos() {   // 본문 자리 (pg.ex · pg.ey, 종이 기준 px) + 왼쪽 위 '⠿ 본문' 손잡이
+  const ed = $('#mmEd'), zw = $('#mmZw'), pg = MM.cur; if (!ed || !zw || !pg) return; const x = +pg.ex || 0, y = +pg.ey || 0;
+  ed.style.position = x || y ? 'relative' : ''; ed.style.left = x ? x + 'px' : ''; ed.style.top = y ? y + 'px' : ''; ed.style.width = x ? `calc(100% - ${x}px)` : ''; ed.style.flex = x ? 'none' : '';
+  let g = $('#mmEdGrip'); if (pg.lock || pg._ro) { g?.remove(); return; }
+  if (!g) { g = document.createElement('div'); g.id = 'mmEdGrip'; g.className = 'mm-edgrip'; g.title = '끌어서 본문 전체 옮기기 (끄는 중 휠 = 위아래로) · 두 번 누르면 제자리'; g.textContent = '⠿ 본문'; zw.appendChild(g); }
+  g.style.left = (x + 4) + 'px'; g.style.top = Math.max(0, y - 2) + 'px';
+}
+(() => { let d = null;
+  const at = () => { const pg = MM.cur, ew = $('#mmEdw'), z = mmZoom(); if (!pg || !d) return; pg.ex = Math.round(Math.max(-20, d.x + (d.cx - d.sx + ew.scrollLeft - d.sl) / z)); pg.ey = Math.round(Math.max(-12, d.y + (d.cy - d.sy + ew.scrollTop - d.st) / z)); mmEdPos(); };
+  document.addEventListener('pointerdown', e => { if (e.target.id !== 'mmEdGrip' || e.button || !MM.cur || MM.cur.lock) return; e.preventDefault(); e.target.setPointerCapture(e.pointerId); const ew = $('#mmEdw');
+    d = { sx:e.clientX, sy:e.clientY, cx:e.clientX, cy:e.clientY, sl:ew.scrollLeft, st:ew.scrollTop, x:+MM.cur.ex || 0, y:+MM.cur.ey || 0 }; document.body.classList.add('mm-edmoving'); });
+  document.addEventListener('pointermove', e => { if (!d) return; d.cx = e.clientX; d.cy = e.clientY; at(); });
+  document.addEventListener('scroll', e => { if (d && e.target?.id === 'mmEdw') at(); }, true);
+  const up = () => { if (!d) return; d = null; document.body.classList.remove('mm-edmoving'); MM.noClick = Date.now(); mmNoteTouch('obj'); };
+  document.addEventListener('pointerup', up); document.addEventListener('pointercancel', up);
+  document.addEventListener('dblclick', e => { if (e.target.id !== 'mmEdGrip' || !MM.cur || MM.cur.lock) return; MM.cur.ex = 0; MM.cur.ey = 0; mmEdPos(); mmNoteTouch('obj'); toast('본문을 제자리로'); });
+})();
 /* ---------- 이벤트 (메모장 화면 안) ---------- */
 document.addEventListener('click', async e => {
   const w = e.target.closest('#memoWrap'); if (!w) return; const t = e.target, D = s => t.closest(`[${s}]`);
@@ -7325,7 +7351,7 @@ document.addEventListener('click', async e => {
     if (k === 'rocopy') return mmSharedCopy(); if (k === 'share') return mmShareDlg();
     if (k === 'empty') { if (await ask('휴지통을 비울까요?', '<p style="margin:0">휴지통의 메모와 첨부 파일을 모두 완전히 지웁니다. 되돌릴 수 없습니다.</p>', [{ id:'y', label:'비우기', cls:'pri' }, { id:'n', label:'취소' }]) !== 'y') return; for (const p of MM.pages.filter(x => x.deleted)) await mmKill(p).catch(() => {}); return mmDraw(); }
     if (!pg) return;
-    if (k === 'anno') { const on = !document.body.classList.toggle('mm-noanno'); try { localStorage.setItem('dept-memo-anno', on ? '1' : '0'); } catch (_) {} b.textContent = on ? '👁 주석 숨기기' : '👁 주석 보이기'; b.classList.toggle('on', !on); if (!on && PEN.on) { PEN.on = false; mmInkSync(); } return toast(on ? '주석을 다시 보입니다' : '주석(메모지 · 글 상자 · 떠 있는 그림 · 펜)을 숨겼습니다 — 본문만 보임'); }
+    if (k === 'anno') { const on = !document.body.classList.toggle('mm-noanno'); try { localStorage.setItem('dept-memo-anno', on ? '1' : '0'); } catch (_) {} b.textContent = on ? '👁 주석 숨기기' : '👁 주석 보이기'; b.classList.toggle('on', !on); if (!on && PEN.on) { PEN.on = false; mmInkSync(); } return toast(on ? '주석을 다시 보입니다' : '주석(메모지 · 떠 있는 그림 · 펜)을 숨겼습니다 — 본문과 글 상자만 보임'); }
     if (k === 'wide') { document.body.classList.remove('mm-zen'); return void document.body.classList.toggle('mm-wide'); }
     if (k === 'zen') { document.body.classList.remove('mm-wide'); const on = document.body.classList.toggle('mm-zen'); if (on) toast('메모창만 크게 — Esc 또는 [⤢ 크게] 를 다시 누르면 돌아갑니다'); return; }
     if (k === 'pin') { mmPull(); pg.pin = !pg.pin; MM.dirty = true; await mmSave(); mmDrawSide(); return mmDrawMain(); }
