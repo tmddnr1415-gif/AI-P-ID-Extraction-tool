@@ -2046,6 +2046,8 @@ html.dark #mmAlarm{filter:invert(1) hue-rotate(180deg)}
 .mm-fn .mm-rz{position:absolute;right:-1px;bottom:-1px;width:16px;height:16px;cursor:nwse-resize;z-index:2;opacity:0;touch-action:none;background:linear-gradient(135deg,transparent 0 50%,#6b7591 50% 58%,transparent 58% 68%,#6b7591 68% 76%,transparent 76% 86%,#6b7591 86% 94%,transparent 94%);border-radius:0 0 5px 0}
 .mm-fn:hover .mm-rz,.mm-fn:focus-within .mm-rz,.mm-fn.sizing .mm-rz{opacity:.9}.mm-fn.sizing{outline:2px solid var(--accent);outline-offset:1px}.mm-fn.tb .fb{overflow:auto}
 @media print{.mm-fn .mm-rz{display:none}}
+.mm-sticky .si{position:relative;flex:none;max-height:72%;overflow:hidden;background:rgba(255,255,255,.5)}.mm-sticky .si img{width:100%;display:block;user-select:none}.mm-sticky .si button{position:absolute;right:4px;top:4px;border:0;border-radius:50%;width:20px;height:20px;background:rgba(0,0,0,.45);color:#fff;font-size:11px;cursor:pointer;opacity:0}.mm-sticky:hover .si button{opacity:1}
+.mm-sticky:has(.si) .sb{flex:1;min-height:24px}
 .mm-notes{position:absolute;inset:0;pointer-events:none;overflow:visible}.mm-zw.placing,.mm-zw.placing .mm-ed{cursor:copy!important}
 .mm-fn{position:absolute;pointer-events:auto;display:flex;flex-direction:column;min-width:80px;min-height:34px;font-size:13.5px;line-height:1.5;color:#2a2f45}
 .mm-fn.st{border-radius:3px 3px 12px 3px;box-shadow:0 5px 14px rgba(30,40,80,.22);overflow:hidden}
@@ -2286,7 +2288,7 @@ function recLabel(key, f) {
  * ===================================================================== */
 let root = null;
 /* 서버 모드: http(s):// 로 접속하면 server.py 의 REST API 사용 (폴더 선택 불필요). file:// 로 열면 폴더 모드 */
-const APP_VERSION = '2026-11-19.20';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
+const APP_VERSION = '2026-11-19.21';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
 const SERVER_URL = 'http://localhost:8080';
 // 부서원 PC 사본(file://)이 접속을 시도할 서버 — 서버가 배포 파일을 만들 때 'PC 이름 주소, IP 주소' 순으로 자동 기록함
 const DEFAULT_SERVERS = ['http://ASEUNGWOOK-B01:8080', 'http://65.3.30.234:8080'];
@@ -5921,7 +5923,7 @@ function mmMetaOf(pg) {   // 목록 · 찾기 · 할 일 모음에 쓰는 요약
   return pg;
 }
 function mmMetaPut(pg) {
-  const m = {}; ['id', 'kind', 'sec', 'title', 'icon', 'color', 'tags', 'pin', 'lock', 'deleted', 'float', 'x', 'y', 'w', 'h', 'fx', 'fy', 'text', 'todos', 'files', 'date', 'lh', 'ord', 'createdAt', 'updatedAt'].forEach(k => { if (k in pg) m[k] = pg[k]; });
+  const m = {}; ['id', 'kind', 'sec', 'title', 'icon', 'color', 'tags', 'pin', 'lock', 'deleted', 'float', 'x', 'y', 'w', 'h', 'fx', 'fy', 'text', 'todos', 'files', 'date', 'lh', 'ord', 'img', 'createdAt', 'updatedAt'].forEach(k => { if (k in pg) m[k] = pg[k]; });
   m.evs = mmEvs(m); const i = MM.pages.findIndex(p => p.id === pg.id); if (i >= 0) MM.pages[i] = m; else MM.pages.push(m); setTimeout(mmAlarmTick, 50);
 }
 /* ---------- 저장 (자동 · 1.2초 뒤) ---------- */
@@ -6079,7 +6081,7 @@ function mmDrawMain() {
       ${T('ul', '•', '글머리 목록')}${T('ol', '1.', '번호 목록')}${T('todo', '☑', '할 일 (체크 상자)')}${T('quote', '❝', '인용')}${T('call', '💡', '강조 상자')}${T('code', '&lt;/&gt;', '코드 · 고정폭')}${T('toggle', '▸', '접는 글')}${T('hr', '―', '구분선')}${S}
       ${T('left', '⇤', '왼쪽 맞춤')}${T('center', '↔', '가운데 맞춤')}${T('right', '⇥', '오른쪽 맞춤')}${T('full', '☰', '양쪽 맞춤')}${T('indent', '→|', '들여쓰기')}${T('outdent', '|←', '내어쓰기')}${S}${T('col2', '▥2', '좌우 2단으로 나누기')}${T('col3', '▥3', '좌우 3단으로 나누기')}${T('colx', '▥✕', '단 나누기 풀기 (한 줄로)')}${S}
       ${T('table', '▦', '표 넣기 — 칸 수 고르기')}<span class="tbl">${T('trow', '+행', '아래에 행 넣기')}${T('tcol', '+열', '오른쪽에 열 넣기')}${T('trowx', '−행', '행 지우기')}${T('tcolx', '−열', '열 지우기')}${T('tmerge', '⊞합치기', '끌어서 고른 칸 합치기')}${T('tsplit', '⊟나누기', '합친 칸 나누기')}${T('tbg', '🎨', '칸 배경색')}${T('tmenu', '표 ▾', '표 메뉴 전체 (표 안에서 마우스 오른쪽 단추로도 열림)')}${T('teq', '열=', '열 너비를 같게 · 표를 가로로 꽉 차게 (다시 누르면 풀기)')}${T('tsort', '↕정렬', '이 열 기준으로 행 정렬 (다시 누르면 반대로 · 날짜 · 숫자 · 글자)')}${T('tdel', '표✕', '표 지우기')}</span>${S}
-      ${T('link', '🔗', '링크')}${T('img', '🖼', '그림 넣기 (붙여넣기 · 끌어 놓기도 됨)')}${T('note', '🗒 메모지', '메모 위 아무 곳에나(왼쪽 여백 포함) 색 메모지 붙이기 — 누른 뒤 붙일 자리를 누름')}${T('tbox', 'Ｔ 글 상자', '원하는 곳에 바로 글 쓰기 — 누른 뒤 쓸 자리를 누름')}${T('ink', '🖊 펜 쓰기', '메모 위에 마우스 · 펜으로 바로 그리기 (펜 · 만년필 · 형광펜 · 레이저 · 지우개)')}${T('draw', '✏', '빈 종이에 그려서 그림으로 넣기')}${T('file', '📎', '파일 첨부 (PDF · 문서 — PDF 는 보면서 메모)')}${T('date', '📅', '오늘 날짜 · 시각 넣기')}${S}<button data-mc="pull" title="다른 메뉴의 값 불러오기 (수행 · 입찰 · 이슈 · 통합 업무 · Schedule …)" style="font-weight:700;color:var(--accent-d)">📥 불러오기</button></div>
+      ${T('link', '🔗', '링크')}${T('img', '🖼', '그림 넣기 (붙여넣기 · 끌어 놓기도 됨)')}${T('shot', '📷 화면 캡처', '화면을 캡처해 범위를 골라 메모에 그림으로 붙이기 (Win+Shift+S 로 캡처한 뒤 Ctrl+V 도 됨)')}${T('note', '🗒 메모지', '메모 위 아무 곳에나(왼쪽 여백 포함) 색 메모지 붙이기 — 누른 뒤 붙일 자리를 누름')}${T('tbox', 'Ｔ 글 상자', '원하는 곳에 바로 글 쓰기 — 누른 뒤 쓸 자리를 누름')}${T('ink', '🖊 펜 쓰기', '메모 위에 마우스 · 펜으로 바로 그리기 (펜 · 만년필 · 형광펜 · 레이저 · 지우개)')}${T('draw', '✏', '빈 종이에 그려서 그림으로 넣기')}${T('file', '📎', '파일 첨부 (PDF · 문서 — PDF 는 보면서 메모)')}${T('date', '📅', '오늘 날짜 · 시각 넣기')}${S}<button data-mc="pull" title="다른 메뉴의 값 불러오기 (수행 · 입찰 · 이슈 · 통합 업무 · Schedule …)" style="font-weight:700;color:var(--accent-d)">📥 불러오기</button></div>
     <div id="mmInkHost"></div><div class="mm-edw" id="mmEdw"><div class="mm-zw" id="mmZw"><div class="mm-ed" id="mmEd" data-pid="${pg.id}" contenteditable="${pg.lock ? 'false' : 'true'}" spellcheck="false"></div><div class="mm-notes" id="mmNotes"></div><svg class="mm-ink" id="mmInk"></svg></div></div>
     <div class="mm-zc"><button data-mx="zo" title="축소 (Ctrl + 휠 아래)">－</button><b id="mmZl" data-mx="z1" title="100% 로">100%</b><button data-mx="zi" title="확대 (Ctrl + 휠 위)">＋</button></div><div class="mm-st" id="mmSt"></div><input type="file" id="mmFile" hidden multiple><input type="file" id="mmImg" hidden multiple accept="image/*">`;
   $('#mmEd').innerHTML = mmClean(pg.html || ''); $('#mmLh').value = pg.lh || ''; $('#mmBg').value = pg.bg || ''; $('#mmEd').className = mmEdCls(pg); if (pg._ro) { $('#mmTb').style.display = 'none'; $('.mm-meta', el).innerHTML = `<span class="mm-ro">👥 <b>${esc(pg.ownerName || pg._ro)}</b> 님이 공유한 메모 — 읽기 전용 · ${fmtTime(pg.updatedAt)} 고침</span><button class="tg" data-mx="rocopy">⧉ 내 메모로 복사</button>`; }
@@ -6156,6 +6158,7 @@ function mmCmd(c, btn) {
     case 'pull': return mmPull2();
     case 'ink': PEN.on = !PEN.on; return mmInkSync();
     case 'note': case 'tbox': return mmPlace(c);
+    case 'shot': return void mmShot();
     case 'img': return $('#mmImg').click(); case 'file': return $('#mmFile').click();
     case 'draw': return mmInk(null, url => mmInsert(`<img src="${url}"><div><br></div>`));
     case 'color': case 'hilite': { const cols = c === 'color' ? ['#0f172a', '#dc2626', '#ea580c', '#16a34a', '#1d4ed8', '#7c3aed', '#64748b'] : ['#fff176', '#ffd6a5', '#caffbf', '#9bf6ff', '#ffc6ff', '#e5e7eb', 'transparent'];
@@ -6274,12 +6277,12 @@ function mmInk(src, done) {
 function mmStickyHtml(p, fl) {
   return `<div class="mm-sticky" data-sid="${p.id}" style="left:${fl ? p.fx ?? 80 : p.x ?? 30}px;top:${fl ? p.fy ?? 120 : p.y ?? 30}px;width:${p.w || 200}px;height:${p.h || 170}px;background:${mmCol(p.color, MM_SCOL[0])}">
     <div class="sh"><span>${fmtTime(p.updatedAt)}</span><button data-sa="pal" title="색">🎨</button><button data-sa="float" class="${p.float ? 'on' : ''}" title="${p.float ? '띄우기 끄기 (보드에만)' : '어느 화면에서나 띄워 두기'}">📌</button>${fl ? '' : '<button data-sa="page" title="노트 페이지로 바꾸기">📄</button>'}<button data-sa="del" title="${fl ? '화면에서 내리기' : '지우기 (휴지통)'}">${fl ? '✕' : '🗑'}</button></div>
-    <div class="sc">${MM_SCOL.map(c => `<button data-scol="${c}" style="background:${c}"></button>`).join('')}</div><div class="sb" contenteditable="true" spellcheck="false">${esc(p.text || '')}</div></div>`;
+    <div class="sc">${MM_SCOL.map(c => `<button data-scol="${c}" style="background:${c}"></button>`).join('')}</div>${/^data:image\/(png|jpeg|gif|webp);base64,[A-Za-z0-9+/=]+$/.test(p.img || '') ? `<div class="si"><img src="${p.img}" draggable="false"><button data-sa="imgx" title="그림 빼기">✕</button></div>` : ''}<div class="sb" contenteditable="true" spellcheck="false">${esc(p.text || '')}</div></div>`;
 }
 function mmDrawBoard() {
   const el = $('#mmMain'); if (!el) return; const l = MM.pages.filter(p => p.kind === 'sticky' && !p.deleted);
   el.innerHTML = `<div class="mm-bh"><b>🗒 스티커 보드</b><button class="btn pri sm" data-mnew="sticky">＋ 스티커</button>${MM_SCOL.map(c => `<button class="cdot" data-mnew="sticky" data-col="${c}" style="width:18px;height:18px;border-radius:50%;border:1px solid var(--line);background:${c};cursor:pointer" title="이 색으로 새 스티커"></button>`).join('')}
-    <button class="btn sm" id="mmArr" title="스티커 정렬 · 간격 맞춤">⚏ 정렬 · 간격 ▾</button><span class="muted" style="font-size:12px">위쪽 띠를 끌어 옮기기 · 오른쪽 아래 모서리로 크기 · 📌 = 어느 화면에서나 띄워 두기</span></div><div class="mm-board" id="mmBoard">${l.map(p => mmStickyHtml(p)).join('')}${l.length ? '' : '<div class="mm-empty" style="position:absolute;inset:0;display:flex;flex-direction:column;justify-content:center"><b>🗒</b>[＋ 스티커] 를 눌러 메모지를 붙여 보세요</div>'}</div>`;
+    <button class="btn sm" data-mshot title="화면을 캡처해 그림 스티커로 붙이기 (또는 Win+Shift+S 뒤 Ctrl+V)">📷 화면 캡처</button><button class="btn sm" id="mmArr" title="스티커 정렬 · 간격 맞춤">⚏ 정렬 · 간격 ▾</button><span class="muted" style="font-size:12px">위쪽 띠를 끌어 옮기기 · 오른쪽 아래 모서리로 크기 · 📌 = 어느 화면에서나 띄워 두기 · <b>Ctrl+V = 그림 붙이기</b></span></div><div class="mm-board" id="mmBoard">${l.map(p => mmStickyHtml(p)).join('')}${l.length ? '' : '<div class="mm-empty" style="position:absolute;inset:0;display:flex;flex-direction:column;justify-content:center"><b>🗒</b>[＋ 스티커] 를 눌러 메모지를 붙여 보세요</div>'}</div>`;
   mmStickyBind($('#mmBoard'), false);
 }
 /* 스티커 정렬: 날짜순 · 색별 줄 맞춤 / 왼쪽 · 오른쪽 · 위 맞춤 / 가로 · 세로 간격 같게 / 크기 같게 */
@@ -6304,7 +6307,7 @@ function mmStickySave(p, ms = 900) { clearTimeout(MM.sT[p.id]); MM.sT[p.id] = se
 function mmStickyBind(host, fl) {
   if (host._mm) return; host._mm = 1; let drag = null; const P = id => MM.pages.find(p => p.id === id);
   host.addEventListener('input', e => { const s = e.target.closest('.mm-sticky'); if (!s) return; const p = P(s.dataset.sid); if (!p) return; p.text = e.target.innerText.replace(/\n$/, '').slice(0, 5000); p.evs = null; mmStickySave(p); mmFloatSync(p, fl); });
-  host.addEventListener('paste', e => { if (!e.target.closest('.sb')) return; e.preventDefault(); document.execCommand('insertText', false, (e.clipboardData.getData('text/plain') || '').slice(0, 5000)); });
+  host.addEventListener('paste', e => { if (!e.target.closest('.sb') || mmClipImgs(e.clipboardData).length) return; e.preventDefault(); document.execCommand('insertText', false, (e.clipboardData.getData('text/plain') || '').slice(0, 5000)); });
   host.addEventListener('pointerdown', e => { const h = e.target.closest('.sh'), s = e.target.closest('.mm-sticky'); if (!s) return; s.style.zIndex = ++mmStickyBind.z;
     if (!h || e.target.closest('button')) return; const r = s.getBoundingClientRect(), hr = fl ? { left:0, top:0 } : host.getBoundingClientRect();
     drag = { s, dx:e.clientX - r.left, dy:e.clientY - r.top, ox:hr.left - (fl ? 0 : host.scrollLeft), oy:hr.top - (fl ? 0 : host.scrollTop) }; h.setPointerCapture(e.pointerId); e.preventDefault(); });
@@ -6314,6 +6317,7 @@ function mmStickyBind(host, fl) {
   host.addEventListener('mouseup', e => { const s = e.target.closest('.mm-sticky'); if (!s) return; const p = P(s.dataset.sid); if (p && !fl && (Math.abs(s.offsetWidth - (p.w || 200)) > 2 || Math.abs(s.offsetHeight - (p.h || 170)) > 2)) { p.w = s.offsetWidth; p.h = s.offsetHeight; mmStickySave(p, 300); } });
   host.addEventListener('click', async e => { const s = e.target.closest('.mm-sticky'); if (!s) return; const p = P(s.dataset.sid); if (!p) return; const a = e.target.closest('[data-sa]')?.dataset.sa, col = e.target.closest('[data-scol]')?.dataset.scol;
     if (col) { p.color = col; s.style.background = col; s.classList.remove('pal'); mmSave(p); mmFloatDraw(); if (fl && MM.view === 'sticky') mmDrawBoard(); return; }
+    if (a === 'imgx') { if (!confirm('이 스티커에서 그림을 뺄까요?')) return; p.img = ''; await mmSave(p); if (MM.view === 'sticky') mmDrawBoard(); mmFloatDraw(); return; }
     if (a === 'pal') return s.classList.toggle('pal');
     if (a === 'float') { p.float = !p.float; if (p.float && p.fx == null) { const k = $('#mmFloat')?.children.length || 0; p.fx = Math.max(20, innerWidth - 250 - k * 26); p.fy = Math.max(60, innerHeight - 230 - k * 26); p.w = Math.min(p.w || 210, 230); p.h = Math.min(p.h || 180, 190); } await mmSave(p); mmFloatDraw(); if (route === 'memo' && MM.view === 'sticky') mmDrawBoard(); toast(p.float ? '📌 어느 화면에서나 보이게 띄웠습니다 (✕ = 내리기)' : '화면에서 내렸습니다 (스티커 보드에 그대로 있음)'); return; }
     if (a === 'del') { if (fl) { p.float = false; await mmSave(p); mmFloatDraw(); if (route === 'memo' && MM.view === 'sticky') mmDrawBoard(); return; } p.deleted = true; p.float = false; await mmSave(p); mmFloatDraw(); mmDraw(); return toast('스티커를 휴지통으로 옮겼습니다'); }
@@ -6722,7 +6726,7 @@ function mmNotesDraw() {
   const h = $('#mmNotes'), pg = MM.cur; if (!h || !pg) return; h.innerHTML = (pg.notes || []).map(mmNoteHtml).join('');
   if (h._b) return; h._b = 1; let drag = null; const N = id => (MM.cur?.notes || []).find(n => n.id === id);
   h.addEventListener('input', e => { const el = e.target.closest('.mm-fn'), n = el && N(el.dataset.fn); if (!n) return; const fb = e.target.closest('.fb') || e.target; n.text = fb.innerText.replace(/\n$/, '').slice(0, 4000); n.html = fb.querySelector('ol,ul,b,i,u,span,font,div') ? mmClean(fb.innerHTML).slice(0, 40000) : ''; mmNoteTouch(); });
-  h.addEventListener('paste', e => { if (!e.target.closest('.fb')) return; e.preventDefault(); e.stopPropagation(); document.execCommand('insertText', false, (e.clipboardData.getData('text/plain') || '').slice(0, 4000)); }, true);
+  h.addEventListener('paste', e => { if (!e.target.closest('.fb') || mmClipImgs(e.clipboardData).length) return; e.preventDefault(); e.stopPropagation(); document.execCommand('insertText', false, (e.clipboardData.getData('text/plain') || '').slice(0, 4000)); }, true);
   let rs = null;   // 2026-11-19 v17.85 오른쪽 아래 모서리(◢)를 끌어 크기 조절 — 글 상자 · 메모지 · 그림 모두
   h.addEventListener('pointerdown', e => { const z = e.target.closest('.mm-rz'), el = z && z.closest('.mm-fn'); if (!el || MM.cur?.lock || e.button) return; e.preventDefault(); e.stopPropagation(); z.setPointerCapture(e.pointerId);
     rs = { el, sx:e.clientX, sy:e.clientY, w:el.offsetWidth, h:el.offsetHeight, im:el.classList.contains('im'), ar:el.classList.contains('im') ? el.offsetHeight / Math.max(1, el.offsetWidth) : 0 }; el.classList.add('sizing'); }, true);
@@ -6852,7 +6856,7 @@ async function mmlLoad(uid) {
 function mmlPut() { clearTimeout(MML.t); MML.t = setTimeout(() => { const uid = MML.uid; if (!uid) return; kv('readwrite', st => st.put({ book:MML.book, pages:MML.pages, at:Date.now() }, 'memo:' + uid)).catch(() => {}); MM.chg = Date.now(); }, 400); }
 function mmlKeep(pg, dirty) { if (!pg || pg._ro || !MML.uid) return; const c = JSON.parse(JSON.stringify(pg)); if (dirty) c._dirty = 1; else delete c._dirty; MML.pages[pg.id] = c; mmlPut(); }
 function mmlDrop(id) { if (MML.pages[id]) { delete MML.pages[id]; mmlPut(); } }
-const mmlMeta = pg => { const m = {}; ['id', 'kind', 'sec', 'title', 'icon', 'color', 'tags', 'pin', 'lock', 'deleted', 'float', 'x', 'y', 'w', 'h', 'fx', 'fy', 'text', 'todos', 'files', 'date', 'lh', 'ord', 'share', 'createdAt', 'updatedAt'].forEach(k => { if (k in pg) m[k] = pg[k]; }); return m; };
+const mmlMeta = pg => { const m = {}; ['id', 'kind', 'sec', 'title', 'icon', 'color', 'tags', 'pin', 'lock', 'deleted', 'float', 'x', 'y', 'w', 'h', 'fx', 'fy', 'text', 'todos', 'files', 'date', 'lh', 'ord', 'share', 'img', 'createdAt', 'updatedAt'].forEach(k => { if (k in pg) m[k] = pg[k]; }); return m; };
 async function withMemo(html) {   // 내 dashboard.html 파일 안에 내 메모도 넣음 (출장용 · 부재용 파일에는 안 넣음)
   try { html = tagStrip(html, MEMO_TAG); const W = mmOn() ? mmWho() : null; if (!W || !MML.ok || MML.uid !== W.id) { const old = tagLoad('deptMemo'); return old ? tagPut(html, MEMO_TAG, old) : html; }
     const all = { ...(tagLoad('deptMemo') || {}) }, pages = Object.values(MML.pages); let size = 0; const keep = [];
@@ -6916,6 +6920,54 @@ function mmImgFloat(img, x, y) {
   const up = () => { cand = null; if (!mv) return; mv.n.x = Math.round(parseFloat(mv.el.style.left)); mv.n.y = Math.round(parseFloat(mv.el.style.top)); mv.el.classList.remove('moving'); mv = null; MM.noClick = Date.now(); mmNoteTouch(); };
   document.addEventListener('pointerup', up); document.addEventListener('pointercancel', up);
 })();
+/* ---------- 2026-11-19 v17.86 메모 · 스티커 어디서나 Ctrl+V 로 그림(스크린샷 · 복사한 그림) → 마우스가 있던 자리에 떠 있는 그림(끌어 옮기기 · 모서리로 크기) / 📷 화면 캡처 ---------- */
+const MM_MP = { x:0, y:0, t:0 };   // 마지막 마우스 자리 (화면 좌표)
+document.addEventListener('pointermove', e => { MM_MP.x = e.clientX; MM_MP.y = e.clientY; MM_MP.t = Date.now(); }, { passive:true });
+const mmClipImgs = cd => cd ? [...cd.files].filter(f => /^image\//.test(f.type)) : [];
+function mmPlaceAt(zw, cx, cy, w) {   // 화면 좌표 → 종이 좌표 (마우스가 종이 밖이면 지금 보이는 곳 가운데)
+  const zr = zw.getBoundingClientRect(), ew = zw.closest('#mmEdw')?.getBoundingClientRect() || zr, z = mmZoom();
+  const inside = cx >= ew.left && cx <= ew.right && cy >= ew.top && cy <= ew.bottom;
+  if (!inside) { cx = ew.left + ew.width / 2 - w * z / 2; cy = ew.top + Math.min(120, ew.height / 4); }
+  return [Math.max(0, Math.round((cx - zr.left) / z)), Math.max(0, Math.round((cy - zr.top) / z))];
+}
+async function mmPasteFloat(files, at) {   // 메모(노트)에 떠 있는 그림으로
+  const pg = MM.cur, zw = $('#mmZw'); if (!pg || pg.lock || pg._ro || !zw) return false; let k = 0;
+  for (const f of files) { let src; try { src = await mmImgUrl(f); } catch (_) { continue; }
+    const im = await new Promise(r => { const i = new Image(); i.onload = () => r(i); i.onerror = () => r(null); i.src = src; }); if (!im) continue;
+    const ew = $('#mmEdw').clientWidth / mmZoom(), w = Math.round(Math.min(im.naturalWidth, Math.max(160, ew * .55), 900)), [x, y] = mmPlaceAt(zw, (at?.[0] ?? MM_MP.x) + k * 24, (at?.[1] ?? MM_MP.y) + k * 24, w);
+    pg.notes = [...(pg.notes || []), { id:mmId().slice(0, 8), k:'img', src, x, y, w }]; k++; }
+  if (!k) return false; mmNotesDraw(); mmNoteTouch(); toast(`그림 ${k}장을 붙였습니다 — 그림을 끌어 옮기기 · 오른쪽 아래 모서리로 크기`); return true;
+}
+async function mmPasteSticky(files, sid) {   // 스티커 보드: 스티커 안이면 그 스티커에, 빈 곳이면 그림 스티커를 새로
+  const f = files[0]; let src; try { src = await mmImgUrl(f); } catch (_) { return false; }
+  const im = await new Promise(r => { const i = new Image(); i.onload = () => r(i); i.onerror = () => r(null); i.src = src; }); if (!im) return false;
+  let p = sid && MM.pages.find(x => x.id === sid);
+  if (p) { p.img = src; const ar = im.naturalHeight / Math.max(1, im.naturalWidth); p.h = Math.max(p.h || 170, Math.round((p.w || 200) * ar) + 70); }
+  else { const bd = $('#mmBoard'), fl = !bd && $('#mmFloat'); if (!bd) return false; const br = bd.getBoundingClientRect(), w = Math.min(360, Math.max(200, im.naturalWidth)), h = Math.round(w * im.naturalHeight / Math.max(1, im.naturalWidth)) + 40;
+    const inside = MM_MP.x >= br.left && MM_MP.x <= br.right && MM_MP.y >= br.top && MM_MP.y <= br.bottom;
+    p = { id:mmId(), kind:'sticky', title:'', text:'', img:src, color:MM_SCOL[3], x:Math.max(0, Math.round((inside ? MM_MP.x - br.left : 40) + bd.scrollLeft - 20)), y:Math.max(0, Math.round((inside ? MM_MP.y - br.top : 40) + bd.scrollTop - 12)), w, h, float:false }; MM.pages.push(p); }
+  await mmSave(p); if (MM.view === 'sticky') { mmDrawBoard(); mmDrawSide(); } mmFloatDraw(); toast('그림을 스티커에 붙였습니다 — 위쪽 띠를 끌어 옮기기 · 오른쪽 아래 모서리로 크기'); return true;
+}
+document.addEventListener('paste', e => {   // 메모장 화면 어디서든 (글 칸 · 글 상자 · 메모지 · 스티커 · 빈 곳)
+  if (route !== 'memo' && !e.target.closest?.('#mmFloat')) return; if (e.target.closest?.('input, textarea, select, dialog, .mm-ov, .pe')) return;
+  const cd = e.clipboardData, imgs = mmClipImgs(cd); if (!imgs.length) return; const h = cd.getData('text/html');
+  if (e.target.closest?.('#mmEd') && /<table/i.test(h)) return;   // 엑셀 칸 복사 = 표로 (기존 처리)
+  const st = e.target.closest?.('.mm-sticky'), onBoard = e.target.closest?.('#mmBoard, #mmFloat') || (MM.view === 'sticky' && !e.target.closest?.('#mmZw'));
+  if (st || onBoard) { e.preventDefault(); e.stopPropagation(); return void mmPasteSticky(imgs, st?.dataset.sid); }
+  if (MM.cur && !MM.cur.lock) { e.preventDefault(); e.stopPropagation(); const sel = getSelection(), r0 = sel.rangeCount && e.target.closest?.('#mmEd') && Date.now() - MM_MP.t > 4000 ? sel.getRangeAt(0).getBoundingClientRect() : null;
+    mmPasteFloat(imgs, r0 && r0.height ? [r0.left, r0.top] : null); }
+}, true);
+document.addEventListener('keydown', e => {   // 아무 칸도 눌러 놓지 않았을 때(포커스 없음)에도 Ctrl+V 가 메모장으로 오게
+  if (route !== 'memo' || !(e.ctrlKey || e.metaKey) || e.key.toLowerCase() !== 'v' || e.target.closest?.('input, textarea, select, [contenteditable="true"], dialog')) return;
+  if (!navigator.clipboard?.read) return; e.preventDefault();
+  navigator.clipboard.read().then(async items => { const files = []; for (const it of items) { const t = it.types.find(x => x.startsWith('image/')); if (t) files.push(new File([await it.getType(t)], 'paste.png', { type:t })); }
+    if (!files.length) return toast('클립보드에 그림이 없습니다 — Win+Shift+S 로 화면을 캡처한 뒤 Ctrl+V', true); if (MM.view === 'sticky') return mmPasteSticky(files); mmPasteFloat(files); }).catch(() => toast('클립보드를 읽지 못했습니다 — 메모 칸을 한 번 누른 뒤 Ctrl+V 하세요', true));
+});
+async function mmShot() {   // 📷 화면 캡처 → 범위 고르기 → 메모(또는 스티커 보드)에 떠 있는 그림으로
+  if (!navigator.mediaDevices?.getDisplayMedia || shotBlocked()) return toast('이 주소 · PC 에서는 브라우저 화면 캡처가 막혀 있습니다 — Win+Shift+S 로 범위를 캡처한 뒤 메모에서 Ctrl+V', true);
+  const b = await captureRegion(); if (b === 'blocked') return toast('이 PC 에서는 브라우저 화면 캡처가 막혀 있습니다 — Win+Shift+S 로 캡처한 뒤 Ctrl+V', true); if (!b) return;
+  const f = new File([b], 'screenshot.png', { type:b.type || 'image/png' }); return MM.view === 'sticky' ? mmPasteSticky([f]) : mmPasteFloat([f], [-1e5, -1e5]);
+}
 /* ---------- 이벤트 (메모장 화면 안) ---------- */
 document.addEventListener('click', async e => {
   const w = e.target.closest('#memoWrap'); if (!w) return; const t = e.target, D = s => t.closest(`[${s}]`);
@@ -6937,6 +6989,7 @@ document.addEventListener('click', async e => {
     if (pa === 'done') { PEN.on = false; return mmInkSync(); } if (pa === 'undo') { if (!mmInkUndo()) toast('되돌릴 획이 없습니다'); return; } if (pa === 'redo') { if (!mmInkUndo(true)) toast('다시 할 획이 없습니다'); return; }
     if (pa === 'clear' && MM.cur?.ink?.length && confirm('이 메모에 펜으로 그린 것을 모두 지울까요? (글 · 그림은 그대로)')) { MM.cur.ink = []; mmInkSync(); MM.dirty = true; return mmSave(); } return; }
   if ((b = D('data-mui'))) { const [k, m] = b.dataset.mui.split('|'); mmUi(k, m); mmDrawSide(); if (k === 'list') mmDrawList(); return; }
+  if (D('data-mshot')) return void mmShot();
   if ((b = D('data-marr'))) return mmArrange(b.dataset.marr);
   if ((b = D('data-mcalhome'))) { const d = new Date(b.dataset.mcalhome); CAL1.y = d.getFullYear(); CAL1.m = d.getMonth(); CAL1.sel = b.dataset.mcalhome; await mmFlush(); return go('home'); }
   if ((b = D('data-mcalgo'))) { await mmFlush(); return go(b.dataset.mcalgo); }
@@ -7031,7 +7084,6 @@ document.addEventListener('keydown', e => {
 document.addEventListener('paste', e => {
   const ed = e.target.closest?.('#mmEd'); if (!ed || MM.cur?.lock) return; const cd = e.clipboardData; if (!cd) return;
   const h = cd.getData('text/html'), imgs = [...cd.files].filter(f => f.type.startsWith('image/'));
-  if (imgs.length && !/<table/i.test(h)) { e.preventDefault(); return void mmAddFiles(imgs); }   // 화면 캡처 · 복사한 그림 (엑셀 칸 복사는 그림도 같이 오지만 표로 넣음)
  if (h) { e.preventDefault(); const c = mmClean(h.replace(/<img[^>]+src="(?!data:image)[^"]*"[^>]*>/gi, '')); document.execCommand('insertHTML', false, c); mmTouch(); }
 });
 document.addEventListener('wheel', e => { if (!(e.ctrlKey || e.metaKey) || !e.target.closest?.('#mmEdw')) return; e.preventDefault(); mmZoomSet(mmZoom() * Math.pow(1.0015, -e.deltaY)); }, { passive:false });   // 메모 확대 · 축소 = Ctrl + 휠 (그냥 휠은 위아래 이동)
