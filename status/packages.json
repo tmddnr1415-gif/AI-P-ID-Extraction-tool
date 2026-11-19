@@ -593,6 +593,19 @@
    },
    "replaces": "5_DASHBOARD_update_v17.74_from_v17.47_2026-11-19.zip",
    "note": "v17.76 — 내 메모장 확대 · 펜 · PDF 보기 (pdf.js 3.11.174 동봉 · 공식판과 동일 확인)"
+  },
+  {
+   "file": "①",
+   "name": "7_DASHBOARD_update_v17.77_from_v17.47_2026-11-19.zip",
+   "made": "2026-11-19 11:40",
+   "path": "company-pc-update/2026-11-19/ (3.4MB · 저장소에 있음)",
+   "sha256": "c2883932184d7d3ecaf1b24c9f9dd0a0a9609e270d305ee219d5e6af8faa7303",
+   "applied": "",
+   "tips": {
+    "S1": "058de9c9"
+   },
+   "replaces": "6_DASHBOARD_update_v17.76_from_v17.47_2026-11-19.zip",
+   "note": "v17.77 — 메모 확대 때 배경이 일부만 덮던 것 (회사 사진) 고침 · 화면만"
   }
  ]
 }
