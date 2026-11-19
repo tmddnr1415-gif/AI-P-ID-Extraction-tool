@@ -2353,3 +2353,14 @@ C:\Users\SAMSUNG\Desktop\Claude\                         ← 개발 폴더 (여�
   - 섹션은 왼쪽 **색 띠 탭**(고른 섹션은 그 색으로 옅게 칠함), 섹션 목록 아래 **＋ 섹션**, 메모 목록 맨 아래 **＋ 페이지**.
 - 바뀐 곳: dashboard.html `mmOneNote` · `mmRtab` · `mmPhFollow` · `MM_RT` (새로), `mmDrawMain` 끝에서 `mmOneNote` 부름, `mmDrawSide`(섹션 `--sc`, `#mmSecAdd2`), `mmDrawList`(`.mm-addpg`), `mmZoomFit`(제목 높이 `--phH` 만큼 빼고 줄 배경 위치 맞춤), selectionchange(표 탭 자동), CSS `.mm-rtabs` · `.mm-ph` · `.mm-addsec` · `.mm-addpg`. `.mm-edw` 는 flex → block.
 - 확인한 것: 탭 전환(홈 34 · 삽입 15 단추), 그리기 탭 펜 켜짐/꺼짐, 300% 에서 마우스 오른쪽/왼쪽 따라 제목 이동, 크게 모드, 표 안 → 표 탭, 오류 없음 / 회사에서 확인할 것: 좁은 화면에서 홈 탭 단추 줄 바꿈 모양, 어둡게 배경에서 제목 글자색.
+
+### 2026-11-19 (APP_VERSION 2026-11-19.31 / SERVER_VERSION 2026-11-19.8) — v17.96 내 메모장: 노트 앱에서 쓰는 기능 더 넣기
+- 무엇을: 사용자 지시 "웹서핑해서 더 넣을 수 있는 기능, 있으면 좋은 거 탐구하고 반영". OneNote · Notion · Obsidian 비교 글과 Microsoft OneNote 단축키 문서를 보고, 이미 있는 것(빗금 메뉴 · 마크다운 단축 · 양식 · 할 일 모음 등)은 빼고 없는 것만 넣음.
+  1. **OneNote 태그**: 줄에 ⭐중요 · ❓질문 · 💡아이디어 · ⚠확인 필요 · 📞연락할 것. Alt+1 할 일, Alt+2~6 태그, Alt+0 지우기 (같은 키를 다시 누르면 풀림). 홈 탭 [🏷 태그] 메뉴. Ctrl+숫자는 브라우저 탭 이동과 겹쳐 Alt 로 함.
+  2. **🏷 태그 모음** (왼쪽 메뉴): 모든 메모의 태그 줄을 한곳에, 종류별로 거르기. 누르면 그 메모를 열고 그 줄로 가서 노랗게 깜빡임.
+  3. **☰ 목차** (보기 탭): H1~H3 제목으로 오른쪽에 목차. 누르면 그 제목으로. 켜고 끈 것 이 PC 에 기억(`dept-memo-toc`).
+  4. **🔎 찾기 · 바꾸기** (Ctrl+F · Ctrl+H, 홈 탭): 대소문자 무시, 찾은 곳 노란색 · 지금 위치 주황색(CSS Highlight API), Enter 다음 · Shift+Enter 이전, 바꾸기 / 모두 바꾸기. 모두 바꾸기도 Ctrl+Z 한 번으로 되돌림 (찾기 칸에서 Ctrl+Z 도 메모 되돌리기로).
+  5. **글자 수 · 읽는 시간**: 제목 아래 날짜 줄 끝에 "59자 · 읽는 데 약 1분" (500자/분).
+  6. **🖌 서식 복사**: 커서 둔 글의 굵게 · 기울임 · 밑줄 · 취소선 · 글자색 · 형광색 · 크기를 따서, 끌어 고른 글에 입힘 (제목 줄에서 딸 때는 크기 빼고). Esc 취소.
+- 바뀐 곳: dashboard.html `MM_MK` · `mmMark` · `mmMarkPop` · `mmDrawMarks` · `mmTocSync` · `mmCount` · `mmFind` · `mmFindRun` · `mmFindRep` · `mmPaint` (새로), `mmMetaOf`(`pg.marks`), `mmMetaPut` · `mmlMeta`(marks), `mmCmd`, keydown(Alt+숫자 · Ctrl+F/H · Esc), `mmDraw`(view `marks`), `mmDrawSide`(nav), `mmOneNote`(목차 단추 · 건너뛰기). server.py `MEMO_META` 에 `marks` (목록에 태그 요약이 같이 오도록).
+- 확인한 것: 태그 4종 붙이기, 태그 모음 거르기 · 눌러서 그 줄로, 목차 3줄, 찾기 4곳 → 모두 바꾸기 → Ctrl+Z 로 4곳 되돌림, 서식 복사(굵게 + 빨강), 오류 없음 / 회사에서 확인할 것: 회사 Edge · Chrome 에서 Alt+숫자가 다른 프로그램(한글 입력기 등)과 겹치지 않는지, 찾기 색 표시(아주 옛 브라우저면 색 없이 고르기만 됨).
