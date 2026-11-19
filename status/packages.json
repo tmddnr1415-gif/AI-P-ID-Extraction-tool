@@ -736,6 +736,19 @@
    },
    "replaces": "16_DASHBOARD_update_v17.90_from_v17.82_2026-11-19.zip",
    "note": "v17.91 (기준 v17.82) — 펜 쓰기 스크롤 막대 깜빡임 고침"
+  },
+  {
+   "file": "①",
+   "name": "18_DASHBOARD_update_v17.94_from_v17.82_2026-11-19.zip",
+   "made": "2026-11-19 16:05",
+   "path": "company-pc-update/2026-11-19/ (1.6MB · 저장소에 있음)",
+   "sha256": "a2eeeb6797cb66b152f59a711f60a046283ddc7620cfd9d846a5e8726915d1ea",
+   "applied": "",
+   "tips": {
+    "S1": "1a574052"
+   },
+   "replaces": "17_DASHBOARD_update_v17.91_from_v17.82_2026-11-19.zip",
+   "note": "v17.94 (기준 v17.82) — 크기 손잡이 8개 · 주석 숨기기 · Esc 로 펜 끄기"
   }
  ]
 }
