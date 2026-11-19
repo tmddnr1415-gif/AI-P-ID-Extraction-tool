@@ -2587,7 +2587,7 @@ function recLabel(key, f) {
  * ===================================================================== */
 let root = null;
 /* 서버 모드: http(s):// 로 접속하면 server.py 의 REST API 사용 (폴더 선택 불필요). file:// 로 열면 폴더 모드 */
-const APP_VERSION = '2026-11-19.47';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
+const APP_VERSION = '2026-11-19.48';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
 const SERVER_URL = 'http://localhost:8080';
 // 부서원 PC 사본(file://)이 접속을 시도할 서버 — 서버가 배포 파일을 만들 때 'PC 이름 주소, IP 주소' 순으로 자동 기록함
 const DEFAULT_SERVERS = ['http://ASEUNGWOOK-B01:8080', 'http://65.3.30.234:8080'];
@@ -6247,7 +6247,7 @@ function mmPull() {   // 화면 → MM.cur
 }
 function mmTouch() {
   if (!MM.cur || MM.cur.lock) return; MM.dirty = true; mmHistPush(); mmStat('입력 중…'); clearTimeout(MM.timer); MM.timer = setTimeout(() => mmSave(), 1200);
-  try { const h = $('#mmEd')?.innerHTML || ''; if (h.length < 900000) localStorage.setItem('dept-memo-draft', JSON.stringify({ u:MM.uid, id:MM.cur.id, html:h, title:$('#mmTitle')?.value || '', at:Date.now() })); } catch (_) {}
+  clearTimeout(MM.draftT); const cid = MM.cur.id; MM.draftT = setTimeout(() => { if (MM.cur?.id !== cid) return; try { const h = $('#mmEd')?.innerHTML || ''; if (h.length < 900000) localStorage.setItem('dept-memo-draft', JSON.stringify({ u:MM.uid, id:cid, html:h, title:$('#mmTitle')?.value || '', at:Date.now() })); } catch (_) {} }, 400);   // v18.13 글자마다 메모 전체를 비상 보관하던 것 → 0.4초 쉬면 한 번
 }
 function mmSave(pg = MM.cur, opt = {}) {   // 차례대로 한 번에 하나씩
   if (!pg || pg._ro) return Promise.resolve(); if (pg === MM.cur) { clearTimeout(MM.timer); mmPull(); MM.dirty = false; }
@@ -6275,7 +6275,7 @@ function mmSave(pg = MM.cur, opt = {}) {   // 차례대로 한 번에 하나씩
 }
 const mmMenuN = () => { const b = $('#menu [data-k="memo"] .n'); if (b) b.textContent = mmLive().length; };
 function mmRefresh() {   // 저장 뒤 목록 · 왼쪽 숫자 새로 그리기 — 마우스를 누르고 있는 동안은 미룸(누른 단추가 바뀌면 클릭이 사라짐)
-  clearTimeout(MM.rT); MM.rT = setTimeout(() => { if (MM.down) return mmRefresh(); if (route !== 'memo' || MM.view === 'sticky' || MM.view === 'todo' || MM.view === 'trash') return; mmDrawSide(); mmDrawList(true); mmMenuN(); }, 250);
+  clearTimeout(MM.rT); MM.rT = setTimeout(() => { if (MM.down) return mmRefresh(); if (route !== 'memo' || MM.view === 'sticky' || MM.view === 'todo' || MM.view === 'trash') return; mmDrawSide(); mmListSoft(); mmMenuN(); }, 250);
 }
 addEventListener('pointerdown', () => { MM.down = true; }, true); addEventListener('pointerup', () => { MM.down = false; }, true); addEventListener('pointercancel', () => { MM.down = false; }, true);
 async function mmFlush() { if (MM.cur && MM.dirty) await mmSave(); }
@@ -6359,13 +6359,24 @@ function mmShown() {
   const pinTop = MM.sort !== 'date' && MM.sort !== 'dateasc' && MM.sort !== 'manual';
   return l.sort((a, b) => (pinTop ? (b.pin ? 1 : 0) - (a.pin ? 1 : 0) : 0) || key(a, b));
 }
+/* v18.13 빠르게: 저장할 때마다(약 1.2초) 300개 카드 목록 전체를 다시 그리던 것 → 순서가 그대로면 그 메모 카드만 고침 · 메모를 열 때는 '선택' 표시만 옮김 */
+const mmGrp = p => MM.sort === 'title' || MM.sort === 'manual' ? '' : MM.sort === 'date' || MM.sort === 'dateasc' ? mmDay(p) + ' (' + '일월화수목금토'[new Date(mmDay(p)).getDay()] + ')' : p.pin ? '⭐ 즐겨찾기' : mmDayLabel(mmLocal(MM.sort === 'new' ? p.createdAt : p.updatedAt));
+const mmCardH = (p, hl, snip) => `<button class="mm-card ${MM.cur?.id === p.id ? 'on' : ''}" draggable="true" data-mp="${p.id}" style="border-left-color:${mmCol(p.color, '#d5dbec')}"><b>${p.pin ? '⭐ ' : ''}${p.lock ? '🔒 ' : ''}${esc(p.icon || '📄')} ${hl(p.title || '제목 없음')}</b><span>${hl(snip(p))}</span><em>${fmtTime(p.updatedAt)}${(p.todos || []).length ? `<u>☑ ${p.todos.filter(t => t.d).length}/${p.todos.length}</u>` : ''}${(p.files || []).length ? `<u>📎 ${p.files.length}</u>` : ''}${(p.tags || []).map(t => `<u>#${esc(t)}</u>`).join('')}</em><i class="del" data-mdel="${p.id}" title="휴지통으로 (하루 뒤 완전 삭제)">🗑</i></button>`;
+function mmListSoft() {
+  const lb = $('#mmList .mm-lb'), id = MM.cur?.id, p = id && MM.pages.find(x => x.id === id); if (!lb || !p || p.kind === 'sticky' || MM.q.trim() || MM.view === 'date' || MM.view === 'shared') return mmDrawList(true);
+  const el = lb.querySelector(`.mm-card[data-mp="${CSS.escape(id)}"]`); if (!el) return mmDrawList(true);
+  const ids = mmShown().map(x => x.id), cards = lb.querySelectorAll('.mm-card'); if (cards.length !== ids.length || [...cards].indexOf(el) !== ids.indexOf(id)) return mmDrawList(true);
+  let hd = el.previousElementSibling; while (hd && !hd.classList.contains('mm-gh')) hd = hd.previousElementSibling; const g = mmGrp(p); if (g && (hd?.textContent || '') !== g) return mmDrawList(true);
+  el.outerHTML = mmCardH(p, esc, x => (x.text || '').replace(/\s+/g, ' ').slice(0, 90));
+}
+function mmListOn() { const lb = $('#mmList .mm-lb'); if (!lb || MM.view === 'shared') return mmDrawList(true); const c = MM.cur && lb.querySelector(`.mm-card[data-mp="${CSS.escape(MM.cur.id)}"]`); if (!c) return mmDrawList(true); lb.querySelectorAll('.mm-card.on').forEach(x => x.classList.remove('on')); c.classList.add('on'); }
 function mmDrawList(soft) {
   const el = $('#mmList'); if (!el || el.style.display === 'none') return;
   const q = MM.q.trim(), l = mmShown(), hl = t => { const s = esc(t); if (!q) return s; const i = t.toLowerCase().indexOf(q.toLowerCase()); return i < 0 ? s : esc(t.slice(0, i)) + '<mark>' + esc(t.slice(i, i + q.length)) + '</mark>' + esc(t.slice(i + q.length)); };
   const snip = p => { const t = (p.text || '').replace(/\s+/g, ' '); if (!q) return t.slice(0, 90); const i = t.toLowerCase().indexOf(q.toLowerCase()); return i < 0 ? t.slice(0, 90) : (i > 30 ? '…' : '') + t.slice(Math.max(0, i - 30), i + 60); };
-  const grp = p => MM.sort === 'title' || MM.sort === 'manual' ? '' : MM.sort === 'date' || MM.sort === 'dateasc' ? mmDay(p) + ' (' + '일월화수목금토'[new Date(mmDay(p)).getDay()] + ')' : p.pin ? '⭐ 즐겨찾기' : mmDayLabel(mmLocal(MM.sort === 'new' ? p.createdAt : p.updatedAt)); let lastG = null;
+  const grp = mmGrp; let lastG = null;
   const cards = l.map(p => { const g = grp(p), hd = g && g !== lastG ? `<div class="mm-gh">${esc(g)}</div>` : ''; lastG = g; if (p.kind === 'sticky') { const ls = (p.text || '').split('\n'), t1 = ls[0] || '(빈 스티커)'; return hd + `<button class="mm-card stk" draggable="true" data-mp="${p.id}" style="border-left-color:${mmCol(p.color, '#f0c93a')};background:linear-gradient(90deg,${mmCol(p.color, '#fff2a8')}55,transparent 70%)" title="스티커 — 누르면 스티커 보드에서 열림"><b>🗒 ${hl(t1.slice(0, 60))}</b><span>${hl(q ? snip(p) : ls.slice(1).join(' ').slice(0, 90))}</span><em>${fmtTime(p.updatedAt)}<u>스티커</u>${p.float ? '<u>📌 띄움</u>' : ''}</em><i class="del" data-mdel="${p.id}" title="휴지통으로 (하루 뒤 완전 삭제)">🗑</i></button>`; }
-    return hd + `<button class="mm-card ${MM.cur?.id === p.id ? 'on' : ''}" draggable="true" data-mp="${p.id}" style="border-left-color:${mmCol(p.color, '#d5dbec')}"><b>${p.pin ? '⭐ ' : ''}${p.lock ? '🔒 ' : ''}${esc(p.icon || '📄')} ${hl(p.title || '제목 없음')}</b><span>${hl(snip(p))}</span><em>${fmtTime(p.updatedAt)}${(p.todos || []).length ? `<u>☑ ${p.todos.filter(t => t.d).length}/${p.todos.length}</u>` : ''}${(p.files || []).length ? `<u>📎 ${p.files.length}</u>` : ''}${(p.tags || []).map(t => `<u>#${esc(t)}</u>`).join('')}</em><i class="del" data-mdel="${p.id}" title="휴지통으로 (하루 뒤 완전 삭제)">🗑</i></button>`; }).join('')
+    return hd + mmCardH(p, hl, snip); }).join('')
     || `<div class="mm-empty" style="padding:24px 10px"><b>🗒</b>${q || MM.tag ? '찾는 메모가 없습니다' : '아직 메모가 없습니다'}<br><span class="muted" style="font-size:12px">[＋ 새 메모] 를 눌러 시작하세요</span></div>`;
   if (soft && $('.mm-lb', el) && MM.view !== 'date') { const lb = $('.mm-lb', el), st = lb.scrollTop; lb.innerHTML = cards; lb.scrollTop = st; return; }
   if (MM.view === 'shared') { const sh = (MM.shared || []).filter(x => !q || ((x.title || '') + ' ' + x.ownerName).toLowerCase().includes(q.toLowerCase()));
@@ -6404,7 +6415,7 @@ function mmDrawMain() {
   $('#mmEd').innerHTML = mmClean(pg.html || ''); $('#mmLh').value = pg.lh || ''; $('#mmBg').value = pg.bg || ''; $('#mmEd').className = mmEdCls(pg); if (pg._ro) { $('#mmTb').style.display = 'none'; $('.mm-meta', el).innerHTML = `<span class="mm-ro">👥 <b>${esc(pg.ownerName || pg._ro)}</b> 님이 공유한 메모 — 읽기 전용 · ${fmtTime(pg.updatedAt)} 고침</span><button class="tg" data-mx="rocopy">⧉ 내 메모로 복사</button>`; }
   mmOneNote(el, pg);
   if ((() => { try { return localStorage.getItem('dept-memo-anno') === '0'; } catch (_) { return false; } })()) { document.body.classList.add('mm-noanno'); const ab = $('[data-mx="anno"]'); if (ab) { ab.textContent = '👁 주석 보이기'; ab.classList.add('on'); } } else document.body.classList.remove('mm-noanno');
-  mmZoomSet(mmZoom(), true); mmInkSync(); MM.lastKind = ''; MM.place = ''; MM.pick = ''; mmNotesDraw(); mmEdPos(); mmCount(); mmTocSync(); mmChips(); mmHistReset();
+  mmZoomSet(mmZoom(), true); mmInkSync(); MM.lastKind = ''; MM.place = ''; MM.pick = ''; mmNotesDraw(); mmEdPos(); mmIdle(mmCount); mmTocSync(); mmChips(); mmHistReset();
   mmStat(pg.updatedAt ? `저장됨 ${fmtTime(pg.updatedAt)} · ${(pg.text || '').length.toLocaleString()}자` : '새 메모');
   try { document.execCommand('styleWithCSS', false, true); document.execCommand('defaultParagraphSeparator', false, 'div'); } catch (_) {}
 }
@@ -6415,7 +6426,7 @@ async function mmOpen(id) {
   catch (e) { const l = MML.pages[id]; if (!l || !('html' in l)) return toast(e.offline ? '이 메모는 이 PC 에 보관된 내용이 없어 서버에 연결돼야 열 수 있습니다' : e.message, true); pg = JSON.parse(JSON.stringify(l)); delete pg._dirty; }
   MM.cur = pg; MM.dirty = false;
   if (!['all', 'note', 'pin', 'date', 'shared'].includes(MM.view)) { MM.view = 'all'; return mmDraw(); }
-  mmDrawList(true); mmDrawMain();
+  mmListOn(); mmDrawMain();
   try { const d = JSON.parse(localStorage.getItem('dept-memo-draft') || 'null');   // 저장 못 하고 닫힌 내용
     if (d && d.u === MM.uid && d.id === id && d.at > Date.parse(pg.updatedAt || 0) + 3000 && mmClean(d.html) !== mmClean(pg.html || '')) {
       const c = await ask('📝 저장하지 못한 내용이 있습니다', `<p style="margin-top:0">${fmtTime(new Date(d.at).toISOString())} 에 쓰다가 저장되지 않은 내용이 이 PC 에 남아 있습니다.</p>`, [{ id:'y', label:'그 내용으로 이어 쓰기', cls:'pri' }, { id:'n', label:'버리기' }]);
@@ -7135,10 +7146,11 @@ function mmZoomFit() {
   const lw = Math.max(cw, cw / z), want = lw * z; zw.style.width = lw + 'px'; zw.style.minHeight = (ch / z) + 'px';
   const r = zw.getBoundingClientRect(); if (r.width > 0 && Math.abs(r.width - want) > 1.5) zw.style.width = (lw * want / r.width) + 'px';
   const zh = parseFloat(zw.style.minHeight), r2 = zw.getBoundingClientRect(); if (r2.height > 0 && r2.height < ch - 1.5) zw.style.minHeight = (zh * ch / r2.height) + 'px';
-  setTimeout(() => mmPhFollow(), 0); MM.zb = { lw, lh:ch / z, wk:parseFloat(zw.style.width) / lw, hk:parseFloat(zw.style.minHeight) / (ch / z) }; mmPaperFit();
+  mmPhFollow(true); MM.zb = { lw, lh:ch / z, wk:parseFloat(zw.style.width) / lw, hk:parseFloat(zw.style.minHeight) / (ch / z) }; mmPaperFit();
   if (!ew._ro && window.ResizeObserver) { ew._ro = new ResizeObserver(() => { clearTimeout(ew._rt); ew._rt = setTimeout(mmZoomFit, 80); }); ew._ro.observe(ew, { box:'border-box' }); }
 }
 /* 2026-11-19 v17.88 종이(배경)가 떠 있는 그림 · 글 상자 · 메모지 · 펜 획이 있는 곳까지 늘 이어지게 — 좌우 · 위아래로 휠을 굴려도 배경이 끊기지 않음 */
+(window.requestIdleCallback || setTimeout)(() => { try { mmSbw(); } catch (_) {} });   // v18.13 메모를 처음 열 때 화면 배치를 한 번 더 하지 않게 미리 잼
 const mmSbw = () => mmSbw.v ?? (mmSbw.v = (() => { const d = document.createElement('div'); d.style.cssText = 'position:absolute;top:-999px;width:100px;height:100px;overflow:scroll'; document.body.appendChild(d); const w = d.offsetWidth - d.clientWidth; d.remove(); return w; })());   // 이 PC 의 스크롤 막대 두께
 function mmPaperFit() {
   const zw = $('#mmZw'), B = MM.zb, pg = MM.cur; if (!zw || !B || !pg) return; let R = 0, Bt = 0;
@@ -7523,7 +7535,7 @@ function mmOneNote(el, pg) {
   const ph = document.createElement('div'); ph.className = 'mm-ph'; ph.id = 'mmPh'; const d = new Date(pg.createdAt || Date.now()), dd = mmDay(pg);
   const dl = new Date(dd + 'T00:00:00'); ph.innerHTML = `<div class="tt"></div><div class="dt">${dl.getFullYear()}년 ${dl.getMonth() + 1}월 ${dl.getDate()}일 ${'일월화수목금토'[dl.getDay()]}요일 <span>${d.getHours() < 12 ? '오전' : '오후'} ${(d.getHours() % 12) || 12}:${pad(d.getMinutes())}</span></div>`;
   $('.tt', ph).append(icon, title); ew.prepend(ph); if (!pg._ro && !pg.lock) ph.insertAdjacentHTML('afterbegin', `<div class="mm-phact"><button data-cov="pick">🖼 커버 ${pg.cover ? '바꾸기' : '추가'}</button>${pg.cover ? '<button data-cov="">✕ 커버 지우기</button>' : ''}</div>`); mmCoverDraw(); mmBacklinks(ph); mmVerDraw(); mmLinkTitles(); mmRecent(pg.id); ew.classList.toggle('sm', !!pg.small); $('[data-mx="small"]', el)?.classList.toggle('on', !!pg.small);
-  mmNlpBtn(); mmTocSync(); mmCount(); if (MM.jump?.id === pg.id) { const j = MM.jump; MM.jump = null; setTimeout(() => { const x = $('#mmEd').querySelectorAll('.mm-' + j.k)[j.i]; if (x) { x.scrollIntoView({ block:'center' }); x.classList.add('mm-flash'); setTimeout(() => x.classList.remove('mm-flash'), 1800); } }, 120); }
+  mmNlpBtn(); mmTocSync(); mmIdle(mmCount); if (MM.jump?.id === pg.id) { const j = MM.jump; MM.jump = null; setTimeout(() => { const x = $('#mmEd').querySelectorAll('.mm-' + j.k)[j.i]; if (x) { x.scrollIntoView({ block:'center' }); x.classList.add('mm-flash'); setTimeout(() => x.classList.remove('mm-flash'), 1800); } }, 120); }
   mmRtab(MM.rtab || (() => { try { return localStorage.getItem('dept-memo-rtab') || 'home'; } catch (_) { return 'home'; } })(), true);
 }
 function mmRtab(k, quiet) {
@@ -7535,12 +7547,16 @@ function mmRtab(k, quiet) {
   requestAnimationFrame(() => { MM.zkey = ''; mmZoomFit(); });
 }
 document.addEventListener('click', e => { const b = e.target.closest?.('[data-rtab]'); if (b) mmRtab(b.dataset.rtab); });
-function mmPhFollow() {   // 제목이 화면 위에 붙어 있음 (좌우로 밀어도 화면 왼쪽에 그대로 · 마우스는 따라가지 않음)
-  const ph = $('#mmPh'), ew = $('#mmEdw'); if (!ph || !ew) return; const big = ew.scrollWidth > ew.clientWidth + 24 || document.body.classList.contains('mm-zen') || mmZoom() > 1.05;
-  ph.classList.toggle('big', big); ph.style.transform = `translateX(${ew.scrollLeft}px)`;
+let mmPhRaf = 0;
+function mmPhFollow(full) {   // 제목이 화면 위에 붙어 있음 (좌우로 밀어도 화면 왼쪽에 그대로 · 마우스는 따라가지 않음)
+  // v18.13 빠르게: 스크롤마다 화면 전체 배치(scrollWidth)를 다시 재던 것 → 한 프레임에 한 번, 폭 검사는 확대 · 크기 바뀔 때만
+  if (full) { MM.phBig = null; MM.phX = null; } if (mmPhRaf) return;
+  mmPhRaf = requestAnimationFrame(() => { mmPhRaf = 0; const ph = $('#mmPh'), ew = $('#mmEdw'); if (!ph || !ew) return; const x = ew.scrollLeft;
+    if (MM.phBig == null || (x > 0) !== (MM.phX > 0)) { MM.phBig = x > 0 || ew.scrollWidth > ew.clientWidth + 24 || document.body.classList.contains('mm-zen') || mmZoom() > 1.05; ph.classList.toggle('big', MM.phBig); }
+    if (x !== MM.phX) { MM.phX = x; ph.style.transform = x ? `translateX(${x}px)` : ''; } ph.classList.toggle('stuck', ew.scrollTop > 4); });
 }
 // v17.98: 제목이 마우스를 따라 움직이지 않게 (사용자 지시) — 위에 붙어 있고 좌우로 밀면 화면 왼쪽에 그대로
-document.addEventListener('scroll', e => { if (e.target?.id === 'mmEdw') { mmPhFollow(); const ew = e.target; $('#mmPh')?.classList.toggle('stuck', ew.scrollTop > 4); } }, true);
+document.addEventListener('scroll', e => { if (e.target?.id === 'mmEdw') mmPhFollow(); }, true);
 /* ---------- 2026-11-19 v17.96 웹에서 찾아본 노트 앱(OneNote · Notion · Obsidian) 기능 더 넣기
    ① OneNote 태그 (Alt+1 할 일 · Alt+2 ⭐중요 · Alt+3 ❓질문 · Alt+4 💡아이디어 · Alt+5 ⚠확인 · Alt+6 📞연락 · Alt+0 지우기) + [🏷 태그 모음]
    ② 목차 (H1~H3)  ③ 메모 안 찾기 · 바꾸기 (Ctrl+F · Ctrl+H)  ④ 글자 수 · 읽는 시간  ⑤ 서식 복사 🖌 ---------- */
@@ -7578,8 +7594,9 @@ function mmTocSync() {
   box.innerHTML = `<b>☰ 목차</b>${hs.map((h, i) => `<button data-toc="${i}" class="l${h.tagName[1]}">${esc(h.textContent.trim() || '(빈 제목)')}</button>`).join('') || '<span class="muted">H1 · H2 · H3 제목을 쓰면 여기 나옵니다</span>'}`;
 }
 /* 글자 수 · 읽는 시간 */
+const mmIdle = f => (window.requestIdleCallback ? requestIdleCallback(() => f(), { timeout:600 }) : setTimeout(f, 60));
 function mmCount() {
-  const ed = $('#mmEd'), dt = $('#mmPh .dt'); if (!ed || !dt) return; const t = (ed.innerText + [...document.querySelectorAll('#mmNotes .mm-fn.tb .fb')].map(x => x.innerText).join('')).replace(/\s+/g, ''); let c = $('.cnt', dt);
+  const ed = $('#mmEd'), dt = $('#mmPh .dt'); if (!ed || !dt) return; const t = (ed.textContent + [...document.querySelectorAll('#mmNotes .mm-fn.tb .fb')].map(x => x.textContent).join('')).replace(/\s+/g, ''); let c = $('.cnt', dt);   // v18.13 innerText(화면 배치를 다시 잼) → textContent
   if (!c) { c = document.createElement('span'); c.className = 'cnt'; dt.appendChild(c); } c.textContent = `${t.length.toLocaleString()}자 · 읽는 데 약 ${Math.max(1, Math.round(t.length / 500))}분`;
 }
 document.addEventListener('input', e => { if (!e.target.closest?.('#mmEd, #mmNotes .mm-fn.tb')) return; clearTimeout(MM.cntT); MM.cntT = setTimeout(() => { mmCount(); mmTocSync(); if ($('.mm-find')) mmFindRun(); }, 400); });
@@ -8739,7 +8756,7 @@ async function mmStickyNew(col, text = '') {
 }
 document.addEventListener('input', e => {
   const t = e.target; if (!t.closest?.('#memoWrap')) return;
-  if (t.id === 'mmQ') { MM.q = t.value; return mmDrawList(true); }
+  if (t.id === 'mmQ') { MM.q = t.value; clearTimeout(MM.qT); MM.qT = setTimeout(() => mmDrawList(true), MM.pages.length > 120 ? 140 : 0); return; }   // v18.13 메모가 많으면 글자마다 다시 그리지 않고 잠깐 멈췄을 때
   if (t.id === 'mmEd') { MM.lastKind = 'text'; if (e.inputType === 'insertParagraph') { const b = mmBlock(); if (b?.classList.contains('mm-chk')) { b.dataset.done = '0'; ['due', 'time', 'end', 'rep', 'kind', 'loc', 'rem', 'pri', 'who', 'st', 'chip'].forEach(k => b.removeAttribute('data-' + k)); b.classList.remove('mm-late'); } mmAutoTask(b); } mmTouch(); return void (mmSlash() || mmAt()); }
   if (t.id === 'mmTitle' || t.id === 'mmTags') return mmTouch();
 });
