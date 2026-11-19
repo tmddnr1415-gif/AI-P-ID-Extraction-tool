@@ -2391,3 +2391,12 @@ C:\Users\SAMSUNG\Desktop\Claude\                         ← 개발 폴더 (여�
   - 본문 옮기기: 본문 왼쪽 위(마우스를 올리면 보임) '⠿ 본문' 손잡이를 끌면 본문 전체가 옮겨짐(끄는 중 휠 = 위아래로 같이), 두 번 누르면 제자리. Ctrl+Z / Ctrl+Y 됨. 자리는 메모에 저장(`pg.ex` · `pg.ey`, 종이 기준 px — 오른쪽으로 옮기면 그만큼 본문 폭이 줄어 종이 밖으로 안 나감).
 - 바뀐 곳: dashboard.html `mmEdPos` · `mmHeads` (새로), CSS `body.mm-noanno #mmNotes > :not(.tb)` · `.mm-edgrip`, `mmSnap` · `mmHistGo`(본문 자리), `mmPaperFit`(아래로 옮긴 본문까지 종이), `mmCount` · `mmTocSync` · `mmFindRanges` · `mmFindRep` · `mmMetaOf`(글 상자 포함), `mmDrawMain`(그린 뒤 `mmEdPos` · `mmCount`)
 - 확인한 것: 주석 숨기기 → 글 상자 보임, 글자 수 23 → 36자(글 상자 포함), 손잡이 끌기 → 본문 (200, 120) 이동, Ctrl+Z → 제자리 · Ctrl+Y → 다시, 다시 열어도 그 자리, 두 번 누르기 → 제자리, 오류 없음 / 회사에서 확인할 것: 코넬 노트 왼쪽 여백 줄과 옮긴 본문이 보기 좋은지.
+
+### 2026-11-19 (APP_VERSION 2026-11-19.37 / SERVER_VERSION 그대로) — v18.02 주석 말풍선 · 고른 글에 주석 달기 · 위/아래 첨자
+- 무엇을: 사용자 지시 "주석은 조금 다른 형태로, 그리고 윗첨자 아래첨자도 넣을 수 있도록".
+  - 주석(메모지)을 본문 · 글 상자와 다른 **말풍선** 모양으로: 옅은 색 카드 + 왼쪽 색 띠 + 왼쪽 꼬리, 머리에 '💬 주석 · 날짜', 글은 조금 작게. 색 고르기는 마우스를 올렸을 때만.
+  - **💬 주석 달기** (삽입 탭 · Ctrl+Alt+M, Word 의 '메모' 처럼): 고른 글에 파란 점선 밑줄 + 오른쪽에 말풍선. 글이나 말풍선에 마우스를 올리면 서로 밝아짐, Alt+누르기 = 그 말풍선으로. 말풍선을 지우면 밑줄도 풀림(Ctrl+Z 로 둘 다 되돌림). 글을 안 고르고 누르면 붙일 자리를 누르는 메모지.
+  - **위 첨자 x² · 아래 첨자 x₂** (홈 탭, Word 와 같은 Ctrl+Shift+= · Ctrl+=, 다시 누르면 풀림). `<sup>` · `<sub>` 로 저장.
+  - 고친 것(원래 있던 문제): 맨 첫 줄에 블록 없이 쓴 글에서 첨자 · 굵게 뒤에 띄어쓰기를 하면 줄이 둘로 갈라지던 것 → 같은 줄의 글 · 꾸밈을 한 블록으로 묶음 (`mmBlock`).
+- 바뀐 곳: dashboard.html `mmCmt` (새로), `mmNoteHtml`(말풍선 머리 · `--nc` · `data-ref`), 메모지 색 바꾸기(`--nc`), `mmNoteDel`(밑줄 풀기), `mmCmd`(sup · sub · cmt), keydown(Ctrl+= · Ctrl+Shift+= · Ctrl+Alt+M), `mmClean`(data-cid 허용), `mmBlock`, CSS `.mm-fn.st` · `.mm-cmt` · sup/sub, `MM_RT`.
+- 확인한 것: CO₂ · 10⁶ 저장 html `<sub>2</sub>` · `<sup>6</sup>`, 'Seal Material' 골라 주석 → 밑줄 1 · 말풍선 1 · 마우스 올리면 말풍선 밝아짐, 말풍선 지우기 → 밑줄 0 · Ctrl+Z → 둘 다 돌아옴, 오류 없음 / 회사에서 확인할 것: Ctrl+= 가 브라우저 확대 대신 첨자로 되는지(메모 글 안에서만), 어둡게 배경에서 말풍선 · 밑줄 색.
