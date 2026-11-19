@@ -2281,7 +2281,7 @@ function recLabel(key, f) {
  * ===================================================================== */
 let root = null;
 /* 서버 모드: http(s):// 로 접속하면 server.py 의 REST API 사용 (폴더 선택 불필요). file:// 로 열면 폴더 모드 */
-const APP_VERSION = '2026-11-19.17';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
+const APP_VERSION = '2026-11-19.18';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
 const SERVER_URL = 'http://localhost:8080';
 // 부서원 PC 사본(file://)이 접속을 시도할 서버 — 서버가 배포 파일을 만들 때 'PC 이름 주소, IP 주소' 순으로 자동 기록함
 const DEFAULT_SERVERS = ['http://ASEUNGWOOK-B01:8080', 'http://65.3.30.234:8080'];
@@ -5850,6 +5850,7 @@ const MM_BG = [['', '흰 종이'], ['lined', '줄 노트'], ['wide', '넓은 줄
 const mmBgDef = () => { try { return localStorage.getItem('dept-memo-bg') || ''; } catch (_) { return ''; } };
 const mmEdCls = pg => 'mm-ed' + (pg.lh ? ' lh-' + pg.lh : '') + (pg.bg ? ' bg-' + pg.bg : '') + (pg.dk ? ' dk' : '');   // dk = 어두운 종이 (2026-11-19 v17.71)
 const mmDkDef = () => { try { return localStorage.getItem('dept-memo-dk') === '1'; } catch (_) { return false; } };
+const mmCol = (v, d = '') => /^#[0-9a-f]{3,8}$/i.test(String(v || '')) ? v : d;   // 색은 #rrggbb 모양만 (공유받은 메모의 값이 CSS 로 그대로 들어가지 않게)
 const mmId = () => Array.from(crypto.getRandomValues(new Uint8Array(12)), b => 'abcdefghijklmnopqrstuvwxyz0123456789'[b % 36]).join('');
 /* 2026-11-19 v17.82 사용자 지시: 메모는 서버와 무관하게 먼저 각 부서원 PC 에서 동작 · PC 에 모두 저장. 서버 연결이 필요한 것은 '공유' 뿐.
    누구 메모장인가(mmWho): 로그인했으면 그 계정 / 서버가 꺼져 로그인이 없으면 이 PC 에서 마지막으로 쓴 계정 → 이 파일에 메모가 든 계정(하나뿐일 때) → 'local'(이 PC 임시 — 나중에 로그인하면 그 계정으로 합침) */
@@ -6000,7 +6001,7 @@ function mmDrawSide() {
     <button class="btn pri" id="mmNew" style="width:100%" title="새 메모">＋<span class="lb"> 새 메모</span></button>
     ${nv('all', '🗂', '모든 메모', live.length + mmStk().length)}${nv('note', '📝', '메모', live.length)}${nv('pin', '⭐', '즐겨찾기', live.filter(p => p.pin).length)}${nv('date', '📅', '날짜별', '')}${nv('todo', '☑', '할 일 모음', todo)}${nv('shared', '👥', '공유받은 메모', (MM.shared || []).length)}${nv('sticky', '🗒', '스티커 보드', MM.pages.filter(p => p.kind === 'sticky' && !p.deleted).length)}
     <h3>섹션<button id="mmSecAdd" title="섹션 추가">＋ 추가</button></h3>
-    ${mmSecs().map(s => `<button class="mm-nav ${MM.sec === s.id ? 'on' : ''}" data-ms="${esc(s.id)}"><span class="dot" style="background:${esc(s.color || '#94a3b8')}" title="${esc(s.name)}"></span><span class="lb" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(s.name)}</span><i>${live.filter(p => p.sec === s.id).length}</i><span class="more" data-msm="${esc(s.id)}" title="이름 · 색 · 삭제">⋯</span></button>`).join('') || '<div class="muted lb" style="font-size:12px;padding:2px 6px">섹션으로 메모를 묶어 보세요 (예: 회의 · PJT · 개인)</div>'}
+    ${mmSecs().map(s => `<button class="mm-nav ${MM.sec === s.id ? 'on' : ''}" data-ms="${esc(s.id)}"><span class="dot" style="background:${mmCol(s.color, '#94a3b8')}" title="${esc(s.name)}"></span><span class="lb" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(s.name)}</span><i>${live.filter(p => p.sec === s.id).length}</i><span class="more" data-msm="${esc(s.id)}" title="이름 · 색 · 삭제">⋯</span></button>`).join('') || '<div class="muted lb" style="font-size:12px;padding:2px 6px">섹션으로 메모를 묶어 보세요 (예: 회의 · PJT · 개인)</div>'}
     ${Object.keys(tags).length ? `<h3>태그</h3><div class="mm-tags">${Object.entries(tags).sort((a, b) => b[1] - a[1]).slice(0, 30).map(([t, n]) => `<button class="mm-tag ${MM.tag === t ? 'on' : ''}" data-mt="${esc(t)}">#${esc(t)} ${n}</button>`).join('')}</div>` : ''}
     <div style="margin-top:10px">${nv('trash', '🗑', '휴지통', MM.pages.filter(p => p.deleted).length)}</div>
     ${(MM.lost || []).length ? `<div class="mm-lost lb">💾 이 PC 에만 남아 있는 메모 <b>${MM.lost.length}</b>개<br><button class="btn sm pri" data-mlost="up">서버에 다시 올리기</button> <button class="btn sm" data-mlost="drop">이 PC 에서 지우기</button></div>` : ''}
@@ -6039,8 +6040,8 @@ function mmDrawList(soft) {
   const q = MM.q.trim(), l = mmShown(), hl = t => { const s = esc(t); if (!q) return s; const i = t.toLowerCase().indexOf(q.toLowerCase()); return i < 0 ? s : esc(t.slice(0, i)) + '<mark>' + esc(t.slice(i, i + q.length)) + '</mark>' + esc(t.slice(i + q.length)); };
   const snip = p => { const t = (p.text || '').replace(/\s+/g, ' '); if (!q) return t.slice(0, 90); const i = t.toLowerCase().indexOf(q.toLowerCase()); return i < 0 ? t.slice(0, 90) : (i > 30 ? '…' : '') + t.slice(Math.max(0, i - 30), i + 60); };
   const grp = p => MM.sort === 'title' || MM.sort === 'manual' ? '' : MM.sort === 'date' || MM.sort === 'dateasc' ? mmDay(p) + ' (' + '일월화수목금토'[new Date(mmDay(p)).getDay()] + ')' : p.pin ? '⭐ 즐겨찾기' : mmDayLabel(mmLocal(MM.sort === 'new' ? p.createdAt : p.updatedAt)); let lastG = null;
-  const cards = l.map(p => { const g = grp(p), hd = g && g !== lastG ? `<div class="mm-gh">${esc(g)}</div>` : ''; lastG = g; if (p.kind === 'sticky') { const ls = (p.text || '').split('\n'), t1 = ls[0] || '(빈 스티커)'; return hd + `<button class="mm-card stk" draggable="true" data-mp="${p.id}" style="border-left-color:${esc(p.color || '#f0c93a')};background:linear-gradient(90deg,${esc(p.color || '#fff2a8')}55,transparent 70%)" title="스티커 — 누르면 스티커 보드에서 열림"><b>🗒 ${hl(t1.slice(0, 60))}</b><span>${hl(q ? snip(p) : ls.slice(1).join(' ').slice(0, 90))}</span><em>${fmtTime(p.updatedAt)}<u>스티커</u>${p.float ? '<u>📌 띄움</u>' : ''}</em><i class="del" data-mdel="${p.id}" title="휴지통으로 (하루 뒤 완전 삭제)">🗑</i></button>`; }
-    return hd + `<button class="mm-card ${MM.cur?.id === p.id ? 'on' : ''}" draggable="true" data-mp="${p.id}" style="border-left-color:${esc(p.color || '#d5dbec')}"><b>${p.pin ? '⭐ ' : ''}${p.lock ? '🔒 ' : ''}${esc(p.icon || '📄')} ${hl(p.title || '제목 없음')}</b><span>${hl(snip(p))}</span><em>${fmtTime(p.updatedAt)}${(p.todos || []).length ? `<u>☑ ${p.todos.filter(t => t.d).length}/${p.todos.length}</u>` : ''}${(p.files || []).length ? `<u>📎 ${p.files.length}</u>` : ''}${(p.tags || []).map(t => `<u>#${esc(t)}</u>`).join('')}</em><i class="del" data-mdel="${p.id}" title="휴지통으로 (하루 뒤 완전 삭제)">🗑</i></button>`; }).join('')
+  const cards = l.map(p => { const g = grp(p), hd = g && g !== lastG ? `<div class="mm-gh">${esc(g)}</div>` : ''; lastG = g; if (p.kind === 'sticky') { const ls = (p.text || '').split('\n'), t1 = ls[0] || '(빈 스티커)'; return hd + `<button class="mm-card stk" draggable="true" data-mp="${p.id}" style="border-left-color:${mmCol(p.color, '#f0c93a')};background:linear-gradient(90deg,${mmCol(p.color, '#fff2a8')}55,transparent 70%)" title="스티커 — 누르면 스티커 보드에서 열림"><b>🗒 ${hl(t1.slice(0, 60))}</b><span>${hl(q ? snip(p) : ls.slice(1).join(' ').slice(0, 90))}</span><em>${fmtTime(p.updatedAt)}<u>스티커</u>${p.float ? '<u>📌 띄움</u>' : ''}</em><i class="del" data-mdel="${p.id}" title="휴지통으로 (하루 뒤 완전 삭제)">🗑</i></button>`; }
+    return hd + `<button class="mm-card ${MM.cur?.id === p.id ? 'on' : ''}" draggable="true" data-mp="${p.id}" style="border-left-color:${mmCol(p.color, '#d5dbec')}"><b>${p.pin ? '⭐ ' : ''}${p.lock ? '🔒 ' : ''}${esc(p.icon || '📄')} ${hl(p.title || '제목 없음')}</b><span>${hl(snip(p))}</span><em>${fmtTime(p.updatedAt)}${(p.todos || []).length ? `<u>☑ ${p.todos.filter(t => t.d).length}/${p.todos.length}</u>` : ''}${(p.files || []).length ? `<u>📎 ${p.files.length}</u>` : ''}${(p.tags || []).map(t => `<u>#${esc(t)}</u>`).join('')}</em><i class="del" data-mdel="${p.id}" title="휴지통으로 (하루 뒤 완전 삭제)">🗑</i></button>`; }).join('')
     || `<div class="mm-empty" style="padding:24px 10px"><b>🗒</b>${q || MM.tag ? '찾는 메모가 없습니다' : '아직 메모가 없습니다'}<br><span class="muted" style="font-size:12px">[＋ 새 메모] 를 눌러 시작하세요</span></div>`;
   if (soft && $('.mm-lb', el) && MM.view !== 'date') { const lb = $('.mm-lb', el), st = lb.scrollTop; lb.innerHTML = cards; lb.scrollTop = st; return; }
   if (MM.view === 'shared') { const sh = (MM.shared || []).filter(x => !q || ((x.title || '') + ' ' + x.ownerName).toLowerCase().includes(q.toLowerCase()));
@@ -6264,7 +6265,7 @@ function mmInk(src, done) {
 }
 /* ---------- 스티커 보드 · 화면에 띄우기 ---------- */
 function mmStickyHtml(p, fl) {
-  return `<div class="mm-sticky" data-sid="${p.id}" style="left:${fl ? p.fx ?? 80 : p.x ?? 30}px;top:${fl ? p.fy ?? 120 : p.y ?? 30}px;width:${p.w || 200}px;height:${p.h || 170}px;background:${esc(p.color || MM_SCOL[0])}">
+  return `<div class="mm-sticky" data-sid="${p.id}" style="left:${fl ? p.fx ?? 80 : p.x ?? 30}px;top:${fl ? p.fy ?? 120 : p.y ?? 30}px;width:${p.w || 200}px;height:${p.h || 170}px;background:${mmCol(p.color, MM_SCOL[0])}">
     <div class="sh"><span>${fmtTime(p.updatedAt)}</span><button data-sa="pal" title="색">🎨</button><button data-sa="float" class="${p.float ? 'on' : ''}" title="${p.float ? '띄우기 끄기 (보드에만)' : '어느 화면에서나 띄워 두기'}">📌</button>${fl ? '' : '<button data-sa="page" title="노트 페이지로 바꾸기">📄</button>'}<button data-sa="del" title="${fl ? '화면에서 내리기' : '지우기 (휴지통)'}">${fl ? '✕' : '🗑'}</button></div>
     <div class="sc">${MM_SCOL.map(c => `<button data-scol="${c}" style="background:${c}"></button>`).join('')}</div><div class="sb" contenteditable="true" spellcheck="false">${esc(p.text || '')}</div></div>`;
 }
@@ -6707,7 +6708,7 @@ function mmNoteTouch() { if (!MM.cur) return; MM.dirty = true; MM.lastKind = 'te
 function mmNoteHtml(n) {
   if (n.k === 'img') return /^data:image\/(png|jpeg|gif|webp);base64,[A-Za-z0-9+/=]+$/.test(n.src || '') ? `<div class="mm-fn im" data-fn="${esc(n.id)}" style="left:${+n.x || 0}px;top:${+n.y || 0}px;width:${+n.w || 200}px"><div class="fh"><span class="grip" title="끌어서 옮기기 (그림을 바로 끌어도 됨)">⠿</span><button data-fin title="본문 안(글 줄)으로 다시 넣기">↩</button><button data-fx title="지우기">✕</button></div><img src="${n.src}" draggable="false"></div>` : '';
   const st = n.k === 'tbox';
-  return `<div class="mm-fn ${st ? 'tb' : 'st'}" data-fn="${esc(n.id)}" style="left:${+n.x || 0}px;top:${+n.y || 0}px;width:${+n.w || (st ? 240 : 140)}px;${n.h ? `height:${+n.h}px;` : ''}${st ? '' : `background:${esc(n.c || MM_NC[0])}`}">
+  return `<div class="mm-fn ${st ? 'tb' : 'st'}" data-fn="${esc(n.id)}" style="left:${+n.x || 0}px;top:${+n.y || 0}px;width:${+n.w || (st ? 240 : 140)}px;${n.h ? `height:${+n.h}px;` : ''}${st ? '' : `background:${mmCol(n.c, MM_NC[0])}`}">
     <div class="fh"><span class="grip" title="끌어서 옮기기">⠿</span>${st ? '' : MM_NC.map(c => `<button data-fc="${c}" style="background:${c}" title="색"></button>`).join('')}<button data-fx title="지우기">✕</button></div><div class="fb" contenteditable="${MM.cur?.lock ? 'false' : 'true'}" spellcheck="false">${esc(n.text || '')}</div></div>`;
 }
 function mmNotesDraw() {
@@ -6721,7 +6722,7 @@ function mmNotesDraw() {
   h.addEventListener('pointerup', up); h.addEventListener('pointercancel', up);
   h.addEventListener('mouseup', e => { const el = e.target.closest('.mm-fn'), n = el && N(el.dataset.fn); if (!n || drag) return; const w = el.offsetWidth, hh = el.offsetHeight; if (Math.abs(w - (n.w || 0)) > 2 || (el.style.height && Math.abs(hh - (n.h || 0)) > 2)) { n.w = w; if (el.style.height) n.h = hh; mmNoteTouch(); } });
   h.addEventListener('click', e => { const el = e.target.closest('.mm-fn'), n = el && N(el.dataset.fn); if (!n || MM.cur?.lock) return; const c = e.target.closest('[data-fc]');
-    if (c) { n.c = c.dataset.fc; el.style.background = n.c; return mmNoteTouch(); }
+    if (c) { n.c = mmCol(c.dataset.fc, MM_NC[0]); el.style.background = n.c; return mmNoteTouch(); }
     if (e.target.closest('[data-fin]')) { const ed = mmEd(), d = document.createElement('div'), im = document.createElement('img'); im.src = n.src; d.appendChild(im); ed.appendChild(d); MM.cur.notes = MM.cur.notes.filter(x => x !== n); el.remove(); return mmTouch(); }
     if (e.target.closest('[data-fx]')) { if ((n.text || n.k === 'img') && !confirm(n.k === 'img' ? '이 그림을 지울까요?' : '이 메모지를 지울까요?')) return; MM.cur.notes = MM.cur.notes.filter(x => x !== n); el.remove(); mmNoteTouch(); } });
 }

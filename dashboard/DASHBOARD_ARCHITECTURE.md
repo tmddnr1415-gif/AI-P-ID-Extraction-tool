@@ -2255,3 +2255,8 @@ C:\Users\SAMSUNG\Desktop\Claude\                         ← 개발 폴더 (여�
 - 바뀐 곳: dashboard.html `mmWho` · `mmOn`/`mmNet` · `mmLoad` · `mmSave`(PC 먼저) · `mmlLoad`(local 합치기) · `mmlSyncUp`(첨부 받아 두기 · pdf.js 미리 받기) · `mmAddFiles` · `mmFileKeep` · `mmFilesUp` · `mmBlob`/`mmBlobNet` · `mmPdfLib` · `renderMemo` · `renderMenu` · `withMemo` / server.py `api_memo_file_put`(want id)
 - 확인한 것(file:// 사본 · 서버 요청을 모두 막음): 메뉴 보임 · 안내 띠 · 보관된 메모 6개 열림 → 새 메모 + 글 + PDF 첨부 + 스티커 → 다시 열어도(서버 없이) 8개 그대로 → 서버를 다시 여니 메모 · 스티커 · 첨부 파일이 서버에 올라감(6 → 8, 파일 있음), 새 브라우저에서 한 번 접속한 뒤 서버를 끄고 PDF 첨부 열기 → 메모장 안에 2쪽 그려짐, 콘솔 오류 없음. **서버 재시작 필요**(첨부 ID 받기).
   회사에서 확인할 것: 부서원 PC 의 사본 파일로 서버를 끈 상태에서 메모가 열리고 저장되는지.
+
+### 2026-11-19 (APP_VERSION 2026-11-19.18 / SERVER_VERSION 그대로) — v17.83 내 메모장: 색 값 검사 (공유받은 메모 대비)
+- 무엇을: 오케스트레이터 검토 지적 — 메모지 색(`n.c`) 등을 `esc` 만 해서 style 에 넣어, 공유받은 메모에 `url(...)` 같은 CSS 값이 들어 있으면 보는 사람 브라우저가 그 주소를 부를 수 있음. → 색은 `#rrggbb` 모양만 받고 아니면 기본색(`mmCol`). 메모지 · 스티커 · 목록 카드 · 섹션 색 7곳.
+- 바뀐 곳: dashboard.html `mmCol`(새) · `mmNoteHtml` · `mmStickyHtml` · `mmDrawList` · `mmDrawSide` · 메모지 색 클릭
+- 확인한 것: 구문 검사 · 바뀐 곳 7곳 치환 확인(화면 시험은 하지 않음 — 색 모양만 거르는 변경).
