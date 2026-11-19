@@ -1,104 +1,75 @@
-# 인수인계 — "VALVE Datasheet 검토" 세션 (상한 15KB · 덧붙이지 말고 고쳐 쓴다)
+# 인수인계 — "VALVE Datasheet 검토" 세션 (상한 15KB · 목표 12KB 아래 · 덧붙이지 말고 고쳐 쓴다)
 
-## ★ 진행 중 — Instrument Datasheet 검토 (2026-11-12 사용자 지시 · 기획안 v2) — valve40
+## 지금 상태 (2026-11-19 · valve41)
 
-- 지시 원문: `git show origin/claude/trusting-cray-v68axq:INSTRUMENT_REVIEW_PLAN.md` · `CONVENTIONS.md`. 결정: List 는 PDF · 기준 = Datasheet → List ·
-  Process 기준 = PDS · **원본(빈 양식 · Line List · List PDF) 저장소 금지 · 발주처/프로젝트 이름 금지** · 단계마다 오케스트레이터(session_01Muj82FygSCFAVRooofwhVK) 한 줄 · 사용자에게 스크린샷.
-- **1~5단계 들어감 (valve40)**: 카드 `app/valve/forms/*.json`(80 은 두 칸 행 `pair_cells`) · 읽기 `instrument.py` · 검토 `instreview.py`(IN-REQ/PDS/PMS/LL/ITM, Rule 표는 모듈 머리) ·
-  Line List `linelist.py`(머리글 글자로 열 찾음 · 크기는 '"' 로 inch 판별 = South 뒤바뀜 대응 · Line No 전체 → 앞부분) · List `instlists.py`(LIST-00/01/02) ·
-  API `inst_api.py`(표 `inst_sheet`, 업로드 종류 instrument · linelist · instlist, `/inst/summary · sheets · listcmp(.xlsx) · review.xlsx · required`) ·
-  화면 `app/static/valve/instrument.js`(Instrument 현황판 · Instrument Review · List 대조, `?kind=pt`) · valve.js 는 `window.VALVE` 다리만.
-- 결정 `inst_decision` · Code `inst.codes` · CRS 내보내기/회신(`inst_reply`) · `/inst/progress` · `instcalc.py`(IN-CV IEC 60534 · IN-PSV API 526).
-- **메뉴**: INSTRUMENT 목록은 대시보드에. `/valve?kind=<item>` = Valve 같은 전용 메뉴 11개(List · Rev 비교 · PDS · PMS · Line List · Lists …; `/inst/findings?group=` · `/inst/compare`) · `all` 현황판 · `instindex|iolist` List.
-- **valve37(440a3bb1) 들어옴**: ball·globe·butterfly·psv·valve → Valve 화면. PSV 는 Valve 가 맡음.
-- **공통 자료 `?kind=refdocs`** (11-13): PDS · PMS · Line List · Lists 는 여기서만 → 기준 프로젝트(`api.ref_pid`)에 1벌, 모든 검토가 씀. 페이지별 올리기는 `window.DOC_KINDS`.
-- **Area** (11-13): 올린 도서 Area(`document.area`) → DTS No.(규칙 표 'DTS 98 | QN | | North') → 표제 → 규칙 표 줄 (`arearule.resolve`, 학습 추정은 Site 안 정함). 라벨 QN Brownfield N1 · QN Greenfield · QS · W15. 기본 표 `arearule_default.txt` · 편집 = 공통 자료.
-- **11-13 회사 서버 재시작 대응**: 손상 보관본은 MuPDF 에 안 넘김(`store.stored_good`) · `extract.PDF_LOCK` · warm-up 1개씩 · `VALVE_WARMUP=0` · `logs/crash_*.log` · Datasheet JSON(`dsjson.py`) · Valve 화면도 Area 규칙.
-- **valve41 (11-18)**: ISA-20 'INSTRUMENT SPECIFICATION' 양식(South CV · Regulator) = `form_isa.py`(괘선 칸 읽기) · 시작 때 Tag 없는 DS 문서 자동 다시 읽기(`_auto_reread`) · 실 South 2권 = 19 Tag. 모르는 양식 안전망: `unread_pages` · INDEX 대조 → 작업 창 · 문서 표 경고.
-- Line No 칸 없는 양식은 PDS 의 Line No 로 Line List. 필수 칸 = 카드 제안값 → 현황판 '필수 칸 확인'에서 사용자가 확정(프로젝트 설정 `inst.required`).
-- 시험: `spike/valve_inst_scenario.py <dir> [--forms /tmp/forms] [--keep]` — 14종 × (정상 Tag · 오류 심은 Tag) + 시험 PDS/PMS/Line List/Index/IO →
-  **심은 오류 74/74 · 정상 Tag 지적 0 · List 29/29** (카드로 그린 쪽 · 실제 빈 양식 둘 다). pytest `tests/test_valve_instrument_{forms,reader,review}.py`.
-- 아직: 사용자에게 필수 칸 목록 확정 받기 · 실제 채워진 Instrument Datasheet / List 로 검증(지금은 시험 자료뿐) · 605 등 일부 표제란 Rev 를 시험 작성기가 못 씀(읽기 문제 아님) ·
-  Valve 쪽 Tag 와 Instrument 쪽 CV/On-Off/PSV 는 따로 집계(합치기는 사용자 결정) · 꾸러미 valve40 zip 아직 안 만듦.
-- 원본(커밋 금지): `/tmp/forms/` — 새 세션이면 다시 올려 달라고 함. 지킬 것: Valve 스냅숏 2,935 · 변경 0 (`spike/valve_snapshot_diff.py check out/valve29/snapshot_valve30.json`, 8000=/tmp/vt_shot) · UI 감사 25/25 (8002=/tmp/vt_ui) · 전체 pytest.
+- 브랜치 `ccr-efbe7e75-n915ze`. 무엇: P&ID 서버(8000) `/valve/` — 대시보드 **Datasheet** 메뉴의 Valve(Ball · Globe · Butterfly · PSV) ·
+  Instrument 14종 · 현황판 · Instrument/IO List · 공통 자료.
+- **꾸러미는 오케스트레이터가 만든다** (`session_01Muj82FygSCFAVRooofwhVK`, 통합 hotfixNNN). 이 세션은 개발 · 시험 · 커밋 · 푸시 →
+  send_message 로 "커밋 · 바뀐 파일 · 시험 결과 · 회사에 알릴 한 줄". zip 을 직접 만들지 않는다. 회사 최신 = hotfix145 (valve41 · 오케스트레이터 알림).
+- 대시보드 세션(`session_016Ntz71xxniTkCj7pC8ZpXL`)은 `/api/valve/*` 를 읽는다 — **필드 이름 · Area 값이 바뀌면 알린다**.
+- 방향(사용자 지시서): 엔진이 핵심 · 기존 판정 불변 · OCR/LLM 금지 · 문서에 없는 값은 만들지 않음 · 새 규칙마다 Rule ID · 모든 판정에 출처.
+- **자료 금지**: 발주처 원본(Datasheet · PMS · PDS · 빈 양식 · List · 그것으로 만든 시험 PDF · 그 화면 캡처)은 저장소에 올리지 않는다.
+  시험은 가짜 값으로 그린 PDF. 원본 위치(새 세션이면 다시 받아야 함): `/tmp/forms/` · `/tmp/vt_shot`(실 Ball 164 Tag) · 사용자 업로드 폴더.
 
-## 지금 상태 (2026-11-07 · valve35 — valve29 Phase 1 완료 + 후속 요청들)
+### 매 회차 끝 점검 (모두 통과해야 푸시)
 
-- ★★★ **2026-11-02 사용자: "우선 여기 개인 클로드에서 개발을 이어서 진행한다"** — 이 세션(클라우드)이 계속 개발하고 valveNN 꾸러미를 낸다. 회사 PC 는 적용만(회사에서 Valve 를 고치면 다음 꾸러미가 충돌).
-  아래 2026-11-01 '회사 PC 개발' 장치(devkit · valve_deploy_to_ops)는 그대로 두되 지금은 쓰지 않는다.
+- `timeout 1500 python3 -m pytest -q -x` (2026-11-18: 2,100 통과)
+- Ball 판정 스냅숏: 8000 = `/tmp/vt_shot` 서버 → `python3 spike/valve_snapshot_diff.py check out/valve29/snapshot_valve30.json` = **2,935 · 변화 0**
+- 화면: 8002 = `/tmp/vt_ui` → `node spike/valve_ui_audit.cjs http://127.0.0.1:8002` = 25/25
+- `tests/test_context_budget.py` (이 파일 ≤ 15,000 B)
+- 서버: `(PID_DATA_DIR=<폴더> nohup python3 -m uvicorn app.main:app --port N > /tmp/sN.log 2>&1 &)` — 턴 사이에 죽으니 다시 켠다.
 
-- 작업 브랜치: `ccr-efbe7e75-n915ze` (PID hotfix131 · DASHBOARD v16.51 병합 위). **회사 PC 에서 이어 갈 때는 `docs/handoff/VALVE_COMPANY_START.md`** (폴더 · 지시문).
-- 무엇: 대시보드 **실행 프로젝트 › CO2 PJT › Datasheet › Ball Valve** = P&ID 서버(8000) `/valve/`. 같은 줄에 Globe Valve · Butterfly Valve · PSV 메뉴(준비 중 화면, `dashboard.html MODULES`).
-- ★ 방향(사용자 지시서 "Engineering Intelligence Upgrade"): 엔진이 핵심 · 기존 판정 불변 · OCR/LLM 금지 · 근거 없으면 Review Required/Not Defined · 새 규칙마다 Rule ID ·
-  모든 판정에 출처 문서 · 쪽 · 기준값 · 실제값 · 근거. Phase: 1 운영 신뢰성(완료) → 2 PMS Gasket/Bolting · 프로젝트 기준 문서 · 교차 검증 → 3 Cv/ΔP → 4 다른 Vendor 양식 · Tag 절차 · 워크플로.
-- valve29 에 들어간 것 (DESIGN §32~§34-5):
-  결정 5종 + 사유 분류 · decision_log · Rule Performance · 규칙 버전/출처 · 근거 추적 / 코멘트 고치기(✎ 이동 · 크기) · 나란히 비교(⇆) · 새 창 실시간 연동(BroadcastChannel) /
-  Special Req. 탭 + Excel · Dense CO2 요구사항 / Excel 같은 열 필터(xfApply · xfDom) / 입체 화면(body.d3, Settings 끔) · 대시보드 카드 크게 보기 /
-  액세서리 지식 acc.* + 규칙 AC-01~05 (AC-05 = SOV 2개 이상인데 1oo2/2oo2 미기재, 실자료 48건) / 첫 화면 '기준 문서' 줄(`docrev.py`: PMS · Process Data · Datasheet Rev · 날짜) /
-  속도 · 가볍게(화면 답 `_cached` 재사용 + gzip + ETag, 정적 파일 해시 캐시, Process/PMS 가상 행, 캐시 객체 공유) / 결함: 새 설치 첫 요청 500 · 검색 후 Excel 옛 검색어.
-- 검토 캐시 키 = (audit · 상태 · 프로젝트 판 · VERSION · **규칙 코드 지문 `_RULES_FP`**) — 규칙 파일을 고치면 저절로 다시 계산.
-- 품질 기준값: `spike/valve_eval.py --check`(AC 규칙 수까지 갱신됨) · 판정 스냅샷 `spike/valve_snapshot_diff.py check out/valve29/snapshot_valve28.json` = 기존 2,887 변경 0 · 추가 48(AC-05).
-- 매 회차 끝 점검: `pytest -q`(1,906 통과) · `tests/ -k valve`(108) · `valve_eval --check` · `valve_sim --n 3000` · `valve_mutate` · `valve_rev_sim --n 300` · `valve_snapshot_diff check` ·
-  `node spike/valve_ui_audit.cjs`(25/25) · `valve_link_check.cjs` · `valve_filter_check.cjs` · 속도 `valve_speed.cjs`(동작 60개, 최장 멈춤 ≤ 0.37 s).
-- ✅ **회사 적용 확인 (2026-11-02 사용자)**: valve29 · 대시보드 VALVE2 메뉴 zip · devkit 모두 적용. 이후 Valve 는 회사 PC 가 원본.
-- **valve30**: PDF 도구줄 대비 · Ctrl+휠 확대 · 미리보기 크기 조절(`splitPanes`) · 화질. 판정 스냅샷 = `out/valve29/snapshot_valve30.json`(2,935).
-- **valve31**: 코멘트 한/영(`i18n.py`) · 출력 lang=en|ko|both. **새 규칙 문장 → `i18n.RULES` 한국어 틀 + `tests/test_valve_i18n.py` SAMPLES 한 줄.**
-- **valve32~34**: 문서 지우기 · 휴지통(§37) · Valve Summary 표(§38) · 저장본 해시 검증 · open_pdf 재시도(§39) — DESIGN 참고.
-- **valve35**: 코멘트 정리 — 블럭(한 쪽에 붙은 Data Missing 3개+ = 한 코멘트) · Typical(같은 코멘트 2 Tag+ = 한 줄) · ▸ 상세 · 묶음 일괄 결정 ·
-  Excel 'Comments (Typical)' 시트 · PDF 블럭 박스(`digest.py`, `/issues/digest`, `group=1`) — DESIGN §40. 판정 불변(스냅샷 0). 실자료 2,935 → 276.
-- **valve36**: 밸브 모형 = 세션 7 Anatomy 엔진(`app/static/valve/anatomy.js`, `spike/mk_anatomy.py` 로 묶음 · 오프라인) — 칸 ↔ 부위 양방향 · DESIGN §41.
-- **valve37** (2026-11-11 회사 PC 사진 'HTTP 500', 새 창 ds=74): 검토 계산 예외 → 그 Tag 만 지적 없이 열림 + review_error · 모든 /valve 오류 JSON + `valve\logs\errors_*.log` — DESIGN §42.
-  **원인은 아직 모름** — 사용자에게 로그 파일(`C:\Claude\PID\app\_data\valve\logs\errors_*.log` 또는 화면에 나온 위치) 내용을 받아 고칠 것.
-- **valve38** (회사 PC 'PDF 안 뜸' 진짜 원인 = 저장본 `files\26c26a50aa4f1ab2.pdf` 를 pymupdf 가 못 엶 — DRM 추정): 저장본 `.bin` · 시작 때 옮김 · 다시 올리면 옛 문서도 복구 ·
-  409 stored_pdf + 진단(앞 32바이트) · 뷰어 안내 · 목록 '원본 손상' — DESIGN §43. **회사 확인: 진단의 앞 32바이트가 무엇인지(DRM 머리글?) 받으면 원인 확정.**
-- **valve39**: 첫 화면 'Process Data 대조 · 문서 Rev · 구역' (`/coverage`, `drawCov`) — PDS 에 없는 Tag(공백 · 하이픈 무시, 앞 0 은 '비슷한 번호') · 구역 5종 · 문서별 Rev — DESIGN §44.
-- ★ 2026-11-11 오케스트레이터(규약 v2): 통합 zip 은 오케스트레이터(hotfix13x) — 이 세션은 개발 · 시험 · 커밋 · 푸시 후 send_message 로 알림. 사용자 직접 확인은 아직.
-- ★ 2026-11-07 오케스트레이터(세션 메시지): "Valve 도 통합 PID_dev+ops_hotfixNNN 에 싣고 valveNN 별도 꾸러미 폐지" — **사용자 확인 전**이라 규칙은 아직 그대로.
-- 꾸러미: **valve37** = `out/PID_dev+ops_valve37_2026-11-11.zip` (누적 · valve36 Anatomy 포함). 그 전 valve35 · valve30 · valve29 · 대시보드 = `dashboard_patches/UPDATE_from_v16.51_VALVE2_menu.zip`(--any) ·
-  회사 개발용 = `out/VALVE_devkit_valve29_2026-11-01.zip`(문서 · 점검 도구).
-- 남은 일: PERFORMANCE_REPORT.md(측정은 끝 — DESIGN §34-2 · §34-5 · other_log 수치) · Globe/Butterfly/PSV 검토(양식 · 기준 필요) · Phase 2(회사 Valve Spec · Gasket/Bolting PMS · Process DS 원본 필요) ·
-  실사용 결정 쌓기(Rule Performance 정밀도) · 다른 Vendor 양식 시험.
+### Valve (Ball · Globe · Butterfly · PSV)
 
-## 파일
+- 읽기 `extract.py`(Form 80 · 102 · 공정표 · Notes) + `forms_ext.py`(Form 101 CV · 701 PSV · 표제 아래 Code 80) +
+  **`form_isa.py`(valve41: ISA-20 'INSTRUMENT SPECIFICATION' — 괘선 칸 읽기 · South CV/Regulator 실물 2권 = 19 Tag)**. `PARSER_VERSION extract-v41`.
+- 프로젝트 = 종류별: '<이름>' = Ball · '<이름> · Globe Valve | Butterfly Valve | PSV' (`schema.project_kind`, `?kind=`).
+- 검토 `issues.py` · `checks.py` · `expert.py` · `matreview.py` · `pms.py` · `process.py` — 캐시 키에 규칙 코드 지문(`_RULES_FP`)이 있어 규칙을 고치면 저절로 다시 계산.
+- 결정 5종 · decision_log · Rule Performance · 코멘트 한/영(`i18n.py` — **새 규칙 문장은 `i18n.RULES` + `tests/test_valve_i18n.py` SAMPLES 에 한 줄**) ·
+  코멘트 묶음(`digest.py`) · Mark-up PDF · Issue/Valve List Excel(`exports.py` · `tbe.py`) · 밸브 모형(`anatomy.js`, `spike/mk_anatomy.py`).
+- 안정성(11-13): 손상 보관본은 MuPDF 에 넘기지 않음(`store.stored_good`) · `extract.PDF_LOCK` · warm-up 한 프로젝트씩 · `VALVE_WARMUP=0` ·
+  `logs/crash_*.log` · `logs/warmup.log` · 손상 PDF 는 예전 쪽 그림으로 · 읽은 Datasheet 는 `datasheets/<프로젝트>/<kind>/<Tag>__<Rev>.json`(`dsjson.py`).
+- **모르는 양식 안전망(valve41)**: `extract.unread_pages`(번호 줄 양식인데 읽힌 줄 40% 미만 · Tag 없는 DS) · `index_tags/index_check`(도서 INDEX 와 읽은 Tag 대조) →
+  작업 창 경고(`_job_warn`) · `document.info.unread_pages/.index` · Document Management 빨간 표시. 시작 때 Tag 없는 DS 를 남긴 문서는 자동 다시 읽기(`_auto_reread`).
 
-| 파일 | 하는 일 |
-|---|---|
-| `app/valve/extract.py` | PDF → 칸 (On/Off Form 80 · MOV Form 102 · 공정 조건표 · Notes · General Notes) |
-| `app/valve/schema.py` | 라벨 사전 · Tag 정규화 · 밸브 종류 · 공정이 아닌 칸 목록 |
-| `app/valve/store.py` | SQLite `{data}/valve/valve.db` · 원본 `{data}/valve/files/` · 감사 · Rev 순서 · 열 추가 이전(_migrate) |
-| `app/valve/tbe.py` | Valve List(TBE Appendix) 채우기 · .xls → .xlsx (회사 PC 의 Excel) · 칸 링크 |
-| `app/valve/material.py` | 재질 비교 (표기 아닌 규격 · 등급 · 계열) |
-| `app/valve/pms.py` | PMS Class 시트 읽기(지역 QN/QS) · 데이터시트 비교 |
-| `app/valve/issues.py` | 오류 · 누락 · PMS · Revision · 검토자 지적 (번호 · 색) |
-| `app/valve/exports.py` | Issue List Excel · 인쇄용 Mark-up PDF (검토자 Mark-up 은 같은 종류의 PDF 주석으로) |
-| `app/valve/api.py` | `/valve/` 화면 · `/api/valve/*` (업로드 작업 · 칸 수정 · 비교 · 쪽 그림 · 검색 · 주석 · 표시 PDF · 내보내기) |
-| `app/static/valve/` | 화면 (index.html · valve.css · valve.js — 빌드 없음) |
-| `app/main.py` | 두 줄: `from app.valve import api as _valve_api` · `app.include_router(...)` |
-| `dashboard/dashboard.html` | `PID_ROUTES.valve` · `ROUTES` · `menuOf` · `NAV_LS` · `renderMenu` 의 `runTree` (APP_VERSION 2026-10-31.2) |
+### Instrument (14종 · `?kind=ft|pt|lt|gwr|tt|tg|pg|dpg|mlg|ro|analyzer|cv|onoff` · `all` 현황판 · `instindex|iolist`)
 
-## 다른 세션과의 약속 ★
+- 지시 원문: `git show origin/claude/trusting-cray-v68axq:INSTRUMENT_REVIEW_PLAN.md`. 결정: List 는 PDF · 기준 Datasheet → List · 공정 기준 = PDS.
+- 카드 `app/valve/forms/*.json` · 읽기 `instrument.py` · 검토 `instreview.py`(IN-REQ/PDS/PMS/LL/ITM/OPN/UNIT) + `instcalc.py`(IN-CV IEC 60534 · IN-PSV API 526) ·
+  Line List `linelist.py` · List `instlists.py`(LIST-00/01/02) · API `inst_api.py` · 화면 `app/static/valve/instrument.js`(valve.js 는 `window.VALVE` 다리).
+- 지적별 결정(`inst_decision`) · Review Code(`inst.codes`) · CRS 내보내기/회신(`inst_reply`) · `/inst/progress` · Mark-up PDF(`instmarkup.py`, 영어 설명선) · 필수 칸은 사용자 확정(`inst.required`).
+- 시험: `spike/valve_inst_scenario.py <dir> [--forms /tmp/forms] [--keep]` — 14종 × (정상 · 오류 심은 Tag) = **심은 오류 74/74 · 오탐 0 · List 29/29**.
+- **★ 실물 검증 0건**: 빈 양식과 시험값뿐. 카드는 모두 'Form No' 양식 — 실제 계기 도서가 ISA 'INSTRUMENT SPECIFICATION' 계열이면 못 읽는다(이제 경고는 뜸).
+  실물을 받으면: 읽히는지 → 안 읽히면 `form_isa.py` 방식으로 양식 추가.
 
-이 모듈은 **두 군데의 공용 파일**을 건드린다. 그쪽 세션이 이 브랜치를 병합하지 않고 다음 꾸러미를 내면 되돌아간다.
+### 공통 자료 · Area
 
-1. **PID 세션** (`claude/gracious-ride-26nqrf`): `app/main.py` 두 줄 + `app/valve/` · `app/static/valve/` · `tests/test_valve.py`.
-   → `config/release_sources.json` 에 `VALVE` 를 넣어 두었다. PID 세션이 이 브랜치를 병합하면 그 뒤 `pack_delta.py` 가 덜 합쳐진 VALVE 를 잡아 준다.
-2. **DASHBOARD 세션** (`ccr-248a5c4d-3dji7g`): `dashboard/dashboard.html` 의 메뉴 (APP_VERSION 2026-10-31.2) + `DASHBOARD_ARCHITECTURE.md` 변경 이력.
-   → 다음 대시보드 zip 전에 이 브랜치의 `dashboard/dashboard.html` 변경을 병합해야 한다 (안 하면 메뉴가 사라진다 — make_patch 가 `.new` 로 두어 덮지는 않음).
+- **공통 자료 `?kind=refdocs`**: PDS · PMS · Line List · Index/IO List 는 여기서만 올림 → 기준 프로젝트(`api.ref_pid`)에 1벌, family 전체가 씀. 페이지별 올리기 칸 = `window.DOC_KINDS`.
+- **Area 순서**(`arearule.resolve`): 올린 도서의 Area(`document.area`, Document Management 에서 고름) → DTS No.(규칙 표 'DTS 98 | QN | | North') → 표제 → 규칙 표 줄.
+  학습 추정은 Site 를 정하지 않는다. 라벨 `QN Brownfield N1` · `QN Greenfield` · `QS` · `W15` (QS · W15 는 Brownfield 없음).
+  기본 표 `app/valve/arearule_default.txt` · 고친 표 = family 설정 `inst.arearule.table`(공통 자료 / By Area 에서 편집).
 
-사용자에게 두 세션에 전할 말: "VALVE 세션 브랜치 `ccr-efbe7e75-n915ze` 를 병합한 뒤 꾸러미를 만들어 줘."
+## 다음에 할 일 (2026-11-19 오케스트레이터 전달 — 사용자 "세션 2~7 검토해 개선 보완" · 순서대로)
 
-## 꾸러미
+1. **List 대조 보강** (`INSTRUMENT_REVIEW_PLAN` §4 · `instlists.py` compare): 비슷한 Tag 제안(valve39 '비슷한 번호' 재사용) ·
+   단위 맞춰 비교(못 맞추면 '단위 확인' — 지금은 단위가 다르면 바로 '값 다름') · Signal → IO Type(AI/AO/DI/DO) 비교 · 'IO 대상 아님' 확인.
+   각각 `valve_inst_scenario` 에 오류를 심어 다 잡히는지.
+2. **5단계 규칙**: `instreview.py` 머리 설명은 압력 · 레벨 · 유량인데 코드는 pt/pg/dpg 만 → IN-ITM-03(TT/TG Range ⊇ 운전온도) ·
+   IN-ITM-04(FT Range ⊇ 최대 유량). 같은 단위일 때만 · 사람 확인 표시 · 설명 문구 · i18n 같이.
+3. `app/static/valve/anatomy.js` 가 S7 af748c7 기준 — S7 865f9297 의 분해 맞춤 · 휠 수정이 빠짐 → `spike/mk_anatomy.py` 로 다시 만들기.
+4. (여유) Valve 화면 Globe/Butterfly/PSV 에서도 `instcalc` 쓰기 + `forms_ext` 리더와 카드 101/701 을 같은 시험 PDF 로 견주는 시험. Ball 스냅숏 변화 0.
+5. 사용자에게 받을 것: 채워진 Instrument Datasheet 종류별 1권 · 채워진 Instrument Index/IO List · Butterfly/PSV 의 South 도서 ·
+   회사 사진의 'South' PCV 4개가 든 도서 · 필수 칸 확정 · CV/On-Off/PSV 를 Valve · Instrument 어느 쪽에서 볼지.
+6. 오래된 숙제: valve37 'HTTP 500' 원인(회사 `valve\logs\errors_*.log`) · Phase 2(PMS Gasket/Bolting · 프로젝트 기준 문서 · 교차 검증 — 회사 Valve Spec 필요) ·
+   재질 규칙(MR/VR)을 회사 엔지니어에게 확인받기 · 받은 PDF 의 기존 주석 읽기.
 
-- P&ID 서버용 (밸브 모듈만):
-  `python3 spike/pack_delta.py --name valveNN --base 9429f4f --only app/valve/,app/static/valve/,app/main.py,tests/test_valve.py,tests/test_valve_api_cache.py,tests/test_valve_extract_sim.py,tests/test_valve_markup23.py,tests/test_valve_revision.py,tests/test_valve_verification.py,tests/test_valve_feedback.py --readme out/valveNN/readme_head.txt --ops`
-  → `out/PID_dev+ops_valveNN_<날짜>.zip`. `--only` 는 딱지(`app/_update.json`)와 기준 파일(`out/PID_dev_delta_base.txt`)을 건드리지 않는다 (PID 세션 번호와 안 섞이게).
-  기준 9429f4f = hotfix131 전달본. 회사가 다른 판이면 `--base` 를 그 판으로.
-- 대시보드용: `python3 dashboard_tools/make_patch.py --out dashboard_patches --mark` (기준 = `delivered.txt` 맨 아래). `--out` 은 폴더. 첫 전달: `dashboard_patches/UPDATE_from_v16.51_VALVE_menu.zip` (기준 v16.51).
-- 적용 순서(회사): ① PID 꾸러미 `apply_to_PID_dev.bat` → 확인 → `apply_to_PID_ops.bat` (8000 서버 재시작) ② 대시보드 zip `APPLY.bat` (서버 재시작 필요 없음, 화면 새 버전 배너) ③ 대시보드 → 실행 프로젝트 › CO2 PJT › Datasheet › Ball Valve.
+## 다른 세션과의 약속
 
-## 다음에 할 일
+- 공용 파일 두 곳을 건드린다: `app/main.py` 두 줄(라우터 등록) · `dashboard/dashboard.html` 메뉴. 꾸러미 전에 이 브랜치가 병합돼야 한다
+  (`config/release_sources.json` 의 `VALVE` — `spike/pack_delta.py` 가 덜 합쳐지면 멈춘다).
+- P&ID hotfix 꾸러미는 Valve 경로를 싣지 않는다(`company_owned`) — Valve 는 통합 꾸러미에서 오케스트레이터가 싣는다.
 
-1. 회사 적용 확인: .xls 자동 변환(Excel COM)이 되는지, 456쪽 처리 시간, 화면 글꼴, Mark-up 도구(Edge)와 내보낸 PDF 를 Acrobat 에서 열어 보기.
-2. **Phase 2** (지시서 §2 · §4 · §5): PMS Gasket · Bolting 대조 · 프로젝트 기준 문서 등록 · Rule Source 연결 · 문서 간 교차 검증 · Document Hierarchy. 자료: API5L-X65 PMS · 정식 Process DS · Tag Numbering Procedure · Valve Spec.
-4. 재질 · 설계 검토: MR(§14.3) · VR(§15) · `BALL_VALVE_KNOWLEDGE.md` 를 회사 엔지니어에게 보여 사양 값(Floating · 시트 한계 · PST)과 기준(B8M CL.2 · 316 60 °C)을 확인받기. 최저 설계온도가 생기면 MR-04 를 온도로도.
-3. 받은 PDF 에 이미 있는 주석(설계사 Mark-up) 읽어 오기 · 1366×768 노트북에서 작업대 사용감 확인.
+## 어디에 더 있나
+
+- 회차 기록: `docs/history/other_log.md` (끝에 5~15줄씩) · 설계: `docs/valve/DESIGN.md`(§32~§44) · 사용법 `docs/valve/USER_GUIDE.md` · 규칙 변경 `docs/valve/valve29/RULE_CHANGELOG.md`.
+- 회사 PC 에서 이어 갈 때: `docs/handoff/VALVE_COMPANY_START.md` (지금은 쓰지 않음 — 2026-11-02 사용자: 개발은 이 클라우드 세션에서).
