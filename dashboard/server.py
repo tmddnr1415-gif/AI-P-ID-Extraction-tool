@@ -16,7 +16,7 @@
 - 계정(accounts/): 로그인한 사용자만 수정 가능, 수정자는 계정의 본명으로 기록. 비회원은 보기만 가능
 - 쪽지(messages/): 로그인 사용자끼리, 180일 지나면 자동 삭제
 """
-import argparse, datetime, hashlib, hmac, io, ipaddress, json, logging, mimetypes, os, re, socket, sys, threading, time, webbrowser, zipfile, urllib.request, urllib.error
+import argparse, datetime, shutil, hashlib, hmac, io, ipaddress, json, logging, mimetypes, os, re, socket, sys, threading, time, webbrowser, zipfile, urllib.request, urllib.error
 from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 import xml.etree.ElementTree as ET
 try:
@@ -36,7 +36,7 @@ ID_RE = re.compile(r'^[A-Za-z0-9_\-]{1,80}$')
 WEEK_RE = re.compile(r'^\d{4}-W\d{2}$')
 MAX_BODY = 30 * 1024 * 1024
 
-SERVER_VERSION = '2026-11-17.1'
+SERVER_VERSION = '2026-11-19.1'
 ROOT = os.path.dirname(os.path.abspath(__file__))
 PORT = 8080
 ALLOW_NETS = []          # 사내망: 루프백·사설망 + 서버 IP 대역(/16, 유선·Wi-Fi 등 지금까지 쓴 대역 모두 기억) + --allow 로 추가한 대역
@@ -2171,6 +2171,184 @@ def api_sched_put(key, b, by):
     return {'status': 'ok', 'n': len(items)}
 
 
+# ---------------------------------------------------------------- 내 메모장 (notes/{계정ID}/ — 2026-11-19)
+# 부서원 개인 메모장: 로그인한 본인 것만 읽고 씀 (다른 계정 · 운영자 화면용 API 없음). 서버 PC 폴더에는 그대로 저장됨.
+#   notes/{id}/book.json            섹션 목록 등
+#   notes/{id}/pages/{pid}.json     페이지 · 스티커 (본문 html 포함)
+#   notes/{id}/ver/{pid}/{시각}.json  이전 판 (10분 간격, 최근 20개)
+#   notes/{id}/files/{fid}{ext} + {fid}.json   첨부 (PDF · 그림 · 문서)
+MEMO_PAGE_MAX = 12 * 1024 * 1024
+MEMO_QUOTA = 500 * 1024 * 1024
+MEMO_VER_KEEP = 20
+MEMO_VER_GAP = 600
+MEMO_META = ('id', 'kind', 'sec', 'title', 'icon', 'color', 'tags', 'pin', 'lock', 'deleted', 'float', 'x', 'y', 'w', 'h', 'text', 'todos', 'files', 'createdAt', 'updatedAt')
+MEMO_FILE_TYPES = {'.pdf': 'application/pdf', '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.gif': 'image/gif', '.webp': 'image/webp',
+                   '.txt': 'text/plain; charset=utf-8', '.csv': 'text/csv; charset=utf-8', '.md': 'text/plain; charset=utf-8'}
+
+
+def memo_dir(acc, *a):
+    if not ID_RE.match(acc['id']):
+        raise ApiError(400, '잘못된 계정')
+    return P('notes', acc['id'], *a)
+
+
+def memo_pid(pid):
+    if not re.fullmatch(r'[a-z0-9]{6,40}', pid or ''):
+        raise ApiError(400, '잘못된 메모 ID')
+    return pid
+
+
+def memo_usage(acc):
+    n = 0
+    for dp, _, fs in os.walk(memo_dir(acc)):
+        for fn in fs:
+            try:
+                n += os.path.getsize(os.path.join(dp, fn))
+            except OSError:
+                pass
+    return n
+
+
+def api_memo_list(acc):
+    d = memo_dir(acc, 'pages')
+    pages = []
+    for n in list_json(d):
+        pg = read_json(os.path.join(d, n))
+        if pg and pg.get('id'):
+            pages.append({k: pg[k] for k in MEMO_META if k in pg})
+    return {'book': read_json(memo_dir(acc, 'book.json')) or {}, 'pages': pages, 'used': memo_usage(acc), 'quota': MEMO_QUOTA}
+
+
+def api_memo_get(acc, pid):
+    pg = read_json(memo_dir(acc, 'pages', memo_pid(pid) + '.json'))
+    if not pg:
+        raise ApiError(404, '없는 메모입니다 (삭제되었을 수 있어요)')
+    return pg
+
+
+def api_memo_put(acc, pid, raw):
+    memo_pid(pid)
+    if len(raw) > MEMO_PAGE_MAX:
+        raise ApiError(413, '메모 한 장이 너무 큽니다 (12MB) — 큰 그림 · 파일은 📎 첨부로 넣어 주세요')
+    try:
+        b = json.loads(raw.decode('utf-8'))
+    except (ValueError, UnicodeDecodeError):
+        raise ApiError(400, '잘못된 요청')
+    if not isinstance(b, dict):
+        raise ApiError(400, '잘못된 요청')
+    path = memo_dir(acc, 'pages', pid + '.json')
+    with LOCK:
+        old = read_json(path)
+        base = b.pop('base', None)
+        if old and base and old.get('updatedAt') and old['updatedAt'] != base and not b.pop('force', False):
+            raise ApiError(409, '다른 창 · 다른 PC 에서 이 메모를 먼저 고쳤습니다')
+        b.pop('force', None)
+        if not old and memo_usage(acc) > MEMO_QUOTA:
+            raise ApiError(413, '메모장 용량(500MB)을 다 썼습니다 — 휴지통 · 첨부를 정리해 주세요')
+        now = stamp()
+        pg = {**b, 'id': pid, 'createdAt': (old or {}).get('createdAt') or now, 'updatedAt': now}
+        for k in ('title', 'icon', 'color', 'sec', 'kind'):
+            pg[k] = str(pg.get(k) or '')[:200]
+        if old and old.get('html') != pg.get('html') and (old.get('html') or '').strip():      # 이전 판 보관 (10분에 한 번, 최근 20개)
+            vd = memo_dir(acc, 'ver', pid)
+            vers = list_json(vd)
+            last = vers[-1][:-5] if vers else ''
+            ts = re.sub(r'\D', '', old.get('updatedAt') or now)[:14]
+            try:
+                gap = (datetime.datetime.strptime(ts, '%Y%m%d%H%M%S') - datetime.datetime.strptime(last, '%Y%m%d%H%M%S')).total_seconds() if last else MEMO_VER_GAP
+            except ValueError:
+                gap = MEMO_VER_GAP
+            if gap >= MEMO_VER_GAP:
+                write_json(os.path.join(vd, ts + '.json'), {'at': old.get('updatedAt'), 'title': old.get('title'), 'html': old.get('html')})
+                for n in list_json(vd)[:-MEMO_VER_KEEP]:
+                    try:
+                        os.remove(os.path.join(vd, n))
+                    except OSError:
+                        pass
+        write_json(path, pg)
+    return {'status': 'ok', 'updatedAt': now, 'createdAt': pg['createdAt']}
+
+
+def api_memo_del(acc, pid):
+    memo_pid(pid)
+    with LOCK:
+        try:
+            os.remove(memo_dir(acc, 'pages', pid + '.json'))
+        except FileNotFoundError:
+            pass
+        shutil.rmtree(memo_dir(acc, 'ver', pid), ignore_errors=True)
+    return {'status': 'ok'}
+
+
+def api_memo_book(acc, b):
+    secs = b.get('secs')
+    if not isinstance(secs, list) or len(secs) > 200:
+        raise ApiError(400, '잘못된 섹션 목록')
+    book = {'secs': [{'id': str(x.get('id') or '')[:40], 'name': str(x.get('name') or '')[:60], 'color': str(x.get('color') or '')[:20]} for x in secs if isinstance(x, dict) and x.get('id')],
+            'updatedAt': stamp()}
+    with LOCK:
+        write_json(memo_dir(acc, 'book.json'), book)
+    return {'status': 'ok'}
+
+
+def api_memo_vers(acc, pid, ts=''):
+    vd = memo_dir(acc, 'ver', memo_pid(pid))
+    if ts:
+        if not re.fullmatch(r'\d{14}', ts):
+            raise ApiError(400, '잘못된 판')
+        v = read_json(os.path.join(vd, ts + '.json'))
+        if not v:
+            raise ApiError(404, '없는 판입니다')
+        return v
+    out = []
+    for n in reversed(list_json(vd)):
+        v = read_json(os.path.join(vd, n)) or {}
+        out.append({'ts': n[:-5], 'at': v.get('at'), 'title': v.get('title'), 'size': len(v.get('html') or '')})
+    return {'vers': out}
+
+
+def api_memo_file_put(acc, name, data):
+    name = os.path.basename(str(name or '').replace('\\', '/')).strip()[:120] or 'file'
+    ext = os.path.splitext(name)[1].lower()
+    if not re.fullmatch(r'\.[a-z0-9]{1,8}', ext or ''):
+        ext = '.bin'
+    if not data:
+        raise ApiError(400, '빈 파일입니다')
+    if memo_usage(acc) + len(data) > MEMO_QUOTA:
+        raise ApiError(413, '메모장 용량(500MB)을 다 썼습니다 — 휴지통 · 첨부를 정리해 주세요')
+    with LOCK:
+        fid = f"f{int(time.time() * 1000):x}{os.urandom(3).hex()}"
+        d = memo_dir(acc, 'files')
+        os.makedirs(d, exist_ok=True)
+        tmp = os.path.join(d, fid + '.tmp')
+        with open(tmp, 'wb') as f:
+            f.write(data)
+        os.replace(tmp, os.path.join(d, fid + ext))
+        meta = {'id': fid, 'name': name, 'ext': ext, 'size': len(data), 'at': stamp()}
+        write_json(os.path.join(d, fid + '.json'), meta)
+    return meta
+
+
+def memo_file(acc, fid):
+    if not re.fullmatch(r'f[0-9a-f]{6,30}', fid or ''):
+        raise ApiError(400, '잘못된 파일 ID')
+    m = read_json(memo_dir(acc, 'files', fid + '.json'))
+    if not m or not os.path.isfile(memo_dir(acc, 'files', fid + m['ext'])):
+        raise ApiError(404, '첨부파일이 없습니다')
+    return m
+
+
+def api_memo_file_del(acc, fid):
+    m = memo_file(acc, fid)
+    with LOCK:
+        for n in (fid + m['ext'], fid + '.json'):
+            try:
+                os.remove(memo_dir(acc, 'files', n))
+            except OSError:
+                pass
+    return {'status': 'ok'}
+
+
 # ---------------------------------------------------------------- 쪽지 (messages/{ID}/in|sent/{쪽지ID}.json)
 def api_msg_list(acc):
     def box(kind):
@@ -2242,7 +2420,7 @@ def make_backup(keep_days):
     tmp = dest + '.tmp'
     with LOCK:                                            # 백업 중에는 쓰기를 잠시 멈춰 일관된 스냅샷 확보
         with zipfile.ZipFile(tmp, 'w', zipfile.ZIP_DEFLATED) as z:
-            for top in ('data', 'history', 'archive', 'trash', 'saves', 'board', 'accounts', 'messages', 'files', 'profiles', 'timesheets', 'worktime', 'space'):
+            for top in ('data', 'history', 'archive', 'trash', 'saves', 'board', 'accounts', 'messages', 'files', 'profiles', 'timesheets', 'worktime', 'space', 'notes'):
                 for dirpath, _, files in os.walk(P(top)):
                     for fn in files:
                         if fn.endswith('.tmp'):
@@ -2768,6 +2946,33 @@ class Handler(BaseHTTPRequestHandler):
                 return api_tr_learn_get()
             if m == 'PUT':
                 return api_tr_learn_put(self.json_body(), self.need_user()['name'])
+        if head == 'memo':                                         # 2026-11-19 내 메모장: 로그인한 본인 것만
+            acc = self.need_user()
+            if m == 'GET' and len(seg) == 1:
+                return api_memo_list(acc)
+            if m == 'PUT' and seg[1:] == ['book']:
+                return api_memo_book(acc, self.json_body())
+            if len(seg) == 3 and seg[1] == 'p':
+                if m == 'GET':
+                    return api_memo_get(acc, seg[2])
+                if m == 'PUT':
+                    return api_memo_put(acc, seg[2], self.raw_body())
+                if m == 'DELETE':
+                    return api_memo_del(acc, seg[2])
+            if m == 'GET' and len(seg) in (4, 5) and seg[1] == 'p' and seg[3] == 'vers':
+                return api_memo_vers(acc, seg[2], seg[4] if len(seg) == 5 else '')
+            if m == 'PUT' and seg[1:] == ['f']:
+                return api_memo_file_put(acc, q.get('name', ''), self.raw_body())
+            if len(seg) == 3 and seg[1] == 'f':
+                if m == 'GET':
+                    fm = memo_file(acc, seg[2])
+                    with open(memo_dir(acc, 'files', fm['id'] + fm['ext']), 'rb') as f:
+                        data = f.read()
+                    self.send(200, data, MEMO_FILE_TYPES.get(fm['ext'], 'application/octet-stream'),
+                              {'Content-Disposition': f"attachment; filename*=UTF-8''{quote(fm['name'])}", 'X-Content-Type-Options': 'nosniff'})
+                    return None
+                if m == 'DELETE':
+                    return api_memo_file_del(acc, seg[2])
         if head == 'msg':
             acc = self.need_user()
             if m == 'GET' and len(seg) == 1:
@@ -3146,7 +3351,7 @@ def main():
             pass
     if not os.path.isfile(P('dashboard.html')):
         sys.exit(f'dashboard.html 이 없습니다: {ROOT}')
-    for d in ('data', 'history', 'trash', 'archive', 'saves', 'backup', 'board', 'apps', 'accounts', 'messages', 'files', 'profiles', 'timesheets', 'worktime', 'space', os.path.join('data', '_meta')):
+    for d in ('data', 'history', 'trash', 'archive', 'saves', 'backup', 'board', 'apps', 'accounts', 'messages', 'files', 'profiles', 'timesheets', 'worktime', 'space', 'notes', os.path.join('data', '_meta')):
         os.makedirs(P(d), exist_ok=True)
     refresh_nets(first=True)                              # 허용 대역(지금까지 쓴 유선·Wi-Fi 대역 모두) · 네트워크 종류 확인
 

@@ -7,7 +7,7 @@
 ## dashboard/ 작업 규칙
 
 - 기준판 = 커밋 `54f2837` (`dashboard_tools/delivered.txt` 첫 줄, 회사에서 받은 EGG 압축을 그대로 푼 것). `*.bat.txt` 는 `*.bat` 로 되돌려 둠.
-- 계정·업무자료 폴더(`accounts/ data/ history/ trash/ archive/ saves/ board/ messages/ files/ backup/ apps/`)는 사본에 없다. 만들거나 지어내지 않는다. 시험이 필요하면 임시 폴더에서만.
+- 계정·업무자료 폴더(`accounts/ data/ history/ trash/ archive/ saves/ board/ messages/ files/ backup/ apps/ notes/`)는 사본에 없다. 만들거나 지어내지 않는다. 시험이 필요하면 임시 폴더에서만.
 - `DASHBOARD_ARCHITECTURE.md` 의 제약을 따른다: 외부 라이브러리·CDN 금지, Python 3.11 표준 라이브러리만, `dashboard.html` 바꾸면 `APP_VERSION`, `server.py` 바꾸면 `SERVER_VERSION` 을 올린다.
 - 새로 만들거나 고치는 `.bat` 는 ASCII · CRLF · `chcp` 없음. (기준판의 bat 는 LF 이고 `start_server.bat` 에 `chcp 65001` 이 있다 — 고칠 일이 생기면 그때 맞춘다.)
 - 바꾼 내용은 `DASHBOARD_ARCHITECTURE.md` 맨 끝 `## 변경 이력` 에 날짜별로 덧붙인다. 회사 Claude Code 가 읽고 이어갈 수 있게:
