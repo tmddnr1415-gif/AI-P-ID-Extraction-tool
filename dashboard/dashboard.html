@@ -2289,7 +2289,7 @@ function recLabel(key, f) {
  * ===================================================================== */
 let root = null;
 /* 서버 모드: http(s):// 로 접속하면 server.py 의 REST API 사용 (폴더 선택 불필요). file:// 로 열면 폴더 모드 */
-const APP_VERSION = '2026-11-19.22';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
+const APP_VERSION = '2026-11-19.23';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
 const SERVER_URL = 'http://localhost:8080';
 // 부서원 PC 사본(file://)이 접속을 시도할 서버 — 서버가 배포 파일을 만들 때 'PC 이름 주소, IP 주소' 순으로 자동 기록함
 const DEFAULT_SERVERS = ['http://ASEUNGWOOK-B01:8080', 'http://65.3.30.234:8080'];
@@ -6643,7 +6643,7 @@ function mmInkSync() {   // 편집 줄 아래 펜 줄 · 그리기 층 상태
   const host = $('#mmInkHost'), svg = $('#mmInk'), pg = MM.cur; if (!host || !svg || !pg) return;
   host.innerHTML = PEN.on ? inkBarHtml('<span class="sp"></span><span class="muted" style="font-size:11.5px">그리는 동안에는 글자를 누를 수 없습니다</span><button data-pa="done" class="on">✓ 그리기 끝</button>') : '';
   svg.classList.toggle('on', PEN.on); svg.classList.toggle('er', PEN.on && PEN.tool === 'erase'); $('#mmTb [data-mc="ink"]')?.classList.toggle('on', PEN.on);
-  inkBind(svg, { strokes:() => MM.cur?.ink || [], set:l => { if (!MM.cur) return; MM.lastKind = 'ink'; MM.cur.ink = l; mmHistPush(true); MM.dirty = true; mmStat('입력 중…'); clearTimeout(MM.timer); MM.timer = setTimeout(() => mmSave(), 1200); }, unit:() => 1 / mmZoom(), can:() => !MM.cur?.lock });
+  inkBind(svg, { strokes:() => MM.cur?.ink || [], set:l => { if (!MM.cur) return; MM.lastKind = 'ink'; MM.cur.ink = l; mmHistPush(true); mmPaperFit(); MM.dirty = true; mmStat('입력 중…'); clearTimeout(MM.timer); MM.timer = setTimeout(() => mmSave(), 1200); }, unit:() => 1 / mmZoom(), can:() => !MM.cur?.lock });
   inkDraw(svg, pg.ink);
 }
 /* ----- 메모 확대 · 축소 ----- */
@@ -6661,7 +6661,16 @@ function mmZoomFit() {
   const lw = Math.max(cw, cw / z), want = lw * z; zw.style.width = lw + 'px'; zw.style.minHeight = (ch / z) + 'px';
   const r = zw.getBoundingClientRect(); if (r.width > 0 && Math.abs(r.width - want) > 1.5) zw.style.width = (lw * want / r.width) + 'px';
   const zh = parseFloat(zw.style.minHeight), r2 = zw.getBoundingClientRect(); if (r2.height > 0 && r2.height < ch - 1.5) zw.style.minHeight = (zh * ch / r2.height) + 'px';
+  MM.zb = { lw, lh:ch / z, wk:parseFloat(zw.style.width) / lw, hk:parseFloat(zw.style.minHeight) / (ch / z) }; mmPaperFit();
   if (!ew._ro && window.ResizeObserver) { ew._ro = new ResizeObserver(() => { clearTimeout(ew._rt); ew._rt = setTimeout(mmZoomFit, 60); }); ew._ro.observe(ew); }
+}
+/* 2026-11-19 v17.88 종이(배경)가 떠 있는 그림 · 글 상자 · 메모지 · 펜 획이 있는 곳까지 늘 이어지게 — 좌우 · 위아래로 휠을 굴려도 배경이 끊기지 않음 */
+function mmPaperFit() {
+  const zw = $('#mmZw'), B = MM.zb, pg = MM.cur; if (!zw || !B || !pg) return; let R = 0, Bt = 0;
+  zw.querySelectorAll('#mmNotes .mm-fn').forEach(el => { R = Math.max(R, el.offsetLeft + el.offsetWidth); Bt = Math.max(Bt, el.offsetTop + el.offsetHeight); });
+  for (const st of pg.ink || []) { const p = st.p || []; for (let i = 0; i < p.length; i += 2) { if (p[i] > R) R = p[i]; if (p[i + 1] > Bt) Bt = p[i + 1]; } }
+  const w = Math.max(B.lw, R ? R + 80 : 0), h = Math.max(B.lh, Bt ? Bt + 160 : 0);
+  zw.style.width = (w * B.wk) + 'px'; zw.style.minHeight = (h * B.hk) + 'px';
 }
 /* ----- PDF 를 메모장 안에서 보기 (pdf.js) + 그 위에 펜 ----- */
 let MM_PDFLIB = null;
@@ -6716,7 +6725,7 @@ async function mmPdfView(fid, name, blob) {
 }
 /* ---------- 2026-11-19 v17.78 메모 위 아무 곳에나: 🗒 메모지 붙이기 · Ｔ 글 상자 (끌어 옮기기 · 크기 · 색) / 펜 획 Ctrl+Z · Ctrl+Y ---------- */
 const MM_NC = ['#fff2a8', '#ffd6e0', '#d3f3d8', '#d5e8ff', '#eadcff', '#ffe2c4'];
-function mmNoteTouch(kind) { if (!MM.cur) return; MM.dirty = true; MM.lastKind = kind === 'obj' ? 'obj' : 'text'; mmHistPush(kind === 'obj'); mmStat('입력 중…'); clearTimeout(MM.timer); MM.timer = setTimeout(() => mmSave(), 1200); }
+function mmNoteTouch(kind) { if (!MM.cur) return; if (kind === 'obj') requestAnimationFrame(mmPaperFit); MM.dirty = true; MM.lastKind = kind === 'obj' ? 'obj' : 'text'; mmHistPush(kind === 'obj'); mmStat('입력 중…'); clearTimeout(MM.timer); MM.timer = setTimeout(() => mmSave(), 1200); }
 function mmNoteHtml(n) {
   if (n.k === 'img') return /^data:image\/(png|jpeg|gif|webp);base64,[A-Za-z0-9+/=]+$/.test(n.src || '') ? `<div class="mm-fn im" data-fn="${esc(n.id)}" style="left:${+n.x || 0}px;top:${+n.y || 0}px;width:${+n.w || 200}px"><div class="fh"><span class="grip" title="끌어서 옮기기 (그림을 바로 끌어도 됨)">⠿</span><button data-fin title="본문 안(글 줄)으로 다시 넣기">↩</button><button data-fx title="지우기">✕</button></div><img src="${n.src}" draggable="false"><i class="mm-rz" title="끌어서 크기 조절"></i></div>` : '';
   const st = n.k === 'tbox';
@@ -6724,19 +6733,19 @@ function mmNoteHtml(n) {
     <div class="fh"><span class="grip" title="끌어서 옮기기">⠿</span>${st ? '' : MM_NC.map(c => `<button data-fc="${c}" style="background:${c}" title="색"></button>`).join('')}<button data-fx title="지우기">✕</button></div><div class="fb" contenteditable="${MM.cur?.lock ? 'false' : 'true'}" spellcheck="false">${n.html ? mmClean(n.html) : esc(n.text || '')}</div><i class="mm-rz" title="끌어서 크기 조절"></i></div>`;
 }
 function mmNotesDraw() {
-  const h = $('#mmNotes'), pg = MM.cur; if (!h || !pg) return; h.innerHTML = (pg.notes || []).map(mmNoteHtml).join('');
+  const h = $('#mmNotes'), pg = MM.cur; if (!h || !pg) return; h.innerHTML = (pg.notes || []).map(mmNoteHtml).join(''); requestAnimationFrame(mmPaperFit);
   if (h._b) return; h._b = 1; let drag = null; const N = id => (MM.cur?.notes || []).find(n => n.id === id);
-  h.addEventListener('input', e => { const el = e.target.closest('.mm-fn'), n = el && N(el.dataset.fn); if (!n) return; const fb = e.target.closest('.fb') || e.target; n.text = fb.innerText.replace(/\n$/, '').slice(0, 4000); n.html = fb.querySelector('ol,ul,b,i,u,span,font,div') ? mmClean(fb.innerHTML).slice(0, 40000) : ''; mmNoteTouch(); });
+  h.addEventListener('input', e => { const el = e.target.closest('.mm-fn'), n = el && N(el.dataset.fn); if (!n) return; clearTimeout(h._pf); h._pf = setTimeout(mmPaperFit, 200); const fb = e.target.closest('.fb') || e.target; n.text = fb.innerText.replace(/\n$/, '').slice(0, 4000); n.html = fb.querySelector('ol,ul,b,i,u,span,font,div') ? mmClean(fb.innerHTML).slice(0, 40000) : ''; mmNoteTouch(); });
   h.addEventListener('paste', e => { if (!e.target.closest('.fb') || mmClipImgs(e.clipboardData).length) return; e.preventDefault(); e.stopPropagation(); document.execCommand('insertText', false, (e.clipboardData.getData('text/plain') || '').slice(0, 4000)); }, true);
   let rs = null;   // 2026-11-19 v17.85 오른쪽 아래 모서리(◢)를 끌어 크기 조절 — 글 상자 · 메모지 · 그림 모두
   h.addEventListener('pointerdown', e => { const z = e.target.closest('.mm-rz'), el = z && z.closest('.mm-fn'); if (!el || MM.cur?.lock || e.button) return; e.preventDefault(); e.stopPropagation(); z.setPointerCapture(e.pointerId);
     rs = { el, sx:e.clientX, sy:e.clientY, w:el.offsetWidth, h:el.offsetHeight, im:el.classList.contains('im'), ar:el.classList.contains('im') ? el.offsetHeight / Math.max(1, el.offsetWidth) : 0 }; el.classList.add('sizing'); }, true);
   h.addEventListener('pointermove', e => { if (!rs) return; const zm = mmZoom(), w = Math.max(rs.im ? 40 : 80, rs.w + (e.clientX - rs.sx) / zm); rs.el.style.width = Math.round(w) + 'px';
-    if (!rs.im) rs.el.style.height = Math.round(Math.max(34, rs.h + (e.clientY - rs.sy) / zm)) + 'px'; });
+    if (!rs.im) rs.el.style.height = Math.round(Math.max(34, rs.h + (e.clientY - rs.sy) / zm)) + 'px'; clearTimeout(h._pf); h._pf = setTimeout(mmPaperFit, 80); });
   const rsUp = () => { if (!rs) return; const n = N(rs.el.dataset.fn); rs.el.classList.remove('sizing'); if (n) { n.w = rs.el.offsetWidth; if (!rs.im) n.h = rs.el.offsetHeight; mmNoteTouch('obj'); } rs = null; MM.noClick = Date.now(); };
   h.addEventListener('pointerup', rsUp); h.addEventListener('pointercancel', rsUp);
   h.addEventListener('pointerdown', e => { const g = e.target.closest('.grip, .mm-fn.im > img'), el = e.target.closest('.mm-fn'); if (!g || !el || MM.cur?.lock || e.button) return; e.preventDefault(); g.setPointerCapture(e.pointerId); drag = { el, sx:e.clientX, sy:e.clientY, x:parseFloat(el.style.left), y:parseFloat(el.style.top) }; });
-  h.addEventListener('pointermove', e => { if (!drag) return; const z = mmZoom(); drag.el.style.left = Math.max(0, drag.x + (e.clientX - drag.sx) / z) + 'px'; drag.el.style.top = Math.max(0, drag.y + (e.clientY - drag.sy) / z) + 'px'; });
+  h.addEventListener('pointermove', e => { if (!drag) return; const z = mmZoom(); clearTimeout(h._pf); h._pf = setTimeout(mmPaperFit, 80); drag.el.style.left = Math.max(0, drag.x + (e.clientX - drag.sx) / z) + 'px'; drag.el.style.top = Math.max(0, drag.y + (e.clientY - drag.sy) / z) + 'px'; });
   const up = () => { if (!drag) return; const n = N(drag.el.dataset.fn); if (n) { n.x = Math.round(parseFloat(drag.el.style.left)); n.y = Math.round(parseFloat(drag.el.style.top)); mmNoteTouch('obj'); } drag = null; };
   h.addEventListener('pointerup', up); h.addEventListener('pointercancel', up);
   h.addEventListener('mouseup', e => { const el = e.target.closest('.mm-fn'), n = el && N(el.dataset.fn); if (!n || drag) return; const w = el.offsetWidth, hh = el.offsetHeight; if (Math.abs(w - (n.w || 0)) > 2 || (el.style.height && Math.abs(hh - (n.h || 0)) > 2)) { n.w = w; if (el.style.height) n.h = hh; mmNoteTouch(); } });
