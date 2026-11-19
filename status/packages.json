@@ -658,6 +658,19 @@
    },
    "replaces": "",
    "note": "v17.84 (기준 v17.82 0156d213 — 회사 확인) — 메모 색 값 보강 · 글 상자 글머리 · 화면만"
+  },
+  {
+   "file": "①",
+   "name": "12_DASHBOARD_update_v17.85_from_v17.82_2026-11-19.zip",
+   "made": "2026-11-19 14:00",
+   "path": "company-pc-update/2026-11-19/ (1.5MB · 저장소에 있음)",
+   "sha256": "80006840e98c1d2b63304cf5ad5d412d6d187a347c9e4deb3ede86daad77ef96",
+   "applied": "",
+   "tips": {
+    "S1": "ea42460e"
+   },
+   "replaces": "11_DASHBOARD_update_v17.84_from_v17.82_2026-11-19.zip",
+   "note": "v17.85 (기준 v17.82 0156d213 — 회사 확인) — 모서리 끌어 크기 · 화면만"
   }
  ]
 }
