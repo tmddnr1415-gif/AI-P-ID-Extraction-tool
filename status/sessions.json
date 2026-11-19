@@ -14,9 +14,9 @@
    "id": "session_01Muj82H8eDSPwWi9XQC7rFh",
    "title": "2. PID 검토 4 (NEW)",
    "bucket": "COMPLETED",
-   "updated": "2026-11-18T07:19:54Z",
-   "recent": "18e37e78 — 도면 그림 줄서기 분리 · Rev 전환 시 보던 자리. hotfix145 로 회사 업데이트에 실림",
-   "needs": "11-19 지시: pid.md 정리 · /teach 캐시 · LOGIC 화면 iframe 자가점검 → 끝나면 보고"
+   "updated": "2026-11-19T22:49:50Z",
+   "recent": "cd59d77a — 11-19 지시 끝: pid.md 정리 · /teach 준비 캐시(재시작 뒤에도 <1초) · LOGIC 화면 그림 늦거나 실패 시 안내/[다시 받기] (logic.js · css — S3 파일). 빠른 시험 2,217 통과. 회사 미전달",
+   "needs": "오케스트레이터: 다음 통합(hotfix146) 때 S3 L92 와 logic.js 충돌 확인"
   },
   "S3": {
    "id": "session_01Muj82Ewiqsoeo54Ei1FzrE",
