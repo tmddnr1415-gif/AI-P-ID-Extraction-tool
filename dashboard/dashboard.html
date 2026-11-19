@@ -2002,6 +2002,15 @@ body.schbigon{overflow:hidden}@keyframes schBigIn{from{transform:scale(.97);opac
 .mm-pull{display:grid;grid-template-columns:200px minmax(0,1fr);flex:1;min-height:0}.mm-pull .pc{border-right:1px solid #e1e6f2;padding:10px 12px;overflow:auto;font-size:12.5px}.mm-pull .pc label{display:block;padding:3px 0}
 .mm-pull .pr{display:flex;flex-direction:column;min-height:0}.mm-pull .prh{padding:8px 12px;border-bottom:1px solid #e1e6f2;font-size:12.5px;display:flex;gap:12px}.mm-pull #mmPr{overflow:auto;flex:1;padding:4px 8px}
 .mm-pull .row{display:flex;gap:9px;align-items:center;padding:6px 6px;border-radius:8px;font-size:13px;cursor:pointer}.mm-pull .row:hover{background:#f1f4fb}.mm-pull .row b{font-weight:600;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.mm-pull .row span{color:#667089;font-size:11.5px;white-space:nowrap}.mm-pull .row i{margin-left:auto;font-style:normal;color:#8a93ad;font-size:11.5px;white-space:nowrap}
+.mm-gh{font-size:11px;font-weight:700;color:var(--sub);padding:8px 8px 3px;letter-spacing:.02em}
+.mm-cal{border:1px solid var(--line);border-radius:10px;padding:8px}.mm-cal .ch{display:flex;align-items:center;gap:6px;font-size:13px}.mm-cal .ch button{border:1px solid var(--line);background:var(--card);border-radius:6px;cursor:pointer;padding:1px 7px}
+.mm-cal .cw,.mm-cal .cg{display:grid;grid-template-columns:repeat(7,1fr);gap:2px;margin-top:4px;text-align:center}.mm-cal .cw span{font-size:10px;color:var(--sub)}
+.mm-cal .cg button{position:relative;border:0;background:none;border-radius:7px;height:28px;font-size:12px;cursor:pointer;color:var(--text)}.mm-cal .cg button:hover{background:var(--bg)}.mm-cal .cg button.has{font-weight:800;color:var(--accent-d);background:var(--accent-l)}
+.mm-cal .cg button.td{outline:1.5px solid var(--accent)}.mm-cal .cg button.on{background:var(--accent);color:#fff}.mm-cal .cg button u{position:absolute;right:1px;top:-2px;font-size:8.5px;text-decoration:none;background:#f59e0b;color:#fff;border-radius:8px;padding:0 3px;line-height:11px}
+.mm-cols{display:flex;gap:18px;margin:.5em 0}.mm-col{flex:1;min-width:0;border:1px dashed #cfd6ea;border-radius:8px;padding:6px 10px;min-height:1.7em}
+.mm-ed.lh-s{line-height:1.4}.mm-ed.lh-l{line-height:2}.mm-ed.lh-l>div,.mm-ed.lh-l>p{margin-bottom:.35em}.mm-ed.lh-x{line-height:2.3}.mm-ed.lh-x>div,.mm-ed.lh-x>p{margin-bottom:.8em}
+.mm-ed table.mm-teq{table-layout:fixed;width:100%}
+@media print{.mm-col{border:0}}
 .mm-from{font-size:11.5px;color:#7c86a2;margin:.6em 0 2px}.mm-ed a.mm-src{font-weight:700;text-decoration:none;border-bottom:1px dashed var(--accent)}.mm-item{margin:4px 0}
 @media (max-width:1100px){#memoWrap{grid-template-columns:170px 210px minmax(0,1fr)}}
 @media print{body.mm-print #side,body.mm-print header.top,body.mm-print .banner,body.mm-print .mm-side,body.mm-print .mm-list,body.mm-print .mm-tb,body.mm-print .mm-meta,body.mm-print .mm-st,body.mm-print #mmFloat{display:none!important}
@@ -2182,7 +2191,7 @@ function recLabel(key, f) {
  * ===================================================================== */
 let root = null;
 /* 서버 모드: http(s):// 로 접속하면 server.py 의 REST API 사용 (폴더 선택 불필요). file:// 로 열면 폴더 모드 */
-const APP_VERSION = '2026-11-19.2';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
+const APP_VERSION = '2026-11-19.3';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
 const SERVER_URL = 'http://localhost:8080';
 // 부서원 PC 사본(file://)이 접속을 시도할 서버 — 서버가 배포 파일을 만들 때 'PC 이름 주소, IP 주소' 순으로 자동 기록함
 const DEFAULT_SERVERS = ['http://ASEUNGWOOK-B01:8080', 'http://65.3.30.234:8080'];
@@ -5794,7 +5803,7 @@ function mmMetaOf(pg) {   // 목록 · 찾기 · 할 일 모음에 쓰는 요약
   return pg;
 }
 function mmMetaPut(pg) {
-  const m = {}; ['id', 'kind', 'sec', 'title', 'icon', 'color', 'tags', 'pin', 'lock', 'deleted', 'float', 'x', 'y', 'w', 'h', 'fx', 'fy', 'text', 'todos', 'files', 'createdAt', 'updatedAt'].forEach(k => { if (k in pg) m[k] = pg[k]; });
+  const m = {}; ['id', 'kind', 'sec', 'title', 'icon', 'color', 'tags', 'pin', 'lock', 'deleted', 'float', 'x', 'y', 'w', 'h', 'fx', 'fy', 'text', 'todos', 'files', 'date', 'lh', 'createdAt', 'updatedAt'].forEach(k => { if (k in pg) m[k] = pg[k]; });
   const i = MM.pages.findIndex(p => p.id === pg.id); if (i >= 0) MM.pages[i] = m; else MM.pages.push(m);
 }
 /* ---------- 저장 (자동 · 1.2초 뒤) ---------- */
@@ -5860,30 +5869,48 @@ function mmDrawSide() {
   const nv = (v, ic, l, n) => `<button class="mm-nav ${MM.view === v && !MM.sec ? 'on' : ''}" data-mv="${v}">${ic} ${l}<i>${n}</i></button>`;
   const todo = live.reduce((a, p) => a + (p.todos || []).filter(t => !t.d).length, 0);
   el.innerHTML = `<button class="btn pri" id="mmNew" style="width:100%">＋ 새 메모</button>
-    ${nv('all', '📄', '모든 메모', live.length)}${nv('pin', '⭐', '즐겨찾기', live.filter(p => p.pin).length)}${nv('todo', '☑', '할 일 모음', todo)}${nv('sticky', '🗒', '스티커 보드', MM.pages.filter(p => p.kind === 'sticky' && !p.deleted).length)}
+    ${nv('all', '📄', '모든 메모', live.length)}${nv('pin', '⭐', '즐겨찾기', live.filter(p => p.pin).length)}${nv('date', '📅', '날짜별', '')}${nv('todo', '☑', '할 일 모음', todo)}${nv('sticky', '🗒', '스티커 보드', MM.pages.filter(p => p.kind === 'sticky' && !p.deleted).length)}
     <h3>섹션<button id="mmSecAdd" title="섹션 추가">＋ 추가</button></h3>
     ${mmSecs().map(s => `<button class="mm-nav ${MM.sec === s.id ? 'on' : ''}" data-ms="${esc(s.id)}"><span class="dot" style="background:${esc(s.color || '#94a3b8')}"></span><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(s.name)}</span><i>${live.filter(p => p.sec === s.id).length}</i><span class="more" data-msm="${esc(s.id)}" title="이름 · 색 · 삭제">⋯</span></button>`).join('') || '<div class="muted" style="font-size:12px;padding:2px 6px">섹션으로 메모를 묶어 보세요 (예: 회의 · PJT · 개인)</div>'}
     ${Object.keys(tags).length ? `<h3>태그</h3><div class="mm-tags">${Object.entries(tags).sort((a, b) => b[1] - a[1]).slice(0, 30).map(([t, n]) => `<button class="mm-tag ${MM.tag === t ? 'on' : ''}" data-mt="${esc(t)}">#${esc(t)} ${n}</button>`).join('')}</div>` : ''}
     <div style="margin-top:10px">${nv('trash', '🗑', '휴지통', MM.pages.filter(p => p.deleted).length)}</div>
     <div class="mm-quota">🔒 나만 보는 메모 · ${mmSize(MM.used)} / ${mmSize(MM.quota || 1)}<b><u style="width:${Math.min(100, MM.used / (MM.quota || 1) * 100).toFixed(1)}%"></u></b></div>`;
 }
+/* 2026-11-19 v17.67 날짜별: 메모 날짜(pg.date, 없으면 만든 날) · 목록을 날짜로 묶기 · 달력에서 날짜 고르기 */
+const mmLocal = iso => { const d = new Date(iso || Date.now()); return isNaN(d) ? '' : `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`; };
+const mmDay = p => p.date || mmLocal(p.createdAt);
+function mmDayLabel(day) {
+  const t = todayISO(), diff = Math.round((new Date(t) - new Date(day)) / 864e5);
+  if (diff === 0) return '오늘'; if (diff === 1) return '어제'; if (diff > 1 && diff < 7) return '지난 7일'; if (diff < 0) return '앞으로';
+  return day.slice(0, 7) === t.slice(0, 7) ? '이번 달' : `${day.slice(0, 4)}년 ${+day.slice(5, 7)}월`;
+}
+function mmCalHtml() {
+  const m = MM.month || (MM.month = todayISO().slice(0, 7)), [y, mo] = m.split('-').map(Number), first = new Date(y, mo - 1, 1), n = new Date(y, mo, 0).getDate(), cnt = {};
+  mmLive().forEach(p => { const d = mmDay(p); if (d.slice(0, 7) === m) cnt[d] = (cnt[d] || 0) + 1; });
+  let cells = '<i></i>'.repeat(first.getDay());
+  for (let d = 1; d <= n; d++) { const iso = `${m}-${pad(d)}`; cells += `<button data-mday="${iso}" class="${iso === MM.day ? 'on' : ''} ${iso === todayISO() ? 'td' : ''} ${cnt[iso] ? 'has' : ''}">${d}${cnt[iso] ? `<u>${cnt[iso]}</u>` : ''}</button>`; }
+  return `<div class="mm-cal"><div class="ch"><button data-mmon="-1">‹</button><b>${y}년 ${mo}월</b><button data-mmon="1">›</button><button data-mmon="0" style="margin-left:auto;font-size:11px">오늘</button></div><div class="cw">${'일월화수목금토'.split('').map(x => `<span>${x}</span>`).join('')}</div><div class="cg">${cells}</div>
+    <div class="muted" style="font-size:11px;margin-top:4px">${MM.day ? `${MM.day} 의 메모 — 같은 날을 다시 누르면 그 달 전체` : '날짜를 누르면 그날 메모만 · 숫자 = 메모 수'}</div></div>`;
+}
 function mmShown() {
   const q = MM.q.trim().toLowerCase();
-  let l = mmLive().filter(p => (MM.sec ? p.sec === MM.sec : MM.view === 'pin' ? p.pin : true) && (!MM.tag || (p.tags || []).includes(MM.tag))
+  let l = mmLive().filter(p => (MM.sec ? p.sec === MM.sec : MM.view === 'pin' ? p.pin : MM.view === 'date' ? (MM.day ? mmDay(p) === MM.day : mmDay(p).slice(0, 7) === (MM.month || todayISO().slice(0, 7))) : true) && (!MM.tag || (p.tags || []).includes(MM.tag))
     && (!q || (p.title || '').toLowerCase().includes(q) || (p.text || '').toLowerCase().includes(q) || (p.tags || []).some(t => t.toLowerCase().includes(q))));
-  const key = MM.sort === 'title' ? (a, b) => (a.title || '').localeCompare(b.title || '', 'ko') : MM.sort === 'new' ? (a, b) => (b.createdAt || '').localeCompare(a.createdAt || '') : (a, b) => (b.updatedAt || '').localeCompare(a.updatedAt || '');
-  return l.sort((a, b) => (b.pin ? 1 : 0) - (a.pin ? 1 : 0) || key(a, b));
+  const key = MM.sort === 'title' ? (a, b) => (a.title || '').localeCompare(b.title || '', 'ko') : MM.sort === 'new' ? (a, b) => (b.createdAt || '').localeCompare(a.createdAt || '') : MM.sort === 'date' ? (a, b) => mmDay(b).localeCompare(mmDay(a)) || (b.updatedAt || '').localeCompare(a.updatedAt || '') : MM.sort === 'dateasc' ? (a, b) => mmDay(a).localeCompare(mmDay(b)) : (a, b) => (b.updatedAt || '').localeCompare(a.updatedAt || '');
+  const pinTop = MM.sort !== 'date' && MM.sort !== 'dateasc';
+  return l.sort((a, b) => (pinTop ? (b.pin ? 1 : 0) - (a.pin ? 1 : 0) : 0) || key(a, b));
 }
 function mmDrawList(soft) {
   const el = $('#mmList'); if (!el || el.style.display === 'none') return;
   const q = MM.q.trim(), l = mmShown(), hl = t => { const s = esc(t); if (!q) return s; const i = t.toLowerCase().indexOf(q.toLowerCase()); return i < 0 ? s : esc(t.slice(0, i)) + '<mark>' + esc(t.slice(i, i + q.length)) + '</mark>' + esc(t.slice(i + q.length)); };
   const snip = p => { const t = (p.text || '').replace(/\s+/g, ' '); if (!q) return t.slice(0, 90); const i = t.toLowerCase().indexOf(q.toLowerCase()); return i < 0 ? t.slice(0, 90) : (i > 30 ? '…' : '') + t.slice(Math.max(0, i - 30), i + 60); };
-  const cards = l.map(p => `<button class="mm-card ${MM.cur?.id === p.id ? 'on' : ''}" data-mp="${p.id}" style="border-left-color:${esc(p.color || '#d5dbec')}"><b>${p.pin ? '⭐ ' : ''}${p.lock ? '🔒 ' : ''}${esc(p.icon || '📄')} ${hl(p.title || '제목 없음')}</b><span>${hl(snip(p))}</span><em>${fmtTime(p.updatedAt)}${(p.todos || []).length ? `<u>☑ ${p.todos.filter(t => t.d).length}/${p.todos.length}</u>` : ''}${(p.files || []).length ? `<u>📎 ${p.files.length}</u>` : ''}${(p.tags || []).map(t => `<u>#${esc(t)}</u>`).join('')}</em></button>`).join('')
+  const grp = p => MM.sort === 'title' ? '' : MM.sort === 'date' || MM.sort === 'dateasc' ? mmDay(p) + ' (' + '일월화수목금토'[new Date(mmDay(p)).getDay()] + ')' : p.pin ? '⭐ 즐겨찾기' : mmDayLabel(mmLocal(MM.sort === 'new' ? p.createdAt : p.updatedAt)); let lastG = null;
+  const cards = l.map(p => { const g = grp(p), hd = g && g !== lastG ? `<div class="mm-gh">${esc(g)}</div>` : ''; lastG = g; return hd + `<button class="mm-card ${MM.cur?.id === p.id ? 'on' : ''}" data-mp="${p.id}" style="border-left-color:${esc(p.color || '#d5dbec')}"><b>${p.pin ? '⭐ ' : ''}${p.lock ? '🔒 ' : ''}${esc(p.icon || '📄')} ${hl(p.title || '제목 없음')}</b><span>${hl(snip(p))}</span><em>${fmtTime(p.updatedAt)}${(p.todos || []).length ? `<u>☑ ${p.todos.filter(t => t.d).length}/${p.todos.length}</u>` : ''}${(p.files || []).length ? `<u>📎 ${p.files.length}</u>` : ''}${(p.tags || []).map(t => `<u>#${esc(t)}</u>`).join('')}</em></button>`; }).join('')
     || `<div class="mm-empty" style="padding:24px 10px"><b>🗒</b>${q || MM.tag ? '찾는 메모가 없습니다' : '아직 메모가 없습니다'}<br><span class="muted" style="font-size:12px">[＋ 새 메모] 를 눌러 시작하세요</span></div>`;
-  if (soft && $('.mm-lb', el)) { const lb = $('.mm-lb', el), st = lb.scrollTop; lb.innerHTML = cards; lb.scrollTop = st; return; }
+  if (soft && $('.mm-lb', el) && MM.view !== 'date') { const lb = $('.mm-lb', el), st = lb.scrollTop; lb.innerHTML = cards; lb.scrollTop = st; return; }
   const sec = mmSecs().find(s => s.id === MM.sec);
   el.innerHTML = `<div class="mm-lh"><input class="q" id="mmQ" placeholder="🔍 메모 찾기 (제목 · 내용 · 태그)" value="${esc(MM.q)}">
-    <div class="row"><b style="font-size:13px">${esc(sec ? sec.name : MM.view === 'pin' ? '즐겨찾기' : '모든 메모')}${MM.tag ? ' · #' + esc(MM.tag) : ''}</b><span class="sp"></span><select id="mmSort" class="sel" style="font-size:12px;padding:3px 6px"><option value="upd">최근 고친 순</option><option value="new">만든 순</option><option value="title">제목 순</option></select></div></div><div class="mm-lb">${cards}</div>`;
+    <div class="row"><b style="font-size:13px">${esc(sec ? sec.name : MM.view === 'pin' ? '즐겨찾기' : MM.view === 'date' ? '날짜별' : '모든 메모')}${MM.tag ? ' · #' + esc(MM.tag) : ''}</b><span class="sp"></span><select id="mmSort" class="sel" style="font-size:12px;padding:3px 6px"><option value="upd">최근 고친 순</option><option value="new">만든 순</option><option value="date">메모 날짜 (최근부터)</option><option value="dateasc">메모 날짜 (옛날부터)</option><option value="title">제목 순</option></select></div>${MM.view === 'date' ? mmCalHtml() : ''}</div><div class="mm-lb">${cards}</div>`;
   $('#mmSort').value = MM.sort;
 }
 function mmDrawMain() {
@@ -5894,6 +5921,8 @@ function mmDrawMain() {
   const T = (c, l, t) => `<button data-mc="${c}" title="${esc(t)}">${l}</button>`, S = '<span class="sep"></span>';
   el.innerHTML = `<div class="mm-top"><button class="mm-icon" id="mmIcon" title="아이콘 바꾸기">${esc(pg.icon || '📄')}</button><input class="mm-title" id="mmTitle" placeholder="제목 없음" value="${esc(pg.title || '')}" ${pg.lock ? 'readonly' : ''}></div>
     <div class="mm-meta"><select id="mmSecSel" title="섹션"><option value="">섹션 없음</option>${mmSecs().map(s => `<option value="${esc(s.id)}" ${pg.sec === s.id ? 'selected' : ''}>${esc(s.name)}</option>`).join('')}</select>
+      <input type="date" id="mmDate" value="${esc(mmDay(pg))}" title="메모 날짜 — 날짜별 보기 · 날짜 정렬에 씀" ${pg.lock ? 'disabled' : ''}>
+      <select id="mmLh" title="줄 · 문단 간격"><option value="s">간격 좁게</option><option value="">간격 보통</option><option value="l">간격 넓게</option><option value="x">간격 아주 넓게</option></select>
       <input class="tags" id="mmTags" placeholder="태그 (쉼표로 구분)" value="${esc((pg.tags || []).join(', '))}">
       <button class="tg ${pg.pin ? 'on' : ''}" data-mx="pin" title="즐겨찾기 — 목록 맨 위">⭐ 즐겨찾기</button><button class="tg ${pg.lock ? 'on' : ''}" data-mx="lock" title="잠그면 실수로 고쳐지지 않음">${pg.lock ? '🔒 잠김' : '🔓 잠금'}</button>
       ${MM_COL.map(c => `<button class="cdot ${(pg.color || '') === c ? 'on' : ''}" data-mcol="${c}" style="background:${c || '#e5e9f5'}" title="색 표시"></button>`).join('')}
@@ -5901,11 +5930,11 @@ function mmDrawMain() {
     <div class="mm-tb" id="mmTb">${T('undo', '↶', '실행 취소 (Ctrl+Z)')}${T('redo', '↷', '다시 실행 (Ctrl+Y)')}${S}${T('h1', 'H1', '큰 제목')}${T('h2', 'H2', '중간 제목')}${T('h3', 'H3', '작은 제목')}${T('p', '본문', '보통 글')}${S}
       ${T('bold', '<b>B</b>', '굵게 (Ctrl+B)')}${T('italic', '<i>I</i>', '기울임 (Ctrl+I)')}${T('underline', '<u>U</u>', '밑줄 (Ctrl+U)')}${T('strike', '<s>S</s>', '취소선')}${T('color', '<span style="color:#dc2626;font-weight:800">A</span>', '글자 색')}${T('hilite', '<span style="background:#fff176;padding:0 4px">A</span>', '형광펜')}${T('big', 'A+', '글자 크게')}${T('small', 'A−', '글자 작게')}${T('clear', '⌫', '서식 지우기')}${S}
       ${T('ul', '•', '글머리 목록')}${T('ol', '1.', '번호 목록')}${T('todo', '☑', '할 일 (체크 상자)')}${T('quote', '❝', '인용')}${T('call', '💡', '강조 상자')}${T('code', '&lt;/&gt;', '코드 · 고정폭')}${T('toggle', '▸', '접는 글')}${T('hr', '―', '구분선')}${S}
-      ${T('left', '⇤', '왼쪽 맞춤')}${T('center', '↔', '가운데 맞춤')}${T('right', '⇥', '오른쪽 맞춤')}${S}
-      ${T('table', '▦', '표 넣기')}<span class="tbl">${T('trow', '+행', '아래에 행 추가')}${T('tcol', '+열', '오른쪽에 열 추가')}${T('trowx', '−행', '이 행 지우기')}${T('tcolx', '−열', '이 열 지우기')}${T('tdel', '표✕', '표 지우기')}</span>${S}
+      ${T('left', '⇤', '왼쪽 맞춤')}${T('center', '↔', '가운데 맞춤')}${T('right', '⇥', '오른쪽 맞춤')}${T('full', '☰', '양쪽 맞춤')}${T('indent', '→|', '들여쓰기')}${T('outdent', '|←', '내어쓰기')}${S}${T('col2', '▥2', '좌우 2단으로 나누기')}${T('col3', '▥3', '좌우 3단으로 나누기')}${T('colx', '▥✕', '단 나누기 풀기 (한 줄로)')}${S}
+      ${T('table', '▦', '표 넣기')}<span class="tbl">${T('trow', '+행', '아래에 행 추가')}${T('tcol', '+열', '오른쪽에 열 추가')}${T('trowx', '−행', '이 행 지우기')}${T('tcolx', '−열', '이 열 지우기')}${T('teq', '열=', '열 너비를 같게 · 표를 가로로 꽉 차게 (다시 누르면 풀기)')}${T('tsort', '↕정렬', '이 열 기준으로 행 정렬 (다시 누르면 반대로 · 날짜 · 숫자 · 글자)')}${T('tdel', '표✕', '표 지우기')}</span>${S}
       ${T('link', '🔗', '링크')}${T('img', '🖼', '그림 넣기 (붙여넣기 · 끌어 놓기도 됨)')}${T('draw', '✏', '손으로 그리기')}${T('file', '📎', '파일 첨부 (PDF · 문서 — PDF 는 보면서 메모)')}${T('date', '📅', '오늘 날짜 · 시각 넣기')}${S}<button data-mc="pull" title="다른 메뉴의 값 불러오기 (수행 · 입찰 · 이슈 · 통합 업무 · Schedule …)" style="font-weight:700;color:var(--accent-d)">📥 불러오기</button></div>
     <div class="mm-ed" id="mmEd" data-pid="${pg.id}" contenteditable="${pg.lock ? 'false' : 'true'}" spellcheck="false"></div><div class="mm-st" id="mmSt"></div><input type="file" id="mmFile" hidden multiple><input type="file" id="mmImg" hidden multiple accept="image/*">`;
-  $('#mmEd').innerHTML = mmClean(pg.html || '');
+  $('#mmEd').innerHTML = mmClean(pg.html || ''); $('#mmLh').value = pg.lh || ''; $('#mmEd').className = 'mm-ed' + (pg.lh ? ' lh-' + pg.lh : '');
   mmStat(pg.updatedAt ? `저장됨 ${fmtTime(pg.updatedAt)} · ${(pg.text || '').length.toLocaleString()}자` : '새 메모');
   try { document.execCommand('styleWithCSS', false, true); document.execCommand('defaultParagraphSeparator', false, 'div'); } catch (_) {}
 }
@@ -5913,7 +5942,7 @@ async function mmOpen(id) {
   if (MM.cur?.id === id) return; await mmFlush();
   let pg; try { pg = await api('GET', 'memo/p/' + id); } catch (e) { return toast(e.message, true); }
   MM.cur = pg; MM.dirty = false;
-  if (MM.view !== 'all' && MM.view !== 'pin') { MM.view = 'all'; return mmDraw(); }
+  if (!['all', 'pin', 'date'].includes(MM.view)) { MM.view = 'all'; return mmDraw(); }
   mmDrawList(true); mmDrawMain();
   try { const d = JSON.parse(localStorage.getItem('dept-memo-draft') || 'null');   // 저장 못 하고 닫힌 내용
     if (d && d.u === MM.uid && d.id === id && d.at > Date.parse(pg.updatedAt || 0) + 3000 && mmClean(d.html) !== mmClean(pg.html || '')) {
@@ -5922,8 +5951,8 @@ async function mmOpen(id) {
 }
 async function mmNew(kind, tpl) {
   await mmFlush(); const now = new Date(), d = `${todayISO()} ${pad(now.getHours())}:${pad(now.getMinutes())}`;
-  const pg = { id:mmId(), kind:'page', sec:MM.sec || '', title:tpl ? `${tpl[0]} ${todayISO()}` : '', icon:tpl ? tpl[1] : '📄', color:'', tags:MM.tag ? [MM.tag] : [], pin:false, lock:false, html:tpl ? tpl[2](d) : '' };
-  mmMetaOf(pg); MM.cur = pg; MM.dirty = false; mmMetaPut(pg); if (MM.view !== 'all' && MM.view !== 'pin') MM.view = 'all'; MM.q = '';
+  const pg = { id:mmId(), kind:'page', sec:MM.sec || '', title:tpl ? `${tpl[0]} ${todayISO()}` : '', icon:tpl ? tpl[1] : '📄', color:'', tags:MM.tag ? [MM.tag] : [], pin:false, lock:false, html:tpl ? tpl[2](d) : '', date:MM.view === 'date' && MM.day ? MM.day : todayISO() };
+  mmMetaOf(pg); MM.cur = pg; MM.dirty = false; mmMetaPut(pg); if (!['all', 'pin', 'date'].includes(MM.view)) MM.view = 'all'; MM.q = '';
   mmDraw(); await mmSave(pg); (tpl ? $('#mmEd') : $('#mmTitle'))?.focus();
 }
 async function mmAskText(title, label, val = '') {
@@ -5953,7 +5982,13 @@ function mmCmd(c, btn) {
     case 'big': return X('fontSize', 5); case 'small': return X('fontSize', 2); case 'clear': X('removeFormat'); return X('formatBlock', 'div');
     case 'ul': return X('insertUnorderedList'); case 'ol': return X('insertOrderedList');
     case 'quote': return X('formatBlock', 'blockquote'); case 'code': return X('formatBlock', 'pre'); case 'hr': return X('insertHorizontalRule');
-    case 'left': return X('justifyLeft'); case 'center': return X('justifyCenter'); case 'right': return X('justifyRight');
+    case 'left': return X('justifyLeft'); case 'center': return X('justifyCenter'); case 'right': return X('justifyRight'); case 'full': return X('justifyFull'); case 'indent': return X('indent'); case 'outdent': return X('outdent');
+    case 'col2': case 'col3': { const n = +c.slice(3), s = mmSelIn(), txt = s && !s.isCollapsed ? esc(String(s)).replace(/\n+/g, '<br>') : ''; return mmInsert(`<div class="mm-cols">${Array.from({ length:n }, (_, i) => `<div class="mm-col">${i ? '<br>' : txt || '왼쪽 내용'}</div>`).join('')}</div><div><br></div>`); }
+    case 'colx': { const b = mmBlock(), cs = b?.closest?.('.mm-cols'); if (!cs) return toast('단으로 나눈 곳 안에 커서를 두고 누르세요'); const f = document.createDocumentFragment(); cs.querySelectorAll(':scope > .mm-col').forEach(col => { const d = document.createElement('div'); d.append(...col.childNodes); f.appendChild(d); }); cs.replaceWith(f); return mmTouch(); }
+    case 'teq': { const td = cell(); if (td) { td.closest('table').classList.toggle('mm-teq'); mmTouch(); } return; }
+    case 'tsort': { const td = cell(); if (!td) return; const t = td.closest('table'), i = td.cellIndex, rows = [...t.rows].filter(r => !r.querySelector('th')), dir = t.dataset.done === 'a' + i ? -1 : 1; t.dataset.done = dir === 1 ? 'a' + i : 'd' + i;
+      const kv = r => { const x = (r.cells[i]?.textContent || '').trim(), d = /^\d{2,4}[-./]\d{1,2}[-./]\d{1,2}/.exec(x), n = parseFloat(x.replace(/,/g, '')); return d ? [0, d[0].replace(/[./]/g, '-').replace(/-(\d)(?=-|$)/g, '-0$1').replace(/^(\d\d)-/, '20$1-')] : !isNaN(n) && /^[-+\d.,\s%]+$/.test(x) ? [1, n] : [2, x]; };
+      rows.sort((a, b) => { const A = kv(a), B = kv(b); return dir * (A[0] - B[0] || (A[0] === 1 ? A[1] - B[1] : String(A[1]).localeCompare(String(B[1]), 'ko'))); }).forEach(r => r.parentNode.appendChild(r)); return mmTouch(); }
     case 'todo': { const b = mmBlock(); if (b && b.tagName === 'DIV' && !b.classList.contains('mm-call') && !b.querySelector('div,ul,ol,table')) { if (b.classList.contains('mm-chk')) { b.classList.remove('mm-chk'); b.removeAttribute('data-done'); } else { b.className = 'mm-chk'; b.dataset.done = '0'; } mmTouch(); } else mmInsert('<div class="mm-chk" data-done="0">할 일</div>'); return; }
     case 'call': return mmInsert('<div class="mm-call">강조할 내용</div><div><br></div>');
     case 'toggle': return mmInsert('<details open><summary>접는 글 제목</summary><div>내용</div></details><div><br></div>');
@@ -6080,8 +6115,26 @@ function mmStickyHtml(p, fl) {
 function mmDrawBoard() {
   const el = $('#mmMain'); if (!el) return; const l = MM.pages.filter(p => p.kind === 'sticky' && !p.deleted);
   el.innerHTML = `<div class="mm-bh"><b>🗒 스티커 보드</b><button class="btn pri sm" data-mnew="sticky">＋ 스티커</button>${MM_SCOL.map(c => `<button class="cdot" data-mnew="sticky" data-col="${c}" style="width:18px;height:18px;border-radius:50%;border:1px solid var(--line);background:${c};cursor:pointer" title="이 색으로 새 스티커"></button>`).join('')}
-    <span class="muted" style="font-size:12px">위쪽 띠를 끌어 옮기기 · 오른쪽 아래 모서리로 크기 · 📌 = 어느 화면에서나 띄워 두기</span></div><div class="mm-board" id="mmBoard">${l.map(p => mmStickyHtml(p)).join('')}${l.length ? '' : '<div class="mm-empty" style="position:absolute;inset:0;display:flex;flex-direction:column;justify-content:center"><b>🗒</b>[＋ 스티커] 를 눌러 메모지를 붙여 보세요</div>'}</div>`;
+    <button class="btn sm" id="mmArr" title="스티커 정렬 · 간격 맞춤">⚏ 정렬 · 간격 ▾</button><span class="muted" style="font-size:12px">위쪽 띠를 끌어 옮기기 · 오른쪽 아래 모서리로 크기 · 📌 = 어느 화면에서나 띄워 두기</span></div><div class="mm-board" id="mmBoard">${l.map(p => mmStickyHtml(p)).join('')}${l.length ? '' : '<div class="mm-empty" style="position:absolute;inset:0;display:flex;flex-direction:column;justify-content:center"><b>🗒</b>[＋ 스티커] 를 눌러 메모지를 붙여 보세요</div>'}</div>`;
   mmStickyBind($('#mmBoard'), false);
+}
+/* 스티커 정렬: 날짜순 · 색별 줄 맞춤 / 왼쪽 · 오른쪽 · 위 맞춤 / 가로 · 세로 간격 같게 / 크기 같게 */
+function mmArrange(mode) {
+  const bd = $('#mmBoard'); if (!bd) return; const l = MM.pages.filter(p => p.kind === 'sticky' && !p.deleted); if (!l.length) return;
+  const W = p => p.w || 200, H = p => p.h || 170, old = l.map(p => [p.x, p.y, p.w, p.h].join()), G = 16;
+  if (mode === 'date' || mode === 'color') {
+    l.sort(mode === 'date' ? (a, b) => (b.updatedAt || '').localeCompare(a.updatedAt || '') : (a, b) => (a.color || '').localeCompare(b.color || '') || (b.updatedAt || '').localeCompare(a.updatedAt || ''));
+    let x = 20, y = 20, rowH = 0; const maxW = Math.max(400, bd.clientWidth - 20);
+    l.forEach(p => { if (x + W(p) > maxW && x > 20) { x = 20; y += rowH + G; rowH = 0; } p.x = x; p.y = y; x += W(p) + G; rowH = Math.max(rowH, H(p)); });
+  } else if (mode === 'left') { const m = Math.min(...l.map(p => p.x || 0)); l.forEach(p => { p.x = m; }); }
+  else if (mode === 'right') { const m = Math.max(...l.map(p => (p.x || 0) + W(p))); l.forEach(p => { p.x = m - W(p); }); }
+  else if (mode === 'top') { const m = Math.min(...l.map(p => p.y || 0)); l.forEach(p => { p.y = m; }); }
+  else if (mode === 'hgap' || mode === 'vgap') { const h = mode === 'hgap', pos = p => (h ? p.x : p.y) || 0, len = h ? W : H; l.sort((a, b) => pos(a) - pos(b));
+    const a0 = pos(l[0]), a1 = Math.max(...l.map(p => pos(p) + len(p))), tot = l.reduce((a, p) => a + len(p), 0), gap = l.length > 1 ? Math.max(8, (a1 - a0 - tot) / (l.length - 1)) : 0; let c = a0;
+    l.forEach(p => { if (h) p.x = Math.round(c); else p.y = Math.round(c); c += len(p) + gap; }); }
+  else if (mode === 'size') { const w = Math.round(l.reduce((a, p) => a + W(p), 0) / l.length), h = Math.round(l.reduce((a, p) => a + H(p), 0) / l.length); l.forEach(p => { p.w = w; p.h = h; }); }
+  let n = 0; l.forEach((p, i) => { if ([p.x, p.y, p.w, p.h].join() !== old[i]) { n++; mmSave(p); } });
+  mmDrawBoard(); toast(n ? `스티커 ${n}장을 정렬했습니다` : '이미 맞춰져 있습니다');
 }
 function mmStickySave(p, ms = 900) { clearTimeout(MM.sT[p.id]); MM.sT[p.id] = setTimeout(() => mmSave(p), ms); }
 function mmStickyBind(host, fl) {
@@ -6234,10 +6287,14 @@ document.addEventListener('click', async e => {
     return mmPop(b, `<button data-v="ren"><span>✏</span>이름 바꾸기</button>${MM_COL.slice(1).map(c => `<button data-v="c${c}"><span style="width:14px;height:14px;border-radius:50%;background:${c}"></span>이 색으로</button>`).join('')}<button data-v="del"><span>🗑</span>섹션 지우기 (메모는 남음)</button>`, async v => {
       if (v === 'ren') { const n = await mmAskText('섹션 이름', '이름', s.name); if (!n) return; s.name = n; } else if (v === 'del') { MM.book.secs = mmSecs().filter(x => x.id !== s.id); if (MM.sec === s.id) MM.sec = ''; } else s.color = v.slice(1);
       await mmBook(); mmDraw(); }); }
-  if ((b = D('data-mv'))) { await mmFlush(); MM.view = b.dataset.mv; MM.sec = ''; MM.tag = ''; if (MM.view !== 'all' && MM.view !== 'pin') MM.cur = null; return mmDraw(); }
+  if ((b = D('data-mv'))) { await mmFlush(); MM.view = b.dataset.mv; MM.sec = ''; MM.tag = ''; if (!['all', 'pin', 'date'].includes(MM.view)) MM.cur = null; return mmDraw(); }
   if ((b = D('data-ms'))) { await mmFlush(); MM.sec = b.dataset.ms; MM.view = 'all'; return mmDraw(); }
-  if ((b = D('data-mt'))) { MM.tag = MM.tag === b.dataset.mt ? '' : b.dataset.mt; if (MM.view !== 'all' && MM.view !== 'pin') MM.view = 'all'; return mmDraw(); }
+  if ((b = D('data-mt'))) { MM.tag = MM.tag === b.dataset.mt ? '' : b.dataset.mt; if (!['all', 'pin', 'date'].includes(MM.view)) MM.view = 'all'; return mmDraw(); }
   if (t.closest('#mmSecAdd')) { const n = await mmAskText('섹션 추가', '섹션 이름 (예: 회의 · CO2 PJT · 개인)'); if (!n) return; const s = { id:mmId().slice(0, 8), name:n, color:MM_COL[1 + mmSecs().length % 6] }; MM.book.secs = [...mmSecs(), s]; MM.sec = s.id; MM.view = 'all'; await mmBook(); return mmDraw(); }
+  if ((b = D('data-mday'))) { MM.day = MM.day === b.dataset.mday ? '' : b.dataset.mday; return mmDrawList(); }
+  if ((b = D('data-mmon'))) { const k = +b.dataset.mmon, [y, m] = (MM.month || todayISO().slice(0, 7)).split('-').map(Number), d = new Date(y, m - 1 + k, 1); MM.month = k ? `${d.getFullYear()}-${pad(d.getMonth() + 1)}` : todayISO().slice(0, 7); MM.day = k ? '' : todayISO(); return mmDrawList(); }
+  if ((b = D('data-marr'))) return mmArrange(b.dataset.marr);
+  if (t.closest('#mmArr')) return mmPop(t.closest('#mmArr'), [['date', '📅', '날짜순으로 줄 맞춰 놓기 (최근 것부터)'], ['color', '🎨', '색별로 줄 맞춰 놓기'], ['left', '⇤', '왼쪽 맞춤'], ['right', '⇥', '오른쪽 맞춤'], ['top', '⤒', '위쪽 맞춤'], ['hgap', '↔', '가로 간격 같게'], ['vgap', '↕', '세로 간격 같게'], ['size', '▣', '크기 같게']].map(x => `<button data-v="${x[0]}"><span>${x[1]}</span>${x[2]}</button>`).join(''), mmArrange);
   if ((b = D('data-mp'))) return mmOpen(b.dataset.mp);
   if ((b = D('data-mrest'))) { const p = MM.pages.find(x => x.id === b.dataset.mrest); if (!p) return; try { const pg = await api('GET', 'memo/p/' + p.id); pg.deleted = false; await mmSave(pg); mmDraw(); toast('되살렸습니다'); } catch (er) { toast(er.message, true); } return; }
   if ((b = D('data-mkill'))) { const p = MM.pages.find(x => x.id === b.dataset.mkill); if (!p) return; if (await ask('완전히 지울까요?', '<p style="margin:0">이 메모와 첨부 파일을 완전히 지웁니다. 되돌릴 수 없습니다.</p>', [{ id:'y', label:'완전 삭제', cls:'pri' }, { id:'n', label:'취소' }]) !== 'y') return; try { await mmKill(p); } catch (er) { toast(er.message, true); } return mmDraw(); }
@@ -6284,6 +6341,8 @@ document.addEventListener('input', e => {
 document.addEventListener('change', async e => {
   const t = e.target; if (!t.closest?.('#memoWrap')) return;
   if (t.id === 'mmSort') { MM.sort = t.value; return mmDrawList(); }
+  if (t.id === 'mmDate' && MM.cur) { MM.cur.date = t.value || todayISO(); MM.dirty = true; await mmSave(); return mmDrawList(); }
+  if (t.id === 'mmLh' && MM.cur) { MM.cur.lh = t.value; $('#mmEd').className = 'mm-ed' + (t.value ? ' lh-' + t.value : ''); MM.dirty = true; return mmSave(); }
   if (t.id === 'mmSecSel' && MM.cur) { MM.cur.sec = t.value; MM.dirty = true; await mmSave(); return mmDrawSide(); }
   if (t.id === 'mmTodoAll') { MM.todoAll = t.checked; return mmDrawTodo(); }
   if (t.dataset.mtodo) { const [id, i] = t.dataset.mtodo.split('|'); return mmTodoToggle(id, +i, t.checked); }
