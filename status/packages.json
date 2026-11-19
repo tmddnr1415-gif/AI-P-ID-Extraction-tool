@@ -619,6 +619,19 @@
    },
    "replaces": "7_DASHBOARD_update_v17.77_from_v17.47_2026-11-19.zip",
    "note": "v17.78 — 메모장 펜 Ctrl+Z/Y · 메모지 · 글 상자 (회사 요청) · 화면만"
+  },
+  {
+   "file": "①",
+   "name": "9_DASHBOARD_update_v17.79_from_v17.47_2026-11-19.zip",
+   "made": "2026-11-19 12:55",
+   "path": "company-pc-update/2026-11-19/ (3.4MB · 저장소에 있음)",
+   "sha256": "7db3da1a6cf84180e32f0cca5b8761859436b3f80a24f75e7f829738733b2f18",
+   "applied": "",
+   "tips": {
+    "S1": "25747e6b"
+   },
+   "replaces": "8_DASHBOARD_update_v17.78_from_v17.47_2026-11-19.zip",
+   "note": "v17.79 — 모든 메모에 스티커 · 메모 보기 따로 (회사 요청) · 화면만"
   }
  ]
 }
