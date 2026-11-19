@@ -1948,7 +1948,7 @@ body.schbigon{overflow:hidden}@keyframes schBigIn{from{transform:scale(.97);opac
 .mm-tb button{border:0;background:none;min-width:30px;height:30px;border-radius:7px;cursor:pointer;font-size:13px;color:var(--text);padding:0 6px}
 .mm-tb button:hover{background:#dfe4f5}.mm-tb button.on{background:var(--accent-l);color:var(--accent-d)}.mm-tb .sep{width:1px;height:20px;background:var(--line);margin:0 4px}
 .mm-tb .tbl{display:flex;gap:2px;opacity:.35}.mm-tb.intbl .tbl{opacity:1}   /* 표 밖에서는 흐리게만 — 숨기면 줄 수가 바뀌어 본문이 위아래로 튐 */
-.mm-edw{flex:1;overflow:auto;position:relative;min-height:0;display:flex}.mm-zw{position:relative;flex:none;width:100%;min-height:100%;display:flex;flex-direction:column}
+.mm-edw{flex:1;overflow:auto;position:relative;min-height:0;display:flex}.mm-zw{position:relative;flex:none;width:100%;min-width:min-content;min-height:100%;display:flex;flex-direction:column}.mm-ed{overflow-wrap:anywhere}
 .mm-ed{flex:1;padding:16px 26px 60px;font-size:14.5px;line-height:1.7;outline:0;color:var(--text)}
 .mm-ed:empty::before{content:'여기에 적으세요 —  /  를 치면 블록 메뉴 ·  # 제목 ·  - 목록 ·  [] 할 일 ·  > 인용  ·  그림은 붙여넣기(Ctrl+V)';color:#a8b0c4}
 .mm-ed h1{font-size:24px;margin:.7em 0 .3em}.mm-ed h2{font-size:19px;margin:.7em 0 .3em}.mm-ed h3{font-size:16px;margin:.6em 0 .2em}
@@ -2262,7 +2262,7 @@ function recLabel(key, f) {
  * ===================================================================== */
 let root = null;
 /* 서버 모드: http(s):// 로 접속하면 server.py 의 REST API 사용 (폴더 선택 불필요). file:// 로 열면 폴더 모드 */
-const APP_VERSION = '2026-11-19.11';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
+const APP_VERSION = '2026-11-19.12';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
 const SERVER_URL = 'http://localhost:8080';
 // 부서원 PC 사본(file://)이 접속을 시도할 서버 — 서버가 배포 파일을 만들 때 'PC 이름 주소, IP 주소' 순으로 자동 기록함
 const DEFAULT_SERVERS = ['http://ASEUNGWOOK-B01:8080', 'http://65.3.30.234:8080'];
@@ -6580,8 +6580,17 @@ function mmInkSync() {   // 편집 줄 아래 펜 줄 · 그리기 층 상태
 const mmZoom = () => MM.zoom || (MM.zoom = (() => { try { return +localStorage.getItem('dept-memo-zoom') || 1; } catch (_) { return 1; } })());
 function mmZoomSet(z, quiet) {
   z = Math.max(.4, Math.min(3, Math.round(z * 100) / 100)); MM.zoom = z; try { localStorage.setItem('dept-memo-zoom', String(z)); } catch (_) {}
-  const zw = $('#mmZw'); if (zw) { zw.style.zoom = z; zw.style.width = (100 / z) + '%'; zw.style.minHeight = (100 / z) + '%'; }
+  const zw = $('#mmZw'); if (zw) { zw.style.zoom = z; mmZoomFit(); }
   const zl = $('#mmZl'); if (zl) zl.textContent = Math.round(z * 100) + '%'; if (!quiet) zoomBadge($('#mmMain'), z * 100);
+}
+/* 2026-11-19 v17.77 회사 사진: 확대하면 배경(모눈 · 어두운 종이)이 일부만 덮임 → 확대 · 축소해도 종이가 늘 메모 칸 전체를 덮게.
+   브라우저(판)마다 zoom 안에서 % 너비를 다르게 계산해서, px 로 넣고 실제 그려진 크기를 재서 맞춤. 칸 크기가 바뀔 때도 다시 맞춤 */
+function mmZoomFit() {
+  const zw = $('#mmZw'), ew = $('#mmEdw'); if (!zw || !ew) return; const z = mmZoom(), cw = ew.clientWidth, ch = ew.clientHeight; if (!cw) return;
+  zw.style.width = (cw / z) + 'px'; zw.style.minHeight = (ch / z) + 'px';
+  const r = zw.getBoundingClientRect(); if (r.width > 0 && Math.abs(r.width - cw) > 1.5) zw.style.width = (cw / z * cw / r.width) + 'px';
+  const zh = parseFloat(zw.style.minHeight), r2 = zw.getBoundingClientRect(); if (r2.height > 0 && r2.height < ch - 1.5) zw.style.minHeight = (zh * ch / r2.height) + 'px';
+  if (!ew._ro && window.ResizeObserver) { ew._ro = new ResizeObserver(() => { clearTimeout(ew._rt); ew._rt = setTimeout(mmZoomFit, 60); }); ew._ro.observe(ew); }
 }
 /* ----- PDF 를 메모장 안에서 보기 (pdf.js) + 그 위에 펜 ----- */
 let MM_PDFLIB = null;

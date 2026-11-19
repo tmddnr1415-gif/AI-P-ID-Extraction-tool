@@ -2192,3 +2192,11 @@ C:\Users\SAMSUNG\Desktop\Claude\                         ← 개발 폴더 (여�
 - 바뀐 곳: dashboard.html `PEN` · `inkPath` · `inkDraw` · `inkBind` · `inkBarHtml` · `inkBarClick` · `mmInkSync` · `mmZoom` · `mmZoomSet` · `mmPdfLib` · `mmPdfView` · `mmFileOpen` · `mmDrawMain` · `mmCmd`('ink') · wheel 이벤트 · CSS(`.mm-edw` `.mm-zw` `.mm-ink` `.mm-inkbar` `.mm-zc` `.mm-pv`) / apps/pdfjs/(새 폴더) / dashboard_tools/make_patch.py `KEEP_PREFIX` / CLAUDE.md
 - 확인한 것: Ctrl+휠 → 157% · 그냥 휠 = 스크롤, 펜 · 만년필 · 형광펜 2색 · 네모 · 가는 펜 6획 + 레이저(사라짐) → 지우개 5 → 되돌리기 4 → 다시 열어도 4획, PDF 2쪽이 메모장 안에 그려짐(캔버스 1170×1655) · 쪽 메모 유지 · PDF 위 형광펜 · 펜 · 만년필 3획 → 확대 135% 에도 유지 → 이 쪽을 메모에 넣기(그림 +1) → 다시 열어도 PDF 획 유지, 수행 2행 · 입찰 2행을 표로 불러오기(24칸) · 제목 클릭 → #perform, 콘솔 오류 없음.
   회사에서 확인할 것: 실제 도면 PDF(큰 쪽 · 한글 글꼴)가 잘 보이는지 · 태블릿 펜 입력.
+
+### 2026-11-19 (APP_VERSION 2026-11-19.12 / SERVER_VERSION 그대로) — v17.77 내 메모장: 확대해도 배경이 메모 칸 전체를 덮게
+- 무엇을: 회사 사진(206% 로 확대하니 청사진 배경이 왼쪽 일부만 덮고 오른쪽이 흰 바탕). 사용자 지시 "화면을 줌인해도 전체 배경은 전체 유지 · MAX 300% 까지".
+  - 원인: 확대 층(`.mm-zw`)의 너비를 `100/배율 %` 로 줬는데 브라우저(판)에 따라 zoom 안의 % 너비 계산이 달라 회사 Edge 에서는 종이가 좁아짐.
+  - 고침(`mmZoomFit`): 너비 · 최소 높이를 px 로 넣고, 실제 그려진 크기를 재서 메모 칸과 다르면 그만큼 보정. 메모 칸 크기가 바뀔 때(창 크기 · 왼쪽 칸 간략/숨기기 · 크게)도 ResizeObserver 로 다시 맞춤. 넓은 표 등으로 내용이 칸보다 넓어지면 종이도 그만큼 넓어짐(`min-width:min-content`) — 가로로 밀어도 배경이 이어짐. 긴 글자는 줄바꿈(`overflow-wrap:anywhere`).
+  - 배율 범위 40% ~ **300%**(예전과 같음).
+- 바뀐 곳: dashboard.html `mmZoomSet` · `mmZoomFit`(새) · CSS `.mm-zw` `.mm-ed`
+- 확인한 것: 100 · 212 · 300(더 올려도 300) · 40% 에서 종이 크기 ≥ 메모 칸 · 가로 스크롤 영역까지 덮음, 칸 크기를 바꾼 뒤에도 덮음, 콘솔 오류 없음. 회사에서 확인할 것: 같은 Edge 에서 확대했을 때 오른쪽 흰 바탕이 없어졌는지.
