@@ -2118,3 +2118,14 @@ C:\Users\SAMSUNG\Desktop\Claude\                         ← 개발 폴더 (여�
   - 고친 것: 서버 목록이 띄운 스티커 위치(`fx`,`fy`)를 돌려주지 않아 새로 열면 기본 자리로 가던 것 → 목록에 포함.
 - 바뀐 곳: dashboard.html `mmDay` · `mmDayLabel` · `mmCalHtml` · `mmShown` · `mmDrawList` · `mmDrawSide` · `mmDrawMain`(날짜 · 간격 칸, 단추) · `mmCmd`(full · indent · outdent · col2 · col3 · colx · teq · tsort) · `mmArrange` · 이벤트(data-mday · data-mmon · #mmArr · #mmDate · #mmLh) · CSS `.mm-cal` `.mm-gh` `.mm-cols` `.lh-*` / server.py `MEMO_META`(+fx · fy · date · lh)
 - 확인한 것: 날짜가 다른 메모 5개 → 달력 숫자 · 날짜 묶음 4개 · 11/17 누르면 2개, 2단 나누기, 표 날짜 열 정렬(26 → 28 → 30), 스티커 날짜순 줄 맞춤 · 가로 간격 같게(간격 8 → 고르게), 새로 열어도 띄운 스티커 자리 유지, 콘솔 오류 없음.
+
+### 2026-11-19 (APP_VERSION 2026-11-19.4 / SERVER_VERSION 그대로) — v17.68 내 메모장: 메모창 크게 · 표 편집(Word 방식) · 그림 복사/붙여넣기 · 달력 연동
+- 무엇을: 사용자 지시 "메모창만 크게 하는 기능 · 테이블 편집을 Word 수준으로 · 이미지 Ctrl C + V · 달력은 메인 대시보드 달력값도 연동".
+  - **메모창 크게**: 제목 줄 [◧ 넓게] = 왼쪽 목록을 숨기고 메모만(`body.mm-wide`) · [⤢ 크게] = 메모창만 화면 가득(`body.mm-zen`, Esc 로 되돌림). 다른 메뉴로 가면 자동 해제.
+  - **표 편집**: ▦ = 칸 수를 골라 넣기(최대 8×10). 칸을 **마우스로 끌어 여러 칸 고르기**(Shift+클릭도) → 합치기 · 배경색 · 맞춤 · 지우기(Delete). 표 줄 단추 +행 · +열 · −행 · −열 · ⊞합치기 · ⊟나누기 · 🎨 · [표 ▾], **표 안에서 마우스 오른쪽 단추 = 표 메뉴**:
+    위/아래에 행 · 왼쪽/오른쪽에 열 넣기 · 행/열 지우기 · 행 위로/아래로 · 칸 합치기/나누기 · 칸 배경색 · 가로 맞춤(왼 · 가운데 · 오른) · 세로 맞춤(위 · 가운데 · 아래) · 머리 행 켜기/끄기 · 테두리(보통 · 굵게 · 없음) · 줄무늬 · 열 너비 같게 · 너비 원래대로 · 열 기준 정렬 · 칸 내용 지우기 · 표 지우기.
+    **열 경계를 끌어 너비 조절** · 마지막 칸에서 Tab = 새 행. 합쳐진 칸(rowspan · colspan)이 있어도 행 · 열 넣기/지우기가 맞게 되도록 격자(`mmGrid`)로 계산. 표 단추는 표 밖에서 흐리게만(숨기면 본문이 위아래로 튀어서).
+  - **그림 Ctrl+C / Ctrl+V**: 화면 캡처 · 복사한 그림을 Ctrl+V 로 넣기(예전부터) + 메모 안 그림을 눌러 고른 뒤 **Ctrl+C = 그림 복사**(클립보드에 PNG) · Delete = 지우기 · 그림 메뉴에 [그림 복사]. 엑셀 칸을 복사해 붙이면 그림이 아니라 **표로** 들어감(엑셀이 그림도 같이 주는 것을 구분).
+  - **달력 연동**: ① 메모장 📅 날짜별 달력에 첫 화면 달력의 값(생일 · 주간 마감 · 전달사항 · 업무 기한 · 공휴일)을 점 · 빨간 날로 표시, 날짜를 누르면 그날 대시보드 일정 목록 + [📅 대시보드 달력에서 이 날 보기]. ② 첫 화면 달력에 **내 메모**(메모 날짜 기준, 주황 점 · '📝 메모 제목' — 로그인한 본인에게만)를 표시, 누르면 메모장에서 그 메모가 열림.
+- 바뀐 곳: dashboard.html `mmGrid` · `mmRect` · `mmRowIns` · `mmColIns` · `mmRowDel` · `mmColDel` · `mmMerge` · `mmSplit` · `mmTableCmd` · `MM_TMENU` · `mmTableMenu` · `mmTablePick` · 칸 고르기/열 너비 IIFE · `mmImgCopy` · `mmCmd` · `mmClean`(height · verticalAlign) · `mmCalHtml` · `calEvents`(k:'memo') · `CAL_K.memo` · `renderCal`(data-calmemo) · `memoTick` · CSS(`.mm-sel` `.mm-tb*` `.mm-zb` `body.mm-zen` `body.mm-wide` `.tpick` `.tmenu` `.ev-memo`)
+- 확인한 것: 4×5 표 넣기 → 2×2 끌어 고르기 → 합치기 → 칸 색 → 행 · 열 넣기(합친 칸 유지) → 나누기 → 오른쪽 단추 메뉴(줄무늬 · 굵은 테두리) → Tab 새 행 → 열 너비 끌기(60 → 142px) → 저장 후 다시 열어도 그대로, 클립보드 PNG Ctrl+V → 그림 1, 그 그림 Ctrl+C → Ctrl+V → 그림 2, 크게(1572×930) · Esc, 홈 달력 11/17 에 내 메모 2건 → 누르면 그 메모, 메모 달력 11/25 에 '주간업무 마감', 콘솔 오류 없음.
