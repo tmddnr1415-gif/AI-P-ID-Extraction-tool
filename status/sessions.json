@@ -6,8 +6,8 @@
    "id": "session_016Ntz71xxniTkCj7pC8ZpXL",
    "title": "1. DASHBOARD 코드 (NEW)",
    "bucket": "COMPLETED",
-   "updated": "2026-11-18T00:34:40Z",
-   "recent": "v17.64 bf9d3173 — 서버 버전 읽기 고침(부서원 새 버전 안내) · 옛 사본 자동 교체 · 자동 저장 · 작업 열 숨김 · 배율 %. 11-18 ① 로 회사 업데이트에 실림",
+   "updated": "2026-11-19T01:00:00Z",
+   "recent": "v17.71 6d673505 — 내 메모장 (v17.65~71). 11-19 ① 로 회사 업데이트에 실림",
    "needs": ""
   },
   "S2": {
@@ -15,8 +15,8 @@
    "title": "2. PID 검토 4 (NEW)",
    "bucket": "COMPLETED",
    "updated": "2026-11-18T07:19:54Z",
-   "recent": "18e37e78 (+470aabf3) — 회사 증상 \"List 는 나오는데 도면이 안 나옴\" 대응: 도면 그림 줄서기 분리 · 늦으면 안내/[다시 받기] · 확대한 채 Rev 전환 시 보던 자리 복원 · 전체화면 경고 제거. 회사 미전달 — 사용자 요청 시 hotfix145",
-   "needs": "사용자: hotfix145 만들지 결정"
+   "recent": "18e37e78 — 도면 그림 줄서기 분리 · Rev 전환 시 보던 자리. hotfix145 로 회사 업데이트에 실림",
+   "needs": "회사: EPIC 60장 Rev.B vs Rev.A 도면 표시 확인"
   },
   "S3": {
    "id": "session_01Muj82Ewiqsoeo54Ei1FzrE",

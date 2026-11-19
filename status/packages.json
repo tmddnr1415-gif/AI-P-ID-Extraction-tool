@@ -509,6 +509,38 @@
    },
    "replaces": "7_PID_dev+ops_hotfix143_2026-11-13.zip",
    "note": "143 + valve41: South ISA 양식 읽기 · 읽지 못한 쪽 · INDEX 대조 · DB 잠금 고침"
+  },
+  {
+   "file": "①",
+   "name": "1_DASHBOARD_update_v17.71_from_v17.47_2026-11-19.zip",
+   "made": "2026-11-19 10:40",
+   "path": "company-pc-update/2026-11-19/ (1.5MB · 저장소에 있음)",
+   "sha256": "a83b4175135b0edc8e5fefd683b9eae7b8e0282075fd4b3d01932ef19705c9a9",
+   "applied": "",
+   "tips": {
+    "S1": "6d673505"
+   },
+   "replaces": "1_DASHBOARD_update_v17.64_from_v17.47_2026-11-18.zip",
+   "note": "v17.71 — 내 메모장 (server.py 바뀜 → 서버 재시작)"
+  },
+  {
+   "file": "②",
+   "name": "2_PID_dev+ops_hotfix145_2026-11-19.zip",
+   "made": "2026-11-19 10:40",
+   "path": "company-pc-update/2026-11-19/ (8.9MB · 저장소에 있음)",
+   "sha256": "14a5e28bd0019ae22fb167bb93f4de20e94ed52c8bce85072e7a9d07db28a69e",
+   "applied": "",
+   "integration_head": "245b40e6",
+   "tips": {
+    "S2": "18e37e78",
+    "S3": "4e9cfd24",
+    "S4": "7b10d7cb",
+    "S5": "3d46af2c",
+    "S6": "ffe3c721",
+    "S7": "865f9297"
+   },
+   "replaces": "2_PID_dev+ops_hotfix144_2026-11-18.zip",
+   "note": "144 + S2: 도면 그림 줄서기 분리 · Rev 전환 시 보던 자리"
   }
  ]
 }
