@@ -36,7 +36,7 @@ ID_RE = re.compile(r'^[A-Za-z0-9_\-]{1,80}$')
 WEEK_RE = re.compile(r'^\d{4}-W\d{2}$')
 MAX_BODY = 30 * 1024 * 1024
 
-SERVER_VERSION = '2026-11-19.2'
+SERVER_VERSION = '2026-11-19.3'
 ROOT = os.path.dirname(os.path.abspath(__file__))
 PORT = 8080
 ALLOW_NETS = []          # 사내망: 루프백·사설망 + 서버 IP 대역(/16, 유선·Wi-Fi 등 지금까지 쓴 대역 모두 기억) + --allow 로 추가한 대역
@@ -2187,7 +2187,7 @@ MEMO_FILE_TYPES = {'.pdf': 'application/pdf', '.png': 'image/png', '.jpg': 'imag
 
 
 def memo_dir(acc, *a):
-    if not ID_RE.match(acc['id']):
+    if not UID_RE.match(acc['id']):                         # 2026-11-19: 계정 ID 규칙(UID_RE — 점 허용)으로 검사. 예전 ID_RE 는 점이 든 계정(예: hong.gd)을 '잘못된 계정' 으로 막았음
         raise ApiError(400, '잘못된 계정')
     return P('notes', acc['id'], *a)
 
