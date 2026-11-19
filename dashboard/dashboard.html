@@ -81,6 +81,7 @@ body.nav-closed #burger{width:auto;padding:0 12px;font-size:14px;background:var(
   body.rail #side:not(:hover):not(.peek) .logo b,body.rail #side:not(:hover):not(.peek) .logo span,body.rail #side:not(:hover):not(.peek) #sideHide,body.rail #side:not(:hover):not(.peek) #sideRail,
   body.rail #side:not(:hover):not(.peek) .acct,body.rail #side:not(:hover):not(.peek) #whoLine,body.rail #side:not(:hover):not(.peek) .menu-title,
   body.rail #side:not(:hover):not(.peek) .msub,body.rail #side:not(:hover):not(.peek) .mtog,body.rail #side:not(:hover):not(.peek) .side-foot>*{display:none!important}
+  body.rail #side:not(:hover):not(.peek) .logo::after{display:none}
   body.rail #side:not(:hover):not(.peek) .logo::before{content:'계';display:inline-grid;place-items:center;width:38px;height:38px;border-radius:12px;background:#fff;color:var(--navy);font-weight:900;font-size:17px}
   body.rail #side:not(:hover):not(.peek) #menu{padding:4px 8px;overflow:hidden}
   body.rail #side:not(:hover):not(.peek) .mi.top{position:relative;justify-content:center;height:50px;padding:0;margin:4px 0;border-radius:14px}
@@ -2142,6 +2143,53 @@ html.dark .mm-ed.dk{filter:invert(1) hue-rotate(180deg)}html.dark .mm-ed.dk img{
 @media print{body.mm-print #side,body.mm-print header.top,body.mm-print .banner,body.mm-print .mm-side,body.mm-print .mm-list,body.mm-print .mm-tb,body.mm-print .mm-meta,body.mm-print .mm-st,body.mm-print #mmFloat{display:none!important}
   body.mm-print #memoWrap{display:block;height:auto}body.mm-print #memoWrap>*{border:0;overflow:visible}body.mm-print .mm-ed{overflow:visible;padding:0}body.mm-print #main{margin:0;padding:0}}
 </style>
+<style id="macTone">/* ===== 2026-11-19 v17.90 사용자 지시 "메뉴들도 조금 더 입체감 있고 인터렉티브하게 — Notion 과 맥북 macOS 느낌": 유리 사이드바 · 빛 따라가는 하이라이트 · 눌림 · 펼침 애니메이션 · macOS 단추와 메뉴 ===== */
+:root{--mac-ease:cubic-bezier(.2,.8,.2,1)}
+/* 사이드바 = 반투명 유리판 (macOS 사이드바 재질 흉내 — backdrop-filter) + 위쪽 빛 테두리 */
+#side{background:linear-gradient(185deg,rgba(46,43,156,.93) 0%,rgba(30,28,98,.95) 55%,rgba(20,18,71,.97) 100%);-webkit-backdrop-filter:blur(26px) saturate(180%);backdrop-filter:blur(26px) saturate(180%);
+  border:1px solid rgba(255,255,255,.10);box-shadow:inset 0 1px 0 rgba(255,255,255,.22),inset 0 0 0 1px rgba(255,255,255,.03),0 2px 6px rgba(20,18,80,.18),0 22px 50px rgba(20,18,80,.34)}
+#side .logo{padding-top:34px}
+#side .logo::after{content:'';position:absolute;left:18px;top:14px;width:12px;height:12px;border-radius:50%;background:#ff5f57;box-shadow:19px 0 0 #febc2e,38px 0 0 #28c840,inset 0 0 0 .5px rgba(0,0,0,.25);opacity:.95}   /* 신호등 단추 (장식) */
+#side .menu-title{font-size:10.5px;letter-spacing:.14em;font-weight:700;color:rgba(200,210,255,.55)}
+/* 메뉴 한 줄 = Notion 처럼 둥근 줄 · 마우스를 따라 움직이는 빛 · 누르면 살짝 들어감 */
+#menu .mi{position:relative;isolation:isolate;transition:background .18s var(--mac-ease),color .18s,box-shadow .2s var(--mac-ease),transform .12s var(--mac-ease)}
+#menu .mi::before{content:'';position:absolute;inset:0;border-radius:inherit;pointer-events:none;z-index:-1;opacity:0;transition:opacity .2s;background:radial-gradient(140px circle at var(--mx,50%) var(--my,50%),rgba(255,255,255,.16),transparent 65%)}
+#menu .mi:hover{background:rgba(255,255,255,.075);box-shadow:inset 0 0 0 1px rgba(255,255,255,.07),inset 0 1px 0 rgba(255,255,255,.06)}
+#menu .mi:hover::before{opacity:1}
+#menu .mi:active{transform:scale(.975);transition-duration:.06s}
+#menu .mi.on{background:linear-gradient(180deg,#6670ff 0%,#4b4ce6 55%,#4240d6 100%);color:#fff;box-shadow:inset 0 1px 0 rgba(255,255,255,.38),inset 0 -1px 0 rgba(0,0,0,.18),0 1px 2px rgba(10,10,60,.35),0 6px 16px rgba(75,76,230,.45)}
+#menu .mi.on::before{background:radial-gradient(160px circle at var(--mx,50%) var(--my,0%),rgba(255,255,255,.22),transparent 60%)}
+#menu .mi .mno{background:linear-gradient(180deg,rgba(255,255,255,.20),rgba(255,255,255,.07));box-shadow:inset 0 1px 0 rgba(255,255,255,.28),0 1px 2px rgba(0,0,0,.28);transition:transform .2s var(--mac-ease),background .2s}
+#menu .mi.top:hover .mno{transform:translateY(-1px) scale(1.06)}
+#menu .mi.top.on .mno{background:linear-gradient(180deg,#fff,#e6e8ff);color:#3d3bc9!important;box-shadow:0 1px 3px rgba(0,0,0,.3)}
+#menu .mi .n{box-shadow:inset 0 1px 0 rgba(255,255,255,.18),0 1px 1px rgba(0,0,0,.2);font-variant-numeric:tabular-nums}
+#menu .mtog{transition:background .15s,color .15s,transform .2s var(--mac-ease)}#menu .mtog:hover{background:rgba(255,255,255,.1)}#menu .mtog:active{transform:scale(.9)}
+#menu .msub{border-left:0;position:relative}#menu .msub::before{content:'';position:absolute;left:0;top:4px;bottom:4px;width:1.5px;border-radius:2px;background:linear-gradient(180deg,rgba(255,255,255,.28),rgba(255,255,255,.05))}
+#menu .msub:not([hidden]){animation:macDrop .26s var(--mac-ease)}
+@keyframes macDrop{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:none}}
+#menu{scrollbar-width:thin;scrollbar-color:rgba(255,255,255,.22) transparent}#menu::-webkit-scrollbar{width:7px}#menu::-webkit-scrollbar-thumb{background:rgba(255,255,255,.2);border-radius:8px}#menu::-webkit-scrollbar-track{background:transparent}
+#side .acct .abtn{border-radius:14px;transition:background .2s,box-shadow .2s}#side .acct .abtn:hover{background:rgba(255,255,255,.08);box-shadow:inset 0 0 0 1px rgba(255,255,255,.08)}
+#side :is(#sideHide,#sideRail){border-radius:8px;border-color:rgba(255,255,255,.18);background:rgba(255,255,255,.05);box-shadow:inset 0 1px 0 rgba(255,255,255,.12);transition:background .15s,transform .1s}#side :is(#sideHide,#sideRail):active{transform:scale(.95)}
+/* macOS 누름 단추: 위는 밝고 아래는 살짝 어두운 면 · 0.5px 테두리 · 누르면 쑥 */
+.btn{transition:transform .12s var(--mac-ease),box-shadow .18s var(--mac-ease),background .15s,border-color .15s}
+.btn:not(.pri):not(.ok):not(:disabled){background-image:linear-gradient(180deg,#ffffff 0%,#f6f7fb 100%);border-color:rgba(20,30,70,.14);box-shadow:inset 0 1px 0 #fff,0 .5px 1px rgba(20,30,70,.18),0 1px 3px rgba(20,30,70,.06)}
+.btn:active:not(:disabled){transform:translateY(1px) scale(.985)!important;box-shadow:inset 0 1px 3px rgba(20,30,70,.18)!important;transition-duration:.05s}
+/* 펼침 메뉴 · 메모장 작은 메뉴 = macOS 메뉴 (유리 · 둥근 모서리 · 고른 줄은 파란 강조) */
+.acct .amenu,.mm-pop{background:rgba(255,255,255,.86);-webkit-backdrop-filter:blur(22px) saturate(180%);backdrop-filter:blur(22px) saturate(180%);border-radius:11px;border:.5px solid rgba(0,0,0,.14);box-shadow:0 12px 34px rgba(20,30,70,.22),0 2px 6px rgba(20,30,70,.10);animation:macPop .16s var(--mac-ease);transform-origin:top left}
+@keyframes macPop{from{opacity:0;transform:scale(.96) translateY(-3px)}to{opacity:1;transform:none}}
+.acct .amenu button,.mm-pop:not(.grid):not(.cols):not(.tpick) button{border-radius:6px;transition:background .08s}
+.acct .amenu button:hover,.mm-pop:not(.grid):not(.cols):not(.tpick) button:hover,.mm-pop:not(.grid):not(.cols) button.on{background:linear-gradient(180deg,#5b78ff,#3b5bfd)!important;color:#fff!important}
+.mm-pop:not(.grid):not(.cols) button:hover small{color:rgba(255,255,255,.8)}
+/* 메모장 왼쪽 칸 · 목록 = Notion 처럼 부드러운 줄 */
+.mm-nav,.mm-card{transition:background .15s var(--mac-ease),box-shadow .2s var(--mac-ease),transform .12s var(--mac-ease)}
+.mm-nav:hover{background:rgba(55,53,47,.06)}.mm-nav:active,.mm-card:active{transform:scale(.985)}
+.mm-nav.on{background:linear-gradient(180deg,#eef0ff,#e3e6ff);box-shadow:inset 0 0 0 1px rgba(79,76,224,.18),0 1px 2px rgba(79,76,224,.12)}
+.mm-card:hover{background:var(--card);box-shadow:0 1px 2px rgba(20,30,70,.06),0 6px 16px rgba(20,30,70,.08)}.mm-card.on{box-shadow:inset 0 0 0 1px rgba(79,76,224,.25),0 4px 14px rgba(79,76,224,.12)}
+#memoWrap>*{box-shadow:0 1px 2px rgba(20,30,70,.04),0 8px 24px rgba(20,30,70,.06)}
+.mm-tb button{transition:background .12s,transform .1s}.mm-tb button:active{transform:scale(.92)}
+html.dark .acct .amenu,html.dark .mm-pop{background:rgba(255,255,255,.94)}
+@media (prefers-reduced-motion:reduce){#menu .msub:not([hidden]),.acct .amenu,.mm-pop{animation:none}#menu .mi,.btn,.mm-nav,.mm-card{transition:none}}
+</style>
 </head>
 <body>
 
@@ -2317,7 +2365,7 @@ function recLabel(key, f) {
  * ===================================================================== */
 let root = null;
 /* 서버 모드: http(s):// 로 접속하면 server.py 의 REST API 사용 (폴더 선택 불필요). file:// 로 열면 폴더 모드 */
-const APP_VERSION = '2026-11-19.24';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
+const APP_VERSION = '2026-11-19.25';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
 const SERVER_URL = 'http://localhost:8080';
 // 부서원 PC 사본(file://)이 접속을 시도할 서버 — 서버가 배포 파일을 만들 때 'PC 이름 주소, IP 주소' 순으로 자동 기록함
 const DEFAULT_SERVERS = ['http://ASEUNGWOOK-B01:8080', 'http://65.3.30.234:8080'];
@@ -5771,6 +5819,9 @@ const MLK = () => 'dept-menu-layout:' + (AUTH?.id || user || '');
 const mlLoad = () => { try { return JSON.parse(localStorage.getItem(MLK()) || 'null'); } catch (_) { return null; } };
 const mlNode = (m, id) => m.querySelector(`[data-node="${CSS.escape(id)}"]`);
 const mlHold = (m, id) => id === 'root' ? m : mlNode(m, id)?.querySelector(':scope > .msub');
+(() => {   // 2026-11-19 v17.90 메뉴 빛이 마우스를 따라감 (macOS · Notion 느낌)
+  document.addEventListener('pointermove', e => { const b = e.target.closest?.('#menu .mi'); if (!b) return; const r = b.getBoundingClientRect(); b.style.setProperty('--mx', (e.clientX - r.left) + 'px'); b.style.setProperty('--my', (e.clientY - r.top) + 'px'); }, { passive:true });
+})();
 function menuLayoutApply() {
   const m = $('#menu'); if (!m) return;
   m.querySelectorAll('.mi[data-k]').forEach(b => { if (!b.closest('.mhead')?.parentElement?.matches('.mgrp')) b.dataset.node = 'k:' + b.dataset.k; b.draggable = true; });
