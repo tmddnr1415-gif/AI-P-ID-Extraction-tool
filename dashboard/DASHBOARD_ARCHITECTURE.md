@@ -2144,3 +2144,8 @@ C:\Users\SAMSUNG\Desktop\Claude\                         ← 개발 폴더 (여�
   - 줄 노트류는 줄 간격이 글 줄 높이(`--lh`)와 맞고 글과 함께 스크롤(`background-attachment:local`). 간격(좁게 · 넓게)을 바꾸면 줄도 같이 바뀜.
 - 바뀐 곳: dashboard.html `MM_BG` · `mmBgDef` · `mmEdCls` · `mmDrawMain`(#mmBg) · change 이벤트 · `mmNew` · CSS `.mm-ed.bg-*` `--lh`
 - 확인한 것: 8가지 배경 화면 그림, 기본으로 지정 → 새 메모가 모눈종이, 다시 열어도 유지, 콘솔 오류 없음.
+
+### 2026-11-19 (APP_VERSION 2026-11-19.7 / SERVER_VERSION 그대로) — v17.71 내 메모장: 어두운 종이
+- 무엇을: 사용자 지시 "어둡게도 할 수 있게". 메모 위쪽 [☀ 밝게 / 🌙 어둡게] 단추(`pg.dk`) — 메모마다, 배경 무늬(줄 · 모눈 · 점 등)와 함께 씀. [★ 지금 배경을 새 메모 기본으로] 가 어둡게 여부도 같이 기억(`dept-memo-dk`). 표 · 링크 · 체크 상자 · 인용 · 강조 상자 · 첨부 칩 색을 어두운 바탕에 맞춤, 형광펜 · 칸 색이 있는 곳은 글자를 어둡게. 대시보드 전체 다크 모드(🌙, 화면 반전)에서도 어두운 메모는 어둡게 유지. 인쇄는 흰 바탕.
+- 바뀐 곳: dashboard.html `mmEdCls` · `mmDkDef` · `mmDrawMain`(data-mx="dk") · 클릭 처리 · `mmNew` · CSS `.mm-ed.dk`
+- 확인한 것: 흰 종이 · 줄 노트 · 모눈 · 점 격자를 어둡게 한 화면, 다시 열어도 유지, 콘솔 오류 없음.

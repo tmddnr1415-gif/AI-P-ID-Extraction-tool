@@ -2040,6 +2040,20 @@ html.dark #mmAlarm{filter:invert(1) hue-rotate(180deg)}
 .mm-ed.bg-blue{--ln:rgba(255,255,255,.22);background-color:#1f4e8c;color:#f1f6ff}.mm-ed.bg-blue td,.mm-ed.bg-blue th{border-color:rgba(255,255,255,.6)}.mm-ed.bg-blue th{background:rgba(255,255,255,.14)}.mm-ed.bg-blue a{color:#aee0ff}.mm-ed.bg-blue blockquote{color:#d6e6ff}.mm-ed.bg-blue .mm-chk::before{background:transparent;border-color:#cfe2ff}
 .mm-ed.bg-dot{background-image:radial-gradient(circle,#b9c3df 1.2px,transparent 1.4px);background-size:20px 20px;background-attachment:local}
 .mm-ed.bg-cream{background-color:#fbf6e9}
+/* 어두운 종이: 무늬는 그대로, 바탕 · 글자 · 선 색만 바꿈 */
+.mm-ed.dk{background-color:#161b2b;color:#e4e9f7;--ln:rgba(160,180,230,.2)}
+.mm-ed.dk.bg-grid,.mm-ed.dk.bg-bgrid{--ln:rgba(160,180,230,.13)}.mm-ed.dk.bg-dot{background-image:radial-gradient(circle,rgba(170,190,240,.38) 1.2px,transparent 1.4px)}
+.mm-ed.dk.bg-legal{background-color:#2a2712;color:#f3eccb;--ln:rgba(240,220,120,.2)}.mm-ed.dk.bg-cream{background-color:#27231b;color:#efe6d3}
+.mm-ed.dk.bg-green{background-color:#0f2318;color:#dff5e5;--ln:rgba(120,220,150,.16);background-image:linear-gradient(rgba(120,220,150,.32) 1px,transparent 1px),linear-gradient(90deg,rgba(120,220,150,.32) 1px,transparent 1px),linear-gradient(var(--ln) 1px,transparent 1px),linear-gradient(90deg,var(--ln) 1px,transparent 1px)}
+.mm-ed.dk.bg-blue{background-color:#0b2447}
+.mm-ed.dk:empty::before{color:#6f7a99}.mm-ed.dk a{color:#8fc2ff}.mm-ed.dk td,.mm-ed.dk th{border-color:#55607f}.mm-ed.dk th{background:rgba(255,255,255,.08)}.mm-ed.dk table.mm-tbz tr:nth-child(even) td{background-color:rgba(255,255,255,.05)}
+.mm-ed.dk blockquote{color:#b9c4e4;border-left-color:#4d5fa8}.mm-ed.dk hr{border-top-color:#3a4566}.mm-ed.dk pre{background:#0b0f1c}.mm-ed.dk .mm-call{background:#3a3413;border-color:#6b5f1e;color:#f6edc4}
+.mm-ed.dk .mm-chk::before{background:transparent;border-color:#93a0c8}.mm-ed.dk .mm-chk[data-done="1"]{color:#7783a6}.mm-ed.dk .mm-chk[data-done="1"]::before{background:var(--ok);border-color:var(--ok)}
+.mm-ed.dk .mm-file{background:#232a40;border-color:#3a4566;color:#e4e9f7!important}.mm-ed.dk details{border-color:#3a4566}.mm-ed.dk .mm-col{border-color:#44507a}.mm-ed.dk .mm-from{color:#8b97bd}
+.mm-ed.dk [style*="background-color"]{color:#1b2238}.mm-ed.dk td[style*="background-color"]{color:#1b2238}
+.mm-ed.dk [style*="color: rgb(15, 23, 42)"]{color:#e4e9f7!important}
+html.dark .mm-ed.dk{filter:invert(1) hue-rotate(180deg)}html.dark .mm-ed.dk img{filter:none}
+@media print{.mm-ed.dk{background:#fff!important;color:#000!important}}
 .mm-ed.bg-cornell{padding-left:170px}.mm-ed.bg-blue [style*="background-color"]{color:#1b2238}
 .mm-ed:is(.bg-lined,.bg-wide,.bg-legal,.bg-cornell)>:is(div,p){margin-top:0!important;margin-bottom:0!important}.mm-ed:is(.bg-lined,.bg-wide,.bg-legal,.bg-cornell) :is(h1,h2,h3){line-height:calc(var(--lh)*14.5px*2);margin:0;font-size:20px}.mm-ed:is(.bg-lined,.bg-wide,.bg-legal,.bg-cornell) h3{line-height:calc(var(--lh)*14.5px);font-size:15.5px}
 .mm-ed.lh-l>div,.mm-ed.lh-l>p{margin-bottom:.35em}.mm-ed.lh-x>div,.mm-ed.lh-x>p{margin-bottom:.8em}
@@ -2225,7 +2239,7 @@ function recLabel(key, f) {
  * ===================================================================== */
 let root = null;
 /* 서버 모드: http(s):// 로 접속하면 server.py 의 REST API 사용 (폴더 선택 불필요). file:// 로 열면 폴더 모드 */
-const APP_VERSION = '2026-11-19.6';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
+const APP_VERSION = '2026-11-19.7';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
 const SERVER_URL = 'http://localhost:8080';
 // 부서원 PC 사본(file://)이 접속을 시도할 서버 — 서버가 배포 파일을 만들 때 'PC 이름 주소, IP 주소' 순으로 자동 기록함
 const DEFAULT_SERVERS = ['http://ASEUNGWOOK-B01:8080', 'http://65.3.30.234:8080'];
@@ -5789,7 +5803,8 @@ const MM_TPL = [
 /* 2026-11-19 v17.70 메모 배경(종이 무늬): 메모마다 고름 · [기본으로] 하면 새 메모에 적용 */
 const MM_BG = [['', '흰 종이'], ['lined', '줄 노트'], ['wide', '넓은 줄 노트'], ['grid', '모눈종이'], ['bgrid', '큰 모눈종이'], ['dot', '점 격자'], ['legal', '노란 리갈 패드'], ['cream', '크림색 종이'], ['green', '초록 모눈 (방안지)'], ['blue', '청사진 (도면)'], ['cornell', '코넬 노트 (왼쪽 여백 줄)']];
 const mmBgDef = () => { try { return localStorage.getItem('dept-memo-bg') || ''; } catch (_) { return ''; } };
-const mmEdCls = pg => 'mm-ed' + (pg.lh ? ' lh-' + pg.lh : '') + (pg.bg ? ' bg-' + pg.bg : '');
+const mmEdCls = pg => 'mm-ed' + (pg.lh ? ' lh-' + pg.lh : '') + (pg.bg ? ' bg-' + pg.bg : '') + (pg.dk ? ' dk' : '');   // dk = 어두운 종이 (2026-11-19 v17.71)
+const mmDkDef = () => { try { return localStorage.getItem('dept-memo-dk') === '1'; } catch (_) { return false; } };
 const mmId = () => Array.from(crypto.getRandomValues(new Uint8Array(12)), b => 'abcdefghijklmnopqrstuvwxyz0123456789'[b % 36]).join('');
 const mmOn = () => !!(SERVER && !OFFLINE && AUTH);
 const mmSecs = () => MM.book.secs || [];
@@ -5967,6 +5982,7 @@ function mmDrawMain() {
       <input type="date" id="mmDate" value="${esc(mmDay(pg))}" title="메모 날짜 — 날짜별 보기 · 날짜 정렬에 씀" ${pg.lock ? 'disabled' : ''}>
       <select id="mmLh" title="줄 · 문단 간격"><option value="s">간격 좁게</option><option value="">간격 보통</option><option value="l">간격 넓게</option><option value="x">간격 아주 넓게</option></select>
       <select id="mmBg" title="메모 배경 (종이 무늬)">${MM_BG.map(([v, l]) => `<option value="${v}">📄 ${l}</option>`).join('')}<option value="__def">★ 지금 배경을 새 메모 기본으로</option></select>
+      <button class="tg ${pg.dk ? 'on' : ''}" data-mx="dk" title="이 메모를 어두운 종이로 (줄 · 모눈 등 무늬는 그대로) — 다시 누르면 밝게">${pg.dk ? '🌙 어둡게' : '☀ 밝게'}</button>
       <input class="tags" id="mmTags" placeholder="태그 (쉼표로 구분)" value="${esc((pg.tags || []).join(', '))}">
       <button class="tg ${pg.pin ? 'on' : ''}" data-mx="pin" title="즐겨찾기 — 목록 맨 위">⭐ 즐겨찾기</button><button class="tg ${pg.lock ? 'on' : ''}" data-mx="lock" title="잠그면 실수로 고쳐지지 않음">${pg.lock ? '🔒 잠김' : '🔓 잠금'}</button>
       ${MM_COL.map(c => `<button class="cdot ${(pg.color || '') === c ? 'on' : ''}" data-mcol="${c}" style="background:${c || '#e5e9f5'}" title="색 표시"></button>`).join('')}
@@ -5996,7 +6012,7 @@ async function mmOpen(id) {
 }
 async function mmNew(kind, tpl) {
   await mmFlush(); const now = new Date(), d = `${todayISO()} ${pad(now.getHours())}:${pad(now.getMinutes())}`;
-  const pg = { id:mmId(), kind:'page', sec:MM.sec || '', title:tpl ? `${tpl[0]} ${todayISO()}` : '', icon:tpl ? tpl[1] : '📄', color:'', tags:MM.tag ? [MM.tag] : [], pin:false, lock:false, html:tpl ? tpl[2](d) : '', date:MM.view === 'date' && MM.day ? MM.day : todayISO(), bg:mmBgDef() };
+  const pg = { id:mmId(), kind:'page', sec:MM.sec || '', title:tpl ? `${tpl[0]} ${todayISO()}` : '', icon:tpl ? tpl[1] : '📄', color:'', tags:MM.tag ? [MM.tag] : [], pin:false, lock:false, html:tpl ? tpl[2](d) : '', date:MM.view === 'date' && MM.day ? MM.day : todayISO(), bg:mmBgDef(), dk:mmDkDef() };
   mmMetaOf(pg); MM.cur = pg; MM.dirty = false; mmMetaPut(pg); if (!['all', 'pin', 'date'].includes(MM.view)) MM.view = 'all'; MM.q = '';
   mmDraw(); await mmSave(pg); (tpl ? $('#mmEd') : $('#mmTitle'))?.focus();
 }
@@ -6498,6 +6514,7 @@ document.addEventListener('click', async e => {
     if (k === 'wide') { document.body.classList.remove('mm-zen'); return void document.body.classList.toggle('mm-wide'); }
     if (k === 'zen') { document.body.classList.remove('mm-wide'); const on = document.body.classList.toggle('mm-zen'); if (on) toast('메모창만 크게 — Esc 또는 [⤢ 크게] 를 다시 누르면 돌아갑니다'); return; }
     if (k === 'pin') { mmPull(); pg.pin = !pg.pin; MM.dirty = true; await mmSave(); mmDrawSide(); return mmDrawMain(); }
+    if (k === 'dk') { pg.dk = !pg.dk; $('#mmEd').className = mmEdCls(pg); b.classList.toggle('on', pg.dk); b.textContent = pg.dk ? '🌙 어둡게' : '☀ 밝게'; MM.dirty = true; return mmSave(); }
     if (k === 'lock') { mmPull(); pg.lock = !pg.lock; MM.dirty = true; await mmSave(); return mmDrawMain(); }
     if (k === 'ver') return mmVers();
     if (k === 'more') return mmPop(b, `<button data-v="refresh"><span>🔄</span>불러온 값 새로 고침</button><button data-v="dup"><span>⧉</span>복제</button><button data-v="html"><span>⬇</span>파일로 내보내기 (.html)</button><button data-v="txt"><span>⬇</span>글자만 내보내기 (.txt)</button><button data-v="print"><span>🖨</span>인쇄 · PDF 로 저장</button><button data-v="sticky"><span>🗒</span>스티커로 붙이기</button><button data-v="del"><span>🗑</span>지우기 (휴지통으로)</button>`, async v => {
@@ -6536,7 +6553,7 @@ document.addEventListener('change', async e => {
   if (t.id === 'mmSort') { MM.sort = t.value; return mmDrawList(); }
   if (t.id === 'mmDate' && MM.cur) { MM.cur.date = t.value || todayISO(); MM.dirty = true; await mmSave(); return mmDrawList(); }
   if (t.id === 'mmLh' && MM.cur) { MM.cur.lh = t.value; $('#mmEd').className = mmEdCls(MM.cur); MM.dirty = true; return mmSave(); }
-  if (t.id === 'mmBg' && MM.cur) { if (t.value === '__def') { try { localStorage.setItem('dept-memo-bg', MM.cur.bg || ''); } catch (_) {} t.value = MM.cur.bg || ''; return toast(`새 메모의 기본 배경을 '${MM_BG.find(x => x[0] === (MM.cur.bg || ''))?.[1]}' 로 했습니다 (이 PC)`); }
+  if (t.id === 'mmBg' && MM.cur) { if (t.value === '__def') { try { localStorage.setItem('dept-memo-bg', MM.cur.bg || ''); localStorage.setItem('dept-memo-dk', MM.cur.dk ? '1' : '0'); } catch (_) {} t.value = MM.cur.bg || ''; return toast(`새 메모의 기본 배경을 '${MM_BG.find(x => x[0] === (MM.cur.bg || ''))?.[1]}' ${MM.cur.dk ? ' · 어둡게' : ''} 로 했습니다 (이 PC)`); }
     MM.cur.bg = t.value; $('#mmEd').className = mmEdCls(MM.cur); MM.dirty = true; return mmSave(); }
   if (t.id === 'mmSecSel' && MM.cur) { MM.cur.sec = t.value; MM.dirty = true; await mmSave(); return mmDrawSide(); }
   if (t.id === 'mmTodoAll') { MM.todoAll = t.checked; return mmDrawTodo(); }
