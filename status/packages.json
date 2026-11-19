@@ -671,6 +671,19 @@
    },
    "replaces": "11_DASHBOARD_update_v17.84_from_v17.82_2026-11-19.zip",
    "note": "v17.85 (기준 v17.82 0156d213 — 회사 확인) — 모서리 끌어 크기 · 화면만"
+  },
+  {
+   "file": "①",
+   "name": "13_DASHBOARD_update_v17.86_from_v17.82_2026-11-19.zip",
+   "made": "2026-11-19 14:30",
+   "path": "company-pc-update/2026-11-19/ (1.6MB · 저장소에 있음)",
+   "sha256": "5670fd6dfecf223608079267221a39acf450888ecf933b1e81d3e1d96cf0e48b",
+   "applied": "",
+   "tips": {
+    "S1": "c5403577"
+   },
+   "replaces": "12_DASHBOARD_update_v17.85_from_v17.82_2026-11-19.zip",
+   "note": "v17.86 (기준 v17.82) — Ctrl+V 그림 · 화면 캡처 · 그림 스티커 (server.py → 재시작)"
   }
  ]
 }
