@@ -2175,6 +2175,8 @@ body.nav-collapsed .sb-projects .nav-item .mode-chip, body.nav-collapsed .sb-pro
 .sheet-err { margin: 6px 8px; padding: 8px 12px; border-radius: 6px; background: #fff4e5;
   border: 1px solid #e0a35a; color: #6b3a00; font-size: 13px; line-height: 1.45; }
 .sheet-err.hidden { display: none; }
+/* 2026-11-18 — 그림을 받는 중 (오류가 아니다 — 차분한 색) */
+.sheet-err.wait { background: #eef3fb; border-color: #b9c8e6; color: #2b3a55; }
 
 /* hotfix74 — 키 작은 화면 (1366×768 을 125% 로 쓰는 노트북 = CSS 614px).  오른쪽 칸의 내용(검토 줄 · 두 판 ·
    도구줄)이 칸보다 커서 목록과 근거가 **칸 밖으로 잘려 닿을 수 없었다** (실측 내용 635 ↔ 칸 372 ·

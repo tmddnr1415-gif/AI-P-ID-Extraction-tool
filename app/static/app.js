@@ -2138,6 +2138,10 @@ function snapshotView() {
                  legend: $("#legend-bar") ? $("#legend-bar").innerHTML : "",
                  legendHidden: $("#legend-bar") ? $("#legend-bar").classList.contains("hidden") : true,
                  jobName: $("#job-name").textContent, jobMeta: $("#job-meta").textContent };
+  // 2026-11-18 — 보던 자리(스크롤)도 둔다.  배율만 되살리고 자리를 안 되살려, 확대한 채 직전/현재를 오가면 도면이
+  // 왼쪽 위 빈 구석만 보였다 ("도면이 안 나온다").
+  const st = $("#stage");
+  snap._scroll = st ? [st.scrollLeft, st.scrollTop] : null;
   S.viewCache[S.job.id] = snap;
 }
 
@@ -2229,6 +2233,11 @@ async function switchView(jobId) {
   // 같은 도면번호의 장으로 — 없으면 그 결과의 첫 장
   const page = (want && S.pages.find(p => p.drawing_no === want))
     || (snap ? S.page : null) || S.pages.find(p => (p.layers && Object.keys(p.layers).length)) || S.pages[0];
+  if (snap) {
+    // 같은 장으로 돌아오면 보던 자리 그대로 · 다른 장이면(상대 결과에서 장을 옮겼다) 자리를 모르므로 창에 맞춘다
+    if (page && snap.page && page.page_no === snap.page.page_no && snap._scroll && S.zoom) S.pendingScroll = snap._scroll;
+    else { S.pendingScroll = null; S.zoom = null; }
+  }
   if (page) showPage(page);
   S.lastSwitchMs = Math.round(performance.now() - t0);
   const note = $("#rev-switch .rs-note");
@@ -5135,7 +5144,7 @@ function setFull(on) {
   // 브라우저 전체화면도 청한다 (주소줄·탭이 사라진다).  대시보드 iframe 처럼 허락되지 않은 곳에서는
   // 조용히 실패하고 화면 안 전체화면만 된다 — 편집은 어느 쪽이든 같다.
   try {
-    if (on && !document.fullscreenElement && document.documentElement.requestFullscreen)
+    if (on && document.fullscreenEnabled && !document.fullscreenElement && document.documentElement.requestFullscreen)
       document.documentElement.requestFullscreen().catch(() => {});
     else if (!on && document.fullscreenElement && document.exitFullscreen)
       document.exitFullscreen().catch(() => {});
@@ -7676,7 +7685,14 @@ function showPage(page) {
     // sheet keeps it, and only opening a job (which is also what re-analysis
     // ends in) starts fitted again.  See `open()`.
     measure();
-    if (S.zoom) applyZoom(); else fit();
+    sheetWait(null);                        // 그림이 왔다 — '받는 중' 안내를 지운다
+    // 2026-11-18 — 그림이 오기 전에 [맞춤] 을 누르면 배율이 무한대가 되어 그 뒤 모든 장이 어긋났다 (유한한 값만 믿는다)
+    if (S.zoom && Number.isFinite(S.zoom)) applyZoom(); else fit();
+    if (S.pendingScroll) {                  // 직전/현재 전환 — 보던 자리로 (switchView)
+      const st = $("#stage");
+      void st.scrollWidth;                 // 확대한 크기를 먼저 계산시킨다 — 안 하면 스크롤 범위가 아직 0 이라 자리가 무시된다
+      st.scrollLeft = S.pendingScroll[0]; st.scrollTop = S.pendingScroll[1]; S.pendingScroll = null;
+    }
     drawOverlay();
     // A selection made from the grid was waiting for this page to arrive.
     if (S.pending) { const k = S.pending; S.pending = null; select(k, true); }
@@ -7703,14 +7719,42 @@ function showPage(page) {
  * 프로파일 "(program)").  `decode()` 는 다른 스레드에서 풀고, 다 풀린 같은 주소를 걸면 그 결과를 그대로 쓴다.
  * 빨리 넘기면 마지막 장만 건다 (번호표). */
 let _sheetSeq = 0;
+/* 2026-11-18 — 도면 칸이 **아무 말 없이** 비어 있지 않게.  그림이 1.5초 안에 안 오면 "받는 중", 20초가 넘으면
+ * 오래 걸린다는 말과 [다시 받기] 를 도면 자리 위에 띄운다 (서버가 큰 장을 처음 그리거나 다른 일에 밀릴 때).
+ * 그림이 오면(`img.onload`) 지운다. */
+let _sheetWaitT = [];
+function sheetWait(url) {
+  _sheetWaitT.forEach(clearTimeout); _sheetWaitT = [];
+  const box = $("#sheet-err");
+  if (!box) return;
+  if (box.classList.contains("wait")) { box.classList.remove("wait"); box.classList.add("hidden"); box.textContent = ""; }
+  if (!url) return;
+  const seq = _sheetSeq;
+  const say = (text, retry) => {
+    if (seq !== _sheetSeq || !box.classList.contains("hidden") && !box.classList.contains("wait")) return;   // 오류 문장이 떠 있으면 덮지 않는다
+    box.textContent = text;
+    if (retry) {
+      const b = document.createElement("button");
+      b.type = "button"; b.className = "btn sm"; b.textContent = "다시 받기"; b.style.marginLeft = "10px";
+      b.onclick = () => { if (S.page) showPage(S.page); };
+      box.appendChild(b);
+    }
+    box.classList.add("wait"); box.classList.remove("hidden");
+  };
+  _sheetWaitT.push(setTimeout(() => say("도면 그림을 받는 중입니다…"), 1500));
+  _sheetWaitT.push(setTimeout(() => say("도면 그림이 오래 걸리고 있습니다 — 서버가 이 장을 처음 그리는 중이거나 다른 작업에 밀렸습니다. 잠시 뒤에도 그대로면", true), 20000));
+}
+
 function swapSheet(img, url) {
   const seq = ++_sheetSeq;
   const pre = new Image();
   pre.decoding = "async";
   pre.src = url;
-  const go = () => { if (seq === _sheetSeq) img.src = url; };
+  let went = false;
+  const go = () => { if (seq === _sheetSeq && !went) { went = true; img.src = url; } };
   const box = $("#sheet-err");
-  if (box) box.classList.add("hidden");
+  if (box) { box.classList.add("hidden"); box.classList.remove("wait"); }
+  sheetWait(url);
   // hotfix74 — 그림을 못 받으면 빈 자리만 남았다 (원본 PDF 가 지워진 경우 등 · state_chaos K2).
   // 서버가 이유를 말하므로(410 · 사람 말) 그 문장을 도면 자리 위에 띄운다.
   const failed = async () => {
@@ -7723,10 +7767,14 @@ function swapSheet(img, url) {
       else return;                                    // 받아졌다 — 일시적이었다
     } catch (e) { msg = "도면 그림을 불러오지 못했습니다 — 서버에 연결할 수 없습니다."; }
     if (seq !== _sheetSeq) return;
+    sheetWait(null);
     box.textContent = msg;
     box.classList.remove("hidden");
   };
-  if (pre.decode) pre.decode().then(go, failed); else go();
+  // 2026-11-18 — 그림은 다 받았는데 풀기(decode)가 답이 없는 브라우저가 있다 (화면이 가려진 iframe 등) — 받았으면 0.8초 뒤 그냥 건다
+  pre.onload = () => setTimeout(go, 800);
+  pre.onerror = () => { if (!pre.decode) failed(); };
+  if (pre.decode) pre.decode().then(go, failed); else if (pre.complete) go();
 }
 
 /* hotfix69 — 장을 넘길 때 기다리지 않게: 지금 장이 뜬 뒤 **쉬는 동안** 다음 · 이전 장 그림을 받아 둔다.
@@ -7802,6 +7850,7 @@ function measure() {
 function fit() {
   if ($("#stage").clientWidth < 20) return;     // hotfix68 — 도면이 다른 창에 있어 이 칸이 숨었다 (배율을 음수로 만들지 않는다)
   measure();
+  if (!S.natural.w) return;                      // 2026-11-18 — 그림이 아직 안 왔다 (0 으로 나누면 배율이 무한대)
   S.zoom = ($("#stage").clientWidth - 16) / S.natural.w;
   applyZoom();
 }

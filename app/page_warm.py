@@ -101,14 +101,21 @@ def _render_one(pdf: str, out: str, page_no: int, zoom: float) -> bool:
     return True
 
 
-_POOL: dict = {"pool": None}
+# 2026-11-18 — 일꾼 묶음을 둘로 나눈다.  예전에는 장 그림(render_now)과 무거운 PDF 읽기(call — 개정 대조 사실 읽기 ·
+# 심볼 제안 · DCS · 길게는 수 분)가 **같은 일꾼 둘**을 썼다.  리비전이 둘인 60장 프로젝트를 열면 무거운 일 둘이 일꾼을
+# 다 차지해 장 그림이 그 뒤에 줄을 섰고(최대 60초), 그동안 화면의 도면 칸은 아무 말 없이 비어 있었다
+# ("List 는 나오는데 P&ID 가 안 나온다").  이제 장 그림은 자기 일꾼(render)을 쓰고, 그래도 늦으면 곧 서버가 직접 그린다.
+_POOL: dict = {"render": None, "heavy": None}
+_RENDER_SKIP: dict = {"until": 0.0}       # 일꾼이 답하지 않았으면 잠시 일꾼을 건너뛴다 (요청마다 다시 기다리지 않게)
+RENDER_WAIT = 20.0                        # 장 하나를 일꾼에게 맡기고 기다리는 시간 (넘으면 서버가 직접 그린다)
+RENDER_SKIP_SEC = 120.0
 
 
-def _pool():
+def _pool(kind: str = "render"):
     with _LOCK:
-        if _POOL["pool"] is None:
-            _POOL["pool"] = mp.get_context("spawn").Pool(processes=2)
-        return _POOL["pool"]
+        if _POOL[kind] is None:
+            _POOL[kind] = mp.get_context("spawn").Pool(processes=2)
+        return _POOL[kind]
 
 
 def _ready() -> bool:
@@ -121,7 +128,7 @@ def prime() -> None:
     if os.environ.get("PID_RENDER_POOL", "1") == "0":
         return
     try:
-        p = _pool()
+        p = _pool("render")
         for _ in range(2):
             p.apply_async(_ready)
     except Exception:                            # noqa: BLE001
@@ -135,7 +142,7 @@ def call(fn, args: tuple, timeout: float = 120.0):
     if os.environ.get("PID_RENDER_POOL", "1") == "0":
         raise RuntimeError("render pool off")
     try:
-        return _pool().apply_async(fn, args).get(timeout)
+        return _pool("heavy").apply_async(fn, args).get(timeout)
     except Exception as exc:                     # noqa: BLE001
         raise RuntimeError(str(exc)) from exc
 
@@ -149,8 +156,14 @@ def render_now(pdf: Path, out: Path, page_no: int, zoom: float, timeout: float =
     그린다.  돌려주는 것: True(그렸다 · 캐시 파일이 있다) / False(그런 장이 없다) / None(일꾼 없음)."""
     if os.environ.get("PID_RENDER_POOL", "1") == "0":
         return None
+    import time
+    if time.monotonic() < _RENDER_SKIP["until"]:
+        return None
     try:
-        return _pool().apply_async(_render_one, (str(pdf), str(out), page_no, zoom)).get(timeout)
+        return _pool("render").apply_async(_render_one, (str(pdf), str(out), page_no, zoom)).get(min(timeout, RENDER_WAIT))
+    except mp.TimeoutError:
+        _RENDER_SKIP["until"] = time.monotonic() + RENDER_SKIP_SEC      # 일꾼이 막혔다 — 한동안 서버가 직접 그린다
+        return None
     except Exception:
         return None
 
