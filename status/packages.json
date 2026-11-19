@@ -639,12 +639,25 @@
    "made": "2026-11-19 13:30",
    "path": "company-pc-update/2026-11-19/ (1.6MB · 저장소에 있음)",
    "sha256": "8935aa6e15d44ebe3e171cf46d8a2df6103193d3153dcc465410bfa90304c119",
-   "applied": "",
+   "applied": "적용 (11-19 사용자 확인)",
    "tips": {
     "S1": "0156d213"
    },
    "replaces": "9_DASHBOARD_update_v17.79_from_v17.47_2026-11-19.zip",
    "note": "v17.82 (기준 v17.77 058de9c9 — 회사 확인) — 메모장 Ctrl+Z · 메모지 · PC 우선 · 메모 공유 (server.py → 재시작)"
+  },
+  {
+   "file": "①",
+   "name": "11_DASHBOARD_update_v17.84_from_v17.82_2026-11-19.zip",
+   "made": "2026-11-19 13:40",
+   "path": "company-pc-update/2026-11-19/ (1.5MB · 저장소에 있음)",
+   "sha256": "dccc99b13590b7458b911b64a18ac0ec873c057b9b8984b4503079b144d0198e",
+   "applied": "",
+   "tips": {
+    "S1": "0de7014e"
+   },
+   "replaces": "",
+   "note": "v17.84 (기준 v17.82 0156d213 — 회사 확인) — 메모 색 값 보강 · 글 상자 글머리 · 화면만"
   }
  ]
 }
