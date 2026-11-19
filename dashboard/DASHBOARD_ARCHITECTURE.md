@@ -2459,3 +2459,11 @@ C:\Users\SAMSUNG\Desktop\Claude\                         ← 개발 폴더 (여�
   - **메모에서 바로**: 메모에 "수행 PJT 업무 현황 요약해서 불러와" 처럼 '불러와 · 가져와 · 넣어줘' 로 끝나는 줄을 쓰고 Enter → 그 줄은 지워지고 창이 그 요청대로 열림(✨ 자동 할 일이 켜져 있을 때). Ctrl+Enter = 넣기, Esc = 닫기.
 - 바뀐 곳: dashboard.html `mmPull2`(새로 씀) · `mmPullNLP`(새로) · `mmSrcList`(아이콘 · 이름 · 종결 열 · 날짜 열) · `mmAutoTask`(불러와 줄), CSS `.mm-pl`.
 - 확인한 것: 말로 요청 15문장(메뉴 · 모양 · 상태 · 담당 · 기간 · 열 · 개수) 모두 맞음, 창에서 '수행 진행 중 표로' → 2행 고름 · 표 미리보기 · 행 미리보기, 요약 · 할 일로 넣기(담당 · 완료 반영), 메모 줄 '…불러와' Enter → 창이 조건대로 열림, 오류 없음 / 회사에서 확인할 것: 실제 데이터(행이 많을 때) 속도, CO2 PJT Schedule 의 '지연' 판단이 회사 기준과 맞는지.
+
+### 2026-11-19 (APP_VERSION 2026-11-19.43 / SERVER_VERSION 그대로) — v18.08 불러오기 말로 요청: CO2 Schedule 단계 · 품목
+- 무엇을: 사용자 예시 "co 2 tbe 일정 무슨무슨 아이템 일정 테이블로 들고와" 를 그대로 알아듣게.
+  - CO2 PJT Schedule 를 불러올 때 열 = 품목 · 공종 · Vendor · 담당 + **28개 단계(SCH_MS) × 계획 · 전망 · 실적**. 창에서는 '단계' 조각(MR … 현장 도착)과 '값'(계획 · 전망 · 실적)을 눌러 고름(84개 열을 한 줄로 늘어놓지 않음).
+  - 말로 요청: 'co 2 · 씨오투' → CO2, CO2 · 스케줄 · 아이템 · 품목 · 단계 이름이 있으면 Schedule 로. 단계 낱말: MR · RFQ · Bid closing · TBE(→ TBE 발주처 · TBE 완료) · CBE · Award · PO/발주 · KOM · VDLI · Key V/D · 제작 · 검사 요청 · FAT · 선적 · 현장 도착/입고. 값: 계획 · 전망 · 실적(말 안 하면 셋 다). 품목: '…아이템/품목' 앞의 이름들(쉼표 · 와 · 및 로 여럿), 한글 · 줄임말도(컨트롤 밸브 · 조절 밸브 · CV → Control Valve, 안전 밸브 · PSV, 전동 밸브 · MOV, 유량계 → Flow Meter, 압력계 · PT, 레벨, 분석기, 펌프, DCS, SIS, 케이블, JB) — 어느 하나라도 맞는 품목. '들고와 · 땡겨와 · 꺼내와 · 보여줘' 도 요청 말로(메모 줄 Enter 로도 창이 열림). 지연 = 고른 단계의 전망일이 지났고 실적이 없는 것.
+  - 고친 것: 열 단추를 누른 뒤 Ctrl+Enter · Esc 가 안 먹던 것(단추를 다시 그리며 커서가 창 밖으로 빠짐) → 창이 떠 있는 동안 화면 전체에서 받음. 미리보기 표의 머리 · 날짜 칸 줄바꿈 안 함.
+- 바뀐 곳: dashboard.html `mmSrcList`(Schedule 열 · Vendor), `mmPullNLP`(CO2 · 단계 · 값 · 품목), `mmPull2`(단계/값 고르기 `schCols` · 품목 거르기 `qor` · 키 처리 `close`/`onKey`), `mmAutoTask`(요청 말 더), CSS.
+- 확인한 것: 시험용 Schedule 7품목(임시 폴더에만)으로 — 메모에 예시 문장 Enter → 창이 열려 'Control Valve · MOV' 2행, 열 '품목 · 공종 · Vendor · TBE 발주처 계획/전망/실적 · TBE 완료 계획/전망/실적' 미리보기 → 계획 끄기 → Ctrl+Enter 로 메모에 표, 'co2 PO 전망 PSV 유량계 아이템 표로 가져와' → PSV · Flow Meter + PO 전망, 'CO2 스케줄 지연된 FAT 목록' 해석, 오류 없음 / 회사에서 확인할 것: 회사 품목 이름(예: 'Control Valve (Globe)')과 줄임말이 맞게 잡히는지.

@@ -2129,10 +2129,10 @@ body.mm-noanno #mmNotes > :not(.tb),body.mm-noanno #mmInk,body.mm-noanno #mmInkH
 .mm-pl .row .sv{font-style:normal;font-size:11px;padding:1px 7px;border-radius:9px;background:rgba(46,125,215,.12);color:#2e7dd7;white-space:nowrap}.mm-pl .row .sv.c{background:rgba(68,131,97,.12);color:#448361}.mm-pl .row .sv.h{background:rgba(217,115,13,.12);color:#d9730d}
 .mm-pl .row .dt{font-style:normal;font-size:11px;color:#787774;white-space:nowrap}.mm-pl .row .dt.late{color:#d44c47;font-weight:700}
 .mm-pl .pv{display:flex;flex-direction:column;min-height:0;background:var(--card)}.mm-pl .pvh{padding:8px 12px;border-bottom:1px solid var(--line)}.mm-pl .fm{display:inline-flex;background:rgba(55,53,47,.06);border-radius:8px;padding:2px}.mm-pl .fm button{border:0;background:none;padding:5px 12px;border-radius:6px;font-size:12.5px;cursor:pointer;color:var(--sub);font-weight:600}.mm-pl .fm button.on{background:var(--card);color:var(--text);box-shadow:0 1px 3px rgba(15,15,15,.12)}
-.mm-pl .cols{display:flex;flex-wrap:wrap;gap:4px;align-items:center;padding:8px 12px;border-bottom:1px solid var(--line)}.mm-pl .cols .lb{font-size:11.5px;color:#9b9a97;margin-right:4px}.mm-pl .cols button{border:1px dashed var(--line);background:none;border-radius:12px;padding:2px 9px;font-size:12px;cursor:pointer;color:#9b9a97;transition:all .12s}.mm-pl .cols button.on{border-style:solid;border-color:#337ea9;background:rgba(51,126,169,.1);color:#245b7a;font-weight:600}.mm-pl .cols button.fix{opacity:.8;cursor:default}
+.mm-pl .cols{display:flex;flex-wrap:wrap;gap:4px;align-items:center;padding:8px 12px;border-bottom:1px solid var(--line)}.mm-pl .cols .lb{font-size:11.5px;color:#9b9a97;margin-right:4px}.mm-pl .cols button{border:1px dashed var(--line);background:none;border-radius:12px;padding:2px 9px;font-size:12px;cursor:pointer;color:#9b9a97;transition:all .12s}.mm-pl .cols button.on{border-style:solid;border-color:#337ea9;background:rgba(51,126,169,.1);color:#245b7a;font-weight:600}.mm-pl .cols button.fix{opacity:.8;cursor:default}.mm-pl .cols .msr{display:flex;flex-wrap:wrap;gap:3px;width:100%;margin-top:4px;align-items:center}.mm-pl .cols .msr button{font-size:11.5px;padding:1px 7px}
 .mm-pl .peek{max-height:0;overflow:hidden;transition:max-height .2s ease,padding .2s;padding:0 14px;background:#fbfbfa;border-bottom:1px solid transparent;font-size:12.5px}.mm-pl .peek.on{max-height:220px;overflow:auto;padding:10px 14px;border-bottom-color:var(--line)}html.dark .mm-pl .peek{background:rgba(255,255,255,.03)}
 .mm-pl .peek b{display:block;margin-bottom:6px}.mm-pl .peek div{display:grid;grid-template-columns:96px 1fr;gap:8px;padding:2px 0}.mm-pl .peek span{color:#9b9a97}.mm-pl .peek p{margin:0;white-space:pre-wrap}
-.mm-pl .out{flex:1;overflow:auto;padding:12px 16px}.mm-pl .out .mm-ed{padding:0;font-size:13px;min-height:0}.mm-pl .out .mm-ed table{font-size:12.5px}.mm-pl .out .mm-ed a{cursor:default}
+.mm-pl .out{flex:1;overflow:auto;padding:12px 16px}.mm-pl .out .mm-ed{padding:0;font-size:13px;min-height:0}.mm-pl .out .mm-ed table{font-size:12.5px}.mm-pl .out .mm-ed a{cursor:default}.mm-pl .out th{white-space:nowrap}.mm-pl .out td.nw{white-space:nowrap}.mm-pl .out td{min-width:60px}
 .mm-pl .ft{display:flex;align-items:center;gap:8px;padding:10px 18px;border-top:1px solid var(--line);font-size:12px}.mm-pl .ft button{border:1px solid var(--line);background:var(--card);border-radius:8px;padding:7px 16px;cursor:pointer;font-size:13px;color:var(--text)}.mm-pl .ft button.pri{background:#2383e2;border-color:#2383e2;color:#fff;font-weight:700}.mm-pl .ft button.pri:hover{background:#0b6ec5}
 @media (max-width:900px){.mm-pl .bd{grid-template-columns:1fr}.mm-pl .srcs{flex-direction:row;overflow-x:auto}.mm-pl .pv{display:none}}
 /* 2026-11-19 v18.06 말로 할 일 넣기 */
@@ -2558,7 +2558,7 @@ function recLabel(key, f) {
  * ===================================================================== */
 let root = null;
 /* 서버 모드: http(s):// 로 접속하면 server.py 의 REST API 사용 (폴더 선택 불필요). file:// 로 열면 폴더 모드 */
-const APP_VERSION = '2026-11-19.42';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
+const APP_VERSION = '2026-11-19.43';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
 const SERVER_URL = 'http://localhost:8080';
 // 부서원 PC 사본(file://)이 접속을 시도할 서버 — 서버가 배포 파일을 만들 때 'PC 이름 주소, IP 주소' 순으로 자동 기록함
 const DEFAULT_SERVERS = ['http://ASEUNGWOOK-B01:8080', 'http://65.3.30.234:8080'];
@@ -6670,8 +6670,9 @@ function mmSrcList() {
   const l = can('weekly') ? SHEETS.filter(s => s.cols && !s.special).map(s => ({ k:s.key, label:'주간업무보고 › ' + s.label, name:s.label, icon:IC[s.key] || '📄', cols:s.cols.filter(c => !c.file).map(c => [c.f, c.label || c.f]), title:s.title, owner:s.owner,
     closed:(s.cols.find(c => c.closed) || s.cols.find(c => c.f === '종결현황') || {}).f || '', dates:s.cols.filter(c => c.date).map(c => [c.f, c.label || c.f]),
     rows:() => (DB.recs[s.key] || []).map(r => ({ id:r.id, t:purgeStrike(r.fields[s.title] || '') || '(제목 없음)', o:s.owner ? String(r.fields[s.owner] || '') : '', sub:String(r.fields['종결 여부'] || r.fields['유형'] || r.fields['사업군'] || '') })) })) : [];
-  if (can('runpjt')) l.push({ k:'sched', label:'실행 프로젝트 › CO2 PJT Schedule (구매 일정)', name:'CO2 PJT Schedule', icon:'📦', cols:MM_SCHC, title:'item', owner:'', load:schLoad, closed:'', dates:MM_SCHC.filter(c => /^[FBA]\./.test(c[0])),
-    rows:() => (SCH.data?.items || []).map(it => ({ id:String(it.no || it.item), t:`${it.no ? it.no + '. ' : ''}${it.item || ''}`, o:it.eng || '', sub:it.disc || '' })) });
+  const SC = [['item', '품목'], ['disc', '공종'], ['vendor', 'Vendor'], ['eng', '담당'], ...SCH_MS.flatMap(([k, n]) => [['B.' + k, n + ' 계획'], ['F.' + k, n + ' 전망'], ['A.' + k, n + ' 실적']])];
+  if (can('runpjt')) l.push({ k:'sched', label:'실행 프로젝트 › CO2 PJT Schedule (구매 일정)', name:'CO2 PJT Schedule', icon:'📦', cols:SC, title:'item', owner:'eng', load:schLoad, closed:'', dates:SC.filter(c => /^[FBA]\./.test(c[0])), ms:true,
+    rows:() => (SCH.data?.items || []).map(it => ({ id:String(it.no || it.item), t:`${it.no ? it.no + '. ' : ''}${it.item || ''}`, o:it.eng || '', sub:[it.disc, it.vendor].filter(Boolean).join(' · ') })) });
   return l;
 }
 function mmSrcVal(k, id, f) {   // 지금 값 (없으면 null)
@@ -6683,13 +6684,29 @@ const mmSrcHtml = v => esc(v).replace(/\n/g, '<br>') || '<br>';
 const mmSrcAttr = (k, id, f) => `data-src="${esc(`${k}|${id}|${f}`)}"`;
 /* ---------- 2026-11-19 v18.07 불러오기 창을 새로: 왼쪽 메뉴 카드 · 가운데 행(찾기 · 내 것 · 상태 · 기간 · 담당) · 오른쪽 실시간 미리보기(넣을 모양 그대로 · 행에 마우스 = 그 행 자세히) · ✨ 말로 요청 ---------- */
 function mmPullNLP(text, srcs) {   // "수행 PJT 중 진행 중인 것 표로" → { si, fmt, mine, owner, status, win, dcol, cols, limit, q, chips }
-  let t = ' ' + String(text || '').replace(/\s+/g, ' ') + ' '; const o = { chips:[] }, cut = re => { const m = re.exec(t); if (m) t = t.replace(m[0], ' '); return m; };
+  let t = ' ' + String(text || '').replace(/\s+/g, ' ').replace(/c\s*o\s*2/gi, 'CO2').replace(/씨오투/g, 'CO2') + ' '; const o = { chips:[] }, cut = re => { const m = re.exec(t); if (m) t = t.replace(m[0], ' '); return m; };
+  const MSW = [['MR', /(?<![a-z])MR(?![a-z])/i], ['RFQ', /RFQ/i], ['BID', /bid\s*closing|입찰\s*마감/i], ['TBE_C', /TBE|티비이/i], ['TBE_F', /TBE|티비이/i], ['CBE_S', /CBE/i], ['AWD', /award|어워드|낙찰/i], ['PO', /(?<![a-z])PO(?![a-z])|발주/i], ['KOM', /KOM|킥\s*오프/i], ['VDLI', /VDLI/i], ['KVD_F', /key\s*v\s*\/?\s*d|KVD|벤더\s*도면/i],
+    ['MFG_F', /제작|manufactur|MFG/i], ['INSP', /검사\s*요청|inspection/i], ['FAT', /FAT/i], ['SHIP', /선적|shipment|FOB/i], ['SITE', /현장\s*도착|on\s*site|입고|현장\s*반입/i]];
+  const schedHint = /CO2|스케줄|스케쥴|schedule|PSR|구매\s*일정|아이템|품목|item|벤더|vendor/i.test(t) && (MSW.some(([, re]) => re.test(t)) || /일정|스케줄|schedule|아이템|품목|item/i.test(t));
+  if (schedHint) { const i = srcs.findIndex(x => x.k === 'sched'); if (i >= 0) { o.si = i; o.chips.push(srcs[i].icon + ' ' + srcs[i].name); } }
+  if (o.si != null && srcs[o.si].k === 'sched') {
+    const ms = [...new Set(MSW.filter(([, re]) => re.test(t)).map(([k]) => k))]; MSW.forEach(([, re]) => { t = t.replace(new RegExp(re.source, 'gi'), ' '); });
+    const bfa = []; if (/계획|plan|baseline/i.test(t)) bfa.push('B'); if (/전망|예상|forecast/i.test(t)) bfa.push('F'); if (/실적|actual|완료된|끝난/i.test(t)) bfa.push('A'); t = t.replace(/계획|plan|baseline|전망|예상|forecast|실적|actual/gi, ' ');
+    o.ms = ms; o.bfa = bfa.length ? bfa : ['B', 'F', 'A']; if (ms.length) o.chips.push('🗓 ' + ms.map(k => SCH_NAME[k] || k).join(' · ') + ' — ' + o.bfa.map(x => ({ B:'계획', F:'전망', A:'실적' })[x]).join('·'));
+    // 'OO, XX 아이템' → 품목 이름 (어느 하나라도 맞으면)
+    const SYN = [[/컨트롤\s*밸브|조절\s*밸브|control\s*valve|(?<![a-z])CV(?![a-z])/i, 'control valve'], [/온\s*오프\s*밸브|on\s*\/?\s*off\s*valve|차단\s*밸브/i, 'on/off valve'], [/안전\s*밸브|PSV|safety\s*valve|relief/i, 'psv'], [/MOV|전동\s*밸브/i, 'mov'], [/유량계|flow\s*meter|플로우\s*미터/i, 'flow meter'], [/압력\s*전송기|압력계|pressure\s*transmitter|(?<![a-z])PT(?![a-z])/i, 'pressure transmitter'], [/레벨|level/i, 'level'], [/분석기|analy[sz]er/i, 'analyz'], [/펌프|pump/i, 'pump'], [/DCS/i, 'dcs'], [/SIS/i, 'sis'], [/케이블|cable/i, 'cable'], [/정션\s*박스|junction\s*box|(?<![a-z])JB(?![a-z])/i, 'junction']];
+    const im = /((?:[^\s,]+(?:\s*[,/·와과및]\s*|\s+))*?[^\s,]+)\s*(?:아이템|품목|item)(?:들)?/i.exec(t); const grp = [];
+    const scan = str => { for (const [re, key] of SYN) if (re.test(str)) { grp.push(key); str = str.replace(new RegExp(re.source, 'gi'), ' '); } str.split(/[\s,/·]+|와|과|및/).map(w => w.trim()).filter(w => w.length >= 2 && !/^(?:일정|스케줄|테이블|표|목록|요약|그리고|이랑|랑|하고|중|의|것|건|CO2|pjt|전체|모든|관련)$/i.test(w)).forEach(w => grp.push(w.toLowerCase())); };
+    if (im) { scan(im[1]); t = t.replace(im[0], ' '); } else { const t0 = t; for (const [re, key] of SYN) if (re.test(t)) { grp.push(key); t = t.replace(new RegExp(re.source, 'gi'), ' '); } }
+    if (grp.length) { o.qor = [...new Set(grp)]; o.chips.push('🏷 품목: ' + o.qor.join(', ')); }
+    t = t.replace(/CO2|스케줄|스케쥴|schedule|PSR|구매\s*일정|일정/gi, ' ');
+  }
   const SK = [['sched', /co2\s*(?:pjt)?\s*schedule|스케줄|스케쥴|schedule|구매\s*일정|품목|벤더|vendor|po\s*전망|fat\s*전망|현장\s*도착/i], ['issue', /이슈/], ['bid', /입찰/], ['perform', /수행/], ['rnr', /r\s*&\s*r|알앤알|역할\s*분담/i], ['general', /일반\s*업무/], ['task', /통합\s*업무|통합업무|업무\s*목록/],
     ['unit', /유닛/], ['techshare', /기술\s*공유|발표/], ['todo', /to\s*-?\s*do(?:\s*list)?|투두|지시\s*사항/i], ['notice', /전달\s*사항|공지|주간\s*회의\s*전달/]];
-  for (const [k, re] of SK) { const i = srcs.findIndex(x => x.k === k); if (i >= 0 && re.test(t)) { o.si = i; o.chips.push(srcs[i].icon + ' ' + srcs[i].name); if (k !== 'sched') cut(re); else o._sre = re; break; } }
+  if (o.si == null) for (const [k, re] of SK) { const i = srcs.findIndex(x => x.k === k); if (i >= 0 && re.test(t)) { o.si = i; o.chips.push(srcs[i].icon + ' ' + srcs[i].name); if (k !== 'sched') cut(re); else o._sre = re; break; } }
   if (o.si == null) { const i = srcs.findIndex(x => t.includes(x.name)); if (i >= 0) { o.si = i; o.chips.push(srcs[i].icon + ' ' + srcs[i].name); } }
   let m;
-  if ((m = cut(/(?:으로|로)?\s*(표|테이블|table)(?:로|으로)?/i))) o.fmt = 'table'; else if ((m = cut(/(목록|리스트|불릿|bullet)(?:으로|로)?/i))) o.fmt = 'list'; else if ((m = cut(/(할\s*일|체크\s*리스트|체크|todo)(?:로|으로)?/i))) o.fmt = 'todo'; else if ((m = cut(/(요약|정리|브리핑|현황판|통계)(?:해|으로|로)?/))) o.fmt = 'sum';
+  if ((m = cut(/(?:으로|로)?\s*(표|테이블|table|엑셀\s*표)(?:로|으로)?/i))) o.fmt = 'table'; else if ((m = cut(/(목록|리스트|불릿|bullet)(?:으로|로)?/i))) o.fmt = 'list'; else if ((m = cut(/(할\s*일|체크\s*리스트|체크|todo)(?:로|으로)?/i))) o.fmt = 'todo'; else if ((m = cut(/(요약|정리|브리핑|현황판|통계)(?:해|으로|로)?/))) o.fmt = 'sum';
   if (o.fmt) o.chips.push({ table:'▦ 표', list:'• 목록', todo:'☑ 할 일', sum:'📊 요약' }[o.fmt]);
   if (cut(/(?:^|\s)(?:내\s*것|내꺼|내\s*거|내가|나의|제\s*것|내\s*담당|본인|나한테|내\s*꺼|내(?=\s))(?:만)?/)) { o.mine = true; o.chips.push('👤 내 것'); }
   for (const u of (PRES.users || [])) { const n = u.name || ''; if (n && t.includes(n)) { o.owner = n; t = t.replace(new RegExp(n + '\\s*(?:님|씨|과장|대리|차장|부장|책임|선임|프로)?\\s*(?:담당|이|가|의|꺼|것)?(?![가-힣])'), ' '); o.chips.push('👤 ' + n); break; } }
@@ -6700,11 +6717,11 @@ function mmPullNLP(text, srcs) {   // "수행 PJT 중 진행 중인 것 표로" 
   const W = [[/오늘/, 'today', '오늘'], [/(?:이번|금)\s*주/, 'tw', '이번 주'], [/(?:다음|담|차)\s*주/, 'nw', '다음 주'], [/(?:이번|이|당)\s*달|당월|이번\s*월/, 'tm', '이번 달'], [/(?:다음|담|익)\s*달|익월/, 'nm', '다음 달'], [/지난\s*주|저번\s*주/, 'lw', '지난 주'], [/지난\s*달|저번\s*달|전월/, 'lm', '지난 달']];
   for (const [re, k, l] of W) if (cut(re)) { if (!o.win) o.win = k; o.chips.push('📅 ' + l); break; }
   const S = o.si != null ? srcs[o.si] : null;
-  if (S) { const cols = []; for (const [f, l] of S.cols) { const ls = [l, f].map(x => x.replace(/\s*\(.*\)$/, '').trim()).filter(x => x.length >= 2); for (const x of ls) { const re = new RegExp(x.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/\s+/g, '\\s*'), 'i'); if (re.test(t)) { cols.push(f); t = t.replace(re, ' '); break; } } }
+  if (S && !S.ms) { const cols = []; for (const [f, l] of S.cols) { const ls = [l, f].map(x => x.replace(/\s*\(.*\)$/, '').trim()).filter(x => x.length >= 2); for (const x of ls) { const re = new RegExp(x.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/\s+/g, '\\s*'), 'i'); if (re.test(t)) { cols.push(f); t = t.replace(re, ' '); break; } } }
     if (cols.length) { o.cols = cols; o.chips.push('▤ ' + cols.map(f => (S.cols.find(c => c[0] === f) || [, f])[1]).join(' · ')); const dc = cols.find(f => S.dates.some(d => d[0] === f)); if (dc) o.dcol = dc; } }
   if (o._sre) { t = t.replace(new RegExp(o._sre.source, 'gi'), ' ').replace(/co2|pjt/gi, ' '); delete o._sre; }
   if ((m = cut(/(?:상위|최근|처음|앞)?\s*(\d{1,3})\s*(?:개|건|줄|행)(?:만)?/))) { o.limit = +m[1]; o.chips.push(`🔢 ${m[1]}개`); }
-  t = t.replace(/\b(?:pjt|프로젝트)\b/gi, ' ').replace(/(?:^|\s)(?:불러\S*|가져\S*|넣어\S*|보여\S*|뽑아\S*|만들어\S*|찾아\S*|정리해\S*|줘|좀|해줘|해|중에?|중|의|것|건|것들|들|만|모두|전부|다|목록|에서|에|를|을|은|는|이|가|으로|로|인|된|한|하는|있는|PJT|pjt|메뉴|값|데이터|행)(?=\s|$)/g, ' ').replace(/\s+/g, ' ').trim();
+  t = t.replace(/\b(?:pjt|프로젝트)\b/gi, ' ').replace(/(?:^|\s)(?:불러\S*|가져\S*|들고\s*\S*|땡겨\S*|당겨\S*|꺼내\S*|넣어\S*|보여\S*|뽑아\S*|만들어\S*|찾아\S*|정리해\S*|줘|좀|해줘|해|중에?|중|의|것|건|것들|들|만|모두|전부|다|목록|에서|에|를|을|은|는|이|가|으로|로|인|된|한|하는|있는|PJT|pjt|메뉴|값|데이터|행)(?=\s|$)/g, ' ').replace(/\s+/g, ' ').trim();
   t = t.split(' ').filter(w => w && !/^(?:관련된?|들어간|들어있는|포함된?|거|것|건|내용|대한|마감|맡은|있는|된|한|중인|하는|쪽|부분|항목|리스트|list)$/i.test(w)).join(' ');
   if (t.length >= 2) { o.q = t; o.chips.push('🔍 ' + t); }
   return o;
@@ -6713,9 +6730,9 @@ async function mmPull2(vibe) {
   const ed = mmEd(); if (!ed || MM.cur?.lock) return toast('잠긴 메모입니다 — 🔒 를 눌러 풀고 고치세요', true);
   const srcs = mmSrcList(); if (!srcs.length) return toast('불러올 수 있는 메뉴가 없습니다 (메뉴 권한을 확인해 주세요)', true);
   const s0 = mmSelIn(), keepR = s0 && s0.rangeCount ? s0.getRangeAt(0).cloneRange() : null; let last = {}; try { last = JSON.parse(localStorage.getItem('dept-memo-pull') || '{}'); } catch (_) {}
-  const st = { si:Math.max(0, srcs.findIndex(x => x.k === last.k)), q:'', mine:false, owner:'', status:'', win:'', dcol:'', sel:new Set(), cols:new Set(), fmt:last.fmt || 'table', limit:0, peek:null, chips:[] };
+  const st = { ms:new Set(['TBE_C', 'TBE_F', 'PO', 'SITE']), bfa:new Set(['F']), sb:new Set(['item', 'disc', 'vendor']), qor:[], si:Math.max(0, srcs.findIndex(x => x.k === last.k)), q:'', mine:false, owner:'', status:'', win:'', dcol:'', sel:new Set(), cols:new Set(), fmt:last.fmt || 'table', limit:0, peek:null, chips:[] };
   const ov = document.createElement('div'); ov.className = 'mm-ov mm-plo';
-  ov.innerHTML = `<div class="mm-pl"><div class="hd"><b>📥 다른 메뉴 값 불러오기</b><div class="vb"><span>✨</span><input id="mmPv" placeholder="말로 요청 — 예: 수행 중 진행 중인 PJT 표로 · 이슈 중 김철수 담당 미결 할 일로 · CO2 Schedule 이번 달 PO 전망 · 입찰 현안 요약" autocomplete="off"><button data-a="vibe">적용</button></div><button class="x" data-a="x" title="닫기 (Esc)">✕</button></div>
+  ov.innerHTML = `<div class="mm-pl"><div class="hd"><b>📥 다른 메뉴 값 불러오기</b><div class="vb"><span>✨</span><input id="mmPv" placeholder="말로 요청 — 예: CO2 TBE 일정 컨트롤 밸브, MOV 아이템 테이블로 들고와 · 수행 진행 중인 PJT 표로 · 이슈 김철수 담당 미결 할 일로" autocomplete="off"><button data-a="vibe">적용</button></div><button class="x" data-a="x" title="닫기 (Esc)">✕</button></div>
     <div class="chips" id="mmPch"></div>
     <div class="bd"><div class="srcs" id="mmPsrc"></div>
       <div class="rows"><div class="tb"><input id="mmPq" placeholder="🔍 찾기"><button data-t="mine">👤 내 것</button><select id="mmPst"><option value="">상태: 전체</option><option value="open">◐ 진행 중</option><option value="closed">✓ 종결</option><option value="보류">⏸ 보류</option></select><select id="mmPw"><option value="">기간: 전체</option><option value="today">오늘</option><option value="tw">이번 주</option><option value="nw">다음 주</option><option value="tm">이번 달</option><option value="nm">다음 달</option><option value="lw">지난 주</option><option value="lm">지난 달</option><option value="late">⚠ 지연 (기한 지남)</option></select></div>
@@ -6723,19 +6740,26 @@ async function mmPull2(vibe) {
       <div class="pv"><div class="pvh"><span class="fm"><button data-f="table">▦ 표</button><button data-f="list">• 목록</button><button data-f="todo">☑ 할 일</button><button data-f="sum">📊 요약</button></span></div><div class="cols" id="mmPc"></div><div class="peek" id="mmPk"></div><div class="out" id="mmPo"></div></div></div>
     <div class="ft"><span class="muted">넣은 값은 그때 값 — ⋯ 더 보기 › [🔄 불러온 값 새로 고침] 으로 다시 맞춤 · 제목을 누르면 원래 행으로 · <b>Ctrl+Enter</b> = 넣기</span><span class="sp"></span><button data-a="x">취소</button><button class="pri" data-a="ok" id="mmPok">메모에 넣기</button></div></div>`;
   document.body.appendChild(ov); const S = () => srcs[st.si], td = mmToday();
+  const close = () => { ov.remove(); document.removeEventListener('keydown', onKey, true); };
+  const onKey = e => { if (!ov.isConnected) return document.removeEventListener('keydown', onKey, true); if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); close(); } else if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); e.stopPropagation(); insert(); } };
+  document.addEventListener('keydown', onKey, true);
   const val = (id, f) => mmSrcVal(S().k, id, f), dOf = v => { const m = /(\d{4})[-./](\d{1,2})[-./](\d{1,2})/.exec(String(v || '')); return m ? `${m[1]}-${pad(+m[2])}-${pad(+m[3])}` : ''; };
   const isClosed = id => { const c = S().closed; if (!c) return false; return /종결|완료|^O$/.test(String(val(id, c) || '')); };
   const stOf = id => { const c = S().closed; return c ? String(val(id, c) || '') : ''; };
-  const rowDates = id => (st.dcol ? [st.dcol] : S().dates.map(d => d[0])).map(f => dOf(val(id, f))).filter(Boolean);
+  const rowDates = id => (st.dcol ? [st.dcol] : S().ms ? [...st.ms].flatMap(k => [...st.bfa].map(x => x + '.' + k)) : S().dates.map(d => d[0])).map(f => dOf(val(id, f))).filter(Boolean);
   const winOk = id => { if (!st.win) return true; const ds = rowDates(id); const mon = (() => { const d = new Date(td + 'T00:00:00'); d.setDate(d.getDate() - (d.getDay() + 6) % 7); return d; })(), fx = d => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`, add = (d, n) => { const x = new Date(d); x.setDate(x.getDate() + n); return x; };
     const R = { today:[td, td], tw:[fx(mon), fx(add(mon, 6))], nw:[fx(add(mon, 7)), fx(add(mon, 13))], lw:[fx(add(mon, -7)), fx(add(mon, -1))], tm:[td.slice(0, 8) + '01', td.slice(0, 8) + '31'], nm:(() => { const d = new Date(td.slice(0, 8) + '01T00:00:00'); d.setMonth(d.getMonth() + 1); const a = fx(d).slice(0, 8); return [a + '01', a + '31']; })(), lm:(() => { const d = new Date(td.slice(0, 8) + '01T00:00:00'); d.setMonth(d.getMonth() - 1); const a = fx(d).slice(0, 8); return [a + '01', a + '31']; })() }[st.win];
     if (st.win === 'late') { if (isClosed(id)) return false; if (S().k === 'sched') return (st.dcol ? [st.dcol] : S().dates.map(d => d[0]).filter(f => /^F\./.test(f))).some(f => { const d = dOf(val(id, f)); return d && d < td && !dOf(val(id, 'A.' + f.slice(2))); }); return ds.some(d => d < td); }
     return ds.some(d => d >= R[0] && d <= R[1]); };
-  const rowsOf = () => { const qs = st.q.trim().toLowerCase().split(/\s+/).filter(Boolean); let l = S().rows().filter(r => (!qs.length || (txt => qs.every(w => txt.includes(w)))((r.t + ' ' + r.o + ' ' + r.sub).toLowerCase())) && (!st.mine || isMineName(r.o)) && (!st.owner || normName(r.o).includes(normName(st.owner)))
+  const rowsOf = () => { const qs = st.q.trim().toLowerCase().split(/\s+/).filter(Boolean); let l = S().rows().filter(r => (!st.qor.length || (txt => st.qor.some(w => txt.includes(w)))((r.t + ' ' + r.sub).toLowerCase())) && (!qs.length || (txt => qs.every(w => txt.includes(w)))((r.t + ' ' + r.o + ' ' + r.sub).toLowerCase())) && (!st.mine || isMineName(r.o)) && (!st.owner || normName(r.o).includes(normName(st.owner)))
       && (!st.status || (st.status === 'open' ? !isClosed(r.id) && !/보류/.test(stOf(r.id)) : st.status === 'closed' ? isClosed(r.id) : stOf(r.id).includes(st.status))) && winOk(r.id)); if (st.limit) l = l.slice(0, st.limit); return l; };
   const drawSrc = () => { $('#mmPsrc', ov).innerHTML = srcs.map((x, i) => { let n = ''; try { n = x.load && !SCH.data ? '' : x.rows().length; } catch (_) {} return `<button data-si="${i}" class="${i === st.si ? 'on' : ''}"><span class="ic">${x.icon}</span><span class="nm">${esc(x.name)}</span><i>${n}</i></button>`; }).join(''); };
   const drawChips = () => { $('#mmPch', ov).innerHTML = st.chips.length ? '<span class="lb">✨ 알아들은 것</span>' + st.chips.map(c => `<i>${esc(c)}</i>`).join('') : ''; };
+  const schCols = () => { st.cols = new Set([...st.sb, ...SCH_MS.filter(([k]) => st.ms.has(k)).flatMap(([k]) => ['B', 'F', 'A'].filter(x => st.bfa.has(x)).map(x => x + '.' + k))]); };
   const drawCtl = () => { ov.querySelector('[data-t="mine"]').classList.toggle('on', st.mine); $('#mmPst', ov).value = st.status; $('#mmPw', ov).value = st.win; $('#mmPq', ov).value = st.q; ov.querySelectorAll('[data-f]').forEach(b => b.classList.toggle('on', b.dataset.f === st.fmt));
+    if (S().ms) { schCols(); $('#mmPc', ov).innerHTML = '<span class="lb">넣을 열</span>' + [['item', '품목'], ['disc', '공종'], ['vendor', 'Vendor'], ['eng', '담당']].map(([f, l]) => `<button data-sb="${f}" class="${st.sb.has(f) ? 'on' : ''} ${f === 'item' ? 'fix' : ''}">${l}</button>`).join('')
+        + '<span class="lb" style="margin-left:8px">값</span>' + [['B', '계획'], ['F', '전망'], ['A', '실적']].map(([k, l]) => `<button data-bfa="${k}" class="${st.bfa.has(k) ? 'on' : ''}">${l}</button>`).join('')
+        + `<div class="msr"><span class="lb">단계</span>${SCH_MS.map(([k, n]) => `<button data-ms="${k}" class="${st.ms.has(k) ? 'on' : ''}">${esc(n)}</button>`).join('')}</div>`; return; }
     $('#mmPc', ov).innerHTML = '<span class="lb">넣을 열</span>' + S().cols.map(([f, l]) => `<button data-c="${esc(f)}" class="${st.cols.has(f) ? 'on' : ''} ${f === S().title ? 'fix' : ''}" title="${f === S().title ? '제목 열 (항상 넣음)' : '눌러서 넣기 / 빼기'}">${esc(l.replace(/\s*\(.*\)$/, ''))}</button>`).join(''); };
   const drawRows = () => { const l = rowsOf(), on = ids().length; $('#mmPr', ov).innerHTML = l.map((r, i) => { const sv = stOf(r.id), d = rowDates(r.id)[0] || '';
       return `<label class="row ${st.sel.has(r.id) ? 'sel' : ''}" data-pk="${esc(r.id)}" style="--i:${Math.min(i, 20)}"><input type="checkbox" data-r="${esc(r.id)}" ${st.sel.has(r.id) ? 'checked' : ''}><span class="tx"><b>${esc(r.t.split('\n')[0].slice(0, 90))}</b><small>${esc([r.sub, r.o.replace(/\s+/g, ' ').slice(0, 30)].filter(Boolean).join(' · '))}</small></span>${sv ? `<i class="sv ${/종결|완료/.test(sv) ? 'c' : /보류/.test(sv) ? 'h' : ''}">${esc(sv)}</i>` : ''}${d ? `<i class="dt ${d < td && !isClosed(r.id) ? 'late' : ''}">${d.slice(5).replace('-', '/')}</i>` : ''}</label>`; }).join('') || '<div class="mm-empty">조건에 맞는 행이 없습니다</div>';
@@ -6753,17 +6777,19 @@ async function mmPull2(vibe) {
       return `<div class="mm-item">• ${tt(id)}${body ? '<br>' + body : ''}</div>`; }).join('');
     return h; };
   const drawOut = () => { const sel = ids(), o = $('#mmPo', ov); if (!sel.length) { o.innerHTML = `<div class="mm-empty">행을 고르면 메모에 들어갈 모양이 여기 그대로 보입니다<br><span class="muted" style="font-size:12px">행에 마우스를 올리면 위에 그 행 내용이 자세히</span></div>`; return; }
-    o.innerHTML = `<div class="mm-ed">${build(sel, true)}</div>`; o.querySelectorAll('a').forEach(a => a.removeAttribute('href')); };
+    o.innerHTML = `<div class="mm-ed">${build(sel, true)}</div>`; o.querySelectorAll('a').forEach(a => a.removeAttribute('href')); o.querySelectorAll('td').forEach(td => { if (/^\s*\d{4}-\d{2}-\d{2}\s*$/.test(td.textContent) || td.textContent.length <= 14) td.classList.add('nw'); }); };
   const drawPeek = id => { const k = $('#mmPk', ov); if (!id) { k.classList.remove('on'); return; } const s = S(); k.innerHTML = `<b>👀 ${esc(String(val(id, s.title) || '').split('\n')[0])}</b>` + s.cols.filter(([f]) => f !== s.title).map(([f, l]) => { const v = String(val(id, f) || '').trim(); return v ? `<div><span>${esc(l.replace(/\s*\(.*\)$/, ''))}</span><p>${esc(v.slice(0, 300))}</p></div>` : ''; }).join(''); k.classList.add('on'); };
-  const setSrc = async (i, keep) => { st.si = i; if (!keep) { st.sel = new Set(); st.dcol = ''; } const s = S(); drawSrc(); if (s.load) { $('#mmPr', ov).innerHTML = '<div class="mm-empty">불러오는 중…</div>'; await s.load(); drawSrc(); }
-    const long = s.k === 'sched' ? ['item', 'disc', 'F.PO', 'F.SITE'] : s.cols.map(x => x[0]).filter((f, j) => j < 2 || f === s.title || f === s.owner || /현황|이슈|현안|일정|기한|종결/.test(f)).slice(0, 6);
+  const setSrc = async (i, keep) => { st.si = i; if (!keep) { st.sel = new Set(); st.dcol = ''; st.qor = []; } const s = S(); drawSrc(); if (s.load) { $('#mmPr', ov).innerHTML = '<div class="mm-empty">불러오는 중…</div>'; await s.load(); drawSrc(); }
+    if (s.ms) { st.qor = keep ? st.qor : []; drawCtl(); return drawRows(); }
+    const long = s.cols.map(x => x[0]).filter((f, j) => j < 2 || f === s.title || f === s.owner || /현황|이슈|현안|일정|기한|종결/.test(f)).slice(0, 6);
     if (!keep || !st.cols.size) st.cols = new Set([s.title, ...long]); drawCtl(); drawRows(); };
   const applyVibe = async txt => { const o = mmPullNLP(txt, srcs); st.chips = o.chips; drawChips(); if (o.si != null && o.si !== st.si) await setSrc(o.si);
-    Object.assign(st, { q:o.q || '', mine:!!o.mine, owner:o.owner || '', status:o.status || '', win:o.win || '', dcol:o.dcol || '', limit:o.limit || 0 }); if (o.fmt) st.fmt = o.fmt;
+    Object.assign(st, { q:o.q || '', qor:o.qor || [], mine:!!o.mine, owner:o.owner || '', status:o.status || '', win:o.win || '', dcol:o.dcol || '', limit:o.limit || 0 }); if (o.fmt) st.fmt = o.fmt;
+    if (S().ms) { if (o.ms?.length) st.ms = new Set(o.ms); if (o.bfa) st.bfa = new Set(o.bfa); if (st.win && !st.dcol) { const f = [...st.ms].map(k => 'F.' + k)[0]; if (f) st.dcol = f; } }
     if (o.cols) st.cols = new Set([S().title, ...o.cols]); st.sel = new Set(rowsOf().map(r => r.id)); drawCtl(); drawRows();
     ov.querySelector('.mm-pl').classList.add('flash'); setTimeout(() => ov.querySelector('.mm-pl')?.classList.remove('flash'), 600); if (!st.sel.size) toast('말씀하신 조건에 맞는 행이 없습니다 — 조건을 줄여 보세요'); };
   const insert = () => { const sel = ids(); if (!sel.length) return toast('불러올 행을 골라 주세요', true); try { localStorage.setItem('dept-memo-pull', JSON.stringify({ k:S().k, fmt:st.fmt })); } catch (_) {}
-    const h = build(sel); ov.remove(); ed.focus(); if (keepR) { const g = getSelection(); g.removeAllRanges(); g.addRange(keepR); } mmInsert(h + '<div><br></div>'); mmChips(); toast(`${sel.length}행을 메모에 넣었습니다`); };
+    const h = build(sel); close(); ed.focus(); if (keepR) { const g = getSelection(); g.removeAllRanges(); g.addRange(keepR); } mmInsert(h + '<div><br></div>'); mmChips(); toast(`${sel.length}행을 메모에 넣었습니다`); };
   ov.addEventListener('change', e => { const t = e.target;
     if (t.id === 'mmPst') { st.status = t.value; return drawRows(); } if (t.id === 'mmPw') { st.win = t.value; return drawRows(); }
     if (t.id === 'mmPall') { rowsOf().forEach(r => t.checked ? st.sel.add(r.id) : st.sel.delete(r.id)); return drawRows(); }
@@ -6771,13 +6797,16 @@ async function mmPull2(vibe) {
   ov.addEventListener('input', e => { if (e.target.id === 'mmPq') { st.q = e.target.value; clearTimeout(st.qt); st.qt = setTimeout(drawRows, 120); } });
   ov.addEventListener('mouseover', e => { const r = e.target.closest?.('[data-pk]'); if (r && r.dataset.pk !== st.peek) { st.peek = r.dataset.pk; drawPeek(st.peek); } });
   ov.querySelector('.rl').addEventListener('mouseleave', () => { st.peek = null; drawPeek(null); });
-  ov.addEventListener('keydown', e => { if (e.key === 'Escape') { e.preventDefault(); ov.remove(); } else if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); insert(); } else if (e.target.id === 'mmPv' && e.key === 'Enter' && !e.isComposing) { e.preventDefault(); applyVibe(e.target.value); } });
-  ov.addEventListener('mousedown', e => { if (e.target === ov) ov.remove(); });
+  ov.addEventListener('keydown', e => { if (e.target.id === 'mmPv' && e.key === 'Enter' && !e.isComposing && !e.ctrlKey && !e.metaKey) { e.preventDefault(); applyVibe(e.target.value); } });
+  ov.addEventListener('mousedown', e => { if (e.target === ov) close(); });
   ov.addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return;
     if (b.dataset.si) return setSrc(+b.dataset.si); if (b.dataset.f) { st.fmt = b.dataset.f; drawCtl(); return drawOut(); }
+    if (b.dataset.sb) { const f = b.dataset.sb; if (f === 'item') return; st.sb.has(f) ? st.sb.delete(f) : st.sb.add(f); drawCtl(); return drawOut(); }
+    if (b.dataset.bfa) { const k = b.dataset.bfa; if (st.bfa.has(k) && st.bfa.size === 1) return; st.bfa.has(k) ? st.bfa.delete(k) : st.bfa.add(k); drawCtl(); return drawRows(); }
+    if (b.dataset.ms && S().ms) { const k = b.dataset.ms; st.ms.has(k) ? st.ms.delete(k) : st.ms.add(k); drawCtl(); return drawRows(); }
     if (b.dataset.c) { const f = b.dataset.c; if (f === S().title) return; st.cols.has(f) ? st.cols.delete(f) : st.cols.add(f); b.classList.toggle('on'); if (S().dates.some(d => d[0] === f) && st.cols.has(f)) st.dcol = st.dcol || ''; return drawOut(); }
     if (b.dataset.t === 'mine') { st.mine = !st.mine; b.classList.toggle('on', st.mine); return drawRows(); }
-    const a = b.dataset.a; if (a === 'x') return ov.remove(); if (a === 'none') { st.sel = new Set(); return drawRows(); } if (a === 'vibe') return applyVibe($('#mmPv', ov).value); if (a === 'ok') return insert(); });
+    const a = b.dataset.a; if (a === 'x') return close(); if (a === 'none') { st.sel = new Set(); return drawRows(); } if (a === 'vibe') return applyVibe($('#mmPv', ov).value); if (a === 'ok') return insert(); });
   await setSrc(st.si); if (vibe) { $('#mmPv', ov).value = vibe; await applyVibe(vibe); } else $('#mmPv', ov).focus();
 }
 async function mmPullRefresh() {
@@ -7939,7 +7968,7 @@ document.addEventListener('keydown', e => { if (e.target.id === 'mmNlp' && e.key
 document.addEventListener('click', e => { if (e.target.closest?.('[data-nlpadd]')) mmNlpAdd(); });
 function mmAutoTask(nb) {   // 메모에서 Enter: 바로 위 줄이 '날짜 · 시각 + 할 일 말' 이면 할 일로 (Ctrl+Z 로 되돌리기)
   if (!mmNlpOn() || MM.cur?.lock) return; const ed = $('#mmEd'); let b = nb; while (b && b.parentNode !== ed) b = b.parentNode; const pv = b?.previousElementSibling; if (!pv || !/^(DIV|P)$/.test(pv.tagName) || pv.matches('.mm-call,.mm-cols,.mm-file') || pv.querySelector('img,table,.mm-file,a.mm-pgl,div')) return;
-  { const tx = pv.textContent.trim(); if (/(?:불러\s*와|불러\s*오기|가져\s*와|가져\s*오기|뽑아\s*줘|넣어\s*줘)\S*\s*[.!]*$/.test(tx) && (() => { const o = mmPullNLP(tx, mmSrcList()); return o.si != null; })()) { mmHistPush(true); pv.innerHTML = '<br>'; mmCaretIn(pv); mmTouch(); setTimeout(() => mmPull2(tx), 30); return; } }
+  { const tx = pv.textContent.trim(); if (/(?:불러\s*와|불러\s*오기|가져\s*와|가져\s*오기|들고\s*와|땡겨\s*와|당겨\s*와|꺼내\s*와|뽑아\s*(?:줘|와)|넣어\s*줘|보여\s*줘)\S*\s*[.!]*$/.test(tx) && (() => { const o = mmPullNLP(tx, mmSrcList()); return o.si != null; })()) { mmHistPush(true); pv.innerHTML = '<br>'; mmCaretIn(pv); mmTouch(); setTimeout(() => mmPull2(tx), 30); return; } }
   if (pv.dataset.due || pv.dataset.time || pv.dataset.nlpno) return; const txt = pv.textContent.trim(); if (txt.length < 4 || txt.length > 160) return;
   const r = mmNlpRun(txt), isChk = pv.classList.contains('mm-chk'), sched = r.hasDate || r.hasTime || r.rep;
   const fill = /있음|있어|있다|예정|잡힘|잡혀|해야|할\s*것|까지|하기|미팅|회의|통화|약속|방문|출장|입회|제출|마감/.test(txt), notes = /회의록|일지|노트|메모장|자료집|정리본|결과\s*보고서/.test(txt);
