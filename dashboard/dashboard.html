@@ -2056,6 +2056,8 @@ html.dark #mmAlarm{filter:invert(1) hue-rotate(180deg)}
 .mm-sticky .si{position:relative;flex:none;max-height:72%;overflow:hidden;background:rgba(255,255,255,.5)}.mm-sticky .si img{width:100%;display:block;user-select:none}.mm-sticky .si button{position:absolute;right:4px;top:4px;border:0;border-radius:50%;width:20px;height:20px;background:rgba(0,0,0,.45);color:#fff;font-size:11px;cursor:pointer;opacity:0}.mm-sticky:hover .si button{opacity:1}
 .mm-sticky:has(.si) .sb{flex:1;min-height:24px}
 .mm-fn.picked{outline:2px solid var(--accent);outline-offset:2px}.mm-fn.picked .fh,.mm-fn.picked .mm-rz{opacity:1}
+body.mm-noanno #mmNotes,body.mm-noanno #mmInk,body.mm-noanno #mmInkHost{display:none!important}.mm-zb.on{background:var(--accent-l);color:var(--accent-d);border-color:var(--accent)}
+.mm-pdf.nopn{grid-template-columns:minmax(0,1fr) 0}.mm-pdf.nopn .pn{display:none}
 .mm-notes{position:absolute;inset:0;pointer-events:none;overflow:visible}.mm-zw.placing,.mm-zw.placing .mm-ed{cursor:copy!important}
 .mm-fn{position:absolute;pointer-events:auto;display:flex;flex-direction:column;min-width:80px;min-height:34px;font-size:13.5px;line-height:1.5;color:#2a2f45}
 .mm-fn.st{border-radius:3px 3px 12px 3px;box-shadow:0 5px 14px rgba(30,40,80,.22);overflow:hidden}
@@ -2371,7 +2373,7 @@ function recLabel(key, f) {
  * ===================================================================== */
 let root = null;
 /* 서버 모드: http(s):// 로 접속하면 server.py 의 REST API 사용 (폴더 선택 불필요). file:// 로 열면 폴더 모드 */
-const APP_VERSION = '2026-11-19.27';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
+const APP_VERSION = '2026-11-19.28';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
 const SERVER_URL = 'http://localhost:8080';
 // 부서원 PC 사본(file://)이 접속을 시도할 서버 — 서버가 배포 파일을 만들 때 'PC 이름 주소, IP 주소' 순으로 자동 기록함
 const DEFAULT_SERVERS = ['http://ASEUNGWOOK-B01:8080', 'http://65.3.30.234:8080'];
@@ -6152,7 +6154,7 @@ function mmDrawMain() {
     <p class="muted" style="font-size:12.5px;line-height:1.8">노트: 제목 · 목록 · 할 일 · 표 · 그림 · 그리기 · 파일 첨부 · PDF 보며 메모<br>스티커: 색 메모지를 보드에 붙이고, 📌 로 어느 화면에서나 띄워 두기<br>자동 저장 · 이전 판 되돌리기 · 휴지통</p>
     <p><button class="btn pri" data-mnew="page">＋ 새 메모</button> <button class="btn" data-mnew="tpl">양식으로 시작</button> <button class="btn" data-mv="sticky">🗒 스티커 보드</button></p></div>`; return; }
   const T = (c, l, t) => `<button data-mc="${c}" title="${esc(t)}">${l}</button>`, S = '<span class="sep"></span>';
-  el.innerHTML = `<div class="mm-top"><button class="mm-icon" id="mmIcon" title="아이콘 바꾸기">${esc(pg.icon || '📄')}</button><input class="mm-title" id="mmTitle" placeholder="제목 없음" value="${esc(pg.title || '')}" ${pg.lock ? 'readonly' : ''}><button class="mm-zb" data-mx="wide" title="목록을 숨기고 메모만 넓게 (다시 누르면 되돌림)">◧ 넓게</button><button class="mm-zb" data-mx="zen" title="메모창만 화면 가득 (Esc 로 되돌림)">⤢ 크게</button></div>
+  el.innerHTML = `<div class="mm-top"><button class="mm-icon" id="mmIcon" title="아이콘 바꾸기">${esc(pg.icon || '📄')}</button><input class="mm-title" id="mmTitle" placeholder="제목 없음" value="${esc(pg.title || '')}" ${pg.lock ? 'readonly' : ''}><button class="mm-zb" data-mx="anno" title="메모 위의 주석(메모지 · 글 상자 · 떠 있는 그림 · 펜 획) 숨기기 · 보이기 — 이 PC 에 기억">👁 주석 숨기기</button><button class="mm-zb" data-mx="wide" title="목록을 숨기고 메모만 넓게 (다시 누르면 되돌림)">◧ 넓게</button><button class="mm-zb" data-mx="zen" title="메모창만 화면 가득 (Esc 로 되돌림)">⤢ 크게</button></div>
     <div class="mm-meta"><select id="mmSecSel" title="섹션"><option value="">섹션 없음</option>${mmSecs().map(s => `<option value="${esc(s.id)}" ${pg.sec === s.id ? 'selected' : ''}>${esc(s.name)}</option>`).join('')}</select>
       <input type="date" id="mmDate" value="${esc(mmDay(pg))}" title="메모 날짜 — 날짜별 보기 · 날짜 정렬에 씀" ${pg.lock ? 'disabled' : ''}>
       <select id="mmLh" title="줄 · 문단 간격"><option value="s">간격 좁게</option><option value="">간격 보통</option><option value="l">간격 넓게</option><option value="x">간격 아주 넓게</option></select>
@@ -6171,6 +6173,7 @@ function mmDrawMain() {
     <div id="mmInkHost"></div><div class="mm-edw" id="mmEdw"><div class="mm-zw" id="mmZw"><div class="mm-ed" id="mmEd" data-pid="${pg.id}" contenteditable="${pg.lock ? 'false' : 'true'}" spellcheck="false"></div><div class="mm-notes" id="mmNotes"></div><svg class="mm-ink" id="mmInk"></svg></div></div>
     <div class="mm-zc"><button data-mx="zo" title="축소 (Ctrl + 휠 아래)">－</button><b id="mmZl" data-mx="z1" title="100% 로">100%</b><button data-mx="zi" title="확대 (Ctrl + 휠 위)">＋</button></div><div class="mm-st" id="mmSt"></div><input type="file" id="mmFile" hidden multiple><input type="file" id="mmImg" hidden multiple accept="image/*">`;
   $('#mmEd').innerHTML = mmClean(pg.html || ''); $('#mmLh').value = pg.lh || ''; $('#mmBg').value = pg.bg || ''; $('#mmEd').className = mmEdCls(pg); if (pg._ro) { $('#mmTb').style.display = 'none'; $('.mm-meta', el).innerHTML = `<span class="mm-ro">👥 <b>${esc(pg.ownerName || pg._ro)}</b> 님이 공유한 메모 — 읽기 전용 · ${fmtTime(pg.updatedAt)} 고침</span><button class="tg" data-mx="rocopy">⧉ 내 메모로 복사</button>`; }
+  if ((() => { try { return localStorage.getItem('dept-memo-anno') === '0'; } catch (_) { return false; } })()) { document.body.classList.add('mm-noanno'); const ab = $('[data-mx="anno"]'); if (ab) { ab.textContent = '👁 주석 보이기'; ab.classList.add('on'); } } else document.body.classList.remove('mm-noanno');
   mmZoomSet(mmZoom(), true); mmInkSync(); MM.lastKind = ''; MM.place = ''; MM.pick = ''; mmNotesDraw(); mmHistReset();
   mmStat(pg.updatedAt ? `저장됨 ${fmtTime(pg.updatedAt)} · ${(pg.text || '').length.toLocaleString()}자` : '새 메모');
   try { document.execCommand('styleWithCSS', false, true); document.execCommand('defaultParagraphSeparator', false, 'div'); } catch (_) {}
@@ -6315,7 +6318,7 @@ async function mmFileOpen(a) {
 function mmPdf(fid, name, url) {
   const pg = MM.cur; if (!pg) return; pg.fnotes = pg.fnotes || {};
   const ov = document.createElement('div'); ov.className = 'mm-ov';
-  ov.innerHTML = `<div class="mm-ovb"><div class="mm-ovh"><b>📕 ${esc(name)}</b><span class="muted" style="font-size:12px">PDF 를 보면서 오른쪽에 메모 — 메모는 이 페이지에 함께 저장됩니다</span><span class="sp"></span><button data-a="dl">⬇ 내려받기</button><button data-a="x" class="on">닫기</button></div>
+  ov.innerHTML = `<div class="mm-ovb"><div class="mm-ovh"><b>📕 ${esc(name)}</b><span class="muted" style="font-size:12px">PDF 를 보면서 오른쪽에 메모 — 메모는 이 페이지에 함께 저장됩니다</span><span class="sp"></span><button data-a="pnx">📝 주석 숨기기</button><button data-a="dl">⬇ 내려받기</button><button data-a="x" class="on">닫기</button></div>
     <div class="mm-pdf"><iframe src="${url}#toolbar=1"></iframe><div class="pn"><div class="ph">쪽 <input type="number" min="1" value="1" id="mmPgNo"><button class="btn sm pri" data-a="add">＋ 쪽 메모</button><span class="muted">p.표시 = 그 쪽으로</span></div><div class="pe" contenteditable="${pg.lock ? 'false' : 'true'}"></div></div></div></div>`;
   document.body.appendChild(ov); const pe = $('.pe', ov), fr = $('iframe', ov); pe.innerHTML = mmClean(pg.fnotes[fid] || '');
   const save = () => { pg.fnotes[fid] = mmClean(pe.innerHTML); MM.dirty = true; clearTimeout(MM.timer); MM.timer = setTimeout(() => mmSave(), 1200); };
@@ -6323,6 +6326,7 @@ function mmPdf(fid, name, url) {
   ov.onclick = e => { const a = e.target.closest('[data-a]')?.dataset.a, g = e.target.closest('.mm-pg');
     if (g) { fr.src = 'about:blank'; setTimeout(() => { fr.src = `${url}#page=${+g.dataset.pg || 1}`; }, 30); return; }
     if (a === 'x') { save(); ov.remove(); setTimeout(() => URL.revokeObjectURL(url), 1000); mmSave(); }
+    else if (a === 'pnx') { const p2 = ov.querySelector('.mm-pdf'), off = !p2.classList.toggle('nopn'); e.target.textContent = off ? '📝 주석 숨기기' : '📝 주석 보이기'; }
     else if (a === 'dl') { const x = document.createElement('a'); x.href = url; x.download = name; x.click(); }
     else if (a === 'add') { const n = Math.max(1, +$('#mmPgNo', ov).value || 1), d = document.createElement('div'); d.innerHTML = `<span class="mm-pg" data-pg="${n}" contenteditable="false">p.${n}</span>&nbsp;`; pe.appendChild(d); mmCaretIn(d, true); pe.focus(); save(); } };
 }
@@ -6777,7 +6781,7 @@ async function mmPdfView(fid, name, blob) {
   pg.fnotes = pg.fnotes || {}; pg.pink = pg.pink || {}; const INK = pg.pink[fid] = pg.pink[fid] || {}; const V = { z:1, cur:1, n:doc.numPages, was:PEN.on }; PEN.on = false;
   const ov = document.createElement('div'); ov.className = 'mm-ov';
   ov.innerHTML = `<div class="mm-ovb mm-pv"><div class="mm-ovh"><b>📕 ${esc(name)}</b><button data-a="zo" title="축소 (Ctrl+휠)">－</button><span id="mmPvZ" style="font-size:12px;min-width:42px;text-align:center">100%</span><button data-a="zi" title="확대 (Ctrl+휠)">＋</button><button data-a="fit">폭 맞춤</button><span id="mmPvP" style="font-size:12px;margin:0 6px"></span>
-      <button data-a="pen" title="PDF 위에 펜으로 쓰기">🖊 펜 쓰기</button><span class="sp"></span><button data-a="ins" title="지금 보는 쪽을(펜으로 쓴 것 포함) 그림으로 메모에 넣기">📥 이 쪽을 메모에 넣기</button><button data-a="dl">⬇ 내려받기</button><button data-a="x" class="on">닫기</button></div>
+      <button data-a="pen" title="PDF 위에 펜으로 쓰기">🖊 펜 쓰기</button><button data-a="pnx" title="오른쪽 주석(쪽 메모) 창 숨기기 · 보이기 — 이 PC 에 기억">📝 주석 숨기기</button><span class="sp"></span><button data-a="ins" title="지금 보는 쪽을(펜으로 쓴 것 포함) 그림으로 메모에 넣기">📥 이 쪽을 메모에 넣기</button><button data-a="dl">⬇ 내려받기</button><button data-a="x" class="on">닫기</button></div>
     <div id="mmPvBar"></div><div class="mm-pdf"><div class="pvs" id="mmPvS"></div><div class="pn"><div class="ph">쪽 <input type="number" min="1" max="${V.n}" value="1" id="mmPgNo"><button class="btn sm pri" data-a="add">＋ 쪽 메모</button><span class="muted">p.표시 = 그 쪽으로</span></div><div class="pe" contenteditable="${pg.lock ? 'false' : 'true'}"></div></div></div></div>`;
   document.body.appendChild(ov); const S = $('#mmPvS', ov), pe = $('.pe', ov); pe.innerHTML = mmClean(pg.fnotes[fid] || '');
   const touch = () => { MM.dirty = true; clearTimeout(MM.timer); MM.timer = setTimeout(() => mmSave(), 1200); };
@@ -6798,6 +6802,7 @@ async function mmPdfView(fid, name, blob) {
   const bar = () => { $('#mmPvBar', ov).innerHTML = PEN.on ? inkBarHtml() : ''; $('[data-a="pen"]', ov).classList.toggle('on', PEN.on); S.querySelectorAll('svg.mm-ink').forEach(s => { s.classList.toggle('on', PEN.on); s.classList.toggle('er', PEN.on && PEN.tool === 'erase'); }); };
   S.onscroll = upd; S.addEventListener('wheel', e => { if (!e.ctrlKey && !e.metaKey) return; e.preventDefault(); zoomTo(V.z * Math.pow(1.0015, -e.deltaY)); }, { passive:false });
   ov.onclick = async e => { if (inkBarClick(e, ov, bar)) return; const a = e.target.closest('[data-a],[data-pa]'), g = e.target.closest('.mm-pg'); if (g) return goPage(+g.dataset.pg || 1); if (!a) return; const k = a.dataset.a || a.dataset.pa;
+    if (k === 'pnx') { const off = !ov.querySelector('.mm-pdf').classList.toggle('nopn'); try { localStorage.setItem('dept-memo-pn', off ? '1' : '0'); } catch (_) {} a.textContent = off ? '📝 주석 숨기기' : '📝 주석 보이기'; a.classList.toggle('on', !off); setTimeout(() => zoomTo(V.z), 30); return; }
     if (k === 'zi') zoomTo(V.z * 1.2); else if (k === 'zo') zoomTo(V.z / 1.2); else if (k === 'fit') zoomTo(1);
     else if (k === 'pen') { if (pg.lock) return toast('잠긴 메모입니다', true); PEN.on = !PEN.on; bar(); }
     else if (k === 'undo') { const l = INK[V.cur] || []; if (l.length) { l.pop(); if (!l.length) delete INK[V.cur]; inkDraw(S.querySelector(`.pp[data-pp="${V.cur}"] svg`), INK[V.cur]); touch(); } else toast(`${V.cur}쪽에는 되돌릴 획이 없습니다`); }
@@ -6810,6 +6815,7 @@ async function mmPdfView(fid, name, blob) {
       try { cx.drawImage(im, 0, 0, cv.width, cv.height); } catch (_) {} const ed = mmEd(); mmCaretIn(ed, true);
       mmInsert(`<div class="mm-from">📕 ${esc(name)} · ${V.cur}쪽</div><img src="${cv.toDataURL('image/jpeg', .86)}"><div><br></div>`); toast(`${V.cur}쪽을 메모 맨 아래에 그림으로 넣었습니다`); }
     else if (k === 'x') { io.disconnect(); ov.remove(); PEN.on = false; try { doc.destroy(); } catch (_) {} mmInkSync(); mmSave(); } };
+  if ((() => { try { return localStorage.getItem('dept-memo-pn') === '0'; } catch (_) { return false; } })()) { ov.querySelector('.mm-pdf').classList.add('nopn'); const a = ov.querySelector('[data-a="pnx"]'); a.textContent = '📝 주석 보이기'; a.classList.add('on'); }
   layout(); upd(); bar();
 }
 /* ---------- 2026-11-19 v17.78 메모 위 아무 곳에나: 🗒 메모지 붙이기 · Ｔ 글 상자 (끌어 옮기기 · 크기 · 색) / 펜 획 Ctrl+Z · Ctrl+Y ---------- */
@@ -7140,6 +7146,7 @@ document.addEventListener('click', async e => {
     if (k === 'rocopy') return mmSharedCopy(); if (k === 'share') return mmShareDlg();
     if (k === 'empty') { if (await ask('휴지통을 비울까요?', '<p style="margin:0">휴지통의 메모와 첨부 파일을 모두 완전히 지웁니다. 되돌릴 수 없습니다.</p>', [{ id:'y', label:'비우기', cls:'pri' }, { id:'n', label:'취소' }]) !== 'y') return; for (const p of MM.pages.filter(x => x.deleted)) await mmKill(p).catch(() => {}); return mmDraw(); }
     if (!pg) return;
+    if (k === 'anno') { const on = !document.body.classList.toggle('mm-noanno'); try { localStorage.setItem('dept-memo-anno', on ? '1' : '0'); } catch (_) {} b.textContent = on ? '👁 주석 숨기기' : '👁 주석 보이기'; b.classList.toggle('on', !on); if (!on && PEN.on) { PEN.on = false; mmInkSync(); } return toast(on ? '주석을 다시 보입니다' : '주석(메모지 · 글 상자 · 떠 있는 그림 · 펜)을 숨겼습니다 — 본문만 보임'); }
     if (k === 'wide') { document.body.classList.remove('mm-zen'); return void document.body.classList.toggle('mm-wide'); }
     if (k === 'zen') { document.body.classList.remove('mm-wide'); const on = document.body.classList.toggle('mm-zen'); if (on) toast('메모창만 크게 — Esc 또는 [⤢ 크게] 를 다시 누르면 돌아갑니다'); return; }
     if (k === 'pin') { mmPull(); pg.pin = !pg.pin; MM.dirty = true; await mmSave(); mmDrawSide(); return mmDrawMain(); }
