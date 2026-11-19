@@ -7340,6 +7340,98 @@
      ]
     }
    }
+  },
+  {
+   "at": "2026-11-19 23:18",
+   "read_at": "2026-11-13T07:12:00Z",
+   "s": {
+    "S1": {
+     "branch": "origin/ccr-248a5c4d-3dji7g",
+     "tip": "f1c54a73",
+     "ver": "v18.02 · 회사엔 v17.82",
+     "bucket": "COMPLETED",
+     "needs": "",
+     "recent": "v18.02 f1c54a73 — 말풍선 주석 · 글 상자 본문처럼 · 끌 때 휠. 11-19 ㉑ 로 회사 업데이트 (회사 v17.82 기준)",
+     "pending": []
+    },
+    "S2": {
+     "branch": "origin/claude/gracious-ride-26nqrf",
+     "tip": "cd59d77a",
+     "ver": "hotfix145 만듦 (통합)",
+     "bucket": "COMPLETED",
+     "needs": "오케스트레이터: 다음 통합(hotfix146) 때 S3 L92 와 logic.js 충돌 확인",
+     "recent": "cd59d77a — 11-19 지시 끝: pid.md 정리 · /teach 준비 캐시(재시작 뒤에도 <1초) · LOGIC 화면 그림 늦거나 실패 시 안내/[다시 받기] (logic.js · css — S3 파일). 빠른 시험 2,217 통과. 회사 미전달",
+     "pending": [
+      "cd59d77a"
+     ]
+    },
+    "S3": {
+     "branch": "origin/ccr-cc45909d-fjjmrb",
+     "tip": "4e9cfd24",
+     "ver": "L91",
+     "bucket": "COMPLETED",
+     "needs": "사용자: 3 세션 창에서 L92 진행 승인 필요 (지시는 받음 · python-docx 누락 확인됨)",
+     "recent": "L91 커밋 · 푸시 — 화면 시험 125 · 빠른 시험 1,655 통과. 통합 꾸러미에 병합 필요",
+     "pending": []
+    },
+    "S4": {
+     "branch": "origin/ccr-d82d97fa-bb3ty3",
+     "tip": "7b10d7cb",
+     "ver": "변경 이력 (55)",
+     "bucket": "BLOCKED",
+     "needs": "11-19 지시: 멈춘 질문 답(zip 은 오케스트레이터) · panel.md 인수인계 · DXF/phase 시험 · 3D HTML 크기 안내 → 끝나면 보고",
+     "recent": "",
+     "pending": []
+    },
+    "S5": {
+     "branch": "origin/claude/new-session-v23o67",
+     "tip": "f5f94b2c",
+     "ver": "2026-11-19.1",
+     "bucket": "COMPLETED",
+     "needs": "오케스트레이터: 다음 통합 때 dist/books_integration/books_2026-11-19.1_on_integration.patch 적용 (점검 OK)",
+     "recent": "f5f94b2c — 11-19 지시 끝: books.md · valve_kinds 다시 적용 금지 · 외부 번역 회사판 기본 꺼짐(BOOKS_EXTERNAL_TRANSLATE=1 일 때만) · nDCG 0.895→0.915 (내려간 질문 0). 도서검토 2026-11-19.1. 회사 미전달",
+     "pending": [
+      "f5f94b2c"
+     ]
+    },
+    "S6": {
+     "branch": "origin/ccr-efbe7e75-n915ze",
+     "tip": "91fba2a1",
+     "ver": "valve41",
+     "bucket": "COMPLETED",
+     "needs": "사용자: 새 VALVE 세션 열어 valve.md 읽고 2) List 대조 보강부터 (또는 이 세션에서 계속)",
+     "recent": "91fba2a1 — valve.md 14,994 → 8,422 B (지시 1 끝 · 문서만). 2)~5) 는 인수인계 \"다음에 할 일\" 에 적어 둠 · 새 VALVE 세션에서 이어 가기 권함",
+     "pending": [
+      "91fba2a1"
+     ]
+    },
+    "S7": {
+     "branch": "origin/claude/practical-newton-n6bt58",
+     "tip": "865f9297",
+     "ver": "865f9297",
+     "bucket": "COMPLETED",
+     "needs": "11-19 지시: 회사판 빌드(API 키 · LLM · Claude 도면 읽기 빼기) · LLM 없는 GA 치수 입력 · ic3d.md 인수인계 → 끝나면 보고",
+     "recent": "865f9297 — 좁은 폭에서도 3D 칸 · 휠 축소 한계. hotfix135 로 회사 업데이트에 처음 실림",
+     "pending": [
+      "865f9297",
+      "cb4f4972",
+      "af748c78",
+      "da8df461",
+      "c0dd7d0b",
+      "077cba5e",
+      "144e6604",
+      "8b0b1023",
+      "19d7aa3a",
+      "1fd96028",
+      "b99fb62a",
+      "ad3bbe35",
+      "05909503",
+      "963d2857",
+      "f408556e",
+      "64a829be"
+     ]
+    }
+   }
   }
  ],
  "changes": [
@@ -11321,6 +11413,48 @@
    "at": "2026-11-19 22:50",
    "prev": "2026-11-19 22:41",
    "sid": "S2",
+   "kind": "pending",
+   "sig": "계산",
+   "text": "다음 업데이트 대기 0 → 1건"
+  },
+  {
+   "at": "2026-11-19 23:18",
+   "prev": "2026-11-19 22:50",
+   "sid": "S5",
+   "kind": "commit",
+   "sig": "git",
+   "h": "f5f94b2c",
+   "d": "2026-11-19",
+   "text": "books 2026-11-19.1: 회사판 외부 번역 기본 꺼짐 · 외국어 계장 용어 보강(레벨 · 유량) · 인수인계 문서"
+  },
+  {
+   "at": "2026-11-19 23:18",
+   "prev": "2026-11-19 22:50",
+   "sid": "S5",
+   "kind": "version",
+   "sig": "git",
+   "text": "버전 2026-11-07.1 → 2026-11-19.1"
+  },
+  {
+   "at": "2026-11-19 23:18",
+   "prev": "2026-11-19 22:50",
+   "sid": "S5",
+   "kind": "needs",
+   "sig": "세션 기록",
+   "text": "확인 필요 — 오케스트레이터: 다음 통합 때 dist/books_integration/books_2026-11-19.1_on_integration.patch 적용 (점검 OK)"
+  },
+  {
+   "at": "2026-11-19 23:18",
+   "prev": "2026-11-19 22:50",
+   "sid": "S5",
+   "kind": "report",
+   "sig": "세션 기록",
+   "text": "세션 보고 — f5f94b2c — 11-19 지시 끝: books.md · valve_kinds 다시 적용 금지 · 외부 번역 회사판 기본 꺼짐(BOOKS_EXTERNAL_TRANSLATE=1 일 때만) · nDCG 0.895→0.915 (내려간 질문 0). 도서검토 2026-11-19.1. 회사 미전달"
+  },
+  {
+   "at": "2026-11-19 23:18",
+   "prev": "2026-11-19 22:50",
+   "sid": "S5",
    "kind": "pending",
    "sig": "계산",
    "text": "다음 업데이트 대기 0 → 1건"

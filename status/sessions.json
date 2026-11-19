@@ -38,9 +38,9 @@
    "id": "session_014zoSs8H5yNiq8r2ATBV4YL",
    "title": "5. 도서 검토",
    "bucket": "COMPLETED",
-   "updated": "2026-11-10T04:33:20Z",
-   "recent": "valve37 (3d46af2c · dist/valve_kinds) — Globe · Butterfly · PSV 데이터시트 검토. S6 valve36 위 패치 + 대시보드 메뉴 패치. 다음 ② 통합본에 실어 달라는 요청",
-   "needs": "11-19 지시: books.md 인수인계 · valve_kinds 다시 적용 금지 표시 · Claude 번역 회사판 기본 꺼짐 · 레벨/유량 nDCG → 끝나면 보고"
+   "updated": "2026-11-19T23:18:28Z",
+   "recent": "f5f94b2c — 11-19 지시 끝: books.md · valve_kinds 다시 적용 금지 · 외부 번역 회사판 기본 꺼짐(BOOKS_EXTERNAL_TRANSLATE=1 일 때만) · nDCG 0.895→0.915 (내려간 질문 0). 도서검토 2026-11-19.1. 회사 미전달",
+   "needs": "오케스트레이터: 다음 통합 때 dist/books_integration/books_2026-11-19.1_on_integration.patch 적용 (점검 OK)"
   },
   "S6": {
    "id": "session_01Muj82EMRakKAAS1HYXcE7d",
