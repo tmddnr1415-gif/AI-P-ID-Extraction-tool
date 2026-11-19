@@ -2015,7 +2015,7 @@ body.mm-wide #mmHid,body.mm-zen #mmHid{display:none!important}
 .mm-zb{border:1px solid var(--line);background:var(--card);border-radius:8px;padding:4px 9px;font-size:12px;cursor:pointer;color:var(--sub);white-space:nowrap}.mm-zb:hover{color:var(--accent-d);border-color:var(--accent)}
 body.mm-wide #memoWrap{grid-template-columns:minmax(0,1fr)!important}body.mm-wide #memoWrap .mm-side,body.mm-wide #memoWrap .mm-list{display:none!important}
 body.mm-zen #memoWrap{position:fixed;inset:0;z-index:700;height:auto;min-height:0;grid-template-columns:minmax(0,1fr)!important;padding:10px 14px;background:var(--bg)}body.mm-zen #memoWrap .mm-side,body.mm-zen #memoWrap .mm-list{display:none!important}
-body.mm-zen .mm-ed{padding-left:max(26px,calc(50% - 520px));padding-right:max(26px,calc(50% - 520px))}body.mm-zen{overflow:hidden}
+body.mm-zen{overflow:hidden}   /* v17.98: 크게 때 글을 가운데로 모으던 여백 없앰 — 떠 있는 표 · 그림 · 펜과 글의 자리가 크기 전후로 그대로 */
 .mm-ed td.mm-sel,.mm-ed th.mm-sel{background-image:linear-gradient(rgba(43,68,201,.18),rgba(43,68,201,.18));outline:1.5px solid var(--accent);outline-offset:-1.5px}
 .mm-ed table.mm-tbn td,.mm-ed table.mm-tbn th{border-color:transparent}.mm-ed table.mm-tbn{outline:1px dashed #d5dbec}.mm-ed table.mm-tbb td,.mm-ed table.mm-tbb th{border:2px solid #4a5578}
 .mm-ed table.mm-tbz tr:nth-child(even) td{background-color:#f4f6fb}
@@ -2412,7 +2412,7 @@ function recLabel(key, f) {
  * ===================================================================== */
 let root = null;
 /* 서버 모드: http(s):// 로 접속하면 server.py 의 REST API 사용 (폴더 선택 불필요). file:// 로 열면 폴더 모드 */
-const APP_VERSION = '2026-11-19.33';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
+const APP_VERSION = '2026-11-19.34';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
 const SERVER_URL = 'http://localhost:8080';
 // 부서원 PC 사본(file://)이 접속을 시도할 서버 — 서버가 배포 파일을 만들 때 'PC 이름 주소, IP 주소' 순으로 자동 기록함
 const DEFAULT_SERVERS = ['http://ASEUNGWOOK-B01:8080', 'http://65.3.30.234:8080'];
