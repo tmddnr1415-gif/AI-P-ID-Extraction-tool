@@ -762,6 +762,19 @@
    },
    "replaces": "18_DASHBOARD_update_v17.94_from_v17.82_2026-11-19.zip",
    "note": "v17.96 (기준 v17.82) — OneNote 모양 · 태그 · 목차 · 찾기/바꾸기 (server.py → 재시작)"
+  },
+  {
+   "file": "①",
+   "name": "20_DASHBOARD_update_v17.99_from_v17.82_2026-11-19.zip",
+   "made": "2026-11-19 20:15",
+   "path": "company-pc-update/2026-11-19/ (1.6MB · 저장소에 있음)",
+   "sha256": "e4363e109465f20f8b43b095fa78c0ed780e9bd9cc58cf3ffcc2e5f7097ef352",
+   "applied": "",
+   "tips": {
+    "S1": "dee96838"
+   },
+   "replaces": "19_DASHBOARD_update_v17.96_from_v17.82_2026-11-19.zip",
+   "note": "v17.99 (기준 v17.82) — 펜 끄기 단추 · 크게 볼 때 제목 · 글 위치 고침 (회사 사진)"
   }
  ]
 }
