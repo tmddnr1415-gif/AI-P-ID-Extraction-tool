@@ -567,6 +567,19 @@
    },
    "replaces": "3_DASHBOARD_update_v17.72_from_v17.47_2026-11-19.zip",
    "note": "v17.73 — 내 메모장 메뉴 0번 맨 위 (화면만 · v17.72 위면 서버 재시작 불필요)"
+  },
+  {
+   "file": "①",
+   "name": "5_DASHBOARD_update_v17.74_from_v17.47_2026-11-19.zip",
+   "made": "2026-11-19 11:30",
+   "path": "company-pc-update/2026-11-19/ (1.5MB · 저장소에 있음)",
+   "sha256": "ea54af19e0e42cdbc778d84318c0928a0021b4f3f252ce84b1b693704c631da9",
+   "applied": "",
+   "tips": {
+    "S1": "5dc52af9"
+   },
+   "replaces": "4_DASHBOARD_update_v17.73_from_v17.47_2026-11-19.zip",
+   "note": "v17.74 — 내 메모장 글머리 단계 (화면만 · v17.72 위면 서버 재시작 불필요)"
   }
  ]
 }
