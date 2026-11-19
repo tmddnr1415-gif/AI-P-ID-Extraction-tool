@@ -1402,7 +1402,7 @@ body.rail #side:not(:hover):not(.peek) .mgrp.act .mhead .mi.top{background:#fff;
 .cevadd2{display:flex;gap:6px;margin-top:6px}.cevadd2 .cevadd{flex:1;margin:0}.cevtop{margin-right:6px}
 .ev-nte{background:#8b5cf6}.calfd{font-size:12px;font-weight:700;color:#1d4ed8;background:#dbeafe;border-radius:99px;padding:2px 4px 2px 10px;margin-left:6px;vertical-align:2px}.calfd button{border:0;background:#93c5fd;color:#fff;border-radius:50%;width:18px;height:18px;cursor:pointer;font-size:10px;margin-left:4px}.cevf select{font:inherit;font-size:14px;padding:6px 8px;border:1px solid #cbd5e1;border-radius:8px}.cevk{display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-bottom:10px}.cevk button{border:1px solid #cbd5e1;background:#f8fafc;border-radius:99px;padding:5px 14px;font:inherit;font-weight:700;cursor:pointer}.cevk button.on{background:#4f46e5;border-color:#4f46e5;color:#fff}.cevk .muted{font-size:11.5px}
 @media (max-width:900px){.schcal{grid-template-columns:1fr}.schcal .calag{grid-column:1;grid-row:auto;border:0;padding:0}}
-.ev-memo{background:#f59e0b}.ev-my{background:#0ea5e9}.ev-ev{background:#14b8a6}.agi.agev{cursor:pointer}.agi .agm{color:#6d28d9!important}.cevadd{margin-top:6px;width:100%}
+.ev-memo{background:#f59e0b}.ev-alarm{background:#22c55e;box-shadow:0 0 0 2px rgba(57,255,20,.35)}.ev-my{background:#0ea5e9}.ev-ev{background:#14b8a6}.agi.agev{cursor:pointer}.agi .agm{color:#6d28d9!important}.cevadd{margin-top:6px;width:100%}
 .cevf .fl{display:flex;flex-direction:column;gap:3px;margin-bottom:10px;font-weight:700;font-size:13px}.cevf input:not([type=checkbox]),.cevf textarea{font:inherit;font-size:14px;padding:7px 10px;border:1px solid #cbd5e1;border-radius:8px;width:100%;box-sizing:border-box}.cevf .cevd{display:flex;gap:6px;align-items:center}.cevf .cevd input{width:auto}
 .cevmy{position:fixed;right:22px;bottom:22px;z-index:1500;width:360px;max-height:60vh;display:flex;flex-direction:column;background:#fff;border-radius:16px;box-shadow:0 18px 50px rgba(15,23,42,.3),0 0 0 1px rgba(14,165,233,.25);overflow:hidden;animation:schBigIn .2s ease-out}
 .cevmy .cmh{display:flex;align-items:center;gap:8px;padding:10px 12px;background:linear-gradient(120deg,#0ea5e9,#6366f1);color:#fff}.cevmy .cmh small{opacity:.85}.cevmy .cmh button{margin-left:auto;border:0;background:rgba(255,255,255,.2);color:#fff;border-radius:7px;cursor:pointer;padding:2px 8px}
@@ -2011,6 +2011,16 @@ body.mm-zen .mm-ed{padding-left:max(26px,calc(50% - 520px));padding-right:max(26
 .mm-ed table.mm-tbz tr:nth-child(even) td{background-color:#f4f6fb}
 .mm-pop.tmenu{columns:2;column-gap:4px;max-height:none;min-width:430px}.mm-pop.tmenu button{break-inside:avoid;padding:5px 9px}
 .mm-pop.tpick{padding:10px;min-width:0}.mm-pop.tpick .tp{display:grid;grid-template-columns:repeat(10,18px);gap:2px}.mm-pop.tpick .tp button{width:18px;height:18px;padding:0;border:1px solid #c5cbe0;border-radius:3px;background:#fff}.mm-pop.tpick .tp button.on{background:var(--accent-l);border-color:var(--accent)}.mm-pop.tpick .tpl{font-size:12px;color:var(--sub);text-align:center;margin-top:6px}
+/* 메모 일정 알림: 오른쪽 아래에서 위로 올라오는 형광 초록 */
+#mmAlarm{position:fixed;right:18px;bottom:18px;z-index:9700;display:flex;flex-direction:column;gap:10px;width:330px;pointer-events:none}
+.mm-al{pointer-events:auto;position:relative;background:#39ff14;color:#052e0a;border-radius:14px;padding:12px 14px 11px;box-shadow:0 0 0 1px #1fd100,0 0 26px rgba(57,255,20,.75),0 10px 30px rgba(0,60,0,.35);animation:mmAlUp .55s cubic-bezier(.2,.9,.25,1.15) both}
+.mm-al.out{animation:mmAlOut .32s ease-in both}
+@keyframes mmAlUp{from{transform:translateY(140%);opacity:0}to{transform:translateY(0);opacity:1}}@keyframes mmAlOut{to{transform:translateY(60%);opacity:0}}
+.mm-al .h{font-size:12.5px;font-weight:600;padding-right:22px}.mm-al .h b{font-size:14px;font-weight:900}.mm-al .t{font-size:16px;font-weight:800;margin:4px 0 2px;word-break:break-word;line-height:1.35}.mm-al .s{font-size:12px;opacity:.85}
+.mm-al .a{display:flex;gap:6px;margin-top:9px}.mm-al .a button{flex:1;border:0;border-radius:8px;padding:6px 8px;font-size:12.5px;font-weight:700;cursor:pointer;background:#052e0a;color:#39ff14}.mm-al .a button+button{background:rgba(5,46,10,.14);color:#052e0a}
+.mm-al .x{position:absolute;right:8px;top:7px;border:0;background:none;cursor:pointer;font-size:13px;color:#052e0a;opacity:.7}
+html.dark #mmAlarm{filter:invert(1) hue-rotate(180deg)}
+.mm-cal .cg button.al{box-shadow:inset 0 -3px 0 #22c55e}
 .mm-gh{font-size:11px;font-weight:700;color:var(--sub);padding:8px 8px 3px;letter-spacing:.02em}
 .mm-cal{border:1px solid var(--line);border-radius:10px;padding:8px}.mm-cal .ch{display:flex;align-items:center;gap:6px;font-size:13px}.mm-cal .ch button{border:1px solid var(--line);background:var(--card);border-radius:6px;cursor:pointer;padding:1px 7px}
 .mm-cal .cw,.mm-cal .cg{display:grid;grid-template-columns:repeat(7,1fr);gap:2px;margin-top:4px;text-align:center}.mm-cal .cw span{font-size:10px;color:var(--sub)}
@@ -2202,7 +2212,7 @@ function recLabel(key, f) {
  * ===================================================================== */
 let root = null;
 /* 서버 모드: http(s):// 로 접속하면 server.py 의 REST API 사용 (폴더 선택 불필요). file:// 로 열면 폴더 모드 */
-const APP_VERSION = '2026-11-19.4';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
+const APP_VERSION = '2026-11-19.5';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
 const SERVER_URL = 'http://localhost:8080';
 // 부서원 PC 사본(file://)이 접속을 시도할 서버 — 서버가 배포 파일을 만들 때 'PC 이름 주소, IP 주소' 순으로 자동 기록함
 const DEFAULT_SERVERS = ['http://ASEUNGWOOK-B01:8080', 'http://65.3.30.234:8080'];
@@ -5815,7 +5825,7 @@ function mmMetaOf(pg) {   // 목록 · 찾기 · 할 일 모음에 쓰는 요약
 }
 function mmMetaPut(pg) {
   const m = {}; ['id', 'kind', 'sec', 'title', 'icon', 'color', 'tags', 'pin', 'lock', 'deleted', 'float', 'x', 'y', 'w', 'h', 'fx', 'fy', 'text', 'todos', 'files', 'date', 'lh', 'createdAt', 'updatedAt'].forEach(k => { if (k in pg) m[k] = pg[k]; });
-  const i = MM.pages.findIndex(p => p.id === pg.id); if (i >= 0) MM.pages[i] = m; else MM.pages.push(m);
+  m.evs = mmEvs(m); const i = MM.pages.findIndex(p => p.id === pg.id); if (i >= 0) MM.pages[i] = m; else MM.pages.push(m); setTimeout(mmAlarmTick, 50);
 }
 /* ---------- 저장 (자동 · 1.2초 뒤) ---------- */
 function mmStat(t, bad) { const s = $('#mmSt'); if (s) { s.textContent = t; s.classList.toggle('bad', !!bad); } }
@@ -5902,10 +5912,10 @@ function mmCalHtml() {
   let ev = {}; try { ev = calEvents(y, mo - 1, 'home'); } catch (_) {}   // 첫 화면 달력의 값(생일 · 주간 마감 · 전달사항 · 업무 기한 · 공휴일)도 같이
   const evs = d => (ev[d] || []).filter(e => e.k !== 'memo'), hol = d => HOL_NAME[d] || HOL_SOFT[d.slice(5)] || '';
   let cells = '<i></i>'.repeat(first.getDay());
-  for (let d = 1; d <= n; d++) { const iso = `${m}-${pad(d)}`; const es = evs(iso), dw = new Date(y, mo - 1, d).getDay(); cells += `<button data-mday="${iso}" class="${iso === MM.day ? 'on' : ''} ${iso === todayISO() ? 'td' : ''} ${cnt[iso] ? 'has' : ''} ${dw === 0 || HOL_NAME[iso] ? 'sun' : dw === 6 ? 'sat' : ''}" title="${esc([hol(iso), ...es.map(e => `${e.t} ${e.l}`)].filter(Boolean).join('\n'))}">${d}${cnt[iso] ? `<u>${cnt[iso]}</u>` : ''}${es.length ? `<em>${es.slice(0, 3).map(e => `<i class="${CAL_K[e.k]?.[0] || ''}"></i>`).join('')}</em>` : ''}</button>`; }
+  for (let d = 1; d <= n; d++) { const iso = `${m}-${pad(d)}`; const es = evs(iso), dw = new Date(y, mo - 1, d).getDay(); cells += `<button data-mday="${iso}" class="${iso === MM.day ? 'on' : ''} ${iso === todayISO() ? 'td' : ''} ${cnt[iso] ? 'has' : ''} ${es.some(e => e.k === 'alarm') ? 'al' : ''} ${dw === 0 || HOL_NAME[iso] ? 'sun' : dw === 6 ? 'sat' : ''}" title="${esc([hol(iso), ...es.map(e => `${e.t} ${e.l}`)].filter(Boolean).join('\n'))}">${d}${cnt[iso] ? `<u>${cnt[iso]}</u>` : ''}${es.length ? `<em>${es.slice(0, 3).map(e => `<i class="${CAL_K[e.k]?.[0] || ''}"></i>`).join('')}</em>` : ''}</button>`; }
   const sd = MM.day || '', se = sd ? evs(sd) : [];
   return `<div class="mm-cal"><div class="ch"><button data-mmon="-1">‹</button><b>${y}년 ${mo}월</b><button data-mmon="1">›</button><button data-mmon="0" style="margin-left:auto;font-size:11px">오늘</button></div><div class="cw">${'일월화수목금토'.split('').map(x => `<span>${x}</span>`).join('')}</div><div class="cg">${cells}</div>
-    ${sd ? `<div class="ce"><b>${+sd.slice(5, 7)}월 ${+sd.slice(8)}일 (${'일월화수목금토'[new Date(sd).getDay()]})${hol(sd) ? ` <span style="color:#dc2626">${esc(hol(sd))}</span>` : ''}</b> <span class="muted">대시보드 달력 ${se.length}건</span>${se.map(e => `<div class="cei" ${e.go ? `data-mcalgo="${e.go}"` : ''}><i class="${CAL_K[e.k]?.[0] || ''}"></i><span>${esc(e.t)}</span> ${esc(e.l)}</div>`).join('')}<button class="btn sm" data-mcalhome="${sd}" style="margin-top:5px;width:100%">📅 대시보드 달력에서 이 날 보기</button></div>` : ''}
+    ${sd ? `<div class="ce"><b>${+sd.slice(5, 7)}월 ${+sd.slice(8)}일 (${'일월화수목금토'[new Date(sd).getDay()]})${hol(sd) ? ` <span style="color:#dc2626">${esc(hol(sd))}</span>` : ''}</b> <span class="muted">달력 일정 ${se.length}건</span>${se.map(e => `<div class="cei" ${e.k === 'alarm' ? `data-mp="${e.memo}" title="이 메모 열기"` : e.go ? `data-mcalgo="${e.go}"` : ''}><i class="${CAL_K[e.k]?.[0] || ''}"></i><span>${esc(e.t)}</span> ${esc(e.l)}</div>`).join('')}<button class="btn sm" data-mcalhome="${sd}" style="margin-top:5px;width:100%">📅 대시보드 달력에서 이 날 보기</button></div>` : ''}
     <div class="muted" style="font-size:11px;margin-top:4px">${MM.day ? '같은 날을 다시 누르면 그 달 전체 · [＋ 새 메모] 는 이 날짜로' : '날짜를 누르면 그날 메모와 대시보드 달력 일정 · 주황 숫자 = 메모 수 · 점 = 대시보드 일정'}</div></div>`;
 }
 function mmShown() {
@@ -5955,6 +5965,7 @@ function mmDrawMain() {
   try { document.execCommand('styleWithCSS', false, true); document.execCommand('defaultParagraphSeparator', false, 'div'); } catch (_) {}
 }
 async function mmOpen(id) {
+  if (MM.pages.find(p => p.id === id)?.kind === 'sticky') { await mmFlush(); MM.view = 'sticky'; MM.cur = null; return mmDraw(); }
   if (MM.cur?.id === id) return; await mmFlush();
   let pg; try { pg = await api('GET', 'memo/p/' + id); } catch (e) { return toast(e.message, true); }
   MM.cur = pg; MM.dirty = false;
@@ -6152,7 +6163,7 @@ function mmArrange(mode) {
 function mmStickySave(p, ms = 900) { clearTimeout(MM.sT[p.id]); MM.sT[p.id] = setTimeout(() => mmSave(p), ms); }
 function mmStickyBind(host, fl) {
   if (host._mm) return; host._mm = 1; let drag = null; const P = id => MM.pages.find(p => p.id === id);
-  host.addEventListener('input', e => { const s = e.target.closest('.mm-sticky'); if (!s) return; const p = P(s.dataset.sid); if (!p) return; p.text = e.target.innerText.replace(/\n$/, '').slice(0, 5000); mmStickySave(p); mmFloatSync(p, fl); });
+  host.addEventListener('input', e => { const s = e.target.closest('.mm-sticky'); if (!s) return; const p = P(s.dataset.sid); if (!p) return; p.text = e.target.innerText.replace(/\n$/, '').slice(0, 5000); p.evs = null; mmStickySave(p); mmFloatSync(p, fl); });
   host.addEventListener('paste', e => { if (!e.target.closest('.sb')) return; e.preventDefault(); document.execCommand('insertText', false, (e.clipboardData.getData('text/plain') || '').slice(0, 5000)); });
   host.addEventListener('pointerdown', e => { const h = e.target.closest('.sh'), s = e.target.closest('.mm-sticky'); if (!s) return; s.style.zIndex = ++mmStickyBind.z;
     if (!h || e.target.closest('button')) return; const r = s.getBoundingClientRect(), hr = fl ? { left:0, top:0 } : host.getBoundingClientRect();
@@ -6178,11 +6189,11 @@ function mmFloatDraw() {
   h.innerHTML = l.map(p => mmStickyHtml(p, true)).join('');
 }
 function memoTick() {   // 화면을 그릴 때마다: 띄운 스티커 불러오기 · 메모장을 떠나면 저장
-  if (!mmOn()) { $('#mmFloat')?.remove(); return; }
+  if (!mmOn()) { $('#mmFloat')?.remove(); $('#mmAlarm')?.remove(); return; }
   if (route !== 'memo') document.body.classList.remove('mm-zen', 'mm-wide');
   if (route !== 'memo' && MM.cur && MM.dirty) mmSave();
   if (MM.ready && MM.uid === AUTH.id) return mmFloatDraw();
-  if (!MM.loading) mmLoad().then(() => { mmFloatDraw(); if ($('#calCard')) renderCal('home'); });
+  if (!MM.loading) mmLoad().then(() => { mmFloatDraw(); mmAlarmTick(); if ($('#calCard')) renderCal('home'); });
 }
 /* ---------- 할 일 모음 · 휴지통 · 판 기록 · 내보내기 ---------- */
 function mmDrawTodo() {
@@ -6389,6 +6400,53 @@ async function mmImgCopy(img) {
   try { let b = await (await fetch(img.src)).blob(); if (b.type !== 'image/png') { const cv = document.createElement('canvas'); cv.width = img.naturalWidth; cv.height = img.naturalHeight; cv.getContext('2d').drawImage(img, 0, 0); b = await new Promise(r => cv.toBlob(r, 'image/png')); }
     await navigator.clipboard.write([new ClipboardItem({ 'image/png':b })]); toast('그림을 복사했습니다 — Ctrl+V 로 붙여넣기'); } catch (e) { toast('그림을 복사하지 못했습니다 (브라우저가 막음) — 마우스 오른쪽 › 이미지 복사를 써 보세요', true); }
 }
+/* ---------- 2026-11-19 v17.69 메모 속 날짜 + 시간 → 달력 표시 · 알림(하루 전 · 30분 전 · 15분 전 · 정각) — 어느 화면에서나 오른쪽 아래에서 올라오는 형광 초록 알림 ---------- */
+function mmEvs(p) {   // 메모 글에서 '날짜 + 시간' 찾기 → [{ at:'YYYY-MM-DDTHH:MM', t:그 줄 내용 }]
+  const out = [], base = p.date || mmLocal(p.createdAt) || todayISO(), by = +base.slice(0, 4), bm = +base.slice(5, 7), seen = new Set();
+  const done = new Set((p.todos || []).filter(t => t.d).map(t => t.t));
+  const DRE = /(\d{4})\s?[-./]\s?(\d{1,2})\s?[-./]\s?(\d{1,2})\.?|(?<![\d.\/-])(\d{2})[-.\/](\d{1,2})[-.\/](\d{1,2})\.?(?![\d])|(\d{1,2})\s?월\s?(\d{1,2})\s?일|(?<![\d\/.])(\d{1,2})\/(\d{1,2})(?![\d\/])|(오늘|내일|모레)/g;
+  const TRE = /^\s*(?:\(?[일월화수목금토](?:요일)?\)?)?\s*,?\s*(오전|오후|AM|PM|am|pm)?\s*(?:(\d{1,2})\s?:\s?(\d{2})|(\d{1,2})\s?시\s?(?:(\d{1,2})\s?분|(반))?)\s*(AM|PM|am|pm)?/;
+  for (const raw of [p.title || '', ...String(p.text || '').split('\n')]) { const line = raw.trim(); if (!line || /^📥/.test(line) || done.has(line.slice(0, 160))) continue; let m; DRE.lastIndex = 0;
+    while ((m = DRE.exec(line)) && out.length < 40) { const tm = TRE.exec(line.slice(m.index + m[0].length)); if (!tm) continue;
+      let y, mo, d;
+      if (m[1]) { y = +m[1]; mo = +m[2]; d = +m[3]; } else if (m[4]) { y = 2000 + +m[4]; mo = +m[5]; d = +m[6]; } else if (m[7] || m[9]) { mo = +(m[7] || m[9]); d = +(m[8] || m[10]); y = by + (mo < bm - 6 ? 1 : 0); }
+      else { const bd = new Date(base + 'T00:00:00'); bd.setDate(bd.getDate() + { 오늘:0, 내일:1, 모레:2 }[m[11]]); y = bd.getFullYear(); mo = bd.getMonth() + 1; d = bd.getDate(); }
+      let h = +(tm[2] ?? tm[4]), mi = +(tm[3] ?? tm[5] ?? (tm[6] ? 30 : 0)); const ap = (tm[1] || tm[7] || '').toLowerCase();
+      if ((ap === '오후' || ap === 'pm') && h < 12) h += 12; if ((ap === '오전' || ap === 'am') && h === 12) h = 0;
+      if (!(mo >= 1 && mo <= 12 && d >= 1 && d <= 31 && h >= 0 && h <= 23 && mi >= 0 && mi <= 59 && y >= 2000 && y <= 2100)) continue;
+      const at = `${y}-${pad(mo)}-${pad(d)}T${pad(h)}:${pad(mi)}`; if (seen.has(at)) continue; seen.add(at);
+      const t = (line.slice(0, m.index) + ' ' + line.slice(m.index + m[0].length + tm[0].length)).replace(/^[\s:·\-–—,~]+|[\s:·\-–—,~]+$/g, '').replace(/\s+/g, ' ').slice(0, 80);
+      out.push({ at, t:t || p.title || (p.kind === 'sticky' ? '스티커 메모' : '메모') }); DRE.lastIndex = m.index + m[0].length + tm[0].length; } }
+  return out;
+}
+const mmAllEvs = () => mmOn() && MM.ready && MM.uid === AUTH.id ? MM.pages.filter(p => !p.deleted).flatMap(p => (p.evs || (p.evs = mmEvs(p))).map(e => ({ ...e, p }))) : [];
+const MM_AL = [[1440, '하루 전'], [30, '30분 전'], [15, '15분 전'], [0, '지금']];
+function mmAlarmFired() { try { const o = JSON.parse(localStorage.getItem('dept-memo-alarm') || '{}'), lim = Date.now() - 4 * 864e5; Object.keys(o).forEach(k => { if (o[k] < lim) delete o[k]; }); return o; } catch (_) { return {}; } }
+function mmLeft(ms) { const m = Math.round(ms / 60000); return m <= 0 ? '지금' : m < 60 ? `${m}분 남음` : m < 1440 ? `${Math.floor(m / 60)}시간${m % 60 ? ' ' + m % 60 + '분' : ''} 남음` : `${Math.floor(m / 1440)}일 ${Math.floor(m % 1440 / 60)}시간 남음`; }
+function mmAlarmTick() {
+  const host = $('#mmAlarm'); if (host) host.querySelectorAll('.mm-al').forEach(c => { const left = +c.dataset.at - Date.now(); if (left < -10 * 60000) return c.remove(); const s = c.querySelector('.lf'); if (s) s.textContent = left <= 0 ? '시작 시각이 됐습니다' : mmLeft(left); });
+  const evs = mmAllEvs(); if (!evs.length) return; const now = Date.now(), fired = mmAlarmFired();
+  for (const e of evs) { const at = new Date(e.at).getTime(); if (isNaN(at) || now > at + 5 * 60000) continue;
+    const st = [...MM_AL].reverse().find(([off]) => at - off * 60000 <= now); if (!st) continue;
+    const key = `${MM.uid}|${e.p.id}|${e.at}|`; if (fired[key + st[0]]) continue;   // [확인] 한 단계는 다시 안 띄움 (확인 전에는 새로 열어도 다시 뜸)
+    if (host?.querySelector(`.mm-al[data-ack="${CSS.escape(key + st[0])}"]`)) continue;
+    mmAlarmShow(e, st, at, key); }
+}
+function mmAlarmShow(e, st, at, key) {
+  let host = $('#mmAlarm'); if (!host) { host = document.createElement('div'); host.id = 'mmAlarm'; document.body.appendChild(host);
+    host.onclick = ev => { const c = ev.target.closest('.mm-al'); if (!c) return; const op = ev.target.closest('[data-alopen]');
+      if (op) { const p = MM.pages.find(x => x.id === op.dataset.alopen); if (p) { MM.sec = ''; MM.tag = ''; if (p.kind === 'sticky') { MM.view = 'sticky'; MM.cur = null; } else { MM.view = 'all'; MM.openId = p.id; } $('#memoWrap')?.remove(); if (route === 'memo') render(); else go('memo'); } }
+      if (op || ev.target.closest('[data-alx]')) { const f = mmAlarmFired(), [k, off] = [c.dataset.ack.slice(0, c.dataset.ack.lastIndexOf('|') + 1), +c.dataset.ack.slice(c.dataset.ack.lastIndexOf('|') + 1)]; MM_AL.filter(([o]) => o >= off).forEach(([o]) => { f[k + o] = Date.now(); }); try { localStorage.setItem('dept-memo-alarm', JSON.stringify(f)); } catch (_) {}
+        c.classList.add('out'); setTimeout(() => c.remove(), 350); } }; }
+  const d = new Date(at), c = document.createElement('div'); c.className = 'mm-al'; c.dataset.at = at; c.dataset.k = e.p.id + e.at; c.dataset.ack = key + st[0];
+  host.querySelector(`.mm-al[data-k="${CSS.escape(e.p.id + e.at)}"]`)?.remove();   // 같은 일정의 앞 단계 알림은 새것으로 바꿈
+  c.innerHTML = `<button class="x" data-alx title="닫기">✕</button><div class="h">⏰ <b>${st[1]}</b> 알림 · <span class="lf">${at - Date.now() <= 0 ? '시작 시각이 됐습니다' : mmLeft(at - Date.now())}</span></div><div class="t">${esc(e.t)}</div>
+    <div class="s">${d.getMonth() + 1}/${d.getDate()} (${'일월화수목금토'[d.getDay()]}) ${pad(d.getHours())}:${pad(d.getMinutes())} · ${e.p.kind === 'sticky' ? '🗒 스티커' : '📝 ' + esc(e.p.title || '제목 없음')}</div>
+    <div class="a"><button data-alopen="${e.p.id}">메모 열기</button><button data-alx>확인</button></div>`;
+  host.appendChild(c); while (host.children.length > 4) host.firstElementChild.remove();
+  try { const A = new (window.AudioContext || window.webkitAudioContext)(), o = A.createOscillator(), g = A.createGain(); o.frequency.value = 880; g.gain.setValueAtTime(.0001, A.currentTime); g.gain.exponentialRampToValueAtTime(.08, A.currentTime + .03); g.gain.exponentialRampToValueAtTime(.0001, A.currentTime + .5); o.connect(g).connect(A.destination); o.start(); o.stop(A.currentTime + .55); setTimeout(() => A.close(), 900); } catch (_) {}
+}
+setInterval(mmAlarmTick, 20000);
 /* ---------- 이벤트 (메모장 화면 안) ---------- */
 document.addEventListener('click', async e => {
   const w = e.target.closest('#memoWrap'); if (!w) return; const t = e.target, D = s => t.closest(`[${s}]`);
@@ -6972,13 +7030,14 @@ function calEvents(y, m, mode = 'home') {                                  // m:
     return out;
   }
   if (mmOn() && MM.ready && MM.uid === AUTH.id) { const mk = ymd(first).slice(0, 7);   // 2026-11-19 내 메모장 연동: 내 메모(날짜 기준) — 나에게만 보임
-    mmLive().forEach(p => { const d = mmDay(p); if (d.slice(0, 7) === mk) add(d, { k:'memo', t:'📝 메모', l:p.title || '제목 없음', s:'내 메모장 (나만 보임)', go:'memo', memo:p.id }); }); }
+    mmLive().forEach(p => { const d = mmDay(p); if (d.slice(0, 7) === mk) add(d, { k:'memo', t:'📝 메모', l:p.title || '제목 없음', s:'내 메모장 (나만 보임)', go:'memo', memo:p.id }); });
+    mmAllEvs().forEach(e => { if (e.at.slice(0, 7) === mk) add(e.at.slice(0, 10), { k:'alarm', t:'⏰ ' + e.at.slice(11), l:e.t, s:`내 메모 일정 · ${e.p.kind === 'sticky' ? '스티커' : e.p.title || '제목 없음'} · 하루 전 · 30분 전 · 15분 전 알림`, go:'memo', memo:e.p.id }); }); }
   getRecs('notice').forEach(r => { const d = isoD(r.fields['일자']); if (d && d.slice(0, 7) === ymd(first).slice(0, 7)) add(d, { k:'nt', t:'회의', l:flat(r.fields['제목']) || '주간회의 전달사항', s:flat(r.fields['내용']).slice(0, 60), go:'notice' }); });
   workAll().filter(i => i.end && i.cls !== 'done' && i.cls !== 'perm' && i.end.slice(0, 7) === ymd(first).slice(0, 7))
     .forEach(i => add(i.end, { k:i.cls === 'late' ? 'late' : 'wk', t:'기한', l:recLabel(i.key, i.f), s:`${i.w.label} · ${i.st}${flat(i.personRaw) ? ' · ' + flat(i.personRaw) : ''}`, go:i.key }));
   return out;
 }
-const CAL_K = { my:['ev-my', '내 일정'], ev:['ev-ev', '부서원 일정'], nte:['ev-nte', '특이사항'], ms:['ev-ms', 'PSR 실적'], mso:['ev-mso', 'PSR 예정 · 전망'], bd:['ev-bd', '생일'], dl:['ev-dl', '주간 마감'], nt:['ev-nt', '주간회의 전달사항'], wk:['ev-wk', '업무 기한'], late:['ev-late', '기한 지남'], memo:['ev-memo', '내 메모 (나만)'] };
+const CAL_K = { my:['ev-my', '내 일정'], ev:['ev-ev', '부서원 일정'], nte:['ev-nte', '특이사항'], ms:['ev-ms', 'PSR 실적'], mso:['ev-mso', 'PSR 예정 · 전망'], bd:['ev-bd', '생일'], dl:['ev-dl', '주간 마감'], nt:['ev-nt', '주간회의 전달사항'], wk:['ev-wk', '업무 기한'], late:['ev-late', '기한 지남'], memo:['ev-memo', '내 메모 (나만)'], alarm:['ev-alarm', '내 메모 일정 ⏰'] };
 function renderCal(mode = 'home') {   // 2026-11-10: home = 주간업무보고 첫 화면(부서 공용 — 사용자 일정 없음) · sch = 실행 프로젝트 › CO2 PJT › Schedule 달력(사용자 일정 + PSR 설계 관리 마일스톤)
   if (mode === 'home' && $('#schCalCard')) renderCal('sch');
   const sch = mode === 'sch', CAL = sch ? CAL2 : CAL1, el = $(sch ? '#schCalCard' : '#calCard'); if (!el) return;
@@ -7001,7 +7060,7 @@ function renderCal(mode = 'home') {   // 2026-11-10: home = 주간업무보고 �
       ${sch && AUTH ? `<div class="cevadd2"><button class="btn sm cevadd" data-cevadd="${esc(CAL.sel)}">📅 ${sd.getMonth() + 1}/${sd.getDate()} 일정 추가</button><button class="btn sm cevadd" data-cevadd="${esc(CAL.sel)}" data-cevkind="note">📝 특이사항 쓰기</button></div>` : sch ? '<div class="muted" style="font-size:11.5px;margin-top:4px">로그인하면 일정을 추가할 수 있어요</div>' : ''}</div>`;
   el.ondblclick = e => { const c = e.target.closest('[data-cday]'); if (c && AUTH && sch) { CAL.sel = c.dataset.cday; cevDlg(c.dataset.cday); } };   // 날짜 더블클릭 = 그날 일정 추가
   el.onclick = e => { const b = e.target.closest('[data-cal]'), c = e.target.closest('[data-cday]');
-    const cm = e.target.closest('[data-calmemo]'); if (cm) { MM.view = 'date'; MM.sec = ''; MM.tag = ''; MM.day = CAL.sel; MM.month = CAL.sel.slice(0, 7); MM.openId = cm.dataset.calmemo; $('#memoWrap')?.remove(); }   // 이동은 아래 공통 [data-go] 가 함
+    const cm = e.target.closest('[data-calmemo]'); if (cm && MM.pages.find(x => x.id === cm.dataset.calmemo)?.kind === 'sticky') { MM.view = 'sticky'; MM.cur = null; MM.sec = ''; $('#memoWrap')?.remove(); } else if (cm) { MM.view = 'date'; MM.sec = ''; MM.tag = ''; MM.day = CAL.sel; MM.month = CAL.sel.slice(0, 7); MM.openId = cm.dataset.calmemo; $('#memoWrap')?.remove(); }   // 이동은 아래 공통 [data-go] 가 함
     const ad = e.target.closest('[data-cevadd]'); if (ad) return cevDlg(ad.dataset.cevadd, null, ad.dataset.cevkind);
     const ms = e.target.closest('[data-calms]'); if (ms) { const id = ms.dataset.calms; SCH.open.add(id); render(); setTimeout(() => $(`#schv tr.srow[data-schopen="${CSS.escape(id)}"]`)?.scrollIntoView({ block:'center', behavior:'smooth' }), 80); return; }
     if (c && AUTH && sch && (e.detail >= 2 || CAL.lastC === c.dataset.cday && Date.now() - CAL.lastT < 450)) { CAL.sel = c.dataset.cday; return cevDlg(c.dataset.cday); }   // 날짜 더블클릭 = 일정 추가 (첫 클릭에 달력을 다시 그려도 잡히게)
