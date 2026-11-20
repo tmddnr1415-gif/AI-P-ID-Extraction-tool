@@ -870,6 +870,19 @@
     "S1": "acd01917"
    },
    "note": "④ 와 같은 메모장.exe 를 확장자 .exe2 로 (사용자 요청) — 받은 뒤 .exe 로 이름 바꿈"
+  },
+  {
+   "file": "①",
+   "name": "7_DASHBOARD_update_v18.21_from_v18.15_2026-11-20.zip",
+   "made": "2026-11-20 12:40",
+   "path": "company-pc-update/2026-11-20/ (1.9MB · 저장소에 있음)",
+   "sha256": "b65fc27e6be48af85423814c6a608ebe464118d860faca026edff6ed879d65ae",
+   "applied": "",
+   "tips": {
+    "S1": "fa3f774d"
+   },
+   "replaces": "5_DASHBOARD_update_v18.20_from_v18.15_2026-11-20.zip",
+   "note": "v18.21 (기준 v18.15) — 제목 고정 · 글 상자/본문 꾹 눌러 끌기 · 화면만"
   }
  ]
 }
