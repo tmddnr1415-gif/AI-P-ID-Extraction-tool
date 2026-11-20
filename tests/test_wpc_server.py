@@ -224,6 +224,7 @@ def test_books_root_refuses_broad_or_private_folders(books_dir, tmp_path, monkey
 
 def test_api_key_lives_only_in_secret_file(books_dir, monkeypatch):
     monkeypatch.setattr(books, "_LOOPBACK", books._LOOPBACK | {"testclient"})
+    monkeypatch.setenv("BOOKS_EXTERNAL_TRANSLATE", "1")          # 회사판 기본은 꺼짐 — 허가된 경우의 키 보관을 시험
     c = TestClient(main.app)
     key = "sk-ant-TESTKEY123"
     r = c.put("/api/books/translate-config", json={"apiKey": key, "enabled": True})

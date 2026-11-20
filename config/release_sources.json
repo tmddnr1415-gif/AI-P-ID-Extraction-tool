@@ -1,51 +1,51 @@
 {
-  "_설명": "PID_dev+ops 통합 꾸러미(② 통합 업데이트)에 함께 실리는 다른 세션의 브랜치. 2026-11-07 규약 v2 부터 꾸러미는 오케스트레이터 세션(claude/trusting-cray-v68axq)이 만든다. spike/pack_delta.py 가 꾸러미를 만들기 전에 이 브랜치들이 HEAD 에 다 들어왔는지 확인한다. 세션을 새로 열어 브랜치가 바뀌면 여기만 고친다 (docs/handoff/branches.md 와 같이).",
-  "sources": {
-    "LOGIC": {
-      "branch": "ccr-cc45909d-fjjmrb",
-      "session": "3. Logic 검토코드 4 (NEW)"
-    },
-    "PANEL": {
-      "branch": "ccr-d82d97fa-bb3ty3",
-      "session": "4. PANEL 코드",
-      "paths": [
-        "dashboard/apps/space"
-      ],
-      "imported": "7b10d7cb",
-      "_설명": "판넬 화면은 병합이 아니라 dashboard/apps/space → app/static/space 로 옮겨 온다. 옮겨 온 마지막 커밋을 imported 에 적는다."
-    },
-    "VALVE": {
-      "branch": "ccr-efbe7e75-n915ze",
-      "session": "6. Datasheet 자동 검토",
-      "_설명": "2026-11-07 규약 v2 — Valve 도 통합 꾸러미에 병합해서 싣는다 (valveNN 별도 꾸러미 · company_owned 폐지)."
-    },
-    "BOOKS": {
-      "branch": "claude/new-session-v23o67",
-      "session": "5. 도서 검토",
-      "paths": [
-        "dashboard/apps/books"
-      ],
-      "imported": "b44ead53",
-      "_설명": "도서 화면은 병합이 아니라 dashboard/apps/books → app/static/books 로 옮겨 온다 (판넬과 같은 방식). 옮겨 온 마지막 커밋을 imported 에 적는다."
-    },
-    "VALVE_KINDS": {
-      "branch": "claude/new-session-v23o67",
-      "session": "5. 도서 검토 (valve37 — 사용자 요청으로 S5 가 만든 Valve 확장)",
-      "paths": [
-        "dist/valve_kinds"
-      ],
-      "imported": "3d46af2c",
-      "_설명": "2026-11-10 valve37(Globe · Butterfly · PSV)은 S5 가 S6 valve36 위 패치로 냈다 → 오케스트레이터가 git am 으로 적용(440a3bb1). S5 가 dist/valve_kinds 를 다시 내면 여기서 걸린다. Valve 원본 담당은 그대로 S6(VALVE)."
-    },
-    "IC3D": {
-      "branch": "claude/practical-newton-n6bt58",
-      "session": "7. 3D 계측제어 도구 개발",
-      "paths": [
-        "app/index.html",
-        "app/viewer-real.html"
-      ],
-      "imported": "865f9297",
-      "_설명": "3D 화면은 병합이 아니라 app/index.html · app/viewer-real.html → app/static/ic3d 로 옮겨 온다 (판넬 · 도서와 같은 방식 · 2026-11-11). 세션 7 의 app/server.py(재무 · LLM)는 가져오지 않는다. 서버 주소 /ic3d (app/ic3d.py). 옮겨 온 마지막 커밋을 imported 에 적는다."
-    }
+ "_설명": "PID_dev+ops 통합 꾸러미(② 통합 업데이트)에 함께 실리는 다른 세션의 브랜치. 2026-11-07 규약 v2 부터 꾸러미는 오케스트레이터 세션(claude/trusting-cray-v68axq)이 만든다. spike/pack_delta.py 가 꾸러미를 만들기 전에 이 브랜치들이 HEAD 에 다 들어왔는지 확인한다. 세션을 새로 열어 브랜치가 바뀌면 여기만 고친다 (docs/handoff/branches.md 와 같이).",
+ "sources": {
+  "LOGIC": {
+   "branch": "ccr-cc45909d-fjjmrb",
+   "session": "3. Logic 검토코드 4 (NEW)"
+  },
+  "PANEL": {
+   "branch": "ccr-d82d97fa-bb3ty3",
+   "session": "4. PANEL 코드",
+   "paths": [
+    "dashboard/apps/space"
+   ],
+   "imported": "7b10d7cb",
+   "_설명": "판넬 화면은 병합이 아니라 dashboard/apps/space → app/static/space 로 옮겨 온다. 옮겨 온 마지막 커밋을 imported 에 적는다."
+  },
+  "VALVE": {
+   "branch": "ccr-efbe7e75-n915ze",
+   "session": "6. Datasheet 자동 검토",
+   "_설명": "2026-11-07 규약 v2 — Valve 도 통합 꾸러미에 병합해서 싣는다 (valveNN 별도 꾸러미 · company_owned 폐지)."
+  },
+  "BOOKS": {
+   "branch": "claude/new-session-v23o67",
+   "session": "5. 도서 검토",
+   "paths": [
+    "dashboard/apps/books"
+   ],
+   "imported": "f5f94b2c",
+   "_설명": "도서 화면은 병합이 아니라 dashboard/apps/books → app/static/books 로 옮겨 온다 (판넬과 같은 방식). 옮겨 온 마지막 커밋을 imported 에 적는다. 2026-11-19 부터 S5 가 dist/books_integration/*.patch 로 통합본 기준 패치를 냄 → git apply."
+  },
+  "VALVE_KINDS": {
+   "branch": "claude/new-session-v23o67",
+   "session": "5. 도서 검토 (valve37 — 사용자 요청으로 S5 가 만든 Valve 확장)",
+   "paths": [
+    "dist/valve_kinds"
+   ],
+   "imported": "f5f94b2c",
+   "_설명": "2026-11-10 valve37(Globe · Butterfly · PSV)은 S5 가 S6 valve36 위 패치로 냈다 → 오케스트레이터가 git am 으로 적용(440a3bb1). S5 가 dist/valve_kinds 를 다시 내면 여기서 걸린다. Valve 원본 담당은 그대로 S6(VALVE)."
+  },
+  "IC3D": {
+   "branch": "claude/practical-newton-n6bt58",
+   "session": "7. 3D 계측제어 도구 개발",
+   "paths": [
+    "app/index.html",
+    "app/viewer-real.html"
+   ],
+   "imported": "865f9297",
+   "_설명": "3D 화면은 병합이 아니라 app/index.html · app/viewer-real.html → app/static/ic3d 로 옮겨 온다 (판넬 · 도서와 같은 방식 · 2026-11-11). 세션 7 의 app/server.py(재무 · LLM)는 가져오지 않는다. 서버 주소 /ic3d (app/ic3d.py). 옮겨 온 마지막 커밋을 imported 에 적는다."
   }
+ }
 }

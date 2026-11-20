@@ -197,16 +197,30 @@ def _migrate_secret():
         X['write_json'](X['P']('books', 'config.json'), c)       # 두 번 — 바로 앞 판(.bak)도 키 없는 판이 되게
 
 
+# 회사판 기본값: 외부 번역(Claude · api.anthropic.com) 은 꺼짐 — 회사 규칙(CLAUDE.md §3: 외부 서비스 · API 키 금지).
+# 기본값에서는 화면에 Claude 번역이 보이지 않고 서버 경로(translate · translate-config)도 403 으로 막힌다.
+# 코드는 남겨 둔다: 회사가 허가한 경우에만 서버 PC 에서 환경변수 BOOKS_EXTERNAL_TRANSLATE=1 로 연다.
+# (브라우저 내장 번역 · 용어 풀이는 PC 안에서 돌아 외부 전송이 없으므로 그대로 쓴다)
+EXTERNAL_ENV = 'BOOKS_EXTERNAL_TRANSLATE'
+EXTERNAL_OFF_MSG = '회사판에서는 외부 번역(Claude)을 쓰지 않습니다 — 브라우저 내장 번역 · 용어 풀이를 쓰세요 (외부 서비스 · API 키 금지)'
+
+
+def external_allowed():
+    return os.environ.get(EXTERNAL_ENV, '').strip().lower() in ('1', 'true', 'yes', 'on')
+
+
 def tr_cfg():
     _migrate_secret()
     t = cfg().get('translate') or {}
     key = str(_read_secret().get('apiKey') or '').strip() or os.environ.get('ANTHROPIC_API_KEY') or ''
-    return {'enabled': bool(t.get('enabled')) and bool(key), 'on': bool(t.get('enabled')), 'key': key, 'keySet': bool(key),
+    return {'enabled': external_allowed() and bool(t.get('enabled')) and bool(key), 'on': bool(t.get('enabled')), 'key': key, 'keySet': bool(key),
             'model': t.get('model') or DEFAULT_MODEL, 'effort': t.get('effort') or 'low'}
 
 
 def translate(text, src, title, by):
     """Claude 로 한국어 번역. 같은 글(모델 · 원문)은 보관본을 돌려줌"""
+    if not external_allowed():                               # 회사판 기본: 어떤 경로로 불려도 외부로 나가지 않는다
+        raise err(403, EXTERNAL_OFF_MSG)
     t = tr_cfg()
     if not t['enabled']:
         raise err(403, 'Claude 번역이 꺼져 있습니다 (운영자가 [📚 도서관] → 번역 설정에서 켤 수 있습니다)')
@@ -266,13 +280,15 @@ def handle(h, m, seg, q):
         c, man, r, t = cfg(), manifest(), root_dir(), tr_cfg()
         out = {'enabled': bool(r), 'folder': os.path.basename(os.path.normpath(r)) if r else '', 'count': len(man.get('books') or []),
                'at': man.get('at') or '', 'by': man.get('by') or '', 'canManage': can_manage(h), 'rootSet': bool(c.get('root')),
-               'translate': {'claude': t['enabled'], 'model': t['model'] if t['enabled'] else ''}}
+               'translate': {'claude': t['enabled'], 'model': t['model'] if t['enabled'] else '', 'external': external_allowed()}}
         if out['canManage']:
             out.update(root=c.get('root') or '', rootOk=bool(r), managers=c.get('managers') or [])
-        if h.is_admin():                                   # 번역 설정은 운영자(서버 PC)만 — 키 자체는 내보내지 않음
+        if h.is_admin() and external_allowed():            # 번역 설정은 운영자(서버 PC)만 — 키 자체는 내보내지 않음 · 회사판 기본은 숨김
             out['translateCfg'] = {'on': t['on'], 'keySet': t['keySet'], 'model': t['model'], 'effort': t['effort']}
         return out
     if m == 'PUT' and seg == ['translate-config']:
+        if not external_allowed():
+            raise err(403, EXTERNAL_OFF_MSG)
         if not h.is_admin():
             raise err(403, '번역 설정은 운영자(서버 PC)만 바꿀 수 있습니다')
         b = h.json_body()
@@ -298,6 +314,8 @@ def handle(h, m, seg, q):
             by = '운영자'
         else:
             by = h.need_user().get('name') or '?'
+        if not external_allowed():
+            raise err(403, EXTERNAL_OFF_MSG)
         b = h.json_body()
         return translate(b.get('text'), str(b.get('src') or '')[:20], str(b.get('title') or '')[:120], by)
     if m == 'PUT' and seg == ['root']:                       # 공용 도서관 폴더 경로 (서버 PC 기준, 예: D:\계장도서)
