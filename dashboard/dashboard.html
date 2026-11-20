@@ -1945,6 +1945,7 @@ body.schbigon{overflow:hidden}@keyframes schBigIn{from{transform:scale(.97);opac
 .mm-meta select,.mm-meta input{border:1px solid var(--line);border-radius:8px;padding:4px 7px;font-size:12px;background:var(--card);color:var(--text)}.mm-meta input.tags{width:170px}
 .mm-meta .tg{border:1px solid var(--line);background:var(--card);border-radius:8px;padding:3px 8px;cursor:pointer;font-size:12px}.mm-meta .tg.on{background:#fff4c2;border-color:#f0c93a}
 .mm-ed.dk [data-dkc]{color:var(--dkc)!important}
+.mm-holdmv{outline:2px dashed var(--accent)!important;outline-offset:2px;box-shadow:0 10px 28px rgba(20,30,70,.18)}
 html.memoapp #side,html.memoapp #scrim,html.memoapp header.top,html.memoapp #botChar,html.memoapp #taskBar,html.memoapp [data-mx="pull"],html.memoapp [data-mx="share"],html.memoapp [data-nk="shared"]{display:none!important}html.memoapp #main{margin-left:0!important}html.memoapp #content{padding-top:8px}
 .mm-meta .mm-coll{font-size:11.5px;color:var(--muted);margin:0 1px 0 6px;cursor:help;white-space:nowrap}
 .mm-tb .mm-fsz,.mm-bub .mm-fsz{display:inline-flex;align-items:center;height:26px;border:1px solid var(--line);border-radius:6px;background:var(--card);margin:0 2px;overflow:hidden}.mm-fsz input{width:38px;height:24px;border:0;background:none;text-align:center;font:600 12.5px/24px inherit;color:var(--text);outline:0;padding:0}.mm-fsz input:focus{background:var(--accent-l)}.mm-tb .mm-fsz button,.mm-bub .mm-fsz button{min-width:15px!important;width:15px;height:24px!important;padding:0!important;font-size:9px!important;border-radius:0!important;border-left:1px solid var(--line)!important;color:var(--muted)}
@@ -2268,7 +2269,7 @@ body.mm-painting #mmEd{cursor:copy}.mm-tb [data-mc="paint"]{position:relative}bo
 .mm-tb[data-tab] > [data-rt]{display:none}.mm-tb[data-tab="home"] > [data-rt="home"],.mm-tb[data-tab="insert"] > [data-rt="insert"],.mm-tb[data-tab="draw"] > [data-rt="draw"],.mm-tb[data-tab="view"] > [data-rt="view"],.mm-tb[data-tab="table"] > [data-rt="table"]{display:inline-flex;align-items:center}
 .mm-tb[data-tab="table"] .tbl{opacity:1!important;gap:2px}.mm-tb .mm-rview{gap:6px;flex-wrap:wrap;max-width:100%}.mm-tb .mm-rview select{border:1px solid var(--line);border-radius:7px;padding:3px 6px;font-size:12px;background:var(--card)}.mm-tb .mm-rview .mm-zb{padding:3px 9px}
 .mm-tb{min-height:40px}
-.mm-ph{position:sticky;top:0;z-index:6;display:block;width:fit-content;max-width:min(680px,calc(100% - 24px));box-sizing:border-box;padding:14px 26px 8px;transition:transform .12s ease-out,background .2s,box-shadow .2s;border-radius:0 0 12px 12px}
+.mm-ph{position:relative;z-index:6;display:block;width:fit-content;max-width:min(680px,calc(100% - 24px));box-sizing:border-box;padding:14px 26px 8px;transition:transform .12s ease-out,background .2s,box-shadow .2s;border-radius:0 0 12px 12px}
 .mm-ph .tt{display:flex;align-items:center;gap:6px;border-bottom:1.5px solid rgba(110,110,140,.35);padding-bottom:3px;min-width:min(420px,60vw)}
 .mm-ph .mm-title{font-size:26px;font-weight:600;letter-spacing:-.3px;min-width:240px;max-width:560px;width:auto;flex:none;field-sizing:content;color:inherit;background:transparent}.mm-ph .mm-icon{font-size:22px}
 .mm-ph .dt{font-size:12px;color:#8a8ea3;margin-top:4px;padding-left:4px}.mm-ph .dt span{margin-left:14px}
@@ -2602,7 +2603,7 @@ function recLabel(key, f) {
  * ===================================================================== */
 let root = null;
 /* 서버 모드: http(s):// 로 접속하면 server.py 의 REST API 사용 (폴더 선택 불필요). file:// 로 열면 폴더 모드 */
-const APP_VERSION = '2026-11-20.5';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
+const APP_VERSION = '2026-11-20.6';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
 const SERVER_URL = 'http://localhost:8080';
 // 부서원 PC 사본(file://)이 접속을 시도할 서버 — 서버가 배포 파일을 만들 때 'PC 이름 주소, IP 주소' 순으로 자동 기록함
 const DEFAULT_SERVERS = ['http://ASEUNGWOOK-B01:8080', 'http://65.3.30.234:8080'];
@@ -7681,7 +7682,7 @@ function mmPhFollow(full) {   // 제목이 화면 위에 붙어 있음 (좌우�
   if (full) { MM.phBig = null; MM.phX = null; } if (mmPhRaf) return;
   mmPhRaf = requestAnimationFrame(() => { mmPhRaf = 0; const ph = $('#mmPh'), ew = $('#mmEdw'); if (!ph || !ew) return; const x = ew.scrollLeft;
     if (MM.phBig == null || (x > 0) !== (MM.phX > 0)) { MM.phBig = x > 0 || ew.scrollWidth > ew.clientWidth + 24 || document.body.classList.contains('mm-zen') || mmZoom() > 1.05; ph.classList.toggle('big', MM.phBig); }
-    if (x !== MM.phX) { MM.phX = x; ph.style.transform = x ? `translateX(${x}px)` : ''; } ph.classList.toggle('stuck', ew.scrollTop > 4); });
+    if (x !== MM.phX) { MM.phX = x; ph.style.transform = x ? `translateX(${x}px)` : ''; } });   // v18.21 사용자 지시: 휠로 내릴 때 제목이 따라오지 않게 (위아래는 종이와 같이, 좌우로 밀 때만 화면 왼쪽에)
 }
 // v17.98: 제목이 마우스를 따라 움직이지 않게 (사용자 지시) — 위에 붙어 있고 좌우로 밀면 화면 왼쪽에 그대로
 document.addEventListener('scroll', e => { if (e.target?.id === 'mmEdw') mmPhFollow(); }, true);
@@ -7791,6 +7792,28 @@ function mmEdPos() {   // 본문 자리 (pg.ex · pg.ey, 종이 기준 px) + 왼
   const up = () => { if (!d) return; d = null; document.body.classList.remove('mm-edmoving'); MM.noClick = Date.now(); mmNoteTouch('obj'); };
   document.addEventListener('pointerup', up); document.addEventListener('pointercancel', up);
   document.addEventListener('dblclick', e => { if (e.target.id !== 'mmEdGrip' || !MM.cur || MM.cur.lock) return; MM.cur.ex = 0; MM.cur.ey = 0; mmEdPos(); mmNoteTouch('obj'); toast('본문을 제자리로'); });
+})();
+/* 2026-11-20 v18.21 사용자 지시: 글씨창(글 상자) · 본문을 '⠿ 본문' · 머리 손잡이를 누르지 않아도 마우스로 쉽게 옮기기
+   → 글 상자 · 본문 아무 곳이나 마우스를 0.35초 꾹 누르고 있으면(움직이지 않고) 잡힘(점선 · 손 모양) → 끌어 놓으면 그 자리로. 바로 끌면 예전처럼 글 고르기 */
+(() => { let hold = null, mv = null, t = 0;
+  const cancel = () => { clearTimeout(t); hold = null; };
+  document.addEventListener('pointerdown', e => { cancel(); if (e.button || e.pointerType === 'touch' || !MM.cur || MM.cur.lock || MM.cur._ro || PEN.on || MM.place) return;
+    const fn = e.target.closest?.('#mmNotes .mm-fn.tb, #mmNotes .mm-fn.st'), ed = !fn && e.target.closest?.('#mmEd'); if (!fn && !ed) return;
+    if (e.target.closest('img, table, a, input, button, .grip, .fh, .mm-file, details > summary')) return;
+    hold = { el:fn || ed, fn:!!fn, sx:e.clientX, sy:e.clientY };
+    t = setTimeout(() => { if (!hold) return; const ew = $('#mmEdw'), el = hold.el; getSelection()?.removeAllRanges();
+      mv = { ...hold, cx:hold.sx, cy:hold.sy, sl:ew?.scrollLeft || 0, st:ew?.scrollTop || 0, x:hold.fn ? parseFloat(el.style.left) || 0 : +MM.cur.ex || 0, y:hold.fn ? parseFloat(el.style.top) || 0 : +MM.cur.ey || 0 }; hold = null;
+      el.classList.add('mm-holdmv'); document.body.classList.add('mm-edmoving'); }, 350); }, true);
+  const at = () => { const ew = $('#mmEdw'), z = mmZoom(), dx = (mv.cx - mv.sx + (ew?.scrollLeft || 0) - mv.sl) / z, dy = (mv.cy - mv.sy + (ew?.scrollTop || 0) - mv.st) / z;
+    if (mv.fn) { mv.el.style.left = Math.max(0, mv.x + dx) + 'px'; mv.el.style.top = Math.max(0, mv.y + dy) + 'px'; } else { MM.cur.ex = Math.round(Math.max(-20, mv.x + dx)); MM.cur.ey = Math.round(Math.max(-12, mv.y + dy)); mmEdPos(); } };
+  document.addEventListener('pointermove', e => { if (hold && Math.hypot(e.clientX - hold.sx, e.clientY - hold.sy) > 4) cancel(); if (!mv) return; e.preventDefault(); mv.cx = e.clientX; mv.cy = e.clientY; getSelection()?.removeAllRanges(); at(); }, true);
+  document.addEventListener('scroll', e => { if (mv && e.target?.id === 'mmEdw') at(); }, true);
+  document.addEventListener('dragstart', e => { if (mv || hold) { e.preventDefault(); cancel(); } }, true);
+  const up = () => { cancel(); if (!mv) return; const m = mv; mv = null; m.el.classList.remove('mm-holdmv'); document.body.classList.remove('mm-edmoving'); MM.noClick = Date.now();
+    if (m.fn) { const n = (MM.cur?.notes || []).find(x => x.id === m.el.dataset.fn); if (n) { n.x = Math.round(parseFloat(m.el.style.left) || 0); n.y = Math.round(parseFloat(m.el.style.top) || 0); } }
+    if (m.cx !== m.sx || m.cy !== m.sy) { mmNoteTouch('obj'); if (window.mmPaperFit) mmPaperFit(); } };
+  document.addEventListener('pointerup', up, true); document.addEventListener('pointercancel', up, true);
+  document.addEventListener('keydown', e => { if (e.key === 'Escape' && mv) { const m = mv; if (m.fn) { m.el.style.left = m.x + 'px'; m.el.style.top = m.y + 'px'; } else { MM.cur.ex = m.x; MM.cur.ey = m.y; mmEdPos(); } mv = null; m.el.classList.remove('mm-holdmv'); document.body.classList.remove('mm-edmoving'); } });
 })();
 /* ---------- 2026-11-19 v18.02 주석 = 말풍선 모양 (본문 · 글 상자와 다르게) + 고른 글에 주석 달기 (Word 의 '메모' 처럼) ---------- */
 function mmCmt() {
