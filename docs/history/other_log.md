@@ -399,3 +399,7 @@
   ② `extract.index_tags` / `index_check` — 도서의 'INDEX (LIST OF TAGS)' 와 읽은 Tag 대조 (실 Ball 164/164 · South 15/15 · 4/4) ③ Instrument: 카드가 모르는 번호 줄 양식 쪽 + INDEX 대조.
   결과는 작업 창 경고(여러 경고 이어 붙임 `_job_warn`) + `document.info.unread_pages` · `.index` + Document Management 빨간 '일부 못 읽음' / '✓ INDEX n Tag 모두 읽음'.
   아직 확인 못 한 것: Instrument 14종은 빈 양식만 봤음(채운 실물 0) · Butterfly/PSV 의 South 도서. 시험 +2 · 전체 2,100.
+
+### 2026-11-19 VALVE — 인수인계 문서 다시 씀 (오케스트레이터 전달 1번)
+- `docs/handoff/valve.md` 14,994 B → 8,422 B: '지금 상태' 한 절 + 다음 할 일. 끝난 규약 문구(valveNN 꾸러미 절차 · 'valve40 zip 아직') 삭제, 꾸러미 = 오케스트레이터.
+- 오케스트레이터 전달 2~5번(List 대조 보강 · IN-ITM-03/04 · anatomy.js 다시 만들기 · Valve 화면 instcalc)은 '다음에 할 일'에 순서대로 적음 — 아직 시작 안 함.
