@@ -1944,6 +1944,10 @@ body.schbigon{overflow:hidden}@keyframes schBigIn{from{transform:scale(.97);opac
 .mm-meta{padding:0 18px 8px;display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-size:12px;color:var(--sub)}
 .mm-meta select,.mm-meta input{border:1px solid var(--line);border-radius:8px;padding:4px 7px;font-size:12px;background:var(--card);color:var(--text)}.mm-meta input.tags{width:170px}
 .mm-meta .tg{border:1px solid var(--line);background:var(--card);border-radius:8px;padding:3px 8px;cursor:pointer;font-size:12px}.mm-meta .tg.on{background:#fff4c2;border-color:#f0c93a}
+.mm-meta .mm-coll{font-size:11.5px;color:var(--muted);margin:0 1px 0 6px;cursor:help;white-space:nowrap}
+.mm-tb .mm-fsz,.mm-bub .mm-fsz{display:inline-flex;align-items:center;height:26px;border:1px solid var(--line);border-radius:6px;background:var(--card);margin:0 2px;overflow:hidden}.mm-fsz input{width:38px;height:24px;border:0;background:none;text-align:center;font:600 12.5px/24px inherit;color:var(--text);outline:0;padding:0}.mm-fsz input:focus{background:var(--accent-l)}.mm-tb .mm-fsz button,.mm-bub .mm-fsz button{min-width:15px!important;width:15px;height:24px!important;padding:0!important;font-size:9px!important;border-radius:0!important;border-left:1px solid var(--line)!important;color:var(--muted)}
+.mm-pop.fsl{min-width:0;width:186px;display:grid;grid-template-columns:repeat(3,1fr);gap:2px}.mm-pop.fsl button{justify-content:center;gap:2px;padding:6px 4px}.mm-pop.fsl button.on{background:var(--accent-l);font-weight:700}.mm-pop.fsl small{margin:0!important}
+.mm-ed .mm-ctx,.mm-notes .mm-ctx{outline:2px solid var(--accent);outline-offset:1px;border-radius:4px}
 .mm-meta .cdot{width:16px;height:16px;border-radius:50%;border:2px solid #fff;box-shadow:0 0 0 1px var(--line);cursor:pointer;padding:0}.mm-meta .cdot.on{box-shadow:0 0 0 2px var(--accent)}
 .mm-tb{display:flex;flex-wrap:wrap;gap:2px;padding:6px 14px;border-top:1px solid var(--line);border-bottom:1px solid var(--line);background:var(--bg);align-items:center}
 .mm-tb button{border:0;background:none;min-width:30px;height:30px;border-radius:7px;cursor:pointer;font-size:13px;color:var(--text);padding:0 6px}
@@ -2379,6 +2383,7 @@ html:not(.dark) #memoWrap .mm-side h3{font-size:12px;letter-spacing:0;color:var(
 html:not(.dark) #memoWrap #mmNew{background:none!important;color:var(--nt2)!important;border:0!important;box-shadow:none!important;text-align:left;font-weight:500;padding:5px 8px;border-radius:5px;font-size:13.5px}html:not(.dark) #memoWrap #mmNew:hover{background:var(--nh)!important;color:var(--nt)!important}
 html:not(.dark) #memoWrap .mm-pt button,html:not(.dark) #memoWrap .mm-lh .row button{box-shadow:none}
 html:not(.dark) #memoWrap .mm-card{border:0!important;border-left:3px solid transparent;border-radius:5px;padding:6px 10px;margin-bottom:1px;box-shadow:none!important;transform:none!important}
+html:not(.dark) #memoWrap .mm-card.hc::before{content:'';position:absolute;left:0;top:5px;bottom:5px;width:4px;border-radius:3px;background:var(--mc)}html:not(.dark) #memoWrap .mm-card.hc{padding-left:12px}   /* v18.18 목록 색이 밝은 화면에서 안 보이던 것 */
 html:not(.dark) #memoWrap .mm-card:hover{background:var(--nh)!important}html:not(.dark) #memoWrap .mm-card.on{background:var(--nh2)!important;box-shadow:none!important}
 html:not(.dark) #memoWrap .mm-card b{color:var(--nt);font-weight:600;font-size:13.5px}html:not(.dark) #memoWrap .mm-card span{color:var(--nt2)}html:not(.dark) #memoWrap .mm-card em{color:var(--nt3)}
 html:not(.dark) #memoWrap .mm-list input.q,html:not(.dark) #memoWrap .mm-lh select{background:rgba(242,241,238,.6);border:1px solid var(--nl);border-radius:6px;box-shadow:none}
@@ -2595,7 +2600,7 @@ function recLabel(key, f) {
  * ===================================================================== */
 let root = null;
 /* 서버 모드: http(s):// 로 접속하면 server.py 의 REST API 사용 (폴더 선택 불필요). file:// 로 열면 폴더 모드 */
-const APP_VERSION = '2026-11-20.2';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
+const APP_VERSION = '2026-11-20.3';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
 const SERVER_URL = 'http://localhost:8080';
 // 부서원 PC 사본(file://)이 접속을 시도할 서버 — 서버가 배포 파일을 만들 때 'PC 이름 주소, IP 주소' 순으로 자동 기록함
 const DEFAULT_SERVERS = ['http://ASEUNGWOOK-B01:8080', 'http://65.3.30.234:8080'];
@@ -6153,7 +6158,7 @@ function renderMenu() {
  *   스티커 보드(색 · 끌기 · 크기 · 📌 화면에 띄우기) · 할 일 모음 · 휴지통 · 찾기 · 태그 · 내보내기
  * ==================================================================================================== */
 const MM = { uid:'', ready:false, loading:null, book:{ secs:[] }, pages:[], view:'all', sec:'', tag:'', q:'', cur:null, dirty:false, timer:0, used:0, quota:0, sort:(() => { try { return localStorage.getItem('dept-memo-sort') || 'upd'; } catch (_) { return 'upd'; } })(), chain:Promise.resolve(), sT:{}, err:'' };
-const MM_COL = ['', '#ef4444', '#f59e0b', '#10b981', '#3b82f6', '#8b5cf6', '#ec4899'];
+const MM_COL = ['', '#ef4444', '#f59e0b', '#10b981', '#3b82f6', '#8b5cf6', '#ec4899'], MM_COLN = ['색 없음', '빨강', '주황', '초록', '파랑', '보라', '분홍'];
 /* v18.17 글자 색 · 형광펜 색 넓힘 (사용자 지시 "글자색이 너무 없다 다양하게") — 회색 10 + 10가지 색 × 5단계 = 60, 형광펜 40, 최근 쓴 색, 다른 색 고르기 */
 const MM_HUE = ['빨강', '주황', '노랑', '연두', '초록', '청록', '하늘', '파랑', '보라', '분홍'], MM_SHADE = ['아주 진하게', '진하게', '보통', '연하게', '아주 연하게'];
 const MM_FC_PAL = [['#000000', '#1f2937', '#374151', '#4b5563', '#6b7280', '#9ca3af', '#d1d5db', '#e5e7eb', '#f3f4f6', '#ffffff'],
@@ -6407,7 +6412,7 @@ function mmShown() {
 }
 /* v18.13 빠르게: 저장할 때마다(약 1.2초) 300개 카드 목록 전체를 다시 그리던 것 → 순서가 그대로면 그 메모 카드만 고침 · 메모를 열 때는 '선택' 표시만 옮김 */
 const mmGrp = p => MM.sort === 'title' || MM.sort === 'manual' ? '' : MM.sort === 'date' || MM.sort === 'dateasc' ? mmDay(p) + ' (' + '일월화수목금토'[new Date(mmDay(p)).getDay()] + ')' : p.pin ? '⭐ 즐겨찾기' : mmDayLabel(mmLocal(MM.sort === 'new' ? p.createdAt : p.updatedAt));
-const mmCardH = (p, hl, snip) => `<button class="mm-card ${MM.cur?.id === p.id ? 'on' : ''}" draggable="true" data-mp="${p.id}" style="border-left-color:${mmCol(p.color, '#d5dbec')}"><b>${p.pin ? '⭐ ' : ''}${p.lock ? '🔒 ' : ''}${esc(p.icon || '📄')} ${hl(p.title || '제목 없음')}</b><span>${hl(snip(p))}</span><em>${fmtTime(p.updatedAt)}${(p.todos || []).length ? `<u>☑ ${p.todos.filter(t => t.d).length}/${p.todos.length}</u>` : ''}${(p.files || []).length ? `<u>📎 ${p.files.length}</u>` : ''}${(p.tags || []).map(t => `<u>#${esc(t)}</u>`).join('')}</em><i class="del" data-mdel="${p.id}" title="휴지통으로 (하루 뒤 완전 삭제)">🗑</i></button>`;
+const mmCardH = (p, hl, snip) => `<button class="mm-card ${MM.cur?.id === p.id ? 'on' : ''}${p.color ? ' hc' : ''}" draggable="true" data-mp="${p.id}" style="border-left-color:${mmCol(p.color, '#d5dbec')}${p.color ? `;--mc:${mmCol(p.color, '#d5dbec')}` : ''}"><b>${p.pin ? '⭐ ' : ''}${p.lock ? '🔒 ' : ''}${esc(p.icon || '📄')} ${hl(p.title || '제목 없음')}</b><span>${hl(snip(p))}</span><em>${fmtTime(p.updatedAt)}${(p.todos || []).length ? `<u>☑ ${p.todos.filter(t => t.d).length}/${p.todos.length}</u>` : ''}${(p.files || []).length ? `<u>📎 ${p.files.length}</u>` : ''}${(p.tags || []).map(t => `<u>#${esc(t)}</u>`).join('')}</em><i class="del" data-mdel="${p.id}" title="휴지통으로 (하루 뒤 완전 삭제)">🗑</i></button>`;
 function mmListSoft() {
   const lb = $('#mmList .mm-lb'), id = MM.cur?.id, p = id && MM.pages.find(x => x.id === id); if (!lb || !p || p.kind === 'sticky' || MM.q.trim() || MM.view === 'date' || MM.view === 'shared') return mmDrawList(true);
   const el = lb.querySelector(`.mm-card[data-mp="${CSS.escape(id)}"]`); if (!el) return mmDrawList(true);
@@ -6448,10 +6453,10 @@ function mmDrawMain() {
       <button class="tg ${pg.dk ? 'on' : ''}" data-mx="dk" title="이 메모를 어두운 종이로 (줄 · 모눈 등 무늬는 그대로) — 다시 누르면 밝게">${pg.dk ? '🌙 어둡게' : '☀ 밝게'}</button>
       <input class="tags" id="mmTags" placeholder="태그 (쉼표로 구분)" value="${esc((pg.tags || []).join(', '))}">
       <button class="tg ${pg.pin ? 'on' : ''}" data-mx="pin" title="즐겨찾기 — 목록 맨 위">⭐ 즐겨찾기</button><button class="tg ${(pg.share || []).length ? 'on' : ''}" data-mx="share" title="이 메모를 다른 부서원에게 읽기 전용으로 보여 주기">👥 ${(pg.share || []).length ? (pg.share[0] === '*' ? '모두에게 공유 중' : pg.share.length + '명에게 공유 중') : '공유'}</button><button class="tg ${pg.lock ? 'on' : ''}" data-mx="lock" title="잠그면 실수로 고쳐지지 않음">${pg.lock ? '🔒 잠김' : '🔓 잠금'}</button>
-      ${MM_COL.map(c => `<button class="cdot ${(pg.color || '') === c ? 'on' : ''}" data-mcol="${c}" style="background:${c || '#e5e9f5'}" title="색 표시"></button>`).join('')}
+      <span class="mm-coll" title="목록 색 — 왼쪽 메모 목록에서 이 메모 카드의 왼쪽 띠 색 (중요 · 프로젝트별로 눈에 띄게). 메모 내용에는 영향 없음">목록 색</span>${MM_COL.map((c, i) => `<button class="cdot ${(pg.color || '') === c ? 'on' : ''}" data-mcol="${c}" style="background:${c || '#e5e9f5'}" title="목록 색: ${MM_COLN[i]} — 왼쪽 메모 목록에서 이 메모 카드 왼쪽 띠가 ${i ? MM_COLN[i] + '으로' : '기본(회색)으로'}"></button>`).join('')}
       <button class="tg" data-mx="pull" title="수행 · 입찰 · 이슈 · 통합 업무 · Schedule 등 다른 메뉴의 값을 골라 이 메모에 넣기" style="color:var(--accent-d);font-weight:700">📥 다른 메뉴 값 불러오기</button><button class="tg" data-mx="ver" title="자동으로 남긴 이전 판 보기 · 되돌리기">🕘 판 기록</button><button class="tg" data-mx="more">⋯ 더 보기</button></div>
     <div class="mm-tb" id="mmTb">${T('undo', '↶', '실행 취소 (Ctrl+Z)')}${T('redo', '↷', '다시 실행 (Ctrl+Y)')}${S}${T('h1', 'H1', '큰 제목')}${T('h2', 'H2', '중간 제목')}${T('h3', 'H3', '작은 제목')}${T('p', '본문', '보통 글')}${S}
-      ${T('bold', '<b>B</b>', '굵게 (Ctrl+B)')}${T('italic', '<i>I</i>', '기울임 (Ctrl+I)')}${T('underline', '<u>U</u>', '밑줄 (Ctrl+U)')}${T('strike', '<s>S</s>', '취소선')}${T('sup', 'x²', '위 첨자 (Ctrl+Shift+=) — 다시 누르면 풀림')}${T('sub', 'x₂', '아래 첨자 (Ctrl+=) — 다시 누르면 풀림')}${T('color', '<span style="color:#dc2626;font-weight:800">A</span>', '글자 색')}${T('hilite', '<span style="background:#fff176;padding:0 4px">A</span>', '형광펜')}${T('big', 'A+', '글자 크게')}${T('small', 'A−', '글자 작게')}${T('clear', '⌫', '서식 지우기')}${T('paint', '🖌', '서식 복사 — 글을 고른 뒤 누르고, 바꿀 글을 끌어 고르면 같은 모양으로 (Esc 취소)')}${S}
+      ${T('bold', '<b>B</b>', '굵게 (Ctrl+B)')}${T('italic', '<i>I</i>', '기울임 (Ctrl+I)')}${T('underline', '<u>U</u>', '밑줄 (Ctrl+U)')}${T('strike', '<s>S</s>', '취소선')}${T('sup', 'x²', '위 첨자 (Ctrl+Shift+=) — 다시 누르면 풀림')}${T('sub', 'x₂', '아래 첨자 (Ctrl+=) — 다시 누르면 풀림')}${T('color', '<span style="color:#dc2626;font-weight:800">A</span>', '글자 색')}${T('hilite', '<span style="background:#fff176;padding:0 4px">A</span>', '형광펜')}${T('small', 'A−', '글자 작게 (한 단계)')}${mmFsBox('mmFs', 'data-mc')}${T('big', 'A+', '글자 크게 (한 단계)')}${T('clear', '⌫', '서식 지우기')}${T('paint', '🖌', '서식 복사 — 글을 고른 뒤 누르고, 바꿀 글을 끌어 고르면 같은 모양으로 (Esc 취소)')}${S}
       ${T('ul', '•', '글머리 목록')}${T('ol', '1.', '번호 목록')}${T('todo', '☑', '할 일 (체크 상자)')}${T('quote', '❝', '인용')}${T('call', '💡', '강조 상자')}${T('code', '&lt;/&gt;', '코드 · 고정폭')}${T('toggle', '▸', '접는 글')}${T('hr', '―', '구분선')}${T('mark', '🏷 태그', 'OneNote 태그 — 이 줄에 ⭐중요 · ❓질문 · 💡아이디어 · ⚠확인 · 📞연락 붙이기 (Alt+1~6, Alt+0 지우기) · 왼쪽 [🏷 태그 모음] 에서 모든 메모의 태그를 한곳에')}${T('find', '🔎', '이 메모 안에서 찾기 · 바꾸기 (Ctrl+F · Ctrl+H)')}${T('nlp', '✨ 자동 할 일', '말로 쓴 줄을 할 일로 자동 등록 — 예: \'오늘 12:30에 미터링 업체랑 미팅 있음\' 을 쓰고 Enter → 할 일(🤝 미팅 · 오늘 12:30) · 알람 · 달력. 다시 누르면 끔. 바로 되돌리기 = Ctrl+Z')}${S}
       ${T('left', '⇤', '왼쪽 맞춤')}${T('center', '↔', '가운데 맞춤')}${T('right', '⇥', '오른쪽 맞춤')}${T('full', '☰', '양쪽 맞춤')}${T('indent', '→|', '들여쓰기')}${T('outdent', '|←', '내어쓰기')}${S}${T('col2', '▥2', '좌우 2단으로 나누기')}${T('col3', '▥3', '좌우 3단으로 나누기')}${T('colx', '▥✕', '단 나누기 풀기 (한 줄로)')}${S}
       ${T('table', '▦', '표 넣기 — 칸 수 고르기')}<span class="tbl">${T('trow', '+행', '아래에 행 넣기')}${T('tcol', '+열', '오른쪽에 열 넣기')}${T('trowx', '−행', '행 지우기')}${T('tcolx', '−열', '열 지우기')}${T('tmerge', '⊞합치기', '끌어서 고른 칸 합치기')}${T('tsplit', '⊟나누기', '합친 칸 나누기')}${T('tbg', '🎨', '칸 배경색')}${T('tmenu', '표 ▾', '표 메뉴 전체 (표 안에서 마우스 오른쪽 단추로도 열림)')}${T('teq', '열=', '열 너비를 같게 · 표를 가로로 꽉 차게 (다시 누르면 풀기)')}${T('tsort', '↕정렬', '이 열 기준으로 행 정렬 (다시 누르면 반대로 · 날짜 · 숫자 · 글자)')}${T('tdel', '표✕', '표 지우기')}</span>${S}
@@ -6520,7 +6525,7 @@ function mmCmd(c, btn) {
     case 'undo': return X('undo'); case 'redo': return X('redo');
     case 'h1': case 'h2': case 'h3': return X('formatBlock', c); case 'p': return X('formatBlock', 'div');
     case 'bold': case 'italic': case 'underline': return X(c); case 'strike': return X('strikeThrough'); case 'sup': case 'sub': ed.focus(); document.execCommand('styleWithCSS', false, false); return X(c === 'sup' ? 'superscript' : 'subscript');
-    case 'big': return X('fontSize', 5); case 'small': return X('fontSize', 2); case 'clear': X('removeFormat'); return X('formatBlock', 'div');
+    case 'big': return mmFsStep(1); case 'small': return mmFsStep(-1); case 'fsl': return mmFsList(btn); case 'clear': X('removeFormat'); return X('formatBlock', 'div');
     case 'ul': return X('insertUnorderedList'); case 'ol': return X('insertOrderedList');
     case 'quote': return X('formatBlock', 'blockquote'); case 'code': return X('formatBlock', 'pre'); case 'hr': return X('insertHorizontalRule');
     case 'left': return X('justifyLeft'); case 'center': return X('justifyCenter'); case 'right': return X('justifyRight'); case 'full': return X('justifyFull'); case 'indent': return X('indent'); case 'outdent': return X('outdent');
@@ -7766,19 +7771,87 @@ function mmBlockMenu(b, at) {
     mmTouch(); mmHistPush(true); MM.lastKind = 'obj';
   }, 'blk');
 }
+/* 2026-11-20 v18.18 회사 사진: 하위 페이지 링크 줄('🗑 제목 없음 (휴지통)' · '📄 제목 없음')을 지울 수 없음 → 오른쪽 클릭 메뉴.
+   한 덩어리로 된 것(페이지 링크 · 날짜 · @언급 · 첨부 파일 · 구분선)만 이 메뉴, 보통 글 위에서는 브라우저 메뉴(복사 · 붙여넣기) 그대로. Shift + 오른쪽 클릭 = 늘 브라우저 메뉴 */
+function mmAtomDel(x) {   // 조각을 지우고, 그 줄에 남은 것이 없으면 줄도 지움 (표 칸 · 단 · 접는 글 틀은 남김)
+  const ed = x.closest('#mmEd, #mmNotes .fb'); if (!ed) return; let b = x.parentNode; x.remove();
+  const empty = n => !n.textContent.replace(/[\s ​]/g, '') && !n.querySelector('img,table,hr,iframe,canvas,svg,input,.mm-file,a.mm-pgl,span.mm-date,span.mm-men');
+  while (b && b !== ed && !/^(TD|TH|TR|TBODY|THEAD|TABLE|SUMMARY|DETAILS)$/.test(b.tagName) && !b.classList.contains('mm-col') && empty(b)) { const up = b.parentNode; b.remove(); b = up; }
+  if (!ed.firstChild) ed.innerHTML = '<div><br></div>'; mmTouch(); mmHistPush(true); MM.lastKind = 'obj';
+}
+async function mmPgRestore(id) { try { const pg = await api('GET', 'memo/p/' + id); pg.deleted = false; await mmFlush(); await mmSave(pg); mmDraw(); toast('되살렸습니다'); } catch (er) { toast(er.message, true); } }
+function mmCtxMenu(e) {
+  if (e.shiftKey || route !== 'memo') return; const t = e.target, host = t.closest?.('#mmEd, #mmNotes .fb'); if (!host) return;
+  const x = t.closest('a.mm-pgl, span.mm-date, span.mm-men, .mm-file, hr'); if (!x || !host.contains(x)) return;
+  const ro = !!(MM.cur?.lock || MM.cur?._ro), at = { left:e.clientX, top:e.clientY, bottom:e.clientY }, I = (v, ic, l, s) => `<button data-v="${v}"><span>${ic}</span>${l}${s ? `<small>${s}</small>` : ''}</button>`;
+  let blk = x; while (blk.parentNode && blk.parentNode !== host) blk = blk.parentNode;
+  let h = '', pid = '', p = null;
+  if (x.matches('a.mm-pgl')) { pid = (x.getAttribute('href') || '').replace(/^#memo\//, ''); p = MM.pages.find(y => y.id === pid);
+    h = p?.deleted ? I('rest', '↺', '휴지통에서 되살리기') : I('open', '📄', '열기');
+    if (!ro) h += I('del', '✕', '이 링크 지우기', '페이지는 그대로') + (p && !p.deleted ? I('both', '🗑', '링크 지우고 페이지도 휴지통으로', '하루 안에 되살릴 수 있음') : ''); }
+  else if (x.matches('.mm-file')) h = I('open', '📎', '파일 열기') + (ro ? '' : I('del', '✕', '파일을 메모에서 빼기', '서버의 파일은 그대로'));
+  else if (!ro) h = I('del', '✕', x.matches('hr') ? '구분선 지우기' : x.matches('span.mm-date') ? '날짜 지우기' : '@언급 지우기');
+  if (!h) return; if (!ro && blk !== x && blk.parentNode === host && host.id === 'mmEd') h += '<div class="mm-poph">이 줄</div>' + I('blk', '⠿', '줄 메뉴…', '옮기기 · 바꾸기 · 색 · 복제');
+  e.preventDefault(); e.stopPropagation(); x.classList.add('mm-ctx');
+  const pop = mmPop(at, h, async v => { x.classList.remove('mm-ctx'); if (!x.isConnected) return;
+    if (v === 'open') { if (x.matches('.mm-file')) return mmFileOpen(x); await mmFlush(); return mmOpen(pid); }
+    if (v === 'rest') return mmPgRestore(pid);
+    if (v === 'del') return mmAtomDel(x);
+    if (v === 'both') { mmAtomDel(x); return mmTrash(pid); }
+    if (v === 'blk') return mmBlockMenu(blk, at);
+  }, 'ctx');
+  setTimeout(() => document.addEventListener('mousedown', function off() { x.classList.remove('mm-ctx'); document.removeEventListener('mousedown', off, true); }, true), 0);
+  return pop;
+}
+document.addEventListener('contextmenu', mmCtxMenu, true);
+/* 2026-11-20 v18.18 글자 크기를 숫자(pt, 워드 · 한글과 같은 단위)로 — 위 도구 줄 · 글 고를 때 뜨는 막대에 숫자 칸 + ▾ 목록, A+ · A− 는 한 단계씩.
+   글을 고르면 그 글만, 고른 글 없이 커서만 있으면 그 줄 전체. 메모에는 span style="font-size:12pt" 로 저장(정리 함수 그대로 통과) */
+const MM_FSL = [8, 9, 10, 10.5, 11, 12, 14, 16, 18, 20, 22, 24, 28, 32, 36, 48, 72];
+function mmFsNow() {   // 커서 자리 글자 크기(pt) — 확대(zoom)는 빼고
+  const s = getSelection(); if (!s?.rangeCount) return null; let n = s.anchorNode; const r = s.getRangeAt(0);
+  if (!r.collapsed) { const ca = r.commonAncestorContainer, w = document.createTreeWalker(ca.nodeType === 3 ? ca.parentNode : ca, NodeFilter.SHOW_TEXT); let t; while ((t = w.nextNode())) if (t.data.trim() && r.intersectsNode(t) && !(t === r.startContainer && r.startOffset >= t.length) && !(t === r.endContainer && r.endOffset === 0)) { n = t; break; } }   // 고른 글의 첫 글자 (고른 곳 바로 앞 글이 아니라)
+  const el = n && (n.nodeType === 3 ? n.parentElement : n), ed = el?.closest?.('#mmEd, #mmNotes .fb'); if (!ed) return null;
+  let px = parseFloat(getComputedStyle(el).fontSize); const z = mmZoom(), e0 = $('#mmEd'); if (z !== 1 && e0) { const k = parseFloat(getComputedStyle(e0).fontSize) / ($('#mmEdw')?.classList.contains('sm') ? 13 : 14.5); if (Math.abs(k - z) < .03) px /= z; }
+  return px ? Math.round(px * .75 * 2) / 2 : null;
+}
+function mmFsSave() { const s = getSelection(); if (s?.rangeCount && mmRoot()) MM.fsR = s.getRangeAt(0).cloneRange(); }
+function mmFsShow() { if (document.activeElement?.classList?.contains('mm-fsin')) return; const v = mmFsNow(); document.querySelectorAll('.mm-fsin').forEach(i => { i.value = v == null ? '' : String(v); }); }
+function mmFsApply(pt, r) {
+  pt = Math.round(+pt * 2) / 2; if (!isFinite(pt) || pt <= 0) return toast('글자 크기는 숫자로 (예: 12 · 10.5)', true); pt = Math.max(4, Math.min(200, pt));
+  r = r || MM.fsR; const sc = r && (r.startContainer.nodeType === 3 ? r.startContainer.parentElement : r.startContainer), host = sc?.closest?.('#mmEd, #mmNotes .fb');
+  if (!host || !host.isConnected) return toast('글자 크기를 바꿀 글을 먼저 고르세요 (커서만 두면 그 줄 전체)', true); if (MM.cur?.lock) return toast('잠긴 메모입니다 — 🔒 를 눌러 풀고 고치세요', true);
+  host.focus(); const g = getSelection(); g.removeAllRanges(); g.addRange(r); const v = pt + 'pt';
+  const clr = el => { el.querySelectorAll('[style*="font-size"]').forEach(y => { y.style.fontSize = ''; if (!y.getAttribute('style')) y.removeAttribute('style'); if (y.tagName === 'SPAN' && !y.attributes.length) y.replaceWith(...y.childNodes); }); el.querySelectorAll('font[size]').forEach(y => { y.removeAttribute('size'); if (!y.attributes.length) y.replaceWith(...y.childNodes); }); };
+  if (r.collapsed) { const b = mmBlock(); if (!b) return; clr(b); b.style.fontSize = v; toast(`고른 글이 없어 이 줄 전체를 ${pt}pt 로`); }
+  else { document.execCommand('styleWithCSS', false, false); document.execCommand('fontSize', false, 7); const fs = [...host.querySelectorAll('font[size="7"]')], out = [];
+    fs.forEach(f => { clr(f); const sp = document.createElement('span'); sp.style.cssText = f.style.cssText; if (f.getAttribute('color')) sp.style.color = f.getAttribute('color'); sp.style.fontSize = v; sp.append(...f.childNodes); f.replaceWith(sp); out.push(sp); });
+    if (out.length) { const r2 = document.createRange(); r2.setStartBefore(out[0]); r2.setEndAfter(out[out.length - 1]); g.removeAllRanges(); g.addRange(r2); } }
+  if (g.rangeCount) MM.fsR = g.getRangeAt(0).cloneRange(); mmTouch(); mmHistPush(true); document.querySelectorAll('.mm-fsin').forEach(i => { i.value = String(pt); });
+}
+function mmFsStep(d) { mmFsSave(); const c = mmFsNow() || 11; mmFsApply(d > 0 ? MM_FSL.find(x => x > c) || c + 8 : [...MM_FSL].reverse().find(x => x < c) || Math.max(4, c - 1)); }
+function mmFsList(btn) { mmFsSave(); const c = mmFsNow(); return mmPop(btn, MM_FSL.map(n => `<button data-v="${n}" class="${n === c ? 'on' : ''}">${n}<small>pt</small></button>`).join(''), v => mmFsApply(+v), 'fsl'); }
+const mmFsBox = (id, a) => `<span class="mm-fsz" title="글자 크기 (pt) — 숫자를 넣고 Enter · ↑↓ 한 단계 · ▾ 목록 (글을 고르면 그 글만, 커서만 두면 그 줄 전체)"><input class="mm-fsin"${id ? ` id="${id}"` : ''} inputmode="decimal" maxlength="5" autocomplete="off" spellcheck="false" aria-label="글자 크기"><button ${a}="fsl" tabindex="-1" aria-label="글자 크기 목록">▾</button></span>`;
+document.addEventListener('mousedown', e => { if (!e.target.closest?.('.mm-fsz')) return; mmFsSave(); const i = e.target.closest('.mm-fsin'); if (i && document.activeElement !== i) { e.preventDefault(); i.focus(); i.select(); } }, true);   // 누르면 숫자 전체 골라짐 → 바로 새 숫자
+document.addEventListener('focusin', e => { if (e.target.classList?.contains('mm-fsin')) setTimeout(() => e.target.select(), 0); });
+document.addEventListener('keydown', e => { const i = e.target; if (!i.classList?.contains('mm-fsin') || e.isComposing) return;
+  if (e.key === 'Enter' || e.key === 'Tab') { e.preventDefault(); mmFsApply(parseFloat(String(i.value).replace(',', '.'))); }
+  else if (e.key === 'ArrowUp' || e.key === 'ArrowDown') { e.preventDefault(); const c = parseFloat(i.value) || mmFsNow() || 11, n = e.key === 'ArrowUp' ? MM_FSL.find(x => x > c) || c + 8 : [...MM_FSL].reverse().find(x => x < c) || Math.max(4, c - 1); mmFsApply(n); const j = i.isConnected ? i : $('#mmBub .mm-fsin') || $('#mmFs'); j?.focus(); }
+  else if (e.key === 'Escape') { e.preventDefault(); const r = MM.fsR, sc = r && (r.startContainer.nodeType === 3 ? r.startContainer.parentElement : r.startContainer); const h = sc?.closest?.('#mmEd, #mmNotes .fb'); if (h) { h.focus(); const g = getSelection(); g.removeAllRanges(); g.addRange(r); } else i.blur(); } });
+document.addEventListener('selectionchange', () => { clearTimeout(MM.fsT); MM.fsT = setTimeout(mmFsShow, 150); });
 function mmAddBelow(b) {   // ＋ = 아래에 새 블록 + '/' 메뉴
   if (!MM.cur || MM.cur.lock) return; const ed = mmEd(); const d = document.createElement('div'); d.innerHTML = '<br>';
   if (b && b.isConnected) b.after(d); else ed.appendChild(d); ed.focus(); mmCaretIn(d); document.execCommand('insertText', false, '/'); mmSlash();
 }
 /* 글을 고르면 위에 뜨는 서식 막대 */
-const MM_BUB = [['bold', '<b>B</b>', '굵게'], ['italic', '<i>I</i>', '기울임'], ['underline', '<u>U</u>', '밑줄'], ['strike', '<s>S</s>', '취소선'], ['sup', 'x²', '위 첨자'], ['sub', 'x₂', '아래 첨자'], ['|'], ['color', '<span style="color:#d44c47;font-weight:800">A</span>', '글자 색'], ['hilite', '<span style="background:#fff176;padding:0 3px">A</span>', '형광펜'], ['|'], ['link', '🔗', '링크'], ['cmt', '💬', '주석 달기'], ['@to', '바꾸기 ▾', '블록 바꾸기 (제목 · 목록 · 할 일 …)']];
+const MM_BUB = [['bold', '<b>B</b>', '굵게'], ['italic', '<i>I</i>', '기울임'], ['underline', '<u>U</u>', '밑줄'], ['strike', '<s>S</s>', '취소선'], ['sup', 'x²', '위 첨자'], ['sub', 'x₂', '아래 첨자'], ['|'], ['@fs'], ['|'], ['color', '<span style="color:#d44c47;font-weight:800">A</span>', '글자 색'], ['hilite', '<span style="background:#fff176;padding:0 3px">A</span>', '형광펜'], ['|'], ['link', '🔗', '링크'], ['cmt', '💬', '주석 달기'], ['@to', '바꾸기 ▾', '블록 바꾸기 (제목 · 목록 · 할 일 …)']];
 function mmBub() {
+  if (document.activeElement?.closest?.('#mmBub')) return;   // v18.18 글자 크기 칸에 쓰는 동안은 그대로
   const s = getSelection(); let bb = $('#mmBub'); const host = s && s.rangeCount && !s.isCollapsed ? (s.anchorNode.nodeType === 3 ? s.anchorNode.parentElement : s.anchorNode)?.closest?.('#mmEd, #mmNotes .fb') : null;
   if (!host || MM.cur?.lock || PEN.on || $('#mmEd .mm-sel') || route !== 'memo' || !String(s).trim()) { bb?.remove(); return; }
-  if (!bb) { bb = document.createElement('div'); bb.id = 'mmBub'; bb.className = 'mm-bub'; bb.innerHTML = MM_BUB.map(x => x[0] === '|' ? '<i></i>' : `<button data-bc="${x[0]}" title="${x[2]}">${x[1]}</button>`).join(''); document.body.appendChild(bb);
-    bb.addEventListener('mousedown', e => e.preventDefault()); bb.addEventListener('click', e => { const b = e.target.closest('[data-bc]'); if (!b) return; const c = b.dataset.bc;
+  if (!bb) { bb = document.createElement('div'); bb.id = 'mmBub'; bb.className = 'mm-bub'; bb.innerHTML = MM_BUB.map(x => x[0] === '|' ? '<i></i>' : x[0] === '@fs' ? mmFsBox('', 'data-bc') : `<button data-bc="${x[0]}" title="${x[2]}">${x[1]}</button>`).join(''); document.body.appendChild(bb);
+    bb.addEventListener('mousedown', e => { if (!e.target.closest('input')) e.preventDefault(); }); bb.addEventListener('click', e => { const b = e.target.closest('[data-bc]'); if (!b) return; const c = b.dataset.bc;
       if (c === '@to') return mmPop(b, MM_TO.map(x => `<button data-v="${x[0]}"><span>${esc(x[1])}</span>${x[2]}</button>`).join(''), v => mmCmd(v)); mmCmd(c, b); if (c === 'cmt') bb.remove(); }); }
-  const r = s.getRangeAt(0).getBoundingClientRect(); if (!r.width && !r.height) { bb.remove(); return; }
+  const r = s.getRangeAt(0).getBoundingClientRect(); if (!r.width && !r.height) { bb.remove(); return; } mmFsShow();
   bb.style.left = Math.max(8, Math.min(innerWidth - bb.offsetWidth - 8, r.left + r.width / 2 - bb.offsetWidth / 2)) + 'px'; bb.style.top = (r.top - bb.offsetHeight - 8 < 8 ? r.bottom + 8 : r.top - bb.offsetHeight - 8) + 'px';
 }
 document.addEventListener('input', e => { if (e.target.id === 'mmTitle') { const b = $('.mm-bc b'); if (b) b.textContent = `${MM.cur?.icon || '📄'} ${e.target.value || '제목 없음'}`; } });   // 위치 표시의 제목도 바로
@@ -8777,7 +8850,7 @@ document.addEventListener('click', async e => {
   if ((b = D('data-mrest'))) { const p = MM.pages.find(x => x.id === b.dataset.mrest); if (!p) return; try { const pg = await api('GET', 'memo/p/' + p.id); pg.deleted = false; await mmSave(pg); mmDraw(); toast('되살렸습니다'); } catch (er) { toast(er.message, true); } return; }
   if ((b = D('data-mkill'))) { const p = MM.pages.find(x => x.id === b.dataset.mkill); if (!p) return; if (await ask('완전히 지울까요?', '<p style="margin:0">이 메모와 첨부 파일을 완전히 지웁니다. 되돌릴 수 없습니다.</p>', [{ id:'y', label:'완전 삭제', cls:'pri' }, { id:'n', label:'취소' }]) !== 'y') return; try { await mmKill(p); } catch (er) { toast(er.message, true); } return mmDraw(); }
   if ((b = D('data-mc'))) { e.preventDefault(); return mmCmd(b.dataset.mc, b); }
-  if ((b = D('data-mcol'))) { if (!MM.cur) return; MM.cur.color = b.dataset.mcol; w.querySelectorAll('[data-mcol]').forEach(x => x.classList.toggle('on', x === b)); MM.dirty = true; return mmSave(); }
+  if ((b = D('data-mcol'))) { if (!MM.cur) return; MM.cur.color = b.dataset.mcol; w.querySelectorAll('[data-mcol]').forEach(x => x.classList.toggle('on', x === b)); MM.dirty = true; const i = MM_COL.indexOf(b.dataset.mcol); toast(i > 0 ? `목록 색: ${MM_COLN[i]} — 왼쪽 메모 목록의 이 메모 카드에 ${MM_COLN[i]} 띠` : '목록 색 없앰'); return mmSave(); }
   if (t.closest('#mmIcon')) return mmPop(t.closest('#mmIcon'), MM_ICONS.map(i => `<button data-v="${i}">${i}</button>`).join(''), v => { MM.cur.icon = v; $('#mmIcon').textContent = v; MM.dirty = true; mmSave(); }, 'grid');
   if ((b = D('data-msh'))) { const [o, id] = b.dataset.msh.split('|'); return mmSharedOpen(o, id); }
   if (D('data-mx0')) { await mmSharedLoad(); mmDrawSide(); return mmDrawList(); }
