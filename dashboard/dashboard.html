@@ -1944,6 +1944,7 @@ body.schbigon{overflow:hidden}@keyframes schBigIn{from{transform:scale(.97);opac
 .mm-meta{padding:0 18px 8px;display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-size:12px;color:var(--sub)}
 .mm-meta select,.mm-meta input{border:1px solid var(--line);border-radius:8px;padding:4px 7px;font-size:12px;background:var(--card);color:var(--text)}.mm-meta input.tags{width:170px}
 .mm-meta .tg{border:1px solid var(--line);background:var(--card);border-radius:8px;padding:3px 8px;cursor:pointer;font-size:12px}.mm-meta .tg.on{background:#fff4c2;border-color:#f0c93a}
+.mm-ed.dk [data-dkc]{color:var(--dkc)!important}
 .mm-meta .mm-coll{font-size:11.5px;color:var(--muted);margin:0 1px 0 6px;cursor:help;white-space:nowrap}
 .mm-tb .mm-fsz,.mm-bub .mm-fsz{display:inline-flex;align-items:center;height:26px;border:1px solid var(--line);border-radius:6px;background:var(--card);margin:0 2px;overflow:hidden}.mm-fsz input{width:38px;height:24px;border:0;background:none;text-align:center;font:600 12.5px/24px inherit;color:var(--text);outline:0;padding:0}.mm-fsz input:focus{background:var(--accent-l)}.mm-tb .mm-fsz button,.mm-bub .mm-fsz button{min-width:15px!important;width:15px;height:24px!important;padding:0!important;font-size:9px!important;border-radius:0!important;border-left:1px solid var(--line)!important;color:var(--muted)}
 .mm-pop.fsl{min-width:0;width:186px;display:grid;grid-template-columns:repeat(3,1fr);gap:2px}.mm-pop.fsl button{justify-content:center;gap:2px;padding:6px 4px}.mm-pop.fsl button.on{background:var(--accent-l);font-weight:700}.mm-pop.fsl small{margin:0!important}
@@ -2392,7 +2393,7 @@ html:not(.dark) #memoWrap .mm-top{background:#fff;border-bottom:1px solid var(--
 html:not(.dark) #memoWrap .mm-tb{background:#fff;border-bottom:1px solid var(--nl)}html:not(.dark) #memoWrap .mm-tb button{border-radius:4px;color:var(--nt)}html:not(.dark) #memoWrap .mm-tb button:hover{background:var(--nh2)}
 html:not(.dark) #memoWrap .mm-meta{background:#fff}html:not(.dark) #memoWrap .mm-meta .tg,html:not(.dark) #memoWrap .mm-zb{border-color:var(--nl);border-radius:5px;box-shadow:none}
 #memoWrap .mm-ph .mm-title{font-size:32px;font-weight:700;letter-spacing:-.4px;color:inherit}#memoWrap .mm-ph .mm-icon{font-size:30px}#memoWrap .mm-ph .tt{border-bottom-color:transparent}#memoWrap .mm-ph.big .mm-title{font-size:22px}
-html:not(.dark) #memoWrap .mm-ed{color:var(--nt)}
+html:not(.dark) #memoWrap .mm-ed{color:var(--nt)}html:not(.dark) #memoWrap .mm-ed.dk{color:#e4e9f7}   /* v18.19 어두운 종이의 색 없는 글이 진한 회색으로 남던 것 */
 .mm-pop{border-radius:8px;border:0;box-shadow:rgba(15,15,15,.05) 0 0 0 1px,rgba(15,15,15,.1) 0 3px 6px,rgba(15,15,15,.2) 0 9px 24px;padding:6px}.mm-pop button{border-radius:5px;padding:6px 10px}html:not(.dark) .mm-pop button:hover,html:not(.dark) .mm-pop button.on{background:rgba(55,53,47,.08)}
 #memoWrap ::-webkit-scrollbar{width:10px;height:10px}#memoWrap ::-webkit-scrollbar-thumb{background:#d3d1cb;border-radius:10px;border:2px solid transparent;background-clip:padding-box}#memoWrap ::-webkit-scrollbar-thumb:hover{background:#aeaca6;background-clip:padding-box;border:2px solid transparent}
 /* 작은 글씨 · 확인 표시 · 지운 링크 */
@@ -2600,7 +2601,7 @@ function recLabel(key, f) {
  * ===================================================================== */
 let root = null;
 /* 서버 모드: http(s):// 로 접속하면 server.py 의 REST API 사용 (폴더 선택 불필요). file:// 로 열면 폴더 모드 */
-const APP_VERSION = '2026-11-20.3';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
+const APP_VERSION = '2026-11-20.4';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
 const SERVER_URL = 'http://localhost:8080';
 // 부서원 PC 사본(file://)이 접속을 시도할 서버 — 서버가 배포 파일을 만들 때 'PC 이름 주소, IP 주소' 순으로 자동 기록함
 const DEFAULT_SERVERS = ['http://ASEUNGWOOK-B01:8080', 'http://65.3.30.234:8080'];
@@ -6188,7 +6189,18 @@ const MM_TPL = [
 /* 2026-11-19 v17.70 메모 배경(종이 무늬): 메모마다 고름 · [기본으로] 하면 새 메모에 적용 */
 const MM_BG = [['', '흰 종이'], ['lined', '줄 노트'], ['wide', '넓은 줄 노트'], ['grid', '모눈종이'], ['bgrid', '큰 모눈종이'], ['dot', '점 격자'], ['legal', '노란 리갈 패드'], ['cream', '크림색 종이'], ['green', '초록 모눈 (방안지)'], ['blue', '청사진 (도면)'], ['cornell', '코넬 노트 (왼쪽 여백 줄)']];
 const mmBgDef = () => { try { return localStorage.getItem('dept-memo-bg') || ''; } catch (_) { return ''; } };
-const mmEdCls = pg => { const c = (pg.lh ? ' lh-' + pg.lh : '') + (pg.bg ? ' bg-' + pg.bg : '') + (pg.dk ? ' dk' : ''); const ew = document.getElementById('mmEdw'); if (ew) ew.className = 'mm-edw pp' + c; return 'mm-ed' + c; };   // dk = 어두운 종이 (2026-11-19 v17.71)
+/* 2026-11-20 v18.19 회사 사진: 밝은 종이에서 검정 · 진한 색으로 칠한 글(붙여 넣은 글 포함)이 어두운 종이로 바꾸면 안 보임 → 어두운 종이일 때만 밝게 뒤집어 보여 줌.
+   색은 그대로 저장(표시만 바꿈): data-dkc · --dkc 는 정리 함수가 저장 때 뺌. 연한 바탕(형광펜 · 칸 색) 위 글은 그대로 */
+function mmDkFix() {
+  const ed = $('#mmEd'); if (!ed) return; const on = ed.classList.contains('dk');
+  ed.querySelectorAll('[data-dkc]').forEach(x => { x.removeAttribute('data-dkc'); x.style.removeProperty('--dkc'); if (!x.getAttribute('style')) x.removeAttribute('style'); }); if (!on) return;
+  const rgb = v => { const m = /rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*([\d.]+))?/.exec(v || ''); return m && (m[4] == null || +m[4] > .3) ? [+m[1], +m[2], +m[3]] : null; }, lum = c => { const f = v => (v /= 255) <= .04045 ? v / 12.92 : ((v + .055) / 1.055) ** 2.4; return .2126 * f(c[0]) + .7152 * f(c[1]) + .0722 * f(c[2]); };
+  const lightBg = el => { for (let n = el; n && n !== ed; n = n.parentElement) { if (!n.style?.backgroundColor && !n.getAttribute('bgcolor')) continue; const c = rgb(getComputedStyle(n).backgroundColor); if (c) return lum(c) > .35; } return false; };
+  ed.querySelectorAll('[style*="color"], font[color]').forEach(el => { if (!el.style.color && !el.getAttribute('color')) return; const c = rgb(getComputedStyle(el).color); if (!c || lum(c) > .12 || lightBg(el)) return;
+    const [r, g, b] = c.map(v => v / 255), mx = Math.max(r, g, b), mn = Math.min(r, g, b), d = mx - mn; let h = 0; if (d) h = mx === r ? ((g - b) / d) % 6 : mx === g ? (b - r) / d + 2 : (r - g) / d + 4; h = Math.round(h * 60 + 360) % 360; const sat = d ? Math.round(d / (1 - Math.abs(mx + mn - 1)) * 100) : 0;
+    el.setAttribute('data-dkc', ''); el.style.setProperty('--dkc', sat < 12 ? '#e4e9f7' : `hsl(${h} ${Math.min(sat, 85)}% 78%)`); });
+}
+const mmEdCls = pg => { setTimeout(mmDkFix, 0); setTimeout(mmDkFix, 400); const c = (pg.lh ? ' lh-' + pg.lh : '') + (pg.bg ? ' bg-' + pg.bg : '') + (pg.dk ? ' dk' : ''); const ew = document.getElementById('mmEdw'); if (ew) ew.className = 'mm-edw pp' + c; return 'mm-ed' + c; };   // dk = 어두운 종이 (2026-11-19 v17.71)
 const mmDkDef = () => { try { return localStorage.getItem('dept-memo-dk') === '1'; } catch (_) { return false; } };
 const mmCol = (v, d = '') => /^#[0-9a-f]{3,8}$/i.test(String(v || '')) ? v : d;   // 색은 #rrggbb 모양만 (공유받은 메모의 값이 CSS 로 그대로 들어가지 않게)
 const mmId = () => Array.from(crypto.getRandomValues(new Uint8Array(12)), b => 'abcdefghijklmnopqrstuvwxyz0123456789'[b % 36]).join('');
@@ -6275,7 +6287,7 @@ function mmPull() {   // 화면 → MM.cur
   mmMetaOf(pg);
 }
 function mmTouch() {
-  if (!MM.cur || MM.cur.lock) return; MM.dirty = true; mmHistPush(); mmStat('입력 중…'); clearTimeout(MM.timer); MM.timer = setTimeout(() => mmSave(), 1200);
+  if (!MM.cur || MM.cur.lock) return; MM.dirty = true; mmHistPush(); mmStat('입력 중…'); clearTimeout(MM.timer); MM.timer = setTimeout(() => mmSave(), 1200); if (MM.cur.dk) { clearTimeout(MM.dkT); MM.dkT = setTimeout(mmDkFix, 500); }
   clearTimeout(MM.draftT); const cid = MM.cur.id; MM.draftT = setTimeout(() => { if (MM.cur?.id !== cid) return; try { const h = $('#mmEd')?.innerHTML || ''; if (h.length < 900000) localStorage.setItem('dept-memo-draft', JSON.stringify({ u:MM.uid, id:cid, html:h, title:$('#mmTitle')?.value || '', at:Date.now() })); } catch (_) {} }, 400);   // v18.13 글자마다 메모 전체를 비상 보관하던 것 → 0.4초 쉬면 한 번
 }
 function mmSave(pg = MM.cur, opt = {}) {   // 차례대로 한 번에 하나씩
