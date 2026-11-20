@@ -2580,3 +2580,16 @@ C:\Users\SAMSUNG\Desktop\Claude\                         ← 개발 폴더 (여�
   - 함께: 밝은 화면 모양(Notion 풍) CSS 때문에 어두운 종이에서도 **색 없는 글이 진한 회색으로 남던 것** 고침.
 - 바뀐 곳: dashboard.html `mmDkFix`(새로) · `mmEdCls`(호출) · `mmTouch`(어두운 종이면 0.5초 뒤 호출), CSS `.mm-ed.dk [data-dkc]` · `html:not(.dark) #memoWrap .mm-ed.dk`.
 - 확인한 것: Playwright — 검정 → rgb(228,233,247), 진한 남색 #1e293b → rgb(180,195,217), 진한 파랑 → rgb(163,182,235), 빨강 그대로, 형광펜 위 검정 그대로, 색 없는 글 → 밝게, 저장 html 에 dkc 없음 · 검정 그대로 저장, 다시 밝게 → 원래 색. 화면 오류 0.
+
+### 2026-11-20 (APP_VERSION 2026-11-20.5 / SERVER_VERSION 그대로) — v18.20 내 메모장 단독 실행 파일(메모장.exe) · 메모장 전체 백업 · 옮기기
+- 무엇을: 사용자 지시 "메모장 기능 자체만 exe 실행 파일로 만들어줘라" → "exe 파일 줘".
+  - **메모장.exe** (`dist/memo_app/메모장.exe`, Windows 64비트 GUI, 약 25MB, 소스 `memo_app/main.go` Go 표준 라이브러리만): 두 번 누르면 127.0.0.1 의 작은 웹서버(기본 포트 18766, 쓰고 있으면 빈 포트) → Edge 앱 창(`--app=`, 없으면 Chrome · 기본 브라우저). 화면은 **이 dashboard.html 그대로**(exe 안에 넣음 — 메모장 코드를 두 벌로 나누지 않음), pdf.js · 글자 인식(apps/translate/ocr)도 넣음, 외부 주소 0.
+  - 저장은 server.py 의 /api/memo 와 같은 규칙을 Go 로: 페이지 · 섹션 · 첨부 · 판 기록(10분 · 20개) · 휴지통 · 500MB · 12MB · ID/파일 이름 검사 · 409 충돌. 자료는 exe 옆 `메모장_자료\`(못 쓰면 %LOCALAPPDATA%\메모장), 폴더 구조 = 서버의 notes\{계정}\ 와 같음.
+  - 보안: 127.0.0.1 에만 열림(다른 PC 접속 불가), Host 검사(주소 바꿔치기 막음), 실행마다 새 열쇠(token)를 화면에만 넣어 다른 웹사이트가 메모 API 를 부르지 못함, CSP(connect-src 'self' — 밖으로 보내기 막음).
+  - 창을 닫으면(30초마다 오던 신호가 3분 끊기면) 스스로 끝남, 절전에서 깨어난 직후는 다시 셈. 이미 켜져 있으면 창만 다시 엶.
+  - dashboard.html: `window.MEMO_APP`(exe 가 넣음)이면 `memoAppStart` — 로그인 없이 메모장만(`render` 가 메모장만 그림, 왼쪽 메뉴 · 머리줄 · 불러오기 · 공유 숨김). 대시보드 서버로 열 때는 아무것도 바뀌지 않음.
+  - **메모장 전체 백업 · 옮기기**(대시보드와 exe 모두): [＋ 새 메모 ▾] → '📦 메모장 전체 내보내기'(메모 · 스티커 · 섹션 · 첨부 → json 한 파일) / '♻ 백업 파일 가져오기'(같은 메모는 가져온 것으로, 바뀌기 전은 판 기록에, 첨부 ID 그대로, 본문은 mmClean 으로 다시 거름).
+  - 안내: `dist/memo_app/읽어주세요.txt` (SmartScreen · 백신이 막을 때, 자료 폴더 · 백업, 대시보드와 주고받기).
+- 바뀐 곳: dashboard.html `MEMO_APP` · `memoAppStart` · `render`(앞부분) · `init`(앞부분) · `mmB64` · `mmBackupOut` · `mmBackupIn` · 새 메모 메뉴 · CSS `html.memoapp …`. 새 폴더 `memo_app/`(main.go · go.mod · build.sh), `dist/memo_app/`(메모장.exe · 읽어주세요.txt).
+- 확인한 것: `file` → PE32+ executable (GUI) x86-64. 같은 코드 리눅스 빌드 + Playwright — 로그인 없이 메모장만, 새 메모 저장 파일, Ctrl+Z, 위험한 글(script · onerror · javascript: · url() · onclick) 저장 안 됨 · 알림 0, PDF 첨부 → pdf.js 보기 · 펜으로 선 · Esc 로 펜 끔, 프로그램 껐다 켜도 메모 남음, 글자 인식(메일 화면 캡처) 89%, 백업 내보내기 → 빈 자료 폴더의 다른 메모장으로 가져오기(메모 · PDF 첨부 열림), 외부 요청 0, 다른 주소(192.x)로 접속 거절, 열쇠 없이 401, Host 바꿔치기 403, 잘못된 ID 거절, 두 번째 실행은 바로 끝남. 대시보드 쪽 기존 시험(v18.17 · v18.19) 그대로 통과.
+- 회사에서 확인할 것: SmartScreen · 백신이 막는지, Edge 앱 창으로 열리는지, 창을 닫고 몇 분 뒤 작업 관리자에서 메모장.exe 가 없어지는지. (Playwright 머리 없는 브라우저는 한글 이름 다운로드를 'download' 로 받음 — 실제 Edge 는 한글 이름 그대로)

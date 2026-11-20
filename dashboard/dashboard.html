@@ -1945,6 +1945,7 @@ body.schbigon{overflow:hidden}@keyframes schBigIn{from{transform:scale(.97);opac
 .mm-meta select,.mm-meta input{border:1px solid var(--line);border-radius:8px;padding:4px 7px;font-size:12px;background:var(--card);color:var(--text)}.mm-meta input.tags{width:170px}
 .mm-meta .tg{border:1px solid var(--line);background:var(--card);border-radius:8px;padding:3px 8px;cursor:pointer;font-size:12px}.mm-meta .tg.on{background:#fff4c2;border-color:#f0c93a}
 .mm-ed.dk [data-dkc]{color:var(--dkc)!important}
+html.memoapp #side,html.memoapp #scrim,html.memoapp header.top,html.memoapp #botChar,html.memoapp #taskBar,html.memoapp [data-mx="pull"],html.memoapp [data-mx="share"],html.memoapp [data-nk="shared"]{display:none!important}html.memoapp #main{margin-left:0!important}html.memoapp #content{padding-top:8px}
 .mm-meta .mm-coll{font-size:11.5px;color:var(--muted);margin:0 1px 0 6px;cursor:help;white-space:nowrap}
 .mm-tb .mm-fsz,.mm-bub .mm-fsz{display:inline-flex;align-items:center;height:26px;border:1px solid var(--line);border-radius:6px;background:var(--card);margin:0 2px;overflow:hidden}.mm-fsz input{width:38px;height:24px;border:0;background:none;text-align:center;font:600 12.5px/24px inherit;color:var(--text);outline:0;padding:0}.mm-fsz input:focus{background:var(--accent-l)}.mm-tb .mm-fsz button,.mm-bub .mm-fsz button{min-width:15px!important;width:15px;height:24px!important;padding:0!important;font-size:9px!important;border-radius:0!important;border-left:1px solid var(--line)!important;color:var(--muted)}
 .mm-pop.fsl{min-width:0;width:186px;display:grid;grid-template-columns:repeat(3,1fr);gap:2px}.mm-pop.fsl button{justify-content:center;gap:2px;padding:6px 4px}.mm-pop.fsl button.on{background:var(--accent-l);font-weight:700}.mm-pop.fsl small{margin:0!important}
@@ -2601,7 +2602,7 @@ function recLabel(key, f) {
  * ===================================================================== */
 let root = null;
 /* 서버 모드: http(s):// 로 접속하면 server.py 의 REST API 사용 (폴더 선택 불필요). file:// 로 열면 폴더 모드 */
-const APP_VERSION = '2026-11-20.4';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
+const APP_VERSION = '2026-11-20.5';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
 const SERVER_URL = 'http://localhost:8080';
 // 부서원 PC 사본(file://)이 접속을 시도할 서버 — 서버가 배포 파일을 만들 때 'PC 이름 주소, IP 주소' 순으로 자동 기록함
 const DEFAULT_SERVERS = ['http://ASEUNGWOOK-B01:8080', 'http://65.3.30.234:8080'];
@@ -2704,6 +2705,7 @@ async function kv(mode, fn) { const db = await idb(); return new Promise((res, r
  *  상태
  * ===================================================================== */
 let user = '';
+const MEMO_APP = window.MEMO_APP && typeof window.MEMO_APP === 'object' ? window.MEMO_APP : null;   // 2026-11-20 v18.20 '내 메모장' 단독 실행 파일(메모장.exe)이 넣어 줌 — 메모장만 보이고 다른 메뉴 · 로그인 없음
 try { user = localStorage.getItem(LS_USER) || ''; } catch (_) {}
 const DB = { recs:{}, cols:[], state:{}, archives:[], recent:null, profiles:[] };
 const view = { week:'current', arch:null };            // 보기 대상 주차
@@ -3070,6 +3072,45 @@ const tagLoad = id => { try { const t = document.getElementById(id)?.textContent
 function tripLoad() { return tagLoad('deptTrip'); }
 const tagStrip = (html, T) => html.replace(new RegExp(T[0] + '[^<]*' + T[1].replace('/', '\\/') + '\\n?', 'g'), '');
 const tagPut = (html, T, obj) => { html = tagStrip(html, T); const blk = T[0] + JSON.stringify(obj).replace(/</g, '\\u003c') + T[1] + '\n', i = html.lastIndexOf('</body>'); return i < 0 ? html + blk : html.slice(0, i) + blk + html.slice(i); };
+function memoAppStart() {   // 메모장.exe: 이 PC 안의 작은 서버(127.0.0.1)가 /api/memo 를 대시보드 서버와 같은 규칙으로 처리
+  document.documentElement.classList.add('memoapp'); document.title = '내 메모장';
+  SERVER = true; API_BASE = ''; OFFLINE = false; ADMIN = false; GUEST = false;
+  AUTH = { token:String(MEMO_APP.token || ''), id:'me', name:String(MEMO_APP.name || '나').slice(0, 40) }; user = AUTH.name;
+  route = 'memo'; try { history.replaceState(null, '', '#memo'); } catch (_) {}
+  render();
+  setInterval(() => { api('POST', 'memoapp/alive').catch(() => {}); }, 30000);   // 창이 열려 있다는 신호 (창을 닫으면 메모장.exe 가 몇 분 뒤 스스로 끝남)
+}
+/* 2026-11-20 v18.20 메모장 전체 백업 · 옮기기 (대시보드 ↔ 메모장.exe): 메모 · 스티커 · 섹션 · 첨부를 json 한 파일로 */
+const mmB64 = buf => { const u = new Uint8Array(buf); let s = ''; for (let i = 0; i < u.length; i += 0x8000) s += String.fromCharCode.apply(null, u.subarray(i, i + 0x8000)); return btoa(s); };
+async function mmBackupOut() {
+  if (!mmNet()) return toast('서버(또는 메모장.exe)에 연결돼 있을 때 내보낼 수 있습니다', true);
+  await mmFlush(); mmStat('메모장 전체를 모으는 중…');
+  try { const d = await api('GET', 'memo'), pages = [], files = [];
+    for (const p of d.pages || []) pages.push(await api('GET', 'memo/p/' + p.id));
+    for (const f of new Set(pages.flatMap(p => p.files || []))) { try { const r = await fetch(API_BASE + '/api/memo/f/' + f, { headers:{ 'X-Auth-Token':AUTH.token }, cache:'no-store' }); if (!r.ok) continue;
+      const cd = r.headers.get('Content-Disposition') || '', nm = decodeURIComponent((/filename\*=UTF-8''([^;]+)/i.exec(cd) || [, f])[1]); files.push({ id:f, name:nm, b64:mmB64(await r.arrayBuffer()) }); } catch (_) {} }
+    dlFile(JSON.stringify({ kind:'dept-memo-backup', v:1, at:new Date().toISOString(), who:user, book:d.book || {}, pages, files }), `내메모장_백업_${todayISO()}.json`, 'application/json');
+    mmStat(''); toast(`메모 ${pages.length}개 · 첨부 ${files.length}개를 백업 파일로 저장했습니다 (다운로드 폴더) — 메모장.exe · 대시보드 메모장의 [＋ 새 메모 ▾ → 백업 파일 가져오기] 로 옮길 수 있음`);
+  } catch (e) { toast('내보내기 실패: ' + e.message, true); }
+}
+function mmBackupIn() {
+  if (!mmNet()) return toast('서버(또는 메모장.exe)에 연결돼 있을 때 가져올 수 있습니다', true);
+  const i = document.createElement('input'); i.type = 'file'; i.accept = '.json'; i.onchange = async () => { const f = i.files[0]; if (!f) return;
+    let d; try { d = JSON.parse(await f.text()); } catch (_) { return toast('백업 파일(json)이 아닙니다', true); }
+    if (d?.kind !== 'dept-memo-backup' || !Array.isArray(d.pages)) return toast('메모장 백업 파일이 아닙니다 (📦 메모장 전체 내보내기로 만든 파일)', true);
+    const ok = d.pages.filter(p => p && /^[a-z0-9]{6,40}$/.test(p.id || '')), have = new Set(MM.pages.map(p => p.id)), same = ok.filter(p => have.has(p.id)).length;
+    if (!confirm(`백업 파일(${fmtTime(d.at) || ''} · ${d.who || ''})에서 메모 ${ok.length}개 · 첨부 ${(d.files || []).length}개를 가져올까요?` + (same ? `\n\n이미 있는 메모 ${same}개는 백업 파일 내용으로 바뀝니다 (바뀌기 전 내용은 🕘 판 기록에 남음)` : ''))) return;
+    await mmFlush(); let nf = 0, np = 0;
+    try { for (const x of d.files || []) { if (!/^f[0-9a-f]{6,30}$/.test(x.id || '') || typeof x.b64 !== 'string') continue;
+        const ex = await fetch(API_BASE + '/api/memo/f/' + x.id, { headers:{ 'X-Auth-Token':AUTH.token }, cache:'no-store' }).then(r => r.ok).catch(() => false); if (ex) continue;
+        const bin = atob(x.b64), u = new Uint8Array(bin.length); for (let k = 0; k < bin.length; k++) u[k] = bin.charCodeAt(k);
+        await api('PUT', `memo/f?name=${enc(String(x.name || 'file'))}&id=${x.id}`, undefined, u.buffer); nf++; }
+      for (const p of ok) { const { base, force, ...pg } = p; pg.html = mmClean(pg.html || ''); await api('PUT', 'memo/p/' + p.id, { ...pg, force:true }); np++; }
+      const secs = [...(MM.book.secs || [])]; for (const x of d.book?.secs || []) if (x?.id && !secs.some(y => y.id === x.id)) secs.push(x); MM.book.secs = secs; await mmBook();
+      await mmLoad(true); MM.cur = null; mmDraw(); toast(`가져왔습니다 — 메모 ${np}개 · 첨부 ${nf}개`);
+    } catch (e) { toast(`가져오다 멈춤 (메모 ${np}개 · 첨부 ${nf}개까지): ${e.message}`, true); await mmLoad(true); mmDraw(); } };
+  i.click();
+}
 const dlFile = (text, name, type = 'text/html') => { const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([text], { type })); a.download = name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 5000); };
 async function freshHtml() { await loadAll(); await cacheSave(); return withSnap(await newHtml()); }   // 지금 서버 데이터가 든 dashboard
 /* ---------- ✈ 오프라인 파일 (출장용 + 운영자 부재) — 한 창에서 만들기 · 반영 ----------
@@ -5935,6 +5976,7 @@ function appAuth() {
 }
 
 function render() {
+  if (MEMO_APP) { route = 'memo'; const c = $('#content'); if (!$('#memoWrap')) { c.innerHTML = ''; renderMemo(c); } return; }   // 메모장.exe: 메모장만
   setTimeout(botInit, 0);   // 2026-11-08 클로드 비서
   if (GLB.g && !(GLB.box && GLB.box.isConnected)) glbKill();   // 2026-11-09 다른 메뉴로 가면 지구본 그리기를 완전히 멈춤(떼어진 캔버스가 계속 돌며 전체를 느리게 하던 문제)
   if (route === 'work') { route = 'task'; try { history.replaceState(null, '', '#task'); } catch (_) {} }
@@ -8834,8 +8876,8 @@ function mmAutoTask(nb) {   // 메모에서 Enter: 바로 위 줄이 '날짜 · 
 document.addEventListener('click', async e => {
   const w = e.target.closest('#memoWrap'); if (!w) return; const t = e.target, D = s => t.closest(`[${s}]`);
   let b;
-  if (t.closest('#mmNew')) return mmPop(t.closest('#mmNew'), `<button data-v="page"><span>📄</span>빈 메모</button><button data-v="sticky"><span>🗒</span>스티커</button>${MM_TPL.map((x, i) => `<button data-v="t${i}"><span>${x[1]}</span>${esc(x[0])}<small>양식</small></button>`).join('')}<button data-v="imp"><span>📥</span>파일에서 가져오기<small>워드 · 엑셀 · PPT · 한글(hwpx) · CSV · txt · md · html</small></button>`,
-    v => v === 'page' ? mmNew() : v === 'sticky' ? mmStickyNew() : v === 'imp' ? mmPickImport() : mmNew('page', MM_TPL[+v.slice(1)]));
+  if (t.closest('#mmNew')) return mmPop(t.closest('#mmNew'), `<button data-v="page"><span>📄</span>빈 메모</button><button data-v="sticky"><span>🗒</span>스티커</button>${MM_TPL.map((x, i) => `<button data-v="t${i}"><span>${x[1]}</span>${esc(x[0])}<small>양식</small></button>`).join('')}<button data-v="imp"><span>📥</span>파일에서 가져오기<small>워드 · 엑셀 · PPT · 한글(hwpx) · CSV · txt · md · html</small></button><div class="mm-poph">메모장 전체 (백업 · 옮기기)</div><button data-v="bkout"><span>📦</span>메모장 전체 내보내기<small>메모 · 스티커 · 섹션 · 첨부 → json 한 파일</small></button><button data-v="bkin"><span>♻</span>백업 파일 가져오기<small>대시보드 메모장 ↔ 메모장.exe</small></button>`,
+    v => v === 'page' ? mmNew() : v === 'sticky' ? mmStickyNew() : v === 'imp' ? mmPickImport() : v === 'bkout' ? mmBackupOut() : v === 'bkin' ? mmBackupIn() : mmNew('page', MM_TPL[+v.slice(1)]));
   if ((b = D('data-mnew'))) { const k = b.dataset.mnew; return k === 'sticky' ? mmStickyNew(b.dataset.col) : k === 'tpl' ? mmPop(b, MM_TPL.map((x, i) => `<button data-v="${i}"><span>${x[1]}</span>${esc(x[0])}</button>`).join(''), v => mmNew('page', MM_TPL[+v])) : mmNew(); }
   if ((b = D('data-msm'))) { e.stopPropagation(); const s = mmSecs().find(x => x.id === b.dataset.msm); if (!s) return;
     return mmPop(b, `<button data-v="ren"><span>✏</span>이름 바꾸기</button>${MM_COL.slice(1).map(c => `<button data-v="c${c}"><span style="width:14px;height:14px;border-radius:50%;background:${c}"></span>이 색으로</button>`).join('')}<button data-v="del"><span>🗑</span>섹션 지우기 (메모는 남음)</button>`, async v => {
@@ -13888,6 +13930,7 @@ setInterval(() => { if (root && !OFFLINE && !dlg.open && !dlg2.open && !document
 setInterval(() => { if (SERVER && root && (OFFLINE || QUEUE.length) && !boardTyping()) trySync(false); }, 30000);
 
 (async function init() {
+  if (MEMO_APP) return memoAppStart();
   const k = location.hash.slice(1); route = validRoute(k) ? k : 'home';
   bdayBoot();                                              // 생일 팝업: 화면을 열자마자 (이 PC 에 보관한 명단)
   await queueLoad();
