@@ -833,6 +833,31 @@
    },
    "replaces": "",
    "note": "v18.18 (기준 v18.15 aaa5cc31 — 회사 확인) — 메일 정리 다듬기 · 색 60/40 · 오른쪽 클릭 메뉴 · pt 글자 크기 · 화면만"
+  },
+  {
+   "file": "①",
+   "name": "4_메모장_exe_v18.20_2026-11-20.zip",
+   "made": "2026-11-20 11:40",
+   "path": "company-pc-update/2026-11-20/ (12.9MB · 저장소에 있음)",
+   "sha256": "44214baf0f0fe63fc6013d7be028d8466c2c6659cb30358b41fc08afd31bb77b",
+   "applied": "",
+   "tips": {
+    "S1": "a222c5e0"
+   },
+   "note": "내 메모장 단독 exe (오케스트레이터가 a222c5e0 소스에서 다시 빌드 · exe sha de61f2b8…)"
+  },
+  {
+   "file": "①",
+   "name": "5_DASHBOARD_update_v18.20_from_v18.15_2026-11-20.zip",
+   "made": "2026-11-20 11:40",
+   "path": "company-pc-update/2026-11-20/ (1.9MB · 저장소에 있음)",
+   "sha256": "47cd12660b2527f0638a588174805dcb56f947096e033ffd6bf0e2e1eac76811",
+   "applied": "",
+   "tips": {
+    "S1": "a222c5e0"
+   },
+   "replaces": "3_DASHBOARD_update_v18.18_from_v18.15_2026-11-20.zip",
+   "note": "v18.20 (기준 v18.15) — 메모장 전체 내보내기/가져오기 · 어두운 종이 글자색 · 화면만"
   }
  ]
 }
