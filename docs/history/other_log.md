@@ -403,3 +403,11 @@
 ### 2026-11-19 VALVE — 인수인계 문서 다시 씀 (오케스트레이터 전달 1번)
 - `docs/handoff/valve.md` 14,994 B → 8,422 B: '지금 상태' 한 절 + 다음 할 일. 끝난 규약 문구(valveNN 꾸러미 절차 · 'valve40 zip 아직') 삭제, 꾸러미 = 오케스트레이터.
 - 오케스트레이터 전달 2~5번(List 대조 보강 · IN-ITM-03/04 · anatomy.js 다시 만들기 · Valve 화면 instcalc)은 '다음에 할 일'에 순서대로 적음 — 아직 시작 안 함.
+
+### 2026-11-20 VALVE valve42 — 프로젝트 Valve Specification(On/Off · MOV · Control Valve) 대비 코멘트
+- 사용자: Spec 3권을 학습해 이를 기반으로 코멘트. Spec 은 공통 자료의 새 종류 'Valve Specification'(vspec)으로 올림 — 원본은 저장소에 없음.
+- `app/valve/vspec.py`: read_spec = 번호 조항으로 나눔(표지 · 목차 · 쪽 머리 빼고, 줄에 혼자 있는 번호 · 글머리표 처리) — 실물 On/Off 159 · MOV 172 · CV 634 조항.
+  검사 SP-01~15 = 조항을 문구로 찾아 **그 조항의 값**(Rate · Class · 초 · 배수 · 온도 · dBA · IP)으로 Datasheet 와 견줌. 조항이 없는 Spec 이면 그 검사는 안 함.
+  적용: Form 101/ISA20 · CV Tag → CV Spec · MOV/Form 102 → MOV Spec · Ball/ESDV/SDV/BDV/XV → On/Off Spec. 지적 종류 'Spec Compliance' · 근거 = Spec 번호 §조항 · 쪽 · 해당 문장 · 한글 코멘트.
+- 실자료(Ball 164 + On/Off Spec): 기존 2,935 변화 0 · 추가 5 (fire safe 미기재 3 · ISO 5208 Rate B 2). South CV 19 + CV Spec: 0. MOV 24 + MOV Spec: 0.
+- 시험 `tests/test_valve_spec.py`(가짜 조항으로 그린 Spec) · i18n 3줄. 전체 2,106 통과 · UI 25/25. VERSION valve42.

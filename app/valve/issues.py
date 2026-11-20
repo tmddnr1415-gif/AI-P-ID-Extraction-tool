@@ -38,8 +38,10 @@ PROCESS_REQUIRED = ["fluid", "op_pressure", "design_pressure", "op_temp", "desig
 PROCESS_ROW_ITEMS = {"sour_service", "corrosive", "erosive", "toxic", "stroke_open", "stroke_closed", "stroke_time_s"}
 COLOR = {"Data Missing": "missing", "Open Item": "missing", "Data Error": "error", "PMS Non-Compliance": "error", "Process Mismatch": "process",
          "PMS Review": "error", "Revision Change": "revision", "Reviewer Correction": "comment",
-         "Reviewer Comment": "comment", "Extraction Review": "extract", "Material Review": "material", "Valve Review": "material"}
+         "Reviewer Comment": "comment", "Extraction Review": "extract", "Material Review": "material", "Valve Review": "material",
+         "Spec Compliance": "error"}                    # valve42: the project's Valve Specification (vspec.py)
 CONTRACTOR_TYPES = ["Data Missing", "Open Item", "Data Error", "PMS Non-Compliance", "PMS Review", "Process Mismatch", "Material Review", "Valve Review",
+                    "Spec Compliance",
                     "Revision Change",
                     "Reviewer Correction", "Reviewer Comment"]
 # reviewer mark-up category -> (issue type, severity, description prefix) — the contractor reads one list
@@ -72,7 +74,7 @@ def _v(f):
     return schema.effective(f)
 
 
-RESULT = {"Data Missing": "Missing", "Open Item": "Open (HOLD/TBC)", "Data Error": "Inconsistent", "Revision Change": "Changed",
+RESULT = {"Spec Compliance": "Not per Spec", "Data Missing": "Missing", "Open Item": "Open (HOLD/TBC)", "Data Error": "Inconsistent", "Revision Change": "Changed",
           "Extraction Review": "Review Required", "Reviewer Correction": "Corrected", "Reviewer Comment": "Comment",
           "Material Review": "Finding", "Valve Review": "Finding"}   # PMS / Process rows pass their own result (Non-Compliant · Mismatch …)
 
@@ -94,7 +96,7 @@ def _pd_ev(r):
 
 def compute(ds: dict, general_notes: dict | None = None, pms: dict | None = None, area: str = "",
             prev_cmp: list | None = None, states: dict | None = None, pms_rows: list | None = None,
-            process_rows: list | None = None, material_rows: list | None = None) -> list[dict]:
+            process_rows: list | None = None, material_rows: list | None = None, spec_rows: list | None = None) -> list[dict]:
     """ds: datasheet with fields (list of dicts with key/value/edited_value/page/bbox/row/status/display), notes,
     comments, pages, sheets.  Returns issue dicts (sorted by page, then position)."""
     F = {f["key"]: f for f in ds["fields"]}
@@ -129,6 +131,12 @@ def compute(ds: dict, general_notes: dict | None = None, pms: dict | None = None
                     "sheet": sh[0] or ((ds["pages"].index(page) + 1) if page in ds.get("pages", []) else None),
                     "of": sh[1] or len(ds.get("pages", [])), "status": st.get("status", "Open"), "note": st.get("note", ""),
                     "evidence": [e for e in (evidence or []) if e], "basis": basis, "check": check, **dec, **(extra or {})})
+
+    for r in spec_rows or []:                               # valve42: project Valve Specification clauses (vspec.findings)
+        f = F.get(r["key"]) or {}
+        add("Spec Compliance", f"{r['key']}.{r['check']}", r["desc"], expected=r.get("expected", ""),
+            f=dict(f, key=r["key"]) if f else {"display": r.get("display") or r["key"]},
+            severity=r.get("severity"), evidence=r.get("evidence"), basis=r.get("basis", ""), check=r["check"])
 
     pref = ds.get("process_ref")
     if pref is None:                                         # stored datasheets from before valve03: look again

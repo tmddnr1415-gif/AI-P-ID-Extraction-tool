@@ -114,7 +114,7 @@ def _area_sheet(wb, rows: list[dict], project: str):
     ws = wb.create_sheet("Summary by Area", 2)
     ws.cell(1, 1, f"Issue Summary by Area — {project}").font = Font(bold=True, size=13)
     types = [t for t in ["Data Error", "Data Missing", "Open Item", "PMS Non-Compliance", "PMS Review", "Process Mismatch", "Material Review",
-                         "Valve Review", "Revision Change", "Reviewer Correction", "Reviewer Comment", "Extraction Review"] if any(i["type"] == t for i in rows)]
+                         "Valve Review", "Spec Compliance", "Revision Change", "Reviewer Correction", "Reviewer Comment", "Extraction Review"] if any(i["type"] == t for i in rows)]
     statuses = [s for s in ["Open", "Confirmed", "Sent to Contractor", "Resolved", "Closed"] if any(i.get("status") == s for i in rows)] + \
         sorted({i.get("status") or "Open" for i in rows} - {"Open", "Confirmed", "Sent to Contractor", "Resolved", "Closed", "Dismissed"})
     hdr = ["No.", "Area", "Units", "Tags", "Total", "Major", "Minor"] + types + [f"Status: {s}" for s in statuses]
@@ -432,7 +432,7 @@ def issues_xlsx(rows: list[dict], base: str, project: str, by: str = "", sources
                   [{"area": i.get("area_name"), "site": i.get("site"), "unit": i.get("plant_unit"), "cat": i["type"], "sev": i["severity"],
                     "tag": i["tag"]} for i in rows], "Issue Type",
                   [t for t in ["Data Error", "Data Missing", "Open Item", "PMS Non-Compliance", "PMS Review", "Process Mismatch", "Material Review",
-                               "Valve Review", "Revision Change", "Reviewer Correction", "Reviewer Comment", "Extraction Review"]
+                               "Valve Review", "Spec Compliance", "Revision Change", "Reviewer Correction", "Reviewer Comment", "Extraction Review"]
                    if any(i["type"] == t for i in rows)], index=1,
                   extra=[("Major", lambda L: sum(1 for r in L if r["sev"] == "Major") or None),
                          ("Minor", lambda L: sum(1 for r in L if r["sev"] == "Minor") or None),
@@ -442,7 +442,7 @@ def issues_xlsx(rows: list[dict], base: str, project: str, by: str = "", sources
         verification_sheet(wb, verification)
     sm = wb.create_sheet("Summary by Tag")
     types = [t for t in ["Data Error", "Data Missing", "Open Item", "PMS Non-Compliance", "PMS Review", "Revision Change",
-                         "Process Mismatch", "Material Review", "Valve Review", "Reviewer Correction", "Reviewer Comment", "Extraction Review"]
+                         "Process Mismatch", "Material Review", "Valve Review", "Spec Compliance", "Reviewer Correction", "Reviewer Comment", "Extraction Review"]
              if any(i["type"] == t for i in rows)]
     sm.append(["No.", "Area", "Site", "Unit", "Tag Number", "Doc. No.", "Rev.", "Total"] + types)
     for c in range(1, len(types) + 9):
