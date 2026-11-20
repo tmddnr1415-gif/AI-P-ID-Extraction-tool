@@ -1,10 +1,10 @@
 # 인수인계 — "2. PID 검토" 세션 (상한 15KB · 덧붙이지 말고 고쳐 쓴다)
 
-## 지금 상태 (2026-11-11 · 규약 v2 — 꾸러미는 오케스트레이터가 만든다)
+## 지금 상태 (2026-11-19 · 규약 v2 — 꾸러미는 오케스트레이터가 만든다)
 
 - 작업 브랜치: `claude/gracious-ride-26nqrf` (앱 목록 "2. PID 검토 4 (NEW)").
 - ★ **규약 v2 (2026-11-07 사용자 결정)**: 회사 업데이트 zip 은 **오케스트레이터 세션**(`claude/trusting-cray-v68axq`)이 만든다 —
-  hotfix133 · 134 를 그쪽이 냈고 다음 번호(hotfix135)도 그쪽이 매긴다.  **이 세션은 개발 · 시험 · 커밋 · 푸시 · 이 문서 갱신만**.
+  hotfix 번호와 zip 은 오케스트레이터가 매긴다 (지금 회사 최신 hotfix145 · 2026-11-19).  **이 세션은 개발 · 시험 · 커밋 · 푸시 · 이 문서 갱신만**.
   zip · 번호 · 다른 브랜치 병합 금지.  규약: `git show origin/claude/trusting-cray-v68axq:CONVENTIONS.md`.  끝나면 오케스트레이터
   (session_01Muj82FygSCFAVRooofwhVK)에 send_message 로 "푸시 완료 · 커밋 · 바뀐 파일 수" 한 줄.
 - 3D 계측제어 `/ic3d` (2026-11-11): 세션 7(`claude/practical-newton-n6bt58`) `app/index.html` · `viewer-real.html` → `app/static/ic3d/`
@@ -27,7 +27,9 @@
   - 3D 계측제어 화면을 P&ID 서버 `/ic3d` 에서 연다 (대시보드 메뉴에서 열림 · 인터넷 없이 동작).
   - 엑셀 내보내기: `=` 로 시작하는 글은 글 그대로 · PDF 의 보이지 않는 문자로 엑셀이 실패하지 않음 (`app/xlsx_safe.py` · LOGIC 엑셀 3종 포함).
   - LOGIC: 암호·빈 PDF 를 거절할 때 빈 묶음이 목록에 남지 않음.
-  (11-07 두 항목이 hotfix133/134 에 실렸는지는 오케스트레이터 `status/packages.json` 으로 확인.)
+  (위 항목은 hotfix145 까지 실림 — 오케스트레이터 `status/packages.json`.  아래는 그 뒤.)
+  - [심볼] 판을 처음 열 때의 준비(58장 약 11초)를 분석 · 프로그램 판 단위로 파일에 기억 — 서버를 다시 켠 뒤에도 바로 열림 (2026-11-19).
+  - LOGIC 결과 화면: 도면 그림이 늦으면 "받는 중", 못 받으면 이유와 [다시 받기] 가 나옴 (2026-11-19 · `logic.js` 를 건드림 — L 병합 때 확인).
 - LOGIC 분석 → 그리기 왕복 검사(2026-11-11, pid_log): 30장 중 23장 일치 · 틀린 7장은 아날로그 연산 상자(△ ∑ ÷ PID …)를 분석기가 못 읽음 → LOGIC 세션 몫.
 
 ## 최근 hotfix 한 줄 요약 (자세한 것은 `docs/history/pid_log.md` · 옛것은 archive 를 grep)

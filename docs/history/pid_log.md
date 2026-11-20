@@ -92,3 +92,14 @@
   스크롤 자리는 안 되살림.  이제 `snap._scroll` 을 두고, 같은 장이면 그 자리로(먼저 `scrollWidth` 를 읽어 레이아웃을 계산시켜야 먹는다),
   다른 장이면 창에 맞춤.  + iframe 에서 [전체화면] 이 권한 경고를 콘솔에 남기던 것(`fullscreenEnabled` 확인).
 - 문제 없던 것: 행 고르기(다른 장 포함) 확대·이동 · 변경 내역 Excel · 심볼 창 · Esc 닫기.  빠른 전체 2,210 통과.
+
+## 2026-11-19 — 오케스트레이터 검토 요청 3건 (사용자 지시 "스스로 확인하고 보완" 범위)
+- 인수인계: 머리 날짜 · "다음 번호 hotfix135" 문구 → "번호와 zip 은 오케스트레이터 (지금 회사 최신 hotfix145)".
+- `GET /jobs/{id}/teach` 준비(58장 약 11초): 메모리 기억(`_NEEDS_CACHE`)은 서버를 다시 켜면 사라졌다 → `page_cache/<분석>/teach_needs.json`
+  에도 둔다.  열쇠 = PDF 시각 · 가르친 값 · 분석 메시지 · 프로그램 판(`_needs_engine_tag`: 판 · 업데이트 rev/name/created_at).
+  분석을 지우면 같이 지워진다(`_drop_page_cache`).  시험 `tests/test_teach_needs_cache.py` (두 번째 < 1초 · 재시작 뒤에도 · 입력/판 바뀌면 다시 셈 · 깨진 파일 무시).
+- LOGIC 결과 화면 자가점검(iframe · 30장 묶음): 평소 장 넘기기 0.1~0.2초 · 오류 0 · 자리 튐 없음(장마다 맞춤은 원래 설계).
+  약점 1건: 그림이 늦거나(visibility hidden) 서버가 못 주면 말없이 빈 칸 → `logic.js` `pageNote*` (1.5초 "받는 중" · 20초 [다시 받기] ·
+  실패 시 서버 사유) · decode 가 답 없으면 0.8초 뒤 건다 · `logic.css .lg-page-note`.  시험 `tests/test_logic_page_note.py`.
+  (LOGIC 세션 파일 — openSheet 안 3줄 + 새 함수 블록.  L 병합 때 충돌 주의.)
+- 판정 로직 · 기준선 변경 없음.  빠른 전체 2,217 통과.

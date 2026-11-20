@@ -2609,7 +2609,42 @@ def _teach_needs(job, pages, form, saved) -> list:
     return needs
 
 
-_NEEDS_CACHE: dict = {}              # (분석 id · PDF 시각 · 가르친 값) → {needs, suggest}
+_NEEDS_CACHE: dict = {}              # (분석 id · PDF 시각 · 가르친 값 · 프로그램 판) → {needs, suggest}
+
+
+def _needs_engine_tag() -> str:
+    """답을 낸 프로그램 판 — 업데이트로 판정 코드가 바뀌면 옛 답을 쓰지 않는다 (판 · 업데이트 번호 · 만든 때)."""
+    try:
+        u = version.update_info() or {}
+        return f"{version.VERSION}|{u.get('rev') or ''}|{u.get('name') or ''}|{u.get('created_at') or ''}"
+    except Exception:                                    # noqa: BLE001
+        return version.VERSION
+
+
+def _needs_file(job_id: str) -> Path:
+    # 분석의 장 그림 폴더에 둔다 — 분석을 지우면(`_drop_page_cache`) 같이 지워진다
+    return PAGE_CACHE / job_id / "teach_needs.json"
+
+
+def _needs_disk_get(job_id: str, sig: str):
+    try:
+        d = json.loads(_needs_file(job_id).read_text(encoding="utf-8"))
+        if d.get("sig") == sig and isinstance(d.get("value"), dict) and "needs" in d["value"]:
+            return d["value"]
+    except (OSError, ValueError):
+        pass
+    return None
+
+
+def _needs_disk_put(job_id: str, sig: str, value: dict) -> None:
+    try:
+        f = _needs_file(job_id)
+        f.parent.mkdir(parents=True, exist_ok=True)
+        tmp = f.with_name(f.name + f".{uuid.uuid4().hex[:8]}.tmp")
+        tmp.write_text(json.dumps({"sig": sig, "value": value}, ensure_ascii=False), encoding="utf-8")
+        os.replace(tmp, f)
+    except OSError:                                      # 못 써도 화면 동작은 같다 (다음에 다시 센다)
+        pass
 
 
 def _needs_and_suggest(job, saved) -> dict:
@@ -2618,23 +2653,31 @@ def _needs_and_suggest(job, saved) -> dict:
     `_teach_needs` 의 버블 검사(계기 글자가 많은 장 다섯에서 `bubble_outlines`)와 낱말 읽기가 A1 문서에서
     서버 스레드를 13초 붙들었다 (대시보드의 3초 확인이 실패한다 · hotfix56).  같은 함수를 일꾼이 돌리고
     (`teach_propose.needs_pdf`) 답은 (분석 · PDF 시각 · 가르친 값)으로 기억한다 — 분석이 멈춘 순간
-    `_prefetch_proposals` 가 먼저 세어 두므로 판을 열 때는 대개 0초다.  일꾼이 없으면 서버 안에서."""
+    `_prefetch_proposals` 가 먼저 세어 두므로 판을 열 때는 대개 0초다.  일꾼이 없으면 서버 안에서.
+
+    2026-11-19 — 기억을 **파일에도** 둔다 (`page_cache/<분석>/teach_needs.json`).  메모리 기억은 서버를 다시 켜면
+    사라져, 그 뒤 [심볼] 을 처음 열 때마다 58장 문서에서 11초를 다시 셌다.  열쇠에 프로그램 판을 더해 업데이트 뒤에는
+    다시 센다.  가르친 값이 바뀌면 열쇠가 달라지고, 재분석은 새 분석 id 라 옛 답과 섞이지 않는다."""
     path = Path(job["pdf_path"] or "")
     key = (job["id"], path.stat().st_mtime_ns if path.exists() else 0,
-           json.dumps(saved or {}, sort_keys=True, default=str))
+           json.dumps(saved or {}, sort_keys=True, default=str), _needs_engine_tag())
     got = _NEEDS_CACHE.get(key)
     if got is not None:
         return got
     msg = job["message"] or ""
     head = ["dwg_no"] if "도면번호를 읽지 못했습니다" in msg else []
-    try:
-        from app import teach_propose
-        w = page_warm.call(teach_propose.needs_pdf, (job["pdf_path"], dict(saved or {})), timeout=600)
-        got = {"needs": head + list(w["needs"]) + ["notes?"], "suggest": w["suggest"]}
-    except RuntimeError:
-        pages = _tb_pages(job)
-        form, _sizes = _tb_form(pages)
-        got = {"needs": _teach_needs(job, pages, form, saved), "suggest": _teach_suggest(pages, form)}
+    sig = hashlib.sha256(json.dumps([key[1], key[2], key[3], msg], ensure_ascii=False).encode("utf-8")).hexdigest()
+    got = _needs_disk_get(job["id"], sig)
+    if got is None:
+        try:
+            from app import teach_propose
+            w = page_warm.call(teach_propose.needs_pdf, (job["pdf_path"], dict(saved or {})), timeout=600)
+            got = {"needs": head + list(w["needs"]) + ["notes?"], "suggest": w["suggest"]}
+        except RuntimeError:
+            pages = _tb_pages(job)
+            form, _sizes = _tb_form(pages)
+            got = {"needs": _teach_needs(job, pages, form, saved), "suggest": _teach_suggest(pages, form)}
+        _needs_disk_put(job["id"], sig, got)
     if len(_NEEDS_CACHE) >= 16:
         _NEEDS_CACHE.pop(next(iter(_NEEDS_CACHE)))
     _NEEDS_CACHE[key] = got
