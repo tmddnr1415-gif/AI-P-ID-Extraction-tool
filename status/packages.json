@@ -839,12 +839,12 @@
    "name": "4_메모장_exe_v18.20_2026-11-20.zip",
    "made": "2026-11-20 11:40",
    "path": "company-pc-update/2026-11-20/ (12.9MB · 저장소에 있음)",
-   "sha256": "44214baf0f0fe63fc6013d7be028d8466c2c6659cb30358b41fc08afd31bb77b",
+   "sha256": "a523d7e26116b51ade731fe0b774d778a8127ece60776514ee37fb9882379da7",
    "applied": "",
    "tips": {
-    "S1": "a222c5e0"
+    "S1": "acd01917"
    },
-   "note": "내 메모장 단독 exe (오케스트레이터가 a222c5e0 소스에서 다시 빌드 · exe sha de61f2b8…)"
+   "note": "내 메모장 단독 exe — 재현 빌드(acd01917): 커밋 exe = 오케스트레이터 재빌드 = 2260c8b4…"
   },
   {
    "file": "①",
