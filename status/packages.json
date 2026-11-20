@@ -795,7 +795,7 @@
    "made": "2026-11-20 09:30",
    "path": "company-pc-update/2026-11-20/ (3.4MB · 저장소에 있음)",
    "sha256": "159a76bd6b626e1402e0be606e2b7d9d9c2897ef8183ee4bbdb12fcd63448ab2",
-   "applied": "",
+   "applied": "적용 (11-20 사용자 확인)",
    "tips": {
     "S1": "aaa5cc31"
    },
@@ -808,7 +808,7 @@
    "made": "2026-11-20 09:30",
    "path": "company-pc-update/2026-11-20/ (8.9MB · 저장소에 있음)",
    "sha256": "39297870c670377cfb7d0f7b600b11381bfb76f2d0e227f9fb55b90ed2a111a2",
-   "applied": "",
+   "applied": "적용 (11-20 사용자 확인)",
    "integration_head": "8a301b5d",
    "tips": {
     "S2": "cd59d77a",
@@ -820,6 +820,19 @@
    },
    "replaces": "2_PID_dev+ops_hotfix145_2026-11-19.zip",
    "note": "145 + S2 심볼 캐시 · LOGIC 도면 칸 안내 + S5 도서검토 2026-11-19.1 (외부 번역 기본 꺼짐)"
+  },
+  {
+   "file": "①",
+   "name": "3_DASHBOARD_update_v18.18_from_v18.15_2026-11-20.zip",
+   "made": "2026-11-20 10:50",
+   "path": "company-pc-update/2026-11-20/ (1.9MB · 저장소에 있음)",
+   "sha256": "3fd3f198b2e92d699e1f12da66fb76d415a3110f858fce507c19d69c3ad5e5f1",
+   "applied": "",
+   "tips": {
+    "S1": "7b4ee0e6"
+   },
+   "replaces": "",
+   "note": "v18.18 (기준 v18.15 aaa5cc31 — 회사 확인) — 메일 정리 다듬기 · 색 60/40 · 오른쪽 클릭 메뉴 · pt 글자 크기 · 화면만"
   }
  ]
 }
