@@ -788,6 +788,38 @@
    },
    "replaces": "20_DASHBOARD_update_v17.99_from_v17.82_2026-11-19.zip",
    "note": "v18.02 (기준 v17.82) — 말풍선 주석 · 글 상자 본문처럼 · 끌 때 휠"
+  },
+  {
+   "file": "①",
+   "name": "1_DASHBOARD_update_v18.15_from_v17.82_2026-11-20.zip",
+   "made": "2026-11-20 09:30",
+   "path": "company-pc-update/2026-11-20/ (3.4MB · 저장소에 있음)",
+   "sha256": "159a76bd6b626e1402e0be606e2b7d9d9c2897ef8183ee4bbdb12fcd63448ab2",
+   "applied": "",
+   "tips": {
+    "S1": "aaa5cc31"
+   },
+   "replaces": "21_DASHBOARD_update_v18.02_from_v17.82_2026-11-19.zip",
+   "note": "v18.15 (기준 v17.82) — 메모장 OneNote · 비서 · 메일 정리 · 태그 풀이 (server.py → 재시작)"
+  },
+  {
+   "file": "②",
+   "name": "2_PID_dev+ops_hotfix146_2026-11-20.zip",
+   "made": "2026-11-20 09:30",
+   "path": "company-pc-update/2026-11-20/ (8.9MB · 저장소에 있음)",
+   "sha256": "39297870c670377cfb7d0f7b600b11381bfb76f2d0e227f9fb55b90ed2a111a2",
+   "applied": "",
+   "integration_head": "8a301b5d",
+   "tips": {
+    "S2": "cd59d77a",
+    "S3": "4e9cfd24",
+    "S4": "7b10d7cb",
+    "S5": "f5f94b2c",
+    "S6": "91fba2a1",
+    "S7": "865f9297"
+   },
+   "replaces": "2_PID_dev+ops_hotfix145_2026-11-19.zip",
+   "note": "145 + S2 심볼 캐시 · LOGIC 도면 칸 안내 + S5 도서검토 2026-11-19.1 (외부 번역 기본 꺼짐)"
   }
  ]
 }

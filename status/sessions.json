@@ -7,7 +7,7 @@
    "title": "1. DASHBOARD 코드 (NEW)",
    "bucket": "COMPLETED",
    "updated": "2026-11-19T12:20:00Z",
-   "recent": "v18.02 f1c54a73 — 말풍선 주석 · 글 상자 본문처럼 · 끌 때 휠. 11-19 ㉑ 로 회사 업데이트 (회사 v17.82 기준)",
+   "recent": "v18.15 aaa5cc31 — 메모장 OneNote · 비서 · 메일 정리 · 태그 풀이 등. 11-20 ① 로 회사 업데이트 (회사 v17.82 기준)",
    "needs": ""
   },
   "S2": {
@@ -15,8 +15,8 @@
    "title": "2. PID 검토 4 (NEW)",
    "bucket": "COMPLETED",
    "updated": "2026-11-19T22:49:50Z",
-   "recent": "cd59d77a — 11-19 지시 끝: pid.md 정리 · /teach 준비 캐시(재시작 뒤에도 <1초) · LOGIC 화면 그림 늦거나 실패 시 안내/[다시 받기] (logic.js · css — S3 파일). 빠른 시험 2,217 통과. 회사 미전달",
-   "needs": "오케스트레이터: 다음 통합(hotfix146) 때 S3 L92 와 logic.js 충돌 확인"
+   "recent": "cd59d77a — 심볼 준비 캐시 · LOGIC 도면 칸 안내. hotfix146 로 회사 업데이트에 실림",
+   "needs": ""
   },
   "S3": {
    "id": "session_01Muj82Ewiqsoeo54Ei1FzrE",
@@ -39,8 +39,8 @@
    "title": "5. 도서 검토",
    "bucket": "COMPLETED",
    "updated": "2026-11-19T23:18:28Z",
-   "recent": "f5f94b2c — 11-19 지시 끝: books.md · valve_kinds 다시 적용 금지 · 외부 번역 회사판 기본 꺼짐(BOOKS_EXTERNAL_TRANSLATE=1 일 때만) · nDCG 0.895→0.915 (내려간 질문 0). 도서검토 2026-11-19.1. 회사 미전달",
-   "needs": "오케스트레이터: 다음 통합 때 dist/books_integration/books_2026-11-19.1_on_integration.patch 적용 (점검 OK)"
+   "recent": "f5f94b2c — 도서검토 2026-11-19.1 (외부 번역 기본 꺼짐 · 외국어 용어). hotfix146 로 회사 업데이트에 실림",
+   "needs": ""
   },
   "S6": {
    "id": "session_01Muj82EMRakKAAS1HYXcE7d",
