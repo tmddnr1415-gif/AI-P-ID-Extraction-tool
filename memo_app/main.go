@@ -43,7 +43,7 @@ const (
 	appVersion = "1.0.0 (2026-11-20)"
 	defPort    = 18766
 	pageMax    = 12 << 20
-	fileMax    = 30 << 20
+	fileMax    = 200 << 20
 	quota      = 500 << 20
 	verKeep    = 20
 	verGap     = 600 * time.Second

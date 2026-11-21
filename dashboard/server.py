@@ -36,7 +36,7 @@ ID_RE = re.compile(r'^[A-Za-z0-9_\-]{1,80}$')
 WEEK_RE = re.compile(r'^\d{4}-W\d{2}$')
 MAX_BODY = 30 * 1024 * 1024
 
-SERVER_VERSION = '2026-11-19.12'
+SERVER_VERSION = '2026-11-22.1'
 ROOT = os.path.dirname(os.path.abspath(__file__))
 PORT = 8080
 ALLOW_NETS = []          # 사내망: 루프백·사설망 + 서버 IP 대역(/16, 유선·Wi-Fi 등 지금까지 쓴 대역 모두 기억) + --allow 로 추가한 대역
@@ -2178,6 +2178,7 @@ def api_sched_put(key, b, by):
 #   notes/{id}/ver/{pid}/{시각}.json  이전 판 (10분 간격, 최근 20개)
 #   notes/{id}/files/{fid}{ext} + {fid}.json   첨부 (PDF · 그림 · 문서)
 MEMO_PAGE_MAX = 12 * 1024 * 1024
+MEMO_FILE_MAX = 200 * 1024 * 1024                         # 2026-11-22 첨부 한 개 (큰 메일 .eml 등) — 예전에는 MAX_BODY(30MB)
 MEMO_QUOTA = 500 * 1024 * 1024
 MEMO_VER_KEEP = 20
 MEMO_VER_GAP = 600
@@ -2784,10 +2785,10 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header('Content-Length', '0')
         self.end_headers()
 
-    def raw_body(self):
+    def raw_body(self, limit=MAX_BODY):
         if self._raw is None:
             n = int(self.headers.get('Content-Length') or 0)
-            if n > MAX_BODY:
+            if n > limit:
                 self.close_connection = True                 # 읽지 않은 큰 본문이 남으므로 연결 종료
                 raise ApiError(413, '요청이 너무 큽니다')
             self._raw = self.rfile.read(n) if n else b''
@@ -3042,7 +3043,7 @@ class Handler(BaseHTTPRequestHandler):
             if m == 'GET' and len(seg) in (4, 5) and seg[1] == 'p' and seg[3] == 'vers':
                 return api_memo_vers(acc, seg[2], seg[4] if len(seg) == 5 else '')
             if m == 'PUT' and seg[1:] == ['f']:
-                return api_memo_file_put(acc, q.get('name', ''), self.raw_body(), q.get('id', ''))
+                return api_memo_file_put(acc, q.get('name', ''), self.raw_body(MEMO_FILE_MAX), q.get('id', ''))
             if len(seg) == 3 and seg[1] == 'f':
                 if m == 'GET':
                     fm = memo_file(acc, seg[2])
