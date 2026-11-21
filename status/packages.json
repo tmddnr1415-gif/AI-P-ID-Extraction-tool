@@ -883,6 +883,19 @@
    },
    "replaces": "5_DASHBOARD_update_v18.20_from_v18.15_2026-11-20.zip",
    "note": "v18.21 (기준 v18.15) — 제목 고정 · 글 상자/본문 꾹 눌러 끌기 · 화면만"
+  },
+  {
+   "file": "①",
+   "name": "1_DASHBOARD_update_v18.27_from_v18.15_2026-11-21.zip",
+   "made": "2026-11-21 08:10",
+   "path": "company-pc-update/2026-11-21/ (저장소에 있음)",
+   "sha256": "7650936b7cbec414e7c38a4b4222112a7bee9e42b21f2abc7e8ca19375c6671e",
+   "applied": "",
+   "tips": {
+    "S1": "ea020b30"
+   },
+   "replaces": "7_DASHBOARD_update_v18.21_from_v18.15_2026-11-20.zip",
+   "note": "v18.27 (기준 v18.15) — 기한 · 메일 끌어 놓기 · 주간업무보고 서식 · 표 옮기기 · 화면만"
   }
  ]
 }
