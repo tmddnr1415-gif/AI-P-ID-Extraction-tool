@@ -890,12 +890,25 @@
    "made": "2026-11-21 08:10",
    "path": "company-pc-update/2026-11-21/ (저장소에 있음)",
    "sha256": "7650936b7cbec414e7c38a4b4222112a7bee9e42b21f2abc7e8ca19375c6671e",
-   "applied": "",
+   "applied": "적용 (11-21 사용자 확인)",
    "tips": {
     "S1": "ea020b30"
    },
    "replaces": "7_DASHBOARD_update_v18.21_from_v18.15_2026-11-20.zip",
    "note": "v18.27 (기준 v18.15) — 기한 · 메일 끌어 놓기 · 주간업무보고 서식 · 표 옮기기 · 화면만"
+  },
+  {
+   "file": "①",
+   "name": "2_DASHBOARD_update_v18.30_from_v18.27_2026-11-21.zip",
+   "made": "2026-11-21 09:00",
+   "path": "company-pc-update/2026-11-21/ (2.1MB · 저장소에 있음)",
+   "sha256": "2c0bc20ae03b08760a686434953429148a1cb4efefdaf1371e34d5bfd854415a",
+   "applied": "",
+   "tips": {
+    "S1": "f253099f"
+   },
+   "replaces": "",
+   "note": "v18.30 (기준 v18.27 ea020b30 — 회사 확인) — 하위 페이지 · 서식 복사 · 큰 첨부 200MB (server.py → 재시작)"
   }
  ]
 }
