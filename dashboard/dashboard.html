@@ -1946,6 +1946,8 @@ body.schbigon{overflow:hidden}@keyframes schBigIn{from{transform:scale(.97);opac
 .mm-meta .tg{border:1px solid var(--line);background:var(--card);border-radius:8px;padding:3px 8px;cursor:pointer;font-size:12px}.mm-meta .tg.on{background:#fff4c2;border-color:#f0c93a}
 .mm-pcc-bar{position:absolute;z-index:30;display:flex;flex-wrap:wrap;align-items:center;gap:2px;max-width:560px;background:var(--card);border:1px solid var(--line);border-radius:9px;box-shadow:0 8px 24px rgba(20,30,70,.18);padding:4px 6px}.mm-pcc-bar .lb{font-size:11px;color:var(--muted);margin:0 3px}.mm-pcc-bar i{width:1px;height:16px;background:var(--line);margin:0 3px}.mm-pcc-bar button{width:18px;height:18px;border:1px solid rgba(0,0,0,.15);border-radius:4px;padding:0;cursor:pointer;font-weight:800;font-size:11px;background:#fff}.mm-pcc-bar button.sc{width:auto;padding:0 6px;font-weight:600;font-size:11px}.mm-pcc-bar button.sc.on{background:var(--accent-l);border-color:var(--accent)}
 .mm-ed a.mm-file.mm-eml,.mm-notes a.mm-file.mm-eml{display:inline-flex;flex-direction:column;align-items:flex-start;gap:1px;padding:6px 12px 6px 46px;min-height:38px;justify-content:center;border-color:#9cc3ec;background:#f2f8ff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect x='9' y='7' width='21' height='18' rx='2' fill='%2328a8ea'/%3E%3Cpath d='M9 9l10.5 8L30 9' fill='none' stroke='%23fff' stroke-width='1.6'/%3E%3Crect x='2' y='9' width='15' height='15' rx='2' fill='%230a5fb4'/%3E%3Cellipse cx='9.5' cy='16.5' rx='3.6' ry='4.3' fill='none' stroke='%23fff' stroke-width='2'/%3E%3C/svg%3E") 10px center/28px no-repeat;max-width:100%;cursor:default;user-select:none}.mm-ed a.mm-file.mm-eml b{font-size:13.5px;color:#0b3a6e;font-weight:700;white-space:normal}.mm-eml .mm-emls{font-size:11.5px;color:#5a6b85}.mm-ed a.mm-file.mm-eml:hover{border-color:#28a8ea;box-shadow:0 2px 8px rgba(10,95,180,.15)}.mm-ed.dk a.mm-file.mm-eml{background-color:#1d2a40}.mm-ed.dk a.mm-file.mm-eml b{color:#cfe3ff}
+#mmDropLine{position:fixed;z-index:70;height:3px;border-radius:2px;background:var(--accent);pointer-events:none;box-shadow:0 0 0 2px rgba(255,255,255,.6)}#mmNotes .mm-fn.im.picked{outline:2.5px solid var(--accent);outline-offset:2px}
+.mm-pop.ctxm{min-width:230px}.mm-pop .mm-cxq{display:flex;align-items:center;gap:1px;padding:2px 2px 6px;border-bottom:1px solid var(--line);margin-bottom:4px}.mm-pop .mm-cxq button{width:26px;min-width:26px;height:26px;padding:0;justify-content:center;font-size:13px}.mm-pop .mm-cxq i{width:1px;height:16px;background:var(--line);margin:0 3px}.mm-pop button[disabled]{opacity:.35;pointer-events:none}.mm-pop .mm-cxh{font-size:10.5px;color:var(--muted);padding:4px 10px 2px;border-top:1px solid var(--line);margin-top:4px}
 #fmtBar{position:fixed;z-index:10050;display:flex;align-items:center;gap:2px;background:var(--card);border:1px solid var(--line);border-radius:7px;box-shadow:0 4px 14px rgba(20,30,70,.16);padding:2px 4px}#fmtBar button{border:0;background:none;min-width:24px;height:20px;border-radius:5px;cursor:pointer;font-size:12.5px;color:var(--text)}#fmtBar button:hover{background:var(--accent-l)}#fmtBar span{font-size:10.5px;color:var(--muted);margin:0 4px}
 s.rs{color:#dc2626;text-decoration:line-through;text-decoration-color:#dc2626}
 .mm-tg{position:fixed;z-index:60;width:18px;height:18px;line-height:17px;text-align:center;font-size:12px;border-radius:5px;background:var(--card);border:1px solid var(--line);color:var(--accent-d);cursor:grab;user-select:none;touch-action:none;box-shadow:0 2px 6px rgba(20,30,70,.15)}.mm-tg.z{cursor:nwse-resize;font-size:10px}.mm-tg:hover{background:var(--accent-l)}body.mm-tgdrag,body.mm-tgdrag *{cursor:grabbing!important;user-select:none}body.mm-tgdrag .mm-tg.z{cursor:nwse-resize!important}#memoWrap .mm-ed table.mm-tgon{outline:2px dashed var(--accent);outline-offset:2px}
@@ -2610,7 +2612,7 @@ function recLabel(key, f) {
  * ===================================================================== */
 let root = null;
 /* 서버 모드: http(s):// 로 접속하면 server.py 의 REST API 사용 (폴더 선택 불필요). file:// 로 열면 폴더 모드 */
-const APP_VERSION = '2026-11-21.2';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
+const APP_VERSION = '2026-11-22.1';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
 const SERVER_URL = 'http://localhost:8080';
 // 부서원 PC 사본(file://)이 접속을 시도할 서버 — 서버가 배포 파일을 만들 때 'PC 이름 주소, IP 주소' 순으로 자동 기록함
 const DEFAULT_SERVERS = ['http://ASEUNGWOOK-B01:8080', 'http://65.3.30.234:8080'];
@@ -7082,8 +7084,8 @@ function mmPullLayout(ov) {
   ov.addEventListener('click', e => { const b = e.target.closest('[data-pz], [data-a="max"]'); if (!b) return; e.stopPropagation();
     if (b.dataset.a === 'max') { L.max = !L.max; pl.style.width = pl.style.height = ''; apply(); save(); return; }
     const z = L.pz || 1; if (b.dataset.pz === 'fit') { const e2 = out.firstElementChild; if (!e2) return; e2.style.zoom = ''; const w = e2.scrollWidth, cw = out.clientWidth - 24; L.pz = w > cw ? Math.max(.4, Math.floor(cw / w * 20) / 20) : 1; }
-    else L.pz = Math.max(.4, Math.min(1.6, Math.round((z + (b.dataset.pz === '+' ? .1 : -.1)) * 10) / 10)); apply(); save(); }, true);
-  ov.addEventListener('wheel', e => { if (!(e.ctrlKey || e.metaKey) || !e.target.closest('#mmPo')) return; e.preventDefault(); L.pz = Math.max(.4, Math.min(1.6, Math.round(((L.pz || 1) + (e.deltaY < 0 ? .1 : -.1)) * 10) / 10)); apply(); save(); }, { passive:false });   // Ctrl+휠 = 미리보기 크기
+    else L.pz = Math.max(.1, Math.min(3, Math.round((z + (b.dataset.pz === '+' ? .1 : -.1)) * 10) / 10)); apply(); save(); }, true);
+  ov.addEventListener('wheel', e => { if (!(e.ctrlKey || e.metaKey) || !e.target.closest('#mmPo')) return; e.preventDefault(); L.pz = Math.max(.1, Math.min(3, Math.round(((L.pz || 1) + (e.deltaY < 0 ? .1 : -.1)) * 10) / 10)); apply(); save(); }, { passive:false });   // Ctrl+휠 = 미리보기 크기
 }
 async function mmPullRefresh() {
   const ed = mmEd(); if (!ed || MM.cur?.lock) return; const cells = [...ed.querySelectorAll('[data-src]')]; if (!cells.length) return toast('이 메모에는 다른 메뉴에서 불러온 값이 없습니다');
@@ -7299,7 +7301,7 @@ function mmInkSync() {   // 편집 줄 아래 펜 줄 · 그리기 층 상태
 /* ----- 메모 확대 · 축소 ----- */
 const mmZoom = () => MM.zoom || (MM.zoom = (() => { try { return +localStorage.getItem('dept-memo-zoom') || 1; } catch (_) { return 1; } })());
 function mmZoomSet(z, quiet) {
-  z = Math.max(.4, Math.min(3, Math.round(z * 100) / 100)); MM.zoom = z; try { localStorage.setItem('dept-memo-zoom', String(z)); } catch (_) {}
+  z = Math.max(.1, Math.min(3, Math.round(z * 100) / 100)); MM.zoom = z;   // v18.25 10% ~ 300% try { localStorage.setItem('dept-memo-zoom', String(z)); } catch (_) {}
   const zw = $('#mmZw'); if (zw) { zw.style.zoom = z; $('#mmEdw')?.style.setProperty('--z', z); MM.zkey = ''; mmZoomFit(); }
   const zl = $('#mmZl'); if (zl) zl.textContent = Math.round(z * 100) + '%'; if (!quiet) zoomBadge($('#mmMain'), z * 100);
 }
@@ -7361,7 +7363,7 @@ async function mmPdfView(fid, name, blob) {
   const curPage = () => { const mid = S.scrollTop + S.clientHeight / 3; let n = 1; S.querySelectorAll('.pp').forEach(el => { if (el.offsetTop <= mid) n = +el.dataset.pp; }); return n; };
   const upd = () => { V.cur = curPage(); $('#mmPvP', ov).textContent = `${V.cur} / ${V.n} 쪽`; $('#mmPgNo', ov).value = V.cur; };
   const goPage = n => { const el = S.querySelector(`.pp[data-pp="${Math.max(1, Math.min(V.n, n))}"]`); if (el) S.scrollTop = el.offsetTop - 8; };
-  const zoomTo = z => { const keep = V.cur; V.z = Math.max(.4, Math.min(4, Math.round(z * 100) / 100)); layout(); goPage(keep); zoomBadge(S.parentElement, V.z * 100); };
+  const zoomTo = z => { const keep = V.cur; V.z = Math.max(.1, Math.min(3, Math.round(z * 100) / 100)); layout(); goPage(keep); zoomBadge(S.parentElement, V.z * 100); };
   const bar = () => { $('#mmPvBar', ov).innerHTML = PEN.on ? inkBarHtml() : ''; $('[data-a="pen"]', ov).classList.toggle('on', PEN.on); S.querySelectorAll('svg.mm-ink').forEach(s => { s.classList.toggle('on', PEN.on); s.classList.toggle('er', PEN.on && PEN.tool === 'erase'); }); };
   S.onscroll = upd; S.addEventListener('wheel', e => { if (!e.ctrlKey && !e.metaKey) return; e.preventDefault(); zoomTo(V.z * Math.pow(1.0015, -e.deltaY)); }, { passive:false });
   ov.onclick = async e => { if (inkBarClick(e, ov, bar)) return; const a = e.target.closest('[data-a],[data-pa]'), g = e.target.closest('.mm-pg'); if (g) return goPage(+g.dataset.pg || 1); if (!a) return; const k = a.dataset.a || a.dataset.pa;
@@ -7411,12 +7413,12 @@ function mmNotesDraw() {
     clearTimeout(h._pf); h._pf = setTimeout(mmPaperFit, 80); });
   const rsUp = () => { if (!rs) return; const n = N(rs.el.dataset.fn), el = rs.el; el.classList.remove('sizing'); if (n) { n.w = el.offsetWidth; n.x = Math.round(parseFloat(el.style.left) || 0); n.y = Math.round(parseFloat(el.style.top) || 0); if (!rs.im || el.classList.contains('fixh')) n.h = el.offsetHeight; mmNoteTouch('obj'); } rs = null; MM.noClick = Date.now(); };
   h.addEventListener('pointerup', rsUp); h.addEventListener('pointercancel', rsUp);
-  h.addEventListener('pointerdown', e => { const g = e.target.closest('.grip, .mm-fn.im > img'), el = e.target.closest('.mm-fn'); if (!g || !el || MM.cur?.lock || e.button) return; e.preventDefault(); g.setPointerCapture(e.pointerId); const ew = $('#mmEdw'); drag = { el, sx:e.clientX, sy:e.clientY, cx:e.clientX, cy:e.clientY, sl:ew?.scrollLeft || 0, st:ew?.scrollTop || 0, x:parseFloat(el.style.left), y:parseFloat(el.style.top) }; });
+  h.addEventListener('pointerdown', e => { const g = e.target.closest('.grip, .mm-fn.im > img'), el = e.target.closest('.mm-fn'); if (!g || !el || MM.cur?.lock || e.button) return; e.preventDefault(); g.setPointerCapture(e.pointerId); const ew = $('#mmEdw'); drag = { el, sx:e.clientX, sy:e.clientY, cx:e.clientX, cy:e.clientY, sl:ew?.scrollLeft || 0, st:ew?.scrollTop || 0, x:parseFloat(el.style.left), y:parseFloat(el.style.top), grp:el.classList.contains('picked') ? [...h.querySelectorAll('.mm-fn.picked')].filter(o => o !== el).map(o => ({ el:o, x:parseFloat(o.style.left) || 0, y:parseFloat(o.style.top) || 0 })) : [] }; });   // v18.26 고른 그림 여러 개 함께
   // v18.00: 끄는 중에 휠을 굴리면 종이가 위아래로 가고 그림 · 메모지도 마우스에 붙어 같이 감
-  const dragAt = () => { const z = mmZoom(), ew = $('#mmEdw'), dsx = (ew?.scrollLeft || 0) - drag.sl, dsy = (ew?.scrollTop || 0) - drag.st; clearTimeout(h._pf); h._pf = setTimeout(mmPaperFit, 80); drag.el.style.left = Math.max(0, drag.x + (drag.cx - drag.sx + dsx) / z) + 'px'; drag.el.style.top = Math.max(0, drag.y + (drag.cy - drag.sy + dsy) / z) + 'px'; };
+  const dragAt = () => { const z = mmZoom(), ew = $('#mmEdw'), dsx = (ew?.scrollLeft || 0) - drag.sl, dsy = (ew?.scrollTop || 0) - drag.st; clearTimeout(h._pf); h._pf = setTimeout(mmPaperFit, 80); const dx = (drag.cx - drag.sx + dsx) / z, dy = (drag.cy - drag.sy + dsy) / z; drag.el.style.left = Math.max(0, drag.x + dx) + 'px'; drag.el.style.top = Math.max(0, drag.y + dy) + 'px'; (drag.grp || []).forEach(o => { o.el.style.left = Math.max(0, o.x + dx) + 'px'; o.el.style.top = Math.max(0, o.y + dy) + 'px'; }); };
   document.addEventListener('scroll', e => { if (drag && e.target?.id === 'mmEdw') dragAt(); }, true);
   h.addEventListener('pointermove', e => { if (!drag) return; drag.cx = e.clientX; drag.cy = e.clientY; dragAt(); });
-  const up = () => { if (!drag) return; const n = N(drag.el.dataset.fn); if (n) { n.x = Math.round(parseFloat(drag.el.style.left)); n.y = Math.round(parseFloat(drag.el.style.top)); mmNoteTouch('obj'); } drag = null; };
+  const up = () => { if (!drag) return; [drag.el, ...(drag.grp || []).map(o => o.el)].forEach(el => { const n = N(el.dataset.fn); if (n) { n.x = Math.round(parseFloat(el.style.left)); n.y = Math.round(parseFloat(el.style.top)); } }); mmNoteTouch('obj'); drag = null; };
   h.addEventListener('pointerup', up); h.addEventListener('pointercancel', up);
   h.addEventListener('mouseup', e => { const el = e.target.closest('.mm-fn'), n = el && N(el.dataset.fn); if (!n || drag) return; const w = el.offsetWidth, hh = el.offsetHeight; if (Math.abs(w - (n.w || 0)) > 2 || (el.style.height && Math.abs(hh - (n.h || 0)) > 2)) { n.w = w; if (el.style.height) n.h = hh; mmNoteTouch(); } });
   h.addEventListener('click', e => { const el = e.target.closest('.mm-fn'), n = el && N(el.dataset.fn); if (!n || MM.cur?.lock) return; const c = e.target.closest('[data-fc]');
@@ -7456,9 +7458,26 @@ function mmHistGo(d) {
 }
 const mmInkUndo = redo => mmHistGo(redo ? 1 : -1);
 document.addEventListener('beforeinput', e => { if (!/^history(Undo|Redo)$/.test(e.inputType) || !e.target.closest?.('#mmEd, #mmNotes .fb')) return; e.preventDefault(); mmHistGo(e.inputType === 'historyRedo' ? 1 : -1); }, true);
+/* 2026-11-22 v18.26 사용자 지시: Ctrl 로 그림 여러 개 고르고 Ctrl+C → Ctrl+V 복사 · Ctrl+X 잘라내기 (메모 안 · 다른 메모로도, 다른 프로그램에는 그림으로) */
+const mmPicked = () => { const ids = new Set([...document.querySelectorAll('#mmNotes .mm-fn.picked')].map(x => x.dataset.fn)); return (MM.cur?.notes || []).filter(n => ids.has(n.id)); };
+function mmNotesClip(e, cut) {
+  if (route !== 'memo' || !MM.cur || e.target.closest?.('input, textarea, select, [contenteditable="true"], dialog')) return; const g = getSelection(); if (g && !g.isCollapsed && String(g).trim()) return;
+  const ns = mmPicked(); if (!ns.length) return; e.preventDefault(); MM.clipN = { at:Date.now(), ns:JSON.parse(JSON.stringify(ns)), k:0 };
+  e.clipboardData.setData('text/plain', 'dept-memo-notes:' + MM.clipN.at); e.clipboardData.setData('text/html', ns.filter(n => n.k === 'img').map(n => `<img src="${n.src}">`).join('<br>'));
+  if (cut && !MM.cur.lock) { ns.forEach(n => mmNoteDel(n.id)); MM.pick = ''; toast(`그림 ${ns.length}개를 잘라냈습니다 — Ctrl+V 로 붙이기`); } else toast(`그림 ${ns.length}개 복사 — Ctrl+V 로 붙이기`);
+}
+document.addEventListener('copy', e => mmNotesClip(e, false)); document.addEventListener('cut', e => mmNotesClip(e, true));
+function mmNotesPaste(cd) {   // 내가 복사한 그림 묶음이면 붙이고 true
+  const t = cd?.getData('text/plain') || '', c = MM.clipN; if (!c || t !== 'dept-memo-notes:' + c.at || !MM.cur || MM.cur.lock || MM.cur._ro) return false;
+  c.k++; const off = 24 * c.k, add = c.ns.map(n => ({ ...JSON.parse(JSON.stringify(n)), id:mmId().slice(0, 8), x:(+n.x || 0) + off, y:(+n.y || 0) + off, ref:undefined }));
+  MM.cur.notes = [...(MM.cur.notes || []), ...add]; mmNotesDraw(); document.querySelectorAll('#mmNotes .mm-fn.picked').forEach(x => x.classList.remove('picked')); add.forEach(n => document.querySelector(`#mmNotes .mm-fn[data-fn="${n.id}"]`)?.classList.add('picked')); MM.pick = add[add.length - 1]?.id || '';
+  mmNoteTouch('obj'); toast(`그림 ${add.length}개를 붙였습니다`); return true;
+}
 function mmNoteDel(id) { const pg = MM.cur; if (!pg || pg.lock) return; const n = (pg.notes || []).find(x => x.id === id); if (!n) return; if (n.ref) { $('#mmEd')?.querySelectorAll(`.mm-cmt[data-cid="${CSS.escape(n.ref)}"]`).forEach(m => m.replaceWith(...m.childNodes)); mmTouch(); } pg.notes = pg.notes.filter(x => x !== n); $(`#mmNotes [data-fn="${CSS.escape(id)}"]`)?.remove(); MM.pick = ''; mmNoteTouch('obj'); toast('지웠습니다 — Ctrl+Z 로 되돌리기'); }
 document.addEventListener('pointerdown', e => {   // 떠 있는 그림 · 글 상자 · 메모지 고르기 (테두리 · 손잡이 · 그림을 누름) → Delete 로 지우기
-  const el = e.target.closest?.('#mmNotes .mm-fn'); document.querySelectorAll('#mmNotes .mm-fn.picked').forEach(x => { if (x !== el) x.classList.remove('picked'); });
+  const el = e.target.closest?.('#mmNotes .mm-fn'); if (el && (e.ctrlKey || e.metaKey) && el.classList.contains('im')) { el.classList.toggle('picked'); MM.pick = el.classList.contains('picked') ? el.dataset.fn : $('#mmNotes .mm-fn.picked')?.dataset.fn || ''; if (document.activeElement?.closest?.('.fb, #mmEd')) document.activeElement.blur(); return; }   // v18.26 Ctrl+누르기 = 여러 개 고르기
+  if (el?.classList.contains('picked') && el.classList.contains('im') && document.querySelectorAll('#mmNotes .mm-fn.picked').length > 1) return;   // 고른 것 중 하나를 누르면 그대로 (함께 옮기기 · 복사)
+  document.querySelectorAll('#mmNotes .mm-fn.picked').forEach(x => { if (x !== el) x.classList.remove('picked'); });
   if (!el) { MM.pick = ''; return; } if (e.target.closest('.fb') && !el.classList.contains('im')) { MM.pick = ''; el.classList.remove('picked'); return; }
   MM.pick = el.dataset.fn; el.classList.add('picked'); if (document.activeElement?.closest?.('.fb, #mmEd')) document.activeElement.blur();
 }, true);
@@ -7477,7 +7496,7 @@ document.addEventListener('keydown', e => {
 }, true);
 document.addEventListener('keydown', e => {   // Delete · Backspace = 고른 그림 · 글 상자 · 메모지 지우기 (묻지 않음 — Ctrl+Z 로 되돌림)
   if ((e.key !== 'Delete' && e.key !== 'Backspace') || route !== 'memo' || !MM.pick || MM.cur?.lock) return;
-  if (e.target.closest?.('input, textarea, select, [contenteditable="true"], dialog')) return; e.preventDefault(); mmNoteDel(MM.pick);
+  if (e.target.closest?.('input, textarea, select, [contenteditable="true"], dialog')) return; e.preventDefault(); const ids = [...document.querySelectorAll('#mmNotes .mm-fn.picked')].map(x => x.dataset.fn); (ids.length ? ids : [MM.pick]).forEach(mmNoteDel); MM.pick = '';
 });
 /* ---------- 2026-11-19 v17.80 메모 목록 끌어서 순서 바꾸기 · 목록에서 바로 삭제(하루 뒤 완전 삭제) · 빈 곳을 누르면 그 자리에 글 · 쓴 글(줄) 끌어 옮기기 ---------- */
 const mmOrd = p => p.ord ?? (p.kind !== 'sticky' && typeof p.x === 'number' ? p.x : null) ?? -Date.parse(p.createdAt || 0) / 1e6;   // 내가 놓은 순서 (없으면 만든 순)
@@ -7665,6 +7684,7 @@ async function mmPasteSticky(files, sid) {   // 스티커 보드: 스티커 안�
 document.addEventListener('paste', e => {   // 메모장 화면 어디서든 (글 칸 · 글 상자 · 메모지 · 스티커 · 빈 곳)
   if (route !== 'memo' && !e.target.closest?.('#mmFloat')) return; if (e.target.closest?.('input, textarea, select, dialog, .mm-ov, .pe')) return;
   const cd = e.clipboardData, imgs = mmClipImgs(cd);
+  if (route === 'memo' && !e.target.closest?.('#mmEd, .fb, .mm-sticky') && mmNotesPaste(cd)) { e.preventDefault(); e.stopPropagation(); return; }   // v18.26 복사한 그림 묶음
   if (route === 'memo' && MM.view === 'mail' && !e.target.closest?.('#mmEd, .mm-fn, .mm-sticky')) { const tx = cd.getData('text/plain'); if (imgs.length || (tx && tx.trim().length > 20)) { e.preventDefault(); e.stopPropagation(); return void mmMailDlg(imgs.length ? { file:imgs[0] } : { text:tx }); } }
   if (!imgs.length) return; const h = cd.getData('text/html'); setTimeout(() => mmMailOffer(imgs[0]), 600);
   if (e.target.closest?.('#mmEd') && (/<table/i.test(h) || mmHtmlText(h))) return;   // 엑셀 칸 복사 = 표로 · v18.24 글 + 그림 = 본문에 함께 (아래 mmPasteHtml)
@@ -7675,6 +7695,9 @@ document.addEventListener('paste', e => {   // 메모장 화면 어디서든 (�
 }, true);
 document.addEventListener('keydown', e => {   // 아무 칸도 눌러 놓지 않았을 때(포커스 없음)에도 Ctrl+V 가 메모장으로 오게
   if (route !== 'memo' || !(e.ctrlKey || e.metaKey) || e.key.toLowerCase() !== 'v' || e.target.closest?.('input, textarea, select, [contenteditable="true"], dialog')) return;
+  if (MM.clipN && MM.cur && !MM.cur.lock) { e.preventDefault(); const tok = 'dept-memo-notes:' + MM.clipN.at, fake = { getData:() => tok };   // v18.26 Ctrl+C 한 그림 묶음
+    const img = () => navigator.clipboard?.read && navigator.clipboard.read().then(async items => { const files = []; for (const it of items) { const t = it.types.find(x => x.startsWith('image/')); if (t) files.push(new File([await it.getType(t)], 'paste.png', { type:t })); } if (files.length) mmPasteFloat(files); }).catch(() => {});
+    return void (navigator.clipboard?.readText ? navigator.clipboard.readText().then(t => t === tok ? mmNotesPaste(fake) : img(), () => mmNotesPaste(fake)) : mmNotesPaste(fake)); }
   if (!navigator.clipboard?.read) return; e.preventDefault();
   navigator.clipboard.read().then(async items => { const files = []; for (const it of items) { const t = it.types.find(x => x.startsWith('image/')); if (t) files.push(new File([await it.getType(t)], 'paste.png', { type:t })); }
     if (!files.length) return toast('클립보드에 그림이 없습니다 — Win+Shift+S 로 화면을 캡처한 뒤 Ctrl+V', true); if (MM.view === 'sticky') return mmPasteSticky(files); mmPasteFloat(files); }).catch(() => toast('클립보드를 읽지 못했습니다 — 메모 칸을 한 번 누른 뒤 Ctrl+V 하세요', true));
@@ -7948,6 +7971,28 @@ function mmCtxMenu(e) {
   return pop;
 }
 document.addEventListener('contextmenu', mmCtxMenu, true);
+/* 2026-11-21 v18.25 사용자 지시: 메모장에서 마우스 오른쪽 = 간소화 메뉴 (자주 쓰는 것만). 표 칸 · 링크 · 날짜 같은 조각은 각자 메뉴, Shift + 오른쪽 = 브라우저 메뉴 */
+document.addEventListener('contextmenu', e => {
+  if (e.defaultPrevented || e.shiftKey || route !== 'memo' || !MM.cur || MM.cur._ro) return; const host = e.target.closest?.('#mmEd, #mmNotes .fb, #mmEdw'); if (!host || e.target.closest('img, input, textarea, .mm-fn.im, .mm-ph, .mm-tg')) return;
+  e.preventDefault(); const at = { left:e.clientX, top:e.clientY, bottom:e.clientY }, sel = getSelection(), has = !!(sel?.rangeCount && !sel.isCollapsed && String(sel).trim()), lock = MM.cur.lock;
+  const I = (v, ic, l, k, off) => `<button data-v="${v}"${off ? ' disabled' : ''}><span>${ic}</span>${l}${k ? `<small>${k}</small>` : ''}</button>`, Q = (v, h, t, off) => `<button data-v="${v}" title="${t}"${off ? ' disabled' : ''}>${h}</button>`;
+  const html = `<div class="mm-cxq">${Q('cut', '✂', '잘라내기 (Ctrl+X)', !has || lock)}${Q('copy', '⧉', '복사 (Ctrl+C)', !has)}${Q('paste', '📋', '붙여넣기 (Ctrl+V)', lock)}<i></i>${Q('bold', '<b>B</b>', '굵게', lock)}${Q('italic', '<i>I</i>', '기울임', lock)}${Q('underline', '<u>U</u>', '밑줄', lock)}${Q('strike', '<s>S</s>', '취소선', lock)}${Q('color', '<span style="color:#dc2626;font-weight:800">A</span>', '글자 색', lock)}${Q('hilite', '<span style="background:#fff176;padding:0 3px">A</span>', '형광펜', lock)}</div>`
+    + (lock ? '<div class="mm-poph">🔒 잠긴 메모 — 🔓 를 눌러 풀면 고칠 수 있음</div>' : I('ul', '•', '글머리 목록') + I('ol', '1.', '번호 목록') + I('todo', '☑', '할 일') + I('clear', '⌫', '서식 지우기', '', !has) + '<div class="mm-poph"></div>' + I('link', '🔗', '링크') + I('cmt', '💬', '주석 달기', has ? '고른 글에' : '') + I('page', '📄', '하위 페이지', '이 줄 밑에') + I('table', '▦', '표 넣기') + I('img', '🖼', '그림 넣기') + I('undo', '↶', '되돌리기', 'Ctrl+Z') + I('redo', '↷', '다시 하기', 'Ctrl+Y'))
+    + I('all', '⬚', '모두 고르기', 'Ctrl+A') + '<div class="mm-cxh">Shift + 오른쪽 클릭 = 브라우저 메뉴(맞춤법 등)</div>';
+  mmPop(at, html, async v => {
+    if (v === 'copy' || v === 'cut') { if (!document.execCommand(v)) toast(`${v === 'copy' ? 'Ctrl+C' : 'Ctrl+X'} 를 눌러 주세요`); else if (v === 'cut') mmTouch(); return; }
+    if (v === 'paste') { try { if (!navigator.clipboard?.read) throw 0; const items = await navigator.clipboard.read(), files = []; let h = '', t = '';
+        for (const it of items) { const im = it.types.find(x => x.startsWith('image/')); if (im) files.push(new File([await it.getType(im)], 'paste.png', { type:im })); if (it.types.includes('text/html')) h = await (await it.getType('text/html')).text(); else if (it.types.includes('text/plain')) t = await (await it.getType('text/plain')).text(); }
+        const ed = host.closest('#mmEd') || (host.id === 'mmEdw' ? mmEd() : null);
+        if (ed && (h || files.length) && (h ? mmHtmlText(h) : true)) { const g = getSelection(); return mmPasteHtml(ed, h || '', files, g.rangeCount ? g.getRangeAt(0).cloneRange() : null); }
+        if (files.length) return mmPasteFloat(files, [at.left, at.top]); if (t) { document.execCommand('insertText', false, t); return mmTouch(); } toast('클립보드가 비었습니다');
+      } catch (_) { toast('이 주소에서는 브라우저가 메뉴 붙여넣기를 막습니다 — Ctrl+V 를 눌러 주세요'); } return; }
+    if (v === 'all') { const ed = host.closest('#mmNotes .fb') || mmEd(); ed.focus(); const r = document.createRange(); r.selectNodeContents(ed); const g = getSelection(); g.removeAllRanges(); g.addRange(r); return; }
+    if (v === 'undo' || v === 'redo') { if (!mmHistGo(v === 'redo' ? 1 : -1)) toast(v === 'redo' ? '다시 할 것이 없습니다' : '더 되돌릴 것이 없습니다'); return; }
+    return mmCmd(v, at);
+  }, 'ctxm');
+});
+
 /* 2026-11-20 v18.18 글자 크기를 숫자(pt, 워드 · 한글과 같은 단위)로 — 위 도구 줄 · 글 고를 때 뜨는 막대에 숫자 칸 + ▾ 목록, A+ · A− 는 한 단계씩.
    글을 고르면 그 글만, 고른 글 없이 커서만 있으면 그 줄 전체. 메모에는 span style="font-size:12pt" 로 저장(정리 함수 그대로 통과) */
 const MM_FSL = [8, 9, 10, 10.5, 11, 12, 14, 16, 18, 20, 22, 24, 28, 32, 36, 48, 72];
@@ -8139,9 +8184,38 @@ async function mmSubPage(pid, open) {   // 하위 페이지: 부모 메모에 �
   if (!pid) return; await mmFlush(); const par = MM.cur?.id === pid ? MM.cur : await mmPageGet(pid).catch(e => (toast(e.message, true), null)); if (!par || par.lock) return par?.lock && toast('잠긴 메모입니다', true);
   const ch = { id:mmId(), kind:'page', sec:par.sec || '', parent:par.id, title:'', icon:'📄', color:'', tags:[], pin:false, lock:false, html:'', date:todayISO(), bg:par.bg || mmBgDef(), dk:par.dk || mmDkDef() };
   const link = `<div><a class="mm-pgl mm-sub" contenteditable="false" href="#memo/${ch.id}">📄 제목 없음</a></div>`;
-  if (MM.cur?.id === par.id && $('#mmEd')) { const ed = $('#mmEd'), b = mmSelIn() ? mmBlock() : null; const t = document.createElement('template'); t.innerHTML = link; const nd = t.content.firstChild; if (b && ed.contains(b) && b.parentNode === ed) { if (!b.textContent.trim() && !b.querySelector('img,table')) b.replaceWith(nd); else b.after(nd); } else ed.appendChild(nd); mmTouch(); await mmSave(); }
+  if (MM.cur?.id === par.id && $('#mmEd')) { const ed = $('#mmEd'); mmSubPlace(ed, link); mmTouch(); mmHistPush(true); await mmSave(); }
   else { par.html = (par.html || '') + link; mmMetaOf(par); mmMetaPut(par); await mmSave(par); }
   mmMetaOf(ch); mmMetaPut(ch); await mmSave(ch); if (!open) return mmDraw(); MM.cur = null; MM.view = 'all'; mmDraw(); await mmOpen(ch.id); $('#mmTitle')?.focus();
+}
+/* 2026-11-22 v18.26 사용자 지시: 하위 페이지를 커서가 있던 줄 바로 밑에 (예: '1. Metering John 내용 확인' 밑). 번호 · 글머리 목록 줄이면 그 다음 줄(같은 목록)로, 빈 줄이면 그 줄에 */
+function mmSubPlace(ed, link) {
+  let b = null; const g = getSelection(), r = g?.rangeCount && ed.contains(g.anchorNode) ? g.getRangeAt(0) : MM.lastR && ed.contains(MM.lastR.startContainer) ? MM.lastR : null;
+  if (r) { let n = r.startContainer; if (n.nodeType === 3) n = n.parentNode; if (n === ed) n = ed.childNodes[r.startOffset] || ed.lastChild; b = n?.closest?.('li') || null; if (!b) { while (n && n.parentNode && n.parentNode !== ed) n = n.parentNode; b = n && n.parentNode === ed ? n : null; } }
+  const t = document.createElement('template'); t.innerHTML = link; let nd = t.content.firstChild;
+  const empty = x => !x.textContent.replace(/[\s ​]/g, '') && !x.querySelector('img,table,a,.mm-file');
+  if (b?.tagName === 'LI') { if (empty(b)) { b.innerHTML = ''; b.append(...nd.childNodes); } else { const li = document.createElement('li'); li.append(...nd.childNodes); b.after(li); } }
+  else if (b) { if (empty(b) && !b.matches('table, .mm-cols, details')) b.replaceWith(nd); else b.after(nd); }
+  else ed.appendChild(nd);
+}
+document.addEventListener('selectionchange', () => { const g = getSelection(), ed = document.getElementById('mmEd'); if (ed && g?.rangeCount && ed.contains(g.anchorNode)) MM.lastR = g.getRangeAt(0).cloneRange(); });   // 도구 단추를 눌러도 마지막 커서 자리 기억
+/* v18.26 페이지 링크 · 메일 칸 · 첨부를 마우스로 끌어 다른 줄로 옮기기 (그냥 누르면 예전처럼 열기) */
+(() => { let d = null;
+  document.addEventListener('pointerdown', e => { if (e.button || route !== 'memo' || !MM.cur || MM.cur.lock || MM.cur._ro) return; const a = e.target.closest?.('#mmEd a.mm-pgl, #mmEd a.mm-file'); if (!a) return; d = { a, sx:e.clientX, sy:e.clientY, on:false }; }, true);
+  document.addEventListener('pointermove', e => { if (!d) return; if (!d.on) { if (Math.hypot(e.clientX - d.sx, e.clientY - d.sy) < 6) return; d.on = true; d.a.classList.add('mm-ctx'); document.body.classList.add('mm-edmoving'); let m = $('#mmDropLine'); if (!m) { m = document.createElement('div'); m.id = 'mmDropLine'; document.body.appendChild(m); } }
+    e.preventDefault(); getSelection()?.removeAllRanges(); const ed = mmEd(), t = mmDropAt(ed, e.clientX, e.clientY, d.a), m = $('#mmDropLine'); d.t = t; if (!t) { m.style.display = 'none'; return; } const r = t.el.getBoundingClientRect(); Object.assign(m.style, { display:'block', left:r.left + 'px', width:Math.max(60, r.width) + 'px', top:(t.after ? r.bottom : r.top) - 1 + 'px' }); }, true);
+  const up = () => { if (!d) return; const x = d; d = null; $('#mmDropLine')?.remove(); if (!x.on) return; x.a.classList.remove('mm-ctx'); document.body.classList.remove('mm-edmoving'); MM.noLink = Date.now(); if (!x.t) return;
+    const ed = mmEd(), a = x.a, src = a.closest('li') || (() => { let n = a; while (n.parentNode && n.parentNode !== ed) n = n.parentNode; return n; })(), alone = src && src !== a && !src.textContent.replace(a.textContent, '').replace(/[\s ​]/g, '') && !src.querySelector('img,table');
+    let mv = alone ? src : a; const tl = x.t.el.tagName === 'LI'; if (tl && mv.tagName !== 'LI') { const li = document.createElement('li'); li.append(...(mv === a ? [a] : mv.childNodes)); if (mv !== a) mv.remove(); mv = li; } else if (!tl && (mv === a || mv.tagName === 'LI')) { const dv = document.createElement('div'); dv.append(...(mv === a ? [a] : mv.childNodes)); if (mv !== a && mv.isConnected) mv.remove(); mv = dv; }
+    if (mv === x.t.el || mv.contains(x.t.el)) return; x.t.after ? x.t.el.after(mv) : x.t.el.before(mv); ed.querySelectorAll('ul:empty, ol:empty').forEach(l => l.remove()); mmTouch(); mmHistPush(true); MM.lastKind = 'obj'; };
+  document.addEventListener('dragstart', e => { if (e.target.closest?.('#mmEd a.mm-pgl, #mmEd a.mm-file')) e.preventDefault(); }, true);   // 브라우저 자체 링크 끌기(복사본이 생김) 막기
+  document.addEventListener('pointerup', up, true); document.addEventListener('pointercancel', up, true);
+  document.addEventListener('click', e => { if (Date.now() - (MM.noLink || 0) < 400 && e.target.closest?.('#mmEd a.mm-pgl, #mmEd a.mm-file')) { e.preventDefault(); e.stopImmediatePropagation(); } }, true);
+})();
+function mmDropAt(ed, x, y, skip) {   // 놓을 줄: 그 높이의 맨 위 단계 줄 또는 목록 줄(li)
+  if (!ed) return null; const L = [...ed.querySelectorAll('li'), ...[...ed.children].filter(c => !c.querySelector('li') && !c.matches('ul, ol'))].sort((x, y) => x.compareDocumentPosition(y) & 4 ? -1 : 1);   // 목록이 다른 줄 안에 있어도 목록 줄마다
+  const ok = L.filter(c => !c.contains(skip) && c.getBoundingClientRect().height > 0); if (!ok.length) return null; const b = ok.find(c => y < c.getBoundingClientRect().bottom) || ok[ok.length - 1], r = b.getBoundingClientRect();
+  return { el:b, after:y > r.top + r.height / 2 };
 }
 function mmLinkTitles() {   // 메모 연결 · 하위 페이지 링크 글자를 지금 제목으로 (Notion 처럼 이름을 바꾸면 링크도 바뀜)
   document.querySelectorAll('#mmEd a.mm-pgl[href^="#memo/"], #mmNotes a.mm-pgl[href^="#memo/"]').forEach(a => { const p = MM.pages.find(x => x.id === a.getAttribute('href').slice(6)); if (!p) return; const t = p.deleted ? `🗑 ${p.title || '제목 없음'} (휴지통)` : `${p.icon || '📄'} ${p.title || '제목 없음'}`; if (a.textContent !== t) a.textContent = t; a.classList.toggle('mm-gone', !!p.deleted); });
