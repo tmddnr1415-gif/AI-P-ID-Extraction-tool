@@ -1945,6 +1945,7 @@ body.schbigon{overflow:hidden}@keyframes schBigIn{from{transform:scale(.97);opac
 .mm-meta select,.mm-meta input{border:1px solid var(--line);border-radius:8px;padding:4px 7px;font-size:12px;background:var(--card);color:var(--text)}.mm-meta input.tags{width:170px}
 .mm-meta .tg{border:1px solid var(--line);background:var(--card);border-radius:8px;padding:3px 8px;cursor:pointer;font-size:12px}.mm-meta .tg.on{background:#fff4c2;border-color:#f0c93a}
 .mm-pcc-bar{position:absolute;z-index:30;display:flex;flex-wrap:wrap;align-items:center;gap:2px;max-width:560px;background:var(--card);border:1px solid var(--line);border-radius:9px;box-shadow:0 8px 24px rgba(20,30,70,.18);padding:4px 6px}.mm-pcc-bar .lb{font-size:11px;color:var(--muted);margin:0 3px}.mm-pcc-bar i{width:1px;height:16px;background:var(--line);margin:0 3px}.mm-pcc-bar button{width:18px;height:18px;border:1px solid rgba(0,0,0,.15);border-radius:4px;padding:0;cursor:pointer;font-weight:800;font-size:11px;background:#fff}.mm-pcc-bar button.sc{width:auto;padding:0 6px;font-weight:600;font-size:11px}.mm-pcc-bar button.sc.on{background:var(--accent-l);border-color:var(--accent)}
+.mm-ed a.mm-file.mm-eml,.mm-notes a.mm-file.mm-eml{display:inline-flex;flex-direction:column;align-items:flex-start;gap:1px;padding:6px 12px 6px 46px;min-height:38px;justify-content:center;border-color:#9cc3ec;background:#f2f8ff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect x='9' y='7' width='21' height='18' rx='2' fill='%2328a8ea'/%3E%3Cpath d='M9 9l10.5 8L30 9' fill='none' stroke='%23fff' stroke-width='1.6'/%3E%3Crect x='2' y='9' width='15' height='15' rx='2' fill='%230a5fb4'/%3E%3Cellipse cx='9.5' cy='16.5' rx='3.6' ry='4.3' fill='none' stroke='%23fff' stroke-width='2'/%3E%3C/svg%3E") 10px center/28px no-repeat;max-width:100%;cursor:default;user-select:none}.mm-ed a.mm-file.mm-eml b{font-size:13.5px;color:#0b3a6e;font-weight:700;white-space:normal}.mm-eml .mm-emls{font-size:11.5px;color:#5a6b85}.mm-ed a.mm-file.mm-eml:hover{border-color:#28a8ea;box-shadow:0 2px 8px rgba(10,95,180,.15)}.mm-ed.dk a.mm-file.mm-eml{background-color:#1d2a40}.mm-ed.dk a.mm-file.mm-eml b{color:#cfe3ff}
 #fmtBar{position:fixed;z-index:10050;display:flex;align-items:center;gap:2px;background:var(--card);border:1px solid var(--line);border-radius:7px;box-shadow:0 4px 14px rgba(20,30,70,.16);padding:2px 4px}#fmtBar button{border:0;background:none;min-width:24px;height:20px;border-radius:5px;cursor:pointer;font-size:12.5px;color:var(--text)}#fmtBar button:hover{background:var(--accent-l)}#fmtBar span{font-size:10.5px;color:var(--muted);margin:0 4px}
 s.rs{color:#dc2626;text-decoration:line-through;text-decoration-color:#dc2626}
 .mm-tg{position:fixed;z-index:60;width:18px;height:18px;line-height:17px;text-align:center;font-size:12px;border-radius:5px;background:var(--card);border:1px solid var(--line);color:var(--accent-d);cursor:grab;user-select:none;touch-action:none;box-shadow:0 2px 6px rgba(20,30,70,.15)}.mm-tg.z{cursor:nwse-resize;font-size:10px}.mm-tg:hover{background:var(--accent-l)}body.mm-tgdrag,body.mm-tgdrag *{cursor:grabbing!important;user-select:none}body.mm-tgdrag .mm-tg.z{cursor:nwse-resize!important}#memoWrap .mm-ed table.mm-tgon{outline:2px dashed var(--accent);outline-offset:2px}
@@ -2609,7 +2610,7 @@ function recLabel(key, f) {
  * ===================================================================== */
 let root = null;
 /* 서버 모드: http(s):// 로 접속하면 server.py 의 REST API 사용 (폴더 선택 불필요). file:// 로 열면 폴더 모드 */
-const APP_VERSION = '2026-11-21.1';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
+const APP_VERSION = '2026-11-21.2';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
 const SERVER_URL = 'http://localhost:8080';
 // 부서원 PC 사본(file://)이 접속을 시도할 서버 — 서버가 배포 파일을 만들 때 'PC 이름 주소, IP 주소' 순으로 자동 기록함
 const DEFAULT_SERVERS = ['http://ASEUNGWOOK-B01:8080', 'http://65.3.30.234:8080'];
@@ -6651,6 +6652,17 @@ function mmImgUrl(file) { return new Promise((res, rej) => { const fr = new File
   const k = Math.min(1, 1600 / Math.max(im.width, im.height)); if (k === 1 && file.size < 400000 && /png|jpeg|gif|webp/.test(file.type)) return res(fr.result);
   const cv = document.createElement('canvas'); cv.width = Math.round(im.width * k); cv.height = Math.round(im.height * k); cv.getContext('2d').drawImage(im, 0, 0, cv.width, cv.height);
   const png = cv.toDataURL('image/png'); res(png.length < 700000 ? png : cv.toDataURL('image/jpeg', .86)); }; im.src = fr.result; }; fr.readAsDataURL(file); }); }
+function mmMailMeta(name, buf, ext) {   // 메일 파일의 제목 · 보낸 사람 · 날짜 (eml = 머리글, msg = 파일 이름 — Outlook 에서 끌어 놓으면 이름 = 제목)
+  const base = String(name || '메일').replace(/\.(eml|msg)$/i, '');
+  if (ext !== '.eml') return { subj:base, from:'', when:'' };
+  try { const u8 = new Uint8Array(buf).subarray(0, 200000); let raw; try { raw = new TextDecoder('utf-8', { fatal:true }).decode(u8); } catch (_) { raw = new TextDecoder('euc-kr').decode(u8); } const t = mmEml(raw), g = k => ((new RegExp('^' + k + ': (.*)$', 'm')).exec(t) || [])[1]?.trim() || '';
+    const from = g('보낸 사람').replace(/\s*<[^>]*>\s*/g, '').replace(/^"|"$/g, '').trim(); return { subj:g('제목') || base, from:from.slice(0, 60), when:g('보낸 날짜') }; } catch (_) { return { subj:base, from:'', when:'' }; }
+}
+async function mmMailOpen(a) {   // 두 번 누르기 = Outlook 으로 열기 (메모장.exe = 바로 Outlook, 대시보드 = 파일을 내려받아 Edge 다운로드에서 열기)
+  const fid = a.dataset.fid; if (MEMO_APP && mmNet()) { try { await api('POST', 'memoapp/open/' + fid); return toast('Outlook 으로 여는 중…'); } catch (e) { if (e.status !== 404) return toast(e.message, true); } }
+  await mmFileOpen(a); toast('메일 파일을 내려받았습니다 — Edge 위 다운로드에서 누르면 Outlook 으로 열립니다 (… → "이 형식의 파일 항상 열기" 를 켜 두면 다음부터 바로 열림)');
+}
+document.addEventListener('dblclick', e => { const a = e.target.closest?.('#mmEd .mm-eml, #memoWrap .mm-eml'); if (!a) return; e.preventDefault(); getSelection()?.removeAllRanges(); mmMailOpen(a); });
 async function mmAddFiles(files) {
   for (const f of files) {
     try {
@@ -6660,7 +6672,10 @@ async function mmAddFiles(files) {
       let m = { id:fid0, name:f.name, ext, size:f.size }, up = 1;   // 먼저 이 PC 에 넣고, 서버에 연결돼 있으면 같은 ID 로 올림
       if (mmNet()) { mmStat('파일 올리는 중… ' + f.name); try { m = await api('PUT', `memo/f?name=${enc(f.name)}&id=${fid0}`, undefined, buf); MM.used += m.size; up = 0; } catch (e) { if (!e.offline) throw e; } }
       await mmFileKeep(m.id, { name:m.name, ext:m.ext, size:m.size, buf, up });
-      mmInsert(`<a class="mm-file" contenteditable="false" data-fid="${m.id}" data-name="${esc(m.name.replace(/[^\w .()\-\[\]가-힣·,+&]/g, '_'))}" data-size="${m.size}">${m.ext === '.pdf' ? '📕' : '📎'} ${esc(m.name)} (${mmSize(m.size)})</a>&nbsp;`);
+      const nm = esc(m.name.replace(/[^\w .()\-\[\]가-힣·,+&]/g, '_'));
+      if (/^\.(eml|msg)$/.test(m.ext)) { const mi = mmMailMeta(f.name, buf, m.ext);   // v18.24 Outlook 메일 파일 → 메일 칸 (제목 · 보낸 사람 · 날짜), 두 번 누르면 Outlook 으로
+        mmInsert(`<div><a class="mm-file mm-eml" contenteditable="false" data-fid="${m.id}" data-name="${nm}" data-size="${m.size}"><b>${esc(mi.subj)}</b>${mi.from || mi.when ? `<span class="mm-emls">${esc([mi.from, mi.when].filter(Boolean).join(' · '))}</span>` : ''}</a></div><div><br></div>`); continue; }
+      mmInsert(`<a class="mm-file" contenteditable="false" data-fid="${m.id}" data-name="${nm}" data-size="${m.size}">${m.ext === '.pdf' ? '📕' : '📎'} ${esc(m.name)} (${mmSize(m.size)})</a>&nbsp;`);
     } catch (e) { toast(`${f.name}: ${e.message}`, true); }
   }
 }
@@ -7652,7 +7667,7 @@ document.addEventListener('paste', e => {   // 메모장 화면 어디서든 (�
   const cd = e.clipboardData, imgs = mmClipImgs(cd);
   if (route === 'memo' && MM.view === 'mail' && !e.target.closest?.('#mmEd, .mm-fn, .mm-sticky')) { const tx = cd.getData('text/plain'); if (imgs.length || (tx && tx.trim().length > 20)) { e.preventDefault(); e.stopPropagation(); return void mmMailDlg(imgs.length ? { file:imgs[0] } : { text:tx }); } }
   if (!imgs.length) return; const h = cd.getData('text/html'); setTimeout(() => mmMailOffer(imgs[0]), 600);
-  if (e.target.closest?.('#mmEd') && /<table/i.test(h)) return;   // 엑셀 칸 복사 = 표로 (기존 처리)
+  if (e.target.closest?.('#mmEd') && (/<table/i.test(h) || mmHtmlText(h))) return;   // 엑셀 칸 복사 = 표로 · v18.24 글 + 그림 = 본문에 함께 (아래 mmPasteHtml)
   const st = e.target.closest?.('.mm-sticky'), onBoard = e.target.closest?.('#mmBoard, #mmFloat') || (MM.view === 'sticky' && !e.target.closest?.('#mmZw'));
   if (st || onBoard) { e.preventDefault(); e.stopPropagation(); return void mmPasteSticky(imgs, st?.dataset.sid); }
   if (MM.cur && !MM.cur.lock) { e.preventDefault(); e.stopPropagation(); const sel = getSelection(), r0 = sel.rangeCount && e.target.closest?.('#mmEd') && Date.now() - MM_MP.t > 4000 ? sel.getRangeAt(0).getBoundingClientRect() : null;
@@ -9009,7 +9024,7 @@ document.addEventListener('click', async e => {
       if (v === 'del') { pg.deleted = true; pg.pin = false; MM.dirty = true; await mmSave(); MM.cur = null; mmDraw(); toast('휴지통으로 옮겼습니다 (휴지통에서 되살릴 수 있음)'); } }); }
   const ed = t.closest('#mmEd'); if (!ed) return;
   ed.querySelectorAll('img.sel').forEach(x => x.classList.remove('sel'));
-  const f = t.closest('.mm-file'); if (f) { e.preventDefault(); return mmFileOpen(f); }
+  const f = t.closest('.mm-file'); if (f) { e.preventDefault(); if (f.classList.contains('mm-eml')) return toast('📧 두 번 누르면 Outlook 으로 열립니다'); return mmFileOpen(f); }
   const sr = t.closest('.mm-src[data-src]'); if (sr) { e.preventDefault(); const [k, id, ...fr] = sr.dataset.src.split('|'); await mmFlush(); return k === 'sched' ? go('co2sched') : SHEET[k] ? jumpTo(k, id, fr.join('|')) : 0; }
   const pl = t.closest('a.mm-pgl[href^="#memo/"]'); if (pl) { e.preventDefault(); await mmFlush(); return mmOpen(pl.getAttribute('href').slice(6)); }
   const a = t.closest('a[href]'); if (a) { e.preventDefault(); if (e.ctrlKey || MM.cur?.lock || confirm('링크를 열까요?\n' + a.href)) window.open(a.href, '_blank', 'noopener'); return; }
@@ -9074,8 +9089,23 @@ document.addEventListener('keydown', e => {
 document.addEventListener('paste', e => {
   const ed = e.target.closest?.('#mmEd'); if (!ed || MM.cur?.lock) return; const cd = e.clipboardData; if (!cd) return;
   const h = cd.getData('text/html'), imgs = [...cd.files].filter(f => f.type.startsWith('image/'));
- if (h) { e.preventDefault(); const c = mmClean(h.replace(/<img[^>]+src="(?!data:image)[^"]*"[^>]*>/gi, '')); document.execCommand('insertHTML', false, c); mmTouch(); }
+ if (h) { e.preventDefault(); const g = getSelection(); mmPasteHtml(ed, h, imgs, g.rangeCount ? g.getRangeAt(0).cloneRange() : null); }
 });
+/* 2026-11-21 v18.24 사용자 지시: 다른 곳(Outlook · 워드 · 웹)에서 글 + 그림을 함께 Ctrl+C → 메모장 Ctrl+V 에 그림도 같이.
+   그림 주소가 이 PC 파일(file:) · 메일 안(cid:)이라 못 읽는 그림 → 클립보드에 함께 온 그림 파일로 차례대로 바꿈, 웹 그림(http)은 읽어 와서 넣음(못 읽으면 뺌) */
+const mmHtmlText = h => !!String(h || '').replace(/<(style|script|head|title)[\s\S]*?<\/\1>/gi, '').replace(/<[^>]+>/g, '').replace(/&nbsp;|&#160;|\s/g, '');
+async function mmFetchImg(u) { try { const c = new AbortController(), t = setTimeout(() => c.abort(), 5000), r = await fetch(u, { signal:c.signal, credentials:'omit', referrerPolicy:'no-referrer' }); clearTimeout(t); if (!r.ok) return null; const b = await r.blob(); return /^image\/(png|jpeg|gif|webp|bmp)/.test(b.type) ? await mmImgUrl(new File([b], 'web', { type:b.type })) : null; } catch (_) { return null; } }
+async function mmPasteHtml(ed, h, files, rg) {
+  const box = document.createElement('template'); box.innerHTML = String(h).replace(/<!--[\s\S]*?-->/g, ''); const ims = [...box.content.querySelectorAll('img')]; let fi = 0, got = 0;
+  if (ims.length || files.length) mmStat('그림 넣는 중…');
+  for (const im of ims) { const src = im.getAttribute('src') || ''; const w = parseInt(im.getAttribute('width') || '', 10);
+    if (!/^data:image\//i.test(src)) { let u = null; if (fi < files.length) u = await mmImgUrl(files[fi++]).catch(() => null); else if (/^https?:/i.test(src)) u = await mmFetchImg(src); if (!u) { im.remove(); continue; } im.setAttribute('src', u); }
+    if (w > 0 && !im.style.width) im.style.width = Math.min(w, 900) + 'px'; im.removeAttribute('srcset'); got++; }
+  let html = mmClean(box.innerHTML);
+  if (!ims.length && files.length && !box.content.querySelector('table')) for (const f of files) { const u = await mmImgUrl(f).catch(() => null); if (u) { html += `<div><img src="${u}"></div>`; got++; } }
+  ed.focus(); if (rg && ed.contains(rg.startContainer)) { const g = getSelection(); g.removeAllRanges(); g.addRange(rg); }
+  document.execCommand('insertHTML', false, html); mmTouch(); mmHistPush(true); MM.lastKind = 'obj'; if (got) toast(`글과 그림 ${got}장을 붙였습니다`);
+}
 document.addEventListener('wheel', e => { if (!(e.ctrlKey || e.metaKey) || !e.target.closest?.('#mmEdw')) return; e.preventDefault(); mmZoomSet(mmZoom() * Math.pow(1.0015, -e.deltaY)); }, { passive:false });   // 메모 확대 · 축소 = Ctrl + 휠 (그냥 휠은 위아래 이동)
 document.addEventListener('dragover', e => { if (e.target.closest?.('#mmEd') && e.dataTransfer?.types?.includes('Files')) e.preventDefault(); });
 document.addEventListener('drop', e => { const ed = e.target.closest?.('#mmEd'); if (!ed || !e.dataTransfer?.files?.length || MM.cur?.lock) return; e.preventDefault(); mmAddFiles([...e.dataTransfer.files]); });

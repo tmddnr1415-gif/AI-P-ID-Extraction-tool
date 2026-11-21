@@ -528,6 +528,19 @@ func (a *app) route(m string, seg []string, q url.Values, raw []byte, w http.Res
 		return map[string]any{"id": "me", "name": a.name}, nil
 	case n == 2 && seg[0] == "memoapp" && seg[1] == "alive":
 		return map[string]any{"ok": true, "dir": a.dir}, nil
+	case n == 3 && seg[0] == "memoapp" && seg[1] == "open" && m == "POST": // 메일 파일(.eml · .msg)을 Windows 기본 프로그램(Outlook)으로 열기 — 다른 종류는 열지 않음
+		fm, err := a.fileMeta(seg[2])
+		if err != nil {
+			return nil, err
+		}
+		ext := str(fm["ext"])
+		if ext != ".eml" && ext != ".msg" {
+			return nil, bad(400, "메일 파일만 열 수 있습니다")
+		}
+		if err := openFile(a.p("files", seg[2]+ext)); err != nil {
+			return nil, bad(500, "열지 못했습니다: "+err.Error())
+		}
+		return map[string]any{"ok": true}, nil
 	case seg[0] != "memo":
 		return nil, bad(404, "메모장 프로그램에는 없는 기능입니다")
 	case n == 1 && m == "GET":
@@ -649,6 +662,16 @@ func openWindow(u string) {
 		}
 	}
 	exec.Command("rundll32", "url.dll,FileProtocolHandler", u).Start() // 기본 브라우저
+}
+
+func openFile(p string) error { // 기본 프로그램으로 열기 (eml · msg = Outlook)
+	if runtime.GOOS == "windows" {
+		return exec.Command("rundll32", "url.dll,FileProtocolHandler", p).Start()
+	}
+	if os.Getenv("MEMOAPP_TEST_OPEN") != "" { // 시험: 연 파일 이름을 남김
+		return os.WriteFile(os.Getenv("MEMOAPP_TEST_OPEN"), []byte(p), 0o644)
+	}
+	return exec.Command("xdg-open", p).Start()
 }
 
 func alreadyRunning(port int) bool { // 같은 프로그램이 이미 켜져 있으면 true

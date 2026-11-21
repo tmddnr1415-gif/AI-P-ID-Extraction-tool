@@ -2616,3 +2616,13 @@ C:\Users\SAMSUNG\Desktop\Claude\                         ← 개발 폴더 (여�
   - 예전 '~~삭제 표시~~'(2026-10-13 부터 숨김)와는 별개 — 새 취소선은 보이는 붉은 취소선.
 - 바뀐 곳: dashboard.html `stripFmt` · `fmtInl` · `flat` · `brief` · `fmtText`(줄 앞 표시 · 글머리 순서) · 한 줄 칸 표시 · `exportCsv` · `xlCell`(서식 조각) · `FMT_LEAD` · `taFmt` · `fmtTa` · `fmtBar` · 키(Ctrl+B/I/Shift+X), CSS `#fmtBar` · `s.rs`. 메모장.exe 다시 만듦(화면 파일 같이).
 - 확인한 것: Playwright 수행 시트 — 업무 현황 칸 두 번 눌러 세 줄 쓰고 [S] · Ctrl+B · Ctrl+I → `1) <b>Cv 검토</b> 완료` · `2) <s>Remote LCP 취소됨</s>` · `- <i>중요</i> …`, 다시 누르면 풀림, 저장 뒤 표 칸 = 취소선 rgb(220,38,38) line-through · 굵게 · 기울임 · 번호 그대로 · 표시 글자 안 보임, 엑셀 = `<strike/><color FFD00000/>` 조각, CSV = 표시 없음. 화면 오류 0.
+
+### 2026-11-21 (APP_VERSION 2026-11-21.2 / SERVER_VERSION 그대로) — v18.24 Outlook 메일 파일(.eml · .msg) 끌어 놓기 = 메일 칸 · 두 번 누르면 Outlook / 글 + 그림 함께 붙여넣기
+- 무엇을: 사용자 지시 "메모에 eml 확장자 outlook 파일을 드래그앤드롭하면 Outlook 아이콘으로 붙여넣어지고, 메일 제목이 표기되고, 더블클릭하면 메일이 outlook으로 켜지게 / 다른 곳에서 이미지를 Ctrl+C V로도 붙여넣어지게 (그림 + 텍스트가 같이 복사되더라도)".
+  - **메일 칸**: .eml · .msg 를 메모 본문에 끌어 놓으면 첨부로 저장 + 파란 메일 아이콘(Outlook 비슷한 그림, CSS 그림 — 로고 아님) 칸에 **제목**(굵게) · 보낸 사람 · 날짜(.eml = 머리글 MIME 해석, .msg = 파일 이름 — Outlook 에서 끌면 이름 = 제목). 한 번 누르면 안내, **두 번 누르면 Outlook 으로**:
+    - 메모장.exe: 이 PC 의 기본 프로그램(Outlook)으로 바로 엶 (`POST /api/memoapp/open/{fid}` — .eml · .msg 만, 다른 종류는 거절).
+    - 대시보드(서버 PC 의 파일): 브라우저가 PC 의 프로그램을 직접 켤 수 없어 메일 파일을 내려받음 → Edge 다운로드에서 누르면 Outlook. '이 형식의 파일 항상 열기' 를 켜 두면 다음부터 바로 열림(안내 표시).
+  - **글 + 그림 붙여넣기**: 예전에는 클립보드에 그림 파일이 있으면 글을 버리고 그림만 떠 있는 그림으로, 글(html)이 있으면 이 PC 파일 주소(file: · cid:) 그림을 버렸음. → 글이 함께 오면 본문에 글 그대로 + 그 자리 그림을 클립보드 그림 파일로 차례대로 바꿔 넣음(크기 width 유지), 웹 그림(http)은 읽어 와서 넣음(못 읽으면 뺌, 메모장.exe 는 밖으로 안 나감), 글 html 에 그림 자리가 없으면 글 뒤에 그림. 엑셀 칸 복사(표 + 그림)는 예전처럼 표만, 그림만 복사는 예전처럼 떠 있는 그림.
+- 바뀐 곳: dashboard.html `mmMailMeta` · `mmMailOpen` · `mmAddFiles`(eml · msg) · 메일 칸 클릭/두 번 누르기 · `mmHtmlText` · `mmFetchImg` · `mmPasteHtml` · 붙여넣기 처리 두 곳, CSS `a.mm-file.mm-eml` · `.mm-emls`. memo_app/main.go `openFile` · `memoapp/open`. 메모장.exe 다시 만듦.
+- 확인한 것: Playwright(대시보드 · 메모장.exe 리눅스판 둘 다) — MIME 제목 .eml 끌어 놓기 → '[성진밸브] XV-2003 최종검사 입회 요청 / 손영수 · 날짜' 메일 칸 + 아이콘, 두 번 누름 → 대시보드 = mail1.eml 내려받기, exe = 그 첨부 파일을 기본 프로그램으로 엶, 글 + file: 그림 + 그림 파일 붙여넣기 → 글 · 그림(300px) 함께, 글 html + 그림 파일 → 글 뒤 그림, 엑셀 표 + 그림 → 표만, 그림만 → 떠 있는 그림, 다시 열어도 그대로. 화면 오류 0.
+- 회사에서 확인할 것: Outlook 에서 메일을 끌어 메모에 놓으면 .msg 로 들어오는지(브라우저 · Outlook 판에 따라 안 될 수 있음 — 그때는 메일을 바탕 화면에 먼저 끌어 놓은 파일을 메모로), Edge 에서 .eml 을 누르면 Outlook 이 열리는지.
