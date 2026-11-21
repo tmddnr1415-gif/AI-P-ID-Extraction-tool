@@ -2608,3 +2608,11 @@ C:\Users\SAMSUNG\Desktop\Claude\                         ← 개발 폴더 (여�
   - **불러오기 미리보기 칸 색**: 미리보기 표 칸을 누르면 위에 '칸 색' 막대 — 이 칸 / 이 줄 / 이 열, 바탕 13색 · 글자 10색 · ✕ 색 없애기. 넣으면 그 색 그대로 메모에, '↺ 되돌리기' 로 고친 글과 함께 원래대로.
 - 바뀐 곳: dashboard.html `mmCaretOff` · `mmCaretAt` · `mmHistReset` · `mmHistPush` · `mmHistGo` · Ctrl+Z/Y 키 처리 · beforeinput(historyUndo/Redo) · `mmDkFix` · `mmTblGrip`(새로) · 표 손잡이 끌기 · `mmClean`(marginLeft) · `mmPull2`(render · ccBar · drawPe · unedit), CSS `.mm-tg` · `.mm-pcc-bar` · `table.mm-tgon`. 메모장.exe 도 다시 만듦.
 - 확인한 것: Playwright — 글 치기 · 빨강 칠하기 · 더 치기 → Ctrl+Z 두 번(글 → 색 차례로) → Ctrl+Y 두 번(되살아남), 어두운 종이에서 Ctrl+Z 뒤 빨강이 연한 빨강 그대로(엉뚱한 색 없음), 표 ◢ 끌기 255×72 → 406×133, ✥ 오른쪽 → 들여쓰기 61px, ✥ 위로 → 첫 줄 앞으로, Ctrl+Z 세 번 · Ctrl+Y 세 번 차례로, 다시 열어도 그대로. 미리보기 칸 색: 한 칸 노랑 + 빨강 글자, 다른 줄 전체 파랑 → 색 칸 10 → 메모에 넣은 표에 그 색. 화면 오류 0.
+
+### 2026-11-21 (APP_VERSION 2026-11-21.1 / SERVER_VERSION 그대로) — v18.23 주간업무보고 칸 굵게 · 기울임 · 취소선(자동 붉은 글씨)
+- 무엇을: 사용자 지시 "주간업무보고 수행 · 입찰 내용 작성 시 취소선, 굵게, 글씨 기울기 표기 가능하게, 취소선하면 자동으로 붉은색 글씨".
+  - 편집 창(칸 두 번 누르기)의 글 칸을 누르면 오른쪽 위에 [B] [I] [S] 막대 — 글을 고르고 누르거나 Ctrl+B · Ctrl+I · Ctrl+Shift+X. 다시 누르면 풀림. 여러 줄을 고르면 줄마다(글머리 '1)' · '-' 뒤부터 감쌈 → 번호 · 글머리 모양 그대로).
+  - 저장은 글 안의 표시 `<b>…</b>` · `<i>…</i>` · `<s>…</s>` (서버 · 데이터 구조 그대로, 모든 시트 공통). 화면 = 굵게 · 기울임 · **취소선 + 붉은 글씨(#dc2626)**, 엑셀 내보내기 = 같은 서식(취소선은 붉은 취소선, 이번 주 추가 파란 글씨와 함께), CSV · 홈/비서 요약(brief · flat) = 표시를 뺀 글.
+  - 예전 '~~삭제 표시~~'(2026-10-13 부터 숨김)와는 별개 — 새 취소선은 보이는 붉은 취소선.
+- 바뀐 곳: dashboard.html `stripFmt` · `fmtInl` · `flat` · `brief` · `fmtText`(줄 앞 표시 · 글머리 순서) · 한 줄 칸 표시 · `exportCsv` · `xlCell`(서식 조각) · `FMT_LEAD` · `taFmt` · `fmtTa` · `fmtBar` · 키(Ctrl+B/I/Shift+X), CSS `#fmtBar` · `s.rs`. 메모장.exe 다시 만듦(화면 파일 같이).
+- 확인한 것: Playwright 수행 시트 — 업무 현황 칸 두 번 눌러 세 줄 쓰고 [S] · Ctrl+B · Ctrl+I → `1) <b>Cv 검토</b> 완료` · `2) <s>Remote LCP 취소됨</s>` · `- <i>중요</i> …`, 다시 누르면 풀림, 저장 뒤 표 칸 = 취소선 rgb(220,38,38) line-through · 굵게 · 기울임 · 번호 그대로 · 표시 글자 안 보임, 엑셀 = `<strike/><color FFD00000/>` 조각, CSV = 표시 없음. 화면 오류 0.

@@ -1945,6 +1945,8 @@ body.schbigon{overflow:hidden}@keyframes schBigIn{from{transform:scale(.97);opac
 .mm-meta select,.mm-meta input{border:1px solid var(--line);border-radius:8px;padding:4px 7px;font-size:12px;background:var(--card);color:var(--text)}.mm-meta input.tags{width:170px}
 .mm-meta .tg{border:1px solid var(--line);background:var(--card);border-radius:8px;padding:3px 8px;cursor:pointer;font-size:12px}.mm-meta .tg.on{background:#fff4c2;border-color:#f0c93a}
 .mm-pcc-bar{position:absolute;z-index:30;display:flex;flex-wrap:wrap;align-items:center;gap:2px;max-width:560px;background:var(--card);border:1px solid var(--line);border-radius:9px;box-shadow:0 8px 24px rgba(20,30,70,.18);padding:4px 6px}.mm-pcc-bar .lb{font-size:11px;color:var(--muted);margin:0 3px}.mm-pcc-bar i{width:1px;height:16px;background:var(--line);margin:0 3px}.mm-pcc-bar button{width:18px;height:18px;border:1px solid rgba(0,0,0,.15);border-radius:4px;padding:0;cursor:pointer;font-weight:800;font-size:11px;background:#fff}.mm-pcc-bar button.sc{width:auto;padding:0 6px;font-weight:600;font-size:11px}.mm-pcc-bar button.sc.on{background:var(--accent-l);border-color:var(--accent)}
+#fmtBar{position:fixed;z-index:10050;display:flex;align-items:center;gap:2px;background:var(--card);border:1px solid var(--line);border-radius:7px;box-shadow:0 4px 14px rgba(20,30,70,.16);padding:2px 4px}#fmtBar button{border:0;background:none;min-width:24px;height:20px;border-radius:5px;cursor:pointer;font-size:12.5px;color:var(--text)}#fmtBar button:hover{background:var(--accent-l)}#fmtBar span{font-size:10.5px;color:var(--muted);margin:0 4px}
+s.rs{color:#dc2626;text-decoration:line-through;text-decoration-color:#dc2626}
 .mm-tg{position:fixed;z-index:60;width:18px;height:18px;line-height:17px;text-align:center;font-size:12px;border-radius:5px;background:var(--card);border:1px solid var(--line);color:var(--accent-d);cursor:grab;user-select:none;touch-action:none;box-shadow:0 2px 6px rgba(20,30,70,.15)}.mm-tg.z{cursor:nwse-resize;font-size:10px}.mm-tg:hover{background:var(--accent-l)}body.mm-tgdrag,body.mm-tgdrag *{cursor:grabbing!important;user-select:none}body.mm-tgdrag .mm-tg.z{cursor:nwse-resize!important}#memoWrap .mm-ed table.mm-tgon{outline:2px dashed var(--accent);outline-offset:2px}
 .mm-holdmv{outline:2px dashed var(--accent)!important;outline-offset:2px;box-shadow:0 10px 28px rgba(20,30,70,.18)}
 html.memoapp #side,html.memoapp #scrim,html.memoapp header.top,html.memoapp #botChar,html.memoapp #taskBar,html.memoapp [data-mx="pull"],html.memoapp [data-mx="share"],html.memoapp [data-nk="shared"]{display:none!important}html.memoapp #main{margin-left:0!important}html.memoapp #content{padding-top:8px}
@@ -2553,7 +2555,10 @@ const PALETTE = ['#5b63e8','#f2994a','#2bb39a','#e0609c','#3aa3e0','#9b7bf0','#e
  * ===================================================================== */
 const $ = (s, r = document) => r.querySelector(s);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-const flat = s => String(s ?? '').replace(/\s+/g, ' ').trim();
+/* 2026-11-21 v18.23 사용자 지시: 주간업무보고(수행 · 입찰 등) 칸에 굵게 <b>…</b> · 기울임 <i>…</i> · 취소선 <s>…</s>(자동 붉은 글씨). 글 안에 표시로 저장(엑셀 = 같은 서식, CSV · 요약 = 표시 뺌) */
+const stripFmt = s => String(s ?? '').replace(/<\/?[bis]>/g, '');
+const fmtInl = h => { for (let k = 0; k < 4; k++) { const n = h.replace(/&lt;(b|i|s)&gt;((?:(?!&lt;\/?\1&gt;)[\s\S])*?)&lt;\/\1&gt;/g, (_, t, x) => t === 's' ? `<s class="rs">${x}</s>` : `<${t}>${x}</${t}>`); if (n === h) break; h = n; } return h; };
+const flat = s => stripFmt(s).replace(/\s+/g, ' ').trim();
 const trunc = (s, n) => { s = flat(s); return s.length > n ? s.slice(0, n - 1) + '…' : s; };
 const pad = n => String(n).padStart(2, '0');
 const todayISO = () => { const d = new Date(); return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`; };
@@ -2604,7 +2609,7 @@ function recLabel(key, f) {
  * ===================================================================== */
 let root = null;
 /* 서버 모드: http(s):// 로 접속하면 server.py 의 REST API 사용 (폴더 선택 불필요). file:// 로 열면 폴더 모드 */
-const APP_VERSION = '2026-11-20.7';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
+const APP_VERSION = '2026-11-21.1';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
 const SERVER_URL = 'http://localhost:8080';
 // 부서원 PC 사본(file://)이 접속을 시도할 서버 — 서버가 배포 파일을 만들 때 'PC 이름 주소, IP 주소' 순으로 자동 기록함
 const DEFAULT_SERVERS = ['http://ASEUNGWOOK-B01:8080', 'http://65.3.30.234:8080'];
@@ -11206,6 +11211,7 @@ function fmtText(v) {
     let t = raw.trim(), mk = '', cls = 'p', ind = Math.min(4, Math.floor(lead / 2)), m;
     const whole = /^~~((?:(?!~~)[\s\S])*)~~$/.exec(t);              // 줄 전체가 삭제 표시
     if (whole) t = whole[1].trim();
+    { const g = /^((?:<[bis]>)+)(\s*(?:\d{1,2}[.)]|\(\d{1,2}\)|[가-하][.)]|-{1,2}>|=>|[→⇒↳\-–—·•ㆍ∙※*ㅇ○◦□■▶▷◆◇●▪])\s*)/.exec(t); if (g) t = g[2] + g[1] + t.slice(g[0].length); }   // v18.23 <s>1) … → 1) <s>…
     let pre = '';                                                   // 줄 앞이 '추가' 표시로 시작하면 글머리 인식 후 다시 붙임
     if (t.startsWith(ADD_S)) { pre = ADD_S; t = t.slice(1).trimStart(); }
     if ((m = t.match(/^(\d{1,2})\.(?!\s?\d)\s*/)))            { mk = m[1] + '.'; cls = 'n1'; base = 1; }
@@ -11221,10 +11227,37 @@ function fmtText(v) {
     let body = dm && dm[0].length < t.length ? `<span class="dt">${esc(dm[0])}</span>${esc(t.slice(dm[0].length))}` : esc(t);
     body = (pre + body).replace(/~~([\s\S]*?)~~/g, '<del>$1</del>')    // 부분 삭제 표시
       .replace(/([\s\S]*?)(|$)/g, '<span class="add">$1</span>').replace(/[]/g, '');   // 추가된 내용
+    body = fmtInl(body);
     return `<div class="ln ${cls}${whole ? ' struck' : ''}" style="--i:${ind}">${mk ? `<span class="mk">${esc(mk)}</span>` : ''}<span class="tx">${body}</span></div>`;
   }).join('') + '</div>';
 }
 
+/* v18.23 편집 창 글 칸: 글을 고르고 [B] [I] [S] 또는 Ctrl+B · Ctrl+I · Ctrl+Shift+X → <b> <i> <s> 표시로 감쌈(다시 누르면 풀림). 여러 줄이면 줄마다(글머리 1) · - 뒤부터) */
+const FMT_LEAD = /^(\s*(?:\d{1,2}[.)]|\(\d{1,2}\)|[가-하][.)]|-{1,2}>|=>|[→⇒↳\-–—·•ㆍ∙※*ㅇ○◦□■▶▷◆◇●▪])?\s*)([\s\S]*?)(\s*)$/;
+function taFmt(ta, t) {
+  if (!ta || ta.readOnly || ta.disabled) return; let a = ta.selectionStart, z = ta.selectionEnd; const v = ta.value, o = `<${t}>`, c = `</${t}>`;
+  if (a === z) return toast('꾸밀 글을 먼저 끌어서 고르세요');
+  let sel = v.slice(a, z), out;
+  if (v.slice(a - o.length, a) === o && v.slice(z, z + c.length) === c) { a -= o.length; z += c.length; out = sel; }   // 바로 바깥에 같은 표시 → 풀기
+  else if (sel.startsWith(o) && sel.endsWith(c) && !sel.slice(o.length, -c.length).includes(o)) out = sel.slice(o.length, -c.length);
+  else if (sel.includes(o)) out = sel.split(o).join('').split(c).join('');   // 고른 곳 안에 같은 표시가 있으면 모두 풀기
+  else out = sel.split('\n').map(l => { const m = FMT_LEAD.exec(l); return m && m[2] ? m[1] + o + m[2] + c + m[3] : l; }).join('\n');
+  ta.focus(); ta.setSelectionRange(a, z); if (!document.execCommand('insertText', false, out)) { ta.setRangeText(out, a, z, 'end'); }
+  ta.setSelectionRange(a, a + out.length); ta.dispatchEvent(new Event('input', { bubbles:true }));
+}
+const fmtTa = el => el?.matches?.('#dlg textarea[data-f], #dlg input[data-f]:not([type]), #dlg input[data-f][type="text"]') ? el : null;
+function fmtBar(ta) {
+  let b = $('#fmtBar'); if (!ta) { b?.remove(); return; }
+  if (!b) { b = document.createElement('div'); b.id = 'fmtBar'; b.innerHTML = '<button data-fm="b" title="굵게 (Ctrl+B)"><b>B</b></button><button data-fm="i" title="기울임 (Ctrl+I)"><i>I</i></button><button data-fm="s" title="취소선 — 붉은 글씨로 (Ctrl+Shift+X)"><s style="color:#dc2626">S</s></button><span>글을 고르고 누르기</span>';
+    b.addEventListener('mousedown', e => e.preventDefault()); b.addEventListener('click', e => { const x = e.target.closest('[data-fm]'); if (x && b._ta) taFmt(b._ta, x.dataset.fm); }); (ta.closest('dialog') || document.body).appendChild(b); }
+  else if (b.parentNode !== (ta.closest('dialog') || document.body)) (ta.closest('dialog') || document.body).appendChild(b);
+  b._ta = ta; const r = ta.getBoundingClientRect(); b.style.left = Math.max(4, r.right - 236) + 'px'; b.style.top = Math.max(4, r.top - 26) + 'px';
+}
+document.addEventListener('focusin', e => { const t = fmtTa(e.target); if (t) fmtBar(t); });
+document.addEventListener('focusout', e => { if (fmtTa(e.target)) setTimeout(() => { if (!fmtTa(document.activeElement)) fmtBar(null); }, 120); });
+document.addEventListener('keydown', e => { const t = fmtTa(e.target); if (!t || !(e.ctrlKey || e.metaKey) || e.altKey) return; const k = e.key.toLowerCase();
+  const f = k === 'b' && !e.shiftKey ? 'b' : k === 'i' && !e.shiftKey ? 'i' : k === 'x' && e.shiftKey ? 's' : ''; if (!f) return; e.preventDefault(); taFmt(t, f); }, true);
+document.addEventListener('scroll', () => { const b = $('#fmtBar'); if (b?._ta?.isConnected) fmtBar(b._ta); }, true);
 let SEL = null;                                     // 활성 셀 { route, rid, f }
 let MSEL = new Set(), ANCHOR = null;                 // 다중 선택(Ctrl/Shift) 셀 키 집합, Shift 범위 기준 셀
 const mkey = (rid, f) => rid + '\u0001' + f;
@@ -11440,7 +11473,7 @@ function cellHtml(s, c, r, h) {
   if (c.f === s.title) cls.push('key'); const ck = colKind(c); if (ck) cls.push(ck);   // 2026-11-08 가독성: 제목 열 고정 · 열 종류 색
   if (c.strong) cls.push('strong');
   if (!c.long && h.has(c.f) && v !== '') cls.push('addtxt');               // 한 줄 칸: 바뀐 값 전체 파란 글씨
-  let inner = c.long ? fmtText(h.base === undefined ? v : markAdded(h.base?.[c.f] ?? '', v)) : esc(v);
+  let inner = c.long ? fmtText(h.base === undefined ? v : markAdded(h.base?.[c.f] ?? '', v)) : fmtInl(esc(v));
   if (c.f === '완료 여부') inner = `<span class="ox ${v === 'O' ? 'o' : v === '△' ? 't' : ''}">${esc(v)}</span>`;
   if (c.f === 'Target Date' && v && /^\d{4}-\d{2}-\d{2}$/.test(v) && v < todayISO() && r.fields['완료 여부'] !== 'O') inner = `<span class="overdue" title="기한 경과">${esc(v)}</span>`;
   if (c.pct && v !== '') inner = esc(v) + '%';
@@ -12480,7 +12513,7 @@ async function iecRegister(year) {                          // 기본 IEC 명단
   catch (er) { toast('등록 실패: ' + er.message, true); }
 }
 // 긴 글 첫 1~2줄 (글머리·취소선 빼고)
-const brief = (t, n = 2, max = 90) => { const ls = String(t || '').replace(/~~[\s\S]*?~~/g, '').split(/\n+/).map(l => l.replace(/^\s*(?:[-•·*▶■□ㅇ※>→]+|\(?\d+[.)]|[가-힣][.)])\s*/, '').trim()).filter(Boolean);
+const brief = (t, n = 2, max = 90) => { const ls = stripFmt(t || '').replace(/~~[\s\S]*?~~/g, '').split(/\n+/).map(l => l.replace(/^\s*(?:[-•·*▶■□ㅇ※>→]+|\(?\d+[.)]|[가-힣][.)])\s*/, '').trim()).filter(Boolean);
   const x = ls.slice(0, n).join(' / '); return x.length > max ? x.slice(0, max - 1) + '…' : x; };
 function personSummary(name) {
   const mine = v => hasName(v, name);
@@ -13560,7 +13593,7 @@ async function delExtraCol(s, f) {
  * ===================================================================== */
 function exportCsv() {
   if (!SHEET[route]) { toast('시트 메뉴에서 CSV를 내보낼 수 있습니다'); return; }
-  const s = SHEET[route], recs = filteredRecs(s), q = v => `"${String(v ?? '').replace(/\r/g, '').replace(/"/g, '""')}"`;
+  const s = SHEET[route], recs = filteredRecs(s), q = v => `"${stripFmt(v).replace(/\r/g, '').replace(/"/g, '""')}"`;
   let head, rows;
   if (s.special === 'matrix') {
     const used = new Set(); getRecs('staffing').forEach(r => Object.keys(r.fields.배정 || {}).forEach(k => used.add(k)));
@@ -13622,6 +13655,14 @@ function xlCell(r, c, cell) {
   const ref = colL(c) + r, v = typeof cell.v === 'string' ? purgeStrike(cell.v) : cell.v, s = cell.s;   // 예전 ~~삭제 표시~~ 는 내보내지 않음
   if (typeof v === 'number') return `<c r="${ref}" s="${s}"><v>${v}</v></c>`;
   if (v === '' || v == null) return `<c r="${ref}" s="${s}"/>`;
+  if (typeof v === 'string' && /<\/?[bis]>/.test(v)) {   // v18.23 굵게 · 기울임 · 취소선(붉은) + 추가(파란) 함께
+    const runs = [], F = { b:0, i:0, s:0, a:0 }, re = new RegExp('<(\\/?)([bis])>|([' + ADD_S + ADD_E + '])', 'g'); let last = 0, m;
+    const push = t => { if (t) runs.push([t, { ...F }]); };
+    while ((m = re.exec(v))) { push(v.slice(last, m.index)); if (m[3]) F.a = m[3] === ADD_S ? 1 : 0; else F[m[2]] = m[1] ? 0 : 1; last = re.lastIndex; }
+    push(v.slice(last));
+    const rpr = f => `<rPr><rFont val="맑은 고딕"/><charset val="129"/><family val="3"/>${f.b || f.a ? '<b/>' : ''}${f.i ? '<i/>' : ''}${f.s ? '<strike/>' : ''}${f.s ? '<color rgb="FFD00000"/>' : f.a ? '<color rgb="FF0050D0"/>' : ''}<sz val="10"/></rPr>`;
+    return `<c r="${ref}" s="${s}" t="inlineStr"><is>${runs.map(([t, f]) => `<r>${rpr(f)}<t xml:space="preserve">${xesc(t)}</t></r>`).join('') || '<t></t>'}</is></c>`;
+  }
   if (typeof v === 'string' && (/~~[\s\S]*?~~/.test(v) || v.includes(ADD_S))) {   // 서식 있는 텍스트: 삭제=붉은 취소선, 추가=파란 글씨
     const runs = [], re = /~~([\s\S]*?)~~|([\s\S]*?)(?:|$)/g; let last = 0, m;
     while ((m = re.exec(v))) {
