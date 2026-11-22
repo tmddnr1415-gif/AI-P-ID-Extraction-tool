@@ -903,12 +903,25 @@
    "made": "2026-11-21 09:00",
    "path": "company-pc-update/2026-11-21/ (2.1MB · 저장소에 있음)",
    "sha256": "2c0bc20ae03b08760a686434953429148a1cb4efefdaf1371e34d5bfd854415a",
-   "applied": "",
+   "applied": "적용 (11-22 사용자 확인)",
    "tips": {
     "S1": "f253099f"
    },
    "replaces": "",
    "note": "v18.30 (기준 v18.27 ea020b30 — 회사 확인) — 하위 페이지 · 서식 복사 · 큰 첨부 200MB (server.py → 재시작)"
+  },
+  {
+   "file": "①",
+   "name": "1_DASHBOARD_update_v18.34_from_v18.30_2026-11-22.zip",
+   "made": "2026-11-22 09:45",
+   "path": "company-pc-update/2026-11-22/ (2.0MB · 저장소에 있음)",
+   "sha256": "3a71a704806ae73055cd0b2caf36d9e55dee8626138ed13935d070e29b5658de",
+   "applied": "",
+   "tips": {
+    "S1": "67ebfcf7"
+   },
+   "replaces": "",
+   "note": "v18.34 (기준 v18.30 f253099f — 회사 확인) — 메모 PDF 저장 · PDF 배경 메모 · PDF 메모 도구 · 화면만"
   }
  ]
 }
