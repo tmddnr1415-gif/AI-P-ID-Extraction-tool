@@ -2889,3 +2889,8 @@ C:\Users\SAMSUNG\Desktop\Claude\                         ← 개발 폴더 (여�
 - 바뀐 곳: dashboard.html 새 `MM_WIN` · `MM_POP` · `mmPopOut` · `MMB` · `mmBc` · `mmBcEdit` · `mmBcGot` · `mmApplyRemote` · `mmNkPack` · `mmLivePoll`, `mmSave` · `mmTouch` · `mmLnUpdate` 감싸기, 메모 위 단추 · 목록 오른쪽 클릭, CSS `html.mmpop` · `.mm-ln.live` · `.mm-remote`. server.py 새 `api_memo_stamps` + 경로 `GET /api/memo/stamps`. 메모장.exe 다시 만듦(exe 안 서버에는 stamps 가 없어 다른 PC 확인은 꺼지고, 같은 PC 창끼리는 됨).
 - 확인한 것: Playwright — ⧉ 새 창 → 메뉴 · 목록 없이 그 메모, 새 창에서 쓴 줄 → 본 창 276ms, 본 창 → 새 창 268ms, 제목 바꿈 → 새 창 · 창 제목, 충돌 창 0 · 서버에 두 줄 다, 다른 PC(따로 브라우저 · 같은 계정) 5.4초. 무작위 조작 500번 오류 0, 화면 점검 192 조합 0건, 목록 끌어 놓기 · 메모장 단축키 시험 그대로, 자동 저장 구간 긴 작업 0.
 - 회사에서 확인할 것: **서버를 다시 켜야 다른 PC 연동이 됨**(server.py 바뀜). 두 사람이 같은 메모를 같은 순간 고치면 나중 저장이 이김(판 기록에서 되돌릴 수 있음).
+
+### 2026-11-22 (APP_VERSION 2026-11-22.31 / SERVER_VERSION 그대로) — v18.54 고양이 기사
+- 무엇을: 내 메모장 본문 오른쪽 아래(저장됨 표시 위)를 사용자가 준 도트 그림 '고양이 기사'가 왔다 갔다 걷게 함. 끝에서 잠깐 멈춰 방향을 돌고 칼이 반짝임, 걸을 때 살짝 들썩임. 누르면 점프 + 한마디 말풍선 + 효과음. 보기 탭 `🐱 고양이 기사` 로 끄고 켬(이 PC 에 기억, 기본 켬). 새 창(⧉)에서도 보임.  왜: 사용자 지시 "메모장 하단 오른쪽에 이 캐릭터가 왓다갓다하게해라".
+- 바뀐 곳: dashboard.html `MM_CAT_IMG`(배경 지운 62×96 PNG, 약 8KB, data URI) · `MM_CAT_SAY` · `mmCatOn` · `mmCatMount`(memoWrap 만들 때 붙임) · 보기 탭 단추 `data-mx="cat"` · CSS `#mmCat`(CSS 애니메이션만 — JS 타이머 없음, 쉬는 중 `html.idle` · 움직임 줄이기 설정 · 인쇄 · 좁은 화면 900px 이하에서는 멈춤/숨김). `#memoWrap>*` 공통 칸 모양(overflow:hidden 등)을 `#memoWrap>#mmCat` 에서 되돌림.
+- 확인한 것: 2초마다 위치 바뀜(1058→1008→958→911), 누르면 말풍선(글자 뒤집히지 않음), 끄기/켜기, uxaudit 192 조합 결함 0, monkey 300번 오류 0. / 회사에서 확인할 것: 메모장 오른쪽 아래에 걷는지, 글 쓸 때 가리지 않는지(그림만 누를 수 있고 나머지는 클릭 통과).
