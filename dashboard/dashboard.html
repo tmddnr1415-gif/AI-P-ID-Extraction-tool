@@ -2122,6 +2122,19 @@ body.mm-noanno #mmNotes > :not(.tb),body.mm-noanno #mmInk,body.mm-noanno #mmInkH
 .mm-pv{width:96vw;height:92vh}.mm-pv .mm-pdf{width:auto;height:auto;flex:1;min-height:0}.mm-pv .pvs{overflow:auto;background:#525659;padding:10px 0;position:relative}
 .mm-pv .pp{position:relative;margin:0 auto 12px;background:#fff;box-shadow:0 2px 12px rgba(0,0,0,.45)}.mm-pv .pp canvas{width:100%;height:100%;display:block}.mm-pv .pp>i{position:absolute;right:6px;bottom:-1px;font-size:10px;font-style:normal;color:#fff;background:rgba(0,0,0,.45);border-radius:6px 6px 0 0;padding:0 6px}
 .mm-pv .mm-inkbar{border-top:0}
+/* v18.59 고양이 포털 */
+html #mmCat,html #mmCat .bw,html #mmCat .sp{animation-delay:var(--cd,0s)}   /* 고양이 기본 규칙이 뒤에 있어 html 을 붙여 앞서게 */
+#mmCat.warp,#mmCat.warp .bw,#mmCat.warp .sp,#mmCat.warp .sw{animation-play-state:paused}
+#mmCat .pt{position:absolute;left:50%;bottom:-7px;width:46px;height:58px;margin-left:-23px;border-radius:50%;overflow:hidden;pointer-events:none;transform:scale(0,0);opacity:0;transition:transform .32s cubic-bezier(.3,1.6,.5,1),opacity .22s;box-shadow:0 0 14px 4px rgba(150,90,255,.7),0 0 3px 1px rgba(0,229,255,.9),inset 0 0 8px rgba(255,255,255,.7)}
+#mmCat .pt i{position:absolute;inset:-35%;background:conic-gradient(from 0deg,#6a00ff,#00e5ff,#b400ff,#00ffa3,#ff4fd8,#6a00ff);animation:mmcatpt .7s linear infinite}
+#mmCat .pt::after{content:'';position:absolute;inset:20% 22%;border-radius:50%;background:radial-gradient(circle,#0d0221 0 35%,#2a0a5e 60%,rgba(42,10,94,0) 75%)}
+#mmCat.pt-open .pt{transform:scale(1,1);opacity:1}
+@keyframes mmcatpt{to{transform:rotate(360deg)}}
+#mmCat.out .bd{transform-origin:50% 60%;animation:mmcatout .55s ease-in forwards}
+@keyframes mmcatout{0%{transform:none;opacity:1}30%{transform:scale(1.12,.88)}100%{transform:translateY(-4px) scale(0) rotate(540deg);opacity:0;filter:brightness(2.2) hue-rotate(90deg)}}
+#mmCat.gone .bd{opacity:0;animation:none}
+#mmCat.in .bd{transform-origin:50% 60%;animation:mmcatin .62s cubic-bezier(.2,1.4,.4,1)}
+@keyframes mmcatin{0%{transform:scale(0) rotate(-540deg);opacity:0;filter:brightness(2.2) hue-rotate(-90deg)}70%{transform:scale(1.15);opacity:1}100%{transform:none;filter:none}}
 /* v18.57 메모장 위 머리 간략 · 숨기기 (메모장 화면에서만) */
 #hdrCtl{display:none;gap:4px}body.memo-mode #hdrCtl{display:inline-flex}#hdrCtl .btn.sm{padding:4px 9px;font-size:12px}#hdrCtl .btn.on{background:var(--accent);color:#fff;border-color:var(--accent)}
 #hdrPull{display:none;position:fixed;top:0;left:50%;transform:translateX(-50%);z-index:30;border:1px solid var(--line);border-top:0;background:var(--card);color:var(--sub);font:inherit;font-size:12px;padding:2px 14px 4px;border-radius:0 0 10px 10px;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.08);opacity:.75}#hdrPull:hover{opacity:1;color:var(--accent-d)}
@@ -2812,7 +2825,7 @@ function recLabel(key, f) {
  * ===================================================================== */
 let root = null;
 /* 서버 모드: http(s):// 로 접속하면 server.py 의 REST API 사용 (폴더 선택 불필요). file:// 로 열면 폴더 모드 */
-const APP_VERSION = '2026-11-22.35';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
+const APP_VERSION = '2026-11-22.36';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
 const SERVER_URL = 'http://localhost:8080';
 // 부서원 PC 사본(file://)이 접속을 시도할 서버 — 서버가 배포 파일을 만들 때 'PC 이름 주소, IP 주소' 순으로 자동 기록함
 const DEFAULT_SERVERS = ['http://ASEUNGWOOK-B01:8080', 'http://65.3.30.234:8080'];
@@ -10095,14 +10108,30 @@ function mmCatMemo() {
 function mmCatLine() { const m = Math.random() < .5 ? mmCatMemo() : ''; return m || (Math.random() < .12 ? mmPick(MM_CAT_SAY) : mmCatCombo()); }
 function mmCatSay(t, jump) { const c = document.getElementById('mmCat'); if (!c || c.hidden || !t) return; const bb = c.querySelector('.bb'); bb.textContent = t;
   if (jump) { c.classList.remove('jump'); void c.offsetWidth; c.classList.add('jump'); } c.classList.add('say'); clearTimeout(mmCatSay.tm); mmCatSay.tm = setTimeout(() => c.classList.remove('jump', 'say'), Math.min(7000, 2600 + t.length * 90)); }
-window.__mmCat = { line:() => mmCatLine(), say:(t, j) => mmCatSay(t, j), loop:ms => mmCatLoop(ms), wx:() => mmCatWx() };   /* 시험 · 점검용 */
+/* v18.59 사용자 지시 "고양이는 랜덤 주기로 포털 만들고 사라졌다 나오게": 45~150초마다 — 포털 열림 → 빙글 빨려 들어감 → 포털 닫힘 → 2~6초 뒤 다른 자리에 포털 → 튀어나옴.
+   걷기 애니메이션의 delay(--cd)를 바꿔 다른 자리로 순간 이동. 움직임 줄이기 설정 · 쉬는 중 · 창 안 보일 때는 안 함 */
+function mmCatPortal() { const c = document.getElementById('mmCat'), H = document.documentElement;
+  if (!c || c.hidden || !c.offsetParent || route !== 'memo' || document.hidden || H.classList.contains('idle') || c.classList.contains('warp') || matchMedia('(prefers-reduced-motion: reduce)').matches) return false;
+  const hide = 2000 + Math.random() * 4000, at = (ms, f) => setTimeout(() => { if (document.getElementById('mmCat') === c) f(); }, ms);
+  c.classList.remove('say', 'jump'); c.classList.add('warp', 'pt-open'); try { mmSnd('warp'); } catch (_) {}
+  at(350, () => c.classList.add('out'));
+  at(950, () => c.classList.remove('pt-open'));
+  at(1300, () => { c.classList.add('gone'); c.classList.remove('out'); const x0 = c.getBoundingClientRect().x;
+    for (let i = 0; i < 8; i++) { c.style.setProperty('--cd', (-Math.random() * 22).toFixed(2) + 's'); if (Math.abs(c.getBoundingClientRect().x - x0) > 70) break; } });
+  at(1300 + hide, () => c.classList.add('pt-open'));
+  at(1650 + hide, () => { c.classList.remove('gone'); c.classList.add('in'); try { mmSnd('warpin'); } catch (_) {} });
+  at(2300 + hide, () => c.classList.remove('in', 'pt-open'));
+  at(2650 + hide, () => { c.classList.remove('warp'); if (Math.random() < .6) mmCatSay(mmPick(['짜잔! 포털 타고 왔다옹 🌀', '다른 차원 다녀왔다냥 ✨', '순간 이동 성공! ⚔', '여기가 더 좋다옹 🐾', mmCatName() ? mmCatName() + ' 님, 저 왔어요 🌀' : '저 왔어요 🌀', '포털 안은 메모가 가득하다옹 📜'])); });
+  return true; }
+function mmCatPortalLoop(ms) { clearTimeout(mmCatPortalLoop.tm); mmCatPortalLoop.tm = setTimeout(() => { mmCatPortal(); mmCatPortalLoop(45000 + Math.random() * 105000); }, ms); }
+window.__mmCat = { line:() => mmCatLine(), say:(t, j) => mmCatSay(t, j), loop:ms => mmCatLoop(ms), wx:() => mmCatWx(), portal:() => mmCatPortal() };   /* 시험 · 점검용 */
 function mmCatLoop(ms) { clearTimeout(mmCatLoop.tm); mmCatLoop.tm = setTimeout(() => { const c = document.getElementById('mmCat');
   if (c && !c.hidden && c.offsetParent && route === 'memo' && !document.hidden && !document.documentElement.classList.contains('idle')) mmCatSay(mmCatLine());
   mmCatLoop(40000 + Math.random() * 50000); }, ms); }
 const mmCatOn = () => { try { return localStorage.getItem('dept-memo-cat') !== '0'; } catch (_) { return true; } };
 function mmCatMount() { const w = document.getElementById('memoWrap'); if (!w) return; let c = document.getElementById('mmCat');
-  if (!c) { w.insertAdjacentHTML('beforeend', '<div id="mmCat" aria-hidden="true"><span class="bw"><span class="bb"></span></span><div class="bd"><img alt="" draggable="false" src="' + MM_CAT_IMG + '" title="고양이 기사 (보기 탭 🐱 로 끄기)"><span class="sw"><img alt="" draggable="false" src="' + MM_CAT_SW + '"><i class="sp"></i></span></div></div>'); c = document.getElementById('mmCat');
-    c.querySelector('.bd>img').addEventListener('click', () => { mmCatSay(mmCatLine(), true); try { mmSnd('pop'); } catch (_) {} }); mmCatLoop(8000 + Math.random() * 6000); }
+  if (!c) { w.insertAdjacentHTML('beforeend', '<div id="mmCat" aria-hidden="true"><span class="bw"><span class="bb"></span></span><span class="pt"><i></i></span><div class="bd"><img alt="" draggable="false" src="' + MM_CAT_IMG + '" title="고양이 기사 (보기 탭 🐱 로 끄기)"><span class="sw"><img alt="" draggable="false" src="' + MM_CAT_SW + '"><i class="sp"></i></span></div></div>'); c = document.getElementById('mmCat');
+    c.querySelector('.bd>img').addEventListener('click', () => { if (c.classList.contains('warp')) return; mmCatSay(mmCatLine(), true); try { mmSnd('pop'); } catch (_) {} }); mmCatLoop(8000 + Math.random() * 6000); mmCatPortalLoop(25000 + Math.random() * 35000); }
   c.hidden = !mmCatOn(); }
 const mmSndOn = () => { if (MMS.on == null) { try { MMS.on = localStorage.getItem('dept-memo-snd') !== '0'; } catch (_) { MMS.on = true; } } return MMS.on; };
 function mmSnd(k) { if (!mmSndOn() || route !== 'memo') return; const now = performance.now(); if (now - (MMS.last[k] || 0) < 60) return; MMS.last[k] = now;
@@ -10110,7 +10139,9 @@ function mmSnd(k) { if (!mmSndOn() || route !== 'memo') return; const now = perf
     const env = (v, at, g, d) => { v.gain.setValueAtTime(.0001, t + at); v.gain.exponentialRampToValueAtTime(g, t + at + .006); v.gain.exponentialRampToValueAtTime(.0001, t + at + d); };
     const tone = (f0, f1, d, g, type = 'sine', at = 0) => { const o = C.createOscillator(), v = C.createGain(); o.type = type; o.frequency.setValueAtTime(f0, t + at); o.frequency.exponentialRampToValueAtTime(f1, t + at + d); env(v, at, g, d); o.connect(v); v.connect(out); o.start(t + at); o.stop(t + at + d + .03); };
     const noise = (d, f0, f1, g, q = 1, at = 0) => { const n = Math.ceil(C.sampleRate * d), bf = C.createBuffer(1, n, C.sampleRate), a = bf.getChannelData(0); for (let i = 0; i < n; i++) a[i] = Math.random() * 2 - 1; const src = C.createBufferSource(); src.buffer = bf; const f = C.createBiquadFilter(); f.type = 'bandpass'; f.Q.value = q; f.frequency.setValueAtTime(f0, t + at); f.frequency.exponentialRampToValueAtTime(f1, t + at + d); const v = C.createGain(); env(v, at, g, d); src.connect(f); f.connect(v); v.connect(out); src.start(t + at); src.stop(t + at + d + .03); };
-    if (k === 'tap') noise(.022, 2800, 1900, .05, 2.2);                                       // 메뉴 · 단추: 아주 작은 딸깍
+    if (k === 'warp') { tone(260, 1500, .38, .028, 'sine'); tone(390, 2200, .38, .012, 'triangle', .04); noise(.32, 500, 3200, .018, .7); }   /* v18.59 고양이 포털 들어감 */
+    else if (k === 'warpin') { tone(1600, 300, .34, .026, 'sine'); noise(.26, 3000, 600, .016, .7); tone(880, 1320, .09, .02, 'sine', .3); }   /* 포털에서 나옴 */
+    else if (k === 'tap') noise(.022, 2800, 1900, .05, 2.2);                                       // 메뉴 · 단추: 아주 작은 딸깍
     else if (k === 'open') { noise(.15, 450, 2400, .03, .8); tone(740, 990, .08, .018, 'sine', .03); }   // 메모 열기: 살짝 스치는 소리
     else if (k === 'pop') { tone(380, 960, .085, .09); tone(960, 1250, .05, .025, 'triangle', .045); }  // 새 메모 · 붙이기: 뽁
     else if (k === 'trash') { for (let i = 0; i < 8; i++) noise(.03 + Math.random() * .035, 700 + Math.random() * 2800, 500 + Math.random() * 1400, .04 + Math.random() * .045, 1.4, i * .032 + Math.random() * .012); }   // 휴지통: 종이 구기는 소리
