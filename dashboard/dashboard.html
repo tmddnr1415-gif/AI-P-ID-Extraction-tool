@@ -2122,6 +2122,31 @@ body.mm-noanno #mmNotes > :not(.tb),body.mm-noanno #mmInk,body.mm-noanno #mmInkH
 .mm-pv{width:96vw;height:92vh}.mm-pv .mm-pdf{width:auto;height:auto;flex:1;min-height:0}.mm-pv .pvs{overflow:auto;background:#525659;padding:10px 0;position:relative}
 .mm-pv .pp{position:relative;margin:0 auto 12px;background:#fff;box-shadow:0 2px 12px rgba(0,0,0,.45)}.mm-pv .pp canvas{width:100%;height:100%;display:block}.mm-pv .pp>i{position:absolute;right:6px;bottom:-1px;font-size:10px;font-style:normal;color:#fff;background:rgba(0,0,0,.45);border-radius:6px 6px 0 0;padding:0 6px}
 .mm-pv .mm-inkbar{border-top:0}
+/* v18.56 양식 갤러리 (노션 템플릿 갤러리처럼: 왼쪽 갈래 · 가운데 목록 · 오른쪽 미리보기) */
+#mmTplG{position:fixed;inset:0;z-index:2000;background:rgba(15,15,20,.32);display:flex;align-items:center;justify-content:center;animation:mmtgIn .16s ease-out}
+@keyframes mmtgIn{from{opacity:0}to{opacity:1}}
+#mmTplG .tg-box{width:min(1080px,calc(100vw - 32px));height:min(720px,calc(100vh - 40px));background:#fff;color:#37352f;border-radius:14px;box-shadow:0 24px 60px rgba(0,0,0,.25),0 0 0 1px rgba(0,0,0,.06);display:flex;flex-direction:column;overflow:hidden}
+#mmTplG .tg-hd{display:flex;align-items:center;gap:10px;padding:12px 16px;border-bottom:1px solid rgba(55,53,47,.09)}#mmTplG .tg-hd b{font-size:15px}#mmTplG .tg-hd small{color:#787774;font-size:12px;flex:1}
+#mmTplG .tg-q{width:200px;border:0;border-radius:8px;background:rgba(118,118,128,.12);padding:7px 10px;font:inherit;font-size:13px;color:inherit}
+#mmTplG .tg-x{border:0;background:none;font-size:15px;cursor:pointer;color:#787774;width:28px;height:28px;border-radius:6px}#mmTplG .tg-x:hover{background:rgba(55,53,47,.08)}
+#mmTplG .tg-bd{flex:1;display:grid;grid-template-columns:150px 290px minmax(0,1fr);min-height:0}
+#mmTplG .tg-cat{padding:10px 8px;border-right:1px solid rgba(55,53,47,.09);background:#fbfbfa;overflow:auto}
+#mmTplG .tg-cat button{display:flex;width:100%;justify-content:space-between;align-items:center;border:0;background:none;padding:7px 10px;border-radius:6px;font:inherit;font-size:13px;color:#37352f;cursor:pointer;text-align:left}
+#mmTplG .tg-cat button small{color:#9b9a97;font-size:11px}#mmTplG .tg-cat button:hover{background:rgba(55,53,47,.06)}#mmTplG .tg-cat button.on{background:rgba(55,53,47,.09);font-weight:600}
+#mmTplG .tg-list{overflow:auto;padding:8px;border-right:1px solid rgba(55,53,47,.09)}
+#mmTplG .tg-list button{display:grid;grid-template-columns:34px 1fr;grid-template-rows:auto auto;column-gap:8px;width:100%;text-align:left;border:1px solid transparent;background:none;border-radius:8px;padding:8px 10px;font:inherit;color:#37352f;cursor:pointer;margin-bottom:2px;transition:background .12s}
+#mmTplG .tg-list .ic{grid-row:1/3;font-size:22px;line-height:34px;text-align:center;background:#f4f4f2;border-radius:8px;height:34px}
+#mmTplG .tg-list b{font-size:13px;font-weight:600}#mmTplG .tg-list small{font-size:11.5px;color:#787774;line-height:1.35}
+#mmTplG .tg-list button:hover{background:rgba(55,53,47,.05)}#mmTplG .tg-list button.on{background:rgba(35,131,226,.08);border-color:rgba(35,131,226,.35)}
+#mmTplG .tg-none{color:#787774;font-size:13px;padding:20px 10px;line-height:1.6}
+#mmTplG .tg-pv{display:flex;flex-direction:column;min-width:0;min-height:0;background:#fff}
+#mmTplG .tg-pvh{padding:14px 22px 6px;font-size:20px;font-weight:700}#mmTplG .tg-pvh small{font-size:11px;font-weight:500;color:#787774;background:rgba(55,53,47,.07);border-radius:4px;padding:2px 6px;vertical-align:middle;margin-left:6px}
+#mmTplG .tg-pvb{flex:1;overflow:auto;padding:6px 22px 20px;font-size:13.5px;line-height:1.6;pointer-events:none;user-select:none;zoom:.92}
+#mmTplG .tg-pvb th,#mmTplG .tg-pvb td{border:1px solid #e3e2df;padding:4px 8px}#mmTplG .tg-pvb th{background:#f7f7f5;font-weight:600}
+#mmTplG .tg-ft{display:flex;gap:8px;justify-content:flex-end;padding:10px 16px;border-top:1px solid rgba(55,53,47,.09)}
+#mmTplG .tg-ft button{border:1px solid rgba(55,53,47,.16);background:#fff;border-radius:8px;padding:7px 14px;font:inherit;font-size:13px;cursor:pointer;color:#37352f}#mmTplG .tg-ft button:hover{background:rgba(55,53,47,.05)}#mmTplG .tg-ft button:disabled{opacity:.45;cursor:default}
+#mmTplG .tg-ft .tg-go{background:#2383e2;border-color:#2383e2;color:#fff;font-weight:600}#mmTplG .tg-ft .tg-go:hover{background:#0077d4}#mmTplG .tg-ft .tg-del{margin-right:auto;color:#c4302b}
+@media (max-width:820px){#mmTplG .tg-bd{grid-template-columns:1fr;grid-template-rows:auto 1fr}#mmTplG .tg-cat{display:flex;overflow-x:auto;border-right:0;border-bottom:1px solid rgba(55,53,47,.09);padding:6px}#mmTplG .tg-cat button{width:auto;white-space:nowrap;gap:6px}#mmTplG .tg-pv{display:none}#mmTplG .tg-hd small{display:none}}
 /* v18.54 고양이 기사 — 메모장 오른쪽 아래를 왔다 갔다 (보기 탭 🐱 로 끄고 켬) */
 #mmCat{position:absolute;right:22px;bottom:30px;width:31px;height:48px;z-index:40;pointer-events:none;animation:mmcatw 22s linear infinite}
 #memoWrap>#mmCat{overflow:visible!important;background:none!important;border:0!important;border-radius:0!important;box-shadow:none!important;display:block;backdrop-filter:none!important;padding:0!important}
@@ -2778,7 +2803,7 @@ function recLabel(key, f) {
  * ===================================================================== */
 let root = null;
 /* 서버 모드: http(s):// 로 접속하면 server.py 의 REST API 사용 (폴더 선택 불필요). file:// 로 열면 폴더 모드 */
-const APP_VERSION = '2026-11-22.32';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
+const APP_VERSION = '2026-11-22.33';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
 const SERVER_URL = 'http://localhost:8080';
 // 부서원 PC 사본(file://)이 접속을 시도할 서버 — 서버가 배포 파일을 만들 때 'PC 이름 주소, IP 주소' 순으로 자동 기록함
 const DEFAULT_SERVERS = ['http://ASEUNGWOOK-B01:8080', 'http://65.3.30.234:8080'];
@@ -6397,13 +6422,66 @@ function mmColPal(isF) {
 const MM_SCOL = ['#fff2a8', '#ffd6e0', '#d3f3d8', '#d5e8ff', '#eadcff', '#ffe2c4'];
 const MM_ICONS = '📄 📝 📌 ⭐ 💡 ✅ 📅 📊 📎 🔧 🧪 📐 🛠 📞 ✈ 🏗 💰 📚 🎯 🔒 ❗ ❓ 🧾 🗂'.split(' ');
 const MM_PEN = ['#111827', '#dc2626', '#2563eb', '#16a34a', '#f59e0b', '#9333ea', '#ffffff'];
+/* v18.56 양식 — 노션 '노트 · 지식' 템플릿 갈래(회의록 · 코넬 노트 · 독서 노트 · 위키 · SOP · 의사결정 · 회고 · 저널 등)를 참고.
+   [이름, 아이콘, html 만드는 함수, 갈래, 한 줄 설명, 비서가 알아들을 말]. 앞 5개 순서는 그대로(비서 명령이 번호로 부름) */
+const mmTP = rows => `<table><tbody>${rows.map(([k, v]) => `<tr><th style="text-align:left;width:120px">${k}</th><td style="min-width:260px">${v || '<br>'}</td></tr>`).join('')}</tbody></table>`;
+const mmTC = (t, n = 1) => Array.from({ length:n }, (_, i) => `<div class="mm-chk" data-done="0">${i ? '<br>' : t || '<br>'}</div>`).join('');
+const mmTT = (h, rows = 2) => `<table><tbody><tr>${h.map(x => `<th>${x}</th>`).join('')}</tr>${Array.from({ length:rows }, () => `<tr>${h.map(() => '<td><br></td>').join('')}</tr>`).join('')}</tbody></table>`;
 const MM_TPL = [
-  ['회의록', '📅', d => `<h2>회의 개요</h2><div>일시: ${d}</div><div>참석: </div><div>안건: </div><h2>논의 내용</h2><ul><li><br></li></ul><h2>결정 사항</h2><ul><li><br></li></ul><h2>후속 조치</h2><div class="mm-chk" data-done="0">담당 · 기한 · 할 일</div>`],
-  ['오늘 할 일', '✅', d => `<h2>${d} 할 일</h2><div class="mm-chk" data-done="0"><br></div><div class="mm-chk" data-done="0"><br></div><div class="mm-chk" data-done="0"><br></div><h3>메모</h3><div><br></div>`],
-  ['주간 정리', '📊', () => `<h2>이번 주 한 일</h2><ul><li><br></li></ul><h2>막힌 점 · 이슈</h2><ul><li><br></li></ul><h2>다음 주 계획</h2><div class="mm-chk" data-done="0"><br></div>`],
-  ['검토 메모 (도면 · 문서)', '📐', () => `<table><tbody><tr><th>문서 번호</th><th>Rev.</th><th>검토 내용</th><th>조치</th></tr><tr><td><br></td><td><br></td><td><br></td><td><br></td></tr><tr><td><br></td><td><br></td><td><br></td><td><br></td></tr></tbody></table><div><br></div>`],
-  ['출장 준비', '✈', () => `<h2>준비물</h2><div class="mm-chk" data-done="0">여권 · 비자</div><div class="mm-chk" data-done="0">노트북 · 충전기</div><div class="mm-chk" data-done="0">출장용 오프라인 파일</div><h2>일정</h2><div><br></div><h2>연락처</h2><div><br></div>`],
+  ['회의록', '📅', d => `${mmTP([['일시', d], ['종류', '정기 · 수시 · 고객 · 벤더'], ['참석', ''], ['장소 · 회의실', ''], ['관련 PJT', '']])}<div class="mm-call">회의 목적 — 이 회의에서 정해야 할 것을 한 줄로</div><h2>안건</h2><ol><li><br></li></ol><h2>논의 내용</h2><ul><li><br></li></ul><h2>결정 사항</h2><ul><li><br></li></ul><h2>할 일 (Action Item)</h2>${mmTC('담당 · 기한 · 할 일', 2)}<details><summary>지난 회의 할 일 확인</summary><div><br></div></details>`, '회의', '노션 회의록처럼 속성 · 목적 · 안건 · 결정 · 할 일'],
+  ['오늘 할 일', '✅', d => `<h2>${d} 할 일</h2><div class="mm-chk" data-done="0"><br></div><div class="mm-chk" data-done="0"><br></div><div class="mm-chk" data-done="0"><br></div><h3>메모</h3><div><br></div>`, '개인', '체크 상자 할 일 + 메모'],
+  ['주간 정리', '📊', () => `<h2>이번 주 한 일</h2><ul><li><br></li></ul><h2>막힌 점 · 이슈</h2><ul><li><br></li></ul><h2>다음 주 계획</h2><div class="mm-chk" data-done="0"><br></div>`, '업무 · 계장', '한 일 · 이슈 · 다음 주 계획'],
+  ['검토 메모 (도면 · 문서)', '📐', () => `<table><tbody><tr><th>문서 번호</th><th>Rev.</th><th>검토 내용</th><th>조치</th></tr><tr><td><br></td><td><br></td><td><br></td><td><br></td></tr><tr><td><br></td><td><br></td><td><br></td><td><br></td></tr></tbody></table><div><br></div>`, '업무 · 계장', '문서 번호 · Rev. · 검토 내용 · 조치 표'],
+  ['출장 준비', '✈', () => `<h2>준비물</h2><div class="mm-chk" data-done="0">여권 · 비자</div><div class="mm-chk" data-done="0">노트북 · 충전기</div><div class="mm-chk" data-done="0">출장용 오프라인 파일</div><h2>일정</h2><div><br></div><h2>연락처</h2><div><br></div>`, '업무 · 계장', '준비물 체크 · 일정 · 연락처'],
+  ['코넬 노트', '📓', d => `${mmTP([['주제', ''], ['날짜', d], ['출처 · 과목', '']])}<div class="mm-cols"><div class="mm-col" style="flex:0 0 30%"><b>단서 · 질문</b><div>핵심 낱말</div><div>떠오른 질문</div></div><div class="mm-col"><b>노트</b><ul><li>들은 · 읽은 내용을 그대로 적기</li><li><br></li></ul></div></div><div class="mm-call">요약 — 다 적은 뒤 아래에 3~5줄로 정리 (나중에 단서만 보고 떠올려 보기)</div><div><br></div>`, '노트 · 학습', '왼쪽 단서 · 오른쪽 노트 · 아래 요약 (코넬 방식)', /코넬/],
+  ['독서 노트', '📚', d => `${mmTP([['책 제목', ''], ['지은이', ''], ['읽은 날', d], ['분야', ''], ['평점', '★★★★☆']])}<div class="mm-call">한 줄 요약 — 이 책을 한 문장으로</div><h2>인상 깊은 문장</h2><blockquote>문장 (쪽)</blockquote><h2>핵심 내용</h2><ul><li><br></li></ul><h2>내 생각</h2><div><br></div><h2>일에 적용할 점</h2>${mmTC('', 2)}`, '노트 · 학습', '책 정보 · 한 줄 요약 · 문장 · 내 생각 · 적용', /독서|책\s*(?:노트|정리)/],
+  ['강의 · 교육 노트', '🎓', d => `${mmTP([['과정', ''], ['강사', ''], ['일시', d], ['자료', '']])}<h2>학습 목표</h2>${mmTC('', 2)}<h2>핵심 개념</h2><details open><summary>개념 1</summary><div>설명 · 예시</div></details><details><summary>개념 2</summary><div><br></div></details><h2>질문</h2><ul><li><br></li></ul><div class="mm-call">오늘 배운 것 요약</div><div><br></div>`, '노트 · 학습', '학습 목표 · 개념(접는 글) · 질문 · 요약', /강의|교육\s*(?:노트|메모)|세미나/],
+  ['지식 카드 (영구 노트)', '🗂', () => `<div class="mm-call">핵심 생각 — 한 문장으로 (내 말로)</div><h2>설명</h2><div><br></div><h2>근거 · 출처</h2><ul><li><br></li></ul><h2>연결된 노트</h2><div>[[다른 메모 제목]] 을 적어 연결</div><h2>태그</h2><div>#</div>`, '노트 · 학습', '한 카드에 생각 하나 · 출처 · 연결 (제텔카스텐)', /지식\s*카드|영구\s*노트|제텔/],
+  ['위키 · 지식 문서', '📖', d => `<div class="mm-call">이 문서는 — 무엇을 · 누가 볼 문서인지 한 줄</div>${mmTP([['분류', ''], ['담당', ''], ['상태', '초안 · 검토 중 · 확정'], ['최종 수정', d]])}<h2>개요</h2><div><br></div><h2>상세 내용</h2><h3>1. </h3><div><br></div><h3>2. </h3><div><br></div><h2>자주 묻는 질문</h2><details><summary>질문</summary><div>답</div></details><h2>관련 문서</h2><ul><li><br></li></ul><h2>변경 이력</h2>${mmTT(['날짜', '바꾼 사람', '내용'], 1)}`, '지식 · 위키', '팀 위키처럼 개요 · 상세 · FAQ · 관련 문서 · 이력', /위키|지식\s*(?:문서|베이스)/],
+  ['업무 매뉴얼 (SOP)', '🧭', () => `${mmTP([['업무', ''], ['적용 범위', ''], ['담당 · 승인', ''], ['개정', 'Rev.0']])}<h2>목적</h2><div><br></div><h2>준비 · 필요 권한</h2>${mmTC('', 2)}<h2>절차</h2><ol><li>첫 단계</li><li><br></li></ol><div class="mm-call">주의 — 자주 틀리는 곳 · 되돌릴 수 없는 단계</div><h2>끝난 뒤 확인</h2>${mmTC('', 2)}`, '지식 · 위키', '목적 · 준비 · 절차 · 주의 · 확인 체크', /매뉴얼|SOP|절차서/i],
+  ['의사결정 기록', '⚖', d => `${mmTP([['결정할 것', ''], ['결정자', ''], ['기한', ''], ['상태', '검토 중 · 결정됨'], ['기록일', d]])}<h2>배경</h2><div><br></div><h2>선택지 비교</h2>${mmTT(['안', '장점', '단점', '비용 · 일정'], 2)}<h2>결정</h2><div class="mm-call">결정 내용과 이유</div><h2>후속 조치</h2>${mmTC('', 2)}`, '지식 · 위키', '배경 · 선택지 비교 표 · 결정 · 이유', /의사\s*결정|결정\s*기록/],
+  ['프로젝트 개요', '🏗', () => `${mmTP([['PJT', ''], ['고객 · 발주처', ''], ['기간', ''], ['PM · 담당', ''], ['상태', '준비 · 진행 · 완료']])}<h2>목표</h2><div><br></div><h2>범위</h2><div class="mm-cols"><div class="mm-col"><b>포함</b><ul><li><br></li></ul></div><div class="mm-col"><b>제외</b><ul><li><br></li></ul></div></div><h2>주요 일정</h2>${mmTT(['단계', '날짜', '산출물', '상태'], 3)}<div class="mm-call">위험 · 이슈 — 미리 알아 둘 것</div><h2>관련 문서 · 링크</h2><ul><li><br></li></ul>`, '업무 · 계장', '목표 · 범위(포함/제외) · 일정 표 · 위험', /프로젝트\s*(?:개요|브리프)|PJT\s*개요/i],
+  ['기술 질의 (TQ) 기록', '❓', d => `${mmTP([['PJT', ''], ['문서 번호', ''], ['Tag', ''], ['보낸 날', d], ['회신 기한', '']])}<h2>질의</h2>${mmTT(['No.', '질의 내용', '제안', '회신', '상태'], 3)}<h2>결론 · 반영할 곳</h2>${mmTC('', 2)}`, '업무 · 계장', '문서 · Tag · 질의/회신 표 · 반영 체크', /TQ|기술\s*질의/i],
+  ['벤더 회의 · FAT', '🔧', d => `${mmTP([['업체', ''], ['품목 · Tag', ''], ['일시 · 장소', d], ['참석', '']])}<h2>점검 항목</h2>${mmTC('외관 · 명판', 1)}${mmTC('기능 시험', 1)}${mmTC('서류 (성적서 · 도면)', 1)}<h2>펀치 리스트</h2>${mmTT(['No.', '내용', '담당', '기한', '완료'], 3)}<h2>다음 단계</h2><ul><li><br></li></ul>`, '업무 · 계장', '업체 · 품목 · 점검 체크 · 펀치 리스트', /FAT|벤더\s*(?:회의|미팅)|공장\s*검사/i],
+  ['업무 인수인계', '🤝', d => `${mmTP([['넘기는 사람', ''], ['받는 사람', ''], ['날짜', d]])}<h2>맡은 업무</h2>${mmTT(['업무', '주기', '파일 위치', '참고'], 3)}<h2>진행 중인 건</h2>${mmTC('', 2)}<h2>연락처</h2><ul><li><br></li></ul><div class="mm-call">꼭 알아야 할 것 — 주의 · 마감 · 비밀번호는 여기 적지 마세요</div><div><br></div>`, '업무 · 계장', '업무 표 · 진행 중 · 연락처 · 주의', /인수\s*인계/],
+  ['1:1 미팅', '💬', d => `${mmTP([['상대', ''], ['일시', d]])}<h2>지난번 할 일</h2>${mmTC('', 2)}<h2>이야기할 것</h2><ul><li><br></li></ul><h2>피드백</h2><div class="mm-cols"><div class="mm-col"><b>좋았던 점</b><div><br></div></div><div class="mm-col"><b>바꿀 점</b><div><br></div></div></div><h2>다음 할 일</h2>${mmTC('', 2)}`, '회의', '지난 할 일 · 주제 · 피드백 · 다음 할 일', /1\s*:\s*1|일대일|원온원/],
+  ['회고 (KPT)', '🔁', d => `${mmTP([['기간 · 대상', ''], ['날짜', d]])}<div class="mm-cols"><div class="mm-col"><b>👍 Keep — 계속할 것</b><ul><li><br></li></ul></div><div class="mm-col"><b>⚠ Problem — 문제</b><ul><li><br></li></ul></div><div class="mm-col"><b>🚀 Try — 해 볼 것</b><ul><li><br></li></ul></div></div><h2>할 일</h2>${mmTC('', 2)}`, '회의', 'Keep · Problem · Try 3단', /회고|KPT/i],
+  ['아이디어 노트', '💡', d => `<div class="mm-call">아이디어 — 한 줄로</div>${mmTP([['떠오른 날', d], ['상태', '생각 중 · 검토 · 진행 · 보류']])}<h2>문제 · 배경</h2><div><br></div><h2>생각한 것</h2><ul><li><br></li></ul><h2>좋은 점 · 걱정</h2><div class="mm-cols"><div class="mm-col"><b>좋은 점</b><div><br></div></div><div class="mm-col"><b>걱정</b><div><br></div></div></div><h2>다음 단계</h2>${mmTC('', 2)}`, '개인', '한 줄 아이디어 · 배경 · 장단점 · 다음 단계', /아이디어|브레인\s*스토밍/],
+  ['일일 저널', '🌤', d => `<h2>${d}</h2>${mmTP([['기분', '😀 😐 😞'], ['에너지', '높음 · 보통 · 낮음']])}<h2>감사한 일</h2><ol><li><br></li></ol><h2>오늘 한 일 · 배운 것</h2><ul><li><br></li></ul><h2>내일 할 일</h2>${mmTC('', 3)}`, '개인', '기분 · 감사 · 배운 것 · 내일 할 일', /저널|일기|다이어리/],
 ];
+/* 비서 명령: 앞 5개 말고 새 양식도 이름으로 찾음 */
+const mmTplFind = S => MM_TPL.findIndex(x => x[5] && x[5].test(S));
+/* 내 양식 (노션 '템플릿으로 저장' 처럼): 이 PC 에 기억, 최대 30개 */
+const mmMyTpl = () => { try { return JSON.parse(localStorage.getItem('dept-memo-mytpl') || '[]'); } catch (_) { return []; } };
+const mmMyTplPut = a => { try { localStorage.setItem('dept-memo-mytpl', JSON.stringify(a.slice(0, 30))); return true; } catch (_) { toast('내 양식을 저장할 자리가 모자랍니다 — 그림이 큰 메모는 양식으로 두기 어렵습니다', true); return false; } };
+function mmTplGallery() {
+  document.getElementById('mmTplG')?.remove(); const my = mmMyTpl(), CATS = ['전체', '회의', '노트 · 학습', '지식 · 위키', '업무 · 계장', '개인', '내 양식'];
+  const all = MM_TPL.map((x, i) => ({ k:'b' + i, name:x[0], icon:x[1], cat:x[3] || '업무 · 계장', desc:x[4] || '', html:x[2] })).concat(my.map((x, i) => ({ k:'m' + i, name:x.name, icon:x.icon || '🧩', cat:'내 양식', desc:x.desc || '내가 저장한 양식', html:() => x.html })));
+  const d0 = `${todayISO()} ${pad(new Date().getHours())}:${pad(new Date().getMinutes())}`, st = { cat:'전체', q:'', sel:all[0].k };
+  const w = document.createElement('div'); w.id = 'mmTplG'; w.innerHTML = `<div class="tg-box" role="dialog" aria-label="양식 갤러리"><div class="tg-hd"><b>🧩 양식 갤러리</b><small>노션 노트 · 지식 템플릿처럼 — 골라서 새 메모로</small><input class="tg-q" placeholder="양식 찾기" aria-label="양식 찾기"><button class="tg-x" aria-label="닫기" title="닫기 (Esc)">✕</button></div><div class="tg-bd"><nav class="tg-cat"></nav><div class="tg-list"></div><div class="tg-pv"><div class="tg-pvh"></div><div class="tg-pvb mm-ed"></div><div class="tg-ft"><button class="tg-del" hidden>🗑 이 양식 지우기</button><button class="tg-save" title="지금 열린 메모를 내 양식으로 저장">💾 지금 메모를 내 양식으로</button><button class="tg-go">이 양식으로 새 메모</button></div></div></div></div>`;
+  document.body.appendChild(w); const $w = q => w.querySelector(q), close = () => { w.remove(); document.removeEventListener('keydown', onKey, true); };
+  const shown = () => all.filter(t => (st.q || st.cat === '전체' || t.cat === st.cat) && (!st.q || (t.name + ' ' + t.desc + ' ' + t.cat).toLowerCase().includes(st.q.toLowerCase())));
+  const draw = () => {
+    $w('.tg-cat').innerHTML = CATS.map(c => `<button data-c="${c}" class="${c === st.cat ? 'on' : ''}">${c}<small>${c === '전체' ? all.length : all.filter(t => t.cat === c).length}</small></button>`).join('');
+    const L = shown(); if (!L.some(t => t.k === st.sel) && L[0]) st.sel = L[0].k;
+    $w('.tg-list').innerHTML = L.length ? L.map(t => `<button data-k="${t.k}" class="${t.k === st.sel ? 'on' : ''}"><span class="ic">${esc(t.icon)}</span><b>${esc(t.name)}</b><small>${esc(t.desc)}</small></button>`).join('') : `<div class="tg-none">${st.cat === '내 양식' ? '아직 없습니다 — 메모를 열고 [💾 지금 메모를 내 양식으로] 를 누르세요' : '맞는 양식이 없습니다'}</div>`;
+    const t = all.find(x => x.k === st.sel && L.includes(x)); $w('.tg-pvh').innerHTML = t ? `<span>${esc(t.icon)}</span> ${esc(t.name)} <small>${esc(t.cat)}</small>` : '';
+    $w('.tg-pvb').innerHTML = t ? mmClean(t.html(d0)) : ''; $w('.tg-go').disabled = !t; $w('.tg-del').hidden = !(t && t.k[0] === 'm'); $w('.tg-save').disabled = !MM.cur || MM.cur.kind !== 'page';
+  };
+  const go = () => { const t = all.find(x => x.k === st.sel); if (!t) return; close(); try { mmSnd('pop'); } catch (_) {} mmNew('page', [t.name, t.icon, t.html]); };
+  const onKey = e => { if (e.key === 'Escape') { e.stopPropagation(); e.preventDefault(); close(); } else if (e.key === 'Enter' && !e.isComposing && !e.target.closest?.('.tg-ft, .tg-x, .tg-cat')) { e.preventDefault(); go(); }
+    else if (e.key === 'ArrowDown' || e.key === 'ArrowUp') { e.preventDefault(); const L = shown(), i = L.findIndex(t => t.k === st.sel), n = L[Math.max(0, Math.min(L.length - 1, i + (e.key === 'ArrowDown' ? 1 : -1)))]; if (n) { st.sel = n.k; draw(); $w('.tg-list .on')?.scrollIntoView({ block:'nearest' }); } } };
+  document.addEventListener('keydown', onKey, true);
+  w.addEventListener('click', async e => { const t = e.target; if (t === w || t.closest('.tg-x')) return close();
+    const c = t.closest('[data-c]'); if (c) { st.cat = c.dataset.c; return draw(); }
+    const k = t.closest('[data-k]'); if (k) { st.sel = k.dataset.k; draw(); if (e.detail === 2) go(); return; }
+    if (t.closest('.tg-go')) return go();
+    if (t.closest('.tg-del')) { const i = +st.sel.slice(1), a = mmMyTpl(); a.splice(i, 1); if (mmMyTplPut(a)) { toast('내 양식을 지웠습니다'); mmTplGallery(); } return; }
+    if (t.closest('.tg-save')) { const pg = MM.cur; if (!pg || pg.kind !== 'page') return; await mmFlush(); const html = mmClean($('#mmEd')?.innerHTML || pg.html || ''); if (html.length > 400000) return toast('메모가 너무 커서 양식으로 둘 수 없습니다 (그림을 빼고 다시)', true);
+      const nm = (pg.title || '내 양식').replace(/\s*\d{4}-\d{2}-\d{2}\s*$/, '').slice(0, 40), a = mmMyTpl().filter(x => x.name !== nm); a.unshift({ name:nm, icon:pg.icon || '🧩', html, desc:'내가 저장한 양식 · ' + todayISO() });
+      if (mmMyTplPut(a)) { toast('💾 내 양식에 저장: ' + nm); close(); mmTplGallery(); const g = document.getElementById('mmTplG'); g?.querySelector('[data-c="내 양식"]')?.click(); } } });
+  $w('.tg-q').addEventListener('input', e => { st.q = e.target.value.trim(); draw(); }); draw(); requestAnimationFrame(() => $w('.tg-q').focus());
+}
 /* 2026-11-19 v17.70 메모 배경(종이 무늬): 메모마다 고름 · [기본으로] 하면 새 메모에 적용 */
 const MM_BG = [['', '흰 종이'], ['lined', '줄 노트'], ['wide', '넓은 줄 노트'], ['grid', '모눈종이'], ['bgrid', '큰 모눈종이'], ['dot', '점 격자'], ['legal', '노란 리갈 패드'], ['cream', '크림색 종이'], ['green', '초록 모눈 (방안지)'], ['blue', '청사진 (도면)'], ['cornell', '코넬 노트 (왼쪽 여백 줄)']];
 const mmBgDef = () => { try { return localStorage.getItem('dept-memo-bg') || ''; } catch (_) { return ''; } };
@@ -9332,7 +9410,7 @@ function mmSumSlots(S) {
     return { intent:'summary', scope, q:/^(?:이|그|저)?$/.test(nmq) ? '' : nmq };
 }
 function mmNewSlots(S, nw = /(?!)/) {
-    const tpl = /회의록|회의\s*양식|미팅\s*노트/.test(S) ? 0 : /오늘\s*할\s*일\s*(?:양식|템플릿|메모|페이지)/.test(S) ? 1 : /주간\s*(?:정리|보고|리뷰)/.test(S) ? 2 : /검토\s*(?:메모|양식)|도면\s*검토|문서\s*검토/.test(S) ? 3 : /출장\s*(?:준비|체크)/.test(S) ? 4 : -1;
+    const tpl = /회의록|회의\s*양식|미팅\s*노트/.test(S) ? 0 : /오늘\s*할\s*일\s*(?:양식|템플릿|메모|페이지)/.test(S) ? 1 : /주간\s*(?:정리|보고|리뷰)/.test(S) ? 2 : /검토\s*(?:메모|양식)|도면\s*검토|문서\s*검토/.test(S) ? 3 : /출장\s*(?:준비|체크)/.test(S) ? 4 : mmTplFind(S);
     const tm = /(?:titled|called|named)\s+["'“‘]?(.+?)["'”’]?\s*[.!]?$/i.exec(S) || /(?:페이지|메모|노트|page|note)\s*(?:추가|만들기)?\s*[:：\-—]\s*(?:이름\s*)?(.+)$/i.exec(S) || /이름\s*(?:은|을|:)?\s*["'“‘]?(.+?)["'”’]?\s*$/.exec(S) || /^(.+?)\s*(?:이라는|라는|으로|로)\s*제목/.exec(S) || /제목\s*(?:은|을|이|:|：)?\s*["'“‘「]?(.+?)["'”’」]?\s*(?:으로|로|인|이라는|라는)?\s*(?:메모|페이지|노트|하나|만들|생성|작성|열어|$)/.exec(S) || /["'“‘「](.+?)["'”’」]\s*(?:이라는|라는|으로|로)?/.exec(S) || /^(.+?)\s*(?:이라는|라는)\s*(?:메모|페이지|노트)/.exec(S);
     let title = tm ? tm[1].trim().replace(/^(?:새|빈)\s+/, '') : mmTgt(S.replace(nw, ' ').replace(/(?:양식|템플릿|서식)\s*(?:으로|로)?/g, ' ').replace(/(?:^|\s)(?:새|새로|좀|하나|한\s*장|빈|메모|페이지|노트|문서|줘|주세요)(?=\s|$)/g, ' '));
     title = title.replace(/\s*(?:템플릿|양식|서식|하나|띄워|열어|작성할게|작성해\S*|만들게|만들래|추가할게|추가해\S*|새로)\s*|(?<![A-Za-z])(?:new|note|page|memo|a|create|make|open|add|please)(?![A-Za-z])/gi, ' ').replace(/\s+/g, ' ').trim(); if (tpl >= 0 && !tm && /^(?:회의록|오늘\s*할\s*일|주간\s*정리|검토\s*메모|출장\s*준비)?$/.test(title)) title = '';
@@ -9785,9 +9863,9 @@ function mmAutoTask(nb) {   // 메모에서 Enter: 바로 위 줄이 '날짜 · 
 document.addEventListener('click', async e => {
   const w = e.target.closest('#memoWrap'); if (!w) return; const t = e.target, D = s => t.closest(`[${s}]`);
   let b;
-  if (t.closest('#mmNew')) return mmPop(t.closest('#mmNew'), `<button data-v="page"><span>📄</span>빈 메모</button><button data-v="sticky"><span>🗒</span>스티커</button><button data-v="pdfm"><span>📕</span>PDF 메모<small>PDF 열어 형광펜 · 메모 · 도장 · 재기 (PDF-XChange 처럼)</small></button>${MM_TPL.map((x, i) => `<button data-v="t${i}"><span>${x[1]}</span>${esc(x[0])}<small>양식</small></button>`).join('')}<button data-v="imp"><span>📥</span>파일에서 가져오기<small>워드 · 엑셀 · PPT · 한글(hwpx) · CSV · txt · md · html</small></button><div class="mm-poph">메모장 전체 (백업 · 옮기기)</div><button data-v="bkout"><span>📦</span>메모장 전체 내보내기<small>메모 · 스티커 · 섹션 · 첨부 → json 한 파일</small></button><button data-v="bkin"><span>♻</span>백업 파일 가져오기<small>대시보드 메모장 ↔ 메모장.exe</small></button>`,
-    v => v === 'page' ? mmNew() : v === 'sticky' ? mmStickyNew() : v === 'pdfm' ? mmPdfMemoNew() : v === 'imp' ? mmPickImport() : v === 'bkout' ? mmBackupOut() : v === 'bkin' ? mmBackupIn() : mmNew('page', MM_TPL[+v.slice(1)]));
-  if ((b = D('data-mnew'))) { const k = b.dataset.mnew; if (k === 'pdfm') return mmPdfMemoNew(); return k === 'sticky' ? mmStickyNew(b.dataset.col) : k === 'tpl' ? mmPop(b, MM_TPL.map((x, i) => `<button data-v="${i}"><span>${x[1]}</span>${esc(x[0])}</button>`).join(''), v => mmNew('page', MM_TPL[+v])) : mmNew(); }
+  if (t.closest('#mmNew')) return mmPop(t.closest('#mmNew'), `<button data-v="page"><span>📄</span>빈 메모</button><button data-v="sticky"><span>🗒</span>스티커</button><button data-v="pdfm"><span>📕</span>PDF 메모<small>PDF 열어 형광펜 · 메모 · 도장 · 재기 (PDF-XChange 처럼)</small></button>${MM_TPL.slice(0, 2).map((x, i) => `<button data-v="t${i}"><span>${x[1]}</span>${esc(x[0])}<small>양식</small></button>`).join('')}<button data-v="gal"><span>🧩</span>양식 갤러리<small>${MM_TPL.length + mmMyTpl().length}개 — 회의록 · 코넬 노트 · 위키 · SOP · 회고 · 저널 · 내 양식</small></button><button data-v="imp"><span>📥</span>파일에서 가져오기<small>워드 · 엑셀 · PPT · 한글(hwpx) · CSV · txt · md · html</small></button><div class="mm-poph">메모장 전체 (백업 · 옮기기)</div><button data-v="bkout"><span>📦</span>메모장 전체 내보내기<small>메모 · 스티커 · 섹션 · 첨부 → json 한 파일</small></button><button data-v="bkin"><span>♻</span>백업 파일 가져오기<small>대시보드 메모장 ↔ 메모장.exe</small></button>`,
+    v => v === 'page' ? mmNew() : v === 'sticky' ? mmStickyNew() : v === 'pdfm' ? mmPdfMemoNew() : v === 'imp' ? mmPickImport() : v === 'bkout' ? mmBackupOut() : v === 'bkin' ? mmBackupIn() : v === 'gal' ? mmTplGallery() : mmNew('page', MM_TPL[+v.slice(1)]));
+  if ((b = D('data-mnew'))) { const k = b.dataset.mnew; if (k === 'pdfm') return mmPdfMemoNew(); return k === 'sticky' ? mmStickyNew(b.dataset.col) : k === 'tpl' ? mmTplGallery() : mmNew(); }
   if ((b = D('data-msm'))) { e.stopPropagation(); const s = mmSecs().find(x => x.id === b.dataset.msm); if (!s) return;
     return mmPop(b, `<button data-v="ren"><span>✏</span>이름 바꾸기</button>${MM_COL.slice(1).map(c => `<button data-v="c${c}"><span style="width:14px;height:14px;border-radius:50%;background:${c}"></span>이 색으로</button>`).join('')}<button data-v="del"><span>🗑</span>섹션 지우기 (메모는 남음)</button>`, async v => {
       if (v === 'ren') { const n = await mmAskText('섹션 이름', '이름', s.name); if (!n) return; s.name = n; } else if (v === 'del') { MM.book.secs = mmSecs().filter(x => x.id !== s.id); if (MM.sec === s.id) MM.sec = ''; } else s.color = v.slice(1);
