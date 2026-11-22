@@ -961,6 +961,19 @@
    },
    "replaces": "3_DASHBOARD_update_v18.38_from_v18.30_2026-11-22.zip",
    "note": "v18.41 (기준 v18.30) — Ctrl+5 붉은 취소선 · 기한 칩 끝냄 · 칸 손잡이 · 화면만"
+  },
+  {
+   "file": "①",
+   "name": "5_DASHBOARD_update_v18.44_from_v18.30_2026-11-22.zip",
+   "made": "2026-11-22 12:40",
+   "path": "company-pc-update/2026-11-22/ (2.1MB · 저장소에 있음)",
+   "sha256": "1404e9f9320b53505373bc099a8f11ef33251511e07e40da0f7a54a8bfc3ac1c",
+   "applied": "",
+   "tips": {
+    "S1": "1bd3b3fb"
+   },
+   "replaces": "4_DASHBOARD_update_v18.41_from_v18.30_2026-11-22.zip",
+   "note": "v18.44 (기준 v18.30) — 화면 압축 · ETag · 보안 헤더 · UX 고침 (server.py → 재시작)"
   }
  ]
 }

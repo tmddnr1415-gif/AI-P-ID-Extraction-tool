@@ -8564,6 +8564,94 @@
      ]
     }
    }
+  },
+  {
+   "at": "2026-11-22 03:35",
+   "read_at": "2026-11-13T07:12:00Z",
+   "s": {
+    "S1": {
+     "branch": "origin/ccr-248a5c4d-3dji7g",
+     "tip": "1bd3b3fb",
+     "ver": "v18.44 · 회사엔 v18.30",
+     "bucket": "COMPLETED",
+     "needs": "회사: 메모장.exe 실행 · 보안 프로그램 차단 여부 확인",
+     "recent": "v18.44 1bd3b3fb — 화면 압축 · ETag · 보안 헤더 · UX. 11-22 ⑤ 로 회사 업데이트 (회사 v18.30 기준)",
+     "pending": []
+    },
+    "S2": {
+     "branch": "origin/claude/gracious-ride-26nqrf",
+     "tip": "cd59d77a",
+     "ver": "hotfix146 만듦 (통합)",
+     "bucket": "COMPLETED",
+     "needs": "",
+     "recent": "cd59d77a — 심볼 준비 캐시 · LOGIC 도면 칸 안내. hotfix146 로 회사 업데이트에 실림",
+     "pending": []
+    },
+    "S3": {
+     "branch": "origin/ccr-cc45909d-fjjmrb",
+     "tip": "4e9cfd24",
+     "ver": "L91",
+     "bucket": "COMPLETED",
+     "needs": "사용자: 3 세션 창에서 L92 진행 승인 필요 (지시는 받음 · python-docx 누락 확인됨)",
+     "recent": "L91 커밋 · 푸시 — 화면 시험 125 · 빠른 시험 1,655 통과. 통합 꾸러미에 병합 필요",
+     "pending": []
+    },
+    "S4": {
+     "branch": "origin/ccr-d82d97fa-bb3ty3",
+     "tip": "7b10d7cb",
+     "ver": "변경 이력 (55)",
+     "bucket": "BLOCKED",
+     "needs": "11-19 지시: 멈춘 질문 답(zip 은 오케스트레이터) · panel.md 인수인계 · DXF/phase 시험 · 3D HTML 크기 안내 → 끝나면 보고",
+     "recent": "",
+     "pending": []
+    },
+    "S5": {
+     "branch": "origin/claude/new-session-v23o67",
+     "tip": "f5f94b2c",
+     "ver": "2026-11-19.1",
+     "bucket": "COMPLETED",
+     "needs": "",
+     "recent": "f5f94b2c — 도서검토 2026-11-19.1 (외부 번역 기본 꺼짐 · 외국어 용어). hotfix146 로 회사 업데이트에 실림",
+     "pending": []
+    },
+    "S6": {
+     "branch": "origin/ccr-efbe7e75-n915ze",
+     "tip": "29474575",
+     "ver": "valve42",
+     "bucket": "COMPLETED",
+     "needs": "사용자: hotfix147 만들지 결정 · 회사에서 Spec PDF 올리기",
+     "recent": "29474575 valve42 — Valve Spec(On/Off · MOV · CV) 올리면 조항 근거 Spec Compliance 코멘트. pytest 2,106 · 2,935/0. 회사 미전달 — 사용자 요청 시 hotfix147",
+     "pending": [
+      "29474575"
+     ]
+    },
+    "S7": {
+     "branch": "origin/claude/practical-newton-n6bt58",
+     "tip": "865f9297",
+     "ver": "865f9297",
+     "bucket": "COMPLETED",
+     "needs": "11-19 지시: 회사판 빌드(API 키 · LLM · Claude 도면 읽기 빼기) · LLM 없는 GA 치수 입력 · ic3d.md 인수인계 → 끝나면 보고",
+     "recent": "865f9297 — 좁은 폭에서도 3D 칸 · 휠 축소 한계. hotfix135 로 회사 업데이트에 처음 실림",
+     "pending": [
+      "865f9297",
+      "cb4f4972",
+      "af748c78",
+      "da8df461",
+      "c0dd7d0b",
+      "077cba5e",
+      "144e6604",
+      "8b0b1023",
+      "19d7aa3a",
+      "1fd96028",
+      "b99fb62a",
+      "ad3bbe35",
+      "05909503",
+      "963d2857",
+      "f408556e",
+      "64a829be"
+     ]
+    }
+   }
   }
  ],
  "changes": [
@@ -13254,6 +13342,52 @@
    "kind": "report",
    "sig": "세션 기록",
    "text": "세션 보고 — v18.41 849ce011 — Ctrl+5 붉은 취소선 · 기한 칩 · 칸 손잡이. 11-22 ④ 로 회사 업데이트 (회사 v18.30 기준)"
+  },
+  {
+   "at": "2026-11-22 03:35",
+   "prev": "2026-11-22 02:45",
+   "sid": "S1",
+   "kind": "commit",
+   "sig": "git",
+   "h": "1bd3b3fb",
+   "d": "2026-11-22",
+   "text": "dashboard v18.44: restore dark PDF list buttons, fix wrapped label on home notice card"
+  },
+  {
+   "at": "2026-11-22 03:35",
+   "prev": "2026-11-22 02:45",
+   "sid": "S1",
+   "kind": "commit",
+   "sig": "git",
+   "h": "d68470d0",
+   "d": "2026-11-22",
+   "text": "dashboard v18.43: UX audit fixes (text contrast, tap target sizes, button tooltips)"
+  },
+  {
+   "at": "2026-11-22 03:35",
+   "prev": "2026-11-22 02:45",
+   "sid": "S1",
+   "kind": "commit",
+   "sig": "git",
+   "h": "309a7029",
+   "d": "2026-11-22",
+   "text": "dashboard v18.42: gzip + ETag for the page, gzip JSON, security headers, handler timeout, lighter local memo store, idle animation pause"
+  },
+  {
+   "at": "2026-11-22 03:35",
+   "prev": "2026-11-22 02:45",
+   "sid": "S1",
+   "kind": "version",
+   "sig": "git",
+   "text": "버전 v18.41 · 회사엔 v18.30 → v18.44 · 회사엔 v18.30"
+  },
+  {
+   "at": "2026-11-22 03:35",
+   "prev": "2026-11-22 02:45",
+   "sid": "S1",
+   "kind": "report",
+   "sig": "세션 기록",
+   "text": "세션 보고 — v18.44 1bd3b3fb — 화면 압축 · ETag · 보안 헤더 · UX. 11-22 ⑤ 로 회사 업데이트 (회사 v18.30 기준)"
   }
  ]
 }
