@@ -2506,7 +2506,7 @@ html:is(.dark,:not(.dark)) #memoWrap.mac :is(.mm-pt button,.mm-lh .row .btn){col
 #memoWrap .mm-zc button{min-height:20px;min-width:20px}#memoWrap .ch>button{min-height:22px}   /* 글꼴 줄 높이가 낮아져 작아진 단추 */
 body.mm-mac .mm-pop,body.mm-mac .mm-toast{font-family:"Pretendard Variable",-apple-system,BlinkMacSystemFont,"SF Pro Text","Apple SD Gothic Neo","Segoe UI Variable Text","Segoe UI","Malgun Gothic",sans-serif}
 /* v18.50 목록 끌어 놓기 부드럽게: 놓을 자리 표시가 부드럽게 바뀜 · '하위로' 는 살짝 오른쪽으로 들어가며 '↳ 하위로' · 끌리는 카드는 흐려짐 */
-#memoWrap .mm-card{transition:background .15s var(--mac-ease,ease),box-shadow .16s var(--mac-ease,ease),transform .16s var(--mac-ease,ease),opacity .16s}
+#memoWrap .mm-card{transition:background .12s var(--mac-ease,ease),transform .16s var(--mac-ease,ease),opacity .16s}   /* 그림자는 전환하지 않음(매 장면 다시 그려 무거움) */
 #memoWrap .mm-card.dragging{opacity:.32;transform:scale(.97)}
 #memoWrap .mm-card.dr-b{box-shadow:0 -3px 0 0 var(--accent,#3b82f6)!important}#memoWrap .mm-card.dr-a{box-shadow:0 3px 0 0 var(--accent,#3b82f6)!important}
 #memoWrap .mm-card.dr-in{transform:translateX(10px);outline:2px solid rgba(255,190,0,.9)!important;outline-offset:-2px;background:rgba(255,204,0,.16)!important}
@@ -2514,6 +2514,24 @@ body.mm-mac .mm-pop,body.mm-mac .mm-toast{font-family:"Pretendard Variable",-app
 @keyframes mmDrIn{from{opacity:0;transform:translate(6px,-50%)}to{opacity:1;transform:translateY(-50%)}}
 .mm-dragghost{position:fixed;top:-200px;left:-400px;max-width:260px;padding:7px 14px 7px 12px;border-radius:10px;background:rgba(255,255,255,.96);color:#1d1d1f;font:600 13px/18px "Pretendard Variable",-apple-system,"Segoe UI","Malgun Gothic",sans-serif;box-shadow:0 10px 28px rgba(0,0,0,.22),0 0 0 .5px rgba(0,0,0,.12);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;border-left:4px solid #ffcc00}
 @media (prefers-reduced-motion:reduce){#memoWrap .mm-card{transition:none}#memoWrap .mm-card.dr-in{transform:none}}
+/* 2026-11-22 v18.51 사용자 지시 "메모장도 조금 3D 입체감" (참고 영상은 이 환경에서 열리지 않아 macOS 식 깊이 표현으로): 높이별 겹 그림자 · 위에서 오는 빛(윗면 밝은 선) · 누르면 들어감 · 카드 떠오름/기울기 · 3D 로 펼쳐지는 열기 · 메뉴 */
+html:is(.dark,:not(.dark)) #memoWrap.mac{box-shadow:0 1px 1px rgba(0,0,0,.04),0 4px 10px rgba(0,0,0,.06),0 18px 44px rgba(0,0,0,.14),0 0 0 .5px rgba(0,0,0,.08)!important}
+html:is(.dark,:not(.dark)) #memoWrap.mac>.mm-side{box-shadow:inset 0 1px 0 rgba(255,255,255,.85),0 1px 2px rgba(0,0,0,.06),0 8px 22px rgba(0,0,0,.10)!important}
+html:is(.dark,:not(.dark)) #memoWrap.mac .mm-list{will-change:transform}   /* 가볍게: 목록이 다시 그려져도 창 그림자 · 사이드바 블러는 다시 안 그림 */
+html:is(.dark,:not(.dark)) #memoWrap.mac .mm-card:hover:not(.dragging):not(.on){box-shadow:0 2px 8px rgba(0,0,0,.09)!important;background:#fff!important}
+html:is(.dark,:not(.dark)) #memoWrap.mac .mm-card.on{box-shadow:inset 0 1px 0 rgba(255,255,255,.55),0 1px 2px rgba(120,90,0,.18),0 6px 18px rgba(160,120,0,.22)!important}
+html:is(.dark,:not(.dark)) #memoWrap.mac .mm-list:not(:focus-within) .mm-card.on{box-shadow:inset 0 1px 0 rgba(255,255,255,.5),0 1px 2px rgba(0,0,0,.08)!important}
+html:is(.dark,:not(.dark)) #memoWrap.mac .mm-card.tilt{transition:transform .12s ease-out,background .12s;will-change:transform}
+html:is(.dark,:not(.dark)) #memoWrap.mac :is(.mm-meta .tg,.mm-zb,.mm-lh .row .btn,.mm-pt button){background:linear-gradient(#fff,#f6f6f8)!important;box-shadow:inset 0 1px 0 #fff,0 .5px 1px rgba(0,0,0,.14),0 1px 3px rgba(0,0,0,.06)!important}
+html:is(.dark,:not(.dark)) #memoWrap.mac :is(.mm-meta .tg,.mm-zb,.mm-lh .row .btn,.mm-pt button,.mm-tb button):active{transform:translateY(.5px) scale(.97);box-shadow:inset 0 1px 3px rgba(0,0,0,.18)!important;background:#ececef!important}
+html:is(.dark,:not(.dark)) #memoWrap.mac .mm-rtabs button.on{box-shadow:inset 0 1px 0 #fff,0 1px 2px rgba(0,0,0,.16),0 2px 6px rgba(0,0,0,.08)!important}
+html:is(.dark,:not(.dark)) #memoWrap.mac .mm-nav.on{box-shadow:inset 0 1px 2px rgba(0,0,0,.12),inset 0 -1px 0 rgba(255,255,255,.6)!important}
+html:is(.dark,:not(.dark)) #memoWrap.mac .mm-ed .mm-chk::before{box-shadow:inset 0 1px 1px rgba(0,0,0,.08)}
+#memoWrap.mac .fx-open .mm-ph,#memoWrap.mac .fx-open .mm-edw,#memoWrap.mac .fx-open #mmEdw,#memoWrap.mac .fx-open .pm{animation:mmMac3d .42s cubic-bezier(.2,.85,.25,1.04)!important;transform-origin:50% 0}
+@keyframes mmMac3d{0%{opacity:0;transform:perspective(1200px) rotateX(9deg) translateY(14px) scale(.985)}60%{opacity:1}100%{opacity:1;transform:none}}
+body.mm-mac .mm-pop{animation:mmPop3d .2s cubic-bezier(.2,.9,.3,1.15)!important;transform-origin:top left;box-shadow:0 0 0 .5px rgba(0,0,0,.12),0 4px 10px rgba(0,0,0,.08),0 18px 40px rgba(0,0,0,.18)!important}
+@keyframes mmPop3d{from{opacity:0;transform:perspective(800px) rotateX(-10deg) translateY(-4px) scale(.96)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion:reduce){#memoWrap.mac .fx-open :is(.mm-ph,.mm-edw,#mmEdw,.pm),body.mm-mac .mm-pop{animation:none!important}html:is(.dark,:not(.dark)) #memoWrap.mac .mm-card:hover{transform:none}}
 /* 작은 글씨 · 확인 표시 · 지운 링크 */
 #mmEdw.sm .mm-ed{font-size:13px}#mmEdw.pp.sm{font-size:calc(13px*var(--z))}
 .mm-verb{border:0;font-size:11.5px;font-weight:600;border-radius:10px;padding:1px 8px;margin-right:10px;cursor:pointer;font-style:normal;white-space:nowrap}.mm-verb.ok{color:#448361;background:rgba(68,131,97,.12)}.mm-verb.exp{color:#d9730d;background:rgba(217,115,13,.12)}
@@ -2722,7 +2740,7 @@ function recLabel(key, f) {
  * ===================================================================== */
 let root = null;
 /* 서버 모드: http(s):// 로 접속하면 server.py 의 REST API 사용 (폴더 선택 불필요). file:// 로 열면 폴더 모드 */
-const APP_VERSION = '2026-11-22.27';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
+const APP_VERSION = '2026-11-22.28';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
 const SERVER_URL = 'http://localhost:8080';
 // 부서원 PC 사본(file://)이 접속을 시도할 서버 — 서버가 배포 파일을 만들 때 'PC 이름 주소, IP 주소' 순으로 자동 기록함
 const DEFAULT_SERVERS = ['http://ASEUNGWOOK-B01:8080', 'http://65.3.30.234:8080'];
@@ -10004,6 +10022,12 @@ function mmIcoUndo() { document.querySelectorAll('[data-ico]').forEach(sp => { s
   const watch = () => { const w = $('#memoWrap'); if (!w || seen.has(w)) return; seen.add(w); const mo = new MutationObserver(soon); ['#mmSide', '#mmList', '#mmMain'].forEach(s => { const e = w.querySelector(s); if (e) mo.observe(e, { childList:true }); }); const sd = w.querySelector('#mmSide'); if (sd) mo.observe(sd, { childList:true, subtree:true }); const ls = w.querySelector('#mmList'); if (ls) mo.observe(ls, { childList:true }); const mn = w.querySelector('#mmMain'); if (mn) mo.observe(mn, { childList:true }); soon(); };
   new MutationObserver(ms => { for (const m of ms) for (const n of m.addedNodes) if (n.nodeType === 1 && (n.classList?.contains('mm-pop') || n.id === 'memoWrap' || n.querySelector?.('#memoWrap'))) { watch(); soon(); return; } }).observe(document.body, { childList:true });   // 팝업은 body 바로 밑에 붙음(가볍게: 하위까지 보지 않음)
   { const o = mmUi; mmUi = function () { const r = o.apply(this, arguments); watch(); soon(); return r; }; } })();
+/* v18.51 목록 카드 3D 기울기: 마우스가 올라간 카드 한 장만, 마우스 쪽으로 최대 3°. 가볍게: 카드 위치는 들어갈 때 한 번만 재고, 1초에 25번까지만 바꾸고 사이는 전환(0.12초)이 채움. 끄는 중 · 칸 너비 바꾸는 중 · 움직임 줄이기 · 터치면 없음 */
+(() => { let cur = null, rect = null, last = 0, t = 0, ev = null; const off = () => { if (cur) { cur.style.transform = ''; cur.classList.remove('tilt'); cur = null; rect = null; } };
+  const run = () => { t = 0; last = performance.now(); const e = ev; if (!e || !mmMac() || document.body.classList.contains('mm-rzd') || matchMedia('(prefers-reduced-motion: reduce)').matches) return off(); const c = e.target.closest?.('#mmList .mm-card:not(.dragging)'); if (c !== cur) { off(); if (!c || document.querySelector('#mmList .dragging')) return; cur = c; rect = c.getBoundingClientRect(); c.classList.add('tilt'); }
+    if (!cur) return; const x = (e.clientX - rect.left) / rect.width - .5, y = (e.clientY - rect.top) / rect.height - .5; cur.style.transform = `perspective(700px) translateY(-1px) rotateX(${(-y * 4).toFixed(1)}deg) rotateY(${(x * 3).toFixed(1)}deg)`; };
+  addEventListener('pointermove', e => { if (route !== 'memo' || e.pointerType === 'touch') return; ev = e; if (!t) t = setTimeout(run, Math.max(0, 40 - (performance.now() - last))); }, { passive:true });
+  addEventListener('pointerdown', off, true); addEventListener('dragstart', off, true); addEventListener('wheel', off, { passive:true, capture:true }); document.addEventListener('mouseleave', off); })();
 addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden' && MM.cur && MM.dirty) mmSave(); });
 addEventListener('beforeunload', () => { if (MM.cur && MM.dirty) mmSave(); });
 
