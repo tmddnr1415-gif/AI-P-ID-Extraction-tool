@@ -2465,7 +2465,7 @@ html:is(.dark,:not(.dark)) #memoWrap.mac .mm-lb.sc{-webkit-mask-image:linear-gra
 #memoWrap.mac .mm-ed .mm-chk.fx-chk::before{animation:mmMacChk .36s cubic-bezier(.34,1.56,.64,1)}#memoWrap.mac.fx-zoom{animation:mmMacZoom .28s cubic-bezier(.2,.8,.2,1)}
 #memoWrap.mac button:active:not(.mm-card){transform:scale(.95)}
 @media (prefers-reduced-motion:reduce){#memoWrap.mac *{animation:none!important}}
-body.mm-rzc,body.mm-rzc *{cursor:col-resize!important}body.mm-rzd{user-select:none}#mmRzl{position:fixed;width:3px;margin-left:-1px;border-radius:3px;background:var(--accent,#3b82f6);opacity:.75;z-index:9000;pointer-events:none;display:none}#mmRzl.on{display:block}
+body.mm-rzc,body.mm-rzc *{cursor:col-resize!important}#memoWrap{position:relative}.mm-grip{position:absolute;width:11px;margin-left:-2px;z-index:6;cursor:col-resize;display:flex;align-items:center;justify-content:center;touch-action:none}.mm-grip::before{content:'';position:absolute;top:0;bottom:0;left:1px;width:2px;border-radius:2px;background:transparent;transition:background .15s}.mm-grip:hover::before,body.mm-rzd .mm-grip::before{background:var(--accent,#3b82f6)}.mm-grip i{position:relative;width:6px;height:34px;border-radius:4px;background:rgba(120,120,128,.35);box-shadow:0 0 0 1px rgba(255,255,255,.6);font-style:normal;transition:background .15s,height .15s}.mm-grip:hover i,body.mm-rzd .mm-grip i{background:var(--accent,#3b82f6);height:46px}body.mm-rzd{user-select:none}#mmRzl{position:fixed;width:3px;margin-left:-1px;border-radius:3px;background:var(--accent,#3b82f6);opacity:.75;z-index:9000;pointer-events:none;display:none}#mmRzl.on{display:block}
 .mm-ed span.mm-dl[data-done="1"],.mm-notes span.mm-dl[data-done="1"]{background:#dcfce7!important;color:#15803d!important;border-color:#86efac!important}
 /* 작은 글씨 · 확인 표시 · 지운 링크 */
 #mmEdw.sm .mm-ed{font-size:13px}#mmEdw.pp.sm{font-size:calc(13px*var(--z))}
@@ -2675,7 +2675,7 @@ function recLabel(key, f) {
  * ===================================================================== */
 let root = null;
 /* 서버 모드: http(s):// 로 접속하면 server.py 의 REST API 사용 (폴더 선택 불필요). file:// 로 열면 폴더 모드 */
-const APP_VERSION = '2026-11-22.17';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
+const APP_VERSION = '2026-11-22.18';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
 const SERVER_URL = 'http://localhost:8080';
 // 부서원 PC 사본(file://)이 접속을 시도할 서버 — 서버가 배포 파일을 만들 때 'PC 이름 주소, IP 주소' 순으로 자동 기록함
 const DEFAULT_SERVERS = ['http://ASEUNGWOOK-B01:8080', 'http://65.3.30.234:8080'];
@@ -9834,21 +9834,21 @@ document.addEventListener('scroll', e => { const t = e.target; if (t?.classList?
 document.addEventListener('click', e => { if (route !== 'memo') return; const z = e.target.closest?.('[data-mx="zen"], [data-mx="wide"]'); if (z) { mmSnd('zen'); setTimeout(() => mmFx($('#memoWrap'), 'fx-zoom', 320), 0); } }, true);
 /* 2026-11-22 v18.38 사용자 지시: "각 메뉴 크기를 마우스로 조절할 수 있게" — 칸 경계를 끌어 너비 바꾸기 (마우스 · 손가락), 두 번 누르면 처음 너비.
    메모장: 왼쪽 메뉴(150~440) · 메모 목록(180~600) — '간략' · '숨기기' 가 아닐 때. PDF 메모: 쪽 그림(70~320) · 주석 목록(180~520). 이 PC 에 기억 */
-const MM_RZ = [{ k:'side', sel:'#side', min:180, max:420, def:240, g:1, ok:() => innerWidth > 900 && !document.body.classList.contains('rail') && !document.body.classList.contains('nav-closed') && !/wm-split/.test(document.body.className) },   // v18.40 대시보드 왼쪽 MENU
-  { k:'sw', sel:'#memoWrap > .mm-side', min:150, max:440, def:210, ok:() => MM_UI.side === 'full' }, { k:'lw', sel:'#memoWrap > .mm-list', min:180, max:600, def:270, ok:() => MM_UI.list === 'full' },
+const MM_RZ = [{ k:'sw', sel:'#memoWrap > .mm-side', min:150, max:440, def:210, ok:() => MM_UI.side === 'full' }, { k:'lw', sel:'#memoWrap > .mm-list', min:180, max:600, def:270, ok:() => MM_UI.list === 'full' },
   { k:'pth', sel:'.pm-body:not(.noth) > .pm-th', min:70, max:320, def:118, pm:1 }, { k:'pcl', sel:'.pm-body:not(.nocl) > .pm-cl', min:180, max:520, def:270, pm:1, left:1 }];
-try { const w = +localStorage.getItem('dept-side-w'); if (w >= 180 && w <= 420) document.documentElement.style.setProperty('--side-w', w + 'px'); } catch (_) {}   // v18.40 대시보드 MENU 너비 기억
+try { localStorage.removeItem('dept-side-w'); } catch (_) {}   // v18.41 대시보드 MENU 너비 조절은 되돌림 (v18.40 에 저장된 값 지움)
 (() => { let dr = null, raf = 0, hit = null; const line = () => { let l = $('#mmRzl'); if (!l) { l = document.createElement('div'); l.id = 'mmRzl'; document.body.appendChild(l); } return l; };
-  const find = e => { const tol = e.pointerType === 'touch' ? 14 : 6; for (const R of MM_RZ) { if (!R.g && route !== 'memo') continue; if (R.ok && !R.ok()) continue; const el = document.querySelector(R.sel); if (!el || !el.offsetWidth) continue; const r = el.getBoundingClientRect(); if (e.clientY < r.top || e.clientY > r.bottom) continue;
+  const find = e => { if (route !== 'memo') return null; const tol = e.pointerType === 'touch' ? 16 : 9; for (const R of MM_RZ) { if (R.ok && !R.ok()) continue; const el = document.querySelector(R.sel); if (!el || !el.offsetWidth) continue; const r = el.getBoundingClientRect(); if (e.clientY < r.top || e.clientY > r.bottom) continue;
       const ed = R.left ? r.left : r.right, d = (e.clientX - ed) * (R.left ? -1 : 1); if (d >= -2 && d <= tol) return { R, el, r, ed }; } return null; };   // 칸 안쪽은 2px 만 (스크롤바는 그대로 쓰게)
   const show = h => { const l = line(); document.body.classList.toggle('mm-rzc', !!h); if (!h) return l.classList.remove('on'); Object.assign(l.style, { left:h.ed + 'px', top:h.r.top + 'px', height:h.r.height + 'px' }); l.classList.add('on'); };
-  const apply = (R, w) => { if (R.g) { document.documentElement.style.setProperty('--side-w', w + 'px'); return; } if (R.pm) { $('.pm-body')?.style.setProperty('--' + R.k, w + 'px'); } else { MM_UI[R.k] = w; mmUi(); } };
-  const save = R => { try { if (R.g) { const v = parseInt(document.documentElement.style.getPropertyValue('--side-w')) || R.def; if (v === R.def) localStorage.removeItem('dept-side-w'); else localStorage.setItem('dept-side-w', v); return; } if (R.pm) { const o = JSON.parse(localStorage.getItem('dept-pm-w') || '{}'); o[R.k] = parseInt(getComputedStyle($('.pm-body')).getPropertyValue('--' + R.k)) || R.def; localStorage.setItem('dept-pm-w', JSON.stringify(o)); } else localStorage.setItem('dept-memo-ui', JSON.stringify(MM_UI)); } catch (_) {} };
+  const apply = (R, w) => { if (R.pm) { $('.pm-body')?.style.setProperty('--' + R.k, w + 'px'); } else { MM_UI[R.k] = w; mmUi(); } };
+  const save = R => { try { if (R.pm) { const o = JSON.parse(localStorage.getItem('dept-pm-w') || '{}'); o[R.k] = parseInt(getComputedStyle($('.pm-body')).getPropertyValue('--' + R.k)) || R.def; localStorage.setItem('dept-pm-w', JSON.stringify(o)); } else localStorage.setItem('dept-memo-ui', JSON.stringify(MM_UI)); } catch (_) {} };
   addEventListener('pointermove', e => { if (dr) { const w = Math.round(Math.max(dr.R.min, Math.min(dr.R.max, dr.w0 + (e.clientX - dr.x0) * (dr.R.left ? -1 : 1)))); if (w !== dr.w) { dr.w = w; apply(dr.R, w); } const h = find(e) || dr.h; if (h) { h.ed = dr.R.left ? dr.el.getBoundingClientRect().left : dr.el.getBoundingClientRect().right; show(h); } return; }
     if (e.buttons || raf) return; raf = requestAnimationFrame(() => { raf = 0; const h = find(e); if (h || document.body.classList.contains('mm-rzc')) show(h); hit = h; }); }, true);
   addEventListener('pointerdown', e => { if (e.button) return; const h = find(e); if (!h) return; e.preventDefault(); e.stopPropagation(); dr = { R:h.R, el:h.el, h, x0:e.clientX, w0:Math.round(h.r.width + (h.R.k === 'sw' && $('#memoWrap.mac') ? 7 : 0)), w:0 }; document.body.classList.add('mm-rzd'); show(h); }, true);
   addEventListener('pointerup', e => { if (!dr) return; const R = dr.R; dr = null; document.body.classList.remove('mm-rzd'); save(R); show(find(e)); if (R.pm && typeof pmZoom === 'function' && PM.pages?.length) pmZoom(pmFitW()); }, true);
   addEventListener('dblclick', e => { const h = find(e); if (!h) return; e.preventDefault(); e.stopPropagation(); apply(h.R, h.R.def); save(h.R); toast('칸 너비를 처음대로'); if (h.R.pm && PM.pages?.length) pmZoom(pmFitW()); }, true);
+  addEventListener('pointermove', () => { if (dr) mmGrips(); }, true);
   addEventListener('blur', () => { dr = null; document.body.classList.remove('mm-rzd', 'mm-rzc'); $('#mmRzl')?.classList.remove('on'); });
 })();
 /* 2026-11-22 v18.39 사용자 지시: "Ctrl+5 누르면 취소선이 되고 붉은색 글씨로" — 메모 글을 고르고 Ctrl+5 (또는 Alt+Shift+5) = 취소선 + 붉은 글씨, 다시 누르면 둘 다 풀림.
@@ -9863,6 +9863,15 @@ function mmStrikeRed() { const ed = mmEd(), g = getSelection(); if (!ed || !g.ra
 document.addEventListener('keydown', e => { if (!((e.ctrlKey || e.metaKey) && !e.shiftKey && !e.altKey) && !(e.altKey && e.shiftKey && !e.ctrlKey)) return; if (e.code !== 'Digit5' && e.code !== 'Numpad5' && e.key !== '5' && e.key !== '%') return;
   if (route !== 'memo' || !e.target.closest?.('#mmEd')) return; e.preventDefault(); e.stopPropagation(); mmStrikeRed(); }, true);
 { const o = mmOpen; mmOpen = async function () { const r = await o.apply(this, arguments); mmEd()?.querySelectorAll('span.mm-dl').forEach(y => mmDlText(y)); return r; }; }   // 예전 기한 조각도 ☐ 표시로
+/* v18.41 사용자 지시: "메모장에서의 왼쪽 2개 메뉴" 크기 조절 — 경계가 안 보여 찾기 어려웠음 → 왼쪽 메뉴 · 메모 목록 오른쪽 경계에 늘 보이는 손잡이(⋮ 막대). 끌면 너비, 두 번 누르면 처음 */
+function mmGrips() { const w = $('#memoWrap'); if (!w) return; const W = w.getBoundingClientRect();
+  [['sw', '.mm-side', () => MM_UI.side === 'full'], ['lw', '.mm-list', () => MM_UI.list === 'full']].forEach(([k, sel, ok]) => { let g = w.querySelector(`:scope > .mm-grip[data-k="${k}"]`); const el = w.querySelector(':scope > ' + sel);
+    if (!el || !el.offsetWidth || !ok() || w.classList.contains('board')) { if (g) g.style.display = 'none'; return; }
+    if (!g) { g = document.createElement('div'); g.className = 'mm-grip'; g.dataset.k = k; g.title = '끌어서 너비 바꾸기 · 두 번 누르면 처음 너비'; g.innerHTML = '<i></i>'; w.appendChild(g); }
+    const r = el.getBoundingClientRect(); Object.assign(g.style, { display:'flex', left:(r.right - W.left) + 'px', top:(r.top - W.top) + 'px', height:r.height + 'px' }); }); }
+{ const o = mmUi; mmUi = function () { const r = o.apply(this, arguments); requestAnimationFrame(mmGrips); return r; }; }
+addEventListener('resize', () => requestAnimationFrame(mmGrips));
+new MutationObserver(() => { if (route === 'memo') requestAnimationFrame(mmGrips); }).observe(document.body, { childList:true, subtree:false });
 addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden' && MM.cur && MM.dirty) mmSave(); });
 addEventListener('beforeunload', () => { if (MM.cur && MM.dirty) mmSave(); });
 
