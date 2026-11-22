@@ -974,6 +974,19 @@
    },
    "replaces": "4_DASHBOARD_update_v18.41_from_v18.30_2026-11-22.zip",
    "note": "v18.44 (기준 v18.30) — 화면 압축 · ETag · 보안 헤더 · UX 고침 (server.py → 재시작)"
+  },
+  {
+   "file": "①",
+   "name": "6_DASHBOARD_update_v18.60_from_v18.30_2026-11-22.zip",
+   "made": "2026-11-23 08:30",
+   "path": "company-pc-update/2026-11-22/ (5.2MB · 저장소에 있음)",
+   "sha256": "21afa95caab0f9371de8982b0b8e92bc6de8d01de4c008349eea0e02fe9528d6",
+   "applied": "",
+   "tips": {
+    "S1": "ba083498"
+   },
+   "replaces": "5_DASHBOARD_update_v18.44_from_v18.30_2026-11-22.zip",
+   "note": "v18.60 (기준 v18.30) — Pretendard 글꼴 · 따로 창 실시간 연동 · 양식 갤러리 · 고양이 기사 (server.py → 재시작)"
   }
  ]
 }
