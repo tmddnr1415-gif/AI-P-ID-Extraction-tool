@@ -2825,7 +2825,7 @@ function recLabel(key, f) {
  * ===================================================================== */
 let root = null;
 /* 서버 모드: http(s):// 로 접속하면 server.py 의 REST API 사용 (폴더 선택 불필요). file:// 로 열면 폴더 모드 */
-const APP_VERSION = '2026-11-22.38';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
+const APP_VERSION = '2026-11-22.39';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
 const SERVER_URL = 'http://localhost:8080';
 // 부서원 PC 사본(file://)이 접속을 시도할 서버 — 서버가 배포 파일을 만들 때 'PC 이름 주소, IP 주소' 순으로 자동 기록함
 const DEFAULT_SERVERS = ['http://ASEUNGWOOK-B01:8080', 'http://65.3.30.234:8080'];
@@ -10107,6 +10107,9 @@ function mmCatMemo() {
 }
 function mmCatLine() { const m = Math.random() < .5 ? mmCatMemo() : ''; return m || (Math.random() < .12 ? mmPick(MM_CAT_SAY) : mmCatCombo()); }
 function mmCatSay(t, jump) { const c = document.getElementById('mmCat'); if (!c || c.hidden || !t) return; const bb = c.querySelector('.bb'); bb.textContent = t;
+  { const m = c.parentElement?.getBoundingClientRect(), r = c.getBoundingClientRect(), bw = c.querySelector('.bw'); if (m && m.width) { const L = r.right - m.left, R = m.right - r.left;   /* v18.60 본문 칸 밖으로 잘리지 않게: 왼쪽 자리가 넉넉하면 왼쪽으로, 아니면 오른쪽으로 */
+    if (L >= 170 || L >= R) { bw.style.justifyContent = 'flex-end'; bb.style.maxWidth = Math.max(110, Math.min(240, L - 60)) + 'px'; } else { bw.style.justifyContent = 'flex-start'; bb.style.maxWidth = Math.max(110, Math.min(240, R - 30)) + 'px'; }
+    bb.style.left = '0px'; bb.style.position = 'relative'; const q = bb.getBoundingClientRect(), dx = q.left < m.left + 4 ? m.left + 4 - q.left : q.right > m.right - 4 ? m.right - 4 - q.right : 0; bb.style.left = Math.round(dx) + 'px'; } }
   if (jump) { c.classList.remove('jump'); void c.offsetWidth; c.classList.add('jump'); } c.classList.add('say'); clearTimeout(mmCatSay.tm); mmCatSay.tm = setTimeout(() => c.classList.remove('jump', 'say'), Math.min(7000, 2600 + t.length * 90)); }
 /* v18.59 사용자 지시 "고양이는 랜덤 주기로 포털 만들고 사라졌다 나오게": 45~150초마다 — 포털 열림 → 빙글 빨려 들어감 → 포털 닫힘 → 2~6초 뒤 다른 자리에 포털 → 튀어나옴.
    걷기 애니메이션의 delay(--cd)를 바꿔 다른 자리로 순간 이동. 움직임 줄이기 설정 · 쉬는 중 · 창 안 보일 때는 안 함 */
