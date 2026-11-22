@@ -2180,7 +2180,7 @@ body.memo-mode.hdr-mini #memoWrap{height:calc(100vh - 64px)}body.memo-mode.hdr-h
 #mmCat .bb{flex:none;width:max-content;max-width:240px;white-space:normal;line-height:1.4;text-align:left;margin-right:-6px;background:#fff;color:#37352f;border:1px solid rgba(55,53,47,.18);border-radius:10px;padding:3px 9px;font-size:12px;box-shadow:0 2px 8px rgba(0,0,0,.12);opacity:0;transform:translateY(4px);transition:opacity .2s,transform .2s;pointer-events:none}
 #mmCat.say .bb{opacity:1;transform:none}
 #mmCat.jump .bd{animation:mmcatj .55s cubic-bezier(.3,.7,.4,1)}
-@keyframes mmcatw{0%,6%{transform:translateX(0) scaleX(1)}44%,50%{transform:translateX(-210px) scaleX(1)}52%,56%{transform:translateX(-210px) scaleX(-1)}94%,98%{transform:translateX(0) scaleX(-1)}100%{transform:translateX(0) scaleX(1)}}
+@keyframes mmcatw{0%,6%{transform:translateX(0) scaleX(1)}44%,50%{transform:translateX(calc(var(--cw,210px) * -1)) scaleX(1)}52%,56%{transform:translateX(calc(var(--cw,210px) * -1)) scaleX(-1)}94%,98%{transform:translateX(0) scaleX(-1)}100%{transform:translateX(0) scaleX(1)}}
 @keyframes mmcatx{0%,12%{transform:rotate(0)}30%{transform:rotate(32deg)}42%{transform:rotate(-88deg)}55%{transform:rotate(-80deg)}75%,100%{transform:rotate(0)}}
 @keyframes mmcatb{0%{transform:translateY(0)}100%{transform:translateY(-1px)}}
 @keyframes mmcats{0%,45%,57%,100%{opacity:0;transform:scale(.4)}47%,53%{opacity:1;transform:scale(1.2) rotate(45deg)}50%{opacity:.6;transform:scale(.8)}}
@@ -2825,7 +2825,7 @@ function recLabel(key, f) {
  * ===================================================================== */
 let root = null;
 /* 서버 모드: http(s):// 로 접속하면 server.py 의 REST API 사용 (폴더 선택 불필요). file:// 로 열면 폴더 모드 */
-const APP_VERSION = '2026-11-22.37';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
+const APP_VERSION = '2026-11-22.38';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
 const SERVER_URL = 'http://localhost:8080';
 // 부서원 PC 사본(file://)이 접속을 시도할 서버 — 서버가 배포 파일을 만들 때 'PC 이름 주소, IP 주소' 순으로 자동 기록함
 const DEFAULT_SERVERS = ['http://ASEUNGWOOK-B01:8080', 'http://65.3.30.234:8080'];
@@ -10129,10 +10129,15 @@ function mmCatLoop(ms) { clearTimeout(mmCatLoop.tm); mmCatLoop.tm = setTimeout((
   if (c && !c.hidden && c.offsetParent && route === 'memo' && !document.hidden && !document.documentElement.classList.contains('idle')) mmCatSay(mmCatLine());
   mmCatLoop(40000 + Math.random() * 50000); }, ms); }
 const mmCatOn = () => { try { return localStorage.getItem('dept-memo-cat') !== '0'; } catch (_) { return true; } };
-function mmCatMount() { const w = document.getElementById('memoWrap'); if (!w) return; let c = document.getElementById('mmCat');
-  if (!c) { w.insertAdjacentHTML('beforeend', '<div id="mmCat" aria-hidden="true"><span class="bw"><span class="bb"></span></span><span class="pt"><i></i></span><div class="bd"><img alt="" draggable="false" src="' + MM_CAT_IMG + '" title="고양이 기사 (보기 탭 🐱 로 끄기)"><span class="sw"><img alt="" draggable="false" src="' + MM_CAT_SW + '"><i class="sp"></i></span></div></div>'); c = document.getElementById('mmCat');
+/* v18.60 사용자 지시 "고양이는 메모장 밑에서만": 메모 본문 칸(#mmMain) 안, 메모가 열려 있을 때(#mmEd)만 보임 · 걷는 폭은 본문 칸 너비 안으로.
+   메모를 열 때마다 #mmMain 내용이 바뀌므로 #mmMain 의 바로 아래 자식만 지켜보다가(가벼움) 다시 붙임 — 고양이 요소 · 타이머는 그대로 */
+function mmCatMount() { const w = document.getElementById('memoWrap'); if (!w) return; const m = document.getElementById('mmMain'); let c = document.getElementById('mmCat') || mmCatMount.el;
+  if (!c) { const t = document.createElement('div'); t.innerHTML = '<div id="mmCat" aria-hidden="true"><span class="bw"><span class="bb"></span></span><span class="pt"><i></i></span><div class="bd"><img alt="" draggable="false" src="' + MM_CAT_IMG + '" title="고양이 기사 (보기 탭 🐱 로 끄기)"><span class="sw"><img alt="" draggable="false" src="' + MM_CAT_SW + '"><i class="sp"></i></span></div></div>'; c = mmCatMount.el = t.firstElementChild;
     c.querySelector('.bd>img').addEventListener('click', () => { if (c.classList.contains('warp')) return; mmCatSay(mmCatLine(), true); try { mmSnd('pop'); } catch (_) {} }); mmCatLoop(8000 + Math.random() * 6000); mmCatPortalLoop(25000 + Math.random() * 35000); }
-  c.hidden = !mmCatOn(); }
+  if (m && c.parentElement !== m) m.appendChild(c);
+  c.hidden = !mmCatOn() || !m || !m.querySelector('#mmEd');
+  if (m && mmCatMount.on !== m) { mmCatMount.on = m; (mmCatMount.mo ||= new MutationObserver(() => mmCatMount())).disconnect(); mmCatMount.mo.observe(m, { childList:true });
+    if (window.ResizeObserver) { (mmCatMount.ro ||= new ResizeObserver(es => { const W = es[0]?.contentRect.width || 0, el = mmCatMount.el; if (el) el.style.setProperty('--cw', Math.max(0, Math.min(210, Math.round(W - 31 - 22 - 60))) + 'px'); })).disconnect(); mmCatMount.ro.observe(m); } } }
 const mmSndOn = () => { if (MMS.on == null) { try { MMS.on = localStorage.getItem('dept-memo-snd') !== '0'; } catch (_) { MMS.on = true; } } return MMS.on; };
 function mmSnd(k) { if (!mmSndOn() || route !== 'memo') return; const now = performance.now(); if (now - (MMS.last[k] || 0) < 60) return; MMS.last[k] = now;
   try { const AC = window.AudioContext || window.webkitAudioContext; if (!AC) return; const C = MMS.ctx || (MMS.ctx = new AC()); if (C.state === 'suspended') C.resume(); const t = C.currentTime + .005, out = C.createGain(); out.gain.value = .55; out.connect(C.destination);
