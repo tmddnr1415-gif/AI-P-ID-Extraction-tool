@@ -2470,9 +2470,10 @@ body.mm-rzc,body.mm-rzc *{cursor:col-resize!important}#memoWrap{position:relativ
 /* v18.42 가볍게: 45초 동안 입력이 없으면 꾸밈 움직임(마스코트 · 공 · 왕관 · 지도 점 등)을 멈춤 — 화면을 켜 둔 채 두는 PC 의 CPU 절약. 알람 · 경고 깜박임은 그대로 */
 html.idle :is(#deptBot,#taskbar,.oc-av,.tm-ball,.org-top,.cd,.bdcake,.mk),html.idle :is(#deptBot,#taskbar,.oc-av,.tm-ball,.org-top,.cd,.bdcake,.mk) *{animation-play-state:paused!important}
 /* v18.43 UI 점검(192 조합 자동 점검)으로 고친 것: 흐린 회색 글씨 대비 4.5:1 이상 · 작은 누름 대상 20px 이상 */
-#memoWrap .cdot{width:20px!important;height:20px!important;min-width:20px}.pm-cols button{width:20px!important;min-width:20px!important;height:20px!important}.pm-ci .h button{min-width:26px;min-height:24px;font-size:12.5px;border-radius:6px;color:var(--sub)}.pm-ci .h button:hover{background:rgba(120,120,128,.16);color:var(--text)}
+#memoWrap .cdot{width:20px!important;height:20px!important;min-width:20px}.pm-cols button{width:20px!important;min-width:20px!important;height:20px!important}.pm-ci .h button{min-width:26px;min-height:24px;font-size:12.5px;border-radius:6px;color:var(--text)}.pm-ci .h button:hover{background:rgba(120,120,128,.16);color:var(--text)}
 #memoWrap .mm-fsz button{min-width:18px!important;width:18px!important}.mm-zc b{padding:4px 6px;border-radius:6px}.mm-zc b:hover{background:rgba(120,120,128,.14)}.pj{padding:3px 0;min-height:20px}
 #memoWrap .mm-card em u{color:#565d70}html:is(.dark,:not(.dark)) #memoWrap.mac .mm-card em u{color:#55555a;background:rgba(118,118,128,.14)}html:is(.dark,:not(.dark)) #memoWrap.mac .mm-card.on em u{color:#1d1d1f;background:rgba(0,0,0,.1)}
+.nhint{flex-wrap:wrap;row-gap:2px}.nhint>*{flex:none;white-space:nowrap}   /* v18.44 홈 전달사항 안내의 '최신' 이 한 글자씩 꺾이던 것 */
 /* 작은 글씨 · 확인 표시 · 지운 링크 */
 #mmEdw.sm .mm-ed{font-size:13px}#mmEdw.pp.sm{font-size:calc(13px*var(--z))}
 .mm-verb{border:0;font-size:11.5px;font-weight:600;border-radius:10px;padding:1px 8px;margin-right:10px;cursor:pointer;font-style:normal;white-space:nowrap}.mm-verb.ok{color:#448361;background:rgba(68,131,97,.12)}.mm-verb.exp{color:#d9730d;background:rgba(217,115,13,.12)}
@@ -2681,7 +2682,7 @@ function recLabel(key, f) {
  * ===================================================================== */
 let root = null;
 /* 서버 모드: http(s):// 로 접속하면 server.py 의 REST API 사용 (폴더 선택 불필요). file:// 로 열면 폴더 모드 */
-const APP_VERSION = '2026-11-22.20';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
+const APP_VERSION = '2026-11-22.21';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
 const SERVER_URL = 'http://localhost:8080';
 // 부서원 PC 사본(file://)이 접속을 시도할 서버 — 서버가 배포 파일을 만들 때 'PC 이름 주소, IP 주소' 순으로 자동 기록함
 const DEFAULT_SERVERS = ['http://ASEUNGWOOK-B01:8080', 'http://65.3.30.234:8080'];
