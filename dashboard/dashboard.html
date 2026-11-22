@@ -2122,6 +2122,13 @@ body.mm-noanno #mmNotes > :not(.tb),body.mm-noanno #mmInk,body.mm-noanno #mmInkH
 .mm-pv{width:96vw;height:92vh}.mm-pv .mm-pdf{width:auto;height:auto;flex:1;min-height:0}.mm-pv .pvs{overflow:auto;background:#525659;padding:10px 0;position:relative}
 .mm-pv .pp{position:relative;margin:0 auto 12px;background:#fff;box-shadow:0 2px 12px rgba(0,0,0,.45)}.mm-pv .pp canvas{width:100%;height:100%;display:block}.mm-pv .pp>i{position:absolute;right:6px;bottom:-1px;font-size:10px;font-style:normal;color:#fff;background:rgba(0,0,0,.45);border-radius:6px 6px 0 0;padding:0 6px}
 .mm-pv .mm-inkbar{border-top:0}
+/* v18.57 메모장 위 머리 간략 · 숨기기 (메모장 화면에서만) */
+#hdrCtl{display:none;gap:4px}body.memo-mode #hdrCtl{display:inline-flex}#hdrCtl .btn.sm{padding:4px 9px;font-size:12px}#hdrCtl .btn.on{background:var(--accent);color:#fff;border-color:var(--accent)}
+#hdrPull{display:none;position:fixed;top:0;left:50%;transform:translateX(-50%);z-index:30;border:1px solid var(--line);border-top:0;background:var(--card);color:var(--sub);font:inherit;font-size:12px;padding:2px 14px 4px;border-radius:0 0 10px 10px;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.08);opacity:.75}#hdrPull:hover{opacity:1;color:var(--accent-d)}
+body.memo-mode.hdr-hide #hdrPull{display:block}
+body.memo-mode.hdr-mini header.top{padding:6px 24px 6px;gap:8px;flex-wrap:nowrap}body.memo-mode.hdr-mini header.top :is(.actions,#subtitle,#btnSafe){display:none!important}body.memo-mode.hdr-mini header.top h1{font-size:15px;margin:0}body.memo-mode.hdr-mini header.top .btn:not(.sm){padding:4px 10px;font-size:12px}
+body.memo-mode.hdr-hide header.top{display:none}
+body.memo-mode.hdr-mini #memoWrap{height:calc(100vh - 64px)}body.memo-mode.hdr-hide #memoWrap{height:calc(100vh - 26px);margin-top:14px}
 /* v18.56 양식 갤러리 (노션 템플릿 갤러리처럼: 왼쪽 갈래 · 가운데 목록 · 오른쪽 미리보기) */
 #mmTplG{position:fixed;inset:0;z-index:2000;background:rgba(15,15,20,.32);display:flex;align-items:center;justify-content:center;animation:mmtgIn .16s ease-out}
 @keyframes mmtgIn{from{opacity:0}to{opacity:1}}
@@ -2656,6 +2663,7 @@ html.mmpop #memoWrap{grid-template-columns:minmax(0,1fr)!important;height:100vh!
     <button class="btn darkbtn" id="btnDark" type="button" title="다크 모드 켜기/끄기 (이 PC 에 기억)">🌙</button>
     <button class="btn findbtn" id="btnFind" title="메뉴 · PJT · 업무 · 게시글을 한 번에 찾아 바로 이동 (Ctrl+K)">🔍 찾기</button>
     <button class="btn shotbtn" id="btnShot" title="화면을 캡처해 범위를 고르고, 그 자리에서 바로 VOC 쓰기 (지금 화면 · 열린 창은 그대로) · 단축키 F8 · 초록 점 = 빠른 캡처 켜짐(다시 묻지 않음)">📷 스크린 → VOC</button>
+    <span class="hdrctl" id="hdrCtl"><button class="btn sm" data-hdr="mini" title="메모장에서 위 머리를 간략하게 — 제목 한 줄만 (다시 누르면 원래대로)">⇤ 간략</button><button class="btn sm" data-hdr="hide" title="메모장에서 위 머리를 숨김 — 위 가운데 ▾ 로 다시 보기">◀ 숨기기</button></span>
     <div class="actions">
       <select id="weekSel" class="sel" aria-label="주차 선택"></select>
       <button class="btn pri" id="btnSaveAll" title="모든 사용자의 최신 데이터를 모아 전체 저장본(JSON+엑셀)을 공유폴더 saves/ 에 저장">전체 저장</button>
@@ -2669,6 +2677,7 @@ html.mmpop #memoWrap{grid-template-columns:minmax(0,1fr)!important;height:100vh!
       <button class="btn" id="btnTrip" hidden title="출장용 · 운영자 부재용 오프라인 파일 만들기 · 받은 파일 반영">✈ 오프라인 파일</button>
     </div>
   </header>
+  <button id="hdrPull" type="button" title="위 머리 다시 보기">▾ 위 메뉴</button>
   <div id="content"></div>
 </div>
 
@@ -2803,7 +2812,7 @@ function recLabel(key, f) {
  * ===================================================================== */
 let root = null;
 /* 서버 모드: http(s):// 로 접속하면 server.py 의 REST API 사용 (폴더 선택 불필요). file:// 로 열면 폴더 모드 */
-const APP_VERSION = '2026-11-22.33';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
+const APP_VERSION = '2026-11-22.34';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
 const SERVER_URL = 'http://localhost:8080';
 // 부서원 PC 사본(file://)이 접속을 시도할 서버 — 서버가 배포 파일을 만들 때 'PC 이름 주소, IP 주소' 순으로 자동 기록함
 const DEFAULT_SERVERS = ['http://ASEUNGWOOK-B01:8080', 'http://65.3.30.234:8080'];
@@ -6186,7 +6195,7 @@ function render() {
   renderMenu(); renderHeader();
   if (root) plazaOn();                                     // 계장 광장: 어느 메뉴에 있든 접속 유지 (홈에서만 보임) · P&ID/LOGIC 이면 '분석 중' 표시
   const c = $('#content');
-  document.body.classList.toggle('pid-mode', !!FRAME_ROUTES(route) && !!root);   // P&ID · ROOM SIZE 계산: 본문 전체를 iframe 으로 채움 (바깥 스크롤 없음)
+  document.body.classList.toggle('pid-mode', !!FRAME_ROUTES(route) && !!root); document.body.classList.toggle('memo-mode', route === 'memo'); hdrApply();   // P&ID · ROOM SIZE 계산: 본문 전체를 iframe 으로 채움 (바깥 스크롤 없음)
   if (TB.shown || presenceOn()) renderTaskBar();           // 저장·자동 갱신 때마다 '내 업무' 완료 상태·접속자 갱신
   if (!root) return renderWelcome(c);
   const sy = window.scrollY, tw = $('.tw'), tx = tw ? [tw.scrollLeft, tw.scrollTop] : null;   // 자동 갱신 시 스크롤 위치 유지
@@ -6422,6 +6431,12 @@ function mmColPal(isF) {
 const MM_SCOL = ['#fff2a8', '#ffd6e0', '#d3f3d8', '#d5e8ff', '#eadcff', '#ffe2c4'];
 const MM_ICONS = '📄 📝 📌 ⭐ 💡 ✅ 📅 📊 📎 🔧 🧪 📐 🛠 📞 ✈ 🏗 💰 📚 🎯 🔒 ❗ ❓ 🧾 🗂'.split(' ');
 const MM_PEN = ['#111827', '#dc2626', '#2563eb', '#16a34a', '#f59e0b', '#9333ea', '#ffffff'];
+/* v18.57 사용자 지시 "메모장 메뉴에서는 (위 머리) 부분을 숨기기 · 간략 표기할 수 있도록": 메모장 화면에서만 — 전체 / 간략(제목 한 줄) / 숨김. 이 PC 에 기억 */
+function hdrMode() { try { return localStorage.getItem('dept-memo-hdr') || 'full'; } catch (_) { return 'full'; } }
+function hdrApply() { const m = hdrMode(), b = document.body; b.classList.toggle('hdr-mini', m === 'mini'); b.classList.toggle('hdr-hide', m === 'hide');
+  document.querySelectorAll('#hdrCtl [data-hdr]').forEach(x => x.classList.toggle('on', x.dataset.hdr === m)); }
+function hdrSet(m) { try { localStorage.setItem('dept-memo-hdr', m); } catch (_) {} hdrApply(); try { mmGrips?.(); } catch (_) {} }
+document.addEventListener('click', e => { const b = e.target.closest?.('#hdrCtl [data-hdr]'); if (b) { const m = b.dataset.hdr; hdrSet(hdrMode() === m ? 'full' : m); return; } if (e.target.closest?.('#hdrPull')) hdrSet('full'); });
 /* v18.56 양식 — 노션 '노트 · 지식' 템플릿 갈래(회의록 · 코넬 노트 · 독서 노트 · 위키 · SOP · 의사결정 · 회고 · 저널 등)를 참고.
    [이름, 아이콘, html 만드는 함수, 갈래, 한 줄 설명, 비서가 알아들을 말]. 앞 5개 순서는 그대로(비서 명령이 번호로 부름) */
 const mmTP = rows => `<table><tbody>${rows.map(([k, v]) => `<tr><th style="text-align:left;width:120px">${k}</th><td style="min-width:260px">${v || '<br>'}</td></tr>`).join('')}</tbody></table>`;
