@@ -2728,3 +2728,13 @@ C:\Users\SAMSUNG\Desktop\Claude\                         ← 개발 폴더 (여�
   - 효과음(🔊 소리, 보기 탭 · 기본 켬 · 작게): Web Audio 로 직접 합성(애플 음원 · 파일 없음) — 열기 = 스치는 소리, 새 메모 · 붙이기 = 뽁, 휴지통 = 종이 구기는 소리, 할 일 완료 = 띵동, 목록 끌어 놓기 = 톡, 메뉴 · 오른쪽 클릭 = 딸깍(글 쓰는 중 뜨는 / · @ 메뉴는 소리 없음), 크게 = 휙. 메모장 화면에서만.
 - 바뀐 곳: dashboard.html CSS `#memoWrap.mac …` · 움직임 keyframes `mmMac*`, `mmMac` · `MMS` · `mmSndOn` · `mmSnd` · `mmFx`, `mmOpen` · `mmNew` · `mmTrash` · `mmChkSt` · `mmPop` · `mmPasteHtml` 감싸기(효과만 더함), `mmUi`(mac 클래스), 보기 탭 단추 `data-mx="mac"` · `"snd"`. 메모장.exe 다시 만듦.
 - 확인한 것: Playwright — 밝게 · 어둡게 화면, 열기 · 메뉴 · 새 메모 · 할 일 완료 · 휴지통마다 소리 남(오디오 호출 수), 휴지통 poof, 🔇 끄면 0, Mac 스타일 끄면 예전 모양. 목록 계층 · 줄 잘라 붙이기 시험 그대로, 메모 속도 그대로(열기 ~30ms · 타자 p50 11ms), 오류 0. / 회사에서 확인할 것: 소리 크기 · 블러가 회사 PC 에서 느리지 않은지.
+
+### 2026-11-22 (APP_VERSION 2026-11-22.14 / SERVER_VERSION 그대로) — v18.37 Mac 스타일을 Apple 공개 디자인 지침(HIG) · WWDC25 기준으로 다듬음
+- 무엇을 · 왜: 사용자 지시 "인터넷에서 macOS 이미지와 영상 모두 검색해서 반영". 애플 그림 · 영상은 저작권이 있어 그대로 넣지 않고, 애플이 공개한 Human Interface Guidelines(사이드바 · 재질 · 색) 와 WWDC25 'macOS 앱 디자인' 세션 내용을 읽고 그 규칙을 CSS 로 옮김.
+  - 강조색 = systemYellow #FFCC00(HIG 색 표), 글자에 쓰는 노랑은 읽히게 진하게(#A07A00).
+  - 사이드바 = 창 안에 떠 있는 유리 판(macOS 26 'floating sidebar'): 안쪽 여백 7px · 모서리 11px(창 모서리 18px 과 동심 — WWDC25 '동심 모서리'), 반투명 + 블러 + 옅은 그림자. 창 바탕은 옅은 회색이라 떠 보임.
+  - 탭 묶음 · 탭 · 찾기 칸 · 정렬 · 알약 단추 = 캡슐(WWDC25 '큰 컨트롤 = 캡슐'), 도구 단추 최소 28px(조금 더 크게).
+  - 목록을 내리면 맨 위가 부드럽게 흐려짐(WWDC25 'scroll edge effect' soft).
+  - 어두운 화면에서 '+ 새 메모' 에 남던 보라 바탕 없앰.
+- 바뀐 곳: dashboard.html CSS `#memoWrap.mac` (변수 `--ma` · `--mat` · `--mas`, `.mm-side` 유리 판, 캡슐, `.mm-lb.sc`), 스크롤 감지 1줄. 메모장.exe 다시 만듦.
+- 확인한 것: Playwright — 밝게 · 어둡게 화면, 소리 · 움직임 시험(mm83) 그대로, 오류 0. / 참고: 리뷰 사이트(MacRumors)는 여기서 접속이 안 돼 못 읽음, 영상은 볼 수 없어 세션 설명 글로 대신함.

@@ -2433,8 +2433,8 @@ html:not(.dark) #memoWrap .mm-ed{color:var(--nt)}html:not(.dark) #memoWrap .mm-e
 #memoWrap ::-webkit-scrollbar{width:10px;height:10px}#memoWrap ::-webkit-scrollbar-thumb{background:#d3d1cb;border-radius:10px;border:2px solid transparent;background-clip:padding-box}#memoWrap ::-webkit-scrollbar-thumb:hover{background:#aeaca6;background-clip:padding-box;border:2px solid transparent}
 /* 2026-11-22 v18.36 사용자 지시: "아이폰 · macOS 같은 느낌으로 메모장 UI, macOS 와 비슷한 이펙트 · 사운드" — 🍎 Mac 스타일(보기 탭에서 끄고 켬, 기본 켬).
    반투명(블러) 사이드바 · 노란 선택(메모 앱처럼) · 세그먼트 탭 · 얇은 구분선 · 둥근 체크(동그라미) · 열기/새 메모/휴지통/크게 움직임. 소리는 Web Audio 로 직접 합성(애플 음원 아님). 어두운 화면은 대시보드가 전체를 반전(filter)하므로 같은 규칙이 그대로 어둡게 보임 */
-#memoWrap.mac{--ma:#e0a800;--mas:#ffd23f;font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI Variable Text","Segoe UI","Apple SD Gothic Neo","Malgun Gothic",sans-serif;-webkit-font-smoothing:antialiased;letter-spacing:-.01em}
-html:is(.dark,:not(.dark)) #memoWrap.mac>*{border:0!important;border-radius:0!important;box-shadow:none!important}html:is(.dark,:not(.dark)) #memoWrap.mac{gap:0;overflow:hidden;background:#fff;border:.5px solid rgba(0,0,0,.16);border-radius:12px;box-shadow:0 0 0 .5px rgba(0,0,0,.05),0 12px 34px rgba(0,0,0,.12),0 2px 6px rgba(0,0,0,.05)}
+#memoWrap.mac{--ma:#ffcc00;--mat:#a07a00;--mas:rgba(255,204,0,.82);font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI Variable Text","Segoe UI","Apple SD Gothic Neo","Malgun Gothic",sans-serif;-webkit-font-smoothing:antialiased;letter-spacing:-.01em}
+html:is(.dark,:not(.dark)) #memoWrap.mac>*{border:0!important;border-radius:0!important;box-shadow:none!important}html:is(.dark,:not(.dark)) #memoWrap.mac{gap:0;overflow:hidden;background:#ececef;border:.5px solid rgba(0,0,0,.16);border-radius:18px;box-shadow:0 0 0 .5px rgba(0,0,0,.05),0 12px 34px rgba(0,0,0,.12),0 2px 6px rgba(0,0,0,.05)}
 html:is(.dark,:not(.dark)) #memoWrap.mac .mm-side{background:rgba(236,236,240,.8)!important;-webkit-backdrop-filter:blur(30px) saturate(180%);backdrop-filter:blur(30px) saturate(180%);border-right:.5px solid rgba(0,0,0,.12)!important;padding:10px 8px}
 html:is(.dark,:not(.dark)) #memoWrap.mac .mm-nav{color:#1d1d1f;font-size:13px;border-radius:7px;padding:4px 9px;min-height:28px}html:is(.dark,:not(.dark)) #memoWrap.mac .mm-nav:hover{background:rgba(0,0,0,.05)!important}html:is(.dark,:not(.dark)) #memoWrap.mac .mm-nav.on{background:rgba(0,0,0,.1)!important;color:#1d1d1f!important;font-weight:600}html:is(.dark,:not(.dark)) #memoWrap.mac .mm-nav i{color:#8e8e93}
 html:is(.dark,:not(.dark)) #memoWrap.mac .mm-side h3{font-size:11px;color:rgba(60,60,67,.6);font-weight:600;margin:14px 9px 4px}
@@ -2451,6 +2451,12 @@ html:is(.dark,:not(.dark)) #memoWrap.mac .mm-meta .tg,html:is(.dark,:not(.dark))
 html:is(.dark,:not(.dark)) #memoWrap.mac .mm-ed{caret-color:var(--ma)}html:is(.dark,:not(.dark)) #memoWrap.mac .mm-ed ::selection,html:is(.dark,:not(.dark)) #memoWrap.mac .mm-title::selection{background:rgba(255,210,63,.45)}
 #memoWrap.mac .mm-ed .mm-chk::before{border-radius:50%;border:1.5px solid #c7c7cc;width:17px;height:17px;top:.26em;transition:background .18s,border-color .18s,transform .18s cubic-bezier(.34,1.56,.64,1)}#memoWrap.mac .mm-ed .mm-chk[data-done="1"]::before{background:var(--ma);border-color:var(--ma);font-size:11px;line-height:14px}#memoWrap.mac .mm-ed .mm-chk[data-done="1"]{color:#8e8e93}
 #memoWrap.mac ::-webkit-scrollbar{width:9px;height:9px}#memoWrap.mac ::-webkit-scrollbar-thumb{background:rgba(0,0,0,.22);border-radius:9px;border:2px solid transparent;background-clip:padding-box}#memoWrap.mac ::-webkit-scrollbar-track{background:transparent}
+/* v18.37 Apple HIG · WWDC25(macOS 26) 기준으로 다듬음: systemYellow #FFCC00 강조, 사이드바 = 창 안에 떠 있는 유리 판(안쪽 여백 7px · 모서리 11px = 창 18px 과 동심), 탭 · 찾기 · 알약 단추 = 캡슐, 도구 단추 조금 크게, 목록 위 끝 = 스크롤하면 부드럽게 흐려짐(scroll edge effect) */
+html:is(.dark,:not(.dark)) #memoWrap.mac>.mm-side{margin:7px 0 7px 7px;border-radius:11px!important;background:rgba(250,250,252,.74)!important;border:.5px solid rgba(0,0,0,.08)!important;box-shadow:0 6px 18px rgba(0,0,0,.08),0 .5px 1.5px rgba(0,0,0,.08)!important;min-height:0}
+html:is(.dark,:not(.dark)) #memoWrap.mac #mmNew{color:var(--mat)!important;background:none!important;border:0!important;box-shadow:none!important;text-align:left}html:is(.dark,:not(.dark)) #memoWrap.mac #mmNew:hover{color:#7a5d00!important}html:is(.dark,:not(.dark)) #memoWrap.mac .mm-card.on{background:var(--mas)!important}
+html:is(.dark,:not(.dark)) #memoWrap.mac .mm-rtabs,html:is(.dark,:not(.dark)) #memoWrap.mac .mm-rtabs button,html:is(.dark,:not(.dark)) #memoWrap.mac .mm-meta .tg,html:is(.dark,:not(.dark)) #memoWrap.mac .mm-zb,html:is(.dark,:not(.dark)) #memoWrap.mac .mm-lh .row .btn,html:is(.dark,:not(.dark)) #memoWrap.mac .mm-list input.q,html:is(.dark,:not(.dark)) #memoWrap.mac .mm-lh select{border-radius:999px!important}html:is(.dark,:not(.dark)) #memoWrap.mac .mm-rtabs button{padding:3px 11px!important}
+html:is(.dark,:not(.dark)) #memoWrap.mac .mm-tb button{min-height:28px;min-width:28px;border-radius:8px}
+html:is(.dark,:not(.dark)) #memoWrap.mac .mm-lb.sc{-webkit-mask-image:linear-gradient(#0000,#000 22px);mask-image:linear-gradient(#0000,#000 22px)}
 /* 움직임 (macOS 처럼 짧고 부드럽게, 움직임 줄이기 설정이면 없음) */
 @keyframes mmMacIn{from{opacity:0;transform:translateY(8px) scale(.985)}to{opacity:1;transform:none}}@keyframes mmMacPop{0%{opacity:0;transform:scale(.86)}60%{opacity:1;transform:scale(1.03)}100%{transform:none}}
 @keyframes mmMacPoof{0%{opacity:1;transform:none;filter:none}100%{opacity:0;transform:scale(.55) translateY(-6px);filter:blur(3px)}}@keyframes mmMacChk{0%{transform:scale(1)}40%{transform:scale(1.35)}100%{transform:scale(1)}}@keyframes mmMacZoom{from{opacity:.6;transform:scale(.965)}to{opacity:1;transform:none}}
@@ -2667,7 +2673,7 @@ function recLabel(key, f) {
  * ===================================================================== */
 let root = null;
 /* 서버 모드: http(s):// 로 접속하면 server.py 의 REST API 사용 (폴더 선택 불필요). file:// 로 열면 폴더 모드 */
-const APP_VERSION = '2026-11-22.13';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
+const APP_VERSION = '2026-11-22.14';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
 const SERVER_URL = 'http://localhost:8080';
 // 부서원 PC 사본(file://)이 접속을 시도할 서버 — 서버가 배포 파일을 만들 때 'PC 이름 주소, IP 주소' 순으로 자동 기록함
 const DEFAULT_SERVERS = ['http://ASEUNGWOOK-B01:8080', 'http://65.3.30.234:8080'];
@@ -9820,6 +9826,7 @@ function mmFx(el, cls, ms = 420) { if (!el || !mmMac() || matchMedia('(prefers-r
 { const o = mmPop; mmPop = function () { const ev = window.event, r = o.apply(this, arguments); if (ev && /click|contextmenu|pointerdown|mousedown/.test(ev.type)) mmSnd('tap'); return r; }; }   // 글 쓰는 중 뜨는 메뉴(/ · @)는 소리 없음
 { const o = mmPasteHtml; mmPasteHtml = async function () { const r = await o.apply(this, arguments); mmSnd('pop'); return r; }; }
 document.addEventListener('drop', e => { if (route === 'memo' && e.target.closest?.('#mmList .mm-card')) mmSnd('drop'); }, true);
+document.addEventListener('scroll', e => { const t = e.target; if (t?.classList?.contains('mm-lb')) { const on = t.scrollTop > 2; if (on !== t.classList.contains('sc')) t.classList.toggle('sc', on); } }, true);   // v18.37 목록 위 끝 부드럽게 흐림
 document.addEventListener('click', e => { if (route !== 'memo') return; const z = e.target.closest?.('[data-mx="zen"], [data-mx="wide"]'); if (z) { mmSnd('zen'); setTimeout(() => mmFx($('#memoWrap'), 'fx-zoom', 320), 0); } }, true);
 addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden' && MM.cur && MM.dirty) mmSave(); });
 addEventListener('beforeunload', () => { if (MM.cur && MM.dirty) mmSave(); });
