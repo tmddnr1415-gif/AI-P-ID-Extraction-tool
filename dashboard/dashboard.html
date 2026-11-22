@@ -2466,6 +2466,7 @@ html:is(.dark,:not(.dark)) #memoWrap.mac .mm-lb.sc{-webkit-mask-image:linear-gra
 #memoWrap.mac button:active:not(.mm-card){transform:scale(.95)}
 @media (prefers-reduced-motion:reduce){#memoWrap.mac *{animation:none!important}}
 body.mm-rzc,body.mm-rzc *{cursor:col-resize!important}body.mm-rzd{user-select:none}#mmRzl{position:fixed;width:3px;margin-left:-1px;border-radius:3px;background:var(--accent,#3b82f6);opacity:.75;z-index:9000;pointer-events:none;display:none}#mmRzl.on{display:block}
+.mm-ed span.mm-dl[data-done="1"],.mm-notes span.mm-dl[data-done="1"]{background:#dcfce7!important;color:#15803d!important;border-color:#86efac!important}
 /* 작은 글씨 · 확인 표시 · 지운 링크 */
 #mmEdw.sm .mm-ed{font-size:13px}#mmEdw.pp.sm{font-size:calc(13px*var(--z))}
 .mm-verb{border:0;font-size:11.5px;font-weight:600;border-radius:10px;padding:1px 8px;margin-right:10px;cursor:pointer;font-style:normal;white-space:nowrap}.mm-verb.ok{color:#448361;background:rgba(68,131,97,.12)}.mm-verb.exp{color:#d9730d;background:rgba(217,115,13,.12)}
@@ -2674,7 +2675,7 @@ function recLabel(key, f) {
  * ===================================================================== */
 let root = null;
 /* 서버 모드: http(s):// 로 접속하면 server.py 의 REST API 사용 (폴더 선택 불필요). file:// 로 열면 폴더 모드 */
-const APP_VERSION = '2026-11-22.15';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
+const APP_VERSION = '2026-11-22.16';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
 const SERVER_URL = 'http://localhost:8080';
 // 부서원 PC 사본(file://)이 접속을 시도할 서버 — 서버가 배포 파일을 만들 때 'PC 이름 주소, IP 주소' 순으로 자동 기록함
 const DEFAULT_SERVERS = ['http://ASEUNGWOOK-B01:8080', 'http://65.3.30.234:8080'];
@@ -6888,7 +6889,7 @@ function mmDrawMain() {
       <span class="mm-coll" title="목록 색 — 왼쪽 메모 목록에서 이 메모 카드의 왼쪽 띠 색 (중요 · 프로젝트별로 눈에 띄게). 메모 내용에는 영향 없음">목록 색</span>${MM_COL.map((c, i) => `<button class="cdot ${(pg.color || '') === c ? 'on' : ''}" data-mcol="${c}" style="background:${c || '#e5e9f5'}" title="목록 색: ${MM_COLN[i]} — 왼쪽 메모 목록에서 이 메모 카드 왼쪽 띠가 ${i ? MM_COLN[i] + '으로' : '기본(회색)으로'}"></button>`).join('')}
       <button class="tg" data-mx="pull" title="수행 · 입찰 · 이슈 · 통합 업무 · Schedule 등 다른 메뉴의 값을 골라 이 메모에 넣기" style="color:var(--accent-d);font-weight:700">📥 다른 메뉴 값 불러오기</button><button class="tg" data-mx="ver" title="자동으로 남긴 이전 판 보기 · 되돌리기">🕘 판 기록</button><button class="tg" data-mx="more">⋯ 더 보기</button></div>
     <div class="mm-tb" id="mmTb">${T('undo', '↶', '실행 취소 (Ctrl+Z)')}${T('redo', '↷', '다시 실행 (Ctrl+Y)')}${S}${T('h1', 'H1', '큰 제목')}${T('h2', 'H2', '중간 제목')}${T('h3', 'H3', '작은 제목')}${T('p', '본문', '보통 글')}${S}
-      ${T('bold', '<b>B</b>', '굵게 (Ctrl+B)')}${T('italic', '<i>I</i>', '기울임 (Ctrl+I)')}${T('underline', '<u>U</u>', '밑줄 (Ctrl+U)')}${T('strike', '<s>S</s>', '취소선')}${T('sup', 'x²', '위 첨자 (Ctrl+Shift+=) — 다시 누르면 풀림')}${T('sub', 'x₂', '아래 첨자 (Ctrl+=) — 다시 누르면 풀림')}${T('color', '<span style="color:#dc2626;font-weight:800">A</span>', '글자 색')}${T('hilite', '<span style="background:#fff176;padding:0 4px">A</span>', '형광펜')}${T('small', 'A−', '글자 작게 (한 단계)')}${mmFsBox('mmFs', 'data-mc')}${T('big', 'A+', '글자 크게 (한 단계)')}${T('clear', '⌫', '서식 지우기')}${T('paint', '🖌', '서식 복사 — 글을 고른 뒤 누르고, 바꿀 글을 끌어 고르면 같은 모양으로 (Esc 취소)')}${S}
+      ${T('bold', '<b>B</b>', '굵게 (Ctrl+B)')}${T('italic', '<i>I</i>', '기울임 (Ctrl+I)')}${T('underline', '<u>U</u>', '밑줄 (Ctrl+U)')}${T('strike', '<s>S</s>', '취소선 — Ctrl+5 = 취소선 + 붉은 글씨')}${T('sup', 'x²', '위 첨자 (Ctrl+Shift+=) — 다시 누르면 풀림')}${T('sub', 'x₂', '아래 첨자 (Ctrl+=) — 다시 누르면 풀림')}${T('color', '<span style="color:#dc2626;font-weight:800">A</span>', '글자 색')}${T('hilite', '<span style="background:#fff176;padding:0 4px">A</span>', '형광펜')}${T('small', 'A−', '글자 작게 (한 단계)')}${mmFsBox('mmFs', 'data-mc')}${T('big', 'A+', '글자 크게 (한 단계)')}${T('clear', '⌫', '서식 지우기')}${T('paint', '🖌', '서식 복사 — 글을 고른 뒤 누르고, 바꿀 글을 끌어 고르면 같은 모양으로 (Esc 취소)')}${S}
       ${T('ul', '•', '글머리 목록')}${T('ol', '1.', '번호 목록')}${T('todo', '☑', '할 일 (체크 상자)')}${T('quote', '❝', '인용')}${T('call', '💡', '강조 상자')}${T('code', '&lt;/&gt;', '코드 · 고정폭')}${T('toggle', '▸', '접는 글')}${T('hr', '―', '구분선')}${T('mark', '🏷 태그', 'OneNote 태그 — 이 줄에 ⭐중요 · ❓질문 · 💡아이디어 · ⚠확인 · 📞연락 붙이기 (Alt+1~6, Alt+0 지우기) · 왼쪽 [🏷 태그 모음] 에서 모든 메모의 태그를 한곳에')}${T('find', '🔎', '이 메모 안에서 찾기 · 바꾸기 (Ctrl+F · Ctrl+H)')}${T('nlp', '✨ 자동 할 일', '말로 쓴 줄을 할 일로 자동 등록 — 예: \'오늘 12:30에 미터링 업체랑 미팅 있음\' 을 쓰고 Enter → 할 일(🤝 미팅 · 오늘 12:30) · 알람 · 달력. 다시 누르면 끔. 바로 되돌리기 = Ctrl+Z')}${S}
       ${T('left', '⇤', '왼쪽 맞춤')}${T('center', '↔', '가운데 맞춤')}${T('right', '⇥', '오른쪽 맞춤')}${T('full', '☰', '양쪽 맞춤')}${T('indent', '→|', '들여쓰기')}${T('outdent', '|←', '내어쓰기')}${S}${T('col2', '▥2', '좌우 2단으로 나누기')}${T('col3', '▥3', '좌우 3단으로 나누기')}${T('colx', '▥✕', '단 나누기 풀기 (한 줄로)')}${S}
       ${T('table', '▦', '표 넣기 — 칸 수 고르기')}<span class="tbl">${T('trow', '+행', '아래에 행 넣기')}${T('tcol', '+열', '오른쪽에 열 넣기')}${T('trowx', '−행', '행 지우기')}${T('tcolx', '−열', '열 지우기')}${T('tmerge', '⊞합치기', '끌어서 고른 칸 합치기')}${T('tsplit', '⊟나누기', '합친 칸 나누기')}${T('tbg', '🎨', '칸 배경색')}${T('tmenu', '표 ▾', '표 메뉴 전체 (표 안에서 마우스 오른쪽 단추로도 열림)')}${T('teq', '열=', '열 너비를 같게 · 표를 가로로 꽉 차게 (다시 누르면 풀기)')}${T('tsort', '↕정렬', '이 열 기준으로 행 정렬 (다시 누르면 반대로 · 날짜 · 숫자 · 글자)')}${T('tdel', '표✕', '표 지우기')}</span>${S}
@@ -8603,18 +8604,18 @@ function mmChkSt(x, st) {
   x.dataset.done = st === 'done' ? '1' : '0'; if (st === 'done') x.dataset.dn = mmToday(); else delete x.dataset.dn; if (st === 'doing') x.dataset.st = 'doing'; else x.removeAttribute('data-st'); mmChip(x); }   // dn = 끝낸 날 (v18.12 '이번 주 끝낸 일')
 /* 2026-11-22 v18.27 사용자 지시: 오른쪽 메뉴 · 삽입에 '기한' — 날짜(+시간)를 넣으면 📅(날짜만) · ⏰(시간까지) 조각, 그 시각에 알람(하루 전 · 30분 · 15분 · 지금),
    할 일 모음 · 날짜별에 자동으로 들어가고(어느 메모에서 왔는지 표시), 서로 누르면 오감 */
-function mmDlText(y) { const d = y.dataset.due || '', t = y.dataset.time || '', dt = d ? new Date(d + 'T00:00:00') : null; y.textContent = `${y.dataset.done === '1' ? '✔ ' : t ? '⏰ ' : '📅 '}${dt ? `${dt.getMonth() + 1}/${dt.getDate()}(${'일월화수목금토'[dt.getDay()]})` : '날짜?'}${t ? ' ' + t.slice(0, 2) + ':' + t.slice(2) : ''}`; }
+function mmDlText(y) { const d = y.dataset.due || '', t = y.dataset.time || '', dt = d ? new Date(d + 'T00:00:00') : null; y.textContent = `${y.dataset.done === '1' ? '✔ 완료 ' : '☐ ' + (t ? '⏰ ' : '📅 ')}${dt ? `${dt.getMonth() + 1}/${dt.getDate()}(${'일월화수목금토'[dt.getDay()]})` : '날짜?'}${t ? ' ' + t.slice(0, 2) + ':' + t.slice(2) : ''}`; }
 function mmDueIns(at, edit) {
   if (!MM.cur || MM.cur.lock) return; const g = getSelection(), rg = edit ? null : g?.rangeCount && mmEd()?.contains(g.anchorNode) ? g.getRangeAt(0).cloneRange() : MM.lastR;
   const d0 = edit?.dataset.due || mmToday(), t0 = edit?.dataset.time ? edit.dataset.time.slice(0, 2) + ':' + edit.dataset.time.slice(2) : '';
-  const p = mmPop(at, `<div class="mm-dlin"><b>${edit ? '✏ 기한 바꾸기' : '⏰ 기한 넣기'}</b><label>날짜 <input type="date" id="mmDlD" value="${esc(d0)}"></label><label>시간 <input type="time" id="mmDlT" value="${esc(t0)}"><small>비우면 날짜만 📅</small></label>
+  const p = mmPop(at, `<div class="mm-dlin"><b>${edit ? '✏ 기한 바꾸기' : '⏰ 기한 넣기'}</b><label>날짜 <input type="date" id="mmDlD" value="${esc(d0)}"></label><label>시간 <input type="time" id="mmDlT" value="${esc(t0)}"><small>비우면 날짜만 📅</small></label><label><input type="checkbox" id="mmDlDn" ${edit?.dataset.done === '1' ? 'checked' : ''} style="width:auto"> ✔ 완료</label>
     <div class="q">${[['오늘', 0], ['내일', 1], ['모레', 2], ['1주 뒤', 7]].map(([l, k]) => `<i data-dlq="${k}">${l}</i>`).join('')}${['09:00', '13:00', '17:00'].map(x => `<i data-dlh="${x}">${x}</i>`).join('')}</div>
     <div class="b"><button data-v="ok" class="pri">${edit ? '바꾸기' : '넣기'}</button><button data-v="x">취소</button></div><small class="muted">시간이 있으면 그 시각에 알람(하루 전 · 30분 · 15분 · 지금) · 할 일 모음 · 날짜별에 자동으로</small></div>`, v => {
     if (v !== 'ok') return; const dd = p.querySelector('#mmDlD').value, tt = (p.querySelector('#mmDlT').value || '').replace(':', ''); if (!/^\d{4}-\d\d-\d\d$/.test(dd)) return toast('날짜를 골라 주세요', true);
-    if (edit) { edit.dataset.due = dd; if (tt) edit.dataset.time = tt; else delete edit.dataset.time; mmDlText(edit); mmTouch(); mmHistPush(true); return toast('기한을 바꿨습니다'); }
+    const dn = !!p.querySelector('#mmDlDn')?.checked; if (edit) { edit.dataset.due = dd; if (tt) edit.dataset.time = tt; else delete edit.dataset.time; if (dn) edit.dataset.done = '1'; else delete edit.dataset.done; mmDlText(edit); mmTouch(); mmHistPush(true); return toast('기한을 바꿨습니다'); }
     const ed = mmEd(); ed.focus(); let blk = null; if (rg && ed.contains(rg.startContainer)) { let n = rg.startContainer; if (n.nodeType === 3) n = n.parentNode; if (n === ed) n = ed.childNodes[Math.max(0, rg.startOffset - 1)] || ed.lastChild; blk = n?.closest?.('li, .mm-chk, td, th') || null; if (!blk) { while (n && n.parentNode && n.parentNode !== ed) n = n.parentNode; blk = n?.parentNode === ed && n.nodeType === 1 ? n : null; } }   // 그 줄 끝에 (글 가운데가 아니라)
-    if (blk?.classList.contains('mm-chk')) { blk.dataset.due = dd; if (tt) blk.dataset.time = tt; else delete blk.dataset.time; mmChip(blk); mmTouch(); mmHistPush(true); return toast('이 할 일에 기한을 넣었습니다'); }
-    const y = document.createElement('span'); y.className = 'mm-dl'; y.contentEditable = 'false'; y.dataset.due = dd; if (tt) y.dataset.time = tt; mmDlText(y);
+    if (blk?.classList.contains('mm-chk')) { if (dn) blk.dataset.done = '1'; blk.dataset.due = dd; if (tt) blk.dataset.time = tt; else delete blk.dataset.time; mmChip(blk); mmTouch(); mmHistPush(true); return toast('이 할 일에 기한을 넣었습니다'); }
+    const y = document.createElement('span'); y.className = 'mm-dl'; y.contentEditable = 'false'; y.dataset.due = dd; if (tt) y.dataset.time = tt; if (dn) y.dataset.done = '1'; mmDlText(y);
     if (!blk || blk.matches('table, ul, ol, .mm-cols, details')) { blk = document.createElement('div'); ed.appendChild(blk); } const lb = blk.lastChild; if (lb?.nodeName === 'BR' && blk.textContent.trim()) lb.remove(); blk.append(blk.textContent.trim() ? ' ' : '', y, '\u00a0'); mmCaretIn(blk, true); mmTouch(); mmHistPush(true); MM.lastKind = 'obj'; toast(tt ? '⏰ 기한 — 그 시각에 알람 · 할 일 모음 · 날짜별에 들어갔습니다' : '📅 기한 — 할 일 모음 · 날짜별에 들어갔습니다'); }, 'dlp');
   p.onmousedown = e => { if (!e.target.closest('input')) e.preventDefault(); };
   p.addEventListener('click', e => { const q = e.target.closest('[data-dlq]'), h = e.target.closest('[data-dlh]'); if (q) { const x = new Date(mmToday() + 'T00:00:00'); x.setDate(x.getDate() + +q.dataset.dlq); p.querySelector('#mmDlD').value = `${x.getFullYear()}-${pad(x.getMonth() + 1)}-${pad(x.getDate())}`; } if (h) p.querySelector('#mmDlT').value = h.dataset.dlh; });
@@ -8631,7 +8632,9 @@ function mmDlMenu(y, at) {   // 기한 조각 누르기
     if (v === 'del') return mmAtomDel(y); });
 }
 document.addEventListener('click', async e => { const b = e.target.closest?.('[data-dlj]'); if (!b) return; const [id, i] = b.dataset.dlj.split('|'), tt = (MM.pages.find(p => p.id === id)?.todos || [])[+i]; await mmFlush(); MM.jump = tt?.c != null ? { id, k:'dl', i:tt.c } : { id, k:'chk', i:+i }; MM.cur = null; mmDraw(); mmOpen(id); });   // 날짜별 → 그 메모의 그 줄
-document.addEventListener('click', e => { const y = e.target.closest?.('#mmEd span.mm-dl'); if (!y) return; e.preventDefault(); e.stopPropagation(); mmDlMenu(y, y.getBoundingClientRect()); }, true);
+document.addEventListener('click', e => { const y = e.target.closest?.('#mmEd span.mm-dl'); if (!y) return; e.preventDefault(); e.stopPropagation(); const r = y.getBoundingClientRect();
+  if (e.clientX - r.left < 22 && !MM.cur?.lock) { const on = y.dataset.done !== '1'; if (on) y.dataset.done = '1'; else delete y.dataset.done; mmDlText(y); mmTouch(); mmHistPush(true); if (on) { mmSnd('check'); mmFx(y, 'fx-chk', 420); } return toast(on ? '✔ 완료 — 할 일 모음 · 날짜별에도 완료로' : '↺ 완료 되돌림'); }   // v18.39 앞의 ☐ 를 누르면 바로 완료
+  mmDlMenu(y, r); }, true);
 function mmChip(x) {   // 체크 상자 줄 끝의 속성 조각 (화면에만, 저장 안 됨)
   const st = x.dataset.done === '1' ? 'done' : x.dataset.st === 'doing' ? 'doing' : '', p = MM_PRI[x.dataset.pri], due = x.dataset.due, ov = due && st !== 'done' && (due < mmToday() || (due === mmToday() && x.dataset.time && x.dataset.time < mmNowHM()));
   const kd = MM_KIND.find(k => k[0] === x.dataset.kind), tm = x.dataset.time, en = x.dataset.end;
@@ -9846,6 +9849,18 @@ const MM_RZ = [{ k:'sw', sel:'#memoWrap > .mm-side', min:150, max:440, def:210, 
   addEventListener('dblclick', e => { const h = find(e); if (!h) return; e.preventDefault(); e.stopPropagation(); apply(h.R, h.R.def); save(h.R); toast('칸 너비를 처음대로'); if (h.R.pm && PM.pages?.length) pmZoom(pmFitW()); }, true);
   addEventListener('blur', () => { dr = null; document.body.classList.remove('mm-rzd', 'mm-rzc'); $('#mmRzl')?.classList.remove('on'); });
 })();
+/* 2026-11-22 v18.39 사용자 지시: "Ctrl+5 누르면 취소선이 되고 붉은색 글씨로" — 메모 글을 고르고 Ctrl+5 (또는 Alt+Shift+5) = 취소선 + 붉은 글씨, 다시 누르면 둘 다 풀림.
+   (보통 크롬 탭에서는 Ctrl+5 가 '5번째 탭으로' 에 먼저 쓰일 수 있음 — 메모장.exe 창 · 탭이 5개 미만이면 됨, 안 되면 Alt+Shift+5) */
+const MM_RED = '#dc2626';
+function mmStrikeRed() { const ed = mmEd(), g = getSelection(); if (!ed || !g.rangeCount || g.isCollapsed || MM.cur?.lock) return toast('취소선을 넣을 글을 먼저 고르세요'); mmHistPush(true);
+  const on = document.queryCommandState('strikeThrough'); document.execCommand('styleWithCSS', false, false); document.execCommand('strikeThrough');
+  if (!on) { document.execCommand('styleWithCSS', false, true); document.execCommand('foreColor', false, MM_RED); document.execCommand('styleWithCSS', false, false); }
+  else { const r = g.getRangeAt(0), red = c => /^(#dc2626|rgb\(220,\s*38,\s*38\))$/i.test(String(c || '').trim()); (r.commonAncestorContainer.nodeType === 1 ? r.commonAncestorContainer : r.commonAncestorContainer.parentNode).closest?.('#mmEd, .fb')?.querySelectorAll('span[style], font[color]').forEach(x => { if (!r.intersectsNode(x)) return; if (x.tagName === 'FONT' && red(x.getAttribute('color'))) x.removeAttribute('color'); if (red(x.style.color)) x.style.color = ''; if (!x.getAttribute('style')) x.removeAttribute('style'); if (!x.attributes.length && /^(SPAN|FONT)$/.test(x.tagName)) x.replaceWith(...x.childNodes); });
+    let n = r.startContainer.nodeType === 3 ? r.startContainer.parentNode : r.startContainer; for (let k = 0; n && k < 6 && n !== ed; k++, n = n.parentNode) if (n.style && red(n.style.color) && r.intersectsNode(n)) { n.style.color = ''; if (!n.getAttribute('style')) n.removeAttribute('style'); } }
+  mmTouch(); mmHistPush(true); }
+document.addEventListener('keydown', e => { if (!((e.ctrlKey || e.metaKey) && !e.shiftKey && !e.altKey) && !(e.altKey && e.shiftKey && !e.ctrlKey)) return; if (e.code !== 'Digit5' && e.code !== 'Numpad5' && e.key !== '5' && e.key !== '%') return;
+  if (route !== 'memo' || !e.target.closest?.('#mmEd')) return; e.preventDefault(); e.stopPropagation(); mmStrikeRed(); }, true);
+{ const o = mmOpen; mmOpen = async function () { const r = await o.apply(this, arguments); mmEd()?.querySelectorAll('span.mm-dl').forEach(y => mmDlText(y)); return r; }; }   // 예전 기한 조각도 ☐ 표시로
 addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden' && MM.cur && MM.dirty) mmSave(); });
 addEventListener('beforeunload', () => { if (MM.cur && MM.dirty) mmSave(); });
 
@@ -12022,7 +12037,7 @@ function fmtBar(ta) {
 document.addEventListener('focusin', e => { const t = fmtTa(e.target); if (t) fmtBar(t); });
 document.addEventListener('focusout', e => { if (fmtTa(e.target)) setTimeout(() => { if (!fmtTa(document.activeElement)) fmtBar(null); }, 120); });
 document.addEventListener('keydown', e => { const t = fmtTa(e.target); if (!t || !(e.ctrlKey || e.metaKey) || e.altKey) return; const k = e.key.toLowerCase();
-  const f = k === 'b' && !e.shiftKey ? 'b' : k === 'i' && !e.shiftKey ? 'i' : k === 'x' && e.shiftKey ? 's' : ''; if (!f) return; e.preventDefault(); taFmt(t, f); }, true);
+  const f = k === 'b' && !e.shiftKey ? 'b' : k === 'i' && !e.shiftKey ? 'i' : (k === 'x' && e.shiftKey) || (k === '5' && !e.shiftKey) ? 's' : ''; if (!f) return; e.preventDefault(); taFmt(t, f); }, true);
 document.addEventListener('scroll', () => { const b = $('#fmtBar'); if (b?._ta?.isConnected) fmtBar(b._ta); }, true);
 let SEL = null;                                     // 활성 셀 { route, rid, f }
 let MSEL = new Set(), ANCHOR = null;                 // 다중 선택(Ctrl/Shift) 셀 키 집합, Shift 범위 기준 셀

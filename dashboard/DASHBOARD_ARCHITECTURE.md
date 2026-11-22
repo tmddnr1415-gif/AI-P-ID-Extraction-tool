@@ -2746,3 +2746,10 @@ C:\Users\SAMSUNG\Desktop\Claude\                         ← 개발 폴더 (여�
   - 칸 안쪽은 2px 만 잡아서 목록 스크롤바는 그대로 쓸 수 있음.
 - 바뀐 곳: dashboard.html `mmUi`(MM_UI.sw · lw), `pmPanes`(--pth · --pcl, localStorage 'dept-pm-w'), 새 `MM_RZ` + 끌기 처리(pointer 이벤트), CSS `.pm-body` 열 변수 · `#mmRzl` · `body.mm-rzc`. 메모장.exe 다시 만듦.
 - 확인한 것: Playwright — 목록 +120 → 390, 왼쪽 메뉴 +60, 너무 좁히면 최소 180, 새로 고침 뒤 그대로, 두 번 누르기 = 270, 스크롤바 위는 커서 그대로, PDF 주석 목록 +80 · 쪽 그림 +60. Mac 스타일 · 소리 시험 그대로, 오류 0.
+
+### 2026-11-22 (APP_VERSION 2026-11-22.16 / SERVER_VERSION 그대로) — v18.39 Ctrl+5 = 취소선 + 붉은 글씨 · 기한에 완료 표시
+- 무엇을 · 왜: 사용자 지시 "Ctrl+5 누르면 취소선이 되고 붉은색 글씨로" · "기한을 표기하면 완료를 선택할 수 있도록".
+  - 메모: 글을 고르고 Ctrl+5 (또는 Alt+Shift+5) = 취소선 + 붉은 글씨(#dc2626), 다시 누르면 둘 다 풀림, Ctrl+Z 로 되돌림. 주간업무보고(수행 · 입찰 등) 글 칸도 Ctrl+5 = 취소선(원래 규칙대로 붉은 글씨). 일반 크롬 탭에서는 Ctrl+5 가 '5번째 탭' 으로 먼저 쓰일 수 있어 Alt+Shift+5 도 둠.
+  - 기한 조각: 앞에 ☐ 표시 — ☐ 를 누르면 바로 ✔ 완료(초록), 다시 누르면 되돌림. 조각 다른 곳을 누르면 예전 메뉴(완료 · 바꾸기 · 지우기 …). 기한 넣기 · 바꾸기 창에 '✔ 완료' 칸. 완료는 할 일 모음 · 날짜별에도 완료로. 예전 메모의 기한 조각도 열면 ☐ 표시로.
+- 바뀐 곳: dashboard.html 새 `mmStrikeRed` + 키 처리, 보고서 글 칸 키(`taFmt` 호출 조건), `mmDlText`, 기한 조각 누르기, `mmDueIns`(완료 칸), `mmOpen` 감싸기(조각 표시), CSS `span.mm-dl[data-done="1"]`. 메모장.exe 다시 만듦.
+- 확인한 것: Playwright — 'TBE Report' 고르고 Ctrl+5 → <strike style="color: rgb(220, 38, 38)">, 다시 Ctrl+5 → 둘 다 풀림, Ctrl+Z → 다시 취소선. 기한 ☐ 누름 → done=1 · '✔ 완료 11/22(일)' · 초록 바탕 · 메뉴 안 뜸, 가운데 누름 → 메뉴, 기한 창 '완료' 칸 → 끄고 바꾸면 '☐ 📅'. 오류 0.
