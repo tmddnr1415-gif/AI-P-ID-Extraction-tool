@@ -2915,7 +2915,8 @@ C:\Users\SAMSUNG\Desktop\Claude\                         ← 개발 폴더 (여�
 - 바뀐 곳: dashboard.html `mmCatCombo` · `mmCatMemo` · `mmCatLine` · `mmCatSay` · `mmCatLoop` · `mmCatWx`(MMCW 캐시) · `mmCatName` · `mmPick`/`mmCut` · `window.__mmCat`(점검용) · `mmCatMount` 클릭 · CSS `#mmCat .bw/.bb`. 메모 글은 브라우저 안에서만 읽음(밖으로 보내지 않음).
 - 확인한 것: 7요일 × 24시간 × 20번 = 3,360번 — 오류 0 · 빈 말 0 · 서로 다른 말 182 · 메모 반영 46% · 날씨(눈 · 영하 7° 가짜 응답) · 이름 · 어색한 말끝 고침, 혼자 말하기, uxaudit · monkey · 걷기. / 회사에서 확인할 것: 사내망에서 날씨가 되는지(안 되면 날씨 말만 안 나옴).
 
-### 2026-11-22 (APP_VERSION 2026-11-22.36 / SERVER_VERSION 그대로) — v18.59 고양이 포털
+### 2026-11-22 (APP_VERSION 2026-11-22.37 / SERVER_VERSION 그대로) — v18.59 고양이 포털
 - 무엇을: 고양이 기사가 무작위 주기(처음 25~60초, 그 뒤 45~150초마다)로 소용돌이 포털을 열고 빙글 돌며 빨려 들어가 사라졌다가, 2~6초 뒤 다른 자리(70px 이상 떨어진 곳)에 포털이 열리며 튀어나옴. 나온 뒤 60% 확률로 "짜잔! 포털 타고 왔다옹 🌀" 같은 한마디. 효과음(들어감 · 나옴, 소리 켬일 때). 포털 중에는 걷기 · 칼 멈춤, 누름 무시. 움직임 줄이기 설정 · 쉬는 중 · 창이 안 보일 때 · 메모장 아닐 때는 안 함.  왜: 사용자 지시 "고양이는 랜덤주기로 포털 만들고 사라졌다 나오게".
 - 바뀐 곳: dashboard.html `mmCatPortal` · `mmCatPortalLoop` · `mmCatMount`(.pt 포털 요소 · 반복 시작 · 포털 중 누름 무시) · `mmSnd` 'warp'/'warpin' · `window.__mmCat.portal` · CSS `#mmCat .pt`, `.out/.gone/.in`, `--cd`(걷기 위치 순간 이동).
+- 함께 고침: 메모 머리 "92자 · 읽는 데 …" 글자 색 #a0a4b8 → #6b6f80 (대비 2.5 → 4.5 이상, uxaudit 낮은 대비 30건).
 - 확인한 것: 장면 사진 5장(열림 · 빨려 듦 · 사라짐 · 나옴 · 도착 말풍선), 자리 125px 이동, 포털 뒤 다시 걷기, 연속 포털 — 쉬는 중이 아닌 6번 모두 자리 바뀜 · 끝나고 다시 보임, uxaudit · monkey · 걷기. / 회사에서 확인할 것: 너무 자주거나 드물면 알려 주기.
