@@ -2878,3 +2878,14 @@ C:\Users\SAMSUNG\Desktop\Claude\                         ← 개발 폴더 (여�
 - 바뀐 곳: dashboard.html 새 `MM_EMO` · `MM_EMO_KO` · `mmEmoji` · `mmEmoPut` · `mmNowText` · `MM_FONTS` · `mmFontApply` · `mmWrapApply` · `mmLines` · `mmLnUpdate` · `mmGoLine` · `mmSaveAs` · `mmOpenFile` + 단축키 처리, `mmOpen` 감싸기(.LOG · 줄바꿈 · 글꼴 · 상태), 삽입/보기 탭 · 오른쪽 클릭 메뉴 · 단축키 모음 · 빠른 찾기 표시(Ctrl+Shift+P), CSS `.mm-pop.emo` · `.mm-ed.nowrap` · `--mmf` · `.mm-ln`. 메모장.exe 다시 만듦.
 - 확인한 것: Playwright — 이모지 창(탭 10 · 표정 106개) · '체크' 찾기 → ✅ ☑️ ✔️ · 넣기, F5 날짜 줄, 상태 줄 '줄 3, 칸 24', Ctrl+G 1 → '줄 1, 칸 1', Alt+N 새 메모 · 제목 칸, .LOG 다시 열면 날짜 줄 추가, Ctrl+O 파일 고르기 창, Ctrl+P 인쇄 틀, F12 → txt 내려받기(CRLF), 자동 줄바꿈 끔 → nowrap, 고정폭 글꼴, Ctrl+휠 157% → Ctrl+0 100%, Ctrl+Shift+P 빠른 찾기. Ctrl+5 · 잘라 붙이기 시험 그대로, 화면 점검 192 조합 0건, 무작위 조작 500번 오류 0. (시험용 브라우저는 한글 파일 이름 내려받기를 'download' 로 표시 — 실제 Edge/Chrome 은 한글 이름 그대로.)
 - 회사에서 확인할 것: Ctrl+N · F12 · F5 가 회사 PC 브라우저/메모장.exe 에서 먹는지(브라우저가 먼저 가져가면 Alt+N · 보기 탭 단추로).
+
+### 2026-11-22 (APP_VERSION 2026-11-22.30 / SERVER_VERSION 2026-11-22.4) — v18.53 메모 새 창 · 실시간 연동
+- 무엇을 · 왜: 사용자 지시 "메모를 새 창으로도 열 수 있게 하고 실시간 연동되도록".
+  - 새 창: 메모 위 '⧉ 새 창' 단추(일반 · PDF 메모), 목록 오른쪽 클릭 '새 창으로 열기', 목록 카드 Shift+누르기 · 가운데 클릭. 주소 `?mmpop=메모ID#memo` — 같은 로그인으로 그 메모만 크게(대시보드 메뉴 · 메모 목록 없음, 창 제목 = 메모 제목). 처음 10초 동안 대시보드 시작 알림 · 보고 창은 닫음(눌러서 연 창은 그대로). 팝업이 막히면 안내.
+  - 같은 PC 의 창끼리(BroadcastChannel 'dept-memo-계정'): 고치면 0.25초 뒤 본문 · 제목 · 떠 있는 글 상자/메모지/그림 · 펜을 다른 창에 보냄, 저장하면 판 시각(updatedAt) · 목록 요약도 보냄 → 다른 창은 커서 자리 · 스크롤을 지키며 바꾸고(왼쪽 초록 선이 잠깐), 판 시각을 맞춰 서로 '다른 곳에서 먼저 고쳤습니다' 충돌 창이 뜨지 않음. 내가 치는 중(1.2초 안)이면 멈출 때까지 기다렸다 반영.
+  - 다른 PC: 서버 새 API `GET /api/memo/stamps`(메모마다 파일 시각만 — 본문 안 읽음)를 8초마다 보고, 지금 연 메모의 서버 시각이 이 화면 판보다 늦으면 받아서 반영. 내가 고치는 중이면 덮지 않고 '다른 곳에서 고쳤습니다' 알림. 화면이 안 보이거나 서버가 옛 판(404)이면 확인 안 함.
+  - 아래 상태 줄 앞 초록 점 = 실시간 연동 중.
+  - 시험 중 고친 것: 처음엔 서버 시각을 '바로 전 확인' 과 비교해 메모를 연 직후 생긴 변경을 놓침 → 이 화면 판 시각과 비교. 새 창에서 대시보드 시작 보고 창이 떠 메모를 가렸음 → 처음 10초 닫음.
+- 바뀐 곳: dashboard.html 새 `MM_WIN` · `MM_POP` · `mmPopOut` · `MMB` · `mmBc` · `mmBcEdit` · `mmBcGot` · `mmApplyRemote` · `mmNkPack` · `mmLivePoll`, `mmSave` · `mmTouch` · `mmLnUpdate` 감싸기, 메모 위 단추 · 목록 오른쪽 클릭, CSS `html.mmpop` · `.mm-ln.live` · `.mm-remote`. server.py 새 `api_memo_stamps` + 경로 `GET /api/memo/stamps`. 메모장.exe 다시 만듦(exe 안 서버에는 stamps 가 없어 다른 PC 확인은 꺼지고, 같은 PC 창끼리는 됨).
+- 확인한 것: Playwright — ⧉ 새 창 → 메뉴 · 목록 없이 그 메모, 새 창에서 쓴 줄 → 본 창 276ms, 본 창 → 새 창 268ms, 제목 바꿈 → 새 창 · 창 제목, 충돌 창 0 · 서버에 두 줄 다, 다른 PC(따로 브라우저 · 같은 계정) 5.4초. 무작위 조작 500번 오류 0, 화면 점검 192 조합 0건, 목록 끌어 놓기 · 메모장 단축키 시험 그대로, 자동 저장 구간 긴 작업 0.
+- 회사에서 확인할 것: **서버를 다시 켜야 다른 PC 연동이 됨**(server.py 바뀜). 두 사람이 같은 메모를 같은 순간 고치면 나중 저장이 이김(판 기록에서 되돌릴 수 있음).

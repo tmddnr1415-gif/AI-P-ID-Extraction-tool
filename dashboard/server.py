@@ -36,7 +36,7 @@ ID_RE = re.compile(r'^[A-Za-z0-9_\-]{1,80}$')
 WEEK_RE = re.compile(r'^\d{4}-W\d{2}$')
 MAX_BODY = 30 * 1024 * 1024
 
-SERVER_VERSION = '2026-11-22.3'
+SERVER_VERSION = '2026-11-22.4'
 ROOT = os.path.dirname(os.path.abspath(__file__))
 PORT = 8080
 ALLOW_NETS = []          # 사내망: 루프백·사설망 + 서버 IP 대역(/16, 유선·Wi-Fi 등 지금까지 쓴 대역 모두 기억) + --allow 로 추가한 대역
@@ -2220,6 +2220,22 @@ def api_memo_list(acc):
     return {'book': read_json(memo_dir(acc, 'book.json')) or {}, 'pages': pages, 'used': memo_usage(acc), 'quota': MEMO_QUOTA}
 
 
+def api_memo_stamps(acc):
+    """2026-11-22 v18.53 실시간 연동: 메모마다 마지막으로 고친 시각(파일 시각, ms)만 — 다른 PC · 창에서 고쳤는지 가볍게 확인 (본문은 안 읽음)"""
+    d = memo_dir(acc, 'pages')
+    out = {}
+    try:
+        for n in os.listdir(d):
+            if n.endswith('.json'):
+                try:
+                    out[n[:-5]] = int(os.stat(os.path.join(d, n)).st_mtime * 1000)
+                except OSError:
+                    pass
+    except OSError:
+        pass
+    return {'s': out}
+
+
 def api_memo_get(acc, pid):
     pg = read_json(memo_dir(acc, 'pages', memo_pid(pid) + '.json'))
     if not pg:
@@ -3059,6 +3075,8 @@ class Handler(BaseHTTPRequestHandler):
             acc = self.need_user()
             if m == 'GET' and len(seg) == 1:
                 return api_memo_list(acc)
+            if m == 'GET' and seg[1:] == ['stamps']:
+                return api_memo_stamps(acc)
             if m == 'GET' and seg[1:] == ['shared']:
                 return api_memo_shared_list(acc)
             if m == 'GET' and len(seg) == 4 and seg[1] == 'shared':
