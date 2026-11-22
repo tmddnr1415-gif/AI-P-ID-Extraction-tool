@@ -2505,6 +2505,15 @@ html:is(.dark,:not(.dark)) #memoWrap.mac :is(.mm-pt button,.mm-lh .row .btn){col
 /* v18.49 사용자 지시 "기존 글꼴은 맥 기존 글꼴로": 맥은 맥 시스템 글꼴(SF · Apple SD 산돌고딕 Neo) 그대로, 윈도우는 애플 시스템 글꼴과 비슷한 오픈소스 Pretendard(apps/fonts/pretendard, OFL) — 애플 글꼴은 윈도우용 배포물에 넣을 수 없음. 팝업 메뉴도 같은 글꼴 */
 #memoWrap .mm-zc button{min-height:20px;min-width:20px}#memoWrap .ch>button{min-height:22px}   /* 글꼴 줄 높이가 낮아져 작아진 단추 */
 body.mm-mac .mm-pop,body.mm-mac .mm-toast{font-family:"Pretendard Variable",-apple-system,BlinkMacSystemFont,"SF Pro Text","Apple SD Gothic Neo","Segoe UI Variable Text","Segoe UI","Malgun Gothic",sans-serif}
+/* v18.50 목록 끌어 놓기 부드럽게: 놓을 자리 표시가 부드럽게 바뀜 · '하위로' 는 살짝 오른쪽으로 들어가며 '↳ 하위로' · 끌리는 카드는 흐려짐 */
+#memoWrap .mm-card{transition:background .15s var(--mac-ease,ease),box-shadow .16s var(--mac-ease,ease),transform .16s var(--mac-ease,ease),opacity .16s}
+#memoWrap .mm-card.dragging{opacity:.32;transform:scale(.97)}
+#memoWrap .mm-card.dr-b{box-shadow:0 -3px 0 0 var(--accent,#3b82f6)!important}#memoWrap .mm-card.dr-a{box-shadow:0 3px 0 0 var(--accent,#3b82f6)!important}
+#memoWrap .mm-card.dr-in{transform:translateX(10px);outline:2px solid rgba(255,190,0,.9)!important;outline-offset:-2px;background:rgba(255,204,0,.16)!important}
+#memoWrap .mm-card.dr-in::after{content:'↳ 하위로'!important;display:block!important;position:absolute!important;left:auto!important;right:10px!important;top:50%!important;bottom:auto!important;transform:translateY(-50%);border:0!important;background:#a87c00;color:#fff;font:600 11px/18px inherit;padding:0 8px;border-radius:9px;pointer-events:none;animation:mmDrIn .18s cubic-bezier(.2,.8,.2,1)}
+@keyframes mmDrIn{from{opacity:0;transform:translate(6px,-50%)}to{opacity:1;transform:translateY(-50%)}}
+.mm-dragghost{position:fixed;top:-200px;left:-400px;max-width:260px;padding:7px 14px 7px 12px;border-radius:10px;background:rgba(255,255,255,.96);color:#1d1d1f;font:600 13px/18px "Pretendard Variable",-apple-system,"Segoe UI","Malgun Gothic",sans-serif;box-shadow:0 10px 28px rgba(0,0,0,.22),0 0 0 .5px rgba(0,0,0,.12);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;border-left:4px solid #ffcc00}
+@media (prefers-reduced-motion:reduce){#memoWrap .mm-card{transition:none}#memoWrap .mm-card.dr-in{transform:none}}
 /* 작은 글씨 · 확인 표시 · 지운 링크 */
 #mmEdw.sm .mm-ed{font-size:13px}#mmEdw.pp.sm{font-size:calc(13px*var(--z))}
 .mm-verb{border:0;font-size:11.5px;font-weight:600;border-radius:10px;padding:1px 8px;margin-right:10px;cursor:pointer;font-style:normal;white-space:nowrap}.mm-verb.ok{color:#448361;background:rgba(68,131,97,.12)}.mm-verb.exp{color:#d9730d;background:rgba(217,115,13,.12)}
@@ -2713,7 +2722,7 @@ function recLabel(key, f) {
  * ===================================================================== */
 let root = null;
 /* 서버 모드: http(s):// 로 접속하면 server.py 의 REST API 사용 (폴더 선택 불필요). file:// 로 열면 폴더 모드 */
-const APP_VERSION = '2026-11-22.26';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
+const APP_VERSION = '2026-11-22.27';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
 const SERVER_URL = 'http://localhost:8080';
 // 부서원 PC 사본(file://)이 접속을 시도할 서버 — 서버가 배포 파일을 만들 때 'PC 이름 주소, IP 주소' 순으로 자동 기록함
 const DEFAULT_SERVERS = ['http://ASEUNGWOOK-B01:8080', 'http://65.3.30.234:8080'];
@@ -6604,12 +6613,40 @@ async function mmSetParent(id, np) {   // 단계 바꾸기 (np = '' → 맨 위 
   try { const full = MM.cur?.id === id ? MM.cur : await mmPageGet(id); if (np) full.parent = np; else delete full.parent; mmMetaOf(full); mmMetaPut(full); if (MM.cur?.id === id) { MM.dirty = true; await mmSave(); } else await mmSave(full); p.parent = np || undefined; if (!np) delete p.parent;
     const par = np && MM.pages.find(x => x.id === np); toast(par ? `📂 '${trunc(p.title || '제목 없음', 24)}' → '${trunc(par.title || '제목 없음', 24)}' 의 하위로` : `⤒ '${trunc(p.title || '제목 없음', 24)}' → 맨 위 단계로`); mmStat(''); return true; }
   catch (e) { mmStat(''); toast('옮기지 못했습니다: ' + e.message, true); return false; } }
-async function mmTreeDrop(id, tid, mode) {   // mode: 'b' 앞 · 'a' 뒤 (같은 단계) · 'in' 하위로
+/* 2026-11-22 v18.50 사용자 지시: "메모장 메뉴 마우스로 레벨 옮기는 걸 더 부드럽게, 이펙트도". 예전엔 놓은 뒤 서버 저장(메모마다 받기 · 저장)이 끝나야 목록이 한 번에 바뀌어 멈칫했음
+   → 놓는 순간 이 화면의 단계(parent) · 순서(ord)를 먼저 바꿔 다시 그리고, 카드는 원래 자리에서 새 자리로 미끄러지듯(FLIP) · 들여쓰기도 함께 움직임 · 옮긴 카드는 노랗게 반짝. 저장은 뒤에서 차례대로(MM.treeQ). */
+function mmFlipFirst() { const m = new Map(); document.querySelectorAll('#mmList .mm-card[data-mp]').forEach(c => m.set(c.dataset.mp, c.getBoundingClientRect())); return m; }
+function mmFlipPlay(first, hot) { const rm = matchMedia('(prefers-reduced-motion: reduce)').matches, lb = $('#mmList .mm-lb'), vr = lb?.getBoundingClientRect();
+  document.querySelectorAll('#mmList .mm-card[data-mp]').forEach(c => { const b = c.getBoundingClientRect(); if (vr && (b.bottom < vr.top - 200 || b.top > vr.bottom + 200)) return; const a = first.get(c.dataset.mp);   // 화면 밖 카드는 움직이지 않음(가볍게)
+    if (rm) return; if (!a) return void c.animate([{ opacity:0, transform:'translateY(-6px) scale(.98)' }, { opacity:1, transform:'none' }], { duration:220, easing:'cubic-bezier(.2,.8,.2,1)' });
+    const dx = a.left - b.left, dy = a.top - b.top, sw = b.width ? a.width / b.width : 1; if (Math.abs(dx) < 1 && Math.abs(dy) < 1) return;
+    c.animate([{ transform:`translate(${dx}px,${dy}px) scaleX(${sw})`, transformOrigin:'left center' }, { transform:'none', transformOrigin:'left center' }], { duration:c.dataset.mp === hot ? 380 : 300, easing:'cubic-bezier(.2,.9,.25,1.08)' }); });
+  const h = hot && document.querySelector(`#mmList .mm-card[data-mp="${CSS.escape(hot)}"]`); if (h && !rm) h.animate([{ boxShadow:'0 0 0 3px rgba(255,204,0,.95), 0 8px 22px rgba(0,0,0,.14)' }, { boxShadow:'0 0 0 0 rgba(255,204,0,0), 0 0 0 rgba(0,0,0,0)' }], { duration:1100, easing:'ease-out' }); }
+function mmOrdPlan(id, ref, after) {   // 순서 값만 먼저 정함(이 화면) — 저장할 [id, ord] 목록을 돌려줌. mmReorder 와 같은 규칙
+  let l = mmShown(); const out = []; if (MM.sort !== 'manual') { l.forEach((p, i) => { if (p.ord !== i) { p.ord = i; out.push(p.id); } }); MM.sort = 'manual'; try { localStorage.setItem('dept-memo-sort', 'manual'); } catch (_) {} l = mmShown(); }
+  const me = l.find(p => p.id === id); l = l.filter(p => p.id !== id); const ti = l.findIndex(p => p.id === ref); if (me && ti >= 0) { const at = after ? ti + 1 : ti, a = l[at - 1], b = l[at]; me.ord = a && b ? (mmOrd(a) + mmOrd(b)) / 2 : a ? mmOrd(a) + 1 : b ? mmOrd(b) - 1 : 0; out.push(id); }
+  return [...new Set(out)].map(k => [k, MM.pages.find(p => p.id === k)?.ord]); }
+async function mmParentSave(id, np, ord) { await mmFlush(); const full = MM.cur?.id === id ? MM.cur : await mmPageGet(id); if (np) full.parent = np; else delete full.parent; if (ord != null) full.ord = full.x = ord; mmMetaOf(full); mmMetaPut(full); if (MM.cur?.id === id) { MM.dirty = true; await mmSave(); } else await mmSave(full); }
+function mmTreeMove(id, np, ref, after) {   // 단계(np: '' = 맨 위) · 자리(ref 의 앞/뒤) 를 바로 바꾸고 뒤에서 저장
+  const me = MM.pages.find(p => p.id === id); if (!me) return; np = np || ''; if (me.kind === 'sticky' && np) return toast('스티커는 하위로 넣을 수 없습니다', true);
+  if (np && (np === id || mmDesc(id, np))) return toast('자기 하위 메모 안으로는 옮길 수 없습니다', true);
+  const first = mmFlipFirst(), old = me.parent || ''; if (np !== old) { if (np) me.parent = np; else delete me.parent; } if (np) { mmLfold().delete(np); mmLfoldSave(); }
+  const plan = ref && ref !== id ? mmOrdPlan(id, ref, after) : []; mmDrawList(true); requestAnimationFrame(() => mmFlipPlay(first, id));
+  if (np !== old) { const par = np && MM.pages.find(x => x.id === np); toast(par ? `📂 '${trunc(me.title || '제목 없음', 24)}' → '${trunc(par.title || '제목 없음', 24)}' 의 하위로` : `⤒ '${trunc(me.title || '제목 없음', 24)}' → 맨 위 단계로`); }
+  const myOrd = plan.find(x => x[0] === id)?.[1]; mmStat('저장 중…');
+  if (np !== old) mmTreeQ(() => mmParentSave(id, np, MM.pages.find(x => x.id === id)?.ord ?? myOrd), 1); else if (plan.some(x => x[0] === id)) mmTreeQ(() => { const p = MM.pages.find(x => x.id === id); return p && mmOrdSave(p, p.ord); }, 1);   // 옮긴 메모가 먼저
+  for (const [k] of plan) if (k !== id) mmTreeQ(k); }
+/* v18.50 뒤에서 저장하는 줄: 옮긴 메모(먼저) · 나머지 순서 값(나중, 같은 메모는 한 번만 · 그때의 최신 값). 저장 중에 창을 닫으려 하면 경고 */
+function mmTreeQ(job, hi) { MM.tqh = MM.tqh || []; MM.tql = MM.tql || []; MM.tqs = MM.tqs || new Set();
+  if (hi) MM.tqh.push(job); else if (!MM.tqs.has(job)) { MM.tqs.add(job); MM.tql.push(job); }
+  if (MM.tqRun) return; MM.tqRun = true; (async () => { while (MM.tqh.length || MM.tql.length) { const j = MM.tqh.length ? MM.tqh.shift() : MM.tql.shift(); try { if (typeof j === 'function') await j(); else { MM.tqs.delete(j); const p = MM.pages.find(x => x.id === j); if (p && p.ord != null) await mmOrdSave(p, p.ord); } } catch (e) { toast('옮긴 것을 저장하지 못했습니다: ' + e.message, true); } }
+    MM.tqRun = false; mmStat(''); })(); }
+addEventListener('beforeunload', e => { if (MM.tqRun) { e.preventDefault(); e.returnValue = '메모 목록 순서를 아직 저장하는 중입니다'; } });
+function mmTreeDrop(id, tid, mode) {   // mode: 'b' 앞 · 'a' 뒤 (같은 단계) · 'in' 하위로
   const me = MM.pages.find(p => p.id === id), t = MM.pages.find(p => p.id === tid); if (!me || !t || id === tid) return;
-  if (mode === 'in') { if (t.kind === 'sticky' || me.kind === 'sticky') return toast('스티커는 하위로 넣거나 뺄 수 없습니다', true); if (!(await mmSetParent(id, tid))) return; mmLfold().delete(tid); mmLfoldSave();
-    if (MM.sort === 'manual') { const ks = mmShown().filter(p => p.parent === tid && p.id !== id); if (ks.length) return mmReorder(id, ks[ks.length - 1].id, true); } return mmDraw(); }
-  if (me.kind !== 'sticky') { const np = t.parent && t.parent !== t.id && MM.pages.some(p => p.id === t.parent && !p.deleted) ? t.parent : ''; if (!(await mmSetParent(id, np))) return; }
-  await mmReorder(id, tid, mode === 'a'); mmDraw(); }
+  if (mode === 'in') { if (t.kind === 'sticky' || me.kind === 'sticky') return toast('스티커는 하위로 넣거나 뺄 수 없습니다', true); const ks = mmShown().filter(p => p.parent === tid && p.id !== id); return mmTreeMove(id, tid, ks.length ? ks[ks.length - 1].id : (MM.sort === 'manual' ? tid : null), true); }
+  const np = me.kind === 'sticky' ? (me.parent || '') : t.parent && t.parent !== t.id && MM.pages.some(p => p.id === t.parent && !p.deleted) ? t.parent : '';
+  return mmTreeMove(id, np, tid, mode === 'a'); }
 function mmTreeCtx(e, c) {   // 목록 카드 오른쪽 클릭
   const id = c.dataset.mp, p = MM.pages.find(x => x.id === id); if (!p || p.kind === 'sticky') return; e.preventDefault();
   const T = mmShownT(), i = T.findIndex(x => x.p.id === id), me = T[i], prev = T.slice(0, i).reverse().find(x => x.lv === me?.lv), kids = MM.pages.filter(x => x.parent === id && !x.deleted).length, par = p.parent && MM.pages.find(x => x.id === p.parent);
@@ -6618,8 +6655,8 @@ function mmTreeCtx(e, c) {   // 목록 카드 오른쪽 클릭
     + I('up', '⇤', '한 단계 올리기', par ? '상위 메뉴로' : '', !par) + I('down', '⇥', '한 단계 내리기', prev ? `'${trunc(prev.p.title || '제목 없음', 14)}' 의 하위로` : '', !prev || !mmTreeOn()) + I('top', '⤒', '맨 위 단계로', '', !par)
     + '<div class="mm-poph"></div>' + I('sub', '📄', '하위 페이지 만들기', '이 메모 밑에') + (kids ? I('fold', mmLfold().has(id) ? '▾' : '▸', mmLfold().has(id) ? '하위 펼치기' : '하위 접기', kids + '개') : '') + I('all1', '▾', '모두 펼치기') + I('all0', '▸', '모두 접기')
     + `<div class="mm-poph" style="font-weight:400">끌어 놓기: 카드 가운데 = 하위로 · 위/아래 끝 = 그 앞/뒤</div>`, async v => {
-      if (v === 'up') return par && mmSetParent(id, par.parent && MM.pages.some(x => x.id === par.parent && !x.deleted) ? par.parent : '').then(ok => ok && mmReorder(id, par.id, true).then(() => mmDraw()));
-      if (v === 'down') return prev && mmTreeDrop(id, prev.p.id, 'in'); if (v === 'top') return mmSetParent(id, '').then(() => mmDraw());
+      if (v === 'up') return par && mmTreeMove(id, par.parent && MM.pages.some(x => x.id === par.parent && !x.deleted) ? par.parent : '', par.id, true);
+      if (v === 'down') return prev && mmTreeDrop(id, prev.p.id, 'in'); if (v === 'top') return mmTreeMove(id, '', null);
       if (v === 'sub') return mmSubPage(id, true); if (v === 'fold') { const f = mmLfold(); f.has(id) ? f.delete(id) : f.add(id); mmLfoldSave(); return mmDrawList(true); }
       if (v === 'all1' || v === 'all0') { MM.lfold = new Set(v === 'all1' ? [] : MM.pages.filter(x => MM.pages.some(y => y.parent === x.id)).map(x => x.id)); mmLfoldSave(); return mmDrawList(true); } }); }
 /* v18.13 빠르게: 저장할 때마다(약 1.2초) 300개 카드 목록 전체를 다시 그리던 것 → 순서가 그대로면 그 메모 카드만 고침 · 메모를 열 때는 '선택' 표시만 옮김 */
@@ -8020,10 +8057,13 @@ async function mmPurge() {   // 휴지통에 들어간 지 하루 넘은 것은 
 }
 (() => {   // 목록 카드 끌기
   let did = '';
-  document.addEventListener('dragstart', e => { const c = e.target.closest?.('#mmList .mm-card'); if (!c) return; did = c.dataset.mp; e.dataTransfer.effectAllowed = 'move'; try { e.dataTransfer.setData('text/plain', did); } catch (_) {} c.classList.add('dragging'); });
+  document.addEventListener('dragstart', e => { const c = e.target.closest?.('#mmList .mm-card'); if (!c) return; did = c.dataset.mp; e.dataTransfer.effectAllowed = 'move'; try { e.dataTransfer.setData('text/plain', did); } catch (_) {}
+    try { const g = document.createElement('div'); g.className = 'mm-dragghost'; g.textContent = (c.querySelector('b')?.textContent || '메모').replace(/[▾▸]/g, '').trim().slice(0, 40); document.body.appendChild(g); e.dataTransfer.setDragImage(g, 18, 16); setTimeout(() => g.remove(), 0); } catch (_) {}   // v18.50 끌리는 모습 = 둥근 작은 카드
+    requestAnimationFrame(() => c.classList.add('dragging')); });
   document.addEventListener('dragend', () => { did = ''; document.querySelectorAll('#mmList .dragging,#mmList .dr-b,#mmList .dr-a,#mmList .dr-in').forEach(x => x.classList.remove('dragging', 'dr-b', 'dr-a', 'dr-in')); });
   const zone = (c, e) => { const r = c.getBoundingClientRect(), f = (e.clientY - r.top) / r.height; if (!mmTreeOn() || c.classList.contains('stk')) return f > .5 ? 'a' : 'b'; return f < .25 ? 'b' : f > .75 ? 'a' : 'in'; };   // v18.35 가운데 = 하위로
-  document.addEventListener('dragover', e => { if (!did) return; const c = e.target.closest?.('#mmList .mm-card'); if (!c) return; e.preventDefault(); const z = zone(c, e);
+  document.addEventListener('dragover', e => { if (!did) return; const lb = e.target.closest?.('#mmList .mm-lb'); if (lb) { const r = lb.getBoundingClientRect(), k = e.clientY < r.top + 46 ? -1 : e.clientY > r.bottom - 46 ? 1 : 0; if (k) lb.scrollTop += k * Math.max(4, 18 - Math.min(e.clientY - r.top, r.bottom - e.clientY) / 3); }   // v18.50 위 · 아래 끝에서 저절로 스크롤
+    const c = e.target.closest?.('#mmList .mm-card'); if (!c) return; e.preventDefault(); const z = zone(c, e); if (c.classList.contains('dr-' + z)) return;
     document.querySelectorAll('#mmList .dr-b,#mmList .dr-a,#mmList .dr-in').forEach(x => x.classList.remove('dr-b', 'dr-a', 'dr-in')); if (c.dataset.mp !== did) c.classList.add('dr-' + z); });
   document.addEventListener('drop', e => { if (!did) return; const c = e.target.closest?.('#mmList .mm-card'); if (!c) return; e.preventDefault(); const z = zone(c, e), id = did; did = ''; document.querySelectorAll('#mmList .dr-in').forEach(x => x.classList.remove('dr-in')); if (mmTreeOn()) mmTreeDrop(id, c.dataset.mp, z); else mmReorder(id, c.dataset.mp, z === 'a'); });
   document.addEventListener('click', e => { const tw = e.target.closest?.('#mmList [data-mtw]'); if (tw) { e.preventDefault(); e.stopPropagation(); const f = mmLfold(), id = tw.dataset.mtw; f.has(id) ? f.delete(id) : f.add(id); mmLfoldSave(); return mmDrawList(true); }

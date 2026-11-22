@@ -2844,3 +2844,13 @@ C:\Users\SAMSUNG\Desktop\Claude\                         ← 개발 폴더 (여�
 - 바뀐 곳: dashboard.html CSS 글꼴 순서 · `body.mm-mac .mm-pop` · `.mm-zc button` · `.ch>button`, 새 `mmFontLoad`(`mmUi` 감싸기에서 부름). server.py `send_app_file`(woff2 · woff 종류 — 윈도우 파이썬 3.11 이 모를 수 있음). memo_app/main.go(`/apps/fonts/` 제공 · woff2 · css 종류) · build.sh(글꼴 넣음 — 메모장.exe 약 3MB 커짐). dashboard_tools/make_patch.py `KEEP_PREFIX` 에 'apps/fonts/'. CLAUDE.md 예외 항목 추가.
 - 확인한 것: Playwright(CDP 그려진 글꼴) — 전: 메뉴 · 목록이 그 PC 기본 글꼴(WenQuanYi · Inter), 후: 메뉴 · 목록 제목 · 목록 머리 모두 'Pretendard Variable'. 글꼴 조각 19개 · 187KB. 화면 점검 192 조합 0건, 무작위 조작 400번 오류 0, 메모 속도 그대로(열기 ~30ms · 타자 p50 12ms). make_patch 가 apps/fonts/ 를 넣는지 확인. 전/후 사진.
 - 회사에서 확인할 것: **서버를 다시 켜야 함**(server.py 바뀜), 운영 폴더에 apps\fonts\pretendard\ 가 생겼는지, 윈도우 PC 에서 메모장 글씨가 바뀌었는지.
+
+### 2026-11-22 (APP_VERSION 2026-11-22.27 / SERVER_VERSION 그대로) — v18.50 메모 목록 단계 옮기기 부드럽게 · 움직임
+- 무엇을 · 왜: 사용자 지시 "메모장 메뉴 마우스로 레벨 옮기는 걸 더 부드럽게, 이펙트도". 예전엔 놓은 뒤 서버 저장(메모마다 받기 · 저장)이 끝나야 목록이 한 번에 바뀌어 수 초 멈칫했음(처음 끌 때는 메모 전체의 순서 값을 하나씩 저장).
+  - 바로 반영: 놓는 순간 이 화면의 단계(parent) · 순서(ord)를 먼저 바꿔 다시 그림(`mmTreeMove` · `mmOrdPlan`) — 놓고 목록이 바뀌기까지 수 초 → 약 20~30ms.
+  - 움직임: 카드가 원래 자리에서 새 자리로 미끄러지듯(FLIP, 0.3초 · 살짝 튕김), 단계가 바뀌면 들여쓰기도 함께, 옮긴 카드는 노랗게 반짝. 화면 밖 카드는 움직이지 않음(가볍게). 움직임 줄이기 설정이면 없음.
+  - 끄는 동안: 끌리는 모습 = 둥근 작은 카드(제목만, 노란 왼쪽 띠), 끄는 카드는 흐려지고 살짝 작아짐, 놓을 자리 표시가 부드럽게 바뀜, '하위로' 자리는 살짝 오른쪽으로 들어가며 '↳ 하위로' 표시, 목록 위 · 아래 끝에서 저절로 스크롤.
+  - 저장은 뒤에서(`mmTreeQ`): 옮긴 메모의 단계 · 순서를 먼저, 나머지 순서 값은 나중(같은 메모는 한 번만, 그때의 최신 값). 저장 중에 창을 닫으려 하면 경고. 오른쪽 클릭 '한 단계 올리기 · 내리기 · 맨 위로' 도 같은 방식.
+  - 시험 중 찾은 것: 처음엔 뒤 저장을 한 줄로 차례대로 해서, 처음 끌 때 메모 100여 개 순서 저장 뒤에 '올리기' 저장이 밀려 창을 바로 닫으면 안 남았음 → 옮긴 메모를 먼저 저장하도록 바꿈.
+- 바뀐 곳: dashboard.html 새 `mmFlipFirst` · `mmFlipPlay` · `mmOrdPlan` · `mmParentSave` · `mmTreeMove` · `mmTreeQ`, `mmTreeDrop` 새로, 목록 오른쪽 클릭(올리기 · 맨 위로), 끌기 시작(끌리는 모습) · 끄는 중(저절로 스크롤 · 같은 자리면 다시 안 그림), CSS `.mm-card` 전환 · `.dragging` · `.dr-in` · `.mm-dragghost`. 메모장.exe 다시 만듦.
+- 확인한 것: Playwright — 가운데 놓기 '↳ 하위로' 표시, 놓고 바뀌기까지 21~31ms, 움직임 12~13개, R→Q 하위 · Q→P 하위 · R→P 위 끝(맨 위) · 오른쪽 클릭 Q 올리기 모두 화면 · 서버 파일(parent · ord) · 새로 고침 뒤 같음. 예전 목록 계층 시험(mm81) 그대로, 화면 점검 192 조합 0건, 무작위 조작 500번 오류 0.
