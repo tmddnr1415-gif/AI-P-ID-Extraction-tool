@@ -1952,6 +1952,7 @@ body.schbigon{overflow:hidden}@keyframes schBigIn{from{transform:scale(.97);opac
 .mm-tb[data-tab="all"].h-home > [data-rt="home"]:not(.mm-rgl):not(.mm-rbr),.mm-tb[data-tab="all"].h-insert > [data-rt="insert"]:not(.mm-rgl):not(.mm-rbr),.mm-tb[data-tab="all"].h-draw > [data-rt="draw"]:not(.mm-rgl):not(.mm-rbr),.mm-tb[data-tab="all"].h-view > [data-rt="view"]:not(.mm-rgl):not(.mm-rbr),.mm-tb[data-tab="all"].h-table > [data-rt="table"]:not(.mm-rgl):not(.mm-rbr){display:none!important}
 .mm-tb[data-tab].p-home > [data-rt="home"],.mm-tb[data-tab].p-insert > [data-rt="insert"],.mm-tb[data-tab].p-draw > [data-rt="draw"],.mm-tb[data-tab].p-view > [data-rt="view"],.mm-tb[data-tab].p-table > [data-rt="table"]{display:inline-flex;align-items:center}
 .mm-tb[data-tab]:not([data-tab="all"]).p-home > .mm-rgl[data-rgl="home"],.mm-tb[data-tab]:not([data-tab="all"]).p-insert > .mm-rgl[data-rgl="insert"],.mm-tb[data-tab]:not([data-tab="all"]).p-draw > .mm-rgl[data-rgl="draw"],.mm-tb[data-tab]:not([data-tab="all"]).p-view > .mm-rgl[data-rgl="view"]{display:inline-flex!important;align-items:center;gap:1px;margin:0 4px;padding:1px 3px 1px 7px;border-radius:7px;background:var(--accent-l);font-size:11.5px;color:var(--accent-d)}
+.mm-pdfbg{position:absolute;left:0;top:0;z-index:-1;pointer-events:none}.mm-zw.has-pdf{isolation:isolate}.mm-pdfbg .mm-pdfpg{position:absolute;left:0;background:#fff;box-shadow:0 1px 8px rgba(20,30,70,.28)}.mm-pdfbg .mm-pdfno{position:absolute;right:8px;font-style:normal;font-size:10px;color:#fff;background:rgba(30,40,70,.55);border-radius:6px;padding:0 6px}.mm-pdfbg .ld{padding:30px;color:var(--muted)}
 .mm-pop.subp{min-width:300px;max-height:460px}.mm-pop.subp #mmSubQ{width:calc(100% - 12px);margin:2px 6px 4px;border:1px solid var(--line);border-radius:6px;padding:4px 8px;font:inherit;font-size:12.5px}.mm-pop.subp #mmSubL{max-height:260px;overflow:auto}.mm-pop.subp .mm-subtree{display:flex;gap:6px;align-items:center;font-size:11.5px;color:var(--muted);padding:6px 8px 2px;border-top:1px solid var(--line);margin-top:4px}
 .mm-pop.dlp{min-width:260px}.mm-dlin{display:flex;flex-direction:column;gap:6px;padding:4px 6px}.mm-dlin label{display:flex;align-items:center;gap:8px;font-size:12.5px}.mm-dlin input{border:1px solid var(--line);border-radius:6px;padding:3px 6px;font:inherit}.mm-dlin label small{color:var(--muted);font-size:10.5px}.mm-dlin .q{display:flex;flex-wrap:wrap;gap:3px}.mm-dlin .q i{font-style:normal;font-size:11px;border:1px solid var(--line);border-radius:10px;padding:1px 8px;cursor:pointer}.mm-dlin .q i:hover{background:var(--accent-l)}.mm-dlin .b{display:flex;gap:4px}.mm-dlin .b button{width:auto!important;padding:4px 14px!important;justify-content:center;border:1px solid var(--line)!important}.mm-dlin .b button.pri{background:var(--accent)!important;color:#fff!important}.mm-dlin>small{font-size:10.5px;line-height:1.4}
 #mmDropLine{position:fixed;z-index:70;height:3px;border-radius:2px;background:var(--accent);pointer-events:none;box-shadow:0 0 0 2px rgba(255,255,255,.6)}#mmNotes .mm-fn.im.picked{outline:2.5px solid var(--accent);outline-offset:2px}
@@ -2620,7 +2621,7 @@ function recLabel(key, f) {
  * ===================================================================== */
 let root = null;
 /* 서버 모드: http(s):// 로 접속하면 server.py 의 REST API 사용 (폴더 선택 불필요). file:// 로 열면 폴더 모드 */
-const APP_VERSION = '2026-11-22.8';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
+const APP_VERSION = '2026-11-22.9';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
 const SERVER_URL = 'http://localhost:8080';
 // 부서원 PC 사본(file://)이 접속을 시도할 서버 — 서버가 배포 파일을 만들 때 'PC 이름 주소, IP 주소' 순으로 자동 기록함
 const DEFAULT_SERVERS = ['http://ASEUNGWOOK-B01:8080', 'http://65.3.30.234:8080'];
@@ -6329,7 +6330,7 @@ function mmMetaOf(pg) {   // 목록 · 찾기 · 할 일 모음에 쓰는 요약
   pg.todos = [...d.querySelectorAll('.mm-chk')].slice(0, 300).map(x => { const o = { t:x.textContent.trim().slice(0, 160), d:x.dataset.done === '1' ? 1 : 0 }; if (x.dataset.st === 'doing' && !o.d) o.s = 'doing'; ['due', 'pri', 'who', 'time', 'end', 'rep', 'kind', 'loc', 'rem', 'dn'].forEach(k => { if (x.dataset[k]) o[k] = x.dataset[k].slice(0, 40); }); return o; });
   [...d.querySelectorAll('span.mm-dl')].forEach((x, c) => { if (x.closest('.mm-chk') || pg.todos.length >= 400) return; let ln = x.closest('li, td, th, h1, h2, h3, p, div'); if (!ln || ln === d) ln = x.previousElementSibling || d; const cp = ln.cloneNode(true); cp.querySelectorAll('span.mm-dl').forEach(y => y.remove());   // v18.27 ⏰ 기한 조각 → 할 일 모음 · 날짜별 · 알람
     const o = { t:(cp.textContent.trim() || '(기한)').slice(0, 160), d:x.dataset.done === '1' ? 1 : 0, c }; if (/^\d{4}-\d\d-\d\d$/.test(x.dataset.due || '')) o.due = x.dataset.due; if (/^\d{4}$/.test(x.dataset.time || '')) o.time = x.dataset.time; pg.todos.push(o); });
-  pg.files = [...new Set([...d.querySelectorAll('.mm-file[data-fid]')].map(x => x.dataset.fid))];
+  pg.files = [...new Set([...d.querySelectorAll('.mm-file[data-fid]')].map(x => x.dataset.fid).concat(pg.pdfbg?.fid ? [pg.pdfbg.fid] : []))];   // v18.32 PDF 배경도 이 메모의 첨부
   (pg.notes || []).forEach(n => { if (n.k === 'tbox' && n.html) d.insertAdjacentHTML('beforeend', '<div>' + n.html + '</div>'); });   // 글 상자도 본문처럼 (태그 모음)
   pg.cov = /^g\d+$/.test(pg.cover || '') ? pg.cover : pg.cover ? 'img' : '';
   pg.links = [...new Set([...d.querySelectorAll('a.mm-pgl[href^="#memo/"]')].map(a => a.getAttribute('href').slice(6)))].slice(0, 100);
@@ -6538,13 +6539,13 @@ function mmDrawMain() {
       ${T('ul', '•', '글머리 목록')}${T('ol', '1.', '번호 목록')}${T('todo', '☑', '할 일 (체크 상자)')}${T('quote', '❝', '인용')}${T('call', '💡', '강조 상자')}${T('code', '&lt;/&gt;', '코드 · 고정폭')}${T('toggle', '▸', '접는 글')}${T('hr', '―', '구분선')}${T('mark', '🏷 태그', 'OneNote 태그 — 이 줄에 ⭐중요 · ❓질문 · 💡아이디어 · ⚠확인 · 📞연락 붙이기 (Alt+1~6, Alt+0 지우기) · 왼쪽 [🏷 태그 모음] 에서 모든 메모의 태그를 한곳에')}${T('find', '🔎', '이 메모 안에서 찾기 · 바꾸기 (Ctrl+F · Ctrl+H)')}${T('nlp', '✨ 자동 할 일', '말로 쓴 줄을 할 일로 자동 등록 — 예: \'오늘 12:30에 미터링 업체랑 미팅 있음\' 을 쓰고 Enter → 할 일(🤝 미팅 · 오늘 12:30) · 알람 · 달력. 다시 누르면 끔. 바로 되돌리기 = Ctrl+Z')}${S}
       ${T('left', '⇤', '왼쪽 맞춤')}${T('center', '↔', '가운데 맞춤')}${T('right', '⇥', '오른쪽 맞춤')}${T('full', '☰', '양쪽 맞춤')}${T('indent', '→|', '들여쓰기')}${T('outdent', '|←', '내어쓰기')}${S}${T('col2', '▥2', '좌우 2단으로 나누기')}${T('col3', '▥3', '좌우 3단으로 나누기')}${T('colx', '▥✕', '단 나누기 풀기 (한 줄로)')}${S}
       ${T('table', '▦', '표 넣기 — 칸 수 고르기')}<span class="tbl">${T('trow', '+행', '아래에 행 넣기')}${T('tcol', '+열', '오른쪽에 열 넣기')}${T('trowx', '−행', '행 지우기')}${T('tcolx', '−열', '열 지우기')}${T('tmerge', '⊞합치기', '끌어서 고른 칸 합치기')}${T('tsplit', '⊟나누기', '합친 칸 나누기')}${T('tbg', '🎨', '칸 배경색')}${T('tmenu', '표 ▾', '표 메뉴 전체 (표 안에서 마우스 오른쪽 단추로도 열림)')}${T('teq', '열=', '열 너비를 같게 · 표를 가로로 꽉 차게 (다시 누르면 풀기)')}${T('tsort', '↕정렬', '이 열 기준으로 행 정렬 (다시 누르면 반대로 · 날짜 · 숫자 · 글자)')}${T('tdel', '표✕', '표 지우기')}</span>${S}
-      ${T('due', '⏰ 기한', '기한 넣기 — 날짜(+시간). 날짜만 = 📅, 시간까지 = ⏰ 그 시각에 알람 · 할 일 모음 · 날짜별에 자동으로')}${T('link', '🔗', '링크')}${T('img', '🖼', '그림 넣기 (붙여넣기 · 끌어 놓기도 됨)')}${T('shot', '📷 화면 캡처', '화면을 캡처해 범위를 골라 메모에 그림으로 붙이기 (Win+Shift+S 로 캡처한 뒤 Ctrl+V 도 됨)')}${T('mailx', '📧 메일 정리', '메일 화면 캡처(Ctrl+V) 또는 메일 글을 붙여 넣으면 제목 · 보낸 사람 · 날짜 · 요약 · 요청 사항 · 일정 · 카테고리로 정리 → 메모 · 스티커 · 할 일로')}${T('page', '📄 하위 페이지', '이 메모 안에 하위 페이지 만들기 (/페이지) — 페이지 트리 · 위치 표시에 나옴')}${T('cmt', '💬 주석 달기', '고른 글에 주석(설명 말풍선) 달기 — 글에 점선 밑줄 · 오른쪽에 말풍선 (Ctrl+Alt+M)')}${T('note', '🗒 메모지', '메모 위 아무 곳에나(왼쪽 여백 포함) 색 메모지 붙이기 — 누른 뒤 붙일 자리를 누름')}${T('tbox', 'Ｔ 글 상자', '원하는 곳에 바로 글 쓰기 — 누른 뒤 쓸 자리를 누름')}${T('ink', '🖊 펜 쓰기', '메모 위에 마우스 · 펜으로 바로 그리기 (펜 · 만년필 · 형광펜 · 레이저 · 지우개)')}${T('draw', '✏', '빈 종이에 그려서 그림으로 넣기')}${T('file', '📎', '파일 첨부 (PDF · 문서 — PDF 는 보면서 메모)')}${T('date', '📅', '오늘 날짜 · 시각 넣기')}${S}<button data-mc="pull" title="다른 메뉴의 값 불러오기 (수행 · 입찰 · 이슈 · 통합 업무 · Schedule …)" style="font-weight:700;color:var(--accent-d)">📥 불러오기</button></div>
+      ${T('pdfbg', '📕 PDF 배경', 'PDF 를 메모 배경으로 — PDF 위에 펜 · 형광펜 · 글 상자 · 주석 · 그림 · 기한 (PDF-XChange 처럼). 📄 PDF 저장 = 표시한 그대로 쪽마다')}${T('due', '⏰ 기한', '기한 넣기 — 날짜(+시간). 날짜만 = 📅, 시간까지 = ⏰ 그 시각에 알람 · 할 일 모음 · 날짜별에 자동으로')}${T('link', '🔗', '링크')}${T('img', '🖼', '그림 넣기 (붙여넣기 · 끌어 놓기도 됨)')}${T('shot', '📷 화면 캡처', '화면을 캡처해 범위를 골라 메모에 그림으로 붙이기 (Win+Shift+S 로 캡처한 뒤 Ctrl+V 도 됨)')}${T('mailx', '📧 메일 정리', '메일 화면 캡처(Ctrl+V) 또는 메일 글을 붙여 넣으면 제목 · 보낸 사람 · 날짜 · 요약 · 요청 사항 · 일정 · 카테고리로 정리 → 메모 · 스티커 · 할 일로')}${T('page', '📄 하위 페이지', '이 메모 안에 하위 페이지 만들기 (/페이지) — 페이지 트리 · 위치 표시에 나옴')}${T('cmt', '💬 주석 달기', '고른 글에 주석(설명 말풍선) 달기 — 글에 점선 밑줄 · 오른쪽에 말풍선 (Ctrl+Alt+M)')}${T('note', '🗒 메모지', '메모 위 아무 곳에나(왼쪽 여백 포함) 색 메모지 붙이기 — 누른 뒤 붙일 자리를 누름')}${T('tbox', 'Ｔ 글 상자', '원하는 곳에 바로 글 쓰기 — 누른 뒤 쓸 자리를 누름')}${T('ink', '🖊 펜 쓰기', '메모 위에 마우스 · 펜으로 바로 그리기 (펜 · 만년필 · 형광펜 · 레이저 · 지우개)')}${T('draw', '✏', '빈 종이에 그려서 그림으로 넣기')}${T('file', '📎', '파일 첨부 (PDF · 문서 — PDF 는 보면서 메모)')}${T('date', '📅', '오늘 날짜 · 시각 넣기')}${S}<button data-mc="pull" title="다른 메뉴의 값 불러오기 (수행 · 입찰 · 이슈 · 통합 업무 · Schedule …)" style="font-weight:700;color:var(--accent-d)">📥 불러오기</button></div>
     <div id="mmInkHost"></div><div class="mm-edw" id="mmEdw"><div class="mm-zw" id="mmZw"><div class="mm-ed" id="mmEd" data-pid="${pg.id}" contenteditable="${pg.lock ? 'false' : 'true'}" spellcheck="false"></div><div class="mm-notes" id="mmNotes"></div><svg class="mm-ink" id="mmInk"></svg></div></div>
     <div class="mm-zc"><button data-mx="zo" title="축소 (Ctrl + 휠 아래)">－</button><b id="mmZl" data-mx="z1" title="100% 로">100%</b><button data-mx="zi" title="확대 (Ctrl + 휠 위)">＋</button></div><div class="mm-st" id="mmSt"></div><input type="file" id="mmFile" hidden multiple><input type="file" id="mmImg" hidden multiple accept="image/*">`;
   $('#mmEd').innerHTML = mmClean(pg.html || ''); $('#mmLh').value = pg.lh || ''; $('#mmBg').value = pg.bg || ''; $('#mmEd').className = mmEdCls(pg); if (pg._ro) { $('#mmTb').style.display = 'none'; $('.mm-meta', el).innerHTML = `<span class="mm-ro">👥 <b>${esc(pg.ownerName || pg._ro)}</b> 님이 공유한 메모 — 읽기 전용 · ${fmtTime(pg.updatedAt)} 고침</span><button class="tg" data-mx="rocopy">⧉ 내 메모로 복사</button>`; }
   mmOneNote(el, pg);
   if ((() => { try { return localStorage.getItem('dept-memo-anno') === '0'; } catch (_) { return false; } })()) { document.body.classList.add('mm-noanno'); const ab = $('[data-mx="anno"]'); if (ab) { ab.textContent = '👁 주석 보이기'; ab.classList.add('on'); } } else document.body.classList.remove('mm-noanno');
-  mmZoomSet(mmZoom(), true); mmInkSync(); MM.lastKind = ''; MM.place = ''; MM.pick = ''; mmNotesDraw(); mmEdPos(); mmOlFix(); mmIdle(mmCount); mmTocSync(); mmChips(); mmHistReset();
+  mmZoomSet(mmZoom(), true); mmInkSync(); MM.lastKind = ''; MM.place = ''; MM.pick = ''; mmNotesDraw(); mmEdPos(); mmOlFix(); mmPdfBgDraw(); mmIdle(mmCount); mmTocSync(); mmChips(); mmHistReset();
   mmStat(pg.updatedAt ? `저장됨 ${fmtTime(pg.updatedAt)} · ${(pg.text || '').length.toLocaleString()}자` : '새 메모');
   try { document.execCommand('styleWithCSS', false, true); document.execCommand('defaultParagraphSeparator', false, 'div'); } catch (_) {}
 }
@@ -6616,6 +6617,7 @@ function mmCmd(c, btn) {
     case 'todo': { const b = mmBlock(); if (b && b.tagName === 'DIV' && !b.classList.contains('mm-call') && !b.querySelector('div,ul,ol,table')) { if (b.classList.contains('mm-chk')) { b.classList.remove('mm-chk'); b.removeAttribute('data-done'); } else { b.className = 'mm-chk'; b.dataset.done = '0'; } mmTouch(); } else mmInsert('<div class="mm-chk" data-done="0">할 일</div>'); return; }
     case 'call': return mmInsert('<div class="mm-call">강조할 내용</div><div><br></div>');
     case 'toggle': return mmInsert('<details open><summary>접는 글 제목</summary><div>내용</div></details><div><br></div>');
+    case 'pdfbg': return mmPdfBgPick(btn);
     case 'due': return mmDueIns(btn?.getBoundingClientRect ? btn : btn || { left:200, top:200, bottom:200 });
     case 'date': { const n = new Date(); return mmInsert(esc(`${todayISO()} ${pad(n.getHours())}:${pad(n.getMinutes())} `)); }
     case 'link': { const s = mmSelIn(), r = s && s.rangeCount ? s.getRangeAt(0).cloneRange() : null, txt = s ? String(s) : '';
@@ -6843,23 +6845,57 @@ async function mmVers() {
     if (e.target.id === 'mmVerUse' && cur) { pg.html = mmClean(cur.html || ''); mmMetaOf(pg); dlg.close(); mmDrawMain(); await mmSave(pg); toast('그 판으로 되돌렸습니다'); } };
   show(d.vers[0].ts);
 }
+/* 2026-11-22 v18.32 사용자 지시: PDF 를 넣으면 메모장 배경이 PDF 가 되어 그 위에 작업 (PDF-XChange 처럼).
+   PDF 는 이 메모의 첨부로 저장(pg.pdfbg = { fid, name }), 열 때마다 pdf.js 로 쪽을 종이 폭 900px 에 그려 맨 아래 층에 깔고, 그 위에 예전 도구(펜 · 형광펜 · 지우개 · 글 상자 · 주석 · 떠 있는 그림 · 기한 · 본문 글)를 그대로.
+   📄 PDF 저장 = PDF 한 쪽 = 한 장(표시 포함) */
+const MM_PDFW = 900;
+function mmPdfBgPick(btn) {
+  const pg = MM.cur; if (!pg || pg.lock) return; if (pg.pdfbg?.fid) return mmPop(btn?.getBoundingClientRect ? btn : btn || { left:300, top:200, bottom:200 }, `<div class="mm-poph">📕 ${esc(pg.pdfbg.name || 'PDF')} (${pg.pdfbg.n || '?'}쪽)</div><button data-v="new"><span>🔁</span>다른 PDF 로 바꾸기</button><button data-v="off"><span>✕</span>PDF 배경 빼기<small>표시(펜 · 글 상자)는 남음</small></button>`, v => v === 'off' ? mmPdfBgOff() : mmPdfBgPick2());
+  mmPdfBgPick2();
+}
+function mmPdfBgPick2() { const i = document.createElement('input'); i.type = 'file'; i.accept = '.pdf,application/pdf'; i.onchange = () => i.files[0] && mmPdfBgSet(i.files[0]); i.click(); }
+async function mmPdfBgSet(f) {
+  const pg = MM.cur; if (!pg || pg.lock) return; if (f.size > 190 * 1048576) return toast('190MB 가 넘는 PDF 는 넣을 수 없습니다', true);
+  try { mmStat('PDF 올리는 중… ' + f.name); const buf = await f.arrayBuffer(), fid0 = 'f' + Date.now().toString(16) + Array.from(crypto.getRandomValues(new Uint8Array(3)), x => x.toString(16).padStart(2, '0')).join('');
+    let m = { id:fid0, name:f.name, ext:'.pdf', size:f.size }, up = 1; if (mmNet()) { try { m = await api('PUT', `memo/f?name=${enc(f.name)}&id=${fid0}`, undefined, buf); MM.used += m.size; up = 0; } catch (e) { if (!e.offline) throw e; } }
+    if (up || m.size <= 30 * 1048576) await mmFileKeep(m.id, { name:m.name, ext:m.ext, size:m.size, buf, up });
+    pg.pdfbg = { fid:m.id, name:String(f.name).slice(0, 120) }; MM.dirty = true; await mmPdfBgDraw(); await mmSave(); mmStat(''); toast(`📕 PDF 배경 ${pg.pdfbg.n || ''}쪽 — 펜(그리기 탭) · 형광펜 · 글 상자 · 주석으로 표시, 📄 PDF 저장 = 표시 그대로`);
+  } catch (e) { mmStat(''); toast('PDF 를 넣지 못했습니다: ' + e.message, true); }
+}
+async function mmPdfBgOff() { const pg = MM.cur; if (!pg) return; delete pg.pdfbg; $('#mmPdfBg')?.remove(); $('#mmZw')?.classList.remove('has-pdf'); MM.pdfPages = []; MM.dirty = true; mmPaperFit(); await mmSave(); toast('PDF 배경을 뺐습니다 (첨부 파일은 휴지통 정리 때 지워짐)'); }
+async function mmPdfBgDraw() {
+  const pg = MM.cur, zw = $('#mmZw'); $('#mmPdfBg')?.remove(); zw?.classList.remove('has-pdf'); MM.pdfPages = []; if (!pg?.pdfbg?.fid || !zw) return;
+  const box = document.createElement('div'); box.id = 'mmPdfBg'; box.className = 'mm-pdfbg'; box.innerHTML = '<div class="ld">📕 PDF 불러오는 중…</div>'; zw.prepend(box); zw.classList.add('has-pdf'); const pid = pg.id;
+  try { const blob = await mmBlob(pg.pdfbg.fid), { lib, base } = await mmPdfLib(); const doc = await lib.getDocument({ data:await blob.arrayBuffer(), cMapUrl:base + 'cmaps/', cMapPacked:true, standardFontDataUrl:base + 'standard_fonts/' }).promise;
+    if (MM.cur?.id !== pid || !box.isConnected) return; box.innerHTML = ''; pg.pdfbg.n = doc.numPages; let y = 0; const N = Math.min(doc.numPages, 300), q = Math.min(2, (window.devicePixelRatio || 1) * 1.25);
+    for (let i = 1; i <= N; i++) { const p = await doc.getPage(i), v1 = p.getViewport({ scale:1 }), sc = MM_PDFW / v1.width, vp = p.getViewport({ scale:sc * q }), h = Math.round(v1.height * sc);
+      const cv = document.createElement('canvas'); cv.className = 'mm-pdfpg'; cv.width = Math.round(vp.width); cv.height = Math.round(vp.height); cv.style.cssText = `width:${MM_PDFW}px;height:${h}px;top:${y}px`; cv.dataset.pg = i; box.appendChild(cv);
+      const lb = document.createElement('i'); lb.className = 'mm-pdfno'; lb.textContent = `${i} / ${doc.numPages}`; lb.style.top = (y + h - 18) + 'px'; box.appendChild(lb);
+      MM.pdfPages.push({ top:y, h }); y += h + 16; box.style.height = y + 'px'; box.style.width = MM_PDFW + 'px'; if (i === 1 || i % 5 === 0) mmPaperFit();
+      await p.render({ canvasContext:cv.getContext('2d'), viewport:vp }).promise; if (MM.cur?.id !== pid || !box.isConnected) return; }
+    mmPaperFit(); MM.zkey = ''; mmZoomFit();
+  } catch (e) { box.innerHTML = `<div class="ld">⚠ PDF 를 그리지 못했습니다 — ${esc(e.message || '')}</div>`; }
+}
 /* 2026-11-22 v18.31 사용자 지시: 메모장을 PDF 로 — 화면 그대로(확대 · 어두운 종이 · 손잡이)가 아니라 깨끗한 A4 흰 종이에 제목 · 날짜 + 본문 · 떠 있는 그림 · 글 상자 · 펜 (+ 하위 페이지) → 인쇄 창에서 'PDF 로 저장'.
    외부 프로그램 · 라이브러리 없이 브라우저(Edge · Chrome) 인쇄의 PDF 저장을 씀 — 파일 이름 = 메모 제목 */
 async function mmPdfHtml(sub) {
   const pg = MM.cur; if (!pg) return ''; mmPull(); await mmFlush();
   const css = [...document.querySelectorAll('style')].map(x => x.textContent).join('\n'), zw0 = $('#mmZw'); if (!zw0) return '';
   const zw = zw0.cloneNode(true); zw.querySelectorAll('#mmEdGrip, .mm-tg, #mmBh, #mmBp, #mmBl, .mm-phact, #mmDropLine, .mm-fn .fh button, .mm-fn .rs, [data-chip]').forEach(x => x.remove());
+  { const c0 = zw0.querySelectorAll('canvas'), c1 = zw.querySelectorAll('canvas'); c1.forEach((c, i) => { const im = document.createElement('img'); try { im.src = c0[i].toDataURL('image/jpeg', .9); } catch (_) {} im.className = c.className; im.style.cssText = c.style.cssText; c.replaceWith(im); }); zw.querySelectorAll('#mmPdfBg .ld').forEach(x => x.remove()); }   // 그린 PDF 쪽 · 그림판 → 그림
   zw.querySelectorAll('[contenteditable]').forEach(x => x.removeAttribute('contenteditable')); zw.querySelectorAll('.dk').forEach(x => x.classList.remove('dk')); zw.querySelectorAll('[data-dkc]').forEach(x => x.removeAttribute('data-dkc')); zw.querySelectorAll('.picked, .mm-sel, .mm-flash, .mm-ctx, .mm-holdmv, .mm-tgon').forEach(x => x.classList.remove('picked', 'mm-sel', 'mm-flash', 'mm-ctx', 'mm-holdmv', 'mm-tgon'));
   const z = mmZoom(), zr = zw0.getBoundingClientRect(); let hb = $('#mmEd').scrollHeight; zw0.querySelectorAll('#mmNotes .mm-fn').forEach(x => { hb = Math.max(hb, (x.getBoundingClientRect().bottom - zr.top) / z); }); zw0.querySelectorAll('#mmInk path, #mmInk polyline, #mmInk line, #mmInk text').forEach(x => { try { hb = Math.max(hb, (x.getBoundingClientRect().bottom - zr.top) / z); } catch (_) {} });   // 떠 있는 그림 · 글 상자 · 펜까지 종이 높이
-  const w = Math.max(zw0.scrollWidth / z, 700), k = Math.min(1, 700 / w);   // 좁은 화면에서 열어도 A4 폭으로 zw.style.cssText = `position:relative;--k:${k};--w:${Math.round(w)}px;--h:${Math.round(hb + 24)}px`;
+  const w = Math.max(zw0.scrollWidth / z, 700), k = Math.min(1, 700 / w); zw.style.cssText = `position:relative;--k:${k};--w:${Math.round(w)}px;--h:${Math.round(hb + 24)}px`;
+  let body = zw.outerHTML; const PP = MM.pdfPages || []; if (PP.length && $('#mmPdfBg')) {   // PDF 배경: PDF 한 쪽 = 한 장 (그 쪽 범위의 표시만)
+    const kk = Math.min(1, 700 / MM_PDFW); body = PP.map((pp, i) => { const c = zw.cloneNode(true); c.querySelectorAll('#mmPdfBg img.mm-pdfpg').forEach((im, j) => { if (j !== i) im.remove(); }); c.querySelectorAll('#mmPdfBg .mm-pdfno').forEach(x => x.remove()); c.style.cssText = `position:absolute;left:0;top:${-pp.top}px;--k:1;--w:${Math.round(w)}px;--h:${Math.round(hb + 24)}px`; return `<div class="pdf-pg" style="zoom:${kk};height:${pp.h}px;width:${MM_PDFW}px">${c.outerHTML}</div>`; }).join(''); }   // 좁은 화면에서 열어도 A4 폭으로
   const d = new Date(pg.createdAt || Date.now()), dd = mmDay(pg);
   let extra = ''; if (sub) for (const c of mmLive().filter(p => p.parent === pg.id).sort((a, b) => String(a.createdAt || '').localeCompare(String(b.createdAt || '')))) { try { const f = await mmPageGet(c.id); extra += `<section class="pdf-sub"><div class="pdf-h"><h1>${esc(c.icon || '📄')} ${esc(c.title || '제목 없음')}</h1><div class="m">하위 페이지 · ${esc(mmDay(c))}</div></div><div class="mm-ed">${mmClean(f.html || '')}</div></section>`; } catch (_) {} }
   return `<!DOCTYPE html><html lang="ko"><head><meta charset="UTF-8"><title>${esc(pg.title || '메모')}</title><style>${css}</style><style>
 @page{size:A4;margin:12mm 11mm}html,body{background:#fff!important;margin:0;padding:0;-webkit-print-color-adjust:exact;print-color-adjust:exact}body{font-family:'Malgun Gothic','Noto Sans KR',sans-serif;color:#1b2238}
 #memoWrap.pdfw{display:block!important;height:auto!important;overflow:visible!important;background:#fff!important;border:0!important;box-shadow:none!important;border-radius:0!important}.pdfw #mmZw{zoom:var(--k)!important;width:var(--w)!important;min-height:var(--h)!important;height:auto!important;overflow:visible!important}.pdfw #mmNotes,.pdfw #mmInk{display:block!important}.pdfw .mm-ed{color:#1b2238!important;background:none!important;padding:6px 4px 10px!important;min-height:0!important}.pdfw .mm-zw{box-shadow:none!important;background:none!important}
-.pdf-h{border-bottom:1.5px solid #c9cfe2;margin:0 0 10px;padding-bottom:6px}.pdf-h h1{font-size:22px;margin:0}.pdf-h .m{font-size:11px;color:#6b7390;margin-top:3px}.pdf-sub{break-before:page;margin-top:0}
+.pdf-pg{position:relative;overflow:hidden;break-after:page;break-inside:avoid;margin:0 auto}.pdf-pg:last-child{break-after:auto}.pdf-h{border-bottom:1.5px solid #c9cfe2;margin:0 0 10px;padding-bottom:6px}.pdf-h h1{font-size:22px;margin:0}.pdf-h .m{font-size:11px;color:#6b7390;margin-top:3px}.pdf-sub{break-before:page;margin-top:0}
 .pdfw a.mm-pgl{border-bottom:0;color:#1d4ed8}.pdfw .mm-file{border:1px solid #c9cfe2!important}.pdfw svg{overflow:visible}.pdfw table{break-inside:auto}.pdfw tr,.pdfw img,.pdfw .mm-fn{break-inside:avoid}
-</style></head><body><div id="memoWrap" class="pdfw"><div class="pdf-h"><h1>${esc(pg.icon || '📄')} ${esc(pg.title || '제목 없음')}</h1><div class="m">${esc(dd)} ${d.getHours() < 12 ? '오전' : '오후'} ${(d.getHours() % 12) || 12}:${pad(d.getMinutes())}${(pg.tags || []).length ? ' · #' + pg.tags.map(esc).join(' #') : ''}</div></div>${zw.outerHTML}${extra}</div></body></html>`;
+</style></head><body><div id="memoWrap" class="pdfw">${PP.length && $('#mmPdfBg') ? '' : `<div class="pdf-h"><h1>${esc(pg.icon || '📄')} ${esc(pg.title || '제목 없음')}</h1><div class="m">${esc(dd)} ${d.getHours() < 12 ? '오전' : '오후'} ${(d.getHours() % 12) || 12}:${pad(d.getMinutes())}${(pg.tags || []).length ? ' · #' + pg.tags.map(esc).join(' #') : ''}</div></div>`}${body}${extra}</div></body></html>`;
 }
 async function mmPdf(sub) {
   const h = await mmPdfHtml(sub); if (!h) return; $('#mmPdfFrame')?.remove(); const f = document.createElement('iframe'); f.id = 'mmPdfFrame'; f.style.cssText = 'position:fixed;right:0;bottom:0;width:1px;height:1px;border:0;opacity:0'; document.body.appendChild(f);
@@ -7363,7 +7399,7 @@ function mmZoomFit() {
 (window.requestIdleCallback || setTimeout)(() => { try { mmSbw(); } catch (_) {} });   // v18.13 메모를 처음 열 때 화면 배치를 한 번 더 하지 않게 미리 잼
 const mmSbw = () => mmSbw.v ?? (mmSbw.v = (() => { const d = document.createElement('div'); d.style.cssText = 'position:absolute;top:-999px;width:100px;height:100px;overflow:scroll'; document.body.appendChild(d); const w = d.offsetWidth - d.clientWidth; d.remove(); return w; })());   // 이 PC 의 스크롤 막대 두께
 function mmPaperFit() {
-  const zw = $('#mmZw'), B = MM.zb, pg = MM.cur; if (!zw || !B || !pg) return; let R = 0, Bt = 0;
+  const zw = $('#mmZw'), B = MM.zb, pg = MM.cur; if (!zw || !B || !pg) return; let R = 0, Bt = 0; const bgp = $('#mmPdfBg'); if (bgp) { R = bgp.offsetWidth; Bt = bgp.offsetHeight; }
   zw.querySelectorAll('#mmNotes .mm-fn').forEach(el => { R = Math.max(R, el.offsetLeft + el.offsetWidth); Bt = Math.max(Bt, el.offsetTop + el.offsetHeight); });
   if (+pg.ey > 0) { const ed = $('#mmEd'); if (ed) Bt = Math.max(Bt, ed.offsetTop + ed.offsetHeight - 60); }
   for (const st of pg.ink || []) { const p = st.p || []; for (let i = 0; i < p.length; i += 2) { if (p[i] > R) R = p[i]; if (p[i + 1] > Bt) Bt = p[i + 1]; } }
@@ -7750,7 +7786,7 @@ async function mmShot() {   // 📷 화면 캡처 → 범위 고르기 → 메�
 /* ---------- 2026-11-19 v17.95 OneNote 처럼: 리본 탭(홈 · 삽입 · 그리기 · 보기 · 표) · 종이 위 제목 + 날짜 · 시각 · 섹션 색 탭 · ＋ 섹션 / ＋ 페이지
    크게 볼 때(확대 · 크게 · 좌우로 밀림)는 제목이 화면 위에 붙어 있고 마우스가 있는 쪽으로 따라옴 ---------- */
 const MM_RT = { home:'undo redo h1 h2 h3 p bold italic underline strike sup sub color hilite big small clear paint ul ol todo quote call code toggle hr mark find nlp left center right full indent outdent',
-  insert:'table link img shot mailx page cmt note tbox file date due pull col2 col3 colx', draw:'ink draw', table:'trow tcol trowx tcolx tmerge tsplit tbg tmenu teq tsort tdel' };
+  insert:'table link img shot mailx page cmt note tbox file date due pdfbg pull col2 col3 colx', draw:'ink draw', table:'trow tcol trowx tcolx tmerge tsplit tbg tmenu teq tsort tdel' };
 const MM_RTN = [['home', '홈'], ['insert', '삽입'], ['draw', '그리기'], ['view', '보기'], ['all', '▤ 전체'], ['table', '표']];
 /* 2026-11-22 v18.30 사용자 지시: 리본 '▤ 전체' = 홈 · 삽입 · 그리기 · 보기(· 표)를 한 번에, 묶음마다 ▾ 숨기기 · 📌 고정(고정한 묶음은 다른 탭에서도 늘 보임). 이 PC 에 기억 */
 const mmRg = () => { try { const o = JSON.parse(localStorage.getItem('dept-memo-rg') || '{}'); return { h:o.h || [], p:o.p || [] }; } catch (_) { return { h:[], p:[] }; } };
@@ -9272,8 +9308,9 @@ document.addEventListener('click', async e => {
     if (k === 'lock') { mmPull(); pg.lock = !pg.lock; MM.dirty = true; await mmSave(); return mmDrawMain(); }
     if (k === 'ver') return mmVers();
     if (k === 'pdf') return mmPdf(false);
-    if (k === 'more') return mmPop(b, `<button data-v="refresh"><span>🔄</span>불러온 값 새로 고침</button><button data-v="dup"><span>⧉</span>복제</button><button data-v="html"><span>⬇</span>파일로 내보내기 (.html)</button><button data-v="txt"><span>⬇</span>글자만 내보내기 (.txt)</button><button data-v="pdf"><span>📄</span>PDF 로 저장<small>A4 · 제목 · 그림 · 펜 포함</small></button><button data-v="pdfs"><span>📚</span>PDF 로 저장 (하위 페이지 포함)</button><button data-v="print"><span>🖨</span>화면 그대로 인쇄</button><button data-v="sticky"><span>🗒</span>스티커로 붙이기</button><button data-v="del"><span>🗑</span>지우기 (휴지통으로)</button>`, async v => {
+    if (k === 'more') return mmPop(b, `<button data-v="refresh"><span>🔄</span>불러온 값 새로 고침</button><button data-v="dup"><span>⧉</span>복제</button><button data-v="html"><span>⬇</span>파일로 내보내기 (.html)</button><button data-v="txt"><span>⬇</span>글자만 내보내기 (.txt)</button><button data-v="pdf"><span>📄</span>PDF 로 저장<small>A4 · 제목 · 그림 · 펜 포함</small></button><button data-v="pdfs"><span>📚</span>PDF 로 저장 (하위 페이지 포함)</button><button data-v="print"><span>🖨</span>화면 그대로 인쇄</button><button data-v="pdfbg"><span>📕</span>${MM.cur?.pdfbg ? 'PDF 배경 바꾸기 · 빼기' : 'PDF 를 배경으로 (위에 쓰기)'}</button><button data-v="sticky"><span>🗒</span>스티커로 붙이기</button><button data-v="del"><span>🗑</span>지우기 (휴지통으로)</button>`, async v => {
       if (v === 'pdf' || v === 'pdfs') return mmPdf(v === 'pdfs');
+      if (v === 'pdfbg') return mmPdfBgPick(b);
       if (v === 'html' || v === 'txt' || v === 'print') return mmExport(v);
       if (v === 'refresh') return mmPullRefresh();
       await mmFlush();
@@ -9367,7 +9404,9 @@ async function mmPasteHtml(ed, h, files, rg) {
 }
 document.addEventListener('wheel', e => { if (!(e.ctrlKey || e.metaKey) || !e.target.closest?.('#mmEdw')) return; e.preventDefault(); mmZoomSet(mmZoom() * Math.pow(1.0015, -e.deltaY)); }, { passive:false });   // 메모 확대 · 축소 = Ctrl + 휠 (그냥 휠은 위아래 이동)
 document.addEventListener('dragover', e => { if (e.target.closest?.('#mmEd') && e.dataTransfer?.types?.includes('Files')) e.preventDefault(); });
-document.addEventListener('drop', e => { const ed = e.target.closest?.('#mmEd'); if (!ed || !e.dataTransfer?.files?.length || MM.cur?.lock) return; e.preventDefault(); mmAddFiles([...e.dataTransfer.files]); });
+document.addEventListener('drop', e => { const ed = e.target.closest?.('#mmEd'); if (!ed || !e.dataTransfer?.files?.length || MM.cur?.lock) return; e.preventDefault(); const fs = [...e.dataTransfer.files];
+  if (fs.length === 1 && /\.pdf$/i.test(fs[0].name)) return mmPop({ left:e.clientX, top:e.clientY, bottom:e.clientY }, `<div class="mm-poph">${esc(fs[0].name)}</div><button data-v="bg"><span>📕</span>배경으로 — PDF 위에 쓰기<small>펜 · 형광펜 · 글 상자 · 주석</small></button><button data-v="att"><span>📎</span>첨부로 넣기<small>누르면 PDF 보기</small></button>`, v => v === 'bg' ? mmPdfBgSet(fs[0]) : mmAddFiles(fs));   // v18.32
+  mmAddFiles(fs); });
 document.addEventListener('selectionchange', () => { const tb = $('#mmTb'); if (!tb) return; const s = mmSelIn(), n = s && (s.anchorNode.nodeType === 3 ? s.anchorNode.parentNode : s.anchorNode); const inT = !!n?.closest?.('#mmEd table') || !!$('#mmEd .mm-sel'); if (inT !== tb.classList.contains('intbl')) { tb.classList.toggle('intbl', inT); document.querySelector('.mm-rtabs')?.classList.toggle('t', inT); if (MM.rtab === 'all') return; if (inT && MM.rtab !== 'table') { MM.rtPrev = MM.rtab; mmRtab('table', true); } else if (!inT && MM.rtab === 'table') mmRtab(MM.rtPrev || 'insert', true); } });
 addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden' && MM.cur && MM.dirty) mmSave(); });
 addEventListener('beforeunload', () => { if (MM.cur && MM.dirty) mmSave(); });
