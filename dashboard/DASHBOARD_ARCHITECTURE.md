@@ -2806,3 +2806,13 @@ C:\Users\SAMSUNG\Desktop\Claude\                         ← 개발 폴더 (여�
   - 덤(사진 비교로 찾음): v18.41 손잡이가 흰 바탕을 물려받아 메모 목록 왼쪽 끝 11px(터치 18px)을 가리고 있었음 → 투명. 점검기가 새로 잡은 것: 섹션 '+ 추가' 높이 16 → 22px, 달력 숫자 조각 흰 글씨 대비 2.1 → 진한 주황 바탕, 위키 섹션 조각 글씨 진하게.
 - 바뀐 곳: dashboard.html CSS(`#memoWrap.mac` 글자 · `::after '…'` · `@media (pointer:coarse)` · `.mm-grip` 바탕 · `#mmSecAdd` · `.mm-cal .cg button u` · `.pr .mm-stb` · 10px 미만 글자). 메모장.exe 다시 만듦.
 - 확인한 것: Playwright — 데스크톱 글자 크기 · 줄 높이 값 확인, 10px 미만 0, '…' 3개(보이는 것), iPad Pro 11 흉내(터치): 44px 미만 61/68 → 11/67(남은 것은 리본 탭 36px), 글 칸 시작 위치 482 → 494px(+12). 화면 점검 192 조합 = 0건, 무작위 조작 500번 오류 0, 손잡이 · 칸 너비 · Mac 소리 시험 그대로. 전/후 사진 3장.
+
+### 2026-11-22 (APP_VERSION 2026-11-22.23 / SERVER_VERSION 그대로) — v18.46 Apple HIG(메뉴 · 초점과 선택 · 포인터 · 찾기 칸 · 손쉬운 사용) 반영
+- 무엇을 · 왜: 사용자 지시 "https://developer.apple.com/kr/design/human-interface-guidelines UI 참조". HIG 페이지(Context menus · Focus and selection · Pointing devices · Search fields · Accessibility)에 적힌 규칙 중 확인할 수 있는 것을 Mac 스타일 메모장에 넣음.
+  - 오른쪽 클릭 메뉴: "쓸 수 없는 항목은 흐리게 말고 숨김"(잘라내기 · 복사 · 붙여넣기 줄은 HIG 예외대로 흐리게 남김), "단축키는 문맥 메뉴에 표시하지 않음"(Ctrl+Z 등 — 단추 풍선말 · 리본에는 그대로). `body.mm-mac`(Mac 스타일 · 메모장 화면에서만).
+  - 메모 목록 선택 표시: 목록을 쓰는 중이면 강조색(노랑), 글 칸 등 다른 곳을 쓰는 중이면 회색(HIG Focus and selection — 메모 앱과 같음). `.mm-list:not(:focus-within)`.
+  - 포인터: 단추 · 메뉴 · 목록 카드는 화살표, 손 모양은 링크에만(HIG Pointing devices). 손잡이 ↔ 는 그대로.
+  - 찾기 칸: `type="search"` + 회색 동그라미 ✕ 지우기 단추(HIG Search fields).
+  - 손쉬운 사용: OS 설정 '대비 높이기' → 테두리 · 흐린 글씨 진하게, '투명도 줄이기' → 사이드바 블러 없이 불투명.
+- 바뀐 곳: dashboard.html CSS(`body.mm-mac .mm-pop` · `.mm-list:not(:focus-within)` · cursor · `::-webkit-search-cancel-button` · `prefers-contrast` · `prefers-reduced-transparency`), `mmPop` 감싸기(단축키 글자에 kbd 표시), `#mmQ` type=search, `mmUi`(body.mm-mac), 메모장 밖으로 가면 mm-mac 뗌. 메모장.exe 다시 만듦.
+- 확인한 것: Playwright — 선택색 목록 초점 노랑 → 글 칸 누르면 회색, 문맥 메뉴 흐린 항목 1 → 0(숨김) · 위 줄 흐린 2 그대로 · 단축키 글자 3 → 0, 포인터 pointer → default, ✕ 누르면 찾기 비움(카드 81 → 217), 대비 높이기 · 투명도 줄이기 흉내 → 블러 없음 · 날짜 글씨 #1d1d1f. 화면 점검 192 조합 0건, 무작위 조작 500번 오류 0, 목록 계층 · 기한 시험 그대로. 전/후 사진 3장.
