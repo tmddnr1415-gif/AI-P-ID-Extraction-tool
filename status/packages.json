@@ -948,6 +948,19 @@
    },
    "replaces": "2_DASHBOARD_update_v18.35_from_v18.30_2026-11-22.zip",
    "note": "v18.38 (기준 v18.30) — 맥 스타일 · 효과음 · 칸 크기 조절 · 화면만"
+  },
+  {
+   "file": "①",
+   "name": "4_DASHBOARD_update_v18.41_from_v18.30_2026-11-22.zip",
+   "made": "2026-11-22 11:50",
+   "path": "company-pc-update/2026-11-22/ (2.0MB · 저장소에 있음)",
+   "sha256": "b15dad7c4f03d54bea48c0e208aa305539468612c58ced9f6439f7f8403d20ba",
+   "applied": "",
+   "tips": {
+    "S1": "849ce011"
+   },
+   "replaces": "3_DASHBOARD_update_v18.38_from_v18.30_2026-11-22.zip",
+   "note": "v18.41 (기준 v18.30) — Ctrl+5 붉은 취소선 · 기한 칩 끝냄 · 칸 손잡이 · 화면만"
   }
  ]
 }
