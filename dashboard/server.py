@@ -36,7 +36,7 @@ ID_RE = re.compile(r'^[A-Za-z0-9_\-]{1,80}$')
 WEEK_RE = re.compile(r'^\d{4}-W\d{2}$')
 MAX_BODY = 30 * 1024 * 1024
 
-SERVER_VERSION = '2026-11-22.1'
+SERVER_VERSION = '2026-11-22.2'
 ROOT = os.path.dirname(os.path.abspath(__file__))
 PORT = 8080
 ALLOW_NETS = []          # 사내망: 루프백·사설망 + 서버 IP 대역(/16, 유선·Wi-Fi 등 지금까지 쓴 대역 모두 기억) + --allow 로 추가한 대역
@@ -2564,6 +2564,24 @@ def html_bytes(snap=False):
     return s.encode('utf-8')
 
 
+_html_cache = {}   # 화면 파일 보내기 기억: key(파일 시각 · 크기 · 서버 주소) → (ETag, 원본 bytes, gzip bytes)
+
+
+def html_cached():
+    """2026-11-22 v18.42 가볍게: 화면 파일(2.3MB)을 접속 때마다 읽고 · 고치고 · 압축 없이 통째로 보내던 것 →
+    파일이 바뀔 때만 다시 만들어 기억하고(gzip 약 0.8MB), 브라우저가 가진 것과 같으면 304(본문 없음)."""
+    st = os.stat(P('dashboard.html'))
+    key = (st.st_mtime_ns, st.st_size, tuple(server_urls()))
+    c = _html_cache.get('v')
+    if not c or c[0] != key:
+        import gzip
+        raw = html_bytes()
+        tag = '"h%s"' % hashlib.sha256(raw).hexdigest()[:20]
+        c = (key, tag, raw, gzip.compress(raw, 6))
+        _html_cache['v'] = c
+    return c[1], c[2], c[3]
+
+
 SNAP_RE = re.compile(r'<script id="deptSnap" type="application/json">[^<]*</script>\n?')
 
 
@@ -2725,6 +2743,7 @@ APP_GZ = {}   # apps/ 글자 파일 gzip 기억 (경로, ETag) → bytes
 class Handler(BaseHTTPRequestHandler):
     server_version = 'DeptDashboard/1.0'
     protocol_version = 'HTTP/1.1'
+    timeout = 120   # v18.42 멈춘 접속이 스레드를 계속 잡고 있지 않게 (읽기 · 쓰기 한 번이 2분 넘게 멈추면 끊음. 이어서 오가는 큰 파일은 괜찮음)
 
     def log_message(self, fmt, *args):
         # 익명게시판 요청은 접속 IP를 남기지 않음 (작성자 추정 방지)
@@ -2766,10 +2785,19 @@ class Handler(BaseHTTPRequestHandler):
 
     def send(self, code, body, ctype='application/json; charset=utf-8', extra=None):
         data = body if isinstance(body, bytes) else json.dumps(body, ensure_ascii=False).encode('utf-8')
+        extra = dict(extra or {})
+        if (len(data) >= 1400 and 'Content-Encoding' not in extra and ctype.startswith(('application/json', 'text/'))
+                and 'gzip' in (self.headers.get('Accept-Encoding') or '')):   # v18.42 큰 글자 응답(메모 목록 · 주간 자료)은 압축해서
+            import gzip
+            data = gzip.compress(data, 4)
+            extra['Content-Encoding'] = 'gzip'
+            extra['Vary'] = 'Origin, Accept-Encoding'
         self.send_response(code)
         self.send_header('Content-Type', ctype)
         self.send_header('Content-Length', str(len(data)))
-        if 'Cache-Control' not in (extra or {}):
+        self.send_header('X-Content-Type-Options', 'nosniff')    # v18.42 보안 헤더 (OWASP 권장): 내용 종류를 추측해 실행하지 않게 · 다른 곳으로 주소를 흘리지 않게
+        self.send_header('Referrer-Policy', 'same-origin')
+        if 'Cache-Control' not in extra:
             self.send_header('Cache-Control', 'no-store')
         for k, v in (extra or {}).items():
             self.send_header(k, v)
@@ -2828,8 +2856,22 @@ class Handler(BaseHTTPRequestHandler):
             if not self.origin_ok():                                 # 다른 웹페이지에서 API 호출 차단
                 raise ApiError(403, '허용되지 않은 출처입니다')
             if method == 'GET' and path in ('/', '/dashboard.html'):
-                extra = {'Content-Disposition': "attachment; filename*=UTF-8''dashboard.html"} if 'download' in q else None
-                return self.send(200, html_bytes(snap='download' in q), 'text/html; charset=utf-8', extra)   # 내려받는 파일에는 지금 데이터도 넣음
+                if 'download' in q:
+                    return self.send(200, html_bytes(snap=True), 'text/html; charset=utf-8', {'Content-Disposition': "attachment; filename*=UTF-8''dashboard.html"})   # 내려받는 파일에는 지금 데이터도 넣음
+                tag, raw, gz = html_cached()
+                hd = {'Cache-Control': 'no-cache', 'ETag': tag, 'Vary': 'Origin, Accept-Encoding'}   # no-cache = 매번 서버에 '바뀌었나' 만 묻고, 같으면 304
+                if self.headers.get('If-None-Match') == tag:
+                    self.send_response(304)
+                    for k, v in hd.items():
+                        self.send_header(k, v)
+                    self.send_header('Content-Length', '0')
+                    self.cors()
+                    self.end_headers()
+                    return
+                if 'gzip' in (self.headers.get('Accept-Encoding') or ''):
+                    hd['Content-Encoding'] = 'gzip'
+                    return self.send(200, gz, 'text/html; charset=utf-8', hd)
+                return self.send(200, raw, 'text/html; charset=utf-8', hd)
             if method == 'GET' and path.startswith('/apps/'):   # 연결 프로그램 정적 파일 (운영 폴더 apps/)
                 return self.send_app_file(path[len('/apps/'):])
             if not path.startswith('/api/'):
