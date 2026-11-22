@@ -922,6 +922,19 @@
    },
    "replaces": "",
    "note": "v18.34 (기준 v18.30 f253099f — 회사 확인) — 메모 PDF 저장 · PDF 배경 메모 · PDF 메모 도구 · 화면만"
+  },
+  {
+   "file": "①",
+   "name": "2_DASHBOARD_update_v18.35_from_v18.30_2026-11-22.zip",
+   "made": "2026-11-22 10:30",
+   "path": "company-pc-update/2026-11-22/ (2.0MB · 저장소에 있음)",
+   "sha256": "890ae4121305a5e279a493ff6e53b8b591b3a4d170666614862d43f8283254b5",
+   "applied": "",
+   "tips": {
+    "S1": "c23336da"
+   },
+   "replaces": "1_DASHBOARD_update_v18.34_from_v18.30_2026-11-22.zip",
+   "note": "v18.35 (기준 v18.30) — PDF 선명 확대 · 여백 숨기기 · 목록 나무 · 화면만"
   }
  ]
 }
