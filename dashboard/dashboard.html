@@ -2433,7 +2433,7 @@ html:not(.dark) #memoWrap .mm-ed{color:var(--nt)}html:not(.dark) #memoWrap .mm-e
 #memoWrap ::-webkit-scrollbar{width:10px;height:10px}#memoWrap ::-webkit-scrollbar-thumb{background:#d3d1cb;border-radius:10px;border:2px solid transparent;background-clip:padding-box}#memoWrap ::-webkit-scrollbar-thumb:hover{background:#aeaca6;background-clip:padding-box;border:2px solid transparent}
 /* 2026-11-22 v18.36 사용자 지시: "아이폰 · macOS 같은 느낌으로 메모장 UI, macOS 와 비슷한 이펙트 · 사운드" — 🍎 Mac 스타일(보기 탭에서 끄고 켬, 기본 켬).
    반투명(블러) 사이드바 · 노란 선택(메모 앱처럼) · 세그먼트 탭 · 얇은 구분선 · 둥근 체크(동그라미) · 열기/새 메모/휴지통/크게 움직임. 소리는 Web Audio 로 직접 합성(애플 음원 아님). 어두운 화면은 대시보드가 전체를 반전(filter)하므로 같은 규칙이 그대로 어둡게 보임 */
-#memoWrap.mac{--ma:#ffcc00;--mat:#a07a00;--mas:rgba(255,204,0,.82);font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI Variable Text","Segoe UI","Apple SD Gothic Neo","Malgun Gothic",sans-serif;-webkit-font-smoothing:antialiased;letter-spacing:-.01em}
+#memoWrap.mac{--ma:#ffcc00;--mat:#a07a00;--mas:rgba(255,204,0,.82);font-family:"Pretendard Variable",-apple-system,BlinkMacSystemFont,"SF Pro Text","Apple SD Gothic Neo","Segoe UI Variable Text","Segoe UI","Malgun Gothic",sans-serif;-webkit-font-smoothing:antialiased;letter-spacing:-.01em}
 html:is(.dark,:not(.dark)) #memoWrap.mac>*{border:0!important;border-radius:0!important;box-shadow:none!important}html:is(.dark,:not(.dark)) #memoWrap.mac{gap:0;overflow:hidden;background:#ececef;border:.5px solid rgba(0,0,0,.16);border-radius:18px;box-shadow:0 0 0 .5px rgba(0,0,0,.05),0 12px 34px rgba(0,0,0,.12),0 2px 6px rgba(0,0,0,.05)}
 html:is(.dark,:not(.dark)) #memoWrap.mac .mm-side{background:rgba(236,236,240,.8)!important;-webkit-backdrop-filter:blur(30px) saturate(180%);backdrop-filter:blur(30px) saturate(180%);border-right:.5px solid rgba(0,0,0,.12)!important;padding:10px 8px}
 html:is(.dark,:not(.dark)) #memoWrap.mac .mm-nav{color:#1d1d1f;font-size:13px;border-radius:7px;padding:4px 9px;min-height:28px}html:is(.dark,:not(.dark)) #memoWrap.mac .mm-nav:hover{background:rgba(0,0,0,.05)!important}html:is(.dark,:not(.dark)) #memoWrap.mac .mm-nav.on{background:rgba(0,0,0,.1)!important;color:#1d1d1f!important;font-weight:600}html:is(.dark,:not(.dark)) #memoWrap.mac .mm-nav i{color:#8e8e93}
@@ -2502,6 +2502,9 @@ body.mm-mac .mm-pop button>span:first-child:has(svg.mmi){display:inline-flex;ali
 html:is(.dark,:not(.dark)) #memoWrap.mac #mmNew{color:#7a5900!important;display:flex;align-items:center;gap:8px}html:is(.dark,:not(.dark)) #memoWrap.mac #mmNew:hover{color:#5c4300!important}#memoWrap.mac #mmNew svg.mmi{width:20px;height:18px;margin:0;flex:none}
 html:is(.dark,:not(.dark)) #memoWrap.mac .mm-secg .dot{display:inline-block!important;position:static!important;opacity:1!important;width:20px!important;height:18px!important;min-width:20px;border-radius:0!important;margin:0!important;background:color-mix(in srgb,var(--sc) 78%,#000)!important;-webkit-mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.8' stroke-linejoin='round'%3E%3Cpath d='M3.5 7.5a2 2 0 0 1 2-2h3.8a1.5 1.5 0 0 1 1.1.45L12 7.5h6.5a2 2 0 0 1 2 2v7.5a2 2 0 0 1-2 2h-13a2 2 0 0 1-2-2z'/%3E%3C/svg%3E") center/18px 18px no-repeat;mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.8' stroke-linejoin='round'%3E%3Cpath d='M3.5 7.5a2 2 0 0 1 2-2h3.8a1.5 1.5 0 0 1 1.1.45L12 7.5h6.5a2 2 0 0 1 2 2v7.5a2 2 0 0 1-2 2h-13a2 2 0 0 1-2-2z'/%3E%3C/svg%3E") center/18px 18px no-repeat;flex:none}#memoWrap.mac .mm-secg{border-left:0!important;box-shadow:none!important}#memoWrap.mac .mm-secg::before{display:none!important}
 html:is(.dark,:not(.dark)) #memoWrap.mac :is(.mm-pt button,.mm-lh .row .btn){color:#48484d!important}#memoWrap.mac #mmLtree{color:#48484d!important;background:#fff!important}#memoWrap.mac #mmLtree.on{background:rgba(255,204,0,.38)!important;color:#5c4300!important;border-color:rgba(160,120,0,.45)!important}
+/* v18.49 사용자 지시 "기존 글꼴은 맥 기존 글꼴로": 맥은 맥 시스템 글꼴(SF · Apple SD 산돌고딕 Neo) 그대로, 윈도우는 애플 시스템 글꼴과 비슷한 오픈소스 Pretendard(apps/fonts/pretendard, OFL) — 애플 글꼴은 윈도우용 배포물에 넣을 수 없음. 팝업 메뉴도 같은 글꼴 */
+#memoWrap .mm-zc button{min-height:20px;min-width:20px}#memoWrap .ch>button{min-height:22px}   /* 글꼴 줄 높이가 낮아져 작아진 단추 */
+body.mm-mac .mm-pop,body.mm-mac .mm-toast{font-family:"Pretendard Variable",-apple-system,BlinkMacSystemFont,"SF Pro Text","Apple SD Gothic Neo","Segoe UI Variable Text","Segoe UI","Malgun Gothic",sans-serif}
 /* 작은 글씨 · 확인 표시 · 지운 링크 */
 #mmEdw.sm .mm-ed{font-size:13px}#mmEdw.pp.sm{font-size:calc(13px*var(--z))}
 .mm-verb{border:0;font-size:11.5px;font-weight:600;border-radius:10px;padding:1px 8px;margin-right:10px;cursor:pointer;font-style:normal;white-space:nowrap}.mm-verb.ok{color:#448361;background:rgba(68,131,97,.12)}.mm-verb.exp{color:#d9730d;background:rgba(217,115,13,.12)}
@@ -2710,7 +2713,7 @@ function recLabel(key, f) {
  * ===================================================================== */
 let root = null;
 /* 서버 모드: http(s):// 로 접속하면 server.py 의 REST API 사용 (폴더 선택 불필요). file:// 로 열면 폴더 모드 */
-const APP_VERSION = '2026-11-22.25';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
+const APP_VERSION = '2026-11-22.26';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
 const SERVER_URL = 'http://localhost:8080';
 // 부서원 PC 사본(file://)이 접속을 시도할 서버 — 서버가 배포 파일을 만들 때 'PC 이름 주소, IP 주소' 순으로 자동 기록함
 const DEFAULT_SERVERS = ['http://ASEUNGWOOK-B01:8080', 'http://65.3.30.234:8080'];
@@ -9907,7 +9910,9 @@ function mmGrips() { const w = $('#memoWrap'); if (!w) return; const W = w.getBo
     if (!el || !el.offsetWidth || !ok() || w.classList.contains('board')) { if (g) g.style.display = 'none'; return; }
     if (!g) { g = document.createElement('div'); g.className = 'mm-grip'; g.dataset.k = k; g.title = '끌어서 너비 바꾸기 · 두 번 누르면 처음 너비'; g.innerHTML = '<i></i>'; w.appendChild(g); }
     const r = el.getBoundingClientRect(); Object.assign(g.style, { display:'flex', left:(r.right - W.left) + 'px', top:(r.top - W.top) + 'px', height:r.height + 'px' }); }); }
-{ const o = mmUi; mmUi = function () { const r = o.apply(this, arguments); requestAnimationFrame(mmGrips); return r; }; }
+{ const o = mmUi; mmUi = function () { const r = o.apply(this, arguments); requestAnimationFrame(mmGrips); if (mmMac()) mmFontLoad(); return r; }; }
+function mmFontLoad() {   // v18.49 Pretendard 글꼴 (서버 · 메모장.exe 에서만 — 내려받은 파일로 서버 없이 열면 맥/윈도우 기본 글꼴)
+  if (document.getElementById('mmFont') || /^Mac/.test(navigator.platform || '') || (!MEMO_APP && !SERVER)) return; const l = document.createElement('link'); l.id = 'mmFont'; l.rel = 'stylesheet'; l.href = (MEMO_APP ? '' : API_BASE) + '/apps/fonts/pretendard/pretendardvariable-dynamic-subset.css'; document.head.appendChild(l); }
 addEventListener('resize', () => requestAnimationFrame(mmGrips));
 new MutationObserver(() => { if (route === 'memo') requestAnimationFrame(mmGrips); }).observe(document.body, { childList:true, subtree:false });
 (() => { let t = 0, last = 0; const wake = () => { const n = Date.now(); if (n - last < 1000) return; last = n; document.documentElement.classList.remove('idle'); clearTimeout(t); t = setTimeout(() => document.documentElement.classList.add('idle'), 45000); };   // v18.42 입력 없으면 꾸밈 움직임 멈춤

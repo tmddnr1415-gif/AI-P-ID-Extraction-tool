@@ -2834,3 +2834,13 @@ C:\Users\SAMSUNG\Desktop\Claude\                         ← 개발 폴더 (여�
   - 목록 위 🌳(계층) 단추가 흰 바탕 · 흰 아이콘이라 안 보였음 → 진한 회색 아이콘, 켜짐 = 옅은 노랑 바탕. 간략 · 숨기기 글자 4.0:1 → 9.1:1, 숨기기 아이콘 뒤 빈칸 정리.
 - 바뀐 곳: dashboard.html CSS(`.mm-nav .ic svg.mmi` 색 · `#mmNew` · `.mm-secg .dot` 폴더 마스크 · `.mm-pt button` · `#mmLtree`), `mmIcoSwap` · `mmIcoUndo`(빈칸). 메모장.exe 다시 만듦.
 - 확인한 것: Playwright 측정 — 왼쪽 메뉴 16줄 글자 시작 모두 341~342, 아이콘 대비 4.38~4.43, 섹션 폴더 아이콘 3.2(주황) · 5.4(빨강). 화면 점검 192 조합 0건, 무작위 조작 400번 오류 0. 전/후 사진 2장.
+
+### 2026-11-22 (APP_VERSION 2026-11-22.26 / SERVER_VERSION 2026-11-22.3) — v18.49 메모장 글꼴: 맥 시스템 글꼴 느낌(Pretendard)
+- 무엇을 · 왜: 사용자 지시 "기존 글꼴은 맥 기존 글꼴로". 애플 글꼴(SF Pro · Apple SD 산돌고딕 Neo)은 애플 기기용 앱에만 쓸 수 있어 윈도우용 배포물에 넣을 수 없음 → 사용자에게 물어 'Pretendard 넣기' 허락받음. Pretendard 1.3.9(npm pretendard, SIL OFL 1.1 — 넣어서 배포 가능)는 애플 시스템 글꼴과 비슷하게 만든 오픈소스 한글 · 영문 글꼴.
+  - 새 폴더 `apps/fonts/pretendard/`(원본 그대로: 가변 글꼴 동적 부분 집합 CSS + woff2 92조각 3.1MB, LICENSE.txt, README.txt). 브라우저는 화면에 나온 글자의 조각만 받음(메모장 첫 화면 19조각 · 187KB, 한 번 받으면 기억).
+  - 메모장 'Mac 스타일' 일 때 맥이 아니면 불러옴(`mmFontLoad`) · 글꼴 순서 Pretendard → 애플 시스템 글꼴 → Segoe UI → 맑은 고딕. 맥은 불러오지 않아 맥 시스템 글꼴 그대로. 내려받은 파일을 서버 없이 열면 예전 글꼴. 팝업 메뉴도 같은 글꼴.
+  - 처음엔 애플 시스템 글꼴 이름을 앞에 두었더니 윈도우 · 리눅스에서 영문이 그 PC 의 기본 글꼴로 그려져 Pretendard 를 맨 앞으로.
+  - 새 글꼴 줄 높이가 낮아 작아진 단추(확대 －/＋ 15px · 달력 ‹ › 17px) → 최소 20 · 22px.
+- 바뀐 곳: dashboard.html CSS 글꼴 순서 · `body.mm-mac .mm-pop` · `.mm-zc button` · `.ch>button`, 새 `mmFontLoad`(`mmUi` 감싸기에서 부름). server.py `send_app_file`(woff2 · woff 종류 — 윈도우 파이썬 3.11 이 모를 수 있음). memo_app/main.go(`/apps/fonts/` 제공 · woff2 · css 종류) · build.sh(글꼴 넣음 — 메모장.exe 약 3MB 커짐). dashboard_tools/make_patch.py `KEEP_PREFIX` 에 'apps/fonts/'. CLAUDE.md 예외 항목 추가.
+- 확인한 것: Playwright(CDP 그려진 글꼴) — 전: 메뉴 · 목록이 그 PC 기본 글꼴(WenQuanYi · Inter), 후: 메뉴 · 목록 제목 · 목록 머리 모두 'Pretendard Variable'. 글꼴 조각 19개 · 187KB. 화면 점검 192 조합 0건, 무작위 조작 400번 오류 0, 메모 속도 그대로(열기 ~30ms · 타자 p50 12ms). make_patch 가 apps/fonts/ 를 넣는지 확인. 전/후 사진.
+- 회사에서 확인할 것: **서버를 다시 켜야 함**(server.py 바뀜), 운영 폴더에 apps\fonts\pretendard\ 가 생겼는지, 윈도우 PC 에서 메모장 글씨가 바뀌었는지.

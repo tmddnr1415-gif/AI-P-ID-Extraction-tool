@@ -442,7 +442,7 @@ func (a *app) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		w.Write(a.html)
 		return
 	}
-	if strings.HasPrefix(r.URL.Path, "/apps/pdfjs/") || strings.HasPrefix(r.URL.Path, "/apps/translate/ocr/") || r.URL.Path == "/apps/translate/README.txt" {
+	if strings.HasPrefix(r.URL.Path, "/apps/pdfjs/") || strings.HasPrefix(r.URL.Path, "/apps/fonts/") || strings.HasPrefix(r.URL.Path, "/apps/translate/ocr/") || r.URL.Path == "/apps/translate/README.txt" {
 		fp := "web" + path.Clean(r.URL.Path)
 		b, err := webFS.ReadFile(fp)
 		if err != nil {
@@ -455,6 +455,10 @@ func (a *app) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			ct = "text/javascript; charset=utf-8"
 		case ".wasm":
 			ct = "application/wasm"
+		case ".woff2":
+			ct = "font/woff2"
+		case ".css":
+			ct = "text/css; charset=utf-8"
 		case "", ".bcmap", ".pfb", ".gz", ".traineddata":
 			ct = "application/octet-stream"
 		}

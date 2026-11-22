@@ -36,7 +36,7 @@ ID_RE = re.compile(r'^[A-Za-z0-9_\-]{1,80}$')
 WEEK_RE = re.compile(r'^\d{4}-W\d{2}$')
 MAX_BODY = 30 * 1024 * 1024
 
-SERVER_VERSION = '2026-11-22.2'
+SERVER_VERSION = '2026-11-22.3'
 ROOT = os.path.dirname(os.path.abspath(__file__))
 PORT = 8080
 ALLOW_NETS = []          # 사내망: 루프백·사설망 + 서버 IP 대역(/16, 유선·Wi-Fi 등 지금까지 쓴 대역 모두 기억) + --allow 로 추가한 대역
@@ -2897,7 +2897,7 @@ class Handler(BaseHTTPRequestHandler):
             full = os.path.join(full, 'index.html')
         if not os.path.isfile(full):
             raise ApiError(404, '없는 파일')
-        ctype = mimetypes.guess_type(full)[0] or 'application/octet-stream'
+        ctype = {'.woff2':'font/woff2', '.woff':'font/woff'}.get(os.path.splitext(full)[1].lower()) or mimetypes.guess_type(full)[0] or 'application/octet-stream'   # v18.49 글꼴 (윈도우 파이썬 3.11 은 woff2 를 모를 수 있음)
         texty = ctype.startswith('text/') or ctype in ('application/javascript', 'application/json')
         if texty:
             ctype += '; charset=utf-8'
