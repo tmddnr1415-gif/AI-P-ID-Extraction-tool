@@ -2675,7 +2675,7 @@ function recLabel(key, f) {
  * ===================================================================== */
 let root = null;
 /* 서버 모드: http(s):// 로 접속하면 server.py 의 REST API 사용 (폴더 선택 불필요). file:// 로 열면 폴더 모드 */
-const APP_VERSION = '2026-11-22.16';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
+const APP_VERSION = '2026-11-22.17';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
 const SERVER_URL = 'http://localhost:8080';
 // 부서원 PC 사본(file://)이 접속을 시도할 서버 — 서버가 배포 파일을 만들 때 'PC 이름 주소, IP 주소' 순으로 자동 기록함
 const DEFAULT_SERVERS = ['http://ASEUNGWOOK-B01:8080', 'http://65.3.30.234:8080'];
@@ -9834,14 +9834,16 @@ document.addEventListener('scroll', e => { const t = e.target; if (t?.classList?
 document.addEventListener('click', e => { if (route !== 'memo') return; const z = e.target.closest?.('[data-mx="zen"], [data-mx="wide"]'); if (z) { mmSnd('zen'); setTimeout(() => mmFx($('#memoWrap'), 'fx-zoom', 320), 0); } }, true);
 /* 2026-11-22 v18.38 사용자 지시: "각 메뉴 크기를 마우스로 조절할 수 있게" — 칸 경계를 끌어 너비 바꾸기 (마우스 · 손가락), 두 번 누르면 처음 너비.
    메모장: 왼쪽 메뉴(150~440) · 메모 목록(180~600) — '간략' · '숨기기' 가 아닐 때. PDF 메모: 쪽 그림(70~320) · 주석 목록(180~520). 이 PC 에 기억 */
-const MM_RZ = [{ k:'sw', sel:'#memoWrap > .mm-side', min:150, max:440, def:210, ok:() => MM_UI.side === 'full' }, { k:'lw', sel:'#memoWrap > .mm-list', min:180, max:600, def:270, ok:() => MM_UI.list === 'full' },
+const MM_RZ = [{ k:'side', sel:'#side', min:180, max:420, def:240, g:1, ok:() => innerWidth > 900 && !document.body.classList.contains('rail') && !document.body.classList.contains('nav-closed') && !/wm-split/.test(document.body.className) },   // v18.40 대시보드 왼쪽 MENU
+  { k:'sw', sel:'#memoWrap > .mm-side', min:150, max:440, def:210, ok:() => MM_UI.side === 'full' }, { k:'lw', sel:'#memoWrap > .mm-list', min:180, max:600, def:270, ok:() => MM_UI.list === 'full' },
   { k:'pth', sel:'.pm-body:not(.noth) > .pm-th', min:70, max:320, def:118, pm:1 }, { k:'pcl', sel:'.pm-body:not(.nocl) > .pm-cl', min:180, max:520, def:270, pm:1, left:1 }];
+try { const w = +localStorage.getItem('dept-side-w'); if (w >= 180 && w <= 420) document.documentElement.style.setProperty('--side-w', w + 'px'); } catch (_) {}   // v18.40 대시보드 MENU 너비 기억
 (() => { let dr = null, raf = 0, hit = null; const line = () => { let l = $('#mmRzl'); if (!l) { l = document.createElement('div'); l.id = 'mmRzl'; document.body.appendChild(l); } return l; };
-  const find = e => { if (route !== 'memo') return null; const tol = e.pointerType === 'touch' ? 14 : 6; for (const R of MM_RZ) { if (R.ok && !R.ok()) continue; const el = document.querySelector(R.sel); if (!el || !el.offsetWidth) continue; const r = el.getBoundingClientRect(); if (e.clientY < r.top || e.clientY > r.bottom) continue;
+  const find = e => { const tol = e.pointerType === 'touch' ? 14 : 6; for (const R of MM_RZ) { if (!R.g && route !== 'memo') continue; if (R.ok && !R.ok()) continue; const el = document.querySelector(R.sel); if (!el || !el.offsetWidth) continue; const r = el.getBoundingClientRect(); if (e.clientY < r.top || e.clientY > r.bottom) continue;
       const ed = R.left ? r.left : r.right, d = (e.clientX - ed) * (R.left ? -1 : 1); if (d >= -2 && d <= tol) return { R, el, r, ed }; } return null; };   // 칸 안쪽은 2px 만 (스크롤바는 그대로 쓰게)
   const show = h => { const l = line(); document.body.classList.toggle('mm-rzc', !!h); if (!h) return l.classList.remove('on'); Object.assign(l.style, { left:h.ed + 'px', top:h.r.top + 'px', height:h.r.height + 'px' }); l.classList.add('on'); };
-  const apply = (R, w) => { if (R.pm) { $('.pm-body')?.style.setProperty('--' + R.k, w + 'px'); } else { MM_UI[R.k] = w; mmUi(); } };
-  const save = R => { try { if (R.pm) { const o = JSON.parse(localStorage.getItem('dept-pm-w') || '{}'); o[R.k] = parseInt(getComputedStyle($('.pm-body')).getPropertyValue('--' + R.k)) || R.def; localStorage.setItem('dept-pm-w', JSON.stringify(o)); } else localStorage.setItem('dept-memo-ui', JSON.stringify(MM_UI)); } catch (_) {} };
+  const apply = (R, w) => { if (R.g) { document.documentElement.style.setProperty('--side-w', w + 'px'); return; } if (R.pm) { $('.pm-body')?.style.setProperty('--' + R.k, w + 'px'); } else { MM_UI[R.k] = w; mmUi(); } };
+  const save = R => { try { if (R.g) { const v = parseInt(document.documentElement.style.getPropertyValue('--side-w')) || R.def; if (v === R.def) localStorage.removeItem('dept-side-w'); else localStorage.setItem('dept-side-w', v); return; } if (R.pm) { const o = JSON.parse(localStorage.getItem('dept-pm-w') || '{}'); o[R.k] = parseInt(getComputedStyle($('.pm-body')).getPropertyValue('--' + R.k)) || R.def; localStorage.setItem('dept-pm-w', JSON.stringify(o)); } else localStorage.setItem('dept-memo-ui', JSON.stringify(MM_UI)); } catch (_) {} };
   addEventListener('pointermove', e => { if (dr) { const w = Math.round(Math.max(dr.R.min, Math.min(dr.R.max, dr.w0 + (e.clientX - dr.x0) * (dr.R.left ? -1 : 1)))); if (w !== dr.w) { dr.w = w; apply(dr.R, w); } const h = find(e) || dr.h; if (h) { h.ed = dr.R.left ? dr.el.getBoundingClientRect().left : dr.el.getBoundingClientRect().right; show(h); } return; }
     if (e.buttons || raf) return; raf = requestAnimationFrame(() => { raf = 0; const h = find(e); if (h || document.body.classList.contains('mm-rzc')) show(h); hit = h; }); }, true);
   addEventListener('pointerdown', e => { if (e.button) return; const h = find(e); if (!h) return; e.preventDefault(); e.stopPropagation(); dr = { R:h.R, el:h.el, h, x0:e.clientX, w0:Math.round(h.r.width + (h.R.k === 'sw' && $('#memoWrap.mac') ? 7 : 0)), w:0 }; document.body.classList.add('mm-rzd'); show(h); }, true);
