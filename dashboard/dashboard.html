@@ -2825,7 +2825,7 @@ function recLabel(key, f) {
  * ===================================================================== */
 let root = null;
 /* 서버 모드: http(s):// 로 접속하면 server.py 의 REST API 사용 (폴더 선택 불필요). file:// 로 열면 폴더 모드 */
-const APP_VERSION = '2026-11-22.39';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
+const APP_VERSION = '2026-11-23.1';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
 const SERVER_URL = 'http://localhost:8080';
 // 부서원 PC 사본(file://)이 접속을 시도할 서버 — 서버가 배포 파일을 만들 때 'PC 이름 주소, IP 주소' 순으로 자동 기록함
 const DEFAULT_SERVERS = ['http://ASEUNGWOOK-B01:8080', 'http://65.3.30.234:8080'];
@@ -6450,6 +6450,16 @@ function hdrApply() { const m = hdrMode(), b = document.body; b.classList.toggle
   document.querySelectorAll('#hdrCtl [data-hdr]').forEach(x => x.classList.toggle('on', x.dataset.hdr === m)); }
 function hdrSet(m) { try { localStorage.setItem('dept-memo-hdr', m); } catch (_) {} hdrApply(); try { mmGrips?.(); } catch (_) {} }
 document.addEventListener('click', e => { const b = e.target.closest?.('#hdrCtl [data-hdr]'); if (b) { const m = b.dataset.hdr; hdrSet(hdrMode() === m ? 'full' : m); return; } if (e.target.closest?.('#hdrPull')) hdrSet('full'); });
+/* v18.61 한글 조합 보호: 메일함 · 위키 · 할 일 모음 찾기 칸은 글자를 넣으면 0.25초 뒤 화면을 다시 그리는데, 한글을 '조합하는 중'에 다시 그리면 조합이 깨져
+   'ㅎ호회회ㅇ으의의' 처럼 쌓이고 입력이 끊김 → 조합 중에는 미루고 조합이 끝난 뒤 그림 (최대 3초 미룸) */
+const mmComp = { on:false, at:0 };
+document.addEventListener('compositionstart', () => { mmComp.on = true; mmComp.at = Date.now(); }, true);
+document.addEventListener('compositionend', () => { mmComp.on = false; }, true);
+document.addEventListener('focusout', () => { mmComp.on = false; }, true);
+function mmQDraw(key, f) { clearTimeout(MM[key]); const t0 = Date.now(); MM[key] = setTimeout(function go() { if (mmComp.on && Date.now() - t0 < 3000) { MM[key] = setTimeout(go, 200); return; } f(); }, 250); }
+/* v18.61 사용자 신고 "메모장 검색창에 한 글자 입력하면 비활성화됨": 목록 칸을 통째로 다시 그리는 경우에도 검색창 초점 · 커서 자리를 되살림 (안전장치) */
+{ const o = mmDrawList; mmDrawList = function () { const a = document.activeElement, q = a && a.id === 'mmQ' ? [a.selectionStart, a.selectionEnd] : null; const r = o.apply(this, arguments);
+  if (q) { const n = document.getElementById('mmQ'); if (n && n !== a) { n.focus({ preventScroll:true }); try { n.setSelectionRange(q[0], q[1]); } catch (_) {} } } return r; }; }
 /* v18.56 양식 — 노션 '노트 · 지식' 템플릿 갈래(회의록 · 코넬 노트 · 독서 노트 · 위키 · SOP · 의사결정 · 회고 · 저널 등)를 참고.
    [이름, 아이콘, html 만드는 함수, 갈래, 한 줄 설명, 비서가 알아들을 말]. 앞 5개 순서는 그대로(비서 명령이 번호로 부름) */
 const mmTP = rows => `<table><tbody>${rows.map(([k, v]) => `<tr><th style="text-align:left;width:120px">${k}</th><td style="min-width:260px">${v || '<br>'}</td></tr>`).join('')}</tbody></table>`;
@@ -6841,7 +6851,7 @@ function mmDrawList(soft) {
   const cards = TT.map(({ p, lv, n }) => { const g = lv ? lastG : grp(p), hd = g && g !== lastG ? `<div class="mm-gh">${esc(g)}</div>` : ''; lastG = g; if (p.kind === 'sticky') { const ls = (p.text || '').split('\n'), t1 = ls[0] || '(빈 스티커)'; return hd + `<button class="mm-card stk" draggable="true" data-mp="${p.id}" style="border-left-color:${mmCol(p.color, '#f0c93a')};background:linear-gradient(90deg,${mmCol(p.color, '#fff2a8')}55,transparent 70%)" title="스티커 — 누르면 스티커 보드에서 열림"><b>🗒 ${hl(t1.slice(0, 60))}</b><span>${hl(q ? snip(p) : ls.slice(1).join(' ').slice(0, 90))}</span><em>${fmtTime(p.updatedAt)}<u>스티커</u>${p.float ? '<u>📌 띄움</u>' : ''}</em><i class="del" data-mdel="${p.id}" title="휴지통으로 (하루 뒤 완전 삭제)">🗑</i></button>`; }
     return hd + mmCardH(p, hl, snip, lv, n); }).join('')
     || `<div class="mm-empty" style="padding:24px 10px"><b>🗒</b>${q || MM.tag ? '찾는 메모가 없습니다' : '아직 메모가 없습니다'}<br><span class="muted" style="font-size:12px">[＋ 새 메모] 를 눌러 시작하세요</span></div>`;
-  if (soft && $('.mm-lb', el) && MM.view !== 'date') { const lb = $('.mm-lb', el), st = lb.scrollTop; lb.innerHTML = cards; lb.scrollTop = st; return; }
+  if (soft && $('.mm-lb', el) && (MM.view !== 'date' || $('.mm-cal', el))) { const lb = $('.mm-lb', el), st = lb.scrollTop; lb.innerHTML = cards; lb.scrollTop = st; if (MM.view === 'date') $('.mm-cal', el).outerHTML = mmCalHtml(); return; }   /* v18.61 날짜별 보기도 검색창은 그대로 두고 목록 · 달력만 (예전엔 칸 전체를 다시 그려 한 글자 치면 검색창이 바뀌어 입력이 끊김) */
   if (MM.view === 'shared') { const sh = (MM.shared || []).filter(x => !q || ((x.title || '') + ' ' + x.ownerName).toLowerCase().includes(q.toLowerCase()));
     el.innerHTML = `<div class="mm-lh"><div class="mm-pt"><button data-mui="list|${MM_UI.list === 'mini' ? 'full' : 'mini'}">${MM_UI.list === 'mini' ? '⇥' : '⇤ 간략'}</button><button data-mui="list|hide">◀<span class="lb"> 숨기기</span></button></div><input class="q" id="mmQ" type="search" placeholder="🔍 찾기" value="${esc(MM.q)}"><div class="row"><b style="font-size:13px">공유받은 메모</b><span class="sp"></span><button class="btn sm" data-mx0="shreload">새로 고침</button></div></div>
       <div class="mm-lb">${sh.map(x => `<button class="mm-card ${MM.cur?._ro === x.owner && MM.cur.id === x.id ? 'on' : ''}" data-msh="${esc(x.owner)}|${x.id}" style="border-left-color:#14b8a6"><b>${esc(x.icon || '📄')} ${esc(x.title || '제목 없음')}</b><span>👤 ${esc(x.ownerName)} 님이 공유 · 읽기 전용</span><em>${fmtTime(x.updatedAt)}</em></button>`).join('') || '<div class="mm-empty" style="padding:24px 10px"><b>👥</b>공유받은 메모가 없습니다<br><span class="muted" style="font-size:12px">다른 부서원이 메모에서 [👥 공유] 를 하면 여기에 나옵니다</span></div>'}</div>`; return; }
@@ -8958,7 +8968,7 @@ document.addEventListener('click', e => {
   if (t.closest('[data-tnew]')) return mmTaskNew('todo');
 });
 document.addEventListener('change', e => { const t = e.target; if (t.dataset?.tchk) { const [id, i] = t.dataset.tchk.split('|'); return mmTodoSet(id, +i, { st:t.checked ? 'done' : 'todo' }); } if (t.id === 'mmTs') { MM.ts = t.value; MM.tsd = false; mmDrawTodo(); } });
-document.addEventListener('input', e => { if (e.target.id === 'mmTq') { MM.tq = e.target.value; MM.tqf = 1; clearTimeout(MM.tqT); MM.tqT = setTimeout(mmDrawTodo, 250); } });
+document.addEventListener('input', e => { if (e.target.id === 'mmTq') { MM.tq = e.target.value; MM.tqf = 1; mmQDraw('tqT', () => mmDrawTodo()); } });
 (() => { let dk = null;   // 보드: 카드를 다른 칸으로 끌면 상태가 바뀜
   document.addEventListener('dragstart', e => { const c = e.target.closest?.('.mm-tc'); if (!c) return; dk = c.dataset.tk; c.classList.add('drag'); e.dataTransfer.effectAllowed = 'move'; try { e.dataTransfer.setData('text/plain', dk); } catch (_) {} });
   document.addEventListener('dragover', e => { const col = e.target.closest?.('.mm-kb .col'); if (!dk || !col) return; e.preventDefault(); document.querySelectorAll('.mm-kb .col.over').forEach(x => x !== col && x.classList.remove('over')); col.classList.add('over'); });
@@ -9119,7 +9129,7 @@ document.addEventListener('click', e => {
   if ((b = t.closest('[data-tadd2]'))) return mmSubPage(b.dataset.tadd2, true);
   if ((b = t.closest('[data-wf]'))) { MM.wf = b.dataset.wf; return mmDrawWiki(); }
 });
-document.addEventListener('input', e => { if (e.target.id === 'mmWq') { MM.wq = e.target.value; MM.wqf = 1; clearTimeout(MM.wqT); MM.wqT = setTimeout(mmDrawWiki, 250); } });
+document.addEventListener('input', e => { if (e.target.id === 'mmWq') { MM.wq = e.target.value; MM.wqf = 1; mmQDraw('wqT', () => mmDrawWiki()); } });
 /* 빠른 찾기 (Notion 의 Ctrl+P) */
 function mmQF() {
   if (route !== 'memo') return; $('.mm-qfo')?.remove(); const o = document.createElement('div'); o.className = 'mm-qfo';
@@ -9780,7 +9790,7 @@ function mmDrawMail() {   // 📧 메일함: 붙여 넣기 · 카테고리 · �
 }
 document.addEventListener('click', e => { const t = e.target; let b; if (!t.closest?.('#mmMain') || MM.view !== 'mail') return; if ((b = t.closest('[data-mlf]'))) { MM.mlf = b.dataset.mlf; return mmDrawMail(); } if (t.closest('[data-mlnew]')) return mmMailDlg({}); });
 document.addEventListener('change', e => { if (e.target.id === 'mmMlFr') { MM.mlfr = e.target.value; mmDrawMail(); } });
-document.addEventListener('input', e => { if (e.target.id === 'mmMlQ') { MM.mlq = e.target.value; MM.mlqf = 1; clearTimeout(MM.mlqT); MM.mlqT = setTimeout(mmDrawMail, 250); } });
+document.addEventListener('input', e => { if (e.target.id === 'mmMlQ') { MM.mlq = e.target.value; MM.mlqf = 1; mmQDraw('mlqT', () => mmDrawMail()); } });
 /* 비서 명령 실행 (클로드 비서 · 빠른 찾기 Ctrl+P 같이 씀) */
 function mmGoMemo(view, openId) { MM.sec = ''; MM.tag = ''; MM.view = view || 'all'; MM.cur = null; if (openId) MM.openId = openId; $('#memoWrap')?.remove(); if (route === 'memo') render(); else go('memo'); }
 const mmIntentCtx = () => ({ now:new Date(), pullable:t => { try { return mmPullNLP(t, mmSrcList()).si != null; } catch (_) { return false; } }, nlpOpt:{ users:(PRES.users || []).map(u => u.name || u.id).filter(Boolean) } });
