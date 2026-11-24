@@ -2124,6 +2124,25 @@ body.mm-noanno #mmNotes > :not(.tb),body.mm-noanno #mmInk,body.mm-noanno #mmInkH
 .mm-pv .mm-inkbar{border-top:0}
 /* v18.62 떠 있는 그림 밑으로 새 줄을 내리는 빈칸 */
 .mm-gap{display:block;pointer-events:none;user-select:none;min-height:0}
+/* v18.63 첨부 미리보기 창 */
+#mmPv{position:fixed;inset:0;z-index:2100;background:rgba(15,15,20,.35);display:flex;align-items:center;justify-content:center}
+#mmPv .pv-box{width:min(1100px,calc(100vw - 32px));height:min(820px,calc(100vh - 32px));background:#fff;color:#37352f;border-radius:12px;box-shadow:0 24px 60px rgba(0,0,0,.28);display:flex;flex-direction:column;overflow:hidden}
+#mmPv .pv-hd{display:flex;align-items:center;gap:8px;padding:10px 14px;border-bottom:1px solid rgba(55,53,47,.1)}#mmPv .pv-hd b{font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:55%}#mmPv .pv-sub{font-size:12px;color:#787774;white-space:nowrap}
+#mmPv .pv-hd button{border:1px solid rgba(55,53,47,.16);background:#fff;border-radius:8px;padding:5px 11px;font:inherit;font-size:12.5px;cursor:pointer;color:#37352f;white-space:nowrap}#mmPv .pv-hd button:hover{background:rgba(55,53,47,.05)}
+#mmPv .pv-bd{flex:1;overflow:auto;padding:14px 20px;min-height:0}
+#mmPv .pv-wait{color:#787774;padding:40px;text-align:center;line-height:1.7}
+#mmPv .pv-doc table,#mmPv .pv-mb table{border-collapse:collapse;font-size:12.5px}#mmPv .pv-doc td,#mmPv .pv-doc th{border:1px solid #d9d9d9;padding:3px 7px;white-space:nowrap}#mmPv .pv-doc th{background:#f3f6f9}
+#mmPv .pv-mail h2{margin:0 0 8px;font-size:19px}#mmPv .pv-mh{border-collapse:collapse;font-size:12.5px;margin-bottom:12px}#mmPv .pv-mh th{text-align:left;color:#787774;font-weight:500;padding:2px 12px 2px 0;white-space:nowrap;vertical-align:top}#mmPv .pv-mh td{padding:2px 0;word-break:break-all}
+#mmPv .pv-mb{border-top:1px solid rgba(55,53,47,.1);padding-top:12px;font-size:13.5px;line-height:1.6}#mmPv .pv-mb img{max-width:100%}
+#mmPv .pv-img{display:flex;justify-content:center}#mmPv .pv-img img{max-width:100%;height:auto;box-shadow:0 1px 6px rgba(0,0,0,.15)}
+#mmPv .pv-txt{margin:0;white-space:pre-wrap;word-break:break-word;font:12.5px/1.55 ui-monospace,Consolas,monospace}
+/* v18.63 아래 가운데 페이지 줄 */
+#mmPgNav{position:absolute;left:50%;bottom:7px;transform:translateX(-50%);z-index:6;display:flex;align-items:center;gap:2px;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:1px 4px;font-size:12px;color:#48484d;box-shadow:0 2px 8px rgba(0,0,0,.06)}
+#mmPgNav button{border:0;background:none;width:24px;height:22px;border-radius:6px;font-size:16px;line-height:1;cursor:pointer;color:#37352f}#mmPgNav button:hover:not(:disabled){background:rgba(55,53,47,.08)}#mmPgNav button:disabled{opacity:.3;cursor:default}
+#mmPgNav input{border:1px solid transparent;border-radius:6px;background:rgba(118,118,128,.1);text-align:center;font:inherit;font-weight:600;padding:1px 2px;min-width:3ch;color:#1d1d1f}#mmPgNav input:focus{outline:2px solid #2383e2;background:#fff}
+#mmPgNav .of{padding:0 4px 0 3px;font-variant-numeric:tabular-nums}
+#mmMain.has-pg .mm-ln{right:auto;transform:none;left:14px;bottom:36px}   /* 페이지 줄이 가운데를 쓰므로 줄 · 칸 표시는 배율 위로 */
+@media print{#mmPgNav{display:none!important}}
 /* v18.62 한 메모 안 여러 쪽 */
 #mmEd:has(> .mm-sheet.shon) > .mm-sheet:not(.shon){display:none}
 #mmShBar{flex:none;display:flex;align-items:center;gap:10px;padding:5px 14px 5px 16px;border-bottom:1px solid rgba(55,53,47,.09);background:#fbfbfa;min-width:0}
@@ -2839,7 +2858,7 @@ function recLabel(key, f) {
  * ===================================================================== */
 let root = null;
 /* 서버 모드: http(s):// 로 접속하면 server.py 의 REST API 사용 (폴더 선택 불필요). file:// 로 열면 폴더 모드 */
-const APP_VERSION = '2026-11-24.1';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
+const APP_VERSION = '2026-11-24.2';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
 const SERVER_URL = 'http://localhost:8080';
 // 부서원 PC 사본(file://)이 접속을 시도할 서버 — 서버가 배포 파일을 만들 때 'PC 이름 주소, IP 주소' 순으로 자동 기록함
 const DEFAULT_SERVERS = ['http://ASEUNGWOOK-B01:8080', 'http://65.3.30.234:8080'];
@@ -6470,14 +6489,15 @@ document.addEventListener('click', e => { const b = e.target.closest?.('#hdrCtl 
    지키는 것: Ctrl+A 는 지금 쪽만 고름 · 쪽 맨 앞 Backspace / 맨 끝 Delete 로 쪽이 합쳐지지 않음 · 쪽 밖으로 나온 줄은 가까운 쪽으로 넣음 · 찾기 등으로 다른 쪽 글자에 커서가 가면 그 쪽으로 넘김. 마지막 한 쪽만 남으면 보통 메모로 되돌림 */
 const MMSH = { idx:{} };
 const mmShs = (ed = mmEd()) => ed ? [...ed.children].filter(x => x.classList.contains('mm-sheet')) : [];
-const mmShName = (s, i) => (s.dataset.name || '').trim() || `${i + 1}쪽`;
+const mmShName = (s, i) => (s.dataset.name || '').trim() ? `${i + 1}. ${s.dataset.name.trim()}` : String(i + 1);   /* v18.63 사용자 지시 "페이지 1, 2, 3, 4, 5 …" */
 const mmShSafe = t => String(t || '').replace(/[\/:]/g, '.').replace(/[^\w .()\-\[\]가-힣·,+&]/g, '').replace(/\s+/g, ' ').trim().slice(0, 40);
 const mmShCur = () => Math.max(0, mmShs().findIndex(x => x.classList.contains('shon')));
 const mmShRO = () => { const pg = MM.cur; if (!pg || pg.kind !== 'page') return '메모를 먼저 여세요'; if (pg.lock) return '잠긴 메모입니다 — 🔒 를 눌러 풀고 고치세요'; if (pg._ro) return '공유받은 메모는 읽기 전용입니다'; return ''; };
 function mmShBar() { const ed = mmEd(), L = mmShs(ed); let bar = document.getElementById('mmShBar'); if (!L.length) { bar?.remove(); return; }
   const ew = document.getElementById('mmEdw'); if (!ew) return; if (!bar) { bar = document.createElement('div'); bar.id = 'mmShBar'; ew.parentNode.insertBefore(bar, ew); }
   const i = mmShCur(), sig = L.map((x, k) => mmShName(x, k)).join('|') + '#' + i; if (bar.dataset.sig === sig) return; bar.dataset.sig = sig;
-  bar.innerHTML = `<div class="tabs" role="tablist" aria-label="이 메모의 쪽">${L.map((x, k) => `<button role="tab" aria-selected="${k === i}" data-sh="${k}" class="${k === i ? 'on' : ''}" title="${esc(mmShName(x, k))} — 두 번 누르면 이름 바꾸기 · 오른쪽 클릭 = 옮기기 · 복제 · 지우기">${esc(mmShName(x, k))}</button>`).join('')}<button class="add" data-shadd title="새 쪽 (Ctrl+Shift+Enter)" aria-label="새 쪽">＋</button></div><span class="nav"><button data-shgo="-1" title="앞 쪽 (Alt+PageUp)" aria-label="앞 쪽" ${i ? '' : 'disabled'}>‹</button><b>${i + 1} / ${L.length}쪽</b><button data-shgo="1" title="다음 쪽 (Alt+PageDown)" aria-label="다음 쪽" ${i < L.length - 1 ? '' : 'disabled'}>›</button></span>`;
+  bar.innerHTML = `<div class="tabs" role="tablist" aria-label="이 메모의 페이지">${L.map((x, k) => `<button role="tab" aria-selected="${k === i}" data-sh="${k}" class="${k === i ? 'on' : ''}" title="${esc(mmShName(x, k))} 페이지 — 두 번 누르면 이름 · 오른쪽 클릭 = 옮기기 · 복제 · 지우기">${esc(mmShName(x, k))}</button>`).join('')}<button class="add" data-shadd title="새 페이지 (Ctrl+Shift+Enter)" aria-label="새 페이지">＋</button></div><span class="nav"><b>${L.length} 페이지</b></span>`;
+  mmPgNav(i, L.length);
   bar.querySelector('.on')?.scrollIntoView({ block:'nearest', inline:'nearest' }); }
 function mmShShow(i, focus) { const ed = mmEd(), L = mmShs(ed); if (!L.length) return mmShBar(); i = Math.max(0, Math.min(L.length - 1, i)); L.forEach((x, k) => x.classList.toggle('shon', k === i)); if (MM.cur) MMSH.idx[MM.cur.id] = i; mmShBar();
   if (focus) { const f = L[i].firstElementChild || L[i], r = document.createRange(); r.selectNodeContents(f); r.collapse(true); ed.focus({ preventScroll:true }); const g = getSelection(); g.removeAllRanges(); g.addRange(r); const ew = document.getElementById('mmEdw'); if (ew) ew.scrollTop = 0; }
@@ -6490,22 +6510,22 @@ function mmShFix() { const ed = mmEd(); if (!ed) return; let L = mmShs(ed); if (
   mmShBar(); }
 function mmShInit() { const ed = mmEd(); if (!ed) return; if (!ed._shObs) { ed._shObs = new MutationObserver(() => mmShFix()); ed._shObs.observe(ed, { childList:true }); } mmShFix(); }
 function mmShAdd() { const ro = mmShRO(); if (ro) return toast(ro, true); const ed = mmEd(); if (!ed) return; mmShInit(); let L = mmShs(ed);
-  if (!L.length) { const one = document.createElement('div'); one.className = 'mm-sheet'; one.append(...ed.childNodes); if (!one.textContent.trim() && !one.querySelector('img,table,hr,.mm-file')) one.innerHTML = '<div><br></div>'; ed.appendChild(one); L = [one]; }
+  if (!L.length) { const one = document.createElement('div'); one.className = 'mm-sheet'; one.append(...ed.childNodes); if (!one.textContent.trim() && !one.querySelector('img,table,hr,.mm-file')) one.innerHTML = '<div><br></div>'; ed.appendChild(one); L = [one]; const c1 = mmShCid(one); (MM.cur.notes || []).forEach(n => { if (!n.sh) n.sh = c1; }); }
   const cur = L[Math.min(mmShCur(), L.length - 1)] || L[L.length - 1], n = document.createElement('div'); n.className = 'mm-sheet'; n.innerHTML = '<div><br></div>'; cur.after(n);
-  mmShShow(mmShs(ed).indexOf(n), true); mmTouch(); try { mmSnd('pop'); } catch (_) {} toast(`📑 ${mmShs(ed).length}쪽 중 ${mmShCur() + 1}쪽을 만들었습니다 — 위 쪽 탭으로 오가세요`); }
-async function mmShRen(i) { if (mmShRO()) return toast(mmShRO(), true); const L = mmShs(), x = L[i]; if (!x) return; const v = await mmAskText('쪽 이름', '이 쪽의 이름 (비우면 ' + (i + 1) + '쪽)', x.dataset.name || ''); if (v == null) return;
+  mmShShow(mmShs(ed).indexOf(n), true); mmTouch(); try { mmSnd('pop'); } catch (_) {} toast(`📑 ${mmShCur() + 1} 페이지를 만들었습니다 (모두 ${mmShs(ed).length}) — 위 번호 · 아래 ‹ › 로 오가세요`); }
+async function mmShRen(i) { if (mmShRO()) return toast(mmShRO(), true); const L = mmShs(), x = L[i]; if (!x) return; const v = await mmAskText('페이지 이름', (i + 1) + ' 페이지의 이름 (비우면 번호만)', x.dataset.name || ''); if (v == null) return;
   const t = mmShSafe(v); if (t) x.dataset.name = t; else x.removeAttribute('data-name'); mmShBar(); mmTouch(); }
 function mmShMove(i, d) { if (mmShRO()) return toast(mmShRO(), true); const L = mmShs(), x = L[i], y = L[i + d]; if (!x || !y) return; if (d < 0) y.before(x); else y.after(x); mmShShow(i + d); mmTouch(); }
-function mmShDup(i) { if (mmShRO()) return toast(mmShRO(), true); const x = mmShs()[i]; if (!x) return; const c = x.cloneNode(true); c.classList.remove('shon'); if (x.dataset.name) c.dataset.name = mmShSafe(x.dataset.name + ' 복사'); x.after(c); mmShShow(i + 1); mmTouch(); toast('📑 쪽을 복제했습니다'); }
+function mmShDup(i) { if (mmShRO()) return toast(mmShRO(), true); const x = mmShs()[i]; if (!x) return; const c = x.cloneNode(true); c.classList.remove('shon'); if (x.dataset.name) c.dataset.name = mmShSafe(x.dataset.name + ' 복사'); x.after(c); mmShShow(i + 1); mmTouch(); toast('📑 페이지를 복제했습니다'); }
 async function mmShDel(i) { if (mmShRO()) return toast(mmShRO(), true); const ed = mmEd(), L = mmShs(ed), x = L[i]; if (!x) return; const nm = mmShName(x, i);
-  if ((x.textContent.trim() || x.querySelector('img,table,.mm-file')) && await ask('쪽 지우기', `<p style="margin:0">'${esc(nm)}' 쪽과 그 안의 글 · 그림을 지울까요?<br><span class="muted">잘못 지웠으면 Ctrl+Z 또는 [판 기록] 으로 되돌릴 수 있습니다.</span></p>`, [{ id:'y', label:'지우기', cls:'pri' }, { id:'n', label:'취소' }]) !== 'y') return;
-  x.remove(); let R = mmShs(ed); if (R.length === 1) { const only = R[0]; only.replaceWith(...only.childNodes); R = []; toast('한 쪽만 남아 보통 메모로 되돌렸습니다'); } else toast(`'${nm}' 쪽을 지웠습니다`);
+  if ((x.textContent.trim() || x.querySelector('img,table,.mm-file')) && await ask('페이지 지우기', `<p style="margin:0">${esc(nm)} 페이지와 그 안의 글 · 그림을 지울까요?<br><span class="muted">잘못 지웠으면 Ctrl+Z 또는 [판 기록] 으로 되돌릴 수 있습니다.</span></p>`, [{ id:'y', label:'지우기', cls:'pri' }, { id:'n', label:'취소' }]) !== 'y') return;
+  x.remove(); let R = mmShs(ed); if (R.length === 1) { const only = R[0]; only.replaceWith(...only.childNodes); R = []; toast('한 페이지만 남아 보통 메모로 되돌렸습니다'); } else toast(`${nm} 페이지를 지웠습니다`);
   if (R.length) mmShShow(Math.min(i, R.length - 1), true); else mmShBar(); mmTouch(); }
-document.addEventListener('click', e => { const t = e.target; if (!t.closest?.('#mmShBar')) return; const b = t.closest('[data-sh]'); if (b) return mmShShow(+b.dataset.sh, true);
+document.addEventListener('click', e => { const t = e.target; if (!t.closest?.('#mmShBar, #mmPgNav')) return; const b = t.closest('[data-sh]'); if (b) return mmShShow(+b.dataset.sh, true);
   if (t.closest('[data-shadd]')) return mmShAdd(); const g = t.closest('[data-shgo]'); if (g) return mmShShow(mmShCur() + +g.dataset.shgo, true); });
 document.addEventListener('dblclick', e => { const b = e.target.closest?.('#mmShBar [data-sh]'); if (b) mmShRen(+b.dataset.sh); });
 document.addEventListener('contextmenu', e => { const b = e.target.closest?.('#mmShBar [data-sh]'); if (!b) return; e.preventDefault(); const i = +b.dataset.sh, n = mmShs().length;
-  mmPop(b, `<button data-v="ren"><span>✏</span>이름 바꾸기</button><button data-v="l" ${i ? '' : 'disabled'}><span>←</span>앞으로 옮기기</button><button data-v="r" ${i < n - 1 ? '' : 'disabled'}><span>→</span>뒤로 옮기기</button><button data-v="dup"><span>⧉</span>이 쪽 복제</button><button data-v="add"><span>＋</span>뒤에 새 쪽</button><div class="mm-poph"></div><button data-v="del"><span>🗑</span>이 쪽 지우기</button>`,
+  mmPop(b, `<button data-v="ren"><span>✏</span>이름 바꾸기</button><button data-v="l" ${i ? '' : 'disabled'}><span>←</span>앞으로 옮기기</button><button data-v="r" ${i < n - 1 ? '' : 'disabled'}><span>→</span>뒤로 옮기기</button><button data-v="dup"><span>⧉</span>이 페이지 복제</button><button data-v="add"><span>＋</span>뒤에 새 페이지</button><div class="mm-poph"></div><button data-v="del"><span>🗑</span>이 페이지 지우기</button>`,
     v => v === 'ren' ? mmShRen(i) : v === 'l' ? mmShMove(i, -1) : v === 'r' ? mmShMove(i, 1) : v === 'dup' ? mmShDup(i) : v === 'add' ? (mmShShow(i), mmShAdd()) : v === 'del' ? mmShDel(i) : 0); });
 document.addEventListener('keydown', e => { const ed = mmEd(); if (!ed || !e.target.closest?.('#mmEd')) return;
   if (e.key === 'Enter' && (e.ctrlKey || e.metaKey) && e.shiftKey && !e.altKey) { e.preventDefault(); return mmShAdd(); }
@@ -6513,7 +6533,7 @@ document.addEventListener('keydown', e => { const ed = mmEd(); if (!ed || !e.tar
   if (e.altKey && (e.key === 'PageDown' || e.key === 'PageUp')) { e.preventDefault(); return mmShShow(mmShCur() + (e.key === 'PageDown' ? 1 : -1), true); }
   if ((e.ctrlKey || e.metaKey) && !e.shiftKey && !e.altKey && (e.key === 'a' || e.key === 'A')) { e.preventDefault(); const r = document.createRange(); r.selectNodeContents(cur); const g = getSelection(); g.removeAllRanges(); g.addRange(r); return; }
   if ((e.key === 'Backspace' || e.key === 'Delete') && !e.ctrlKey) { const g = getSelection(); if (!g.rangeCount) return; const r0 = g.getRangeAt(0);
-    if (!r0.collapsed) { if (!cur.contains(r0.startContainer) || !cur.contains(r0.endContainer)) { e.preventDefault(); toast('여러 쪽에 걸친 글은 한 번에 지울 수 없습니다 — 쪽마다 지우세요', true); } return; }
+    if (!r0.collapsed) { if (!cur.contains(r0.startContainer) || !cur.contains(r0.endContainer)) { e.preventDefault(); toast('여러 페이지에 걸친 글은 한 번에 지울 수 없습니다 — 페이지마다 지우세요', true); } return; }
     if (!cur.contains(r0.startContainer)) return; const back = e.key === 'Backspace', blk = [...cur.childNodes].find(c => c === r0.startContainer || c.contains(r0.startContainer)) || cur;
     if (blk !== cur && blk !== (back ? cur.firstChild : cur.lastChild)) return; const r = document.createRange();
     if (back) { r.setStart(blk, 0); r.setEnd(r0.startContainer, r0.startOffset); } else { r.setStart(r0.endContainer, r0.endOffset); r.setEnd(blk, blk.nodeType === 3 ? blk.length : blk.childNodes.length); }
@@ -6522,9 +6542,94 @@ document.addEventListener('selectionchange', () => { const ed = document.getElem
   if (sh && !sh.classList.contains('shon')) { const L = mmShs(ed); if (g.focusNode && sh.contains(g.focusNode)) mmShShow(L.indexOf(sh)); } });
 { const o = mmOpen; mmOpen = async function () { const r = await o.apply(this, arguments); try { mmShInit(); } catch (_) {} return r; }; }
 { const o = mmApplyRemote; mmApplyRemote = function () { const i = mmShCur(); const r = o.apply(this, arguments); if (MM.cur) MMSH.idx[MM.cur.id] = i; try { mmShInit(); } catch (_) {} return r; }; }
+/* v18.63 사용자 지시 "메모장에 첨부된 excel 이나 outlook 메일 · pdf, 별도 다운 없이 미리보기 가능하게": 첨부를 누르면 내려받지 않고 메모장 안 미리보기 창.
+   엑셀(.xlsx · .xlsm · .csv) · 워드(.docx) · 파워포인트(.pptx) · 한글(.hwpx) = 가져오기와 같은 해석기(mmOffice), 메일 .eml = mmEml, Outlook .msg = 아래 mmMsg(복합 파일 직접 읽기),
+   그림 · 글 파일 = 그대로, PDF = 예전처럼 PDF 보기(pdf.js). 모두 브라우저 안에서만(서버 · 인터넷으로 보내지 않음). 못 읽는 형식(.xls · .doc · .ppt · .hwp · .zip …)은 ⬇ 내려받기 */
+function mmCfb(buf) {   // Microsoft 복합 파일(OLE · CFB) 읽기 — Outlook .msg 가 이 형식
+  const u8 = new Uint8Array(buf), dv = new DataView(buf); if (u8.length < 512 || dv.getUint32(0, true) !== 0xE011CFD0) throw new Error('Outlook 메일(.msg) 형식이 아닙니다');
+  const ss = 1 << dv.getUint16(30, true), mss = 1 << dv.getUint16(32, true), dirSt = dv.getInt32(48, true), cut = dv.getUint32(56, true), mfSt = dv.getInt32(60, true), dfSt = dv.getInt32(68, true), nDf = dv.getUint32(72, true), off = x => (x + 1) * ss;
+  const difat = []; for (let i = 0; i < 109; i++) { const v = dv.getInt32(76 + i * 4, true); if (v >= 0) difat.push(v); }
+  for (let d = dfSt, k = 0; d >= 0 && k < nDf && off(d) + ss <= u8.length; k++) { const o = off(d); for (let i = 0; i < ss / 4 - 1; i++) { const v = dv.getInt32(o + i * 4, true); if (v >= 0) difat.push(v); } d = dv.getInt32(o + ss - 4, true); }
+  const per = ss / 4, fat = new Int32Array(difat.length * per); difat.forEach((x, i) => { const o = off(x); for (let j = 0; j < per && o + j * 4 + 4 <= u8.length; j++) fat[i * per + j] = dv.getInt32(o + j * 4, true); });
+  const chain = (st, t) => { const out = [], seen = new Set(); for (let c = st; c >= 0 && c < t.length && !seen.has(c); c = t[c]) { seen.add(c); out.push(c); } return out; };
+  const read = (st, size) => { const cs = chain(st, fat), out = new Uint8Array(cs.length * ss); cs.forEach((c, i) => out.set(u8.subarray(off(c), off(c) + ss), i * ss)); return size == null ? out : out.subarray(0, size); };
+  const db = read(dirSt), dd = new DataView(db.buffer, db.byteOffset, db.byteLength), E = [];
+  for (let o = 0; o + 128 <= db.length; o += 128) { const nl = dd.getUint16(o + 64, true); let nm = ''; for (let i = 0; i < Math.max(0, Math.min(31, nl / 2 - 1)); i++) nm += String.fromCharCode(dd.getUint16(o + i * 2, true)); E.push({ name:nm, type:db[o + 66], l:dd.getInt32(o + 68, true), r:dd.getInt32(o + 72, true), c:dd.getInt32(o + 76, true), st:dd.getInt32(o + 116, true), size:dd.getUint32(o + 120, true) }); }
+  const root = E[0], ms = root && root.st >= 0 ? read(root.st, root.size) : new Uint8Array(0), mfb = mfSt >= 0 ? read(mfSt) : new Uint8Array(0), mfd = new DataView(mfb.buffer, mfb.byteOffset, mfb.byteLength), mf = new Int32Array(mfb.length >> 2);
+  for (let i = 0; i < mf.length; i++) mf[i] = mfd.getInt32(i * 4, true);
+  const readMini = (st, size) => { const cs = chain(st, mf), out = new Uint8Array(cs.length * mss); cs.forEach((c, i) => out.set(ms.subarray(c * mss, (c + 1) * mss), i * mss)); return out.subarray(0, size); };
+  const data = e => e.size < cut ? readMini(e.st, e.size) : read(e.st, e.size);
+  const kids = e => { const out = [], seen = new Set(), walk = i => { if (i < 0 || i >= E.length || seen.has(i)) return; seen.add(i); walk(E[i].l); out.push(E[i]); walk(E[i].r); }; walk(e.c); return out; };
+  return { root, kids, data };
+}
+function mmMsg(buf) {   // Outlook .msg → { 제목 · 보낸 사람 · 받는 사람 · 참조 · 날짜 · 본문(html 또는 글) · 첨부 이름 }
+  const f = mmCfb(buf), top = f.kids(f.root), find = (L, id) => L.find(x => x.name.toUpperCase() === ('__SUBSTG1.0_' + id).toUpperCase());
+  const dec = b => { try { return new TextDecoder('utf-8', { fatal:true }).decode(b); } catch (_) { try { return new TextDecoder('euc-kr').decode(b); } catch (_) { return new TextDecoder('latin1').decode(b); } } };
+  const str = (L, tag) => { let e = find(L, tag + '001F'); if (e) return new TextDecoder('utf-16le').decode(f.data(e)).replace(/\0+$/, ''); e = find(L, tag + '001E'); return e ? dec(f.data(e)).replace(/\0+$/, '') : ''; };
+  const o = { subj:str(top, '0037'), from:str(top, '0C1A') || str(top, '0042'), fromM:str(top, '5D01') || str(top, '0C1F'), to:str(top, '0E04'), cc:str(top, '0E03'), body:str(top, '1000'), html:'', date:'', atts:[] };
+  const hb = find(top, '10130102'); if (hb) { const b = f.data(hb), cs = (/charset=["']?([\w-]+)/i.exec(new TextDecoder('latin1').decode(b.subarray(0, 2000))) || [])[1]; try { o.html = new TextDecoder(cs || 'utf-8').decode(b); } catch (_) { o.html = dec(b); } }
+  const pr = top.find(x => x.name === '__properties_version1.0'); if (pr) { const b = f.data(pr), v = new DataView(b.buffer, b.byteOffset, b.byteLength);
+    for (let p = 32; p + 16 <= b.length; p += 16) { const tag = v.getUint32(p, true); if (tag === 0x0E060040 || tag === 0x00390040) { const ft = v.getUint32(p + 8, true) + v.getUint32(p + 12, true) * 4294967296, ms = ft / 1e4 - 11644473600000; if (ms > 0) { const d = new Date(ms); o.date = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`; if (tag === 0x0E060040) break; } } } }
+  top.filter(x => x.type === 1 && /^__attach_version1\.0_/i.test(x.name)).forEach(a => { const L = f.kids(a), n = str(L, '3707') || str(L, '3704') || str(L, '3001'); if (n) o.atts.push(n); });
+  return o;
+}
+const MM_PV_RE = /\.(xlsx|xlsm|csv|tsv|docx|pptx|hwpx|eml|msg|png|jpe?g|gif|webp|bmp|txt|log|md|json|xml|ini)$/i;
+async function mmPreview(a) {
+  const fid = a.dataset.fid, name = a.dataset.name || 'file', ext = ((/\.(\w+)$/.exec(name) || [])[1] || '').toLowerCase(), mail = /^(eml|msg)$/.test(ext);
+  document.getElementById('mmPv')?.remove(); const ov = document.createElement('div'); ov.id = 'mmPv';
+  const ic = { xlsx:'📗', xlsm:'📗', csv:'📗', tsv:'📗', docx:'📘', pptx:'📙', hwpx:'📄', eml:'📧', msg:'📧' }[ext] || (/png|jpe?g|gif|webp|bmp/.test(ext) ? '🖼' : '📄');
+  ov.innerHTML = `<div class="pv-box" role="dialog" aria-label="첨부 미리보기"><div class="pv-hd"><b>${ic} ${esc(name)}</b><span class="pv-sub">미리보기 — 내려받지 않고 이 창에서</span><span class="sp"></span>${mail ? '<button data-pv="ol" title="Outlook 으로 열기 (첨부를 두 번 눌러도 됨)">📧 Outlook 으로 열기</button>' : ''}<button data-pv="dl" title="파일로 내려받기">⬇ 내려받기</button><button data-pv="x" title="닫기 (Esc)" aria-label="닫기">✕</button></div><div class="pv-bd"><div class="pv-wait">불러오는 중…</div></div></div>`;
+  document.body.appendChild(ov); const bd = ov.querySelector('.pv-bd'), close = () => { ov.remove(); document.removeEventListener('keydown', onKey, true); if (ov._u) URL.revokeObjectURL(ov._u); };
+  const onKey = e => { if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); close(); } }; document.addEventListener('keydown', onKey, true);
+  ov.addEventListener('click', e => { const b = e.target.closest('[data-pv]'); if (e.target === ov || b?.dataset.pv === 'x') return close();
+    if (b?.dataset.pv === 'dl') return mmPvDl(fid, name); if (b?.dataset.pv === 'ol') { close(); return mmMailOpen(a); } });
+  let blob; try { blob = await mmBlob(fid); } catch (e) { bd.innerHTML = `<div class="pv-wait">${esc(e.message)}</div>`; return; }
+  try {
+    if (/^(xlsx|xlsm|csv|tsv|docx|pptx|hwpx)$/.test(ext)) { const html = await mmOffice(new File([blob], name)); bd.innerHTML = `<div class="pv-doc mm-ed">${mmClean(html)}</div>`; }
+    else if (ext === 'msg' || ext === 'eml') { let m;
+      if (ext === 'msg') m = mmMsg(await blob.arrayBuffer());
+      else { const t = mmEml(await blob.text()), g = k => ((new RegExp('^' + k + ': (.*)$', 'm').exec(t) || [])[1] || '').trim(); m = { subj:g('제목'), from:g('보낸 사람'), to:g('받는 사람'), cc:g('참조'), date:g('보낸 날짜'), body:t.replace(/^(보낸 사람|보낸 날짜|받는 사람|참조|제목): .*\n?/gm, '').trim(), html:'', atts:[] }; }
+      const row = (k, v) => v ? `<tr><th>${k}</th><td>${esc(v)}</td></tr>` : '';
+      bd.innerHTML = `<div class="pv-mail"><h2>${esc(m.subj || name.replace(/\.(eml|msg)$/i, ''))}</h2><table class="pv-mh">${row('보낸 사람', m.from + (m.fromM && !String(m.from).includes(m.fromM) ? ` <${m.fromM}>` : ''))}${row('보낸 날짜', m.date)}${row('받는 사람', m.to)}${row('참조', m.cc)}${m.atts?.length ? row('첨부', m.atts.join(' · ')) : ''}</table>
+        <div class="pv-mb mm-ed">${m.html ? mmClean((/<body[^>]*>([\s\S]*)<\/body>/i.exec(m.html) || [, m.html])[1]) : `<div style="white-space:pre-wrap">${esc(m.body || '(본문을 읽지 못했습니다 — Outlook 으로 열어 보세요)')}</div>`}</div></div>`; }
+    else if (/^(png|jpe?g|gif|webp|bmp)$/.test(ext)) { ov._u = URL.createObjectURL(blob); bd.innerHTML = `<div class="pv-img"><img alt="${esc(name)}" src="${ov._u}"></div>`; }
+    else if (MM_PV_RE.test(name)) { const t = await blob.slice(0, 2e6).text(); bd.innerHTML = `<pre class="pv-txt">${esc(t)}${blob.size > 2e6 ? '\n… (앞 2MB 만 보임)' : ''}</pre>`; }
+    else bd.innerHTML = `<div class="pv-wait">이 형식(.${esc(ext)})은 미리보기를 못 합니다 — [⬇ 내려받기] 로 여세요</div>`;
+  } catch (e) { bd.innerHTML = `<div class="pv-wait">미리보기를 만들지 못했습니다: ${esc(e.message || String(e))}<br>[⬇ 내려받기] 로 여세요</div>`; }
+}
+async function mmPvDl(fid, name) { let b; try { b = await mmBlob(fid); } catch (e) { return toast(e.message, true); } const u = URL.createObjectURL(b), x = document.createElement('a'); x.href = u; x.download = name; document.body.appendChild(x); x.click(); x.remove(); setTimeout(() => URL.revokeObjectURL(u), 4000); }
+{ const o = mmFileOpen; mmFileOpen = async function (a) { if (a?.dataset && MM_PV_RE.test(a.dataset.name || '')) return mmPreview(a); return o.apply(this, arguments); }; }
+document.addEventListener('dblclick', e => { if (e.target.closest?.('.mm-file.mm-eml')) { clearTimeout(MM.pvT); document.getElementById('mmPv')?.remove(); } }, true);
+/* v18.63 사용자 지시 "메모 중간 하단에 페이지와 이전 · 이후 페이지 넘길 수 있는 화살표, 사용자가 5 를 입력하면 5 페이지로" — ‹ [2] / 5 › (번호 칸에 숫자 + Enter) */
+function mmPgNav(i, n) { const m = document.getElementById('mmMain'); if (!m) return; let v = document.getElementById('mmPgNav');
+  if (!n) { v?.remove(); m.classList.remove('has-pg'); return; }
+  if (!v) { v = document.createElement('div'); v.id = 'mmPgNav'; v.innerHTML = '<button data-shgo="-1" title="이전 페이지 (Alt+PageUp)" aria-label="이전 페이지">‹</button><input id="mmPgIn" inputmode="numeric" autocomplete="off" aria-label="갈 페이지 번호" title="페이지 번호를 넣고 Enter"><span class="of"></span><button data-shgo="1" title="다음 페이지 (Alt+PageDown)" aria-label="다음 페이지">›</button>'; m.appendChild(v);
+    const inp = v.querySelector('#mmPgIn'); const go = () => { const k = parseInt(inp.value.replace(/\D/g, ''), 10), L = mmShs().length; if (!k) { inp.value = mmShCur() + 1; return; } if (k > L) toast(`${k} 페이지는 없습니다 — 모두 ${L} 페이지`, true); mmShShow(Math.min(L, k) - 1, true); };
+    inp.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); go(); } else if (e.key === 'Escape') { inp.value = mmShCur() + 1; inp.blur(); } else if (e.key === 'ArrowUp' || e.key === 'ArrowDown') { e.preventDefault(); mmShShow(mmShCur() + (e.key === 'ArrowDown' ? 1 : -1)); inp.select(); } });
+    inp.addEventListener('focus', () => inp.select()); inp.addEventListener('blur', () => { inp.value = mmShCur() + 1; }); }
+  m.classList.add('has-pg'); const inp = v.querySelector('#mmPgIn'); if (document.activeElement !== inp) inp.value = i + 1; inp.style.width = (String(n).length + 1.6) + 'ch';
+  v.querySelector('.of').textContent = '/ ' + n; v.querySelector('[data-shgo="-1"]').disabled = i <= 0; v.querySelector('[data-shgo="1"]').disabled = i >= n - 1; }
+/* v18.63 사용자 지시 "이미지 붙여넣기 할 때는 커서 있는 쪽에 붙여지도록": 떠 있는 그림 · 글 상자 등은 지금 페이지에 붙음(note.sh = 페이지 표시 data-cid) — 다른 페이지에서는 안 보임 */
+const mmShCid = x => x.dataset.cid || (x.dataset.cid = 'p' + Math.random().toString(36).slice(2, 9));
+function mmShNotes() { const h = document.getElementById('mmNotes'), pg = MM.cur; if (!h || !pg) return; const L = mmShs(); let css = '';
+  if (L.length) { const cur = mmShCid(L[mmShCur()]), ids = new Set(L.map(mmShCid)); let ch = 0;
+    (pg.notes || []).forEach(n => { if (!n.sh || !ids.has(n.sh)) { n.sh = n.sh && !ids.has(n.sh) ? mmShCid(L[0]) : cur; ch = 1; } });
+    h.querySelectorAll('.mm-fn').forEach(el => { const n = (pg.notes || []).find(x => x.id === el.dataset.fn); el.dataset.sh = n?.sh || ''; });
+    css = `#mmNotes .mm-fn[data-sh]:not([data-sh="${cur}"]){display:none!important}`; if (ch) try { mmNoteTouch('obj'); } catch (_) {} }
+  let st = document.getElementById('mmShCss'); if (!st) { st = document.createElement('style'); st.id = 'mmShCss'; document.head.appendChild(st); } st.textContent = css; }
+{ const o = mmNotesDraw; mmNotesDraw = function () { const r = o.apply(this, arguments); try { mmShNotes(); } catch (_) {} return r; }; }
+{ const o = mmShShow; mmShShow = function () { const r = o.apply(this, arguments); try { mmShNotes(); } catch (_) {} return r; }; }
+/* v18.63 사용자 지시: Ctrl+Shift+< = 글자 1pt 작게 · Ctrl+Shift+> = 1pt 크게 · Ctrl+4 밑줄 · Ctrl+6 기울임 · Ctrl+7 굵게 (Ctrl+5 = 취소선 + 붉은 글씨 그대로) */
+document.addEventListener('keydown', e => { if (route !== 'memo' || !e.target.closest?.('#mmEd') || e.altKey || !(e.ctrlKey || e.metaKey)) return;
+  if (e.shiftKey && (e.code === 'Comma' || e.code === 'Period' || e.key === '<' || e.key === '>')) { e.preventDefault(); e.stopPropagation(); if (MM.cur?.lock) return; const d = e.code === 'Period' || e.key === '>' ? 1 : -1; mmFsSave(); const c = mmFsNow() || 11; const v = Math.max(4, Math.min(200, Math.round(c) + d)); mmFsApply(v); toast(`글자 ${v}pt`); return; }
+  if (e.shiftKey) return; const k = e.code === 'Digit4' || e.code === 'Numpad4' ? 'underline' : e.code === 'Digit6' || e.code === 'Numpad6' ? 'italic' : e.code === 'Digit7' || e.code === 'Numpad7' ? 'bold' : '';
+  if (!k) return; e.preventDefault(); e.stopPropagation(); mmCmd(k); }, true);
 /* v18.62 사용자 지시(사진: '2. See below' 밑에 붙여 넣은 메일 캡처): "이렇게 붙여 넣어지면, 2 에서 엔터 치면 3 은 그림 밑에 되도록".
    붙여 넣은 그림은 본문 위에 '떠 있는 그림'이라 새 줄이 그림 뒤에 가려짐 → Enter 로 생긴 새 줄이 바로 밑의 떠 있는 그림과 겹치면, 앞 줄 끝에 보이지 않는 빈칸(mm-gap)을 넣어 새 줄을 그림 아래로 내림.
    그림을 옮기거나 지운 뒤 남은 빈칸은 그 줄 뒤에서 다시 Enter 할 때 맞춤(줄이거나 없앰) */
+/* v18.63 커서 자리 (빈 줄이면 그 줄 상자) — 그림을 그 줄의 왼쪽 끝 · 바로 밑에 */
+function mmCaretBox(sel) { try { const r = sel.getRangeAt(0); let b = r.getBoundingClientRect(); const n = r.startContainer, el = n.nodeType === 3 ? n.parentElement : n, blk = el?.closest?.('li, p, div, h1, h2, h3, blockquote, pre, td') || el;
+    const B = blk?.getBoundingClientRect?.(); if (!b.height && B) b = B; return B ? { left:B.left + 2, bottom:b.bottom } : (b.height ? { left:b.left, bottom:b.bottom } : null); } catch (_) { return null; } }
 function mmGapBlk(n, ed) { let el = n?.nodeType === 3 ? n.parentElement : n; if (!el || !ed.contains(el) || el === ed) return null; const li = el.closest('li'); if (li && ed.contains(li)) return li;
   while (el.parentElement && el.parentElement !== ed && !el.parentElement.classList.contains('mm-sheet') && !el.parentElement.classList.contains('mm-col')) el = el.parentElement; return el; }
 function mmGapFit(prev, line) { const ed = mmEd(); if (!ed || !prev || !line) return; const z = mmZoom?.() || 1, old = [...prev.children].find(x => x.classList.contains('mm-gap'));
@@ -7228,7 +7333,7 @@ function mmDrawMain() {
       ${T('ul', '•', '글머리 목록')}${T('ol', '1.', '번호 목록')}${T('todo', '☑', '할 일 (체크 상자)')}${T('quote', '❝', '인용')}${T('call', '💡', '강조 상자')}${T('code', '&lt;/&gt;', '코드 · 고정폭')}${T('toggle', '▸', '접는 글')}${T('hr', '―', '구분선')}${T('mark', '🏷 태그', 'OneNote 태그 — 이 줄에 ⭐중요 · ❓질문 · 💡아이디어 · ⚠확인 · 📞연락 붙이기 (Alt+1~6, Alt+0 지우기) · 왼쪽 [🏷 태그 모음] 에서 모든 메모의 태그를 한곳에')}${T('find', '🔎', '이 메모 안에서 찾기 · 바꾸기 (Ctrl+F · Ctrl+H)')}${T('nlp', '✨ 자동 할 일', '말로 쓴 줄을 할 일로 자동 등록 — 예: \'오늘 12:30에 미터링 업체랑 미팅 있음\' 을 쓰고 Enter → 할 일(🤝 미팅 · 오늘 12:30) · 알람 · 달력. 다시 누르면 끔. 바로 되돌리기 = Ctrl+Z')}${S}
       ${T('left', '⇤', '왼쪽 맞춤')}${T('center', '↔', '가운데 맞춤')}${T('right', '⇥', '오른쪽 맞춤')}${T('full', '☰', '양쪽 맞춤')}${T('indent', '→|', '들여쓰기')}${T('outdent', '|←', '내어쓰기')}${S}${T('col2', '▥2', '좌우 2단으로 나누기')}${T('col3', '▥3', '좌우 3단으로 나누기')}${T('colx', '▥✕', '단 나누기 풀기 (한 줄로)')}${S}
       ${T('table', '▦', '표 넣기 — 칸 수 고르기')}<span class="tbl">${T('trow', '+행', '아래에 행 넣기')}${T('tcol', '+열', '오른쪽에 열 넣기')}${T('trowx', '−행', '행 지우기')}${T('tcolx', '−열', '열 지우기')}${T('tmerge', '⊞합치기', '끌어서 고른 칸 합치기')}${T('tsplit', '⊟나누기', '합친 칸 나누기')}${T('tbg', '🎨', '칸 배경색')}${T('tmenu', '표 ▾', '표 메뉴 전체 (표 안에서 마우스 오른쪽 단추로도 열림)')}${T('teq', '열=', '열 너비를 같게 · 표를 가로로 꽉 차게 (다시 누르면 풀기)')}${T('tsort', '↕정렬', '이 열 기준으로 행 정렬 (다시 누르면 반대로 · 날짜 · 숫자 · 글자)')}${T('tdel', '표✕', '표 지우기')}</span>${S}
-      ${T('pdfbg', '📕 PDF 메모', '새 PDF 메모 — PDF 를 열어 형광펜 · 밑줄 · 취소선 · 스티커 노트 · 타자기 · 글 상자 · 말풍선 · 도형 · 도장 · 거리 · 면적 재기, 주석 목록, 📄 PDF 저장 (PDF-XChange 처럼)')}${T('due', '⏰ 기한', '기한 넣기 — 날짜(+시간). 날짜만 = 📅, 시간까지 = ⏰ 그 시각에 알람 · 할 일 모음 · 날짜별에 자동으로')}${T('link', '🔗', '링크')}${T('img', '🖼', '그림 넣기 (붙여넣기 · 끌어 놓기도 됨)')}${T('shot', '📷 화면 캡처', '화면을 캡처해 범위를 골라 메모에 그림으로 붙이기 (Win+Shift+S 로 캡처한 뒤 Ctrl+V 도 됨)')}${T('mailx', '📧 메일 정리', '메일 화면 캡처(Ctrl+V) 또는 메일 글을 붙여 넣으면 제목 · 보낸 사람 · 날짜 · 요약 · 요청 사항 · 일정 · 카테고리로 정리 → 메모 · 스티커 · 할 일로')}${T('page', '📄 하위 페이지', '이 메모 안에 하위 페이지 만들기 (/페이지) — 페이지 트리 · 위치 표시에 나옴')}${T('sheet', '📑 새 쪽', '이 메모 안에 새 쪽(장) 만들기 — 위에 쪽 탭이 생겨 1쪽 · 2쪽 … 을 오감 (Ctrl+Shift+Enter · /쪽)')}${T('cmt', '💬 주석 달기', '고른 글에 주석(설명 말풍선) 달기 — 글에 점선 밑줄 · 오른쪽에 말풍선 (Ctrl+Alt+M)')}${T('note', '🗒 메모지', '메모 위 아무 곳에나(왼쪽 여백 포함) 색 메모지 붙이기 — 누른 뒤 붙일 자리를 누름')}${T('tbox', 'Ｔ 글 상자', '원하는 곳에 바로 글 쓰기 — 누른 뒤 쓸 자리를 누름')}${T('ink', '🖊 펜 쓰기', '메모 위에 마우스 · 펜으로 바로 그리기 (펜 · 만년필 · 형광펜 · 레이저 · 지우개)')}${T('draw', '✏', '빈 종이에 그려서 그림으로 넣기')}${T('file', '📎', '파일 첨부 (PDF · 문서 — PDF 는 보면서 메모)')}${T('date', '📅', '오늘 날짜 · 시각 넣기 (F5)')}${T('emoji', '😀 이모지', '이모지 넣기 (Ctrl+;) — 찾기 · 종류별 · 최근 쓴 것')}${S}<button data-mc="pull" title="다른 메뉴의 값 불러오기 (수행 · 입찰 · 이슈 · 통합 업무 · Schedule …)" style="font-weight:700;color:var(--accent-d)">📥 불러오기</button></div>
+      ${T('pdfbg', '📕 PDF 메모', '새 PDF 메모 — PDF 를 열어 형광펜 · 밑줄 · 취소선 · 스티커 노트 · 타자기 · 글 상자 · 말풍선 · 도형 · 도장 · 거리 · 면적 재기, 주석 목록, 📄 PDF 저장 (PDF-XChange 처럼)')}${T('due', '⏰ 기한', '기한 넣기 — 날짜(+시간). 날짜만 = 📅, 시간까지 = ⏰ 그 시각에 알람 · 할 일 모음 · 날짜별에 자동으로')}${T('link', '🔗', '링크')}${T('img', '🖼', '그림 넣기 (붙여넣기 · 끌어 놓기도 됨)')}${T('shot', '📷 화면 캡처', '화면을 캡처해 범위를 골라 메모에 그림으로 붙이기 (Win+Shift+S 로 캡처한 뒤 Ctrl+V 도 됨)')}${T('mailx', '📧 메일 정리', '메일 화면 캡처(Ctrl+V) 또는 메일 글을 붙여 넣으면 제목 · 보낸 사람 · 날짜 · 요약 · 요청 사항 · 일정 · 카테고리로 정리 → 메모 · 스티커 · 할 일로')}${T('page', '📄 하위 페이지', '이 메모 안에 하위 페이지 만들기 (/페이지) — 페이지 트리 · 위치 표시에 나옴')}${T('sheet', '📑 새 페이지', '이 메모 안에 새 페이지 만들기 — 위 1 · 2 · 3 … 번호, 아래 ‹ 2 / 5 › 로 오감 (Ctrl+Shift+Enter · /페이지)')}${T('cmt', '💬 주석 달기', '고른 글에 주석(설명 말풍선) 달기 — 글에 점선 밑줄 · 오른쪽에 말풍선 (Ctrl+Alt+M)')}${T('note', '🗒 메모지', '메모 위 아무 곳에나(왼쪽 여백 포함) 색 메모지 붙이기 — 누른 뒤 붙일 자리를 누름')}${T('tbox', 'Ｔ 글 상자', '원하는 곳에 바로 글 쓰기 — 누른 뒤 쓸 자리를 누름')}${T('ink', '🖊 펜 쓰기', '메모 위에 마우스 · 펜으로 바로 그리기 (펜 · 만년필 · 형광펜 · 레이저 · 지우개)')}${T('draw', '✏', '빈 종이에 그려서 그림으로 넣기')}${T('file', '📎', '파일 첨부 (PDF · 문서 — PDF 는 보면서 메모)')}${T('date', '📅', '오늘 날짜 · 시각 넣기 (F5)')}${T('emoji', '😀 이모지', '이모지 넣기 (Ctrl+;) — 찾기 · 종류별 · 최근 쓴 것')}${S}<button data-mc="pull" title="다른 메뉴의 값 불러오기 (수행 · 입찰 · 이슈 · 통합 업무 · Schedule …)" style="font-weight:700;color:var(--accent-d)">📥 불러오기</button></div>
     <div id="mmInkHost"></div><div class="mm-edw" id="mmEdw"><div class="mm-zw" id="mmZw"><div class="mm-ed" id="mmEd" data-pid="${pg.id}" contenteditable="${pg.lock ? 'false' : 'true'}" spellcheck="false"></div><div class="mm-notes" id="mmNotes"></div><svg class="mm-ink" id="mmInk"></svg></div></div>
     <div class="mm-zc"><button data-mx="zo" title="축소 (Ctrl + 휠 아래)">－</button><b id="mmZl" data-mx="z1" title="100% 로">100%</b><button data-mx="zi" title="확대 (Ctrl + 휠 위)">＋</button></div><div class="mm-st" id="mmSt"></div><span class="mm-ln" id="mmLn" title="커서 위치 · 문서 정보 (Ctrl+G = 줄로 이동)"></span><input type="file" id="mmFile" hidden multiple><input type="file" id="mmImg" hidden multiple accept="image/*">`;
   $('#mmEd').innerHTML = mmClean(pg.html || ''); $('#mmLh').value = pg.lh || ''; $('#mmBg').value = pg.bg || ''; $('#mmEd').className = mmEdCls(pg); if (pg._ro) { $('#mmTb').style.display = 'none'; $('.mm-meta', el).innerHTML = `<span class="mm-ro">👥 <b>${esc(pg.ownerName || pg._ro)}</b> 님이 공유한 메모 — 읽기 전용 · ${fmtTime(pg.updatedAt)} 고침</span><button class="tg" data-mx="rocopy">⧉ 내 메모로 복사</button>`; }
@@ -7339,7 +7444,7 @@ function mmPop(anchor, html, pick, cls = '') {   // 작은 메뉴 (바깥을 누
   return p;
 }
 /* '/' 블록 메뉴 */
-const MM_SLASH = [['page', '📄', '하위 페이지'], ['sheet', '📑', '새 쪽 (한 메모 안 여러 장)'], ['h1', 'H1', '큰 제목'], ['h2', 'H2', '중간 제목'], ['h3', 'H3', '작은 제목'], ['todo', '☑', '할 일'], ['ul', '•', '글머리 목록'], ['ol', '1.', '번호 목록'], ['table', '▦', '표'], ['quote', '❝', '인용'], ['call', '💡', '강조 상자'], ['toggle', '▸', '접는 글'], ['code', '</>', '코드'], ['hr', '―', '구분선'], ['img', '🖼', '그림'], ['draw', '✏', '그리기'], ['file', '📎', '파일 첨부'], ['date', '📅', '오늘 날짜'], ['link', '🔗', '링크'], ['pull', '📥', '다른 메뉴 값 불러오기']];
+const MM_SLASH = [['page', '📄', '하위 페이지'], ['sheet', '📑', '새 페이지 (한 메모 안 여러 장 · 쪽)'], ['h1', 'H1', '큰 제목'], ['h2', 'H2', '중간 제목'], ['h3', 'H3', '작은 제목'], ['todo', '☑', '할 일'], ['ul', '•', '글머리 목록'], ['ol', '1.', '번호 목록'], ['table', '▦', '표'], ['quote', '❝', '인용'], ['call', '💡', '강조 상자'], ['toggle', '▸', '접는 글'], ['code', '</>', '코드'], ['hr', '―', '구분선'], ['img', '🖼', '그림'], ['draw', '✏', '그리기'], ['file', '📎', '파일 첨부'], ['date', '📅', '오늘 날짜'], ['link', '🔗', '링크'], ['pull', '📥', '다른 메뉴 값 불러오기']];
 function mmSlash() {
   const s = mmSelIn(); const old = $('.mm-pop.slash'); if (!s || !s.isCollapsed || s.anchorNode.nodeType !== 3) return old?.remove();
   const t = s.anchorNode.textContent.slice(0, s.anchorOffset), m = /(?:^|\s)\/([^\s/]{0,10})$/.exec(t); if (!m) return old?.remove();
@@ -8496,8 +8601,8 @@ document.addEventListener('paste', e => {   // 메모장 화면 어디서든 (�
   if (e.target.closest?.('#mmEd') && (/<table/i.test(h) || mmHtmlText(h))) return;   // 엑셀 칸 복사 = 표로 · v18.24 글 + 그림 = 본문에 함께 (아래 mmPasteHtml)
   const st = e.target.closest?.('.mm-sticky'), onBoard = e.target.closest?.('#mmBoard, #mmFloat') || (MM.view === 'sticky' && !e.target.closest?.('#mmZw'));
   if (st || onBoard) { e.preventDefault(); e.stopPropagation(); return void mmPasteSticky(imgs, st?.dataset.sid); }
-  if (MM.cur && !MM.cur.lock) { e.preventDefault(); e.stopPropagation(); const sel = getSelection(), r0 = sel.rangeCount && e.target.closest?.('#mmEd') && Date.now() - MM_MP.t > 4000 ? sel.getRangeAt(0).getBoundingClientRect() : null;
-    mmPasteFloat(imgs, r0 && r0.height ? [r0.left, r0.top] : null); }
+  if (MM.cur && !MM.cur.lock) { e.preventDefault(); e.stopPropagation(); const sel = getSelection(), r0 = sel.rangeCount && e.target.closest?.('#mmEd') ? mmCaretBox(sel) : null;   /* v18.63 사용자 지시: 커서 있는 곳(그 줄 바로 밑)에 — 예전엔 4초 안에 움직인 마우스 자리 */
+    mmPasteFloat(imgs, r0 ? [r0.left, r0.bottom + 6] : null); }
 }, true);
 document.addEventListener('keydown', e => {   // 아무 칸도 눌러 놓지 않았을 때(포커스 없음)에도 Ctrl+V 가 메모장으로 오게
   if (route !== 'memo' || !(e.ctrlKey || e.metaKey) || e.key.toLowerCase() !== 'v' || e.target.closest?.('input, textarea, select, [contenteditable="true"], dialog')) return;
@@ -10056,7 +10161,7 @@ document.addEventListener('click', async e => {
       if (v === 'del') { pg.deleted = true; pg.pin = false; MM.dirty = true; await mmSave(); MM.cur = null; mmDraw(); toast('휴지통으로 옮겼습니다 (휴지통에서 되살릴 수 있음)'); } }); }
   const ed = t.closest('#mmEd'); if (!ed) return;
   ed.querySelectorAll('img.sel').forEach(x => x.classList.remove('sel'));
-  const f = t.closest('.mm-file'); if (f) { e.preventDefault(); if (f.classList.contains('mm-eml')) return toast('📧 두 번 누르면 Outlook 으로 열립니다'); return mmFileOpen(f); }
+  const f = t.closest('.mm-file'); if (f) { e.preventDefault(); if (f.classList.contains('mm-eml')) { clearTimeout(MM.pvT); MM.pvT = setTimeout(() => mmPreview(f), 300); return; } return mmFileOpen(f); }   /* v18.63 메일 첨부: 한 번 = 미리보기 · 두 번 = Outlook */
   const sr = t.closest('.mm-src[data-src]'); if (sr) { e.preventDefault(); const [k, id, ...fr] = sr.dataset.src.split('|'); await mmFlush(); return k === 'sched' ? go('co2sched') : SHEET[k] ? jumpTo(k, id, fr.join('|')) : 0; }
   const pl = t.closest('a.mm-pgl[href^="#memo/"]'); if (pl) { e.preventDefault(); await mmFlush(); return mmOpen(pl.getAttribute('href').slice(6)); }
   const a = t.closest('a[href]'); if (a) { e.preventDefault(); if (e.ctrlKey || MM.cur?.lock || confirm('링크를 열까요?\n' + a.href)) window.open(a.href, '_blank', 'noopener'); return; }

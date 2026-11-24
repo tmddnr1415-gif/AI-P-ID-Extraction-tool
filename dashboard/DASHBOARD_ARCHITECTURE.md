@@ -2941,3 +2941,16 @@ C:\Users\SAMSUNG\Desktop\Claude\                         ← 개발 폴더 (여�
 - 그 밖: 메모장 이름 묻는 창(`mmAskText`)에서 Enter = 확인 (예전엔 Enter 가 안 먹어 [확인]을 눌러야 했음).
 - 바뀐 곳: dashboard.html `MMSH` · `mmShs` · `mmShBar` · `mmShShow` · `mmShFix` · `mmShInit` · `mmShAdd` · `mmShRen` · `mmShMove` · `mmShDup` · `mmShDel` · 쪽 키 처리 · `mmOpen`/`mmApplyRemote` 감싸기 · `mmCmd` 'sheet' · `MM_RT` · `MM_SLASH` · 리본 `📑 새 쪽` · `mmGapBlk` · `mmGapFit` · `mmAskText` · CSS `#mmShBar` · `.mm-sheet` · `.mm-gap`.
 - 확인한 것: 쪽 — 리본 · Ctrl+Shift+Enter 로 3쪽, 넘기기(한 번에 한 쪽만 보임), 이름(두 번 누르기 · Enter), 맨 앞 Backspace 합쳐지지 않음, Ctrl+A → Delete 가 지금 쪽만, 서버 저장(3쪽 · shon 없음) · 다시 열기, 숨은 쪽 글자 선택 → 그 쪽으로, 앞으로 옮기기 · 복제 · 지우기 3번(마지막엔 보통 메모로). 그림 밑 Enter — 사진처럼 '1. Dense CO2 Qualification / 2. See below' + 2 밑에 그림 붙여 넣기 → 2 끝 Enter → 3 이 그림 아래(그림 아래 834 ≥ 824), 4 는 3 바로 밑, 다시 열어도 유지. uxaudit 0 · monkey 200번 오류 0 · 검색창 · 고양이.
+
+### 2026-11-24 (APP_VERSION 2026-11-24.2 / SERVER_VERSION 그대로) — v18.63 페이지 번호 · 아래 페이지 줄 · 단축키 · 그림은 커서 자리 · 첨부 미리보기
+- 무엇을 (사용자 지시 한 번에 여섯 가지):
+  ① "페이지 1, 2, 3, 4, 5 …" — '쪽' → '페이지', 위 탭은 숫자(이름을 주면 '2. 이름'), 리본 `📑 새 페이지` · `/페이지`.
+  ② "메모 중간 하단에 페이지와 이전 · 이후 화살표, 5 를 입력하면 5 페이지로" — 본문 아래 가운데 `‹ [2] / 5 ›`(#mmPgNav): 번호 칸에 숫자 + Enter(없는 번호면 마지막 페이지 + 알림), ↑↓ 로 한 장씩. 페이지가 있을 때 줄 · 칸 표시(#mmLn)는 배율 위로 올림(겹침 방지).
+  ③ "Ctrl+Shift+< = 글자 한 단계 작게, > = 크게, 1pt 씩" — 고른 글(없으면 그 줄) 1pt.
+  ④ "Ctrl+4 = 밑줄, 6 = 기울임, 7 = 굵게" (Ctrl+5 취소선 + 붉은 글씨는 그대로).
+  ⑤ "이미지 붙여넣기 할 때는 커서 있는 쪽에" — 붙여 넣은 그림은 마우스 자리(예전: 4초 안에 움직인 마우스) 대신 커서 줄의 왼쪽 · 바로 밑에. 페이지가 있으면 떠 있는 그림 · 글 상자 · 메모지가 '지금 페이지'에 붙고(note.sh = 페이지 data-cid) 다른 페이지에서는 안 보임. 페이지로 처음 나눌 때 있던 것은 1 페이지 것.
+  ⑥ "첨부된 excel 이나 outlook 메일 · pdf, 별도 다운 없이 미리보기" — 첨부를 누르면 미리보기 창(#mmPv): 엑셀 .xlsx/.xlsm/.csv · 워드 .docx · PPT .pptx · 한글 .hwpx(가져오기 해석기 mmOffice), 메일 .eml(mmEml), Outlook .msg(새 해석기 mmCfb + mmMsg — 복합 파일을 직접 읽어 제목 · 보낸 사람(주소) · 보낸 날짜 · 받는 사람 · 참조 · 본문(HTML 있으면 HTML) · 첨부 이름), 그림 · 글 파일. PDF 는 예전처럼 메모장 안 PDF 보기. 메일 첨부는 한 번 = 미리보기, 두 번 = Outlook(예전처럼). 창에 [📧 Outlook 으로 열기] [⬇ 내려받기] [✕]. 모두 브라우저 안에서만(서버 · 인터넷으로 보내지 않음). .xls · .doc · .ppt · .hwp 옛 형식은 내려받기 안내.
+- 바뀐 곳: dashboard.html `mmShName` · `mmShBar` · `mmPgNav` · `mmShCid` · `mmShNotes`(mmNotesDraw · mmShShow 감싸기) · 단축키 keydown(Comma/Period · Digit4/6/7) · `mmCaretBox` · 붙여 넣기(paste) 자리 · `mmCfb` · `mmMsg` · `MM_PV_RE` · `mmPreview` · `mmPvDl` · `mmFileOpen` 감싸기 · 메일 첨부 클릭/두 번 · CSS `#mmPgNav` · `#mmPv` · `#mmMain.has-pg .mm-ln`.
+- 확인한 것: 5 페이지 번호 탭, 번호 2 입력 · › · ‹ · 없는 9 → 5, 글자 11 → 12 → 13 → 12pt, Ctrl+4/6/7, 마우스를 먼 곳에 둔 채 붙여 넣은 그림이 커서 줄 밑(797,611 ↔ 글 아래 795,605) · 1/4 페이지에서 숨고 3 페이지에서 보임 · 저장 후 다시 열어도 같음, 엑셀 미리보기 표 2개(시트 2) · 내려받기 0, 시험용 .msg(복합 파일 v3, mini stream + 큰 본문 · olefile 로 검증) 미리보기 — 제목 · 보낸 사람 · 날짜 · 받는 사람 · 참조 · 첨부 이름 · 본문, 아래 알약 겹침 없음, 그림 밑 Enter · 페이지 · 검색창 · 고양이 · uxaudit 0 · monkey 200번 오류 0.
+  (시험 도구 Playwright 가 이 환경에서 한글 이름 파일을 못 골라 시험 파일은 영문 이름 — 메모장 문제 아님)
+- 회사에서 확인할 것: 실제 Outlook .msg(한글 메일 · HTML 본문) 미리보기, 큰 엑셀(시트 여러 개) 속도.
