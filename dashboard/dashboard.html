@@ -2858,7 +2858,7 @@ function recLabel(key, f) {
  * ===================================================================== */
 let root = null;
 /* 서버 모드: http(s):// 로 접속하면 server.py 의 REST API 사용 (폴더 선택 불필요). file:// 로 열면 폴더 모드 */
-const APP_VERSION = '2026-11-24.2';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
+const APP_VERSION = '2026-11-24.3';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
 const SERVER_URL = 'http://localhost:8080';
 // 부서원 PC 사본(file://)이 접속을 시도할 서버 — 서버가 배포 파일을 만들 때 'PC 이름 주소, IP 주소' 순으로 자동 기록함
 const DEFAULT_SERVERS = ['http://ASEUNGWOOK-B01:8080', 'http://65.3.30.234:8080'];
@@ -6542,6 +6542,39 @@ document.addEventListener('selectionchange', () => { const ed = document.getElem
   if (sh && !sh.classList.contains('shon')) { const L = mmShs(ed); if (g.focusNode && sh.contains(g.focusNode)) mmShShow(L.indexOf(sh)); } });
 { const o = mmOpen; mmOpen = async function () { const r = await o.apply(this, arguments); try { mmShInit(); } catch (_) {} return r; }; }
 { const o = mmApplyRemote; mmApplyRemote = function () { const i = mmShCur(); const r = o.apply(this, arguments); if (MM.cur) MMSH.idx[MM.cur.id] = i; try { mmShInit(); } catch (_) {} return r; }; }
+/* v18.64 사용자 지시 "다른 메모의 주석을 다른 메모에 붙여 넣을 수 있도록 · 이미지도 그 글머리 · 글 기호 · 서식 · 들여쓰기에 맞게 복사, 단 설정하면 사용자가 자유롭게".
+   본문 글을 Ctrl+C / Ctrl+X 하면 그 범위의 💬 주석(글에 단 상자)과 그 줄들 사이 · 바로 밑의 떠 있는 그림을 함께 기억 → 다른 메모(같은 메모도)에 Ctrl+V 하면 글과 함께 붙임.
+   그림 자리: '글에 맞춤'(기본) = 원래 붙어 있던 줄(글머리 · 번호 · 들여쓰기)과 같은 상대 자리 / '자유롭게'(보기 탭 설정) = 원래 자리 그대로 · 화면 캡처는 마우스 자리(예전 방식).
+   주석은 붙여 넣은 글의 노란 표시와 새로 이어짐(같은 메모에 붙여도 원래 주석과 따로). 이 PC 의 이 창 안에서만 기억(그림이 크면 붙여 넣기 전까지만) */
+const mmImgFree = () => { try { return localStorage.getItem('dept-memo-imgfree') === '1'; } catch (_) { return false; } };
+const mmTxtNorm = t => String(t || '').replace(/[\s ​]+/g, '').slice(0, 400);   /* 줄바꿈 · 띄어쓰기를 빼고 비교 (선택 글은 줄마다 줄바꿈, HTML 글은 붙어 나옴) */
+function mmPaperP(el) { const zw = document.getElementById('mmZw'); if (!zw || !el) return null; const z = mmZoom?.() || 1, zr = zw.getBoundingClientRect(), r = el.getBoundingClientRect(); return { x:(r.left - zr.left) / z, y:(r.top - zr.top) / z, b:(r.bottom - zr.top) / z, w:r.width / z }; }
+function mmLeafBlocks(ed, rg) { return [...ed.querySelectorAll('li, p, h1, h2, h3, blockquote, pre, div')].filter(el => !el.classList.contains('mm-sheet') && !el.classList.contains('mm-gap') && !el.classList.contains('mm-cols') && el.offsetParent && !el.querySelector('li, p, h1, h2, h3, blockquote, pre, div:not(.mm-gap)') && (!rg || rg.intersectsNode(el))); }
+function mmTxtClip(e) { if (route !== 'memo' || !e.target.closest?.('#mmEd')) return; const ed = mmEd(), pg = MM.cur, g = getSelection(); if (!ed || !pg || !g.rangeCount || g.isCollapsed) return;
+  const rg = g.getRangeAt(0); if (!ed.contains(rg.commonAncestorContainer)) return; const blocks = mmLeafBlocks(ed, rg); if (!blocks.length) { MM.clipT = null; return; }
+  const B = blocks.map(mmPaperP), top = B[0].y - 6, last = B[B.length - 1].b + 40, cids = new Set([...ed.querySelectorAll('.mm-cmt[data-cid]')].filter(m => rg.intersectsNode(m)).map(m => m.dataset.cid));
+  const vis = n => !n.sh || !document.querySelector(`#mmNotes .mm-fn[data-fn="${n.id}"]`) || getComputedStyle(document.querySelector(`#mmNotes .mm-fn[data-fn="${n.id}"]`)).display !== 'none';
+  const imgs = (pg.notes || []).filter(n => n.k === 'img' && vis(n) && +n.y >= top && +n.y <= last).map(n => { let i = 0; B.forEach((b, k) => { if (b.y <= +n.y + 2) i = k; }); return { n:JSON.parse(JSON.stringify(n)), i, dx:+n.x - B[i].x, dy:+n.y - B[i].y }; });
+  const cm = (pg.notes || []).filter(n => n.ref && cids.has(n.ref)).map(n => { const mk = ed.querySelector(`.mm-cmt[data-cid="${CSS.escape(n.ref)}"]`), p = mmPaperP(mk) || { x:0, y:0 }; return { n:JSON.parse(JSON.stringify(n)), cid:n.ref, dx:+n.x - p.x, dy:+n.y - p.y }; });
+  MM.clipT = imgs.length || cm.length ? { at:Date.now(), txt:mmTxtNorm(String(g)), imgs, cm } : null;
+  if (MM.clipT) toast(`복사 — 글과 함께 ${[imgs.length ? '그림 ' + imgs.length + '개' : '', cm.length ? '주석 ' + cm.length + '개' : ''].filter(Boolean).join(' · ')}도 Ctrl+V 때 같이 붙습니다`); }
+document.addEventListener('copy', mmTxtClip, true); document.addEventListener('cut', mmTxtClip, true);
+/* v18.64 글에 맞춤: 그림을 붙이면 바로 그 줄 다음 줄을 그림 아래로 (예전엔 Enter 칠 때만) — 자유롭게면 그대로 겹쳐 둠 */
+function mmGapAfter(b) { const ed = mmEd(); if (!ed || !b || !ed.contains(b) || mmImgFree()) return; const L = mmLeafBlocks(ed), nx = L[L.indexOf(b) + 1]; if (nx) mmGapFit(b, nx); }
+{ const o = mmPasteFloat; mmPasteFloat = async function (files, at) { const ed = mmEd(), g = getSelection(); let b = null; if (ed && at && g.rangeCount && ed.contains(g.anchorNode)) b = mmGapBlk(g.anchorNode, ed);
+    const r = await o.apply(this, arguments); if (r && b) await new Promise(z => requestAnimationFrame(() => requestAnimationFrame(() => { try { mmGapAfter(b); } catch (_) {} z(); }))); return r; }; }
+{ const o = mmPasteHtml; mmPasteHtml = async function (ed, h) { const c = MM.clipT, pg = MM.cur; let before = null;
+    if (c && pg && !pg.lock && !pg._ro) { const tb = document.createElement('template'); tb.innerHTML = String(h || ''); const t = mmTxtNorm(tb.content.textContent); if (t && (t.startsWith(c.txt.slice(0, 60)) || c.txt.startsWith(t.slice(0, 60)))) before = { marks:new Set(ed.querySelectorAll('.mm-cmt')), blocks:new Set(mmLeafBlocks(ed)) }; }
+    const r = await o.apply(this, arguments); if (!before) return r;
+    await new Promise(z => requestAnimationFrame(() => requestAnimationFrame(z)));
+    const nb = mmLeafBlocks(ed).filter(x => !before.blocks.has(x)), nm = [...ed.querySelectorAll('.mm-cmt')].filter(x => !before.marks.has(x)), free = mmImgFree(), add = [], nid = () => mmId().slice(0, 8);
+    c.cm.forEach(x => { const ms = nm.filter(m => m.dataset.cid === x.cid); if (!ms.length) return; const cid = nid(); ms.forEach(m => { m.dataset.cid = cid; }); const p = mmPaperP(ms[0]);
+      add.push({ ...JSON.parse(JSON.stringify(x.n)), id:nid(), ref:cid, sh:undefined, x:Math.round(p.x + x.dx), y:Math.round(p.y + x.dy) }); });
+    const anchors = new Set(); c.imgs.forEach(x => { const b = nb[Math.min(x.i, nb.length - 1)], p = !free && b ? mmPaperP(b) : null; if (p) anchors.add(b);
+      add.push({ ...JSON.parse(JSON.stringify(x.n)), id:nid(), ref:undefined, sh:undefined, x:Math.round(p ? p.x + x.dx : +x.n.x + 24), y:Math.round(p ? p.y + x.dy : +x.n.y + 24) }); });
+    if (add.length) { pg.notes = [...(pg.notes || []), ...add]; mmNotesDraw(); await new Promise(z => requestAnimationFrame(z)); anchors.forEach(b => { try { mmGapAfter(b); } catch (_) {} }); mmNoteTouch('obj'); mmTouch(); const ni = add.filter(n => n.k === 'img').length, nc = add.length - ni;
+      toast(`글과 함께 ${[ni ? '그림 ' + ni + '개' : '', nc ? '주석 ' + nc + '개' : ''].filter(Boolean).join(' · ')}를 붙였습니다${ni ? (free ? ' (자유롭게: 원래 자리)' : ' (글머리 · 들여쓰기에 맞춤)') : ''}`); }
+    return r; }; }
 /* v18.63 사용자 지시 "메모장에 첨부된 excel 이나 outlook 메일 · pdf, 별도 다운 없이 미리보기 가능하게": 첨부를 누르면 내려받지 않고 메모장 안 미리보기 창.
    엑셀(.xlsx · .xlsm · .csv) · 워드(.docx) · 파워포인트(.pptx) · 한글(.hwpx) = 가져오기와 같은 해석기(mmOffice), 메일 .eml = mmEml, Outlook .msg = 아래 mmMsg(복합 파일 직접 읽기),
    그림 · 글 파일 = 그대로, PDF = 예전처럼 PDF 보기(pdf.js). 모두 브라우저 안에서만(서버 · 인터넷으로 보내지 않음). 못 읽는 형식(.xls · .doc · .ppt · .hwp · .zip …)은 ⬇ 내려받기 */
@@ -8601,7 +8634,7 @@ document.addEventListener('paste', e => {   // 메모장 화면 어디서든 (�
   if (e.target.closest?.('#mmEd') && (/<table/i.test(h) || mmHtmlText(h))) return;   // 엑셀 칸 복사 = 표로 · v18.24 글 + 그림 = 본문에 함께 (아래 mmPasteHtml)
   const st = e.target.closest?.('.mm-sticky'), onBoard = e.target.closest?.('#mmBoard, #mmFloat') || (MM.view === 'sticky' && !e.target.closest?.('#mmZw'));
   if (st || onBoard) { e.preventDefault(); e.stopPropagation(); return void mmPasteSticky(imgs, st?.dataset.sid); }
-  if (MM.cur && !MM.cur.lock) { e.preventDefault(); e.stopPropagation(); const sel = getSelection(), r0 = sel.rangeCount && e.target.closest?.('#mmEd') ? mmCaretBox(sel) : null;   /* v18.63 사용자 지시: 커서 있는 곳(그 줄 바로 밑)에 — 예전엔 4초 안에 움직인 마우스 자리 */
+  if (MM.cur && !MM.cur.lock) { e.preventDefault(); e.stopPropagation(); const sel = getSelection(), r0 = sel.rangeCount && e.target.closest?.('#mmEd') && (!mmImgFree() || Date.now() - MM_MP.t > 4000) ? mmCaretBox(sel) : null;   /* v18.63 사용자 지시: 커서 있는 곳(그 줄 바로 밑)에 — 예전엔 4초 안에 움직인 마우스 자리 */
     mmPasteFloat(imgs, r0 ? [r0.left, r0.bottom + 6] : null); }
 }, true);
 document.addEventListener('keydown', e => {   // 아무 칸도 눌러 놓지 않았을 때(포커스 없음)에도 Ctrl+V 가 메모장으로 오게
@@ -8634,7 +8667,7 @@ function mmOneNote(el, pg) {
   let last = 'home'; [...tb.querySelectorAll(':scope > *')].forEach(n => { if (n.classList.contains('tbl')) { n.dataset.rt = 'table'; return; } const c = n.dataset.mc; if (c) last = mmRtOf(c); n.dataset.rt = c ? last : last; });
   const view = document.createElement('span'); view.className = 'mm-rview'; view.dataset.rt = 'view';
   ['mmLh', 'mmBg'].forEach(id => { const x = $('#' + id, el); if (x) view.appendChild(x); }); const dk = $('[data-mx="dk"]', el); if (dk) view.appendChild(dk);
-  view.insertAdjacentHTML('beforeend', '<span class="sep"></span><button class="mm-zb" data-mx="small" title="이 메모 글씨를 작게 (Notion 의 작은 텍스트)">Aa 작은 글씨</button><button class="mm-zb" data-mx="keys" title="단축키 모음 (Ctrl+/)">⌨ 단축키</button><button class="mm-zb" data-mx="pdf" title="이 메모를 PDF 로 저장 (A4 · 제목 · 그림 · 펜 포함, 인쇄 창에서 “PDF 로 저장”)">📄 PDF 저장</button><button class="mm-zb" data-mx="toc" title="제목(H1 · H2 · H3)으로 목차를 오른쪽에 띄움 — 누르면 그 자리로">☰ 목차</button><button class="mm-zb ' + (mmWrapOn() ? 'on' : '') + '" data-mx="wrap" title="자동 줄바꿈 — 끄면 긴 줄은 옆으로 이어지고 가로로 밀어 봄">↩ 자동 줄바꿈</button><select class="mm-zs" id="mmFontSel" title="메모 본문 글꼴 (이 PC 에 기억)">' + MM_FONTS.map(([k, l]) => `<option value="${k}" ${mmFontKey() === k ? 'selected' : ''}>${l}</option>`).join('') + '</select><select class="mm-zs" id="mmThemeSel" title="밝게 · 어둡게 (대시보드 전체)"><option value="light">☀ 밝게</option><option value="dark">🌙 어둡게</option><option value="sys">🖥 시스템 따라</option></select><button class="mm-zb ' + (mmMac() ? 'on' : '') + '" data-mx="mac" title="Mac 스타일 — 반투명 사이드바 · 노란 선택 · 동그란 체크 · 부드러운 움직임 (끄면 예전 모양)">🍎 Mac 스타일</button><button class="mm-zb ' + (mmSndOn() ? 'on' : '') + '" data-mx="snd" title="효과음 — 메모 열기 · 새 메모 · 휴지통 · 할 일 완료 · 끌어 놓기 · 메뉴 (작게)">' + (mmSndOn() ? '🔊' : '🔇') + ' 소리</button><button class="mm-zb ' + (mmCatOn() ? 'on' : '') + '" data-mx="cat" title="고양이 기사 — 메모장 오른쪽 아래를 왔다 갔다 (누르면 점프 · 한마디)">🐱 고양이 기사</button><span class="sep"></span><button data-mx="zo" title="축소">－</button><button data-mx="z1" title="100% 로">100%</button><button data-mx="zi" title="확대">＋</button><span class="sep"></span>');
+  view.insertAdjacentHTML('beforeend', '<span class="sep"></span><button class="mm-zb" data-mx="small" title="이 메모 글씨를 작게 (Notion 의 작은 텍스트)">Aa 작은 글씨</button><button class="mm-zb" data-mx="keys" title="단축키 모음 (Ctrl+/)">⌨ 단축키</button><button class="mm-zb" data-mx="pdf" title="이 메모를 PDF 로 저장 (A4 · 제목 · 그림 · 펜 포함, 인쇄 창에서 “PDF 로 저장”)">📄 PDF 저장</button><button class="mm-zb" data-mx="toc" title="제목(H1 · H2 · H3)으로 목차를 오른쪽에 띄움 — 누르면 그 자리로">☰ 목차</button><button class="mm-zb ' + (mmWrapOn() ? 'on' : '') + '" data-mx="wrap" title="자동 줄바꿈 — 끄면 긴 줄은 옆으로 이어지고 가로로 밀어 봄">↩ 자동 줄바꿈</button><select class="mm-zs" id="mmFontSel" title="메모 본문 글꼴 (이 PC 에 기억)">' + MM_FONTS.map(([k, l]) => `<option value="${k}" ${mmFontKey() === k ? 'selected' : ''}>${l}</option>`).join('') + '</select><select class="mm-zs" id="mmThemeSel" title="밝게 · 어둡게 (대시보드 전체)"><option value="light">☀ 밝게</option><option value="dark">🌙 어둡게</option><option value="sys">🖥 시스템 따라</option></select><button class="mm-zb ' + (mmMac() ? 'on' : '') + '" data-mx="mac" title="Mac 스타일 — 반투명 사이드바 · 노란 선택 · 동그란 체크 · 부드러운 움직임 (끄면 예전 모양)">🍎 Mac 스타일</button><button class="mm-zb ' + (mmSndOn() ? 'on' : '') + '" data-mx="snd" title="효과음 — 메모 열기 · 새 메모 · 휴지통 · 할 일 완료 · 끌어 놓기 · 메뉴 (작게)">' + (mmSndOn() ? '🔊' : '🔇') + ' 소리</button><button class="mm-zb" data-mx="imgfree" title="그림 자리 — 글에 맞춤: 붙여 넣은 그림 · 글과 함께 복사한 그림이 커서 줄 · 원래 줄(글머리 · 번호 · 들여쓰기)에 맞춰 놓임 / 자유롭게: 원래 자리 그대로 · 화면 캡처는 마우스 자리">' + (mmImgFree() ? '🖐 그림: 자유롭게' : '📐 그림: 글에 맞춤') + '</button><button class="mm-zb ' + (mmCatOn() ? 'on' : '') + '" data-mx="cat" title="고양이 기사 — 메모장 오른쪽 아래를 왔다 갔다 (누르면 점프 · 한마디)">🐱 고양이 기사</button><span class="sep"></span><button data-mx="zo" title="축소">－</button><button data-mx="z1" title="100% 로">100%</button><button data-mx="zi" title="확대">＋</button><span class="sep"></span>');
   top.querySelectorAll('.mm-zb').forEach(b => view.appendChild(b)); tb.appendChild(view);
   MM_RTN.filter(([k]) => k !== 'all').forEach(([k, l]) => { const f = tb.querySelector(`:scope > [data-rt="${k}"]`); if (!f) return; const br = document.createElement('i'); br.className = 'mm-rbr'; br.dataset.rt = k; const g = document.createElement('span'); g.className = 'mm-rgl'; g.dataset.rgl = k; g.dataset.rt = k; g.innerHTML = `<b title="누르면 숨기기 · 펼치기">${l}</b><button data-rgh>▾</button><button data-rgp>📌</button>`; f.before(br, g); });   // v18.30 전체 보기 묶음 이름표
   mmRgApply();
@@ -10136,6 +10169,7 @@ document.addEventListener('click', async e => {
     if (k === 'popout') return MM.cur && mmPopOut(MM.cur.id);
     if (k === 'wrap') { MM.wrap = !mmWrapOn(); try { localStorage.setItem('dept-memo-wrap', MM.wrap ? '1' : '0'); } catch (_) {} mmWrapApply(); b.classList.toggle('on', MM.wrap); return toast(MM.wrap ? '↩ 자동 줄바꿈 켬' : '자동 줄바꿈 끔 — 긴 줄은 옆으로 (가로로 밀어 보기)'); }
     if (k === 'mac') { try { localStorage.setItem('dept-memo-mac', mmMac() ? '0' : '1'); } catch (_) {} MM.mac = null; mmUi(); if (mmMac()) mmIcoSwap($('#memoWrap')); else mmIcoUndo(); b.classList.toggle('on', mmMac()); mmSnd('tap'); return toast(mmMac() ? '🍎 Mac 스타일' : '예전 모양'); }
+    if (k === 'imgfree') { const on = !mmImgFree(); try { localStorage.setItem('dept-memo-imgfree', on ? '1' : '0'); } catch (_) {} b.textContent = on ? '🖐 그림: 자유롭게' : '📐 그림: 글에 맞춤'; mmSnd('tap'); return toast(on ? '🖐 그림 자유롭게 — 원래 자리 그대로 · 화면 캡처는 마우스 자리' : '📐 그림 글에 맞춤 — 커서 줄 · 글머리 · 들여쓰기에 맞춰 놓임'); }
     if (k === 'cat') { const on = !mmCatOn(); try { localStorage.setItem('dept-memo-cat', on ? '1' : '0'); } catch (_) {} mmCatMount(); b.classList.toggle('on', on); mmSnd('tap'); return toast(on ? '🐱 고양이 기사 나옴' : '고양이 기사 쉼'); }
     if (k === 'snd') { MMS.on = !mmSndOn(); try { localStorage.setItem('dept-memo-snd', MMS.on ? '1' : '0'); } catch (_) {} b.classList.toggle('on', MMS.on); b.textContent = (MMS.on ? '🔊' : '🔇') + ' 소리'; mmSnd('pop'); return toast(MMS.on ? '🔊 효과음 켬' : '🔇 효과음 끔'); }
     if (k === 'small') { const pg = MM.cur; if (!pg || pg.lock) return; pg.small = !pg.small; $('#mmEdw')?.classList.toggle('sm', pg.small); b.classList.toggle('on', pg.small); MM.zkey = ''; mmZoomFit(); return mmNoteTouch('x'); }
