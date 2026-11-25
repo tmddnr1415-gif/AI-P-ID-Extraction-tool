@@ -1275,6 +1275,31 @@ def sequence_effect(job: str, body: dict = Body(default={})):
                                timers=_timers(body.get("timers")), gate=gate, cache=cache)
 
 
+@router.get("/logic/api/jobs/{job}/drawing")
+def job_drawing(job: str):
+    """L96 — 이 분석 묶음을 '똑같이 그린 그림 묶음' (분석이 끝나면 저절로 만든다 · draw_sets.auto_import).
+    → {"state": "running" | "done" | "failed" | "skipped" | "none", "set", "first", "sheets", "done", "total"}"""
+    from . import draw_sets
+    st = draw_sets.auto_state(_dir(job))
+    if st.get("state") == "done" and st.get("set") and not any(True for _ in draw_sets.set_docs(st["set"])):
+        return {"state": "none", "why": "그 묶음의 그림이 지워졌습니다"}
+    return st or {"state": "none"}
+
+
+@router.post("/logic/api/jobs/{job}/drawing")
+def job_drawing_make(job: str):
+    """L96 — 예전에 분석해 둔 묶음(그림이 없는 것)도 지금 그린다 (뒤에서 · 진행은 GET 으로 묻는다)."""
+    from . import draw_sets
+    d = _dir(job)
+    if not (d / "result.json").exists():
+        raise HTTPException(409, "아직 분석이 끝나지 않았습니다.")
+    st = draw_sets.auto_state(d)
+    if st.get("state") == "running" and time.time() - (st.get("started") or 0) < 3600:
+        return st
+    threading.Thread(target=lambda: draw_sets.auto_import(d, force=True), name=f"auto-draw-{job}", daemon=True).start()
+    return {"state": "running", "done": 0, "total": 0}
+
+
 @router.post("/logic/api/jobs/{job}/simulate")
 def simulate_bundle(job: str, body: dict = Body(default={})):
     """묶음 전체 — 출력 행이 1 이면 그 행을 FM 으로 받는 다른 장의 입력 행도 1 (도면이 적은 FM 연결)."""

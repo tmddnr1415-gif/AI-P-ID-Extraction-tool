@@ -18,7 +18,8 @@
 타이머: 시간 세기 시작 / 시간 뒤 바뀜).  그림: 원본 쪽 위에 연산자 상자를 칠한다 (초록 = 다 봄 · 연두 = 일부만 봄 · 빨강 = 어긋남 · 회색 = 못 켬).
 읽기만 한다 (분석 폴더에 쓰지 않는다).
 
-  PID_DATA_DIR=<데이터> python3 spike/macro_operator_check_l95.py <job> <out 폴더> [시트 이름,…]
+  PID_DATA_DIR=<데이터> python3 spike/macro_operator_check_l95.py <job> <out 폴더> [시트 이름,…] [--all] [--light] [--shard=i/n] [--no-paint]
+  (L96 — `--all --light` 로 묶음의 모든 장을 채점한다 · 827장은 `--shard=0/3` … 셋으로 나눠 약 30분)
 """
 from __future__ import annotations
 
@@ -283,6 +284,9 @@ def operators(s):
     return ops, (ins, outs, drivers, sinks, groups)
 
 
+LIGHT = False              # --light: 전 장(수백 장)을 돌릴 때 — 자극을 줄인다 (기본 조합 · 무작위 · 걷기 조금 · 연산자 겨눔은 그대로 · 풀이는 뺀다)
+
+
 def check_sheet(s, sheets, cache):
     ops, (ins, outs, drivers, sinks, groups) = operators(s)
     rows_in = [r["n"] for r in s["rows"] if r["side"] == "L" and r.get("net") is not None]
@@ -350,7 +354,7 @@ def check_sheet(s, sheets, cache):
         sigs.update(sig_of(frames))
         for _ in range(steps):
             best = None
-            order = list(keys)
+            order = list(gkeys)
             rng.shuffle(order)
             cands = [({**cur, k: 1 - cur.get(k, 0)}, hz) for k in order]
             run_ = frames[-1].get("running") or () if timed else ()
@@ -388,27 +392,28 @@ def check_sheet(s, sheets, cache):
         for k in keys:
             run([allon, {**allon, k: 0}, allon])
     rng = random.Random(95)
-    for _ in range(RANDOM_RUNS if keys else 0):
+    for _ in range((20 if LIGHT else RANDOM_RUNS) if keys else 0):
         a = {k: rng.randint(0, 1) for k in keys}
         b = {k: (v if rng.random() < 0.7 else 1 - v) for k, v in a.items()}
         c = {k: (v if rng.random() < 0.7 else 1 - v) for k, v in b.items()}
         run([a, b, c, a])
     # 한 번에 입력 하나만 바꾸며 걷는다 (상태를 이어 준다) — 순서가 있어야 서는 자리: 명령 → 열림 → 열림이 꺼짐 → 불일치 고장 같은 것
-    for w in range(WALKS if keys else 0):
+    for w in range((4 if LIGHT else WALKS) if keys else 0):
         cur = {} if w % 3 == 0 else ({k: 1 for k in keys} if w % 3 == 1 else {k: rng.randint(0, 1) for k in keys})
         seq = [dict(cur)]
-        for _ in range(WALK_STEPS):
+        for _ in range(15 if LIGHT else WALK_STEPS):
             k = rng.choice(keys)
             cur[k] = 1 - cur.get(k, 0)
             seq.append(dict(cur))
         run(seq)
-    for start in ({}, {k: 1 for k in keys}, {}) if keys else ():
-        guided(start, GUIDED_STEPS)
+    gkeys = keys[:24]                                    # 걸음마다 입력 수만큼 돌려 본다 — 입력이 아주 많은 장은 앞의 24개로
+    for start in (({},) if LIGHT else ({}, {k: 1 for k in keys}, {})) if keys else ():
+        guided(start, 8 if LIGHT else GUIDED_STEPS)
     has_timer = any(o.kind in TIMERS for o in ops.values())
-    for start in ({}, {}, {k: 1 for k in keys}) if keys and has_timer else ():
-        guided(start, TIMED_STEPS, timed=True)
+    for start in (({},) if LIGHT else ({}, {}, {k: 1 for k in keys})) if keys and has_timer else ():
+        guided(start, 12 if LIGHT else TIMED_STEPS, timed=True)
     # 연산자 출력마다 풀이(범례 정의로 거꾸로 찾은 입력 조합)를 주고, 그 자리에서 입력을 하나씩 뒤집었다 되돌린다
-    for bid, o in ops.items():
+    for bid, o in ({} if LIGHT else ops).items():
         for on, _ in o.outs:
             try:
                 sc = sim.scenario(s, f"net:{on}", 1, sheets=sheets, cache=cache, rows_only=True)
@@ -464,13 +469,22 @@ def paint(pdf, s, ops, out):
 
 def main():
     import pymupdf
-    job, out = sys.argv[1], Path(sys.argv[2])
-    only = set(sys.argv[3].split(",")) if len(sys.argv) > 3 else None
+    global LIGHT
+    argv = [a for a in sys.argv[1:] if not a.startswith("--")]
+    flags = {a.split("=")[0]: (a.split("=", 1)[1] if "=" in a else "1") for a in sys.argv[1:] if a.startswith("--")}
+    job, out = argv[0], Path(argv[1])
+    only = set(argv[2].split(",")) if len(argv) > 2 else None
     out.mkdir(parents=True, exist_ok=True)
     sim.MICRO = True
+    LIGHT = "--light" in flags
     res = api._result(job)
     sheets = api._all_sheets(res)
-    typ = [s for s in res["sheets"] if re.fullmatch(r"\d{4}", s.get("sheet_no") or "") and s.get("rows") and (not only or s["sheet_no"] in only)]
+    # 기본은 매크로 안쪽(Typical — 네 자리 시트 번호) · --all 이면 묶음의 모든 장 · --shard=i/n 으로 나눠 돌린다
+    typ = [s for s in res["sheets"] if (("--all" in flags) or re.fullmatch(r"\d{4}", s.get("sheet_no") or "")) and s.get("rows")
+           and (not only or s["sheet_no"] in only)]
+    if "--shard" in flags:
+        i_, n_ = (int(x) for x in flags["--shard"].split("/"))
+        typ = [s for k, s in enumerate(typ) if k % n_ == i_]
     cache = {}
     rows, tot, bykind = [], collections.Counter(), collections.defaultdict(collections.Counter)
     t0 = time.time()
@@ -503,7 +517,7 @@ def main():
         rows.append(row)
         for k in ("runs", "frames", "errors", "ops", "checks", "bad_ops", "full", "part", "none"):
             tot[k] += row[k]
-        if pdf is not None:
+        if pdf is not None and "--no-paint" not in flags:
             try:
                 paint(pdf, s, ops, str(out / f"{s['sheet_no']}.png"))
             except Exception as e:                         # noqa: BLE001

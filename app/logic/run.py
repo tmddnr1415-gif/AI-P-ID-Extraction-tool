@@ -85,6 +85,11 @@ def run(d: Path):
             pass
         _final(d, st)
         lower_priority()                             # L47 — 결과는 섰다 · 이제부터는 뒤에서 (그림 · 사전 · 학습 · 검토)
+        try:                                         # L96 — 분석과 함께 '똑같이 그리기': 이 묶음을 그림 묶음으로도 만든다 (실패해도 결과는 그대로)
+            from app.logic import draw_sets
+            draw_sets.auto_import(d)
+        except Exception:
+            pass
         _prerender(d, res)                           # 화면이 처음 열 때 장마다 0.5초씩 기다리지 않게 (L7)
         try:                                         # L22 — 학습 사전에 보탠다 (범례 표 · Typical) · 실패해도 결과는 그대로
             from app.logic import library

@@ -170,6 +170,69 @@ def import_bundle(res: dict, name: str, author: str, project: str = "", job: str
     return {"id": sid, "name": name, "sheets": len(docs), "typicals": sum(1 for d in docs if d["typical"])}
 
 
+# ─────────────────────────── L96 — 분석과 함께 그리기 ───────────────────────────
+# PDF 를 넣으면 분석이 끝나는 대로 그 묶음을 '똑같이 그린 그림 묶음' 으로도 만든다 (사람이 '묶음 통째로 들여오기' 를 누르지 않아도).
+# 진행 · 결과는 분석 폴더의 drawing_auto.json 에 둔다 (status.json 은 분석 쪽이 고쳐 쓴다 — 서로 덮지 않게 따로).
+# PID_LOGIC_AUTODRAW=0 이면 끈다 (시험 · 작은 PC).  이미 만든 묶음이 남아 있으면 다시 만들지 않는다 (사람이 고친 그림을 덮지 않는다).
+AUTO_FILE = "drawing_auto.json"
+
+
+def auto_state(d) -> dict:
+    try:
+        return json.loads((d / AUTO_FILE).read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {}
+
+
+def _auto_write(d, st: dict):
+    try:
+        tmp = d / (AUTO_FILE + ".tmp")
+        tmp.write_text(json.dumps(st, ensure_ascii=False), encoding="utf-8")
+        tmp.replace(d / AUTO_FILE)
+    except OSError:
+        pass
+
+
+def auto_import(d, force: bool = False) -> dict:
+    """분석이 끝난 묶음(job 폴더 d)을 그림 묶음으로.  → {"state": "done", "set", "first", "sheets", "seconds"} | {} (꺼 둠)."""
+    import os
+    if os.environ.get("PID_LOGIC_AUTODRAW", "1") == "0" and not force:
+        return {}
+    cur = auto_state(d)
+    if cur.get("state") == "done" and cur.get("set") and not force:
+        if any(True for _ in set_docs(cur["set"])):
+            return cur
+    from . import api as A
+    from . import store
+    t0 = time.time()
+    st = {"state": "running", "done": 0, "total": 0, "started": t0}
+    _auto_write(d, st)
+    try:
+        res = A._result(d.name)
+        js = store.read_status(d)
+        if js.get("drawing") or js.get("drawing_set"):
+            st = {"state": "skipped", "why": "작도에서 올린 묶음 — 그 그림이 원본입니다"}
+            _auto_write(d, st)
+            return st
+        last = [0.0]
+
+        def prog(i, n):
+            if time.time() - last[0] > 1.0:
+                last[0] = time.time()
+                st.update({"done": i, "total": n})
+                _auto_write(d, st)
+        pdf = d / "source.pdf"
+        r = import_bundle(res, js.get("name") or d.name, js.get("author") or "분석", js.get("project") or "", d.name,
+                          progress=prog, pdf_path=pdf if pdf.exists() else None)
+        docs = sorted(set_docs(r["id"]), key=lambda x: x.get("order") or 0)
+        st = {"state": "done", "set": r["id"], "first": docs[0]["id"] if docs else "", "sheets": r["sheets"],
+              "typicals": r.get("typicals", 0), "seconds": round(time.time() - t0, 1), "at": time.time()}
+    except Exception as e:                                  # noqa: BLE001 — 그리기가 실패해도 분석 결과는 그대로다
+        st = {"state": "failed", "error": f"{type(e).__name__}: {e}"[:300]}
+    _auto_write(d, st)
+    return st
+
+
 # ─────────────────────────── FROM / TO ───────────────────────────
 
 def pseudo_sheets(docs: list) -> list:
@@ -440,10 +503,67 @@ def typical_doc_from_library(tid: str, name: str, author: str, project: str, sid
 
 # ─────────────────────────── 다장 PDF · 되읽기 ───────────────────────────
 
+def pdf_links(pdf, docs: list) -> int:
+    """L96 — 묶음 PDF 의 FROM · TO 칸을 누르면 그 시트 그 행으로 간다 (PDF 안쪽 링크 · 보이는 그림은 그대로).
+
+    왼쪽 FROM 칸 → 보내는 장의 그 출력 행 · 오른쪽 TO 칸 → 받는 장의 그 입력 행 (한 칸에 여럿이면 글자 자리대로 나눈다).
+    묶음 안에 그 시트가 있을 때만 건다 (다른 묶음 · 없는 시트는 걸지 않는다).  → 건 링크 수."""
+    from .draw import LCOLS, RCOLS
+    lk = links(docs)
+    at = {d["id"]: i for i, d in enumerate(docs)}
+    rows_n = {d["id"]: draw.layout(d.get("N"))["N"] for d in docs}
+    n_links = 0
+
+    def goto(page, rect, did, row):
+        nonlocal n_links
+        y = draw.ry(int(row), rows_n[did]) if row else draw.TOP
+        page.insert_link({"kind": pymupdf.LINK_GOTO, "from": pymupdf.Rect(rect), "page": at[did],
+                          "to": pymupdf.Point(0, max(0.0, y - 160.0))})
+        n_links += 1
+
+    for i, d in enumerate(docs):
+        info = lk["docs"].get(d["id"])
+        if not info:
+            continue
+        page, N = pdf[i], rows_n[d["id"]]
+        for n, v in info["left"].items():
+            ref = v.get("ref")
+            if ref and ref.get("did") in at:
+                y = draw.ry(int(n), N)
+                goto(page, (LCOLS[0], y - PITCH / 2, LCOLS[1], y + PITCH / 2), ref["did"], ref.get("src_row") or ref.get("row"))
+        for n, v in info["right"].items():
+            tg = [t for t in v.get("targets") or [] if t.get("did") in at]
+            if not tg:
+                continue
+            y = draw.ry(int(n), N)
+            x0, x1 = RCOLS[3], RCOLS[4]
+            text = ((d.get("right") or {}).get(str(n)) or {}).get("to") or ""
+            cuts, pos = [], 0                       # 대상마다 칸 안의 글자 시작 x (시트 이름이 나오는 자리)
+            for t in tg:
+                k = text.find(str(t["sheet"]), pos)
+                if k < 0:
+                    cuts = []
+                    break
+                cuts.append(min(x1, x0 + 2 + pymupdf.get_text_length(text[:k], fontname="helv", fontsize=5)))
+                pos = k + len(str(t["sheet"]))
+            if len(cuts) != len(tg):                # 글자 자리를 못 찾으면 고르게 나눈다
+                cuts = [x0 + (x1 - x0) * j / len(tg) for j in range(len(tg))]
+            cuts[0] = x0
+            for j, t in enumerate(tg):
+                xa, xb = cuts[j], (cuts[j + 1] if j + 1 < len(tg) else x1)
+                if xb - xa > 1:
+                    goto(page, (xa, y - PITCH / 2, xb, y + PITCH / 2), t["did"], t.get("row"))
+    return n_links
+
+
 def to_pdf_set(docs: list) -> bytes:
     pdf = pymupdf.open()
     for d in docs:
         draw.draw_page(pdf, d)
+    try:
+        pdf_links(pdf, docs)                        # L96 — 링크를 못 걸어도 그림은 나간다
+    except Exception:                               # noqa: BLE001
+        pass
     pdf.set_metadata({"title": (docs[0].get("set_name") if docs else "") or "LOGIC", "producer": "PID LOGIC 작도"})
     return pdf.tobytes()
 

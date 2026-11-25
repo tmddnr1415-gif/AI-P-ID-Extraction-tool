@@ -164,7 +164,7 @@ function showHome() {
   if (location.hash) history.replaceState(null, "", location.pathname + location.search);
   L.job = null;
   $("#job").value = "";
-  for (const id of ["#ft-report", "#report", "#rv-btn", "#rv-pdf"]) $(id).hidden = true;
+  for (const id of ["#ft-report", "#report", "#rv-btn", "#rv-pdf", "#auto-draw"]) $(id).hidden = true;
   $("#goto").disabled = true;
   status("");
   loadHome();
@@ -431,6 +431,7 @@ async function openJob(id) {
   renderProgress(null);
   { const fd = $("#from-draw");                                   // L56 — 작도에서 올린 묶음이면 그 그림(묶음)으로 돌아가는 길
     if (fd) { if (st.drawing || st.drawing_set) { fd.hidden = false; fd.href = st.drawing ? `/logic/draw#d=${st.drawing}` : `/logic/draw#set=${st.drawing_set}`; } else fd.hidden = true; } }
+  autoDrawWatch(id);
   status(`분석 ${st.seconds}초 · ${st.sheets}장`);
   const opt = $("#job").querySelector(`option[value="${id}"]`);          // 분석 중에 그린 '분석 중 N%' 를 끝난 값으로
   if (opt && st.sheets != null) opt.textContent = `${st.name || ""} · ${st.sheets}장`;
@@ -2303,6 +2304,29 @@ async function runSim(animate, pageOnly) {
   playFrames(r.frames, prev, animate);
   holdShow(r.frames[r.frames.length - 1].running || []);
   return r;
+}
+/* L96 — 분석과 함께 그린 묶음: 다 됐으면 여는 단추 · 그리는 중이면 진행 · 예전 묶음(그림 없음)이면 누를 때 그린다 */
+async function autoDrawWatch(id) {
+  const a = $("#auto-draw");
+  if (!a) return;
+  clearTimeout(L.autoDrawT);
+  let st;
+  try { st = await api(`/logic/api/jobs/${id}/drawing`); } catch (e) { a.hidden = true; return; }
+  if (L.job && L.job !== id) return;
+  a.hidden = st.state === "skipped";
+  a.onclick = null;
+  if (st.state === "done") {
+    a.textContent = `✎ 똑같이 그린 묶음 (${st.sheets}장)`;
+    a.href = st.first ? `/logic/draw${location.search}#d=${st.first}` : `/logic/draw${location.search}#set=${st.set}`;
+  } else if (st.state === "running") {
+    a.textContent = st.total ? `✎ 그리는 중 ${st.done}/${st.total}` : "✎ 그리는 중 …";
+    a.href = "#"; a.onclick = (e) => e.preventDefault();
+    L.autoDrawT = setTimeout(() => autoDrawWatch(id), 2500);
+  } else {
+    a.textContent = st.state === "failed" ? "✎ 똑같이 그리기 (다시)" : "✎ 똑같이 그리기";
+    a.href = "#";
+    a.onclick = async (e) => { e.preventDefault(); try { await post(`/logic/api/jobs/${id}/drawing`, {}); } catch (err) { status("그리기를 시작하지 못했습니다 — " + err.message); } autoDrawWatch(id); };
+  }
 }
 /* L95 — 시간 직접 넘기기 (타이머가 세는 도중에 입력을 바꿔 보려고) */
 function holdOn() { const c = $("#hold-time"); return !!(c && c.checked); }
