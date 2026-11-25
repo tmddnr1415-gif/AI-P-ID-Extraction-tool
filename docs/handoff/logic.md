@@ -4,11 +4,13 @@
 
 - 작업 브랜치: `ccr-cc45909d-fjjmrb` (L83 부터 · 그 전 `claude/logic-symbol-visualization-sim-2oqbxh` 는 L82 까지 — 이 브랜치에 다 들어 있음).
   바뀌면 `docs/handoff/branches.md` · `config/release_sources.json` 같이 고침.
-- 마지막 회차: **L95** — ① 매크로 연산자 전수 채점 `spike/macro_operator_check_l95.py` (범례 글을 옮긴 따로 만든 채점기 · Typical 22장 · 연산자 466 · 채점 410만 · 어긋남 0 ·
-  다 봄 432 · 타이머 66 전부).  ② 고친 결함 셋: 메모리 우선 표시(S·R 를 두른 원)가 L93 에서 끊겨 있던 것 (지금 RESET 104 · SET 11) ·
-  `2=3` 은 '정확히' (`analyse._vote_equal_sign` — 문서가 `≥` 를 따로 찍을 때만 · 그림은 `param.op`) · **기다리는 시간** `sim.simulate_bundle(horizon=)` / API `wait` /
-  검토 화면 `⏱ 시간 직접 넘기기` + `▶ 다음 타이머까지` (타이머가 세는 도중에 입력을 바꿔야 서는 기능).  ③ 화면을 mac 결로 (`logic_theme.css` 다시 씀 — 빼면 예전 모양).
-  씨앗 판 13 · IDENT_VERSION 5.  **다음은 L96.**
+- 마지막 회차: **L96** — ① **PDF 를 넣으면 분석과 함께 똑같이 그린 묶음이 생긴다**: `draw_sets.auto_import` (`run.run` 이 결과를 쓴 바로 뒤 · 진행/결과는 분석 폴더
+  `drawing_auto.json` · 이미 있으면 다시 안 만든다 · `PID_LOGIC_AUTODRAW=0` 이면 끔 — 시험 기본) · API `GET/POST /logic/api/jobs/{job}/drawing` ·
+  검토 화면 머리줄 `✎ 똑같이 그린 묶음 (n장)` (예전 묶음은 누르면 그린다).  ② **묶음 PDF 의 FROM · TO 칸을 누르면 그 시트 그 행으로** — `draw_sets.pdf_links`
+  (PDF 안쪽 링크 · 그림은 그대로 · 묶음 안에 있는 시트만).  ③ 연산자 채점기를 전 장으로 (`spike/macro_operator_check_l95.py --all --light --shard=i/3`).
+  끝에서 끝까지(올리기 → 분석 → 그리기 → PDF)는 임시 스크립트로 한 번 돌렸다 — 다음에 필요하면 spike 로 옮길 것.  **다음은 L97.**
+- 그 앞 L95: 매크로 연산자 전수 채점(어긋남 0) · 메모리 우선 표시 복구 · `2=3` 은 '정확히'(`analyse._vote_equal_sign` · 그림 `param.op`) ·
+  기다리는 시간 `sim.simulate_bundle(horizon=)` / API `wait` / 검토 화면 `⏱ 시간 직접 넘기기` · 화면 mac 결(`logic_theme.css`).  씨앗 판 13.
 - 그 앞 L94: 모든 기호에 동작 (19VA 8,704개 중 동작 없는 기호 0 · A/M 스테이션 `amstation` · `LL/HL : n` 제한 · 선 글자 기호 학습 · `/Q` 는 B.Q 로 추정).
 - 그 앞 L93: 매크로 안쪽(Typical 22장) 선 전수 켜 보기 `spike/macro_line_sweep_l93.py` (장마다 색칠한 그림) + 분석기 빈틈 일곱.  0006/0007 은 선 90개 남음.
 - 그 앞 L92: 분석기 마름모 ◇ 기호(◇A · A/M 스테이션 143개) · 그리기 `param.form = diamond`(+`cells`) · a5j 타이머 둥근 상자/펄스 ⎍/표시등 빗살 ·
@@ -17,6 +19,7 @@
   PS 묶음에서 입력을 모두 1 로 주면 반대 명령이 같이 1 인 55건 (0023 GROUP START·STOP 7 · FW11_G134/G234 …) — 우선 표시를 고친 뒤 남은 것이라 설계일 가능성이 크다.
 - L95 에서 안 된 것: 0006 · 0007 의 파선 — ⊠ 와 AND 사이 **토막 둘짜리 파선**(마지막 토막이 화살촉보다 짧아 촉 안에 들어감)이 안 이어져 NOT 출력 · AND 입력이 빈다
   (연산자 22개가 신호를 못 받음).  `_dash_chains.term` 에서 촉 뒤쪽에서 들어오는 토막을 잇게 해 봤더니 다른 게이트가 입력을 잃어(17 → 27) 되돌렸다 — 촉의 base/tip 으로 방향을 볼 것.
+  L96 에서 안 된 것: 827장 묶음 PDF 내보내기가 2~5분 걸린다(링크 때문이 아니라 장 그리기) · 자동 묶음은 다시 분석해도 안 바뀐다(지우고 다시 그려야).
   채점기의 '일부만 봄' 18: 자기유지 고리(STEP 0021 — 그 조합이 구조상 안 생김) · S·R 동시가 안 생기는 메모리.  `wait` 는 API 시험이 없다 (sim 시험 · 브라우저 확인만).
 - 재현 정확도(827장 · L95 뒤 · L94 와 같음): 되읽기 블록 99.72 · 표 99.88 · 연결 97.66 · 선 97.57 · 글 96.54 / 직접 블록 99.72 · 표 100 · 연결 97.13.
   선 훑기 켜지는 선 9,159 · 게이트 위반 0 · 차등 시뮬레이션 다른 행 19/42,860 (5장).  남은 차이: ◇T 빗변 사선 파선(52장) · △ ∫ SER 안쪽 그림 · ALM 타원 · 0006/0007 연결.
@@ -47,12 +50,13 @@
 - ⚠ 회차 번호 충돌: 옛 LOGIC 세션(`bold-einstein`, 은퇴)도 L70~L72 를 썼다.  옛 기록에서 같은 번호가 두 번 나오면
   날짜와 브랜치로 구분한다.  앞으로 번호는 지금 LOGIC 작업 브랜치 하나만 매긴다.
 - **LOGIC 은 zip 을 만들지 않는다** — 커밋·푸시만 하면 PID 세션이 병합해 꾸러미에 싣는다 (`spike/pack_delta.py` 가 덜 합쳐졌으면 멈춘다).
-- 시험 돌리기: `pip install -r requirements.txt pytest httpx` 뒤 `pytest -q -m "not slow and not ui"` (약 2분 · 1681 통과).
+- 시험 돌리기: `pip install -r requirements.txt pytest httpx` 뒤 `pytest -q -m "not slow and not ui"` (약 2분 · 1685 통과).
 
 ## 최근 회차 한 줄 요약 (자세한 것은 `docs/history/logic_log.md` · 옛것은 archive 를 grep)
 
 | 회차 | 내용 |
 | --- | --- |
+| L96 | 분석과 함께 똑같이 그리기(자동 묶음) · 묶음 PDF 의 FROM/TO 링크 · 연산자 채점 전 장 |
 | L95 | 매크로 연산자 전수 채점(어긋남 0) · 메모리 우선 표시 복구 · `2=3` 정확히 · 기다리는 시간(시간 직접 넘기기) · mac 결 · 씨앗 판 13 |
 | L94 | 모든 기호에 동작 (동작 없는 기호 146 → 0) · A/M 스테이션 연산 · 선 글자 기호 학습 · 씨앗 판 9 |
 | L93 | 매크로 안쪽 선 전수 켜 보기(Typical 22장 · 그림) + 분석기 빈틈 7 · 화면 결(logic_theme.css) · 씨앗 판 8 |
