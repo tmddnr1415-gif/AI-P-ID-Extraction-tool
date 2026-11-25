@@ -31,6 +31,11 @@ def _b(m, i=1):
 
 # (pattern on the whole text, Korean) — first match wins.  \1 … in the Korean are the pattern's groups.
 RULES: list[tuple[str, object]] = [
+    # ── Spec Compliance (vspec.py, valve42): requirement · datasheet · action — technical words stay as written ──
+    (r"^Spec §(\S+): (.+?); datasheet does not state it\. (.+)$", r"Spec §\1 요구: \2 — Datasheet 에 기재 없음. 조치: \3"),
+    (r"^Spec §(\S+): (.+?); the datasheet names (.+?)\. (.+)$", r"Spec §\1 요구: \2 — Datasheet 는 \3 만 기재. 조치: \4"),
+    (r"^Spec §(\S+): (.+?); not stated on the datasheet\. (.+)$", r"Spec §\1 요구: \2 — Datasheet 에 기재 없음. 조치: \3"),
+    (r"^Spec §(\S+): (.+?); datasheet (.+?)\. (.+)$", r"Spec §\1 요구: \2 — Datasheet: \3. 조치: \4"),
     # ── Data Missing / Open Item / Data Error (issues.py) ─────────────────────────────────────────
     (r"^(.+?): no value( \(Max/Nor/Min\))?; ref\. (\S+) \((Gen\. )?Note (\S+)\)\. Provide value\.$",
      lambda m: f"{m.group(1)}: 값 없음{m.group(2) or ''} — 참조 {m.group(3)} ({'일반 ' if m.group(4) else ''}Note {m.group(5)}). 값을 기입 바랍니다."),

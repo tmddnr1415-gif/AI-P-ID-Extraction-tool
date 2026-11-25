@@ -6,6 +6,9 @@ import pytest
 from app.valve import i18n
 
 SAMPLES = [
+    "Spec §10.2.1: fire-safe design per API 607/ API 6FA required; datasheet does not state it. State fire-safe design / certificate.",
+    "Spec §10.1.5: seat leakage API 598 / ISO 5208 Rate A (zero leakage); datasheet 'ISO 5208 Rate B'. Confirm the leakage rate.",
+    "Spec §10.2.7: ISO 15848-1 Class A type-tested fugitive emission packing for CO2 / hazardous / toxic service; the datasheet names ISO 15848 without Class A. State the class.",
     "Design Pressure: no value; ref. 08-84-PR-DTS-00002 (Note 8). Provide value.",
     "Flow Rate: no value (Max/Nor/Min); ref. 315-98-PR-DTS-00007 (Gen. Note 34). Provide value.",
     "Fluid: no value. Provide value.",

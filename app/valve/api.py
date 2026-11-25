@@ -32,7 +32,7 @@ from fastapi.responses import FileResponse, JSONResponse, RedirectResponse, Resp
 from starlette.concurrency import run_in_threadpool
 
 from app import paths
-from app.valve import digest, docrev, dsjson, i18n, ruleperf, checks as chkmod, revisions as revmod, exports, extract, issues as issuesmod, expert as expmod, knowledge as kbmod, location as locmod, tagrules as tagmod, material, matreview as matmod, pms as pmsmod, process as procmod, requirements as reqmod, schema, store, tbe
+from app.valve import digest, docrev, dsjson, vspec, i18n, ruleperf, checks as chkmod, revisions as revmod, exports, extract, issues as issuesmod, expert as expmod, knowledge as kbmod, location as locmod, tagrules as tagmod, material, matreview as matmod, pms as pmsmod, process as procmod, requirements as reqmod, schema, store, tbe
 
 def _log_error(where: str) -> str:
     """valve37 — the full traceback of an unexpected server error goes to <data>/valve/logs/errors_YYYYMMDD.log (call inside
@@ -72,10 +72,10 @@ _JOBS: dict[str, dict] = {}
 _JLOCK = threading.Lock()
 _STATIC = {"valve.js": "application/javascript", "valve.css": "text/css", "anatomy.js": "application/javascript",
            "instrument.js": "application/javascript"}   # valve40: Instrument review screens   # anatomy.js = valve36 valve model (session 7 engine)
-KINDS = ("datasheet", "valvelist", "process", "pms", "instrument", "linelist", "instlist")   # valve40: + Instrument review
+KINDS = ("datasheet", "valvelist", "process", "pms", "instrument", "linelist", "instlist", "vspec")   # valve40: + Instrument review
 # valve40 (user 2026-11-13): the reference documents are entered in ONE place and shared by every review of the project family
 # (Ball '<name>' · '<name> · Globe Valve' · '· Butterfly Valve' · '· PSV' · all Instrument types) — kept on the base project.
-REF_KINDS = ("process", "pms", "linelist", "instlist")
+REF_KINDS = ("process", "pms", "linelist", "instlist", "vspec")    # vspec = the project's Valve Specifications (valve42)
 _KIND_SUFFIX = re.compile(r"\s*·\s*(Globe Valve|Butterfly Valve|PSV)$")
 
 
@@ -508,6 +508,18 @@ def _process(jid: str, pid: int, items: list[tuple[int, str, str, Path]], by: st
                 con.execute("UPDATE document SET status='done', info=? WHERE id=?", (store.J(info), doc_id))
                 store.audit(con, pid, None, None, "upload", None, name, by, "pms")
                 con.commit()
+            elif kind == "vspec":                            # valve42: project Valve Specification → numbered clauses
+                _job(jid, msg=f"{name} · 조항 읽는 중")
+                parsed = vspec.read_spec(str(path))
+                store.write_json(store.root() / "vspec" / f"{doc_id}.json", parsed)
+                _SPEC_CACHE.clear()
+                scope = {"onoff": "On/Off Valve", "mov": "Motor Operated Valve", "cv": "Control Valve"}.get(parsed["scope"], "")
+                info = {"doc_no": parsed["doc_no"], "rev": parsed["rev"], "scope": parsed["scope"], "clauses": len(parsed["clauses"]),
+                        "note": f"{parsed['doc_no'] or name} Rev {parsed['rev'] or '-'} · " + (f"{scope} Spec · " if scope else "적용 밸브 종류를 제목에서 못 찾음 · ")
+                                + f"조항 {len(parsed['clauses'])}개 — 해당 종류 Datasheet 검토에 바로 쓰입니다"}
+                con.execute("UPDATE document SET status='done', info=? WHERE id=?", (store.J(info), doc_id))
+                store.audit(con, pid, None, None, "upload", None, name, by, "vspec")
+                con.commit()
             elif kind in ("instrument", "linelist", "instlist"):    # valve40: Instrument datasheet review (app/valve/inst_api.py)
                 _job(jid, msg=f"{name} · 읽는 중")
                 info = inst_api.process_doc(con, pid, doc_id, kind, name, Path(path), by)
@@ -817,7 +829,7 @@ def _rules_fingerprint() -> str:
 
 
 _RULES_FP = _rules_fingerprint()
-VERSION = "valve41"                       # shown in Settings › 정보 and the footer; bump with every package
+VERSION = "valve42"                       # shown in Settings › 정보 and the footer; bump with every package
 
 
 @router.get("/api/valve/version")
@@ -894,7 +906,7 @@ async def upload(pid: int, request: Request, kind: str = Form(...), files: list[
         name = Path(f.filename or "file").name
         ext = Path(name).suffix.lower()
         ok = {"datasheet": (".pdf",), "valvelist": (".xlsx", ".xlsm", ".xls"), "process": (".pdf", ".xlsx", ".xls"),
-              "pms": (".pdf",), "instrument": (".pdf",), "linelist": (".xlsx", ".xlsm"), "instlist": (".pdf",)}[kind]
+              "pms": (".pdf",), "instrument": (".pdf",), "linelist": (".xlsx", ".xlsm"), "instlist": (".pdf",), "vspec": (".pdf",)}[kind]
         if ext not in ok:
             skipped.append(f"{name} — {kind} 칸에는 {' · '.join(ok)} 만 넣을 수 있습니다")
             continue
@@ -1102,6 +1114,28 @@ def _doc_ref(con, pid, kind, doc) -> dict:
     me = next((v for v in vs if v["id"] == doc["id"]), {"id": doc["id"], "filename": doc["filename"], "uploaded_at": ""})
     return {"id": doc["id"], "filename": doc["filename"], "uploaded_at": me.get("uploaded_at") or "", "kind": kind,
             "earlier": [v for v in vs if v["id"] != doc["id"]][:5]}
+
+
+_SPEC_CACHE: dict = {}
+
+
+def _specs_for(con, pid) -> list[dict]:
+    """valve42: the parsed Valve Specifications of the project family (공통 자료), newest per scope first."""
+    rp = ref_pid(con, pid)
+    docs = store.rows(con, "SELECT id, filename, path FROM document WHERE project_id IN (?,?) AND kind='vspec' AND status='done' ORDER BY id DESC", pid, rp)
+    out, seen = [], set()
+    for d in docs:
+        if d["id"] not in _SPEC_CACHE:
+            p = store.root() / "vspec" / f"{d['id']}.json"
+            if not p.exists():
+                continue
+            _SPEC_CACHE[d["id"]] = dict(json.loads(p.read_text(encoding="utf-8")), document_id=d["id"], filename=d["filename"])
+        s = _SPEC_CACHE[d["id"]]
+        if s.get("scope") in seen:                          # the newest specification of a scope applies
+            continue
+        seen.add(s.get("scope"))
+        out.append(s)
+    return out
 
 
 def _process_for(con, pid):
@@ -1413,8 +1447,13 @@ def _ds_deep(con, d, dsid):
     if i > 0:
         prev = compare(_ds_full(con, d["revisions"][i - 1]["id"], deep=False), d)
     states = {r["ikey"]: r for r in store.rows(con, "SELECT * FROM issue_state WHERE datasheet_id=?", dsid)}
+    try:                                                    # valve42: the project's Valve Specification clauses
+        spec_rows = vspec.findings(dict(d, fields=d["fields"]), _specs_for(con, d["project_id"]))
+    except Exception:                                       # noqa: BLE001  (never stops the review)
+        _log_error("spec findings")
+        spec_rows = []
     d["issues"] = issuesmod.compute(d, d["general_notes"], pms, d["area"], prev, states, pms_rows=d["pms"], process_rows=d["process"],
-                                   material_rows=d["material_review"])
+                                   material_rows=d["material_review"], spec_rows=spec_rows)
     i18n.attach(d["issues"])                          # valve31: 한글 코멘트 (표시 · 출력 선택용, 판정과 무관)
     d["rev_review"] = None
     if i > 0:                                                   # valve26: what this revision resolved / left open / added

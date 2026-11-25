@@ -42,6 +42,9 @@
 - **★ 실물 검증 0건**: 빈 양식과 시험값뿐. 카드는 모두 'Form No' 양식 — 실제 계기 도서가 ISA 'INSTRUMENT SPECIFICATION' 계열이면 못 읽는다(이제 경고는 뜸).
   실물을 받으면: 읽히는지 → 안 읽히면 `form_isa.py` 방식으로 양식 추가.
 
+- **Project Valve Specification (valve42)**: 공통 자료 종류 'vspec' → `vspec.read_spec`(조항) · `vspec.findings` SP-01~15(조항 문구로 찾고 값은 조항에서) →
+  지적 'Spec Compliance'(근거 §조항 · 쪽). On/Off · MOV · CV Spec 실물로 확인(Ball 추가 5 · 기존 변화 0). 새 검사는 `CHECKS` + `TITLES` + i18n 틀.
+
 ### 공통 자료 · Area
 
 - **공통 자료 `?kind=refdocs`**: PDS · PMS · Line List · Index/IO List 는 여기서만 올림 → 기준 프로젝트(`api.ref_pid`)에 1벌, family 전체가 씀. 페이지별 올리기 칸 = `window.DOC_KINDS`.

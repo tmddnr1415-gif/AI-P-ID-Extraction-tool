@@ -144,7 +144,7 @@ async function askDecision(choice, n = 1, issue = null) {
 }
 /* Issue Type picker — shown before every contractor export (Issue List Excel · Mark-up PDF). The last choice is kept. */
 const TYPE_KO = { 'Data Missing': '누락 · 빈 값', 'Open Item': 'HOLD / TBC', 'Data Error': '데이터 오류', 'PMS Non-Compliance': 'PMS 부적합',
-  'PMS Review': 'PMS 확인', 'Process Mismatch': 'Process Data 불일치', 'Material Review': '재질 검토', 'Valve Review': '설계 · 다른 DS 대비 검토',
+  'PMS Review': 'PMS 확인', 'Process Mismatch': 'Process Data 불일치', 'Material Review': '재질 검토', 'Valve Review': '설계 · 다른 DS 대비 검토', 'Spec Compliance': 'Project Spec 대비',
   'Revision Change': 'Revision 변경', 'Reviewer Correction': '검토자 수정', 'Reviewer Comment': '검토자 의견', 'Extraction Review': '도구 내부 확인 (설계사용 아님)' };
 /* valve31 — 코멘트 언어: 화면 표시(clang) 와 출력(outlang) 따로.  en · ko · both.  한글은 서버가 규칙별 고정 문장으로 붙임(description_ko) */
 const clang = () => LS.get('clang', 'both'), outLang = () => LS.get('outlang', 'en');
@@ -1047,11 +1047,12 @@ document.addEventListener('click', e => {
 const KIND = { datasheet: ['Valve Datasheet PDF', '필수', '.pdf', true], valvelist: ['Valve List (TBE)', '선택', '.xlsx,.xlsm,.xls', false],
   process: ['Process Data', '선택', '.pdf,.xlsx,.xls', true], pms: ['Piping Material Spec (PMS)', '선택', '.pdf', false],
   instrument: ['Instrument Datasheet PDF', '선택', '.pdf', true], linelist: ['Process Line List', '선택', '.xlsx,.xlsm', true],
-  instlist: ['Instrument Index · IO List', '선택', '.pdf', true] };          // valve40: Instrument review (FT · PT · LT · TT · PG · PSV …)
+  instlist: ['Instrument Index · IO List', '선택', '.pdf', true],
+  vspec: ['Valve Specification (On/Off · MOV · Control Valve)', '선택', '.pdf', true] };   // valve42: comments cite its clauses          // valve40: Instrument review (FT · PT · LT · TT · PG · PSV …)
 /* valve40 (user 2026-11-13) — PDS · PMS · Line List · Instrument Index · IO List are entered in ONE menu (공통 자료 · ?kind=refdocs)
    and every Valve kind and Instrument type of the project family reviews against them (server: api.ref_pid).  A page's
    Document Management takes only its own files: window.DOC_KINDS (instrument.js) — the Valve pages: Datasheet · Valve List. */
-const REF_KINDS = ['process', 'pms', 'linelist', 'instlist'];
+const REF_KINDS = ['process', 'pms', 'linelist', 'instlist', 'vspec'];
 const baseName = () => (S.sum?.project?.name || Q.get('project') || 'CO2 PJT').replace(/\s*·\s*(Globe Valve|Butterfly Valve|PSV)$/, '');
 function refUrl() {
   const u = new URL(location.href); ['ds', 'sheet', 'key', 'page'].forEach(k => u.searchParams.delete(k));
@@ -1697,6 +1698,7 @@ function drawHead() {                                  // one-line summary of th
     <span class="sp"></span><span class="hnav"><button data-nav="-1" title="이전 Tag (↑ / K)">▲</button><button data-nav="1" title="다음 Tag (↓ / J)">▼</button></span>
     ${chip('Data Error', errN, 'err', 'iss', '빨강 — 데이터 오류 (Issues 탭)')}${chip('Missing', misN, 'mis', 'iss', '주황 — 누락 · HOLD/TBC')}${chip('PMS', pmsN, 'err', 'pms', 'PMS 부적합 · 확인 (PMS 탭)')}
     ${chip('Process', iss.filter(i => i.type === 'Process Mismatch').length, 'mis', 'proc', 'Process Data 와 다른 공정 항목 (Process 탭)')}
+    ${iss.some(i => i.type === 'Spec Compliance') ? chip('Spec', iss.filter(i => i.type === 'Spec Compliance').length, 'err', 'iss', 'Project Valve Specification 조항 대비 (Issues 탭 · 근거에 조항 번호 · 쪽)') : ''}
     ${chip('Expert', iss.filter(i => i.type === 'Material Review' || i.type === 'Valve Review').length, 'mat', 'mat', 'Ball Valve 엔지니어 검토 — 재질 · 설계 · 다른 데이터시트 대비 (Expert 탭)')}
     ${chip('Rev Change', revN, 'rev', 'rev', '이전 Revision 대비 바뀐 칸')}${d.rev_review ? `<button class="hchip rev ${d.rev_review.still_open ? 'err' : ''}" data-tab="rev" title="Rev ${esc(d.rev_review.prev_rev)} → ${esc(d.rev)}: 해결 · 미반영(Confirmed 였는데 그대로) · 새 지적">Rev ${esc(d.rev_review.prev_rev)}→${esc(d.rev)} <b>✓${d.rev_review.resolved}</b> <b class="${d.rev_review.still_open ? 'bad' : ''}">✗${d.rev_review.still_open}</b> <b>+${d.rev_review.new}</b></button>` : ''}${chip('Comments', d.comments.length, 'cmt', 'cmt', '검토자 의견 · Mark-up')}
     <label class="hst">Review Status <select id="wst">${STATUSES.map(s => `<option ${s === d.review_status ? 'selected' : ''}>${s}</option>`).join('')}</select></label>`;
