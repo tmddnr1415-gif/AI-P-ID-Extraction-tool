@@ -987,6 +987,38 @@
    },
    "replaces": "5_DASHBOARD_update_v18.44_from_v18.30_2026-11-22.zip",
    "note": "v18.60 (기준 v18.30) — Pretendard 글꼴 · 따로 창 실시간 연동 · 양식 갤러리 · 고양이 기사 (server.py → 재시작)"
+  },
+  {
+   "file": "①",
+   "name": "1_DASHBOARD_update_v18.66_from_v18.30_2026-11-25.zip",
+   "made": "2026-11-25 09:40",
+   "path": "company-pc-update/2026-11-25/ (5.2MB · 저장소에 있음)",
+   "sha256": "3958cc5e426e7e80da7307885abd96f7d0b527af6dc9ea43bfbde8467c5e2fd9",
+   "applied": "",
+   "tips": {
+    "S1": "c4f95be4"
+   },
+   "replaces": "6_DASHBOARD_update_v18.60_from_v18.30_2026-11-22.zip",
+   "note": "v18.66 (기준 v18.30) — 오프라인 입력 자동 저장 · 쪽 탭 등 (server.py → 재시작)"
+  },
+  {
+   "file": "②",
+   "name": "2_PID_dev+ops_hotfix147_2026-11-25.zip",
+   "made": "2026-11-25 09:40",
+   "path": "company-pc-update/2026-11-25/ (8.9MB · 저장소에 있음)",
+   "sha256": "d5488ee7a4f9e42ccfdc3a59ce7b1f33bd8830b22781ef9d9e1baba70bdcc858",
+   "applied": "",
+   "integration_head": "6de8959b",
+   "tips": {
+    "S2": "cd59d77a",
+    "S3": "4e9cfd24",
+    "S4": "7b10d7cb",
+    "S5": "f5f94b2c",
+    "S6": "29474575",
+    "S7": "865f9297"
+   },
+   "replaces": "2_PID_dev+ops_hotfix146_2026-11-20.zip",
+   "note": "146 + S6 valve42 Spec Compliance"
   }
  ]
 }

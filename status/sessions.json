@@ -6,8 +6,8 @@
    "id": "session_016Ntz71xxniTkCj7pC8ZpXL",
    "title": "1. DASHBOARD 코드 (NEW)",
    "bucket": "COMPLETED",
-   "updated": "2026-11-22T23:20:00Z",
-   "recent": "v18.60 ba083498 — 글꼴 · 따로 창 연동 · 양식 · 고양이. 11-22 ⑥ 으로 회사 업데이트 (회사 v18.30 기준)",
+   "updated": "2026-11-25T00:19:04Z",
+   "recent": "v18.66 c4f95be4 — 오프라인 입력 자동 저장 · 쪽 탭 등. 11-25 ① 로 회사 업데이트 (회사 v18.30 기준)",
    "needs": "회사: 메모장.exe 실행 · 보안 프로그램 차단 여부 확인"
   },
   "S2": {
@@ -47,8 +47,8 @@
    "title": "6. Datasheet 자동 검토",
    "bucket": "COMPLETED",
    "updated": "2026-11-20T09:57:49Z",
-   "recent": "29474575 valve42 — Valve Spec(On/Off · MOV · CV) 올리면 조항 근거 Spec Compliance 코멘트. pytest 2,106 · 2,935/0. 회사 미전달 — 사용자 요청 시 hotfix147",
-   "needs": "사용자: hotfix147 만들지 결정 · 회사에서 Spec PDF 올리기"
+   "recent": "29474575 valve42 — Spec Compliance. hotfix147 로 회사 업데이트에 실림",
+   "needs": "회사: Spec PDF 올리고 코멘트 확인"
   },
   "S7": {
    "id": "session_01Muj82FVwL2Yt5DTXGPNkcp",

@@ -1,0 +1,2 @@
+3958cc5e426e7e80da7307885abd96f7d0b527af6dc9ea43bfbde8467c5e2fd9  1_DASHBOARD_update_v18.66_from_v18.30_2026-11-25.zip
+d5488ee7a4f9e42ccfdc3a59ce7b1f33bd8830b22781ef9d9e1baba70bdcc858  2_PID_dev+ops_hotfix147_2026-11-25.zip

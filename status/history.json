@@ -8740,6 +8740,92 @@
      ]
     }
    }
+  },
+  {
+   "at": "2026-11-25 00:35",
+   "read_at": "2026-11-13T07:12:00Z",
+   "s": {
+    "S1": {
+     "branch": "origin/ccr-248a5c4d-3dji7g",
+     "tip": "c4f95be4",
+     "ver": "v18.66 · 회사엔 v18.30",
+     "bucket": "COMPLETED",
+     "needs": "회사: 메모장.exe 실행 · 보안 프로그램 차단 여부 확인",
+     "recent": "v18.66 c4f95be4 — 오프라인 입력 자동 저장 · 쪽 탭 등. 11-25 ① 로 회사 업데이트 (회사 v18.30 기준)",
+     "pending": []
+    },
+    "S2": {
+     "branch": "origin/claude/gracious-ride-26nqrf",
+     "tip": "cd59d77a",
+     "ver": "hotfix147 만듦 (통합)",
+     "bucket": "COMPLETED",
+     "needs": "",
+     "recent": "cd59d77a — 심볼 준비 캐시 · LOGIC 도면 칸 안내. hotfix146 로 회사 업데이트에 실림",
+     "pending": []
+    },
+    "S3": {
+     "branch": "origin/ccr-cc45909d-fjjmrb",
+     "tip": "4e9cfd24",
+     "ver": "L91",
+     "bucket": "COMPLETED",
+     "needs": "사용자: 3 세션 창에서 L92 진행 승인 필요 (지시는 받음 · python-docx 누락 확인됨)",
+     "recent": "L91 커밋 · 푸시 — 화면 시험 125 · 빠른 시험 1,655 통과. 통합 꾸러미에 병합 필요",
+     "pending": []
+    },
+    "S4": {
+     "branch": "origin/ccr-d82d97fa-bb3ty3",
+     "tip": "7b10d7cb",
+     "ver": "변경 이력 (55)",
+     "bucket": "BLOCKED",
+     "needs": "11-19 지시: 멈춘 질문 답(zip 은 오케스트레이터) · panel.md 인수인계 · DXF/phase 시험 · 3D HTML 크기 안내 → 끝나면 보고",
+     "recent": "",
+     "pending": []
+    },
+    "S5": {
+     "branch": "origin/claude/new-session-v23o67",
+     "tip": "f5f94b2c",
+     "ver": "2026-11-19.1",
+     "bucket": "COMPLETED",
+     "needs": "",
+     "recent": "f5f94b2c — 도서검토 2026-11-19.1 (외부 번역 기본 꺼짐 · 외국어 용어). hotfix146 로 회사 업데이트에 실림",
+     "pending": []
+    },
+    "S6": {
+     "branch": "origin/ccr-efbe7e75-n915ze",
+     "tip": "29474575",
+     "ver": "valve42",
+     "bucket": "COMPLETED",
+     "needs": "회사: Spec PDF 올리고 코멘트 확인",
+     "recent": "29474575 valve42 — Spec Compliance. hotfix147 로 회사 업데이트에 실림",
+     "pending": []
+    },
+    "S7": {
+     "branch": "origin/claude/practical-newton-n6bt58",
+     "tip": "865f9297",
+     "ver": "865f9297",
+     "bucket": "COMPLETED",
+     "needs": "11-19 지시: 회사판 빌드(API 키 · LLM · Claude 도면 읽기 빼기) · LLM 없는 GA 치수 입력 · ic3d.md 인수인계 → 끝나면 보고",
+     "recent": "865f9297 — 좁은 폭에서도 3D 칸 · 휠 축소 한계. hotfix135 로 회사 업데이트에 처음 실림",
+     "pending": [
+      "865f9297",
+      "cb4f4972",
+      "af748c78",
+      "da8df461",
+      "c0dd7d0b",
+      "077cba5e",
+      "144e6604",
+      "8b0b1023",
+      "19d7aa3a",
+      "1fd96028",
+      "b99fb62a",
+      "ad3bbe35",
+      "05909503",
+      "963d2857",
+      "f408556e",
+      "64a829be"
+     ]
+    }
+   }
   }
  ],
  "changes": [
@@ -13672,6 +13758,114 @@
    "kind": "report",
    "sig": "세션 기록",
    "text": "세션 보고 — v18.60 ba083498 — 글꼴 · 따로 창 연동 · 양식 · 고양이. 11-22 ⑥ 으로 회사 업데이트 (회사 v18.30 기준)"
+  },
+  {
+   "at": "2026-11-25 00:35",
+   "prev": "2026-11-22 23:21",
+   "sid": "S1",
+   "kind": "commit",
+   "sig": "git",
+   "h": "c4f95be4",
+   "d": "2026-11-25",
+   "text": "dashboard v18.66: 오프라인 입력 고치면 바로 파일 저장 · 서버 덮어쓰기 후 서버 값 확인 표시 · 옛 버전 파일이어도 대기열 반영"
+  },
+  {
+   "at": "2026-11-25 00:35",
+   "prev": "2026-11-22 23:21",
+   "sid": "S1",
+   "kind": "commit",
+   "sig": "git",
+   "h": "d772deb3",
+   "d": "2026-11-24",
+   "text": "dashboard v18.65: 오프라인(서버 꺼짐 · 출장용 · 부재용) 입력을 1분마다 그 파일에 자동 저장"
+  },
+  {
+   "at": "2026-11-25 00:35",
+   "prev": "2026-11-22 23:21",
+   "sid": "S1",
+   "kind": "commit",
+   "sig": "git",
+   "h": "73928e2f",
+   "d": "2026-11-24",
+   "text": "dashboard v18.64: 글과 함께 주석 · 그림 복사해 다른 메모에 붙이기 (글머리 · 들여쓰기에 맞춤 / 자유롭게 설정)"
+  },
+  {
+   "at": "2026-11-25 00:35",
+   "prev": "2026-11-22 23:21",
+   "sid": "S1",
+   "kind": "commit",
+   "sig": "git",
+   "h": "cee0500c",
+   "d": "2026-11-24",
+   "text": "dashboard v18.63: 페이지 번호 · 아래 페이지 줄(번호 입력) · Ctrl+Shift+</> 1pt · Ctrl+4/6/7 · 그림은 커서 자리와 그 페이지에 · 첨부 미리보기(엑셀 · Outlook msg · eml · 워드)"
+  },
+  {
+   "at": "2026-11-25 00:35",
+   "prev": "2026-11-22 23:21",
+   "sid": "S1",
+   "kind": "commit",
+   "sig": "git",
+   "h": "fb73ff44",
+   "d": "2026-11-24",
+   "text": "dashboard v18.62: 한 메모 안 여러 쪽 (쪽 탭) · 붙여 넣은 그림 밑으로 Enter 새 줄 · 이름 창 Enter 확인"
+  },
+  {
+   "at": "2026-11-25 00:35",
+   "prev": "2026-11-22 23:21",
+   "sid": "S1",
+   "kind": "commit",
+   "sig": "git",
+   "h": "9b8ffd7f",
+   "d": "2026-11-23",
+   "text": "dashboard v18.61: 메모장 검색창 한 글자 입력 뒤 끊기는 오류 (날짜별 전체 다시 그림 · 한글 조합 중 다시 그림)"
+  },
+  {
+   "at": "2026-11-25 00:35",
+   "prev": "2026-11-22 23:21",
+   "sid": "S1",
+   "kind": "version",
+   "sig": "git",
+   "text": "버전 v18.60 · 회사엔 v18.30 → v18.66 · 회사엔 v18.30"
+  },
+  {
+   "at": "2026-11-25 00:35",
+   "prev": "2026-11-22 23:21",
+   "sid": "S1",
+   "kind": "report",
+   "sig": "세션 기록",
+   "text": "세션 보고 — v18.66 c4f95be4 — 오프라인 입력 자동 저장 · 쪽 탭 등. 11-25 ① 로 회사 업데이트 (회사 v18.30 기준)"
+  },
+  {
+   "at": "2026-11-25 00:35",
+   "prev": "2026-11-22 23:21",
+   "sid": "S2",
+   "kind": "version",
+   "sig": "git",
+   "text": "버전 hotfix146 만듦 (통합) → hotfix147 만듦 (통합)"
+  },
+  {
+   "at": "2026-11-25 00:35",
+   "prev": "2026-11-22 23:21",
+   "sid": "S6",
+   "kind": "needs",
+   "sig": "세션 기록",
+   "text": "확인 필요 — 회사: Spec PDF 올리고 코멘트 확인"
+  },
+  {
+   "at": "2026-11-25 00:35",
+   "prev": "2026-11-22 23:21",
+   "sid": "S6",
+   "kind": "report",
+   "sig": "세션 기록",
+   "text": "세션 보고 — 29474575 valve42 — Spec Compliance. hotfix147 로 회사 업데이트에 실림"
+  },
+  {
+   "at": "2026-11-25 00:35",
+   "prev": "2026-11-22 23:21",
+   "sid": "S6",
+   "kind": "pending",
+   "sig": "계산",
+   "text": "다음 업데이트 대기 1 → 0건"
   }
  ]
 }
