@@ -130,3 +130,26 @@ def test_solid_line_through_a_junction_dot_stays_solid():
     s = _analyse(doc, lambda pg: None)
     assert not any(n.get("dashed") for n in s["nets"].values())
     assert [sim.simulate(s, {"row:3": 1})["frames"][-1]["values"][r["net"]] for r in s["rows"] if r["side"] == "R"] == [1, 1]
+
+
+def test_feedback_chain_drawn_right_to_left_is_reversed_as_a_whole():
+    """CO02_P031 · CC01_P024: AND 출력 → ⎍ → ⊠ → 그 AND 의 입력으로 되돌아오는 고리를 오른쪽에서 왼쪽으로 그렸다.  상자 하나만 보면 ⎍ 의 왼쪽은 ⊠ 가
+    '몰고' 있어 뒤집히지 않았다 — AND 출력과 ⎍ 출력이 한 선을 함께 몰고, ⊠ 왼쪽 선(AND 입력)은 모는 것이 없었다."""
+    yt, yb = T + 3 * P - P / 2, T + 6 * P - P / 2
+    blocks = [{"id": "n", "kind": "NOT", "x": 480, "y": yt - 4.5, "w": 9, "h": 9, "text": "NOT", "label": "", "param": {}},
+              {"id": "p", "kind": "PD", "x": 520, "y": yt - 6, "w": 13, "h": 12, "text": "", "label": "", "param": {"t": 1}},
+              {"id": "a", "kind": "AND", "x": 560, "y": yb - 7, "w": 14, "h": 14, "text": "AND", "label": "", "param": {}}]
+    wires = [{"id": "w1", "pts": [[draw.LX0, yb + 3], [560, yb + 3]]},                              # 행 → AND
+             {"id": "w2", "pts": [[574, yb], [draw.LX1, yb]]},                                      # AND → 출력 행
+             {"id": "w3", "pts": [[620, yb], [620, yt], [533, yt]]},                                # AND 출력에서 갈라져 올라가 ⎍ 의 **오른쪽**으로
+             {"id": "w4", "pts": [[520, yt], [489, yt]]},                                           # ⎍ 왼쪽 → ⊠ 오른쪽
+             {"id": "w5", "pts": [[480, yt], [450, yt], [450, yb - 3], [560, yb - 3]]}]             # ⊠ 왼쪽 → 내려와 AND 입력
+    doc = _doc(blocks, wires, {"6": {"fm": "", "kks": "", "desc": "IN"}}, {str(59 + 6): {"desc": "OUT", "kks": "", "to": ""}})
+    s = _analyse(doc, lambda pg: None)
+    side = lambda f: {q["side"]: q["dir"] for q in s["ports"] if s["blocks"][q["block"]]["func"] == f and q["side"] in ("L", "R")}
+    assert side("NOT") == {"L": "out", "R": "in"} and side("PD") == {"L": "out", "R": "in"}, (side("NOT"), side("PD"))
+    drv = {}
+    for q in s["ports"]:
+        if q["dir"] == "out":
+            drv.setdefault(q["net"], []).append(q["block"])
+    assert all(len(v) == 1 for v in drv.values()), drv                                              # 한 선을 두 블록이 함께 몰지 않는다

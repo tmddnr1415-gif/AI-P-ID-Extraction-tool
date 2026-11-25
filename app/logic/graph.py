@@ -1150,33 +1150,55 @@ def build(prims: geom.Prims, lay=None) -> Sheet | None:
         if pt.dir == "out":
             out_of[pt.net].add(pt.block)
     row_drv = {r["net"] for r in sh.rows if r["side"] == "L"}
+    # L97 — 줄줄이 거꾸로: AND 출력 → ⎍ → ⊠ → 그 AND 의 입력으로 되돌아오는 고리를 오른쪽에서 왼쪽으로 그린 것 (19VA CO02_P031 · CC01_P024).
+    # ⎍ 의 왼쪽 선은 ⊠ 가 '몰고' 있어 뒤집히지 않았고, ⊠ 는 오른쪽 선을 모는 것이 저 자신뿐이라 뒤집히지 않았다 — 그래서 AND 출력과 ⎍ 출력이 한 선을
+    # 함께 몰고, ⊠ 왼쪽 선(AND 입력)은 모는 것이 없었다.  제 입력을 모는 것이 없는 상자가 '모는' 것은 모는 것으로 치지 않고, 바뀌는 것이 없을 때까지 돈다.
+    cand = set()
     for b in blocks:
-        if b.kind != "RECT" or len(b.cells) != 1 or b.bus or getattr(b, "bar", False) or getattr(b, "diamond", False) or getattr(b, "tri", False):
-            continue                                         # 칸 하나짜리 상자만 (⊠ · ⎍ · 지연 …) — 막대 게이트 · 메모리 · ◇ 는 모양이 방향을 말한다
-        idx = [k for k, pt in enumerate(sh.ports) if pt.block == b.id]
-        if len(idx) != 2:
-            continue
-        l = [k for k in idx if sh.ports[k].side == "L"]
-        r = [k for k in idx if sh.ports[k].side == "R"]
-        if len(l) != 1 or len(r) != 1 or l[0] in arrow_ports:
-            continue
-        pl, pr = sh.ports[l[0]], sh.ports[r[0]]
-        if pl.dir != "in":
-            continue
-        ln, rn = pl.net, pr.net
-        l_driven = ln in row_drv or bool(out_of[ln] - {b.id})
-        r_driven = rn in row_drv or bool(out_of[rn] - {b.id})
-        if l_driven or not r_driven:
-            continue
-        if pr.dir == "out" and r[0] not in arrow_ports:
-            pl.dir, pr.dir = "out", "in"                     # 왼 = 입력 · 오른 = 출력으로 읽은 것을 통째로 뒤집는다
-        elif pr.dir == "in":
-            pl.dir = "out"                                   # 오른쪽은 화살촉이 '들어온다' 고 말했다 — 남은 왼쪽이 나가는 쪽
-        else:
-            continue
-        out_of[rn].discard(b.id)
-        out_of[ln].add(b.id)
-        b.flipped = True
+        if b.kind == "RECT" and len(b.cells) == 1 and not (b.bus or getattr(b, "bar", False) or getattr(b, "diamond", False) or getattr(b, "tri", False)) \
+                and sorted(pt.side for pt in sh.ports if pt.block == b.id and pt.side in ("L", "R")) == ["L", "R"] \
+                and all(pt.dir == "in" for pt in sh.ports if pt.block == b.id and pt.side not in ("L", "R")):
+            cand.add(b.id)                                   # 왼 · 오른 단자 하나씩 (+ 위아래로 들어오는 시간 · 리셋 단자는 있어도 된다 — ⎍ 의 위 단자)
+    for _ in range(6):
+        changed = False
+        unsourced = {pt.block for pt in sh.ports if pt.block in cand and pt.dir == "in" and pt.side in ("L", "R")
+                     and pt.net not in row_drv and not (out_of[pt.net] - {pt.block})}
+        for _ in range(6):                                   # 제 입력을 모는 것이 '모는 것 없는 상자' 뿐인 상자도 모는 것이 없다
+            more = {pt.block for pt in sh.ports if pt.block in cand and pt.dir == "in" and pt.side in ("L", "R") and pt.net not in row_drv
+                    and not (out_of[pt.net] - {pt.block} - unsourced)} - unsourced
+            if not more:
+                break
+            unsourced |= more
+        for b in blocks:
+            if b.kind != "RECT" or len(b.cells) != 1 or b.bus or getattr(b, "bar", False) or getattr(b, "diamond", False) or getattr(b, "tri", False):
+                continue                                         # 칸 하나짜리 상자만 (⊠ · ⎍ · 지연 …) — 막대 게이트 · 메모리 · ◇ 는 모양이 방향을 말한다
+            idx = [k for k, pt in enumerate(sh.ports) if pt.block == b.id]
+            if len(idx) != 2 and b.id not in cand:
+                continue
+            l = [k for k in idx if sh.ports[k].side == "L"]
+            r = [k for k in idx if sh.ports[k].side == "R"]
+            if len(l) != 1 or len(r) != 1 or l[0] in arrow_ports:
+                continue
+            pl, pr = sh.ports[l[0]], sh.ports[r[0]]
+            if pl.dir != "in":
+                continue
+            ln, rn = pl.net, pr.net
+            l_driven = ln in row_drv or bool(out_of[ln] - {b.id} - unsourced)
+            r_driven = rn in row_drv or bool(out_of[rn] - {b.id} - unsourced)
+            if l_driven or not r_driven:
+                continue
+            if pr.dir == "out" and r[0] not in arrow_ports:
+                pl.dir, pr.dir = "out", "in"                     # 왼 = 입력 · 오른 = 출력으로 읽은 것을 통째로 뒤집는다
+            elif pr.dir == "in":
+                pl.dir = "out"                                   # 오른쪽은 화살촉이 '들어온다' 고 말했다 — 남은 왼쪽이 나가는 쪽
+            else:
+                continue
+            out_of[rn].discard(b.id)
+            out_of[ln].add(b.id)
+            b.flipped = True
+            changed = True
+        if not changed:
+            break
     for b in blocks:                               # L95 — 이 줄이 L93 에서 위 뒤집기 고리 안으로 딸려 들어가 메모리 우선 표시(S · R 를 두른 원)가 전부 사라졌었다
         b.marks = [((c.cx, c.cy), c.r) for c in marks_in if _in_rect((c.cx, c.cy), b.bbox, 0)]
     sh.blocks = {b.id: b for b in blocks}
@@ -1974,6 +1996,15 @@ def _merge_collinear(segs):
     return out
 
 
+def _free_ends(segs):
+    """선분들의 끝점 중 한 번만 나오는 것 (줄의 끝)."""
+    cnt = defaultdict(int)
+    for g in segs:
+        for q in g.ends():
+            cnt[(round(q[0], 2), round(q[1], 2))] += 1
+    return [q for q, c in cnt.items() if c == 1]
+
+
 def _gap_crossed(qa, qb, wire_segs, tol):
     """두 끝 사이의 틈 한가운데를 그 틈과 수직인 선이 지나가는가 — 건너뛰기(홉)로 끊어 그린 실선의 틈."""
     mid = ((qa[0] + qb[0]) / 2, (qa[1] + qb[1]) / 2)
@@ -2002,17 +2033,27 @@ def _dash_chains(glyphs, wires, blocks, arrows, dots, P, tol, bounds=None):
             dx, dy = abs(g.x1 - g.x0), abs(g.y1 - g.y0)
             if min(dx, dy) <= max(0.06, 0.015 * g.length):
                 tilted.append((dy < dx, min(g.x0, g.x1) if dy < dx else min(g.y0, g.y1), p))
-    snapped = []                                  # (가로인가, 축 위 시작, 축 위 끝, 맞춘 좌표)
+    # 줄로 묶는다 (같은 방향 · 이웃 토막과 0.2pt 안 · 틈이 토막 길이 1.5배 안).  **짧은 줄(토막 넷까지)만** 편다 — 긴 기운 파선은 펴면 줄 끝이 제자리에서
+    # 벗어나고(100pt 에 0.5pt), 중간에서 끊긴 끝이 가로지르는 선 위에 놓여 따로인 두 신호가 묶였다 (0007 의 A · B B.Q).  긴 것은 예전대로 둔다(못 읽음).
+    runs = []                                     # [[(가로인가, 시작, 끝, 가운데 좌표, 조각)…]]
     for hz, _, p in sorted(tilted, key=lambda t: (t[0], t[1])):
         g = p.segs[0]
         a0, a1 = (min(g.x0, g.x1), max(g.x0, g.x1)) if hz else (min(g.y0, g.y1), max(g.y0, g.y1))
         c = (g.y0 + g.y1) / 2 if hz else (g.x0 + g.x1) / 2
-        for hz2, b0, b1, c2 in reversed(snapped):
+        for run in reversed(runs):
+            hz2, b0, b1, c2, _ = run[-1]
             if hz2 == hz and abs(c2 - c) <= 0.2 and 0 <= a0 - b1 <= 1.5 * max(g.length, b1 - b0):
-                c = c2
+                run.append((hz, a0, a1, c, p))
                 break
-        p.segs[0] = geom.Seg(g.x0, c, g.x1, c) if hz else geom.Seg(c, g.y0, c, g.y1)
-        snapped.append((hz, a0, a1, c))
+        else:
+            runs.append([(hz, a0, a1, c, p)])
+    for run in runs:
+        if len(run) > 4:
+            continue
+        c = run[0][3]
+        for hz, a0, a1, _, p in run:
+            g = p.segs[0]
+            p.segs[0] = geom.Seg(g.x0, c, g.x1, c) if hz else geom.Seg(c, g.y0, c, g.y1)
     pieces = [p for p in glyphs if len(p.segs) <= 2 and all(s.vert or s.horiz for s in p.segs)
               and all(s.length > 0 for s in p.segs) and not enclosed(p)]
     if len(pieces) < 2:
@@ -2027,7 +2068,7 @@ def _dash_chains(glyphs, wires, blocks, arrows, dots, P, tol, bounds=None):
             for q in sg.ends():
                 if cnt[(round(q[0], 2), round(q[1], 2))] == 1:
                     ends.append((q, k, "h" if sg.horiz else "v", sg.length))
-    piece_ends = [(q, sum(x.length for x in pieces[k].segs)) for q, k, ax, L in ends]      # (끝점, 그 조각의 길이) — 모퉁이에서 만나는 토막 찾기 (L97)
+    piece_ends = []                                # 모퉁이에서 만나는 토막 찾기 (L97) — 다리를 놓은 뒤에 채운다 (줄의 끝만)
     par = list(range(len(pieces)))
 
     def f(i):
@@ -2082,6 +2123,8 @@ def _dash_chains(glyphs, wires, blocks, arrows, dots, P, tol, bounds=None):
     groups = defaultdict(list)
     for k in range(len(pieces)):
         groups[f(k)].append(k)
+    # (끝점, 그 조각의 길이) — **줄의 끝**만: 다리로 이웃 토막과 이어진 끝은 줄 가운데다 (가로지르는 파선의 토막 끝을 모퉁이로 잘못 보지 않게)
+    piece_ends.extend((ends[i][0], sum(x.length for x in pieces[ends[i][1]].segs)) for i in range(len(ends)) if i not in used)
     out, taken = [], set()
     wire_segs = [s for p in wires for s in p.segs]
     # 끝에 작은 화살촉 획이 붙은 짧은 토막(파선의 마지막 토막 · 19VA) — 그 곧은 몸통은 파선에 이어 붙인다
@@ -2094,14 +2137,16 @@ def _dash_chains(glyphs, wires, blocks, arrows, dots, P, tol, bounds=None):
              and not any((x.vert or x.horiz) and x.length >= 2 * tol for x in p.segs)
              and max(p.bbox[2] - p.bbox[0], p.bbox[3] - p.bbox[1]) <= P / 2]
 
-    extra = []                                     # L97 — 둘째 바퀴: 이미 파선으로 받은 줄의 선분 (짧은 파선의 끝이 다른 파선에 닿는 것을 본다)
+    # L97 — 이미 파선으로 받은 줄의 **끝점** (짧은 파선의 끝이 다른 파선의 끝과 모퉁이에서 만나는 것을 본다).  줄 가운데에 닿는 것은 치지 않는다 —
+    # 파선끼리는 접합점 없이 그냥 지나간다 (0007: 가운데에 닿는 것도 쳤더니 따로인 신호원 셋이 한 선으로 묶였다)
+    extra = []
 
     def touches(q):
         return (any(_on_seg(q, w, tol)[0] for w in wire_segs) or
                 any(_in_rect(q, a.bbox, tol) for a in arrows) or
                 any(_d(q, (c.cx, c.cy)) <= c.r + tol for c in dots) or
                 any(_block_edge(q, b, tol * 2) for b in blocks) or
-                any(_on_seg(q, w, tol)[0] for w in extra))
+                any(_d(q, e) <= tol for e in extra))
 
     def grow(q0, segs_, reach):
         """끝 q0 에서 그 토막의 축 방향으로 reach 까지 걸어가 본다 — 화살촉 토막(tipped) · 촉 획(heads) · 채운 화살촉 밑동 · 블록 변 · 막대 · 선.
@@ -2160,7 +2205,7 @@ def _dash_chains(glyphs, wires, blocks, arrows, dots, P, tol, bounds=None):
         ks, second = todo[ti]
         ti += 1
         if second and not extra:
-            extra.extend(sg for p in out for sg in p.segs)
+            extra.extend(_free_ends(sg_ for p in out for sg_ in p.segs))
         if len(ks) < 2:
             continue
         kset = set(ks)
@@ -2245,12 +2290,12 @@ def _dash_chains(glyphs, wires, blocks, arrows, dots, P, tol, bounds=None):
         out.append(geom.Poly(segs, geom._bbox(pts), dashed=True, pid=pieces[ks[0]].pid,
                              dash_gap=sorted(gaps_)[len(gaps_) // 2] if gaps_ else 0.0))
         if second:
-            extra.extend(segs)
+            extra.extend(_free_ends(segs))
         taken.update(id(pieces[k]) for k in ks)
     # L97 — 외토막: 파선 토막 **하나**가 한쪽은 선 · 블록 · 파선에 닿고, 다른 쪽은 틈 하나 건너 화살촉(토막 · 획 · 채운 촉)을 지나 블록 변에 닿는다.
     # 19VA 0006 · 0007 의 ⊠ → AND (둘째 토막이 화살촉보다 짧아 촉 안에 들어가 있다) · 제어 루프 장의 파선 → ⊠ 입력.  블록 변에 닿지 않는 외토막은 두지 않는다
     # (눈금 · 글자 획일 수 있다).
-    out_segs = [sg for p in out for sg in p.segs]
+    out_ends = _free_ends(sg_ for p in out for sg_ in p.segs)
     for k, p in enumerate(pieces):
         if id(p) in taken or len(groups[f(k)]) != 1 or len(p.segs) != 1:
             continue
@@ -2258,7 +2303,7 @@ def _dash_chains(glyphs, wires, blocks, arrows, dots, P, tol, bounds=None):
         if not (2 * tol <= sg.length <= P) or any(all(_in_rect(q, a.bbox, tol) for q in sg.ends()) for a in arrows):
             continue
         for qa, qb in (sg.ends(), sg.ends()[::-1]):
-            if not (touches(qa) or any(_on_seg(qa, w, tol)[0] for w in out_segs)):
+            if not (touches(qa) or any(_d(qa, e) <= tol for e in out_ends)):
                 continue
             if touches(qb):
                 break                                 # 두 끝이 다 닿아 있다 = 짧은 실선 토막이다 (파선 토막은 한쪽에 틈이 있다) — 건드리지 않는다
@@ -2269,7 +2314,7 @@ def _dash_chains(glyphs, wires, blocks, arrows, dots, P, tol, bounds=None):
             if ok_ and add_ and (any(_block_edge(end, b, tol * 2) for b in blocks) or any(_in_rect(end, a.bbox, tol) for a in arrows)):
                 segs = _merge_collinear([sg] + add_)
                 out.append(geom.Poly(segs, geom._bbox([q for x in segs for q in x.ends()]), dashed=True, pid=p.pid, dash_gap=0.0))
-                out_segs.extend(segs)
+                out_ends.extend(_free_ends(segs))
                 taken.add(id(p))
                 taken.update(id(u) for u in used_)
                 break
