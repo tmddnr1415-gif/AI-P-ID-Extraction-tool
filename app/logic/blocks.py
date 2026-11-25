@@ -415,7 +415,9 @@ def _drawn(b, sheet, leg, mem_set, mem_reset):
                 rest.remove(t)
             _set_from_legend(b, hit, " ".join(rest))
             return True
-        if not any(texts) and shape in ("", "PULSE_BOX"):
+        if not any(texts) and shape in ("", "PULSE_BOX") and len(b.cells) == 1:
+            # L93 — 범례의 그림 기호(⎍ · △ · ∫)는 칸 하나짜리 상자다.  위·아래 두 칸에 S · R 를 **선 글자**로 그린 메모리(19VA Typical PS2 · PS3)가
+            # ∫ 그림으로 맞아 INTEGRAL 이 되고, 그 뒤 LEAD/LAG SELECTED 선이 전부 죽어 있었다 — 두 칸 상자는 아래 선 글자 사전에 맡긴다
             m = LG.match_figure(LG.figure(b, sheet.glyph_polys), leg.get("figures", []))
             if m:
                 if m["logic"]:

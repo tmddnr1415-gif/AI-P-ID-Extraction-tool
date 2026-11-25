@@ -1,0 +1,60 @@
+/* L93 — LOGIC 화면 공통 결.  대시보드 '내 메모장' 의 조용한 종이 결을 따른다:
+   시스템 글꼴 · 먹색 글 · 가는 선 · 옅은 눌림(hover) · 둥근 떠 있는 상자 · 파란 초점 테.
+   남색 머리줄과 신호 색(켜짐 · 선택)은 그대로 둔다 — 이 파일 하나만 빼면 예전 모양으로 돌아간다 (각 화면 CSS 뒤에 얹는다). */
+:root {
+  --bg: #fbfbfa; --panel: #ffffff; --card: #ffffff;
+  --ink: #37352f; --soft: #787774; --line: #e3e2de;
+  --nh: rgba(55, 53, 47, .06); --nh2: rgba(55, 53, 47, .1);
+  --pop: 0 0 0 1px rgba(15, 15, 15, .05), 0 3px 6px rgba(15, 15, 15, .08), 0 12px 28px rgba(15, 15, 15, .16);
+  --focus: 0 0 0 3px rgba(35, 131, 226, .22);
+}
+html, body {
+  font-family: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI Variable Text", "Segoe UI", "Malgun Gothic", "Apple SD Gothic Neo", Helvetica, Arial, sans-serif;
+  -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility;
+}
+
+/* 단추 · 입력 — 평평하게, 누를 수 있는 것은 옅은 눌림으로 알린다 */
+button, .dw-btn, .btn { border-radius: 6px; transition: background-color .12s, border-color .12s, box-shadow .12s; }
+button:not(:disabled):not(.on):not(.pri):not(.danger):not(.dt-bit):hover, .dw-btn:not(.pri):not(.danger):hover, .btn:not(.pri):hover { background-color: #f3f2ef; border-color: #cfcdc7; }
+.dw-head button:not(:disabled):not(.on):not(.pri):not(.danger):hover, .dw-head .dw-btn:not(.pri):not(.danger):hover,
+.lg-head button:not(:disabled):not(.on):not(.pri):hover, .gt-head button:not(:disabled):hover, .sp-head button:not(:disabled):hover, .pl-head button:hover { background-color: rgba(255, 255, 255, .16); border-color: rgba(255, 255, 255, .34); }
+button:focus-visible, .dw-btn:focus-visible, .btn:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible { outline: none; box-shadow: var(--focus); border-color: #2383e2; }
+input, select, textarea { border-radius: 6px; }
+input::placeholder, textarea::placeholder { color: #a5a39d; }
+
+/* 옆 판 · 카드 — 가는 선 · 넉넉한 둥글기 · 아주 옅은 그림자 */
+.dw-side, .lg-side { background: #f7f7f5; border-right-color: rgba(55, 53, 47, .09); }
+.dw-card, .lg-panel, .lg-info { border-color: rgba(55, 53, 47, .1); border-radius: 10px; box-shadow: 0 1px 2px rgba(15, 15, 15, .04); }
+.dw-card h3 { font-size: 12.5px; font-weight: 600; color: #37352f; letter-spacing: 0; }
+.dw-hint { color: #8a8985; }
+.dw-inline > summary { border-radius: 5px; padding: 3px 4px; margin-left: -4px; }
+.dw-inline > summary:hover { background: var(--nh); }
+
+/* 떠 있는 상자 (고르개 · 찾기 · 오른쪽 메뉴 · 미니맵 · 알림 · 큰 창) */
+.dw-qpick, .dw-find, .dw-simmenu, .dw-cellac, .dw-minimap, .lg-sigpop { border-color: transparent; border-radius: 10px; box-shadow: var(--pop); }
+.dw-modal > div, .lg-modal > div { border-radius: 12px; box-shadow: var(--pop); }
+.dw-modal, .lg-modal { background: rgba(15, 15, 15, .38); }
+.dw-qpick .qp-it, .dw-find .fd-it { border-radius: 6px; }
+.dw-qpick .qp-it:hover { background: var(--nh); }
+.dw-toast { border-radius: 10px; box-shadow: var(--pop); background: #2f3437; font-size: 12.5px; padding: 9px 16px; }
+kbd, .dw-keys kbd, .dw-keys td:first-child b { display: inline-block; border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 5px; padding: 0 6px; font: inherit; font-size: 11.5px; background: #fff; color: #37352f; }
+
+/* 기호 · 매크로 창 */
+.pl-tile { border-color: rgba(55, 53, 47, .12); border-radius: 9px; transition: background-color .12s, border-color .12s, box-shadow .12s; }
+.pl-tile:hover { background: #f7f7f5; border-color: #2383e2; box-shadow: 0 2px 8px rgba(15, 15, 15, .06); }
+.pl-sec > h2, .pl-groups h3 { border-radius: 5px; padding: 2px 4px; margin-left: -4px; }
+.pl-sec > h2:hover, .pl-groups h3:hover { background: var(--nh); }
+.dt-card { border-radius: 14px; box-shadow: var(--pop); }
+.dt-head { border-radius: 14px 14px 0 0; }
+.dt-note { background: #f7f7f5; border: 1px solid rgba(55, 53, 47, .08); }
+
+/* 줄 목록 (장 · 찾기 결과 · 표) — 눌림만, 테는 없이 */
+.dw-sheets li, .lg-sheets li { border-radius: 5px; }
+.dw-sheets li:hover, .lg-sheets li:hover { background: var(--nh); }
+
+/* 가는 스크롤 막대 */
+* { scrollbar-width: thin; scrollbar-color: rgba(55, 53, 47, .28) transparent; }
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-thumb { background: rgba(55, 53, 47, .22); border-radius: 6px; border: 2px solid transparent; background-clip: padding-box; }
+::-webkit-scrollbar-thumb:hover { background: rgba(55, 53, 47, .4); border: 2px solid transparent; background-clip: padding-box; }
+::-webkit-scrollbar-track { background: transparent; }

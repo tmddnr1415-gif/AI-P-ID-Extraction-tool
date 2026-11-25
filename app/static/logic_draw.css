@@ -35,8 +35,8 @@ input, select { font: inherit; border: 1px solid var(--line); border-radius: 5px
 .dw-tools button.on { background: var(--blue); color: #fff; border-color: var(--blue); }
 .dw-zoom { display: flex; gap: 6px; align-items: center; margin-top: 8px; font-size: 12px; }
 .dw-zoom button { padding: 2px 8px; }
-.dw-palette { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
-.dw-palette button { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 6px 4px; font-size: 11px; line-height: 1.2; }
+.dw-palette { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }   /* L93 — minmax(0,…): 긴 이름의 단추가 칸을 밀어 셋째 열이 카드 밖으로 잘리던 것 */
+.dw-palette button { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 6px 4px; font-size: 11px; line-height: 1.2; min-width: 0; overflow-wrap: anywhere; word-break: keep-all; }
 .dw-palette button svg { width: 44px; height: 26px; }
 .dw-palette button:hover { border-color: var(--blue); }
 .dw-form label { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin: 4px 0; font-size: 12px; }

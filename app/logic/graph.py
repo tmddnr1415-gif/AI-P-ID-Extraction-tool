@@ -482,6 +482,33 @@ def build(prims: geom.Prims, lay=None) -> Sheet | None:
         return (any(_block_edge(q, b, tol) for b in bix.near(q)) or
                 any(_in_rect(q, a.bbox, tol) for a in aix.near(q)) or
                 any(_on_seg(q, w, tol)[0] for w in wix.near(q)))
+
+    def at_dot(q):
+        """L93 — 연결점(●)의 둘레에 닿은 끝 (19VA: 선이 연결점 가장자리에서 멈춘다)."""
+        return any(_d(q, (c.cx, c.cy)) <= c.r + tol for c in dots)
+
+    def across_hop(q, other):
+        """L93 — q 에서 (other 반대쪽으로) 곧게 나아가면 HOP_MAX·P 안에 같은 줄의 선 끝이 있다 — 다른 선을 넘는 뜀(반원) 건너편.
+        19VA Typical MTS: 뜀과 연결점 사이의 2.7pt 토막이 글자 크기라 버려져 세로선이 그 자리에서 끊겼다 (CLOSE COMMAND 쪽이 통째로 안 섰다)."""
+        dx, dy = q[0] - other[0], q[1] - other[1]
+        L_ = math.hypot(dx, dy)
+        if L_ <= 0:
+            return False
+        ux, uy = dx / L_, dy / L_
+        for w in wire_segs0:
+            if not ((w.vert and abs(ux) < 1e-6 and abs(w.x0 - q[0]) <= tol) or (w.horiz and abs(uy) < 1e-6 and abs(w.y0 - q[1]) <= tol)):
+                continue
+            for e in w.ends():
+                t = (e[0] - q[0]) * ux + (e[1] - q[1]) * uy
+                if tol < t <= HOP_MAX * P:
+                    # 그 틈을 다른 선이 직각으로 지나가야 뜀이다 — 파선의 토막 사이 틈(지나가는 선이 없다)과 가른다
+                    mid = (q[0] + ux * t / 2, q[1] + uy * t / 2)
+                    for c in wix.near(mid):
+                        cdx, cdy = abs(c.x1 - c.x0), abs(c.y1 - c.y0)
+                        perp = (cdx > cdy) if abs(ux) < 1e-6 else (cdy > cdx)
+                        if perp and c.length > t and _on_seg(mid, c, t / 2 + tol)[0]:
+                            return True
+        return False
     for p in list(glyphs):
         if len(p.segs) != 1 or not (p.segs[0].vert or p.segs[0].horiz):
             continue
@@ -489,6 +516,12 @@ def build(prims: geom.Prims, lay=None) -> Sheet | None:
         if any(p.bbox[0] >= bl.bbox[0] - tol and p.bbox[2] <= bl.bbox[2] + tol and
                p.bbox[1] >= bl.bbox[1] - tol and p.bbox[3] <= bl.bbox[3] + tol for bl in blocks):
             continue                    # 블록 안의 글자 획
+        if p.segs[0].length > tol and not (anchored(a) and anchored(b)) and (anchored(a) or at_dot(a) or across_hop(a, b)) \
+                and (anchored(b) or at_dot(b) or across_hop(b, a)) and (at_dot(a) or at_dot(b)):      # 길이 0 인 점(점선의 점)은 토막이 아니다
+            # L93 — 한 끝이 연결점(●)에, 다른 끝이 선 · 블록 · 뜀 건너편 선에 닿는 짧은 곧은 토막은 선이다
+            glyphs.remove(p)
+            wires.append(p)
+            continue
         if anchored(a) and anchored(b):
             # L53 — 두 끝을 **같은 선분 하나**가 받치면 그 선 옆에 나란히 놓인 글자 획이다 (HRSG G008 `ST/BY-A` 의
             # A 가로획이 선 끝 0.6pt 옆에 놓여 선이 되고, 그 선의 끝을 '닿은 끝' 으로 만들어 단추 출력 단자가 안 섰다).
@@ -757,8 +790,8 @@ def build(prims: geom.Prims, lay=None) -> Sheet | None:
         wide = g > P
         for j in near(mid):
             t, tp = segs[j]
-            if not (axa == "v" and t.horiz or axa == "h" and t.vert):
-                continue
+            if not (axa == "v" and axial(t) == "h" or axa == "h" and axial(t) == "v"):
+                continue                                 # L93 — 지나가는 선도 '거의 곧은 선' 으로 (19VA SOV: 114pt 에 0.25pt 기운 가로선 위의 뜀이 이어지지 않았다)
             if wide and ((t.length < g and not tp.dashed) or not _on_seg(mid, t, g / 4)[0]):
                 continue
             if _on_seg(mid, t, g / 2)[0]:
@@ -965,6 +998,7 @@ def build(prims: geom.Prims, lay=None) -> Sheet | None:
                 deg[(i, e)] = 0
 
     used_arrows = set()
+    arrow_ports = set()
     seen_pin = set()
     for i, b_, ci_, side_, at in pin_ports:
         k = (b_.id, round(at[0], 2), round(at[1], 2), seg_net[i])
@@ -990,6 +1024,8 @@ def build(prims: geom.Prims, lay=None) -> Sheet | None:
             if ak is not None:
                 used_arrows.add(ak)
             sh.ports.append(Port(b.id, net, d, (round(at[0], 2), round(at[1], 2)), side, ci))
+            if ak is not None:
+                arrow_ports.add(len(sh.ports) - 1)       # 화살촉이 방향을 말한 단자 (L93 — 뒤집지 않는다)
         elif kind == "arrow-nowhere":
             sh.stray_arrows.append((round(info[0], 2), round(info[1], 2), net))
 
@@ -1030,7 +1066,16 @@ def build(prims: geom.Prims, lay=None) -> Sheet | None:
                  # 양 끝이 한 바닥선 위 (⎍ · ⎎) — 꺾인 신호선 조각(ㄱ · ㄴ)은 끝이 대각으로 놓인다
                  (abs(de[0][1] - de[1][1]) < 0.5 or abs(de[0][0] - de[1][0]) < 0.5) and
                  math.hypot(de[0][0] - de[1][0], de[0][1] - de[1][1]) >= 0.4 * span)
-        if span < P or glyph:
+        # L93 — 선 글자로 쓴 이름표(19VA PS3 `LEAD START`)의 획 뭉치: 아무 데도 안 닿고 · 2.5 행 간격 안 · 짧은 획 넷 이상 — 신호선이 아니다
+        texty = (span < 2.5 * P and not sh.nets[nid].get("dashed") and len(sg_) >= 4 and
+                 all(math.hypot(sg[2] - sg[0], sg[3] - sg[1]) < 0.7 * P for sg in sg_))
+        # L93 — 묶음 테두리(파선 사각형)를 토막으로 그린 것 (19VA Typical CIRCUIT LOGIC): 아무 데도 안 닿고 · 모든 토막이 그 사각형 둘레 위 —
+        # 신호선이 아니라 '이 안이 한 매크로' 라는 테두리다 (선 854토막이 한 그물로 남아 '몰이 없는 선' 으로 세어졌다)
+        bx0, by0, bx1, by1 = min(xs), min(ys), max(xs), max(ys)
+        framey = (bool(sh.nets[nid].get("dashed")) and bx1 - bx0 > 8 * P and by1 - by0 > 8 * P and
+                  all((abs(sg[0] - bx0) <= tol and abs(sg[2] - bx0) <= tol) or (abs(sg[0] - bx1) <= tol and abs(sg[2] - bx1) <= tol) or
+                      (abs(sg[1] - by0) <= tol and abs(sg[3] - by0) <= tol) or (abs(sg[1] - by1) <= tol and abs(sg[3] - by1) <= tol) for sg in sg_))
+        if span < P or glyph or texty or framey:
             del sh.nets[nid]
             sh.dangling = [d for d in sh.dangling if d[2] != nid]
             sh.stray_arrows = [d for d in sh.stray_arrows if d[2] != nid]
@@ -1087,6 +1132,41 @@ def build(prims: geom.Prims, lay=None) -> Sheet | None:
                 b.glyphs.append(p.pid)
     for b in blocks:
         b.shape = _shape_of(b, glyphs, tol)
+    # L93 — 거꾸로 놓인 NOT ⊠ (오른쪽에서 들어와 왼쪽으로 나간다 · 19VA Typical MTS · SWGR · MIT): ⊠ 는 좌우가 같은 모양이라 그림만으로는
+    # 방향이 없다.  '왼쪽 = 입력' 으로 읽었는데 그 왼쪽 선을 모는 것이 아무것도 없고 오른쪽 선은 이미 다른 것이 몰고 있으면 신호는 반대로 흐른다.
+    # (화살촉이 방향을 말한 단자 · 위아래 단자 · 입력 막대가 있는 블록은 건드리지 않는다)
+    out_of = defaultdict(set)
+    for pt in sh.ports:
+        if pt.dir == "out":
+            out_of[pt.net].add(pt.block)
+    row_drv = {r["net"] for r in sh.rows if r["side"] == "L"}
+    for b in blocks:
+        if b.kind != "RECT" or len(b.cells) != 1 or b.bus or getattr(b, "bar", False) or getattr(b, "diamond", False) or getattr(b, "tri", False):
+            continue                                         # 칸 하나짜리 상자만 (⊠ · ⎍ · 지연 …) — 막대 게이트 · 메모리 · ◇ 는 모양이 방향을 말한다
+        idx = [k for k, pt in enumerate(sh.ports) if pt.block == b.id]
+        if len(idx) != 2:
+            continue
+        l = [k for k in idx if sh.ports[k].side == "L"]
+        r = [k for k in idx if sh.ports[k].side == "R"]
+        if len(l) != 1 or len(r) != 1 or l[0] in arrow_ports:
+            continue
+        pl, pr = sh.ports[l[0]], sh.ports[r[0]]
+        if pl.dir != "in":
+            continue
+        ln, rn = pl.net, pr.net
+        l_driven = ln in row_drv or bool(out_of[ln] - {b.id})
+        r_driven = rn in row_drv or bool(out_of[rn] - {b.id})
+        if l_driven or not r_driven:
+            continue
+        if pr.dir == "out" and r[0] not in arrow_ports:
+            pl.dir, pr.dir = "out", "in"                     # 왼 = 입력 · 오른 = 출력으로 읽은 것을 통째로 뒤집는다
+        elif pr.dir == "in":
+            pl.dir = "out"                                   # 오른쪽은 화살촉이 '들어온다' 고 말했다 — 남은 왼쪽이 나가는 쪽
+        else:
+            continue
+        out_of[rn].discard(b.id)
+        out_of[ln].add(b.id)
+        b.flipped = True
         b.marks = [((c.cx, c.cy), c.r) for c in marks_in if _in_rect((c.cx, c.cy), b.bbox, 0)]
     sh.blocks = {b.id: b for b in blocks}
     sh.glyph_polys = glyphs
@@ -1186,6 +1266,7 @@ def _dia_edge(p, c, tol):
     return None
 
 
+HOP_MAX = 0.6            # 뜀(다른 선을 넘는 반원)의 폭 상한 (행 간격 배수) — 19VA 실측 2.83pt = 0.25P.  파선 토막은 이 거리 안에 '긴 선의 끝' 이 없다
 DIAMOND_MIN = 1.2        # 열린 마름모 ◇ 블록의 폭 하한 (행 간격 배수) — 19VA 실측 2.0P (A · T) · 그보다 작은 기운 사각형은 선 위의 표시
 DIAMOND_MAX = 4.0
 

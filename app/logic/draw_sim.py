@@ -593,6 +593,37 @@ def to_sheet(doc: dict, page: int, typ_pages: dict | None = None) -> dict:
                 if pt["block"] == bid and pt["dir"] == "in":
                     pt["dir"] = "out"
             io[bid] = [0, io[bid][0] + io[bid][1]]
+    # L93 — 거꾸로 놓인 한 칸 상자 (⊠ · ⎍ · 지연 — 오른쪽에서 들어와 왼쪽으로 나간다): 분석기 graph.build 와 같은 규칙.
+    #   왼쪽(입력으로 읽은) 선을 모는 것이 없고 오른쪽(출력으로 읽은) 선은 다른 블록 · 왼쪽 표의 행이 이미 몰고 있으면 뒤집는다.
+    out_of = defaultdict(set)
+    for pt in ports:
+        if pt["dir"] == "out":
+            out_of[pt["net"]].add(pt["block"])
+    row_nets = set()
+    for n_ in range(1, N + 1):
+        k_ = _touch(D.LX0, D.ry(n_, N), wires, segs, net_of, grid)
+        if k_ is not None:
+            row_nets.add(str(k_))
+    for bid, b in drawn.items():
+        spec = D.SYMBOLS[b["kind"]]
+        if spec.get("bar") or spec.get("circle") or spec.get("macro") or spec.get("note") or spec.get("cells") or (b.get("param") or {}).get("form"):
+            continue
+        ps = [pt for pt in ports if pt["block"] == bid]
+        if len(ps) != 2:
+            continue
+        l = [pt for pt in ps if pt["side"] == "L" and pt["dir"] == "in"]
+        r = [pt for pt in ps if pt["side"] == "R" and pt["dir"] == "out"]
+        if len(l) != 1 or len(r) != 1:
+            continue
+        ln, rn = l[0]["net"], r[0]["net"]
+        if any(abs(tx - l[0]["at"][0]) + abs(ty - l[0]["at"][1]) <= TOL + 1.0 for tx, ty in tips.get(int(ln) if str(ln).isdigit() else ln) or []):
+            continue                                     # 화살촉이 '왼쪽으로 들어온다' 고 말했다
+        l_driven = ln in row_nets or bool(out_of[ln] - {bid})
+        r_driven = rn in row_nets or bool(out_of[rn] - {bid})
+        if r_driven and not l_driven:
+            l[0]["dir"], r[0]["dir"] = "out", "in"
+            out_of[rn].discard(bid)
+            out_of[ln].add(bid)
     # 글자 상자의 남은 뜻 · 입력 하나뿐인 AND/OR 는 그렇게 그린 것 (L53 as_drawn)
     for bid, sb in blocks.items():
         n_in, n_out = io[bid]

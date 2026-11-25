@@ -278,11 +278,17 @@ def read(page, pno: int) -> Prims:
     tris = []
     drawings = page.get_drawings()
     inks = _page_inks(drawings)
+    # L93 — 칠한 도형(화살촉 삼각형)의 테두리를 굵기 0 인 획으로 한 번 더 그린 양식 (19VA Typical): 그 테두리는 선이 아니다.
+    # 화살촉이 행 간격의 절반쯤으로 크면 테두리 변이 '글자 크기' 를 넘어 선으로 읽히고, 블록에 붙은 몰이 없는 선이 됐다 (PS3 의 S/R 입력마다 둘씩).
+    filled = {tuple(round(v, 1) for v in d_["rect"]) for d_ in drawings if (d_.get("type") or "") == "f" and len(d_.get("items") or []) == 3}
     for d in drawings:
         items = d.get("items") or []
         if not items:
             continue
         typ = d.get("type") or ""
+        if typ == "s" and not (d.get("width") or 0) and len(items) == 3 and all(it[0] == "l" for it in items) and \
+                tuple(round(v, 1) for v in d["rect"]) in filled:
+            continue
         if "f" in typ and not _ink(d.get("fill"), inks):
             continue
         if "s" in typ and not _ink(d.get("color"), inks):

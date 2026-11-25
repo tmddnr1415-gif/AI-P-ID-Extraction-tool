@@ -1799,6 +1799,60 @@ def _aop_texts(s: dict, doc: dict, X, Y):
             doc["blocks"].append(_note_text((x0 + x1) / 2, y0 - (i + 0.8) * PIN_FS * 1.3, _txt(t, 40)))
 
 
+def _bridge_gaps(segs: list, max_gap: float = 1.5 * PITCH, tol: float = 0.6) -> list:
+    """분석이 **한 그물**로 읽은 선분들 가운데 서로 닿지 않는 무리가 있으면, 같은 줄에서 마주 보는 두 끝(틈 ≤ 1.5 행 간격)을 곧은 토막으로 잇는다.
+    19VA Typical PS2 · PS3: 행에서 온 선이 매크로 테두리의 작은 고리 ○ 를 지나며 5.5pt 끊겨 그려진다 — 분석기는 고리로 이어 읽지만
+    그림에서는 두 선이 떨어져 작성 시뮬레이션이 그 입력을 못 받았다 (다른 그물끼리는 잇지 않는다 — 부르는 쪽이 그물 하나씩 준다)."""
+    n = len(segs)
+    if n < 2:
+        return segs
+    par = list(range(n))
+
+    def find(i):
+        while par[i] != i:
+            par[i] = par[par[i]]
+            i = par[i]
+        return i
+
+    def near(p, sg):
+        x0, y0, x1, y1 = sg
+        dx, dy = x1 - x0, y1 - y0
+        L2 = dx * dx + dy * dy
+        t = 0 if L2 == 0 else max(0.0, min(1.0, ((p[0] - x0) * dx + (p[1] - y0) * dy) / L2))
+        return math.hypot(p[0] - x0 - t * dx, p[1] - y0 - t * dy) <= tol
+    for i in range(n):
+        for j in range(i + 1, n):
+            if any(near(e, segs[j]) for e in ((segs[i][0], segs[i][1]), (segs[i][2], segs[i][3]))) or \
+                    any(near(e, segs[i]) for e in ((segs[j][0], segs[j][1]), (segs[j][2], segs[j][3]))):
+                par[find(i)] = find(j)
+    out = list(segs)
+    for _ in range(8):
+        if len({find(i) for i in range(n)}) < 2:
+            break
+        best = None
+        for i in range(n):
+            for j in range(i + 1, n):
+                if find(i) == find(j):
+                    continue
+                for a in ((segs[i][0], segs[i][1]), (segs[i][2], segs[i][3])):
+                    for b in ((segs[j][0], segs[j][1]), (segs[j][2], segs[j][3])):
+                        if abs(a[1] - b[1]) <= tol and tol < abs(a[0] - b[0]) <= max_gap:
+                            horiz_i = abs(segs[i][1] - segs[i][3]) <= tol and abs(segs[j][1] - segs[j][3]) <= tol
+                            d = abs(a[0] - b[0])
+                            if horiz_i and (best is None or d < best[0]):
+                                best = (d, i, j, [a[0], a[1], b[0], a[1]])
+                        elif abs(a[0] - b[0]) <= tol and tol < abs(a[1] - b[1]) <= max_gap:
+                            vert_i = abs(segs[i][0] - segs[i][2]) <= tol and abs(segs[j][0] - segs[j][2]) <= tol
+                            d = abs(a[1] - b[1])
+                            if vert_i and (best is None or d < best[0]):
+                                best = (d, i, j, [a[0], a[1], a[0], b[1]])
+        if best is None:
+            break
+        out.append([round(v, 2) for v in best[3]])
+        par[find(best[1])] = find(best[2])
+    return out
+
+
 def _weld(segs: list, terms: list, tol: float = 1.2) -> list:
     """L89 — 같은 그물 안에서 선분 끝이 다른 선분(몸통 · 끝)에서 tol 안으로 비켜 서 있으면 그 선 위로 옮긴다 — 자기 축으로만
     (가로 선분의 끝은 좌우로 · 세로 선분의 끝은 위아래로 — 선은 곧은 채).  단자 · 행 자리 끝은 그대로.
@@ -2199,6 +2253,7 @@ def from_sheet(s: dict, name: str, author: str, project: str = "", page=None) ->
             terms.append((tx, ty))
         segs = _mend(segs, terms)
         segs = _weld(segs, terms)                     # L89 — 1pt 안팎 비켜 선 접합을 한 점으로 (연결점이 선 위에 서게)
+        segs = _bridge_gaps(segs)                     # L93 — 한 그물인데 떨어져 있는 곧은 두 토막 (테두리의 통과 고리 ○ 를 지난 자리) 을 잇는다
         dots = []
         for i_, sg in enumerate(segs):
             for end in ((sg[0], sg[1]), (sg[2], sg[3])):
