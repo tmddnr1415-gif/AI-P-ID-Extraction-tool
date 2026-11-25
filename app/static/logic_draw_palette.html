@@ -42,6 +42,8 @@
   .pl-mac .pl-tile .nm { font-weight: 600; }
   .pl-none { color: #8a93a8; font-size: 12px; padding: 4px 0; }
   .pl-foot { font-size: 11px; color: #8a93a8; padding: 14px 12px 18px; }
+  .pl-pct { font-size: 10px; color: #1f6b3a; background: #e3f4e8; border-radius: 8px; padding: 0 6px; }
+  #s-next { background: #f1f8f2; border-bottom: 1px solid #d5e8d9; }
   /* L90 — 두 번 누름 상세 */
   .pl-detail { position: fixed; inset: 0; z-index: 20; background: rgba(20, 26, 40, .35); display: flex; align-items: flex-start; justify-content: center; overflow: auto; padding: 10px; }
   .dt-card { background: #fff; border-radius: 12px; width: 100%; max-width: 560px; box-shadow: 0 12px 40px rgba(0, 0, 0, .3); }
@@ -93,6 +95,7 @@
 </header>
 <div id="placing" class="pl-place" hidden><span id="placing-t"></span><button type="button" id="placing-x">그만</button></div>
 <p class="pl-hint">누르면 → 그림 창에서 <b>놓을 자리</b>를 누르세요 · 그림 창으로 <b>끌어 놓아도</b> 됩니다.  <b>두 번 누르면 상세</b> — 기호는 설명 · 입력을 넣어 출력과 과정 보기, 매크로는 단자 · 내부 동작 열기 · 고치기.</p>
+<section class="pl-sec" id="s-next" hidden><h2>뒤에 자주 온 기호 <span class="n"></span></h2><div class="pl-grid"></div></section>
 <section class="pl-sec" id="s-rec" hidden><h2>최근 쓴 것 <span class="n"></span></h2><div class="pl-grid"></div></section>
 <section class="pl-sec" id="s-sym"><h2>기호 <span class="n"></span></h2><div class="pl-grid"></div></section>
 <section class="pl-sec" id="s-pre"><h2>글자 상자 — 뜻은 글자가 정합니다 <span class="n"></span></h2><div class="pl-grid"></div></section>

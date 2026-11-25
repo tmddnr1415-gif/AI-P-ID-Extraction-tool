@@ -529,6 +529,96 @@ def learn_style(results: list, sources: list | None = None) -> dict:
     return out
 
 
+# ─────────────────────────── L92 — 그린 차례 배우기 (다음 기호 추천) ───────────────────────────
+# 사람이 그린(또는 분석에서 들여온) 그림들에서 '이 기호의 출력이 어느 기호의 입력으로 갔는가' 를 센다.
+# 작성 화면이 그 차례로 다음 기호를 권한다 (＋ 고르개 맨 위 · Tab) — 수는 그 묶음의 그림에서 잰 것, 코드에 박은 차례가 아니다.
+
+def flow_key(b: dict) -> str | None:
+    """기호의 열쇠 — 화면 고르개(pickItems)와 같은 이름: 기호 종류 `k:AND` · 글자 상자는 그 글자 `p:H/`."""
+    k = b.get("kind") or ""
+    spec = draw.SYMBOLS.get(k) or {}
+    if not spec or spec.get("note") or spec.get("macro"):
+        return None
+    if spec.get("box"):
+        t = re.sub(r"\s+", " ", str(b.get("text") or "")).strip()
+        return ("p:" + t) if t and len(t) <= 8 else None
+    return "k:" + k
+
+
+def learn_flow(docs: list, sheets: list) -> dict:
+    """docs[i] ↔ sheets[i] (draw_sim.to_sheet 꼴).  → {"next": {열쇠: [[다음 열쇠, 건수] …]}, "gap_p": {열쇠: {다음 열쇠: 행 간격 배율}},
+    "gap_all_p": 가운데 값, "timer": {종류: [[초, 건수] …]}, "pairs": 전체 건수, "sheets": 장 수}."""
+    nxt: dict = {}
+    gaps: dict = {}
+    allg: list = []
+    timer: dict = {}
+    forms: dict = {}
+    pairs = 0
+    for doc, sh in zip(docs, sheets):
+        P_ = float(sh.get("pitch") or PITCH) or PITCH
+        keyof = {}
+        for b in doc.get("blocks") or []:
+            keyof[b.get("id")] = flow_key(b)
+            if b.get("kind") == "BOX" and keyof[b.get("id")]:      # 글자 상자를 어떤 모양으로 그렸나 (네모 "" · 마름모)
+                fm = forms.setdefault(keyof[b["id"]], {})
+                f_ = (b.get("param") or {}).get("form") or ""
+                fm[f_] = fm.get(f_, 0) + 1
+            if (draw.SYMBOLS.get(b.get("kind")) or {}).get("time"):
+                t = (b.get("param") or {}).get("t")
+                if isinstance(t, (int, float)) and t > 0:
+                    d_ = timer.setdefault(b["kind"], {})
+                    d_[round(float(t), 2)] = d_.get(round(float(t), 2), 0) + 1
+        by_net: dict = {}
+        for pt in sh.get("ports") or []:
+            by_net.setdefault(str(pt.get("net")), []).append(pt)
+        for pts in by_net.values():
+            outs = [q for q in pts if q.get("dir") == "out" and keyof.get(q.get("block"))]
+            ins = [q for q in pts if q.get("dir") == "in" and keyof.get(q.get("block"))]
+            for o in outs:
+                for i_ in ins:
+                    if i_["block"] == o["block"]:
+                        continue
+                    a, b2 = keyof[o["block"]], keyof[i_["block"]]
+                    nxt.setdefault(a, {})[b2] = nxt.setdefault(a, {}).get(b2, 0) + 1
+                    pairs += 1
+                    dx = (i_["at"][0] - o["at"][0]) / P_
+                    if dx > 0.2 and abs(i_["at"][1] - o["at"][1]) < 0.3 * P_:      # 같은 행에서 곧게 이은 것만 — 놓을 간격으로 쓴다
+                        gaps.setdefault(a, {}).setdefault(b2, []).append(dx)
+                        allg.append(dx)
+    out = {"next": {}, "gap_p": {}, "gap_all_p": round(statistics.median(allg), 2) if allg else None, "timer": {},
+           "pairs": pairs, "sheets": len(docs)}
+    for a, d_ in nxt.items():
+        out["next"][a] = [[k, n] for k, n in sorted(d_.items(), key=lambda kv: (-kv[1], kv[0]))[:10]]
+    for a, d_ in gaps.items():
+        g = {k: round(statistics.median(v), 2) for k, v in d_.items() if len(v) >= 3}
+        if g:
+            out["gap_p"][a] = g
+    out["form"] = {k: d_ for k, d_ in forms.items() if any(f_ for f_ in d_)}      # 네모뿐인 글자는 적지 않는다
+    for k, d_ in timer.items():
+        out["timer"][k] = [[t, n] for t, n in sorted(d_.items(), key=lambda kv: (-kv[1], kv[0]))[:8]]
+    return out
+
+
+def flow_path():
+    from app import paths as _paths
+    return _paths.resource("config", "logic_draw_flow.json")
+
+
+_FLOW_BASE: list = [None, None]
+
+
+def flow_base() -> dict:
+    """들고 있는 로직도(씨앗 묶음)에서 미리 잰 차례 — 새 프로젝트 · 아직 그림이 적은 묶음의 바탕 (spike/draw_flow_learn.py 가 만든다)."""
+    fp = flow_path()
+    try:
+        m = fp.stat().st_mtime
+        if _FLOW_BASE[0] != m:
+            _FLOW_BASE[:] = [m, json.loads(fp.read_text(encoding="utf-8"))]
+        return _FLOW_BASE[1] or {}
+    except Exception:
+        return {}
+
+
 # ─────────────────────────── L87 — 묶음 찾기 (draw.io 의 찾기 · Ctrl+F) ───────────────────────────
 _FIELD_KO = {"fm": "FROM", "to": "TO", "kks": "TAG", "desc": "설명"}
 

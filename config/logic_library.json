@@ -341,6 +341,18 @@
 }
 ]
 },
+"DIAMOND|A T": {
+"name": "AUTO/MANUAL CONTROL STATION",
+"logic": "",
+"label": "",
+"sources": [
+{
+"kind": "LEGEND",
+"from": "19VA Control Logic (SIGNAL PROCESSING SYMBOLS 범례 — 맞닿은 마름모 ◇A◇T)",
+"page": 16
+}
+]
+},
 "|A": {
 "name": "ANALOG SIGNAL GENERATOR",
 "logic": "",

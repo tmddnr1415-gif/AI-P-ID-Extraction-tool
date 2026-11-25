@@ -443,6 +443,8 @@ def _export(sh, pno, sheet_no, title, rows, timers):
                 blks[b.id]["fig"] = teach.fig_hex(legend.figure(b, sh.glyph_polys))
                 if getattr(b, "shape", ""):
                     blks[b.id]["shape"] = b.shape
+        if getattr(b, "diamond", False):
+            blks[b.id]["form"] = "diamond"                         # L92 — 열린 마름모 ◇ 로 그린 기호 (작도가 같은 모양으로 그린다)
         if getattr(b, "learned", ""):
             blks[b.id]["learned"] = b.learned
         if getattr(b, "func", "") == "MACRO" or getattr(b, "pinbox", False):

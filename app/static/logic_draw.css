@@ -478,3 +478,21 @@ body.dw-homeon .dw-side, body.dw-homeon .dw-stage { display: none; }
 .placeghost-t { font: 4.5px Helvetica, Arial, sans-serif; fill: #2f5bd8; text-anchor: middle; pointer-events: none; }
 .dw-palopen.blocked { border-color: #d08a14; background: #fff6e6; }
 .dw-palopen.blocked small { color: #8a5a00; }
+
+/* L92 — 마름모 ◇ 로 그리는 글자 상자 (19VA 의 A · T) — 네모와 같은 색 · 상태 */
+.blk polygon.dia { fill: url(#gd-box); stroke: #b4621b; stroke-width: .8; }
+.blk path.dia { fill: url(#gd-time); stroke: #237a45; stroke-width: .8; }
+.blk.sel path.dia { stroke: var(--sel); stroke-width: 1.4; }
+.blk.bad path.dia { stroke: var(--red); stroke-width: 1.4; stroke-dasharray: 2 1.5; }
+body.sim .blk.act > path.dia { fill: rgba(0, 180, 255, .16); stroke: #0078b0; }
+body.sim .blk.on1 > path.dia { fill: rgba(0, 180, 255, .3); }
+.blk polyline.glyph { fill: none; stroke: #111; stroke-width: .8; }
+.blk.sel polygon.dia { stroke: var(--sel); stroke-width: 1.4; }
+.blk.bad polygon.dia { stroke: var(--red); stroke-width: 1.4; stroke-dasharray: 2 1.5; }
+body.sim .blk.act > polygon.dia { fill: rgba(0, 180, 255, .16); stroke: #0078b0; }
+body.sim .blk.on1 > polygon.dia { fill: rgba(0, 180, 255, .3); }
+/* L92 — 고르개: 이 기호 뒤에 자주 온 차례 */
+.dw-qpick .qp-it.lrn { background: #f1f8f2; }
+.dw-qpick .qp-it.lrn.on { background: #dcefe0; }
+.dw-qpick .qp-it.lrn .qp-tg { color: #1f6b3a; font-weight: 600; }
+.dw-qpick .qp-src { display: block; font-size: 10px; color: #6a7385; font-weight: 400; }

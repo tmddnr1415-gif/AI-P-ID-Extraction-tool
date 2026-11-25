@@ -28,8 +28,12 @@ def block_text(b, words):
     """블록 안(가운데가 블록 안)에 인쇄된 진짜 글자 — 칸마다 (위→아래 · 왼→오)."""
     cells = b.cells if getattr(b, "cells", None) else [b.bbox]
     out = []
+    dia = getattr(b, "diamond", False)             # L92 — 마름모 ◇ 는 네모 bbox 의 네 귀퉁이가 기호 밖이다 (옆의 'A : 410degC' · 'RR1' 이 딸려 읽혔다)
     for c in cells:
         ws = [w for w in words if c[0] <= (w[0] + w[2]) / 2 <= c[2] and c[1] <= (w[1] + w[3]) / 2 <= c[3]]
+        if dia:
+            cx, cy, hw, hh = (c[0] + c[2]) / 2, (c[1] + c[3]) / 2, max(1e-6, (c[2] - c[0]) / 2), max(1e-6, (c[3] - c[1]) / 2)
+            ws = [w for w in ws if abs((w[0] + w[2]) / 2 - cx) / hw + abs((w[1] + w[3]) / 2 - cy) / hh <= 1.0]
         ws.sort(key=lambda w: (round((w[1] + w[3]) / 2), w[0]))
         out.append(" ".join(w[4] for w in ws).strip().upper())
     return out
@@ -89,6 +93,11 @@ def keys_of(b, words):
     cells = block_text(b, words)
     whole = " ".join(t for t in cells if t)
     ks = [f"{shape}|{whole}"]
+    if shape == "DIAMOND":
+        if len(cells) > 1:                         # 맞닿은 ◇ 한 쌍 — 놓인 방향(옆 · 비스듬)과 상관없이 같은 기호 (범례 ◇A◇T)
+            whole = " ".join(sorted(t for t in cells if t))
+            ks = [f"{shape}|{whole}"]
+        ks.append(f"|{whole}")                      # L92 — ◇ 는 이 묶음이 그 기호를 그리는 모양일 뿐 · 뜻은 안의 글자 (범례 · 사전의 A · T)
     if len(cells) >= 2 and cells[0]:
         ks.append(f"CELL0|{cells[0]}")
     return ks

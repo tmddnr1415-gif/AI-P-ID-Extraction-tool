@@ -14,6 +14,8 @@ A 와 A' 를 견준다 (자리는 draw.sheet_maps — 들여오기와 같은 변
   선 V     원본 쪽 LOGIC 영역의 선(벡터) ↔ 그림 PDF 의 선: 0.5pt 마다 점을 찍어 상대 선이 0.1 행 안에 있으면 덮임.
            LOGIC 영역 = 좌우 LOGIC 경계(LX0 · LX1) 안 × 표 맨 위(TOP)부터 그 장의 마지막 행 아래까지 — 선은 이 사각형으로 잘라 본다.
            재현율 · 정밀도의 조화 평균 (길이 가중).
+           (L92 — 마름모 ◇ 기호의 '안' 은 마름모 안이다.  ◇ 가 블록으로 읽히기 전에는 그 둘레 글이 다 자유 글이었다 — 상자로 빼면 귀에 놓인 글이 잣대에서 사라진다.)
+           (L92 — 흰색으로 그은 선은 보이지 않으므로 양쪽 다 세지 않는다.  그 전까지는 표지의 흰 대각선이 '원본에만 있는 선' 으로 세어졌다.)
   글 W     원본 쪽 LOGIC 영역의 낱말 ↔ 그림 PDF 의 낱말: 같은 낱말이 0.6 행 안에.  조화 평균.
            기호(블록) 상자 안의 글은 양쪽 다 뺀다 — 기호 모양의 일부이고 그 뜻은 블록 B 가 잰다.  남는 것은 LOGIC 영역의 자유 글
            (단자 이름 · 상수 · 설정값 · 주석 · 시간 글 …).
@@ -168,6 +170,9 @@ def terminals2(sa, sb, M, m):
 def segs_of(page, X=None, Y=None):
     out = []
     for dr in page.get_drawings():
+        ink = dr.get("color") if "s" in (dr.get("type") or "") else dr.get("fill")
+        if ink is not None and all(c >= 0.99 for c in ink):
+            continue                                     # L92 — 흰 종이에 흰 선(보이지 않는다 · 19VA 표지 ES_G001 의 대각선 1,344pt)은 그림이 아니다 — 양쪽 다 뺀다
         for it in dr["items"]:
             if it[0] == "l":
                 pts = [(it[1].x, it[1].y), (it[2].x, it[2].y)]
@@ -246,8 +251,9 @@ def words_of(page, X=None, Y=None, inside=(), N=None):
         cx, cy = (w[0] + w[2]) / 2, (w[1] + w[3]) / 2
         if X:
             cx, cy = X(cx), Y(cy)
-        if any(bb[0] - 0.5 <= cx <= bb[2] + 0.5 and bb[1] - 0.5 <= cy <= bb[3] + 0.5 for bb in inside):
-            continue
+        if any((abs(cx - (bb[0] + bb[2]) / 2) / max(1e-6, (bb[2] - bb[0]) / 2 + 0.5) + abs(cy - (bb[1] + bb[3]) / 2) / max(1e-6, (bb[3] - bb[1]) / 2 + 0.5) <= 1.0)
+               if len(bb) > 4 and bb[4] == "dia" else (bb[0] - 0.5 <= cx <= bb[2] + 0.5 and bb[1] - 0.5 <= cy <= bb[3] + 0.5) for bb in inside):
+            continue                                     # L92 — ◇ 기호의 '안' 은 마름모 안 (상자의 네 귀는 기호 밖 — 거기 글은 자유 글로 센다)
         if L["LX0"] + 0.5 <= cx <= L["LX1"] - 0.5 and L["TOP"] <= cy <= L["TOP"] + (N or draw.N_DEFAULT) * P and norm(w[4]):
             out.append((norm(w[4]), cx, cy))
     return out
@@ -309,10 +315,14 @@ def one(i):
             sseg = clip_area(segs_of(spage, M["X"], M["Y"]), M["N"]); dseg = clip_area(segs_of(dpage), M["N"])
             c1, t1 = coverage(sseg, dseg, 0.1 * P); c2, t2 = coverage(dseg, sseg, 0.1 * P)
             out["V"] = [c1, t1, c2, t2]
-            sbox = [[M["X"](b["bbox"][0]), M["Y"](b["bbox"][1]), M["X"](b["bbox"][2]), M["Y"](b["bbox"][3])] for b in (s.get("blocks") or {}).values()]
+            sbox = [[M["X"](c[0]), M["Y"](c[1]), M["X"](c[2]), M["Y"](c[3])] + (["dia"] if b.get("form") == "diamond" else [])
+                    for b in (s.get("blocks") or {}).values() for c in ((b.get("cells") or [b["bbox"]]) if b.get("form") == "diamond" else [b["bbox"]])]
             dbox = []
             for b in doc["blocks"]:
                 if (draw.SYMBOLS.get(b["kind"]) or {}).get("note"):
+                    continue
+                if (b.get("param") or {}).get("form") == "diamond":
+                    dbox += [[c[0], c[1], c[2], c[3], "dia"] for c in draw.diamond_cells(b)]
                     continue
                 g = draw.block_geometry(b)
                 dbox.append(g["box"] or ([g["circle"][0] - g["circle"][2], g["circle"][1] - g["circle"][2], g["circle"][0] + g["circle"][2], g["circle"][1] + g["circle"][2]] if g.get("circle") else [b["x"], b["y"], b["x"] + b["w"], b["y"] + b["h"]]))

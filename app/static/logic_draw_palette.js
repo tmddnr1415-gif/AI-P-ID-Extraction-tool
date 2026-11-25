@@ -46,13 +46,17 @@ function render() {
   if (pl) $("#placing-t").textContent = `${plIt ? (plIt.name || plIt.short) : pl} — 그림 창에서 놓을 자리를 누르세요`;
   if (!I) return;
   const q = $("#q").value.trim().toUpperCase();
-  const sig = JSON.stringify([q, I.sym.length, I.pre.length, I.mac.map(m => m.key), (st && st.recent) || [], P.shut, P.gshut]);
+  const sig = JSON.stringify([q, I.sym.length, I.pre.length, I.mac.map(m => m.key), (st && st.recent) || [], (st && st.next) || [], P.shut, P.gshut]);
   if (sig !== P._sig) {
     P._sig = sig;
     const all = new Map([...I.sym, ...I.pre, ...I.mac].map(x => [x.key, x]));
     const rec = q ? [] : ((st && st.recent) || []).map(k => all.get(k)).filter(Boolean);
     const tile = x => x.key.startsWith("m:") ? tileMac(x) : x.key.startsWith("p:") ? tilePre(x) : tileSym(x);
     sec("s-rec", rec.map(tile), rec.length); $("#s-rec").hidden = !rec.length;
+    // L92 — 그림 창에서 고른 기호 뒤에 자주 온 것 (그 프로젝트 그림에서 배운 차례) — 누르면 이어 놓는다
+    const nx = q ? [] : ((st && st.next) || []).map(([k, pc]) => all.get(k) && { ...all.get(k), pct: pc }).filter(Boolean);
+    sec("s-next", nx.map(x => tile(x).replace('<span class="nm">', `<span class="pl-pct">자주 ${x.pct}%</span><span class="nm">`)), nx.length); $("#s-next").hidden = !nx.length;
+    if (nx.length && st.sel) $("#s-next h2").firstChild.textContent = `${st.sel.name} 뒤에 자주 온 기호 `;
     const sy = I.sym.filter(x => matches(x, q)), pr = I.pre.filter(x => matches(x, q)), ma = I.mac.filter(x => matches(x, q));
     sec("s-sym", sy.map(tileSym), sy.length); sec("s-pre", pr.map(tilePre), pr.length);
     const groups = {}; for (const m of ma) (groups[m.group] = groups[m.group] || { name: m.gname, order: m.order, items: [] }).items.push(m);
@@ -60,7 +64,7 @@ function render() {
     $("#s-mac .pl-groups").innerHTML = gk.length ? gk.map(k => { const shut = !q && (P.gshut[k] ?? !(k === "이 묶음" || k === "19VA"));
       return `<div class="g${shut ? " shut" : ""}" data-g="${esc(k)}"><h3>${esc(groups[k].name)} · ${groups[k].items.length}</h3><div class="pl-grid pl-mac">${groups[k].items.map(tileMac).join("")}</div></div>`; }).join("") : `<p class="pl-none">${q ? "찾는 매크로가 없습니다" : "매크로가 없습니다"}</p>`;
     $("#s-mac .n").textContent = ma.length;
-    for (const id of ["s-rec", "s-sym", "s-pre", "s-mac"]) $("#" + id).classList.toggle("shut", !q && !!P.shut[id]);
+    for (const id of ["s-next", "s-rec", "s-sym", "s-pre", "s-mac"]) $("#" + id).classList.toggle("shut", !q && !!P.shut[id]);
   }
   document.querySelectorAll(".pl-tile").forEach(e => e.classList.toggle("on", !!pl && e.dataset.key === pl));
 }

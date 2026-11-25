@@ -338,6 +338,12 @@ def build(prims: geom.Prims, lay=None) -> Sheet | None:
 
     # ---- 빗금으로 칠한 상자(■) · 마름모(◆) = 선 위의 인터페이스 표시 (범례 G003) — 블록이 아니다
     markers = [m for m in prims.markers if inside(m) and max(m[2] - m[0], m[3] - m[1]) >= DOT_MAX * P]
+    # L92 — 칠하지 않은 큰 마름모 ◇ 는 표시가 아니라 기호다 (아래 '열린 마름모' 에서 블록으로) — 표시로 두면 그 둘레의 선 끝이 '표시의 획' 으로 지워진다
+    dia, used_polys, used_quads = _open_diamonds(getattr(prims, "oquads", ()), wires + glyphs, prims.words, blocks, P, tol, inside)
+    if dia:
+        wires = [p for p in wires if id(p) not in used_polys]
+        glyphs = [p for p in glyphs if id(p) not in used_polys]
+        markers = [m for m in markers if not any(all(abs(m[k] - q[k]) <= tol for k in range(4)) for q in used_quads)]
 
     def hatch_in(bb, any_segs=False):
         hs = [p for p in glyphs + wires if (any_segs or len(p.segs) == 1) and p.bbox[0] >= bb[0] - tol and p.bbox[2] <= bb[2] + tol
@@ -443,6 +449,29 @@ def build(prims: geom.Prims, lay=None) -> Sheet | None:
             wires.remove(p)
         else:
             glyphs.remove(p)
+
+    # ---- L92 열린 마름모 ◇ (19VA 의 아날로그 설정 A · 전환 T) — 45° 로 기운 정사각형 + 안에 글자 = 블록
+    # (칠한 ◆ 는 위의 인터페이스 표시 그대로 · 상자 안에 그린 ◇ (SER 의 S) 는 그 상자가 블록이다)
+    # (찾기는 위 — 인터페이스 표시를 가르기 전에 · 블록 이름은 다른 블록 뒤에 매겨 예전 이름이 밀리지 않게 여기서)
+    # 맞닿은 ◇ (꼭짓점 · 변을 나눈 것)는 한 기호다 — 범례의 ◇A◇T = AUTO/MANUAL CONTROL STATION.  칸마다 ◇ 하나.
+    dgrp = list(range(len(dia)))
+
+    def dfind(i):
+        while dgrp[i] != i:
+            dgrp[i] = dgrp[dgrp[i]]
+            i = dgrp[i]
+        return i
+    for i in range(len(dia)):
+        for j in range(i + 1, len(dia)):
+            a, c = dia[i], dia[j]
+            if a[0] <= c[2] + tol and c[0] <= a[2] + tol and a[1] <= c[3] + tol and c[1] <= a[3] + tol:
+                dgrp[dfind(i)] = dfind(j)
+    for r_ in sorted({dfind(i) for i in range(len(dia))}):
+        cells = sorted((dia[i] for i in range(len(dia)) if dfind(i) == r_), key=lambda c: (round(c[1], 1), c[0]))
+        bb = (min(c[0] for c in cells), min(c[1] for c in cells), max(c[2] for c in cells), max(c[3] for c in cells))
+        b = Block(nid(), "RECT", bb, cells=cells)
+        b.diamond = True
+        blocks.append(b)
 
     # 블록 사이를 잇는 짧은 토막 — 글자 크기라도 두 끝이 다 블록 · 화살촉 · 선에 닿으면 선이다
     wire_segs0 = [sg for p in wires for sg in p.segs]
@@ -1111,6 +1140,8 @@ def _shape_of(b, glyphs, tol):
     CROSS_BOX  대각선 둘이 가로지르는 네모 (⊠)    ROUND_BOX  한쪽 끝이 둥근 상자    PULSE_BOX  ⎍ 획이 든 네모
     """
     bar = getattr(b, "bar", False) or bool(b.bus)
+    if getattr(b, "diamond", False):
+        return "DIAMOND"                            # 칸이 둘(맞닿은 ◇ 한 쌍)이어도
     if b.kind == "CIRCLE":
         return "BAR_CIRCLE" if bar else ""
     if b.kind != "RECT" or len(b.cells) != 1:
@@ -1119,6 +1150,8 @@ def _shape_of(b, glyphs, tol):
         return "BAR_BOX"
     if getattr(b, "tri", False):
         return "TRIANGLE"
+    if getattr(b, "diamond", False):
+        return "DIAMOND"
     if getattr(b, "rounded", False):
         return "ROUND_BOX"
     x0, y0, x1, y1 = b.bbox
@@ -1133,6 +1166,127 @@ def _shape_of(b, glyphs, tol):
                 (p.bbox[2] - p.bbox[0]) >= 0.4 * w:
             return "PULSE_BOX"
     return ""
+
+
+def _dia_edge(p, c, tol):
+    """점 p 가 칸 c 에 내접한 마름모 ◇ 의 둘레에 닿았는가 → 변 이름 (꼭짓점은 T · R · B · L · 빗변은 가운데의 왼쪽이면 L · 오른쪽이면 R)."""
+    cx, cy, hw, hh = (c[0] + c[2]) / 2, (c[1] + c[3]) / 2, (c[2] - c[0]) / 2, (c[3] - c[1]) / 2
+    if hw <= 0 or hh <= 0:
+        return None
+    for name, v in (("T", (cx, c[1])), ("R", (c[2], cy)), ("B", (cx, c[3])), ("L", (c[0], cy))):
+        if _d(p, v) <= tol:
+            return name
+    dx, dy = abs(p[0] - cx), abs(p[1] - cy)
+    if dx > hw + tol or dy > hh + tol:
+        return None
+    # 빗변까지의 거리 — |x|/hw + |y|/hh = 1 인 선
+    dist = abs(dx / hw + dy / hh - 1.0) / math.hypot(1.0 / hw, 1.0 / hh)
+    if dist <= tol:
+        return "L" if p[0] < cx else "R"
+    return None
+
+
+DIAMOND_MIN = 1.2        # 열린 마름모 ◇ 블록의 폭 하한 (행 간격 배수) — 19VA 실측 2.0P (A · T) · 그보다 작은 기운 사각형은 선 위의 표시
+DIAMOND_MAX = 4.0
+
+
+def _open_diamonds(oquads, polys, words, blocks, P, tol, inside):
+    """획으로 그린 45° 사선들에서 닫힌 마름모(기운 정사각형)를 찾는다 → ([bbox], 쓴 꺾은선 id, 쓴 기운 사각형 bbox).
+
+    19VA 실측 세 꼴: ① 기운 정사각형 `qu` 하나 (A) ② 2:1 기운 직사각형 `qu` + 가르는 사선 = 변을 맞댄 둘 (T · A)
+    ③ 사선 여섯으로 그린 꼭짓점을 맞댄 둘 (A ✕ T).  셋 다 '사선 조각으로 네 변이 덮인 기운 정사각형' 이다.
+    블록으로 삼는 조건: 폭이 DIAMOND_MIN~MAX·P · 안(가운데 절반)에 글자가 있다 · 이미 있는 상자 안이 아니다."""
+    segs = []                                       # (x0, y0, x1, y1, 주인) — 주인 = 꺾은선 또는 ("q", k)
+    for k, (pts, dashed) in enumerate(oquads):
+        for a, b in zip(pts, pts[1:] + pts[:1]):
+            segs.append((a[0], a[1], b[0], b[1], ("q", k)))
+    for p in polys:
+        if getattr(p, "curved", False):
+            continue
+        for sg in p.segs:
+            dx, dy = sg.x1 - sg.x0, sg.y1 - sg.y0
+            if sg.length >= 0.4 * DIAMOND_MIN * P and abs(abs(dx) - abs(dy)) <= 0.06 * sg.length:
+                segs.append((sg.x0, sg.y0, sg.x1, sg.y1, p))
+    segs = [s for s in segs if abs(abs(s[2] - s[0]) - abs(s[3] - s[1])) <= 0.06 * math.hypot(s[2] - s[0], s[3] - s[1])]
+    if len(segs) < 2:
+        return [], set(), []
+    down = [s for s in segs if (s[2] - s[0]) * (s[3] - s[1]) > 0]      # ＼ (화면 좌표: x 가 늘면 y 도 는다)
+    up = [s for s in segs if (s[2] - s[0]) * (s[3] - s[1]) < 0]        # ／
+
+    def covers(group, a, b):
+        """a→b 변이 group 의 한 사선 위에 통째로 놓였는가 → 그 사선."""
+        for s in group:
+            sg = geom.Seg(s[0], s[1], s[2], s[3])
+            if _on_seg(a, sg, tol)[0] and _on_seg(b, sg, tol)[0]:
+                return s
+        return None
+    nodes = set()
+    for s in segs:
+        nodes.add((round(s[0], 2), round(s[1], 2)))
+        nodes.add((round(s[2], 2), round(s[3], 2)))
+    for a in down:                                  # 서로 가로지르는 자리도 꼭짓점이다 (③ 의 맞댄 꼭짓점)
+        for b in up:
+            # a: y - a1 = (x - a0) · b: y - b1 = -(x - b0)
+            x = (a[0] - a[1] + b[0] + b[1]) / 2
+            y = x - a[0] + a[1]
+            if _on_seg((x, y), geom.Seg(a[0], a[1], a[2], a[3]), tol)[0] and _on_seg((x, y), geom.Seg(b[0], b[1], b[2], b[3]), tol)[0]:
+                nodes.add((round(x, 2), round(y, 2)))
+    nodes = sorted(nodes)
+    found = []
+    for t in nodes:                                 # t = 위 꼭짓점
+        hs = sorted({round(n[1] - t[1], 1) for n in nodes if n[1] > t[1] + tol and abs((n[0] - t[0]) - (n[1] - t[1])) <= tol * 2})
+        for h in hs:                                # 오른쪽 꼭짓점이 (t.x + h, t.y + h)
+            if not (DIAMOND_MIN * P <= 2 * h <= DIAMOND_MAX * P):
+                continue
+            r, b, l = (t[0] + h, t[1] + h), (t[0], t[1] + 2 * h), (t[0] - h, t[1] + h)
+            sides = [covers(down, t, r), covers(up, r, b), covers(down, l, b), covers(up, t, l)]
+            if any(sd is None for sd in sides):
+                continue
+            bb = (t[0] - h, t[1], t[0] + h, t[1] + 2 * h)
+            if not inside(bb):
+                continue
+            cx, cy = t[0], t[1] + h
+            if not any(abs((w[0] + w[2]) / 2 - cx) + abs((w[1] + w[3]) / 2 - cy) <= 0.6 * h for w in words):
+                continue                            # 글자 없는 마름모는 기호가 아니다 (장식 · 표시)
+            if any(bk.bbox[0] - tol <= bb[0] and bb[2] <= bk.bbox[2] + tol and bk.bbox[1] - tol <= bb[1] and bb[3] <= bk.bbox[3] + tol for bk in blocks):
+                continue                            # 상자 안에 그린 ◇ — 그 상자가 블록
+            if any(abs(f[0][0] - bb[0]) <= tol and abs(f[0][1] - bb[1]) <= tol and abs(f[0][2] - bb[2]) <= tol for f in found):
+                continue
+            found.append((bb, sides))
+    if not found:
+        return [], set(), []
+    side_owner = {id(sd[4]) if not isinstance(sd[4], tuple) else sd[4] for _, sides in found for sd in sides}
+    used_polys = set()
+    for p in polys:                                 # 꺾은선은 그 모든 사선이 마름모 변(또는 그 안의 가르는 선)일 때만 거둔다
+        if id(p) not in side_owner:
+            continue
+        ok = True
+        for sg in p.segs:
+            mid = ((sg.x0 + sg.x1) / 2, (sg.y0 + sg.y1) / 2)
+            if not any(bb[0] - tol <= mid[0] <= bb[2] + tol and bb[1] - tol <= mid[1] <= bb[3] + tol for bb, _ in found):
+                ok = False
+                break
+        if ok:
+            used_polys.add(id(p))
+    for p in polys:                                 # ② 의 가르는 사선 — 두 마름모가 맞댄 변 위의 한 조각짜리 꺾은선
+        if id(p) in used_polys or len(p.segs) != 1:
+            continue
+        sg = p.segs[0]
+        if sg.length <= tol:                        # 길이 0 인 점 — 꼭짓점에 찍힌 것은 마름모를 그린 획의 일부다 (선 끝으로 두면 제 블록에 붙는 헛단자가 된다)
+            if any(abs(sg.x0 - v[0]) <= tol and abs(sg.y0 - v[1]) <= tol for bb, _ in found
+                   for v in (((bb[0] + bb[2]) / 2, bb[1]), (bb[2], (bb[1] + bb[3]) / 2), ((bb[0] + bb[2]) / 2, bb[3]), (bb[0], (bb[1] + bb[3]) / 2))):
+                used_polys.add(id(p))
+            continue
+        if any(sum(1 for sd in sides if _on_seg((sg.x0, sg.y0), geom.Seg(sd[0], sd[1], sd[2], sd[3]), tol)[0]
+                   and _on_seg((sg.x1, sg.y1), geom.Seg(sd[0], sd[1], sd[2], sd[3]), tol)[0]) for _, sides in found):
+            used_polys.add(id(p))
+    used_quads = []
+    for k, (pts, dashed) in enumerate(oquads):
+        if ("q", k) in side_owner:
+            xs = [q[0] for q in pts]
+            ys = [q[1] for q in pts]
+            used_quads.append((min(xs), min(ys), max(xs), max(ys)))
+    return [bb for bb, _ in found], used_polys, used_quads
 
 
 def _split_by_divider(rects, polys, P, tol):
@@ -1524,7 +1678,10 @@ def _attach(e, seg, blocks, arrows, bus_of, lay, tol, markers=()):
             for b in blocks:
                 if b.kind == "RECT":
                     for ci, c in enumerate(b.cells):
-                        side = _rect_edge(tip, c, tol * 2) or _rect_edge(probe, c, tol * 2)
+                        if getattr(b, "diamond", False):
+                            side = _dia_edge(tip, c, tol * 2) or _dia_edge(probe, c, tol * 2)
+                        else:
+                            side = _rect_edge(tip, c, tol * 2) or _rect_edge(probe, c, tol * 2)
                         if side:
                             return "port", (b, "in", side, ci, tip, k)
                 else:
@@ -1569,6 +1726,16 @@ def _attach(e, seg, blocks, arrows, bus_of, lay, tol, markers=()):
     # 3) 상자 변 · 원
     for b in blocks:
         if b.kind == "RECT":
+            if getattr(b, "diamond", False):
+                # ◇ 칸들 — 닿은 꼭짓점이 두 칸에 걸치면(맞댄 자리) 왼쪽 · 오른쪽 꼭짓점으로 읽는 칸을 먼저 (왼 = 들어감 · 오른 = 나감, 네모와 같이)
+                hits = [(ci, _dia_edge(e, c, tol)) for ci, c in enumerate(b.cells)]
+                tiny_ = seg.length < 0.2 * (lay.pitch or 1.0)      # 화살촉의 짧은 획 — 꼭짓점 옆 빗변에 스쳐도 단자가 아니다
+                hits = [h for h in hits if h[1] and not (tiny_ and not any(
+                    _d(e, v) <= tol for c in [b.cells[h[0]]] for v in (((c[0] + c[2]) / 2, c[1]), (c[2], (c[1] + c[3]) / 2), ((c[0] + c[2]) / 2, c[3]), (c[0], (c[1] + c[3]) / 2))))]
+                if hits:
+                    ci, side = next((h for h in hits if h[1] in "LR"), hits[0])
+                    return "port", (b, {"R": "out", "L": "in"}.get(side, "?"), side, ci, e, None)
+                continue
             for ci, c in enumerate(b.cells):
                 side = _rect_edge(e, c, tol)
                 if side:

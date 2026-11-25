@@ -337,6 +337,14 @@ def _box_meaning(out, b, text, notes=()):
     from . import blocks as BL
     t = text.upper()
     key = re.sub(r"[^0-9A-Z]", "", t)
+    cells_ = (b.get("param") or {}).get("cells") or [[0, 0, 1, 1, x.strip()] for x in t.split("|") if x.strip()]
+    if ((b.get("param") or {}).get("form") == "diamond" or "|" in t) and len(cells_) >= 2:
+        # L92 — 맞닿은 ◇ (A/M 스테이션): 분석기와 같은 사전 열쇠 `DIAMOND|<칸 글자를 차례로>` 로 이름을 찾는다 (legend.keys_of)
+        from . import library
+        hit_ = (library.load().get("symbols") or {}).get("DIAMOND|" + " ".join(sorted(str(c[4]).upper() for c in cells_ if c[4])))
+        if hit_:
+            out["func"], out["logic"] = hit_["name"], hit_.get("logic") or "unknown"
+            return
     if key in _CONST:
         out["func"], out["logic"], out["label"] = "CONST", "source", "0" if key == "0" else "1"
         return
@@ -428,7 +436,8 @@ def _drop_inside(wires: list, blocks: list) -> list:
     선으로 옮겨진 것 — 19VA Typical 0013).  남겨 두면 입력선과 출력선이 상자 한가운데서 만나 한 신호가 되고, NOT 이면
     자기 입력을 자기가 뒤집어 시뮬레이션이 끝없이 되풀이된다 (827장 묶음 첫 시뮬레이션 23초).  변에 닿는 선은 그대로 단자다."""
     boxes = [(b["x"], b["y"], b["x"] + b["w"], b["y"] + b["h"]) for b in blocks
-             if b.get("kind") in D.SYMBOLS and b.get("kind") not in ("TEXT", "MACRO") and b.get("w") and b.get("h")]
+             if b.get("kind") in D.SYMBOLS and b.get("kind") not in ("TEXT", "MACRO") and b.get("w") and b.get("h")
+             and (b.get("param") or {}).get("form") != "diamond"]      # L92 — ◇ 는 상자의 네 귀가 기호 밖이다 (그 귀를 지나 꼭짓점에 닿는 선이 지워졌다)
     if not boxes:
         return wires
     E = 0.05
@@ -502,6 +511,26 @@ def to_sheet(doc: dict, page: int, typ_pages: dict | None = None) -> dict:
             ports.append(pd)
             io[bid][0 if dr == "in" else 1] += 1
         spec = D.SYMBOLS[b["kind"]]
+        if (b.get("param") or {}).get("form") == "diamond" and spec.get("box"):
+            # L92 — 마름모 ◇ (칸 여럿이면 A/M 스테이션): 그 둘레(꼭짓점 · 빗변)에 닿은 선 끝이 단자 — 분석기 graph._dia_edge 와 같은 규칙.
+            # 왼쪽 꼭짓점 = 들어감 · 오른쪽 = 나감 · 위아래 · 빗변은 화살로 (tb_dir)
+            cells_ = D.diamond_cells(b)
+            xa, ya, xb, yb = min(c[0] for c in cells_), min(c[1] for c in cells_), max(c[2] for c in cells_), max(c[3] for c in cells_)
+            for ex, ey, enet in ends_near(xa, ya, xb, yb):
+                hits = []
+                for ci, (c0, c1, c2, c3, _) in enumerate(cells_):
+                    cx_, cy_, hw, hh = (c0 + c2) / 2, (c1 + c3) / 2, (c2 - c0) / 2, (c3 - c1) / 2
+                    vs = {"T": (cx_, c1), "R": (c2, cy_), "B": (cx_, c3), "L": (c0, cy_)}
+                    sd = next((k for k, v in vs.items() if abs(ex - v[0]) <= TOL and abs(ey - v[1]) <= TOL), None)
+                    if sd is None and hw > 0 and hh > 0 and abs(ex - cx_) <= hw + TOL and abs(ey - cy_) <= hh + TOL and \
+                            abs(abs(ex - cx_) / hw + abs(ey - cy_) / hh - 1.0) / ((1 / hw ** 2 + 1 / hh ** 2) ** 0.5) <= TOL:
+                        sd = "l" if ex < cx_ else "r"              # 빗변
+                    if sd:
+                        hits.append((ci, sd))
+                if hits:
+                    ci, sd = next((h_ for h_ in hits if h_[1] in "LR"), hits[0])
+                    add(ex, ey, "in" if sd == "L" else "out" if sd == "R" else tb_dir(ex, ey, enet), "", ci)
+            continue
         for x, y, dr, role in D.ports_of(b):                # 정해진 단자 자리 (원 · 매크로 · 메모리 칸 · 출력)
             cell = (0 if role in ("set", "q") else 1) if b["kind"] == "MEMORY" else 0
             add(x, y, dr, role, cell, role if b["kind"] == "MACRO" else None)

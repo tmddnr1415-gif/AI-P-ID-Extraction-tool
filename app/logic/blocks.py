@@ -168,7 +168,10 @@ def classify(sheet, D):
             for cell in cells:
                 cs, vert = _cell_chars(polys, cell)
                 reads.append((cell, cs, vert))
+            real = b.read                               # L92 — _drawn 이 읽어 둔 진짜 글자 (범례 · 사전에 없는 기호라 판정은 못 했다)
             b.read = " | ".join(_read_free(D, cs, vert) for _, cs, vert in reads)
+            if real and not b.read.replace("|", "").strip():
+                b.read = real                           # 선 글자가 없으면 진짜 글자를 버리지 않는다 (사전에 없는 ◇A◇T 의 칸 글자가 사라졌다)
             # 메모리: 위·아래 두 칸, 각 칸이 S/SO · R/RO
             if len(cells) == 2 and abs(cells[0][0] - cells[1][0]) < 1 and cells[0][1] < cells[1][1]:
                 w0, s0, m0 = decode(D, reads[0][1], mem_set + mem_reset)

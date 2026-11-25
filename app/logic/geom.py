@@ -104,6 +104,7 @@ class Prims:
     marker_kind: dict = field(default_factory=dict)   # L58 — bbox(반올림) → "diamond" | "square" (작도 재현이 같은 모양으로 그린다)
     blobs: list = field(default_factory=list)     # 칠한 작은 조각의 bbox (연결점을 조각으로 칠한 양식)
     rings: list = field(default_factory=list)     # 호 조각들이 닫힌 원 후보 [(Circle, {pid})] (L21)
+    oquads: list = field(default_factory=list)    # L92 — 획으로만 그린(칠하지 않은) 기운 사각형의 네 꼭짓점 — 열린 마름모 ◇ 기호 후보 (graph 가 크기 · 글자로 정한다)
     frame: tuple | None = None                     # 도면 테두리 (굵게 칠한 큰 사각 띠) — 그 밖은 격자 번호
 
 
@@ -384,6 +385,8 @@ def read(page, pno: int) -> Prims:
                 else:
                     out.markers.append(bb)        # 마름모 ◆ — 선 위의 신호 인터페이스 표시
                     out.marker_kind[tuple(round(v, 2) for v in bb)] = "diamond"
+                    if "f" not in typ:
+                        out.oquads.append((pts, _pdf_dashed(d)))   # L92 — 칠하지 않은 것은 ◇ 기호일 수 있다
         if not segs:
             continue
         rr = _closed_rect(segs)
