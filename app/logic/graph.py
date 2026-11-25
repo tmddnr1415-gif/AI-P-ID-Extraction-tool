@@ -1951,6 +1951,36 @@ def _drop_dashed_frames(dashed, span, tol, P):
     return [p for i, p in enumerate(dashed) if i not in drop]
 
 
+def _merge_collinear(segs):
+    """한 직선 위에 맞닿아 이어진 선분들을 하나로 (짧은 파선의 토막 · 다리 · 끝 이음).  그림으로 옮기면 선분마다 선 하나가 되는데,
+    2.8pt 짜리 선 둘로 나뉜 ⊠ 입력은 되읽기에서 다시 붙지 않았다 (L97).  축에 나란하지 않은 선분은 그대로 둔다."""
+    out, rows = [], defaultdict(list)
+    for g in segs:
+        if g.horiz:
+            rows[("h", round(g.y0, 2))].append((min(g.x0, g.x1), max(g.x0, g.x1)))
+        elif g.vert:
+            rows[("v", round(g.x0, 2))].append((min(g.y0, g.y1), max(g.y0, g.y1)))
+        else:
+            out.append(g)
+    for (ax, c), spans in rows.items():
+        spans.sort()
+        a0, a1 = spans[0]
+        for b0, b1 in spans[1:] + [(None, None)]:
+            if b0 is not None and b0 <= a1 + 0.02:
+                a1 = max(a1, b1)
+                continue
+            out.append(geom.Seg(a0, c, a1, c) if ax == "h" else geom.Seg(c, a0, c, a1))
+            a0, a1 = b0, b1
+    return out
+
+
+def _gap_crossed(qa, qb, wire_segs, tol):
+    """두 끝 사이의 틈 한가운데를 그 틈과 수직인 선이 지나가는가 — 건너뛰기(홉)로 끊어 그린 실선의 틈."""
+    mid = ((qa[0] + qb[0]) / 2, (qa[1] + qb[1]) / 2)
+    along_x = abs(qa[1] - qb[1]) < abs(qa[0] - qb[0])
+    return any(_on_seg(mid, w, tol)[0] and (w.vert if along_x else w.horiz) for w in wire_segs)
+
+
 def _dash_chains(glyphs, wires, blocks, arrows, dots, P, tol, bounds=None):
     """파선 — 한 직선 위에 늘어선 짧은 조각들.
 
@@ -1962,6 +1992,27 @@ def _dash_chains(glyphs, wires, blocks, arrows, dots, P, tol, bounds=None):
     def enclosed(p):
         return any(b.kind == "RECT" and p.bbox[0] >= b.bbox[0] - tol and p.bbox[2] <= b.bbox[2] + tol and
                    p.bbox[1] >= b.bbox[1] - tol and p.bbox[3] <= b.bbox[3] + tol for b in blocks)
+    # L97 — 거의 곧은 토막은 곧게 편다: 19VA 0006 · 0007 의 ⊠ → AND 파선은 4.5pt 에 0.04pt 기울어 있어(⊠ 가운데 → AND 변) 가로 토막으로 치지 않았고,
+    # 그래서 파선 후보에도 못 들었다 (NOT 출력 없음 · AND 입력 없음).  토막 하나짜리 · 기울기 1.5% 안쪽만.
+    # 같은 기운 줄의 토막들은 앞 토막의 높이를 물려받는다 (토막마다 제 가운데로 펴면 이웃과 0.06pt 씩 어긋나 '같은 직선' 이 아니게 된다 — 0006 의 ⊠ 입력 파선)
+    tilted = []
+    for p in glyphs:
+        if len(p.segs) == 1 and not (p.segs[0].vert or p.segs[0].horiz) and p.segs[0].length >= 2 * tol:
+            g = p.segs[0]
+            dx, dy = abs(g.x1 - g.x0), abs(g.y1 - g.y0)
+            if min(dx, dy) <= max(0.06, 0.015 * g.length):
+                tilted.append((dy < dx, min(g.x0, g.x1) if dy < dx else min(g.y0, g.y1), p))
+    snapped = []                                  # (가로인가, 축 위 시작, 축 위 끝, 맞춘 좌표)
+    for hz, _, p in sorted(tilted, key=lambda t: (t[0], t[1])):
+        g = p.segs[0]
+        a0, a1 = (min(g.x0, g.x1), max(g.x0, g.x1)) if hz else (min(g.y0, g.y1), max(g.y0, g.y1))
+        c = (g.y0 + g.y1) / 2 if hz else (g.x0 + g.x1) / 2
+        for hz2, b0, b1, c2 in reversed(snapped):
+            if hz2 == hz and abs(c2 - c) <= 0.2 and 0 <= a0 - b1 <= 1.5 * max(g.length, b1 - b0):
+                c = c2
+                break
+        p.segs[0] = geom.Seg(g.x0, c, g.x1, c) if hz else geom.Seg(c, g.y0, c, g.y1)
+        snapped.append((hz, a0, a1, c))
     pieces = [p for p in glyphs if len(p.segs) <= 2 and all(s.vert or s.horiz for s in p.segs)
               and all(s.length > 0 for s in p.segs) and not enclosed(p)]
     if len(pieces) < 2:
@@ -1976,6 +2027,7 @@ def _dash_chains(glyphs, wires, blocks, arrows, dots, P, tol, bounds=None):
             for q in sg.ends():
                 if cnt[(round(q[0], 2), round(q[1], 2))] == 1:
                     ends.append((q, k, "h" if sg.horiz else "v", sg.length))
+    piece_ends = [(q, sum(x.length for x in pieces[k].segs)) for q, k, ax, L in ends]      # (끝점, 그 조각의 길이) — 모퉁이에서 만나는 토막 찾기 (L97)
     par = list(range(len(pieces)))
 
     def f(i):
@@ -2037,12 +2089,78 @@ def _dash_chains(glyphs, wires, blocks, arrows, dots, P, tol, bounds=None):
               if 2 <= len(p.segs) <= 6 and any(not (x.vert or x.horiz) for x in p.segs)]
     tipped = [(p, ax) for p, ax in tipped if len(ax) == 1]
 
+    # L97 — 몸통 없이 촉만 획으로 그린 화살 (19VA 제어 루프 장: 토막 하나 + 틈 + 촉 획 셋 → ⊠).  끝이 블록 변에 닿을 때만 쓴다
+    heads = [p for p in glyphs if 2 <= len(p.segs) <= 6 and any(not (x.vert or x.horiz) for x in p.segs)
+             and not any((x.vert or x.horiz) and x.length >= 2 * tol for x in p.segs)
+             and max(p.bbox[2] - p.bbox[0], p.bbox[3] - p.bbox[1]) <= P / 2]
+
+    extra = []                                     # L97 — 둘째 바퀴: 이미 파선으로 받은 줄의 선분 (짧은 파선의 끝이 다른 파선에 닿는 것을 본다)
+
     def touches(q):
         return (any(_on_seg(q, w, tol)[0] for w in wire_segs) or
                 any(_in_rect(q, a.bbox, tol) for a in arrows) or
                 any(_d(q, (c.cx, c.cy)) <= c.r + tol for c in dots) or
-                any(_block_edge(q, b, tol * 2) for b in blocks))
-    for root, ks in groups.items():
+                any(_block_edge(q, b, tol * 2) for b in blocks) or
+                any(_on_seg(q, w, tol)[0] for w in extra))
+
+    def grow(q0, segs_, reach):
+        """끝 q0 에서 그 토막의 축 방향으로 reach 까지 걸어가 본다 — 화살촉 토막(tipped) · 촉 획(heads) · 채운 화살촉 밑동 · 블록 변 · 막대 · 선.
+        → (닿았나, 보탤 선분들, 쓴 조각들)."""
+        add, used, q = [], [], q0
+        for _ in range(2):                            # 끝 → (화살촉 토막) → 그 끝에서 한 번 더
+            if touches(q) or (bounds and min(abs(q[0] - bounds[0]), abs(q[0] - bounds[1])) <= tol):
+                return True, add, used
+            sg = next((x for x in list(segs_) + add if _d(q, x.ends()[0]) < 0.01 or _d(q, x.ends()[1]) < 0.01), None)
+            if sg is None or not (sg.vert or sg.horiz):
+                return False, add, used
+            o = sg.ends()[1] if _d(q, sg.ends()[0]) < 0.01 else sg.ends()[0]
+            L_ = _d(q, o) or 1.0
+            ux, uy = (q[0] - o[0]) / L_, (q[1] - o[1]) / L_
+            t, nxt = 0.25, None
+            while t <= reach:
+                pt = (q[0] + ux * t, q[1] + uy * t)
+                tip = next(((p, ax) for p, ax in tipped if id(p) not in taken and all(p is not u for u in used) and
+                            _on_seg(pt, ax[0], tol)[0] and (ax[0].vert == sg.vert)), None)
+                if tip is not None:
+                    a0, a1 = sorted(tip[1][0].ends(), key=lambda e: _d(e, q))
+                    add.append(geom.Seg(q[0], q[1], a0[0], a0[1]))
+                    add.extend(tip[1])
+                    used.append(tip[0])
+                    nxt = a1
+                    break
+                hd = next((p for p in heads if id(p) not in taken and _in_rect(pt, p.bbox, tol)), None)
+                if hd is not None:
+                    far = ((hd.bbox[2] if ux > 0 else hd.bbox[0]), q[1]) if sg.horiz else (q[0], (hd.bbox[3] if uy > 0 else hd.bbox[1]))
+                    if any(_block_edge(far, b, tol * 2) for b in blocks):
+                        add.append(geom.Seg(q[0], q[1], far[0], far[1]))
+                        used.append(hd)
+                        return True, add, used
+                edge = bounds and sg.horiz and min(abs(pt[0] - bounds[0]), abs(pt[0] - bounds[1])) <= 0.5 * tol
+                if edge or touches(pt) or any(_on_seg(pt, geom.Seg(*bs), tol)[0] for b in blocks for bs in b.bus):
+                    add.append(geom.Seg(q[0], q[1], pt[0], pt[1]))
+                    return True, add, used
+                # L97 — 모퉁이: 꺾인 파선은 선분마다 무늬를 새로 시작한다 — 한 줄의 끝에서 틈 하나를 가면 다음 줄 첫 토막의 시작점이다
+                # (AND → 가로 둘 · 세로 셋 · 가로 둘 → OR · 19VA FW11_P111).  토막 길이가 파선다운 것(획 두께의 두 배 ~ 행 간격)의 끝에만
+                own = [e for x in list(segs_) + add for e in x.ends()]
+                hit_ = next((e for e, eL in piece_ends if 2 * tol <= eL <= P and _d(pt, e) <= 0.5 * tol
+                             and all(_d(e, o_) > 0.01 for o_ in own)), None)
+                if hit_ is not None:
+                    add.append(geom.Seg(q[0], q[1], hit_[0] if sg.horiz else q[0], q[1] if sg.horiz else hit_[1]))
+                    return True, add, used
+                t += 0.25
+            if nxt is None:
+                return False, add, used
+            q = nxt
+        return touches(q), add, used
+    # L97 — 짧은 파선(토막 둘 · 셋)이 첫 바퀴에서 떨어지면 긴 파선을 다 받은 뒤 한 번 더 본다: 세로 파선이 꺾여 ⊠ 로 들어가는 가로 토막 둘은
+    # 한 끝이 그 세로 **파선**에 닿는다 (실선 · 블록에만 닿는지 보던 첫 바퀴에서는 '닿은 끝 하나' 라 버려졌다 · 19VA 제어 루프 장)
+    todo = [(ks, False) for ks in groups.values()]
+    ti = 0
+    while ti < len(todo):
+        ks, second = todo[ti]
+        ti += 1
+        if second and not extra:
+            extra.extend(sg for p in out for sg in p.segs)
         if len(ks) < 2:
             continue
         kset = set(ks)
@@ -2058,11 +2176,18 @@ def _dash_chains(glyphs, wires, blocks, arrows, dots, P, tol, bounds=None):
         # 파선은 고르다 — 토막 길이와 틈이 서로 두 배 안 (글자 획은 고르지 않다)
         lens = [sg.length for k in ks for sg in pieces[k].segs]
         gaps_ = [_d(qa, qb) for qa, qb, ka in bridges if ka in kset]
-        even = max(lens) <= 2 * min(lens)
-        if not even and len(ks) >= 4:
-            # 쇄선(긴 토막 + 짧은 토막이 번갈아 · 19VA 신호선) — 가장 흔한 길이가 가장 긴 토막이면 고른 파선이다
-            common = Counter(round(x, 1) for x in lens).most_common(1)[0][0]
-            even = common >= 0.9 * max(lens)
+
+        def _even(ls):
+            # 파선의 첫 · 끝 토막은 반 토막으로 시작한다 (5.67 과 2.83 — 꼭 두 배라 소수점에서 갈렸다: 같은 그림인 HS10 은 읽고 BL10 은 못 읽었다 · L97)
+            if max(ls) <= 2 * min(ls) + 0.25 * tol:
+                return True
+            if len(ks) >= 4:
+                # 쇄선(긴 토막 + 짧은 토막이 번갈아 · 19VA 신호선) — 가장 흔한 길이가 가장 긴 토막이면 고른 파선이다
+                return Counter(round(x, 1) for x in ls).most_common(1)[0][0] >= 0.9 * max(ls)
+            return False
+        # L97 — 선분마다 잰 길이로 고르지 않으면 **조각 하나의 길이**로도 재 본다: 모퉁이를 돌아가는 토막(가로 0.3 + 세로 2.8)은 선분으로 재면 0.3 이
+        # 가장 짧은 토막이 되어 버려졌다 (19VA 제어 루프 장의 ⊠ → 표시등 파선 · 토막 셋).  둘 중 하나로 고르면 고른 파선이다
+        even = _even(lens) or _even([sum(sg.length for sg in pieces[k].segs) for k in ks])
         gaps_ok = not gaps_ or max(gaps_) <= 2 * min(gaps_) or \
             (len(ks) >= 4 and sorted(gaps_)[len(gaps_) // 2] * 2 >= max(lens) * 0.4)   # 쇄선 · 점(길이 0)을 건너뛴 틈 — 틈 대부분이 고르면
         if not even or not gaps_ok:
@@ -2070,6 +2195,14 @@ def _dash_chains(glyphs, wires, blocks, arrows, dots, P, tol, bounds=None):
         Lmed = sorted(lens)[len(lens) // 2]
         near_arrow = lambda q: any(_d(q, a.base) <= 1.5 * Lmed for a in arrows)
         hit = sum(1 for q in free if touches(q) or near_arrow(q))
+        # 틈을 다른 선이 가로지른다(건너뛰기) · 틈에 접합점이 앉아 있다 = 끊어 그린 **실선**이다 — 파선으로 바꾸지 않는다
+        hop = any(ka in kset and (_gap_crossed(qa, qb, wire_segs, tol) or
+                                  any(_d(((qa[0] + qb[0]) / 2, (qa[1] + qb[1]) / 2), (c.cx, c.cy)) <= c.r + tol for c in dots))
+                  for qa, qb, ka in bridges)
+        if len(ks) <= 3 and hit < len(free) and not hop:
+            # L97 — 짧은 파선(토막 둘 · 셋)의 끝이 틈 하나 건너 화살촉 토막 · 블록 변에 닿는가 (긴 파선만 끝을 이어 주고 있었다 —
+            # ⊠ → SPC 단자 · ⊠ → 표시등처럼 블록 사이를 잇는 짧은 파선이 통째로 빠졌다)
+            hit = sum(1 for q in free if touches(q) or near_arrow(q) or grow(q, segs, 1.5 * max(gaps_ + [Lmed]))[0])
         # 고른 토막 넷 이상이 한 직선에 늘어선 것은 그 자체로 파선이다 — 끝이 다른 파선에만 닿아도 (19VA 는
         # 신호선 대부분이 파선이라 '실선에 닿는 끝' 을 요구하면 파선끼리 이어진 그물이 통째로 빠졌다 · L21)
         # 틈마다 다른 선이 가로지르면 파선이 아니라 건너뛰기(홉)로 끊어 그린 실선이다 — 그때는 예전 규칙만
@@ -2080,6 +2213,8 @@ def _dash_chains(glyphs, wires, blocks, arrows, dots, P, tol, bounds=None):
         if bounds and long_run:
             hit += sum(1 for q in free if min(abs(q[0] - bounds[0]), abs(q[0] - bounds[1])) <= 1.2 * max(gaps_ + [Lmed]))
         if not ((len(ks) >= 3 and hit >= 1) or (len(ks) == 2 and hit >= 2 and len(free) == 2) or long_run):
+            if not second and len(ks) <= 3 and not hop:
+                todo.append((ks, True))
             continue
         # 파선이 화살촉 앞에서 틈 하나를 두고 끝나면 그 틈도 잇는다 (토막 길이 1.5배 안 · 같은 직선)
         Lmed = sorted(lens)[len(lens) // 2]
@@ -2096,43 +2231,46 @@ def _dash_chains(glyphs, wires, blocks, arrows, dots, P, tol, bounds=None):
                     to_base.add((round(q[0], 2), round(q[1], 2)))
                     break
         # 파선이 블록 · 막대 · 실선 앞에서 틈 하나를 두고 끝나면 그 틈을 잇는다 (19VA — 마지막 토막이 기호에 안 닿는다 · L21)
-        if long_run:
-            reach = 1.2 * max(gaps_ + [Lmed])        # 틈 하나 또는 토막 하나 길이까지
-            for q0 in free:
-                if (round(q0[0], 2), round(q0[1], 2)) in to_base:
-                    continue                          # L53 — 화살촉 밑동까지 이미 이었다 (짧은 토막을 또 두면 그 끝이 '닿은 끝' 이 된다)
-                q = q0
-                for _ in range(2):                    # 끝 → (화살촉 토막) → 그 끝에서 한 번 더
-                    if touches(q) or (bounds and min(abs(q[0] - bounds[0]), abs(q[0] - bounds[1])) <= tol):
-                        break
-                    sg = next((x for x in segs if _d(q, x.ends()[0]) < 0.01 or _d(q, x.ends()[1]) < 0.01), None)
-                    if sg is None or not (sg.vert or sg.horiz):
-                        break
-                    o = sg.ends()[1] if _d(q, sg.ends()[0]) < 0.01 else sg.ends()[0]
-                    L_ = _d(q, o) or 1.0
-                    ux, uy = (q[0] - o[0]) / L_, (q[1] - o[1]) / L_
-                    t, nxt = 0.25, None
-                    while t <= reach:
-                        pt = (q[0] + ux * t, q[1] + uy * t)
-                        tip = next(((p, ax) for p, ax in tipped if id(p) not in taken and
-                                    _on_seg(pt, ax[0], tol)[0] and (ax[0].vert == sg.vert)), None)
-                        if tip is not None:
-                            a0, a1 = sorted(tip[1][0].ends(), key=lambda e: _d(e, q))
-                            segs.append(geom.Seg(q[0], q[1], a0[0], a0[1]))
-                            segs.extend(tip[1])
-                            taken.add(id(tip[0]))
-                            nxt = a1
-                            break
-                        edge = bounds and sg.horiz and min(abs(pt[0] - bounds[0]), abs(pt[0] - bounds[1])) <= 0.5 * tol
-                        if edge or touches(pt) or any(_on_seg(pt, geom.Seg(*bs), tol)[0] for b in blocks for bs in b.bus):
-                            segs.append(geom.Seg(q[0], q[1], pt[0], pt[1]))
-                            break
-                        t += 0.25
-                    if nxt is None:
-                        break
-                    q = nxt
+        reach = (1.2 if long_run else 1.5) * max(gaps_ + [Lmed])        # 틈 하나 또는 토막 하나 길이까지
+        for q0 in free:
+            if (round(q0[0], 2), round(q0[1], 2)) in to_base:
+                continue                              # L53 — 화살촉 밑동까지 이미 이었다 (짧은 토막을 또 두면 그 끝이 '닿은 끝' 이 된다)
+            ok_, add_, used_ = grow(q0, segs, reach)
+            if long_run or (ok_ and not hop):                       # 긴 파선은 예전 그대로 (닿지 않아도 화살촉 토막까지는 잇는다) · 짧은 파선은 닿을 때만
+                segs.extend(add_)
+                taken.update(id(u) for u in used_)
+        if len(ks) <= 3:
+            segs = _merge_collinear(segs)               # 짧은 파선은 선 하나로 (긴 파선은 예전 그대로 둔다)
         pts = [q for s in segs for q in s.ends()]
         out.append(geom.Poly(segs, geom._bbox(pts), dashed=True, pid=pieces[ks[0]].pid,
                              dash_gap=sorted(gaps_)[len(gaps_) // 2] if gaps_ else 0.0))
+        if second:
+            extra.extend(segs)
         taken.update(id(pieces[k]) for k in ks)
+    # L97 — 외토막: 파선 토막 **하나**가 한쪽은 선 · 블록 · 파선에 닿고, 다른 쪽은 틈 하나 건너 화살촉(토막 · 획 · 채운 촉)을 지나 블록 변에 닿는다.
+    # 19VA 0006 · 0007 의 ⊠ → AND (둘째 토막이 화살촉보다 짧아 촉 안에 들어가 있다) · 제어 루프 장의 파선 → ⊠ 입력.  블록 변에 닿지 않는 외토막은 두지 않는다
+    # (눈금 · 글자 획일 수 있다).
+    out_segs = [sg for p in out for sg in p.segs]
+    for k, p in enumerate(pieces):
+        if id(p) in taken or len(groups[f(k)]) != 1 or len(p.segs) != 1:
+            continue
+        sg = p.segs[0]
+        if not (2 * tol <= sg.length <= P) or any(all(_in_rect(q, a.bbox, tol) for q in sg.ends()) for a in arrows):
+            continue
+        for qa, qb in (sg.ends(), sg.ends()[::-1]):
+            if not (touches(qa) or any(_on_seg(qa, w, tol)[0] for w in out_segs)):
+                continue
+            if touches(qb):
+                break                                 # 두 끝이 다 닿아 있다 = 짧은 실선 토막이다 (파선 토막은 한쪽에 틈이 있다) — 건드리지 않는다
+            ok_, add_, used_ = grow(qb, [sg], max(1.5 * sg.length, 2 * tol))
+            end = add_[-1].ends()[1] if add_ else qb
+            if add_ and _gap_crossed(qb, add_[0].ends()[1] if _d(add_[0].ends()[0], qb) < 0.01 else add_[0].ends()[0], wire_segs, tol):
+                break                                 # 그 틈을 다른 선이 가로지른다 = 건너뛰기(홉) 자리다
+            if ok_ and add_ and (any(_block_edge(end, b, tol * 2) for b in blocks) or any(_in_rect(end, a.bbox, tol) for a in arrows)):
+                segs = _merge_collinear([sg] + add_)
+                out.append(geom.Poly(segs, geom._bbox([q for x in segs for q in x.ends()]), dashed=True, pid=p.pid, dash_gap=0.0))
+                out_segs.extend(segs)
+                taken.add(id(p))
+                taken.update(id(u) for u in used_)
+                break
     return out, [p for p in glyphs if id(p) not in taken]
