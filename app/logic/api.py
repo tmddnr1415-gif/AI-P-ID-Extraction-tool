@@ -499,8 +499,8 @@ def _sp_read(d, res):
             p = b.get("param") or {}
             if analog.monitor_kind(b) and ("sp" in p or "sp_label" in p):
                 got[(s["page"], bid)] = {k: p[k] for k in ("sp", "sp_unit", "sp_text", "sp_label", "sp_level") if k in p}
-            elif any(k in p for k in ("pins", "a_const", "a_drawing", "aop_fig")):
-                got[(s["page"], bid)] = {k: p[k] for k in ("pins", "a_const", "a_drawing", "aop_fig") if k in p}
+            elif any(k in p for k in ("pins", "a_const", "a_drawing", "aop_fig", "aop_const")):
+                got[(s["page"], bid)] = {k: p[k] for k in ("pins", "a_const", "a_drawing", "aop_fig", "aop_const") if k in p}   # L94 — aop_const: 옆에 인쇄된 매개변수 이름이 말한 연산
         for r in s["rows"]:
             if r.get("range"):
                 got[(s["page"], "row:%d" % r["n"])] = r["range"]

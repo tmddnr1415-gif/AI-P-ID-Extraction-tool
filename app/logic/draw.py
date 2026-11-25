@@ -1734,7 +1734,8 @@ def _note_text(cx, cy, t, fs=PIN_FS) -> dict:
 
 def _fig_symbol(b) -> str:
     """분석이 상자 안 **그림**으로 알아본 연산(aop_fig · 글자 없음)의 기호 글 — 연산 사전의 가장 짧은 글자 (△ · ∫ · HL …)."""
-    op = b.get("aop") or ((b.get("param") or {}).get("aop_fig") or {}).get("op")
+    p_ = b.get("param") or {}
+    op = b.get("aop") or (p_.get("aop_fig") or {}).get("op") or (p_.get("aop_const") or {}).get("op")   # L94 — aop_const: 옆의 `LL : 0` 이 말한 연산
     if not op:
         return ""
     from . import aops

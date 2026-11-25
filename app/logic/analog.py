@@ -158,7 +158,7 @@ def _topo(s, idx):
     return data
 
 
-_TOPO_PARAMS = ("range", "range_user", "sp_unit", "a_user", "aop_fig", "pins")
+_TOPO_PARAMS = ("range", "range_user", "sp_unit", "a_user", "aop_fig", "aop_const", "pins")
 
 
 def ranges(s, idx):

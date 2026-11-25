@@ -503,7 +503,8 @@ def _shape_fallback(sheet, leg):
             b.legend = {"name": "MEMORY", "page": None, "basis": "모양 — 위·아래 두 칸 상자 (위 S · 아래 R)"}
             b.score = 0.5
             continue
-        if figs and len(cells) <= 1 and ins[b.id] and outs[b.id]:
+        # L94 — ⎍ 모양(PULSE_BOX)으로 이미 가려진 상자는 선이 한쪽만 붙어 있어도 본다 — 파선 출력이 상자에 닿지 못한 펄스 8개가 '판정 못 함' 이었다 (19VA BL10_P303 …)
+        if figs and len(cells) <= 1 and ((ins[b.id] and outs[b.id]) or (getattr(b, "shape", "") == "PULSE_BOX" and (ins[b.id] or outs[b.id]))):
             # 가로·세로를 따로 맞춘 그림으로 비교한다 — 같은 ⎍ 라도 장마다 높이 비가 조금씩 다르다 (1A5J LEAD SELECTION)
             fig = _stretch(LG.figure(b, sheet.glyph_polys))
             m = LG.match_figure(fig, [{**f, "fig": _stretch(f["fig"])} for f in figs], floor=0.85) if fig else None
@@ -708,6 +709,17 @@ def _pass_points(sheet):
                 sheet.dangling = [(x, y, keep if net == g else net) for x, y, net in sheet.dangling]
             sheet.ports = [pt for pt in sheet.ports if pt.block != b.id]
             del sheet.blocks[b.id]
+            continue
+        if not buffer and not ins and not outs:
+            # L94 — 선이 끊기지 않고 **그대로 지나가는** 속 빈 작은 원 (19VA ST10_G009 의 행 선 위 ○ 14개): 단자가 하나도 없다 —
+            # 기능이 아니라 그 선 위의 표시다.  판정 못 한 기호로 남기지 않는다 (선은 이미 한 선이다).
+            cx, cy = (b.bbox[0] + b.bbox[2]) / 2, (b.bbox[1] + b.bbox[3]) / 2
+            r_ = (b.bbox[2] - b.bbox[0]) / 2
+            through = any(min(sg[0], sg[2]) - 0.5 <= cx <= max(sg[0], sg[2]) + 0.5 and min(sg[1], sg[3]) - 0.5 <= cy <= max(sg[1], sg[3]) + 0.5
+                          and math.hypot(sg[2] - sg[0], sg[3] - sg[1]) > 2 * r_
+                          for n in sheet.nets.values() for sg in n.get("segs", []))
+            if through:
+                del sheet.blocks[b.id]
             continue
         if len({pt.net for pt in ins}) != 1 or not outs:
             continue

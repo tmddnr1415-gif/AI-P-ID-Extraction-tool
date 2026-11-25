@@ -4,14 +4,15 @@
 
 - 작업 브랜치: `ccr-cc45909d-fjjmrb` (L83 부터 · 그 전 `claude/logic-symbol-visualization-sim-2oqbxh` 는 L82 까지 — 이 브랜치에 다 들어 있음).
   바뀌면 `docs/handoff/branches.md` · `config/release_sources.json` 같이 고침.
-- 마지막 회차: **L93** — ① 매크로 안쪽(Typical 22장)의 모든 선을 켜 보는 점검 `spike/macro_line_sweep_l93.py` (장마다 색칠한 그림 + summary.json) 과
-  거기서 찾은 분석기 빈틈 일곱 (뜀+연결점 토막 · 두 칸 선 글자 S/R · 화살촉 테두리 · 거꾸로 놓인 ⊠/⎍/지연 뒤집기 · 기운 가로선 위 뜀 · 선 글자 이름표/테두리 ·
-  그림의 통과 고리 틈 잇기 `draw._bridge_gaps`).  Typical 20장은 읽기 빈틈 0 · 0006/0007(아날로그 선택 회로)은 94개 남음.
-  ② 화면 결 `app/static/logic_theme.css` (대시보드 '내 메모장' 참고 — 6개 화면 뒤에 얹는 한 장 · 빼면 예전 모양).  씨앗 판 8.  **다음은 L94.**
+- 마지막 회차: **L94** — 모든 기호에 동작: 19VA 8,704개 중 동작 없는 기호 0 (A/M 스테이션 연산 `amstation` · 통과 원 · 한쪽 선 펄스 · `LL/HL : n` 제한 ·
+  선 글자 기호 T · DEV · AVG · ◁| 를 사전 그림으로 학습 · `/Q` 는 B.Q 로 추정(확인 필요)).  셀 때: 분석 결과에 `aops.identify` 뒤 logic 이 unknown 이고 `aops.op_of(b)` 가 없는 블록.
+  씨앗 판 9 · IDENT_VERSION 5.  **다음은 L95.**
+- 그 앞 L93: 매크로 안쪽(Typical 22장) 선 전수 켜 보기 `spike/macro_line_sweep_l93.py` (장마다 색칠한 그림) + 분석기 빈틈 일곱 · 그림의 통과 고리 틈 잇기 ·
+  화면 결 `app/static/logic_theme.css` (대시보드 '내 메모장' 참고 — 빼면 예전 모양).  Typical 20장은 읽기 빈틈 0 · 0006/0007 은 선 90개 남음.
 - 그 앞 L92: 분석기 마름모 ◇ 기호(◇A · A/M 스테이션 143개) · 그리기 `param.form = diamond`(+`cells`) · a5j 타이머 둥근 상자/펄스 ⎍/표시등 빗살 ·
   그린 차례 배우기 `draw_sets.learn_flow` (＋ 고르개 '자주 n%' · Tab · `GET /logic/api/drawings/{id}/flow` · `config/logic_draw_flow.json`).
-- 확인 필요(사용자): PS3(0025 · *_G013)에서 입력을 모두 1 로 주면 DRIVE START · STOP 이 같이 1 — 설계인지 읽기인지.  '메모장 참고' 를 화면 결로 읽은 것이 맞는지.
-- 재현 정확도(827장 · L93 뒤): 되읽기 블록 99.57 · 표 99.88 · 연결 97.66 · 선 97.56 · 글 96.56 / 직접 블록 99.74 · 표 100 · 연결 97.14.
+- 확인 필요(사용자): PS3(0025 · *_G013)에서 입력을 모두 1 로 주면 DRIVE START · STOP 이 같이 1 — 설계인지 읽기인지.  '메모장 참고' 를 화면 결로 읽은 것이 맞는지.  `/Q`(CO01_P121)를 B.Q 로 읽은 것이 맞는지.
+- 재현 정확도(827장 · L94 뒤): 되읽기 블록 99.72 · 표 99.88 · 연결 97.66 · 선 97.57 · 글 96.54 / 직접 블록 99.72 · 표 100 · 연결 97.13.
   남은 차이: ◇T 빗변으로 들어오는 사선 파선(52장) · △ ∫ SER 안쪽 그림 · ALM 타원 · Typical 0006/0007 연결 (분석기 쪽).
 - 씨앗을 다시 만드는 차례 (원본 PDF 가 있을 때): 분석 → `draw_sets.import_bundle(res, …, pdf_path=)` → `spike/rebuild_draw_seed_l85.py <씨앗> <묶음 id>` →
   `spike/draw_flow_learn.py` (바탕 차례도 같이).  검토 화면 브라우저 훑기는 이번엔 임시 스크립트로 했다 (장 열기 + `runSim`) — 필요하면 spike 로 옮길 것.
@@ -40,12 +41,13 @@
 - ⚠ 회차 번호 충돌: 옛 LOGIC 세션(`bold-einstein`, 은퇴)도 L70~L72 를 썼다.  옛 기록에서 같은 번호가 두 번 나오면
   날짜와 브랜치로 구분한다.  앞으로 번호는 지금 LOGIC 작업 브랜치 하나만 매긴다.
 - **LOGIC 은 zip 을 만들지 않는다** — 커밋·푸시만 하면 PID 세션이 병합해 꾸러미에 싣는다 (`spike/pack_delta.py` 가 덜 합쳐졌으면 멈춘다).
-- 시험 돌리기: `pip install -r requirements.txt pytest httpx` 뒤 `pytest -q -m "not slow and not ui"` (약 2분 · 1668 통과).
+- 시험 돌리기: `pip install -r requirements.txt pytest httpx` 뒤 `pytest -q -m "not slow and not ui"` (약 2분 · 1673 통과).
 
 ## 최근 회차 한 줄 요약 (자세한 것은 `docs/history/logic_log.md` · 옛것은 archive 를 grep)
 
 | 회차 | 내용 |
 | --- | --- |
+| L94 | 모든 기호에 동작 (동작 없는 기호 146 → 0) · A/M 스테이션 연산 · 선 글자 기호 학습 · 씨앗 판 9 |
 | L93 | 매크로 안쪽 선 전수 켜 보기(Typical 22장 · 그림) + 분석기 빈틈 7 · 화면 결(logic_theme.css) · 씨앗 판 8 |
 | L92 | 19VA 전수 점검 — 분석기 마름모 ◇ 기호 · 원본 모양 타이머/펄스/램프 · 그린 차례 배우기(＋ · Tab) · 재현 선 97.6 · 씨앗 판 7 |
 | L91 | 매크로를 이 프로젝트에만 고치기 (사전 Typical → 묶음 사본 · 시뮬레이션 · 저장) · 사람 흐름 125가지 |

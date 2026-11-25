@@ -149,7 +149,8 @@ def match_figure(fig, figures, floor=0.6, margin=0.08):
     if best < floor:
         return None
     second = next((s_ for s_, j in sc[1:] if figures[j]["name"] != figures[i]["name"]), 0.0)
-    if best - second < margin:
+    # L94 — 점 하나까지 꼭 같은 그림(1.0)이 하나뿐이면 2위가 가까워도 그것이다 (선 글자 `AVG` 와 `DEV` 는 16×16 에서 0.96 까지 닮는다)
+    if best - second < margin and not (best >= 0.999 and second < 0.999):
         return None
     return {**figures[i], "score": round(best, 3)}
 

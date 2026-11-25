@@ -69,6 +69,8 @@ def op_of(b):
         return p["a_user"]["op"]                      # 사람이 고른 연산
     if isinstance(p.get("aop_fig"), dict) and p["aop_fig"].get("op"):
         return p["aop_fig"]["op"]                     # 안 그림이 범례 그림과 맞음 (△ · ∫ …)
+    if isinstance(p.get("aop_const"), dict) and p["aop_const"].get("op"):
+        return p["aop_const"]["op"]                   # L94 — 블록 옆에 인쇄된 매개변수 이름이 연산을 말한다 (`LL : 0` = 하한 제한)
     v = vocab()
     lab = (b.get("label") or b.get("read") or "").strip()
     L = _lab(lab)
@@ -117,6 +119,18 @@ def read_pins(s, ws):
         return any(x0 < cx < x1 and y0 < cy < y1 for x0, y0, x1, y1 in boxes)
     ws = [w for w in ws if not inside(w)]             # 상자 안 글자(블록 이름)는 옆 글줄에 붙지 않는다
     lines = _lines(ws)
+    # L94 — 안 그림을 못 맞댄 기호라도 바로 옆에 `HL : n` · `LL : n` 이 인쇄돼 있으면 그 이름이 연산이다 (상한 · 하한 제한 — 19VA CO02_P031 · CC01_P024 의 ◁| 기호)
+    for bid, b in s["blocks"].items():
+        if b.get("func") != "UNKNOWN" or not b.get("bbox") or op_of(b):
+            continue
+        x0, y0, x1, y1 = b["bbox"]
+        for lx0, ly0, lx1, ly1, text in lines:
+            m = _CONST.match(text)
+            if not m or m.group(1).upper() not in ("HL", "LL"):
+                continue
+            if max(0.0, x0 - lx1, lx0 - x1) + max(0.0, y0 - ly1, ly0 - y1) <= 1.5 * P:
+                b.setdefault("param", {})["aop_const"] = {"op": "hilim" if m.group(1).upper() == "HL" else "lolim", "text": m.group(0).strip()}
+                break
     ops = {bid: op_of(b) for bid, b in s["blocks"].items() if b.get("bbox")}
     ops = {bid: op for bid, op in ops.items() if op}
     cand = []
@@ -154,6 +168,11 @@ def read_pins(s, ws):
             prm.setdefault(key.lower(), {"v": _num(m.group(2)), "unit": (m.group(3) or "").strip(), "text": m.group(0).strip(), "d": d})
         if op == "const" and best:
             b.setdefault("param", {})["a_const"] = {"v": best[2], "unit": best[3], "text": best[4]}
+        # L94 — 19VA 는 제한 값을 `HL : 4` · `LL : 0` 으로 적는다 (범례 글자 그대로) — 상한 h · 하한 l 로 읽는다 (그 전에는 제한 블록이 값을 몰라 계산하지 못했다)
+        if op in ("hilim", "lolim"):
+            for long_, short_ in (("hl", "h"), ("ll", "l")):
+                if long_ in prm and short_ not in prm:
+                    prm[short_] = prm[long_]
         par = {k: {"v": e["v"], "unit": e["unit"], "text": e["text"]} for k, e in prm.items()
                if k in ("k", "b", "h", "l", "d", "n", "t") and e["d"] <= 3 * P}
         if pins.get(bid) or par or (op == "const" and best):
@@ -507,6 +526,14 @@ def compute(op, b, ins, net_v, dig=None):
             return None, "IN1 · IN2 이름을 도면에서 읽지 못했습니다"
         v = net_v.get(src)
         return (v, f"조건 {c} → {want}") if v is not None else (None, f"조건 {c} → {want} 의 값을 모릅니다")
+    if op == "amstation":
+        # L94 — A/M 스테이션: 수동 값(사람이 넣은 출력값)은 위 pr["out"] 이 먼저 낸다.  그 밖에는 자동 — 들어온 값을 그대로.
+        # 입력이 여럿이면(설정값 SP · 추종 AT) 이름이 SP · IN1 · IN 인 것을 먼저, 없으면 값이 있는 첫 입력.
+        order = sorted(ins, key=lambda q: 0 if (q[1] or {}).get("name") in ("SP", "IN1", "IN", "A") else 1)
+        for n, pn in order:
+            if net_v.get(n) is not None:
+                return net_v[n], f"자동 — 입력{' ' + pn['name'] if pn and pn.get('name') else ''} 값을 그대로 냅니다 (수동 값은 눌러서 넣습니다)"
+        return None, "자동 — 들어오는 값을 모릅니다 (수동 값은 눌러서 넣을 수 있습니다)"
     if op == "pid":
         tr = next((n for n, pn in ins if pn and pn["name"] in ("TR", "TRK")), None)
         if tr is not None and net_v.get(tr) is not None:
@@ -576,7 +603,7 @@ def _two(analog_ins, vals, lab, op, pr):
 
 # ------------------------------------------------------------------ 식별 (결과를 읽을 때 한 번 · 분석 결과 파일은 그대로)
 
-IDENT_VERSION = 3                     # 식별 규칙을 바꾸면 올린다 (도면 값 캐시 열쇠에 들어간다)
+IDENT_VERSION = 5                     # 식별 규칙을 바꾸면 올린다 (도면 값 캐시 열쇠에 들어간다)
 
 
 def _ports(s):
@@ -704,7 +731,8 @@ def read_figures(s, page, figures):
     from .legend import figure_score
     from .blocks import _stretch
     want = [(bid, b) for bid, b in s["blocks"].items()
-            if b.get("func") == "UNKNOWN" and not (b.get("label") or b.get("read")) and b.get("kind") == "RECT" and b.get("bbox")]
+            if b.get("func") == "UNKNOWN" and not str(b.get("label") or b.get("read") or "").replace("?", "").strip()   # L94 — '?' 뿐인 읽기(못 읽은 선 글자 자리)는 글자가 없는 것이다
+            and b.get("kind") == "RECT" and b.get("bbox")]
     figs = [{**f, "fig": _stretch(f["fig"])} for f in figures or [] if f.get("fig") and name_op(f.get("name"))]
     if not want or not figs:
         return 0

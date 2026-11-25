@@ -1101,6 +1101,16 @@ def build(prims: geom.Prims, lay=None) -> Sheet | None:
         if len(q) == 1 and any(pt.dir == "in" for pt in pts) and not any(pt.dir == "out" for pt in pts):
             q[0].dir = "out"
             drivers[q[0].net] += 1
+    # L94 — ①-b 들어오는 단자(왼쪽)가 있고 나가는 단자가 없는데 미정 단자가 위 · 아래에 하나씩이면 위에서 들어와 아래로 나간다
+    # (19VA BL10_P101 의 △: 왼쪽 + · 위 − · 아래로 PID 에 — 화살촉이 없어 셋 다 입력이 되고 그 기호는 '판정 못 함' 으로 남았다.
+    #  작성 시뮬레이션 draw_sim 의 L85 규칙 '아래 것이 출력' 과 같은 뜻)
+    for pts in by_block.values():
+        q = [pt for pt in pts if pt.dir == "?"]
+        if len(q) == 2 and {pt.side for pt in q} == {"T", "B"} and any(pt.dir == "in" for pt in pts) and not any(pt.dir == "out" for pt in pts):
+            for pt in q:
+                pt.dir = "out" if pt.side == "B" else "in"
+                if pt.dir == "out":
+                    drivers[pt.net] += 1
     consumers = defaultdict(int)
     for pt in sh.ports:
         if pt.dir == "in":
