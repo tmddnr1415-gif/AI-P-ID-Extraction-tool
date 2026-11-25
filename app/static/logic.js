@@ -2264,12 +2264,14 @@ async function runSim(animate, pageOnly) {
   const askPage = L.page;
   // L31 — 시트만 옮겼고 준 신호가 그대로면 지난 계산의 입력을 그대로 보낸다: 묶음의 답은 같고 이 장의 결과만 꺼내면 된다
   // (돌려받은 상태를 다시 보내면 서버가 시간을 한 번 더 흘린 것으로 보고 묶음 전체를 다시 센다).
-  const inputs = JSON.stringify([forces, L.timers, analog]);
+  // L95 — 시간 직접 넘기기: 켜 두면 서버가 시간을 흘리지 않는다 (wait 0) · '다음 타이머까지' 가 그만큼만 흘린다
+  const wait = holdOn() ? (L.holdWait != null ? L.holdWait : 0) : null;
+  const inputs = JSON.stringify([forces, L.timers, analog, wait]);
   const last = L.lastSim;
   const state = pageOnly && last && last.job === L.job && last.inputs === inputs ? last.state : L.states;
   L.lastSim = { job: L.job, inputs, state };
   const inner = Object.entries(L.childWins || {}).filter(([, c]) => c.win && !c.win.closed).map(([k]) => k);
-  const b = await post(`/logic/api/jobs/${L.job}/simulate`, { forces, state, page: L.page, timers: L.timers, analog, inner });
+  const b = await post(`/logic/api/jobs/${L.job}/simulate`, { forces, state, page: L.page, timers: L.timers, analog, inner, ...(wait == null ? {} : { wait }) });
   if (b.default_t) L.defaultT = b.default_t;
   const r = b.focus;
   if (!r || L.page !== askPage || L.sheet !== askSheet) return;   // 기다리는 동안 다른 장으로 옮겼다 — 그 장의 결과를 이 장에 그리지 않는다
@@ -2299,7 +2301,26 @@ async function runSim(animate, pageOnly) {
   renderSheetList(); renderChain();
   stopAnim();
   playFrames(r.frames, prev, animate);
+  holdShow(r.frames[r.frames.length - 1].running || []);
   return r;
+}
+/* L95 — 시간 직접 넘기기 (타이머가 세는 도중에 입력을 바꿔 보려고) */
+function holdOn() { const c = $("#hold-time"); return !!(c && c.checked); }
+function holdShow(running) {
+  L.holdRunning = running || [];
+  const btn = $("#hold-next");
+  if (!btn) return;
+  btn.hidden = !holdOn();
+  if (!holdOn()) return;
+  const left = L.holdRunning.length ? Math.min(...L.holdRunning.map((x) => x.left)) : null;
+  btn.textContent = left != null ? `▶ 다음 타이머까지 (${+left.toFixed(1)}초)` : "▶ 1초 넘기기";
+  if (left != null) status(`⏸ 시간 멈춤 — 세는 중인 타이머 ${L.holdRunning.length}개 · 가장 빠른 것 ${+left.toFixed(1)}초 남음 (입력을 바꾸거나 '다음 타이머까지')`);
+}
+async function holdNext() {
+  if (!holdOn() || !L.job || !L.sheet) return;
+  const left = (L.holdRunning || []).length ? Math.min(...L.holdRunning.map((x) => x.left)) : 1;
+  L.holdWait = Math.max(0, left);
+  try { await runSim(true); } finally { L.holdWait = null; }
 }
 /* 틀을 그린다 — 묶음 계산의 결과든 (runSim) 매크로 새 창이 부모에게서 받은 값이든 (L44) 같은 길 */
 function playFrames(frames, prev, animate) {
@@ -5879,6 +5900,8 @@ function bind() {
   $("#show-nets").onchange = () => $("#ov").classList.toggle("hide-nets", !$("#show-nets").checked);
   $("#show-blocks").onchange = () => $("#ov").classList.toggle("hide-blocks", !$("#show-blocks").checked);
   $("#reset").onclick = resetAll;
+  $("#hold-next").onclick = holdNext;
+  $("#hold-time").onchange = () => { holdShow(holdOn() ? L.holdRunning : []); if (L.job && L.sheet && L.mode === "sim") runSim(true); };
   bindSigPop();
   bindSeq();
   bindNeeds();

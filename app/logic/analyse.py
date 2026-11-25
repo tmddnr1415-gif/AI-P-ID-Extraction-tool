@@ -100,10 +100,26 @@ def _classify_all(doc, sheets, kinds, lib, say):
             s_["sheet_no"] = ""
     _titles_from_lines(out_sheets)
     _cross_refs(out_sheets)
+    _vote_equal_sign(out_sheets)
     for s in out_sheets:
         s["findings"] = _findings(s)
     fromto.check(out_sheets)                 # FM ↔ TO 양쪽 대조 (L5)
     return D, leg, lib_leg, use, out_sheets
+
+
+def _vote_equal_sign(sheets):
+    """L95 — 투표 블록의 `=` (`2=3` · `1=3`) 는 **이 문서가** '이상' 을 `≥` 글자로 따로 찍을 때 '정확히 n 개' 다.
+
+    19VA CO01_G014 는 같은 세 입력(CEP A · B · C RUNNING)에 `2≥3` 상자와 `2=3` 상자를 **나란히** 그리고, `2=3` 의 출력이
+    'TWO CEP RUNNING' · `1=3` 의 출력이 'ONE CEP RUNNING' 이다 (`1≥3` 의 출력은 'ANY FWP RUNNING') — 두 부호는 다른 뜻이다.
+    L51 은 `=` 를 '이상' 으로 읽었고(1A5J — '≥' 의 밑줄이 획으로 그려져 글자로는 `=` 만 남는 양식), 그래서 세 대가 다 돌 때
+    'ONE … RUNNING' · 'TWO … RUNNING' 이 함께 1 로 나왔다.  부등호 글자가 한 번도 안 나오는 문서(1A5J)는 예전 읽기 그대로 둔다."""
+    votes = [b for s in sheets for b in s["blocks"].values() if b.get("logic") == "vote"]
+    if not any(re.search(r"[≥≤<>]", b.get("label") or "") for b in votes):
+        return
+    for b in votes:
+        if re.fullmatch(r"\d+=\d+", (b.get("label") or "").replace(" ", "")):
+            b["param"] = {**(b.get("param") or {}), "op": "eq"}
 
 
 PREVIEW_MAX = 60                         # 미리보기에 쓰는 장 수 상한 (질문의 무리는 고르게 뽑은 장으로 충분하다 — 끝나면 전 장으로 다시)

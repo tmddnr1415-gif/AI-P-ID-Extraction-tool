@@ -1177,6 +1177,7 @@ def build(prims: geom.Prims, lay=None) -> Sheet | None:
         out_of[rn].discard(b.id)
         out_of[ln].add(b.id)
         b.flipped = True
+    for b in blocks:                               # L95 — 이 줄이 L93 에서 위 뒤집기 고리 안으로 딸려 들어가 메모리 우선 표시(S · R 를 두른 원)가 전부 사라졌었다
         b.marks = [((c.cx, c.cy), c.r) for c in marks_in if _in_rect((c.cx, c.cy), b.bbox, 0)]
     sh.blocks = {b.id: b for b in blocks}
     sh.glyph_polys = glyphs

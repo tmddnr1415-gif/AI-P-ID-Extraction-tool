@@ -103,3 +103,37 @@ def test_hairline_outline_of_a_filled_arrowhead_is_not_a_line():
     s = _analyse_pdf(draw.to_pdf(doc), edit)
     key = lambda sh: {(q["block"], q["net"], q["dir"]) for q in sh["ports"]}
     assert len(s["nets"]) == len(base["nets"]) == 2 and key(s) == key(base) and not s.get("dangling")   # 테두리 획이 새 그물 · 새 단자를 만들지 않는다
+
+
+def test_memory_priority_mark_is_still_read():
+    """메모리의 우선 칸(S 또는 R 를 두른 원 · 범례 'A CIRCLE AROUND S OR R') — L93 의 뒤집기 규칙을 넣으며 이 표시 읽기가 끊겼었다
+    (19VA 메모리 115개가 전부 '우선 없음' 이 되어 S · R 이 함께 1 일 때 RESET 우선 대신 상태를 뒤집었다)."""
+    y = T + 4 * P
+    doc = _doc([{"id": "m", "kind": "MEMORY", "x": 500, "y": y - P, "w": 13.7, "h": 2 * P, "text": "", "label": "", "param": {"dominant": ""}}],
+               [{"id": "w1", "pts": [[draw.LX0, y - P / 2], [500, y - P / 2]]}, {"id": "w2", "pts": [[draw.LX0, y + P / 2], [500, y + P / 2]]},
+                {"id": "w3", "pts": [[513.7, y - P / 2], [draw.LX1, y - P / 2]]}])
+
+    def edit(pg):                                                                                 # 아래 칸(R)에 내접한 원 — 19VA 가 그리는 그대로
+        sh = pg.new_shape()
+        sh.draw_circle(pymupdf.Point(500 + 13.7 / 2, y + P / 2), P / 2 - 0.3)
+        sh.finish(color=(0, 0, 0), width=0.71)
+        sh.commit()
+    plain = _analyse_pdf(draw.to_pdf(doc))
+    marked = _analyse_pdf(draw.to_pdf(doc), edit)
+    dom = lambda sh: [(b["param"] or {}).get("dominant") for b in sh["blocks"].values() if b["logic"] == "memory"]
+    assert dom(plain) == [""] and dom(marked) == ["reset"], (dom(plain), dom(marked))
+
+
+def test_vote_equal_sign_means_exactly_when_the_document_also_prints_ge():
+    """L95 — `2=3` 은 문서가 '이상' 을 `≥` 로 따로 찍을 때 '정확히 2 개' (19VA CO01_G014: `2≥3` 과 `2=3` 이 같은 입력에 나란히 · 출력 'TWO CEP RUNNING').
+    부등호 글자가 없는 문서(1A5J — '≥' 의 밑줄이 획이라 글자로는 `=`)는 예전대로 '이상'."""
+    from app.logic import analyse, sim
+    mk = lambda *labels: [{"blocks": {f"B{i}": {"logic": "vote", "label": t, "param": {"a": int(t[0]), "b": 3, "op": "ge"}} for i, t in enumerate(labels)}}]
+    both = mk("2=3", "1=3", "2≥3")
+    analyse._vote_equal_sign(both)
+    assert [b["param"]["op"] for b in both[0]["blocks"].values()] == ["eq", "eq", "ge"]
+    only = mk("2=3", "1=3")
+    analyse._vote_equal_sign(only)
+    assert [b["param"]["op"] for b in only[0]["blocks"].values()] == ["ge", "ge"]
+    # 세 대가 다 돌면 'TWO RUNNING' · 'ONE RUNNING' 은 0 이어야 한다
+    assert sim._vote3([1, 1, 1], 2, 3, "eq") == 0 and sim._vote3([1, 1, 0], 2, 3, "eq") == 1 and sim._vote3([1, 0, 0], 1, 3, "eq") == 1

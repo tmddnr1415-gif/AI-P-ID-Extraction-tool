@@ -24,6 +24,7 @@ import re
 import hashlib
 import json
 import pickle
+import contextvars
 from collections import defaultdict
 
 from . import analog as A
@@ -32,6 +33,12 @@ from . import macro as _MC
 DEFAULT_T = 5.0           # L22 — 도면이 시간을 적지 않은 타이머 (사용자 지시: 기본 5초 · L15 는 10초였다)
 MAX_ITER = 300
 MAX_FRAMES = 24
+# L95 — 기다리는 시간(초): None = 타이머가 다 끝날 때까지 (예전 그대로) · 0 = 시간을 흘리지 않는다 · n = n 초만 흘린다.
+# 남은 타이머는 상태에 그대로 남아 다음 호출이 이어 센다.  "명령 → 열림 → 10초 안에 열림이 꺼짐 → 3초 뒤 불일치 고장" · "START 를 대기 시간 전에
+# 놓음" 처럼 **타이머가 세는 도중에 입력이 바뀌어야** 서는 기능을 켜 보려고 둔다 (끝까지 흘리면 그 사이가 지나가 버린다).
+_HORIZON = contextvars.ContextVar("logic_sim_horizon", default=None)
+MICRO = False             # L95 — 점검용: 켜면 틀마다 그 **한 순간 안의** 중간 값들을 `micro` 에 남긴다 (타이머가 끝나며 메모리를 지우고
+                          # 그 메모리가 타이머 입력을 끄는 식의 순간 변화를 채점기가 보게 · spike/macro_operator_check_l95.py).  화면 · 저장에는 쓰지 않는다
 
 
 def _index(s):
@@ -691,16 +698,25 @@ def _simulate_once(s, forces=None, state=None, now=0.0, timers=None, soft=None, 
     frames = []
     t = st["t"]
     val = dict(loop_seed)
+    micro = []
     for _ in range(20):
         val, depth = settle(val)
+        if MICRO:
+            micro.append({n: (0 if v is None else v) for n, v in val.items()})
         if not timers_step(val, t):
             break
     frames.append(_running(_frame(t, val, depth, "누른 순간", floating), t))
+    if MICRO:
+        frames[-1]["micro"] = micro[:-1]
+    horizon = _HORIZON.get()
+    t_end = None if horizon is None else t + max(0.0, float(horizon))
     while len(frames) < MAX_FRAMES:
         due = [(ts["due"], bid) for bid, ts in st["tim"].items() if ts.get("due") is not None]
         if not due:
             break
         t2 = min(d for d, _ in due)
+        if t_end is not None and t2 > t_end + 1e-9:
+            break                                      # L95 — 기다리는 시간이 다 됐다: 남은 타이머는 다음 호출이 이어 센다
         fired = []
         for d, bid in due:
             if d <= t2 + 1e-9:
@@ -709,14 +725,23 @@ def _simulate_once(s, forces=None, state=None, now=0.0, timers=None, soft=None, 
                 ts["due"] = None
                 fired.append(bid)
         t = t2
+        micro = []
         for _ in range(20):
             val, depth = settle(val)
+            if MICRO:
+                micro.append({n: (0 if v is None else v) for n, v in val.items()})
             if not timers_step(val, t):
                 break
         labels = [B[b].get("param", {}).get("text") or B[b]["func"] for b in fired]
         fr = _running(_frame(t, val, depth, f"{', '.join(labels)} 경과", floating), t)
         fr["fired"] = fired
+        if MICRO:
+            fr["micro"] = micro[:-1]
         frames.append(fr)
+    if t_end is not None and t_end > t + 1e-9:
+        t = t_end                                      # 시계는 기다린 만큼 간다 — 세는 중인 타이머의 남은 시간이 그만큼 준다
+        if any(ts.get("due") is not None for ts in st["tim"].values()):
+            frames.append(_running(_frame(t, val, depth, f"{horizon:g}초 기다림", floating), t))
     st["t"] = t
     st["loop"] = {n: val[n] for n in sorted(loop_nets) if val.get(n) in (0, 1)}
     # L16 — 목표로 둔 출력 중 게이트 조건이 끝내 맞지 않은 것 (어느 틀에서든 그 값이 되었으면 맞은 것 — 타이머 뒤)
@@ -878,7 +903,18 @@ def _row_values(s, values):
     return {r["n"]: values.get(r["net"], 0) for r in s["rows"] if r["side"] == "R" and r.get("net") is not None}
 
 
-def simulate_bundle(sheets, forces=None, state=None, focus=None, timers=None, analog=None, cache=None, light=False):
+def simulate_bundle(sheets, forces=None, state=None, focus=None, timers=None, analog=None, cache=None, light=False, horizon=None):
+    """horizon (L95) = 이 호출에서 흘릴 시간(초) — None 이면 타이머가 다 끝날 때까지 (`_HORIZON` 글 참고)."""
+    if horizon is not None:
+        tok = _HORIZON.set(float(horizon))
+        try:
+            return _simulate_bundle(sheets, forces, state, focus, timers, analog, cache, light)
+        finally:
+            _HORIZON.reset(tok)
+    return _simulate_bundle(sheets, forces, state, focus, timers, analog, cache, light)
+
+
+def _simulate_bundle(sheets, forces=None, state=None, focus=None, timers=None, analog=None, cache=None, light=False):
     """묶음의 모든 장을 함께 돌린다 — 한 장의 출력 행이 1 이면 그 행을 FM 으로 받는 다른 장의 입력 행도 1.
 
     연결은 도면이 적은 그대로다: 왼쪽 행의 FM `G034-71` (analyse._cross_refs 가 맞댄 `ref`).
@@ -958,7 +994,7 @@ def _memo_key(*parts):
 
 def _bundle_run(sheets, forces, state, focus, timers, analog, cache, by_page, by_no, feeds, macros, inline, light=False):
     if cache is not None:
-        ak = _memo_key(analog)
+        ak = _memo_key(analog) if _HORIZON.get() is None else _memo_key(analog, _HORIZON.get())
         an_memo = cache.setdefault("analog", {})
         if ak not in an_memo:
             if len(an_memo) > 64:
@@ -1176,7 +1212,7 @@ def _bundle_run(sheets, forces, state, focus, timers, analog, cache, by_page, by
                 if page_memo is not None:
                     try:
                         mk = _memo_key(_sheet_fp(cache, page, s_run), page, f, st_raw, tm, soft, sorted(asked),
-                                       an_given.get(page))
+                                       an_given.get(page), *(() if _HORIZON.get() is None else (_HORIZON.get(),)))
                         hit = page_memo.get(mk)
                     except (TypeError, ValueError):
                         mk = None

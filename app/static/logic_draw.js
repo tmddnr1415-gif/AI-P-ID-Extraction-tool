@@ -694,8 +694,9 @@ function renderProps() {
   const on = (id, fn) => { const e = $(id); if (e) e.onchange = ev => upd(() => fn(ev.target)); };
   on("#p-t", t => { b.param.t = Math.max(0, +t.value || 0); });
   on("#p-nin", t => { setInputs(b, Math.max(1, Math.min(24, Math.round(+t.value || 2)))); });
-  on("#p-a", t => { b.param.a = Math.max(1, Math.min(9, +t.value || 2)); b.text = `${b.param.a}/${b.param.b}`; });
-  on("#p-b", t => { b.param.b = Math.max(1, Math.min(9, +t.value || 3)); b.text = `${b.param.a}/${b.param.b}`; });
+  const vsign = () => ({ eq: "=", gt: ">", lt: "<", le: "≤", ne: "≠" })[b.param.op] || "/";      // L95 — 부호가 있는 투표 (2=3 정확히 …)는 숫자를 고쳐도 부호를 지킨다
+  on("#p-a", t => { b.param.a = Math.max(1, Math.min(9, +t.value || 2)); b.text = `${b.param.a}${vsign()}${b.param.b}`; });
+  on("#p-b", t => { b.param.b = Math.max(1, Math.min(9, +t.value || 3)); b.text = `${b.param.a}${vsign()}${b.param.b}`; });
   on("#p-dom", t => { b.param.dominant = t.value; });
   on("#p-label", t => { b.label = t.value.trim().slice(0, 60); });
   on("#p-text", t => { b.text = t.value.trim().slice(0, spec.circle ? 2 : 40) || spec.text; });

@@ -5,10 +5,10 @@
    "seed": "amiral_19va_r1.json.gz",
    "set": "AMIRAL 19VA Control Logic & Loop (R1)",
    "sheets": 827,
-   "rev": 9
+   "rev": 13
   }
  ],
- "at": "2026-11-25 04:16:12",
+ "at": "2026-11-25 10:16:16",
  "next": {
   "k:OR": [
    [

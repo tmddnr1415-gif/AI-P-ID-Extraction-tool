@@ -52,6 +52,8 @@ MAX_TEXT = 200
 #   bar   : 왼쪽 입력 막대 (여러 입력이 붙는 자리)
 #   cells : 2 = 위·아래 두 칸 (메모리 S/R)
 #   w · h : 기본 크기 (pt)
+# L95 — 투표 블록의 부호 (param.op → 상자 글).  없으면(ge) 범례 A/B 꼴 `2/3` — B 개 중 A 개 이상
+VOTE_SIGNS = {"eq": "=", "gt": ">", "lt": "<", "le": "≤", "ne": "≠"}
 SYMBOLS = {
     "AND":    {"name": "AND",            "text": "AND",  "bar": True,  "w": 16, "h": 9,  "logic": "and"},
     "OR":     {"name": "OR",             "text": "OR",   "bar": True,  "w": 16, "h": 9,  "logic": "or"},
@@ -286,7 +288,10 @@ def clean(doc: dict) -> dict:
         if spec.get("ab"):
             param["a"] = int(_num(p.get("a"), 1, 9, 2))
             param["b"] = int(_num(p.get("b"), 1, 9, 3))
-            nb["text"] = f"{param['a']}/{param['b']}"
+            sign = VOTE_SIGNS.get(str(p.get("op") or ""))          # L95 — 부호 (`2=3` 정확히 · `2>3` …) · 없으면 A/B (이상)
+            if sign:
+                param["op"] = str(p.get("op"))
+            nb["text"] = f"{param['a']}{sign or '/'}{param['b']}"
         if spec.get("cells") == 2:
             dom = str(p.get("dominant") or "")
             param["dominant"] = dom if dom in ("set", "reset") else ""
@@ -2197,7 +2202,10 @@ def from_sheet(s: dict, name: str, author: str, project: str = "", page=None) ->
             nb["param"]["t"] = _num(p.get("t_user", p.get("t")), 0, 36000, 5)
         if kind == "VOTE":
             nb["param"] = {"a": int(_num(p.get("a"), 1, 9, 2)), "b": int(_num(p.get("b"), 1, 9, 3))}
-            nb["text"] = f"{nb['param']['a']}/{nb['param']['b']}"
+            sign = VOTE_SIGNS.get(str(p.get("op") or ""))          # L95 — 분석이 읽은 부호를 그대로 (19VA `2=3` = 정확히 2 개)
+            if sign:
+                nb["param"]["op"] = str(p.get("op"))
+            nb["text"] = f"{nb['param']['a']}{sign or '/'}{nb['param']['b']}"
         if kind == "MEMORY":
             nb["param"]["dominant"] = p.get("dominant") or ""
         if kind == "PB":

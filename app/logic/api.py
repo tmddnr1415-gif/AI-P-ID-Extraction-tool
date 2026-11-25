@@ -323,6 +323,10 @@ def _result_locked(job):
     res = store.read_result(d, (_prepared_load, lambda r: _prepare(job, d, r)))
     _drawing_sp(job, d, res)                 # L26 — 감시 블록 위에 인쇄한 설정값 (다시 분석 없이) · L30 연산자 입력 이름 · 안 그림
     _identify(res)                           # L30 — 아날로그 연산자 · 표시등 이름 (다시 분석 없이 · 결과마다 한 번)
+    if not res.get("_veq"):                  # L95 — 예전 결과도 다시 분석 없이: `2=3` 은 '정확히' (문서가 `≥` 를 따로 찍을 때) · 결과마다 한 번
+        from .analyse import _vote_equal_sign
+        _vote_equal_sign(res["sheets"])
+        res["_veq"] = True
     if not res.get("_ft"):                   # 예전 결과도 다시 분석 없이 FM ↔ TO 대조 (L5) — 캐시된 결과에는 한 번만 (L7)
         fromto.check(res["sheets"])
         res["_ft"] = True
@@ -1291,12 +1295,16 @@ def simulate_bundle(job: str, body: dict = Body(default={})):
     focus = int(focus) if isinstance(focus, int) or (isinstance(focus, str) and focus.isdigit()) else None
     timers = _timers(body.get("timers"))
     analog = _analog(body.get("analog"))
+    # L95 — wait: 이 호출에서 흘릴 시간(초).  없으면 타이머가 다 끝날 때까지 (예전 그대로) · 0 이면 시간을 멈춘 채 입력만 바꾼다
+    wait = body.get("wait")
+    wait = float(wait) if isinstance(wait, (int, float)) and not isinstance(wait, bool) and 0 <= wait <= 86400 else None
+    tk = timers if wait is None else {"__wait__": wait, "timers": timers}      # 기억 열쇠 — 기다림이 다르면 답도 다르다
     cache = _bundle_cache(job, res)
     with cache.setdefault("_lock", __import__("threading").Lock()):
-        hit = _bundle_reuse(cache, forces, state, timers, analog)
+        hit = _bundle_reuse(cache, forces, state, tk, analog)
         if hit is None:
-            out = sim.simulate_bundle(_all_sheets(res), forces, state, focus, timers=timers, analog=analog, cache=cache)
-            hit = _bundle_keep(cache, forces, state, timers, analog, out)
+            out = sim.simulate_bundle(_all_sheets(res), forces, state, focus, timers=timers, analog=analog, cache=cache, horizon=wait)
+            hit = _bundle_keep(cache, forces, state, tk, analog, out)
     body_json, results, inner = hit
     f = results.get(focus) if focus is not None else None
     # L44 — 열린 매크로 새 창마다 부모 장에 펼쳐 같이 돈 값 (body 의 inner: ["쪽:상자", …])

@@ -276,8 +276,9 @@ def _block(b, notes=()):
     if kind in ("GT", "DT", "PD"):
         out["param"]["t"] = p.get("t", 5)
     elif kind == "VOTE":
-        out["param"] = {"a": int(p.get("a", 2)), "b": int(p.get("b", 3)), "op": "ge"}
-        out["label"] = f"{out['param']['a']}/{out['param']['b']}"
+        op = p.get("op") if p.get("op") in D.VOTE_SIGNS else "ge"          # L95 — 그림이 든 부호 (`2=3` 정확히 …)
+        out["param"] = {"a": int(p.get("a", 2)), "b": int(p.get("b", 3)), "op": op}
+        out["label"] = "%d%s%d" % (out["param"]["a"], D.VOTE_SIGNS.get(op, "/"), out["param"]["b"])
     elif kind == "MEMORY":
         out["param"] = {"dominant": p.get("dominant") or ""}
         out["roles"] = {"set_cell": 0, "reset_cell": 1}

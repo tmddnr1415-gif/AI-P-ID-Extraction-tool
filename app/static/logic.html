@@ -101,6 +101,8 @@
       <button id="seq-btn" title="START · STOP · OPEN · CLOSE · TRIP 한 동작을 고르면 그 조건을 차례로 묻고 끝까지 시뮬레이션합니다">▶ 순차 동작</button>
       <button id="sig-toggle" title="내가 준 신호와 그에 따라 나간 출력을 이동 가능한 창으로 봅니다">📋 신호 현황</button>
       <button id="reset" class="lg-reset" title="모든 시트의 강제 신호(사람이 준 1/0)와 메모리 · 타이머 상태를 한 번에 지웁니다 — 타이머 시간 설정은 남습니다">⟲ 강제 신호 전체 리셋</button>
+      <label class="chk lg-hold" title="켜면 신호를 줘도 타이머 시간이 저절로 흐르지 않습니다 — 타이머가 세는 도중에 다른 입력을 바꿔 볼 수 있습니다 (예: 열림 명령 뒤 10초 안에 '열림' 이 꺼지면 3초 뒤 불일치 고장).  끄면 예전처럼 타이머가 끝날 때까지 한 번에 흐릅니다"><input type="checkbox" id="hold-time"> ⏱ 시간 직접 넘기기</label>
+      <button id="hold-next" hidden title="세는 중인 타이머 가운데 가장 먼저 끝나는 것까지 시간을 넘깁니다 (세는 타이머가 없으면 1초)">▶ 다음 타이머까지</button>
       <span id="sheet-head" class="lg-sheet-head"></span>
     </div>
     <div id="stage" class="lg-stage">
