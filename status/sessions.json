@@ -46,9 +46,9 @@
    "id": "session_01Muj82EMRakKAAS1HYXcE7d",
    "title": "6. Datasheet 자동 검토",
    "bucket": "COMPLETED",
-   "updated": "2026-11-20T09:57:49Z",
-   "recent": "29474575 valve42 — Spec Compliance. hotfix147 로 회사 업데이트에 실림",
-   "needs": "회사: Spec PDF 올리고 코멘트 확인"
+   "updated": "2026-11-26T02:13:21Z",
+   "recent": "e8b91f21 valve43 — PDS Rev. 비교 Excel · PDS 표 읽기 고침(빠지던 Tag +156) · North/South/W15 PDS 함께. pytest 2,111. 회사 미전달 — 사용자 요청 시 hotfix148",
+   "needs": "사용자: hotfix148 만들지 결정"
   },
   "S7": {
    "id": "session_01Muj82FVwL2Yt5DTXGPNkcp",
