@@ -46,8 +46,8 @@
    "id": "session_01Muj82EMRakKAAS1HYXcE7d",
    "title": "6. Datasheet 자동 검토",
    "bucket": "COMPLETED",
-   "updated": "2026-11-26T02:55:29Z",
-   "recent": "4e5413c0 valve44 — PDS Rev. 비교는 같은 Tag 끼리만 (Tag 변경 추정 안 함 · 이전만 Delete · 최신만 New). 회사 미전달 (hotfix148 은 valve43) — 사용자 요청 시 hotfix149",
+   "updated": "2026-11-26T03:11:24Z",
+   "recent": "778a14ff valve45 — PDS Rev. 비교 Excel 엔지니어 v2 양식 · 한글/English 선택 · (valve44 같은 Tag 끼리만). 회사 미전달 (hotfix148 은 valve43) — 사용자 요청 시 hotfix149",
    "needs": "사용자: hotfix149 만들지 결정"
   },
   "S7": {
