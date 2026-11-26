@@ -423,3 +423,8 @@
 - 스냅숏(Ball 164): 2,935 → 3,091. 없어진 것 0 · 심각도 변화 0 · 새 지적 156(87 Tag, 예전에 못 읽은 PDS 쪽) · Data Missing 781건 expected 에 PDS 값 ·
   Valve Review 8건 근거가 PDS 로. 무작위 6건 PDF 원문과 대조 — 모두 PDF 값 그대로. 새 기준 `out/valve29/snapshot_valve43.json`.
 - 시험 `tests/test_valve_pdsrev.py`(가짜 PDS: 조각 괘선 · 3줄 Location · MOV 섹션 · 새 열) 5개. pytest 2,111 · UI 25/25.
+
+## 2026-11-26 · VALVE valve44 — PDS Rev. 비교: Tag 변경 추정 없앰 (사용자 "Tag 변경 추정은 하지 않는다 · 없으면 모두 삭제 · 새로 있으면 모두 신규")
+- `pdsrev.compare`: 같은 Tag 번호 → Changed / No Change, 이전 Rev. 에만 → Delete, 최신 Rev. 에만 → New. 'Tag 변경 의심' · 'Tag 재사용 의심' · Line 으로 짝짓기 · 접미 문자 규칙 · New 의 '관련성 확인' 비고 모두 삭제.
+- Excel: '이전 Tag' 열 · Summary 의 두 열 · Sizing 시트의 두 줄 삭제(Row 열이 F→E, 수식도 같이). MOV 섹션이 없어 생긴 Delete 의 사유 비고는 남김(사실 기술).
+- 실 PDS: 98 = Changed 60 · New 24 · Delete 14 · 999 = Changed 45 · New 20 · Delete 24 · 315 = Changed 1 · Delete 6 (Tag 수와 맞음). Ball 스냅숏 3,091 변화 0.

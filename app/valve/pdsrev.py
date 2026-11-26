@@ -5,8 +5,7 @@ When a PDS whose document number is already loaded comes in again (a new Rev.), 
 Rev. is compared with the new one, column by column:
 
   Status   Changed · No Change · New (not in the earlier Rev.) · Delete (not found in the new Rev.) ·
-           Tag 변경 의심 (a new tag on the same line as an earlier tag that is gone or reused — the reason is written) ·
-           Changed (Tag 재사용 의심) (the same tag number now on another line, whose earlier line moved to another tag)
+           (valve44, user 2026-11-26: which tag became which is never guessed — only the same tag number is compared)
   중요도   High — sizing / rating inputs (Line · Valve Size, Bore, Design P/T, Max ΔP, Pipe Class rating letter)
            Med  — process inputs (Operating P/T, flow, ΔP, density, viscosity, phase, fluid, operating time, tightness,
                   fail position, actuator, quantity, pipe-class code scheme with the same rating letter)
@@ -20,7 +19,7 @@ import re
 
 from app.valve import schema
 
-# (key, header) — the columns of a comparison sheet after No · Status · Tag · 이전 Tag · Rev. · Row
+# (key, header) — the columns of a comparison sheet after No · Status · Tag · Rev. · Row
 FIELDS = [
     ("location", "Location"), ("quantity", "Quantity"), ("pid_no", "PID No"), ("valve_type", "Valve type"), ("line_no", "Line No"),
     ("line_size", "Line Size"), ("valve_size", "Valve Size"), ("bore", "Valve Bore"), ("piping_class", "Pipe Class"),
@@ -32,7 +31,7 @@ FIELDS = [
     ("fail_position", "Fail Safe Position"), ("tightness", "Tightness"), ("act_type", "Actuator"),
     ("dense_phase", "Dense/Supercritical CO2"), ("notes", "Notes"), ("remarks", "Remarks"),
 ]
-HEADERS = ["No", "Status", "Tag (Rev.0)", "이전 Tag", "Rev.", "Row"] + [h for _, h in FIELDS] + ["중요도(종합)", "비고 / 사유"]
+HEADERS = ["No", "Status", "Tag", "Rev.", "Row"] + [h for _, h in FIELDS] + ["중요도(종합)", "비고 / 사유"]
 HIGH = {"line_size", "valve_size", "bore", "design_pressure", "design_temp", "dp_open", "dp_close"}
 MED = {"op_pressure", "op_temp", "flow", "max_dp", "density", "viscosity", "fluid_state", "fluid", "stroke_open_s", "stroke_close_s",
        "tightness", "fail_position", "act_type", "quantity"}
@@ -122,26 +121,6 @@ def judge(key: str, old, new) -> str | None:
     return level
 
 
-def line_key(row: dict) -> str:
-    """The line a valve sits on, without its pipe class and notation: 'P98981016-6"(XC0KL-A)-N' → 'P989810166'."""
-    ln, pc = _sep(row.get("line_no")), _sep(row.get("piping_class"))
-    i = ln.find(pc) if pc else -1
-    if i > 0:
-        return ln[:i]                                        # number + size: the class and the insulation code after it go
-    raw = str(row.get("line_no") or "")
-    return _sep(raw[:raw.index("(")]) if "(" in raw else ln  # a class the line number writes otherwise: cut at its bracket
-
-
-def _similar(a, b) -> float:
-    A, B = set(re.findall(r"[A-Z0-9]+", _txt(a))), set(re.findall(r"[A-Z0-9]+", _txt(b)))
-    return len(A & B) / len(A | B) if A | B else 1.0
-
-
-def _pid_short(v) -> str:
-    m = re.search(r"(\d{3,6})\s*$", str(v or ""))
-    return m.group(1) if m else str(v or "")
-
-
 def _rows(parsed: dict) -> tuple[dict, dict]:
     """{tag_key: flat row} of the On-Off / MOV tables of a parsed PDS (process.read_process_data), and per-section facts."""
     cols, sections = [], set()
@@ -176,82 +155,27 @@ def _top(d: dict) -> str:
 
 def compare(old: dict, new: dict) -> dict:
     """old · new = parsed PDS (process.read_process_data, the earlier and the newer Rev. of one document number).
-    → {"items": [{status, tag, old_tag, old, new, imp: {key: level}, overall, note, section}], "counts": {...}, ...}"""
+    → {"items": [{status, tag, old, new, imp: {key: level}, overall, note, section}], "counts": {...}, ...}"""
     O, fo = _rows(old)
     N, fn = _rows(new)
     both = fo["columns"] & fn["columns"]
-    items, used_old, used_new = [], set(), set()
-    same = {k for k in N if k in O}
-    # 1. a tag now on another line whose earlier line is taken by a new tag → reuse; a new tag on a gone tag's line → renamed
-    moved = {k for k in same if line_key(O[k]) and line_key(O[k]) != line_key(N[k])     # the number now serves another line
-             and _pid_short(O[k].get("pid_no")) != _pid_short(N[k].get("pid_no"))                # on another P&ID, and
-             and (judge("line_size", O[k].get("line_size"), N[k].get("line_size")) or _similar(O[k].get("location"), N[k].get("location")) < 0.5)}
-    cand_old = [k for k in O if k not in N] + sorted(moved)
-    pairs = []
-    suffix = {}                                              # '98ESDV305' gone · '98ESDV305A' · '98ESDV305B' new = the same valve split
-    for nk in N:
-        if nk in O:
-            continue
-        ok = nk[:-1]
-        if nk[-1:].isalpha() and ok in O and ok not in N:
-            suffix[nk] = ok
-    for nk in N:
-        if nk in O or nk in suffix:
-            continue
-        for ok in cand_old:
-            o, n = O[ok], N[nk]
-            if not line_key(o) or line_key(o) != line_key(n):
-                continue
-            score = (_pid_short(o.get("pid_no")) == _pid_short(n.get("pid_no"))) + (judge("design_pressure", o.get("design_pressure"), n.get("design_pressure")) is None) \
-                + (_txt(o.get("location")) == _txt(n.get("location"))) + (judge("design_temp", o.get("design_temp"), n.get("design_temp")) is None)
-            if score >= 1:
-                pairs.append((score, nk, ok))
-    renamed, reused = {}, {}
-    for score, nk, ok in sorted(pairs, key=lambda x: -x[0]):
-        if nk in renamed or ok in renamed.values():
-            continue
-        renamed[nk] = ok
-    renamed.update(suffix)
-    for nk, ok in renamed.items():
-        o, n = O[ok], N[nk]
-        same_pid = _pid_short(o.get("pid_no")) == _pid_short(n.get("pid_no"))
-        same_line = line_key(o) == line_key(n)
-        what = ([f"Tag 번호에 접미 문자 추가 ({o['tag']} → {n['tag']})"] if nk in suffix else []) \
-            + ([f"동일 Line {o.get('line_no') or ''}".strip()] if same_line else []) + ([f"P&ID {_pid_short(n.get('pid_no'))}"] if same_pid else [])
-        if _txt(o.get("location")) == _txt(n.get("location")):
-            what.append(f"동일 서비스({o.get('location')})")
-        if not _diff(o, n, both & {"design_pressure", "design_temp", "op_pressure", "op_temp"}):
-            what.append("운전/설계 조건 동일")
-        if ok in moved:
-            what.append(f"이전 Rev. 의 {O[ok]['tag']} 는 최신 Rev. 에서 다른 Line({N[ok].get('line_no') or '-'})으로 재사용됨")
-            reused[ok] = (f"Tag 재사용 의심: 이전 Rev. {O[ok]['tag']} 의 서비스(Line {o.get('line_no') or '-'}, P&ID {_pid_short(o.get('pid_no'))})는 "
-                          f"최신 Rev. {n['tag']} 로 이동 추정. 최신 {N[ok]['tag']} 은 P&ID {_pid_short(N[ok].get('pid_no'))} 의 다른 Line"
-                          f"({N[ok].get('line_no') or '-'})")
-        imp = _diff(o, n, both)
-        items.append({"status": "Tag 변경 의심", "tag": n["tag"], "tag_key": nk, "old_tag": o["tag"], "old": o, "new": n, "imp": imp,
-                      "overall": _top(imp), "note": "Tag 변경 의심 – " + ", ".join(what), "section": n["section"]})
-        used_new.add(nk)
-        if ok not in moved:
-            used_old.add(ok)
-    for k in N:                                              # 2. the same tag in both Revs.
+    items = []
+    # user 2026-11-26: no guessing which tag became which — the same tag number is compared, every other tag of the
+    # earlier Rev. is Delete and every other tag of the newer Rev. is New
+    for k in N:                                              # 1. the same tag in both Revs.
         if k in O:
             imp = _diff(O[k], N[k], both)
-            st = "Changed (Tag 재사용 의심)" if k in reused else "Changed" if imp else "No Change"
-            items.append({"status": st, "tag": N[k]["tag"], "tag_key": k, "old_tag": "", "old": O[k], "new": N[k], "imp": imp,
-                          "overall": _top(imp), "note": reused.get(k, ""), "section": N[k]["section"]})
-            used_old.add(k), used_new.add(k)
-    for k in N:                                              # 3. only in the new Rev.
-        if k not in used_new:
-            lk = line_key(N[k])
-            was = next((O[ok] for ok in O if lk and line_key(O[ok]) == lk), None)   # a line an earlier tag sat on: say so, decide nothing
-            note = f"이전 Rev. {was['tag']} 가 사용하던 Line {was.get('line_no') or ''} 적용 – 관련성 확인 필요" if was else ""
-            items.append({"status": "New", "tag": N[k]["tag"], "tag_key": k, "old_tag": "", "old": None, "new": N[k], "imp": {},
-                          "overall": "New", "note": note, "section": N[k]["section"]})
-    for k in O:                                              # 4. not found in the new Rev.
-        if k not in used_old:
+            items.append({"status": "Changed" if imp else "No Change", "tag": N[k]["tag"], "tag_key": k, "old": O[k], "new": N[k],
+                          "imp": imp, "overall": _top(imp), "note": "", "section": N[k]["section"]})
+    for k in N:                                              # 2. only in the new Rev.
+        if k not in O:
+            items.append({"status": "New", "tag": N[k]["tag"], "tag_key": k, "old": None, "new": N[k], "imp": {},
+                          "overall": "New", "note": "", "section": N[k]["section"]})
+    for k in O:                                              # 3. not in the new Rev.
+        if k not in N:
             sec = O[k]["section"]
             note = (f"최신 Rev. 에 {sec} 섹션 미수록 – 삭제 또는 별도 문서 이관 여부 확인 필요" if sec not in fn["sections"] else "")
-            items.append({"status": "Delete", "tag": O[k]["tag"], "tag_key": k, "old_tag": "", "old": O[k], "new": None, "imp": {},
+            items.append({"status": "Delete", "tag": O[k]["tag"], "tag_key": k, "old": O[k], "new": None, "imp": {},
                           "overall": "Delete", "note": note, "section": sec})
     order = {k: i for i, k in enumerate(N)}
     oorder = {k: i for i, k in enumerate(O)}
@@ -260,7 +184,7 @@ def compare(old: dict, new: dict) -> dict:
     counts = {"old_tags": len(O), "new_tags": len(N)}
     for it in items:
         s = it["status"]
-        if s.startswith("Changed") or s == "Tag 변경 의심":
+        if s == "Changed":
             if it["overall"]:
                 counts[f"changed_{it['overall'].lower()}"] = counts.get(f"changed_{it['overall'].lower()}", 0) + 1
         counts[s] = counts.get(s, 0) + 1
@@ -296,11 +220,10 @@ def tagkey(t: str) -> str:
 
 # ── the Excel (the layout of the engineers' own comparison workbook) ─────────────────────────────────────────────────
 
-FILL_STATUS = {"Changed": "FFF2CC", "No Change": "", "New": "C6E0B4", "Delete": "D9D9D9", "Tag 변경 의심": "F8CBAD",
-               "Changed (Tag 재사용 의심)": "F8CBAD"}
+FILL_STATUS = {"Changed": "FFF2CC", "No Change": "", "New": "C6E0B4", "Delete": "D9D9D9"}
 FILL_LEVEL = {"High": "FFC7CE", "Med": "FFEB9C", "Min": "E2EFDA"}
-WIDTHS = {"A": 5, "B": 13, "C": 15, "D": 14, "E": 7, "F": 7, "G": 22, "H": 9, "I": 16, "J": 9, "K": 22, "L": 9, "M": 9, "N": 9,
-          "O": 9, "P": 11}
+WIDTHS = {"A": 5, "B": 11, "C": 15, "D": 7, "E": 7, "F": 22, "G": 9, "H": 16, "I": 9, "J": 22, "K": 9, "L": 9, "M": 9,
+          "N": 9, "O": 11}
 CRITERIA = [
     ("High", "Line Size, Valve Size, Valve Bore, Design Pressure, Design Temperature, Max ΔP(Opening/Closing), Pipe Class Rating 문자 변경 "
              "→ Valve Size·Rating·Actuator Torque 재검토 필요"),
@@ -310,8 +233,8 @@ CRITERIA = [
             "→ Sizing 영향 없음(문서 정합성)"),
     ("보정", "수치 변경폭이 2% 이하이면 한 단계 낮춤(High→Med, Med→Min). Line/Valve Size의 따옴표 표기 차이(18' vs 18\")와 "
              "Line No/P&ID의 구분기호 · 띄어쓰기 차이는 변경으로 보지 않음."),
-    ("Status", "Changed / No Change / New(이전 Rev.에 없음) / Delete(최신 Rev.에서 미확인) / Tag 변경 의심(Line No·서비스·공정값 일치 또는 "
-               "Tag 접미 문자 추가로 이전 Tag와 매칭, 비고에 사유) / Changed (Tag 재사용 의심)(같은 Tag 번호가 다른 P&ID·Line 으로)"),
+    ("Status", "Changed / No Change (같은 Tag 번호끼리 비교) / New(이전 Rev.에 없던 Tag 번호) / Delete(최신 Rev.에 없는 Tag 번호) — "
+               "Tag 번호가 바뀐 것인지는 추정하지 않음"),
 ]
 
 
@@ -349,8 +272,8 @@ def workbook(docs: list[dict]) -> bytes:
     names = [f"{L}. {d['doc_no']}"[:31] for L, d in zip(letters, docs)]
     rev = lambda r: f"Rev.{r}" if r else "Rev.?"                                     # noqa: E731
     keys = [k for k, _ in FIELDS]
-    ci = {k: 7 + i for i, k in enumerate(keys)}                                       # field → column number
-    AL, AM = _col(7 + len(keys)), _col(8 + len(keys))
+    ci = {k: 6 + i for i, k in enumerate(keys)}                                       # field → column number
+    AL, AM = _col(6 + len(keys)), _col(7 + len(keys))
     high_rows, size_rows = [], []
 
     for L, d, sn in zip(letters, docs, names):                                        # ── one sheet per document
@@ -366,7 +289,7 @@ def workbook(docs: list[dict]) -> bytes:
             st, o, n = it["status"], it["old"], it["new"]
             for j, (row_name, src) in enumerate((("이전", o), ("최신", n), ("중요도", None))):
                 rr = r + j
-                vals = [no, st, it["tag"], it["old_tag"] or None, rev(d["old_rev"]) if j == 0 else rev(d["new_rev"]) if j == 1 else None, row_name]
+                vals = [no, st, it["tag"], rev(d["old_rev"]) if j == 0 else rev(d["new_rev"]) if j == 1 else None, row_name]
                 for i, v in enumerate(vals, 1):
                     c = ws.cell(rr, i, v)
                     c.font, c.border, c.alignment = f9, box, wrap
@@ -387,42 +310,42 @@ def workbook(docs: list[dict]) -> bytes:
                     ws.cell(rr, ci["location"], f"(이전 {rev(d['old_rev'])} 없음)")
                 if j == 1 and n is None:
                     ws.cell(rr, ci["location"], f"(최신 {rev(d['new_rev'])} 미확인)")
-                c = ws.cell(rr, 7 + len(keys), it["overall"] or None if j == 1 else None)
+                c = ws.cell(rr, 6 + len(keys), it["overall"] or None if j == 1 else None)
                 c.font, c.border = f9, box
                 if j == 1 and it["overall"] in FILL_LEVEL:
                     c.fill = fill(FILL_LEVEL[it["overall"]])
-            c = ws.cell(r, 8 + len(keys), it["note"] or None)
+            c = ws.cell(r, 7 + len(keys), it["note"] or None)
             c.font, c.alignment, c.border = f9, wrap, box
             ws.merge_cells(f"{AM}{r}:{AM}{r + 2}")
             for k, lv in it["imp"].items():
                 if lv == "High":
-                    high_rows.append([L, d["doc_no"], it["tag"], it["old_tag"] or None, dict(FIELDS)[k], (o or {}).get(k), (n or {}).get(k), st])
+                    high_rows.append([L, d["doc_no"], it["tag"], dict(FIELDS)[k], (o or {}).get(k), (n or {}).get(k), st])
                 if k in SIZE_KEYS and lv in ("High", "Med"):
-                    size_rows.append([L, it["tag"], it["old_tag"] or None, dict(FIELDS)[k], (o or {}).get(k), (n or {}).get(k)])
+                    size_rows.append([L, it["tag"], dict(FIELDS)[k], (o or {}).get(k), (n or {}).get(k)])
             r += 3
         for k, w in WIDTHS.items():
             ws.column_dimensions[k].width = w
-        for i in range(17, 7 + len(keys)):
+        for i in range(16, 6 + len(keys)):
             ws.column_dimensions[_col(i)].width = 9
         ws.column_dimensions[AL].width, ws.column_dimensions[AM].width = 10, 50
-        ws.freeze_panes = "G5"
+        ws.freeze_panes = "F5"
         ws.auto_filter.ref = f"A4:{AM}{max(r - 1, 4)}"
 
     # ── Summary
     sm.cell(1, 1, "Process Data Sheet (On-Off Valve / MOV) Rev. 비교 Summary").font = Font(bold=True, size=14)
     sm.cell(2, 1, "출처: 각 PDS 의 최신 Rev. vs 바로 앞 Rev. (같은 문서 번호로 올린 순서). 수치는 각 시트를 COUNTIFS 로 집계.").font = Font(size=9, italic=True)
     cols = ["Doc", "Doc No.", "Area", "이전 Rev.", "최신 Rev.", "이전 Tag 수", "최신 Tag 수", "Changed (High)", "Changed (Med)", "Changed (Min)",
-            "No Change", "New", "Delete", "Tag 변경 의심", "Tag 재사용 의심"]
+            "No Change", "New", "Delete"]
     header(sm, 4, cols)
     for i, (L, d, sn) in enumerate(zip(letters, docs, names)):
         rr, q = 5 + i, f"'{sn}'!"
 
         def cnt(st, lv=None, q=q):
-            f = f'COUNTIFS({q}$B:$B,"{st}",{q}$F:$F,"최신"' + (f',{q}${AL}:${AL},"{lv}"' if lv else "") + ")"
+            f = f'COUNTIFS({q}$B:$B,"{st}",{q}$E:$E,"최신"' + (f',{q}${AL}:${AL},"{lv}"' if lv else "") + ")"
             return f
         row = [L, d["doc_no"], d.get("area") or "", rev(d["old_rev"]), rev(d["new_rev"]), d["result"]["counts"]["old_tags"], d["result"]["counts"]["new_tags"]]
-        row += [f"={cnt('Changed*', lv)}+{cnt('Tag 변경 의심', lv)}" for lv in ("High", "Med", "Min")]
-        row += [f"={cnt(s)}" for s in ("No Change", "New", "Delete", "Tag 변경 의심", "Changed (Tag 재사용 의심)")]
+        row += [f"={cnt('Changed', lv)}" for lv in ("High", "Med", "Min")]
+        row += [f"={cnt(s)}" for s in ("No Change", "New", "Delete")]
         for j, v in enumerate(row, 1):
             c = sm.cell(rr, j, v)
             c.border, c.font = box, Font(size=10)
@@ -455,31 +378,31 @@ def workbook(docs: list[dict]) -> bytes:
 
     # ── High list
     hl = wb.create_sheet("High 변경 목록")
-    header(hl, 1, ["Doc", "Doc No.", f"Tag (최신)", "이전 Tag", "항목", "이전 Rev. 값", "최신 Rev. 값", "Status"])
+    header(hl, 1, ["Doc", "Doc No.", "Tag", "항목", "이전 Rev. 값", "최신 Rev. 값", "Status"])
     for i, row in enumerate(high_rows, 2):
         for j, v in enumerate(row, 1):
             c = hl.cell(i, j, v)
             c.border, c.font = box, Font(size=9)
-        hl.cell(i, 7).font = Font(size=9, color="FF0000")
-    for k, w in zip("ABCDEFGH", (5, 20, 16, 14, 22, 22, 22, 22)):
+        hl.cell(i, 6).font = Font(size=9, color="FF0000")
+    for k, w in zip("ABCDEFG", (5, 20, 16, 22, 22, 22, 22)):
         hl.column_dimensions[k].width = w
     hl.freeze_panes = "A2"
-    hl.auto_filter.ref = f"A1:H{max(1, len(high_rows) + 1)}"
+    hl.auto_filter.ref = f"A1:G{max(1, len(high_rows) + 1)}"
 
     # ── Sizing summary
     sz = wb.create_sheet("Summary (Sizing 영향)")
     sz.cell(1, 1, "Rev. 변경 Summary – Line Size 변경 / Ball Valve Sizing 영향 / 추가·삭제 수량").font = Font(bold=True, size=14)
-    sz.cell(2, 1, '모든 수량은 Tag 기준이며 각 비교 시트의 "중요도" 행을 집계. (Tag 변경 의심 항목은 이전 Tag 값과 비교한 결과 포함)').font = Font(size=9, italic=True)
+    sz.cell(2, 1, '모든 수량은 Tag 기준이며 각 비교 시트의 "중요도" 행을 집계. 같은 Tag 번호끼리만 비교').font = Font(size=9, italic=True)
     header(sz, 4, ["구분", "항목", "판단 기준"] + names + ["합계"])
 
     def sp(sn, cols_, levels):
         q = f"'{sn}'!"
         terms = "+".join(f'({q}${c}$5:${c}$5000="{lv}")' for c in cols_ for lv in levels)
-        return f'=SUMPRODUCT(({q}$F$5:$F$5000="중요도")*(({terms})>0))'
+        return f'=SUMPRODUCT(({q}$E$5:$E$5000="중요도")*(({terms})>0))'
 
     def cf(sn, st=None, lv=None, tag=None):
         q = f"'{sn}'!"
-        parts = ([f'{q}$B:$B,"{st}"'] if st else []) + [f'{q}$F:$F,"최신"'] + ([f'{q}${AL}:${AL},"{lv}"'] if lv else []) + ([f'{q}$C:$C,"{tag}"'] if tag else [])
+        parts = ([f'{q}$B:$B,"{st}"'] if st else []) + [f'{q}$E:$E,"최신"'] + ([f'{q}${AL}:${AL},"{lv}"'] if lv else []) + ([f'{q}$C:$C,"{tag}"'] if tag else [])
         return "=COUNTIFS(" + ",".join(parts) + ")"
     C = lambda k: _col(ci[k])                                                         # noqa: E731
     items = [("Tag 수", "이전 Rev. Tag 수", "이전 Rev. 문서 기준", lambda sn, d: d["result"]["counts"]["old_tags"]),
@@ -499,9 +422,7 @@ def workbook(docs: list[dict]) -> bytes:
              ("Sizing 영향", "변경 없음", "No Change", lambda sn, d: cf(sn, st="No Change")),
              ("추가/삭제", "New (추가)", "이전 Rev.에 없음", lambda sn, d: cf(sn, st="New")),
              ("추가/삭제", "Delete (삭제) – 전체", "최신 Rev.에서 미확인", lambda sn, d: cf(sn, st="Delete")),
-             ("추가/삭제", "  └ 그중 MOV", "최신 Rev.에 MOV 섹션 없음 – 이관 여부 확인", lambda sn, d: cf(sn, st="Delete", tag="*MOV*")),
-             ("추가/삭제", "Tag 변경 의심", "Line·서비스·공정값 일치로 이전 Tag와 매칭", lambda sn, d: cf(sn, st="Tag 변경 의심")),
-             ("추가/삭제", "Tag 재사용 의심", "같은 Tag 번호가 다른 서비스로 사용", lambda sn, d: cf(sn, st="Changed (Tag 재사용 의심)"))]
+             ("추가/삭제", "  └ 그중 MOV", "최신 Rev.에 MOV 섹션 없음 – 이관 여부 확인", lambda sn, d: cf(sn, st="Delete", tag="*MOV*"))]
     for i, (g, name, basis, fn) in enumerate(items):
         rr = 5 + i
         for j, v in enumerate([g, name, basis] + [fn(sn, d) for sn, d in zip(names, docs)], 1):
@@ -513,7 +434,7 @@ def workbook(docs: list[dict]) -> bytes:
             sz.cell(rr, 1).fill = fill("FCE4D6")
     lr = 5 + len(items) + 1
     sz.cell(lr, 1, "Line Size / Valve Size 변경 Tag 목록").font = Font(bold=True)
-    header(sz, lr + 1, ["Doc", "Tag (최신)", "이전 Tag", "항목", "이전 Rev.", "최신 Rev."])
+    header(sz, lr + 1, ["Doc", "Tag", "항목", "이전 Rev.", "최신 Rev."])
     for i, row in enumerate(size_rows):
         for j, v in enumerate(row, 1):
             c = sz.cell(lr + 2 + i, j, v)

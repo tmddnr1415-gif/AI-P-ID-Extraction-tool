@@ -548,9 +548,9 @@ def _process(jid: str, pid: int, items: list[tuple[int, str, str, Path]], by: st
                 if rc:
                     info["revcompare"] = rc
                     c = rc["counts"]
-                    info["note"] += (f" · 이전 {rc['prev_name']} (Rev.{rc['old_rev'] or '?'}) 과 비교: Changed {sum(c.get(k, 0) for k in ('Changed', 'Changed (Tag 재사용 의심)'))}"
+                    info["note"] += (f" · 이전 {rc['prev_name']} (Rev.{rc['old_rev'] or '?'}) 과 비교: Changed {c.get('Changed', 0)}"
                                      f" (High {c.get('changed_high', 0)}) · New {c.get('New', 0)} · Delete {c.get('Delete', 0)}"
-                                     f" · Tag 변경 의심 {c.get('Tag 변경 의심', 0)} — 'PDS Rev. 비교 Excel' 로 받기")
+                                     f" — 'PDS Rev. 비교 Excel' 로 받기")
                 con.execute("UPDATE document SET status='done', info=? WHERE id=?", (store.J(info), doc_id))
                 store.audit(con, pid, None, None, "upload", None, name, by, "process")
                 con.commit()
@@ -841,7 +841,7 @@ def _rules_fingerprint() -> str:
 
 
 _RULES_FP = _rules_fingerprint()
-VERSION = "valve43"                       # shown in Settings › 정보 and the footer; bump with every package
+VERSION = "valve44"                       # shown in Settings › 정보 and the footer; bump with every package
 
 
 @router.get("/api/valve/version")
