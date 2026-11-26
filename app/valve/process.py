@@ -175,16 +175,13 @@ def _rebox(page, words, cols, rows, unit_line):
     for r, (y0, y1) in zip(rows, bands):
         inside = [w for w in words if y0 <= (w[1] + w[3]) / 2 < y1]
         vals = {}
-        for ln in extract._lines(inside):
-            for c in cols:
-                cw = _cell(ln, c["x0"], c["x1"])
-                if not cw:
-                    continue
-                k = c["key"] or f"x.{re.sub(r'[^a-z0-9]+', '_', c['label'])[:30]}"
-                v = vals.setdefault(k, {"v": "", "unit": c["unit"], "bbox": None, "label": c["label"]})
-                v["v"] = (v["v"] + " " + " ".join(w[4] for w in sorted(cw, key=lambda w: w[0]))).strip()
-                bb = extract._bbox(cw)
-                v["bbox"] = bb if not v["bbox"] else [min(v["bbox"][0], bb[0]), min(v["bbox"][1], bb[1]), max(v["bbox"][2], bb[2]), max(v["bbox"][3], bb[3])]
+        for c in cols:                                       # lines made inside each cell: a taller word in another column
+            cw = _cell(inside, c["x0"], c["x1"])             # must not join two lines of this one ('… SKIMMED HYDROCARBON' / 'DRUM')
+            if not cw:
+                continue
+            k = c["key"] or f"x.{re.sub(r'[^a-z0-9]+', '_', c['label'])[:30]}"
+            vals[k] = {"v": " ".join(" ".join(w[4] for w in ln) for ln in extract._lines(cw)), "unit": c["unit"],
+                       "bbox": extract._bbox(cw), "label": c["label"]}
         if vals.get("tag", {}).get("v"):
             r["values"] = vals
 
@@ -218,7 +215,7 @@ def scan(path: str) -> dict:
     return {"v": 1, "tag_pages": tag_pages, "zone_by_page": zones}
 
 
-READER_V = 2          # valve43: rules drawn cell by cell · rows split by their rules — older reads are read again
+READER_V = 3          # valve43: rules drawn cell by cell · rows split by their rules — older reads are read again
 
 
 @extract.pdf_locked

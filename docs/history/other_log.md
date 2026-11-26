@@ -423,3 +423,16 @@
 - 스냅숏(Ball 164): 2,935 → 3,091. 없어진 것 0 · 심각도 변화 0 · 새 지적 156(87 Tag, 예전에 못 읽은 PDS 쪽) · Data Missing 781건 expected 에 PDS 값 ·
   Valve Review 8건 근거가 PDS 로. 무작위 6건 PDF 원문과 대조 — 모두 PDF 값 그대로. 새 기준 `out/valve29/snapshot_valve43.json`.
 - 시험 `tests/test_valve_pdsrev.py`(가짜 PDS: 조각 괘선 · 3줄 Location · MOV 섹션 · 새 열) 5개. pytest 2,111 · UI 25/25.
+
+## 2026-11-26 · VALVE valve44 — PDS Rev. 비교: Tag 변경 추정 없앰 (사용자 "Tag 변경 추정은 하지 않는다 · 없으면 모두 삭제 · 새로 있으면 모두 신규")
+- `pdsrev.compare`: 같은 Tag 번호 → Changed / No Change, 이전 Rev. 에만 → Delete, 최신 Rev. 에만 → New. 'Tag 변경 의심' · 'Tag 재사용 의심' · Line 으로 짝짓기 · 접미 문자 규칙 · New 의 '관련성 확인' 비고 모두 삭제.
+- Excel: '이전 Tag' 열 · Summary 의 두 열 · Sizing 시트의 두 줄 삭제(Row 열이 F→E, 수식도 같이). MOV 섹션이 없어 생긴 Delete 의 사유 비고는 남김(사실 기술).
+- 실 PDS: 98 = Changed 60 · New 24 · Delete 14 · 999 = Changed 45 · New 20 · Delete 24 · 315 = Changed 1 · Delete 6 (Tag 수와 맞음). Ball 스냅숏 3,091 변화 0.
+
+## 2026-11-26 · VALVE valve45 — PDS Rev. 비교 Excel: 사용자 v2 양식 + 한글/영어 선택
+- 사용자 v2 양식으로 `pdsrev.workbook(docs, lang)` 다시 씀: D 열 '(예비)' · No/Status/Tag/종합 중요도는 1행에만 · No·종합·비고 3행 병합 ·
+  Summary 12열(최신 Rev. 열 없음 · 'Rev.0 Tag 수') · COUNTIFS 는 Row='이전' · High 목록/Size 목록에 '-' 열. 모든 문구는 `pdsrev.T['ko'|'en']`.
+- API `GET /projects/{pid}/pds_revcompare.xlsx?lang=ko|en` (파일 이름 _KO_ / _EN_) · 화면: 'PDS Rev. 비교 Excel (한글)' · '(English)' 버튼.
+- PDS 읽기: 줄을 칸 안에서만 만듦(다른 칸의 큰 글자가 두 줄을 붙여 'TO DRUM SKIMMED HYDROCARBON' 처럼 순서가 바뀌던 것) · READER_V=3.
+  → v2 예시와 3문서 194 Tag 블록 모든 칸 · Summary · Sizing · High 목록 66줄 같음(LibreOffice 재계산). 영어판에 한글 0자.
+- Ball 스냅숏: 3,091 그대로 · 바뀐 2건은 'WATER SOUR' → 'SOUR WATER'(PDF 그대로). 새 기준 snapshot_valve45. 시험 tests/test_valve_pdsrev.py 6개.

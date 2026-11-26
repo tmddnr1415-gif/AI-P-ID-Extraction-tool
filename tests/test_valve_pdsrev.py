@@ -78,9 +78,9 @@ def _pds(sections, rev, extra=False):
 OLD = [("Process Data for On-Off Valve", [
     _row("77XV001"),                                                         # → valve size 6"→4" (High), op temp +1 % (Med→Min)
     _row("77XV002", line_no='P7702-4"(XC0KL-A)-N', line_size='4"', valve_size="4'"),     # → notation only: No Change
-    _row("77XV003", line_no='P7703-8"(YC0KL-N)-N', pid_no="777-98-PR-PID-00012", line_size='8"', piping_class="YC0KL-N"),   # number reused elsewhere
-    _row("77XV004", line_no='P7704-2"(XC0KL-A)-N', line_size='2"', valve_size='2"'),     # renamed to 77XV104 on the same line
-    _row("77XV005", line_no='P7705-3"(XC0KL-A)-N'),                          # split into 77XV005A · 77XV005B
+    _row("77XV003", line_no='P7703-8"(YC0KL-N)-N', pid_no="777-98-PR-PID-00012", line_size='8"', piping_class="YC0KL-N"),   # → another line
+    _row("77XV004", line_no='P7704-2"(XC0KL-A)-N', line_size='2"', valve_size='2"'),     # gone (77XV104 is new on its line)
+    _row("77XV005", line_no='P7705-3"(XC0KL-A)-N'),                          # gone (77XV005A · 77XV005B are new)
     _row("77XV006", line_no='P7706-3"(XC0KL-A)-N')]),                         # gone
     ("Process Data for Motor Operated Valve", [_row("77MOV001", line_no='P7790-6"(XC0KL-A)-N')])]
 NEW = [("Process Data for On-Off Valve", [
@@ -120,42 +120,70 @@ def test_judge_levels():
     assert judge("density", "-", "510.83") == "Min" and judge("remarks", "sour service, FV", "sour service,FV") is None
 
 
-def test_compare_statuses_and_reasons(tmp_path):
+def test_compare_statuses_no_tag_guessing(tmp_path):
+    """valve44 (user 2026-11-26): which tag became which is never guessed — only the same number is compared."""
     from app.valve import pdsrev
     R = pdsrev.compare(_parse(tmp_path, "o.pdf", _pds(OLD, "B")), _parse(tmp_path, "n.pdf", _pds(NEW, "0", extra=True)))
-    st = {(i["tag_key"], i["old_tag"]): i for i in R["items"]}
-    a = st[("77XV001", "")]
+    st = {i["tag_key"]: i for i in R["items"]}
+    a = st["77XV001"]
     assert a["status"] == "Changed" and a["imp"] == {"valve_size": "High", "line_no": "Min", "piping_class": "Med", "op_temp": "Min"}
     assert a["overall"] == "High"
-    assert st[("77XV002", "")]["status"] == "No Change"
-    assert st[("77XV003", "")]["status"] == "Changed (Tag 재사용 의심)" and "77XV103" in st[("77XV003", "")]["note"]
-    assert st[("77XV103", "77XV003")]["status"] == "Tag 변경 의심"
-    assert st[("77XV104", "77XV004")]["status"] == "Tag 변경 의심" and "동일 Line" in st[("77XV104", "77XV004")]["note"]
-    assert st[("77XV005A", "77XV005")]["status"] == st[("77XV005B", "77XV005")]["status"] == "Tag 변경 의심"
-    assert st[("77XV005A", "77XV005")]["imp"] == {"design_pressure": "Min"}                 # only 'FV/' added
-    assert st[("77XV200", "")]["status"] == "New" and st[("77XV006", "")]["status"] == "Delete"
-    mov = st[("77MOV001", "")]
-    assert mov["status"] == "Delete" and "MOV 섹션 미수록" in mov["note"]
+    assert st["77XV002"]["status"] == "No Change"
+    assert st["77XV003"]["status"] == "Changed" and st["77XV003"]["note"] == ""        # another line now: still just Changed
+    # on the same line as a gone tag · a letter added · a new number: all New; every number the new Rev. lacks: Delete
+    assert {k for k, i in st.items() if i["status"] == "New"} == {"77XV104", "77XV005A", "77XV005B", "77XV103", "77XV200"}
+    assert {k for k, i in st.items() if i["status"] == "Delete"} == {"77XV004", "77XV005", "77XV006", "77MOV001"}
+    assert all(i["note"] == "" for i in R["items"] if i["status"] == "New")
+    assert "MOV 섹션 미수록" in st["77MOV001"]["note"]
+    assert {i["status"] for i in R["items"]} == {"Changed", "No Change", "New", "Delete"}
     assert R["excluded_columns"] == ["Dense/Supercritical CO2"]                             # only the new Rev. has it: not compared
     assert R["counts"]["old_tags"] == 7 and R["counts"]["new_tags"] == 8
 
 
-def test_workbook_layout(tmp_path):
+def _book(tmp_path, lang):
     import openpyxl
     from app.valve import pdsrev
     R = pdsrev.compare(_parse(tmp_path, "o.pdf", _pds(OLD, "B")), _parse(tmp_path, "n.pdf", _pds(NEW, "0", extra=True)))
-    data = pdsrev.workbook([{"doc_no": DN, "area": "QN", "old_rev": "B", "new_rev": "0", "old_name": "o.pdf", "new_name": "n.pdf", "result": R}])
-    wb = openpyxl.load_workbook(io.BytesIO(data))
+    data = pdsrev.workbook([{"doc_no": DN, "area": "QN", "old_rev": "B", "new_rev": "0", "old_name": "o.pdf", "new_name": "n.pdf", "result": R}], lang)
+    return openpyxl.load_workbook(io.BytesIO(data))
+
+
+def test_workbook_layout_v2_korean(tmp_path):
+    """valve45: the engineers' v2 layout — No · Status · Tag · (예비) · Rev. · Row, three rows per tag, No · Status · Tag ·
+    overall importance on the first row only (No · overall · remarks merged over the three rows)."""
+    wb = _book(tmp_path, "ko")
     assert wb.sheetnames == ["Summary", f"A. {DN}", "High 변경 목록", "Summary (Sizing 영향)"]
     ws = wb[f"A. {DN}"]
-    assert [ws.cell(4, c).value for c in (1, 2, 3, 6, 38, 39)] == ["No", "Status", "Tag (Rev.0)", "Row", "중요도(종합)", "비고 / 사유"]
+    assert [ws.cell(4, c).value for c in (1, 2, 3, 4, 5, 6, 38, 39)] == ["No", "Status", "Tag", "(예비)", "Rev.", "Row", "중요도(종합)", "비고 / 사유"]
     assert [ws.cell(r, 6).value for r in (5, 6, 7)] == ["이전", "최신", "중요도"] and ws.freeze_panes == "G5"
-    assert ws.cell(5, 3).value == "77XV001" and ws.cell(5, 5).value == "Rev.B" and ws.cell(6, 5).value == "Rev.0"
-    assert ws.cell(7, 13).value == "High" and ws.cell(6, 13).font.color.rgb.endswith("FF0000") and ws.cell(6, 38).value == "High"
-    assert "COUNTIFS" in wb["Summary"].cell(5, 8).value and wb["Summary"].cell(5, 6).value == 7
+    assert (ws.cell(5, 2).value, ws.cell(5, 3).value, ws.cell(5, 38).value) == ("Changed", "77XV001", "High")
+    assert ws.cell(6, 2).value is None and ws.cell(6, 3).value is None                     # first row only
+    assert {"A5:A7", "AL5:AL7", "AM5:AM7"} <= {str(m) for m in ws.merged_cells.ranges}
+    assert ws.cell(5, 5).value == "Rev.B" and ws.cell(6, 5).value == "Rev.0"
+    assert ws.cell(7, 13).value == "High" and ws.cell(6, 13).font.color.rgb.endswith("FF0000")
+    sm = wb["Summary"]
+    assert [sm.cell(4, c).value for c in range(1, 13)][4:] == ["이전 Tag 수", "Rev.0 Tag 수", "Changed (High)", "Changed (Med)", "Changed (Min)",
+                                                               "No Change", "New", "Delete"]
+    assert '"이전"' in sm.cell(5, 7).value and sm.cell(5, 5).value == 7 and sm.cell(5, 6).value == 8
     hl = wb["High 변경 목록"]
     assert ("77XV001", "Valve Size", '6"', '4"') in {(hl.cell(r, 3).value, hl.cell(r, 5).value, hl.cell(r, 6).value, hl.cell(r, 7).value)
                                                     for r in range(2, hl.max_row + 1)}
+    assert not any("변경 의심" in str(c.value or "") for w in wb for row in w.iter_rows() for c in row)
+
+
+def test_workbook_english_same_layout(tmp_path):
+    ko, en = _book(tmp_path, "ko"), _book(tmp_path, "en")
+    assert en.sheetnames == ["Summary", f"A. {DN}", "High Changes", "Summary (Sizing Impact)"]
+    ws = en[f"A. {DN}"]
+    assert [ws.cell(4, c).value for c in (4, 38, 39)] == ["(spare)", "Overall Importance", "Remarks / Reason"]
+    assert [ws.cell(r, 6).value for r in (5, 6, 7)] == ["Previous", "Latest", "Importance"]
+    assert '"Previous"' in en["Summary"].cell(5, 7).value and '"Importance"' in en["Summary (Sizing Impact)"].cell(7, 4).value
+    k, e = ko[f"A. {DN}"], ws                                                              # the same cells, the same values
+    assert all(k.cell(r, c).value == e.cell(r, c).value for r in range(5, k.max_row + 1) for c in range(7, 38)
+               if k.cell(r, 6).value != "중요도" and not str(k.cell(r, c).value or "").startswith("("))
+    hangul = [c.value for w in en for row in w.iter_rows() for c in row
+              if isinstance(c.value, str) and any("\uac00" <= ch <= "\ud7a3" for ch in c.value)]
+    assert hangul == []                                                                    # no Korean left in the English book
 
 
 def test_upload_same_number_compares_and_gives_the_excel(tmp_path, monkeypatch):
@@ -180,10 +208,12 @@ def test_upload_same_number_compares_and_gives_the_excel(tmp_path, monkeypatch):
     up(f"{DN}_0001_0_Advanced_Copy.pdf", _pds(NEW, "0", extra=True))
     docs = {d["filename"]: d for d in c.get(f"/api/valve/projects/{pid}/summary").json()["documents"] if d["kind"] == "process"}
     rc = docs[f"{DN}_0001_0_Advanced_Copy.pdf"]["info"]["revcompare"]
-    assert (rc["old_rev"], rc["new_rev"]) == ("B", "0") and rc["counts"]["New"] == 1 and rc["counts"]["Delete"] == 2
+    assert (rc["old_rev"], rc["new_rev"]) == ("B", "0") and rc["counts"]["New"] == 5 and rc["counts"]["Delete"] == 4
     assert "이전" in docs[f"{DN}_0001_0_Advanced_Copy.pdf"]["info"]["note"]
     r = c.get(f"/api/valve/projects/{pid}/pds_revcompare.xlsx")
-    assert r.status_code == 200 and r.headers["x-count"] == "1"
+    assert r.status_code == 200 and r.headers["x-count"] == "1" and "_KO_" in r.headers["content-disposition"]
+    r = c.get(f"/api/valve/projects/{pid}/pds_revcompare.xlsx?lang=en")
+    assert r.status_code == 200 and "_EN_" in r.headers["content-disposition"]
     con = api.store.connect()
     P, _ = api._process_for(con, pid)
     assert "77XV200" in P["by_tag"] and "77XV006" not in P["by_tag"]                         # the newest Rev. is what the review uses
