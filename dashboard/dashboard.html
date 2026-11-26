@@ -2124,6 +2124,89 @@ body.mm-noanno #mmNotes > :not(.tb),body.mm-noanno #mmInk,body.mm-noanno #mmInkH
 .mm-pv .mm-inkbar{border-top:0}
 /* v18.62 떠 있는 그림 밑으로 새 줄을 내리는 빈칸 */
 .mm-gap{display:block;pointer-events:none;user-select:none;min-height:0}
+/* v18.67 유닛분장: 확대 · 축소 + 위아래만 (좌우 끌기 없음 · 화면 너비에 맞춰 줄 바꿈) */
+#oc.flow .oc-view{height:max(520px,calc(100vh - 250px))!important;overflow-y:auto!important;overflow-x:hidden!important;cursor:default!important;touch-action:pan-y!important}
+#oc.flow .oc-cv{position:relative!important;transform-origin:0 0!important;box-sizing:border-box;padding:20px 18px 40px}
+#oc.flow .oc-mini{display:none!important}
+#oc.flow .oc-us{flex-wrap:wrap;row-gap:26px}
+/* v18.67 한눈에: 유닛 나란히 · IEC 구성원은 여러 칸 격자(세로로 길게 늘어서지 않게) · 칸 높이 = 화면 */
+#oc.flow:is(.m-unit,.m-gen,.m-task) .oc-us{flex-wrap:wrap;justify-content:center;gap:18px 14px}
+/* v18.67 사용자 사진 구성 "디자인 유지하고 이런 구성": 그룹장 ─ 가로 연결선(점) ─ 유닛마다 세로 한 줄 · 유닛 번호 ①②③ · 구성원은 왼쪽 세로선에 점(A B C)으로 이음 */
+#oc.flow:is(.m-unit,.m-gen,.m-task) .oc-us{flex-wrap:wrap!important;gap:24px 26px!important;counter-reset:ocu}
+#oc.flow:is(.m-unit,.m-gen,.m-task) .oc-u{width:290px!important;flex:none}
+#oc.flow:is(.m-unit,.m-gen,.m-task) .oc-u.iec{width:auto!important}#oc.flow:is(.m-unit,.m-gen,.m-task) .oc-u:has(.oc-ms2){width:auto!important}
+#oc.flow:is(.m-unit,.m-gen,.m-task) .oc-top::after{border-left:4px solid rgba(255,255,255,.92)!important;margin-left:-2px}
+#oc.flow:is(.m-unit,.m-gen,.m-task) .oc-u::before,#oc.flow:is(.m-unit,.m-gen,.m-task) .oc-u::after{border-top-width:4px!important;border-top-color:rgba(255,255,255,.92)!important;border-left-color:rgba(255,255,255,.92)!important;border-right-color:rgba(255,255,255,.92)!important;border-left-width:4px!important}
+#oc.flow:is(.m-unit,.m-gen,.m-task) .oc-ucard{position:relative}
+#oc.flow:is(.m-unit,.m-gen,.m-task) .oc-ucard::before{content:'';position:absolute;left:50%;top:-12px;transform:translate(-50%,-50%);width:16px;height:16px;border-radius:50%;background:var(--c);border:3px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.35);z-index:2}
+#oc.flow:is(.m-unit,.m-gen,.m-task) .oc-uh{position:relative;overflow:visible!important}#oc.flow:is(.m-unit,.m-gen,.m-task) .oc-ucard,#oc.flow:is(.m-unit,.m-gen,.m-task) .oc-u{overflow:visible!important}
+#oc.flow:is(.m-unit,.m-gen,.m-task) .oc-uh::after{counter-increment:ocu;content:counter(ocu);position:absolute;right:-10px;top:-12px;width:26px;height:26px;border-radius:50%;background:var(--c);color:#fff;font:800 13px/20px inherit;text-align:center;border:3px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,.3)}
+#oc.flow:is(.m-unit,.m-gen,.m-task) .oc-ms2{display:flex;gap:18px;margin-top:10px}#oc.flow:is(.m-unit,.m-gen,.m-task) .oc-ms2 .oc-ms{margin-top:0;width:270px}
+#oc.flow:is(.m-unit,.m-gen,.m-task) .oc-ms{counter-reset:ocm;padding-left:32px!important;gap:10px!important}
+#oc.flow:is(.m-unit,.m-gen,.m-task) .oc-ms::before{display:block!important;content:''!important;position:absolute;left:9px!important;top:-10px!important;bottom:26px!important;border-left:4px solid rgba(255,255,255,.92)!important;border-radius:2px}
+#oc.flow:is(.m-unit,.m-gen,.m-task) .oc-ms > .oc-p{counter-increment:ocm;overflow:visible}
+#oc.flow:is(.m-unit,.m-gen,.m-task) .oc-ms > .oc-p::before{content:counter(ocm, upper-alpha)!important;position:absolute;left:-33px;top:50%;transform:translateY(-50%);width:22px;height:22px;border-radius:50%;background:var(--c);color:#fff;font:800 11px/16px inherit;text-align:center;border:3px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.35);z-index:2}
+#oc.flow:is(.m-unit,.m-gen,.m-task) .oc-ms > .oc-p::after{content:''!important;position:absolute;left:-14px;top:50%;width:14px;border-top:4px solid rgba(255,255,255,.92);transform:translateY(-50%)}
+#oc.flow:is(.m-unit,.m-gen,.m-task) .oc-view{height:max(520px,calc(100vh - 230px))!important}
+#oc.flow:is(.m-unit,.m-gen,.m-task) .oc-cv{padding-bottom:64px!important}   /* 아래 범례 자리 */
+@media (max-width:1500px){#oc.flow:is(.m-unit,.m-gen,.m-task) .oc-main{flex-direction:column}#oc.flow:is(.m-unit,.m-gen,.m-task) .oc-side{width:auto!important;align-self:stretch}}   /* 좁은 화면: 정보 칸을 아래로 → 조직도가 전체 너비 */
+/* v18.67 사용자 지시 "조직도 UI 를 세로로": 그룹장 맨 위 → 왼쪽 세로선을 따라 유닛이 위에서 아래로 · 유닛 줄 = 왼쪽 유닛 머리(번호) + 오른쪽 구성원 카드 가로 펼침(A B C) */
+#oc.flow.m-unit .oc-top{justify-content:flex-start!important;padding-left:4px}
+#oc.flow.m-unit .oc-top::after{left:22px!important;margin-left:0!important}
+#oc.flow.m-unit .oc-us{display:flex!important;flex-direction:column!important;align-items:stretch!important;gap:22px!important;padding-left:46px;position:relative}
+#oc.flow.m-unit .oc-us::before{content:'';position:absolute;left:22px;top:-2px;bottom:38px;border-left:4px solid rgba(255,255,255,.92);border-radius:2px}
+#oc.flow.m-unit .oc-u,#oc.flow.m-unit .oc-u.iec,#oc.flow.m-unit .oc-u:has(.oc-ms2){width:auto!important;display:flow-root!important;padding:0!important;flex:none!important;height:auto!important;min-height:0!important}   /* 블록: 너비가 먼저 정해져 높이를 바르게 셈 (격자 · flex 안의 자동 칸 격자는 높이를 크게 셈) */
+#oc.flow.m-unit .oc-u > .oc-ucard{float:left;margin-right:18px}#oc.flow.m-unit .oc-u > .oc-ms,#oc.flow.m-unit .oc-u > .oc-ms2{overflow:visible;margin-left:278px!important}
+#oc.flow.m-unit .oc-u::after{display:none!important}
+#oc.flow.m-unit .oc-u::before{display:block!important;content:''!important;position:absolute;left:-24px!important;right:auto!important;top:24px!important;width:24px!important;height:0!important;border:0!important;border-top:4px solid rgba(255,255,255,.92)!important;border-radius:0!important}
+#oc.flow.m-unit .oc-ucard{width:260px}
+#oc.flow.m-unit .oc-ucard::before{left:-24px!important;top:26px!important}
+#oc.flow.m-unit .oc-ms,#oc.flow.m-unit .oc-ms2 .oc-ms{display:flex!important;flex-wrap:wrap;flex-direction:row!important;gap:10px 14px!important;margin-top:0!important;padding-left:0!important;width:auto!important}#oc.flow.m-unit :is(.oc-ms,.oc-ms2) > .oc-p,#oc.flow.m-unit .oc-ms2 .oc-ms > .oc-p{flex:0 0 215px;width:215px!important}
+#oc.flow.m-unit .oc-ms2{display:flex!important;flex-wrap:wrap;gap:10px 14px;margin-top:0!important;counter-reset:ocm}#oc.flow.m-unit .oc-ms2 > .oc-ms{display:contents!important}
+#oc.flow.m-unit .oc-uh{text-align:left!important}#oc.flow.m-unit .oc-uh span{display:block;white-space:normal}
+#oc.flow.m-unit .oc-ms::before,#oc.flow.m-unit .oc-ms > .oc-p::after{display:none!important}
+#oc.flow.m-unit .oc-ms > .oc-p::before{left:-9px!important;top:-9px!important;transform:none!important}
+/* v18.67 프로젝트별 LE·RE 도 조직도와 같은 칸 높이 · 범례 여백 · 좁은 화면이면 정보 칸 아래로 */
+#oc.flow.m-proj .oc-view{height:max(520px,calc(100vh - 230px))!important}#oc.flow .oc-cv > .empty{display:inline-block;background:#fff;color:#37352f;border-radius:10px;padding:12px 18px;box-shadow:0 2px 8px rgba(0,0,0,.15)}#oc.flow.m-proj .oc-cv{padding-bottom:64px!important}
+@media (max-width:1500px){#oc.flow.m-proj .oc-main{flex-direction:column}#oc.flow.m-proj .oc-side{width:auto!important;align-self:stretch}}
+/* v18.67 더 다듬기: 정보 칸 접기 · 업무 카드 촘촘하게 · 업무가 많으면 아래 줄로(연결선 감춤) */
+#oc.noside .oc-side{display:none!important}
+#oc .oc-sidebtn.on{background:#eef2ff;border-color:#c7d2fe;color:#3446a8}
+#oc.flow:is(.m-gen,.m-task) .oc-u{width:250px!important}
+#oc.flow:is(.m-gen,.m-task) .oc-ms2 .oc-ms{width:240px!important}
+#oc .ow-t{padding:6px 8px!important;gap:6px!important}
+#oc .oc-us.ow-wrapz{row-gap:34px!important}
+#oc .oc-us.ow-wrapz > .oc-u::before,#oc .oc-us.ow-wrapz > .oc-u::after,#oc .oc-us.ow-wrapz .oc-ucard::before{display:none!important}
+#oc .oc-us.ow-wrapz > .oc-u{padding-top:8px!important}
+/* v18.67 업무 탭 카드 (조직도 카드 모양 그대로 · 업무 + 배정된 사람) */
+#oc .ow-t{align-items:flex-start}#oc .ow-t .oc-tx{gap:3px;width:100%}
+#oc .ow-t .oc-tx > b{white-space:normal;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;font-size:13px;line-height:1.35}
+#oc .ow-t .ow-meta{font-size:11px;color:#5b6475;white-space:nowrap}#oc .ow-t .ow-st{font-style:normal;background:#eceff3;color:#5b6475;border-radius:5px;padding:0 5px;margin-right:5px}#oc .ow-t .ow-st.late{background:#fde8e8;color:#c62828;font-weight:700}
+#oc .ow-t.late{border-left-color:#e53935!important}#oc .ow-t.done{opacity:.62}#oc .ow-t.done .oc-tx > b{text-decoration:line-through}
+#oc .ow-whos{display:flex;flex-wrap:wrap;gap:4px;margin-top:2px;white-space:normal!important;overflow:visible!important}
+#oc .ow-who1{display:inline-flex;align-items:center;gap:4px;background:#f1f4fb;border:1px solid #dde3f0;border-radius:99px;padding:1px 8px 1px 2px;font-size:11.5px;font-weight:600;color:#1f2a44;white-space:nowrap}
+#oc .ow-who1 i{width:18px;height:18px;border-radius:50%;background:var(--c);color:#fff;font-style:normal;font-size:10px;font-weight:800;display:inline-grid;place-items:center}
+#oc .ow-who1:hover{background:#e4ebff;border-color:var(--c)}#oc .ow-none{font-size:11px;color:#c62828}
+#oc .ow-root .oc-tx span{white-space:nowrap}
+/* v18.67 일반 업무 · 통합 업무 — 사람별 카드 */
+.ow-fil button,.ow-cats button{white-space:nowrap}.ow-cats{max-width:46%;overflow-x:auto;scrollbar-width:thin}
+.ow-q{border:1px solid #d7deea;border-radius:9px;padding:6px 10px;font:inherit;font-size:13px;min-width:170px;background:#fff}
+.ow-wrap{padding:4px 2px}.ow-empty{padding:60px;text-align:center;color:#6b7280}
+.ow-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:14px;align-items:start}
+.ow-p{background:#fff;border:1px solid #e3e8f2;border-radius:14px;box-shadow:0 2px 8px rgba(30,42,90,.06);overflow:hidden}
+.ow-ph{display:flex;align-items:center;gap:8px;padding:10px 12px;border-bottom:1px solid #eef1f6;background:linear-gradient(180deg,#fafbff,#f3f6fc);cursor:pointer}
+.ow-av{width:28px;height:28px;border-radius:50%;background:#3b5bdb;color:#fff;display:inline-flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;flex:none}
+.ow-ph b{font-size:14.5px}.ow-n{margin-left:auto;font-size:12px;color:#5b6475;white-space:nowrap}.ow-n em{font-style:normal;color:#c62828;font-weight:600}
+.ow-list{display:flex;flex-direction:column;padding:6px}
+.ow-i{display:flex;flex-direction:column;gap:4px;text-align:left;border:0;border-radius:9px;background:none;padding:8px 9px;cursor:pointer;font:inherit;color:#1f2937;border-left:3px solid #3b82f6}
+.ow-i + .ow-i{margin-top:2px}.ow-i:hover{background:#f1f5ff}
+.ow-i b{font-size:13.5px;font-weight:600;line-height:1.4;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.ow-i.late{border-left-color:#e53935}.ow-i.done{border-left-color:#c3c9d4;opacity:.6}.ow-i.done b{font-weight:500;text-decoration:line-through}
+.ow-top{display:flex;align-items:center;gap:6px;font-size:11.5px;color:#5b6475}
+.ow-cat{background:#eef2ff;color:#3446a8;border-radius:6px;padding:1px 7px;font-weight:600}
+.ow-st{background:#eceff3;color:#5b6475;border-radius:6px;padding:1px 6px}.ow-st.late{background:#fde8e8;color:#c62828;font-weight:600}
+.ow-due{margin-left:auto;font-variant-numeric:tabular-nums}
+.ow-pct{display:flex;align-items:center;gap:6px;font-size:11px;color:#5b6475}.ow-pct i{display:block;height:5px;border-radius:3px;background:#3b82f6;max-width:100%;flex:none}.ow-pct{background:linear-gradient(#e8edf5,#e8edf5) left center/calc(100% - 38px) 5px no-repeat}.ow-pct em{font-style:normal;margin-left:auto}
 /* v18.63 첨부 미리보기 창 */
 #mmPv{position:fixed;inset:0;z-index:2100;background:rgba(15,15,20,.35);display:flex;align-items:center;justify-content:center}
 #mmPv .pv-box{width:min(1100px,calc(100vw - 32px));height:min(820px,calc(100vh - 32px));background:#fff;color:#37352f;border-radius:12px;box-shadow:0 24px 60px rgba(0,0,0,.28);display:flex;flex-direction:column;overflow:hidden}
@@ -2858,7 +2941,7 @@ function recLabel(key, f) {
  * ===================================================================== */
 let root = null;
 /* 서버 모드: http(s):// 로 접속하면 server.py 의 REST API 사용 (폴더 선택 불필요). file:// 로 열면 폴더 모드 */
-const APP_VERSION = '2026-11-25.1';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
+const APP_VERSION = '2026-11-26.1';                     // 서버의 dashboard.html 버전과 비교해 새 버전 안내
 const SERVER_URL = 'http://localhost:8080';
 // 부서원 PC 사본(file://)이 접속을 시도할 서버 — 서버가 배포 파일을 만들 때 'PC 이름 주소, IP 주소' 순으로 자동 기록함
 const DEFAULT_SERVERS = ['http://ASEUNGWOOK-B01:8080', 'http://65.3.30.234:8080'];
@@ -13568,29 +13651,32 @@ function orgHtml(recs, year) {
       <div class="oc-ucard"><div class="oc-uh" ${u.virtual ? `data-iecadd="${esc(year || ly)}" title="${noEdit() ? 'IEC 인력 구성 (기본 명단)' : '눌러서 유닛분장 표에 등록'}"` : `data-uedit="${esc(u.r.id)}" title="${esc(u.duty)}${noEdit() ? '' : ' — 눌러서 이 유닛 편집'}"`}>
         <b>${esc(u.name)}${tm ? ` <small class="oc-tside" style="--pc:${tm.col}">${tm.side === '수비' ? '🛡 수비' : '🏈 공격'}</small>` : ''}</b><span> · ${u.mem.length}명${u.iec && u.duty ? ' · ' + esc(trunc(u.duty.replace(/^IEC 인력 구성\s*·?\s*/, ''), 12)) : ''}${u.virtual && !noEdit() ? ' · <u>＋ 표에 등록</u>' : ''}</span></div>
         ${ld ? card(ld.name, ld.title + (u.duty && !u.iec ? ' · ' + trunc(u.duty, 20) : ''), u.color, false, tm ? ocGear(tm, tm.lead, tm.leadT, true) : '') : ''}</div>
-      <div class="oc-ms">${rest.map((m, k) => { const p = tm ? tm.pos[k % tm.pos.length] : ''; return card(m.name, m.title, u.color, false, tm ? ocGear(tm, p, OC_POSN[p] || p, false) : ''); }).join('')}${u.mem.length ? '' : '<span class="oc-ghost">구성원 없음</span>'}</div></div>`; };
+      ${(() => { const cs = rest.map((m, k) => { const p = tm ? tm.pos[k % tm.pos.length] : ''; return card(m.name, m.title, u.color, false, tm ? ocGear(tm, p, OC_POSN[p] || p, false) : ''); }), h = Math.ceil(cs.length / 2);
+        return cs.length > 6 ? `<div class="oc-ms2"><div class="oc-ms">${cs.slice(0, h).join('')}</div><div class="oc-ms oc-msb" style="counter-reset:ocm ${h}">${cs.slice(h).join('')}</div></div>` : `<div class="oc-ms">${cs.join('')}${u.mem.length ? '' : '<span class="oc-ghost">구성원 없음</span>'}</div>`; })()}</div>`; };   /* v18.67 사용자 사진: 7명 이상은 두 줄 */
   OC.unitHtml = `<div class="oc-top">${heads.length ? heads.map(h => card(h, '그룹장', '#1739d6', true)).join('') : '<span class="oc-ghost">그룹장 미지정</span>'}</div>
           <div class="oc-us">${units.map(unitBox).join('')}</div>`;
-  OC.card = card;
-  const mode = ocMode(), inner = mode === 'proj' ? projTreeHtml() : mode === 'map' ? worldHtml() : OC.unitHtml;
+  OC.card = card; OC.pOrder = [...heads, ...units.flatMap(u => u.mem.map(m => m.name))];
+  const mode = ocMode(), inner = mode === 'proj' ? projTreeHtml() : mode === 'map' ? worldHtml() : mode === 'gen' || mode === 'task' ? ocWorkHtml(mode) : OC.unitHtml;
   const SEG = [['unit', '유닛', '<svg viewBox="0 0 20 20"><rect x="7" y="2" width="6" height="5" rx="1.2"/><rect x="2" y="13" width="6" height="5" rx="1.2"/><rect x="12" y="13" width="6" height="5" rx="1.2"/><path d="M10 7v3M5 13v-3h10v3"/></svg>'],
     ['proj', '프로젝트별 LE·RE', '<svg viewBox="0 0 20 20"><rect x="2.5" y="3" width="6" height="14" rx="1.5"/><rect x="11.5" y="3" width="6" height="9" rx="1.5"/></svg>'],
-    ['map', '세계 지도', '<svg viewBox="0 0 20 20"><circle cx="10" cy="10" r="7.5"/><path d="M2.5 10h15M10 2.5c2.4 2.2 2.4 12.8 0 15M10 2.5c-2.4 2.2-2.4 12.8 0 15"/></svg>']];
+    ['map', '세계 지도', '<svg viewBox="0 0 20 20"><circle cx="10" cy="10" r="7.5"/><path d="M2.5 10h15M10 2.5c2.4 2.2 2.4 12.8 0 15M10 2.5c-2.4 2.2-2.4 12.8 0 15"/></svg>'],
+    ['gen', '일반 업무', '<svg viewBox="0 0 20 20"><rect x="3" y="2.5" width="14" height="15" rx="2"/><path d="M6.5 7h7M6.5 10.5h7M6.5 14h4"/></svg>'],
+    ['task', '통합 업무', '<svg viewBox="0 0 20 20"><rect x="2.5" y="3" width="6" height="6" rx="1.3"/><rect x="11.5" y="3" width="6" height="6" rx="1.3"/><rect x="2.5" y="12" width="6" height="5" rx="1.3"/><rect x="11.5" y="12" width="6" height="5" rx="1.3"/></svg>']];
   const legend = mode === 'unit' ? `${units.map(u => `<span><i style="background:${u.band[1]}"></i>${esc(u.name)}</span>`).join('')}<span>🛡 UNIT 1 수비 · 🏈 UNIT 2 공격 · MLB / QB = 유닛장</span>`
     : mode === 'proj' ? '<span><i style="background:#1D4ED8"></i>수행 PJT</span><span><i style="background:#C2410C"></i>입찰 PJT</span><span>LE · RE · 투입률</span>' : '';
   ocBgImg();
-  return `<div class="oc rd m-${mode}${mode !== 'map' ? ' bg-pat' + (OC_BGIMG ? ' bg-img' : '') : ''}" id="oc"${mode !== 'map' && OC_BGIMG ? ` style="--ocbg:url('${OC_BGIMG}')"` : ''}>
-    <div class="oc-hero2"><div class="oc-h2t"><b>${mode === 'map' ? '프로젝트 세계 지도' : mode === 'proj' ? '프로젝트별 조직 (LE · RE)' : '계장ENG그룹 ' + esc(year ? year + '년 ' : '') + '조직도'}</b>
-      <span>${mode === 'map' ? '프로젝트 위치 · 국가 · 현지 시간 · 날씨를 한눈에' : mode === 'proj' ? '계장 투입인력 기준 · 프로젝트마다 LE 와 RE' : `${total}명 · 유닛 ${real.length}${iecN ? ` · IEC ${iecN}명` : ''}`} · 휠 = 확대/축소 · 끌어서 이동</span></div></div>
+  return `<div class="oc rd m-${mode}${mode !== 'map' ? ' flow' : ''}${mode !== 'map' && ocNoSide() ? ' noside' : ''}${mode !== 'map' ? ' bg-pat' + (OC_BGIMG ? ' bg-img' : '') : ''}" id="oc"${mode !== 'map' && OC_BGIMG ? ` style="--ocbg:url('${OC_BGIMG}')"` : ''}>
+    <div class="oc-hero2"><div class="oc-h2t"><b>${mode === 'map' ? '프로젝트 세계 지도' : mode === 'proj' ? '프로젝트별 조직 (LE · RE)' : mode === 'gen' ? '일반 업무 — 누가 맡았나' : mode === 'task' ? '통합 업무 — 누가 맡았나' : '계장ENG그룹 ' + esc(year ? year + '년 ' : '') + '조직도'}</b>
+      <span>${mode === 'gen' || mode === 'task' ? OC.wSum || '' : mode === 'map' ? '프로젝트 위치 · 국가 · 현지 시간 · 날씨를 한눈에' : mode === 'proj' ? '계장 투입인력 기준 · 프로젝트마다 LE 와 RE' : `${total}명 · 유닛 ${real.length}${iecN ? ` · IEC ${iecN}명` : ''}`} · ${mode === 'map' ? '휠 = 확대/축소 · 끌어서 이동' : '휠 = 위아래 · Ctrl+휠 = 확대/축소'}</span></div></div>
     <div class="oc-bar">
       <div class="oc-seg">${SEG.map(([k, l, ic]) => `<button class="${mode === k ? 'on' : ''}" data-ocmode="${k}">${ic}${l}</button>`).join('')}</div>
       ${mode === 'map' ? (() => { const all = mapProjects(), dn = all.filter(p => isDone(p.r)).length, pc = all.length ? Math.round(dn / all.length * 100) : 0;
         return `<span class="oc-prog" title="진행 중인 수행 · 입찰 PJT 중 금주 작성(변경 없음 포함) 비율">금주 작성률 <i><b style="width:${pc}%"></b></i> <strong>${pc}%</strong></span><span class="oc-chips"><span><i style="background:#64748b"></i>전체 ${all.length}</span><span><i style="background:#3b82f6"></i>수행 ${all.filter(p => p.k !== 'bid').length}</span><span><i style="background:#f59e0b"></i>입찰 ${all.filter(p => p.k === 'bid').length}</span><span><i style="background:#e0483e"></i>미작성 ${all.length - dn}</span></span>`; })() : ''}
       ${mode === 'map' ? `<button class="btn sm oc-ordbtn ${OC.ordOn ? 'on' : ''}" data-ord title="재무스타그램(DART 사업보고서 '수주상황')에서 삼성물산 프로젝트별 수주금액 · 발주처 · 잔액을 불러와 지도에 함께 표시">💰 삼성물산 수주현황${ORD.data && !ORD.data.error ? ` <b>${ORD.data.projects.length}</b>` : ''}</button>` : ''}
-      ${mode !== 'unit' ? `<div class="oc-fil">${[['', '전체'], ['perform', '수행'], ['bid', '입찰']].map(([k, l]) => `<button class="${(mode === 'map' ? OC.mapF || '' : OC.projF === '수행' ? 'perform' : OC.projF === '입찰' ? 'bid' : '') === k ? 'on' : ''}" data-mapf="${k}">${l}</button>`).join('')}${mode === 'map' ? `<button class="${glbOff() ? '' : 'on'}" data-glb3d title="3D 지구본 ↔ 평면 지도 (느린 PC 는 평면이 가벼워요 · 이 PC 에 기억)">${glbOff() ? '🗺 평면' : '🌍 3D'}</button>` : ''}</div>` : ''}
+      ${mode === 'gen' || mode === 'task' ? ocWorkBar(mode) : ''}${mode === 'proj' || mode === 'map' ? `<div class="oc-fil">${[['', '전체'], ['perform', '수행'], ['bid', '입찰']].map(([k, l]) => `<button class="${(mode === 'map' ? OC.mapF || '' : OC.projF === '수행' ? 'perform' : OC.projF === '입찰' ? 'bid' : '') === k ? 'on' : ''}" data-mapf="${k}">${l}</button>`).join('')}${mode === 'map' ? `<button class="${glbOff() ? '' : 'on'}" data-glb3d title="3D 지구본 ↔ 평면 지도 (느린 PC 는 평면이 가벼워요 · 이 PC 에 기억)">${glbOff() ? '🗺 평면' : '🌍 3D'}</button>` : ''}</div>` : ''}
       <span class="sp"></span><div class="oc-zoom"><span class="zi">⌕</span><button data-oc="out" title="축소">−</button><b id="ocZ">100%</b><button data-oc="in" title="확대">+</button><span class="zi">⌕</span></div>
-      ${AUTH ? '<button class="btn pri oc-me" data-myprof>🙋 내 정보</button>' : ''}</div>
-    <div class="oc-main"><div class="oc-view" id="ocView" title="${mode === 'map' ? '휠 = 확대/축소 · 끌어서 이동' : '휠 = 위아래 · Shift+휠 = 좌우 · Ctrl+휠 = 확대/축소 · 끌어서 이동 · 사람을 누르면 그 부서원 화면'}">
+      ${mode !== 'map' ? `<button class="btn sm oc-sidebtn ${ocNoSide() ? '' : 'on'}" data-ocside title="오른쪽 정보 칸 보이기 · 접기 (접으면 조직도가 더 크게)">${ocNoSide() ? '◧ 정보 칸 보기' : '◨ 정보 칸 접기'}</button>` : ''}${AUTH ? '<button class="btn pri oc-me" data-myprof>🙋 내 정보</button>' : ''}</div>
+    <div class="oc-main"><div class="oc-view" id="ocView" title="${mode === 'map' ? '휠 = 확대/축소 · 끌어서 이동' : '휠 = 위아래 · Ctrl+휠 = 확대/축소 (좌우는 화면 너비에 맞춰 줄 바꿈) · 사람을 누르면 그 부서원 화면'}">
         <div class="oc-cv" id="ocCv">${inner}</div>
         <div class="oc-mini" id="ocMini" title="누르면 그곳으로 이동"><b>✥ Overview</b><div class="oc-mi" id="ocMi"></div><i id="ocMr"></i></div>
         ${mode === 'map' ? `<div class="oc-sam" id="ocSam"></div><div class="oc-mctl"><button data-oc="in" title="확대">＋</button><button data-oc="out" title="축소">－</button></div>
@@ -13626,6 +13712,8 @@ function ocSide(name) {
 }
 function ocApply() {
   const cv = $('#ocCv'); if (!cv) return;
+  if (ocFlow()) { const v = $('#ocView'), w = (v?.clientWidth || 800); cv.style.width = (w / OC.z) + 'px'; cv.style.transform = `scale(${OC.z})`; cv.style.marginBottom = '0px'; cv.style.marginTop = '0px'; const H = cv.offsetHeight; cv.style.marginBottom = (H * OC.z - H) + 'px'; cv.style.marginRight = (w - w / OC.z) + 'px'; if (ocOne() && !arguments[0]) cv.style.marginTop = Math.max(0, Math.floor((v.clientHeight - 6 - H * OC.z) / 2)) + 'px';   /* 남는 높이는 위아래 가운데 */   /* 브라우저 판과 상관없이: 화면 너비 ÷ 배율 로 줄 바꿈 → 배율만큼 키움 → 높이 보정(위아래 스크롤 길이) */
+    const z = $('#ocZ'); if (z) z.textContent = Math.round(OC.z * 100) + '%'; try { localStorage.setItem('dept-oc-z', String(OC.z)); } catch (_) {} return; }
   cv.style.transform = `translate(${OC.x}px,${OC.y}px) scale(${OC.z})`;
   if (ocMode() === 'map') mapPin(cv);
   const z = $('#ocZ'); if (z) z.textContent = Math.round(OC.z * 100) + '%';
@@ -13684,11 +13772,24 @@ function mapPin(cv) {
 }
 function ocFit(widthOnly) {                             // 전체 보기 = 가로 · 세로 모두 맞춤 · 처음 열 때 = 가로만 맞춤(글자가 너무 작아지지 않게, 아래는 끌어서/휠로)
   const v = $('#ocView'), cv = $('#ocCv'); if (!v || !cv) return;
+  if (ocFlow()) { v.scrollTop = 0;
+    if (ocOne() || !widthOnly) return ocFitOne();   /* v18.67 사용자 지시 "유닛분장 조직도는 한눈에": 조직도 = 늘 한 화면에 (전체 보기 단추도) */
+    let z = 1; try { z = +localStorage.getItem('dept-oc-z') || 1; } catch (_) {} OC.z = Math.max(.5, Math.min(2, z)); return ocApply(); }
   const W = cv.offsetWidth, H = cv.offsetHeight, sw = v.clientWidth, sh = v.clientHeight;
   OC.z = Math.max(.25, Math.min(1, widthOnly ? (sw - 24) / W : Math.min((sw - 24) / W, (sh - 24) / H)));
   OC.x = (sw - W * OC.z) / 2; OC.y = widthOnly ? 8 : Math.max(12, (sh - H * OC.z) / 2); ocApply();
 }
 /* 2026-11-18 v17.64 사용자 지시 "휠로 줌인 · 줌아웃하면 100% 처럼 % 로 화면 배율 표기": 확대 · 축소할 때 그 화면 가운데에 배율을 잠깐(1초) 크게 보여 줌 */
+const ocWrapped = cv => { if (ocMode() === 'unit') return false;   /* 조직도는 세로 배치(유닛이 위에서 아래로) */ const us = cv.querySelectorAll('.oc-us > .oc-u'); return us.length > 1 && [...us].some(u => u.offsetTop !== us[0].offsetTop); };   /* 유닛이 아래 줄로 넘어갔나 (한눈에 = 한 줄) */
+function ocFitOne() {   /* 화면 너비 ÷ 배율 로 줄을 바꾸므로 배율마다 높이가 달라짐 → 한 화면에 들어오는 가장 큰 배율을 반씩 좁혀 찾음 */
+  const v = $('#ocView'), cv = $('#ocCv'); if (!v || !cv) return;
+  if (ocOne()) { const hd = document.querySelector('header.top'), top = hd && getComputedStyle(hd).position === 'sticky' ? hd.offsetHeight : 0; v.style.setProperty('height', Math.max(420, innerHeight - top - 24) + 'px', 'important'); }   /* 위에 붙은 머리 영역 밑으로 한 화면 */
+  const sh = v.clientHeight - 6, us = cv.querySelector('.oc-us');
+  const best = oneRow => { us?.classList.toggle('ow-wrapz', !oneRow); const fits = z => { OC.z = z; ocApply(true); return cv.offsetHeight * z <= sh && cv.scrollWidth <= cv.clientWidth + 1 && (!oneRow || !ocWrapped(cv)); };
+    for (let z = 1; z >= .35; z = Math.round((z - .03) * 100) / 100) if (fits(z)) { for (let u = Math.min(1, z + .02); u > z; u = Math.round((u - .01) * 100) / 100) if (fits(u)) return u; return z; } return .35; };   /* 배율에 따라 한 줄 카드 수가 바뀌어 높이가 들쭉날쭉 → 100% 부터 조금씩 낮추며 처음 들어맞는 배율 */
+  let z = best(true);
+  if (z < .6 && (ocMode() === 'gen' || ocMode() === 'task')) { const z2 = best(false); if (z2 > z + .08) z = z2; else best(true); }   /* v18.67 업무가 많으면 구분 줄을 아래 줄로 넘겨 더 크게 (연결선은 감춤) */
+  OC.z = z; ocApply(); OC.auto = true; }
 function zoomBadge(host, pct) {
   if (!host) return; let b = host.querySelector(':scope > .zbadge');
   if (!b) { b = document.createElement('div'); b.className = 'zbadge'; if (getComputedStyle(host).position === 'static') host.style.position = 'relative'; host.appendChild(b); }
@@ -13696,6 +13797,7 @@ function zoomBadge(host, pct) {
 }
 function ocZoom(f, cx, cy) {
   const v = $('#ocView'); if (!v) return;
+  if (ocFlow()) { OC.auto = false; const nz = Math.max(.35, Math.min(2, OC.z * f)), r = v.scrollTop / Math.max(1, v.scrollHeight - v.clientHeight); OC.z = nz; ocApply(); v.scrollTop = r * (v.scrollHeight - v.clientHeight); return zoomBadge(v, OC.z * 100); }
   const nz = Math.max(.25, Math.min(ocMode() === 'map' ? 10 : 2, OC.z * f)); cx ??= v.clientWidth / 2; cy ??= v.clientHeight / 2;
   OC.x = cx - (cx - OC.x) * nz / OC.z; OC.y = cy - (cy - OC.y) * nz / OC.z; OC.z = nz; ocApply(); zoomBadge(v, OC.z * 100);
 }
@@ -13706,16 +13808,17 @@ function ocClamp(v) {   // 조직도가 화면 밖으로 다 나가지 않게 (�
 }
 function orgBind(el) {
   const v = $('#ocView', el); if (!v) return;
-  const mi = $('#ocMi', el); mi.innerHTML = `<div class="oc-mc">${$('#ocCv', el).innerHTML}</div>`;   // 미니맵 = 조직도를 작게 복사
-  requestAnimationFrame(() => { if (OC.fit) { OC.fit = false; ocMode() === 'unit' ? ocFit(true) : ocFit(); } else ocApply(); ocMode() === 'map' ? (mapSide(OC.selC), mapTick(), wxLoad(), globeMount(), samTick()) : (ocSide(OC.sel), glbPrefetch()); });
+  const mi = $('#ocMi', el); mi.innerHTML = ocFlow() ? '' : `<div class="oc-mc">${$('#ocCv', el).innerHTML}</div>`;   // 미니맵 = 조직도를 작게 복사 (v18.67 흐름 모드는 미니맵 없음)
+  requestAnimationFrame(() => { if (OC.fit || ocFlow()) { OC.fit = false; ocMode() === 'unit' || ocFlow() ? ocFit(true) : ocFit(); } else ocApply(); ocMode() === 'map' ? (mapSide(OC.selC), mapTick(), wxLoad(), globeMount(), samTick()) : (ocSide(OC.sel), glbPrefetch()); });
+  if (window.ResizeObserver) { OC.ro?.disconnect(); OC.ro = new ResizeObserver(() => { if (!ocFlow()) return; if (OC.auto && ocOne()) { clearTimeout(OC.roT); OC.roT = setTimeout(ocFitOne, 120); } else ocApply(); }); OC.ro.observe(v); }   /* v18.67 창 크기가 바뀌면 다시 줄 바꿈 */
   let drag = null;
   // 2026-11-16 사용자 지시: 끌기는 5px 이상 움직였을 때만 시작(그냥 누르면 사람 · 단추 클릭이 그대로) · 끌고 난 뒤 클릭은 무시
-  v.onpointerdown = e => { if (e.button !== 0 || (e.target.closest('button,a,.oc-mini') && !e.target.closest('.oc-cv [data-prof]')) || v.classList.contains('globe')) return; drag = { sx:e.clientX, sy:e.clientY, x:e.clientX - OC.x, y:e.clientY - OC.y, on:false, id:e.pointerId }; };
+  v.onpointerdown = e => { if (ocFlow()) return; if (e.button !== 0 || (e.target.closest('button,a,.oc-mini') && !e.target.closest('.oc-cv [data-prof]')) || v.classList.contains('globe')) return; drag = { sx:e.clientX, sy:e.clientY, x:e.clientX - OC.x, y:e.clientY - OC.y, on:false, id:e.pointerId }; };
   v.onpointermove = e => { if (!drag) return; if (!drag.on) { if (Math.hypot(e.clientX - drag.sx, e.clientY - drag.sy) < 5) return; drag.on = true; try { v.setPointerCapture(drag.id); } catch (_) {} v.classList.add('grab'); }
     OC.x = e.clientX - drag.x; OC.y = e.clientY - drag.y; ocClamp(v); ocApply(); };
   v.onpointerup = v.onpointercancel = () => { if (drag?.on) { OC.noClick = Date.now(); } drag = null; v.classList.remove('grab'); };
   // 2026-11-16 사용자 지시: 유닛분장(조직도 · PJT) = 마우스 휠로 위아래 이동 · Shift+휠 = 좌우 · Ctrl+휠 = 확대/축소 / 세계 지도는 그대로 휠 = 확대
-  v.onwheel = e => { if (v.classList.contains('globe')) return; e.preventDefault(); const r = v.getBoundingClientRect();
+  v.onwheel = e => { if (v.classList.contains('globe')) return; if (ocFlow()) { if (e.ctrlKey || e.metaKey) { e.preventDefault(); ocZoom(Math.pow(1.0015, -e.deltaY)); } return; } e.preventDefault(); const r = v.getBoundingClientRect();
     if (ocMode() === 'map' || e.ctrlKey || e.metaKey) return ocZoom(Math.pow(1.0015, -e.deltaY), e.clientX - r.left, e.clientY - r.top);
     const d = e.deltaMode === 1 ? 40 : e.deltaMode === 2 ? v.clientHeight : 1;
     if (e.shiftKey) OC.x -= (e.deltaY || e.deltaX) * d; else { OC.y -= e.deltaY * d; OC.x -= e.deltaX * d; } ocClamp(v); ocApply(); };
@@ -13727,7 +13830,10 @@ function orgBind(el) {
 }
 document.addEventListener('fullscreenchange', () => { if ($('#ocView')) setTimeout(() => { ocFit(); glbResize(); }, 120); });
 OC.views = {}; OC.selC = ''; OC.hovC = '';
-const ocMode = () => { try { const m = localStorage.getItem('dept-oc-mode'); return ['unit', 'proj', 'map'].includes(m) ? m : 'unit'; } catch (_) { return 'unit'; } };
+const ocMode = () => { try { const m = localStorage.getItem('dept-oc-mode'); return ['unit', 'proj', 'map', 'gen', 'task'].includes(m) ? m : 'unit'; } catch (_) { return 'unit'; } };
+const ocFlow = () => ocMode() !== 'map';
+const ocNoSide = () => { try { return localStorage.getItem('dept-oc-noside') === '1'; } catch (_) { return false; } };
+const ocOne = () => ['unit', 'proj', 'gen', 'task'].includes(ocMode());   /* 한눈에 맞춤: 조직도 · 프로젝트별 LE·RE(v18.67 사용자 지시 '유닛 조직도 배율과 같게') · 일반 업무 · 통합 업무 */   /* v18.67 지도 말고는 '확대 · 축소 + 위아래만' (화면 너비에 맞춰 줄 바꿈, 좌우 끌기 없음) */
 let OC_BGIMG = '', OC_BGTRY = false;   // 운영 폴더 apps/theme/oc-bg.jpg (있으면 배경 그림으로)
 function ocBgImg() { if (OC_BGTRY || !SERVER || OFFLINE || !SERVER_INFO?.ocBg) return; OC_BGTRY = true;   // 서버 /api/info 의 ocBg = 그림 파일이 있음 const u = new URL('/apps/theme/oc-bg.jpg', API_BASE || location.origin).href, im = new Image();
   im.onload = () => { OC_BGIMG = u; const o = $('#oc'); if (o && !o.classList.contains('m-map')) { o.classList.add('bg-img'); o.style.setProperty('--ocbg', `url('${u}')`); } }; im.src = u; }
@@ -13744,6 +13850,40 @@ function projData() {
   return out;
 }
 const flagOf = iso => (iso || '').slice(0, 2).toUpperCase().replace(/[A-Z]/g, ch => String.fromCodePoint(127397 + ch.charCodeAt(0)));
+/* v18.67 사용자 지시 "유닛분장 — 일반업무와 통합업무는 별도로 정리된 화면으로": 유닛분장 위 탭에 '일반 업무' · '통합 업무' — 사람(일반 = 책임자, 통합 = 담당자)별 카드에 그 사람 업무.
+   카드마다 진행 · 종결 · 기한 지남 수, 업무마다 구분/유형 · 종료일(상시) · 진척률 · 종결. 위 줄: 진행 중만 / 전체 · 구분(유형) 고르기 · 찾기. 업무를 누르면 그 행 편집 창 */
+OC.wAll = false; OC.wCat = { gen:'', task:'' }; OC.wQ = '';
+const ocWKey = m => m === 'gen' ? 'general' : 'task';
+function ocWItems(mode) { const key = ocWKey(mode), S = SHEET[key], today = todayISO();
+  return (DB.recs[key] || []).map(r => { const f = r.fields || {}, closed = String(f['종결 여부'] || '') === '종결', always = String(f['종료 구분'] || '') === '상시', end = String(f['종료일'] || '').slice(0, 10);
+    return { r, key, f, closed, always, end, late:!closed && !always && end && end < today, cat:String(f[S.group] || '').trim(), title:purgeStrike(String(f['업무 내용'] || '')).trim(), pct:f['진척률'],
+      who:String(f[S.owner] || '').split(/[,\/·\n;]+| 및 /).map(x => x.replace(/\s*\(.*?\)\s*/g, '').trim()).filter(Boolean) }; }); }
+function ocWorkBar(mode) { const key = ocWKey(mode), S = SHEET[key], cats = [...new Set(ocWItems(mode).map(x => x.cat).filter(Boolean))].sort(), cur = OC.wCat[mode] || '';
+  return `<div class="oc-fil ow-fil"><button class="${OC.wAll ? '' : 'on'}" data-owall="0">진행 중</button><button class="${OC.wAll ? 'on' : ''}" data-owall="1">전체 (종결 포함)</button></div>
+    <div class="oc-fil ow-cats"><button class="${cur ? '' : 'on'}" data-owcat="">${esc(S.group)} 전체</button>${cats.map(c => `<button class="${cur === c ? 'on' : ''}" data-owcat="${esc(c)}">${esc(c)}</button>`).join('')}</div>
+    <input class="ow-q" id="owQ" placeholder="🔍 업무 · 사람 찾기" value="${esc(OC.wQ)}" aria-label="업무 찾기">`; }
+function ocWorkHtml(mode) {   /* v18.67 사용자 지시 "어떤 업무에 대해 누가 Assign 되어 있는지 보기 위함": 조직도와 같은 구성 — 맨 위 = 일반/통합 업무, 줄 = 구분(유형), 카드 = 업무 + 배정된 사람 이름표 */
+  const key = ocWKey(mode), S = SHEET[key], all = ocWItems(mode), cat = OC.wCat[mode] || '', q = OC.wQ.trim().toLowerCase();
+  const L = all.filter(x => (OC.wAll || !x.closed) && (!cat || x.cat === cat) && (!q || (x.title + ' ' + x.who.join(' ') + ' ' + x.cat).toLowerCase().includes(q)));
+  const nOpen = all.filter(x => !x.closed).length, nLate = all.filter(x => x.late).length, people = new Set(L.flatMap(x => x.who));
+  OC.wSum = `진행 ${nOpen}건 · 종결 ${all.length - nOpen}건${nLate ? ` · <b style="color:#ffb4b4">기한 지남 ${nLate}건</b>` : ''} · 배정된 사람 ${people.size}명 · 업무를 누르면 편집 · 이름에 마우스 = 그 사람`;
+  const COL = ['#2563eb', '#e11d48', '#7c3aed', '#0891b2', '#ea580c', '#16a34a', '#c026d3', '#0f766e'], cats = [...new Set(L.map(x => x.cat || '(구분 없음)'))].sort((a, b) => a.localeCompare(b, 'ko'));
+  if (!cats.length) return `<div class="ow-wrap"><div class="ow-empty" style="background:#fff;border-radius:12px">${all.length ? '조건에 맞는 업무가 없습니다' : `아직 ${esc(S.label)} 이 없습니다`}</div></div>`;
+  const chip = n => `<span class="ow-who1" data-prof="${esc(n)}" title="${esc(n)}"><i>${esc(n.slice(0, 1))}</i>${esc(n)}</span>`;
+  const item = x => `<button class="oc-p ow-t ${x.closed ? 'done' : ''} ${x.late ? 'late' : ''}" data-owj="${x.key}|${esc(x.r.id)}" title="${esc(x.title)}"><span class="oc-tx">
+      <b>${esc(x.title || '(내용 없음)')}</b><span class="ow-meta">${x.closed ? '<em class="ow-st">종결</em>' : x.late ? '<em class="ow-st late">기한 지남</em>' : ''}${x.always ? '상시' : x.end ? x.end.slice(5).replace('-', '/') + ' 까지' : '기한 없음'}${x.pct !== undefined && x.pct !== '' && x.pct != null ? ` · 진척 ${esc(String(x.pct).replace(/%$/, ''))}%` : ''}</span>
+      <span class="ow-whos">${x.who.length ? x.who.map(chip).join('') : '<span class="ow-none">배정 없음</span>'}</span></span></button>`;
+  const col = (c, k) => { const xs = L.filter(x => (x.cat || '(구분 없음)') === c).sort((a, b) => a.closed - b.closed || b.late - a.late || a.always - b.always || String(a.end || '9').localeCompare(String(b.end || '9'))), o = xs.filter(x => !x.closed).length, lt = xs.filter(x => x.late).length, cs = xs.map(item), h = Math.ceil(cs.length / 2);
+    return `<div class="oc-u" style="--c:${COL[k % COL.length]};--bb:#fff;--bf:${COL[k % COL.length]};--bd:${COL[k % COL.length]}"><div class="oc-ucard"><div class="oc-uh" data-owcat="${esc(c === '(구분 없음)' ? '' : c)}" title="이 ${esc(S.group)}만 보기"><b>${esc(c)}</b><span> · 진행 ${o}${xs.length - o ? ` · 종결 ${xs.length - o}` : ''}${lt ? ` · 지남 ${lt}` : ''}</span></div></div>
+      ${cs.length > 6 ? `<div class="oc-ms2"><div class="oc-ms">${cs.slice(0, h).join('')}</div><div class="oc-ms" style="counter-reset:ocm ${h}">${cs.slice(h).join('')}</div></div>` : `<div class="oc-ms">${cs.join('')}</div>`}</div>`; };
+  return `<div class="oc-top"><div class="oc-p big ow-root" style="--c:#1739d6"><span class="oc-av"><b style="background:#1739d6">${mode === 'gen' ? '일' : '통'}</b></span><span class="oc-tx"><small class="oc-lv">${esc(S.owner)} 배정</small><b>${esc(S.label)}</b><span>${esc(S.group)} ${cats.length}개 · 업무 ${L.length}건 · 사람 ${people.size}명</span></span></div></div>
+    <div class="oc-us">${cats.map(col).join('')}</div>`; }
+document.addEventListener('click', e => { const t = e.target; if (!t.closest?.('#oc')) return;
+  if (t.closest('[data-ocside]')) { const on = !ocNoSide(); try { localStorage.setItem('dept-oc-noside', on ? '1' : '0'); } catch (_) {} const o = $('#oc'); o.classList.toggle('noside', on); const b = t.closest('[data-ocside]'); b.classList.toggle('on', !on); b.textContent = on ? '◧ 정보 칸 보기' : '◨ 정보 칸 접기'; OC.auto = true; return requestAnimationFrame(() => ocOne() ? ocFitOne() : ocApply()); }
+  const a = t.closest('[data-owall]'); if (a) { OC.wAll = a.dataset.owall === '1'; return render(); }
+  const c = t.closest('[data-owcat]'); if (c) { OC.wCat[ocMode()] = c.dataset.owcat; return render(); }
+  const j = t.closest('[data-owj]'); if (j) { const [k, id] = j.dataset.owj.split('|'); return openEdit(k, id); } });
+document.addEventListener('input', e => { if (e.target.id !== 'owQ') return; OC.wQ = e.target.value; clearTimeout(OC.wQT); OC.wQT = setTimeout(() => { const cv = $('#ocCv'); if (cv) { cv.innerHTML = ocWorkHtml(ocMode()); const s = $('#oc .oc-h2t span'); if (s) s.innerHTML = OC.wSum; ocFitOne(); } }, 250); });
 function projTreeHtml() {
   const ps = projData(), card = OC.card;
   ps.forEach(p => p.mem.forEach(m => { if (!OC.people.has(m.name)) OC.people.set(m.name, { name:m.name, title:m.field || '', unit:m.grp || '', color:'#64748b' }); }));
@@ -14106,7 +14246,7 @@ function orgClick(e) {
   if (z && GLB.g && $('#ocView')?.classList.contains('globe') && ['in', 'out', 'fit', 'one'].includes(z.dataset.oc)) { const a = z.dataset.oc, pv = GLB.g.pointOfView();   // 지구본: 확대 · 축소 · 처음 보기
     return a === 'in' ? glbFly(pv.lat, pv.lng, Math.max(.08, pv.altitude * .6), 500) : a === 'out' ? glbFly(pv.lat, pv.lng, Math.min(4, pv.altitude * 1.6), 500) : glbFly(25, 85, 2.1); }
   if (z) { const a = z.dataset.oc; if (a === 'in') return ocZoom(1.2); if (a === 'out') return ocZoom(1 / 1.2); if (a === 'fit') return ocFit();
-    if (a === 'one') { OC.z = 1; OC.x = 16; OC.y = 12; return ocApply(); }
+    if (a === 'one') { OC.z = 1; OC.x = 16; OC.y = 12; if (ocFlow()) { OC.auto = false; $('#ocView').scrollTop = 0; } return ocApply(); }
     if (a === 'full') { const o = $('#oc'); return document.fullscreenElement ? document.exitFullscreen() : o?.requestFullscreen?.(); } }
   const sp = e.target.closest('[data-ocp]'); if (sp) return openProfile(OC.sel, sp.dataset.ocp || undefined);
   const ot = e.target.closest('[data-octab]'); if (ot) { OC.tab = ot.dataset.octab; return ocSide(OC.sel); }
