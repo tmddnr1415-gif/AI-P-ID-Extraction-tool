@@ -519,8 +519,12 @@ def build(prims: geom.Prims, lay=None) -> Sheet | None:
         if any(p.bbox[0] >= bl.bbox[0] - tol and p.bbox[2] <= bl.bbox[2] + tol and
                p.bbox[1] >= bl.bbox[1] - tol and p.bbox[3] <= bl.bbox[3] + tol for bl in blocks):
             continue                    # 블록 안의 글자 획
+        # L98 — 블록 변과 건너뛰기 사이의 토막도 선이다: ⊠ 의 아래 변에서 선이 나가자마자 다른 선을 넘는 반원이 있으면 그 사이 3.8pt 토막은 글자 크기라
+        # 버려졌고, ⊠ 의 입력이 비었다 (19VA 0015).  한 끝이 블록 변에, 다른 끝이 뜀 건너편 선에 닿을 때 (뜀은 그 틈을 다른 선이 지나가야 한다 — across_hop)
+        on_block = lambda q: any(_block_edge(q, bl, tol) for bl in bix.near(q))
         if p.segs[0].length > tol and not (anchored(a) and anchored(b)) and (anchored(a) or at_dot(a) or across_hop(a, b)) \
-                and (anchored(b) or at_dot(b) or across_hop(b, a)) and (at_dot(a) or at_dot(b)):      # 길이 0 인 점(점선의 점)은 토막이 아니다
+                and (anchored(b) or at_dot(b) or across_hop(b, a)) \
+                and (at_dot(a) or at_dot(b) or (on_block(a) and across_hop(b, a)) or (on_block(b) and across_hop(a, b))):      # 길이 0 인 점(점선의 점)은 토막이 아니다
             # L93 — 한 끝이 연결점(●)에, 다른 끝이 선 · 블록 · 뜀 건너편 선에 닿는 짧은 곧은 토막은 선이다
             glyphs.remove(p)
             wires.append(p)
@@ -2415,9 +2419,14 @@ def _dash_chains(glyphs, wires, blocks, arrows, dots, P, tol, bounds=None):
         else:
             runs.append([(hz, a0, a1, c, p)])
     for run in runs:
-        if len(run) > 4:
-            continue
         c = run[0][3]
+        if len(run) > 4:
+            # L98 — 긴 기운 파선은 줄을 **통째로 한 높이**(토막 가운데들의 한가운데)로 편다: 토막마다 앞 토막을 따라가면 100pt 에 0.5pt 씩 벗어나
+            # 중간에서 끊겼다.  한가운데로 펴면 두 끝이 벗어나는 것은 기운 폭의 절반이다 — 그 절반이 닿음 허용(tol)의 0.6배 안일 때만 (더 기운 줄은 그대로 둔다)
+            cs = [r[3] for r in run]
+            if (max(cs) - min(cs)) / 2 > 0.6 * tol:
+                continue
+            c = (max(cs) + min(cs)) / 2
         for hz, a0, a1, _, p in run:
             g = p.segs[0]
             p.segs[0] = geom.Seg(g.x0, c, g.x1, c) if hz else geom.Seg(c, g.y0, c, g.y1)
@@ -2685,4 +2694,46 @@ def _dash_chains(glyphs, wires, blocks, arrows, dots, P, tol, bounds=None):
                 taken.add(id(p))
                 taken.update(id(u) for u in used_)
                 break
+    # L98 — 빗변으로 들어가는 사선 파선: 가로 파선의 끝 토막이 45° 로 꺾이고, 사선 토막 한둘과 촉을 지나 마름모 ◇ 의 빗변에 닿는다
+    # (19VA 제어 루프 장의 A/M 스테이션 — 위 빗변 IN1 · 아래 빗변 M: 자동/수동 전환 입력.  축에 나란한 토막만 보아 이 다리가 통째로 빠져 있었다).
+    # 꺾인 끝 토막(가로 몸통 + 사선) → 같은 사선 위의 토막들 → 촉 → 그 끝이 블록 변 · 마름모 빗변에 닿을 때만 선 하나(꺾인 점 → 촉 끝)로 보탠다.
+    diag = lambda g: not (g.vert or g.horiz) and abs(abs(g.x1 - g.x0) - abs(g.y1 - g.y0)) <= 0.15 * g.length
+    dpieces = [p for p in glyphs if id(p) not in taken and len(p.segs) == 1 and diag(p.segs[0]) and 2 * tol <= p.segs[0].length <= P]
+    dheads = [p for p in glyphs if id(p) not in taken and 2 <= len(p.segs) <= 6 and diag(p.segs[0])
+              and max(p.bbox[2] - p.bbox[0], p.bbox[3] - p.bbox[1]) <= P / 2]
+
+    def on_edge(q):
+        return any(_block_edge(q, b, tol * 2) or (getattr(b, "diamond", False) and any(_dia_edge(q, c, tol * 2) for c in b.cells)) for b in blocks)
+    for p, ax in tipped:
+        if len(p.segs) != 2:
+            continue
+        dg = next((g for g in p.segs if diag(g)), None)
+        if dg is None:
+            continue
+        bend = next((e for e in dg.ends() if any(_d(e, a_) < 0.05 for a_ in ax[0].ends())), None)   # 몸통과 사선이 만나는 꺾인 점
+        host = next((q for q in out if any(_d(bend, e) < 0.05 for x in q.segs for e in x.ends())), None) if bend else None
+        if host is None:
+            continue                                      # 그 몸통이 파선으로 받아들여졌을 때만
+        cur = dg.ends()[1] if _d(dg.ends()[0], bend) < 0.05 else dg.ends()[0]
+        ux, uy = (cur[0] - bend[0]) / dg.length, (cur[1] - bend[1]) / dg.length
+        along = lambda q: (q[0] - cur[0]) * ux + (q[1] - cur[1]) * uy
+        off = lambda q: abs((q[0] - cur[0]) * uy - (q[1] - cur[1]) * ux)
+        used_, reach = [], 1.5 * max(dg.length, 2 * tol) + P / 2
+        for _ in range(6):
+            nxt = min((q for q in dpieces if all(q is not u for u in used_) and all(off(e) <= 0.4 for e in q.segs[0].ends())
+                       and 0 < min(along(e) for e in q.segs[0].ends()) <= reach), key=lambda q: min(along(e) for e in q.segs[0].ends()), default=None)
+            if nxt is None:
+                break
+            used_.append(nxt)
+            cur = max(nxt.segs[0].ends(), key=along)
+        hd = min((q for q in dheads if off(q.segs[0].ends()[0]) <= 0.6 and 0 < along(q.segs[0].ends()[0]) <= reach),
+                 key=lambda q: along(q.segs[0].ends()[0]), default=None)
+        tip = max((e for x in hd.segs for e in x.ends()), key=along) if hd is not None else cur
+        if not on_edge(tip):
+            continue
+        host.segs.append(geom.Seg(bend[0], bend[1], tip[0], tip[1]))
+        host.bbox = geom._bbox([e for x in host.segs for e in x.ends()])
+        taken.update(id(u) for u in used_)
+        if hd is not None:
+            taken.add(id(hd))
     return out, [p for p in glyphs if id(p) not in taken]
