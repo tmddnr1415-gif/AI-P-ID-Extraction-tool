@@ -115,7 +115,9 @@ def _vote_equal_sign(sheets):
     L51 은 `=` 를 '이상' 으로 읽었고(1A5J — '≥' 의 밑줄이 획으로 그려져 글자로는 `=` 만 남는 양식), 그래서 세 대가 다 돌 때
     'ONE … RUNNING' · 'TWO … RUNNING' 이 함께 1 로 나왔다.  부등호 글자가 한 번도 안 나오는 문서(1A5J)는 예전 읽기 그대로 둔다."""
     votes = [b for s in sheets for b in s["blocks"].values() if b.get("logic") == "vote"]
-    if not any(re.search(r"[≥≤<>]", b.get("label") or "") for b in votes):
+    # L99 — `A/B` (범례의 'B 개 중 A 개 이상') 꼴도 그 문서가 '이상' 을 따로 적는다는 증거다: 그림은 '이상' 을 `2/3` 으로 그린다 —
+    # 똑같이 그린 묶음을 PDF 로 내어 다시 올리면 `≥` 글자가 하나도 없어 `2=3` 이 도로 '이상' 으로 읽혔다 (TWO · ONE RUNNING 이 함께 1)
+    if not any(re.search(r"[≥≤<>/]", b.get("label") or "") for b in votes):
         return
     for b in votes:
         if re.fullmatch(r"\d+=\d+", (b.get("label") or "").replace(" ", "")):

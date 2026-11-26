@@ -135,5 +135,9 @@ def test_vote_equal_sign_means_exactly_when_the_document_also_prints_ge():
     only = mk("2=3", "1=3")
     analyse._vote_equal_sign(only)
     assert [b["param"]["op"] for b in only[0]["blocks"].values()] == ["ge", "ge"]
+    # L99 — 그림은 '이상' 을 `2/3` 으로 그린다: 똑같이 그린 묶음을 PDF 로 내어 다시 올려도 `2=3` 은 '정확히' 로 남아야 한다
+    drawn = mk("2=3", "2/3")
+    analyse._vote_equal_sign(drawn)
+    assert [b["param"]["op"] for b in drawn[0]["blocks"].values()] == ["eq", "ge"]
     # 세 대가 다 돌면 'TWO RUNNING' · 'ONE RUNNING' 은 0 이어야 한다
     assert sim._vote3([1, 1, 1], 2, 3, "eq") == 0 and sim._vote3([1, 1, 0], 2, 3, "eq") == 1 and sim._vote3([1, 0, 0], 1, 3, "eq") == 1
