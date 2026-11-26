@@ -6,8 +6,8 @@
    "id": "session_016Ntz71xxniTkCj7pC8ZpXL",
    "title": "1. DASHBOARD 코드 (NEW)",
    "bucket": "COMPLETED",
-   "updated": "2026-11-25T00:19:04Z",
-   "recent": "v18.66 c4f95be4 — 오프라인 입력 자동 저장 · 쪽 탭 등. 11-25 ① 로 회사 업데이트 (회사 v18.30 기준)",
+   "updated": "2026-11-26T04:48:27Z",
+   "recent": "v18.68 0fa29ab3 — 유닛분장 화면. 11-26 ④ 로 회사 업데이트 (회사 v18.66 기준)",
    "needs": "회사: 메모장.exe 실행 · 보안 프로그램 차단 여부 확인"
   },
   "S2": {
@@ -22,8 +22,8 @@
    "id": "session_01Muj82Ewiqsoeo54Ei1FzrE",
    "title": "3. Logic 검토코드 4 (NEW)",
    "bucket": "COMPLETED",
-   "updated": "2026-11-26T00:58:16Z",
-   "recent": "33dcf142 L97 — 19VA 전수 · 연산자 채점 · 짧은 파선 · 분석과 함께 그리기. hotfix148 로 회사 업데이트에 실림",
+   "updated": "2026-11-26T04:28:20Z",
+   "recent": "a37c6c51 L99 — 판독 빈틈 셋 · 왕복 시뮬레이션. hotfix150 로 회사 업데이트에 실림",
    "needs": "다시 요청: python-docx 설치 목록 누락 · 통합 쪽 L71 퍼징 · VOC 도구 칸 반영"
   },
   "S4": {
