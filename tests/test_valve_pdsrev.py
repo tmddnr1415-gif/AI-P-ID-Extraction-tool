@@ -140,23 +140,50 @@ def test_compare_statuses_no_tag_guessing(tmp_path):
     assert R["counts"]["old_tags"] == 7 and R["counts"]["new_tags"] == 8
 
 
-def test_workbook_layout(tmp_path):
+def _book(tmp_path, lang):
     import openpyxl
     from app.valve import pdsrev
     R = pdsrev.compare(_parse(tmp_path, "o.pdf", _pds(OLD, "B")), _parse(tmp_path, "n.pdf", _pds(NEW, "0", extra=True)))
-    data = pdsrev.workbook([{"doc_no": DN, "area": "QN", "old_rev": "B", "new_rev": "0", "old_name": "o.pdf", "new_name": "n.pdf", "result": R}])
-    wb = openpyxl.load_workbook(io.BytesIO(data))
+    data = pdsrev.workbook([{"doc_no": DN, "area": "QN", "old_rev": "B", "new_rev": "0", "old_name": "o.pdf", "new_name": "n.pdf", "result": R}], lang)
+    return openpyxl.load_workbook(io.BytesIO(data))
+
+
+def test_workbook_layout_v2_korean(tmp_path):
+    """valve45: the engineers' v2 layout — No · Status · Tag · (예비) · Rev. · Row, three rows per tag, No · Status · Tag ·
+    overall importance on the first row only (No · overall · remarks merged over the three rows)."""
+    wb = _book(tmp_path, "ko")
     assert wb.sheetnames == ["Summary", f"A. {DN}", "High 변경 목록", "Summary (Sizing 영향)"]
     ws = wb[f"A. {DN}"]
-    assert [ws.cell(4, c).value for c in (1, 2, 3, 4, 5, 37, 38)] == ["No", "Status", "Tag", "Rev.", "Row", "중요도(종합)", "비고 / 사유"]
-    assert [ws.cell(r, 5).value for r in (5, 6, 7)] == ["이전", "최신", "중요도"] and ws.freeze_panes == "F5"
-    assert ws.cell(5, 3).value == "77XV001" and ws.cell(5, 4).value == "Rev.B" and ws.cell(6, 4).value == "Rev.0"
-    assert ws.cell(7, 12).value == "High" and ws.cell(6, 12).font.color.rgb.endswith("FF0000") and ws.cell(6, 37).value == "High"
-    assert not any("변경 의심" in str(c.value or "") or "재사용" in str(c.value or "") for w in wb for row in w.iter_rows() for c in row)
-    assert "COUNTIFS" in wb["Summary"].cell(5, 8).value and wb["Summary"].cell(5, 6).value == 7
+    assert [ws.cell(4, c).value for c in (1, 2, 3, 4, 5, 6, 38, 39)] == ["No", "Status", "Tag", "(예비)", "Rev.", "Row", "중요도(종합)", "비고 / 사유"]
+    assert [ws.cell(r, 6).value for r in (5, 6, 7)] == ["이전", "최신", "중요도"] and ws.freeze_panes == "G5"
+    assert (ws.cell(5, 2).value, ws.cell(5, 3).value, ws.cell(5, 38).value) == ("Changed", "77XV001", "High")
+    assert ws.cell(6, 2).value is None and ws.cell(6, 3).value is None                     # first row only
+    assert {"A5:A7", "AL5:AL7", "AM5:AM7"} <= {str(m) for m in ws.merged_cells.ranges}
+    assert ws.cell(5, 5).value == "Rev.B" and ws.cell(6, 5).value == "Rev.0"
+    assert ws.cell(7, 13).value == "High" and ws.cell(6, 13).font.color.rgb.endswith("FF0000")
+    sm = wb["Summary"]
+    assert [sm.cell(4, c).value for c in range(1, 13)][4:] == ["이전 Tag 수", "Rev.0 Tag 수", "Changed (High)", "Changed (Med)", "Changed (Min)",
+                                                               "No Change", "New", "Delete"]
+    assert '"이전"' in sm.cell(5, 7).value and sm.cell(5, 5).value == 7 and sm.cell(5, 6).value == 8
     hl = wb["High 변경 목록"]
-    assert ("77XV001", "Valve Size", '6"', '4"') in {(hl.cell(r, 3).value, hl.cell(r, 4).value, hl.cell(r, 5).value, hl.cell(r, 6).value)
+    assert ("77XV001", "Valve Size", '6"', '4"') in {(hl.cell(r, 3).value, hl.cell(r, 5).value, hl.cell(r, 6).value, hl.cell(r, 7).value)
                                                     for r in range(2, hl.max_row + 1)}
+    assert not any("변경 의심" in str(c.value or "") for w in wb for row in w.iter_rows() for c in row)
+
+
+def test_workbook_english_same_layout(tmp_path):
+    ko, en = _book(tmp_path, "ko"), _book(tmp_path, "en")
+    assert en.sheetnames == ["Summary", f"A. {DN}", "High Changes", "Summary (Sizing Impact)"]
+    ws = en[f"A. {DN}"]
+    assert [ws.cell(4, c).value for c in (4, 38, 39)] == ["(spare)", "Overall Importance", "Remarks / Reason"]
+    assert [ws.cell(r, 6).value for r in (5, 6, 7)] == ["Previous", "Latest", "Importance"]
+    assert '"Previous"' in en["Summary"].cell(5, 7).value and '"Importance"' in en["Summary (Sizing Impact)"].cell(7, 4).value
+    k, e = ko[f"A. {DN}"], ws                                                              # the same cells, the same values
+    assert all(k.cell(r, c).value == e.cell(r, c).value for r in range(5, k.max_row + 1) for c in range(7, 38)
+               if k.cell(r, 6).value != "중요도" and not str(k.cell(r, c).value or "").startswith("("))
+    hangul = [c.value for w in en for row in w.iter_rows() for c in row
+              if isinstance(c.value, str) and any("\uac00" <= ch <= "\ud7a3" for ch in c.value)]
+    assert hangul == []                                                                    # no Korean left in the English book
 
 
 def test_upload_same_number_compares_and_gives_the_excel(tmp_path, monkeypatch):
@@ -184,7 +211,9 @@ def test_upload_same_number_compares_and_gives_the_excel(tmp_path, monkeypatch):
     assert (rc["old_rev"], rc["new_rev"]) == ("B", "0") and rc["counts"]["New"] == 5 and rc["counts"]["Delete"] == 4
     assert "이전" in docs[f"{DN}_0001_0_Advanced_Copy.pdf"]["info"]["note"]
     r = c.get(f"/api/valve/projects/{pid}/pds_revcompare.xlsx")
-    assert r.status_code == 200 and r.headers["x-count"] == "1"
+    assert r.status_code == 200 and r.headers["x-count"] == "1" and "_KO_" in r.headers["content-disposition"]
+    r = c.get(f"/api/valve/projects/{pid}/pds_revcompare.xlsx?lang=en")
+    assert r.status_code == 200 and "_EN_" in r.headers["content-disposition"]
     con = api.store.connect()
     P, _ = api._process_for(con, pid)
     assert "77XV200" in P["by_tag"] and "77XV006" not in P["by_tag"]                         # the newest Rev. is what the review uses

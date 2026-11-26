@@ -841,7 +841,7 @@ def _rules_fingerprint() -> str:
 
 
 _RULES_FP = _rules_fingerprint()
-VERSION = "valve44"                       # shown in Settings › 정보 and the footer; bump with every package
+VERSION = "valve45"                       # shown in Settings › 정보 and the footer; bump with every package
 
 
 @router.get("/api/valve/version")
@@ -1253,28 +1253,30 @@ def _pds_revcompare(con, pid, doc_id, parsed) -> dict | None:
     return {"prev_id": od["id"], "prev_name": od["filename"], "old_rev": oP.get("rev", ""), "new_rev": nP.get("rev", ""), "counts": R["counts"]}
 
 
-def _pds_xlsx(pid: int):
+def _pds_xlsx(pid: int, lang: str = "ko"):
     con = store.connect()
     try:
         docs = []
         for od, oP, nd, nP in _pds_pairs(con, pid):
             docs.append({"doc_no": nP["doc_no"], "area": _pds_area(con, pid, nP["doc_no"]), "old_rev": oP.get("rev", ""), "new_rev": nP.get("rev", ""),
                          "old_name": od["filename"], "new_name": nd["filename"], "result": pdsrev.compare(oP, nP)})
-        return (pdsrev.workbook(docs) if docs else None), len(docs)
+        return (pdsrev.workbook(docs, lang) if docs else None), len(docs)
     finally:
         con.close()
 
 
 @router.get("/api/valve/projects/{pid}/pds_revcompare.xlsx")
-async def pds_revcompare_xlsx(pid: int, request: Request):
-    """valve43: every PDS document number loaded in two Revs. — the newest against the one before (pdsrev.py)."""
-    data, n = await run_in_threadpool(_pds_xlsx, pid)
+async def pds_revcompare_xlsx(pid: int, request: Request, lang: str = "ko"):
+    """valve43: every PDS document number loaded in two Revs. — the newest against the one before (pdsrev.py).
+    valve45: ?lang=ko (한글) | en (English) — the same layout, every label in that language."""
+    lang = lang if lang in pdsrev.LANGS else "ko"
+    data, n = await run_in_threadpool(_pds_xlsx, pid, lang)
     if not data:
         return _err("같은 문서 번호의 PDS 가 두 Rev. 이상 올라와 있지 않습니다 — 수정 PDS 를 공통 자료에 올리면 비교합니다", 404)
     con = store.connect()
-    store.audit(con, pid, None, None, "export", None, "pds_revcompare.xlsx", _user(request), f"{n} documents")
+    store.audit(con, pid, None, None, "export", None, f"pds_revcompare.xlsx ({lang})", _user(request), f"{n} documents")
     con.commit()
-    fn = f"PDS_Rev_Comparison_{store.now()[:10]}.xlsx"
+    fn = f"PDS_Rev_Comparison_{lang.upper()}_{store.now()[:10]}.xlsx"
     return Response(data, media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                     headers={"Content-Disposition": f"attachment; filename*=UTF-8''{quote(fn)}", "X-Count": str(n)})
 
