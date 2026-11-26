@@ -9177,6 +9177,92 @@
      ]
     }
    }
+  },
+  {
+   "at": "2026-11-26 03:33",
+   "read_at": "2026-11-13T07:12:00Z",
+   "s": {
+    "S1": {
+     "branch": "origin/ccr-248a5c4d-3dji7g",
+     "tip": "c4f95be4",
+     "ver": "v18.66 · 회사엔 v18.30",
+     "bucket": "COMPLETED",
+     "needs": "회사: 메모장.exe 실행 · 보안 프로그램 차단 여부 확인",
+     "recent": "v18.66 c4f95be4 — 오프라인 입력 자동 저장 · 쪽 탭 등. 11-25 ① 로 회사 업데이트 (회사 v18.30 기준)",
+     "pending": []
+    },
+    "S2": {
+     "branch": "origin/claude/gracious-ride-26nqrf",
+     "tip": "cd59d77a",
+     "ver": "hotfix149 만듦 (통합)",
+     "bucket": "COMPLETED",
+     "needs": "",
+     "recent": "cd59d77a — 심볼 준비 캐시 · LOGIC 도면 칸 안내. hotfix146 로 회사 업데이트에 실림",
+     "pending": []
+    },
+    "S3": {
+     "branch": "origin/ccr-cc45909d-fjjmrb",
+     "tip": "33dcf142",
+     "ver": "L97",
+     "bucket": "COMPLETED",
+     "needs": "다시 요청: python-docx 설치 목록 누락 · 통합 쪽 L71 퍼징 · VOC 도구 칸 반영",
+     "recent": "33dcf142 L97 — 19VA 전수 · 연산자 채점 · 짧은 파선 · 분석과 함께 그리기. hotfix148 로 회사 업데이트에 실림",
+     "pending": []
+    },
+    "S4": {
+     "branch": "origin/ccr-d82d97fa-bb3ty3",
+     "tip": "7b10d7cb",
+     "ver": "변경 이력 (55)",
+     "bucket": "BLOCKED",
+     "needs": "사용자: 4 세션 창에서 11-19 지시 1~4 진행 승인 필요 (질문 대기 중)",
+     "recent": "",
+     "pending": []
+    },
+    "S5": {
+     "branch": "origin/claude/new-session-v23o67",
+     "tip": "f5f94b2c",
+     "ver": "2026-11-19.1",
+     "bucket": "COMPLETED",
+     "needs": "",
+     "recent": "f5f94b2c — 도서검토 2026-11-19.1 (외부 번역 기본 꺼짐 · 외국어 용어). hotfix146 로 회사 업데이트에 실림",
+     "pending": []
+    },
+    "S6": {
+     "branch": "origin/ccr-efbe7e75-n915ze",
+     "tip": "778a14ff",
+     "ver": "valve45",
+     "bucket": "COMPLETED",
+     "needs": "회사: PDS Rev. 비교 실자료 확인",
+     "recent": "778a14ff valve45 — PDS Rev. 비교 v2 · 한글/English · 같은 Tag 끼리. hotfix149 로 회사 업데이트에 실림",
+     "pending": []
+    },
+    "S7": {
+     "branch": "origin/claude/practical-newton-n6bt58",
+     "tip": "865f9297",
+     "ver": "865f9297",
+     "bucket": "COMPLETED",
+     "needs": "사용자: 7 세션 창에서 A(전부)/B(일부)/C 선택 필요 — 회사판 외부 AI 빼기 등",
+     "recent": "865f9297 — 좁은 폭에서도 3D 칸 · 휠 축소 한계. hotfix135 로 회사 업데이트에 처음 실림",
+     "pending": [
+      "865f9297",
+      "cb4f4972",
+      "af748c78",
+      "da8df461",
+      "c0dd7d0b",
+      "077cba5e",
+      "144e6604",
+      "8b0b1023",
+      "19d7aa3a",
+      "1fd96028",
+      "b99fb62a",
+      "ad3bbe35",
+      "05909503",
+      "963d2857",
+      "f408556e",
+      "64a829be"
+     ]
+    }
+   }
   }
  ],
  "changes": [
@@ -14491,6 +14577,54 @@
    "kind": "pending",
    "sig": "계산",
    "text": "다음 업데이트 대기 1 → 2건"
+  },
+  {
+   "at": "2026-11-26 03:33",
+   "prev": "2026-11-26 03:12",
+   "sid": "S2",
+   "kind": "version",
+   "sig": "git",
+   "text": "버전 hotfix148 만듦 (통합) → hotfix149 만듦 (통합)"
+  },
+  {
+   "at": "2026-11-26 03:33",
+   "prev": "2026-11-26 03:12",
+   "sid": "S4",
+   "kind": "needs",
+   "sig": "세션 기록",
+   "text": "확인 필요 — 사용자: 4 세션 창에서 11-19 지시 1~4 진행 승인 필요 (질문 대기 중)"
+  },
+  {
+   "at": "2026-11-26 03:33",
+   "prev": "2026-11-26 03:12",
+   "sid": "S6",
+   "kind": "needs",
+   "sig": "세션 기록",
+   "text": "확인 필요 — 회사: PDS Rev. 비교 실자료 확인"
+  },
+  {
+   "at": "2026-11-26 03:33",
+   "prev": "2026-11-26 03:12",
+   "sid": "S6",
+   "kind": "report",
+   "sig": "세션 기록",
+   "text": "세션 보고 — 778a14ff valve45 — PDS Rev. 비교 v2 · 한글/English · 같은 Tag 끼리. hotfix149 로 회사 업데이트에 실림"
+  },
+  {
+   "at": "2026-11-26 03:33",
+   "prev": "2026-11-26 03:12",
+   "sid": "S6",
+   "kind": "pending",
+   "sig": "계산",
+   "text": "다음 업데이트 대기 2 → 0건"
+  },
+  {
+   "at": "2026-11-26 03:33",
+   "prev": "2026-11-26 03:12",
+   "sid": "S7",
+   "kind": "needs",
+   "sig": "세션 기록",
+   "text": "확인 필요 — 사용자: 7 세션 창에서 A(전부)/B(일부)/C 선택 필요 — 회사판 외부 AI 빼기 등"
   }
  ]
 }
