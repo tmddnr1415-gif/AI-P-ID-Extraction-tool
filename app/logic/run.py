@@ -86,6 +86,11 @@ def run(d: Path):
             pass
         _final(d, st)
         lower_priority()                             # L47 — 결과는 섰다 · 이제부터는 뒤에서 (그림 · 사전 · 학습 · 검토)
+        try:                                         # L96 — 분석과 함께 '똑같이 그리기': 이 묶음을 그림 묶음으로도 만든다 (실패해도 결과는 그대로)
+            from app.logic import draw_sets
+            draw_sets.auto_import(d)
+        except Exception:
+            pass
         from app.logic import behavior
         hb = behavior.Beat(d, phase="prepare").start()   # hotfix101 — 지금부터 '배우는 중' (장 그림 · 사전 · 학습 · 검토)
         try:

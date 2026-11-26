@@ -69,9 +69,15 @@ function barOf(b) {
 function wrapText(t, n) { const words = String(t || "").split(/\s+/).filter(Boolean), out = []; let cur = ""; for (const w of words) { if (cur && cur.length + 1 + w.length > n) { out.push(cur); cur = w; } else cur = (cur + " " + w).trim(); } if (cur) out.push(cur); return out.length ? out : [""]; }
 function geom(b) {                       // L56 — param.above (블록 위 글) 는 어느 종류든 한 줄 더 (서버 block_geometry 와 같은 자리)
   const g = geomCore(b), ab = (b.param || {}).above;
+  if ((b.param || {}).form === "diamond" && g.box) {                // L92 — 마름모 ◇ · 칸이 여럿이면 맞닿은 ◇ (A/M 스테이션) — 서버 block_geometry 와 같은 수
+    const cs = diamondCells(b);
+    g.diamonds = cs.map(([x0, y0, x1, y1]) => [[(x0 + x1) / 2, y0], [x1, (y0 + y1) / 2], [(x0 + x1) / 2, y1], [x0, (y0 + y1) / 2]]); g.diamond = g.diamonds[0];
+    if (cs.length > 1) { const cy = b.y + b.h / 2; g.texts = g.texts.filter(t => !(t[1] === cy && t[2] === b.text)).concat(cs.filter(c => c[4]).map(([x0, y0, x1, y1, t]) => [(x0 + x1) / 2, (y0 + y1) / 2, t, fitFs(t, (x1 - x0) * 0.5, Math.min((y1 - y0) * 0.42, 7))])); }
+  }
   if (ab) g.texts.push([b.x + b.w / 2, b.y - 0.5 * layout().PITCH, ab, 4.6]);
   return g;
 }
+function diamondCells(b) { const cs = (b.param || {}).cells || []; if (cs.length < 2) return [[b.x, b.y, b.x + b.w, b.y + b.h, b.text || ""]]; return cs.map(c => [b.x + c[0] * b.w, b.y + c[1] * b.h, b.x + (c[0] + c[2]) * b.w, b.y + (c[1] + c[3]) * b.h, c[4]]); }
 function wireLabelPos(w) {               // 서버 wire_label_pos 와 같은 수 — 첫 가로 토막 가운데 · 0.8P 아래
   const P = layout().PITCH, pts = w.pts;
   for (let i = 0; i + 1 < pts.length; i++) { const a = pts[i], b = pts[i + 1]; if (Math.abs(a[1] - b[1]) < 0.2 && Math.abs(b[0] - a[0]) >= 6) return [(a[0] + b[0]) / 2, a[1] + 0.8 * P]; }
@@ -134,6 +140,11 @@ function ports(b) {
   }
   if (spec.cells === 2) return [[x, y + h / 4, "in"], [x, y + 3 * h / 4, "in"], [x + w, y + h / 4, "out"], [x + w, y + 3 * h / 4, "out"]];
   if (spec.note) return [];
+  if ((b.param || {}).form === "diamond" && (b.param.cells || []).length > 1) {   // L92 — 맞닿은 ◇ : 칸마다 왼 · 위 = 들어감, 오른 · 아래 = 나감 (겹친 꼭짓점은 한 번)
+    const seen = new Set(), ps = [];
+    for (const [x0, y0, x1, y1] of diamondCells(b)) for (const q of [[x0, (y0 + y1) / 2, "in"], [(x0 + x1) / 2, y0, "in"], [x1, (y0 + y1) / 2, "out"], [(x0 + x1) / 2, y1, "out"]]) { const k = q[0].toFixed(1) + "," + q[1].toFixed(1); if (!seen.has(k)) { seen.add(k); ps.push(q); } }
+    return ps;
+  }
   const out = [[x + w, y + h / 2, "out"]];
   if (spec.logic === "source") return out;
   if (spec.bar) {
@@ -467,6 +478,23 @@ function shapeGeom(g, b) {               // L58 — 서버 draw.shape_geometry �
     return g;
   }
   if (b.kind === "ANN") return { ...g, box: null, ellipse: [x, y, x + w, y + h] };
+  if (b.kind === "GT" || b.kind === "DT") {      // L92 — 오른쪽 끝이 둥근 상자에 ON / OFF · `n SEC` (서버 shape_geometry 와 같은 수)
+    const r = Math.min(h / 2, w / 2), xs = x + w - r, kq = 0.5523 * r, cy = y + h / 2, word = b.kind === "GT" ? "ON" : "OFF";
+    return { ...g, shape: { nobox: true, paths: [[[xs, y + h], [x, y + h], [x, y], [xs, y]]],
+        arcs: [[[xs, y + h], [xs + kq, y + h], [x + w, cy + kq], [x + w, cy]], [[x + w, cy], [x + w, cy - kq], [xs + kq, y], [xs, y]]],
+        d: `M${xs},${y + h} H${x} V${y} H${xs} C${xs + kq},${y} ${x + w},${cy - kq} ${x + w},${cy} C${x + w},${cy + kq} ${xs + kq},${y + h} ${xs},${y + h} Z` },
+      texts: g.texts.map(t => t[1] === cy && t[2] === b.text ? [x + (w - r * 0.35) / 2, cy, word, fitFs(word, w - r * 0.6 - 2, Math.min(h * 0.6, 7))] : String(t[2]).endsWith(" sec") ? [t[0], t[1], String(t[2]).replace(" sec", " SEC"), ...t.slice(3)] : t) };
+  }
+  if (b.kind === "PD") {
+    const cy = y + h / 2;
+    return { ...g, shape: { nobox: false, arcs: [], paths: [[[x + 0.18 * w, y + 0.75 * h], [x + 0.35 * w, y + 0.75 * h], [x + 0.35 * w, y + 0.34 * h], [x + 0.66 * w, y + 0.34 * h], [x + 0.66 * w, y + 0.75 * h], [x + 0.83 * w, y + 0.75 * h]]] },
+      texts: g.texts.filter(t => !(t[1] === cy && t[2] === b.text)).map(t => String(t[2]).endsWith(" sec") ? [t[0], t[1], String(t[2]).replace(" sec", " SEC"), ...t.slice(3)] : t) };
+  }
+  if (b.kind === "LAMP" && g.circle) {
+    const [cx, cy, r] = g.circle, a = r * 0.7071, o = r * 0.7071 + 2 * r * 0.206, ls = [];
+    for (const sx of [-1, 1]) for (const sy of [-1, 1]) ls.push([cx + sx * a, cy + sy * a, cx + sx * o, cy + sy * o]);
+    return { ...g, lines: [...(g.lines || []), ...ls] };
+  }
   if (!SHAPE_KINDS.includes(b.kind)) return g;
   g = { ...g, texts: g.texts.filter(t => t[1] !== y + h / 2) };
   if (b.kind === "OR") { const r = Math.min(w, h) / 2; g.circle = [x + r, y + h / 2, r]; g.box = null; g.pointer = null; if (w > 2 * r + 0.5) g.lines = [[x + 2 * r, y + h / 2, x + w, y + h / 2]]; }
@@ -506,12 +534,17 @@ function renderBlock(parent, b, bad) {
     if (g.pointer) el("polygon", { points: g.pointer.map(p => p.join(",")).join(" ") }, grp);
   } else if (g.cells.length) {
     for (const c of g.cells) el("rect", { x: c[0], y: c[1], width: c[2] - c[0], height: c[3] - c[1] }, grp);
+  } else if (g.diamond) {
+    for (const d of g.diamonds || [g.diamond]) el("polygon", { points: d.map(p => p.join(",")).join(" "), class: "dia" }, grp);
+  } else if (g.shape && g.shape.nobox && g.shape.d) {
+    el("path", { d: g.shape.d, class: "dia" }, grp);                 // L92 — 둥근 상자 (닫힌 한 획 — 칠 · 상태 색은 ◇ 와 같이)
   } else if (g.box) {
     el("rect", { x: g.box[0], y: g.box[1], width: g.box[2] - g.box[0], height: g.box[3] - g.box[1] }, grp);
   } else {
     el("rect", { x: b.x, y: b.y, width: b.w, height: b.h, fill: "none", stroke: S.sel.has(b.id) ? "#2f5bd8" : "none", "stroke-dasharray": "1 1" }, grp);
   }
   if (g.bar) el("line", { x1: g.bar[0], y1: g.bar[1], x2: g.bar[2], y2: g.bar[3] }, grp);
+  if (g.shape && !g.shape.nobox) for (const pts of g.shape.paths || []) el("polyline", { points: pts.map(q => q.join(",")).join(" "), class: "glyph" }, grp);   // L92 — 상자 안 획 (⎍)
   for (const ln of g.lines || []) el("line", { x1: ln[0], y1: ln[1], x2: ln[2], y2: ln[3] }, grp);   // L66 — 상자 안 선(⊠ · OR 줄기 · PB 칸막이)도 기호의 일부 — 밖에 두면 화면에 안 보였다
   for (const [cx, cy, t, fs, anc] of g.texts) if (t) { const e = el("text", { x: cx, y: cy, "font-size": fs, "text-anchor": anc === "start" ? "start" : anc === "end" ? "end" : "middle", class: anc ? "pin" : null }, grp); e.textContent = t; }
   if (S.sym[b.kind].macro) grp.classList.add("macro");
@@ -533,6 +566,8 @@ function paletteIcon(kind) {
   }
   if (gg.circle) { el("circle", { cx: gg.circle[0], cy: gg.circle[1], r: gg.circle[2] }, g); if (gg.pointer) el("polygon", { points: gg.pointer.map(p => p.join(",")).join(" ") }, g); }
   else if (gg.cells.length) for (const c of gg.cells) el("rect", { x: c[0], y: c[1], width: c[2] - c[0], height: c[3] - c[1] }, g);
+  else if (gg.diamond) el("polygon", { points: gg.diamond.map(p => p.join(",")).join(" "), class: "dia" }, g);
+  else if (gg.shape && gg.shape.nobox && gg.shape.d) el("path", { d: gg.shape.d, class: "dia" }, g);
   else if (gg.box) el("rect", { x: gg.box[0], y: gg.box[1], width: gg.box[2] - gg.box[0], height: gg.box[3] - gg.box[1] }, g);
   if (gg.bar) el("line", { x1: gg.bar[0], y1: gg.bar[1], x2: gg.bar[2], y2: gg.bar[3] }, g);
   for (const ln of gg.lines || []) el("line", { x1: ln[0], y1: ln[1], x2: ln[2], y2: ln[3] }, g);
@@ -585,6 +620,8 @@ function addPreset(pr, cx, cy) {
   if (pr.time) b.param.t = 5;
   if (pr.lines) b.param.lines = pr.lines.map(x => x.slice());
   if (pr.above) b.param.above = pr.above;
+  if (pr.form) { b.param.form = pr.form; if (pr.cells) b.param.cells = pr.cells.map(c => c.slice()); }   // L92 — 모양이 정해진 글자 상자 (A/M 스테이션 ◇A◇T)
+  if (b.kind === "BOX" && !pr.form && flowForm("p:" + pr.text) === "diamond") { b.param.form = "diamond"; const d = Math.max(b.w, b.h, 2 * layout().PITCH); b.w = b.h = d; }   // L92 — 이 프로젝트가 이 기호를 ◇ 로 그렸으면 ◇ 로 (정사각형)
   if (pr.note) { const notes = notesFromForm(); if (!notes.includes(pr.note)) { notes.push(pr.note); $("#f-notes").value = notes.join("\n"); S.doc.notes = notes; } }
   markDirty(); render();
 }
@@ -654,7 +691,8 @@ function renderProps() {
   const spec = S.sym[b.kind];
   $("#props-kind").textContent = spec.name;
   let h = `<label>종류 <select id="p-kind">${Object.keys(S.sym).map(k => `<option value="${k}" ${k === b.kind ? "selected" : ""}>${esc(S.sym[k].name)}</option>`).join("")}</select></label>`;
-  if (spec.time) h += `<label>시간 (초) <input id="p-t" type="number" min="0" step="0.5" value="${+(b.param.t ?? 5)}"></label>`;
+  if (spec.time) h += `<datalist id="p-t-list">${flowTimes(b.kind).map(t => `<option value="${t}">`).join("")}</datalist>`;   // L92 — 이 프로젝트에서 자주 쓴 시간
+  if (spec.time) h += `<label>시간 (초) <input id="p-t" list="p-t-list" type="number" min="0" step="0.5" value="${+(b.param.t ?? 5)}"></label>`;
   if (spec.bar) { const k = ports(b).filter(p => p[2] === "in").length; h += `<label>입력 수 <input id="p-nin" type="number" min="1" max="24" value="${k}" style="width:56px"></label><p class="dw-hint">막대 길이가 행 간격 × 입력 수로 바뀌고 입력 단자가 행 가운데에 섭니다.</p>`; }
   if (spec.ab) h += `<label>A / B <span><input id="p-a" type="number" min="1" max="9" value="${b.param.a || 2}" style="width:56px"> / <input id="p-b" type="number" min="1" max="9" value="${b.param.b || 3}" style="width:56px"></span></label>`;
   if (spec.cells === 2) h += `<label>우선 칸 <select id="p-dom"><option value="" ${!b.param.dominant ? "selected" : ""}>기본 (S·R 함께면 바뀜)</option><option value="set" ${b.param.dominant === "set" ? "selected" : ""}>SET 우선 (SO)</option><option value="reset" ${b.param.dominant === "reset" ? "selected" : ""}>RESET 우선 (RO)</option></select></label>`;
@@ -673,6 +711,7 @@ function renderProps() {
       <div class="dw-pins">${(p.pins_in || []).map((q, i) => `<span class="in"><input data-pin="in:${i}" value="${esc(q.name)}"></span>`).join("")}${(p.pins_out || []).map((q, i) => `<span class="out"><input data-pin="out:${i}" value="${esc(q.name)}"></span>`).join("")}</div>
       ${p.typ ? `<button id="p-open-typ" type="button" title="이 매크로의 Typical(내부 동작) 그림을 새 창으로 — 보고 고칠 수 있습니다 (블록을 두 번 눌러도 됩니다)">▣ 내부 동작 열기 (새 창)</button>` : ""}`;
   }
+  if (b.kind === "BOX") h += `<label>모양 <select id="p-form"><option value="">네모</option><option value="diamond"${b.param.form === "diamond" ? " selected" : ""}>마름모 ◇</option></select></label>`;   // L92
   if (!spec.note) h += `<label>위 글 <input id="p-above" value="${esc(b.param.above || "")}" placeholder="설정값 202.4 barg · HH : 191 · 주석"></label><p class="dw-hint">블록 바로 위에 인쇄 — 감시 블록이면 분석기가 설정값으로 읽고 시뮬레이션의 초기값이 됩니다.</p>`;
   h += `<label>크기 <span><input id="p-w" type="number" min="4" step="1" value="${b.w}" style="width:56px"> × <input id="p-h" type="number" min="4" step="1" value="${b.h}" style="width:56px"></span></label>
         <label>자리 <span><input id="p-x" type="number" step="1" value="${b.x}" style="width:56px"> , <input id="p-y" type="number" step="1" value="${b.y}" style="width:56px"></span></label>
@@ -683,12 +722,14 @@ function renderProps() {
   const on = (id, fn) => { const e = $(id); if (e) e.onchange = ev => upd(() => fn(ev.target)); };
   on("#p-t", t => { b.param.t = Math.max(0, +t.value || 0); });
   on("#p-nin", t => { setInputs(b, Math.max(1, Math.min(24, Math.round(+t.value || 2)))); });
-  on("#p-a", t => { b.param.a = Math.max(1, Math.min(9, +t.value || 2)); b.text = `${b.param.a}/${b.param.b}`; });
-  on("#p-b", t => { b.param.b = Math.max(1, Math.min(9, +t.value || 3)); b.text = `${b.param.a}/${b.param.b}`; });
+  const vsign = () => ({ eq: "=", gt: ">", lt: "<", le: "≤", ne: "≠" })[b.param.op] || "/";      // L95 — 부호가 있는 투표 (2=3 정확히 …)는 숫자를 고쳐도 부호를 지킨다
+  on("#p-a", t => { b.param.a = Math.max(1, Math.min(9, +t.value || 2)); b.text = `${b.param.a}${vsign()}${b.param.b}`; });
+  on("#p-b", t => { b.param.b = Math.max(1, Math.min(9, +t.value || 3)); b.text = `${b.param.a}${vsign()}${b.param.b}`; });
   on("#p-dom", t => { b.param.dominant = t.value; });
   on("#p-label", t => { b.label = t.value.trim().slice(0, 60); });
   on("#p-text", t => { b.text = t.value.trim().slice(0, spec.circle ? 2 : 40) || spec.text; });
   on("#p-point", t => { b.param.point = t.value; });
+  on("#p-form", t => { if (t.value === "diamond") { b.param.form = "diamond"; const d = Math.max(b.w, b.h); b.w = b.h = d; } else { delete b.param.form; delete b.param.cells; } });
   on("#p-above", t => { const v = t.value.trim().slice(0, 40); if (v) b.param.above = v; else delete b.param.above; });
   on("#p-mtitle", t => { b.param.title = t.value.trim().slice(0, 120); });
   on("#p-mtyp", t => { b.param.typ = t.value; const m = ((S.setInfo && S.setInfo.macros) || []).find(m => m.typ === t.value); if (m) { b.param.title = m.title; const L2 = layout(); b.param.pins_in = m.pins_in.map((q, i) => ({ name: q.name, row: q.row, dy: +(1.6 * L2.PITCH + (i + 0.5) * L2.PITCH).toFixed(2) })); b.param.pins_out = m.pins_out.map((q, i) => ({ name: q.name, row: q.row, dy: +(1.6 * L2.PITCH + (i + 0.5) * L2.PITCH).toFixed(2) })); b.h = +(1.6 * L2.PITCH + Math.max(m.pins_in.length, m.pins_out.length, 1) * L2.PITCH + 0.4 * L2.PITCH).toFixed(2); } });
@@ -1472,6 +1513,7 @@ function bindStage() {
     if (e.key === "Escape" && $("#find") && !$("#find").hidden) { findClose(); return; }
     if (e.key === "Escape") { if (S.wip) { S.wip = null; render(); } else { S.sel = new Set(); S.selWire = null; S.selW = new Set(); render(); } }
     else if (e.key === "Enter" && S.wip) { finishWire(); }
+    else if (e.key === "Tab" && !S.wip && !e.shiftKey && !e.ctrlKey && !e.altKey && S.sel.size === 1 && !simOn() && flowTab()) { e.preventDefault(); }   // L92 — 가장 자주 온 다음 기호를 바로
     else if (e.key === "Tab" && S.wip && S.wip.routes && S.wip.routes.length > 1) { e.preventDefault(); S.wip.ri = ((S.wip.ri || 0) + 1) % S.wip.routes.length; drawGhost(); status(`경로 ${S.wip.ri + 1}/${S.wip.routes.length}`); }
     // L87 — draw.io 와 같은 단축키
     else if ((e.ctrlKey || e.metaKey) && !e.shiftKey && e.key.toLowerCase() === "f") { e.preventDefault(); findOpen(); }
@@ -2139,6 +2181,7 @@ async function openDoc(id, opts) {
   rgLoad();
   $("#pick").value = id; $("#save").disabled = true;
   fillForm(); await loadSet(true); await loadInst();
+  flowLoad();                                                       // L92 — 이 프로젝트에서 배운 '다음 기호' 차례 (기다리지 않는다)
   // L84 — 같은 묶음 안에서 장을 옮기면 확대 · 자리를 그대로 (PDF 넘기듯) · 휠로 넘기면 다음 장은 위에서 · 앞 장은 아래에서
   const Ln = layout(), sc = $("#scroll");
   const keep = prev && prev.set && prev.set === S.doc.set && prev.W === Ln.W && prev.H === Ln.H;
@@ -3361,7 +3404,7 @@ function qcDraw(ov) {
     const x = q[0] + 0.45 * P, y = q[1], r = 0.21 * P;
     const c = el("circle", { cx: x, cy: y, r, class: "qc", "data-id": b.id, "data-i": i }, ov);
     el("path", { d: `M${(x - 0.55 * r).toFixed(2)},${y} H${(x + 0.55 * r).toFixed(2)} M${x},${(y - 0.55 * r).toFixed(2)} V${(y + 0.55 * r).toFixed(2)}`, class: "qcplus" }, ov);
-    const tt = el("title", {}, c); tt.textContent = "다음 기호를 오른쪽에 놓고 이 출력에 잇기 — 누르면 고르기";
+    const tt = el("title", {}, c); const top = i === 0 && flowNext(flowKey(b))[0]; tt.textContent = "다음 기호를 오른쪽에 놓고 이 출력에 잇기 — 누르면 고르기" + (top ? ` · Tab = ${flowName(top.key)} (자주 ${top.pct}%)` : "");
   });
 }
 
@@ -3382,19 +3425,23 @@ function openPicker(cx, cy, opts) {
   document.body.appendChild(box);
   const canIn = it => { const sp = S.sym[it.kind] || {}; return !sp.note && sp.logic !== "source"; };
   const all = pickItems().filter(it => !opts.from || canIn(it)), rk = recentKeys();
+  const srcB = opts.from && S.doc.blocks.find(b => b.id === opts.from), lrn = srcB ? flowNext(flowKey(srcB)) : [];   // L92 — 이 기호 뒤에 자주 온 차례
+  const pct = new Map(lrn.map(x => [x.key, x.pct]));
+  if (lrn.length) box.querySelector(".qp-head").innerHTML = `다음 기호 — <b>${esc(flowName(flowKey(srcB)))}</b> 뒤에 자주 온 차례 <span class="qp-src">${esc(lrn.src)}</span>`;
   let shown = [], hi = 0;
   const paint = () => {
     const q = $("#qpick-q").value.trim().toUpperCase();
     const hits = all.filter(it => !q || it.q.includes(q));
-    const rec = q ? [] : rk.map(k => hits.find(it => it.key === k)).filter(Boolean);
-    shown = rec.concat(hits.filter(it => !rec.includes(it))).slice(0, 60); hi = Math.min(hi, Math.max(0, shown.length - 1));
+    const lr = q ? [] : lrn.map(x => hits.find(it => it.key === x.key)).filter(Boolean).slice(0, 6);
+    const rec = q ? [] : rk.map(k => hits.find(it => it.key === k)).filter(it => it && !lr.includes(it));
+    shown = lr.concat(rec, hits.filter(it => !rec.includes(it) && !lr.includes(it))).slice(0, 60); hi = Math.min(hi, Math.max(0, shown.length - 1));
     const list = box.querySelector(".qp-list"); list.innerHTML = "";
     shown.forEach((it, i) => {
-      const row = document.createElement("div"); row.className = "qp-it" + (i === hi ? " on" : "") + (i < rec.length ? " rec" : ""); row.dataset.i = i;
+      const row = document.createElement("div"); row.className = "qp-it" + (i === hi ? " on" : "") + (i < lr.length ? " lrn" : i < lr.length + rec.length ? " rec" : ""); row.dataset.i = i;
       const ic = document.createElement("span"); ic.className = "qp-ic";
       if (it.preset) { ic.textContent = it.text; ic.classList.add("txt"); } else ic.appendChild(paletteIcon(it.kind));
       const nm = document.createElement("span"); nm.className = "qp-nm"; nm.textContent = it.name;
-      const tg = document.createElement("span"); tg.className = "qp-tg"; tg.textContent = i < rec.length ? "최근" : it.preset ? "글자 상자" : it.kind;
+      const tg = document.createElement("span"); tg.className = "qp-tg"; tg.textContent = i < lr.length ? `자주 ${pct.get(it.key)}%` : i < lr.length + rec.length ? "최근" : it.preset ? "글자 상자" : it.kind;
       row.append(ic, nm, tg); list.appendChild(row);
     });
     if (!shown.length) list.innerHTML = `<div class="qp-none">맞는 기호가 없습니다</div>`;
@@ -3430,6 +3477,7 @@ function placeItem(it, opts) {
   }
   const src = S.doc.blocks.find(b => b.id === opts.from); if (!src) return;
   const q = ports(src).filter(x => x[2] === "out")[opts.i || 0]; if (!q) return;
+  const gapP = flowGap(flowKey(src), it.key);                      // L92 — 이 프로젝트 그림에서 잰 간격 (없으면 3행 폭)
   if (it.preset) addPreset(it.preset, q[0] + 4 * P, q[1]); else addBlock(it.kind, q[0] + 4 * P, q[1]);   // addBlock 이 되돌리기 점을 찍는다
   if (S.doc.blocks.length === n0) return;
   const b = S.doc.blocks[S.doc.blocks.length - 1], inp = () => ports(b).find(x => x[2] === "in");
@@ -3438,7 +3486,11 @@ function placeItem(it, opts) {
   b.y = +(b.y + (q[1] - ip[1])).toFixed(2);
   const others = S.doc.blocks.filter(x => x !== b && !(S.sym[x.kind] || {}).note).map(fullBox);
   const hit = bb => others.some(B => B[0] < bb[2] - 0.3 && B[2] > bb[0] + 0.3 && B[1] < bb[3] - 0.3 && B[3] > bb[1] + 0.3);
-  for (let k = 0; k < 12; k++) { ip = inp(); b.x = +(b.x + (q[0] + 3 * P + k * P - ip[0])).toFixed(2); const fb = fullBox(b); if (!hit(fb) && fb[2] <= L.LX1 - 1) break; }
+  let placed = false;
+  for (const g0 of gapP && Math.abs(gapP - 3) > 0.25 ? [gapP, 3] : [3]) {                // 배운 간격이 안 들어가면(겹침 · 영역 밖) 예전 3행 폭부터
+    for (let k = 0; k < 12; k++) { ip = inp(); b.x = +(b.x + (q[0] + g0 * P + k * P - ip[0])).toFixed(2); const fb = fullBox(b); if (!hit(fb) && fb[2] <= L.LX1 - 1) { placed = true; break; } }
+    if (placed) break;
+  }
   ip = inp();
   S.doc.wires.push({ id: newId("w"), pts: orthoPts([[q[0], q[1]], [ip[0], ip[1]]]), dashed: false });
   S.sel = new Set([b.id]); S.selWire = null; S.selW = new Set();
@@ -3666,7 +3718,7 @@ async function draftOffer() {
 const KEYS = [
   ["그리기", [["V", "선택"], ["W / D", "선 / 파선 도구"], ["단자 · 행 자리에서 끌기", "선 (도구를 바꾸지 않고)"], ["＋ (기호 옆)", "다음 기호를 놓고 잇기"], ["빈 곳 두 번 누름", "그 자리에 기호 넣기"], ["Tab", "선 — 다른 경로"], ["Enter · 두 번 누름", "선 끝내기"], ["Esc", "취소 · 고르기 풀기"]]],
   ["고치기", [["Delete", "지우기"], ["Ctrl+C / X / V", "복사 · 잘라내기 · 붙이기"], ["Ctrl+D", "복제"], ["Ctrl+끌기", "복사해 옮기기"], ["Ctrl+A", "모두 고르기 (선까지)"], ["끌어 묶기", "블록 · 선 고르기"], ["Shift+누름", "더하기 · 빼기"], ["화살표 (Shift)", "반 행 (한 행) 옮기기"], ["Alt+화살표 · Alt+H/V", "맞춤 · 균등 간격"], ["Ctrl+Z / Y", "되돌리기 · 다시"], ["Ctrl+S", "저장"]]],
-  ["보기 · 찾기", [["Ctrl+F · F3", "찾기 (묶음 전체) · 다음"], ["Ctrl+휠 · Ctrl+± ", "확대 · 축소"], ["Ctrl+0 · Ctrl+Shift+H", "맞춤 보기"], ["휠 (끝에서) · PgUp/PgDn", "앞 · 다음 장"], ["Space+끌기 · H", "화면 옮기기"], ["Ctrl+Shift+O", "미니맵"], ["P", "기호 · 매크로 창 (새 창)"], ["G · R", "모눈 · 눈금자"], ["오른쪽 누름", "메뉴"], ["? · F1", "이 창"]]],
+  ["보기 · 찾기", [["Ctrl+F · F3", "찾기 (묶음 전체) · 다음"], ["Ctrl+휠 · Ctrl+± ", "확대 · 축소"], ["Ctrl+0 · Ctrl+Shift+H", "맞춤 보기"], ["휠 (끝에서) · PgUp/PgDn", "앞 · 다음 장"], ["Space+끌기 · H", "화면 옮기기"], ["Ctrl+Shift+O", "미니맵"], ["Tab", "고른 기호 뒤에 가장 자주 온 기호를 바로 잇기 (이 프로젝트 그림에서 배운 차례)"], ["P", "기호 · 매크로 창 (새 창)"], ["G · R", "모눈 · 눈금자"], ["오른쪽 누름", "메뉴"], ["? · F1", "이 창"]]],
 ];
 function showKeys() {
   const body = `<div class="dw-keys">${KEYS.map(([h, rows]) => `<div><h4>${esc(h)}</h4><table>${rows.map(([k, t]) => `<tr><td><kbd>${esc(k)}</kbd></td><td>${esc(t)}</td></tr>`).join("")}</table></div>`).join("")}</div>`;
@@ -3763,7 +3815,8 @@ function palSync(active) {
   ch.postMessage({ t: "state", win: S.winId, active: !!active, at: Date.now(),
     doc: S.doc ? { name: S.doc.name || "", sheet_no: S.doc.sheet_no || "", sim: simOn(), set: S.doc.set || null, set_name: S.doc.set_name || "", project: S.doc.project || "", typical: !!S.doc.typical } : null,
     sel: canFrom ? { id: one.id, name: `${(S.sym[one.kind] || {}).name || one.kind}${one.text && one.kind === "BOX" ? " " + one.text : ""}` } : null,
-    placing: S.placing ? S.placing.key : null, recent: recentKeys() });
+    placing: S.placing ? S.placing.key : null, recent: recentKeys(),
+    next: canFrom ? flowNext(flowKey(one)).slice(0, 6).map(x => [x.key, x.pct]) : [] });   // L92
 }
 function palSyncSoon(active) { if (!palAlive()) return; if (active) S._palActive = true; clearTimeout(S._palT); S._palT = setTimeout(() => { const a = S._palActive; S._palActive = false; palSync(a); }, 120); }
 function openPalette(auto) {
@@ -3836,4 +3889,39 @@ function placeGhost(ov) {
   const [x, y] = S.hover;
   el("rect", { x: x - w / 2, y: it.macro ? y - 1.6 * P - P / 2 : y - h / 2, width: w, height: h, rx: 1, class: "placeghost" }, ov);
   const t = el("text", { x, y: (it.macro ? y - 1.6 * P - P / 2 : y - h / 2) - 1.5, class: "placeghost-t" }, ov); t.textContent = it.name;
+}
+
+/* ───────── L92 — 그려진 방식에서 배운 '다음 기호' ─────────
+   서버가 이 프로젝트(묶음)의 그림에서 '어느 기호의 출력이 어느 기호의 입력으로 갔는가' 를 센다 (draw_sets.learn_flow) ·
+   그림이 적은 프로젝트는 들고 있는 로직도에서 미리 잰 바탕(config/logic_draw_flow.json)을 쓴다.  ＋ 고르개 맨 위 · Tab · 기호 창이 그 차례로 권한다. */
+const FLOW_MIN = 5;                                                 // 그 기호의 이어짐이 이만큼은 있어야 그 프로젝트 차례를 믿는다 (그 밑은 바탕)
+function flowKey(b) { const sp = S.sym[b.kind] || {}; if (sp.note || sp.macro) return null; if (b.kind === "BOX") { const t = String(b.text || "").replace(/\s+/g, " ").trim(); return t && t.length <= 8 ? "p:" + t : null; } return "k:" + b.kind; }
+function flowName(k) { if (!k) return ""; if (k.startsWith("p:")) return k.slice(2); const sp = S.sym[k.slice(2)]; return sp ? sp.name : k.slice(2); }
+async function flowLoad() {
+  const id = S.id; if (!id) return;
+  try { const f = await api(`/logic/api/drawings/${id}/flow`); if (S.id === id) { S.flow = f; palSyncSoon(false); if (S.sel.size === 1) drawGhost(); } } catch (e) { /* 편의 — 못 받아도 그리기는 된다 */ }
+}
+function flowSrc(key) {
+  const f = S.flow || {}, own = ((f.set || {}).next || {})[key], base = ((f.base || {}).next || {})[key];
+  const n = (own || []).reduce((a, x) => a + x[1], 0);
+  if (own && n >= FLOW_MIN) return { list: own, n, src: `이 프로젝트 그림 ${n}건`, gap: ((f.set || {}).gap_p || {})[key] || {} };
+  if (base) { const m = base.reduce((a, x) => a + x[1], 0); return { list: base, n: m, src: `들고 있는 로직도 ${m}건`, gap: ((f.base || {}).gap_p || {})[key] || {} }; }
+  return { list: [], n: 0, src: "", gap: {} };
+}
+function flowNext(key) {
+  if (!key) return Object.assign([], { src: "" });
+  const r = flowSrc(key), out = r.list.map(([k, c]) => ({ key: k, n: c, pct: Math.round(100 * c / Math.max(1, r.n)) })).filter(x => x.pct >= 2);
+  return Object.assign(out, { src: r.src });
+}
+function flowGap(a, b) { if (!a || !b) return null; const g = flowSrc(a).gap[b]; return g ? Math.max(1.5, Math.min(8, Math.round(g * 2) / 2)) : null; }
+function flowForm(key) { const f = S.flow || {}; const own = ((f.set || {}).form || {})[key], base = ((f.base || {}).form || {})[key]; const pick = d => { if (!d) return null; const tot = Object.values(d).reduce((a, x) => a + x, 0); const top = Object.entries(d).sort((a, b) => b[1] - a[1])[0]; return tot >= 3 && top[1] > tot / 2 ? top[0] : null; }; const o = pick(own); return o !== null ? o : (pick(base) || ""); }
+function flowTimes(kind) { const f = S.flow || {}; const t = ((f.set || {}).timer || {})[kind] || ((f.base || {}).timer || {})[kind] || []; return t.slice(0, 8).map(x => x[0]); }
+function flowTab() {
+  const b = S.doc && S.doc.blocks.find(x => x.id === [...S.sel][0]); if (!b) return false;
+  if (!ports(b).some(q => q[2] === "out")) return false;
+  const all = pickItems(), top = flowNext(flowKey(b)).map(x => all.find(it => it.key === x.key)).find(Boolean);
+  if (!top) { status("이 기호 뒤에 자주 온 기호를 아직 모릅니다 — ＋ 를 눌러 고르세요"); return true; }
+  const n0 = S.doc.blocks.length; placeItem(top, { from: b.id, i: 0 });
+  if (S.doc.blocks.length > n0) { recentPush(top.key); status(`${flowName(flowKey(b))} 뒤에 ${top.name} — 자주 온 차례대로 이었습니다 (다른 기호는 ＋ · 되돌리기 Ctrl+Z)`); }
+  return true;
 }

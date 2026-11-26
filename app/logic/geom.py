@@ -104,6 +104,7 @@ class Prims:
     marker_kind: dict = field(default_factory=dict)   # L58 — bbox(반올림) → "diamond" | "square" (작도 재현이 같은 모양으로 그린다)
     blobs: list = field(default_factory=list)     # 칠한 작은 조각의 bbox (연결점을 조각으로 칠한 양식)
     rings: list = field(default_factory=list)     # 호 조각들이 닫힌 원 후보 [(Circle, {pid})] (L21)
+    oquads: list = field(default_factory=list)    # L92 — 획으로만 그린(칠하지 않은) 기운 사각형의 네 꼭짓점 — 열린 마름모 ◇ 기호 후보 (graph 가 크기 · 글자로 정한다)
     frame: tuple | None = None                     # 도면 테두리 (굵게 칠한 큰 사각 띠) — 그 밖은 격자 번호
 
 
@@ -277,11 +278,17 @@ def read(page, pno: int) -> Prims:
     tris = []
     drawings = page.get_drawings()
     inks = _page_inks(drawings)
+    # L93 — 칠한 도형(화살촉 삼각형)의 테두리를 굵기 0 인 획으로 한 번 더 그린 양식 (19VA Typical): 그 테두리는 선이 아니다.
+    # 화살촉이 행 간격의 절반쯤으로 크면 테두리 변이 '글자 크기' 를 넘어 선으로 읽히고, 블록에 붙은 몰이 없는 선이 됐다 (PS3 의 S/R 입력마다 둘씩).
+    filled = {tuple(round(v, 1) for v in d_["rect"]) for d_ in drawings if (d_.get("type") or "") == "f" and len(d_.get("items") or []) == 3}
     for d in drawings:
         items = d.get("items") or []
         if not items:
             continue
         typ = d.get("type") or ""
+        if typ == "s" and not (d.get("width") or 0) and len(items) == 3 and all(it[0] == "l" for it in items) and \
+                tuple(round(v, 1) for v in d["rect"]) in filled:
+            continue
         if "f" in typ and not _ink(d.get("fill"), inks):
             continue
         if "s" in typ and not _ink(d.get("color"), inks):
@@ -398,6 +405,8 @@ def read(page, pno: int) -> Prims:
                 else:
                     out.markers.append(bb)        # 마름모 ◆ — 선 위의 신호 인터페이스 표시
                     out.marker_kind[tuple(round(v, 2) for v in bb)] = "diamond"
+                    if "f" not in typ:
+                        out.oquads.append((pts, _pdf_dashed(d)))   # L92 — 칠하지 않은 것은 ◇ 기호일 수 있다
         if not segs:
             continue
         rr = _closed_rect(segs)

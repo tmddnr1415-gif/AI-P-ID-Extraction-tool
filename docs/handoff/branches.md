@@ -5,7 +5,7 @@
 | 세션 (앱 목록) | 지금 작업 브랜치 | 상태 |
 | --- | --- | --- |
 | 2. PID 검토 4 (NEW) | `claude/gracious-ride-26nqrf` | 사용 중 · P&ID 개발. **꾸러미는 오케스트레이터 세션이 만든다 (2026-11-07 규약 v2)** |
-| 3. Logic 검토코드 4 (NEW) | `ccr-cc45909d-fjjmrb` | 사용 중 · hotfix133 에 L91 까지 병합 · 다음 L92 |
+| 3. Logic 검토코드 4 (NEW) | `ccr-cc45909d-fjjmrb` | 사용 중 · 통합에 L97 까지 병합 (2026-11-26) · 다음 L98 |
 | 4. PANEL 코드 (NEW) | `ccr-d82d97fa-bb3ty3` (`dashboard/apps/space`) | 판넬 화면 원본 · hotfix133 에 7b10d7cb 까지 옮겨 옴 |
 | 5. 도서 검토 | `claude/new-session-v23o67` (`dashboard/apps/books`) | 도서 화면 원본 · hotfix133 에 b44ead53 까지 옮겨 옴 |
 | 6. Datasheet 자동 검토 (VALVE) | `ccr-efbe7e75-n915ze` | hotfix133 에 valve36 까지 병합 (valveNN 별도 꾸러미 폐지) |

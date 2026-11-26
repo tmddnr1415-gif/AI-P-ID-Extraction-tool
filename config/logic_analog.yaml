@@ -33,6 +33,8 @@ ops:
   bias:     {ko: "바이어스 (BIAS)",           eq: "M = X ± b", names: [BIAS], labels: ["+", "-", "±", "+-", "-+"]}
   transfer: {ko: "전환 (TRANSFER)",           eq: "M = IN1 (조건 C = 1) · IN2 (C = 0)", names: [TRANSFER, SWITCH, SELECTOR SWITCH], labels: ["T", "TR", "SW"]}
   pid:      {ko: "PID 제어기",               eq: "출력 = 제어기 계산 — 시뮬레이션에서는 수동 출력값 또는 추종(Tr) 값", names: [PID, CONTROLLER, PID CONTROLLER, CONTROL STATION], labels: ["PID", "PI", "SPC", "A/T"]}
+  # L94 — 19VA 범례 16쪽 ◇A◇T "AUTO/MANUAL CONTROL STATION — AUTO OR MANUAL MODE SELECTION": 자동이면 들어온 값을 그대로, 수동이면 운전원이 정한 값
+  amstation: {ko: "자동/수동 스테이션 (A/M)",  eq: "자동: M = 입력 · 수동: M = 운전원이 넣은 값 (눌러서 넣는다)", names: [AUTO/MANUAL CONTROL STATION, AUTO MANUAL CONTROL STATION, A/M STATION, AUTO/MANUAL STATION], labels: ["A/M"]}
   convert:  {ko: "신호 변환 (CONVERTER)",     eq: "M = X (신호 종류만 바뀐다)", names: [CONVERTER], labels: ["I/P", "E/P", "P/I", "A/D", "D/A", "I/E", "E/I"]}
   formula:  {ko: "수식 블록",                 eq: "OUT = 도면에 인쇄된 식", names: [], labels: []}
   # L48 — 단자 이름을 상자 안에 인쇄한 연산 상자 (19VA BIT_CNT · 범례 'BIT COUNTER': COUNTS THE NUMBER OF BOOLEAN INPUTS

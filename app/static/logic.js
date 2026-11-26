@@ -315,7 +315,7 @@ function showHome() {
   if (location.hash) history.replaceState(null, "", location.pathname + location.search);
   L.job = null;
   $("#job").value = "";
-  for (const id of ["#ft-report", "#report", "#rv-btn", "#rv-pdf"]) $(id).hidden = true;
+  for (const id of ["#ft-report", "#report", "#rv-btn", "#rv-pdf", "#auto-draw"]) $(id).hidden = true;
   $("#goto").disabled = true;
   status("");
   loadHome();
@@ -584,6 +584,7 @@ async function openJob(id) {
   renderProgress(null);
   { const fd = $("#from-draw");                                   // L56 — 작도에서 올린 묶음이면 그 그림(묶음)으로 돌아가는 길
     if (fd) { if (st.drawing || st.drawing_set) { fd.hidden = false; fd.href = st.drawing ? `/logic/draw#d=${st.drawing}` : `/logic/draw#set=${st.drawing_set}`; } else fd.hidden = true; } }
+  autoDrawWatch(id);
   status(`분석 ${st.seconds}초 · ${st.sheets}장`);
   const opt = $("#job").querySelector(`option[value="${id}"]`);          // 분석 중에 그린 '분석 중 N%' 를 끝난 값으로
   if (opt && st.sheets != null) opt.textContent = `${st.name || ""} · ${st.sheets}장`;
@@ -2464,12 +2465,14 @@ async function runSim_(animate, pageOnly) {
   const askPage = L.page;
   // L31 — 시트만 옮겼고 준 신호가 그대로면 지난 계산의 입력을 그대로 보낸다: 묶음의 답은 같고 이 장의 결과만 꺼내면 된다
   // (돌려받은 상태를 다시 보내면 서버가 시간을 한 번 더 흘린 것으로 보고 묶음 전체를 다시 센다).
-  const inputs = JSON.stringify([forces, L.timers, analog]);
+  // L95 — 시간 직접 넘기기: 켜 두면 서버가 시간을 흘리지 않는다 (wait 0) · '다음 타이머까지' 가 그만큼만 흘린다
+  const wait = holdOn() ? (L.holdWait != null ? L.holdWait : 0) : null;
+  const inputs = JSON.stringify([forces, L.timers, analog, wait]);
   const last = L.lastSim;
   const state = pageOnly && last && last.job === L.job && last.inputs === inputs ? last.state : L.states;
   L.lastSim = { job: L.job, inputs, state };
   const inner = Object.entries(L.childWins || {}).filter(([, c]) => c.win && !c.win.closed).map(([k]) => k);
-  const b = await post(`/logic/api/jobs/${L.job}/simulate`, { forces, state, page: L.page, timers: L.timers, analog, inner });
+  const b = await post(`/logic/api/jobs/${L.job}/simulate`, { forces, state, page: L.page, timers: L.timers, analog, inner, ...(wait == null ? {} : { wait }) });
   if (b.default_t) L.defaultT = b.default_t;
   const r = b.focus;
   if (!r || L.page !== askPage || L.sheet !== askSheet) return;   // 기다리는 동안 다른 장으로 옮겼다 — 그 장의 결과를 이 장에 그리지 않는다
@@ -2499,7 +2502,49 @@ async function runSim_(animate, pageOnly) {
   renderSheetList(); renderChain();
   stopAnim();
   playFrames(r.frames, prev, animate);
+  holdShow(r.frames[r.frames.length - 1].running || []);
   return r;
+}
+/* L96 — 분석과 함께 그린 묶음: 다 됐으면 여는 단추 · 그리는 중이면 진행 · 예전 묶음(그림 없음)이면 누를 때 그린다 */
+async function autoDrawWatch(id) {
+  const a = $("#auto-draw");
+  if (!a) return;
+  clearTimeout(L.autoDrawT);
+  let st;
+  try { st = await api(`/logic/api/jobs/${id}/drawing`); } catch (e) { a.hidden = true; return; }
+  if (L.job && L.job !== id) return;
+  a.hidden = st.state === "skipped";
+  a.onclick = null;
+  if (st.state === "done") {
+    a.textContent = `✎ 똑같이 그린 묶음 (${st.sheets}장)`;
+    a.href = st.first ? `/logic/draw${location.search}#d=${st.first}` : `/logic/draw${location.search}#set=${st.set}`;
+  } else if (st.state === "running") {
+    a.textContent = st.total ? `✎ 그리는 중 ${st.done}/${st.total}` : "✎ 그리는 중 …";
+    a.href = "#"; a.onclick = (e) => e.preventDefault();
+    L.autoDrawT = setTimeout(() => autoDrawWatch(id), 2500);
+  } else {
+    a.textContent = st.state === "failed" ? "✎ 똑같이 그리기 (다시)" : "✎ 똑같이 그리기";
+    a.href = "#";
+    a.onclick = async (e) => { e.preventDefault(); try { await post(`/logic/api/jobs/${id}/drawing`, {}); } catch (err) { status("그리기를 시작하지 못했습니다 — " + err.message); } autoDrawWatch(id); };
+  }
+}
+/* L95 — 시간 직접 넘기기 (타이머가 세는 도중에 입력을 바꿔 보려고) */
+function holdOn() { const c = $("#hold-time"); return !!(c && c.checked); }
+function holdShow(running) {
+  L.holdRunning = running || [];
+  const btn = $("#hold-next");
+  if (!btn) return;
+  btn.hidden = !holdOn();
+  if (!holdOn()) return;
+  const left = L.holdRunning.length ? Math.min(...L.holdRunning.map((x) => x.left)) : null;
+  btn.textContent = left != null ? `▶ 다음 타이머까지 (${+left.toFixed(1)}초)` : "▶ 1초 넘기기";
+  if (left != null) status(`⏸ 시간 멈춤 — 세는 중인 타이머 ${L.holdRunning.length}개 · 가장 빠른 것 ${+left.toFixed(1)}초 남음 (입력을 바꾸거나 '다음 타이머까지')`);
+}
+async function holdNext() {
+  if (!holdOn() || !L.job || !L.sheet) return;
+  const left = (L.holdRunning || []).length ? Math.min(...L.holdRunning.map((x) => x.left)) : 1;
+  L.holdWait = Math.max(0, left);
+  try { await runSim(true); } finally { L.holdWait = null; }
 }
 /* 틀을 그린다 — 묶음 계산의 결과든 (runSim) 매크로 새 창이 부모에게서 받은 값이든 (L44) 같은 길 */
 function playFrames(frames, prev, animate) {
@@ -6082,6 +6127,8 @@ function bind() {
   $("#show-nets").onchange = () => $("#ov").classList.toggle("hide-nets", !$("#show-nets").checked);
   $("#show-blocks").onchange = () => $("#ov").classList.toggle("hide-blocks", !$("#show-blocks").checked);
   $("#reset").onclick = resetAll;
+  $("#hold-next").onclick = holdNext;
+  $("#hold-time").onchange = () => { holdShow(holdOn() ? L.holdRunning : []); if (L.job && L.sheet && L.mode === "sim") runSim(true); };
   bindSigPop();
   bindSeq();
   bindNeeds();

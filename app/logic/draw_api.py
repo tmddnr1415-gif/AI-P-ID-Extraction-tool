@@ -756,6 +756,34 @@ def _sim_docs(did: str, live: dict | None):
     return docs, keys
 
 
+_FLOW_CACHE: dict = {}         # L92 — 묶음 지문 → 배운 차례 (한 개만 든다)
+
+
+@router.get("/logic/api/drawings/{did}/flow")
+def drawing_flow(did: str):
+    """L92 — 이 그림의 묶음(프로젝트)에서 배운 '다음 기호' 차례 + 바탕(들고 있는 로직도에서 미리 잰 것).
+    화면이 ＋ 고르개 · Tab · 기호 창에서 권할 때 쓴다.  묶음 쪽은 시뮬레이션이 쓰는 장 변환(캐시)을 그대로 쓴다."""
+    from . import draw_sim
+    import hashlib
+    base = draw_sets.flow_base()
+    try:
+        docs, keys = _sim_docs(did, None)
+    except HTTPException:
+        raise
+    sig = hashlib.sha1(json.dumps([keys[d["id"]] for d in docs]).encode()).hexdigest()
+    got = _FLOW_CACHE.get(sig)
+    if got is None:
+        try:
+            with _SIM_LOCK:
+                sheets = draw_sim.sheets_of(docs, keys)
+            got = draw_sets.learn_flow(docs, sheets)
+        except Exception as e:                           # 배우기는 편의다 — 못 배워도 그리기는 된다
+            got = {"next": {}, "gap_p": {}, "timer": {}, "pairs": 0, "sheets": len(docs), "error": repr(e)[:120]}
+        _FLOW_CACHE.clear()
+        _FLOW_CACHE[sig] = got
+    return {"set": got, "base": {k: base.get(k) for k in ("next", "gap_p", "gap_all_p", "timer", "form", "pairs", "sheets", "source")}}
+
+
 @router.post("/logic/api/drawings/{did}/simulate")
 def simulate_drawing(did: str, body: dict = Body(default={})):
     """L57 — 그린 로직을 **PDF 로 내보내지 않고** 바로 시뮬레이션한다 (draw_sim.to_sheet → sim.simulate_bundle).

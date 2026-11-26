@@ -52,6 +52,8 @@ MAX_TEXT = 200
 #   bar   : 왼쪽 입력 막대 (여러 입력이 붙는 자리)
 #   cells : 2 = 위·아래 두 칸 (메모리 S/R)
 #   w · h : 기본 크기 (pt)
+# L95 — 투표 블록의 부호 (param.op → 상자 글).  없으면(ge) 범례 A/B 꼴 `2/3` — B 개 중 A 개 이상
+VOTE_SIGNS = {"eq": "=", "gt": ">", "lt": "<", "le": "≤", "ne": "≠"}
 SYMBOLS = {
     "AND":    {"name": "AND",            "text": "AND",  "bar": True,  "w": 16, "h": 9,  "logic": "and"},
     "OR":     {"name": "OR",             "text": "OR",   "bar": True,  "w": 16, "h": 9,  "logic": "or"},
@@ -101,6 +103,8 @@ BOX_PRESETS = [
     {"text": "T",     "name": "전환 (T)",               "hint": "아날로그 — 조건 1 이면 IN1 · 0 이면 IN2"},
     {"text": "F(X)",  "name": "함수 F(X)",              "hint": "아날로그 — 꺾은선 표 (표가 없으면 그대로 넘김)"},
     {"text": "PID",   "name": "PID 제어기",             "hint": "아날로그 — 시뮬레이션에서는 수동 출력값"},
+    {"text": "A | T", "name": "A/M 스테이션 (◇A◇T)",     "hint": "자동/수동 선택 — 범례 AUTO/MANUAL CONTROL STATION · 맞닿은 마름모 둘이 한 기호",
+     "form": "diamond", "cells": [[0, 0, 0.5, 1, "A"], [0.5, 0, 0.5, 1, "T"]], "w": round(4 * PITCH, 2), "h": round(2 * PITCH, 2)},
     {"text": "A",     "name": "아날로그 상수 (A)",       "hint": "들어오는 선 없이 값 하나 — 블록 위 글 'A : 5%'", "above": "A : 5"},
     {"text": "DEV",   "name": "편차 감시 (DEV)",         "hint": "|X1 − X2| > D 이면 1 (D 는 블록 위 글)", "above": "D : 10"},
     {"text": "EQUAL", "name": "같음 비교 (EQUAL)",       "hint": "IN1 = IN2 이면 1", "w": 22},
@@ -284,7 +288,10 @@ def clean(doc: dict) -> dict:
         if spec.get("ab"):
             param["a"] = int(_num(p.get("a"), 1, 9, 2))
             param["b"] = int(_num(p.get("b"), 1, 9, 3))
-            nb["text"] = f"{param['a']}/{param['b']}"
+            sign = VOTE_SIGNS.get(str(p.get("op") or ""))          # L95 — 부호 (`2=3` 정확히 · `2>3` …) · 없으면 A/B (이상)
+            if sign:
+                param["op"] = str(p.get("op"))
+            nb["text"] = f"{param['a']}{sign or '/'}{param['b']}"
         if spec.get("cells") == 2:
             dom = str(p.get("dominant") or "")
             param["dominant"] = dom if dom in ("set", "reset") else ""
@@ -318,6 +325,14 @@ def clean(doc: dict) -> dict:
             nb["h"] = _num(b.get("h"), 4, 2000, spec["h"])     # 매크로는 상자가 길다 (표 높이까지)
         if spec.get("box") and p.get("mon"):
             param["mon"] = 1                            # L85 — 범례가 정한 감시 블록 (B.Q …)
+        if spec.get("box") and p.get("form") in BOX_FORMS:
+            param["form"] = p["form"]                   # L92 — 상자를 그리는 모양 (◇ 마름모 — 19VA 의 A · T) · 뜻은 글자가 정한다
+            cs = []                                     # 맞닿은 ◇ 여럿이 한 기호 (◇A◇T = A/M 스테이션) — 칸마다 [x · y · 폭 · 높이 (상자에 대한 비율), 글자]
+            for c in (p.get("cells") if isinstance(p.get("cells"), list) else [])[:4]:
+                if isinstance(c, (list, tuple)) and len(c) == 5:
+                    cs.append([round(_num(c[0], 0, 1, 0), 4), round(_num(c[1], 0, 1, 0), 4), round(_num(c[2], 0.05, 1, 1), 4), round(_num(c[3], 0.05, 1, 1), 4), _txt(c[4], 8)])
+            if len(cs) >= 2:
+                param["cells"] = cs
         if not spec.get("note") and _txt(p.get("above"), 40):
             param["above"] = _txt(p.get("above"), 40)   # L56 — 블록 바로 위 글 (설정값 `202.4 barg` · `HH : 191` · 짧은 주석) — 분석기 analog._read_setpoint 가 읽는 자리
         nb["param"] = param
@@ -837,10 +852,27 @@ def listing() -> list:
 ABOVE_FS = 4.6
 
 
+def diamond_cells(b: dict) -> list:
+    """◇ 로 그리는 글자 상자의 칸들 [(x0, y0, x1, y1, 글자)] — 칸이 없으면 상자 통째로 하나."""
+    x, y, w, h = b["x"], b["y"], b["w"], b["h"]
+    cs = (b.get("param") or {}).get("cells") or []
+    if len(cs) < 2:
+        return [(x, y, x + w, y + h, b.get("text") or "")]
+    return [(x + c[0] * w, y + c[1] * h, x + (c[0] + c[2]) * w, y + (c[1] + c[3]) * h, c[4]) for c in cs]
+
+
 def block_geometry(b: dict) -> dict:
     """상자 · 막대 · 칸 · 글자 자리 — 화면의 logic_draw.js `geom()` 과 같은 수를 내야 한다.
     `param.above` 가 있으면 블록 위 변에서 0.5P 위에 가운데 맞춰 한 줄 더 (어느 종류든)."""
     g = _block_geometry(b)
+    if (b.get("param") or {}).get("form") == "diamond" and g.get("box"):
+        # L92 — 마름모 ◇: 상자(단자 · 고르기 자리)는 그대로 두고 그 네 변 가운데를 이은 모양으로 그린다 (화면 logic_draw.js geom 과 같은 수)
+        g["diamonds"] = [[[(x0 + x1) / 2, y0], [x1, (y0 + y1) / 2], [(x0 + x1) / 2, y1], [x0, (y0 + y1) / 2]] for x0, y0, x1, y1, _ in diamond_cells(b)]
+        g["diamond"] = g["diamonds"][0]
+        if len(g["diamonds"]) > 1:                     # 칸마다 글자 (가운데 글 대신)
+            cy_ = b["y"] + b["h"] / 2
+            g["texts"] = [t for t in g["texts"] if not (t[1] == cy_ and t[2] == b.get("text"))] + \
+                         [[(x0 + x1) / 2, (y0 + y1) / 2, t_, fit_fs(t_, (x1 - x0) * 0.5, min((y1 - y0) * 0.42, 7))] for x0, y0, x1, y1, t_ in diamond_cells(b) if t_]
     ab = (b.get("param") or {}).get("above")
     if ab:
         g["texts"].append([b["x"] + b["w"] / 2, b["y"] - 0.5 * PITCH, ab, ABOVE_FS])
@@ -1184,8 +1216,19 @@ def _blocks(page, doc):
         elif g["cells"]:
             for c in g["cells"]:
                 _rect(page, c)
-        elif g["box"]:
+        elif g.get("diamond"):
+            for d_ in g.get("diamonds") or [g["diamond"]]:
+                _line(page, d_ + [d_[0]])
+        elif g["box"] and not (g.get("shape") or {}).get("nobox"):
             _rect(page, g["box"])
+        for pts_ in (g.get("shape") or {}).get("paths") or []:      # L92 — 기호의 획 (둥근 상자의 곧은 세 변 · ⎍)
+            _line(page, pts_)
+        if (g.get("shape") or {}).get("arcs"):
+            sh = page.new_shape()
+            for a_ in g["shape"]["arcs"]:
+                sh.draw_bezier(*[pymupdf.Point(*q_) for q_ in a_])
+            sh.finish(color=K, width=LW, closePath=False)
+            sh.commit()
         if g["bar"]:
             _line(page, [(g["bar"][0], g["bar"][1]), (g["bar"][2], g["bar"][3])])
         for cx, cy, t, fs, *anc in g["texts"]:
@@ -1235,6 +1278,7 @@ NOTES_BOX = (30.0, 780.0, 540.0, 830.0)      # 장 노트 상자 — 표 아래 
 FORMS = ("", "a5j")
 DEFAULT_FORM = "a5j"        # L64 — 새 그림은 학습한 프로젝트와 같은 양식(LOGIC 머리글 · 테두리 · NOTE · 아래 타이틀블록)으로 시작한다
 TITLE_KEYS = ("form", "project_name", "doc_no", "rev", "project")   # 묶음의 장끼리 같은 타이틀블록 값
+BOX_FORMS = ("diamond",)                     # L92 — 글자 상자를 그리는 모양 (없으면 네모)
 SHAPE_KINDS = ("AND", "OR", "NOT")           # 모양으로 그리는 게이트 (그 밖은 글자 그대로 — 분석기가 글자로 읽는다)
 A5J_FRAME = (16.0, 16.0, 1175.0, 836.0)
 
@@ -1254,6 +1298,34 @@ def shape_geometry(g: dict, b: dict) -> dict:
         g = dict(g)
         g["box"] = None
         g["ellipse"] = [x, y, x + w, y + h]
+        return g
+    if k in ("GT", "DT"):
+        # L92 — 켜짐/꺼짐 지연: 오른쪽 끝이 둥근 상자에 ON / OFF · 아래에 `n SEC` (19VA 실측: 곧은 세 변 한 획 + 반원 호 둘 · 범례 열쇠 ROUND_BOX|ON · |OFF)
+        g = dict(g)
+        r = min(h / 2, w / 2)
+        xs, kq, cy = x + w - r, 0.5523 * min(h / 2, w / 2), y + h / 2
+        word = "ON" if k == "GT" else "OFF"
+        g["shape"] = {"nobox": True, "paths": [[[xs, y + h], [x, y + h], [x, y], [xs, y]]],
+                      "arcs": [[[xs, y + h], [xs + kq, y + h], [x + w, cy + kq], [x + w, cy]], [[x + w, cy], [x + w, cy - kq], [xs + kq, y], [xs, y]]]}
+        g["texts"] = [[x + (w - r * 0.35) / 2, cy, word, fit_fs(word, w - r * 0.6 - 2, min(h * 0.6, 7))] if t[1] == cy and t[2] == b["text"] else
+                      ([t[0], t[1], str(t[2]).replace(" sec", " SEC"), *t[3:]] if str(t[2]).endswith(" sec") else t) for t in g["texts"]]
+        return g
+    if k == "PD":
+        # L92 — 펄스: 상자 안에 ⎍ 획 (글자 PD 대신 · 범례 그림 PULSE_BOX) · 아래에 `n SEC`
+        g = dict(g)
+        cy = y + h / 2
+        g["shape"] = {"nobox": False, "arcs": [],
+                      "paths": [[[x + 0.18 * w, y + 0.75 * h], [x + 0.35 * w, y + 0.75 * h], [x + 0.35 * w, y + 0.34 * h],
+                                 [x + 0.66 * w, y + 0.34 * h], [x + 0.66 * w, y + 0.75 * h], [x + 0.83 * w, y + 0.75 * h]]]}
+        g["texts"] = [([t[0], t[1], str(t[2]).replace(" sec", " SEC"), *t[3:]] if str(t[2]).endswith(" sec") else t)
+                      for t in g["texts"] if not (t[1] == cy and t[2] == b["text"])]
+        return g
+    if k == "LAMP" and g.get("circle"):
+        # L92 — 표시등의 네 귀 빗살 (19VA 실측: 원의 45° 자리에서 바깥으로 지름의 0.29배)
+        g = dict(g)
+        cx, cy, r = g["circle"]
+        a, o = r * 0.7071, r * 0.7071 + 2 * r * 0.206
+        g["lines"] = list(g.get("lines") or []) + [[cx + sx_ * a, cy + sy_ * a, cx + sx_ * o, cy + sy_ * o] for sx_ in (-1, 1) for sy_ in (-1, 1)]
         return g
     if k not in SHAPE_KINDS:
         return g
@@ -1429,8 +1501,20 @@ def to_dxf(doc: dict) -> bytes:
         elif g["cells"]:
             for c in g["cells"]:
                 rect(c)
-        elif g["box"]:
+        elif g.get("diamond"):
+            for d_ in g.get("diamonds") or [g["diamond"]]:
+                for a_, b_ in zip(d_, d_[1:] + d_[:1]):
+                    line(a_, b_, "SYMBOL")
+        elif g["box"] and not (g.get("shape") or {}).get("nobox"):
             rect(g["box"])
+        for pts_ in (g.get("shape") or {}).get("paths") or []:
+            for a_, b_ in zip(pts_, pts_[1:]):
+                line(a_, b_, "SYMBOL")
+        for a_ in (g.get("shape") or {}).get("arcs") or []:          # 베지에 호 → 짧은 선분 여덟
+            pts_ = [[(1 - t_) ** 3 * a_[0][i_] + 3 * (1 - t_) ** 2 * t_ * a_[1][i_] + 3 * (1 - t_) * t_ ** 2 * a_[2][i_] + t_ ** 3 * a_[3][i_] for i_ in (0, 1)]
+                    for t_ in [j_ / 8 for j_ in range(9)]]
+            for p_, q_ in zip(pts_, pts_[1:]):
+                line(p_, q_, "SYMBOL")
         if g["bar"]:
             line((g["bar"][0], g["bar"][1]), (g["bar"][2], g["bar"][3]), "SYMBOL")
         for cx, cy, t, fs, *anc in g["texts"]:
@@ -1676,7 +1760,8 @@ def _note_text(cx, cy, t, fs=PIN_FS) -> dict:
 
 def _fig_symbol(b) -> str:
     """분석이 상자 안 **그림**으로 알아본 연산(aop_fig · 글자 없음)의 기호 글 — 연산 사전의 가장 짧은 글자 (△ · ∫ · HL …)."""
-    op = b.get("aop") or ((b.get("param") or {}).get("aop_fig") or {}).get("op")
+    p_ = b.get("param") or {}
+    op = b.get("aop") or (p_.get("aop_fig") or {}).get("op") or (p_.get("aop_const") or {}).get("op")   # L94 — aop_const: 옆의 `LL : 0` 이 말한 연산
     if not op:
         return ""
     from . import aops
@@ -1739,6 +1824,60 @@ def _aop_texts(s: dict, doc: dict, X, Y):
                 extra.append(str(e["text"]))
         for i, t in enumerate(extra[:4]):
             doc["blocks"].append(_note_text((x0 + x1) / 2, y0 - (i + 0.8) * PIN_FS * 1.3, _txt(t, 40)))
+
+
+def _bridge_gaps(segs: list, max_gap: float = 1.5 * PITCH, tol: float = 0.6) -> list:
+    """분석이 **한 그물**로 읽은 선분들 가운데 서로 닿지 않는 무리가 있으면, 같은 줄에서 마주 보는 두 끝(틈 ≤ 1.5 행 간격)을 곧은 토막으로 잇는다.
+    19VA Typical PS2 · PS3: 행에서 온 선이 매크로 테두리의 작은 고리 ○ 를 지나며 5.5pt 끊겨 그려진다 — 분석기는 고리로 이어 읽지만
+    그림에서는 두 선이 떨어져 작성 시뮬레이션이 그 입력을 못 받았다 (다른 그물끼리는 잇지 않는다 — 부르는 쪽이 그물 하나씩 준다)."""
+    n = len(segs)
+    if n < 2:
+        return segs
+    par = list(range(n))
+
+    def find(i):
+        while par[i] != i:
+            par[i] = par[par[i]]
+            i = par[i]
+        return i
+
+    def near(p, sg):
+        x0, y0, x1, y1 = sg
+        dx, dy = x1 - x0, y1 - y0
+        L2 = dx * dx + dy * dy
+        t = 0 if L2 == 0 else max(0.0, min(1.0, ((p[0] - x0) * dx + (p[1] - y0) * dy) / L2))
+        return math.hypot(p[0] - x0 - t * dx, p[1] - y0 - t * dy) <= tol
+    for i in range(n):
+        for j in range(i + 1, n):
+            if any(near(e, segs[j]) for e in ((segs[i][0], segs[i][1]), (segs[i][2], segs[i][3]))) or \
+                    any(near(e, segs[i]) for e in ((segs[j][0], segs[j][1]), (segs[j][2], segs[j][3]))):
+                par[find(i)] = find(j)
+    out = list(segs)
+    for _ in range(8):
+        if len({find(i) for i in range(n)}) < 2:
+            break
+        best = None
+        for i in range(n):
+            for j in range(i + 1, n):
+                if find(i) == find(j):
+                    continue
+                for a in ((segs[i][0], segs[i][1]), (segs[i][2], segs[i][3])):
+                    for b in ((segs[j][0], segs[j][1]), (segs[j][2], segs[j][3])):
+                        if abs(a[1] - b[1]) <= tol and tol < abs(a[0] - b[0]) <= max_gap:
+                            horiz_i = abs(segs[i][1] - segs[i][3]) <= tol and abs(segs[j][1] - segs[j][3]) <= tol
+                            d = abs(a[0] - b[0])
+                            if horiz_i and (best is None or d < best[0]):
+                                best = (d, i, j, [a[0], a[1], b[0], a[1]])
+                        elif abs(a[0] - b[0]) <= tol and tol < abs(a[1] - b[1]) <= max_gap:
+                            vert_i = abs(segs[i][0] - segs[i][2]) <= tol and abs(segs[j][0] - segs[j][2]) <= tol
+                            d = abs(a[1] - b[1])
+                            if vert_i and (best is None or d < best[0]):
+                                best = (d, i, j, [a[0], a[1], a[0], b[1]])
+        if best is None:
+            break
+        out.append([round(v, 2) for v in best[3]])
+        par[find(best[1])] = find(best[2])
+    return out
 
 
 def _weld(segs: list, terms: list, tol: float = 1.2) -> list:
@@ -1820,7 +1959,12 @@ def source_texts(page, s: dict, M: dict, doc: dict) -> list:
     X, Y, N = M["X"], M["Y"], M["N"]
     sy = PITCH / (M.get("pitch") or PITCH)
     boxes = []
+    rhombi = []                                       # L92 — ◇ 기호는 상자의 네 귀가 기호 밖이다 — 그 귀에 놓인 글('A : 410degC' · 'RR1 …')은 옮긴다
     for b in (s.get("blocks") or {}).values():
+        if b.get("form") == "diamond":
+            for c in b.get("cells") or [b["bbox"]]:
+                rhombi.append(((X(c[0]) + X(c[2])) / 2, (Y(c[1]) + Y(c[3])) / 2, (X(c[2]) - X(c[0])) / 2 + 0.5, (Y(c[3]) - Y(c[1])) / 2 + 0.5))
+            continue
         x0, y0, x1, y1 = b["bbox"]
         boxes.append((X(x0) - 0.5, Y(y0) - 0.5, X(x1) + 0.5, Y(y1) + 0.5))
     # 감시 블록의 설정값 글(위 글 above)이 원본의 그 글이면 — 위 글을 거두고 원본 자리의 글로 (분석기 · 작성 시뮬레이션은 둘레 글로 읽는다)
@@ -1829,7 +1973,10 @@ def source_texts(page, s: dict, M: dict, doc: dict) -> list:
     have = []                                         # 이미 그린 글 — (글, x, y)
     for b in doc.get("blocks") or []:
         try:
+            dia_ = (b.get("param") or {}).get("form") == "diamond"
             for t in block_geometry(b).get("texts") or []:
+                if dia_ and b["x"] <= t[0] <= b["x"] + b["w"] and b["y"] <= t[1] <= b["y"] + b["h"]:
+                    continue                          # L92 — ◇ 안 글자의 원본 낱말은 위 마름모 규칙이 이미 뺀다 · 그 옆의 같은 글자(단자 이름 A · M)는 다른 글이다
                 have.append((re.sub(r"\s+", "", str(t[2])).upper(), t[0], t[1]))
         except Exception:
             pass
@@ -1858,7 +2005,8 @@ def source_texts(page, s: dict, M: dict, doc: dict) -> list:
             cx, cy = (X0 + X1) / 2, (Y0 + Y1) / 2
             if not (LX0 < cx < LX1 and TOP < cy < TOP + N * PITCH):
                 continue
-            if any(bx0 <= cx <= bx1 and by0 <= cy <= by1 for bx0, by0, bx1, by1 in boxes):
+            if any(bx0 <= cx <= bx1 and by0 <= cy <= by1 for bx0, by0, bx1, by1 in boxes) or \
+                    any(abs(cx - rx) / hw + abs(cy - ry) / hh <= 1.0 for rx, ry, hw, hh in rhombi if hw > 0 and hh > 0):
                 continue
             text = " ".join(w[4] for w in ch)
             key = re.sub(r"\s+", "", text).upper()
@@ -1960,6 +2108,13 @@ def from_sheet(s: dict, name: str, author: str, project: str = "", page=None) ->
         nb = {"id": bid, "kind": kind, "x": X(x0), "y": Y(y0), "w": max(4, round((x1 - x0) * sx, 2)),
               "h": max(4, round((y1b - y0) / pitch * PITCH, 2)), "text": SYMBOLS[kind]["text"], "label": "", "param": {}}
         p = b.get("param") or {}
+        if b.get("form") == "diamond" and SYMBOLS[kind].get("box"):
+            nb["param"]["form"] = "diamond"            # L92 — 원본이 ◇ 로 그린 기호는 ◇ 로
+            cs_ = b.get("cells") or []
+            if len(cs_) >= 2 and x1 > x0 and y1b > y0:  # 맞닿은 ◇ 여럿 — 칸마다 (글자는 분석이 칸 차례로 읽은 것)
+                tx_ = [t.strip() for t in str(b.get("read") or "").split("|")]
+                nb["param"]["cells"] = [[(c[0] - x0) / (x1 - x0), (c[1] - y0) / (y1b - y0), (c[2] - c[0]) / (x1 - x0), (c[3] - c[1]) / (y1b - y0),
+                                         tx_[i] if i < len(tx_) else ""] for i, c in enumerate(cs_[:4])]
         if SYMBOLS[kind].get("bar"):
             ys = [pt["at"][1] for pt in ports_by.get(bid, []) if pt["dir"] == "in"]
             if ys:
@@ -2068,7 +2223,10 @@ def from_sheet(s: dict, name: str, author: str, project: str = "", page=None) ->
             nb["param"]["t"] = _num(p.get("t_user", p.get("t")), 0, 36000, 5)
         if kind == "VOTE":
             nb["param"] = {"a": int(_num(p.get("a"), 1, 9, 2)), "b": int(_num(p.get("b"), 1, 9, 3))}
-            nb["text"] = f"{nb['param']['a']}/{nb['param']['b']}"
+            sign = VOTE_SIGNS.get(str(p.get("op") or ""))          # L95 — 분석이 읽은 부호를 그대로 (19VA `2=3` = 정확히 2 개)
+            if sign:
+                nb["param"]["op"] = str(p.get("op"))
+            nb["text"] = f"{nb['param']['a']}{sign or '/'}{nb['param']['b']}"
         if kind == "MEMORY":
             nb["param"]["dominant"] = p.get("dominant") or ""
         if kind == "PB":
@@ -2125,6 +2283,7 @@ def from_sheet(s: dict, name: str, author: str, project: str = "", page=None) ->
             terms.append((tx, ty))
         segs = _mend(segs, terms)
         segs = _weld(segs, terms)                     # L89 — 1pt 안팎 비켜 선 접합을 한 점으로 (연결점이 선 위에 서게)
+        segs = _bridge_gaps(segs)                     # L93 — 한 그물인데 떨어져 있는 곧은 두 토막 (테두리의 통과 고리 ○ 를 지난 자리) 을 잇는다
         dots = []
         for i_, sg in enumerate(segs):
             for end in ((sg[0], sg[1]), (sg[2], sg[3])):

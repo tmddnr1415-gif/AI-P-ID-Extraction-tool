@@ -11,7 +11,7 @@
 | NAND (`nand`) | 입력 중 하나라도 0 이면 출력 1 (AND 의 반대) | OUTPUT TRUE IF ANY INPUT IS FALSE |  | 2개 이상 → 1 |
 | NOR (`nor`) | 모든 입력이 0 일 때만 출력 1 (OR 의 반대) | OUTPUT TRUE ONLY IF ALL INPUTS ARE FALSE |  | 2개 이상 → 1 |
 | NOT (`not`) | 입력이 0 이면 1 · 1 이면 0 | OUTPUT IS THE INVERSE OF THE INPUT | 입력이 연결 안 됐으면 0 으로 보아 출력 1 (L46) | 1 → 1 |
-| 투표 (자격 OR · A/B) (`vote`) | B 개 입력 중 1 인 것이 A 개 이상(부호가 있으면 그 부호대로)일 때 출력 1 | A/B: OUTPUT TRUE ONLY IF AT LEAST A OF B INPUTS ARE TRUE · QUALIFIED OR: In > N / ≥ / < / ≤ / = | 부호 ≥ > ≤ < = ≠ (param.op) · 선 글자의 밑줄(_2>3 · 2=3)은 ≥ 로 | B 개 → 1 |
+| 투표 (자격 OR · A/B) (`vote`) | B 개 입력 중 1 인 것이 A 개 이상(부호가 있으면 그 부호대로)일 때 출력 1 | A/B: OUTPUT TRUE ONLY IF AT LEAST A OF B INPUTS ARE TRUE · QUALIFIED OR: In > N / ≥ / < / ≤ / = | 부호 ≥ > ≤ < = ≠ (param.op) · 선 글자의 밑줄(_2>3)은 ≥ 로 · `2=3` 은 문서가 ≥ 글자를 따로 찍을 때 '정확히'(L95 · 19VA) · 아니면 ≥ (1A5J) | B 개 → 1 |
 | 메모리 (S-R 래치) (`memory`) | S 가 1 이면 Q=1 로 걸리고 R 이 1 이면 Q=0 · 둘 다 1 이면 우선 칸(SET/RESET 우선)대로, 기본 메모리는 상태가 한 번 바뀜 · Q 와 /Q 는 언제나 반대 | SET: C=1 · RESET: C=0 · BOTH TRUE: SET DOMINANT C=1 / RESET DOMINANT C=0 / BASIC: OUTPUTS CHANGE STATE · D IS ALWAYS OPPOSITE OF C | 입력이 아직 안 정해진 첫 바퀴는 상태를 두고 본다 · S·R 함께 1 은 함께 1 이 되는 순간 한 번만 | S · R → Q · /Q |
 | 켜짐 지연 (GT · ON DELAY) (`delay_on`) | 입력이 1 로 바뀌고 t 초 동안 유지되면 출력 1 · 입력 0 또는 R 이면 바로 0 | GT: OUTPUT TRUE AFTER INPUT HAS BEEN TRUE FOR t · RESET BY R | t = 사람 값 → 도면 글자(t= 3sec) → 기본 5초 · 위쪽 단자는 시간값 · 아래쪽은 리셋 (논리 입력 아님) | 1 (+ t · R) → 1 |
 | 꺼짐 지연 (DT · OFF DELAY) (`delay_off`) | 입력이 1 이면 바로 1 · 입력이 0 으로 떨어진 뒤 t 초 동안 1 을 붙들다 0 | DT: OUTPUT STAYS TRUE FOR t AFTER INPUT GOES FALSE | t 는 GT 와 같은 순서 | 1 (+ t · R) → 1 |

@@ -170,6 +170,69 @@ def import_bundle(res: dict, name: str, author: str, project: str = "", job: str
     return {"id": sid, "name": name, "sheets": len(docs), "typicals": sum(1 for d in docs if d["typical"])}
 
 
+# ─────────────────────────── L96 — 분석과 함께 그리기 ───────────────────────────
+# PDF 를 넣으면 분석이 끝나는 대로 그 묶음을 '똑같이 그린 그림 묶음' 으로도 만든다 (사람이 '묶음 통째로 들여오기' 를 누르지 않아도).
+# 진행 · 결과는 분석 폴더의 drawing_auto.json 에 둔다 (status.json 은 분석 쪽이 고쳐 쓴다 — 서로 덮지 않게 따로).
+# PID_LOGIC_AUTODRAW=0 이면 끈다 (시험 · 작은 PC).  이미 만든 묶음이 남아 있으면 다시 만들지 않는다 (사람이 고친 그림을 덮지 않는다).
+AUTO_FILE = "drawing_auto.json"
+
+
+def auto_state(d) -> dict:
+    try:
+        return json.loads((d / AUTO_FILE).read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {}
+
+
+def _auto_write(d, st: dict):
+    try:
+        tmp = d / (AUTO_FILE + ".tmp")
+        tmp.write_text(json.dumps(st, ensure_ascii=False), encoding="utf-8")
+        tmp.replace(d / AUTO_FILE)
+    except OSError:
+        pass
+
+
+def auto_import(d, force: bool = False) -> dict:
+    """분석이 끝난 묶음(job 폴더 d)을 그림 묶음으로.  → {"state": "done", "set", "first", "sheets", "seconds"} | {} (꺼 둠)."""
+    import os
+    if os.environ.get("PID_LOGIC_AUTODRAW", "1") == "0" and not force:
+        return {}
+    cur = auto_state(d)
+    if cur.get("state") == "done" and cur.get("set") and not force:
+        if any(True for _ in set_docs(cur["set"])):
+            return cur
+    from . import api as A
+    from . import store
+    t0 = time.time()
+    st = {"state": "running", "done": 0, "total": 0, "started": t0}
+    _auto_write(d, st)
+    try:
+        res = A._result(d.name)
+        js = store.read_status(d)
+        if js.get("drawing") or js.get("drawing_set"):
+            st = {"state": "skipped", "why": "작도에서 올린 묶음 — 그 그림이 원본입니다"}
+            _auto_write(d, st)
+            return st
+        last = [0.0]
+
+        def prog(i, n):
+            if time.time() - last[0] > 1.0:
+                last[0] = time.time()
+                st.update({"done": i, "total": n})
+                _auto_write(d, st)
+        pdf = d / "source.pdf"
+        r = import_bundle(res, js.get("name") or d.name, js.get("author") or "분석", js.get("project") or "", d.name,
+                          progress=prog, pdf_path=pdf if pdf.exists() else None)
+        docs = sorted(set_docs(r["id"]), key=lambda x: x.get("order") or 0)
+        st = {"state": "done", "set": r["id"], "first": docs[0]["id"] if docs else "", "sheets": r["sheets"],
+              "typicals": r.get("typicals", 0), "seconds": round(time.time() - t0, 1), "at": time.time()}
+    except Exception as e:                                  # noqa: BLE001 — 그리기가 실패해도 분석 결과는 그대로다
+        st = {"state": "failed", "error": f"{type(e).__name__}: {e}"[:300]}
+    _auto_write(d, st)
+    return st
+
+
 # ─────────────────────────── FROM / TO ───────────────────────────
 
 def pseudo_sheets(docs: list) -> list:
@@ -446,10 +509,67 @@ def typical_doc_from_library(tid: str, name: str, author: str, project: str, sid
 
 # ─────────────────────────── 다장 PDF · 되읽기 ───────────────────────────
 
+def pdf_links(pdf, docs: list) -> int:
+    """L96 — 묶음 PDF 의 FROM · TO 칸을 누르면 그 시트 그 행으로 간다 (PDF 안쪽 링크 · 보이는 그림은 그대로).
+
+    왼쪽 FROM 칸 → 보내는 장의 그 출력 행 · 오른쪽 TO 칸 → 받는 장의 그 입력 행 (한 칸에 여럿이면 글자 자리대로 나눈다).
+    묶음 안에 그 시트가 있을 때만 건다 (다른 묶음 · 없는 시트는 걸지 않는다).  → 건 링크 수."""
+    from .draw import LCOLS, RCOLS
+    lk = links(docs)
+    at = {d["id"]: i for i, d in enumerate(docs)}
+    rows_n = {d["id"]: draw.layout(d.get("N"))["N"] for d in docs}
+    n_links = 0
+
+    def goto(page, rect, did, row):
+        nonlocal n_links
+        y = draw.ry(int(row), rows_n[did]) if row else draw.TOP
+        page.insert_link({"kind": pymupdf.LINK_GOTO, "from": pymupdf.Rect(rect), "page": at[did],
+                          "to": pymupdf.Point(0, max(0.0, y - 160.0))})
+        n_links += 1
+
+    for i, d in enumerate(docs):
+        info = lk["docs"].get(d["id"])
+        if not info:
+            continue
+        page, N = pdf[i], rows_n[d["id"]]
+        for n, v in info["left"].items():
+            ref = v.get("ref")
+            if ref and ref.get("did") in at:
+                y = draw.ry(int(n), N)
+                goto(page, (LCOLS[0], y - PITCH / 2, LCOLS[1], y + PITCH / 2), ref["did"], ref.get("src_row") or ref.get("row"))
+        for n, v in info["right"].items():
+            tg = [t for t in v.get("targets") or [] if t.get("did") in at]
+            if not tg:
+                continue
+            y = draw.ry(int(n), N)
+            x0, x1 = RCOLS[3], RCOLS[4]
+            text = ((d.get("right") or {}).get(str(n)) or {}).get("to") or ""
+            cuts, pos = [], 0                       # 대상마다 칸 안의 글자 시작 x (시트 이름이 나오는 자리)
+            for t in tg:
+                k = text.find(str(t["sheet"]), pos)
+                if k < 0:
+                    cuts = []
+                    break
+                cuts.append(min(x1, x0 + 2 + pymupdf.get_text_length(text[:k], fontname="helv", fontsize=5)))
+                pos = k + len(str(t["sheet"]))
+            if len(cuts) != len(tg):                # 글자 자리를 못 찾으면 고르게 나눈다
+                cuts = [x0 + (x1 - x0) * j / len(tg) for j in range(len(tg))]
+            cuts[0] = x0
+            for j, t in enumerate(tg):
+                xa, xb = cuts[j], (cuts[j + 1] if j + 1 < len(tg) else x1)
+                if xb - xa > 1:
+                    goto(page, (xa, y - PITCH / 2, xb, y + PITCH / 2), t["did"], t.get("row"))
+    return n_links
+
+
 def to_pdf_set(docs: list) -> bytes:
     pdf = pymupdf.open()
     for d in docs:
         draw.draw_page(pdf, d)
+    try:
+        pdf_links(pdf, docs)                        # L96 — 링크를 못 걸어도 그림은 나간다
+    except Exception:                               # noqa: BLE001
+        pass
     pdf.set_metadata({"title": (docs[0].get("set_name") if docs else "") or "LOGIC", "producer": "PID LOGIC 작도"})
     return pdf.tobytes()
 
@@ -533,6 +653,96 @@ def learn_style(results: list, sources: list | None = None) -> dict:
     if pin_gap:
         out["macro_pin_gap_p"] = round(statistics.median(pin_gap), 2)
     return out
+
+
+# ─────────────────────────── L92 — 그린 차례 배우기 (다음 기호 추천) ───────────────────────────
+# 사람이 그린(또는 분석에서 들여온) 그림들에서 '이 기호의 출력이 어느 기호의 입력으로 갔는가' 를 센다.
+# 작성 화면이 그 차례로 다음 기호를 권한다 (＋ 고르개 맨 위 · Tab) — 수는 그 묶음의 그림에서 잰 것, 코드에 박은 차례가 아니다.
+
+def flow_key(b: dict) -> str | None:
+    """기호의 열쇠 — 화면 고르개(pickItems)와 같은 이름: 기호 종류 `k:AND` · 글자 상자는 그 글자 `p:H/`."""
+    k = b.get("kind") or ""
+    spec = draw.SYMBOLS.get(k) or {}
+    if not spec or spec.get("note") or spec.get("macro"):
+        return None
+    if spec.get("box"):
+        t = re.sub(r"\s+", " ", str(b.get("text") or "")).strip()
+        return ("p:" + t) if t and len(t) <= 8 else None
+    return "k:" + k
+
+
+def learn_flow(docs: list, sheets: list) -> dict:
+    """docs[i] ↔ sheets[i] (draw_sim.to_sheet 꼴).  → {"next": {열쇠: [[다음 열쇠, 건수] …]}, "gap_p": {열쇠: {다음 열쇠: 행 간격 배율}},
+    "gap_all_p": 가운데 값, "timer": {종류: [[초, 건수] …]}, "pairs": 전체 건수, "sheets": 장 수}."""
+    nxt: dict = {}
+    gaps: dict = {}
+    allg: list = []
+    timer: dict = {}
+    forms: dict = {}
+    pairs = 0
+    for doc, sh in zip(docs, sheets):
+        P_ = float(sh.get("pitch") or PITCH) or PITCH
+        keyof = {}
+        for b in doc.get("blocks") or []:
+            keyof[b.get("id")] = flow_key(b)
+            if b.get("kind") == "BOX" and keyof[b.get("id")]:      # 글자 상자를 어떤 모양으로 그렸나 (네모 "" · 마름모)
+                fm = forms.setdefault(keyof[b["id"]], {})
+                f_ = (b.get("param") or {}).get("form") or ""
+                fm[f_] = fm.get(f_, 0) + 1
+            if (draw.SYMBOLS.get(b.get("kind")) or {}).get("time"):
+                t = (b.get("param") or {}).get("t")
+                if isinstance(t, (int, float)) and t > 0:
+                    d_ = timer.setdefault(b["kind"], {})
+                    d_[round(float(t), 2)] = d_.get(round(float(t), 2), 0) + 1
+        by_net: dict = {}
+        for pt in sh.get("ports") or []:
+            by_net.setdefault(str(pt.get("net")), []).append(pt)
+        for pts in by_net.values():
+            outs = [q for q in pts if q.get("dir") == "out" and keyof.get(q.get("block"))]
+            ins = [q for q in pts if q.get("dir") == "in" and keyof.get(q.get("block"))]
+            for o in outs:
+                for i_ in ins:
+                    if i_["block"] == o["block"]:
+                        continue
+                    a, b2 = keyof[o["block"]], keyof[i_["block"]]
+                    nxt.setdefault(a, {})[b2] = nxt.setdefault(a, {}).get(b2, 0) + 1
+                    pairs += 1
+                    dx = (i_["at"][0] - o["at"][0]) / P_
+                    if dx > 0.2 and abs(i_["at"][1] - o["at"][1]) < 0.3 * P_:      # 같은 행에서 곧게 이은 것만 — 놓을 간격으로 쓴다
+                        gaps.setdefault(a, {}).setdefault(b2, []).append(dx)
+                        allg.append(dx)
+    out = {"next": {}, "gap_p": {}, "gap_all_p": round(statistics.median(allg), 2) if allg else None, "timer": {},
+           "pairs": pairs, "sheets": len(docs)}
+    for a, d_ in nxt.items():
+        out["next"][a] = [[k, n] for k, n in sorted(d_.items(), key=lambda kv: (-kv[1], kv[0]))[:10]]
+    for a, d_ in gaps.items():
+        g = {k: round(statistics.median(v), 2) for k, v in d_.items() if len(v) >= 3}
+        if g:
+            out["gap_p"][a] = g
+    out["form"] = {k: d_ for k, d_ in forms.items() if any(f_ for f_ in d_)}      # 네모뿐인 글자는 적지 않는다
+    for k, d_ in timer.items():
+        out["timer"][k] = [[t, n] for t, n in sorted(d_.items(), key=lambda kv: (-kv[1], kv[0]))[:8]]
+    return out
+
+
+def flow_path():
+    from app import paths as _paths
+    return _paths.resource("config", "logic_draw_flow.json")
+
+
+_FLOW_BASE: list = [None, None]
+
+
+def flow_base() -> dict:
+    """들고 있는 로직도(씨앗 묶음)에서 미리 잰 차례 — 새 프로젝트 · 아직 그림이 적은 묶음의 바탕 (spike/draw_flow_learn.py 가 만든다)."""
+    fp = flow_path()
+    try:
+        m = fp.stat().st_mtime
+        if _FLOW_BASE[0] != m:
+            _FLOW_BASE[:] = [m, json.loads(fp.read_text(encoding="utf-8"))]
+        return _FLOW_BASE[1] or {}
+    except Exception:
+        return {}
 
 
 # ─────────────────────────── L87 — 묶음 찾기 (draw.io 의 찾기 · Ctrl+F) ───────────────────────────
