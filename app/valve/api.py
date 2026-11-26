@@ -32,7 +32,7 @@ from fastapi.responses import FileResponse, JSONResponse, RedirectResponse, Resp
 from starlette.concurrency import run_in_threadpool
 
 from app import paths
-from app.valve import digest, docrev, dsjson, vspec, i18n, ruleperf, checks as chkmod, revisions as revmod, exports, extract, issues as issuesmod, expert as expmod, knowledge as kbmod, location as locmod, tagrules as tagmod, material, matreview as matmod, pms as pmsmod, process as procmod, requirements as reqmod, schema, store, tbe
+from app.valve import digest, docrev, dsjson, vspec, pdsrev, i18n, ruleperf, checks as chkmod, revisions as revmod, exports, extract, issues as issuesmod, expert as expmod, knowledge as kbmod, location as locmod, tagrules as tagmod, material, matreview as matmod, pms as pmsmod, process as procmod, requirements as reqmod, schema, store, tbe
 
 def _log_error(where: str) -> str:
     """valve37 — the full traceback of an unexpected server error goes to <data>/valve/logs/errors_YYYYMMDD.log (call inside
@@ -535,10 +535,22 @@ def _process(jid: str, pid: int, items: list[tuple[int, str, str, Path]], by: st
                 if Path(name).suffix.lower() != ".pdf":          # valve38: by the uploaded name (stored copy is .bin)
                     raise extract.PdfError("Process Data 는 PDF 만 읽습니다 — Excel 은 보관만 됩니다 (PDF 로 올려 주세요)")
                 parsed = procmod.read_process_data(str(path))
+                parsed["rev"] = pdsrev.rev_of([], name) or parsed.get("rev", "")     # valve43: the file name first, then the PDF
                 store.write_json(store.root() / "process" / f"{doc_id}.json", parsed)
-                _PROC_CACHE.pop(doc_id, None)
-                info = {"doc_no": parsed["doc_no"], "tags": parsed["n_tags"], "tables": len(parsed["pages"]),
+                _PROC_CACHE.clear()
+                info = {"doc_no": parsed["doc_no"], "pds_rev": parsed["rev"], "tags": parsed["n_tags"], "tables": len(parsed["pages"]),
                         "note": f"Process Data 표 {len(parsed['pages'])}장 · Tag {parsed['n_tags']}개 읽음 — Process Data Verification 에 바로 쓰입니다"}
+                try:                                     # valve43: the same PDS number loaded before → compare the two Revs.
+                    rc = _pds_revcompare(con, pid, doc_id, parsed)
+                except Exception:                        # noqa: BLE001  (the comparison never stops the upload)
+                    _log_error("pds revision compare")
+                    rc = None
+                if rc:
+                    info["revcompare"] = rc
+                    c = rc["counts"]
+                    info["note"] += (f" · 이전 {rc['prev_name']} (Rev.{rc['old_rev'] or '?'}) 과 비교: Changed {sum(c.get(k, 0) for k in ('Changed', 'Changed (Tag 재사용 의심)'))}"
+                                     f" (High {c.get('changed_high', 0)}) · New {c.get('New', 0)} · Delete {c.get('Delete', 0)}"
+                                     f" · Tag 변경 의심 {c.get('Tag 변경 의심', 0)} — 'PDS Rev. 비교 Excel' 로 받기")
                 con.execute("UPDATE document SET status='done', info=? WHERE id=?", (store.J(info), doc_id))
                 store.audit(con, pid, None, None, "upload", None, name, by, "process")
                 con.commit()
@@ -829,7 +841,7 @@ def _rules_fingerprint() -> str:
 
 
 _RULES_FP = _rules_fingerprint()
-VERSION = "valve42"                       # shown in Settings › 정보 and the footer; bump with every package
+VERSION = "valve43"                       # shown in Settings › 정보 and the footer; bump with every package
 
 
 @router.get("/api/valve/version")
@@ -1138,23 +1150,133 @@ def _specs_for(con, pid) -> list[dict]:
     return out
 
 
-def _process_for(con, pid):
-    """(parsed Process Data, document row) of the project's newest Process Data PDF, or (None, None)."""
-    doc = _ref_doc(con, pid, "process")
-    if not doc or not str(doc["filename"]).lower().endswith(".pdf"):     # valve38: stored copy is .bin
-        return None, None
+def _proc_parsed(doc) -> dict | None:
+    """The parsed Process Data of one document row (read now if it was uploaded before the Phase 3 engine)."""
     if doc["id"] not in _PROC_CACHE:
         p = store.root() / "process" / f"{doc['id']}.json"
-        if not p.exists():                               # uploaded before the Phase 3 engine (valve01~06): read it now
+        old = json.loads(p.read_text(encoding="utf-8")) if p.exists() else None
+        if old is None or (old.get("v", 1) < procmod.READER_V and Path(doc["path"]).exists() and store.stored_good(doc["path"])[0]):
+            # uploaded before the Phase 3 engine (valve01~06), or read by an older table reader (valve43): read it now
             if not Path(doc["path"]).exists():
-                return None, None
+                return None
             try:
-                store.write_json(p, procmod.read_process_data(doc["path"]))
+                new = procmod.read_process_data(doc["path"])
+                new["rev"] = pdsrev.rev_of([], doc["filename"]) or new.get("rev", "")
+                store.write_json(p, new)
             except extract.PdfError as e:                # valve40: a damaged stored copy = no Process Data (never a 500)
                 print(f"[valve] Process Data {doc['filename']} not read: {e}", flush=True)
-                return None, None
+                if old is None:
+                    return None
         _PROC_CACHE[doc["id"]] = json.loads(p.read_text(encoding="utf-8"))
-    return _PROC_CACHE[doc["id"]], _doc_ref(con, pid, "process", doc)
+    return _PROC_CACHE[doc["id"]]
+
+
+def _process_docs(con, pid) -> list[dict]:
+    """Every done Process Data PDF of the family (shared ones first, newest first)."""
+    rp = ref_pid(con, pid)
+    out = []
+    for q in ((rp,) if rp == pid else (rp, pid)):
+        out += [d for d in store.rows(con, "SELECT id, filename, path FROM document WHERE project_id=? AND kind='process' AND status='done' ORDER BY id DESC", q)
+                if str(d["filename"]).lower().endswith(".pdf")]          # valve38: stored copy is .bin
+    return out
+
+
+def _process_for(con, pid):
+    """(parsed Process Data, document row) of the project's Process Data.  valve43 (user 2026-11-26: North · South · W15 PDS
+    side by side, and revised PDS of the same number): the newest Rev. of EACH document number is used — tags of all of
+    them together; a tag in two documents takes the newer upload.  One document number → exactly the newest PDF as before."""
+    docs = _process_docs(con, pid)
+    if not docs:
+        return None, None
+    newest, latest = docs[0], {}
+    for d in docs:                                       # newest first: the first of a number is its latest Rev.
+        P = _proc_parsed(d)
+        if P is None:
+            if d is newest:
+                return None, None
+            continue
+        latest.setdefault(P.get("doc_no") or f"#{d['id']}", (d, P))
+    if len(latest) == 1:
+        d, P = next(iter(latest.values()))
+        return P, _doc_ref(con, pid, "process", d)
+    key = ("merged",) + tuple(d["id"] for d, _ in latest.values())
+    if key not in _PROC_CACHE:
+        by, pages, rows = {}, [], []
+        for d, P in latest.values():
+            for k, r in (P.get("by_tag") or {}).items():
+                by.setdefault(k, dict(r, document_id=d["id"]))
+            pages += P.get("pages", [])
+            rows += P.get("rows", [])
+        _PROC_CACHE[key] = {"doc_no": " · ".join(P.get("doc_no", "") for _, P in latest.values()), "pages": pages, "rows": rows,
+                            "by_tag": by, "n_tags": len(by), "documents": [d["id"] for d, _ in latest.values()]}
+    return _PROC_CACHE[key], _doc_ref(con, pid, "process", newest)
+
+
+def _pds_pairs(con, pid, only: int | None = None) -> list[tuple]:
+    """valve43: (older row, older parsed, newer row, newer parsed) — each document number's newest Rev. and the one before it."""
+    groups: dict = {}
+    for d in _process_docs(con, pid):                    # newest first
+        P = _proc_parsed(d)
+        if P and P.get("doc_no"):
+            groups.setdefault(P["doc_no"], []).append((d, P))
+    out = []
+    for dn, xs in groups.items():
+        if only is not None:
+            i = next((i for i, (d, _) in enumerate(xs) if d["id"] == only), None)
+            if i is None or i + 1 >= len(xs):
+                continue
+            out.append((xs[i + 1][0], xs[i + 1][1], xs[i][0], xs[i][1]))
+        elif len(xs) >= 2:
+            out.append((xs[1][0], xs[1][1], xs[0][0], xs[0][1]))
+    return sorted(out, key=lambda t: t[3].get("doc_no", ""))
+
+
+def _pds_area(con, pid, doc_no: str) -> str:
+    from app.valve import arearule
+    try:
+        rule = inst_api.area_rule_cached(con, pid)
+    except Exception:                                    # noqa: BLE001
+        return ""
+    sy = arearule.system(doc_no)
+    return next((r["site"] for r in (rule or {}).get("table", []) if r.get("doc") and r["doc"] == sy), "")
+
+
+def _pds_revcompare(con, pid, doc_id, parsed) -> dict | None:
+    """At upload (the new document is not 'done' yet): the newest earlier upload of the same PDS number, compared."""
+    if not parsed.get("doc_no"):
+        return None
+    prev = next(((d, P) for d in _process_docs(con, pid) if d["id"] != doc_id and (P := _proc_parsed(d)) and P.get("doc_no") == parsed["doc_no"]), None)
+    if not prev:
+        return None
+    (od, oP), nP = prev, parsed
+    R = pdsrev.compare(oP, nP)
+    return {"prev_id": od["id"], "prev_name": od["filename"], "old_rev": oP.get("rev", ""), "new_rev": nP.get("rev", ""), "counts": R["counts"]}
+
+
+def _pds_xlsx(pid: int):
+    con = store.connect()
+    try:
+        docs = []
+        for od, oP, nd, nP in _pds_pairs(con, pid):
+            docs.append({"doc_no": nP["doc_no"], "area": _pds_area(con, pid, nP["doc_no"]), "old_rev": oP.get("rev", ""), "new_rev": nP.get("rev", ""),
+                         "old_name": od["filename"], "new_name": nd["filename"], "result": pdsrev.compare(oP, nP)})
+        return (pdsrev.workbook(docs) if docs else None), len(docs)
+    finally:
+        con.close()
+
+
+@router.get("/api/valve/projects/{pid}/pds_revcompare.xlsx")
+async def pds_revcompare_xlsx(pid: int, request: Request):
+    """valve43: every PDS document number loaded in two Revs. — the newest against the one before (pdsrev.py)."""
+    data, n = await run_in_threadpool(_pds_xlsx, pid)
+    if not data:
+        return _err("같은 문서 번호의 PDS 가 두 Rev. 이상 올라와 있지 않습니다 — 수정 PDS 를 공통 자료에 올리면 비교합니다", 404)
+    con = store.connect()
+    store.audit(con, pid, None, None, "export", None, "pds_revcompare.xlsx", _user(request), f"{n} documents")
+    con.commit()
+    fn = f"PDS_Rev_Comparison_{store.now()[:10]}.xlsx"
+    return Response(data, media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    headers={"Content-Disposition": f"attachment; filename*=UTF-8''{quote(fn)}", "X-Count": str(n)})
 
 
 def _pms_for(con, pid):

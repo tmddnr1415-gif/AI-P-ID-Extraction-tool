@@ -60,8 +60,23 @@ def _bands(page) -> list[tuple[float, float]]:
     vert = extract._verticals(page)
     if not vert:
         return []
-    hmax = max(y1 - y0 for _, y0, y1 in vert)
-    xs = sorted({round(x, 1) for x, y0, y1 in vert if y1 - y0 >= hmax * 0.3})
+    by_x: dict = {}                                      # valve43: a rule drawn cell by cell is still one rule — join collinear pieces
+    for x, y0, y1 in vert:
+        k = next((k for k in by_x if abs(k - x) <= 0.6), round(x, 1))
+        by_x.setdefault(k, []).append((y0, y1))
+    cover = {}
+    for k, segs in by_x.items():
+        tot, end = 0.0, None
+        for y0, y1 in sorted(segs):
+            if end is None or y0 > end + 1.5:
+                tot += y1 - y0
+                end = y1
+            elif y1 > end:
+                tot += y1 - end
+                end = y1
+        cover[k] = tot
+    hmax = max(cover.values())
+    xs = sorted(k for k, t in cover.items() if t >= hmax * 0.3)
     out, last = [], None
     for x in xs:
         if last is not None and x - last > 6:
@@ -121,6 +136,7 @@ def read_page(page, page_no: int) -> dict | None:
             v["v"] = (v["v"] + " " + " ".join(w[4] for w in sorted(cw, key=lambda w: w[0]))).strip()
             bb = extract._bbox(cw)
             v["bbox"] = bb if not v["bbox"] else [min(v["bbox"][0], bb[0]), min(v["bbox"][1], bb[1]), max(v["bbox"][2], bb[2]), max(v["bbox"][3], bb[3])]
+    _rebox(page, words, cols, rows, lines[unit_i])
     for r in rows:
         r["tag"] = r["values"].get("tag", {}).get("v", "")
         r["tag_key"] = schema.norm_tag(r["tag"])
@@ -129,6 +145,48 @@ def read_page(page, page_no: int) -> dict | None:
     title = next((" ".join(w[4] for w in ln) for ln in lines[:3] if "Process Data" in " ".join(w[4] for w in ln)), "")
     return {"page": page_no, "title": title, "columns": [{"key": c["key"], "label": c["label"], "unit": c["unit"]} for c in cols],
             "rows": [r for r in rows if r["tag_key"]]}
+
+
+def _rebox(page, words, cols, rows, unit_line):
+    """valve43 — a cell written on several lines, centred in a tall row, starts ABOVE the row's Sr. No. line: by line order its
+    first lines went to the row before ('RELIEF GAS TO HP COLD VENT 2ND STAGE AFTER').  Where the table draws a rule between
+    the rows, each row takes exactly the words between its two rules.  No rules → the line-order reading stays."""
+    if not rows:
+        return
+    a, b = cols[0]["x0"], cols[0]["x1"]
+    top = max(w[3] for w in unit_line)
+    ys = sorted({round(y, 1) for y in extract._horizontals(page, a + 1, b - 1) if y > top - 2})
+    if len(ys) < 2:
+        return
+    bands = []
+    for r in rows:
+        sr_w = [w for w in words if a - 1 <= (w[0] + w[2]) / 2 < b + 1 and w[4] == str(r["sr"]) and abs(w[1] - r["y0"]) < 6]
+        sr_w.sort(key=lambda w: abs(w[1] - r["y0"]))
+        if not sr_w:
+            return
+        yc = (sr_w[0][1] + sr_w[0][3]) / 2
+        up = [y for y in ys if y <= yc]
+        dn = [y for y in ys if y > yc]
+        if not up or not dn:
+            return
+        bands.append((up[-1], dn[0]))
+    if any(bands[i][1] > bands[i + 1][0] + 0.5 for i in range(len(bands) - 1)):
+        return                                               # rules that do not separate the rows: keep the line order
+    for r, (y0, y1) in zip(rows, bands):
+        inside = [w for w in words if y0 <= (w[1] + w[3]) / 2 < y1]
+        vals = {}
+        for ln in extract._lines(inside):
+            for c in cols:
+                cw = _cell(ln, c["x0"], c["x1"])
+                if not cw:
+                    continue
+                k = c["key"] or f"x.{re.sub(r'[^a-z0-9]+', '_', c['label'])[:30]}"
+                v = vals.setdefault(k, {"v": "", "unit": c["unit"], "bbox": None, "label": c["label"]})
+                v["v"] = (v["v"] + " " + " ".join(w[4] for w in sorted(cw, key=lambda w: w[0]))).strip()
+                bb = extract._bbox(cw)
+                v["bbox"] = bb if not v["bbox"] else [min(v["bbox"][0], bb[0]), min(v["bbox"][1], bb[1]), max(v["bbox"][2], bb[2]), max(v["bbox"][3], bb[3])]
+        if vals.get("tag", {}).get("v"):
+            r["values"] = vals
 
 
 _TAG_TXT = re.compile(r"(?<![A-Z0-9])(\d{1,4})\s*-?\s*([A-Z]{1,6})\s*[-–]?\s*(\d{2,6}[A-Z]?)(?![A-Z0-9])")
@@ -160,21 +218,26 @@ def scan(path: str) -> dict:
     return {"v": 1, "tag_pages": tag_pages, "zone_by_page": zones}
 
 
+READER_V = 2          # valve43: rules drawn cell by cell · rows split by their rules — older reads are read again
+
+
 @extract.pdf_locked
 def read_process_data(path: str) -> dict:
     doc = extract.open_pdf(path)
     pages, rows, dn = [], [], ""
     m = extract._ANY_DOC_RE.search(doc[0].get_text()) if doc.page_count else None
     dn = m.group(0) if m else ""
+    texts = [doc[i].get_text() for i in range(min(3, doc.page_count))]
     for i, page in enumerate(doc):
         r = read_page(page, i + 1)
         if r:
-            pages.append({"page": r["page"], "title": r["title"], "rows": len(r["rows"])})
+            pages.append({"page": r["page"], "title": r["title"], "rows": len(r["rows"]), "columns": r["columns"]})   # valve43: + columns
             rows.extend(r["rows"])
     by = {}
     for r in rows:
         by.setdefault(r["tag_key"], r)                                   # first row wins (a tag listed twice = same data)
-    return {"doc_no": dn, "pages": pages, "rows": rows, "by_tag": by, "n_tags": len(by)}
+    from app.valve import pdsrev
+    return {"v": READER_V, "doc_no": dn, "rev": pdsrev.rev_of(texts), "pages": pages, "rows": rows, "by_tag": by, "n_tags": len(by)}
 
 
 # ── comparing ─────────────────────────────────────────────────────────────────────

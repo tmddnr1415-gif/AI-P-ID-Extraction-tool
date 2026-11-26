@@ -411,3 +411,15 @@
   적용: Form 101/ISA20 · CV Tag → CV Spec · MOV/Form 102 → MOV Spec · Ball/ESDV/SDV/BDV/XV → On/Off Spec. 지적 종류 'Spec Compliance' · 근거 = Spec 번호 §조항 · 쪽 · 해당 문장 · 한글 코멘트.
 - 실자료(Ball 164 + On/Off Spec): 기존 2,935 변화 0 · 추가 5 (fire safe 미기재 3 · ISO 5208 Rate B 2). South CV 19 + CV Spec: 0. MOV 24 + MOV Spec: 0.
 - 시험 `tests/test_valve_spec.py`(가짜 조항으로 그린 Spec) · i18n 3줄. 전체 2,106 통과 · UI 25/25. VERSION valve42.
+
+## 2026-11-26 · VALVE valve43 — PDS Rev. 비교 Excel (사용자: "같은 PDS 명의 수정 PDS 를 넣으면 Excel 과 같이 출력")
+- 원인 먼저: PDS 표 읽기가 칸마다 끊어 그린 세로 괘선을 못 이어 2~5쪽을 0줄로 읽음(98 Rev.0 84 Tag 중 24) · 여러 줄 Location 이 윗 줄 Tag 로 샘.
+  `process._bands` 가 같은 x 의 조각을 합치고, `_rebox` 가 가로 괘선 사이 단어만 그 줄에 → 98: 74→84 · 999: 69→65 · 315: 7→1 (예시와 같음).
+- 새 `app/valve/pdsrev.py`: compare(상태 · 중요도 · 2% 보정 · 따옴표/구분기호 무시 · 한쪽 Rev. 에만 있는 열 제외 · MOV 섹션 없음 → Delete 사유) + workbook(예시 양식).
+  Tag 변경 의심 = 같은 Line(번호+Size) 에 앉은 새 Tag, 또는 접미 문자 추가(305 → 305A · 305B). 재사용 의심 = 같은 번호가 다른 P&ID 의 다른 Line(Size 다름/서비스 다름).
+- 사용자 예시 Excel 과 대조: 3문서 182 Tag 의 상태 · 칸별 중요도 · Summary 와 Sizing 시트 숫자 전부 같음(LibreOffice 재계산).
+- API: 업로드 때 같은 문서 번호의 앞 Rev. 과 비교 → info.revcompare · 작업 문구 · 버튼 'PDS Rev. 비교 Excel' · `GET /projects/{pid}/pds_revcompare.xlsx`.
+  `_process_for` 는 문서 번호마다 최신 Rev. 을 합쳐 씀(예전: 가장 새 PDF 1권만 — North · South · W15 를 같이 올리면 둘이 빠졌음).
+- 스냅숏(Ball 164): 2,935 → 3,091. 없어진 것 0 · 심각도 변화 0 · 새 지적 156(87 Tag, 예전에 못 읽은 PDS 쪽) · Data Missing 781건 expected 에 PDS 값 ·
+  Valve Review 8건 근거가 PDS 로. 무작위 6건 PDF 원문과 대조 — 모두 PDF 값 그대로. 새 기준 `out/valve29/snapshot_valve43.json`.
+- 시험 `tests/test_valve_pdsrev.py`(가짜 PDS: 조각 괘선 · 3줄 Location · MOV 섹션 · 새 열) 5개. pytest 2,111 · UI 25/25.
