@@ -154,7 +154,7 @@ def test_workbook_layout_v2_korean(tmp_path):
     wb = _book(tmp_path, "ko")
     assert wb.sheetnames == ["Summary", f"A. {DN}", "High 변경 목록", "Summary (Sizing 영향)"]
     ws = wb[f"A. {DN}"]
-    assert [ws.cell(4, c).value for c in (1, 2, 3, 4, 5, 6, 38, 39)] == ["No", "Status", "Tag", "(예비)", "Rev.", "Row", "중요도(종합)", "비고 / 사유"]
+    assert [ws.cell(4, c).value for c in (1, 2, 3, 4, 5, 6, 38, 39)] == ["No", "Status", "Tag", "이전 Tag", "Rev.", "Row", "중요도(종합)", "비고 / 사유"]
     assert [ws.cell(r, 6).value for r in (5, 6, 7)] == ["이전", "최신", "중요도"] and ws.freeze_panes == "G5"
     assert (ws.cell(5, 2).value, ws.cell(5, 3).value, ws.cell(5, 38).value) == ("Changed", "77XV001", "High")
     assert ws.cell(6, 2).value is None and ws.cell(6, 3).value is None                     # first row only
@@ -175,7 +175,7 @@ def test_workbook_english_same_layout(tmp_path):
     ko, en = _book(tmp_path, "ko"), _book(tmp_path, "en")
     assert en.sheetnames == ["Summary", f"A. {DN}", "High Changes", "Summary (Sizing Impact)"]
     ws = en[f"A. {DN}"]
-    assert [ws.cell(4, c).value for c in (4, 38, 39)] == ["(spare)", "Overall Importance", "Remarks / Reason"]
+    assert [ws.cell(4, c).value for c in (4, 38, 39)] == ["Previous Tag", "Overall Importance", "Remarks / Reason"]
     assert [ws.cell(r, 6).value for r in (5, 6, 7)] == ["Previous", "Latest", "Importance"]
     assert '"Previous"' in en["Summary"].cell(5, 7).value and '"Importance"' in en["Summary (Sizing Impact)"].cell(7, 4).value
     k, e = ko[f"A. {DN}"], ws                                                              # the same cells, the same values
@@ -281,3 +281,56 @@ def test_change_summary_counts(tmp_path):
     assert sz["class_rating"] == ["77XV003"] and sz["class_scheme"] == ["77XV001"]          # YC0KL-N → XC0K8 · XC0KL-A → XC0K8
     assert {r["tag"] for r in X["size"]} == {"77XV001", "77XV003"} and all(r["new"] for r in X["high"])
     assert [k for k, *_ in pdsrev.SIZING][:3] == ["line_size", "valve_size", "bore"]
+
+
+def test_user_link_makes_a_tag_change(tmp_path):
+    """valve49 (user 2026-11-27): the engineer names a New tag's earlier tag (a Delete) → 'Tag 변경', compared and counted."""
+    import openpyxl
+    from app.valve import pdsrev
+    o, n = _parse(tmp_path, "o.pdf", _pds(OLD, "B")), _parse(tmp_path, "n.pdf", _pds(NEW, "0", extra=True))
+    links = {"77XV104": {"old": "77XV004", "by": "eng", "at": "2026-11-27T10:00:00"},
+             "77XV200": {"old": "77XV001"}}                                                   # 77XV001 is not a Delete: ignored
+    R = pdsrev.compare(o, n, links)
+    st = {i["tag_key"]: i for i in R["items"]}
+    t = st["77XV104"]
+    assert t["status"] == "Tag 변경" and t["old_tag"] == "77XV004" and t["imp"] == {"line_no": "Min", "piping_class": "Med"} and "eng" in t["note"]
+    assert "77XV004" not in st and st["77XV200"]["status"] == "New"
+    assert (R["counts"]["Tag 변경"], R["counts"]["New"], R["counts"]["Delete"]) == (1, 4, 3)
+    X = pdsrev.change_summary(R)
+    assert X["counts"]["Tag 변경"] == 1 and X["sizing"]["renamed"] == ["77XV104"] and X["renamed"][0]["old_tag"] == "77XV004"
+    wb = openpyxl.load_workbook(io.BytesIO(pdsrev.workbook([{"doc_no": DN, "area": "", "old_rev": "B", "new_rev": "0", "old_name": "o", "new_name": "n", "result": R}])))
+    ws = wb[f"A. {DN}"]
+    row = next(r for r in range(5, ws.max_row + 1) if ws.cell(r, 3).value == "77XV104")
+    assert (ws.cell(row, 2).value, ws.cell(row, 4).value) == ("Tag 변경", "77XV004")
+    sm = wb["Summary"]
+    assert sm.cell(4, 13).value == "Tag 변경" and "Tag 변경" in sm.cell(5, 13).value and "Tag 변경" in sm.cell(5, 7).value
+
+
+def test_link_api_round_trip(tmp_path, monkeypatch):
+    monkeypatch.setenv("PID_DATA_DIR", str(tmp_path / "data"))
+    from fastapi import FastAPI
+    from fastapi.testclient import TestClient
+    from app.valve import api
+    app = FastAPI()
+    app.include_router(api.router)
+    c = TestClient(app)
+    pid = c.post("/api/valve/projects", json={"name": "PDS LINK T"}).json()["id"]
+
+    def up(name, data):
+        j = c.post(f"/api/valve/projects/{pid}/upload", data={"kind": "process"}, files=[("files", (name, data, "application/pdf"))]).json()
+        for _ in range(400):
+            if c.get(f"/api/valve/jobs/{j['id']}").json()["status"] == "done":
+                return
+            time.sleep(0.05)
+    up(f"{DN}_B.pdf", _pds(OLD, "B"))
+    up(f"{DN}_0001_0_Advanced_Copy.pdf", _pds(NEW, "0", extra=True))
+    r = c.put(f"/api/valve/projects/{pid}/pds/links", json={"doc_no": DN, "new_tag": "77XV-104", "old_tag": "77XV004"}).json()
+    assert r["links"]["77XV104"]["old"] == "77XV004"
+    cm = c.get(f"/api/valve/projects/{pid}/pds/compare", params={"doc_no": DN}).json()
+    assert next(i for i in cm["items"] if i["tag"] == "77XV104")["status"] == "Tag 변경" and cm["counts"]["Delete"] == 3
+    cs = c.get(f"/api/valve/projects/{pid}/pds/change_summary").json()
+    assert cs["documents"][0]["counts"]["Tag 변경"] == 1 and any(r["key"] == "renamed" for r in cs["sizing_rows"])
+    assert c.get(f"/api/valve/projects/{pid}/pds/summary").json()["documents"][0]["compare"]["counts"]["Tag 변경"] == 1
+    c.put(f"/api/valve/projects/{pid}/pds/links", json={"doc_no": DN, "new_tag": "77XV104", "old_tag": ""})
+    cm = c.get(f"/api/valve/projects/{pid}/pds/compare", params={"doc_no": DN}).json()
+    assert next(i for i in cm["items"] if i["tag"] == "77XV104")["status"] == "New" and cm["counts"]["Delete"] == 4

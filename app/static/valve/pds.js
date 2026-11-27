@@ -11,7 +11,7 @@ if ((Q.get('kind') || '').toLowerCase() !== 'pds') return;
 
 const P = { q: '', doc: '', sec: '', cdoc: Q.get('doc') || '', old: null, nw: null, st: '', lv: '', cq: '', open: new Set() };
 const LV = { High: 'lv-h', Med: 'lv-m', Min: 'lv-n' };
-const STC = { Changed: 'st-c', 'No Change': 'st-0', New: 'st-n', Delete: 'st-d' };
+const STC = { Changed: 'st-c', 'No Change': 'st-0', New: 'st-n', Delete: 'st-d', 'Tag 변경': 'st-r' };
 const day = t => (t || '').replace('T', ' ').slice(0, 16);
 const lv = l => l ? `<span class="plv ${LV[l] || ''}">${esc(l)}</span>` : '';
 const stp = s => `<span class="pst ${STC[s] || ''}">${esc(s)}</span>`;
@@ -37,7 +37,7 @@ const xlBtns = (doc, o, n) => `<button data-xl="ko" data-doc="${esc(doc || '')}"
 function bindXl(el) { $$('[data-xl]', el).forEach(b => b.onclick = e => { e.stopPropagation(); xl(b.dataset.doc, b.dataset.xl, +b.dataset.o || 0, +b.dataset.n || 0); }); }
 function goCmp(doc, o, n) { P.cdoc = doc; P.old = o || null; P.nw = n || null; P.st = ''; P.lv = ''; P.only = null; P.open = new Set(); V.go('pcmp'); }
 const counts = c => c ? `<span class="pcnt">${['High', 'Med', 'Min'].map(l => c[`changed_${l.toLowerCase()}`] ? `${lv(l)} ${c[`changed_${l.toLowerCase()}`]}` : '').filter(Boolean).join(' ')}
-  · ${stp('Changed')} ${c.Changed || 0} · ${stp('No Change')} ${c['No Change'] || 0} · ${stp('New')} ${c.New || 0} · ${stp('Delete')} ${c.Delete || 0}</span>` : '';
+  · ${stp('Changed')} ${c.Changed || 0} · ${stp('No Change')} ${c['No Change'] || 0} · ${stp('New')} ${c.New || 0} · ${stp('Delete')} ${c.Delete || 0}${c['Tag 변경'] ? ` · ${stp('Tag 변경')} ${c['Tag 변경']}` : ''}</span>` : '';
 
 /* ── PDS 현황 ─────────────────────────────────────────────────────────── */
 async function renderDash() {
@@ -110,7 +110,13 @@ async function renderCmp() {
   // valve47 (user 2026-11-27: '좀 더 엑셀스럽게 · 변경된 셀은 노랑색 음영 · 변경된 값은 붉은색') — the sheet of the Excel, on screen:
   // column letters · row numbers · gridlines · frozen header and Tag columns · three rows per tag (이전 · 최신 · 중요도)
   const cols = P.onlyChg ? keys.filter(k => items.some(i => i.imp[k])) : keys;
-  const L0 = ['No', 'Status', 'Tag', 'Rev.', 'Row'], NC = L0.length + cols.length + 2;
+  const L0 = ['No', 'Status', 'Tag', '이전 Tag', 'Rev.', 'Row'], NC = L0.length + cols.length + 2;
+  // valve49 (user 2026-11-27): on a New tag the engineer may name its earlier tag (one shown as Delete) → 'Tag 변경'
+  const dels = C.items.filter(i => i.status === 'Delete');
+  const prevCell = i => i.status === 'Tag 변경'
+    ? `<b>${esc(i.old_tag)}</b> <button class="xunl" data-unl="${esc(i.tag)}" title="Tag 변경 지정 해제 — 다시 New · Delete 로">✕</button><div class="soft" style="font-size:10px">${esc(i.link?.by || '')} ${esc((i.link?.at || '').slice(0, 10))}</div>`
+    : i.status === 'New' ? (dels.length ? `<select class="xlink" data-new="${esc(i.tag)}" title="이 New Tag 가 이전 Rev. 의 어느 Tag 인지 지정 → Tag 변경으로 비교 · Summary 반영">
+        <option value="">이전 Tag 지정…</option>${dels.map(d => `<option value="${esc(d.tag)}">${esc(d.tag)}${d.old?.location ? ' · ' + esc(String(d.old.location).slice(0, 28)) : ''}</option>`).join('')}</select>` : '') : '';
   let rn = 0;
   const gut = () => `<th class="xg">${++rn}</th>`;
   const cell = (i, k, row) => {
@@ -120,7 +126,7 @@ async function renderCmp() {
   };
   const block = (i, no) => {
     const o = i.old, n = i.new, sp = 'rowspan="3"';
-    const r1 = `<tr class="xt">${gut()}<td ${sp} class="xn">${no}</td><td ${sp} class="xs ${STC[i.status] || ''}">${esc(i.status)}</td><td ${sp} class="xtag">${esc(i.tag)}</td>
+    const r1 = `<tr class="xt">${gut()}<td ${sp} class="xn">${no}</td><td ${sp} class="xs ${STC[i.status] || ''}">${esc(i.status)}</td><td ${sp} class="xtag">${esc(i.tag)}</td><td ${sp} class="xprev">${prevCell(i)}</td>
       <td>Rev.${esc(C.old.rev)}</td><td class="xrow">이전</td>${o ? cols.map(k => cell(i, k, 'o')).join('') : `<td class="xna" colspan="${cols.length}">(이전 Rev. 없음)</td>`}
       <td ${sp} class="xo">${['New', 'Delete'].includes(i.overall) ? esc(i.overall) : lv(i.overall)}</td><td ${sp} class="xnote">${esc(i.note || '')}</td></tr>`;
     const r2 = `<tr>${gut()}<td>Rev.${esc(C.new.rev)}</td><td class="xrow">최신</td>${n ? cols.map(k => cell(i, k, 'n')).join('') : `<td class="xna" colspan="${cols.length}">(Rev.${esc(C.new.rev)} 미확인)</td>`}</tr>`;
@@ -134,7 +140,7 @@ async function renderCmp() {
       <label>최신 <select data-c="new">${revOpt(nw, r => r.id > D.revs[D.revs.length - 1].id)}</select></label>
       ${C.area ? `<span class="parea">${esc(C.area)}</span>` : ''}<span class="soft">Tag ${C.counts.old_tags} → ${C.counts.new_tags}</span>
       ${C.excluded_columns.length ? `<span class="soft" title="한쪽 Rev. 에만 있는 열 — 비교하지 않고 값만 표시">비교 제외 열: ${esc(C.excluded_columns.join(', '))}</span>` : ''}</div>
-    <div class="rchips"><button data-st="" class="${P.st ? '' : 'on'}">전체<b>${C.items.length}</b></button>${['Changed', 'No Change', 'New', 'Delete'].map(s => `<button data-st="${s}" class="${P.st === s ? 'on' : ''}">${stp(s)}<b>${cnt(s)}</b></button>`).join('')}
+    <div class="rchips"><button data-st="" class="${P.st ? '' : 'on'}">전체<b>${C.items.length}</b></button>${['Changed', 'Tag 변경', 'No Change', 'New', 'Delete'].map(s => `<button data-st="${s}" class="${P.st === s ? 'on' : ''}">${stp(s)}<b>${cnt(s)}</b></button>`).join('')}
       <span class="sp" style="width:14px"></span>${['High', 'Med', 'Min'].map(l => `<button data-lv="${l}" class="${P.lv === l ? 'on' : ''}" title="종합 중요도">${lv(l)}<b>${cl(l)}</b></button>`).join('')}
       <label class="xchk"><input type="checkbox" data-only ${P.onlyChg ? 'checked' : ''}> 바뀐 열만</label>
       <input class="tq" placeholder="Tag · Location 찾기" value="${esc(P.cq)}">
@@ -148,6 +154,12 @@ async function renderCmp() {
       중요도 기준: High = Size · Bore · 설계 P/T · Max ΔP · Pipe Class Rating 문자 / Med = 운전 P/T · 유량 · 밀도 · 점도 · 상 · Fluid · 운전 시간 · Tightness · Fail · Actuator · 수량 · Class 코드 체계 /
       Min = 문서 정합성 · 2% 이하 변화는 한 단계 낮춤.</div>`;
   $('[data-only]', el).onchange = e => { P.onlyChg = e.target.checked; renderCmp(); };
+  const setLink = async (nt, ot) => {
+    try { await api('PUT', `/projects/${S.pid}/pds/links`, { doc_no: C.doc_no, new_tag: nt, old_tag: ot });
+      toast(ot ? `${nt} ← 이전 ${ot} : Tag 변경으로 비교합니다 (Summary · Excel 반영)` : `${nt} Tag 변경 지정 해제`); P.ckey = null; P.sum = null; renderCmp(); }
+    catch (e) { toast(e.message, 1); } };
+  $$('select.xlink', el).forEach(sel => { sel.onclick = e => e.stopPropagation(); sel.onchange = () => sel.value && setLink(sel.dataset.new, sel.value); });
+  $$('[data-unl]', el).forEach(b => b.onclick = () => setLink(b.dataset.unl, ''));
   const clr = $('[data-clr]', el); if (clr) clr.onclick = () => { P.only = null; renderCmp(); };
   bindXl(el);
   $('select[data-c="doc"]', el).onchange = e => goCmp(e.target.value);
@@ -166,13 +178,14 @@ async function renderSum() {
   const D = X.documents;
   if (!D.length) { el.innerHTML = `<div class="vh"><h2>변경 Summary</h2></div><div class="card"><div class="empty">같은 문서 번호로 두 Rev. 이상 올린 PDS 가 없습니다 — 수정 PDS 를 <b>PDS 올리기</b> 에서 넣으면 변경 Summary 가 나옵니다.</div></div>`; return; }
   const L = D.map((_, i) => String.fromCharCode(65 + i)), sum = f => D.reduce((a, d) => a + f(d), 0);
-  const num = (d, n, st, lvl) => n ? `<a class="xnum" data-go="${esc(d.doc_no)}" data-o="${d.old.id}" data-n="${d.new.id}" data-st="${st || ''}" data-lv="${lvl || ''}" title="Rev. 비교에서 보기">${n}</a>` : '<span class="x0">0</span>';
-  const C = [['old_tags', '이전 Tag 수'], ['new_tags', '최신 Tag 수'], ['High', 'Changed (High)', 'Changed', 'High'], ['Med', 'Changed (Med)', 'Changed', 'Med'],
-    ['Min', 'Changed (Min)', 'Changed', 'Min'], ['No Change', 'No Change', 'No Change'], ['New', 'New', 'New'], ['Delete', 'Delete', 'Delete']];
+  const num = (d, n, st, lvl) => n ? `<a class="xnum" data-go="${esc(d.doc_no)}" data-o="${d.old.id}" data-n="${d.new.id}" data-st="${st && st !== '*' ? st : ''}" data-lv="${lvl || ''}" title="Rev. 비교에서 보기">${n}</a>` : '<span class="x0">0</span>';
+  const C = [['old_tags', '이전 Tag 수'], ['new_tags', '최신 Tag 수'], ['High', 'Changed (High)', '*', 'High'], ['Med', 'Changed (Med)', '*', 'Med'],
+    ['Min', 'Changed (Min)', '*', 'Min'], ['No Change', 'No Change', 'No Change'], ['New', 'New', 'New'], ['Delete', 'Delete', 'Delete'], ['Tag 변경', 'Tag 변경', 'Tag 변경']];
   const grp = { Size: 'xg-size', 'Sizing 영향': 'xg-size', '추가/삭제': '' };
   const lst = (rows, cols, head) => rows.length ? `<div class="xlwrap" style="max-height:340px"><table class="xl"><thead><tr class="xhd"><th class="xg" style="top:0"></th>${head.map(h => `<th style="top:0">${h}</th>`).join('')}</tr></thead><tbody>
       ${rows.map((r, n) => `<tr><th class="xg">${n + 1}</th>${cols(r).map(([v, cls]) => `<td class="${cls || ''}">${esc(v ?? '')}</td>`).join('')}</tr>`).join('')}</tbody></table></div>` : '<div class="soft">없음</div>';
   const high = D.flatMap((d, i) => d.high.map(r => ({ ...r, L: L[i], doc: d.doc_no }))), size = D.flatMap((d, i) => d.size.map(r => ({ ...r, L: L[i] })));
+  const ren = D.flatMap((d, i) => (d.renamed || []).map(r => ({ ...r, L: L[i] })));
   el.innerHTML = `<div class="vh"><h2>변경 Summary</h2><span class="soft">문서 번호마다 최신 Rev. vs 바로 앞 Rev. · Tag 번호가 같은 것끼리만 비교 · 숫자를 누르면 Rev. 비교에서 그 Tag 들만</span><span class="sp"></span>${xlBtns('')}</div>
     <h3 class="xh3">1. Rev. 비교 Summary</h3>
     <div class="xlwrap" style="max-height:none"><table class="xl xsum"><thead><tr class="xhd" style="top:0"><th class="xg" style="top:0"></th>${['Doc', 'Doc No.', 'Area', '이전 Rev.', '최신 Rev.', ...C.map(c => c[1])].map(h => `<th style="top:0">${h}</th>`).join('')}</tr></thead><tbody>
@@ -188,9 +201,11 @@ async function renderSum() {
         ${D.map(d => { const t = d.sizing[r.key] || []; return `<td class="xnc" title="${esc(t.join(', '))}">${t.length ? `<a class="xnum" data-tags="${esc(t.join('|'))}" data-go="${esc(d.doc_no)}" data-o="${d.old.id}" data-n="${d.new.id}">${t.length}</a>` : '<span class="x0">0</span>'}</td>`; }).join('')}
         <td class="xnc"><b>${sum(d => (d.sizing[r.key] || []).length)}</b></td></tr>`).join('')}</tbody></table></div>
     <div class="xtwo"><div><h3 class="xh3">3. Line Size / Valve Size 변경 Tag 목록 <span class="soft">${size.length}</span></h3>
-      ${lst(size, r => [[r.L], [r.tag, 'xtag'], [r.item], [r.old], [r.new, 'xc xr']], ['Doc', 'Tag', '항목', '이전 Rev.', '최신 Rev.'])}</div>
+      ${lst(size, r => [[r.L], [r.tag, 'xtag'], [r.old_tag], [r.item], [r.old], [r.new, 'xc xr']], ['Doc', 'Tag', '이전 Tag', '항목', '이전 Rev.', '최신 Rev.'])}</div>
       <div><h3 class="xh3">4. High 변경 목록 <span class="soft">${high.length}</span></h3>
-      ${lst(high, r => [[r.L], [r.tag, 'xtag'], [r.item], [r.old], [r.new, 'xc xr'], [r.status]], ['Doc', 'Tag', '항목', '이전 Rev. 값', '최신 Rev. 값', 'Status'])}</div></div>`;
+      ${lst(high, r => [[r.L], [r.tag, 'xtag'], [r.old_tag], [r.item], [r.old], [r.new, 'xc xr'], [r.status]], ['Doc', 'Tag', '이전 Tag', '항목', '이전 Rev. 값', '최신 Rev. 값', 'Status'])}</div></div>
+    <h3 class="xh3">5. Tag 변경 목록 (사용자 지정) <span class="soft">${ren.length} — Rev. 비교의 New 줄에서 '이전 Tag 지정' 으로 넣습니다</span></h3>
+      ${lst(ren, r => [[r.L], [r.tag, 'xtag'], [r.old_tag], [r.overall], [r.note]], ['Doc', 'Tag (최신)', '이전 Tag', '중요도(종합)', '비고'])}`;
   bindXl(el);
   $$('.xnum', el).forEach(a => a.onclick = () => {           // the tags a number stands for, in Rev. 비교
     Object.assign(P, { cdoc: a.dataset.go, old: +a.dataset.o, nw: +a.dataset.n, st: a.dataset.st || '', lv: a.dataset.lv || '', cq: '',

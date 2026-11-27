@@ -841,7 +841,7 @@ def _rules_fingerprint() -> str:
 
 
 _RULES_FP = _rules_fingerprint()
-VERSION = "valve48"                       # shown in Settings › 정보 and the footer; bump with every package
+VERSION = "valve49"                       # shown in Settings › 정보 and the footer; bump with every package
 
 
 @router.get("/api/valve/version")
@@ -1253,6 +1253,47 @@ def _pds_pick(con, pid, doc_no: str, old: int | None = None, new: int | None = N
     return o[0], o[1], n[0], n[1]
 
 
+def _pds_links(con, pid, doc_no: str) -> dict:
+    """valve49: the engineer's 'this New tag was that earlier tag' links of one PDS number ({new tag_key: {old, by, at}})."""
+    r = store.one(con, "SELECT value FROM project_setting WHERE project_id=? AND key=?", ref_pid(con, pid), f"pds.links.{doc_no}")
+    try:
+        return json.loads(r["value"]) if r and r.get("value") else {}
+    except ValueError:
+        return {}
+
+
+def _pds_cmp(con, pid, oP: dict, nP: dict) -> dict:
+    return pdsrev.compare(oP, nP, _pds_links(con, pid, nP.get("doc_no", "")))
+
+
+@router.put("/api/valve/projects/{pid}/pds/links")
+async def pds_links_put(pid: int, request: Request):
+    """valve49 (user 2026-11-27): on a New tag, the engineer names its earlier tag (one the comparison shows as Delete) →
+    the pair is 'Tag 변경', compared value by value, and counted so in every Summary and Excel.  old_tag empty = unlink."""
+    b = await request.json()
+    doc_no, nk = str(b.get("doc_no") or ""), schema.norm_tag(str(b.get("new_tag") or ""))
+    ok = schema.norm_tag(str(b.get("old_tag") or ""))
+    if not doc_no or not nk:
+        return _err("doc_no · new_tag 가 필요합니다")
+    con = store.connect()
+    try:
+        rp = ref_pid(con, pid)
+        L = _pds_links(con, pid, doc_no)
+        if ok:
+            if ok == nk:
+                return _err("같은 Tag 입니다")
+            L[nk] = {"old": ok, "by": _user(request), "at": store.now()}
+        else:
+            L.pop(nk, None)
+        con.execute("INSERT OR REPLACE INTO project_setting(project_id, key, value, by, at) VALUES (?,?,?,?,?)",
+                    (rp, f"pds.links.{doc_no}", json.dumps(L, ensure_ascii=False), _user(request), store.now()))
+        store.audit(con, rp, None, f"pds.links.{doc_no}", "pds-link", None, f"{nk} ← {ok or '(해제)'}", _user(request), doc_no)
+        con.commit()
+        return {"doc_no": doc_no, "links": L}
+    finally:
+        con.close()
+
+
 def _pds_sections(P: dict) -> dict:
     out: dict = {}
     titles = {pg["page"]: pg.get("title", "") for pg in P.get("pages", [])}
@@ -1280,7 +1321,7 @@ def pds_summary(pid: int):
                      "sections": _pds_sections(P)} for d, P in xs]
             cmp = None
             if len(xs) >= 2:
-                R = pdsrev.compare(xs[1][1], xs[0][1])
+                R = _pds_cmp(con, pid, xs[1][1], xs[0][1])
                 cmp = {"old_id": xs[1][0]["id"], "new_id": xs[0][0]["id"], "counts": R["counts"]}
             out.append({"doc_no": dn, "area": _pds_area(con, pid, dn), "revs": revs, "latest_id": xs[0][0]["id"], "compare": cmp})
         tags = sum(x["revs"][0]["tags"] for x in out)
@@ -1315,7 +1356,7 @@ def pds_change_summary(pid: int):
     try:
         docs = []
         for od, oP, nd, nP in _pds_pairs(con, pid):
-            X = pdsrev.change_summary(pdsrev.compare(oP, nP))
+            X = pdsrev.change_summary(_pds_cmp(con, pid, oP, nP))
             docs.append(dict(X, doc_no=nP["doc_no"], area=_pds_area(con, pid, nP["doc_no"]),
                              old={"id": od["id"], "filename": od["filename"], "rev": oP.get("rev", "")},
                              new={"id": nd["id"], "filename": nd["filename"], "rev": nP.get("rev", "")}))
@@ -1333,8 +1374,8 @@ def pds_compare(pid: int, doc_no: str, old: int | None = None, new: int | None =
         if not x:
             return _err("이 문서 번호는 올린 Rev. 이 하나뿐입니다 — 수정 PDS 를 올리면 비교합니다", 404)
         od, oP, nd, nP = x
-        R = pdsrev.compare(oP, nP)
-        items = [{"status": it["status"], "tag": it["tag"], "section": it["section"], "overall": it["overall"], "imp": it["imp"],
+        R = _pds_cmp(con, pid, oP, nP)
+        items = [{"status": it["status"], "tag": it["tag"], "tag_key": it["tag_key"], "old_tag": it.get("old_tag", ""), "link": it.get("link"), "section": it["section"], "overall": it["overall"], "imp": it["imp"],
                   "note": pdsrev.delete_note(it, nP.get("rev", "")) if it["status"] == "Delete" else it["note"],
                   "old": {k: (it["old"] or {}).get(k) for k, _ in pdsrev.FIELDS} if it["old"] else None,
                   "new": {k: (it["new"] or {}).get(k) for k, _ in pdsrev.FIELDS} if it["new"] else None} for it in R["items"]]
@@ -1365,7 +1406,7 @@ def _pds_revcompare(con, pid, doc_id, parsed) -> dict | None:
     if not prev:
         return None
     (od, oP), nP = prev, parsed
-    R = pdsrev.compare(oP, nP)
+    R = _pds_cmp(con, pid, oP, nP)
     return {"prev_id": od["id"], "prev_name": od["filename"], "old_rev": oP.get("rev", ""), "new_rev": nP.get("rev", ""), "counts": R["counts"]}
 
 
@@ -1376,7 +1417,7 @@ def _pds_xlsx(pid: int, lang: str = "ko", doc_no: str = "", old: int | None = No
         pairs = [_pds_pick(con, pid, doc_no, old, new)] if doc_no else _pds_pairs(con, pid)
         for od, oP, nd, nP in [x for x in pairs if x]:
             docs.append({"doc_no": nP["doc_no"], "area": _pds_area(con, pid, nP["doc_no"]), "old_rev": oP.get("rev", ""), "new_rev": nP.get("rev", ""),
-                         "old_name": od["filename"], "new_name": nd["filename"], "result": pdsrev.compare(oP, nP)})
+                         "old_name": od["filename"], "new_name": nd["filename"], "result": _pds_cmp(con, pid, oP, nP)})
         return (pdsrev.workbook(docs, lang) if docs else None), len(docs)
     finally:
         con.close()

@@ -454,3 +454,11 @@
   2) Summary (Sizing 영향) 16줄 3) Line/Valve Size 변경 Tag 목록 4) High 변경 목록 — Excel 과 같은 모양. 숫자를 누르면 Rev. 비교가 그 Tag 들만(또는 그 Status·중요도) 보여 줌.
 - 숫자는 `pdsrev.change_summary`(SIZING 정의 = Excel Sizing 시트 수식과 같은 뜻) · API `GET /projects/{pid}/pds/change_summary`.
 - v2 예시 Excel 과 대조: Summary 3문서 · Sizing 14줄 · High 65줄 모두 같음. pytest 2,115 · UI 25/25 · Ball 3,091 변화 0.
+
+## 2026-11-27 · VALVE valve49 — New 에 이전 Tag 병기 → 'Tag 변경' (사용자 "New 에 이전 tag(분석 결과 Delete)를 병기 · tag 변경으로 관리 · summary 반영")
+- `pdsrev.compare(old, new, links)`: 사용자가 이은 짝만 'Tag 변경'(그 비교에서 새 Tag 가 New 이고 이전 Tag 가 Delete 일 때만 적용) → 칸별 비교 · 중요도 ·
+  New/Delete 에서 빠짐 · counts['Tag 변경'] · Changed(High/Med/Min) 에 포함. 프로그램 추정 없음(valve44 원칙 유지).
+- 저장: 기준 프로젝트 `project_setting` 'pds.links.<doc_no>' · API `PUT /projects/{pid}/pds/links {doc_no, new_tag, old_tag('' = 해제)}` · 감사 기록 'pds-link'.
+- 화면: Rev. 비교에 '이전 Tag' 열(New 줄 = 고르기 · Tag 변경 줄 = 이전 Tag · 지정한 사람/날 · ✕ 해제) · 'Tag 변경' 칩 / 변경 Summary 에 열 · Sizing 줄 · '5. Tag 변경 목록'.
+- Excel: D 열 머리 '(예비)' → '이전 Tag'(영어 'Previous Tag') · Status 'Tag 변경'('Tag Renamed') · Summary 'Tag 변경' 열 · Sizing 줄 추가.
+- 실 PDS: 98ESDV980113 ← 98ESDV980004 지정 → 98 문서 New 24→23 · Delete 14→13 · Tag 변경 1. pytest 2,117 · UI 25/25 · Ball 3,091 변화 0.

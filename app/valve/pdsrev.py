@@ -155,13 +155,21 @@ def _top(d: dict) -> str:
     return max(d.values(), key=LEVELS.index) if d else ""
 
 
-def compare(old: dict, new: dict) -> dict:
+RENAMED = "Tag 변경"         # valve49: a New tag the engineer tied to an earlier (Delete) tag — never guessed by the program
+
+
+def compare(old: dict, new: dict, links: dict | None = None) -> dict:
     """old · new = parsed PDS (process.read_process_data, the earlier and the newer Rev. of one document number).
-    → {"items": [{status, tag, old, new, imp: {key: level}, overall, note, section}], "counts": {...}, ...}"""
+    links = {new tag_key: {"old": earlier tag_key, "by", "at"}} — set by the engineer on the screen (valve49, user 2026-11-27:
+    'New 에 이전 Tag(분석 결과 Delete)를 병기 → Tag 변경으로 관리 · Summary 에 반영').  A link counts only where the new tag
+    is New and the earlier tag is Delete in THIS pair; the pair is then compared like a Changed tag.
+    → {"items": [{status, tag, old_tag, old, new, imp: {key: level}, overall, note, section, link}], "counts": {...}, ...}"""
     O, fo = _rows(old)
     N, fn = _rows(new)
     both = fo["columns"] & fn["columns"]
     items = []
+    linked = {nk: L for nk, L in (links or {}).items() if nk in N and nk not in O and L.get("old") in O and L["old"] not in N}
+    used_old = {L["old"] for L in linked.values()}
     # user 2026-11-26: no guessing which tag became which — the same tag number is compared, every other tag of the
     # earlier Rev. is Delete and every other tag of the newer Rev. is New
     for k in N:                                              # 1. the same tag in both Revs.
@@ -169,12 +177,20 @@ def compare(old: dict, new: dict) -> dict:
             imp = _diff(O[k], N[k], both)
             items.append({"status": "Changed" if imp else "No Change", "tag": N[k]["tag"], "tag_key": k, "old": O[k], "new": N[k],
                           "imp": imp, "overall": _top(imp), "note": "", "section": N[k]["section"]})
-    for k in N:                                              # 2. only in the new Rev.
-        if k not in O:
+    for k in N:                                              # 2. only in the new Rev.: tied by the engineer, or New
+        if k in linked:
+            L = linked[k]
+            o = O[L["old"]]
+            imp = _diff(o, N[k], both)
+            items.append({"status": RENAMED, "tag": N[k]["tag"], "tag_key": k, "old_tag": o["tag"], "old": o, "new": N[k], "imp": imp,
+                          "overall": _top(imp), "section": N[k]["section"], "link": {"old": L["old"], "by": L.get("by", ""), "at": L.get("at", "")},
+                          "note": f"Tag 변경 (사용자 지정{(' · ' + L['by']) if L.get('by') else ''}{(' · ' + L['at'][:10]) if L.get('at') else ''}): "
+                                  f"이전 Rev. {o['tag']} → 최신 Rev. {N[k]['tag']}"})
+        elif k not in O:
             items.append({"status": "New", "tag": N[k]["tag"], "tag_key": k, "old": None, "new": N[k], "imp": {},
                           "overall": "New", "note": "", "section": N[k]["section"]})
-    for k in O:                                              # 3. not in the new Rev.
-        if k not in N:
+    for k in O:                                              # 3. not in the new Rev. (and not tied to a new tag)
+        if k not in N and k not in used_old:
             sec = O[k]["section"]
             note = (f"최신 Rev. 에 {sec} 섹션 미수록 – 삭제 또는 별도 문서 이관 여부 확인 필요" if sec not in fn["sections"] else "")
             items.append({"status": "Delete", "tag": O[k]["tag"], "tag_key": k, "old": O[k], "new": None, "imp": {},
@@ -186,7 +202,7 @@ def compare(old: dict, new: dict) -> dict:
     counts = {"old_tags": len(O), "new_tags": len(N)}
     for it in items:
         s = it["status"]
-        if s == "Changed":
+        if s in ("Changed", RENAMED):
             if it["overall"]:
                 counts[f"changed_{it['overall'].lower()}"] = counts.get(f"changed_{it['overall'].lower()}", 0) + 1
         counts[s] = counts.get(s, 0) + 1
@@ -221,6 +237,7 @@ SIZING = [
     ("new", "추가/삭제", "New (추가)", "이전 Rev.에 없음", lambda it: it["status"] == "New"),
     ("delete", "추가/삭제", "Delete (삭제) – 전체", "최신 Rev.에서 미확인", lambda it: it["status"] == "Delete"),
     ("delete_mov", "추가/삭제", "  └ 그중 MOV", "최신 Rev.에 MOV 섹션 없음 – 이관 여부 확인", lambda it: it["status"] == "Delete" and "MOV" in it["tag"].upper()),
+    ("renamed", "추가/삭제", "Tag 변경 (사용자 지정)", "New 에 이전 Tag 를 병기 – 그 Tag 와 비교 (New · Delete 에서 빠짐)", lambda it: it["status"] == RENAMED),
 ]
 
 
@@ -229,14 +246,16 @@ def change_summary(R: dict) -> dict:
     items = R["items"]
     c = R["counts"]
     counts = {"old_tags": c["old_tags"], "new_tags": c["new_tags"], "High": c.get("changed_high", 0), "Med": c.get("changed_med", 0),
-              "Min": c.get("changed_min", 0), "No Change": c.get("No Change", 0), "New": c.get("New", 0), "Delete": c.get("Delete", 0)}
+              "Min": c.get("changed_min", 0), "No Change": c.get("No Change", 0), "New": c.get("New", 0), "Delete": c.get("Delete", 0),
+              RENAMED: c.get(RENAMED, 0)}
     sizing = {k: [it["tag"] for it in items if test(it)] for k, _, _, _, test in SIZING}
     lab = dict(FIELDS)
-    high = [{"tag": it["tag"], "item": lab[k], "key": k, "old": (it["old"] or {}).get(k), "new": (it["new"] or {}).get(k), "status": it["status"]}
+    renamed = [{"tag": it["tag"], "old_tag": it.get("old_tag", ""), "overall": it["overall"], "note": it["note"]} for it in items if it["status"] == RENAMED]
+    high = [{"tag": it["tag"], "old_tag": it.get("old_tag", ""), "item": lab[k], "key": k, "old": (it["old"] or {}).get(k), "new": (it["new"] or {}).get(k), "status": it["status"]}
             for it in items for k, lv in it["imp"].items() if lv == "High"]
-    size = [{"tag": it["tag"], "item": lab[k], "key": k, "old": (it["old"] or {}).get(k), "new": (it["new"] or {}).get(k)}
+    size = [{"tag": it["tag"], "old_tag": it.get("old_tag", ""), "item": lab[k], "key": k, "old": (it["old"] or {}).get(k), "new": (it["new"] or {}).get(k)}
             for it in items for k, lv in it["imp"].items() if k in SIZE_KEYS and lv in ("High", "Med")]
-    return {"counts": counts, "sizing": sizing, "high": high, "size": size}
+    return {"counts": counts, "sizing": sizing, "high": high, "size": size, "renamed": renamed}
 
 
 # ── the document's revision ────────────────────────────────────────────────────────────────────────────────────────
@@ -266,7 +285,7 @@ def tagkey(t: str) -> str:
 
 # ── the Excel (the layout of the engineers' own comparison workbook) ─────────────────────────────────────────────────
 
-FILL_STATUS = {"Changed": "FFF2CC", "No Change": "", "New": "C6E0B4", "Delete": "D9D9D9"}
+FILL_STATUS = {"Changed": "FFF2CC", "No Change": "", "New": "C6E0B4", "Delete": "D9D9D9", "Tag 변경": "F8CBAD"}
 FILL_LEVEL = {"High": "FFC7CE", "Med": "FFEB9C", "Min": "E2EFDA"}
 WIDTHS = {"A": 5, "B": 13, "C": 15, "D": 14, "E": 7, "F": 7, "G": 22, "H": 9, "I": 16, "J": 9, "K": 22, "L": 9, "M": 9, "N": 9,
           "O": 9, "P": 11}
@@ -276,7 +295,7 @@ LANGS = ("ko", "en")
 # Status words · importance levels · field headers stay as the engineers write them (English) in both.
 T = {
     "ko": {
-        "prev": "이전", "new": "최신", "imp": "중요도", "spare": "(예비)", "overall": "중요도(종합)", "note": "비고 / 사유",
+        "prev": "이전", "new": "최신", "imp": "중요도", "spare": "이전 Tag", "overall": "중요도(종합)", "note": "비고 / 사유",
         "no_prev": "(이전 Rev. 없음)", "no_new": "({r} 미확인)", "high_sheet": "High 변경 목록", "size_sheet": "Summary (Sizing 영향)",
         "sheet_title": "{L}. {dn}{area} – {o} vs {n} Process Data 변경 비교",
         "sheet_note": "각 Tag: 1행 이전 Rev. / 2행 최신 {n}(변경값 붉은 글씨) / 3행 중요도(변경 항목별 High·Med·Min). "
@@ -284,7 +303,7 @@ T = {
         "sum_title": "Process Data Sheet (On-Off Valve / MOV) Rev. 비교 Summary",
         "sum_note": "출처: 각 DTS 최신 Rev. vs 이전 Rev. ({files}). 수치는 각 시트를 COUNTIFS로 집계.",
         "sum_cols": ["Doc", "Doc No.", "Area", "이전 Rev.", "이전 Tag 수", "{n} Tag 수", "Changed (High)", "Changed (Med)", "Changed (Min)",
-                     "No Change", "New", "Delete"],
+                     "No Change", "New", "Delete", "Tag 변경"],
         "total": "합계", "crit_title": "중요도 기준 (Size 변경 / Sizing Cal. 영향)",
         "crit": [
             ("High", "Line Size, Valve Size, Valve Bore, Design Pressure, Design Temperature, Max ΔP(Opening/Closing), Pipe Class Rating 문자 변경 "
@@ -295,7 +314,7 @@ T = {
             ("보정", "수치 변경폭이 2% 이하이면 한 단계 낮춤(High→Med, Med→Min). Line/Valve Size의 따옴표 표기 차이(18' vs 18\")와 "
                      "Line No/P&ID의 구분기호 차이는 변경으로 보지 않음."),
             ("Status", "Changed / No Change / New(이전 Rev.에 없고 {n}에 있음) / Delete(이전 Rev.에 있고 {n}에 없음). "
-                       "Tag 변경 추정은 하지 않음 – Tag 번호 기준으로만 비교."),
+                       "Tag 변경 추정은 하지 않음 – Tag 번호 기준으로만 비교. Tag 변경 = 사용자가 New 에 이전 Tag(Delete)를 병기한 것 – 그 Tag 와 비교 (D 열 = 이전 Tag)."),
         ],
         "ref": "참고", "ref_cols": '{docs} 에만 있는 "{cols}" 열은 다른 Rev.에 없어 비교 대상에서 제외(값은 표시). ',
         "ref_scope": "이전 Rev.의 Control Valve·PSV 섹션은 On-Off/MOV 비교 범위 밖으로 제외.",
@@ -318,12 +337,13 @@ T = {
             ("Sizing 영향", "문서 정합성 변경만 (Min)", "Location, P&ID, Line No 표기 등 – Sizing 영향 없음"),
             ("Sizing 영향", "변경 없음", "No Change"), ("추가/삭제", "New (추가)", "이전 Rev.에 없음"),
             ("추가/삭제", "Delete (삭제) – 전체", "{n}에서 미확인"), ("추가/삭제", "  └ 그중 MOV", "{n}에 MOV 섹션 없음 – 이관 여부 확인"),
+            ("추가/삭제", "Tag 변경 (사용자 지정)", "New 에 이전 Tag 를 병기 – 그 Tag 와 비교 (New · Delete 에서 빠짐)"),
         ],
         "list_title": "Line Size / Valve Size 변경 Tag 목록", "list_cols": ["Doc", "Tag", "-", "항목", "이전 Rev.", "{n}"],
         "file": "PDS_Rev_Comparison",
     },
     "en": {
-        "prev": "Previous", "new": "Latest", "imp": "Importance", "spare": "(spare)", "overall": "Overall Importance", "note": "Remarks / Reason",
+        "prev": "Previous", "new": "Latest", "imp": "Importance", "spare": "Previous Tag", "overall": "Overall Importance", "note": "Remarks / Reason",
         "no_prev": "(not in previous Rev.)", "no_new": "(not found in {r})", "high_sheet": "High Changes", "size_sheet": "Summary (Sizing Impact)",
         "sheet_title": "{L}. {dn}{area} – {o} vs {n} Process Data Change Comparison",
         "sheet_note": "Each tag: row 1 previous Rev. / row 2 latest {n} (changed values in red) / row 3 importance (High·Med·Min per changed item). "
@@ -331,7 +351,7 @@ T = {
         "sum_title": "Process Data Sheet (On-Off Valve / MOV) Revision Comparison Summary",
         "sum_note": "Source: latest Rev. vs previous Rev. of each DTS ({files}). Figures are COUNTIFS over each sheet.",
         "sum_cols": ["Doc", "Doc No.", "Area", "Previous Rev.", "Previous Tags", "{n} Tags", "Changed (High)", "Changed (Med)", "Changed (Min)",
-                     "No Change", "New", "Delete"],
+                     "No Change", "New", "Delete", "Tag Renamed"],
         "total": "Total", "crit_title": "Importance Criteria (Size Change / Sizing Calculation Impact)",
         "crit": [
             ("High", "Line Size, Valve Size, Valve Bore, Design Pressure, Design Temperature, Max ΔP (Opening/Closing), Pipe Class rating letter change "
@@ -342,7 +362,7 @@ T = {
             ("Adjust", "A numeric change of 2% or less is one level lower (High→Med, Med→Min). Quote differences in Line/Valve Size (18' vs 18\") and "
                        "separator differences in Line No/P&ID are not changes."),
             ("Status", "Changed / No Change / New (not in the previous Rev., in {n}) / Delete (in the previous Rev., not in {n}). "
-                       "Tag renumbering is not inferred – compared by tag number only."),
+                       "Tag renumbering is not inferred – compared by tag number only. Tag Renamed = a previous (Delete) tag given on a New tag by the user – compared with it (column D = previous tag)."),
         ],
         "ref": "Note", "ref_cols": 'The "{cols}" column(s) only in {docs} are not in the other Rev. and are excluded from comparison (values shown). ',
         "ref_scope": "Control Valve and PSV sections of the previous Rev. are outside the On-Off/MOV comparison and excluded.",
@@ -367,6 +387,7 @@ T = {
             ("Sizing impact", "Document consistency only (Min)", "Location, P&ID, Line No notation – no sizing impact"),
             ("Sizing impact", "No change", "No Change"), ("Added/Deleted", "New (added)", "Not in the previous Rev."),
             ("Added/Deleted", "Delete (deleted) – all", "Not found in {n}"), ("Added/Deleted", "  └ of which MOV", "No MOV section in {n} – confirm transfer"),
+            ("Added/Deleted", "Tag renamed (set by user)", "Previous tag given on a New tag – compared with it (out of New · Delete)"),
         ],
         "list_title": "Tags with Line Size / Valve Size Change", "list_cols": ["Doc", "Tag", "-", "Item", "Previous Rev.", "{n}"],
         "file": "PDS_Rev_Comparison",
@@ -397,6 +418,17 @@ def workbook(docs: list[dict], lang: str = "ko") -> bytes:
     from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
 
     L_ = T[lang if lang in T else "ko"]
+    REN = "Tag Renamed" if lang == "en" else RENAMED                                   # the status word as written in this book
+    SL = lambda st: REN if st == RENAMED else st                                      # noqa: E731
+
+    def note_of(it, new_rev):
+        if it["status"] == "Delete":
+            return delete_note(it, new_rev, lang)
+        if it["status"] == RENAMED and lang == "en":
+            L = it.get("link") or {}
+            who = "".join(f" · {x}" for x in (L.get("by"), (L.get("at") or "")[:10]) if x)
+            return f"Tag renamed (set by user{who}): previous Rev. {it.get('old_tag', '')} → latest Rev. {it['tag']}"
+        return it["note"]
     thin, med = Side(style="thin", color="999999"), Side(style="medium", color="000000")
     box = Border(left=thin, right=thin, top=thin, bottom=thin)
     first = Border(left=thin, right=thin, top=med, bottom=thin)
@@ -461,22 +493,23 @@ def workbook(docs: list[dict], lang: str = "ko") -> bytes:
                     ws.cell(rr, ci["location"], L_["no_new"].format(r=n_r))
             ws.row_dimensions[r + 2].height = 15
             ws.cell(r, 1, no).alignment = mid
-            c = ws.cell(r, 2, st)
+            c = ws.cell(r, 2, SL(st))
             c.fill = fill(FILL_STATUS.get(st, ""))
             ws.cell(r, 3, it["tag"])
+            ws.cell(r, 4, it.get("old_tag") or None)
             c = ws.cell(r, nAL, it["overall"] or None)
             c.alignment = mid
             if it["overall"] in FILL_LEVEL:
                 c.fill = fill(FILL_LEVEL[it["overall"]])
-            ws.cell(r, nAM, (delete_note(it, d["new_rev"], lang) if st == "Delete" else it["note"]) or None).alignment = wrap
+            ws.cell(r, nAM, note_of(it, d["new_rev"]) or None).alignment = wrap
             for col in (1, nAL, nAM):
                 ws.merge_cells(start_row=r, start_column=col, end_row=r + 2, end_column=col)
             for k, lv in it["imp"].items():
                 label = dict(FIELDS)[k]
                 if lv == "High":
-                    high_rows.append([L, d["doc_no"], it["tag"], None, label, (o or {}).get(k), (n or {}).get(k), st])
+                    high_rows.append([L, d["doc_no"], it["tag"], it.get("old_tag") or None, label, (o or {}).get(k), (n or {}).get(k), SL(st)])
                 if k in SIZE_KEYS and lv in ("High", "Med"):
-                    size_rows.append([L, it["tag"], None, label, (o or {}).get(k), (n or {}).get(k)])
+                    size_rows.append([L, it["tag"], it.get("old_tag") or None, label, (o or {}).get(k), (n or {}).get(k)])
             r += 3
         for k, w in WIDTHS.items():
             ws.column_dimensions[k].width = w
@@ -502,8 +535,8 @@ def workbook(docs: list[dict], lang: str = "ko") -> bytes:
     for i, (L, d, sn) in enumerate(zip(letters, docs, names)):
         rr = 5 + i
         row = [L, d["doc_no"], d.get("area") or "", _rev(d["old_rev"]), d["result"]["counts"]["old_tags"], d["result"]["counts"]["new_tags"]]
-        row += [f"={cnt(sn, 'Changed*', lv)}" for lv in ("High", "Med", "Min")]
-        row += [f"={cnt(sn, s)}" for s in ("No Change", "New", "Delete")]
+        row += [f"={cnt(sn, 'Changed*', lv)}+{cnt(sn, REN, lv)}" for lv in ("High", "Med", "Min")]
+        row += [f"={cnt(sn, s)}" for s in ("No Change", "New", "Delete", REN)]
         for j, v in enumerate(row, 1):
             c = sm.cell(rr, j, v)
             c.border, c.font = box, Font(size=10)
@@ -533,7 +566,7 @@ def workbook(docs: list[dict], lang: str = "ko") -> bytes:
         b.alignment, b.font = Alignment(wrap_text=True, vertical="center"), Font(size=10)
         sm.merge_cells(start_row=rr, start_column=2, end_row=rr, end_column=len(cols))
         sm.row_dimensions[rr].height = 30
-    for k, w in zip("ABCDEFGHIJKL", (6, 22, 18, 9, 10, 10, 10, 10, 10, 10, 8, 8)):
+    for k, w in zip("ABCDEFGHIJKLM", (6, 22, 18, 9, 10, 10, 10, 10, 10, 10, 8, 8, 10)):
         sm.column_dimensions[k].width = w
 
     # ── High list
@@ -568,7 +601,7 @@ def workbook(docs: list[dict], lang: str = "ko") -> bytes:
             lambda sn, d: sp(sn, [C("piping_class")], ("Med",)),
             lambda sn, d: sp(sn, [C(k) for k in ("line_size", "valve_size", "bore", "piping_class", "design_temp", "design_pressure", "dp_open", "dp_close")], ("High",)),
             lambda sn, d: "=" + cnt(sn, lv="Med"), lambda sn, d: "=" + cnt(sn, lv="Min"), lambda sn, d: "=" + cnt(sn, st="No Change"),
-            lambda sn, d: "=" + cnt(sn, st="New"), lambda sn, d: "=" + cnt(sn, st="Delete"), lambda sn, d: "=" + cnt(sn, st="Delete", tag="*MOV*")]
+            lambda sn, d: "=" + cnt(sn, st="New"), lambda sn, d: "=" + cnt(sn, st="Delete"), lambda sn, d: "=" + cnt(sn, st="Delete", tag="*MOV*"), lambda sn, d: "=" + cnt(sn, st=REN)]
     for i, ((g, name, basis), fn) in enumerate(zip(L_["size_rows"], calc)):
         rr = 5 + i
         for j, v in enumerate([g, fmt(name), fmt(basis)] + [fn(sn, d) for sn, d in zip(names, docs)], 1):
