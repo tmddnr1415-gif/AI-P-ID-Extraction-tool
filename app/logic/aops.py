@@ -408,7 +408,35 @@ def _interp(table, x):
     return None
 
 
+def random_fill() -> bool:
+    """L101 — 사용자 지시 "동작을 우선 · 사용자가 셋업하지 않으면 랜덤 값으로 동작": 값이 없어 계산이 멈추는 자리(값 없는 상수 · PID 출력 · 적분 ·
+    이름을 못 읽은 전환 · 범위 모르는 입력 행 …)에 **임의값**을 넣어 뒤쪽까지 동작시킨다.  `PID_LOGIC_RANDOM_FILL=0` 이면 끈다 (예전처럼 비우고 사유만).
+    임의값은 도면의 값이 아니다 — 근거 글에 언제나 '임의값' 이라고 적고, 분석 결과 · 그림에는 저장하지 않는다 (시뮬레이션 때만 생긴다)."""
+    import os
+    return os.environ.get("PID_LOGIC_RANDOM_FILL", "1") != "0"
+
+
+def stable_random(*seed, lo=10.0, hi=90.0) -> float:
+    """같은 자리에는 언제나 같은 임의값 (0~100 눈금의 10~90 · 소수 한 자리).  자리(도면 좌표)가 아니라 **뜻**(연산 · 글자 · 단자 이름 · 행 설명)으로 씨를 준다 —
+    원본 분석 · 똑같이 그린 그림 · 그 그림을 다시 올린 것이 같은 값을 받아야 서로 견줄 수 있고, 같은 입력이면 같은 답이라야 계산 기억(묶음 · 장)이 맞는다."""
+    import hashlib
+    h = hashlib.blake2b("|".join(str(x) for x in seed).encode("utf-8"), digest_size=8).digest()
+    u = int.from_bytes(h, "big") / float(1 << 64)
+    return round(lo + (hi - lo) * u, 1)
+
+
 def compute(op, b, ins, net_v, dig=None):
+    """→ (값 | None, 이유 글 | "").  값을 정할 수 없으면(사유가 있으면) 임의값으로 동작시킨다 (`random_fill` · 사유 앞에 '임의값' 을 적는다)."""
+    v, why = _compute_exact(op, b, ins, net_v, dig)
+    if v is None and why and random_fill():
+        # 씨는 **연산 종류**뿐이다 — 글자 · 기능 이름 · 단자 이름은 그림으로 옮기거나 그린 PDF 를 다시 읽으면 달라질 수 있어(△ ↔ 빈 글 · 단자 이름 유무),
+        # 씨에 넣으면 원본 · 그림 · 되읽기가 서로 다른 임의값을 받아 감시 블록 출력이 갈렸다 (왕복 시뮬레이션에서 다른 행 13 → 20)
+        rv = stable_random(op)
+        return rv, f"임의값 {rv:g} 로 동작시켰습니다 — 값을 넣으면 그 값으로 바뀝니다 ({why})"
+    return v, why
+
+
+def _compute_exact(op, b, ins, net_v, dig=None):
     """→ (값 | None, 이유 글 | "").  ins = [(넷, 이름 정보)] · net_v = 아날로g 값 · dig = 디지털 값 (TRANSFER 조건)."""
     pr = params(b)
     if pr.get("out") is not None and op not in ("const",):
