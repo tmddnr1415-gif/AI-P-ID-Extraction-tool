@@ -168,7 +168,7 @@ def test_workbook_layout_v2_korean(tmp_path):
     hl = wb["High 변경 목록"]
     assert ("77XV001", "Valve Size", '6"', '4"') in {(hl.cell(r, 3).value, hl.cell(r, 5).value, hl.cell(r, 6).value, hl.cell(r, 7).value)
                                                     for r in range(2, hl.max_row + 1)}
-    assert not any("변경 의심" in str(c.value or "") for w in wb for row in w.iter_rows() for c in row)
+    assert not any("의심" in str(ws.cell(r, 2).value or "") for r in range(5, ws.max_row + 1))    # no status is ever a guess
 
 
 def test_workbook_english_same_layout(tmp_path):
@@ -349,3 +349,25 @@ def test_xgrid_is_light_and_alive():
     assert js.count("grid('") >= 4 and "window.XGrid(host, { key: 'pds.' + id, ...opt })" in js
     html = Path("app/static/valve/index.html").read_text(encoding="utf-8")
     assert html.index('xgrid.js') < html.index('pds.js')
+
+
+def test_suspected_rename_is_a_note_only(tmp_path):
+    """valve55 (user 2026-11-27): a New and a Delete with a similar Location and the same Line Size are marked
+    (변경 의심 "…") under the tag — the status stays New / Delete (valve44: nothing guessed into a status)."""
+    import openpyxl
+    from app.valve import pdsrev
+    old = [("Process Data for On-Off Valve", [
+        _row("77XV010", location="DEHYDRATED CO2 GAS TO 77-V100|A|B", line_no='P7710-10"(XC0KL-A)-N', line_size='10"', pid_no="777-98-PR-PID-00012"),
+        _row("77XV011", location="SOUR WATER TO DRAIN|A|B", line_no='P7711-2"(XC0KL-A)-N', line_size='2"')])]
+    new = [("Process Data for On-Off Valve", [
+        _row("77XV110", location="DEHYDRATED CO2 GAS FROM TEG|CONTACTOR TO 77-V100|B", line_no='P7710-10(XC0K8)N', line_size='10"', pid_no="777-98-PR-PID-00012"),
+        _row("77XV111", location="SOUR WATER TO DRAIN|A|B", line_no='P7799-3"(XC0KL-A)-N', line_size='3"')])]           # other size: no note
+    R = pdsrev.compare(_parse(tmp_path, "o.pdf", _pds(old, "B")), _parse(tmp_path, "n.pdf", _pds(new, "0")))
+    st = {i["tag_key"]: i for i in R["items"]}
+    assert st["77XV110"]["status"] == "New" and st["77XV110"]["suspect"] == ["77XV010"]
+    assert st["77XV010"]["status"] == "Delete" and st["77XV010"]["suspect"] == ["77XV110"]
+    assert "suspect" not in st["77XV111"] and "suspect" not in st["77XV011"]
+    wb = openpyxl.load_workbook(io.BytesIO(pdsrev.workbook([{"doc_no": DN, "area": "", "old_rev": "B", "new_rev": "0", "old_name": "o", "new_name": "n", "result": R}])))
+    ws = wb[f"A. {DN}"]
+    r = next(r for r in range(5, ws.max_row + 1) if ws.cell(r, 3).value == "77XV110")
+    assert ws.cell(r + 1, 3).value == '(변경 의심 "77XV010")' and ws.cell(r, 2).value == "New"

@@ -135,20 +135,23 @@ async function renderCmp() {
   const prevH = i => i.status === 'Tag 변경'
     ? `<b>${esc(i.old_tag)}</b> <button class="xunl" data-unl="${esc(i.tag)}" title="Tag 변경 지정 해제 — 다시 New · Delete 로 (${esc(i.link?.by || '')} ${esc((i.link?.at || '').slice(0, 10))})">✕</button>`
     : i.status === 'New' && dels.length ? `<select class="xlink" data-new="${esc(i.tag)}" title="이 New Tag 가 이전 Rev. 의 어느 Tag 인지 지정 → Tag 변경으로 비교 · Summary 반영">
-        <option value="">이전 Tag 지정…</option>${dels.map(d => `<option value="${esc(d.tag)}">${esc(d.tag)}${d.old?.location ? ' · ' + esc(String(d.old.location).slice(0, 28)) : ''}</option>`).join('')}</select>` : '';
+        <option value="">이전 Tag 지정…</option>${[...dels].sort((a, b) => (i.suspect || []).includes(b.tag) - (i.suspect || []).includes(a.tag)).map(d => `<option value="${esc(d.tag)}">${(i.suspect || []).includes(d.tag) ? '★ 변경 의심 · ' : ''}${esc(d.tag)}${d.old?.location ? ' · ' + esc(String(d.old.location).slice(0, 28)) : ''}</option>`).join('')}</select>` : '';
+  // valve55: the hint under the tag — same Location and Line Size as a tag of the other side (status unchanged)
+  const susp = i => (i.suspect || []).length ? `(변경 의심 "${i.suspect.join('", "')}")` : '';
   const view = () => {
     const q = P.cq.toUpperCase();
     const items = C.items.filter(i => (!P.only || P.only.has(i.tag)) && (!P.st || i.status === P.st) && (!P.lv || i.overall === P.lv)
       && (!q || [i.tag, i.old_tag, i.new?.location, i.old?.location].join(' ').toUpperCase().includes(q)));
     const fk = P.onlyChg ? keys.filter(k => items.some(i => i.imp[k])) : keys;
-    const cols = [{ label: 'No', w: 40 }, { label: 'Status', w: 92 }, { label: 'Tag', w: 120 }, { label: '이전 Tag', w: 160 }, { label: 'Rev.', w: 54 }, { label: 'Row', w: 50 },
+    const cols = [{ label: 'No', w: 40 }, { label: 'Status', w: 92 }, { label: 'Tag', w: 178 }, { label: '이전 Tag', w: 160 }, { label: 'Rev.', w: 54 }, { label: 'Row', w: 50 },
       ...fk.map(k => ({ label: lab[k], w: fw(k) })), { label: '중요도(종합)', w: 86 }, { label: '비고 / 사유', w: 300 }];
     const rows = [];
     items.forEach((i, n) => {
       const sc = STC[i.status] || '', o = i.old, nv = i.new;
       for (let j = 0; j < 3; j++) {
         const m = j ? ' xm' : '';
-        const cells = [{ v: j ? '' : n + 1, c: 'xn' + m }, { v: j ? '' : i.status, c: `xs ${sc}${m}`, t: i.status }, { v: j ? '' : i.tag, c: 'xb' + m, t: i.tag },
+        const cells = [{ v: j ? '' : n + 1, c: 'xn' + m }, { v: j ? '' : i.status, c: `xs ${sc}${m}`, t: i.status }, j === 1 && susp(i) ? { v: susp(i), c: 'xsus xm', t: `${susp(i)} — Location 이 비슷하고 Line Size · (Line 번호 또는 P&ID) 가 같음 · 참고 표시, 상태는 그대로 · ${i.status === 'New' ? "'이전 Tag 지정' 에서 확정" : '최신 Rev. 의 그 Tag 에서 확정'}` }
+            : { v: j ? '' : i.tag, c: 'xb' + m, t: i.tag },
           j ? { v: '', c: 'xm' } : { v: i.old_tag || '', h: prevH(i), c: 'xprev', t: i.status === 'Tag 변경' ? `이전 Tag ${i.old_tag} (지정: ${i.link?.by || ''} ${(i.link?.at || '').slice(0, 10)})` : i.status === 'New' ? 'New — 이전 Tag 를 지정하면 Tag 변경' : '' },
           { v: j === 0 ? `Rev.${C.old.rev}` : j === 1 ? `Rev.${C.new.rev}` : '' }, { v: ['이전', '최신', '중요도'][j], c: 'xrow' }];
         fk.forEach((k, x) => {

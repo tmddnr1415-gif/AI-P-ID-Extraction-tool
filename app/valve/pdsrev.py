@@ -155,6 +155,7 @@ def _top(d: dict) -> str:
     return max(d.values(), key=LEVELS.index) if d else ""
 
 
+_STOP = {"TO", "FROM", "OF", "AND", "THE", "IN", "AT", "FOR", "ON", "WITH", "VIA", "&"}   # small words: not a place
 RENAMED = "Tag 변경"         # valve49: a New tag the engineer tied to an earlier (Delete) tag — never guessed by the program
 
 
@@ -195,6 +196,45 @@ def compare(old: dict, new: dict, links: dict | None = None) -> dict:
             note = (f"최신 Rev. 에 {sec} 섹션 미수록 – 삭제 또는 별도 문서 이관 여부 확인 필요" if sec not in fn["sections"] else "")
             items.append({"status": "Delete", "tag": O[k]["tag"], "tag_key": k, "old": O[k], "new": None, "imp": {},
                           "overall": "Delete", "note": note, "section": sec})
+    # valve55 (user 2026-11-27: 'Location 과 Line Size 기준으로 삭제 · 추가가 아닌 Tag 변경이 의심되면 별도 표기'): a HINT only —
+    # a New and a Delete of this pair with the same Location and the same Line Size name each other; New · Delete stay
+    # (the engineer decides with a link, valve49).  Notation-insensitive (spaces next to punctuation · quote marks).
+    # Location by its words (a revised PDS rewords it: 'DEHYDRATED CO2 GAS TO 98-V9814' → '… FROM TEG CONTACTOR 1 TO 4TH STAGE
+    # KOD (98-V9814)'): at least 60 % of the shorter Location's words in the other, small words left out; Line Size equal.
+    def _words(row):
+        return set(re.findall(r"[A-Z0-9]+", _txt((row or {}).get("location")))) - _STOP
+
+    def _same_place(a, b):
+        A, B = _words(a), _words(b)
+        ls_a, ls_b = _size((a or {}).get("line_size")), _size((b or {}).get("line_size"))
+        if len(A) < 2 or len(B) < 2 or not ls_a or _blank(ls_a) or ls_a != ls_b:
+            return False
+        return len(A & B) >= 0.6 * min(len(A), len(B))
+    def _line(row):                                          # line number + size, without the class: 'P98981131-10"(XC0KL-A)-N' → 'P9898113110'
+        ln, pc = _sep((row or {}).get("line_no")), _sep((row or {}).get("piping_class"))
+        i = ln.find(pc) if pc else -1
+        return ln[:i] if i > 0 else ln
+
+    def _pid(row):
+        m = re.search(r"(\d{3,6})\s*$", str((row or {}).get("pid_no") or ""))
+        return m.group(1) if m else ""
+
+    def _score(o, n):                                        # same line · same P&ID, one point each — ranks the candidates, decides nothing
+        return bool(_line(o) and _line(o) == _line(n)) + bool(_pid(o) and _pid(o) == _pid(n))
+    news = [it for it in items if it["status"] == "New"]
+    dels = [it for it in items if it["status"] == "Delete"]
+    pairs = {(id(o), id(n)): _score(o["old"], n["new"]) for n in news for o in dels if _same_place(o["old"], n["new"])}
+    best_n = {}
+    best_o = {}
+    for (oi, ni), sc in pairs.items():
+        best_n[ni] = max(best_n.get(ni, -1), sc)
+        best_o[oi] = max(best_o.get(oi, -1), sc)
+    for n in news:                                           # shown only where each is the other's best match (ties: all)
+        for o in dels:
+            sc = pairs.get((id(o), id(n)))
+            if sc is not None and sc == best_n[id(n)] and sc == best_o[id(o)]:
+                n.setdefault("suspect", []).append(o["tag"])
+                o.setdefault("suspect", []).append(n["tag"])
     order = {k: i for i, k in enumerate(N)}
     oorder = {k: i for i, k in enumerate(O)}
     rank = {"Delete": 2, "New": 0}
@@ -296,7 +336,7 @@ LANGS = ("ko", "en")
 T = {
     "ko": {
         "prev": "이전", "new": "최신", "imp": "중요도", "spare": "이전 Tag", "overall": "중요도(종합)", "note": "비고 / 사유",
-        "no_prev": "(이전 Rev. 없음)", "no_new": "({r} 미확인)", "high_sheet": "High 변경 목록", "size_sheet": "Summary (Sizing 영향)",
+        "suspect": '(변경 의심 "{t}")', "no_prev": "(이전 Rev. 없음)", "no_new": "({r} 미확인)", "high_sheet": "High 변경 목록", "size_sheet": "Summary (Sizing 영향)",
         "sheet_title": "{L}. {dn}{area} – {o} vs {n} Process Data 변경 비교",
         "sheet_note": "각 Tag: 1행 이전 Rev. / 2행 최신 {n}(변경값 붉은 글씨) / 3행 중요도(변경 항목별 High·Med·Min). "
                       "Status·Tag·종합 중요도는 1행에만 표기. 중요도 기준은 Summary 시트 참조.",
@@ -314,7 +354,8 @@ T = {
             ("보정", "수치 변경폭이 2% 이하이면 한 단계 낮춤(High→Med, Med→Min). Line/Valve Size의 따옴표 표기 차이(18' vs 18\")와 "
                      "Line No/P&ID의 구분기호 차이는 변경으로 보지 않음."),
             ("Status", "Changed / No Change / New(이전 Rev.에 없고 {n}에 있음) / Delete(이전 Rev.에 있고 {n}에 없음). "
-                       "Tag 변경 추정은 하지 않음 – Tag 번호 기준으로만 비교. Tag 변경 = 사용자가 New 에 이전 Tag(Delete)를 병기한 것 – 그 Tag 와 비교 (D 열 = 이전 Tag)."),
+                       "Tag 변경 추정은 하지 않음 – Tag 번호 기준으로만 비교. Tag 변경 = 사용자가 New 에 이전 Tag(Delete)를 병기한 것 – 그 Tag 와 비교 (D 열 = 이전 Tag). "
+                       '(변경 의심 "X") = New · Delete 중 Location 이 비슷하고 Line Size 가 같은 짝 – 참고 표시일 뿐 상태는 그대로.'),
         ],
         "ref": "참고", "ref_cols": '{docs} 에만 있는 "{cols}" 열은 다른 Rev.에 없어 비교 대상에서 제외(값은 표시). ',
         "ref_scope": "이전 Rev.의 Control Valve·PSV 섹션은 On-Off/MOV 비교 범위 밖으로 제외.",
@@ -344,7 +385,7 @@ T = {
     },
     "en": {
         "prev": "Previous", "new": "Latest", "imp": "Importance", "spare": "Previous Tag", "overall": "Overall Importance", "note": "Remarks / Reason",
-        "no_prev": "(not in previous Rev.)", "no_new": "(not found in {r})", "high_sheet": "High Changes", "size_sheet": "Summary (Sizing Impact)",
+        "suspect": '(suspected rename "{t}")', "no_prev": "(not in previous Rev.)", "no_new": "(not found in {r})", "high_sheet": "High Changes", "size_sheet": "Summary (Sizing Impact)",
         "sheet_title": "{L}. {dn}{area} – {o} vs {n} Process Data Change Comparison",
         "sheet_note": "Each tag: row 1 previous Rev. / row 2 latest {n} (changed values in red) / row 3 importance (High·Med·Min per changed item). "
                       "Status, Tag and overall importance on row 1 only. Importance criteria: see the Summary sheet.",
@@ -362,7 +403,8 @@ T = {
             ("Adjust", "A numeric change of 2% or less is one level lower (High→Med, Med→Min). Quote differences in Line/Valve Size (18' vs 18\") and "
                        "separator differences in Line No/P&ID are not changes."),
             ("Status", "Changed / No Change / New (not in the previous Rev., in {n}) / Delete (in the previous Rev., not in {n}). "
-                       "Tag renumbering is not inferred – compared by tag number only. Tag Renamed = a previous (Delete) tag given on a New tag by the user – compared with it (column D = previous tag)."),
+                       "Tag renumbering is not inferred – compared by tag number only. Tag Renamed = a previous (Delete) tag given on a New tag by the user – compared with it (column D = previous tag). "
+                       '(suspected rename "X") = a New and a Delete with a similar Location and the same Line Size – a note only, the status stays.'),
         ],
         "ref": "Note", "ref_cols": 'The "{cols}" column(s) only in {docs} are not in the other Rev. and are excluded from comparison (values shown). ',
         "ref_scope": "Control Valve and PSV sections of the previous Rev. are outside the On-Off/MOV comparison and excluded.",
@@ -497,6 +539,9 @@ def workbook(docs: list[dict], lang: str = "ko") -> bytes:
             c.fill = fill(FILL_STATUS.get(st, ""))
             ws.cell(r, 3, it["tag"])
             ws.cell(r, 4, it.get("old_tag") or None)
+            if it.get("suspect"):                                                # valve55: the hint under the tag
+                c = ws.cell(r + 1, 3, L_["suspect"].format(t=", ".join(it["suspect"])))
+                c.font, c.fill = Font(size=8, italic=True, bold=True, color="C55A11"), fill("FCE4D6")
             c = ws.cell(r, nAL, it["overall"] or None)
             c.alignment = mid
             if it["overall"] in FILL_LEVEL:
