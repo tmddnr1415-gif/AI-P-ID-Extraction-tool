@@ -948,3 +948,32 @@ tr.link:hover td { background: #f5f8ff; }
 .pcmp td:nth-child(5) { min-width: 380px; }
 .ptbl td:nth-child(5) { white-space: normal; min-width: 220px; max-width: 320px; }
 .pcmp td:nth-child(6) { min-width: 240px; }
+
+/* valve47 — the Excel look of PDS 분석 (pds.js): gridlines · column letters · row numbers · frozen header / Tag */
+.xlwrap { overflow: auto; max-height: calc(100vh - 230px); border: 1px solid #c6c6c6; background: #fff; }
+table.xl { width: max-content; min-width: 0; table-layout: auto; border-collapse: separate; border-spacing: 0; font: 12px/1.35 Calibri, "Segoe UI", "Malgun Gothic", sans-serif; color: #000; }
+table.xl th, table.xl td { border-right: 1px solid #d4d4d4; border-bottom: 1px solid #d4d4d4; padding: 2px 6px; white-space: nowrap; height: 20px; text-align: left; }
+table.xl thead th { position: sticky; z-index: 3; background: #f3f3f3; color: #333; font-weight: 400; text-align: center; }
+table.xl .xlet th { top: 0; height: 18px; font-size: 11px; color: #666; }
+table.xl .xhd th { top: 20px; background: #1f3864; color: #fff; font-weight: 700; white-space: normal; min-width: 64px; max-width: 160px; height: 36px; }
+table.xl .xg { position: sticky; left: 0; z-index: 2; background: #f3f3f3; color: #666; font-weight: 400; text-align: center; min-width: 34px; font-size: 11px; }
+table.xl thead .xg { z-index: 5; }
+table.xl thead .xcorner { background: #e6e6e6; }
+table.xl tbody tr:hover td { background-image: linear-gradient(rgba(33, 115, 70, .06), rgba(33, 115, 70, .06)); }
+table.xl tr.xt > td, table.xl tr.xt > th { border-top: 2px solid #8eaadb; }
+table.xl td.xn { text-align: center; color: #444; }
+table.xl td.xs { font-weight: 600; } table.xl td.xs.st-c { background: #fff2cc; } table.xl td.xs.st-n { background: #c6e0b4; }
+table.xl td.xs.st-d { background: #d9d9d9; } table.xl td.xs.st-0 { color: #666; }
+table.xl td.xtag { font-weight: 700; position: sticky; left: 34px; z-index: 1; background: #fff; }
+table.xl td.xrow { color: #555; }
+table.xl td.xc { background: #ffff00; }                       /* 변경된 셀: 노랑 음영 */
+table.xl td.xr { color: #ff0000; font-weight: 700; }          /* 변경된 값: 붉은 글씨 */
+table.xl tr.xi td { height: 16px; font-size: 11px; font-weight: 700; }
+table.xl td.xl-High { background: #ffc7ce; color: #9c0006; } table.xl td.xl-Med { background: #ffeb9c; color: #7f6000; } table.xl td.xl-Min { background: #e2efda; color: #375623; }
+table.xl td.xo { text-align: center; vertical-align: middle; } table.xl td.xnote { white-space: normal; min-width: 240px; max-width: 360px; vertical-align: middle; }
+table.xl td.xna { color: #888; font-style: italic; }
+table.xtags td:nth-child(6) { white-space: normal; min-width: 180px; max-width: 240px; }
+.xleg { font-size: 12px; } .xleg i.xc { background: #ffff00; border: 1px solid #d4d4d4; font-style: normal; padding: 0 8px; } .xleg b.xr { color: #ff0000; margin-left: 10px; }
+.xchk { font-size: 13px; display: inline-flex; gap: 4px; align-items: center; }
+table.xl td.xw { white-space: normal; min-width: 180px; max-width: 240px; }
+table.xl .xg { width: 34px; }

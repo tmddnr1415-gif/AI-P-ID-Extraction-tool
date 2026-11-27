@@ -81,8 +81,9 @@ async function renderTags() {
       <select data-f="doc"><option value="">문서 전체 (${docs.length})</option>${docs.map(d => `<option ${P.doc === d ? 'selected' : ''}>${esc(d)}</option>`).join('')}</select>
       <select data-f="sec"><option value="">구분 전체</option>${secs.map(d => `<option ${P.sec === d ? 'selected' : ''}>${esc(d)}</option>`).join('')}</select>
       <span class="soft">표시 ${rows.length}${rows.length > shown.length ? ` (앞 ${shown.length}개만 그림 — 찾기로 좁히세요)` : ''} / ${D.rows.length}</span></div>
-    <div class="card" style="padding:0;overflow:auto"><table class="t ptbl"><thead><tr><th>Doc No.</th><th>Rev.</th><th>구분</th><th>Tag</th>${TCOLS.map(k => `<th>${esc(lab[k])}</th>`).join('')}</tr></thead><tbody>
-      ${shown.map(r => `<tr><td class="mono">${esc(r.doc_no)}</td><td>Rev.${esc(r.rev || '?')}</td><td>${esc(r.section)}</td><td><b>${esc(r.tag)}</b></td>${TCOLS.map(k => `<td>${esc(r[k] ?? '')}</td>`).join('')}</tr>`).join('')}
+    <div class="xlwrap"><table class="xl xtags"><thead><tr class="xlet"><th class="xg xcorner"></th>${[...Array(4 + TCOLS.length)].map((_, j) => `<th>${j < 26 ? String.fromCharCode(65 + j) : 'A' + String.fromCharCode(39 + j)}</th>`).join('')}</tr>
+      <tr class="xhd"><th class="xg"></th><th>Doc No.</th><th>Rev.</th><th>구분</th><th>Tag</th>${TCOLS.map(k => `<th>${esc(lab[k])}</th>`).join('')}</tr></thead><tbody>
+      ${shown.map((r, n) => `<tr><th class="xg">${n + 1}</th><td>${esc(r.doc_no)}</td><td>Rev.${esc(r.rev || '?')}</td><td>${esc(r.section)}</td><td class="xtag">${esc(r.tag)}</td>${TCOLS.map(k => `<td>${esc(r[k] ?? '')}</td>`).join('')}</tr>`).join('')}
     </tbody></table></div>`;
   $('.tq', el).onchange = e => { P.q = e.target.value; renderTags(); };
   $$('select[data-f]', el).forEach(s => s.onchange = () => { P[s.dataset.f] = s.value; renderTags(); });
@@ -106,11 +107,27 @@ async function renderCmp() {
   const items = C.items.filter(i => (!P.st || i.status === P.st) && (!P.lv || i.overall === P.lv) && (!q || [i.tag, i.new?.location, i.old?.location].join(' ').toUpperCase().includes(q)));
   const cnt = s => C.items.filter(i => i.status === s).length, cl = l => C.items.filter(i => i.overall === l).length;
   const revOpt = (sel, cond) => D.revs.filter(cond).map(r => `<option value="${r.id}" ${r.id === sel.id ? 'selected' : ''}>Rev.${esc(r.rev || '?')} · ${esc(r.filename)}</option>`).join('');
-  const chg = i => Object.entries(i.imp).map(([k, l]) => `<span class="pchg">${lv(l)} ${esc(lab[k])}: <s>${esc(i.old?.[k] ?? '')}</s> → <b>${esc(i.new?.[k] ?? '')}</b></span>`).join('');
-  const detail = i => `<tr class="pdet"><td colspan="6"><div class="pdetw"><table class="t pgrid"><thead><tr><th>Row</th>${keys.map(k => `<th>${esc(lab[k])}</th>`).join('')}</tr></thead><tbody>
-      <tr><td>이전 Rev.${esc(C.old.rev)}</td>${keys.map(k => `<td>${esc(i.old?.[k] ?? '')}</td>`).join('')}</tr>
-      <tr><td>최신 Rev.${esc(C.new.rev)}</td>${keys.map(k => `<td class="${i.imp[k] || i.status === 'New' ? 'pred' : ''}">${esc(i.new?.[k] ?? '')}</td>`).join('')}</tr>
-      <tr><td>중요도</td>${keys.map(k => `<td>${lv(i.imp[k])}</td>`).join('')}</tr></tbody></table></div></td></tr>`;
+  // valve47 (user 2026-11-27: '좀 더 엑셀스럽게 · 변경된 셀은 노랑색 음영 · 변경된 값은 붉은색') — the sheet of the Excel, on screen:
+  // column letters · row numbers · gridlines · frozen header and Tag columns · three rows per tag (이전 · 최신 · 중요도)
+  const cols = P.onlyChg ? keys.filter(k => items.some(i => i.imp[k])) : keys;
+  const L0 = ['No', 'Status', 'Tag', 'Rev.', 'Row'], NC = L0.length + cols.length + 2;
+  let rn = 0;
+  const gut = () => `<th class="xg">${++rn}</th>`;
+  const cell = (i, k, row) => {
+    const v = row === 'o' ? i.old?.[k] : i.new?.[k], ch = !!i.imp[k];
+    const cls = (ch ? 'xc' : '') + (row === 'n' && (ch || i.status === 'New') && v != null && v !== '' ? ' xr' : '');
+    return `<td class="${(cls + (k === 'location' || k === 'remarks' || k === 'notes' ? ' xw' : '')).trim()}" title="${ch ? esc(`${lab[k]}: ${i.old?.[k] ?? ''} → ${i.new?.[k] ?? ''} (${i.imp[k]})`) : ''}">${esc(v ?? '')}</td>`;
+  };
+  const block = (i, no) => {
+    const o = i.old, n = i.new, sp = 'rowspan="3"';
+    const r1 = `<tr class="xt">${gut()}<td ${sp} class="xn">${no}</td><td ${sp} class="xs ${STC[i.status] || ''}">${esc(i.status)}</td><td ${sp} class="xtag">${esc(i.tag)}</td>
+      <td>Rev.${esc(C.old.rev)}</td><td class="xrow">이전</td>${o ? cols.map(k => cell(i, k, 'o')).join('') : `<td class="xna" colspan="${cols.length}">(이전 Rev. 없음)</td>`}
+      <td ${sp} class="xo">${['New', 'Delete'].includes(i.overall) ? esc(i.overall) : lv(i.overall)}</td><td ${sp} class="xnote">${esc(i.note || '')}</td></tr>`;
+    const r2 = `<tr>${gut()}<td>Rev.${esc(C.new.rev)}</td><td class="xrow">최신</td>${n ? cols.map(k => cell(i, k, 'n')).join('') : `<td class="xna" colspan="${cols.length}">(Rev.${esc(C.new.rev)} 미확인)</td>`}</tr>`;
+    const r3 = `<tr class="xi">${gut()}<td></td><td class="xrow">중요도</td>${cols.map(k => `<td class="${i.imp[k] ? 'xl-' + i.imp[k] : ''}">${esc(i.imp[k] || '')}</td>`).join('')}</tr>`;
+    return r1 + r2 + r3;
+  };
+  const letters = Array.from({ length: NC }, (_, j) => { let x = j + 1, t = ''; while (x) { x--; t = String.fromCharCode(65 + x % 26) + t; x = Math.floor(x / 26); } return t; });
   el.innerHTML = `<div class="vh"><h2>Rev. 비교</h2><span class="soft">같은 Tag 번호끼리만 비교 · 이전에만 있으면 Delete · 최신에만 있으면 New (Tag 변경은 추정하지 않음)</span><span class="sp"></span>${xlBtns(C.doc_no, old.id, nw.id)}</div>
     <div class="ptools"><select data-c="doc">${many.map(d => `<option ${d.doc_no === P.cdoc ? 'selected' : ''}>${esc(d.doc_no)}</option>`).join('')}</select>
       <label>이전 <select data-c="old">${revOpt(old, r => r.id < nw.id)}</select></label>
@@ -119,14 +136,17 @@ async function renderCmp() {
       ${C.excluded_columns.length ? `<span class="soft" title="한쪽 Rev. 에만 있는 열 — 비교하지 않고 값만 표시">비교 제외 열: ${esc(C.excluded_columns.join(', '))}</span>` : ''}</div>
     <div class="rchips"><button data-st="" class="${P.st ? '' : 'on'}">전체<b>${C.items.length}</b></button>${['Changed', 'No Change', 'New', 'Delete'].map(s => `<button data-st="${s}" class="${P.st === s ? 'on' : ''}">${stp(s)}<b>${cnt(s)}</b></button>`).join('')}
       <span class="sp" style="width:14px"></span>${['High', 'Med', 'Min'].map(l => `<button data-lv="${l}" class="${P.lv === l ? 'on' : ''}" title="종합 중요도">${lv(l)}<b>${cl(l)}</b></button>`).join('')}
-      <input class="tq" placeholder="Tag · Location 찾기" value="${esc(P.cq)}"></div>
-    <div class="card" style="padding:0;overflow:auto"><table class="t pcmp"><thead><tr><th>Status</th><th>Tag</th><th>구분</th><th>종합</th><th>바뀐 항목 (이전 → 최신)</th><th>비고</th></tr></thead><tbody>
-      ${items.map(i => `<tr class="link" data-t="${esc(i.tag)}"><td>${stp(i.status)}</td><td><b>${esc(i.tag)}</b></td><td>${esc(i.section)}</td><td>${['New', 'Delete'].includes(i.overall) ? '' : lv(i.overall)}</td>
-        <td>${chg(i) || (i.status === 'No Change' ? '<span class="soft">변경 없음</span>' : '')}</td><td class="soft">${esc(i.note || '')}</td></tr>${P.open.has(i.tag) ? detail(i) : ''}`).join('')
-        || '<tr><td colspan="6" class="soft">해당 없음</td></tr>'}
-    </tbody></table></div>
-    <div class="soft" style="margin:6px 2px">줄을 누르면 모든 칸(이전 · 최신 · 중요도)을 펼칩니다. 중요도 기준: High = Size · Bore · 설계 P/T · Max ΔP · Pipe Class Rating 문자 /
-      Med = 운전 P/T · 유량 · 밀도 · 점도 · 상 · Fluid · 운전 시간 · Tightness · Fail · Actuator · 수량 · Class 코드 체계 / Min = 문서 정합성 · 2% 이하 변화는 한 단계 낮춤.</div>`;
+      <label class="xchk"><input type="checkbox" data-only ${P.onlyChg ? 'checked' : ''}> 바뀐 열만</label>
+      <input class="tq" placeholder="Tag · Location 찾기" value="${esc(P.cq)}">
+      <span class="xleg"><i class="xc">　</i> 변경된 셀 <b class="xr">붉은 글씨</b> 변경된 값</span></div>
+    <div class="xlwrap"><table class="xl">
+      <thead><tr class="xlet"><th class="xg xcorner"></th>${letters.map(t => `<th>${t}</th>`).join('')}</tr>
+        <tr class="xhd"><th class="xg"></th>${L0.map(h => `<th>${h}</th>`).join('')}${cols.map(k => `<th>${esc(lab[k])}</th>`).join('')}<th>중요도(종합)</th><th>비고 / 사유</th></tr></thead>
+      <tbody>${items.map((i, n) => block(i, n + 1)).join('') || `<tr><th class="xg"></th><td colspan="${NC}" class="xna">해당 없음</td></tr>`}</tbody></table></div>
+    <div class="soft" style="margin:6px 2px">노랑 음영 = 바뀐 칸 · 붉은 글씨 = 최신 Rev. 의 바뀐 값 (New 는 최신 값 전체). 셀에 마우스를 올리면 이전 → 최신 · 중요도.
+      중요도 기준: High = Size · Bore · 설계 P/T · Max ΔP · Pipe Class Rating 문자 / Med = 운전 P/T · 유량 · 밀도 · 점도 · 상 · Fluid · 운전 시간 · Tightness · Fail · Actuator · 수량 · Class 코드 체계 /
+      Min = 문서 정합성 · 2% 이하 변화는 한 단계 낮춤.</div>`;
+  $('[data-only]', el).onchange = e => { P.onlyChg = e.target.checked; renderCmp(); };
   bindXl(el);
   $('select[data-c="doc"]', el).onchange = e => goCmp(e.target.value);
   $('select[data-c="old"]', el).onchange = e => { P.old = +e.target.value; P.nw = nw.id; renderCmp(); };
@@ -134,7 +154,6 @@ async function renderCmp() {
   $$('[data-st]', el).forEach(b => b.onclick = () => { P.st = b.dataset.st; renderCmp(); });
   $$('[data-lv]', el).forEach(b => b.onclick = () => { P.lv = P.lv === b.dataset.lv ? '' : b.dataset.lv; renderCmp(); });
   $('.rchips .tq', el).onchange = e => { P.cq = e.target.value; renderCmp(); };
-  $$('tr[data-t]', el).forEach(r => r.onclick = () => { const t = r.dataset.t; if (P.open.has(t)) P.open.delete(t); else P.open.add(t); renderCmp(); });
 }
 
 buildMenu();

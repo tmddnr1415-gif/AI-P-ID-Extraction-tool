@@ -443,3 +443,8 @@
 - API: `pds/summary` · `pds/tags` · `pds/compare` (`_pds_groups` · `_pds_pick`) · `pds_revcompare.xlsx?doc_no=&old=&new=`. `pdsrev._rows(scope_only=False)` 로 CV/PSV 표 Tag 도 목록에.
 - 대시보드: 실행 프로젝트 › CO2 PJT › 'PDS 분석' (route pdsv → P&ID 서버 /valve/?kind=pds). 공통 자료 · PDS 올리기 화면에 'PDS 분석 열기 →'.
 - 실 PDS 6권으로 화면 확인(오류 0 · Excel 내려받기). pytest 통과 · Ball 3,091 변화 0 · UI 25/25. 시험 +2 (tests/test_valve_pdsrev.py).
+
+## 2026-11-27 · VALVE valve47 — PDS 분석 화면을 엑셀처럼 (사용자 "좀 더 엑셀스럽게 · 변경된 셀은 노랑색 음영 · 변경된 값은 붉은색")
+- Rev. 비교: Excel 시트와 같은 표(열 문자 A·B·C · 행 번호 · 격자선 · 머리 2줄과 Tag 열 고정 · Tag 당 이전/최신/중요도 3행 · No/Status/Tag/종합/비고 3행 합침).
+  바뀐 칸 = 노랑(#FFFF00) 음영(이전 · 최신 둘 다), 최신의 바뀐 값 = 붉은 굵은 글씨, New 는 최신 값 전체 붉게. 셀에 마우스 → '이전 → 최신 (중요도)'. '바뀐 열만' 보기.
+- PDS Tag 목록도 같은 격자 모양. 파일: app/static/valve/pds.js · valve.css (table.xl). pytest 2,114 · UI 25/25 · 화면 오류 0.
