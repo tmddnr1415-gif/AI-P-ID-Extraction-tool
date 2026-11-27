@@ -102,6 +102,13 @@ def one(i):
             except Exception as e:                         # noqa: BLE001
                 r = None
                 out["reread_error"] = repr(e)[:160]
+        # L100 — 아날로그 연산자가 왕복에서 살아남는가: 장마다 (기능 이름 · 연산) 의 수를 A · B · R 에서 견준다
+        import collections
+
+        def kinds(sh):
+            return collections.Counter(f"{x.get('func') or '?'}|{aops.op_of(x) or '-'}" for x in sh["blocks"].values() if x.get("logic") == "unknown")
+        ka, kb, kr = kinds(a), kinds(b), (kinds(r) if r else collections.Counter())
+        out["aop"] = {"n": sum(ka.values()), "b_lost": dict(ka - kb), "b_new": dict(kb - ka), "r_lost": dict(ka - kr), "r_new": dict(kr - ka)}
         rn = _row_map(a)
         rows = lambda s: {(x["side"], x["n"]): x for x in s["rows"] if x.get("net") is not None}
         ar_, br_, rr_ = rows(a), rows(b), (rows(r) if r else {})
@@ -160,6 +167,13 @@ def main():
            "r_missing_rows": sum(len(o["only"].get("r_missing") or []) for o in rows),
            "errors": sum(1 for o in rows if o.get("error")), "reread_errors": sum(1 for o in rows if o.get("reread_error")),
            "seconds": round(time.time() - t0)}
+    import collections
+    agg = {k: collections.Counter() for k in ("b_lost", "b_new", "r_lost", "r_new")}
+    for o in rows:
+        for k in agg:
+            agg[k].update((o.get("aop") or {}).get(k) or {})
+    tot["aop"] = {"n": sum((o.get("aop") or {}).get("n", 0) for o in rows), **{k: sum(v.values()) for k, v in agg.items()}}
+    tot["aop_detail"] = {k: dict(v.most_common(25)) for k, v in agg.items()}
     Path(OUT).write_text(json.dumps({"total": tot, "rows": rows}, ensure_ascii=False, indent=1), encoding="utf-8")
     print(json.dumps(tot, ensure_ascii=False))
 

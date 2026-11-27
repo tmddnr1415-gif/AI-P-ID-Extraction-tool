@@ -1233,6 +1233,14 @@ def _blocks(page, doc):
             _line(page, [(g["bar"][0], g["bar"][1]), (g["bar"][2], g["bar"][3])])
         for cx, cy, t, fs, *anc in g["texts"]:
             if t:
+                # L100 — 상자 안 글자는 상자 폭에 맞춘다: 나눗셈 상자 `÷ IN1 / IN2` 처럼 긴 글은 상자 밖으로 넘쳐서, 그린 PDF 를 다시 올리면
+                # 상자 안에 남은 `IN1 /` 만 읽혀 연산자를 몰랐다 (19VA 22개).  가운데 맞춘 글만 · 상자 안에 가운데가 있는 글만 줄인다
+                bx = g.get("box")
+                if bx and not anc and bx[0] <= cx <= bx[2] and bx[1] <= cy <= bx[3]:
+                    tw = pymupdf.get_text_length(str(t), fontname=_font(t), fontsize=fs)
+                    room = (bx[2] - bx[0]) - 1.2
+                    if tw > room > 0:
+                        fs = max(2.0, fs * room / tw)
                 _ctext(page, cx, cy, t, fs, anc[0] if anc else "middle")
 
 
@@ -1761,10 +1769,11 @@ def _note_text(cx, cy, t, fs=PIN_FS) -> dict:
 def _fig_symbol(b) -> str:
     """분석이 상자 안 **그림**으로 알아본 연산(aop_fig · 글자 없음)의 기호 글 — 연산 사전의 가장 짧은 글자 (△ · ∫ · HL …)."""
     p_ = b.get("param") or {}
+    from . import aops
     op = b.get("aop") or (p_.get("aop_fig") or {}).get("op") or (p_.get("aop_const") or {}).get("op")   # L94 — aop_const: 옆의 `LL : 0` 이 말한 연산
+    op = op or aops.op_of(b)                              # L100 — 범례가 이름을 준 연산 (기능 이름 → 연산)
     if not op:
         return ""
-    from . import aops
     labels = [x for x in (aops.info(op).get("labels") or []) if x]
     return min(labels, key=len) if labels else ""
 
@@ -2097,7 +2106,9 @@ def from_sheet(s: dict, name: str, author: str, project: str = "", page=None) ->
         if not kind and func in ("MACRO", "STEP", "SIGNAL", "DISPLAY", "UNKNOWN", "LIGHT", "TOGGLE", "TRANSFER", "CONST"):
             kind = "MACRO" if func == "MACRO" else "BOX"
         mon = func == "SIGNAL MONITOR"                    # L85 — 감시 블록(H/ · /L · B.Q) — 예전엔 logic=source 라 운전 버튼(PB)이 되고 설정값을 잃었다
-        fig_op = "" if (b.get("read") or "").strip() else _fig_symbol(b)   # 상자 안 그림(△ · ∫ …)으로 읽은 연산 — 예전엔 글(주석)이 되어 사라졌다
+        # 상자 안 그림(△ · ∫ …)으로 읽은 연산 — 예전엔 글(주석)이 되어 사라졌다.
+        # L100 — 판독이 `?` 뿐인 것도 그림으로 읽은 것이다 (선 글자 `LL` 을 범례 그림으로 맞춘 하한 제한 — 글이 `?` 로 남아 그림에 `?` 상자가 되고 연산을 잃었다)
+        fig_op = "" if re.sub(r"[?\s]", "", b.get("read") or "") else _fig_symbol(b)
         if not kind and (mon or fig_op):
             kind = "BOX"
         if not kind:

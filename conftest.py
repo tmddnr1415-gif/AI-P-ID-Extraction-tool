@@ -62,6 +62,7 @@ os.environ.setdefault("PID_RENDER_POOL", "0")      # 장 그림 일꾼도 시험
 os.environ.setdefault("PID_LOGIC_WARM", "0")       # L28 — LOGIC 시뮬레이션 미리 계산도 시험에서는 끈다
 os.environ.setdefault("PID_ROWS_WARM", "0")        # hotfix80 — 최근 결과 목록 미리 데우기도 시험에서는 끈다 (메모 상태를 맞대는 시험)
 os.environ.setdefault("PID_TYPICAL_SEED", "0")     # L63 — 공통 Typical 씨앗: 옛 시험은 빈 사전을 가정한다 (씨앗 시험은 켠다)
+os.environ.setdefault("PID_LOGIC_RANDOM_FILL", "0")  # L101 — 값이 없는 자리를 임의값으로 동작시키기: 옛 시험은 '비우고 사유' 를 가정한다 (그 시험이 켠다)
 os.environ.setdefault("PID_LOGIC_AUTODRAW", "0")   # L96 — 분석 뒤 저절로 그림 묶음 만들기: 옛 시험은 분석만 가정한다 (그 시험이 켠다)
 os.environ.setdefault("PID_DRAW_SEED", "0")       # L77 — 업데이트에 실은 그림 묶음(아미랄 827장): 옛 시험은 빈 작도 목록을 가정한다
 os.environ.setdefault("PID_STARTUP_TASKS", "0")    # hotfix132 — 기동 감사 · 하루 한 판 백업 루프 · 그림 씨앗 스레드는 시험에서 띄우지 않는다

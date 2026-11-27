@@ -264,6 +264,10 @@ def nets(s, given, idx, dig=None, detail=None):
             v = put(k, given[k], rg, "user")
         elif r["net"] in feeds:
             v = put(k, DEFAULT_MA, rg, "default")
+            if v is None and aops.random_fill():
+                # L101 — 범위를 모르는 아날로그 입력 행 (기본 8 mA 를 공학값으로 못 바꾼다): 임의값으로 동작시킨다 (사용자 지시 — 동작 우선)
+                v = aops.stable_random("row", r.get("desc") or "", r.get("kks") or "")
+                keys[k] = {"ma": None, "eng": v, "range": None, "src": "random"}
         else:
             continue
         if v is not None:
@@ -320,7 +324,7 @@ def nets(s, given, idx, dig=None, detail=None):
                         dig_out[bid] = d
                         moved = True
                     continue
-                v, _why = aops.compute(op, b, ii, net_v, dig)
+                v, _why = aops._compute_exact(op, b, ii, net_v, dig)      # 고리 안에서는 범례 식 그대로 — 임의값은 고리가 멈춘 뒤에만 넣는다 (아래)
                 if v is not None and isinstance(v, float) and (v != v or abs(v) >= 1e12):
                     v = None                                 # 너무 큰 값 · 계산 불가 — 근거 패널이 말한다
                 if v is not None:
@@ -341,6 +345,23 @@ def nets(s, given, idx, dig=None, detail=None):
                 continue
             emit(bid, _calc(how, vs), "calc", [n for n, _, _ in outs[bid]])
             moved = True
+        if not moved and aops.random_fill():
+            # L101 — 동작 우선 (사용자 지시): 더 셀 것이 없는데 값이 없는 연산자가 남았다 — 값을 넣지 않은 자리다 (값 없는 상수 · PID 출력 · 적분 · 못 읽은 전환 …).
+            # **입력을 다 아는데도 못 정하는 것**부터 임의값으로 채우고 다시 돈다 (그 뒤쪽은 범례 식대로 계산된다).  그런 것이 없으면 남은 것을 채운다.
+            left = []
+            for bid, b in B.items():
+                op = ops.get(bid)
+                if bid in blk_v or bid in dig_out or not op or aops.is_digital(op) or selector_of(b) or not outs[bid]:
+                    continue
+                ii = io[bid][0]
+                if aops._compute_exact(op, b, ii, net_v, dig)[0] is None:
+                    left.append((bid, b, op, ii, all(net_v.get(n) is not None for n, pn in ii if not (pn and pn["name"] in ("FLAG", "C", "COND", "TR", "TRK")))))
+            pick = [x for x in left if x[4]] or left
+            for bid, b, op, ii, _ in pick:
+                rv = aops.compute(op, b, ii, net_v, dig)[0]
+                if rv is not None:
+                    emit(bid, rv, "random", io[bid][1])
+                    moved = True
         if not moved:
             break
     if detail is not None:
@@ -354,6 +375,8 @@ def nets(s, given, idx, dig=None, detail=None):
                 why = aops.compute(op, b, ii, net_v, dig)[1] if not selector_of(b) else ""
                 if keys.get(f"block:{bid}", {}).get("src") == "user":
                     why = "사람이 넣은 값 (mA)"
+                elif keys.get(f"block:{bid}", {}).get("src") == "random":
+                    why = f"임의값 {blk_v[bid]:g} 로 동작시켰습니다 — 값을 넣으면 그 값으로 바뀝니다 ({aops._compute_exact(op, b, ii, {**net_v, **{n: None for n in io[bid][1]}}, dig)[1] or '도면에 값이 없습니다'})"
             else:
                 v0, why = aops.compute(op, b, ii, net_v, dig) if not selector_of(b) else (None, "입력 값을 다 모르면 계산하지 않습니다")
                 if v0 is not None and not why:
