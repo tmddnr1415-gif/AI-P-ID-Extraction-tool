@@ -17,10 +17,14 @@ const letter = j => { let x = j + 1, t = ''; while (x) { x--; t = String.fromCha
 const GUT = 40;                                                // row-number column
 
 function XGrid(host, opt) {
-  const G = { cols: opt.cols, rows: opt.rows || [], freeze: opt.freeze || 0, rowH: opt.rowH || 21, sel: null, act: null, drag: false, raf: 0, win: [-1, -1] };
+  // valve54 (user 2026-11-27: '열 고정 기능과 고정된 열을 기준으로 좌우 이동'): the viewer's own freeze, remembered per grid
+  const FK = opt.key ? `xgrid.freeze.${opt.key}` : '';
+  const saved = (() => { try { const v = FK && localStorage.getItem(FK); return v == null || v === '' ? null : +v; } catch (_) { return null; } })();
+  const G = { cols: opt.cols, rows: opt.rows || [], freeze: Math.min(saved ?? opt.freeze ?? 0, opt.cols.length), rowH: opt.rowH || 21, sel: null, act: null, drag: false, raf: 0, win: [-1, -1] };
   host.classList.add('xgw');
   host.innerHTML = `<div class="xgbar"><input class="xgname" readonly value=""><span class="xgfxi">fx</span><div class="xgfx"></div>
-      <span class="xgnav"><button class="xgl1" title="왼쪽으로 한 화면 (Alt+PgUp · Shift+휠)">◀</button><select class="xgjump" title="열로 가기"></select><button class="xgr1" title="오른쪽으로 한 화면 (Alt+PgDn · Shift+휠)">▶</button></span></div>
+      <span class="xgnav"><span class="xgfzt">열 고정</span><select class="xgfreeze" title="이 열까지 왼쪽에 고정 — 나머지 열이 그 오른쪽에서 좌우로 움직입니다 (Excel 의 틀 고정)"></select>
+        <button class="xgfzb" title="고른 셀의 열까지 고정 (다시 누르면 해제)">❄</button><button class="xgl1" title="왼쪽으로 한 화면 (Alt+PgUp · Shift+휠)">◀</button><select class="xgjump" title="열로 가기"></select><button class="xgr1" title="오른쪽으로 한 화면 (Alt+PgDn · Shift+휠)">▶</button></span></div>
     <div class="xgs" tabindex="0"><table class="xgt"><colgroup></colgroup><thead></thead><tbody></tbody></table></div>`;
   const sc = host.querySelector('.xgs'), tb = host.querySelector('tbody'), th = host.querySelector('thead'), cg = host.querySelector('colgroup');
   const nameBox = host.querySelector('.xgname'), fx = host.querySelector('.xgfx');
@@ -34,7 +38,7 @@ function XGrid(host, opt) {
     G.L = lefts();
     cg.innerHTML = `<col style="width:${GUT}px">` + G.cols.map(c => `<col style="width:${c.w || 80}px">`).join('');
     sc.querySelector('table').style.width = G.L[G.cols.length] + 'px';
-    const fz = j => j < G.freeze ? ` xfz" style="left:${G.L[j]}px` : '';
+    const fz = j => j < G.freeze ? ` xfz${j === G.freeze - 1 ? ' xfzl' : ''}" style="left:${G.L[j]}px` : '';
     th.innerHTML = `<tr class="xgl"><th class="xgc xgcorner" title="모두 고르기 (Ctrl+A)"></th>${G.cols.map((c, j) => `<th class="xgc${fz(j)}" data-col="${j}">${letter(j)}</th>`).join('')}</tr>
       <tr class="xgh"><th class="xgc xgcorner"></th>${G.cols.map((c, j) => `<th class="xgh1${fz(j)}" data-col="${j}" title="${esc(c.label)}">${esc(c.label)}<i class="xrz" data-rz="${j}"></i></th>`).join('')}</tr>`;
   }
@@ -57,7 +61,7 @@ function XGrid(host, opt) {
     for (let j = 0; j < G.freeze; j++) idx.push(j);
     for (let j = c0; j < c1; j++) idx.push(j);
     const pre = c0 > G.freeze ? `<td class="xgh0" colspan="${c0 - G.freeze}"></td>` : '', post = c1 < m ? `<td class="xgh0" colspan="${m - c1}"></td>` : '';
-    const fzs = G.cols.map((_, j) => j < G.freeze ? ` xfz" style="left:${G.L[j]}px` : '');
+    const fzs = G.cols.map((_, j) => j < G.freeze ? ` xfz${j === G.freeze - 1 ? ' xfzl' : ''}" style="left:${G.L[j]}px` : '');
     const out = [];
     if (a) out.push(`<tr class="xgsp" style="height:${a * H}px"><td colspan="${m + 1}"></td></tr>`);
     for (let r = a; r < b; r++) {
@@ -129,7 +133,23 @@ function XGrid(host, opt) {
   host.querySelector('.xgl1').onclick = () => { sc.scrollLeft -= pageW(); };
   host.querySelector('.xgr1').onclick = () => { sc.scrollLeft += pageW(); };
   const jump = host.querySelector('.xgjump');
-  const fillJump = () => { jump.innerHTML = '<option value="">열로 가기…</option>' + G.cols.map((c, j) => j < G.freeze ? '' : `<option value="${j}">${letter(j)} · ${esc(c.label)}</option>`).join(''); };
+  const fillJump = () => { jump.innerHTML = '<option value="">열로 가기…</option>' + G.cols.map((c, j) => j < G.freeze ? '' : `<option value="${j}">${letter(j)} · ${esc(c.label)}</option>`).join('');
+    fz.innerHTML = `<option value="0" ${G.freeze ? '' : 'selected'}>없음</option>` + G.cols.map((c, j) => `<option value="${j + 1}" ${G.freeze === j + 1 ? 'selected' : ''}>${letter(j)}까지 · ${esc(c.label)}</option>`).join('');
+    fzb.classList.toggle('on', G.freeze > 0); };
+  const fz = host.querySelector('.xgfreeze'), fzb = host.querySelector('.xgfzb');
+  function setFreeze(n) {
+    n = Math.max(0, Math.min(G.cols.length, n | 0));
+    const keepCol = Math.max(0, Math.floor(sc.scrollLeft) ? (() => { let j = G.freeze; const x = sc.scrollLeft + G.L[G.freeze]; while (j < G.cols.length && G.L[j + 1] <= x) j++; return j; })() : n);
+    if (n && G.L && G.L[n] > sc.clientWidth - 120) {                  // frozen columns wider than the screen leave nothing to move
+      fx.textContent = `${letter(n - 1)}까지 고정하면 고정 열이 화면보다 넓어 움직일 칸이 없습니다 — 더 왼쪽 열까지 고정하거나 열 너비를 줄여 주세요`;
+      n = G.freeze; fz.value = String(n); host.classList.add('xgwarn'); setTimeout(() => host.classList.remove('xgwarn'), 1500); return; }
+    G.freeze = n;
+    try { if (FK) localStorage.setItem(FK, String(n)); } catch (_) {}
+    head(); fillJump(); draw(true); status();
+    sc.scrollLeft = Math.max(0, G.L[Math.max(keepCol, n)] - G.L[n]);   // the first moving column stays where it was
+  }
+  fz.onchange = () => setFreeze(+fz.value);
+  fzb.onclick = () => setFreeze(G.act && G.act.c + 1 !== G.freeze ? G.act.c + 1 : G.freeze ? 0 : 1);   // the chosen cell's column · again = off
   jump.onchange = () => { const j = +jump.value; if (jump.value !== '') { sc.scrollLeft = Math.max(0, G.L[j] - G.L[G.freeze]);
     if (G.rows.length) { const r = G.act ? G.act.r : Math.floor(sc.scrollTop / G.rowH); G.sel = { r0: r, c0: j, r1: r, c1: j }; G.act = { r, c: j }; draw(true); status(); } }
     jump.value = ''; sc.focus({ preventScroll: true }); };
@@ -180,7 +200,7 @@ function XGrid(host, opt) {
   head(); fillJump(); size(); draw(true);
   return {
     setRows(rows) { G.rows = rows; G.sel = null; G.act = null; sc.scrollTop = 0; size(); draw(true); status(); },
-    setCols(cols, rows, freeze) { G.cols = cols; if (freeze != null) G.freeze = freeze; if (rows) G.rows = rows; G.sel = null; G.act = null; head(); fillJump(); size(); draw(true); status(); },
+    setCols(cols, rows, freeze) { G.cols = cols; if (freeze != null) G.freeze = freeze; G.freeze = Math.min(G.freeze, cols.length); if (rows) G.rows = rows; G.sel = null; G.act = null; head(); fillJump(); size(); draw(true); status(); },
     get rows() { return G.rows; }, focus() { sc.focus(); },
     destroy() { ro.disconnect(); removeEventListener('mouseup', up); if (G.raf) cancelAnimationFrame(G.raf); host.innerHTML = ''; },
   };

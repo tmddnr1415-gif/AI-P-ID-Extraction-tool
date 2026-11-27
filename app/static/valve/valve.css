@@ -1045,3 +1045,11 @@ table.xgt td.xra { text-align: right; }
 .xgnav button { font-size: 11px; height: 20px; padding: 0 7px; line-height: 18px; }
 .xgnav select { font-size: 11px; height: 20px; max-width: 190px; padding: 0 2px; }
 .xgs { scroll-behavior: auto; overscroll-behavior: contain; }
+
+/* valve54 — freeze panes */
+table.xgt td.xfzl, table.xgt th.xfzl { box-shadow: inset -2px 0 #7f7f7f !important; }
+table.xgt tbody td.xfzl.xact { box-shadow: inset 0 0 0 2px #217346, inset -3px 0 #7f7f7f !important; }
+.xgfzt { color: #555; font-size: 11px; padding: 0 2px 0 4px; }
+.xgnav .xgfreeze { max-width: 150px; }
+.xgnav button.xgfzb.on { background: #ddebf7; border-color: #2f5597; color: #1f3864; }
+.xgw.xgwarn .xgfreeze { outline: 2px solid #c00; }

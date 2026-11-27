@@ -342,9 +342,10 @@ def test_xgrid_is_light_and_alive():
     from pathlib import Path
     g = Path("app/static/valve/xgrid.js").read_text(encoding="utf-8")
     for must in ("requestAnimationFrame", "ArrowUp", "copy()", "xgname", "xgfx", "data-rz", "selectAll", "setRows", "destroy",
-                 "'wheel'", "xgjump", "xgl1", "xgr1", "e.altKey && (k === 'PageDown'"):            # valve53: side movement
+                 "'wheel'", "xgjump", "xgl1", "xgr1", "e.altKey && (k === 'PageDown'",             # valve53: side movement
+                 "function setFreeze", "xgfreeze", "xgfzb", "localStorage.setItem(FK", "xfzl"):    # valve54: freeze panes
         assert must in g, must
     js = Path("app/static/valve/pds.js").read_text(encoding="utf-8")
-    assert js.count("grid('") >= 4 and "window.XGrid(host, opt)" in js
+    assert js.count("grid('") >= 4 and "window.XGrid(host, { key: 'pds.' + id, ...opt })" in js
     html = Path("app/static/valve/index.html").read_text(encoding="utf-8")
     assert html.index('xgrid.js') < html.index('pds.js')

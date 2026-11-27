@@ -68,7 +68,7 @@ async function renderDash() {
 const W = { location: 230, pid_no: 150, line_no: 190, notes: 200, remarks: 230, valve_type: 96, fluid: 110, fluid_state: 70 };
 const fw = k => W[k] || 84;
 const grids = {};
-function grid(id, host, opt) { grids[id]?.destroy(); grids[id] = window.XGrid(host, opt); return grids[id]; }
+function grid(id, host, opt) { grids[id]?.destroy(); grids[id] = window.XGrid(host, { key: 'pds.' + id, ...opt }); return grids[id]; }   // key: the viewer's freeze is remembered
 const lvC = l => l ? 'xl-' + l : '';
 // valve51 · 52 (user 2026-11-27: '사이즈 이전 대비 변경되었을 때만 최신 사이즈 변경된 값을 파랑색만, 이전 값은 그대로'):
 // a Line / Valve Size of the latest Rev. that changed = the number alone, in blue · every other size stays as written
