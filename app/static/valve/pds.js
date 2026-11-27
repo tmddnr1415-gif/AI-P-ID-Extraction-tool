@@ -70,6 +70,11 @@ const fw = k => W[k] || 84;
 const grids = {};
 function grid(id, host, opt) { grids[id]?.destroy(); grids[id] = window.XGrid(host, opt); return grids[id]; }
 const lvC = l => l ? 'xl-' + l : '';
+// valve51 (user 2026-11-27: '사이즈는 숫자만 파랑색으로'): Line Size · Valve Size shown as the number alone, in blue
+const SIZEK = new Set(['line_size', 'valve_size']);
+const num = v => String(v ?? '').replace(/["'″”“]|''/g, '').replace(/\s*(inch|in)\b\.?/gi, '').trim();
+const sz = (k, v) => SIZEK.has(k) && v !== '' && v != null ? num(v) : (v ?? '');
+const SIZE_ITEMS = new Set(['Line Size', 'Valve Size']);
 
 /* ── PDS Tag 목록 ─────────────────────────────────────────────────────── */
 async function renderTags() {
@@ -88,7 +93,7 @@ async function renderTags() {
     const rs = D.rows.filter(r => (!P.doc || r.doc_no === P.doc) && (!P.sec || r.section === P.sec)
       && (!q || [r.tag, r.location, r.line_no, r.pid_no, r.fluid].join(' ').toUpperCase().includes(q)));
     $('[data-cnt]', el).textContent = `표시 ${rs.length} / ${D.rows.length}`;
-    return rs.map(r => ({ cells: [{ v: r.doc_no }, { v: `Rev.${r.rev || '?'}` }, { v: r.section }, { v: r.tag, c: 'xb' }, ...D.fields.map(f => ({ v: r[f.key] ?? '' }))] }));
+    return rs.map(r => ({ cells: [{ v: r.doc_no }, { v: `Rev.${r.rev || '?'}` }, { v: r.section }, { v: r.tag, c: 'xb' }, ...D.fields.map(f => ({ v: sz(f.key, r[f.key]), c: SIZEK.has(f.key) ? 'xsz' : '', t: r[f.key] ?? '' }))] }));
   };
   const g = grid('tags', $('[data-grid]', el), { cols, rows: rowsOf(), freeze: 4 });
   let tm = 0;
@@ -150,8 +155,9 @@ async function renderCmp() {
           if (j === 2) { cells.push({ v: i.imp[k] || '', c: lvC(i.imp[k]), t: fxT }); return; }
           const src = j ? nv : o;
           if (!src) { cells.push({ v: x ? '' : (j ? `(Rev.${C.new.rev} 미확인)` : '(이전 Rev. 없음)'), c: 'xna' }); return; }
-          const v = src[k] ?? '';
-          cells.push({ v, c: (ch ? 'xc' : '') + (j === 1 && (ch || i.status === 'New') && v !== '' ? ' xr' : ''), t: fxT ?? v });
+          const raw = src[k] ?? '', v = sz(k, raw), red = j === 1 && (ch || i.status === 'New') && v !== '';
+          // valve51 (user 2026-11-27: '변경 사항 노랑색 음영은 최신 값에만'): the earlier row keeps no shading
+          cells.push({ v, c: (ch && j === 1 ? 'xc' : '') + (red ? ' xr' : SIZEK.has(k) && v !== '' ? ' xsz' : '') + (SIZEK.has(k) ? ' xra' : ''), t: fxT ?? raw });
         });
         cells.push({ v: j ? '' : (['New', 'Delete'].includes(i.overall) ? i.overall : i.overall || ''), c: (j ? 'xm ' : '') + (j ? '' : lvC(i.overall)) });
         cells.push({ v: j ? '' : i.note || '', c: 'xnote' + m, t: i.note || '' });
@@ -204,8 +210,9 @@ async function renderSum() {
     ...X.sizing_rows.map(r => ({ cells: [{ v: r.group, c: r.group === '추가/삭제' ? '' : 'xg-size' }, { v: r.item }, { v: r.basis, c: 'soft' },
       ...D.map(d => { const t = d.sizing[r.key] || []; return { ...link(d, t.length, `data-tags="${esc(t.join('|'))}"`), t: t.join(', ') || '0' }; }),
       { v: sum(d => (d.sizing[r.key] || []).length), c: 'xnc xb' }] }))];
-  const size = D.flatMap((d, i) => d.size.map(r => ({ cells: [{ v: L[i] }, { v: r.tag, c: 'xb' }, { v: r.old_tag || '' }, { v: r.item }, { v: r.old ?? '' }, { v: r.new ?? '', c: 'xc xr' }] })));
-  const high = D.flatMap((d, i) => d.high.map(r => ({ cells: [{ v: L[i] }, { v: r.tag, c: 'xb' }, { v: r.old_tag || '' }, { v: r.item }, { v: r.old ?? '' }, { v: r.new ?? '', c: 'xc xr' }, { v: r.status }] })));
+  const size = D.flatMap((d, i) => d.size.map(r => ({ cells: [{ v: L[i] }, { v: r.tag, c: 'xb' }, { v: r.old_tag || '' }, { v: r.item }, { v: num(r.old), c: 'xsz', t: r.old ?? '' }, { v: num(r.new), c: 'xc xr xra', t: r.new ?? '' }] })));
+  const high = D.flatMap((d, i) => d.high.map(r => { const S_ = SIZE_ITEMS.has(r.item); return { cells: [{ v: L[i] }, { v: r.tag, c: 'xb' }, { v: r.old_tag || '' }, { v: r.item },
+    { v: S_ ? num(r.old) : r.old ?? '', c: S_ ? 'xsz' : '', t: r.old ?? '' }, { v: S_ ? num(r.new) : r.new ?? '', c: 'xc xr' + (S_ ? ' xra' : ''), t: r.new ?? '' }, { v: r.status }] }; }));
   const ren = D.flatMap((d, i) => (d.renamed || []).map(r => ({ cells: [{ v: L[i] }, { v: r.tag, c: 'xb' }, { v: r.old_tag }, { v: r.overall || '', c: lvC(r.overall) }, { v: r.note }] })));
   el.innerHTML = `<div class="vh"><h2>변경 Summary</h2><span class="soft">문서 번호마다 최신 Rev. vs 바로 앞 Rev. · 파란 숫자를 누르면 Rev. 비교에서 그 Tag 들만 · 셀은 엑셀처럼 고르고 Ctrl+C</span><span class="sp"></span>${xlBtns('')}</div>
     <h3 class="xh3">1. Rev. 비교 Summary</h3><div data-g1></div>

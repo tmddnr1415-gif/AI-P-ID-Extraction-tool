@@ -1035,3 +1035,6 @@ table.xgt a.xnum { color: #0563c1; text-decoration: underline; cursor: pointer; 
 table.xgt select.xlink { font-size: 11px; height: 18px; max-width: 150px; padding: 0 2px; }
 table.xgt button.xunl { font-size: 10px; padding: 0 4px; line-height: 14px; height: 16px; }
 table.xgt td.xgh0 { padding: 0; border-right: 0; background: #fff; }
+table.xgt td.xsz { color: #0070c0; font-weight: 700; text-align: right; }   /* valve51: sizes = blue numbers */
+table.xgt td.xr.xsz, table.xgt td.xr { color: #ff0000; }
+table.xgt td.xra { text-align: right; }
