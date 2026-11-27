@@ -994,3 +994,44 @@ table.xl td.xprev { min-width: 120px; vertical-align: middle; }
 table.xl select.xlink { font-size: 11px; max-width: 170px; padding: 1px 2px; }
 table.xl button.xunl { font-size: 10px; padding: 0 4px; line-height: 14px; }
 .rchips button.on .pst { color: #000; }
+
+/* valve50 — XGrid (xgrid.js): a light spreadsheet — name box · formula bar · letters · row numbers · frozen columns */
+.xgw { border: 1px solid #c6c6c6; background: #fff; margin-bottom: 6px; }
+.xgw.xgcopied .xgs { outline: 2px dashed #217346; outline-offset: -2px; }
+.xgbar { display: flex; align-items: center; gap: 0; border-bottom: 1px solid #d4d4d4; background: #fff; height: 24px; font: 12px Calibri, "Segoe UI", "Malgun Gothic", sans-serif; }
+.xgname { width: 90px; height: 22px; border: 0; border-right: 1px solid #d4d4d4; padding: 0 6px; font: inherit; background: #fff; }
+.xgfxi { color: #888; font-style: italic; padding: 0 8px; border-right: 1px solid #d4d4d4; }
+.xgfx { flex: 1; padding: 0 8px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.xgs { overflow: auto; position: relative; outline: none; contain: strict; }
+table.xgt { table-layout: fixed; border-collapse: separate; border-spacing: 0; font: 12px/1.2 Calibri, "Segoe UI", "Malgun Gothic", sans-serif; color: #000; user-select: none; }
+table.xgt td, table.xgt th { height: 20px; padding: 0 5px; border-right: 1px solid #e1e1e1; border-bottom: 1px solid #e1e1e1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; box-sizing: border-box; background: #fff; }
+table.xgt thead th { position: sticky; z-index: 3; text-align: center; font-weight: 400; }
+table.xgt tr.xgl th { top: 0; height: 20px; background: #f3f3f3; color: #555; font-size: 11px; cursor: s-resize; }
+table.xgt tr.xgh th { top: 20px; height: 24px; background: #1f3864; color: #fff; font-weight: 700; cursor: s-resize; position: sticky; }
+table.xgt thead th.xghl { background: #d3e8dc; color: #1e6b3f; } table.xgt tr.xgh th.xghl { background: #2f5597; color: #fff; box-shadow: inset 0 -3px #33a065; }
+table.xgt .xgcorner { position: sticky; left: 0; z-index: 5; background: #e6e6e6 !important; cursor: se-resize; }
+table.xgt th.xgn { position: sticky; left: 0; z-index: 2; background: #f3f3f3; color: #666; font-size: 11px; font-weight: 400; text-align: center; cursor: e-resize; }
+table.xgt th.xgn.xghl { background: #d3e8dc; color: #1e6b3f; font-weight: 700; }
+table.xgt td.xfz, table.xgt th.xfz { position: sticky; z-index: 1; } table.xgt thead th.xfz { z-index: 4; }
+table.xgt tbody td.xfz { box-shadow: inset -1px 0 #bfbfbf; }
+table.xgt i.xrz { position: absolute; right: -3px; top: 0; bottom: 0; width: 7px; cursor: col-resize; z-index: 6; }
+table.xgt tr.xgsp td { padding: 0; border: 0; height: auto; background: transparent; }
+table.xgt tbody tr:hover td { background-image: linear-gradient(rgba(33, 115, 70, .05), rgba(33, 115, 70, .05)); }
+table.xgt td.xsel { background-image: linear-gradient(rgba(33, 115, 70, .16), rgba(33, 115, 70, .16)) !important; }
+table.xgt td.xact { box-shadow: inset 0 0 0 2px #217346 !important; }
+table.xgt tr.xt > td, table.xgt tr.xt > th { border-top: 2px solid #8eaadb; }
+table.xgt td.xm { border-top: 0; } table.xgt td.xb { font-weight: 700; } table.xgt td.xn { text-align: center; color: #444; }
+table.xgt td.xs { font-weight: 600; } table.xgt td.st-c { background: #fff2cc; } table.xgt td.st-n { background: #c6e0b4; } table.xgt td.st-d { background: #d9d9d9; }
+table.xgt td.st-r { background: #f8cbad; } table.xgt td.st-0 { color: #666; }
+table.xgt td.xrow { color: #555; }
+table.xgt td.xc { background: #ffff00; }                       /* 변경된 셀: 노랑 음영 */
+table.xgt td.xr { color: #ff0000; font-weight: 700; }          /* 변경된 값: 붉은 글씨 */
+table.xgt td.xl-High { background: #ffc7ce; color: #9c0006; font-weight: 700; } table.xgt td.xl-Med { background: #ffeb9c; color: #7f6000; font-weight: 700; }
+table.xgt td.xl-Min { background: #e2efda; color: #375623; font-weight: 700; }
+table.xgt td.xna { color: #888; font-style: italic; } table.xgt td.xnc { text-align: right; font-variant-numeric: tabular-nums; }
+table.xgt td.x0 { color: #aaa; } table.xgt td.xg-size { background: #fce4d6; } table.xgt tr.xtot td { background: #f2f2f2; border-top: 2px solid #8eaadb; }
+table.xgt td.soft { color: #555; }
+table.xgt a.xnum { color: #0563c1; text-decoration: underline; cursor: pointer; font-weight: 700; }
+table.xgt select.xlink { font-size: 11px; height: 18px; max-width: 150px; padding: 0 2px; }
+table.xgt button.xunl { font-size: 10px; padding: 0 4px; line-height: 14px; height: 16px; }
+table.xgt td.xgh0 { padding: 0; border-right: 0; background: #fff; }

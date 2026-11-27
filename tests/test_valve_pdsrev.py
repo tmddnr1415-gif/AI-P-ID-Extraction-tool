@@ -334,3 +334,16 @@ def test_link_api_round_trip(tmp_path, monkeypatch):
     c.put(f"/api/valve/projects/{pid}/pds/links", json={"doc_no": DN, "new_tag": "77XV104", "old_tag": ""})
     cm = c.get(f"/api/valve/projects/{pid}/pds/compare", params={"doc_no": DN}).json()
     assert next(i for i in cm["items"] if i["tag"] == "77XV104")["status"] == "New" and cm["counts"]["Delete"] == 4
+
+
+def test_xgrid_is_light_and_alive():
+    """valve50 (user 2026-11-27: '모든 셀이 살아 있어야 하고 매우 가볍게'): the PDS screens draw on xgrid.js — only the rows and
+    columns on screen, every cell selectable · keyboard · Ctrl+C · name box / formula bar."""
+    from pathlib import Path
+    g = Path("app/static/valve/xgrid.js").read_text(encoding="utf-8")
+    for must in ("requestAnimationFrame", "ArrowUp", "copy()", "xgname", "xgfx", "data-rz", "selectAll", "setRows", "destroy"):
+        assert must in g, must
+    js = Path("app/static/valve/pds.js").read_text(encoding="utf-8")
+    assert js.count("grid('") >= 4 and "window.XGrid(host, opt)" in js
+    html = Path("app/static/valve/index.html").read_text(encoding="utf-8")
+    assert html.index('xgrid.js') < html.index('pds.js')

@@ -71,7 +71,7 @@ router = APIRouter(route_class=_SafeRoute)
 _JOBS: dict[str, dict] = {}
 _JLOCK = threading.Lock()
 _STATIC = {"valve.js": "application/javascript", "valve.css": "text/css", "anatomy.js": "application/javascript",
-           "instrument.js": "application/javascript", "pds.js": "application/javascript"}   # valve40: Instrument review screens   # anatomy.js = valve36 valve model (session 7 engine)
+           "instrument.js": "application/javascript", "pds.js": "application/javascript", "xgrid.js": "application/javascript"}   # valve40: Instrument review screens   # anatomy.js = valve36 valve model (session 7 engine)
 KINDS = ("datasheet", "valvelist", "process", "pms", "instrument", "linelist", "instlist", "vspec")   # valve40: + Instrument review
 # valve40 (user 2026-11-13): the reference documents are entered in ONE place and shared by every review of the project family
 # (Ball '<name>' · '<name> · Globe Valve' · '· Butterfly Valve' · '· PSV' · all Instrument types) — kept on the base project.
@@ -841,7 +841,7 @@ def _rules_fingerprint() -> str:
 
 
 _RULES_FP = _rules_fingerprint()
-VERSION = "valve49"                       # shown in Settings › 정보 and the footer; bump with every package
+VERSION = "valve50"                       # shown in Settings › 정보 and the footer; bump with every package
 
 
 @router.get("/api/valve/version")

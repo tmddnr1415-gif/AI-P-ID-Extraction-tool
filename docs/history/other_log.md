@@ -462,3 +462,11 @@
 - 화면: Rev. 비교에 '이전 Tag' 열(New 줄 = 고르기 · Tag 변경 줄 = 이전 Tag · 지정한 사람/날 · ✕ 해제) · 'Tag 변경' 칩 / 변경 Summary 에 열 · Sizing 줄 · '5. Tag 변경 목록'.
 - Excel: D 열 머리 '(예비)' → '이전 Tag'(영어 'Previous Tag') · Status 'Tag 변경'('Tag Renamed') · Summary 'Tag 변경' 열 · Sizing 줄 추가.
 - 실 PDS: 98ESDV980113 ← 98ESDV980004 지정 → 98 문서 New 24→23 · Delete 14→13 · Tag 변경 1. pytest 2,117 · UI 25/25 · Ball 3,091 변화 0.
+
+## 2026-11-27 · VALVE valve50 — PDS 표: 모든 셀이 살아 있고 가볍게 (사용자 "모든 셀이 살아있어야 하고 매우 가볍게 움직여야 한다")
+- 새 `app/static/valve/xgrid.js`: 셀 고르기(초록 틀) · 드래그/Shift 범위 · 화살표·Tab·Enter·PgUp/Dn·Home/End·Ctrl+방향 · Ctrl+A · Ctrl+C(탭 구분 → Excel 에 붙여넣기) ·
+  열 문자/행 번호 누르면 열·줄 전체 · 머리 끝 끌어 열 너비 · 이름 상자(L23) + fx 줄(바뀐 칸은 '이전 → 최신 (중요도)').
+- 가볍게: 화면에 보이는 줄 + 위아래 14줄, 보이는 열 + 좌우 3열만 그림(줄 높이 고정) · 그 안에서 스크롤하면 다시 그리지 않음 · 한 표에 이벤트 하나 ·
+  거르기·찾기(입력하는 대로)는 서버 다시 읽지 않고 줄만 바꿈. 20,000줄×40열: 만들기 4 ms · 거르기 3 ms · 다시 그리기 약 9 ms(헤드리스 기준).
+- Rev. 비교 · PDS Tag 목록 · 변경 Summary(5개 표) 를 xgrid 로. 3줄 묶음은 rowspan 대신 '합친 모양'(위 칸에만 값, 아래 칸 위 선 없음).
+- pytest 2,118 · UI 25/25 · Ball 3,091 변화 0 · 화면 오류 0.
