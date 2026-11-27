@@ -70,7 +70,8 @@ const fw = k => W[k] || 84;
 const grids = {};
 function grid(id, host, opt) { grids[id]?.destroy(); grids[id] = window.XGrid(host, opt); return grids[id]; }
 const lvC = l => l ? 'xl-' + l : '';
-// valve51 (user 2026-11-27: '사이즈는 숫자만 파랑색으로'): Line Size · Valve Size shown as the number alone, in blue
+// valve51 · 52 (user 2026-11-27: '사이즈 이전 대비 변경되었을 때만 최신 사이즈 변경된 값을 파랑색만, 이전 값은 그대로'):
+// a Line / Valve Size of the latest Rev. that changed = the number alone, in blue · every other size stays as written
 const SIZEK = new Set(['line_size', 'valve_size']);
 const num = v => String(v ?? '').replace(/["'″”“]|''/g, '').replace(/\s*(inch|in)\b\.?/gi, '').trim();
 const sz = (k, v) => SIZEK.has(k) && v !== '' && v != null ? num(v) : (v ?? '');
@@ -93,7 +94,7 @@ async function renderTags() {
     const rs = D.rows.filter(r => (!P.doc || r.doc_no === P.doc) && (!P.sec || r.section === P.sec)
       && (!q || [r.tag, r.location, r.line_no, r.pid_no, r.fluid].join(' ').toUpperCase().includes(q)));
     $('[data-cnt]', el).textContent = `표시 ${rs.length} / ${D.rows.length}`;
-    return rs.map(r => ({ cells: [{ v: r.doc_no }, { v: `Rev.${r.rev || '?'}` }, { v: r.section }, { v: r.tag, c: 'xb' }, ...D.fields.map(f => ({ v: sz(f.key, r[f.key]), c: SIZEK.has(f.key) ? 'xsz' : '', t: r[f.key] ?? '' }))] }));
+    return rs.map(r => ({ cells: [{ v: r.doc_no }, { v: `Rev.${r.rev || '?'}` }, { v: r.section }, { v: r.tag, c: 'xb' }, ...D.fields.map(f => ({ v: r[f.key] ?? '' }))] }));
   };
   const g = grid('tags', $('[data-grid]', el), { cols, rows: rowsOf(), freeze: 4 });
   let tm = 0;
@@ -126,7 +127,7 @@ async function renderCmp() {
       <span class="sp" style="width:14px"></span>${['High', 'Med', 'Min'].map(l => `<button data-lv="${l}" title="종합 중요도">${lv(l)}<b>${cl(l)}</b></button>`).join('')}
       <label class="xchk"><input type="checkbox" data-only ${P.onlyChg ? 'checked' : ''}> 바뀐 열만</label>
       <input class="tq" placeholder="Tag · Location 찾기 (입력하는 대로)" value="${esc(P.cq)}"><span data-clr></span>
-      <span class="xleg"><i class="xc">　</i> 변경된 셀 <b class="xr">붉은 글씨</b> 변경된 값</span><span class="soft" data-cnt></span></div>
+      <span class="xleg"><i class="xc">　</i> 변경된 셀 <b class="xr">붉은 글씨</b> 변경된 값 <b class="xbl">파랑 숫자</b> 변경된 Size</span><span class="soft" data-cnt></span></div>
     <div data-grid></div>
     <div class="soft" style="margin:6px 2px">중요도 기준: High = Size · Bore · 설계 P/T · Max ΔP · Pipe Class Rating 문자 / Med = 운전 P/T · 유량 · 밀도 · 점도 · 상 · Fluid · 운전 시간 · Tightness · Fail · Actuator · 수량 · Class 코드 체계 /
       Min = 문서 정합성 · 2% 이하 변화는 한 단계 낮춤.</div>`;
@@ -155,9 +156,10 @@ async function renderCmp() {
           if (j === 2) { cells.push({ v: i.imp[k] || '', c: lvC(i.imp[k]), t: fxT }); return; }
           const src = j ? nv : o;
           if (!src) { cells.push({ v: x ? '' : (j ? `(Rev.${C.new.rev} 미확인)` : '(이전 Rev. 없음)'), c: 'xna' }); return; }
-          const raw = src[k] ?? '', v = sz(k, raw), red = j === 1 && (ch || i.status === 'New') && v !== '';
+          const raw = src[k] ?? '', szc = SIZEK.has(k) && ch && j === 1 && raw !== '';   // a changed size of the latest Rev.
+          const v = szc ? sz(k, raw) : raw, red = !szc && j === 1 && (ch || i.status === 'New') && v !== '';
           // valve51 (user 2026-11-27: '변경 사항 노랑색 음영은 최신 값에만'): the earlier row keeps no shading
-          cells.push({ v, c: (ch && j === 1 ? 'xc' : '') + (red ? ' xr' : SIZEK.has(k) && v !== '' ? ' xsz' : '') + (SIZEK.has(k) ? ' xra' : ''), t: fxT ?? raw });
+          cells.push({ v, c: (ch && j === 1 ? 'xc' : '') + (szc ? ' xsz' : red ? ' xr' : ''), t: fxT ?? raw });
         });
         cells.push({ v: j ? '' : (['New', 'Delete'].includes(i.overall) ? i.overall : i.overall || ''), c: (j ? 'xm ' : '') + (j ? '' : lvC(i.overall)) });
         cells.push({ v: j ? '' : i.note || '', c: 'xnote' + m, t: i.note || '' });
@@ -210,9 +212,9 @@ async function renderSum() {
     ...X.sizing_rows.map(r => ({ cells: [{ v: r.group, c: r.group === '추가/삭제' ? '' : 'xg-size' }, { v: r.item }, { v: r.basis, c: 'soft' },
       ...D.map(d => { const t = d.sizing[r.key] || []; return { ...link(d, t.length, `data-tags="${esc(t.join('|'))}"`), t: t.join(', ') || '0' }; }),
       { v: sum(d => (d.sizing[r.key] || []).length), c: 'xnc xb' }] }))];
-  const size = D.flatMap((d, i) => d.size.map(r => ({ cells: [{ v: L[i] }, { v: r.tag, c: 'xb' }, { v: r.old_tag || '' }, { v: r.item }, { v: num(r.old), c: 'xsz', t: r.old ?? '' }, { v: num(r.new), c: 'xc xr xra', t: r.new ?? '' }] })));
+  const size = D.flatMap((d, i) => d.size.map(r => ({ cells: [{ v: L[i] }, { v: r.tag, c: 'xb' }, { v: r.old_tag || '' }, { v: r.item }, { v: r.old ?? '' }, { v: num(r.new), c: 'xc xsz', t: r.new ?? '' }] })));
   const high = D.flatMap((d, i) => d.high.map(r => { const S_ = SIZE_ITEMS.has(r.item); return { cells: [{ v: L[i] }, { v: r.tag, c: 'xb' }, { v: r.old_tag || '' }, { v: r.item },
-    { v: S_ ? num(r.old) : r.old ?? '', c: S_ ? 'xsz' : '', t: r.old ?? '' }, { v: S_ ? num(r.new) : r.new ?? '', c: 'xc xr' + (S_ ? ' xra' : ''), t: r.new ?? '' }, { v: r.status }] }; }));
+    { v: r.old ?? '' }, { v: S_ ? num(r.new) : r.new ?? '', c: S_ ? 'xc xsz' : 'xc xr', t: r.new ?? '' }, { v: r.status }] }; }));
   const ren = D.flatMap((d, i) => (d.renamed || []).map(r => ({ cells: [{ v: L[i] }, { v: r.tag, c: 'xb' }, { v: r.old_tag }, { v: r.overall || '', c: lvC(r.overall) }, { v: r.note }] })));
   el.innerHTML = `<div class="vh"><h2>변경 Summary</h2><span class="soft">문서 번호마다 최신 Rev. vs 바로 앞 Rev. · 파란 숫자를 누르면 Rev. 비교에서 그 Tag 들만 · 셀은 엑셀처럼 고르고 Ctrl+C</span><span class="sp"></span>${xlBtns('')}</div>
     <h3 class="xh3">1. Rev. 비교 Summary</h3><div data-g1></div>
