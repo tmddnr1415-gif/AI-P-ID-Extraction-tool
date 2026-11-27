@@ -19,7 +19,8 @@ const GUT = 40;                                                // row-number col
 function XGrid(host, opt) {
   const G = { cols: opt.cols, rows: opt.rows || [], freeze: opt.freeze || 0, rowH: opt.rowH || 21, sel: null, act: null, drag: false, raf: 0, win: [-1, -1] };
   host.classList.add('xgw');
-  host.innerHTML = `<div class="xgbar"><input class="xgname" readonly value=""><span class="xgfxi">fx</span><div class="xgfx"></div></div>
+  host.innerHTML = `<div class="xgbar"><input class="xgname" readonly value=""><span class="xgfxi">fx</span><div class="xgfx"></div>
+      <span class="xgnav"><button class="xgl1" title="왼쪽으로 한 화면 (Alt+PgUp · Shift+휠)">◀</button><select class="xgjump" title="열로 가기"></select><button class="xgr1" title="오른쪽으로 한 화면 (Alt+PgDn · Shift+휠)">▶</button></span></div>
     <div class="xgs" tabindex="0"><table class="xgt"><colgroup></colgroup><thead></thead><tbody></tbody></table></div>`;
   const sc = host.querySelector('.xgs'), tb = host.querySelector('tbody'), th = host.querySelector('thead'), cg = host.querySelector('colgroup');
   const nameBox = host.querySelector('.xgname'), fx = host.querySelector('.xgfx');
@@ -47,8 +48,9 @@ function XGrid(host, opt) {
     let cb = ca; while (cb < m && G.L[cb] - GUT < x1) cb++;
     // a buffer around the view: scrolling inside it draws nothing — a redraw only when the view nears its edge
     const W = G.win;
-    if (!force && W[0] >= 0 && (va - W[0] >= 4 || W[0] === 0) && (W[1] - vb >= 4 || W[1] === n) && ca >= W[2] && (cb <= W[3] || W[3] === m)) return;
-    const a = Math.max(0, va - 14), b = Math.min(n, vb + 14), c0 = Math.max(G.freeze, ca - 3), c1 = Math.min(m, cb + 3);
+    if (!force && W[0] >= 0 && (va - W[0] >= 4 || W[0] === 0) && (W[1] - vb >= 4 || W[1] === n)
+        && (ca - W[2] >= 1 || W[2] === G.freeze) && (W[3] - cb >= 1 || W[3] === m)) return;
+    const a = Math.max(0, va - 14), b = Math.min(n, vb + 14), c0 = Math.max(G.freeze, ca - 6), c1 = Math.min(m, cb + 6);
     G.win = [a, b, c0, c1];
     const s = G.sel, rs = s ? Math.min(s.r0, s.r1) : -1, re = s ? Math.max(s.r0, s.r1) : -1, cs = s ? Math.min(s.c0, s.c1) : -1, ce = s ? Math.max(s.c0, s.c1) : -1;
     const ac = G.act, idx = [];
@@ -118,6 +120,19 @@ function XGrid(host, opt) {
   const live = e => e.target.closest('a, button, select, input, .xglive');
 
   sc.addEventListener('scroll', paint, { passive: true });
+  // valve53 (user 2026-11-27: '좌우로 이동도 가능하게 · 가볍게'): Shift+wheel or a wheel over the header rows moves sideways
+  sc.addEventListener('wheel', e => {
+    if (e.ctrlKey || Math.abs(e.deltaX) > Math.abs(e.deltaY)) return;            // zoom · a trackpad's own side swipe
+    if (e.shiftKey || e.target.closest('thead')) { e.preventDefault(); sc.scrollLeft += e.deltaY || e.deltaX; }
+  }, { passive: false });
+  const pageW = () => Math.max(80, sc.clientWidth - (G.L[G.freeze] || GUT) - 40);
+  host.querySelector('.xgl1').onclick = () => { sc.scrollLeft -= pageW(); };
+  host.querySelector('.xgr1').onclick = () => { sc.scrollLeft += pageW(); };
+  const jump = host.querySelector('.xgjump');
+  const fillJump = () => { jump.innerHTML = '<option value="">열로 가기…</option>' + G.cols.map((c, j) => j < G.freeze ? '' : `<option value="${j}">${letter(j)} · ${esc(c.label)}</option>`).join(''); };
+  jump.onchange = () => { const j = +jump.value; if (jump.value !== '') { sc.scrollLeft = Math.max(0, G.L[j] - G.L[G.freeze]);
+    if (G.rows.length) { const r = G.act ? G.act.r : Math.floor(sc.scrollTop / G.rowH); G.sel = { r0: r, c0: j, r1: r, c1: j }; G.act = { r, c: j }; draw(true); status(); } }
+    jump.value = ''; sc.focus({ preventScroll: true }); };
   sc.addEventListener('mousedown', e => {
     if (e.button !== 0 || live(e)) return;
     const rz = e.target.closest('[data-rz]');
@@ -145,6 +160,7 @@ function XGrid(host, opt) {
     const mv = { ArrowUp: [-1, 0], ArrowDown: [1, 0], ArrowLeft: [0, -1], ArrowRight: [0, 1], PageUp: [-page, 0], PageDown: [page, 0] }[k];
     if (ctrl && (k === 'c' || k === 'C')) { e.preventDefault(); copy(); return; }
     if (ctrl && (k === 'a' || k === 'A')) { e.preventDefault(); selectAll(); return; }
+    if (e.altKey && (k === 'PageDown' || k === 'PageUp')) { e.preventDefault(); sc.scrollLeft += (k === 'PageDown' ? 1 : -1) * pageW(); return; }
     if (mv) { e.preventDefault(); const big = ctrl && (k.startsWith('Arrow'));
       const r = big ? (mv[0] < 0 ? 0 : mv[0] > 0 ? G.rows.length - 1 : end.r) : end.r + mv[0], c = big ? (mv[1] < 0 ? 0 : mv[1] > 0 ? G.cols.length - 1 : end.c) : end.c + mv[1];
       select(r, c, e.shiftKey); return; }
@@ -161,10 +177,10 @@ function XGrid(host, opt) {
   const ro = new ResizeObserver(() => paint());
   ro.observe(sc);
 
-  head(); size(); draw(true);
+  head(); fillJump(); size(); draw(true);
   return {
     setRows(rows) { G.rows = rows; G.sel = null; G.act = null; sc.scrollTop = 0; size(); draw(true); status(); },
-    setCols(cols, rows, freeze) { G.cols = cols; if (freeze != null) G.freeze = freeze; if (rows) G.rows = rows; G.sel = null; G.act = null; head(); size(); draw(true); status(); },
+    setCols(cols, rows, freeze) { G.cols = cols; if (freeze != null) G.freeze = freeze; if (rows) G.rows = rows; G.sel = null; G.act = null; head(); fillJump(); size(); draw(true); status(); },
     get rows() { return G.rows; }, focus() { sc.focus(); },
     destroy() { ro.disconnect(); removeEventListener('mouseup', up); if (G.raf) cancelAnimationFrame(G.raf); host.innerHTML = ''; },
   };

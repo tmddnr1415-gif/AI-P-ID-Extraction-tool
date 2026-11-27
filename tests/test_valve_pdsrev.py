@@ -341,7 +341,8 @@ def test_xgrid_is_light_and_alive():
     columns on screen, every cell selectable · keyboard · Ctrl+C · name box / formula bar."""
     from pathlib import Path
     g = Path("app/static/valve/xgrid.js").read_text(encoding="utf-8")
-    for must in ("requestAnimationFrame", "ArrowUp", "copy()", "xgname", "xgfx", "data-rz", "selectAll", "setRows", "destroy"):
+    for must in ("requestAnimationFrame", "ArrowUp", "copy()", "xgname", "xgfx", "data-rz", "selectAll", "setRows", "destroy",
+                 "'wheel'", "xgjump", "xgl1", "xgr1", "e.altKey && (k === 'PageDown'"):            # valve53: side movement
         assert must in g, must
     js = Path("app/static/valve/pds.js").read_text(encoding="utf-8")
     assert js.count("grid('") >= 4 and "window.XGrid(host, opt)" in js

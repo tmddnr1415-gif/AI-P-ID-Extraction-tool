@@ -1039,3 +1039,9 @@ table.xgt td.xsz { color: #0070c0 !important; font-weight: 700; }   /* valve52: 
 table.xgt td.xr { color: #ff0000; }
 table.xgt td.xra { text-align: right; }
 .xleg b.xbl { color: #0070c0; margin-left: 10px; }
+
+/* valve53 — side movement in XGrid */
+.xgnav { display: inline-flex; align-items: center; gap: 2px; padding: 0 4px; border-left: 1px solid #d4d4d4; height: 100%; }
+.xgnav button { font-size: 11px; height: 20px; padding: 0 7px; line-height: 18px; }
+.xgnav select { font-size: 11px; height: 20px; max-width: 190px; padding: 0 2px; }
+.xgs { scroll-behavior: auto; overscroll-behavior: contain; }
