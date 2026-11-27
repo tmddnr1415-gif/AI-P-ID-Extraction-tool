@@ -46,8 +46,8 @@
    "id": "session_01Muj82EMRakKAAS1HYXcE7d",
    "title": "6. Datasheet 자동 검토",
    "bucket": "COMPLETED",
-   "updated": "2026-11-27T08:18:13Z",
-   "recent": "42e948e2 valve49 — New Tag 에 이전 Tag 지정 = Tag 변경 관리 (사람이 지정). valve46~49 회사 미전달 — 사용자 요청 시 hotfix152",
+   "updated": "2026-11-27T08:44:30Z",
+   "recent": "5c0ab763 valve50 — PDS 분석 표 엑셀처럼 셀 고르기 · Ctrl+C · 수천 줄 (새 파일 xgrid.js). valve46~50 회사 미전달 — 사용자 요청 시 hotfix152",
    "needs": "S1: CO2 PJT > PDS 분석 메뉴(route pdsv) 반영 · 사용자: hotfix152 결정"
   },
   "S7": {
