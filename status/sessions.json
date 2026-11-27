@@ -46,8 +46,8 @@
    "id": "session_01Muj82EMRakKAAS1HYXcE7d",
    "title": "6. Datasheet 자동 검토",
    "bucket": "COMPLETED",
-   "updated": "2026-11-27T09:27:00Z",
-   "recent": "5b819be1 valve53 — PDS 표 좌우 이동 가볍게. valve46~53 회사 미전달 — 사용자 요청 시 hotfix152",
+   "updated": "2026-11-27T09:38:18Z",
+   "recent": "1aa4a83b valve54 — PDS 표 열 고정. valve46~54 회사 미전달 — 사용자 요청 시 hotfix152",
    "needs": "S1: CO2 PJT > PDS 분석 메뉴(route pdsv) 반영 · 사용자: hotfix152 결정"
   },
   "S7": {
