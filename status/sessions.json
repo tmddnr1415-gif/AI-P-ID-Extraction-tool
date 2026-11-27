@@ -22,8 +22,8 @@
    "id": "session_01Muj82Ewiqsoeo54Ei1FzrE",
    "title": "3. Logic 검토코드 4 (NEW)",
    "bucket": "COMPLETED",
-   "updated": "2026-11-26T04:28:20Z",
-   "recent": "a37c6c51 L99 — 판독 빈틈 셋 · 왕복 시뮬레이션. hotfix150 로 회사 업데이트에 실림",
+   "updated": "2026-11-27T03:14:19Z",
+   "recent": "68452140 L101 — 아날로그 왕복 · 임의값 동작. hotfix151 로 회사 업데이트에 실림",
    "needs": "다시 요청: python-docx 설치 목록 누락 · 통합 쪽 L71 퍼징 · VOC 도구 칸 반영"
   },
   "S4": {

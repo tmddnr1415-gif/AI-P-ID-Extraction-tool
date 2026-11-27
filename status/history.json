@@ -9349,6 +9349,92 @@
      ]
     }
    }
+  },
+  {
+   "at": "2026-11-27 04:21",
+   "read_at": "2026-11-13T07:12:00Z",
+   "s": {
+    "S1": {
+     "branch": "origin/ccr-248a5c4d-3dji7g",
+     "tip": "0fa29ab3",
+     "ver": "v18.68 · 회사엔 v18.66",
+     "bucket": "COMPLETED",
+     "needs": "회사: 메모장.exe 실행 · 보안 프로그램 차단 여부 확인",
+     "recent": "v18.68 0fa29ab3 — 유닛분장 화면. 11-26 ④ 로 회사 업데이트 (회사 v18.66 기준)",
+     "pending": []
+    },
+    "S2": {
+     "branch": "origin/claude/gracious-ride-26nqrf",
+     "tip": "cd59d77a",
+     "ver": "hotfix151 만듦 (통합)",
+     "bucket": "COMPLETED",
+     "needs": "",
+     "recent": "cd59d77a — 심볼 준비 캐시 · LOGIC 도면 칸 안내. hotfix146 로 회사 업데이트에 실림",
+     "pending": []
+    },
+    "S3": {
+     "branch": "origin/ccr-cc45909d-fjjmrb",
+     "tip": "68452140",
+     "ver": "L101",
+     "bucket": "COMPLETED",
+     "needs": "다시 요청: python-docx 설치 목록 누락 · 통합 쪽 L71 퍼징 · VOC 도구 칸 반영",
+     "recent": "68452140 L101 — 아날로그 왕복 · 임의값 동작. hotfix151 로 회사 업데이트에 실림",
+     "pending": []
+    },
+    "S4": {
+     "branch": "origin/ccr-d82d97fa-bb3ty3",
+     "tip": "7b10d7cb",
+     "ver": "변경 이력 (55)",
+     "bucket": "BLOCKED",
+     "needs": "사용자: 4 세션 창에서 11-19 지시 1~4 진행 승인 필요 (질문 대기 중)",
+     "recent": "",
+     "pending": []
+    },
+    "S5": {
+     "branch": "origin/claude/new-session-v23o67",
+     "tip": "f5f94b2c",
+     "ver": "2026-11-19.1",
+     "bucket": "COMPLETED",
+     "needs": "",
+     "recent": "f5f94b2c — 도서검토 2026-11-19.1 (외부 번역 기본 꺼짐 · 외국어 용어). hotfix146 로 회사 업데이트에 실림",
+     "pending": []
+    },
+    "S6": {
+     "branch": "origin/ccr-efbe7e75-n915ze",
+     "tip": "778a14ff",
+     "ver": "valve45",
+     "bucket": "COMPLETED",
+     "needs": "회사: PDS Rev. 비교 실자료 확인",
+     "recent": "778a14ff valve45 — PDS Rev. 비교 v2 · 한글/English · 같은 Tag 끼리. hotfix149 로 회사 업데이트에 실림",
+     "pending": []
+    },
+    "S7": {
+     "branch": "origin/claude/practical-newton-n6bt58",
+     "tip": "865f9297",
+     "ver": "865f9297",
+     "bucket": "COMPLETED",
+     "needs": "사용자: 7 세션 창에서 A(전부)/B(일부)/C 선택 필요 — 회사판 외부 AI 빼기 등",
+     "recent": "865f9297 — 좁은 폭에서도 3D 칸 · 휠 축소 한계. hotfix135 로 회사 업데이트에 처음 실림",
+     "pending": [
+      "865f9297",
+      "cb4f4972",
+      "af748c78",
+      "da8df461",
+      "c0dd7d0b",
+      "077cba5e",
+      "144e6604",
+      "8b0b1023",
+      "19d7aa3a",
+      "1fd96028",
+      "b99fb62a",
+      "ad3bbe35",
+      "05909503",
+      "963d2857",
+      "f408556e",
+      "64a829be"
+     ]
+    }
+   }
   }
  ],
  "changes": [
@@ -14801,6 +14887,60 @@
    "kind": "report",
    "sig": "세션 기록",
    "text": "세션 보고 — a37c6c51 L99 — 판독 빈틈 셋 · 왕복 시뮬레이션. hotfix150 로 회사 업데이트에 실림"
+  },
+  {
+   "at": "2026-11-27 04:21",
+   "prev": "2026-11-26 05:47",
+   "sid": "S2",
+   "kind": "version",
+   "sig": "git",
+   "text": "버전 hotfix150 만듦 (통합) → hotfix151 만듦 (통합)"
+  },
+  {
+   "at": "2026-11-27 04:21",
+   "prev": "2026-11-26 05:47",
+   "sid": "S3",
+   "kind": "commit",
+   "sig": "git",
+   "h": "68452140",
+   "d": "2026-11-27",
+   "text": "L101: 동작 우선 — 값을 안 넣은 자리는 임의값으로 동작시킨다 (사용자 지시)"
+  },
+  {
+   "at": "2026-11-27 04:21",
+   "prev": "2026-11-26 05:47",
+   "sid": "S3",
+   "kind": "commit",
+   "sig": "git",
+   "h": "80323d6f",
+   "d": "2026-11-27",
+   "text": "L100: 씨앗 판 21 · 기록 · 인수인계 (아날로그 연산자 왕복 유지 · 판정 못 한 기호 0)"
+  },
+  {
+   "at": "2026-11-27 04:21",
+   "prev": "2026-11-26 05:47",
+   "sid": "S3",
+   "kind": "commit",
+   "sig": "git",
+   "h": "19a461d6",
+   "d": "2026-11-27",
+   "text": "L100: 아날로그 연산자가 왕복에서 살아남게 · 매크로 틀을 지나는 원"
+  },
+  {
+   "at": "2026-11-27 04:21",
+   "prev": "2026-11-26 05:47",
+   "sid": "S3",
+   "kind": "version",
+   "sig": "git",
+   "text": "버전 L99 → L101"
+  },
+  {
+   "at": "2026-11-27 04:21",
+   "prev": "2026-11-26 05:47",
+   "sid": "S3",
+   "kind": "report",
+   "sig": "세션 기록",
+   "text": "세션 보고 — 68452140 L101 — 아날로그 왕복 · 임의값 동작. hotfix151 로 회사 업데이트에 실림"
   }
  ]
 }
