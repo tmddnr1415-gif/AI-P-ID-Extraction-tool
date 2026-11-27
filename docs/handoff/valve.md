@@ -1,11 +1,11 @@
 # 인수인계 — "VALVE Datasheet 검토" 세션 (상한 15KB · 목표 12KB 아래 · 덧붙이지 말고 고쳐 쓴다)
 
-## 지금 상태 (2026-11-27 · valve47)
+## 지금 상태 (2026-11-27 · valve48)
 
 - 브랜치 `ccr-efbe7e75-n915ze`. 무엇: P&ID 서버(8000) `/valve/` — 대시보드 **Datasheet** 메뉴의 Valve(Ball · Globe · Butterfly · PSV) ·
   Instrument 14종 · 현황판 · Instrument/IO List · 공통 자료.
 - **꾸러미는 오케스트레이터가 만든다** (`session_01Muj82FygSCFAVRooofwhVK`, 통합 hotfixNNN). 이 세션은 개발 · 시험 · 커밋 · 푸시 →
-  send_message 로 "커밋 · 바뀐 파일 · 시험 결과 · 회사에 알릴 한 줄". zip 을 직접 만들지 않는다. 회사 최신 = hotfix145 (valve41 · 오케스트레이터 알림) — valve42~47 은 아직 꾸러미 전.
+  send_message 로 "커밋 · 바뀐 파일 · 시험 결과 · 회사에 알릴 한 줄". zip 을 직접 만들지 않는다. 회사 최신 = hotfix145 (valve41 · 오케스트레이터 알림) — valve42~48 은 아직 꾸러미 전.
 - 대시보드 세션(`session_016Ntz71xxniTkCj7pC8ZpXL`)은 `/api/valve/*` 를 읽는다 — **필드 이름 · Area 값이 바뀌면 알린다**.
 - 방향(사용자 지시서): 엔진이 핵심 · 기존 판정 불변 · OCR/LLM 금지 · 문서에 없는 값은 만들지 않음 · 새 규칙마다 Rule ID · 모든 판정에 출처.
 - **자료 금지**: 발주처 원본(Datasheet · PMS · PDS · 빈 양식 · List · 그것으로 만든 시험 PDF · 그 화면 캡처)은 저장소에 올리지 않는다.
@@ -52,7 +52,8 @@
 - **PDS 분석 메뉴 (valve46)**: `/valve/?kind=pds` (`app/static/valve/pds.js`, 메뉴 PDS 현황 · PDS Tag 목록 · Rev. 비교 · PDS 올리기) ·
   API `GET /projects/{pid}/pds/summary|tags|compare?doc_no=&old=&new=` · Excel 에 `doc_no/old/new` 선택. 대시보드 실행 프로젝트 › CO2 PJT › **PDS 분석**
   (route `pdsv`, 권한 runpjt). 공통 자료 화면에 'PDS 분석 열기 →'.
-  valve47: Rev. 비교 · Tag 목록 = 엑셀 모양(열 문자 · 행 번호 · 격자 · 머리/Tag 고정 · Tag 당 3행) · **바뀐 셀 노랑 음영 · 바뀐 값 붉은 글씨** · '바뀐 열만'. PDS 는 여기서 올려도 공통 자료와 같은 곳(기준 프로젝트)에 보관. 검토는 이제 **문서 번호마다 최신 Rev.** 을 합쳐 씀
+  valve47: Rev. 비교 · Tag 목록 = 엑셀 모양(열 문자 · 행 번호 · 격자 · 머리/Tag 고정 · Tag 당 3행) · **바뀐 셀 노랑 음영 · 바뀐 값 붉은 글씨** · '바뀐 열만'.
+  valve48: 메뉴 **변경 Summary**(`pds/change_summary`, `pdsrev.change_summary` · `SIZING`) = Excel Summary · Sizing 시트 숫자(v2 예시와 모두 같음) + Size 변경 · High 목록, 숫자 누르면 Rev. 비교에서 그 Tag 만. PDS 는 여기서 올려도 공통 자료와 같은 곳(기준 프로젝트)에 보관. 검토는 이제 **문서 번호마다 최신 Rev.** 을 합쳐 씀
   (`api._process_for` — 98 · 999 · 315 동시). PDS 표 읽기: 칸마다 끊긴 세로 괘선 이어 붙임 · 가로 괘선으로 줄 나눔(`process._rebox`, `READER_V=2` → 예전 읽음은 자동 다시 읽기).
 - **Project Valve Specification (valve42)**: 공통 자료 종류 'vspec' → `vspec.read_spec`(조항) · `vspec.findings` SP-01~15(조항 문구로 찾고 값은 조항에서) →
   지적 'Spec Compliance'(근거 §조항 · 쪽). On/Off · MOV · CV Spec 실물로 확인(Ball 추가 5 · 기존 변화 0). 새 검사는 `CHECKS` + `TITLES` + i18n 틀.

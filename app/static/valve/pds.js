@@ -17,7 +17,7 @@ const lv = l => l ? `<span class="plv ${LV[l] || ''}">${esc(l)}</span>` : '';
 const stp = s => `<span class="pst ${STC[s] || ''}">${esc(s)}</span>`;
 
 function buildMenu() {
-  const M = [['pdash', '▦', 'PDS 현황'], ['ptags', '☷', 'PDS Tag 목록'], ['pcmp', '⇆', 'Rev. 비교'], ['docs', '▤', 'PDS 올리기']];
+  const M = [['pdash', '▦', 'PDS 현황'], ['psum', 'Σ', '변경 Summary'], ['pcmp', '⇆', 'Rev. 비교'], ['ptags', '☷', 'PDS Tag 목록'], ['docs', '▤', 'PDS 올리기']];
   window.INST_VIEWS = M.map(m => m[0]);
   window.PDS_PAGE = true;
   window.DOC_KINDS = ['process'];                         // this page uploads PDS only (kept on the base project · 공통 자료)
@@ -35,7 +35,7 @@ const xl = (doc, lang, o, n) => download(`/projects/${S.pid}/pds_revcompare.xlsx
 const xlBtns = (doc, o, n) => `<button data-xl="ko" data-doc="${esc(doc || '')}" ${o ? `data-o="${o}" data-n="${n}"` : ''}>⇩ Excel (한글)</button>`
   + `<button data-xl="en" data-doc="${esc(doc || '')}" ${o ? `data-o="${o}" data-n="${n}"` : ''}>⇩ Excel (English)</button>`;
 function bindXl(el) { $$('[data-xl]', el).forEach(b => b.onclick = e => { e.stopPropagation(); xl(b.dataset.doc, b.dataset.xl, +b.dataset.o || 0, +b.dataset.n || 0); }); }
-function goCmp(doc, o, n) { P.cdoc = doc; P.old = o || null; P.nw = n || null; P.st = ''; P.lv = ''; P.open = new Set(); V.go('pcmp'); }
+function goCmp(doc, o, n) { P.cdoc = doc; P.old = o || null; P.nw = n || null; P.st = ''; P.lv = ''; P.only = null; P.open = new Set(); V.go('pcmp'); }
 const counts = c => c ? `<span class="pcnt">${['High', 'Med', 'Min'].map(l => c[`changed_${l.toLowerCase()}`] ? `${lv(l)} ${c[`changed_${l.toLowerCase()}`]}` : '').filter(Boolean).join(' ')}
   · ${stp('Changed')} ${c.Changed || 0} · ${stp('No Change')} ${c['No Change'] || 0} · ${stp('New')} ${c.New || 0} · ${stp('Delete')} ${c.Delete || 0}</span>` : '';
 
@@ -104,7 +104,7 @@ async function renderCmp() {
     P.c = await api('GET', `/projects/${S.pid}/pds/compare?doc_no=${encodeURIComponent(P.cdoc)}&old=${old.id}&new=${nw.id}`); P.ckey = key; P.open = new Set(); }
   const C = P.c, lab = Object.fromEntries(C.fields.map(f => [f.key, f.label])), keys = C.fields.map(f => f.key);
   const q = P.cq.toUpperCase();
-  const items = C.items.filter(i => (!P.st || i.status === P.st) && (!P.lv || i.overall === P.lv) && (!q || [i.tag, i.new?.location, i.old?.location].join(' ').toUpperCase().includes(q)));
+  const items = C.items.filter(i => (!P.only || P.only.has(i.tag)) && (!P.st || i.status === P.st) && (!P.lv || i.overall === P.lv) && (!q || [i.tag, i.new?.location, i.old?.location].join(' ').toUpperCase().includes(q)));
   const cnt = s => C.items.filter(i => i.status === s).length, cl = l => C.items.filter(i => i.overall === l).length;
   const revOpt = (sel, cond) => D.revs.filter(cond).map(r => `<option value="${r.id}" ${r.id === sel.id ? 'selected' : ''}>Rev.${esc(r.rev || '?')} · ${esc(r.filename)}</option>`).join('');
   // valve47 (user 2026-11-27: '좀 더 엑셀스럽게 · 변경된 셀은 노랑색 음영 · 변경된 값은 붉은색') — the sheet of the Excel, on screen:
@@ -138,6 +138,7 @@ async function renderCmp() {
       <span class="sp" style="width:14px"></span>${['High', 'Med', 'Min'].map(l => `<button data-lv="${l}" class="${P.lv === l ? 'on' : ''}" title="종합 중요도">${lv(l)}<b>${cl(l)}</b></button>`).join('')}
       <label class="xchk"><input type="checkbox" data-only ${P.onlyChg ? 'checked' : ''}> 바뀐 열만</label>
       <input class="tq" placeholder="Tag · Location 찾기" value="${esc(P.cq)}">
+      ${P.only ? `<button data-clr title="변경 Summary 에서 고른 Tag ${P.only.size}개만 보는 중 — 누르면 모두">✕ 고른 Tag ${P.only.size}개만</button>` : ''}
       <span class="xleg"><i class="xc">　</i> 변경된 셀 <b class="xr">붉은 글씨</b> 변경된 값</span></div>
     <div class="xlwrap"><table class="xl">
       <thead><tr class="xlet"><th class="xg xcorner"></th>${letters.map(t => `<th>${t}</th>`).join('')}</tr>
@@ -147,6 +148,7 @@ async function renderCmp() {
       중요도 기준: High = Size · Bore · 설계 P/T · Max ΔP · Pipe Class Rating 문자 / Med = 운전 P/T · 유량 · 밀도 · 점도 · 상 · Fluid · 운전 시간 · Tightness · Fail · Actuator · 수량 · Class 코드 체계 /
       Min = 문서 정합성 · 2% 이하 변화는 한 단계 낮춤.</div>`;
   $('[data-only]', el).onchange = e => { P.onlyChg = e.target.checked; renderCmp(); };
+  const clr = $('[data-clr]', el); if (clr) clr.onclick = () => { P.only = null; renderCmp(); };
   bindXl(el);
   $('select[data-c="doc"]', el).onchange = e => goCmp(e.target.value);
   $('select[data-c="old"]', el).onchange = e => { P.old = +e.target.value; P.nw = nw.id; renderCmp(); };
@@ -156,8 +158,48 @@ async function renderCmp() {
   $('.rchips .tq', el).onchange = e => { P.cq = e.target.value; renderCmp(); };
 }
 
+/* ── 변경 Summary (valve48, user 2026-11-27: '변경 summary 도 별도로') — the Excel's Summary · Sizing sheets on screen ─── */
+async function renderSum() {
+  const el = $('#v-psum');
+  el.innerHTML = '<div class="vh"><h2>변경 Summary</h2></div><div class="soft">불러오는 중…</div>';
+  const X = await api('GET', `/projects/${S.pid}/pds/change_summary`);
+  const D = X.documents;
+  if (!D.length) { el.innerHTML = `<div class="vh"><h2>변경 Summary</h2></div><div class="card"><div class="empty">같은 문서 번호로 두 Rev. 이상 올린 PDS 가 없습니다 — 수정 PDS 를 <b>PDS 올리기</b> 에서 넣으면 변경 Summary 가 나옵니다.</div></div>`; return; }
+  const L = D.map((_, i) => String.fromCharCode(65 + i)), sum = f => D.reduce((a, d) => a + f(d), 0);
+  const num = (d, n, st, lvl) => n ? `<a class="xnum" data-go="${esc(d.doc_no)}" data-o="${d.old.id}" data-n="${d.new.id}" data-st="${st || ''}" data-lv="${lvl || ''}" title="Rev. 비교에서 보기">${n}</a>` : '<span class="x0">0</span>';
+  const C = [['old_tags', '이전 Tag 수'], ['new_tags', '최신 Tag 수'], ['High', 'Changed (High)', 'Changed', 'High'], ['Med', 'Changed (Med)', 'Changed', 'Med'],
+    ['Min', 'Changed (Min)', 'Changed', 'Min'], ['No Change', 'No Change', 'No Change'], ['New', 'New', 'New'], ['Delete', 'Delete', 'Delete']];
+  const grp = { Size: 'xg-size', 'Sizing 영향': 'xg-size', '추가/삭제': '' };
+  const lst = (rows, cols, head) => rows.length ? `<div class="xlwrap" style="max-height:340px"><table class="xl"><thead><tr class="xhd"><th class="xg" style="top:0"></th>${head.map(h => `<th style="top:0">${h}</th>`).join('')}</tr></thead><tbody>
+      ${rows.map((r, n) => `<tr><th class="xg">${n + 1}</th>${cols(r).map(([v, cls]) => `<td class="${cls || ''}">${esc(v ?? '')}</td>`).join('')}</tr>`).join('')}</tbody></table></div>` : '<div class="soft">없음</div>';
+  const high = D.flatMap((d, i) => d.high.map(r => ({ ...r, L: L[i], doc: d.doc_no }))), size = D.flatMap((d, i) => d.size.map(r => ({ ...r, L: L[i] })));
+  el.innerHTML = `<div class="vh"><h2>변경 Summary</h2><span class="soft">문서 번호마다 최신 Rev. vs 바로 앞 Rev. · Tag 번호가 같은 것끼리만 비교 · 숫자를 누르면 Rev. 비교에서 그 Tag 들만</span><span class="sp"></span>${xlBtns('')}</div>
+    <h3 class="xh3">1. Rev. 비교 Summary</h3>
+    <div class="xlwrap" style="max-height:none"><table class="xl xsum"><thead><tr class="xhd" style="top:0"><th class="xg" style="top:0"></th>${['Doc', 'Doc No.', 'Area', '이전 Rev.', '최신 Rev.', ...C.map(c => c[1])].map(h => `<th style="top:0">${h}</th>`).join('')}</tr></thead><tbody>
+      ${D.map((d, i) => `<tr><th class="xg">${i + 1}</th><td>${L[i]}</td><td class="xtag">${esc(d.doc_no)}</td><td>${esc(d.area || '')}</td><td>Rev.${esc(d.old.rev || '?')}</td><td>Rev.${esc(d.new.rev || '?')}</td>
+        ${C.map(([k, , st, lvl]) => `<td class="xnc ${lvl ? 'xl-' + lvl : ''}">${st ? num(d, d.counts[k], st, lvl) : d.counts[k]}</td>`).join('')}</tr>`).join('')}
+      <tr class="xtot"><th class="xg">${D.length + 1}</th><td colspan="5"><b>합계</b></td>${C.map(([k]) => `<td class="xnc"><b>${sum(d => d.counts[k])}</b></td>`).join('')}</tr></tbody></table></div>
+    <h3 class="xh3">2. Summary (Sizing 영향)</h3>
+    <div class="xlwrap" style="max-height:none"><table class="xl xsum xsz"><thead><tr class="xhd"><th class="xg" style="top:0"></th><th style="top:0">구분</th><th style="top:0">항목</th><th style="top:0">판단 기준</th>
+        ${D.map((d, i) => `<th style="top:0">${L[i]}. ${esc(d.doc_no)}</th>`).join('')}<th style="top:0">합계</th></tr></thead><tbody>
+      <tr><th class="xg">1</th><td>Tag 수</td><td>이전 Rev. Tag 수</td><td>이전 Rev. 문서 기준</td>${D.map(d => `<td class="xnc">${d.counts.old_tags}</td>`).join('')}<td class="xnc"><b>${sum(d => d.counts.old_tags)}</b></td></tr>
+      <tr><th class="xg">2</th><td>Tag 수</td><td>최신 Rev. Tag 수</td><td>최신 Rev. 문서 기준</td>${D.map(d => `<td class="xnc">${d.counts.new_tags}</td>`).join('')}<td class="xnc"><b>${sum(d => d.counts.new_tags)}</b></td></tr>
+      ${X.sizing_rows.map((r, j) => `<tr><th class="xg">${j + 3}</th><td class="${grp[r.group] || ''}">${esc(r.group)}</td><td>${esc(r.item)}</td><td class="soft">${esc(r.basis)}</td>
+        ${D.map(d => { const t = d.sizing[r.key] || []; return `<td class="xnc" title="${esc(t.join(', '))}">${t.length ? `<a class="xnum" data-tags="${esc(t.join('|'))}" data-go="${esc(d.doc_no)}" data-o="${d.old.id}" data-n="${d.new.id}">${t.length}</a>` : '<span class="x0">0</span>'}</td>`; }).join('')}
+        <td class="xnc"><b>${sum(d => (d.sizing[r.key] || []).length)}</b></td></tr>`).join('')}</tbody></table></div>
+    <div class="xtwo"><div><h3 class="xh3">3. Line Size / Valve Size 변경 Tag 목록 <span class="soft">${size.length}</span></h3>
+      ${lst(size, r => [[r.L], [r.tag, 'xtag'], [r.item], [r.old], [r.new, 'xc xr']], ['Doc', 'Tag', '항목', '이전 Rev.', '최신 Rev.'])}</div>
+      <div><h3 class="xh3">4. High 변경 목록 <span class="soft">${high.length}</span></h3>
+      ${lst(high, r => [[r.L], [r.tag, 'xtag'], [r.item], [r.old], [r.new, 'xc xr'], [r.status]], ['Doc', 'Tag', '항목', '이전 Rev. 값', '최신 Rev. 값', 'Status'])}</div></div>`;
+  bindXl(el);
+  $$('.xnum', el).forEach(a => a.onclick = () => {           // the tags a number stands for, in Rev. 비교
+    Object.assign(P, { cdoc: a.dataset.go, old: +a.dataset.o, nw: +a.dataset.n, st: a.dataset.st || '', lv: a.dataset.lv || '', cq: '',
+      only: a.dataset.tags ? new Set(a.dataset.tags.split('|')) : null, open: new Set() });
+    V.go('pcmp'); });
+}
+
 buildMenu();
-const RUN = { pdash: renderDash, ptags: renderTags, pcmp: renderCmp };
+const RUN = { pdash: renderDash, psum: renderSum, ptags: renderTags, pcmp: renderCmp };
 window.PDS = { render(v) { P.sum = null; P.tags = null; P.ckey = null;          // each menu visit reads afresh (a PDS just uploaded shows at once)
   (RUN[v] || renderDash)().catch(e => { console.error(e); toast(e.message, 1); }); } };
 })();

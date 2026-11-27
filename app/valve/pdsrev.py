@@ -195,6 +195,50 @@ def compare(old: dict, new: dict) -> dict:
             "old_sections": sorted(fo["sections"]), "new_sections": sorted(fn["sections"])}
 
 
+# valve48 (user 2026-11-27: '변경 summary 도 별도로') — the numbers of the Excel's Summary and Sizing sheets, for the screen.
+# (key, group, item, basis, test(item) → bool) — the same definitions as the Sizing sheet's formulas.
+SIZING_KEYS = ("line_size", "valve_size", "bore", "piping_class", "design_temp", "design_pressure", "dp_open", "dp_close")
+
+
+def _has(it, keys, levels):
+    return any(it["imp"].get(k) in levels for k in keys)
+
+
+SIZING = [
+    ("line_size", "Size", "Line Size 변경", "Line Size 값 변경", lambda it: _has(it, ("line_size",), ("High", "Med"))),
+    ("valve_size", "Size", "Valve Size 변경", "Valve Size 값 변경 (Valve 재선정)", lambda it: _has(it, ("valve_size",), ("High", "Med"))),
+    ("bore", "Size", "Valve Bore 변경", "Full/Reduced Bore 변경 (공란→값 추가 제외)", lambda it: _has(it, ("bore",), ("High", "Med"))),
+    ("design", "Sizing 영향", "Design Pressure / Temperature 변경", "Rating·재질·Seat 재검토 (FV 표기 추가·2% 이내 소폭 변경 제외)",
+     lambda it: _has(it, ("design_temp", "design_pressure"), ("High", "Med"))),
+    ("dp", "Sizing 영향", "Max ΔP (Opening/Closing) 변경", "Actuator Torque 재계산", lambda it: _has(it, ("dp_open", "dp_close"), ("High", "Med"))),
+    ("class_rating", "Sizing 영향", "Pipe Class Rating 변경", "Class 첫 문자(Rating) 변경 → Rating/재질 재검토", lambda it: _has(it, ("piping_class",), ("High",))),
+    ("class_scheme", "Sizing 영향", "Pipe Class 코드 체계 변경", "Rating 문자 동일 – PMS로 재질/Rating 확인", lambda it: _has(it, ("piping_class",), ("Med",))),
+    ("high", "Sizing 영향", "Ball Sizing 영향 큰 변경 (High)", "위 Size/설계조건/ΔP 중 High 1개 이상 → Size·Torque 재검토 필요",
+     lambda it: _has(it, SIZING_KEYS, ("High",))),
+    ("med", "Sizing 영향", "공정조건 변경 (Med)", "운전 P/T, 유량, 밀도, 상, 운전시간 등 – 재확인 권장 (High 없는 Tag)", lambda it: it["overall"] == "Med"),
+    ("min", "Sizing 영향", "문서 정합성 변경만 (Min)", "Location, P&ID, Line No 표기 등 – Sizing 영향 없음", lambda it: it["overall"] == "Min"),
+    ("nochange", "Sizing 영향", "변경 없음", "No Change", lambda it: it["status"] == "No Change"),
+    ("new", "추가/삭제", "New (추가)", "이전 Rev.에 없음", lambda it: it["status"] == "New"),
+    ("delete", "추가/삭제", "Delete (삭제) – 전체", "최신 Rev.에서 미확인", lambda it: it["status"] == "Delete"),
+    ("delete_mov", "추가/삭제", "  └ 그중 MOV", "최신 Rev.에 MOV 섹션 없음 – 이관 여부 확인", lambda it: it["status"] == "Delete" and "MOV" in it["tag"].upper()),
+]
+
+
+def change_summary(R: dict) -> dict:
+    """compare(...) → {"counts": Summary-sheet row, "sizing": {key: [tags]}, "high": [rows], "size": [rows]} (Excel's numbers)."""
+    items = R["items"]
+    c = R["counts"]
+    counts = {"old_tags": c["old_tags"], "new_tags": c["new_tags"], "High": c.get("changed_high", 0), "Med": c.get("changed_med", 0),
+              "Min": c.get("changed_min", 0), "No Change": c.get("No Change", 0), "New": c.get("New", 0), "Delete": c.get("Delete", 0)}
+    sizing = {k: [it["tag"] for it in items if test(it)] for k, _, _, _, test in SIZING}
+    lab = dict(FIELDS)
+    high = [{"tag": it["tag"], "item": lab[k], "key": k, "old": (it["old"] or {}).get(k), "new": (it["new"] or {}).get(k), "status": it["status"]}
+            for it in items for k, lv in it["imp"].items() if lv == "High"]
+    size = [{"tag": it["tag"], "item": lab[k], "key": k, "old": (it["old"] or {}).get(k), "new": (it["new"] or {}).get(k)}
+            for it in items for k, lv in it["imp"].items() if k in SIZE_KEYS and lv in ("High", "Med")]
+    return {"counts": counts, "sizing": sizing, "high": high, "size": size}
+
+
 # ── the document's revision ────────────────────────────────────────────────────────────────────────────────────────
 
 _REV_FOOT = re.compile(r"\b\d{2,4}-\d{2}-[A-Z]{2}-[A-Z]{3}-\d{5}[_ ]Rev\.?\s*([A-Z]?\d{0,2})\b", re.I)

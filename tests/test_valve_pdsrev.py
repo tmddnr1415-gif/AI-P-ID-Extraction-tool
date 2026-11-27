@@ -264,7 +264,20 @@ def test_pds_page_is_wired():
     js = Path("app/static/valve/pds.js").read_text(encoding="utf-8")
     vjs = Path("app/static/valve/valve.js").read_text(encoding="utf-8")
     assert "'pds'" in js and "PDS 현황" in js and "Rev. 비교" in js and "window.PDS = " in js
-    assert "PDSV = ['pdash', 'ptags', 'pcmp']" in vjs and "window.PDS?.render" in vjs
+    assert "PDSV = ['pdash', 'psum', 'ptags', 'pcmp']" in vjs and "window.PDS?.render" in vjs
     assert '<script src="pds.js"></script>' in Path("app/static/valve/index.html").read_text(encoding="utf-8")
     dash = Path("dashboard/dashboard.html").read_text(encoding="utf-8")
     assert "kind=pds" in dash and "'pdsv'" in dash
+
+
+def test_change_summary_counts(tmp_path):
+    """valve48 (user 2026-11-27: '변경 summary 도 별도로'): the Summary and Sizing sheets' numbers, computed once for the screen."""
+    from app.valve import pdsrev
+    X = pdsrev.change_summary(pdsrev.compare(_parse(tmp_path, "o.pdf", _pds(OLD, "B")), _parse(tmp_path, "n.pdf", _pds(NEW, "0", extra=True))))
+    c = X["counts"]
+    assert (c["old_tags"], c["new_tags"], c["New"], c["Delete"], c["No Change"]) == (7, 8, 5, 4, 1)
+    sz = X["sizing"]
+    assert sz["valve_size"] == ["77XV001", "77XV003"] and sz["line_size"] == ["77XV003"] and sz["delete_mov"] == ["77MOV001"]
+    assert sz["class_rating"] == ["77XV003"] and sz["class_scheme"] == ["77XV001"]          # YC0KL-N → XC0K8 · XC0KL-A → XC0K8
+    assert {r["tag"] for r in X["size"]} == {"77XV001", "77XV003"} and all(r["new"] for r in X["high"])
+    assert [k for k, *_ in pdsrev.SIZING][:3] == ["line_size", "valve_size", "bore"]

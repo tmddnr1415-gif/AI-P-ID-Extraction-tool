@@ -977,3 +977,13 @@ table.xtags td:nth-child(6) { white-space: normal; min-width: 180px; max-width: 
 .xchk { font-size: 13px; display: inline-flex; gap: 4px; align-items: center; }
 table.xl td.xw { white-space: normal; min-width: 180px; max-width: 240px; }
 table.xl .xg { width: 34px; }
+
+/* valve48 — 변경 Summary (pds.js renderSum) */
+.xh3 { margin: 14px 0 6px; font-size: 14px; }
+table.xl td.xnc { text-align: right; min-width: 54px; font-variant-numeric: tabular-nums; }
+table.xl a.xnum { color: #0563c1; text-decoration: underline; cursor: pointer; font-weight: 700; }
+table.xl .x0 { color: #aaa; }
+table.xl tr.xtot td { background: #f2f2f2; border-top: 2px solid #8eaadb; }
+table.xl td.xg-size { background: #fce4d6; }
+table.xsz td:nth-child(4) { white-space: normal; max-width: 340px; min-width: 220px; }
+.xtwo { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; } @media (max-width: 1100px) { .xtwo { grid-template-columns: 1fr; } }

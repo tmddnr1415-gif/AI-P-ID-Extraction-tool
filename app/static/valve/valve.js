@@ -351,7 +351,7 @@ new MutationObserver(() => { cancelAnimationFrame(xfDecorate._r); xfDecorate._r 
   .observe(document.body, { childList: true, subtree: true });
 
 const INSTV = ['inst', 'ireview', 'ilist', 'idash', 'iexport', 'itags', 'irev', 'iproc', 'ipms', 'iline', 'ilists', 'isettings', 'ireg'];   // valve40: Instrument screens (instrument.js)
-const PDSV = ['pdash', 'ptags', 'pcmp'];                // valve46: PDS 분석 screens (pds.js, ?kind=pds)
+const PDSV = ['pdash', 'psum', 'ptags', 'pcmp'];                // valve46: PDS 분석 screens (pds.js, ?kind=pds)
 const VIEWS = ['dash', 'docs', 'list', 'review', 'rev', 'proc', 'pms', 'rules', 'export', 'settings', ...INSTV, ...PDSV];   // valve40: + Instrument
 const STATUSES = ['Not Reviewed', 'Under Review', 'Accepted', 'Rejected', 'Commented', 'Resolved'];
 const NOT_PROCESS = new Set(['body_size', 'rating', 'body_material', 'ball_material', 'seat_material', 'seal_material', 'stem_material',

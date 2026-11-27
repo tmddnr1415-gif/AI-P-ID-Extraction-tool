@@ -448,3 +448,9 @@
 - Rev. 비교: Excel 시트와 같은 표(열 문자 A·B·C · 행 번호 · 격자선 · 머리 2줄과 Tag 열 고정 · Tag 당 이전/최신/중요도 3행 · No/Status/Tag/종합/비고 3행 합침).
   바뀐 칸 = 노랑(#FFFF00) 음영(이전 · 최신 둘 다), 최신의 바뀐 값 = 붉은 굵은 글씨, New 는 최신 값 전체 붉게. 셀에 마우스 → '이전 → 최신 (중요도)'. '바뀐 열만' 보기.
 - PDS Tag 목록도 같은 격자 모양. 파일: app/static/valve/pds.js · valve.css (table.xl). pytest 2,114 · UI 25/25 · 화면 오류 0.
+
+## 2026-11-27 · VALVE valve48 — PDS 분석 '변경 Summary' 메뉴 (사용자 "변경 summary 도 별도 나와야 한다")
+- 새 메뉴 '변경 Summary'(PDS 현황 다음): 1) Rev. 비교 Summary(문서별 Tag 수 · Changed High/Med/Min · No Change · New · Delete · 합계)
+  2) Summary (Sizing 영향) 16줄 3) Line/Valve Size 변경 Tag 목록 4) High 변경 목록 — Excel 과 같은 모양. 숫자를 누르면 Rev. 비교가 그 Tag 들만(또는 그 Status·중요도) 보여 줌.
+- 숫자는 `pdsrev.change_summary`(SIZING 정의 = Excel Sizing 시트 수식과 같은 뜻) · API `GET /projects/{pid}/pds/change_summary`.
+- v2 예시 Excel 과 대조: Summary 3문서 · Sizing 14줄 · High 65줄 모두 같음. pytest 2,115 · UI 25/25 · Ball 3,091 변화 0.

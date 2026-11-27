@@ -841,7 +841,7 @@ def _rules_fingerprint() -> str:
 
 
 _RULES_FP = _rules_fingerprint()
-VERSION = "valve47"                       # shown in Settings › 정보 and the footer; bump with every package
+VERSION = "valve48"                       # shown in Settings › 정보 and the footer; bump with every package
 
 
 @router.get("/api/valve/version")
@@ -1303,6 +1303,23 @@ def pds_tags(pid: int):
                 rows.append(dict({f: r.get(f) for f, _ in pdsrev.FIELDS}, doc_no=dn, rev=P.get("rev", ""), document_id=d["id"], tag=r["tag"],
                                  tag_key=k, section=r["section"], page=r.get("page")))
         return {"fields": [{"key": k, "label": h} for k, h in pdsrev.FIELDS], "rows": rows}
+    finally:
+        con.close()
+
+
+@router.get("/api/valve/projects/{pid}/pds/change_summary")
+def pds_change_summary(pid: int):
+    """valve48 (user 2026-11-27: '변경 summary 도 별도로'): for every PDS number loaded in two Revs. — the newest against the
+    one before — the Summary sheet's counts, the Sizing sheet's rows (with their tags), the High changes and the size changes."""
+    con = store.connect()
+    try:
+        docs = []
+        for od, oP, nd, nP in _pds_pairs(con, pid):
+            X = pdsrev.change_summary(pdsrev.compare(oP, nP))
+            docs.append(dict(X, doc_no=nP["doc_no"], area=_pds_area(con, pid, nP["doc_no"]),
+                             old={"id": od["id"], "filename": od["filename"], "rev": oP.get("rev", "")},
+                             new={"id": nd["id"], "filename": nd["filename"], "rev": nP.get("rev", "")}))
+        return {"documents": docs, "sizing_rows": [{"key": k, "group": g, "item": n, "basis": b} for k, g, n, b, _ in pdsrev.SIZING]}
     finally:
         con.close()
 
