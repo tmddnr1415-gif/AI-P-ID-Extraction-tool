@@ -120,7 +120,7 @@ def judge(key: str, old, new) -> str | None:
     return level
 
 
-def _rows(parsed: dict) -> tuple[dict, dict]:
+def _rows(parsed: dict, scope_only: bool = True) -> tuple[dict, dict]:
     """{tag_key: flat row} of the On-Off / MOV tables of a parsed PDS (process.read_process_data), and per-section facts."""
     cols, sections = [], set()
     titles = {}
@@ -130,8 +130,11 @@ def _rows(parsed: dict) -> tuple[dict, dict]:
     for r in parsed.get("rows", []):
         title = titles.get(r.get("page"), "")
         if OUT_OF_SCOPE.search(title):                       # Control Valve · PSV sections are not compared
-            continue
-        sec = "MOV" if re.search(r"motor operated", title, re.I) else "On-Off"
+            if scope_only:
+                continue
+            sec = "Control Valve · PSV"
+        else:
+            sec = "MOV" if re.search(r"motor operated", title, re.I) else "On-Off"
         sections.add(sec)
         if r["tag_key"] in out:
             continue

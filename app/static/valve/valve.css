@@ -926,3 +926,25 @@ tr.link:hover td { background: #f5f8ff; }
 .darea select, .dareasel { padding: 3px 6px; border-radius: 5px; border: 1px solid var(--line, #d7dbe3); font: inherit }
 
 .ixok { color: var(--ok, #15803d); font-weight: 600; white-space: nowrap }
+
+/* valve46 — PDS 분석 (pds.js) */
+.pkpis { display: grid; grid-template-columns: repeat(4, minmax(140px, 1fr)); gap: 10px; margin: 8px 0 12px; }
+.pk { background: var(--card, #fff); border: 1px solid var(--line, #dde3ea); border-radius: 10px; padding: 10px 14px; }
+.pkl { font-size: 12px; color: var(--soft, #667); } .pkn { font-size: 26px; font-weight: 700; }
+.pdoc h3 { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; } .pdoc h3 .sp, .vh .sp { flex: 1; }
+.parea { background: #e8eefb; color: #1f3864; border-radius: 6px; padding: 1px 7px; font-size: 12px; font-weight: 600; }
+.puse { background: #e2efda; color: #375623; border-radius: 6px; padding: 1px 7px; font-size: 12px; }
+.pline { margin: 4px 0 8px; font-size: 13px; }
+.plv { border-radius: 5px; padding: 0 6px; font-size: 11px; font-weight: 700; }
+.plv.lv-h { background: #ffc7ce; color: #9c0006; } .plv.lv-m { background: #ffeb9c; color: #7f6000; } .plv.lv-n { background: #e2efda; color: #375623; }
+.pst { border-radius: 5px; padding: 0 6px; font-size: 11px; font-weight: 600; background: #eee; }
+.pst.st-c { background: #fff2cc; } .pst.st-n { background: #c6e0b4; } .pst.st-d { background: #d9d9d9; } .pst.st-0 { background: #f3f3f3; color: #666; }
+.ptools { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin: 6px 0 8px; }
+.pchg { display: inline-block; margin: 1px 8px 1px 0; font-size: 12px; white-space: nowrap; } .pchg s { color: #888; }
+.pgrid td, .pgrid th { font-size: 11px; white-space: nowrap; } .pgrid td.pred { color: #c00; font-weight: 600; }
+.ptbl td, .ptbl th { font-size: 12px; white-space: nowrap; }
+.pdet > td { background: #fafbfd; }
+.pdetw { overflow: auto; max-width: calc(100vw - 290px); }
+.pcmp td:nth-child(5) { min-width: 380px; }
+.ptbl td:nth-child(5) { white-space: normal; min-width: 220px; max-width: 320px; }
+.pcmp td:nth-child(6) { min-width: 240px; }

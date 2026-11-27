@@ -217,3 +217,54 @@ def test_upload_same_number_compares_and_gives_the_excel(tmp_path, monkeypatch):
     con = api.store.connect()
     P, _ = api._process_for(con, pid)
     assert "77XV200" in P["by_tag"] and "77XV006" not in P["by_tag"]                         # the newest Rev. is what the review uses
+
+
+def test_pds_menu_endpoints(tmp_path, monkeypatch):
+    """valve46 (user 2026-11-27: 'PDS 분석 메뉴'): PDS 현황 · Tag 목록 · Rev. 비교 (any two Revs.) · Excel of one number."""
+    monkeypatch.setenv("PID_DATA_DIR", str(tmp_path / "data"))
+    from fastapi import FastAPI
+    from fastapi.testclient import TestClient
+    from app.valve import api
+    app = FastAPI()
+    app.include_router(api.router)
+    c = TestClient(app)
+    pid = c.post("/api/valve/projects", json={"name": "PDS MENU T"}).json()["id"]
+
+    def up(name, data):
+        j = c.post(f"/api/valve/projects/{pid}/upload", data={"kind": "process"}, files=[("files", (name, data, "application/pdf"))]).json()
+        for _ in range(400):
+            if c.get(f"/api/valve/jobs/{j['id']}").json()["status"] == "done":
+                return
+            time.sleep(0.05)
+        raise AssertionError("job did not finish")
+    up(f"{DN}_B.pdf", _pds(OLD, "B"))
+    s = c.get(f"/api/valve/projects/{pid}/pds/summary").json()
+    assert s["totals"] == {"documents": 1, "uploads": 1, "tags": 7, "revised": 0} and s["documents"][0]["compare"] is None
+    assert s["documents"][0]["revs"][0]["sections"] == {"On-Off": 6, "MOV": 1}
+    assert c.get(f"/api/valve/projects/{pid}/pds/compare", params={"doc_no": DN}).status_code == 404
+    up(f"{DN}_C.pdf", _pds(NEW, "C", extra=True))
+    up(f"{DN}_0001_0_Advanced_Copy.pdf", _pds(NEW, "0", extra=True))
+    s = c.get(f"/api/valve/projects/{pid}/pds/summary").json()
+    d = s["documents"][0]
+    assert [r["rev"] for r in d["revs"]] == ["0", "C", "B"] and d["compare"]["counts"]["No Change"] == 8          # 0 vs C: same values
+    t = c.get(f"/api/valve/projects/{pid}/pds/tags").json()
+    assert len(t["rows"]) == 8 and {r["rev"] for r in t["rows"]} == {"0"} and any(f["key"] == "valve_size" for f in t["fields"])
+    ids = {r["rev"]: r["id"] for r in d["revs"]}
+    cm = c.get(f"/api/valve/projects/{pid}/pds/compare", params={"doc_no": DN, "old": ids["B"], "new": ids["0"]}).json()
+    assert (cm["old"]["rev"], cm["new"]["rev"]) == ("B", "0") and cm["counts"]["New"] == 5 and cm["counts"]["Delete"] == 4
+    one = next(i for i in cm["items"] if i["tag"] == "77XV001")
+    assert one["imp"]["valve_size"] == "High" and one["old"]["valve_size"] == '6"' and one["new"]["valve_size"] == '4"'
+    assert "MOV" in next(i for i in cm["items"] if i["tag"] == "77MOV001")["note"]
+    r = c.get(f"/api/valve/projects/{pid}/pds_revcompare.xlsx", params={"lang": "en", "doc_no": DN, "old": ids["B"], "new": ids["0"]})
+    assert r.status_code == 200 and r.headers["x-count"] == "1"
+
+
+def test_pds_page_is_wired():
+    from pathlib import Path
+    js = Path("app/static/valve/pds.js").read_text(encoding="utf-8")
+    vjs = Path("app/static/valve/valve.js").read_text(encoding="utf-8")
+    assert "'pds'" in js and "PDS 현황" in js and "Rev. 비교" in js and "window.PDS = " in js
+    assert "PDSV = ['pdash', 'ptags', 'pcmp']" in vjs and "window.PDS?.render" in vjs
+    assert '<script src="pds.js"></script>' in Path("app/static/valve/index.html").read_text(encoding="utf-8")
+    dash = Path("dashboard/dashboard.html").read_text(encoding="utf-8")
+    assert "kind=pds" in dash and "'pdsv'" in dash

@@ -436,3 +436,10 @@
 - PDS 읽기: 줄을 칸 안에서만 만듦(다른 칸의 큰 글자가 두 줄을 붙여 'TO DRUM SKIMMED HYDROCARBON' 처럼 순서가 바뀌던 것) · READER_V=3.
   → v2 예시와 3문서 194 Tag 블록 모든 칸 · Summary · Sizing · High 목록 66줄 같음(LibreOffice 재계산). 영어판에 한글 0자.
 - Ball 스냅숏: 3,091 그대로 · 바뀐 2건은 'WATER SOUR' → 'SOUR WATER'(PDF 그대로). 새 기준 snapshot_valve45. 시험 tests/test_valve_pdsrev.py 6개.
+
+## 2026-11-27 · VALVE valve46 — PDS 분석 메뉴 (사용자 "PDS 분석되는 메뉴도 새로 만들자")
+- 새 화면 `?kind=pds` (`app/static/valve/pds.js`): PDS 현황(문서 번호별 올린 Rev. · Tag · On-Off/MOV/CV·PSV 수 · 검토에 쓰는 Rev. · 최신 vs 앞 Rev. 요약 · Excel 한글/English) ·
+  PDS Tag 목록(최신 Rev. 값 그대로 · 찾기 · 문서/구분 거르기) · Rev. 비교(문서 · 이전/최신 Rev. 고르기 · Status/중요도 칩 · 줄 누르면 전체 칸 3행) · PDS 올리기.
+- API: `pds/summary` · `pds/tags` · `pds/compare` (`_pds_groups` · `_pds_pick`) · `pds_revcompare.xlsx?doc_no=&old=&new=`. `pdsrev._rows(scope_only=False)` 로 CV/PSV 표 Tag 도 목록에.
+- 대시보드: 실행 프로젝트 › CO2 PJT › 'PDS 분석' (route pdsv → P&ID 서버 /valve/?kind=pds). 공통 자료 · PDS 올리기 화면에 'PDS 분석 열기 →'.
+- 실 PDS 6권으로 화면 확인(오류 0 · Excel 내려받기). pytest 통과 · Ball 3,091 변화 0 · UI 25/25. 시험 +2 (tests/test_valve_pdsrev.py).

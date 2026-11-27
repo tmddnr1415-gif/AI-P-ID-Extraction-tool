@@ -351,7 +351,8 @@ new MutationObserver(() => { cancelAnimationFrame(xfDecorate._r); xfDecorate._r 
   .observe(document.body, { childList: true, subtree: true });
 
 const INSTV = ['inst', 'ireview', 'ilist', 'idash', 'iexport', 'itags', 'irev', 'iproc', 'ipms', 'iline', 'ilists', 'isettings', 'ireg'];   // valve40: Instrument screens (instrument.js)
-const VIEWS = ['dash', 'docs', 'list', 'review', 'rev', 'proc', 'pms', 'rules', 'export', 'settings', ...INSTV];   // valve40: + Instrument
+const PDSV = ['pdash', 'ptags', 'pcmp'];                // valve46: PDS 분석 screens (pds.js, ?kind=pds)
+const VIEWS = ['dash', 'docs', 'list', 'review', 'rev', 'proc', 'pms', 'rules', 'export', 'settings', ...INSTV, ...PDSV];   // valve40: + Instrument
 const STATUSES = ['Not Reviewed', 'Under Review', 'Accepted', 'Rejected', 'Commented', 'Resolved'];
 const NOT_PROCESS = new Set(['body_size', 'rating', 'body_material', 'ball_material', 'seat_material', 'seal_material', 'stem_material',
   'bolting_gasket', 'packing_material', 'packing_type', 'connections', 'line_size_inlet', 'line_size_outlet', 'piping_class', 'pipe_material']);
@@ -751,7 +752,7 @@ function mkSvg(m, hs) {
 function go(v, push = true) {
   if (!VIEWS.includes(v)) v = 'dash';
   if (window.INST_VIEWS) { if (!window.INST_VIEWS.includes(v)) v = window.INST_VIEWS[0]; }          // an Instrument page shows only its own menu
-  else if (INSTV.includes(v)) v = 'dash';              // the Valve page has no Instrument screens
+  else if (INSTV.includes(v) || PDSV.includes(v)) v = 'dash';   // the Valve page has no Instrument · PDS screens
   S.view = v;
   $$('#menu button').forEach(b => b.classList.toggle('on', b.dataset.v === v && !b.dataset.ik && !b.dataset.il));   // item / list buttons: instrument.js marks them
   const cb = $('#crumb > b:last-child'); if (cb) cb.textContent = window.INST_CRUMB || KIND_NAME;   // valve40
@@ -1060,6 +1061,9 @@ function refUrl() {
   return u.toString();
 }
 const refLink = (t = '공통 자료 열기 →') => `<a class="reflink" href="${esc(refUrl())}">${t}</a>`;
+function pdsUrl() {                                     // valve46: the PDS 분석 page of the same project family
+  const u = new URL(refUrl()); u.searchParams.set('kind', 'pds'); return u.toString();
+}
 function refCard(docs) {                              // read-only: what every review of this family stands on
   const by = k => docs.filter(d => d.kind === k && d.status === 'done');
   return `<div class="card refshare"><h3>공통 자료 <span class="soft" style="font-weight:400">— 모든 Valve · Instrument 검토가 함께 씁니다 · 올리기 · 바꾸기는 한 곳에서만</span><span class="sp"></span>${refLink('공통 자료에서 올리기 · 바꾸기 →')}</h3>
@@ -1089,6 +1093,7 @@ function renderDocs() {
     <div class="drops">${Object.entries(KIND).filter(([k]) => mine.includes(k)).map(([k, [t, req, acc, multi]]) => `<label class="drop" data-k="${k}">
       <b>${t} <span class="${req === '필수' ? 'req' : 'opt'}">${req}</span></b><small>${acc.replace(/,/g, ' · ')}${multi ? ' · 여러 개' : ''}</small>
       <div class="soft" style="margin-top:6px">여기에 놓거나 <u>파일 선택</u></div><input type="file" hidden accept="${acc}" ${multi ? 'multiple' : ''}></label>`).join('')}</div>
+    ${REFPAGE || (window.DOC_KINDS || []).includes('process') ? `<div class="banner info"><a class="reflink" href="${esc(pdsUrl())}">PDS 분석 열기 →</a> 올린 PDS 의 문서별 Rev. · Tag 목록 · Rev. 비교(한글/English Excel) 를 봅니다.</div>` : ''}
     ${REFPAGE ? `<div class="banner info">새 Revision 을 올리면 가장 새 것으로 모든 검토가 다시 계산됩니다 (이전 것은 기록으로 남음 · 휴지통에서 되돌리기 가능). Line List · Instrument Index · IO List 는 여러 파일을 올리면 합쳐 씁니다.</div>` : mine.includes('datasheet') ? `<div class="banner info">Valve Datasheet 는 수십~수백 장을 한 번에 넣어도 됩니다 (개별 PDF · 병합 PDF 모두). Tag 번호로 나누고, 같은 Tag 의 새 Revision 은 이전 판과 따로 보관됩니다.
       Valve List 는 <b>.xlsx</b> 를 그대로 고칩니다 (.xls 는 회사 PC 의 Excel 로 자동 변환 · 안 되면 Excel 에서 .xlsx 로 저장해 넣으세요).</div>` : ''}
     <div id="jobs"></div>
@@ -2481,8 +2486,9 @@ function renderSettings() {
   $('#sreset').onclick = () => { ['wbw', 'wbpx', 'wbc', 'gorder', 'gw', 'zoom', 'mkbar', 'vpart', 'rcsync', 'wtab'].forEach(k => LS.set(k, null)); toast('처음대로 — 화면을 다시 엽니다'); setTimeout(() => location.reload(), 600); };
 }
 const RENDER = { dash: renderDash, docs: renderDocs, list: renderList, review: renderReview, rev: renderRev, proc: renderProc, pms: renderPms, rules: renderRules, export: renderExport, settings: renderSettings,
-  ...Object.fromEntries(INSTV.map(n => [n, () => window.INST?.render(n)])) };   // valve40: instrument.js
-window.VALVE = { S, Q, LS, api, esc, pill, toast, modal, go, Viewer, $, $$, USER, INST_KINDS, refUrl, refLink, REF_KINDS };   // valve40: what instrument.js uses
+  ...Object.fromEntries(INSTV.map(n => [n, () => window.INST?.render(n)])),   // valve40: instrument.js
+  ...Object.fromEntries(PDSV.map(n => [n, () => window.PDS?.render(n)])) };    // valve46: pds.js
+window.VALVE = { S, Q, LS, api, esc, pill, toast, modal, go, Viewer, $, $$, USER, INST_KINDS, refUrl, refLink, REF_KINDS, download, pdsUrl };   // valve40: what instrument.js uses
 for (const k of Object.keys(RENDER)) { const f = RENDER[k]; RENDER[k] = () => { if (!S.sum) return; Promise.resolve(f()).catch(e => { console.error(e); toast(e.message, 1); }); }; }
 
 /* ── keyboard ─────────────────────────────────────────────────────────── */
@@ -2710,6 +2716,7 @@ loadProjects().then(async () => {
     return;
   }
   const ik = (Q.get('kind') || '').toLowerCase();       // valve40: ?kind=ft … → Instrument; ball · globe · butterfly · psv · valve stay here (valve37)
+  if (window.PDS_PAGE) { const h = location.hash.slice(1); go(window.INST_VIEWS.includes(h) ? h : window.INST_VIEWS[0], false); return; }   // valve46
   if (window.INST_VIEWS) { go(+Q.get('sheet') ? 'ireview' : window.INST_VIEWS[0], false); return; }   // an Instrument page (instrument.js set its menu)
   go((location.hash.slice(1) || LS.get('view', 'dash')).split('?')[0], false);
 })

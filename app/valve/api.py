@@ -71,7 +71,7 @@ router = APIRouter(route_class=_SafeRoute)
 _JOBS: dict[str, dict] = {}
 _JLOCK = threading.Lock()
 _STATIC = {"valve.js": "application/javascript", "valve.css": "text/css", "anatomy.js": "application/javascript",
-           "instrument.js": "application/javascript"}   # valve40: Instrument review screens   # anatomy.js = valve36 valve model (session 7 engine)
+           "instrument.js": "application/javascript", "pds.js": "application/javascript"}   # valve40: Instrument review screens   # anatomy.js = valve36 valve model (session 7 engine)
 KINDS = ("datasheet", "valvelist", "process", "pms", "instrument", "linelist", "instlist", "vspec")   # valve40: + Instrument review
 # valve40 (user 2026-11-13): the reference documents are entered in ONE place and shared by every review of the project family
 # (Ball '<name>' · '<name> · Globe Valve' · '· Butterfly Valve' · '· PSV' · all Instrument types) — kept on the base project.
@@ -841,7 +841,7 @@ def _rules_fingerprint() -> str:
 
 
 _RULES_FP = _rules_fingerprint()
-VERSION = "valve45"                       # shown in Settings › 정보 and the footer; bump with every package
+VERSION = "valve46"                       # shown in Settings › 정보 and the footer; bump with every package
 
 
 @router.get("/api/valve/version")
@@ -1176,7 +1176,7 @@ def _process_docs(con, pid) -> list[dict]:
     rp = ref_pid(con, pid)
     out = []
     for q in ((rp,) if rp == pid else (rp, pid)):
-        out += [d for d in store.rows(con, "SELECT id, filename, path FROM document WHERE project_id=? AND kind='process' AND status='done' ORDER BY id DESC", q)
+        out += [d for d in store.rows(con, "SELECT id, filename, path, uploaded_at, uploaded_by FROM document WHERE project_id=? AND kind='process' AND status='done' ORDER BY id DESC", q)
                 if str(d["filename"]).lower().endswith(".pdf")]          # valve38: stored copy is .bin
     return out
 
@@ -1231,6 +1231,105 @@ def _pds_pairs(con, pid, only: int | None = None) -> list[tuple]:
     return sorted(out, key=lambda t: t[3].get("doc_no", ""))
 
 
+def _pds_groups(con, pid) -> dict:
+    """valve46: {doc_no: [(row, parsed), …newest first]} — every PDS upload of the family by its document number."""
+    groups: dict = {}
+    for d in _process_docs(con, pid):
+        P = _proc_parsed(d)
+        if P:
+            groups.setdefault(P.get("doc_no") or f"(문서 번호 없음 #{d['id']})", []).append((d, P))
+    return groups
+
+
+def _pds_pick(con, pid, doc_no: str, old: int | None = None, new: int | None = None):
+    """(older row, older parsed, newer row, newer parsed) of one document number — the two Revs. asked for, else the newest
+    and the one before it.  None when that number has fewer than two uploads."""
+    xs = _pds_groups(con, pid).get(doc_no) or []
+    by = {d["id"]: (d, P) for d, P in xs}
+    n = by.get(new) if new else (xs[0] if xs else None)
+    o = by.get(old) if old else next((x for x in xs if n and x[0]["id"] < n[0]["id"]), None)
+    if not n or not o or o[0]["id"] == n[0]["id"]:
+        return None
+    return o[0], o[1], n[0], n[1]
+
+
+def _pds_sections(P: dict) -> dict:
+    out: dict = {}
+    titles = {pg["page"]: pg.get("title", "") for pg in P.get("pages", [])}
+    seen = set()
+    for r in P.get("rows", []):
+        if r["tag_key"] in seen:
+            continue
+        seen.add(r["tag_key"])
+        t = titles.get(r.get("page"), "")
+        sec = "Control Valve · PSV" if pdsrev.OUT_OF_SCOPE.search(t) else "MOV" if re.search(r"motor operated", t, re.I) else "On-Off"
+        out[sec] = out.get(sec, 0) + 1
+    return out
+
+
+@router.get("/api/valve/projects/{pid}/pds/summary")
+def pds_summary(pid: int):
+    """valve46 (user 2026-11-27: 'PDS 분석 메뉴'): every PDS document number — its uploads (Rev.), tags, sections, and the
+    latest-vs-previous comparison counts.  The newest Rev. of each number is what every review uses (api._process_for)."""
+    con = store.connect()
+    try:
+        out = []
+        for dn, xs in sorted(_pds_groups(con, pid).items()):
+            revs = [{"id": d["id"], "filename": d["filename"], "rev": P.get("rev", ""), "uploaded_at": d.get("uploaded_at") or "",
+                     "uploaded_by": d.get("uploaded_by") or "", "tags": P.get("n_tags", 0), "tables": len(P.get("pages", [])),
+                     "sections": _pds_sections(P)} for d, P in xs]
+            cmp = None
+            if len(xs) >= 2:
+                R = pdsrev.compare(xs[1][1], xs[0][1])
+                cmp = {"old_id": xs[1][0]["id"], "new_id": xs[0][0]["id"], "counts": R["counts"]}
+            out.append({"doc_no": dn, "area": _pds_area(con, pid, dn), "revs": revs, "latest_id": xs[0][0]["id"], "compare": cmp})
+        tags = sum(x["revs"][0]["tags"] for x in out)
+        return {"documents": out, "totals": {"documents": len(out), "uploads": sum(len(x["revs"]) for x in out), "tags": tags,
+                                             "revised": sum(1 for x in out if x["compare"])}}
+    finally:
+        con.close()
+
+
+@router.get("/api/valve/projects/{pid}/pds/tags")
+def pds_tags(pid: int):
+    """valve46: every tag of the newest Rev. of every PDS document number, as the PDS writes it (pdsrev.FIELDS)."""
+    con = store.connect()
+    try:
+        rows = []
+        for dn, xs in sorted(_pds_groups(con, pid).items()):
+            d, P = xs[0]
+            flat, _ = pdsrev._rows(P, scope_only=False)
+            for k, r in flat.items():
+                rows.append(dict({f: r.get(f) for f, _ in pdsrev.FIELDS}, doc_no=dn, rev=P.get("rev", ""), document_id=d["id"], tag=r["tag"],
+                                 tag_key=k, section=r["section"], page=r.get("page")))
+        return {"fields": [{"key": k, "label": h} for k, h in pdsrev.FIELDS], "rows": rows}
+    finally:
+        con.close()
+
+
+@router.get("/api/valve/projects/{pid}/pds/compare")
+def pds_compare(pid: int, doc_no: str, old: int | None = None, new: int | None = None):
+    """valve46: one document number, two of its uploads (default: newest vs the one before) — tag by tag, column by column."""
+    con = store.connect()
+    try:
+        x = _pds_pick(con, pid, doc_no, old, new)
+        if not x:
+            return _err("이 문서 번호는 올린 Rev. 이 하나뿐입니다 — 수정 PDS 를 올리면 비교합니다", 404)
+        od, oP, nd, nP = x
+        R = pdsrev.compare(oP, nP)
+        items = [{"status": it["status"], "tag": it["tag"], "section": it["section"], "overall": it["overall"], "imp": it["imp"],
+                  "note": pdsrev.delete_note(it, nP.get("rev", "")) if it["status"] == "Delete" else it["note"],
+                  "old": {k: (it["old"] or {}).get(k) for k, _ in pdsrev.FIELDS} if it["old"] else None,
+                  "new": {k: (it["new"] or {}).get(k) for k, _ in pdsrev.FIELDS} if it["new"] else None} for it in R["items"]]
+        return {"doc_no": doc_no, "area": _pds_area(con, pid, doc_no),
+                "old": {"id": od["id"], "filename": od["filename"], "rev": oP.get("rev", "")},
+                "new": {"id": nd["id"], "filename": nd["filename"], "rev": nP.get("rev", "")},
+                "fields": [{"key": k, "label": h} for k, h in pdsrev.FIELDS], "counts": R["counts"], "items": items,
+                "excluded_columns": R["excluded_columns"]}
+    finally:
+        con.close()
+
+
 def _pds_area(con, pid, doc_no: str) -> str:
     from app.valve import arearule
     try:
@@ -1253,11 +1352,12 @@ def _pds_revcompare(con, pid, doc_id, parsed) -> dict | None:
     return {"prev_id": od["id"], "prev_name": od["filename"], "old_rev": oP.get("rev", ""), "new_rev": nP.get("rev", ""), "counts": R["counts"]}
 
 
-def _pds_xlsx(pid: int, lang: str = "ko"):
+def _pds_xlsx(pid: int, lang: str = "ko", doc_no: str = "", old: int | None = None, new: int | None = None):
     con = store.connect()
     try:
         docs = []
-        for od, oP, nd, nP in _pds_pairs(con, pid):
+        pairs = [_pds_pick(con, pid, doc_no, old, new)] if doc_no else _pds_pairs(con, pid)
+        for od, oP, nd, nP in [x for x in pairs if x]:
             docs.append({"doc_no": nP["doc_no"], "area": _pds_area(con, pid, nP["doc_no"]), "old_rev": oP.get("rev", ""), "new_rev": nP.get("rev", ""),
                          "old_name": od["filename"], "new_name": nd["filename"], "result": pdsrev.compare(oP, nP)})
         return (pdsrev.workbook(docs, lang) if docs else None), len(docs)
@@ -1266,11 +1366,11 @@ def _pds_xlsx(pid: int, lang: str = "ko"):
 
 
 @router.get("/api/valve/projects/{pid}/pds_revcompare.xlsx")
-async def pds_revcompare_xlsx(pid: int, request: Request, lang: str = "ko"):
+async def pds_revcompare_xlsx(pid: int, request: Request, lang: str = "ko", doc_no: str = "", old: int | None = None, new: int | None = None):
     """valve43: every PDS document number loaded in two Revs. — the newest against the one before (pdsrev.py).
     valve45: ?lang=ko (한글) | en (English) — the same layout, every label in that language."""
     lang = lang if lang in pdsrev.LANGS else "ko"
-    data, n = await run_in_threadpool(_pds_xlsx, pid, lang)
+    data, n = await run_in_threadpool(_pds_xlsx, pid, lang, doc_no, old, new)
     if not data:
         return _err("같은 문서 번호의 PDS 가 두 Rev. 이상 올라와 있지 않습니다 — 수정 PDS 를 공통 자료에 올리면 비교합니다", 404)
     con = store.connect()
