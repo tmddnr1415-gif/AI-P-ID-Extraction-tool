@@ -46,8 +46,8 @@
    "id": "session_01Muj82EMRakKAAS1HYXcE7d",
    "title": "6. Datasheet 자동 검토",
    "bucket": "COMPLETED",
-   "updated": "2026-11-27T08:51:23Z",
-   "recent": "3f5ffeb3 valve51 — Rev. 비교 노랑은 최신 값만 · Line/Valve Size 숫자 파랑. valve46~51 회사 미전달 — 사용자 요청 시 hotfix152",
+   "updated": "2026-11-27T09:01:44Z",
+   "recent": "dc5e5667 valve52 — Size 바뀐 경우에만 최신 값 파랑. valve46~52 회사 미전달 — 사용자 요청 시 hotfix152",
    "needs": "S1: CO2 PJT > PDS 분석 메뉴(route pdsv) 반영 · 사용자: hotfix152 결정"
   },
   "S7": {
