@@ -683,6 +683,36 @@ def _pass_points(sheet):
                 continue
         ins = [pt for pt in sheet.ports if pt.block == b.id and pt.dir == "in"]
         outs = [pt for pt in sheet.ports if pt.block == b.id and pt.dir == "out"]
+        allp = [pt for pt in sheet.ports if pt.block == b.id]
+        if not buffer and len(allp) == 4 and not (len({pt.net for pt in ins}) == 2 and len({pt.net for pt in outs}) == 2):
+            # L100 — 선 둘이 교차하며 지나는 속 빈 원인데 방향이 2 · 2 로 안 읽힌 것 (19VA 0007: 매크로 틀 파선이 읽히면서 들어옴 셋 · 나감 하나가 됐다 →
+            # 판정 못 한 기호로 남아 가르치기가 물었다).  방향과 상관없이 **마주 보는 끝끼리** 한 선이다 (L48 과 같은 뜻)
+            left = sorted(allp, key=lambda pt: pt.at)
+            pairs = []
+            while len(left) >= 2:
+                pi = left.pop(0)
+                po = max(left, key=lambda pt: (pt.at[0] - pi.at[0]) ** 2 + (pt.at[1] - pi.at[1]) ** 2)
+                left.remove(po)
+                pairs.append((pi.net, po.net))
+            for keep, g in pairs:
+                if g == keep:
+                    continue
+                for pt in sheet.ports:
+                    if pt.net == g:
+                        pt.net = keep
+                for r in sheet.rows:
+                    if r.get("net") == g:
+                        r["net"] = keep
+                n = sheet.nets.setdefault(keep, {"segs": [], "dashed": False})
+                o = sheet.nets.pop(g, None)
+                if o:
+                    n["segs"].extend(o.get("segs", []))
+                    n["dashed"] = n.get("dashed") or o.get("dashed")
+                sheet.dangling = [(x, y, keep if net == g else net) for x, y, net in sheet.dangling]
+                pairs = [(keep if a_ == g else a_, keep if b_ == g else b_) for a_, b_ in pairs]
+            sheet.ports = [pt for pt in sheet.ports if pt.block != b.id]
+            del sheet.blocks[b.id]
+            continue
         if not buffer and len({pt.net for pt in ins}) == 2 and len({pt.net for pt in outs}) == 2:
             # L48 — 선 둘이 **교차하며 지나는** 속 빈 원 (19VA Typical 의 행 선이 매크로 틀을 가로지르는 자리:
             # 가로선 하나 · 세로 틀선 하나).  들어오는 끝과 마주 보는(가장 먼) 나가는 끝이 한 선이다.

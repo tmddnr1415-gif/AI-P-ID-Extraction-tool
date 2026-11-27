@@ -61,3 +61,16 @@ def test_slanted_dash_into_a_diamond_edge_is_an_input_of_that_diamond():
     assert row is not None, s["rows"]
     ins = [q["net"] for q in s["ports"] if q["block"] == bid and q["dir"] == "in"]
     assert row["net"] in ins, (ins, row["net"], [(q["side"], q["dir"], q["net"]) for q in s["ports"] if q["block"] == bid])
+
+
+def test_box_text_is_fitted_inside_the_box_so_the_drawn_pdf_reads_back():
+    """L100 — 나눗셈 상자 `÷ IN1 / IN2` 처럼 긴 글은 상자 밖으로 넘쳤다: 그린 PDF 를 다시 올리면 상자 안에 남은 `IN1 /` 만 읽혀 연산자를 몰랐다
+    (19VA 22개).  PDF 로 낼 때 상자 폭에 맞춰 글자를 줄인다 — 모든 낱말의 가운데가 상자 안에 있다."""
+    import pymupdf
+    y = T + 5 * P - P / 2
+    blocks = [{"id": "d", "kind": "BOX", "x": 600, "y": y - P, "w": 2 * P, "h": 2 * P, "text": "÷ IN1 / IN2", "label": "", "param": {}}]
+    doc = _doc(blocks, [])
+    pg = pymupdf.open(stream=draw.to_pdf(doc), filetype="pdf")[0]
+    ws = [w for w in pg.get_text("words") if w[4] in ("÷", "IN1", "/", "IN2")]
+    assert sorted(w[4] for w in ws) == sorted(["÷", "IN1", "/", "IN2"]), ws
+    assert all(600 <= (w[0] + w[2]) / 2 <= 600 + 2 * P and y - P <= (w[1] + w[3]) / 2 <= y + P for w in ws), ws
