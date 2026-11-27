@@ -9700,6 +9700,96 @@
      ]
     }
    }
+  },
+  {
+   "at": "2026-11-27 08:18",
+   "read_at": "2026-11-13T07:12:00Z",
+   "s": {
+    "S1": {
+     "branch": "origin/ccr-248a5c4d-3dji7g",
+     "tip": "744e38da",
+     "ver": "v18.68 · 회사엔 v18.66",
+     "bucket": "COMPLETED",
+     "needs": "회사: 메모장.exe 실행 · 보안 프로그램 차단 여부 확인",
+     "recent": "v18.76 744e38da — 유닛분장 맥북 스타일 · 업무 트리 · 담당자 프로필. 11-27 ② 로 회사 업데이트 (회사 v18.66 기준)",
+     "pending": []
+    },
+    "S2": {
+     "branch": "origin/claude/gracious-ride-26nqrf",
+     "tip": "cd59d77a",
+     "ver": "hotfix151 만듦 (통합)",
+     "bucket": "COMPLETED",
+     "needs": "",
+     "recent": "cd59d77a — 심볼 준비 캐시 · LOGIC 도면 칸 안내. hotfix146 로 회사 업데이트에 실림",
+     "pending": []
+    },
+    "S3": {
+     "branch": "origin/ccr-cc45909d-fjjmrb",
+     "tip": "68452140",
+     "ver": "L101",
+     "bucket": "COMPLETED",
+     "needs": "다시 요청: python-docx 설치 목록 누락 · 통합 쪽 L71 퍼징 · VOC 도구 칸 반영",
+     "recent": "68452140 L101 — 아날로그 왕복 · 임의값 동작. hotfix151 로 회사 업데이트에 실림",
+     "pending": []
+    },
+    "S4": {
+     "branch": "origin/ccr-d82d97fa-bb3ty3",
+     "tip": "7b10d7cb",
+     "ver": "변경 이력 (55)",
+     "bucket": "BLOCKED",
+     "needs": "사용자: 4 세션 창에서 11-19 지시 1~4 진행 승인 필요 (질문 대기 중)",
+     "recent": "",
+     "pending": []
+    },
+    "S5": {
+     "branch": "origin/claude/new-session-v23o67",
+     "tip": "f5f94b2c",
+     "ver": "2026-11-19.1",
+     "bucket": "COMPLETED",
+     "needs": "",
+     "recent": "f5f94b2c — 도서검토 2026-11-19.1 (외부 번역 기본 꺼짐 · 외국어 용어). hotfix146 로 회사 업데이트에 실림",
+     "pending": []
+    },
+    "S6": {
+     "branch": "origin/ccr-efbe7e75-n915ze",
+     "tip": "2f9dd1dc",
+     "ver": "valve48",
+     "bucket": "COMPLETED",
+     "needs": "S1: CO2 PJT > PDS 분석 메뉴(route pdsv) 반영 · 사용자: hotfix152 결정",
+     "recent": "42e948e2 valve49 — New Tag 에 이전 Tag 지정 = Tag 변경 관리 (사람이 지정). valve46~49 회사 미전달 — 사용자 요청 시 hotfix152",
+     "pending": [
+      "2f9dd1dc",
+      "3200a145",
+      "9b08cdc2"
+     ]
+    },
+    "S7": {
+     "branch": "origin/claude/practical-newton-n6bt58",
+     "tip": "865f9297",
+     "ver": "865f9297",
+     "bucket": "COMPLETED",
+     "needs": "사용자: 7 세션 창에서 A(전부)/B(일부)/C 선택 필요 — 회사판 외부 AI 빼기 등",
+     "recent": "865f9297 — 좁은 폭에서도 3D 칸 · 휠 축소 한계. hotfix135 로 회사 업데이트에 처음 실림",
+     "pending": [
+      "865f9297",
+      "cb4f4972",
+      "af748c78",
+      "da8df461",
+      "c0dd7d0b",
+      "077cba5e",
+      "144e6604",
+      "8b0b1023",
+      "19d7aa3a",
+      "1fd96028",
+      "b99fb62a",
+      "ad3bbe35",
+      "05909503",
+      "963d2857",
+      "f408556e",
+      "64a829be"
+     ]
+    }
+   }
   }
  ],
  "changes": [
@@ -15310,6 +15400,14 @@
    "kind": "pending",
    "sig": "계산",
    "text": "다음 업데이트 대기 2 → 3건"
+  },
+  {
+   "at": "2026-11-27 08:18",
+   "prev": "2026-11-27 08:08",
+   "sid": "S6",
+   "kind": "report",
+   "sig": "세션 기록",
+   "text": "세션 보고 — 42e948e2 valve49 — New Tag 에 이전 Tag 지정 = Tag 변경 관리 (사람이 지정). valve46~49 회사 미전달 — 사용자 요청 시 hotfix152"
   }
  ]
 }
