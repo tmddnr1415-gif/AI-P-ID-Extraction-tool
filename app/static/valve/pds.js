@@ -143,31 +143,40 @@ async function renderCmp() {
     const items = C.items.filter(i => (!P.only || P.only.has(i.tag)) && (!P.st || i.status === P.st) && (!P.lv || i.overall === P.lv)
       && (!q || [i.tag, i.old_tag, i.new?.location, i.old?.location].join(' ').toUpperCase().includes(q)));
     const fk = P.onlyChg ? keys.filter(k => items.some(i => i.imp[k])) : keys;
-    const cols = [{ label: 'No', w: 40 }, { label: 'Status', w: 92 }, { label: 'Tag', w: 178 }, { label: '이전 Tag', w: 160 }, { label: 'Rev.', w: 54 }, { label: 'Row', w: 50 },
+    const cols = [{ label: 'No', w: 40 }, { label: 'Status', w: 92 }, { label: 'Tag', w: 178 }, { label: '이전 Tag', w: 160 }, { label: 'Rev.', w: 54 }, { label: 'Row', w: 66 },
       ...fk.map(k => ({ label: lab[k], w: fw(k) })), { label: '중요도(종합)', w: 86 }, { label: '비고 / 사유', w: 300 }];
     const rows = [];
     items.forEach((i, n) => {
       const sc = STC[i.status] || '', o = i.old, nv = i.new;
-      for (let j = 0; j < 3; j++) {
-        const m = j ? ' xm' : '';
-        const cells = [{ v: j ? '' : n + 1, c: 'xn' + m }, { v: j ? '' : i.status, c: `xs ${sc}${m}`, t: i.status }, j === 1 && susp(i) ? { v: susp(i), c: 'xsus xm', t: `${susp(i)} — Location 이 비슷하고 Line Size · (Line 번호 또는 P&ID) 가 같음 · 참고 표시, 상태는 그대로 · ${i.status === 'New' ? "'이전 Tag 지정' 에서 확정" : '최신 Rev. 의 그 Tag 에서 확정'}` }
+      // valve56 (user 2026-11-27: '변경 의심 Tag 에 대해 이전 · 최신 · 변경 의심 값도 행을 추가'): one row per suspected tag, with its
+      // own process data (New: the earlier tag in the earlier Rev. · Delete: the new tag in the latest Rev.) — orange where it differs
+      const seq = ['o', 'n', ...(i.suspect_vals || []), 'i'];
+      seq.forEach((kind, j) => {
+        const m = j ? ' xm' : '', sv = typeof kind === 'object' ? kind : null;
+        const rowLab = sv ? '변경 의심' : { o: '이전', n: '최신', i: '중요도' }[kind];
+        const revLab = sv ? `Rev.${sv.side === 'old' ? C.old.rev : C.new.rev}` : kind === 'o' ? `Rev.${C.old.rev}` : kind === 'n' ? `Rev.${C.new.rev}` : '';
+        const cells = [{ v: j ? '' : n + 1, c: 'xn' + m }, { v: j ? '' : i.status, c: `xs ${sc}${m}`, t: i.status },
+          j === 1 && susp(i) ? { v: susp(i), c: 'xsus xm', t: `${susp(i)} — Location 이 비슷하고 Line Size · (Line 번호 또는 P&ID) 가 같음 · 참고 표시, 상태는 그대로 · ${i.status === 'New' ? "'이전 Tag 지정' 에서 확정" : '최신 Rev. 의 그 Tag 에서 확정'}` }
+            : sv ? { v: `↳ ${sv.tag}`, c: 'xsusr xm', t: `변경 의심 Tag ${sv.tag} — 아래 칸은 이 Tag 의 Process Data` }
             : { v: j ? '' : i.tag, c: 'xb' + m, t: i.tag },
           j ? { v: '', c: 'xm' } : { v: i.old_tag || '', h: prevH(i), c: 'xprev', t: i.status === 'Tag 변경' ? `이전 Tag ${i.old_tag} (지정: ${i.link?.by || ''} ${(i.link?.at || '').slice(0, 10)})` : i.status === 'New' ? 'New — 이전 Tag 를 지정하면 Tag 변경' : '' },
-          { v: j === 0 ? `Rev.${C.old.rev}` : j === 1 ? `Rev.${C.new.rev}` : '' }, { v: ['이전', '최신', '중요도'][j], c: 'xrow' }];
+          { v: revLab, c: sv ? 'xsusr' : '' }, { v: rowLab, c: sv ? 'xrow xsusr' : 'xrow', t: sv ? `변경 의심 Tag ${sv.tag} 의 Process Data (${revLab}) — 주황 = 이 Tag 의 값과 다른 칸` : rowLab }];
         fk.forEach((k, x) => {
           const ch = !!i.imp[k], fxT = ch ? `${lab[k]}: ${o?.[k] ?? ''} → ${nv?.[k] ?? ''} (${i.imp[k]})` : null;
-          if (j === 2) { cells.push({ v: i.imp[k] || '', c: lvC(i.imp[k]), t: fxT }); return; }
-          const src = j ? nv : o;
-          if (!src) { cells.push({ v: x ? '' : (j ? `(Rev.${C.new.rev} 미확인)` : '(이전 Rev. 없음)'), c: 'xna' }); return; }
-          const raw = src[k] ?? '', szc = SIZEK.has(k) && ch && j === 1 && raw !== '';   // a changed size of the latest Rev.
-          const v = szc ? sz(k, raw) : raw, red = !szc && j === 1 && (ch || i.status === 'New') && v !== '';
+          if (kind === 'i') { cells.push({ v: i.imp[k] || '', c: lvC(i.imp[k]), t: fxT }); return; }
+          if (sv) { const v = sv.values[k] ?? '', own = (i.status === 'New' ? nv : o)?.[k] ?? '', df = sv.diff.includes(k);
+            cells.push({ v, c: 'xsusv' + (df ? ' xsusd' : ''), t: df ? `${lab[k]}: ${i.tag} = ${own} · ${sv.tag} = ${v}` : v }); return; }
+          const src = kind === 'n' ? nv : o, jn = kind === 'n';
+          if (!src) { cells.push({ v: x ? '' : (jn ? `(Rev.${C.new.rev} 미확인)` : '(이전 Rev. 없음)'), c: 'xna' }); return; }
+          const raw = src[k] ?? '', szc = SIZEK.has(k) && ch && jn && raw !== '';   // a changed size of the latest Rev.
+          const v = szc ? sz(k, raw) : raw, red = !szc && jn && (ch || i.status === 'New') && v !== '';
           // valve51 (user 2026-11-27: '변경 사항 노랑색 음영은 최신 값에만'): the earlier row keeps no shading
-          cells.push({ v, c: (ch && j === 1 ? 'xc' : '') + (szc ? ' xsz' : red ? ' xr' : ''), t: fxT ?? raw });
+          cells.push({ v, c: (ch && jn ? 'xc' : '') + (szc ? ' xsz' : red ? ' xr' : ''), t: fxT ?? raw });
         });
         cells.push({ v: j ? '' : (['New', 'Delete'].includes(i.overall) ? i.overall : i.overall || ''), c: (j ? 'xm ' : '') + (j ? '' : lvC(i.overall)) });
         cells.push({ v: j ? '' : i.note || '', c: 'xnote' + m, t: i.note || '' });
-        rows.push({ cls: j ? '' : 'xt', cells });
-      }
+        rows.push({ cls: j ? (sv ? 'xsusrow' : '') : 'xt', cells });
+      });
     });
     $('[data-cnt]', el).textContent = `Tag ${items.length}개 · ${rows.length}줄`;
     $('[data-clr]', el).innerHTML = P.only ? `<button data-clrb title="변경 Summary 에서 고른 Tag 만 보는 중 — 누르면 모두">✕ 고른 Tag ${P.only.size}개만</button>` : '';

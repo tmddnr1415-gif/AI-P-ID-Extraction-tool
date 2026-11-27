@@ -841,7 +841,7 @@ def _rules_fingerprint() -> str:
 
 
 _RULES_FP = _rules_fingerprint()
-VERSION = "valve55"                       # shown in Settings › 정보 and the footer; bump with every package
+VERSION = "valve56"                       # shown in Settings › 정보 and the footer; bump with every package
 
 
 @router.get("/api/valve/version")
@@ -1375,7 +1375,7 @@ def pds_compare(pid: int, doc_no: str, old: int | None = None, new: int | None =
             return _err("이 문서 번호는 올린 Rev. 이 하나뿐입니다 — 수정 PDS 를 올리면 비교합니다", 404)
         od, oP, nd, nP = x
         R = _pds_cmp(con, pid, oP, nP)
-        items = [{"status": it["status"], "tag": it["tag"], "tag_key": it["tag_key"], "old_tag": it.get("old_tag", ""), "link": it.get("link"), "suspect": it.get("suspect", []), "section": it["section"], "overall": it["overall"], "imp": it["imp"],
+        items = [{"status": it["status"], "tag": it["tag"], "tag_key": it["tag_key"], "old_tag": it.get("old_tag", ""), "link": it.get("link"), "suspect": it.get("suspect", []), "suspect_vals": it.get("suspect_vals", []), "section": it["section"], "overall": it["overall"], "imp": it["imp"],
                   "note": pdsrev.delete_note(it, nP.get("rev", "")) if it["status"] == "Delete" else it["note"],
                   "old": {k: (it["old"] or {}).get(k) for k, _ in pdsrev.FIELDS} if it["old"] else None,
                   "new": {k: (it["new"] or {}).get(k) for k, _ in pdsrev.FIELDS} if it["new"] else None} for it in R["items"]]

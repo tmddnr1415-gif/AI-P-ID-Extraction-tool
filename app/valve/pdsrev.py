@@ -235,6 +235,19 @@ def compare(old: dict, new: dict, links: dict | None = None) -> dict:
             if sc is not None and sc == best_n[id(n)] and sc == best_o[id(o)]:
                 n.setdefault("suspect", []).append(o["tag"])
                 o.setdefault("suspect", []).append(n["tag"])
+    # valve56 (user 2026-11-27: '변경 의심 Tag 에 대해 이전 · 최신 · 변경 의심 값도 행을 추가해서 — 프로세스 데이터'): each suspected
+    # tag's process data comes with the item, and the columns where it differs from the item's own values
+    by_tag = {it["tag"]: it for it in items if it["status"] in ("New", "Delete")}
+    for it in items:
+        for t in it.get("suspect", []):
+            other = by_tag.get(t)
+            if not other:
+                continue
+            mine, theirs = (it["new"], other["old"]) if it["status"] == "New" else (it["old"], other["new"])
+            it.setdefault("suspect_vals", []).append({
+                "tag": t, "side": "old" if it["status"] == "New" else "new",
+                "values": {k: (theirs or {}).get(k) for k, _ in FIELDS},
+                "diff": [k for k, _ in FIELDS if k in both and judge(k, (mine or {}).get(k), (theirs or {}).get(k))]})
     order = {k: i for i, k in enumerate(N)}
     oorder = {k: i for i, k in enumerate(O)}
     rank = {"Delete": 2, "New": 0}
@@ -336,7 +349,7 @@ LANGS = ("ko", "en")
 T = {
     "ko": {
         "prev": "이전", "new": "최신", "imp": "중요도", "spare": "이전 Tag", "overall": "중요도(종합)", "note": "비고 / 사유",
-        "suspect": '(변경 의심 "{t}")', "no_prev": "(이전 Rev. 없음)", "no_new": "({r} 미확인)", "high_sheet": "High 변경 목록", "size_sheet": "Summary (Sizing 영향)",
+        "suspect": '(변경 의심 "{t}")', "susrow": '변경 의심', "no_prev": "(이전 Rev. 없음)", "no_new": "({r} 미확인)", "high_sheet": "High 변경 목록", "size_sheet": "Summary (Sizing 영향)",
         "sheet_title": "{L}. {dn}{area} – {o} vs {n} Process Data 변경 비교",
         "sheet_note": "각 Tag: 1행 이전 Rev. / 2행 최신 {n}(변경값 붉은 글씨) / 3행 중요도(변경 항목별 High·Med·Min). "
                       "Status·Tag·종합 중요도는 1행에만 표기. 중요도 기준은 Summary 시트 참조.",
@@ -385,7 +398,7 @@ T = {
     },
     "en": {
         "prev": "Previous", "new": "Latest", "imp": "Importance", "spare": "Previous Tag", "overall": "Overall Importance", "note": "Remarks / Reason",
-        "suspect": '(suspected rename "{t}")', "no_prev": "(not in previous Rev.)", "no_new": "(not found in {r})", "high_sheet": "High Changes", "size_sheet": "Summary (Sizing Impact)",
+        "suspect": '(suspected rename "{t}")', "susrow": 'Suspected', "no_prev": "(not in previous Rev.)", "no_new": "(not found in {r})", "high_sheet": "High Changes", "size_sheet": "Summary (Sizing Impact)",
         "sheet_title": "{L}. {dn}{area} – {o} vs {n} Process Data Change Comparison",
         "sheet_note": "Each tag: row 1 previous Rev. / row 2 latest {n} (changed values in red) / row 3 importance (High·Med·Min per changed item). "
                       "Status, Tag and overall importance on row 1 only. Importance criteria: see the Summary sheet.",
@@ -511,29 +524,42 @@ def workbook(docs: list[dict], lang: str = "ko") -> bytes:
         r = 5
         for no, it in enumerate(R["items"], 1):
             st, o, n = it["status"], it["old"], it["new"]
-            for j, (row_name, src) in enumerate(((L_["prev"], o), (L_["new"], n), (L_["imp"], None))):
+            sv = it.get("suspect_vals") or []
+            seq = [(L_["prev"], o, "o"), (L_["new"], n, "n")] + [(L_["susrow"], x["values"], x) for x in sv] + [(L_["imp"], None, "i")]
+            nb = len(seq)
+            for j, (row_name, src, kind) in enumerate(seq):
                 rr = r + j
                 for col in range(1, nAM + 1):
                     c = ws.cell(rr, col)
                     c.border, c.font, c.alignment = (first if j == 0 else box), f9, wrap
-                ws.cell(rr, 5, o_r if j == 0 else n_r if j == 1 else None)
+                ws.cell(rr, 5, o_r if kind == "o" else n_r if kind == "n" else (o_r if kind["side"] == "old" else n_r) if isinstance(kind, dict) else None)
                 ws.cell(rr, 6, row_name)
                 for k in keys:
                     c = ws.cell(rr, ci[k])
-                    if j == 2:
+                    if isinstance(kind, dict) and k == keys[0]:          # the suspected tag's name in the Tag column
+                        tc = ws.cell(rr, 3, f"↳ {kind['tag']}")
+                        tc.font = Font(size=9, italic=True, bold=True, color="C55A11")
+                    if isinstance(kind, dict):                           # valve56: the suspected tag's own values
+                        v = src.get(k)
+                        c.value = v if v not in (None, "") else None
+                        c.font = Font(size=9, italic=True, color="833C0B")
+                        if k in kind["diff"]:
+                            c.fill = fill("FCE4D6")
+                        continue
+                    if kind == "i":
                         lv = it["imp"].get(k)
                         if lv:
                             c.value, c.fill, c.font = lv, fill(FILL_LEVEL[lv]), f9b
                     elif src is not None:
                         v = src.get(k)
                         c.value = v if v not in (None, "") else None
-                        if j == 1 and (k in it["imp"] or st == "New") and c.value is not None:
+                        if kind == "n" and (k in it["imp"] or st == "New") and c.value is not None:
                             c.font = red
-                if j == 0 and o is None:
+                if kind == "o" and o is None:
                     ws.cell(rr, ci["location"], L_["no_prev"].format(r=o_r))
-                if j == 1 and n is None:
+                if kind == "n" and n is None:
                     ws.cell(rr, ci["location"], L_["no_new"].format(r=n_r))
-            ws.row_dimensions[r + 2].height = 15
+            ws.row_dimensions[r + nb - 1].height = 15
             ws.cell(r, 1, no).alignment = mid
             c = ws.cell(r, 2, SL(st))
             c.fill = fill(FILL_STATUS.get(st, ""))
@@ -548,14 +574,14 @@ def workbook(docs: list[dict], lang: str = "ko") -> bytes:
                 c.fill = fill(FILL_LEVEL[it["overall"]])
             ws.cell(r, nAM, note_of(it, d["new_rev"]) or None).alignment = wrap
             for col in (1, nAL, nAM):
-                ws.merge_cells(start_row=r, start_column=col, end_row=r + 2, end_column=col)
+                ws.merge_cells(start_row=r, start_column=col, end_row=r + nb - 1, end_column=col)
             for k, lv in it["imp"].items():
                 label = dict(FIELDS)[k]
                 if lv == "High":
                     high_rows.append([L, d["doc_no"], it["tag"], it.get("old_tag") or None, label, (o or {}).get(k), (n or {}).get(k), SL(st)])
                 if k in SIZE_KEYS and lv in ("High", "Med"):
                     size_rows.append([L, it["tag"], it.get("old_tag") or None, label, (o or {}).get(k), (n or {}).get(k)])
-            r += 3
+            r += nb
         for k, w in WIDTHS.items():
             ws.column_dimensions[k].width = w
         for i in range(17, nAL):

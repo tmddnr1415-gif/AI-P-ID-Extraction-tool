@@ -371,3 +371,11 @@ def test_suspected_rename_is_a_note_only(tmp_path):
     ws = wb[f"A. {DN}"]
     r = next(r for r in range(5, ws.max_row + 1) if ws.cell(r, 3).value == "77XV110")
     assert ws.cell(r + 1, 3).value == '(변경 의심 "77XV010")' and ws.cell(r, 2).value == "New"
+    # valve56: one more row per suspected tag — its own process data, the differing columns marked
+    sv = st["77XV110"]["suspect_vals"]
+    assert [x["tag"] for x in sv] == ["77XV010"] and sv[0]["side"] == "old" and sv[0]["values"]["line_size"] == '10"'
+    assert "location" in sv[0]["diff"] and "line_size" not in sv[0]["diff"]
+    assert st["77XV010"]["suspect_vals"][0]["side"] == "new"
+    assert [ws.cell(r + j, 6).value for j in range(4)] == ["이전", "최신", "변경 의심", "중요도"]
+    assert ws.cell(r + 2, 3).value == "↳ 77XV010" and ws.cell(r + 2, 5).value == "Rev.B"
+    assert f"A{r}:A{r + 3}" in {str(m) for m in ws.merged_cells.ranges}
