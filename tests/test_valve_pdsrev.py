@@ -417,3 +417,18 @@ def test_suspect_by_line_and_dismiss(tmp_path, monkeypatch):
     assert sus() == [[], []]
     c.put(f"/api/valve/projects/{pid}/pds/links", json={"doc_no": DN, "new_tag": "77XV120", "old_tag": "77XV020", "dismiss": False})
     assert sus() == [["77XV020"], ["77XV120"]]
+
+
+def test_pds_title_and_selector(tmp_path):
+    """valve58 (user 2026-11-28: 'PDS title 별로 · 사용자 선택별로 · 전체'): the cover's own title is read (two lines joined), and
+    the screens carry one PDS selector (all · one · any set)."""
+    from pathlib import Path
+    from app.valve import pdsrev
+    cover = "NOTES\nREV\nPROCESS DATA SHEET FOR ON-OFF VALVE, MOTOR OPERATED VALVE (MOV), CONTROL VALVE &\nPSV FOR TEST PLANT IN AREA NORTH\nTEST AGREEMENT for something\n"
+    assert pdsrev.title_of([cover]) == "PROCESS DATA SHEET FOR ON-OFF VALVE, MOTOR OPERATED VALVE (MOV), CONTROL VALVE & PSV FOR TEST PLANT IN AREA NORTH"
+    assert pdsrev.title_of(["nothing here"]) == "" and pdsrev.title_of([]) == ""
+    P = _parse(tmp_path, "t.pdf", _pds(OLD, "B"))
+    assert P["title"].startswith("PROCESS DATA SHEET FOR ON-OFF VALVE") and P["v"] >= 4
+    js = Path("app/static/valve/pds.js").read_text(encoding="utf-8")
+    assert "function docBar(" in js and js.count("bindDocBar(el,") == 5 and "const inSel = " in js       # 현황 · Summary · Rev. 비교 · Tag 목록
+    assert "CS.flatMap(c => c.items)" in js                                                        # several PDS in one sheet

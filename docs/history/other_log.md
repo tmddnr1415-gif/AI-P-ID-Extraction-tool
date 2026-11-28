@@ -513,3 +513,11 @@
 - 변경 Summary: Sizing 표에 '변경 의심 (미확정)' 줄(화면 — 숫자 누르면 그 Tag 만). Excel 은 그대로.
 - 가볍게: 확정/아님/해제 뒤 화면을 비우지 않고 비교만 다시 읽어 같은 자리(스크롤)에서 이어 봄 · 문서 목록은 다시 읽지 않음.
 - pytest 2,120 · UI 25/25 · Ball 3,091 변화 0 · 화면 오류 0.
+
+## 2026-11-28 · VALVE valve58 — PDS 별 · 선택 · 전체 보기 (사용자 "입력된 pds title 별로 · 사용자 선택별로 또는 전체를 볼 수 있도록")
+- PDS 표지 제목 읽기: `pdsrev.title_of`('PROCESS DATA SHEET …' 줄 + 이어지는 줄) · `read_process_data` 가 title 저장 · READER_V 4(예전 읽음 자동 다시 읽기) · summary 에 title.
+- 선택 막대(`docBar`): [전체 n] + PDS 마다 칩(문서 번호 · Area · 제목의 지역 말). 이름 누르면 그 PDS 만 · 네모(체크)로 여러 개 · 선택은 화면끼리 이어지고 브라우저에 기억.
+  PDS 현황(카드 · KPI) · 변경 Summary(표 5개) · Rev. 비교 · PDS Tag 목록 모두 같은 선택을 따름.
+- Rev. 비교: 하나 고르면 전처럼 이전/최신 Rev. 고르기 · 여러 개/전체는 각 PDS 의 최신 vs 바로 앞 Rev. 을 한 표로(Doc No. 열 추가 · 실 PDS 3권 = 193 Tag · 611줄).
+  '이전 Tag 지정' 목록 · 확정/아님은 그 Tag 의 PDS 안에서만(다른 PDS 의 Delete 는 후보가 아님).
+- pytest 2,121 · UI 25/25 · Ball 3,091 변화 0 · 화면 오류 0.

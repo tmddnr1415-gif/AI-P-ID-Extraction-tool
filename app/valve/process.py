@@ -215,7 +215,7 @@ def scan(path: str) -> dict:
     return {"v": 1, "tag_pages": tag_pages, "zone_by_page": zones}
 
 
-READER_V = 3          # valve43: rules drawn cell by cell · rows split by their rules — older reads are read again
+READER_V = 4          # valve43: rules drawn cell by cell · rows split by their rules — older reads are read again
 
 
 @extract.pdf_locked
@@ -234,7 +234,7 @@ def read_process_data(path: str) -> dict:
     for r in rows:
         by.setdefault(r["tag_key"], r)                                   # first row wins (a tag listed twice = same data)
     from app.valve import pdsrev
-    return {"v": READER_V, "doc_no": dn, "rev": pdsrev.rev_of(texts), "pages": pages, "rows": rows, "by_tag": by, "n_tags": len(by)}
+    return {"v": READER_V, "doc_no": dn, "rev": pdsrev.rev_of(texts), "title": pdsrev.title_of(texts), "pages": pages, "rows": rows, "by_tag": by, "n_tags": len(by)}
 
 
 # ── comparing ─────────────────────────────────────────────────────────────────────

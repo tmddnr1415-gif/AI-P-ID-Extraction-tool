@@ -350,6 +350,27 @@ def rev_of(text_pages: list[str], filename: str = "") -> str:
     return m.group(1).upper() if m else ""
 
 
+_TITLE = re.compile(r"\b(PROCESS\s+DATA\s*SHEETS?\b.*)", re.I)
+
+
+def title_of(text_pages: list[str]) -> str:
+    """valve58: the document's own title from its cover — the 'PROCESS DATA SHEET …' line and the line that continues it
+    ('… CONTROL VALVE &' / 'PSV FOR … NORTH').  '' when the cover does not say (the screen then shows the number only)."""
+    lines = [re.sub(r"\s+", " ", ln).strip() for ln in (text_pages[0] if text_pages else "").splitlines()]
+    best = ""
+    for i, ln in enumerate(lines):
+        m = _TITLE.search(ln)
+        if not m:
+            continue
+        t = m.group(1)
+        nxt = lines[i + 1] if i + 1 < len(lines) else ""
+        if nxt and len(nxt) < 90 and nxt == nxt.upper() and re.search(r"[A-Z]{3}", nxt) and not _TITLE.search(nxt):
+            t = f"{t} {nxt}"
+        if len(t) > len(best):                               # the cover prints it twice: the fuller one
+            best = t
+    return re.sub(r"\s+,", ",", best)[:200]
+
+
 def tagkey(t: str) -> str:
     return schema.norm_tag(t)
 

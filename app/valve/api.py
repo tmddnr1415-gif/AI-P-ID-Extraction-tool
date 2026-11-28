@@ -841,7 +841,7 @@ def _rules_fingerprint() -> str:
 
 
 _RULES_FP = _rules_fingerprint()
-VERSION = "valve57"                       # shown in Settings › 정보 and the footer; bump with every package
+VERSION = "valve58"                       # shown in Settings › 정보 and the footer; bump with every package
 
 
 @router.get("/api/valve/version")
@@ -1330,7 +1330,7 @@ def pds_summary(pid: int):
             if len(xs) >= 2:
                 R = _pds_cmp(con, pid, xs[1][1], xs[0][1])
                 cmp = {"old_id": xs[1][0]["id"], "new_id": xs[0][0]["id"], "counts": R["counts"]}
-            out.append({"doc_no": dn, "area": _pds_area(con, pid, dn), "revs": revs, "latest_id": xs[0][0]["id"], "compare": cmp})
+            out.append({"doc_no": dn, "title": xs[0][1].get("title", ""), "area": _pds_area(con, pid, dn), "revs": revs, "latest_id": xs[0][0]["id"], "compare": cmp})
         tags = sum(x["revs"][0]["tags"] for x in out)
         return {"documents": out, "totals": {"documents": len(out), "uploads": sum(len(x["revs"]) for x in out), "tags": tags,
                                              "revised": sum(1 for x in out if x["compare"])}}
