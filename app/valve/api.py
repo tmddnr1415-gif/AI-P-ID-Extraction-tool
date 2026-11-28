@@ -841,7 +841,7 @@ def _rules_fingerprint() -> str:
 
 
 _RULES_FP = _rules_fingerprint()
-VERSION = "valve56"                       # shown in Settings › 정보 and the footer; bump with every package
+VERSION = "valve57"                       # shown in Settings › 정보 and the footer; bump with every package
 
 
 @router.get("/api/valve/version")
@@ -1279,7 +1279,14 @@ async def pds_links_put(pid: int, request: Request):
     try:
         rp = ref_pid(con, pid)
         L = _pds_links(con, pid, doc_no)
-        if ok:
+        if "dismiss" in b:                                   # valve57: 'this suspected pair is not a rename' (true) · undo (false)
+            if not ok:
+                return _err("old_tag 가 필요합니다")
+            if b["dismiss"]:
+                L[f"!{nk}|{ok}"] = {"by": _user(request), "at": store.now()}
+            else:
+                L.pop(f"!{nk}|{ok}", None)
+        elif ok:
             if ok == nk:
                 return _err("같은 Tag 입니다")
             L[nk] = {"old": ok, "by": _user(request), "at": store.now()}
@@ -1287,7 +1294,7 @@ async def pds_links_put(pid: int, request: Request):
             L.pop(nk, None)
         con.execute("INSERT OR REPLACE INTO project_setting(project_id, key, value, by, at) VALUES (?,?,?,?,?)",
                     (rp, f"pds.links.{doc_no}", json.dumps(L, ensure_ascii=False), _user(request), store.now()))
-        store.audit(con, rp, None, f"pds.links.{doc_no}", "pds-link", None, f"{nk} ← {ok or '(해제)'}", _user(request), doc_no)
+        store.audit(con, rp, None, f"pds.links.{doc_no}", "pds-link", None, f"{nk} ← {ok or '(해제)'}" + (f" · 변경 의심 아님={b['dismiss']}" if "dismiss" in b else ""), _user(request), doc_no)
         con.commit()
         return {"doc_no": doc_no, "links": L}
     finally:

@@ -379,3 +379,41 @@ def test_suspected_rename_is_a_note_only(tmp_path):
     assert [ws.cell(r + j, 6).value for j in range(4)] == ["이전", "최신", "변경 의심", "중요도"]
     assert ws.cell(r + 2, 3).value == "↳ 77XV010" and ws.cell(r + 2, 5).value == "Rev.B"
     assert f"A{r}:A{r + 3}" in {str(m) for m in ws.merged_cells.ranges}
+
+
+def test_suspect_by_line_and_dismiss(tmp_path, monkeypatch):
+    """valve57: a reworded Location no longer hides a pair — the same line (number + size) on the same P&ID is a second
+    ground, with its reason; the engineer can mark a suspected pair 'not this' (kept · undoable) or confirm it."""
+    from app.valve import pdsrev
+    old = [("Process Data for On-Off Valve", [
+        _row("77XV020", location="PROPANE REFRIGERANT TO COOLER|A|B", line_no='PR7720-4"(3R1B)-5', line_size='4"', piping_class="3R1B", pid_no="777-98-PR-PID-00011")])]
+    new = [("Process Data for On-Off Valve", [
+        _row("77XV120", location="FROM CHILLER PACKAGE|X|Y", line_no='PR7720-4"(3R1B)-X', line_size='4"', piping_class="3R1B", pid_no="777-98-PR-PID-00011")])]
+    o, n = _parse(tmp_path, "o.pdf", _pds(old, "B")), _parse(tmp_path, "n.pdf", _pds(new, "0"))
+    R = pdsrev.compare(o, n)
+    it = next(i for i in R["items"] if i["tag_key"] == "77XV120")
+    assert it["status"] == "New" and it["suspect"] == ["77XV020"] and it["suspect_vals"][0]["why"] == ["Line 번호 · P&ID"]
+    assert pdsrev.change_summary(R)["sizing"]["suspect"] == ["77XV120"]
+    R2 = pdsrev.compare(o, n, {"!77XV120|77XV020": {"by": "eng"}})                          # 'not this pair'
+    assert all("suspect" not in i for i in R2["items"]) and {i["status"] for i in R2["items"]} == {"New", "Delete"}
+
+    monkeypatch.setenv("PID_DATA_DIR", str(tmp_path / "data"))
+    from fastapi import FastAPI
+    from fastapi.testclient import TestClient
+    from app.valve import api
+    app = FastAPI()
+    app.include_router(api.router)
+    c = TestClient(app)
+    pid = c.post("/api/valve/projects", json={"name": "PDS SUS T"}).json()["id"]
+    for name, data in ((f"{DN}_B.pdf", _pds(old, "B")), (f"{DN}_0001_0_x.pdf", _pds(new, "0"))):
+        j = c.post(f"/api/valve/projects/{pid}/upload", data={"kind": "process"}, files=[("files", (name, data, "application/pdf"))]).json()
+        for _ in range(400):
+            if c.get(f"/api/valve/jobs/{j['id']}").json()["status"] == "done":
+                break
+            time.sleep(0.05)
+    sus = lambda: [i.get("suspect") for i in c.get(f"/api/valve/projects/{pid}/pds/compare", params={"doc_no": DN}).json()["items"]]   # noqa: E731
+    assert sus() == [["77XV020"], ["77XV120"]]
+    c.put(f"/api/valve/projects/{pid}/pds/links", json={"doc_no": DN, "new_tag": "77XV120", "old_tag": "77XV020", "dismiss": True})
+    assert sus() == [[], []]
+    c.put(f"/api/valve/projects/{pid}/pds/links", json={"doc_no": DN, "new_tag": "77XV120", "old_tag": "77XV020", "dismiss": False})
+    assert sus() == [["77XV020"], ["77XV120"]]

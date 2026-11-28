@@ -223,7 +223,22 @@ def compare(old: dict, new: dict, links: dict | None = None) -> dict:
         return bool(_line(o) and _line(o) == _line(n)) + bool(_pid(o) and _pid(o) == _pid(n))
     news = [it for it in items if it["status"] == "New"]
     dels = [it for it in items if it["status"] == "Delete"]
-    pairs = {(id(o), id(n)): _score(o["old"], n["new"]) for n in news for o in dels if _same_place(o["old"], n["new"])}
+    # valve57 (accuracy): a reworded Location hid real pairs ('PROPANE INLET TO CO2 COOLER' → 'CO2 COOLER (98-E9825) PROPANE
+    # INLET' was caught, 'PROPANE REFRIGERANT TO CO2 COOLER' → 'FROM TEG CHILLER PACKAGE TO CO2 COOLER' was not) — the same
+    # line (number + size) on the same P&ID is a second ground.  Pairs the engineer marked 'not this' are left out.
+    def _same_line(a, b):
+        return bool(_line(a) and _line(a) == _line(b) and _pid(a) and _pid(a) == _pid(b))
+    no = {k[1:] for k in (links or {}) if k.startswith("!")}
+    why = {}
+    pairs = {}
+    for n in news:
+        for o in dels:
+            if f"{n['tag_key']}|{o['tag_key']}" in no:
+                continue
+            place, line = _same_place(o["old"], n["new"]), _same_line(o["old"], n["new"])
+            if place or line:
+                pairs[(id(o), id(n))] = _score(o["old"], n["new"])
+                why[(o["tag"], n["tag"])] = (["Location · Line Size"] if place else []) + (["Line 번호 · P&ID"] if line else [])
     best_n = {}
     best_o = {}
     for (oi, ni), sc in pairs.items():
@@ -246,6 +261,7 @@ def compare(old: dict, new: dict, links: dict | None = None) -> dict:
             mine, theirs = (it["new"], other["old"]) if it["status"] == "New" else (it["old"], other["new"])
             it.setdefault("suspect_vals", []).append({
                 "tag": t, "side": "old" if it["status"] == "New" else "new",
+                "why": why.get((t, it["tag"]) if it["status"] == "New" else (it["tag"], t), []),
                 "values": {k: (theirs or {}).get(k) for k, _ in FIELDS},
                 "diff": [k for k, _ in FIELDS if k in both and judge(k, (mine or {}).get(k), (theirs or {}).get(k))]})
     order = {k: i for i, k in enumerate(N)}
@@ -290,6 +306,8 @@ SIZING = [
     ("new", "추가/삭제", "New (추가)", "이전 Rev.에 없음", lambda it: it["status"] == "New"),
     ("delete", "추가/삭제", "Delete (삭제) – 전체", "최신 Rev.에서 미확인", lambda it: it["status"] == "Delete"),
     ("delete_mov", "추가/삭제", "  └ 그중 MOV", "최신 Rev.에 MOV 섹션 없음 – 이관 여부 확인", lambda it: it["status"] == "Delete" and "MOV" in it["tag"].upper()),
+    ("suspect", "추가/삭제", "변경 의심 (미확정)", "New 중 Location·Line Size 또는 Line 번호·P&ID 가 같은 Delete 가 있음 – Rev. 비교에서 확정/아님",
+     lambda it: it["status"] == "New" and bool(it.get("suspect"))),
     ("renamed", "추가/삭제", "Tag 변경 (사용자 지정)", "New 에 이전 Tag 를 병기 – 그 Tag 와 비교 (New · Delete 에서 빠짐)", lambda it: it["status"] == RENAMED),
 ]
 

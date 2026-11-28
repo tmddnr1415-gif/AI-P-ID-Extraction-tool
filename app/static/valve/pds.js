@@ -35,7 +35,7 @@ const xl = (doc, lang, o, n) => download(`/projects/${S.pid}/pds_revcompare.xlsx
 const xlBtns = (doc, o, n) => `<button data-xl="ko" data-doc="${esc(doc || '')}" ${o ? `data-o="${o}" data-n="${n}"` : ''}>⇩ Excel (한글)</button>`
   + `<button data-xl="en" data-doc="${esc(doc || '')}" ${o ? `data-o="${o}" data-n="${n}"` : ''}>⇩ Excel (English)</button>`;
 function bindXl(el) { $$('[data-xl]', el).forEach(b => b.onclick = e => { e.stopPropagation(); xl(b.dataset.doc, b.dataset.xl, +b.dataset.o || 0, +b.dataset.n || 0); }); }
-function goCmp(doc, o, n) { P.cdoc = doc; P.old = o || null; P.nw = n || null; P.st = ''; P.lv = ''; P.only = null; P.open = new Set(); V.go('pcmp'); }
+function goCmp(doc, o, n) { P.cdoc = doc; P.old = o || null; P.nw = n || null; P.st = ''; P.lv = ''; P.only = null; P.sus = false; P.open = new Set(); V.go('pcmp'); }
 const counts = c => c ? `<span class="pcnt">${['High', 'Med', 'Min'].map(l => c[`changed_${l.toLowerCase()}`] ? `${lv(l)} ${c[`changed_${l.toLowerCase()}`]}` : '').filter(Boolean).join(' ')}
   · ${stp('Changed')} ${c.Changed || 0} · ${stp('No Change')} ${c['No Change'] || 0} · ${stp('New')} ${c.New || 0} · ${stp('Delete')} ${c.Delete || 0}${c['Tag 변경'] ? ` · ${stp('Tag 변경')} ${c['Tag 변경']}` : ''}</span>` : '';
 
@@ -103,10 +103,10 @@ async function renderTags() {
 }
 
 /* ── Rev. 비교 ────────────────────────────────────────────────────────── */
-async function renderCmp() {
-  const el = $('#v-pcmp');
-  el.innerHTML = '<div class="vh"><h2>Rev. 비교</h2></div><div class="soft">불러오는 중…</div>';
-  const sum = await api('GET', `/projects/${S.pid}/pds/summary`);
+async function renderCmp(keep) {                          // keep = after a link: no blank screen, the same place (valve57)
+  const el = $('#v-pcmp'), at = keep && grids.cmp ? grids.cmp.getScroll() : null;
+  if (!keep) { el.innerHTML = '<div class="vh"><h2>Rev. 비교</h2></div><div class="soft">불러오는 중…</div>'; P.sumC = null; }
+  const sum = P.sumC || (P.sumC = await api('GET', `/projects/${S.pid}/pds/summary`));
   const many = sum.documents.filter(d => d.revs.length >= 2);
   if (!many.length) { el.innerHTML = `<div class="vh"><h2>Rev. 비교</h2></div><div class="card"><div class="empty">같은 문서 번호로 두 Rev. 이상 올린 PDS 가 없습니다 — 수정 PDS 를 <b>PDS 올리기</b> 에서 넣으면 여기서 비교합니다.</div></div>`; return; }
   if (!many.some(d => d.doc_no === P.cdoc)) P.cdoc = many[0].doc_no;
@@ -124,6 +124,7 @@ async function renderCmp() {
       ${C.area ? `<span class="parea">${esc(C.area)}</span>` : ''}<span class="soft">Tag ${C.counts.old_tags} → ${C.counts.new_tags}</span>
       ${C.excluded_columns.length ? `<span class="soft" title="한쪽 Rev. 에만 있는 열 — 비교하지 않고 값만 표시">비교 제외 열: ${esc(C.excluded_columns.join(', '))}</span>` : ''}</div>
     <div class="rchips"><button data-st="">전체<b>${C.items.length}</b></button>${['Changed', 'Tag 변경', 'No Change', 'New', 'Delete'].map(s => `<button data-st="${s}">${stp(s)}<b>${cnt(s)}</b></button>`).join('')}
+      <button data-sus title="변경 의심 표시가 있는 New · Delete 만 — 줄의 ✓ 확정 / ✕ 아님 으로 정리"><span class="pst st-s">변경 의심</span><b>${C.items.filter(i => i.status === 'New' && (i.suspect || []).length).length}</b></button>
       <span class="sp" style="width:14px"></span>${['High', 'Med', 'Min'].map(l => `<button data-lv="${l}" title="종합 중요도">${lv(l)}<b>${cl(l)}</b></button>`).join('')}
       <label class="xchk"><input type="checkbox" data-only ${P.onlyChg ? 'checked' : ''}> 바뀐 열만</label>
       <input class="tq" placeholder="Tag · Location 찾기 (입력하는 대로)" value="${esc(P.cq)}"><span data-clr></span>
@@ -140,10 +141,10 @@ async function renderCmp() {
   const susp = i => (i.suspect || []).length ? `(변경 의심 "${i.suspect.join('", "')}")` : '';
   const view = () => {
     const q = P.cq.toUpperCase();
-    const items = C.items.filter(i => (!P.only || P.only.has(i.tag)) && (!P.st || i.status === P.st) && (!P.lv || i.overall === P.lv)
+    const items = C.items.filter(i => (!P.only || P.only.has(i.tag)) && (!P.sus || (i.suspect || []).length) && (!P.st || i.status === P.st) && (!P.lv || i.overall === P.lv)
       && (!q || [i.tag, i.old_tag, i.new?.location, i.old?.location].join(' ').toUpperCase().includes(q)));
     const fk = P.onlyChg ? keys.filter(k => items.some(i => i.imp[k])) : keys;
-    const cols = [{ label: 'No', w: 40 }, { label: 'Status', w: 92 }, { label: 'Tag', w: 178 }, { label: '이전 Tag', w: 160 }, { label: 'Rev.', w: 54 }, { label: 'Row', w: 66 },
+    const cols = [{ label: 'No', w: 40 }, { label: 'Status', w: 92 }, { label: 'Tag', w: 178 }, { label: '이전 Tag', w: 250 }, { label: 'Rev.', w: 54 }, { label: 'Row', w: 66 },
       ...fk.map(k => ({ label: lab[k], w: fw(k) })), { label: '중요도(종합)', w: 86 }, { label: '비고 / 사유', w: 300 }];
     const rows = [];
     items.forEach((i, n) => {
@@ -159,7 +160,9 @@ async function renderCmp() {
           j === 1 && susp(i) ? { v: susp(i), c: 'xsus xm', t: `${susp(i)} — Location 이 비슷하고 Line Size · (Line 번호 또는 P&ID) 가 같음 · 참고 표시, 상태는 그대로 · ${i.status === 'New' ? "'이전 Tag 지정' 에서 확정" : '최신 Rev. 의 그 Tag 에서 확정'}` }
             : sv ? { v: `↳ ${sv.tag}`, c: 'xsusr xm', t: `변경 의심 Tag ${sv.tag} — 아래 칸은 이 Tag 의 Process Data` }
             : { v: j ? '' : i.tag, c: 'xb' + m, t: i.tag },
-          j ? { v: '', c: 'xm' } : { v: i.old_tag || '', h: prevH(i), c: 'xprev', t: i.status === 'Tag 변경' ? `이전 Tag ${i.old_tag} (지정: ${i.link?.by || ''} ${(i.link?.at || '').slice(0, 10)})` : i.status === 'New' ? 'New — 이전 Tag 를 지정하면 Tag 변경' : '' },
+          sv ? { v: (sv.why || []).join(' + '), h: `<button class="xok" data-ok="${esc(i.status === 'New' ? i.tag : sv.tag)}" data-old="${esc(i.status === 'New' ? sv.tag : i.tag)}" title="Tag 변경으로 확정 — 이 두 Tag 를 값끼리 비교 · Summary · Excel 반영">✓ 확정</button><button class="xno" data-no="${esc(i.status === 'New' ? i.tag : sv.tag)}" data-old="${esc(i.status === 'New' ? sv.tag : i.tag)}" title="변경 의심 아님 — 이 짝의 표시를 지움 (기록됨)">✕ 아님</button> <span class="xwhy">${esc((sv.why || []).join(' + '))}</span>`,
+              c: 'xprev xm', t: `근거: ${(sv.why || []).join(' + ')} 같음 — ✓ 확정 = Tag 변경 · ✕ 아님 = 표시 지움` }
+          : j ? { v: '', c: 'xm' } : { v: i.old_tag || '', h: prevH(i), c: 'xprev', t: i.status === 'Tag 변경' ? `이전 Tag ${i.old_tag} (지정: ${i.link?.by || ''} ${(i.link?.at || '').slice(0, 10)})` : i.status === 'New' ? 'New — 이전 Tag 를 지정하면 Tag 변경' : '' },
           { v: revLab, c: sv ? 'xsusr' : '' }, { v: rowLab, c: sv ? 'xrow xsusr' : 'xrow', t: sv ? `변경 의심 Tag ${sv.tag} 의 Process Data (${revLab}) — 주황 = 이 Tag 의 값과 다른 칸` : rowLab }];
         fk.forEach((k, x) => {
           const ch = !!i.imp[k], fxT = ch ? `${lab[k]}: ${o?.[k] ?? ''} → ${nv?.[k] ?? ''} (${i.imp[k]})` : null;
@@ -181,23 +184,32 @@ async function renderCmp() {
     $('[data-cnt]', el).textContent = `Tag ${items.length}개 · ${rows.length}줄`;
     $('[data-clr]', el).innerHTML = P.only ? `<button data-clrb title="변경 Summary 에서 고른 Tag 만 보는 중 — 누르면 모두">✕ 고른 Tag ${P.only.size}개만</button>` : '';
     $$('[data-st]', el).forEach(b => b.classList.toggle('on', b.dataset.st === P.st));
+    $('[data-sus]', el).classList.toggle('on', !!P.sus);
     $$('[data-lv]', el).forEach(b => b.classList.toggle('on', b.dataset.lv === P.lv));
     return { cols, rows };
   };
   const setLink = async (nt, ot) => {
     try { await api('PUT', `/projects/${S.pid}/pds/links`, { doc_no: C.doc_no, new_tag: nt, old_tag: ot });
-      toast(ot ? `${nt} ← 이전 ${ot} : Tag 변경으로 비교합니다 (Summary · Excel 반영)` : `${nt} Tag 변경 지정 해제`); renderCmp(); }
+      toast(ot ? `${nt} ← 이전 ${ot} : Tag 변경으로 비교합니다 (Summary · Excel 반영)` : `${nt} Tag 변경 지정 해제`); renderCmp(true); }
+    catch (e) { toast(e.message, 1); } };
+  const notThis = async (nt, ot) => {
+    try { await api('PUT', `/projects/${S.pid}/pds/links`, { doc_no: C.doc_no, new_tag: nt, old_tag: ot, dismiss: true });
+      toast(`${nt} ↔ ${ot} : 변경 의심 아님으로 기록`); renderCmp(true); }
     catch (e) { toast(e.message, 1); } };
   const first = view();
   const g = grid('cmp', $('[data-grid]', el), { cols: first.cols, rows: first.rows, freeze: 3,
     onAction(t, e) { if (t.matches('select.xlink') && e.type === 'change' && t.value) setLink(t.dataset.new, t.value);
-      else if (t.matches('[data-unl]') && e.type === 'click') setLink(t.dataset.unl, ''); } });
+      else if (t.matches('[data-unl]') && e.type === 'click') setLink(t.dataset.unl, '');
+      else if (t.matches('[data-ok]') && e.type === 'click') setLink(t.dataset.ok, t.dataset.old);
+      else if (t.matches('[data-no]') && e.type === 'click') notThis(t.dataset.no, t.dataset.old); } });
+  if (at) grids.cmp.setScroll(at[0], at[1]);
   const refresh = () => { const v = view(); g.setCols(v.cols, v.rows); };
   bindXl(el);
   $('select[data-c="doc"]', el).onchange = e => goCmp(e.target.value);
   $('select[data-c="old"]', el).onchange = e => { P.old = +e.target.value; P.nw = nw.id; renderCmp(); };
   $('select[data-c="new"]', el).onchange = e => { P.nw = +e.target.value; P.old = null; renderCmp(); };
   $$('[data-st]', el).forEach(b => b.onclick = () => { P.st = b.dataset.st; refresh(); });
+  $('[data-sus]', el).onclick = () => { P.sus = !P.sus; refresh(); };
   $$('[data-lv]', el).forEach(b => b.onclick = () => { P.lv = P.lv === b.dataset.lv ? '' : b.dataset.lv; refresh(); });
   $('[data-only]', el).onchange = e => { P.onlyChg = e.target.checked; refresh(); };
   $('[data-clr]', el).onclick = e => { if (e.target.closest('[data-clrb]')) { P.only = null; refresh(); } };

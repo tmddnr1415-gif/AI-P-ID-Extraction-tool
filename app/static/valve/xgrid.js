@@ -202,6 +202,7 @@ function XGrid(host, opt) {
     setRows(rows) { G.rows = rows; G.sel = null; G.act = null; sc.scrollTop = 0; size(); draw(true); status(); },
     setCols(cols, rows, freeze) { G.cols = cols; if (freeze != null) G.freeze = freeze; G.freeze = Math.min(G.freeze, cols.length); if (rows) G.rows = rows; G.sel = null; G.act = null; head(); fillJump(); size(); draw(true); status(); },
     get rows() { return G.rows; }, focus() { sc.focus(); },
+    getScroll() { return [sc.scrollTop, sc.scrollLeft]; }, setScroll(t, l) { sc.scrollTop = t; sc.scrollLeft = l; draw(true); },
     destroy() { ro.disconnect(); removeEventListener('mouseup', up); if (G.raf) cancelAnimationFrame(G.raf); host.innerHTML = ''; },
   };
 }

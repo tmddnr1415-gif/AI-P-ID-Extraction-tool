@@ -1,11 +1,11 @@
 # 인수인계 — "VALVE Datasheet 검토" 세션 (상한 15KB · 목표 12KB 아래 · 덧붙이지 말고 고쳐 쓴다)
 
-## 지금 상태 (2026-11-27 · valve56)
+## 지금 상태 (2026-11-28 · valve57)
 
 - 브랜치 `ccr-efbe7e75-n915ze`. 무엇: P&ID 서버(8000) `/valve/` — 대시보드 **Datasheet** 메뉴의 Valve(Ball · Globe · Butterfly · PSV) ·
   Instrument 14종 · 현황판 · Instrument/IO List · 공통 자료.
 - **꾸러미는 오케스트레이터가 만든다** (`session_01Muj82FygSCFAVRooofwhVK`, 통합 hotfixNNN). 이 세션은 개발 · 시험 · 커밋 · 푸시 →
-  send_message 로 "커밋 · 바뀐 파일 · 시험 결과 · 회사에 알릴 한 줄". zip 을 직접 만들지 않는다. 회사 최신 = hotfix145 (valve41 · 오케스트레이터 알림) — valve42~56 은 아직 꾸러미 전.
+  send_message 로 "커밋 · 바뀐 파일 · 시험 결과 · 회사에 알릴 한 줄". zip 을 직접 만들지 않는다. 회사 최신 = hotfix145 (valve41 · 오케스트레이터 알림) — valve42~57 은 아직 꾸러미 전.
 - 대시보드 세션(`session_016Ntz71xxniTkCj7pC8ZpXL`)은 `/api/valve/*` 를 읽는다 — **필드 이름 · Area 값이 바뀌면 알린다**.
 - 방향(사용자 지시서): 엔진이 핵심 · 기존 판정 불변 · OCR/LLM 금지 · 문서에 없는 값은 만들지 않음 · 새 규칙마다 Rule ID · 모든 판정에 출처.
 - **자료 금지**: 발주처 원본(Datasheet · PMS · PDS · 빈 양식 · List · 그것으로 만든 시험 PDF · 그 화면 캡처)은 저장소에 올리지 않는다.
@@ -56,7 +56,7 @@
   valve48: 메뉴 **변경 Summary**(`pds/change_summary`, `pdsrev.change_summary` · `SIZING`) = Excel Summary · Sizing 시트 숫자(v2 예시와 모두 같음) + Size 변경 · High 목록, 숫자 누르면 Rev. 비교에서 그 Tag 만.
   valve49: **Tag 변경(사용자 지정)** — Rev. 비교의 New 줄에서 '이전 Tag 지정'(그 비교의 Delete 중) → 그 Tag 와 비교 · New/Delete 에서 빠짐 · Summary/Sizing/Excel(D 열 '이전 Tag', 'Tag 변경' 열·줄) 반영.
   valve50: PDS 표는 모두 `app/static/valve/xgrid.js`(가벼운 시트: 화면에 보이는 줄·열만 그림 · 셀 고르기/드래그/Shift · 화살표·Tab·Enter·PgUp/Dn·Home/End · Ctrl+C(TSV)·Ctrl+A · 열 문자/행 번호로 열·줄 고르기 · 열 너비 끌기 · 이름 상자 + fx 줄 · 좌우: Shift+휠 · 머리 위 휠 · ◀ ▶ · '열로 가기' · Alt+PgUp/Dn (valve53) · **열 고정**(목록 'X까지' · ❄ = 고른 열까지 · 고정선 · 보는 사람 브라우저에 기억, valve54)).
-  valve55: **(변경 의심 "X")** — New·Delete 중 Location 비슷(작은 말 뺀 단어 60%)·Line Size 같음, 같은 Line/P&ID 점수로 서로 가장 맞는 짝만 · Tag 아래 표시(화면·Excel) · 상태는 그대로 · '이전 Tag 지정' 목록 맨 위 ★ · valve56: 의심 Tag 마다 '변경 의심' 줄(↳ Tag · 그 Tag 의 Process Data · 다른 칸 주황, 화면·Excel).
+  valve55: **(변경 의심 "X")** — New·Delete 중 Location 비슷(작은 말 뺀 단어 60%)·Line Size 같음, 같은 Line/P&ID 점수로 서로 가장 맞는 짝만 · Tag 아래 표시(화면·Excel) · 상태는 그대로 · '이전 Tag 지정' 목록 맨 위 ★ · valve56: 의심 Tag 마다 '변경 의심' 줄(↳ Tag · 그 Tag 의 Process Data · 다른 칸 주황, 화면·Excel) · valve57: 두 번째 근거 '같은 Line 번호+Size · 같은 P&ID'(Location 문구가 바뀐 짝) · 의심 줄에 근거 + ✓ 확정 / ✕ 아님(`pds.links` 의 '!새|이전' 키) · '변경 의심' 칩 · Summary '변경 의심 (미확정)' 줄.
   저장 = 기준 프로젝트 project_setting `pds.links.<문서 번호>` ({새 tag: {old, by, at}}) · `PUT /projects/{pid}/pds/links` · 프로그램은 짝을 추정하지 않음. PDS 는 여기서 올려도 공통 자료와 같은 곳(기준 프로젝트)에 보관. 검토는 이제 **문서 번호마다 최신 Rev.** 을 합쳐 씀
   (`api._process_for` — 98 · 999 · 315 동시). PDS 표 읽기: 칸마다 끊긴 세로 괘선 이어 붙임 · 가로 괘선으로 줄 나눔(`process._rebox`, `READER_V=2` → 예전 읽음은 자동 다시 읽기).
 - **Project Valve Specification (valve42)**: 공통 자료 종류 'vspec' → `vspec.read_spec`(조항) · `vspec.findings` SP-01~15(조항 문구로 찾고 값은 조항에서) →
